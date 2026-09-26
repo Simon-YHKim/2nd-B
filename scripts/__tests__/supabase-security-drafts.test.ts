@@ -17,9 +17,19 @@ const drafts = readdirSync(join(ROOT, "db", "migration-drafts"))
   .sort();
 
 const standaloneDrafts = [
-  "UNNUMBERED_effective_llm_consent_current_contract.sql",
   "UNNUMBERED_oauth_naver_rate_limit_completion.sql",
   "UNNUMBERED_rss_proxy_quota.sql",
+] as const;
+
+const promoted = [
+  ["0191", "signup_consent_admob_20260925"],
+  ["0192", "account_deletion_completion_fence"],
+  ["0193", "effective_llm_consent_current_contract"],
+  ["0194", "llm_service_consent_management"],
+  ["0195", "polaris_generation_allowance"],
+  ["0196", "reward_ssv_hardening"],
+  ["0197", "paddle_refund_consequence_integrity"],
+  ["0198", "service_contract_erasure_registry"],
 ] as const;
 
 const behaviorDrafts = {
@@ -54,6 +64,7 @@ const behaviorDrafts = {
   },
   "UNNUMBERED_reward_ssv_hardening.sql": {
     runner: rewardRunner,
+    runnerMigration: "0196_reward_ssv_hardening.sql",
     workflowInvocation: "run: bash scripts/check-reward-ssv-db.sh",
   },
 } as const;
@@ -61,8 +72,24 @@ const behaviorDrafts = {
 describe("scratch PostgreSQL coverage for inactive security drafts", () => {
   test("accounts for every unnumbered draft exactly once", () => {
     expect(drafts).toEqual(
-      [...standaloneDrafts, ...Object.keys(behaviorDrafts)].sort(),
+      [...standaloneDrafts, ...Object.keys(behaviorDrafts),
+        "UNNUMBERED_effective_llm_consent_current_contract.sql"].sort(),
     );
+  });
+
+  test("numbered replay uses the exact reviewed SQL from every retained draft", () => {
+    const step = workflow.slice(
+      workflow.indexOf("- name: Verify promoted server-first contracts"),
+      workflow.indexOf("- name: Exercise the 0189 rollback round trip"),
+    );
+    for (const [version, stem] of promoted) {
+      expect(read(`db/migrations/${version}_${stem}.sql`))
+        .toBe(read(`db/migration-drafts/UNNUMBERED_${stem}.sql`));
+      expect(step).toContain(`${version}:${stem}`);
+    }
+    expect(step).toContain("cmp -s");
+    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 70");
+    expect(step).not.toMatch(/\\i db\/migration-drafts\/UNNUMBERED_/);
   });
 
   test.each(standaloneDrafts)("executes and rolls back %s in the pinned workflow", (draft) => {
@@ -76,22 +103,23 @@ describe("scratch PostgreSQL coverage for inactive security drafts", () => {
     expect(step).toMatch(/psql -X[\s\S]*BEGIN;[\s\S]*\\i \$draft[\s\S]*ROLLBACK;/);
   });
 
-  test("applies the effective-consent prerequisite only inside its rollback transaction", () => {
+  test("does not reapply the promoted effective-consent draft after numbered replay", () => {
     const step = workflow.slice(
       workflow.indexOf("- name: Dry-run standalone security migration drafts"),
       workflow.indexOf("- name: Exercise content-erasure RPC isolation"),
     );
-    expect(step).toMatch(/for draft in "\$\{drafts\[@\]\}"; do\s+prerequisite_sql=""/);
-    expect(step).toMatch(/if \[\[ "\$draft" == "db\/migration-drafts\/UNNUMBERED_effective_llm_consent_current_contract\.sql" \]\]; then\s+prerequisite_sql='\\i db\/migration-drafts\/UNNUMBERED_signup_consent_admob_20260925\.sql'\s+fi/);
-    expect(step).toMatch(/<<SQL\s+BEGIN;\s+\$prerequisite_sql\s+\\i \$draft\s+ROLLBACK;\s+SQL/);
+    expect(step).not.toContain("UNNUMBERED_effective_llm_consent_current_contract.sql");
+    expect(step).toMatch(/<<SQL\s+BEGIN;\s+\\i \$draft\s+ROLLBACK;\s+SQL/);
     expect(step).not.toMatch(/\bCOMMIT\s*;/);
   });
 
   test.each(Object.entries(behaviorDrafts))(
     "executes %s from its behavioral scratch lane",
-    (draft, { runner, workflowInvocation }) => {
-      const escapedDraft = draft.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      expect(runner).toMatch(new RegExp(`\\\\i(?:r)?\\s+[^\\r\\n]*${escapedDraft}`));
+    (draft, contract) => {
+      const { runner, workflowInvocation } = contract;
+      const migration = "runnerMigration" in contract ? contract.runnerMigration : draft;
+      const escapedMigration = migration.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      expect(runner).toMatch(new RegExp(`\\\\i(?:r)?\\s+[^\\r\\n]*${escapedMigration}`));
       expect(workflow).toContain(workflowInvocation);
     },
   );

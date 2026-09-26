@@ -315,54 +315,46 @@ jobs:
             END IF;
           END $$;
           SQL
-      - name: Apply cumulative server-first drafts on an isolated scratch clone
+      - name: Verify promoted server-first contracts after numbered scratch replay
         env:
           PGPASSWORD: postgres
         run: |
           set -euo pipefail
-          # Reuse the rollback lane's TEMPLATE clone pattern after all 173
-          # numbered migrations. The service container is disposable; leave the
-          # uniquely named clone until that container is torn down.
-          # This proves a fresh-schema SQL transaction, not production data,
-          # Supabase's timestamp ledger, Edge secrets, or the unreserved numbers.
-          unset PGHOSTADDR PGSERVICE PGHOST PGPORT PGUSER PGDATABASE
-          if [[ ! "${GITHUB_RUN_ID:-}" =~ ^[0-9]+$ || ! "${GITHUB_RUN_ATTEMPT:-}" =~ ^[0-9]+$ ]]; then
-            echo "cumulative draft check requires a GitHub Actions scratch run" >&2
-            exit 1
-          fi
-          draft_db="draft_cumulative_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
-          sql() { # <database> <one SQL statement>; loopback and CI-only password
-            psql -X --no-password -qAt -h 127.0.0.1 -p 5432 -U postgres -d "$1" \
-              -v ON_ERROR_STOP=1 -c "$2"
-          }
-          if [[ "$(sql postgres "SELECT count(*) FROM pg_catalog.pg_database WHERE datname='$draft_db'")" != "0" ]]; then
-            echo "refusing to replace pre-existing scratch database [$draft_db]" >&2
-            exit 1
-          fi
-          if [[ "$(sql postgres 'SELECT count(*) FROM public.erasure_registry')" != "66" ]]; then
-            echo "numbered migration baseline no longer has 66 registry rows" >&2
-            exit 1
-          fi
-          ledger_sql="SELECT md5(coalesce(string_agg(row_to_json(m)::text, '|' ORDER BY m.version, m.name), '')) FROM supabase_migrations.schema_migrations AS m"
-          ledger_before="$(sql postgres "$ledger_sql")"
-          sql postgres "CREATE DATABASE $draft_db TEMPLATE postgres"
-
-          # One transaction preserves SET LOCAL in the drafts and prevents a
-          # partial package from passing. A failed preflight aborts this lane.
-          psql -X --no-password -h 127.0.0.1 -p 5432 -U postgres -d "$draft_db" \
-            -v ON_ERROR_STOP=1 <<'SQL'
+          # The staged CLI push above already executed 0191-0198 once in order.
+          # Keep the retained draft fixtures byte-identical to those numbered
+          # files, then inspect the resulting scratch schema without replaying
+          # provisioning or rewriting the ledger.
+          for mapping in \
+            0191:signup_consent_admob_20260925 \
+            0192:account_deletion_completion_fence \
+            0193:effective_llm_consent_current_contract \
+            0194:llm_service_consent_management \
+            0195:polaris_generation_allowance \
+            0196:reward_ssv_hardening \
+            0197:paddle_refund_consequence_integrity \
+            0198:service_contract_erasure_registry; do
+            version="${mapping%%:*}"
+            stem="${mapping#*:}"
+            if ! cmp -s "db/migration-drafts/UNNUMBERED_${stem}.sql" "db/migrations/${version}_${stem}.sql"; then
+              echo "promoted migration differs from its reviewed draft: ${version}_${stem}.sql" >&2
+              exit 1
+            fi
+          done
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
           BEGIN;
-          \i db/migration-drafts/UNNUMBERED_signup_consent_admob_20260925.sql
-          \i db/migration-drafts/UNNUMBERED_account_deletion_completion_fence.sql
-          \i db/migration-drafts/UNNUMBERED_effective_llm_consent_current_contract.sql
-          \i db/migration-drafts/UNNUMBERED_llm_service_consent_management.sql
-          \i db/migration-drafts/UNNUMBERED_polaris_generation_allowance.sql
-          \i db/migration-drafts/UNNUMBERED_reward_ssv_hardening.sql
-          \i db/migration-drafts/UNNUMBERED_paddle_refund_consequence_integrity.sql
-          \i db/migration-drafts/UNNUMBERED_service_contract_erasure_registry.sql
           DO $verify$
           BEGIN
-            IF (SELECT count(*) FROM public.erasure_registry) <> 70
+            IF (SELECT count(*) FROM supabase_migrations.schema_migrations
+                WHERE (version, name) IN (VALUES
+                  ('0191', 'signup_consent_admob_20260925'),
+                  ('0192', 'account_deletion_completion_fence'),
+                  ('0193', 'effective_llm_consent_current_contract'),
+                  ('0194', 'llm_service_consent_management'),
+                  ('0195', 'polaris_generation_allowance'),
+                  ('0196', 'reward_ssv_hardening'),
+                  ('0197', 'paddle_refund_consequence_integrity'),
+                  ('0198', 'service_contract_erasure_registry'))) <> 8
+               OR (SELECT count(*) FROM public.erasure_registry) <> 70
                OR (SELECT count(*) FROM public.erasure_registry WHERE table_name IN (
                  'account_deletion_tombstones', 'llm_consent_receipts',
                  'polaris_generations', 'reward_ssv_issue_rate_limits')) <> 4
@@ -380,18 +372,13 @@ jobs:
                OR has_function_privilege('authenticated','public.erase_my_data(text)','EXECUTE')
                OR NOT has_function_privilege('service_role','public.llm_service_consent_status(uuid)','EXECUTE')
             THEN
-              RAISE EXCEPTION 'cumulative server-first draft contract failed';
+              RAISE EXCEPTION 'promoted server-first migration contract failed';
             END IF;
           END
           $verify$;
-          COMMIT;
+          ROLLBACK;
           SQL
-
-          if [[ "$(sql "$draft_db" "$ledger_sql")" != "$ledger_before" ]]; then
-            echo "cumulative draft SQL unexpectedly changed the CLI migration ledger" >&2
-            exit 1
-          fi
-          echo "PASS: eight drafts applied together on a fresh scratch clone; 70 registry rows, contracts and ACL verified; numbered ledger unchanged"
+          echo "PASS: eight numbered migrations executed once by CLI; draft bytes, 70 registry rows, contracts and ACL verified"
       # db/migrations/rollback/0189_down.sql is run by hand, mid-incident, and the
       # next `db push` is then trusted to put everything back. Nothing exercised
       # that path, and it was broken. The rollback deleted only its OWN ledger row
@@ -554,7 +541,7 @@ jobs:
           port="${PGPORT:-5432}"
           source_db="${PGDATABASE:-postgres}"
           down="db/migrations/rollback/0189_down.sql"
-          pair="erasure_registry lock_erase_my_data_authenticated"
+          pair="erasure_registry lock_erase_my_data_authenticated service_contract_erasure_registry"
           run_token="${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$_${RANDOM}"
           control_db="rollback_control_${run_token}"
           fixed_db="rollback_fixed_${run_token}"
@@ -606,7 +593,8 @@ jobs:
           ledger_pair() { # <db>
             sql "$1" "SELECT COALESCE(pg_catalog.string_agg(m.name, ' ' ORDER BY m.version), '(none)')
                       FROM supabase_migrations.schema_migrations AS m
-                      WHERE m.name IN ('erasure_registry', 'lock_erase_my_data_authenticated')"
+                      WHERE m.name IN ('erasure_registry', 'lock_erase_my_data_authenticated',
+                                       'service_contract_erasure_registry')"
           }
           can_execute() { # <db> <role>
             sql "$1" "SELECT pg_catalog.has_function_privilege('$2', 'public.erase_my_data(text)', 'EXECUTE')"
@@ -889,11 +877,12 @@ jobs:
             fi
           done
 
-          echo "== control: the rollback, with 0190's ledger row put back (the pre-fix end state)"
+          echo "== control: retain 0190 and the registry forward, then replay only 0189"
           clone "$control_db"
           sql "$control_db" "CREATE TABLE supabase_migrations.rollback_probe_kept AS
                              SELECT * FROM supabase_migrations.schema_migrations
-                             WHERE name = 'lock_erase_my_data_authenticated'"
+                             WHERE name IN ('lock_erase_my_data_authenticated',
+                                            'service_contract_erasure_registry')"
           roll_back "$control_db"
           # ON CONFLICT: if the rollback under test leaves the row in place (the very
           # regression this lane is for), the control still builds the same state
@@ -906,8 +895,8 @@ jobs:
           push_again "$control_db"
           control_open="$(can_execute "$control_db" authenticated)"
           echo "control: ledger before the re-push [$control_ledger] -> authenticated EXECUTE after it = $control_open"
-          if [[ "$control_ledger" != "lock_erase_my_data_authenticated" ]]; then
-            fail "the control did not reach the pre-fix state: ledger held [$control_ledger], expected only lock_erase_my_data_authenticated"
+          if [[ "$control_ledger" != "lock_erase_my_data_authenticated service_contract_erasure_registry" ]]; then
+            fail "the control did not reach the pre-fix state: ledger held [$control_ledger], expected 0190 and the registry forward"
           fi
           if [[ "$control_open" != "t" ]]; then
             fail "VACUOUS. With 0190's ledger row left behind, erase_my_data should come back executable by authenticated, and it did not (authenticated EXECUTE = $control_open). This database cannot show the hole, so the verdict below proves nothing. Either the function default-privilege floor is missing (see \"Seed Supabase compatibility layer\") or the CLI no longer skips an applied version."
@@ -1118,7 +1107,7 @@ jobs:
           # that is not erasure_registry, happens twice. See "not collected" above.
           need_index=0
           needs() { # <ledger name>
-            local case_db push_log push_rc state
+            local case_db push_log push_rc state causal_failure
             if [[ ! "$1" =~ ^[A-Za-z0-9_]+$ ]]; then
               fail "cannot ask whether [$1] is needed: the name goes into SQL text here, so only letters, digits and _ are taken."
               return
@@ -1144,19 +1133,28 @@ jobs:
             cat "$push_log"
 
             if (( push_rc != 0 )); then
-              if [[ "$1" != "erasure_registry" ]] \
-                || ! grep -Fq "Applying migration 0190_lock_erase_my_data_authenticated.sql" "$push_log" \
-                || ! grep -Fq "function public.erase_my_data(text) does not exist" "$push_log" \
-                || ! grep -Fq "SQLSTATE 42883" "$push_log"; then
-                fail "INCONCLUSIVE necessity check: '$1' re-push exited $push_rc without the exact causal 0190 missing-function signature. Infrastructure, CLI, authentication, timeout, and unrelated SQL failures are never evidence that a ledger row belongs in c_names."
+              causal_failure=""
+              if [[ "$1" == "erasure_registry" ]] \
+                && grep -Fq "Applying migration 0190_lock_erase_my_data_authenticated.sql" "$push_log" \
+                && grep -Fq "function public.erase_my_data(text) does not exist" "$push_log" \
+                && grep -Fq "SQLSTATE 42883" "$push_log"; then
+                causal_failure="0190/42883 missing function"
+              elif [[ "$1" == "lock_erase_my_data_authenticated" ]] \
+                && grep -Fq "Applying migration 0198_service_contract_erasure_registry.sql" "$push_log" \
+                && grep -Fq "erasure_additions_rpc_must_remain_locked" "$push_log" \
+                && grep -Fq "SQLSTATE P0001" "$push_log"; then
+                causal_failure="0198/P0001 unlocked function"
+              fi
+              if [[ -z "$causal_failure" ]]; then
+                fail "INCONCLUSIVE necessity check: '$1' re-push exited $push_rc without a reviewed causal SQL failure. Infrastructure, CLI, authentication, timeout, and unrelated SQL failures are never evidence that a ledger row belongs in c_names."
                 return
               fi
 
-              echo "need: '$1' produced the expected 0190/42883 failure; remove only that retained row and require recovery."
+              echo "need: '$1' produced the expected $causal_failure; remove only that retained row and require recovery."
               sql "$case_db" "DELETE FROM supabase_migrations.schema_migrations
                               WHERE name = '$1'"
               if ! push_again "$case_db"; then
-                fail "CAUSALITY recovery failed: '$1' had the expected 0190/42883 error, but deleting only its retained ledger row did not make the re-push succeed."
+                fail "CAUSALITY recovery failed: '$1' had the expected $causal_failure, but deleting only its retained ledger row did not make the re-push succeed."
                 return
               fi
               if [[ "$(sql "$case_db" "SELECT pg_catalog.to_regclass('public.erasure_registry') IS NOT NULL
@@ -1238,24 +1236,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Other drafts have behavioral lanes. Execute these against the main
-          # scratch schema and roll back each draft together with its prerequisite;
-          # the signup lane's separate database cannot supply this dependency.
+          # The promoted consent draft already ran in the numbered CLI push.
+          # Only these two still-unnumbered drafts run against this scratch DB.
           drafts=(
-            db/migration-drafts/UNNUMBERED_effective_llm_consent_current_contract.sql
             db/migration-drafts/UNNUMBERED_oauth_naver_rate_limit_completion.sql
             db/migration-drafts/UNNUMBERED_rss_proxy_quota.sql
           )
 
           for draft in "${drafts[@]}"; do
-            prerequisite_sql=""
-            if [[ "$draft" == "db/migration-drafts/UNNUMBERED_effective_llm_consent_current_contract.sql" ]]; then
-              prerequisite_sql='\i db/migration-drafts/UNNUMBERED_signup_consent_admob_20260925.sql'
-            fi
             echo "Dry-running $draft"
             psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 <<SQL
           BEGIN;
-          $prerequisite_sql
           \i $draft
           ROLLBACK;
           SQL

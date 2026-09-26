@@ -563,7 +563,7 @@ describe(`${FILE} -- structure`, () => {
     expect(readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql"))).not.toContain("0189_down.sql");
   });
 
-  test("the rollback clears BOTH ledger rows, inside the transaction that drops the function", () => {
+  test("the rollback clears the base, lock and forward ledger rows in one transaction", () => {
     // 0190 locks the function OBJECT that 0189 creates, so dropping the function
     // takes 0190's revoke with it. The rollback used to delete only its own
     // ledger row (name = 'erasure_registry'). 0190's row survived, the next push
@@ -583,9 +583,10 @@ describe(`${FILE} -- structure`, () => {
     const expected = [FILE, LOCK_FILE].map(ledgerName);
     expect(expected).toEqual(["erasure_registry", "lock_erase_my_data_authenticated"]);
 
-    // These two at least. The list grows with every later migration that leans on
-    // the same objects, and the next test is what makes it grow; pinning it to
-    // exactly two here would turn that growth red.
+    // 0198 adds four rows to the registry object that this rollback drops.
+    // Its ledger row must be removed so the next push restores those rows.
+    expected.push("service_contract_erasure_registry");
+    // The list grows with every later migration that leans on these objects.
     const names = rollbackLedgerNames();
     expect(names).toEqual(expect.arrayContaining(expected));
 

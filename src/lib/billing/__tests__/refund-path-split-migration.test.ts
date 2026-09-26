@@ -116,12 +116,12 @@ describe("refund migrations - each function's live definition is pinned", () => 
     expect(defs[defs.length - 1]).toBe("0136_refund_path_split.sql");
   });
 
-  test("apply_billing_refund remains live in 0136 while its repair is an unnumbered draft", () => {
+  test("apply_billing_refund is last defined by the promoted integrity migration", () => {
     const defs = readdirSync(MIGRATIONS)
       .filter((f) => f.endsWith(".sql"))
       .sort()
       .filter((f) => /CREATE OR REPLACE FUNCTION public\.apply_billing_refund\b/i.test(read(f)));
-    expect(defs[defs.length - 1]).toBe("0136_refund_path_split.sql");
+    expect(defs[defs.length - 1]).toBe("0197_paddle_refund_consequence_integrity.sql");
     expect(migrationWorkflow).toContain(
       "\\i db/migration-drafts/UNNUMBERED_paddle_refund_consequence_integrity.sql",
     );

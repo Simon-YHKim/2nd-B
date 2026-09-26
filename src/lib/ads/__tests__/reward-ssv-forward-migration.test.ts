@@ -21,7 +21,7 @@ const dbRegression = readFileSync(
 const ownership = readFileSync(path.join(root, "docs", "SESSION-OWNERSHIP.md"), "utf8");
 const envExample = readFileSync(path.join(root, ".env.example"), "utf8");
 
-describe("unnumbered rewarded SSV hardening draft", () => {
+describe("rewarded SSV hardening migration", () => {
   test("keeps the live client unit coupled to the server SSV contract", () => {
     expect(envExample).toMatch(/^EXPO_PUBLIC_REWARD_SSV=$/m);
     expect(envExample).toMatch(/^EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID=$/m);
@@ -202,9 +202,10 @@ describe("unnumbered rewarded SSV hardening draft", () => {
     expect(migrationWorkflow).toContain("REWARD_SSV_DB_TEST: github-actions-only");
     expect(
       dbRegression.match(
-        /\\i db\/migration-drafts\/UNNUMBERED_reward_ssv_hardening\.sql/g,
+        /\\i db\/migrations\/0196_reward_ssv_hardening\.sql/g,
       ) ?? [],
-    ).toHaveLength(2);
+    ).toHaveLength(1);
+    expect(dbRegression).not.toContain("\\i db/migration-drafts/UNNUMBERED_reward_ssv_hardening.sql");
     expect(dbRegression).toContain("claim_reward_ssv_issue_rate_limit");
     expect(dbRegression).toContain("settle_reward_ssv_ticket_v2");
     expect(dbRegression).toContain("forced settlement failure");

@@ -1,0 +1,373 @@
+-- INACTIVE DRAFT: provenance-backed effective LLM consent.
+--
+-- Do not number, apply, or deploy this file from a local inventory branch.
+-- Immediately before an approved push, re-scan the remote migration catalog,
+-- reserve max + 1, and promote this forward-only draft under that number.
+--
+-- consent_records historically allowed authenticated self-insert. Its values
+-- can document what a client asserted, but cannot prove that a server-owned
+-- writer selected the subject, contract tuple, and canonical service shape.
+-- This migration therefore records provenance only for FUTURE inserts whose
+-- effective SQL role is the consent_records table owner (for example the
+-- SECURITY DEFINER verified-email trigger). Direct authenticated/service-role
+-- inserts never receive a provenance receipt.
+--
+-- No historical backfill is safe: old server rows and client-forged rows are
+-- indistinguishable. Keep LLM_CONSENT_MODE off until ALL proxy bundles and the
+-- management Edge have been deployed and canaried against these SQL contracts.
+-- Collect temporarily permits only never-covered accounts; every new trusted
+-- receipt is enforced immediately. Before enforce (or the old strict flag),
+-- the management draft's read-only coverage must show zero uncovered/blocked
+-- active accounts, with intentional withdrawals reported separately. Applying
+-- this draft alone does not activate the proxy gate or management writer.
+--
+-- Snapshot v2 adds a service-only {allowed,token} API. Tokens bind the latest
+-- SERVER INSERT order and its relevant state revision, so direct preference
+-- OFF/ON transitions cannot reuse an in-flight permission. Negative required
+-- acknowledgements have writer provenance too and supersede older grants.
+-- No new preference or historical backfill is introduced. The separate
+-- management draft appends canonical service events through a trusted writer;
+-- it must not mutate existing append-only receipts or call a locking snapshot
+-- while retaining an inverse lock order from an unrelated transaction.
+-- A legacy collect token is owner-bound and invalidates on the first trusted
+-- receipt. With no receipt/revision yet, it does not promise account-status ABA
+-- invalidation. No service-consent withdrawal can succeed while mode is off.
+--
+-- For atomic Polaris persistence, the service caller supplies its captured
+-- token and collection mode to the settlement contract. Off NULL-token calls
+-- remain the privileged legacy path. A post-commit HTTP denial does not undo
+-- a completed generation or its product allowance. Already-dispatched input
+-- cannot be recalled. Deployment alone must not enable verified consent.
+--
+-- There is deliberately no top-level BEGIN/COMMIT. Supabase CLI supplies the
+-- transaction; SET LOCAL remains scoped to it.
+
+SET LOCAL lock_timeout = '10s';
+
+-- Requires the promoted signup-consent AdMob 20260925 contract first.
+-- Existing email-v3 receipts remain historical, never promoted to email-v4.
+-- Pin this migration to the exact document tuple it was reviewed against.
+-- A missing dependency or a future contract bump must abort promotion instead
+-- of silently turning every runtime lookup into false/403.
+DO $contract_preflight$
+DECLARE
+  matching_contracts bigint;
+  consent_records_owner oid;
+BEGIN
+  SELECT count(*)
+    INTO matching_contracts
+    FROM public.signup_consent_contract('email-v4') AS contract
+   WHERE contract.consent_version = '2026-09-07'
+     AND contract.policy_version = '2026-09-25'
+     AND contract.terms_version = '2026-08-16'
+     AND contract.confirmation_eligible IS TRUE;
+
+  IF matching_contracts IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION 'llm_consent_contract_not_ready'
+      USING ERRCODE = '55000';
+  END IF;
+
+  SELECT relation.relowner
+    INTO consent_records_owner
+    FROM pg_catalog.pg_class relation
+   WHERE relation.oid = 'public.consent_records'::pg_catalog.regclass;
+
+  IF consent_records_owner IS NULL
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_proc routine
+        WHERE routine.oid = 'public.complete_verified_email_signup()'::pg_catalog.regprocedure
+          AND routine.proowner = consent_records_owner
+     ) THEN
+    RAISE EXCEPTION 'llm_consent_server_writer_owner_not_ready'
+      USING ERRCODE = '55000';
+  END IF;
+END
+$contract_preflight$;
+
+CREATE TABLE public.llm_consent_receipts (
+  consent_record_id uuid PRIMARY KEY
+    REFERENCES public.consent_records(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL
+    REFERENCES public.users(id) ON DELETE CASCADE,
+  contract_revision text NOT NULL
+    CHECK (contract_revision IN ('email-v2', 'complete-profile-v1', 'email-v3', 'email-v4')),
+  receipt_order bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
+  state_revision bigint NOT NULL DEFAULT 0 CHECK (state_revision >= 0),
+  -- Management reconsent preserves the original optional-event boundary.
+  optional_consents_since timestamptz,
+  recorded_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX llm_consent_receipts_user_idx
+  ON public.llm_consent_receipts (user_id, recorded_at DESC);
+
+ALTER TABLE public.llm_consent_receipts ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.llm_consent_receipts
+  FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON SEQUENCE public.llm_consent_receipts_receipt_order_seq
+  FROM PUBLIC, anon, authenticated, service_role;
+
+-- SECURITY INVOKER is essential. current_user must remain the effective role
+-- of the INSERT that fired the trigger: table-owner DEFINER writers are trusted;
+-- ordinary authenticated/service-role statements are not.
+CREATE OR REPLACE FUNCTION public.capture_llm_consent_provenance()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+DECLARE
+  consent_records_owner name;
+  matched_revision text;
+BEGIN
+  SELECT pg_catalog.pg_get_userbyid(relation.relowner)
+    INTO consent_records_owner
+    FROM pg_catalog.pg_class relation
+   WHERE relation.oid = 'public.consent_records'::pg_catalog.regclass;
+
+  IF consent_records_owner IS NULL
+     OR current_user IS DISTINCT FROM consent_records_owner THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT candidate.revision
+    INTO matched_revision
+    FROM (
+      VALUES
+        ('email-v4'::text, 1),
+        ('email-v3'::text, 2),
+        ('email-v2'::text, 3),
+        ('complete-profile-v1'::text, 4)
+    ) AS candidate(revision, priority)
+    CROSS JOIN LATERAL public.signup_consent_contract(candidate.revision) AS contract
+   -- Provenance identifies the server writer, not a positive decision. A
+   -- trusted negative event must supersede its older positive receipt too.
+   WHERE NEW.consent_version = contract.consent_version
+     AND NEW.policy_version = contract.policy_version
+     AND NEW.terms_version = contract.terms_version
+     AND pg_catalog.jsonb_typeof(NEW.purposes) = 'array'
+     AND NEW.purposes @> '["service"]'::jsonb
+   ORDER BY candidate.priority
+   LIMIT 1;
+
+  IF matched_revision IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  INSERT INTO public.llm_consent_receipts (
+    consent_record_id,
+    user_id,
+    contract_revision
+  ) VALUES (
+    NEW.id,
+    NEW.user_id,
+    matched_revision
+  )
+  ON CONFLICT (consent_record_id) DO NOTHING;
+
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.capture_llm_consent_provenance()
+  FROM PUBLIC, anon, authenticated, service_role;
+
+DROP TRIGGER IF EXISTS capture_llm_consent_provenance_after_insert
+  ON public.consent_records;
+CREATE TRIGGER capture_llm_consent_provenance_after_insert
+AFTER INSERT ON public.consent_records
+FOR EACH ROW
+EXECUTE FUNCTION public.capture_llm_consent_provenance();
+
+-- Existing optional-key meanings only. Marketing is not a generation gate.
+CREATE FUNCTION public.llm_consent_relevant_prefs(p_optional jsonb)
+RETURNS TABLE(pref_key text) LANGUAGE sql IMMUTABLE SET search_path = '' AS $$
+  SELECT k.pref_key FROM (VALUES ('ads'),('sharing'),('recommendations'),
+    ('external_analytics'),('long_term_memory'),('ops_push'),('health_import'),
+    ('records_embedding'),('chat_autosave')) k(pref_key)
+  WHERE p_optional @> jsonb_build_object(k.pref_key,true)
+$$;
+REVOKE ALL ON FUNCTION public.llm_consent_relevant_prefs(jsonb) FROM PUBLIC,anon,authenticated,service_role;
+
+-- Same-row OFF -> ON transitions cannot disappear between provider checks,
+-- even when the client's best-effort consent_changes append never arrives.
+CREATE FUNCTION public.invalidate_llm_consent_snapshot() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE subject uuid;
+BEGIN
+  IF TG_TABLE_NAME='users' THEN
+    subject := NEW.id; -- This UPDATE already owns the user row lock.
+    UPDATE public.llm_consent_receipts p SET state_revision=p.state_revision+1
+      FROM public.consent_records c
+      WHERE p.consent_record_id=c.id AND p.consent_record_id=(
+        SELECT consent_record_id FROM public.llm_consent_receipts WHERE user_id=subject ORDER BY receipt_order DESC LIMIT 1)
+      AND (OLD.account_status IS DISTINCT FROM NEW.account_status OR EXISTS(
+        SELECT 1 FROM public.llm_consent_relevant_prefs(c.optional_consents) k
+        WHERE OLD.privacy_prefs->k.pref_key IS DISTINCT FROM NEW.privacy_prefs->k.pref_key));
+  ELSE
+    subject := NEW.user_id;
+    -- Acquire the FK-side lock before touching the receipt, regardless of the
+    -- relative firing order of PostgreSQL's constraint and ordinary triggers.
+    PERFORM 1 FROM public.users WHERE id=subject FOR KEY SHARE;
+    UPDATE public.llm_consent_receipts p SET state_revision=p.state_revision+1
+      FROM public.consent_records c
+      WHERE p.consent_record_id=c.id AND p.consent_record_id=(
+        SELECT consent_record_id FROM public.llm_consent_receipts WHERE user_id=subject ORDER BY receipt_order DESC LIMIT 1)
+      AND EXISTS(SELECT 1 FROM public.llm_consent_relevant_prefs(c.optional_consents) k WHERE k.pref_key=NEW.pref_key);
+  END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.invalidate_llm_consent_snapshot() FROM PUBLIC,anon,authenticated,service_role;
+CREATE TRIGGER invalidate_llm_consent_user AFTER UPDATE OF privacy_prefs,account_status ON public.users
+  FOR EACH ROW EXECUTE FUNCTION public.invalidate_llm_consent_snapshot();
+CREATE TRIGGER invalidate_llm_consent_event AFTER INSERT ON public.consent_changes
+  FOR EACH ROW EXECUTE FUNCTION public.invalidate_llm_consent_snapshot();
+
+-- A private, read-only decision is shared by locking snapshots and aggregate
+-- rollout coverage. It never substitutes historical/client-authored rows.
+CREATE FUNCTION public.llm_consent_current_decision(p_user_id uuid)
+RETURNS TABLE(allowed boolean,token text) LANGUAGE sql STABLE SET search_path = '' AS $$
+    WITH latest_service AS (
+      SELECT c.id, provenance.state_revision,
+             COALESCE(provenance.optional_consents_since,c.created_at) AS optional_since,
+             c.user_id,
+             c.required_ack,
+             c.llm_processing_ack,
+             c.overseas_transfer_ack,
+             c.sensitive_data_ack,
+             c.safety_notice_ack,
+             c.consent_version,
+             c.terms_version,
+             c.policy_version,
+             c.optional_consents,
+             c.created_at
+        FROM public.consent_records c
+        JOIN public.llm_consent_receipts provenance
+          ON provenance.consent_record_id = c.id
+         AND provenance.user_id = c.user_id
+       WHERE c.user_id = p_user_id
+         AND pg_catalog.jsonb_typeof(c.purposes) = 'array'
+         AND c.purposes @> '["service"]'::jsonb
+       ORDER BY provenance.receipt_order DESC
+       LIMIT 1
+    ),
+    current_contract AS (
+      SELECT contract.consent_version,
+             contract.policy_version,
+             contract.terms_version
+        FROM public.signup_consent_contract('email-v4') AS contract
+       WHERE contract.confirmation_eligible IS TRUE
+    ),
+    relevant_prefs AS (
+      SELECT k.pref_key FROM latest_service c
+      CROSS JOIN LATERAL public.llm_consent_relevant_prefs(c.optional_consents) k
+    )
+    SELECT c.required_ack IS TRUE
+       AND c.llm_processing_ack IS TRUE
+       AND c.overseas_transfer_ack IS TRUE
+       AND c.sensitive_data_ack IS TRUE
+       AND c.safety_notice_ack IS TRUE
+       AND c.consent_version = contract.consent_version
+       AND c.policy_version = contract.policy_version
+       AND c.terms_version = contract.terms_version
+       AND pg_catalog.jsonb_typeof(c.optional_consents) = 'object'
+       AND u.account_status IS NOT DISTINCT FROM 'active'
+       AND pg_catalog.jsonb_typeof(u.privacy_prefs) = 'object'
+       AND NOT EXISTS (
+         SELECT 1
+           FROM relevant_prefs r
+          WHERE u.privacy_prefs -> r.pref_key IS DISTINCT FROM 'true'::jsonb
+             OR COALESCE((
+               SELECT cc.event_type IS NOT DISTINCT FROM 'revoke'
+                 FROM public.consent_changes cc
+                WHERE cc.user_id = c.user_id
+                  AND cc.pref_key = r.pref_key
+                  AND cc.created_at >= c.optional_since
+                ORDER BY cc.created_at DESC, cc.id DESC
+                LIMIT 1
+             ), false)
+       )
+      , encode(sha256(convert_to(c.id::text||':'||c.state_revision::text,'UTF8')),'hex')
+
+      FROM latest_service c
+      JOIN public.users u ON u.id = c.user_id
+      CROSS JOIN current_contract contract
+  ;
+$$;
+REVOKE ALL ON FUNCTION public.llm_consent_current_decision(uuid) FROM PUBLIC,anon,authenticated,service_role;
+
+CREATE OR REPLACE FUNCTION public.effective_llm_consent_snapshot_v2(
+  p_user_id uuid,p_allow_legacy boolean DEFAULT false)
+RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = '' AS $$
+DECLARE consent_allowed boolean; consent_token text;
+BEGIN
+  IF p_user_id IS NULL OR public.billing_request_role() IS DISTINCT FROM 'service_role' THEN
+    RETURN jsonb_build_object('allowed',false,'token',NULL);
+  END IF;
+  -- All writers serialize through users before touching the latest receipt.
+  PERFORM 1 FROM public.users WHERE id=p_user_id FOR UPDATE;
+  IF NOT FOUND THEN RETURN jsonb_build_object('allowed',false,'token',NULL); END IF;
+  PERFORM 1 FROM public.llm_consent_receipts provenance
+    JOIN public.consent_records c ON c.id=provenance.consent_record_id
+    WHERE provenance.user_id=p_user_id
+    ORDER BY provenance.receipt_order DESC LIMIT 1 FOR SHARE OF provenance,c;
+  IF NOT FOUND AND p_allow_legacy IS TRUE THEN
+    SELECT account_status IS NOT DISTINCT FROM 'active' INTO consent_allowed
+      FROM public.users WHERE id=p_user_id;
+    -- Collection allows only a never-covered account. Any trusted receipt,
+    -- including an obsolete contract or a negative event, disables fallback.
+    consent_token := encode(sha256(convert_to('llm-legacy-v1:'||p_user_id::text,'UTF8')),'hex');
+  ELSE
+    SELECT d.allowed,d.token INTO consent_allowed,consent_token
+      FROM public.llm_consent_current_decision(p_user_id) d;
+  END IF;
+  RETURN jsonb_build_object('allowed',COALESCE(consent_allowed,false),
+    'token',CASE WHEN consent_allowed THEN consent_token ELSE NULL END);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.effective_llm_consent_snapshot_v2(uuid,boolean)
+  FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.effective_llm_consent_snapshot_v2(uuid,boolean) TO service_role;
+
+-- Boolean compatibility: callers that have not adopted a per-request token
+-- still get the same fail-closed answer. The snapshot RPC surfaces errors.
+CREATE OR REPLACE FUNCTION public.effective_llm_consent_v2(p_user_id uuid)
+RETURNS boolean LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  RETURN (public.effective_llm_consent_snapshot_v2(p_user_id)->>'allowed')::boolean;
+EXCEPTION WHEN OTHERS THEN RETURN false;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.effective_llm_consent_v2(uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.effective_llm_consent_v2(uuid)
+  TO service_role;
+
+DO $verify$
+BEGIN
+  IF has_table_privilege('anon', 'public.llm_consent_receipts', 'SELECT')
+     OR has_table_privilege('authenticated', 'public.llm_consent_receipts', 'SELECT')
+     OR has_table_privilege('service_role', 'public.llm_consent_receipts', 'SELECT')
+     OR has_table_privilege('authenticated', 'public.llm_consent_receipts', 'INSERT')
+     OR has_function_privilege('anon', 'public.effective_llm_consent_v2(uuid)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.effective_llm_consent_v2(uuid)', 'EXECUTE')
+     OR NOT has_function_privilege('service_role', 'public.effective_llm_consent_v2(uuid)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.effective_llm_consent_snapshot_v2(uuid,boolean)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.effective_llm_consent_snapshot_v2(uuid,boolean)', 'EXECUTE')
+     OR NOT has_function_privilege('service_role', 'public.effective_llm_consent_snapshot_v2(uuid,boolean)', 'EXECUTE')
+     OR has_sequence_privilege('authenticated', 'public.llm_consent_receipts_receipt_order_seq', 'UPDATE')
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_trigger trigger_row
+        WHERE trigger_row.tgrelid = 'public.consent_records'::pg_catalog.regclass
+          AND trigger_row.tgname = 'capture_llm_consent_provenance_after_insert'
+          AND NOT trigger_row.tgisinternal
+     ) THEN
+    RAISE EXCEPTION 'llm_consent_provenance_verification_failed'
+      USING ERRCODE = '42501';
+  END IF;
+END
+$verify$;
