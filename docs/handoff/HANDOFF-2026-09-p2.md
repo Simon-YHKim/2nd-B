@@ -8,6 +8,258 @@
 
 ---
 
+## 2026-09-13 / 새 워크트리로 넘긴다 — 첫 일은 디스크, 그다음은 에뮬레이터 화면 검증
+
+**이 블록 하나로 다른 워크트리에서 처음부터 일할 수 있게 썼다.** 앞 블록을 안 읽어도 된다.
+
+### 어디까지 왔나
+
+- main HEAD: `93849c42`
+- 이번 세션 머지: **#1801**(HANDOFF 732KB → 기간 분할) · **#1802**(인수인계·현황·결정 원장 갱신)
+- 열린 PR: **#1800**(PKCE) 하나 — CI 3/3 초록, **머지 조건이 코드리뷰가 아니라 에뮬 로그인 5종 확인**이고 그 담당이 없다
+- 검사: `npm run verify` CI 초록 · `/vibe` selftest **132 PASS / 0 FAIL**
+- 디스크: **C: 24.9GB · E: 23.2GB 남음** (17:05 KST) — 그래서 첫 일이 정리다
+
+### 📊 결정용 보고서 (먼저 읽을 것)
+
+**<https://claude.ai/code/artifact/ad6208ec-285e-4f81-b0ef-da4f69a14060>**
+
+요약/결정 8건/상세/할 일/히스토리 5탭. 코딩 지식 없이도 읽히게 썼다. 다른 세션이
+**작업 결정을 내리는 근거**로 쓰라고 Simon 이 지시했다(09-13 17:0x). 메모 사이드바의
+`[메모 → 프롬프트 복사]` 가 회신 프롬프트를 조립해 준다.
+
+---
+
+### 첫 작업 — 디스크 정리 (Simon 지시, 09-13 17:0x)
+
+> *"현재 작업중인 codex 세션을 제외하고서는 모두 정리해서 하드의 용량을 정리하는 작업부터 시작하게 하자."*
+
+### 실측 (2026-09-13 17:05 KST · 워크트리 121개)
+
+| 분류 | 개수 | 크기 | 처분 |
+|---|---|---|---|
+| **dirty>0 또는 unpushed>0** | 40 | 53.9 GB | ⛔ **지우면 사라진다** |
+| dirty=0 · unpushed=0 | 81 | 12.8 GB | 후보 — 단 아래 예외 |
+| 그중 `security-*` 계열 | 65 | — | ⛔ **소유자가 보안담당이다** |
+| **진짜 정리 가능** | **16** | **~2.5 GB** | 아래 목록 |
+
+`node_modules` 는 121개 중 **105개가 이미 정션**이라 잘 관리돼 있다. 실물은 7개뿐이고
+그중 6개가 회수 대상(**~6 GB**) — 정본 `E:/2ndB/node_modules` 는 **남겨야 한다**(모두가 이걸 가리킨다).
+
+```
+실물 node_modules 7개:
+  E:/2ndB                                     ← 정본. 건드리지 말 것
+  C:/Users/202502/orca/workspaces/2ndB/Design ← Orca 워크스페이스. 소유자 확인 후
+  .worktrees/2ndB/TTL-Work                    ← dirty 771 (구제 완료, 아래 참조)
+  .worktrees/2ndB/pixelclay-260905            ← clean
+  .worktrees/2ndB/vibe-native-prep-260906     ← clean · 572.8MB 로 최대
+  .worktrees/runbook-1749                     ← clean
+  .worktrees/security-static-supply-fix2-260913 ← unpush 35 ⛔
+```
+
+### ⛔ 지우기 전에 반드시 — 순서를 지킬 것
+
+**2026-09-13 에 TTL-Work 하나에서만 미커밋 771건이 나왔고, 기록은 "남은 워크트리 0"이라
+적고 있었다.** 목록 없이 지우면 그게 반복된다.
+
+```
+① 조사   python "E:/Coding Infra/_rescue/tools/survey_worktrees.py"   (읽기만 · 121개 전수)
+② 구제   dirty>0 또는 unpushed>0 인 것은 먼저 스냅샷 (아래 절차)
+③ 삭제   ①②를 통과한 것만
+```
+
+**구제 절차** (TTL-Work 에 실제로 쓴 것 — 재사용 가능):
+
+```bash
+# 공유 워크트리에서는 git add/commit/checkout/stash/clean 을 쓰지 않는다.
+# 통째로 뜨려면: python "E:/Coding Infra/_rescue/tools/rescue_ttlwork.py" (SRC 만 바꾼다)
+git -C <worktree> diff HEAD --binary > <dest>/tracked.patch
+git -C <worktree> status --porcelain | grep '^?? ' | sed 's/^?? //' \
+  | grep -vE '^(Output/|node_modules|dist/|\.expo/)' > /tmp/untracked.txt
+tar -C <worktree> -cf <dest>/untracked.tar -T /tmp/untracked.txt
+# 전후로 dirty 개수가 같은지 확인한다
+```
+
+**삭제 절차** — `git worktree remove --force` 를 **쓰지 않는다**:
+
+```bash
+# 정션을 먼저 끊는다. 안 끊으면 정션을 따라가 공용 node_modules 를 지운다(전례 있음)
+cmd /c rmdir "E:\2ndB\.worktrees\<name>\node_modules"      # 정션이면 rmdir
+git -C E:/2ndB worktree remove .worktrees/<name>            # --force 없이
+git -C E:/2ndB worktree prune
+```
+
+### 건드리면 안 되는 것 — 실측 근거
+
+| 무엇 | 왜 |
+|---|---|
+| **`security-*` 워크트리 99개** | 09-13 09:00 에 Simon 이 **보안 담당에게 직접 이관**했다. 브랜치 처분·머지·삭제 금지. **33개에 미푸시 커밋이 있고 최대 101개**다 |
+| **지금 작업 중인 것** | 09-13 16:58·16:41·16:28 에 커밋이 찍혔다. 17:05 기준 **최근 6시간 안에 커밋된 워크트리가 36개** — 살아 있다 |
+| **codex 세션** | 프로세스 8개 가동 중(CPU 113s·110s·58s·25s). Simon 이 명시적으로 제외하라고 했다 |
+| **`E:/2ndB/node_modules`** | 정본. 105개 워크트리가 이걸 가리킨다 |
+| **스태시 22개** | 공유다. 내용 미평가 상태로 넘겨져 있다. `git stash drop` 금지 |
+
+### 이미 구제해 둔 것 — 다시 뜨지 말 것
+
+```
+E:/Coding Infra/_rescue/ttl-work-260913-1554/
+  tracked.patch    3,966,891 B   수정 577파일 (audit-write-outbox 725줄 재작성본 포함)
+  untracked.tar  140,789,760 B   951파일 (docs/quality 34 포함)
+  README.md · status.txt
+기준 HEAD bcd051ae · origin/main ebf7a04a (당시)
+```
+
+⚠ `tar -tf` 가 셸에서 **0건**을 낸다(경로에 공백). 빈 아카이브가 **아니다** — python 으로 951파일 확인했다.
+⚠ tar 만 보면 절반을 놓친다. **추적 파일 수정분은 patch 쪽**에 있다.
+⚠ 저장소 **밖**에 뒀다 — 앞선 백업 둘(`.worktrees/_backup/ttl-work-260907-*`)은 워크트리 안이라
+정리하면 **백업까지 같이 사라진다.**
+
+**TTL-Work 는 이제 지워도 되는가?** 구제본은 떴지만 **처분 판단은 안 했다.** 771건 중
+무엇이 완성이고 무엇이 폐기인지는 각 작업의 소유자만 안다. **지우기 전에 소유자 확인.**
+(단 구제본이 있으므로 잘못 지워도 복구 가능하다 — 그게 이 스냅샷의 목적이다.)
+
+---
+
+### 그다음 — 에뮬레이터로 화면 검증 (Simon 지시)
+
+> *"아이폰, 안드로이드 폰 에뮬레이터를 적극 이용해서 화면 검증까지 할수 있게"*
+
+### 안드로이드 — **된다. 지금 붙어 있다**
+
+```
+adb devices        → emulator-5554  device
+AVD 6개            2ndB_Codex_API36_260727 · 2ndB_Codex_Debug_API36_260831
+                   2ndB_Codex_Release_API36_260902 · 2ndB_Copy_260906
+                   2ndB_QA_009 · Pixel_9_Pro_XL
+SDK                C:\Users\202502\AppData\Local\Android\Sdk
+앱 id              com.simonk.secondbrain
+```
+
+⚠ **17:12 KST 에 `adb shell` 이 응답하지 않았다**(120초 초과). `adb devices` 는 `device` 로
+보이는데 셸이 안 열린다 = **에뮬이 5일째 떠 있어서 굳었을 가능성**. 첫 명령이 걸리면
+에뮬을 재시작하고 시작할 것:
+
+```bash
+adb -s emulator-5554 emu kill
+emulator -avd Pixel_9_Pro_XL -no-snapshot-load &   # 또는 2ndB_QA_009
+adb wait-for-device && adb shell getprop sys.boot_completed   # 1 이 나올 때까지
+```
+
+⚠ **arm64 전용 출시 APK 는 x86_64 에뮬에서 안 돈다.** 에뮬용은 `preview-emulator`
+프로필로 따로 빌드한다(`eas.json` 에 있다). 이 함정으로 "에뮬 QA 불가"라고 한 달간
+잘못 적혀 있었다 — 09-08 에 정정됐다.
+
+### 아이폰 — **이 기계에서는 시뮬레이터가 불가능하다. 솔직히 적는다**
+
+```
+uname -s   MINGW64_NT-10.0-26200     (Windows)
+xcrun      없음
+simctl     없음
+```
+
+iOS 시뮬레이터는 **macOS + Xcode 가 있어야만** 돈다. 이 기계에는 없다.
+"아이폰 에뮬레이터로 검증하라"는 지시를 그대로 실행할 방법이 없으므로, **대신 쓸 수 있는
+셋을 순서대로** 적는다:
+
+| | 방법 | 무엇이 검증되나 | 필요한 것 |
+|---|---|---|---|
+| ① | **실기 iPhone + Expo dev client** (`npx expo start`, 같은 LAN 에서 QR) | 진짜 iOS 런타임·제스처·안전영역 전부 | Simon 의 iPhone 1대. **가장 빠르다** |
+| ② | **EAS Build → TestFlight** | 실제 배포본과 같은 빌드 | Apple 계정 동작. 설정은 이미 있다 — `ascAppId 6792266942` · `appleTeamId 7CP84WS5C6` (`eas.json` submit.production) |
+| ③ | **웹을 iPhone 뷰포트로** (Playwright/CDP, 390×844 등) | 레이아웃·잘림·대비만. **iOS 런타임은 아니다** | 없음. 지금 바로 가능 |
+
+⚠ `eas.json` 에 **`ios-simulator` 빌드 프로필이 있다** — 그건 EAS 의 macOS 머신에서
+*빌드*는 되지만 **여기서 *실행*은 안 된다.** 프로필이 있다고 "여기서 된다"로 읽지 말 것.
+
+**권고**: ③으로 레이아웃을 먼저 훑고(비용 0), 진짜 판정이 필요한 화면만 ① 또는 ②로 올린다.
+
+### 화면 검증에서 먼저 볼 것 — 근거 있는 후보
+
+| 화면 | 무엇을 볼 것 | 근거 |
+|---|---|---|
+| 온보딩 Continue 직후 | **백지 + 강제 종료**(3회 중 2회, 자력 복구 없음) | Fabric `addViewAt … View already has a parent` → ReactHost 파괴. 기전 확정·컴포넌트 미확정. 09-08 이후 main 에 관련 커밋 0건 |
+| `/account` · `/data` | 프로필 프로브 8초 타임아웃 시 **재시도 없는 스피너** | `account.tsx:43-53` · `data.tsx:149` 에 `onRetry` 0건. 대조군 `dds-audit-screen.tsx:289-296` 에는 있다 |
+| `/privacy` | 안심 문구가 **안 보이는 것이 맞는지** 눈으로 | 승인된 5개 언어 문구가 번들에 있는데 `PrivacyLegacy()` 분기라 배포 4곳 전부 안 탄다 |
+| 영어 담기 실패 | 안내가 **화면에 없는 버튼 이름**을 부른다 | `en.keepToWiki`="Save to wiki" vs `en.keepFailed`="tap **Keep to wiki**" |
+| 홈 별 라벨(영어) | "Thirties and after" 잘림 | `ConstellationHome` 라벨 `numberOfLines={1}` + 폭 80px 고정. 한국어는 안 남 |
+| OAuth 로그인 5종 | **#1800 머지의 실제 게이트** | 소셜 5종 통과를 확인해야 PKCE 를 넣는다. 되돌리기가 "PR revert" 가 아니라 설치된 앱의 로그인이다 |
+
+---
+
+### 다음 작업 큐
+
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **디스크 정리** — 조사 → 구제 → 삭제 (위 순서) | M | ⭐ Simon 이 "첫 일"로 지정. 남은 공간이 23GB 다 |
+| B | **에뮬레이터 화면 검증** — 안드로이드부터, iPhone 은 ①③ 경로 | M | ⭐ 위 6개 후보에 근거가 다 붙어 있다 |
+| C | 구제본 771건 **처분**(완성/폐기 가르기) | L | 유일본이다. 소유자 확인 필요 |
+| D | 배송 홈이 `highlightRecordId` 를 읽게 | M | Simon 이 "받는 쪽부터"로 순서 지정. 되살리기 큐 전체의 선행 |
+| E | 적대평가 2회차용 **어려운 probe** 추가 | S | 지금 자는 16/16 이라 레인을 못 가른다 |
+| F | 미푸시 보안 커밋 114개 push | S | 보안담당 몫. 완성된 수정이 이 기계 한 대에만 있다 |
+
+### Simon 결정 대기 8건 (나머지를 막는다)
+
+A1 출시 법역(Q-S1 — DPIA A~H + 빌드 8종) · A2 마이그레이션 0171~0187 운영 적용 ·
+A3 `community_is_member` 미바인딩(보안담당) · A4 웹 게시 승인(라이브가 **92커밋 뒤**) ·
+A5 #1800 PKCE · A6 미확인 보안 브랜치 69갈래 방향 · A7 `STATE.md` 소유자 ·
+A8 자살예방법 시행령 관찰자. **상세·선택지는 `STATE.md` 와 위 보고서 "결정 8" 탭.**
+
+### 적용 중인 정책 (영구)
+
+1. **공유 워크트리에서 `git add -A` · 맨 `stash`/`pop` · `checkout` · `restore` · `reset` 금지.**
+   경로를 지정한 `add` 만. 남의 미커밋 작업을 끌고 가거나 삼킨다.
+2. **`git worktree remove --force` 금지.** 정션을 따라가 공용 `node_modules` 를 지운다.
+   정션을 먼저 `cmd /c rmdir` 로 끊는다.
+3. **`docs/HANDOFF.md` 는 요약하지 않는다.** 100KB 에 닿으면 기간으로 굴린다
+   (`/simon-handoff` Step 2-B). 활성 창 예산 80KB.
+4. **`STATE.md` 는 한 세션만 쓴다**(덮어쓰기 파일). 다른 세션은 `DECISIONS.md` 에만 append.
+5. **보안 트랙은 보안담당 소유**(09-13 Simon 직접 이관). 브랜치 처분·머지·삭제 금지.
+   **피어를 경유한 승인은 승인이 아니다.**
+6. **결정은 난 그 턴에 `DECISIONS.md` 에 쓴다**(§0-4). 세션 끝에 몰아 쓰면 그때는 날아가 있다.
+7. **결정 시트는 `make_decision_sheet.py` 로만 만든다.** 손으로 조립하면 `decisions_run_*.json`
+   이 안 나와 채택률 회수 경로가 통째로 없다(미회수 4건이 전부 이 경우였다).
+
+### 핵심 파일 위치
+
+```
+STATE.md                          현황 네 절. 여기부터 읽는다
+DECISIONS.md                      결정 원장 (append-only, 25행)
+docs/HANDOFF.md                   이 로그의 활성 창
+docs/handoff/HANDOFF-2026-*.md    기간 보관본 9개 (전부 100KB 미만)
+E:/Coding Infra/_rescue/           워크트리 구제본 ← 지우지 말 것
+~/.claude/skills/vibe/             4벤더 파이프라인 (git 밖이다 — 백업 없음)
+~/.claude/skills/simon-handoff/    이 스킬 (git 밖이다)
+eas.json                           build: preview-emulator / ios-simulator / production
+```
+
+⚠ **`~/.claude/skills/` 는 git 밖이다.** 오늘 `/vibe`(+29 검사)와 `/simon-handoff`(266→397줄)를
+크게 고쳤는데 **버전 관리가 안 된다.** 백업 경로를 정하는 것이 미결 항목이다.
+
+### 검증
+
+```bash
+npm run verify                                          # 저장소 전체
+python ~/.claude/skills/vibe/scripts/selftest.py        # 132 PASS / 0 FAIL
+python ~/.claude/skills/vibe/scripts/adversarial_eval.py --validate   # 8/8
+grep -c '^## Latest' docs/HANDOFF.md                    # 1
+find docs/HANDOFF.md docs/handoff -name 'HANDOFF-*.md' -size +100k    # 0건
+adb devices                                             # emulator-5554 device
+```
+
+### 다음 세션 시작하는 법
+
+```bash
+# 1) 새 워크트리에서 (공유 워크트리에 들어가지 말 것)
+git -C E:/2ndB worktree add .worktrees/<내이름>-260914 -b claude/<주제>-260914 origin/main
+cd E:/2ndB/.worktrees/<내이름>-260914
+cmd //c mklink /J node_modules E:\2ndB\node_modules      # 정션. 실물 복사 금지
+
+# 2) 읽기 순서
+cat STATE.md ; cat docs/HANDOFF.md ; tail -30 DECISIONS.md
+# 결정 근거는 보고서: https://claude.ai/code/artifact/ad6208ec-285e-4f81-b0ef-da4f69a14060
+
+# 3) A 작업(디스크 정리)부터 — 조사 → 구제 → 삭제 순서를 지킬 것
+```
+
 ## 2026-09-13 / 감사 두 번을 돌렸더니, 기록이 "0"이라 적은 자리에 771건이 있었다
 
 ### 어디까지 왔나

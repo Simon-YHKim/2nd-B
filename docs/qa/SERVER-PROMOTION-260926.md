@@ -43,13 +43,18 @@ historical snapshot. Subsequent authenticated, read-only queries found:
 | `0196_reward_ssv_hardening.sql` | `20260926031610 reward_ssv_hardening` | Match exact statements, catalog and ACL; exclude from apply list if verified. |
 | `0172_reward_authorization_hardening.sql` | `20260926050258` and `20260926050638`, both named `0172_reward_authorization_hardening` | Investigate duplicate ledger entries; never apply a third time. |
 
-The two 0172 statement arrays differ by one byte but have the same
-whitespace-stripped MD5 (`e6a302e6a6937f8cf78d88944030bf06`). A read-only
+The two 0172 ledger statement arrays differed by one serialized byte in our
+read-only query but have the same whitespace-stripped MD5
+(`e6a302e6a6937f8cf78d88944030bf06`). Main #1868 records that one attested
+Simon GO reached two paths; do not remove either ledger row. A read-only
 post-duplicate query matched all 13 expected reward function body/ACL
 fingerprints in the local design-order replay. This does not prove current
 Edge flag, signed callback behavior, or the cause of the duplicate entry.
-`rewarded-ssv` Edge v91 was observed at about 14:28 KST after v89 earlier;
-its version and `REWARD_SSV_ENABLED` must be reread immediately before a canary.
+`rewarded-ssv` listed as v91 at about 14:28 KST; main #1868 records its
+`updated_at` remained 12:23:51, so the listing change is not a new deployment.
+Main records `REWARD_SSV_ENABLED=1` under Simon's GO at 14:19. An unauthenticated
+POST returned 401 after the enable check, but no signed callback canary has been
+recorded. Recheck the current version and flag before any canary.
 
 The Supabase CLI will not equate these timestamp/name rows with new four-digit
 source filenames automatically. **Do not run a bulk production `db push` or
@@ -57,7 +62,8 @@ reapply Reward SQL.** The console owner must first capture a restorable backup,
 prove a restore on an isolated clone, reconcile each ledger alias and the
 remaining numbered prerequisites, and execute the reviewed per-file plan from a
 fixed commit. The declined paid development branch is not assumed available.
-Keep Reward and public client features OFF until their own canaries pass.
+Keep public AdMob and client features OFF until their own canaries pass. The
+Reward server switch is already ON under the separate, recorded Simon GO.
 
 Scratch CI replays all numbered files on a fresh PostgreSQL database. It proves
 source order and contracts only; it cannot establish compatibility with live

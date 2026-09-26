@@ -11,7 +11,7 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-09-08 ~ 2026-09-13 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 6 | 34KB |
+| 2026-09-08 ~ 2026-09-13 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 7 | 48KB |
 | 2026-09-01 ~ 2026-09-08 (+09-13 인계 1) | [handoff/HANDOFF-2026-09.md](handoff/HANDOFF-2026-09.md) | 18 | 92KB |
 | 2026-08-25 ~ 2026-08-30 | [handoff/HANDOFF-2026-08-p4.md](handoff/HANDOFF-2026-08-p4.md) | 11 | 89KB |
 | 2026-08-23 ~ 2026-08-25 | [handoff/HANDOFF-2026-08-p3.md](handoff/HANDOFF-2026-08-p3.md) | 21 | 85KB |
@@ -28,12 +28,25 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-26 14:57 / 서버 SQL 8개 번호 승격 · PR 원격 4/4 PASS
+## Latest — 2026-09-26 15:03 / #1865 SQL 승격 검증 · 보상 서버 ON 기록 반영
+
+- PR #1865의 `7217d4d5`에서 0191–0198 번호 SQL, 삭제 등록부·0189 rollback·SQL CI 전환이 원격 4개 검사 PASS다([SQL](https://github.com/Simon-YHKim/2nd-B/actions/runs/36222133872) · [verify/web](https://github.com/Simon-YHKim/2nd-B/actions/runs/36222133905)). 최신 main `fe20ad03`의 운영 기록을 이 통합 브랜치에 포함한다. 게시·운영 일괄 `db push`는 여전히 하지 않는다.
+- main #1868은 Simon GO로 14:19부터 `REWARD_SSV_ENABLED=1`이라고 기록한다. 인증 없는 POST 401은 스위치 통과를 확인한 증거이고, 14:29까지 실사용 호출 0건이다. 광고 ON과 서명·변조·재전송 카나리아는 별도이며 아직 완료 증거가 없다. 0172 중복 두 행은 동일 GO가 두 경로로 전달돼 생겼고, 재적용·원장 정리 금지다. Edge 목록 v91의 `updated_at`은 12:23:51 그대로라 새 배포로 해석하지 않는다.
+- 최신 운영 상태가 아래 14:57·14:36·14:15 블록의 플래그 미확인/서버 OFF 가능성보다 우선한다. 콘솔 소유자는 Reward alias와 남은 번호 SQL의 실제 원장·백업 복원·격리 리허설을 확인한다. Grok 후속 전달은 사용자 보류를 유지한다.
+
+## 2026-09-26 14:57 / 서버 SQL 8개 번호 승격 · PR 원격 4/4 PASS
 
 - Draft PR [#1865](https://github.com/Simon-YHKim/2nd-B/pull/1865)의 head `7217d4d5`에 초안 원문 Git blob과 같은 0191–0198 번호 SQL을 push했다. 정본 삭제 등록부 +4행/forward additions, 0189 rollback의 registry-only 원장 재생, SQL CI 중복 실행 방지를 함께 반영했다. [번호·해시·운영 alias 대응표](qa/SERVER-PROMOTION-260926.md) · [HTML 잔여 작업](qa/REMAINING-WORK-260926.html). 기존 고정 인계 manifest는 바꾸지 않았다.
 - 로컬 `npm run verify -- --runInBand` **818 suites / 10,684 Jest tests**, UI 76 PASS, lint 오류 0·기존 경고 71. 원격 [SQL](https://github.com/Simon-YHKim/2nd-B/actions/runs/36222133872)은 181개 번호 SQL의 fresh 적용, 등록부 70행·8개 원장 행, 0189 롤백/CLI 재적용, Reward·Paddle 회귀를 포함해 PASS. [CI verify·web export](https://github.com/Simon-YHKim/2nd-B/actions/runs/36222133905)와 PR 제목 검사도 PASS. 이 문서 후속 커밋의 원격 검사는 별도로 확인한다.
 - **운영 추가 적용·공개는 NO-GO.** 운영에 이미 `reward_ssv_tickets`·`reward_ssv_hardening` alias가 있고 0172는 두 번 기록됐다. 두 번째 0172 뒤 13개 함수 본문·ACL 지문은 설계 기대값과 일치했지만 중복 원인과 최신 Edge/flag·콜백은 미확인이다. Reward SQL 재적용·운영 일괄 `db push` 금지. 복구 가능한 백업의 격리 복원, 실제 원장 alias 화해, 나머지 번호 SQL의 실데이터 리허설은 콘솔 소유자가 완료해야 한다. 유료 개발 브랜치는 사용자 결정대로 만들지 않았다. Grok 후속 전달도 사용자 결정대로 보류한다.
 
+## 2026-09-26 14:49 / 보상 서버가 켜졌다 (Simon GO) · 봇 협업 규칙을 스킬에 넣었다
+
+- 아래 14:06 블록의 "보상 서버는 여전히 꺼져 있다"는 **14:19 부터 틀렸다.** Simon GO 로 `REWARD_SSV_ENABLED=1`(Clavius). 인증 없는 POST 가 401 이라 켜진 것이 확인되고, 14:29 까지 실사용 호출은 0 이다.
+- 0172 는 원장에 **두 줄**(`050258` 코딩 LLM · `050638` Hadrianus)이다. 같은 GO 가 두 경로로 와서 생겼다. 바이트가 같다. 재적용·원장 정리 금지.
+- Edge `rewarded-ssv` 목록 번호는 91 이지만 `updated_at` 은 12:23:51 그대로다(#1865 판). 재배포는 없었다.
+- 다음: 카나리아 주체(QA 빌드·테스트 계정) 미정 · 광고 ON 별도 GO · #1865 머지 전 `rewarded-ssv` 디스패치 금지.
+- 봇 협업 규칙은 SimonK-stack #50(`c4d5c95a`) `vibe-bot/references/relay-handshake.md`. **증명된 Simon GO(`simon-go-attested-*`)는 되묻지 않는다.** 이 파일은 98KB 라 다음 블록 전에 가장 오래된 블록을 `handoff/HANDOFF-2026-09-p2.md` 로 옮길 것.
 ## 2026-09-26 14:36 / PowerShell 복구 후 SQL 번호 승격 작업 중
 
 - Codex 다운그레이드 뒤 PowerShell 실행 문제가 해소됐다는 사용자 안내를 반영했다. 통합 워크트리 `fix/qa-harness-integrated-260925`에서 원문 바이트 그대로 초안 8개를 후보 `0191`~`0198` 번호 SQL로 복사했고, 삭제 등록부 네 행·`forwardAdditions`와 0189 롤백 재생 목록을 연결했다. **아직 검증·push 완료나 번호 예약을 선언하지 않는다.** [승격·운영 원장 대응표](qa/SERVER-PROMOTION-260926.md).
@@ -873,254 +886,3 @@ adb devices                                           # 비었으면 에뮬부�
 ```
 
 ---
-## 2026-09-13 / 새 워크트리로 넘긴다 — 첫 일은 디스크, 그다음은 에뮬레이터 화면 검증
-
-**이 블록 하나로 다른 워크트리에서 처음부터 일할 수 있게 썼다.** 앞 블록을 안 읽어도 된다.
-
-### 어디까지 왔나
-
-- main HEAD: `93849c42`
-- 이번 세션 머지: **#1801**(HANDOFF 732KB → 기간 분할) · **#1802**(인수인계·현황·결정 원장 갱신)
-- 열린 PR: **#1800**(PKCE) 하나 — CI 3/3 초록, **머지 조건이 코드리뷰가 아니라 에뮬 로그인 5종 확인**이고 그 담당이 없다
-- 검사: `npm run verify` CI 초록 · `/vibe` selftest **132 PASS / 0 FAIL**
-- 디스크: **C: 24.9GB · E: 23.2GB 남음** (17:05 KST) — 그래서 첫 일이 정리다
-
-### 📊 결정용 보고서 (먼저 읽을 것)
-
-**<https://claude.ai/code/artifact/ad6208ec-285e-4f81-b0ef-da4f69a14060>**
-
-요약/결정 8건/상세/할 일/히스토리 5탭. 코딩 지식 없이도 읽히게 썼다. 다른 세션이
-**작업 결정을 내리는 근거**로 쓰라고 Simon 이 지시했다(09-13 17:0x). 메모 사이드바의
-`[메모 → 프롬프트 복사]` 가 회신 프롬프트를 조립해 준다.
-
----
-
-### 첫 작업 — 디스크 정리 (Simon 지시, 09-13 17:0x)
-
-> *"현재 작업중인 codex 세션을 제외하고서는 모두 정리해서 하드의 용량을 정리하는 작업부터 시작하게 하자."*
-
-### 실측 (2026-09-13 17:05 KST · 워크트리 121개)
-
-| 분류 | 개수 | 크기 | 처분 |
-|---|---|---|---|
-| **dirty>0 또는 unpushed>0** | 40 | 53.9 GB | ⛔ **지우면 사라진다** |
-| dirty=0 · unpushed=0 | 81 | 12.8 GB | 후보 — 단 아래 예외 |
-| 그중 `security-*` 계열 | 65 | — | ⛔ **소유자가 보안담당이다** |
-| **진짜 정리 가능** | **16** | **~2.5 GB** | 아래 목록 |
-
-`node_modules` 는 121개 중 **105개가 이미 정션**이라 잘 관리돼 있다. 실물은 7개뿐이고
-그중 6개가 회수 대상(**~6 GB**) — 정본 `E:/2ndB/node_modules` 는 **남겨야 한다**(모두가 이걸 가리킨다).
-
-```
-실물 node_modules 7개:
-  E:/2ndB                                     ← 정본. 건드리지 말 것
-  C:/Users/202502/orca/workspaces/2ndB/Design ← Orca 워크스페이스. 소유자 확인 후
-  .worktrees/2ndB/TTL-Work                    ← dirty 771 (구제 완료, 아래 참조)
-  .worktrees/2ndB/pixelclay-260905            ← clean
-  .worktrees/2ndB/vibe-native-prep-260906     ← clean · 572.8MB 로 최대
-  .worktrees/runbook-1749                     ← clean
-  .worktrees/security-static-supply-fix2-260913 ← unpush 35 ⛔
-```
-
-### ⛔ 지우기 전에 반드시 — 순서를 지킬 것
-
-**2026-09-13 에 TTL-Work 하나에서만 미커밋 771건이 나왔고, 기록은 "남은 워크트리 0"이라
-적고 있었다.** 목록 없이 지우면 그게 반복된다.
-
-```
-① 조사   python "E:/Coding Infra/_rescue/tools/survey_worktrees.py"   (읽기만 · 121개 전수)
-② 구제   dirty>0 또는 unpushed>0 인 것은 먼저 스냅샷 (아래 절차)
-③ 삭제   ①②를 통과한 것만
-```
-
-**구제 절차** (TTL-Work 에 실제로 쓴 것 — 재사용 가능):
-
-```bash
-# 공유 워크트리에서는 git add/commit/checkout/stash/clean 을 쓰지 않는다.
-# 통째로 뜨려면: python "E:/Coding Infra/_rescue/tools/rescue_ttlwork.py" (SRC 만 바꾼다)
-git -C <worktree> diff HEAD --binary > <dest>/tracked.patch
-git -C <worktree> status --porcelain | grep '^?? ' | sed 's/^?? //' \
-  | grep -vE '^(Output/|node_modules|dist/|\.expo/)' > /tmp/untracked.txt
-tar -C <worktree> -cf <dest>/untracked.tar -T /tmp/untracked.txt
-# 전후로 dirty 개수가 같은지 확인한다
-```
-
-**삭제 절차** — `git worktree remove --force` 를 **쓰지 않는다**:
-
-```bash
-# 정션을 먼저 끊는다. 안 끊으면 정션을 따라가 공용 node_modules 를 지운다(전례 있음)
-cmd /c rmdir "E:\2ndB\.worktrees\<name>\node_modules"      # 정션이면 rmdir
-git -C E:/2ndB worktree remove .worktrees/<name>            # --force 없이
-git -C E:/2ndB worktree prune
-```
-
-### 건드리면 안 되는 것 — 실측 근거
-
-| 무엇 | 왜 |
-|---|---|
-| **`security-*` 워크트리 99개** | 09-13 09:00 에 Simon 이 **보안 담당에게 직접 이관**했다. 브랜치 처분·머지·삭제 금지. **33개에 미푸시 커밋이 있고 최대 101개**다 |
-| **지금 작업 중인 것** | 09-13 16:58·16:41·16:28 에 커밋이 찍혔다. 17:05 기준 **최근 6시간 안에 커밋된 워크트리가 36개** — 살아 있다 |
-| **codex 세션** | 프로세스 8개 가동 중(CPU 113s·110s·58s·25s). Simon 이 명시적으로 제외하라고 했다 |
-| **`E:/2ndB/node_modules`** | 정본. 105개 워크트리가 이걸 가리킨다 |
-| **스태시 22개** | 공유다. 내용 미평가 상태로 넘겨져 있다. `git stash drop` 금지 |
-
-### 이미 구제해 둔 것 — 다시 뜨지 말 것
-
-```
-E:/Coding Infra/_rescue/ttl-work-260913-1554/
-  tracked.patch    3,966,891 B   수정 577파일 (audit-write-outbox 725줄 재작성본 포함)
-  untracked.tar  140,789,760 B   951파일 (docs/quality 34 포함)
-  README.md · status.txt
-기준 HEAD bcd051ae · origin/main ebf7a04a (당시)
-```
-
-⚠ `tar -tf` 가 셸에서 **0건**을 낸다(경로에 공백). 빈 아카이브가 **아니다** — python 으로 951파일 확인했다.
-⚠ tar 만 보면 절반을 놓친다. **추적 파일 수정분은 patch 쪽**에 있다.
-⚠ 저장소 **밖**에 뒀다 — 앞선 백업 둘(`.worktrees/_backup/ttl-work-260907-*`)은 워크트리 안이라
-정리하면 **백업까지 같이 사라진다.**
-
-**TTL-Work 는 이제 지워도 되는가?** 구제본은 떴지만 **처분 판단은 안 했다.** 771건 중
-무엇이 완성이고 무엇이 폐기인지는 각 작업의 소유자만 안다. **지우기 전에 소유자 확인.**
-(단 구제본이 있으므로 잘못 지워도 복구 가능하다 — 그게 이 스냅샷의 목적이다.)
-
----
-
-### 그다음 — 에뮬레이터로 화면 검증 (Simon 지시)
-
-> *"아이폰, 안드로이드 폰 에뮬레이터를 적극 이용해서 화면 검증까지 할수 있게"*
-
-### 안드로이드 — **된다. 지금 붙어 있다**
-
-```
-adb devices        → emulator-5554  device
-AVD 6개            2ndB_Codex_API36_260727 · 2ndB_Codex_Debug_API36_260831
-                   2ndB_Codex_Release_API36_260902 · 2ndB_Copy_260906
-                   2ndB_QA_009 · Pixel_9_Pro_XL
-SDK                C:\Users\202502\AppData\Local\Android\Sdk
-앱 id              com.simonk.secondbrain
-```
-
-⚠ **17:12 KST 에 `adb shell` 이 응답하지 않았다**(120초 초과). `adb devices` 는 `device` 로
-보이는데 셸이 안 열린다 = **에뮬이 5일째 떠 있어서 굳었을 가능성**. 첫 명령이 걸리면
-에뮬을 재시작하고 시작할 것:
-
-```bash
-adb -s emulator-5554 emu kill
-emulator -avd Pixel_9_Pro_XL -no-snapshot-load &   # 또는 2ndB_QA_009
-adb wait-for-device && adb shell getprop sys.boot_completed   # 1 이 나올 때까지
-```
-
-⚠ **arm64 전용 출시 APK 는 x86_64 에뮬에서 안 돈다.** 에뮬용은 `preview-emulator`
-프로필로 따로 빌드한다(`eas.json` 에 있다). 이 함정으로 "에뮬 QA 불가"라고 한 달간
-잘못 적혀 있었다 — 09-08 에 정정됐다.
-
-### 아이폰 — **이 기계에서는 시뮬레이터가 불가능하다. 솔직히 적는다**
-
-```
-uname -s   MINGW64_NT-10.0-26200     (Windows)
-xcrun      없음
-simctl     없음
-```
-
-iOS 시뮬레이터는 **macOS + Xcode 가 있어야만** 돈다. 이 기계에는 없다.
-"아이폰 에뮬레이터로 검증하라"는 지시를 그대로 실행할 방법이 없으므로, **대신 쓸 수 있는
-셋을 순서대로** 적는다:
-
-| | 방법 | 무엇이 검증되나 | 필요한 것 |
-|---|---|---|---|
-| ① | **실기 iPhone + Expo dev client** (`npx expo start`, 같은 LAN 에서 QR) | 진짜 iOS 런타임·제스처·안전영역 전부 | Simon 의 iPhone 1대. **가장 빠르다** |
-| ② | **EAS Build → TestFlight** | 실제 배포본과 같은 빌드 | Apple 계정 동작. 설정은 이미 있다 — `ascAppId 6792266942` · `appleTeamId 7CP84WS5C6` (`eas.json` submit.production) |
-| ③ | **웹을 iPhone 뷰포트로** (Playwright/CDP, 390×844 등) | 레이아웃·잘림·대비만. **iOS 런타임은 아니다** | 없음. 지금 바로 가능 |
-
-⚠ `eas.json` 에 **`ios-simulator` 빌드 프로필이 있다** — 그건 EAS 의 macOS 머신에서
-*빌드*는 되지만 **여기서 *실행*은 안 된다.** 프로필이 있다고 "여기서 된다"로 읽지 말 것.
-
-**권고**: ③으로 레이아웃을 먼저 훑고(비용 0), 진짜 판정이 필요한 화면만 ① 또는 ②로 올린다.
-
-### 화면 검증에서 먼저 볼 것 — 근거 있는 후보
-
-| 화면 | 무엇을 볼 것 | 근거 |
-|---|---|---|
-| 온보딩 Continue 직후 | **백지 + 강제 종료**(3회 중 2회, 자력 복구 없음) | Fabric `addViewAt … View already has a parent` → ReactHost 파괴. 기전 확정·컴포넌트 미확정. 09-08 이후 main 에 관련 커밋 0건 |
-| `/account` · `/data` | 프로필 프로브 8초 타임아웃 시 **재시도 없는 스피너** | `account.tsx:43-53` · `data.tsx:149` 에 `onRetry` 0건. 대조군 `dds-audit-screen.tsx:289-296` 에는 있다 |
-| `/privacy` | 안심 문구가 **안 보이는 것이 맞는지** 눈으로 | 승인된 5개 언어 문구가 번들에 있는데 `PrivacyLegacy()` 분기라 배포 4곳 전부 안 탄다 |
-| 영어 담기 실패 | 안내가 **화면에 없는 버튼 이름**을 부른다 | `en.keepToWiki`="Save to wiki" vs `en.keepFailed`="tap **Keep to wiki**" |
-| 홈 별 라벨(영어) | "Thirties and after" 잘림 | `ConstellationHome` 라벨 `numberOfLines={1}` + 폭 80px 고정. 한국어는 안 남 |
-| OAuth 로그인 5종 | **#1800 머지의 실제 게이트** | 소셜 5종 통과를 확인해야 PKCE 를 넣는다. 되돌리기가 "PR revert" 가 아니라 설치된 앱의 로그인이다 |
-
----
-
-### 다음 작업 큐
-
-| # | 작업 | 크기 | 권장 |
-|---|---|---|---|
-| A | **디스크 정리** — 조사 → 구제 → 삭제 (위 순서) | M | ⭐ Simon 이 "첫 일"로 지정. 남은 공간이 23GB 다 |
-| B | **에뮬레이터 화면 검증** — 안드로이드부터, iPhone 은 ①③ 경로 | M | ⭐ 위 6개 후보에 근거가 다 붙어 있다 |
-| C | 구제본 771건 **처분**(완성/폐기 가르기) | L | 유일본이다. 소유자 확인 필요 |
-| D | 배송 홈이 `highlightRecordId` 를 읽게 | M | Simon 이 "받는 쪽부터"로 순서 지정. 되살리기 큐 전체의 선행 |
-| E | 적대평가 2회차용 **어려운 probe** 추가 | S | 지금 자는 16/16 이라 레인을 못 가른다 |
-| F | 미푸시 보안 커밋 114개 push | S | 보안담당 몫. 완성된 수정이 이 기계 한 대에만 있다 |
-
-### Simon 결정 대기 8건 (나머지를 막는다)
-
-A1 출시 법역(Q-S1 — DPIA A~H + 빌드 8종) · A2 마이그레이션 0171~0187 운영 적용 ·
-A3 `community_is_member` 미바인딩(보안담당) · A4 웹 게시 승인(라이브가 **92커밋 뒤**) ·
-A5 #1800 PKCE · A6 미확인 보안 브랜치 69갈래 방향 · A7 `STATE.md` 소유자 ·
-A8 자살예방법 시행령 관찰자. **상세·선택지는 `STATE.md` 와 위 보고서 "결정 8" 탭.**
-
-### 적용 중인 정책 (영구)
-
-1. **공유 워크트리에서 `git add -A` · 맨 `stash`/`pop` · `checkout` · `restore` · `reset` 금지.**
-   경로를 지정한 `add` 만. 남의 미커밋 작업을 끌고 가거나 삼킨다.
-2. **`git worktree remove --force` 금지.** 정션을 따라가 공용 `node_modules` 를 지운다.
-   정션을 먼저 `cmd /c rmdir` 로 끊는다.
-3. **`docs/HANDOFF.md` 는 요약하지 않는다.** 100KB 에 닿으면 기간으로 굴린다
-   (`/simon-handoff` Step 2-B). 활성 창 예산 80KB.
-4. **`STATE.md` 는 한 세션만 쓴다**(덮어쓰기 파일). 다른 세션은 `DECISIONS.md` 에만 append.
-5. **보안 트랙은 보안담당 소유**(09-13 Simon 직접 이관). 브랜치 처분·머지·삭제 금지.
-   **피어를 경유한 승인은 승인이 아니다.**
-6. **결정은 난 그 턴에 `DECISIONS.md` 에 쓴다**(§0-4). 세션 끝에 몰아 쓰면 그때는 날아가 있다.
-7. **결정 시트는 `make_decision_sheet.py` 로만 만든다.** 손으로 조립하면 `decisions_run_*.json`
-   이 안 나와 채택률 회수 경로가 통째로 없다(미회수 4건이 전부 이 경우였다).
-
-### 핵심 파일 위치
-
-```
-STATE.md                          현황 네 절. 여기부터 읽는다
-DECISIONS.md                      결정 원장 (append-only, 25행)
-docs/HANDOFF.md                   이 로그의 활성 창
-docs/handoff/HANDOFF-2026-*.md    기간 보관본 9개 (전부 100KB 미만)
-E:/Coding Infra/_rescue/           워크트리 구제본 ← 지우지 말 것
-~/.claude/skills/vibe/             4벤더 파이프라인 (git 밖이다 — 백업 없음)
-~/.claude/skills/simon-handoff/    이 스킬 (git 밖이다)
-eas.json                           build: preview-emulator / ios-simulator / production
-```
-
-⚠ **`~/.claude/skills/` 는 git 밖이다.** 오늘 `/vibe`(+29 검사)와 `/simon-handoff`(266→397줄)를
-크게 고쳤는데 **버전 관리가 안 된다.** 백업 경로를 정하는 것이 미결 항목이다.
-
-### 검증
-
-```bash
-npm run verify                                          # 저장소 전체
-python ~/.claude/skills/vibe/scripts/selftest.py        # 132 PASS / 0 FAIL
-python ~/.claude/skills/vibe/scripts/adversarial_eval.py --validate   # 8/8
-grep -c '^## Latest' docs/HANDOFF.md                    # 1
-find docs/HANDOFF.md docs/handoff -name 'HANDOFF-*.md' -size +100k    # 0건
-adb devices                                             # emulator-5554 device
-```
-
-### 다음 세션 시작하는 법
-
-```bash
-# 1) 새 워크트리에서 (공유 워크트리에 들어가지 말 것)
-git -C E:/2ndB worktree add .worktrees/<내이름>-260914 -b claude/<주제>-260914 origin/main
-cd E:/2ndB/.worktrees/<내이름>-260914
-cmd //c mklink /J node_modules E:\2ndB\node_modules      # 정션. 실물 복사 금지
-
-# 2) 읽기 순서
-cat STATE.md ; cat docs/HANDOFF.md ; tail -30 DECISIONS.md
-# 결정 근거는 보고서: https://claude.ai/code/artifact/ad6208ec-285e-4f81-b0ef-da4f69a14060
-
-# 3) A 작업(디스크 정리)부터 — 조사 → 구제 → 삭제 순서를 지킬 것
-```
