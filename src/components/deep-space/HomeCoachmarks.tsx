@@ -9,18 +9,17 @@ import { FirstRecordCoachmark } from "@/components/deep-space/FirstRecordCoachma
 import { markCoachmarksSeen } from "@/lib/onboarding/coachmarks-gate";
 
 export function HomeCoachmarks({
+  ownerId,
   targetRef,
-  onDone,
 }: {
+  ownerId: string;
   targetRef: RefObject<View | null>;
-  onDone: () => void;
 }) {
   const { t } = useTranslation("deepspace");
 
   const finish = useCallback(() => {
-    markCoachmarksSeen();
-    onDone();
-  }, [onDone]);
+    markCoachmarksSeen(ownerId);
+  }, [ownerId]);
 
   // Android back dismisses and remembers the guide instead of exiting the root
   // screen. The actual target remains the live SecondB head beneath the hole.

@@ -124,7 +124,7 @@ describe("PIXEL-CLAY /manual renderer contract", () => {
     expect(source).toContain("<TextInput");
     expect(source).toContain("filterManualTopics");
     expect(source).toContain("const [expandedId, setExpandedId]");
-    expect(source).not.toContain("useAuth");
+    expect(source).toContain("const { userId } = useAuth()");
     expect(source).not.toContain("<Redirect");
     expect(source).not.toContain("StateRow");
   });
@@ -142,7 +142,7 @@ describe("PIXEL-CLAY /manual renderer contract", () => {
     expect(code).toContain("manualScreenCopyFor(t)");
     expect(code).toContain("manualTopicsFor(t)");
     expect(source).toContain('useTranslation(["manual", "deepspace", "common"])');
-    expect(source).toContain("resetCoachmarks()");
+    expect(source).toContain("resetCoachmarks(userId)");
     expect(source).toContain('router.replace("/")');
     expect(source).toContain('router.push("/secondb")');
   });

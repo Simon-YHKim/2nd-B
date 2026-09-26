@@ -1684,6 +1684,7 @@ export function DeepSpaceThemeScreen() {
 
 export function DeepSpaceManualScreen() {
   const { t, i18n } = useTranslation("deepspace");
+  const { userId } = useAuth();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   return (
     <Shell title={t("manual.title")}>
@@ -1703,13 +1704,15 @@ export function DeepSpaceManualScreen() {
         {/* 홈 코치마크 다시 보기 — 레퍼런스가 안내서에 두는 줄이다.
             같은 기능이 `/settings` 에도 있고 **거기 것을 없애지 않았다**. 설정에서
             "리셋"을 찾는 것과 안내서에서 "다시 보기"를 찾는 것은 다른 행동이라
-            문이 둘인 편이 맞다. 동작은 하나다 — 본 표시를 지우고 홈으로 돌아가면
+            문이 둘인 편이 맞다. 동작은 하나다 — 이 계정의 다시 보기를 켜고 홈으로 돌아가면
             다음 홈 방문에서 4단계 가이드가 다시 재생된다. */}
         <Action
           label={t("manual.replayCoachmarks")}
           onPress={() => {
-            resetCoachmarks();
-            router.replace("/");
+            if (userId) {
+              resetCoachmarks(userId);
+              router.replace("/");
+            }
           }}
         />
       </Card>

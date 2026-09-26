@@ -714,11 +714,11 @@
     "starsFallback": "Couldn't load the star count. Using the default count."
   },
   "coachmarks": {
-    "homeStep": "Tap SecondB to start your first record.",
+    "homeStep": "Tap SecondB to start saving a record.",
     "formatStep": "Choose Memo first. One line is enough.",
     "inputStep": "Write the thought on your mind. It does not need to be a complete sentence.",
-    "saveStep": "Now tap Save to leave your first record.",
-    "doneStep": "Your first record is saved. Return to the constellation to see it.",
+    "saveStep": "Now tap Save to keep this record.",
+    "doneStep": "Your record is saved. Return to the constellation to see it.",
     "targetHint": "Tap the highlighted control to continue.",
     "inputHint": "Write at least one character to continue to Save.",
     "doneHint": "The save completed successfully.",
