@@ -21,7 +21,7 @@ DO $$ BEGIN
   IF to_regclass('public.account_deletion_tombstones') IS NULL
     OR to_regprocedure('public.effective_llm_consent_snapshot_v2(uuid,boolean)') IS NULL
     OR NOT EXISTS(SELECT 1 FROM public.signup_consent_contract('email-v4') c
-      WHERE c.consent_version='2026-09-07' AND c.policy_version='2026-09-25'
+      WHERE c.consent_version='2026-09-07' AND c.policy_version='2026-09-26'
         AND c.terms_version='2026-08-16' AND c.confirmation_eligible) THEN
     RAISE EXCEPTION 'llm_service_consent_contract_changed' USING ERRCODE='22023';
   END IF;
@@ -71,9 +71,9 @@ BEGIN
     WHEN (decision->>'allowed')::boolean THEN 'granted' ELSE 'blocked' END;
   change_token := encode(sha256(convert_to(jsonb_build_array('service-v1',p_user_id,
     prior.consent_record_id,prior.state_revision,profile.birth_date,profile.minor_tier,
-    profile.account_status,'2026-09-07','2026-09-25','2026-08-16')::text,'UTF8')),'hex');
+    profile.account_status,'2026-09-07','2026-09-26','2026-08-16')::text,'UTF8')),'hex');
   RETURN jsonb_build_object('contract_revision','service-v1','consent_version','2026-09-07',
-    'policy_version','2026-09-25','terms_version','2026-08-16','state',state,
+    'policy_version','2026-09-26','terms_version','2026-08-16','state',state,
     'change_token',change_token,'can_grant',eligible);
 END $$;
 REVOKE ALL ON FUNCTION public.llm_service_consent_status(uuid) FROM PUBLIC,anon,authenticated,service_role;
@@ -96,7 +96,7 @@ BEGIN
   current_status := public.llm_service_consent_status(p_user_id);
   IF p_contract_revision IS DISTINCT FROM 'service-v1'
     OR NOT EXISTS(SELECT 1 FROM public.signup_consent_contract('email-v4') c
-      WHERE c.consent_version='2026-09-07' AND c.policy_version='2026-09-25'
+      WHERE c.consent_version='2026-09-07' AND c.policy_version='2026-09-26'
         AND c.terms_version='2026-08-16' AND c.confirmation_eligible) THEN
     RAISE EXCEPTION 'llm_service_consent_contract_changed' USING ERRCODE='22023';
   END IF;
@@ -124,7 +124,7 @@ BEGIN
   record_minor_tier := CASE WHEN p_action='revoke' AND prior.id IS NOT NULL THEN prior.minor_tier ELSE profile.minor_tier END;
   INSERT INTO public.consent_records(user_id,age_band,minor_tier,consent_version,policy_version,terms_version,
     purposes,required_ack,optional_consents,llm_processing_ack,overseas_transfer_ack,sensitive_data_ack,safety_notice_ack,locale)
-  VALUES(p_user_id,record_age_band,record_minor_tier,'2026-09-07','2026-09-25','2026-08-16','["service"]',
+  VALUES(p_user_id,record_age_band,record_minor_tier,'2026-09-07','2026-09-26','2026-08-16','["service"]',
     CASE WHEN p_action='grant' THEN true ELSE COALESCE(prior.required_ack,false) END,
     COALESCE(prior.optional_consents,'{}'::jsonb),p_action='grant',
     CASE WHEN p_action='grant' THEN true ELSE COALESCE(prior.overseas_transfer_ack,false) END,

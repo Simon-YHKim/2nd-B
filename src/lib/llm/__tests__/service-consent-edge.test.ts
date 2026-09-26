@@ -6,7 +6,7 @@ const userId = "11111111-1111-4111-8111-111111111111";
 const changeToken = "c".repeat(64);
 const requiredAcks = { service: true, llmProcessing: true, overseasTransfer: true, sensitiveData: true, safetyNotice: true };
 const status = {
-  contract_revision: "service-v1", consent_version: "2026-09-07", policy_version: "2026-09-25", terms_version: "2026-08-16",
+  contract_revision: "service-v1", consent_version: "2026-09-07", policy_version: "2026-09-26", terms_version: "2026-08-16",
   state: "uncovered", change_token: changeToken, can_grant: true,
 };
 const compiled = new Map<string, string>();

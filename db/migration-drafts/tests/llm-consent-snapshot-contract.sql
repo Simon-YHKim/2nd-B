@@ -28,7 +28,7 @@ INSERT INTO public.users(id,privacy_prefs) VALUES('66666666-6666-4666-8666-66666
 INSERT INTO public.consent_records(id,user_id,age_band,minor_tier,consent_version,policy_version,terms_version,
   purposes,required_ack,optional_consents,llm_processing_ack,overseas_transfer_ack,sensitive_data_ack,safety_notice_ack,locale,created_at)
 VALUES('ffffffff-ffff-4fff-8fff-ffffffffffff','66666666-6666-4666-8666-666666666666','adult','adult',
-  '2026-09-07','2026-09-25','2026-08-16','["service"]',true,'{"chat_autosave":true}',true,true,true,true,'en','2026-01-01');
+  '2026-09-07','2026-09-26','2026-08-16','["service"]',true,'{"chat_autosave":true}',true,true,true,true,'en','2026-01-01');
 DO $$ BEGIN
   IF NOT public.effective_llm_consent_v2('66666666-6666-4666-8666-666666666666') THEN RAISE EXCEPTION 'trusted grant rejected'; END IF;
 END $$;
@@ -36,7 +36,7 @@ END $$;
 INSERT INTO public.consent_records(id,user_id,age_band,minor_tier,consent_version,policy_version,terms_version,
   purposes,required_ack,optional_consents,llm_processing_ack,overseas_transfer_ack,sensitive_data_ack,safety_notice_ack,locale,created_at)
 VALUES('00000000-0000-4000-8000-000000000001','66666666-6666-4666-8666-666666666666','adult','adult',
-  '2026-09-07','2026-09-25','2026-08-16','["service"]',true,'{"chat_autosave":true}',true,true,true,false,'en','2026-01-01');
+  '2026-09-07','2026-09-26','2026-08-16','["service"]',true,'{"chat_autosave":true}',true,true,true,false,'en','2026-01-01');
 DO $$ BEGIN
   IF public.effective_llm_consent_v2('66666666-6666-4666-8666-666666666666') THEN
     RAISE EXCEPTION 'trusted negative service event fell back to an older grant';
@@ -46,7 +46,7 @@ END $$;
 -- Trusted re-consent restores eligibility with a new server receipt identity.
 INSERT INTO public.consent_records(user_id,age_band,minor_tier,consent_version,policy_version,terms_version,
   purposes,required_ack,optional_consents,llm_processing_ack,overseas_transfer_ack,sensitive_data_ack,safety_notice_ack,locale)
-VALUES('66666666-6666-4666-8666-666666666666','adult','adult','2026-09-07','2026-09-25','2026-08-16',
+VALUES('66666666-6666-4666-8666-666666666666','adult','adult','2026-09-07','2026-09-26','2026-08-16',
   '["service"]',true,'{"chat_autosave":true}',true,true,true,true,'en');
 DO $$
 DECLARE u uuid := '66666666-6666-4666-8666-666666666666'; before_token text; after_token text;
@@ -83,7 +83,7 @@ SET ROLE authenticated;
 INSERT INTO public.consent_records(id,user_id,age_band,minor_tier,consent_version,policy_version,terms_version,
   purposes,required_ack,optional_consents,llm_processing_ack,overseas_transfer_ack,sensitive_data_ack,safety_notice_ack,locale)
 VALUES('00000000-0000-4000-8000-000000000002','66666666-6666-4666-8666-666666666666','adult','adult',
-  '2026-09-07','2026-09-25','2026-08-16','["service"]',false,'{}',false,false,false,false,'en');
+  '2026-09-07','2026-09-26','2026-08-16','["service"]',false,'{}',false,false,false,false,'en');
 RESET ROLE;
 DO $$ BEGIN
   IF EXISTS(SELECT 1 FROM public.llm_consent_receipts WHERE consent_record_id='00000000-0000-4000-8000-000000000002')

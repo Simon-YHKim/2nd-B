@@ -66,8 +66,13 @@ const triggerOnlyOptOut = /--\s*definer-grants-lint:\s*trigger-only/i;
 // contents, the body, schema, return shape, search_path, and grants stay pinned.
 // A future body/contract/migration change requires a new security review before
 // changing this digest. Never compute the expected digest from the current draft.
+// Re-reviewed 2026-09-26 (Grok Relay, bus nonce vb-b36e42bf, PASS): the only
+// change from aa0fa63f... is the email-v4 policy_version literal 2026-09-25 ->
+// 2026-09-26 in the contract VALUES row, the DO $verify$ check and one comment.
+// Grants, SECURITY DEFINER, search_path and bodies are unchanged; 0191 was not
+// yet applied in production when this changed.
 const REVIEWED_SIGNUP_METADATA_SHA256 =
-  "aa0fa63f8d81b21d8a5c4658250d2528c7897ebadf769cf5d9588166fc4472c7";
+  "6ba82c9ec8a796e99f1398398c58560b58513147119928d3ad004b31b0781648";
 const REVIEWED_SIGNUP_METADATA_GRANT =
   "GRANT EXECUTE ON FUNCTION public.signup_consent_contract_status() TO anon, authenticated;";
 // The public DEFINER RPC calls signup_consent_contract(text) with its owner's

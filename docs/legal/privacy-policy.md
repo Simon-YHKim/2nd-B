@@ -1,6 +1,6 @@
 # 개인정보처리방침 · Privacy Policy
 
-_시행일: 2026-09-25 · 최종 개정: 2026-09-25_
+_시행일: 2026-09-26 · 최종 개정: 2026-09-26_
 
 ---
 
@@ -49,7 +49,7 @@ _시행일: 2026-09-25 · 최종 개정: 2026-09-25_
 
 **결제(독립 판매자)**: 유료 결제는 회사의 수탁사가 아니라 **판매자(Merchant of Record)인 Paddle**이 자기 책임으로 처리합니다. 결제 과정에서 Paddle은 이메일·국가·선택 상품·가격·통화·결제 상태 등의 거래 정보를 수집하고, 회사는 결제 결과와 구독 상태를 계정에 연결하기 위한 내부 계정 식별자(user_id)를 custom data로 제공합니다. 적용되는 Paddle 법인은 Paddle.com Market Limited(영국) 또는 Paddle.com Inc.(미국)이며, Paddle의 개인정보처리방침이 함께 적용됩니다.
 
-**광고 제공자(Google AdMob, 활성화 전 안내)**: Google의 광고 SDK·동의 도구(UMP)·보상 확인 콜백을 사용할 예정입니다. 실제 계약상 수신자와 처리 역할, 국외 이전 국가·항목·목적·보유기간을 확인하여 별도로 고지하고 필요한 선택 동의 절차를 완료하기 전에는 광고를 활성화하지 않습니다. 이 방침에 대한 확인은 광고 동의를 대신하지 않습니다.
+**광고 제공자(Google AdMob, 활성화 전 안내)**: Google LLC(Google AdMob)에 광고 게재·동의 관리(UMP)·보상형 광고 서버 확인(SSV)을 위한 **개인정보 처리위탁**을 합니다. 처리 위탁 목적 외 이용은 Google 정책에 따릅니다. Google의 광고 SDK·동의 도구(UMP)·보상 확인 콜백을 사용할 예정입니다. 실제 계약상 수신자와 처리 역할, 국외 이전 국가·항목·목적·보유기간을 확인하여 별도로 고지하고 필요한 선택 동의 절차를 완료하기 전에는 광고를 활성화하지 않습니다. 이 방침에 대한 확인은 광고 동의를 대신하지 않습니다.
 
 ### 5. 개인정보의 국외 이전
 Supabase Edge Functions와 OpenAI·Anthropic 등 서비스 제공에 필요한 일부 수탁사는 국외에서 개인정보를 처리할 수 있습니다. 회사는 이 필수 국외 처리위탁을 「개인정보 보호법」 제28조의8 제1항 제3호에 해당하는 것으로 보고 이 방침으로 고지합니다. 가입 화면에서 필수 국외 처리 항목을 확인하지 않으면 가입을 완료할 수 없습니다. 가입 후 앞으로의 서비스 이용과 국외 처리를 중단하려면 계정 삭제를 요청할 수 있습니다. 사용 통계와 유료 결제처럼 이용자가 선택하는 처리의 거부 효과는 아래 각 항목에 따릅니다.
@@ -94,7 +94,7 @@ Supabase Edge Functions와 OpenAI·Anthropic 등 서비스 제공에 필요한 �
 본 방침은 법령·서비스 변경에 따라 개정될 수 있으며, 개정 시 시행일·변경내용을 서비스 내 공지합니다. 변경 전후를 비교할 수 있도록 개정 이력을 아래 제12조에 남깁니다.
 
 ### 12. 개정 이력
-2026-09-25 개정에서는 비활성 광고 기능의 수집 항목·보상 기록·티켓 보관과 별도 선택을 안내했습니다. 기존 이용자의 동의를 새 광고 동의로 전환하지 않습니다.
+2026-09-26 개정에서는 비활성 광고 기능의 수집 항목·보상 기록·티켓 보관과 별도 선택을 안내했습니다. 기존 이용자의 동의를 새 광고 동의로 전환하지 않습니다.
 | 시행일 | 변경 내용 |
 |---|---|
 | 2026-09-07 | **09-02 개정안과 09-04 사실 정정을 하나로 합쳤습니다.** 제4조에 **Anthropic PBC**(Claude API)를 별도 수탁사로 명시하고, Supabase를 **서울 주 저장소 + 리전 미고정 Edge Functions**(API·함수 로그 1일)로 정정했으며, **Paddle을 회사의 수탁사가 아닌 판매자(Merchant of Record)** 로 구분하고 결제 결과를 계정에 연결하는 내부 식별자(user_id)가 custom data로 전달된다는 사실을 적었습니다. **Sentry**는 비활성화 변경이 배포된 뒤의 새 번들은 초기화하지 않으나 구버전 앱·미재시작 앱·미새로고침 웹 세션은 계속 전송할 수 있다는 사실을 적었습니다. GA4 이전 항목(가명 클라이언트·기기 식별자, 쿠키·로컬 저장소 식별자, 대략적 위치, IP)과 보유기간(사용자·이벤트 수준 최대 14개월, 표준 집계 보고서는 예외)을 명시했습니다. **건강·활동 측정값은 어떠한 AI 제공자에게도 전송하지 않습니다.** 09-04 판이 추가한 RevenueCat 행은 앱 내 구매 활성화 전 선고지로 유지합니다. 다만 **앱의 Firebase Analytics·Microsoft Clarity 는 "동의 시 수집"이 아니라 현재 코드에서 비활성화되어 있어 수집하지 않습니다** — 동의 여부보다 위에서 꺼져 있으므로 09-04 판의 해당 서술을 이 판에서 정정합니다. |
@@ -149,7 +149,7 @@ The Company entrusts processing as below; processors act only within the stated 
 
 **Payments (independent seller)**: paid purchases are processed by **Paddle as the Merchant of Record** on its own responsibility, rather than as a processor of the Company. During checkout, Paddle collects transaction data such as email, country, selected product, price, currency, and payment status, and the Company provides an internal account identifier (user_id) as custom data to link the payment result and subscription status to the account. The applicable Paddle entity is Paddle.com Market Limited (United Kingdom) or Paddle.com Inc. (United States), and Paddle's privacy policy also applies.
 
-**Advertising provider (Google AdMob, advance notice)**: the planned integration uses Google's ads SDK, consent tool (UMP) and reward-verification callbacks. Ads will remain disabled until the contractual recipient and processing role, transfer countries, data, purposes and retention have been confirmed and separately disclosed, and the required optional-consent process is in place. Acknowledging this policy does not grant advertising consent.
+**Advertising provider (Google AdMob, advance notice)**: We **entrust** personal data processing to Google LLC (Google AdMob) for serving ads, consent management (UMP), and rewarded-ad server-side verification (SSV). Any use outside that purpose follows Google’s policies. The planned integration uses Google's ads SDK, consent tool (UMP) and reward-verification callbacks. Ads will remain disabled until the contractual recipient and processing role, transfer countries, data, purposes and retention have been confirmed and separately disclosed, and the required optional-consent process is in place. Acknowledging this policy does not grant advertising consent.
 
 ### 5. Overseas transfer
 Some processors needed to provide the Service, including Supabase Edge Functions, OpenAI, and Anthropic, may process personal data abroad. The Company treats this essential overseas processing entrustment as falling under Article 28-8(1)3 of Korea's PIPA and discloses it through this policy. If you do not acknowledge the required overseas processing at sign-up, you cannot complete sign-up. After sign-up, you may request account deletion to stop future use of the Service and future overseas processing. The effects of declining user-selected processing, such as usage statistics and paid purchases, are described below.
@@ -194,7 +194,7 @@ Access-rights management with row-level access control (RLS), TLS encryption in 
 This policy may be revised per law/service changes; revisions (effective date and content) will be announced in the Service. A revision history is kept in Section 12 so you can compare what changed.
 
 ### 12. Revision history
-The 2026-09-25 revision describes data collection, reward records, ticket retention and separate choice for the disabled advertising feature. Existing consent is not converted into advertising consent.
+The 2026-09-26 revision describes data collection, reward records, ticket retention and separate choice for the disabled advertising feature. Existing consent is not converted into advertising consent.
 | Effective | What changed |
 |---|---|
 | 2026-09-07 | **Merged the 09-02 revision with the 09-04 factual correction.** Section 4 now names **Anthropic PBC** (Claude API) as a separate processor, restates Supabase as **primary storage in Seoul plus non-region-pinned Edge Functions** (API and function logs retained one day), and separates **Paddle as the Merchant of Record rather than a processor**, disclosing that the internal account identifier (user_id) is passed as custom data to link payment results to the account. **Sentry**: new bundles built after the disable change do not initialize it, but older apps, apps not yet restarted, and web sessions not yet refreshed may keep transmitting. GA4 transfer items (pseudonymous client and device identifiers, cookie and local-storage identifiers, approximate location, IP) and retention (up to 14 months at user and event level; standard aggregate reports are exempt) are now stated. **Health and activity measurements are not sent to any AI provider.** The RevenueCat row added in the 09-04 revision is kept as advance disclosure ahead of enabling in-app purchases. However, **Firebase Analytics and Microsoft Clarity in the app are not "collected upon consent": they are disabled in the current code and collect nothing** - the switch sits above consent, so this revision corrects that part of the 09-04 wording. |

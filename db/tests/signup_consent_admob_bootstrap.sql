@@ -61,7 +61,7 @@ DO $after_regression$
 BEGIN
   IF EXISTS(SELECT 1 FROM auth.users) OR EXISTS(SELECT 1 FROM public.consent_records)
     OR NOT EXISTS(SELECT 1 FROM public.signup_consent_contract_status()
-      WHERE signup_revision='email-v4' AND policy_version='2026-09-25'
+      WHERE signup_revision='email-v4' AND policy_version='2026-09-26'
         AND confirmation_eligible AND confirmation_ready) THEN
     RAISE EXCEPTION 'signup regression did not restore the migrated contract';
   END IF;

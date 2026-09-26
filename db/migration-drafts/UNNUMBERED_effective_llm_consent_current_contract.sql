@@ -58,7 +58,7 @@ BEGIN
     INTO matching_contracts
     FROM public.signup_consent_contract('email-v4') AS contract
    WHERE contract.consent_version = '2026-09-07'
-     AND contract.policy_version = '2026-09-25'
+     AND contract.policy_version = '2026-09-26'
      AND contract.terms_version = '2026-08-16'
      AND contract.confirmation_eligible IS TRUE;
 

@@ -84,10 +84,10 @@ import { getSupabaseClient } from "./client";
 // ⚠ 이 값들을 올려도 **기존 계정에는 닿지 않는다.** 재동의 흐름은 별도 작업이고,
 // 알려진 공백이다: 기존 계정은 새 판을 다시 안내받지 않는다.
 export const CONSENT_VERSION = "2026-09-07" as const;
-// 2026-09-25: optional AdMob advance disclosure. The required notice and terms
+// 2026-09-26: optional AdMob advance disclosure. The required notice and terms
 // are unchanged. email-v4 maps this exact tuple server-side; older receipts
 // remain historical and are never upgraded into advertising consent.
-export const PRIVACY_POLICY_VERSION = "2026-09-25" as const;
+export const PRIVACY_POLICY_VERSION = "2026-09-26" as const;
 export const TERMS_VERSION = "2026-08-16" as const;
 
 export type ConsentAgeBand = "minor_self" | "adult";

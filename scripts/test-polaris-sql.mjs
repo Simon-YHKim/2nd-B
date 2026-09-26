@@ -159,7 +159,7 @@ if (process.exitCode === 0) {
   const consentCards = JSON.stringify([{...oldCard,evidenceRefs:[`record:${consentRecord}`]}]);
   const trustedEvent = (subject,ack) => `INSERT INTO public.consent_records(user_id,age_band,minor_tier,consent_version,policy_version,terms_version,
     purposes,required_ack,optional_consents,llm_processing_ack,overseas_transfer_ack,sensitive_data_ack,safety_notice_ack,locale)
-    VALUES('${subject}','adult','adult','2026-09-07','2026-09-25','2026-08-16','["service"]',true,'{"chat_autosave":true}',true,true,true,${ack},'en');`;
+    VALUES('${subject}','adult','adult','2026-09-07','2026-09-26','2026-08-16','["service"]',true,'{"chat_autosave":true}',true,true,true,${ack},'en');`;
   const snapshot = async (subject) => {
     const value = await query(`SELECT public.effective_llm_consent_snapshot_v2('${subject}');`);
     if (value.code!==0) throw new Error(`Snapshot query failed: ${value.err}`);
