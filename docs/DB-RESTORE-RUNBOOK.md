@@ -23,6 +23,12 @@
 `auth` · `storage` · `vault` 스키마가 없어 GRANT 와 `auth.uid()` 정책이 전부 깨진다.
 그러면 절반만 확인하고 통과라고 적는 보고서가 나온다.
 
+**프로젝트 생성 전 게이트:** age 개인키를 모델·채팅·로그에 노출하지 않고 사용할 수 있는지,
+새 프로젝트의 DB 접속 자격증명을 안전하게 설정할 수 있는지, 종료 시 정확한 임시 ref만
+삭제할 수 있는 인증된 경로가 있는지 먼저 확인한다. 어느 하나라도 없으면 생성 전에
+멈춘다. 2026-09-26 드릴은 이 세 조건을 확보하지 못해 생성 전에 중단됐다
+([사전 점검](qa/BACKUP-RESTORE-PREFLIGHT-260926.html)).
+
 ---
 
 ## 1. 백업이 실제로 있는지
@@ -228,8 +234,11 @@ select
 1. 평문 덤프 삭제: `Remove-Item E:\_drill\db.dump -Force`
 2. 내려받은 `.age` 사본 삭제 (원본은 GitHub 아티팩트에 14일간 남는다)
 3. `pgpass.conf` 의 해당 줄 삭제. 그 파일이 그 줄뿐이면 파일째 삭제
-4. **스크래치 프로젝트 삭제**: 대시보드 → Settings → General → 맨 아래 Delete project.
-   Supabase MCP 에는 `delete_project` 도구가 없다. 대시보드에서만 된다
+4. **스크래치 프로젝트 삭제**: 생성 직후 기록한 임시 프로젝트 ID를 다시 확인한 뒤
+   대시보드 → Settings → General → Delete project에서 삭제한다. Supabase MCP에는
+   `delete_project` 도구가 없다. [Supabase 공식 안내](https://supabase.com/docs/guides/platform/delete-project)는
+   인증된 CLI `supabase projects delete <ref>` 또는 Management API `DELETE /v1/projects/<ref>`도
+   지원한다. 이 경로를 쓸 때에도 인증과 삭제 권한을 **생성 전에** 확인하고 운영 ref와 대조한다.
 
 ---
 
