@@ -101,13 +101,22 @@ required checks passing (lint, SQL, verify, web export).
 The existing [daily backup workflow](../../.github/workflows/db-backup.yml)
 ran on 2026-09-26 06:44–06:47 KST: `pg_dump`, age encryption, and artifact upload
 all passed in [run 36193185108](https://github.com/Simon-YHKim/2nd-B/actions/runs/36193185108).
-GitHub lists artifact `db-backup-36193185108` (1,589,743 bytes), unexpired until
-2026-10-09 21:47 UTC. The Backup environment lists the dedicated DB URL and age
-public-key **secret names**; their values were not read. This establishes a
-current encrypted dump artifact, not a restore test. The older
+That artifact predates the 14:19 KST Reward server switch. A single manual run
+on `main` at 16:16–16:19 KST passed the same three steps in
+[run 36226292412](https://github.com/Simon-YHKim/2nd-B/actions/runs/36226292412).
+GitHub lists one artifact, `db-backup-36226292412` (1,629,137 ZIP bytes),
+unexpired until 2026-10-10 07:19 UTC. The extracted age file is 1,628,467 bytes,
+starts with `age-encryption.org/v1`, and has SHA-256
+`bebf8fc9e1448bbcd93cf480fd95ecf25a137e807cf50a4a843958abce3a05ea`.
+The Backup environment lists the dedicated DB URL and age public-key **secret
+names**; their values were not read. This establishes a newer encrypted dump
+artifact, not a restore test. The older
 [restore runbook](../DB-RESTORE-RUNBOOK.md) records an August drill, which cannot
 prove this September artifact or the latest migration ledger is restorable.
 The paid development branch remains declined; Docker's local daemon is stopped.
+The live cost quote for a new scratch project in the existing 2ndB organization
+(`Learner-thepoorman's Org`) is $0/month. No project was created; its creation,
+restore of production user data, and later deletion await a separate user decision.
 An isolated restore with the private key and a compatible Supabase scratch
 environment is still required before production migration writes.
 
