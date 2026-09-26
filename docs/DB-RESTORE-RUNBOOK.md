@@ -26,8 +26,9 @@
 **프로젝트 생성 전 게이트:** age 개인키를 모델·채팅·로그에 노출하지 않고 사용할 수 있는지,
 새 프로젝트의 DB 접속 자격증명을 안전하게 설정할 수 있는지, 종료 시 정확한 임시 ref만
 삭제할 수 있는 인증된 경로가 있는지 먼저 확인한다. 어느 하나라도 없으면 생성 전에
-멈춘다. 2026-09-26 드릴은 이 세 조건을 확보하지 못해 생성 전에 중단됐다
-([사전 점검](qa/BACKUP-RESTORE-PREFLIGHT-260926.html)).
+멈춘다. 2026-09-26 첫 [사전 점검](qa/BACKUP-RESTORE-PREFLIGHT-260926.html)은 이 조건을
+확보하지 못해 중단됐다. 같은 날 사용자가 인증 경로를 제공한 뒤에는
+[격리 복원 드릴](qa/BACKUP-RESTORE-DRILL-260926.html)을 완료하고 임시 자원을 정리했다.
 
 ---
 
@@ -59,7 +60,9 @@ Get-ChildItem E:\_drill -Recurse -File | Select-Object FullName,Length,Extension
 & "E:\_tools\age\age.exe" -d -i <개인키파일> -o E:\_drill\db.dump E:\_drill\<...>.dump.age
 ```
 
-개인키 파일에 주석 줄이 섞여 있어도 `age` 가 알아서 `AGE-SECRET-KEY-1` 줄만 읽는다.
+개인키 파일의 주석 줄은 허용되지만, KeePassXC에서 복사한 텍스트에 주석이 아닌 다른
+줄이 섞이면 `age -i`가 실패할 수 있다(2026-09-26 실측). 값을 화면·로그·저장소에
+출력하지 말고 메모리에서 정확한 개인키 한 줄만 복호화 입력으로 전달한다.
 
 ## 4. 대상 DB 없이 먼저 아카이브 검사
 
@@ -125,10 +128,11 @@ $env:PGPASSWORD="deliberately-wrong"; $env:PGCONNECT_TIMEOUT="10"
 | `Tenant or user not found` | pooler 사용자명 형식이 틀렸다 (`postgres.<ref>` 여야 한다) |
 | `could not translate host name` | 호스트가 틀렸다 |
 
-**스크래치는 pooler 대신 direct 호스트(`db.<ref>.supabase.co`)를 쓴다.** direct 는 IPv6 라
-IPv4 전용 GitHub 러너에서는 못 쓰지만, 사람 PC 에서는 쓸 수 있고 pooler 를 거치지 않는
-쪽이 복원에 깔끔하다. 신규 프로젝트는 운영과 다른 pooler 엔드포인트를 받을 수 있으므로
-pooler 호스트를 추측하지 않는다.
+**가능하면 스크래치는 direct 호스트(`db.<ref>.supabase.co`)를 쓴다.** direct 는 IPv6 라
+접속 환경에 따라 시간 초과될 수 있다. 2026-09-26 Windows PC에서는 direct 연결이
+시간 초과됐고, 대시보드 Connect에 표시된 해당 임시 프로젝트의 Session pooler로
+3패스 복원과 구조·행 수 검증을 마쳤다. pooler 호스트와 사용자명은 프로젝트마다 다를 수
+있으므로 추측하지 말고 대상 ref를 검증한 뒤 대시보드에서 정확한 값을 읽는다.
 
 ## 6. 복원 실행
 
