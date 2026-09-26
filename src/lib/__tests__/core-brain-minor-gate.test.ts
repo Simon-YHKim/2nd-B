@@ -1,6 +1,7 @@
 import type { DependencyList, EffectCallback, ReactElement, SetStateAction } from "react";
 import type { CenterCard } from "../persona/center";
 import type { LoadedStrengths, PersonaCard } from "../persona/build";
+import type { PolarisQuota } from "../persona/polaris-quota";
 
 type AuthState = {
   userId: string | null;
@@ -49,6 +50,10 @@ const mockForbiddenUsage = jest.fn((..._args: unknown[]) => {
 const mockMutationWriter = jest.fn((operation: string, ..._args: unknown[]) => {
   throw new Error(`Supabase ${operation} must not run during Core Brain lifecycle`);
 });
+const mockPolarisStatusRpc = jest.fn();
+const mockLoadPolarisQuota = jest.fn<Promise<PolarisQuota>, [string]>(async () => ({
+  available: false, introRemaining: null, tier: null,
+}));
 const mockSelectCalls: { table: string; columns: string; userId: string | null }[] = [];
 const mockFocus: { current: { callback: () => void; enabled: boolean } | null } = { current: null };
 let mockReadError: { message: string } | null = null;
@@ -163,7 +168,9 @@ const mockSupabase = {
     upsert: (...args: unknown[]) => mockMutationWriter("upsert", ...args),
     delete: (...args: unknown[]) => mockMutationWriter("delete", ...args),
   })),
-  rpc: (...args: unknown[]) => mockMutationWriter("rpc", ...args),
+  rpc: (name: string, ...args: unknown[]) => name === "polaris_generation_status"
+    ? mockPolarisStatusRpc(name, ...args)
+    : mockMutationWriter("rpc", name, ...args),
 };
 
 class HookHarness {
@@ -249,7 +256,12 @@ jest.mock("react-native", () => ({
 }));
 jest.mock("react-native-svg", () => ({ Svg: "Svg", Rect: "Rect", G: "G" }));
 jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: mockLanguage.current } }),
+  useTranslation: (namespace: string) => ({
+    t: (key: string) => namespace === "core-brain" && mockLanguage.current === "ko" && key === "generationUnavailable"
+      ? (jest.requireActual("../../../locales/ko/core-brain.json") as Record<string, string>)[key]
+      : key,
+    i18n: { language: mockLanguage.current },
+  }),
 }));
 jest.mock("expo-router", () => ({ Redirect: "Redirect", router: { back: jest.fn(), push: jest.fn() } }));
 jest.mock("@/components/ui/Text", () => ({ Text: "Text" }));
@@ -292,7 +304,9 @@ jest.mock("@/lib/supabase/client", () => ({ getSupabaseClient: () => mockSupabas
 // /digest 조건부 문(2026-09-01 Q2-2)의 보조 조회 — mount 스냅샷 로드와 분리된
 // 별도 이펙트다. 여기서는 빈 목록으로 고정해 문이 닫힌 상태를 렌더한다.
 jest.mock("@/lib/wiki/queries", () => ({ listInferredLinkDetails: async () => [] }));
-jest.mock("@/lib/persona/polaris-quota", () => ({ loadPolarisQuota: async () => ({ available: false, introRemaining: null, tier: null }) }));
+jest.mock("@/lib/persona/polaris-quota", () => ({
+  loadPolarisQuota: (userId: string) => mockLoadPolarisQuota(userId),
+}));
 jest.mock("@/lib/persona/role-cards", () => ({
   loadRoleCards: async () => [], claimQaPolarisAuto: async () => false,
   proposeRoleCards: (...args: unknown[]) => mockForbiddenLlm(...args),
@@ -466,6 +480,8 @@ beforeEach(() => {
   mockForbiddenLlm.mockClear();
   mockForbiddenUsage.mockClear();
   mockMutationWriter.mockClear();
+  mockPolarisStatusRpc.mockReset();
+  mockLoadPolarisQuota.mockReset().mockResolvedValue({ available: false, introRemaining: null, tier: null });
   mockSupabase.from.mockClear();
 });
 
@@ -583,6 +599,34 @@ describe("Core Brain rendered read-only lifecycle", () => {
     expect(renderedText(role.body)).toContain("roleEmpty");
     expect(renderedText(role.body)).not.toContain("BIG FIVE");
     expect(renderedText(role.body)).not.toContain("My brightest side is");
+    assertNoMutationEgress();
+  });
+
+  test("shows the pending setup message and disables persona generation when the status RPC is absent", async () => {
+    const harness = new HookHarness();
+    mockDeepSpaceUI.current = true;
+    mockLanguage.current = "ko";
+    mockAuth.current = { userId: "ordinary-user", loading: false, hasProfile: true, isMinor: false };
+    mockPolarisStatusRpc.mockResolvedValue({
+      data: null,
+      error: { code: "PGRST202", message: "Function not found", status: 404 },
+    });
+    const quota = jest.requireActual<typeof import("../persona/polaris-quota")>("@/lib/persona/polaris-quota");
+    mockLoadPolarisQuota.mockImplementation(quota.loadPolarisQuota);
+
+    renderCoreBrainScreen(harness);
+    harness.flushEffects();
+    await flushAsync();
+    const tree = renderCoreBrainScreen(harness);
+    const deck = findElement(tree, (element) => element.type === "PolarisDeck");
+    const pages = deck?.props.pages as { key: string; body: ReactElement }[];
+    const rolePage = pages.find((page) => page.key === "role")?.body;
+    const generate = findElement(rolePage, (element) =>
+      element.type === "MdButton" && element.props.label === "roleSuggest");
+
+    expect(mockPolarisStatusRpc).toHaveBeenCalledWith("polaris_generation_status", { p_user_id: "ordinary-user" });
+    expect(generate?.props.disabled).toBe(true);
+    expect(renderedText(rolePage)).toContain("생성 기능 설정을 기다리고 있어요. 저장된 카드와 시기별 빈칸은 볼 수 있어요.");
     assertNoMutationEgress();
   });
 
