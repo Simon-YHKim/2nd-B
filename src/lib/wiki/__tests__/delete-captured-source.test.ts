@@ -196,7 +196,7 @@ jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => mockClient 
 jest.mock("../../persona/load-domain-levels", () => ({ invalidateDomainLevels: jest.fn() }));
 
 import { __resetAccountEpochForTests, beginAccountOwnerTransition, noteResolvedOwner } from "../../auth/account-epoch";
-import { runAuthSessionMutation } from "../../auth/session-mutation";
+import { getAuthStorageRuntime, runAuthSessionMutation } from "../../auth/session-mutation";
 import { deleteCapturedSource } from "../delete-captured-source";
 import * as capturedSourceModule from "../delete-captured-source";
 import { promotePendingUploads } from "../promote-pending";
@@ -1052,18 +1052,18 @@ describe("삭제를 시작한 계정의 임대 (6차 재게이트 G5Z-1814-1 · 
   });
 });
 
-// ── 같은 자료의 삭제는 한 줄로 서고, 0행 뒤의 없음은 저장 세션으로 확인한다 (7차 재게이트 G6Z-1814-1 · G6Z-1814-2) ──────────────
+// ── 같은 자료의 삭제는 한 줄로 서고, 0행은 삭제 완료로 추정하지 않는다 (G6Z-1814-1 · G7A-1814-2) ──────────────
 //
 // G6Z-1814-1: 원문 경로는 제목 + 본문 해시다(capture.ts) - 같은 내용을 다시 담으면 새 행(새 uuid)이 지운 행의 경로를 다시 쓴다. 같은 자료를
 // 지우는 삭제 둘이 겹쳐 뒤의 삭제가 먼저 원문과 행을 다 지우고 "지웠다" 고 답하면, 그 사이 새로 담긴 원문을 앞선 삭제의 늦은 원문 요청이
 // 지웠다(행은 남고 본문이 없다). 게이트 재현은 실행기를 불러오기 전에 나간 삭제와 불러온 뒤의 삭제였다(실행기 테스트가 돌린다). 여기는 공통
 // 행 모듈의 규칙이다: 한 행에는 이 런타임의 삭제가 하나씩만 나가고, 뒤의 삭제는 앞의 삭제가 끝난 뒤에 제 임대로 돈다. 앞의 삭제가 다
 // 지웠으면 요청 없이 deleted 다.
-// G6Z-1814-2: auth-js 의 저장 세션은 이 탭의 전환 알림(account-epoch)보다 먼저 바뀔 수 있다(다른 탭의 로그인). 그 틈에 행 삭제 0행과 남은 행
-// 없음을 "지웠다" 로 읽으면 살아 있는 행에 지운 행 표식이 섰다. 0행 뒤의 없음 확인은 인증 변경 잠금 안에서 저장 세션이 이 계정일 때만
-// 보내고, 응답 뒤에도 그 세션일 때만 믿는다(session-mutation.ts 의 *InsideMutation 계약).
+// G7A-1814-2: auth-js 의 저장 세션은 이 탭의 전환 알림(account-epoch)보다 먼저 바뀔 수 있다(다른 탭의 로그인). 그 틈에 행 삭제 0행과 남은 행
+// 없음을 "지웠다" 로 읽으면 살아 있는 행에 지운 행 표식이 섰다. 추가 인증 세션 조회를 인증 변경 잠금 안에서 10초만 기다려도 SDK 내부
+// 잠금은 취소되지 않을 수 있다. 서버 영수증 전에는 0행을 부분 결과로 남기고 추가 조회와 지운 행 표식을 생략한다.
 
-describe("같은 자료의 삭제는 한 줄로 서고, 0행 뒤의 없음은 저장 세션으로 확인한다 (7차 재게이트 G6Z-1814-1 · G6Z-1814-2, 실행기 없는 런타임)", () => {
+describe("같은 자료의 삭제는 한 줄로 서고, 0행은 확정하지 않는다 (G6Z-1814-1 · G7A-1814-2, 실행기 없는 런타임)", () => {
   const OTHER = "user-b";
   // 실제 행 id 처럼 uuid 다. 지운 행의 id 를 새 행이 받지 않는다.
   const OLD_ID = "5b0f6a2e-8c1d-4f3a-9e7b-2d4c6a8e0f13";
@@ -1149,7 +1149,7 @@ describe("같은 자료의 삭제는 한 줄로 서고, 0행 뒤의 없음은 �
     });
   });
 
-  test("G6Z-1814-2 대조: 저장 세션이 이 계정 그대로면 0행 뒤 남은 행이 없다는 답을 그 세션으로 확인해 deleted 로 끝내고 지운 행으로 적는다 (다른 기기가 먼저 지운 행)", async () => {
+  test("G7A-1814-2: 다른 기기가 먼저 지운 행도 0행 응답만으로는 이 런타임의 완료 표식을 세우지 않는다", async () => {
     mockDb.sources = [{ ...SOURCE }];
     const rowDelete = mockGate("delete sources", "before");
     const deleting = deleteCapturedSource(OWNER, "src-1");
@@ -1157,98 +1157,62 @@ describe("같은 자료의 삭제는 한 줄로 서고, 0행 뒤의 없음은 �
     mockDb.sources = []; // 다른 기기가 그 사이 이 행을 지웠다 - 이 요청은 0행으로 온다
     rowDelete.release();
     expect({ outcome: await deleting, removed: removedMark("src-1"), objects: [...mockDb.objects] }).toEqual({
-      outcome: "deleted",
-      removed: true,
+      outcome: "raw_removed",
+      removed: false,
       objects: [],
     });
   });
 
-  test("G6Z-1814-2: 남은 행 확인이 이 계정 세션으로 나간 뒤 그 응답 전에 저장 세션이 바뀌면(알림 없음) 그 '없다' 를 확정하지 않는다 - 응답 뒤에도 세션을 본다", async () => {
+  test("G7A-1814-2: 0행이면 세션이나 남은 행을 추가 조회하지 않고 부분 결과를 돌린다", async () => {
     mockDb.sources = [{ ...SOURCE }];
-    const rowDelete = mockGate("delete sources", "before");
-    const deleting = deleteCapturedSource(OWNER, "src-1");
-    await rowDelete.reached;
-    mockDb.sources = []; // 이 요청은 0행으로 온다
-    const survivor = mockGate("select sources", "after"); // 남은 행 확인은 A 세션으로 실행됐고 응답만 늦다
-    rowDelete.release();
-    await survivor.reached;
-    mockDb.session = OTHER; // 그 응답 전에 저장 세션이 B 로 바뀌었다
-    survivor.release();
-    expect({ outcome: await deleting, removed: removedMark("src-1") }).toEqual({ outcome: "raw_removed", removed: false });
-  });
-
-  test("G6Z-1814-2: 없음 확인은 인증 변경 잠금 안에서 돈다 - 그동안 다른 인증 변경은 기다리고, 확인이 돌아오지 않으면 상한에서 없음을 확정하지 않고 잠금을 푼다", async () => {
-    const limit = (capturedSourceModule as { OWNER_SESSION_CHECK_TIMEOUT_MS?: number }).OWNER_SESSION_CHECK_TIMEOUT_MS;
-    expect(typeof limit).toBe("number");
-    mockDb.sources = [{ ...SOURCE }];
-    mockDb.denySourceDelete = true; // 행 삭제가 0행으로 온다 - 남은 행 확인으로 간다
-    jest.useFakeTimers({ doNotFake: ["setImmediate", "nextTick", "queueMicrotask"] });
+    mockDb.denySourceDelete = true;
+    const getSession = jest.spyOn(mockClient.auth, "getSession");
+    const from = jest.spyOn(mockClient, "from");
     try {
-      const rowDelete = mockGate("delete sources", "after");
-      let settled = false;
-      const deleting = deleteCapturedSource(OWNER, "src-1").then((outcome) => {
-        settled = true;
-        return outcome;
-      });
-      await rowDelete.reached;
-      const survivor = mockGate("select sources", "before"); // 남은 행 확인이 돌아오지 않는다
-      rowDelete.release();
-      await survivor.reached;
-      let otherRan = false;
-      const other = runAuthSessionMutation(() => {
-        otherRan = true; // 로그인 · 로그아웃 같은 다른 인증 변경
-        return "done";
-      });
-      await flush();
-      const whileChecking = { settled, otherRan };
-      jest.advanceTimersByTime(limit ?? 0);
-      await flush();
-      expect({ whileChecking, settled, otherRan, removed: removedMark("src-1") }).toEqual({
-        whileChecking: { settled: false, otherRan: false },
-        settled: true,
-        otherRan: true,
-        removed: false,
-      });
-      expect({ outcome: await deleting, other: await other }).toEqual({ outcome: "raw_removed", other: "done" });
-      survivor.release(); // 늦게 온 답은 버린다
-      await flush();
+      expect(await deleteCapturedSource(OWNER, "src-1")).toBe("raw_removed");
+      expect(getSession).not.toHaveBeenCalled();
+      expect(from.mock.calls.map(([table]) => table)).toEqual(["sources", "wiki_pages", "sources"]);
       expect(removedMark("src-1")).toBe(false);
     } finally {
-      jest.useRealTimers();
+      getSession.mockRestore();
+      from.mockRestore();
     }
   });
 
-  test("G6Z-1814-2: 잠금 안의 세션 읽기가 멈춰도(토큰 갱신 요청이 돌아오지 않는다) 상한에서 잠금을 푼다 - 없음을 확정하지 않는다", async () => {
-    const limit = (capturedSourceModule as { OWNER_SESSION_CHECK_TIMEOUT_MS?: number }).OWNER_SESSION_CHECK_TIMEOUT_MS;
-    expect(typeof limit).toBe("number");
+  test("G7A-1814-2: 0행 확인의 인증 SDK 잠금이 멈춰도 다음 인증 변경을 붙잡지 않는다", async () => {
     mockDb.sources = [{ ...SOURCE }];
-    mockDb.denySourceDelete = true; // 행 삭제가 0행으로 온다 - 남은 행 확인으로 간다
-    jest.useFakeTimers({ doNotFake: ["setImmediate", "nextTick", "queueMicrotask"] });
-    const getSession = jest.spyOn(mockClient.auth, "getSession").mockImplementation(() => new Promise(() => undefined));
-    try {
-      let settled = false;
-      const deleting = deleteCapturedSource(OWNER, "src-1").then((outcome) => {
-        settled = true;
-        return outcome;
+    mockDb.denySourceDelete = true;
+    const runtime = getAuthStorageRuntime();
+    const sdkLockName = `lock:${runtime.storageKey}`;
+    let releaseSdk: () => void = () => undefined;
+    let enteredSdk: () => void = () => undefined;
+    const stuckSdk = new Promise<void>((resolve) => { releaseSdk = resolve; });
+    const sdkEntered = new Promise<void>((resolve) => { enteredSdk = resolve; });
+    const getSession = jest.spyOn(mockClient.auth, "getSession").mockImplementation(async () => {
+      await runtime.sdkLock(sdkLockName, -1, async () => {
+        enteredSdk();
+        await stuckSdk;
       });
-      await flush();
+      return { data: { session: { user: { id: OWNER }, access_token: `access-${OWNER}` } }, error: null };
+    });
+    jest.useFakeTimers({ doNotFake: ["setImmediate", "nextTick", "queueMicrotask"] });
+    let other: Promise<string> | null = null;
+    try {
+      const deleting = deleteCapturedSource(OWNER, "src-1");
+      await Promise.race([sdkEntered, deleting.then(() => undefined)]);
       let otherRan = false;
-      const other = runAuthSessionMutation(() => {
-        otherRan = true;
+      other = runAuthSessionMutation(async () => {
+        await runtime.sdkLock(sdkLockName, -1, async () => { otherRan = true; });
         return "done";
       });
+      jest.advanceTimersByTime(10_000);
       await flush();
-      const whileStuck = { settled, otherRan, sessionReads: getSession.mock.calls.length };
-      jest.advanceTimersByTime(limit ?? 0);
-      await flush();
-      expect({ whileStuck, settled, otherRan, removed: removedMark("src-1") }).toEqual({
-        whileStuck: { settled: false, otherRan: false, sessionReads: 1 },
-        settled: true,
-        otherRan: true,
-        removed: false,
-      });
-      expect({ outcome: await deleting, other: await other }).toEqual({ outcome: "raw_removed", other: "done" });
+      expect(otherRan).toBe(true);
+      expect(await deleting).toBe("raw_removed");
     } finally {
+      releaseSdk();
+      await flush();
+      if (other) await other.catch(() => undefined);
       getSession.mockRestore();
       jest.useRealTimers();
     }
