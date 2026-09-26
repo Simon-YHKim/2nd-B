@@ -49,8 +49,11 @@ export function DeepSpaceShell() {
 
   // The home coachmark is the first step of a cross-route task coach. Its real
   // target is measured from the live SecondB head, then /capture owns steps 2-4.
-  const coachmarksDue = useCoachmarksGate();
-  const [coachmarksDismissed, setCoachmarksDismissed] = useState(false);
+  const coachmarksDue = useCoachmarksGate(
+    userId,
+    !loading && hasProfile === true && onboardingComplete === true && autoTriggerTTFV === false,
+    refreshTick,
+  );
   const coachHeadTargetRef = useRef<View>(null);
   useEffect(() => {
     // Wait for the auth session restore (`loading`) as well as the userId:
@@ -129,7 +132,8 @@ export function DeepSpaceShell() {
         // 더 이상 별이 아니다. 그 대시보드로 가는 입구가 **세컨비 머리**다 --
         // 별자리에서 머리를 터치하면 대화창이 그것을 펴 보인다.
         onChatPress={() => router.push("/secondb?panel=dashboard")}
-        coachFirstRecord={coachmarksDue === true && !coachmarksDismissed}
+        coachFirstRecord={coachmarksDue === true}
+        coachmarksDue={coachmarksDue}
         coachHeadTargetRef={coachHeadTargetRef}
         onCoachHeadPress={() =>
           router.push({ pathname: "/capture", params: { coach: FIRST_RECORD_COACH_PARAM } })
@@ -141,10 +145,10 @@ export function DeepSpaceShell() {
         starLevels={starLevels}
         northStarBrightness={northStarBrightness}
       />
-      {coachmarksDue === true && !coachmarksDismissed ? (
+      {coachmarksDue === true ? (
         <HomeCoachmarks
+          ownerId={userId!}
           targetRef={coachHeadTargetRef}
-          onDone={() => setCoachmarksDismissed(true)}
         />
       ) : null}
     </DeepSpaceScreen>

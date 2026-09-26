@@ -38,7 +38,6 @@ import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { getReasoningUsage } from "@/lib/entitlements/usage";
 import { getAutoReasoningEnabled } from "@/lib/reasoning/auto-pref";
 import { weeklyBaseRemaining } from "@/lib/reasoning/remaining-copy";
-import { useCoachmarksGate } from "@/lib/onboarding/coachmarks-gate";
 import { useProgression } from "@/lib/progression/useProgression";
 import { useTaskStatus } from "@/lib/tasks/store";
 import { flattenAlpha } from "@/lib/theme/tokens";
@@ -545,6 +544,7 @@ export function ConstellationHome({
   onPolarisPress,
   onChatPress,
   coachFirstRecord = false,
+  coachmarksDue = null,
   coachHeadTargetRef,
   onCoachHeadPress,
   onOpsPress,
@@ -562,6 +562,7 @@ export function ConstellationHome({
   onChatPress: () => void;
   /** First-run task coach: the live head becomes step 1's only active target. */
   coachFirstRecord?: boolean;
+  coachmarksDue?: boolean | null;
   coachHeadTargetRef?: RefObject<View | null>;
   onCoachHeadPress?: () => void;
   onOpsPress: () => void;
@@ -588,7 +589,6 @@ export function ConstellationHome({
   const { userId, isMinor, age } = useAuth();
   const reasoningCopy = HOME_REASONING_COPY[homeReasoningLocale(i18n.language)];
   const noticeCenter = useNoticeCenter(userId);
-  const coachmarksDue = useCoachmarksGate();
   const progression = useProgression();
   const task = useTaskStatus();
   const { width: winW, fontScale } = useWindowDimensions();

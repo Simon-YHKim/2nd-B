@@ -10,6 +10,7 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { m3 } from "@/lib/theme/m3";
 
 import {
@@ -20,6 +21,7 @@ import {
 } from "./dds-manual-content";
 
 export function DeepSpaceManualScreen() {
+  const { userId } = useAuth();
   // ⚠ 여기 `i18n.language.startsWith("ko") ? "ko" : "en"` 이 있었다. 앱은 다섯
   // 언어를 제공하는데 안내서만 둘로 좁히고 있었다 — es · pt · id 사용자는 번역이
   // 있는데도 영어를 봤다. 문구가 번들로 갔으니 좁힐 이유가 없다.
@@ -157,7 +159,7 @@ export function DeepSpaceManualScreen() {
             <PixelPressable
               variant="frame"
               onPress={() => {
-                resetCoachmarks();
+                if (userId) resetCoachmarks(userId);
                 router.replace("/");
               }}
               accessibilityLabel={t("manual.replayCoachmarks")}

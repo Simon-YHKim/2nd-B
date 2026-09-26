@@ -714,11 +714,11 @@
     "starsFallback": "Tidak bisa membaca bintangmu; jadi kami gambar versi bawaannya."
   },
   "coachmarks": {
-    "homeStep": "Ketuk SecondB untuk memulai catatan pertamamu.",
+    "homeStep": "Ketuk SecondB untuk mulai menyimpan catatan.",
     "formatStep": "Pilih Memo terlebih dahulu. Satu baris sudah cukup.",
     "inputStep": "Tulis pikiranmu saat ini. Tidak harus berupa kalimat lengkap.",
-    "saveStep": "Terakhir, ketuk Simpan untuk membuat catatan pertamamu.",
-    "doneStep": "Catatan pertamamu sudah tersimpan. Kembali ke rasi untuk melihatnya.",
+    "saveStep": "Terakhir, ketuk Simpan untuk menyimpan catatan ini.",
+    "doneStep": "Catatanmu sudah tersimpan. Kembali ke rasi untuk melihatnya.",
     "targetHint": "Ketuk kontrol yang disorot untuk melanjutkan.",
     "inputHint": "Tulis setidaknya satu karakter untuk lanjut ke Simpan.",
     "doneHint": "Catatan berhasil disimpan.",

@@ -714,11 +714,11 @@
     "starsFallback": "Não conseguimos ler suas estrelas; desenhamos o padrão."
   },
   "coachmarks": {
-    "homeStep": "Toque no SecondB para iniciar seu primeiro registro.",
+    "homeStep": "Toque no SecondB para começar a salvar um registro.",
     "formatStep": "Primeiro escolha Memorando. Uma linha é suficiente.",
     "inputStep": "Escreva o que está pensando. Não precisa ser uma frase completa.",
-    "saveStep": "Por fim, toque em Salvar para criar seu primeiro registro.",
-    "doneStep": "Seu primeiro registro foi salvo. Volte à constelação para vê-lo.",
+    "saveStep": "Por fim, toque em Salvar para guardar este registro.",
+    "doneStep": "Seu registro foi salvo. Volte à constelação para vê-lo.",
     "targetHint": "Toque no controle destacado para continuar.",
     "inputHint": "Escreva pelo menos um caractere para continuar até Salvar.",
     "doneHint": "O registro foi salvo com sucesso.",

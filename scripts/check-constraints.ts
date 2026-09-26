@@ -2775,10 +2775,11 @@ results.push(
     const ok =
       !landing.includes("dataNodes") &&
       !liveConstellation.includes("dataNodes") &&
-      // 홈 코치마크는 **제품 안내**지 사용자 데이터에 대한 주장이 아니다. 첫 방문에
-      // 뜨고 "다시 보지 않기"로 닫힌다 — 그래서 데이터 게이트가 필요 없다. 이 구분을
-      // 안 적으면 다음 사람이 "스포트라이트가 안 잠겼다"고 되돌린다.
-      landing.includes("useCoachmarksGate()") &&
+      // 홈 코치마크는 첫 기록 안내다. 기존 기록이 다른 기기에 있어도 처음으로
+      // 오판하지 않도록 소유자별 단일 게이트가 확인하고 홈에는 결과만 전달한다.
+      landing.includes("useCoachmarksGate(") &&
+      liveConstellation.includes("coachmarksDue = null") &&
+      !liveConstellation.includes("useCoachmarksGate(") &&
       captureScreen.includes('savedKind === "records"') &&
       captureScreen.includes('router.push("/records")') &&
       !recordDetail.includes("highlightRecordId") &&
