@@ -51,9 +51,17 @@ function host(platform: "ios" | "android" | "web") {
   class Media {
     source: any; isLoaded = false; playing = false; released = false;
     id = media.length; volume = 1; playbackRate = 1; currentTime = 0;
+    private nativePlaybackRate = 1;
     seek: (() => Promise<void>) | null = null;
     get currentStatus() { return { isLoaded: this.isLoaded }; }
-    constructor(source: any) { this.source = source; media.push(this); }
+    constructor(source: any) {
+      this.source = source; media.push(this);
+      if (platform !== "web") {
+        // Android exposes playbackRate as a getter; the SDK method changes it.
+        Object.defineProperty(this, "playbackRate", { get: () => this.nativePlaybackRate });
+      }
+    }
+    setPlaybackRate(rate: number) { this.nativePlaybackRate = rate; }
     async seekTo() { if (this.released) throw new Error("seek after release"); await this.seek?.(); }
     play() { if (this.released) throw new Error("play after release"); events.push(`play:${this.id}:${this.source?.uri ?? this.source}`); this.playing = platform === "web" || this.isLoaded; return Promise.resolve(); }
     pause() { if (this.released) throw new Error("pause after release"); events.push(`pause:${this.id}`); this.playing = false; }
@@ -147,6 +155,12 @@ test("native cold shutter waits for the actual source, then plays once", async (
   h.media[0].isLoaded = true; h.render(); await flush();
   expect(h.media[0].playing).toBe(true);
   expect(h.events.filter((event) => event.startsWith("play:"))).toHaveLength(1);
+});
+
+test.each(["ios", "android"] as const)("%s sets playback rate through the native SDK method", (platform) => {
+  const h = host(platform);
+  expect(() => h.render()).not.toThrow();
+  expect(h.media[0].playbackRate).toBe(options.playbackRate);
 });
 
 test.each(["ios", "web"] as const)("%s prepares one silent shutter player for a journey and reuses it for capture", async (platform) => {

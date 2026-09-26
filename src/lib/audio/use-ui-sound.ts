@@ -27,7 +27,7 @@ export function useUiSoundControl(source: number | string, options: UiSoundOptio
   // Layout cleanup invalidates seeks and pauses before the SDK's passive release.
   useLayoutEffect(() => {
     player.volume = volume;
-    player.playbackRate = playbackRate;
+    player.setPlaybackRate(playbackRate);
     const controller = createNativeUiSoundPlayer({
       rewind: () => player.seekTo(0), play: () => player.play(), pause: () => player.pause(),
     }, minIntervalMs);
