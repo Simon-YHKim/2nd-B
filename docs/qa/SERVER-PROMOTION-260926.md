@@ -1,19 +1,23 @@
 # Server-first SQL numbering and live-ledger reconciliation
 
-2026-09-26 KST. Draft PR #1865; numbered-source commit `3fd677dfc0883bb43b3fcc336bd0ae530546d920`.
+2026-09-26 KST. Draft PR #1865; `0191`–`0198` source commit `3fd677df`,
+`0199` reservation `322dd5dd`, `0200`–`0201` reservation `f2866049`.
 This is a source and scratch-CI map, **not an
-instruction to apply all eight files to production**. The original frozen draft
-inventory and its two manifests remain intact. The numbered files copy the SQL
-draft bytes exactly; their `INACTIVE DRAFT` headers are historical labels.
+instruction to apply all eleven files to production**. The original frozen draft
+inventory and its two manifests remain intact. Provisioning files `0191`–`0200`
+copy the reviewed SQL draft bytes exactly; their `INACTIVE DRAFT` headers are
+historical labels. `0201` is generated registry additions only.
 
 ## Numbered source map
 
 Each right-hand SHA-256 covers the Git blob bytes, independent of Windows
-checkout line endings. The source draft with the same stem after
+checkout line endings. For `0191`–`0200`, the source draft with the same stem after
 `UNNUMBERED_` has the same blob byte count and digest. At 14:35 KST,
 `git ls-remote --heads origin` matched all 707 locally fetched remote heads and
 `git rev-list --objects --all -- db/migrations` found no `0191`–`0198` file.
-This is a collision check, not a reservation until the branch is pushed.
+Fresh full-branch fetch and history scans before each later reservation found no
+`0199` or `0200`–`0201` file; all three were pushed on this PR branch.
+Recheck remote collisions before any operating migration.
 
 | File in `db/migrations` | Bytes | SHA-256 |
 | --- | ---: | --- |
@@ -25,12 +29,28 @@ This is a collision check, not a reservation until the branch is pushed.
 | `0196_reward_ssv_hardening.sql` | 25810 | `4a637061a2374666c6a5e3322340db6c58fdd7e2806c0beee79dc9ce3dd1246d` |
 | `0197_paddle_refund_consequence_integrity.sql` | 62477 | `94d2b1f38673555e57b94d7b7b12b19391989e45fad28c1fce3a104207473e61` |
 | `0198_service_contract_erasure_registry.sql` | 3526 | `51a5b807cbbdaa6d4064d77fe7e2ed016a5df3ba7534f60f4e8dd8d2297b9b3e` |
+| `0199_oauth_naver_rate_limit_completion.sql` | 16732 | `9ea66e4c1db6e9f216657503c12b7dc7acae45dfe8de1502789e9588c6f43d47` |
+| `0200_rss_proxy_quota.sql` | 5915 | `0f145186aeff680d1717f3d282f4882ecc6d9e1498b7475a109a2b148a2241bf` |
+| `0201_rss_proxy_erasure_registry.sql` | 2077 | `949d81e313bce52b87bd20578c499ad62f7ec8667e2b53a521bdfbd46b5010b0` |
 
 `0198` only adds four registry rows after its four product tables exist. The
 canonical `db/erasure-registry.json` declares those rows in `forwardAdditions`.
 The historical 0189 seed remains 66 rows. The 0189 rollback's ledger replay
 list includes `service_contract_erasure_registry`, because dropping the registry
-removes 0198's effect. Product provisioning files are not in that replay list.
+removes 0198's effect. `0200` provisions the RSS quotas. `0201` adds one
+`retained` registry row for the user quota; account deletion cascades through
+`public.users`. The 0189 rollback replay list includes `0201` but excludes
+`0200`, so it never re-runs quota provisioning to restore registry rows.
+The numbered [scratch CI](https://github.com/Simon-YHKim/2nd-B/actions/runs/36233386382)
+passed the 71-row registry, ACL, quota admission, account-delete cascade, and
+0189 rollback round trip on `f2866049`. Product provisioning files are not in
+that replay list.
+
+The current operational DB read-only catalog still has no `oauth_preauth_rate_limits`,
+`oauth_naver_states`, `consume_oauth_naver_rate_limit`, `rss_proxy_quota_daily`,
+or `consume_rss_proxy_quota`. In particular `0199` cannot run before the missing
+`0183` Naver prerequisites. These new source reservations do not change the
+server-first NO-GO or authorize a bulk production push.
 
 ## Production ledger is different from source numbering
 
