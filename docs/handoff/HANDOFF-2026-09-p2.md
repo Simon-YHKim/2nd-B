@@ -8,6 +8,188 @@
 
 ---
 
+## 2026-09-20 밤 / 게이트가 찾은 것을 닫았고, 우리 검사가 무엇을 증명한 적 없는지 알아냈다
+
+### 결론
+
+R48 게이트가 낸 발견을 r49 가 닫았고, r49 게이트 둘이 통과시켰다. 머지 넷:
+`c0b6e0b6`(기록 정정) · `48e1e9f1`(#1851 · `0190`) · `3b787951`(#1849) · #1852(기록).
+
+**이 밤의 값어치는 수정이 아니라 발견이다.** #1847 은 `erase_my_data` 를 "잠근 채
+배송한다"고 적었는데 **사실이 아니었고**, 그걸 지킨다던 회귀 단언은 **CI 에서 공허하게
+초록**이었다. 두 가지를 한 번에 고쳤다.
+
+### 무엇이 틀렸나 — 실측
+
+`REVOKE EXECUTE ... FROM PUBLIC, anon` 은 **`authenticated` 를 막지 못한다.** Supabase 의
+default privileges 가 새 함수마다 세 역할에 **이름으로** EXECUTE 를 주기 때문이다
+(`scripts/check-definer-grants.ts:3-8` 이 **이미 그렇게 적고 있었다** — 몰랐던 게 아니라
+규칙 B 가 `anon` 만 강제하고 있었다).
+
+운영 읽기 전용 대조(2026-09-20 20:0x KST · `zoacryukmdeivmolvyhj`):
+
+| 확인 | 값 |
+|---|---|
+| public 함수 중 `proacl` 에 `authenticated=X` 가 명시된 것 | **242 / 291** |
+| `FROM anon` 만 REVOKE 한 함수 6개의 authenticated EXECUTE | **6/6 = true** |
+| 운영에 적용된 `0189` | **0건**(함수도 없음) |
+
+살아 있는 구멍이었던 적은 없다 — 0189 가 운영에 올라간 적이 없다.
+
+### 검사가 공허했던 이유, 그리고 고친 방법
+
+r46 이 넣은 `has_function_privilege('authenticated', …) = false` 는 CI scratch DB 에서
+**REVOKE 가 없어도 false** 였다. 부트스트랩이 role 만 만들고 위 default privileges 를
+깔지 않았기 때문이다. **바닥이 없으면 단언이 아무것도 증명하지 않는다.**
+
+`#1851` 이 세 겹으로 닫았다:
+
+1. `.github/workflows/supabase-dry-run.yml` Seed 끝(첫 마이그레이션 **전**)에
+   `ALTER DEFAULT PRIVILEGES … GRANT EXECUTE ON FUNCTIONS TO anon, authenticated`.
+2. 회귀 블록 (L)이 프로브 함수의 `aclexplode(proacl)` 로 **바닥의 실재를 먼저 증명**한
+   뒤에만 결론을 낸다. 바닥이 없으면 초록이 아니라 **빨강**이다.
+3. `0190` 이 `FROM PUBLIC, anon, authenticated` 를 걷고, **적용 시점에 스스로 끝 상태를
+   확인하는 `DO` 블록**을 둔다(클라이언트 역할이 하나라도 남으면 마이그레이션이 멈춘다).
+
+변이 8변종을 임시 PostgreSQL 18.3 에서 돌린 출력 전문이
+`E:/Coding Infra/reports/vibe-r260920/r49-lock-erase-authenticated/result.md` 에 있다.
+핵심 한 줄: **바닥 OFF + REVOKE 제거 → 초록이고 `SHIPS LOCKED` 를 인쇄한다(= main 의 그때 상태).**
+
+⚠ `service_role` 은 **일부러 안 걷었다.** 주장은 "아무에게도 없다"가 아니라
+**"클라이언트 역할(PUBLIC·anon·authenticated)에게 없다"** 이다. 이 문장을 넓혀 인용하지 말 것.
+
+### #1849 — F-01 은 라이브 유출이 아니다. 그렇게 적지 말 것
+
+게이트 둘이 **정반대로 판정했고 둘 다 부분적으로 옳았다.** 생성물은 위키 화면
+**본체 로직**을 봤고(본체만 떼어 A→B 를 먹이면 `listedPages=['a-out','b-in']` 로 재현),
+비즈로직은 **배송된 트리**를 봤다(`_layout.tsx` 의 `AccountScope` 가 계정 epoch 마다
+전 제품 화면을 리마운트해 그 상태가 B 에게 읽히기 전에 폐기된다).
+
+본체를 고쳤고, **"오늘의 라이브 유출을 막았다"고는 적지 않는다.** 비즈로직 게이트도
+같은 판정을 명시했다. 다만 그 껍데기 방어는 **강제되지 않는다** —
+`<Stack.Screen layout={…}>`·`<Stack.Group>` 로 우회해도 `account-scope.test.ts` 는
+네비게이터 문자열만 봐서 울지 않는다(A-EX-01).
+
+발주는 `linkedPage` 한 행만 울타리였는데 워커가 범위를 넓혔다: 같은 화면의
+`pages`/`edges` 가 계정이 바뀌어도 초기화되지 않고 네트워크가 답할 때까지 **이전 계정의
+200행 전체**를 그리고 있었다. 한 행만 막고 "계정 울타리"라고 적으면 다음 세션이 믿는다.
+
+### 다음 사람이 반드시 알아야 할 것 — 적용 순서
+
+**두 medium 이 열려 있다. 코드가 아니라 적용 절차 문제다.**
+
+- **B-EX-01**: `rollback/0189_down.sql:118-133` 이 ledger 에서 `erasure_registry` **한 행만**
+  지운다. 되돌린 뒤 `db push` 하면 0189 만 재적용되고 0190 은 "이미 적용됨"으로 건너뛰어
+  **함수가 열린 채 되살아난다.** 게이트 둘이 각각 재현했다.
+- **B-EX-02**: **"0189 와 0190 을 함께 넘기면 된다"는 충분하지 않다.** Supabase CLI 2.116.0 은
+  파일마다 각각 트랜잭션을 돌리고 바깥 트랜잭션이 없다. 중간 상태에서
+  `erase_my_data('content') → status=ok` 가 실행으로 확인됐다.
+  대응책 후보: ① 두 파일을 **한 psql 세션의 한 트랜잭션**으로 수동 적용 ② 적용 직전
+  `ALTER DEFAULT PRIVILEGES … REVOKE EXECUTE ON FUNCTIONS` 로 바닥을 잠시 걷었다 복원.
+  생성물 게이트는 **0189:403 에도 authenticated 를 추가**하는 세 번째 안을 냈는데,
+  그건 머지된 마이그레이션 수정이라 **Simon 확인 없이 하지 않는다.**
+
+지금 당장의 위험은 낮다 — 운영에 0189·0190 둘 다 미적용이고
+**`erase_my_data` 를 부르는 클라이언트 코드가 `src/`·`supabase/` 에 0건**이다.
+
+### 기록 결함 하나를 고쳤다
+
+`DECISIONS.md` 의 `26.09.21` 다섯 줄은 **오기**였다. 그 줄들이 든 커밋 `9d2f1b8b` 의
+author 시각은 **2026-09-20 19:26 KST** 이고, #1847 머지(`623cb0a9`)는 **09-20 19:20** 이다.
+쓸 때 시계가 약 **+6시간 40분** 앞섰다. append-only 라 원문은 두고 정정 줄을 덧붙였고,
+`STATE.md` 와 이 파일의 헤더는 고쳤다.
+**잡는 법: 의심되는 줄이 든 커밋의 author 시각과 대조한다.**
+시각은 `powershell -NoProfile -Command "(Get-Date).ToString('yyyy-MM-dd HH:mm:ss')"` 로만 잰다.
+
+### Orca 함정 하나
+
+codex 게이트 둘이 **프롬프트를 입력창에 쥔 채** 안 떴다. 겉으로는 세 증상으로 보였다
+(`ok=True` + `nudge: 터미널 핸들 없음` / `cli_failed rc=1` / `task_not_startable … blocked`).
+**원인은 하나**고, `/vibe` 의 자동 nudge 가 `worker-list` 에서만 핸들을 찾다가 그 목록이
+비어 조용히 건너뛴 것이다. `orca terminal list` 에서 **제목이 워크트리 이름뿐이고
+상태줄에 레인·effort 가 찍힌** 터미널을 찾아 `terminal send --enter` 하나로 둘 다 시작했다.
+
+### 다음 1개
+
+**법역 결정(Simon 대기)** — 나라를 모를 때의 가입 하한. 스토어 연령 등급 · 데이터 안전
+양식 · 약관 · DPIA 가 전부 이 값을 인용하므로 그 넷이 이 답을 기다린다.
+결정 시트는 Simon 에게 전달됐다(선택 4건).
+
+그다음이 **r50 묶음 다섯**: B-EX-01 대응책 · `ANDROID_QA_GUIDELINES.md:38-39` 재정정(이 문서는
+연속 두 번 틀렸다) · `AccountScope` 우회 가드 · `DeepSpaceDesignScreens.tsx:219` 의
+`useWikiGraphData` 사본 울타리 · `storage-recovery.ts:12` 법무 인용 오기
+(실제 인용 대상은 `AuthContext.tsx:53·153` 이다 — 그 주석을 믿고 AuthContext 를 편집하면
+법무 인용이 조용히 밀린다).
+
+### 보고서
+
+- `E:/Coding Infra/reports/vibe-r260920/r49-*/` — 워커 2 · 게이트 2
+- `r48-jurisdiction/findings.md` — 법역 조사 371줄(11개 시장 + EU 31개국 1차 원문)
+- 법역 결정 시트 HTML — Simon 전달본(99.7KB · 외부 참조 0)
+
+## 2026-09-20 저녁(정정: 원래 '09-21 새벽' 으로 적혀 있었다 — 쓸 때 시계가 +6h40m 앞섬) / 삭제를 서버가 소유하게 만든 PR 을 8회차 게이트 끝에 머지했다 · 출시는 `global` 로 간다
+
+### 결론
+
+- **main = `623cb0a9`. PR #1847 머지** — Simon 확정 결정 1·4(삭제 · 복구를 서버가 조정 · 전체 삭제는 서버 정책으로)의 1단계다. 삭제 등록부 **66행**(client_erasable 26 / retained 27 / account_delete_only 13) · `erase_my_data` RPC · 공개 영수증 계약 · **CI 실DB 회귀**(26표 전수 · 무조건 DELETE 탐침 · 양방향 sweep · 질문 단위 하위트랜잭션) · 정적 가드 G1~G10.
+- ⚠ **RPC 는 권한 0 으로 배송된다(SHIPS LOCKED).** `GRANT EXECUTE ... TO authenticated` 가 없다. 이유는 8차 게이트가 찾은 것 — 26표를 **순차로** 지우는 동안 같은 사용자의 다른 세션이 **이미 지나간 표**에 넣은 행이 살아남아 `status=ok` 영수증이 거짓이 된다. 서버 울타리 · 세대(설계서 S3-C · S3-D)가 들어온 뒤에 연다. 그 조건은 `0189` 5절에 적혀 있다.
+- **게이트를 8회차까지 돌렸고, 두 레인이 스스로 닫았다.** 추이: H1 M4 → M4 L2 → 인가 PASS + M2 → H1 M2 + M3 L1 → H1 M1 L1 + M1 L1 → H1 M1 + M2 → H1 M2 + M1 → **M2 + M2**. 런타임(`erase_my_data` · 분류 · 보존 · 쿼터)은 **여덟 번 연속 새 결함 0**이고, 발견은 전부 **이 PR 이 도입한 안전망**에서 나왔다. 4차에서 코디네이터가 패치를 멈추고 **판정 권한을 정적 가드에서 카탈로그 · 역할 관측으로 옮겼다**(설계 변경). 그 뒤 발견은 관측의 정확도 문제로 바뀌었다.
+- **Simon 판단 ①**(주장을 줄이고 머지): 가드 머리에 **증명하는 것 / 증명하지 않는 것 / 알려진 사각 전량 / "THIS LIST IS NOT COMPLETE" / 초록을 삭제 인가 PASS 로 인용 금지**를 적었다. 게이트도 같은 틀을 제시했다 — "머지는 '현재 런타임 회귀 없음과 추가된 제한적 검사'를 받아들이는 결정일 수 있다. 그것을 '삭제 인가를 일반적으로 증명한 PASS' 로 기록해서는 안 된다."
+- **이월 Q-S1 이 닫혔다 — 출시는 `global`**(Simon). 그로써 두 가지가 잠재에서 실재로 바뀐다: ① `jurisdictionForCountry` 가 **KR · US · EEA+UK 만** 매핑하고 미인식 폴백이 `DEFAULT`(16)가 아니라 **KR(14)** 이라, 일본 · 브라질 · 인도 등의 14세가 한국 기준으로 자기동의한다 ② `src/lib/billing/` 에 **미성년 게이트가 0건**이다.
+- **출시 차단 실측 41행**(막음 7 · 불명 17 · 안막음 17). global 기준 필수는 **DPIA 완성 · 서명**과 **법역 신호 보정**, 그리고 **운영 백업 복구**다. 나머지 넷은 그 기능을 켤 때 조건. ⚠ 낡은 진단 셋이 반증됐다 — "법역 판정이 항상 KR"(아님) · "0179 필수 의존"(아님) · "스토어 자료 전무"(아님).
+
+### 지금 도는 것
+
+`r48-fix-live-bugs`(main 버그 넷 · TDD) · `r48-jurisdiction`(나라별 연령 1차 출처) · Grok Bot 콘솔 과제서 2장 대기(Play Console `vb-a53e2ef2` · App Store Connect `vb-dbaec979`).
+
+### 다음 세션이 먼저 읽을 것
+
+`STATE.md`(네 절) · 이 블록 · `DECISIONS.md` 26.09.20 08:45 ~ 26.09.21 02:05 줄. 보고서: <https://claude.ai/artifact/G31qLaEceXPHeNZuvDczhV>(PR #1847 결정) · <https://claude.ai/artifact/YYEwq9tfHN6W7qyyWdpTQz>(Simon 카드 3장).
+
+---
+
+## 2026-09-20 06:0x / QA 산출물을 지금 main(`585aac5f`)으로 맞춤
+
+### 결론
+
+- **QA 웹 · QA APK 가 `c91ebcbb` 에 멈춰 있었다.** 그 뒤 #1841(`2dce7ead`)과 기록 PR #1843(`585aac5f`)이 들어갔으므로, 그대로 QA 하면 **#1841 이전 동작**(가져오기 철회가 다른 가져오기의 원본까지 삭제)을 보게 된다. 둘 다 지금 main 으로 다시 만들었다.
+- **웹** — 워크트리 `qa-integration-260920` fast-forward(변경 0) → `expo export --clear`(347 파일 · 40MB) → `http://127.0.0.1:8765/2nd-B/` 재기동(`entry-a8d8d24d`) → headless Chrome 으로 **로그인 화면 렌더 · 콘솔 오류 0**.
+- **APK** — `qa-apk-260920` fast-forward → **네이티브 파일 무변경 확인**(`app.json` · `package.json` · `android/` · `patches/` 0건)이라 `--skip-prebuild` → gradle 134초 → 66.6MB · arm64-v8a · 번들 10.9MB(새 로케일 키 확인). **서명 `6053a4c7…` · versionCode 40 = 앞 QA 앱과 같음**(apksigner · aapt2) → 데이터 유지 덮어 설치.
+- **공개** — 사전 릴리스 [`qa-260920-585aac5f`](https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260920-585aac5f) · 앞 빌드 `qa-260920-c91ebcbb` 본문 맨 위에 대체 안내. **이번 커밋 자체의 에뮬레이터 확인은 하지 않았다**(네이티브 무변경 · `c423ba88` 확인으로 대신) — 릴리스 본문에도 그렇게 적었다.
+- 바뀐 것은 QA 산출물뿐이다. **결정 대기 상태는 그대로** — 아래 블록이 그 판이다.
+
+## 2026-09-20 새벽 / 게이트 통과 PR 17개 머지 · 남은 draft 둘(#1814 · #1839)은 서버 조정 결정 대기
+
+### 결론
+
+- **main = `2dce7ead`. 09-19 20:16 ~ 09-20 05:41 에 17개 머지** — 전부 보안 게이트 두 레인(daybreak 생성물 · astra 인가, critical · high · medium 0) 뒤: #1819 · #1810 · **#1833**(Android 두 번째 실행 Loading 멈춤) · #1828 · #1831 · #1826 · #1825 · #1827 · #1829 · #1830 · #1836 · **#1835**(이중 실패 출구 · Simon 확정 ① N=3) · #1837 · #1838 · **#1840** · **#1842**(복구 세션 승격 울타리 두 겹) · **#1841**(가져오기 허브 중복 id 철회가 다른 행을 지우던 것 — #1839 보다 먼저).
+- **main 네이티브 확인** — x86_64 `c423ba88` 에뮬레이터: 실행 1 + 강제 종료 재실행 3 = Loading 없음 · 세션 유지 · FATAL 0 · 인증 경고 0(03:33). 캡처 `E:/Coding Infra/reports/qa-260919/main-c423ba88-launch*.png`.
+- **남은 draft 둘 — 둘 다 클라이언트 수정 라운드를 멈췄다** — #1839(설정 삭제가 원문까지 · 2차에서 멈춤 — 1차 5건 닫자 2차 새 6건) · #1814(자동 저장 되돌리기 · 8차에서 멈춤 — **8차 수정이 회귀를 만들었다**: 10초 상한이 SDK 잠금을 못 풀어 로그인 · 로그아웃이 멈출 수 있음. 다시 이어가면 이것부터 되돌린다). 클라이언트 표식으로 여러 경로를 조율하는 구조의 한계.
+- **Simon 보고서(결정 7건 + 이월 Q-S1)**: <https://claude.ai/artifact/H7KGVqSjXj27NxEVdhQXWs>. 핵심은 결정 1번 — 삭제 · 복구를 서버에서 조정(S3) · 추천 ①(02:53 에 ②에서 바꿈).
+
+### 막힌 것
+
+| 무엇 | 왜 | 풀리는 조건 |
+|---|---|---|
+| #1814 · #1839 머지 | 마지막 틈(행 없는 원문 · 늦은 재업로드 · M2)은 서버 조정 없이 못 닫음 | Simon 결정 1번 |
+| **DB 백업** | `Backup` 환경 비밀값 2개 빈 값 — 09-13 부터 실패 | **Simon — 09-26 쯤 복원본 0** |
+| grok 레인 | 402 잔액 + 로그인 만료 | Simon — `grok` 로그인 · xAI 잔액 |
+| 출시 법역 Q-S1 | 제품 · 법무 결정(기본값 불가) | Simon |
+
+### 다음 단일 작업
+
+**Simon 의 결정 1번 답을 받는다**(보고서 결정 탭) — ① 서버 조정이면 #1814 · #1839 를 서버 트랜잭션 위에서 다시 설계, ② ③ 이면 클라이언트로 이어 간다(#1814 는 회귀부터). G14 결정 시트: `E:/Coding Infra/reports/vibe-r260919/decision-sheet-run_e3a3e38558ab.html`. 폰 QA 빌드 `qa-260920-c91ebcbb` 공개됨(#1841 전 main · #1814 없음).
+
+### 이번 밤에 새로 밟은 것
+
+- **astra 가 인증 검증에서 codex 사이버 출력 필터에 조용히 막힌다**(r27 · 39분 · worker_done 없음). 터미널을 읽어 확인하고 fable 로 옮겼다.
+- **"멱등이라 범위 밖"을 믿지 말 것** — #1814 7차에서 cold 겹친 삭제가 새 원문을 지우는 것으로 반증.
+- **정션 워크트리에서 `npm ci`(`qa_apk_build.py --reinstall`) 금지** — 공용 설치를 지운다. 워크트리를 지우기 전에 STATE 의 '남긴 것' 대조.
+- 감시 스크립트는 다시 걸기 전에 살아 있는 것을 센다(두 개가 겹쳐 돈 적 있음).
+- 쌓인 PR 이 아래 PR squash 뒤 DIRTY 면: 임시 워크트리에서 main 병합 → 충돌 파일은 main 판 → 자기 커밋 diff 재적용 → 순 diff 동일 확인 → force 없이 push.
+
+---
+
 ## 2026-09-19 오전 / main 의 Android 빌드가 두 번째 실행부터 멈추던 결함을 고쳤다(#1833) — 머지는 오늘 밤 게이트 뒤
 
 ### 결론
