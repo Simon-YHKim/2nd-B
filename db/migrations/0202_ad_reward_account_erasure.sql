@@ -87,9 +87,11 @@ BEGIN
      )
      OR NOT (
        SELECT p.prosecdef
+              AND COALESCE(p.proconfig @> ARRAY['search_path=""']::text[], false)
          FROM pg_catalog.pg_proc AS p
         WHERE p.oid = 'public.erase_ad_reward_ledger_on_account_delete()'::regprocedure
      )
+     OR pg_catalog.has_function_privilege('service_role', 'public.erase_ad_reward_ledger_on_account_delete()', 'EXECUTE')
      OR pg_catalog.has_function_privilege('public', 'public.erase_ad_reward_ledger_on_account_delete()', 'EXECUTE')
      OR pg_catalog.has_function_privilege('anon', 'public.erase_ad_reward_ledger_on_account_delete()', 'EXECUTE')
      OR pg_catalog.has_function_privilege('authenticated', 'public.erase_ad_reward_ledger_on_account_delete()', 'EXECUTE') THEN
