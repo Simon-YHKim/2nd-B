@@ -35,6 +35,7 @@ type DobFeedback = "saved" | "failed" | null;
 type ExportFeedback =
   | { kind: "done" | "partial"; failedItems: number }
   | { kind: "failed" }
+  | { kind: "cooldown"; minutes: number }
   | null;
 
 async function deliverAccountExport(json: string, filename: string): Promise<void> {
@@ -225,7 +226,11 @@ export function DeepSpaceAccountScreen() {
       setExporting(false);
       return;
     }
-    if (result.status === "failed") {
+    if (result.status === "cooldown") {
+      // Not a failure: the server allows one export per window and says how long
+      // is left. Saying "failed" here makes people press again and hit it again.
+      setExportFeedback({ kind: "cooldown", minutes: Math.max(1, Math.ceil(result.retryAfterSeconds / 60)) });
+    } else if (result.status === "failed") {
       warnAccountAction("export");
       setExportFeedback({ kind: "failed" });
     } else {
@@ -450,6 +455,11 @@ export function DeepSpaceAccountScreen() {
                 {exportFeedback?.kind === "failed" ? (
                   <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.error]}>
                     {t("consent:account.export.failed")}
+                  </RNText>
+                ) : null}
+                {exportFeedback?.kind === "cooldown" ? (
+                  <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.error]}>
+                    {t("consent:account.export.cooldown", { minutes: exportFeedback.minutes })}
                   </RNText>
                 ) : null}
                 <PixelPressable
