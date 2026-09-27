@@ -71,8 +71,19 @@ const triggerOnlyOptOut = /--\s*definer-grants-lint:\s*trigger-only/i;
 // 2026-09-26 in the contract VALUES row, the DO $verify$ check and one comment.
 // Grants, SECURITY DEFINER, search_path and bodies are unchanged; 0191 was not
 // yet applied in production when this changed.
-const REVIEWED_SIGNUP_METADATA_SHA256 =
-  "6ba82c9ec8a796e99f1398398c58560b58513147119928d3ad004b31b0781648";
+// 2026-09-28: 0203 (email-v5, the 2026-09-28 notice revision, Simon) is a
+// second reviewed metadata migration. Its whole file is pinned the same way.
+// Reviewed 2026-09-28 01:20 KST, PASS, by a fresh-context reviewer (same model
+// vendor: the cross-vendor Relay review, bus nonce vb-aea1da95, could not run
+// because Grok was out of quota; Simon approved proceeding). It re-creates the resolver and the
+// public status RPC with one added VALUES row / revision, re-issues the same
+// revokes and the one reviewed grant, and replaces two 0193 LLM-consent
+// functions. 0191 keeps its own pin: it is applied in production and its grant
+// must not become a Rule A failure because a newer contract exists.
+const REVIEWED_SIGNUP_METADATA_SHA256S: ReadonlySet<string> = new Set([
+  "6ba82c9ec8a796e99f1398398c58560b58513147119928d3ad004b31b0781648", // 0191 email-v4
+  "58ad7625ee30499a87d840eadf152f0b2d599553f3b416f3a432bf313c7b4290", // 0203 email-v5
+]);
 const REVIEWED_SIGNUP_METADATA_GRANT =
   "GRANT EXECUTE ON FUNCTION public.signup_consent_contract_status() TO anon, authenticated;";
 // The public DEFINER RPC calls signup_consent_contract(text) with its owner's
@@ -116,7 +127,7 @@ for (const file of files) {
   const code = stripSqlComments(sql);
   const rel = relative(ROOT, full);
   const sqlSha256 = normalizedSqlSha256(sql);
-  const reviewedSignupMetadata = sqlSha256 === REVIEWED_SIGNUP_METADATA_SHA256;
+  const reviewedSignupMetadata = REVIEWED_SIGNUP_METADATA_SHA256S.has(sqlSha256);
   const reviewedDependencyHistory = sqlSha256 === REVIEWED_SIGNUP_DEPENDENCY_HISTORY[file];
 
   // CREATE OR REPLACE retains old EXECUTE grants. Once this RPC is public, a

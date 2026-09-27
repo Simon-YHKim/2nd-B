@@ -10,7 +10,8 @@ const draft = existsSync(draftPath) ? readFileSync(draftPath, "utf8") : "";
 
 describe("AdMob disclosure and append-only signup contract", () => {
   test("ships the same new policy version without treating it as optional-ad consent", () => {
-    expect(PRIVACY_POLICY_VERSION).toBe("2026-09-26");
+    // 2026-09-28 (policy v4, a notice revision) keeps every AdMob sentence below.
+    expect(PRIVACY_POLICY_VERSION).toBe("2026-09-28");
     expect(CONSENT_VERSION).toBe("2026-09-07");
     expect(TERMS_VERSION).toBe("2026-08-16");
     expect(PRIVACY_DOC.body).toContain("Google AdMob");
