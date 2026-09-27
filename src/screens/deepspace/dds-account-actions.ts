@@ -1,6 +1,7 @@
 import type { AnyGlyphName } from "@/components/pixel/pixel-glyphs";
 import { canSubmitDobCorrection } from "@/lib/account/dob";
 import {
+  AccountExportCooldownError,
   buildExportFilename,
   requestAccountExport,
   summarizeAccountExport,
@@ -119,6 +120,9 @@ export async function saveAccountDob(
 export type AccountExportResult =
   | { status: "done"; summary: AccountExportSummary }
   | { status: "cancelled" }
+  /** The server refused before reading anything: one export per account per
+   *  window (0175). Not a failure the user can fix by pressing again now. */
+  | { status: "cooldown"; retryAfterSeconds: number }
   | { status: "failed"; error: unknown };
 
 export interface AccountExportDeps {
@@ -155,6 +159,9 @@ export async function exportAccountData(
     return { status: "done", summary: summarizeAccountExport(bundle) };
   } catch (error) {
     if (!deps.isActive()) return { status: "cancelled" };
+    if (error instanceof AccountExportCooldownError) {
+      return { status: "cooldown", retryAfterSeconds: error.retryAfterSeconds };
+    }
     return { status: "failed", error };
   }
 }
