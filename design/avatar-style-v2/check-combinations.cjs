@@ -98,6 +98,18 @@ assert.ok(chef && chef.hat, "chef must exercise hat occlusion");
 const plainChef = check({ job: "chef", acc: "none" });
 assert.deepEqual(check({ job: "chef", acc: "headband" }), plainChef);
 assert.ok(check({ job: "chef", acc: "earrings" }).length > plainChef.length);
+const headPixel = (ops, x, y) => regionPixels(ops, 0, 44)[y * 64 + x];
+assert.equal(headPixel(check({ job: "knight" }), 21, 23), "#b0b9cc",
+  "the knight's helmet must cover the glasses at its edge");
+assert.equal(headPixel(check({ job: "astronaut" }), 30, 36), "#1f2740",
+  "the astronaut's visor must cover the lower face");
+assert.deepEqual(regionPixels(check({ job: "astronaut", face: "glasses" }), 0, 44),
+  regionPixels(check({ job: "astronaut", face: "none" }), 0, 44),
+  "a closed helmet must hide the chosen face accessory");
+for (const job of [null, "doctor", "firefighter", "chef"]) {
+  assert.equal(headPixel(check({ job }), 21, 23), "#241c18",
+    `${job || "no job"} must still show the glasses`);
+}
 const uniform = check({ job: "chef", wearUniform: true });
 const ownColor = check({ job: "chef", wearUniform: false });
 assert.notDeepEqual(uniform, ownColor);

@@ -459,7 +459,7 @@
     /* 판타지 */
     JB('wizard', '마법사', 'Wizard', 'fantasy', '#4c3a8c', function () { return [[28, 0, 8, 6, '#5c4aa8'], [24, 5, 16, 5, '#5c4aa8'], [19, 9, 26, 5, '#5c4aa8'], [14, 13, 36, 4, '#4c3a8c'], [28, 1, 4, 4, '#8f6fb5'], [30, 10, 4, 4, '#f2c04a']]; },
       function () { return [[24, 44, 16, 3, '#3a2a6c'], [29, 47, 6, 5, '#f2c04a']]; }),
-    JB('knight', '기사', 'Knight', 'fantasy', '#8f98aa', function () { return [[17, 6, 30, 22, '#b0b9cc'], [20, 16, 24, 6, '#3a3f4a'], [30, 22, 4, 8, '#8f98aa'], [17, 6, 30, 3, '#ccd6e0'], [29, 0, 6, 7, '#bf4a44']]; }, null),
+    JB('knight', '기사', 'Knight', 'fantasy', '#8f98aa', function () { return [[16, 6, 32, 25, '#b0b9cc'], [20, 16, 24, 6, '#3a3f4a'], [30, 22, 4, 9, '#8f98aa'], [16, 6, 32, 3, '#ccd6e0'], [29, 0, 6, 7, '#bf4a44']]; }, null),
     JB('ninja', '닌자', 'Ninja', 'fantasy', '#2f3b5c', function () { return [[16, 6, 32, 16, '#1f2740'], [16, 28, 32, 12, '#1f2740'], [14, 12, 4, 20, '#1f2740'], [16, 6, 32, 2, '#3a4a6c']]; }, null),
     JB('pirate', '해적', 'Pirate', 'fantasy', '#8f2f2a', function () { return [[16, 8, 32, 7, '#241c18'], [14, 14, 36, 3, '#241c18'], [18, 9, 10, 3, '#4a4a52']]; },
       function () { return [[21, 21, 12, 10, '#241c18'], [16, 19, 32, 2, '#241c18']].concat([[24, 44, 16, 3, '#e8e2d4']]); }),
@@ -470,7 +470,7 @@
     JB('monk', '승려', 'Monk', 'fantasy', '#c9852a', null, function () { return [[18, 46, 30, 5, '#e0a63c'], [22, 51, 24, 4, '#c9852a'], [26, 40, 12, 3, '#8f5a1a']]; }),
     JB('samurai', '사무라이', 'Samurai', 'fantasy', '#2f3b5c', function () { return [[17, 8, 30, 8, '#3a3f4a'], [14, 15, 36, 4, '#241c18'], [22, 2, 6, 8, '#e0a63c'], [36, 2, 6, 8, '#e0a63c'], [28, 5, 8, 5, '#bf4a44']]; },
       function () { return [[20, 46, 24, 4, '#8f2f2a'], [24, 44, 16, 2, '#e8e2d4']]; }),
-    JB('astronaut', '우주비행사', 'Astronaut', 'fantasy', '#e8f2f7', function () { return [[14, 4, 36, 30, '#e8f2f7'], [18, 12, 28, 16, '#1f2740'], [21, 15, 8, 5, '#46b6ff'], [14, 4, 36, 3, '#ccd6e0'], [12, 16, 4, 10, '#b0b9cc'], [48, 16, 4, 10, '#b0b9cc']]; },
+    JB('astronaut', '우주비행사', 'Astronaut', 'fantasy', '#e8f2f7', function () { return [[14, 4, 36, 34, '#e8f2f7'], [17, 38, 30, 6, '#e8f2f7'], [18, 12, 28, 25, '#1f2740'], [21, 15, 8, 5, '#46b6ff'], [14, 4, 36, 3, '#ccd6e0'], [12, 16, 4, 10, '#b0b9cc'], [48, 16, 4, 10, '#b0b9cc']]; },
       function () { return [[20, 48, 8, 6, '#bf4a44'], [30, 48, 6, 6, '#46b6ff'], [24, 44, 16, 3, '#c9d6de']]; }),
     JB('detective', '탐정', 'Detective', 'fantasy', '#5c4a3f', function () { return [[19, 5, 26, 8, '#8f7a63'], [13, 12, 38, 4, '#8f7a63'], [19, 5, 12, 2, '#a8917d'], [19, 11, 26, 2, '#6b5a4a']]; },
       function () { return [[24, 44, 16, 3, '#e8e2d4'], [22, 47, 20, 14, '#6b5a4a'], [29, 47, 6, 14, '#5c4a3f']]; }),
@@ -560,10 +560,12 @@
     o = o.concat(hairOps);
     o = o.concat(face(sp.skin, sp.eye, sp.hairColor, sp.expr));
     o = o.concat(ownGarment ? garmentTorso(sp.garmentId, sp.skin, cloth, sp.cloth2) : torso(sp.skin, cloth));
+    var F = FACE.filter(function (x) { return x.id === sp.face; })[0];
+    // A closed helmet hides facial details but keeps the choice in the spec.
+    if (F && sp.face !== 'none' && !(J && J.id === 'astronaut')) o = o.concat(F.f(P));
+    // A face accessory sits against the face, behind any job headwear or visor.
     if (J && J.hat) o = o.concat(J.hat(sp.hairColor));
     if (J && J.extra && !ownGarment) o = o.concat(J.extra(cloth));
-    var F = FACE.filter(function (x) { return x.id === sp.face; })[0];
-    if (F && sp.face !== 'none') o = o.concat(F.f(P));
     var A3 = ACC.filter(function (a) { return a.id === sp.acc; })[0];
     if (A3 && sp.acc !== 'none' && !(J && J.hat && HEADTOP[sp.acc])) o = o.concat(A3.f(P));
     return o;

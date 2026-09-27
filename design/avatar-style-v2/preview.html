@@ -26,6 +26,17 @@
     .sprite { width: min(100%, 384px); aspect-ratio: 1; background: #101824; }
     .sprite svg { display: block; width: 100%; height: 100%; }
     .reference { display: block; width: min(100%, 384px); height: auto; aspect-ratio: 1; object-fit: contain; background: #101824; }
+    .showcase { margin: 22px 0 28px; }
+    .showcase h2 { margin: 0 0 4px; font-size: 20px; }
+    .showcase p { margin: 0 0 14px; }
+    .showcase-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .showcase-card { display: grid; gap: 8px; text-align: left; padding: 10px; min-width: 0; background: #1a2738; border-color: #40516a; }
+    .showcase-card[aria-pressed=true] { border-color: #f6d27b; box-shadow: inset 0 0 0 1px #f6d27b; }
+    .showcase-card img { display: block; width: 100%; max-height: 172px; aspect-ratio: 1; object-fit: contain; background: #101824; }
+    .showcase-card strong { font-size: 14px; }
+    .showcase-card small { color: #b6c6d8; font-size: 12px; }
+    .reference-details { margin-top: 18px; }
+    .reference-details .stage { margin-top: 12px; }
     .actions { display: flex; gap: 10px; margin-top: 20px; }
     button { cursor: pointer; padding-inline: 16px; }
     button:hover, select:hover { border-color: #f7f2e8; }
@@ -36,13 +47,18 @@
     .gallery figure { margin: 0; padding: 8px; border: 1px solid #40516a; background: #1a2738; }
     .gallery img { display: block; width: 100%; aspect-ratio: 1; object-fit: contain; }
     .gallery figcaption { margin-top: 6px; color: #b6c6d8; font-size: 12px; overflow-wrap: anywhere; }
-    @media (max-width: 750px) { .layout { grid-template-columns: 1fr; } body { padding: 12px; } }
+    @media (max-width: 750px) { .layout { grid-template-columns: 1fr; } .showcase-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } body { padding: 12px; } }
   </style>
 </head>
 <body>
 <main>
   <h1>승인 이미지 기준 아바타 생성기 검수</h1>
   <p>첨부 승인본과 조합 결과를 나란히 확인합니다. 헤어·얼굴·옷을 독립적으로 선택할 수 있으며, 이 화면은 앱에 연결하기 전의 검수 도구입니다.</p>
+  <section class="showcase" aria-labelledby="showcaseTitle">
+    <h2 id="showcaseTitle">다른 에셋으로 갈아입혀 보기</h2>
+    <p>아래는 생성기의 실제 512px PNG입니다. 카드를 누르면 아래 미리보기에도 같은 선택지가 적용됩니다.</p>
+    <div id="showcaseGrid" class="showcase-grid"></div>
+  </section>
   <div class="layout">
     <section class="panel" aria-label="아바타 설정">
       <div class="fields">
@@ -69,9 +85,13 @@
       <div class="stage">
         <div class="sample"><span>현재 조합 · 512px 렌더</span><div class="sprite" id="preview"></div></div>
         <div class="sample"><span>사용자 승인 원본</span><img class="reference" src="approved-human-reference.png" width="384" height="384" alt="큰 사각 안경과 어두운 올리브색 옷의 승인 아바타"></div>
-        <div class="sample"><span>옷 갈아입히기 참고</span><img class="reference" src="wardrobe-hoodie-reference.png" width="384" height="384" alt="같은 캐릭터가 붉은 후드티를 입은 참고 이미지"></div>
-        <div class="sample"><span>동물 스타일 참고</span><img class="reference" src="animal-cat-reference.png" width="384" height="384" alt="같은 스타일의 고양이 아바타 참고 이미지"></div>
       </div>
+      <details class="reference-details"><summary>이미지 생성 참고본 보기 · 생성기 출력 아님</summary>
+        <div class="stage">
+          <div class="sample"><span>옷 갈아입히기 이미지 생성 참고본</span><img class="reference" src="wardrobe-hoodie-reference.png" width="384" height="384" alt="같은 캐릭터가 붉은 후드티를 입은 이미지 생성 참고본"></div>
+          <div class="sample"><span>동물 스타일 이미지 생성 참고본</span><img class="reference" src="animal-cat-reference.png" width="384" height="384" alt="같은 스타일의 고양이 아바타 이미지 생성 참고본"></div>
+        </div>
+      </details>
     </section>
   </div>
   <details><summary>전체 선택지 검수 시트</summary>
@@ -106,7 +126,47 @@
     $('catalogGallery').append(heading, grid);
   }
   const defaults = { type: 'human', hair: 'sidepart', face: 'glasses', expr: 'smile', acc: 'none', species: 'cat', job: '', garmentId: '', skin: '#c98e5e', hairColor: '#2b211b', eye: '#3a2a1e', cloth: '#696949', cloth2: '#d97757', wearUniform: true };
-  function reset() { for (const [key, value] of Object.entries(defaults)) { if (key === 'wearUniform') $(key).checked = value; else $(key).value = value; } render(); }
+  const showcaseAssets = [
+    { group: 'garment', id: 'hoodie', key: 'garmentId', title: '후드티', category: '옷 교체' },
+    { group: 'garment', id: 'blazer', key: 'garmentId', title: '블레이저', category: '옷 교체' },
+    { group: 'garment', id: 'apron', key: 'garmentId', title: '앞치마', category: '옷 교체' },
+    { group: 'hair', id: 'afro', key: 'hair', title: '아프로', category: '헤어 교체' },
+    { group: 'hair', id: 'wavelong', key: 'hair', title: '긴 웨이브', category: '헤어 교체' },
+    { group: 'face', id: 'sunglasses', key: 'face', title: '선글라스', category: '얼굴 장식' },
+    { group: 'job', id: 'firefighter', key: 'job', title: '소방관', category: '직업 복장' },
+    { group: 'animal', id: 'panda', key: 'species', title: '판다', category: '동물 교체' }
+  ];
+  let selectedShowcase = null;
+  function applyDefaults() {
+    for (const [key, value] of Object.entries(defaults)) {
+      if (key === 'wearUniform') $(key).checked = value;
+      else $(key).value = value;
+    }
+  }
+  function reset() { applyDefaults(); selectedShowcase = null; render(); }
+  for (const asset of showcaseAssets) {
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'showcase-card'; button.setAttribute('aria-pressed', 'false');
+    button.dataset.asset = `${asset.group}/${asset.id}`;
+    const image = document.createElement('img');
+    image.src = `assets/${asset.group}/${asset.id}.png`; image.alt = '';
+    image.width = 512; image.height = 512;
+    const title = document.createElement('strong'); title.textContent = asset.title;
+    const category = document.createElement('small'); category.textContent = asset.category;
+    button.append(image, title, category);
+    button.addEventListener('click', () => {
+      applyDefaults();
+      if (asset.group === 'animal') {
+        $('type').value = 'animal'; $('species').value = asset.id; updateFur();
+        $('fur').value = (A.ANIMAL.find((item) => item.id === asset.id).fur || A.FUR)[0];
+        $('face').value = 'none';
+      } else $(asset.key).value = asset.id;
+      selectedShowcase = button.dataset.asset;
+      render();
+      $('preview').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    $('showcaseGrid').append(button);
+  }
   function updateFur() {
     const animal = A.ANIMAL.find((item) => item.id === $('species').value);
     const allowed = animal.fur || A.FUR;
@@ -129,9 +189,10 @@
     $('species').disabled = !animal;
     $('fur').disabled = !animal;
     $('preview').innerHTML = R.render(A.ops(currentSpec()), 512);
+    document.querySelectorAll('.showcase-card').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.asset === selectedShowcase)));
     $('note').textContent = animal ? '동물 아바타는 옷을 고를 수 있지만 직업 복장은 적용되지 않습니다.' : ($('garmentId').value ? '고른 옷은 직업을 바꿔도 유지됩니다.' : '직업을 고르면 해당 기본 복장이 적용됩니다.');
   }
-  document.querySelectorAll('select, input').forEach((control) => control.addEventListener('input', render));
+  document.querySelectorAll('select, input').forEach((control) => control.addEventListener('input', () => { selectedShowcase = null; render(); }));
   $('reset').addEventListener('click', reset);
   $('download').addEventListener('click', () => {
     const svg = R.render(A.ops(currentSpec()), 512);
