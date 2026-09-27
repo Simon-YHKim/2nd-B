@@ -72,8 +72,10 @@ const triggerOnlyOptOut = /--\s*definer-grants-lint:\s*trigger-only/i;
 // Grants, SECURITY DEFINER, search_path and bodies are unchanged; 0191 was not
 // yet applied in production when this changed.
 // 2026-09-28: 0203 (email-v5, the 2026-09-28 notice revision, Simon) is a
-// second reviewed metadata migration. Its whole file is pinned the same way
-// (independent review: bus nonce vb-aea1da95). It re-creates the resolver and the
+// second reviewed metadata migration. Its whole file is pinned the same way.
+// Reviewed 2026-09-28 01:20 KST, PASS, by a fresh-context reviewer (same model
+// vendor: the cross-vendor Relay review, bus nonce vb-aea1da95, could not run
+// because Grok was out of quota; Simon approved proceeding). It re-creates the resolver and the
 // public status RPC with one added VALUES row / revision, re-issues the same
 // revokes and the one reviewed grant, and replaces two 0193 LLM-consent
 // functions. 0191 keeps its own pin: it is applied in production and its grant
