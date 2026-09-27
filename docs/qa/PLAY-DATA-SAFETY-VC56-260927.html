@@ -17,7 +17,7 @@
   </style>
 </head>
 <body><main>
-  <p class="muted">2ndB · 2026-09-27 20:32:13 KST · vc56 원본 AAB</p>
+  <p class="muted">2ndB · 2026-09-27 20:51:12 KST · vc56 원본 AAB</p>
   <h1>동의 전 송신 확인, 기기 ID는 필수 신고 권고</h1>
   <p>Play 검토에 제출한 Android 0.9.0(vc56)을 새로 빌드하지 않고 첫 실행했습니다. 로그인·광고 동의·광고 요청 전 앱 UID에서 외부로 나간 두 연결을 확인했습니다. 따라서 “동의 전 송신 0”은 성립하지 않습니다.</p>
   <div class="cards" aria-label="검사 결과 요약">
@@ -37,15 +37,15 @@
     <tr><td>기기 또는 기타 ID</td><td>앱 UID가 <code>firebaseinstallations.googleapis.com</code>에 동의 전 연결. Firebase 공식 안내는 설치 ID(FID) 자동 수집을 명시하고, Play는 FID를 이 항목의 예로 듭니다.</td><td><strong>현재 근거상 “필수” 신고 권고.</strong> 모든 이용자가 수집을 거부할 수 있어야 “선택”으로 표시할 수 있습니다. 현재 Play 양식과 vc56 SDK 판본을 확인하고 관리형 게시 전에 바로잡습니다. TLS 본문에서 FID 값을 직접 확인한 판정은 아닙니다.</td></tr>
     <tr><td>대략적 위치</td><td>IP를 사용하는 외부 연결은 확인. 수신자가 IP로 위치를 추론하는지 또는 보관하는지는 미확인.</td><td><strong>미판정.</strong> 수신자별 IP 사용 목적과 현재 배포 버전의 광고 SDK 동작을 확인합니다.</td></tr>
     <tr><td>진단 정보</td><td>두 TLS 연결의 본문을 읽지 않았고 진단 이벤트를 특정하지 못함.</td><td><strong>미판정.</strong> SDK 공개 자료, 정확한 Play 양식과 실제 전송 목적을 대조합니다.</td></tr>
-    <tr><td>AdMob</td><td>첫 56초에 명시적인 광고 요청·AdMob 호스트는 관찰되지 않음.</td><td><strong>무송신 증명 아님.</strong> SDK 내부 엔드포인트와 관찰 시간 이후의 동작을 배제할 수 없습니다.</td></tr>
+    <tr><td>AdMob</td><td>원본 AAB의 매니페스트에 <code>MobileAdsInitProvider</code>와 <code>DELAY_APP_MEASUREMENT_INIT=true</code>가 있고 DEX에도 Mobile Ads 클래스가 있습니다. 첫 56초에 명시적인 광고 요청·AdMob 호스트는 관찰되지 않았습니다.</td><td><strong>네이티브 SDK 포함 확인, 송신 판정 보류.</strong> 지연 설정과 짧은 관찰만으로 SDK 내부 엔드포인트나 이후의 수집을 배제할 수 없습니다.</td></tr>
   </tbody></table></div>
   <details><summary>측정 조건과 한계</summary>
     <p>새 Android 16/API 36 Google APIs AVD에 원본 AAB에서 변환한 APK를 디버그 서명으로 설치했습니다. 시작 전 앱 UID와 Google Play Services UID 카운터는 모두 0이었습니다. 첫 실행 후 약 56초 동안 앱 UID <code>10216</code>의 IPv4 송신은 19패킷/3,335바이트, IPv6는 0이었고 Google Play Services UID <code>10134</code>의 IPv4/IPv6 송신은 0이었습니다. <code>ss -tunep</code>로 앱 소켓을 두 목적지에 연결했고, 패킷 캡처의 10+9건이 앱 UID 카운터와 일치했습니다. TLS 내용은 보이지 않습니다. 운영 DB, Play 양식, 광고 설정은 변경하지 않았습니다.</p>
     <p>원증거는 이 PC의 <code>C:\Users\202502\AppData\Local\Temp\2ndb-vc56-network-260927</code>에 있습니다. 원본 pcap의 SHA-256은 <code>632f33ce9f56333a47c073fa1a1e359f2c27d50a7725d9fe06c2ec54b46e0933</code>입니다. 설치 ID 등 전송 메타데이터 노출 가능성을 고려해 원본 pcap은 Git에 넣지 않았습니다.</p>
   </details>
   <details><summary>근거와 적용 경계</summary>
-    <p><a href="ADMOB-STARTUP-NETWORK-260926.md">저장소 QA 원문</a> · <a href="https://firebase.google.com/docs/android/play-data-disclosure">Firebase SDK의 Play 공개 안내</a> · <a href="https://support.google.com/googleplay/android-developer/answer/10787469">Google Play 데이터 보안 안내</a> · <a href="https://docs.expo.dev/technical-specs/expo-updates-1/">Expo Updates 요청 규격</a>.</p>
+    <p><a href="ADMOB-STARTUP-NETWORK-260926.md">저장소 QA 원문</a> · <a href="https://firebase.google.com/docs/android/play-data-disclosure">Firebase SDK의 Play 공개 안내</a> · <a href="https://developers.google.com/admob/android/privacy/play-data-disclosure">Google Mobile Ads SDK의 Play 공개 안내</a> · <a href="https://support.google.com/googleplay/android-developer/answer/10787469">Google Play 데이터 보안 안내</a> · <a href="https://docs.expo.dev/technical-specs/expo-updates-1/">Expo Updates 요청 규격</a>.</p>
     <p>이 보고서는 Play 신고나 개인정보처리방침을 변경하지 않습니다. 현재 Play 양식 원본을 확인하지 못했으므로 기기 ID의 “선택” 기록이 유지 중인지 먼저 확인해야 합니다. 유지 중이라면 vc56의 관리형 게시 전에 “필수”로 수정하는 방향을 권고합니다. 위치·진단의 분류가 확정되기 전에는 광고 ON과 SDK 포함 신규 공개를 진행하지 않습니다. 현재 vc56 검토 제출과 이미 배포된 버전은 별도로 추적해야 합니다.</p>
   </details>
-  <footer>[vc56 동의 전 송신과 Play 기기 ID 필수 신고 권고 / 26.09.27 / 20:32:13]<br>#2ndB #Play데이터보안 #vc56<br>글꼴: Pretendard 서브셋 · SIL Open Font License 1.1</footer>
+  <footer>[vc56 동의 전 송신과 Play 기기 ID 필수 신고 권고 / 26.09.27 / 20:51:12]<br>#2ndB #Play데이터보안 #vc56<br>글꼴: Pretendard 서브셋 · SIL Open Font License 1.1</footer>
 </main></body></html>
