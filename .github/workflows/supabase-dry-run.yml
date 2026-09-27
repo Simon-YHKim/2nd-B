@@ -1311,6 +1311,14 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/ad_reward_account_erasure_regression.sql
+      # 0203: the 2026-09-28 privacy policy is a NOTICE revision (Simon). A v5
+      # signup must get the new tuple and an email-v5 receipt, an installed v4
+      # client must still sign up, and LLM consent must count both tuples as
+      # current with exactly one decision row per user. Rolled back.
+      - name: Exercise the 2026-09-28 notice-revision consent contract
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/signup_consent_privacy_20260928_regression.sql
       # 0189's erase_my_data() is a destructive SECURITY DEFINER function, so it
       # is the one thing in this repo that must not be tested by reading its
       # source. The r38 gate measured 37 green string assertions over a function
