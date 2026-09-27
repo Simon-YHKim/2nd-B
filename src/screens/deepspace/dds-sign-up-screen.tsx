@@ -533,6 +533,8 @@ function ConsentBlock({
   return (
     <PixelSurface variant="frame" style={styles.sectionSurface} contentStyle={styles.consentContent}>
       <Text style={styles.sectionTitle}>{t("notice.title")}</Text>
+      {/* PolaScope 병기 안내: 약관 적용일(2026-10-05) 전까지만. 약관·동의 개정 PR 에서 지운다 (DECISIONS 26.09.28). */}
+      <Text style={styles.bodyText}>{t("common:app.renameNote")}</Text>
       <Text style={styles.bodyText}>{t("notice.intro")}</Text>
       {minor ? (
         <PixelSurface
