@@ -4,7 +4,7 @@ BEGIN;
 \ir ../UNNUMBERED_polascope_consent_20260928.sql
 COMMIT;
 
-CREATE FUNCTION pg_temp.expect_consent_error(statement text,expected_code text,expected_message text)
+CREATE OR REPLACE FUNCTION pg_temp.expect_consent_error(statement text,expected_code text,expected_message text)
 RETURNS void LANGUAGE plpgsql AS $$
 DECLARE actual_code text; actual_message text;
 BEGIN
