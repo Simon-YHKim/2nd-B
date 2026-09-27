@@ -9,8 +9,10 @@
 // (docs/store-copy/drafts.json :: ko.appStoreSubtitle / ko.playShort) so the
 // site, the listing and the app say the same thing.
 //
-// The name before " · " is SITE_NAME: Simon chose PolaScope on 2026-09-27.
-// The listing and legal/service copy have their own release contracts.
+// The name before " · " is SITE_NAME: PolaScope, the app name Simon fixed on
+// 2026-09-27 ("지금부터 앱 이름은 PolaScope", DECISIONS 26.09.27). It replaced
+// the short-lived web/ad name 2ndB the same day. The store listings still say
+// 2nd-Brain until they are renamed in the consoles; that is a separate step.
 export const SITE_NAME = "PolaScope";
 export const SITE_TITLE = `${SITE_NAME} · 기록으로 알아가는 나`;
 export const SITE_DESCRIPTION =

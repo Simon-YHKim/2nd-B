@@ -31,7 +31,7 @@ const SECTIONS: ManualSection[] = [
     emoji: "01",
     title: {
       en: "What PolaScope is",
-      ko: "폴라스코프란",
+      ko: "PolaScope란",
     },
     body: {
       en: "PolaScope helps you understand yourself through what you write and save. Daily journaling, past-me interviews, and saved sources build a personal knowledge map you own. Export your notes anytime as a portable bundle.",
@@ -112,7 +112,7 @@ const SECTIONS: ManualSection[] = [
     },
     body: {
       en: "PolaScope grounds explanations and recommendations in established psychology research on traits, motivation, attachment, life stages, and strengths. It does not treat personality labels or astrology as proof. Research citations stay available in the library.",
-      ko: "폴라스코프의 설명과 추천은 성격 특성, 동기, 애착, 생애 단계, 강점에 관한 검증된 심리학 연구를 기준으로 합니다. 성격 유형 이름이나 점성술을 근거처럼 쓰지 않습니다. 참고한 연구 자료는 리서치 화면에서 확인할 수 있어요.",
+      ko: "PolaScope의 설명과 추천은 성격 특성, 동기, 애착, 생애 단계, 강점에 관한 검증된 심리학 연구를 기준으로 합니다. 성격 유형 이름이나 점성술을 근거처럼 쓰지 않습니다. 참고한 연구 자료는 리서치 화면에서 확인할 수 있어요.",
     },
   },
 ];
@@ -293,7 +293,7 @@ function ManualLegacy() {
 
         <Text variant="subtle" color="textSubtle" style={styles.versionFootnote}>
           {locale === "ko"
-            ? "폴라스코프 · 기록으로 나를 알아가는 곳"
+            ? "PolaScope · 나를 데이터로 쌓아 개인 비서로 키우는 곳"
             : "PolaScope · your own record, grown into an assistant"}
         </Text>
       </ScrollView>

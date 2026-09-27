@@ -59,11 +59,11 @@ const CALL_REFLECTION_COPY: Record<
   },
   ko: {
     title: "통화 파일 돌아보기",
-    intro: "이 기기에 이미 있는 통화 음성 파일을 골라 주세요. 폴라스코프는 통화를 직접 녹음하지 않아요.",
+    intro: "이 기기에 이미 있는 통화 음성 파일을 골라 주세요. PolaScope는 통화를 직접 녹음하지 않아요.",
     fileHint: "음성을 글로 옮길 때만 파일을 전사 서비스로 보내요. 데이터 사용료가 들 수 있어요.",
     fairText: "내가 참여한 통화만 사용하고, 상대에게 녹음 사실을 알려 주세요.",
     loadingTitle: "통화 파일을 글로 옮기는 중",
-    loadingSub: "선택한 파일을 전사 서비스로 보내고 있어요. 폴라스코프는 음성 파일을 저장하지 않아요.",
+    loadingSub: "선택한 파일을 전사 서비스로 보내고 있어요. PolaScope는 음성 파일을 저장하지 않아요.",
     privacyNote: "원본 파일은 내 기기에 그대로 있어요. 승인한 텍스트만 저장돼요.",
     unsupported: "M4A, MP3, WAV, WEBM, OGG, AAC, 3GP 형식의 음성 파일을 골라 주세요.",
     pickFailed: "음성 파일을 열지 못했어요. 다시 골라 주세요.",

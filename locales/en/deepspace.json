@@ -184,7 +184,7 @@
     "forgotPassword": "Forgot password?",
     "or": "or",
     "ageNotice": "You can create an account if you are {{minAge}} or older.",
-    "brandLabel": "PolaScope",
+    "brandLabel": "POLASCOPE",
     "signInTitle": "Good to see you again",
     "emailContinue": "Continue with email",
     "signUpPrompt": "New here?",
@@ -772,7 +772,7 @@
     "rangeNote": "This page: items {{from}} – {{to}}"
   },
   "shareCardImg": {
-    "eyebrowWeek": "PolaScope · THIS WEEK",
+    "eyebrowWeek": "POLASCOPE · THIS WEEK",
     "eyebrowConstellation": "MY CONSTELLATION",
     "footerWeek": "A week seen together with SecondB",
     "starsLit": "{{count}} stars shining",

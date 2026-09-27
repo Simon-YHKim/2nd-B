@@ -164,7 +164,7 @@
     "kindFallback": "기록"
   },
   "auth": {
-    "appName": "폴라스코프",
+    "appName": "PolaScope",
     "signInLead": "AI 시대의 자산은 나 자신. 기록이 쌓여 나의 북극성이 됩니다.",
     "signIn": "로그인",
     "createAccount": "계정 만들기",
@@ -184,7 +184,7 @@
     "forgotPassword": "비밀번호를 잊으셨나요?",
     "or": "또는",
     "ageNotice": "만 {{minAge}}세 이상부터 가입할 수 있어요.",
-    "brandLabel": "폴라스코프",
+    "brandLabel": "POLASCOPE",
     "signInTitle": "다시 만나 반갑습니다",
     "emailContinue": "이메일로 계속하기",
     "signUpPrompt": "처음이신가요?",
@@ -252,7 +252,7 @@
     "viewManual": "사용 안내서 보기",
     "emailUs": "이메일 문의",
     "reportBug": "오류 신고",
-    "footer": "폴라스코프 v1.0.0 · 답변까지 영업일 2일 (KST)",
+    "footer": "PolaScope v1.0.0 · 답변까지 영업일 2일 (KST)",
     "faqTitle": "자주 묻는 질문",
     "noticesTitle": "공지사항"
   },
@@ -398,7 +398,7 @@
     "proActive": "유료 요금제 이용 중",
     "nowPro": "유료 요금제로 바뀌었어요.",
     "notAvailableTitle": "모바일 앱에서 업그레이드",
-    "notAvailableBody": "유료 요금제는 iOS와 Android 앱스토어에서 결제해요. 휴대폰에서 폴라스코프 앱을 열어 주세요.",
+    "notAvailableBody": "유료 요금제는 iOS와 Android 앱스토어에서 결제해요. 휴대폰에서 PolaScope 앱을 열어 주세요.",
     "support": "문의하기",
     "loadError": "요금제를 불러오지 못했어요. 다시 시도해 주세요.",
     "purchaseError": "결제가 완료되지 않았어요. 다시 시도해 주세요.",
@@ -772,11 +772,11 @@
     "rangeNote": "이번 페이지: {{from}} - {{to}}번 문항"
   },
   "shareCardImg": {
-    "eyebrowWeek": "폴라스코프 · 이번 주",
+    "eyebrowWeek": "POLASCOPE · 이번 주",
     "eyebrowConstellation": "나의 별자리",
     "footerWeek": "세컨비가 함께 본 한 주",
     "starsLit": "{{count}}개 별이 빛나는 중",
-    "signature": "폴라스코프 · {{count}}개 별가루"
+    "signature": "PolaScope · {{count}}개 별가루"
   },
   "ds": {
     "growth": {

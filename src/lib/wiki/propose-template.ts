@@ -84,7 +84,7 @@ export function buildProposeTemplatePrompt(
   const system =
     locale === "ko"
       ? [
-          "사용자가 폴라스코프에 담은 자료가 기존 8개 클리퍼 형식 중 어디에도 잘 맞지 않습니다.",
+          "사용자가 PolaScope에 담은 자료가 기존 8개 클리퍼 형식 중 어디에도 잘 맞지 않습니다.",
           "이 자료 같은 부류를 위한 새로운 '형식'을 제안하세요. JSON만 출력합니다. JSON 외 텍스트 금지.",
           "",
           `base_kind는 다음 8개 중 가장 가까운 하나여야 합니다: ${kinds}`,

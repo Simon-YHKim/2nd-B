@@ -184,7 +184,7 @@
     "forgotPassword": "Lupa kata sandi?",
     "or": "atau",
     "ageNotice": "Kamu bisa membuat akun jika berusia {{minAge}} tahun atau lebih.",
-    "brandLabel": "PolaScope",
+    "brandLabel": "POLASCOPE",
     "signInTitle": "Senang bertemu lagi",
     "emailContinue": "Lanjut dengan email",
     "signUpPrompt": "Baru di sini?",
@@ -772,7 +772,7 @@
     "rangeNote": "Halaman ini: butir {{from}} – {{to}}"
   },
   "shareCardImg": {
-    "eyebrowWeek": "PolaScope · MINGGU INI",
+    "eyebrowWeek": "POLASCOPE · MINGGU INI",
     "eyebrowConstellation": "KONSTELASI SAYA",
     "footerWeek": "Seminggu yang dilihat bersama SecondB",
     "starsLit": "{{count}} bintang bersinar",

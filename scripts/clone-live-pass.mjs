@@ -129,8 +129,8 @@ function envVal(file, key) {
 // tap-gate → 4s auto-continue → 0.8s dolly zoom; src/components/ui/
 // LoadingScreen.tsx). Tap through it instead of waiting it out.
 async function passIntro(page) {
-  const hint = page.getByText('탭해서 폴라스코프를 열기');
-  const loader = page.getByRole('button', { name: /폴라스코프 (열기|불러오는 중|여는 중)/ });
+  const hint = page.getByText(/탭해서 (두번째 뇌|PolaScope)를 열기/);
+  const loader = page.getByRole('button', { name: /(2nd-Brain|PolaScope) (열기|불러오는 중|여는 중)/ });
   const deadline = Date.now() + 25000;
   while (Date.now() < deadline) {
     if (await hint.isVisible().catch(() => false)) {

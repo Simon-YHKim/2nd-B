@@ -28,13 +28,40 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-27 23:19 / PolaScope 표시명 확정 · 앱 이름 가족 전체 전환 진행
+## Latest — 2026-09-28 00:11 / PolaScope 전체 이름 전환 후속 PR #1902
 
-**결정**: Simon은 정확한 라틴 표기 `PolaScope`와 한국어 `폴라스코프`를 선택하고 웹·앱 5개 언어·법률/동의 문구를 함께 바꾸라고 지시했다(`DECISIONS.md` 23:19). 아래 22:40의 `Polascope` 후보·2ndB 웹 게시 보류는 당시 상태이며 이 결정이 갱신한다. 저장소/패키지/웹 경로 등 내부 식별자와 SecondB/세컨비·Meta-B·Twi-B 캐릭터 이름은 유지한다.
+> Simon은 웹·앱 5개 언어·법률/동의를 함께 바꾸는 범위와 #1902 병합 시 자동 Android 진단 빌드를 승인했다. #1903(앱·웹 이름)이 먼저 main에 병합되어 #1902는 그 커밋을 기준으로 다시 검증했다. 이 블록은 운영 적용 또는 공개 게시 완료 기록이 아니다.
 
-**이 브랜치**: `fix/polascope-web-260927` (`E:/2ndB/.worktrees/polascope-web-260927`)에 웹 메타/공유 이미지/PWA/랜딩, 앱·스토어 문구, 공개 법률문서/HTML, 가입 원장 `email-v5`·서비스 동의 `service-v2`의 클라이언트/Edge/forward SQL 초안을 맞췄다. 기존 `email-v4`·`service-v1` 원장은 역사 판본으로 보존한다. `db/migration-drafts/UNNUMBERED_polascope_consent_20260928.sql`은 **초안이며 운영 미적용**이다. 직렬 `npm run verify` 822 suites/10,741 tests PASS, Expo 웹 export 128 routes PASS, 제목·랜딩·PWA·법률·OG 파일 산출물 확인 PASS. PostgreSQL 실실행은 로컬 테스트 DB 인증이 없어 아직 못 했다. 시행일 2026-09-28은 공개 전 확인해야 한다.
+- #1903이 적용한 화면·웹 이름은 유지한다. #1902의 남은 변경은 `app.json` 표시명, 법률문서·앱 동의 문구, `email-v5`/`service-v2` 클라이언트와 Edge, **미적용** SQL 초안, 공개 프로토타입·내보내기 이름이다. 새 이름 확정과 전체 동시 전환이라는 Simon의 최신 선택은 아래 23:5x 코디네이터의 분리 권고보다 우선한다.
+- main push의 웹 워크플로는 **build-only**이고 Android 워크플로는 비공개 진단 APK만 만든다. #1902 병합 자체는 Pages·OTA·스토어 게시가 아니다. `expo.name` 변경은 기존 바이너리의 OTA fingerprint를 바꾸므로 새 네이티브 빌드·스토어 절차와 공개 시점을 맞춘다.
+- 약관 제3조②의 사전 공지와 Relay의 개인정보 방침 3건 수정·FCM 차단 작업을 반영한 **최종 법률 판본·시행일**을 확정하기 전에는 현재 2026-09-28 초안을 공개하지 않는다. 정책 본문이 달라지면 클라이언트 상수, 서버 튜플, HTML·앱 스냅샷을 같은 판으로 다시 맞춘다.
+- 서버 선행·구/신 클라이언트 canary: [PolaScope 배포 절차](qa/POLASCOPE-RELEASE-260928.md). Supabase 운영 DB·Edge는 Grok Bot 콘솔 소유이며 현재 Relay GO에는 **운영 DB 쓰기 STOP**이 명시되어 있다. SQL 초안은 자동 적용되지 않는다.
 
-**배포 순서**: 검증·PR 병합 후, 기존 0194 선행 조건을 확인하고 새 SQL을 번호 붙여 승격한다. Supabase 운영 적용 및 Edge 배포는 Simon의 지시대로 Grok Bot 담당이다. 새 서버 계약과 `service-v2` Edge 인증 상태 canary 확인 전 새 웹/앱 클라이언트를 공개하지 않는다. 웹 자동 게이트는 DB만 확인하므로 [운영 순서와 중단 조건](qa/POLASCOPE-RELEASE-260928.md)을 별도로 지킨다. 이후 현재 main에 맞춘 GitHub Pages 빌드/게시를 검증한다. 스토어 콘솔 표시명 변경·광고 ON은 별도 작업이다.
+---
+
+## Latest — 2026-09-28 00:1x / 앱 이름은 PolaScope 로 확정·적용 — 머지 ≠ 게시, 약관 적용일에 맞춰 공개
+
+> 발행: CLI 코딩 세션(TTL-Work_rev2). Simon 원문 23:2x: "어찌됐거나 누가 뭐라든 지금부터 앱 이름은 PolaScope 이다. 적용해."
+> DECISIONS 23:2x(Simon) · 23:5x(코디네이터 판단) 두 줄.
+
+**지금까지**
+- 브랜치 `feat/app-name-polascope`: 앱 이름 가족 전체(2nd-Brain · 이름으로 쓴 두번째 뇌 · 약칭 2nd-B · 웹/광고 2ndB)를 **PolaScope** 로 바꿨다.
+  로케일 5개 · 웹(SITE_NAME · manifest · landing · og 카드 + `public/og-image.png` 다시 뽑음) · 앱 문구 · LLM 프롬프트 속 자기 이름 · 스토어 초안 · CI 핀.
+  한국어는 라틴 표기에 받침 없는 조사(는/가/를/와/로/란).
+- 검토 세 레인(놓친 곳 · CI · 같은 흐름 충돌) 반영: 한국어 통화 회고 2줄, 캐논 온보딩 태그(한국어 첫 장이 런타임에 읽음), 캐릭터 a11y, 매뉴얼 해시 핀.
+- 일부러 **안 바꾼 것**: 식별자·경로 전부, 캐릭터 가족, `consent.json` · 약관(사전 공지 뒤 별도 PR), 메일 제목(대시보드와 함께),
+  릴리스 파일명, LLM 지식 시드, 내보내기 파일명(`2nd-brain-*`), 개념 태그라인("A second brain built from …").
+- **`app.json` 표시 이름은 이번 PR 에서 뺐다.** expo.name 이 fingerprint 소스라 머지하면 새 빌드 전까지 OTA 가 전부 막힌다. 네이티브 빌드 PR 로 간다.
+- 로컬 검증: jest 876 suites(src/lib 671 · screens+scripts 56 · 나머지 149) 통과 · tsc 0 · eslint 오류 0 · check:* 13종 + constraints FAIL 0.
+
+**다음 1개**: Simon 이 무료 변리사 상담(지식재산처 서울사무소 · 대한변리사회 공익상담 02-525-3476)에서 "지금 PolaScope 를 써도 되는가"(의뢰서 Q4)를 먼저 묻는다.
+
+**막힌 것 · 순서**
+1. **머지 ≠ 게시.** 가입 화면은 PolaScope 인데 동의 문구 · 약관 · 메일 제목은 2nd-Brain 이다. 권고 순서:
+   인앱 공지(D0, 운영 쓰기 GO) → 적용일 D+7 에 약관·동의 PR(TERMS_VERSION · CONSENT_VERSION · 서버 튜플 마이그레이션) + 웹 게시 + 새 네이티브 빌드(app.json 이름 포함) + 콘솔 이름들을 같은 날.
+   그 전에 게시해야 하면(결제 전환의 웹 게시 단계 등) 가입 흐름에 '구 2nd-Brain' 병기 안내를 먼저 넣는다.
+2. 콘솔 이름 변경(각 Simon GO): ASC 앱 이름 · Play 등록정보 · AdMob · Google/Kakao/Naver/Apple 로그인 동의 화면 · Supabase 메일 제목(+config.toml) · Paddle 상품명·명세서 표시.
+3. 이미 기기에 예약된 루틴 알림 제목은 '2nd Brain' 으로 남는다(루틴을 다시 저장하면 바뀐다).
 
 ---
 

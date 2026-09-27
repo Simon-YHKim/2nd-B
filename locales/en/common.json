@@ -5,7 +5,7 @@
   },
   "app": {
     "name": "PolaScope",
-    "tagline": "Understand yourself through what you write and save."
+    "tagline": "A second brain built from what you write and save."
   },
   "actions": {
     "continue": "Continue",
