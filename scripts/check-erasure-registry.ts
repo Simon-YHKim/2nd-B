@@ -106,7 +106,8 @@
 //   - completeness and no drift: every public table with an owner column is
 //     classified, every classified table still exists           (G1, G2)
 //   - seed parity: 0189 renders the historical subset; declared additions-only
-//     forwards render the remaining canonical rows without rewriting 0189 (G7)
+//     forwards render the remaining canonical rows, and declared reason-only
+//     revisions render each later reason, without rewriting 0189 (G7)
 //   - FK order and cascade honesty: a CASCADE child is deleted before its
 //     parent, and a kept table a CASCADE empties says so        (G8, G9)
 //   - policy INSIDE THE MODEL: db/migrations does not CONTRADICT a
@@ -761,8 +762,10 @@ export function collectErasureRegistryErrors(root: string): string[] {
     }
   }
 
-  // G7 keeps the historical seed and each declared additions-only forward
-  // migration tied to the current canonical rows, without rewriting 0189.
+  // G7 keeps the historical seed, each declared additions-only forward and each
+  // declared reason-only revision tied to the canonical rows, without rewriting
+  // 0189. A revision may change a reason and nothing else: owner, class, order
+  // and cascade stay pinned to the historical seed.
   errors.push(...collectErasureSeedHistoryErrors(root, registry));
 
   return errors;
@@ -783,7 +786,7 @@ function main(): void {
   console.log(
     `ERASURE PASS  ${discoverOwnedTables(migrationsDir(root)).length} owner-column tables, ` +
       `all classified (${ERASURE_CLASSES.map((c) => `${c} ${counts[c] ?? 0}`).join(", ")}); ` +
-      `no contradiction, nothing beyond the model, historical seed and forward additions parity verified.`,
+      `no contradiction, nothing beyond the model, historical seed, forward additions and reason revisions parity verified.`,
   );
   // Printed, never silent. These are the statements the guard deliberately does
   // NOT judge; if this line ever grows, the thing it exempts grew too.
