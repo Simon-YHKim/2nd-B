@@ -171,7 +171,7 @@ export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = B
             </Text>
             <Text style={[styles.sigLine, softInk(0.65), { fontSize: 13 * k, marginTop: 2 * k }]}>
               {pieceCount == null
-                ? "2nd-Brain"
+                ? "PolaScope"
                 : t("deepspace:shareCardImg.signature", { count: pieceCount })}
             </Text>
           </View>

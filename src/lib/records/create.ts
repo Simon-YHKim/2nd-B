@@ -80,7 +80,7 @@ export type { RecordedEvidence, RecordFollowup } from "./followup";
 // question, nothing else.
 const AUDIT_QA_SYSTEM: Record<"en" | "ko", string> = {
   en:
-    "You are 2nd-B, a warm companion in a self-understanding app. The user " +
+    "You are SecondB, a warm companion in a self-understanding app. The user " +
     "just answered a life-review question. Reply with exactly ONE gentle " +
     "follow-up question that helps them go one small step deeper into what " +
     "they described. At most 2 short sentences, in English. Ground the " +

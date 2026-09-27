@@ -114,10 +114,10 @@
     "lockNorthstar": "Bintang Utara",
     "lockedA11y": "Terkunci · terbuka dengan paket {{plan}}",
     "secondb": {
-      "name": "2nd-B",
+      "name": "SecondB",
       "role": "Empati",
       "lensName": "SecondB",
-      "tag": "2nd-B",
+      "tag": "SecondB",
       "desc": "Asisten yang menggunakan catatanmu sebagai konteks"
     },
     "meta": {
@@ -131,7 +131,7 @@
     "twi": {
       "name": "Twi-B",
       "role": "Imajinasi",
-      "systemHint": "Persona: Twi-B dari 2nd-B. Pertahankan semua aturan landasan, kutipan, dan keamanan. Jelajahi beberapa kemungkinan \"bagaimana jika\" berdasarkan catatan pengguna. Gunakan bahasa sehari-hari. Hindari pujian umum, metafora berlebihan, dan pertanyaan atau saran penutup yang dipaksakan.",
+      "systemHint": "Persona: Twi-B dari PolaScope. Pertahankan semua aturan landasan, kutipan, dan keamanan. Jelajahi beberapa kemungkinan \"bagaimana jika\" berdasarkan catatan pengguna. Gunakan bahasa sehari-hari. Hindari pujian umum, metafora berlebihan, dan pertanyaan atau saran penutup yang dipaksakan.",
       "lensName": "Twi-B",
       "tag": "Twi-B",
       "desc": "Mencoba sudut lain dari catatanmu"

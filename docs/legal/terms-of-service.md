@@ -1,13 +1,13 @@
 # 이용약관 · Terms of Service
 
-_시행일: 2026-08-16 · 최종 개정: 2026-08-16_
+_시행일: 2026-09-28 · 최종 개정: 2026-09-28_
 
 ---
 
 ## 한국어
 
 ### 제1조 (목적)
-본 약관은 하양 프로덕션(개인사업자, 대표: 배소하, 이하 "회사")가 제공하는 **2nd-Brain**(이하 "서비스")의 이용과 관련하여 회사와 이용자 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.
+본 약관은 하양 프로덕션(개인사업자, 대표: 배소하, 이하 "회사")가 제공하는 **PolaScope**(이하 "서비스")의 이용과 관련하여 회사와 이용자 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.
 
 ### 제2조 (서비스의 성격)
 서비스는 이용자가 자신에 관한 기록을 축적하고 **자기 이해와 성장**을 돕는 AI 기반 개인 도구입니다. 서비스는 **의료·심리상담·진단·치료 서비스가 아니며**, 서비스가 제공하는 정보와 AI 산출물은 **참고용 정보**로서 전문적(의료·법률·재정) 조언을 대체하지 않습니다.
@@ -74,7 +74,7 @@ _시행일: 2026-08-16 · 최종 개정: 2026-08-16_
 ## English
 
 ### 1. Purpose
-These Terms govern the rights, obligations, and responsibilities between Hayang Production (sole proprietorship, Representative: Bae Soha; the "Company") and users regarding the use of **2nd-Brain** (the "Service").
+These Terms govern the rights, obligations, and responsibilities between Hayang Production (sole proprietorship, Representative: Bae Soha; the "Company") and users regarding the use of **PolaScope** (the "Service").
 
 ### 2. Nature of the Service
 The Service is an AI-assisted personal tool that helps users accumulate records about themselves for **self-understanding and growth**. It is **not a medical, counseling, diagnostic, or treatment service**, and any information or AI output it provides is **for reference only** and does not replace professional (medical, legal, financial) advice.

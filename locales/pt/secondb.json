@@ -114,10 +114,10 @@
     "lockNorthstar": "Estrela Polar",
     "lockedA11y": "Bloqueado · abre com o plano {{plan}}",
     "secondb": {
-      "name": "2nd-B",
+      "name": "SecondB",
       "role": "Empatia",
       "lensName": "SecondB",
-      "tag": "2nd-B",
+      "tag": "SecondB",
       "desc": "Responde a partir dos seus registros"
     },
     "meta": {

@@ -9,11 +9,9 @@
 // (docs/store-copy/drafts.json :: ko.appStoreSubtitle / ko.playShort) so the
 // site, the listing and the app say the same thing.
 //
-// The name before " · " is SITE_NAME: 2ndB, the ad app name Simon set on
-// 2026-09-27 (GO ad-name-2ndb; landing title/og follow it, decided 18:1x).
-// The store listing still says 2nd-Brain; renaming the listing is a separate
-// decision and is not implied by this constant.
-export const SITE_NAME = "2ndB";
+// The name before " · " is SITE_NAME: Simon chose PolaScope on 2026-09-27.
+// The listing and legal/service copy have their own release contracts.
+export const SITE_NAME = "PolaScope";
 export const SITE_TITLE = `${SITE_NAME} · 기록으로 알아가는 나`;
 export const SITE_DESCRIPTION =
   "경험과 메모를 모아 나를 돌아보고, 세컨비와 기록을 바탕으로 이야기해요.";

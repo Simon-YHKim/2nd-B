@@ -4,8 +4,8 @@
     "removeUpsell": "구독하면 광고 없이 쓸 수 있어요."
   },
   "app": {
-    "name": "두번째 뇌",
-    "tagline": "내가 쓰고 저장한 것들로 만드는 두번째 뇌."
+    "name": "폴라스코프",
+    "tagline": "내가 쓰고 저장한 기록으로 나를 알아가요."
   },
   "actions": {
     "continue": "계속",
@@ -50,10 +50,10 @@
     "ko": "한국어"
   },
   "loadingGate": {
-    "hint": "탭해서 두번째 뇌를 열기",
-    "open": "2nd-Brain 열기",
-    "opening": "2nd-Brain 여는 중",
-    "loading": "2nd-Brain 불러오는 중",
+    "hint": "탭해서 폴라스코프를 열기",
+    "open": "폴라스코프 열기",
+    "opening": "폴라스코프 여는 중",
+    "loading": "폴라스코프 불러오는 중",
     "enterHint": "두 번 탭하면 메인 화면으로 이동해요.",
     "skipHint": "두 번 탭하면 시작 애니메이션을 건너뜁니다."
   },

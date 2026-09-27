@@ -164,7 +164,7 @@
     "kindFallback": "Catatan"
   },
   "auth": {
-    "appName": "2nd-Brain",
+    "appName": "PolaScope",
     "signInLead": "Di era AI, asetnya adalah kamu. Catatanmu menumpuk menjadi Bintang Utaramu.",
     "signIn": "Masuk",
     "createAccount": "Buat akun",
@@ -184,7 +184,7 @@
     "forgotPassword": "Lupa kata sandi?",
     "or": "atau",
     "ageNotice": "Kamu bisa membuat akun jika berusia {{minAge}} tahun atau lebih.",
-    "brandLabel": "2ND-BRAIN",
+    "brandLabel": "PolaScope",
     "signInTitle": "Senang bertemu lagi",
     "emailContinue": "Lanjut dengan email",
     "signUpPrompt": "Baru di sini?",
@@ -252,7 +252,7 @@
     "viewManual": "Lihat manual",
     "emailUs": "Email kami",
     "reportBug": "Laporkan bug",
-    "footer": "2nd-Brain v1.0.0 · 2 hari kerja KST",
+    "footer": "PolaScope v1.0.0 · 2 hari kerja KST",
     "faqTitle": "Pertanyaan umum",
     "noticesTitle": "Pengumuman"
   },
@@ -398,7 +398,7 @@
     "proActive": "Paket berbayarmu aktif",
     "nowPro": "Kamu sekarang pakai paket berbayar. Terima kasih.",
     "notAvailableTitle": "Tingkatkan di aplikasi seluler",
-    "notAvailableBody": "Paket berbayar dibeli melalui app store di iOS dan Android. Buka 2nd-Brain di ponselmu untuk meningkatkan.",
+    "notAvailableBody": "Paket berbayar dibeli melalui app store di iOS dan Android. Buka PolaScope di ponselmu untuk meningkatkan.",
     "support": "Hubungi dukungan",
     "loadError": "Tidak bisa memuat paket. Coba lagi.",
     "purchaseError": "Pembelian tidak berhasil. Coba lagi.",
@@ -772,11 +772,11 @@
     "rangeNote": "Halaman ini: butir {{from}} – {{to}}"
   },
   "shareCardImg": {
-    "eyebrowWeek": "2ND-BRAIN · MINGGU INI",
+    "eyebrowWeek": "PolaScope · MINGGU INI",
     "eyebrowConstellation": "KONSTELASI SAYA",
     "footerWeek": "Seminggu yang dilihat bersama SecondB",
     "starsLit": "{{count}} bintang bersinar",
-    "signature": "2nd-Brain · {{count}} serpihan bintang"
+    "signature": "PolaScope · {{count}} serpihan bintang"
   },
   "ds": {
     "growth": {

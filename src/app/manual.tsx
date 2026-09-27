@@ -30,12 +30,12 @@ const SECTIONS: ManualSection[] = [
   {
     emoji: "01",
     title: {
-      en: "What 2nd-Brain is",
-      ko: "두번째 뇌란",
+      en: "What PolaScope is",
+      ko: "폴라스코프란",
     },
     body: {
-      en: "A second brain built from what you write and save. Daily journaling, past-me interviews, and saved sources build a personal knowledge map you own. Export your notes anytime as a portable bundle.",
-      ko: "당신이 쓰고 저장한 것들로 만드는 두번째 뇌예요. 매일의 일기, 과거의 나 인터뷰, 저장한 자료가 모여 당신만의 지식 지도가 됩니다. 언제든 하나의 묶음으로 내보낼 수 있어요.",
+      en: "PolaScope helps you understand yourself through what you write and save. Daily journaling, past-me interviews, and saved sources build a personal knowledge map you own. Export your notes anytime as a portable bundle.",
+      ko: "폴라스코프는 당신이 쓰고 저장한 기록을 모아 나를 알아가는 곳이에요. 매일의 일기, 과거의 나 인터뷰, 저장한 자료가 모여 당신만의 지식 지도가 됩니다. 언제든 하나의 묶음으로 내보낼 수 있어요.",
     },
   },
   {
@@ -111,8 +111,8 @@ const SECTIONS: ManualSection[] = [
       ko: "연구 기반 자기 이해",
     },
     body: {
-      en: "2nd-Brain grounds explanations and recommendations in established psychology research on traits, motivation, attachment, life stages, and strengths. It does not treat personality labels or astrology as proof. Research citations stay available in the library.",
-      ko: "2nd-Brain의 설명과 추천은 성격 특성, 동기, 애착, 생애 단계, 강점에 관한 검증된 심리학 연구를 기준으로 합니다. 성격 유형 이름이나 점성술을 근거처럼 쓰지 않습니다. 참고한 연구 자료는 리서치 화면에서 확인할 수 있어요.",
+      en: "PolaScope grounds explanations and recommendations in established psychology research on traits, motivation, attachment, life stages, and strengths. It does not treat personality labels or astrology as proof. Research citations stay available in the library.",
+      ko: "폴라스코프의 설명과 추천은 성격 특성, 동기, 애착, 생애 단계, 강점에 관한 검증된 심리학 연구를 기준으로 합니다. 성격 유형 이름이나 점성술을 근거처럼 쓰지 않습니다. 참고한 연구 자료는 리서치 화면에서 확인할 수 있어요.",
     },
   },
 ];
@@ -136,7 +136,7 @@ function ManualLegacy() {
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.languageRow}>
-          <Text variant="caption" color="brand">2nd-Brain Guide</Text>
+          <Text variant="caption" color="brand">PolaScope Guide</Text>
           <Pressable
             onPress={() => {
               void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
@@ -293,8 +293,8 @@ function ManualLegacy() {
 
         <Text variant="subtle" color="textSubtle" style={styles.versionFootnote}>
           {locale === "ko"
-            ? "두번째 뇌 · 나를 데이터로 쌓아 개인 비서로 키우는 곳"
-            : "2nd-Brain · your own record, grown into an assistant"}
+            ? "폴라스코프 · 기록으로 나를 알아가는 곳"
+            : "PolaScope · your own record, grown into an assistant"}
         </Text>
       </ScrollView>
     </PremiumAppShell>

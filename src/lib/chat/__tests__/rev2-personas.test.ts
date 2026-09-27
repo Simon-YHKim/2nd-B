@@ -5,16 +5,17 @@ import {
   rev2PersonaMode,
   rev2PersonaName,
   rev2PersonaRole,
+  rev2PersonaTag,
 } from "../rev2-personas";
 import { m3 } from "@/lib/theme/m3";
 
 describe("rev2 세컨비 personas (PRD v2.0)", () => {
-  test("exactly the three m3 personas, 2nd-B first (the default)", () => {
+  test("exactly the three m3 personas, SecondB first (the default)", () => {
     expect([...REV2_PERSONA_IDS]).toEqual(["secondb", "meta", "twi"]);
     expect([...REV2_PERSONA_IDS].sort()).toEqual(Object.keys(m3.persona).sort());
   });
 
-  test("2nd-B keeps the shipped default voice (hint = null, no regression)", () => {
+  test("SecondB keeps the shipped default voice (hint = null, no regression)", () => {
     expect(rev2PersonaHint("secondb", "en")).toBeNull();
     expect(rev2PersonaHint("secondb", "ko")).toBeNull();
   });
@@ -40,6 +41,10 @@ describe("rev2 세컨비 personas (PRD v2.0)", () => {
     }
     expect(rev2PersonaName("meta", "ko")).toBe("메타비");
     expect(rev2PersonaName("twi", "ko")).toBe("트위비");
+    expect(rev2PersonaName("secondb", "en")).toBe("SecondB");
+    expect(rev2PersonaName("secondb", "ko")).toBe("세컨비");
+    expect(rev2PersonaTag("secondb", "en")).toBe("SecondB");
+    expect(rev2PersonaTag("secondb", "ko")).toBe("SecondB");
   });
 
   test("트위비 owns the divergent engine mode; the others stay analytic", () => {

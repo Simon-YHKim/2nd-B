@@ -4,8 +4,8 @@
     "removeUpsell": "¿Prefieres sin anuncios? Las suscripciones los eliminan."
   },
   "app": {
-    "name": "2nd-Brain",
-    "tagline": "Un segundo cerebro construido a partir de lo que escribes y guardas."
+    "name": "PolaScope",
+    "tagline": "Conócete mejor a través de lo que escribes y guardas."
   },
   "actions": {
     "continue": "Continuar",
@@ -50,10 +50,10 @@
     "ko": "한국어"
   },
   "loadingGate": {
-    "hint": "Toca para abrir tu segundo cerebro",
-    "open": "Abrir 2nd-Brain",
-    "opening": "Abriendo 2nd-Brain",
-    "loading": "Cargando 2nd-Brain",
+    "hint": "Toca para abrir PolaScope",
+    "open": "Abrir PolaScope",
+    "opening": "Abriendo PolaScope",
+    "loading": "Cargando PolaScope",
     "enterHint": "Toca dos veces para entrar a la pantalla principal.",
     "skipHint": "Toca dos veces para saltar la animación de inicio."
   },

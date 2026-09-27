@@ -28,9 +28,7 @@ const FROZEN_SIGNUP_REVISION_TUPLES = {
     termsVersion: "2026-08-16",
     confirmationEligible: false,
   },
-  // 2026-09-07: 09-02 개정안과 09-04 사실 정정을 합친 판. 이 셋은 consent.ts 의
-  // CONSENT_VERSION · PRIVACY_POLICY_VERSION · TERMS_VERSION 과 같아야 하고,
-  // 아래 "pins only the revision emitted by today's email client" 검사가 그걸 본다.
+  // 2026-09-07: 09-02 개정안과 09-04 사실 정정을 합친 역사 판.
   "email-v3": {
     consentVersion: "2026-09-07",
     policyVersion: "2026-09-07",
@@ -41,6 +39,12 @@ const FROZEN_SIGNUP_REVISION_TUPLES = {
     consentVersion: "2026-09-07",
     policyVersion: "2026-09-26",
     termsVersion: "2026-08-16",
+    confirmationEligible: true,
+  },
+  "email-v5": {
+    consentVersion: "2026-09-28",
+    policyVersion: "2026-09-28",
+    termsVersion: "2026-09-28",
     confirmationEligible: true,
   },
 } as const;
@@ -55,7 +59,7 @@ const migrations = readdirSync(migrationDir)
 
 // Validate the release candidate overlay without rewriting a shipped migration.
 // Production publication separately requires the live status RPC to match it.
-const policyDraftName = "UNNUMBERED_signup_consent_admob_20260925.sql";
+const policyDraftName = "UNNUMBERED_polascope_consent_20260928.sql";
 migrations.push({
   name: policyDraftName,
   exec: readFileSync(join(process.cwd(), "db", "migration-drafts", policyDraftName), "utf8")
@@ -163,8 +167,9 @@ describe("verified-email consent ledger", () => {
   });
 
   test("keeps current and historical email revisions confirmation-eligible", () => {
-    expect(authSignupRevision()).toBe("email-v4");
-    expect(contractTuple(authSignupRevision() as "email-v4").confirmationEligible).toBe(true);
+    expect(authSignupRevision()).toBe("email-v5");
+    expect(contractTuple(authSignupRevision() as "email-v5").confirmationEligible).toBe(true);
+    expect(contractTuple("email-v4").confirmationEligible).toBe(true);
     expect(contractTuple("email-v3").confirmationEligible).toBe(true);
     expect(contractTuple("email-v2").confirmationEligible).toBe(true);
     expect(contractTuple("complete-profile-v1").confirmationEligible).toBe(false);

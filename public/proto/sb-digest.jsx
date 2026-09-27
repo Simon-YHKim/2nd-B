@@ -242,7 +242,7 @@ function DigestScreen({ t, go }) {
 
       {/* hero */}
       <div style={{ marginBottom: 6 }}>
-        <div className="md-label-large" style={{ color: C('primary'), letterSpacing: '.04em' }}>{period}의 2ND-BRAIN</div>
+        <div className="md-label-large" style={{ color: C('primary'), letterSpacing: '.04em' }}>{period}의 PolaScope</div>
         <div className="md-headline-small" style={{ color: C('on-surface'), fontWeight: 700, marginTop: 2 }}>{d.range}</div>
         <div className="md-body-medium" style={{ color: C('on-surface-variant'), marginTop: 4 }}>
           별가루 <b style={{ color: C('on-surface') }}>{d.captured}개</b> · 세컨비와 대화 <b style={{ color: C('on-surface') }}>{d.chats}번</b>

@@ -773,7 +773,7 @@ export function DeepSpaceOpsScreen() {
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
         anchor.href = url;
-        anchor.download = "2nd-brain-routine.ics";
+        anchor.download = "polascope-routine.ics";
         anchor.click();
         URL.revokeObjectURL(url);
         return;

@@ -114,10 +114,10 @@
     "lockNorthstar": "North Star",
     "lockedA11y": "Locked · unlocks with the {{plan}} plan",
     "secondb": {
-      "name": "2nd-B",
+      "name": "SecondB",
       "role": "Empathy",
       "lensName": "SecondB",
-      "tag": "2nd-B",
+      "tag": "SecondB",
       "desc": "Answers using your own records"
     },
     "meta": {

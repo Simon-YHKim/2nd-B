@@ -9,10 +9,10 @@ const draftPath = resolve(root, "db/migration-drafts/UNNUMBERED_signup_consent_a
 const draft = existsSync(draftPath) ? readFileSync(draftPath, "utf8") : "";
 
 describe("AdMob disclosure and append-only signup contract", () => {
-  test("ships the same new policy version without treating it as optional-ad consent", () => {
-    expect(PRIVACY_POLICY_VERSION).toBe("2026-09-26");
-    expect(CONSENT_VERSION).toBe("2026-09-07");
-    expect(TERMS_VERSION).toBe("2026-08-16");
+  test("keeps the AdMob notice without treating it as optional-ad consent", () => {
+    expect(PRIVACY_POLICY_VERSION).toBe("2026-09-28");
+    expect(CONSENT_VERSION).toBe("2026-09-28");
+    expect(TERMS_VERSION).toBe("2026-09-28");
     expect(PRIVACY_DOC.body).toContain("Google AdMob");
     expect(PRIVACY_DOC.body).toContain("광고는 현재 비활성");
     expect(PRIVACY_DOC.body).toContain("이 방침에 대한 확인은 광고 동의를 대신하지 않습니다");

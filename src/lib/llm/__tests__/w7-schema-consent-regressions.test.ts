@@ -16,6 +16,10 @@ const CONSENT_CONTRACT_PATH = resolve(
   ROOT,
   "db/migration-drafts/UNNUMBERED_signup_consent_admob_20260925.sql",
 );
+const POLASCOPE_CONTRACT_PATH = resolve(
+  ROOT,
+  "db/migration-drafts/UNNUMBERED_polascope_consent_20260928.sql",
+);
 const CONSENT_WRITER_PATH = resolve(ROOT, "src/lib/supabase/consent.ts");
 
 const sharedSource = readFileSync(SHARED_PATH, "utf8");
@@ -26,6 +30,7 @@ const consentDraft = existsSync(CONSENT_DRAFT_PATH)
   ? readFileSync(CONSENT_DRAFT_PATH, "utf8")
   : "";
 const consentContract = readFileSync(CONSENT_CONTRACT_PATH, "utf8");
+const polascopeContract = readFileSync(POLASCOPE_CONTRACT_PATH, "utf8");
 const consentWriter = readFileSync(CONSENT_WRITER_PATH, "utf8");
 
 type Normalize = (node: unknown) => Record<string, unknown> | null;
@@ -175,9 +180,9 @@ describe("W7 current consent and xAI activation contract", () => {
     expect(consentDraft).not.toMatch(/^\s*(?:BEGIN|COMMIT)\s*;/im);
   });
 
-  test("the server-owned email-v4 tuple matches the current client ledger constants", () => {
-    const tuple = consentContract.match(
-      /\('email-v4'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*true\)/,
+  test("the server-owned email-v5 tuple matches the current client ledger constants", () => {
+    const tuple = polascopeContract.match(
+      /\('email-v5'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*true\)/,
     );
     expect(tuple).not.toBeNull();
     expect(tuple?.slice(1)).toEqual([
@@ -185,6 +190,7 @@ describe("W7 current consent and xAI activation contract", () => {
       readConst("PRIVACY_POLICY_VERSION"),
       readConst("TERMS_VERSION"),
     ]);
+    expect(consentContract).toContain("('email-v4'::text, '2026-09-07'::text, '2026-09-26'::text, '2026-08-16'::text, true)");
   });
 
   test("keeps xAI off by default before secrets, body parsing, or provider egress", () => {

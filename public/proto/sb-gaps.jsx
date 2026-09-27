@@ -542,7 +542,7 @@ function SupportScreen({ t, go }) {
         ))}
       </MdCard>
 
-      <div className="md-body-small" style={{ color: C('on-surface-variant'), textAlign: 'center', marginTop: 18 }}>2nd-Brain · 버전 0.9.2 (rev2)</div>
+      <div className="md-body-small" style={{ color: C('on-surface-variant'), textAlign: 'center', marginTop: 18 }}>PolaScope · 버전 0.9.2 (rev2)</div>
     </ScreenPad>
   );
 }

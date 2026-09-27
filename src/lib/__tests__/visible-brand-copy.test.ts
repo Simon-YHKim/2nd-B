@@ -39,7 +39,7 @@ describe("visible brand copy", () => {
     expect(signIn).not.toContain('router.push("/")');
   });
 
-  test("app surfaces use 2nd-Brain instead of informal 2nd-B or 2ndB", () => {
+  test("app surfaces use PolaScope instead of previous app names", () => {
     const root = path.resolve(__dirname, "../../..");
     const files = [
       "locales/en/consent.json",
@@ -56,7 +56,18 @@ describe("visible brand copy", () => {
 
     for (const file of files) {
       const source = readFileSync(path.join(root, file), "utf8");
-      expect(source).not.toMatch(/2nd-B(?!rain)|2ndB/);
+      expect(source).not.toMatch(/2nd-Brain|2ND-BRAIN|두번째 뇌|2nd-B|2ndB/);
+    }
+  });
+
+  test("five locale bundles use the new app name", () => {
+    const root = path.resolve(__dirname, "../../..");
+    for (const locale of ["en", "es", "pt", "id", "ko"]) {
+      const common = JSON.parse(readFileSync(path.join(root, `locales/${locale}/common.json`), "utf8"));
+      const deepspace = JSON.parse(readFileSync(path.join(root, `locales/${locale}/deepspace.json`), "utf8"));
+      const name = locale === "ko" ? "폴라스코프" : "PolaScope";
+      expect(common.app.name).toBe(name);
+      expect(deepspace.auth.brandLabel).toBe(name);
     }
   });
 
@@ -66,8 +77,14 @@ describe("visible brand copy", () => {
 
     for (const file of readdirSync(localeDir).filter((name) => name.endsWith(".json"))) {
       const source = readFileSync(path.join(localeDir, file), "utf8");
-      expect(source).not.toMatch(/\bSecondB\b/);
+      const withoutLatinCharacterTag = file === "secondb.json"
+        ? source.replace(/"tag":\s*"SecondB"/g, "")
+        : source;
+      expect(withoutLatinCharacterTag).not.toMatch(/\bSecondB\b/);
     }
+    const secondb = JSON.parse(readFileSync(path.join(localeDir, "secondb.json"), "utf8"));
+    expect(secondb.rev2.secondb.name).toBe("세컨비");
+    expect(secondb.rev2.secondb.tag).toBe("SecondB");
 
     const appFiles = [
       "src/app/core-brain.tsx",

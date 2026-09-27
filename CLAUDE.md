@@ -4,7 +4,7 @@ Project-specific guidance for Claude Code sessions in this repo.
 
 ## Project context
 
-- **What**: 2nd-Brain — *AI 시대 가장 가치있는 자산 = 나 자신* 을 데이터로 축적하고 개인 비서로 키우는 플랫폼. 세 축: (1) 알아가기 · (2) 개인 비서 기반 · (3) 공상 → 구체화.
+- **What**: PolaScope(앱 표시 이름; 저장소 식별자는 2nd-B 유지) — *AI 시대 가장 가치있는 자산 = 나 자신* 을 데이터로 축적하고 개인 비서로 키우는 플랫폼. 세 축: (1) 알아가기 · (2) 개인 비서 기반 · (3) 공상 → 구체화.
 - **Deadline**: 없음. 외부 마감에 맞춘 스코프 압축을 하지 말 것.
 
 > ### XPRIZE 는 종료됐다 (Simon 결정, 2026-08-15)

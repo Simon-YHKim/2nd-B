@@ -172,14 +172,14 @@ describe("PIXEL-CLAY /manual renderer contract", () => {
     expect(route).toContain("if (isDeepSpaceUI()) return <DeepSpaceManualScreen />");
   });
 
-  test("leaves the complete legacy renderer and styles byte-for-byte unchanged", () => {
+  test("keeps the reviewed PolaScope legacy renderer and styles byte-for-byte stable", () => {
     const route = read(ROUTE);
     const start = route.indexOf("interface ManualSection");
     const end = route.indexOf("\nexport default function Manual()");
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     expect(createHash("sha256").update(route.slice(start, end)).digest("hex")).toBe(
-      "d2f4fcf00df3b7e8a64f470c5481c6773b4d053c42baf72d4706310b1c9e6956",
+      "ea2d524b26a55cbfcbdf1c65e213000555e6ae2893335c4d9a22c80d26b5e4ad",
     );
   });
 });

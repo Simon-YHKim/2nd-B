@@ -2,7 +2,7 @@
   "loading": "Cargando importación...",
   "hero": {
     "eyebrow": "08-5. Importar",
-    "title": "Trae tus notas y resultados a 2nd-Brain",
+    "title": "Trae tus notas y resultados a PolaScope",
     "subtitle": "Otros asistentes · resultados de pruebas · notas",
     "speech": "El material pegado se clasifica primero y se guarda solo cuando tú lo confirmas."
   },
@@ -17,7 +17,7 @@
   "pasteCard": {
     "eyebrow": "Pegar",
     "title": "Respuesta o resultado de prueba",
-    "description": "Pega notas sobre ti, una respuesta de otro asistente o resultados anteriores de un test. 2nd-Brain los clasificará y añadirá etiquetas.",
+    "description": "Pega notas sobre ti, una respuesta de otro asistente o resultados anteriores de un test. PolaScope los clasificará y añadirá etiquetas.",
     "placeholder": "Pega aquí...",
     "accessibilityLabel": "Material para importar",
     "sort": "Clasificar y organizar",
@@ -37,7 +37,7 @@
       "pro": "trabajo y especialización",
       "life": "cotidiano"
     },
-    "keep": "Guardar en 2nd-Brain",
+    "keep": "Guardar en PolaScope",
     "keepHint": "Guarda este resultado importado en tus registros."
   },
   "saved": {

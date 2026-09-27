@@ -92,7 +92,7 @@ export function buildClipperPrompt(
   const system =
     locale === "ko"
       ? [
-          "사용자가 2nd-Brain에 담은 웹 자료를 Obsidian 클리퍼 형식으로 분류합니다.",
+          "사용자가 폴라스코프에 담은 웹 자료를 Obsidian 클리퍼 형식으로 분류합니다.",
           "JSON만 출력하세요. JSON 외 텍스트 금지.",
           "",
           "kind 후보 (가장 잘 맞는 하나):",
@@ -115,7 +115,7 @@ export function buildClipperPrompt(
           INJECTION_GUARD.ko,
         ].join("\n")
       : [
-          "Classify the web material the user clipped into their 2nd-Brain using the Obsidian clipper kinds.",
+          "Classify the web material the user clipped into PolaScope using the Obsidian clipper kinds.",
           "Return strict JSON only. No prose outside the JSON.",
           "",
           "Candidate kinds (pick the single best fit):",

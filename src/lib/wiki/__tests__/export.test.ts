@@ -126,7 +126,7 @@ describe("composeWikiExport", () => {
       locale: "ko",
       userDisplayName: "민지",
     });
-    expect(r.prompt).toContain("두번째 뇌 지식 내보내기");
+    expect(r.prompt).toContain("폴라스코프 지식 내보내기");
     expect(r.prompt).toContain("민지");
     expect(r.prompt).toContain("## 위키 페이지");
     expect(r.prompt).toContain("## 소스");

@@ -28,7 +28,17 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-27 22:40 / 앱 이름: Polascope 1순위 · 변리사 견적부터 · 2ndB 웹 게시 보류 · 프로젝트명 유지
+## Latest — 2026-09-27 23:19 / PolaScope 표시명 확정 · 앱 이름 가족 전체 전환 진행
+
+**결정**: Simon은 정확한 라틴 표기 `PolaScope`와 한국어 `폴라스코프`를 선택하고 웹·앱 5개 언어·법률/동의 문구를 함께 바꾸라고 지시했다(`DECISIONS.md` 23:19). 아래 22:40의 `Polascope` 후보·2ndB 웹 게시 보류는 당시 상태이며 이 결정이 갱신한다. 저장소/패키지/웹 경로 등 내부 식별자와 SecondB/세컨비·Meta-B·Twi-B 캐릭터 이름은 유지한다.
+
+**이 브랜치**: `fix/polascope-web-260927` (`E:/2ndB/.worktrees/polascope-web-260927`)에 웹 메타/공유 이미지/PWA/랜딩, 앱·스토어 문구, 공개 법률문서/HTML, 가입 원장 `email-v5`·서비스 동의 `service-v2`의 클라이언트/Edge/forward SQL 초안을 맞췄다. 기존 `email-v4`·`service-v1` 원장은 역사 판본으로 보존한다. `db/migration-drafts/UNNUMBERED_polascope_consent_20260928.sql`은 **초안이며 운영 미적용**이다. 직렬 `npm run verify` 822 suites/10,741 tests PASS, Expo 웹 export 128 routes PASS, 제목·랜딩·PWA·법률·OG 파일 산출물 확인 PASS. PostgreSQL 실실행은 로컬 테스트 DB 인증이 없어 아직 못 했다. 시행일 2026-09-28은 공개 전 확인해야 한다.
+
+**배포 순서**: 검증·PR 병합 후, 기존 0194 선행 조건을 확인하고 새 SQL을 번호 붙여 승격한다. Supabase 운영 적용 및 Edge 배포는 Simon의 지시대로 Grok Bot 담당이다. 새 서버 계약과 `service-v2` Edge 인증 상태 canary 확인 전 새 웹/앱 클라이언트를 공개하지 않는다. 웹 자동 게이트는 DB만 확인하므로 [운영 순서와 중단 조건](qa/POLASCOPE-RELEASE-260928.md)을 별도로 지킨다. 이후 현재 main에 맞춘 GitHub Pages 빌드/게시를 검증한다. 스토어 콘솔 표시명 변경·광고 ON은 별도 작업이다.
+
+---
+
+## 2026-09-27 22:40 / 앱 이름: Polascope 1순위 · 변리사 견적부터 · 2ndB 웹 게시 보류 · 프로젝트명 유지
 
 > 발행: CLI 코딩 세션(TTL-Work_rev2). 보고서 둘: "Scope Me 개명 검토"
 > <https://claude.ai/artifact/UKdgnvbKgn1PQnU2PK2EKG> · "앱 이름 결정 콘솔"

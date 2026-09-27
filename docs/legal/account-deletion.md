@@ -1,12 +1,12 @@
 # 계정 및 데이터 삭제 · Account & Data Deletion
 
-_시행일: 2026-07-26_
+_시행일: 2026-09-28_
 
 ---
 
 ## 한국어
 
-2nd-Brain(운영: 하양 프로덕션, 개인사업자 · 대표 배소하)은 이용자가 자신의 계정과 데이터를 직접 삭제할 수 있도록 다음 방법을 제공합니다.
+PolaScope(운영: 하양 프로덕션, 개인사업자 · 대표 배소하)은 이용자가 자신의 계정과 데이터를 직접 삭제할 수 있도록 다음 방법을 제공합니다.
 
 ### 앱에서 계정 삭제하기
 
@@ -45,7 +45,7 @@ _시행일: 2026-07-26_
 
 ## English
 
-2nd-Brain (operated by Hayang Production, a sole proprietorship; Rep. Bae Soha) lets you delete your own account and data as follows.
+PolaScope (operated by Hayang Production, a sole proprietorship; Rep. Bae Soha) lets you delete your own account and data as follows.
 
 ### Delete your account in the app
 
