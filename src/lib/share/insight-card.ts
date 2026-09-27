@@ -5,7 +5,7 @@
 // share sheet (expo-sharing). Native modules are LAZY-imported INSIDE the
 // function so importing this module never breaks web or jest (where the native
 // modules are absent / mocked). Web / unavailable falls back to RN Share text
-// carrying the 2ndb.app link — never throws.
+// carrying the public web link (SITE_ORIGIN) — never throws.
 //
 //   await shareInsightCard({ variant: "A", insight, handle, litCount });
 //
@@ -15,6 +15,7 @@
 import { Platform } from "react-native";
 
 import type { ShareCardProps } from "@/components/deepspace/ShareCard";
+import { SITE_ORIGIN } from "@/lib/site-meta";
 
 /** Canonical fallbacks when real data is missing. */
 export const FALLBACK_INSIGHT = "깊이 이해하고, 더 나답게 산다.";
@@ -23,8 +24,10 @@ export const FALLBACK_LIT_COUNT = 4;
 /** The capture target — design canon is 1080×1080. */
 const CAPTURE_SIZE = 1080;
 
-/** Public link surfaced in every share path. */
-const SHARE_LINK = "2ndb.app";
+/** Public link surfaced in every share path: where the web build is served.
+ *  It was "2ndb.app", a domain that was never registered (RDAP 404,
+ *  2026-09-27), so shared text pointed people at an address anyone could buy. */
+const SHARE_LINK = SITE_ORIGIN;
 
 export interface ShareInsightOptions {
   variant: "A" | "B";
@@ -67,7 +70,7 @@ export function deriveCardProps(input: {
 }
 
 /** Compose the plain-text fallback shared when image capture is unavailable. */
-function fallbackShareText(opts: ShareInsightOptions): string {
+export function fallbackShareText(opts: ShareInsightOptions): string {
   return `${opts.insight}\n\n@${opts.handle} · ${SHARE_LINK}`;
 }
 
@@ -141,7 +144,7 @@ export async function shareInsightCard(
   }
 }
 
-/** RN Share text fallback carrying the 2ndb.app link. Swallows user-cancel. */
+/** RN Share text fallback carrying the public web link. Swallows user-cancel. */
 async function shareTextFallback(opts: ShareInsightOptions): Promise<void> {
   try {
     const { Share } = await import("react-native");
