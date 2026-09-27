@@ -70,10 +70,10 @@ export async function requestAccountExport(expectedOwner?: string): Promise<Acco
 }
 
 /** Stable, sortable download filename derived from the export timestamp, e.g.
- *  "2nd-brain-data-20260614-134500.json". Defensive against a malformed timestamp. */
+ *  "polascope-data-20260614-134500.json". Defensive against a malformed timestamp. */
 export function buildExportFilename(exportedAtIso: string): string {
   const base = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(exportedAtIso)
     ? exportedAtIso.slice(0, 19).replace(/[-:]/g, "").replace("T", "-")
     : "export";
-  return `2nd-brain-data-${base}.json`;
+  return `polascope-data-${base}.json`;
 }
