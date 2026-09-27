@@ -95,6 +95,7 @@
         }
       ],
       "./config-plugins/withAndroidAbiFilter",
+      "./config-plugins/withFcmAutoInitOff",
       "expo-secure-store",
       [
         "expo-splash-screen",
