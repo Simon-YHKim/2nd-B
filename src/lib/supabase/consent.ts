@@ -83,12 +83,12 @@ import { getSupabaseClient } from "./client";
 //
 // ⚠ 이 값들을 올려도 **기존 계정에는 닿지 않는다.** 재동의 흐름은 별도 작업이고,
 // 알려진 공백이다: 기존 계정은 새 판을 다시 안내받지 않는다.
-// 2026-09-28: PolaScope is the displayed product name in the required notice,
+// 2026-10-05: PolaScope is the displayed product name in the required notice,
 // privacy policy, and terms. email-v5 maps this exact tuple server-side. Older
 // receipts keep their original documents and never gain optional ad consent.
-export const CONSENT_VERSION = "2026-09-28" as const;
-export const PRIVACY_POLICY_VERSION = "2026-09-28" as const;
-export const TERMS_VERSION = "2026-09-28" as const;
+export const CONSENT_VERSION = "2026-10-05" as const;
+export const PRIVACY_POLICY_VERSION = "2026-10-05" as const;
+export const TERMS_VERSION = "2026-10-05" as const;
 
 export type ConsentAgeBand = "minor_self" | "adult";
 export type MinorTier = "adult" | "minor_self" | "minor_guardian";

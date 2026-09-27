@@ -10,8 +10,8 @@ const status = {
   state: "uncovered", change_token: changeToken, can_grant: true,
 };
 const statusV2 = {
-  ...status, contract_revision: "service-v2", consent_version: "2026-09-28",
-  policy_version: "2026-09-28", terms_version: "2026-09-28",
+  ...status, contract_revision: "service-v2", consent_version: "2026-10-05",
+  policy_version: "2026-10-05", terms_version: "2026-10-05",
 };
 const compiled = new Map<string, string>();
 

@@ -45,7 +45,7 @@ AS $contract$
     ('complete-profile-v1'::text, '2026-08-16'::text, '2026-08-30'::text, '2026-08-16'::text, false),
     ('email-v3'::text, '2026-09-07'::text, '2026-09-07'::text, '2026-08-16'::text, true),
     ('email-v4'::text, '2026-09-07'::text, '2026-09-26'::text, '2026-08-16'::text, true),
-    ('email-v5'::text, '2026-09-28'::text, '2026-09-28'::text, '2026-09-28'::text, true)
+    ('email-v5'::text, '2026-10-05'::text, '2026-10-05'::text, '2026-10-05'::text, true)
   ) AS contract(signup_revision, consent_version, policy_version, terms_version, confirmation_eligible)
   WHERE contract.signup_revision = p_revision
 $contract$;
@@ -270,9 +270,9 @@ BEGIN
     WHEN (decision->>'allowed')::boolean THEN 'granted' ELSE 'blocked' END;
   change_token := encode(sha256(convert_to(jsonb_build_array('service-v2',p_user_id,
     prior.consent_record_id,prior.state_revision,profile.birth_date,profile.minor_tier,
-    profile.account_status,'2026-09-28','2026-09-28','2026-09-28')::text,'UTF8')),'hex');
-  RETURN jsonb_build_object('contract_revision','service-v2','consent_version','2026-09-28',
-    'policy_version','2026-09-28','terms_version','2026-09-28','state',state,
+    profile.account_status,'2026-10-05','2026-10-05','2026-10-05')::text,'UTF8')),'hex');
+  RETURN jsonb_build_object('contract_revision','service-v2','consent_version','2026-10-05',
+    'policy_version','2026-10-05','terms_version','2026-10-05','state',state,
     'change_token',change_token,'can_grant',eligible);
 END $$;
 REVOKE ALL ON FUNCTION public.llm_service_consent_status_v2(uuid) FROM PUBLIC,anon,authenticated,service_role;
@@ -361,8 +361,8 @@ BEGIN
   IF (SELECT count(*) FROM public.signup_consent_contract_status()) <> 5
     OR NOT EXISTS(
       SELECT 1 FROM public.signup_consent_contract_status()
-      WHERE signup_revision='email-v5' AND consent_version='2026-09-28'
-        AND policy_version='2026-09-28' AND terms_version='2026-09-28'
+      WHERE signup_revision='email-v5' AND consent_version='2026-10-05'
+        AND policy_version='2026-10-05' AND terms_version='2026-10-05'
         AND confirmation_eligible AND confirmation_ready
     )
     OR NOT EXISTS(

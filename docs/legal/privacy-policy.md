@@ -1,6 +1,6 @@
 # 개인정보처리방침 · Privacy Policy
 
-_시행일: 2026-09-28 · 최종 개정: 2026-09-28_
+_시행일: 2026-10-05 · 최종 개정: 2026-10-05_
 
 ---
 
@@ -97,7 +97,7 @@ Supabase Edge Functions와 OpenAI·Anthropic 등 서비스 제공에 필요한 �
 2026-09-26 개정에서는 비활성 광고 기능의 수집 항목·보상 기록·티켓 보관과 별도 선택을 안내했습니다. 기존 이용자의 동의를 새 광고 동의로 전환하지 않습니다.
 | 시행일 | 변경 내용 |
 |---|---|
-| 2026-09-28 | 앱 표시 이름을 2nd-Brain에서 PolaScope로 변경했습니다. 운영자와 이 방침의 개인정보 처리 내용은 그대로입니다. |
+| 2026-10-05 | 앱 표시 이름을 2nd-Brain에서 PolaScope로 변경했습니다. 운영자와 이 방침의 개인정보 처리 내용은 그대로입니다. |
 | 2026-09-07 | **09-02 개정안과 09-04 사실 정정을 하나로 합쳤습니다.** 제4조에 **Anthropic PBC**(Claude API)를 별도 수탁사로 명시하고, Supabase를 **서울 주 저장소 + 리전 미고정 Edge Functions**(API·함수 로그 1일)로 정정했으며, **Paddle을 회사의 수탁사가 아닌 판매자(Merchant of Record)** 로 구분하고 결제 결과를 계정에 연결하는 내부 식별자(user_id)가 custom data로 전달된다는 사실을 적었습니다. **Sentry**는 비활성화 변경이 배포된 뒤의 새 번들은 초기화하지 않으나 구버전 앱·미재시작 앱·미새로고침 웹 세션은 계속 전송할 수 있다는 사실을 적었습니다. GA4 이전 항목(가명 클라이언트·기기 식별자, 쿠키·로컬 저장소 식별자, 대략적 위치, IP)과 보유기간(사용자·이벤트 수준 최대 14개월, 표준 집계 보고서는 예외)을 명시했습니다. **건강·활동 측정값은 어떠한 AI 제공자에게도 전송하지 않습니다.** 09-04 판이 추가한 RevenueCat 행은 앱 내 구매 활성화 전 선고지로 유지합니다. 다만 **앱의 Firebase Analytics·Microsoft Clarity 는 "동의 시 수집"이 아니라 현재 코드에서 비활성화되어 있어 수집하지 않습니다** — 동의 여부보다 위에서 꺼져 있으므로 09-04 판의 해당 서술을 이 판에서 정정합니다. |
 | 2026-09-04 | **사실 정정.** 제4조 수탁사에 **OpenAI, L.L.C.**(대화·이미지 문자 인식·음성 텍스트 전사·임베딩) · **Google (Firebase Analytics · 앱)** · **Sentry (Functional Software, Inc.)**(오류·크래시 진단) · **RevenueCat (RevenueCat, Inc.)**(구독 상태 관리) 추가. 제5조에서 음성·오디오의 텍스트 전사 수신자를 **OpenAI 로 정정**하고(종전에는 다른 회사로 적혀 있었습니다) 이전받는 자를 회사명으로 명시, Sentry 국외이전 고지 신설. 종전 문구는 실제 처리 경로와 달랐습니다. RevenueCat 은 앱 내 구매 활성화 전 선고지입니다. |
 | 2026-08-30 | 제4조 수탁사에 Google Analytics 4·Microsoft Clarity 추가(이용자가 사용 통계에 동의한 경우에만 처리). 제5조에 두 수탁사의 국외 이전 고지 신설(별도 동의 근거·이전 항목·보유기간 명시). |
@@ -198,7 +198,7 @@ This policy may be revised per law/service changes; revisions (effective date an
 The 2026-09-26 revision describes data collection, reward records, ticket retention and separate choice for the disabled advertising feature. Existing consent is not converted into advertising consent.
 | Effective | What changed |
 |---|---|
-| 2026-09-28 | Changed the app's display name from 2nd-Brain to PolaScope. The operator and data-processing terms in this policy are unchanged. |
+| 2026-10-05 | Changed the app's display name from 2nd-Brain to PolaScope. The operator and data-processing terms in this policy are unchanged. |
 | 2026-09-07 | **Merged the 09-02 revision with the 09-04 factual correction.** Section 4 now names **Anthropic PBC** (Claude API) as a separate processor, restates Supabase as **primary storage in Seoul plus non-region-pinned Edge Functions** (API and function logs retained one day), and separates **Paddle as the Merchant of Record rather than a processor**, disclosing that the internal account identifier (user_id) is passed as custom data to link payment results to the account. **Sentry**: new bundles built after the disable change do not initialize it, but older apps, apps not yet restarted, and web sessions not yet refreshed may keep transmitting. GA4 transfer items (pseudonymous client and device identifiers, cookie and local-storage identifiers, approximate location, IP) and retention (up to 14 months at user and event level; standard aggregate reports are exempt) are now stated. **Health and activity measurements are not sent to any AI provider.** The RevenueCat row added in the 09-04 revision is kept as advance disclosure ahead of enabling in-app purchases. However, **Firebase Analytics and Microsoft Clarity in the app are not "collected upon consent": they are disabled in the current code and collect nothing** - the switch sits above consent, so this revision corrects that part of the 09-04 wording. |
 | 2026-09-04 | **Factual correction.** Added **OpenAI, L.L.C.** (chat, OCR, voice transcription, embeddings), **Google (Firebase Analytics, app)**, **Sentry (Functional Software, Inc.)** (error and crash diagnostics) and **RevenueCat (RevenueCat, Inc.)** (subscription-state management) to the Section 4 processors. Corrected the Section 5 recipient for voice and audio transcription to **OpenAI** (it previously named a different company), named the transferees by company, and added the Sentry overseas-transfer notice. The previous wording did not match the actual processing paths. RevenueCat is disclosed ahead of enabling in-app purchases. |
 | 2026-08-30 | Added Google Analytics 4 and Microsoft Clarity to the processors in Section 4 (processed only if you turn usage statistics on). Added an overseas-transfer notice for both in Section 5 (legal basis, transferred items, retention). |

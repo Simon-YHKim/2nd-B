@@ -8,8 +8,8 @@ DO $$
 BEGIN
   IF (SELECT count(*) FROM public.signup_consent_contract_status()) <> 5
     OR NOT EXISTS(SELECT 1 FROM public.signup_consent_contract('email-v5') c
-      WHERE c.consent_version='2026-09-28' AND c.policy_version='2026-09-28'
-        AND c.terms_version='2026-09-28' AND c.confirmation_eligible)
+      WHERE c.consent_version='2026-10-05' AND c.policy_version='2026-10-05'
+        AND c.terms_version='2026-10-05' AND c.confirmation_eligible)
     OR NOT EXISTS(SELECT 1 FROM public.signup_consent_contract('email-v4') c
       WHERE c.consent_version='2026-09-07' AND c.policy_version='2026-09-26'
         AND c.terms_version='2026-08-16' AND c.confirmation_eligible)
@@ -32,8 +32,8 @@ BEGIN
   IF NOT EXISTS(
     SELECT 1 FROM public.consent_records c
     JOIN public.llm_consent_receipts p ON p.consent_record_id=c.id
-    WHERE c.user_id=subject AND c.consent_version='2026-09-28'
-      AND c.policy_version='2026-09-28' AND c.terms_version='2026-09-28'
+    WHERE c.user_id=subject AND c.consent_version='2026-10-05'
+      AND c.policy_version='2026-10-05' AND c.terms_version='2026-10-05'
       AND p.contract_revision='email-v5' AND c.required_ack AND c.safety_notice_ack
   ) THEN RAISE EXCEPTION 'email-v5 confirmation/provenance contract failed'; END IF;
 END $$;
@@ -52,7 +52,7 @@ BEGIN
   v1 := public.llm_service_consent_status(u);
   v2 := public.llm_service_consent_status_v2(u);
   IF v1->>'contract_revision'<>'service-v1' OR v1->>'policy_version'<>'2026-09-26'
-    OR v2->>'contract_revision'<>'service-v2' OR v2->>'policy_version'<>'2026-09-28'
+    OR v2->>'contract_revision'<>'service-v2' OR v2->>'policy_version'<>'2026-10-05'
     OR v1->>'change_token'=v2->>'change_token' THEN
     RAISE EXCEPTION 'dual client status contract failed';
   END IF;
@@ -72,8 +72,8 @@ BEGIN
   saved := public.write_llm_service_consent(u,'service-v2',v2->>'change_token','grant',acks,'ko');
   SELECT c.* INTO receipt FROM public.consent_records c JOIN public.llm_consent_receipts p
     ON p.consent_record_id=c.id WHERE p.user_id=u ORDER BY p.receipt_order DESC LIMIT 1;
-  IF saved->>'state'<>'granted' OR receipt.consent_version<>'2026-09-28'
-    OR receipt.policy_version<>'2026-09-28' OR receipt.terms_version<>'2026-09-28'
+  IF saved->>'state'<>'granted' OR receipt.consent_version<>'2026-10-05'
+    OR receipt.policy_version<>'2026-10-05' OR receipt.terms_version<>'2026-10-05'
     OR NOT public.effective_llm_consent_v2(u) THEN
     RAISE EXCEPTION 'current v5 grant failed';
   END IF;

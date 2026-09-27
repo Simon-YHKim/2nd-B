@@ -42,9 +42,9 @@ const FROZEN_SIGNUP_REVISION_TUPLES = {
     confirmationEligible: true,
   },
   "email-v5": {
-    consentVersion: "2026-09-28",
-    policyVersion: "2026-09-28",
-    termsVersion: "2026-09-28",
+    consentVersion: "2026-10-05",
+    policyVersion: "2026-10-05",
+    termsVersion: "2026-10-05",
     confirmationEligible: true,
   },
 } as const;
