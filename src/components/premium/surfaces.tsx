@@ -25,7 +25,7 @@ import { cosmic, deepSpace, flattenAlpha, semantic, spacing, typography, withAlp
 import { fontFamilies } from "@/theme/typography";
 import { PixelCorner } from "./PixelCorner";
 
-/** Compact PolaScope brand chip used at the top-left of premium screens. */
+/** Legacy brand chip that draws the old "2B" · "Brain" letters; no callers since the PolaScope rename. */
 export function BrandChip({ size = 44 }: { size?: number }) {
   return (
     <View style={[styles.brandChip, { width: size, height: size }]}>

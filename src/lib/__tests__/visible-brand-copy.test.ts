@@ -63,11 +63,20 @@ describe("visible brand copy", () => {
       "locales/ko/support.json",
       "src/app/manual.tsx",
       "src/components/premium/surfaces.tsx",
+      // Added after the rename review: these carried the old name past the
+      // first sweep (Korean particle glued to 2nd-B, the canon onboarding tag
+      // the Korean slide reads at runtime, the character a11y label).
+      "src/app/call-reflection.tsx",
+      "public/proto/data/screens/flows.json",
+      "locales/en/capture.json",
+      "locales/ko/capture.json",
+      "locales/en/home.json",
+      "locales/ko/home.json",
     ];
 
     for (const file of files) {
       const source = readFileSync(path.join(root, file), "utf8");
-      expect(source).not.toMatch(/2nd-Brain|2nd-B(?!rain)|2ndB|2ND-BRAIN/);
+      expect(source).not.toMatch(/2nd-Brain|2nd-B(?!rain)|2ndB|2ND-BRAIN|Second Brain|세컨드 브레인/);
     }
     const commonEn = readFileSync(path.join(root, "locales/en/common.json"), "utf8");
     expect(commonEn).toContain('"name": "PolaScope"');

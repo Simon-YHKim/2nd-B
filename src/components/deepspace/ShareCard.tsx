@@ -2,7 +2,7 @@
 // (reference-app sb-more ShareCardScreen 1:1).
 //
 // Two variants:
-//   - "A" 통찰 카드: mono eyebrow "2ND-BRAIN · 이번 주", the insight sentence
+//   - "A" 통찰 카드: mono eyebrow "POLASCOPE · 이번 주", the insight sentence
 //     centered, 세컨비 head + "세컨비가 함께 본 한 주" footer.
 //   - "B" 별자리 카드: localized constellation eyebrow, the 7 domain dots at the
 //     prototype's fixed positions (litCount lit, rest dim) around a bright

@@ -115,7 +115,7 @@ export function buildClipperPrompt(
           INJECTION_GUARD.ko,
         ].join("\n")
       : [
-          "Classify the web material the user clipped into their PolaScope using the Obsidian clipper kinds.",
+          "Classify the web material the user clipped into PolaScope using the Obsidian clipper kinds.",
           "Return strict JSON only. No prose outside the JSON.",
           "",
           "Candidate kinds (pick the single best fit):",
