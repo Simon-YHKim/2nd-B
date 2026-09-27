@@ -28,7 +28,25 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-28 01:4x / 콘솔 3곳 앱 이름 PolaScope 완료 — Play 는 검토 중(최종 게시는 Simon)
+## Latest — 2026-09-28 / PolaScope 웹 이름과 10-05 계약 분리 인계
+
+> 이 블록은 현재 main에 적용된 사실과 10-05 Draft를 구분한다. 세부 절차는 [PolaScope 배포 게이트](qa/POLASCOPE-RELEASE-260928.md) 및 PR #1902를 따른다.
+
+**완료·검증**
+- #1909가 main에 병합됐고 운영 Supabase migration `0203`이 적용됐다. `email-v5`는 **2026-09-07 / 2026-09-28 / 2026-08-16**인 개인정보방침 v4 공지형 판본이다. 이 튜플과 기존 `email-v4`·원장 영수증을 바꾸지 않는다.
+- #1910 기록에 따르면 AdMob Android/iOS 내부 이름, Play 기본 등록정보, App Store Connect 이름이 PolaScope로 변경됐다. Play는 **검토 중**이며 관리형 게시의 최종 공개는 실행하지 않았다. 별도 Play 로그인 요청은 이 완료 기록 이후에는 선행 조건이 아니다.
+- #1911은 Expo 웹 `name`·`shortName`을 PolaScope로 맞추고 824 suites / 10,745 tests 및 PR CI 3종을 통과해 main `57ddc0db`에 병합됐다. 웹 운영 게시는 다른 코딩 세션 `ttl-work-rev2-f6`가 소유했다(`.bots/relay/outbox/claim-web-publish-polascope-privacy-v4.publish.result.md`). 운영 게시 run `36335857143` 성공 뒤 공개 URL은 HTTP 200, 제목·OG 사이트명·PWA `name`/`short_name` 모두 PolaScope로 확인했다. 공개 개인정보방침은 09-28 시행 판본이며, 별도 원격 공지 `721ae87c-8699-4174-86fd-1a4ea6584d1b`가 02:16:46 KST 발행됐다. 방침의 구 서비스명은 10-05 계약 개정 때 전환한다.
+- `export-account` 운영 Edge 재배포와 QA 카나리아(200, 45개 표, errors 0)는 앞 블록과 PR #1908에 기록됐다. #1909 Android 진단 빌드 실패는 main이 실행 중 이동해 최신 HEAD 게이트가 중단한 것이며 APK 빌드 오류로 판정하지 않는다. 임의 재실행은 하지 않았다.
+
+**10-05 이후 할 일**
+1. Draft PR #1902는 **2026-10-05** 법률·동의 개정용으로 유지한다. #1909의 `email-v5`를 덮지 않고 새 `email-v6`(10-05 세 판본)·`service-v2`를 준비했다. 구 `service-v1`은 09-28 튜플을 계속 사용한다. 번호 없는 SQL 초안과 그 PostgreSQL 회귀 테스트는 운영에 적용되지 않았다.
+2. PR #1902의 최신 CI `verify`·`web-export-smoke`·`sql`을 확인한다. SQL CI는 마지막 단계에서 10-05 forward 초안을 **일회용 DB에만** 적용해 신·구 가입과 서비스 동의, CAS, ACL을 검사하도록 보완했다. 이 통과 기록 없이는 운영 적용 계획으로 승격하지 않는다.
+3. 10-05 적용일과 최종 법률문서가 맞으면 서버 forward migration을 최신 번호로 검토·승격하고 콘솔 소유 세션의 적용과 Edge 신·구 `status` 카나리아를 마친 뒤 #1902 병합·웹/앱 공개를 진행한다. 공개와 운영 적용은 각각 승인 및 소유권 절차를 따른다. iOS 릴리스·광고 활성화는 계속 별도 게이트다.
+4. 별도 GUI 잔여: Play 데이터 보안 Revision 2 제출, 결제 전환 3단계 이후. Play Console 로그인 완료는 Simon의 후속 알림을 기다리고 있다. 구체 범위와 승인 게이트를 확인한 뒤 진행하며, #1902의 10-05 계약을 앞당기지 않는다.
+
+---
+
+## 2026-09-28 01:4x / 콘솔 3곳 앱 이름 PolaScope 완료 — Play 는 검토 중(최종 게시는 Simon)
 
 > 발행: CLI 코딩 세션(TTL-Work_rev2). DECISIONS 26.09.28 01:3x(코디네이터 판단). 결과: `.bots/relay/outbox/console-rename-polascope.coding.result.md`.
 
