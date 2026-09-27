@@ -85,6 +85,8 @@ export function DeepSpaceConsentNoticeScreen() {
         </Text>
       </View>
       <Text variant="body" style={styles.consentIntro}>{t("consent:detail.intro")}</Text>
+      {/* PolaScope 병기 안내: 약관 적용일(2026-10-05) 전까지만. 약관·동의 개정 PR 에서 지운다 (DECISIONS 26.09.28). */}
+      <Text variant="body" style={styles.consentIntro}>{t("common:app.renameNote")}</Text>
 
       <View style={styles.card}>
         <Text variant="heading" style={styles.section} accessibilityRole="header">
