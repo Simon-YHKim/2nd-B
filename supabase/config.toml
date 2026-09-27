@@ -39,7 +39,7 @@ enable_confirmations = true
 # Recovery email is code-only. The in-screen OTP flow (#1013) verifies the
 # 6-digit code; no bearer-token or custom-scheme fallback is delivered by mail.
 [auth.email.template.recovery]
-subject = "[2nd-Brain] 비밀번호 재설정 인증번호 / Password reset code"
+subject = "[PolaScope] 비밀번호 재설정 인증번호 / Password reset code"
 content_path = "./supabase/templates/recovery.html"
 
 # Confirmation email: CODE-ONLY, deliberately no link. Gmail spam-buckets mail
@@ -49,7 +49,7 @@ content_path = "./supabase/templates/recovery.html"
 # /sign-up (verifySignUpCode, type "signup"); links in already-sent mail keep
 # working through the existing callback path.
 [auth.email.template.confirmation]
-subject = "[2nd-Brain] 가입 확인 코드 / Sign-up confirmation code"
+subject = "[PolaScope] 가입 확인 코드 / Sign-up confirmation code"
 content_path = "./supabase/templates/confirmation.html"
 
 # RESTORE NOTE (2026-07-18): the apple provider was reset to disabled by a
