@@ -33,6 +33,11 @@ describe("웹 셸의 공유 카드", () => {
     expect(html).toContain('<meta property="og:site_name" content={SITE_NAME} />');
     expect(SITE_TITLE.startsWith(`${SITE_NAME} · `)).toBe(true);
     expect(html).not.toContain('og:site_name" content="');
+    const web = JSON.parse(readFileSync(path.join(root, "app.json"), "utf8")) as {
+      expo: { web: { name: string; shortName: string } };
+    };
+    expect(web.expo.web.name).toBe(SITE_NAME);
+    expect(web.expo.web.shortName).toBe(SITE_NAME);
   });
 
   it("자산이 실재하고 선언한 크기와 같다", () => {
