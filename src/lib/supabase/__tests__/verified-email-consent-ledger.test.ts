@@ -41,7 +41,15 @@ const FROZEN_SIGNUP_REVISION_TUPLES = {
     termsVersion: "2026-08-16",
     confirmationEligible: true,
   },
+  // 2026-09-28: policy v4, a notice revision (Simon). 0203 adds this row and
+  // keeps email-v4 above for already-installed clients.
   "email-v5": {
+    consentVersion: "2026-09-07",
+    policyVersion: "2026-09-28",
+    termsVersion: "2026-08-16",
+    confirmationEligible: true,
+  },
+  "email-v6": {
     consentVersion: "2026-10-05",
     policyVersion: "2026-10-05",
     termsVersion: "2026-10-05",
@@ -167,8 +175,9 @@ describe("verified-email consent ledger", () => {
   });
 
   test("keeps current and historical email revisions confirmation-eligible", () => {
-    expect(authSignupRevision()).toBe("email-v5");
-    expect(contractTuple(authSignupRevision() as "email-v5").confirmationEligible).toBe(true);
+    expect(authSignupRevision()).toBe("email-v6");
+    expect(contractTuple(authSignupRevision() as "email-v6").confirmationEligible).toBe(true);
+    expect(contractTuple("email-v5").confirmationEligible).toBe(true);
     expect(contractTuple("email-v4").confirmationEligible).toBe(true);
     expect(contractTuple("email-v3").confirmationEligible).toBe(true);
     expect(contractTuple("email-v2").confirmationEligible).toBe(true);

@@ -66,6 +66,23 @@ describe("reviewed public signup metadata grant", () => {
     expect(run(changed).status).toBe(1);
   });
 
+  // 0203 (email-v5, 2026-09-28 notice revision) is a second reviewed metadata
+  // migration, pinned by its whole content like 0191.
+  const v5 = readFileSync(join(root, "db/migrations/0203_signup_consent_privacy_20260928.sql"), "utf8");
+  test("the reviewed 0203 contract passes, alone and after 0191", () => {
+    expect(run(v5).status).toBe(0);
+    expect(run(draft, v5).status).toBe(0);
+  });
+
+  test.each([
+    ["policy date", v5.replace("'2026-09-28'::text, '2026-08-16'::text, true)", "'2026-09-29'::text, '2026-08-16'::text, true)")],
+    ["current-contract list", v5.replace("('email-v4'::text), ('email-v5'::text)", "('email-v5'::text)")],
+    ["public grant", v5.replace(grant, grant.replace("anon, authenticated", "PUBLIC"))],
+  ])("rejects a 0203 with a changed %s", (_name, changed) => {
+    expect(changed).not.toBe(v5);
+    expect(run(draft, changed).status).toBe(1);
+  });
+
   test("another migration cannot replace the publicly exposed body without review", () => {
     const changed = "CREATE OR REPLACE FUNCTION public.signup_consent_contract_status() " +
       "RETURNS text LANGUAGE sql SECURITY DEFINER AS $$ SELECT 'unreviewed'::text $$;\n" +

@@ -62,7 +62,7 @@ import { getSupabaseClient } from "./client";
 
 // 판본 상수 셋은 한 벌로 움직인다. 하나만 올리면 원장이 가리키는 판과 화면에
 // 뜨는 판이 어긋나고, 그 어긋남은 예외도 안 나고 검사도 안 걸리며 그냥 거짓 기록이
-// 된다. 아래 세 값과 현재 email-v5 서버 튜플, 그리고
+// 된다. 아래 세 값과 현재 email-v6 서버 튜플, 그리고
 // verified-email-consent-ledger.test.ts 의 FROZEN_SIGNUP_REVISION_TUPLES 가
 // 같은 문서 판을 가리켜야 한다. 0150의 email-v3는 과거 판으로 보존한다.
 //
@@ -84,7 +84,7 @@ import { getSupabaseClient } from "./client";
 // ⚠ 이 값들을 올려도 **기존 계정에는 닿지 않는다.** 재동의 흐름은 별도 작업이고,
 // 알려진 공백이다: 기존 계정은 새 판을 다시 안내받지 않는다.
 // 2026-10-05: PolaScope is the displayed product name in the required notice,
-// privacy policy, and terms. email-v5 maps this exact tuple server-side. Older
+// privacy policy, and terms. email-v6 maps this exact tuple server-side. Older
 // receipts keep their original documents and never gain optional ad consent.
 export const CONSENT_VERSION = "2026-10-05" as const;
 export const PRIVACY_POLICY_VERSION = "2026-10-05" as const;

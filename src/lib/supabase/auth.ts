@@ -285,8 +285,8 @@ export function ageInYears(birthDate: string, now: Date = new Date()): number {
 // matching revision, so an older installed app cannot be stamped as if it had
 // shown newer documents. Any future document change needs a new revision and a
 // forward migration that maps it to server-owned versions.
-// Requires the server's email-v5 contract before this client is published.
-export const VERIFIED_EMAIL_SIGNUP_REVISION = "email-v5" as const;
+// Requires the server's email-v6 contract before this client is published.
+export const VERIFIED_EMAIL_SIGNUP_REVISION = "email-v6" as const;
 
 export interface SignUpArgs {
   email: string;

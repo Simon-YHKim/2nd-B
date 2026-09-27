@@ -112,8 +112,9 @@ describe("legal document snapshots", () => {
     expect(PRIVACY_DOC.body).toContain("Firebase Analytics");
     expect(PRIVACY_DOC.body).toContain("제28조의8 제1항 제3호");
     expect(PRIVACY_DOC.body).toContain("Article 28-8(1)3");
-    expect(PRIVACY_DOC.body).toContain("건강·활동 측정값은 어떠한 AI 제공자에게도 전송하지 않고");
-    expect(PRIVACY_DOC.body).toContain("health and activity measurements are not sent to any AI provider");
+    // v4 (2026-09-28) names both health sources; the no-AI promise covers both.
+    expect(PRIVACY_DOC.body).toContain("건강·활동 측정값은 Health Connect에서 읽은 것이든 Apple 건강 앱(HealthKit)에서 읽은 것이든 어떠한 AI 제공자에게도 전송하지 않고");
+    expect(PRIVACY_DOC.body).toContain("health and activity measurements, whether read from Health Connect or Apple Health (HealthKit), are not sent to any AI provider");
     expect(PRIVACY_DOC.body).not.toContain("음성·오디오는 텍스트 전사를 위해 Google에 전송");
     expect(PRIVACY_DOC.body).not.toContain("voice/audio is sent to Google");
   });
