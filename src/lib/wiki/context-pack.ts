@@ -123,7 +123,7 @@ const FRONTMATTER = (name: string | null, date: string) =>
   [
     "---",
     "kind: personal-context-pack",
-    "spec: 2nd-Brain Personal Context Layer",
+    "spec: PolaScope Personal Context Layer",
     `owner: ${name ?? "(anonymous)"}`,
     `generated: ${date}`,
     "---",

@@ -25,7 +25,7 @@
     },
     "clipboard": {
       "name": "Área de transferência",
-      "why": "Usada apenas quando você toca em Copiar em ações de exportação ou mensagem. O 2nd-Brain nunca lê sua área de transferência em segundo plano."
+      "why": "Usada apenas quando você toca em Copiar em ações de exportação ou mensagem. O PolaScope nunca lê sua área de transferência em segundo plano."
     },
     "calendar": {
       "name": "Calendário",
