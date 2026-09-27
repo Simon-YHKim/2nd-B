@@ -65,7 +65,7 @@
       "label": "Hapus penuh",
       "hint": "Menampilkan konfirmasi yang diketik untuk menghapus semua catatan, sumber, halaman wiki, dan penggunaan.",
       "body": "Ini adalah jalur hapus konten yang tidak bisa dibatalkan. Ekspor dulu, lalu ketik DELETE hanya jika kamu yakin.",
-      "retained": "Ini menghapus konten pribadi 2nd-B di akun ini. Detail akun, riwayat persetujuan, dan catatan akuntabilitas layanan tetap ada."
+      "retained": "Ini menghapus konten pribadi PolaScope di akun ini. Detail akun, riwayat persetujuan, dan catatan akuntabilitas layanan tetap ada."
     }
   },
   "modals": {

@@ -164,7 +164,7 @@
     "kindFallback": "Registro"
   },
   "auth": {
-    "appName": "2nd-Brain",
+    "appName": "PolaScope",
     "signInLead": "Na era da IA, o ativo é você. Seus registros formam sua Estrela Polar.",
     "signIn": "Entrar",
     "createAccount": "Criar conta",
@@ -184,7 +184,7 @@
     "forgotPassword": "Esqueceu a senha?",
     "or": "ou",
     "ageNotice": "Você pode criar uma conta se tiver {{minAge}} anos ou mais.",
-    "brandLabel": "2ND-BRAIN",
+    "brandLabel": "POLASCOPE",
     "signInTitle": "Que bom te ver de novo",
     "emailContinue": "Continuar com e-mail",
     "signUpPrompt": "Primeira vez?",
@@ -252,7 +252,7 @@
     "viewManual": "Ver o manual",
     "emailUs": "Fale conosco",
     "reportBug": "Relatar um erro",
-    "footer": "2nd-Brain v1.0.0 · 2 dias úteis KST",
+    "footer": "PolaScope v1.0.0 · 2 dias úteis KST",
     "faqTitle": "Perguntas frequentes",
     "noticesTitle": "Avisos"
   },
@@ -398,7 +398,7 @@
     "proActive": "Seu plano pago está ativo",
     "nowPro": "Você está num plano pago agora. Obrigado.",
     "notAvailableTitle": "Faça upgrade no app móvel",
-    "notAvailableBody": "Os planos pagos são comprados nas lojas de apps no iOS e Android. Abra o 2nd-Brain no seu celular para fazer upgrade.",
+    "notAvailableBody": "Os planos pagos são comprados nas lojas de apps no iOS e Android. Abra o PolaScope no seu celular para fazer upgrade.",
     "support": "Falar com o suporte",
     "loadError": "Não foi possível carregar os planos. Tente de novo.",
     "purchaseError": "A compra não foi concluída. Tente de novo.",
@@ -772,11 +772,11 @@
     "rangeNote": "Esta página: itens {{from}} – {{to}}"
   },
   "shareCardImg": {
-    "eyebrowWeek": "2ND-BRAIN · ESTA SEMANA",
+    "eyebrowWeek": "POLASCOPE · ESTA SEMANA",
     "eyebrowConstellation": "MINHA CONSTELACAO",
     "footerWeek": "Uma semana vista ao lado do SecondB",
     "starsLit": "{{count}} estrelas brilhando",
-    "signature": "2nd-Brain · {{count}} fagulhas de estrela"
+    "signature": "PolaScope · {{count}} fagulhas de estrela"
   },
   "ds": {
     "growth": {

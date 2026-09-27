@@ -39,11 +39,22 @@ describe("visible brand copy", () => {
     expect(signIn).not.toContain('router.push("/")');
   });
 
-  test("app surfaces use 2nd-Brain instead of informal 2nd-B or 2ndB", () => {
+  // 2026-09-27: the app is called PolaScope (Simon, DECISIONS 26.09.27). App
+  // surfaces carry the new name and none of the old app-name family. The
+  // consent copy is the exception until the terms/consent amendment ships: it is
+  // tied to CONSENT_VERSION and the server tuple, so it still says 2nd-Brain and
+  // only keeps the older rule (no informal 2nd-B / 2ndB).
+  test("consent copy keeps 2nd-Brain until the consent amendment, never 2nd-B or 2ndB", () => {
+    const root = path.resolve(__dirname, "../../..");
+    for (const file of ["locales/en/consent.json", "locales/ko/consent.json"]) {
+      const source = readFileSync(path.join(root, file), "utf8");
+      expect(source).not.toMatch(/2nd-B(?!rain)|2ndB/);
+    }
+  });
+
+  test("app surfaces use PolaScope instead of 2nd-Brain, 2nd-B or 2ndB", () => {
     const root = path.resolve(__dirname, "../../..");
     const files = [
-      "locales/en/consent.json",
-      "locales/ko/consent.json",
       "locales/en/import.json",
       "locales/ko/import.json",
       "locales/en/permissions.json",
@@ -56,8 +67,10 @@ describe("visible brand copy", () => {
 
     for (const file of files) {
       const source = readFileSync(path.join(root, file), "utf8");
-      expect(source).not.toMatch(/2nd-B(?!rain)|2ndB/);
+      expect(source).not.toMatch(/2nd-Brain|2nd-B(?!rain)|2ndB|2ND-BRAIN/);
     }
+    const commonEn = readFileSync(path.join(root, "locales/en/common.json"), "utf8");
+    expect(commonEn).toContain('"name": "PolaScope"');
   });
 
   test("Korean locale copy uses 세컨비 for the AI companion", () => {

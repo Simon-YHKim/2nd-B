@@ -41,11 +41,11 @@ export type ReminderResult = "scheduled" | "denied" | "unavailable" | "error";
 
 const CHANNEL_ID = "ops-routines";
 const ROUTINE_NOTIFICATION_CONTENT = {
-  title: "2nd Brain",
+  title: "PolaScope",
   body: "Open the app to view your routine.",
 } as const;
 const FOCUS_NOTIFICATION_CONTENT = {
-  title: "2nd Brain",
+  title: "PolaScope",
   body: "Open the app to view your completed timer.",
 } as const;
 const NOTIFICATION_PRIVACY_MIGRATION_KEY = "ops.notifications.privacyMigration.v2";

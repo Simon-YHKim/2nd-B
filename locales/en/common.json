@@ -4,7 +4,7 @@
     "removeUpsell": "Prefer no ads? Subscriptions remove them."
   },
   "app": {
-    "name": "2nd-Brain",
+    "name": "PolaScope",
     "tagline": "A second brain built from what you write and save."
   },
   "actions": {
@@ -51,9 +51,9 @@
   },
   "loadingGate": {
     "hint": "Tap to open your second brain",
-    "open": "Open 2nd-Brain",
-    "opening": "Opening 2nd-Brain",
-    "loading": "Loading 2nd-Brain",
+    "open": "Open PolaScope",
+    "opening": "Opening PolaScope",
+    "loading": "Loading PolaScope",
     "enterHint": "Double tap to enter the main screen.",
     "skipHint": "Double tap to skip the intro animation."
   },

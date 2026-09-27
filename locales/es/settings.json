@@ -41,7 +41,7 @@
     "fullWipeHint": "Requiere escribir DELETE para borrar registros, fuentes, páginas de wiki y uso."
   },
   "dataWizard": {
-    "body": "Elige un área de eliminación a la vez. Tu contenido privado de 2nd-B se divide en registros, evaluaciones, wiki/capturas y borrado total.",
+    "body": "Elige un área de eliminación a la vez. Tu contenido privado de PolaScope se divide en registros, evaluaciones, wiki/capturas y borrado total.",
     "optionA11yLabel": "{{label}}, opción {{index}} de {{total}}, {{state}}.",
     "stateSelected": "seleccionado",
     "stateAvailable": "no seleccionado",
@@ -65,7 +65,7 @@
       "label": "Borrado total",
       "hint": "Muestra la confirmación escrita para eliminar todos los registros, fuentes, páginas de wiki y uso.",
       "body": "Este borrado no se puede deshacer. Exporta una copia primero. Escribe DELETE solo si quieres continuar.",
-      "retained": "Esto limpia el contenido privado de 2nd-B en esta cuenta. Los datos de cuenta, el historial de consentimiento y los registros de responsabilidad del servicio se conservan."
+      "retained": "Esto limpia el contenido privado de PolaScope en esta cuenta. Los datos de cuenta, el historial de consentimiento y los registros de responsabilidad del servicio se conservan."
     }
   },
   "modals": {

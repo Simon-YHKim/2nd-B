@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "2nd-Brain",
+    "name": "PolaScope",
     "slug": "2nd-brain",
     "owner": "simon_k",
     "version": "0.9.0",
@@ -69,8 +69,8 @@
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png",
-      "name": "2nd-Brain",
-      "shortName": "2nd-Brain",
+      "name": "PolaScope",
+      "shortName": "PolaScope",
       "themeColor": "#070A18",
       "backgroundColor": "#070A18",
       "display": "standalone"

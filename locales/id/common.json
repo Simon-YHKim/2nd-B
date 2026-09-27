@@ -4,7 +4,7 @@
     "removeUpsell": "Berlangganan untuk menghapus iklan."
   },
   "app": {
-    "name": "2nd-Brain",
+    "name": "PolaScope",
     "tagline": "Otak kedua yang dibangun dari apa yang kamu tulis dan simpan."
   },
   "actions": {
@@ -51,9 +51,9 @@
   },
   "loadingGate": {
     "hint": "Ketuk untuk membuka otak keduamu",
-    "open": "Buka 2nd-Brain",
-    "opening": "Membuka 2nd-Brain",
-    "loading": "Memuat 2nd-Brain",
+    "open": "Buka PolaScope",
+    "opening": "Membuka PolaScope",
+    "loading": "Memuat PolaScope",
     "enterHint": "Ketuk dua kali untuk masuk ke layar utama.",
     "skipHint": "Ketuk dua kali untuk melewati animasi pembuka."
   },

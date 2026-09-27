@@ -25,7 +25,7 @@ import { cosmic, deepSpace, flattenAlpha, semantic, spacing, typography, withAlp
 import { fontFamilies } from "@/theme/typography";
 import { PixelCorner } from "./PixelCorner";
 
-/** Compact 2nd-Brain brand chip used at the top-left of premium screens. */
+/** Compact PolaScope brand chip used at the top-left of premium screens. */
 export function BrandChip({ size = 44 }: { size?: number }) {
   return (
     <View style={[styles.brandChip, { width: size, height: size }]}>
