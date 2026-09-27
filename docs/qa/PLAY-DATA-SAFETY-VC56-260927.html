@@ -17,13 +17,13 @@
   </style>
 </head>
 <body><main>
-  <p class="muted">2ndB · 2026-09-27 19:27:42 KST · vc56 원본 AAB</p>
-  <h1>동의 전 송신은 확인, 위치·진단 분류는 추가 근거 필요</h1>
+  <p class="muted">2ndB · 2026-09-27 20:32:13 KST · vc56 원본 AAB</p>
+  <h1>동의 전 송신 확인, 기기 ID는 필수 신고 권고</h1>
   <p>Play 검토에 제출한 Android 0.9.0(vc56)을 새로 빌드하지 않고 첫 실행했습니다. 로그인·광고 동의·광고 요청 전 앱 UID에서 외부로 나간 두 연결을 확인했습니다. 따라서 “동의 전 송신 0”은 성립하지 않습니다.</p>
   <div class="cards" aria-label="검사 결과 요약">
     <div class="card"><strong class="accent">정확한 출고 AAB</strong><p>EAS build <code>434ae090</code>, SHA-256 일치. 공식 bundletool로 시험용 APK를 구성했습니다.</p></div>
     <div class="card"><strong>19패킷 · 3,335바이트</strong><p>첫 56초의 앱 UID IPv4 송신. Firebase Installations 10건, Expo Update 9건에 대응합니다.</p></div>
-    <div class="card"><strong>Play 항목 재검토</strong><p>Firebase 설치 ID의 자동 수집 근거가 있어 기기 ID를 “선택”으로 신고한 기록을 다시 확인해야 합니다.</p></div>
+    <div class="card"><strong>기기 ID 필수 권고</strong><p>Firebase 설치 ID의 자동 수집과 동의 전 연결을 종합하면 “선택”보다 “필수” 신고가 현재 근거에 맞습니다.</p></div>
     <div class="card"><strong>아직 미판정</strong><p>대략적 위치·진단 정보의 필수/선택, AdMob의 동의 전 송신 여부는 이 검사만으로 정할 수 없습니다.</p></div>
   </div>
   <svg viewBox="0 0 960 180" role="img" aria-label="원본 AAB에서 임시 기기 검사와 Play 데이터 분류 검토로 이어지는 흐름">
@@ -34,7 +34,7 @@
   </svg>
   <h2>데이터 보안 항목별 판정</h2>
   <div class="scroll"><table><thead><tr><th>항목</th><th>현재 증거</th><th>판정과 다음 확인</th></tr></thead><tbody>
-    <tr><td>기기 또는 기타 ID</td><td>앱 UID가 <code>firebaseinstallations.googleapis.com</code>에 연결. Firebase 공식 안내는 설치 ID(FID) 자동 수집을 명시하고, Play는 FID를 이 항목의 예로 듭니다.</td><td><strong>“선택” 신고 재검토 필요.</strong> Play 양식 원본과 vc56에 포함된 Firebase SDK 판본을 대조합니다.</td></tr>
+    <tr><td>기기 또는 기타 ID</td><td>앱 UID가 <code>firebaseinstallations.googleapis.com</code>에 동의 전 연결. Firebase 공식 안내는 설치 ID(FID) 자동 수집을 명시하고, Play는 FID를 이 항목의 예로 듭니다.</td><td><strong>현재 근거상 “필수” 신고 권고.</strong> 모든 이용자가 수집을 거부할 수 있어야 “선택”으로 표시할 수 있습니다. 현재 Play 양식과 vc56 SDK 판본을 확인하고 관리형 게시 전에 바로잡습니다. TLS 본문에서 FID 값을 직접 확인한 판정은 아닙니다.</td></tr>
     <tr><td>대략적 위치</td><td>IP를 사용하는 외부 연결은 확인. 수신자가 IP로 위치를 추론하는지 또는 보관하는지는 미확인.</td><td><strong>미판정.</strong> 수신자별 IP 사용 목적과 현재 배포 버전의 광고 SDK 동작을 확인합니다.</td></tr>
     <tr><td>진단 정보</td><td>두 TLS 연결의 본문을 읽지 않았고 진단 이벤트를 특정하지 못함.</td><td><strong>미판정.</strong> SDK 공개 자료, 정확한 Play 양식과 실제 전송 목적을 대조합니다.</td></tr>
     <tr><td>AdMob</td><td>첫 56초에 명시적인 광고 요청·AdMob 호스트는 관찰되지 않음.</td><td><strong>무송신 증명 아님.</strong> SDK 내부 엔드포인트와 관찰 시간 이후의 동작을 배제할 수 없습니다.</td></tr>
@@ -45,7 +45,7 @@
   </details>
   <details><summary>근거와 적용 경계</summary>
     <p><a href="ADMOB-STARTUP-NETWORK-260926.md">저장소 QA 원문</a> · <a href="https://firebase.google.com/docs/android/play-data-disclosure">Firebase SDK의 Play 공개 안내</a> · <a href="https://support.google.com/googleplay/android-developer/answer/10787469">Google Play 데이터 보안 안내</a> · <a href="https://docs.expo.dev/technical-specs/expo-updates-1/">Expo Updates 요청 규격</a>.</p>
-    <p>이 보고서는 Play 신고나 개인정보처리방침을 변경하지 않습니다. 위치·진단의 분류가 확정되기 전에는 광고 ON과 SDK 포함 신규 공개를 진행하지 않습니다. 현재 vc56 검토 제출과 이미 배포된 버전은 별도로 추적해야 합니다.</p>
+    <p>이 보고서는 Play 신고나 개인정보처리방침을 변경하지 않습니다. 현재 Play 양식 원본을 확인하지 못했으므로 기기 ID의 “선택” 기록이 유지 중인지 먼저 확인해야 합니다. 유지 중이라면 vc56의 관리형 게시 전에 “필수”로 수정하는 방향을 권고합니다. 위치·진단의 분류가 확정되기 전에는 광고 ON과 SDK 포함 신규 공개를 진행하지 않습니다. 현재 vc56 검토 제출과 이미 배포된 버전은 별도로 추적해야 합니다.</p>
   </details>
-  <footer>[vc56 동의 전 송신과 Play 기기 ID 분류 재검토 / 26.09.27 / 19:27:42]<br>#2ndB #Play데이터보안 #vc56<br>글꼴: Pretendard 서브셋 · SIL Open Font License 1.1</footer>
+  <footer>[vc56 동의 전 송신과 Play 기기 ID 필수 신고 권고 / 26.09.27 / 20:32:13]<br>#2ndB #Play데이터보안 #vc56<br>글꼴: Pretendard 서브셋 · SIL Open Font License 1.1</footer>
 </main></body></html>
