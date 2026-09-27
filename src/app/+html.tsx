@@ -121,7 +121,7 @@ export default function Root({ children }: PropsWithChildren) {
         <title>{SITE_TITLE}</title>
         <meta name="description" content={SITE_DESCRIPTION} />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="2nd-Brain" />
+        <meta property="og:site_name" content="2ndB" />
         <meta property="og:locale" content="ko_KR" />
         <meta property="og:title" content={SITE_TITLE} />
         <meta property="og:description" content={SITE_DESCRIPTION} />
