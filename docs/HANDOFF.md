@@ -28,7 +28,26 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-28 01:2x / 상담 "써도 된대" · export-account 재배포 완료(카나리아 통과) · 콘솔 이름은 코딩 세션이 직접
+## Latest — 2026-09-28 01:4x / 콘솔 3곳 앱 이름 PolaScope 완료 — Play 는 검토 중(최종 게시는 Simon)
+
+> 발행: CLI 코딩 세션(TTL-Work_rev2). DECISIONS 26.09.28 01:3x(코디네이터 판단). 결과: `.bots/relay/outbox/console-rename-polascope.coding.result.md`.
+
+**지금까지**
+- Grok 봇 사용량 소진(Simon 01:1x) → 코딩 세션이 Playwright 파이프 제어 크롬으로 직접 했다. 로그인 · 2FA 는 Simon 본인. Relay 요청서에 인수 claim.
+- **AdMob**: `2nd-B Android` → `PolaScope Android`, `2nd-B iOS` → `PolaScope iOS`(내부 이름, 플랫폼 접미사 유지). 새로고침 뒤 값 확인.
+- **Play**(`com.simonk.secondbrain`, en-US 하나): 이름 `2nd-Brain: Self Knowledge` → `PolaScope`, 자세한 설명 속 이름 1곳 교체. 대기 변경 2건뿐임을 보고 **검토 전송** → "검토 중인 변경사항".
+- **App Store Connect**(`6792266942`, 영어(미국) 하나): 이름 `2nd-Brain: Self Knowledge` → `PolaScope`. 새로고침 뒤 이름 칸과 머리 제목 확인. 부제는 원래 빈칸.
+- 함정: 조종 크롬 프로필을 긴 Temp 경로에 두면 **CacheStorage 가 전 사이트에서 실패**하고 ASC 는 로그인 뒤 흰 화면이다(API 는 200). 짧은 경로(`%LOCALAPPDATA%` 아래) 프로필로 새 창을 띄워 해결했고, 그 창은 닫고 프로필을 지웠다.
+
+**다음 1개**: Play 검토가 통과하면 Simon 이 게시 개요에서 최종 "게시"를 누를지 정한다(관리형 게시).
+
+**막힌 것**
+1. ASC 부제(빈칸) · Play 간단한 설명은 이번 범위 밖이다. 정본은 `docs/store-copy/drafts.json`(appStoreSubtitle 5개 언어)이다.
+2. 첫 조종 크롬 창(긴 경로 프로필)은 Simon 이 다른 탭에서 쓰는 중이라 열어 두었다. Simon 이 닫으면 프로필 폴더를 지운다.
+
+---
+
+## 2026-09-28 01:2x / 상담 "써도 된대" · export-account 재배포 완료(카나리아 통과) · 콘솔 이름은 코딩 세션이 직접
 
 > 발행: CLI 코딩 세션(TTL-Work_rev2). DECISIONS 26.09.28 00:3x(Simon). PR #1908.
 > 보고서: "PolaScope 적용 현황" <https://claude.ai/artifact/UZei9vfkSSkLCFMjkgLeiv>
