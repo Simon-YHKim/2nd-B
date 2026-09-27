@@ -14,7 +14,7 @@ jest.mock("expo-sharing", () => mockSharing);
 import { deliverAccountExport } from "../export-delivery";
 
 const json = '{"user_id":"test-owner","text":"한글"}';
-const filename = "2nd-brain-data-20260906-010203.json";
+const filename = "polascope-data-20260906-010203.json";
 const alwaysCurrent = () => true;
 
 function deferred<T>() {
@@ -43,7 +43,7 @@ describe("account export file delivery", () => {
     for (let i = 0; i < 20 && !mockSharing.shareAsync.mock.calls.length; i += 1) await Promise.resolve();
     expect(mockSharing.shareAsync).toHaveBeenCalledTimes(1);
     const uri = mockFileSystem.writeAsStringAsync.mock.calls[0][0] as string;
-    expect(uri).toMatch(/^file:\/\/\/app\/cache\/2nd-brain-export-[a-zA-Z0-9-]+-2nd-brain-data-20260906-010203\.json$/);
+    expect(uri).toMatch(/^file:\/\/\/app\/cache\/polascope-export-[a-zA-Z0-9-]+-polascope-data-20260906-010203\.json$/);
     expect(mockFileSystem.writeAsStringAsync).toHaveBeenCalledWith(uri, json, { encoding: "utf8" });
     expect(mockSharing.shareAsync).toHaveBeenCalledWith(uri, { mimeType: "application/json", UTI: "public.json" });
     expect(mockFileSystem.deleteAsync).not.toHaveBeenCalled();

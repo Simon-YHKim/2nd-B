@@ -95,10 +95,10 @@ describe("reported export scope, not a complete-account guarantee", () => {
 
 describe("buildExportFilename", () => {
   test("builds a sortable timestamped filename", () => {
-    expect(buildExportFilename("2026-06-14T13:45:00.000Z")).toBe("2nd-brain-data-20260614-134500.json");
+    expect(buildExportFilename("2026-06-14T13:45:00.000Z")).toBe("polascope-data-20260614-134500.json");
   });
 
   test("falls back on a malformed timestamp", () => {
-    expect(buildExportFilename("nonsense")).toBe("2nd-brain-data-export.json");
+    expect(buildExportFilename("nonsense")).toBe("polascope-data-export.json");
   });
 });

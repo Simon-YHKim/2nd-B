@@ -5,7 +5,8 @@
   },
   "app": {
     "name": "PolaScope",
-    "tagline": "A second brain built from what you write and save."
+    "tagline": "A second brain built from what you write and save.",
+    "renameNote": "PolaScope is the new name for 2nd-Brain. Until the Terms change on October 5, 2026, 2nd-Brain in the consent text and the Terms means PolaScope."
   },
   "actions": {
     "continue": "Continue",

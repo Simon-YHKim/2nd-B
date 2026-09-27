@@ -2588,10 +2588,10 @@ export function DeepSpaceFormatsScreen() {
         setResult({ text: r.html, name: r.htmlFilename });
       } else if (format === "markdown") {
         const r = await exportUserWiki(userId, { locale, includeRecords });
-        setResult({ text: r.prompt, name: "2nd-brain-wiki.md" });
+        setResult({ text: r.prompt, name: "polascope-wiki.md" });
       } else {
         const doc = await buildIdenDoc(userId, { locale });
-        setResult({ text: JSON.stringify(doc, null, 2), name: "2nd-brain-iden.json" });
+        setResult({ text: JSON.stringify(doc, null, 2), name: "polascope-iden.json" });
       }
     } catch {
       setNote("error");
