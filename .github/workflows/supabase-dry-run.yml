@@ -1307,6 +1307,10 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/rss_proxy_quota_regression.sql
+      - name: Exercise ad-reward ledger erasure on account deletion
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/ad_reward_account_erasure_regression.sql
       # 0189's erase_my_data() is a destructive SECURITY DEFINER function, so it
       # is the one thing in this repo that must not be tested by reading its
       # source. The r38 gate measured 37 green string assertions over a function
