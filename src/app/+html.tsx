@@ -12,6 +12,7 @@ import { ScrollViewStyleReset } from "expo-router/html";
 import { semantic } from "@/lib/theme/tokens";
 import {
   SITE_DESCRIPTION,
+  SITE_NAME,
   SITE_ORIGIN,
   SITE_SHARE_IMAGE,
   SITE_TITLE,
@@ -121,7 +122,7 @@ export default function Root({ children }: PropsWithChildren) {
         <title>{SITE_TITLE}</title>
         <meta name="description" content={SITE_DESCRIPTION} />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="2ndB" />
+        <meta property="og:site_name" content={SITE_NAME} />
         <meta property="og:locale" content="ko_KR" />
         <meta property="og:title" content={SITE_TITLE} />
         <meta property="og:description" content={SITE_DESCRIPTION} />

@@ -5,10 +5,16 @@
 // set in the root layout (what a browser tab shows). Before this file the
 // wording was pasted six times in +html.tsx alone.
 //
-// The tagline follows the reviewed store draft
-// (docs/store-copy/drafts.json :: ko.appStoreSubtitle / ko.playShort).
-// The public web brand is 2ndB; store listing changes have their own review.
-export const SITE_TITLE = "2ndB · 기록으로 알아가는 나";
+// The wording is the reviewed store draft
+// (docs/store-copy/drafts.json :: ko.appStoreSubtitle / ko.playShort) so the
+// site, the listing and the app say the same thing.
+//
+// The name before " · " is SITE_NAME: 2ndB, the ad app name Simon set on
+// 2026-09-27 (GO ad-name-2ndb; landing title/og follow it, decided 18:1x).
+// The store listing still says 2nd-Brain; renaming the listing is a separate
+// decision and is not implied by this constant.
+export const SITE_NAME = "2ndB";
+export const SITE_TITLE = `${SITE_NAME} · 기록으로 알아가는 나`;
 export const SITE_DESCRIPTION =
   "경험과 메모를 모아 나를 돌아보고, 세컨비와 기록을 바탕으로 이야기해요.";
 
