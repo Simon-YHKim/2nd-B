@@ -28,7 +28,33 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-27 22:40 / 앱 이름: Polascope 1순위 · 변리사 견적부터 · 2ndB 웹 게시 보류 · 프로젝트명 유지
+## Latest — 2026-09-28 00:1x / 앱 이름은 PolaScope 로 확정·적용 — 머지 ≠ 게시, 약관 적용일에 맞춰 공개
+
+> 발행: CLI 코딩 세션(TTL-Work_rev2). Simon 원문 23:2x: "어찌됐거나 누가 뭐라든 지금부터 앱 이름은 PolaScope 이다. 적용해."
+> DECISIONS 23:2x(Simon) · 23:5x(코디네이터 판단) 두 줄.
+
+**지금까지**
+- 브랜치 `feat/app-name-polascope`: 앱 이름 가족 전체(2nd-Brain · 이름으로 쓴 두번째 뇌 · 약칭 2nd-B · 웹/광고 2ndB)를 **PolaScope** 로 바꿨다.
+  로케일 5개 · 웹(SITE_NAME · manifest · landing · og 카드 + `public/og-image.png` 다시 뽑음) · 앱 문구 · LLM 프롬프트 속 자기 이름 · 스토어 초안 · CI 핀.
+  한국어는 라틴 표기에 받침 없는 조사(는/가/를/와/로/란).
+- 검토 세 레인(놓친 곳 · CI · 같은 흐름 충돌) 반영: 한국어 통화 회고 2줄, 캐논 온보딩 태그(한국어 첫 장이 런타임에 읽음), 캐릭터 a11y, 매뉴얼 해시 핀.
+- 일부러 **안 바꾼 것**: 식별자·경로 전부, 캐릭터 가족, `consent.json` · 약관(사전 공지 뒤 별도 PR), 메일 제목(대시보드와 함께),
+  릴리스 파일명, LLM 지식 시드, 내보내기 파일명(`2nd-brain-*`), 개념 태그라인("A second brain built from …").
+- **`app.json` 표시 이름은 이번 PR 에서 뺐다.** expo.name 이 fingerprint 소스라 머지하면 새 빌드 전까지 OTA 가 전부 막힌다. 네이티브 빌드 PR 로 간다.
+- 로컬 검증: jest 876 suites(src/lib 671 · screens+scripts 56 · 나머지 149) 통과 · tsc 0 · eslint 오류 0 · check:* 13종 + constraints FAIL 0.
+
+**다음 1개**: Simon 이 무료 변리사 상담(지식재산처 서울사무소 · 대한변리사회 공익상담 02-525-3476)에서 "지금 PolaScope 를 써도 되는가"(의뢰서 Q4)를 먼저 묻는다.
+
+**막힌 것 · 순서**
+1. **머지 ≠ 게시.** 가입 화면은 PolaScope 인데 동의 문구 · 약관 · 메일 제목은 2nd-Brain 이다. 권고 순서:
+   인앱 공지(D0, 운영 쓰기 GO) → 적용일 D+7 에 약관·동의 PR(TERMS_VERSION · CONSENT_VERSION · 서버 튜플 마이그레이션) + 웹 게시 + 새 네이티브 빌드(app.json 이름 포함) + 콘솔 이름들을 같은 날.
+   그 전에 게시해야 하면(결제 전환의 웹 게시 단계 등) 가입 흐름에 '구 2nd-Brain' 병기 안내를 먼저 넣는다.
+2. 콘솔 이름 변경(각 Simon GO): ASC 앱 이름 · Play 등록정보 · AdMob · Google/Kakao/Naver/Apple 로그인 동의 화면 · Supabase 메일 제목(+config.toml) · Paddle 상품명·명세서 표시.
+3. 이미 기기에 예약된 루틴 알림 제목은 '2nd Brain' 으로 남는다(루틴을 다시 저장하면 바뀐다).
+
+---
+
+## 2026-09-27 22:40 / 앱 이름: Polascope 1순위 · 변리사 견적부터 · 2ndB 웹 게시 보류 · 프로젝트명 유지
 
 > 발행: CLI 코딩 세션(TTL-Work_rev2). 보고서 둘: "Scope Me 개명 검토"
 > <https://claude.ai/artifact/UKdgnvbKgn1PQnU2PK2EKG> · "앱 이름 결정 콘솔"
