@@ -28,23 +28,36 @@
 **⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-28 / PolaScope 웹 이름과 10-05 계약 분리 인계
+## Latest — 2026-09-28 02:2x / 10-05 PolaScope 동의 Draft·SQL 검증
 
-> 이 블록은 현재 main에 적용된 사실과 10-05 Draft를 구분한다. 세부 절차는 [PolaScope 배포 게이트](qa/POLASCOPE-RELEASE-260928.md) 및 PR #1902를 따른다.
-
-**완료·검증**
-- #1909가 main에 병합됐고 운영 Supabase migration `0203`이 적용됐다. `email-v5`는 **2026-09-07 / 2026-09-28 / 2026-08-16**인 개인정보방침 v4 공지형 판본이다. 이 튜플과 기존 `email-v4`·원장 영수증을 바꾸지 않는다.
-- #1910 기록에 따르면 AdMob Android/iOS 내부 이름, Play 기본 등록정보, App Store Connect 이름이 PolaScope로 변경됐다. Play는 **검토 중**이며 관리형 게시의 최종 공개는 실행하지 않았다. 별도 Play 로그인 요청은 이 완료 기록 이후에는 선행 조건이 아니다.
-- #1911은 Expo 웹 `name`·`shortName`을 PolaScope로 맞추고 824 suites / 10,745 tests 및 PR CI 3종을 통과해 main `57ddc0db`에 병합됐다. 웹 운영 게시는 다른 코딩 세션 `ttl-work-rev2-f6`가 소유했다(`.bots/relay/outbox/claim-web-publish-polascope-privacy-v4.publish.result.md`). 운영 게시 run `36335857143` 성공 뒤 공개 URL은 HTTP 200, 제목·OG 사이트명·PWA `name`/`short_name` 모두 PolaScope로 확인했다. 공개 개인정보방침은 09-28 시행 판본이며, 별도 원격 공지 `721ae87c-8699-4174-86fd-1a4ea6584d1b`가 02:16:46 KST 발행됐다. 방침의 구 서비스명은 10-05 계약 개정 때 전환한다.
-- `export-account` 운영 Edge 재배포와 QA 카나리아(200, 45개 표, errors 0)는 앞 블록과 PR #1908에 기록됐다. #1909 Android 진단 빌드 실패는 main이 실행 중 이동해 최신 HEAD 게이트가 중단한 것이며 APK 빌드 오류로 판정하지 않는다. 임의 재실행은 하지 않았다.
-
-**10-05 이후 할 일**
-1. Draft PR #1902는 **2026-10-05** 법률·동의 개정용으로 유지한다. #1909의 `email-v5`를 덮지 않고 새 `email-v6`(10-05 세 판본)·`service-v2`를 준비했다. 구 `service-v1`은 09-28 튜플을 계속 사용한다. 번호 없는 SQL 초안과 그 PostgreSQL 회귀 테스트는 운영에 적용되지 않았다.
-2. PR #1902의 최신 CI `verify`·`web-export-smoke`·`sql`을 확인한다. SQL CI는 마지막 단계에서 10-05 forward 초안을 **일회용 DB에만** 적용해 신·구 가입과 서비스 동의, CAS, ACL을 검사하도록 보완했다. 이 통과 기록 없이는 운영 적용 계획으로 승격하지 않는다.
-3. 10-05 적용일과 최종 법률문서가 맞으면 서버 forward migration을 최신 번호로 검토·승격하고 콘솔 소유 세션의 적용과 Edge 신·구 `status` 카나리아를 마친 뒤 #1902 병합·웹/앱 공개를 진행한다. 공개와 운영 적용은 각각 승인 및 소유권 절차를 따른다. iOS 릴리스·광고 활성화는 계속 별도 게이트다.
-4. 별도 GUI 잔여: Play 데이터 보안 Revision 2 제출, 결제 전환 3단계 이후. Play Console 로그인 완료는 Simon의 후속 알림을 기다리고 있다. 구체 범위와 승인 게이트를 확인한 뒤 진행하며, #1902의 10-05 계약을 앞당기지 않는다.
+- [PR #1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)는 **2026-10-05 적용일까지 Draft**다. 운영 0203의 `email-v5`(09-07 동의 / 09-28 방침 / 08-16 약관)를 보존하고, 새 가입 `email-v6`(세 판본 모두 10-05)·`service-v2`를 별도 계약으로 준비했다. 기존 원장 영수증을 고치지 않는다.
+- 번호 없는 forward SQL 초안은 **운영에 미적용**이다. 일회용 PostgreSQL에서 신·구 가입·서비스 동의·CAS·ACL을 실제 실행하는 PR SQL CI run `36336770728`이 통과했다. 최신 main #1912 통합 뒤 로컬 `npm run verify -- --runInBand`는 824 suites / 10,759 tests 통과. PR 일반 CI는 최종 push 기준으로 확인한다.
+- 다음 서버 작업은 10-05 적용일과 최종 법률문서를 확인한 뒤 초안을 최신 번호로 승격하고, 콘솔 소유 세션의 운영 적용·Edge 신/구 `status` 카나리아를 마치는 것이다. 그 전에는 #1902 병합·공개를 하지 않는다. 자세한 순서는 [배포 게이트](qa/POLASCOPE-RELEASE-260928.md).
+- 별도 GUI 잔여: Play 데이터 보안 Revision 2 제출은 Simon의 Play Console 로그인 완료 알림을 기다린다. 결제 전환 3단계 이후는 `claim-paddle-session-ownership-13` 소유 세션이 담당한다. 이 두 작업의 상태를 #1902 계약 적용과 혼동하지 않는다.
 
 ---
+
+## 2026-09-28 02:1x / 방침 v4(공지형) 운영 반영 · 웹 게시(PolaScope) · 방침 공지
+
+**목적**: Simon 01:1x "남은 작업 진행(승인함), GUI 도" — Grok 봇 사용량 소진으로 코딩 세션(ttl-work-rev2-f6)이 운영 적용 · 게시 · Production 승인을 대행했다. PolaScope 세션(ttl-work-rev2-7b)과 역할을 나눴다(콘솔 이름 · export 는 그쪽).
+
+**지금까지**
+- **#1909** 방침 v4 = 공지형 개정(Simon 00:4x): 본문(Gaius v4, buy · r90 · r90x 뺌) · `PRIVACY_POLICY_VERSION=2026-09-28` · `email-v5` · **0203**(가입 계약 v5 + LLM 동의 현재 = v4·v5, 판정은 사용자당 한 줄) · 0194 수정(운영 미적용) · `check-definer-grants` 해시 **집합**(0191·0203). 검토는 새 문맥 **같은 벤더** 검토자 PASS(교차 벤더 Relay 불가).
+- **0203 운영 적용 01:35**: 원장 175→**176**, 지문 적용 전 `af24e78e…` / 적용 뒤 `0a1534bb…` = 로컬 운영 재현본.
+- **#1904** FCM 자동 등록 끄기 머지(다음 네이티브 빌드에 실림). **#1911**(Codex 세션 PR, app.json 웹 이름) 넘겨받아 머지 — ⚠ `expo.web.name` 도 Expo **지문 소스**다(Android `14c874c6→337f773a`). OTA 는 이미 #1904 로 vc56 런타임에서 벗어났다.
+- **웹 게시 02:15:29 KST**: 런 36335857143, main `57ddc0db`, 승인은 Simon 지시로 코딩 세션. 라이브 제목 · og · manifest = PolaScope, 방침 시행일 09-28, 번들 `email-v5`.
+- **방침 원격 공지** 02:16:46: notices `721ae87c-8699-4174-86fd-1a4ea6584d1b`(major).
+
+**다음 1개**: Simon 이 이 코딩 세션에 **Claude in Chrome 연결**(`/chrome`, 확장 설치) → 결제 전환 3단계(바인딩 시크릿)부터 GUI 진행.
+
+**막힌 것**
+1. 결제 전환 3·5·6·7·11단계는 Supabase · Paddle 대시보드 GUI. Playwright 로 띄운 별도 크롬은 Google 로그인이 막혔다(Simon 확인). CLI 에서 computer use 는 Windows 미지원(Desktop 앱만).
+2. Play 데이터 보안 Revision 2 제출(방침 게시일과 같은 날) — Play Console GUI.
+3. 보관 · 삭제 구조(B1~X1 · 카드 정보 · 등록부 문구) — 등록부 가드가 과거 행 변경을 막아 가드 설계부터. 급하지 않다(방침에서 해당 문장은 뺐다).
+
+**함정**
+- 웹 게시는 두 단계다: 같은 SHA 의 push(build-only) 빌드 로그에서 `PUBLIC_CONFIG_SHA256` · `ARTIFACT_CONTENT_SHA256` 을 얻어 `publish:<sha>:<cfg>:<art>` 로 디스패치. 빌드~승인 사이 main 이 움직이면 죽으므로 다른 세션과 창을 맞출 것.
+- 같은 Simon 지시가 두 코딩 세션에 동시에 갈 수 있다 → 운영 쓰기 전 버스 claim 과 `ListAgents`/SendMessage 로 분담부터.
 
 ## 2026-09-28 01:4x / 콘솔 3곳 앱 이름 PolaScope 완료 — Play 는 검토 중(최종 게시는 Simon)
 
