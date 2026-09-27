@@ -1,8 +1,21 @@
--- Run after llm-service-consent-management-contract.sql in a disposable local DB.
+-- Run after numbered migrations through 0203 in a disposable local DB.
 -- The service-v1 and email-v4/email-v5 clients continue after v2 is added.
 BEGIN;
 \ir ../UNNUMBERED_polascope_consent_20260928.sql
 COMMIT;
+
+CREATE FUNCTION pg_temp.expect_consent_error(statement text,expected_code text,expected_message text)
+RETURNS void LANGUAGE plpgsql AS $$
+DECLARE actual_code text; actual_message text;
+BEGIN
+  BEGIN EXECUTE statement;
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS actual_code=RETURNED_SQLSTATE,actual_message=MESSAGE_TEXT;
+  END;
+  IF actual_code IS DISTINCT FROM expected_code OR actual_message NOT LIKE '%'||expected_message||'%' THEN
+    RAISE EXCEPTION 'Expected % / %, received % / %',expected_code,expected_message,actual_code,actual_message;
+  END IF;
+END $$;
 
 DO $$
 BEGIN
