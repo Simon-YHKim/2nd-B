@@ -123,7 +123,7 @@
       "done": "File prepared. No read failures were reported for the returned scope.",
       "donePartial": "Export ready, but not complete. Items the server could not read: {{count}}. The file lists each one under \"errors\".",
       "failed": "Couldn't build the export. Try again.",
-      "cooldown": "Kamu bisa mengekspor lagi dalam {{minutes}} menit."
+      "cooldown": "You can export again in {{minutes}} min."
     },
     "loading": "Loading account…",
     "eyebrow": "Account",
