@@ -17,6 +17,9 @@ BEGIN
   END IF;
 END $$;
 
+-- The standalone CI connection does not inherit the composite fixture's JWT.
+SET request.jwt.claim.role='service_role';
+
 DO $$
 BEGIN
   IF (SELECT count(*) FROM public.signup_consent_contract_status()) <> 6
@@ -56,8 +59,8 @@ END $$;
 
 INSERT INTO auth.users(id,email,email_confirmed_at)
 VALUES('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','polascope-dual-client@example.invalid',now());
-INSERT INTO public.users(id,birth_date,minor_tier,privacy_prefs)
-VALUES('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','2000-01-01','adult','{}');
+INSERT INTO public.users(id,email,birth_date,minor_tier,privacy_prefs)
+VALUES('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','polascope-dual-client@example.invalid','2000-01-01','adult','{}');
 
 DO $$
 DECLARE
