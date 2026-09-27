@@ -668,7 +668,7 @@ Deno.serve(async (req: Request) => {
       excluded: EXCLUDED,
       errors: {},
     }, 200, MAX_EXPORT_RESPONSE_BYTES, {
-      'content-disposition': 'attachment; filename="2nd-brain-account-export.json"',
+      'content-disposition': 'attachment; filename="polascope-account-export.json"',
     });
   } catch (error) {
     if (isRequestContractError(error)) {
