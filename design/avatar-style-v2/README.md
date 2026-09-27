@@ -1,8 +1,9 @@
 # 승인 이미지 기준 아바타 생성기 검수본
 
 이 폴더는 사용자에게 승인받은 **고해상도 사람 캐릭터 이미지**를 기준으로
-아바타 선택지와 옷 갈아입히기를 검수하는 독립 작업 공간이다.
-`design/pixel_clay_v4/`의 받은 원본 번들은 수정하지 않는다.
+아바타 선택지와 옷 갈아입히기를 검수하는 작업 공간이다.
+이 선택지와 렌더러는 `design/pixel_clay_v4/app/2nd-Brain.html`의 아바타 생성기에도
+연결한다. 해당 번들의 아바타 코드만 이번 요청 범위에서 갱신했다.
 
 ## 기준과 산출물
 
@@ -18,9 +19,10 @@
   생성 방식과 프롬프트는 [`IMAGEGEN-PROMPTS.md`](IMAGEGEN-PROMPTS.md)에 적었다.
 - `avatar64.js`는 기존 카탈로그 ID와 64칸 논리 좌표의 조합 레시피를 제공한다.
   `approved-style-renderer.js`는 그 조합에 따뜻한 피부색, 차콜 머리, 낮은 채도의
-  올리브색과 부드러운 명암·가장자리 처리를 입힌 SVG를 만든다.
+  올리브색을 입힌 SVG를 만든다. 최종 64×64 셀마다 한 색을 확정하고, 명암도 셀
+  단위로만 바꾼다. 외곽 블러·그림자·노이즈 필터는 사용하지 않는다.
   `build-approved-assets.cjs`가 이를 **512×512 RGBA** PNG로 변환한다.
-  논리 좌표의 사각형 규칙과 최종 이미지의 미세 음영은 별개다.
+  512px PNG에서는 한 셀이 정확히 8×8px이다. 검수 화면도 64의 정수 배율로 표시한다.
 - `assets/<group>/<id>.png`는 선택지 하나를 켠 **완성 아바타 검수본**이다.
   PNG끼리 쌓아 조합하지 않는다. 실제 조합은 `avatar64.js` 레시피를 다시 렌더한다.
 
@@ -45,8 +47,9 @@
 확인한다. 화면 첫 부분의 대표 에셋 8개는 실제 생성 PNG이며, 카드를 누르면
 설정과 현재 조합 렌더가 함께 바뀐다. 옷을 바꾸고 512px 투명 PNG를 저장할 수
 있으며, 아래쪽에서 144개 선택지의 검수본을 펼쳐 볼 수 있다. 이미지 생성 참고본은
-생성기 출력과 구분해 별도로 접었다. 이 화면은 **검수 도구**이며 현재 앱의
-`src/`에는 아바타 생성기가 연결돼 있지 않다.
+생성기 출력과 구분해 별도로 접었다. 이 화면은 **검수 도구**다. 실제 프로토타입은
+[`../pixel_clay_v4/app/2nd-Brain.html`](../pixel_clay_v4/app/2nd-Brain.html)에서 열 수 있다.
+React Native 앱의 `src/`에는 아직 사용자 아바타 생성기 자체가 없다.
 
 ## 재생성과 검사
 
@@ -55,17 +58,24 @@
 ```powershell
 node design/avatar-style-v2/build-approved-assets.cjs
 node design/avatar-style-v2/build-approved-assets.cjs --check
+node design/avatar-style-v2/check-pixel-grid.cjs
 node design/avatar-style-v2/check-combinations.cjs
+node design/avatar-style-v2/check-prototype-parity.cjs
+node design/pixel_clay_v4/app/verify-approved-avatar.cjs
 ```
 
 `--check`는 승인 원본 해시, 카탈로그 수량, PNG와 manifest를 재계산해 비교한다.
 이는 파일 무결성 검사이며, 모든 선택지가 승인 원본과 **시각적으로 완전히 동일함을
 증명하는 검사는 아니다.** 원본과 주요 조합을 나란히 눈으로 검수해야 한다.
+`check-pixel-grid.cjs`는 144개 PNG의 모든 8×8 셀이 단색이며 알파가 0 또는 255인지
+검사한다. `check-prototype-parity.cjs`는 프로토타입의 카탈로그·렌더러 사본과 스크립트 순서를
+검사한다. `verify-approved-avatar.cjs`는 이전 저장본의 이관, 옷 선택과 직업 변경,
+저장 후 재열기, 최종 SVG 생성을 검사한다.
 
 ## 앱 연결 시 유의점
 
-프로필 아바타를 앱에 적용할 때는 옷 종류(`garmentId`)를 직업(`job`)과 별도 값으로
-저장하고, 선택한 조합을 동일한 레이어 순서로 React Native에서 합성해야 한다.
+프로토타입은 옷 종류(`garmentId`)를 직업(`job`)과 별도 값으로 저장한다. React Native
+앱에 적용할 때도 이 저장 규격과 레이어 순서를 유지해야 한다.
 과거 HustleK native128 에셋은 이 카탈로그로 자동 승격하지 않는다.
-아바타 이미지의 부드러운 음영은 사용자가 승인한 캐릭터에 한정한 표현이며,
+아바타 이미지의 셀 단위 명암은 사용자가 승인한 캐릭터에 한정한 표현이며,
 앱 화면 전체의 PIXEL-CLAY v4 토큰·도형 규칙을 바꾸는 결정은 아니다.

@@ -1,17 +1,24 @@
 /* ============================================================
-   2nd-Brain · 픽셀 아바타 (PXC_EXT 확장팩 연동)
+   2nd-Brain · 승인 스타일 아바타
    - window.SBProfile : 프로필(아바타 spec·이름·핸들·직업) 저장소 (localStorage: sb_profile)
-   - <SbAvatar spec size /> : 64×64 스프라이트 렌더
+   - <SbAvatar spec size /> : 64칸 조합을 승인된 질감으로 렌더
    - <AvatarStudio /> : 프레임 안에서 도는 아바타 스튜디오 시트
-   확장팩은 pxc-ext-*.js 가 window.PXC_EXT 로 올려준다. 아이콘은 번들 ICONS 에 병합됨.
+   px-avatar64.js 는 선택 ID를 유지하고, px-approved-style-renderer.js 가 최종 표면을 그린다.
    ============================================================ */
-const EXT = window.PXAvatar64 || window.PXC_EXT;   /* 64 그리드로 교체 (16 그리드는 폴백) */
-/* 16 그리드 시절 저장본은 필드 규격이 달라 시드로 다시 만든다 */
+const EXT = window.PXAvatar64;
+const AVATAR_STYLE = window.ApprovedStyleRenderer;
+const AVATAR_DEFAULTS = {
+  type: 'human', skin: '#c98e5e', hairColor: '#2b211b', eye: '#3a2a1e',
+  cloth: '#696949', cloth2: '#d97757', hair: 'sidepart', face: 'glasses',
+  expr: 'smile', acc: 'none', job: null, garmentId: null, wearUniform: true
+};
+const WARDROBE_COLORS = EXT ? ['#696949', ...EXT.CLOTH] : [];
+/* 16/64칸 저장본의 숫자 인덱스와 누락된 옷 필드를 현재 카탈로그로 옮긴다. */
 function migrate64(sp) {
-  if (!sp || sp.v === 64) return sp || null;
-  /* 옛 저장본은 색·부품을 인덱스로 담는다 — ops() 의 normalize 가 그대로 흡수하므로
-     시드로 다시 굴리지 않고 값만 넘긴다. 다시 굴리면 고른 캐릭터가 바뀐다. */
-  return EXT.avatarSpec(sp.seed || 'nova', sp);
+  if (!sp || !EXT) return null;
+  /* 정해 둔 부품·색은 유지하고, 예전 저장본에 없는 포인트 색은 기존 옷 색을 따른다. */
+  const legacy = sp.cloth2 == null ? { ...sp, cloth2: sp.cloth == null ? AVATAR_DEFAULTS.cloth2 : sp.cloth } : sp;
+  return EXT.avatarSpec(sp.seed || 'nova', legacy);
 }
 
 /* ---- 프로필 저장소 ---- */
@@ -19,9 +26,12 @@ window.SBProfile = (() => {
   const KEY = 'sb_profile';
   const listeners = new Set();
   const base = { name: '아리아', handle: 'aria', dob: '1996-04-12', goal: '', photo: false,
-    avatar: EXT ? EXT.avatarSpec('nova', { type: 'human' }) : null };
+    avatar: EXT ? EXT.avatarSpec('nova', AVATAR_DEFAULTS) : null };
   let st = base;
-  try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && typeof s === 'object') st = { ...base, ...s }; } catch (e) {}
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if (s && typeof s === 'object') st = { ...base, ...s, avatar: migrate64(s.avatar) || base.avatar };
+  } catch (e) {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} };
   return {
     get() { return st; },
@@ -39,11 +49,11 @@ function useProfile() {
 
 /* ---- 아바타 렌더 ---- */
 function SbAvatar({ spec, seed, size = 48, crop, style }) {
-  const sp = migrate64(spec) || (EXT ? EXT.avatarSpec(seed || 'nova') : null);
-  if (!EXT || !sp) return <span style={{ width: size, height: size, display: 'block', background: 'var(--sunken)', ...style }} />;
+  const sp = migrate64(spec) || (EXT ? EXT.avatarSpec(seed || 'nova', seed ? null : AVATAR_DEFAULTS) : null);
+  if (!EXT || !AVATAR_STYLE || !sp) return <span style={{ width: size, height: size, display: 'block', background: 'var(--sunken)', ...style }} />;
   /* crop: 작은 칩에서 전신 64칸을 다 넣으면 한 칸이 1px 미만이 된다.
      머리 영역(12..52 × 0..40)만 잘라 칸 크기를 지킨다 — 높은 헤어·귀·턱선 소품까지 포함. */
-  let html = EXT.avatarSVG(sp).replace('<span class="px-pavatar">', '<span style="display:block;width:100%;height:100%">');
+  let html = window.ApprovedStyleRenderer.render(EXT.ops(sp), size);
   if (crop) html = html.replace('viewBox="0 0 64 64"', 'viewBox="12 0 40 40"');
   return <span aria-hidden="true" style={{ width: size, height: size, display: 'block', flex: '0 0 auto', lineHeight: 0, ...style }}
   dangerouslySetInnerHTML={{ __html: html }} />;
@@ -98,7 +108,7 @@ function StSwatch({ colors, value, onChange, label }) {
 /* ---- 아바타 스튜디오 — 프레임 안 전체 시트 ---- */
 function AvatarStudio({ spec, onSave, onClose }) {
   const C = window.SB.C;
-  const [sp, setSp] = React.useState(() => spec || EXT.avatarSpec('nova', { type: 'human' }));
+  const [sp, setSp] = React.useState(() => migrate64(spec) || EXT.avatarSpec('nova', AVATAR_DEFAULTS));
   const [tab, setTab] = React.useState('look');
   const [group, setGroup] = React.useState('all');
   const [jobMore, setJobMore] = React.useState(1);
@@ -126,12 +136,12 @@ function AvatarStudio({ spec, onSave, onClose }) {
         </div>
         {/* 미리보기 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '4px 16px 14px', flex: '0 0 auto' }}>
-          <div style={{ width: 96, height: 96, display: 'grid', placeItems: 'center', background: C('surface-container-highest'), boxShadow: 'var(--ds-edge)' }}>
-            <SbAvatar spec={sp} size={88} />
+          <div style={{ width: 136, height: 136, flex: '0 0 136px', display: 'grid', placeItems: 'center', background: C('surface-container-highest'), boxShadow: 'var(--ds-edge)' }}>
+            <SbAvatar spec={sp} size={128} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 8 }}>
-              {[48, 32, 16].map((n) =>
+              {[64, 32].map((n) =>
               <span key={n} style={{ textAlign: 'center' }}>
                 <SbAvatar spec={sp} size={n} />
                 <span style={{ display: 'block', fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 10, color: C('on-surface-variant'), marginTop: 2 }}>{n}</span>
@@ -144,7 +154,7 @@ function AvatarStudio({ spec, onSave, onClose }) {
         </div>
         {/* 탭 */}
         <div style={{ display: 'flex', gap: 6, padding: '0 16px 12px', flex: '0 0 auto' }}>
-          <Tab id="look">모양</Tab><Tab id="job">직업</Tab><Tab id="color">색</Tab>
+          <Tab id="look">모양</Tab><Tab id="job">직업</Tab><Tab id="wardrobe">옷</Tab><Tab id="color">색</Tab>
         </div>
         {/* 본문 */}
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 16px 12px' }}>
@@ -168,7 +178,7 @@ function AvatarStudio({ spec, onSave, onClose }) {
                 background: sp.species === a.id ? 'var(--accent)' : 'var(--panel-2)',
                 color: sp.species === a.id ? 'var(--accent-fg)' : C('on-surface'), boxShadow: 'var(--ds-edge)' }}>
                 <span className="md-state" />
-                <SbAvatar spec={EXT.avatarSpec(sp.seed, { ...sp, type: 'animal', species: a.id })} size={30} />
+                <SbAvatar spec={EXT.avatarSpec(sp.seed, { ...sp, type: 'animal', species: a.id })} size={32} />
                 <span style={{ fontSize: 10, fontFamily: 'var(--font-micro)', lineHeight: 1.2, textAlign: 'center', wordBreak: 'keep-all' }}>{a.ko}</span>
               </button>)}
             </div>}
@@ -184,7 +194,7 @@ function AvatarStudio({ spec, onSave, onClose }) {
                 border: 'none', cursor: 'pointer',
                 background: !sp.job ? 'var(--accent)' : 'var(--panel-2)', color: !sp.job ? 'var(--accent-fg)' : C('on-surface'), boxShadow: 'var(--ds-edge)' }}>
                 <span className="md-state" />
-                <span style={{ height: 30, display: 'grid', placeItems: 'center' }}><Icon name="close" size={16} /></span>
+                <span style={{ height: 32, display: 'grid', placeItems: 'center' }}><Icon name="close" size={16} /></span>
                 <span style={{ fontSize: 10, fontFamily: 'var(--font-micro)', lineHeight: 1.2 }}>없음</span>
               </button>
               {jobsShown.map((j) =>
@@ -194,13 +204,27 @@ function AvatarStudio({ spec, onSave, onClose }) {
                 background: sp.job === j.id ? 'var(--accent)' : 'var(--panel-2)',
                 color: sp.job === j.id ? 'var(--accent-fg)' : C('on-surface'), boxShadow: 'var(--ds-edge)' }}>
                 <span className="md-state" />
-                <SbAvatar spec={EXT.avatarSpec(sp.seed, { ...sp, type: 'human', job: j.id })} size={30} />
+                <SbAvatar spec={EXT.avatarSpec(sp.seed, { ...sp, type: 'human', job: j.id })} size={32} />
                 <span style={{ fontSize: 10, fontFamily: 'var(--font-micro)', lineHeight: 1.2, textAlign: 'center', wordBreak: 'keep-all' }}>{j.ko}</span>
               </button>)}
             </div>
             {jobsShown.length < jobs.length &&
             <div style={{ marginTop: 10 }}><MdButton variant="outlined" full size="s" icon="expand_more" onClick={() => setJobMore((v) => v + 1)}>더 보기 ({jobs.length - jobsShown.length})</MdButton></div>}
             {jobMeta && <div style={{ fontSize: 12, color: C('on-surface-variant'), marginTop: 10 }}>선택: <b style={{ color: C('on-surface') }}>{jobMeta.ko}</b> · {jobMeta.en}</div>}
+          </React.Fragment>}
+          {tab === 'wardrobe' &&
+          <React.Fragment>
+            <StRail label="옷 종류" items={[{ id: 'uniform', ko: sp.job ? '직업 기본 복장' : '기본 티셔츠' }, ...EXT.GARMENT]}
+              value={sp.garmentId || 'uniform'}
+              onChange={(v) => patch(v === 'uniform' ? { garmentId: null, wearUniform: true } : { garmentId: v, wearUniform: false })} />
+            {sp.job && !sp.garmentId ?
+            <div style={{ fontSize: 11, color: C('on-surface-variant'), wordBreak: 'keep-all' }}>
+              직업 기본 복장을 사용 중이에요. 옷을 직접 고르면 직업을 바꿔도 선택한 옷과 색이 유지돼요.
+            </div> :
+            <React.Fragment>
+              <StSwatch label="옷 색" colors={WARDROBE_COLORS} value={sp.cloth} onChange={(v) => patch({ cloth: v })} />
+              <StSwatch label="옷 포인트 색" colors={EXT.CLOTH} value={sp.cloth2} onChange={(v) => patch({ cloth2: v })} />
+            </React.Fragment>}
           </React.Fragment>}
           {tab === 'color' &&
           <React.Fragment>
@@ -210,8 +234,7 @@ function AvatarStudio({ spec, onSave, onClose }) {
               <StSwatch label="머리색" colors={EXT.HAIRC} value={sp.hairColor} onChange={(v) => patch({ hairColor: v })} />
             </React.Fragment> :
             <StSwatch label="털색" colors={EXT.FUR} value={sp.fur} onChange={(v) => patch({ fur: v })} />}
-            <StSwatch label="옷" colors={EXT.CLOTH} value={sp.cloth} onChange={(v) => patch({ cloth: v })} />
-            {sp.job && <div style={{ fontSize: 10, fontFamily: 'var(--font-micro)', color: C('on-surface-variant'), wordBreak: 'keep-all' }}>직업을 고르면 모자·의상은 그 직업의 고정 색을 써요.</div>}
+            <div style={{ fontSize: 10, fontFamily: 'var(--font-micro)', color: C('on-surface-variant'), wordBreak: 'keep-all' }}>옷 종류와 색은 옷 탭에서 바꿀 수 있어요.</div>
           </React.Fragment>}
         </div>
         {/* 저장 */}
@@ -222,4 +245,4 @@ function AvatarStudio({ spec, onSave, onClose }) {
     </div>);
 }
 
-Object.assign(window, { SbAvatar, AvatarStudio, useProfile, PXC_EXT_READY: !!EXT });
+Object.assign(window, { SbAvatar, AvatarStudio, useProfile, PXC_EXT_READY: !!EXT && !!AVATAR_STYLE });

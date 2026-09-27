@@ -23,7 +23,7 @@
     .stage { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px; }
     .sample { display: grid; gap: 8px; max-width: 384px; }
     .sample span { color: #b6c6d8; font-size: 12px; }
-    .sprite { width: min(100%, 384px); aspect-ratio: 1; background: #101824; }
+    .sprite { width: 384px; height: 384px; background: #101824; image-rendering: pixelated; }
     .sprite svg { display: block; width: 100%; height: 100%; }
     .reference { display: block; width: min(100%, 384px); height: auto; aspect-ratio: 1; object-fit: contain; background: #101824; }
     .showcase { margin: 22px 0 28px; }
@@ -32,7 +32,7 @@
     .showcase-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
     .showcase-card { display: grid; gap: 8px; text-align: left; padding: 10px; min-width: 0; background: #1a2738; border-color: #40516a; }
     .showcase-card[aria-pressed=true] { border-color: #f6d27b; box-shadow: inset 0 0 0 1px #f6d27b; }
-    .showcase-card img { display: block; width: 100%; max-height: 172px; aspect-ratio: 1; object-fit: contain; background: #101824; }
+    .showcase-card img { display: block; width: 192px; height: 192px; object-fit: contain; background: #101824; image-rendering: pixelated; }
     .showcase-card strong { font-size: 14px; }
     .showcase-card small { color: #b6c6d8; font-size: 12px; }
     .reference-details { margin-top: 18px; }
@@ -43,20 +43,23 @@
     :focus-visible { outline: 3px solid #f6d27b; outline-offset: 2px; }
     details { margin-top: 24px; }
     details a { color: #9dd2f0; margin-right: 12px; }
-    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; margin: 14px 0 24px; }
-    .gallery figure { margin: 0; padding: 8px; border: 1px solid #40516a; background: #1a2738; }
-    .gallery img { display: block; width: 100%; aspect-ratio: 1; object-fit: contain; }
+    .gallery { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 24px; }
+    .gallery figure { width: 146px; margin: 0; padding: 8px; border: 1px solid #40516a; background: #1a2738; }
+    .gallery img { display: block; width: 128px; height: 128px; object-fit: contain; image-rendering: pixelated; }
     .gallery figcaption { margin-top: 6px; color: #b6c6d8; font-size: 12px; overflow-wrap: anywhere; }
-    @media (max-width: 750px) { .layout { grid-template-columns: 1fr; } .showcase-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } body { padding: 12px; } }
+    @media (max-width: 950px) { .showcase-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sprite { width: 192px; height: 192px; } }
+    @media (max-width: 750px) { .layout { grid-template-columns: 1fr; } body { padding: 12px; } }
+    @media (max-width: 450px) { .showcase-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 270px) { .sprite, .showcase-card img { width: 128px; height: 128px; } }
   </style>
 </head>
 <body>
 <main>
   <h1>승인 이미지 기준 아바타 생성기 검수</h1>
-  <p>첨부 승인본과 조합 결과를 나란히 확인합니다. 헤어·얼굴·옷을 독립적으로 선택할 수 있으며, 이 화면은 앱에 연결하기 전의 검수 도구입니다.</p>
+  <p>첨부 승인본과 조합 결과를 나란히 확인합니다. 헤어·얼굴·옷을 독립적으로 선택할 수 있습니다. 이 화면은 에셋 검수용이며 같은 생성기는 웹 프로토타입에도 연결돼 있습니다.</p>
   <section class="showcase" aria-labelledby="showcaseTitle">
     <h2 id="showcaseTitle">다른 에셋으로 갈아입혀 보기</h2>
-    <p>아래는 생성기의 실제 512px PNG입니다. 카드를 누르면 아래 미리보기에도 같은 선택지가 적용됩니다.</p>
+    <p>아래는 다시 생성한 512px PNG입니다. 64칸 격자를 정수 배율로 표시합니다. 카드를 누르면 아래 미리보기에도 같은 선택지가 적용됩니다.</p>
     <div id="showcaseGrid" class="showcase-grid"></div>
   </section>
   <div class="layout">
@@ -73,7 +76,7 @@
         <label>피부색<input id="skin" type="color" value="#c98e5e"></label>
         <label>머리색<input id="hairColor" type="color" value="#2b211b"></label>
         <label>눈 색<input id="eye" type="color" value="#3a2a1e"></label>
-        <label>옷 색<input id="cloth" type="color" value="#7d9463"></label>
+        <label>옷 색<input id="cloth" type="color" value="#696949"></label>
         <label>보조 옷 색<input id="cloth2" type="color" value="#d97757"></label>
         <label>털색<select id="fur"></select></label>
         <label class="check"><input id="wearUniform" type="checkbox" checked>직업 기본 복장 사용</label>
@@ -200,7 +203,7 @@
     const image = new Image();
     image.onload = () => {
       const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512;
-      const context = canvas.getContext('2d'); context.imageSmoothingEnabled = true; context.drawImage(image, 0, 0);
+      const context = canvas.getContext('2d'); context.imageSmoothingEnabled = false; context.drawImage(image, 0, 0);
       canvas.toBlob((blob) => { const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = '2ndb-avatar-approved-512.png'; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000); }, 'image/png');
       URL.revokeObjectURL(url);
     };

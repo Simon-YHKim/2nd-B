@@ -1,5 +1,5 @@
 /* ============================================================
-   px-avatar64.js — 64×64 픽셀 아바타 (전체 자산)
+   avatar64.js — 64×64 픽셀 아바타, 승인된 사람 시안 기준 재제작
    16×16 확장팩(pxc-ext-*.js)의 전량을 4배 그리드로 이전한 판.
    헤어 24 · 액세서리 20 · 얼굴 14 · 표정 10 · 동물 26 · 직업 44
    규칙: 정수좌표 rect only · 곡선 0 · 안티에일리어싱 0
@@ -32,7 +32,8 @@
 
   /* ══ 머리통 · 몸통 ═══════════════════════════════════════════════ */
   function headBase(s) {
-    var sd = shade(s, -0.17), hl = shade(s, 0.15), o = [];
+    var sd = s === '#c98e5e' ? '#a86f43' : shade(s, -0.17);
+    var hl = s === '#c98e5e' ? '#dcaa7e' : shade(s, 0.15), o = [];
     var R = function (x, y, w, h, c) { o.push([x, y, w, h, c]); };
     R(24, 10, 16, 2, s); R(22, 12, 20, 2, s); R(20, 14, 24, 2, s);
     R(18, 16, 28, 18, s);
@@ -44,19 +45,65 @@
     return o;
   }
   function torso(s, c) {
-    var cd = shade(c, -0.2), cl = shade(c, 0.14), o = [];
+    var cd = c === '#7d9463' ? '#61764e' : shade(c, -0.2);
+    var cl = c === '#7d9463' ? '#96a97a' : shade(c, 0.14), o = [];
     var R = function (x, y, w, h, cc) { o.push([x, y, w, h, cc]); };
-    R(27, 38, 10, 6, shade(s, -0.24)); R(27, 38, 10, 2, shade(s, -0.36));
+    R(27, 38, 10, 6, s === '#c98e5e' ? '#a86f43' : shade(s, -0.24));
+    R(27, 38, 10, 2, s === '#c98e5e' ? '#895c3a' : shade(s, -0.36));
     R(20, 44, 24, 2, c); R(16, 46, 32, 4, c); R(14, 50, 36, 14, c);
     R(38, 46, 10, 18, cd); R(44, 50, 4, 14, shade(c, -0.32)); R(14, 50, 4, 14, cl);
     R(26, 44, 12, 2, cd);
+    R(18, 47, 5, 4, cl);
+    R(28, 46, 8, 2, c === '#7d9463' ? '#506341' : shade(c, -0.32));
+    R(29, 46, 6, 1, s === '#c98e5e' ? '#a86f43' : shade(s, -0.24));
+    return o;
+  }
+
+  /* A wardrobe choice owns the torso. null leaves the job's uniform preset in charge. */
+  var GARMENT = [
+    { id: 'tee', ko: '티셔츠', en: 'T-shirt' },
+    { id: 'hoodie', ko: '후드티', en: 'Hoodie' },
+    { id: 'jacket', ko: '재킷', en: 'Jacket' },
+    { id: 'blazer', ko: '블레이저', en: 'Blazer' },
+    { id: 'apron', ko: '앞치마', en: 'Apron' },
+    { id: 'sweater', ko: '스웨터', en: 'Sweater' }
+  ];
+  var GARMENT_BY_ID = Object.create(null);
+  GARMENT.forEach(function (g) { GARMENT_BY_ID[g.id] = g; });
+
+  function garmentTorso(id, skin, cloth, cloth2) {
+    var c = cloth, c2 = cloth2 || shade(c, -0.3);
+    var d = shade(c, -0.24), l = shade(c, 0.18);
+    var o = torso(skin, id === 'apron' ? c2 : c);
+    if (id === 'hoodie') {
+      o = o.concat([[19, 40, 8, 8, d], [37, 40, 8, 8, d], [18, 43, 8, 5, c], [38, 43, 8, 5, c],
+        [25, 43, 14, 4, d], [28, 46, 2, 9, c2], [34, 46, 2, 9, c2], [20, 54, 24, 7, d],
+        [23, 55, 18, 4, l], [15, 60, 34, 4, d]]);
+    } else if (id === 'jacket') {
+      o = o.concat([[14, 47, 12, 17, d], [38, 47, 12, 17, d], [25, 47, 14, 17, c2],
+        [22, 44, 6, 6, l], [36, 44, 6, 6, l], [25, 47, 3, 17, c], [36, 47, 3, 17, c],
+        [31, 49, 2, 15, d], [17, 56, 6, 2, c2], [41, 56, 6, 2, c2]]);
+    } else if (id === 'blazer') {
+      o = o.concat([[14, 48, 13, 16, d], [37, 48, 13, 16, d], [25, 44, 14, 20, W],
+        [21, 44, 9, 4, l], [34, 44, 9, 4, l], [23, 48, 7, 7, c], [34, 48, 7, 7, c],
+        [26, 54, 5, 10, c], [33, 54, 5, 10, c], [31, 48, 2, 9, c2],
+        [20, 57, 3, 2, c2], [41, 57, 3, 2, c2]]);
+    } else if (id === 'apron') {
+      o = o.concat([[26, 43, 12, 5, c], [23, 48, 18, 16, c], [21, 49, 3, 5, d],
+        [40, 49, 3, 5, d], [24, 51, 16, 2, l], [25, 58, 14, 2, d],
+        [27, 60, 10, 3, shade(c, -0.12)]]);
+    } else if (id === 'sweater') {
+      o = o.concat([[23, 43, 18, 5, d], [27, 44, 10, 3, c2], [18, 49, 28, 3, l],
+        [18, 53, 28, 2, c2], [15, 58, 6, 6, d], [43, 58, 6, 6, d],
+        [18, 60, 28, 4, d], [23, 61, 18, 2, l]]);
+    }
     return o;
   }
 
   /* ══ 표정 10종 — 눈썹·눈·입 조합으로 기술 ════════════════════════ */
   var EXPR = [
     { id: 'neutral', ko: '무표정', en: 'Neutral', brow: 'flat', eye: 'open', mouth: 'line' },
-    { id: 'smile', ko: '미소', en: 'Smile', brow: 'up', eye: 'squint', mouth: 'smile' },
+    { id: 'smile', ko: '미소', en: 'Smile', brow: 'up', eye: 'open', mouth: 'smile' },
     { id: 'grin', ko: '활짝', en: 'Grin', brow: 'up', eye: 'squint', mouth: 'grin' },
     { id: 'sad', ko: '슬픔', en: 'Sad', brow: 'sad', eye: 'half', mouth: 'frown' },
     { id: 'angry', ko: '화남', en: 'Angry', brow: 'angry', eye: 'open', mouth: 'frown' },
@@ -71,19 +118,18 @@
   function eyePair(o, mode, eye, s) {
     var R = function (x, y, w, h, c) { o.push([x, y, w, h, c]); };
     function one(x, m) {
-      if (m === 'closed') { R(x, 26, 7, 1, K); R(x + 1, 27, 5, 1, shade(s, -0.35)); return; }
-      var eh = m === 'wide' ? 7 : m === 'squint' ? 3 : m === 'half' ? 3 : 5;
-      var y = m === 'wide' ? 23 : m === 'squint' ? 26 : m === 'half' ? 25 : 24;
-      R(x, y - 1, 7, 1, K);
-      R(x, y, 7, eh, W);
-      var ih = Math.max(1, eh - 2);
-      R(x + 2, y + 1, 3, ih, eye);
-      R(x + 3, y + 1, 1, 1, K);
-      R(x + 2, y + 1, 1, 1, W);
-      if (m === 'half') R(x, y, 7, 1, shade(s, -0.3));
+      if (m === 'closed') { R(x, 27, 6, 1, K); R(x + 1, 28, 4, 1, shade(s, -0.35)); return; }
+      var eh = m === 'wide' ? 5 : m === 'squint' ? 2 : 3;
+      var y = m === 'wide' ? 24 : m === 'squint' ? 27 : 26;
+      R(x, y - 1, 6, 1, K);
+      R(x, y, 6, eh, W);
+      // The approved portrait has two small square pupils, with white on both sides.
+      var pupil = eye === '#3a2a1e' ? K : eye;
+      R(x + 2, y + Math.floor(eh / 2), 2, m === 'wide' ? 2 : 1, pupil);
+      if (m === 'half') R(x, y, 6, 1, shade(s, -0.3));
     }
-    if (mode === 'wink') { one(24, 'closed'); one(33, 'open'); }
-    else { one(24, mode); one(33, mode); }
+    if (mode === 'wink') { one(24, 'closed'); one(34, 'open'); }
+    else { one(24, mode); one(34, mode); }
   }
   function face(s, eye, hc, exprId, noEyes) {
     var E = EXPR_BY_ID[exprId] || EXPR[0];
@@ -93,19 +139,19 @@
     if (noEyes) { R(31, 28, 2, 3, sd); R(30, 30, 1, 1, sd); return o; }
     if (E.brow === 'sad') { R(24, 20, 7, 2, hd); R(33, 21, 7, 2, hd); }
     else if (E.brow === 'angry') { R(24, 21, 7, 2, hd); R(33, 21, 7, 2, hd); R(26, 20, 4, 1, hd); R(34, 20, 4, 1, hd); }
-    else if (E.brow === 'up') { R(24, 19, 7, 2, hd); R(33, 19, 7, 2, hd); }
+    else if (E.brow === 'up') { R(23, 21, 8, 2, hd); R(34, 21, 8, 2, hd); }
     else { R(24, 20, 7, 2, hd); R(33, 20, 7, 2, hd); }
     eyePair(o, E.eye, eye, s);
     R(31, 28, 2, 3, sd); R(30, 30, 1, 1, sd);
-    if (E.mouth === 'smile') { R(28, 34, 8, 2, lip); R(27, 33, 1, 1, lip); R(36, 33, 1, 1, lip); R(29, 36, 6, 1, shade(lip, -0.25)); }
+    if (E.mouth === 'smile') { R(28, 34, 7, 1, lip); R(27, 33, 1, 1, lip); R(35, 33, 1, 1, lip); R(29, 35, 5, 1, shade(lip, -0.25)); }
     else if (E.mouth === 'grin') { R(27, 33, 10, 5, shade(lip, -0.45)); R(28, 34, 8, 2, W); R(26, 32, 1, 1, lip); R(37, 32, 1, 1, lip); }
     else if (E.mouth === 'frown') { R(28, 35, 8, 2, lip); R(27, 36, 1, 1, lip); R(36, 36, 1, 1, lip); }
     else if (E.mouth === 'open') { R(29, 33, 6, 5, shade(lip, -0.4)); R(30, 36, 4, 2, lip); }
     else if (E.mouth === 'smirk') { R(28, 35, 6, 2, lip); R(34, 33, 2, 2, lip); }
     else { R(29, 34, 6, 2, lip); }
     if (E.tear) { R(25, 30, 2, 5, '#7fc9f2'); R(38, 30, 2, 4, '#7fc9f2'); R(25, 35, 2, 2, '#a8dcf7'); }
-    var bl = mix(s, '#e0709b', 0.32);
-    R(21, 30, 4, 3, bl); R(39, 30, 4, 3, bl);
+    var bl = mix(s, '#a8433f', 0.18);
+    R(25, 33, 2, 1, bl); R(39, 33, 2, 1, bl);
     return o;
   }
 
@@ -131,8 +177,19 @@
     HA('mohawk', '모히칸', 'Mohawk', function (c) { var hl = shade(c, 0.22), d = shade(c, -0.35); return [[28, 1, 8, 16, c], [30, 0, 4, 2, c], [28, 1, 4, 8, hl], [20, 14, 8, 3, d], [36, 14, 8, 3, d]]; }),
     HA('afro', '아프로', 'Afro', function (c) { var hl = shade(c, 0.2), d = shade(c, -0.2); return [[20, 0, 24, 3, c], [16, 2, 32, 4, c], [12, 5, 40, 8, c], [10, 9, 44, 8, c], [12, 16, 8, 8, c], [44, 16, 8, 8, c],
       [20, 1, 12, 3, hl], [16, 4, 8, 4, hl], [12, 8, 6, 5, hl], [44, 12, 8, 6, d], [12, 21, 8, 3, d]]; }),
-    HA('sidepart', '사이드파트', 'Side part', function (c) { var hl = shade(c, 0.24), d = shade(c, -0.2); return [[24, 8, 16, 2, c], [22, 10, 20, 2, c], [20, 12, 24, 2, c], [18, 14, 28, 4, c],
-      [18, 18, 12, 3, c], [18, 18, 3, 6, c], [43, 18, 3, 5, d], [24, 9, 6, 3, hl], [33, 12, 1, 6, d]]; }),
+    HA('sidepart', '사이드파트', 'Side part', function (c) {
+      var hl = c === '#2b211b' ? '#5c4a3f' : shade(c, 0.24), d = shade(c, -0.2);
+      // Left-flowing fringe and exposed forehead follow the approved portrait's grid.
+      return [[26, 7, 14, 3, c], [22, 10, 20, 2, c], [20, 12, 24, 2, c],
+        [18, 14, 8, 1, c], [31, 14, 15, 1, c],
+        [18, 15, 6, 1, c], [33, 15, 13, 1, c],
+        [16, 16, 8, 1, c], [33, 16, 15, 1, c],
+        [17, 17, 7, 1, c], [33, 17, 14, 1, c],
+        [17, 18, 4, 2, c], [37, 18, 10, 1, c], [41, 19, 6, 1, c],
+        [18, 20, 3, 3, d], [43, 20, 3, 3, d], [19, 23, 2, 4, d], [43, 23, 2, 4, d],
+        [26, 8, 6, 1, hl], [22, 10, 6, 1, hl], [20, 12, 4, 1, hl],
+        [22, 14, 2, 1, hl], [21, 17, 3, 1, hl], [33, 17, 4, 1, hl]];
+    }),
     HA('fringe', '뱅', 'Fringe', function (c) { var hl = shade(c, 0.2); return cap(c).concat([[18, 18, 28, 4, c], [18, 22, 5, 4, c], [41, 22, 5, 4, c], [22, 18, 8, 3, hl]]); }),
     HA('braid', '땋은머리', 'Braid', function (c) { var d = shade(c, -0.25); return cap(c).concat([[18, 18, 3, 5, c], [43, 18, 3, 5, c],
       [45, 22, 5, 4, c], [45, 26, 5, 4, d], [45, 30, 5, 4, c], [45, 34, 5, 4, d], [46, 38, 3, 3, c]]); }),
@@ -181,13 +238,13 @@
     if (round) return [[22, 22, 10, 1, c], [22, 29, 10, 1, c], [22, 23, 1, 6, c], [31, 23, 1, 6, c],
       [23, 21, 8, 1, c], [23, 30, 8, 1, c], [32, 22, 10, 1, c], [32, 29, 10, 1, c], [32, 23, 1, 6, c], [41, 23, 1, 6, c],
       [33, 21, 8, 1, c], [33, 30, 8, 1, c], [30, 25, 3, 1, c], [16, 24, 6, 1, c], [42, 24, 6, 1, c]];
-    return [[21, 22, 12, 1, c], [21, 29, 12, 1, c], [21, 23, 1, 6, c], [32, 23, 1, 6, c],
-      [32, 22, 12, 1, c], [32, 29, 12, 1, c], [43, 23, 1, 6, c], [30, 25, 3, 1, c], [16, 24, 5, 1, c], [44, 24, 5, 1, c]];
+    return [[21, 23, 12, 1, c], [21, 29, 12, 1, c], [21, 24, 1, 5, c], [32, 24, 1, 5, c],
+      [32, 23, 12, 1, c], [32, 29, 12, 1, c], [43, 24, 1, 5, c], [30, 25, 4, 1, c], [17, 24, 4, 1, c], [44, 24, 4, 1, c]];
   }
   function FC(id, ko, en, f) { return { id: id, ko: ko, en: en, f: f }; }
   var FACE = [
     FC('none', '없음', 'None', function () { return []; }),
-    FC('glasses', '안경', 'Glasses', function () { return glassesFrame('#3a3f4a'); }),
+    FC('glasses', '안경', 'Glasses', function () { return glassesFrame('#241c18'); }),
     FC('roundglass', '동그란 안경', 'Round glasses', function () { return glassesFrame('#6b4a2f', true); }),
     FC('sunglasses', '선글라스', 'Sunglasses', function () { return [[20, 21, 24, 9, '#241c18'], [21, 22, 10, 7, '#3f4a5c'], [33, 22, 10, 7, '#3f4a5c'], [22, 23, 4, 2, '#6d7a90'], [16, 23, 5, 2, '#241c18'], [44, 23, 5, 2, '#241c18']]; }),
     FC('monocle', '모노클', 'Monocle', function () { return [[32, 21, 11, 1, '#e0a63c'], [32, 30, 11, 1, '#e0a63c'], [31, 22, 1, 8, '#e0a63c'], [43, 22, 1, 8, '#e0a63c'], [43, 31, 1, 8, '#e0a63c'], [40, 38, 4, 1, '#e0a63c']]; }),
@@ -205,7 +262,11 @@
   /* ══ 동물 26종 ═══════════════════════════════════════════════════ */
   function earTri(x, w, c, ic) {
     var o = [], cx = x, cw = w, y = 14;
-    while (cw > 1 && y > 0) { y -= 3; o.push([cx, y, cw, 3, c]); cx += 1; cw -= 2; }
+    while (cw > 1 && y > 0) {
+      y -= 3;
+      o.push([cx, Math.max(0, y), cw, Math.min(3, y + 3), c]);
+      cx += 1; cw -= 2;
+    }
     if (ic) o.push([x + 3, y + 4, Math.max(1, w - 6), 5, ic]);
     return o;
   }
@@ -240,10 +301,14 @@
   }
   function AN(id, ko, en, fur, o) { return Object.assign({ id: id, ko: ko, en: en, fur: fur }, o || {}); }
   var ANIMAL = [
-    AN('cat', '고양이', 'Cat', ['#e8a860', '#5c4a3f', '#b0b9cc', '#f2e9d8'], { ear: 'tri', inner: '#e0709b',
-      post: function (f) { return muzzle(f, shade(f, 0.3), '#e0709b').concat([[12, 31, 6, 1, W], [12, 34, 6, 1, W], [46, 31, 6, 1, W], [46, 34, 6, 1, W]]); } }),
-    AN('cat2', '검은고양이', 'Black cat', ['#2b211b'], { ear: 'tri', inner: '#8f4f5a',
-      post: function (f) { return muzzle(f, shade(f, 0.22), '#e0709b').concat([[12, 31, 6, 1, '#8f98aa'], [12, 34, 6, 1, '#8f98aa'], [46, 31, 6, 1, '#8f98aa'], [46, 34, 6, 1, '#8f98aa']]); } }),
+    AN('cat', '고양이', 'Cat', ['#e8a860', '#5c4a3f', '#b0b9cc', '#f2e9d8'], { ear: 'tri', inner: '#e0709b', ownEyes: true,
+      post: function (f) { var o = [[29, 12, 2, 7, shade(f, -0.23)], [34, 12, 2, 7, shade(f, -0.23)],
+        [18, 19, 3, 6, shade(f, -0.18)], [43, 19, 3, 6, shade(f, -0.18)],
+        [22, 21, 9, 8, W], [33, 21, 9, 8, W], [25, 23, 2, 2, K], [36, 23, 2, 2, K]];
+        return o.concat(muzzle(f, shade(f, 0.3), '#e0709b')).concat([[12, 31, 6, 1, W], [12, 34, 6, 1, W], [46, 31, 6, 1, W], [46, 34, 6, 1, W]]); } }),
+    AN('cat2', '검은고양이', 'Black cat', ['#2b211b'], { ear: 'tri', inner: '#8f4f5a', ownEyes: true,
+      post: function (f) { var o = [[22, 21, 9, 8, W], [33, 21, 9, 8, W], [25, 23, 2, 2, K], [36, 23, 2, 2, K]];
+        return o.concat(muzzle(f, shade(f, 0.22), '#e0709b')).concat([[12, 31, 6, 1, '#8f98aa'], [12, 34, 6, 1, '#8f98aa'], [46, 31, 6, 1, '#8f98aa'], [46, 34, 6, 1, '#8f98aa']]); } }),
     AN('fox', '여우', 'Fox', ['#e8a860', '#d97757', '#c97a2e'], { ear: 'tri-sharp', inner: '#241c18', earColor: '#c9552a',
       post: function (f) { var m = mix(W, f, 0.2); return [[25, 28, 14, 1, shade(f, -0.34)]].concat(muzzle(f, m, '#241c18')).concat([[18, 26, 5, 8, m], [41, 26, 5, 8, m]]); } }),
     AN('dog', '개', 'Dog', ['#c9a877', '#8f4f1a', '#d9c9a8', '#5c4a3f'], { ear: 'floppy',
@@ -394,7 +459,7 @@
     /* 판타지 */
     JB('wizard', '마법사', 'Wizard', 'fantasy', '#4c3a8c', function () { return [[28, 0, 8, 6, '#5c4aa8'], [24, 5, 16, 5, '#5c4aa8'], [19, 9, 26, 5, '#5c4aa8'], [14, 13, 36, 4, '#4c3a8c'], [28, 1, 4, 4, '#8f6fb5'], [30, 10, 4, 4, '#f2c04a']]; },
       function () { return [[24, 44, 16, 3, '#3a2a6c'], [29, 47, 6, 5, '#f2c04a']]; }),
-    JB('knight', '기사', 'Knight', 'fantasy', '#8f98aa', function () { return [[17, 6, 30, 22, '#b0b9cc'], [20, 16, 24, 6, '#3a3f4a'], [30, 22, 4, 8, '#8f98aa'], [17, 6, 30, 3, '#ccd6e0'], [29, 0, 6, 7, '#bf4a44']]; }, null),
+    JB('knight', '기사', 'Knight', 'fantasy', '#8f98aa', function () { return [[16, 6, 32, 25, '#b0b9cc'], [20, 16, 24, 6, '#3a3f4a'], [30, 22, 4, 9, '#8f98aa'], [16, 6, 32, 3, '#ccd6e0'], [29, 0, 6, 7, '#bf4a44']]; }, null),
     JB('ninja', '닌자', 'Ninja', 'fantasy', '#2f3b5c', function () { return [[16, 6, 32, 16, '#1f2740'], [16, 28, 32, 12, '#1f2740'], [14, 12, 4, 20, '#1f2740'], [16, 6, 32, 2, '#3a4a6c']]; }, null),
     JB('pirate', '해적', 'Pirate', 'fantasy', '#8f2f2a', function () { return [[16, 8, 32, 7, '#241c18'], [14, 14, 36, 3, '#241c18'], [18, 9, 10, 3, '#4a4a52']]; },
       function () { return [[21, 21, 12, 10, '#241c18'], [16, 19, 32, 2, '#241c18']].concat([[24, 44, 16, 3, '#e8e2d4']]); }),
@@ -405,7 +470,7 @@
     JB('monk', '승려', 'Monk', 'fantasy', '#c9852a', null, function () { return [[18, 46, 30, 5, '#e0a63c'], [22, 51, 24, 4, '#c9852a'], [26, 40, 12, 3, '#8f5a1a']]; }),
     JB('samurai', '사무라이', 'Samurai', 'fantasy', '#2f3b5c', function () { return [[17, 8, 30, 8, '#3a3f4a'], [14, 15, 36, 4, '#241c18'], [22, 2, 6, 8, '#e0a63c'], [36, 2, 6, 8, '#e0a63c'], [28, 5, 8, 5, '#bf4a44']]; },
       function () { return [[20, 46, 24, 4, '#8f2f2a'], [24, 44, 16, 2, '#e8e2d4']]; }),
-    JB('astronaut', '우주비행사', 'Astronaut', 'fantasy', '#e8f2f7', function () { return [[14, 4, 36, 30, '#e8f2f7'], [18, 12, 28, 16, '#1f2740'], [21, 15, 8, 5, '#46b6ff'], [14, 4, 36, 3, '#ccd6e0'], [12, 16, 4, 10, '#b0b9cc'], [48, 16, 4, 10, '#b0b9cc']]; },
+    JB('astronaut', '우주비행사', 'Astronaut', 'fantasy', '#e8f2f7', function () { return [[14, 4, 36, 34, '#e8f2f7'], [17, 38, 30, 6, '#e8f2f7'], [18, 12, 28, 25, '#1f2740'], [21, 15, 8, 5, '#46b6ff'], [14, 4, 36, 3, '#ccd6e0'], [12, 16, 4, 10, '#b0b9cc'], [48, 16, 4, 10, '#b0b9cc']]; },
       function () { return [[20, 48, 8, 6, '#bf4a44'], [30, 48, 6, 6, '#46b6ff'], [24, 44, 16, 3, '#c9d6de']]; }),
     JB('detective', '탐정', 'Detective', 'fantasy', '#5c4a3f', function () { return [[19, 5, 26, 8, '#8f7a63'], [13, 12, 38, 4, '#8f7a63'], [19, 5, 12, 2, '#a8917d'], [19, 11, 26, 2, '#6b5a4a']]; },
       function () { return [[24, 44, 16, 3, '#e8e2d4'], [22, 47, 20, 14, '#6b5a4a'], [29, 47, 6, 14, '#5c4a3f']]; }),
@@ -413,6 +478,12 @@
       function () { return [[14, 50, 36, 3, W], [14, 56, 36, 3, W], [28, 46, 8, 8, W], [30, 48, 4, 4, '#d97757']]; })
   ];
   var JOB_BY_ID = {}; JOB.forEach(function (j) { JOB_BY_ID[j.id] = j; });
+  // A job hat only covers accessories that occupy the top of the head.
+  var HEADTOP = {
+    headband: 1, beanie: 1, capback: 1, flowerpin: 1, headphone: 1,
+    bandana: 1, hairclip: 1, halo: 1, catears: 1, crownsm: 1,
+    hoodup: 1, antenna: 1, horns: 1, visor: 1, freckleset: 1
+  };
 
   /* ══ spec · 조립 ═════════════════════════════════════════════════ */
   /* 16 그리드 저장본·스튜디오 패치는 색·부품을 인덱스로 담는다 — 여기서 흡수 */
@@ -435,8 +506,13 @@
     s.fur = pxc(s.fur, FUR, FUR[0]);
     s.hair = pid(s.hair, HAIR); s.acc = pid(s.acc, ACC); s.face = pid(s.face, FACE);
     s.expr = pid(s.expr, EXPR); s.species = pid(s.species, ANIMAL);
+    if (!GARMENT_BY_ID[s.garmentId]) s.garmentId = null;
     if (s.job != null && !JOB_BY_ID[s.job]) s.job = (typeof s.job === 'number' && JOB[Math.abs(s.job) % JOB.length]) ? JOB[Math.abs(s.job) % JOB.length].id : null;
     if (s.type !== 'animal') s.type = 'human';
+    if (s.type === 'animal') {
+      var allowedFur = ANIMAL_BY_ID[s.species].fur;
+      if (allowedFur && allowedFur.indexOf(s.fur) < 0) s.fur = allowedFur[0];
+    }
     return s;
   }
   function spec(seed, ov) {
@@ -446,7 +522,7 @@
       type: r() < 0.8 ? 'human' : 'animal',
       skin: pick(r, SKIN), hairColor: pick(r, HAIRC), eye: pick(r, EYEC), cloth: pick(r, CLOTH), cloth2: pick(r, CLOTH), fur: pick(r, FUR),
       hair: pick(r, HAIR).id, acc: r() < 0.55 ? 'none' : pick(r, ACC).id, face: r() < 0.6 ? 'none' : pick(r, FACE).id,
-      expr: pick(r, EXPR).id, species: pick(r, ANIMAL).id, job: null
+      expr: pick(r, EXPR).id, species: pick(r, ANIMAL).id, job: null, garmentId: null, wearUniform: true
     };
     if (ov) for (var k in ov) if (ov[k] !== undefined) s[k] = ov[k];
     normalize(s);
@@ -467,14 +543,15 @@
       if (A.ear) o = o.concat(ears(A.ear, A.earColor || f, A.inner));
       o = o.concat(headBase(f));
       o = o.concat(face(f, sp.eye, shade(f, -0.3), sp.expr, !!A.ownEyes));
-      o = o.concat(torso(f, sp.cloth));
+      o = o.concat(sp.garmentId ? garmentTorso(sp.garmentId, f, sp.cloth, sp.cloth2) : torso(f, sp.cloth));
       if (A.post) o = o.concat(A.post(f));
       var AC2 = ACC.filter(function (a) { return a.id === sp.acc; })[0];
       if (AC2 && sp.acc !== 'none' && sp.acc !== 'catears') o = o.concat(AC2.f(P));
       return o;
     }
     var J = sp.job ? JOB_BY_ID[sp.job] : null;
-    var cloth = J ? J.cloth : sp.cloth;
+    var ownGarment = sp.garmentId !== null;
+    var cloth = (!ownGarment && J && sp.wearUniform !== false) ? J.cloth : sp.cloth;
     P.cloth = cloth;
     var H = HAIR.filter(function (h) { return h.id === sp.hair; })[0] || HAIR[0];
     o = o.concat(headBase(sp.skin));
@@ -482,13 +559,15 @@
     if (J && J.hat) hairOps = hairOps.filter(function (c) { return c[1] > 15; });
     o = o.concat(hairOps);
     o = o.concat(face(sp.skin, sp.eye, sp.hairColor, sp.expr));
-    o = o.concat(torso(sp.skin, cloth));
-    if (J && J.hat) o = o.concat(J.hat(sp.hairColor));
-    if (J && J.extra) o = o.concat(J.extra(cloth));
+    o = o.concat(ownGarment ? garmentTorso(sp.garmentId, sp.skin, cloth, sp.cloth2) : torso(sp.skin, cloth));
     var F = FACE.filter(function (x) { return x.id === sp.face; })[0];
-    if (F && sp.face !== 'none') o = o.concat(F.f(P));
+    // A closed helmet hides facial details but keeps the choice in the spec.
+    if (F && sp.face !== 'none' && !(J && J.id === 'astronaut')) o = o.concat(F.f(P));
+    // A face accessory sits against the face, behind any job headwear or visor.
+    if (J && J.hat) o = o.concat(J.hat(sp.hairColor));
+    if (J && J.extra && !ownGarment) o = o.concat(J.extra(cloth));
     var A3 = ACC.filter(function (a) { return a.id === sp.acc; })[0];
-    if (A3 && sp.acc !== 'none' && !(J && J.hat)) o = o.concat(A3.f(P));
+    if (A3 && sp.acc !== 'none' && !(J && J.hat && HEADTOP[sp.acc])) o = o.concat(A3.f(P));
     return o;
   }
   function rawSVG(sp, size) {
@@ -503,6 +582,7 @@
 
   root.PXAvatar64 = {
     HAIR: HAIR, ACC: ACC, FACE: FACE, EXPR: EXPR, ANIMAL: ANIMAL, JOB: JOB, JOB_GROUPS: JOB_GROUPS, JOB_BY_ID: JOB_BY_ID,
+    GARMENT: GARMENT,
     SKIN: SKIN, HAIRC: HAIRC, EYEC: EYEC, CLOTH: CLOTH, FUR: FUR,
     avatarSpec: spec, avatarSVG: svg, avatarRawSVG: rawSVG, spec: spec, svg: rawSVG, ops: ops,
     shade: shade, mix: mix, GRID: 64
