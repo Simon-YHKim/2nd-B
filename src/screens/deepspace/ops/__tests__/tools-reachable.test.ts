@@ -401,6 +401,9 @@ describe("비서 허브 PIXEL·legacy 회귀", () => {
     expect(sha256(sourceSlice(LEGACY_OPS, "function OpsLegacy()", "export default function Ops()"))).toBe(
       "409e77b64c30861003f7cc08b886422a0b12b5f5309f66d368788fef10ab7c2f",
     );
+    // 2026-09-28: two download names in this slice became polascope-wiki.md /
+    // polascope-iden.json (PolaScope rename, DECISIONS 26.09.28). Only those two
+    // string literals changed; the other digests stay as they were.
     expect(sha256(sourceSlice(GIANT, "export function DeepSpaceFormatsScreen()", "// Calendar hand-off needs"))).toBe(
       "933d633702712e0703021fc7a52c82e56a6384df37c005e7174f1d3eb574aeb4",
     );
