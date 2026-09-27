@@ -57,6 +57,7 @@ describe("웹 셸의 공유 카드", () => {
     expect(card).toContain(canon.polarisGuide);
     canon.lines.forEach((line) => expect(card).toContain(line));
     // 문구는 site-meta 와 같아야 한다.
+    expect(card).toContain(`<p class="brand">${SITE_NAME}</p>`);
     expect(card).toContain(SITE_TITLE.split(" · ")[1]);
   });
 });
