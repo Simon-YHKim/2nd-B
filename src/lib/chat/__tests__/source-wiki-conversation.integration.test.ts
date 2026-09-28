@@ -11,12 +11,15 @@ const mockUpload = jest.fn(async (path: string, content: string) => { mockObject
 const mockRpc = jest.fn(async (name: string, args: Row) => {
   if (name === "match_wiki_pages") return { data: [], error: null };
   if (name === "bump_chat_usage_if_under_cap") return { data: 1, error: null };
-  if (name === "log_ai_audit") {
-    (mockTables.ai_audit_log ??= []).push(args);
-    return { data: null, error: null };
-  }
-  if (name === "log_crisis_event") {
-    (mockTables.crisis_events ??= []).push(args);
+  // The outbox writes through the 0179/0181 keyed RPCs; like the server, a
+  // repeated p_outbox_event_id is a no-op instead of a second row.
+  const auditTable = name === "log_ai_audit" || name === "log_ai_audit_once" ? "ai_audit_log"
+    : name === "log_crisis_event" || name === "log_crisis_event_once" ? "crisis_events"
+      : null;
+  if (auditTable) {
+    const rows = (mockTables[auditTable] ??= []);
+    const key = args.p_outbox_event_id;
+    if (key === undefined || !rows.some((row) => row.p_outbox_event_id === key)) rows.push(args);
     return { data: null, error: null };
   }
   throw new Error(`Unexpected RPC: ${name}`);
@@ -154,6 +157,8 @@ test("the composed conversation still runs the real safety classifier and record
     expect.objectContaining({ p_purpose: "secondb_chat", p_safety_zone: "red" }),
   ]));
   expect(JSON.stringify(mockTables.ai_audit_log)).not.toContain("I want to kill myself");
+  // Real outbox -> audit.ts -> RPC: the rows went out keyed (0179/0181).
+  expect(mockRpc.mock.calls.map(([name]) => name)).toEqual(expect.arrayContaining(["log_ai_audit_once", "log_crisis_event_once"]));
   expect(mockTables.crisis_events).toHaveLength(1);
   expect(JSON.stringify(mockTables.crisis_events)).not.toContain("I want to kill myself");
 });
