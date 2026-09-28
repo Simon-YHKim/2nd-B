@@ -359,7 +359,8 @@ jobs:
             0199:oauth_naver_rate_limit_completion \
             0200:rss_proxy_quota \
             0206:users_avatar_spec \
-            0207:users_display_name_update; do
+            0207:users_display_name_update \
+            0208:signup_consent_privacy_20260929; do
             version="${mapping%%:*}"
             stem="${mapping#*:}"
             if ! cmp -s "db/migration-drafts/UNNUMBERED_${stem}.sql" "db/migrations/${version}_${stem}.sql"; then
@@ -1334,6 +1335,14 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/signup_consent_privacy_20260928_regression.sql
+      # 0208: the 2026-09-29 privacy policy (v5, optional avatar setting) is a
+      # NOTICE revision too. A v6 signup must get its own tuple and an email-v6
+      # receipt, installed v5 and v4 clients must still sign up, and LLM consent
+      # must count all three tuples as current. Rolled back.
+      - name: Exercise the 2026-09-29 notice-revision consent contract
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/signup_consent_privacy_20260929_regression.sql
       # 0189's erase_my_data() is a destructive SECURITY DEFINER function, so it
       # is the one thing in this repo that must not be tested by reading its
       # source. The r38 gate measured 37 green string assertions over a function

@@ -80,9 +80,19 @@ const triggerOnlyOptOut = /--\s*definer-grants-lint:\s*trigger-only/i;
 // revokes and the one reviewed grant, and replaces two 0193 LLM-consent
 // functions. 0191 keeps its own pin: it is applied in production and its grant
 // must not become a Rule A failure because a newer contract exists.
+// 2026-09-29: 0208 (email-v6, the 2026-09-29 notice revision that lists the
+// optional avatar setting) is a third metadata migration of the same shape as
+// 0203: one added VALUES row / revision, the same revokes and the one grant,
+// and the two 0193 LLM-consent functions with email-v6 added.
+// ⚠ REVIEW PENDING. This digest was computed by the AUTHOR from the file it
+// pins, which the rule above says a review must replace. Before merge an
+// independent security review must read the whole of 0208 at this digest and
+// record PASS (reviewer, time, nonce) on this comment. Until then CI green here
+// only proves the file is unchanged since authoring, not that it was reviewed.
 const REVIEWED_SIGNUP_METADATA_SHA256S: ReadonlySet<string> = new Set([
   "6ba82c9ec8a796e99f1398398c58560b58513147119928d3ad004b31b0781648", // 0191 email-v4
   "58ad7625ee30499a87d840eadf152f0b2d599553f3b416f3a432bf313c7b4290", // 0203 email-v5
+  "8c7e758936650a982c60fe1f0d828db683c4252ff45124f4766ca016a495e64a", // 0208 email-v6 (review pending)
 ]);
 const REVIEWED_SIGNUP_METADATA_GRANT =
   "GRANT EXECUTE ON FUNCTION public.signup_consent_contract_status() TO anon, authenticated;";

@@ -129,12 +129,23 @@ describe("legal document snapshots", () => {
     }
   });
 
-  test("2026-09-28 policy keeps the required notice and prior technical disclosures", () => {
+  test("2026-09-29 policy lists the optional avatar setting and keeps drawings on the device", () => {
+    // v5 (a notice revision): the saved avatar recipe (users.avatar_spec, 0206)
+    // is an optional profile item; palette/gallery drawings never leave the device.
+    expect(PRIVACY_DOC.body).toContain("아바타 설정(선택): 고른 아바타 조합(종류·색·옷·소품). 본인만 볼 수 있고 계정을 지우면 함께 지워집니다. 기기에서 그린 픽셀 그림은 서버로 보내지 않습니다.");
+    expect(PRIVACY_DOC.body).toContain("Avatar settings (optional): the avatar combination you choose (type, colors, clothing, accessories). Only you can see it, and it is deleted together with your account. Pixel drawings you make on your device are not sent to our servers.");
+    expect(PRIVACY_DOC.body).toContain("| 2026-09-29 | 제1조: 프로필(선택)에 아바타 설정");
+    expect(PRIVACY_DOC.body).toContain("| 2026-09-29 | Section 1: added avatar settings");
+    expect(PRIVACY_DOC.body).toContain("기존 이용자의 동의는 그대로 유효하고 다시 동의를 받지 않습니다");
+    expect(PRIVACY_DOC.body).toContain("existing consent remains valid and is not asked for again");
+  });
+
+  test("2026-09-29 policy keeps the required notice and prior technical disclosures", () => {
     const md = readFileSync(resolve(ROOT, "docs/legal/privacy-policy.md"), "utf8");
     // md, app snapshot, and the consent writer all carry the same date.
-    expect(md).toContain("_시행일: 2026-09-28 · 최종 개정: 2026-09-28_");
-    expect(PRIVACY_DOC.body).toContain("시행일: 2026-09-28");
-    expect(PRIVACY_POLICY_VERSION).toBe("2026-09-28");
+    expect(md).toContain("_시행일: 2026-09-29 · 최종 개정: 2026-09-29_");
+    expect(PRIVACY_DOC.body).toContain("시행일: 2026-09-29");
+    expect(PRIVACY_POLICY_VERSION).toBe("2026-09-29");
     // #1589 revises the sign-up consent notice itself (ackOverseas and
     // overseasTransfer.body), so the notice version moves with the policy:
     // final tuple = consent 09-02 / policy 09-02 / terms 08-16.
