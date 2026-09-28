@@ -1,5 +1,5 @@
 /*
- * Approved avatar treatment for the existing 64-unit rectangle layers.
+ * Approved avatar styling for the existing 64-unit rectangle layers.
  * Geometry and colour are resolved on the 64 x 64 grid before display scaling.
  */
 (function (root) {

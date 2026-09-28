@@ -8,7 +8,7 @@
   "generator": "avatar64.js",
   "generatorSha256": "ee6733d36929e67ab1cdb69cfd64ccf5b5f652ec14b2765245ae5e035f889b81",
   "renderer": "approved-style-renderer.js",
-  "rendererSha256": "71b140bce57eb18b3aecfcd58791a6f9f9b25f72f673f5ad69fb3ac202f4a3a6",
+  "rendererSha256": "75ec6995e2f131c02e58d71573f70292817792d106e086b7a7776b71ecf6670a",
   "catalogExporter": "export-ops.cjs",
   "catalogExporterSha256": "b1819dc9b4e0c6ecc99363356d125f0048ac92d91317c3031d9ffa59fecbb49b",
   "rasterizer": "Chrome/153.0.8010.53",

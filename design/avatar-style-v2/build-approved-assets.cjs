@@ -96,8 +96,13 @@ async function startChrome() {
       if (launchError) throw launchError;
       if (chrome.exitCode !== null) throw new Error(`Chrome exited: ${chromeError}`);
       if (fs.existsSync(portFile)) {
-        const value = Number(fs.readFileSync(portFile, 'utf8').split(/\r?\n/)[0]);
-        if (Number.isSafeInteger(value) && value > 0) { port = value; break; }
+        try {
+          const value = Number(fs.readFileSync(portFile, 'utf8').split(/\r?\n/)[0]);
+          if (Number.isSafeInteger(value) && value > 0) { port = value; break; }
+        } catch (error) {
+          // On Windows Chrome can briefly lock this file while writing it.
+          if (!['EBUSY', 'EPERM', 'ENOENT'].includes(error.code)) throw error;
+        }
       }
       await pause(50);
     }

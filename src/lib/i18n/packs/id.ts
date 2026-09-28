@@ -6,6 +6,7 @@
 // EN/KO user never pays for it. Keep every Namespace covered - the
 // `satisfies` below fails the build when a namespace is missing.
 import idAuth from "../../../../locales/id/auth.json";
+import idAvatar from "../../../../locales/id/avatar.json";
 import idCapture from "../../../../locales/id/capture.json";
 import idCommon from "../../../../locales/id/common.json";
 import idCommunity from "../../../../locales/id/community.json";
@@ -52,5 +53,5 @@ import idTrinity from "../../../../locales/id/trinity.json";
 import idIndex from "../../../../locales/id/index.json";
 import type { Namespace } from "../index";
 
-export const pack = { common: idCommon, community: idCommunity, auth: idAuth, safety: idSafety, consent: idConsent, capture: idCapture, inbox: idInbox, secondb: idSecondb, plans: idPlans, wiki: idWiki,
+export const pack = { common: idCommon, community: idCommunity, auth: idAuth, avatar: idAvatar, safety: idSafety, consent: idConsent, capture: idCapture, inbox: idInbox, secondb: idSecondb, plans: idPlans, wiki: idWiki,
   peer: idPeer, support: idSupport, data: idData, esm: idEsm, formats: idFormats, insights: idInsights, research: idResearch, recordDetail: idRecordDetail, theme: idTheme, import: idImport, notFound: idNotFound, ops: idOps, profile: idProfile, permissions: idPermissions, settings: idSettings, iden: idIden, home: idHome, deepspace: idDeepspace, attachment: idAttachment, audit: idAudit, "big-five": idBigFive, brightness: idBrightness, "core-brain": idCoreBrain, imagine: idImagine, interview: idInterview, "ipip-neo": idIpipNeo, manual: idManual, persona: idPersona, privacy: idPrivacy, ratifications: idRatifications, records: idRecords, review: idReview, rlss: idRlss, trinity: idTrinity, index: idIndex } satisfies Record<Namespace, unknown>;

@@ -48,6 +48,7 @@ const MIGRATED: readonly string[] = [
   "src/app/import.tsx",
   "src/app/insights.tsx",
   "src/app/profile.tsx",
+  "src/app/avatar-studio.tsx",
   "src/components/premium/SceneHero.tsx",
   "src/components/ui/BackArrow.tsx",
   "src/screens/deepspace/DeepSpaceFlowMapScreen.tsx",

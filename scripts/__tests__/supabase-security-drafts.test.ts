@@ -11,6 +11,7 @@ const rewardRunner = read("scripts/check-reward-ssv-db.sh");
 const polarisRegression = read("db/migration-drafts/tests/polaris-generation-contract.sql");
 const signupBootstrap = read("db/tests/signup_consent_admob_bootstrap.sql");
 const serviceConsentRegression = read("db/migration-drafts/tests/llm-service-consent-management-contract.sql");
+const avatarSpecRegression = read("db/migration-drafts/tests/users-avatar-spec-contract.sql");
 
 const drafts = readdirSync(join(ROOT, "db", "migration-drafts"))
   .filter((name) => /^UNNUMBERED_.*\.sql$/.test(name))
@@ -30,6 +31,10 @@ const promoted = [
 ] as const;
 
 const behaviorDrafts = {
+  "UNNUMBERED_users_avatar_spec.sql": {
+    runner: avatarSpecRegression,
+    workflowInvocation: "-f db/migration-drafts/tests/users-avatar-spec-contract.sql",
+  },
   "UNNUMBERED_service_contract_erasure_registry.sql": {
     runner: read("db/migration-drafts/tests/service-contract-erasure-registry.sql"),
     workflowInvocation: "node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci",

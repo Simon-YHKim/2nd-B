@@ -303,6 +303,14 @@
    "implementation": "실제 생활 정보 필드에 profile form의 PIXEL-CLAY 계층을 적용한다.",
    "doneWhen": "저장·취소·오류와 한글 clipping이 검증된다."
   },
+  "/avatar-studio": {
+   "strategy": "derive-pattern",
+   "references": [
+    "profile"
+   ],
+   "implementation": "프로필에서 승인된 64셀 아바타 카탈로그를 열고 머리·얼굴·동물·의상을 조합한다.",
+   "doneWhen": "144개 선택지, 사람·동물 의상, 사용자별 저장·재진입, 조회·저장 실패 상태와 Android Back이 검증된다."
+  },
   "/jarvis": {
    "strategy": "alias",
    "references": [],

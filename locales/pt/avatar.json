@@ -1,0 +1,42 @@
+{
+  "title": "Personalizar meu avatar",
+  "loading": "Carregando avatar…",
+  "loadError": "Não foi possível carregar o avatar. Tente novamente.",
+  "save": "Salvar este avatar",
+  "saving": "Salvando…",
+  "saveError": "Não foi possível salvar o avatar. Tente novamente.",
+  "preview": "Avatar atual",
+  "previewHint": "Visual final com o rosto e a roupa escolhidos.",
+  "selectType": "Tipo",
+  "human": "Pessoa",
+  "animal": "Bicho",
+  "categories": {
+    "hair": "Cabelo",
+    "accessory": "Acessórios",
+    "face": "Detalhes do rosto",
+    "expression": "Expressão",
+    "animal": "Bichos",
+    "job": "Roupa de profissão",
+    "garment": "Roupas",
+    "color": "Cores"
+  },
+  "colors": {
+    "skin": "Pele",
+    "hairColor": "Cor do cabelo",
+    "eye": "Olhos",
+    "cloth": "Cor da roupa",
+    "cloth2": "Cor do detalhe",
+    "fur": "Cor do pelo"
+  },
+  "colorChoice": "{{field}}, opção {{index}}",
+  "noJob": "Sem roupa de profissão",
+  "uniform": "Roupa padrão da profissão",
+  "basicTee": "Camiseta básica",
+  "jobHint": "Só a roupa de profissão no desenho muda. A ocupação no seu perfil permanece igual.",
+  "garmentHint": "Use a roupa padrão da profissão ou escolha outra peça. A roupa escolhida permanece ao mudar a profissão.",
+  "animalHint": "Avatares de animais também podem trocar de roupa. Roupas de profissão só se aplicam a pessoas.",
+  "sample": "Exemplo",
+  "sampleHint": "As imagens das opções mostram um personagem base. Confira acima sua combinação atual.",
+  "occludedHint": "Outro item cobre seu acessório no momento. Sua escolha foi mantida.",
+  "choiceCount": "{{count}} opções"
+}

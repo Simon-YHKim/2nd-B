@@ -2,7 +2,7 @@
  * Approved avatar styling for the existing 64-unit rectangle layers.
  * Geometry and colour are resolved on the 64 x 64 grid before display scaling.
  */
-(function (root) {
+module.exports = (function () {
   'use strict';
 
   var GRID = 64;
@@ -159,6 +159,5 @@
   }
 
   var api = { render: render };
-  root.ApprovedStyleRenderer = api;
-  if (typeof module !== 'undefined' && module.exports) module.exports = api;
-})(typeof window !== 'undefined' ? window : globalThis);
+  return api;
+})();

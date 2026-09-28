@@ -7,6 +7,7 @@
 // EN/KO user never pays for it. Keep every Namespace covered - the
 // `satisfies` below fails the build when a namespace is missing.
 import esAuth from "../../../../locales/es/auth.json";
+import esAvatar from "../../../../locales/es/avatar.json";
 import esCapture from "../../../../locales/es/capture.json";
 import esCommon from "../../../../locales/es/common.json";
 import esCommunity from "../../../../locales/es/community.json";
@@ -53,5 +54,5 @@ import esTrinity from "../../../../locales/es/trinity.json";
 import esIndex from "../../../../locales/es/index.json";
 import type { Namespace } from "../index";
 
-export const pack = { common: esCommon, community: esCommunity, auth: esAuth, safety: esSafety, consent: esConsent, capture: esCapture, inbox: esInbox, secondb: esSecondb, plans: esPlans, wiki: esWiki,
+export const pack = { common: esCommon, community: esCommunity, auth: esAuth, avatar: esAvatar, safety: esSafety, consent: esConsent, capture: esCapture, inbox: esInbox, secondb: esSecondb, plans: esPlans, wiki: esWiki,
   peer: esPeer, support: esSupport, data: esData, esm: esEsm, formats: esFormats, insights: esInsights, research: esResearch, recordDetail: esRecordDetail, theme: esTheme, import: esImport, notFound: esNotFound, ops: esOps, profile: esProfile, permissions: esPermissions, settings: esSettings, iden: esIden, home: esHome, deepspace: esDeepspace, attachment: esAttachment, audit: esAudit, "big-five": esBigFive, brightness: esBrightness, "core-brain": esCoreBrain, imagine: esImagine, interview: esInterview, "ipip-neo": esIpipNeo, manual: esManual, persona: esPersona, privacy: esPrivacy, ratifications: esRatifications, records: esRecords, review: esReview, rlss: esRlss, trinity: esTrinity, index: esIndex } satisfies Record<Namespace, unknown>;

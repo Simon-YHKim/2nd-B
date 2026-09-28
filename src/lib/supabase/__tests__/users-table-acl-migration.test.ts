@@ -21,12 +21,24 @@ const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8").split(CR).jo
 
 const SQL = read("db/migrations/0140_users_table_acl.sql");
 const EXEC = SQL.replace(/^\s*--.*$/gm, "");
+const AVATAR_DRAFT = read("db/migration-drafts/UNNUMBERED_users_avatar_spec.sql");
+const AVATAR_EXEC = AVATAR_DRAFT.replace(/^\s*--.*$/gm, "");
 
 /** Columns named inside a GRANT <verb> (...) on public.users. */
 function grantedColumns(verb: "INSERT" | "UPDATE"): string[] {
   const m = EXEC.match(new RegExp(`GRANT ${verb} \\(([^)]*)\\) ON public\\.users`));
   if (!m) throw new Error(`0140 has no GRANT ${verb} (...) on public.users`);
   return m[1].split(",").map((c) => c.trim()).sort();
+}
+
+function effectiveGrantedColumns(verb: "INSERT" | "UPDATE"): string[] {
+  const granted = new Set(grantedColumns(verb));
+  if (verb === "UPDATE") {
+    const match = AVATAR_EXEC.match(/GRANT UPDATE \(([^)]*)\) ON public\.users TO authenticated;/);
+    if (!match) throw new Error("avatar draft has no authenticated UPDATE grant");
+    for (const column of match[1].split(",")) granted.add(column.trim());
+  }
+  return [...granted].sort();
 }
 
 // The same scan users-write-census.test.ts performs, kept here so this file can
@@ -104,19 +116,19 @@ describe("the grants cover exactly what the client writes", () => {
 
   test("every column the client INSERTs is granted", () => {
     // Missing one here = every new OAuth sign-up fails.
-    expect(grantedColumns("INSERT")).toEqual([...C.insert].sort());
+    expect(effectiveGrantedColumns("INSERT")).toEqual([...C.insert].sort());
   });
 
   test("every column the client UPDATEs is granted", () => {
     // Missing one here = a settings screen that silently cannot save.
-    expect(grantedColumns("UPDATE")).toEqual([...C.update].sort());
+    expect(effectiveGrantedColumns("UPDATE")).toEqual([...C.update].sort());
   });
 
   test("nothing granted that the client does not write", () => {
     // The other direction matters just as much: a column granted "just in
     // case" is the table-level grant creeping back one name at a time.
-    for (const col of grantedColumns("INSERT")) expect([...C.insert]).toContain(col);
-    for (const col of grantedColumns("UPDATE")) expect([...C.update]).toContain(col);
+    for (const col of effectiveGrantedColumns("INSERT")) expect([...C.insert]).toContain(col);
+    for (const col of effectiveGrantedColumns("UPDATE")) expect([...C.update]).toContain(col);
   });
 
   test("judge_mode is granted nowhere", () => {

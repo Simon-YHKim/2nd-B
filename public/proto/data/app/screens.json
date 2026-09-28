@@ -478,6 +478,13 @@
       "route": "account"
     },
     {
+      "id": "avatar-studio",
+      "component": null,
+      "appOnly": true,
+      "title": "아바타 꾸미기",
+      "route": "avatar-studio"
+    },
+    {
       "id": "beyond",
       "component": null,
       "appOnly": true,

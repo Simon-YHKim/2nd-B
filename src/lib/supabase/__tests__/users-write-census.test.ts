@@ -106,6 +106,9 @@ function census(): Census {
 
 const C = census();
 const MIGRATION = readFileSync(join(ROOT, "db/migrations/0139_rbac_roles.sql"), "utf8").split(CR).join("");
+const AVATAR_DRAFT = readFileSync(
+  join(ROOT, "db/migration-drafts/UNNUMBERED_users_avatar_spec.sql"), "utf8",
+).split(CR).join("");
 
 describe("what the client writes to public.users", () => {
   test("the scan found something (a silent zero would pass every other test)", () => {
@@ -118,7 +121,7 @@ describe("what the client writes to public.users", () => {
   });
 
   test("UPDATE touches exactly these columns", () => {
-    expect([...C.update].sort()).toEqual(["birth_date", "privacy_prefs", "profile_details", "reasoning_prefs"]);
+    expect([...C.update].sort()).toEqual(["avatar_spec", "birth_date", "privacy_prefs", "profile_details", "reasoning_prefs"]);
   });
 
   test("nothing deletes from users", () => {
@@ -137,13 +140,12 @@ describe("what the client writes to public.users", () => {
   });
 });
 
-describe("the migration quotes the same census", () => {
-  test("every scanned column appears in 0139's census comment", () => {
-    // The migration explains why the surgery is deferred and what it will
-    // grant. If the code grows a column and the comment does not, the console
-    // would run the surgery against a stale list and break a feature.
+describe("the migration plan quotes the same census", () => {
+  test("historical columns remain in 0139; new avatar write has its own draft", () => {
+    // 0139 is historical. New writes need a forward migration, not an edit
+    // to the old grant list.
     for (const col of [...C.insert, ...C.update]) {
-      expect(MIGRATION).toContain(col);
+      expect(col === "avatar_spec" ? AVATAR_DRAFT : MIGRATION).toContain(col);
     }
   });
 

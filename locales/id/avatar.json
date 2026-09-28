@@ -1,0 +1,42 @@
+{
+  "title": "Sesuaikan avatar saya",
+  "loading": "Memuat avatar…",
+  "loadError": "Avatar tidak dapat dimuat. Coba lagi.",
+  "save": "Simpan avatar ini",
+  "saving": "Menyimpan…",
+  "saveError": "Avatar tidak dapat disimpan. Coba lagi.",
+  "preview": "Avatar saat ini",
+  "previewHint": "Tampilan akhir dengan wajah dan pakaian pilihan.",
+  "selectType": "Jenis",
+  "human": "Manusia",
+  "animal": "Hewan",
+  "categories": {
+    "hair": "Rambut",
+    "accessory": "Aksesori",
+    "face": "Detail wajah",
+    "expression": "Ekspresi",
+    "animal": "Hewan",
+    "job": "Pakaian profesi",
+    "garment": "Pakaian",
+    "color": "Warna"
+  },
+  "colors": {
+    "skin": "Kulit",
+    "hairColor": "Warna rambut",
+    "eye": "Mata",
+    "cloth": "Warna pakaian",
+    "cloth2": "Warna aksen",
+    "fur": "Warna bulu"
+  },
+  "colorChoice": "{{field}}, pilihan {{index}}",
+  "noJob": "Tanpa pakaian profesi",
+  "uniform": "Pakaian profesi bawaan",
+  "basicTee": "Kaos dasar",
+  "jobHint": "Hanya pakaian profesi pada gambar yang berubah. Pekerjaan pada profil Anda tetap sama.",
+  "garmentHint": "Gunakan pakaian profesi bawaan atau pilih pakaian lain. Pilihan pakaian tetap ada saat profesi diganti.",
+  "animalHint": "Avatar hewan juga bisa berganti pakaian. Pakaian profesi hanya berlaku untuk avatar manusia.",
+  "sample": "Contoh",
+  "sampleHint": "Gambar pilihan adalah contoh pada karakter dasar. Lihat pratinjau di atas untuk kombinasi Anda.",
+  "occludedHint": "Aksesori Anda sedang tertutup item lain. Pilihan Anda tetap disimpan.",
+  "choiceCount": "{{count}} pilihan"
+}
