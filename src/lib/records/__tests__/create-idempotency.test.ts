@@ -19,6 +19,10 @@ let mockForceOtherConflict = false;
 const mockAwardXp = jest.fn();
 const mockInvalidate = jest.fn();
 const mockClassify = jest.fn();
+const mockEmbed = jest.fn();
+const mockEmbedAllowed = jest.fn();
+const mockFetchPrefs = jest.fn();
+let mockLlmMode = "mock";
 
 function mockUniqueViolation() {
   return {
@@ -92,13 +96,17 @@ jest.mock("../../progression/xp", () => ({
 jest.mock("../../persona/load-domain-levels", () => ({
   invalidateDomainLevels: (...args: unknown[]) => mockInvalidate(...args),
 }));
-jest.mock("../../env", () => ({ getEnv: () => ({ EXPO_PUBLIC_LLM_MODE: "mock" }) }));
+jest.mock("../../env", () => ({ getEnv: () => ({ EXPO_PUBLIC_LLM_MODE: mockLlmMode }) }));
 jest.mock("../records-embeddings", () => ({
-  embedAndStoreRecord: jest.fn(),
-  recordsEmbeddingAllowed: jest.fn(),
+  embedAndStoreRecord: (...args: unknown[]) => mockEmbed(...args),
+  recordsEmbeddingAllowed: (...args: unknown[]) => mockEmbedAllowed(...args),
+}));
+jest.mock("../../supabase/privacy", () => ({
+  fetchPrivacyPrefs: (...args: unknown[]) => mockFetchPrefs(...args),
 }));
 jest.mock("../../knowledge/engines", () => ({ buildMemorizedPattern: jest.fn() }));
 
+import { RECORD_IDEMPOTENCY_CONFLICT } from "../../capture/import-pending";
 import { createRecord } from "../create";
 
 const args = {
@@ -119,7 +127,17 @@ beforeEach(() => {
   mockAwardXp.mockReset().mockResolvedValue(null);
   mockInvalidate.mockReset();
   mockClassify.mockReset().mockResolvedValue(null);
+  mockEmbed.mockReset().mockResolvedValue(true);
+  mockEmbedAllowed.mockReset().mockReturnValue(true);
+  mockFetchPrefs.mockReset().mockResolvedValue({ records_embedding: true });
+  mockLlmMode = "mock";
 });
+
+// The embedding runs detached (createRecord returns before it settles); let its
+// awaited mocks resolve before asserting on them.
+function flushDetached(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
 
 describe("createRecord - 0178 client_request_id", () => {
   test("a keyed insert sends the key and awards side effects once", async () => {
@@ -175,8 +193,10 @@ describe("createRecord - 0178 client_request_id", () => {
 
   test("a reused key with a different body fails closed and adds no row", async () => {
     await createRecord(args);
+    // The exact message the pre-signup import treats as "already on the server"
+    // (capture/import-pending.ts mirrors it to stay free of this module's graph).
     await expect(createRecord({ ...args, body: "different private text" })).rejects.toThrow(
-      "record_idempotency_conflict",
+      new Error(RECORD_IDEMPOTENCY_CONFLICT),
     );
     expect(mockRows).toHaveLength(1);
     expect(mockAwardXp).toHaveBeenCalledTimes(1);
@@ -187,6 +207,55 @@ describe("createRecord - 0178 client_request_id", () => {
     mockForceOtherConflict = true;
     await expect(createRecord(args)).rejects.toMatchObject({ code: "23505" });
     expect(mockRows).toHaveLength(0);
+  });
+
+  test("a timeout replay embeds the existing row again but does not award XP", async () => {
+    mockLlmMode = "live";
+    // The insert commits; the answer never arrives, so this attempt throws before
+    // either enrichment step.
+    mockLoseNextResponse = true;
+    await expect(createRecord(args)).rejects.toThrow("network lost after commit");
+    await flushDetached();
+    expect(mockEmbed).not.toHaveBeenCalled();
+
+    const replay = await createRecord(args);
+    await flushDetached();
+
+    expect(replay.id).toBe("rec-1");
+    // Same detached block as a first save: gated on the pref, one UPDATE of rec-1.
+    expect(mockFetchPrefs).toHaveBeenCalledWith(args.userId);
+    expect(mockEmbed).toHaveBeenCalledTimes(1);
+    expect(mockEmbed).toHaveBeenCalledWith(
+      args.userId,
+      { id: "rec-1", topic: null, summary: null, body: args.body },
+      args.locale,
+      false,
+      true,
+    );
+    // XP stays with the first attempt, which threw before awarding: none here.
+    expect(mockAwardXp).not.toHaveBeenCalled();
+    expect(mockRows).toHaveLength(1);
+  });
+
+  test("a replay after a completed save embeds the same row id again (an idempotent update)", async () => {
+    mockLlmMode = "live";
+    const first = await createRecord(args);
+    await flushDetached();
+    const second = await createRecord(args);
+    await flushDetached();
+
+    expect(second.id).toBe(first.id);
+    expect(mockEmbed.mock.calls.map((c) => (c[1] as { id: string }).id)).toEqual([first.id, first.id]);
+    expect(mockAwardXp).toHaveBeenCalledTimes(1);
+  });
+
+  test("a minor's replay still skips the embedding without reading prefs", async () => {
+    mockLlmMode = "live";
+    await createRecord({ ...args, minor: true });
+    await createRecord({ ...args, minor: true });
+    await flushDetached();
+    expect(mockFetchPrefs).not.toHaveBeenCalled();
+    expect(mockEmbed).not.toHaveBeenCalled();
   });
 
   test("C9 still runs on the replay and its red follow-up is returned", async () => {

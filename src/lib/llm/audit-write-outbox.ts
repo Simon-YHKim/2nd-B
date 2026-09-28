@@ -50,9 +50,11 @@ const STORAGE_KEY = "llm.auditWriteOutbox.v1";
 // Bound on NON-critical (green/yellow ai_audit_log) entries -- the AsyncStorage /
 // OOM guard (ANDROID_QA_GUIDELINES 2MB). Safety-critical entries get a separate,
 // larger cap so C3 crisis evidence is never the first thing evicted during a
-// delivery-failure / migration window (F3). The 36-char keyed ids add ~24 bytes
-// per row over the old ids; audit-outbox-bound.test.ts pins a full queue of
-// worst-case rows well under the 2MB row ceiling.
+// delivery-failure / migration window (F3). The 36-char keyed ids add ~25 bytes
+// per row over the old 10-11 char ids. audit-outbox-bound.test.ts pins a full
+// queue of ASCII rows at the 0181 character bounds under 1,000,000 bytes; that
+// margin assumes ASCII text, and 0181's byte bounds alone would not keep a full
+// queue under 2MB (see the test).
 const MAX_OUTBOX_ENTRIES = 100;
 const MAX_CRITICAL_ENTRIES = 500;
 

@@ -355,39 +355,46 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
     if (typeof console !== "undefined") console.warn("[records] xp award failed", (e as Error).message);
   });
 
-  // D5 (J2 auto-embed): when the ADULT user has opted in (records_embedding pref,
-  // OFF by default, privacy/prefs.ts), embed the new record so the semantic
-  // "연결된 기록" surface stays fresh. Best-effort, gated, and skipped in mock mode
-  // (mock embeddings are random vectors that would poison cosine similarity).
-  // Journal text is embedded ONLY under explicit consent: recordsEmbeddingAllowed
-  // hard-blocks minors and requires the opt-in pref, and embedAndStoreRecord fails
-  // closed on top of that. Minors skip without even reading prefs; a failure never
-  // affects the save (which already returned its row).
-  // Detached, for the same reason as the XP call above: the comment already promised "a
-  // failure never affects the save (which already returned its row)" -- and that was true
-  // of the ROW, but not of the CALLER, who was still awaiting this whole function. So a
-  // slow embedding round trip kept the save button spinning long after the record was
-  // safely in the database.
-  if (args.minor !== true && getEnv().EXPO_PUBLIC_LLM_MODE !== "mock") {
-    void (async () => {
-      try {
-        const prefs = await fetchPrivacyPrefs(args.userId);
-        if (recordsEmbeddingAllowed(false, prefs.records_embedding)) {
-          await embedAndStoreRecord(
-            args.userId,
-            { id: data.id, topic: args.topic ?? null, summary: args.summary ?? null, body: args.body },
-            args.locale,
-            false,
-            true,
-          );
-        }
-      } catch (e) {
-        if (typeof console !== "undefined") console.warn("[records] auto-embed skipped", (e as Error).message);
-      }
-    })();
-  }
+  embedRecordDetached(args, {
+    id: data.id,
+    topic: args.topic ?? null,
+    summary: args.summary ?? null,
+    body: args.body,
+  });
 
   return { id: data.id, tags, followup: aiFollowup ?? undefined };
+}
+
+// D5 (J2 auto-embed): when the ADULT user has opted in (records_embedding pref,
+// OFF by default, privacy/prefs.ts), embed the saved record so the semantic
+// "연결된 기록" surface stays fresh. Best-effort, gated, and skipped in mock mode
+// (mock embeddings are random vectors that would poison cosine similarity).
+// Journal text is embedded ONLY under explicit consent: recordsEmbeddingAllowed
+// hard-blocks minors and requires the opt-in pref, and embedAndStoreRecord fails
+// closed on top of that. Minors skip without even reading prefs; a failure never
+// affects the save (which already returned its row).
+// Detached, for the same reason as the XP call in createRecord: the comment already
+// promised "a failure never affects the save (which already returned its row)" -- and
+// that was true of the ROW, but not of the CALLER, who was still awaiting this whole
+// function. So a slow embedding round trip kept the save button spinning long after the
+// record was safely in the database.
+// Shared by the first save and the 0178 replay. Repeating it is safe: it is an UPDATE
+// of this one row's embedding columns (storeRecordEmbedding), not a new row.
+function embedRecordDetached(
+  args: Pick<CreateRecordArgs, "userId" | "locale" | "minor">,
+  row: { id: string; topic: string | null; summary: string | null; body: string },
+): void {
+  if (args.minor === true || getEnv().EXPO_PUBLIC_LLM_MODE === "mock") return;
+  void (async () => {
+    try {
+      const prefs = await fetchPrivacyPrefs(args.userId);
+      if (recordsEmbeddingAllowed(false, prefs.records_embedding)) {
+        await embedAndStoreRecord(args.userId, row, args.locale, false, true);
+      }
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[records] auto-embed skipped", (e as Error).message);
+    }
+  })();
 }
 
 // 0178 replay. A 23505 on a keyed insert means an earlier attempt with the same
@@ -396,9 +403,18 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
 // turns the retry into a success instead of a failure that repeats forever (or,
 // without the key, a duplicate note). RLS plus the explicit user_id bind the
 // lookup to the owner; kind + body equality stop a reused key from aliasing a
-// different note. XP and embedding are not repeated: the first attempt owns
-// them. The C9 classification above DID run again - it runs before every save
-// and its crisis follow-up is returned so the caller still routes a red entry.
+// different note. The C9 classification above DID run again - it runs before
+// every save and its crisis follow-up is returned so the caller still routes a
+// red entry.
+//
+// Enrichment on a replay: the embedding runs again, through the same detached
+// block as a first save - it is an idempotent UPDATE of this row, and after a
+// timeout the first attempt threw at the insert and never reached it. XP does
+// NOT run again: award_xp is keyed by action, not by record, and "note" is a
+// repeatable rule (0019, once_only false), so a second call is a second award -
+// and a replay cannot tell whether the first attempt got as far as awarding. So a
+// timeout replay leaves that note without its XP (the first attempt threw before
+// awarding, the replay skips it).
 async function replayKeyedRecord(
   args: CreateRecordArgs,
   clientRequestId: string,
@@ -408,7 +424,7 @@ async function replayKeyedRecord(
   const { data: existing, error } = await withTimeout(
     getSupabaseClient()
       .from("records")
-      .select("id, kind, body, tags")
+      .select("id, kind, body, tags, topic, summary")
       .eq("user_id", args.userId)
       .eq("client_request_id", clientRequestId)
       .maybeSingle(),
@@ -423,6 +439,13 @@ async function replayKeyedRecord(
   }
   // The first attempt may have died before dropping the cached domain levels.
   invalidateDomainLevels(args.userId);
+  // Embed what the row holds (body equals args.body, checked above).
+  embedRecordDetached(args, {
+    id: existing.id,
+    topic: typeof existing.topic === "string" ? existing.topic : null,
+    summary: typeof existing.summary === "string" ? existing.summary : null,
+    body: existing.body,
+  });
   return {
     id: existing.id,
     tags: Array.isArray(existing.tags) ? existing.tags : [],

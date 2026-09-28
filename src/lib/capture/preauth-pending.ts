@@ -22,7 +22,12 @@ import {
 } from "../storage/encrypted-native-storage";
 
 export interface PendingCapture {
-  /** Stable local id (dedup + delete); never leaves the device. */
+  /**
+   * Stable local id (dedup + delete). The id itself never leaves the device: it
+   * embeds the capture time. After sign-up the import sends only
+   * "preauth:" + SHA-256(localId) as the 0178 retry key (import-pending.ts), a
+   * digest that repeats for the same capture and carries no readable timestamp.
+   */
   localId: string;
   /** Plaintext only. No structure, no inference. */
   text: string;
