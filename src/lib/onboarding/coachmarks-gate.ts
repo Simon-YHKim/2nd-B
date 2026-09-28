@@ -1,13 +1,14 @@
-// First-record coach gate (rev2 Screen-Spec 04): the cross-route guide starts
-// ONCE on the first visit to the constellation home, and can be brought back
-// from settings ("코치마크 리셋", Screen-Spec 09). Mirrors ttfv-gate.ts: web
-// localStorage (sync), native AsyncStorage (one-tick hydrate), in-memory
-// fallback. No first-day window — first home visit is the trigger whenever it
-// happens.
-
+// The guide belongs to the signed-in owner. A local completion only applies to
+// that owner; existing records on another device also mean this is not a first
+// record. Manual replay is a separate, explicit override of the data check.
 import { useEffect, useState } from "react";
 
-export const COACHMARKS_SEEN_KEY = "onboarding.coachmarks.home.v1.seenAt";
+import { withTimeout } from "../async/with-timeout";
+import { getSupabaseClient } from "../supabase/client";
+
+const KEY_PREFIX = "onboarding.coachmarks.home.v2";
+export const COACHMARKS_SEEN_KEY = (ownerId: string) => `${KEY_PREFIX}.${ownerId}.seenAt`;
+export const COACHMARKS_REPLAY_KEY = (ownerId: string) => `${KEY_PREFIX}.${ownerId}.replayAt`;
 
 interface AsyncStorageLike {
   getItem(key: string): Promise<string | null>;
@@ -15,30 +16,22 @@ interface AsyncStorageLike {
   removeItem(key: string): Promise<void>;
 }
 
-let memorySeen = false;
-let memoryHydrated = false;
-const coachmarkListeners = new Set<(due: boolean) => void>();
-
-function publishCoachmarksDue(due: boolean): void {
-  for (const listener of coachmarkListeners) listener(due);
-}
+type Flags = { seen: boolean; replay: boolean };
+const memoryFlags = new Map<string, Flags>();
+const versions = new Map<string, number>();
+const listeners = new Set<(ownerId: string, due: boolean) => void>();
+const nativeWrites = new Map<string, Promise<void>>();
 
 function ls(): Storage | null {
   try {
-    if (typeof localStorage !== "undefined") return localStorage;
+    return typeof localStorage === "undefined" ? null : localStorage;
   } catch {
-    // private mode / native: fall through
+    return null;
   }
-  return null;
-}
-
-function isReactNativeRuntime(): boolean {
-  const nav = globalThis.navigator as { product?: string } | undefined;
-  return nav?.product === "ReactNative";
 }
 
 function nativeStorage(): AsyncStorageLike | null {
-  if (!isReactNativeRuntime()) return null;
+  if ((globalThis.navigator as { product?: string } | undefined)?.product !== "ReactNative") return null;
   try {
     return require("@react-native-async-storage/async-storage").default as AsyncStorageLike;
   } catch {
@@ -46,98 +39,137 @@ function nativeStorage(): AsyncStorageLike | null {
   }
 }
 
-export function markCoachmarksSeen(): void {
-  const at = new Date().toISOString();
-  memorySeen = true;
-  memoryHydrated = true;
-  publishCoachmarksDue(false);
-  ls()?.setItem(COACHMARKS_SEEN_KEY, at);
-  const storage = nativeStorage();
-  if (storage)
-    void storage.setItem(COACHMARKS_SEEN_KEY, at).catch((e) => {
-      if (typeof console !== "undefined") console.warn("[coachmarks-gate] persist failed", e);
-    });
+function warn(operation: string, error: unknown): void {
+  if (typeof console !== "undefined") console.warn(`[coachmarks-gate] ${operation} failed`, error);
 }
 
-/** Settings "코치마크 리셋": first-record coaching starts on the next home visit. */
-export function resetCoachmarks(): void {
-  memorySeen = false;
-  memoryHydrated = true;
-  publishCoachmarksDue(true);
-  ls()?.removeItem(COACHMARKS_SEEN_KEY);
-  const storage = nativeStorage();
-  if (storage)
-    void storage.removeItem(COACHMARKS_SEEN_KEY).catch((e) => {
-      if (typeof console !== "undefined") console.warn("[coachmarks-gate] reset failed", e);
-    });
+function publishCoachmarksDue(ownerId: string, due: boolean): void {
+  versions.set(ownerId, (versions.get(ownerId) ?? 0) + 1);
+  for (const listener of listeners) listener(ownerId, due);
 }
 
-/**
- * Should the home show the coachmarks overlay?
- *   null  = native persistence still hydrating (render nothing yet — the home
- *           stays interactive underneath, no loader needed for an overlay)
- *   false = already seen
- *   true  = start the first-record guide from the live SecondB head
- */
-export function useCoachmarksGate(): boolean | null {
-  const [state, setState] = useState<boolean | null>(() => {
-    const local = ls();
-    if (local) return !local.getItem(COACHMARKS_SEEN_KEY);
-    if (memoryHydrated) return !memorySeen;
-    return nativeStorage() ? null : true;
+function persistNative(ownerId: string, operation: string, write: (storage: AsyncStorageLike) => Promise<void>): void {
+  const storage = nativeStorage();
+  if (!storage) return;
+  // A replay followed quickly by Save must not finish its async setItem after
+  // Save's removeItem and resurrect the replay on the next app launch.
+  const pending = (nativeWrites.get(ownerId) ?? Promise.resolve())
+    .then(() => write(storage))
+    .catch((error) => warn(operation, error));
+  nativeWrites.set(ownerId, pending);
+  void pending.then(() => {
+    if (nativeWrites.get(ownerId) === pending) nativeWrites.delete(ownerId);
   });
+}
 
-  // The home can stay mounted underneath /capture. A successful first-record
-  // save must therefore close that already-mounted overlay immediately instead
-  // of waiting for a remount that may never happen in the router stack.
+/** Completion and replay are deliberately owner-scoped. The old v1 key cannot
+ * safely be assigned to an owner after an account switch, so it is not read. */
+export function markCoachmarksSeen(ownerId: string): void {
+  if (!ownerId) return;
+  memoryFlags.set(ownerId, { seen: true, replay: false });
+  publishCoachmarksDue(ownerId, false);
+  const at = new Date().toISOString();
+  try {
+    ls()?.setItem(COACHMARKS_SEEN_KEY(ownerId), at);
+    ls()?.removeItem(COACHMARKS_REPLAY_KEY(ownerId));
+  } catch (error) {
+    warn("persist", error);
+  }
+  persistNative(ownerId, "persist", (storage) => Promise.all([
+    storage.setItem(COACHMARKS_SEEN_KEY(ownerId), at),
+    storage.removeItem(COACHMARKS_REPLAY_KEY(ownerId)),
+  ]).then(() => undefined));
+}
+
+/** Replay is an explicit request, including when the owner already has data. */
+export function resetCoachmarks(ownerId: string): void {
+  if (!ownerId) return;
+  memoryFlags.set(ownerId, { seen: false, replay: true });
+  publishCoachmarksDue(ownerId, true);
+  const at = new Date().toISOString();
+  try {
+    ls()?.setItem(COACHMARKS_REPLAY_KEY(ownerId), at);
+  } catch (error) {
+    warn("replay", error);
+  }
+  persistNative(ownerId, "replay", (storage) => storage.setItem(COACHMARKS_REPLAY_KEY(ownerId), at));
+}
+
+async function readFlags(ownerId: string): Promise<Flags> {
+  const memory = memoryFlags.get(ownerId);
+  if (memory) return memory;
+  const local = ls();
+  if (local) return {
+    seen: !!local.getItem(COACHMARKS_SEEN_KEY(ownerId)),
+    replay: !!local.getItem(COACHMARKS_REPLAY_KEY(ownerId)),
+  };
+  const storage = nativeStorage();
+  if (!storage) return { seen: false, replay: false };
+  const [seen, replay] = await Promise.all([
+    storage.getItem(COACHMARKS_SEEN_KEY(ownerId)),
+    storage.getItem(COACHMARKS_REPLAY_KEY(ownerId)),
+  ]);
+  return { seen: !!seen, replay: !!replay };
+}
+
+/** Reads at most one ID per table, never the record/source body. Errors remain
+ * unknown instead of being mistaken for an empty account. */
+export async function hasCoachmarkContent(ownerId: string): Promise<boolean> {
+  if (!ownerId) throw new Error("Coachmarks require an owner");
+  const client = getSupabaseClient();
+  const rows = await withTimeout(Promise.all(
+    (["records", "sources"] as const).map(async (table) => {
+      const { data, error } = await client.from(table).select("id").eq("user_id", ownerId).limit(1);
+      if (error) throw error;
+      if (!Array.isArray(data)) throw new Error(`Coachmarks ${table} response unavailable`);
+      return data.length > 0;
+    }),
+  ), 10_000, "Coachmarks content");
+  return rows.some(Boolean);
+}
+
+/** null means the owner/storage/data check is pending or failed. */
+export function useCoachmarksGate(ownerId: string | null, ready: boolean, retryTick = 0): boolean | null {
+  const [decision, setDecision] = useState<{ ownerId: string; due: boolean | null } | null>(null);
+
   useEffect(() => {
-    const listener = (due: boolean) => setState(due);
-    coachmarkListeners.add(listener);
-    return () => {
-      coachmarkListeners.delete(listener);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (state !== null) return;
-    const storage = nativeStorage();
-    if (!storage) {
-      memoryHydrated = true;
-      setState(!memorySeen);
-      return;
-    }
-
+    if (!ready || !ownerId) return;
     let cancelled = false;
-    storage
-      .getItem(COACHMARKS_SEEN_KEY)
-      .then((seenVal) => {
-        if (cancelled) return;
-        // A mark/reset can finish while the first native read is in flight.
-        // In that case memory is newer than the read that just returned.
-        if (memoryHydrated) {
-          setState(!memorySeen);
+    const version = versions.get(ownerId) ?? 0;
+    const listener = (changedOwnerId: string, due: boolean) => {
+      if (changedOwnerId === ownerId) setDecision({ ownerId, due });
+    };
+    listeners.add(listener);
+    setDecision({ ownerId, due: null });
+    void (async () => {
+      try {
+        const flags = await readFlags(ownerId);
+        if (cancelled || version !== (versions.get(ownerId) ?? 0)) return;
+        if (flags.replay || flags.seen) {
+          setDecision({ ownerId, due: flags.replay });
           return;
         }
-        memorySeen = !!seenVal;
-        memoryHydrated = true;
-        setState(!memorySeen);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        memoryHydrated = true;
-        setState(!memorySeen);
-      });
-
+        const exists = await hasCoachmarkContent(ownerId);
+        if (cancelled || version !== (versions.get(ownerId) ?? 0)) return;
+        setDecision({ ownerId, due: !exists });
+      } catch (error) {
+        if (cancelled || version !== (versions.get(ownerId) ?? 0)) return;
+        warn("read", error);
+        setDecision({ ownerId, due: null });
+      }
+    })();
     return () => {
       cancelled = true;
+      listeners.delete(listener);
     };
-  }, [state]);
+  }, [ownerId, ready, retryTick]);
 
-  return state;
+  return ready && ownerId && decision?.ownerId === ownerId ? decision.due : null;
 }
 
 export function __resetCoachmarksGateForTests(): void {
-  memorySeen = false;
-  memoryHydrated = false;
-  coachmarkListeners.clear();
+  memoryFlags.clear();
+  versions.clear();
+  listeners.clear();
+  nativeWrites.clear();
 }

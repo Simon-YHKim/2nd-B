@@ -7,7 +7,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { SITE_ORIGIN, SITE_SHARE_IMAGE, SITE_TITLE } from "@/lib/site-meta";
+import { SITE_NAME, SITE_ORIGIN, SITE_SHARE_IMAGE, SITE_TITLE } from "@/lib/site-meta";
 
 const root = path.resolve(__dirname, "../../..");
 const html = readFileSync(path.join(root, "src/app/+html.tsx"), "utf8").replace(/\r\n/g, "\n");
@@ -26,6 +26,18 @@ describe("웹 셸의 공유 카드", () => {
     // 1200x630 카드에 summary 를 쓰면 정사각형으로 잘린다.
     expect(html).toContain('<meta name="twitter:card" content="summary_large_image" />');
     expect(html).not.toContain('content="https://simon-yhkim.github.io');
+  });
+
+  it("사이트 이름은 SITE_NAME 하나에서 나온다 (og:site_name · 제목 앞부분)", () => {
+    // 광고 앱 이름(2ndB, 2026-09-27)과 랜딩 표기가 다시 갈라지지 않게 한 곳에 둔다.
+    expect(html).toContain('<meta property="og:site_name" content={SITE_NAME} />');
+    expect(SITE_TITLE.startsWith(`${SITE_NAME} · `)).toBe(true);
+    expect(html).not.toContain('og:site_name" content="');
+    const web = JSON.parse(readFileSync(path.join(root, "app.json"), "utf8")) as {
+      expo: { web: { name: string; shortName: string } };
+    };
+    expect(web.expo.web.name).toBe(SITE_NAME);
+    expect(web.expo.web.shortName).toBe(SITE_NAME);
   });
 
   it("자산이 실재하고 선언한 크기와 같다", () => {
@@ -50,6 +62,7 @@ describe("웹 셸의 공유 카드", () => {
     expect(card).toContain(canon.polarisGuide);
     canon.lines.forEach((line) => expect(card).toContain(line));
     // 문구는 site-meta 와 같아야 한다.
+    expect(card).toContain(`<p class="brand">${SITE_NAME}</p>`);
     expect(card).toContain(SITE_TITLE.split(" · ")[1]);
   });
 });

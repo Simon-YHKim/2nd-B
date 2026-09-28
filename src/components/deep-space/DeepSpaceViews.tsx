@@ -302,7 +302,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
   }, [firstRecordCoach]);
 
   const stopCoach = () => {
-    markCoachmarksSeen();
+    if (userId) markCoachmarksSeen(userId);
     setCoachStep(null);
   };
 
@@ -376,7 +376,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
       }
       setSaved(true);
       if (firstRecordCoach) {
-        markCoachmarksSeen();
+        markCoachmarksSeen(userId);
         // The real save button can be used before the guide's input confirmation.
         // Read the latest step so a skip during the request stays dismissed.
         setCoachStep((current) =>

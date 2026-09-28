@@ -958,7 +958,7 @@ export default function Settings() {
                 label={t("resetCoachmarks")}
                 sub={t("resetCoachmarksDesc")}
                 onPress={() => {
-                  resetCoachmarks();
+                  resetCoachmarks(userId);
                   router.replace("/");
                 }}
               />
@@ -984,7 +984,7 @@ export default function Settings() {
                 accessibilityHint={t("resetCoachmarksDesc")}
                 variant="secondary"
                 onPress={() => {
-                  resetCoachmarks();
+                  resetCoachmarks(userId);
                   router.replace("/");
                 }}
               />

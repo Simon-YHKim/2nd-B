@@ -107,7 +107,7 @@ export async function deliverAccountExport(
     // local calls; the random suffix separates process lifetimes. Never reuse
     // an existing candidate, and never remove a directory or an older export.
     const nonce = `${Date.now().toString(36)}-${++tempSequence}-${Math.random().toString(36).slice(2)}`;
-    const uri = `${cache.endsWith("/") ? cache : `${cache}/`}2nd-brain-export-${nonce}-${filename}`;
+    const uri = `${cache.endsWith("/") ? cache : `${cache}/`}polascope-export-${nonce}-${filename}`;
     const info = await FileSystem.getInfoAsync(uri);
     if (!isCurrent()) return "cancelled";
     if (info.exists !== false) throw new DeliveryError("account_export_temp_collision");

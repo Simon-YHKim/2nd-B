@@ -65,7 +65,7 @@
       "label": "Delete all content",
       "hint": "Shows the typed confirmation for deleting all records, sources, wiki pages, and usage.",
       "body": "Deleting all content cannot be undone. Export what you need, then type DELETE to confirm.",
-      "retained": "This clears private 2nd-B content in this account. Account details, consent history, and service accountability records stay."
+      "retained": "This clears private PolaScope content in this account. Account details, consent history, and service accountability records stay."
     }
   },
   "modals": {

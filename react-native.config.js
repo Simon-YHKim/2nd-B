@@ -10,6 +10,12 @@
 // swallows the missing-native-module error), so iOS behavior is unchanged.
 module.exports = {
   dependencies: {
+    // Backup for community CLI autolinking. Expo's active build path also needs
+    // package.json expo.autolinking.exclude: this library defines non-null
+    // platform config that Expo 56 does not replace with these null overrides.
+    "react-native-google-mobile-ads": {
+      platforms: { android: null, ios: null },
+    },
     "@react-native-firebase/app": {
       platforms: { ios: null },
     },

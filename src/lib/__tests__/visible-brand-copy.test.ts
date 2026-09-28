@@ -39,11 +39,22 @@ describe("visible brand copy", () => {
     expect(signIn).not.toContain('router.push("/")');
   });
 
-  test("app surfaces use 2nd-Brain instead of informal 2nd-B or 2ndB", () => {
+  // 2026-09-27: the app is called PolaScope (Simon, DECISIONS 26.09.27). App
+  // surfaces carry the new name and none of the old app-name family. The
+  // consent copy is the exception until the terms/consent amendment ships: it is
+  // tied to CONSENT_VERSION and the server tuple, so it still says 2nd-Brain and
+  // only keeps the older rule (no informal 2nd-B / 2ndB).
+  test("consent copy keeps 2nd-Brain until the consent amendment, never 2nd-B or 2ndB", () => {
+    const root = path.resolve(__dirname, "../../..");
+    for (const file of ["locales/en/consent.json", "locales/ko/consent.json"]) {
+      const source = readFileSync(path.join(root, file), "utf8");
+      expect(source).not.toMatch(/2nd-B(?!rain)|2ndB/);
+    }
+  });
+
+  test("app surfaces use PolaScope instead of 2nd-Brain, 2nd-B or 2ndB", () => {
     const root = path.resolve(__dirname, "../../..");
     const files = [
-      "locales/en/consent.json",
-      "locales/ko/consent.json",
       "locales/en/import.json",
       "locales/ko/import.json",
       "locales/en/permissions.json",
@@ -52,12 +63,23 @@ describe("visible brand copy", () => {
       "locales/ko/support.json",
       "src/app/manual.tsx",
       "src/components/premium/surfaces.tsx",
+      // Added after the rename review: these carried the old name past the
+      // first sweep (Korean particle glued to 2nd-B, the canon onboarding tag
+      // the Korean slide reads at runtime, the character a11y label).
+      "src/app/call-reflection.tsx",
+      "public/proto/data/screens/flows.json",
+      "locales/en/capture.json",
+      "locales/ko/capture.json",
+      "locales/en/home.json",
+      "locales/ko/home.json",
     ];
 
     for (const file of files) {
       const source = readFileSync(path.join(root, file), "utf8");
-      expect(source).not.toMatch(/2nd-B(?!rain)|2ndB/);
+      expect(source).not.toMatch(/2nd-Brain|2nd-B(?!rain)|2ndB|2ND-BRAIN|Second Brain|세컨드 브레인/);
     }
+    const commonEn = readFileSync(path.join(root, "locales/en/common.json"), "utf8");
+    expect(commonEn).toContain('"name": "PolaScope"');
   });
 
   test("Korean locale copy uses 세컨비 for the AI companion", () => {

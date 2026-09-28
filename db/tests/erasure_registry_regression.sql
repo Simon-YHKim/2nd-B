@@ -1553,17 +1553,11 @@ $sweep$;
 --
 -- Both counts are printed so the environment stays visible instead of assumed.
 --
--- Installing the defaults in the workflow stub instead is not available, and
--- the reason is read off a file rather than off a CI run:
--- 0179_audit_outbox_idempotency.sql:282-285 asserts NOT has_table_privilege(
--- 'authenticated', 'public.ai_audit_log', 'INSERT,UPDATE,DELETE,TRUNCATE') for
--- anon and authenticated on ai_audit_log AND crisis_events, and nothing
--- revokes TABLE privileges on either table BEFORE 0179 -- 0181_client_audit
--- _ingest_hardening.sql:35,:37 is the first, and it is two files too late. So
--- the defaults would make 0179 raise while it is still being applied. That is
--- a real question about 0179 and prod (between 0004/0012 and 0181, prod really
--- did leave those grants standing), and it is not this file's to answer. It is
--- also why the floor is scoped to the client_erasable tables and no others.
+-- The workflow now restores production-shaped GRANT ALL on ai_audit_log and
+-- crisis_events before its staged CLI replay; 0179 revokes direct mutation
+-- privileges before checking them. That fixture is limited to those two audit
+-- tables. This block still models SELECT/DELETE for client_erasable tables
+-- only, so its scope and G10 pin remain unchanged.
 -- ---------------------------------------------------------------------
 
 DO $baseline$

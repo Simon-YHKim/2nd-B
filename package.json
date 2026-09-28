@@ -3,6 +3,11 @@
   "main": "expo-router/entry",
   "version": "0.0.1",
   "private": true,
+  "expo": {
+    "autolinking": {
+      "exclude": ["react-native-google-mobile-ads"]
+    }
+  },
   "scripts": {
     "postinstall": "patch-package --error-on-warn",
     "eas-build-pre-install": "node scripts/check-signup-consent-deployment.cjs --eas-build",

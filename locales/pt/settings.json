@@ -41,7 +41,7 @@
     "fullWipeHint": "Exige a confirmação digitada DELETE antes de apagar registros, fontes, páginas da wiki e uso."
   },
   "dataWizard": {
-    "body": "Escolha o que quer excluir: registros, avaliações, wiki e capturas ou todo o conteúdo privado do 2nd-B.",
+    "body": "Escolha o que quer excluir: registros, avaliações, wiki e capturas ou todo o conteúdo privado do PolaScope.",
     "optionA11yLabel": "{{label}}, opção {{index}} de {{total}}, {{state}}.",
     "stateSelected": "selecionado",
     "stateAvailable": "não selecionado",
@@ -65,7 +65,7 @@
       "label": "Exclusão total",
       "hint": "Mostra a confirmação digitada para apagar todos os registros, fontes, páginas da wiki e uso.",
       "body": "A exclusão não pode ser desfeita. Exporte o que quiser guardar e digite DELETE para continuar.",
-      "retained": "Isso limpa o conteúdo privado do 2nd-B nesta conta. Dados da conta, histórico de consentimento e registros de responsabilidade do serviço permanecem."
+      "retained": "Isso limpa o conteúdo privado do PolaScope nesta conta. Dados da conta, histórico de consentimento e registros de responsabilidade do serviço permanecem."
     }
   },
   "modals": {

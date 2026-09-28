@@ -36,14 +36,14 @@ describe("first-record coach wiring", () => {
     expect(capture.indexOf("await createRecord")).toBeLessThan(
       capture.indexOf('advanceFirstRecordCoach(current, "save-succeeded")'),
     );
-    expect(capture).toContain("markCoachmarksSeen()");
+    expect(capture).toContain("markCoachmarksSeen(userId)");
   });
 
   test("save completion immediately closes a home overlay kept alive by the router", () => {
     const gate = read("src/lib/onboarding/coachmarks-gate.ts");
 
-    expect(gate).toContain("publishCoachmarksDue(false)");
-    expect(gate).toContain("coachmarkListeners.add(listener)");
-    expect(gate).toContain("coachmarkListeners.delete(listener)");
+    expect(gate).toContain("publishCoachmarksDue(ownerId, false)");
+    expect(gate).toContain("listeners.add(listener)");
+    expect(gate).toContain("listeners.delete(listener)");
   });
 });

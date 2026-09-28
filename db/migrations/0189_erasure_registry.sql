@@ -400,7 +400,17 @@ $erase_my_data$;
 --    (.github/workflows/supabase-dry-run.yml).
 ----------------------------------------------------------------------
 
-REVOKE EXECUTE ON FUNCTION public.erase_my_data(text) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.erase_my_data(text) FROM PUBLIC, anon, authenticated;
+-- authenticated 도 여기서 걷는다 (B-EX-02, Simon 결정 ③ 2026-09-26).
+-- 원래 이 줄은 PUBLIC 과 anon 만 걷었고 authenticated 는 0190 이 걷었다. 그런데
+-- 마이그레이션은 파일마다 따로 커밋되므로 0189 가 커밋되고 0190 이 오기 전까지
+-- 로그인 사용자가 이 함수를 실행할 수 있는 창이 있었다(로컬 운영 재현본에서
+-- 0189 커밋 직후 has_function_privilege('authenticated', ...) = true 를 확인).
+-- 함수를 만드는 같은 파일에서 걷으면 적용 방식과 무관하게 그 창이 없다. 0189 는
+-- 운영 어디에도 적용된 적이 없어서 이 수정은 원장과 부딪히지 않는다. 0190 은
+-- 끝 상태 검사로 그대로 둔다(같은 REVOKE 를 한 번 더 해도 아무 일도 없다).
+-- 403행을 이 REVOKE 로 유지한다: 0190 머리말과 DECISIONS/HANDOFF 가 "0189:403" 으로
+-- 인용한다.
 
 COMMENT ON FUNCTION public.erase_my_data(text) IS
   '콘텐츠 삭제(계정 유지). 대상은 public.erasure_registry 의 client_erasable 행이다. 반환은 공개 영수증(receipt_version·scope·executed_at·status·count_semantics·direct_deleted_total·outcomes)이고 표 이름·class·사유는 담지 않는다 - 그 상세는 등록부 표에만 있고 service_role 만 읽는다. direct_deleted_total 은 명시 DELETE 의 행수 합이라 FK 연쇄로 사라진 행은 빠져 있다(count_semantics = direct_only).';

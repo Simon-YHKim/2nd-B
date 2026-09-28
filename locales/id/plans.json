@@ -2,7 +2,7 @@
   "loading": "Memuat paket...",
   "hero": {
     "eyebrow": "Paket",
-    "title": "Pilih paket 2nd-Brain",
+    "title": "Pilih paket PolaScope",
     "subtitle": "Catatan tetap gratis tanpa batas. Paket berbayar menambah batas penggunaan AI.",
     "speech": "Fitur utama tetap gratis. Pilih paket berbayar jika kamu perlu lebih banyak percakapan dengan AI."
   },
@@ -13,7 +13,7 @@
     "free": {
       "name": "Stargazer",
       "price": "Gratis",
-      "tagline": "2nd-Brain harianmu, catatan tanpa batas",
+      "tagline": "Catatan tanpa batas untuk sehari-hari",
       "f1": "Catatan, memo, dan wiki tanpa batas",
       "f2": "Penyimpanan akun pribadi dengan ekspor kapan saja",
       "f3": "5 obrolan AI per hari"

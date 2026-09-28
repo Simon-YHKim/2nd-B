@@ -164,7 +164,7 @@
     "kindFallback": "Record"
   },
   "auth": {
-    "appName": "2nd-Brain",
+    "appName": "PolaScope",
     "signInLead": "In the AI era, the asset is you. Your records add up to your North Star.",
     "signIn": "Sign in",
     "createAccount": "Create account",
@@ -184,7 +184,7 @@
     "forgotPassword": "Forgot password?",
     "or": "or",
     "ageNotice": "You can create an account if you are {{minAge}} or older.",
-    "brandLabel": "2ND-BRAIN",
+    "brandLabel": "POLASCOPE",
     "signInTitle": "Good to see you again",
     "emailContinue": "Continue with email",
     "signUpPrompt": "New here?",
@@ -252,7 +252,7 @@
     "viewManual": "Open the user guide",
     "emailUs": "Email us",
     "reportBug": "Report a bug",
-    "footer": "2nd-Brain v1.0.0 · 2 business days KST",
+    "footer": "PolaScope v1.0.0 · 2 business days KST",
     "faqTitle": "FAQ",
     "noticesTitle": "Notices"
   },
@@ -398,7 +398,7 @@
     "proActive": "Your paid plan is active",
     "nowPro": "Your paid plan is active.",
     "notAvailableTitle": "Upgrade in the mobile app",
-    "notAvailableBody": "Paid plans are purchased through the app stores on iOS and Android. Open 2nd-Brain on your phone to upgrade.",
+    "notAvailableBody": "Paid plans are purchased through the app stores on iOS and Android. Open PolaScope on your phone to upgrade.",
     "support": "Contact support",
     "loadError": "Couldn't load plans. Try again.",
     "purchaseError": "The purchase didn't go through. Try again.",
@@ -714,11 +714,11 @@
     "starsFallback": "Couldn't load the star count. Using the default count."
   },
   "coachmarks": {
-    "homeStep": "Tap SecondB to start your first record.",
+    "homeStep": "Tap SecondB to start saving a record.",
     "formatStep": "Choose Memo first. One line is enough.",
     "inputStep": "Write the thought on your mind. It does not need to be a complete sentence.",
-    "saveStep": "Now tap Save to leave your first record.",
-    "doneStep": "Your first record is saved. Return to the constellation to see it.",
+    "saveStep": "Now tap Save to keep this record.",
+    "doneStep": "Your record is saved. Return to the constellation to see it.",
     "targetHint": "Tap the highlighted control to continue.",
     "inputHint": "Write at least one character to continue to Save.",
     "doneHint": "The save completed successfully.",
@@ -772,11 +772,11 @@
     "rangeNote": "This page: items {{from}} – {{to}}"
   },
   "shareCardImg": {
-    "eyebrowWeek": "2ND-BRAIN · THIS WEEK",
+    "eyebrowWeek": "POLASCOPE · THIS WEEK",
     "eyebrowConstellation": "MY CONSTELLATION",
     "footerWeek": "A week seen together with SecondB",
     "starsLit": "{{count}} stars shining",
-    "signature": "2nd-Brain · {{count}} stardust"
+    "signature": "PolaScope · {{count}} stardust"
   },
   "ds": {
     "growth": {

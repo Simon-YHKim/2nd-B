@@ -1622,12 +1622,12 @@ results.push(
       en.includes('"Choose which data to delete. You can delete by type or delete all content."') &&
       en.includes('"{{label}}, option {{index}} of {{total}}, {{state}}."') &&
       en.includes('"Shows the typed confirmation for deleting all records, sources, wiki pages, and usage."') &&
-      en.includes('"This clears private 2nd-B content in this account. Account details, consent history, and service accountability records stay."') &&
+      en.includes('"This clears private PolaScope content in this account. Account details, consent history, and service accountability records stay."') &&
       ko.includes('"dataWizard"') &&
       ko.includes('"삭제할 데이터 종류를 골라주세요. 종류별로 지우거나 전체를 삭제할 수 있어요."') &&
       ko.includes('"{{label}}, {{total}}개 중 {{index}}번째, {{state}}."') &&
       ko.includes('"전체 삭제를 확인하는 입력란을 보여줘요. 기록, 캡처, 위키 페이지, 사용량이 모두 삭제돼요."') &&
-      ko.includes('"이 계정의 2nd-B 개인 콘텐츠를 모두 지워요. 계정 정보, 동의 이력, 서비스 책임 기록은 남아요."');
+      ko.includes('"이 계정의 PolaScope 개인 콘텐츠를 모두 지워요. 계정 정보, 동의 이력, 서비스 책임 기록은 남아요."');
     return {
       id: "SettingsDataDeleteWizard",
       status: ok ? "PASS" : "FAIL",
@@ -2623,7 +2623,7 @@ results.push(
       wiki.includes('t("hero.subtitle")') &&
       wiki.includes('t("hero.speech")') &&
       en.includes("Your saved records and material in one place") &&
-      ko.includes("2nd-Brain에 담은 기록과 자료를 모았어요") &&
+      ko.includes("PolaScope에 담은 기록과 자료를 모았어요") &&
       forbidden.every((term) => !wiki.includes(term) && !en.includes(term) && !ko.includes(term));
     return {
       id: "WikiHeroI18nCopy",
@@ -2775,10 +2775,11 @@ results.push(
     const ok =
       !landing.includes("dataNodes") &&
       !liveConstellation.includes("dataNodes") &&
-      // 홈 코치마크는 **제품 안내**지 사용자 데이터에 대한 주장이 아니다. 첫 방문에
-      // 뜨고 "다시 보지 않기"로 닫힌다 — 그래서 데이터 게이트가 필요 없다. 이 구분을
-      // 안 적으면 다음 사람이 "스포트라이트가 안 잠겼다"고 되돌린다.
-      landing.includes("useCoachmarksGate()") &&
+      // 홈 코치마크는 첫 기록 안내다. 기존 기록이 다른 기기에 있어도 처음으로
+      // 오판하지 않도록 소유자별 단일 게이트가 확인하고 홈에는 결과만 전달한다.
+      landing.includes("useCoachmarksGate(") &&
+      liveConstellation.includes("coachmarksDue = null") &&
+      !liveConstellation.includes("useCoachmarksGate(") &&
       captureScreen.includes('savedKind === "records"') &&
       captureScreen.includes('router.push("/records")') &&
       !recordDetail.includes("highlightRecordId") &&
