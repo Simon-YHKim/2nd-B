@@ -14,8 +14,32 @@
 //
 // Failures are retained in the queue so a partial import never loses a capture
 // and a retry never duplicates an already-imported one.
+//
+// That second promise only held for an insert that FAILED cleanly. Two retries
+// used to duplicate: an insert that committed but hit the 20s client deadline
+// (retained as "failed", imported again next session), and a run killed after
+// some inserts but before the queue rewrite at the end (every item imported
+// again). Each item now carries a stable key from its device-local id, and the
+// server's 0178 (user_id, client_request_id) unique key turns both into a
+// replay of the row that already exists.
 
 import { loadPendingCaptures, replacePendingCaptures, type PendingCapture } from "./preauth-pending";
+
+// Mirrors the 0178 records_client_request_id_format CHECK (and createRecord's
+// guard). Kept local: importing records/create would pull the LLM + Supabase
+// graph into this deliberately pure module.
+const CLIENT_REQUEST_ID = /^[A-Za-z0-9._:-]{1,128}$/;
+
+/**
+ * The retry key for one pending capture: its device-local id, which never
+ * changes while the item waits in the queue. An id from an older build that
+ * does not fit the server format yields undefined - that item imports exactly
+ * as before (unkeyed) rather than failing the CHECK on every attempt.
+ */
+export function pendingClientRequestId(item: PendingCapture): string | undefined {
+  const key = `preauth:${item.localId}`;
+  return CLIENT_REQUEST_ID.test(key) ? key : undefined;
+}
 
 export interface ImportPendingContext {
   userId: string;
@@ -30,8 +54,15 @@ export interface ImportPendingSummary {
   failed: number;
 }
 
-/** Creates one record from a pending capture. Injected so tests need no Supabase/LLM. */
-export type PendingRecordCreator = (item: PendingCapture, ctx: ImportPendingContext) => Promise<void>;
+/**
+ * Creates one record from a pending capture. Injected so tests need no Supabase/LLM.
+ * `clientRequestId` goes straight to createRecord's clientRequestId.
+ */
+export type PendingRecordCreator = (
+  item: PendingCapture,
+  ctx: ImportPendingContext,
+  clientRequestId?: string,
+) => Promise<void>;
 
 // Module-level single-flight lock. The queue is loaded up front and only cleared
 // at the very end, so two overlapping runs would each read the same uncleared
@@ -62,7 +93,7 @@ async function runImport(
   let imported = 0;
   for (const item of list) {
     try {
-      await createOne(item, ctx);
+      await createOne(item, ctx, pendingClientRequestId(item));
       imported += 1;
     } catch {
       // Keep the failed item; never lose a capture on a transient error.

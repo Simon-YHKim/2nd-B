@@ -68,7 +68,18 @@ export interface CreateRecordArgs {
    * can read the structure. Omitted = column stays null.
    */
   structured?: StructuredPayload;
+  /**
+   * Owner-scoped retry key (0178 records.client_request_id, UNIQUE per
+   * user_id). The same key on a retry makes the server refuse a second row, and
+   * the existing row comes back instead. Only for plain notes with follow-ups
+   * off: the AI follow-up runs BEFORE the insert, so a keyed journal or audit
+   * answer would repeat a paid call on every replay and then throw it away.
+   */
+  clientRequestId?: string;
 }
+
+// Same bound and alphabet as the 0178 records_client_request_id_format CHECK.
+const CLIENT_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
 export type { RecordedEvidence, RecordFollowup } from "./followup";
 
@@ -120,6 +131,16 @@ const XP_ACTION_FOR_KIND: Record<RecordKind, XpAction> = {
 };
 
 export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecord> {
+  // A caller bug, not user input: reject before any classification or write so
+  // a malformed key never reaches the server CHECK as a failed save.
+  if (
+    args.clientRequestId !== undefined &&
+    (!CLIENT_REQUEST_ID_PATTERN.test(args.clientRequestId) ||
+      args.kind !== "note" ||
+      args.withFollowup !== false)
+  ) {
+    throw new Error("invalid_client_request_id");
+  }
   const supabase = getSupabaseClient();
 
   let aiFollowup: RecordFollowup | null = null;
@@ -299,13 +320,23 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
         tags,
         // 0066: machine-readable form payload for form-shaped captures.
         structured: args.structured ?? null,
+        // 0178 retry key. NULL for every unkeyed insert: the unique key is
+        // (user_id, client_request_id) and Postgres never treats NULLs as equal,
+        // so ordinary saves stay unconstrained. A plain property on purpose -
+        // records-sources-data-shape.test.ts reads this literal's keys.
+        client_request_id: args.clientRequestId ?? null,
       })
       .select("id")
       .single(),
     RECORD_INSERT_TIMEOUT_MS,
     "record insert",
   );
-  if (error) throw error;
+  if (error) {
+    if (args.clientRequestId !== undefined && error.code === "23505") {
+      return replayKeyedRecord(args, args.clientRequestId, error, aiFollowup);
+    }
+    throw error;
+  }
   if (!data) throw new Error("Insert returned no row");
 
   // The new record carries a domain: tag, so this user's cached home-constellation
@@ -357,6 +388,46 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
   }
 
   return { id: data.id, tags, followup: aiFollowup ?? undefined };
+}
+
+// 0178 replay. A 23505 on a keyed insert means an earlier attempt with the same
+// key already committed - its response was lost to the 20s deadline, or the app
+// died before the caller's local queue was acknowledged. Reading that row back
+// turns the retry into a success instead of a failure that repeats forever (or,
+// without the key, a duplicate note). RLS plus the explicit user_id bind the
+// lookup to the owner; kind + body equality stop a reused key from aliasing a
+// different note. XP and embedding are not repeated: the first attempt owns
+// them. The C9 classification above DID run again - it runs before every save
+// and its crisis follow-up is returned so the caller still routes a red entry.
+async function replayKeyedRecord(
+  args: CreateRecordArgs,
+  clientRequestId: string,
+  insertError: unknown,
+  followup: RecordFollowup | null,
+): Promise<CreatedRecord> {
+  const { data: existing, error } = await withTimeout(
+    getSupabaseClient()
+      .from("records")
+      .select("id, kind, body, tags")
+      .eq("user_id", args.userId)
+      .eq("client_request_id", clientRequestId)
+      .maybeSingle(),
+    RECORD_INSERT_TIMEOUT_MS,
+    "record replay lookup",
+  );
+  if (error) throw error;
+  // Nothing under this key: the unique violation came from another constraint.
+  if (!existing) throw insertError;
+  if (existing.kind !== args.kind || existing.body !== args.body) {
+    throw new Error("record_idempotency_conflict");
+  }
+  // The first attempt may have died before dropping the cached domain levels.
+  invalidateDomainLevels(args.userId);
+  return {
+    id: existing.id,
+    tags: Array.isArray(existing.tags) ? existing.tags : [],
+    followup: followup ?? undefined,
+  };
 }
 
 // How far back the streak query looks, in days. A streak longer than this is

@@ -27,7 +27,7 @@ export function useImportPendingCaptures(): void {
     if (!userId || hasProfile !== true) return;
     ran.current = true;
     const locale = i18n.language === "ko" ? "ko" : "en";
-    void importPendingCaptures({ userId, locale, minor: isMinor === true }, (item, ctx) =>
+    void importPendingCaptures({ userId, locale, minor: isMinor === true }, (item, ctx, clientRequestId) =>
       createRecord({
         userId: ctx.userId,
         locale: ctx.locale,
@@ -35,6 +35,8 @@ export function useImportPendingCaptures(): void {
         body: item.text,
         minor: ctx.minor,
         withFollowup: false,
+        // 0178: a re-import of the same capture replays the existing row.
+        clientRequestId,
       }).then(() => undefined),
     );
   }, [userId, hasProfile, isMinor, i18n.language]);

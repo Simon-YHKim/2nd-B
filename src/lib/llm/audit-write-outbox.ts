@@ -1,3 +1,5 @@
+import { randomUUID } from "expo-crypto";
+
 import type { AiAuditInsert } from "../supabase/audit";
 import { insertAiAuditLog } from "../supabase/audit";
 import type { CrisisEventInsert } from "../supabase/crisis-events";
@@ -48,7 +50,9 @@ const STORAGE_KEY = "llm.auditWriteOutbox.v1";
 // Bound on NON-critical (green/yellow ai_audit_log) entries -- the AsyncStorage /
 // OOM guard (ANDROID_QA_GUIDELINES 2MB). Safety-critical entries get a separate,
 // larger cap so C3 crisis evidence is never the first thing evicted during a
-// delivery-failure / migration window (F3).
+// delivery-failure / migration window (F3). The 36-char keyed ids add ~24 bytes
+// per row over the old ids; audit-outbox-bound.test.ts pins a full queue of
+// worst-case rows well under the 2MB row ceiling.
 const MAX_OUTBOX_ENTRIES = 100;
 const MAX_CRITICAL_ENTRIES = 500;
 
@@ -79,6 +83,38 @@ let memoryOutbox: AuditWriteEntry[] = [];
 let queueChain: Promise<void> = Promise.resolve();
 let nextId = 0;
 const deletedOwnerFences = new Set<string>();
+
+// Entry ids double as the server's outbox_event_id (0179, hardened by 0181):
+// log_ai_audit_once / log_crisis_event_once write at most one row per
+// (owner, id), so a retry after a write that committed but never reached the
+// client (timeout, app killed, another tab resurrecting a delivered row) is a
+// no-op instead of a second row.
+//
+// Only a random v4 UUID is trusted as that key. The timestamp+counter ids this
+// module wrote before are NOT: the counter restarts at 0 in every process and
+// on every device, so two different events can share one. Under a keyed write
+// that is worse than a duplicate - an identical payload would be silently
+// swallowed as a "replay" (lost C3 evidence) and a different one raises
+// audit_outbox_idempotency_conflict, which blocks the owner's queue for good.
+// So rows persisted by older builds, and the fallback below, keep going
+// through the unkeyed log_ai_audit / log_crisis_event exactly as before.
+const KEYED_ENTRY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+function isKeyedEntryId(id: string): boolean {
+  return KEYED_ENTRY_ID.test(id);
+}
+
+function newEntryId(): string {
+  try {
+    const id = randomUUID().toLowerCase();
+    if (isKeyedEntryId(id)) return id;
+  } catch {
+    // No secure random source in this runtime: fall through.
+  }
+  // C3 outranks exactly-once: without a safe key the row is still queued and
+  // delivered, just through the unkeyed RPC (possible duplicate on retry).
+  return `${Date.now().toString(36)}-${(nextId++).toString(36)}`;
+}
 
 function ls(): Storage | null {
   try {
@@ -186,6 +222,17 @@ async function deliver(entry: AuditWriteEntry, captured?: CapturedAuditDelivery)
     throw new Error("audit_session_owner_mismatch");
   }
   captured?.assertCurrent();
+  if (isKeyedEntryId(entry.id)) {
+    // The owner checks above still gate this path: the server scopes the key
+    // to auth.uid(), so delivering A's row under B's token would not dedupe -
+    // it would write A's event as B's. It never gets that far.
+    if (entry.kind === "ai_audit_log") {
+      await insertAiAuditLog(entry.payload, captured?.accessToken, captured?.signal, entry.id);
+    } else {
+      await insertCrisisEvent(entry.payload, captured?.accessToken, captured?.signal, entry.id);
+    }
+    return;
+  }
   if (entry.kind === "ai_audit_log") {
     if (captured) {
       await insertAiAuditLog(entry.payload, captured.accessToken, captured.signal);
@@ -236,7 +283,7 @@ export function enqueueAuditWrite(
       if (deletedOwnerFences.has(submission.ownerUserId)) return;
       const entry: AuditWriteEntry = {
         ...submission,
-        id: `${Date.now().toString(36)}-${(nextId++).toString(36)}`,
+        id: newEntryId(),
         requiresBoundSession: captured !== undefined,
       };
       const queue = await readQueue();
