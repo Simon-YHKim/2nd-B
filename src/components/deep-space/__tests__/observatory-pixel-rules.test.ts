@@ -14,7 +14,9 @@ describe("observatory PIXEL-CLAY regression", () => {
     expect(controls).toContain("document.addEventListener('visibilitychange', visibility)");
     expect(controls).toContain("if (!enabled) failSafeStop()");
     expect(controls).toContain("remote.stop(); knob.stopAnimation()");
-    expect(controls).toContain("if (held.current) aim(");
+    expect(controls).toContain("if (held.current) stopStick(); stopQuickZoom();");
+    expect(controls).toContain("stickCanceled.current = true; sliderHeld.current = false; stopQuickZoom(); stopStick(); remote.stop();");
+    expect(controls).toContain("if (stickCanceled.current) return;");
     expect(controls).toContain("if (sliderHeld.current) remote.setZoom(");
   });
 

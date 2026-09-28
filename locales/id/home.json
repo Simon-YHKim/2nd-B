@@ -109,6 +109,8 @@
       },
       "inbox": "Notifikasi",
       "headA11y": "Tanya SecondB",
+      "dialogueOpen": "Buka percakapan SecondB",
+      "dialogueClose": "Tutup percakapan SecondB",
       "kind": {
         "domain": "Bidang",
         "profile": "Informasi tentang dirimu"
@@ -122,7 +124,7 @@
         "tip3": "Bintang Utaramu merangkum catatan menjadi satu kalimat yang bisa kamu ubah.",
         "next": "Berikutnya",
         "openMenu": "Menu fitur",
-        "menuTag": "SecondB",
+        "menuTag": "Menu",
         "menu": "Apa yang ingin kamu lakukan?",
         "travel": "Jelajahi",
         "later": "Nanti",

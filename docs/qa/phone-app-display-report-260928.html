@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2nd-B 휴대전화 앱 화면 적용 보고</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f7f9fc; --card:#fff; --ink:#101729; --muted:#4a5974; --line:#b9c7de; --accent:#2f5fc0; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#0a0e18; --card:#141b2e; --ink:#eaeef5; --muted:#aab8cf; --line:#3d4866; --accent:#7fbfff; } }
+    * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 system-ui,sans-serif; }
+    main { max-width:920px; margin:auto; padding:24px 18px 48px; } h1 { font-size:1.7rem; margin:0 0 4px; } h2 { font-size:1.05rem; margin:0 0 12px; }
+    .muted { color:var(--muted); } .hero { display:grid; grid-template-columns:1fr 190px; gap:18px; align-items:center; }
+    .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:22px 0; } .card, details { background:var(--card); border:1px solid var(--line); padding:14px; }
+    .value { display:block; color:var(--accent); font-size:1.5rem; font-weight:700; } .label { color:var(--muted); font-size:.85rem; }
+    details { margin:10px 0; } summary { cursor:pointer; font-weight:650; } details p, details ul { margin-bottom:0; }
+    a { color:var(--accent); } a:focus-visible, summary:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+    svg { max-width:190px; width:100%; height:auto; } footer { border-top:1px solid var(--line); margin-top:22px; padding-top:12px; color:var(--muted); font-size:.85rem; }
+    @media(max-width:640px) { .hero { grid-template-columns:1fr; } .cards { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body><main>
+  <div class="hero">
+    <div>
+      <h1>휴대전화 앱 화면 적용 완료</h1>
+      <p class="muted">제공된 픽셀 에셋을 실제 핸드폰 디스플레이에 연결했습니다. 라벨·날짜·알림 수는 이미지가 아닌 실시간 UI입니다.</p>
+      <p><a href="./phone-app-display-425x747-260928.png">425×747 실제 화면</a> · <a href="./phone-app-display-375x667-260928.png">375×667 실제 화면</a></p>
+    </div>
+    <svg viewBox="0 0 190 280" role="img" aria-label="휴대전화 화면 구조: 헤더, 배너, 탭, 4열 3행 앱, 하단 독">
+      <rect x="20" y="2" width="150" height="276" rx="14" fill="#0a0e18" stroke="#7fbfff" stroke-width="4"/>
+      <rect x="32" y="22" width="126" height="232" fill="#141b2e" stroke="#3d4866"/>
+      <rect x="37" y="28" width="116" height="18" fill="#232e4a"/><rect x="37" y="50" width="116" height="39" fill="#204a6b"/>
+      <rect x="37" y="93" width="56" height="20" fill="#232e4a"/><rect x="97" y="93" width="56" height="20" fill="#2f5fc0"/>
+      <g fill="#2f5fc0">
+        <rect x="37" y="124" width="25" height="27"/><rect x="67" y="124" width="25" height="27"/><rect x="97" y="124" width="25" height="27"/><rect x="127" y="124" width="25" height="27"/>
+        <rect x="37" y="156" width="25" height="27"/><rect x="67" y="156" width="25" height="27"/><rect x="97" y="156" width="25" height="27"/><rect x="127" y="156" width="25" height="27"/>
+        <rect x="37" y="188" width="25" height="27"/><rect x="67" y="188" width="25" height="27"/><rect x="97" y="188" width="25" height="27"/><rect x="127" y="188" width="25" height="27"/>
+      </g>
+      <rect x="37" y="222" width="116" height="26" fill="#232e4a"/><rect x="80" y="261" width="30" height="5" fill="#3d4866"/>
+    </svg>
+  </div>
+  <div class="cards" aria-label="검증 요약">
+    <div class="card"><span class="value">12개</span><span class="label">앱 아이콘 · 4열 3행</span></div>
+    <div class="card"><span class="value">2종</span><span class="label">QA 브라우저 화면 크기 확인</span></div>
+    <div class="card"><span class="value">10,108</span><span class="label">직렬 전체 테스트 통과</span></div>
+  </div>
+  <details><summary>무엇을 바꿨나요?</summary><p>기존 2열 앱 목록을 4열 런처로 교체하고, 브랜드 헤더·밤마을 배너·대시보드/앱 탭·3페이지 표시·내부 5아이콘 독을 넣었습니다. 알림은 실제 미읽음 수를 표시하며, 기존 알림 상세·커뮤니티 연령 제한과 앱 경로를 유지했습니다. 작은 화면에서는 타일과 아이콘 크기가 디스플레이 높이에 맞춰 줄어듭니다.</p></details>
+  <details><summary>카메라 조작 프롬프트는 어떻게 반영됐나요?</summary><p>현행 망원경 조작 코드에 대칭 픽셀 조그 링, 고정 중앙 인덱스 아래 이동하는 줌 눈금 밴드, 단계식 양끝 페이드가 이미 구현돼 있었습니다. 관련 계약 테스트가 통과해 카메라 제어 로직을 중복 변경하지 않았습니다.</p></details>
+  <details><summary>검증과 남은 확인</summary><ul><li>타입 검사, 다국어 키, 픽셀 규칙, 에셋 경로, 제약 검사 통과. Android Expo export 성공.</li><li>QA 브라우저에서 앱 탭, 12개 아이콘, 알림 진입·복귀, 더보기 및 작은 화면의 독 비가림을 확인했습니다.</li><li><code>npm run verify</code> 첫 실행은 기존 글리프 기대 테스트와 병렬 em-dash 검사 경합으로 실패했습니다. 계약 테스트를 갱신했고, 전체 Jest를 직렬로 재실행해 806개 스위트·10,108개 테스트가 모두 통과했습니다.</li><li>Expo Doctor는 기존 SDK 버전·Hermes·일부 라이브러리 경고를 보고합니다. 새 에셋의 생성 도구·출시 권리 확인과 실기기 검증은 별도로 필요합니다.</li></ul></details>
+  <footer>2nd-B / 26.09.28 / 02:18:59 KST · 이 문서는 외부 라이브러리·네트워크 요청 없이 열립니다.</footer>
+</main></body></html>

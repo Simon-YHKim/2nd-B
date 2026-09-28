@@ -78,7 +78,7 @@ describe("JRPG dialogue presentation", () => {
     expect(shell).toContain("style={styles.buttonDock}");
   });
 
-  test("home reserves dialogue space, cycles usage tips, and keeps compact actions beside the portrait", () => {
+  test("home cycles usage tips in the ticker and summons the dialogue without resizing the sky", () => {
     const home = readFileSync(
       path.join(root, "src/components/deep-space/ConstellationHome.tsx"),
       "utf8",
@@ -89,10 +89,13 @@ describe("JRPG dialogue presentation", () => {
     );
 
     expect(home).toContain("DIALOGUE_STAGE_HEIGHT");
-    expect(home).toContain("stage.h - dialogueStageHeight");
-    expect(home).toContain("{ kind: \"tip\", index: 0 }");
+    expect(home).not.toContain("stage.h - dialogueStageHeight");
     expect(home).toContain("HOME_TIP_KEYS");
-    expect(home).toContain("current.index + 1 < HOME_TIP_KEYS.length");
+    expect(home).toContain('HOME_TIP_KEYS.map((key) => ({ kind: "tip"');
+    expect(home).toContain("setTickerIndex((index) => index + 1)");
+    expect(home).toContain('bubble.kind !== "intro" ? <View testID="home-dialogue-stage"');
+    expect(home).toContain('text: bubble.kind === "intro" ? "" : bubbleLine');
+    expect(home).toContain('bottom: instrumentHeight');
     expect(dialogue).toContain(
       "{isComplete && actions ? <View style={styles.actions}>{actions}</View> : null}",
     );
@@ -100,7 +103,7 @@ describe("JRPG dialogue presentation", () => {
     expect(home).toContain("minHeight: 32");
   });
 
-  test("completed dialogue remains tappable, tips expose actions, and every dock tab uses button surfaces", () => {
+  test("completed dialogue remains tappable, launcher controls visibility, and dock tabs use button surfaces", () => {
     const home = readFileSync(
       path.join(root, "src/components/deep-space/ConstellationHome.tsx"),
       "utf8",
@@ -121,8 +124,11 @@ describe("JRPG dialogue presentation", () => {
     expect(dialogue).toContain("onAdvance: () => void");
     expect(dialogue).toContain("onPress={isComplete ? onAdvance : onReveal}");
     expect(dialogue).not.toContain("disabled={isComplete}");
-    expect(home).toContain('label={t("ds.home.bubble.next")}');
-    expect(home).toContain('label={t("ds.home.bubble.openMenu")}');
+    expect(home).toContain('testID="secondb-dialogue-launcher"');
+    expect(home).toContain('accessibilityState={{ expanded: bubble.kind !== "intro" }}');
+    expect(home).toContain('current.kind === "intro" ? { kind: "menu" } : { kind: "intro" }');
+    expect(home.indexOf('testID="secondb-dialogue-launcher"')).toBeGreaterThan(home.indexOf('<View style={styles.topBarStart}>'));
+    expect(home.indexOf('testID="secondb-dialogue-launcher"')).toBeLessThan(home.indexOf('<NoticeTicker'));
     const dock = shell.slice(shell.indexOf("<MdNavBar"), shell.indexOf("/>", shell.indexOf("<MdNavBar")));
     expect(dock).toMatch(/\bbuttonLike\b/);
     expect(dock).not.toMatch(/buttonLike=\{/);

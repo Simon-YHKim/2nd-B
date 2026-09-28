@@ -109,6 +109,8 @@
       },
       "inbox": "Notificações",
       "headA11y": "Perguntar ao SecondB",
+      "dialogueOpen": "Abrir conversa com SecondB",
+      "dialogueClose": "Fechar conversa com SecondB",
       "kind": {
         "domain": "Domínio",
         "profile": "Como te leem"
@@ -122,7 +124,7 @@
         "tip3": "Sua Estrela do Norte reúne seus registros em uma frase que você pode revisar.",
         "next": "Próxima",
         "openMenu": "Menu de recursos",
-        "menuTag": "SecondB",
+        "menuTag": "Menu",
         "menu": "Como posso ajudar?",
         "travel": "Viajar",
         "later": "Depois",

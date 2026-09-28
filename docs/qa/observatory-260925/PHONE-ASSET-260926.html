@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2ndB 핸드폰 에셋 교체 결과</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f5f7fb; --card:#fff; --ink:#15223c; --muted:#485a78; --accent:#3158bd; --line:#bac8e4; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#0a0e18; --card:#141b2e; --ink:#eaf0ff; --muted:#a7b7d4; --accent:#8bb8ff; --line:#3d4866; } }
+    * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 system-ui,sans-serif; }
+    main { max-width:850px; margin:auto; padding:28px 20px 48px; } h1 { margin:0 0 8px; font-size:clamp(1.5rem,4vw,2.2rem); }
+    .muted { color:var(--muted); } .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin:22px 0; }
+    .card, details { background:var(--card); border:1px solid var(--line); padding:16px; }
+    .card strong { display:block; color:var(--accent); font-size:1.1rem; } .card span { display:block; margin-top:3px; }
+    details { margin-top:12px; } summary { cursor:pointer; font-weight:700; } summary:focus-visible, a:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+    code { overflow-wrap:anywhere; } a { color:var(--accent); } ul { padding-left:1.3em; }
+    svg { width:min(100%,560px); height:auto; display:block; margin:14px auto; }
+  </style>
+</head>
+<body><main>
+  <h1>핸드폰 에셋 교체 완료</h1>
+  <p class="muted">2026-09-26 13:50:43 KST · 별자리 홈의 ‘내 폰’ 오브젝트</p>
+  <div class="grid" aria-label="결과 요약">
+    <div class="card"><strong>새 이미지 적용</strong><span>사용자가 제공한 야간 블루 픽셀폰을 원본 그대로 사용</span></div>
+    <div class="card"><strong>기존 조작 유지</strong><span>위·아래 스와이프 및 펼친 뒤 대시보드 진입</span></div>
+    <div class="card"><strong>검증 통과</strong><span>웹 3개 폭, UI 테스트 6개, 타입·lint·Android 번들</span></div>
+  </div>
+  <svg viewBox="0 0 560 170" role="img" aria-label="기존 은색 핸드폰 이미지를 새 파란 핸드폰으로 바꿨고, 스와이프 동작은 유지했다">
+    <rect x="1" y="1" width="558" height="168" fill="none" stroke="currentColor" stroke-width="2"/>
+    <rect x="72" y="20" width="60" height="126" rx="8" fill="#252e45" stroke="#9ca6b8" stroke-width="5"/>
+    <rect x="80" y="38" width="44" height="78" fill="#3979b0"/><text x="102" y="132" text-anchor="middle" fill="#dce9ff" font-size="10">OLD</text>
+    <path d="M175 83H355" fill="none" stroke="#728ad0" stroke-width="4"/><path d="m350 74 13 9-13 9" fill="none" stroke="#728ad0" stroke-width="4"/>
+    <text x="265" y="68" text-anchor="middle" fill="currentColor" font-size="14">에셋만 교체</text>
+    <rect x="418" y="20" width="60" height="126" rx="8" fill="#111a30" stroke="#5270a8" stroke-width="5"/>
+    <rect x="426" y="38" width="44" height="78" fill="#183059"/><path d="m436 74 9-19 9 28 9-16" fill="none" stroke="#60d5ff" stroke-width="3"/>
+    <text x="448" y="132" text-anchor="middle" fill="#dce9ff" font-size="10">NEW</text>
+  </svg>
+  <details><summary>무엇이 바뀌었나요?</summary><ul>
+    <li><code>secondb-cellphone-night.png</code>를 새 자산으로 추가했습니다. 첨부 원본과 SHA-256이 일치하며 투명 배경을 유지합니다.</li>
+    <li><code>PocketPhone.tsx</code>의 이미지 참조와 투명 여백 크롭 좌표만 바꿨습니다. 표시 영역은 104×192px 그대로입니다.</li>
+    <li>이전 은색 이미지는 복구 가능한 상태로 남겼고, 자산 목록에 두 이미지의 출처와 용도를 적었습니다.</li>
+  </ul></details>
+  <details><summary>어떻게 확인했나요?</summary><ul>
+    <li>로컬 브라우저 320·425·768px에서 레이아웃, 접힘·펼침, 위·아래 스와이프, 대시보드 진입을 확인했습니다. 페이지 오류는 없었습니다.</li>
+    <li>해당 UI 테스트 6개, 타입 검사, lint, 자산 확장자 검사, 제약 검사, Android export가 통과했습니다.</li>
+    <li>Expo 사전 점검은 기존 SDK 패키지 버전 불일치 및 Hermes 관련 경고 때문에 통과하지 못했습니다. 이 에셋 교체에서는 의존성을 변경하지 않았습니다.</li>
+  </ul></details>
+</main></body></html>

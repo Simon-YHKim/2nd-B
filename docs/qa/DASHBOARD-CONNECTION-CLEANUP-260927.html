@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>대시보드 연결 상태 정리</title>
+  <style>
+    :root{color-scheme:light dark;--bg:#f8f9fc;--card:#fff;--ink:#182235;--muted:#536177;--accent:#315db7;--line:#c8d1e3}
+    @media(prefers-color-scheme:dark){:root{--bg:#0a0e18;--card:#141b2e;--ink:#eaf0fc;--muted:#acbad4;--accent:#8bb3ff;--line:#3d4866}}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,sans-serif}main{max-width:860px;margin:auto;padding:24px}
+    h1{font-size:1.7rem;margin:.2rem 0}h2{font-size:1.1rem;margin:0 0 .5rem}p{margin:.4rem 0}small,.muted{color:var(--muted)}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:20px 0}.card,details{background:var(--card);border:1px solid var(--line);padding:16px}
+    .card strong{display:block;font-size:1.13rem;color:var(--accent)}svg{width:100%;height:auto;margin:4px 0 16px}details{margin:10px 0}summary{cursor:pointer;font-weight:700}code{overflow-wrap:anywhere}
+  </style>
+</head>
+<body><main>
+  <small>2ndB · 26.09.27 03:04:52 KST</small>
+  <h1>대시보드 연결 상태 정리</h1>
+  <p>대시보드에서 연결 상태·데이터 출처 표와 관리 버튼, 읽은 시각·갱신 주기 안내를 제거했다. 연결과 갱신 설정은 기존 설정 화면에 남겼다.</p>
+  <div class="cards">
+    <div class="card"><strong>화면 정리 완료</strong><span>판단에 필요한 카드·그래프만 표시</span></div>
+    <div class="card"><strong>저장 자료 자동 읽기</strong><span>대시보드 진입 때 계정 범위의 기존 자료를 읽음</span></div>
+    <div class="card"><strong>외부 자동 연결 미구현</strong><span>서비스별 로그인·동의 커넥터가 아직 없음</span></div>
+  </div>
+  <svg viewBox="0 0 800 110" role="img" aria-label="대시보드 진입 시 저장된 자료를 자동으로 읽고, 외부 서비스 연결은 설정에서 별도 동의가 필요한 흐름">
+    <rect x="2" y="18" width="190" height="74" rx="8" fill="none" stroke="var(--line)" stroke-width="2"/><text x="97" y="61" text-anchor="middle" fill="var(--ink)" font-size="17">대시보드 진입</text>
+    <path d="M192 55H300" stroke="var(--accent)" stroke-width="3"/><path d="M300 55l-12-7v14z" fill="var(--accent)"/>
+    <rect x="302" y="18" width="200" height="74" rx="8" fill="none" stroke="var(--line)" stroke-width="2"/><text x="402" y="61" text-anchor="middle" fill="var(--ink)" font-size="17">저장 자료 자동 읽기</text>
+    <path d="M502 55H608" stroke="var(--accent)" stroke-width="3"/><path d="M608 55l-12-7v14z" fill="var(--accent)"/>
+    <rect x="610" y="18" width="188" height="74" rx="8" fill="none" stroke="var(--line)" stroke-width="2"/><text x="704" y="48" text-anchor="middle" fill="var(--ink)" font-size="16">외부 연결은 설정에서</text><text x="704" y="72" text-anchor="middle" fill="var(--muted)" font-size="15">사용자 승인 필요</text>
+  </svg>
+  <details><summary>구현 범위</summary><p><code>DashboardPhone.tsx</code>에서 연결 상태 표와 관련 상태·스타일을 제거했다. <code>phone-settings-contract.test.ts</code>에 대시보드 비표시와 첫 진입 자동 읽기 계약을 추가했고, <code>src/lib/dashboard/README.md</code>에 현재 연결 범위를 명시했다. 설정의 자료 출처·동의·가져오기·주기 선택 기능은 변경하지 않았다.</p></details>
+  <details><summary>검증 및 남은 한계</summary><p>집중 테스트 9개 통과, 타입 검사 통과, 변경 파일 ESLint 통과. 로컬 425×812 브라우저에서 연결 표·읽은 시각·주기 문구가 사라진 것을 확인했다. 전체 <code>npm run verify</code>는 변경 범위 밖 기존 PIXEL-CLAY 규칙 위반 증가(기준 146→150)에서 중단됐다. 로컬 웹 매니페스트 404와 스타일 경고도 별도 현안이다.</p><p>현재 외부 계정 OAuth 자동 연결은 없다. Calendar 등은 사용자가 선택한 파일 가져오기, 건강 자료는 기존 동의·기기 권한 흐름이며 일부 SNS는 직접 커넥터가 없다. 로그인 요청까지 이어지는 자동 구축은 공급자별 인증·권한·철회·동기화 기능을 별도로 구현해야 한다.</p></details>
+</main></body></html>

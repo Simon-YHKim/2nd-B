@@ -109,6 +109,8 @@
       },
       "inbox": "Notificaciones",
       "headA11y": "Preguntar a SecondB",
+      "dialogueOpen": "Abrir diálogo con SecondB",
+      "dialogueClose": "Cerrar diálogo con SecondB",
       "kind": {
         "domain": "Área",
         "profile": "Cómo te ven"
@@ -122,7 +124,7 @@
         "tip3": "Tu Estrella Polar reúne tus registros en una frase que puedes revisar.",
         "next": "Siguiente",
         "openMenu": "Menú de funciones",
-        "menuTag": "SecondB",
+        "menuTag": "Menú",
         "menu": "¿Qué quieres hacer?",
         "travel": "Viajar",
         "later": "Luego",

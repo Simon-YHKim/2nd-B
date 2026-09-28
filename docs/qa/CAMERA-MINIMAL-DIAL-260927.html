@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2ndB 픽셀 조그·고정 인덱스 다이얼 적용 보고</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#fcfcfb; --panel:#f2f4f8; --fg:#111827; --sub:#475569; --edge:#94a3b8; --accent:#2f5fc0; }
+    @media (prefers-color-scheme:dark) { :root { --bg:#0a0e18; --panel:#141b2e; --fg:#eaeef5; --sub:#b0b9cc; --edge:#3d4866; --accent:#9db8f5; } }
+    * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.55 system-ui,sans-serif; }
+    main { max-width:860px; margin:auto; padding:28px 18px 50px; } h1 { margin:0 0 8px; font-size:27px; } h2 { font-size:18px; }
+    p { margin:8px 0 16px; color:var(--sub); } .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin:20px 0; }
+    .card, details { border:1px solid var(--edge); background:var(--panel); padding:14px; } .card strong { display:block; font-size:21px; } .card small { color:var(--sub); }
+    details { margin-top:10px; } summary { cursor:pointer; font-weight:700; } ul { padding-left:22px; } li { margin:6px 0; }
+    code { color:var(--accent); overflow-wrap:anywhere; } a { color:var(--accent); } footer { margin-top:30px; border-top:1px solid var(--edge); padding-top:12px; color:var(--sub); font-size:12px; }
+  </style>
+</head>
+<body><main>
+  <h1>픽셀 조그·고정 인덱스 다이얼 적용</h1>
+  <p>QA 계정의 별자리 화면에서 425×812·375×812 웹 뷰포트를 확인했습니다. 2026-09-27 19:24:21 KST</p>
+  <div class="cards" aria-label="검증 요약">
+    <div class="card"><strong>고정</strong><small>중앙 인덱스·현재 배율</small></div>
+    <div class="card"><strong>24/24</strong><small>관련 Jest 테스트 통과</small></div>
+    <div class="card"><strong>통과</strong><small>타입 검사·변경 파일 lint</small></div>
+    <div class="card"><strong>주의</strong><small>실기기 조작감·기존 Expo 경고</small></div>
+  </div>
+  <svg viewBox="0 0 620 90" role="img" aria-label="고정된 중앙 기준선 아래를 눈금 띠가 좌우로 이동하는 다이얼" style="display:block;max-width:100%;background:var(--panel);border:1px solid var(--edge)">
+    <text x="310" y="21" fill="var(--fg)" text-anchor="middle" font-size="14">1.00× · 고정 표시</text>
+    <path d="M75 55H545" stroke="var(--edge)" stroke-width="2"/>
+    <path d="M160 48V64M210 50V62M260 46V66M360 46V66M410 50V62M460 48V64" stroke="var(--sub)" stroke-width="2"/>
+    <path d="M310 32V69" stroke="var(--accent)" stroke-width="3"/>
+    <text x="260" y="82" fill="var(--sub)" text-anchor="middle" font-size="12">1×</text><text x="360" y="82" fill="var(--sub)" text-anchor="middle" font-size="12">2×</text>
+  </svg>
+  <details open><summary>적용 근거</summary>
+    <ul>
+      <li>최신 참조 이미지와 <code>camera_control_pixel_dial_jog_implementation_prompt.md</code>에 맞춰 기존 68px 조작 행의 위치·터치 영역을 유지했습니다.</li>
+      <li>줌은 중앙 기준선과 배율을 고정하고 3배 폭의 눈금·랜드마크 띠를 아래에서 이동시킵니다. 탭으로 배율이 점프하지 않고 손가락의 상대 이동량으로 기존 로그 배율 매핑을 조절합니다.</li>
+      <li>다이얼 양끝 12%는 색 토큰 다섯 단계로 흐리게 했습니다. 그라디언트·블러·불투명도 애니메이션은 추가하지 않았습니다.</li>
+      <li>조그 링은 2px 정수 셀의 직교 계단을 네 방향에 거울 복제해 좌우·상하 대칭과 연속성을 확보했습니다. 기존 속도·스프링 복귀·원점 터치·사운드 로직은 유지했습니다.</li>
+    </ul>
+  </details>
+  <details><summary>검증과 남은 이슈</summary>
+    <ul>
+      <li>브라우저: 슬라이더 탭은 1.00× 유지, 좌우 드래그는 각각 3.00×·1.00×에서 멈춤. 띠 좌표는 바뀌고 중앙 인덱스 좌표는 동일했습니다.</li>
+      <li>조그 링 96셀은 상하·좌우 대칭이며 모두 변으로 연결됩니다. 우상향 대각선 입력 시 두 방향이 동시에 켜지고 해제 시 Thumb 0,0·속도 0으로 복귀했습니다.</li>
+      <li>375px 폭에서 조작부 하단 745px, 내비게이션 시작 754px로 겹치지 않았습니다. 425px도 시각 확인했습니다.</li>
+      <li>Jest 3개 스위트 24개, TypeScript, 변경 파일 ESLint, require cycle 검사(0개) 통과.</li>
+      <li><code>check:pixel-rules</code>는 변경 파일 위반 없이 다른 기존 파일의 래칫 초과 4건으로 실패합니다.</li>
+      <li>Expo Doctor 19/22, <code>expo install --check</code> 실패: 기존 Hermes/Expo 버전·패키지 메타데이터 문제입니다. 이번 UI 변경에 의존성 추가는 없습니다.</li>
+      <li>콘솔 초기화 후 다시 연 QA 화면에는 기존 <code>manifest.webmanifest</code> 404만 남았습니다. Android·iOS 실기기 조작감은 확인하지 못했습니다.</li>
+    </ul>
+  </details>
+  <footer>작업 브랜치: <code>codex/observatory-dashboard-260925</code> · 기존 미커밋 파일은 정리하거나 되돌리지 않았습니다.</footer>
+</main></body></html>
