@@ -51,6 +51,14 @@ const FROZEN_SIGNUP_REVISION_TUPLES = {
     termsVersion: "2026-08-16",
     confirmationEligible: true,
   },
+  // 2026-09-29: policy v5 (optional avatar setting), a notice revision. 0208
+  // adds this row and keeps email-v4 and email-v5 for installed clients.
+  "email-v6": {
+    consentVersion: "2026-09-07",
+    policyVersion: "2026-09-29",
+    termsVersion: "2026-08-16",
+    confirmationEligible: true,
+  },
 } as const;
 
 const migrations = readdirSync(migrationDir)
@@ -64,7 +72,7 @@ const migrations = readdirSync(migrationDir)
 // The 0191 draft overlay that used to be appended here is gone: 0191 is a
 // numbered, production-applied file byte-identical to its draft (enforced by
 // scripts/__tests__/supabase-security-drafts.test.ts). Appending it last would
-// now shadow 0203, the current candidate, which is itself a numbered file.
+// now shadow 0208, the current candidate, which is itself a numbered file.
 
 function lastPatternMatch(source: string, pattern: RegExp) {
   const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
@@ -167,8 +175,9 @@ describe("verified-email consent ledger", () => {
   });
 
   test("keeps current and historical email revisions confirmation-eligible", () => {
-    expect(authSignupRevision()).toBe("email-v5");
-    expect(contractTuple(authSignupRevision() as "email-v5").confirmationEligible).toBe(true);
+    expect(authSignupRevision()).toBe("email-v6");
+    expect(contractTuple(authSignupRevision() as "email-v6").confirmationEligible).toBe(true);
+    expect(contractTuple("email-v5").confirmationEligible).toBe(true);
     expect(contractTuple("email-v4").confirmationEligible).toBe(true);
     expect(contractTuple("email-v3").confirmationEligible).toBe(true);
     expect(contractTuple("email-v2").confirmationEligible).toBe(true);

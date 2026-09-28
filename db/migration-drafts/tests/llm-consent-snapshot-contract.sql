@@ -17,6 +17,8 @@ ALTER TABLE public.users ADD COLUMN email text, ADD COLUMN birth_date date,
 \ir ../UNNUMBERED_effective_llm_consent_current_contract.sql
 -- 0203 keeps email-v4 current and adds email-v5 (2026-09-28 notice revision).
 \ir ../../migrations/0203_signup_consent_privacy_20260928.sql
+-- 0208 keeps email-v4 and email-v5 current and adds email-v6 (2026-09-29).
+\ir ../../migrations/0208_signup_consent_privacy_20260929.sql
 GRANT USAGE ON SCHEMA auth TO authenticated,service_role;
 GRANT SELECT,INSERT ON public.consent_records,public.consent_changes TO authenticated,service_role;
 GRANT SELECT,UPDATE(privacy_prefs) ON public.users TO authenticated;

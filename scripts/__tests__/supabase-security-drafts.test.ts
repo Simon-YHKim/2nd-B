@@ -30,6 +30,7 @@ const promoted = [
   ["0200", "rss_proxy_quota"],
   ["0206", "users_avatar_spec"],
   ["0207", "users_display_name_update"],
+  ["0208", "signup_consent_privacy_20260929"],
 ] as const;
 
 const behaviorDrafts = {
@@ -87,7 +88,8 @@ describe("scratch PostgreSQL coverage for inactive security drafts", () => {
         ...Object.keys(plannedDrafts),
         "UNNUMBERED_effective_llm_consent_current_contract.sql",
         "UNNUMBERED_oauth_naver_rate_limit_completion.sql",
-        "UNNUMBERED_rss_proxy_quota.sql"].sort(),
+        "UNNUMBERED_rss_proxy_quota.sql",
+        "UNNUMBERED_signup_consent_privacy_20260929.sql"].sort(),
     );
   });
 
@@ -132,6 +134,16 @@ describe("scratch PostgreSQL coverage for inactive security drafts", () => {
     expect(workflow).toContain("-f db/tests/rss_proxy_quota_regression.sql");
     expect(regression).toContain("global rejection allocated a user quota row");
     expect(regression).toContain("account deletion did not cascade RSS user quota");
+    expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
+  });
+
+  test("exercises the numbered 2026-09-29 notice revision without replaying its draft", () => {
+    const regression = read("db/tests/signup_consent_privacy_20260929_regression.sql");
+    expect(workflow).toContain("-f db/tests/signup_consent_privacy_20260929_regression.sql");
+    expect(regression).toContain("email-v6 is not ready");
+    expect(regression).toContain("two current revisions share one document tuple");
+    expect(regression).toContain("consent must stay current after a notice revision");
+    expect(regression).toContain("an email-v3 receipt must not count as current");
     expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
   });
 
