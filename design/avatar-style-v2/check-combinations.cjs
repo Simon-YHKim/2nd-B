@@ -96,6 +96,19 @@ assert.equal(eyePixels[26 * 64 + 34], "#f7f2e8", "right white must show inside t
 assert.equal(eyePixels[27 * 64 + 26], "#241c18", "the left default pupil must be small and dark");
 assert.equal(eyePixels[27 * 64 + 36], "#241c18", "the right default pupil must be small and dark");
 assert.equal(eyePixels[28 * 64 + 26], "#f7f2e8", "white must remain below the left pupil");
+for (const faceId of ["glasses", "roundglass"]) {
+  const withFrames = regionPixels(check({ face: faceId }), 0, 40);
+  assert.equal(withFrames[25 * 64 + 30], base.skin,
+    `${faceId} must leave skin between the eyelids instead of joining them with a nose bridge`);
+  assert.equal(withFrames[25 * 64 + 32], faceId === "glasses" ? "#241c18" : "#6b4a2f",
+    `${faceId} must retain the lens support at the center`);
+}
+assert.equal(eyePixels[25 * 64 + 33], base.skin,
+  "the square glasses must keep the right side of the nose bridge open");
+for (const jobId of ["designer", "teacher", "professor"]) {
+  assert.equal(regionPixels(check({ job: jobId }), 0, 40)[25 * 64 + 30], base.skin,
+    `${jobId} must not reconnect the eyelids through its job glasses`);
+}
 assert.equal(regionPixels(check({ eye: "#2f5fc0" }), 0, 40)[27 * 64 + 26], "#2f5fc0",
   "choosing another eye color must still change the pupil");
 
