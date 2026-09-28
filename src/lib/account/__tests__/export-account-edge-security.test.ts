@@ -317,7 +317,7 @@ describe("export-account trust boundary", () => {
     expect(setup.terminalFilters.find(({ table }) => table === "users"))
       .toMatchObject({ column: "id", value: OWNER_ID });
     expect(response.headers.get("content-disposition"))
-      .toBe('attachment; filename="2nd-brain-account-export.json"');
+      .toBe('attachment; filename="polascope-account-export.json"');
     expect(response.headers.get("content-type")).toBe("application/json; charset=utf-8");
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("cdn-cache-control")).toBe("no-store");

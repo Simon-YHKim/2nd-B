@@ -17,7 +17,7 @@
   "pasteCard": {
     "eyebrow": "Paste",
     "title": "Reply or test result",
-    "description": "Paste an AI reply, a past personality test result or notes about yourself. 2nd-Brain will sort the content and add tags.",
+    "description": "Paste an AI reply, a past personality test result or notes about yourself. PolaScope will sort the content and add tags.",
     "placeholder": "Paste here...",
     "accessibilityLabel": "Material to import",
     "sort": "Sort and organize",
@@ -37,7 +37,7 @@
       "pro": "Work and specialist topics",
       "life": "Everyday life"
     },
-    "keep": "Save to 2nd-Brain",
+    "keep": "Save to PolaScope",
     "keepHint": "Saves this imported result to your records."
   },
   "saved": {

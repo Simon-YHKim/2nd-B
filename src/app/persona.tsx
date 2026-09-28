@@ -308,7 +308,7 @@ function PersonaLegacy() {
   async function handleExport() {
     if (!persona) return;
     try {
-      await Share.share({ message: persona.markdownExport, title: "2nd-Brain Persona" });
+      await Share.share({ message: persona.markdownExport, title: "PolaScope Persona" });
     } catch (e) {
       // Raw error stays in logs only; users see product-tone copy + retry.
       console.warn("[persona] export failed", (e as Error).message);

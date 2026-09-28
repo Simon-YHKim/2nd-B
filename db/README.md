@@ -3,7 +3,11 @@
 For the inactive service-contract drafts and erasure registry promotion, follow
 [the forward-migration runbook](../docs/qa/ERASURE-FORWARD-260926.md). New registry
 rows use a separate additions-only migration and `forwardAdditions` metadata;
-preserve the historical 0189 seed. Reserve real numbers through the console owner.
+a changed reason for an existing row uses a separate revision-only migration and
+`forwardRevisions` metadata that records the reason it replaces (reason only:
+owner, class, order and cascade stay pinned to 0189). Either kind of registry
+migration also goes into `c_names` in `migrations/rollback/0189_down.sql`.
+Preserve the historical 0189 seed. Reserve real numbers through the console owner.
 
 SQL files in `migrations/` apply in numeric order. They are designed to be
 idempotent (`IF NOT EXISTS` where possible) and to dry-run against a vanilla

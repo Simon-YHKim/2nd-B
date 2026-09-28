@@ -177,7 +177,7 @@
   },
   "ocrReview": {
     "heading": "Tinjau sebelum menyimpan",
-    "disclosure": "Foto ini dikirim ke layanan pembaca teks hanya untuk membaca teksnya. 2nd-B tidak menyimpan gambar atau menggunakannya untuk melatih apa pun.",
+    "disclosure": "Foto ini dikirim ke layanan pembaca teks hanya untuk membaca teksnya. PolaScope tidak menyimpan gambar atau menggunakannya untuk melatih apa pun.",
     "privateAfterApprove": "Setelah kamu setujui, hanya teks yang bisa diedit yang disimpan sebagai catatan pribadimu.",
     "body": "Ubah teks yang diekstrak, lalu setujui sebelum menyimpan.",
     "approve": "Setujui teks yang diekstrak",
@@ -357,7 +357,7 @@
   "manualTab": "Panduan penggunaan",
   "jot": {
     "title": "Tulis satu baris",
-    "deviceNote": "Catatan ini tersimpan di perangkat ini. Buat akun untuk menyimpannya ke otak keduamu.",
+    "deviceNote": "Catatan ini tersimpan di perangkat ini. Buat akun untuk menyimpannya ke PolaScope.",
     "placeholder": "Satu baris yang ada di pikiranmu",
     "inputA11y": "Kolom tulisan",
     "save": "Simpan",

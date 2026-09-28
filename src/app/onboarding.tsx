@@ -29,7 +29,7 @@ interface Slide {
 // aligned; the final handoff uses the five-locale onboarding/auth resources.
 const SLIDE_EN: { tag: string; title: string; body: string }[] = [
   {
-    tag: "2ND-BRAIN",
+    tag: "POLASCOPE",
     title: "An AI that gets\nto know you",
     body: "SecondB uses your notes\nto help organize your thoughts\nand plan your day.",
   },

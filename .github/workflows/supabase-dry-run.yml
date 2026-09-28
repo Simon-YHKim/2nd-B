@@ -574,7 +574,7 @@ jobs:
           port="${PGPORT:-5432}"
           source_db="${PGDATABASE:-postgres}"
           down="db/migrations/rollback/0189_down.sql"
-          pair="erasure_registry lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry"
+          pair="erasure_registry lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason"
           run_token="${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$_${RANDOM}"
           control_db="rollback_control_${run_token}"
           fixed_db="rollback_fixed_${run_token}"
@@ -641,7 +641,8 @@ jobs:
             sql "$1" "SELECT COALESCE(pg_catalog.string_agg(m.name, ' ' ORDER BY m.version), '(none)')
                       FROM supabase_migrations.schema_migrations AS m
                       WHERE m.name IN ('erasure_registry', 'lock_erase_my_data_authenticated',
-                                       'service_contract_erasure_registry', 'rss_proxy_erasure_registry')"
+                                       'service_contract_erasure_registry', 'rss_proxy_erasure_registry',
+                                       'credit_ledger_erasure_registry_reason')"
           }
           can_execute() { # <db> <role>
             sql "$1" "SELECT pg_catalog.has_function_privilege('$2', 'public.erase_my_data(text)', 'EXECUTE')"
@@ -924,13 +925,17 @@ jobs:
             fi
           done
 
-          echo "== control: retain 0190 and both registry forwards, then replay only 0189"
+          # The registry forwards (0198, 0201) and the reason revision (0205) are kept
+          # with 0190: each one's guard refuses to run while erase_my_data is open, so
+          # re-applying them here would stop the push before the control can look.
+          echo "== control: retain 0190 and every registry forward, then replay only 0189"
           clone "$control_db"
           sql "$control_db" "CREATE TABLE supabase_migrations.rollback_probe_kept AS
                              SELECT * FROM supabase_migrations.schema_migrations
                              WHERE name IN ('lock_erase_my_data_authenticated',
                                             'service_contract_erasure_registry',
-                                            'rss_proxy_erasure_registry')"
+                                            'rss_proxy_erasure_registry',
+                                            'credit_ledger_erasure_registry_reason')"
           roll_back "$control_db"
           # ON CONFLICT: if the rollback under test leaves the row in place (the very
           # regression this lane is for), the control still builds the same state
@@ -943,8 +948,8 @@ jobs:
           push_again "$control_db"
           control_open="$(can_execute "$control_db" authenticated)"
           echo "control: ledger before the re-push [$control_ledger] -> authenticated EXECUTE after it = $control_open"
-          if [[ "$control_ledger" != "lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry" ]]; then
-            fail "the control did not reach the pre-fix state: ledger held [$control_ledger], expected 0190 and both registry forwards"
+          if [[ "$control_ledger" != "lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason" ]]; then
+            fail "the control did not reach the pre-fix state: ledger held [$control_ledger], expected 0190 and every registry forward"
           fi
           if [[ "$control_open" != "t" ]]; then
             fail "VACUOUS. With 0190's ledger row left behind, erase_my_data should come back executable by authenticated, and it did not (authenticated EXECUTE = $control_open). This database cannot show the hole, so the verdict below proves nothing. Either the function default-privilege floor is missing (see \"Seed Supabase compatibility layer\") or the CLI no longer skips an applied version."
@@ -1311,6 +1316,22 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/ad_reward_account_erasure_regression.sql
+      # 0204 widens the same trigger to promo lots and 0205 revises the registry
+      # reason. A deleted user's promo lot (and the spend against it) must go, a
+      # purchase lot must stay with user_id NULL, another user's promo lot must
+      # stay whole, and the registry reason and column comment must say so.
+      - name: Exercise promo-lot erasure on account deletion
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/promo_lot_account_erasure_regression.sql
+      # 0203: the 2026-09-28 privacy policy is a NOTICE revision (Simon). A v5
+      # signup must get the new tuple and an email-v5 receipt, an installed v4
+      # client must still sign up, and LLM consent must count both tuples as
+      # current with exactly one decision row per user. Rolled back.
+      - name: Exercise the 2026-09-28 notice-revision consent contract
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/signup_consent_privacy_20260928_regression.sql
       # 0189's erase_my_data() is a destructive SECURITY DEFINER function, so it
       # is the one thing in this repo that must not be tested by reading its
       # source. The r38 gate measured 37 green string assertions over a function

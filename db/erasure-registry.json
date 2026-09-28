@@ -131,7 +131,7 @@
     "credit_ledger": {
       "owner": "user_id",
       "class": "retained",
-      "reason": "구매 사실과 미사용 잔량의 증거. 취소권 기간이 계정보다 오래 살아남으므로 계정 삭제 때도 SET NULL 로 남긴다(0134 · 설계서 F5)."
+      "reason": "로트 종류마다 계정 삭제 때 운명이 다르다. 구매(purchase) 로트는 여는 행과 그 로트의 모든 행이 구매 사실과 미사용 잔량의 증거다. 취소권 기간이 계정보다 오래 살아남으므로 user_id 만 NULL 로 비우고 남긴다(0134 ON DELETE SET NULL · 설계서 F5). 광고 보상(ad_reward)·프로모(promo) 로트는 돈을 낸 기록이 아니므로, 계정 삭제 직전 public.users 의 BEFORE DELETE 트리거가 여는 행과 그 로트의 모든 행을 지운다(0202 · 0204). 콘텐츠 삭제(erase_my_data)는 이 표를 건드리지 않는다."
     },
     "esm_responses": {
       "owner": "user_id",
@@ -429,5 +429,12 @@
     "0201_rss_proxy_erasure_registry.sql": [
       "rss_proxy_quota_daily"
     ]
+  },
+  "forwardRevisions": {
+    "0205_credit_ledger_erasure_registry_reason.sql": {
+      "credit_ledger": {
+        "previousReason": "구매 사실과 미사용 잔량의 증거. 취소권 기간이 계정보다 오래 살아남으므로 계정 삭제 때도 SET NULL 로 남긴다(0134 · 설계서 F5)."
+      }
+    }
   }
 }

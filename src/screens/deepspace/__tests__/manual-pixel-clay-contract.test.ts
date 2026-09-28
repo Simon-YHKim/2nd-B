@@ -178,8 +178,10 @@ describe("PIXEL-CLAY /manual renderer contract", () => {
     const end = route.indexOf("\nexport default function Manual()");
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
+    // 2026-09-27: the app name became PolaScope (DECISIONS 26.09.27), so the
+    // legacy renderer's copy strings changed. Structure and styles did not.
     expect(createHash("sha256").update(route.slice(start, end)).digest("hex")).toBe(
-      "d2f4fcf00df3b7e8a64f470c5481c6773b4d053c42baf72d4706310b1c9e6956",
+      "3fcd88a12a4c4306bb355993d707142436a5e14c22eb54553cd4623319e41846",
     );
   });
 });
