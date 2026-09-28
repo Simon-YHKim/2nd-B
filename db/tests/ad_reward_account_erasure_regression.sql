@@ -1,6 +1,7 @@
 \set ON_ERROR_STOP on
 
 -- Run only on the CI scratch database after numbered 0202.
+-- The shipped account-deletion path deletes auth.users, cascading to public.users.
 -- Account deletion must remove the deleted user's ad-reward credit lots (the
 -- opening ad_reward row that carries the AdMob transaction id in its memo, and
 -- every row drawn from that lot) while purchase lots keep 0134's ON DELETE
@@ -78,7 +79,7 @@ BEGIN
 END
 $before$;
 
-DELETE FROM public.users WHERE id = '30000000-0000-0000-0000-000000000001';
+DELETE FROM auth.users WHERE id = '30000000-0000-0000-0000-000000000001';
 
 DO $after$
 DECLARE
@@ -87,6 +88,10 @@ DECLARE
   v_two_lot uuid;
 BEGIN
   SELECT one_lot, one_purchase, two_lot INTO v_one_lot, v_one_purchase, v_two_lot FROM ad_erase_expect;
+
+  IF EXISTS (SELECT 1 FROM public.users WHERE id = '30000000-0000-0000-0000-000000000001') THEN
+    RAISE EXCEPTION 'auth.users deletion did not cascade to public.users';
+  END IF;
 
   IF EXISTS (SELECT 1 FROM public.credit_ledger WHERE lot_id = v_one_lot) THEN
     RAISE EXCEPTION 'account deletion left rows of the deleted user ad-reward lot';
@@ -116,5 +121,24 @@ BEGIN
   END IF;
 END
 $after$;
+
+-- Operator deletion of a public profile must invoke the same 0202 trigger,
+-- while leaving the auth account itself intact until its own deletion.
+DELETE FROM public.users WHERE id = '30000000-0000-0000-0000-000000000002';
+
+DO $direct$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.credit_ledger
+              WHERE lot_id = (SELECT two_lot FROM ad_erase_expect)) THEN
+    RAISE EXCEPTION 'direct public.users deletion left an ad-reward lot';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.rewarded_ssv_txns WHERE transaction_id = 'txn-erase-two-1') THEN
+    RAISE EXCEPTION 'direct public.users deletion left the SSV replay row';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = '30000000-0000-0000-0000-000000000002') THEN
+    RAISE EXCEPTION 'direct public.users deletion removed the auth account';
+  END IF;
+END
+$direct$;
 
 ROLLBACK;
