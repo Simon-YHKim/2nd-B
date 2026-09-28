@@ -78,11 +78,17 @@ assert.equal(smile.eye, "open");
 assert.equal(smile.mouth, "smile");
 const sidepart = A.HAIR.find((hair) => hair.id === "sidepart");
 assert.ok(sidepart, "approved side-part hair must remain selectable");
+for (const hairstyle of A.HAIR) {
+  assert.ok(hairstyle.f(base.hairColor).every(([, , width, height]) => width >= 2 && height >= 2),
+    `${hairstyle.id} must keep hair details on the shared minimum 2-cell scale`);
+}
 const hairPixels = regionPixels(sidepart.f(base.hairColor), 0, 28);
 assert.equal(hairPixels[7 * 64 + 26], base.hairColor, "hair must start at the approved crown");
 assert.equal(hairPixels[15 * 64 + 20], base.hairColor, "left-flowing fringe must remain visible");
 assert.equal(hairPixels[15 * 64 + 27], null, "the side part must expose the forehead");
 assert.equal(hairPixels[15 * 64 + 34], base.hairColor, "the right side of the part must remain filled");
+assert.equal(hairPixels[18 * 64 + 16], base.hairColor,
+  "the left temple must keep the approved broad two-row step");
 const smilingWithGlasses = check({ expr: "smile", face: "glasses" });
 const eyePixels = regionPixels(smilingWithGlasses, 0, 40);
 assert.equal(eyePixels[26 * 64 + 24], "#f7f2e8", "left white must show inside the glasses");
