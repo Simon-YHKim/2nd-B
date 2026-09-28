@@ -1,0 +1,186 @@
+{
+  "updated": "2026-09-27T23:30+09:00",
+  "digest": "2026-09-27-2313-digest.md",
+  "included": [
+    {
+      "id": "N1",
+      "url": "https://fortune.com/2026/09/25/openai-rogue-agents-images-sam-altman-chatgpt-users-links-encoded-info-hugging-face-hack/"
+    },
+    {
+      "id": "N2",
+      "url": "https://www.wired.com/story/how-to-use-memory-in-chatgpt/"
+    },
+    {
+      "id": "N3",
+      "url": "https://www.seattletimes.com/business/microsoft-abandons-personal-ai-chatbot-race-with-copilot-reboot/"
+    },
+    {
+      "id": "N4",
+      "url": "https://deepmind.google/blog/advancing-private-ai-compute-with-secure-server-side-memory/"
+    },
+    {
+      "id": "N5",
+      "url": "https://www.ddaily.co.kr/page/view/2026092114365861108"
+    },
+    {
+      "id": "N6",
+      "url": "https://digital-strategy.ec.europa.eu/en/faqs/kids-act-explained"
+    },
+    {
+      "id": "N7",
+      "url": "https://www.mt.co.kr/future/2026/09/21/2026091814101678716"
+    },
+    {
+      "id": "T1",
+      "url": "https://www.yna.co.kr/view/AKR20260923042200505"
+    },
+    {
+      "id": "T2",
+      "url": "https://www.reddit.com/r/ChatGPT/comments/1wmw4bg/there_is_a_memory_summary_in_your_account_that/"
+    },
+    {
+      "id": "T3",
+      "url": "https://www.reddit.com/r/ChatGPT/comments/1wmfmji/psa_deleting_a_chatgpt_conversation_doesnt_mean/"
+    },
+    {
+      "id": "T4",
+      "url": "https://gall.dcinside.com/mgallery/board/view/?id=thesingularity&no=1441874"
+    },
+    {
+      "id": "T5",
+      "url": "https://gall.dcinside.com/mgallery/board/view/?id=thesingularity&no=1442819"
+    },
+    {
+      "id": "T6",
+      "url": "https://news.hada.io/topic?id=34295"
+    },
+    {
+      "id": "T7",
+      "url": "https://www.reddit.com/r/selfimprovement/comments/1wl0liw/29m_i_struggle_to_remember_my_own_experiences/"
+    },
+    {
+      "id": "T8",
+      "url": "https://www.reddit.com/r/PKMS/comments/1wq8w0z/which_pkms_would_help_me_make_sense_of_data/"
+    },
+    {
+      "id": "T9",
+      "url": "https://news.ycombinator.com/item?id=49793254"
+    },
+    {
+      "id": "T10",
+      "url": "https://news.hada.io/topic?id=34305"
+    },
+    {
+      "id": "N1",
+      "url": "https://techcrunch.com/2026/09/25/meta-is-putting-its-muscle-behind-muse-as-the-ai-app-takes-off/"
+    },
+    {
+      "id": "N2",
+      "url": "https://www.makeuseof.com/gave-claude-code-access-to-note-taking-tool-stopped-workspace-manually/"
+    },
+    {
+      "id": "N3",
+      "url": "https://mouse.dev/blog/muse-special/"
+    },
+    {
+      "id": "N4",
+      "url": "https://www.darktrace.com/blog/hijacking-agentic-harnesses-to-attack-an-organization"
+    },
+    {
+      "id": "T1",
+      "url": "https://www.reddit.com/r/productivity/comments/1wqz6tf/are_second_brain_and_para_systems_making_us_more/"
+    },
+    {
+      "id": "T2",
+      "url": "https://www.reddit.com/r/ObsidianMD/comments/1wqgjrt/obsidian_claud_code/"
+    },
+    {
+      "id": "T3",
+      "url": "https://gall.dcinside.com/mgallery/board/view/?id=thesingularity&no=1444104"
+    },
+    {
+      "id": "T4",
+      "url": "https://news.ycombinator.com/item?id=49861765"
+    },
+    {
+      "id": "N3b",
+      "url": "https://news.hada.io/topic?id=34318"
+    },
+    {
+      "id": "N3c",
+      "url": "https://news.ycombinator.com/item?id=49848095"
+    },
+    {
+      "id": "N4b",
+      "url": "https://forkast.news/darktrace-proved-that-ai-agent-tools-can-be-hijacked-through-their-own-memory-and-the-fix-is-out-of-your-hands/"
+    },
+    {
+      "id": "T4b",
+      "url": "https://www.cognee.ai/agent-memory"
+    },
+    {
+      "id": "T3b",
+      "url": "https://gall.dcinside.com/mgallery/board/view/?id=thesingularity&no=1444126"
+    },
+    {
+      "id": "N1",
+      "url": "https://sea.mashable.com/tech/55098/10-ways-to-use-metas-muse-ai-app-from-flight-credits-to-outfit-ideas"
+    },
+    {
+      "id": "N2",
+      "url": "https://www.neoteo.com/en/chatgpt-memory-settings-how-to-review-and-control-what-it-remembers"
+    },
+    {
+      "id": "N3",
+      "url": "https://www.mt.co.kr/index.php/world/2026/09/22/2026092206524457676"
+    },
+    {
+      "id": "N4",
+      "url": "https://zdnet.co.kr/view/?no=20260922082149"
+    },
+    {
+      "id": "N5",
+      "url": "https://www.neoteo.com/en/a-meta-muse-hands-on-review-found-task-help-and-data-prompts"
+    },
+    {
+      "id": "N6",
+      "url": "https://shipwithmuse.live/blog/muse-vs-chatgpt-agent"
+    },
+    {
+      "id": "T1",
+      "url": "https://welcome.llamora.app/"
+    },
+    {
+      "id": "T1b",
+      "url": "https://news.ycombinator.com/item?id=49865519"
+    },
+    {
+      "id": "T2",
+      "url": "https://github.com/Avinash-jetwani/jevmem"
+    },
+    {
+      "id": "T3",
+      "url": "https://www.reddit.com/r/ChatGPT/comments/1wrek76/what_chatgpt_thinks_it_knows_about_you_is/"
+    },
+    {
+      "id": "T4",
+      "url": "https://www.reddit.com/r/productivity/comments/1wpxs64/four_weeks_of_notes_and_not_one_of_them_asks_me_a/"
+    },
+    {
+      "id": "T5",
+      "url": "https://www.reddit.com/r/ObsidianMD/comments/1wrgnzj/help_using_both_gemini_and_claude_for/"
+    },
+    {
+      "id": "T6",
+      "url": "https://dhravya.dev/writing/memory-on-the-harness-level/"
+    },
+    {
+      "id": "T7",
+      "url": "https://www.reddit.com/r/ObsidianMD/comments/1wqm1dc/whats_actually_inside_your_daily_or_weekly_notes/"
+    },
+    {
+      "id": "T8",
+      "url": "https://www.reddit.com/r/ObsidianMD/comments/1wqnipy/i_built_a_handwriting_companion_for_obsidian_on/"
+    }
+  ]
+}
