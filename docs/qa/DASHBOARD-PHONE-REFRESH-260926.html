@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2ndB · 나의 휴대전화 프레임과 자동 새로고침</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f7f9ff; --card:#fff; --ink:#14203b; --muted:#52627e; --line:#bdc8df; --accent:#275dcc; }
+    @media (prefers-color-scheme:dark) { :root { --bg:#0b1020; --card:#141e35; --ink:#eff3ff; --muted:#bfcae2; --line:#52627e; --accent:#8ab5ff; } }
+    * { box-sizing:border-box } body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.55 system-ui,sans-serif }
+    main { max-width:900px; margin:auto; padding:28px 18px 48px } h1 { font-size:clamp(25px,4vw,36px); line-height:1.2; margin:8px 0 12px }
+    h2 { font-size:19px; margin:0 0 9px } p { margin:5px 0 13px } a { color:var(--accent) }
+    .meta { color:var(--muted); font-size:13px } .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:20px 0 }
+    .card,details { background:var(--card); border:1px solid var(--line); padding:17px } .card strong { display:block; font-size:21px; line-height:1.3; margin:5px 0 }
+    .card span,.small { color:var(--muted); font-size:13px } details { margin:10px 0 } summary { cursor:pointer; font-weight:700 }
+    li { margin:6px 0 } code { overflow-wrap:anywhere; font-size:.9em } svg { width:100%; max-width:530px; height:auto; margin:12px 0 }
+    .status { color:var(--accent); font-weight:700 } :focus-visible { outline:3px solid var(--accent); outline-offset:3px }
+  </style>
+</head>
+<body><main>
+  <div class="meta">2ndB · QA 계정 브라우저 검증 · 26.09.26 23:57:07 KST</div>
+  <h1>나의 휴대전화가 실제 픽셀 폰 안에서 작동합니다</h1>
+  <p>Simon이 제공한 빈 화면 에셋을 프레임으로 적용하고, 데이터 연동 화면의 새로고침 방식을 토글과 기준 시각 설정으로 바꿨습니다. 휴대전화 화면의 떠 있는 뒤로가기 버튼은 없애고, 아래 스와이프로 별자리로 돌아갑니다.</p>
+  <div class="grid">
+    <div class="card"><span>휴대전화 화면</span><strong>전체 프레임 · 아래 스와이프</strong><span>하단 네비게이션 위까지 본체를 채우고, 떠 있는 뒤로가기 버튼 제거</span></div>
+    <div class="card"><span>새로고침</span><strong>켜기·끄기 + 시각</strong><span>기본 켜짐 · 1시간 · 00:00, 계정별 저장</span></div>
+    <div class="card"><span>브라우저 검증</span><strong>QA 계정 통과</strong><span>탭, 스크롤, 앱 버튼, 저장·재진입, 잘못된 시각 안내</span></div>
+    <div class="card"><span>검증</span><strong id="verify-state">Jest 10,097개 통과</strong><span><code>npm run verify</code>는 기존 PIXEL-CLAY 146→150건에서 중단</span></div>
+  </div>
+  <svg viewBox="0 0 530 110" role="img" aria-label="에셋 프레임 뒤에 실제 화면이 배치되고, 설정은 계정별 새로고침 시각을 저장합니다">
+    <rect x="2" y="17" width="145" height="75" fill="none" stroke="currentColor" stroke-width="2"/><text x="74" y="48" text-anchor="middle" fill="currentColor">픽셀 폰 에셋</text><text x="74" y="69" text-anchor="middle" fill="currentColor">비인터랙티브</text>
+    <path d="M149 54h35m-7-6 7 6-7 6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+    <rect x="185" y="17" width="153" height="75" fill="none" stroke="currentColor" stroke-width="2"/><text x="261" y="48" text-anchor="middle" fill="currentColor">실제 액정</text><text x="261" y="69" text-anchor="middle" fill="currentColor">스크롤·터치 가능</text>
+    <path d="M340 54h35m-7-6 7 6-7 6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+    <rect x="376" y="17" width="152" height="75" fill="none" stroke="currentColor" stroke-width="2"/><text x="452" y="48" text-anchor="middle" fill="currentColor">계정별 설정</text><text x="452" y="69" text-anchor="middle" fill="currentColor">주기·기준 시각</text>
+  </svg>
+  <details><summary>QA 화면 확인</summary>
+    <ul>
+      <li>425×812: <a href="dashboard-refresh-260926/dashboard-phone-fullbleed.png">최종 전체 프레임 화면</a>, <a href="dashboard-refresh-260926/phone-artwork-scrolled.png">내부 스크롤</a>, <a href="dashboard-refresh-260926/phone-apps.png">앱 목록</a></li>
+      <li>QA 로그인 브라우저에서 <code>그래프로 돌아가기</code> 버튼이 사라진 것을 접근성 트리로 확인. 맨 위의 아래 방향 드래그는 <code>/</code>로 이동하고, 내부 목록을 300px 읽은 뒤 같은 드래그는 <code>/dashboard</code>에 남았습니다. 브라우저 이벤트를 이용한 동작 검증이며 실제 터치 기기는 별도 확인이 필요합니다.</li>
+      <li>360×640: <a href="dashboard-refresh-260926/dashboard-phone-fullbleed-small.png">최종 작은 화면</a>에서 프레임과 하단 네비게이션이 잘리지 않음.</li>
+      <li>앱 탭을 눌러 도구 목록을 열고, 집중 타이머를 눌러 <code>/focus</code>로 이동함.</li>
+      <li>자동 새로고침을 끄면 주기·시각 입력이 숨겨짐. <code>3시간 / 07:30</code> 저장 후 재진입 시 유지되며 대시보드에도 표시됨. QA 설정은 <code>1시간 / 00:00</code>으로 복원.</li>
+      <li><code>25:99</code> 입력은 저장되지 않고 형식 오류를 표시함. 탭 전환 구간 브라우저 콘솔 오류 0건.</li>
+    </ul>
+  </details>
+  <details><summary>구현 및 검증</summary>
+    <ul>
+      <li>실행 코드: <code>src/components/dashboard/DashboardPhone.tsx</code>, <code>src/lib/dashboard/phone-frame.ts</code>, <code>src/lib/dashboard/phone-dismiss.ts</code>, <code>src/lib/nav/tabs.ts</code>, <code>src/app/data-connections.tsx</code>, <code>src/lib/dashboard/refresh-cadence.ts</code>.</li>
+      <li>에셋: <code>assets/images/secondb-cellphone-screen.png</code>. 기존 홈 화면의 작은 휴대전화 에셋은 그대로 유지.</li>
+      <li>스와이프·네비게이션 회귀 테스트 10개, 타입 검사, 변경 파일 ESLint, 다국어 검사, 에셋 확장자·런타임 사이클 검사 통과.</li>
+      <li id="verify-detail"><code>npm test -- --ci --runInBand</code> 통과: 803개 모음, 10,097개 테스트. <code>npm run verify</code>는 PIXEL-CLAY 래칫(146→150)에서 중단. 위반 목록은 다른 화면의 불투명도·그림자이며 이번 변경 파일에는 해당 패턴이 없습니다.</li>
+    </ul>
+  </details>
+  <details><summary>범위와 남은 위험</summary>
+    <ul>
+      <li>자동 새로고침은 앱이 활성이고 대시보드가 열린 동안 이미 저장된 데이터를 다시 읽습니다. 외부 서비스 자동 수집이나 백그라운드 실행은 아닙니다.</li>
+      <li><code>npx expo install --check</code>는 기존 Expo 패키지들의 권장 패치 버전 불일치로 실패했습니다. 이번 변경에서 의존성은 추가·갱신하지 않았습니다.</li>
+      <li>네이티브 기기/APK 검증은 이번 브라우저 QA 범위에 포함되지 않았습니다.</li>
+      <li>개발 서버의 기존 <code>/2nd-B/manifest.webmanifest</code> 404는 새 페이지 로드 시 남지만, 이번 탭·버튼 상호작용 구간에서 새 콘솔 오류는 없었습니다.</li>
+    </ul>
+  </details>
+</main></body></html>

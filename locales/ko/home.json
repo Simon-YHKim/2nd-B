@@ -109,6 +109,8 @@
       },
       "inbox": "알림",
       "headA11y": "세컨비에게 물어보기",
+      "dialogueOpen": "세컨비 대화 열기",
+      "dialogueClose": "세컨비 대화 닫기",
       "kind": {
         "domain": "영역",
         "profile": "내가 보이는 방식"
@@ -122,7 +124,7 @@
         "tip3": "북극성에서는 쌓인 기록을 한 문장으로 정리하고 직접 고칠 수 있어요.",
         "next": "다음",
         "openMenu": "기능 메뉴",
-        "menuTag": "세컨비",
+        "menuTag": "메뉴",
         "menu": "무엇을 할까요?",
         "travel": "여행하기",
         "later": "다음에",

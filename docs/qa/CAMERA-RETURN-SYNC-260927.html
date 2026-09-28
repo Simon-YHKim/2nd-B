@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2ndB 망원경 조작부·카메라 동기화 보고</title>
+  <style>
+    :root { color-scheme:light dark; --bg:#fcfcfb; --panel:#f2f4f8; --fg:#111827; --sub:#475569; --edge:#94a3b8; --accent:#2f5fc0; }
+    @media (prefers-color-scheme:dark) { :root { --bg:#0a0e18; --panel:#141b2e; --fg:#eaeef5; --sub:#b0b9cc; --edge:#3d4866; --accent:#9db8f5; } }
+    * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.55 system-ui,sans-serif; }
+    main { max-width:860px; margin:auto; padding:28px 18px 50px; } h1 { margin:0 0 8px; font-size:26px; } p { margin:8px 0 16px; color:var(--sub); }
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin:20px 0; }
+    .card, details { border:1px solid var(--edge); background:var(--panel); padding:14px; } .card strong { display:block; font-size:21px; } .card small { color:var(--sub); }
+    details { margin-top:10px; } summary { cursor:pointer; font-weight:700; } ul { padding-left:22px; } li { margin:6px 0; }
+    code { color:var(--accent); overflow-wrap:anywhere; } footer { margin-top:30px; border-top:1px solid var(--edge); padding-top:12px; color:var(--sub); font-size:12px; }
+  </style>
+</head>
+<body><main>
+  <h1>망원경 조작부·카메라 동기화</h1>
+  <p>로컬 별자리 화면의 425×812·375×812 뷰포트에서 확인했습니다. 2026-09-27 20:14:13 KST</p>
+  <div class="cards" aria-label="검증 요약">
+    <div class="card"><strong>68px</strong><small>조작부 높이·픽셀 단계 배경</small></div>
+    <div class="card"><strong>640ms</strong><small>원점까지 카메라·조그·다이얼 동기 복귀</small></div>
+    <div class="card"><strong>27/27</strong><small>관련 회귀 테스트 통과</small></div>
+    <div class="card"><strong>성공</strong><small>Android 로컬 번들 생성</small></div>
+  </div>
+  <svg viewBox="0 0 620 114" role="img" aria-label="별 선택과 원점 복귀에서 화면 카메라, 조그, 줌 다이얼이 같은 진행도를 따른다" style="display:block;max-width:100%;background:var(--panel);border:1px solid var(--edge)">
+    <path d="M74 56H555" stroke="var(--edge)" stroke-width="2"/>
+    <circle cx="74" cy="56" r="8" fill="var(--accent)"/><circle cx="310" cy="56" r="8" fill="var(--accent)"/><circle cx="555" cy="56" r="8" fill="var(--accent)"/>
+    <text x="74" y="34" text-anchor="middle" fill="var(--fg)" font-size="13">시작</text><text x="310" y="34" text-anchor="middle" fill="var(--fg)" font-size="13">이동·줌</text><text x="555" y="34" text-anchor="middle" fill="var(--fg)" font-size="13">초점·원점</text>
+    <text x="310" y="91" text-anchor="middle" fill="var(--sub)" font-size="13">화면 ↔ 조그 방향 ↔ 줌 눈금이 같은 키프레임을 사용</text>
+  </svg>
+  <details><summary>구현 근거</summary>
+    <ul>
+      <li>조작부 전체에 불투명 검정 패널을 두지 않고, 정확히 68px 행 안에만 색을 미리 합성한 세 겹의 픽셀 띠를 넣었습니다. 바깥일수록 별자리 바탕색에 가까워져 테두리가 자연스럽게 사라집니다. 투명도·블러·그라디언트는 사용하지 않았습니다.</li>
+      <li>원점 터치의 즉시 상태 변경을 기존 카메라 반환 시간 640ms의 단계형 애니메이션으로 바꾸었습니다. 카메라의 화면 좌표를 원점까지 보간해 별자리와 눈금이 같은 경로를 따릅니다.</li>
+      <li>별 선택 중에도 조작부를 숨기지 않고 비활성 상태로 표시합니다. 별 이동에 사용 중인 키프레임을 읽어 조그 방향과 다이얼 배율을 표시하며, 카메라와 반대 방향으로 움직이는 배경을 고려해 조그 방향을 보정했습니다.</li>
+      <li>다른 별을 누르면 진행 중인 원점 복귀를 중지하고 현재 위치에서 새 이동을 시작합니다. 기존 모터·초점·셔터 소리는 유지하고 원점 복귀에는 모터 리듬을 연결했습니다.</li>
+    </ul>
+  </details>
+  <details><summary>검증과 남은 주의점</summary>
+    <ul>
+      <li>브라우저에서 별 선택 시 조그가 실제 이동 방향으로 움직이고, 표시 배율이 1.00×→약 6.95×로 변했습니다. 돌아오기 때 배율·조그가 역으로 이동했습니다.</li>
+      <li>조그 키 입력으로 화면을 옮기고 1.03×로 확대한 뒤 원점을 눌렀습니다. 화면 변환과 조그·다이얼이 단계적으로 이동했고 680ms 후 0,0·1.00×로 복귀했습니다.</li>
+      <li>375px 화면에서 조작부는 359×68px, 하단 745px이며 내비게이션은 754px부터 시작해 겹치지 않습니다. 콘솔을 초기화한 뒤 별 왕복·원점 복귀에서 새 오류는 0건이었습니다.</li>
+      <li>관련 Jest 4개 스위트 27개, TypeScript, 변경 파일 ESLint, Android 로컬 번들 생성 통과. Android/iOS 실기기 동작은 아직 확인하지 않았습니다.</li>
+      <li>전체 <code>npm run verify</code>는 기존 다른 파일의 PIXEL-CLAY 위반이 기준선보다 4건 많아 중단됩니다. Expo Doctor는 기존 Hermes/패키지 버전·메타데이터 문제로 19/22만 통과합니다. Android export에는 서비스 설정 파일 미존재 경고가 있지만 번들은 생성됐습니다.</li>
+    </ul>
+  </details>
+  <footer>작업 브랜치: <code>codex/observatory-dashboard-260925</code> · 기존 미커밋 변경은 보존했습니다.</footer>
+</main></body></html>

@@ -519,6 +519,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
     title: "설정 · 계정",
     screens: [
       { file: "settings", href: "/settings", label: "설정", auth: true },
+      { file: "data-connections", href: "/data-connections", label: "데이터 출처 · 새로고침", auth: true },
       { file: "account", href: "/account", label: "계정", auth: true },
       // 게이트가 라우트에서 화면으로 모였다.
       {

@@ -13,17 +13,19 @@
     "down": "Apontar para baixo",
     "left": "Apontar à esquerda",
     "right": "Apontar à direita",
-    "reset": "Voltar ao céu completo",
+    "reset": "Voltar à origem",
     "dial": "Seletor de ampliação",
     "hint": "W amplia o campo de visão e T aproxima a imagem. Solte para manter a ampliação.",
     "slider": "Controle deslizante de ampliação",
     "joystick": "Joystick de giro e inclinação",
-    "joystickHint": "Empurre na direção desejada. Quanto mais longe do centro, maior a velocidade. Solte para parar. No teclado, mantenha as setas pressionadas.",
+    "joystickHint": "Empurre para mover ou toque sem arrastar para voltar à origem. Quanto mais longe do centro, maior a velocidade. Solte para parar. No teclado, mantenha as setas pressionadas.",
     "panTilt": "Giro / Incl.",
     "stopped": "Parado",
     "speed": "Vel. {{value}}%",
     "phone": "Abrir meu painel",
-    "phoneLabel": "Meu celular"
+    "phoneLabel": "Meu celular",
+    "phoneReveal": "Deslize para cima para mostrar o celular.",
+    "phoneStow": "Toque para abrir o painel ou deslize para baixo para guardar o celular."
   },
   "time": {
     "today": "Hoje",

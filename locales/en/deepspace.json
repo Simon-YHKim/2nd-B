@@ -13,17 +13,19 @@
     "down": "Aim telescope down",
     "left": "Aim telescope left",
     "right": "Aim telescope right",
-    "reset": "Return to the full sky",
+    "reset": "Return telescope to origin",
     "dial": "Magnification dial",
     "hint": "W widens the view, T brings it closer. Release to keep the zoom setting.",
     "slider": "Zoom magnification slider",
     "joystick": "Pan and tilt joystick",
-    "joystickHint": "Push toward the direction to travel. Push farther to move faster; release to stop. On a keyboard, hold the arrow keys.",
+    "joystickHint": "Push to move, or tap without dragging to return to origin. Push farther to move faster; release to stop. On a keyboard, hold the arrow keys.",
     "panTilt": "Pan / Tilt",
     "stopped": "Stopped",
     "speed": "Speed {{value}}%",
     "phone": "Open my dashboard",
-    "phoneLabel": "My phone"
+    "phoneLabel": "My phone",
+    "phoneReveal": "Swipe up to reveal the phone.",
+    "phoneStow": "Tap to open the dashboard or swipe down to put the phone away."
   },
   "time": {
     "today": "Today",

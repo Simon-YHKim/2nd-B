@@ -6071,8 +6071,11 @@ test('salvage plan classifies every non-direct frame and production route exactl
   // 25 -> 26 (2026-09-26): /service-consent adds the current consent receipt.
   // 26 -> 27 (2026-09-28): /avatar-studio adds an approved avatar wardrobe.
   // 27 -> 28 (2026-09-28): /avatar-palette adds a local in-phone pixel editor.
-  assert.equal(expectedActualHrefs.length, 28);
+  // 28 -> 29 (2026-09-28): /data-connections moves data-source management
+  // out of the phone dashboard and into settings.
+  assert.equal(expectedActualHrefs.length, 29);
   assert.equal(salvage.actualRoutes['/dashboard'].strategy, 'redesign');
+  assert.equal(salvage.actualRoutes['/data-connections'].strategy, 'adapt-reference');
   assert.deepEqual(Object.keys(salvage.actualRoutes).sort(), expectedActualHrefs);
   for (const [href, plan] of Object.entries(salvage.actualRoutes)) {
     for (const reference of plan.references) {

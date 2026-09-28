@@ -562,6 +562,13 @@
       "route": "dashboard"
     },
     {
+      "id": "data-connections",
+      "component": null,
+      "appOnly": true,
+      "title": "데이터 출처 · 새로고침",
+      "route": "data-connections"
+    },
+    {
       "id": "data",
       "component": null,
       "appOnly": true,

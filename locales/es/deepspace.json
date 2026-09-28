@@ -13,17 +13,19 @@
     "down": "Apuntar abajo",
     "left": "Apuntar a la izquierda",
     "right": "Apuntar a la derecha",
-    "reset": "Volver al cielo completo",
+    "reset": "Volver al origen",
     "dial": "Dial de aumento",
     "hint": "W amplía el campo de visión y T acerca la imagen. Al soltar, se mantiene el aumento.",
     "slider": "Control deslizante de aumento",
     "joystick": "Joystick de giro e inclinación",
-    "joystickHint": "Empuja hacia donde quieras moverte. Cuanto más lo alejes del centro, más rápido se moverá. Suelta para detenerte. Con teclado, mantén pulsadas las flechas.",
+    "joystickHint": "Empuja para moverte o toca sin arrastrar para volver al origen. Cuanto más lo alejes del centro, más rápido se moverá. Suelta para detenerte. Con teclado, mantén pulsadas las flechas.",
     "panTilt": "Giro / Incl.",
     "stopped": "Detenido",
     "speed": "Vel. {{value}}%",
     "phone": "Abrir mi panel",
-    "phoneLabel": "Mi móvil"
+    "phoneLabel": "Mi móvil",
+    "phoneReveal": "Desliza hacia arriba para sacar el móvil.",
+    "phoneStow": "Toca para abrir el panel o desliza hacia abajo para guardar el móvil."
   },
   "time": {
     "today": "Hoy",

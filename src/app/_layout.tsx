@@ -246,6 +246,8 @@ export default function RootLayout() {
               <Stack.Screen name="trinity" />
               <Stack.Screen name="mbti" />
               <Stack.Screen name="settings" />
+              <Stack.Screen name="dashboard" options={{ presentation: "transparentModal", contentStyle: { backgroundColor: "transparent" } }} />
+              <Stack.Screen name="data-connections" />
               <Stack.Screen name="privacy" />
               <Stack.Screen name="service-consent" />
               <Stack.Screen name="account" />

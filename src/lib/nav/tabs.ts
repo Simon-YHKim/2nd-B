@@ -91,6 +91,7 @@ export const DEEP_SPACE_DOCK_PATHS = [
   // lives in exactly one place.
   "/subscription",
   "/ops",
+  "/dashboard",
   // /wiki joined the dock as a 5-tab root in P2-cont (#658 wraps it in
   // DeepSpaceScreen), so the floating BackArrow chip must hide there too.
   "/wiki",
@@ -159,6 +160,7 @@ export const DEEP_SPACE_DOCK_PATHS = [
   // affordance.
   "/records",
   "/data",
+  "/data-connections",
   "/integrations",
   "/import",
   "/growth",

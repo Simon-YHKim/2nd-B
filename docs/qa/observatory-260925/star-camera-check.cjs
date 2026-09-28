@@ -21,7 +21,7 @@ const qa = Object.fromEntries(readFileSync('.env.test', 'utf8').split(/\r?\n/).f
       constructor(...args) {
         super(...args);
         window.__cameraPlayers.push(this);
-        const source = String(args[0]).split('?')[0].split('/').pop();
+        const source = decodeURIComponent(String(args[0])).match(/observatory-(?:ratchet|focus-lock|shutter)/)?.[0] ?? 'other';
         for (const event of ['playing', 'pause', 'ended', 'error']) this.addEventListener(event, () => {
           window.__cameraAudio.push({ event, src: source, rate: this.playbackRate, volume: this.volume });
         });
@@ -118,9 +118,8 @@ const qa = Object.fromEntries(readFileSync('.env.test', 'utf8').split(/\r?\n/).f
       console.log('CAMERA_OK', JSON.stringify({ width, id, diameter: star.width, frames: frames.length, startMatrix, start: [frames[0].x, frames[0].y], finish: [physicalStar.x + physicalStar.width / 2, physicalStar.y + physicalStar.height / 2], movingSky, settledSky }));
     }
     const normalAudio = await page.evaluate(() => window.__cameraAudio);
-    assert.ok(normalAudio.some(e => e.event === 'playing' && e.rate === 0.95), 'approach sound played');
-    assert.ok(normalAudio.some(e => e.event === 'playing' && e.rate === 1.3), 'retreat sound played');
-    assert.ok(normalAudio.some(e => e.event === 'playing' && e.volume === 0.16), 'focus lock sound played');
+    assert.ok(normalAudio.some(e => e.event === 'playing' && e.src === 'observatory-ratchet' && e.rate === 1), 'recorded motor played at original pitch');
+    assert.ok(normalAudio.some(e => e.event === 'playing' && e.src === 'observatory-focus-lock' && e.volume === 0.18), 'recorded focus lock played');
     await page.evaluate(() => { window.__cameraAudio = []; });
     await focus();
     await page.waitForTimeout(140);
@@ -128,10 +127,10 @@ const qa = Object.fromEntries(readFileSync('.env.test', 'utf8').split(/\r?\n/).f
     await page.getByTestId('star-destination').waitFor({ state: 'detached' });
     await page.waitForTimeout(400);
     const cancelledAudio = await page.evaluate(() => window.__cameraAudio);
-    assert.ok(!cancelledAudio.some(e => e.event === 'playing' && e.volume === 0.16), 'no stale focus lock after cancellation');
+    assert.ok(!cancelledAudio.some(e => e.event === 'playing' && e.src === 'observatory-focus-lock'), 'no stale focus lock after cancellation');
     // load() resets playbackRate before queued pause events fire. Inspect the
     // released elements directly rather than assigning a pause to that rate.
-    const released = await page.evaluate(() => window.__cameraPlayers.filter(p => p.volume === 0.12).every(p => p.paused && !p.getAttribute('src')));
+    const released = await page.evaluate(() => window.__cameraPlayers.filter(p => p.loop).every(p => p.paused));
     assert.ok(released, 'all completed/cancelled camera media are paused and released');
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.reload();
@@ -144,7 +143,7 @@ const qa = Object.fromEntries(readFileSync('.env.test', 'utf8').split(/\r?\n/).f
     const later = await target.boundingBox();
     assert.equal(immediate.width, later.width, 'reduced motion has no animated zoom');
     const reducedAudio = await page.evaluate(() => window.__cameraAudio);
-    assert.ok(!reducedAudio.some(e => e.rate === 0.95 || e.rate === 1.3 || e.volume === 0.16), 'reduced motion suppresses camera sounds');
+    assert.ok(!reducedAudio.some(e => e.event === 'playing' && e.src.startsWith('observatory-')), 'reduced motion suppresses camera sounds');
     await back();
     await page.getByTestId('star-destination').waitFor({ state: 'detached' });
     assert.deepEqual(errors, []);

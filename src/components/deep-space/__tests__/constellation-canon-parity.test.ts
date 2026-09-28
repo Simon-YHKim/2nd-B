@@ -28,6 +28,7 @@ const SRC = readFileSync(
   join(__dirname, "..", "ConstellationHome.tsx"),
   "utf8",
 ).replace(/\r\n/g, "\n");
+const PHONE = readFileSync(join(__dirname, "..", "..", "dashboard", "DashboardPhone.tsx"), "utf8");
 
 /** The `REV2_STARS` literal, parsed out of the renderer source. */
 function renderedStars(): { id: string; x: number; y: number }[] {
@@ -89,22 +90,17 @@ describe("constellation home <-> canon parity", () => {
     expect(SRC).not.toContain("MUSEUM_LEVEL");
   });
 
-  // /museum lost its star in the same change. It is only still reachable because
-  // the corner chip went in alongside; without this the swap silently strands a
-  // whole screen, which is exactly what the two draft plans would have done.
-  it("keeps a forward entry point to the museum after it lost its star", () => {
-    expect(SRC).toContain("onMuseumPress");
-    expect(SRC).toContain("ds.home.museumEntry");
+  it("moves the museum entry from the home bar into the phone apps", () => {
+    expect(SRC).not.toContain("onMuseumPress");
+    expect(PHONE).toContain('id: "museum", route: "/museum"');
+    expect(PHONE).toContain('source={PHONE_APP_ICONS[id]}');
   });
 
-  // 커뮤니티 had the same defect with no star swap to explain it: the screen
-  // shipped with no forward link from anywhere in the app, reachable only by
-  // pasting an invite URL. Same guard so it cannot happen again.
-  it("keeps a forward entry point to the community", () => {
-    expect(SRC).toContain("onCommunityPress");
-    expect(SRC).toContain("ds.home.communityEntry");
-    // Adults only, fail-closed: an unknown age must not render the affordance.
-    expect(SRC).toContain('isMinor === false ? (');
+  it("removes the community chip without losing its adult-only phone entry", () => {
+    expect(SRC).not.toContain("onCommunityPress");
+    expect(PHONE).toContain('id: "community", route: "/community"');
+    expect(PHONE).toContain('id === "community" && isMinor !== false');
+    expect(PHONE).toContain('disabled={disabled}');
   });
 
   // The point of the whole file: the drawn set and the averaged set must differ

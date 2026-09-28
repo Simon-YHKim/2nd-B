@@ -173,6 +173,15 @@
   }
  },
  "actualRoutes": {
+  "/data-connections": {
+   "strategy": "adapt-reference",
+   "references": [
+    "connect",
+    "healthdata"
+   ],
+   "implementation": "데이터 출처와 가져오기 상태, 대시보드 저장 데이터의 새로고침 주기를 설정에서 관리한다. 외부 서비스의 자동 수집과 구분해 안내한다.",
+   "doneWhen": "출처 상태와 1시간 기본값·사용자별 주기 저장이 검증되고 앱이 닫힌 동안 외부 자동 동기화가 실행된다는 오해를 만들지 않는다."
+  },
   "/dashboard": {
    "strategy": "redesign",
    "references": [],
