@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { SvgXml } from "react-native-svg";
 
-import { renderAvatarSvg, type AvatarSpec } from "@/lib/avatar";
+import { renderAvatarSvg, type AvatarSharedOverlay, type AvatarSpec } from "@/lib/avatar";
 
 export interface AvatarPreviewProps {
   spec: AvatarSpec;
@@ -9,15 +9,16 @@ export interface AvatarPreviewProps {
   size: number;
   /** Focus on the 40×40 head region in small chips, as in the prototype. */
   crop?: boolean;
+  overlays?: readonly AvatarSharedOverlay[];
 }
 
-export function AvatarPreview({ spec, size, crop = false }: AvatarPreviewProps) {
+export function AvatarPreview({ spec, size, crop = false, overlays = [] }: AvatarPreviewProps) {
   const xml = useMemo(() => {
-    const full = renderAvatarSvg(spec, size);
+    const full = renderAvatarSvg(spec, size, overlays);
     return crop
       ? full.replace('viewBox="0 0 64 64"', 'viewBox="12 0 40 40"')
       : full;
-  }, [spec, size, crop]);
+  }, [spec, size, crop, overlays]);
 
   return <SvgXml xml={xml} width={size} height={size} />;
 }

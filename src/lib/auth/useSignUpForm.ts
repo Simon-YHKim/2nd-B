@@ -117,6 +117,7 @@ export interface UseSignUpForm {
   userId: string | null;
   submitting: boolean;
   judgeWelcome: boolean;
+  avatarSetupAfterConfirmation: boolean;
   toast: SignUpToast | null;
   // form state
   email: string;
@@ -169,6 +170,9 @@ export function useSignUpForm(): UseSignUpForm {
   // Judge accounts (C6) get a 900ms welcome toast before entering; this flag
   // holds the guest guard open until the delayed router.replace runs.
   const [judgeWelcome, setJudgeWelcome] = useState(false);
+  // A confirmation callback can establish the session outside handleSubmit.
+  // Keep its first-profile destination through the AuthContext refresh.
+  const [avatarSetupAfterConfirmation, setAvatarSetupAfterConfirmation] = useState(false);
   const [toast, setToast] = useState<SignUpToast | null>(null);
   // J3: persistent recovery card for the likely-already-registered shape.
   const [existingAccountHelp, setExistingAccountHelp] = useState(false);
@@ -315,6 +319,7 @@ export function useSignUpForm(): UseSignUpForm {
     // for; editing the address makes them stale, so retire them immediately.
     setExistingAccountHelp((prev) => (prev ? false : prev));
     setConfirmSentTo((prev) => (prev ? null : prev));
+    setAvatarSetupAfterConfirmation(false);
     setConfirmCode((prev) => (prev ? "" : prev));
     setToast((prev) => (prev?.tone === "info" ? null : prev));
   }, []);
@@ -368,19 +373,21 @@ export function useSignUpForm(): UseSignUpForm {
         // stays until the address changes or the confirmation callback
         // establishes a session.
         setToast(null);
+        setAvatarSetupAfterConfirmation(true);
         return;
       }
       if (result.kind === "entered") {
+        const nextRoute = result.consentRecorded === null ? "/" : "/avatar-studio?setup=1";
         if (result.judgeMode) {
           setJudgeWelcome(true); // hold the guest guard open for the toast
           setToast({ tone: "success", message: t("judge.welcome") });
           judgeRouteTimerRef.current = setTimeout(() => {
-            if (mountedRef.current) router.replace("/");
+            if (mountedRef.current) router.replace(nextRoute);
           }, 900);
           return;
         }
-        // Post-signup hand-off → graph view (main).
-        router.replace("/");
+        // First-time profiles complete their avatar after age/consent settlement.
+        router.replace(nextRoute);
         return;
       }
       if (result.kind === "ageGate") {
@@ -557,6 +564,7 @@ export function useSignUpForm(): UseSignUpForm {
     userId,
     submitting,
     judgeWelcome,
+    avatarSetupAfterConfirmation,
     toast,
     email,
     setEmail: setEmailAndClearHelp,

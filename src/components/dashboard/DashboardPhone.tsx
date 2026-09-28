@@ -14,21 +14,11 @@ import { loadDashboard } from "@/lib/dashboard/load";
 import { countAreaRecords, DASHBOARD_SOURCES, LIFE_AREAS, localDate, realHealthSamples, routineActionRoute, sourceState, todayAgenda, type DashboardData } from "@/lib/dashboard/model";
 import { logRoutineCompletion } from "@/lib/ops/routines";
 import { m3 } from "@/lib/theme/m3";
+import { phoneAppsFor } from "./phone-apps";
 
 type Tab = "today" | "sources" | "tools";
 const TABS: Tab[] = ["today", "sources", "tools"];
 const BRAND_NAMES: Record<string, string> = { garmin: "Garmin Connect", instagram: "Instagram", facebook: "Facebook", x: "X", nike: "Nike Run Club", line: "LINE", whatsapp: "WhatsApp", kakao: "KakaoTalk", sms: "SMS" };
-const TOOLS: { id: string; glyph: AnyGlyphName; route: string }[] = [
-  { id: "assistant", glyph: "bubble", route: "/ops" },
-  { id: "focus", glyph: "timer", route: "/focus" },
-  { id: "reminders", glyph: "notifications", route: "/reminders" },
-  { id: "money", glyph: "credit_card", route: "/ledger" },
-  { id: "growth", glyph: "target", route: "/milestones" },
-  { id: "meals", glyph: "fire", route: "/meals" },
-  { id: "community", glyph: "group", route: "/community" },
-  { id: "relationships", glyph: "person", route: "/star/relation" },
-];
-
 function go(route: string) { router.push(route as Href); }
 
 function PhoneAction({ label, onPress, glyph = "arrow_forward", disabled = false }: {
@@ -157,7 +147,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   function tools() {
     return <View style={styles.stack}>
       <Text variant="heading">{t("phone.toolsTitle")}</Text>
-      <View style={styles.grid}>{TOOLS.filter((item) => item.id !== "community" || isMinor === false).map((item) => <PixelPressable key={item.id} rootStyle={styles.tool} contentStyle={styles.toolContent} onPress={() => go(item.route)} accessibilityLabel={t(`phone.apps.${item.id}`)}>
+      <View style={styles.grid}>{phoneAppsFor(isMinor).map((item) => <PixelPressable key={item.id} rootStyle={styles.tool} contentStyle={styles.toolContent} onPress={() => go(item.route)} accessibilityLabel={t(`phone.apps.${item.id}`)}>
         <PixelGlyph name={item.glyph} size={24} color={m3.color.primary} />
         <Text variant="caption" style={styles.centered}>{t(`phone.apps.${item.id}`)}</Text>
       </PixelPressable>)}</View>

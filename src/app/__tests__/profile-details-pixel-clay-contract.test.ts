@@ -85,6 +85,18 @@ describe("/profile-details PIXEL-CLAY contract", () => {
     expect(source).toContain("onPress={() => void refreshAuth()}");
   });
 
+  test("only saves a confirmed owner name and refreshes the profile star", () => {
+    expect(source).toContain("fetchDisplayName(userId)");
+    expect(source).toContain('setNameLoadState({ userId, status: "error" })');
+    expect(source).toContain('nameLoadState.userId === userId && nameLoadState.status === "ready"');
+    expect(source).toContain("if (!userId || !nameReadyForUser || nameSaving) return");
+    expect(source).toContain("saveDisplayName(saveUserId, displayName)");
+    expect(source).toContain("activeUserIdRef.current === saveUserId");
+    expect(source).toContain("invalidateProfileStarLevel(saveUserId)");
+    expect(source).toContain("setNameReloadKey((key) => key + 1)");
+    expect(source).toContain("maxLength={DISPLAY_NAME_MAX_LENGTH}");
+  });
+
   test("relays Android IME next through consecutive text fields", () => {
     expect(fieldSource).toContain("forwardRef<TextInput, FieldProps>");
     expect(fieldSource).toContain("ref={ref}");

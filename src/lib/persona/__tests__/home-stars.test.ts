@@ -98,6 +98,7 @@ describe("별을 누르면 그 별의 요약이 열린다 (Simon 결정 4 = B)",
   it("프로필 별의 채우기 CTA가 실제 입력 화면으로 직행한다", () => {
     const page = read("src/app/me/[star].tsx");
     expect(page).toContain('router.push("/profile-details")');
+    expect(page).toContain('router.push("/avatar-studio")');
     expect(page).not.toContain('router.push("/profile")');
   });
 
@@ -125,5 +126,6 @@ describe("각 별에 이름이 있다 (다섯 로케일)", () => {
       expect(typeof star[s.key]).toBe("string");
       expect((star[s.key] ?? "").length).toBeGreaterThan(0);
     }
+    expect((star.editAvatar ?? "").length).toBeGreaterThan(0);
   });
 });

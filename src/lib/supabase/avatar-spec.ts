@@ -2,6 +2,7 @@
 // A NULL value is distinct from a failed read: only NULL means "not saved".
 
 import { resolveAvatarSpec, type AvatarSpec } from "@/lib/avatar";
+import { markAvatarFirstRunDeferred, markAvatarFirstRunSaved } from "@/lib/avatar/first-run-store";
 import { getSupabaseClient } from "./client";
 
 export async function fetchAvatarSpec(userId: string): Promise<AvatarSpec | null> {
@@ -31,4 +32,10 @@ export async function saveAvatarSpec(userId: string, spec: AvatarSpec): Promise<
     .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("Avatar owner row was not found");
+  markAvatarFirstRunSaved(userId);
+}
+
+/** Leave required setup only when its avatar read failed in this session. */
+export function markAvatarSetupDeferredForSession(userId: string): void {
+  markAvatarFirstRunDeferred(userId);
 }

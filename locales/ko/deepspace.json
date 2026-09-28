@@ -1132,6 +1132,13 @@
   },
   "profileDetails": {
     "screenTitle": "내 생활 정보",
+    "nameLabel": "표시 이름",
+    "nameHint": "프로필에 표시할 이름이에요. 비워 두어도 돼요. 최대 40자까지 적을 수 있어요.",
+    "nameLoading": "이름을 불러오는 중이에요…",
+    "nameLoadError": "기존 이름을 불러오지 못했어요. 다시 시도해 주세요.",
+    "nameSave": "이름 저장",
+    "nameSaved": "이름을 저장했어요",
+    "nameSaveError": "이름을 저장하지 못했어요. 다시 시도해 주세요.",
     "intro": "원하는 항목만 적어 주세요. 생활 정보를 프로필에 저장하고 나중에 고칠 수 있어요.",
     "progress": "{{total}}칸 중 {{filled}}칸",
     "save": "저장",

@@ -38,5 +38,8 @@
   "sample": "Contoh",
   "sampleHint": "Gambar pilihan adalah contoh pada karakter dasar. Lihat pratinjau di atas untuk kombinasi Anda.",
   "occludedHint": "Aksesori Anda sedang tertutup item lain. Pilihan Anda tetap disimpan.",
-  "choiceCount": "{{count}} pilihan"
+  "choiceCount": "{{count}} pilihan",
+  "sharedBrowse": "Simpan dan jelajahi Avatar Share",
+  "sharedRemove": "Hapus {{slot}} bersama",
+  "setupRequiredHint": "Pilih dan simpan avatar pertama Anda untuk menyelesaikan pengaturan profil."
 }

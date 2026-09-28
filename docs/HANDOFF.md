@@ -29,6 +29,18 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
+## Latest — 2026-09-28 10:53 / 첫 아바타 설정 · 프로필 편집 · 아바타 셰어
+
+> 브랜치: `codex/avatar-style-regeneration-260928`. 화면과 공개 전 순서: [아바타 셰어 완료 보고서](qa/AVATAR-SHARE-260928.html).
+
+- 새 프로필 완료 직후 아바타 스튜디오로 이동한다. 기존 계정도 `users.avatar_spec`이 실제 `NULL`이면 첫 저장까지 앱 진입을 붙잡는다. 읽기 실패는 세션 내 탈출 경로를 둔다. 첫 번째 프로필 별에서 표시 이름·생활 정보와 아바타를 다시 편집한다. 스튜디오에서 셰어로 갈 때는 미저장 선택을 먼저 저장한다.
+- 휴대전화에 `/avatar-share`를 추가했다. 성인 계정은 64×64 고정 팔레트 픽셀로 머리·옷·소품을 그리고 제출한다. 제출은 pending, 서비스 역할의 운영 검토 후 승인품만 갤러리/개인 아바타에 사용한다. 신고(에셋·제작자), 차단, 삭제, 24시간 제출 한도, 30개 보유 상한과 계정 삭제 등록부 초안을 넣었다. 타인의 그림은 픽셀만 렌더링하고 승인·노출 여부를 다시 확인한다.
+- 서버 초안 `UNNUMBERED_users_avatar_spec.sql`, `UNNUMBERED_users_display_name_update.sql`, `UNNUMBERED_avatar_share.sql`, `UNNUMBERED_avatar_share_erasure_registry.sql`은 **운영 미적용**. 격리 PostgreSQL 18에서 RLS/연령/동시 제출/신고 자동 숨김을 실행 확인했고 임시 DB 서버는 정지했다. 운영 검토자와 신고 대응 절차, 약관·재사용 문구를 확정해야 공개할 수 있다.
+- 검증: `npm run verify` 전체 게이트·Jest, `npm run verify:web` 정적 웹 문서 130개, 아바타 에셋·픽셀 규칙, 캐논 미러 및 디자인 참조 검사 통과. Android 실기기에서 그리기 제스처와 SVG 비용은 미측정.
+- 다음 순서: 콘솔 소유 세션이 최신 SQL 번호 예약 → 서버 적용 → 실계정 RLS 및 검토 작업 흐름 확인 → Android 기기 QA → 앱 공개. 수익화는 무료 기본 공유의 사용량·신고 비용을 먼저 보고, 편집 편의 기능 또는 별도 제작자 라이선스 계약을 나중에 검토한다.
+
+---
+
 ## Latest — 2026-09-28 09:49 / 승인 아바타 144종 앱 연결 · 공개 전 서버 순서
 
 > 브랜치: `codex/avatar-style-regeneration-260928`. 전체 결과: [아바타 앱 연결 보고서](qa/AVATAR-APP-INTEGRATION-260928.html).

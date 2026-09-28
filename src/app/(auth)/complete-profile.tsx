@@ -69,6 +69,9 @@ function CompleteProfileBody() {
   // below unmount the toast at zero frames — this flag holds the guard open
   // until the delayed router.replace runs.
   const [judgeWelcome, setJudgeWelcome] = useState(false);
+  // A newly created profile continues into avatar setup after the required
+  // age/consent boundary. Existing profiles keep their normal home route.
+  const [postEntryRoute, setPostEntryRoute] = useState<"/" | "/avatar-studio?setup=1">("/");
   // Holds the redirect open the same way judgeWelcome does, so a red-zone
   // North Star sentence gets its hotline before the app swallows the screen.
   const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
@@ -158,7 +161,7 @@ function CompleteProfileBody() {
   // true) BEFORE the handler navigates, and this guard must not unmount the
   // screen (killing toasts and the handler's own navigation) in that window.
   if (userId && hasProfile && !submitting && !judgeWelcome && !crisis.visible) {
-    return <Redirect href="/" />;
+    return <Redirect href={postEntryRoute} />;
   }
 
   // Not signed in at all — bounce to sign-in.
@@ -197,6 +200,8 @@ function CompleteProfileBody() {
         isEmailInUseError: (e) => e instanceof EmailInUseError,
       });
       if (result.kind === "entered") {
+        const nextRoute = result.consentRecorded === null ? "/" : "/avatar-studio?setup=1";
+        setPostEntryRoute(nextRoute);
         // L4: the goal becomes the first 북극성 문장 rather than a users column,
         // so it lands in the same ledger the /northstar screen edits and every
         // later revision stacks on top of it instead of overwriting.
@@ -234,10 +239,10 @@ function CompleteProfileBody() {
         if (result.judgeMode) {
           setJudgeWelcome(true); // hold the redirect guard open for the toast
           setToast({ tone: "success", message: t("judge.welcome") });
-          setTimeout(() => router.replace("/"), 900);
+          setTimeout(() => router.replace(nextRoute), 900);
           return;
         }
-        router.replace("/");
+        router.replace(nextRoute);
         return;
       }
       if (result.kind === "emailInUse") {

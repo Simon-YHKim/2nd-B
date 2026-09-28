@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { Redirect, router, useFocusEffect, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -11,7 +11,8 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { DEFAULT_AVATAR_SPEC, type AvatarSpec } from "@/lib/avatar";
+import { DEFAULT_AVATAR_SPEC, type AvatarSharedOverlay, type AvatarSpec } from "@/lib/avatar";
+import { loadAvatarShareOverlays } from "@/lib/avatar-share/apply";
 import { useProgression } from "@/lib/progression/useProgression";
 import { fetchAvatarSpec } from "@/lib/supabase/avatar-spec";
 import { m3 } from "@/lib/theme/m3";
@@ -46,6 +47,7 @@ interface IdentityState {
 interface AvatarState {
   owner: string | null;
   value: AvatarSpec | null;
+  overlays: AvatarSharedOverlay[];
   status: "idle" | "loading" | "ready" | "error";
 }
 
@@ -63,13 +65,15 @@ export function DeepSpaceProfileScreen() {
   const [avatar, setAvatar] = useState<AvatarState>({
     owner: null,
     value: null,
+    overlays: [],
     status: "idle",
   });
   const [avatarReloadKey, setAvatarReloadKey] = useState(0);
   const activeUserRef = useRef(userId);
   activeUserRef.current = userId;
 
-  useEffect(() => {
+  // Returning from profile details must show the saved name immediately.
+  useFocusEffect(useCallback(() => {
     if (!userId) {
       setIdentity({ owner: null, value: null, loading: false });
       return;
@@ -88,13 +92,13 @@ export function DeepSpaceProfileScreen() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId]));
 
   // Re-read on focus so a saved outfit is visible as soon as the studio closes.
   // Keep the owner with the value: a previous account's portrait must never flash.
   useFocusEffect(useCallback(() => {
     if (!userId) {
-      setAvatar({ owner: null, value: null, status: "idle" });
+      setAvatar({ owner: null, value: null, overlays: [], status: "idle" });
       return;
     }
     const requestedUserId = userId;
@@ -102,12 +106,14 @@ export function DeepSpaceProfileScreen() {
     setAvatar((current) => ({
       owner: requestedUserId,
       value: current.owner === requestedUserId ? current.value : null,
+      overlays: current.owner === requestedUserId ? current.overlays : [],
       status: "loading",
     }));
     void fetchAvatarSpec(requestedUserId)
-      .then((value) => {
+      .then(async (value) => {
+        const overlays = value ? await loadAvatarShareOverlays(value) : [];
         if (!cancelled && activeUserRef.current === requestedUserId) {
-          setAvatar({ owner: requestedUserId, value, status: "ready" });
+          setAvatar({ owner: requestedUserId, value, overlays, status: "ready" });
         }
       })
       .catch(() => {
@@ -115,6 +121,7 @@ export function DeepSpaceProfileScreen() {
           setAvatar((current) => ({
             owner: requestedUserId,
             value: current.owner === requestedUserId ? current.value : null,
+            overlays: current.owner === requestedUserId ? current.overlays : [],
             status: "error",
           }));
         }
@@ -261,6 +268,7 @@ export function DeepSpaceProfileScreen() {
               spec={avatar.owner === userId ? avatar.value ?? DEFAULT_AVATAR_SPEC : DEFAULT_AVATAR_SPEC}
               size={40}
               crop
+              overlays={avatar.owner === userId ? avatar.overlays : []}
             />
             <RNText
               accessibilityLabel={profileTitle}

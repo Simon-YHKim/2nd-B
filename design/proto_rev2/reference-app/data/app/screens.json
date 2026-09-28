@@ -478,6 +478,13 @@
       "route": "account"
     },
     {
+      "id": "avatar-share",
+      "component": null,
+      "appOnly": true,
+      "title": "아바타 셰어",
+      "route": "avatar-share"
+    },
+    {
       "id": "avatar-studio",
       "component": null,
       "appOnly": true,

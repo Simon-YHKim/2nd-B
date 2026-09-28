@@ -38,5 +38,8 @@
   "sample": "Example",
   "sampleHint": "Choice images are examples on a base character. Check the preview above for your current combination.",
   "occludedHint": "Your accessory is covered by another item right now. Your selection is kept.",
-  "choiceCount": "{{count}} choices"
+  "choiceCount": "{{count}} choices",
+  "sharedBrowse": "Save and browse Avatar Share",
+  "sharedRemove": "Remove shared {{slot}}",
+  "setupRequiredHint": "Choose and save your first avatar to finish setting up your profile."
 }

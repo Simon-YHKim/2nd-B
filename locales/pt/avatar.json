@@ -38,5 +38,8 @@
   "sample": "Exemplo",
   "sampleHint": "As imagens das opções mostram um personagem base. Confira acima sua combinação atual.",
   "occludedHint": "Outro item cobre seu acessório no momento. Sua escolha foi mantida.",
-  "choiceCount": "{{count}} opções"
+  "choiceCount": "{{count}} opções",
+  "sharedBrowse": "Salvar e explorar Avatar Share",
+  "sharedRemove": "Remover {{slot}} compartilhado",
+  "setupRequiredHint": "Escolha e salve seu primeiro avatar para concluir a configuração do perfil."
 }

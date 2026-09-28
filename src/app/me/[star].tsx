@@ -155,6 +155,12 @@ export default function StarSummaryRoute() {
               onPress={() => router.push("/profile-details")}
               style={styles.cta}
             />
+            <MdButton
+              label={t("ds.star.editAvatar")}
+              variant="outlined"
+              onPress={() => router.push("/avatar-studio")}
+              style={styles.cta}
+            />
           </>
         ) : (
           <>

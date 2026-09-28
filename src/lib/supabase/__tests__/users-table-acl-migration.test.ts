@@ -23,6 +23,8 @@ const SQL = read("db/migrations/0140_users_table_acl.sql");
 const EXEC = SQL.replace(/^\s*--.*$/gm, "");
 const AVATAR_DRAFT = read("db/migration-drafts/UNNUMBERED_users_avatar_spec.sql");
 const AVATAR_EXEC = AVATAR_DRAFT.replace(/^\s*--.*$/gm, "");
+const DISPLAY_NAME_DRAFT = read("db/migration-drafts/UNNUMBERED_users_display_name_update.sql");
+const DISPLAY_NAME_EXEC = DISPLAY_NAME_DRAFT.replace(/^\s*--.*$/gm, "");
 
 /** Columns named inside a GRANT <verb> (...) on public.users. */
 function grantedColumns(verb: "INSERT" | "UPDATE"): string[] {
@@ -37,6 +39,9 @@ function effectiveGrantedColumns(verb: "INSERT" | "UPDATE"): string[] {
     const match = AVATAR_EXEC.match(/GRANT UPDATE \(([^)]*)\) ON public\.users TO authenticated;/);
     if (!match) throw new Error("avatar draft has no authenticated UPDATE grant");
     for (const column of match[1].split(",")) granted.add(column.trim());
+    const nameMatch = DISPLAY_NAME_EXEC.match(/GRANT UPDATE \(([^)]*)\) ON public\.users TO authenticated;/);
+    if (!nameMatch) throw new Error("display name draft has no authenticated UPDATE grant");
+    for (const column of nameMatch[1].split(",")) granted.add(column.trim());
   }
   return [...granted].sort();
 }
@@ -138,6 +143,8 @@ describe("the grants cover exactly what the client writes", () => {
     expect(grantedColumns("INSERT")).not.toContain("judge_mode");
     expect(grantedColumns("UPDATE")).not.toContain("judge_mode");
     expect([...C.insert, ...C.update]).not.toContain("judge_mode");
+    expect(DISPLAY_NAME_EXEC).not.toMatch(/GRANT UPDATE\s+ON public\.users/);
+    expect(DISPLAY_NAME_EXEC).not.toMatch(/GRANT UPDATE[^;]*TO anon/);
   });
 
   test("no client DELETE exists, and DELETE is revoked", () => {

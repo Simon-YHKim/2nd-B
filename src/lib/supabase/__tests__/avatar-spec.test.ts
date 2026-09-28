@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { DEFAULT_AVATAR_SPEC, resolveAvatarSpec, type AvatarSpec } from "@/lib/avatar";
+import { avatarFirstRunSnapshot, setAvatarFirstRunOwner } from "@/lib/avatar/first-run-store";
 
 const readMaybeSingle = jest.fn();
 const readEq = jest.fn(() => ({ maybeSingle: readMaybeSingle }));
@@ -19,6 +20,7 @@ import { fetchAvatarSpec, saveAvatarSpec } from "../avatar-spec";
 describe("user-owned avatar persistence", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    setAvatarFirstRunOwner(null);
     readMaybeSingle.mockReset();
     updateMaybeSingle.mockReset().mockResolvedValue({ data: { id: "user-a" }, error: null });
   });
@@ -51,21 +53,25 @@ describe("user-owned avatar persistence", () => {
 
   test("writes one narrowed recipe to only the requested owner row", async () => {
     const spec = { ...DEFAULT_AVATAR_SPEC, job: "chef", garmentId: "hoodie" } as AvatarSpec;
+    setAvatarFirstRunOwner("user-a");
     await saveAvatarSpec("user-a", spec);
     expect(from).toHaveBeenCalledWith("users");
     expect(update).toHaveBeenCalledWith({ avatar_spec: resolveAvatarSpec(spec) });
     expect(updateEq).toHaveBeenCalledWith("id", "user-a");
     expect(updateSelect).toHaveBeenCalledWith("id");
     expect(update).toHaveBeenCalledTimes(1);
+    expect(avatarFirstRunSnapshot()).toEqual({ userId: "user-a", status: "saved" });
   });
 
   test("surfaces rejected writes and owner rows hidden by RLS", async () => {
+    setAvatarFirstRunOwner("user-a");
     const error = new Error("write denied");
     updateMaybeSingle.mockResolvedValueOnce({ data: null, error });
     await expect(saveAvatarSpec("user-a", DEFAULT_AVATAR_SPEC)).rejects.toBe(error);
     updateMaybeSingle.mockResolvedValueOnce({ data: null, error: null });
     await expect(saveAvatarSpec("user-b", DEFAULT_AVATAR_SPEC)).rejects.toThrow("Avatar owner row was not found");
     expect(updateEq).toHaveBeenLastCalledWith("id", "user-b");
+    expect(avatarFirstRunSnapshot()).toEqual({ userId: "user-a", status: "idle" });
   });
 });
 

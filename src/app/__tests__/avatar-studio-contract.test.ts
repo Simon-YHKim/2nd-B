@@ -13,7 +13,7 @@ describe("approved avatar studio screen", () => {
     expect(source).toContain("getAnimalFurColors(species)");
     expect(source).toContain("<FlatList");
     expect(source).toContain("numColumns={3}");
-    expect(source).toContain("<AvatarPreview spec={spec} size={128} />");
+    expect(source).toContain("<AvatarPreview spec={spec} size={128} overlays={overlays} />");
     expect(source).toContain("t(\"avatar:sampleHint\")");
   });
 
@@ -40,5 +40,20 @@ describe("approved avatar studio screen", () => {
     expect(source).toContain('BackHandler.addEventListener("hardwareBackPress"');
     expect(source).toContain("return () => sub.remove()");
     expect(source).toContain('router.replace("/profile")');
+  });
+
+  test("requires a first saved avatar and lets a failed server read escape", () => {
+    expect(source).toContain('const setupMode = setup === "1"');
+    expect(source).toContain('if (setupMode) router.replace("/")');
+    expect(source).toContain('t("avatar:setupRequiredHint")');
+    expect(source).toContain("markAvatarSetupDeferredForSession(userId)");
+    expect(source).toContain('if (loadState.status === "error" && userId)');
+  });
+
+  test("saves wardrobe choices before opening Avatar Share, then reloads on return", () => {
+    const saveFlow = source.slice(source.indexOf("const saveAndContinue"), source.indexOf("const onSave"));
+    expect(saveFlow.indexOf("await saveAvatarSpec(saveUserId, spec)")).toBeLessThan(saveFlow.indexOf('router.push("/avatar-share")'));
+    expect(source).toContain('onPress={() => void onBrowseShared()}');
+    expect(source).toContain('if (didFocusRef.current) setReloadKey((key) => key + 1)');
   });
 });

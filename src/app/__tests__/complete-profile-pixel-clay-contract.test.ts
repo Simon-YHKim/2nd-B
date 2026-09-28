@@ -52,6 +52,8 @@ describe("/complete-profile PIXEL-CLAY profilesetup contract", () => {
     expect(source).toContain("submitCompleteProfile({");
     expect(source).toContain("signOutAndSettle({ signOutUser: signOut, refreshAuth: refresh })");
     expect(source).toContain('return <Redirect href="/sign-in" />');
-    expect(source).toContain('router.replace("/")');
+    expect(source).toContain('return <Redirect href={postEntryRoute} />');
+    expect(source).toContain('result.consentRecorded === null ? "/" : "/avatar-studio?setup=1"');
+    expect(source).toContain("router.replace(nextRoute)");
   });
 });
