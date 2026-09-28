@@ -1,3 +1,4 @@
+import { CryptoDigestAlgorithm, digestStringAsync } from "expo-crypto";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -27,15 +28,21 @@ export function useImportPendingCaptures(): void {
     if (!userId || hasProfile !== true) return;
     ran.current = true;
     const locale = i18n.language === "ko" ? "ko" : "en";
-    void importPendingCaptures({ userId, locale, minor: isMinor === true }, (item, ctx) =>
-      createRecord({
-        userId: ctx.userId,
-        locale: ctx.locale,
-        kind: "note",
-        body: item.text,
-        minor: ctx.minor,
-        withFollowup: false,
-      }).then(() => undefined),
+    void importPendingCaptures(
+      { userId, locale, minor: isMinor === true },
+      (item, ctx, clientRequestId) =>
+        createRecord({
+          userId: ctx.userId,
+          locale: ctx.locale,
+          kind: "note",
+          body: item.text,
+          minor: ctx.minor,
+          withFollowup: false,
+          // 0178: a re-import of the same capture replays the existing row.
+          clientRequestId,
+        }).then(() => undefined),
+      // The key is "preauth:" + SHA-256(localId); the raw id stays on the device.
+      (s) => digestStringAsync(CryptoDigestAlgorithm.SHA256, s),
     );
   }, [userId, hasProfile, isMinor, i18n.language]);
 }

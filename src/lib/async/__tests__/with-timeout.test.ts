@@ -91,13 +91,27 @@ describe("createRecord does not make the user wait on enrichment", () => {
     // after the record is already safely in the database. So assert the containment, not
     // the absence of the lines. (The first draft asserted the absence and failed, because
     // the lines are of course still there -- one indent deeper.)
-    const detached = src.indexOf("void (async () => {");
-    const embed = src.indexOf("embedAndStoreRecord(", detached);
-    const returned = src.indexOf("return { id: data.id");
+    //
+    // 2026-09-29: the block moved into embedRecordDetached(), shared by the first save and
+    // the 0178 replay (replayKeyedRecord). Same containment, read per function.
+    const fnBody = (header: string): string => {
+      const start = src.indexOf(header);
+      expect(start).toBeGreaterThan(0);
+      return src.slice(start, src.indexOf("\n}\n", start));
+    };
+    const helper = fnBody("function embedRecordDetached(");
+    expect(helper).toMatch(/\): void \{/); // it hands the caller nothing to await
+    const detached = helper.indexOf("void (async () => {");
     expect(detached).toBeGreaterThan(0);
-    expect(embed).toBeGreaterThan(detached); // the embed is inside the detached block
-    expect(detached).toBeLessThan(returned); // and the function still returns after it
+    expect(helper.indexOf("embedAndStoreRecord(", detached)).toBeGreaterThan(detached); // inside the detached block
+    // createRecord reaches it before returning the row, and so does the replay.
+    const create = fnBody("export async function createRecord(");
+    const call = create.indexOf("embedRecordDetached(");
+    expect(call).toBeGreaterThan(0);
+    expect(call).toBeLessThan(create.indexOf("return { id: data.id"));
+    expect(fnBody("async function replayKeyedRecord(")).toContain("embedRecordDetached(");
     // Nothing awaits the embed on the caller's behalf.
+    expect(src).not.toMatch(/await embedRecordDetached\(/);
     expect(src).not.toMatch(/^\s{2}await embedAndStoreRecord\(/m);
   });
 });
