@@ -164,7 +164,7 @@
     "kindFallback": "Registro"
   },
   "auth": {
-    "appName": "2nd-Brain",
+    "appName": "PolaScope",
     "signInLead": "En la era de la IA, el activo eres tú. Tus registros forman tu Estrella Polar.",
     "signIn": "Iniciar sesión",
     "createAccount": "Crear cuenta",
@@ -184,7 +184,7 @@
     "forgotPassword": "¿Olvidaste tu contraseña?",
     "or": "o",
     "ageNotice": "Puedes crear una cuenta si tienes {{minAge}} años o más.",
-    "brandLabel": "2ND-BRAIN",
+    "brandLabel": "POLASCOPE",
     "signInTitle": "Qué bueno verte de nuevo",
     "emailContinue": "Continuar con correo",
     "signUpPrompt": "¿Primera vez?",
@@ -252,7 +252,7 @@
     "viewManual": "Ver el manual",
     "emailUs": "Escríbenos",
     "reportBug": "Reportar un error",
-    "footer": "2nd-Brain v1.0.0 · 2 días hábiles KST",
+    "footer": "PolaScope v1.0.0 · 2 días hábiles KST",
     "faqTitle": "Preguntas frecuentes",
     "noticesTitle": "Avisos"
   },
@@ -398,7 +398,7 @@
     "proActive": "Tu plan de pago está activo",
     "nowPro": "Ya tienes un plan de pago. Gracias.",
     "notAvailableTitle": "Mejora en la app móvil",
-    "notAvailableBody": "Los planes de pago se compran en las tiendas de apps en iOS y Android. Abre 2nd-Brain en tu teléfono para mejorar.",
+    "notAvailableBody": "Los planes de pago se compran en las tiendas de apps en iOS y Android. Abre PolaScope en tu teléfono para mejorar.",
     "support": "Contactar soporte",
     "loadError": "No se pudieron cargar los planes. Inténtalo de nuevo.",
     "purchaseError": "La compra no se completó. Inténtalo de nuevo.",
@@ -772,11 +772,11 @@
     "rangeNote": "Esta página: ítems {{from}} – {{to}}"
   },
   "shareCardImg": {
-    "eyebrowWeek": "2ND-BRAIN · ESTA SEMANA",
+    "eyebrowWeek": "POLASCOPE · ESTA SEMANA",
     "eyebrowConstellation": "MI CONSTELACIÓN",
     "footerWeek": "Resumen semanal de SecondB",
     "starsLit": "{{count}} estrellas brillando",
-    "signature": "2nd-Brain · {{count}} motas de estrella"
+    "signature": "PolaScope · {{count}} motas de estrella"
   },
   "ds": {
     "growth": {

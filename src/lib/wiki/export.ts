@@ -62,7 +62,7 @@ export interface WikiExport {
 export const STRINGS = {
   en: {
     header: (n: number, m: number, date: string, name: string | null) =>
-      `# 2nd-Brain knowledge export - ${date}\n\nYou are consulting${name ? ` ${name}'s` : ""} 2nd-Brain - a personal knowledge graph of ${n} wiki page(s) and ${m} source(s). Pages use Obsidian-style [[wikilinks]] that resolve to other slugs in this bundle. When you cite a page in a reply, use its slug in [[double brackets]].`,
+      `# PolaScope knowledge export - ${date}\n\nYou are consulting${name ? ` ${name}'s` : ""} PolaScope - a personal knowledge graph of ${n} wiki page(s) and ${m} source(s). Pages use Obsidian-style [[wikilinks]] that resolve to other slugs in this bundle. When you cite a page in a reply, use its slug in [[double brackets]].`,
     pagesH: "## Wiki pages",
     sourcesH: "## Sources",
     recordsH: "## Records (journal & notes)",
@@ -73,7 +73,7 @@ export const STRINGS = {
   },
   ko: {
     header: (n: number, m: number, date: string, name: string | null) =>
-      `# 두번째 뇌 지식 내보내기 - ${date}\n\n${name ? `${name}의 ` : ""}두번째 뇌를 참고하는 중이에요. 위키 페이지 ${n}개, 소스 ${m}개로 구성돼 있어요. 페이지는 Obsidian 스타일 [[wikilink]]로 서로 연결됩니다. 답변에서 페이지를 인용할 때는 [[슬러그]] 형식을 사용해 주세요.`,
+      `# PolaScope 지식 내보내기 - ${date}\n\n${name ? `${name}의 ` : ""}PolaScope를 참고하는 중이에요. 위키 페이지 ${n}개, 소스 ${m}개로 구성돼 있어요. 페이지는 Obsidian 스타일 [[wikilink]]로 서로 연결됩니다. 답변에서 페이지를 인용할 때는 [[슬러그]] 형식을 사용해 주세요.`,
     pagesH: "## 위키 페이지",
     sourcesH: "## 소스",
     recordsH: "## 기록 (일기·노트)",

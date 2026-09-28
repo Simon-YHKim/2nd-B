@@ -239,7 +239,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     };
     expect(request.identifier).toBe(routineReminderId("account-a", "routine-1"));
     expect(request.content).toMatchObject({
-      title: "2nd Brain",
+      title: "PolaScope",
       body: "Open the app to view your routine.",
       data: { _2bPrivacyGeneration: "notification-v2" },
     });
@@ -290,7 +290,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     };
     expect(request.identifier).toMatch(/^ops-v2-[0-9a-f]{16}-once-/);
     expect(request.content).toMatchObject({
-      title: "2nd Brain",
+      title: "PolaScope",
       body: "Open the app to view your completed timer.",
       data: { _2bPrivacyGeneration: "notification-v2" },
     });
@@ -485,7 +485,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     expect(trigger.type).toBe("date");
     expect(request.identifier).toMatch(/^ops-v2-[0-9a-f]{16}-once-/);
     expect(request.content).toMatchObject({
-      title: "2nd Brain",
+      title: "PolaScope",
       body: "Open the app to view your routine.",
       data: { _2bPrivacyGeneration: "notification-v2" },
     });

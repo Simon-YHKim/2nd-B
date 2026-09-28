@@ -595,6 +595,9 @@ describe(`${FILE} -- structure`, () => {
     // Their ledger rows must be removed so the next push restores those rows.
     expected.push("service_contract_erasure_registry");
     expected.push("rss_proxy_erasure_registry");
+    // 0205 revises the credit_ledger reason. The re-pushed 0189 seed writes the
+    // historical reason back, so 0205 has to be re-applied after it.
+    expected.push("credit_ledger_erasure_registry_reason");
     // The list grows with every later migration that leans on these objects.
     const names = rollbackLedgerNames();
     expect(names).toEqual(expect.arrayContaining(expected));

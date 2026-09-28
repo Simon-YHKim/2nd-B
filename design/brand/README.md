@@ -1,6 +1,6 @@
-# mypola — 표장 시안 (2026-08-30)
+# mypola — 표장 시안 (2026-08-30 · ⚠ 정정 2026-09-27: 실제 작성 2026-08-25 17:41 KST, #1416)
 
-Simon 결정: **(A) MyPola 유지**. 이 폴더는 그 결정에 딸린 상표 출원 준비물이다.
+Simon 결정: **(A) MyPola 유지**(2026-08-25 15:46 KST, 원문 "my pola 로 진행."). 이 폴더는 그 결정에 딸린 상표 출원 준비물이다.
 법률 판단의 근거는 `docs/legal/trademark-clearance-brief-260825.md` 에 있고,
 이 문서는 **표장 자체**만 다룬다.
 
@@ -74,7 +74,7 @@ Simon 결정: **(A) MyPola 유지**. 이 폴더는 그 결정에 딸린 상표 �
 Galmuri 는 **SIL OFL 1.1**, Reserved Font Name "Galmuri"
 (ⓒ 2019–2025 Lee Minseo / quiple. `docs/ASSETS.md` 에 고지 완료).
 
-**OFL 로 만든 로고를 상표로 등록해도 된다.** OFL-FAQ 원문 확인(2026-08-30):
+**OFL 로 만든 로고를 상표로 등록해도 된다.** OFL-FAQ 원문 확인(2026-08-30, 정정: 실제 2026-08-25):
 
 - **Q1.1** — "Yes. You are very welcome to do so. Authors of fonts released under
   the OFL allow you to use their font software as such for any kind of design work."

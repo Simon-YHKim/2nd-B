@@ -11,7 +11,8 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-09-08 ~ 2026-09-20 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 15 | 87KB |
+| 2026-09-25 | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 2 | 10KB |
+| 2026-09-08 ~ 2026-09-21 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 16 | 94KB |
 | 2026-09-01 ~ 2026-09-08 (+09-13 인계 1) | [handoff/HANDOFF-2026-09.md](handoff/HANDOFF-2026-09.md) | 18 | 92KB |
 | 2026-08-25 ~ 2026-08-30 | [handoff/HANDOFF-2026-08-p4.md](handoff/HANDOFF-2026-08-p4.md) | 11 | 89KB |
 | 2026-08-23 ~ 2026-08-25 | [handoff/HANDOFF-2026-08-p3.md](handoff/HANDOFF-2026-08-p3.md) | 21 | 85KB |
@@ -25,10 +26,212 @@
 
 **새 블록은 이 파일 맨 위에 얹는다.** 이 파일이 100KB 에 닿으면 가장 오래된
 블록부터 그 달의 보관 파일(부분이 있으면 번호가 가장 큰 것) 맨 위로 옮긴다.
-**⚠ `HANDOFF-2026-09.md`(p1)는 92KB 로 찼다 — 09 월 블록은 `-p2` 로 간다.**
+**⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-27 08:47 / 운영 마이그레이션 22개 적용 · AI 프록시 3종 재배포 · 결제 전환 13단계는 1단계 대기
+## Latest — 2026-09-28 07:5x / PolaScope 마무리 — 기록 누락 정리 · 10-05 단일 목록 · 메일 제목 Draft #1917 · #1902 어긋남 알림
+
+> 발행: CLI 코딩 세션(TTL-Work_rev2, PolaScope). 근거: 읽기 전용 감사 2레인(07:22~07:31 KST) · DECISIONS 26.09.28 01:5x · 07:5x.
+
+**지금까지**
+- **#1912(내보내기 쿨다운 안내, Q-07)는 02:16:25 에 머지됐지만 라이브 웹에는 없다.** 웹 게시(02:15:29)보다 56초 늦었다. 라이브 번들에서 `export_cooldown` 0건(07:2x 실측). 다음 웹 게시와 새 네이티브 빌드에 실린다. 01:2x 블록 '막힌 것 1'(쿨다운 안내를 무엇으로 할지)은 이걸로 닫는다.
+- Simon 01:5x 가 Q-06~08 을 맡겼다(DECISIONS 01:5x): Play 최종 게시는 Google 승인 뒤 코딩 세션이 누른다(게시 준비됨이 이름 변경 2건뿐일 때) · ASC 부제 = "Self-understanding from notes" · GUI 는 **Simon 크롬(Claude in Chrome)만**. 이 세션에는 크롬 도구가 붙지 않아 둘 다 대기다.
+- 병기 안내(#1905)는 라이브에 있다 — 번들 `renameNote` 7건. 인앱 공지 `53a0c132` 는 withdrawn_at 없이 살아 있다(07:24 조회).
+- 조종 크롬 정리: 02:1x 메모리 부족으로 조종기가 멈추며 창이 닫혔고, 긴 경로 프로필(227MB)을 지웠다. ASC 용 짧은 경로 프로필은 01:36 에 지웠다. 로그인 세션 잔존 없음. 스크립트 `driver2.mjs`·`run2.mjs` 는 다른 세션 재사용을 위해 남겼다.
+- **#1902(10-05 초안, 다른 세션 · 소유 세션 미확인) 어긋남 둘**: 캐릭터 태그 2nd-B→SecondB(결정 23:2x 는 "그대로") · 개인정보처리방침 시행일 10-05(공지 `53a0c132` 에 방침은 0회). `relay/inbox/pr1902-decision-mismatch-260928.note.md` + ttl-work-rev2-f6 가 #1902 댓글로 전달. 방침 본문에는 앱 이름이 0회라 **방침을 09-28(v4)로 두면 공지 없는 개정이 생기지 않는다**.
+- main HANDOFF 02:2x 블록이 링크한 `docs/qa/POLASCOPE-RELEASE-260928.md` 는 #1902 브랜치에만 있다 — main 에서는 깨진 링크.
+- 메일 제목 Draft **#1917**: `supabase/config.toml:42,52` `[2nd-Brain]`→`[PolaScope]`. 10-05 머지, 같은 날 Simon 이 대시보드 값을 바꾼다(`supabase config push` 금지).
+- 교훈: #1912 는 es/pt/id `consent.json` 에 번역을 넣어 `check:safety-consent-locale`(F2)에 떨어졌다가 en 사본으로 고쳤다 — 로케일을 건드리면 `check:*` 전부를 돌린다.
+
+**10-05 적용일 단일 목록** (흩어져 있던 00:1x · 00:4x 블록 · #1903 설명 · 보고서 표를 한 곳에 모았다)
+
+| # | 항목 | 담당 | GO | PR |
+|---|---|---|---|---|
+| 1 | 약관·동의 개정(제1조 PolaScope · TERMS/CONSENT 판본 · email-v6 튜플) + 병기 안내·`rename-note.test.ts` 제거 | #1902 소유 세션 | Simon(운영 SQL) | #1902 Draft — **어긋남 둘 먼저 해소** |
+| 2 | 메일 제목 2개 | 코딩 #1917 + Simon 대시보드 | Simon | #1917 Draft |
+| 3 | 웹 게시(#1912 쿨다운 안내 포함) | 게시 담당 세션 | Simon Production 승인 | — |
+| 4 | `app.json` expo.name + 새 네이티브 빌드(홈 화면 이름) | 코딩 | Simon | #1902 포함 여부 확인 |
+| 5 | 로그인 동의 화면 이름(Google · Kakao · Naver · Apple) | Simon 콘솔(크롬) | Simon | — |
+| 6 | Paddle 상품명 · 카드 명세서 표시 이름(적용일 **전** 권장) | 결제 전환 세션 + Simon 콘솔 | Simon | — |
+| 7 | 놓친 옛 이름 4곳(THIRD_PARTY_NOTICES 제목 · id `systemHint` · site-meta 주석 · 공개 proto) | #1902 안 | — | #1902 |
+| 8 | (날짜 무관) Play 최종 게시 Q-06 · ASC 부제 Q-08 | 코딩(Simon 크롬) | 결정됨 | — |
+
+**다음 1개**: Simon 이 이 세션에 크롬 연동을 켠다(`/chrome`, 안 되면 `claude --chrome --resume`) → ASC 부제 입력, Play 승인 여부 확인.
+
+**막힌 것**
+1. Claude in Chrome 도구가 이 세션에 없다(확장은 Simon 크롬에 설치됨).
+2. Play 데이터 보안 Revision 2 가 먼저 제출되면 게시 준비됨 목록이 섞여 Q-06 조건이 깨진다 — 순서 주의.
+3. #1902 방침 날짜: 09-28 유지(권장) 또는 10-05 유지 + 오늘 새 공지(운영 쓰기, Simon 결정).
+
+---
+
+## 2026-09-28 02:2x / 10-05 PolaScope 동의 Draft·SQL 검증
+
+- [PR #1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)는 **2026-10-05 적용일까지 Draft**다. 운영 0203의 `email-v5`(09-07 동의 / 09-28 방침 / 08-16 약관)를 보존하고, 새 가입 `email-v6`(세 판본 모두 10-05)·`service-v2`를 별도 계약으로 준비했다. 기존 원장 영수증을 고치지 않는다.
+- 번호 없는 forward SQL 초안은 **운영에 미적용**이다. 일회용 PostgreSQL에서 신·구 가입·서비스 동의·CAS·ACL을 실제 실행하는 PR SQL CI run `36336770728`이 통과했다. 최신 main #1912 통합 뒤 로컬 `npm run verify -- --runInBand`는 824 suites / 10,759 tests 통과. PR 일반 CI는 최종 push 기준으로 확인한다.
+- 다음 서버 작업은 10-05 적용일과 최종 법률문서를 확인한 뒤 초안을 최신 번호로 승격하고, 콘솔 소유 세션의 운영 적용·Edge 신/구 `status` 카나리아를 마치는 것이다. 그 전에는 #1902 병합·공개를 하지 않는다. 자세한 순서는 [배포 게이트](qa/POLASCOPE-RELEASE-260928.md).
+- 별도 GUI 잔여: Play 데이터 보안 Revision 2 제출은 Simon의 Play Console 로그인 완료 알림을 기다린다. 결제 전환 3단계 이후는 `claim-paddle-session-ownership-13` 소유 세션이 담당한다. 이 두 작업의 상태를 #1902 계약 적용과 혼동하지 않는다.
+
+---
+
+## 2026-09-28 02:1x / 방침 v4(공지형) 운영 반영 · 웹 게시(PolaScope) · 방침 공지
+
+**목적**: Simon 01:1x "남은 작업 진행(승인함), GUI 도" — Grok 봇 사용량 소진으로 코딩 세션(ttl-work-rev2-f6)이 운영 적용 · 게시 · Production 승인을 대행했다. PolaScope 세션(ttl-work-rev2-7b)과 역할을 나눴다(콘솔 이름 · export 는 그쪽).
+
+**지금까지**
+- **#1909** 방침 v4 = 공지형 개정(Simon 00:4x): 본문(Gaius v4, buy · r90 · r90x 뺌) · `PRIVACY_POLICY_VERSION=2026-09-28` · `email-v5` · **0203**(가입 계약 v5 + LLM 동의 현재 = v4·v5, 판정은 사용자당 한 줄) · 0194 수정(운영 미적용) · `check-definer-grants` 해시 **집합**(0191·0203). 검토는 새 문맥 **같은 벤더** 검토자 PASS(교차 벤더 Relay 불가).
+- **0203 운영 적용 01:35**: 원장 175→**176**, 지문 적용 전 `af24e78e…` / 적용 뒤 `0a1534bb…` = 로컬 운영 재현본.
+- **#1904** FCM 자동 등록 끄기 머지(다음 네이티브 빌드에 실림). **#1911**(Codex 세션 PR, app.json 웹 이름) 넘겨받아 머지 — ⚠ `expo.web.name` 도 Expo **지문 소스**다(Android `14c874c6→337f773a`). OTA 는 이미 #1904 로 vc56 런타임에서 벗어났다.
+- **웹 게시 02:15:29 KST**: 런 36335857143, main `57ddc0db`, 승인은 Simon 지시로 코딩 세션. 라이브 제목 · og · manifest = PolaScope, 방침 시행일 09-28, 번들 `email-v5`.
+- **방침 원격 공지** 02:16:46: notices `721ae87c-8699-4174-86fd-1a4ea6584d1b`(major).
+
+**다음 1개**: Simon 이 이 코딩 세션에 **Claude in Chrome 연결**(`/chrome`, 확장 설치) → 결제 전환 3단계(바인딩 시크릿)부터 GUI 진행.
+
+**막힌 것**
+1. 결제 전환 3·5·6·7·11단계는 Supabase · Paddle 대시보드 GUI. Playwright 로 띄운 별도 크롬은 Google 로그인이 막혔다(Simon 확인). CLI 에서 computer use 는 Windows 미지원(Desktop 앱만).
+2. Play 데이터 보안 Revision 2 제출(방침 게시일과 같은 날) — Play Console GUI.
+3. 보관 · 삭제 구조(B1~X1 · 카드 정보 · 등록부 문구) — 등록부 가드가 과거 행 변경을 막아 가드 설계부터. 급하지 않다(방침에서 해당 문장은 뺐다).
+
+**함정**
+- 웹 게시는 두 단계다: 같은 SHA 의 push(build-only) 빌드 로그에서 `PUBLIC_CONFIG_SHA256` · `ARTIFACT_CONTENT_SHA256` 을 얻어 `publish:<sha>:<cfg>:<art>` 로 디스패치. 빌드~승인 사이 main 이 움직이면 죽으므로 다른 세션과 창을 맞출 것.
+- 같은 Simon 지시가 두 코딩 세션에 동시에 갈 수 있다 → 운영 쓰기 전 버스 claim 과 `ListAgents`/SendMessage 로 분담부터.
+
+## 2026-09-28 01:4x / 콘솔 3곳 앱 이름 PolaScope 완료 — Play 는 검토 중(최종 게시는 Simon)
+
+> 발행: CLI 코딩 세션(TTL-Work_rev2). DECISIONS 26.09.28 01:3x(코디네이터 판단). 결과: `.bots/relay/outbox/console-rename-polascope.coding.result.md`.
+
+**지금까지**
+- Grok 봇 사용량 소진(Simon 01:1x) → 코딩 세션이 Playwright 파이프 제어 크롬으로 직접 했다. 로그인 · 2FA 는 Simon 본인. Relay 요청서에 인수 claim.
+- **AdMob**: `2nd-B Android` → `PolaScope Android`, `2nd-B iOS` → `PolaScope iOS`(내부 이름, 플랫폼 접미사 유지). 새로고침 뒤 값 확인.
+- **Play**(`com.simonk.secondbrain`, en-US 하나): 이름 `2nd-Brain: Self Knowledge` → `PolaScope`, 자세한 설명 속 이름 1곳 교체. 대기 변경 2건뿐임을 보고 **검토 전송** → "검토 중인 변경사항".
+- **App Store Connect**(`6792266942`, 영어(미국) 하나): 이름 `2nd-Brain: Self Knowledge` → `PolaScope`. 새로고침 뒤 이름 칸과 머리 제목 확인. 부제는 원래 빈칸.
+- 함정: 조종 크롬 프로필을 긴 Temp 경로에 두면 **CacheStorage 가 전 사이트에서 실패**하고 ASC 는 로그인 뒤 흰 화면이다(API 는 200). 짧은 경로(`%LOCALAPPDATA%` 아래) 프로필로 새 창을 띄워 해결했고, 그 창은 닫고 프로필을 지웠다.
+
+**다음 1개**: Play 검토가 통과하면 Simon 이 게시 개요에서 최종 "게시"를 누를지 정한다(관리형 게시).
+
+**막힌 것**
+1. ASC 부제(빈칸) · Play 간단한 설명은 이번 범위 밖이다. 정본은 `docs/store-copy/drafts.json`(appStoreSubtitle 5개 언어)이다.
+2. 첫 조종 크롬 창(긴 경로 프로필)은 Simon 이 다른 탭에서 쓰는 중이라 열어 두었다. Simon 이 닫으면 프로필 폴더를 지운다.
+
+---
+
+## 2026-09-28 01:2x / 상담 "써도 된대" · export-account 재배포 완료(카나리아 통과) · 콘솔 이름은 코딩 세션이 직접
+
+> 발행: CLI 코딩 세션(TTL-Work_rev2). DECISIONS 26.09.28 00:3x(Simon). PR #1908.
+> 보고서: "PolaScope 적용 현황" <https://claude.ai/artifact/UZei9vfkSSkLCFMjkgLeiv>
+
+**지금까지**
+- Simon(00:3x): "1. 써도 된대. 2. 최대한 빨리 3. 너가 바꿔줘." → 무료 변리사 상담 결과 PolaScope 사용 가능(상담 세부는 기록 없음) · export-account 즉시 재배포 · 콘솔 이름 변경을 코딩 세션에 맡김.
+- 사전 점검(읽기 전용 2레인, 00:40~00:55 KST): 운영 스키마 46/46 present · 설치 앱 4판(v0.7.0 · v0.8.0 · QA APK · 라이브 웹 557f2c02) 호환 · blocker 0. 남은 위험은 `claim_account_export` 의 운영 첫 실행이었다.
+- **export-account 재배포**: 런 36331196441(main `f1aa4f14`), Simon Production 승인, **01:17 KST success**. 스키마 게이트 "1 function(s), 45 table(s), and 0 column(s) present".
+- **카나리아(QA 계정, 01:18 KST)**: 200 · `content-disposition: attachment; filename="polascope-account-export.json"` · 표 45 · errors 0 · 6.1초.
+  `account_export_rate_limits` 1행 = claim 게이트(`billing_request_role`)가 Edge 키로 통과한다는 첫 실측. 5분 안 재호출은 429 `export_cooldown`(retry-after 278), 웹 Origin 호출도 같은 429 에 ACAO 일치.
+  배포 전 기준선(v129, 00:5x): 200 · 파일명 헤더 없음 · 표 37 · 5.9초.
+- 되돌리기 원본: 운영 v129 = `92cf02d8` 판(08-25 resurface ledger). 워크플로는 main 에서만 배포하므로 되돌리려면 되돌림 PR 이 필요하다.
+- **콘솔 이름(ASC · Play · AdMob)**: Grok 봇 사용량 소진(Simon 01:1x) → 코딩 세션이 Playwright 파이프 제어 크롬(전용 새 프로필, 디버깅 포트 없음)으로 직접 한다. 로그인·2FA 는 Simon 본인. `relay/inbox/console-rename-polascope.note.md` 에 인수 갱신 + `.claim`.
+- 역할 분담(다른 코딩 세션 ttl-work-rev2-f6 과 합의): #1909 · 0203 · **웹 게시** · 방침 공지 · #1904 · Paddle 2~13단계는 그쪽. 이 세션은 웹 게시를 디스패치하지 않는다.
+
+**다음 1개**: Simon 이 2번 모니터 크롬 창에서 Google · Apple 로그인 → 코딩 세션이 AdMob → Play → ASC 이름을 `PolaScope` 로.
+
+**막힌 것 · 달라진 동작**
+1. 쿨다운(300초)이 데이터 읽기 **전에** 소모된다. 실패·공유 시트 취소 뒤 다시 누르면 5분간 실패 문구만 나오고, 옛 APK 문구는 "다시 시도해 주세요"다. `retry_after_seconds` 표시와 재요청 없는 재전달(`export-session.ts` 연결) 중 무엇을 할지 정해야 한다.
+2. 부분 실패 200(표별 errors) → **전체 503**(fail-closed). 표 이름 변경 · 열 삭제 PR 은 export-account 목록을 함께 봐야 한다. 안 그러면 내보내기 전체가 죽는다.
+3. 프로필(`public.users`) 없는 auth 사용자 4명은 이제 503 이다(이전에는 200 빈 내보내기). 내보낼 데이터는 사실상 없다.
+
+---
+
+## 2026-09-28 00:4x / PolaScope 공지 발행 · 병기 안내 · 파일명 — 엣지 재배포는 범위 확인 대기
+
+> 발행: CLI 코딩 세션(TTL-Work_rev2). DECISIONS 26.09.28 00:1x(Simon) · 00:2x(코디네이터 판단).
+> 보고서: "PolaScope 적용 현황" <https://claude.ai/artifact/UZei9vfkSSkLCFMjkgLeiv>
+
+**지금까지**
+- Simon 선택(00:1x): 약관 적용일 **2026-10-05(월)** · 공지 2026-09-28 · 공지 발행 GO · 적용일 전 게시 시 병기 안내 먼저 · 내보내기 파일명 polascope-*.
+- **인앱 공지 발행**: 2026-09-28 00:08:25 KST 운영 `notices` major 1건(id `53a0c132-f24a-4ac3-88e5-434a04d86133`, min_app_version NULL). 발행 전 같은 제목 0건 확인.
+  철회가 필요하면 `withdrawn_at` 을 채운다(0114). 로그인 사용자에게만 보인다.
+- **#1905 병기 안내**: 가입 ConsentBlock · ConsentNotice · service-consent · 동의 상세 · 약관 문서 화면에 "PolaScope는 2nd-Brain의 새 이름…" 한 줄.
+  인용 줄보다 뒤에만 넣었다. `rename-note.test.ts` 가 고정하고, 약관·동의 개정 PR 에서 함께 지운다.
+- **23:15 Relay 증명 GO**(이름 변경 뒤 웹 게시, 실행자 Hadrianus)의 조건이 #1903 머지로 채워졌다. `relay/inbox/web-publish-after-renamenote.note.md` 로 **#1905 머지 뒤 게시**를 요청했다.
+- **#1906 파일명**: polascope-data-* · polascope-wiki.md · polascope-iden.json · polascope-routine.ics · polascope-account-export.json. 형식 식별자 `2nd-b-account-export` 는 유지.
+
+**다음 1개**: Simon 무료 변리사 상담(02-525-3476) — "지금 PolaScope 를 써도 되는가".
+
+**막힌 것**
+1. **export-account 엣지 재배포는 디스패치하지 않았다.** 운영은 v129(2026-08-24)이고 main 에는 그 뒤 08-25 원장 표 · 09-13 보안 강화(+601/-152)가 있다.
+   재배포하면 파일명만이 아니라 그 변경 전부가 나간다. 전제 RPC `claim_account_export` 는 운영에 있다. 범위를 보여 주고 Simon GO 를 받은 뒤 `deploy-edge-function.yml`.
+2. 적용일(10-05) 같은 날 묶음: 약관·동의 PR(TERMS_VERSION · CONSENT_VERSION · 서버 계약 마이그레이션 · 제1조 "PolaScope(구 명칭 2nd-Brain)") + 병기 안내 제거 +
+   메일 제목(대시보드 + config.toml) + app.json 표시 이름 + 새 네이티브 빌드 + 로그인 동의 화면 이름. 각각 Simon GO.
+3. 이 블록을 쓰며 09-21 새벽 블록을 `handoff/HANDOFF-2026-09-p2.md` 맨 위로 원문 그대로 옮겼다(p2 16블록).
+
+---
+
+## 2026-09-28 00:1x / 앱 이름은 PolaScope 로 확정·적용 — 머지 ≠ 게시, 약관 적용일에 맞춰 공개
+
+> 발행: CLI 코딩 세션(TTL-Work_rev2). Simon 원문 23:2x: "어찌됐거나 누가 뭐라든 지금부터 앱 이름은 PolaScope 이다. 적용해."
+> DECISIONS 23:2x(Simon) · 23:5x(코디네이터 판단) 두 줄.
+
+**지금까지**
+- 브랜치 `feat/app-name-polascope`: 앱 이름 가족 전체(2nd-Brain · 이름으로 쓴 두번째 뇌 · 약칭 2nd-B · 웹/광고 2ndB)를 **PolaScope** 로 바꿨다.
+  로케일 5개 · 웹(SITE_NAME · manifest · landing · og 카드 + `public/og-image.png` 다시 뽑음) · 앱 문구 · LLM 프롬프트 속 자기 이름 · 스토어 초안 · CI 핀.
+  한국어는 라틴 표기에 받침 없는 조사(는/가/를/와/로/란).
+- 검토 세 레인(놓친 곳 · CI · 같은 흐름 충돌) 반영: 한국어 통화 회고 2줄, 캐논 온보딩 태그(한국어 첫 장이 런타임에 읽음), 캐릭터 a11y, 매뉴얼 해시 핀.
+- 일부러 **안 바꾼 것**: 식별자·경로 전부, 캐릭터 가족, `consent.json` · 약관(사전 공지 뒤 별도 PR), 메일 제목(대시보드와 함께),
+  릴리스 파일명, LLM 지식 시드, 내보내기 파일명(`2nd-brain-*`), 개념 태그라인("A second brain built from …").
+- **`app.json` 표시 이름은 이번 PR 에서 뺐다.** expo.name 이 fingerprint 소스라 머지하면 새 빌드 전까지 OTA 가 전부 막힌다. 네이티브 빌드 PR 로 간다.
+- 로컬 검증: jest 876 suites(src/lib 671 · screens+scripts 56 · 나머지 149) 통과 · tsc 0 · eslint 오류 0 · check:* 13종 + constraints FAIL 0.
+
+**다음 1개**: Simon 이 무료 변리사 상담(지식재산처 서울사무소 · 대한변리사회 공익상담 02-525-3476)에서 "지금 PolaScope 를 써도 되는가"(의뢰서 Q4)를 먼저 묻는다.
+
+**막힌 것 · 순서**
+1. **머지 ≠ 게시.** 가입 화면은 PolaScope 인데 동의 문구 · 약관 · 메일 제목은 2nd-Brain 이다. 권고 순서:
+   인앱 공지(D0, 운영 쓰기 GO) → 적용일 D+7 에 약관·동의 PR(TERMS_VERSION · CONSENT_VERSION · 서버 튜플 마이그레이션) + 웹 게시 + 새 네이티브 빌드(app.json 이름 포함) + 콘솔 이름들을 같은 날.
+   그 전에 게시해야 하면(결제 전환의 웹 게시 단계 등) 가입 흐름에 '구 2nd-Brain' 병기 안내를 먼저 넣는다.
+2. 콘솔 이름 변경(각 Simon GO): ASC 앱 이름 · Play 등록정보 · AdMob · Google/Kakao/Naver/Apple 로그인 동의 화면 · Supabase 메일 제목(+config.toml) · Paddle 상품명·명세서 표시.
+3. 이미 기기에 예약된 루틴 알림 제목은 '2nd Brain' 으로 남는다(루틴을 다시 저장하면 바뀐다).
+
+---
+
+## 2026-09-27 22:40 / 앱 이름: Polascope 1순위 · 변리사 견적부터 · 2ndB 웹 게시 보류 · 프로젝트명 유지
+
+> 발행: CLI 코딩 세션(TTL-Work_rev2). 보고서 둘: "Scope Me 개명 검토"
+> <https://claude.ai/artifact/UKdgnvbKgn1PQnU2PK2EKG> · "앱 이름 결정 콘솔"
+> <https://claude.ai/artifact/1YuhwsfhfkTtmSFJP5V9Lg> (칩을 고르면 다음 세션 프롬프트가 나온다).
+
+**지금까지**
+- 18:50 Simon 이 앱·프로젝트 이름을 'Scope Me' 로 바꾸는 것을 물었다. 비권장으로 답했다.
+  Google Play 에 같은 이름 앱(com.erpasoftware.scopeme)이 5개 지역 검색 1위이고, scopeme .com · .ai · .app 이 남의 것이다.
+- 19:4x Simon 결정: 프로젝트명과 식별자는 유지하고 앱 표시 이름만 바꾼다. 새 이름이 정해지면 '2ndB' 계열도 옮긴다(DECISIONS 19:4x 줄).
+- 같은 메모의 새 후보 **Polascope**(한 단어 표기 권장, 한국어 폴라스코프): 후보 유지, 확정 보류(확신 중간).
+  - 같은 이름은 스토어 0건, 도메인 11/11 비어 있음.
+  - 그러나 Play 'polascope' 검색 1위가 Polar Scope Align Pro 다(08-25 에 Polar Scope 를 탈락시킨 앱). 한국어 '폴라' 는 polar 의 표기이기도 하다.
+  - 상표 장애 둘: 등록 pola/Pola((주)씨앤에이아이), 선출원 POLISCOPE/폴리스코프(2026-04-24, 9·42류 포함).
+- #1898 머지: 공유 문구의 미등록 도메인 `2ndb.app` 을 `SITE_ORIGIN` 으로 바꿨다. 웹은 게시해야 반영된다.
+- 이 PR: MyPola 날짜 정정(README 와 p4 블록 머리 4곳, 줄 수 불변, 결정 원문 08-25 15:46:32 KST 확인) · DECISIONS 한 줄 ·
+  변리사 의뢰서 갱신(후보 넷, 질의 Q6~Q11, 발송 전 체크리스트 §5-1, 낡은 HANDOFF 인용 3곳 교정, **미발송**).
+
+- 22:2x Simon 이 결정 콘솔에 답했다(DECISIONS 22:2x 세 줄):
+  - 앱 이름은 **Polascope 1순위**로 변리사에 묻고 **견적부터** 받는다. 의뢰서 맨 위에 견적 요청 요지(§0, 항목 E-1~E-6)를 얹었다.
+  - 이름이 정해지면 **앱 이름 가족 전체**(2nd-Brain · 두번째 뇌 · 약칭 2nd-B · 웹·광고의 2ndB)를 옮긴다. 캐릭터(세컨비 · Meta-B · Twi-B)는 유지.
+  - **허슬케이**를 새 이름 세계관(망원경 든 마스코트)과 잇는다. 의뢰서 조회 범위에 허슬케이 · Hustle K 를 선택 항목으로 넣었다.
+  - **2ndB 웹 게시 보류**(새 이름이 정해질 때까지).
+- DECISIONS.md 를 100KB 에서 쪼갰다: 26.09.20~21 → `DECISIONS-2026-09-20_21.md`(바이트 그대로, 89줄 전후 동일). 활성 파일 14KB.
+
+**다음 1개**: Simon 이 변리사 사무소에 견적을 요청한다(의뢰서 §0 을 보낸다). 견적 판단 기준(관납료 · 수수료 시세)은 결정 콘솔에 있다.
+
+**막힌 것**
+1. 견적 → 발송 승인(유료, Simon). 이 답 없이는 Polascope 를 판정할 수 없다.
+2. 2ndB 웹 게시 보류 때문에 #1898 을 포함한 모든 웹 수정이 웹에 나가지 않는다. **결제 전환 13단계에서 결제창 바인딩
+   클라이언트를 웹에 게시하는 단계와 부딪힌다.** 그 전에 이름이 안 정해지면 2ndB 두 커밋(c8e023f9 · c101908c)을
+   되돌리는 PR 을 먼저 넣는다(되돌림은 Simon 확인 뒤).
+
+**주의**
+- 앱 안 로케일에 '2ndB' 는 0줄이다. 앱 안 이름은 2nd-Brain · 두번째 뇌 · 2nd-B(서비스 약칭)다.
+- 이름을 바꾸는 PR 은 CI 핀을 같이 옮긴다: visible-brand-copy.test.ts:42-61 · worldview-naming.test.ts:57 · check-constraints 이름 원문 9개.
+- KIPRIS 공개 검색은 헤드리스 브라우저로 로그인 없이 됐다(초당 1회 이하). 표준 경로로 쓸지는 Simon 확인 대기. TMview 는 이 PC 에서 막혔다.
+
+---
+
+## 2026-09-27 08:47 / 운영 마이그레이션 22개 적용 · AI 프록시 3종 재배포 · 결제 전환 13단계는 1단계 대기
 
 **목적**: main 에 머지됐지만 운영에 없던 마이그레이션과 Edge 함수를 Simon GO 범위 안에서 운영에 올린다(코딩 LLM · `/loop` 버스 점검 세션).
 
@@ -440,206 +643,3 @@ PR #1865 CI·GUI PASS. Orca 콘솔 감사 **NO-GO**: 번호·백업·clone·OAut
   것이 아니다. 운영 persona 목적 계약·실패 상태 및 AdMob 미확인 항목을 읽기 전용으로 요청했다.
   `E:/2ndB/.bots/relay/outbox/vb-243be209.result.md`의 정확한 nonce를 대조해 이어간다.
 
----
-
-## 2026-09-25 / Grok 초안 대조 · 광고 SSV 및 AI 한도 안내 보완
-
-- 작성 2026-09-25 01:06:50 KST. 기준 `origin/main` `ed2e54c8`. 전용 워크트리
-  `E:/2ndB/.worktrees/grok-qa-complement-260925`, 브랜치 `fix/grok-qa-complement-260925`.
-  현재 변경은 로컬 미커밋이며 push·PR·병합·운영 배포는 실행하지 않았다.
-- Grok의 `E:/2ndB/docs/drafts` 초안 3개를 대조했다. 플랫폼별 광고 ID 선택, 숫자형
-  SSV 콜백 정규화, 실제 광고 단위와 티켓 결속을 수정했다. 콘솔 확인용 무주체 요청은
-  서명을 검증하고 보상·DB 접근 없이 응답한다. isolate당 60초 4건·동시 1건 제한.
-- 실제 free 서버 한도가 거절하는데 클라이언트 Brain 250회 소진이라고 알리는 문제를
-  재현·수정했다. 서버 cap이 미제공이면 `limit:null` 및 계정 한도 안내를 반환한다.
-  5개 언어 번역과 변경된 코드 위치를 인용하는 DPIA 문서·검사도 갱신했다.
-- 최종 `npm run verify` 종료코드 0: 774 suites / 9,971 tests, UI 계약 76개,
-  require cycle 0. `npm run verify:web`: 126개 문서 PASS. Edge 별도 타입 검사 PASS.
-  첫 실행의 DB 셸 테스트 일시 실패 1건은 단독 및 최종 전체 재실행에서 통과했으며 원인은 미확정.
-- 공개 웹은 새 Chrome에서 HTTP 200·로그인 화면·pageerror 0건. 로그인 후 동작 및 서빙
-  소스 SHA 검증을 뜻하지 않는다. 다른 GPT QA 문서는 미입력·AI 미호출 상태였고
-  `127.0.0.1:8081`은 이번 조회에서 연결 거부였다. 기존 QA 파일·계정 데이터를 변경하지 않았다.
-- Paddle sandbox는 요청 query만 나누면 운영 DB를 갱신하므로 그대로 구현하지 않았다.
-  GA4는 동의 로딩과 auth 성공 지점·PII 허용 필드·중복 계약이 필요하다. 처리방침은
-  본문과 판본·signup revision·서버 허용 튜플을 한 단위로 진행해야 한다.
-- Grok 과제 nonce `vb-2e14b97d`는 사용자의 준비 완료 확인 및 전달 지시에 따라
-  2026-09-25 01:17:26 KST `E:/2ndB/.bots/relay/inbox/`에 게시했다. 코드 검토 워크트리와
-  QA 원본 경로를 포함했다. 수신 확인·결과 회신은 아직 없으며 중복 발송하지 않는다.
-  기존 planner `NO_ELIGIBLE_ROUTE` 기록은 보존했고 guarded adapter 실행·계정/요금 검증으로
-  기록하지 않았다. 전달 근거와 파일 해시는 `Output/grok-qa-260925/bot-delivery-receipt.json`.
-  회신 경로는 `E:/2ndB/.bots/relay/outbox/vb-2e14b97d.result.md`.
-  같은 벤더 리뷰는 받았지만 다른 벤더 리뷰는 회신 대기다.
-- [보완 보고서와 QA 판정표](qa/grok-qa-complement-260925.html).
-  검사 로그·경로 판정·화면은 `Output/grok-qa-260925/`(gitignored)에 있다.
-  운영 담당은 [SSV 전환 절차](SESSION-OWNERSHIP.md)의 티켓 drain·서버 선행·canary를 따른다.
-  다음 실제 AI QA는 원문→위키→인용, 동의 철회, 승인 전 미확정, 안전 차단, 목적별 호출
-  수와 실제 서버 등급을 각각 증명해야 한다. UI 8동작을 AI 8호출로 세지 않는다.
-
----
-
-## 2026-09-25 / 0.9.0 후속 PR 세 건 병합 · 빌드 검증 · Orca 인수 종료
-
-### 어디까지 왔나
-
-- 이 인수 블록 작성 전 `origin/main`은 `00ebbcd2dd3da0e3c1c35b5c3e4806829c161a9a`.
-- 지난 작업에서 [#1853](https://github.com/Simon-YHKim/2nd-B/pull/1853) DB 0189 rollback과 0190 ledger 동기화(`41ca441a`), [#1862](https://github.com/Simon-YHKim/2nd-B/pull/1862) 지역 판독 불가 가입 복구(`9299919d`), [#1861](https://github.com/Simon-YHKim/2nd-B/pull/1861) 릴리스 산출물의 소스 커밋 결속(`00ebbcd2`)을 순서대로 squash merge했다. 그 전 [#1859](https://github.com/Simon-YHKim/2nd-B/pull/1859)는 병렬 Jest의 em dash probe 경합을 닫았다.
-- 최종 PR #1861의 `lint`·`verify`·`web-export-smoke`가 통과했다. 2026-09-25 이 인수 문서 워크트리에서도 `npm run verify` 종료코드 0(773 suites / 9,934 tests, UI 계약 76개, 런타임 require cycle 0)을 확인했다. 최종 main의 [웹 빌드](https://github.com/Simon-YHKim/2nd-B/actions/runs/35749867119), [Android 진단 APK](https://github.com/Simon-YHKim/2nd-B/actions/runs/35749867073)(ABI 검사·업로드 포함), [EAS Update gate](https://github.com/Simon-YHKim/2nd-B/actions/runs/35749867081)가 모두 통과했다.
-- 웹 워크플로의 Pages `deploy` job과 EAS `update` job은 건너뛰었다. 운영 Pages 게시, EAS 업데이트 발행, GitHub Release·태그 생성은 실행하지 않았다. `app.json`은 #1857에서 0.9.0으로 컷됐지만, 2026-09-25 조회한 최신 정식 GitHub Release는 여전히 v0.8.0이다.
-- Orca `run_e3a3e38558ab`: 2026-09-25 재조회에서 143/143 작업 `completed`, 열린 결정 게이트 0. 재할당 뒤 남은 중복 상태 7건에는 대체 작업·병합 SHA 근거를 기록했다.
-- 원래 워크트리 `E:/2ndB/.worktrees/2ndB/TTL-Work_rev2`의 `scripts/capture-screens.mjs` 미커밋 변경 1건은 기존 사용자 작업으로 보존했다. 이 인수 문서는 별도 `handoff/20260925-0024` 워크트리에서 작성한다.
-
-### 활성 인프라와 경계
-
-- 웹 배포 대상은 GitHub Pages `https://simon-yhkim.github.io/2nd-B/`이다. 2026-09-25 조회 시 마지막 성공한 수동 게시 워크플로는 [run 34162560585](https://github.com/Simon-YHKim/2nd-B/actions/runs/34162560585)(2026-09-08 KST)였다. 이 조회는 실제 서빙 번들의 소스 SHA를 증명하지 않으므로, 게시 결정을 할 때 워크플로 입력과 서빙 번들을 다시 대조한다.
-- 저장소 GitHub Secrets 이름 목록에 `RELEASE_APP_CLIENT_ID`·`RELEASE_APP_PRIVATE_KEY`가 없고, 저장소 ruleset 목록도 비어 있었다(2026-09-25 읽기 전용 조회). 릴리스 워크플로는 이 자격증명이 없으면 닫힌다. 값은 인수 문서에 기록하지 않는다.
-- Supabase 대상 식별자는 기존 문서와 공개 설정의 `zoacryukmdeivmolvyhj`다. 이번 세션에서 운영 마이그레이션 적용 상태나 백업 복원 상태는 재검증하지 않았다. `docs/SESSION-OWNERSHIP.md`에 따라 운영 DB·Edge·시크릿은 콘솔 세션이 소유한다.
-- 원격 기능 브랜치와 워크트리는 삭제하지 않았다. 열린 PR은 2026-09-25 조회 기준 draft [#1814](https://github.com/Simon-YHKim/2nd-B/pull/1814), [#1839](https://github.com/Simon-YHKim/2nd-B/pull/1839) 두 건이다.
-
-### 다음 작업 큐
-
-| # | 작업 | 크기 | 권장 |
-|---|---|---|---|
-| A | 0.9.0 실제 배포 전 웹의 지역 판독 불가 가입 흐름과 Android 진단 APK를 대화형으로 QA하고, 게시 소스 SHA를 확인 | medium | ⭐ 빌드 통과와 실제 사용자 흐름 검증 사이의 빈칸을 먼저 닫는다 |
-| B | 릴리스용 GitHub App 자격증명·태그 ruleset을 준비하고, 수동 Pages 게시·GitHub Release·새 네이티브 전달의 범위와 승인 시점을 결정 | medium | 프로덕션 변경은 별도 실행 단계다. #1861의 릴리스 게이트와 #1857의 0.9.0 컷을 출발점으로 삼는다 |
-| C | 국가별 서버 연령 하한(현재 서버 공통 14)과 약관·동의 판본을 설계·검증 | large | 클라이언트의 63개국 표만으로 직접 API 경로를 강제하지 못한다. 약관 본문·판본·signup revision·서버 허용 튜플은 한 단위로 다룬다 |
-| D | draft #1814·#1839의 서버 조정 의존성과 운영 DB 0189/0190 적용 순서, 백업 복원 훈련 상태를 각각 소유 트랙에서 재확인 | medium | 오래된 HANDOFF의 적용 상태를 현재 운영 사실로 간주하지 않는다 |
-
-### 적용 중인 정책
-
-1. `main` 직접 push 금지. `E:/2ndB/.worktrees/` 안의 전용 워크트리에서 작업하고 PR로 병합한다. 다른 워크트리의 미커밋 변경과 `node_modules` 정션을 보존한다.
-2. 운영 DB·Edge·시크릿은 콘솔 세션 소유다. 서버 계약을 확인하고 클라이언트를 활성화한다. 운영 게시·릴리스·유료 빌드·브랜치 삭제는 해당 범위의 명시적 위임을 확인한다.
-3. PR 병합과 운영 게시를 같은 상태로 적지 않는다. 웹은 `main` push에서 빌드하고 수동 게시한다. CI는 `npm run verify`를 그대로 호출한다.
-4. 인수 이력은 요약·삭제하지 않는다. `docs/HANDOFF.md`의 최신 블록 하나만 `Latest`를 붙이고 100KB를 넘으면 `docs/handoff/`에 원문 그대로 굴린다.
-
-### 핵심 파일과 검증
-
-```text
-CLAUDE.md                                프로젝트 규칙 정본
-docs/HANDOFF.md                          활성 인수 창
-docs/SESSION-OWNERSHIP.md                운영·코딩 세션 경계
-docs/CONSTRAINTS.md                      가입 하한 등 하드 제약
-src/lib/auth/consent-age.ts              국가별 가입 하한 판정
-.github/workflows/github-release.yml    릴리스 산출물 provenance 게이트
-.github/workflows/web-deploy.yml        웹 빌드·수동 게시 게이트
-```
-
-앱 변경 검증은 `npm run verify`. 이번 인수 문서만 바꾸는 작업에서는 링크·`Latest` 유일성·100KB 상한·`git diff --check`와 새 PR의 CI를 확인한다.
-
-### 다음 세션 시작하는 법
-
-```bash
-git fetch origin main
-git show origin/main:docs/HANDOFF.md
-```
-
-현재 브랜치가 미커밋 상태일 수 있으므로 읽기 위해 `git pull`로 그 브랜치를 바꾸지 않는다. 위 A부터 시작하되 실제 운영·GitHub 상태를 다시 읽는다.
-
----
-
-## 2026-09-21 새벽 / 게이트 둘이 같은 결함을 각자 찾았고, 세 번째 라운드에서 규칙의 유통기한이 발동했다 · 0.9.0 을 컷했다
-
-**최종 갱신 2026-09-21 03:40 KST · Claude Code `673dc58f` · 워크트리 `E:/2ndB/.worktrees/qa-integration-260920`**
-
-### 지금까지
-
-**#1855(나라별 가입 연령)를 머지했다 — `225cf7eb`.** 자기동의 연령이 3덩어리(KR 14 / US 13 / EU 16)에서
-**63개국 표**로 바뀌었고, 나라를 못 놓으면 **18**(예전 KR 14 아님)이다. 표는 **생성물**이다 — 첫 줄이
-`// 생성물 — 손으로 고치지 말 것` 이고 원본 `age-table.json` 의 sha256 과 생성 스크립트 경로가 머리에
-박혀 있다(§0-2). 화면 문구도 이제 **그 사람에게 실제 적용된 나이**를 말한다.
-
-**#1857 = 0.9.0 컷.** `8f7743c4`. v0.8.0 이후 **172개**(머지 커밋 제외) 중 **69개(40%)** 가
-보안 · 법무 · 인증 · 가드다(법무 28 · 보안 18 · 가드 12 · 인증 11). 바꾼 파일은 둘 —
-`app.json` version 한 줄과 `CHANGELOG.md`. `versionCode`·`buildNumber` 는 건드리지 않았다
-(`eas.json` `appVersionSource: remote` → EAS 소유).
-
-**로컬호스트를 그 main 으로 갱신했다** — <http://127.0.0.1:8765/2nd-B/> · `expo export --clear` rc=0 ·
-347파일 · root/legal 200 · 공유 카드 메타 확인.
-
-### 이번 구간에서 배운 것 — 게이트 둘이 **각자** 같은 결함을 찾았다
-
-r56 재게이트에서 생성물 게이트의 **F-01** 과 비즈로직 게이트의 **R56-BIZ-01** 이 같은 것이었다:
-**약관 본문을 바꾸면서 판본을 그대로 뒀다.** 제4조 ② 를 국가별 하한으로 고쳤는데 시행일 · 최종
-개정일 · `TERMS_VERSION = "2026-08-16"` 이 그대로라, **내용이 다른 두 약관이 한 판본으로 식별된다.**
-
-판본을 올리려면 signup revision + 서버 허용 튜플(`0150` `email-v3`)이 함께 움직여야 한다 —
-마이그레이션이고, 이번 라운드는 금지였다. 그래서 **본문 변경을 되돌렸다.** 선택지는 둘뿐이었다:
-틀린 본문을 판본과 함께 유지하거나, 맞는 본문을 판본 없이 출하하거나. **앞을 골랐다** — 이 앱은
-어느 스토어에도 출시된 적이 없어 지금 약관에 동의하는 사람이 사실상 없고, **원장의 식별
-가능성은 한 번 깨지면 되돌릴 수 없다.**
-
-⚠ **게이트가 내 전제 하나를 정정했다.** 나는 `consent.json` 의 연령 밴드 문구를 미룬 이유로
-*"`CONSENT_VERSION` 을 건드리면 기존 가입자 재고지가 걸린다"* 를 들었다. **코드와 다르다** —
-`src/lib/supabase/consent.ts:55-58,84-85` 가 재동의 흐름이 없음을 명시한다. 미루는 판단 자체는
-유지하지만(서버 계약 튜플 때문) **이유가 달랐다.**
-
-함께 닫은 것 셋:
-
-- **접근성 검사가 실제 바인딩을 안 봤다.** 게이트가 변이로 증명했다 — `BirthDateField.tsx:57` 의
-  hint 를 `passwordHint` 로 바꿔도 10/10 초록이었다. 렌더러가 이 저장소에 없으므로
-  (`auth-bootstrap-settlement.test.ts:13-14`) **한 `it` 안에 두 쪽을 묶었다**: JSX 속성을 AST 로
-  읽어 키를 확인하고, 그 키를 실제 `initI18n()` 으로 TH 에서 그려 20 을 확인한다. **파일 해시로
-  봉인하지 않았다** — 해시는 무관한 편집에도 울고, 정상 갱신 뒤 틀린 바인딩을 다시 놓친다.
-- **DPIA `:598` 에 새 법적 결론이 섞였다** — *"무료 가입은 CCC s.22-24 독립행위로 볼 여지가 있다"*.
-  사실 정정 범위를 넘는다. 빼고 `[COUNSEL TO CONFIRM]` 질문으로 옮겼다.
-- **US 행이 없어 표값 13 → 실효 14 경계가 안 걸렸다.** 변이로 확인: `Expected: 14, Received: 13`.
-
-⚠ **발주 때 적은 "실효 8파일" 주장은 철회한다.** 게이트가 실측으로 반박했다 — 재수정만 21파일이었다.
-
-### #1853 — 세 번째 라운드에서 유통기한이 발동했다
-
-r55 발주 때 *"또 새 계열 medium 이 나오면 규칙을 걷어내고 DB 검사만 남기는 쪽이 맞는지 판정에
-포함하라"* 를 걸어 뒀다. **나왔고, 게이트 둘이 각자 판정을 내 같은 방향으로 수렴했다.**
-
-- 생성물: *"정적 규칙 전체를 걷어내는 것은 권하지 않는다. 다만 **'10자 reason 이 c_names 를
-  쓰레기통이 되지 않게 막는다'는 장치는 직접 반증됐다.** 주석은 설명이지 증거가 아니다."*
-- 비즈로직: *"일반화된 정적 의존 추론과 수동 예외 판정 규칙은 철회하고 DB 왕복 중심으로 축소하라.
-  기존 0189/0190 인가 · 영수증 · seed parity 검사까지 없애라는 뜻은 아니다."*
-
-신규 medium 2 는 **둘 다 "양쪽 게이트가 함께 초록"** 계열이다:
-
-1. **무관한 migration 을 `c_names` 에 넣고 재적용하면 다른 표의 값이 1→2 가 되어도 fingerprint 가
-   같다.** 게다가 테스트가 **그 허용을 못 박고 있다** — `:770-803` 이 `CREATE TABLE public.notes` 만
-   하는 파일과 `a sentence that reads like a reason` 을 만든 뒤 **거부 목록이 `[]` 임을 기대한다.**
-2. **소유 시퀀스의 `RESTART WITH` 상태(`last_value`/`is_called`)와 ACL 이 fingerprint 밖이다.**
-   평문 `GRANT` 만으로 정적 검사도 통과하고, 왕복 뒤 `USAGE` 가 사라져도 fingerprint 는 같다.
-   이 반례는 helper 를 안 쓰므로 워크플로 `:383` 의 *"남은 구멍은 이전 helper + 다른 catalog 조합"*
-   이라는 설명도 좁다.
-
-**R57 을 발주했다**(fable @max — claude weekly 93% 로 1순위 강등). 성격은 기능 추가가 아니라
-**주장 축소**다: 줄인 뒤에도 남는 구멍은 구멍이라고 적게 했다.
-
-### 함정 하나 — 병렬 jest 는 우리 저장소에서 간헐 빨강이다
-
-`npm run verify` 가 두 번 연속 빨강이었고 **매번 다른 스위트**였다. 원인은 변경이 아니라
-`scripts/__tests__/check-no-emdash.test.ts:24` 가 `src/lib/emdash-guard-probe.generated.ts` 를
-만들었다 지우는 동안, `src/**` 를 훑는 다른 스위트가 그 파일을 집어 `ENOENT` 로 죽는 것이다
-(`canon-icon-crash.test.ts:202` · `lenses/__tests__/migration-readiness.test.ts`). `--runInBand` 는
-**767 suites / 9,838 tests 전부 초록.**
-
-⚠ `src/lib/persona/__tests__/one-seven.test.ts:68` 이 **같은 함정을 이미 이름으로 제외하고 있다** —
-저장소가 한 번 맞고 **한 자리만** 고친 것이다. 계열 수정(`src/**` 열거자가 `*.generated.ts` 를
-건너뛰게)은 별도 PR 로 남긴다.
-
-### 다음 1개
-
-**EAS 빌드 셋이 끝나면 `github-release.yml` 을 `profile=paired` 로 디스패치해 APK · AAB · IPA 를
-0.9.0 Release 에 단다.** 빌드: APK `35529329922` · AAB `35529336717` · IPA `35529343237`.
-
-### 막힌 것
-
-- **약관 판본 라운드** — 약관 본문의 연령 자격 서술은 아직 옛 문장이다. 새 판본 + signup revision +
-  서버 허용 튜플 마이그레이션이 **한 단위로** 움직여야 한다. `locales/*/consent.json:29,37` 도 같은 묶음.
-- ~~**거주국 자기신고 UI**~~ — **이 브랜치에서 구현.** 기기 지역이 읽히지 않을 때만 이메일 가입과
-  OAuth 프로필 완료에서 선택을 요구하고, 고른 표 행을 적용하며 "목록에 없음"은 18로 닫는다.
-  읽힌 지역은 자기신고로 덮어쓰지 않는다. 선택은 거주 증명이 아니고 저장하지 않으며 서버 14 하한은 남는다.
-- **DB 백업 복구 훈련** — 백업은 09-20 22:39 부터 다시 성공한다(1.6MB). 받아서 복원해 본 적은 없다.
-  ⚠ 이전 실패의 원인은 **비밀값 부재가 아니라 풀러 5432 연결 실패**였다 — 내가 "비밀값 0개"라고
-  보고한 것은 틀렸다.
-- 나머지는 `STATE.md` 의 '막힌 것' 네 절.
-
-### ⚠ 다음 세션에게 — HANDOFF 굴리기
-
-이 블록을 얹으니 96.5KB 였다. `handoff/HANDOFF-2026-09.md`(p1)가 **이미 92KB** 라 더 못 받아서,
-**`handoff/HANDOFF-2026-09-p2.md` 를 새로 열고** 가장 오래된 블록 셋(09-13 게시 조기 중단 ·
-09-13 Owner B · 09-08 Fabric 백지)을 **원문 그대로** 옮겼다 — 활성 창은 **80.8KB**, 블록 수는
-17 = 14 + 3 으로 보존된다(요약 0). 다음에 100KB 에 닿으면 **p2 로** 옮기고, p2 도 차면 p3 을 연다.

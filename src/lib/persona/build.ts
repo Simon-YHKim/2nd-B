@@ -968,7 +968,7 @@ function renderMarkdown(
   attachment: PersonaAttachment | null = null,
   tc: TraitConfidence | null = null,
 ): string {
-  const title = locale === "ko" ? "# 두번째 뇌 — 페르소나 v1" : "# 2nd-Brain — Persona v1";
+  const title = locale === "ko" ? "# PolaScope — 페르소나 v1" : "# PolaScope — Persona v1";
   const intro =
     locale === "ko"
       ? "_이 카드는 라이프 오딧 응답을 기반으로 생성한 초기 자기 모델입니다. v1은 휴리스틱 + LLM 요약이며, 검증된 평가가 아닙니다._"

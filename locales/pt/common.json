@@ -4,8 +4,9 @@
     "removeUpsell": "Prefere sem anúncios? As assinaturas os removem."
   },
   "app": {
-    "name": "2nd-Brain",
-    "tagline": "Um segundo cérebro construído com o que você escreve e salva."
+    "name": "PolaScope",
+    "tagline": "Um segundo cérebro construído com o que você escreve e salva.",
+    "renameNote": "PolaScope é o novo nome do 2nd-Brain. Até os Termos mudarem em 5 de outubro de 2026, 2nd-Brain no texto de consentimento e nos Termos significa PolaScope."
   },
   "actions": {
     "continue": "Continuar",
@@ -50,10 +51,10 @@
     "ko": "한국어"
   },
   "loadingGate": {
-    "hint": "Toque para abrir seu segundo cérebro",
-    "open": "Abrir o 2nd-Brain",
-    "opening": "Abrindo o 2nd-Brain",
-    "loading": "Carregando o 2nd-Brain",
+    "hint": "Toque para abrir o PolaScope",
+    "open": "Abrir o PolaScope",
+    "opening": "Abrindo o PolaScope",
+    "loading": "Carregando o PolaScope",
     "enterHint": "Toque duas vezes para entrar na tela principal.",
     "skipHint": "Toque duas vezes para pular a animação de abertura."
   },

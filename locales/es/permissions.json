@@ -25,7 +25,7 @@
     },
     "clipboard": {
       "name": "Portapapeles",
-      "why": "Solo se usa cuando tocas Copiar en exportar o acciones de mensaje. 2nd-Brain nunca lee tu portapapeles en segundo plano."
+      "why": "Solo se usa cuando tocas Copiar en exportar o acciones de mensaje. PolaScope nunca lee tu portapapeles en segundo plano."
     },
     "calendar": {
       "name": "Calendario",

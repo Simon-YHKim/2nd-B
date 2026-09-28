@@ -3,7 +3,9 @@ import {
   captureCardProps,
   FALLBACK_INSIGHT,
   FALLBACK_LIT_COUNT,
+  fallbackShareText,
 } from "../insight-card";
+import { SITE_ORIGIN } from "@/lib/site-meta";
 
 // Pure mapping only — the native capture/share path is NOT tested here (it
 // lazy-imports react-native-view-shot + expo-sharing, which are native-only).
@@ -83,5 +85,17 @@ describe("captureCardProps", () => {
       captureCardProps({ variant: "B", insight: "x", handle: "y", pieceCount: 124 }).pieceCount,
     ).toBe(124);
     expect(captureCardProps({ variant: "B", insight: "x", handle: "y" }).pieceCount).toBeUndefined();
+  });
+});
+
+// The link people paste onward has to open this app. It used to be "2ndb.app",
+// a domain nobody registered (RDAP 404 on 2026-09-27), so every text share
+// advertised an address anyone could buy. SITE_ORIGIN is where the web build
+// is actually served.
+describe("fallbackShareText", () => {
+  test("carries the served web origin, not an unregistered domain", () => {
+    const text = fallbackShareText({ variant: "A", insight: "깊이 산다.", handle: "ari" });
+    expect(text).toBe(`깊이 산다.\n\n@ari · ${SITE_ORIGIN}`);
+    expect(text).not.toContain("2ndb.app");
   });
 });

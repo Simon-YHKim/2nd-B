@@ -43,6 +43,10 @@ export function ConsentNotice({ minor, value, onChange }: ConsentNoticeProps) {
       <Text variant="body" style={styles.title}>
         {t("notice.title")}
       </Text>
+      {/* PolaScope 병기 안내: 약관 적용일(2026-10-05) 전까지만. 약관·동의 개정 PR 에서 지운다 (DECISIONS 26.09.28). */}
+      <Text variant="body" color="textMuted">
+        {t("common:app.renameNote")}
+      </Text>
       <Text variant="body" color="textMuted">
         {t("notice.intro")}
       </Text>

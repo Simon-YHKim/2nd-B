@@ -2,7 +2,7 @@
   "loading": "Memuat impor…",
   "hero": {
     "eyebrow": "08-5. Impor",
-    "title": "Impor catatan tentang dirimu ke 2nd-Brain",
+    "title": "Impor catatan tentang dirimu ke PolaScope",
     "subtitle": "Asisten lain · hasil tes · catatan",
     "speech": "Materi yang ditempel diurutkan dulu, lalu disimpan hanya setelah kamu konfirmasi."
   },
@@ -17,7 +17,7 @@
   "pasteCard": {
     "eyebrow": "Tempel",
     "title": "Balasan atau hasil tes",
-    "description": "Tempel balasan asisten lain, hasil tes kepribadian terdahulu, atau catatan tentang dirimu. 2nd-Brain akan menata dan memberi tag pada isinya.",
+    "description": "Tempel balasan asisten lain, hasil tes kepribadian terdahulu, atau catatan tentang dirimu. PolaScope akan menata dan memberi tag pada isinya.",
     "placeholder": "Tempel di sini…",
     "accessibilityLabel": "Materi yang akan diimpor",
     "sort": "Tata isi",
@@ -37,7 +37,7 @@
       "pro": "pekerjaan dan spesialis",
       "life": "keseharian"
     },
-    "keep": "Simpan ke 2nd-Brain",
+    "keep": "Simpan ke PolaScope",
     "keepHint": "Menyimpan hasil impor ini ke catatanmu."
   },
   "saved": {

@@ -17,7 +17,7 @@
   "pasteCard": {
     "eyebrow": "Colar",
     "title": "Resposta ou resultado de teste",
-    "description": "Cole uma resposta de outro assistente, um resultado de teste de personalidade ou notas sobre você. O 2nd-Brain organiza o conteúdo e adiciona etiquetas.",
+    "description": "Cole uma resposta de outro assistente, um resultado de teste de personalidade ou notas sobre você. O PolaScope organiza o conteúdo e adiciona etiquetas.",
     "placeholder": "Cole aqui…",
     "accessibilityLabel": "Material a importar",
     "sort": "Organizar e classificar",
@@ -37,7 +37,7 @@
       "pro": "trabalho e especialidade",
       "life": "cotidiano"
     },
-    "keep": "Salvar no 2nd-Brain",
+    "keep": "Salvar no PolaScope",
     "keepHint": "Salva este resultado importado nos seus registros."
   },
   "saved": {
