@@ -108,11 +108,12 @@ export default function AvatarStudioScreen() {
     if (saveInFlightRef.current) return;
     // A successful first profile setup is required. If the server read failed,
     // let the user leave the retry state instead of trapping the account.
+    // The avatar is an optional profile choice (privacy policy: optional
+    // profile fields never limit the service), so setup can always be left.
+    // Leaving defers the prompt for this session only; nothing is written.
     if (setupMode) {
-      if (loadState.status === "error" && userId) {
-        markAvatarSetupDeferredForSession(userId);
-        router.replace("/");
-      }
+      if (userId) markAvatarSetupDeferredForSession(userId);
+      router.replace("/");
       return;
     }
     if (router.canGoBack()) router.back();
@@ -273,7 +274,7 @@ export default function AvatarStudioScreen() {
 
   const title = t("avatar:title");
   const frame = (children: React.ReactNode) => (
-    <DeepSpaceScreen active="settings" header="none" variant="museumLike" title={title} onBack={setupMode && loadState.status !== "error" ? undefined : onCancel}>
+    <DeepSpaceScreen active="settings" header="none" variant="museumLike" title={title} onBack={onCancel}>
       {children}
     </DeepSpaceScreen>
   );
@@ -421,6 +422,18 @@ export default function AvatarStudioScreen() {
         >
           <Text style={styles.saveText}>{saving ? t("avatar:saving") : t("avatar:save")}</Text>
         </PixelPressable>
+        {setupMode ? (
+          <PixelPressable
+            variant="inset"
+            fullWidth
+            disabled={saving}
+            onPress={onCancel}
+            accessibilityLabel={t("avatar:setupLater")}
+            contentStyle={styles.saveContent}
+          >
+            <Text style={styles.saveText}>{t("avatar:setupLater")}</Text>
+          </PixelPressable>
+        ) : null}
       </View>
     </View>,
   );

@@ -28,6 +28,8 @@ const promoted = [
   ["0198", "service_contract_erasure_registry"],
   ["0199", "oauth_naver_rate_limit_completion"],
   ["0200", "rss_proxy_quota"],
+  ["0206", "users_avatar_spec"],
+  ["0207", "users_display_name_update"],
 ] as const;
 
 const behaviorDrafts = {
@@ -71,9 +73,9 @@ const behaviorDrafts = {
   },
 } as const;
 
-// These drafts are awaiting migration numbers and a console-owned rollout.
-// Their source-level contracts live in the named suites until a scratch SQL
-// lane is wired for their numbered migrations.
+// Source-level contracts for drafts without their own scratch SQL runner.
+// display_name was promoted as 0207 (2026-09-28); its grant is also asserted
+// by the users-avatar-spec contract after the numbered replay.
 const plannedDrafts = {
   "UNNUMBERED_users_display_name_update.sql": "src/lib/supabase/__tests__/users-table-acl-migration.test.ts",
 } as const;
