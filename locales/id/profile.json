@@ -1,6 +1,11 @@
 {
   "loading": "Memuat profil...",
   "fallbackName": "Tamu",
+  "avatarStudio": {
+    "label": "Sesuaikan avatar",
+    "hint": "Ubah tampilan dan pakaian karaktermu.",
+    "loadError": "Avatar tidak dapat dimuat. Coba lagi."
+  },
   "hero": {
     "eyebrow": "Aku",
     "title": "Profil {{displayName}}",

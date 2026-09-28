@@ -1132,6 +1132,13 @@
   },
   "profileDetails": {
     "screenTitle": "Tentang hidupmu",
+    "nameLabel": "Nama tampilan",
+    "nameHint": "Nama yang tampil di profilmu. Opsional, maksimal 40 karakter.",
+    "nameLoading": "Memuat namamu…",
+    "nameLoadError": "Nama saat ini gagal dimuat. Coba lagi.",
+    "nameSave": "Simpan nama",
+    "nameSaved": "Nama tersimpan",
+    "nameSaveError": "Nama gagal disimpan. Coba lagi.",
     "intro": "Isi hanya yang ingin kamu bagikan. Simpan informasi ini di profil dan ubah kapan saja.",
     "progress": "{{filled}} dari {{total}} terisi",
     "save": "Simpan",

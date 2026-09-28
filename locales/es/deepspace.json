@@ -1132,6 +1132,13 @@
   },
   "profileDetails": {
     "screenTitle": "Sobre tu vida",
+    "nameLabel": "Nombre visible",
+    "nameHint": "El nombre que aparece en tu perfil. Es opcional y admite hasta 40 caracteres.",
+    "nameLoading": "Cargando tu nombre…",
+    "nameLoadError": "No se pudo cargar tu nombre actual. Inténtalo de nuevo.",
+    "nameSave": "Guardar nombre",
+    "nameSaved": "Nombre guardado",
+    "nameSaveError": "No se pudo guardar tu nombre. Inténtalo de nuevo.",
     "intro": "Completa solo lo que quieras compartir. Puedes guardar estos datos en tu perfil y cambiarlos después.",
     "progress": "{{filled}} de {{total}} completados",
     "save": "Guardar",

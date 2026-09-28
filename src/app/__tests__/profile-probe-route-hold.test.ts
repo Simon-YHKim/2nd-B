@@ -179,6 +179,9 @@ const FRAGMENT = { fragment: true };
 
 /** 이 테스트가 안을 들여다보지 않는 컴포넌트. 이름과 props 만 남긴다. */
 const host = (name: string) => ({ host: name });
+// This suite tests the C10 profile gate. The avatar scene gate has separate
+// first-run tests and is transparent here so the profile matrix stays focused.
+const avatarSceneGuardStub = ({ children }: Props) => children;
 
 function createElement(type: unknown, props: Record<string, unknown> | null, ...children: unknown[]): Element {
   const next: Props = { ...(props ?? {}) };
@@ -220,6 +223,7 @@ const layout = vm.createContext({
   ProfileProbeRetryScreen: host("ProfileProbeRetryScreen"),
   EncryptedStorageRecoveryGate: host("EncryptedStorageRecoveryGate"),
   Redirect: host("Redirect"),
+  AvatarSetupSceneGuard: avatarSceneGuardStub,
   ...profileProbe,
   useAuth: () => world.auth,
   useSegments: () => world.segments,
@@ -324,7 +328,7 @@ function render(node: unknown, out: Mounted): void {
   }
   if (typeof element.type === "function") {
     const component = element.type as (props: Props) => unknown;
-    out.components.push(component.name);
+    if (component !== avatarSceneGuardStub) out.components.push(component.name);
     render(component(element.props), out);
     return;
   }

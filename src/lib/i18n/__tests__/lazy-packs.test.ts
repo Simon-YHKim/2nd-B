@@ -2,7 +2,7 @@
 // the entry bundle, the rest is attached with addResourceBundle on demand.
 // Three things are pinned here: the eager set is exactly en+ko, every shipped
 // locale is covered by exactly one of the two tiers, and a lazy pack attaches
-// all 44 namespaces with the real JSON so t() resolves that locale's copy.
+// all registered namespaces with the real JSON so t() resolves that locale's copy.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import i18next from "i18next";
@@ -34,10 +34,8 @@ describe("lazy locale packs", () => {
   });
 
   it("every AvailableUiLocale is eager or lazy, never both, never neither", () => {
-    // 45 since 2026-09-06: `index` was a bundle that shipped in all five locales
-    // and was called by src/app/index.tsx but never registered, so its keys
-    // rendered as raw names. See namespace-registry.test.ts.
-    expect(NAMESPACES).toHaveLength(45);
+    // namespace-registry.test.ts checks the registry against on-disk bundles;
+    // this test checks that every registered namespace is loaded at runtime.
     const lazy = Object.keys(LAZY_PACKS).sort();
     const eager = Object.keys(resources).sort();
     expect([...eager, ...lazy].sort()).toEqual([...AVAILABLE_UI_LOCALES].sort());
@@ -49,7 +47,7 @@ describe("lazy locale packs", () => {
     }
   });
 
-  it("ensureLocalePack('es') attaches all 44 namespaces and t() resolves es copy", async () => {
+  it("ensureLocalePack('es') attaches every namespace and t() resolves es copy", async () => {
     initI18n();
     expect(i18next.hasResourceBundle("es", "common")).toBe(false);
     // Before the pack lands, a lazy locale renders the EN fallback, never a
