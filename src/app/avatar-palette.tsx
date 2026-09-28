@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   BackHandler,
+  FlatList,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,10 +24,12 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { DEFAULT_AVATAR_SPEC, renderAvatarSvg } from "@/lib/avatar";
 import {
-  deleteAvatarPaletteDraft,
-  loadAvatarPaletteDraft,
-  saveAvatarPaletteDraft,
-} from "@/lib/avatar-palette/draft";
+  AVATAR_PALETTE_GALLERY_LIMIT,
+  deleteAvatarPaletteItem,
+  listAvatarPaletteItems,
+  saveAvatarPaletteItem,
+  type AvatarPaletteItem,
+} from "@/lib/avatar-palette/gallery";
 import {
   AVATAR_PALETTE_GRID,
   AVATAR_PALETTE_MAX_OPAQUE_PIXELS,
@@ -40,8 +44,9 @@ import {
 import { m3 } from "@/lib/theme/m3";
 
 type Origin = { x: number; y: number };
-type Snapshot = { title: string; pixels: string };
-type PendingTransition = { kind: "slot"; slot: AvatarPaletteSlot } | { kind: "exit" };
+type Snapshot = { slot: AvatarPaletteSlot; title: string; pixels: string };
+type PendingTransition = { kind: "new" } | { kind: "open"; id: string } | { kind: "gallery" } | { kind: "exit" };
+type ViewMode = "gallery" | "editor";
 type ReadState = "idle" | "loading" | "ready" | "error";
 const ZOOMS = [1, 2, 4] as const;
 type Zoom = typeof ZOOMS[number];
@@ -92,17 +97,20 @@ function ActionButton({ label, onPress, disabled = false, selected = false }: {
 }
 
 export default function AvatarPaletteScreen() {
-  const { t } = useTranslation(["avatarPalette", "common"]);
+  const { t, i18n } = useTranslation(["avatarPalette", "common"]);
   const { width } = useWindowDimensions();
   const navigation = useNavigation();
   const { userId, hasProfile, profileProbeFailed, loading: authLoading, refresh: refreshAuth } = useAuth();
+  const [viewMode, setViewMode] = useState<ViewMode>("gallery");
+  const [items, setItems] = useState<AvatarPaletteItem[]>([]);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [slot, setSlot] = useState<AvatarPaletteSlot>("hair");
   const [pixels, setPixels] = useState(EMPTY_PIXELS);
   const pixelsRef = useRef(EMPTY_PIXELS);
   const undoPixelsRef = useRef<string | null>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [clearConfirm, setClearConfirm] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteCandidate, setDeleteCandidate] = useState<AvatarPaletteItem | null>(null);
   const lastCellRef = useRef(-1);
   const [colorIndex, setColorIndex] = useState<number | null>(0);
   const [zoom, setZoom] = useState<Zoom>(2);
@@ -111,9 +119,8 @@ export default function AvatarPaletteScreen() {
   const [showBase, setShowBase] = useState(true);
   const [preview, setPreview] = useState(false);
   const [title, setTitle] = useState("");
-  const [saved, setSaved] = useState<Snapshot>({ title: "", pixels: EMPTY_PIXELS });
-  const [hasDraft, setHasDraft] = useState(false);
-  const [readKey, setReadKey] = useState<string | null>(null);
+  const [saved, setSaved] = useState<Snapshot>({ slot: "hair", title: "", pixels: EMPTY_PIXELS });
+  const [readOwnerId, setReadOwnerId] = useState<string | null>(null);
   const [readState, setReadState] = useState<ReadState>("idle");
   const [readRetry, setReadRetry] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -126,9 +133,9 @@ export default function AvatarPaletteScreen() {
   const currentUserRef = useRef(userId);
   currentUserRef.current = userId;
 
-  const draftKey = `${userId ?? ""}:${slot}`;
-  const ready = readState === "ready" && readKey === draftKey;
-  const dirty = hasProfile === true && ready && (title !== saved.title || pixels !== saved.pixels);
+  const ready = readState === "ready" && readOwnerId === userId;
+  const dirty = hasProfile === true && ready && viewMode === "editor" &&
+    (slot !== saved.slot || title !== saved.title || pixels !== saved.pixels);
   const canvasSize = Math.max(64, Math.floor(Math.min(width - 80, 384) / 64) * 64);
   const cells = cellWindow(zoom);
   const cellSize = canvasSize / cells;
@@ -145,6 +152,15 @@ export default function AvatarPaletteScreen() {
     setPendingTransition({ kind: "exit" });
   }, [navigation]));
 
+  // The editor's back action returns to the personal gallery. Native swipe-back
+  // would remove the route instead, so keep the visible Back control authoritative.
+  useEffect(() => {
+    navigation.setOptions({
+      gestureEnabled: viewMode !== "editor",
+      headerBackButtonMenuEnabled: false,
+    });
+  }, [navigation, viewMode]);
+
   const navigateBack = useCallback(() => {
     if (router.canGoBack()) router.back();
     else router.replace("/dashboard");
@@ -153,11 +169,15 @@ export default function AvatarPaletteScreen() {
   const goBack = useCallback(() => {
     if (busy) return;
     if (clearConfirm) { setClearConfirm(false); return; }
-    if (deleteConfirm) { setDeleteConfirm(false); return; }
+    if (deleteCandidate) { setDeleteCandidate(null); return; }
     if (pendingTransition) { setPendingTransition(null); pendingActionRef.current = null; return; }
-    if (dirty) { setPendingTransition({ kind: "exit" }); return; }
+    if (viewMode === "editor") {
+      if (dirty) setPendingTransition({ kind: "gallery" });
+      else setViewMode("gallery");
+      return;
+    }
     navigateBack();
-  }, [busy, clearConfirm, deleteConfirm, pendingTransition, dirty, navigateBack]);
+  }, [busy, clearConfirm, deleteCandidate, pendingTransition, viewMode, dirty, navigateBack]);
 
   useFocusEffect(useCallback(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => { goBack(); return true; });
@@ -168,6 +188,15 @@ export default function AvatarPaletteScreen() {
     setPendingTransition(null);
     setAllowExit(false);
     setExitOwnerId(null);
+    setEditingItemId(null);
+    setSlot("hair");
+    setTitle("");
+    pixelsRef.current = EMPTY_PIXELS;
+    undoPixelsRef.current = null;
+    setPixels(EMPTY_PIXELS);
+    setSaved({ slot: "hair", title: "", pixels: EMPTY_PIXELS });
+    setCanUndo(false);
+    setBusy(false);
     pendingActionRef.current = null;
     exitTriggeredRef.current = false;
   }, [userId]);
@@ -183,31 +212,25 @@ export default function AvatarPaletteScreen() {
   useEffect(() => {
     if (!userId || hasProfile !== true) return;
     const owner = userId;
-    const key = `${owner}:${slot}`;
     let active = true;
-    setReadKey(key);
+    setReadOwnerId(owner);
     setReadState("loading");
     setNotice(null);
     setClearConfirm(false);
-    setDeleteConfirm(false);
-    void loadAvatarPaletteDraft(owner, slot)
-      .then((draft) => {
+    setDeleteCandidate(null);
+    setItems([]);
+    setViewMode("gallery");
+    void listAvatarPaletteItems(owner)
+      .then((nextItems) => {
         if (!active || currentUserRef.current !== owner) return;
-        const next = { title: draft?.title ?? "", pixels: draft?.pixels ?? EMPTY_PIXELS };
-        pixelsRef.current = next.pixels;
-        undoPixelsRef.current = null;
-        setPixels(next.pixels);
-        setTitle(next.title);
-        setSaved(next);
-        setHasDraft(draft !== null);
-        setCanUndo(false);
+        setItems(nextItems);
         setReadState("ready");
       })
       .catch(() => {
         if (active && currentUserRef.current === owner) setReadState("error");
       });
     return () => { active = false; };
-  }, [userId, hasProfile, slot, readRetry]);
+  }, [userId, hasProfile, readRetry]);
 
   const paintAt = useCallback((event: GestureResponderEvent) => {
     if (busy || !ready || pendingTransition) return;
@@ -268,24 +291,68 @@ export default function AvatarPaletteScreen() {
 
   const chooseSlot = useCallback((next: AvatarPaletteSlot) => {
     if (next === slot || busy) return;
-    if (dirty) { setPendingTransition({ kind: "slot", slot: next }); return; }
     setSlot(next);
     setOrigin(clampOrigin(next === "garment" ? { x: 16, y: 16 } : { x: 16, y: 0 }, zoom));
-  }, [slot, busy, dirty, zoom]);
+    setNotice(null);
+  }, [slot, busy, zoom]);
+
+  const showEditor = useCallback((item: AvatarPaletteItem | null) => {
+    const next: Snapshot = item
+      ? { slot: item.slot, title: item.title, pixels: item.pixels }
+      : { slot: "hair", title: "", pixels: EMPTY_PIXELS };
+    setEditingItemId(item?.id ?? null);
+    setSlot(next.slot);
+    setTitle(next.title);
+    pixelsRef.current = next.pixels;
+    undoPixelsRef.current = null;
+    setPixels(next.pixels);
+    setSaved(next);
+    setCanUndo(false);
+    setClearConfirm(false);
+    setOrigin(clampOrigin(next.slot === "garment" ? { x: 16, y: 16 } : { x: 16, y: 0 }, zoom));
+    setNotice(null);
+    setViewMode("editor");
+  }, [zoom]);
+
+  const applyTransition = useCallback((next: PendingTransition) => {
+    if (next.kind === "gallery") { setViewMode("gallery"); return; }
+    if (next.kind === "new") { showEditor(null); return; }
+    if (next.kind === "open") {
+      const item = items.find((entry) => entry.id === next.id);
+      if (item) showEditor(item);
+      else setNotice(t("avatarPalette:unavailable"));
+    }
+  }, [items, showEditor, t]);
+
+  const requestTransition = useCallback((next: PendingTransition) => {
+    if (busy || pendingTransition) return;
+    if (next.kind === "new" && items.length >= AVATAR_PALETTE_GALLERY_LIMIT) {
+      setNotice(t("avatarPalette:limitReached", { max: AVATAR_PALETTE_GALLERY_LIMIT }));
+      return;
+    }
+    if (dirty) { setPendingTransition(next); return; }
+    applyTransition(next);
+  }, [busy, pendingTransition, items.length, dirty, applyTransition, t]);
 
   const saveCurrent = useCallback(async (): Promise<boolean> => {
-    if (!userId || !ready || busy) return false;
+    if (!userId || !ready || viewMode !== "editor" || busy) return false;
+    if (!editingItemId && items.length >= AVATAR_PALETTE_GALLERY_LIMIT) {
+      setNotice(t("avatarPalette:limitReached", { max: AVATAR_PALETTE_GALLERY_LIMIT }));
+      return false;
+    }
     const lease = captureAccountOwnerLease(userId);
     if (!lease?.isCurrent()) return false;
-    const snapshot = { title: title.trim(), pixels };
+    const snapshot = { slot, title: title.trim(), pixels };
     setBusy(true);
     setNotice(null);
     try {
-      await saveAvatarPaletteDraft(userId, { slot, ...snapshot });
+      const item = await saveAvatarPaletteItem(userId, { id: editingItemId ?? undefined, ...snapshot });
       if (!lease.isCurrent() || currentUserRef.current !== userId) return false;
-      setTitle(snapshot.title);
-      setSaved(snapshot);
-      setHasDraft(true);
+      setEditingItemId(item.id);
+      setTitle(item.title);
+      setSaved({ slot: item.slot, title: item.title, pixels: item.pixels });
+      setItems((previous) => [item, ...previous.filter((entry) => entry.id !== item.id)]
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
       setNotice(t("avatarPalette:saved"));
       return true;
     } catch {
@@ -294,47 +361,41 @@ export default function AvatarPaletteScreen() {
     } finally {
       if (lease.isCurrent()) setBusy(false);
     }
-  }, [userId, ready, busy, title, pixels, slot, t]);
+  }, [userId, ready, viewMode, busy, editingItemId, items.length, title, pixels, slot, t]);
 
   const finishTransition = useCallback(async (save: boolean) => {
     const next = pendingTransition;
     if (!next || busy) return;
     if (save && !(await saveCurrent())) return;
-    if (next.kind === "slot") {
+    if (next.kind === "exit") {
+      setExitOwnerId(userId);
+      setAllowExit(true);
+    } else {
       setPendingTransition(null);
       pendingActionRef.current = null;
-      setSlot(next.slot);
-      setOrigin(clampOrigin(next.slot === "garment" ? { x: 16, y: 16 } : { x: 16, y: 0 }, zoom));
-      return;
+      applyTransition(next);
     }
-    setExitOwnerId(userId);
-    setAllowExit(true);
-  }, [pendingTransition, busy, saveCurrent, zoom, userId]);
+  }, [pendingTransition, busy, saveCurrent, applyTransition, userId]);
 
-  const deleteDraft = useCallback(async () => {
-    if (!userId || !ready || busy) return;
+  const deleteItem = useCallback(async () => {
+    if (!userId || !ready || busy || !deleteCandidate) return;
     const lease = captureAccountOwnerLease(userId);
     if (!lease?.isCurrent()) return;
+    const id = deleteCandidate.id;
     setBusy(true);
     setNotice(null);
     try {
-      await deleteAvatarPaletteDraft(userId, slot);
+      await deleteAvatarPaletteItem(userId, id);
       if (!lease.isCurrent() || currentUserRef.current !== userId) return;
-      pixelsRef.current = EMPTY_PIXELS;
-      undoPixelsRef.current = null;
-      setPixels(EMPTY_PIXELS);
-      setTitle("");
-      setSaved({ title: "", pixels: EMPTY_PIXELS });
-      setHasDraft(false);
-      setCanUndo(false);
-      setDeleteConfirm(false);
+      setItems((previous) => previous.filter((entry) => entry.id !== id));
+      setDeleteCandidate(null);
       setNotice(t("avatarPalette:deleted"));
     } catch {
       if (lease.isCurrent()) setNotice(t("avatarPalette:deleteError"));
     } finally {
       if (lease.isCurrent()) setBusy(false);
     }
-  }, [userId, ready, busy, slot, t]);
+  }, [userId, ready, busy, deleteCandidate, t]);
 
   const frame = (children: ReactNode) => (
     <DeepSpaceScreen active="ops" header="none" variant="windowed" title={t("avatarPalette:title")} onBack={goBack}>
@@ -351,7 +412,7 @@ export default function AvatarPaletteScreen() {
     </View>,
   );
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
-  if (hasProfile !== true || readKey !== draftKey || readState === "idle" || readState === "loading") {
+  if (hasProfile !== true || readOwnerId !== userId || readState === "idle" || readState === "loading") {
     return frame(<View style={styles.center}><PremiumLoadingState message={t("avatarPalette:loading")} /></View>);
   }
   if (readState === "error") return frame(
@@ -371,7 +432,48 @@ export default function AvatarPaletteScreen() {
         <ActionButton label={t("avatarPalette:cancel")} disabled={busy} onPress={() => { setPendingTransition(null); pendingActionRef.current = null; }} />
       </View>
     </PixelSurface> : null}
-    <ScrollView
+    {deleteCandidate ? <PixelSurface variant="frame" contentStyle={styles.detail}>
+      <Text style={styles.body}>{t("avatarPalette:deleteConfirm", { title: deleteCandidate.title || t("avatarPalette:untitled") })}</Text>
+      <View style={styles.row}>
+        <ActionButton label={t("avatarPalette:confirm")} disabled={busy} onPress={() => void deleteItem()} />
+        <ActionButton label={t("avatarPalette:cancel")} disabled={busy} onPress={() => setDeleteCandidate(null)} />
+      </View>
+    </PixelSurface> : null}
+    {viewMode === "gallery" ? <FlatList
+      style={styles.scroll}
+      data={items}
+      keyExtractor={(item) => item.id}
+      initialNumToRender={2}
+      maxToRenderPerBatch={2}
+      windowSize={3}
+      removeClippedSubviews={Platform.OS === "android"}
+      contentContainerStyle={styles.galleryList}
+      pointerEvents={deleteCandidate ? "none" : "auto"}
+      accessibilityElementsHidden={!!deleteCandidate}
+      importantForAccessibility={deleteCandidate ? "no-hide-descendants" : "auto"}
+      ListHeaderComponent={<View style={styles.galleryHeader}>
+        <Text style={styles.label}>{t("avatarPalette:galleryTitle")}</Text>
+        <Text style={styles.muted}>{t("avatarPalette:localOnly")}</Text>
+        <Text style={styles.muted}>{t("avatarPalette:galleryCount", { count: items.length, max: AVATAR_PALETTE_GALLERY_LIMIT })}</Text>
+        {items.length >= AVATAR_PALETTE_GALLERY_LIMIT ? <Text style={styles.muted}>
+          {t("avatarPalette:limitReached", { max: AVATAR_PALETTE_GALLERY_LIMIT })}
+        </Text> : null}
+        <ActionButton label={t("avatarPalette:newDrawing")} disabled={busy || items.length >= AVATAR_PALETTE_GALLERY_LIMIT} onPress={() => requestTransition({ kind: "new" })} />
+      </View>}
+      ListEmptyComponent={<Text style={styles.muted}>{t("avatarPalette:galleryEmpty")}</Text>}
+      renderItem={({ item }) => <PixelSurface variant="inset" contentStyle={styles.galleryCard}>
+        <View style={styles.thumbnail}><PixelLayer pixels={item.pixels} size={64} /></View>
+        <View style={styles.galleryCardText}>
+          <Text style={styles.body} numberOfLines={2}>{item.title || t("avatarPalette:untitled")}</Text>
+          <Text style={styles.muted}>{t(`avatarPalette:slots.${item.slot}`)}</Text>
+          <Text style={styles.muted}>{t("avatarPalette:editedOn", { date: new Date(item.updatedAt).toLocaleDateString(i18n.resolvedLanguage ?? i18n.language) })}</Text>
+          <View style={styles.row}>
+            <ActionButton label={t("avatarPalette:openDrawing")} disabled={busy} onPress={() => requestTransition({ kind: "open", id: item.id })} />
+            <ActionButton label={t("avatarPalette:deleteItem")} disabled={busy} onPress={() => setDeleteCandidate(item)} />
+          </View>
+        </View>
+      </PixelSurface>}
+    /> : <ScrollView
       style={styles.scroll}
       contentContainerStyle={styles.editor}
       keyboardShouldPersistTaps="handled"
@@ -379,6 +481,10 @@ export default function AvatarPaletteScreen() {
       accessibilityElementsHidden={!!pendingTransition}
       importantForAccessibility={pendingTransition ? "no-hide-descendants" : "auto"}
     >
+      <View style={styles.row}>
+        <Text style={styles.label}>{t(editingItemId ? "avatarPalette:editingDrawing" : "avatarPalette:newDrawing")}</Text>
+        <ActionButton label={t("avatarPalette:myGallery")} disabled={busy} onPress={() => requestTransition({ kind: "gallery" })} />
+      </View>
       <Text style={styles.muted}>{t("avatarPalette:intro")}</Text>
       <Text style={styles.muted}>{t("avatarPalette:localOnly")}</Text>
       <Text style={styles.label}>{t("avatarPalette:slotLabel")}</Text>
@@ -472,17 +578,8 @@ export default function AvatarPaletteScreen() {
         <AvatarPreview spec={DEFAULT_AVATAR_SPEC} size={128} overlays={[{ slot, pixels }]} />
         <Text style={styles.muted}>{t("avatarPalette:previewHint")}</Text>
       </PixelSurface> : null}
-      <Text style={styles.muted}>{t(hasDraft ? "avatarPalette:hasDraft" : "avatarPalette:noDraft")}</Text>
       <ActionButton label={busy ? t("avatarPalette:saving") : t("avatarPalette:save")} disabled={busy || !!pendingTransition} onPress={() => void saveCurrent()} />
-      {hasDraft ? <ActionButton label={t("avatarPalette:deleteDraft")} disabled={busy || !!pendingTransition} onPress={() => setDeleteConfirm(true)} /> : null}
-      {deleteConfirm ? <PixelSurface variant="frame" contentStyle={styles.detail}>
-        <Text style={styles.body}>{t("avatarPalette:deleteConfirm")}</Text>
-        <View style={styles.row}>
-          <ActionButton label={t("avatarPalette:confirm")} disabled={busy} onPress={() => void deleteDraft()} />
-          <ActionButton label={t("avatarPalette:cancel")} disabled={busy} onPress={() => setDeleteConfirm(false)} />
-        </View>
-      </PixelSurface> : null}
-    </ScrollView>
+    </ScrollView>}
   </View>);
 }
 
@@ -492,6 +589,11 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: m3.spacing.s4, padding: m3.spacing.s4 },
   row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: m3.spacing.s2 },
   editor: { alignItems: "flex-start", gap: m3.spacing.s3, paddingBottom: m3.spacing.s8 },
+  galleryList: { gap: m3.spacing.s2, paddingBottom: m3.spacing.s8 },
+  galleryHeader: { alignItems: "flex-start", gap: m3.spacing.s2, paddingBottom: m3.spacing.s2 },
+  galleryCard: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s3, padding: m3.spacing.s2 },
+  galleryCardText: { flex: 1, gap: m3.spacing.s1 },
+  thumbnail: { width: 64, height: 64, backgroundColor: m3.color.surfaceContainer },
   label: { color: m3.color.onSurface, fontSize: m3.type.labelLarge.size, lineHeight: m3.type.labelLarge.line, paddingBottom: m3.spacing.s1 },
   body: { color: m3.color.onSurface, fontSize: m3.type.bodyMedium.size, lineHeight: m3.type.bodyMedium.line, paddingBottom: m3.spacing.s1 },
   muted: { color: m3.color.onSurfaceVariant, fontSize: m3.type.bodySmall.size, lineHeight: m3.type.bodySmall.line, paddingBottom: m3.spacing.s1 },

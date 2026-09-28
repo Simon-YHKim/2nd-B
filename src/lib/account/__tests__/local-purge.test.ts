@@ -14,8 +14,8 @@ const mockInstallFence = jest.fn<Promise<boolean>, [string]>();
 jest.mock("../../capture/draft", () => ({
   purgeCaptureDraftsForDeletedAccount: (owner: string) => mockCapturePurge(owner),
 }));
-jest.mock("../../avatar-palette/draft", () => ({
-  purgeAvatarPaletteDraftsForDeletedAccount: (owner: string) => mockAvatarPalettePurge(owner),
+jest.mock("../../avatar-palette/gallery", () => ({
+  purgeAvatarPaletteItemsForDeletedAccount: (owner: string) => mockAvatarPalettePurge(owner),
 }));
 jest.mock("../../import/history", () => ({
   purgeImportHistoryForDeletedAccount: (owner: string) => mockImportPurge(owner),

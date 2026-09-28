@@ -1,5 +1,5 @@
 import { purgeCaptureDraftsForDeletedAccount } from "../capture/draft";
-import { purgeAvatarPaletteDraftsForDeletedAccount } from "../avatar-palette/draft";
+import { purgeAvatarPaletteItemsForDeletedAccount } from "../avatar-palette/gallery";
 import { purgeImportHistoryForDeletedAccount } from "../import/history";
 import { purgeAuditWriteOutboxForOwner } from "../llm/audit-write-outbox";
 import { purgeNoticeLastSeenForDeletedAccount } from "../notices/last-seen";
@@ -34,7 +34,7 @@ export async function purgeDeletedAccountLocalData(userId: string): Promise<Loca
   const purge = (async (): Promise<LocalPurgeOutcome> => {
     const fenceAcknowledged = await installAccountLocalDeletionFence(owner);
     const results = await Promise.all([
-      observe(() => purgeAvatarPaletteDraftsForDeletedAccount(owner)),
+      observe(() => purgeAvatarPaletteItemsForDeletedAccount(owner)),
       observe(() => purgeCaptureDraftsForDeletedAccount(owner)),
       observe(() => purgeImportHistoryForDeletedAccount(owner)),
       observe(() => purgeGithubUsernameForDeletedAccount(owner)),
