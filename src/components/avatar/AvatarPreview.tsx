@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { SvgXml } from "react-native-svg";
 
-import { renderAvatarSvg, type AvatarSharedOverlay, type AvatarSpec } from "@/lib/avatar";
+import { renderAvatarSvg, type AvatarPixelOverlay, type AvatarSpec } from "@/lib/avatar";
 
 export interface AvatarPreviewProps {
   spec: AvatarSpec;
@@ -9,7 +9,7 @@ export interface AvatarPreviewProps {
   size: number;
   /** Focus on the 40×40 head region in small chips, as in the prototype. */
   crop?: boolean;
-  overlays?: readonly AvatarSharedOverlay[];
+  overlays?: readonly AvatarPixelOverlay[];
 }
 
 export function AvatarPreview({ spec, size, crop = false, overlays = [] }: AvatarPreviewProps) {

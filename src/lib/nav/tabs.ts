@@ -119,8 +119,8 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/profile-details",
   // 사용자 아바타 편집도 DeepSpaceScreen 독과 자체 상단 뒤로를 함께 쓴다.
   "/avatar-studio",
-  // 휴대전화의 아바타 셰어도 같은 독과 자체 뒤로 버튼을 쓴다.
-  "/avatar-share",
+  // 휴대전화의 로컬 아바타 팔레트도 같은 독과 자체 뒤로 버튼을 쓴다.
+  "/avatar-palette",
   // 축 체크 3종 (P3b) — thin routes over AxisCheckScreen, so the drift guard's
   // direct-render scan doesn't see them; registered by hand like /museum.
   "/values",

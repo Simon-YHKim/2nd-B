@@ -1,29 +1,29 @@
 import {
-  AVATAR_SHARE_MAX_OPAQUE_PIXELS,
-  AVATAR_SHARE_PALETTE,
-  AVATAR_SHARE_SLOTS,
+  AVATAR_PALETTE_MAX_OPAQUE_PIXELS,
+  AVATAR_PALETTE,
+  AVATAR_PALETTE_SLOTS,
   EMPTY_PIXELS,
   countOpaquePixels,
-  isAvatarSharePixels,
+  isAvatarPalettePixels,
   pixelsToRects,
   setPixel,
 } from "../pixels";
 
-describe("Avatar Share pixel format", () => {
+describe("Avatar palette pixel format", () => {
   test("keeps a fixed 64 × 64 transparent grid and three compositing slots", () => {
     expect(EMPTY_PIXELS).toHaveLength(4096);
-    expect(isAvatarSharePixels(EMPTY_PIXELS)).toBe(true);
-    expect(AVATAR_SHARE_SLOTS).toEqual(["hair", "accessory", "garment"]);
-    expect(AVATAR_SHARE_PALETTE).toHaveLength(16);
+    expect(isAvatarPalettePixels(EMPTY_PIXELS)).toBe(true);
+    expect(AVATAR_PALETTE_SLOTS).toEqual(["hair", "accessory", "garment"]);
+    expect(AVATAR_PALETTE).toHaveLength(16);
   });
 
   test("rejects malformed, lowercase, or oversized untrusted drawings", () => {
-    expect(isAvatarSharePixels(EMPTY_PIXELS.slice(1))).toBe(false);
-    expect(isAvatarSharePixels("g" + EMPTY_PIXELS.slice(1))).toBe(false);
-    expect(isAvatarSharePixels("a" + EMPTY_PIXELS.slice(1))).toBe(false);
-    expect(isAvatarSharePixels("<" + EMPTY_PIXELS.slice(1))).toBe(false);
-    expect(isAvatarSharePixels("0".repeat(AVATAR_SHARE_MAX_OPAQUE_PIXELS + 1) +
-      ".".repeat(4096 - AVATAR_SHARE_MAX_OPAQUE_PIXELS - 1))).toBe(false);
+    expect(isAvatarPalettePixels(EMPTY_PIXELS.slice(1))).toBe(false);
+    expect(isAvatarPalettePixels("g" + EMPTY_PIXELS.slice(1))).toBe(false);
+    expect(isAvatarPalettePixels("a" + EMPTY_PIXELS.slice(1))).toBe(false);
+    expect(isAvatarPalettePixels("<" + EMPTY_PIXELS.slice(1))).toBe(false);
+    expect(isAvatarPalettePixels("0".repeat(AVATAR_PALETTE_MAX_OPAQUE_PIXELS + 1) +
+      ".".repeat(4096 - AVATAR_PALETTE_MAX_OPAQUE_PIXELS - 1))).toBe(false);
   });
 
   test("draws and erases exact cells, and refuses painting beyond the limit", () => {
@@ -43,8 +43,8 @@ describe("Avatar Share pixel format", () => {
   test("turns consecutive cells into approved integer rectangle operations", () => {
     const pixels = setPixel(setPixel(setPixel(EMPTY_PIXELS, 2, 3, 0), 3, 3, 0), 2, 4, 10);
     expect(pixelsToRects(pixels)).toEqual([
-      [2, 3, 2, 1, AVATAR_SHARE_PALETTE[0]],
-      [2, 4, 1, 1, AVATAR_SHARE_PALETTE[10]],
+      [2, 3, 2, 1, AVATAR_PALETTE[0]],
+      [2, 4, 1, 1, AVATAR_PALETTE[10]],
     ]);
     expect(pixelsToRects(EMPTY_PIXELS)).toEqual([]);
   });

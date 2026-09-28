@@ -11,8 +11,7 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { DEFAULT_AVATAR_SPEC, type AvatarSharedOverlay, type AvatarSpec } from "@/lib/avatar";
-import { loadAvatarShareOverlays } from "@/lib/avatar-share/apply";
+import { DEFAULT_AVATAR_SPEC, type AvatarSpec } from "@/lib/avatar";
 import { useProgression } from "@/lib/progression/useProgression";
 import { fetchAvatarSpec } from "@/lib/supabase/avatar-spec";
 import { m3 } from "@/lib/theme/m3";
@@ -47,7 +46,6 @@ interface IdentityState {
 interface AvatarState {
   owner: string | null;
   value: AvatarSpec | null;
-  overlays: AvatarSharedOverlay[];
   status: "idle" | "loading" | "ready" | "error";
 }
 
@@ -65,7 +63,6 @@ export function DeepSpaceProfileScreen() {
   const [avatar, setAvatar] = useState<AvatarState>({
     owner: null,
     value: null,
-    overlays: [],
     status: "idle",
   });
   const [avatarReloadKey, setAvatarReloadKey] = useState(0);
@@ -98,7 +95,7 @@ export function DeepSpaceProfileScreen() {
   // Keep the owner with the value: a previous account's portrait must never flash.
   useFocusEffect(useCallback(() => {
     if (!userId) {
-      setAvatar({ owner: null, value: null, overlays: [], status: "idle" });
+      setAvatar({ owner: null, value: null, status: "idle" });
       return;
     }
     const requestedUserId = userId;
@@ -106,14 +103,12 @@ export function DeepSpaceProfileScreen() {
     setAvatar((current) => ({
       owner: requestedUserId,
       value: current.owner === requestedUserId ? current.value : null,
-      overlays: current.owner === requestedUserId ? current.overlays : [],
       status: "loading",
     }));
     void fetchAvatarSpec(requestedUserId)
-      .then(async (value) => {
-        const overlays = value ? await loadAvatarShareOverlays(value) : [];
+      .then((value) => {
         if (!cancelled && activeUserRef.current === requestedUserId) {
-          setAvatar({ owner: requestedUserId, value, overlays, status: "ready" });
+          setAvatar({ owner: requestedUserId, value, status: "ready" });
         }
       })
       .catch(() => {
@@ -121,7 +116,6 @@ export function DeepSpaceProfileScreen() {
           setAvatar((current) => ({
             owner: requestedUserId,
             value: current.owner === requestedUserId ? current.value : null,
-            overlays: current.owner === requestedUserId ? current.overlays : [],
             status: "error",
           }));
         }
@@ -268,7 +262,6 @@ export function DeepSpaceProfileScreen() {
               spec={avatar.owner === userId ? avatar.value ?? DEFAULT_AVATAR_SPEC : DEFAULT_AVATAR_SPEC}
               size={40}
               crop
-              overlays={avatar.owner === userId ? avatar.overlays : []}
             />
             <RNText
               accessibilityLabel={profileTitle}

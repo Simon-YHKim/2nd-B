@@ -75,8 +75,6 @@ const behaviorDrafts = {
 // Their source-level contracts live in the named suites until a scratch SQL
 // lane is wired for their numbered migrations.
 const plannedDrafts = {
-  "UNNUMBERED_avatar_share.sql": "src/lib/avatar-share/__tests__/server-draft.test.ts",
-  "UNNUMBERED_avatar_share_erasure_registry.sql": "src/lib/avatar-share/__tests__/server-draft.test.ts",
   "UNNUMBERED_users_display_name_update.sql": "src/lib/supabase/__tests__/users-table-acl-migration.test.ts",
 } as const;
 
@@ -96,21 +94,6 @@ describe("scratch PostgreSQL coverage for inactive security drafts", () => {
       expect(read(suite)).toContain(draft);
       expect(read(`db/migration-drafts/${draft}`)).toContain("public.");
     }
-    const share = read("db/migration-drafts/UNNUMBERED_avatar_share.sql");
-    expect(share).toMatch(/SECURITY DEFINER SET search_path = ''/);
-    expect(share).toMatch(/target\s+text NOT NULL DEFAULT 'asset' CHECK \(target IN \('asset', 'creator'\)\)/);
-    expect(share).toMatch(/PRIMARY KEY \(asset_id, reporter_id\)/);
-    expect(share).toMatch(/asset\.report_count \+ 1 >= 3/);
-    expect(share).toMatch(/me\.minor_tier = 'adult'[\s\S]*?FOR SHARE;/);
-    expect(share).not.toMatch(/GRANT (?:INSERT|UPDATE|ALL)[^;]*avatar_share_assets TO authenticated/);
-
-    const erasure = read("db/migration-drafts/UNNUMBERED_avatar_share_erasure_registry.sql");
-    for (const table of ["avatar_share_assets", "avatar_share_reports", "avatar_share_blocks",
-      "avatar_share_submission_limits"]) {
-      expect(erasure).toContain(`'${table}'`);
-    }
-    expect(erasure).toContain("erasure_rpc_must_remain_locked");
-
     const displayName = read("db/migration-drafts/UNNUMBERED_users_display_name_update.sql");
     expect(displayName).toMatch(/GRANT UPDATE \(display_name\) ON public\.users TO authenticated;/);
     expect(displayName).not.toMatch(/GRANT UPDATE ON public\.users/);

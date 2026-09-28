@@ -478,11 +478,11 @@
       "route": "account"
     },
     {
-      "id": "avatar-share",
+      "id": "avatar-palette",
       "component": null,
       "appOnly": true,
-      "title": "아바타 셰어",
-      "route": "avatar-share"
+      "title": "아바타 팔레트",
+      "route": "avatar-palette"
     },
     {
       "id": "avatar-studio",

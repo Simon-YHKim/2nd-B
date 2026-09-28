@@ -6070,7 +6070,7 @@ test('salvage plan classifies every non-direct frame and production route exactl
   // matching prototype frame; salvage-plan records its explicit redesign.
   // 25 -> 26 (2026-09-26): /service-consent adds the current consent receipt.
   // 26 -> 27 (2026-09-28): /avatar-studio adds an approved avatar wardrobe.
-  // 27 -> 28 (2026-09-28): /avatar-share adds a moderated in-phone pixel editor.
+  // 27 -> 28 (2026-09-28): /avatar-palette adds a local in-phone pixel editor.
   assert.equal(expectedActualHrefs.length, 28);
   assert.equal(salvage.actualRoutes['/dashboard'].strategy, 'redesign');
   assert.deepEqual(Object.keys(salvage.actualRoutes).sort(), expectedActualHrefs);

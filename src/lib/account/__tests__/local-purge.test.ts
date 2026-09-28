@@ -1,4 +1,5 @@
 const mockCapturePurge = jest.fn<Promise<boolean>, [string]>();
+const mockAvatarPalettePurge = jest.fn<Promise<boolean>, [string]>();
 const mockImportPurge = jest.fn<Promise<boolean>, [string]>();
 const mockGithubPurge = jest.fn<Promise<boolean>, [string]>();
 const mockAuditPurge = jest.fn<Promise<boolean>, [string]>();
@@ -12,6 +13,9 @@ const mockInstallFence = jest.fn<Promise<boolean>, [string]>();
 
 jest.mock("../../capture/draft", () => ({
   purgeCaptureDraftsForDeletedAccount: (owner: string) => mockCapturePurge(owner),
+}));
+jest.mock("../../avatar-palette/draft", () => ({
+  purgeAvatarPaletteDraftsForDeletedAccount: (owner: string) => mockAvatarPalettePurge(owner),
 }));
 jest.mock("../../import/history", () => ({
   purgeImportHistoryForDeletedAccount: (owner: string) => mockImportPurge(owner),
@@ -53,6 +57,7 @@ beforeEach(() => {
   mockInstallFence.mockReset().mockResolvedValue(true);
   mockNotificationPurge.mockReset().mockResolvedValue(undefined);
   for (const purge of [
+    mockAvatarPalettePurge,
     mockCapturePurge,
     mockImportPurge,
     mockGithubPurge,
@@ -72,6 +77,7 @@ describe("purgeDeletedAccountLocalData", () => {
     await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("complete");
     expect(mockInstallFence).toHaveBeenCalledWith("owner-a");
     for (const purge of [
+      mockAvatarPalettePurge,
       mockCapturePurge,
       mockImportPurge,
       mockGithubPurge,
@@ -93,6 +99,7 @@ describe("purgeDeletedAccountLocalData", () => {
 
     await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("unconfirmed");
     expect(mockCapturePurge).toHaveBeenCalledTimes(1);
+    expect(mockAvatarPalettePurge).toHaveBeenCalledTimes(1);
     expect(mockGithubPurge).toHaveBeenCalledTimes(1);
     expect(mockAuditPurge).toHaveBeenCalledTimes(1);
   });
@@ -100,6 +107,7 @@ describe("purgeDeletedAccountLocalData", () => {
   test("rejects an empty owner instead of widening the purge", async () => {
     await expect(purgeDeletedAccountLocalData(" ")).resolves.toBe("unconfirmed");
     expect(mockCapturePurge).not.toHaveBeenCalled();
+    expect(mockAvatarPalettePurge).not.toHaveBeenCalled();
     expect(mockImportPurge).not.toHaveBeenCalled();
     expect(mockGithubPurge).not.toHaveBeenCalled();
     expect(mockAuditPurge).not.toHaveBeenCalled();
@@ -135,6 +143,12 @@ describe("purgeDeletedAccountLocalData", () => {
     expect(mockWikiPurge).toHaveBeenCalledTimes(1);
     expect(mockNoticeReadPurge).toHaveBeenCalledTimes(1);
     expect(mockNoticeLastSeenPurge).toHaveBeenCalledTimes(1);
+  });
+
+  test("never claims local completion when private avatar art remains", async () => {
+    mockAvatarPalettePurge.mockResolvedValueOnce(false);
+    await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("unconfirmed");
+    expect(mockAvatarPalettePurge).toHaveBeenCalledWith("owner-a");
   });
 
   test("never claims local completion when notification cleanup is incomplete", async () => {

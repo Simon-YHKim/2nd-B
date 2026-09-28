@@ -15,11 +15,11 @@ const PHONE_APPS: readonly PhoneApp[] = [
   { id: "growth", glyph: "target", route: "/milestones" },
   { id: "meals", glyph: "fire", route: "/meals" },
   { id: "community", glyph: "group", route: "/community", adultOnly: true },
-  { id: "avatarShare", glyph: "grid", route: "/avatar-share", adultOnly: true },
+  { id: "avatarPalette", glyph: "grid", route: "/avatar-palette" },
   { id: "relationships", glyph: "person", route: "/star/relation" },
 ];
 
-/** Public sharing stays closed until the account is confirmed to be an adult. */
+/** Community remains adult-only; the local drawing palette is available to all profiles. */
 export function phoneAppsFor(isMinor: boolean | null): readonly PhoneApp[] {
   return PHONE_APPS.filter((app) => !app.adultOnly || isMinor === false);
 }

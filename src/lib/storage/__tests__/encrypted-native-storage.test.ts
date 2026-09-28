@@ -155,6 +155,15 @@ function setCapacityLedger(h: ReturnType<typeof createHarness>, total: number): 
 }
 
 describe("encrypted native storage core", () => {
+  test("accepts private avatar palette drafts only through the encrypted managed namespace", async () => {
+    const h = createHarness();
+    const key = "avatar.palette.drafts.v1.owner-a";
+    await h.storage.setItem(key, "private pixels");
+    expect(h.values.get(key)).toMatch(/^SBENC1:/);
+    expect(h.values.get(key)).not.toContain("private pixels");
+    await expect(h.storage.getItem(key)).resolves.toBe("private pixels");
+  });
+
   test("stores authenticated ciphertext and binds it to the logical key", async () => {
     const h = createHarness();
     await h.storage.setItem("capture.drafts.v2.owner-a", "private unfinished note");

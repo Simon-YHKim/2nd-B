@@ -7,7 +7,7 @@
 // `satisfies` below fails the build when a namespace is missing.
 import ptAuth from "../../../../locales/pt/auth.json";
 import ptAvatar from "../../../../locales/pt/avatar.json";
-import ptAvatarShare from "../../../../locales/pt/avatarShare.json";
+import ptAvatarPalette from "../../../../locales/pt/avatarPalette.json";
 import ptCapture from "../../../../locales/pt/capture.json";
 import ptCommon from "../../../../locales/pt/common.json";
 import ptCommunity from "../../../../locales/pt/community.json";
@@ -54,5 +54,5 @@ import ptTrinity from "../../../../locales/pt/trinity.json";
 import ptIndex from "../../../../locales/pt/index.json";
 import type { Namespace } from "../index";
 
-export const pack = { common: ptCommon, community: ptCommunity, auth: ptAuth, avatar: ptAvatar, avatarShare: ptAvatarShare, safety: ptSafety, consent: ptConsent, capture: ptCapture, inbox: ptInbox, secondb: ptSecondb, plans: ptPlans, wiki: ptWiki,
+export const pack = { common: ptCommon, community: ptCommunity, auth: ptAuth, avatar: ptAvatar, avatarPalette: ptAvatarPalette, safety: ptSafety, consent: ptConsent, capture: ptCapture, inbox: ptInbox, secondb: ptSecondb, plans: ptPlans, wiki: ptWiki,
   peer: ptPeer, support: ptSupport, data: ptData, esm: ptEsm, formats: ptFormats, insights: ptInsights, research: ptResearch, recordDetail: ptRecordDetail, theme: ptTheme, import: ptImport, notFound: ptNotFound, ops: ptOps, profile: ptProfile, permissions: ptPermissions, settings: ptSettings, iden: ptIden, home: ptHome, deepspace: ptDeepspace, attachment: ptAttachment, audit: ptAudit, "big-five": ptBigFive, brightness: ptBrightness, "core-brain": ptCoreBrain, imagine: ptImagine, interview: ptInterview, "ipip-neo": ptIpipNeo, manual: ptManual, persona: ptPersona, privacy: ptPrivacy, ratifications: ptRatifications, records: ptRecords, review: ptReview, rlss: ptRlss, trinity: ptTrinity, index: ptIndex } satisfies Record<Namespace, unknown>;

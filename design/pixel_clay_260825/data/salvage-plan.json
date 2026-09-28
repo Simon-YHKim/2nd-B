@@ -311,13 +311,13 @@
    "implementation": "프로필에서 승인된 64셀 아바타 카탈로그를 열고 머리·얼굴·동물·의상을 조합한다.",
    "doneWhen": "144개 선택지, 사람·동물 의상, 사용자별 저장·재진입, 조회·저장 실패 상태와 Android Back이 검증된다."
   },
-  "/avatar-share": {
+  "/avatar-palette": {
    "strategy": "derive-pattern",
    "references": [
     "profile"
    ],
-   "implementation": "휴대전화 도구에서 64셀 픽셀 에셋을 직접 그려 검토에 제출하고, 승인된 그림을 개인 아바타에 적용한다.",
-   "doneWhen": "성인 접근, 캔버스 편집·복구, 검토 대기, 신고·차단·삭제, 가져오기와 Android 터치가 검증된다."
+   "implementation": "휴대전화 도구에서 64셀 픽셀 에셋을 직접 그리고, 슬롯별 초안을 기기 안에 보관한다.",
+   "doneWhen": "캔버스 편집·로컬 저장·재진입, 계정별 격리와 Android 터치가 검증된다."
   },
   "/jarvis": {
    "strategy": "alias",

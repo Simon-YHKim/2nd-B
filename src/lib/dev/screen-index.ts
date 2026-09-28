@@ -412,7 +412,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
     title: "개인 비서",
     screens: [
       { file: "dashboard", href: "/dashboard", label: "나의 휴대전화", auth: true },
-      { file: "avatar-share", href: "/avatar-share", label: "아바타 셰어", auth: true, note: "공개 공유 기능은 성인 계정에서만 열림" },
+      { file: "avatar-palette", href: "/avatar-palette", label: "아바타 팔레트", auth: true, note: "기기 안에만 초안 저장, 공유 기능 보류" },
       // 게이트가 라우트에서 화면으로 모였다 — research·insights·import 와 같은 모양이다.
       {
         file: "ops",

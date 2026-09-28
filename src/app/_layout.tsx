@@ -230,7 +230,7 @@ export default function RootLayout() {
               <Stack.Screen name="community" />
               <Stack.Screen name="community/[room]" />
               <Stack.Screen name="community/join/[token]" />
-              <Stack.Screen name="avatar-share" />
+              <Stack.Screen name="avatar-palette" />
               <Stack.Screen name="jarvis" />
               <Stack.Screen name="plans" />
               <Stack.Screen name="subscription" />

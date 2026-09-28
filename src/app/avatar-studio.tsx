@@ -20,10 +20,7 @@ import {
   isAvatarAccessoryOccluded,
   resolveAvatarSpec,
   type AvatarSpec,
-  type AvatarSharedOverlay,
 } from "@/lib/avatar";
-import { loadAvatarShareOverlays } from "@/lib/avatar-share/apply";
-import { type AvatarShareSlot } from "@/lib/avatar-share/pixels";
 import { fetchAvatarSpec, markAvatarSetupDeferredForSession, saveAvatarSpec } from "@/lib/supabase/avatar-spec";
 import { m3 } from "@/lib/theme/m3";
 
@@ -86,14 +83,12 @@ export default function AvatarStudioScreen() {
   const setupMode = setup === "1";
   const {
     userId,
-    isMinor,
     hasProfile,
     profileProbeFailed,
     loading: authLoading,
     refresh: refreshAuth,
   } = useAuth();
   const [spec, setSpec] = useState<AvatarSpec>(DEFAULT_AVATAR_SPEC);
-  const [overlays, setOverlays] = useState<AvatarSharedOverlay[]>([]);
   const [category, setCategory] = useState<Category>("hair");
   const [colorField, setColorField] = useState<ColorField>("skin");
   const [loadState, setLoadState] = useState<{
@@ -132,8 +127,7 @@ export default function AvatarStudioScreen() {
     return () => sub.remove();
   }, [onCancel]));
 
-  // Importing from Avatar Share writes the private spec in another route.
-  // Re-read it when returning so the selected art appears in this wardrobe.
+  // Re-read saved wardrobe choices when returning to this route.
   useFocusEffect(useCallback(() => {
     if (didFocusRef.current) setReloadKey((key) => key + 1);
     didFocusRef.current = true;
@@ -145,7 +139,6 @@ export default function AvatarStudioScreen() {
     setSaving(false);
     setSaveError(false);
     setSpec(DEFAULT_AVATAR_SPEC);
-    setOverlays([]);
     if (!userId) {
       setLoadState({ userId: null, status: "idle" });
       return;
@@ -158,9 +151,6 @@ export default function AvatarStudioScreen() {
         const resolved = resolveAvatarSpec(saved ?? DEFAULT_AVATAR_SPEC);
         setSpec(resolved);
         setLoadState({ userId, status: "ready" });
-        void loadAvatarShareOverlays(resolved).then((loaded) => {
-          if (alive && activeUserIdRef.current === userId) setOverlays(loaded);
-        });
       })
       .catch(() => {
         if (!alive || activeUserIdRef.current !== userId) return;
@@ -186,13 +176,6 @@ export default function AvatarStudioScreen() {
     setSaveError(false);
   }, [readyForUser, saving]);
 
-  const clearShared = useCallback((slot: AvatarShareSlot) => {
-    const sharedAssets = { ...spec.sharedAssets };
-    delete sharedAssets[slot];
-    patch({ sharedAssets });
-    setOverlays((current) => current.filter((overlay) => overlay.slot !== slot));
-  }, [patch, spec.sharedAssets]);
-
   const selectChoice = useCallback((choice: Choice) => {
     if (choice.kind === "color") {
       patch({ [choice.field]: choice.value } as Partial<AvatarSpec>);
@@ -215,9 +198,7 @@ export default function AvatarStudioScreen() {
     }
   }, [patch]);
 
-  // Leaving for Avatar Share must persist this wardrobe first. Returning from
-  // the share route reloads the server spec, including the selected overlay.
-  const saveAndContinue = useCallback(async (destination: "done" | "share") => {
+  const onSave = useCallback(async () => {
     if (!userId || !readyForUser || saveInFlightRef.current) return;
     const saveUserId = userId;
     const operation = ++saveOperationRef.current;
@@ -229,8 +210,7 @@ export default function AvatarStudioScreen() {
       if (saveOperationRef.current !== operation || activeUserIdRef.current !== saveUserId) return;
       saveInFlightRef.current = false;
       setSaving(false);
-      if (destination === "share") router.push("/avatar-share");
-      else if (setupMode) router.replace("/");
+      if (setupMode) router.replace("/");
       else if (router.canGoBack()) router.back();
       else router.replace("/profile");
     } catch {
@@ -243,9 +223,6 @@ export default function AvatarStudioScreen() {
       }
     }
   }, [userId, readyForUser, spec, setupMode]);
-
-  const onSave = useCallback(() => saveAndContinue("done"), [saveAndContinue]);
-  const onBrowseShared = useCallback(() => saveAndContinue("share"), [saveAndContinue]);
 
   const isSelected = useCallback((choice: Choice): boolean => {
     if (choice.kind === "color") return spec[choice.field] === choice.value;
@@ -329,37 +306,12 @@ export default function AvatarStudioScreen() {
     <View style={styles.screen}>
       {setupMode ? <Text style={styles.setupHint}>{t("avatar:setupRequiredHint")}</Text> : null}
       <PixelSurface variant="inset" style={styles.previewFrame} contentStyle={styles.previewContent}>
-        <AvatarPreview spec={spec} size={128} overlays={overlays} />
+        <AvatarPreview spec={spec} size={128} />
         <View style={styles.previewCopy}>
           <Text style={styles.previewTitle}>{t("avatar:preview")}</Text>
           <Text style={styles.previewHint}>{t("avatar:previewHint")}</Text>
         </View>
       </PixelSurface>
-
-      {isMinor === false ? (
-        <View style={styles.sharedRow}>
-          <PixelPressable
-            variant="bevel"
-            onPress={() => void onBrowseShared()}
-            disabled={saving}
-            accessibilityLabel={t("avatar:sharedBrowse")}
-            contentStyle={styles.sharedButton}
-          >
-            <Text style={styles.tabText}>{t("avatar:sharedBrowse")}</Text>
-          </PixelPressable>
-          {(["garment", "hair", "accessory"] as const).filter((slot) => spec.sharedAssets?.[slot]).map((slot) => (
-            <PixelPressable
-              key={slot}
-              variant="bevel"
-              onPress={() => clearShared(slot)}
-              accessibilityLabel={t("avatar:sharedRemove", { slot: t(`avatar:categories.${slot}`) })}
-              contentStyle={styles.sharedButton}
-            >
-              <Text style={styles.tabText}>{t("avatar:sharedRemove", { slot: t(`avatar:categories.${slot}`) })}</Text>
-            </PixelPressable>
-          ))}
-        </View>
-      ) : null}
 
       <View style={styles.typeRow}>
         <Text style={styles.sectionLabel}>{t("avatar:selectType")}</Text>
@@ -481,8 +433,6 @@ const styles = StyleSheet.create({
   setupHint: { color: m3.color.onSurface, fontSize: m3.type.bodyMedium.size, lineHeight: m3.type.bodyMedium.line, paddingBottom: m3.spacing.s1 },
   previewContent: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s4, padding: m3.spacing.s2 },
   previewCopy: { flex: 1, gap: m3.spacing.s2 },
-  sharedRow: { flexDirection: "row", flexWrap: "wrap", gap: m3.spacing.s2 },
-  sharedButton: { minHeight: m3.minTouch, paddingHorizontal: m3.spacing.s2 },
   previewTitle: { color: m3.color.onSurface, fontSize: m3.type.titleMedium.size, lineHeight: m3.type.titleMedium.line, paddingBottom: m3.spacing.s1 },
   previewHint: { color: m3.color.onSurfaceVariant, fontSize: m3.type.bodySmall.size, lineHeight: m3.type.bodySmall.line, paddingBottom: m3.spacing.s1 },
   typeRow: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s2 },

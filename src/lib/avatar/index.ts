@@ -1,6 +1,6 @@
 import type { ImageSourcePropType } from "react-native";
 
-import { isAvatarSharePixels, pixelsToRects } from "@/lib/avatar-share/pixels";
+import { isAvatarPalettePixels, pixelsToRects } from "@/lib/avatar-palette/pixels";
 import { getAvatarThumbnail } from "./thumbnails";
 
 export { getAvatarThumbnail };
@@ -24,8 +24,6 @@ export interface AvatarSpec {
   job: string | null;
   garmentId: string | null;
   wearUniform: boolean;
-  /** Approved Avatar Share item IDs. The art itself is loaded separately. */
-  sharedAssets?: Partial<Record<"hair" | "garment" | "accessory", string>>;
 }
 
 export interface AvatarCatalogItem {
@@ -36,8 +34,8 @@ export interface AvatarCatalogItem {
 }
 
 type AvatarRect = [number, number, number, number, string];
-export type AvatarSharedSlot = "garment" | "hair" | "accessory";
-export type AvatarSharedOverlay = { slot: AvatarSharedSlot; pixels: string };
+export type AvatarPixelSlot = "garment" | "hair" | "accessory";
+export type AvatarPixelOverlay = { slot: AvatarPixelSlot; pixels: string };
 type EngineCatalogItem = AvatarCatalogItem & { fur?: string[] };
 type AvatarEngine = {
   HAIR: EngineCatalogItem[];
@@ -153,17 +151,6 @@ export function resolveAvatarSpec(raw: unknown): AvatarSpec {
   const garmentId = value.garmentId === null
     ? null
     : allowed(value.garmentId, ids.garmentId, fallback.garmentId ?? "") || null;
-  const rawShared = value.sharedAssets && typeof value.sharedAssets === "object" &&
-      !Array.isArray(value.sharedAssets)
-    ? value.sharedAssets as Record<string, unknown>
-    : {};
-  const sharedAssets: NonNullable<AvatarSpec["sharedAssets"]> = {};
-  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  for (const slot of ["garment", "hair", "accessory"] as const) {
-    const id = rawShared[slot];
-    if (typeof id === "string" && uuid.test(id)) sharedAssets[slot] = id.toLowerCase();
-  }
-
   return {
     v: 64,
     seed,
@@ -184,7 +171,6 @@ export function resolveAvatarSpec(raw: unknown): AvatarSpec {
     wearUniform: typeof value.wearUniform === "boolean"
       ? value.wearUniform
       : fallback.wearUniform,
-    ...(Object.keys(sharedAssets).length > 0 ? { sharedAssets } : {}),
   };
 }
 
@@ -202,18 +188,18 @@ export function isAvatarAccessoryOccluded(spec: AvatarSpec): boolean {
 export function renderAvatarSvg(
   spec: AvatarSpec,
   size: number,
-  overlays: readonly AvatarSharedOverlay[] = [],
+  overlays: readonly AvatarPixelOverlay[] = [],
 ): string {
   const svg = renderer.render(engine.ops(resolveAvatarSpec(spec)), size);
   // SvgXml does not need browser-only style/ARIA attributes. All rect positions
   // and colors remain exactly those of the approved SVG renderer.
   const clean = svg.replace(/ style="[^"]*"/, "").replace(/ aria-hidden="true"/, "");
   if (overlays.length === 0) return clean;
-  // Draw approved shared art on the same logical grid. A palette-only pixel
+  // Draw a local palette preview on the same logical grid. A palette-only
   // payload cannot inject SVG nodes or change the 1-cell edge geometry.
   const layers = (["garment", "hair", "accessory"] as const)
     .flatMap((slot) => overlays.filter((overlay) => overlay.slot === slot))
-    .filter((overlay) => isAvatarSharePixels(overlay.pixels))
+    .filter((overlay) => isAvatarPalettePixels(overlay.pixels))
     .flatMap((overlay) => pixelsToRects(overlay.pixels))
     .map(([x, y, width, height, color]) =>
       `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${color}"/>`)
