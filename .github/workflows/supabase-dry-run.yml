@@ -357,7 +357,7 @@ jobs:
             0197:paddle_refund_consequence_integrity \
             0198:service_contract_erasure_registry \
             0199:oauth_naver_rate_limit_completion \
-            0200:rss_proxy_quota; do
+            0200:rss_proxy_quota \n            0206:users_avatar_spec \n            0207:users_display_name_update; do
             version="${mapping%%:*}"
             stem="${mapping#*:}"
             if ! cmp -s "db/migration-drafts/UNNUMBERED_${stem}.sql" "db/migrations/${version}_${stem}.sql"; then

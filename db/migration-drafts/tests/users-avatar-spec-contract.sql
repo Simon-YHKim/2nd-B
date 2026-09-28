@@ -19,6 +19,13 @@ BEGIN
      OR has_column_privilege('anon', 'public.users', 'avatar_spec', 'UPDATE') THEN
     RAISE EXCEPTION 'avatar_spec update grant is not authenticated-only';
   END IF;
+  -- 0207: the display name is editable by its owner only; nothing table-wide.
+  IF NOT has_column_privilege('authenticated', 'public.users', 'display_name', 'UPDATE')
+     OR has_column_privilege('anon', 'public.users', 'display_name', 'UPDATE')
+     OR has_table_privilege('authenticated', 'public.users', 'UPDATE')
+     OR has_column_privilege('authenticated', 'public.users', 'judge_mode', 'UPDATE') THEN
+    RAISE EXCEPTION 'users update grants drifted beyond avatar_spec/display_name';
+  END IF;
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
     WHERE schemaname = 'public' AND tablename = 'users'

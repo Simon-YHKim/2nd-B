@@ -39,5 +39,6 @@
   "sampleHint": "Gambar pilihan adalah contoh pada karakter dasar. Lihat pratinjau di atas untuk kombinasi Anda.",
   "occludedHint": "Aksesori Anda sedang tertutup item lain. Pilihan Anda tetap disimpan.",
   "choiceCount": "{{count}} pilihan",
-  "setupRequiredHint": "Pilih dan simpan avatar pertama Anda untuk menyelesaikan pengaturan profil."
+  "setupRequiredHint": "Pilih dan simpan avatar pertama Anda. Anda juga bisa melakukannya nanti.",
+  "setupLater": "Nanti"
 }

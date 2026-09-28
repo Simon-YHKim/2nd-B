@@ -39,5 +39,6 @@
   "sampleHint": "Las imágenes de las opciones muestran un personaje base. Consulta arriba tu combinación actual.",
   "occludedHint": "Otro elemento tapa tu accesorio ahora. Tu selección se conserva.",
   "choiceCount": "{{count}} opciones",
-  "setupRequiredHint": "Elige y guarda tu primer avatar para terminar de configurar tu perfil."
+  "setupRequiredHint": "Elige y guarda tu primer avatar. También puedes hacerlo más tarde.",
+  "setupLater": "Más tarde"
 }

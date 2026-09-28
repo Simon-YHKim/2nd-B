@@ -42,12 +42,17 @@ describe("approved avatar studio screen", () => {
     expect(source).toContain('router.replace("/profile")');
   });
 
-  test("requires a first saved avatar and lets a failed server read escape", () => {
+  // The avatar is an optional profile choice: the privacy policy promises that
+  // leaving optional profile fields empty never limits the service. Setup must
+  // always be leavable (back, hardware back, "Later"), deferring for the session.
+  test("offers first-run setup but can always be left for later", () => {
     expect(source).toContain('const setupMode = setup === "1"');
     expect(source).toContain('if (setupMode) router.replace("/")');
     expect(source).toContain('t("avatar:setupRequiredHint")');
-    expect(source).toContain("markAvatarSetupDeferredForSession(userId)");
-    expect(source).toContain('if (loadState.status === "error" && userId)');
+    expect(source).toContain("if (userId) markAvatarSetupDeferredForSession(userId);");
+    expect(source).toContain("onBack={onCancel}");
+    expect(source).toContain('accessibilityLabel={t("avatar:setupLater")}');
+    expect(source).not.toContain('if (loadState.status === "error" && userId)');
   });
 
 });
