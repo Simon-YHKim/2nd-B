@@ -29,7 +29,18 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-29 23:1x / 앱과 localhost 는 같은 소프트웨어다 — `npm run localhost` 신설 · 8081 교체
+## Latest — 2026-09-29 23:47 / 삭제 fence·서비스 동의 서버 선행 적용과 잔여 canary
+
+- main `90650414`의 [#1929](https://github.com/Simon-YHKim/2nd-B/pull/1929)는 현행 `0194`의 `service-v1`/`email-v6` SQL 회귀를 추가했다. 로컬 verify 846 suites·10,933 tests, PR CI 4종 PASS 뒤 병합했다. 웹 운영 게시와 Android 빌드는 없었다.
+- 콘솔 claim `PROD-DELETE-CONSENT-260929`에서 운영 `zoacryukmdeivmolvyhj`에 **0192**(`20260929143410`)와 **0194**(`20260929143632`)를 적용했다. 원장 181→183행. Storage 정책·trigger·tombstone RLS와 서비스 동의 RPC ACL·`email-v6` 판본을 확인했다. 9월 27일 격리 리허설 PASS/삭제 완료로 새 임시 프로젝트는 만들지 않았다.
+- [삭제 Edge run 36583694890](https://github.com/Simon-YHKim/2nd-B/actions/runs/36583694890)으로 `delete-account` v135, [동의 run 36583979169](https://github.com/Simon-YHKim/2nd-B/actions/runs/36583979169)으로 `service-consent` v1을 배포했다. 두 함수는 JWT 검증·main 소스 일치·비인증 401이다. [운영 전환 기록](qa/ACCOUNT-DELETION-ROLLOUT-260929.md)과 Relay `claim-prod-delete-consent-260929.coding.result.md` 참조.
+- **남은 서버 게이트:** QA 계정의 서비스 동의 `status`는 503 `service_consent_unavailable`이었다. 잘못된 body도 503이어서 mode gate 거부로 추정하나 설정값은 모른다. 운영 삭제 전체 흐름은 일회용 계정이 없어 미검증이다. 공용 QA 계정·서버 설정은 변경하지 않았다.
+- [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)는 10월 5일 `email-v7/service-v2` Draft로 둔다. 일반 Chrome의 로그인된 Play Console에서 PolaScope 게시 개요를 읽었다. **게시 준비 변경 2건**(영어 앱 이름·전체 설명)이 있어 데이터 보안 Revision 2를 저장·제출하면 섞일 위험이 있다. 폼 저장·검토 제출·게시를 하지 않았다.
+- 재개: `git fetch origin main` → `git show origin/main:docs/HANDOFF.md`. 다음은 동의 mode·읽기 canary, 일회용 계정 삭제 canary, Play 데이터 보안 원본과 게시 준비 2건의 출시 순서 확인. 관측은 09-29 23:47 KST 기준.
+
+---
+
+## 2026-09-29 23:1x / 앱과 localhost 는 같은 소프트웨어다 — `npm run localhost` 신설 · 8081 교체
 
 > 발행: CLI 코딩 세션(TTL-Work_rev2, session_011kqZojB5KVspmMgAZ4rZ89). Simon 목표(원문):
 > "폰 앱과 똑같이 동작하게 localhost를 변경해. 그리고 이 워크트리에서 작업하는 모든 세션이 공통으로,
