@@ -29,7 +29,17 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-28 21:0x / 워크트리 작업 전부 통합 — 아바타(0206·0207 운영 적용) · 관측소 2차 · QA 도구 → 폰 테스트용 APK
+## Latest — 2026-09-29 22:34 / 방침 v5·0208 운영 확인과 10-05 계약 Draft 정합화
+
+- main `2fab54f0`의 [#1925](https://github.com/Simon-YHKim/2nd-B/pull/1925)는 09-29 개인정보처리방침 v5와 `email-v6`을 반영했다. 운영 0208은 00:53 KST 적용돼 원장 181행, 기존 v4·v5와 새 v6의 `status`가 ready다. 웹 [게시 run 36448554124](https://github.com/Simon-YHKim/2nd-B/actions/runs/36448554124) 뒤 공개 `/privacy-policy`에서 09-29 시행일과 선택 아바타·상세 프로필 항목을 확인했고, 인앱 공지 `ff1da0ea-21bd-4261-86f8-b95c3bec387a`도 발행됐다. 근거: `.bots/relay/outbox/claim-prod-mig-0208.coding.result.md`.
+- [QA APK `qa-260929-2fab54f0`](https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260929-2fab54f0)는 arm64, `com.simonk.secondbrain` 0.9.0이며 다운로드 SHA-256이 릴리스 체크섬과 일치한다. 이 PC의 연결 Android 기기는 0대라 설치·실기기 GUI 검증은 미실행이다.
+- **[#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)는 계속 Draft·미병합.** 02:2x 아래 역사 블록의 `email-v6`=10-05×3 설명은 #1925 이후 무효다. 10-05 계약은 `email-v7`=(동의 10-05 / 방침 09-29 / 약관 10-05)로 고치고, 운영 `email-v6`와 방침 v5의 아바타·상세 프로필 문구를 보존한다. 캐릭터 `2nd-B` 태그도 유지한다. 0194 서비스 동의는 운영 미적용이며 새 SQL·Edge보다 먼저 계약과 적용 순서를 검증한다.
+- Play 데이터 보안 Revision 2는 아직 콘솔 제출 증거가 없다. Simon의 별도 Chrome for Testing 로그인 완료 알림 뒤 현재 폼·대기 변경을 읽고 수정한다. 광고 ON·스토어 공개는 별도 게이트를 따른다. 결제 전환은 `claim-paddle-session-ownership-13` 소유 세션과 중복 실행하지 않는다.
+- 재개: `git fetch origin main` → `git show origin/main:docs/HANDOFF.md`. 다음 순서: #1902 계약·CI 수리, Play Console GUI 확인, APK 실기기 QA. 이 블록은 09-29 22:34 KST의 확인 범위다.
+
+---
+
+## 2026-09-28 21:0x / 워크트리 작업 전부 통합 — 아바타(0206·0207 운영 적용) · 관측소 2차 · QA 도구 → 폰 테스트용 APK
 
 > 발행: CLI 코딩 세션(TTL-Work_rev2). Simon 19:3x(폰): "너가 직접 진행해. 승인할께 … 현재의 워크트리에서 작업된 모든 내용을 종합 통합 … APK 파일 하나" + "워크트리상에 작업한것은 놓치지 말고 모두 적용해." DECISIONS 26.09.28 19:3x · 20:5x.
 
@@ -134,7 +144,7 @@
 
 - [PR #1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)는 **2026-10-05 적용일까지 Draft**다. 운영 0203의 `email-v5`(09-07 동의 / 09-28 방침 / 08-16 약관)를 보존하고, 새 가입 `email-v6`(세 판본 모두 10-05)·`service-v2`를 별도 계약으로 준비했다. 기존 원장 영수증을 고치지 않는다.
 - 번호 없는 forward SQL 초안은 **운영에 미적용**이다. 일회용 PostgreSQL에서 신·구 가입·서비스 동의·CAS·ACL을 실제 실행하는 PR SQL CI run `36336770728`이 통과했다. 최신 main #1912 통합 뒤 로컬 `npm run verify -- --runInBand`는 824 suites / 10,759 tests 통과. PR 일반 CI는 최종 push 기준으로 확인한다.
-- 다음 서버 작업은 10-05 적용일과 최종 법률문서를 확인한 뒤 초안을 최신 번호로 승격하고, 콘솔 소유 세션의 운영 적용·Edge 신/구 `status` 카나리아를 마치는 것이다. 그 전에는 #1902 병합·공개를 하지 않는다. 자세한 순서는 [배포 게이트](qa/POLASCOPE-RELEASE-260928.md).
+- 다음 서버 작업은 10-05 적용일과 최종 법률문서를 확인한 뒤 초안을 최신 번호로 승격하고, 콘솔 소유 세션의 운영 적용·Edge 신/구 `status` 카나리아를 마치는 것이다. 그 전에는 #1902 병합·공개를 하지 않는다. 자세한 순서는 [배포 게이트](https://github.com/Simon-YHKim/2nd-B/blob/fix/polascope-web-260927/docs/qa/POLASCOPE-RELEASE-260928.md).
 - 별도 GUI 잔여: Play 데이터 보안 Revision 2 제출은 Simon의 Play Console 로그인 완료 알림을 기다린다. 결제 전환 3단계 이후는 `claim-paddle-session-ownership-13` 소유 세션이 담당한다. 이 두 작업의 상태를 #1902 계약 적용과 혼동하지 않는다.
 
 ---
