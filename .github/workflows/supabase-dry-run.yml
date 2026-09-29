@@ -1343,6 +1343,13 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/signup_consent_privacy_20260929_regression.sql
+      # 0194 is replayed before 0208 in numeric order, but its writer must use
+      # the final email-v6 tuple at call time. The retained draft test creates
+      # 0194 itself, so exercise the installed RPCs after the complete replay.
+      - name: Exercise service-consent v1 after the email-v6 notice revision
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/llm_service_consent_management_regression.sql
       # 0189's erase_my_data() is a destructive SECURITY DEFINER function, so it
       # is the one thing in this repo that must not be tested by reading its
       # source. The r38 gate measured 37 green string assertions over a function
