@@ -127,13 +127,13 @@
 - 지정상품에 암호화폐 관련 항목이 포함된 것으로 파악됨(빗썸 상장 POLA 토큰 실사용).
 - 이 3건은 **등록상표가 아니므로 제34조 제1항 제7호가 아니라 제35조(선출원)** 의 문제다.
   등록되면 그 시점부터 7호로 전환된다.
-- **출처**: 본 저장소 `docs/handoff/HANDOFF-2026-08-p4.md:1309-1313` 의 KIPRIS 실측 기록(작성 당시 `docs/HANDOFF.md:79-82`, 이후 기간별 분할로 옮겨짐. 2026-09-27 인용 정정). 2026-09-27 재조회 상태는 §2-4 C-4. **본 의뢰서 작성
+- **출처**: 본 저장소 `docs/handoff/HANDOFF-2026-08-p4.md:1309-1313` 의 KIPRIS 실측 기록(작성 당시 docs/HANDOFF.md 79~82행, 이후 기간별 분할로 옮겨짐. 2026-09-27 인용 정정). 2026-09-27 재조회 상태는 §2-4 C-4. **본 의뢰서 작성
   시점에 KIPRIS 재조회는 하지 못했다**(KIPRIS 검색이 JavaScript 전용이라 자동 조회 불가).
   번호·상태·지정상품 전부 **변리사 정식 조회로 재확인 요망**.
 
 ### 2-3. 소멸했으나 언급이 필요한 것
 
-일본 화장품 `POLA` 계열 국내 등록건은 **전부 소멸**한 것으로 파악됐다(`docs/handoff/HANDOFF-2026-08-p4.md:1275-1279`, 작성 당시 `docs/HANDOFF.md:47-51`).
+일본 화장품 `POLA` 계열 국내 등록건은 **전부 소멸**한 것으로 파악됐다(`docs/handoff/HANDOFF-2026-08-p4.md:1275-1279`, 작성 당시 docs/HANDOFF.md 47~51행).
 직전 내부 판정이 "유일한 인접은 일본 화장품, 카테고리가 다르므로 안전"이었는데 그 판정은
 **이중으로 틀렸다** — 그 건들은 소멸했고, 진짜 장애는 §2-1 이다. 변리사께서 이 소멸 사실도
 확인해 주시면 회피 설계의 여지 판단에 도움이 된다.
@@ -522,7 +522,7 @@ Brand Database. 없는 문자열(0건)과 흔한 문자열(다수)을 대조군�
 | 9 | 동 (해설) | https://www.koreanip.com/korean-patent-landscape/kipo-upgraded-ministry-of-intellectual-property |
 | 10 | 지식재산처 상표심사기준 안내 | https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200155 |
 | 11 | KIPRIS | https://www.kipris.or.kr/ |
-| 12 | 내부 실측 기록 (KIPRIS 조회분) | `docs/handoff/HANDOFF-2026-08-p4.md:1275-1279` · `docs/handoff/HANDOFF-2026-08-p4.md:1309-1313` (작성 당시 `docs/HANDOFF.md:46-51, 79-82`) |
+| 12 | 내부 실측 기록 (KIPRIS 조회분) | `docs/handoff/HANDOFF-2026-08-p4.md:1275-1279` · `docs/handoff/HANDOFF-2026-08-p4.md:1309-1313` (작성 당시 docs/HANDOFF.md 46~51행 · 79~82행) |
 | 13 | USPTO TTAB 이의신청 91310033 (Forte Labs 대 Genspark) | https://ttabvue.uspto.gov/ttabvue/v?qs=99791809 |
 | 14 | Google Play 사칭 정책 · 메타데이터 정책 · 지식재산 정책 | https://support.google.com/googleplay/android-developer/answer/9888374 · https://support.google.com/googleplay/android-developer/answer/9898842 · https://support.google.com/googleplay/android-developer/answer/9888072 |
 | 15 | App Store Connect 앱 정보(앱 이름 규칙) · 앱 이름 분쟁 양식 | https://developer.apple.com/help/app-store-connect/reference/app-information/app-information · https://www.apple.com/legal/intellectual-property/dispute-forms/app-store/ |
