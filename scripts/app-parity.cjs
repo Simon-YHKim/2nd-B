@@ -161,6 +161,33 @@ function compareWithPhone(root, paths) {
   return { phone, head, dirty, differing: [...new Set([...committed, ...dirty])].sort() };
 }
 
+/**
+ * 설치된 node_modules 가 그 체크아웃의 package-lock.json 과 이름 · 버전이 같은가. 폰 APK 는 CI 에서
+ * `npm ci` 로 lockfile 그대로 설치해 번들을 만든다. 워크트리는 정본 체크아웃의 설치를 정션으로
+ * 같이 쓰므로, 그 설치가 낡으면 코드가 같아도 번들이 달라진다(조용히). 다른 항목을 돌려준다.
+ */
+function nodeModulesDrift(root) {
+  const lock = JSON.parse(fs.readFileSync(path.join(root, "package-lock.json"), "utf8")).packages || {};
+  let inst;
+  try {
+    inst = JSON.parse(fs.readFileSync(path.join(root, "node_modules", ".package-lock.json"), "utf8")).packages || {};
+  } catch {
+    return ["node_modules/.package-lock.json 을 읽지 못했다(설치가 없다)"];
+  }
+  const out = [];
+  for (const [k, v] of Object.entries(lock)) {
+    if (!k.startsWith("node_modules/")) continue;
+    const i = inst[k];
+    if (!i) {
+      if (!v.optional) out.push(`${k.slice(13)} 없음`); // 다른 플랫폼용 optional 은 원래 안 깔린다
+    } else if (i.version !== v.version) {
+      out.push(`${k.slice(13)} ${i.version} (lock ${v.version})`);
+    }
+  }
+  for (const k of Object.keys(inst)) if (k.startsWith("node_modules/") && !lock[k]) out.push(`${k.slice(13)} 여분`);
+  return out;
+}
+
 // localhost 기록은 git 공통 디렉터리에 둔다 - 어느 워크트리에서 status 를 쳐도 같은 기록을 본다.
 function markerPath(port) {
   const common = path.resolve(git(["rev-parse", "--git-common-dir"]));
@@ -280,9 +307,11 @@ async function cmdLocalhost(argv) {
   }
 
   const cmp = compareWithPhone(root, paths);
-  const same = Boolean(cmp.phone) && cmp.differing.length === 0 && tier === undefined;
+  const drift = nodeModulesDrift(root);
+  const same = Boolean(cmp.phone) && cmp.differing.length === 0 && drift.length === 0 && tier === undefined;
   console.log("━━━ 앱과 같은 localhost (CLAUDE.md '앱과 localhost 는 같은 소프트웨어다') ━━━");
   console.log(`코드      : ${root} @ ${cmp.head.slice(0, 8)}${cmp.dirty.length ? ` + 미커밋 앱 파일 ${cmp.dirty.length}개` : ""}`);
+  console.log(`의존성    : ${drift.length ? `⚠ package-lock 과 다른 설치 ${drift.length}개 (${drift.slice(0, 3).join(" · ")})` : "package-lock 과 같음"}`);
   console.log(`설정      : ${WORKFLOW} env 의 EXPO_PUBLIC_* ${Object.keys(env).length}개 · .env 무시 · digest ${digest.slice(0, 12)}`);
   console.log(
     `등급 강제 : EXPO_PUBLIC_FORCE_TIER=${env.EXPO_PUBLIC_FORCE_TIER} · ALLOW_DEV_TIER=${env.EXPO_PUBLIC_ALLOW_DEV_TIER}` +
@@ -298,8 +327,9 @@ async function cmdLocalhost(argv) {
   }
   if (!same) {
     if (port === SIMON_PORT) {
-      console.error(`✗ ${SIMON_PORT} 은 폰 앱과 같은 코드만 띄운다. 이 차이는 폰 앱에 없다.`);
-      console.error("  순서: PR → main 머지 → npm run app:qa-release (새 QA APK) → main 체크아웃에서 npm run localhost.");
+      console.error(`✗ ${SIMON_PORT} 은 폰 앱과 같은 코드 · 의존성만 띄운다. 이 차이는 폰 앱에 없다.`);
+      console.error("  코드: PR → main 머지 → npm run app:qa-release (새 QA APK) → main 체크아웃에서 npm run localhost.");
+      if (drift.length) console.error("  의존성: 정본 체크아웃의 설치를 main 의 package-lock 으로 맞춘다(정션 워크트리 안에서 npm ci 하지 말 것).");
       process.exit(4);
     }
     if (!allowDiff) {
@@ -400,6 +430,11 @@ async function cmdStatus(argv) {
     }
     if (m.allowDiff) problems.push("--allow-diff 로 띄운 서버다(세션 확인용)");
   }
+
+  const drift = nodeModulesDrift(root);
+  console.log(`의존성    : ${drift.length ? `⚠ package-lock 과 다른 설치 ${drift.length}개` : "package-lock 과 같음"}`);
+  for (const d of drift.slice(0, 10)) console.log(`   - ${d}`);
+  if (drift.length) problems.push(`node_modules 가 package-lock 과 ${drift.length}곳 다르다(폰 APK 는 lockfile 그대로 설치한다)`);
 
   const cmp = compareWithPhone(root, paths);
   if (!cmp.phone) {
@@ -554,6 +589,7 @@ module.exports = {
   envDigest,
   isAppPath,
   parsePorcelainZ,
+  nodeModulesDrift,
   WORKFLOW,
   SIMON_PORT,
 };

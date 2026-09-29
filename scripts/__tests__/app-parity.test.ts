@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { parse } from "yaml";
 
@@ -11,6 +12,7 @@ const {
   envDigest,
   isAppPath,
   parsePorcelainZ,
+  nodeModulesDrift,
   SIMON_PORT,
 } = require("../app-parity.cjs");
 
@@ -97,6 +99,29 @@ describe("app-parity: 앱 경로 판정", () => {
   it("git status -z 의 이름 바꾸기 · 미추적 · 공백 이름을 읽는다", () => {
     const out = ["R  src/new name.ts", "src/old.ts", "?? src/added.tsx", " M docs/a.md", ""].join("\0");
     expect(parsePorcelainZ(out)).toEqual(["src/new name.ts", "src/added.tsx", "docs/a.md"]);
+  });
+
+  it("설치된 node_modules 가 lockfile 과 다르면 짚는다(다른 플랫폼 optional 은 없어도 된다)", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "app-parity-nm-"));
+    fs.mkdirSync(path.join(dir, "node_modules"));
+    const lock = {
+      packages: {
+        "": {},
+        "node_modules/a": { version: "1.0.0" },
+        "node_modules/b": { version: "2.0.0" },
+        "node_modules/c": { version: "1.0.0", optional: true },
+      },
+    };
+    const installed = (pkgs: Record<string, { version: string }>) =>
+      fs.writeFileSync(path.join(dir, "node_modules", ".package-lock.json"), JSON.stringify({ packages: pkgs }));
+    fs.writeFileSync(path.join(dir, "package-lock.json"), JSON.stringify(lock));
+    installed({ "node_modules/a": { version: "1.0.0" }, "node_modules/b": { version: "2.0.0" } });
+    expect(nodeModulesDrift(dir)).toEqual([]);
+    installed({ "node_modules/b": { version: "2.0.1" }, "node_modules/d": { version: "0.1.0" } });
+    expect(nodeModulesDrift(dir)).toEqual(["a 없음", "b 2.0.1 (lock 2.0.0)", "d 여분"]);
+    fs.rmSync(path.join(dir, "node_modules", ".package-lock.json"));
+    expect(nodeModulesDrift(dir)).toEqual([expect.stringContaining("읽지 못했다")]);
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 });
 

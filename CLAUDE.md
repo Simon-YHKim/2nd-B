@@ -23,7 +23,9 @@ Simon 원문: *"앱과 localhost는 같은 s/w여야 한다고. 그리고 localh
    (origin/main 을 detached 로 체크아웃한 전용 워크트리, 편집 금지). 스크립트는 폰 QA APK
    (가장 최근 `qa-*` pre-release)와 **앱 경로**(워크플로의 `on.push.paths`: `src/**` ·
    `assets/**` · `package.json` 등)가 한 파일이라도 다르면 8081 을 **거부**한다. 미커밋 파일 ·
-   머지 전 브랜치 · 아직 APK 로 안 나간 main 커밋 전부 거부 대상이다.
+   머지 전 브랜치 · 아직 APK 로 안 나간 main 커밋 전부 거부 대상이다. 설치된 `node_modules` 가
+   그 체크아웃의 `package-lock.json` 과 다를 때도 거부한다(폰 APK 는 CI 가 lockfile 그대로 설치한다.
+   워크트리는 정본 체크아웃의 설치를 정션으로 같이 쓰므로 그 설치가 낡으면 번들이 조용히 달라진다).
 3. **localhost 에 보이는 것을 바꾸면 앱도 같은 턴에 바꾼다.** 순서:
    PR → main 머지 → `npm run app:qa-release`(그 커밋의 android-release APK 를 QA pre-release 로
    올린다. 빌드가 끝날 때까지 기다린다) → localhost-main 을 그 커밋으로 옮기고 8081 재기동 →
