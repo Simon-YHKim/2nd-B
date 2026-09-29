@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>2nd-B 나의 휴대전화 · 앱 탭 이미지 생성 브리프</title>
+  <style>
+    :root {
+      --page: #f7f9fc;
+      --paper: #ffffff;
+      --ink: #142136;
+      --muted: #526177;
+      --rule: #d9e2ed;
+      --accent: #2a78d6;
+      --accent-ink: #ffffff;
+      --screen: #0a1020;
+      --screen-blue: #101d39;
+      --tile: #232e4a;
+      --tile-edge: #536b9b;
+      --tile-glyph: #5b8def;
+      --tile-text: #eaf0ff;
+      font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--page); color: var(--ink); line-height: 1.55; }
+    button { font: inherit; }
+    .wrap { width: min(1040px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 56px; }
+    header, section, footer { margin-bottom: 24px; }
+    .eyebrow { margin: 0 0 6px; color: var(--accent); font-size: .8rem; font-weight: 800; letter-spacing: .08em; }
+    h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.35rem); line-height: 1.25; }
+    h2 { margin: 0 0 14px; font-size: 1.2rem; }
+    p { margin: 10px 0 0; }
+    .lede { max-width: 70ch; color: var(--muted); }
+    .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .tag { border: 1px solid var(--rule); background: var(--paper); padding: 5px 9px; font-size: .82rem; font-weight: 700; }
+    .panel { border: 1px solid var(--rule); background: var(--paper); padding: clamp(16px, 3vw, 24px); }
+    .topline { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .copy { border: 2px solid var(--accent); background: var(--accent); color: var(--accent-ink); padding: 9px 14px; cursor: pointer; font-weight: 800; }
+    .copy:hover { filter: brightness(.92); }
+    .copy:focus-visible, .phone-list:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    .prompt { margin: 0; padding: 18px; white-space: pre-wrap; overflow-wrap: anywhere; background: #101a2d; color: #f2f6ff; font: .9rem/1.7 "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif; }
+    .hint { margin-top: 12px; color: var(--muted); font-size: .88rem; }
+    .view-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+    .facts { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 0; }
+    .facts div { border-top: 1px solid var(--rule); padding-top: 11px; }
+    dt { font-weight: 800; }
+    dd { margin: 3px 0 0; color: var(--muted); }
+    .phone-screen { width: 320px; height: 568px; max-width: 100%; overflow: hidden; background: var(--screen-blue); border: 2px solid #395887; border-radius: 12px; color: var(--tile-text); font-family: "Galmuri11", "Malgun Gothic", monospace; }
+    .phone-status { height: 34px; display: flex; justify-content: space-between; align-items: center; padding: 0 12px; color: #8eaff6; font-size: 11px; }
+    .phone-tabs { height: 57px; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 2px 9px 9px; }
+    .phone-tab { display: grid; place-items: center; border: 2px solid #5b6b8e; background: #111827; color: #fff; font-size: 12px; }
+    .phone-tab.active { background: #2f5fc0; border-color: #71a2ff; }
+    .phone-heading { height: 46px; padding: 6px 10px; font-size: 22px; font-weight: 900; letter-spacing: -.04em; }
+    .phone-list { height: 427px; overflow-y: auto; padding: 2px 9px 18px; scrollbar-color: #5b8def #101d39; scrollbar-width: thin; }
+    .apps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .app { height: 91px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; border: 2px solid var(--tile-edge); background: var(--tile); box-shadow: inset -2px -2px 0 #0a1020; font-size: 12px; text-align: center; }
+    .app svg { width: 25px; height: 25px; fill: var(--tile-glyph); shape-rendering: crispEdges; }
+    .screen-caption { color: var(--muted); font-size: .82rem; margin: 8px 0 0; }
+    .steps { margin: 0; padding-left: 22px; }
+    .steps li + li { margin-top: 8px; }
+    .steps strong { color: var(--ink); }
+    footer { color: var(--muted); font-size: .82rem; }
+    @media (max-width: 760px) {
+      .view-grid { grid-template-columns: 1fr; }
+      .phone-screen { margin: 0 auto; }
+      .screen-caption { text-align: center; }
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --page: #090f1b; --paper: #131d2b; --ink: #edf4ff; --muted: #b8c8dc; --rule: #33445c; --accent: #76aeff; --accent-ink: #081427; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <p class="eyebrow">2nd-B · IMAGE GENERATION BRIEF</p>
+      <h1>나의 휴대전화 ‘앱’ 탭</h1>
+      <p class="lede">2026년 9월 28일 localhost:8081/dashboard 화면을 기준으로 정리한 단일 파일입니다. 아래 프롬프트를 복사해 이미지 생성 도구에 전달하세요. 화면 예시는 배치 확인용이며 실제 핸드폰 프레임은 포함하지 않습니다.</p>
+      <div class="tags" aria-label="핵심 사양">
+        <span class="tag">디스플레이 전용 · 세로 9:16</span>
+        <span class="tag">2열 × 5행 · 10개 도구</span>
+        <span class="tag">어두운 남색 · 픽셀 UI</span>
+        <span class="tag">본문만 스크롤</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel" aria-labelledby="prompt-title">
+        <div class="topline">
+          <h2 id="prompt-title">이미지 생성용 프롬프트</h2>
+          <button id="copy" class="copy" type="button" aria-label="이미지 생성 프롬프트 복사">프롬프트 복사</button>
+        </div>
+        <pre class="prompt" id="prompt">2nd-Brain 앱의 ‘나의 휴대전화 &gt; 앱’ 화면 시안을 만들어줘.
+
+기존에 별도로 준비된 픽셀아트 핸드폰 프레임 안에 넣을 ‘디스플레이 화면’만 제작한다. 핸드폰 외곽, 베젤, 물리적 홈 버튼, 화면 밖의 앱 하단 네비게이션은 그리지 않는다. 세로형 9:16 화면을 선명한 사각 픽셀로 표현한다. 안티앨리어싱, 흐림, 유리 효과, 둥근 앱 아이콘은 쓰지 않는다.
+
+배경은 어두운 남색이다. 맨 위 얇은 상태 행에는 왼쪽 ‘나의 하루’, 오른쪽 날짜 영역이 있다. 그 아래 같은 폭의 직사각형 탭 두 개가 한 줄에 놓인다. 왼쪽 ‘대시보드’는 어둡고, 오른쪽 ‘앱’은 선명한 파란색으로 선택된 상태다. 이어서 흰색 굵은 픽셀 글씨로 ‘일상을 돕는 도구’ 제목을 배치한다.
+
+본문은 작은 앱 아이콘을 흩어 놓은 일반 스마트폰 홈 화면이 아니다. 동일한 크기의 큼직한 직사각형 버튼을 두 열로 정렬한 스크롤 목록이다. 각 버튼은 짙은 청회색 바탕과 얇은 밝은 청색 테두리를 가지며, 중앙 위쪽에 단색 파란색 픽셀 아이콘, 그 아래에 흰색 한글 이름이 있다. 버튼 순서는 정확히 다음과 같다.
+
+1행: 알림(종) | 개인 비서(말풍선)
+2행: 집중 타이머(타이머) | 리마인더(종)
+3행: 지출(카드) | 목표(과녁)
+4행: 식사(작은 불꽃) | AI 뮤지엄(박물관 기둥)
+5행: 커뮤니티(사람 여럿) | 사람들(인물)
+
+첫 화면에는 1~4행과 5행 윗부분만 보인다. 본문을 아래로 스크롤하면 5행 전체가 나타난다. 상단 상태 행과 두 탭은 고정된 채 본문만 스크롤한다. 버튼 크기와 간격은 균일하다. 기본 iOS·Android 홈 화면, 3열·4열 아이콘 격자, 이모지, 장식용 별, 임의의 추가 앱, 강한 그라데이션, 글래스모피즘은 넣지 않는다. 앱의 기존 PIXEL-CLAY 느낌을 유지하되 읽기 쉬운 대비와 기능 중심의 단정한 배치를 우선한다.
+
+최종 적용을 위해 아이콘과 배경의 경계를 분명하게 그린다. 날짜와 한글 라벨, 선택 상태, 스크롤과 각 버튼의 터치 동작은 실제 앱 UI에서 다시 올릴 수 있어야 하므로 시각 요소를 지나치게 합치거나 겹치지 않는다.</pre>
+        <p id="copy-status" class="hint" role="status" aria-live="polite">프롬프트는 이 HTML 안에 들어 있어 파일 하나만 전달하면 됩니다.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="reference-title">
+        <h2 id="reference-title">현재 화면의 구성</h2>
+        <div class="view-grid">
+          <div>
+            <dl class="facts">
+              <div><dt>상단</dt><dd>‘나의 하루’와 날짜, 바로 아래 ‘대시보드 | 앱’ 탭. ‘앱’이 파란색으로 선택됨.</dd></div>
+              <div><dt>본문</dt><dd>‘일상을 돕는 도구’ 제목 아래 동일 크기 버튼 10개가 2열 5행으로 배치됨.</dd></div>
+              <div><dt>접힘</dt><dd>디스플레이 첫 화면에는 4행까지 주로 보임. 5행은 화면 안쪽을 스크롤해 확인.</dd></div>
+              <div><dt>에셋 경계</dt><dd>핸드폰 테두리·홈 버튼·앱 전체 하단 내비게이션은 이미 별도 UI이므로 생성 이미지에서 제외.</dd></div>
+            </dl>
+          </div>
+          <div>
+            <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+              <defs>
+                <symbol id="bell" viewBox="0 0 24 24"><rect x="10" y="3" width="4" height="2"/><rect x="7" y="6" width="10" height="8"/><rect x="5" y="14" width="14" height="2"/><rect x="10" y="18" width="4" height="2"/></symbol>
+                <symbol id="chat" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11"/><rect x="7" y="16" width="4" height="4"/></symbol>
+                <symbol id="timer" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="2"/><rect x="5" y="6" width="14" height="15"/><rect x="9" y="10" width="6" height="6" fill="#232e4a"/></symbol>
+                <symbol id="card" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12"/><rect x="5" y="10" width="14" height="2" fill="#232e4a"/></symbol>
+                <symbol id="target" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/><rect x="6" y="6" width="12" height="12" fill="#232e4a"/><rect x="9" y="9" width="6" height="6"/></symbol>
+                <symbol id="fire" viewBox="0 0 24 24"><rect x="10" y="2" width="4" height="7"/><rect x="7" y="8" width="10" height="11"/><rect x="9" y="18" width="6" height="3"/></symbol>
+                <symbol id="museum" viewBox="0 0 24 24"><rect x="10" y="2" width="4" height="2"/><rect x="5" y="5" width="14" height="2"/><rect x="3" y="8" width="18" height="2"/><rect x="5" y="11" width="3" height="8"/><rect x="11" y="11" width="3" height="8"/><rect x="17" y="11" width="3" height="8"/><rect x="3" y="20" width="18" height="2"/></symbol>
+                <symbol id="group" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="6"/><rect x="4" y="10" width="5" height="5"/><rect x="15" y="10" width="5" height="5"/><rect x="7" y="15" width="10" height="6"/></symbol>
+                <symbol id="person" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="7"/><rect x="5" y="12" width="14" height="9"/></symbol>
+              </defs>
+            </svg>
+            <div class="phone-screen" role="group" aria-label="앱 탭 구조 예시: 나의 하루와 날짜, 대시보드·앱 탭, 일상을 돕는 도구 제목, 두 열의 앱 버튼 열 개">
+              <div class="phone-status"><span>나의 하루</span><span>날짜 영역</span></div>
+              <div class="phone-tabs"><span class="phone-tab">대시보드</span><span class="phone-tab active">앱</span></div>
+              <div class="phone-heading">일상을 돕는 도구</div>
+              <div class="phone-list" tabindex="0" aria-label="앱 타일 목록 예시, 아래로 스크롤 가능">
+                <div class="apps">
+                  <div class="app"><svg aria-hidden="true"><use href="#bell"/></svg><span>알림</span></div>
+                  <div class="app"><svg aria-hidden="true"><use href="#chat"/></svg><span>개인 비서</span></div>
+                  <div class="app"><svg aria-hidden="true"><use href="#timer"/></svg><span>집중 타이머</span></div>
+                  <div class="app"><svg aria-hidden="true"><use href="#bell"/></svg><span>리마인더</span></div>
+                  <div class="app"><svg aria-hidden="true"><use href="#card"/></svg><span>지출</span></div>
+                  <div class="app"><svg aria-hidden="true"><use href="#target"/></svg><span>목표</span></div>
+                  <div class="app"><svg aria-hidden="true"><use href="#fire"/></svg><span>식사</span></div>
+                  <div class="app"><svg aria-hidden="true"><use href="#museum"/></svg><span>AI 뮤지엄</span></div>
+                  <div class="app"><svg aria-hidden="true"><use href="#group"/></svg><span>커뮤니티</span></div>
+                  <div class="app"><svg aria-hidden="true"><use href="#person"/></svg><span>사람들</span></div>
+                </div>
+              </div>
+            </div>
+            <p class="screen-caption">구조 예시 · 아이콘 모양은 현재 화면을 단순화해 재현</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="handoff-title">
+        <h2 id="handoff-title">적용할 때 지킬 점</h2>
+        <ol class="steps">
+          <li><strong>생성 범위:</strong> 화면 안쪽의 배경과 픽셀 아이콘. 기존 핸드폰 프레임 에셋은 그대로 사용.</li>
+          <li><strong>실제 앱 UI:</strong> 한글 라벨·날짜·선택 상태·스크롤·접근성·터치 영역은 이미지가 아닌 실제 컴포넌트로 유지.</li>
+          <li><strong>잘림 방지:</strong> 화면 가장자리에 중요한 아이콘이나 글자를 붙이지 않고, 안쪽 안전 여백을 남김.</li>
+        </ol>
+      </section>
+    </main>
+
+    <footer>기준 화면: 로컬 /dashboard의 ‘앱’ 탭 · 2026-09-28 KST · 외부 라이브러리·이미지·네트워크 요청 없음</footer>
+  </div>
+  <script>
+    const copyButton = document.getElementById("copy");
+    const copyStatus = document.getElementById("copy-status");
+    copyButton.addEventListener("click", async () => {
+      const value = document.getElementById("prompt").textContent.trim();
+      try {
+        if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
+        await navigator.clipboard.writeText(value);
+      } catch {
+        const field = document.createElement("textarea");
+        field.value = value;
+        field.style.position = "fixed";
+        field.style.opacity = "0";
+        document.body.appendChild(field);
+        field.select();
+        const copied = document.execCommand("copy");
+        field.remove();
+        if (!copied) { copyStatus.textContent = "자동 복사를 사용할 수 없습니다. 프롬프트 영역을 직접 선택해 복사해 주세요."; return; }
+      }
+      copyStatus.textContent = "프롬프트를 복사했습니다. 이미지 생성 도구에 붙여넣으세요.";
+    });
+  </script>
+</body>
+</html>

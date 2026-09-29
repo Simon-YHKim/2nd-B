@@ -13,14 +13,22 @@ const qa = Object.fromEntries(readFileSync('.env.test', 'utf8').split(/\r?\n/).f
   page.setDefaultTimeout(30000); page.setDefaultNavigationTimeout(90000);
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
+  page.on('console', msg => { if (msg.text().includes('[ui-sound]')) console.log('AUDIO_WARNING', msg.text()); });
   await page.addInitScript(() => {
     window.__cues = [];
+    window.__cuePlayers = []; window.__cueRequests = [];
+    const phase = () => document.querySelector('[data-testid^="star-camera-phase-"]')?.getAttribute('data-testid');
     const OriginalAudio = window.Audio;
     window.Audio = class extends OriginalAudio {
       constructor(...args) {
         super(...args);
+        window.__cuePlayers.push(this);
         // Metro carries the asset name in its query string, not the basename.
-        this.addEventListener('playing', () => window.__cues.push({ src: decodeURIComponent(String(args[0])).match(/(?:camera-(?:aim|focus|shutter)|telescope-zoom|jrpg-text-blip)/)?.[0] ?? 'other', time: performance.now() }));
+        this.addEventListener('playing', () => window.__cues.push({ src: decodeURIComponent(String(args[0])).match(/(?:observatory-(?:ratchet|focus-lock|shutter)|jrpg-text-blip)/)?.[0] ?? 'other', time: performance.now(), phase: phase() }));
+      }
+      play() {
+        window.__cueRequests.push({ src: decodeURIComponent(this.src).match(/observatory-(?:ratchet|focus-lock|shutter)/)?.[0], phase: phase() });
+        return super.play();
       }
     };
   });
@@ -59,9 +67,9 @@ const qa = Object.fromEntries(readFileSync('.env.test', 'utf8').split(/\r?\n/).f
     if (page.url().includes('/ttfv')) await page.goto('http://localhost:8081/');
     await page.getByRole('button', { name: '프로필', exact: true }).waitFor();
     const coach = page.getByRole('button', { name: '다시 보지 않기', exact: true });
-    if (await coach.count()) await coach.click();
+    try { await coach.waitFor({ timeout: 10000 }); await coach.click(); } catch { /* already dismissed */ }
     const dismiss = page.getByRole('button', { name: '공지 닫기', exact: true });
-    try { await dismiss.waitFor({ timeout: 2500 }); await dismiss.click({ position: { x: 4, y: 4 } }); } catch { /* no notice */ }
+    try { await dismiss.waitFor({ timeout: 10000 }); await dismiss.click({ position: { x: 4, y: 4 } }); } catch { /* no notice */ }
 
     await sample(); await select();
     await ready();
@@ -77,9 +85,25 @@ const qa = Object.fromEntries(readFileSync('.env.test', 'utf8').split(/\r?\n/).f
     assert.ok(Math.max(...widths('focus')) > settled.width * 1.015, 'visible lens breathing at focus');
     assert.ok(frames.filter(f => f.phase === 'focus').every(f => Math.abs(f.x - settled.x) < 0.2 && Math.abs(f.y - settled.y) < 0.2), 'autofocus never slides the star');
     const cues = await page.evaluate(() => window.__cues);
-    for (const file of ['camera-aim', 'telescope-zoom', 'camera-focus']) assert.ok(cues.some(c => c.src.includes(file)), `cue played: ${file}`);
+    for (const file of ['observatory-ratchet', 'observatory-focus-lock']) assert.ok(cues.some(c => c.src.includes(file)), `recorded cue played: ${file}`);
+    const motorRequests = await page.evaluate(() => window.__cueRequests.filter(c => c.src === 'observatory-ratchet'));
+    assert.equal(motorRequests.length, 1, 'aim and zoom share exactly one play request, not a phase restart');
+    assert.equal(motorRequests[0].phase, 'star-camera-phase-aim', 'motor starts during aim, not a later phase');
+    assert.ok(cues.filter(c => c.src === 'observatory-focus-lock').every(c => c.phase === 'star-camera-phase-ready'), 'double beep occurs at focus lock');
+    assert.ok(await page.evaluate(() => window.__cuePlayers.filter(p => p.loop).every(p => p.paused)), 'motor stopped before focus lock');
     await page.screenshot({ path: path.join(__dirname, 'star-photo-ready.png') });
     console.log('PHASES_OK', JSON.stringify({ phases, width: settled.width, frames: frames.length, cues: cues.map(c => c.src) }));
+
+    await returnToSky();
+    await page.evaluate(() => { window.__cues = []; });
+    await select(); await page.waitForTimeout(150);
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await ready(); await page.waitForTimeout(250);
+    assert.ok(await page.evaluate(() => window.__cuePlayers.filter(p => p.loop).every(p => p.paused)), 'blur stops automatic motor');
+    assert.ok(!(await page.evaluate(() => window.__cues)).some(c => c.src === 'observatory-focus-lock'), 'no delayed double beep after blur');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await returnToSky(); await select(); await ready();
+    console.log('AUTOMATIC_BLUR_NO_STALE_BEEP_OK');
 
     // Escape and browser focus loss must never run a delayed navigation.
     for (const cancel of ['escape', 'blur']) {
@@ -92,6 +116,7 @@ const qa = Object.fromEntries(readFileSync('.env.test', 'utf8').split(/\r?\n/).f
       assert.equal(new URL(page.url()).pathname, '/');
       assert.equal(await travel().isEnabled(), true);
       console.log('CANCEL_OK', cancel);
+      if (cancel === 'blur') await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     }
 
     // Rapid repeated clicks still produce one exposure and one route entry.
@@ -118,7 +143,7 @@ const qa = Object.fromEntries(readFileSync('.env.test', 'utf8').split(/\r?\n/).f
     assert.ok(lit.length > 2 && Math.max(...lit.map(f => f.opacity)) > 0.5, 'single visible flash pulse');
     assert.ok(lit.every(f => f.path === '/'), 'no route entry while flash is visible');
     assert.equal(exposure.entries.length, 1, 'exactly one navigation');
-    assert.ok(exposure.cues.some(c => c.src.includes('camera-shutter')), 'shutter audio played');
+    assert.ok(exposure.cues.some(c => c.src.includes('observatory-shutter')), 'recorded shutter audio played');
     assert.equal(await page.getByTestId('star-camera-shutter').count(), 0);
     console.log('EXPOSURE_OK', JSON.stringify({ frames: lit.length, peak: Math.max(...lit.map(f => f.opacity)), entries: exposure.entries.length, destination: new URL(page.url()).pathname }));
 
@@ -137,10 +162,11 @@ const qa = Object.fromEntries(readFileSync('.env.test', 'utf8').split(/\r?\n/).f
     await sample(); await travel().click(); await page.waitForURL('**/me/profile');
     const reduced = await page.evaluate(() => ({ frames: window.__photoFrames, cues: window.__cues }));
     assert.ok(reduced.frames.every(f => !f.flash), 'no reduced-motion flash');
-    assert.ok(!reduced.cues.some(c => c.src.includes('camera-shutter')), 'no reduced-motion shutter sound');
+    assert.ok(!reduced.cues.some(c => c.src.includes('observatory-shutter')), 'no reduced-motion shutter sound');
     assert.deepEqual(errors, []);
     console.log('REDUCED_MOTION_OK'); console.log('PAGE_ERRORS', JSON.stringify(errors));
   } catch (e) {
+    console.log('AUDIO_DEBUG', JSON.stringify(await page.evaluate(() => ({ cues: window.__cues, hidden: document.hidden, focused: document.hasFocus(), players: window.__cuePlayers?.map(p => ({ src: p.src, loop: p.loop, volume: p.volume, paused: p.paused, ready: p.readyState, error: p.error?.message })) }))));
     await page.screenshot({ path: path.join(__dirname, 'star-photo-error.png') });
     console.log('SCREEN', (await page.locator('body').innerText()).slice(0, 1400));
     throw e;

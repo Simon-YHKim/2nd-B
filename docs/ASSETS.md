@@ -139,13 +139,21 @@ Rebuild: `python scripts/build-dither-tiles.py`.
 
 ## Bundled generated art (AI-generated, in-window)
 
-**How it was made.** Every image below was produced with OpenAI GPT
+**How it was made.** Every image below except the 2026-09-28 phone mini-app pack was produced with OpenAI GPT
 image generation (ChatGPT / `gpt-image`) from prompts written for this
 project. No image was commissioned, purchased, scraped, or taken from a
 stock library. The style bible used for the tesseract/v3 line is
 committed in this repository at
 [`docs/V3_GPT_IMAGE_PROMPT.md`](./V3_GPT_IMAGE_PROMPT.md), so the
 generation inputs are auditable, not just the outputs.
+
+The phone mini-app pack was supplied by Simon as
+`2ndB_phone_app_assets_260928.zip` on 2026-09-28. It includes generation
+prompts and a README, but does not identify the image generator or include an
+independent rights statement. **Simon confirmed on 2026-09-28 (21:4x KST,
+"이상무") that the pack may ship in the app.** The pack still does not name the
+image generator, so its prompts and README remain the provenance record; do
+not infer that the pack has the same provenance as the older artwork.
 
 **When.** Dates below are the day each set first appeared in git. The
 repository's initial commit is 2026-05-25, so no set predates the
@@ -171,9 +179,10 @@ only the path moved.
 | `public/icons/` | 2 PNG | 2026-06-11 | PWA icons (192 / 512), derived from the app icon |
 | `assets/deepspace/` | 13 PNG | 2026-06-19 | SecondB canonical head pair plus 11 Nebori style-comparison working images added while the deep-space look was being settled |
 | `assets/opening/` | 1 PNG | 2026-08-27 | HustleK opening sprite sheet (48 frames, 8x6 grid, 320x180 cells) built by `scripts/build-opening-strip.py` from the approved atlas. No new art: the builder refuses to run unless the atlas RGBA hash matches the approved value. |
-| `assets/images/` | 6 PNG | 2026-05-25 | App icon, adaptive-icon layers, splash, favicon. Seeded from the Expo template at initialisation (MIT) and replaced in-window with generated art |
+| `assets/images/` | 9 PNG | 2026-05-25 | App icon, adaptive-icon layers, splash, favicon, and three SecondB phone assets. The home phone and the blank-screen dashboard frame are Simon-provided ChatGPT art (2026-09-26); the earlier silver phone is retained for rollback. Seeded from the Expo template at initialisation (MIT) and replaced in-window with generated art |
+| `assets/images/phone-app/` | 31 PNG | 2026-09-28 | Simon-supplied mini-app display pack: 12 app icons, 5 internal dock icons, 12 UI icons, and 1 night-village banner; plus 1 locally drawn avatar-palette app icon on a 4 px grid. Only pixels are bundled; labels, dates, unread counts, and state are rendered by the app. Release rights confirmed by Simon on 2026-09-28; the pack does not name its image generator. |
 
-Total: **246 bundled image files**. `scripts/check-constraints.ts` (C12)
+Current checked inventory: **280 bundled image files**. `scripts/check-constraints.ts` (`AssetLicenseDisclosure`)
 fails if any of these paths stops being mentioned in this file, so a new
 art pack cannot ship undisclosed.
 

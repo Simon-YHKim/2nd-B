@@ -1,7 +1,7 @@
 -- INACTIVE FORWARD DRAFT. Reserve the next remote migration number immediately
--- before promotion. Requires 0191, 0193, 0194 and their prerequisites.
+-- before promotion. Requires 0191, 0193, 0194, 0208 and their prerequisites.
 -- Server contract and dual-version service-consent Edge must be deployed and
--- canaried before publishing the PolaScope client. Existing email-v4/email-v5
+-- canaried before publishing the PolaScope client. Existing email-v4/email-v5/email-v6
 -- and service-v1 clients retain their document tuples and writer. Existing LLM
 -- grants remain valid; no receipt is rewritten or backfilled.
 -- This does not enable LLM, advertisements, or optional consent.
@@ -21,6 +21,11 @@ BEGIN
     OR NOT EXISTS(
       SELECT 1 FROM public.signup_consent_contract('email-v5') c
       WHERE c.consent_version='2026-09-07' AND c.policy_version='2026-09-28'
+        AND c.terms_version='2026-08-16' AND c.confirmation_eligible
+    )
+    OR NOT EXISTS(
+      SELECT 1 FROM public.signup_consent_contract('email-v6') c
+      WHERE c.consent_version='2026-09-07' AND c.policy_version='2026-09-29'
         AND c.terms_version='2026-08-16' AND c.confirmation_eligible
     )
     OR NOT EXISTS(
@@ -51,7 +56,8 @@ AS $contract$
     ('email-v3'::text, '2026-09-07'::text, '2026-09-07'::text, '2026-08-16'::text, true),
     ('email-v4'::text, '2026-09-07'::text, '2026-09-26'::text, '2026-08-16'::text, true),
     ('email-v5'::text, '2026-09-07'::text, '2026-09-28'::text, '2026-08-16'::text, true),
-    ('email-v6'::text, '2026-10-05'::text, '2026-10-05'::text, '2026-10-05'::text, true)
+    ('email-v6'::text, '2026-09-07'::text, '2026-09-29'::text, '2026-08-16'::text, true),
+    ('email-v7'::text, '2026-10-05'::text, '2026-09-29'::text, '2026-10-05'::text, true)
   ) AS contract(signup_revision, consent_version, policy_version, terms_version, confirmation_eligible)
   WHERE contract.signup_revision = p_revision
 $contract$;
@@ -91,7 +97,7 @@ AS $status$
              AND NOT pg_catalog.has_function_privilege('authenticated', routine.oid, 'EXECUTE')
              AND NOT pg_catalog.has_function_privilege('service_role', routine.oid, 'EXECUTE')
          )
-  FROM (VALUES ('email-v2'), ('complete-profile-v1'), ('email-v3'), ('email-v4'), ('email-v5'), ('email-v6')) AS revision(id)
+  FROM (VALUES ('email-v2'), ('complete-profile-v1'), ('email-v3'), ('email-v4'), ('email-v5'), ('email-v6'), ('email-v7')) AS revision(id)
   CROSS JOIN LATERAL public.signup_consent_contract(revision.id) AS contract
 $status$;
 
@@ -102,7 +108,7 @@ ALTER TABLE public.llm_consent_receipts
   DROP CONSTRAINT llm_consent_receipts_contract_revision_check;
 ALTER TABLE public.llm_consent_receipts
   ADD CONSTRAINT llm_consent_receipts_contract_revision_check
-  CHECK (contract_revision IN ('email-v2','complete-profile-v1','email-v3','email-v4','email-v5','email-v6'));
+  CHECK (contract_revision IN ('email-v2','complete-profile-v1','email-v3','email-v4','email-v5','email-v6','email-v7'));
 
 CREATE OR REPLACE FUNCTION public.capture_llm_consent_provenance()
 RETURNS trigger
@@ -128,12 +134,13 @@ BEGIN
     INTO matched_revision
     FROM (
       VALUES
-        ('email-v6'::text, 1),
-        ('email-v5'::text, 2),
-        ('email-v4'::text, 3),
-        ('email-v3'::text, 4),
-        ('email-v2'::text, 5),
-        ('complete-profile-v1'::text, 6)
+        ('email-v7'::text, 1),
+        ('email-v6'::text, 2),
+        ('email-v5'::text, 3),
+        ('email-v4'::text, 4),
+        ('email-v3'::text, 5),
+        ('email-v2'::text, 6),
+        ('complete-profile-v1'::text, 7)
     ) AS candidate(revision, priority)
     CROSS JOIN LATERAL public.signup_consent_contract(candidate.revision) AS contract
    -- Provenance identifies the server writer, not a positive decision. A
@@ -196,7 +203,7 @@ RETURNS TABLE(allowed boolean,token text) LANGUAGE sql STABLE SET search_path = 
       SELECT contract.consent_version,
              contract.policy_version,
              contract.terms_version
-        FROM (VALUES ('email-v4'::text), ('email-v5'::text), ('email-v6'::text)) AS revision(id)
+        FROM (VALUES ('email-v4'::text), ('email-v5'::text), ('email-v6'::text), ('email-v7'::text)) AS revision(id)
         CROSS JOIN LATERAL public.signup_consent_contract(revision.id) AS contract
        WHERE contract.confirmation_eligible IS TRUE
     ),
@@ -280,9 +287,9 @@ BEGIN
     WHEN (decision->>'allowed')::boolean THEN 'granted' ELSE 'blocked' END;
   change_token := encode(sha256(convert_to(jsonb_build_array('service-v2',p_user_id,
     prior.consent_record_id,prior.state_revision,profile.birth_date,profile.minor_tier,
-    profile.account_status,'2026-10-05','2026-10-05','2026-10-05')::text,'UTF8')),'hex');
+    profile.account_status,'2026-10-05','2026-09-29','2026-10-05')::text,'UTF8')),'hex');
   RETURN jsonb_build_object('contract_revision','service-v2','consent_version','2026-10-05',
-    'policy_version','2026-10-05','terms_version','2026-10-05','state',state,
+    'policy_version','2026-09-29','terms_version','2026-10-05','state',state,
     'change_token',change_token,'can_grant',eligible);
 END $$;
 REVOKE ALL ON FUNCTION public.llm_service_consent_status_v2(uuid) FROM PUBLIC,anon,authenticated,service_role;
@@ -311,7 +318,7 @@ BEGIN
   END IF;
   IF NOT EXISTS(
     SELECT 1 FROM public.signup_consent_contract(
-      CASE WHEN p_contract_revision='service-v2' THEN 'email-v6' ELSE 'email-v5' END
+      CASE WHEN p_contract_revision='service-v2' THEN 'email-v7' ELSE 'email-v6' END
     ) c
     WHERE c.consent_version=current_status->>'consent_version'
       AND c.policy_version=current_status->>'policy_version'
@@ -368,11 +375,11 @@ GRANT EXECUTE ON FUNCTION public.write_llm_service_consent(uuid,text,text,text,j
 
 DO $verify$
 BEGIN
-  IF (SELECT count(*) FROM public.signup_consent_contract_status()) <> 6
+  IF (SELECT count(*) FROM public.signup_consent_contract_status()) <> 7
     OR NOT EXISTS(
       SELECT 1 FROM public.signup_consent_contract_status()
-      WHERE signup_revision='email-v6' AND consent_version='2026-10-05'
-        AND policy_version='2026-10-05' AND terms_version='2026-10-05'
+      WHERE signup_revision='email-v7' AND consent_version='2026-10-05'
+        AND policy_version='2026-09-29' AND terms_version='2026-10-05'
         AND confirmation_eligible AND confirmation_ready
     )
     OR NOT EXISTS(
@@ -383,6 +390,11 @@ BEGIN
     OR NOT EXISTS(
       SELECT 1 FROM public.signup_consent_contract('email-v5') c
       WHERE c.consent_version='2026-09-07' AND c.policy_version='2026-09-28'
+        AND c.terms_version='2026-08-16' AND c.confirmation_eligible
+    )
+    OR NOT EXISTS(
+      SELECT 1 FROM public.signup_consent_contract('email-v6') c
+      WHERE c.consent_version='2026-09-07' AND c.policy_version='2026-09-29'
         AND c.terms_version='2026-08-16' AND c.confirmation_eligible
     )
     OR has_function_privilege('anon','public.llm_service_consent_status_v2(uuid)','EXECUTE')

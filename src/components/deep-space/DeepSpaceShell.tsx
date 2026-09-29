@@ -13,7 +13,6 @@ import { Redirect, router, useFocusEffect } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
 import { profileGate } from "@/lib/auth/profile-probe";
-import { type DomainId } from "@/lib/persona/domain-stars";
 import { type LadderLevel } from "@/lib/persona/brightness";
 import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
 import { InlineLoader } from "@/components/ui/InlineLoader";
@@ -139,9 +138,10 @@ export function DeepSpaceShell() {
           router.push({ pathname: "/capture", params: { coach: FIRST_RECORD_COACH_PARAM } })
         }
         onOpsPress={() => router.push("/ops")}
-        onBellPress={() => router.push("/inbox")}
-        onMuseumPress={() => router.push("/museum")}
-        onCommunityPress={() => router.push("/community")}
+        onBellPress={() => {
+          if (typeof document !== "undefined") (document.activeElement as HTMLElement | null)?.blur?.();
+          router.push({ pathname: "/dashboard", params: { overlay: "home", app: "notifications" } });
+        }}
         starLevels={starLevels}
         northStarBrightness={northStarBrightness}
       />

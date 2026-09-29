@@ -517,6 +517,7 @@ function SettingsChrome({ children }: { children: ReactNode }) {
 
 export default function Settings() {
   const { t, i18n } = useTranslation("settings");
+  const { t: tOps } = useTranslation("ops");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const displayLocale = AVAILABLE_UI_LOCALES.includes(i18n.language as AvailableUiLocale)
@@ -872,7 +873,7 @@ export default function Settings() {
           {t("dataConnections")}
         </M3SectionLabel>
         <M3Group>
-          <M3LinkRow icon="sync_alt" label={t("manageIntegrations")} sub={t("manageIntegrationsDesc")} onPress={() => router.push("/integrations")} />
+          <M3LinkRow icon="sync_alt" label={t("manageIntegrations")} sub={t("manageIntegrationsDesc")} onPress={() => router.push("/data-connections")} />
           <M3Divider />
           <M3LinkRow icon="upload_file" label={t("importData")} sub={t("importDataDesc")} onPress={() => router.push("/import-hub")} />
         </M3Group>
@@ -941,6 +942,8 @@ export default function Settings() {
               <M3LinkRow icon="book" label={t("nav.records")} sub={t("nav.recordsHint")} onPress={() => router.push("/records")} />
               <M3Divider />
               <M3LinkRow icon="lock" label={t("permissions")} onPress={() => router.push("/permissions")} />
+              <M3Divider />
+              <M3LinkRow icon="notifications" label={tOps("phone.notifications")} sub={Platform.OS === "web" ? tOps("phone.push.web") : tOps("phone.reminderSettings")} onPress={() => router.push("/reminders")} />
             </M3Group>
 
             <M3SectionLabel>{t("support")}</M3SectionLabel>
@@ -991,6 +994,7 @@ export default function Settings() {
               <Button label={t("nav.data")} accessibilityHint={t("nav.dataHint")} variant="secondary" onPress={() => router.push("/data")} />
               <Button label={t("nav.records")} accessibilityHint={t("nav.recordsHint")} variant="secondary" onPress={() => router.push("/records")} />
               <Button label={t("nav.support")} accessibilityHint={t("nav.supportHint")} variant="secondary" onPress={() => router.push("/support")} />
+              <Button label={tOps("phone.notifications")} accessibilityHint={Platform.OS === "web" ? tOps("phone.push.web") : tOps("phone.reminderSettings")} variant="secondary" onPress={() => router.push("/reminders")} />
             </View>
           </>
         )}

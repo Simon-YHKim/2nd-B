@@ -12,6 +12,8 @@ on:
     paths:
       - "src/**"
       - "assets/**"
+      # Avatar thumbnails are statically required by src/lib/avatar/thumbnails.ts.
+      - "design/avatar-style-v2/assets/**"
       - "locales/**"
       - ".github/workflows/eas-update.yml"
       - "app.json"

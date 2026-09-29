@@ -3,7 +3,7 @@
     {
       "id": "2nd",
       "name": "세컨비",
-      "tag": "SecondB",
+      "tag": "2nd-B",
       "desc": "내 기록을 바탕으로 답하는 세컨비",
       "face": "assets/deepspace/secondb-head-front.png",
       "blank": "assets/deepspace/secondb-head-blank.png",

@@ -11,7 +11,7 @@ import { tLocale } from "@/lib/i18n/text";
 import type { SystemLocale } from "@/lib/i18n/locales";
 import { m3, type M3Persona } from "@/lib/theme/m3";
 
-/** Selector order: SecondB (default) · 메타비 · 트위비. Ids double as m3.persona keys. */
+/** Selector order: 2nd-B (default) · 메타비 · 트위비. Ids double as m3.persona keys. */
 export const REV2_PERSONA_IDS = ["secondb", "meta", "twi"] as const satisfies readonly M3Persona[];
 export type Rev2PersonaId = (typeof REV2_PERSONA_IDS)[number];
 
@@ -24,7 +24,7 @@ export function rev2PersonaRole(id: Rev2PersonaId, locale: SystemLocale): string
 }
 
 /**
- * Voice hint woven into the chat system prompt. SecondB returns null so the
+ * Voice hint woven into the chat system prompt. 2nd-B returns null so the
  * default persona is byte-identical to the shipped voice (no regression);
  * 메타비/트위비 return their voice-shaping hint.
  */
@@ -61,13 +61,13 @@ export function rev2PersonaGlow(id: Rev2PersonaId): string {
 
 /**
  * Display name shown on the lens toggle (reference ChatScreen: KO 세컨비/메타비/
- * 트위비). Distinct from rev2PersonaName (the character name used elsewhere).
+ * 트위비). Distinct from rev2PersonaName (the character tag "2nd-B" used elsewhere).
  */
 export function rev2PersonaLensName(id: Rev2PersonaId, locale: SystemLocale): string {
   return tLocale(locale, "secondb", `rev2.${id}.lensName`);
 }
 
-/** Monospace character tag under the lens name (SecondB / Meta-B / Twi-B). */
+/** Monospace character tag under the lens name (2nd-B / Meta-B / Twi-B). */
 export function rev2PersonaTag(id: Rev2PersonaId, locale: SystemLocale): string {
   return tLocale(locale, "secondb", `rev2.${id}.tag`);
 }

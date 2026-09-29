@@ -32,6 +32,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
+import { invalidateProfileStarLevel } from "@/lib/persona/load-profile-star";
 import {
   PROFILE_DETAIL_FIELDS,
   PROFILE_DETAIL_TOTAL,
@@ -40,6 +41,11 @@ import {
   type ProfileDetails,
 } from "@/lib/persona/profile-details";
 import { fetchProfileDetails, saveProfileDetails } from "@/lib/supabase/profile-details";
+import {
+  DISPLAY_NAME_MAX_LENGTH,
+  fetchDisplayName,
+  saveDisplayName,
+} from "@/lib/supabase/display-name";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 /** 선택지 값 -> 로케일 키. 값 자체를 화면에 보여주면 안 되므로 표로 잇는다. */
@@ -102,11 +108,19 @@ export default function ProfileDetailsScreen() {
   }>({ userId: null, status: "idle" });
   const [reloadKey, setReloadKey] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [nameLoadState, setNameLoadState] = useState<{
+    userId: string | null;
+    status: "idle" | "loading" | "ready" | "error";
+  }>({ userId: null, status: "idle" });
+  const [nameReloadKey, setNameReloadKey] = useState(0);
+  const [nameSaving, setNameSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "danger" } | null>(null);
   const regionRef = useRef<TextInput>(null);
   const householdRef = useRef<TextInput>(null);
   const activeUserIdRef = useRef(userId);
   const saveOperationRef = useRef(0);
+  const nameSaveOperationRef = useRef(0);
   const kbHeight = useKeyboard();
   activeUserIdRef.current = userId;
 
@@ -157,8 +171,30 @@ export default function ProfileDetailsScreen() {
     };
   }, [userId, reloadKey]);
 
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    nameSaveOperationRef.current += 1;
+    setNameSaving(false);
+    setDisplayName("");
+    setNameLoadState({ userId, status: "loading" });
+    void fetchDisplayName(userId)
+      .then((name) => {
+        if (!alive) return;
+        setDisplayName(name ?? "");
+        setNameLoadState({ userId, status: "ready" });
+      })
+      .catch(() => {
+        if (!alive) return;
+        setDisplayName("");
+        setNameLoadState({ userId, status: "error" });
+      });
+    return () => { alive = false; };
+  }, [userId, nameReloadKey]);
+
   const filled = useMemo(() => countFilledDetails(details), [details]);
   const readyForUser = loadState.userId === userId && loadState.status === "ready";
+  const nameReadyForUser = nameLoadState.userId === userId && nameLoadState.status === "ready";
 
   const set = useCallback((key: ProfileDetailKey, value: string) => {
     setDetails((prev) => ({ ...prev, [key]: value }));
@@ -182,6 +218,27 @@ export default function ProfileDetailsScreen() {
       if (isCurrentOperation()) setSaving(false);
     }
   }, [userId, readyForUser, details, saving, t]);
+
+  const onSaveName = useCallback(async () => {
+    if (!userId || !nameReadyForUser || nameSaving) return;
+    const saveUserId = userId;
+    const operation = ++nameSaveOperationRef.current;
+    const isCurrentOperation = () =>
+      nameSaveOperationRef.current === operation && activeUserIdRef.current === saveUserId;
+    setNameSaving(true);
+    try {
+      const savedName = await saveDisplayName(saveUserId, displayName);
+      if (!isCurrentOperation()) return;
+      setDisplayName(savedName ?? "");
+      invalidateProfileStarLevel(saveUserId);
+      setToast({ message: t("deepspace:profileDetails.nameSaved"), tone: "success" });
+    } catch {
+      if (!isCurrentOperation()) return;
+      setToast({ message: t("deepspace:profileDetails.nameSaveError"), tone: "danger" });
+    } finally {
+      if (isCurrentOperation()) setNameSaving(false);
+    }
+  }, [userId, nameReadyForUser, nameSaving, displayName, t]);
 
   const title = t("deepspace:profileDetails.screenTitle");
 
@@ -308,6 +365,50 @@ export default function ProfileDetailsScreen() {
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
         >
+          <PixelSurface
+            variant="frame"
+            style={styles.fieldSurface}
+            contentStyle={styles.fieldContent}
+          >
+            <Text style={styles.label}>{t("deepspace:profileDetails.nameLabel")}</Text>
+            <Text style={styles.hint}>{t("deepspace:profileDetails.nameHint")}</Text>
+            {nameLoadState.userId === userId && nameLoadState.status === "error" ? (
+              <View style={styles.nameError} accessibilityRole="alert">
+                <Text style={styles.nameErrorText}>
+                  {t("deepspace:profileDetails.nameLoadError")}
+                </Text>
+                <MdButton
+                  variant="outlined"
+                  label={t("common:actions.retry")}
+                  onPress={() => setNameReloadKey((key) => key + 1)}
+                />
+              </View>
+            ) : nameReadyForUser ? (
+              <>
+                <Field
+                  value={displayName}
+                  onChangeText={(value) => setDisplayName(value.slice(0, DISPLAY_NAME_MAX_LENGTH))}
+                  maxLength={DISPLAY_NAME_MAX_LENGTH}
+                  editable={!nameSaving}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  accessibilityLabel={t("deepspace:profileDetails.nameLabel")}
+                />
+                <MdButton
+                  variant="outlined"
+                  label={t("deepspace:profileDetails.nameSave")}
+                  loading={nameSaving}
+                  disabled={!nameReadyForUser || nameSaving}
+                  onPress={() => void onSaveName()}
+                  style={styles.saveButton}
+                />
+              </>
+            ) : (
+              <Text style={styles.hint}>{t("deepspace:profileDetails.nameLoading")}</Text>
+            )}
+          </PixelSurface>
+
           {/* profilesetup의 inset+진행 레일 패턴만 파생한다. 아바타·핸들·목업
               진행률은 만들지 않고 실제 생활정보 7칸만 센다. */}
           <PixelSurface
@@ -484,6 +585,8 @@ const styles = StyleSheet.create({
   },
   fieldSurface: { alignSelf: "stretch" },
   fieldContent: { gap: m3.spacing.s2, padding: deepSpaceSpacing.md },
+  nameError: { gap: m3.spacing.s2 },
+  nameErrorText: { color: m3.color.error, lineHeight: m3.type.bodyMedium.line },
   label: {
     fontSize: m3.type.bodyLarge.size,
     lineHeight: m3.type.bodyLarge.line,

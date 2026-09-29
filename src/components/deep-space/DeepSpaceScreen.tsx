@@ -61,6 +61,7 @@ export function DeepSpaceScreen({
   header = "companion",
   variant = "fullbleed",
   showSharedSky = false,
+  transparentBackdrop = false,
   title,
   onBack,
   action,
@@ -83,6 +84,8 @@ export function DeepSpaceScreen({
   variant?: "fullbleed" | "windowed" | "museumLike";
   /** Immersive screens may expose the shared seeded constellation sky directly. */
   showSharedSky?: boolean;
+  /** Modal surfaces can reveal the still-mounted screen underneath. */
+  transparentBackdrop?: boolean;
   /** Windowed sub-screens: M3 top app bar title + back (TopAppBar). */
   title?: string;
   onBack?: () => void;
@@ -129,12 +132,12 @@ export function DeepSpaceScreen({
   }));
 
   return (
-    <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
+    <SafeAreaView style={[styles.root, transparentBackdrop && styles.rootTransparent]} edges={["top", "bottom"]}>
       {/* rev2 shared constellation wallpaper (sb-app SbStarfield + SB_COSMIC),
           seed-locked so every screen sits under the same sky. */}
-      <View pointerEvents="none" style={styles.spaceWash}>
+      {!transparentBackdrop ? <View pointerEvents="none" style={styles.spaceWash}>
         <SbStarfield cosmic />
-      </View>
+      </View> : null}
       {variant === "museumLike" ? (
         // rev2 museumLike (sb-app §4): the screen paints its own full-bleed
         // sky; a single top scrim spans the title zone so the sky reads as one
@@ -211,6 +214,7 @@ export function DeepSpaceScreen({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: deepSpace.bgEdge },
+  rootTransparent: { backgroundColor: "transparent" },
   spaceWash: { ...StyleSheet.absoluteFill, overflow: "hidden" },
   body: {
     flex: 1,

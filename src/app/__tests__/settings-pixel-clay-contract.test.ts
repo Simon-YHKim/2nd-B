@@ -19,7 +19,7 @@ describe("PIXEL-CLAY settings screen contract", () => {
       ...source.matchAll(/router\.(?:push|replace)\("([^"]+)"\)/g),
     ].map((match) => match[1]);
 
-    expect(routes.filter((route) => route === "/integrations")).toHaveLength(1);
+    expect(routes.filter((route) => route === "/data-connections")).toHaveLength(1);
 
     expect(new Set(routes)).toEqual(
       new Set([
@@ -27,9 +27,9 @@ describe("PIXEL-CLAY settings screen contract", () => {
         "/account",
         "/capture",
         "/data",
+        "/data-connections",
         "/dev-screens",
         "/import-hub",
-        "/integrations",
         "/manual",
         "/museum",
         "/notices",
@@ -40,6 +40,7 @@ describe("PIXEL-CLAY settings screen contract", () => {
         "/profile",
         "/reasoning",
         "/records",
+        "/reminders",
         "/sign-in",
         "/subscription",
         "/support",
@@ -55,8 +56,8 @@ describe("PIXEL-CLAY settings screen contract", () => {
       source.indexOf("legacy retains its original two button clusters"),
       source.indexOf("<DisclosureSection", source.indexOf("legacy retains its original two button clusters")),
     );
-    expect(legacyBranch.match(/<Button\b/g)).toHaveLength(8);
-    expect(legacyBranch.match(/variant="secondary"/g)).toHaveLength(8);
+    expect(legacyBranch.match(/<Button\b/g)).toHaveLength(9);
+    expect(legacyBranch.match(/variant="secondary"/g)).toHaveLength(9);
   });
 
   test("keeps legacy typography and spacing isolated from PIXEL-CLAY overrides", () => {

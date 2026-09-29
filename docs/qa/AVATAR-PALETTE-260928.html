@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>아바타 팔레트와 개인 갤러리 · 현재 작업 범위 · 2026-09-28</title>
+  <style>
+    :root{color-scheme:light dark;--accent:#696949;--text:#20201c;--muted:#57584e;--paper:#f6f5ef;--line:#c9c8bb}
+    @media(prefers-color-scheme:dark){:root{--accent:#bbbca0;--text:#f2f0e7;--muted:#cbcbbd;--paper:#24251f;--line:#5b5e50}}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--text);font:16px/1.55 system-ui,sans-serif}
+    main{max-width:940px;margin:auto;padding:28px 20px 64px}h1,h2{line-height:1.22}h1{font-size:clamp(2rem,5vw,3.1rem);margin:.3em 0}
+    .eyebrow{color:var(--accent);font-weight:800;letter-spacing:.08em}.lead{max-width:70ch;font-size:1.12rem}
+    .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:24px 0}.card{border:1px solid var(--line);padding:14px}.card strong{display:block;font-size:1.35rem;color:var(--accent)}
+    section{margin-top:30px}ul{padding-left:1.35em}li{margin:.45em 0}code{font-size:.9em}table{width:100%;border-collapse:collapse}th,td{padding:10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+    details{border-top:1px solid var(--line);padding:13px 0}summary{cursor:pointer;font-weight:700}a{color:var(--accent)}a:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+    .status{border-left:5px solid var(--accent);padding:12px 18px;background:color-mix(in srgb,var(--accent) 9%,var(--paper))}
+    .mockups{display:grid;grid-template-columns:1fr 1fr;gap:12px}.mock-panel{border:2px solid var(--accent);padding:14px;min-height:250px}.mock-panel h3{margin:0 0 10px}.mock-panel p{margin:8px 0}.mock-canvas{width:112px;height:112px;border:1px solid var(--line);margin:auto}.mock-canvas svg{display:block;width:100%;height:100%;image-rendering:pixelated}.mock-canvas .ink{fill:var(--accent)}.mock-canvas .ground{fill:var(--paper)}.mock-actions{display:flex;gap:8px;justify-content:center}.mock-actions span{border:1px solid var(--line);padding:2px 8px}.sample-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.sample-card{border:1px solid var(--line);padding:8px;min-height:118px}.sample-card strong,.sample-card small{display:block}.sample-icon{font-size:2rem;line-height:1;color:var(--accent);margin-bottom:8px}
+    .flow{width:100%;height:auto;border:1px solid var(--line);padding:8px}.flow rect{fill:var(--paper);stroke:var(--accent);stroke-width:2}.flow text{fill:var(--text);font:13px system-ui,sans-serif}.flow line{stroke:var(--accent);stroke-width:2}
+    footer{margin-top:32px;color:var(--muted);font-size:.85rem}@media(max-width:680px){.cards,.mockups{grid-template-columns:repeat(2,minmax(0,1fr))}table{font-size:.9rem}}@media(max-width:520px){.mockups{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">2ndB · 현재 범위</div>
+  <h1>아바타 팔레트: 그리고 내 갤러리에 보관</h1>
+  <p class="lead">사용자 결정(2026-09-28)에 따라 공용 셰어만 보류했다. 휴대전화의 <strong>아바타 팔레트</strong>에서 머리·옷·소품 픽셀 에셋을 직접 만들고, 여러 작품을 <strong>나만의 갤러리</strong>에 보관한다. 첫 아바타 설정과 첫 번째 프로필 별의 아바타 편집은 그대로 이어진다.</p>
+  <div class="cards" aria-label="핵심 결과">
+    <div class="card"><strong>64×64</strong>고정 픽셀 격자</div>
+    <div class="card"><strong>16색</strong>승인 스타일 팔레트</div>
+    <div class="card"><strong>3종</strong>머리·소품·옷 슬롯</div>
+    <div class="card"><strong>최대 30개</strong>계정별 개인 갤러리</div>
+  </div>
+  <section aria-labelledby="mock-heading">
+    <h2 id="mock-heading">개인 갤러리 흐름 <small>구조 예시</small></h2>
+    <div class="mockups" role="group" aria-label="제작 팔레트에서 개인 갤러리로 저장하고 작품을 다시 여는 흐름">
+      <div class="mock-panel">
+        <h3>① 팔레트에서 제작</h3>
+        <div class="mock-canvas" aria-hidden="true"><svg viewBox="0 0 8 8" shape-rendering="crispEdges"><rect class="ground" width="8" height="8"/><rect class="ink" x="2" y="1" width="4" height="1"/><rect class="ink" x="1" y="2" width="6" height="2"/><rect class="ink" x="1" y="4" width="2" height="1"/><rect class="ink" x="5" y="4" width="2" height="1"/></svg></div>
+        <p>슬롯 선택 → 64×64 격자에 그리기 → 미리보기</p>
+        <div class="mock-actions" aria-hidden="true"><span>새 작품 저장</span></div>
+      </div>
+      <div class="mock-panel">
+        <h3>② 내 갤러리 <small>2 / 30</small></h3>
+        <div class="sample-grid">
+          <div class="sample-card"><div class="sample-icon" aria-hidden="true">▦</div><strong>머리 작품</strong><small>열기 · 다시 편집 · 삭제</small></div>
+          <div class="sample-card"><div class="sample-icon" aria-hidden="true">▣</div><strong>옷 작품</strong><small>열기 · 다시 편집 · 삭제</small></div>
+        </div>
+        <p>이 계정의 작품만 이 기기에서 볼 수 있다.</p>
+      </div>
+    </div>
+  </section>
+  <section class="status" aria-labelledby="scope-heading">
+    <h2 id="scope-heading">이번 구현 범위</h2>
+    <p>로그인한 사용자는 확대·이동·격자·기본 아바타 가이드·지우개·마지막 그리기 되돌리기·합성 미리보기를 이용해 그림을 만든다. 개인 갤러리에서 작품을 열고 다시 편집하거나 삭제할 수 있다. 미리보기는 저장된 프로필 아바타에 그림을 적용하지 않는다.</p>
+    <p><strong>공용 서버 업로드, 공용 갤러리, 다른 사람 그림 가져오기, 신고·차단, 에셋 판매는 이번 구현에 없다.</strong> 공유 재개 여부와 수익화는 이번 범위에서 결정하거나 구현하지 않는다.</p>
+  </section>
+  <section>
+    <h2>사용 흐름</h2>
+    <svg class="flow" viewBox="0 0 900 145" role="img" aria-label="휴대전화에서 아바타 팔레트를 열고, 슬롯을 골라 그림을 그린 뒤 개인 갤러리에 저장하고, 작품을 다시 열어 편집하거나 삭제">
+      <rect x="10" y="35" width="146" height="70" rx="4"/><text x="83" y="75" text-anchor="middle">팔레트 열기</text>
+      <line x1="156" y1="70" x2="195" y2="70"/><rect x="195" y="35" width="146" height="70" rx="4"/><text x="268" y="75" text-anchor="middle">슬롯 고르기</text>
+      <line x1="341" y1="70" x2="380" y2="70"/><rect x="380" y="35" width="146" height="70" rx="4"/><text x="453" y="75" text-anchor="middle">픽셀 그리기</text>
+      <line x1="526" y1="70" x2="565" y2="70"/><rect x="565" y="35" width="146" height="70" rx="4"/><text x="638" y="75" text-anchor="middle">갤러리 저장</text>
+      <line x1="711" y1="70" x2="750" y2="70"/><rect x="750" y="35" width="140" height="70" rx="4"/><text x="820" y="75" text-anchor="middle">열기·수정·삭제</text>
+    </svg>
+    <p>투명 64×64 레이어의 색 인덱스만 저장한다. 한 작품은 불투명 칸 최대 1,024개이며, 제목은 선택 사항이다. 갤러리의 작품은 슬롯과 관계없이 계정별 최대 30개다. 기존 버전의 슬롯별 초안 최대 3개는 개인 갤러리로 옮긴다. 저장하지 않고 다른 작품을 열거나 화면을 닫으면 저장·버리기·취소를 고를 수 있다.</p>
+  </section>
+  <section>
+    <h2>작품이 머무는 곳</h2>
+    <table>
+      <thead><tr><th>환경</th><th>저장 방식</th><th>사용자가 알아둘 점</th></tr></thead>
+      <tbody>
+        <tr><td>Android·iOS 앱</td><td>계정별 개인 갤러리를 기기의 암호화 저장소에 둔다.</td><td>다른 기기와 자동 동기화되지 않는다.</td></tr>
+        <tr><td>웹</td><td>같은 브라우저의 <code>localStorage</code>에 계정별로 저장한다.</td><td>웹 갤러리는 앱의 암호화 저장소와 다르며, 브라우저 데이터를 지우면 사라진다.</td></tr>
+        <tr><td>계정 삭제</td><td>해당 계정의 로컬 갤러리와 이전 초안을 삭제 절차에 포함한다.</td><td>저장 실패나 읽기 오류가 나면 빈 갤러리로 덮어쓰지 않고 재시도할 수 있다.</td></tr>
+      </tbody>
+    </table>
+  </section>
+  <details><summary>검증과 남은 확인</summary>
+    <ul>
+      <li><strong>통과:</strong> <code>npm run verify</code> 전체 게이트와 Jest 836개 모음·10,851개 테스트, <code>npm run verify:web</code> 정적 웹 문서 130개. 마지막 UI 수정 후 lint·type-check·화면 집중 테스트도 재통과했다.</li>
+      <li>서버 초안이나 운영 DB 적용은 이 로컬 팔레트 기능에 필요하지 않다. 첫 아바타 설정에 필요한 별도 <code>users.avatar_spec</code> 초안의 운영 적용 상태는 따로 확인해야 한다.</li>
+      <li>Android 실기기의 손가락 그리기·스크롤 충돌·성능은 아직 직접 확인하지 못했다.</li>
+    </ul>
+  </details>
+  <details><summary>이전 공유 설계 기록</summary>
+    <p><a href="AVATAR-SHARE-260928.html">아바타 셰어 보고서</a>는 공유 보류 결정 이전의 작업 기록이다. 현재 동작과 출시 계획은 이 문서를 기준으로 본다.</p>
+  </details>
+  <footer>갱신: 2026-09-28 11:56:03 KST · 브랜치: <code>codex/avatar-style-regeneration-260928</code></footer>
+</main>
+</body>
+</html>

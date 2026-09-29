@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>기록 그래프 카메라 조작바 수정 결과</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f5f7fb; --fg:#142033; --muted:#536378; --accent:#315fa9; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#0a0e18; --fg:#eef2f8; --muted:#a4afc3; --accent:#8db7ff; } }
+    * { box-sizing:border-box; }
+    body { max-width:820px; margin:auto; padding:32px 20px; background:var(--bg); color:var(--fg); font:16px/1.6 system-ui,sans-serif; }
+    h1 { margin:0 0 8px; font-size:1.7rem; }
+    .muted { color:var(--muted); }
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin:24px 0; }
+    .card, details { border:1px solid var(--muted); padding:14px; }
+    .card strong { display:block; color:var(--accent); font-size:1.3rem; }
+    svg { width:100%; height:auto; margin:8px 0 20px; }
+    details { margin:10px 0; }
+    summary { cursor:pointer; font-weight:700; }
+    a { color:var(--accent); }
+    :focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+  </style>
+</head>
+<body>
+  <h1>기록 그래프 카메라 조작바</h1>
+  <p class="muted">2026-09-26 04:25:27 KST · localhost:8081/records · codex/observatory-dashboard-260925</p>
+  <div class="cards" aria-label="결과 요약">
+    <div class="card"><strong>제거</strong>연결선 스위치</div>
+    <div class="card"><strong>409px</strong>425px 화면의 조작바 폭</div>
+    <div class="card"><strong>10,075</strong>통과한 전체 테스트</div>
+    <div class="card"><strong>정상</strong>브라우저 확대·Android 번들</div>
+  </div>
+  <svg viewBox="0 0 600 116" role="img" aria-label="이전에는 카메라 바 옆에 연결선 버튼이 있었고, 변경 후 카메라 바가 홈 화면과 같은 폭으로 확장됨">
+    <text x="0" y="28" fill="currentColor" font-size="16">이전</text>
+    <rect x="68" y="8" width="420" height="32" fill="none" stroke="var(--muted)" stroke-width="2"/>
+    <rect x="500" y="8" width="48" height="32" fill="none" stroke="var(--muted)" stroke-width="2"/>
+    <text x="0" y="92" fill="currentColor" font-size="16">변경</text>
+    <rect x="68" y="70" width="480" height="32" fill="none" stroke="var(--accent)" stroke-width="3"/>
+  </svg>
+  <details><summary>화면 검증</summary><p>Edge 자동화로 320px·425px·768px 뷰포트를 확인했습니다. 조작바 폭은 각각 304px·409px·440px입니다. 연결선 스위치가 없고 확대 버튼이 동작했으며, 브라우저 런타임 오류는 0건이었습니다.</p></details>
+  <details><summary>코드·빌드 검증</summary><p><code>npm run verify</code> 통과: 797개 테스트 묶음, 10,075개 테스트. <code>npx expo export --platform android</code> 성공. Expo 사전 점검은 기존 의존성 버전 불일치 20건과 doctor 3개 항목을 보고했으며 이 작업에서 패키지는 바꾸지 않았습니다.</p></details>
+  <details><summary>변경 범위</summary><p>RecordsGraph의 연결선 스위치 UI와 불필요한 상태를 제거했습니다. 연결선 밀도에 따른 기본 표시 규칙은 유지했습니다. 홈과 같은 가로 패딩을 사용하도록 기록 그래프 조작바를 수정했습니다. 서버가 사용하는 observatory 작업 트리만 변경했고 사용자가 지정한 TTL-Work_rev2 트리는 수정하지 않았습니다.</p></details>
+</body>
+</html>

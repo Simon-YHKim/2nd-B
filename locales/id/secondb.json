@@ -114,10 +114,10 @@
     "lockNorthstar": "Bintang Utara",
     "lockedA11y": "Terkunci · terbuka dengan paket {{plan}}",
     "secondb": {
-      "name": "SecondB",
+      "name": "2nd-B",
       "role": "Empati",
       "lensName": "SecondB",
-      "tag": "SecondB",
+      "tag": "2nd-B",
       "desc": "Asisten yang menggunakan catatanmu sebagai konteks"
     },
     "meta": {

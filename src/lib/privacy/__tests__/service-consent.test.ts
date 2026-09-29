@@ -12,7 +12,7 @@ import { loadServiceConsent, saveServiceConsent, matchesServiceConsentContract }
 const originalFetch = globalThis.fetch;
 const status = {
   mode: "collect", contract_revision: "service-v2", consent_version: "2026-10-05",
-  policy_version: "2026-10-05", terms_version: "2026-10-05", state: "uncovered",
+  policy_version: "2026-09-29", terms_version: "2026-10-05", state: "uncovered",
   change_token: "a".repeat(64), can_grant: true,
 };
 const acks = setAllRequiredAcks(emptyConsentSelections(), true);

@@ -55,6 +55,7 @@ describe("PIXEL-CLAY /profile contract", () => {
     expect(routes).toEqual([
       "/core-brain",
       "/profile-details",
+      "/avatar-studio",
       "/insights",
       "/brightness",
       "/growth",
@@ -132,6 +133,15 @@ describe("PIXEL-CLAY /profile contract", () => {
     expect(source).toContain("setIdentity({ owner: requestedUserId, value: null, loading: true })");
     expect(source).toContain("canPublishProfileIdentity(cancelled, requestedUserId, activeUserRef.current)");
     expect(source).toContain("cancelled = true");
+  });
+
+  test("shows the saved user avatar and reloads it when the studio closes", () => {
+    const source = read(SCREEN);
+    expect(source).toContain("useFocusEffect(useCallback(");
+    expect(source).toContain("fetchAvatarSpec(requestedUserId)");
+    expect(source).toContain("activeUserRef.current === requestedUserId");
+    expect(source).toContain("avatar.owner === userId");
+    expect(source).toContain("<AvatarPreview");
   });
 });
 

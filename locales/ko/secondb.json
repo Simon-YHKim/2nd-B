@@ -114,10 +114,10 @@
     "lockNorthstar": "북극성",
     "lockedA11y": "잠김 · {{plan}} 요금제에서 쓸 수 있어요",
     "secondb": {
-      "name": "세컨비",
+      "name": "2nd-B",
       "role": "공감",
       "lensName": "세컨비",
-      "tag": "SecondB",
+      "tag": "2nd-B",
       "desc": "내 기록을 참고해 답하는 세컨비"
     },
     "meta": {

@@ -99,6 +99,7 @@ const MANAGED_EXACT_KEYS = new Set([
 ]);
 const DELETE_ONLY_KEYS = new Set(["import.history"]);
 const MANAGED_KEY_PREFIXES = [
+  "avatar.palette.drafts.v1.",
   "capture.drafts.v2.",
   "capture.journalDraft.v1.",
   "import.history:",

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2ndB 정밀 카메라 조작 UI 적용 결과</title>
+  <style>
+    :root { color-scheme: dark light; --bg:#0a0e18; --panel:#141b2e; --text:#eaeef5; --muted:#8b96b0; --accent:#46b6ff; }
+    @media (prefers-color-scheme: light) { :root { --bg:#f4f7fb; --panel:#fff; --text:#142033; --muted:#4d5d70; --accent:#076ca8; } }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:15px/1.65 system-ui,sans-serif; }
+    main { max-width:860px; margin:auto; padding:28px 18px 56px; }
+    h1 { margin:0 0 10px; font-size:clamp(25px,4vw,34px); line-height:1.25; }
+    h2 { font-size:18px; margin:26px 0 12px; }
+    p { margin:7px 0; }
+    small,.muted { color:var(--muted); }
+    .eyebrow { color:var(--accent); font-size:12px; letter-spacing:.08em; }
+    .lead { max-width:700px; }
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:8px; margin:20px 0; }
+    .card,details,.visual { background:var(--panel); border:1px solid var(--muted); padding:14px; }
+    .card strong { display:block; color:var(--accent); font-size:23px; line-height:1.2; }
+    .card span { display:block; margin-top:5px; font-size:13px; }
+    .visual { overflow:auto; }
+    svg { display:block; width:100%; min-width:540px; height:auto; }
+    details { margin:8px 0; }
+    summary { cursor:pointer; font-weight:650; }
+    summary:focus-visible,a:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+    ul { margin:9px 0 3px; padding-left:22px; }
+    li { margin:4px 0; }
+    a { color:var(--accent); }
+    code { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:.9em; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">2ndB · LOCAL UI REPORT · 26.09.26 04:02:47 KST</div>
+  <h1>망원경 조작을 정밀 카메라 컨트롤로 압축</h1>
+  <p class="lead">홈·기록 그래프·위키에서 공유하는 조그와 줌 레일을 한 줄의 픽셀 조작계로 바꿨습니다. 화면 위치와 폭, 카메라·휴대폰·대화창은 그대로 두고 조작부 높이만 줄였습니다.</p>
+
+  <div class="cards" aria-label="핵심 결과">
+    <div class="card"><strong>102 → 78px</strong><span>425px 화면 조작부 높이 · 24px 감소</span></div>
+    <div class="card"><strong>3개 화면</strong><span>홈·기록 그래프·위키 동작 확인</span></div>
+    <div class="card"><strong>3개 폭</strong><span>320·425·768px 홈 레이아웃 확인</span></div>
+    <div class="card"><strong>10,075 통과</strong><span>전체 Jest 테스트 · 797 스위트</span></div>
+  </div>
+
+  <h2>조작부 변화</h2>
+  <div class="visual">
+    <svg viewBox="0 0 760 210" role="img" aria-label="이전 102픽셀 원형 조그와 분리된 줌 값이 새 78픽셀 사각 조그와 눈금 위 배율 표시로 바뀐 비교 그림">
+      <text x="14" y="25" fill="#8b96b0" font-size="13">이전 · 102px</text>
+      <rect x="14" y="39" width="732" height="65" fill="#141b2e" stroke="#3d4866"/>
+      <circle cx="60" cy="71" r="24" fill="none" stroke="#8b96b0" stroke-dasharray="2 4"/>
+      <rect x="52" y="63" width="16" height="16" fill="#232e4a" stroke="#8b96b0"/>
+      <text x="126" y="76" fill="#8b96b0" font-size="14">W</text><text x="390" y="76" fill="#46b6ff" font-size="13">1.80×</text><text x="706" y="76" fill="#8b96b0" font-size="14">T</text>
+      <text x="14" y="135" fill="#46b6ff" font-size="13">적용 · 78px</text>
+      <rect x="14" y="148" width="732" height="52" fill="#141b2e" stroke="#3d4866"/>
+      <rect x="24" y="154" width="40" height="40" fill="#0a0e18" stroke="#3d4866"/>
+      <rect x="40" y="170" width="8" height="8" fill="#232e4a" stroke="#8b96b0"/>
+      <rect x="43" y="173" width="2" height="2" fill="#46b6ff"/>
+      <rect x="77" y="159" width="29" height="30" fill="#0a0e18" stroke="#3d4866"/>
+      <text x="87" y="178" fill="#8b96b0" font-size="12">W</text>
+      <line x1="119" y1="177" x2="690" y2="177" stroke="#3d4866" stroke-width="2"/>
+      <path d="M119 171v13 M166 174v7 M213 174v7 M260 171v13 M307 174v7 M354 174v7 M401 171v13 M448 174v7 M495 174v7 M542 171v13 M589 174v7 M636 174v7 M690 171v13" stroke="#3d4866" stroke-width="2"/>
+      <rect x="397" y="169" width="3" height="17" fill="#46b6ff"/>
+      <text x="381" y="163" fill="#46b6ff" font-size="12">1.80×</text>
+      <rect x="704" y="159" width="29" height="30" fill="#0a0e18" stroke="#3d4866"/>
+      <text x="714" y="178" fill="#8b96b0" font-size="12">T</text>
+    </svg>
+  </div>
+
+  <details><summary>작동 방식</summary>
+    <ul>
+      <li>조그: 중앙 10% 데드존, 거리의 1.7제곱 속도 곡선, 대각선 동시 이동. 손을 떼거나 취소·화면 이탈 시 즉시 정지하고 중앙으로 돌아옵니다. 가볍게 탭하면 기존 원점 복귀도 유지합니다.</li>
+      <li>줌: 전달된 최소·최대·현재 배율을 레일 절대 위치에 대응시킵니다. 손을 떼어도 배율이 유지됩니다.</li>
+      <li>W/T: 짧게 누르면 소폭 이동, 350ms 길게 누르면 50ms 간격 연속 줌. 해제·비활성화·화면 이탈 시 반복 타이머를 정리합니다.</li>
+      <li>44×44px 터치 영역 안에 작은 물리 버튼 그래픽을 넣고, 배율 숫자를 시안색 표시자 위에 배치했습니다.</li>
+    </ul>
+  </details>
+  <details><summary>검증과 남은 주의사항</summary>
+    <ul>
+      <li><code>npm run verify</code>: 797 스위트, 10,075 테스트 통과. Lint 0 error, 기존 warning 72개.</li>
+      <li><code>npx expo export --platform android</code>: Android Hermes 번들 생성 성공. 로컬에 Google 서비스 설정 파일이 없어 Expo config 해석 경고 2건은 남습니다.</li>
+      <li>로컬 브라우저: 320·425·768px, 홈·기록 그래프·위키, W/T 홀드, 조그 정지·대각선·속도, 줌 유지, 휴대폰 스와이프 확인. 페이지 오류 0건.</li>
+      <li>Expo 사전 점검: 설치 버전 불일치 20개와 기존 Hermes V1·패키지 메타데이터 경고가 있어 별도 의존성 정리가 필요합니다. 이번 UI 변경에서는 의존성을 바꾸지 않았습니다.</li>
+      <li>실기기 Android 손가락 감촉은 이번 브라우저 검사로 대체할 수 없으므로 출시 전 재확인해야 합니다.</li>
+    </ul>
+  </details>
+  <p class="muted">생성 시각: 2026-09-26 04:02:47 KST · 대상: <code>codex/observatory-dashboard-260925</code> · 운영 배포 없음</p>
+</main>
+</body>
+</html>

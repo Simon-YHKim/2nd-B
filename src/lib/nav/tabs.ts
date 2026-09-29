@@ -91,6 +91,7 @@ export const DEEP_SPACE_DOCK_PATHS = [
   // lives in exactly one place.
   "/subscription",
   "/ops",
+  "/dashboard",
   // /wiki joined the dock as a 5-tab root in P2-cont (#658 wraps it in
   // DeepSpaceScreen), so the floating BackArrow chip must hide there too.
   "/wiki",
@@ -117,6 +118,10 @@ export const DEEP_SPACE_DOCK_PATHS = [
   // 내 생활 정보 (D2, 2026-08-18) — 프로필 별을 채우는 폼. /profile 메뉴에서
   // 들어간다. 부모와 같은 규칙: dock 이 내비게이션이고 떠 있는 칩은 없다.
   "/profile-details",
+  // 사용자 아바타 편집도 DeepSpaceScreen 독과 자체 상단 뒤로를 함께 쓴다.
+  "/avatar-studio",
+  // 휴대전화의 로컬 아바타 팔레트도 같은 독과 자체 뒤로 버튼을 쓴다.
+  "/avatar-palette",
   // 축 체크 3종 (P3b) — thin routes over AxisCheckScreen, so the drift guard's
   // direct-render scan doesn't see them; registered by hand like /museum.
   "/values",
@@ -155,6 +160,7 @@ export const DEEP_SPACE_DOCK_PATHS = [
   // affordance.
   "/records",
   "/data",
+  "/data-connections",
   "/integrations",
   "/import",
   "/growth",

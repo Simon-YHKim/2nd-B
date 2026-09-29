@@ -68,7 +68,18 @@ export interface CreateRecordArgs {
    * can read the structure. Omitted = column stays null.
    */
   structured?: StructuredPayload;
+  /**
+   * Owner-scoped retry key (0178 records.client_request_id, UNIQUE per
+   * user_id). The same key on a retry makes the server refuse a second row, and
+   * the existing row comes back instead. Only for plain notes with follow-ups
+   * off: the AI follow-up runs BEFORE the insert, so a keyed journal or audit
+   * answer would repeat a paid call on every replay and then throw it away.
+   */
+  clientRequestId?: string;
 }
+
+// Same bound and alphabet as the 0178 records_client_request_id_format CHECK.
+const CLIENT_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
 export type { RecordedEvidence, RecordFollowup } from "./followup";
 
@@ -80,7 +91,7 @@ export type { RecordedEvidence, RecordFollowup } from "./followup";
 // question, nothing else.
 const AUDIT_QA_SYSTEM: Record<"en" | "ko", string> = {
   en:
-    "You are SecondB, a warm companion in a self-understanding app. The user " +
+    "You are 2nd-B, a warm companion in a self-understanding app. The user " +
     "just answered a life-review question. Reply with exactly ONE gentle " +
     "follow-up question that helps them go one small step deeper into what " +
     "they described. At most 2 short sentences, in English. Ground the " +
@@ -120,6 +131,16 @@ const XP_ACTION_FOR_KIND: Record<RecordKind, XpAction> = {
 };
 
 export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecord> {
+  // A caller bug, not user input: reject before any classification or write so
+  // a malformed key never reaches the server CHECK as a failed save.
+  if (
+    args.clientRequestId !== undefined &&
+    (!CLIENT_REQUEST_ID_PATTERN.test(args.clientRequestId) ||
+      args.kind !== "note" ||
+      args.withFollowup !== false)
+  ) {
+    throw new Error("invalid_client_request_id");
+  }
   const supabase = getSupabaseClient();
 
   let aiFollowup: RecordFollowup | null = null;
@@ -299,13 +320,23 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
         tags,
         // 0066: machine-readable form payload for form-shaped captures.
         structured: args.structured ?? null,
+        // 0178 retry key. NULL for every unkeyed insert: the unique key is
+        // (user_id, client_request_id) and Postgres never treats NULLs as equal,
+        // so ordinary saves stay unconstrained. A plain property on purpose -
+        // records-sources-data-shape.test.ts reads this literal's keys.
+        client_request_id: args.clientRequestId ?? null,
       })
       .select("id")
       .single(),
     RECORD_INSERT_TIMEOUT_MS,
     "record insert",
   );
-  if (error) throw error;
+  if (error) {
+    if (args.clientRequestId !== undefined && error.code === "23505") {
+      return replayKeyedRecord(args, args.clientRequestId, error, aiFollowup);
+    }
+    throw error;
+  }
   if (!data) throw new Error("Insert returned no row");
 
   // The new record carries a domain: tag, so this user's cached home-constellation
@@ -324,39 +355,102 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
     if (typeof console !== "undefined") console.warn("[records] xp award failed", (e as Error).message);
   });
 
-  // D5 (J2 auto-embed): when the ADULT user has opted in (records_embedding pref,
-  // OFF by default, privacy/prefs.ts), embed the new record so the semantic
-  // "연결된 기록" surface stays fresh. Best-effort, gated, and skipped in mock mode
-  // (mock embeddings are random vectors that would poison cosine similarity).
-  // Journal text is embedded ONLY under explicit consent: recordsEmbeddingAllowed
-  // hard-blocks minors and requires the opt-in pref, and embedAndStoreRecord fails
-  // closed on top of that. Minors skip without even reading prefs; a failure never
-  // affects the save (which already returned its row).
-  // Detached, for the same reason as the XP call above: the comment already promised "a
-  // failure never affects the save (which already returned its row)" -- and that was true
-  // of the ROW, but not of the CALLER, who was still awaiting this whole function. So a
-  // slow embedding round trip kept the save button spinning long after the record was
-  // safely in the database.
-  if (args.minor !== true && getEnv().EXPO_PUBLIC_LLM_MODE !== "mock") {
-    void (async () => {
-      try {
-        const prefs = await fetchPrivacyPrefs(args.userId);
-        if (recordsEmbeddingAllowed(false, prefs.records_embedding)) {
-          await embedAndStoreRecord(
-            args.userId,
-            { id: data.id, topic: args.topic ?? null, summary: args.summary ?? null, body: args.body },
-            args.locale,
-            false,
-            true,
-          );
-        }
-      } catch (e) {
-        if (typeof console !== "undefined") console.warn("[records] auto-embed skipped", (e as Error).message);
-      }
-    })();
-  }
+  embedRecordDetached(args, {
+    id: data.id,
+    topic: args.topic ?? null,
+    summary: args.summary ?? null,
+    body: args.body,
+  });
 
   return { id: data.id, tags, followup: aiFollowup ?? undefined };
+}
+
+// D5 (J2 auto-embed): when the ADULT user has opted in (records_embedding pref,
+// OFF by default, privacy/prefs.ts), embed the saved record so the semantic
+// "연결된 기록" surface stays fresh. Best-effort, gated, and skipped in mock mode
+// (mock embeddings are random vectors that would poison cosine similarity).
+// Journal text is embedded ONLY under explicit consent: recordsEmbeddingAllowed
+// hard-blocks minors and requires the opt-in pref, and embedAndStoreRecord fails
+// closed on top of that. Minors skip without even reading prefs; a failure never
+// affects the save (which already returned its row).
+// Detached, for the same reason as the XP call in createRecord: the comment already
+// promised "a failure never affects the save (which already returned its row)" -- and
+// that was true of the ROW, but not of the CALLER, who was still awaiting this whole
+// function. So a slow embedding round trip kept the save button spinning long after the
+// record was safely in the database.
+// Shared by the first save and the 0178 replay. Repeating it is safe: it is an UPDATE
+// of this one row's embedding columns (storeRecordEmbedding), not a new row.
+function embedRecordDetached(
+  args: Pick<CreateRecordArgs, "userId" | "locale" | "minor">,
+  row: { id: string; topic: string | null; summary: string | null; body: string },
+): void {
+  if (args.minor === true || getEnv().EXPO_PUBLIC_LLM_MODE === "mock") return;
+  void (async () => {
+    try {
+      const prefs = await fetchPrivacyPrefs(args.userId);
+      if (recordsEmbeddingAllowed(false, prefs.records_embedding)) {
+        await embedAndStoreRecord(args.userId, row, args.locale, false, true);
+      }
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[records] auto-embed skipped", (e as Error).message);
+    }
+  })();
+}
+
+// 0178 replay. A 23505 on a keyed insert means an earlier attempt with the same
+// key already committed - its response was lost to the 20s deadline, or the app
+// died before the caller's local queue was acknowledged. Reading that row back
+// turns the retry into a success instead of a failure that repeats forever (or,
+// without the key, a duplicate note). RLS plus the explicit user_id bind the
+// lookup to the owner; kind + body equality stop a reused key from aliasing a
+// different note. The C9 classification above DID run again - it runs before
+// every save and its crisis follow-up is returned so the caller still routes a
+// red entry.
+//
+// Enrichment on a replay: the embedding runs again, through the same detached
+// block as a first save - it is an idempotent UPDATE of this row, and after a
+// timeout the first attempt threw at the insert and never reached it. XP does
+// NOT run again: award_xp is keyed by action, not by record, and "note" is a
+// repeatable rule (0019, once_only false), so a second call is a second award -
+// and a replay cannot tell whether the first attempt got as far as awarding. So a
+// timeout replay leaves that note without its XP (the first attempt threw before
+// awarding, the replay skips it).
+async function replayKeyedRecord(
+  args: CreateRecordArgs,
+  clientRequestId: string,
+  insertError: unknown,
+  followup: RecordFollowup | null,
+): Promise<CreatedRecord> {
+  const { data: existing, error } = await withTimeout(
+    getSupabaseClient()
+      .from("records")
+      .select("id, kind, body, tags, topic, summary")
+      .eq("user_id", args.userId)
+      .eq("client_request_id", clientRequestId)
+      .maybeSingle(),
+    RECORD_INSERT_TIMEOUT_MS,
+    "record replay lookup",
+  );
+  if (error) throw error;
+  // Nothing under this key: the unique violation came from another constraint.
+  if (!existing) throw insertError;
+  if (existing.kind !== args.kind || existing.body !== args.body) {
+    throw new Error("record_idempotency_conflict");
+  }
+  // The first attempt may have died before dropping the cached domain levels.
+  invalidateDomainLevels(args.userId);
+  // Embed what the row holds (body equals args.body, checked above).
+  embedRecordDetached(args, {
+    id: existing.id,
+    topic: typeof existing.topic === "string" ? existing.topic : null,
+    summary: typeof existing.summary === "string" ? existing.summary : null,
+    body: existing.body,
+  });
+  return {
+    id: existing.id,
+    tags: Array.isArray(existing.tags) ? existing.tags : [],
+    followup: followup ?? undefined,
+  };
 }
 
 // How far back the streak query looks, in days. A streak longer than this is

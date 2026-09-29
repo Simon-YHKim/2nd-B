@@ -245,6 +245,17 @@ describe("check:erasure-registry -- each rule fails on its own mutation", () => 
     // operator to replace that migration with a new full-registry seed.
     expect(fired[0]).toContain("Preserve 0189");
   });
+
+  test("G7: a reason changed in the JSON with no declared revision", () => {
+    root = makeTree();
+    expect(rulesFired(root, "G7")).toEqual([]);
+    const registry = baseRegistry();
+    registry.tables.audit = { ...registry.tables.audit, reason: "사유만 바꿨고 이력은 남기지 않았다." };
+    writeFileSync(join(root, "db", "erasure-registry.json"), JSON.stringify(registry, null, 2), "utf8");
+    const fired = rulesFired(root, "G7");
+    expect(fired).toHaveLength(1);
+    expect(fired[0]).toContain("reason changes in forwardRevisions");
+  });
 });
 
 describe("replayMigrations -- statement order, not regex order", () => {
@@ -510,6 +521,66 @@ describe("check:erasure-registry -- against the real repository", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  // The credit_ledger reason revision (0205) is the first forwardRevisions entry.
+  // Each mutation below starts from a green copy of the real tree, so a red is
+  // the mutation's and not the fixture's.
+  const REVISION_FILE = "0205_credit_ledger_erasure_registry_reason.sql";
+  const onRealCopy = (mutate: (root: string) => void): string[] => {
+    const root = mkdtempSync(join(tmpdir(), "erasure-real-"));
+    try {
+      cpSync(join(REPO_ROOT, "db"), join(root, "db"), { recursive: true });
+      expect(collectErasureRegistryErrors(root)).toEqual([]);
+      mutate(root);
+      return collectErasureRegistryErrors(root);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  };
+  type RegistryJson = {
+    tables: Record<string, { class: string }>;
+    forwardRevisions?: Record<string, Record<string, { previousReason: string }>>;
+  };
+  const editJson = (root: string, edit: (json: RegistryJson) => void): void => {
+    const path = join(root, "db", "erasure-registry.json");
+    const json = JSON.parse(readFileSync(path, "utf8")) as RegistryJson;
+    edit(json);
+    writeFileSync(path, JSON.stringify(json, null, 2), "utf8");
+  };
+
+  test("the real credit_ledger revision: dropping its declaration turns G7 red", () => {
+    const after = onRealCopy((root) => editJson(root, (json) => delete json.forwardRevisions));
+    expect(after.join(" ")).toContain("historical subset");
+    expect(after.join(" ")).toContain(`${REVISION_FILE} contains undeclared forward revisions`);
+  });
+
+  test("the real credit_ledger revision: a hand edit to its generated block turns G7 red", () => {
+    const after = onRealCopy((root) => {
+      const path = join(root, "db", "migrations", REVISION_FILE);
+      writeFileSync(path, readFileSync(path, "utf8").replace("(0202 · 0204)", "(0202)"), "utf8");
+    });
+    expect(after.join(" ")).toContain(`${REVISION_FILE} must contain only its exact generated revisions`);
+  });
+
+  test("the real credit_ledger revision: a previous reason 0189 never shipped turns G7 red", () => {
+    const after = onRealCopy((root) =>
+      editJson(root, (json) => {
+        json.forwardRevisions![REVISION_FILE].credit_ledger.previousReason = "0189 에 없던 사유를 적었다.";
+      }),
+    );
+    expect(after.join(" ")).toContain("historical subset");
+  });
+
+  test("the real credit_ledger revision cannot smuggle a reclassification", () => {
+    const after = onRealCopy((root) =>
+      editJson(root, (json) => {
+        json.tables.credit_ledger.class = "account_delete_only";
+      }),
+    );
+    // G6 pins credit_ledger as retained; G7 still pins class to 0189 on its own.
+    expect(after.some((e) => e.startsWith("G6 credit_ledger"))).toBe(true);
+    expect(after.join(" ")).toContain("historical subset");
   });
 });
 

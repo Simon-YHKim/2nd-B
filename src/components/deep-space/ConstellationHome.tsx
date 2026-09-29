@@ -4,7 +4,7 @@
  * astronomically-honest Big Dipper (bowl 커리어→재정→관계→성장, handle down to
  * 뮤지엄) with the pointer stars' dashed guide to 북극성, the pinned 세컨비 head
  * with its speech bubble BELOW (소개 intro → star line + 여행하기 / head-tap menu
- * 챗봇·비서), and the top-left inbox bell. The stage paints the prototype's
+ * 챗봇·비서), and the top-left phone notifications launcher. The stage paints the prototype's
  * radial washes + a static port of its neural field over the shared SbStarfield.
  *
  * Star brightness stays live (starLevels/northStarBrightness from
@@ -20,10 +20,12 @@ import { useUiSound } from "@/lib/audio/use-ui-sound";
 import Svg, { Defs, G, Pattern, Rect } from "react-native-svg";
 
 import { TelescopeControls } from "./TelescopeControls";
+import { PocketPhone, POCKET_PHONE_HEIGHT, POCKET_PHONE_PEEK, POCKET_PHONE_WIDTH } from "./PocketPhone";
+import { PixelScrim } from "@/components/pixel/PixelDither";
 import { StarDestination } from "./StarDestination";
 import { StarCapture } from "./StarCapture";
 import { STAR_CAMERA_STOPS, starCameraAim, starCameraFlight } from "@/lib/motion/star-camera";
-import { PixelPressable } from "../pixel/PixelPressable";
+import { CAMERA_RETURN } from "@/lib/motion/camera-sequence";
 import { moveTelescopeCamera } from "@/lib/motion/camera-remote";
 
 import { PixelStarSvg } from "../pixel/PixelStarSvg";
@@ -174,7 +176,6 @@ function ladderIndex(level: LadderLevel): number {
 
 type BubbleState =
   | { kind: "intro" }
-  | { kind: "tip"; index: number }
   | { kind: "reasoning" }
   | { kind: "menu" }
   | { kind: "star"; id: HomeStarId };
@@ -189,13 +190,7 @@ const HOME_TIP_KEYS = [
 ] as const;
 
 function nextHomeBubble(current: BubbleState): BubbleState {
-  if (current.kind === "intro") return { kind: "tip", index: 0 };
-  if (current.kind === "tip") {
-    return current.index + 1 < HOME_TIP_KEYS.length
-      ? { kind: "tip", index: current.index + 1 }
-      : { kind: "reasoning" };
-  }
-  if (current.kind === "reasoning") return { kind: "menu" };
+  if (current.kind === "menu") return { kind: "reasoning" };
   return { kind: "intro" };
 }
 
@@ -341,6 +336,7 @@ function NoticeTicker({ text, reducedMotion, onPress }: {
 
   return (
     <Pressable
+      testID="home-notice-ticker"
       style={styles.tickerPress}
       onPress={onPress}
       accessibilityRole="button"
@@ -549,11 +545,8 @@ export function ConstellationHome({
   onCoachHeadPress,
   onOpsPress,
   onBellPress,
-  onMuseumPress,
-  onCommunityPress,
   starLevels = {},
   northStarBrightness = 0.2,
-  hasUnread = false,
 }: {
   /** 여행하기 on a star bubble (domains → their records lens, profile → /profile). */
   onStarTravel: (id: HomeStarId) => void;
@@ -566,21 +559,9 @@ export function ConstellationHome({
   coachHeadTargetRef?: RefObject<View | null>;
   onCoachHeadPress?: () => void;
   onOpsPress: () => void;
-  /** 뮤지엄 corner chip. The museum lost its home star to `profile`, so this is
-   *  the ONLY forward entry point to /museum in the app — the swap and this chip
-   *  have to ship together or the screen goes unreachable. */
-  onMuseumPress: () => void;
-  /** 커뮤니티 corner chip. Same story without the star swap as an excuse: the
-   *  screen shipped with no forward link from anywhere, so it was reachable only
-   *  by pasting an invite URL. Adults only, so the chip hides for minors. */
-  onCommunityPress: () => void;
   onBellPress: () => void;
   starLevels?: Partial<Record<HomeStarId, LadderLevel>>;
   northStarBrightness?: number;
-  /** Real unread signal for the inbox bell dot. Defaults false so no fake
-   *  "unread" dot shows until a real unread source is wired (the inbox is
-   *  canon-seeded today, so there is no honest unread count yet). */
-  hasUnread?: boolean;
 }) {
   // 북극성 밝기(0..1 연속)를 사다리 한 칸으로 떨어뜨린다.
   // ⚠ 손실이 있는 변환이다 — Simon 결정 2026-08-27 에서 감수하기로 한 부분.
@@ -593,10 +574,12 @@ export function ConstellationHome({
   const task = useTaskStatus();
   const { width: winW, fontScale } = useWindowDimensions();
   const [bubble, setBubble] = useState<BubbleState>({ kind: "intro" });
+  const [tickerIndex, setTickerIndex] = useState(0);
   const [stage, setStage] = useState<{ w: number; h: number } | null>(null);
   const [autoNoticeDismissed, setAutoNoticeDismissed] = useState(false);
   const [manualNoticeVisible, setManualNoticeVisible] = useState(false);
   const [homeFocused, setHomeFocused] = useState(false);
+  const [phoneExpanded, setPhoneExpanded] = useState(false);
   const [reasoningStatus, setReasoningStatus] = useState<{
     automatic: boolean;
     /** Run gate: weekly base + monthly reward credits (what CAN still run). */
@@ -640,13 +623,12 @@ export function ConstellationHome({
     if (bubble.kind === "reasoning") void refreshReasoningStatus();
   }, [bubble.kind, refreshReasoningStatus, task.phase]);
 
-  // Reserve the dialogue stage first, then center the constellation in the
-  // remaining space. Height also constrains the scale on short screens so the
-  // stars never collide with the dialogue panel.
-  const [instrumentHeight, setInstrumentHeight] = useState(110);
+  // A summoned dialogue overlays the sky instead of changing its viewport
+  // midway through a star-camera approach.
+  const [instrumentHeight, setInstrumentHeight] = useState(74);
   const dialogueStageHeight = DIALOGUE_STAGE_HEIGHT * Math.min(Math.max(fontScale, 1), 1.35);
   const constellationHeightBudget = stage
-    ? Math.max(120, stage.h - dialogueStageHeight - 52 - instrumentHeight)
+    ? Math.max(120, stage.h - 52 - instrumentHeight)
     : Number.POSITIVE_INFINITY;
   const boxW = Math.min(
     380,
@@ -687,6 +669,7 @@ export function ConstellationHome({
   const focusedId = bubble.kind === "star" ? bubble.id : null;
   const reducedMotion = useReducedMotionPref();
   const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
+  const [returnStart, setReturnStart] = useState<typeof camera | null>(null);
   const [skySize, setSkySize] = useState({ width: winW, height: boxH });
   const [visualFocusId, setVisualFocusId] = useState<HomeStarId | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
@@ -695,22 +678,54 @@ export function ConstellationHome({
   const homeActive = useRef(homeFocused);
   homeActive.current = homeFocused;
   const destinationProgress = useRef(new Animated.Value(0)).current;
+  const returnProgress = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!returnStart) return;
+    if (reducedMotion) {
+      setCamera({ x: 0, y: 0, zoom: 1 });
+      setReturnStart(null);
+      return;
+    }
+    returnProgress.setValue(0);
+    const listener = returnProgress.addListener(({ value }) => {
+      const zoom = returnStart.zoom + (1 - returnStart.zoom) * value;
+      // Interpolate screen-space translation, so the world and the dial follow one path.
+      setCamera({ x: returnStart.x * returnStart.zoom * (1 - value) / zoom,
+        y: returnStart.y * returnStart.zoom * (1 - value) / zoom, zoom });
+    });
+    const animation = Animated.timing(returnProgress, {
+      toValue: 1, duration: CAMERA_RETURN[0].duration,
+      easing: pixelStepsFor(CAMERA_RETURN[0].duration), useNativeDriver: false,
+    });
+    animation.start(({ finished }) => {
+      if (finished) { setCamera({ x: 0, y: 0, zoom: 1 }); setReturnStart(null); }
+    });
+    return () => { animation.stop(); returnProgress.removeListener(listener); };
+  }, [returnProgress, returnStart, reducedMotion]);
   useEffect(() => {
     if (homeFocused) return;
     captureLock.current = false;
     setCaptureId(null);
     setCameraReady(false);
     setVisualFocusId(null);
+    setReturnStart(null);
     destinationProgress.stopAnimation();
     destinationProgress.setValue(0);
     setBubble(current => current.kind === 'star' ? { kind: 'intro' } : current);
   }, [destinationProgress, homeFocused]);
   const selectedStar = REV2_STARS.find((s) => s.id === visualFocusId);
   const starRadius = pixelStarSpan(DOMAIN_CORE_R * k * DOMAIN_HALO_MULT_REST);
-  const flight = starCameraFlight(
+  const flight = useMemo(() => starCameraFlight(
     selectedStar ? { x: Math.round(px(selectedStar.x)), y: Math.round(py(selectedStar.y)) } : { x: boxW / 2, y: boxH / 2 },
-    camera, { width: boxW, height: boxH }, skySize, instrumentHeight, starRadius,
-  );
+    camera, { width: boxW, height: boxH }, skySize, 0, starRadius,
+  ), [selectedStar, camera.x, camera.y, camera.zoom, boxW, boxH, skySize, starRadius]);
+  const starMotion = useMemo(() => ({ progress: destinationProgress,
+    track: { stops: STAR_CAMERA_STOPS, x: flight.x, y: flight.y, zoom: flight.zoom } }), [destinationProgress, flight]);
+  const returnMotion = useMemo(() => returnStart ? { progress: returnProgress,
+    track: { stops: [0, 1], x: [-returnStart.x * returnStart.zoom, 0],
+      y: [-returnStart.y * returnStart.zoom, 0], zoom: [returnStart.zoom, 1] }, playSound: true } : undefined,
+  [returnStart, returnProgress]);
+  const cameraMotion = visualFocusId ? starMotion : returnMotion;
   const cameraAim = starCameraAim(flight.origin, skySize);
   const worldX = visualFocusId ? destinationProgress.interpolate({ inputRange: STAR_CAMERA_STOPS, outputRange: flight.x }) : -camera.x * camera.zoom;
   const worldY = visualFocusId ? destinationProgress.interpolate({ inputRange: STAR_CAMERA_STOPS, outputRange: flight.y }) : -camera.y * camera.zoom;
@@ -725,9 +740,7 @@ export function ConstellationHome({
   const bubbleTag =
     bubble.kind === "reasoning"
       ? reasoningCopy.reasoningTag
-      : bubble.kind === "tip"
-        ? t("ds.home.bubble.tipTag")
-        : bubble.kind === "menu"
+      : bubble.kind === "menu"
           ? t("ds.home.bubble.menuTag")
           : bubble.kind === "star"
             ? kindOf(bubble.id)
@@ -748,9 +761,7 @@ export function ConstellationHome({
                 : reasoningStatus.baseRemaining !== null && reasoningStatus.baseRemaining > 0
                   ? reasoningCopy.baseLeft(reasoningStatus.baseRemaining)
                   : reasoningCopy.rewardLeft(reasoningStatus.rewardCredits)
-      : bubble.kind === "tip"
-        ? t(HOME_TIP_KEYS[bubble.index] ?? HOME_TIP_KEYS[0])
-        : bubble.kind === "menu"
+      : bubble.kind === "menu"
           ? t("ds.home.bubble.menu")
           : bubble.kind === "star"
             ? `${t(`ds.home.star.${bubble.id}.line`)}${selectedEntry?.kind === "previous"
@@ -760,7 +771,7 @@ export function ConstellationHome({
                 : ""}`
             : t("ds.home.bubble.intro");
   const dialogue = useJrpgTypewriter({
-    text: bubbleLine,
+    text: bubble.kind === "intro" ? "" : bubbleLine,
     reducedMotion,
     onBlip: playDialogueBlip,
   });
@@ -795,9 +806,16 @@ export function ConstellationHome({
       noticeCenter.notices[0] ??
       null)
     : null;
-  const tickerText = manualNotice
-    ? `${reasoningCopy.notices} · ${manualNotice.title[homeReasoningLocale(i18n.language) === "ko" ? "ko" : "en"]}`
-    : null;
+  useEffect(() => {
+    if (!homeFocused) return;
+    const timer = setInterval(() => setTickerIndex((index) => index + 1), 12_000);
+    return () => clearInterval(timer);
+  }, [homeFocused]);
+  const tickerItems = [
+    ...(manualNotice ? [{ kind: "notice" as const, text: `${reasoningCopy.notices} · ${manualNotice.title[homeReasoningLocale(i18n.language) === "ko" ? "ko" : "en"]}` }] : []),
+    ...HOME_TIP_KEYS.map((key) => ({ kind: "tip" as const, text: `${t("ds.home.bubble.tipTag")} · ${t(key)}` })),
+  ];
+  const tickerItem = tickerItems[tickerIndex % tickerItems.length];
   const openNotice = () => {
     setBubble({ kind: "intro" });
     setManualNoticeVisible(true);
@@ -830,7 +848,7 @@ export function ConstellationHome({
         <SbStarfield />
       </Animated.View>
 
-      {/* The four home controls share one bar. Keep the chip visuals on Views:
+      {/* Home controls share one bar. Keep the chip visuals on Views:
           Fabric Android can drop styles applied directly to Pressable. */}
       <View style={styles.topBar}>
         <View style={styles.topBarStart}>
@@ -843,38 +861,29 @@ export function ConstellationHome({
             >
               <PixelGlyph name="notifications" color={m3.accent.bellGlyph} size={20} />
             </Pressable>
-            {hasUnread ? <View pointerEvents="none" style={styles.bellDot} /> : null}
+            {noticeCenter.unreadCount > 0 ? <View pointerEvents="none" style={styles.bellDot} /> : null}
           </View>
-
-          <View style={styles.museumChip}>
+          <View ref={coachHeadTargetRef} collapsable={false} testID="secondb-dialogue-launcher"
+            style={[styles.secondbLauncher, bubble.kind !== "intro" && styles.secondbLauncherActive]}>
             <Pressable
-              onPress={onMuseumPress}
+              style={styles.secondbLauncherPress}
+              onPress={() => {
+                if (coachFirstRecord) { onCoachHeadPress?.(); return; }
+                setBubble((current) => current.kind === "intro" ? { kind: "menu" } : { kind: "intro" });
+              }}
               accessibilityRole="button"
-              accessibilityLabel={t("ds.home.museumEntry")}
-              hitSlop={14}
+              accessibilityLabel={t(bubble.kind === "intro" ? "ds.home.dialogueOpen" : "ds.home.dialogueClose")}
+              accessibilityHint={coachFirstRecord ? t("deepspace:coachmarks.homeStep") : undefined}
+              accessibilityState={{ expanded: bubble.kind !== "intro" }}
+              hitSlop={4}
             >
-              <PixelGlyph name="account_balance" color={m3.accent.bellGlyph} size={20} />
+              <SecondbHead size={32} mood="neutral" track />
             </Pressable>
           </View>
-
-          {/* Community stays hidden until the user's adult status is known. */}
-          {isMinor === false ? (
-            <View style={styles.communityChip}>
-              <Pressable
-                onPress={onCommunityPress}
-                accessibilityRole="button"
-                accessibilityLabel={t("ds.home.communityEntry")}
-                hitSlop={14}
-              >
-                <PixelGlyph name="groups" color={m3.accent.bellGlyph} size={20} />
-              </Pressable>
-            </View>
-          ) : null}
         </View>
 
-        {tickerText ? (
-          <NoticeTicker key={tickerText} text={tickerText} reducedMotion={reducedMotion} onPress={openNotice} />
-        ) : null}
+        <NoticeTicker key={tickerItem.text} text={tickerItem.text} reducedMotion={reducedMotion}
+          onPress={tickerItem.kind === "notice" ? openNotice : () => setTickerIndex((index) => index + 1)} />
 
         {/* Campaign notice keeps its own persisted unread signal. */}
         <View style={styles.noticeBell}>
@@ -890,14 +899,14 @@ export function ConstellationHome({
         </View>
       </View>
 
-      {/* The instrument stage keeps controls clear of SecondB and the root dock. */}
-      <View style={styles.constellationBlock}>
+      {/* The sky flexes above the dialogue and its own camera-control row. */}
+      <View style={[styles.constellationBlock, phoneExpanded && styles.constellationRaised]}>
         <View style={styles.skyViewport} onLayout={({ nativeEvent: { layout } }) => setSkySize({ width: layout.width, height: layout.height })}>
         {/* Keep the SAME world mounted throughout approach and retreat. Only
             its camera changes; neighbours leave through the viewport edges. */}
         <Animated.View testID="star-camera-world" pointerEvents={visualFocusId ? "none" : "auto"}
           aria-hidden={!!visualFocusId} accessibilityElementsHidden={!!visualFocusId} importantForAccessibility={visualFocusId ? "no-hide-descendants" : "auto"}
-          style={{ position: "absolute", left: (skySize.width - boxW) / 2, top: (skySize.height - instrumentHeight - boxH) / 2,
+          style={{ position: "absolute", left: (skySize.width - boxW) / 2, top: (skySize.height - boxH) / 2,
             width: boxW, height: boxH, transform: [{ translateX: worldX }, { translateY: worldY }, { scale: worldZoom }] }}>
           <Svg width={boxW} height={boxH} pointerEvents="none">
             <Defs>
@@ -1046,7 +1055,10 @@ export function ConstellationHome({
                 <Pressable
                   disabled={!!visualFocusId}
                   onPress={() => {
+                    returnProgress.stopAnimation();
+                    setReturnStart(null);
                     setCameraReady(false);
+                    setPhoneExpanded(false);
                     setVisualFocusId(s.id);
                     setBubble({ kind: "star", id: s.id });
                     // The domain card opens at the BOTTOM of the screen with no
@@ -1081,36 +1093,29 @@ export function ConstellationHome({
           />
         ) : null}
         </View>
+        {phoneExpanded ? <View pointerEvents="none" style={styles.phoneSkyScrim}><PixelScrim style={styles.phoneScrimImage} /></View> : null}
         {!visualFocusId ? (
-          <View style={styles.instrumentRow} onLayout={({ nativeEvent: { layout } }) => setInstrumentHeight(layout.height)}>
-            <TelescopeControls
-              zoom={camera.zoom}
-              minZoom={1}
-              maxZoom={3}
-              onMove={(dx, dy) => setCamera((current) => moveTelescopeCamera(current, dx, dy, { width: skySize.width, height: skySize.height - instrumentHeight }))}
-              onZoom={(zoom) => setCamera((current) => ({ ...current, zoom }))}
-              onReset={() => setCamera({ x: 0, y: 0, zoom: 1 })}
+          <View style={[styles.phonePocket, {
+            bottom: POCKET_PHONE_PEEK - POCKET_PHONE_HEIGHT,
+            right: Math.max(m3.spacing.s4, ((stage?.w ?? winW) - 440) / 2),
+          }]}>
+            <PocketPhone
+              label={t("deepspace:telescope.phoneLabel")}
+              openLabel={t("deepspace:telescope.phone")}
+              revealHint={t("deepspace:telescope.phoneReveal")}
+              stowHint={t("deepspace:telescope.phoneStow")}
+              active={homeFocused}
+              onExpandedChange={setPhoneExpanded}
+              onOpen={() => router.push({ pathname: "/dashboard", params: { overlay: "home" } })}
             />
-            <PixelPressable
-              onPress={() => router.push("/dashboard")}
-              accessibilityLabel={t("deepspace:telescope.phone")}
-              contentStyle={styles.phoneButton}
-            >
-              <View style={styles.phoneScreen}>
-                <View style={styles.phoneSpeaker} />
-                <View style={styles.phoneApps}>
-                  {[0, 1, 2, 3].map((key) => <View key={key} style={styles.phoneApp} />)}
-                </View>
-              </View>
-              <Text style={styles.phoneCaption}>{t("deepspace:telescope.phoneLabel")}</Text>
-            </PixelPressable>
           </View>
         ) : null}
       </View>
 
-      {/* JRPG dialogue stage: SecondB becomes a framed portrait beside the copy.
-          The live portrait remains the first-record coach target. */}
-      <View style={[styles.headBlock, { minHeight: dialogueStageHeight }]}>
+      {/* The JRPG dialogue opens on request and overlays the sky without
+          changing its height during a star-camera approach. */}
+      {bubble.kind !== "intro" ? <View testID="home-dialogue-stage" pointerEvents="box-none"
+        style={[styles.headBlock, { minHeight: dialogueStageHeight, bottom: instrumentHeight }]}>
         <View style={styles.dialogueAnchor}>
           <JrpgDialogueBox
             speaker={t("ds.dock.chat")}
@@ -1122,7 +1127,7 @@ export function ConstellationHome({
             onReveal={dialogue.reveal}
             onAdvance={advanceDialogue}
             portrait={(
-              <View ref={coachHeadTargetRef} collapsable={false}>
+              <View>
                 <Pressable
                   onPress={advanceDialogue}
                   accessibilityRole="button"
@@ -1135,24 +1140,7 @@ export function ConstellationHome({
                 </Pressable>
               </View>
             )}
-            actions={bubble.kind === "tip" ? (
-              <View style={styles.bubbleActions}>
-                <MdButton
-                  label={t("ds.home.bubble.next")}
-                  variant="filled"
-                  style={styles.dialogueAction}
-                  hitSlop={DIALOGUE_ACTION_HIT_SLOP}
-                  onPress={() => setBubble(nextHomeBubble)}
-                />
-                <MdButton
-                  label={t("ds.home.bubble.openMenu")}
-                  variant="tonal"
-                  style={styles.dialogueAction}
-                  hitSlop={DIALOGUE_ACTION_HIT_SLOP}
-                  onPress={() => setBubble({ kind: "menu" })}
-                />
-              </View>
-            ) : bubble.kind === "reasoning" ? (
+            actions={bubble.kind === "reasoning" ? (
               <View style={styles.bubbleActions}>
                 {reasoningMode === "depleted" ? (
                   <>
@@ -1263,7 +1251,24 @@ export function ConstellationHome({
             ) : undefined}
           />
         </View>
+      </View> : null}
+      <View style={[styles.instrumentRow, visualFocusId && { height: instrumentHeight }]}
+        onLayout={({ nativeEvent: { layout } }) => setInstrumentHeight(layout.height)}>
+        <TelescopeControls
+          zoom={camera.zoom}
+          minZoom={1}
+          maxZoom={3}
+          enabled={!visualFocusId && !returnStart}
+          cameraMotion={cameraMotion}
+          onMove={(dx, dy) => setCamera((current) => moveTelescopeCamera(current, dx, dy, skySize))}
+          onZoom={(zoom) => setCamera((current) => ({ ...current, zoom }))}
+          onReset={() => {
+            if (camera.x === 0 && camera.y === 0 && camera.zoom === 1) return;
+            setReturnStart(camera);
+          }}
+        />
       </View>
+      {phoneExpanded ? <View pointerEvents="none" style={styles.phoneBackdrop}><PixelScrim style={styles.phoneScrimImage} /></View> : null}
       {shownNotice ? (
         <NoticeDialog
           visible={homeFocused && (autoNoticeVisible || manualNoticeVisible)}
@@ -1336,8 +1341,21 @@ const styles = StyleSheet.create({
   },
   topBarStart: {
     flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
+  secondbLauncher: {
+    width: 40,
+    height: 40,
+    borderWidth: 1,
+    borderColor: m3.color.outline,
+    backgroundColor: m3.color.surfaceContainerHighest,
+    alignItems: "center",
+    justifyContent: "center",
+    ...m3.elevation.level2,
+  },
+  secondbLauncherActive: { borderColor: m3.color.primary },
+  secondbLauncherPress: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
   tickerPress: {
     flex: 1,
     minWidth: 0,
@@ -1389,24 +1407,6 @@ const styles = StyleSheet.create({
     backgroundColor: m3.color.primaryContainer,
     ...m3.elevation.level2,
   },
-  museumChip: {
-    width: 40,
-    height: 40,
-    borderRadius: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: m3.color.surfaceContainerHighest,
-    ...m3.elevation.level2,
-  },
-  communityChip: {
-    width: 40,
-    height: 40,
-    borderRadius: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: m3.color.surfaceContainerHighest,
-    ...m3.elevation.level2,
-  },
   bellDot: {
     position: "absolute",
     top: 9,
@@ -1425,14 +1425,14 @@ const styles = StyleSheet.create({
     zIndex: 3,
     overflow: "hidden",
   },
+  constellationRaised: { zIndex: 10 },
+  phoneSkyScrim: { ...StyleSheet.absoluteFill, zIndex: 1 },
+  phoneBackdrop: { ...StyleSheet.absoluteFill, zIndex: 9 },
+  // RN Web otherwise repeats the dither tile only at its intrinsic dimensions.
+  phoneScrimImage: { width: "100%", height: "100%" },
   skyViewport: { flex: 1, width: "100%", minHeight: 0, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  instrumentRow: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingHorizontal: 12, paddingVertical: 4 },
-  phoneButton: { width: 48, minHeight: 72, paddingHorizontal: 4, paddingVertical: 4, alignItems: "center", gap: 4 },
-  phoneScreen: { width: 28, height: 40, borderWidth: 2, borderColor: m3.color.outline, backgroundColor: m3.color.surface, padding: 3, gap: 5 },
-  phoneSpeaker: { alignSelf: "center", width: 10, height: 2, backgroundColor: m3.color.onSurfaceVariant },
-  phoneApps: { flexDirection: "row", flexWrap: "wrap", gap: 3 },
-  phoneApp: { width: 6, height: 6, backgroundColor: m3.color.primary },
-  phoneCaption: { fontFamily: m3.font.mono, fontSize: 10, lineHeight: 16, color: m3.color.onSurface },
+  phonePocket: { position: "absolute", width: POCKET_PHONE_WIDTH, height: POCKET_PHONE_HEIGHT, zIndex: 2 },
+  instrumentRow: { flexShrink: 0, zIndex: 3, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: m3.spacing.s4, paddingVertical: 2 },
   // left/top/width/fontSize/lineHeight of both labels come from star-label-layout.ts.
   starLabel: {
     position: "absolute",
@@ -1451,7 +1451,7 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.readable,
   },
   hit: { position: "absolute" },
-  headBlock: { flexGrow: 0, flexShrink: 0, zIndex: 5 },
+  headBlock: { position: "absolute", left: 0, right: 0, zIndex: 5 },
   dialogueAnchor: {
     position: "absolute",
     left: 0,

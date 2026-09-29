@@ -48,6 +48,7 @@ import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
+import { AvatarSetupGate, AvatarSetupSceneGuard } from "@/components/avatar/AvatarSetupGate";
 import { EncryptedStorageRecoveryGate } from "@/screens/deepspace/storage-recovery-gate";
 import { BackArrow } from "@/components/ui/BackArrow";
 import { BackgroundTaskDock, CompletionToast, SecondbHeadTrackProvider } from "@/components/deepspace";
@@ -208,6 +209,7 @@ export default function RootLayout() {
                 overlays for the background-task loading system. */}
             <SecondbHeadTrackProvider>
             <IntroGate>
+              <AvatarSetupGate>
               {/* O-23 Stage③: the Stack mounts every route in BOTH UI modes (the
                   flag only swaps which component `index` renders — see index.tsx —
                   and adds the deep-space /graph alias). This is the nav-contract
@@ -228,6 +230,7 @@ export default function RootLayout() {
               <Stack.Screen name="community" />
               <Stack.Screen name="community/[room]" />
               <Stack.Screen name="community/join/[token]" />
+              <Stack.Screen name="avatar-palette" />
               <Stack.Screen name="jarvis" />
               <Stack.Screen name="plans" />
               <Stack.Screen name="subscription" />
@@ -243,6 +246,8 @@ export default function RootLayout() {
               <Stack.Screen name="trinity" />
               <Stack.Screen name="mbti" />
               <Stack.Screen name="settings" />
+              <Stack.Screen name="dashboard" options={{ presentation: "transparentModal", contentStyle: { backgroundColor: "transparent" } }} />
+              <Stack.Screen name="data-connections" />
               <Stack.Screen name="privacy" />
               <Stack.Screen name="service-consent" />
               <Stack.Screen name="account" />
@@ -261,6 +266,7 @@ export default function RootLayout() {
               <AppTabBar />
               <BackgroundTaskDock />
               <CompletionToast />
+              </AvatarSetupGate>
             </IntroGate>
             </SecondbHeadTrackProvider>
           </AuthProvider>
@@ -300,7 +306,9 @@ function ThemedStack({ children }: { children: React.ReactNode }) {
       <Stack
         screenLayout={({ children: screen, route }) => (
           <ProfileProbeScope routeName={route.name}>
-            <AccountScope routeName={route.name}>{screen}</AccountScope>
+            <AvatarSetupSceneGuard routeName={route.name}>
+              <AccountScope routeName={route.name}>{screen}</AccountScope>
+            </AvatarSetupSceneGuard>
           </ProfileProbeScope>
         )}
         screenOptions={{

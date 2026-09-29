@@ -16,6 +16,15 @@ export interface CrisisEventInsert {
   locale: "en" | "ko";
 }
 
+// Same bound and alphabet as the 0179 CHECK / RPC guard on outbox_event_id.
+const OUTBOX_EVENT_ID = /^[A-Za-z0-9._:-]{1,128}$/;
+
+function assertOutboxEventId(value: unknown): asserts value is string {
+  if (typeof value !== "string" || !OUTBOX_EVENT_ID.test(value)) {
+    throw new Error("invalid_audit_outbox_event_id");
+  }
+}
+
 // crisis_events is RLS deny-all (0012, service-role-only by design), so a direct
 // authenticated client INSERT is silently denied -- that dropped every client-side
 // RED log (re-audit H3). Writes now go through the log_crisis_event SECURITY
@@ -23,11 +32,18 @@ export interface CrisisEventInsert {
 // user_id_hash from auth.uid() (never client input). The callAdvisor input-RED and
 // web-lexicon paths short-circuit before the proxy, so this client RPC -- not a
 // proxy-only write -- is what actually fills the ledger.
+//
+// outboxEventId (0179, hardened by 0181): same contract as insertAiAuditLog -
+// the outbox entry id makes a retried RED event land on one
+// (user_id_hash, outbox_event_id) row, and a failed keyed write is never
+// retried through the unkeyed log_crisis_event.
 export async function insertCrisisEvent(
   meta: CrisisEventInsert,
   accessToken?: string,
   signal?: AbortSignal,
+  outboxEventId?: string,
 ): Promise<void> {
+  if (outboxEventId !== undefined) assertOutboxEventId(outboxEventId);
   const args = {
     p_classifier_confidence: meta.classifierConfidence,
     p_trigger_categories: meta.triggerCategories,
@@ -52,8 +68,10 @@ export async function insertCrisisEvent(
     p_routing_template_version: meta.routingTemplateVersion,
     p_locale: meta.locale,
   };
+  const name = outboxEventId === undefined ? "log_crisis_event" : "log_crisis_event_once";
+  const body = outboxEventId === undefined ? args : { p_outbox_event_id: outboxEventId, ...args };
   const { error } = accessToken
-    ? await rpcWithCapturedSession("log_crisis_event", args, accessToken, signal)
-    : await getSupabaseClient().rpc("log_crisis_event", args);
+    ? await rpcWithCapturedSession(name, body, accessToken, signal)
+    : await getSupabaseClient().rpc(name, body);
   if (error) throw error;
 }

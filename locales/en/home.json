@@ -109,6 +109,8 @@
       },
       "inbox": "Notifications",
       "headA11y": "Ask SecondB",
+      "dialogueOpen": "Open SecondB dialogue",
+      "dialogueClose": "Close SecondB dialogue",
       "kind": {
         "domain": "Area",
         "profile": "How others see me"
@@ -122,7 +124,7 @@
         "tip3": "Your North Star brings your records into one sentence you can revise.",
         "next": "Next",
         "openMenu": "Feature menu",
-        "menuTag": "SecondB",
+        "menuTag": "Menu",
         "menu": "What would you like to do?",
         "travel": "Travel",
         "later": "Later",
@@ -586,6 +588,7 @@
       "lockedBody": "You haven't reached this stretch of life yet. It'll open when you do.",
       "profileBody": "Review and add to the basic information you entered at sign-up. This star gets brighter as you fill it in.",
       "openProfile": "Open profile",
+      "editAvatar": "Customize my avatar",
       "loading": "Loading…",
       "emptyBody": "No stories here yet. Start a conversation to add one.",
       "dug": "{{n}} of {{total}} topics discussed",

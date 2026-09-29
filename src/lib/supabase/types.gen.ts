@@ -2688,6 +2688,7 @@ export type Database = {
       users: {
         Row: {
           account_status: string
+          avatar_spec: Json | null
           birth_date: string
           coachmarks_seen: Json
           consent_share_with_judges: boolean
@@ -2711,6 +2712,7 @@ export type Database = {
         }
         Insert: {
           account_status?: string
+          avatar_spec?: Json | null
           birth_date: string
           coachmarks_seen?: Json
           consent_share_with_judges?: boolean
@@ -2734,6 +2736,7 @@ export type Database = {
         }
         Update: {
           account_status?: string
+          avatar_spec?: Json | null
           birth_date?: string
           coachmarks_seen?: Json
           consent_share_with_judges?: boolean

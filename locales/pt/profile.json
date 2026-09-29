@@ -1,6 +1,11 @@
 {
   "loading": "Carregando perfil...",
   "fallbackName": "Visitante",
+  "avatarStudio": {
+    "label": "Personalizar avatar",
+    "hint": "Mude a aparência e as roupas do seu personagem.",
+    "loadError": "Não foi possível carregar seu avatar. Tente novamente."
+  },
   "hero": {
     "eyebrow": "Eu",
     "title": "Perfil de {{displayName}}",

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2ndB 개인 대시보드 재구성 · QA 보고</title>
+  <style>
+    :root { color-scheme:light dark; --bg:#f8fafc; --panel:#fff; --ink:#142033; --muted:#526176; --accent:#215db7; --line:#bdc9d8; }
+    @media (prefers-color-scheme:dark) { :root { --bg:#0a0e18; --panel:#141b2e; --ink:#edf3fc; --muted:#b8c5d7; --accent:#91bcff; --line:#3d4866; } }
+    * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.6 system-ui,sans-serif; }
+    main { max-width:980px; margin:auto; padding:30px 20px 64px; } h1,h2 { line-height:1.25; } h1 { margin:.25rem 0 1rem; font-size:clamp(1.5rem,4vw,2.3rem); }
+    .eyebrow { color:var(--accent); font-weight:700; } .muted,small { color:var(--muted); } .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin:24px 0; }
+    .card,details { background:var(--panel); border:1px solid var(--line); padding:16px; } .card strong { display:block; color:var(--accent); font-size:1.3rem; } .card p { margin:.4rem 0 0; }
+    details { margin:12px 0; } summary { cursor:pointer; font-weight:700; } summary:focus-visible,a:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+    table { width:100%; border-collapse:collapse; } th,td { padding:9px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; } a { color:var(--accent); } code { overflow-wrap:anywhere; }
+    .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:20px 0; } .flow span { background:var(--panel); border:1px solid var(--line); padding:7px 11px; } .flow b { color:var(--accent); }
+    footer { border-top:1px solid var(--line); margin-top:30px; padding-top:14px; color:var(--muted); }
+  </style>
+</head>
+<body><main>
+  <p class="eyebrow">2ndB · 2026-09-26 22:30:34 KST · QA 계정 실화면 검증</p>
+  <h1>‘개인 대시보드’의 의사결정 구조를 앱에 반영했습니다</h1>
+  <p>Claude의 정적 HTML을 그대로 복제하지 않고, 사용자가 원한 <strong>한눈에 판단 → 변화 확인 → 출처 확인 → 세부 근거</strong>의 순서를 2ndB 휴대전화 화면에 옮겼습니다. 숫자는 QA 계정의 실제 저장 자료에서만 읽고, 앱에 없는 연결은 연결된 것처럼 표시하지 않았습니다.</p>
+  <div class="cards" aria-label="결과 요약">
+    <div class="card"><strong>1개</strong><p>지금 할 일: 직접 승인한 루틴을 우선하는 결정 규칙</p></div>
+    <div class="card"><strong>3개</strong><p>한눈 지표: 오늘 루틴·최근 기록·동의한 활동</p></div>
+    <div class="card"><strong>7일</strong><p>기록 추이와 승인한 반복 루틴 전망</p></div>
+    <div class="card"><strong>1시간</strong><p>기본 재조회 주기. 활성 화면에서만 작동, 설정에서 변경 가능</p></div>
+  </div>
+  <div class="flow" aria-label="화면 정보 순서"><span>지금 할 일</span><b>→</b><span>핵심 지표</span><b>→</b><span>7일 추이·전망</span><b>→</b><span>연결 상태·출처</span><b>→</b><span>원문·상세</span></div>
+  <details open><summary>왜 Claude 화면과 달랐고, 이번에 어떻게 고쳤나</summary>
+    <table><thead><tr><th>의도 / 참고 화면</th><th>이전 앱</th><th>이번 구현</th></tr></thead><tbody>
+      <tr><td>첫 화면에서 중요한 행동과 수치를 읽기</td><td>루틴·인터뷰·영역 카드가 같은 비중으로 나열됨</td><td>근거 있는 ‘지금 할 일’ 1개와 지표 3개를 상단에 배치. 기록 원문은 상세 열기로 이동.</td></tr>
+      <tr><td>변화와 앞으로의 일정 보기</td><td>반복 루틴 전망만 표시</td><td>최근 7일 기록 막대와 7일 승인 루틴 전망을 나란한 섹션으로 표시.</td></tr>
+      <tr><td>연결 상태와 수치 출처 구별하기</td><td>데이터 출처가 첫 화면에서 잘 드러나지 않음</td><td>각 소스의 저장·비어 있음·동의 꺼짐·읽기 실패를 분리하고 집계 방법을 열어 볼 수 있게 함.</td></tr>
+      <tr><td>유지 가능한 규칙</td><td>화면에 분산된 선택 로직</td><td>버전 2 JSON에 지표·행동 순서와 조회 한도·기간을 고정하고 순수 함수 테스트로 검증.</td></tr>
+    </tbody></table>
+  </details>
+  <details><summary>QA 계정에서 실제로 본 결과</summary>
+    <p><code>qa.ai.b18807@example.com</code>으로 열린 <code>http://localhost:8081/dashboard</code>의 모바일 폭(425×812)에서 확인했습니다. 최근 저장 기록 10건을 읽어 7일 추이에 반영했습니다. 승인된 루틴이 없으므로 ‘작은 행동 하나 정하기’가 나타났고, 동의한 건강 자료가 없어 활동 값은 비어 있었습니다. 임의 일정·활동·CI 수치는 만들지 않았습니다.</p>
+    <p>지표를 누르면 집계 방법이 열리고, 출처 설명과 인터뷰 원문은 별도 상세 영역에서 확인했습니다. ‘설정에서 관리’는 <code>/data-connections</code>로 이동하며 기본 1시간 선택을 확인했습니다. 마지막 이동 재검증에서 새 콘솔 오류는 없었습니다.</p>
+    <p><a href="dashboard-rebuild-260926/qa-mobile-final.png">QA 최종 첫 화면 캡처</a> · <a href="dashboard-rebuild-260926/qa-details-full.png">상세를 연 화면 캡처</a></p>
+  </details>
+  <details><summary>데이터 계산과 보수적인 표시 원칙</summary>
+    <table><thead><tr><th>항목</th><th>근거와 한계</th></tr></thead><tbody>
+      <tr><td>지금 할 일</td><td>오늘 해당하며 미완료인 승인 루틴 → 모두 완료 → 루틴 계획 → 첫 인터뷰 순. 인터뷰 문장만으로 해야 할 일을 추정하지 않음.</td></tr>
+      <tr><td>최근 기록</td><td>서버에서 최대 80건 읽음. 80건을 채우면 ‘80+’와 불완전한 집계 가능성을 표시. 전체 기록 수라 주장하지 않음.</td></tr>
+      <tr><td>7일 추이</td><td>읽은 최근 기록만 날짜별 집계. 읽기 실패는 0이 아니라 확인 불가로 표시.</td></tr>
+      <tr><td>앞으로 7일</td><td>사용자가 승인한 반복 루틴만 계산. 외부 캘린더 이벤트가 아님.</td></tr>
+      <tr><td>건강 활동</td><td>성인 확인과 명시적 건강 가져오기 동의가 있는 경우 저장된 최신 값만 표시.</td></tr>
+      <tr><td>자동 갱신</td><td>기본 60분. 화면 활성 중 앱이 이미 저장한 데이터를 다시 읽음. 외부 서비스 백그라운드 동기화가 아님.</td></tr>
+    </tbody></table>
+  </details>
+  <details><summary>아직 구현되지 않은 연결과 검증 범위</summary>
+    <p>참고 HTML의 Google Calendar·Gmail·Linear·GitHub CI는 개인 업무 데이터 소스입니다. 2ndB QA 계정에 해당 커넥터/OAuth 및 질의 가능한 이벤트 피드가 없으므로, 마감 D-day·메일 미읽음·CI 실패율을 가짜 값으로 채우지 않았습니다. 파일 가져오기 이력은 자동 동기화 상태가 아니며 외부 캘린더는 현재 파일 가져오기만 제공합니다.</p>
+    <p>현재 작업은 운영 배포나 새 데이터 연동을 포함하지 않습니다. 브라우저 초기 로드에서 기존 manifest 404 및 앱 공통 경고가 관찰됐으며, 이번 화면 이동 후 새 오류는 관찰되지 않았습니다.</p>
+    <p id="verification">검증: <code>npm run verify</code> 통과(800개 Jest 묶음·10,087개 테스트, UI 하드닝 테스트 76개, 타입 검사·i18n·제약 검사 포함). 전체 린트는 오류 0건·기존 경고 72건입니다. QA 계정 실화면에서 모바일 폭·상세 열기·설정 이동과 기본 1시간 주기를 확인했습니다.</p>
+  </details>
+  <footer>작성 당시 코드 위치: 워크트리 <code>observatory-260925</code>(브랜치 <code>codex/observatory-dashboard-260925</code>)의 미커밋 작업. 2026-09-28 코딩 세션이 main 으로 이식했다(feat/observatory-phone-wave2-260928). 참고한 로컬 자료: 사용자가 첨부한 원본 HTML, 저장소 <code>CLAUDE.md</code>·<code>DESIGN.md</code>.</footer>
+</main></body></html>

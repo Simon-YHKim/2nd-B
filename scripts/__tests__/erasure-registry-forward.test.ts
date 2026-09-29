@@ -3,13 +3,20 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { collectErasureRegistryErrors } from "../check-erasure-registry";
 import { renderRegistrySql, type Registry } from "../generate-erasure-registry";
-import { ADDITIONS_BEGIN, ADDITIONS_END, renderRegistryAdditionsSql } from "../erasure-registry-forward";
+import {
+  ADDITIONS_BEGIN,
+  ADDITIONS_END,
+  REVISIONS_BEGIN,
+  REVISIONS_END,
+  renderRegistryAdditionsSql,
+  renderRegistryRevisionsSql,
+} from "../erasure-registry-forward";
 
 const FORWARD = "0192_registry_additions.sql";
 const entry = { owner: "user_id", class: "retained" as const, reason: "Existing quota survives content deletion." };
 const baseline: Registry = { version: 1, tables: { audit: entry } };
 const addition: Registry = { version: 1, tables: { usage: entry } };
-type WithHistory = Registry & { forwardAdditions?: unknown };
+type WithHistory = Registry & { forwardAdditions?: unknown; forwardRevisions?: unknown };
 let root = "";
 
 test("the inactive service-contract forward is generated from its four-row sidecar", () => {
@@ -189,4 +196,199 @@ test("historical rows cannot be reclassified as new forward additions", () => {
   canonical(value);
   write(`db/migrations/${FORWARD}`, renderRegistryAdditionsSql(value));
   expect(g7().join(" ")).toContain("historical subset");
+});
+
+// ---------------------------------------------------------------------------
+// forwardRevisions: a later numbered file may rewrite the REASON of a row that
+// already exists, and nothing else. The JSON keeps the current reason; each
+// revision records the one it replaces, so 0189 (or the forward that added the
+// row) is still rendered from history and compared byte for byte.
+// ---------------------------------------------------------------------------
+const REVISION = "0193_audit_reason.sql";
+const revised = "Quota survives content deletion; account deletion now removes it.";
+type Revisions = Record<string, Record<string, { previousReason: string }>>;
+const revisionOf = (table: string, value: WithHistory, previousReason: string) =>
+  ({ [table]: { entry: value.tables[table], previousReason } });
+
+function revisionFixture(): WithHistory {
+  const value = fixture();
+  value.tables.audit = { ...entry, reason: revised };
+  value.forwardRevisions = { [REVISION]: { audit: { previousReason: entry.reason } } };
+  write(`db/migrations/${REVISION}`, renderRegistryRevisionsSql(revisionOf("audit", value, entry.reason)));
+  canonical(value);
+  return value;
+}
+
+test("a historical row's reason can be revised forward without rewriting 0189", () => {
+  revisionFixture();
+  expect(g7()).toEqual([]);
+  expect(readFileSync(join(root, "db/migrations/0189_erasure_registry.sql"), "utf8")).toBe(renderRegistrySql(baseline));
+  expect(collectErasureRegistryErrors(root).filter((e) => /^G[12] /.test(e))).toEqual([]);
+});
+
+test("an undeclared revision still fails: the JSON reason moved and nothing records the old one", () => {
+  const value = revisionFixture();
+  expect(g7()).toEqual([]);
+  delete value.forwardRevisions;
+  canonical(value);
+  const errors = g7().join(" ");
+  expect(errors).toContain("historical subset");
+  expect(errors).toContain("undeclared forward revisions");
+});
+
+test("a recorded previous reason that 0189 never carried fails the historical comparison", () => {
+  const value = revisionFixture();
+  expect(g7()).toEqual([]);
+  const invented = "A reason 0189 never shipped with.";
+  value.forwardRevisions = { [REVISION]: { audit: { previousReason: invented } } };
+  canonical(value);
+  write(`db/migrations/${REVISION}`, renderRegistryRevisionsSql(revisionOf("audit", value, invented)));
+  expect(g7().join(" ")).toContain("historical subset");
+});
+
+test("a revision cannot carry a reclassification: class stays pinned to 0189", () => {
+  const value = revisionFixture();
+  expect(g7()).toEqual([]);
+  value.tables.audit = { ...value.tables.audit, class: "account_delete_only" };
+  canonical(value);
+  write(`db/migrations/${REVISION}`, renderRegistryRevisionsSql(revisionOf("audit", value, entry.reason)));
+  expect(g7().join(" ")).toContain("historical subset");
+});
+
+test.each([
+  ["a different reason", (sql: string) => sql.replace("now removes it", "now keeps it")],
+  ["an appended data change", (sql: string) => `${sql}\nDELETE FROM public.audit;`],
+  ["an appended provisioning statement", (sql: string) => `${sql}\nCREATE TABLE public.unrelated (id int);`],
+  ["a prefixed statement", (sql: string) => `SELECT 1;\n${sql}`],
+  ["the block wrapped in a comment", (sql: string) => `/*\n${sql}\n*/`],
+  ["an unterminated trailing comment", (sql: string) => `${sql}\n/* unterminated`],
+])("a revision migration must hold exactly its generated block: %s", (_label, mutate) => {
+  revisionFixture();
+  expect(g7()).toEqual([]);
+  write(`db/migrations/${REVISION}`, mutate(readFileSync(join(root, `db/migrations/${REVISION}`), "utf8")));
+  expect(g7().join(" ")).toContain("exact generated revisions");
+});
+
+test("comments and CRLF around a revision block do not change the replay contract", () => {
+  const value = revisionFixture();
+  const block = renderRegistryRevisionsSql(revisionOf("audit", value, entry.reason));
+  write(`db/migrations/${REVISION}`, ("-- Reviewed reason revision.\n" + block + "\n/* registry only */\n").replace(/\n/g, "\r\n"));
+  expect(g7()).toEqual([]);
+});
+
+test.each([
+  null,
+  [],
+  "0193_audit_reason.sql",
+  { "0189_old.sql": { audit: { previousReason: entry.reason } } },
+  { "193_audit_reason.sql": { audit: { previousReason: entry.reason } } },
+  { [REVISION]: {} },
+  { [REVISION]: [] },
+  { [REVISION]: { audit: {} } },
+  { [REVISION]: { audit: "Existing quota survives content deletion." } },
+  { [REVISION]: { audit: { previousReason: "" } } },
+  { [REVISION]: { audit: { previousReason: entry.reason, class: "retained" } } },
+  { [REVISION]: { missing: { previousReason: entry.reason } } },
+])("malformed or unsafe revision declarations fail closed: %j", (mapping) => {
+  const value = revisionFixture();
+  expect(g7()).toEqual([]);
+  value.forwardRevisions = mapping;
+  canonical(value);
+  expect(g7().length).toBeGreaterThan(0);
+});
+
+test("a revision whose recorded previous reason equals the new one is refused", () => {
+  const value = revisionFixture();
+  value.forwardRevisions = { [REVISION]: { audit: { previousReason: revised } } };
+  canonical(value);
+  expect(g7().join(" ")).toContain("changes nothing");
+});
+
+test("a missing revision file cannot authorise a changed reason", () => {
+  const value = revisionFixture();
+  value.forwardRevisions = { "0194_missing.sql": { audit: { previousReason: entry.reason } } };
+  canonical(value);
+  const errors = g7().join(" ");
+  expect(errors).toContain("missing");
+  expect(errors).toContain("undeclared forward revisions");
+});
+
+test("a generated revision block must be declared, even in a second file", () => {
+  const value = revisionFixture();
+  expect(g7()).toEqual([]);
+  write("db/migrations/0194_unlisted.sql", renderRegistryRevisionsSql(revisionOf("audit", value, entry.reason)));
+  expect(g7().join(" ")).toContain("undeclared forward revisions");
+});
+
+test("a revision cannot reuse another migration's number", () => {
+  revisionFixture();
+  write("db/migrations/0193_already_reserved.sql", "-- Existing migration.");
+  expect(g7().join(" ")).toContain("migration number is already used");
+});
+
+test("one file cannot be both an additions forward and a revision", () => {
+  const value = revisionFixture();
+  value.forwardRevisions = { [FORWARD]: { audit: { previousReason: entry.reason } } };
+  canonical(value);
+  expect(g7().join(" ")).toContain("both forwardAdditions and forwardRevisions");
+});
+
+test("revisions chain in number order, each rendering the reason the next one replaces", () => {
+  const value = revisionFixture();
+  const third = "Quota survives content deletion; account deletion removes it (second revision).";
+  value.tables.audit = { ...entry, reason: third };
+  (value.forwardRevisions as Revisions)["0194_audit_reason_again.sql"] = { audit: { previousReason: revised } };
+  canonical(value);
+  write("db/migrations/0194_audit_reason_again.sql",
+    renderRegistryRevisionsSql({ audit: { entry: { ...entry, reason: third }, previousReason: revised } }));
+  expect(g7()).toEqual([]);
+  // The first file must keep rendering the INTERMEDIATE reason, not the current one.
+  write(`db/migrations/${REVISION}`,
+    renderRegistryRevisionsSql({ audit: { entry: { ...entry, reason: third }, previousReason: entry.reason } }));
+  expect(g7().join(" ")).toContain(`${REVISION} must contain only its exact generated revisions`);
+});
+
+test("a forward-added row can be revised later; its additions file keeps rendering history", () => {
+  const value = fixture();
+  value.tables.usage = { ...entry, reason: revised };
+  value.forwardRevisions = { [REVISION]: { usage: { previousReason: entry.reason } } };
+  canonical(value);
+  write(`db/migrations/${REVISION}`, renderRegistryRevisionsSql(revisionOf("usage", value, entry.reason)));
+  expect(g7()).toEqual([]);
+  // Re-rendering the additions file from the CURRENT reason is what G7 refuses.
+  write(`db/migrations/${FORWARD}`, renderRegistryAdditionsSql({ version: 1, tables: { usage: value.tables.usage } }));
+  expect(g7().join(" ")).toContain(`${FORWARD} must contain only its exact generated additions`);
+});
+
+test("a revision may not precede the forward migration that adds its row", () => {
+  const value = fixture();
+  renameSync(join(root, `db/migrations/${FORWARD}`), join(root, "db/migrations/0195_registry_additions.sql"));
+  value.forwardAdditions = { "0195_registry_additions.sql": ["usage"] };
+  value.tables.usage = { ...entry, reason: revised };
+  value.forwardRevisions = { [REVISION]: { usage: { previousReason: entry.reason } } };
+  canonical(value);
+  write(`db/migrations/${REVISION}`, renderRegistryRevisionsSql(revisionOf("usage", value, entry.reason)));
+  expect(g7().join(" ")).toContain("before the forward migration that adds it");
+});
+
+test("the renderer refuses a reason that could close its dollar-quoted body", () => {
+  expect(() => renderRegistryRevisionsSql({
+    audit: { entry: { ...entry, reason: "ends $erasure_revisions$; DROP TABLE public.audit; --" }, previousReason: entry.reason },
+  })).toThrow("invalid registry revision");
+  expect(() => renderRegistryRevisionsSql({})).toThrow("must not be empty");
+});
+
+test("the shipped credit_ledger revision keeps 0189 historical and the JSON current", () => {
+  const repo = resolve(__dirname, "../..");
+  const json = JSON.parse(readFileSync(join(repo, "db/erasure-registry.json"), "utf8"));
+  const file = "0205_credit_ledger_erasure_registry_reason.sql";
+  const previous: string = json.forwardRevisions[file].credit_ledger.previousReason;
+  const seed = readFileSync(join(repo, "db/migrations/0189_erasure_registry.sql"), "utf8");
+  expect(seed).toContain(`('credit_ledger', 'user_id', 'retained', NULL, NULL, '${previous}')`);
+  expect(json.tables.credit_ledger.class).toBe("retained");
+  expect(json.tables.credit_ledger.reason).not.toBe(previous);
+  expect(json.tables.credit_ledger.reason).toMatch(/promo/);
+  const sql = readFileSync(join(repo, "db/migrations", file), "utf8").replace(/\r\n/g, "\n");
+  expect(sql.slice(sql.indexOf(REVISIONS_BEGIN), sql.indexOf(REVISIONS_END) + REVISIONS_END.length))
+    .toBe(renderRegistryRevisionsSql({ credit_ledger: { entry: json.tables.credit_ledger, previousReason: previous } }));
 });
