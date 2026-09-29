@@ -2,6 +2,50 @@
 
 Project-specific guidance for Claude Code sessions in this repo.
 
+## ⚠ 앱과 localhost 는 같은 소프트웨어다 (Simon 결정 2026-09-29) — 모든 세션 필수
+
+Simon 원문: *"앱과 localhost는 같은 s/w여야 한다고. 그리고 localhost를 수정하면 앱에도
+무조껀 동일하게 변경하라고."* 이 절은 모든 에이전트(Claude · Codex · 그 밖) · 모든 워크트리에
+적용되고, 아래 QA 계정 절의 `.env` 안내보다 이긴다.
+
+**계기 (2026-09-29 실측).** Simon 이 보던 localhost 가 하루에 두 번 폰 앱과 달랐다.
+① 다른 워크트리의 개발 서버: main 보다 뒤처진 기반 + 미커밋 파일 586개 + `.env` 의 등급 강제.
+② main 을 띄웠지만 `.env` 를 복사해 와서 `EXPO_PUBLIC_FORCE_TIER=brain` · 개발 모드였다.
+**코드가 같아도 설정 · 모드가 다르면 다른 앱이다.** 폰 APK 는 `FORCE_TIER=off` · 릴리스 모드다.
+
+1. **localhost 는 `npm run localhost` 로만 띄운다** (`npm run web` 은 같은 명령 + 브라우저 열기).
+   `expo start` · `npm start` 로 8081 을 띄우지 않는다. 이 명령(`scripts/app-parity.cjs`)은
+   폰 APK 빌드(`.github/workflows/android-release.yml` 의 `jobs.build.env`)의 `EXPO_PUBLIC_*`
+   를 **실행할 때마다 그 파일과 저장소 Variables 에서 읽어** 넣고, `.env` 를 무시하고
+   (`EXPO_NO_DOTENV=1`), 릴리스 모드(`--no-dev --minify`) · 이 서버 전용 Metro 캐시로 띄운다.
+   값을 다른 곳에 복사해 두지 않는다 — 복사본은 반드시 갈라진다.
+2. **Simon 이 보는 자리는 8081 이고, 띄우는 곳은 `E:\2ndB\.worktrees\localhost-main`** 이다
+   (origin/main 을 detached 로 체크아웃한 전용 워크트리, 편집 금지). 스크립트는 폰 QA APK
+   (가장 최근 `qa-*` pre-release)와 **앱 경로**(워크플로의 `on.push.paths`: `src/**` ·
+   `assets/**` · `package.json` 등)가 한 파일이라도 다르면 8081 을 **거부**한다. 미커밋 파일 ·
+   머지 전 브랜치 · 아직 APK 로 안 나간 main 커밋 전부 거부 대상이다.
+3. **localhost 에 보이는 것을 바꾸면 앱도 같은 턴에 바꾼다.** 순서:
+   PR → main 머지 → `npm run app:qa-release`(그 커밋의 android-release APK 를 QA pre-release 로
+   올린다. 빌드가 끝날 때까지 기다린다) → localhost-main 을 그 커밋으로 옮기고 8081 재기동 →
+   Simon 에게 APK 링크 전달. **한쪽만 바꾸고 턴을 끝내지 않는다.**
+4. **세션을 끝내기 전에 `npm run app:parity` 가 "같음" 이어야 한다.** "다름" 이면 이유와 남은
+   단계를 HANDOFF 에 적는다. 폰에 무엇이 실제로 깔렸는지는 스크립트가 알 수 없다 — 최신 QA
+   APK 를 깔았다고 보고, 새 APK 를 올렸으면 Simon 에게 링크를 준다.
+5. **세션 자체 확인용 서버**는 8081 이 아닌 포트에서 같은 스크립트로 띄운다:
+   `node scripts/app-parity.cjs localhost --port=8082 --allow-diff` (유료 화면은 `--tier=brain`
+   추가). **이것은 앱이 아니다** — Simon 에게 앱 화면으로 보여 주지 않는다.
+6. **설정으로 없앨 수 없는 차이는 남는다**: 웹 vs 네이티브(광고 SDK · 네이티브 모듈 · 권한 ·
+   푸시 · 파일 선택 · 백그라운드). 그런 동작은 폰(또는 에뮬레이터)에서 확인한다.
+
+```powershell
+# 8081 다시 띄우기 (localhost-main 이 없으면: git -C E:\2ndB worktree add --detach .worktrees/localhost-main origin/main
+#  + 아래 "Worktrees & branches" 의 node_modules 정션)
+cd E:\2ndB\.worktrees\localhost-main
+git fetch origin ; git checkout --detach origin/main
+npm run localhost          # 폰 APK 와 앱 경로가 다르면 거부한다 → npm run app:qa-release 먼저
+npm run app:parity         # 어느 워크트리에서 쳐도 8081 의 기록(E:\2ndB\.git\app-parity\)을 본다
+```
+
 ## Project context
 
 - **What**: 2nd-Brain — *AI 시대 가장 가치있는 자산 = 나 자신* 을 데이터로 축적하고 개인 비서로 키우는 플랫폼. 세 축: (1) 알아가기 · (2) 개인 비서 기반 · (3) 공상 → 구체화.
@@ -550,7 +594,10 @@ sign in and exercise the real app during QA. **Reuse it — do not create anothe
 - **Credentials**: `.env.test` (committed at repo root) → `QA_TEST_EMAIL` / `QA_TEST_PASSWORD`.
 - **Account**: `qa.ai.b18807@example.com` — email/password sign-in, free tier, adult, `judge_mode=false`, RLS-isolated (only its own rows).
 - Disposable and non-secret (the Supabase anon key is already public). Revoke anytime by deleting the user in Supabase Auth. Real secrets (service_role, API keys, `.env`) still never go in git.
-- To test paywalled features, set `EXPO_PUBLIC_FORCE_TIER` in `.env` (e.g. `brain` unlocks everything) — the account itself stays free.
+- To test paywalled features, run a **session-only** server on another port:
+  `node scripts/app-parity.cjs localhost --port=8082 --allow-diff --tier=brain` (the account itself stays free).
+  `npm run localhost` ignores `.env`, so an `EXPO_PUBLIC_FORCE_TIER` there never reaches 8081, and a
+  forced tier is never shown to Simon as the app. See "앱과 localhost 는 같은 소프트웨어다" at the top.
 
 ## Canonical concept & direction (read first)
 
