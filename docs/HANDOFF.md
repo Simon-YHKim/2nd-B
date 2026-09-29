@@ -11,7 +11,7 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-09-25 ~ 2026-09-26 | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 10 | 25KB |
+| 2026-09-25 ~ 2026-09-26 | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 11 | 27KB |
 | 2026-09-08 ~ 2026-09-21 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 16 | 94KB |
 | 2026-09-01 ~ 2026-09-08 (+09-13 인계 1) | [handoff/HANDOFF-2026-09.md](handoff/HANDOFF-2026-09.md) | 18 | 92KB |
 | 2026-08-25 ~ 2026-08-30 | [handoff/HANDOFF-2026-08-p4.md](handoff/HANDOFF-2026-08-p4.md) | 11 | 89KB |
@@ -41,6 +41,17 @@
   미커밋 14개는 `E:\Coding Infra\_rescue\ttl-work-rev2-260929\` 에 SHA256SUMS 와 함께 있다. 그중 main 과 같은 8개와 main 판이 최신인 1개는 치웠다. main 에 없는 PNG 4개는 제자리에 남겼다.
 - **함정 예방.** `docs/legal/trademark-clearance-brief-260825.md` 의 "작성 당시 `docs/HANDOFF.md:N`" 역사 표기 3곳에서 백틱을 벗겼다. HANDOFF 에 블록이 얹힐 때마다 그 번호가 밀려 법무 인용 검사가 언젠가 빈 줄을 만나기 때문이다. 실제 근거 인용(p4 보관 파일)은 그대로다.
 - **다음 1개.** 없음. 이후 화면을 바꾸는 세션은 CLAUDE.md 맨 위 절 순서를 그대로 따른다.
+
+---
+
+## 2026-09-29 23:47 / 삭제 fence·서비스 동의 서버 선행 적용과 잔여 canary
+
+- main `90650414`의 [#1929](https://github.com/Simon-YHKim/2nd-B/pull/1929)는 현행 `0194`의 `service-v1`/`email-v6` SQL 회귀를 추가했다. 로컬 verify 846 suites·10,933 tests, PR CI 4종 PASS 뒤 병합했다. 웹 운영 게시와 Android 빌드는 없었다.
+- 콘솔 claim `PROD-DELETE-CONSENT-260929`에서 운영 `zoacryukmdeivmolvyhj`에 **0192**(`20260929143410`)와 **0194**(`20260929143632`)를 적용했다. 원장 181→183행. Storage 정책·trigger·tombstone RLS와 서비스 동의 RPC ACL·`email-v6` 판본을 확인했다. 9월 27일 격리 리허설 PASS/삭제 완료로 새 임시 프로젝트는 만들지 않았다.
+- [삭제 Edge run 36583694890](https://github.com/Simon-YHKim/2nd-B/actions/runs/36583694890)으로 `delete-account` v135, [동의 run 36583979169](https://github.com/Simon-YHKim/2nd-B/actions/runs/36583979169)으로 `service-consent` v1을 배포했다. 두 함수는 JWT 검증·main 소스 일치·비인증 401이다. [운영 전환 기록](qa/ACCOUNT-DELETION-ROLLOUT-260929.md)과 Relay `claim-prod-delete-consent-260929.coding.result.md` 참조.
+- **남은 서버 게이트:** QA 계정의 서비스 동의 `status`는 503 `service_consent_unavailable`이었다. 잘못된 body도 503이어서 mode gate 거부로 추정하나 설정값은 모른다. 운영 삭제 전체 흐름은 일회용 계정이 없어 미검증이다. 공용 QA 계정·서버 설정은 변경하지 않았다.
+- [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)는 10월 5일 `email-v7/service-v2` Draft로 둔다. 일반 Chrome의 로그인된 Play Console에서 PolaScope 게시 개요를 읽었다. **게시 준비 변경 2건**(영어 앱 이름·전체 설명)이 있어 데이터 보안 Revision 2를 저장·제출하면 섞일 위험이 있다. 폼 저장·검토 제출·게시를 하지 않았다.
+- 재개: `git fetch origin main` → `git show origin/main:docs/HANDOFF.md`. 다음은 동의 mode·읽기 canary, 일회용 계정 삭제 canary, Play 데이터 보안 원본과 게시 준비 2건의 출시 순서 확인. 관측은 09-29 23:47 KST 기준.
 
 ---
 
@@ -585,21 +596,4 @@ npm run verify
 - 코딩 세션의 인증된 Supabase **읽기 전용** 조회에서 `0172_reward_authorization_hardening` 원장 행이 `20260926050258`와 `20260926050638` 두 개 확인됐다. 각 SQL은 9639/9640바이트이고 공백 제외 MD5는 동일하다. 두 번째 적용 뒤 함수 지문과 플래그·실제 기능은 재검증하지 않았다.
 - Edge 함수 목록의 `rewarded-ssv`는 v89로, 아래 13:51 기록의 v88보다 최신이다. 현재 활성화 상태를 이 조회만으로 판정하지 않는다.
 - **콘솔 담당 확인 전 0172·0177·hardening 재적용과 Reward 활성화·카나리아는 보류한다.** 중복 원장 원인, 두 번째 적용 뒤 13개 함수 지문·ACL, v89 소스와 서버 플래그를 대조한다. [PR #1865 잔여 작업](qa/REMAINING-WORK-260926.html). 이 코딩 세션은 운영 쓰기·Grok 후속 발송을 하지 않았다.
-
-## 2026-09-26 14:06 / 0172 를 운영에 적용했다 (Simon GO) · 보상 서버는 여전히 꺼져 있다
-
-### 어디까지 왔나
-
-- 이 블록 작성 전 `origin/main` 은 `c0973cf0`(#1866). 바로 아래 13:51 블록의 작업 큐 A ①②가 끝났다.
-- Simon 이 이 세션에 "적용해." 로 GO 를 줬다. **2026-09-26 14:02:58 KST** 에 `apply_migration(name=0172_reward_authorization_hardening, query=<main 파일 바이트>)` 로 적용했다. 원장은 `20260926050258 0172_reward_authorization_hardening`(번호 stem 이름)이다.
-- 적용 직전에 다시 확인했다: 원장에 0172 류 0건, 보상 함수 13개 지문이 13:47 기준과 13/13 동일(그 사이 아무도 안 바꿈). 직전 정의·ACL 스냅샷은 `E:/Coding Infra/reports/vibe-r260926/r0172-prod-order/apply/` 에 있다.
-- 적용 뒤: 지문이 로컬 재생의 설계 순서(0172→0177→hardening)와 **13/13 동일**하다. 바뀐 줄은 예측한 5줄이다. 14:02:58 전후 Edge 응답은 전부 200(전 100 · 후 38)이고, Postgres 로그의 권한 오류는 0건이다. apply_migration 은 `begin;` 으로 감싸 실행돼 파일의 `SET LOCAL` 도 유효했다.
-- Grok 봇 팀에는 `relay/inbox/vb-e7332f88.md` 로 "이미 적용됨, 재적용 금지" 를 알렸다. 14:03:51 에 같은 알림을 `vb-81643efb` 로 올렸는데 셸 오류로 본문이 0바이트였다. claim 되기 전에 걷어냈다.
-
-### 다음 작업 큐
-
-| # | 작업 | 누가 | 권장 |
-|---|---|---|---|
-| A | `REWARD_SSV_ENABLED=1` **제한 카나리아**(서명·변조·재전송, 감시 창 안). 지금 값은 `true` 라 서버는 503 `disabled` | Simon GO · 콘솔 세션 | ⭐ 0172 가 들어가서 이제 켤 수 있는 상태다. 광고 ON 은 별도 GO |
-| B~E | 13:51 블록의 B~E 그대로(#1865 머지 전 `rewarded-ssv` 디스패치 금지 · hardening 번호 매핑 · 원장 밖 ACL 출처 · 미푸시 워크트리) | 각 주인 | 변동 없음 |
 
