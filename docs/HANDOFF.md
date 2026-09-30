@@ -29,7 +29,17 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-30 23:57 / 커뮤니티 초대 입장 경합 수정·GUI 검증·앱 동등성
+## Latest — 2026-10-01 01:07 / 메모 OCR 수기 입력·저장 안내 GUI 회귀 수정
+
+- **PR #1963 병합 SHA `3f8c7544`**: [PR #1963](https://github.com/Simon-YHKim/2nd-B/pull/1963)은 OCR 오류 뒤 결과 상자에 수기로 입력한 글을 `메모에 넣기`로 옮길 수 있게 했다. 비활성 저장 버튼의 안내도 기본 메모·링크·할 일에서는 공통 입력 안내를, 4W1H 메모에서만 필수 `무엇을` 칸 안내를 쓴다. 영어·한국어·스페인어·포르투갈어·인도네시아어 문구와 회귀 테스트를 포함한다. DB·운영 설정 변경은 없다.
+- **검증**: 병합 전 로컬 `npm run verify -- --runInBand` 862 suites/11,163 tests 통과. 최신 main `7a1d1d3f`를 브랜치에 통합한 뒤 PR CI `lint`·`verify`·`web-export-smoke` 3/3 통과. 375×812 격리 Chrome에서 OCR POST를 차단해 오류를 재현하고 수기 입력·메모 삽입을 확인했다. 저장 쓰기는 하지 않았고 페이지 오류 0건·가로 넘침 없음. [QA 기록](qa/memo-gui-fixes-261001.md) · [화면](qa/memo-gui-ocr-manual-261001.png).
+- **앱/localhost**: 8081 감독자가 `3f8c7544`를 따라갔다. `npm run app:parity`는 앱 경로 차이 0개, 설정·의존성 일치로 **같음**(exit 0)을 보고했다. 같은 SHA의 [Android 진단 빌드 36741708266](https://github.com/Simon-YHKim/2nd-B/actions/runs/36741708266)은 확인 시 대기 중이므로 최종 결과를 다시 확인한다. QA APK는 Simon이 폰에서 보기를 원할 때만 게시한다.
+- **남은 확인**: 실제 Android 사진 선택기·TalkBack 안내·OCR 성공 유료 경로는 기기와 유료 호출 없이 검증하지 못했다. `adb devices -l`에 연결 기기가 없다. Play Console 로그인이 확인되지 않았고 운영 동의·Play 신고·DB/Edge 적용은 `docs/SESSION-OWNERSHIP.md`의 콘솔 소유 경계를 따른다. Grok 후속은 Simon의 보류를 유지한다. 공개 Pages는 읽기 전용 QA에서 이전 배포의 PolaScope 로그인 화면을 확인했으며 이 PR SHA의 운영 웹 게시는 하지 않았다. 원래 `TTL-Work_rev2`의 다른 세션 미커밋 변경은 건드리지 않았다.
+- **다음 세션**: `git fetch origin main` → `git show origin/main:docs/HANDOFF.md` → 빌드 36741708266 최종 결과와 `npm run app:parity`를 재확인한다. 기기·콘솔 접근이 가능해지면 위 미검증 항목을 확인한다. Simon의 최신 지시대로 작은 구현 판단을 반복 질문하지 않는다. 운영·공개·비용·삭제 게이트는 기존 승인 범위와 저장소 지침을 확인한다.
+
+---
+
+## 2026-09-30 23:57 / 커뮤니티 초대 입장 경합 수정·GUI 검증·앱 동등성
 
 - **PR #1958 병합 SHA `90fd6b83`**: [PR #1958](https://github.com/Simon-YHKim/2nd-B/pull/1958)이 CI `lint`·`verify`·`web-export-smoke` 3/3 통과 후 병합됐다. 초대 A의 비동기 프로필·입장 결과가 토큰 B, 사용자 변경, 재시도, 화면 이탈 뒤 현재 화면을 이동시키거나 오류를 덮지 않도록 요청 유효성을 검사한다. A가 프로필 단계에서 낡아졌다면 입장 RPC도 호출하지 않는다. DB·운영 설정 변경은 없다.
 - **검증**: 병합 전 최신 main 기반 `npm run verify -- --runInBand` 861 suites/11,141 tests 통과. 지연 Promise 회귀 테스트 4개가 현재 성공·프로필 중 초대 전환·입장 중 전환·오래된 오류 무시를 검증한다. 375×812 Chrome QA에서 잘못된 초대의 오류 화면과 모의 입장의 방 경로 이동을 확인했다. 페이지 오류·가로 넘침 0건이며 쓰기 응답은 모의 처리했다. [QA 기록](qa/community-join-lifecycle-260930.md) · [화면](qa/community-join-lifecycle-260930.png).
