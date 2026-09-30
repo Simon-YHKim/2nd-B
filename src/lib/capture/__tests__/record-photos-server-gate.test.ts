@@ -48,11 +48,14 @@ describe("record photos: client switch vs server readiness", () => {
     expect(serverSide()).toEqual({ bucket: true, erasure: true, exported: true });
   });
 
-  test("the switch is still off: production must apply 0209 and deploy both functions first", () => {
-    // 2026-09-30: the server pieces landed in the repo, not in production. The
-    // follow-up change flips RECORD_PHOTOS_ENABLED and turns this into `true`,
-    // after the 운영 적용 순서 in its PR has been carried out.
-    expect(RECORD_PHOTOS_ENABLED).toBe(false);
+  test("the switch is on, and only because the server pieces above are in the repo", () => {
+    // 2026-09-30: flipped in the change after #1955. That PR's 운영 적용 순서
+    // (apply 0209, then deploy delete-account and export-account) must be done
+    // before this merges; the repo cannot see production, so that stays a
+    // human step.
+    const server = serverSide();
+    expect(RECORD_PHOTOS_ENABLED).toBe(server.bucket && server.erasure && server.exported);
+    expect(RECORD_PHOTOS_ENABLED).toBe(true);
   });
 
   test("delete-account sweeps photos behind the fence and before Auth deletion", () => {

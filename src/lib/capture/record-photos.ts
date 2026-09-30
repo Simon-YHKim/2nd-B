@@ -25,9 +25,9 @@
 //      `<uid>/photo-%.jpg`, no update, and the 0192 deletion fence;
 //   2. delete-account sweeps this bucket before Auth deletion;
 //   3. export-account lists the photos as 24-hour signed URLs.
-// RECORD_PHOTOS_ENABLED stays false until those are APPLIED to production
-// (migration first, then both Edge deploys); the repo cannot see that, so the
-// switch is a separate change.
+// RECORD_PHOTOS_ENABLED is on from the change that follows those. Merge it
+// only after 0209 is APPLIED to production and both Edge functions are
+// deployed (the 운영 적용 순서 in #1955); the repo cannot see that.
 //
 // Nothing in this module calls an AI service. The photo is only stored and shown.
 
@@ -41,7 +41,7 @@ export const RECORD_PHOTO_BUCKET = "record-photos";
  * 0209 is applied and delete-account + export-account are deployed (see the
  * header); record-photos-server-gate.test.ts keeps it tied to the repo side.
  */
-export const RECORD_PHOTOS_ENABLED: boolean = false;
+export const RECORD_PHOTOS_ENABLED: boolean = true;
 /** Photos one record may carry. Small on purpose: every photo is a separate upload on save. */
 export const MAX_RECORD_PHOTOS = 4;
 /** Attached photos are always re-encoded to JPEG before upload (drops EXIF, incl. GPS). */
