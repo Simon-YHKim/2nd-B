@@ -11,7 +11,7 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-09-25 ~ 2026-09-26 | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 15 | 33KB |
+| 2026-09-25 ~ 2026-09-26 | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 20 | 40KB |
 | 2026-09-08 ~ 2026-09-21 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 16 | 94KB |
 | 2026-09-01 ~ 2026-09-08 (+09-13 인계 1) | [handoff/HANDOFF-2026-09.md](handoff/HANDOFF-2026-09.md) | 18 | 92KB |
 | 2026-08-25 ~ 2026-08-30 | [handoff/HANDOFF-2026-08-p4.md](handoff/HANDOFF-2026-08-p4.md) | 11 | 89KB |
@@ -29,7 +29,36 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-30 19:20 / 모바일 GUI P0·P1와 동의 모드 진단
+## Latest — 2026-09-30 20:13 / 앱 = localhost 의 기준을 origin/main 으로 — 8081 이 main 을 스스로 따라간다 · APK 게시는 볼 때만
+
+> 발행: CLI 코딩 세션(TTL-Work_rev2, session_011kqZojB5KVspmMgAZ4rZ89). Simon(09-30) 원문:
+> "항상 localhost를 수정하면 앱에도 동일하게 적용되게 하고 싶은데, 매번 apk 발행은 너무 헤비 한데?
+> 똑같이 apk를 만들수 있게 코드 수정만 해놓으면 안돼?"
+
+- **바뀐 기준.** '같음' 은 이제 origin/main 을 기준으로 한다. 조건은 셋이다.
+  - 8081 이 origin/main 과 코드 · 설정 · 의존성(lockfile · patches 내용, 지운 · 고친 옛 패치가 남지 않음)이 같다.
+  - 같은 코드 · 같은 설정의 폰용(arm64) CI APK 빌드가 성공했거나 진행 중이다. 끊길 것이 확실한 대기 빌드와 설정 주석을 아직 안 남긴 수동 빌드는 세지 않는다.
+  - QA APK 게시(`npm run app:qa-release`)는 폰에서 볼 때만 한다. 같은 설정의 빌드가 없으면 기본 입력으로 새로 빌드한다. 09-29 판의 "머지할 때마다 게시" 는 폐지했다.
+- **8081 이 main 을 따라간다.** `npm run localhost` 는 먼저 origin/main 의 스크립트에게 `preflight --ref` 로 묻는다. 체크아웃은 옮기지 않은 채 묻고, 통과해야 옮긴다. 그다음 세션과 분리된 감독자를 숨은 창(WMI)으로 띄운다. 감독자는 60초마다 이렇게 움직인다.
+  - 앱 경로가 바뀌면 체크아웃한 뒤 다시 띄운다.
+  - 문서만 바뀌면 체크아웃만 옮긴다.
+  - 스크립트가 바뀌면 새 스크립트의 preflight 가 통과할 때만 갈아탄다. 새 감독자가 기록을 안 쓰면 띄운 것을 멈추고 옛 커밋 · 옛 서버로 되돌린 뒤, 그 스크립트로는 10분 뒤부터(실패할 때마다 두 배, 상한 4시간) 다시 시도한다. 거부는 10분 기억한다.
+  - 설치 불일치 · 해석 못 하는 설정 · 새 스크립트 거부면 보류하고 띄운 커밋을 그대로 둔다. 그 사이 누가 체크아웃을 옮기면 띄운 커밋으로 되돌린다(못 되돌리면 멈춘다).
+  - 전용 워크트리에 미커밋 변경이 생기면 8081 을 멈추고, 깨끗해지면 띄운 커밋인지 확인한 뒤 다시 띄운다.
+- **`android-release.yml` 세 곳을 고쳤다.**
+  - 빌드 경로에 번들 입력 5개를 넣었다: `locales/**` · `public/proto/**` · `design/avatar-style-v2/**` · `tsconfig.json` · `metro-module-id.js`. 지금까지는 문구 · 캐논 · 아바타만 바뀐 머지가 APK 를 다시 안 만들었다. 원래 있던 구멍이다.
+  - 첫 게이트 뒤(Setup Node 직후, npm ci 전)에 EXPO_PUBLIC digest 와 ABI 를 run 주석 `app-env-digest` · `app-apk-abi` 로 남긴다. 저장소 Variables 만 바뀐 경우와 에뮬레이터용 x86_64 빌드를 가려내고, 진행 중인 수동 빌드도 1분 안에 폰용인지 알 수 있다. 주석이라 새 액션이 들지 않아 보안 테스트의 액션 수 고정도 그대로다. 뒤 단계가 EXPO_PUBLIC_* 를 바꾸지 않는 것은 테스트가 지킨다.
+- **리뷰 세 차례(적대 리뷰 워크플로, 에이전트 합계 16).**
+  - 1차(8): 34건 중 27건을 확인했다. 번들 입력이 경로 밖 · Variables 만 바뀐 APK · 머지 전 인수 시 8081 꺼짐 · 점검 전 서버 종료 · 정본 detach 위험 · 판정 불일치 등이다.
+  - 2차(4): 23건이 닫힌 것을 확인했고, 새로 20건을 찾았다. 살아 있는 체크아웃을 옮겨 가며 묻기 · x86 빌드 게시 · 게이트 밀림을 실패로 보고 · 패치 시각 판정 · 없는 빌드를 '같음' 으로 판정 등이다.
+  - 3차(4): 앞선 지적 20건 중 11건이 닫힌 것을 확인했다. 덜 닫힌 3건과 새로 확인된 8건(모두 낮음, 겹친 2건 제외)을 고쳤고, 반박된 2건(되돌린 기록의 childPid 표시 · NODE_PATH 테스트 공백)도 반영했다. 고친 것: 보류 중 옮겨진 체크아웃을 띄운 커밋으로 되돌리기(못 되돌리면 멈춤) · 넘겨주기 실패 때 띄운 새 감독자를 멈추고 재시도 간격 두기 · 되돌린 기록을 서버를 띄운 뒤에 쓰기 · 거부 기억 10분 · 지운 · 고친 옛 패치가 설치에 남은 것 잡기 · 끊길 대기 빌드와 주석 없는 수동 빌드 · x86 빌드를 '빌드 중' 으로 세지 않기 · qa-release 가 디스패치한 빌드를 SHA 대신 시각으로 찾기 · 09-29 판 감독자 명령줄(--port 없음) 알아보기 · 감독자 없이 남은 Metro 를 포트 주인으로 찾기 · CLAUDE.md 보류 문구.
+- **검증.** app-parity 테스트 58개(실제 git 저장소 따라가기 16가지 포함) 통과 · 이번 수정 변이 15종 전부 테스트가 잡음(원본 해시 복원 확인) · 실제 설치 3곳 패치 드리프트 0건 · 워크플로 테스트 112개 통과 · 8081 읽기 전용 대조(옛 감독자 알아봄 · 남은 Metro = 포트 주인) · `npm run verify` 통과(종료코드 0 · 848 suites / 11,011 tests)
+- **미검증 1건.** CI 가 남기는 digest 가 로컬 계산(현재 `e90c4cb7…`)과 같은지는 이 PR 머지 뒤 첫 빌드의 주석으로만 확인할 수 있다. 걸린 것은 값이 빈 `EXPO_PUBLIC_SAFETY_VENDOR` 다. 로그의 단계 env 머리에는 빈 값으로 찍혀 있어 러너가 넘기는 것으로 보이지만, process.env 에 실제로 들어가는지는 아직 확인하지 못했다. 다르면 모든 빌드가 '다른 설정' 으로 나와 '다름' 쪽으로 멈춘다(거짓 '같음' 은 아니다).
+- **다음 1개.** 이 PR 이 머지되면 아무 워크트리에서나 `npm run localhost` 를 한 번 친다. main 스크립트의 preflight 가 통과한 뒤에야 옛 방식 감독자(`node scripts/app-parity.cjs localhost`, --port 없음 - 이제 감독자로 알아본다)를 멈추고 넘겨받는다. 그다음 `npm run app:parity` 를 친다. 이 PR 의 워크플로 변경으로 도는 첫 빌드의 digest 주석을 로컬 값과 대조한다. 그 뒤로는 머지만 하면 된다.
+
+---
+
+## 2026-09-30 19:20 / 모바일 GUI P0·P1와 동의 모드 진단
 
 - main `f62433a0`: [#1937](https://github.com/Simon-YHKim/2nd-B/pull/1937) 뮤지엄 모바일 43사건 목록·2축 전환, 식단 21칸의 고유 버튼 이름·최소 44px를 병합했다. CI 3종과 로컬 verify 848묶음/10,966테스트 통과. [화면·측정 보고서](qa/gui-260930/report.html)는 375/425px Chrome, 사건 상세·식단 입력창 열림, 페이지 오류 0건을 기록한다. Android 실기기 보조기술은 미검증이다.
 - [#1934](https://github.com/Simon-YHKim/2nd-B/pull/1934)·[#1935](https://github.com/Simon-YHKim/2nd-B/pull/1935)의 보호된 읽기 진단은 [run 36691474238](https://github.com/Simon-YHKim/2nd-B/actions/runs/36691474238)에서 `access-forbidden`으로 끝났다. 현재 Production 토큰으로 Supabase Edge secret 목록을 읽을 수 없다. `service-consent`의 정상 status와 잘못된 JSON이 모두 503인 것은 확인됐으나 실제 모드값은 미확인이다. 설정·운영 데이터는 바꾸지 않았다.
@@ -592,31 +621,3 @@ npm run verify
 - 별도 QA의 과거 Polaris mock 감사에서는 `persona_narrative` 1건·`persona_synthesis` 2건과 `role_cards_v1` 부재가 당시 mock 분기로 설명된다. 현 통합 코드의 mock 응답은 합성 카드를 만들지 않고 `polaris_live_required`로 멈춘다. 과거 실제 생성 실패의 HTTP 응답·예외가 없으므로 원인은 특정할 수 없고, audit 행이 없다는 사실만으로 공급자 호출이 없었다고 결론 내리지 않는다. 현 운영 `polaris_generation_status` 404에서는 생성 CTA가 비활성이다.
 - Supabase 읽기 전용 재조회에서 migration 152행의 마지막 네 행은 보상 alias 2개와 중복 0172 두 행 그대로다. `service-consent` Edge는 없고 `rewarded-ssv` v91의 수정 시각은 12:23:51 KST 그대로다. `Learner-thepoorman's Org`는 Free 플랜이고 새 프로젝트 비용 재조회는 월 **$0**이다. 격리 프로젝트 생성·암호화 백업 복원·삭제는 별도 사용자 결정 대기이며 아무것도 생성하지 않았다. 운영 추가 SQL·Edge 배포/공개는 NO-GO, Grok 후속 전달은 보류다.
 
-## 2026-09-26 17:33 / Android 로그인 후 오디오 RedBox 재현·수정본 재기동
-
-- 별도 Android 전용 AVD에서 기존 APK의 네이티브 입력과 PR 최신 소스의 동일성을 Git 내용으로 확인하고, 최신 JS 번들(3285 modules)을 Metro 8084로 로드했다. QA 계정 로그인 뒤 온보딩 Continue에서 `Cannot assign to property 'playbackRate' which has only a getter` RedBox가 발생해 홈 진입이 막혔다. 증거는 로컬 `Output/runtime-validation-260926/latest-runtime-result.json`·`latest-31-after-continue.png`·`latest-playbackrate-log.txt`(전용 `native-260926` 워크트리)에 보존했다.
-- 원인은 `src/lib/audio/use-ui-sound.ts`의 속성 대입이다. 설치된 expo-audio 56.0.12의 Android `playbackRate`는 getter만 있고 `setPlaybackRate(rate)`가 변경 함수다. 통합 PR 트리에서 메서드 호출로 바꾸고 getter 전용 Android/iOS mock 회귀 테스트를 추가했다. 변경 전 테스트는 같은 TypeError로 실패했고 변경 후 전체 `npm run verify -- --runInBand`가 818 suites·10,686 tests·UI 76개 PASS였다. 수정된 JS로 AVD를 재기동해 후속 First Record 화면과 `secondbrain:///` 별자리 홈을 RedBox 없이 표시했다(`native-260926/Output/runtime-validation-260926/fix-08-deeplink-root.png`). 기록 확정은 운영 DB 쓰기 가능성 때문에 누르지 않았고 카메라·오디오 출력도 미검증이다. 전용 AVD·Metro는 정리하고 공용 8081은 유지한다.
-
-## 2026-09-26 17:09 / AdMob 법률 결정과 PR 동의 판본 대조
-
-- 저장소 밖 최신 결정 `E:/2ndB/docs/drafts/privacy-admob-simon-decisions-2026-09-26.md`(16:00 KST)는 시행일 **2026-09-26**, Q4 AdSense 행 제외, Q6 광고 스위치 국외 이전 고지 포함, Q5 AdMob 처리위탁/제3자 제공 분류 **보류**를 기록한다. 16:11 KST 법률 체크 초안은 Q5를 #1865 머지 차단으로 분류한다. 두 문서는 코드·DB에 자동 반영된 것이 아니다.
-- Draft PR #1865의 처리방침 세 사본과 `PRIVACY_POLICY_VERSION`, 가입 0191·서비스 동의 0194 SQL의 판본은 여전히 **2026-09-25**이다. 광고 스위치의 현재 문구는 국외 이전의 항목·국가·시기/방법·수신자 연락처·목적/보유기간·거부 효과를 한 화면에서 고지하지 않는다. [개인정보 보호법 제28조의8 제2항](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1033215841)의 고지 항목과 대조했다. Q5 결정과 정확한 고지 문구를 확정한 뒤 세 사본·앱 판본·두 SQL 계약·스위치 UI·테스트를 **같은 회차**로 갱신해야 한다. 지금은 날짜만 바꾸거나 광고를 켜거나 PR을 머지하지 않는다. [HTML 잔여 작업](qa/REMAINING-WORK-260926.html).
-
-## 2026-09-26 16:50 / Draft PR 최신 웹 GUI 실측
-
-- Draft PR #1865의 검증 head `8cecd849`로 새 웹 export를 만들어 QA 계정의 로그인·화면 이동을 실행했다. 320·425·768px의 28개 화면 점검에서 pageerror 0, 가로 넘침 0, 깨진 이미지 0이었다. 첫 로컬 export의 랜딩 번들 누락 404 세 건은 CI와 같은 `esbuild` 번들을 넣은 뒤 3개 너비에서 오류 0으로 재검증했다. 남은 `service-consent` 404 세 건은 서버 계약 미배포를 확인한 것이며 UI는 재시도 안내를 표시한다. [HTML 보고서](qa/REMAINING-WORK-260926.html).
-- 같은 최신 코드의 `/core-brain`에서 운영 `polaris_generation_status`가 HTTP 404인 실제 조건을 확인했다. 425px 화면에서 `기록으로 페르소나 제안 받기` 버튼은 비활성이고 “생성 기능 설정을 기다리고 있어요” 문구가 보인다. 생성·쓰기 요청 0, pageerror 0. 결과와 화면은 로컬 `Output/web-resume-260926/qa-latest-core-only-results.json` 및 `screenshots/latest-core-action-425.png`에 있다. 이는 모델 생성 품질 검증이 아니다. 운영 추가 SQL·클라이언트 공개 NO-GO, 격리 복원 승인 대기, Grok 후속 보류는 유지한다.
-
-## 2026-09-26 16:19 / 보상 서버 적용 후 백업 확보 · 복원 대기
-
-- 보상 서버 스위치가 14:19 KST에 켜진 뒤 [수동 암호화 백업](https://github.com/Simon-YHKim/2nd-B/actions/runs/36226292412)을 16:16–16:19 KST에 한 번 실행했다. `pg_dump`·age 암호화·업로드가 모두 PASS이고, 아티팩트 `db-backup-36226292412`는 1,629,137바이트 ZIP으로 10월 10일 16:19 KST까지 보관된다. 다운로드한 `.age` 파일의 헤더와 SHA-256을 확인했지만 복호화·격리 복원은 아직 하지 않았다. 아래 06:44–06:47 백업은 보상 적용 **이전** 스냅샷이다. [상세와 복원 게이트](qa/SERVER-PROMOTION-260926.md).
-- 같은 조직(`Learner-thepoorman's Org`)의 격리 Supabase 프로젝트 비용 조회 결과는 월 **$0**이다. 프로젝트 생성·운영 데이터 복원·드릴 종료 후 삭제는 별도 사용자 결정 대기 중이며, 프로젝트는 만들지 않았다. 유료 개발 브랜치 보류와 Grok 후속 전달 보류도 유지한다.
-- Draft [PR #1865](https://github.com/Simon-YHKim/2nd-B/pull/1865)의 코드·문서 head `1520721e`는 원격 [SQL](https://github.com/Simon-YHKim/2nd-B/actions/runs/36226061143)·[verify/web](https://github.com/Simon-YHKim/2nd-B/actions/runs/36226061190)·[제목 검사](https://github.com/Simon-YHKim/2nd-B/actions/runs/36226061165)가 PASS다. 이번 인수 문서 후속 커밋의 CI는 별도로 확인한다. 운영 추가 SQL 적용과 클라이언트 공개는 NO-GO다.
-
-## 2026-09-26 15:19 / #1865 운영 읽기 감사 · 최종 CI 확인
-
-- PR #1865의 `7217d4d5`에서 0191–0198 번호 SQL, 삭제 등록부·0189 rollback·SQL CI 전환이 원격 4개 검사 PASS다([SQL](https://github.com/Simon-YHKim/2nd-B/actions/runs/36222133872) · [verify/web](https://github.com/Simon-YHKim/2nd-B/actions/runs/36222133905)). 최신 main `fe20ad03`의 운영 기록을 이 통합 브랜치에 포함한다. 게시·운영 일괄 `db push`는 여전히 하지 않는다.
-- main #1868은 Simon GO로 14:19부터 `REWARD_SSV_ENABLED=1`이라고 기록한다. 인증 없는 POST 401은 스위치 통과를 확인한 증거이고, 14:29까지 실사용 호출 0건이다. 광고 ON과 서명·변조·재전송 카나리아는 별도이며 아직 완료 증거가 없다. 0172 중복 두 행은 동일 GO가 두 경로로 전달돼 생겼고, 재적용·원장 정리 금지다. Edge 목록 v91의 `updated_at`은 12:23:51 그대로라 새 배포로 해석하지 않는다.
-- 최신 운영 상태가 아래 14:57·14:36·14:15 블록의 플래그 미확인/서버 OFF 가능성보다 우선한다. 콘솔 소유자는 Reward alias와 남은 번호 SQL의 실제 원장·백업 복원·격리 리허설을 확인한다. Grok 후속 전달은 사용자 보류를 유지한다.
-- 인증된 읽기 전용 재조회: 운영 원장 152행이고 마지막 네 행은 `reward_ssv_tickets`, `reward_ssv_hardening`, 중복 0172 두 행 그대로다. Git SQL과 공백 제외 본문 MD5는 세 파일 모두 일치하고, 0196은 원문 MD5도 일치한다. Reward 신규 RPC 4개는 `service_role`만 실행 가능하고 확인한 구 RPC 3개는 공개 역할·`service_role` 모두 실행 불가. 티켓 발급·소비 0건, Paddle 이벤트 4건 중 adjustment·legacy consequence 0건, self-service 청구 0건. Edge v91의 수정 시각은 여전히 12:23:51이고, 가입·동의·삭제·Polaris 신규 객체와 개발 브랜치는 없다. [SQL 원문·운영 대조](qa/SERVER-PROMOTION-260926.md).
-- Draft PR #1865 최종 head `67e9cab0`의 원격 lint·SQL·verify·web export **4/4 PASS**를 다시 확인했다. [일일 암호화 백업](https://github.com/Simon-YHKim/2nd-B/actions/runs/36193185108)은 09-26 성공했고 아티팩트가 남아 있다. Orca 콘솔 작업은 Backup·ModelRefreshReadOnly 환경을 main 전용 정책으로 고쳤다([자격증명 경계](GITHUB-ACTIONS-CREDENTIAL-BOUNDARIES.md)). 이번 백업의 격리 복원·나머지 SQL의 실데이터 리허설·Reward 서명 카나리아는 미완료다. 이 조회는 운영 쓰기를 하지 않았다.

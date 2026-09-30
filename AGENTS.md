@@ -36,11 +36,12 @@ Codex 및 그 밖의 에이전트 세션용 진입 파일.
 
 `CLAUDE.md` 를 아직 안 읽었더라도 **이 넷은 틀리면 안 되므로** 중복을 감수하고 적는다.
 
-- **앱과 localhost 는 같은 소프트웨어다** (Simon 결정 2026-09-29). localhost 는
-  `npm run localhost` 로만 띄우고(폰 APK 빌드 설정 · 릴리스 모드, `.env` 무시), 8081 은
-  폰 QA APK 와 코드가 같을 때만 뜬다. localhost 에 보이는 것을 바꾸면 PR → 머지 →
-  `npm run app:qa-release` 로 앱도 같이 바꾸고, 끝내기 전에 `npm run app:parity` 가
-  "같음" 이어야 한다. 정본은 `CLAUDE.md` 맨 위 절이다.
+- **앱과 localhost 는 같은 소프트웨어다** (Simon 결정 2026-09-29 · 갱신 09-30). 기준은
+  origin/main(= CI 가 머지마다 APK 로 자동 빌드하는 코드)이다. localhost 는 `npm run localhost`
+  로만 띄우고(폰 APK 빌드 설정 · 릴리스 모드, `.env` 무시), 8081 은 전용 워크트리
+  localhost-main 이 origin/main 을 스스로 따라간다. localhost 에 보이는 것을 바꾸는 길은 PR →
+  머지 하나다. QA APK 게시(`npm run app:qa-release`)는 Simon 이 폰에서 볼 때만. 끝내기 전에
+  `npm run app:parity` 가 "같음" 이어야 한다. 정본은 `CLAUDE.md` 맨 위 절이다.
 - **마감은 없다.** 외부 마감을 근거로 스코프를 줄이지 말 것.
 - **XPRIZE 는 종료됐다** (Simon 결정 2026-08-15). 심사자·규정집·마감·인용가능성을
   판단 근거로 삼지 말 것. C2·C6 은 2026-09-06 에 폐지했고(Simon 결정 Q-260905-02),
@@ -93,7 +94,7 @@ CI 는 이 명령을 **그대로** 부른다(단계 사본이 아니다). 그래
 - 일회용이고 비밀이 아니다(Supabase anon 키는 이미 공개). 진짜 시크릿
   (service_role · API 키 · `.env`)은 **여전히 git 에 들어가지 않는다.**
 - 유료 기능을 보려면 8081 이 아닌 포트에서 세션 확인용 서버를 띄운다:
-  `node scripts/app-parity.cjs localhost --port=8082 --allow-diff --tier=brain`.
+  `node scripts/app-parity.cjs serve --port=8082 --allow-diff --tier=brain`.
   `npm run localhost` 는 `.env` 를 무시하므로 `.env` 의 `EXPO_PUBLIC_FORCE_TIER` 는 8081 에
   닿지 않고, 등급을 강제한 화면을 Simon 에게 앱으로 보여 주지 않는다.
 - 앱 안에서 모든 화면을 직접 열어보려면 **설정 → 개발자 → 화면 전체 목록**
