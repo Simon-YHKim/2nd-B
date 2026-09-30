@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { PixelPressable } from '@/components/pixel/PixelPressable';
 import { useReducedMotionPref } from '@/lib/motion/use-reduced-motion';
 import { pixelStepsFor } from '@/lib/motion/pixel-physical';
-import { STAR_CAMERA_STOPS, starDestinationFrame } from '@/lib/motion/star-camera';
+import { STAR_CAMERA_STOPS } from '@/lib/motion/star-camera';
 import { CAMERA_APPROACH, CAMERA_RETURN, runCameraSequence, type CameraPhase } from '@/lib/motion/camera-sequence';
 import { CameraCue } from './CameraCue';
 import { m3 } from '@/lib/theme/m3';
@@ -41,14 +41,15 @@ function CameraTransition({ active, progress, reducedMotion, onReturned, onReady
 }
 
 /** Camera HUD only. The original world owns the star and all of its light. */
-export function StarDestination({ active, progress, name, returnLabel, origin, originRadius, size, onReturn, onReturned, onReady }: {
+export function StarDestination({ active, progress, name, returnLabel, origin, originRadius, frame, onReturn, onReturned, onReady }: {
   active: boolean;
   progress: Animated.Value;
   name: string;
   returnLabel: string;
   origin: { x: number; y: number };
   originRadius: number;
-  size: { width: number; height: number };
+  /** Where the star lands: the flight's own frame, so the reticle still fits a tap held at the 10x ceiling. */
+  frame: { diameter: number; radius: number; centre: { x: number; y: number } };
   onReturn: () => void;
   onReturned: () => void;
   onReady: () => void;
@@ -63,7 +64,7 @@ export function StarDestination({ active, progress, name, returnLabel, origin, o
     const back = BackHandler.addEventListener('hardwareBackPress', () => { callbacks.current.onReturn(); return true; });
     return () => back.remove();
   }, [active]);
-  const { diameter, radius, centre } = starDestinationFrame(size);
+  const { diameter, radius, centre } = frame;
   const initialScale = originRadius / radius;
   return (
     <View style={StyleSheet.absoluteFill} testID="star-destination">
