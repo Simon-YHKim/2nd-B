@@ -106,33 +106,35 @@
       "health": "Health & exercise",
       "tasks": "Tasks"
     },
+    "sourceGroups": {
+      "device": "Read with device permission",
+      "import": "Needs an import",
+      "manual": "Record it yourself"
+    },
     "status": {
       "manual": "Manual record only",
       "healthBridge": "Via a health app · not a direct connection",
       "empty": "No import history on this device",
       "imported": "Import recorded",
       "off": "Device health access is off in the app",
+      "consented": "Device health access is on in the app · nothing read yet",
       "unknown": "Status could not be read",
       "restricted": "Unavailable for this account"
     },
     "sourceNotes": {
-      "calendar": "Import with Google Calendar or an .ics file. This app does not continuously sync your calendar.",
+      "calendar": "Import with Google Calendar on the web, or with an .ics file in the installed app. Your calendar is not synced continuously.",
       "location": "Import a Google Timeline export. Background GPS tracking is not connected.",
-      "health": "Read supported Health Connect or Apple Health data in the native app, after consent. File imports are also available.",
-      "garmin": "Enable Garmin Connect sharing to Apple Health (iOS) or Health Connect (Android 14+), then import supported data in the installed app. Direct Garmin connection and Body Battery import are not supported yet.",
-      "tasks": "Import Google Tasks through the existing account flow. Changes are not continuously synced.",
+      "health": "In the installed app, after you consent and allow access, the app can read steps, workouts, sleep and heart rate from Health Connect (Android) or Apple Health (iOS). For now it reads today's records when you tap ‘Add today's activity’.",
+      "garmin": "Turn on Garmin Connect sharing to Apple Health (iOS) or Health Connect (Android 14+), and the installed app can read the supported records with the same health permission. Direct Garmin connection and Body Battery are not supported.",
+      "tasks": "Import Google Tasks with your Google account on the web. The installed app cannot connect it yet, and changes are not synced continuously.",
       "kakao": "Import a KakaoTalk chat export and review the selected signals. Live private chats are not read.",
       "sms": "Import an SMS backup file. This app does not read your inbox directly.",
-      "instagram": "No direct Instagram connection in this app. Add a link or a note you choose.",
-      "facebook": "No direct Facebook connection in this app. Add a link or a note you choose.",
-      "x": "No direct X connection in this app. Add a link or a note you choose.",
-      "nike": "No direct Nike Run Club connection in this app. Record a run or use activity already shared to a supported health source.",
-      "line": "No private LINE chat connection in this app. Manually record only what you choose.",
-      "whatsapp": "No private WhatsApp chat connection in this app. Manually record only what you choose."
+      "manual": "These services do not connect to the app. Record only the links or notes you want to keep. Nike Run Club activity shared to Apple Health or Health Connect can be read through the health card."
     },
     "lastImport": "Last import · {{date}}",
     "addRecord": "Add a chosen record",
     "manageSource": "Open import controls",
+    "openHealth": "Open health connection",
     "toolsTitle": "Everyday tools",
     "toolsHint": "Small records make a difference ✦",
     "moreTitle": "Explore more",
@@ -173,7 +175,6 @@
     "importHistory": "Import history & withdrawal",
     "controlNote": "Turn off permissions and consent in their settings. Review imported data separately in import history.",
     "sourcesTitle": "What feeds my day",
-    "sourceScope": "Only records you saved or imports you approved. A past import does not mean a live connection. Import history is local to this device.",
     "loading": "Reading your saved data…",
     "partialError": "Some information is unavailable. The other sections remain usable.",
     "retry": "Retry",

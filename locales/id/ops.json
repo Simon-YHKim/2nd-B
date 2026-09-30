@@ -106,33 +106,35 @@
       "health": "Kesehatan dan olahraga",
       "tasks": "Tugas"
     },
+    "sourceGroups": {
+      "device": "Dibaca dengan izin perangkat",
+      "import": "Perlu diimpor",
+      "manual": "Catat sendiri"
+    },
     "status": {
       "manual": "Hanya catatan manual",
       "healthBridge": "Melalui aplikasi kesehatan · bukan koneksi langsung",
       "empty": "Belum ada riwayat impor di perangkat ini",
       "imported": "Impor tercatat",
       "off": "Akses kesehatan perangkat dimatikan di aplikasi",
+      "consented": "Akses kesehatan perangkat aktif di aplikasi · belum ada data yang dibaca",
       "unknown": "Status tidak dapat dibaca",
       "restricted": "Tidak tersedia untuk akun ini"
     },
     "sourceNotes": {
-      "calendar": "Impor melalui Google Calendar atau berkas .ics. Aplikasi tidak menyinkronkan kalender secara terus-menerus.",
+      "calendar": "Impor melalui Google Calendar di web, atau berkas .ics di aplikasi terpasang. Kalender tidak disinkronkan terus-menerus.",
       "location": "Impor berkas ekspor Google Timeline. Pelacakan GPS di latar belakang tidak terhubung.",
-      "health": "Baca data yang didukung dari Health Connect atau Apple Health di aplikasi terpasang setelah memberikan persetujuan. Impor berkas juga tersedia.",
-      "garmin": "Aktifkan berbagi dari Garmin Connect ke Apple Health (iOS) atau Health Connect (Android 14+), lalu impor data yang didukung di aplikasi terpasang. Koneksi langsung Garmin dan impor Body Battery belum didukung.",
-      "tasks": "Impor Google Tasks melalui alur akun yang sudah ada. Perubahan tidak disinkronkan terus-menerus.",
+      "health": "Di aplikasi terpasang, setelah Anda setuju dan memberi izin, aplikasi dapat membaca langkah, olahraga, tidur, dan detak jantung dari Health Connect (Android) atau Apple Health (iOS). Untuk saat ini, catatan hari ini dibaca saat Anda mengetuk ‘Terapkan hari ini’.",
+      "garmin": "Aktifkan berbagi dari Garmin Connect ke Apple Health (iOS) atau Health Connect (Android 14+), lalu aplikasi terpasang juga dapat membaca data yang didukung dengan izin kesehatan yang sama. Koneksi langsung Garmin dan Body Battery tidak didukung.",
+      "tasks": "Impor Google Tasks dengan akun Google di web. Aplikasi terpasang belum bisa menghubungkannya, dan perubahan tidak disinkronkan terus-menerus.",
       "kakao": "Impor ekspor percakapan KakaoTalk dan tinjau informasi yang dipilih. Percakapan pribadi tidak dibaca secara langsung.",
       "sms": "Impor berkas cadangan SMS. Aplikasi ini tidak membaca kotak masuk Anda secara langsung.",
-      "instagram": "Aplikasi ini belum terhubung langsung ke Instagram. Tambahkan tautan atau catatan pilihan Anda.",
-      "facebook": "Aplikasi ini belum terhubung langsung ke Facebook. Tambahkan tautan atau catatan pilihan Anda.",
-      "x": "Aplikasi ini belum terhubung langsung ke X. Tambahkan tautan atau catatan pilihan Anda.",
-      "nike": "Aplikasi ini belum terhubung langsung ke Nike Run Club. Catat lari atau gunakan aktivitas yang sudah dibagikan ke sumber kesehatan yang didukung.",
-      "line": "Aplikasi ini tidak terhubung ke percakapan pribadi LINE. Catat secara manual hanya hal yang Anda pilih.",
-      "whatsapp": "Aplikasi ini tidak terhubung ke percakapan pribadi WhatsApp. Catat secara manual hanya hal yang Anda pilih."
+      "manual": "Layanan ini tidak terhubung ke aplikasi. Catat sendiri tautan atau catatan yang ingin Anda simpan. Aktivitas Nike Run Club yang dibagikan ke Apple Health atau Health Connect dapat dibaca melalui kartu kesehatan."
     },
     "lastImport": "Impor terakhir · {{date}}",
     "addRecord": "Tambahkan catatan pilihan",
     "manageSource": "Buka pengaturan impor",
+    "openHealth": "Buka koneksi kesehatan",
     "toolsTitle": "Alat sehari-hari",
     "toolsHint": "Catatan kecil membawa perubahan ✦",
     "moreTitle": "Jelajahi lainnya",
@@ -173,7 +175,6 @@
     "importHistory": "Riwayat impor dan penarikan",
     "controlNote": "Matikan izin dan persetujuan di pengaturan masing-masing. Tinjau data yang sudah diimpor secara terpisah dalam riwayat.",
     "sourcesTitle": "Data yang mengisi hari saya",
-    "sourceScope": "Hanya catatan yang Anda simpan atau impor yang Anda setujui. Impor sebelumnya bukan berarti koneksi aktif. Riwayat hanya tersedia di perangkat ini.",
     "loading": "Membaca data tersimpan Anda…",
     "partialError": "Sebagian informasi tidak tersedia. Bagian lain tetap dapat digunakan.",
     "retry": "Coba lagi",

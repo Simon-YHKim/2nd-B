@@ -25,6 +25,16 @@
     "placeholder": "날짜를 선택하세요",
     "yearPlaceholder": "연도를 선택하세요"
   },
+  "timePicker": {
+    "pattern": "a h:mm",
+    "am": "오전",
+    "pm": "오후",
+    "period": "오전 또는 오후",
+    "hour": "시",
+    "minute": "분",
+    "hourValue": "{{value}}시",
+    "minuteValue": "{{value}}분"
+  },
   "states": {
     "loading": "불러오는 중…"
   },

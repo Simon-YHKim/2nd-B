@@ -25,6 +25,16 @@
     "placeholder": "Select a date",
     "yearPlaceholder": "Select a year"
   },
+  "timePicker": {
+    "pattern": "h:mm a",
+    "am": "AM",
+    "pm": "PM",
+    "period": "AM or PM",
+    "hour": "Hour",
+    "minute": "Minute",
+    "hourValue": "{{value}} o'clock",
+    "minuteValue": "{{value}} minutes"
+  },
   "states": {
     "loading": "Loading…"
   },
