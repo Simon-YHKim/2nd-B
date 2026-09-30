@@ -470,7 +470,7 @@ function AttachmentDeepSpace() {
 
   if (taking) {
     return (
-      <DeepSpaceScreen active="lens">
+      <DeepSpaceScreen active="lens" header="none">
         <AttachmentSurvey
           onComplete={() => {
             setTaking(false);

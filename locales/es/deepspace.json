@@ -48,7 +48,7 @@
     "statLinks": "Enlaces",
     "filterAll": "Todo",
     "emptyTag": "Aún no hay nada bajo esta etiqueta. Prueba otra etiqueta o añade una pieza.",
-    "emptyAll": "Aún no hay contenido. Guarda un fragmento o un enlace y podrás volver a verlo aquí.",
+    "emptyAll": "Aún no hay páginas wiki. Guarda una nota o un enlace y organízalo como página desde la bandeja de entrada.",
     "addPiece": "+ Añadir una pieza",
     "backlinks": "Registros enlazados {{count}}",
     "connections": "Enlaces {{count}}",
@@ -569,6 +569,12 @@
     "retry": "Reintentar",
     "empty": "Aún no hay registros de trabajo. Añade un logro para encender esta estrella.",
     "pieceFallback": "Pieza de carrera",
+    "drillDown": "Ver detalles",
+    "originalNote": "Las vistas previas conservan el idioma guardado. Abre una tarjeta para leer el registro completo.",
+    "sourceInterview": "Entrevista de recuerdos",
+    "sourceRecord": "Registro de carrera guardado",
+    "entryUiKorean": "Pantalla al guardar: coreano",
+    "entryUiEnglish": "Pantalla al guardar: inglés",
     "untitled": "(sin título)"
   },
   "careerInput": {

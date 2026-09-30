@@ -90,7 +90,7 @@ export default function PeerInvites() {
   }
 
   return (
-    <DeepSpaceScreen active="lens">
+    <DeepSpaceScreen active="lens" header="none">
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text variant="heading">{t("subjectTitle")}</Text>
         <Text variant="caption" color="textSubtle">{t("subjectIntro")}</Text>

@@ -32,7 +32,7 @@
   "withdrawCta": "Retirar mi respuesta",
   "withdrawAnytime": "Puedes retirarla cuando quieras abriendo este enlace.",
   "subjectTitle": "Preguntar a quienes me conocen",
-  "subjectIntro": "Envía un enlace de un solo uso. Cuando respondan tres o más personas, verás los resultados combinados en Cómo me ven. Nunca verás respuestas individuales. Puedes invitar también a alguien que conociste hace poco o con quien trabajaste para conocer distintas opiniones.",
+  "subjectIntro": "Envía un enlace de un solo uso a un amigo o alguien que conociste hace poco para reunir distintas opiniones.",
   "labelField": "Apodo para esta persona (solo tú lo ves)",
   "kind": {
     "friend": "Amistad",
@@ -45,7 +45,7 @@
   "creating": "Creando…",
   "createError": "No se pudo crear el enlace. Intenta de nuevo.",
   "pendingCap": "Alcanzaste el límite de invitaciones abiertas. Revoca una para enviar otra.",
-  "privacyLine": "El enlace funciona una vez, caduca en 14 días y no guarda contactos.",
+  "privacyLine": "El enlace funciona una vez, caduca en 14 días y no guarda contactos. Tras tres respuestas o más, solo verás resultados combinados, nunca respuestas individuales.",
   "sentTitle": "Invitaciones enviadas",
   "emptyList": "Aún no hay invitaciones. Empieza con alguien que te conozca bien.",
   "status": {

@@ -338,7 +338,7 @@ function IpipNeoDeepSpace() {
 
   if (taking) {
     return (
-      <DeepSpaceScreen active="lens">
+      <DeepSpaceScreen active="lens" header="none">
         <IpipNeoSurvey
           onComplete={() => {
             setTaking(false);
@@ -361,7 +361,7 @@ function IpipNeoDeepSpace() {
       neuroticism: result.neuroticism,
     };
     return (
-      <DeepSpaceScreen active="lens">
+      <DeepSpaceScreen active="lens" header="none">
         <FacetBreakdown facets={result.facets} domains={domains} locale={locale} onRetake={() => setTaking(true)} />
       </DeepSpaceScreen>
     );
@@ -369,7 +369,7 @@ function IpipNeoDeepSpace() {
 
   // No result yet / error -> the shared empty / error / take-survey flow.
   return (
-    <DeepSpaceScreen active="lens">
+    <DeepSpaceScreen active="lens" header="none">
       <LensView
         traits={null}
         hasError={hasError}

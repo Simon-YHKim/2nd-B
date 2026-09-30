@@ -160,7 +160,7 @@ export default function CommunityRoomScreen() {
   const title = room ? roomDisplayTitle(room, userId, t("dmPending")) : t("title");
 
   return (
-    <DeepSpaceScreen active="lens" variant="windowed" title={title} onBack={() => router.back()}>
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
       {!adult ? (
         <View style={styles.gate}>
           <MdCard variant="outlined" style={styles.gateCard}>
