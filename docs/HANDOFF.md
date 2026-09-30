@@ -11,7 +11,7 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-09-25 ~ 2026-09-26 | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 20 | 40KB |
+| 2026-09-25 ~ 2026-09-26 | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 22 | 48KB |
 | 2026-09-08 ~ 2026-09-21 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 16 | 94KB |
 | 2026-09-01 ~ 2026-09-08 (+09-13 인계 1) | [handoff/HANDOFF-2026-09.md](handoff/HANDOFF-2026-09.md) | 18 | 92KB |
 | 2026-08-25 ~ 2026-08-30 | [handoff/HANDOFF-2026-08-p4.md](handoff/HANDOFF-2026-08-p4.md) | 11 | 89KB |
@@ -29,7 +29,32 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-30 20:41 / 모바일 GUI P2 맥락·출처 보완과 앱 parity
+## Latest — 2026-09-30 21:38 / #1940 머지 뒤 실측 — 8081 인수 · CI digest 일치 · 따라가기 3종과 첫 자기 갱신 성공 · 대조 오류 드러내기
+
+> 발행: CLI 코딩 세션(TTL-Work_rev2, session_011kqZojB5KVspmMgAZ4rZ89). 아래 20:13 블록의 '다음 1개' 와 '미검증 1건' 을 실행하고 확인한 기록이다.
+
+- **8081 인수(20:27 KST).** `npm run localhost` 가 옛 방식 감독자를 감독자로 알아봤다(pid 30172, `node scripts/app-parity.cjs localhost` - --port 없음). main `8f27d5e4` 스크립트의 preflight 가 통과한 뒤에 멈추고 넘겨받았다.
+  - 헤드리스로 확인: 로그인 화면이 뜬다. `__DEV__` false, 번들 `dev=false&minify=true`. 번들 값은 FORCE_TIER `off` · ALLOW_DEV_TIER `false` · LLM_MODE `live` · ENABLE_ADS `true`. 콘솔 오류 0. 127.0.0.1 · ::1 모두 200.
+- **미검증 1건 해소.** #1940 로 돈 첫 빌드(런 36708582875)의 `app-env-digest` 주석이 `e90c4cb7453f…` 로 로컬 계산과 같다. 러너는 값이 빈 `EXPO_PUBLIC_SAFETY_VENDOR` 도 넘긴다. `app-apk-abi` 주석은 `arm64-v8a`.
+  - 그 빌드는 Gradle 이 NDK 27.0.12077973 을 받다가 압축이 깨져 한 번 실패했다("Archive is not a ZIP archive"). 러너 쪽 문제다. 같은 커밋으로 재실행(attempt 2)하니 **성공**했다.
+  - #1941 빌드(런 36709884906)도 성공했고, digest 일치 · arm64 다.
+- **따라가기 실측 3종.**
+  - 다른 세션의 앱 변경 #1941 → "앱 경로 29개 바뀜 - 다시 띄운다".
+  - 문서 #1943 → "옮겼다(앱 경로 변경 없음, 서버 유지)".
+  - 스크립트 #1942 → **첫 실제 자기 갱신**: 21:17:02 KST 에 새 스크립트 preflight 를 통과했고, 약 10초 뒤 새 감독자(pid 44976)가 `f275fde4` 로 기록을 넘겨받았다. 옛 감독자는 스스로 끝났다. 뒤이은 #1944(앱 아이콘)도 따라갔다.
+- **정정 - 20:13 블록의 "진행 중인 수동 빌드도 1분 안에 폰용인지 알 수 있다" 는 틀렸다.** GitHub 는 check-run 주석을 job 이 끝난 뒤에야 보여 준다. digest 단계를 지난 진행 중 job 의 annotations_count 가 0 이었다(실측). 그래서 진행 중인 수동 빌드는 끝나야 폰용 · 같은 설정인지 판정된다. `qa-release` 는 이제 그런 빌드를 주석 폴링 없이 끝날 때까지 기다린다.
+- **대조가 두 번 틀린 이름('기록 없음')을 냈다.** 둘 다 8081 이 새로 뜨며 캐시를 비우고 번들링하던 때였고, 몇 분 뒤 다시 치면 바르게 나왔다.
+  - 1번째(#1940 직후)는 런이 '완료' 로 바뀐 순간 결론이 비어 있던 틈이었다 → #1942 에서 진행 중으로 본다.
+  - 2번째(#1942 직후)는 같은 앱 코드인 런이 있는데도 나왔다. 그 판정에 이르는 길은 앱 코드 대조(git diff)의 오류를 '다른 코드' 로 삼키는 것뿐이다 → 이 PR 에서 받은 커밋의 대조 오류는 한 번 더 보고, 그래도 나면 '확인 못 함' 으로 드러낸다. 주석 조회 실패도 건수를 밝히고, '같음' 이 아닌 판정에는 최근 런 셋을 근거로 붙인다.
+  - 실측: gh 호출이 가끔 10~18초 걸렸다(평소 2~3초).
+- **지금 대조(21:3x).** 같음. localhost-main 이 origin/main 과 같고 digest `e90c4cb7` · 의존성이 같다. 같은 코드의 APK 빌드는 진행 중이다(런 36715653238, `4249f73f`). 폰 QA APK(`qa-260930-5e52894b`)는 앱 경로 31개 뒤처졌고 참고로만 나온다.
+- **다른 세션.** ttl-work-rev2-3a · 6f 에 09-30 판 규칙을 알렸다.
+- **남긴 것.** TTL-Work_rev2 체크아웃은 main 으로 당기지 않았다. 다른 세션의 미커밋 변경(locales ops.json · DashboardPhone.tsx 등)이 있어서다.
+- **다음 1개.** 없음. 머지만 하면 8081 과 CI 빌드가 따라간다. 이 PR 은 스크립트와 워크플로(주석)를 바꾸므로 머지되면 감독자가 한 번 더 갈아타고 새 빌드가 돈다. 폰에서 보실 때만 `npm run app:qa-release`.
+
+---
+
+## 2026-09-30 20:41 / 모바일 GUI P2 맥락·출처 보완과 앱 parity
 
 - **main `864fd061`**: [PR #1941](https://github.com/Simon-YHKim/2nd-B/pull/1941) 병합. 커뮤니티·초대·검사 등 9개 경로에서 부적절한 공통 렌즈 TIP을 숨기고 화면별 안내를 표시했다. 커리어 기록에는 인터뷰/기록 출처와 저장 당시 화면 언어를 분리해 표시한다. 옛 기록의 불명확한 언어는 추정하지 않으며 원문 제목·본문은 그대로다. 위키 0페이지 안내·데이터 연결 로딩 문구·375px 커리어 제목/버튼 배치도 수정했다.
 - **검증**: 최신 main 병합 후 로컬 `npm run verify` 848 suites/11,012 tests 통과, PR CI `lint`·`verify`·`web-export-smoke` 3/3 통과. QA 계정 Chrome 375px의 9개 경로에서 잘못된 TIP·page error 0건, 425px의 커뮤니티·커리어·위키에서 가로 넘침·page error 0건. [자체완결 GUI 보고서](qa/gui-p2-260930/report.html). 동적 room/join 링크와 Android 네이티브 글꼴 확대·TalkBack은 직접 검증하지 않았다.
@@ -617,21 +642,4 @@ npm run verify
 - Android 제품 Record→Stop에서 React Native의 `ArrayBuffer` 기반 `Blob` 거부로 전사가 실패했다. `6cede82d`는 제한 크기 읽기 후 중단 가능한 청크 base64 변환으로 수정했고, 동일 AVD에서 오프라인 mock 전사 문구 표시·임시 음성 파일 삭제를 확인했다. 원격 DB·Edge 쓰기와 유료 호출 0건, 기록 저장 미실행. [화면과 검증 범위](qa/ANDROID-VOICE-CANCEL-260926.md).
 - PR #1865는 Draft다. 문서 게이트 정정 `16850053`의 로컬 전체 verify(820 suites·10,691 Jest tests·UI 76)와 원격 CI 4/4는 통과했다. 음성 수정 `6cede82d`의 집중 Jest 19/19·TypeScript·대상 ESLint와 통합 전체 verify(820 suites·10,693 Jest tests·UI 76)는 통과했다. 새 CI는 대기 중이다.
 - AdMob은 Q5 제3자 제공 중심 판단과 활성화 차단을 유지한다. 백업 전체 격리 복원 드릴은 승인됐지만 KeePassXC 개인키·임시 DB 접속·삭제 경로가 없어 프로젝트 생성 전 중단됐다. Paddle sandbox는 별도 프로젝트·설정·거래 증거가 없어 미완료다. Grok 후속 전달은 보류한다.
-
-## 2026-09-26 20:17 / 격리 복원 사전 차단·AdMob Q5 분류
-
-- AdMob Q5 자체 검토는 광고 SDK 송신을 **제3자 제공 중심**으로 분류했다. Google의 독립적 광고 처리 목적과 대법원 2016도13263 기준을 대조했고, [근거 초안](drafts/admob-q5-third-party-review-260926.md)에 법률·SDK 자료와 미확인 항목을 기록했다. `00e02e59`는 기존 `ads=true`·UMP를 새 동의로 인정하지 않고 웹/보상 광고·네이티브 UMP/SDK 호출을 차단하며 설정 화면은 과거 ON의 OFF만 허용한다. 현재 AdMob 계약 법인·이전 국가·보유기간을 몰라 처리방침 세 사본·판본·동의 SQL을 올리지 않았다. 새 별도 동의·실기기 초기 네트워크 검증 전까지 광고 ON·Draft 머지는 NO-GO다. 전체 `npm run verify`는 820 suites·10,691 tests와 UI 76 PASS였다.
-- 사용자는 같은 Free 조직에서 임시 Supabase 프로젝트를 만들고 보상 적용 후 암호화 백업을 복호화·격리 복원·검증한 뒤 프로젝트와 로컬 평문을 삭제하는 전체 드릴을 승인했다. Orca 콘솔 Run `run_9e4033e7f735`는 백업 SHA-256 일치·월 USD 0 비용·활성 프로젝트 1개를 확인했다. 그러나 age 개인키는 잠긴 KeePassXC에 있고 임시 DB 접속·삭제 권한이 검증되지 않아 **프로젝트 생성 전 중단**했다. 평문·임시 프로젝트·운영 쓰기 0건, 복원 성공 증거는 없다. [사전 점검 HTML](qa/BACKUP-RESTORE-PREFLIGHT-260926.html). 사용자에게 로컬 보관함·대시보드 준비를 요청했다.
-- 코딩 PR #1865에서 `0199_oauth_naver_rate_limit_completion.sql`(초안 바이트 동일), `0200_rss_proxy_quota.sql`(초안 바이트 동일), `0201_rss_proxy_erasure_registry.sql`(정본 등록부 생성 블록)을 번호 예약·push했다. RSS 사용자별 일일 쿼터는 콘텐츠 삭제로 초기화하면 안 되는 `retained` 71번째 행이며, 계정 삭제는 `public.users` FK로 연쇄 삭제한다. 0189 rollback 목록에는 등록부 전용 `0201`만 더하고 제품 표 생성 `0200`은 넣지 않았다. [번호·해시·의존성](qa/SERVER-PROMOTION-260926.md). 집중 Jest 54개와 등록부 검사, 전체 `npm run verify -- --runInBand` 818 suites·10,685 tests·UI 76 PASS. 원격 [SQL 리허설](https://github.com/Simon-YHKim/2nd-B/actions/runs/36233386382)의 0199·0200·0201 및 rollback 왕복을 포함한 4개 검사도 모두 PASS.
-- 읽기 전용 운영 카탈로그에 `0183`의 OAuth 테이블·제한 함수와 RSS 사용자 쿼터 테이블·RPC가 아직 없다. `0199`는 `0183` 선행 없이 적용할 수 없다. 운영 백업 격리 복원·실데이터 이주 리허설, 원장 alias 대응, Edge/flag 확인 전 추가 운영 적용은 NO-GO다. 무료 Supabase 격리 프로젝트의 전체 복원 드릴은 사용자가 승인했다. 개인키·임시 DB 접속·삭제 경로가 확인될 때까지 생성은 보류하고 Grok 후속은 보류한다.
-- 로컬 Chrome의 실제 분석 모듈/CSP 계측에서 합성 GA4 ID로 `gtag.js` 200과 성인·동의·런타임 ON의 `/g/collect` 시도를 확인했다. 수집 요청은 모두 네트워크 전송 전에 차단했다. 동의 OFF·런타임 OFF·미성년·철회·Paddle sandbox는 수집 시도 0건이었다(`scripts/qa/ga4-network-smoke.cjs`). 운영 GA4 수신·Paddle 실거래를 증명하지 않는다. Android 음성 Stop은 전사·audit DB 쓰기로 이어져 무쓰기 조건에서 누르지 않았다. 당시 오프라인 AVD 재기동은 자동 승인 검토가 사유 없이 거부됐고 제품 화면에서 녹음을 시작하지 않았다. 전용 AVD/Metro는 정리했다.
-- 현재 `ae24b6e1` 웹 export에서 QA 계정 33화면(320/425/768px)의 pageerror·가로 넘침·깨진 이미지가 각각 0건이고, 320/425px 음성 녹음 시작·사진 카메라 버튼 4개는 스크롤 후 클릭 가능했다. 미배포 service-consent 404×3·Polaris 상태 404×1은 실패/대기 UI로 처리됐다. [웹 스크린샷과 범위](qa/REMAINING-WORK-260926.html). 별도 Android API 36 격리 fixture에서는 네이티브 Start→Cancel 뒤 임시 파일 부재를 확인했고 외부 기본 네트워크는 none 상태였다. Expo의 missing-file 응답에 `uri`가 없는 것을 정리 실패로 오판하던 `owned-temp` 검사를 고쳤다. 변경 후 전체 `npm run verify -- --runInBand`는 818 suites·10,686 tests·UI 76 PASS. [AVD 전후 증거·제한](qa/ANDROID-VOICE-CANCEL-260926.md). 앱 화면의 Stop→전사·DB·오디오 품질은 미검증이다.
-- 19:46 KST 최신 PR JS `55f24cf3`을 실제 Android 제품 `/capture-full?mode=voice`에 로드해 QA 로그인→Record→`Recording...`→`To do` 탭 취소를 확인했다. 녹음 중 `.m4a` 1개가 생겼고 취소 뒤 `cache/Audio`가 비었으며 `[audio]` 경고·전사 요청은 0건이었다. 인증 POST 1회와 읽기 요청만 전달하는 로컬 프록시를 사용했고 전용 AVD·Metro·프록시를 종료했다. Stop→전사·저장·음질·실기기는 여전히 미검증이다. [제품 화면·상세 증거](qa/ANDROID-VOICE-CANCEL-260926.md).
-- 19:30 KST Supabase 인증 읽기 전용 재조회에서 운영 migration 원장은 152행 그대로다. `polaris_generation_status`·가입 상태·서비스 동의 snapshot RPC, Naver OAuth·RSS 쿼터 선행 객체와 `service-consent` Edge는 여전히 없다. 암호화 백업 artifact·로컬 `.age` 크기/헤더/해시는 일치하고 age·pg_restore 및 KeePassXC 보관함 파일도 존재하지만 개인키 항목 접근·복호화·복원은 확인되지 않았다. 격리 프로젝트는 만들지 않았고 콘솔 담당의 키·DB 접속·삭제 경로 확인이 남는다. 추가 운영 적용 NO-GO와 Grok 후속 보류를 유지한다.
-
-## 2026-09-26 18:05 / Android 캡처 탭 겹침 수정·운영 읽기 재확인
-
-- 같은 Android API 36 AVD(1440×3120/560dpi)의 사진·음성 캡처 화면에서 선택 탭이 안내 문구를 덮는 현상을 재현했다. `src/app/capture.tsx`의 줄바꿈 탭에 명시적 basis·최소 높이를 주고 안내의 음수 여백을 없앴다. 수정된 JS로 두 화면을 재기동하니 탭·`Show less`·안내가 분리됐다. 수치 bounds는 UIAutomator 타임아웃으로 확보하지 못했다. [동일 기기 전후 스크린샷과 범위](qa/ANDROID-CAPTURE-LAYOUT-260926.md). 카메라 권한 후 시스템 프리뷰까지만 열었고 마이크 권한은 거부했다. 촬영·OCR·녹음·전사·저장·효과음 출력은 검증하지 않았다. 전용 AVD/Metro는 종료했고 공용 8081은 유지했다.
-- 별도 QA의 과거 Polaris mock 감사에서는 `persona_narrative` 1건·`persona_synthesis` 2건과 `role_cards_v1` 부재가 당시 mock 분기로 설명된다. 현 통합 코드의 mock 응답은 합성 카드를 만들지 않고 `polaris_live_required`로 멈춘다. 과거 실제 생성 실패의 HTTP 응답·예외가 없으므로 원인은 특정할 수 없고, audit 행이 없다는 사실만으로 공급자 호출이 없었다고 결론 내리지 않는다. 현 운영 `polaris_generation_status` 404에서는 생성 CTA가 비활성이다.
-- Supabase 읽기 전용 재조회에서 migration 152행의 마지막 네 행은 보상 alias 2개와 중복 0172 두 행 그대로다. `service-consent` Edge는 없고 `rewarded-ssv` v91의 수정 시각은 12:23:51 KST 그대로다. `Learner-thepoorman's Org`는 Free 플랜이고 새 프로젝트 비용 재조회는 월 **$0**이다. 격리 프로젝트 생성·암호화 백업 복원·삭제는 별도 사용자 결정 대기이며 아무것도 생성하지 않았다. 운영 추가 SQL·Edge 배포/공개는 NO-GO, Grok 후속 전달은 보류다.
 
