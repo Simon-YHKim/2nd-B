@@ -51,6 +51,10 @@ export const WEB_CSP_DIRECTIVES: readonly Directive[] = [
     "https://securepubads.g.doubleclick.net",
     "https://cdn.paddle.com",
     "https://vendors.paddle.com",
+    // 글 photos (record-photos, 0209) are shown through short-lived signed URLs.
+    // Scoped to that bucket's sign path, not the whole Supabase origin
+    // (2026-09-30: without it the record detail loaded no photo on web).
+    "https://zoacryukmdeivmolvyhj.supabase.co/storage/v1/object/sign/record-photos/",
   ],
   ["font-src", "'self'", "data:"],
   [
@@ -112,8 +116,11 @@ export interface WebDocumentCspConfig {
 }
 
 const PRODUCTION_SUPABASE_ORIGIN = "https://zoacryukmdeivmolvyhj.supabase.co";
+// Production-only sources a sandbox build drops (billing, and every production
+// Supabase endpoint, including the record-photos image path).
 const BILLING_SOURCES = new Set([
   PRODUCTION_SUPABASE_ORIGIN, "wss://zoacryukmdeivmolvyhj.supabase.co",
+  `${PRODUCTION_SUPABASE_ORIGIN}/storage/v1/object/sign/record-photos/`,
   "https://cdn.paddle.com/paddle/v2/paddle.js", "https://cdn.paddle.com",
   "https://api.paddle.com", "https://buy.paddle.com",
   "https://create-checkout.paddle.com", "https://vendors.paddle.com",
@@ -148,7 +155,7 @@ function configuredDirectives(config: WebDocumentCspConfig): readonly Directive[
     const extra: Record<string, string[]> = {
       "script-src": ["https://cdn.paddle.com/paddle/v2/paddle.js"],
       "style-src": ["https://sandbox-cdn.paddle.com/paddle/v2/assets/css/paddle.css"],
-      "img-src": ["https://sandbox-cdn.paddle.com/paddle/v2/assets/images/"],
+      "img-src": ["https://sandbox-cdn.paddle.com/paddle/v2/assets/images/", `${origin}/storage/v1/object/sign/record-photos/`],
       "connect-src": [origin, origin.replace("https:", "wss:"),
         "https://sandbox-api.paddle.com", "https://sandbox-buy.paddle.com",
         "https://sandbox-create-checkout.paddle.com"],
