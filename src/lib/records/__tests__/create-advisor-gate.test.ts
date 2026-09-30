@@ -627,7 +627,11 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     expect(manifest.share_target?.action?.endsWith("/capture")).toBe(true);
     const wrapper = src.split("export function CaptureLegacy")[0] ?? "";
     expect(wrapper).toContain("const hasFullCaptureParams =");
-    expect(wrapper).toContain("(CAPTURE_MODES as readonly string[]).includes(captureParams.mode)");
+    // 2026-09-30: the 사진·음성 tiles left the simple screen, so `?mode=ocr|voice`
+    // now lands on CaptureView's 글 instead of the full intake. Every other mode
+    // still opens it; captureModeOpensFullIntake (draft.ts) holds the rule and
+    // draft.test.ts pins its table.
+    expect(wrapper).toContain("captureModeOpensFullIntake(captureParams.mode)");
     expect(wrapper).toContain("captureParams.tag.trim().length > 0");
     expect(wrapper).toContain('captureParams.entry === "firstRun"');
     expect(wrapper).toContain("useState(hasFullCaptureParams)");

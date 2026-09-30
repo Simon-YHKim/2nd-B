@@ -183,8 +183,6 @@
       "modes": {
         "text": "Texto",
         "link": "Enlace",
-        "photo": "Foto",
-        "voice": "Voz",
         "todo": "Tarea"
       },
       "fields": {
@@ -211,10 +209,12 @@
       },
       "linkHint": "Pega un enlace y SecondB obtiene el título y el resumen.",
       "linkPlaceholder": "https://",
-      "photoOpen": "Abrir cámara o álbum",
-      "photoCaption": "Describe la foto",
-      "voiceOpen": "Abrir grabadora",
-      "voiceHint": "Escribe lo que dijiste",
+      "photoAdd": "Añadir una foto",
+      "photoAddHint": "Elige una foto de tu álbum. Se guarda con esta nota.",
+      "photoLimit": "Hasta {{max}} fotos",
+      "photoRemove": "Quitar la foto {{n}}",
+      "photoAttached": "Foto adjunta {{n}}",
+      "photoPickError": "No se pudo añadir esa foto. Prueba con otra.",
       "todoHint": "Tarea",
       "todoAdd": "Añadir una tarea",
       "banner": "Al guardar, SecondB añade estrellas y etiquetas relacionadas.",

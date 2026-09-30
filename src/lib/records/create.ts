@@ -19,6 +19,7 @@ import { fetchPrivacyPrefs } from "../supabase/privacy";
 import { withTimeout } from "../async/with-timeout";
 import { getEnv } from "../env";
 import type { StructuredPayload } from "../capture/structured";
+import { recordPhotoPathsOf, removeRecordPhotoObjects, type RecordPhotosPayload } from "../capture/record-photos";
 import { domainTagFor, isDomainId, stripDomainTags, type DomainId } from "../persona/domain-stars";
 import { withDomainTag } from "./detect-domain";
 import { embedAndStoreRecord, recordsEmbeddingAllowed } from "./records-embeddings";
@@ -66,8 +67,11 @@ export interface CreateRecordArgs {
    * Machine-readable form payload (0066): set by form-shaped captures (4W1H,
    * career 3C4P) alongside the flattened human body, so the system and the AI
    * can read the structure. Omitted = column stays null.
+   *
+   * A 글 note with photos (2026-09-30) carries { photos: [...] } here instead:
+   * storage paths only, never the image bytes (capture/record-photos.ts).
    */
-  structured?: StructuredPayload;
+  structured?: StructuredPayload | RecordPhotosPayload;
   /**
    * Owner-scoped retry key (0178 records.client_request_id, UNIQUE per
    * user_id). The same key on a retry makes the server refuse a second row, and
@@ -557,15 +561,22 @@ export async function updateRecord(
 // index-friendly WHERE fires first.
 export async function deleteRecord(userId: string, recordId: string): Promise<void> {
   const supabase = getSupabaseClient();
-  const { error } = await supabase
+  // The deleted row comes back so its attached photos (records.structured.photos,
+  // 2026-09-30) can be removed from Storage with it instead of staying behind.
+  const { data, error } = await supabase
     .from("records")
     .delete()
     .eq("user_id", userId)
-    .eq("id", recordId);
+    .eq("id", recordId)
+    .select("structured");
   if (error) throw error;
   // Deletes shift domain levels just like saves do (createRecord above) — drop
   // the cached constellation so the sky dims honestly instead of after the TTL.
   invalidateDomainLevels(userId);
+  // Best effort and never a failure: the record is already gone. A photo that
+  // fails to delete here stays in the owner's private folder (record-photos.ts).
+  const photoPaths = recordPhotoPathsOf(data as { structured?: unknown }[] | null, userId);
+  if (photoPaths.length > 0) await removeRecordPhotoObjects(photoPaths);
 }
 
 // Exact count of a user's records of one kind. Used by the free-tier usage

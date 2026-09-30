@@ -183,8 +183,6 @@
       "modes": {
         "text": "Teks",
         "link": "Tautan",
-        "photo": "Foto",
-        "voice": "Suara",
         "todo": "Tugas"
       },
       "fields": {
@@ -211,10 +209,12 @@
       },
       "linkHint": "Tempel tautan dan SecondB mengambil judul dan ringkasannya.",
       "linkPlaceholder": "https://",
-      "photoOpen": "Buka kamera atau album",
-      "photoCaption": "Deskripsikan foto",
-      "voiceOpen": "Buka perekam",
-      "voiceHint": "Tulis apa yang kamu katakan",
+      "photoAdd": "Tambah foto",
+      "photoAddHint": "Pilih foto dari album. Foto disimpan bersama catatan ini.",
+      "photoLimit": "Maksimal {{max}} foto",
+      "photoRemove": "Hapus foto {{n}}",
+      "photoAttached": "Foto terlampir {{n}}",
+      "photoPickError": "Foto itu tidak bisa ditambahkan. Coba foto lain.",
       "todoHint": "Tugas",
       "todoAdd": "Tambah tugas",
       "banner": "Saat disimpan, SecondB menambahkan bintang dan tag terkait.",

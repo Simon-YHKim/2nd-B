@@ -4,6 +4,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 
 import { advanceFirstRecordCoach, type FirstRecordCoachStep } from "../first-record-coach";
+import { recordPhotosPayload, type RecordPhotoRef } from "../../capture/record-photos";
 
 // Execute the actual save/skip handlers without loading the native renderer or
 // database. The guide transition is imported from production, not reproduced.
@@ -31,9 +32,22 @@ const skipCode = compile(skip.initializer.getText(ast));
 type CoachStep = FirstRecordCoachStep | null;
 type SaveResult = { followup?: { zone: "green" | "red" } };
 
-function harness(initialStep: CoachStep, firstRecordCoach = true) {
+function harness(
+  initialStep: CoachStep,
+  firstRecordCoach = true,
+  extra: { photos?: { uri: string; base64: string }[]; mode?: string } = {},
+) {
   const state = { coachStep: initialStep, saved: false, error: false, saving: false };
   const createRecord = jest.fn<Promise<SaveResult>, [unknown]>().mockResolvedValue({});
+  // 2026-09-30: savePiece uploads 글 photos before the insert and clears them
+  // after. The payload builder is the production one; the I/O is stubbed.
+  const uploaded: RecordPhotoRef[] = (extra.photos ?? []).map((_, i) => ({
+    path: `qa-user/photo-0000000000000${i}aa.jpg`,
+    mime: "image/jpeg",
+  }));
+  const uploadRecordPhotos = jest.fn().mockResolvedValue(uploaded);
+  const removeRecordPhotoObjects = jest.fn().mockResolvedValue(uploaded.length);
+  const clearPhotos = jest.fn();
   const markCoachmarksSeen = jest.fn();
   const setCrisis = jest.fn();
   const announceForAccessibility = jest.fn();
@@ -53,7 +67,7 @@ function harness(initialStep: CoachStep, firstRecordCoach = true) {
     canSave: true,
     isMinor: false,
     locale: "ko",
-    mode: "text",
+    mode: extra.mode ?? "text",
     textFormat: "memo",
     text: "  A first saved note  ",
     setSaving: (value: boolean) => { state.saving = value; },
@@ -64,12 +78,19 @@ function harness(initialStep: CoachStep, firstRecordCoach = true) {
     EMPTY_FOURW: {},
     setText: jest.fn(),
     setTodos: jest.fn(),
+    photos: extra.photos ?? [],
+    uploadRecordPhotos,
+    recordPhotosPayload,
+    removeRecordPhotoObjects,
+    clearPhotos,
+    cleanTodos: ["first to-do"],
     AccessibilityInfo: { announceForAccessibility },
     t: (key: string) => key,
     console: { warn: jest.fn() },
   };
   return {
     state, createRecord, markCoachmarksSeen, setCoachStep, setCrisis, announceForAccessibility,
+    uploadRecordPhotos, removeRecordPhotoObjects, clearPhotos, uploaded,
     save: runInNewContext(saveCode, scope) as () => Promise<void>,
     skip: runInNewContext(skipCode, scope) as () => void,
   };
@@ -143,4 +164,61 @@ describe("first-record coach follows the real record save", () => {
       expect(run.markCoachmarksSeen).toHaveBeenCalledTimes(1);
     },
   );
+});
+
+describe("글 photos ride on the real record save (2026-09-30)", () => {
+  const picked = [
+    { uri: "file:///cache/a.jpg", base64: "/9j/AAAA" },
+    { uri: "file:///cache/b.jpg", base64: "/9j/BBBB" },
+  ];
+
+  test("photos are uploaded first and the record points at them", async () => {
+    const run = harness(null, false, { photos: picked });
+    await run.save();
+
+    expect(run.uploadRecordPhotos).toHaveBeenCalledWith("qa-user", picked);
+    expect(run.createRecord).toHaveBeenCalledWith(expect.objectContaining({
+      tags: ["memo"],
+      structured: { photos: run.uploaded },
+    }));
+    expect(run.clearPhotos).toHaveBeenCalledTimes(1);
+    expect(run.removeRecordPhotoObjects).not.toHaveBeenCalled();
+    expect(run.state.saved).toBe(true);
+  });
+
+  test("a failed insert removes the photos it had just uploaded", async () => {
+    const run = harness(null, false, { photos: picked });
+    run.createRecord.mockRejectedValueOnce(new Error("insert failed"));
+    await run.save();
+
+    expect(run.removeRecordPhotoObjects).toHaveBeenCalledWith(run.uploaded.map((photo) => photo.path));
+    expect(run.clearPhotos).not.toHaveBeenCalled();
+    expect(run.state).toEqual({ coachStep: null, saved: false, error: true, saving: false });
+  });
+
+  test("a failed upload never reaches the insert", async () => {
+    const run = harness(null, false, { photos: picked });
+    run.uploadRecordPhotos.mockRejectedValueOnce(new Error("storage down"));
+    await run.save();
+
+    expect(run.createRecord).not.toHaveBeenCalled();
+    expect(run.state.error).toBe(true);
+  });
+
+  test("a note without photos saves with no structured payload and no Storage call", async () => {
+    const run = harness(null, false);
+    await run.save();
+
+    expect(run.uploadRecordPhotos).not.toHaveBeenCalled();
+    expect(run.createRecord.mock.calls[0]?.[0]).not.toHaveProperty("structured");
+  });
+
+  test("photos stay out of a to-do save", async () => {
+    const run = harness(null, false, { photos: picked, mode: "todo" });
+    await run.save();
+
+    expect(run.uploadRecordPhotos).not.toHaveBeenCalled();
+    expect(run.createRecord).toHaveBeenCalledWith(expect.objectContaining({ tags: ["todo"], body: "- first to-do" }));
+    expect(run.createRecord.mock.calls[0]?.[0]).not.toHaveProperty("structured");
+  });
 });
