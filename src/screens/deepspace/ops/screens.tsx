@@ -1108,6 +1108,8 @@ export function MealsScreen() {
                 <Pressable
                   key={slot}
                   onPress={() => openCell(day.date, slot, cell)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${day.date} ${dayLabels[i]} ${c[slot]}: ${cell?.title ?? c.planMeal}`}
                   hitSlop={4}
                   style={[styles.gridCell, cell ? styles.gridCellFilled : null]}
                 >
@@ -1629,7 +1631,7 @@ const styles = StyleSheet.create({
   gridHeadCell: { flex: 1, fontSize: 10, color: deepSpace.textLo, textAlign: "center" },
   gridCell: {
     flex: 1,
-    height: 36,
+    minHeight: 44,
     borderRadius: m3.shape.small,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
