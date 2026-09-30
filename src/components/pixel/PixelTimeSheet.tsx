@@ -10,7 +10,7 @@
 // 닫는 길: 닫기 글리프, 스크림 누르기, 안드로이드 뒤로(onRequestClose), 웹 Esc.
 // 값은 호출부가 소유한다. 시트는 초안만 들고 있다가 저장할 때 "HH:MM" 하나를 넘긴다.
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Modal, Platform, Pressable, StyleSheet, View } from "react-native";
+import { AccessibilityInfo, Modal, Platform, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -24,14 +24,14 @@ import { PixelPressable } from "./PixelPressable";
 import { PixelSurface } from "./PixelSurface";
 import { PixelWheel } from "./PixelWheel";
 import {
-  formatHour,
+  clockText,
   formatMinute,
-  hourValues,
-  joinClock,
+  hourWheelLabels,
   minuteValues,
+  parseClock,
   parseClockPattern,
-  splitClock,
-  type ClockValue,
+  periodOfHour,
+  withPeriod,
 } from "./time-wheel";
 
 /** 참조 휠과 같은 5분 간격. 간격 밖의 저장값은 `minuteValues` 가 끼워 넣는다. */
@@ -54,12 +54,13 @@ export function PixelTimeSheet({ visible, value, title, onCancel, onSave, busy =
   const { t } = useTranslation("common");
   const insets = useSafeAreaInsets();
   const pattern = useMemo(() => parseClockPattern(t("timePicker.pattern")), [t]);
-  const [draft, setDraft] = useState<ClockValue>(() => splitClock(value, pattern.hour12));
+  // 초안은 24시간제 한 벌로 든다. 12시간제의 시 칸도 24칸을 돌기 때문에 오전/오후가 따라온다.
+  const [draft, setDraft] = useState(() => parseClock(value));
 
   // 열 때마다 저장된 값에서 다시 시작한다. 닫았다 열면 버린 초안이 남지 않는다.
   useEffect(() => {
-    if (visible) setDraft(splitClock(value, pattern.hour12));
-  }, [visible, value, pattern.hour12]);
+    if (visible) setDraft(parseClock(value));
+  }, [visible, value]);
 
   // 웹의 Modal 이 Esc 를 onRequestClose 로 넘기는지 확인하지 못했다. 그래서 직접 듣는다.
   useEffect(() => {
@@ -74,22 +75,41 @@ export function PixelTimeSheet({ visible, value, title, onCancel, onSave, busy =
     return () => document.removeEventListener("keydown", onKey);
   }, [visible, onCancel]);
 
-  const hours = useMemo(() => hourValues(pattern.hour12), [pattern.hour12]);
+  // role=alert 만으로는 TalkBack · VoiceOver 가 새로 나타난 저장 실패를 읽지 않는다.
+  useEffect(() => {
+    if (visible && error && Platform.OS !== "web") AccessibilityInfo.announceForAccessibility(error);
+  }, [visible, error]);
+
+  const hourLabels = useMemo(() => hourWheelLabels(pattern), [pattern]);
+  const hourSpoken = useMemo(
+    () => hourLabels.map((_, hour24) => t("timePicker.hourValue", { value: pattern.hour12 ? hour24 % 12 || 12 : hour24 })),
+    [hourLabels, pattern.hour12, t],
+  );
   // 분 목록은 저장된 값 기준으로 한 번 정한다. 끄는 동안 목록이 바뀌면 칸이 튄다.
-  const minutes = useMemo(() => minuteValues(MINUTE_STEP, splitClock(value, pattern.hour12).minute), [value, pattern.hour12]);
+  const minutes = useMemo(() => minuteValues(MINUTE_STEP, parseClock(value).minute), [value]);
+  const minuteSpoken = useMemo(() => minutes.map((minute) => t("timePicker.minuteValue", { value: minute })), [minutes, t]);
 
   const columns: ReactNode[] = [];
   pattern.parts.forEach((part, at) => {
     if (part === "minute" && pattern.parts[at - 1] === "hour" && pattern.separator) {
-      columns.push(<Text key="separator" style={styles.separator} importantForAccessibility="no">{pattern.separator}</Text>);
+      // 시와 분 사이 글자는 그림일 뿐이다. 스크린리더 정지가 되지 않게 모든 플랫폼에서 숨긴다.
+      columns.push(
+        <Text
+          key="separator"
+          style={styles.separator}
+          accessible={false}
+          aria-hidden
+          importantForAccessibility="no"
+        >{pattern.separator}</Text>,
+      );
     }
     if (part === "period") {
       columns.push(
         <PixelWheel
           key="period"
           labels={[t("timePicker.am"), t("timePicker.pm")]}
-          index={draft.period}
-          onChange={(next) => setDraft((current) => ({ ...current, period: next === 1 ? 1 : 0 }))}
+          index={periodOfHour(draft.hour24)}
+          onChange={(next) => setDraft((current) => ({ ...current, hour24: withPeriod(current.hour24, next === 1 ? 1 : 0) }))}
           accessibilityLabel={t("timePicker.period")}
         />,
       );
@@ -97,9 +117,10 @@ export function PixelTimeSheet({ visible, value, title, onCancel, onSave, busy =
       columns.push(
         <PixelWheel
           key="hour"
-          labels={hours.map((hour) => formatHour(hour, pattern))}
-          index={Math.max(0, hours.indexOf(draft.hour))}
-          onChange={(next) => setDraft((current) => ({ ...current, hour: hours[next] ?? current.hour }))}
+          labels={hourLabels}
+          spokenLabels={hourSpoken}
+          index={draft.hour24}
+          onChange={(next) => setDraft((current) => ({ ...current, hour24: next }))}
           accessibilityLabel={t("timePicker.hour")}
           wrap
         />,
@@ -109,6 +130,7 @@ export function PixelTimeSheet({ visible, value, title, onCancel, onSave, busy =
         <PixelWheel
           key="minute"
           labels={minutes.map(formatMinute)}
+          spokenLabels={minuteSpoken}
           index={Math.max(0, minutes.indexOf(draft.minute))}
           onChange={(next) => setDraft((current) => ({ ...current, minute: minutes[next] ?? current.minute }))}
           accessibilityLabel={t("timePicker.minute")}
@@ -121,9 +143,17 @@ export function PixelTimeSheet({ visible, value, title, onCancel, onSave, busy =
   return (
     <Modal visible={visible} transparent animationType="none" statusBarTranslucent onRequestClose={onCancel}>
       <View style={styles.root}>
-        <Pressable accessible={false} style={StyleSheet.absoluteFill} onPress={onCancel}>
+        {/* 스크림은 Pressable 이 아니라 응답자 View 다. RN-web 은 Pressable 에 늘 tabIndex 0 을 주고
+            Modal 의 포커스 트랩이 첫 요소에 포커스를 넣어서, 이름 없는 전체 화면 칸이 포커스를 받고
+            Enter 한 번에 초안이 버려졌다(리뷰 실측). 이 View 는 탭 정지가 아니다. */}
+        <View
+          accessible={false}
+          style={StyleSheet.absoluteFill}
+          onStartShouldSetResponder={() => true}
+          onResponderRelease={onCancel}
+        >
           <PixelScrim style={styles.scrimImage} />
-        </Pressable>
+        </View>
         <View accessibilityViewIsModal onAccessibilityEscape={onCancel} style={styles.sheetColumn}>
           <PixelSurface
             variant="bevel"
@@ -142,12 +172,12 @@ export function PixelTimeSheet({ visible, value, title, onCancel, onSave, busy =
               </PixelPressable>
             </View>
             <View style={styles.wheels}>{columns}</View>
-            {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
+            {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.error}>{error}</Text> : null}
             <PixelPressable
               fullWidth
               disabled={busy}
               background={m3.color.primary}
-              onPress={() => onSave(joinClock(draft, pattern.hour12))}
+              onPress={() => onSave(clockText(draft.hour24, draft.minute))}
               accessibilityLabel={t("actions.save")}
               accessibilityState={{ busy }}
               contentStyle={styles.saveContent}

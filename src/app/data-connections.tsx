@@ -9,6 +9,7 @@ import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { PixelTimeSheet } from "@/components/pixel/PixelTimeSheet";
 import { formatClock } from "@/components/pixel/time-wheel";
+import { m3TextStyle } from "@/components/m3/typeface";
 import { Text as BaseText, type TextProps } from "@/components/ui/Text";
 import { loadDashboard } from "@/lib/dashboard/load";
 import { DASHBOARD_SOURCES, SOURCE_GROUPS, sourceGroup, sourceState, type DashboardData } from "@/lib/dashboard/model";
@@ -94,10 +95,16 @@ function DataConnectionsBody({ ownerId, isMinor }: { ownerId: string; isMinor: b
     setSaveError(false);
     setTimeSheetOpen(true);
   };
+  // Closing without a failed save leaves nothing to retry, so the error goes with the sheet.
+  const closeTimeSheet = () => {
+    setSaveError(false);
+    setTimeSheetOpen(false);
+  };
 
   // The sheet stays open when a save fails, so the chosen time is not lost and the error shows inside it.
   const saveTime = async (anchorTime: string) => {
-    if (anchorTime === refreshSettings.anchorTime || await saveSettings({ ...refreshSettings, anchorTime })) setTimeSheetOpen(false);
+    if (anchorTime === refreshSettings.anchorTime) closeTimeSheet();
+    else if (await saveSettings({ ...refreshSettings, anchorTime })) setTimeSheetOpen(false);
   };
 
   const formatDate = (value: string) => {
@@ -140,7 +147,7 @@ function DataConnectionsBody({ ownerId, isMinor }: { ownerId: string; isMinor: b
           contentStyle={styles.timeTrigger}
         >
           <PixelGlyph name="schedule" size={24} color={m3.color.primary} />
-          <Text variant="body" style={styles.timeValue}>{dailyLabel}</Text>
+          <Text style={styles.timeValue}>{dailyLabel}</Text>
           <PixelGlyph name="expandMore" size={24} color={m3.color.primary} />
         </PixelPressable> : null}
         {saveError && !timeSheetOpen ? <Text accessibilityRole="alert" variant="caption" style={styles.error}>{t("settings:dataRefreshSaveError")}</Text> : null}
@@ -163,7 +170,7 @@ function DataConnectionsBody({ ownerId, isMinor }: { ownerId: string; isMinor: b
       {SOURCE_GROUPS.map((group) => {
         const sources = DASHBOARD_SOURCES.filter((source) => sourceGroup(source) === group);
         return <View key={group} style={styles.group}>
-          <Text variant="body" accessibilityRole="header" style={styles.groupTitle}>{t(`ops:phone.sourceGroups.${group}`)}</Text>
+          <Text accessibilityRole="header" style={styles.groupTitle}>{t(`ops:phone.sourceGroups.${group}`)}</Text>
           {group === "manual" ? <PixelSurface variant="frame" contentStyle={styles.panel}>
             {/* No-break spaces keep a multi-word name ("Nike Run Club") on one line. */}
             <Text variant="body" style={styles.sourceName}>{sources.map((source) => (BRAND_NAMES[source.id] ?? source.id).replace(/ /g, "\u00a0")).join(" · ")}</Text>
@@ -172,12 +179,14 @@ function DataConnectionsBody({ ownerId, isMinor }: { ownerId: string; isMinor: b
               <Text variant="caption">{t("ops:phone.addRecord")}</Text>
             </PixelPressable>
           </PixelSurface> : sources.map((source) => {
-            const state = data ? sourceState(source, data, isMinor) : { status: "unknown" as const, lastImport: null };
+            // The age lock does not wait for the read: a minor or an unconfirmed age never gets a live button.
+            const locked = "adultOnly" in source && source.adultOnly && isMinor !== false;
+            const state = locked ? { status: "restricted" as const, lastImport: null }
+              : data ? sourceState(source, data, isMinor) : { status: "unknown" as const, lastImport: null };
             const name = BRAND_NAMES[source.id] ?? t(`ops:phone.sourceNames.${source.id}`);
-            // Device sources ask for consent and the OS permission first, then read on request.
-            const action = group === "device"
-              ? t(data?.healthEnabled ? "ops:phone.readNow" : "ops:phone.allowAccess")
-              : t("ops:phone.manageSource");
+            // Device cards open the tab that holds the consent and OS-permission row and the "reflect today"
+            // read. Nothing reads health data automatically yet, so the label names the screen, not a read.
+            const action = t(group === "device" ? "ops:phone.openHealth" : "ops:phone.manageSource");
             return <PixelSurface key={source.id} variant="frame" contentStyle={styles.panel}>
               <View style={styles.sourceTitle}>
                 <PixelGlyph name={source.glyph} size={24} color={m3.color.primary} />
@@ -214,7 +223,7 @@ function DataConnectionsBody({ ownerId, isMinor }: { ownerId: string; isMinor: b
       title={t("settings:dataRefreshSheetTitle")}
       busy={saving}
       error={saveError ? t("settings:dataRefreshSaveError") : null}
-      onCancel={() => setTimeSheetOpen(false)}
+      onCancel={closeTimeSheet}
       onSave={(anchorTime) => { void saveTime(anchorTime); }}
     />
   </DeepSpaceScreen>;
@@ -234,9 +243,10 @@ const styles = StyleSheet.create({
   toggleThumb: { width: 20, height: 20, backgroundColor: m3.color.onSurfaceVariant },
   toggleThumbOn: { backgroundColor: m3.color.primary },
   timeTrigger: { minHeight: 44, paddingHorizontal: 12, alignItems: "center", flexDirection: "row", gap: 10 },
-  timeValue: { flex: 1 },
+  // Chrome, not reading text: the readable-font option must not turn these into Pretendard.
+  timeValue: { ...m3TextStyle("titleMedium"), flex: 1 },
   group: { gap: 10 },
-  groupTitle: { color: m3.color.primary },
+  groupTitle: { ...m3TextStyle("titleMedium"), color: m3.color.primary },
   sourceTitle: { flexDirection: "row", alignItems: "center", gap: 10 },
   sourceName: { flex: 1 },
   action: { minHeight: 44, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },

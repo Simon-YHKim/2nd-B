@@ -107,7 +107,7 @@
       "tasks": "Tugas"
     },
     "sourceGroups": {
-      "device": "Dibaca dengan izin ponsel",
+      "device": "Dibaca dengan izin perangkat",
       "import": "Perlu diimpor",
       "manual": "Catat sendiri"
     },
@@ -117,25 +117,24 @@
       "empty": "Belum ada riwayat impor di perangkat ini",
       "imported": "Impor tercatat",
       "off": "Akses kesehatan perangkat dimatikan di aplikasi",
-      "allowed": "Diizinkan · belum ada data yang dibaca",
+      "consented": "Akses kesehatan perangkat aktif di aplikasi · belum ada data yang dibaca",
       "unknown": "Status tidak dapat dibaca",
       "restricted": "Tidak tersedia untuk akun ini"
     },
     "sourceNotes": {
-      "calendar": "Impor melalui Google Calendar di web, atau berkas .ics di ponsel. Kalender tidak disinkronkan terus-menerus.",
+      "calendar": "Impor melalui Google Calendar di web, atau berkas .ics di aplikasi terpasang. Kalender tidak disinkronkan terus-menerus.",
       "location": "Impor berkas ekspor Google Timeline. Pelacakan GPS di latar belakang tidak terhubung.",
-      "health": "Setelah Anda setuju dan memberi izin, aplikasi dapat membaca langkah, olahraga, tidur, dan detak jantung dari Health Connect (Android) atau Apple Health (iOS).",
-      "garmin": "Aktifkan berbagi dari Garmin Connect ke Apple Health (iOS) atau Health Connect (Android 14+), maka izin kesehatan juga dapat membaca data yang didukung. Koneksi langsung Garmin dan Body Battery tidak didukung.",
-      "tasks": "Impor Google Tasks dengan akun Google di web. Belum bisa dihubungkan dari ponsel, dan perubahan tidak disinkronkan terus-menerus.",
+      "health": "Di aplikasi terpasang, setelah Anda setuju dan memberi izin, aplikasi dapat membaca langkah, olahraga, tidur, dan detak jantung dari Health Connect (Android) atau Apple Health (iOS). Untuk saat ini, catatan hari ini dibaca saat Anda mengetuk ‘Terapkan hari ini’.",
+      "garmin": "Aktifkan berbagi dari Garmin Connect ke Apple Health (iOS) atau Health Connect (Android 14+), lalu aplikasi terpasang juga dapat membaca data yang didukung dengan izin kesehatan yang sama. Koneksi langsung Garmin dan Body Battery tidak didukung.",
+      "tasks": "Impor Google Tasks dengan akun Google di web. Aplikasi terpasang belum bisa menghubungkannya, dan perubahan tidak disinkronkan terus-menerus.",
       "kakao": "Impor ekspor percakapan KakaoTalk dan tinjau informasi yang dipilih. Percakapan pribadi tidak dibaca secara langsung.",
       "sms": "Impor berkas cadangan SMS. Aplikasi ini tidak membaca kotak masuk Anda secara langsung.",
-      "manual": "Layanan ini tidak terhubung ke aplikasi. Catat sendiri tautan atau catatan yang ingin Anda simpan."
+      "manual": "Layanan ini tidak terhubung ke aplikasi. Catat sendiri tautan atau catatan yang ingin Anda simpan. Aktivitas Nike Run Club yang dibagikan ke Apple Health atau Health Connect dapat dibaca melalui kartu kesehatan."
     },
     "lastImport": "Impor terakhir · {{date}}",
     "addRecord": "Tambahkan catatan pilihan",
     "manageSource": "Buka pengaturan impor",
-    "allowAccess": "Izinkan akses",
-    "readNow": "Baca sekarang",
+    "openHealth": "Buka koneksi kesehatan",
     "toolsTitle": "Alat sehari-hari",
     "toolsHint": "Catatan kecil membawa perubahan ✦",
     "moreTitle": "Jelajahi lainnya",

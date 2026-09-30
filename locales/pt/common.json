@@ -31,7 +31,9 @@
     "pm": "PM",
     "period": "AM ou PM",
     "hour": "Hora",
-    "minute": "Minuto"
+    "minute": "Minuto",
+    "hourValue": "{{value}} h",
+    "minuteValue": "{{value}} min"
   },
   "states": {
     "loading": "Carregando…"

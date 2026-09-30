@@ -46,11 +46,13 @@ export interface PixelWheelProps {
   onChange: (index: number) => void;
   /** 스크린리더가 읽는 칸 이름 (예: 시, 분). */
   accessibilityLabel: string;
+  /** 스크린리더가 읽을 값 (예: "7시"). 없으면 보이는 글자를 읽는다. */
+  spokenLabels?: readonly string[];
   /** 끝에서 처음으로 도는가. 시·분은 돌고 오전/오후는 멈춘다. */
   wrap?: boolean;
 }
 
-export function PixelWheel({ labels, index, onChange, accessibilityLabel, wrap = false }: PixelWheelProps) {
+export function PixelWheel({ labels, index, onChange, accessibilityLabel, spokenLabels, wrap = false }: PixelWheelProps) {
   const count = labels.length;
   const { fontScale } = useWindowDimensions();
   // 글꼴 배율에 상한을 걸지 않는다(Simon 결정 Q-260914-02). 대신 줄이 글자를 따라 커진다.
@@ -62,6 +64,10 @@ export function PixelWheel({ labels, index, onChange, accessibilityLabel, wrap =
     latest.current = { index, count, wrap, onChange, row };
   });
   const dragFrom = useRef(index);
+  // 웹 마우스로 이웃 줄 안에서 끌었다 놓으면 끌기 한 칸 뒤에 click 이 한 번 더 온다
+  // (RN-web 의 onPress 는 응답자 시스템과 따로 DOM click 에서 불린다). 끄는 동안과 놓은
+  // 직후 한 틱은 이웃 줄 누르기를 무시한다. 터치와 네이티브는 원래 겹치지 않는다.
+  const dragging = useRef(false);
   const node = useRef<View>(null);
 
   const move = (delta: number) => {
@@ -76,6 +82,7 @@ export function PixelWheel({ labels, index, onChange, accessibilityLabel, wrap =
     onMoveShouldSetPanResponder: (_event, gesture) =>
       Math.abs(gesture.dy) > 6 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
     onPanResponderGrant: () => {
+      dragging.current = true;
       dragFrom.current = latest.current.index;
     },
     onPanResponderMove: (_event, gesture) => {
@@ -83,8 +90,18 @@ export function PixelWheel({ labels, index, onChange, accessibilityLabel, wrap =
       const next = wheelStep(dragFrom.current, dragSteps(gesture.dy, current.row), current.count, current.wrap);
       if (next !== current.index) current.onChange(next);
     },
+    onPanResponderRelease: () => {
+      setTimeout(() => { dragging.current = false; }, 0);
+    },
+    onPanResponderTerminate: () => {
+      setTimeout(() => { dragging.current = false; }, 0);
+    },
     onPanResponderTerminationRequest: () => false,
   }), []);
+
+  const tap = (delta: number) => {
+    if (!dragging.current) move(delta);
+  };
 
   useEffect(() => {
     if (Platform.OS !== "web") return;
@@ -108,7 +125,9 @@ export function PixelWheel({ labels, index, onChange, accessibilityLabel, wrap =
   const above = wheelNeighbor(index, -1, count, wrap);
   const below = wheelNeighbor(index, 1, count, wrap);
   const current = labels[index] ?? "";
-  const rowStyle = { height: row };
+  const spoken = spokenLabels?.[index] ?? current;
+  // 높이가 아니라 최소 높이: 가장 큰 글꼴에서 글자가 두 줄이 되면 줄이 같이 늘어난다.
+  const rowStyle = { minHeight: row };
 
   return (
     <View
@@ -119,7 +138,7 @@ export function PixelWheel({ labels, index, onChange, accessibilityLabel, wrap =
       accessible
       accessibilityRole="adjustable"
       accessibilityLabel={accessibilityLabel}
-      {...a11yValue({ min: 0, max: Math.max(0, count - 1), now: index, text: current })}
+      {...a11yValue({ min: 0, max: Math.max(0, count - 1), now: index, text: spoken })}
       accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
       onAccessibilityAction={({ nativeEvent }) => {
         if (nativeEvent.actionName === "increment") move(1);
@@ -135,13 +154,13 @@ export function PixelWheel({ labels, index, onChange, accessibilityLabel, wrap =
         },
       } : {})}
     >
-      <WheelNeighbor label={above === null ? "" : labels[above]} height={row} onPress={above === null ? undefined : () => move(-1)} />
+      <WheelNeighbor label={above === null ? "" : labels[above]} height={row} onPress={above === null ? undefined : () => tap(-1)} />
       <View style={styles.rule} />
       <View style={[styles.selectedRow, rowStyle]}>
         <Text style={styles.selectedText}>{current}</Text>
       </View>
       <View style={styles.rule} />
-      <WheelNeighbor label={below === null ? "" : labels[below]} height={row} onPress={below === null ? undefined : () => move(1)} />
+      <WheelNeighbor label={below === null ? "" : labels[below]} height={row} onPress={below === null ? undefined : () => tap(1)} />
     </View>
   );
 }
@@ -150,8 +169,13 @@ export function PixelWheel({ labels, index, onChange, accessibilityLabel, wrap =
  * 가운데 값 위아래의 흐린 이웃 줄. 누르면 한 칸 움직인다.
  * 칸 전체가 스크린리더의 조절 요소이므로 이 줄들은 접근성 트리에서 숨긴다 -
  * 같은 동작을 increment/decrement 가 이미 준다.
+ * RN-web 은 accessible · importantForAccessibility · focusable 을 DOM 에 옮기지 않고 Pressable 에
+ * 늘 tabIndex 0 을 준다(리뷰에서 헤드리스 Edge 로 실측). 그래서 웹에서는 tabIndex -1 과
+ * aria-hidden 을 직접 준다 - 그러지 않으면 role=slider 안에 이름 없는 탭 정지가 다섯 개 생긴다.
  */
 function WheelNeighbor({ label, height, onPress }: { label: string; height: number; onPress?: () => void }) {
+  // Platform 은 렌더 때 읽는다(모듈 상단에서 읽으면 Platform 없는 react-native 목을 쓰는 테스트가 깨진다).
+  const webHidden = Platform.OS === "web" ? { tabIndex: -1 as const, "aria-hidden": true as const } : {};
   return (
     <Pressable
       onPress={onPress}
@@ -159,7 +183,8 @@ function WheelNeighbor({ label, height, onPress }: { label: string; height: numb
       accessible={false}
       focusable={false}
       importantForAccessibility="no-hide-descendants"
-      style={[styles.neighborRow, { height }]}
+      {...webHidden}
+      style={[styles.neighborRow, { minHeight: height }]}
     >
       <Text style={styles.neighborText}>{label}</Text>
     </Pressable>

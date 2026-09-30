@@ -31,7 +31,9 @@
     "pm": "PM",
     "period": "AM atau PM",
     "hour": "Jam",
-    "minute": "Menit"
+    "minute": "Menit",
+    "hourValue": "jam {{value}}",
+    "minuteValue": "{{value}} menit"
   },
   "states": {
     "loading": "Memuat…"

@@ -131,7 +131,7 @@
   "dataRefreshTitle": "Actualizar los datos guardados",
   "dataRefreshScope": "Mientras el panel esté abierto y la app activa, vuelve a leer los datos guardados. No recopila automáticamente datos nuevos de servicios externos.",
   "dataRefreshAuto": "Actualización automática",
-  "dataRefreshDaily": "Todos los días a las {{time}}",
+  "dataRefreshDaily": "Todos los días, {{time}}",
   "dataRefreshTimeLabel": "Hora de la actualización automática",
   "dataRefreshTimeOpen": "Abre un selector de hora.",
   "dataRefreshSheetTitle": "Hora de actualización",

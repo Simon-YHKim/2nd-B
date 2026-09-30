@@ -107,7 +107,7 @@
       "tasks": "Tasks"
     },
     "sourceGroups": {
-      "device": "Read with phone permission",
+      "device": "Read with device permission",
       "import": "Needs an import",
       "manual": "Record it yourself"
     },
@@ -117,25 +117,24 @@
       "empty": "No import history on this device",
       "imported": "Import recorded",
       "off": "Device health access is off in the app",
-      "allowed": "Allowed · nothing read yet",
+      "consented": "Device health access is on in the app · nothing read yet",
       "unknown": "Status could not be read",
       "restricted": "Unavailable for this account"
     },
     "sourceNotes": {
-      "calendar": "Import with Google Calendar on the web, or with an .ics file on your phone. Your calendar is not synced continuously.",
+      "calendar": "Import with Google Calendar on the web, or with an .ics file in the installed app. Your calendar is not synced continuously.",
       "location": "Import a Google Timeline export. Background GPS tracking is not connected.",
-      "health": "After you consent and allow access, the app can read steps, workouts, sleep and heart rate from Health Connect (Android) or Apple Health (iOS).",
-      "garmin": "Turn on Garmin Connect sharing to Apple Health (iOS) or Health Connect (Android 14+), and the health permission can read the supported records too. Direct Garmin connection and Body Battery are not supported.",
-      "tasks": "Import Google Tasks with your Google account on the web. It cannot be connected from the phone yet, and changes are not synced continuously.",
+      "health": "In the installed app, after you consent and allow access, the app can read steps, workouts, sleep and heart rate from Health Connect (Android) or Apple Health (iOS). For now it reads today's records when you tap ‘Add today's activity’.",
+      "garmin": "Turn on Garmin Connect sharing to Apple Health (iOS) or Health Connect (Android 14+), and the installed app can read the supported records with the same health permission. Direct Garmin connection and Body Battery are not supported.",
+      "tasks": "Import Google Tasks with your Google account on the web. The installed app cannot connect it yet, and changes are not synced continuously.",
       "kakao": "Import a KakaoTalk chat export and review the selected signals. Live private chats are not read.",
       "sms": "Import an SMS backup file. This app does not read your inbox directly.",
-      "manual": "These services do not connect to the app. Record only the links or notes you want to keep."
+      "manual": "These services do not connect to the app. Record only the links or notes you want to keep. Nike Run Club activity shared to Apple Health or Health Connect can be read through the health card."
     },
     "lastImport": "Last import · {{date}}",
     "addRecord": "Add a chosen record",
     "manageSource": "Open import controls",
-    "allowAccess": "Allow access",
-    "readNow": "Read now",
+    "openHealth": "Open health connection",
     "toolsTitle": "Everyday tools",
     "toolsHint": "Small records make a difference ✦",
     "moreTitle": "Explore more",

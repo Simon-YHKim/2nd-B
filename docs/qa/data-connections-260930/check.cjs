@@ -79,7 +79,19 @@ const ok = (name, detail = '') => { results.push({ name, ok: true, detail }); co
     const minute = page.getByRole('slider', { name: '분', exact: true });
     await minute.waitFor();
     const value = (slider) => slider.getAttribute('aria-valuetext');
-    assert.deepEqual([await value(period), await value(hour), await value(minute)], ['오전', '7', '00']);
+    // Screen readers hear "7시" / "0분", not bare padded digits.
+    assert.deepEqual([await value(period), await value(hour), await value(minute)], ['오전', '7시', '0분']);
+    // First focus lands on the close button, never on the unnamed full-screen scrim.
+    const first = await page.evaluate(() => ({ label: document.activeElement?.getAttribute('aria-label'), role: document.activeElement?.getAttribute('role') }));
+    assert.equal(first.label, '닫기', `first focus: ${JSON.stringify(first)}`);
+    // Tab walks close -> three sliders -> save and back: no unnamed stops inside the sliders.
+    const stops = [];
+    for (let i = 0; i < 6; i++) {
+      await page.keyboard.press('Tab');
+      stops.push(await page.evaluate(() => `${document.activeElement?.getAttribute('role') ?? document.activeElement?.tagName}:${document.activeElement?.getAttribute('aria-label') ?? ''}`));
+    }
+    assert.deepEqual(stops, ['slider:오전 또는 오후', 'slider:시', 'slider:분', 'button:저장', 'button:닫기', 'slider:오전 또는 오후'], `tab order ${stops}`);
+    ok('focus', 'first = 닫기 · Tab = ' + stops.slice(0, 5).join(' > '));
     const [pBox, hBox, mBox] = [await period.boundingBox(), await hour.boundingBox(), await minute.boundingBox()];
     assert.ok(pBox.x < hBox.x && hBox.x < mBox.x, 'Korean order: 오전/오후 · 시 · 분');
     await page.screenshot({ path: path.join(artifactDir, '02-sheet-open.png') });
@@ -87,26 +99,43 @@ const ok = (name, detail = '') => { results.push({ name, ok: true, detail }); co
 
     // Tap the faded neighbour below, keyboard, mouse wheel and drag.
     await hour.getByText('8', { exact: true }).click();
-    assert.equal(await value(hour), '8');
+    assert.equal(await value(hour), '8시');
     await minute.focus();
     await page.keyboard.press('ArrowUp');
-    assert.equal(await value(minute), '05');
+    assert.equal(await value(minute), '5분');
     await minute.hover();
     await page.mouse.wheel(0, 120);
     await page.waitForTimeout(150);
-    assert.equal(await value(minute), '10');
+    assert.equal(await value(minute), '10분');
     const hb = await hour.boundingBox();
     const cx = hb.x + hb.width / 2; const cy = hb.y + hb.height / 2;
     await page.mouse.move(cx, cy); await page.mouse.down();
     for (let dy = 0; dy >= -52; dy -= 4) await page.mouse.move(cx, cy + dy);
     await page.mouse.up();
     await page.waitForTimeout(150);
-    const dragged = await value(hour);
+    const dragged = (await value(hour)).replace('시', '');
     await period.getByText('오후', { exact: true }).click();
     assert.equal(await value(period), '오후');
     ok('wheel-input', `tap 8 · ArrowUp 05 · wheel 10 · drag → ${dragged} · 오후`);
     await page.screenshot({ path: path.join(artifactDir, '03-sheet-changed.png') });
 
+    // 12-hour boundary: one row down from 11 AM is noon (PM), not midnight.
+    const noonCheck = await (async () => {
+      await period.getByText('오전', { exact: true }).click();
+      await hour.focus();
+      for (let i = 0; i < 30 && (await value(hour)) !== '11시'; i++) await page.keyboard.press('ArrowUp');
+      const before = await value(period);
+      await page.keyboard.press('ArrowUp');
+      const after = [await value(hour), await value(period)];
+      await page.keyboard.press('ArrowDown');
+      await period.getByText('오후', { exact: true }).click();
+      // A click inside a column moves keyboard focus there, so the hour column is focused again.
+      await hour.focus();
+      for (let i = 0; i < 30 && (await value(hour)) !== `${dragged}시`; i++) await page.keyboard.press('ArrowDown');
+      return { before, after };
+    })();
+    assert.deepEqual(noonCheck, { before: '오전', after: ['12시', '오후'] }, JSON.stringify(noonCheck));
+    ok('noon-flip', '오전 11시 → 한 칸 → 오후 12시');
     await page.getByRole('button', { name: '저장', exact: true }).click();
     await minute.waitFor({ state: 'detached' });
     const expected = `매일 오후 ${dragged}:10`;
@@ -131,12 +160,15 @@ const ok = (name, detail = '') => { results.push({ name, ok: true, detail }); co
     ok('cancel-paths', 'Escape · scrim');
 
     // 8: phone-first groups and the merged manual card.
-    for (const heading of ['폰 권한으로 읽기', '가져오기가 필요한 자료', '직접 기록']) await page.getByText(heading, { exact: true }).waitFor();
+    for (const heading of ['기기 권한으로 읽기', '가져오기가 필요한 자료', '직접 기록']) await page.getByText(heading, { exact: true }).waitFor();
+    // Device cards name the screen they open; nothing claims a read or a granted permission.
+    assert.equal(await page.getByRole('button', { name: /건강 연동 화면 열기/ }).count(), 2);
+    for (const gone of ['허용됨', '지금 읽기', '권한 허용하기']) assert.equal(await page.getByText(gone).count(), 0, `gone: ${gone}`);
     // Brand names carry no-break spaces so "Nike Run Club" stays on one line.
     await page.getByText(/^Instagram\s·\sFacebook\s·\sX\s·\sNike\sRun\sClub\s·\sLINE\s·\sWhatsApp$/).waitFor();
     // Headers render as heading elements, and PlainText keeps "·" off a line start with a
     // no-break space on web, so match by text pattern instead of exact DOM text.
-    const labels = [/^폰 권한으로 읽기$/, /^건강\s·\s운동$/, /^Garmin Connect$/, /^가져오기가 필요한 자료$/, /^장소\s·\sGPS$/, /^일정$/, /^할 일$/, /^KakaoTalk$/, /^SMS$/, /^직접 기록$/];
+    const labels = [/^기기 권한으로 읽기$/, /^건강\s·\s운동$/, /^Garmin Connect$/, /^가져오기가 필요한 자료$/, /^장소\s·\sGPS$/, /^일정$/, /^할 일$/, /^KakaoTalk$/, /^SMS$/, /^직접 기록$/];
     const order = [];
     for (const label of labels) {
       const box = await page.getByText(label).first().boundingBox();
@@ -165,6 +197,25 @@ const ok = (name, detail = '') => { results.push({ name, ok: true, detail }); co
     await page.screenshot({ path: path.join(artifactDir, '06-sheet-320.png') });
     await page.keyboard.press('Escape');
     ok('widths', '320 · 375 · 425 overflow 0');
+
+    // A short mouse drag that starts and ends inside one neighbour row moves exactly one step
+    // (review: RN-web's click after mouseup used to add a second step).
+    await page.setViewportSize({ width: 390, height: 844 });
+    await trigger.click(); await minute.waitFor();
+    const beforeDrag = await value(hour);
+    const below = hour.getByText(String(Number(beforeDrag.replace('시', '')) % 12 + 1), { exact: true });
+    const nb = await below.boundingBox();
+    const rowTop = nb.y + nb.height / 2 - 24;
+    await page.mouse.move(nb.x + nb.width / 2, rowTop + 44); await page.mouse.down();
+    for (let dy = 0; dy >= -40; dy -= 4) await page.mouse.move(nb.x + nb.width / 2, rowTop + 44 + dy);
+    await page.mouse.up();
+    await page.waitForTimeout(200);
+    const afterDrag = await value(hour);
+    await page.keyboard.press('Escape');
+    await minute.waitFor({ state: 'detached' });
+    const step = (Number(afterDrag.replace('시', '')) - Number(beforeDrag.replace('시', '')) + 12) % 12;
+    assert.equal(step, 1, `short drag inside a neighbour row: ${beforeDrag} -> ${afterDrag}`);
+    ok('drag-no-double-step', `${beforeDrag} → ${afterDrag}`);
 
     assert.deepEqual(errors, [], 'no page errors');
     ok('page-errors', '0');

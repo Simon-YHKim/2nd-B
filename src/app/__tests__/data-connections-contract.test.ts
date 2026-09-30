@@ -36,6 +36,11 @@ test("refresh is a full-width button and the time opens the wheel sheet", () => 
   expect(screen).toContain("onSave={(anchorTime) => { void saveTime(anchorTime); }}");
 });
 
+test("closing the sheet without a failed save clears the save error", () => {
+  expect(screen).toContain("onCancel={closeTimeSheet}");
+  expect(screen).toContain("if (anchorTime === refreshSettings.anchorTime) closeTimeSheet();");
+});
+
 test("the time trigger still has a screen-reader name after its visible label was removed", () => {
   expect(screen).toContain('accessibilityLabel={`${t("settings:dataRefreshTimeLabel")}, ${dailyLabel}`}');
   expect(screen).toContain('accessibilityHint={t("settings:dataRefreshTimeOpen")}');
@@ -50,7 +55,9 @@ test("sources render by group, device permissions first, and the manual services
   expect(screen).toContain("SOURCE_GROUPS.map((group)");
   expect(screen).toContain('group === "manual" ?');
   expect(screen).toContain('t("ops:phone.sourceNotes.manual")');
-  expect(screen).toContain('t(data?.healthEnabled ? "ops:phone.readNow" : "ops:phone.allowAccess")');
-  // A restricted source (minor or unconfirmed age) still cannot be opened.
+  // Device cards only navigate; the label names the screen, never a read that does not happen.
+  expect(screen).toContain('t(group === "device" ? "ops:phone.openHealth" : "ops:phone.manageSource")');
+  // A restricted source (minor or unconfirmed age) cannot be opened, even before the read returns.
+  expect(screen).toContain('const locked = "adultOnly" in source && source.adultOnly && isMinor !== false;');
   expect(screen).toContain('disabled={state.status === "restricted"}');
 });

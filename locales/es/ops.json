@@ -107,7 +107,7 @@
       "tasks": "Tareas"
     },
     "sourceGroups": {
-      "device": "Lectura con permiso del teléfono",
+      "device": "Lectura con permiso del dispositivo",
       "import": "Requiere una importación",
       "manual": "Registro manual"
     },
@@ -117,25 +117,24 @@
       "empty": "Sin importaciones en este dispositivo",
       "imported": "Importación registrada",
       "off": "El acceso a salud está desactivado en la app",
-      "allowed": "Permitido · aún no hay datos leídos",
+      "consented": "El acceso a salud está activado en la app · aún no hay datos leídos",
       "unknown": "No se pudo leer el estado",
       "restricted": "No disponible para esta cuenta"
     },
     "sourceNotes": {
-      "calendar": "Importa con Google Calendar en la web o con un archivo .ics en el teléfono. Tu calendario no se sincroniza continuamente.",
+      "calendar": "Importa con Google Calendar en la web o con un archivo .ics en la app instalada. Tu calendario no se sincroniza continuamente.",
       "location": "Importa un archivo de Google Timeline. No hay seguimiento GPS en segundo plano.",
-      "health": "Cuando aceptas y das permiso, la app puede leer pasos, entrenamientos, sueño y ritmo cardiaco de Health Connect (Android) o Salud de Apple (iOS).",
-      "garmin": "Activa el intercambio de Garmin Connect con Salud de Apple (iOS) o Health Connect (Android 14+) y el permiso de salud también podrá leer los datos compatibles. No hay conexión directa con Garmin ni Body Battery.",
-      "tasks": "Importa Google Tasks con tu cuenta de Google en la web. Todavía no se puede conectar desde el teléfono y los cambios no se sincronizan continuamente.",
+      "health": "En la app instalada, cuando aceptas y das permiso, la app puede leer pasos, entrenamientos, sueño y ritmo cardiaco de Health Connect (Android) o Salud de Apple (iOS). Por ahora lee los registros de hoy cuando tocas ‘Añadir lo de hoy’.",
+      "garmin": "Activa el intercambio de Garmin Connect con Salud de Apple (iOS) o Health Connect (Android 14+) y la app instalada también podrá leer los datos compatibles con el mismo permiso de salud. No hay conexión directa con Garmin ni Body Battery.",
+      "tasks": "Importa Google Tasks con tu cuenta de Google en la web. La app instalada todavía no puede conectarlo y los cambios no se sincronizan continuamente.",
       "kakao": "Importa una conversación exportada de KakaoTalk y revisa las señales seleccionadas. No se leen chats privados en directo.",
       "sms": "Importa una copia de seguridad de SMS. La app no lee directamente tu bandeja de entrada.",
-      "manual": "Estos servicios no se conectan con la app. Registra solo los enlaces o notas que quieras guardar."
+      "manual": "Estos servicios no se conectan con la app. Registra solo los enlaces o notas que quieras guardar. La actividad de Nike Run Club compartida con Salud de Apple o Health Connect se puede leer desde la tarjeta de salud."
     },
     "lastImport": "Última importación · {{date}}",
     "addRecord": "Añadir un registro elegido",
     "manageSource": "Abrir controles de importación",
-    "allowAccess": "Permitir acceso",
-    "readNow": "Leer ahora",
+    "openHealth": "Abrir conexión de salud",
     "toolsTitle": "Herramientas cotidianas",
     "toolsHint": "Los pequeños registros importan ✦",
     "moreTitle": "Explorar más",

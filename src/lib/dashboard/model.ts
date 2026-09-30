@@ -69,10 +69,11 @@ export function routineActionRoute(domainId: string): string {
   }
 }
 
-// Phone-first order (Simon 2026-09-30): what a phone permission can read comes first,
+// Phone-first order (Simon 2026-09-30): what a device permission can read comes first,
 // then the sources that genuinely need an import, then the services with no connection.
-// "Could be read automatically" is a promise only for the device group, and only after
-// the person consents and grants the OS permission.
+// The device group is read in the installed app after consent and the OS permission, when
+// the person taps "reflect today" on /import?mode=account (today only). Nothing reads it
+// automatically yet; that is the next step, not something this list may claim.
 export const DASHBOARD_SOURCES = [
   { id: "health", glyph: "favorite", mode: "health", keys: ["health"], route: "/import?mode=account", adultOnly: true },
   { id: "garmin", glyph: "timer", mode: "health_bridge", keys: [], route: "/import?mode=account", adultOnly: true },
@@ -89,7 +90,7 @@ export const DASHBOARD_SOURCES = [
   { id: "whatsapp", glyph: "bubble", mode: "manual", keys: [], route: "/capture" },
 ] as const;
 export type DashboardSource = (typeof DASHBOARD_SOURCES)[number];
-export type SourceStatus = "manual" | "healthBridge" | "empty" | "imported" | "off" | "allowed" | "unknown" | "restricted";
+export type SourceStatus = "manual" | "healthBridge" | "empty" | "imported" | "off" | "consented" | "unknown" | "restricted";
 
 /** How data reaches the account. The settings screen lists one group after another. */
 export type SourceGroup = "device" | "import" | "manual";
@@ -118,8 +119,9 @@ export function sourceState(source: DashboardSource, data: DashboardData, isMino
   if (lastImport) return { status: "imported", lastImport };
   const failed = !data.imports.ok || (source.mode === "health" && !data.health.ok);
   if (failed) return { status: "unknown", lastImport: null };
-  // Consent is on but nothing has been read yet: allowed, not "no import on this device".
-  return { status: source.mode === "health" ? "allowed" : "empty", lastImport: null };
+  // The in-app consent is on but nothing has been read yet. That is all this knows: the flag says
+  // nothing about the OS permission, which is asked only when the person reflects today's data.
+  return { status: source.mode === "health" ? "consented" : "empty", lastImport: null };
 }
 
 function validDate(value: string): boolean {

@@ -131,7 +131,7 @@
   "dataRefreshTitle": "Atualizar dados salvos",
   "dataRefreshScope": "Enquanto o painel estiver aberto e o app ativo, ele relê os dados salvos. Isso não coleta automaticamente novos dados de serviços externos.",
   "dataRefreshAuto": "Atualização automática",
-  "dataRefreshDaily": "Todos os dias às {{time}}",
+  "dataRefreshDaily": "Todos os dias, {{time}}",
   "dataRefreshTimeLabel": "Horário da atualização automática",
   "dataRefreshTimeOpen": "Abre um seletor de horário.",
   "dataRefreshSheetTitle": "Horário de atualização",

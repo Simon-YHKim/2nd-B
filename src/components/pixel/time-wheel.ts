@@ -129,6 +129,36 @@ export function hourValues(hour12: boolean): number[] {
   return hour12 ? Array.from({ length: 12 }, (_, i) => i + 1) : Array.from({ length: 24 }, (_, i) => i);
 }
 
+// 시 칸은 두 시간제 모두 24칸(0~23시)을 돈다. 12시간제는 그 칸을 12·1…11 로 **보여 줄** 뿐이다.
+// 그래서 오전 11시에서 한 칸 내리면 오후 12시가 되고(오전/오후가 저절로 넘어감), 여러 칸을
+// 한 번에 끌어도 경계를 몇 번 넘었는지 따로 셀 필요가 없다 - 폰 기본 휠과 같은 동작이다.
+// (리뷰 C4: 1~12 만 돌리면 "오전 11시 → 12" 가 자정으로 저장됐다.)
+
+/** 24칸 시 휠의 칸 글자. 12시간제면 0시·12시가 "12" 다. */
+export function hourWheelLabels(pattern: ClockPattern): string[] {
+  return Array.from({ length: 24 }, (_, hour24) => formatHour(pattern.hour12 ? hour24 % 12 || 12 : hour24, pattern));
+}
+
+/** 0(오전) 또는 1(오후). */
+export function periodOfHour(hour24: number): 0 | 1 {
+  return hour24 >= 12 ? 1 : 0;
+}
+
+/** 오전/오후 칸만 바꿨을 때의 시: 시 표시는 그대로 두고 12시간을 옮긴다. */
+export function withPeriod(hour24: number, period: 0 | 1): number {
+  return (hour24 % 12) + (period === 1 ? 12 : 0);
+}
+
+/** "HH:MM" -> 0~23시와 분. 형식이 틀리면 자정. */
+export function parseClock(hhmm: string): { hour24: number; minute: number } {
+  const match = CLOCK.exec(hhmm);
+  return match ? { hour24: Number(match[1]), minute: Number(match[2]) } : { hour24: 0, minute: 0 };
+}
+
+export function clockText(hour24: number, minute: number): string {
+  return `${pad(hour24)}:${pad(minute)}`;
+}
+
 /**
  * 분 칸의 값들. 참조 휠처럼 `step` 분 간격이다.
  * `keep` 이 간격 밖이면(예전 입력칸으로 07:32 를 저장한 경우) 그 값을 끼워 넣는다 -

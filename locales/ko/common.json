@@ -31,7 +31,9 @@
     "pm": "오후",
     "period": "오전 또는 오후",
     "hour": "시",
-    "minute": "분"
+    "minute": "분",
+    "hourValue": "{{value}}시",
+    "minuteValue": "{{value}}분"
   },
   "states": {
     "loading": "불러오는 중…"

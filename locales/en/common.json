@@ -31,7 +31,9 @@
     "pm": "PM",
     "period": "AM or PM",
     "hour": "Hour",
-    "minute": "Minute"
+    "minute": "Minute",
+    "hourValue": "{{value}} o'clock",
+    "minuteValue": "{{value}} minutes"
   },
   "states": {
     "loading": "Loading…"

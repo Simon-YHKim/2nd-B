@@ -104,9 +104,9 @@ test("the health card opens the consent and permission tab directly, and stays l
   expect(sourceState(source("health"), empty, null).status).toBe("restricted");
 });
 
-test("consented health with nothing read yet says allowed, not a missing import", () => {
+test("consented health with nothing read yet says consented, never that the OS permission is granted", () => {
   const consented = { ...empty, healthEnabled: true };
-  expect(sourceState(source("health"), consented, false)).toEqual({ status: "allowed", lastImport: null });
+  expect(sourceState(source("health"), consented, false)).toEqual({ status: "consented", lastImport: null });
   expect(sourceState(source("health"), { ...consented, health: { ok: false as const } }, false).status).toBe("unknown");
   expect(sourceState(source("calendar"), consented, false).status).toBe("empty");
 });

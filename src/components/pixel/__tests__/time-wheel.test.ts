@@ -5,17 +5,22 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import {
+  clockText,
   dragSteps,
   formatClock,
   hourValues,
+  hourWheelLabels,
   joinClock,
   minuteValues,
+  parseClock,
   parseClockPattern,
+  periodOfHour,
   splitClock,
   tokenizeClockPattern,
   wheelKeyTarget,
   wheelNeighbor,
   wheelStep,
+  withPeriod,
 } from "../time-wheel";
 
 const ROOT = path.resolve(__dirname, "../../../..");
@@ -123,6 +128,42 @@ test("every locale defines the labels the sheet reads", () => {
     const copy = JSON.parse(readFileSync(path.join(ROOT, "locales", lng, "common.json"), "utf8")) as {
       timePicker: Record<string, string>;
     };
-    expect(Object.keys(copy.timePicker).sort()).toEqual(["am", "hour", "minute", "pattern", "period", "pm"]);
+    expect(Object.keys(copy.timePicker).sort()).toEqual(["am", "hour", "hourValue", "minute", "minuteValue", "pattern", "period", "pm"]);
   }
+});
+
+test("the 12-hour hour column turns over all 24 hours, so 11 AM steps to noon and 11 PM to midnight", () => {
+  const ko = parseClockPattern(timePicker("ko").pattern);
+  const labels = hourWheelLabels(ko);
+  expect(labels).toHaveLength(24);
+  expect(labels.slice(0, 13)).toEqual(["12", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]);
+  // One row down from 11 AM (index 11) is index 12: shown "12", and it is PM.
+  expect(wheelStep(11, 1, 24, true)).toBe(12);
+  expect(periodOfHour(12)).toBe(1);
+  expect(clockText(12, 30)).toBe("12:30");
+  // One row down from 11 PM wraps to 0: shown "12", and it is AM (midnight).
+  expect(wheelStep(23, 1, 24, true)).toBe(0);
+  expect(periodOfHour(0)).toBe(0);
+  expect(labels[0]).toBe("12");
+  // A multi-row drag from 10 AM to 1 PM crosses noon without any counting.
+  expect(periodOfHour(wheelStep(10, 3, 24, true))).toBe(1);
+  expect(hourWheelLabels(parseClockPattern(timePicker("pt").pattern)).slice(0, 2)).toEqual(["00", "01"]);
+});
+
+test("the AM/PM column moves twelve hours and keeps the shown hour", () => {
+  expect(withPeriod(7, 1)).toBe(19);
+  expect(withPeriod(19, 0)).toBe(7);
+  expect(withPeriod(0, 1)).toBe(12);
+  expect(withPeriod(12, 0)).toBe(0);
+  expect(withPeriod(19, 1)).toBe(19);
+});
+
+test("the sheet's clock text round-trips and falls back to midnight on a malformed save", () => {
+  for (let minutes = 0; minutes < 1440; minutes++) {
+    const value = hhmm(minutes);
+    const parsed = parseClock(value);
+    expect(clockText(parsed.hour24, parsed.minute)).toBe(value);
+  }
+  expect(parseClock("7:30")).toEqual({ hour24: 0, minute: 0 });
+  expect(parseClock("24:00")).toEqual({ hour24: 0, minute: 0 });
 });
