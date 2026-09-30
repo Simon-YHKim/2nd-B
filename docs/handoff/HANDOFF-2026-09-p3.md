@@ -8,6 +8,36 @@
 
 ---
 
+## 2026-09-26 23:05 / #1865 병합·격리 복원 완료·운영 게이트
+
+### 어디까지 왔나
+- `origin/main`의 `fe3bdade`에 [PR #1865](https://github.com/Simon-YHKim/2nd-B/pull/1865)가 병합됐다. 병합 전 최종 head `cc942f1c`의 lint·SQL·verify·web export **4/4 PASS**, 로컬 `npm run verify` 820 suites·10,693 Jest tests·UI 76 PASS. 이 인수 문서 PR은 앱 코드·DB 마이그레이션을 포함하지 않는다.
+- Simon은 Relay 결정 기록에서 AdMob Q5를 **처리위탁(안 A)**, 개인정보처리방침 시행일을 **2026-09-26**으로 확정했다. 세 법률 사본·앱 판본·관련 SQL 동의 계약은 `0e5ca522`에서 같은 날짜로 갱신됐다. [독립 검토의 제3자 제공 의견](drafts/admob-q5-third-party-review-260926.md)은 채택되지 않은 이견으로 남겼다. 광고는 OFF이며 실제 계정의 수신 법인·이전 국가·SDK 데이터 보유기간, 별도 동의와 릴리스 빌드 초기 네트워크 검증 전에는 켜지 않는다.
+- 보상 서버 스위치 적용 후 암호화 백업을 같은 Free 조직의 임시 Supabase 프로젝트에 **3패스 격리 복원**했다. public 테이블/RLS 70/70·정책 90, auth 사용자 19·로그인 수단 22, 최종 FK 오류 0을 운영 읽기 기준과 대조했다. 임시 프로젝트와 로컬 평문·임시 접속 파일 9개 삭제, 운영 프로젝트 정상 상태를 확인했다. 운영 DB 쓰기 0. [복원 보고서](qa/BACKUP-RESTORE-DRILL-260926.html) · [runbook](DB-RESTORE-RUNBOOK.md).
+
+### 활성 인프라와 다음 작업
+| 순서 | 담당·조건 | 현재 상태 |
+|---|---|---|
+| 1 | 콘솔: 0172 중복 원장·보상 alias 재적용 방지, SQL 0191–0201의 **운영 데이터/원장 격리 리허설**과 번호 충돌 재조회 | 백업 복원은 통과했지만 이 통합 리허설은 미실행. 운영 일괄 `db push` 금지 |
+| 2 | 콘솔: 현행 Edge·플래그·시크릿 **이름만** 확인, Reward 서명·변조·재전송 canary, Paddle OFF·drain 후 sandbox | 보상 서버는 별도 Simon GO로 ON. 나머지 서버 계약·Paddle 거래·클라이언트 공개는 미검증 |
+| 3 | 법률·광고: AdMob 계약/파트너와 이전·보유기간 확인, 별도 광고 동의 UI·릴리스 빌드 네트워크 검증 | Q5 결정은 반영. 광고 ON·SDK 포함 클라이언트 공개는 별도 게이트 |
+| 4 | 보안: 9/26 도구 출력에 노출된 API 키의 실제 사용처를 확인하고 공급자에서 회전 | 값은 저장소·채팅에 남기지 않음. 로컬 비공개 사고 기록 확인 |
+| 5 | QA: Android 실제 촬영·OCR·음성 Stop→실전사·저장·효과음, Polaris 실모델 인용, GA4 실제 수신 | 모의 전사·웹 33화면·Polaris 상태 RPC 404 대기 UI까지만 검증 |
+
+- Grok Bot 후속 전달은 Simon의 보류 지시를 유지한다. 새 nonce를 중복 발주하지 않는다. 운영 DB·Edge 추가 적용과 웹·스토어 게시도 별도 게이트를 통과하기 전에는 진행하지 않는다.
+- 최신 상세 상태: [잔여 작업 HTML](qa/REMAINING-WORK-260926.html), [서버 번호·원장 인계](qa/SERVER-PROMOTION-260926.md), [콘솔 소유 경계](SESSION-OWNERSHIP.md). 이 절 아래 블록은 작성 당시 기록이며 현황은 이 Latest 블록을 우선한다.
+
+### 다음 세션 확인
+```powershell
+git fetch origin main
+git show origin/main:docs/HANDOFF.md
+npm run verify
+```
+
+---
+
+---
+
 ## 2026-09-26 20:52 / Android 음성 Stop 수정·게이트 유지
 
 - Android 제품 Record→Stop에서 React Native의 `ArrayBuffer` 기반 `Blob` 거부로 전사가 실패했다. `6cede82d`는 제한 크기 읽기 후 중단 가능한 청크 base64 변환으로 수정했고, 동일 AVD에서 오프라인 mock 전사 문구 표시·임시 음성 파일 삭제를 확인했다. 원격 DB·Edge 쓰기와 유료 호출 0건, 기록 저장 미실행. [화면과 검증 범위](qa/ANDROID-VOICE-CANCEL-260926.md).
