@@ -1,38 +1,35 @@
-// The glare (눈부심) when the phone comes out of the night sky.
+// The glare (눈부심) when the pocket phone is raised into the night sky.
 //
-// Decision, schedule and geometry live in `src/lib/dashboard/phone-glare.ts`
-// (pure, unit-tested). This file only paints the current step.
+// Decision, schedule and geometry live in `src/lib/motion/phone-glare.ts`
+// (pure, unit-tested). `PocketPhone` decides WHEN (a collapsed -> raised move
+// that reached the top) and mounts this with a fresh key; this file only plays
+// the schedule from its own mount and paints the current step.
 //
-// Contract with `DashboardPhone`:
+// Contract with `PocketPhone`:
 // * It never takes a touch. The wrapper and the Svg are `pointerEvents="none"`,
-//   so taps reach the display under it, and the phone's vertical dismiss and
-//   horizontal page PanResponders (on its ancestors) see every gesture as before.
-// * It never holds anything up. It owns its own clock and state, so its steps
-//   re-render only this layer, and the dashboard read starts on focus exactly
-//   as it did without it.
+//   so the swipe PanResponder and the tap that opens the dashboard see every
+//   gesture as before.
+// * It owns its own clock and state, so its steps re-render only this layer.
 // * Screen readers never see it (it is light, not content).
 // * Reduced motion paints nothing, including when it turns on mid-glare.
 //
 // PIXEL-CLAY: brightness is dither density (no opacity), the steps are
 // discrete (no easing at all), and every shape is an integer `Rect`.
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, { Defs, Pattern, Rect } from "react-native-svg";
 
 import { DITHER_TILE, ditherCells } from "@/components/pixel/pixel-dither-cells";
 import {
-  markPhoneStowed,
   PHONE_GLARE_CELL_DP,
   PHONE_GLARE_FULL,
   PHONE_GLARE_STEPS,
   PHONE_GLARE_TOTAL_MS,
   phoneGlareLayers,
   phoneGlareLevelAt,
-  phoneLastStowedAt,
-  shouldPlayPhoneGlare,
   type GlareLayer,
   type GlareScreen,
-} from "@/lib/dashboard/phone-glare";
+} from "@/lib/motion/phone-glare";
 import { m3 } from "@/lib/theme/m3";
 
 // White display, cool starlight bloom. Both are existing sky tokens.
@@ -42,39 +39,30 @@ const TONE: Record<GlareLayer["tone"], string> = {
 };
 const TILE_DP = DITHER_TILE * PHONE_GLARE_CELL_DP;
 
-export function PhoneGlare({ fromHomeSky, reducedMotion, screen, width, height }: {
-  fromHomeSky: boolean;
+export function PhoneGlare({ reducedMotion, screen, width, height, onDone }: {
   reducedMotion: boolean;
   screen: GlareScreen;
   width: number;
   height: number;
+  /** Called once when the last step ends. */
+  onDone?: () => void;
 }) {
-  // Decided once, when the phone appears. A later prop change cannot start a
-  // second glare; only turning reduced motion on can stop this one.
-  const [play] = useState(() => shouldPlayPhoneGlare({
-    fromHomeSky,
-    reducedMotion,
-    nowMs: Date.now(),
-    lastStowedAtMs: phoneLastStowedAt(),
-  }));
-  const [level, setLevel] = useState(() => (play ? phoneGlareLevelAt(0) : 0));
+  const [level, setLevel] = useState(() => phoneGlareLevelAt(0));
   const idBase = `phone-glare-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
-
-  // Putting the phone away starts the eyes' re-adaptation window.
-  useEffect(() => () => markPhoneStowed(Date.now()), []);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   useEffect(() => {
-    if (!play) return;
     const startedAt = Date.now();
     // Each boundary reads the real elapsed time, so a busy JS thread skips a
     // step instead of stretching the glare, and the level can only go down.
     const tick = () => setLevel(phoneGlareLevelAt(Date.now() - startedAt));
-    const timers = [...PHONE_GLARE_STEPS.slice(1).map((step) => step.atMs), PHONE_GLARE_TOTAL_MS]
-      .map((atMs) => setTimeout(tick, atMs));
+    const timers = PHONE_GLARE_STEPS.slice(1).map((step) => setTimeout(tick, step.atMs));
+    timers.push(setTimeout(() => { setLevel(0); onDoneRef.current?.(); }, PHONE_GLARE_TOTAL_MS));
     return () => timers.forEach(clearTimeout);
-  }, [play]);
+  }, []);
 
-  if (!play || reducedMotion || level === 0) return null;
+  if (reducedMotion || level === 0) return null;
   const layers = phoneGlareLayers(screen, { width, height }, level);
   if (layers.length === 0) return null;
   const patternId = (layer: GlareLayer) => `${idBase}-${layer.tone}-${layer.level}`;
@@ -82,7 +70,7 @@ export function PhoneGlare({ fromHomeSky, reducedMotion, screen, width, height }
 
   return (
     <View
-      testID="dashboard-phone-glare"
+      testID="home-phone-glare"
       pointerEvents="none"
       accessible={false}
       aria-hidden
