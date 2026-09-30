@@ -15,6 +15,9 @@
 
 이전 인수 기록의 “RPC 404”는 **현재 상태가 아니다**. 엔드포인트는 응답하지만 새 계약 행이 없어 #1902 게시가 차단된다. 10월 5일 전 서버 계약·운영 원장 선행 적용과 게이트 재검증이 필요하다. 이번 점검은 DB·Edge·변수·Play Console·공개 사이트를 변경하지 않았다.
 
-[Draft PR #1917](https://github.com/Simon-YHKim/2nd-B/pull/1917)은 최신 main과 `git merge-tree --write-tree --messages`에서 충돌이 없었다. 이 PR의 합친 트리 테스트나 실제 메일 발송은 이번에 하지 않았다. 두 Draft는 예정일 전에 병합하지 않는다. Android ARM 실기기와 Play Console 양식도 이 점검에서 확인하지 않았다.
+[Draft PR #1917](https://github.com/Simon-YHKim/2nd-B/pull/1917)도 최신 main `6354bca0`과 원격 head `6a61ca66`을 별도 워크트리에서 커밋 없이 합쳤다. 충돌은 없고 main 대비 차이는 `supabase/config.toml`의 복구·가입 확인 메일 제목 두 줄뿐이다. `npm run check:supabase-auth-config` 통과, 합친 트리의 `npm run verify` 870묶음·11,286건 통과, main 대비 `git diff --check` 통과. PR 브랜치에는 push하지 않았고 실제 메일 발송·Supabase 대시보드 설정 변경도 하지 않았다. 제목은 10월 5일에 대시보드와 저장소 설정을 같은 값으로 맞춘 뒤에만 적용한다.
+
+두 Draft는 예정일 전에 병합하지 않는다. Android ARM 실기기와 Play Console 양식도 이 점검에서 확인하지 않았다.
 
 로컬 재현 스크립트: `E:\2ndB\.git\app-parity\polascope-contract-check-261001.cjs` (키는 출력하지 않음). 테스트 로그: 같은 폴더의 `polascope-mergecheck-verify-261001.log`.
+메일 제목 합친 트리 테스트 로그: 같은 폴더의 `polascope-mail-mergecheck-verify-261001.log`.
