@@ -37,7 +37,8 @@
         "android.permission.health.READ_STEPS",
         "android.permission.health.READ_EXERCISE",
         "android.permission.health.READ_SLEEP",
-        "android.permission.health.READ_HEART_RATE"
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.VIBRATE"
       ],
       "blockedPermissions": [
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"

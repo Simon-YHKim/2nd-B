@@ -10,6 +10,7 @@ import { createCameraRemote, joystickInput, zoomFromPosition, zoomToPosition } f
 import { a11yValue } from '@/lib/a11y/accessibility-value';
 import { useUiSound } from '@/lib/audio/use-ui-sound';
 import { useMotionSound } from '@/lib/audio/use-motion-sound';
+import { createRatchetTick } from '@/lib/haptics/ratchet-haptics';
 import { useReducedMotionPref } from '@/lib/motion/use-reduced-motion';
 import { flattenAlpha } from '@/lib/theme/tokens';
 import { sampleTelescopeMotion, type TelescopeMotionTrack } from '@/lib/motion/telescope-preview';
@@ -93,7 +94,10 @@ export function TelescopeControls({ zoom, minZoom, maxZoom, zoomStops = DEFAULT_
   const actions = useRef({ onMove, onZoom, onReset, zoom, enabled });
   actions.current = { onMove, onZoom, onReset, zoom, enabled };
   const playTick = useUiSound(TICK, { volume: 0.08, minIntervalMs: 160 });
-  const tick = () => { if (!reducedMotion) playTick(); };
+  // Each ratchet tick also gives one short, weak haptic pulse (Simon 2026-10-01).
+  const hapticTick = useRef<(() => void) | null>(null);
+  if (hapticTick.current === null) hapticTick.current = createRatchetTick();
+  const tick = () => { if (!reducedMotion) { playTick(); hapticTick.current?.(); } };
   const motionSound = useMotionSound();
   const sound = useRef(motionSound);
   sound.current = motionSound;
@@ -174,7 +178,7 @@ export function TelescopeControls({ zoom, minZoom, maxZoom, zoomStops = DEFAULT_
   const resetView = useCallback(() => {
     failSafeStop();
     actions.current.onReset();
-    if (!reducedMotion) playTick();
+    if (!reducedMotion) { playTick(); hapticTick.current?.(); }
   }, [failSafeStop, playTick, reducedMotion]);
   useEffect(() => { if (!enabled) failSafeStop(); }, [enabled, failSafeStop]);
   useEffect(() => {
