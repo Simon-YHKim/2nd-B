@@ -48,7 +48,10 @@ type Timers = {
  */
 export function createRatchetLoop(
   pulse: () => void = ratchetPulse,
-  timers: Timers = { setInterval, clearInterval },
+  // Wrapped, not `{ setInterval, clearInterval }`: calling the browser's
+  // timers as methods of another object throws "Illegal invocation", which
+  // killed the loop after its first pulse on the web (measured 2026-10-01).
+  timers: Timers = { setInterval: (fn, ms) => setInterval(fn, ms), clearInterval: (id) => clearInterval(id) },
 ): { set: (on: boolean) => void } {
   let timer: ReturnType<typeof setInterval> | null = null;
   return {

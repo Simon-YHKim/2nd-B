@@ -75,6 +75,30 @@ describe("loop while the camera moves", () => {
     loop.set(false);
     expect(cleared).toEqual([7]);
   });
+
+  test("the default timers work where the host rejects a foreign `this` (browsers)", () => {
+    // Chrome throws "Illegal invocation" when setInterval runs as a method of
+    // another object; the first version did that and pulsed only once on the web.
+    const realSet = globalThis.setInterval;
+    const realClear = globalThis.clearInterval;
+    const strict = <T extends (...args: never[]) => unknown>(real: T) =>
+      function (this: unknown, ...args: Parameters<T>) {
+        if (this !== undefined && this !== globalThis) throw new TypeError("Illegal invocation");
+        return real(...args);
+      };
+    globalThis.setInterval = strict(realSet) as unknown as typeof setInterval;
+    globalThis.clearInterval = strict(realClear) as unknown as typeof clearInterval;
+    try {
+      const pulse = jest.fn();
+      const loop = createRatchetLoop(pulse);
+      expect(() => loop.set(true)).not.toThrow();
+      expect(() => loop.set(false)).not.toThrow();
+      expect(pulse).toHaveBeenCalledTimes(1);
+    } finally {
+      globalThis.setInterval = realSet;
+      globalThis.clearInterval = realClear;
+    }
+  });
 });
 
 describe("one-shot tick", () => {
