@@ -8,6 +8,37 @@
 
 ---
 
+## 2026-09-26 17:33 / Android 로그인 후 오디오 RedBox 재현·수정본 재기동
+
+- 별도 Android 전용 AVD에서 기존 APK의 네이티브 입력과 PR 최신 소스의 동일성을 Git 내용으로 확인하고, 최신 JS 번들(3285 modules)을 Metro 8084로 로드했다. QA 계정 로그인 뒤 온보딩 Continue에서 `Cannot assign to property 'playbackRate' which has only a getter` RedBox가 발생해 홈 진입이 막혔다. 증거는 로컬 `Output/runtime-validation-260926/latest-runtime-result.json`·`latest-31-after-continue.png`·`latest-playbackrate-log.txt`(전용 `native-260926` 워크트리)에 보존했다.
+- 원인은 `src/lib/audio/use-ui-sound.ts`의 속성 대입이다. 설치된 expo-audio 56.0.12의 Android `playbackRate`는 getter만 있고 `setPlaybackRate(rate)`가 변경 함수다. 통합 PR 트리에서 메서드 호출로 바꾸고 getter 전용 Android/iOS mock 회귀 테스트를 추가했다. 변경 전 테스트는 같은 TypeError로 실패했고 변경 후 전체 `npm run verify -- --runInBand`가 818 suites·10,686 tests·UI 76개 PASS였다. 수정된 JS로 AVD를 재기동해 후속 First Record 화면과 `secondbrain:///` 별자리 홈을 RedBox 없이 표시했다(`native-260926/Output/runtime-validation-260926/fix-08-deeplink-root.png`). 기록 확정은 운영 DB 쓰기 가능성 때문에 누르지 않았고 카메라·오디오 출력도 미검증이다. 전용 AVD·Metro는 정리하고 공용 8081은 유지한다.
+
+## 2026-09-26 17:09 / AdMob 법률 결정과 PR 동의 판본 대조
+
+- 저장소 밖 최신 결정 `E:/2ndB/docs/drafts/privacy-admob-simon-decisions-2026-09-26.md`(16:00 KST)는 시행일 **2026-09-26**, Q4 AdSense 행 제외, Q6 광고 스위치 국외 이전 고지 포함, Q5 AdMob 처리위탁/제3자 제공 분류 **보류**를 기록한다. 16:11 KST 법률 체크 초안은 Q5를 #1865 머지 차단으로 분류한다. 두 문서는 코드·DB에 자동 반영된 것이 아니다.
+- Draft PR #1865의 처리방침 세 사본과 `PRIVACY_POLICY_VERSION`, 가입 0191·서비스 동의 0194 SQL의 판본은 여전히 **2026-09-25**이다. 광고 스위치의 현재 문구는 국외 이전의 항목·국가·시기/방법·수신자 연락처·목적/보유기간·거부 효과를 한 화면에서 고지하지 않는다. [개인정보 보호법 제28조의8 제2항](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1033215841)의 고지 항목과 대조했다. Q5 결정과 정확한 고지 문구를 확정한 뒤 세 사본·앱 판본·두 SQL 계약·스위치 UI·테스트를 **같은 회차**로 갱신해야 한다. 지금은 날짜만 바꾸거나 광고를 켜거나 PR을 머지하지 않는다. [HTML 잔여 작업](qa/REMAINING-WORK-260926.html).
+
+## 2026-09-26 16:50 / Draft PR 최신 웹 GUI 실측
+
+- Draft PR #1865의 검증 head `8cecd849`로 새 웹 export를 만들어 QA 계정의 로그인·화면 이동을 실행했다. 320·425·768px의 28개 화면 점검에서 pageerror 0, 가로 넘침 0, 깨진 이미지 0이었다. 첫 로컬 export의 랜딩 번들 누락 404 세 건은 CI와 같은 `esbuild` 번들을 넣은 뒤 3개 너비에서 오류 0으로 재검증했다. 남은 `service-consent` 404 세 건은 서버 계약 미배포를 확인한 것이며 UI는 재시도 안내를 표시한다. [HTML 보고서](qa/REMAINING-WORK-260926.html).
+- 같은 최신 코드의 `/core-brain`에서 운영 `polaris_generation_status`가 HTTP 404인 실제 조건을 확인했다. 425px 화면에서 `기록으로 페르소나 제안 받기` 버튼은 비활성이고 “생성 기능 설정을 기다리고 있어요” 문구가 보인다. 생성·쓰기 요청 0, pageerror 0. 결과와 화면은 로컬 `Output/web-resume-260926/qa-latest-core-only-results.json` 및 `screenshots/latest-core-action-425.png`에 있다. 이는 모델 생성 품질 검증이 아니다. 운영 추가 SQL·클라이언트 공개 NO-GO, 격리 복원 승인 대기, Grok 후속 보류는 유지한다.
+
+## 2026-09-26 16:19 / 보상 서버 적용 후 백업 확보 · 복원 대기
+
+- 보상 서버 스위치가 14:19 KST에 켜진 뒤 [수동 암호화 백업](https://github.com/Simon-YHKim/2nd-B/actions/runs/36226292412)을 16:16–16:19 KST에 한 번 실행했다. `pg_dump`·age 암호화·업로드가 모두 PASS이고, 아티팩트 `db-backup-36226292412`는 1,629,137바이트 ZIP으로 10월 10일 16:19 KST까지 보관된다. 다운로드한 `.age` 파일의 헤더와 SHA-256을 확인했지만 복호화·격리 복원은 아직 하지 않았다. 아래 06:44–06:47 백업은 보상 적용 **이전** 스냅샷이다. [상세와 복원 게이트](qa/SERVER-PROMOTION-260926.md).
+- 같은 조직(`Learner-thepoorman's Org`)의 격리 Supabase 프로젝트 비용 조회 결과는 월 **$0**이다. 프로젝트 생성·운영 데이터 복원·드릴 종료 후 삭제는 별도 사용자 결정 대기 중이며, 프로젝트는 만들지 않았다. 유료 개발 브랜치 보류와 Grok 후속 전달 보류도 유지한다.
+- Draft [PR #1865](https://github.com/Simon-YHKim/2nd-B/pull/1865)의 코드·문서 head `1520721e`는 원격 [SQL](https://github.com/Simon-YHKim/2nd-B/actions/runs/36226061143)·[verify/web](https://github.com/Simon-YHKim/2nd-B/actions/runs/36226061190)·[제목 검사](https://github.com/Simon-YHKim/2nd-B/actions/runs/36226061165)가 PASS다. 이번 인수 문서 후속 커밋의 CI는 별도로 확인한다. 운영 추가 SQL 적용과 클라이언트 공개는 NO-GO다.
+
+## 2026-09-26 15:19 / #1865 운영 읽기 감사 · 최종 CI 확인
+
+- PR #1865의 `7217d4d5`에서 0191–0198 번호 SQL, 삭제 등록부·0189 rollback·SQL CI 전환이 원격 4개 검사 PASS다([SQL](https://github.com/Simon-YHKim/2nd-B/actions/runs/36222133872) · [verify/web](https://github.com/Simon-YHKim/2nd-B/actions/runs/36222133905)). 최신 main `fe20ad03`의 운영 기록을 이 통합 브랜치에 포함한다. 게시·운영 일괄 `db push`는 여전히 하지 않는다.
+- main #1868은 Simon GO로 14:19부터 `REWARD_SSV_ENABLED=1`이라고 기록한다. 인증 없는 POST 401은 스위치 통과를 확인한 증거이고, 14:29까지 실사용 호출 0건이다. 광고 ON과 서명·변조·재전송 카나리아는 별도이며 아직 완료 증거가 없다. 0172 중복 두 행은 동일 GO가 두 경로로 전달돼 생겼고, 재적용·원장 정리 금지다. Edge 목록 v91의 `updated_at`은 12:23:51 그대로라 새 배포로 해석하지 않는다.
+- 최신 운영 상태가 아래 14:57·14:36·14:15 블록의 플래그 미확인/서버 OFF 가능성보다 우선한다. 콘솔 소유자는 Reward alias와 남은 번호 SQL의 실제 원장·백업 복원·격리 리허설을 확인한다. Grok 후속 전달은 사용자 보류를 유지한다.
+- 인증된 읽기 전용 재조회: 운영 원장 152행이고 마지막 네 행은 `reward_ssv_tickets`, `reward_ssv_hardening`, 중복 0172 두 행 그대로다. Git SQL과 공백 제외 본문 MD5는 세 파일 모두 일치하고, 0196은 원문 MD5도 일치한다. Reward 신규 RPC 4개는 `service_role`만 실행 가능하고 확인한 구 RPC 3개는 공개 역할·`service_role` 모두 실행 불가. 티켓 발급·소비 0건, Paddle 이벤트 4건 중 adjustment·legacy consequence 0건, self-service 청구 0건. Edge v91의 수정 시각은 여전히 12:23:51이고, 가입·동의·삭제·Polaris 신규 객체와 개발 브랜치는 없다. [SQL 원문·운영 대조](qa/SERVER-PROMOTION-260926.md).
+- Draft PR #1865 최종 head `67e9cab0`의 원격 lint·SQL·verify·web export **4/4 PASS**를 다시 확인했다. [일일 암호화 백업](https://github.com/Simon-YHKim/2nd-B/actions/runs/36193185108)은 09-26 성공했고 아티팩트가 남아 있다. Orca 콘솔 작업은 Backup·ModelRefreshReadOnly 환경을 main 전용 정책으로 고쳤다([자격증명 경계](GITHUB-ACTIONS-CREDENTIAL-BOUNDARIES.md)). 이번 백업의 격리 복원·나머지 SQL의 실데이터 리허설·Reward 서명 카나리아는 미완료다. 이 조회는 운영 쓰기를 하지 않았다.
+
+---
+
 ## 2026-09-26 14:57 / 서버 SQL 8개 번호 승격 · PR 원격 4/4 PASS
 
 - Draft PR [#1865](https://github.com/Simon-YHKim/2nd-B/pull/1865)의 head `7217d4d5`에 초안 원문 Git blob과 같은 0191–0198 번호 SQL을 push했다. 정본 삭제 등록부 +4행/forward additions, 0189 rollback의 registry-only 원장 재생, SQL CI 중복 실행 방지를 함께 반영했다. [번호·해시·운영 alias 대응표](qa/SERVER-PROMOTION-260926.md) · [HTML 잔여 작업](qa/REMAINING-WORK-260926.html). 기존 고정 인계 manifest는 바꾸지 않았다.
