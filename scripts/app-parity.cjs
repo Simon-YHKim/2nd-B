@@ -61,7 +61,8 @@ const ABI_ANNOTATION = "app-apk-abi";
 const PHONE_ABI = "arm64-v8a";
 // main 이 도중에 움직여 빌드가 스스로 끊기는 단계(android-release.yml).
 const GATE_STEP = /^(Gate|Recheck) current main\b/;
-const NET_TIMEOUT_MS = 60 * 1000;
+// 8081 이 캐시를 비우고 번들링하는 동안(CPU 가득) gh 호출 하나가 40~60초를 넘긴 적이 있다(2026-09-30 실측).
+const NET_TIMEOUT_MS = 120 * 1000;
 // 새 스크립트의 거부는 이만큼 기억한다(일시적인 gh · 네트워크 실패가 다음 머지까지 굳지 않게).
 const REFUSAL_TTL_MS = 10 * 60 * 1000;
 // 새 감독자가 기록을 쓸 때까지 기다리는 시간. 기록 전에 gh · git fetch 를 하고 각각 상한이 NET_TIMEOUT_MS 다.
@@ -296,7 +297,9 @@ function classifyBuild(runs, sameCode, configOf = () => "unknown", supersededOf 
   if (run) return { state: "success", run, config: "match" };
   run = done.find((r) => cfg(r) === "unknown" && r.event !== "workflow_dispatch");
   if (run) return { state: "success", run, config: "unknown" };
-  const live = eq.filter((r) => r.status !== "completed");
+  // 끝났다고 나와도 결론이 아직 비어 있으면(GitHub 가 정리하는 몇 초) 진행 중으로 본다(2026-09-30 실측: 그
+  // 틈에 대조가 '기록 없음' 을 냈다).
+  const live = eq.filter((r) => r.status !== "completed" || !r.conclusion);
   const doomed = live.filter((r) => doomedOf(r));
   const alive = live.filter((r) => !doomed.includes(r));
   run = alive.find((r) => cfg(r) === "match" || (cfg(r) === "unknown" && r.event !== "workflow_dispatch"));
@@ -460,18 +463,33 @@ function loadRepoVars() {
 
 /** android-release 런(push · workflow_dispatch, main). */
 function listBuildRuns() {
-  const runs = [];
-  for (const event of ["push", "workflow_dispatch"]) {
-    runs.push(
-      ...JSON.parse(
-        gh([
-          "run", "list", "--repo", REPO, "--workflow", "android-release.yml", "--branch", "main", "--event", event,
-          "--limit", "40", "--json", "databaseId,headSha,status,conclusion,createdAt,event",
-        ]) || "[]",
-      ),
-    );
+  for (let attempt = 0; ; attempt++) {
+    const body = JSON.parse(gh(["api", `repos/${REPO}/actions/workflows/android-release.yml/runs?per_page=100`]) || "{}");
+    const runs = buildRunsFromApi(body);
+    if (runs.some((r) => r.event === "push")) return runs;
+    if (attempt >= 2) throw new Error("GitHub 가 android-release 빌드 목록을 비워서 돌려줬다(세 번) - 잠시 뒤 다시");
+    pauseSync(3000);
   }
-  return runs.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+
+/**
+ * 필터 없는 런 목록 응답에서 main 의 push · workflow_dispatch 런만 골라 최신순으로 돌려준다. branch · event 로
+ * 거르는 조회(`gh run list --branch --event`)는 GitHub 의 검색 색인을 거쳐 가끔 비거나 늦게 온다 - 2026-09-30 에
+ * 대조가 세 번, 같은 코드의 빌드가 도는데도 '기록 없음' 을 냈고 근거로 찍힌 최근 런에 push 런이 하나도 없었다.
+ * 그래서 필터 없이 받아 여기서 거르고, main 의 push 빌드가 하나도 없으면 조회가 불완전한 것으로 본다.
+ */
+function buildRunsFromApi(body) {
+  return (Array.isArray(body && body.workflow_runs) ? body.workflow_runs : [])
+    .filter((r) => r.head_branch === "main" && (r.event === "push" || r.event === "workflow_dispatch"))
+    .map((r) => ({
+      databaseId: r.id,
+      headSha: r.head_sha,
+      status: r.status,
+      conclusion: r.conclusion || "",
+      createdAt: r.created_at,
+      event: r.event,
+    }))
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
 }
 
 /** 그 런의 job 들(단계 결과 포함). */
@@ -538,6 +556,30 @@ function varsUpdatedAt() {
 /** 앱 경로에서 두 커밋의 코드가 같은가. */
 function sameAppCode(a, b, paths, cwd) {
   return a === b || gitZ(["diff", "--name-only", "-z", a, b, "--", ...paths], cwd).length === 0;
+}
+
+/** 그 커밋을 이 저장소가 갖고 있는가. */
+const hasCommit = (sha, cwd) => spawnSync("git", ["cat-file", "-e", `${sha}^{commit}`], { cwd, stdio: "ignore" }).status === 0;
+/** 동기 대기(분류는 동기 함수라서). */
+const pauseSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+/**
+ * 런마다 '그 커밋이 sha 와 앱 코드가 같은가' 를 본다. 아직 받지 않은 커밋(main 이 막 움직임)은 같다고 할 수
+ * 없으니 '다른 코드' 다. 받은 커밋에서 난 오류는 일시적인 git 잠금 · 팩 정리일 수 있어 한 번 더 보고, 그래도
+ * 나면 조용히 '다른 코드' 로 넘기지 않고 알린다(2026-09-30: 그렇게 삼킨 오류가 '기록 없음' 으로 보인 적이 있다).
+ */
+function sameCodeChecker(sha, paths, cwd, deps = { compare: sameAppCode, has: hasCommit, pause: pauseSync }) {
+  return (s) => {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return deps.compare(s, sha, paths, cwd);
+      } catch (e) {
+        if (!deps.has(s, cwd)) return false;
+        if (attempt >= 1) throw new Error(`앱 코드 대조 실패(${String(s).slice(0, 8)}): ${String(e.message).slice(0, 160)}`);
+        deps.pause(500);
+      }
+    }
+  };
 }
 
 const statusEntries = (root) => porcelainEntries(run("git", ["status", "--porcelain", "-z", "-uall"], { cwd: root }));
@@ -1609,14 +1651,15 @@ function buildStatusFor(sha, paths, cwd, localDigest, workflowText, mainSha) {
   const names = referencedVars(workflowText);
   const { lastGate } = parseAndroidReleaseWorkflow(workflowText);
   let updated = null;
-  return classifyBuild(
-    listBuildRuns(),
+  let noteErrors = 0;
+  const runs = listBuildRuns();
+  const same = new Map();
+  const checker = sameCodeChecker(sha, paths, cwd);
+  const result = classifyBuild(
+    runs,
     (s) => {
-      try {
-        return sameAppCode(s, sha, paths, cwd);
-      } catch {
-        return false;
-      }
+      if (!same.has(s)) same.set(s, checker(s));
+      return same.get(s);
     },
     (r) => {
       if (!notes.has(r.databaseId)) {
@@ -1624,7 +1667,7 @@ function buildStatusFor(sha, paths, cwd, localDigest, workflowText, mainSha) {
         try {
           n = buildNotes(r.databaseId, jobsOf(r.databaseId));
         } catch {
-          /* 조회 실패는 미확인 */
+          noteErrors++; // 조회 실패는 미확인 - 대조 결과에 몇 건인지 밝힌다
         }
         notes.set(r.databaseId, n);
       }
@@ -1654,6 +1697,10 @@ function buildStatusFor(sha, paths, cwd, localDigest, workflowText, mainSha) {
       }
     },
   );
+  // 판정의 근거로 보여 줄 가장 최근 런 셋(다른 코드 포함)
+  result.recent = runs.slice(0, 3).map((r) => ({ ...r, same: same.has(r.headSha) ? same.get(r.headSha) : null }));
+  result.noteErrors = noteErrors;
+  return result;
 }
 
 async function cmdStatus(argv) {
@@ -1737,10 +1784,13 @@ async function cmdStatus(argv) {
     const ref = build.run ? `런 ${build.run.databaseId} · ${String(build.run.headSha).slice(0, 8)}` : "";
     const inProgress = Boolean(build.run && build.run.status !== "completed");
     const label = {
-      success: build.config === "match" ? `성공 (${ref}) - 같은 코드 · 같은 설정으로 폰용 APK 가 만들어졌다` : `성공 (${ref}) - 같은 코드(설정 digest 는 이 단계 이전 빌드라 확인 못 함)`,
+      success:
+        build.config === "match"
+          ? `성공 (${ref}) - 같은 코드 · 같은 설정으로 폰용 APK 가 만들어졌다`
+          : `성공 (${ref}) - 같은 코드(설정 digest 를 읽지 못했다: digest 단계 이전 빌드거나 조회 실패)`,
       running: `빌드 중 (${ref})`,
       unconfirmed: inProgress
-        ? `⚠ 수동 빌드가 진행 중인데 설정 · ABI 주석을 아직 남기지 않았다 (${ref})`
+        ? `⚠ 수동 빌드가 진행 중이다 - 설정 · ABI 주석은 빌드가 끝나야 읽힌다 (${ref})`
         : `⚠ 수동 빌드뿐이고 설정 · ABI 주석이 없다(digest 단계 이전 빌드) (${ref})`,
       stale: `⚠ 같은 코드의 APK 가 다른 설정으로 빌드됐다 (${ref})`,
       failure: `⚠ 실패 (${ref})`,
@@ -1751,21 +1801,29 @@ async function cmdStatus(argv) {
       none: "⚠ 기록 없음(최근 빌드 안에 같은 코드의 폰용 빌드가 없다)",
     }[build.state];
     console.log(`APK 빌드  : ${label}`);
+    if (build.noteErrors) console.log(`   ⚠ 빌드 주석 조회 실패 ${build.noteErrors}건 - 그 빌드들의 설정은 저장소 Variables 수정 시각으로 대신 봤다`);
     if (build.state === "failure") problems.push(`이 코드의 APK 빌드가 실패했다(${url}) - 앱을 이 코드로 만들 수 없는 상태`);
     if (build.state === "stale") problems.push(`같은 코드의 APK 가 지금과 다른 설정으로 빌드됐다(저장소 Variables 가 빌드 뒤 바뀜) - ${rebuild}`);
     if (build.state === "unconfirmed") {
       problems.push(
         inProgress
-          ? `같은 코드의 수동 빌드(${url})가 폰용 · 같은 설정인지 아직 모른다 - 1~2분 뒤 다시 확인`
+          ? `같은 코드의 수동 빌드(${url})가 폰용 · 같은 설정인지는 끝나야 안다(GitHub 는 주석을 빌드가 끝난 뒤에 보여 준다) - 끝난 뒤 다시 확인`
           : `같은 코드의 수동 빌드가 폰용 · 같은 설정인지 모른다 - ${rebuild}`,
       );
     }
     if (build.state === "superseded" || build.state === "cancelled" || build.state === "none") {
       problems.push(`이 코드 · 설정의 폰용 APK 가 아직 없다(${build.state}) - ${rebuild}`);
     }
+    // '같음' 이 아닌 판정에는 근거를 붙인다: 가장 최근 런 셋과 각각이 같은 앱 코드인지
+    if (build.state !== "success" && build.state !== "running") {
+      for (const r of build.recent || []) {
+        const same = r.same === true ? "같은 앱 코드" : r.same === false ? "다른 앱 코드" : "대조 안 함";
+        console.log(`   - 최근 런 ${r.databaseId} · ${String(r.headSha).slice(0, 8)} · ${r.event} · ${r.status}${r.conclusion ? `/${r.conclusion}` : ""} · ${same}`);
+      }
+    }
   } catch (e) {
-    console.log(`APK 빌드  : 확인 못 함(${e.message.slice(0, 120)})`);
-    problems.push("APK 빌드를 확인하지 못했다(gh) - 확인할 수 있을 때 다시");
+    console.log(`APK 빌드  : 확인 못 함(${e.message.slice(0, 160)})`);
+    problems.push("APK 빌드를 확인하지 못했다(gh · git) - 잠시 뒤 다시");
   }
 
   try {
@@ -1815,7 +1873,7 @@ async function waitRun(runId) {
   const deadline = Date.now() + 50 * 60 * 1000;
   for (;;) {
     const r = JSON.parse(gh(["run", "view", String(runId), "--repo", REPO, "--json", "databaseId,headSha,status,conclusion,createdAt,event"]));
-    if (r.status === "completed") return r;
+    if (r.status === "completed" && r.conclusion) return r; // 결론이 채워질 때까지 기다린다
     if (Date.now() > deadline) throw new Error(`빌드 ${runId} 가 50분 안에 끝나지 않았다`);
     console.log(`빌드 ${runId} (${String(r.headSha).slice(0, 8)}): ${r.status} - 30초 뒤 다시 본다`);
     await sleep(30000);
@@ -1850,16 +1908,11 @@ async function cmdQaRelease(argv) {
   } else {
     // origin/main 과 같은 코드 · 같은 설정의 폰용 빌드를 고른다. 동시성 그룹이 중간 빌드를 건너뛰므로
     // origin/main 의 SHA 자체에는 빌드가 없을 수 있다(그 뒤 커밋이 문서뿐이면 앞 빌드가 같은 앱이다).
-    // 진행 중인 빌드는 기다리고, 주석을 아직 안 남긴 수동 빌드는 주석이 생길 때까지 잠깐 기다린다.
+    // 진행 중인 빌드는 끝날 때까지 기다린다. 주석이 아직 없는 수동 빌드도 마찬가지다 - GitHub 는 주석을 빌드가
+    // 끝난 뒤에야 보여 주므로(2026-09-30 실측) 끝나야 폰용 · 같은 설정인지 알 수 있다.
     let st = buildStatusFor(target, paths, root, localDigest, workflow, currentMain());
-    for (let polls = 0; st.state === "running" || (st.state === "unconfirmed" && st.run.status !== "completed" && polls < 30); ) {
-      if (st.state === "running") {
-        await waitRun(st.run.databaseId);
-      } else {
-        polls++;
-        console.log(`수동 빌드 ${st.run.databaseId} 가 설정 · ABI 주석을 남길 때까지 기다린다 - 20초 뒤 다시 본다`);
-        await sleep(20000);
-      }
+    while (st.state === "running" || (st.state === "unconfirmed" && st.run.status !== "completed")) {
+      await waitRun(st.run.databaseId);
       st = buildStatusFor(target, paths, root, localDigest, workflow, currentMain());
     }
     if (st.state === "success") {
@@ -1982,6 +2035,8 @@ module.exports = {
   stalePatchProblems,
   patchesDrift,
   classifyBuild,
+  sameCodeChecker,
+  buildRunsFromApi,
   planFollow,
   parsePreflight,
   zipEntryNames,

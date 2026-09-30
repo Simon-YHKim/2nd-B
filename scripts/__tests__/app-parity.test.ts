@@ -22,6 +22,8 @@ const {
   patchPackageOf,
   stalePatchProblems,
   classifyBuild,
+  sameCodeChecker,
+  buildRunsFromApi,
   planFollow,
   parsePreflight,
   zipEntryNames,
@@ -97,7 +99,7 @@ describe("app-parity: 폰 APK 빌드 설정 읽기", () => {
     const digest = out.match(new RegExp(`::notice title=${DIGEST_ANNOTATION}::([0-9a-f]{64})`));
     expect(digest?.[1]).toBe(envDigest({ EXPO_PUBLIC_A: "x=y", EXPO_PUBLIC_B: "" }));
     expect(out).toContain(`::notice title=${ABI_ANNOTATION}::${PHONE_ABI}`);
-    // 첫 게이트를 지나자마자(node 준비 직후, npm ci 전) 남긴다 - 진행 중인 수동 빌드도 곧 폰용인지 알 수 있게
+    // 첫 게이트를 지나자마자(node 준비 직후, npm ci 전) 남긴다 - 뒤에서 빌드가 실패해도 주석은 남는다
     const at = steps.indexOf(step as Step);
     expect(steps[at - 1]?.name).toBe("Setup Node 22");
     expect(at).toBeGreaterThan(steps.findIndex((s) => GATE_STEP.test(String(s.name))));
@@ -337,6 +339,39 @@ describe("app-parity: 그 코드 · 그 설정의 폰용 APK 빌드 상태", () 
     expect(classifyBuild(rebuild, same, cfg({ 1: "mismatch" })).state).toBe("unconfirmed");
     // 진행 중인 push 빌드도 설정이 다르면(Variables 가 빌드 뒤 바뀜) stale 이다
     expect(classifyBuild([run(3, "A", "in_progress", null, "3")], same, cfg({ 3: "mismatch" })).state).toBe("stale");
+  });
+
+  it("런 목록은 필터 없는 응답에서 main 의 push · 수동 런만 골라 최신순으로 만든다(검색 색인을 거치지 않게)", () => {
+    const api = {
+      workflow_runs: [
+        { id: 1, head_sha: "a", event: "push", head_branch: "main", status: "completed", conclusion: "success", created_at: "2026-09-30T01:00:00Z" },
+        { id: 3, head_sha: "c", event: "push", head_branch: "main", status: "queued", conclusion: null, created_at: "2026-09-30T03:00:00Z" },
+        { id: 2, head_sha: "b", event: "workflow_dispatch", head_branch: "main", status: "completed", conclusion: "failure", created_at: "2026-09-30T02:00:00Z" },
+        { id: 4, head_sha: "d", event: "workflow_dispatch", head_branch: "feat/x", status: "completed", conclusion: "success", created_at: "2026-09-30T04:00:00Z" },
+        { id: 5, head_sha: "e", event: "pull_request", head_branch: "main", status: "completed", conclusion: "success", created_at: "2026-09-30T05:00:00Z" },
+      ],
+    };
+    const runs = buildRunsFromApi(api);
+    expect(runs.map((r: { databaseId: number }) => r.databaseId)).toEqual([3, 2, 1]);
+    expect(runs[0]).toEqual({ databaseId: 3, headSha: "c", status: "queued", conclusion: "", createdAt: "2026-09-30T03:00:00Z", event: "push" });
+    expect(buildRunsFromApi({})).toEqual([]);
+  });
+
+  it("앱 코드 대조의 오류를 '다른 코드' 로 삼키지 않는다(받지 않은 커밋만 '다른 코드')", () => {
+    const quiet = () => undefined;
+    let n = 0;
+    const flaky = { compare: () => (n++ === 0 ? (() => { throw new Error("index.lock"); })() : true), has: () => true, pause: quiet };
+    expect(sameCodeChecker("A", [], ".", flaky)("B")).toBe(true); // 한 번 더 보면 된다
+    const broken = { compare: () => { throw new Error("bad tree"); }, has: () => true, pause: quiet };
+    expect(() => sameCodeChecker("A", [], ".", broken)("B")).toThrow(/앱 코드 대조 실패/);
+    const unfetched = { compare: () => { throw new Error("bad object"); }, has: () => false, pause: quiet };
+    expect(sameCodeChecker("A", [], ".", unfetched)("B")).toBe(false);
+  });
+
+  it("끝났다고 나왔지만 결론이 아직 비어 있는 런은 진행 중으로 본다(GitHub 가 정리하는 틈)", () => {
+    expect(classifyBuild([run(2, "A", "completed", "", "2")], same, cfg({ 2: "match" })).state).toBe("running");
+    expect(classifyBuild([run(2, "A", "completed", null, "2")], same).state).toBe("running");
+    expect(classifyBuild([run(2, "A", "completed", "failure", "2")], same, cfg({ 2: "match" })).state).toBe("failure");
   });
 
   it("main 이 이미 움직여 게이트에서 끊길 대기 빌드는 '빌드 중' 이 아니라 밀림이다", () => {

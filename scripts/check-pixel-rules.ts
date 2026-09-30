@@ -167,6 +167,8 @@ const MIGRATED: readonly string[] = [
   "src/screens/deepspace/dds-consent-notice-screen.tsx",
   // 2026-09-14 - 프로브 실패 공용 다시 시도. 새 파일이라 처음부터 목록에 둔다.
   "src/components/deep-space/ProfileProbeRetry.tsx",
+  // 2026-09-30 - 폰을 꺼낼 때의 눈부심(디더 밀도 + 계단). 새 파일이라 처음부터 목록에 둔다.
+  "src/components/dashboard/PhoneGlare.tsx",
 ];
 
 // ── 규칙 2 ─────────────────────────────────────────────────────────────
