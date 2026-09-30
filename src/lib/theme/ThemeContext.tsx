@@ -130,6 +130,18 @@ export function useForceDark(): boolean {
   return useContext(ForceDarkContext);
 }
 
+// ── Palette override subtree (Polaris card, 2026-09-30) ────────────────
+// A surface with its own ground (the Polaris card is deep violet, not the
+// sky navy) hands its children a palette tuned for that ground, so every
+// <Text color="textMuted"> inside it stays readable without each call site
+// knowing where it is drawn. Wins over the theme mode and ForceDark: the
+// ground under the text is the override's, whatever the app theme is.
+const PaletteOverrideContext = createContext<Palette | null>(null);
+
+export function PaletteOverride({ palette, children }: { palette: Palette; children: ReactNode }) {
+  return <PaletteOverrideContext.Provider value={palette}>{children}</PaletteOverrideContext.Provider>;
+}
+
 /**
  * Returns the active semantic palette as the same shape as `semantic`.
  * Spread or destructure into inline styles — same keys as the static
@@ -138,6 +150,8 @@ export function useForceDark(): boolean {
 export function useThemePalette(): Palette {
   const { mode } = useTheme();
   const forceDark = useForceDark();
+  const override = useContext(PaletteOverrideContext);
+  if (override) return override;
   return mode === "dark" || forceDark ? semantic : semanticLight;
 }
 

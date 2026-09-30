@@ -574,11 +574,38 @@ export const m3Motion = {
   duration: { short3: 60, short4: 60, medium2: 120, medium4: 120, long2: 240 },
 } as const;
 
+/**
+ * 북극성 카드 (Simon localhost QA 2026-09-30): 북극성은 페이지가 아니라 홈 위에
+ * 뜨는 **북극성 색 카드**다. 카드 바탕은 북극성 보라를 짙게 누른 색이고, 그 위의
+ * 글자는 전부 이 바탕에서 WCAG AA 를 넘도록 골랐다. 옛 카드(#232e4a) 위에서는
+ * 안내 문구(`textLo` #608aa1)가 3.62:1, 링크(`primary`)가 4.16:1 이었다.
+ *
+ *   ink        #E8F7FF  14.0:1   본문 (semantic.text 와 같은 값)
+ *   inkMuted   #D6C4FF   9.7:1   보조 글 = accent.polarisSoft
+ *   inkSubtle  #B794F6   6.3:1   흐린 보조 = accent.polarisGlow
+ *   action     #C8B6FF   8.5:1   링크 · 버튼 = accent.polaris
+ *   onAction   #1C1638   9.5:1   채운 버튼 위 글자 (action 바탕)
+ *   edge       #8B7BD8   4.3:1   테두리 (비텍스트 3:1 기준) = accent.polarisEdge
+ *
+ * 숫자는 `polaris-card-contrast.test.ts` 가 다시 계산해 지킨다.
+ */
+export const m3PolarisCard = {
+  surface: "#261E4A",
+  surfaceLow: "#1C1638",
+  ink: "#E8F7FF",
+  inkMuted: m3Accent.polarisSoft,
+  inkSubtle: m3Accent.polarisGlow,
+  action: m3Accent.polaris,
+  onAction: "#1C1638",
+  edge: m3Accent.polarisEdge,
+} as const;
+
 /** The M3 token bundle. Import `m3` and read `m3.color.primary`, `m3.type.titleLarge`, etc. */
 export const m3 = {
   color: m3ColorDark,
   accent: m3Accent,
   persona: m3Persona,
+  polarisCard: m3PolarisCard,
   font: m3Font,
   type: m3Type,
   shape: m3Shape,

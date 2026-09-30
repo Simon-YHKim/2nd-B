@@ -16,6 +16,9 @@ import { deepSpace } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { MdCard, m3TextStyle } from "@/components/m3";
 import { Text } from "@/components/ui/Text";
+import { cardEdges } from "@/lib/polaris/card-dismiss";
+
+import { usePolarisCardEdgeReport } from "./polaris-card-edges";
 
 export interface PolarisDeckPage {
   key: string;
@@ -32,10 +35,25 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
   const [pageWidth, setPageWidth] = useState(0);
   const [index, setIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
+  // Each card body scrolls on its own. The overlay may only dismiss on a
+  // vertical swipe when the visible body rests on that edge, so tell it where
+  // the visible body is whenever it scrolls, resizes, or the page changes.
+  const reportEdges = usePolarisCardEdgeReport();
+  const bodies = useRef<Record<string, { y: number; viewport: number; content: number }>>({});
+  const reportPage = (i: number) => {
+    const body = bodies.current[pages[i]?.key ?? ""];
+    reportEdges(body ? cardEdges(body.y, body.viewport, body.content) : { top: true, bottom: true });
+  };
+  const measureBody = (key: string, next: Partial<{ y: number; viewport: number; content: number }>) => {
+    const prev = bodies.current[key] ?? { y: 0, viewport: 0, content: 0 };
+    bodies.current[key] = { ...prev, ...next };
+    if (pages[index]?.key === key) reportPage(index);
+  };
 
   const goTo = (i: number) => {
     scrollRef.current?.scrollTo({ x: i * pageWidth, animated: true });
     setIndex(i);
+    reportPage(i);
   };
 
   return (
@@ -61,9 +79,11 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
           pagingEnabled
           style={styles.pager}
           showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={(e) =>
-            setIndex(Math.round(e.nativeEvent.contentOffset.x / Math.max(1, pageWidth)))
-          }
+          onMomentumScrollEnd={(e) => {
+            const next = Math.round(e.nativeEvent.contentOffset.x / Math.max(1, pageWidth));
+            setIndex(next);
+            reportPage(next);
+          }}
           accessibilityLabel={t("deepspace:polaris.cardDeck")}
         >
           {pages.map((page) => (
@@ -80,6 +100,10 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
                   contentContainerStyle={styles.cardContent}
                   showsVerticalScrollIndicator={false}
                   nestedScrollEnabled
+                  scrollEventThrottle={32}
+                  onScroll={(e) => measureBody(page.key, { y: e.nativeEvent.contentOffset.y })}
+                  onLayout={(e) => measureBody(page.key, { viewport: e.nativeEvent.layout.height })}
+                  onContentSizeChange={(_w, h) => measureBody(page.key, { content: h })}
                 >
                   {page.body}
                 </ScrollView>
@@ -144,6 +168,8 @@ const makeStyles = () => StyleSheet.create({
   },
   pager: { flex: 1 },
   page: { height: "100%" },
+  // 북극성 색 카드 (Simon 2026-09-30): 짙은 북극성 보라 바탕 + 북극성 테두리.
+  // 그 위 글자색은 PolarisCardOverlay 가 넘기는 팔레트가 맞춘다.
   card: {
     flex: 1,
     marginHorizontal: 4,
@@ -151,7 +177,9 @@ const makeStyles = () => StyleSheet.create({
     padding: 0,
     overflow: "hidden",
     borderRadius: m3.shape.none,
-    backgroundColor: m3.color.surfaceContainerHighest,
+    borderWidth: 2,
+    borderColor: m3.polarisCard.edge,
+    backgroundColor: m3.polarisCard.surface,
   },
   cardBody: { flex: 1 },
   cardContent: { padding: 18, flexGrow: 1 },

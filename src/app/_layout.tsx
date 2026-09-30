@@ -259,7 +259,9 @@ export default function RootLayout() {
                   five Pattern Cores route to /records + /wiki; the center to
                   /core-brain. (/imagine is now a redirect into Divergent mode.) */}
               <Stack.Screen name="records" options={fadeTransition} />
-              <Stack.Screen name="core-brain" options={fadeTransition} />
+              {/* 북극성 is a card over the sky, not a page (Simon 2026-09-30):
+                  the home stays underneath, PolarisCardOverlay draws the scrim. */}
+              <Stack.Screen name="core-brain" options={{ presentation: "transparentModal", contentStyle: { backgroundColor: "transparent" } }} />
               <Stack.Screen name="+not-found" />
               </ThemedStack>
               <BackArrow />
