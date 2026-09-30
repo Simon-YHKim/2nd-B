@@ -11,6 +11,11 @@
     "sourceEmpty": "저장한 자료예요. 아래 '원래 화면 열기'를 누르면 전체 내용을 볼 수 있어요.",
     "noText": "이 기록에는 본문이 없어요."
   },
+  "photos": {
+    "title": "사진",
+    "item": "사진 {{n}}",
+    "loadError": "사진을 불러오지 못했어요."
+  },
   "advisor": {
     "heading": "세컨비 되짚기",
     "sources": "근거",

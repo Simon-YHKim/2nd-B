@@ -20,7 +20,9 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import type { AnyGlyphName } from "@/components/pixel/pixel-glyphs";
+import { parseRecordPhotos } from "@/lib/capture/record-photos";
 import { parseStructured, structuredFieldLabel } from "@/lib/capture/structured";
+import { RecordPhotoGallery } from "@/components/records/RecordPhotoGallery";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   DOMAIN_TAG_PREFIX,
@@ -821,6 +823,9 @@ export function DeepSpaceRecordDetailScreen() {
   const type = presentationType(piece);
   const assessment = assessmentInfo(piece);
   const structured = parseStructured(piece.structured);
+  // 글 notes may carry photos (records.structured.photos, 2026-09-30). Only the
+  // viewer's own paths are accepted; sources never have any.
+  const photos = piece.origin === "source" ? [] : parseRecordPhotos(piece.structured, userId ?? undefined);
   const displayTitle = titleOf(
     piece,
     t("deepspace:recordDetail.kindFallback"),
@@ -993,6 +998,15 @@ export function DeepSpaceRecordDetailScreen() {
                 </View>
               ))}
             </PixelSurface>
+          ) : null}
+
+          {photos.length > 0 ? (
+            <RecordPhotoGallery
+              photos={photos}
+              title={t("recordDetail:photos.title")}
+              itemLabel={(n) => t("recordDetail:photos.item", { n })}
+              loadError={t("recordDetail:photos.loadError")}
+            />
           ) : null}
 
           <PixelSurface variant="bevel" contentStyle={styles.evidenceSurface}>
