@@ -56,3 +56,11 @@ Simon의 2026-09-26 결정은 Q5를 **처리위탁(안 A)**으로 채택했다. 
 - Android SDK `apkanalyzer manifest print`에서 `firebase_messaging_auto_init_enabled=false`를 확인했다. `MobileAdsInitProvider`와 `ca-app-pub-` 앱 ID는 매니페스트에 없다. `com.google.android.gms.permission.AD_ID`와 `android.permission.ACCESS_ADSERVICES_AD_ID`는 남아 있다. 소스의 `withFcmAutoInitOff` 플러그인 설정이 **이 QA APK 매니페스트**에 반영됐다는 정적 증거다.
 - 이 검사는 앱 시작 네트워크, Firebase Installations의 다른 초기화 경로, 광고 ID 실제 접근, 사용자 경험을 측정하지 않았다. 연결된 Android 실기기가 없고 이 APK는 arm64이며 이 PC의 AVD는 x86_64여서 런타임 검증은 미실행이다. Play에 이미 제출된 vc56 AAB에는 위 FCM 차단과 광고 SDK 제외가 없으므로, QA APK의 결과로 vc56의 Play 데이터 보안 신고를 축소하지 않는다.
 - 다음 검증은 **실제 공개할 빌드**의 매니페스트와 로그인 전 네트워크·알림 동작을 확인하고, Play Console의 모든 활성 버전을 포함한 신고 원본과 대조하는 것이다. 광고 ON과 새 네이티브 공개 게이트는 그대로 유지한다.
+
+## 2026-10-01 main 대응 Android 진단 APK 정적 검사
+
+- [Android Diagnostic Build run 36772298937](https://github.com/Simon-YHKim/2nd-B/actions/runs/36772298937)의 기존 artifact `2ndb-android-438d42a044a35a9b8398765ab64ef632adba49d4`를 내려받아 검사했다. 새 빌드는 실행하지 않았다. `2ndb-438d42a.apk`는 69,624,053바이트, SHA-256 `c22aea81e6b9c9a74f74636045244908be53e434d2dfa709f04a13945cf88ae7`이고 `apksigner verify`에서 v2 서명이 유효하다. run의 소스는 `438d42a044a35a9b8398765ab64ef632adba49d4`다.
+- 검사 당시 `origin/main 993775b1`과 해당 소스의 선택한 앱 경로(`src`, 앱/빌드 설정, lockfile, assets, patches)는 변경 파일 0개였다. `npm run app:parity`도 localhost와 main의 앱 경로·설정·의존성이 같고 이 Android 빌드를 동일 코드·설정의 성공한 빌드로 판정했다. 문서 변경 때문에 main SHA 자체는 다르다.
+- `apkanalyzer manifest print`에서 `MobileAdsInitProvider`, GMA 앱 ID, `ca-app-pub-` 일치 항목은 0개다. DEX의 `com.google.android.gms.ads` 아래 정의된 클래스 4개는 모두 `ads.identifier`에 속하며 광고 표시 SDK 클래스는 없다. APK ZIP에 AdMob/GoogleMobileAds 이름의 항목도 없다. 따라서 **이 진단 APK의 광고 표시 SDK 제외**는 정적 패키지로 확인됐다.
+- 매니페스트에는 `com.google.android.gms.permission.AD_ID`와 `android.permission.ACCESS_ADSERVICES_AD_ID`가 남아 있고, `firebase_analytics_collection_enabled=false`, `io.sentry.auto-init=false`다. 광고 ID 실제 접근·동의 전 송신 여부는 이 정적 검사로 알 수 없다. APK는 이 PC의 `E:\2ndB\.git\app-parity\android-438d42a0-static-261001`에만 보관하고 Git에는 넣지 않았다.
+- Play에 현재 배포된 vc56 AAB는 다른 바이너리이며 GMA Provider를 포함한다. **이 APK 검사만으로 vc56 Play 데이터 보안 신고를 축소하지 않는다.** 다음 공개 후보의 정확한 AAB와 기기 네트워크·동의 상태를 따로 검증한다.
