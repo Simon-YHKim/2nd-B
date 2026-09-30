@@ -31,7 +31,7 @@ import { PixelScrim } from "@/components/pixel/PixelDither";
 import { stepPolyline } from "@/components/pixel/pixel-line";
 import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { PolarisCardOverlay, PolarisCardSurface } from "@/components/deep-space/PolarisCardOverlay";
 import { PolarisDeck, type PolarisDeckPage } from "@/components/deep-space/PolarisDeck";
 import { PolarisCategorySlots } from "@/components/deep-space/PolarisCategorySlots";
 import { MdButton, m3TextStyle } from "@/components/m3";
@@ -139,18 +139,14 @@ async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promi
 // (evidence, persona, the eight sections, the evidence drawer) and every CTA are
 // identical and live in both. (LensView is the 7-axis per-trait view — wrong fit
 // for the aggregate Polaris readout, so it is no longer used here.)
-function CoreShell({ children }: { children: ReactNode }) {
-  const { t } = useTranslation("core-brain");
+//
+// 2026-09-30 (Simon localhost QA): on deep-space the Polaris is a card over the
+// constellation, not a page. The route is a transparent modal and the shell is
+// PolarisCardOverlay (swipe up / down to close, left / right through the deck).
+// States that are not a deck (loading, load error) sit in one Polaris card.
+function CoreShell({ children, deck = false }: { children: ReactNode; deck?: boolean }) {
   return isDeepSpaceUI() ? (
-    <DeepSpaceScreen
-      active="home"
-      header="none"
-      variant="windowed"
-      title={t("polaris")}
-      onBack={() => router.back()}
-    >
-      {children}
-    </DeepSpaceScreen>
+    <PolarisCardOverlay>{deck ? children : <PolarisCardSurface>{children}</PolarisCardSurface>}</PolarisCardOverlay>
   ) : (
     <PremiumAppShell>{children}</PremiumAppShell>
   );
@@ -489,7 +485,7 @@ function CoreBrainScreen() {
   if (evidence.length === 0) {
     const dimStarColor = m3.starLadder.rest[0];
     return (
-      <CoreShell>
+      <CoreShell deck>
         <PolarisDeck isKo={locale === "ko"} pages={[
           { key: "empty", title: t("polaris"), body: (
         <View style={styles.center}>
@@ -847,7 +843,7 @@ function CoreBrainScreen() {
       },
     ];
     return (
-      <CoreShell>
+      <CoreShell deck>
         <View style={dsDeck.wrap}>
           <PolarisDeck pages={deckPages} isKo={locale === "ko"} />
         </View>
@@ -1116,11 +1112,11 @@ const makeDsDeck = () => StyleSheet.create({
     width: "100%",
     alignItems: "center",
     paddingVertical: 8,
-    backgroundColor: m3.color.surfaceContainerLow,
+    backgroundColor: m3.polarisCard.surfaceLow,
   },
   roleStatement: {
     ...m3TextStyle("bodyLarge"),
-    color: m3.color.onSurface,
+    color: m3.polarisCard.ink,
     lineHeight: 24,
     textAlign: "center",
   },
@@ -1128,16 +1124,16 @@ const makeDsDeck = () => StyleSheet.create({
   pageBody: { gap: 12 },
   pageHeadline: {
     ...m3TextStyle("headlineSmall"),
-    color: m3.color.onSurface,
+    color: m3.polarisCard.ink,
     fontWeight: "700",
   },
   pageDescription: {
     ...m3TextStyle("bodyLarge"),
-    color: m3.color.onSurfaceVariant,
+    color: m3.polarisCard.inkMuted,
   },
   progressiveSummary: {
     padding: 12,
-    backgroundColor: m3.color.surfaceContainerLow,
+    backgroundColor: m3.polarisCard.surfaceLow,
   },
   validationHead: { marginTop: 16 },
   secondaryActions: {

@@ -5585,7 +5585,9 @@ test('me Stage 1 contract covers every stable route across all three deck pages'
     'utf8',
   );
   assert.doesNotMatch(deck, /flattenAlpha|pdAlpha/);
-  assert.match(deck, /backgroundColor: m3\.color\.surfaceContainerHighest/);
+  // 2026-09-30: the card is the Polaris colour now (Simon localhost QA - "북극성
+  // 색상의 카드"). Still an opaque token, which is what this pin guards.
+  assert.match(deck, /backgroundColor: m3\.polarisCard\.surface/);
   assert.match(deck, /backgroundColor: deepSpace\.accentDim/);
 
   const screen = readFileSync(path.join(REPO, 'src', 'app', 'core-brain.tsx'), 'utf8');
@@ -5594,7 +5596,8 @@ test('me Stage 1 contract covers every stable route across all three deck pages'
   assert.ok(start >= 0 && end > start);
   const deckStyles = screen.slice(start, end);
   assert.doesNotMatch(deckStyles, /coreAlpha/);
-  assert.match(deckStyles, /backgroundColor: m3\.color\.surfaceContainerLow/);
+  // 2026-09-30: inner panels sit on the violet Polaris card (opaque token).
+  assert.match(deckStyles, /backgroundColor: m3\.polarisCard\.surfaceLow/);
 });
 
 test('network failures stay bound to the route health that started the request', async () => {
