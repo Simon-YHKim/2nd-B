@@ -1,14 +1,17 @@
-// The glare (눈부심) when the pocket phone is raised into the night sky.
+// The glare (눈부심) when the pocket phone is swiped up into the night sky.
 //
 // Decision, schedule and geometry live in `src/lib/motion/phone-glare.ts`
-// (pure, unit-tested). `PocketPhone` decides WHEN (a collapsed -> raised move
-// that reached the top) and mounts this with a fresh key; this file only plays
-// the schedule from its own mount and paints the current step.
+// (pure, unit-tested). `PocketPhone` decides WHEN (a swipe that raised the
+// collapsed phone all the way) and measures where the phone landed;
+// `ConstellationHome` mounts this over the WHOLE home with a fresh key, so the
+// halo can spread around the phone without being cut by the phone's or the
+// sky's clip. This file only plays the schedule from its own mount and paints
+// the current step. The phone rect is measured once per glare, never per frame.
 //
-// Contract with `PocketPhone`:
+// Contract:
 // * It never takes a touch. The wrapper and the Svg are `pointerEvents="none"`,
-//   so the swipe PanResponder and the tap that opens the dashboard see every
-//   gesture as before.
+//   so the swipe PanResponder, the tap that opens the dashboard and the home
+//   chrome the halo briefly covers see every gesture as before.
 // * It owns its own clock and state, so its steps re-render only this layer.
 // * Screen readers never see it (it is light, not content).
 // * Reduced motion paints nothing, including when it turns on mid-glare.
@@ -27,6 +30,7 @@ import {
   PHONE_GLARE_TOTAL_MS,
   phoneGlareLayers,
   phoneGlareLevelAt,
+  pocketPhoneScreen,
   type GlareLayer,
   type GlareScreen,
 } from "@/lib/motion/phone-glare";
@@ -39,9 +43,11 @@ const TONE: Record<GlareLayer["tone"], string> = {
 };
 const TILE_DP = DITHER_TILE * PHONE_GLARE_CELL_DP;
 
-export function PhoneGlare({ reducedMotion, screen, width, height, onDone }: {
+export function PhoneGlare({ reducedMotion, frame, width, height, onDone }: {
   reducedMotion: boolean;
-  screen: GlareScreen;
+  /** The raised pocket phone's frame, in this canvas's coordinates. */
+  frame: GlareScreen;
+  /** The canvas: the whole home. */
   width: number;
   height: number;
   /** Called once when the last step ends. */
@@ -63,10 +69,12 @@ export function PhoneGlare({ reducedMotion, screen, width, height, onDone }: {
   }, []);
 
   if (reducedMotion || level === 0) return null;
-  const layers = phoneGlareLayers(screen, { width, height }, level);
+  const layers = phoneGlareLayers({ frame, screen: pocketPhoneScreen(frame) }, { width, height }, level);
   if (layers.length === 0) return null;
   const patternId = (layer: GlareLayer) => `${idBase}-${layer.tone}-${layer.level}`;
-  const patterned = layers.filter((layer) => layer.level < PHONE_GLARE_FULL);
+  // One pattern per (tone, level): a ring's four bands share theirs.
+  const patterned = layers.filter((layer, i) =>
+    layer.level < PHONE_GLARE_FULL && layers.findIndex((other) => patternId(other) === patternId(layer)) === i);
 
   return (
     <View
@@ -97,9 +105,9 @@ export function PhoneGlare({ reducedMotion, screen, width, height, onDone }: {
             </Pattern>
           ))}
         </Defs>
-        {layers.map((layer) => (
+        {layers.map((layer, i) => (
           <Rect
-            key={`${layer.tone}-${layer.level}`}
+            key={`${layer.tone}-${i}`}
             x={layer.x}
             y={layer.y}
             width={layer.width}

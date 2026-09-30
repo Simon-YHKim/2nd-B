@@ -1,15 +1,19 @@
-// Phone glare (눈부심) — the one dazzle when the phone is raised into the night sky.
+// Phone glare (눈부심) — the one dazzle when the phone is swiped up into the night sky.
 //
 // Why it exists (Simon, 2026-09-30): the home is a night sky where you have been
 // looking at Polaris. Swiping the pocket phone up means looking at something
 // bright with dark-adapted eyes, so for a moment the display is blinding, light
-// spills over the bezel, and then it steps down as the eyes adjust.
+// spreads out around the phone, and then it steps down as the eyes adjust.
 //
-// ⚠ Where it plays (Simon's correction, same day): **raising the home pocket
-//   phone** (`PocketPhone.tsx`, collapsed -> raised), not opening the dashboard.
-//   The first version (#1946) played it when `/dashboard` opened from the home;
-//   Simon: "핸드폰을 스와이프로 위로 올렸을때는 말하는거야." The dashboard now
-//   plays nothing, so the phone dazzles once per take-out, not twice.
+// ⚠ Where it plays — Simon corrected this twice on the same day:
+//   1. Not when the dashboard opens (#1946 did that): "핸드폰을 스와이프로 위로
+//      올렸을때는 말하는거야."
+//   2. Only the SWIPE that raises the pocket phone. Tap-to-raise, the ArrowUp
+//      key and the accessibility expand action raise it without glare, and the
+//      bell/dashboard never glares: "눈부심은 핸드폰을 위로 올리는 동작(스와이프)
+//      에만 적용해야해. 그리고 스마트폰 주변으로 눈부심이 펴져야해."
+//   So the halo spreads around the phone (about one phone-width), and it is drawn
+//   over the whole home, not inside the phone's or the sky's clip.
 //
 // This module is the whole decision, schedule and geometry, kept free of React
 // Native so jest can import it (render tests are blocked in this repo). The
@@ -56,23 +60,23 @@ export const PHONE_GLARE_TOTAL_MS = 800;
 
 /**
  * How long after the phone is lowered again the eyes still count as adjusted to
- * it. Inside this window raising it plays no glare. It must stay above one
+ * it. Inside this window a swipe-up plays no glare. It must stay above one
  * second so two glares can never land in the same one-second window.
  */
 export const PHONE_GLARE_READAPT_MS = 2000;
 
 /**
- * Halo rings around the display, and how far each one reaches out (dp). Sized
- * for the pocket phone (a 104x192 frame whose side bezel is ~8 dp): the first
- * ring lies on the bezel and the outer two spill onto the sky past both sides
- * of the frame, while the phone's outline stays readable inside its own glow.
+ * The halo: lit cells per ring at full glare, from the phone frame outward.
+ * Strongest at the frame and thinning with distance, so it reads as light
+ * spreading from the phone, not as a border. The rings go AROUND the phone
+ * (each has a hole where the phone is), so the phone itself stays visible as
+ * the light source: a white display in a dark bezel inside its own glow.
  */
-export const PHONE_GLARE_HALO_RINGS = 3;
-export const PHONE_GLARE_RING_DP = 8;
-/** A ring dimmer than this many lit cells is dropped (a lone dot per tile reads as noise, not light). */
-export const PHONE_GLARE_HALO_MIN = 2;
-/** Room the bloom needs around the display: the outermost ring's reach. */
-export const PHONE_GLARE_MARGIN = PHONE_GLARE_HALO_RINGS * PHONE_GLARE_RING_DP;
+export const PHONE_GLARE_HALO_PROFILE: readonly number[] = [6, 5, 4, 3, 2, 1];
+/** How far each ring reaches past the one inside it (dp). */
+export const PHONE_GLARE_RING_DP = 16;
+/** How far the halo reaches past the phone frame: 6 x 16 = 96 dp, about one pocket phone width (104). */
+export const PHONE_GLARE_SPREAD = PHONE_GLARE_HALO_PROFILE.length * PHONE_GLARE_RING_DP;
 
 /** The display level at `elapsedMs` after the glare started. 0 = no glare. */
 export function phoneGlareLevelAt(elapsedMs: number): number {
@@ -85,18 +89,13 @@ export function phoneGlareLevelAt(elapsedMs: number): number {
 }
 
 /**
- * Halo levels for a display level, inner ring first: each ring outward has half
- * the light of the one inside it (16 -> 8 / 4 / 2), and rings under
- * `PHONE_GLARE_HALO_MIN` are dropped, so the bloom contracts as it fades and is
- * gone before the display is.
+ * Halo levels for a display level, frame ring first. The profile is scaled by
+ * the display level, so the halo decays on the display's own steps and never
+ * outshines it.
  */
 export function phoneGlareHaloLevels(level: number): number[] {
-  const out: number[] = [];
-  for (let ring = 1; ring <= PHONE_GLARE_HALO_RINGS; ring += 1) {
-    const lit = Math.floor(clampLevel(level) / 2 ** ring);
-    out.push(lit >= PHONE_GLARE_HALO_MIN ? lit : 0);
-  }
-  return out;
+  const lit = clampLevel(level);
+  return PHONE_GLARE_HALO_PROFILE.map((peak) => Math.floor((peak * lit) / PHONE_GLARE_FULL));
 }
 
 export interface PhoneGlareDecision {
@@ -107,8 +106,8 @@ export interface PhoneGlareDecision {
 }
 
 /**
- * Does this raise play the glare? The caller asks only on a collapsed -> raised
- * transition that actually reached the top. Reduced motion (OS setting or lite
+ * Does this swipe-up play the glare? The caller asks only for a swipe that
+ * raised a collapsed phone all the way. Reduced motion (OS setting or lite
  * mode) plays nothing at all.
  */
 export function shouldPlayPhoneGlare({ reducedMotion, nowMs, lastStowedAtMs }: PhoneGlareDecision): boolean {
@@ -131,7 +130,7 @@ export function phoneLastStowedAt(): number | null {
   return lastStowedAtMs;
 }
 
-/** Same shape as a layout rect relative to the glare layer's own origin. */
+/** A layout rect in the glare canvas's coordinates. */
 export interface GlareScreen {
   left: number;
   top: number;
@@ -149,29 +148,25 @@ export interface GlareRect {
 export interface GlareLayer extends GlareRect {
   /** Lit cells of 16. */
   level: number;
-  /** `wash` is the display itself, `halo` the bloom around it. */
+  /** `wash` is the display itself, `halo` the light around the phone. */
   tone: "wash" | "halo";
 }
 
 /**
  * The layers to paint for one step, in paint order (outermost halo first,
- * display wash last). Every rect is integer and clipped to `bounds`; a layer
- * with no lit cells or no area is dropped.
- *
- * The display rect is rounded OUTWARD so no sliver of unlit screen shows at
- * its edge.
+ * display wash last). Halo rings grow from the phone `frame` and leave the
+ * frame itself unpainted (each ring is up to four bands around it); the wash
+ * covers the `screen`. Every rect is integer and clipped to `bounds` (the
+ * canvas); a layer with no lit cells or no area is dropped. Both rects are
+ * rounded OUTWARD so no sliver of unlit screen shows at an edge.
  */
 export function phoneGlareLayers(
-  screen: GlareScreen,
+  { frame, screen }: { frame: GlareScreen; screen: GlareScreen },
   bounds: { width: number; height: number },
   level: number,
 ): GlareLayer[] {
   const lit = clampLevel(level);
   if (lit === 0) return [];
-  const left = Math.floor(screen.left);
-  const top = Math.floor(screen.top);
-  const right = Math.ceil(screen.left + screen.width);
-  const bottom = Math.ceil(screen.top + screen.height);
   const maxW = Math.floor(bounds.width);
   const maxH = Math.floor(bounds.height);
   const clip = (l: number, t: number, r: number, b: number): GlareRect | null => {
@@ -181,16 +176,35 @@ export function phoneGlareLayers(
     const h = Math.min(maxH, b) - y;
     return w > 0 && h > 0 ? { x, y, width: w, height: h } : null;
   };
+  const outward = (rect: GlareScreen) => ({
+    left: Math.floor(rect.left),
+    top: Math.floor(rect.top),
+    right: Math.ceil(rect.left + rect.width),
+    bottom: Math.ceil(rect.top + rect.height),
+  });
+  const f = outward(frame);
+  const s = outward(screen);
   const layers: GlareLayer[] = [];
   const halo = phoneGlareHaloLevels(lit);
+  let outerLevel = 0;
   for (let ring = halo.length; ring >= 1; ring -= 1) {
     const ringLevel = halo[ring - 1];
-    if (ringLevel === 0) continue;
+    // A ring as dim as the one around it is already painted by that ring.
+    if (ringLevel === 0 || ringLevel === outerLevel) continue;
+    outerLevel = ringLevel;
     const reach = PHONE_GLARE_RING_DP * ring;
-    const rect = clip(left - reach, top - reach, right + reach, bottom + reach);
-    if (rect) layers.push({ ...rect, level: ringLevel, tone: "halo" });
+    const [l, t, r, b] = [f.left - reach, f.top - reach, f.right + reach, f.bottom + reach];
+    // Four bands around the phone: above, below, and the two sides between them.
+    for (const band of [
+      clip(l, t, r, f.top),
+      clip(l, f.bottom, r, b),
+      clip(l, f.top, f.left, f.bottom),
+      clip(f.right, f.top, r, f.bottom),
+    ]) {
+      if (band) layers.push({ ...band, level: ringLevel, tone: "halo" });
+    }
   }
-  const wash = clip(left, top, right, bottom);
+  const wash = clip(s.left, s.top, s.right, s.bottom);
   if (wash) layers.push({ ...wash, level: lit, tone: "wash" });
   return layers;
 }
@@ -214,25 +228,16 @@ export const POCKET_PHONE_ART = {
   screen: { left: 297, top: 300, right: 751, bottom: 1163 },
 } as const;
 
-/**
- * Where the pocket phone's glare layer sits and where the display is inside
- * it. The layer extends `PHONE_GLARE_MARGIN` past the phone frame on every side
- * so the bloom is not cut by the phone's own clip; `box` is relative to the
- * phone frame, `screen` relative to `box`.
- */
-export function pocketPhoneGlareGeometry(frame: { width: number; height: number }) {
+/** The display rect of a pocket phone whose frame (its 104x192 view) sits at `frame`. */
+export function pocketPhoneScreen(frame: GlareScreen): GlareScreen {
   const { png, drawn, screen } = POCKET_PHONE_ART;
   const sx = drawn.width / png.width;
   const sy = drawn.height / png.height;
-  const m = PHONE_GLARE_MARGIN;
   return {
-    box: { left: -m, top: -m, width: frame.width + 2 * m, height: frame.height + 2 * m },
-    screen: {
-      left: m + drawn.left + screen.left * sx,
-      top: m + drawn.top + screen.top * sy,
-      width: (screen.right - screen.left) * sx,
-      height: (screen.bottom - screen.top) * sy,
-    },
+    left: frame.left + drawn.left + screen.left * sx,
+    top: frame.top + drawn.top + screen.top * sy,
+    width: (screen.right - screen.left) * sx,
+    height: (screen.bottom - screen.top) * sy,
   };
 }
 

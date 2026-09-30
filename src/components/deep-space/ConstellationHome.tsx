@@ -21,7 +21,8 @@ import { useUiSound } from "@/lib/audio/use-ui-sound";
 import Svg, { Defs, G, Pattern, Rect } from "react-native-svg";
 
 import { TelescopeControls } from "./TelescopeControls";
-import { PocketPhone, POCKET_PHONE_HEIGHT, POCKET_PHONE_PEEK, POCKET_PHONE_WIDTH } from "./PocketPhone";
+import { PocketPhone, POCKET_PHONE_HEIGHT, POCKET_PHONE_PEEK, POCKET_PHONE_WIDTH, type PocketPhoneGlare } from "./PocketPhone";
+import { PhoneGlare } from "./PhoneGlare";
 import { PixelScrim } from "@/components/pixel/PixelDither";
 import { StarDestination } from "./StarDestination";
 import { StarCapture } from "./StarCapture";
@@ -582,6 +583,19 @@ export function ConstellationHome({
   const [manualNoticeVisible, setManualNoticeVisible] = useState(false);
   const [homeFocused, setHomeFocused] = useState(false);
   const [phoneExpanded, setPhoneExpanded] = useState(false);
+  // The swipe-up glare (눈부심). Drawn here, over the whole home, so its halo
+  // can spread around the phone past the phone's and the sky's clips.
+  const homeRootRef = useRef<View>(null);
+  const phoneGlareSeq = useRef(0);
+  const [phoneGlare, setPhoneGlare] = useState<{ run: number; frame: { left: number; top: number; width: number; height: number } } | null>(null);
+  const onPhoneGlare = useCallback((glare: PocketPhoneGlare) => {
+    if (!glare) { setPhoneGlare(null); return; }
+    // Window -> home coordinates, measured once per glare.
+    homeRootRef.current?.measureInWindow((rootX, rootY) => {
+      phoneGlareSeq.current += 1;
+      setPhoneGlare({ run: phoneGlareSeq.current, frame: { left: glare.x - rootX, top: glare.y - rootY, width: glare.width, height: glare.height } });
+    });
+  }, []);
   const [reasoningStatus, setReasoningStatus] = useState<{
     automatic: boolean;
     /** Run gate: weekly base + monthly reward credits (what CAN still run). */
@@ -838,7 +852,7 @@ export function ConstellationHome({
           : "available";
 
   return (
-    <View style={styles.root} onLayout={(e) => setStage({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+    <View ref={homeRootRef} style={styles.root} onLayout={(e) => setStage({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       {/* Opaque stage floor, shared starfield and static neural field. */}
       <Animated.View testID="star-camera-sky" pointerEvents="none" style={[StyleSheet.absoluteFill, { transform: [
         { translateX: destinationProgress.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, cameraAim.x, cameraAim.x] }) },
@@ -1108,6 +1122,7 @@ export function ConstellationHome({
               stowHint={t("deepspace:telescope.phoneStow")}
               active={homeFocused}
               onExpandedChange={setPhoneExpanded}
+              onGlare={onPhoneGlare}
               onOpen={() => router.push({ pathname: "/dashboard", params: { overlay: "home" } })}
             />
           </View>
@@ -1274,6 +1289,11 @@ export function ConstellationHome({
         />
       </View>
       {phoneExpanded ? <View pointerEvents="none" style={styles.phoneBackdrop}><PixelScrim style={styles.phoneScrimImage} /></View> : null}
+      {phoneGlare && stage ? (
+        <View pointerEvents="none" style={styles.phoneGlare}>
+          <PhoneGlare key={phoneGlare.run} reducedMotion={reducedMotion} frame={phoneGlare.frame} width={stage.w} height={stage.h} onDone={() => setPhoneGlare(null)} />
+        </View>
+      ) : null}
       {shownNotice ? (
         <NoticeDialog
           visible={homeFocused && (autoNoticeVisible || manualNoticeVisible)}
@@ -1433,6 +1453,9 @@ const styles = StyleSheet.create({
   constellationRaised: { zIndex: 10 },
   phoneSkyScrim: { ...StyleSheet.absoluteFill, zIndex: 1 },
   phoneBackdrop: { ...StyleSheet.absoluteFill, zIndex: 9 },
+  // Above the raised sky block (10): the glare paints over the phone and the
+  // home chrome around it for under a second, and takes no touch.
+  phoneGlare: { ...StyleSheet.absoluteFill, zIndex: 11 },
   // RN Web otherwise repeats the dither tile only at its intrinsic dimensions.
   phoneScrimImage: { width: "100%", height: "100%" },
   skyViewport: { flex: 1, width: "100%", minHeight: 0, alignItems: "center", justifyContent: "center", overflow: "hidden" },
