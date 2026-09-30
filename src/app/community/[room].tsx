@@ -93,6 +93,12 @@ export default function CommunityRoomScreen() {
   );
 
   useEffect(() => {
+    setDraft("");
+    setSelected(null);
+    setNotice(null);
+  }, [roomId]);
+
+  useEffect(() => {
     if (roomMessages?.length) listRef.current?.scrollToEnd({ animated: false });
   }, [roomMessages?.length]);
 
