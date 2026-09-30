@@ -104,6 +104,7 @@ const MIGRATED: readonly string[] = [
   "src/components/quant/QuantIntroModal.tsx",
   "src/components/quant/QuantPager.tsx",
   "src/components/records/AdvisorFollowupNote.tsx",
+  "src/components/records/RecordPhotoGallery.tsx",
   "src/components/ui/DrillProgress.tsx",
   "src/components/ui/PreferenceToggle.tsx",
   "src/components/wiki/FormatSchemaView.tsx",

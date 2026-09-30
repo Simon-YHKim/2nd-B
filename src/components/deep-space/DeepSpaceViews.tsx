@@ -13,7 +13,8 @@
  * (document-global svg ids) never clashes across instances.
  */
 import { forwardRef, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
-import { AccessibilityInfo, Keyboard, type DimensionValue, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { AccessibilityInfo, Keyboard, type DimensionValue, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Image } from "expo-image";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { router, useLocalSearchParams } from "expo-router";
@@ -32,6 +33,24 @@ import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { type HotlineId } from "@/lib/safety/lexicon";
 import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { composeFourWBody, EMPTY_FOURW, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
+import {
+  MAX_RECORD_PHOTOS,
+  RECORD_PHOTOS_ENABLED,
+  recordPhotosPayload,
+  removeRecordPhotoObjects,
+  uploadRecordPhotos,
+  type RecordPhotoRef,
+} from "@/lib/capture/record-photos";
+import {
+  clampTodoInputHeight,
+  TODO_INPUT_LINE_HEIGHT,
+  TODO_INPUT_MIN_HEIGHT,
+  TODO_INPUT_PADDING_Y,
+  todoInputScrolls,
+  todoItemsForSave,
+  todoSubmitAction,
+} from "@/lib/capture/todo-input";
+import { pickAttachmentImage, type PickedAttachmentImage } from "@/lib/wiki/capture-image";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { loadLatestBfi } from "@/lib/persona/build";
 import { getDomainStar, type DomainId } from "@/lib/persona/domain-stars";
@@ -184,7 +203,10 @@ const CaptureField = forwardRef<TextInput, {
   );
 });
 
-type CaptureMode = "text" | "link" | "photo" | "voice" | "todo";
+// 2026-09-30 (Simon): the 사진 and 음성 tiles are gone from this row. A photo now
+// attaches to 글 (메모 · 4W1H) and is saved with that record; OCR and dictation
+// still live on /capture-full. The canon JSON dropped the two ids in the same change.
+type CaptureMode = "text" | "link" | "todo";
 // Mode ids + icons sourced from the design canon (src/lib/canon → public/proto/data);
 // labels stay on the i18n path (t("ds.capture.modes." + id)) below.
 //
@@ -256,18 +278,87 @@ function CaptureTile({
   );
 }
 
+// react-native-web reports a textarea's scrollHeight, and that never drops
+// below the height already set on it, so a to-do field could grow but never
+// shrink back after text is deleted. Measuring at height 0 reads the content.
+function measureWebTextareaHeight(target: unknown): number | null {
+  const el = target as { style?: { height: string }; scrollHeight?: unknown } | null;
+  if (!el || !el.style || typeof el.scrollHeight !== "number") return null;
+  const previous = el.style.height;
+  el.style.height = "0px";
+  const measured = el.scrollHeight;
+  el.style.height = previous;
+  return typeof measured === "number" ? measured : null;
+}
+
+/**
+ * One to-do field (Simon 2026-09-30: long text wraps downward and pushes the
+ * rows and the add button below it instead of overlapping them). It grows line
+ * by line up to TODO_INPUT_MAX_HEIGHT and then scrolls inside. Return moves to
+ * the next to-do rather than inserting a line break (lib/capture/todo-input.ts).
+ */
+const CaptureTodoInput = forwardRef<TextInput, {
+  value: string;
+  placeholder: string;
+  label: string;
+  onChangeText: (next: string) => void;
+  onSubmitEditing: () => void;
+}>(function CaptureTodoInput({ value, placeholder, label, onChangeText, onSubmitEditing }, ref) {
+  const [height, setHeight] = useState(TODO_INPUT_MIN_HEIGHT);
+  const grow = (contentHeight: number | null) => {
+    if (contentHeight == null) return;
+    const next = clampTodoInputHeight(contentHeight);
+    setHeight((prev) => (prev === next ? prev : next));
+  };
+  return (
+    <TextInput
+      ref={ref}
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={m3.color.onSurfaceVariant}
+      multiline
+      scrollEnabled={todoInputScrolls(height)}
+      textAlignVertical="top"
+      returnKeyType="next"
+      // Native reads submitBehavior; react-native-web only turns Enter into a
+      // submit on a multiline field when blurOnSubmit is set (it blurs after the
+      // handler, by which time focus has already moved to the next to-do).
+      submitBehavior="submit"
+      blurOnSubmit
+      onSubmitEditing={onSubmitEditing}
+      onContentSizeChange={(e) => grow(e.nativeEvent.contentSize.height)}
+      onChange={Platform.OS === "web" ? (e) => grow(measureWebTextareaHeight(e.target)) : undefined}
+      style={[styles.capTodoInput, { height }]}
+      accessibilityLabel={label}
+    />
+  );
+});
+
 export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: boolean } = {}) {
   const { t, i18n } = useTranslation(["home", "capture", "deepspace"]);
   const { userId, isMinor } = useAuth();
   const locale = i18n.language === "ko" ? "ko" : "en";
   // rev2 P4a (device QA 2026-07-02) + clone-audit 06-capture: the deep-space 담기
-  // matches the reference — 5 format modes, and 글(text) opens the W4H1 form as
-  // the default. All modes save through the same createRecord(kind:"note") path.
+  // matches the reference, and 글(text) opens the W4H1 form as the default. All
+  // modes save through the same createRecord(kind:"note") path. Three modes since
+  // 2026-09-30 (글 · 링크 · 할 일); photos attach to 글 instead of a tab of their own.
   const [mode, setMode] = useState<CaptureMode>("text");
   const [textFormat, setTextFormat] = useState<CaptureTextFormat>("fourw");
   const [fourw, setFourw] = useState<FourWFields>(EMPTY_FOURW);
-  const [text, setText] = useState(""); // link / photo caption / voice transcript
+  const [text, setText] = useState(""); // memo text / link
   const [todos, setTodos] = useState<string[]>(["", ""]);
+  // Photos attached to the 글 note (메모 and 4W1H share them). Local previews
+  // until save; uploaded to the owner's private Storage folder only on save.
+  const [photos, setPhotos] = useState<PickedAttachmentImage[]>([]);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState(false);
+  // Handlers write the ref first and then the state, so an async pick or the
+  // unmount cleanup always sees the current list (no render-time ref writes).
+  const photosRef = useRef<PickedAttachmentImage[]>([]);
+  const mountedRef = useRef(true);
+  const todoRefs = useRef<(TextInput | null)[]>([]);
+  const pendingTodoFocus = useRef<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
@@ -286,7 +377,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
     hotline: "GLOBAL_988",
   });
 
-  const cleanTodos = todos.map((v) => v.trim()).filter((v) => v.length > 0);
+  const cleanTodos = todoItemsForSave(todos);
   const hasContent =
     mode === "text"
       ? textFormat === "fourw"
@@ -301,6 +392,24 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
     if (!firstRecordCoach) setCoachStep(null);
     else setCoachStep((current) => current ?? "format");
   }, [firstRecordCoach]);
+
+  // Picked photos hold a cache copy (native) or an object URL (web). Leaving the
+  // screen without saving releases every one of them.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      for (const photo of photosRef.current) void photo.release();
+    };
+  }, []);
+
+  // Return in the last to-do adds a field; focus it once it has rendered.
+  useEffect(() => {
+    const index = pendingTodoFocus.current;
+    if (index === null || index >= todos.length) return;
+    pendingTodoFocus.current = null;
+    todoRefs.current[index]?.focus();
+  }, [todos.length]);
 
   const stopCoach = () => {
     if (userId) markCoachmarksSeen(userId);
@@ -330,6 +439,51 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
     setTodos((prev) => prev.map((v, idx) => (idx === i ? next : v)));
     dirty();
   };
+  const submitTodoAt = (i: number) => {
+    const action = todoSubmitAction(i, todos);
+    if (action.kind === "focus") {
+      todoRefs.current[action.index]?.focus();
+    } else if (action.kind === "append") {
+      pendingTodoFocus.current = action.index;
+      setTodos((prev) => [...prev, ""]);
+    }
+  };
+
+  const clearPhotos = () => {
+    for (const photo of photosRef.current) void photo.release();
+    photosRef.current = [];
+    setPhotos([]);
+    setPhotoError(false);
+  };
+  const addPhoto = async () => {
+    if (photoBusy || photosRef.current.length >= MAX_RECORD_PHOTOS) return;
+    setPhotoBusy(true);
+    setPhotoError(false);
+    try {
+      const picked = await pickAttachmentImage("library");
+      if (!picked) return;
+      // The screen may have closed, or the cap been reached, while the picker was up.
+      if (!mountedRef.current || photosRef.current.length >= MAX_RECORD_PHOTOS) {
+        void picked.release();
+        return;
+      }
+      photosRef.current = [...photosRef.current, picked];
+      setPhotos(photosRef.current);
+      dirty();
+    } catch {
+      if (mountedRef.current) setPhotoError(true);
+    } finally {
+      if (mountedRef.current) setPhotoBusy(false);
+    }
+  };
+  const removePhotoAt = (index: number) => {
+    const target = photosRef.current[index];
+    if (!target) return;
+    photosRef.current = photosRef.current.filter((_, i) => i !== index);
+    setPhotos(photosRef.current);
+    void target.release();
+    dirty();
+  };
 
   async function savePiece() {
     if (!userId || !canSave) return;
@@ -356,18 +510,31 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
       } else {
         body = text.trim();
         topic = body.slice(0, 80);
-        tag = mode; // link / photo / voice
+        tag = mode; // link
       }
-      const res = await createRecord({
-        userId,
-        locale,
-        kind: "note",
-        body,
-        topic,
-        tags: [tag],
-        withFollowup: false,
-        minor: isMinor === true,
-      });
+      // Photos belong to 글 only. They are uploaded first so the record can point
+      // at them; if the insert then fails, the uploaded files are removed again,
+      // so a failed save leaves nothing in Storage. No AI call touches them.
+      const attached = mode === "text" ? photos : [];
+      const uploaded: RecordPhotoRef[] = attached.length > 0 ? await uploadRecordPhotos(userId, attached) : [];
+      const structured = recordPhotosPayload(uploaded);
+      let res: Awaited<ReturnType<typeof createRecord>>;
+      try {
+        res = await createRecord({
+          userId,
+          locale,
+          kind: "note",
+          body,
+          topic,
+          tags: [tag],
+          withFollowup: false,
+          minor: isMinor === true,
+          ...(structured ? { structured } : {}),
+        });
+      } catch (saveError) {
+        if (uploaded.length > 0) void removeRecordPhotoObjects(uploaded.map((photo) => photo.path));
+        throw saveError;
+      }
       // createRecord ran the local crisis lexicon on this note (withFollowup:false
       // → llmPathWillClassify=false). A red zone means the text tripped crisis
       // detection — surface the hotline exactly like the journal path
@@ -392,6 +559,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
       setFourw(EMPTY_FOURW);
       setText("");
       setTodos(["", ""]);
+      clearPhotos();
     } catch (e) {
       setError(true);
       AccessibilityInfo.announceForAccessibility(t("ds.capture.saveError"));
@@ -427,6 +595,60 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
           ? t("deepspace:coachmarks.saveStep")
           : t("deepspace:coachmarks.doneStep");
 
+  // 글 (메모 · 4W1H) photo attachments: thumbnails, then one add button. Hidden
+  // until the photo bucket exists server-side (RECORD_PHOTOS_ENABLED).
+  const photosFull = photos.length >= MAX_RECORD_PHOTOS;
+  const photoAddDisabled = photoBusy || photosFull || saving;
+  const photoStrip = !RECORD_PHOTOS_ENABLED ? null : (
+    <View style={styles.capPhotoBlock}>
+      {photos.length > 0 ? (
+        <View style={styles.capPhotoRow}>
+          {photos.map((photo, i) => (
+            <View key={photo.uri} style={styles.capPhotoCell}>
+              <Image
+                source={{ uri: photo.uri }}
+                style={styles.capPhotoThumb}
+                contentFit="cover"
+                accessibilityLabel={t("ds.capture.photoAttached", { n: i + 1 })}
+              />
+              <Pressable
+                onPress={() => removePhotoAt(i)}
+                disabled={saving}
+                accessibilityRole="button"
+                accessibilityLabel={t("ds.capture.photoRemove", { n: i + 1 })}
+                hitSlop={8}
+                style={styles.capPhotoRemove}
+              >
+                <CaptureIcon name="close" color={m3.color.onSurface} size={14} />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      <MdButton
+        variant="outlined"
+        icon={
+          <CaptureIcon
+            name="photo_camera"
+            color={photoAddDisabled ? m3.disabled.onSurface : m3.color.primary}
+            size={18}
+          />
+        }
+        label={photosFull ? t("ds.capture.photoLimit", { max: MAX_RECORD_PHOTOS }) : f("photoAdd")}
+        disabled={photoAddDisabled}
+        loading={photoBusy}
+        onPress={() => void addPhoto()}
+        accessibilityHint={f("photoAddHint")}
+        style={styles.capFullWidth}
+      />
+      {photoError ? (
+        <Text style={styles.capHint} accessibilityLiveRegion="polite">
+          {f("photoPickError")}
+        </Text>
+      ) : null}
+    </View>
+  );
+
   return (
     <View style={styles.capCoachRoot}>
       <ScrollView
@@ -436,7 +658,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
       >
-      {/* The reference uses five fixed square tiles, not a scrolling chip row. */}
+      {/* Fixed square tiles, not a scrolling chip row (three since 2026-09-30). */}
       <View style={styles.capModeRow} accessibilityRole="tablist">
         {CAPTURE_MODE_ROW.map((m) => {
           const on = mode === m.id;
@@ -512,6 +734,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
                   accessibilityLabel={t("capture:modes.memo.label")}
                 />
               </View>
+              {photoStrip}
             </View>
           ) : (
             <View style={styles.capForm}>
@@ -564,6 +787,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
                 onChange={(v) => setField("how", v)}
                 returnKeyType="done"
               />
+              {photoStrip}
             </View>
           )}
         </>
@@ -584,65 +808,24 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
             accessibilityLabel={t("ds.capture.modes.link")}
           />
         </View>
-      ) : mode === "photo" ? (
-        <View style={styles.capForm}>
-          <MdButton
-            variant="outlined"
-            icon={<CaptureIcon name="photo_camera" color={m3.color.primary} size={18} />}
-            label={f("photoOpen")}
-            // med#3: open the FULL composer in photo (ocr) mode — this used to
-            // land on the default journal/link pane with the label promising 사진.
-            onPress={() => router.push({ pathname: "/capture-full", params: { text, mode: "ocr" } })}
-            style={styles.capFullWidth}
-          />
-          <TextInput
-            value={text}
-            onChangeText={(v) => {
-              setText(v);
-              dirty();
-            }}
-            placeholder={f("photoCaption")}
-            placeholderTextColor={m3.color.onSurfaceVariant}
-            style={styles.capFieldInput}
-            accessibilityLabel={f("photoCaption")}
-          />
-        </View>
-      ) : mode === "voice" ? (
-        <View style={styles.capForm}>
-          <MdButton
-            variant="outlined"
-            icon={<CaptureIcon name="mic" color={m3.color.primary} size={18} />}
-            label={f("voiceOpen")}
-            // med#3: same — the voice label must open the voice recorder pane.
-            onPress={() => router.push({ pathname: "/capture-full", params: { text, mode: "voice" } })}
-            style={styles.capFullWidth}
-          />
-          <TextInput
-            value={text}
-            onChangeText={(v) => {
-              setText(v);
-              dirty();
-            }}
-            placeholder={f("voiceHint")}
-            placeholderTextColor={m3.color.onSurfaceVariant}
-            multiline
-            textAlignVertical="top"
-            style={[styles.capFieldInput, styles.capFieldInputTall]}
-            accessibilityLabel={f("voiceHint")}
-          />
-        </View>
       ) : (
         <View style={styles.capTodoCol}>
           {todos.map((v, i) => (
+            // One wrapper per to-do, laid out as a column entry: a field that
+            // grows pushes the next row and the add button down (2026-09-30).
             <View key={i} style={styles.capTodoRow}>
-              <CaptureIcon name="radio_unchecked" color={m3.color.outline} size={20} />
-              <TextInput
+              <View style={styles.capTodoIcon}>
+                <CaptureIcon name="radio_unchecked" color={m3.color.outline} size={20} />
+              </View>
+              <CaptureTodoInput
+                ref={(node) => {
+                  todoRefs.current[i] = node;
+                }}
                 value={v}
                 onChangeText={(next) => setTodoAt(i, next)}
+                onSubmitEditing={() => submitTodoAt(i)}
                 placeholder={`${f("todoHint")} ${i + 1}`}
-                placeholderTextColor={m3.color.onSurfaceVariant}
-                style={styles.capTodoInput}
-                accessibilityLabel={`${f("todoHint")} ${i + 1}`}
+                label={`${f("todoHint")} ${i + 1}`}
               />
             </View>
           ))}
@@ -2095,7 +2278,8 @@ const styles = StyleSheet.create({
   capTodoRow: {
     minHeight: 44,
     flexDirection: "row",
-    alignItems: "center",
+    // Top-aligned: a to-do that wraps keeps its checkbox on the first line.
+    alignItems: "flex-start",
     gap: 10,
     borderWidth: 1,
     borderColor: m3.color.outlineVariant,
@@ -2104,8 +2288,44 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: m3.color.surfaceContainerHighest,
   },
-  capTodoInput: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand, fontSize: 15, padding: 0 },
+  capTodoIcon: { height: TODO_INPUT_MIN_HEIGHT, justifyContent: "center" },
+  // Height comes from the content (CaptureTodoInput); lineHeight pins one line
+  // to TODO_INPUT_LINE_HEIGHT so the clamp in lib/capture/todo-input.ts matches.
+  capTodoInput: {
+    flex: 1,
+    minWidth: 0,
+    color: m3.color.onSurface,
+    fontFamily: m3.font.brand,
+    fontSize: 15,
+    lineHeight: TODO_INPUT_LINE_HEIGHT,
+    paddingHorizontal: 0,
+    paddingTop: TODO_INPUT_PADDING_Y,
+    paddingBottom: TODO_INPUT_PADDING_Y,
+  },
   capTodoAdd: { alignSelf: "flex-start" },
+  capPhotoBlock: { gap: 8, marginTop: 2 },
+  capPhotoRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  capPhotoCell: {
+    width: 72,
+    height: 72,
+    borderWidth: 1,
+    borderColor: m3.color.outlineVariant,
+    backgroundColor: m3.color.surfaceContainerHighest,
+  },
+  capPhotoThumb: { width: 70, height: 70 },
+  capPhotoRemove: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: m3.color.surfaceContainerHigh,
+    borderLeftWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: m3.color.outlineVariant,
+  },
   capSubmit: { alignSelf: "stretch", marginTop: 12 },
   capFullWidth: { alignSelf: "stretch", marginTop: 8 },
   capErrorCard: {

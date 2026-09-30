@@ -79,7 +79,7 @@ import {
   type PickedFile,
 } from "@/lib/wiki/capture-file";
 import {
-  CAPTURE_MODES,
+  CAPTURE_MODES, captureModeOpensFullIntake,
   createCaptureTransientDraft,
   acknowledgeCaptureSubmissionIfOwned,
   acknowledgeCaptureSubmissionState,
@@ -356,7 +356,7 @@ export default function Capture() {
   // and the two hooks below run identically on every path so hook order is stable.
   // Web Share Target(manifest.webmanifest share_target.action=/capture)은
   // 딥스페이스에서도 이 라우트로 들어오는데 CaptureView 는 share 파라미터를
-  // 소비하지 않는다 — share/mode/tag/first-run 파라미터가 하나라도 있으면 소비
+  // 소비하지 않는다 — share/mode(ocr·voice 는 글로, 09-30)/tag/first-run 이 있으면 소비
   // 배선을 가진 full intake 를 딥스페이스 셸 안에 렌더한다. 최초 프레임은 현재
   // 파라미터로 즉시 고르고, effect 소유 state latch 가 URL strip 뒤에도 이 mount
   // 를 유지한다. render 중 ref write 는 React Compiler purity 를 깨므로 쓰지 않는다.
@@ -377,7 +377,7 @@ export default function Capture() {
       title: captureParams.title,
     }) !== null ||
     (typeof captureParams.mode === "string" &&
-      (CAPTURE_MODES as readonly string[]).includes(captureParams.mode)) ||
+      captureModeOpensFullIntake(captureParams.mode)) ||
     (typeof captureParams.tag === "string" && captureParams.tag.trim().length > 0) ||
     captureParams.entry === "firstRun";
   const [fullCaptureActive, setFullCaptureActive] = useState(hasFullCaptureParams);
