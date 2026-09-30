@@ -6,6 +6,7 @@
 - 앱: [수동 진단 빌드 36687352385](https://github.com/Simon-YHKim/2nd-B/actions/runs/36687352385)의 커밋 `4ee03669444842b03ee729d233f52b7c395318c2` APK. APK에 `lib/x86_64/libreactnative.so`가 있다.
 - 최신 [진단 빌드 36745473207](https://github.com/Simon-YHKim/2nd-B/actions/runs/36745473207)의 `0e2bb32e` APK는 `lib/arm64-v8a/libreactnative.so`만 있어 이 x86_64 에뮬레이터에서 `SoLoader: couldn't find DSO to load: libreactnative.so`로 시작하지 못했다. ABI가 맞지 않는 테스트 환경의 결과이며 앱 코드 결함으로 분류하지 않는다.
 - 공용 `.env.test` QA 계정으로 로그인했다. 사진 선택·메모 저장·운영 설정 변경은 하지 않았다. 화면 제어와 권한 거부만 실행했다.
+- 문서 브랜치에 main `36623cc1`을 통합한 뒤 `npm run verify`가 870개 묶음, 11,279개 테스트를 통과했다. 이 자동 검증은 아래 네이티브 관찰의 대체가 아니다.
 
 ## 확인 결과
 
