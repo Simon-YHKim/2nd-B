@@ -68,7 +68,7 @@ export default function CommunityRoomScreen() {
         setMessageErrorRoomId(null);
       })
       .catch(() => { if (activeRoomId.current === roomId) setMessageErrorRoomId(roomId); });
-    listRooms()
+    listRooms(roomId)
       .then((rooms) => {
         if (activeRoomId.current !== roomId) return;
         const found = rooms.find((r) => r.id === roomId);
