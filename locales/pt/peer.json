@@ -32,7 +32,7 @@
   "withdrawCta": "Retirar minha resposta",
   "withdrawAnytime": "Você pode retirar quando quiser abrindo este link de novo.",
   "subjectTitle": "Perguntar a quem me conhece",
-  "subjectIntro": "Envie um link de uso único. Quando três ou mais responderem, o retrato combinado aparece em Como me veem; você nunca vê respostas individuais. Envie também para além dos amigos próximos: alguém que você conheceu há pouco ou com quem trabalhou. Olhares que não se sobrepõem dizem mais.",
+  "subjectIntro": "Envie um link de uso único a um amigo ou alguém que conheceu há pouco para reunir diferentes pontos de vista.",
   "labelField": "Apelido para esta pessoa (só você vê)",
   "kind": {
     "friend": "Amizade",
@@ -45,7 +45,7 @@
   "creating": "Criando…",
   "createError": "Não foi possível criar o link. Tente de novo.",
   "pendingCap": "Você atingiu o limite de convites abertos. Revogue um para enviar outro.",
-  "privacyLine": "O link funciona uma vez, expira em 14 dias e não guarda contatos.",
+  "privacyLine": "O link funciona uma vez, expira em 14 dias e não guarda contatos. Após três respostas ou mais, você vê apenas o resultado combinado, nunca respostas individuais.",
   "sentTitle": "Convites enviados",
   "emptyList": "Nenhum convite ainda. Comece com alguém que conhece você bem.",
   "status": {

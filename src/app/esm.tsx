@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
 // differs: the deep-space dock (DeepSpaceScreen) vs the premium shell.
 function EsmShell({ children }: { children: ReactNode }) {
   return isDeepSpaceUI() ? (
-    <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>
+    <DeepSpaceScreen active="lens" header="none">{children}</DeepSpaceScreen>
   ) : (
     <PremiumAppShell>{children}</PremiumAppShell>
   );

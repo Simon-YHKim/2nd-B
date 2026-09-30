@@ -165,7 +165,7 @@ function DataConnectionsBody({ ownerId, isMinor }: { ownerId: string; isMinor: b
           <Text variant="caption" style={styles.secondary}>{t("settings:dataRefreshTimeHint")}</Text>
         </> : null}
         {saveError ? <Text accessibilityRole="alert" variant="caption" style={styles.error}>{t("settings:dataRefreshSaveError")}</Text> : null}
-        <Text variant="caption" style={styles.secondary}>{data ? t("ops:phone.lastRead", { date: formatDate(data.readAt) }) : t("ops:phone.noData")}</Text>
+        <Text variant="caption" style={styles.secondary}>{data ? t("ops:phone.lastRead", { date: formatDate(data.readAt) }) : t(readError ? "ops:phone.noData" : "ops:phone.loading")}</Text>
         <PixelPressable disabled={refreshing} onPress={() => { void refreshNow(); }} accessibilityLabel={t("ops:phone.refresh")} contentStyle={styles.action}>
           <PixelGlyph name="refresh" size={24} color={m3.color.primary} />
           <Text variant="caption">{t(refreshing ? "ops:phone.loading" : "ops:phone.refresh")}</Text>

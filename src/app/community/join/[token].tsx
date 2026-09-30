@@ -53,7 +53,7 @@ export default function CommunityJoin() {
   if (!token) return <Redirect href="/community" />;
 
   return (
-    <DeepSpaceScreen active="lens" variant="windowed" title={t("joinTitle")} onBack={() => router.replace("/community")}>
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={t("joinTitle")} onBack={() => router.replace("/community")}>
       <View style={styles.body}>
         <MdCard variant="outlined" style={styles.card}>
           {phase === "joining" ? (

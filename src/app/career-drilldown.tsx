@@ -621,7 +621,7 @@ export default function CareerDrilldown() {
   };
 
   return (
-    <DeepSpaceScreen active="lens">
+    <DeepSpaceScreen active="lens" header="none">
       <View style={styles.body}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <Text variant="heading">{copy.title}</Text>

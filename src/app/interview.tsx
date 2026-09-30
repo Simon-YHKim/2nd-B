@@ -607,7 +607,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
             ? `${userTurns}턴 회상 인터뷰`
             : `${userTurns}-turn recall interview`,
         // 옛 스크리너와 같은 태그. assess/registry.ts 가 이걸로 완료를 판정한다.
-        tags: ["interview", "recall", "screener"],
+        tags: ["interview", "recall", "screener", `entry-ui:${locale}`],
         auditPeriod,
         domainIntent: growthOrigin ? "growth" : undefined,
         withFollowup: false,

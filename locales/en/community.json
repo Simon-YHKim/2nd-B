@@ -1,6 +1,6 @@
 {
   "title": "Community",
-  "intro": "Talk with others under a star alias. Rooms open only through invite links.",
+  "intro": "Create a room under your star alias or join through an invite link.",
   "aliasLine": "Your star alias: {{alias}}",
   "adultOnly": "Community is available for adult accounts only.",
   "createTitle": "Start a room",
