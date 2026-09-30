@@ -8,6 +8,25 @@
 
 ---
 
+## 2026-09-26 20:17 / 격리 복원 사전 차단·AdMob Q5 분류
+
+- AdMob Q5 자체 검토는 광고 SDK 송신을 **제3자 제공 중심**으로 분류했다. Google의 독립적 광고 처리 목적과 대법원 2016도13263 기준을 대조했고, [근거 초안](drafts/admob-q5-third-party-review-260926.md)에 법률·SDK 자료와 미확인 항목을 기록했다. `00e02e59`는 기존 `ads=true`·UMP를 새 동의로 인정하지 않고 웹/보상 광고·네이티브 UMP/SDK 호출을 차단하며 설정 화면은 과거 ON의 OFF만 허용한다. 현재 AdMob 계약 법인·이전 국가·보유기간을 몰라 처리방침 세 사본·판본·동의 SQL을 올리지 않았다. 새 별도 동의·실기기 초기 네트워크 검증 전까지 광고 ON·Draft 머지는 NO-GO다. 전체 `npm run verify`는 820 suites·10,691 tests와 UI 76 PASS였다.
+- 사용자는 같은 Free 조직에서 임시 Supabase 프로젝트를 만들고 보상 적용 후 암호화 백업을 복호화·격리 복원·검증한 뒤 프로젝트와 로컬 평문을 삭제하는 전체 드릴을 승인했다. Orca 콘솔 Run `run_9e4033e7f735`는 백업 SHA-256 일치·월 USD 0 비용·활성 프로젝트 1개를 확인했다. 그러나 age 개인키는 잠긴 KeePassXC에 있고 임시 DB 접속·삭제 권한이 검증되지 않아 **프로젝트 생성 전 중단**했다. 평문·임시 프로젝트·운영 쓰기 0건, 복원 성공 증거는 없다. [사전 점검 HTML](qa/BACKUP-RESTORE-PREFLIGHT-260926.html). 사용자에게 로컬 보관함·대시보드 준비를 요청했다.
+- 코딩 PR #1865에서 `0199_oauth_naver_rate_limit_completion.sql`(초안 바이트 동일), `0200_rss_proxy_quota.sql`(초안 바이트 동일), `0201_rss_proxy_erasure_registry.sql`(정본 등록부 생성 블록)을 번호 예약·push했다. RSS 사용자별 일일 쿼터는 콘텐츠 삭제로 초기화하면 안 되는 `retained` 71번째 행이며, 계정 삭제는 `public.users` FK로 연쇄 삭제한다. 0189 rollback 목록에는 등록부 전용 `0201`만 더하고 제품 표 생성 `0200`은 넣지 않았다. [번호·해시·의존성](qa/SERVER-PROMOTION-260926.md). 집중 Jest 54개와 등록부 검사, 전체 `npm run verify -- --runInBand` 818 suites·10,685 tests·UI 76 PASS. 원격 [SQL 리허설](https://github.com/Simon-YHKim/2nd-B/actions/runs/36233386382)의 0199·0200·0201 및 rollback 왕복을 포함한 4개 검사도 모두 PASS.
+- 읽기 전용 운영 카탈로그에 `0183`의 OAuth 테이블·제한 함수와 RSS 사용자 쿼터 테이블·RPC가 아직 없다. `0199`는 `0183` 선행 없이 적용할 수 없다. 운영 백업 격리 복원·실데이터 이주 리허설, 원장 alias 대응, Edge/flag 확인 전 추가 운영 적용은 NO-GO다. 무료 Supabase 격리 프로젝트의 전체 복원 드릴은 사용자가 승인했다. 개인키·임시 DB 접속·삭제 경로가 확인될 때까지 생성은 보류하고 Grok 후속은 보류한다.
+- 로컬 Chrome의 실제 분석 모듈/CSP 계측에서 합성 GA4 ID로 `gtag.js` 200과 성인·동의·런타임 ON의 `/g/collect` 시도를 확인했다. 수집 요청은 모두 네트워크 전송 전에 차단했다. 동의 OFF·런타임 OFF·미성년·철회·Paddle sandbox는 수집 시도 0건이었다(`scripts/qa/ga4-network-smoke.cjs`). 운영 GA4 수신·Paddle 실거래를 증명하지 않는다. Android 음성 Stop은 전사·audit DB 쓰기로 이어져 무쓰기 조건에서 누르지 않았다. 당시 오프라인 AVD 재기동은 자동 승인 검토가 사유 없이 거부됐고 제품 화면에서 녹음을 시작하지 않았다. 전용 AVD/Metro는 정리했다.
+- 현재 `ae24b6e1` 웹 export에서 QA 계정 33화면(320/425/768px)의 pageerror·가로 넘침·깨진 이미지가 각각 0건이고, 320/425px 음성 녹음 시작·사진 카메라 버튼 4개는 스크롤 후 클릭 가능했다. 미배포 service-consent 404×3·Polaris 상태 404×1은 실패/대기 UI로 처리됐다. [웹 스크린샷과 범위](qa/REMAINING-WORK-260926.html). 별도 Android API 36 격리 fixture에서는 네이티브 Start→Cancel 뒤 임시 파일 부재를 확인했고 외부 기본 네트워크는 none 상태였다. Expo의 missing-file 응답에 `uri`가 없는 것을 정리 실패로 오판하던 `owned-temp` 검사를 고쳤다. 변경 후 전체 `npm run verify -- --runInBand`는 818 suites·10,686 tests·UI 76 PASS. [AVD 전후 증거·제한](qa/ANDROID-VOICE-CANCEL-260926.md). 앱 화면의 Stop→전사·DB·오디오 품질은 미검증이다.
+- 19:46 KST 최신 PR JS `55f24cf3`을 실제 Android 제품 `/capture-full?mode=voice`에 로드해 QA 로그인→Record→`Recording...`→`To do` 탭 취소를 확인했다. 녹음 중 `.m4a` 1개가 생겼고 취소 뒤 `cache/Audio`가 비었으며 `[audio]` 경고·전사 요청은 0건이었다. 인증 POST 1회와 읽기 요청만 전달하는 로컬 프록시를 사용했고 전용 AVD·Metro·프록시를 종료했다. Stop→전사·저장·음질·실기기는 여전히 미검증이다. [제품 화면·상세 증거](qa/ANDROID-VOICE-CANCEL-260926.md).
+- 19:30 KST Supabase 인증 읽기 전용 재조회에서 운영 migration 원장은 152행 그대로다. `polaris_generation_status`·가입 상태·서비스 동의 snapshot RPC, Naver OAuth·RSS 쿼터 선행 객체와 `service-consent` Edge는 여전히 없다. 암호화 백업 artifact·로컬 `.age` 크기/헤더/해시는 일치하고 age·pg_restore 및 KeePassXC 보관함 파일도 존재하지만 개인키 항목 접근·복호화·복원은 확인되지 않았다. 격리 프로젝트는 만들지 않았고 콘솔 담당의 키·DB 접속·삭제 경로 확인이 남는다. 추가 운영 적용 NO-GO와 Grok 후속 보류를 유지한다.
+
+## 2026-09-26 18:05 / Android 캡처 탭 겹침 수정·운영 읽기 재확인
+
+- 같은 Android API 36 AVD(1440×3120/560dpi)의 사진·음성 캡처 화면에서 선택 탭이 안내 문구를 덮는 현상을 재현했다. `src/app/capture.tsx`의 줄바꿈 탭에 명시적 basis·최소 높이를 주고 안내의 음수 여백을 없앴다. 수정된 JS로 두 화면을 재기동하니 탭·`Show less`·안내가 분리됐다. 수치 bounds는 UIAutomator 타임아웃으로 확보하지 못했다. [동일 기기 전후 스크린샷과 범위](qa/ANDROID-CAPTURE-LAYOUT-260926.md). 카메라 권한 후 시스템 프리뷰까지만 열었고 마이크 권한은 거부했다. 촬영·OCR·녹음·전사·저장·효과음 출력은 검증하지 않았다. 전용 AVD/Metro는 종료했고 공용 8081은 유지했다.
+- 별도 QA의 과거 Polaris mock 감사에서는 `persona_narrative` 1건·`persona_synthesis` 2건과 `role_cards_v1` 부재가 당시 mock 분기로 설명된다. 현 통합 코드의 mock 응답은 합성 카드를 만들지 않고 `polaris_live_required`로 멈춘다. 과거 실제 생성 실패의 HTTP 응답·예외가 없으므로 원인은 특정할 수 없고, audit 행이 없다는 사실만으로 공급자 호출이 없었다고 결론 내리지 않는다. 현 운영 `polaris_generation_status` 404에서는 생성 CTA가 비활성이다.
+- Supabase 읽기 전용 재조회에서 migration 152행의 마지막 네 행은 보상 alias 2개와 중복 0172 두 행 그대로다. `service-consent` Edge는 없고 `rewarded-ssv` v91의 수정 시각은 12:23:51 KST 그대로다. `Learner-thepoorman's Org`는 Free 플랜이고 새 프로젝트 비용 재조회는 월 **$0**이다. 격리 프로젝트 생성·암호화 백업 복원·삭제는 별도 사용자 결정 대기이며 아무것도 생성하지 않았다. 운영 추가 SQL·Edge 배포/공개는 NO-GO, Grok 후속 전달은 보류다.
+
+---
+
 ## 2026-09-26 17:33 / Android 로그인 후 오디오 RedBox 재현·수정본 재기동
 
 - 별도 Android 전용 AVD에서 기존 APK의 네이티브 입력과 PR 최신 소스의 동일성을 Git 내용으로 확인하고, 최신 JS 번들(3285 modules)을 Metro 8084로 로드했다. QA 계정 로그인 뒤 온보딩 Continue에서 `Cannot assign to property 'playbackRate' which has only a getter` RedBox가 발생해 홈 진입이 막혔다. 증거는 로컬 `Output/runtime-validation-260926/latest-runtime-result.json`·`latest-31-after-continue.png`·`latest-playbackrate-log.txt`(전용 `native-260926` 워크트리)에 보존했다.
