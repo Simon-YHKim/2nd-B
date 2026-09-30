@@ -282,12 +282,19 @@ jest.mock("@/lib/theme/tokens", () => ({
 jest.mock("@/components/pixel/PixelDither", () => ({ PixelScrim: "PixelScrim" }));
 jest.mock("@/lib/ui-mode", () => ({ isDeepSpaceUI: () => mockDeepSpaceUI.current }));
 jest.mock("@/components/deep-space/DeepSpaceScreen", () => ({ DeepSpaceScreen: "DeepSpaceScreen" }));
+// 2026-09-30: on deep-space the screen's shell is the Polaris card overlay (a
+// transparent modal over the sky), not a DeepSpaceScreen page.
+jest.mock("@/components/deep-space/PolarisCardOverlay", () => ({
+  PolarisCardOverlay: "PolarisCardOverlay",
+  PolarisCardSurface: "PolarisCardSurface",
+}));
 jest.mock("@/components/deep-space/PolarisDeck", () => ({ PolarisDeck: "PolarisDeck" }));
 jest.mock("@/components/pixel/PixelStarSvg", () => ({ PixelStarSvg: "PixelStarSvg" }));
 jest.mock("@/components/m3", () => ({ MdButton: "MdButton", m3TextStyle: () => ({}) }));
 jest.mock("@/lib/theme/m3", () => ({
   m3: {
     accent: { starDim: "starDim", polarisEdge: "polarisEdge" },
+    polarisCard: new Proxy({}, { get: (_target, key) => String(key) }),
     color: new Proxy({}, { get: (_target, key) => String(key) }),
     font: new Proxy({}, { get: (_target, key) => String(key) }),
     shape: { none: 0 },
