@@ -124,7 +124,7 @@
     "sourceNotes": {
       "calendar": "Import with Google Calendar on the web, or with an .ics file in the installed app. Your calendar is not synced continuously.",
       "location": "Import a Google Timeline export. Background GPS tracking is not connected.",
-      "health": "In the installed app, after you consent and allow access, the app can read steps, workouts, sleep and heart rate from Health Connect (Android) or Apple Health (iOS). For now it reads today's records when you tap ‘Add today's activity’.",
+      "health": "In the installed Android app, consent and tap ‘Add today's activity’ to allow access, and the app reads steps, workouts, sleep and heart rate. After that, that phone also reads steps, workouts and sleep once a day on its own. iPhone (Apple Health) cannot be read yet.",
       "garmin": "Turn on Garmin Connect sharing to Apple Health (iOS) or Health Connect (Android 14+), and the installed app can read the supported records with the same health permission. Direct Garmin connection and Body Battery are not supported.",
       "tasks": "Import Google Tasks with your Google account on the web. The installed app cannot connect it yet, and changes are not synced continuously.",
       "kakao": "Import a KakaoTalk chat export and review the selected signals. Live private chats are not read.",

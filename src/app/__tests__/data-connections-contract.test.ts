@@ -48,7 +48,10 @@ test("the time trigger still has a screen-reader name after its visible label wa
 
 test("the refresh card keeps saying when it runs: only while the app is open", () => {
   expect(screen).toContain('t("settings:dataRefreshScope")');
-  expect(String(locale("ko", "settings").dataRefreshScope)).toContain("앱이 활성 상태일 때");
+  // The saved-data reread happens while the dashboard is open; health only on an Android
+  // phone the account connected itself. Neither may be promised for iOS or the web.
+  expect(String(locale("ko", "settings").dataRefreshScope)).toContain("대시보드가 열려 있고");
+  expect(String(locale("ko", "settings").dataRefreshScope)).toContain("Android 앱에서 ‘오늘 반영’으로 연결한 폰에서만");
 });
 
 test("sources render by group, device permissions first, and the manual services as one card", () => {

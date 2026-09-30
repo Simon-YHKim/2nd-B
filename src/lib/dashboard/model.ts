@@ -72,8 +72,10 @@ export function routineActionRoute(domainId: string): string {
 // Phone-first order (Simon 2026-09-30): what a device permission can read comes first,
 // then the sources that genuinely need an import, then the services with no connection.
 // The device group is read in the installed app after consent and the OS permission, when
-// the person taps "reflect today" on /import?mode=account (today only). Nothing reads it
-// automatically yet; that is the next step, not something this list may claim.
+// the person taps "reflect today" on /import?mode=account (today). On Android that tap also
+// arms the automatic read on that phone for that account (lib/health/auto-read.ts): once a
+// day after the refresh time while the app is in the foreground, never with a prompt,
+// steps, workouts and sleep since the last complete read. iOS is not read yet.
 export const DASHBOARD_SOURCES = [
   { id: "health", glyph: "favorite", mode: "health", keys: ["health"], route: "/import?mode=account", adultOnly: true },
   { id: "garmin", glyph: "timer", mode: "health_bridge", keys: [], route: "/import?mode=account", adultOnly: true },

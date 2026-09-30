@@ -952,6 +952,7 @@
       "healthReflected": "Reflected. Items added: {{count}}.",
       "healthReflectedNone": "Nothing new to reflect - today's records were already saved.",
       "healthRoutinesCompleted": "Routines completed from this: {{count}}.",
+      "healthAutoDaily": "While automatic refresh is on, this phone also reads steps, workouts and sleep once a day on its own.",
       "healthErrFailed": "Couldn't add your health activity. Try again shortly.",
       "summaryPieces": "{{count}} piece",
       "summaryPieces_plural": "{{count}} pieces",

@@ -25,6 +25,7 @@ import { reactExpression } from "@/lib/companion/expression";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { listInferredLinkDetails, listSources } from "@/lib/wiki/queries";
 import { listPeerInvites } from "@/lib/peer/invite";
+import { armHealthAutoRead } from "@/lib/health/auto-read";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { availableHealthSources } from "@/lib/health/registry";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
@@ -246,8 +247,11 @@ export function DeepSpaceImportScreen() {
   // to hold a bare boolean and say "Reflected" for every outcome, including the
   // one where the idempotent upsert wrote nothing new. Composition happens at
   // render so a locale change redraws it; only the numbers live in state.
+  // autoDaily: this tap also armed the automatic daily read on this phone (auto-read.ts).
   const [healthDone, setHealthDone] = useState<
-    { kind: "reflected"; inserted: number; autoCompleted: number } | { kind: "nothingNew" } | null
+    | { kind: "reflected"; inserted: number; autoCompleted: number; autoDaily: boolean }
+    | { kind: "nothingNew"; autoDaily: boolean }
+    | null
   >(null);
   const [healthErr, setHealthErr] = useState<string | null>(null);
   // Import history = the persistent device-local log (import-hub 철회 store), so
@@ -446,10 +450,15 @@ export function DeepSpaceImportScreen() {
         setHealthErr(t("ds.import.healthErrDenied"));
         return;
       }
+      // The OS grant belongs to the app on this phone, not to the signed-in account. This tap
+      // is the account's own "connect here", so from now on the automatic daily read
+      // (lib/health/auto-read.ts) may read this phone for it, and the result line says so.
+      const autoDaily = typeof native.readGranted === "function" && (await armHealthAutoRead(userId));
+      const autoNote = autoDaily ? " " + t("ds.import.healthAutoDaily") : "";
       const samples = await native.read(range);
       if (samples.length === 0) {
         // Nothing to reflect is not a failure, but it is not "reflected" either.
-        setHealthErr(t("ds.import.healthErrEmpty"));
+        setHealthErr(t("ds.import.healthErrEmpty") + autoNote);
         return;
       }
       // The HONESTY INVARIANT above guards the READ step: never claim a reflection
@@ -461,8 +470,8 @@ export function DeepSpaceImportScreen() {
       const outcome = await ingestHealthSamples(userId, samples, { isMinor, pref: healthPref });
       setHealthDone(
         outcome.inserted.length === 0
-          ? { kind: "nothingNew" }
-          : { kind: "reflected", inserted: outcome.inserted.length, autoCompleted: outcome.autoCompleted.length },
+          ? { kind: "nothingNew", autoDaily }
+          : { kind: "reflected", inserted: outcome.inserted.length, autoCompleted: outcome.autoCompleted.length, autoDaily },
       );
     } catch {
       // Gate rejection or write error: leave the affordance for retry.
@@ -582,12 +591,13 @@ export function DeepSpaceImportScreen() {
                         accessibilityRole="alert"
                         accessibilityLiveRegion="polite"
                       >
-                        {healthDone.kind === "nothingNew"
+                        {(healthDone.kind === "nothingNew"
                           ? t("ds.import.healthReflectedNone")
                           : t("ds.import.healthReflected", { count: healthDone.inserted })
                             + (healthDone.autoCompleted > 0
                               ? " " + t("ds.import.healthRoutinesCompleted", { count: healthDone.autoCompleted })
-                              : "")}
+                              : ""))
+                          + (healthDone.autoDaily ? " " + t("ds.import.healthAutoDaily") : "")}
                       </RNText>
                     ) : null}
                   </MdCard>

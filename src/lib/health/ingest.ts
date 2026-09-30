@@ -16,7 +16,7 @@
 // opt-in via recordHealthImportConsent (consent_records, the existing ledger).
 
 import type { HealthSample } from "./HealthSource";
-import { applyHealthAutoComplete } from "../ops/routines";
+import { applyHealthAutoComplete, listActiveRoutines } from "../ops/routines";
 import { upsertHealthSamples, type HealthSampleRow } from "../supabase/health";
 
 /**
@@ -79,13 +79,20 @@ export async function ingestHealthSamples(
 
   const inserted = await upsertHealthSamples(userId, samples);
   const autoCompleted: string[] = [];
+  // The active routines are loaded once per call, not once per row: a day of heart rate is
+  // thousands of rows, and each row used to cost its own routines query.
+  const routines = inserted.length > 0 ? await listActiveRoutines(userId) : [];
   for (const row of inserted) {
-    const hits = await applyHealthAutoComplete(userId, {
-      id: row.id,
-      metricType: row.metric_type as HealthSample["metricType"],
-      value: typeof row.value === "number" ? row.value : Number(row.value),
-      startedAt: row.started_at,
-    });
+    const hits = await applyHealthAutoComplete(
+      userId,
+      {
+        id: row.id,
+        metricType: row.metric_type as HealthSample["metricType"],
+        value: typeof row.value === "number" ? row.value : Number(row.value),
+        startedAt: row.started_at,
+      },
+      routines,
+    );
     autoCompleted.push(...hits);
   }
   return { inserted, autoCompleted };
