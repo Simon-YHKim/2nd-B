@@ -12,18 +12,22 @@
 //             A photo-only payload has no `form`, so parseStructured() keeps
 //             returning null for it and nothing here reaches an AI prompt.
 //
-// ⚠ THE BUCKET DOES NOT EXIST YET, so RECORD_PHOTOS_ENABLED is false.
-// Measured 2026-09-30 on production: the only bucket is `raw-clippings`, and it
-// is hardened to markdown on purpose (0186/0192: allowed_mime_types
-// ['text/markdown'], 1 MiB, insert policy `<uid>/%.md` only, tied to the
-// account-deletion fence). A JPEG upload there is refused with 415, and
-// loosening that bucket would weaken the deletion hardening, so photos get a
-// bucket of their own. Before the flag can flip, the server side must hold and
-// erase them (record-photos-server-gate.test.ts checks this from the repo):
-//   1. a migration creating the private `record-photos` bucket (image/jpeg,
-//      1 MiB) with owner-only select/insert/delete on `<uid>/photo-%.jpg`;
-//   2. account deletion sweeping that bucket too (delete-account + its fence);
-//   3. export-account including the photos (it only reads raw-clippings today).
+// Why a bucket of its own (measured 2026-09-30 on production): the only bucket
+// was `raw-clippings`, hardened to markdown on purpose (0186/0192:
+// allowed_mime_types ['text/markdown'], 1 MiB, insert policy `<uid>/%.md`
+// only, tied to the account-deletion fence); a JPEG upload there is refused
+// with 415. Loosening it would weaken the deletion hardening.
+//
+// The server side lives in the repo now (record-photos-server-gate.test.ts
+// checks all three are present):
+//   1. db/migrations/0209_record_photos_storage.sql: the private bucket
+//      (image/jpeg, 2 MiB), owner-only select/insert/delete at
+//      `<uid>/photo-%.jpg`, no update, and the 0192 deletion fence;
+//   2. delete-account sweeps this bucket before Auth deletion;
+//   3. export-account lists the photos as 24-hour signed URLs.
+// RECORD_PHOTOS_ENABLED stays false until those are APPLIED to production
+// (migration first, then both Edge deploys); the repo cannot see that, so the
+// switch is a separate change.
 //
 // Nothing in this module calls an AI service. The photo is only stored and shown.
 
@@ -33,9 +37,9 @@ import { getSupabaseClient } from "../supabase/client";
 
 export const RECORD_PHOTO_BUCKET = "record-photos";
 /**
- * The 글 photo button is shown only when this is true. It stays false until the
- * server can store AND erase the photos (see the header, and
- * record-photos-server-gate.test.ts, which fails if the two disagree).
+ * The 글 photo button is shown only when this is true. Turn it on only after
+ * 0209 is applied and delete-account + export-account are deployed (see the
+ * header); record-photos-server-gate.test.ts keeps it tied to the repo side.
  */
 export const RECORD_PHOTOS_ENABLED: boolean = false;
 /** Photos one record may carry. Small on purpose: every photo is a separate upload on save. */

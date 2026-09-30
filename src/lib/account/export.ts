@@ -11,6 +11,8 @@ export interface AccountExport {
   user_id: string;
   tables: Record<string, unknown>;
   storage: { path: string; markdown?: string; error?: string }[];
+  /** 글 photos (record-photos, 0209) as signed URLs. Absent from older servers. */
+  record_photos?: { path: string; content_type: string; size: number; url: string; url_expires_at: string }[];
   excluded: Record<string, string>;
   errors: Record<string, string>;
 }
@@ -49,7 +51,8 @@ export interface AccountExportSummary {
 export function summarizeAccountExport(bundle: AccountExport): AccountExportSummary {
   return {
     tableCount: Object.keys(bundle.tables).length,
-    fileCount: bundle.storage.filter((entry) => entry.error === undefined).length,
+    fileCount: bundle.storage.filter((entry) => entry.error === undefined).length +
+      (Array.isArray(bundle.record_photos) ? bundle.record_photos.length : 0),
     failedItems: Object.keys(bundle.errors).length + bundle.storage.filter((entry) => entry.error !== undefined).length,
     excludedCategories: Object.keys(bundle.excluded).length,
   };
