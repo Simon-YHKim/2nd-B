@@ -237,7 +237,8 @@
       "saved": "Tersimpan",
       "openRecords": "Buka catatan",
       "saveError": "Tidak dapat menyimpan. Coba lagi sebentar.",
-      "saveHint": "Isi kolom Apa untuk menyimpan catatan."
+      "saveHint": "Isi sesuatu untuk menyimpan catatan.",
+      "saveHintFourW": "Isi kolom Apa untuk menyimpan catatan."
     },
     "chat": {
       "user": "Akhir-akhir ini aku capek banget. Kenapa ya?",

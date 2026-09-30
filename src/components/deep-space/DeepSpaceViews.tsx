@@ -1002,7 +1002,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
           horizontal
           icon={saving ? undefined : "add"}
           label={saveLabel}
-          accessibilityHint={!canSave && !saving ? f("saveHint") : undefined}
+          accessibilityHint={!canSave && !saving ? f(mode === "text" && fourwOn ? "saveHintFourW" : "saveHint") : undefined}
           onPress={savePiece}
         />
       </View>

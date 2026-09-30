@@ -237,7 +237,8 @@
       "saved": "Guardado",
       "openRecords": "Abrir registros",
       "saveError": "No se pudo guardar. Inténtalo de nuevo en un momento.",
-      "saveHint": "Escribe en el campo Qué para guardar."
+      "saveHint": "Escribe algo para guardar.",
+      "saveHintFourW": "Escribe en el campo Qué para guardar."
     },
     "chat": {
       "user": "Últimamente estoy agotado. ¿Por qué será?",

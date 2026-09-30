@@ -32,7 +32,7 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { PlainText as Text } from "@/components/ui/PlainText";
-import type { OcrFailure, OcrSheetPhase } from "@/lib/capture/ocr-sheet";
+import { canInsertOcrText, type OcrFailure, type OcrSheetPhase } from "@/lib/capture/ocr-sheet";
 import { m3 } from "@/lib/theme/m3";
 
 export function CaptureOcrSheet({
@@ -63,7 +63,7 @@ export function CaptureOcrSheet({
 }) {
   const { t } = useTranslation(["home", "capture", "consent"]);
   const reading = phase === "reading";
-  const canInsert = phase === "ready" && text.trim().length > 0;
+  const canInsert = canInsertOcrText(phase, text);
   const failureText =
     failure?.kind === "consent"
       ? t(`consent:serviceControl.${failure.code}`)
