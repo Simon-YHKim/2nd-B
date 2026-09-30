@@ -2,8 +2,8 @@
   "modes": [
     {
       "id": "text",
-      "icon": "edit",
-      "label": "글"
+      "icon": "edit_note",
+      "label": "메모"
     },
     {
       "id": "link",
