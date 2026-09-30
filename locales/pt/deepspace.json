@@ -752,6 +752,7 @@
     "a11yZoomOut": "Diminuir zoom",
     "a11yZoomIn": "Aumentar zoom",
     "hintSelected": "{{label}} · toque novamente para abrir",
+    "openRecord": "Abrir registro",
     "hintDefault": "Tracejada = registros ligados por uma tag em comum. Toque para selecionar, toque novamente para abrir",
     "untitled": "(sem título)",
     "tagLinks": "Vínculos de tags"

@@ -752,6 +752,7 @@
     "a11yZoomOut": "Zoom out",
     "a11yZoomIn": "Zoom in",
     "hintSelected": "{{label}} · tap again to open",
+    "openRecord": "Open record",
     "hintDefault": "Dashed = records linked by a shared tag. Tap to select, tap again to open",
     "untitled": "(untitled)",
     "tagLinks": "Tag links"
