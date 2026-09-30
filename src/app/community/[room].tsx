@@ -28,8 +28,8 @@ import {
   roomDisplayTitle,
   sendMessage,
   type CommunityMessage,
-  type CommunityRoom,
 } from "@/lib/community/chat";
+import { communityRoomView, type RoomLookup } from "@/lib/community/room-view";
 
 export default function CommunityRoomScreen() {
   const { t } = useTranslation("community");
@@ -37,16 +37,23 @@ export default function CommunityRoomScreen() {
   const params = useLocalSearchParams<{ room?: string }>();
   const roomId = typeof params.room === "string" ? params.room : null;
 
-  const [room, setRoom] = useState<CommunityRoom | null>(null);
-  const [messages, setMessages] = useState<CommunityMessage[] | null>(null);
+  const [roomLookup, setRoomLookup] = useState<RoomLookup | null>(null);
+  const [messages, setMessages] = useState<{ roomId: string; rows: CommunityMessage[] } | null>(null);
+  const [messageErrorRoomId, setMessageErrorRoomId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [selected, setSelected] = useState<CommunityMessage | null>(null);
   const listRef = useRef<FlatList<CommunityMessage>>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const activeRoomId = useRef(roomId);
+  activeRoomId.current = roomId;
 
   const adult = isMinor === false;
+  const roomView = communityRoomView(roomId, roomLookup);
+  const room = roomView.room;
+  const roomMessages = messages?.roomId === roomId ? messages.rows : null;
+  const messageLoadFailed = messageErrorRoomId === roomId;
   const isOwner = useMemo(
     () => room?.members.some((m) => m.user_id === userId && m.role === "owner") ?? false,
     [room, userId],
@@ -55,11 +62,23 @@ export default function CommunityRoomScreen() {
   const refresh = useCallback(() => {
     if (!userId || !roomId || !adult) return;
     listMessages(roomId)
-      .then(setMessages)
-      .catch(() => setMessages((prev) => prev ?? []));
-    listRooms()
-      .then((rooms) => setRoom(rooms.find((r) => r.id === roomId) ?? null))
-      .catch(() => undefined);
+      .then((rows) => {
+        if (activeRoomId.current !== roomId) return;
+        setMessages({ roomId, rows });
+        setMessageErrorRoomId(null);
+      })
+      .catch(() => { if (activeRoomId.current === roomId) setMessageErrorRoomId(roomId); });
+    listRooms(roomId)
+      .then((rooms) => {
+        if (activeRoomId.current !== roomId) return;
+        const found = rooms.find((r) => r.id === roomId);
+        setRoomLookup(found ? { roomId, state: "ready", room: found } : { roomId, state: "unavailable" });
+      })
+      .catch(() => {
+        if (activeRoomId.current !== roomId) return;
+        setRoomLookup((prev) => prev?.roomId === roomId && prev.state === "ready"
+          ? prev : { roomId, state: "error" });
+      });
   }, [userId, roomId, adult]);
 
   useFocusEffect(
@@ -74,8 +93,14 @@ export default function CommunityRoomScreen() {
   );
 
   useEffect(() => {
-    if (messages?.length) listRef.current?.scrollToEnd({ animated: false });
-  }, [messages?.length]);
+    setDraft("");
+    setSelected(null);
+    setNotice(null);
+  }, [roomId]);
+
+  useEffect(() => {
+    if (roomMessages?.length) listRef.current?.scrollToEnd({ animated: false });
+  }, [roomMessages?.length]);
 
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
@@ -167,6 +192,20 @@ export default function CommunityRoomScreen() {
             <Text variant="body" color="textMuted">{t("adultOnly")}</Text>
           </MdCard>
         </View>
+      ) : roomView.state !== "ready" ? (
+        <View style={styles.gate}>
+          <MdCard variant="outlined" style={styles.gateCard}>
+            <Text variant="body" color="textMuted" accessibilityRole={roomView.state === "loading" ? undefined : "alert"}>
+              {t(roomView.state === "loading" ? "loading" : roomView.state === "error" ? "genericError" : "roomUnavailable")}
+            </Text>
+            {roomView.state === "error" ? (
+              <MdButton variant="tonal" label={t("retryCta")} onPress={() => { setRoomLookup(null); refresh(); }} />
+            ) : null}
+            {roomView.state !== "loading" ? (
+              <MdButton variant="text" label={t("backToList")} onPress={() => router.replace("/community")} />
+            ) : null}
+          </MdCard>
+        </View>
       ) : (
         <View style={styles.body}>
           <View style={styles.roomBar}>
@@ -185,12 +224,12 @@ export default function CommunityRoomScreen() {
 
           <FlatList
             ref={listRef}
-            data={messages ?? []}
+            data={roomMessages ?? []}
             keyExtractor={(m) => m.id}
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <Text variant="caption" color="textSubtle" style={styles.empty}>
-                {messages === null ? t("loading") : t("threadEmpty")}
+                {messageLoadFailed ? t("genericError") : roomMessages === null ? t("loading") : t("threadEmpty")}
               </Text>
             }
             renderItem={({ item }) => {
