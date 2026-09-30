@@ -31,6 +31,7 @@
   "inviteCta": "Invitar",
   "leaveCta": "Salir",
   "threadEmpty": "Aún no hay mensajes. Saluda.",
+  "roomUnavailable": "No se encontró la sala o ya no participas en ella. Revisa tus salas.",
   "messageA11y": "Mensaje. Pulsa para abrir las acciones de denuncia y bloqueo.",
   "unknownSender": "Remitente desconocido",
   "actionsFor": "Mensaje de {{alias}}",
