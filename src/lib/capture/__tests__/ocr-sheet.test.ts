@@ -12,7 +12,7 @@ import {
   IMAGE_OCR_TOO_LARGE_ERROR,
   IMAGE_OCR_UNSUPPORTED_TYPE_ERROR,
 } from "../../wiki/capture-image";
-import { classifyOcrFailure, insertOcrText, ocrInsertTarget } from "../ocr-sheet";
+import { canInsertOcrText, classifyOcrFailure, insertOcrText, ocrInsertTarget } from "../ocr-sheet";
 
 const read = (rel: string): string => readFileSync(join(process.cwd(), rel), "utf8");
 
@@ -62,6 +62,13 @@ describe("classifyOcrFailure", () => {
 });
 
 describe("inserting the OCR text", () => {
+  test("manual text can be inserted after OCR fails, but not while it is reading", () => {
+    expect(canInsertOcrText("reading", "text from a previous run")).toBe(false);
+    expect(canInsertOcrText("ready", "read text")).toBe(true);
+    expect(canInsertOcrText("error", "  typed by hand  ")).toBe(true);
+    expect(canInsertOcrText("error", " \n ")).toBe(false);
+  });
+
   test("toggle off goes to the memo body, toggle on to 무엇을", () => {
     expect(ocrInsertTarget(false)).toBe("memo");
     expect(ocrInsertTarget(true)).toBe("what");

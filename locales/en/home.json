@@ -237,7 +237,8 @@
       "saved": "Saved",
       "openRecords": "Open records",
       "saveError": "Could not save. Try again in a moment.",
-      "saveHint": "Write in the What field to save."
+      "saveHint": "Enter something to save.",
+      "saveHintFourW": "Write in the What field to save."
     },
     "chat": {
       "user": "I've been so worn out lately. Why is that?",

@@ -25,6 +25,11 @@ import {
 
 export type OcrSheetPhase = "reading" | "ready" | "error";
 
+/** Manual corrections remain usable after OCR fails; only an in-flight read blocks insertion. */
+export function canInsertOcrText(phase: OcrSheetPhase, text: string): boolean {
+  return phase !== "reading" && text.trim().length > 0;
+}
+
 /** Which existing `capture:alerts.*` copy explains the failure. */
 export type OcrFailureCopy =
   | "ocrEmptyResult"
