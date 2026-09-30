@@ -1,4 +1,4 @@
-import { keepAllChildren, keepAllKo } from "../keep-all";
+import { keepAllChildren, keepAllKo, keepMiddleDotOffLineStart } from "../keep-all";
 
 const WJ = "⁠";
 
@@ -63,6 +63,35 @@ describe("keepAllKo never splits a grapheme", () => {
 
   test("still joins the syllables around the emoji", () => {
     expect(keepAllKo(`고마워${redHeart}요`)).toBe(["고", "마", "워", redHeart, "요"].join(WJ));
+  });
+});
+
+describe("a middle dot never starts a line (W3C klreq 7.1.2, cl-07)", () => {
+  const NBSP = String.fromCharCode(0xa0);
+
+  test("the space before a separator dot stops being a break", () => {
+    expect(keepMiddleDotOffLineStart("대표: 배소하 · 소재지")).toBe(`대표: 배소하${NBSP}· 소재지`);
+    expect(keepMiddleDotOffLineStart("Authentication · Login")).toBe(`Authentication${NBSP}· Login`);
+  });
+
+  test("a letter before a dot is joined to it, so the break falls after the dot", () => {
+    expect(keepMiddleDotOffLineStart("결제·환불")).toBe(`결제${WJ}·환불`);
+  });
+
+  test("inside a joined Korean word the only break left is right after each dot", () => {
+    const out = keepAllKo("결제·세금계산서·환불은");
+    expect(out.split(WJ).join("")).toBe("결제·세금계산서·환불은");
+    expect(out).toContain(`${WJ}·환`);
+    expect(out).not.toContain(`·${WJ}`);
+    expect(out.split("·")).toEqual([["결", "제"].join(WJ) + WJ, ["세", "금", "계", "산", "서"].join(WJ) + WJ, ["환", "불", "은"].join(WJ)]);
+  });
+
+  test("is idempotent and leaves text without a dot or an explicit line break alone", () => {
+    const once = keepAllKo("대표: 배소하 · 소재지: 경기도");
+    expect(keepAllKo(once)).toBe(once);
+    const LF = String.fromCharCode(10);
+    expect(keepMiddleDotOffLineStart(`첫 줄${LF}· 둘째 줄`)).toBe(`첫 줄${LF}· 둘째 줄`);
+    expect(keepMiddleDotOffLineStart("no dot here")).toBe("no dot here");
   });
 });
 

@@ -75,10 +75,11 @@ describe("네이티브 Text 는 전부 PlainText 를 거친다", () => {
     expect(src).toMatch(/import \{ PlainText as RNText \} from "@\/components\/ui\/PlainText";/);
   });
 
-  test("PlainText 는 네이티브에서만 문자열을 바꾸고, 선택 가능한 글은 그대로 둔다", () => {
+  test("PlainText 는 선택 가능한 글을 그대로 두고, 음절 잇기는 네이티브에서만 한다", () => {
     const src = readFileSync(join(ROOT, PLAIN_TEXT), "utf8");
-    expect(src).toContain('if (Platform.OS === "web" || selectable || children == null) return createElement(RNText, props);');
-    expect(src).toContain("keepAllChildren(children)");
+    expect(src).toContain("if (selectable || children == null) return createElement(RNText, props);");
+    // 웹은 CSS keep-all 이 단어를 지키므로 가운뎃점 규칙만 돌린다.
+    expect(src).toContain("mapStringChildren(children, web ? keepMiddleDotOffLineStart : keepAllKo)");
   });
 });
 

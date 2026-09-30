@@ -1,4 +1,4 @@
-// Korean keep-all for native Text.
+// Korean line breaking for native Text.
 //
 // Korean wraps at spaces (어절), never between the syllables of one word. The
 // web gets that from CSS word-break: keep-all (src/app/+html.tsx). React Native
@@ -26,11 +26,21 @@
 // not after a zero-width joiner (family emoji), and not between the two halves
 // of a flag. Code points are compared as numbers so no invisible character has
 // to appear in this file.
+//
+// Middle dot (W3C klreq 7.1.2, cl-07): a line never starts with "·". Engines
+// already refuse to start a line with a period, comma, colon or closing bracket,
+// but they break before a middle dot, both after a space ("대표: 배소하 / ·
+// 소재지") and after a letter ("결제·세금계산서 / ·환불"). So a space before the
+// dot becomes a no-break space, a letter before it gets a word joiner, and a
+// joined word may break right after its dots ("결제·세금계산서· / 환불은"),
+// which keeps long dot lists from becoming one unbreakable run.
 
 import type { ReactNode } from "react";
 
 const HANGUL = /[가-힣]/;
 const WORD_JOINER = String.fromCharCode(0x2060);
+const NO_BREAK_SPACE = String.fromCharCode(0x00a0);
+const MIDDLE_DOT = String.fromCharCode(0x00b7);
 const ZERO_WIDTH_JOINER = 0x200d;
 
 /** Code points that attach to the one before them and must not be separated from it. */
@@ -58,26 +68,59 @@ function joinWord(word: string): string {
     const b = chars[i].codePointAt(0) ?? 0;
     const sameGrapheme =
       attachesToPrevious(b) || a === ZERO_WIDTH_JOINER || (isRegionalIndicator(a) && isRegionalIndicator(b));
-    out += (sameGrapheme ? "" : WORD_JOINER) + chars[i];
+    const breakAfterDot = chars[i - 1] === MIDDLE_DOT;
+    out += (sameGrapheme || breakAfterDot ? "" : WORD_JOINER) + chars[i];
+  }
+  return out;
+}
+
+/**
+ * Keep a middle dot off the start of a line (klreq 7.1.2): the space before it
+ * becomes a no-break space and a letter before it gets a word joiner. Applies
+ * to every language - a separator dot opening a line reads badly in English
+ * too - and on web as well as native, since CSS has no rule for it.
+ */
+export function keepMiddleDotOffLineStart(text: string): string {
+  if (!text.includes(MIDDLE_DOT)) return text;
+  let out = "";
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (text[i + 1] === MIDDLE_DOT) {
+      if (ch === " ") {
+        out += NO_BREAK_SPACE;
+        continue;
+      }
+      if (ch !== WORD_JOINER && ch !== NO_BREAK_SPACE && !/\s/.test(ch)) {
+        out += ch + WORD_JOINER;
+        continue;
+      }
+    }
+    out += ch;
   }
   return out;
 }
 
 export function keepAllKo(text: string): string {
-  if (!HANGUL.test(text)) return text;
-  return text
+  const dotted = keepMiddleDotOffLineStart(text);
+  if (!HANGUL.test(dotted)) return dotted;
+  return dotted
     .split(/(\s+)/)
     .map((seg) => (/\s/.test(seg) || !HANGUL.test(seg) ? seg : joinWord(seg)))
     .join("");
 }
 
 /**
- * keepAllKo over React children: string children are joined, nested arrays are
- * walked, and elements (a nested <Text>, an icon) are returned as they are - a
- * nested Text applies the rule to its own strings.
+ * Apply a string rewrite to React children: string children are rewritten,
+ * nested arrays are walked, and elements (a nested <Text>, an icon) are
+ * returned as they are - a nested Text applies the rule to its own strings.
  */
-export function keepAllChildren(children: ReactNode): ReactNode {
-  if (typeof children === "string") return keepAllKo(children);
-  if (Array.isArray(children)) return children.map(keepAllChildren);
+export function mapStringChildren(children: ReactNode, rewrite: (text: string) => string): ReactNode {
+  if (typeof children === "string") return rewrite(children);
+  if (Array.isArray(children)) return children.map((child: ReactNode) => mapStringChildren(child, rewrite));
   return children;
+}
+
+/** keepAllKo over React children (native Text). */
+export function keepAllChildren(children: ReactNode): ReactNode {
+  return mapStringChildren(children, keepAllKo);
 }
