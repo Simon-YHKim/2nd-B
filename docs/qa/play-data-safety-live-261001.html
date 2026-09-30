@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PolaScope Play 데이터 보안 현황 · 2026-10-01</title>
+  <style>
+    :root{color-scheme:light dark;--accent:#146b89;--text:#17262b;--muted:#52646c;background:#f5f9fa;color:var(--text);font:16px/1.6 system-ui,sans-serif}
+    @media(prefers-color-scheme:dark){:root{--accent:#79d6ec;--text:#edf6f8;--muted:#b6cbd0;background:#101a1e}}
+    body{max-width:900px;margin:auto;padding:24px}h1{line-height:1.25}h2{font-size:1.18rem}p,li{max-width:75ch}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:24px 0}.card{border:1px solid var(--muted);border-radius:10px;padding:14px}.card strong{display:block;color:var(--accent);font-size:1.3rem}
+    .scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:680px}th,td{border-bottom:1px solid var(--muted);padding:10px;text-align:left;vertical-align:top}th{color:var(--accent)}
+    details{border-top:1px solid var(--muted);padding:12px 0}summary{cursor:pointer;font-weight:700}a{color:var(--accent)}code{overflow-wrap:anywhere}:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+    svg{max-width:100%;height:auto}footer{margin-top:26px;color:var(--muted);font-size:.9rem}
+  </style>
+</head>
+<body><main>
+  <h1>Play 데이터 보안: 기기 ID 초안을 필수 수집으로 정정</h1>
+  <p>PolaScope <code>com.simonk.secondbrain</code> · 2026-10-01 05:52 KST · 로그인된 Play Console을 GUI로 확인 · 최종 제출 전</p>
+  <div class="cards" aria-label="검증 요약">
+    <div class="card"><strong>기기 ID</strong>선택 → 필수 초안 저장</div>
+    <div class="card"><strong>위치·진단</strong>현행 양식은 둘 다 필수</div>
+    <div class="card"><strong>제출 0건</strong>검토·공개 버튼 미사용</div>
+  </div>
+  <svg viewBox="0 0 760 110" role="img" aria-label="vc56 첫 실행의 Firebase 설치 ID 자동 수집 근거를 확인해 Play 기기 ID 선택 신고를 필수 초안으로 수정하고 최종 제출은 보류한 흐름">
+    <rect x="2" y="14" width="220" height="78" rx="9" fill="none" stroke="currentColor"/><rect x="270" y="14" width="220" height="78" rx="9" fill="none" stroke="currentColor"/><rect x="538" y="14" width="220" height="78" rx="9" fill="none" stroke="currentColor"/>
+    <text x="15" y="46" fill="currentColor">vc56 동의 전 Firebase 연결</text><text x="15" y="72" fill="currentColor">설치 ID 자동 수집 근거</text>
+    <text x="283" y="46" fill="currentColor">Play 기존: ID 선택</text><text x="283" y="72" fill="currentColor">초안: ID 필수</text>
+    <text x="551" y="46" fill="currentColor">초안 저장·재열기 확인</text><text x="551" y="72" fill="currentColor">검토 제출은 미실행</text>
+    <path d="M231 53h29m-9-8 9 8-9 8M499 53h29m-9-8 9 8-9 8" fill="none" stroke="currentColor" stroke-width="2"/>
+  </svg>
+  <h2>실제 양식에서 확인한 값</h2>
+  <div class="scroll"><table><thead><tr><th>항목</th><th>확인 당시 선택</th><th>처리</th></tr></thead><tbody>
+    <tr><td>대략적인 위치</td><td>수집·공유, 임시 처리 아님, <strong>필수</strong>, 애널리틱스 목적</td><td>변경하지 않음. vc56의 IP 수신자가 위치를 추론·보관하는지는 아직 검증되지 않아 적합성 미판정.</td></tr>
+    <tr><td>진단</td><td>수집·공유, 임시 처리 아님, <strong>필수</strong>, 앱 기능·애널리틱스 목적</td><td>변경하지 않음. vc56의 진단 이벤트와 수신 경로가 특정되지 않아 적합성 미판정.</td></tr>
+    <tr><td>기기 또는 기타 ID</td><td>수집·공유, 임시 처리 아님, 기존 <strong>선택</strong>, 애널리틱스 목적</td><td><strong>필수</strong>로 변경해 양식의 ‘임시저장’을 실행. 새로고침·재진입 후 필수 선택 유지 확인. 수집·공유·목적 값은 변경하지 않음.</td></tr>
+  </tbody></table></div>
+  <details open><summary>정정 근거와 한계</summary>
+    <p><a href="PLAY-DATA-SAFETY-VC56-260927.html">vc56 첫 실행 네트워크 QA</a>는 가입·로그인·동의 전에 앱 UID가 Firebase Installations와 연결된 사실을 기록했다. <a href="https://firebase.google.com/docs/android/play-data-disclosure">Firebase 공식 공개 안내</a>는 설치 ID(FID)가 자동 생성·수집된다고 설명한다. 현행 <a href="../legal/privacy-policy.md">개인정보처리방침</a>도 Android 첫 실행의 자동 등록과 앱 설정에서 끌 수 없음을 명시한다. <a href="https://support.google.com/googleplay/android-developer/answer/10787469">Google Play 데이터 보안 안내</a>의 ‘선택’은 수집에 대한 opt-in 또는 opt-out을 포함한다. 따라서 현재 출고 앱의 FID를 ‘필수’로 분류하는 것이 근거에 맞는다.</p>
+    <p>vc56 QA는 TLS 본문에서 FID 값 자체를 복호화하지 않았다. Play의 ‘기기 또는 기타 ID’ 행에는 FID 외 다른 식별자도 합쳐질 수 있다. 이 판단은 Firebase 공식 동작·앱 첫 실행 관찰·현재 방침을 종합한 것이다.</p>
+  </details>
+  <details><summary>적용 경계와 증거</summary>
+    <p>Play Console의 ‘앱 콘텐츠 → 조치됨 → 데이터 보안’에서 기존 선택을 읽었다. 변경 후 ‘임시저장’ 성공 문구를 확인하고 페이지를 새로고침한 뒤 같은 필수 선택을 다시 확인했다. 마지막 5/5 미리보기의 ‘저장’은 게시 개요로 보내 검토 준비 상태를 만들 수 있으므로 누르지 않았다. 공개 스토어 신고가 바뀌었다고 판정하지 않는다.</p>
+    <p>GUI 화면 4장은 이 PC의 <code>E:\2ndB\.git\app-parity\play-data-safety-live-261001</code>에 로컬 증거로 보관했다. 계정 화면 원본은 저장소에 넣지 않았다. 기존 Play 비공개 테스트는 0.9.0(vc56) alpha로 표시됐고, 프로덕션 신청의 사전 테스트 조건 3개는 완료로 표시됐다. 프로덕션 신청은 실행하지 않았다.</p>
+  </details>
+  <details><summary>남은 출시 검증</summary>
+    <p>위치·진단의 필수 표기는 SDK·실제 전송 경로와 비교해 확정한다. 기기 ID 초안의 최종 저장·Play 검토 제출은 별도 출시 단계다. 광고 활성화는 기존 법률·SDK 검토와 출시 게이트를 따른다.</p>
+  </details>
+  <footer>출처: 현재 Play Console GUI, 저장소 vc56 QA, Firebase·Google Play 공식 문서 · 2026-10-01 KST</footer>
+</main></body></html>
