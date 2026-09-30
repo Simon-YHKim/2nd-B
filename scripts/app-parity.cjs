@@ -296,7 +296,9 @@ function classifyBuild(runs, sameCode, configOf = () => "unknown", supersededOf 
   if (run) return { state: "success", run, config: "match" };
   run = done.find((r) => cfg(r) === "unknown" && r.event !== "workflow_dispatch");
   if (run) return { state: "success", run, config: "unknown" };
-  const live = eq.filter((r) => r.status !== "completed");
+  // 끝났다고 나와도 결론이 아직 비어 있으면(GitHub 가 정리하는 몇 초) 진행 중으로 본다(2026-09-30 실측: 그
+  // 틈에 대조가 '기록 없음' 을 냈다).
+  const live = eq.filter((r) => r.status !== "completed" || !r.conclusion);
   const doomed = live.filter((r) => doomedOf(r));
   const alive = live.filter((r) => !doomed.includes(r));
   run = alive.find((r) => cfg(r) === "match" || (cfg(r) === "unknown" && r.event !== "workflow_dispatch"));
@@ -1815,7 +1817,7 @@ async function waitRun(runId) {
   const deadline = Date.now() + 50 * 60 * 1000;
   for (;;) {
     const r = JSON.parse(gh(["run", "view", String(runId), "--repo", REPO, "--json", "databaseId,headSha,status,conclusion,createdAt,event"]));
-    if (r.status === "completed") return r;
+    if (r.status === "completed" && r.conclusion) return r; // 결론이 채워질 때까지 기다린다
     if (Date.now() > deadline) throw new Error(`빌드 ${runId} 가 50분 안에 끝나지 않았다`);
     console.log(`빌드 ${runId} (${String(r.headSha).slice(0, 8)}): ${r.status} - 30초 뒤 다시 본다`);
     await sleep(30000);
