@@ -34,6 +34,9 @@
 // dot becomes a no-break space, a letter before it gets a word joiner, and a
 // joined word may break right after its dots ("결제·세금계산서· / 환불은"),
 // which keeps long dot lists from becoming one unbreakable run.
+// On web, keep-all can still break after a closing quote before an attached
+// Korean particle ("‘승인’ / 에서"). Join that quote to the word on each side;
+// native keepAllKo already joins the whole word.
 
 import type { ReactNode } from "react";
 
@@ -42,6 +45,7 @@ const WORD_JOINER = String.fromCharCode(0x2060);
 const NO_BREAK_SPACE = String.fromCharCode(0x00a0);
 const MIDDLE_DOT = String.fromCharCode(0x00b7);
 const ZERO_WIDTH_JOINER = 0x200d;
+const QUOTE_BEFORE_KOREAN_PARTICLE = /([^\s\u2018\u2019\u201c\u201d])([\u2019\u201d])(?=[\uac00-\ud7a3])/gu;
 
 /** Code points that attach to the one before them and must not be separated from it. */
 const ATTACHES_TO_PREVIOUS: ReadonlyArray<readonly [number, number]> = [
@@ -98,6 +102,14 @@ export function keepMiddleDotOffLineStart(text: string): string {
     out += ch;
   }
   return out;
+}
+
+/** Keep a closing quote attached to its preceding word and following Korean particle on web. */
+export function keepWebPunctuationTogether(text: string): string {
+  const dotted = keepMiddleDotOffLineStart(text);
+  return dotted.replace(QUOTE_BEFORE_KOREAN_PARTICLE, (_match, letter: string, quote: string) =>
+    `${letter}${WORD_JOINER}${quote}${WORD_JOINER}`,
+  );
 }
 
 export function keepAllKo(text: string): string {

@@ -1,7 +1,7 @@
 import { createElement, type ComponentPropsWithRef } from "react";
 import { Platform, Text as RNText } from "react-native";
 
-import { keepAllKo, keepMiddleDotOffLineStart, mapStringChildren } from "@/lib/i18n/keep-all";
+import { keepAllKo, keepWebPunctuationTogether, mapStringChildren } from "@/lib/i18n/keep-all";
 
 // React Native <Text> with Korean line breaking. Every Text in src/ goes through
 // here: <Text variant> wraps it, and the screens that style raw text import it
@@ -15,10 +15,10 @@ import { keepAllKo, keepMiddleDotOffLineStart, mapStringChildren } from "@/lib/i
 // split a token that cannot fit (a long URL), which is right, so they are left
 // alone.
 //
-// Web: CSS word-break: keep-all on <html> (src/app/+html.tsx) keeps words whole
-// for every element, so strings are not joined there and copy · find-in-page
-// stay clean. CSS has no rule for the middle dot (klreq 7.1.2: a line never
-// starts with "·"), so that one rewrite runs on web too.
+// Web: CSS word-break: keep-all on <html> (src/app/+html.tsx) keeps Hangul words
+// whole. CSS still allows a break before a middle dot or after a closing quote
+// before a Korean particle, so those two punctuation boundaries use joiners.
+// Other words stay unchanged for copy and find-in-page.
 // Native: there is no such style, so string children are rewritten with
 // keepAllKo (word joiners between the syllables of a Hangul word, plus the
 // middle-dot rule).
@@ -35,7 +35,7 @@ export function PlainText(props: PlainTextProps) {
   const { children, selectable } = props;
   if (selectable || children == null) return createElement(RNText, props);
   const web = Platform.OS === "web";
-  const rewritten = mapStringChildren(children, web ? keepMiddleDotOffLineStart : keepAllKo);
+  const rewritten = mapStringChildren(children, web ? keepWebPunctuationTogether : keepAllKo);
   if (rewritten === children) return createElement(RNText, props);
   const label =
     !web && typeof children === "string" && props.accessibilityLabel === undefined && props["aria-label"] === undefined
