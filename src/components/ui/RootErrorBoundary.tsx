@@ -15,7 +15,8 @@
 //   - a flat surface, no shadow/elevation (Android Shine-through guard),
 //   - generous lineHeight so Korean glyph descenders are not bottom-clipped.
 
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import type { ErrorBoundaryProps } from "expo-router";
 

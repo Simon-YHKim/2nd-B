@@ -19,10 +19,10 @@ import {
   type PressableProps,
   StyleSheet,
   type StyleProp,
-  Text,
   View,
   type ViewStyle,
 } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 
 import { m3 } from "@/lib/theme/m3";
 

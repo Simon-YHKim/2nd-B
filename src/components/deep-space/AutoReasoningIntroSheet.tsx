@@ -8,7 +8,8 @@
 // a modal over content; the caller's screen state stays mounted behind it.
 
 import { useEffect, useRef } from "react";
-import { Animated, Modal, Pressable, StyleSheet, Text as RNText, View, useWindowDimensions } from "react-native";
+import { Animated, Modal, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";

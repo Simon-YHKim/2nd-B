@@ -19,7 +19,8 @@
 // prototype); the eyebrow uses Roboto Mono — no pixel fonts on the rev2 track.
 
 import { Fragment } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 

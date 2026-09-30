@@ -10,7 +10,8 @@
 // deepSpace.* tokens only, assembled from the shared Ops kit.
 
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";

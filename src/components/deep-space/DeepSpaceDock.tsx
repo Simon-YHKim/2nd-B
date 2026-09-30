@@ -8,7 +8,8 @@
  * The active tab brightens (full opacity + cyan label); the rest recede. Labels
  * are injected by the caller (already locale-resolved) so no copy lives here.
  */
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import Svg, { Rect } from "react-native-svg";
 
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";

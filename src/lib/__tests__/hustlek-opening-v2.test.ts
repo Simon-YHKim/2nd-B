@@ -257,6 +257,8 @@ function loadLoadingModule(platform: "ios" | "web" = "ios", reducedMotion = fals
       };
     }
     if (id === "@/theme/typography") return { fontFamilies: { pixelKo: "Galmuri11" } };
+    // LoadingScreen draws its hint through the app-wide line-breaking Text.
+    if (id === "@/components/ui/PlainText") return { PlainText: host("text") };
     if (id.endsWith("hustlek-opening-v2.json")) return readAtlas();
     throw new Error(`Unexpected LoadingScreen dependency in contract test: ${id}`);
   };

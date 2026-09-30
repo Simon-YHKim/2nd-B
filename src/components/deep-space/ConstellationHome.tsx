@@ -14,7 +14,8 @@
  */
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { AccessibilityInfo, Animated, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { AccessibilityInfo, Animated, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { router, useFocusEffect } from "expo-router";
 import { useUiSound } from "@/lib/audio/use-ui-sound";
 import Svg, { Defs, G, Pattern, Rect } from "react-native-svg";

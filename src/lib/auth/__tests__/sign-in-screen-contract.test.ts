@@ -166,6 +166,9 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
 // 2026-09-13: prefix · tail 두 digest 를 재고정했다. reset-password 가
 // AuthContext 의 bounded retry 를 직접 노출하면서 prefix 에 import 한 줄,
 // tail 에 announced retry surface 가 추가됐다.
+// 2026-09-30: prefix digest 만 재고정했다. Text 를 react-native 대신
+// @/components/ui/PlainText 에서 가져오는 import 두 줄뿐이다(앱 전체 한국어
+// 줄바꿈, plain-text-guard.test.ts). tail 은 그대로다.
 // 아래 "legacy sign-in renderer/styles" 검사의 digest 는 그대로다.
 describe("sign-in extraction boundaries", () => {
   test("preserves the shared auth prefix and signup/consent/reset tail byte-for-byte", () => {
@@ -178,7 +181,7 @@ describe("sign-in extraction boundaries", () => {
     expect(split).toBeGreaterThan(0);
     expect(tail).toBeGreaterThan(split);
     expect(sha256(source.slice(0, split))).toBe(
-      "dbc025cbe290360aea396496695e155acbb20978e295c63dc7810688244b53ca",
+      "5a7d2fa617072b75609ca03eb35e342518711e4527f12e07785525e886396446",
     );
     expect(sha256(source.slice(tail))).toBe(
       "65dd568ae43e274affb179d80f94183878e49c253fa450f1054a64e31d2ac62d",

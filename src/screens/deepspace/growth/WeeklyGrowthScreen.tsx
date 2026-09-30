@@ -6,7 +6,8 @@
 // deepSpace.* tokens only, assembled from the shared Ops kit.
 
 import React, { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import Svg, { Rect, Text as SvgText } from "react-native-svg";
 import { ringCells, stepPolyline } from "@/components/pixel/pixel-line";
 import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";

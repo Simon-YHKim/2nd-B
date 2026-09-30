@@ -5,7 +5,8 @@
 // m3.accent.trendFlat. Windowed shell + TopAppBar per sb-app §4.
 
 import { Redirect, router } from "expo-router";
-import { ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect } from "react-native-svg";
 

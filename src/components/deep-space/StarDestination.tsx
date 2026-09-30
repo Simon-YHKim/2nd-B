@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, BackHandler, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, BackHandler, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from 'react-i18next';
 import { PixelPressable } from '@/components/pixel/PixelPressable';
 import { useReducedMotionPref } from '@/lib/motion/use-reduced-motion';

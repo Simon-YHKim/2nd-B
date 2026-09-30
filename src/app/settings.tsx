@@ -15,7 +15,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text as RNText,
   View,
   type AccessibilityRole,
   type StyleProp,
@@ -24,6 +23,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { PixelSurface } from "@/components/pixel/PixelSurface";

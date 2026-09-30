@@ -4,7 +4,8 @@
 // (every write is behind a user tap). Strings come from the bilingual ops copy.
 
 import { useEffect, useMemo, useState, type DependencyList } from "react";
-import { Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text as RNText, TextInput, View } from "react-native";
+import { Linking, Modal, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 
 import { router } from "expo-router";
 

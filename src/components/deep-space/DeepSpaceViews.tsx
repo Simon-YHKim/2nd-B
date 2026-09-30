@@ -13,7 +13,8 @@
  * (document-global svg ids) never clashes across instances.
  */
 import { forwardRef, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
-import { AccessibilityInfo, Keyboard, type DimensionValue, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { AccessibilityInfo, Keyboard, type DimensionValue, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { router, useLocalSearchParams } from "expo-router";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
