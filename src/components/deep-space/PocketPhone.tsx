@@ -22,6 +22,10 @@ function PhoneArtwork() {
       source={require('../../../assets/images/secondb-cellphone-night.png')}
       contentFit="fill"
       accessible={false}
+      // Web: a mouse drag on an <img> starts the browser's own image drag,
+      // which swallows the moves, so a desktop swipe never raised the phone.
+      // expo-image passes this to the <img> only on web; native is unchanged.
+      draggable={false}
       style={styles.artwork}
     />
   );

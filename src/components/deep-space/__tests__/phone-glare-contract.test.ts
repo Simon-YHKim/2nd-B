@@ -52,6 +52,18 @@ test("the glare is an untouchable sibling of the clipped phone, riding the same 
   expect(pocketCode).toContain("phone: { width: POCKET_PHONE_WIDTH, height: POCKET_PHONE_HEIGHT, overflow: 'hidden' }");
 });
 
+test("a desktop mouse can swipe the phone: its artwork never starts the browser's native image drag", () => {
+  // Without this a mouse drag on the <img> fires `dragstart` and the moves never
+  // reach the PanResponder, so on web the phone did not rise (measured 2026-09-30:
+  // dragstart 1, lift 0 without it; dragstart 0, lift -148 with it). expo-image
+  // applies `draggable` to the <img> on web only, so native is unchanged; the
+  // prop's existence is held by type-check.
+  const artwork = pocketCode.slice(pocketCode.indexOf("function PhoneArtwork()"), pocketCode.indexOf("export function PocketPhone("));
+  expect(artwork).toContain("require('../../../assets/images/secondb-cellphone-night.png')");
+  expect(artwork).toMatch(/<Image[^>]*draggable=\{false\}/);
+  expect(pocketCode).toContain("import { Image } from 'expo-image'");
+});
+
 test("it never takes a touch", () => {
   expect(glare).toMatch(/<View[^>]*pointerEvents="none"/);
   expect(glare).toMatch(/<Svg[^>]*pointerEvents="none"/);
