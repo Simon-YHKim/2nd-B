@@ -31,6 +31,7 @@
   "inviteCta": "Invite",
   "leaveCta": "Leave",
   "threadEmpty": "No messages yet. Say hello.",
+  "roomUnavailable": "Room not found, or you're no longer a member. Check your rooms.",
   "messageA11y": "Message. Opens the report and block menu.",
   "unknownSender": "Unknown user",
   "actionsFor": "Message from {{alias}}",
