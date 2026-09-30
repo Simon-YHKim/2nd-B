@@ -61,7 +61,8 @@ const ABI_ANNOTATION = "app-apk-abi";
 const PHONE_ABI = "arm64-v8a";
 // main 이 도중에 움직여 빌드가 스스로 끊기는 단계(android-release.yml).
 const GATE_STEP = /^(Gate|Recheck) current main\b/;
-const NET_TIMEOUT_MS = 60 * 1000;
+// 8081 이 캐시를 비우고 번들링하는 동안(CPU 가득) gh 호출 하나가 40~60초를 넘긴 적이 있다(2026-09-30 실측).
+const NET_TIMEOUT_MS = 120 * 1000;
 // 새 스크립트의 거부는 이만큼 기억한다(일시적인 gh · 네트워크 실패가 다음 머지까지 굳지 않게).
 const REFUSAL_TTL_MS = 10 * 60 * 1000;
 // 새 감독자가 기록을 쓸 때까지 기다리는 시간. 기록 전에 gh · git fetch 를 하고 각각 상한이 NET_TIMEOUT_MS 다.
@@ -462,18 +463,33 @@ function loadRepoVars() {
 
 /** android-release 런(push · workflow_dispatch, main). */
 function listBuildRuns() {
-  const runs = [];
-  for (const event of ["push", "workflow_dispatch"]) {
-    runs.push(
-      ...JSON.parse(
-        gh([
-          "run", "list", "--repo", REPO, "--workflow", "android-release.yml", "--branch", "main", "--event", event,
-          "--limit", "40", "--json", "databaseId,headSha,status,conclusion,createdAt,event",
-        ]) || "[]",
-      ),
-    );
+  for (let attempt = 0; ; attempt++) {
+    const body = JSON.parse(gh(["api", `repos/${REPO}/actions/workflows/android-release.yml/runs?per_page=100`]) || "{}");
+    const runs = buildRunsFromApi(body);
+    if (runs.some((r) => r.event === "push")) return runs;
+    if (attempt >= 2) throw new Error("GitHub 가 android-release 빌드 목록을 비워서 돌려줬다(세 번) - 잠시 뒤 다시");
+    pauseSync(3000);
   }
-  return runs.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+
+/**
+ * 필터 없는 런 목록 응답에서 main 의 push · workflow_dispatch 런만 골라 최신순으로 돌려준다. branch · event 로
+ * 거르는 조회(`gh run list --branch --event`)는 GitHub 의 검색 색인을 거쳐 가끔 비거나 늦게 온다 - 2026-09-30 에
+ * 대조가 세 번, 같은 코드의 빌드가 도는데도 '기록 없음' 을 냈고 근거로 찍힌 최근 런에 push 런이 하나도 없었다.
+ * 그래서 필터 없이 받아 여기서 거르고, main 의 push 빌드가 하나도 없으면 조회가 불완전한 것으로 본다.
+ */
+function buildRunsFromApi(body) {
+  return (Array.isArray(body && body.workflow_runs) ? body.workflow_runs : [])
+    .filter((r) => r.head_branch === "main" && (r.event === "push" || r.event === "workflow_dispatch"))
+    .map((r) => ({
+      databaseId: r.id,
+      headSha: r.head_sha,
+      status: r.status,
+      conclusion: r.conclusion || "",
+      createdAt: r.created_at,
+      event: r.event,
+    }))
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
 }
 
 /** 그 런의 job 들(단계 결과 포함). */
@@ -2020,6 +2036,7 @@ module.exports = {
   patchesDrift,
   classifyBuild,
   sameCodeChecker,
+  buildRunsFromApi,
   planFollow,
   parsePreflight,
   zipEntryNames,
