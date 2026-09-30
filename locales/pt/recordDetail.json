@@ -11,6 +11,11 @@
     "sourceEmpty": "Material salvo. Abra a fonte para ver o conteúdo completo.",
     "noText": "Este registro não tem texto."
   },
+  "photos": {
+    "title": "Fotos",
+    "item": "Foto {{n}}",
+    "loadError": "Não foi possível carregar as fotos."
+  },
   "advisor": {
     "heading": "Nota do SecondB",
     "sources": "Fontes",

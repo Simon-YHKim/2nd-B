@@ -183,8 +183,6 @@
       "modes": {
         "text": "Text",
         "link": "Link",
-        "photo": "Photo",
-        "voice": "Voice",
         "todo": "To-do"
       },
       "fields": {
@@ -211,10 +209,12 @@
       },
       "linkHint": "Paste a link and SecondB pulls the title and summary.",
       "linkPlaceholder": "https://",
-      "photoOpen": "Open camera or album",
-      "photoCaption": "Describe the photo",
-      "voiceOpen": "Open recorder",
-      "voiceHint": "Write what you said",
+      "photoAdd": "Add a photo",
+      "photoAddHint": "Pick a photo from your album. It is saved with this note.",
+      "photoLimit": "Up to {{max}} photos",
+      "photoRemove": "Remove photo {{n}}",
+      "photoAttached": "Attached photo {{n}}",
+      "photoPickError": "Could not add that photo. Try another one.",
       "todoHint": "To-do",
       "todoAdd": "Add a to-do",
       "banner": "When you save, SecondB adds related stars and tags.",

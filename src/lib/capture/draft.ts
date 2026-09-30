@@ -36,6 +36,27 @@ export const CAPTURE_MODES: readonly CaptureMode[] = [
 ];
 
 /**
+ * `/capture?mode=` 값 가운데 **간단 화면(CaptureView)의 글 탭으로 떨어지는** 것.
+ *
+ * 2026-09-30 Simon: 스크랩 화면의 사진·음성 탭을 뺐다("사진, 음성 버튼 제거").
+ * 사진은 이제 글(메모·4W1H)에 붙인다. 그래서 `/capture?mode=ocr|voice` 로
+ * 들어온 사람을 사라진 탭 대신 글로 보낸다 - 전에는 이 둘도 전체 intake 를 열었다.
+ * 사진 인식(OCR)·음성 받아쓰기 자체는 지우지 않았다: `/capture-full?mode=ocr|voice`
+ * (그리고 /beyond 의 마이크)가 그대로 연다. 공유 대상(Web Share Target)은 GET
+ * url·text·title 만 받아 이미지가 들어오는 길이 없다(`public/manifest.webmanifest`).
+ */
+export const CAPTURE_VIEW_TEXT_ENTRY_MODES: readonly CaptureMode[] = ["ocr", "voice"];
+
+/** 이 `mode` 파라미터만으로 `/capture` 가 전체 intake 를 열어야 하는가. */
+export function captureModeOpensFullIntake(mode: unknown): boolean {
+  return (
+    typeof mode === "string" &&
+    (CAPTURE_MODES as readonly string[]).includes(mode) &&
+    !(CAPTURE_VIEW_TEXT_ENTRY_MODES as readonly string[]).includes(mode)
+  );
+}
+
+/**
  * records 테이블로 저장되는 모드 — journal 은 handleJournalSubmit, 나머지는
  * handleNoteLikeSubmit. memo/linkclip/ocr/file 은 captureFromMarkdown 을 타고
  * `sources` 로 가므로 별 담기 domainIntent 가 그 저장에는 적용되지 않는다

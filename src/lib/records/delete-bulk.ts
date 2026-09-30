@@ -12,18 +12,18 @@ import {
   type AuthSessionExpectation,
 } from "../auth/session-mutation";
 import { installAccountLocalDeletionFence } from "../account/local-deletion-fence";
-
+import { recordPhotoPathsOf, removeRecordPhotoObjects } from "../capture/record-photos";
 /** Delete every record belonging to the user. Returns affected count. */
 export async function deleteAllRecords(userId: string): Promise<number> {
   const supabase = getSupabaseClient();
-  const { count, error } = await supabase
+  const { count, error, data } = await supabase
     .from("records")
     .delete({ count: "exact" })
-    .eq("user_id", userId);
+    .eq("user_id", userId).select("structured");
   if (error) throw error;
   // Records shift domain levels — drop this user's cached constellation
   // (same contract as createRecord/deleteRecord in create.ts).
-  if ((count ?? 0) > 0) invalidateDomainLevels(userId);
+  if ((count ?? 0) > 0) { invalidateDomainLevels(userId); await removeRecordPhotoObjects(recordPhotoPathsOf(data, userId)); }
   return count ?? 0;
 }
 
@@ -33,15 +33,15 @@ export async function deleteRecordsByKind(
   kind: "journal" | "note" | "audit_response",
 ): Promise<number> {
   const supabase = getSupabaseClient();
-  const { count, error } = await supabase
+  const { count, error, data } = await supabase
     .from("records")
     .delete({ count: "exact" })
     .eq("user_id", userId)
-    .eq("kind", kind);
+    .eq("kind", kind).select("structured");
   if (error) throw error;
   // Records shift domain levels — drop this user's cached constellation
   // (same contract as createRecord/deleteRecord in create.ts).
-  if ((count ?? 0) > 0) invalidateDomainLevels(userId);
+  if ((count ?? 0) > 0) { invalidateDomainLevels(userId); await removeRecordPhotoObjects(recordPhotoPathsOf(data, userId)); }
   return count ?? 0;
 }
 
@@ -49,15 +49,15 @@ export async function deleteRecordsByKind(
 export async function deleteRecordsByTag(userId: string, tags: string[]): Promise<number> {
   if (tags.length === 0) return 0;
   const supabase = getSupabaseClient();
-  const { count, error } = await supabase
+  const { count, error, data } = await supabase
     .from("records")
     .delete({ count: "exact" })
     .eq("user_id", userId)
-    .overlaps("tags", tags);
+    .overlaps("tags", tags).select("structured");
   if (error) throw error;
   // Records shift domain levels — drop this user's cached constellation
   // (same contract as createRecord/deleteRecord in create.ts).
-  if ((count ?? 0) > 0) invalidateDomainLevels(userId);
+  if ((count ?? 0) > 0) { invalidateDomainLevels(userId); await removeRecordPhotoObjects(recordPhotoPathsOf(data, userId)); }
   return count ?? 0;
 }
 
@@ -65,15 +65,15 @@ export async function deleteRecordsByTag(userId: string, tags: string[]): Promis
 export async function deleteRecordsByIds(userId: string, ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
   const supabase = getSupabaseClient();
-  const { count, error } = await supabase
+  const { count, error, data } = await supabase
     .from("records")
     .delete({ count: "exact" })
     .eq("user_id", userId)
-    .in("id", ids);
+    .in("id", ids).select("structured");
   if (error) throw error;
   // Records shift domain levels — drop this user's cached constellation
   // (same contract as createRecord/deleteRecord in create.ts).
-  if ((count ?? 0) > 0) invalidateDomainLevels(userId);
+  if ((count ?? 0) > 0) { invalidateDomainLevels(userId); await removeRecordPhotoObjects(recordPhotoPathsOf(data, userId)); }
   return count ?? 0;
 }
 
