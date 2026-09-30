@@ -25,6 +25,14 @@
     "placeholder": "Selecciona una fecha",
     "yearPlaceholder": "Selecciona un año"
   },
+  "timePicker": {
+    "pattern": "H:mm",
+    "am": "a. m.",
+    "pm": "p. m.",
+    "period": "a. m. o p. m.",
+    "hour": "Hora",
+    "minute": "Minuto"
+  },
   "states": {
     "loading": "Cargando…"
   },

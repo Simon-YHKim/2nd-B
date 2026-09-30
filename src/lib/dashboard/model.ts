@@ -69,11 +69,15 @@ export function routineActionRoute(domainId: string): string {
   }
 }
 
+// Phone-first order (Simon 2026-09-30): what a phone permission can read comes first,
+// then the sources that genuinely need an import, then the services with no connection.
+// "Could be read automatically" is a promise only for the device group, and only after
+// the person consents and grants the OS permission.
 export const DASHBOARD_SOURCES = [
-  { id: "calendar", glyph: "event", mode: "import", keys: ["google", "calendar"], route: "/import-hub" },
+  { id: "health", glyph: "favorite", mode: "health", keys: ["health"], route: "/import?mode=account", adultOnly: true },
+  { id: "garmin", glyph: "timer", mode: "health_bridge", keys: [], route: "/import?mode=account", adultOnly: true },
   { id: "location", glyph: "hub", mode: "import", keys: ["takeout"], route: "/import-hub", adultOnly: true },
-  { id: "health", glyph: "favorite", mode: "health", keys: ["health"], route: "/import" },
-  { id: "garmin", glyph: "timer", mode: "health_bridge", keys: [], route: "/import", adultOnly: true },
+  { id: "calendar", glyph: "event", mode: "import", keys: ["google", "calendar"], route: "/import-hub" },
   { id: "tasks", glyph: "check", mode: "import", keys: ["google-tasks"], route: "/import-hub" },
   { id: "kakao", glyph: "bubble", mode: "import", keys: ["kakao"], route: "/import-hub", adultOnly: true },
   { id: "sms", glyph: "bubble", mode: "import", keys: ["sms"], route: "/import-hub", adultOnly: true },
@@ -85,7 +89,15 @@ export const DASHBOARD_SOURCES = [
   { id: "whatsapp", glyph: "bubble", mode: "manual", keys: [], route: "/capture" },
 ] as const;
 export type DashboardSource = (typeof DASHBOARD_SOURCES)[number];
-export type SourceStatus = "manual" | "healthBridge" | "empty" | "imported" | "off" | "unknown" | "restricted";
+export type SourceStatus = "manual" | "healthBridge" | "empty" | "imported" | "off" | "allowed" | "unknown" | "restricted";
+
+/** How data reaches the account. The settings screen lists one group after another. */
+export type SourceGroup = "device" | "import" | "manual";
+export const SOURCE_GROUPS: readonly SourceGroup[] = ["device", "import", "manual"];
+export function sourceGroup(source: DashboardSource): SourceGroup {
+  if (source.mode === "health" || source.mode === "health_bridge") return "device";
+  return source.mode === "manual" ? "manual" : "import";
+}
 
 /** Import history proves an import on THIS device, not a live or authorized connection. */
 export function sourceState(source: DashboardSource, data: DashboardData, isMinor: boolean | null): {
@@ -105,7 +117,9 @@ export function sourceState(source: DashboardSource, data: DashboardData, isMino
   const lastImport = dates.sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? null;
   if (lastImport) return { status: "imported", lastImport };
   const failed = !data.imports.ok || (source.mode === "health" && !data.health.ok);
-  return { status: failed ? "unknown" : "empty", lastImport: null };
+  if (failed) return { status: "unknown", lastImport: null };
+  // Consent is on but nothing has been read yet: allowed, not "no import on this device".
+  return { status: source.mode === "health" ? "allowed" : "empty", lastImport: null };
 }
 
 function validDate(value: string): boolean {

@@ -1,4 +1,4 @@
-import { countAreaRecords, DASHBOARD_SOURCES, realHealthSamples, routineActionRoute, sourceState, todayAgenda, type DashboardData } from "../model";
+import { countAreaRecords, DASHBOARD_SOURCES, realHealthSamples, routineActionRoute, SOURCE_GROUPS, sourceGroup, sourceState, todayAgenda, type DashboardData } from "../model";
 import type { OpsRoutine, OpsRoutineLog } from "../../ops/routines";
 import type { HealthSampleRow } from "../../supabase/health";
 
@@ -70,7 +70,7 @@ test("actions reach the existing tools without scheduling or messaging", () => {
 
 test("Garmin opens the existing health import, without claiming a direct connection or Garmin provenance", () => {
   const garmin = source("garmin");
-  expect(garmin).toMatchObject({ mode: "health_bridge", route: "/import", adultOnly: true });
+  expect(garmin).toMatchObject({ mode: "health_bridge", route: "/import?mode=account", adultOnly: true });
   const withOtherHealthData = {
     ...empty,
     healthEnabled: true,
@@ -83,4 +83,30 @@ test("Garmin opens the existing health import, without claiming a direct connect
   expect(sourceState(garmin, withOtherHealthData, false)).toEqual({ status: "healthBridge", lastImport: null });
   expect(sourceState(garmin, withOtherHealthData, true).status).toBe("restricted");
   expect(sourceState(garmin, withOtherHealthData, null).status).toBe("restricted");
+});
+
+test("phone-first grouping: permission sources, then imports, then one manual group", () => {
+  expect(SOURCE_GROUPS).toEqual(["device", "import", "manual"]);
+  const ids = (group: string) => DASHBOARD_SOURCES.filter((item) => sourceGroup(item) === group).map((item) => item.id);
+  expect(ids("device")).toEqual(["health", "garmin"]);
+  expect(ids("import")).toEqual(["location", "calendar", "tasks", "kakao", "sms"]);
+  expect(ids("manual")).toEqual(["instagram", "facebook", "x", "nike", "line", "whatsapp"]);
+  // The list order is the screen order, so the groups must not interleave.
+  const order = DASHBOARD_SOURCES.map((item) => SOURCE_GROUPS.indexOf(sourceGroup(item)));
+  expect([...order].sort((a, b) => a - b)).toEqual(order);
+});
+
+test("the health card opens the consent and permission tab directly, and stays locked below adulthood", () => {
+  // /import?mode=account lands on the tab that holds the health consent and OS permission row;
+  // plain /import opened the file tab first.
+  expect(source("health")).toMatchObject({ mode: "health", route: "/import?mode=account", adultOnly: true });
+  expect(sourceState(source("health"), empty, true).status).toBe("restricted");
+  expect(sourceState(source("health"), empty, null).status).toBe("restricted");
+});
+
+test("consented health with nothing read yet says allowed, not a missing import", () => {
+  const consented = { ...empty, healthEnabled: true };
+  expect(sourceState(source("health"), consented, false)).toEqual({ status: "allowed", lastImport: null });
+  expect(sourceState(source("health"), { ...consented, health: { ok: false as const } }, false).status).toBe("unknown");
+  expect(sourceState(source("calendar"), consented, false).status).toBe("empty");
 });
