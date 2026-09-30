@@ -48,7 +48,7 @@
     "statLinks": "연결",
     "filterAll": "전체",
     "emptyTag": "이 태그로 저장한 지식이 없어요. 다른 태그를 선택하거나 새 자료를 담아보세요.",
-    "emptyAll": "아직 저장한 내용이 없어요. 기록이나 링크를 담으면 여기서 다시 찾을 수 있어요.",
+    "emptyAll": "아직 위키 페이지가 없어요. 자료를 담은 뒤 받은편지함에서 위키 페이지로 정리해 보세요.",
     "addPiece": "+ 별가루 담기",
     "backlinks": "연결된 기록 {{count}}",
     "connections": "연결 {{count}}",
@@ -569,6 +569,12 @@
     "retry": "다시 시도",
     "empty": "아직 저장한 성과가 없어요. 최근에 해낸 일을 적어보세요.",
     "pieceFallback": "커리어 별가루",
+    "drillDown": "자세히 보기",
+    "originalNote": "제목과 본문 미리보기는 저장된 언어 그대로예요. 카드를 열면 전체 기록을 볼 수 있어요.",
+    "sourceInterview": "회상 인터뷰",
+    "sourceRecord": "저장된 커리어 기록",
+    "entryUiKorean": "저장 당시 화면: 한국어",
+    "entryUiEnglish": "저장 당시 화면: 영어",
     "untitled": "(제목 없음)"
   },
   "careerInput": {

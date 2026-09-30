@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
 // the persona screen where the saved RLSS record surfaces with the other tools.
 function RlssDeepSpace() {
   return (
-    <DeepSpaceScreen active="lens">
+    <DeepSpaceScreen active="lens" header="none">
       <RlssSurvey onComplete={() => router.replace("/persona")} onCancel={() => router.back()} />
     </DeepSpaceScreen>
   );
