@@ -23,6 +23,7 @@ const {
   stalePatchProblems,
   classifyBuild,
   sameCodeChecker,
+  buildRunsFromApi,
   planFollow,
   parsePreflight,
   zipEntryNames,
@@ -338,6 +339,22 @@ describe("app-parity: 그 코드 · 그 설정의 폰용 APK 빌드 상태", () 
     expect(classifyBuild(rebuild, same, cfg({ 1: "mismatch" })).state).toBe("unconfirmed");
     // 진행 중인 push 빌드도 설정이 다르면(Variables 가 빌드 뒤 바뀜) stale 이다
     expect(classifyBuild([run(3, "A", "in_progress", null, "3")], same, cfg({ 3: "mismatch" })).state).toBe("stale");
+  });
+
+  it("런 목록은 필터 없는 응답에서 main 의 push · 수동 런만 골라 최신순으로 만든다(검색 색인을 거치지 않게)", () => {
+    const api = {
+      workflow_runs: [
+        { id: 1, head_sha: "a", event: "push", head_branch: "main", status: "completed", conclusion: "success", created_at: "2026-09-30T01:00:00Z" },
+        { id: 3, head_sha: "c", event: "push", head_branch: "main", status: "queued", conclusion: null, created_at: "2026-09-30T03:00:00Z" },
+        { id: 2, head_sha: "b", event: "workflow_dispatch", head_branch: "main", status: "completed", conclusion: "failure", created_at: "2026-09-30T02:00:00Z" },
+        { id: 4, head_sha: "d", event: "workflow_dispatch", head_branch: "feat/x", status: "completed", conclusion: "success", created_at: "2026-09-30T04:00:00Z" },
+        { id: 5, head_sha: "e", event: "pull_request", head_branch: "main", status: "completed", conclusion: "success", created_at: "2026-09-30T05:00:00Z" },
+      ],
+    };
+    const runs = buildRunsFromApi(api);
+    expect(runs.map((r: { databaseId: number }) => r.databaseId)).toEqual([3, 2, 1]);
+    expect(runs[0]).toEqual({ databaseId: 3, headSha: "c", status: "queued", conclusion: "", createdAt: "2026-09-30T03:00:00Z", event: "push" });
+    expect(buildRunsFromApi({})).toEqual([]);
   });
 
   it("앱 코드 대조의 오류를 '다른 코드' 로 삼키지 않는다(받지 않은 커밋만 '다른 코드')", () => {
