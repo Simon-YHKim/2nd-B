@@ -91,6 +91,17 @@ describe("reported export scope, not a complete-account guarantee", () => {
       storage: [{ path: "a", markdown: "" }, { path: "b", error: "download_failed" }],
     })).toEqual({ tableCount: 2, fileCount: 1, failedItems: 2, excludedCategories: 0 });
   });
+
+  test("글 photos (record-photos, 2026-09-30) count as exported files, and older servers omit them", () => {
+    const photo = {
+      path: "u1/photo-0123456789abcdef.jpg", content_type: "image/jpeg", size: 1024,
+      url: "https://example.invalid/signed", url_expires_at: "2026-10-01T00:00:00.000Z",
+    };
+    expect(summarize({ ...bundle(), storage: [{ path: "a", markdown: "" }], record_photos: [photo, photo] }))
+      .toEqual({ tableCount: 2, fileCount: 3, failedItems: 0, excludedCategories: 0 });
+    expect(summarize({ ...bundle(), storage: [{ path: "a", markdown: "" }] }))
+      .toEqual({ tableCount: 2, fileCount: 1, failedItems: 0, excludedCategories: 0 });
+  });
 });
 
 describe("buildExportFilename", () => {

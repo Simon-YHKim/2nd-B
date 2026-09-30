@@ -5,7 +5,8 @@
 // The active state is cued by a pill indicator (not colour alone) + label
 // weight + accessibilityState, keeping the tab-bar-active-cue lineage.
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, type StyleProp, Text, View, type ViewStyle } from "react-native";
+import { Pressable, StyleSheet, type StyleProp, View, type ViewStyle } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 
 import { m3 } from "@/lib/theme/m3";
 

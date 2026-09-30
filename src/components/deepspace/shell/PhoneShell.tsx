@@ -12,7 +12,8 @@
 // reads as one continuous wash; on windowed it sits in normal flow above the card.
 
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 
 import { m3 } from "@/lib/theme/m3";
 import { flattenAlpha } from "@/lib/theme/tokens";

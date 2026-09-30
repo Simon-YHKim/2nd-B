@@ -1,6 +1,6 @@
 // Material 3 primitive kit (rev2 migration, P1b). Built on the m3.* token
 // foundation (src/lib/theme/m3.ts). Presentational only - screen wiring is P2.
-export { MdButton, type MdButtonProps, type MdButtonVariant } from "./MdButton";
+export { MdButton, MdButtonTintProvider, type MdButtonProps, type MdButtonTint, type MdButtonVariant } from "./MdButton";
 export { SegBtn, type SegBtnProps, type SegBtnSegment } from "./SegBtn";
 export { MdCard, type MdCardProps, type MdCardVariant } from "./MdCard";
 export { MdChip, type MdChipProps, type MdChipKind } from "./MdChip";

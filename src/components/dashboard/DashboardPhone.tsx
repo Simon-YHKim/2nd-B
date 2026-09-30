@@ -91,6 +91,8 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const [showEvidence, setShowEvidence] = useState(false);
   const [expandedMetric, setExpandedMetric] = useState<string | null>(null);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
+  const frame = fitPhoneArtwork(frameSize.width, frameSize.height);
+  const compactDisplay = frame !== null && frame.screen.height < 600;
   const reducedMotion = useReducedMotionPref();
   const dismissY = useRef(new Animated.Value(0)).current;
   const scrollY = useRef(0);
@@ -228,8 +230,10 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       return health ? `${health.value.toLocaleString(i18n.language)} ${health.unit}` : t("phone.metricsSummary.empty");
     };
     return <View style={styles.stack}>
-      <Text variant="heading">{t("phone.operational.title")}</Text>
-      <Text variant="caption" style={styles.muted}>{t("phone.operational.scope")}</Text>
+      {!compactDisplay ? <>
+        <Text variant="heading">{t("phone.operational.title")}</Text>
+        <Text variant="caption" style={styles.muted}>{t("phone.operational.scope")}</Text>
+      </> : null}
       {priority ? <PixelSurface variant="frame" contentStyle={styles.lead}>
         <Text variant="caption" style={styles.accent}>{t("phone.todayLabel")}</Text>
         <Text variant="heading">{priority.evidence ?? t(`phone.priority.${priority.kind}.title`)}</Text>
@@ -384,7 +388,6 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const noticeListOpen = tab === "tools" && phoneApp === "notifications" && !selectedNoticeId;
   const phoneRows: (ProductNotice | number)[] = noticeListOpen
     ? (noticeCenter.hydrated ? noticeCenter.notices : []) : [0];
-  const frame = fitPhoneArtwork(frameSize.width, frameSize.height);
   // The display shrinks with the bezel; the launcher must fit all three rows
   // above its fixed internal dock on smaller phones, not hide the last labels.
   const appTileHeight = Math.max(48, Math.min(67, Math.floor(((frame?.screen.height ?? 512) - 300) / 3)));
@@ -414,13 +417,13 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
           <Image source={PHONE_UI_ART.sun} contentFit="contain" style={[styles.headerIcon, PIXEL_IMAGE]} accessible={false} />
         </View>
       </View>
-      <View style={styles.heroBanner} accessible={false}>
+      {!compactDisplay ? <View style={styles.heroBanner} accessible={false}>
         <Image source={PHONE_UI_ART.hero} contentFit="cover" pointerEvents="none" style={[StyleSheet.absoluteFill, PIXEL_IMAGE]} />
         <View style={styles.heroCopy}>
           <Text variant="body" style={styles.heroTitle}>{t("phone.bannerTitle")}</Text>
           <Text variant="caption" style={styles.heroSubtitle}>{t("phone.bannerSubtitle")}</Text>
         </View>
-      </View>
+      </View> : null}
       <View style={styles.tabs}>{TABS.map((item, index) => <PixelPressable key={item} rootStyle={styles.tab} onPress={() => showPage(index)} accessibilityRole="tab" accessibilityState={{ selected: tab === item }} background={tab === item ? m3.color.primaryContainer : m3.color.surfaceContainer} contentStyle={styles.tabContent}>
         <Image source={item === "dashboard" ? PHONE_UI_ART.dashboard : PHONE_UI_ART.apps} contentFit="contain" style={[styles.tabIcon, PIXEL_IMAGE]} accessible={false} />
         <Text variant="caption" style={styles.tabLabel}>{t(`phone.tabs.${item}`)}</Text>
@@ -499,19 +502,19 @@ const styles = StyleSheet.create({
   heroSubtitle: { color: m3.color.onSurface, fontFamily: "Galmuri11", fontSize: 10 },
   tabs: { flexDirection: "row", gap: 5, paddingHorizontal: 9 },
   tab: { flex: 1, minWidth: 0 },
-  tabContent: { minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 4 },
+  tabContent: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 4 },
   tabIcon: { width: 17, height: 17 },
   tabLabel: { color: m3.color.onSurface, fontFamily: "Galmuri11", fontSize: 11 },
-  pageControls: { height: 23, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 9 },
-  pageArrow: { width: 28, height: 23, alignItems: "center", justifyContent: "center" },
+  pageControls: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 9 },
+  pageArrow: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   pageIcon: { width: 14, height: 14 },
   pageDots: { flexDirection: "row", alignItems: "center", gap: 1 },
-  pageDotButton: { width: 20, height: 23, alignItems: "center", justifyContent: "center" },
+  pageDotButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   pageDot: { width: 11, height: 11 },
   pageBody: { flex: 1, minHeight: 0 },
   content: { paddingHorizontal: 9, paddingTop: 5, paddingBottom: 12, gap: 10 },
   phoneDock: { height: 53, marginHorizontal: 8, marginBottom: 4, flexDirection: "row", alignItems: "center", justifyContent: "space-around", borderWidth: 1, borderColor: m3.color.outline, backgroundColor: m3.color.surfaceContainerLowest },
-  navButton: { minWidth: 42, minHeight: 48, flex: 1, alignItems: "center", justifyContent: "center", gap: 0 },
+  navButton: { minWidth: 44, minHeight: 48, flex: 1, alignItems: "center", justifyContent: "center", gap: 0 },
   navIcon: { width: 27, height: 27 },
   navAdd: { flex: 1.15 },
   navAddIcon: { width: 49, height: 49 },

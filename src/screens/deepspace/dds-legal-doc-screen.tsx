@@ -5,7 +5,8 @@
 // draft badge while the body still carries [기입] placeholders -- the screen
 // must not present an unfinished document as final (legal honesty).
 import { useCallback, useMemo, useState } from "react";
-import { BackHandler, Pressable, StyleSheet, Text as RNText, View } from "react-native";
+import { BackHandler, Pressable, StyleSheet, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 

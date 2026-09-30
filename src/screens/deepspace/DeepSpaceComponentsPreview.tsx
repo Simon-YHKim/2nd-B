@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 
 import { SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { colors, radius, spacing } from "@/theme/tokens";

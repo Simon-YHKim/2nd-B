@@ -29,10 +29,14 @@ test("data controls live in Settings, not inside the phone's app tabs", () => {
   expect(phone).toContain('void loadDashboard(ownerId, isMinor)');
   expect(settings).toContain('router.push("/data-connections")');
   expect(settings).toContain('router.push("/reminders")');
-  expect(dataSettings).toContain("DASHBOARD_SOURCES.map");
+  expect(dataSettings).toContain("SOURCE_GROUPS.map((group)");
+  expect(dataSettings).toContain("sourceGroup(source) === group");
   expect(dataSettings).toContain("setRefreshSettings(ownerId, next)");
   expect(dataSettings).toContain('accessibilityRole="switch"');
-  expect(dataSettings).toContain("normalizeRefreshTime(timeDraft)");
+  // Simon 2026-09-30: the refresh time opens a wheel sheet; the typed box and the interval radios are gone.
+  expect(dataSettings).toContain("<PixelTimeSheet");
+  expect(dataSettings).not.toContain("<TextInput");
+  expect(dataSettings).not.toContain("REFRESH_MINUTE_OPTIONS");
   expect(dataSettings).toContain("const refreshNow = async () => {");
   expect(phone).not.toContain('t("phone.notifications")');
   expect(phone).not.toContain('ListFooterComponent=');

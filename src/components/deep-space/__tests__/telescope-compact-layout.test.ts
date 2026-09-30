@@ -5,6 +5,7 @@ import { stepPolyline } from '@/components/pixel/pixel-line';
 const controls = readFileSync(join(__dirname, '..', 'TelescopeControls.tsx'), 'utf8');
 const home = readFileSync(join(__dirname, '..', 'ConstellationHome.tsx'), 'utf8');
 const phone = readFileSync(join(__dirname, '..', 'PocketPhone.tsx'), 'utf8');
+const dialSource = readFileSync(join(__dirname, '..', '..', '..', 'lib', 'motion', 'telescope-dial.ts'), 'utf8');
 const style = (name: string) => controls.match(new RegExp(`\\b${name}:\\s*\\{([^}]+)\\}`))?.[1] ?? '';
 const homeStyle = (name: string) => home.match(new RegExp(`\\b${name}:\\s*\\{([^}]+)\\}`))?.[1] ?? '';
 
@@ -77,10 +78,14 @@ test('jog ring is mirrored on both axes and stays square', () => {
 });
 
 test('zoom index is fixed while the extended tick and landmark band translates beneath it', () => {
-  expect(controls).toContain('const dialBandWidth = railWidth * 3');
-  expect(controls).toContain('const dialOffset = Math.round(railWidth / 2 - dialOrigin - position * dialRangeWidth)');
+  // 2026-09-30: the band geometry moved to the pure `telescopeDial` (src/lib/motion/telescope-dial.ts)
+  // so its values can be tested; the band width and offset formulas are unchanged and are pinned there.
+  // What changed is the range: it no longer stretches to a star flight's peak (see telescope-dial.test.ts).
+  expect(dialSource).toContain('const bandWidth = railWidth * 3');
+  expect(dialSource).toContain('const offset = Math.round(railWidth / 2 - origin - position * rangeWidth)');
+  expect(controls).toContain('const dial = telescopeDial({ railWidth, zoom: displayZoom, minZoom, maxZoom,');
   expect(controls).toContain('testID="telescope-dial-band"');
-  expect(controls).toContain('transform: [{ translateX: dialOffset }]');
+  expect(controls).toContain('transform: [{ translateX: dial.offset }]');
   expect(controls).toContain('left: Math.round(railWidth / 2) - 1');
   expect(controls).toContain('dragZoomPosition.current - gesture.dx / Math.max(1, rail.current.width * DIAL_RANGE_RATIO)');
   expect(controls).not.toContain('event.nativeEvent.locationX / rail.current.width');
@@ -96,7 +101,22 @@ test('zoom index is fixed while the extended tick and landmark band translates b
   expect(style('zoomKeyFaceEnd')).toContain('borderLeftWidth: 1');
   expect(style('zoomThumb')).toContain('top: 18');
   expect(style('zoomThumb')).toContain('width: 2');
-  expect(controls).toContain('zoomToPosition(value, minZoom, displayMaxZoom)');
+  // 2026-09-30: was `zoomToPosition(value, minZoom, displayMaxZoom)`. The display max was
+  // `Math.max(maxZoom, ...cameraMotion.track.zoom)`, which re-scaled the ruler during a star tap.
+  expect(dialSource).toContain('zoomToPosition(value, minZoom, maxZoom)');
+  expect(controls).not.toContain('displayMaxZoom');
+  expect(controls).not.toMatch(/Math\.max\(maxZoom,/);
+});
+
+test('the home dial and the star tap share one 1x..10x scale (Simon 2026-09-30)', () => {
+  expect(home).toContain('minZoom={SKY_ZOOM_MIN}');
+  expect(home).toContain('maxZoom={SKY_ZOOM_MAX}');
+  expect(home).toContain('zoomStops={SKY_ZOOM_STOPS}');
+  expect(home).not.toMatch(/maxZoom=\{\d/);
+  // The reticle follows the flight's landing frame, which is smaller than the viewport frame
+  // only when the 10x ceiling holds a tap back on a wide window.
+  expect(home).toContain('frame={flight}');
+  expect(controls).toContain('max: maxZoom * 100');
 });
 
 test('backdrop has stepped rounded corners and fades in opaque pixel bands', () => {
@@ -149,7 +169,8 @@ test('dialogue sits above an unclipped camera row and the supplied phone peeks a
   expect(phone).toContain("import { Image } from 'expo-image'");
   expect(phone).toContain('contentFit="fill"');
   expect(phone).toContain('onMoveShouldSetPanResponder');
-  expect(phone).toContain('if (gesture.dy < -SWIPE_THRESHOLD || gesture.vy < -0.4) settle(true)');
+  // 2026-09-30: the swipe-up alone also asks for the glare (눈부심); the gesture itself is unchanged.
+  expect(phone).toContain('if (gesture.dy < -SWIPE_THRESHOLD || gesture.vy < -0.4) settle(true, { glare: true })');
   expect(phone).toContain('if (!expanded.current) { settle(true); return; }');
 });
 

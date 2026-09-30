@@ -106,33 +106,35 @@
       "health": "Saúde e exercício",
       "tasks": "Tarefas"
     },
+    "sourceGroups": {
+      "device": "Leitura com permissão do dispositivo",
+      "import": "Precisa de importação",
+      "manual": "Registro manual"
+    },
     "status": {
       "manual": "Apenas registro manual",
       "healthBridge": "Via app de saúde · sem conexão direta",
       "empty": "Sem importações neste dispositivo",
       "imported": "Importação registrada",
       "off": "O acesso à saúde está desativado no app",
+      "consented": "O acesso à saúde está ativado no app · nada lido ainda",
       "unknown": "Não foi possível ler o estado",
       "restricted": "Indisponível para esta conta"
     },
     "sourceNotes": {
-      "calendar": "Importe pelo Google Calendar ou por arquivo .ics. O app não sincroniza continuamente seu calendário.",
+      "calendar": "Importe pelo Google Calendar na web ou por um arquivo .ics no app instalado. Seu calendário não é sincronizado continuamente.",
       "location": "Importe um arquivo exportado do Google Timeline. Não há rastreamento GPS em segundo plano.",
-      "health": "Leia dados compatíveis do Health Connect ou Apple Health no app instalado, com consentimento. A importação de arquivos também está disponível.",
-      "garmin": "Ative o compartilhamento do Garmin Connect com o Apple Saúde (iOS) ou Health Connect (Android 14+) e importe os dados compatíveis no app instalado. A conexão direta com Garmin e a importação de Body Battery ainda não estão disponíveis.",
-      "tasks": "Importe Google Tasks pela conexão de conta existente. As alterações não são sincronizadas continuamente.",
+      "health": "No app instalado, depois do seu consentimento e da permissão, o app pode ler passos, treinos, sono e frequência cardíaca do Health Connect (Android) ou do Apple Saúde (iOS). Por enquanto, ele lê os registros de hoje quando você toca em ‘Registrar atividade de hoje’.",
+      "garmin": "Ative o compartilhamento do Garmin Connect com o Apple Saúde (iOS) ou o Health Connect (Android 14+) e o app instalado também poderá ler os dados compatíveis com a mesma permissão de saúde. Não há conexão direta com Garmin nem Body Battery.",
+      "tasks": "Importe o Google Tasks com sua conta Google na web. O app instalado ainda não consegue conectá-lo, e as alterações não são sincronizadas continuamente.",
       "kakao": "Importe uma conversa exportada do KakaoTalk e revise os sinais escolhidos. Conversas privadas ao vivo não são lidas.",
       "sms": "Importe um backup de SMS. O app não lê diretamente sua caixa de mensagens.",
-      "instagram": "Este app não se conecta diretamente ao Instagram. Adicione um link ou uma nota que você escolher.",
-      "facebook": "Este app não se conecta diretamente ao Facebook. Adicione um link ou uma nota que você escolher.",
-      "x": "Este app não se conecta diretamente ao X. Adicione um link ou uma nota que você escolher.",
-      "nike": "Este app não se conecta diretamente ao Nike Run Club. Registre uma corrida ou use atividade já compartilhada com uma fonte de saúde compatível.",
-      "line": "Este app não acessa conversas privadas do LINE. Registre manualmente apenas o que escolher.",
-      "whatsapp": "Este app não acessa conversas privadas do WhatsApp. Registre manualmente apenas o que escolher."
+      "manual": "Esses serviços não se conectam ao app. Registre só os links ou notas que você quer guardar. A atividade do Nike Run Club compartilhada com o Apple Saúde ou o Health Connect pode ser lida pelo cartão de saúde."
     },
     "lastImport": "Última importação · {{date}}",
     "addRecord": "Adicionar um registro escolhido",
     "manageSource": "Abrir controles de importação",
+    "openHealth": "Abrir conexão de saúde",
     "toolsTitle": "Ferramentas do dia a dia",
     "toolsHint": "Pequenos registros fazem diferença ✦",
     "moreTitle": "Explore mais",
@@ -173,7 +175,6 @@
     "importHistory": "Histórico de importação e retirada",
     "controlNote": "Desative permissões e consentimento nas configurações correspondentes. Revise os dados importados separadamente no histórico.",
     "sourcesTitle": "Os dados do meu dia",
-    "sourceScope": "Somente registros salvos ou importações aprovadas por você. Uma importação anterior não indica conexão ativa. O histórico pertence a este dispositivo.",
     "loading": "Lendo seus dados salvos…",
     "partialError": "Parte das informações está indisponível. As outras seções continuam utilizáveis.",
     "retry": "Tentar novamente",

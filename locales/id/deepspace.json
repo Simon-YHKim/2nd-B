@@ -48,7 +48,7 @@
     "statLinks": "Tautan",
     "filterAll": "Semua",
     "emptyTag": "Belum ada catatan dengan tag ini. Pilih tag lain atau tambah catatan.",
-    "emptyAll": "Belum ada yang tersimpan. Catatan dan tautan yang kamu tambahkan akan muncul di sini.",
+    "emptyAll": "Belum ada halaman wiki. Simpan catatan atau tautan, lalu susun sebagai halaman dari Kotak Masuk.",
     "addPiece": "+ Tambah catatan",
     "backlinks": "Catatan tertaut {{count}}",
     "connections": "Tautan {{count}}",
@@ -569,6 +569,12 @@
     "retry": "Coba lagi",
     "empty": "Belum ada catatan karier. Tambahkan pencapaian yang ingin kamu simpan.",
     "pieceFallback": "Catatan karier",
+    "drillDown": "Lihat detail",
+    "originalNote": "Pratinjau judul dan isi tetap memakai bahasa saat disimpan. Buka kartu untuk membaca catatan lengkap.",
+    "sourceInterview": "Wawancara kilas balik",
+    "sourceRecord": "Catatan karier tersimpan",
+    "entryUiKorean": "Layar saat menyimpan: Korea",
+    "entryUiEnglish": "Layar saat menyimpan: Inggris",
     "untitled": "(tanpa judul)"
   },
   "careerInput": {
@@ -752,6 +758,7 @@
     "a11yZoomOut": "Perkecil",
     "a11yZoomIn": "Perbesar",
     "hintSelected": "{{label}} · ketuk lagi untuk membuka",
+    "openRecord": "Buka catatan",
     "hintDefault": "Putus-putus = catatan yang terhubung oleh tag yang sama. Ketuk untuk memilih, ketuk lagi untuk membuka",
     "untitled": "(tanpa judul)",
     "tagLinks": "Tautan tag"

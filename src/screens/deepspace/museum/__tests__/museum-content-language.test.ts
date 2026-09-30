@@ -117,11 +117,17 @@ describe("본문이 실제로 그려진 언어로 표시된다", () => {
 
   test("화면이 언어를 직접 적지 않는다", () => {
     const tagged = elementsWith("accessibilityLanguage");
-    expect(tagged.length).toBe(2);
+    expect(tagged.length).toBe(3);
+    expect(SOURCE).toContain("const eventLanguage = museumContentLanguage(event.id, locale);");
+    expect(tagged.map((element) => element.get("accessibilityLanguage")).sort()).toEqual([
+      "{eventLanguage}",
+      "{museumContentLanguage(event.id, locale)}",
+      "{selectedLanguage}",
+    ].sort());
     for (const element of tagged) {
       const value = element.get("accessibilityLanguage") ?? "";
       expect(value).not.toMatch(/"(ko|en)"|'(ko|en)'/);
-      expect(value).toMatch(/museumContentLanguage|selectedLanguage/);
+      expect(value).toMatch(/museumContentLanguage|selectedLanguage|eventLanguage/);
     }
   });
 
@@ -145,8 +151,8 @@ describe("본문이 실제로 그려진 언어로 표시된다", () => {
     // 제목·힌트는 로케일 번들에서 오므로 한국어라고 표시하면 그게 거짓이 된다.
     const chrome = SOURCE.match(/title=\{t\("deepspace:museum\.title"\)\}/);
     expect(chrome).not.toBeNull();
-    // 언어를 단 요소는 정확히 둘이고 둘 다 한국어 본문이다. 크롬에는 없다.
-    expect(elementsWith("accessibilityLanguage").length).toBe(2);
+    // 언어를 단 요소는 목록·타임라인·상세의 사건 본문 3곳이다. 크롬에는 없다.
+    expect(elementsWith("accessibilityLanguage").length).toBe(3);
   });
 });
 

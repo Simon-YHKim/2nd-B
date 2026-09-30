@@ -11,6 +11,11 @@
     "sourceEmpty": "Buka sumber di bawah untuk membaca isinya.",
     "noText": "Catatan ini tidak memiliki teks isi."
   },
+  "photos": {
+    "title": "Foto",
+    "item": "Foto ke-{{n}}",
+    "loadError": "Foto tidak bisa dimuat."
+  },
   "advisor": {
     "heading": "Catatan SecondB",
     "sources": "Sumber",

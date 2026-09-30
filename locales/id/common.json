@@ -24,6 +24,16 @@
     "placeholder": "Pilih tanggal",
     "yearPlaceholder": "Pilih tahun"
   },
+  "timePicker": {
+    "pattern": "HH.mm",
+    "am": "AM",
+    "pm": "PM",
+    "period": "AM atau PM",
+    "hour": "Jam",
+    "minute": "Menit",
+    "hourValue": "jam {{value}}",
+    "minuteValue": "{{value}} menit"
+  },
   "states": {
     "loading": "Memuat…"
   },

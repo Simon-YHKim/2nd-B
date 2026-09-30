@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";

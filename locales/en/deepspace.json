@@ -48,7 +48,7 @@
     "statLinks": "Links",
     "filterAll": "All",
     "emptyTag": "Nothing under this tag yet. Try another tag or add a piece.",
-    "emptyAll": "Nothing saved yet. Add a record or link to find it here later.",
+    "emptyAll": "No wiki pages yet. Capture a record or link, then turn it into a wiki page from Inbox.",
     "addPiece": "+ Add a piece",
     "backlinks": "Linked records {{count}}",
     "connections": "Links {{count}}",
@@ -569,6 +569,12 @@
     "retry": "Try again",
     "empty": "No achievements saved yet. Write about something you've done recently.",
     "pieceFallback": "Career piece",
+    "drillDown": "Drill down",
+    "originalNote": "Title and text previews keep their saved language. Open a card to read the full record.",
+    "sourceInterview": "Recall interview",
+    "sourceRecord": "Saved career record",
+    "entryUiKorean": "Entry screen: Korean",
+    "entryUiEnglish": "Entry screen: English",
     "untitled": "(untitled)"
   },
   "careerInput": {
@@ -752,6 +758,7 @@
     "a11yZoomOut": "Zoom out",
     "a11yZoomIn": "Zoom in",
     "hintSelected": "{{label}} · tap again to open",
+    "openRecord": "Open record",
     "hintDefault": "Dashed = records linked by a shared tag. Tap to select, tap again to open",
     "untitled": "(untitled)",
     "tagLinks": "Tag links"

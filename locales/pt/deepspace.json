@@ -48,7 +48,7 @@
     "statLinks": "Conexões",
     "filterAll": "Tudo",
     "emptyTag": "Nenhum registro com esta etiqueta. Escolha outra ou adicione um registro.",
-    "emptyAll": "Ainda não há registros. Salve uma nota ou um link para consultar aqui.",
+    "emptyAll": "Ainda não há páginas wiki. Guarde uma nota ou um link e organize o conteúdo como página na caixa de entrada.",
     "addPiece": "+ Adicionar registro",
     "backlinks": "Registros vinculados {{count}}",
     "connections": "Conexões {{count}}",
@@ -569,6 +569,12 @@
     "retry": "Tentar de novo",
     "empty": "Ainda não há registros de carreira. Comece por uma conquista que você lembra.",
     "pieceFallback": "Registro de carreira",
+    "drillDown": "Ver detalhes",
+    "originalNote": "As prévias mantêm o idioma em que foram salvas. Abra um cartão para ler o registro completo.",
+    "sourceInterview": "Entrevista de memórias",
+    "sourceRecord": "Registro de carreira salvo",
+    "entryUiKorean": "Tela ao salvar: coreano",
+    "entryUiEnglish": "Tela ao salvar: inglês",
     "untitled": "(sem título)"
   },
   "careerInput": {
@@ -752,6 +758,7 @@
     "a11yZoomOut": "Diminuir zoom",
     "a11yZoomIn": "Aumentar zoom",
     "hintSelected": "{{label}} · toque novamente para abrir",
+    "openRecord": "Abrir registro",
     "hintDefault": "Tracejada = registros ligados por uma tag em comum. Toque para selecionar, toque novamente para abrir",
     "untitled": "(sem título)",
     "tagLinks": "Vínculos de tags"

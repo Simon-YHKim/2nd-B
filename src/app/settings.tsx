@@ -15,7 +15,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text as RNText,
   View,
   type AccessibilityRole,
   type StyleProp,
@@ -24,6 +23,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
@@ -39,6 +39,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { deepSpace, flattenAlpha, semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
+import { useFontStyle } from "@/lib/settings/readable-font";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useTheme } from "@/lib/theme/ThemeContext";
 import { signOut } from "@/lib/supabase/auth";
@@ -258,6 +259,7 @@ function M3Divider() {
 }
 
 function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChange }: { icon: string; label: string; sub: string; subAccessibilityLabel?: string; checked: boolean; onChange: (v: boolean) => void }) {
+  useFontStyle();
   const pixel = isDeepSpaceUI();
   return (
     <View style={[m3Styles.row, pixel ? m3Styles.pixelRow : null]}>
@@ -266,7 +268,7 @@ function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChang
         <RNText style={[m3Styles.rowLabel, pixel ? m3Styles.pixelRowLabel : null]}>{label}</RNText>
         {/* subAccessibilityLabel: when sub went through keepAllKo, screen readers
             get the raw string (U+2060 joiners disorient braille / char review). */}
-        <RNText style={[m3Styles.rowSub, pixel ? m3Styles.pixelRowSub : null]} accessibilityLabel={subAccessibilityLabel}>{sub}</RNText>
+        <RNText style={[m3Styles.rowSub, pixel ? m3TextStyle("bodyMedium") : null, pixel ? m3Styles.pixelRowSub : null]} accessibilityLabel={subAccessibilityLabel}>{sub}</RNText>
       </View>
       <M3Switch checked={checked} onChange={onChange} accessibilityLabel={label} />
     </View>
@@ -279,6 +281,7 @@ function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChang
 // hands off honestly to the import/integration surfaces instead of claiming a
 // state that isn't there.
 function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: string; sub?: string; badge?: number; onPress: () => void }) {
+  useFontStyle();
   const [held, setHeld] = useState(false);
   const pixel = isDeepSpaceUI();
   return (
@@ -294,7 +297,7 @@ function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: 
       <M3IconBadge icon={icon} active={false} />
       <View style={m3Styles.rowText}>
         <RNText style={[m3Styles.rowLabel, pixel ? m3Styles.pixelRowLabel : null]}>{label}</RNText>
-        {sub ? <RNText style={[m3Styles.rowSub, pixel ? m3Styles.pixelRowSub : null]}>{sub}</RNText> : null}
+        {sub ? <RNText style={[m3Styles.rowSub, pixel ? m3TextStyle("bodyMedium") : null, pixel ? m3Styles.pixelRowSub : null]}>{sub}</RNText> : null}
       </View>
       {badge && badge > 0 ? (
         <View style={m3Styles.rowBadge}>
@@ -1402,7 +1405,7 @@ const m3Styles = StyleSheet.create({
   rowLabel: { ...koType(16, 22, 0.15, "400"), color: m3.color.onSurface },
   pixelRowLabel: { ...m3TextStyle("titleMedium") },
   rowSub: { ...koType(12, 16, 0.3, "400"), color: m3.color.onSurfaceVariant, marginTop: 1 },
-  pixelRowSub: { ...m3TextStyle("labelSmall"), marginTop: m3.spacing.s1 },
+  pixelRowSub: { marginTop: m3.spacing.s1 },
   iconBadge: { width: 38, height: 38, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center" },
   pixelIconBadge: { width: 42, height: 42 },
   pixelIconBadgeContent: { width: 38, height: 38, paddingHorizontal: 0, paddingVertical: 0, alignItems: "center", justifyContent: "center" },

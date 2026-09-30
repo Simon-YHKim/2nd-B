@@ -25,6 +25,16 @@ jest.mock("../../supabase/client", () => {
     data: { session: { access_token: mockAccessToken("u1", "session-a", "2"), user: { id: "u1" } } },
     error: null,
   });
+  // 2026-09-30: record deletes now return the deleted rows' `structured`, so the
+  // photos a 글 note carries (records.structured.photos) leave Storage with it.
+  // `recordRows` is what the records delete hands back; `remove` records which
+  // photo objects Storage was asked to delete.
+  const recordRows: { structured: unknown }[] = [];
+  const removedObjects: string[][] = [];
+  const remove = jest.fn(async (paths: string[]) => {
+    removedObjects.push(paths);
+    return { data: paths.map((name) => ({ name })), error: null };
+  });
   const from = jest.fn((table: string) => {
     const chain: Record<string, unknown> = {
       delete: () => {
@@ -33,21 +43,31 @@ jest.mock("../../supabase/client", () => {
       },
       update: () => chain,
       eq: () => chain,
+      select: () => chain,
       // thenable so `await from(t).delete().eq(...)` resolves
-      then: (resolve: (v: { count: number; error: null }) => unknown) =>
-        resolve({ count: 0, error: null }),
+      then: (resolve: (v: { count: number; error: null; data: unknown[] }) => unknown) =>
+        resolve(
+          table === "records"
+            ? { count: recordRows.length, error: null, data: recordRows }
+            : { count: 0, error: null, data: [] },
+        ),
     };
     return chain;
   });
-  const mock = { from, auth: { getSession, refreshSession }, functions: { invoke } };
+  const storage = { from: () => ({ remove }) };
+  const mock = { from, storage, auth: { getSession, refreshSession }, functions: { invoke } };
   return {
     getSupabaseClient: () => mock,
     __tablesDeleted: tablesDeleted,
     __invoke: invoke,
     __getSession: getSession,
     __refreshSession: refreshSession,
+    __recordRows: recordRows,
+    __removedObjects: removedObjects,
     __reset: () => {
       tablesDeleted.length = 0;
+      recordRows.length = 0;
+      removedObjects.length = 0;
       invoke.mockReset().mockResolvedValue({ data: { deleted: true }, error: null });
       getSession.mockReset().mockResolvedValue({
         data: { session: { access_token: mockAccessToken("u1", "session-a"), user: { id: "u1" } } },
@@ -89,6 +109,8 @@ const clientMock = require("../../supabase/client") as {
   __invoke: jest.Mock;
   __getSession: jest.Mock;
   __refreshSession: jest.Mock;
+  __recordRows: { structured: unknown }[];
+  __removedObjects: string[][];
   __reset: () => void;
 };
 const fenceMock = require("../../account/local-deletion-fence") as {
@@ -115,6 +137,25 @@ describe("deleteAllUserData (content wipe)", () => {
     );
     expect(result).toHaveProperty("selfContexts");
     expect(result).toHaveProperty("clipperTemplates");
+  });
+
+  test("removes the photos the wiped records carried, and only those (2026-09-30)", async () => {
+    const own = "u1/photo-0123456789abcdef.jpg";
+    clientMock.__recordRows.push(
+      { structured: { photos: [{ path: own, mime: "image/jpeg" }] } },
+      // Another owner's path is never handed to Storage, whatever the row says.
+      { structured: { photos: [{ path: "u2/photo-0123456789abcdef.jpg", mime: "image/jpeg" }] } },
+      { structured: { form: "fourw", version: 1, fields: { what: "x" } } },
+      { structured: null },
+    );
+    await deleteAllUserData("u1");
+    expect(clientMock.__removedObjects).toEqual([[own]]);
+  });
+
+  test("a wipe whose records carried no photos never calls Storage", async () => {
+    clientMock.__recordRows.push({ structured: null });
+    await deleteAllUserData("u1");
+    expect(clientMock.__removedObjects).toEqual([]);
   });
 });
 
@@ -370,6 +411,48 @@ describe("requestAccountDeletion (terminal erasure)", () => {
     }],
   ])("does not retry a 409 with %s", async (_label, body) => {
     clientMock.__invoke.mockResolvedValueOnce({ data: null, error: conflict(body) });
+
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
+    expect(clientMock.__invoke).toHaveBeenCalledTimes(1);
+  });
+
+  // 2026-09-30: delete-account also sweeps record-photos (0209) after the raw
+  // clippings. An unfinished photo sweep says so with record_photos_erased:false
+  // while raw clippings are already done; it is the same retryable progress.
+  test("retries an unfinished photo sweep and credits only the raw-clipping count", async () => {
+    clientMock.__invoke
+      .mockResolvedValueOnce({
+        data: null,
+        error: conflict({
+          error: "deletion_cleanup_in_progress", deletion_fenced: true,
+          raw_clippings_erased: true, raw_clippings_removed: 2,
+          record_photos_erased: false, record_photos_removed: 1000,
+        }),
+      })
+      .mockResolvedValueOnce({
+        data: {
+          deleted: true, profile_erased: true, deletion_fenced: true,
+          raw_clippings_erased: true, raw_clippings_empty_at_check: true, raw_clippings_removed: 0,
+          record_photos_erased: true, record_photos_empty_at_check: true, record_photos_removed: 5,
+        },
+        error: null,
+      });
+
+    const receipt = await requestAccountDeletion(EXPECTED);
+    expect(clientMock.__invoke).toHaveBeenCalledTimes(2);
+    expect(receipt.complete).toBe(true);
+    expect(receipt.rawClippingsRemoved).toBe(2);
+  });
+
+  test("does not retry a 409 whose photo sweep is reported finished", async () => {
+    clientMock.__invoke.mockResolvedValueOnce({
+      data: null,
+      error: conflict({
+        error: "deletion_cleanup_in_progress", deletion_fenced: true,
+        raw_clippings_erased: true, raw_clippings_removed: 0,
+        record_photos_erased: true, record_photos_removed: 0,
+      }),
+    });
 
     await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
     expect(clientMock.__invoke).toHaveBeenCalledTimes(1);

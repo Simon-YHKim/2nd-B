@@ -13,6 +13,7 @@ import {
 import {
   AccessibilityInfo,
   Animated,
+  FlatList,
   PanResponder,
   ScrollView,
   StyleSheet,
@@ -98,6 +99,7 @@ import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 const DECADES = canonMuseum.decades;
 const MUSEUM_IDS = new Set(MUSEUM.map((event) => event.id));
+const MUSEUM_RECENT_FIRST = [...MUSEUM_BY_YEAR].reverse();
 const MZ_LINK_CELL = 2;
 const MZ_TODAY_DASH = 8;
 const MZ_TODAY_DASHES = Array.from(
@@ -144,12 +146,15 @@ export function MuseumTimelineScreen() {
   const locale = i18n.language ?? "en";
   const { width: windowWidth } = useWindowDimensions();
   const compact = windowWidth < 360;
+  const compactTimeline = windowWidth < 600;
+  const [mobileMode, setMobileMode] = useState<"overview" | "timeline">("overview");
   const reducedMotionPref = useReducedMotionPref();
   const [nativeReducedMotion, setNativeReducedMotion] = useState(false);
   const reducedMotion = reducedMotionPref || nativeReducedMotion;
 
   const scrollRef = useRef<ScrollView>(null);
   const didInitialSeek = useRef(false);
+  const initialSeekYear = useRef(MUSEUM_INITIAL_YEAR);
   const viewportWidth = useRef(390);
   const dialWidth = useRef(1);
   const [dialMeasuredWidth, setDialMeasuredWidth] = useState(1);
@@ -159,6 +164,10 @@ export function MuseumTimelineScreen() {
   const placed = useMemo(() => placeMuseumNodes(MUSEUM), []);
   const canonSelected = selectedId ? museumEventById(selectedId) : undefined;
   const selected = canonSelected ? resolveMuseumEvent(canonSelected, locale) : undefined;
+  const overviewFocus = selected ?? resolveMuseumEvent(
+    MUSEUM_RECENT_FIRST.find((event) => event.year <= year) ?? MUSEUM_RECENT_FIRST[0],
+    locale,
+  );
   const selectedIndex = selected
     ? MUSEUM_BY_YEAR.findIndex((event) => event.id === selected.id)
     : -1;
@@ -281,6 +290,8 @@ export function MuseumTimelineScreen() {
         ),
         animated: true,
       });
+      const target = museumEventById(targetId);
+      if (target) setYear(target.year);
       setSelectedId(targetId);
     },
     [placed],
@@ -342,19 +353,118 @@ export function MuseumTimelineScreen() {
       <View style={styles.body}>
         <PixelSurface variant="inset" contentStyle={styles.rangeRow}>
           <Text style={styles.rangeLabel}>{`${MZ.START} - ${MUSEUM_VISIBLE_MAX_YEAR}`}</Text>
-          <Text style={styles.rangeHint}>{t("deepspace:museum.rangeHint")}</Text>
+          <Text style={styles.rangeHint}>
+            {compactTimeline && mobileMode === "overview"
+              ? t("deepspace:museum.seekYear")
+              : t("deepspace:museum.rangeHint")}
+          </Text>
         </PixelSurface>
 
-        <View
+        {compactTimeline ? (
+          <View style={styles.mobileModeRow}>
+            {(["overview", "timeline"] as const).map((mode) => (
+              <PixelPressable
+                key={mode}
+                onPress={() => {
+                  if (mode === "timeline") {
+                    initialSeekYear.current = selected?.year ?? year;
+                    didInitialSeek.current = false;
+                  }
+                  setMobileMode(mode);
+                }}
+                accessibilityLabel={t(mode === "overview" ? "deepspace:museum.seekYear" : "deepspace:museum.rangeHint")}
+                accessibilityState={{ selected: mobileMode === mode }}
+                rootStyle={styles.mobileModeButton}
+                contentStyle={styles.mobileModeButtonContent}
+                variant={mobileMode === mode ? "inset" : "bevel"}
+              >
+                <Text style={styles.mobileModeText}>
+                  {t(mode === "overview" ? "deepspace:museum.seekYear" : "deepspace:museum.rangeHint")}
+                </Text>
+              </PixelPressable>
+            ))}
+          </View>
+        ) : null}
+
+        {compactTimeline && mobileMode === "overview" ? (
+          <FlatList
+            data={MUSEUM_RECENT_FIRST}
+            keyExtractor={(event) => event.id}
+            style={styles.overviewList}
+            contentContainerStyle={styles.overviewListContent}
+            ListHeaderComponent={
+              <PixelSurface variant="inset" contentStyle={styles.overviewFocus}>
+                <Text style={styles.overviewFocusYear}>{overviewFocus.year}</Text>
+                <Text style={styles.overviewFocusTitle}>{overviewFocus.title}</Text>
+              </PixelSurface>
+            }
+            renderItem={({ item }) => {
+              const event = resolveMuseumEvent(item, locale);
+              const tone = LANE_TONE[event.lane];
+              const lane = MZ_LANES[event.lane];
+              const eventLanguage = museumContentLanguage(event.id, locale);
+              const laneLabel = eventLanguage === "ko" ? lane.label : lane.en;
+              return (
+                <PixelPressable
+                  onPress={() => {
+                    setYear(event.year);
+                    initialSeekYear.current = event.year;
+                    setSelectedId(event.id);
+                  }}
+                  accessibilityLabel={`${event.year} ${laneLabel} ${event.title}`}
+                  accessibilityLanguage={eventLanguage}
+                  accessibilityState={{ selected: selectedId === event.id }}
+                  fullWidth
+                  rootStyle={styles.overviewEvent}
+                  contentStyle={styles.overviewEventContent}
+                  background={tone.wash}
+                >
+                  <Text style={[styles.overviewEventYear, { color: tone.accent }]}>{event.year}</Text>
+                  <View style={styles.overviewEventCopy}>
+                    <Text style={styles.overviewEventTitle}>{event.title}</Text>
+                    <Text style={[styles.overviewEventLane, { color: tone.ink }]}>
+                      {laneLabel}
+                    </Text>
+                  </View>
+                </PixelPressable>
+              );
+            }}
+          />
+        ) : null}
+
+        {compactTimeline && mobileMode === "timeline" ? (
+          <View style={styles.laneLegendRow}>
+            {(["world", "ai"] as const).map((laneId) => {
+              const lane = MZ_LANES[laneId];
+              const tone = LANE_TONE[laneId];
+              return (
+                <PixelSurface
+                  key={laneId}
+                  variant="flat"
+                  background={tone.wash}
+                  style={styles.laneLegendItem}
+                  contentStyle={styles.laneLegendContent}
+                >
+                  <View style={[styles.laneSquare, { backgroundColor: tone.accent }]} />
+                  <Text style={[styles.laneLegendText, { color: tone.ink }]}>
+                    {locale.toLowerCase().startsWith("ko") ? lane.label : lane.en}
+                  </Text>
+                </PixelSurface>
+              );
+            })}
+          </View>
+        ) : null}
+
+        {(!compactTimeline || mobileMode === "timeline") ? <View
           style={styles.viewport}
           onLayout={(event) => {
             viewportWidth.current = Math.max(1, event.nativeEvent.layout.width);
             if (didInitialSeek.current) return;
             didInitialSeek.current = true;
-            seekToYear(MUSEUM_INITIAL_YEAR, false);
+            seekToYear(initialSeekYear.current, false);
           }}
         >
-          <View pointerEvents="none" style={styles.laneColumn}>
+          {!compactTimeline ? <View pointerEvents="none" style={styles.laneColumn}>
             {(["world", "ai"] as const).map((laneId, index) => {
               const lane = MZ_LANES[laneId];
               const tone = LANE_TONE[laneId];
@@ -373,7 +483,7 @@ export function MuseumTimelineScreen() {
                 </PixelSurface>
               );
             })}
-          </View>
+          </View> : null}
 
           <ScrollView
             ref={scrollRef}
@@ -522,9 +632,9 @@ export function MuseumTimelineScreen() {
               );
             })}
           </ScrollView>
-        </View>
+        </View> : null}
 
-        <View style={styles.dialBlock}>
+        {(!compactTimeline || mobileMode === "timeline") ? <View style={styles.dialBlock}>
           <View style={styles.dialHeading}>
             <Text style={styles.dialYear}>{year}</Text>
             <Text style={styles.dialCaption}>YEAR</Text>
@@ -573,7 +683,7 @@ export function MuseumTimelineScreen() {
               </View>
             </PixelSurface>
           </View>
-        </View>
+        </View> : null}
 
         {selected ? (
           <Animated.View

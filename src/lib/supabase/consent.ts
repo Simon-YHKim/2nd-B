@@ -17,7 +17,7 @@
 //
 // Both entry flows collect and both write, but the write does not always live
 // in the screen file, so name all four sites:
-//   collect  <ConsentBlock>             src/screens/deepspace/dds-sign-up-screen.tsx:375
+//   collect  <ConsentBlock>             src/screens/deepspace/dds-sign-up-screen.tsx:376
 //                                       src/app/(auth)/complete-profile.tsx:374
 //            <ConsentNotice>
 //

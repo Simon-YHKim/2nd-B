@@ -20,7 +20,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import ReAnimated, { cancelAnimation, useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing as ReEasing, useDerivedValue, runOnJS } from "react-native-reanimated";
 
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";

@@ -20,7 +20,8 @@
  * ds.axisCheck.<axis>.headline key the body uses, so all 5 locales localize).
  * All colors route through m3.* tokens — no cosmic tokens, no hex literals.
  */
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";

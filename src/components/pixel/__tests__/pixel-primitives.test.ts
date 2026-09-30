@@ -28,6 +28,9 @@ const FILES = [
   "PixelGateShell.tsx",
   "pixel-gate.ts",
   "press.ts",
+  "PixelWheel.tsx",
+  "PixelTimeSheet.tsx",
+  "time-wheel.ts",
 ];
 
 test("shared button forwards selection and toggle states to the web DOM", () => {

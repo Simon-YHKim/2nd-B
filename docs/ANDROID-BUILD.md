@@ -5,8 +5,13 @@ This repo has two Android build paths:
 - **Public release APK + AAB**: EAS-managed signing through
   `.github/workflows/eas-preview-build.yml`.
 - **Diagnostic APK**: local Gradle through
-  `.github/workflows/android-release.yml`. It remains an Actions artifact and is
-  never attached to a public GitHub Release.
+  `.github/workflows/android-release.yml`. The workflow itself only uploads an
+  Actions artifact. The one exception is the **QA pre-release** (`qa-YYMMDD-<sha8>`,
+  `--prerelease --latest=false`): when Simon wants to see main on the phone,
+  `npm run app:qa-release` copies that artifact to a pre-release (on demand since
+  2026-09-30; localhost itself follows origin/main, which this workflow already
+  builds on every app change - CLAUDE.md "앱과 localhost 는 같은 소프트웨어다"). It is
+  never a `vX.Y.Z` release and never becomes Latest.
 
 Both paths are separate from the web `gh-pages` deploy in `web-deploy.yml`.
 
@@ -42,8 +47,12 @@ Google Play Console upload.
 ### Local Gradle diagnostic build
 
 Run **Android Diagnostic Build (APK)** manually, or let its path-filtered
-`main` trigger run after native-relevant changes. It never creates or modifies a
-GitHub Release.
+`main` trigger run after native-relevant changes. The workflow never creates or
+modifies a GitHub Release; on request, `npm run app:qa-release`
+(`scripts/app-parity.cjs`) publishes its artifact as a QA pre-release when the
+app paths changed since the last one, verifying package, ABI and signer with
+`aapt2` / `apksigner` when the Android SDK is present. `npm run app:parity`
+reports this workflow's result for the code localhost serves.
 
 ## Where the artifacts land
 

@@ -1,6 +1,6 @@
 {
   "title": "Komunitas",
-  "intro": "Mengobrol dengan orang lain memakai alias bintang. Ruang hanya terbuka lewat tautan undangan.",
+  "intro": "Buat ruang dengan alias bintangmu atau bergabung lewat tautan undangan.",
   "aliasLine": "Alias bintangmu: {{alias}}",
   "adultOnly": "Komunitas hanya tersedia untuk akun dewasa.",
   "createTitle": "Buat ruang",
@@ -31,6 +31,7 @@
   "inviteCta": "Undang",
   "leaveCta": "Keluar",
   "threadEmpty": "Belum ada pesan. Sapa duluan.",
+  "roomUnavailable": "Ruang tidak ditemukan atau kamu bukan lagi anggotanya. Periksa daftar ruangmu.",
   "messageA11y": "Pesan. Tekan untuk melaporkan atau memblokir pengirim.",
   "unknownSender": "Bintang tak dikenal",
   "actionsFor": "Pesan dari {{alias}}",

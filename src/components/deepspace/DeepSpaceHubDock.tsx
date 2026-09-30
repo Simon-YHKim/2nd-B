@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 
 import { colors, spacing } from "@/theme/tokens";
 import { withAlpha } from "@/lib/theme/tokens";
