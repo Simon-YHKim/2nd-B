@@ -29,7 +29,15 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-01 04:14 / 한국어 따옴표·조사 수정의 병합 뒤 화면 검증
+## Latest — 2026-10-01 04:35 / PolaScope 계약 Draft의 최신 main 통합·운영 게이트 점검
+
+- **Draft 통합 검사**: main `8918e0db`와 [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902) 원격 head `4c81c0ce`를 별도 워크트리에서 커밋 없이 합쳤다. 충돌 0, `npm run verify` 869묶음/11,289건 통과, `git diff --check` 통과. #1902 브랜치는 push하지 않았다. [상세 기록](qa/polascope-contract-readiness-261001.md).
+- **운영 계약 현황**: 운영 프로젝트 `zoacryukmdeivmolvyhj`의 공개 `signup_consent_contract_status` RPC는 HTTP 200과 6행을 반환했다. `email-v6`까지 있고 #1902가 요구하는 `email-v7`은 0행이다. 클라이언트 요구는 `email-v7` · 동의/약관 `2026-10-05` · 방침 `2026-09-29`이며 출시 게이트는 exit 1로 게시를 차단했다. 이전 “RPC 404” 기록은 더 이상 현재 상태가 아니다. 키 값은 출력하지 않았다.
+- **출시 순서**: 서버 계약·원장 선행 적용과 게이트 재검증 뒤, 10월 5일 [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)·[#1917](https://github.com/Simon-YHKim/2nd-B/pull/1917) Draft를 재검토한다. #1917은 최신 main과 병합 충돌 0이지만 합친 트리 테스트는 아직 하지 않았다. 두 Draft·운영 DB/Edge·Play 양식·웹 게시를 이번에 바꾸지 않았다. Grok 후속 보류를 유지한다.
+
+---
+
+## 2026-10-01 04:14 / 한국어 따옴표·조사 수정의 병합 뒤 화면 검증
 
 - **반영**: Android 사진 QA [PR #1970](https://github.com/Simon-YHKim/2nd-B/pull/1970)은 main `cefa48fe`, 웹 한국어 조사 줄바꿈 [PR #1971](https://github.com/Simon-YHKim/2nd-B/pull/1971)은 main `f0559166`에 병합됐다. 이 브랜치에는 새 앱 코드 변경이 없다.
 - **실제 GUI 확인**: main `f0559166`을 따르는 8081 `/ratifications`에 공용 QA 계정으로 로그인해 `보류`·`거절`의 `‘승인’에서` 문구를 확인했다. 320·375·425px에서 닫는 따옴표/조사 윗좌표는 각각 440/440, 392/392, 374/374px이고 가로 넘침은 모두 0px이다. 인증 외 쓰기 요청 차단 상태에서 차단 건수 0, 페이지 오류 0이다. [상세 결과](qa/web-quote-josa-261001.md). 스크린 리더 음성·초점 순서와 다른 보간 화면은 미검증이다.
