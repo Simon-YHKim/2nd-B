@@ -752,6 +752,7 @@
     "a11yZoomOut": "Alejar",
     "a11yZoomIn": "Acercar",
     "hintSelected": "{{label}} · toca de nuevo para abrir",
+    "openRecord": "Abrir registro",
     "hintDefault": "Discontinua = registros unidos por una etiqueta compartida. Toca para seleccionar, toca de nuevo para abrir",
     "untitled": "(sin título)",
     "tagLinks": "Enlaces de etiqueta"

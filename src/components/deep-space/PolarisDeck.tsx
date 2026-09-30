@@ -93,7 +93,6 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
           <Pressable
             key={page.key}
             onPress={() => goTo(i)}
-            hitSlop={12}
             accessibilityRole="tab"
             accessibilityState={{ selected: i === index }}
             accessibilityLabel={page.title}
@@ -163,7 +162,7 @@ const makeStyles = () => StyleSheet.create({
     gap: 2,
     paddingVertical: 6,
   },
-  dotHit: { minWidth: 22, minHeight: 32, alignItems: "center", justifyContent: "center" },
+  dotHit: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
   dot: {
     width: 6,
     height: 6,

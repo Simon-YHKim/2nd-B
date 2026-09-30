@@ -16,6 +16,7 @@ import { TelescopeControls } from "./TelescopeControls";
 import { moveTelescopeCamera } from "@/lib/motion/camera-remote";
 
 import { PixelSurface } from "@/components/pixel/PixelSurface";
+import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelNodeSvg, PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { stepLine } from "@/components/pixel/pixel-line";
 
@@ -304,9 +305,14 @@ export function RecordsGraph({
 
       {selected && selected.kind === "record" ? (
         <PixelSurface variant="frame" style={[styles.selection, { bottom: controlsHeight + 8 }]} contentStyle={styles.selectionContent}>
-          <Text variant="caption" color="textSubtle" numberOfLines={1}>
-            {t("deepspace:recordsGraph.hintSelected", { label: selected.label })}
-          </Text>
+          <Text variant="body" numberOfLines={3}>{selected.label}</Text>
+          <PixelPressable
+            onPress={() => onOpenRecord(selected.id)}
+            accessibilityLabel={`${t("deepspace:recordsGraph.openRecord")}: ${selected.label}`}
+            contentStyle={styles.openRecord}
+          >
+            <Text variant="caption">{t("deepspace:recordsGraph.openRecord")}</Text>
+          </PixelPressable>
         </PixelSurface>
       ) : null}
       {selected && selected.kind === "persona" ? (
@@ -330,5 +336,6 @@ const styles = StyleSheet.create({
   },
   controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: m3.spacing.s4, paddingVertical: 2 },
   selection: { position: "absolute", left: 16, right: 16, zIndex: 6 },
-  selectionContent: { minHeight: 44, justifyContent: "center" },
+  selectionContent: { minHeight: 44, justifyContent: "center", gap: 8, padding: 10 },
+  openRecord: { minHeight: 44, alignItems: "center", justifyContent: "center" },
 });
