@@ -339,6 +339,12 @@ describe("app-parity: 그 코드 · 그 설정의 폰용 APK 빌드 상태", () 
     expect(classifyBuild([run(3, "A", "in_progress", null, "3")], same, cfg({ 3: "mismatch" })).state).toBe("stale");
   });
 
+  it("끝났다고 나왔지만 결론이 아직 비어 있는 런은 진행 중으로 본다(GitHub 가 정리하는 틈)", () => {
+    expect(classifyBuild([run(2, "A", "completed", "", "2")], same, cfg({ 2: "match" })).state).toBe("running");
+    expect(classifyBuild([run(2, "A", "completed", null, "2")], same).state).toBe("running");
+    expect(classifyBuild([run(2, "A", "completed", "failure", "2")], same, cfg({ 2: "match" })).state).toBe("failure");
+  });
+
   it("main 이 이미 움직여 게이트에서 끊길 대기 빌드는 '빌드 중' 이 아니라 밀림이다", () => {
     const queued = [run(2, "A", "queued", null, "2")];
     expect(classifyBuild(queued, same, cfg({}), () => false, () => true)).toMatchObject({ state: "superseded", run: { databaseId: 2 } });
