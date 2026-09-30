@@ -51,7 +51,7 @@ test("the refresh card keeps saying when it runs: only while the app is open", (
   // The saved-data reread happens while the dashboard is open; health only on an Android
   // phone the account connected itself. Neither may be promised for iOS or the web.
   expect(String(locale("ko", "settings").dataRefreshScope)).toContain("대시보드가 열려 있고");
-  expect(String(locale("ko", "settings").dataRefreshScope)).toContain("Android 앱에서 ‘오늘 반영’으로 연결한 폰에서만");
+  expect(String(locale("ko", "settings").dataRefreshScope)).toContain("Android 앱에서 ‘오늘 반영’ 버튼으로 연결한 폰에서만");
 });
 
 test("sources render by group, device permissions first, and the manual services as one card", () => {
@@ -63,4 +63,21 @@ test("sources render by group, device permissions first, and the manual services
   // A restricted source (minor or unconfirmed age) cannot be opened, even before the read returns.
   expect(screen).toContain('const locked = "adultOnly" in source && source.adultOnly && isMinor !== false;');
   expect(screen).toContain('disabled={state.status === "restricted"}');
+});
+
+test("Korean copy on this screen never glues a particle to a closing quote", () => {
+  // Web wraps with CSS word-break: keep-all, which still breaks between a closing quote and
+  // the Hangul after it (UAX #14 LB19a), so "‘오늘 반영’을" showed "을" alone at the start of
+  // a line on 8081 (2026-10-01). Native joins the word; web does not. A space after the
+  // quote keeps the particle with the next word instead.
+  const settings = locale("ko", "settings");
+  const phone = (locale("ko", "ops").phone ?? {}) as Record<string, unknown>;
+  const notes = (phone.sourceNotes ?? {}) as Record<string, unknown>;
+  const strings = [
+    ...Object.entries(settings).filter(([key]) => key.startsWith("dataRefresh")).map(([, value]) => value),
+    ...Object.values(notes),
+    phone.openHealth,
+  ].filter((value): value is string => typeof value === "string");
+  expect(strings.length).toBeGreaterThan(5);
+  for (const value of strings) expect(value).not.toMatch(/[’”][가-힣]/);
 });

@@ -129,7 +129,7 @@
   "manageIntegrations": "연동 관리",
   "manageIntegrationsDesc": "출처별 가져오기와 새로고침 설정",
   "dataRefreshTitle": "저장된 데이터 새로고침",
-  "dataRefreshScope": "대시보드가 열려 있고 앱이 활성 상태일 때 저장된 정보를 다시 읽어요. 건강 기록은 Android 앱에서 ‘오늘 반영’으로 연결한 폰에서만, 앱이 열려 있을 때 새로고침 시각이 지나면 하루 한 번 읽어요.",
+  "dataRefreshScope": "대시보드가 열려 있고 앱이 활성 상태일 때 저장된 정보를 다시 읽어요. 건강 기록은 Android 앱에서 ‘오늘 반영’ 버튼으로 연결한 폰에서만, 앱이 열려 있을 때 새로고침 시각이 지나면 하루 한 번 읽어요.",
   "dataRefreshAuto": "자동 새로고침",
   "dataRefreshDaily": "매일 {{time}}",
   "dataRefreshTimeLabel": "자동 새로고침 시각",
