@@ -129,7 +129,7 @@
   "manageIntegrations": "Kelola integrasi",
   "manageIntegrationsDesc": "Impor per sumber dan pengaturan penyegaran",
   "dataRefreshTitle": "Segarkan data tersimpan",
-  "dataRefreshScope": "Saat dasbor terbuka dan aplikasi aktif, data tersimpan dibaca ulang. Pengaturan ini tidak otomatis mengumpulkan data baru dari layanan luar.",
+  "dataRefreshScope": "Saat dasbor terbuka dan aplikasi aktif, data tersimpan dibaca ulang. Catatan kesehatan hanya dibaca di ponsel yang dihubungkan lewat ‘Terapkan hari ini’ di aplikasi Android: sekali sehari setelah waktu penyegaran, saat aplikasi terbuka.",
   "dataRefreshAuto": "Segarkan otomatis",
   "dataRefreshDaily": "Setiap hari pukul {{time}}",
   "dataRefreshTimeLabel": "Waktu penyegaran otomatis",

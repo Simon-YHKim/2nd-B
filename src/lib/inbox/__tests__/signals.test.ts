@@ -316,7 +316,8 @@ describe("legacy preservation and pixel registration", () => {
     // 2026-09-20 재고정 - vibe r260919 r35 · 철회를 계정마다 한 줄로 세우는 연산(withdrawImportHistoryEntry)으로 옮기고, 새 항목에 owned 표지 · 남긴 행 알림 한 줄 · inbox 와 무관.
     // 2026-09-20 재고정 - vibe r260919 R37-FIX1841C · 철회 콜백이 항목을 직접 빼지 않고(history.ts 가 승격과 한 번에 쓴다), Web Locks 없는 브라우저의 거절 문구 · 남긴 행 알림을 까닭별 줄(keptNotice)로 · inbox 와 무관.
     // 2026-09-30 재고정 - Text 를 react-native 대신 @/components/ui/PlainText 에서 가져오는 import 두 줄(앱 전체 한국어 줄바꿈) · inbox 와 무관.
-    expect(sha(source)).toBe("eead7f32593fc6bb10feedc0ccfcffdf10e29fb31d5a54b96f3db1f1a52c0be8");
+    // 2026-10-01 재고정 - '오늘 반영' 탭이 OS 권한을 받은 뒤 이 폰에서 이 계정의 건강 자동 읽기를 켜고(armHealthAutoRead: 권한은 폰의 앱에 붙어서, 같은 폰의 다른 계정이 물려받지 않게) 결과 줄에 그 사실(healthAutoDaily)을 붙인다 · inbox 와 무관.
+    expect(sha(source)).toBe("c4bc2ad4836ce8632ddbf280d902b7820c1eb5f8e20c8edfd3c1ff032d63f7d6");
   });
 
   test("keeps InboxLegacy and its styles byte-stable while routing deep-space directly", () => {

@@ -952,6 +952,7 @@
       "healthReflected": "Reflejado. Elementos añadidos: {{count}}.",
       "healthReflectedNone": "Nada nuevo que reflejar: los registros de hoy ya estaban guardados.",
       "healthRoutinesCompleted": "Rutinas completadas con esto: {{count}}.",
+      "healthAutoDaily": "Con la actualización automática activada, este teléfono también lee pasos, entrenamientos y sueño una vez al día por sí solo.",
       "healthErrFailed": "No se pudo añadir tu actividad. Inténtalo de nuevo en un momento.",
       "summaryPieces": "{{count}} pieza",
       "summaryPieces_plural": "{{count}} piezas",

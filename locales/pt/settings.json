@@ -129,7 +129,7 @@
   "manageIntegrations": "Gerenciar integrações",
   "manageIntegrationsDesc": "Importações e opções de atualização",
   "dataRefreshTitle": "Atualizar dados salvos",
-  "dataRefreshScope": "Enquanto o painel estiver aberto e o app ativo, ele relê os dados salvos. Isso não coleta automaticamente novos dados de serviços externos.",
+  "dataRefreshScope": "Enquanto o painel estiver aberto e o app ativo, ele relê os dados salvos. Os registros de saúde só são lidos num celular conectado com ‘Registrar atividade de hoje’ no app Android: uma vez por dia depois do horário de atualização, com o app aberto.",
   "dataRefreshAuto": "Atualização automática",
   "dataRefreshDaily": "Todos os dias, {{time}}",
   "dataRefreshTimeLabel": "Horário da atualização automática",

@@ -185,7 +185,8 @@ function DataConnectionsBody({ ownerId, isMinor }: { ownerId: string; isMinor: b
               : data ? sourceState(source, data, isMinor) : { status: "unknown" as const, lastImport: null };
             const name = BRAND_NAMES[source.id] ?? t(`ops:phone.sourceNames.${source.id}`);
             // Device cards open the tab that holds the consent and OS-permission row and the "reflect today"
-            // read. Nothing reads health data automatically yet, so the label names the screen, not a read.
+            // read. That tap also arms the daily automatic read on this phone (lib/health/auto-read.ts), so
+            // the label names the screen, not a read.
             const action = t(group === "device" ? "ops:phone.openHealth" : "ops:phone.manageSource");
             return <PixelSurface key={source.id} variant="frame" contentStyle={styles.panel}>
               <View style={styles.sourceTitle}>

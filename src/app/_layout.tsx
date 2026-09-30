@@ -40,6 +40,7 @@ import {
   suspendAnalyticsForUnresolvedProfile,
 } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
+import { HealthAutoReadSync } from "@/components/health/HealthAutoReadSync";
 import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-store";
 import { hydrateAnalyticsConsent } from "@/lib/analytics/auth-conversions";
@@ -204,6 +205,7 @@ export default function RootLayout() {
             <AnalyticsConsentSync />
             <AddressTermSync />
             <AuditWriteOutboxSync />
+            <HealthAutoReadSync />
             {/* Big SecondB head follows touch on every screen (auto by size >= 80);
                 bubbling onTouch* so it never steals taps. Dock + Toast are global
                 overlays for the background-task loading system. */}

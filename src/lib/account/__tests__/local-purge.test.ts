@@ -9,6 +9,7 @@ const mockReasoningPurge = jest.fn<Promise<boolean>, [string]>();
 const mockWikiPurge = jest.fn<Promise<boolean>, [string]>();
 const mockNoticeReadPurge = jest.fn<Promise<boolean>, [string]>();
 const mockNoticeLastSeenPurge = jest.fn<Promise<boolean>, [string]>();
+const mockHealthAutoReadPurge = jest.fn<Promise<boolean>, [string]>();
 const mockInstallFence = jest.fn<Promise<boolean>, [string]>();
 
 jest.mock("../../capture/draft", () => ({
@@ -44,6 +45,9 @@ jest.mock("../../notices/read-store", () => ({
 jest.mock("../../notices/last-seen", () => ({
   purgeNoticeLastSeenForDeletedAccount: (owner: string) => mockNoticeLastSeenPurge(owner),
 }));
+jest.mock("../../health/auto-read", () => ({
+  purgeHealthAutoReadForDeletedAccount: (owner: string) => mockHealthAutoReadPurge(owner),
+}));
 jest.mock("../local-deletion-fence", () => ({
   installAccountLocalDeletionFence: (owner: string) => mockInstallFence(owner),
 }));
@@ -67,6 +71,7 @@ beforeEach(() => {
     mockWikiPurge,
     mockNoticeReadPurge,
     mockNoticeLastSeenPurge,
+    mockHealthAutoReadPurge,
   ]) {
     purge.mockReset().mockResolvedValue(true);
   }
@@ -87,6 +92,7 @@ describe("purgeDeletedAccountLocalData", () => {
       mockWikiPurge,
       mockNoticeReadPurge,
       mockNoticeLastSeenPurge,
+      mockHealthAutoReadPurge,
     ]) {
       expect(purge).toHaveBeenCalledWith("owner-a");
     }

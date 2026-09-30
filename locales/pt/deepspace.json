@@ -952,6 +952,7 @@
       "healthReflected": "Refletido. Itens adicionados: {{count}}.",
       "healthReflectedNone": "Nada de novo para refletir: os registros de hoje já estavam salvos.",
       "healthRoutinesCompleted": "Rotinas concluídas a partir disto: {{count}}.",
+      "healthAutoDaily": "Com a atualização automática ligada, este celular também lê passos, treinos e sono uma vez por dia sozinho.",
       "healthErrFailed": "Não foi possível registrar seus dados de saúde. Tente novamente.",
       "summaryPieces": "{{count}} item",
       "summaryPieces_plural": "{{count}} itens",

@@ -124,7 +124,7 @@
     "sourceNotes": {
       "calendar": "Importe pelo Google Calendar na web ou por um arquivo .ics no app instalado. Seu calendário não é sincronizado continuamente.",
       "location": "Importe um arquivo exportado do Google Timeline. Não há rastreamento GPS em segundo plano.",
-      "health": "No app instalado, depois do seu consentimento e da permissão, o app pode ler passos, treinos, sono e frequência cardíaca do Health Connect (Android) ou do Apple Saúde (iOS). Por enquanto, ele lê os registros de hoje quando você toca em ‘Registrar atividade de hoje’.",
+      "health": "No app Android instalado, dê seu consentimento e toque em ‘Registrar atividade de hoje’ para permitir o acesso, e o app lê passos, treinos, sono e frequência cardíaca. Depois disso, esse celular também lê passos, treinos e sono uma vez por dia sozinho. O iPhone (Apple Saúde) ainda não pode ser lido.",
       "garmin": "Ative o compartilhamento do Garmin Connect com o Apple Saúde (iOS) ou o Health Connect (Android 14+) e o app instalado também poderá ler os dados compatíveis com a mesma permissão de saúde. Não há conexão direta com Garmin nem Body Battery.",
       "tasks": "Importe o Google Tasks com sua conta Google na web. O app instalado ainda não consegue conectá-lo, e as alterações não são sincronizadas continuamente.",
       "kakao": "Importe uma conversa exportada do KakaoTalk e revise os sinais escolhidos. Conversas privadas ao vivo não são lidas.",

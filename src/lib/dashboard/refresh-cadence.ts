@@ -4,9 +4,12 @@ import { DAILY_REFRESH_MINUTES, validRefreshTime, type RefreshSettings } from ".
 
 export { DAILY_REFRESH_MINUTES, nextRefreshAt, shouldRefreshAfterResume, validRefreshTime, type RefreshSettings } from "./refresh-schedule";
 
-// This controls foreground reads of data already saved to the account: once a day
-// at the chosen local time, while the dashboard is open and the app is active.
-// It does not authorize a new provider import or schedule background collection.
+// This controls two foreground reads, once a day at the chosen local time. The dashboard
+// rereads data already saved to the account while it is open and the app is active. And
+// on Android, on a phone where the account connected health itself (the '오늘 반영' tap),
+// the automatic health read (lib/health/auto-read.ts) imports the new Health Connect
+// steps, workouts and sleep while the app is in the foreground, never with a prompt.
+// Neither runs in the background.
 //
 // Once a day is Simon's decision (2026-09-30, "내 의도는 하루 한번이야"). The
 // 30 minute to 12 hour interval picker is gone, so an interval saved by an
