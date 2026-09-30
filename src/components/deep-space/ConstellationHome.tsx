@@ -28,6 +28,7 @@ import { StarCapture } from "./StarCapture";
 import { STAR_CAMERA_STOPS, starCameraAim, starCameraFlight } from "@/lib/motion/star-camera";
 import { CAMERA_RETURN } from "@/lib/motion/camera-sequence";
 import { moveTelescopeCamera } from "@/lib/motion/camera-remote";
+import { SKY_ZOOM_MAX, SKY_ZOOM_MIN, SKY_ZOOM_STOPS } from "@/lib/motion/telescope-dial";
 
 import { PixelStarSvg } from "../pixel/PixelStarSvg";
 import { pixelStarSpan } from "../pixel/pixel-star";
@@ -1087,7 +1088,7 @@ export function ConstellationHome({
             returnLabel={t("ds.home.bubble.returnToSky")}
             origin={flight.origin}
             originRadius={starRadius * camera.zoom}
-            size={skySize}
+            frame={flight}
             onReturn={() => setBubble({ kind: "intro" })}
             onReturned={() => setVisualFocusId(null)}
             onReady={() => setCameraReady(true)}
@@ -1255,10 +1256,13 @@ export function ConstellationHome({
       </View> : null}
       <View style={[styles.instrumentRow, visualFocusId && { height: instrumentHeight }]}
         onLayout={({ nativeEvent: { layout } }) => setInstrumentHeight(layout.height)}>
+        {/* One scale with the star tap (Simon 2026-09-30): the flight above is clamped to
+            the same 1x..10x range, so the dial never re-scales and a number means one magnification. */}
         <TelescopeControls
           zoom={camera.zoom}
-          minZoom={1}
-          maxZoom={3}
+          minZoom={SKY_ZOOM_MIN}
+          maxZoom={SKY_ZOOM_MAX}
+          zoomStops={SKY_ZOOM_STOPS}
           enabled={!visualFocusId && !returnStart}
           cameraMotion={cameraMotion}
           onMove={(dx, dy) => setCamera((current) => moveTelescopeCamera(current, dx, dy, skySize))}

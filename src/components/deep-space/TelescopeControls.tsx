@@ -13,6 +13,7 @@ import { useMotionSound } from '@/lib/audio/use-motion-sound';
 import { useReducedMotionPref } from '@/lib/motion/use-reduced-motion';
 import { flattenAlpha } from '@/lib/theme/tokens';
 import { sampleTelescopeMotion, type TelescopeMotionTrack } from '@/lib/motion/telescope-preview';
+import { dialBaseline, telescopeDial } from '@/lib/motion/telescope-dial';
 
 const TICK = require('../../../assets/audio/observatory-ratchet.wav');
 const STICK_SIZE = 64;
@@ -275,24 +276,17 @@ export function TelescopeControls({ zoom, minZoom, maxZoom, zoomStops = DEFAULT_
     onPanResponderTerminate: failSafeStop,
   }), [failSafeStop, maxZoom, minZoom, remote, setHudMotion]);
   const displayZoom = previewZoom ?? zoom;
-  const displayMaxZoom = Math.max(maxZoom, ...(cameraMotion?.track.zoom ?? []));
-  const position = zoomToPosition(displayZoom, minZoom, displayMaxZoom);
+  // The ruler keeps the caller's range while a camera flight plays. It used to stretch to the
+  // flight's peak, which put a star tap's ~7x where the controls' own 3x sits (Simon 2026-09-30).
+  const dial = telescopeDial({ railWidth, zoom: displayZoom, minZoom, maxZoom, stops: zoomStops, tickSpacing: DIAL_TICK_SPACING, rangeRatio: DIAL_RANGE_RATIO });
   const keyboardAim = () => {
     const x = Number(keys.current.has('ArrowRight')) - Number(keys.current.has('ArrowLeft'));
     const y = Number(keys.current.has('ArrowDown')) - Number(keys.current.has('ArrowUp'));
     if (!x && !y) stopStick(); else { const length = Math.hypot(x, y); aim(x / length * 0.65, y / length * 0.65); }
   };
-  const major = useMemo(() => [...new Set([minZoom, ...zoomStops.filter(value => value > minZoom && value < displayMaxZoom), displayMaxZoom])].sort((a, b) => a - b), [minZoom, displayMaxZoom, zoomStops]);
-  const dialBandWidth = railWidth * 3;
-  const dialRangeWidth = railWidth * DIAL_RANGE_RATIO;
-  const dialOrigin = railWidth;
-  const dialOffset = Math.round(railWidth / 2 - dialOrigin - position * dialRangeWidth);
-  const firstTick = Math.max(0, Math.floor((-dialOffset - 2) / DIAL_TICK_SPACING));
-  const lastTick = Math.min(Math.floor(dialBandWidth / DIAL_TICK_SPACING), Math.ceil((railWidth - dialOffset + 2) / DIAL_TICK_SPACING));
-  const dialTrack = useMemo(() => <Svg width={railWidth} height={36} style={styles.dialArtwork}>
-    {Array.from({ length: Math.ceil(railWidth / 4) }, (_, i) => <Rect key={i} x={i * 4} y={25}
-      width={Math.min(4, railWidth - i * 4)} height={1} fill={dialColor(i * 4 / railWidth, hudActive)} />)}
-  </Svg>, [hudActive, railWidth]);
+  // The baseline rides with the graduations and stops at the end marks, so nothing reads as scale
+  // below the minimum or above the maximum. One rect per shade run, not one per 4px cell.
+  const baseline = dialBaseline(dial.start, dial.end + 2, dial.offset, railWidth, 4, fraction => dialColor(fraction, hudActive));
   return (
     <View collapsable={false} style={[styles.root, Platform.OS === 'web' && webTouchStyle]} accessibilityLabel={t('telescope.label')} testID="telescope-remote"
       onLayout={({ nativeEvent: { layout } }) => setBackdropSize((current) => current.width === layout.width && current.height === layout.height
@@ -357,7 +351,7 @@ export function TelescopeControls({ zoom, minZoom, maxZoom, zoomStops = DEFAULT_
           onLayout={({ nativeEvent: { layout } }) => { rail.current.width = Math.max(1, layout.width); setRailWidth(layout.width); }}
           accessible accessibilityRole="adjustable" accessibilityLabel={t('telescope.slider')} accessibilityHint={t('telescope.hint')}
           accessibilityState={{ disabled: !enabled }}
-          {...a11yValue({ min: minZoom * 100, max: displayMaxZoom * 100, now: Math.round(displayZoom * 100), text: displayZoom.toFixed(2) + '×' })}
+          {...a11yValue({ min: minZoom * 100, max: maxZoom * 100, now: Math.round(displayZoom * 100), text: displayZoom.toFixed(2) + '×' })}
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
           onAccessibilityAction={({ nativeEvent }) => changeZoom(nativeEvent.actionName === 'increment' ? 0.06 : -0.06)}
           {...(Platform.OS === 'web' ? { tabIndex: enabled ? 0 : -1, onKeyDown: (event: KeyEvent) => {
@@ -370,29 +364,25 @@ export function TelescopeControls({ zoom, minZoom, maxZoom, zoomStops = DEFAULT_
           } } : {})}
         >
           <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-            {dialTrack}
-            <View collapsable={false} testID="telescope-dial-band" style={[styles.movingBand, { width: dialBandWidth, transform: [{ translateX: dialOffset }] }]}>
-              <Svg width={dialBandWidth} height={36} style={styles.dialArtwork}>
-                {Array.from({ length: Math.max(0, lastTick - firstTick + 1) }, (_, i) => {
-                  const index = firstTick + i;
-                  const x = index * DIAL_TICK_SPACING;
-                  const screenFraction = (x + dialOffset) / railWidth;
-                  return <Rect key={index} x={x} y={index % 5 === 0 ? 20 : 22} width={1}
-                    height={index % 5 === 0 ? 13 : 9} fill={dialColor(screenFraction, hudActive)} />;
+            <View collapsable={false} testID="telescope-dial-band" style={[styles.movingBand, { width: dial.bandWidth, transform: [{ translateX: dial.offset }] }]}>
+              <Svg width={dial.bandWidth} height={36} style={styles.dialArtwork}>
+                {baseline.map(run => <Rect key={`base-${run.x}`} x={run.x} y={25} width={run.width} height={1} fill={run.shade} />)}
+                {dial.ticks.map(({ x, major }) => {
+                  const screenFraction = (x + dial.offset) / railWidth;
+                  return <Rect key={x} x={x} y={major ? 20 : 22} width={1}
+                    height={major ? 13 : 9} fill={dialColor(screenFraction, hudActive)} />;
                 })}
-                {major.map(value => {
-                  const x = Math.round(dialOrigin + zoomToPosition(value, minZoom, displayMaxZoom) * dialRangeWidth);
-                  const screenX = x + dialOffset;
+                {dial.marks.map(({ value, x }) => {
+                  const screenX = x + dial.offset;
                   if (screenX < -16 || screenX > railWidth + 16) return null;
-                  return <Rect key={value} x={x} y={18} width={2} height={17} fill={dialColor(screenX / railWidth, hudActive)} />;
+                  return <Rect key={`mark-${value}`} x={x} y={18} width={2} height={17} fill={dialColor(screenX / railWidth, hudActive)} />;
                 })}
               </Svg>
-              {major.map(value => {
-                const x = Math.round(dialOrigin + zoomToPosition(value, minZoom, displayMaxZoom) * dialRangeWidth);
-                const screenX = x + dialOffset;
+              {dial.marks.map(({ value, x, label }) => {
+                const screenX = x + dial.offset;
                 if (screenX < -16 || screenX > railWidth + 16) return null;
                 return <Text key={value} style={[styles.tickText, { left: x - 13,
-                  color: Math.min(screenX, railWidth - screenX) < railWidth * 0.08 ? m3.color.surfaceBright : m3.color.onSurfaceVariant }]}>{value}×</Text>;
+                  color: Math.min(screenX, railWidth - screenX) < railWidth * 0.08 ? m3.color.surfaceBright : m3.color.onSurfaceVariant }]}>{label}×</Text>;
               })}
             </View>
             <View collapsable={false} testID="telescope-zoom-indicator" style={[styles.zoomIndicator, { left: Math.round(railWidth / 2) - 1 }]}>
