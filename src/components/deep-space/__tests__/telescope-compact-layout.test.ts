@@ -169,7 +169,8 @@ test('dialogue sits above an unclipped camera row and the supplied phone peeks a
   expect(phone).toContain("import { Image } from 'expo-image'");
   expect(phone).toContain('contentFit="fill"');
   expect(phone).toContain('onMoveShouldSetPanResponder');
-  expect(phone).toContain('if (gesture.dy < -SWIPE_THRESHOLD || gesture.vy < -0.4) settle(true)');
+  // 2026-09-30: the swipe-up alone also asks for the glare (눈부심); the gesture itself is unchanged.
+  expect(phone).toContain('if (gesture.dy < -SWIPE_THRESHOLD || gesture.vy < -0.4) settle(true, { glare: true })');
   expect(phone).toContain('if (!expanded.current) { settle(true); return; }');
 });
 

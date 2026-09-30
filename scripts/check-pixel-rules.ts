@@ -169,7 +169,8 @@ const MIGRATED: readonly string[] = [
   // 2026-09-14 - 프로브 실패 공용 다시 시도. 새 파일이라 처음부터 목록에 둔다.
   "src/components/deep-space/ProfileProbeRetry.tsx",
   // 2026-09-30 - 폰을 꺼낼 때의 눈부심(디더 밀도 + 계단). 새 파일이라 처음부터 목록에 둔다.
-  "src/components/dashboard/PhoneGlare.tsx",
+  // 같은 날 홈 주머니 폰 옆으로 옮겼다(대시보드가 아니라 폰을 올릴 때 재생). 되돌린 것이 아니라 이사다.
+  "src/components/deep-space/PhoneGlare.tsx",
 ];
 
 // ── 규칙 2 ─────────────────────────────────────────────────────────────
