@@ -131,6 +131,15 @@ describe("web document security policy", () => {
     expect(GITHUB_PAGES_CSP).not.toContain("*.supabase");
   });
 
+  test("record photos load only from the record-photos sign path (2026-09-30)", () => {
+    const img = WEB_CSP_DIRECTIVES.find(([name]) => name === "img-src") ?? [];
+    expect(img).toContain("https://zoacryukmdeivmolvyhj.supabase.co/storage/v1/object/sign/record-photos/");
+    // The whole Supabase origin stays out of img-src: only that bucket's signed URLs.
+    expect(img).not.toContain("https://zoacryukmdeivmolvyhj.supabase.co");
+    const sandboxCsp = configuredCsp(sandbox);
+    expect(sandboxCsp).toContain("https://isolatedsandbox.supabase.co/storage/v1/object/sign/record-photos/");
+  });
+
   test("the non-production Vercel header is exact parity plus header-only framing", () => {
     expect(vercelCsp()).toBe(VERCEL_CSP);
     expect(VERCEL_CSP).toBe(`${GITHUB_PAGES_CSP}; frame-ancestors 'none'`);

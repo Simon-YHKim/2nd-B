@@ -83,6 +83,7 @@ const MIGRATED: readonly string[] = [
   "src/components/deep-space/DeepSpaceLinks.tsx",
   "src/components/deep-space/DeepSpaceScreen.tsx",
   "src/components/deep-space/DeepSpaceViews.tsx",
+  "src/components/deep-space/CaptureOcrSheet.tsx",
   "src/components/deep-space/DomainStarLens.tsx",
   "src/components/deep-space/HomeCoachmarks.tsx",
   "src/components/deep-space/PolarisDeck.tsx",

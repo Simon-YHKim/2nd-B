@@ -68,7 +68,9 @@ function harness(
     isMinor: false,
     locale: "ko",
     mode: extra.mode ?? "text",
-    textFormat: "memo",
+    // 2026-09-30: the 메모/4W1H radio (textFormat) became the 4W1H toggle;
+    // off is the plain memo this harness has always saved.
+    fourwOn: false,
     text: "  A first saved note  ",
     setSaving: (value: boolean) => { state.saving = value; },
     setSaved: (value: boolean) => { state.saved = value; },
