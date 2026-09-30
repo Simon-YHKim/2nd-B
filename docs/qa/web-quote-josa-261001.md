@@ -11,4 +11,16 @@
 - `npm test -- --runInBand src/lib/i18n/__tests__/keep-all.test.ts src/components/ui/__tests__/plain-text-guard.test.ts`: 2묶음/33건 통과. `npm run type-check` 통과.
 - `npm run verify`: 870묶음/11,286건 통과(종료코드 0).
 
-현재 적용 전이므로 8081 운영 동등 화면과 실제 화면 읽기 순서는 PR 병합 뒤 다시 확인한다.
+병합 뒤 실제 화면 확인(2026-10-01 03:55 KST, main `f0559166`):
+
+- `npm run localhost`가 제공하는 8081의 `/ratifications`에 저장소의 공용 QA 계정으로 로그인했다. `보류`·`거절` 필터의 빈 상태에 `‘승인’에서`가 표시됐고, 표시 문자열에 U+2060이 포함됐다. 브라우저 검사는 인증 요청 외의 쓰기 요청을 차단했다. 차단된 쓰기 요청 0건, 페이지 스크립트 오류 0건이었다.
+- 실제 렌더링에서 닫는 따옴표와 뒤 조사 `에`의 윗좌표는 아래와 같았다. 세 폭 모두 같은 줄이며 가로 넘침이 없었다.
+
+  | 화면 폭 | 따옴표 윗좌표 | 조사 윗좌표 | 가로 넘침 |
+  |---:|---:|---:|---:|
+  | 320px | 440px | 440px | 0px |
+  | 375px | 392px | 392px | 0px |
+  | 425px | 374px | 374px | 0px |
+
+- 결과 JSON과 재현 스크립트는 로컬 Git 공통 디렉터리 `E:\2ndB\.git\app-parity\quote-josa-live-qa-results-261001.json` 및 `quote-josa-live-qa-261001.cjs`에 남겼다. 다른 보간 화면과 스크린 리더 음성·초점 순서는 이 검사로 확인하지 않았다.
+- [PR #1971](https://github.com/Simon-YHKim/2nd-B/pull/1971)은 main `f0559166`에 병합됐다. [웹 빌드 36761343755](https://github.com/Simon-YHKim/2nd-B/actions/runs/36761343755)는 성공했고 게시 단계는 건너뛰어 공개 사이트는 바뀌지 않았다. [OTA 검사 36761343914](https://github.com/Simon-YHKim/2nd-B/actions/runs/36761343914)는 성공했고 업데이트 게시 단계는 건너뛰었다.
