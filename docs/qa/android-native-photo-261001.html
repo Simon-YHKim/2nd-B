@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Android 사진 입력 네이티브 QA · 2026-10-01</title>
+<style>
+:root{color-scheme:light dark;--accent:#3767b6;--text:#202938;--muted:#657287;background:#fff;color:var(--text);font:16px/1.55 system-ui,sans-serif}
+@media(prefers-color-scheme:dark){:root{--accent:#91b8ff;--text:#ecf2fc;--muted:#afbdd0;background:#101827}}
+*{box-sizing:border-box}body{max-width:900px;margin:0 auto;padding:24px}h1{font-size:clamp(1.6rem,5vw,2.4rem);line-height:1.2}h2{font-size:1.15rem}p{max-width:70ch}a{color:var(--accent)}a:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:4px}.meta{color:var(--muted)}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px;margin:20px 0}.card,details{border:1px solid var(--muted);border-radius:10px;padding:15px}.card strong{display:block;font-size:1.35rem;color:var(--accent)}.card span{display:block;color:var(--muted)}summary{cursor:pointer;font-weight:700}details+details{margin-top:12px}ul{padding-left:1.4rem}svg{width:100%;max-width:680px;height:auto}svg text{fill:var(--text);font:15px system-ui,sans-serif}svg rect{fill:none;stroke:var(--accent);stroke-width:2}svg path{stroke:var(--accent);stroke-width:2;fill:none}footer{margin-top:24px;color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body>
+<header>
+<p class="meta">PolaScope · Android QA · 2026-10-01 03:00 KST</p>
+<h1>사진 선택과 권한 거부 경로 확인</h1>
+<p>Pixel 7 Android 16 x86_64 에뮬레이터에서 기존 x86_64 APK의 네이티브 화면을 조작했다. 최신 main 앱의 회귀 검증은 아니다.</p>
+</header>
+<main>
+<section class="cards" aria-label="검증 요약">
+<div class="card"><strong>3개 경로</strong><span>선택기 · 권한 거부 · 글꼴 확대</span></div>
+<div class="card"><strong>3개 화면</strong><span>저장소에 증거 보존</span></div>
+<div class="card"><strong>0건</strong><span>사진 선택·메모 저장</span></div>
+</section>
+<svg viewBox="0 0 680 130" role="img" aria-label="사진 화면에서 시스템 사진 선택기 또는 카메라 권한 창으로 이동한 뒤 앱으로 돌아오는 흐름">
+<rect x="2" y="35" width="155" height="60" rx="8"/><text x="24" y="71">사진 입력 화면</text>
+<path d="M158 65h65m-8-8 8 8-8 8"/><rect x="225" y="4" width="195" height="52" rx="8"/><text x="248" y="36">시스템 사진 선택기</text>
+<rect x="225" y="76" width="195" height="52" rx="8"/><text x="248" y="108">카메라 권한 거부</text>
+<path d="M420 30h70m-8-8 8 8-8 8M420 102h70m-8-8 8 8-8 8"/><rect x="492" y="35" width="185" height="60" rx="8"/><text x="516" y="71">앱으로 정상 복귀</text>
+</svg>
+<details><summary>재현과 결과</summary><ul>
+<li>Scrap → Photo → Library: Android Photo Picker가 열렸다. 취소 후 앱으로 복귀했다.</li>
+<li>Camera 권한 거부: 안내와 Dismiss/Try again이 나타났고 뒤로가기로 사진 화면에 복귀했다.</li>
+<li>글꼴 130%: Camera·Library·Save piece·하단 탐색이 보였다. 검사 후 100%로 복원했다.</li>
+</ul></details>
+<details><summary>빌드와 적용 범위</summary><p><a href="https://github.com/Simon-YHKim/2nd-B/actions/runs/36687352385">실행한 x86_64 APK</a>는 <code>4ee03669</code>의 이전 수동 진단 빌드다. 최신 성공 APK <code>0e2bb32e</code>는 arm64-v8a 전용이므로 이 에뮬레이터에서 네이티브 라이브러리 로드 오류가 났다. 이는 ABI 불일치이며 앱 결함으로 판정하지 않았다.</p></details>
+<details><summary>남은 검증과 증거</summary><p>ARM 실기기의 최신 main에서 실제 사진 선택·OCR, 최대 글꼴, TalkBack, PolaScope 시스템 앱 이름을 확인해야 한다. 화면 증거와 상세 절차는 <a href="android-native-photo-261001/README.md">QA 기록</a>에 있다.</p></details>
+</main>
+<footer>운영 데이터·설정 변경 없음. 이 보고는 플랫폼 경로의 관찰 범위만 기술한다.</footer>
+</body>
+</html>
