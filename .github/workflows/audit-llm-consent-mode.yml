@@ -72,14 +72,25 @@ jobs:
             process.stderr.write(`::error title=Consent audit::${reason}\n`);
             process.exit(1);
           };
-          let catalog;
+          let raw;
           try {
-            const raw = execFileSync("supabase", [
+            raw = execFileSync("supabase", [
               "secrets", "list", "--project-ref", process.env.PROJECT_REF, "--output", "json",
             ], { encoding: "utf8", maxBuffer: 4 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+          } catch (error) {
+            const stderr = String(error?.stderr ?? "");
+            const category = error?.code === "ENOENT" ? "cli-not-found"
+              : /401|unauthori[sz]ed|invalid.*token/i.test(stderr) ? "authentication-rejected"
+              : /403|forbidden|permission/i.test(stderr) ? "access-forbidden"
+              : Number.isInteger(error?.status) ? `cli-exit-${error.status}`
+              : "cli-execution-failed";
+            fail(`secret-catalog-query-failed-${category}`);
+          }
+          let catalog;
+          try {
             catalog = JSON.parse(raw);
           } catch {
-            fail("secret-catalog-query-or-json-failed");
+            fail("secret-catalog-json-invalid");
           }
           if (!Array.isArray(catalog)) fail("secret-catalog-array-required");
           const digest = (value) => createHash("sha256").update(value).digest("hex");
