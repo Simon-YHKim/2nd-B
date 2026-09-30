@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import type { Href } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 
 import { SecondbStatusHeader } from "@/components/deepspace";

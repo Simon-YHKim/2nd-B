@@ -3,7 +3,8 @@
 // the server turns it into text, and only text the user explicitly approves is
 // saved as a call_reflection record. The original file remains the user's file.
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 

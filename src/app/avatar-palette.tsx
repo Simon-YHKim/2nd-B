@@ -5,12 +5,12 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   View,
   useWindowDimensions,
   type GestureResponderEvent,
 } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { Redirect, router, useFocusEffect, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { useTranslation } from "react-i18next";

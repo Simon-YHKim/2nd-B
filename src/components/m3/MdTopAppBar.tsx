@@ -7,7 +7,8 @@
 // touch surface with an android_ripple state layer.
 import { useCallback, type ReactNode } from "react";
 import { useFocusEffect } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 
 import { m3 } from "@/lib/theme/m3";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, AppState, PanResponder, Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { Animated, AppState, PanResponder, Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import Svg, { Rect } from 'react-native-svg';

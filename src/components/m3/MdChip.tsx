@@ -8,7 +8,8 @@
 // the inner Pressable only handles the hit + a11y. Do not move the container
 // styles back onto the Pressable.
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, type StyleProp, Text, View, type ViewStyle } from "react-native";
+import { Pressable, StyleSheet, type StyleProp, View, type ViewStyle } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 
 import { m3 } from "@/lib/theme/m3";

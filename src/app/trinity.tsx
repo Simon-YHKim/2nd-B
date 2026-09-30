@@ -12,7 +12,8 @@
 // `건강`, `앱`, `뇌`, `재정` and the trinity classifier normalizes.
 
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View, ActivityIndicator, Pressable, Text as RNText } from "react-native";
+import { ScrollView, StyleSheet, View, ActivityIndicator, Pressable } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { Link, Redirect, router } from "expo-router";
 

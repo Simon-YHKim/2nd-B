@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { Platform, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, StyleSheet, TextInput, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { Redirect, router } from "expo-router";
 import Svg, { Rect } from "react-native-svg";
 import {
