@@ -415,6 +415,48 @@ describe("requestAccountDeletion (terminal erasure)", () => {
     await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
     expect(clientMock.__invoke).toHaveBeenCalledTimes(1);
   });
+
+  // 2026-09-30: delete-account also sweeps record-photos (0209) after the raw
+  // clippings. An unfinished photo sweep says so with record_photos_erased:false
+  // while raw clippings are already done; it is the same retryable progress.
+  test("retries an unfinished photo sweep and credits only the raw-clipping count", async () => {
+    clientMock.__invoke
+      .mockResolvedValueOnce({
+        data: null,
+        error: conflict({
+          error: "deletion_cleanup_in_progress", deletion_fenced: true,
+          raw_clippings_erased: true, raw_clippings_removed: 2,
+          record_photos_erased: false, record_photos_removed: 1000,
+        }),
+      })
+      .mockResolvedValueOnce({
+        data: {
+          deleted: true, profile_erased: true, deletion_fenced: true,
+          raw_clippings_erased: true, raw_clippings_empty_at_check: true, raw_clippings_removed: 0,
+          record_photos_erased: true, record_photos_empty_at_check: true, record_photos_removed: 5,
+        },
+        error: null,
+      });
+
+    const receipt = await requestAccountDeletion(EXPECTED);
+    expect(clientMock.__invoke).toHaveBeenCalledTimes(2);
+    expect(receipt.complete).toBe(true);
+    expect(receipt.rawClippingsRemoved).toBe(2);
+  });
+
+  test("does not retry a 409 whose photo sweep is reported finished", async () => {
+    clientMock.__invoke.mockResolvedValueOnce({
+      data: null,
+      error: conflict({
+        error: "deletion_cleanup_in_progress", deletion_fenced: true,
+        raw_clippings_erased: true, raw_clippings_removed: 0,
+        record_photos_erased: true, record_photos_removed: 0,
+      }),
+    });
+
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
+    expect(clientMock.__invoke).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("account deletion UI routing", () => {

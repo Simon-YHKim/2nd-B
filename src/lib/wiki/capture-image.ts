@@ -99,8 +99,8 @@ export const IMAGE_TEMP_OPERATION_TIMEOUT_MS = 5_000;
 export const ATTACHMENT_IMAGE_DOWNSCALE_DIMENSIONS = [1600, 1280, 1024] as const;
 export const ATTACHMENT_IMAGE_DOWNSCALE_COMPRESS = 0.7;
 /**
- * About 1 MB of JPEG, kept under the 1 MiB object limit the photo bucket is
- * planned with (record-photos.ts): 1_360_000 base64 chars = 1_020_000 bytes.
+ * About 1 MB of JPEG (1_360_000 base64 chars = 1_020_000 bytes), well under the
+ * record-photos bucket's 2 MiB object limit (db/migrations/0209).
  */
 export const MAX_ATTACHMENT_IMAGE_BASE64_BYTES = 1_360_000;
 export const IMAGE_ATTACHMENT_PREPARE_FAILED_ERROR = "image_attachment_prepare_failed";

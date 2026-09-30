@@ -286,13 +286,13 @@ async function readCleanupProgress(error: unknown): Promise<number | null> {
     const body = await readable.json() as {
       error?: unknown;
       deletion_fenced?: unknown;
-      raw_clippings_erased?: unknown;
+      raw_clippings_erased?: unknown; record_photos_erased?: unknown;
       raw_clippings_removed?: unknown;
     } | null;
     if (
       body?.error !== "deletion_cleanup_in_progress"
       || body.deletion_fenced !== true
-      || body.raw_clippings_erased !== false
+      || (body.raw_clippings_erased !== false && body.record_photos_erased !== false)
     ) return null;
     return readRemovedCount(body.raw_clippings_removed);
   } catch {

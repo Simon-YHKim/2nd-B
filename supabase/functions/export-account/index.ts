@@ -648,6 +648,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const storage = await readOwnedStorage(admin, userId, budget);
+    const recordPhotos = await readOwnedRecordPhotos(admin, userId, budget);
 
     // Detect an account deletion that committed while the export was being read.
     const finalAccountCheck = await admin.from('users')
@@ -665,6 +666,7 @@ Deno.serve(async (req: Request) => {
       user_id: userId,
       tables,
       storage,
+      record_photos: recordPhotos,
       excluded: EXCLUDED,
       errors: {},
     }, 200, MAX_EXPORT_RESPONSE_BYTES, {
@@ -682,3 +684,109 @@ Deno.serve(async (req: Request) => {
     clearTimeout(deadline);
   }
 });
+
+// ---------------------------------------------------------------------------
+// record-photos (0209): the photos a 글 note carries. Appended after the
+// handler on purpose, so the line citations of everything above
+// (docs/legal/DPIA-2ndB-minors-draft.md) do not move. Function declarations
+// are hoisted, and these constants are initialised when the module loads,
+// before any request is served.
+//
+// A photo is binary and about 1 MB, so it is exported as a short-lived signed
+// URL, not inline bytes: inlining would exhaust MAX_EXPORT_CONTENT_BYTES after
+// about twenty photos and fail the whole export. Each entry still costs one row
+// and its JSON size against the same budget; the bytes never pass through here.
+// The link is valid for RECORD_PHOTO_URL_TTL_SECONDS; a later export (the
+// claim_account_export cooldown is minutes) issues fresh ones.
+// ---------------------------------------------------------------------------
+
+const RECORD_PHOTO_BUCKET = 'record-photos';
+const RECORD_PHOTO_PAGE_SIZE = 100;
+const MAX_RECORD_PHOTO_OBJECTS = 5_000;
+const RECORD_PHOTO_URL_TTL_SECONDS = 24 * 60 * 60;
+
+interface RecordPhotoExportEntry {
+  path: string;
+  content_type: 'image/jpeg';
+  size: number;
+  url: string;
+  url_expires_at: string;
+}
+
+async function readOwnedRecordPhotos(
+  admin: AdminClient,
+  userId: string,
+  budget: ExportBudget,
+): Promise<RecordPhotoExportEntry[]> {
+  const entries: RecordPhotoExportEntry[] = [];
+  const initialRows = budget.rows;
+  const initialBytes = budget.bytes;
+  const bucket = admin.storage.from(RECORD_PHOTO_BUCKET);
+
+  try {
+    const listed: { name: string; size: number }[] = [];
+    for (let offset = 0; ; offset += RECORD_PHOTO_PAGE_SIZE) {
+      const { data, error } = await bucket.list(userId, {
+        limit: RECORD_PHOTO_PAGE_SIZE,
+        offset,
+        sortBy: { column: 'name', order: 'asc' },
+      });
+      if (error || !Array.isArray(data) || data.length > RECORD_PHOTO_PAGE_SIZE) {
+        throw new ExportSourceError();
+      }
+      if (data.length === 0) break;
+      if (listed.length + data.length > MAX_RECORD_PHOTO_OBJECTS) {
+        throw new ExportLimitError('export_storage_object_limit_exceeded');
+      }
+      for (const object of data) {
+        if (typeof object?.name !== 'string' || !SAFE_STORAGE_NAME.test(object.name)) {
+          throw new ExportSourceError();
+        }
+        const size = object.metadata?.size;
+        if (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 0) {
+          throw new ExportLimitError('export_storage_size_unavailable');
+        }
+        listed.push({ name: object.name, size });
+      }
+      if (data.length < RECORD_PHOTO_PAGE_SIZE) break;
+    }
+
+    const expiresAt = new Date(Date.now() + RECORD_PHOTO_URL_TTL_SECONDS * 1000).toISOString();
+    for (let start = 0; start < listed.length; start += RECORD_PHOTO_PAGE_SIZE) {
+      const batch = listed.slice(start, start + RECORD_PHOTO_PAGE_SIZE);
+      const paths = batch.map((object) => `${userId}/${object.name}`);
+      const { data, error } = await bucket.createSignedUrls(paths, RECORD_PHOTO_URL_TTL_SECONDS);
+      if (error || !Array.isArray(data) || data.length !== paths.length) {
+        throw new ExportSourceError();
+      }
+      const signedByPath = new Map<string, string>();
+      for (const signed of data) {
+        if (
+          !signed || signed.error || typeof signed.path !== 'string' ||
+          typeof signed.signedUrl !== 'string' || !signed.signedUrl
+        ) {
+          throw new ExportSourceError();
+        }
+        signedByPath.set(signed.path, signed.signedUrl);
+      }
+      batch.forEach((object, index) => {
+        const url = signedByPath.get(paths[index]);
+        if (!url) throw new ExportSourceError();
+        const entry: RecordPhotoExportEntry = {
+          path: paths[index],
+          content_type: 'image/jpeg',
+          size: object.size,
+          url,
+          url_expires_at: expiresAt,
+        };
+        reserveExportValue(budget, entry);
+        entries.push(entry);
+      });
+    }
+    return entries;
+  } catch (error) {
+    budget.rows = initialRows;
+    budget.bytes = initialBytes;
+    throw error;
+  }
+}
