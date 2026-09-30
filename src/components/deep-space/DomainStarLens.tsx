@@ -13,7 +13,8 @@
  * - there are no animated SVG filters, gradients, or large off-screen canvases.
  */
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { router } from "expo-router";
 import Svg, { G, Rect, Text as SvgText } from "react-native-svg";
 import { useTranslation } from "react-i18next";

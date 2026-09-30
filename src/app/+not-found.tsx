@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
-import { BackHandler, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { BackHandler, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";

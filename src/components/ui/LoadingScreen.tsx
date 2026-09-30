@@ -11,11 +11,11 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
   useWindowDimensions,
   View,
   type ViewStyle,
 } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { Rect, Svg } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 

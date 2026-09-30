@@ -1,7 +1,8 @@
 // The signed-in user's approved 64-cell avatar. Catalog PNGs are choice
 // previews; the saved combination is always rendered from its specification.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BackHandler, FlatList, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { BackHandler, FlatList, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { Image } from "expo-image";
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";

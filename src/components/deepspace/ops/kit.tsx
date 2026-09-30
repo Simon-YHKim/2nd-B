@@ -10,9 +10,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text as RNText,
   View,
 } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { router } from "expo-router";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";

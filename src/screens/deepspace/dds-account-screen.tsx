@@ -5,9 +5,9 @@ import {
   ScrollView,
   Share,
   StyleSheet,
-  Text as RNText,
   View,
 } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 

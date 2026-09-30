@@ -6,7 +6,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { keepAllKo } from "@/lib/i18n/keep-all";

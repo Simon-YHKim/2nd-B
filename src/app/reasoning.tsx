@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, FlatList, Pressable, StyleSheet, Text as RNText, View } from "react-native";
+import { Animated, FlatList, Pressable, StyleSheet, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";

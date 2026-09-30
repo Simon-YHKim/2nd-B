@@ -71,6 +71,19 @@ html[data-font="readable"] button, html[data-font="readable"] input,
 html[data-font="readable"] textarea, html[data-font="readable"] select {
   font-family: "Pretendard", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
+/* Line breaking (Simon QA 2026-09-30). Korean wraps at spaces (between
+   eojeol), never between the syllables of one word; the browser default
+   treats Hangul like ideographs and split the refund-policy link label on
+   the sign-in screen one syllable before its last word. word-break is
+   inherited, so one rule on <html> reaches every Text, input and raw DOM
+   node. It changes nothing for Latin scripts, and RN Web Text keeps
+   overflow-wrap: break-word, so a word wider than its box still wraps
+   instead of overflowing. The string literal stays ASCII on purpose
+   (korean-in-code.test.ts). Native gets the same rule from
+   components/ui/PlainText. */
+html {
+  word-break: keep-all;
+}
 `;
 
 export default function Root({ children }: PropsWithChildren) {
