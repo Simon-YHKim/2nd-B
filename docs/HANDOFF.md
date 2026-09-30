@@ -11,7 +11,7 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-09-25 ~ 2026-09-26 | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 11 | 27KB |
+| 2026-09-25 ~ 2026-09-26 | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 15 | 33KB |
 | 2026-09-08 ~ 2026-09-21 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 16 | 94KB |
 | 2026-09-01 ~ 2026-09-08 (+09-13 인계 1) | [handoff/HANDOFF-2026-09.md](handoff/HANDOFF-2026-09.md) | 18 | 92KB |
 | 2026-08-25 ~ 2026-08-30 | [handoff/HANDOFF-2026-08-p4.md](handoff/HANDOFF-2026-08-p4.md) | 11 | 89KB |
@@ -29,7 +29,34 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-09-30 16:14 / Polaris 서버 선행 적용 · 동의 모드 후속 검증
+## Latest — 2026-09-30 17:5x / 한국어 줄바꿈을 어절 단위로(#1933) · QA APK `qa-260930-4ee03669` · 8081 재기동
+
+> 발행: CLI 코딩 세션(Claude Code, 작업 워크트리 `.worktrees/qa-linebreak`, session_01CYhHkCyCfp3J4x36dz1mdw). Simon 과 localhost QA 를 시작한 첫 건이다.
+
+- **요청.** Simon(localhost QA): 로그인 화면 법무 링크가 "환불 및 청약철회 정 / 책" → "각 언어별 줄바꿈 규칙을 확인하고, 합리적으로 개선하자."
+- **측정.** 8081(폰 APK `f17ce1b3` 와 같은 빌드)을 헤드리스 크롬 393px 로 열어 글자 위치로 줄이 바뀐 자리를 분류했다.
+  - 로그아웃 9화면: 한국어 단어 중간 끊김 285, 가운뎃점 줄머리 13(ko 11 · en 2).
+  - en · es · pt · id: 긴 URL 1건뿐이다(맞는 동작).
+  - 로그인 후: 앱 화면 24곳 약 98건(추정), 영어 화면에 보이는 한국어 기록 34건.
+- **#1933 머지** `4ee03669`(17:02 KST)
+  - 웹: `+html.tsx` 에 `word-break: keep-all`.
+  - 앱: `components/ui/PlainText`(keepAllKo = U+2060). `<Text variant>` 와, RN `Text` 를 직접 쓰던 64개 파일이 이것을 거친다.
+  - keepAllKo 는 멱등이고 그래핌을 쪼개지 않는다. klreq 7.1.2 가운뎃점 줄머리 금지는 웹 · 앱 공통이다. `plain-text-guard.test.ts` 가 재발을 막는다.
+  - 수정 후 전부 0건. verify 848 묶음 / 10,966 테스트 · CI 3종 초록.
+- **폰.** QA APK [`qa-260930-4ee03669`](https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260930-4ee03669)(arm64, sha256 `b54665a3…fbf4b9`).
+  - 같은 커밋의 x86_64 진단 빌드(런 36687352385)를 `Pixel_9_Pro_XL` 에뮬에 올렸다(`install -r`, 데이터 유지). 한국어 · 글자 1.3배로 로그인 화면과 처리방침을 봤다. 정상 실행이고 띄어쓰기에서만 줄이 바뀐다.
+  - 에뮬의 font_scale · 앱 로케일은 원래대로 돌리고 종료했다.
+- **8081.** 17:01 에 오류 없이 멈춰 있었다(원인 미상. 이전 로그는 `.git/app-parity/localhost-8081-until-260930-1701.log`). localhost-main 을 `ace0b2e1`(앱 경로 차이 0)로 옮겨 다시 띄웠다. `app:parity` 결과 같음.
+  - ⚠ WMI(`Win32_Process Create`)로 띄우면 Expo 가 "Logs for your project will appear below." 직후 스스로 끝났다(stdin 이 닫혀서로 추정). `Start-Process cmd.exe -WindowStyle Hidden` 으로 띄우면 산다.
+- **남긴 것.**
+  - 뮤지엄 "Backpropagati / on"(영어 단어가 카드보다 김): 하이픈은 웹 · Android 만 가능해서 넣으면 앱과 localhost 가 달라진다. 그대로 두기를 권한다(Simon 판단).
+  - 홈 별 이름 `Animated.Text` 4곳은 폭 측정 로직이 따로 있어 적용하지 않았다.
+  - 보고서: [qa/LINEBREAK-QA-260930.html](qa/LINEBREAK-QA-260930.html).
+- **다음 1개.** Simon 폰에 `qa-260930-4ee03669` 를 설치하고 localhost QA 를 이어 간다.
+
+---
+
+## 2026-09-30 16:14 / Polaris 서버 선행 적용 · 동의 모드 후속 검증
 
 - Simon의 09-27 운영 GO(`simon-go-attested-prod-mig-remaining-edge-redeploy.md`)와 콘솔 claim `PROD-POLARIS-OPENAI-260930`에 따라 운영 `zoacryukmdeivmolvyhj`에 **0195**(`20260930070200`)와 **0198**(`20260930070253`)을 main의 정확한 SQL로 적용했다. 원장 183→185행. Polaris 설정은 `enabled=false`, 생성 행 0이다. 0195의 claim/settle은 service_role 전용이고 기록 삭제 트리거 2개가 활성이다. 0198 등록부는 67→71행이며 기존 67행 지문은 유지됐다.
 - 적용 전 [암호화 백업 run 36588721188](https://github.com/Simon-YHKim/2nd-B/actions/runs/36588721188) 성공(artifact `db-backup-36588721188`, SHA-256 `6c7476df…c6e9d`). OpenAI 스키마 가드의 22개 객체가 모두 통과한 뒤 [배포 run 36681787965](https://github.com/Simon-YHKim/2nd-B/actions/runs/36681787965)로 `openai-proxy` v138→v139를 배포했다. JWT 검증이 켜져 있고 배포된 7개 파일이 main과 정확히 같다. QA 인증으로 잘못된 JSON은 400, 빈 본문 객체는 400이었다. 제공자 호출·과금 canary는 실행하지 않았다.
@@ -581,29 +608,3 @@ npm run verify
 - 최신 운영 상태가 아래 14:57·14:36·14:15 블록의 플래그 미확인/서버 OFF 가능성보다 우선한다. 콘솔 소유자는 Reward alias와 남은 번호 SQL의 실제 원장·백업 복원·격리 리허설을 확인한다. Grok 후속 전달은 사용자 보류를 유지한다.
 - 인증된 읽기 전용 재조회: 운영 원장 152행이고 마지막 네 행은 `reward_ssv_tickets`, `reward_ssv_hardening`, 중복 0172 두 행 그대로다. Git SQL과 공백 제외 본문 MD5는 세 파일 모두 일치하고, 0196은 원문 MD5도 일치한다. Reward 신규 RPC 4개는 `service_role`만 실행 가능하고 확인한 구 RPC 3개는 공개 역할·`service_role` 모두 실행 불가. 티켓 발급·소비 0건, Paddle 이벤트 4건 중 adjustment·legacy consequence 0건, self-service 청구 0건. Edge v91의 수정 시각은 여전히 12:23:51이고, 가입·동의·삭제·Polaris 신규 객체와 개발 브랜치는 없다. [SQL 원문·운영 대조](qa/SERVER-PROMOTION-260926.md).
 - Draft PR #1865 최종 head `67e9cab0`의 원격 lint·SQL·verify·web export **4/4 PASS**를 다시 확인했다. [일일 암호화 백업](https://github.com/Simon-YHKim/2nd-B/actions/runs/36193185108)은 09-26 성공했고 아티팩트가 남아 있다. Orca 콘솔 작업은 Backup·ModelRefreshReadOnly 환경을 main 전용 정책으로 고쳤다([자격증명 경계](GITHUB-ACTIONS-CREDENTIAL-BOUNDARIES.md)). 이번 백업의 격리 복원·나머지 SQL의 실데이터 리허설·Reward 서명 카나리아는 미완료다. 이 조회는 운영 쓰기를 하지 않았다.
-
-## 2026-09-26 14:57 / 서버 SQL 8개 번호 승격 · PR 원격 4/4 PASS
-
-- Draft PR [#1865](https://github.com/Simon-YHKim/2nd-B/pull/1865)의 head `7217d4d5`에 초안 원문 Git blob과 같은 0191–0198 번호 SQL을 push했다. 정본 삭제 등록부 +4행/forward additions, 0189 rollback의 registry-only 원장 재생, SQL CI 중복 실행 방지를 함께 반영했다. [번호·해시·운영 alias 대응표](qa/SERVER-PROMOTION-260926.md) · [HTML 잔여 작업](qa/REMAINING-WORK-260926.html). 기존 고정 인계 manifest는 바꾸지 않았다.
-- 로컬 `npm run verify -- --runInBand` **818 suites / 10,684 Jest tests**, UI 76 PASS, lint 오류 0·기존 경고 71. 원격 [SQL](https://github.com/Simon-YHKim/2nd-B/actions/runs/36222133872)은 181개 번호 SQL의 fresh 적용, 등록부 70행·8개 원장 행, 0189 롤백/CLI 재적용, Reward·Paddle 회귀를 포함해 PASS. [CI verify·web export](https://github.com/Simon-YHKim/2nd-B/actions/runs/36222133905)와 PR 제목 검사도 PASS. 이 문서 후속 커밋의 원격 검사는 별도로 확인한다.
-- **운영 추가 적용·공개는 NO-GO.** 운영에 이미 `reward_ssv_tickets`·`reward_ssv_hardening` alias가 있고 0172는 두 번 기록됐다. 두 번째 0172 뒤 13개 함수 본문·ACL 지문은 설계 기대값과 일치했지만 중복 원인과 최신 Edge/flag·콜백은 미확인이다. Reward SQL 재적용·운영 일괄 `db push` 금지. 복구 가능한 백업의 격리 복원, 실제 원장 alias 화해, 나머지 번호 SQL의 실데이터 리허설은 콘솔 소유자가 완료해야 한다. 유료 개발 브랜치는 사용자 결정대로 만들지 않았다. Grok 후속 전달도 사용자 결정대로 보류한다.
-
-## 2026-09-26 14:49 / 보상 서버가 켜졌다 (Simon GO) · 봇 협업 규칙을 스킬에 넣었다
-
-- 아래 14:06 블록의 "보상 서버는 여전히 꺼져 있다"는 **14:19 부터 틀렸다.** Simon GO 로 `REWARD_SSV_ENABLED=1`(Clavius). 인증 없는 POST 가 401 이라 켜진 것이 확인되고, 14:29 까지 실사용 호출은 0 이다.
-- 0172 는 원장에 **두 줄**(`050258` 코딩 LLM · `050638` Hadrianus)이다. 같은 GO 가 두 경로로 와서 생겼다. 바이트가 같다. 재적용·원장 정리 금지.
-- Edge `rewarded-ssv` 목록 번호는 91 이지만 `updated_at` 은 12:23:51 그대로다(#1865 판). 재배포는 없었다.
-- 다음: 카나리아 주체(QA 빌드·테스트 계정) 미정 · 광고 ON 별도 GO · #1865 머지 전 `rewarded-ssv` 디스패치 금지.
-- 봇 협업 규칙은 SimonK-stack #50(`c4d5c95a`) `vibe-bot/references/relay-handshake.md`. **증명된 Simon GO(`simon-go-attested-*`)는 되묻지 않는다.** 이 파일은 98KB 라 다음 블록 전에 가장 오래된 블록을 `handoff/HANDOFF-2026-09-p2.md` 로 옮길 것.
-## 2026-09-26 14:36 / PowerShell 복구 후 SQL 번호 승격 작업 중
-
-- Codex 다운그레이드 뒤 PowerShell 실행 문제가 해소됐다는 사용자 안내를 반영했다. 통합 워크트리 `fix/qa-harness-integrated-260925`에서 원문 바이트 그대로 초안 8개를 후보 `0191`~`0198` 번호 SQL로 복사했고, 삭제 등록부 네 행·`forwardAdditions`와 0189 롤백 재생 목록을 연결했다. **아직 검증·push 완료나 번호 예약을 선언하지 않는다.** [승격·운영 원장 대응표](qa/SERVER-PROMOTION-260926.md).
-- 인증된 읽기 전용 재조회에서는 두 번째 0172 적용 뒤 보상 함수 본문·ACL 지문이 설계 순서의 기대값과 **13/13 일치**했다. 이는 0172 중복 원장의 원인이나 현행 플래그·콜백 성공을 증명하지 않는다. `rewarded-ssv` Edge는 약 14:28 조회에서 v91이었다. 아래 v89 기록은 당시 스냅샷이다.
-- 운영의 0177·hardening은 번호 없는 timestamp/name 원장으로 이미 적용됐고 0172는 두 번 기록됐다. 승격된 번호 SQL을 이유로 Reward를 재적용하거나 운영에서 일괄 `db push` 하지 말 것. 콘솔 소유자의 원장 alias·백업/복원·격리 리허설, 최신 Edge/flag 확인 전 공개 가드는 유지한다. Grok 후속 전달은 사용자 결정대로 보류다.
-
-## 2026-09-26 14:15 / 0172 중복 원장 발견 · Reward 재적용 금지
-
-- 코딩 세션의 인증된 Supabase **읽기 전용** 조회에서 `0172_reward_authorization_hardening` 원장 행이 `20260926050258`와 `20260926050638` 두 개 확인됐다. 각 SQL은 9639/9640바이트이고 공백 제외 MD5는 동일하다. 두 번째 적용 뒤 함수 지문과 플래그·실제 기능은 재검증하지 않았다.
-- Edge 함수 목록의 `rewarded-ssv`는 v89로, 아래 13:51 기록의 v88보다 최신이다. 현재 활성화 상태를 이 조회만으로 판정하지 않는다.
-- **콘솔 담당 확인 전 0172·0177·hardening 재적용과 Reward 활성화·카나리아는 보류한다.** 중복 원장 원인, 두 번째 적용 뒤 13개 함수 지문·ACL, v89 소스와 서버 플래그를 대조한다. [PR #1865 잔여 작업](qa/REMAINING-WORK-260926.html). 이 코딩 세션은 운영 쓰기·Grok 후속 발송을 하지 않았다.
-
