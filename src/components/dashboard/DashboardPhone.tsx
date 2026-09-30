@@ -17,6 +17,7 @@ import { DEFAULT_REFRESH_SETTINGS, getRefreshSettings, nextRefreshAt, shouldRefr
 import { fitPhoneArtwork } from "@/lib/dashboard/phone-frame";
 import { PixelScrim } from "@/components/pixel/PixelDither";
 import { PHONE_APP_ICONS, PHONE_NAV_ICONS, PHONE_UI_ART, type PhoneAppId } from "./phone-app-assets";
+import { PhoneGlare } from "./PhoneGlare";
 import { canBeginPhoneDismiss, shouldCompletePhoneDismiss } from "@/lib/dashboard/phone-dismiss";
 import rules from "@/lib/dashboard/dashboard-rules.json";
 import { recentRecordTrend, selectDashboardPriority, upcomingRoutineDays } from "@/lib/dashboard/summary";
@@ -476,6 +477,9 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         onPress={closePhone}
         style={[styles.homeButton, frame.homeButton]}
       />
+      {/* Taking the phone out of the night sky dazzles for a moment (Simon
+          2026-09-30). Last child so it paints on top; it takes no touch. */}
+      <PhoneGlare fromHomeSky={overlay === "home"} reducedMotion={reducedMotion} screen={frame.screen} width={frameSize.width} height={frameSize.height} />
       </> : null}
     </Animated.View>
   </DeepSpaceScreen>;
