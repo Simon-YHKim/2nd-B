@@ -820,7 +820,7 @@ describe("current auth v2 and PIXEL-CLAY recovery wiring", () => {
       allProtected: /보호된 (?:앱 )?데이터[^.?]*모두 삭제/,
       stillReadable: /아직 읽을 수 있는 것까지/,
       thisDevice: /이 기기/,
-      serverKept: /서버에 있는 계정과 데이터는 (?:삭제되지 않아요|그대로 남아요)/,
+      serverKept: /서버에 있는 계정과 데이터는 (?:삭제되지 않습니다|그대로 남습니다)/,
       irreversible: /되돌릴 수 없/,
       draftsLost: /초안은 사라지/,
       signInAgain: /다시 로그인해야/,
