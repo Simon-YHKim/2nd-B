@@ -9,7 +9,7 @@ import type { HotlineId } from "@/lib/safety/lexicon";
 import { createRecord } from "../records/create";
 import { importPendingCaptures } from "./import-pending";
 
-// Once per authenticated session, drain any pre-account captures (D-17 / D-25
+// Once per authenticated session, import any pre-account captures (D-17 / D-25
 // Phase 2) into the account as note records (kind "note" + withFollowup false =
 // no AI call). Best-effort: a failure leaves the items in the device-local queue
 // for next time, and a session with no pending captures does no work (the import

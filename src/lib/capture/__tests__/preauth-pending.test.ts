@@ -7,7 +7,6 @@ import {
   normalizePendingList,
   addPendingCapture,
   loadPendingCaptures,
-  drainPendingCaptures,
   clearPendingCaptures,
   countPendingCaptures,
   PREAUTH_PENDING_CAP,
@@ -182,20 +181,18 @@ describe("normalizePendingList", () => {
   });
 });
 
-describe("storage round-trip (add / load / drain)", () => {
+describe("storage round-trip (add / load)", () => {
   beforeEach(async () => {
     await clearPendingCaptures();
   });
 
-  test("persists a capture, loads it back, then drains to empty", async () => {
+  test("persists a capture and loads it back", async () => {
     if (typeof localStorage === "undefined") return; // node env without storage: skip
     const r = await addPendingCapture("first line", "2026-06-21T01:00:00.000Z");
     expect(r.ok).toBe(true);
     const loaded = await loadPendingCaptures();
     expect(loaded.map((i) => i.text)).toEqual(["first line"]);
-    const drained = await drainPendingCaptures();
-    expect(drained).toHaveLength(1);
-    expect(await countPendingCaptures()).toBe(0);
+    expect(await countPendingCaptures()).toBe(1);
   });
 });
 
@@ -237,19 +234,73 @@ describe("native encrypted pending storage", () => {
     });
   });
 
-  test("does not acknowledge a drain when encrypted deletion fails", async () => {
+  test("concurrent additions keep both captures", async () => {
     await withMockNativeStorage(async () => {
-      mockNativeBacking.set(
-        "capture.preauthPending.v1",
-        JSON.stringify([item(1)]),
-      );
-      const failure = new Error("secure_storage_write_failed");
-      mockEncryptedStorage.removeItem.mockRejectedValueOnce(failure);
-
-      await expect(drainPendingCaptures()).rejects.toBe(failure);
-      expect(mockNativeBacking.has("capture.preauthPending.v1")).toBe(true);
+      const results = await Promise.all([
+        addPendingCapture("first", "2026-09-06T00:00:00.000Z"),
+        addPendingCapture("second", "2026-09-06T00:00:01.000Z"),
+      ]);
+      expect(results.every((result) => result.ok)).toBe(true);
+      expect((await loadPendingCaptures()).map((capture) => capture.text)).toEqual(["first", "second"]);
     });
   });
+
+  test("a failed encrypted write never reports a saved capture", async () => {
+    await withMockNativeStorage(async () => {
+      const failure = new Error("secure_storage_write_failed");
+      mockEncryptedStorage.setItem.mockRejectedValueOnce(failure);
+      await expect(addPendingCapture("first")).rejects.toBe(failure);
+      expect(await loadPendingCaptures()).toEqual([]);
+      await expect(addPendingCapture("second")).resolves.toMatchObject({ ok: true });
+      expect((await loadPendingCaptures()).map((capture) => capture.text)).toEqual(["second"]);
+    });
+  });
+});
+
+test("a web storage quota failure never reports a saved capture", async () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: () => null,
+      setItem: () => { throw new Error("quota_exceeded"); },
+    },
+  });
+  try {
+    await expect(addPendingCapture("first")).rejects.toThrow("quota_exceeded");
+  } finally {
+    if (original) Object.defineProperty(globalThis, "localStorage", original);
+    else Reflect.deleteProperty(globalThis, "localStorage");
+  }
+});
+
+test("a web storage read failure cannot overwrite an existing queue", async () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  const setItem = jest.fn();
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: () => { throw new Error("storage_read_failed"); },
+      setItem,
+    },
+  });
+  try {
+    await expect(addPendingCapture("new")).rejects.toThrow("storage_read_failed");
+    expect(setItem).not.toHaveBeenCalled();
+  } finally {
+    if (original) Object.defineProperty(globalThis, "localStorage", original);
+    else Reflect.deleteProperty(globalThis, "localStorage");
+  }
+});
+
+test("unavailable storage never reports a saved capture", async () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Reflect.deleteProperty(globalThis, "localStorage");
+  try {
+    await expect(addPendingCapture("first")).rejects.toThrow("pending_storage_unavailable");
+  } finally {
+    if (original) Object.defineProperty(globalThis, "localStorage", original);
+  }
 });
 
 // ── 홈 라우트가 이 배수구를 붙들고 있는가 ───────────────────────────────
