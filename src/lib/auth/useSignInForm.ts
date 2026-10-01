@@ -10,12 +10,13 @@
 // provider set (same signInWithProvider path as google).
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BackHandler } from "react-native";
+import { BackHandler, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
 import { AuthLockWaitTimeoutError } from "@/lib/auth/session-mutation";
+import { createSignInProgress } from "@/lib/auth/sign-in-progress";
 import { observeAuthConversion } from "@/lib/analytics/auth-conversions";
 import {
   isNaverEnabled,
@@ -172,9 +173,18 @@ export function useSignInForm(): UseSignInForm {
 
   const handleSubmit = useCallback(async () => {
     setSubmitting(true);
+    const progress = Platform.OS === "web"
+      ? createSignInProgress((stage, elapsedMs) => {
+          if (typeof console !== "undefined") {
+            console.warn(`[auth] sign-in pending: ${stage} (${elapsedMs}ms)`);
+          }
+        })
+      : null;
     try {
-      const result = await signInWithEmail(email.trim(), password);
+      const result = await signInWithEmail(email.trim(), password, progress?.mark);
+      progress?.mark("session-refresh");
       await refresh();
+      progress?.mark("route");
       void observeAuthConversion(result.userId, "login", "email");
       // AuthContext picks up the new session; IntroGate plays the cell
       // LoadingScreen and then mounts the Stack. Route to /index so the
@@ -190,6 +200,7 @@ export function useSignInForm(): UseSignInForm {
       });
       if (typeof console !== "undefined") console.warn("[auth] signIn error", (e as Error).message);
     } finally {
+      progress?.finish();
       setSubmitting(false);
     }
   }, [email, password, refresh, t]);
