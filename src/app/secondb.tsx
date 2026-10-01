@@ -17,7 +17,7 @@ import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayou
 import { AccessibilityInfo, Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";
-import { Redirect, router, useLocalSearchParams, usePathname } from "expo-router";
+import { Redirect, usePathname } from "expo-router";
 import {
   useAudioRecorder,
   RecordingPresets,
@@ -38,6 +38,7 @@ import { canShowRewardedAds } from "@/lib/ads/policy";
 import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   beginAccountSessionLease,
@@ -542,6 +543,9 @@ export default function SecondBChat() {
 }
 
 function SecondBChatBody({ variant }: { variant: ChatVariant }) {
+  // Phone-aware: inside the dashboard phone, links open in the phone and the
+  // query (?fromNode= / ?mode= / ?panel=) comes from the phone route.
+  const router = useAppRouter();
   const isDeepSpace = variant === "deep-space";
   const { t, i18n } = useTranslation("secondb");
   const { t: consentT } = useTranslation("consent");
@@ -560,7 +564,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // nodeContext entry (chat pack §3/§7): a graph node passed its label.
   // character (2026-05-31): tapping a village companion opens chat in that
   // character's voice (src/lib/chat/personas.ts).
-  const params = useLocalSearchParams<{ fromNode?: string; character?: string; mode?: string; panel?: string }>();
+  const params = useScreenParams<{ fromNode?: string; character?: string; mode?: string; panel?: string }>();
   const fromNode = typeof params.fromNode === "string" && params.fromNode.length > 0 ? params.fromNode : null;
   const characterParam = typeof params.character === "string" && params.character.length > 0 ? params.character : null;
   const persona = useMemo(() => getPersona(characterParam), [characterParam]);

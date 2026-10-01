@@ -20,7 +20,6 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Animated, PanResponder, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
-import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { MdButtonTintProvider, type MdButtonTint } from "@/components/m3";
@@ -28,6 +27,7 @@ import { PixelScrim } from "@/components/pixel/PixelDither";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { cardDismissDirection, shouldCompleteCardDismiss, type CardEdges } from "@/lib/polaris/card-dismiss";
+import { useAppRouter, usePhoneEmbed } from "@/lib/nav/phone-embed";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { m3 } from "@/lib/theme/m3";
 import { PaletteOverride, type Palette } from "@/lib/theme/ThemeContext";
@@ -79,6 +79,10 @@ export function PolarisCardOverlay({ children }: { children: ReactNode }) {
   // setting flips; subscribing here re-renders them (DeepSpaceScreen did this
   // when /core-brain was a page).
   useFontStyle();
+  // Inside the dashboard phone the card closes back through the phone's stack,
+  // and there is no home top bar above it to clear.
+  const router = useAppRouter();
+  const embed = usePhoneEmbed();
   const { t } = useTranslation("core-brain");
   const { height } = useWindowDimensions();
   // Opened from the sky, the home stays visible under the scrim; opened from a
@@ -101,7 +105,7 @@ export function PolarisCardOverlay({ children }: { children: ReactNode }) {
   const close = useCallback(() => {
     if (router.canGoBack()) router.back();
     else router.replace("/");
-  }, []);
+  }, [router]);
 
   const slide = useCallback(
     (toValue: number, duration: number, done?: () => void) => {
@@ -174,6 +178,7 @@ export function PolarisCardOverlay({ children }: { children: ReactNode }) {
           onAccessibilityEscape={() => dismiss("down")}
           style={[
             styles.column,
+            embed ? styles.columnEmbedded : null,
             { transform: [{ translateY: offsetY }] },
           ]}
         >
@@ -208,6 +213,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     zIndex: 400,
   },
+  columnEmbedded: { paddingHorizontal: 8, paddingTop: 4 },
   surface: {
     flex: 1,
     justifyContent: "center",

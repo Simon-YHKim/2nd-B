@@ -44,11 +44,21 @@ ledger and goals apps use their existing data and actions.
 
 ### Full screens hosted in the phone
 
-`phone-screens.tsx` lists the standalone screens the phone renders whole:
-Settings and everything it links to (profile, notices, plans, subscription,
-reasoning, data connections, import hub, import, account, privacy, theme, data,
-permissions, support, manual, sources), the avatar palette, community (list,
-room, invite join), and the wiki graph. The host draws each one as a bounded
+`phone-screens.tsx` lists the standalone screens the phone renders whole
+(about fifty): Settings and what it links to (profile hub, notices, plans,
+subscription, reasoning, data connections, import hub, import, account,
+privacy, theme, data, permissions, support, manual, sources), the profile hub's
+destinations (Polaris, profile details, avatar studio, insights, brightness,
+growth and the self-understanding instruments: Big Five, IPIP-NEO, attachment,
+life satisfaction, ESM, seen, audit, values, strengths, motivation, plus
+ratifications and review), the legal and consent pages, the account's
+password/IDEN/beyond pages, discover, research, imagine, digest, peer invites,
+northstar, the share card, the interview flow (`/me/<star>`, `/interview`),
+SecondB chat, the avatar palette, community (list, room, invite join), and the
+wiki graph. `/persona` and the dormant `/mbti` are redirects to Polaris, so the
+phone maps them there; `/wiki?focusPageId=` opens the phone's wiki page view;
+`/records?tags=` filters the phone's notes; `/capture?text=` and `?tag=` fill
+the phone's note page. The host draws each one as a bounded
 view outside the phone's list, keyed by route, so a route change unmounts the
 previous screen; the phone's dock, status rows and pan gestures step aside, as
 for Museum.
@@ -64,8 +74,8 @@ phone (`src/lib/nav/phone-embed.tsx`):
   `useScreenParams()`. Outside the phone these are expo-router's own. Inside,
   `push` opens the route in the phone (a route the phone cannot draw yet shows
   its "not yet connected" page; nothing opened from the phone leaves it),
-  `replace("/")` closes the phone, and only a replace to the auth screens
-  (sign-out) leaves. A screen that still calls expo-router's `router.back()`
+  `push("/")` and `replace("/")` close the phone, and only the auth screens
+  (sign-out, re-sign-in after a password change) leave it. A screen that still calls expo-router's `router.back()`
   directly would pop the app stack, so only converted screens may be listed.
 
 Android Back inside the phone has one listener, the phone's. A hosted screen
@@ -77,13 +87,18 @@ screen's own listener would end up older than the phone's and lose.
 canvas) the phone display's width instead.
 
 Known differences inside the phone: React Native `Modal` sheets (premium,
-reasoning limit, notice dialog, time picker) cover the whole window; screens
-that read `usePathname()` see `/dashboard`, so the rewarded-ad offer on plans
-and the reasoning limit sheet stays hidden (it fails closed); route guards that
-use `useNavigation()` (privacy's deletion fence, the palette's unsaved-changes
-prompt) attach to the dashboard route; and a profile-incomplete `<Redirect>`
-navigates the app, not the phone. Wiki export and the interview flow are not
-hosted.
+reasoning limit, notice dialog, time picker, survey intros and save
+celebrations, the chat's first-visit intro, crisis routing) cover the whole
+window; screens that read `usePathname()` see `/dashboard`, so the rewarded-ad
+offers on plans, the reasoning limit sheet and chat stay hidden (they fail
+closed); route guards that use `useNavigation()` (privacy's deletion fence,
+the audit's beforeRemove, the palette's unsaved-changes prompt) attach to the
+dashboard route; and a profile-incomplete `<Redirect>` navigates the app, not
+the phone. Not hosted: wiki export (no in-app entry), `/integrations`,
+`/capture-full`, the full `/capture` and `/records` screens (the phone keeps
+its own note and notes pages), and `/dev-screens`. Some result layouts are
+cramped at 213px (strengths signature cards, beyond's 180px widget cards, the
+share card's chip row, the brightness heatmap).
 
 `OpsPhoneContent` reuses the existing assistant, reminders, ledger, goals,
 meals, reading shelf, and side-project screens with a phone-local `onBack`

@@ -65,6 +65,16 @@ const OPS_PHONE_ROUTES: Record<string, OpsPhoneScreen> = {
   "/meals": "meals",
   "/side-project": "side-project",
 };
+/** A query route whose target the phone draws as its own page: a wiki citation
+ *  (/wiki?focusPageId=) opens the phone's page view. */
+function phonePage(route: string): string {
+  const { path, params } = splitPhoneRoute(route);
+  if (path === "/wiki" && params.focusPageId) return `/wiki/page/${encodeURIComponent(params.focusPageId)}`;
+  // /persona (and the dormant /mbti that points at it) is a redirect to Polaris;
+  // its <Redirect> would move the app, not the phone.
+  if (path === "/persona" || path === "/mbti") return "/core-brain";
+  return route;
+}
 /** A hosted screen replacing itself with one of these leaves the phone (sign-out). */
 const AUTH_EXIT_PATHS = new Set(["/sign-in", "/sign-up", "/onboarding"]);
 const PIXEL_IMAGE = Platform.OS === "web" ? { imageRendering: "pixelated" } as ImageStyle : undefined;
@@ -110,6 +120,8 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const [wikiDetailLoading, setWikiDetailLoading] = useState(false);
   const [wikiDetailFailed, setWikiDetailFailed] = useState(false);
   const [draft, setDraft] = useState("");
+  // A tag carried by /capture?tag= (Discover), saved with the note and shown on the page.
+  const [captureTag, setCaptureTag] = useState<string | null>(null);
   const [captureBusy, setCaptureBusy] = useState(false);
   const [captureState, setCaptureState] = useState<"idle" | "saved" | "failed">("idle");
   const [crisisVisible, setCrisisVisible] = useState(false);
@@ -149,13 +161,18 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const contentOwnsBack = ownsDisplay || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);
   const wikiDetailId = insideRoute?.startsWith("/wiki/page/")
     ? decodeURIComponent(insideRoute.slice("/wiki/page/".length)) : null;
-  const go = useCallback((route: string) => {
+  const go = useCallback((target: string) => {
     // Phone-originated navigation stays in the supplied phone display. The
     // independent routes keep their own existing entry points unchanged.
     if (typeof document !== "undefined") (document.activeElement as HTMLElement | null)?.blur?.();
+    const route = phonePage(target);
+    const { path, params } = splitPhoneRoute(route);
     scrollY.current = 0;
     setRecordQuery("");
-    if (route === "/wiki") setWikiQuery("");
+    if (path === "/wiki") setWikiQuery("");
+    // "Save this" from chat (/capture?text=) arrives with the words filled in.
+    if (path === "/capture" && params.text) setDraft(params.text);
+    if (path === "/capture") setCaptureTag(params.tag ?? null);
     setExitPrompt(false);
     setScreenStack((current) => [...current, route]);
   }, []);
@@ -183,7 +200,13 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   // "not yet connected" page. Only a replace to home closes the phone, and a
   // replace to the auth screens (sign-out) leaves it.
   const embedNav = useMemo<PhoneEmbedNav>(() => ({
-    push: go,
+    // push("/") from a hosted screen ("go home") closes the phone like replace("/").
+    push: (route) => {
+      const { path } = splitPhoneRoute(route);
+      if (path === "/") closePhone();
+      else if (AUTH_EXIT_PATHS.has(path)) router.replace(route as Href);
+      else go(route);
+    },
     replace: (route) => {
       const { path } = splitPhoneRoute(route);
       if (path === "/") { closePhone(); return; }
@@ -387,6 +410,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       const saved = await createRecord({
         userId: ownerId, locale: i18n.language.toLowerCase().startsWith("ko") ? "ko" : "en",
         minor: isMinor === true, kind: "note", body, withFollowup: false,
+        tags: captureTag ? [captureTag] : undefined,
       });
       if (!mounted.current || !lease.isCurrent()) return;
       setDraft("");
@@ -401,7 +425,11 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     }
   }
 
-  function internalPage(route: string) {
+  function internalPage(stackRoute: string) {
+    // Query routes draw the same page; /records?tags= filters it, and
+    // /record/<id>?origin= opens the record.
+    const { path: route, params: routeParams } = splitPhoneRoute(stackRoute);
+    const tagFilter = routeParams.tags ? routeParams.tags.split(",") : null;
     const opsScreen = OPS_PHONE_ROUTES[route];
     if (opsScreen) return <OpsPhoneContent screen={opsScreen} onBack={backInside} onNavigate={go} />;
     const records = data?.records.ok ? data.records.value : [];
@@ -418,12 +446,14 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       route.startsWith("/record/") ? t("phone.moreApps.records") : t("phone.moreTitle");
     const searchList = route === "/records" || route === "/search";
     const filtered = records.filter((record) => (!area || record.tags?.includes(`domain:${area}`)) &&
+      (!tagFilter || tagFilter.some((tag) => record.tags?.includes(tag))) &&
       (!recordQuery || record.body?.toLocaleLowerCase().includes(recordQuery.toLocaleLowerCase())));
     const selected = route.startsWith("/record/") ? [...records, ...interviews].find((record) => record.id === decodeURIComponent(route.slice(8))) : null;
     return <View style={styles.stack}>
       <Text variant="heading">{title}</Text>
       {route === "/capture" ? <PixelSurface variant="frame" contentStyle={styles.routine}>
         <Text variant="caption" style={styles.muted}>{t("phone.internal.captureScope")}</Text>
+        {captureTag ? <Text variant="caption" style={styles.accent}>{`#${captureTag}`}</Text> : null}
         <TextInput accessibilityLabel={t("phone.internal.noteInput")} multiline value={draft} onChangeText={setDraft} placeholder={t("phone.internal.noteInput")} placeholderTextColor={m3.color.onSurfaceVariant} style={[styles.noteInput, styles.phoneText]} />
         <PhoneAction label={captureBusy ? t("phone.saving") : t("phone.internal.saveNote")} glyph="check" disabled={!draft.trim() || captureBusy} onPress={() => { void savePhoneNote(); }} />
         {captureState === "saved" ? <Text accessibilityRole="alert" variant="caption" style={styles.accent}>{t("phone.internal.saved")}</Text> : null}

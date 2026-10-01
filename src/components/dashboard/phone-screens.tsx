@@ -38,6 +38,41 @@ import SourcesScreen from "@/app/sources";
 import SubscriptionScreen from "@/app/subscription";
 import SupportScreen from "@/app/support";
 import ThemeScreen from "@/app/theme";
+import TermsScreen from "@/app/(auth)/terms";
+import RefundScreen from "@/app/(auth)/refund";
+import PrivacyPolicyScreen from "@/app/(auth)/privacy-policy";
+import ProcessingLogScreen from "@/app/processing-log";
+import ServiceConsentScreen from "@/app/service-consent";
+import DigestScreen from "@/app/digest";
+import PeerInvitesScreen from "@/app/peer-invites";
+import NorthstarScreen from "@/app/northstar";
+import CoreBrainScreen from "@/app/core-brain";
+import GrowthScreen from "@/app/growth";
+import InsightsScreen from "@/app/insights";
+import BrightnessScreen from "@/app/brightness";
+import ProfileDetailsScreen from "@/app/profile-details";
+import AvatarStudioScreen from "@/app/avatar-studio";
+import SecondbScreen from "@/app/secondb";
+import IpipNeoScreen from "@/app/ipip-neo";
+import RlssScreen from "@/app/rlss";
+import AttachmentScreen from "@/app/attachment";
+import EsmScreen from "@/app/esm";
+import SeenScreen from "@/app/seen";
+import AuditScreen from "@/app/audit";
+import DiscoverScreen from "@/app/discover";
+import ResearchScreen from "@/app/research";
+import ImagineScreen from "@/app/imagine";
+import ValuesScreen from "@/app/values";
+import StrengthsScreen from "@/app/strengths";
+import MotivationScreen from "@/app/motivation";
+import RatificationsScreen from "@/app/ratifications";
+import ReviewScreen from "@/app/review";
+import ChangePasswordScreen from "@/app/change-password";
+import IdenScreen from "@/app/iden";
+import BeyondScreen from "@/app/beyond";
+import ConsentNoticeScreen from "@/app/(auth)/consent-notice";
+import ShareCardScreen from "@/app/share-card";
+import { DeepSpaceBigFiveScreen } from "@/screens/deepspace/dds-big-five-screen";
 import { PhoneEmbedProvider, splitPhoneRoute, useHardwareBack, usePhoneEmbed, type PhoneEmbedNav } from "@/lib/nav/phone-embed";
 
 function useNav(): PhoneEmbedNav {
@@ -134,6 +169,41 @@ const PHONE_ROUTE_SCREENS: Readonly<Record<string, ComponentType>> = {
   "/subscription": SubscriptionScreen,
   "/support": SupportScreen,
   "/theme": ThemeScreen,
+  "/attachment": AttachmentScreen,
+  "/audit": AuditScreen,
+  "/avatar-studio": AvatarStudioScreen,
+  "/big-five": DeepSpaceBigFiveScreen,
+  "/brightness": BrightnessScreen,
+  "/core-brain": CoreBrainScreen,
+  "/digest": DigestScreen,
+  "/esm": EsmScreen,
+  "/growth": GrowthScreen,
+  "/insights": InsightsScreen,
+  "/ipip-neo": IpipNeoScreen,
+  "/northstar": NorthstarScreen,
+  "/peer-invites": PeerInvitesScreen,
+  "/privacy-policy": PrivacyPolicyScreen,
+  "/processing-log": ProcessingLogScreen,
+  "/profile-details": ProfileDetailsScreen,
+  "/refund": RefundScreen,
+  "/rlss": RlssScreen,
+  "/secondb": SecondbScreen,
+  "/seen": SeenScreen,
+  "/service-consent": ServiceConsentScreen,
+  "/terms": TermsScreen,
+  "/beyond": BeyondScreen,
+  "/change-password": ChangePasswordScreen,
+  "/consent-notice": ConsentNoticeScreen,
+  "/discover": DiscoverScreen,
+  "/iden": IdenScreen,
+  "/imagine": ImagineScreen,
+  "/motivation": MotivationScreen,
+  "/ratifications": RatificationsScreen,
+  "/research": ResearchScreen,
+  "/review": ReviewScreen,
+  "/share-card": ShareCardScreen,
+  "/strengths": StrengthsScreen,
+  "/values": ValuesScreen,
   // The phone keeps its own wiki search at /wiki (the deep-space wiki screen
   // has none); this key opens that screen's tag filter and graph beside it.
   "/wiki/graph": DeepSpaceWikiScreen,

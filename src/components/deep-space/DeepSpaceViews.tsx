@@ -1663,6 +1663,9 @@ function SeenBarRow({ row }: { row: SeenRow }) {
 }
 
 export function SeenLensView() {
+  // Phone-aware: /seen draws this. Inside the dashboard phone its survey and
+  // share links open in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("home");
   const isKo = i18n.language === "ko";
   const locale = isKo ? "ko" : "en";
@@ -1958,6 +1961,9 @@ function ImagineGlyph({ kind, color, size = 19 }: { kind: ImagineSeedIcon; color
 }
 
 export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
+  // Phone-aware: /imagine draws this. Inside the dashboard phone its 담기 and
+  // chat links open in the phone.
+  const router = useAppRouter();
   const { t } = useTranslation("home");
   const [picked, setPicked] = useState<string | null>(null);
   const lang = isKo ? "ko" : "en";

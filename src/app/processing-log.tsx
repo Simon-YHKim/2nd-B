@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, StyleSheet, View, type ListRenderItem } from "react-native";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -9,6 +9,7 @@ import { MdButton, MdCard } from "@/components/m3";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { isAvailableUiLocale, type AvailableUiLocale } from "@/lib/i18n/locales";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import {
   createProcessingLogWindow,
   listProcessingLogPage,
@@ -228,6 +229,8 @@ function ProcessingLogSeparator() {
 }
 
 export default function ProcessingLogScreen() {
+  // Phone-aware: inside the dashboard phone, back steps the phone back.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const locale = uiLocaleFor(i18n.resolvedLanguage ?? i18n.language);
   const copy = COPY[locale];

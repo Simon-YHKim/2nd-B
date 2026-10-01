@@ -11,7 +11,6 @@ import { PlainText as RNText } from "@/components/ui/PlainText";
 import Svg, { Rect, Text as SvgText } from "react-native-svg";
 import { ringCells, stepPolyline } from "@/components/pixel/pixel-line";
 import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
-import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceSpacing, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
@@ -20,6 +19,7 @@ import { Text } from "@/components/ui/Text";
 import { MetaChip, OpsFrame, OpsState } from "@/components/deepspace/ops";
 import { SecondbHead } from "@/components/deepspace";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { gatherWeeklyGrowth } from "@/lib/growth/gather";
 import { startTask } from "@/lib/tasks/store";
 import type { StarChange, WeeklyGrowth } from "@/lib/growth/weekly";
@@ -70,6 +70,8 @@ const STEP: Record<SevenStarId, { obsKo: string; obsEn: string; stepKo: string; 
 };
 
 export function WeeklyGrowthScreen() {
+  // Phone-aware: inside the dashboard phone, back and links stay in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   // 별 이름은 홈 별자리와 같은 키에서 온다 -- 화면마다 다른 이름 금지.
   const { t: tHome } = useTranslation("home");

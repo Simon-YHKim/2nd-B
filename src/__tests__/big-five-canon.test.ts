@@ -379,10 +379,13 @@ describe("big-five PIXEL-CLAY route discipline", () => {
   });
 
   test("saved CTA, header Back, and Android Back converge on current-owner one-shot completion", () => {
-    const requestBack = SCREEN.match(/const requestBack = useCallback\([\s\S]*?(?=\n\n  useEffect\(\(\) => \{\n    if \(phase)/)?.[0];
+    // Android Back is registered through useHardwareBack (src/lib/nav/phone-embed.tsx)
+    // so the dashboard phone can host this screen: the same focused BackHandler
+    // listener standalone, the phone's claim stack inside the phone.
+    const requestBack = SCREEN.match(/const requestBack = useCallback\([\s\S]*?(?=\n\n(?: {2}\/\/[^\n]*\n)* {2}useHardwareBack\(useCallback\(\(\) => \{\n {4}if \(phase)/)?.[0];
     expect(requestBack).toContain('phase === "saved"');
     expect(requestBack).toContain("handleSavedDone()");
-    expect(SCREEN).toMatch(/BackHandler\.addEventListener\("hardwareBackPress"[\s\S]*?phase === "saved"\) handleSavedDone\(\)/);
+    expect(SCREEN).toMatch(/useHardwareBack\(useCallback\(\(\) => \{[\s\S]*?phase === "saved"\) handleSavedDone\(\)/);
     expect(SCREEN).toContain("<SavedState onDone={handleSavedDone} />");
     expect(SCREEN).toContain("if (submitting) return true;");
     expect(SCREEN).toContain('visible={exitOpen && phase === "questions" && !submitting}');
@@ -414,8 +417,10 @@ describe("big-five PIXEL-CLAY route discipline", () => {
     expect(SCREEN).toContain('flexWrap: "wrap"');
     expect(SCREEN).toContain("prefersReducedMotion");
     expect(SCREEN).toContain("clearTimeout");
-    expect(SCREEN).toContain("BackHandler.addEventListener");
-    expect(SCREEN).toContain("subscription.remove()");
+    // Android Back through useHardwareBack: the hook owns the listener and removes
+    // it on blur and unmount (src/lib/nav/phone-embed.tsx).
+    expect(SCREEN).toContain("useHardwareBack(useCallback(");
+    expect(normalize(read("lib/nav/phone-embed.tsx"))).toContain("return () => sub.remove();");
     expect(SCREEN).not.toMatch(/DUMMY|fixture|heuristic|sample trait/i);
   });
 

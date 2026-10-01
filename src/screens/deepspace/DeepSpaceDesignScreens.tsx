@@ -1351,6 +1351,8 @@ export function DeepSpacePrivacyDesignScreen() {
 }
 
 export function DeepSpaceInsightsScreen() {
+  // Phone-aware: inside the dashboard phone, the cards open in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language === "ko";
   const { userId, loading: authLoading } = useAuth();
@@ -1862,6 +1864,7 @@ export function DeepSpacePermissionsScreen() {
 // Counts, not percentages: a tag that went 0 -> 3 has no meaningful percentage, and
 // inventing one would repeat the original sin in a smaller font.
 export function DeepSpaceDiscoverScreen() {
+  const router = useAppRouter(); // Phone-aware: inside the dashboard phone, the cards open in the phone.
   const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
   // undefined = still loading, null = the read failed, [] = genuinely nothing yet.
@@ -1937,6 +1940,7 @@ export function DeepSpaceReviewScreen() {
 }
 
 function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps) {
+  const router = useAppRouter(); // Phone-aware: inside the dashboard phone, a cited record opens in the phone.
   const { t, i18n } = useTranslation("deepspace");
   // 시기 별 버튼의 이름은 홈 별자리와 **같은 키**에서 온다 -- 화면마다 다른
   // 이름을 배우면 사용자는 같은 별을 두 개로 안다.
@@ -2264,6 +2268,7 @@ const RESEARCH_SAT = [
 ] as const;
 
 export function DeepSpaceResearchScreen() {
+  const router = useAppRouter(); // Phone-aware: inside the dashboard phone, links and proposals open in the phone.
   const { t, i18n } = useTranslation("deepspace");
   // D-27 Phase 1c: the research view runs on RECORDS, the ratified node-set.
   // It used to read useWikiGraphData(), and wiki_pages has never held a single

@@ -5,13 +5,14 @@
 import { useEffect, useRef, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PixelPressable, PixelSurface } from "@/components/pixel";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import { addressTerm } from "@/lib/persona/address";
 import { ratificationEmptyState, type RatificationEntry } from "@/lib/persona/brightness-timeline";
@@ -95,6 +96,8 @@ function GateFrame({
   retryLabel?: string;
   onRetry?: () => void;
 }) {
+  // Phone-aware: inside the dashboard phone Back steps the phone's stack.
+  const router = useAppRouter();
   return (
     <DeepSpaceScreen
       active="lens"
@@ -168,6 +171,8 @@ function RatificationEntryCard({
 
 /** Mounted only after auth + a genuine profile answer, so both reads stay behind the gate. */
 function RatificationsReady({ ownerId }: { ownerId: string }) {
+  // Phone-aware: inside the dashboard phone Back and the Polaris CTA stay in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("ratifications");
   useAddressTerm(ownerId, i18n.language);
 

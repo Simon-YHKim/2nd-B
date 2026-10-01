@@ -9,10 +9,10 @@
 // HONESTY: this is a self-report ESTIMATE of the user's OWN strengths — not a
 // medical assessment. Confidence is shown and capped well under 100%; the
 // populated layout only ever shows the user's real answers (strengths-survey.ts).
-import { useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 
 import { PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
 import { Button } from "@/components/ui/Button";
@@ -23,6 +23,7 @@ import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tok
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { AxisCheckScreen } from "@/components/deep-space/AxisCheck";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useHardwareBack } from "@/lib/nav/phone-embed";
 import { createRecord } from "@/lib/records/create";
 import { loadLatestStrengths, type LoadedStrengths } from "@/lib/persona/build";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -213,6 +214,8 @@ const STRENGTHS_COPY: Record<
 // fires after the save celebration so the caller reloads into the populated lens;
 // onCancel backs out of the intro (caller shows the not-measured state).
 function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete: () => void; onCancel: () => void; registerBackGuard?: (fn: (() => boolean) | null) => void }) {
+  // Phone-aware: inside the dashboard phone the first-star nudge opens in the phone.
+  const router = useAppRouter();
   const { i18n } = useTranslation("home");
   const { userId, loading } = useAuth();
   const displayLocale = displayLocaleFor(i18n.language);
@@ -230,19 +233,19 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
   const result = useMemo(() => scoreStrengths(responses), [responses]);
 
   // Android hardware back: while mid-survey with answers, confirm before losing.
-  useEffect(() => {
-    if (!started || Object.keys(responses).length === 0 || saved) return;
-    const onBackPress = () => {
-      setExitConfirmOpen(true);
-      return true;
-    };
-    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => subscription.remove();
-  }, [started, responses, saved]);
+  // useHardwareBack removes the listener on blur and unmount, and inside the
+  // dashboard phone claims Back through the phone instead. Nothing to lose ->
+  // false, so Back keeps its default.
+  useHardwareBack(useCallback(() => {
+    if (!started || Object.keys(responses).length === 0 || saved) return false;
+    setExitConfirmOpen(true);
+    return true;
+  }, [started, responses, saved]));
 
   // med#8: the top app-bar back arrow must honor the same mid-survey exit
   // confirm as the hardware back — it used to bypass it and silently drop
-  // every answer in progress.
+  // every answer in progress. Inside the dashboard phone the same onBack is
+  // the phone's back row, so the confirm holds there too.
   useEffect(() => {
     if (!registerBackGuard) return;
     registerBackGuard(() => {
@@ -436,6 +439,8 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
 }
 
 export default function StrengthsCheck() {
+  // Phone-aware: inside the dashboard phone Back steps the phone's stack.
+  const router = useAppRouter();
   const { t } = useTranslation("home");
   const { userId, loading } = useAuth();
   // undefined = still loading; null = no stored result; object = has result.

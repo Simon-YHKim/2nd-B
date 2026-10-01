@@ -264,6 +264,11 @@ jest.mock("react-i18next", () => ({
   }),
 }));
 jest.mock("expo-router", () => ({ Redirect: "Redirect", router: { back: jest.fn(), push: jest.fn() } }));
+// The screen takes its router from useAppRouter() (dashboard phone, lib/nav/phone-embed.tsx),
+// which reads a context; this harness calls the screen outside a React render.
+jest.mock("@/lib/nav/phone-embed", () => ({
+  useAppRouter: () => jest.requireMock<{ router: unknown }>("expo-router").router,
+}));
 jest.mock("@/components/ui/Text", () => ({ Text: "Text" }));
 jest.mock("@/components/ui/Button", () => ({ Button: "Button" }));
 jest.mock("@/components/premium", () => ({

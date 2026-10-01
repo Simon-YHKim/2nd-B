@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { View, StyleSheet, ScrollView, Platform, Share, Pressable } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 
 import { PremiumLoadingState } from "@/components/premium";
 import { canonIden } from "@/lib/canon";
@@ -29,6 +29,7 @@ import {
 } from "@/lib/iden/load-persisted-iden";
 import type { IdenDoc } from "@/lib/iden/types";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { m3 } from "@/lib/theme/m3";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { MdButton, MdChip } from "@/components/m3";
@@ -160,6 +161,9 @@ export default function IdenExportScreen() {
 // Deep-space IDEN: the canonical default surface. Lifecycle events only read
 // the already-persisted snapshot; they never rebuild identity behind the user.
 function IdenExportScreenDeepSpace() {
+  // Phone-aware: inside the dashboard phone, back and the interview /
+  // integrations links go through the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("iden");
   const isKo = i18n.language === "ko";
   const locale = (isKo ? "ko" : "en") as "en" | "ko";
@@ -220,7 +224,7 @@ function IdenExportScreenDeepSpace() {
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[iden] export/share failed", (e as Error).message);
     }
-  }, [hasData, locale, currentExportDoc]);
+  }, [hasData, locale, currentExportDoc, router]);
 
   const handleCopyJson = useCallback(async () => {
     if (!hasData) return;

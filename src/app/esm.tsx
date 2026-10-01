@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { PremiumAppShell, PremiumButton, PremiumCard, SceneHero, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { m3 } from "@/lib/theme/m3";
 import { cosmic, deepSpace, flattenAlpha, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -21,6 +22,8 @@ const PROMPT_OPTIONS: { id: PromptKind }[] = [{ id: "context" }, { id: "energy" 
 const CONTEXT_TAGS = ["alone", "with_people", "work_study", "moving", "resting", "outside"] as const;
 
 function EsmCheckInScreen() {
+  // Phone-aware: inside the dashboard phone the home link goes through the phone.
+  const router = useAppRouter();
   const { t } = useTranslation("esm");
   const { userId, loading: authLoading } = useAuth();
 

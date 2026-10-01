@@ -46,7 +46,8 @@ test("hosted full screens get a bounded view, the phone's navigation, and no pho
   expect(phone).toContain("{...(ownsDisplay ? {} : pagePan.panHandlers)}");
   expect(phone).toContain("{!ownsDisplay ? <View style={[styles.phoneDock, narrowDock && styles.phoneDockNarrow]}");
   // Pushes stay in the phone; only home and the auth screens leave it.
-  expect(phone).toContain("push: go,");
+  expect(phone).toContain('if (path === "/") closePhone();');
+  expect(phone).toContain("else if (AUTH_EXIT_PATHS.has(path)) router.replace(route as Href);");
   expect(phone).toContain('if (path === "/") { closePhone(); return; }');
   expect(phone).toContain("if (AUTH_EXIT_PATHS.has(path)) { router.replace(route as Href); return; }");
 });
