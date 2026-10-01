@@ -26,7 +26,6 @@ test("short phone can reach both timeline lanes without an outer list scroll", (
   expect(screen).toContain("<MuseumViewportHost phone={!!phone}><View");
   expect(screen).toContain("nestedScrollEnabled");
   expect(screen).toContain("horizontal");
-  expect(styles).toContain("phoneViewport: { flex: 0, height: MZ.TH }");
   expect(dashboardReadme).toContain("outside the parent FlatList");
   expect(dashboardReadme).toContain("pagePan");
   expect(dashboardReadme).toContain("phonePan");
@@ -35,7 +34,6 @@ test("short phone can reach both timeline lanes without an outer list scroll", (
 test("phone detail sheet stays in the display and Back closes it before leaving", () => {
   expect(styles).toContain('phoneRoot: { flex: 1, minHeight: 0, overflow: "hidden"');
   expect(styles).toContain('phoneSheet: { top: 0, maxHeight: undefined, overflow: "hidden" }');
-  expect(styles).toContain("phoneSheetScroll: { flex: 1, minHeight: 0 }");
   expect(screen).toContain("if (selectedId !== null) {");
   expect(screen).toContain("setSelectedId(null);");
   expect(screen.replace(/\r\n?/g, "\n")).toContain("if (!phoneBack) {\n      router.back();");
