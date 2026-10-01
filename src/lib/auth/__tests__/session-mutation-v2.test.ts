@@ -458,6 +458,50 @@ describe("auth v2 storage and mutation boundary", () => {
     }
   });
 
+  test("a 200 password response with a stalled JSON body keeps M and S until the SDK can save the session", async () => {
+    jest.useFakeTimers();
+    try {
+      const storage = new MemoryStorage();
+      const url = "https://password-body-stall.supabase.co";
+      const locks: string[] = [];
+      const request: TestBrowserLockRequest = async (name, _options, callback) => {
+        locks.push(`enter:${name}`);
+        try { return await callback({ name, mode: "exclusive" }); }
+        finally { locks.push(`exit:${name}`); }
+      };
+      const runtime = createAuthStorageRuntime({ url, storage, web: true, navigatorLockRequest: request });
+      await runtime.ready();
+      locks.length = 0;
+      let finishBody!: (value: unknown) => void;
+      const body = new Promise<unknown>((resolve) => { finishBody = resolve; });
+      const response = jsonResponse({});
+      response.json = jest.fn(() => body) as typeof response.json;
+      const fetchMock = jest.fn(async () => response);
+      const fetcher = fetchMock as unknown as typeof fetch;
+      const client = makeClient(runtime.storage!, runtime.storageKey, runtime.sdkLock, fetcher);
+      let settled = false;
+      const pending = runtime.runMutation(() => runtime.runSdkUnlockedWriter(() =>
+        client.signInWithPassword({ email: "user@example.invalid", password: "test-password" }),
+      ));
+      void pending.then(() => { settled = true; }, () => { settled = true; });
+      for (let i = 0; i < 30 && !fetchMock.mock.calls.length; i += 1) await Promise.resolve();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(locks).toContain(`enter:${authStorageKeysForUrl(url).mutationLock}`);
+      expect(locks).toContain(`enter:lock:${runtime.storageKey}`);
+      jest.advanceTimersByTime(AUTH_WEB_LOCK_WAIT_TIMEOUT_MS * 2);
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      expect(storage.getItem(runtime.storageKey)).toBeNull();
+      finishBody(session("user", "session"));
+      await expect(pending).resolves.toMatchObject({ error: null });
+      expect(JSON.parse(storage.getItem(runtime.storageKey) ?? "null").user.id).toBe("user");
+      expect(locks).toContain(`exit:lock:${runtime.storageKey}`);
+      expect(locks).toContain(`exit:${authStorageKeysForUrl(url).mutationLock}`);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test("a valid browser lock keeps M before S and holds M until S releases", async () => {
     const storage = new MemoryStorage();
     const trace: string[] = [];

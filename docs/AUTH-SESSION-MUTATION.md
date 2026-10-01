@@ -25,6 +25,14 @@ service, and keep the existing $0/month dependency cost.
   If an already-running SDK writer remains pending, sign-in keeps its action
   locked and shows a long-wait notice with a web reload action; the result is
   still unknown until the writer settles or the page is reopened.
+- On web, a sign-in still pending after 15 seconds writes a console diagnostic
+  with only elapsed milliseconds and its current stage: `mutation-lock`
+  (includes the migration barrier), `storage-lock`, `sdk-response`,
+  `session-refresh`, or `route`. Later stage transitions are also logged until
+  the attempt settles. No email, password, token, session, or response body is
+  logged. A `sdk-response` stall means S was acquired, but does not by itself
+  distinguish network fetch, JSON body parsing, SDK persistence, or auth events.
+  Compare it with the browser Network panel before assigning a root cause.
 - Background initialize/refresh may rotate a token for the current
   `user_id`/`session_id`, or remove an invalid session. With
   `detectSessionInUrl: false`, it cannot introduce a callback identity. Web and
