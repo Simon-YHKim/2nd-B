@@ -107,6 +107,7 @@ jest.mock("../../supabase/privacy", () => ({
 jest.mock("../../knowledge/engines", () => ({ buildMemorizedPattern: jest.fn() }));
 
 import { RECORD_IDEMPOTENCY_CONFLICT } from "../../capture/import-pending";
+import type { AuthenticatedAccountSessionLease } from "../../auth/account-session-lease";
 import { createRecord } from "../create";
 
 const args = {
@@ -140,6 +141,35 @@ function flushDetached(): Promise<void> {
 }
 
 describe("createRecord - 0178 client_request_id", () => {
+  test("an import lease is rechecked after C9 and immediately before insert", async () => {
+    let current = true;
+    const lease = {
+      userId: args.userId,
+      assertCurrent: () => { if (!current) throw new Error("owner changed"); },
+    } as unknown as AuthenticatedAccountSessionLease;
+    mockClassify.mockImplementation(async () => { current = false; return null; });
+
+    await expect(createRecord({ ...args, session: lease })).rejects.toThrow("owner changed");
+    expect(mockClassify).toHaveBeenCalledWith(args.body, args.locale, args.userId, false, lease);
+    expect(mockInserted).toHaveLength(0);
+    expect(mockAwardXp).not.toHaveBeenCalled();
+  });
+
+  test("a confirmed import saves under its lease without detached mutable-session writes", async () => {
+    mockLlmMode = "live";
+    const lease = {
+      userId: args.userId,
+      assertCurrent: jest.fn(),
+    } as unknown as AuthenticatedAccountSessionLease;
+
+    await expect(createRecord({ ...args, session: lease })).resolves.toMatchObject({ id: "rec-1" });
+    await flushDetached();
+    expect(mockInserted).toHaveLength(1);
+    expect(mockAwardXp).not.toHaveBeenCalled();
+    expect(mockFetchPrefs).not.toHaveBeenCalled();
+    expect(mockEmbed).not.toHaveBeenCalled();
+  });
+
   test("a keyed insert sends the key and awards side effects once", async () => {
     await expect(createRecord(args)).resolves.toMatchObject({ id: "rec-1" });
     expect(mockInserted[0]).toEqual(expect.objectContaining({ client_request_id: args.clientRequestId }));

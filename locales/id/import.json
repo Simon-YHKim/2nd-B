@@ -57,5 +57,17 @@
     "ingest": "Tambahkan aktivitas hari ini",
     "consentNeeded": "Setujui untuk membawa aktivitas masuk",
     "minorLocked": "Sinkronisasi aktivitas nonaktif untuk akun ini."
+  },
+  "pendingDevice": {
+    "title": "Catatan tersimpan di perangkat ini",
+    "body": "Ada {{count}} catatan yang disimpan sebelum masuk di perangkat ini. Catatan itu mungkin milik orang lain. Impor hanya jika catatan itu milik Anda.",
+    "account": "Impor ke: {{email}}",
+    "accountUnavailable": "Email akun ini belum dapat dipastikan. Impor ditunda.",
+    "confirm": "Impor catatan saya ke akun ini",
+    "confirmHint": "Menyimpan catatan di perangkat ini ke akun yang ditampilkan.",
+    "defer": "Nanti saja",
+    "deferHint": "Menyimpan catatan tetap di perangkat ini.",
+    "importing": "Mengimpor…",
+    "error": "Beberapa catatan gagal diimpor. Catatan yang tersisa tetap ada di perangkat ini."
   }
 }

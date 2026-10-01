@@ -17,6 +17,7 @@ import { getSupabaseClient } from "../supabase/client";
 import { invalidateDomainLevels } from "../persona/load-domain-levels";
 import { fetchPrivacyPrefs } from "../supabase/privacy";
 import { withTimeout } from "../async/with-timeout";
+import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
 import { getEnv } from "../env";
 import type { StructuredPayload } from "../capture/structured";
 import { recordPhotoPathsOf, removeRecordPhotoObjects, type RecordPhotosPayload } from "../capture/record-photos";
@@ -80,6 +81,8 @@ export interface CreateRecordArgs {
    * answer would repeat a paid call on every replay and then throw it away.
    */
   clientRequestId?: string;
+  /** Optional account fence for a device-local import with a separately confirmed owner. */
+  session?: AuthenticatedAccountSessionLease;
 }
 
 // Same bound and alphabet as the 0178 records_client_request_id_format CHECK.
@@ -135,6 +138,8 @@ const XP_ACTION_FOR_KIND: Record<RecordKind, XpAction> = {
 };
 
 export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecord> {
+  if (args.session && args.session.userId !== args.userId) throw new Error("record_session_owner_mismatch");
+  args.session?.assertCurrent();
   // A caller bug, not user input: reject before any classification or write so
   // a malformed key never reaches the server CHECK as a failed save.
   if (
@@ -167,12 +172,9 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
     (args.kind === "audit_response" || (args.kind === "journal" && advisorAllowed));
   if (!llmPathWillClassify) {
     try {
-      const crisis = await classifyRecordTextForCrisis(
-        args.body,
-        args.locale,
-        args.userId,
-        args.minor === true,
-      );
+      const crisis = args.session
+        ? await classifyRecordTextForCrisis(args.body, args.locale, args.userId, args.minor === true, args.session)
+        : await classifyRecordTextForCrisis(args.body, args.locale, args.userId, args.minor === true);
       if (crisis) {
         aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
       }
@@ -301,6 +303,10 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
       ? [domainTagFor(args.domainIntent), ...stripDomainTags(args.tags ?? [])]
       : withDomainTag(args.tags, [args.body, args.topic].filter(Boolean).join("\n"));
 
+  // Classification can await two audit writes. A device queue import must not
+  // insert after its authenticated account changed during those awaits.
+  args.session?.assertCurrent();
+
   // Bounded. Neither fetch nor supabase-js times out on its own, so a STALLED connection
   // (socket open, nothing coming back -- not the same as a failed one) left this await
   // hanging forever. On /ipip-neo that meant a 120-item, ~15-minute assessment sat behind
@@ -355,16 +361,22 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
   // enrichment must not hold the save button hostage -- least of all the embedding call,
   // which is a network round trip to an AI service. Both now run detached: they still
   // happen, they just stop being something the user waits on.
-  void awardXpSafe(XP_ACTION_FOR_KIND[args.kind]).catch((e: unknown) => {
-    if (typeof console !== "undefined") console.warn("[records] xp award failed", (e as Error).message);
-  });
+  // The import lease is released when this call returns. These detached
+  // helpers use the mutable auth client, so they must not run later under a
+  // different account. XP and automatic embeddings are optional enrichment;
+  // the confirmed record and its C9 routing are the durable import result.
+  if (!args.session) {
+    void awardXpSafe(XP_ACTION_FOR_KIND[args.kind]).catch((e: unknown) => {
+      if (typeof console !== "undefined") console.warn("[records] xp award failed", (e as Error).message);
+    });
 
-  embedRecordDetached(args, {
-    id: data.id,
-    topic: args.topic ?? null,
-    summary: args.summary ?? null,
-    body: args.body,
-  });
+    embedRecordDetached(args, {
+      id: data.id,
+      topic: args.topic ?? null,
+      summary: args.summary ?? null,
+      body: args.body,
+    });
+  }
 
   return { id: data.id, tags, followup: aiFollowup ?? undefined };
 }
@@ -425,6 +437,7 @@ async function replayKeyedRecord(
   insertError: unknown,
   followup: RecordFollowup | null,
 ): Promise<CreatedRecord> {
+  args.session?.assertCurrent();
   const { data: existing, error } = await withTimeout(
     getSupabaseClient()
       .from("records")
@@ -435,6 +448,7 @@ async function replayKeyedRecord(
     RECORD_INSERT_TIMEOUT_MS,
     "record replay lookup",
   );
+  args.session?.assertCurrent();
   if (error) throw error;
   // Nothing under this key: the unique violation came from another constraint.
   if (!existing) throw insertError;
@@ -444,12 +458,14 @@ async function replayKeyedRecord(
   // The first attempt may have died before dropping the cached domain levels.
   invalidateDomainLevels(args.userId);
   // Embed what the row holds (body equals args.body, checked above).
-  embedRecordDetached(args, {
-    id: existing.id,
-    topic: typeof existing.topic === "string" ? existing.topic : null,
-    summary: typeof existing.summary === "string" ? existing.summary : null,
-    body: existing.body,
-  });
+  if (!args.session) {
+    embedRecordDetached(args, {
+      id: existing.id,
+      topic: typeof existing.topic === "string" ? existing.topic : null,
+      summary: typeof existing.summary === "string" ? existing.summary : null,
+      body: existing.body,
+    });
+  }
   return {
     id: existing.id,
     tags: Array.isArray(existing.tags) ? existing.tags : [],

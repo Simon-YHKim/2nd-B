@@ -1,167 +1,165 @@
-// Node tests have no React renderer. Drive the real hook's effect with minimal
-// React doubles, while replacing the storage/record boundaries with controlled
-// captures. The route-to-modal binding is guarded in preauth-pending.test.ts.
-
+// Exercise the actual hook decision path without a React renderer or network.
+// The pending queue is legacy device data; a successful sign-in alone must not
+// create a record, even when profile and onboarding are ready.
 const mockAuth = jest.fn();
+const mockLoad = jest.fn();
 const mockImport = jest.fn();
 const mockCreateRecord = jest.fn();
-const mockSetCrisis = jest.fn();
-const mockLanguage = { current: "ko" };
-const mockEffects: Array<() => void> = [];
-const mockRefs: Array<{ current: unknown }> = [];
-const mockRenderCursor = { current: 0 };
+const mockGetSession = jest.fn();
+const mockRelease = jest.fn();
 const mockOnboardingComplete = jest.fn();
 const mockAutoTriggerTTFV = jest.fn();
+const mockOwner = { current: true };
+const mockLanguage = { current: "ko" };
+const mockHookCursor = { current: 0 };
+const mockSlots: Array<{ current: unknown }> = [];
+const mockEffects = new Map<number, { deps: unknown[]; cleanup?: () => void }>();
 
 jest.mock("react", () => ({
-  useEffect: (effect: () => void) => { mockEffects.push(effect); effect(); },
-  useRef: (initial: unknown) => {
-    const slot = mockRenderCursor.current++;
-    return mockRefs[slot] ?? (mockRefs[slot] = { current: initial });
+  useState: (initial: unknown) => {
+    const index = mockHookCursor.current++;
+    const slot = mockSlots[index] ?? (mockSlots[index] = { current: initial });
+    return [slot.current, (next: unknown) => {
+      slot.current = typeof next === "function" ? (next as (value: unknown) => unknown)(slot.current) : next;
+    }];
   },
-  useState: (initial: unknown) => [initial, mockSetCrisis],
+  useRef: (initial: unknown) => {
+    const index = mockHookCursor.current++;
+    return mockSlots[index] ?? (mockSlots[index] = { current: initial });
+  },
+  useEffect: (effect: () => void | (() => void), deps: unknown[]) => {
+    const index = mockHookCursor.current++;
+    const previous = mockEffects.get(index);
+    if (previous && deps.every((value, i) => Object.is(value, previous.deps[i]))) return;
+    previous?.cleanup?.();
+    const cleanup = effect();
+    mockEffects.set(index, { deps, cleanup: typeof cleanup === "function" ? cleanup : undefined });
+  },
+  useCallback: (callback: unknown) => { mockHookCursor.current++; return callback; },
 }));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ i18n: { language: mockLanguage.current } }),
 }));
 jest.mock("@/lib/auth/AuthContext", () => ({ useAuth: () => mockAuth() }));
+jest.mock("@/lib/auth/account-epoch", () => ({
+  captureAccountOwnerLease: () => mockOwner.current ? { isCurrent: () => mockOwner.current } : null,
+}));
+jest.mock("@/lib/auth/account-session-lease", () => ({
+  beginAccountSessionLease: (userId: string) => ({
+    authenticate: async () => ({
+      userId,
+      assertCurrent: () => { if (!mockOwner.current) throw new Error("owner changed"); },
+    }),
+    release: mockRelease,
+  }),
+}));
 jest.mock("@/lib/onboarding/state", () => ({ useOnboardingComplete: () => mockOnboardingComplete() }));
 jest.mock("@/lib/onboarding/ttfv-gate", () => ({ useAutoTriggerTTFV: () => mockAutoTriggerTTFV() }));
+jest.mock("@/lib/supabase/client", () => ({
+  getSupabaseClient: () => ({ auth: { getSession: mockGetSession } }),
+}));
+jest.mock("../preauth-pending", () => ({ loadPendingCaptures: () => mockLoad() }));
 jest.mock("../import-pending", () => ({ importPendingCaptures: (...args: unknown[]) => mockImport(...args) }));
 jest.mock("../../records/create", () => ({ createRecord: (...args: unknown[]) => mockCreateRecord(...args) }));
 
 import { useImportPendingCaptures } from "../use-import-pending";
 
-describe("pre-account first-person note crisis hand-off", () => {
+const pending = { localId: "p_1782000000000_abc", text: "private note", capturedAt: "2026-06-21T00:00:00Z" };
+function TestHarness() {
+  mockHookCursor.current = 0;
+  return useImportPendingCaptures();
+}
+async function settle() {
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+}
+
+describe("pre-account pending import owner confirmation", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockEffects.length = 0;
-    mockRefs.length = 0;
-    mockRenderCursor.current = 0;
+    mockSlots.length = 0;
+    mockEffects.clear();
+    mockOwner.current = true;
     mockLanguage.current = "ko";
-    mockAuth.mockReturnValue({
-      userId: "u1", hasProfile: true, isMinor: true, loading: false, profileProbeFailed: false,
-    });
+    mockAuth.mockReturnValue({ userId: "u1", hasProfile: true, isMinor: true, loading: false, profileProbeFailed: false });
     mockOnboardingComplete.mockReturnValue(true);
     mockAutoTriggerTTFV.mockReturnValue(false);
+    mockLoad.mockResolvedValue([pending]);
+    mockGetSession.mockResolvedValue({ data: { session: { user: { id: "u1", email: "owner@example.com" } } }, error: null });
+    mockImport.mockResolvedValue({ total: 1, imported: 1, failed: 0 });
+    mockCreateRecord.mockResolvedValue({ id: "r1", tags: [] });
   });
 
-  test("an unresolved age uses the youth route, and two red notes show one modal", async () => {
-    mockAuth.mockReturnValue({
-      userId: "u1", hasProfile: true, isMinor: null, loading: false, profileProbeFailed: false,
-    });
-    mockCreateRecord.mockResolvedValue({ id: "r1", tags: [], followup: { zone: "red" } });
-    mockImport.mockImplementation(async (ctx, createOne) => {
-      await createOne({ text: "first" }, ctx, "preauth:first");
-      await createOne({ text: "second" }, ctx, "preauth:second");
-      return { total: 2, imported: 2, failed: 0 };
-    });
-
-    useImportPendingCaptures();
-    await mockImport.mock.results[0].value;
-
-    expect(mockImport.mock.calls[0][0]).toEqual({ userId: "u1", locale: "ko", minor: true });
-    expect(mockCreateRecord).toHaveBeenCalledTimes(2);
-    expect(mockCreateRecord.mock.calls[0][0]).toMatchObject({ kind: "note", minor: true, withFollowup: false });
-    expect(mockSetCrisis).toHaveBeenCalledTimes(1);
-    expect(mockSetCrisis).toHaveBeenCalledWith({ visible: true, hotline: "KR_1388" });
-  });
-
-  test("adult red note selects 109; non-red notes do not show a modal", async () => {
-    mockAuth.mockReturnValue({
-      userId: "u1", hasProfile: true, isMinor: false, loading: false, profileProbeFailed: false,
-    });
-    mockCreateRecord
-      .mockResolvedValueOnce({ id: "r1", tags: [] })
-      .mockResolvedValueOnce({ id: "r2", tags: [], followup: { zone: "red" } });
-    mockImport.mockImplementation(async (ctx, createOne) => {
-      await createOne({ text: "ordinary" }, ctx);
-      await createOne({ text: "red" }, ctx);
-      return { total: 2, imported: 2, failed: 0 };
-    });
-
-    useImportPendingCaptures();
-    await mockImport.mock.results[0].value;
-
-    expect(mockImport.mock.calls[0][0].minor).toBe(false);
-    expect(mockSetCrisis).toHaveBeenCalledTimes(1);
-    expect(mockSetCrisis).toHaveBeenCalledWith({ visible: true, hotline: "KR_109" });
-  });
-
-  test("no import starts before the profile gate settles", () => {
-    mockAuth.mockReturnValue({
-      userId: "u1", hasProfile: false, isMinor: null, loading: false, profileProbeFailed: false,
-    });
-
-    useImportPendingCaptures();
-
+  test("existing-account sign-in presents count and exact email, without automatic server import", async () => {
+    TestHarness();
+    await settle();
+    const view = TestHarness();
+    expect(view.prompt).toMatchObject({ count: 1, email: "owner@example.com" });
     expect(mockImport).not.toHaveBeenCalled();
-    expect(mockSetCrisis).not.toHaveBeenCalled();
+    expect(mockCreateRecord).not.toHaveBeenCalled();
   });
 
-  test("waits through onboarding and TTFV redirects, then hands off red once on the stable home", async () => {
+  test("defer keeps the queue and never writes", async () => {
+    TestHarness(); await settle();
+    TestHarness().deferImport();
+    expect(TestHarness().prompt).toBeNull();
+    expect(mockImport).not.toHaveBeenCalled();
+    expect(mockLoad).toHaveBeenCalledTimes(1);
+  });
+
+  test("a mismatched session cannot enable import", async () => {
+    mockGetSession.mockResolvedValue({ data: { session: { user: { id: "u2", email: "other@example.com" } } }, error: null });
+    TestHarness(); await settle();
+    const view = TestHarness();
+    expect(view.prompt).toMatchObject({ count: 1, email: null });
+    view.confirmImport();
+    await settle();
+    expect(mockImport).not.toHaveBeenCalled();
+  });
+
+  test("owner change before confirmation hides the prompt and prevents import", async () => {
+    TestHarness(); await settle();
+    const oldView = TestHarness();
+    mockOwner.current = false;
+    expect(TestHarness().prompt).toBeNull();
+    oldView.confirmImport();
+    await settle();
+    expect(mockImport).not.toHaveBeenCalled();
+  });
+
+  test("confirmation passes the approved snapshot and one account lease, then surfaces red once", async () => {
     mockCreateRecord.mockResolvedValue({ id: "r1", tags: [], followup: { zone: "red" } });
-    mockImport.mockImplementation(async (ctx, createOne) => {
-      await createOne({ text: "saved before sign-up" }, ctx);
+    mockImport.mockImplementation(async (ctx, createOne, _hash, approval) => {
+      expect(approval.userId).toBe("u1");
+      expect(approval.items).toEqual([pending]);
+      await createOne(pending, ctx, "preauth:one");
+      await createOne(pending, ctx, "preauth:two");
       return { total: 1, imported: 1, failed: 0 };
     });
-
-    mockOnboardingComplete.mockReturnValue(false);
-    useImportPendingCaptures();
-    expect(mockImport).not.toHaveBeenCalled();
-
-    mockRenderCursor.current = 0;
-    mockOnboardingComplete.mockReturnValue(true);
-    mockAutoTriggerTTFV.mockReturnValue(true);
-    useImportPendingCaptures();
-    expect(mockImport).not.toHaveBeenCalled();
-
-    mockRenderCursor.current = 0;
-    mockAutoTriggerTTFV.mockReturnValue(false);
-    useImportPendingCaptures();
-    await mockImport.mock.results[0].value;
-
+    TestHarness(); await settle();
+    TestHarness().confirmImport();
+    await settle();
     expect(mockImport).toHaveBeenCalledTimes(1);
-    expect(mockSetCrisis).toHaveBeenCalledTimes(1);
-    expect(mockSetCrisis).toHaveBeenCalledWith({ visible: true, hotline: "KR_1388" });
+    expect(mockCreateRecord).toHaveBeenCalledTimes(2);
+    expect(mockCreateRecord.mock.calls[0][0]).toMatchObject({
+      userId: "u1", kind: "note", minor: true, withFollowup: false,
+    });
+    expect(TestHarness().crisis).toEqual({ visible: true, hotline: "KR_1388" });
+    expect(TestHarness().prompt).toBeNull();
+    expect(mockRelease).toHaveBeenCalledTimes(1);
   });
 
   test.each([
     ["auth loading", { loading: true }, true, false],
     ["failed profile probe", { profileProbeFailed: true }, true, false],
     ["onboarding hydration", {}, null, false],
-    ["TTFV hydration", {}, true, null],
-  ])("does not import during %s", (_name, authPatch, onboarding, ttfv) => {
-    mockAuth.mockReturnValue({
-      userId: "u1", hasProfile: true, isMinor: true, loading: false,
-      profileProbeFailed: false, ...authPatch,
-    });
+    ["TTFV redirect", {}, true, true],
+  ])("does not offer import during %s", async (_name, authPatch, onboarding, ttfv) => {
+    mockAuth.mockReturnValue({ userId: "u1", hasProfile: true, isMinor: true, loading: false, profileProbeFailed: false, ...authPatch });
     mockOnboardingComplete.mockReturnValue(onboarding);
     mockAutoTriggerTTFV.mockReturnValue(ttfv);
-
-    useImportPendingCaptures();
-
+    TestHarness(); await settle();
+    expect(TestHarness().prompt).toBeNull();
+    expect(mockLoad).not.toHaveBeenCalled();
     expect(mockImport).not.toHaveBeenCalled();
-    expect(mockSetCrisis).not.toHaveBeenCalled();
-  });
-
-  test("a storage failure settles without an unhandled rejection and permits a later retry", async () => {
-    mockImport
-      .mockRejectedValueOnce(new Error("storage unavailable"))
-      .mockResolvedValueOnce({ total: 0, imported: 0, failed: 0 });
-    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
-    try {
-      useImportPendingCaptures();
-      await mockImport.mock.results[0].value.catch(() => undefined);
-      expect(warn).toHaveBeenCalledWith("[capture] pending import failed; retry on next home mount");
-
-      // React runs the same effect again after a dependency change; a remount
-      // gets a fresh ref and also retries. Neither path loses the local queue.
-      mockEffects[0]();
-      await mockImport.mock.results[1].value;
-      expect(mockImport).toHaveBeenCalledTimes(2);
-    } finally {
-      warn.mockRestore();
-    }
   });
 });

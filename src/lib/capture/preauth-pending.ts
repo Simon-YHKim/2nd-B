@@ -9,9 +9,10 @@
 //   - Honest capacity: the queue is HARD-CAPPED and reports near-full / full so
 //     the UI can say "saved on this device, almost full" instead of silently
 //     dropping a clip (silent loss is the real trust break, per persona-sim).
-//   - On account creation each item is imported via the normal post-account path.
-//     Only confirmed imports leave the queue; "ratify" stays reserved for the
-//     edge/self-model contract, so the import verb here is confirm/import.
+//   - A signed-in person explicitly confirms that these device notes belong to
+//     them before importing into the displayed account. Only server-confirmed
+//     imports leave the queue; "ratify" stays reserved for the edge/self-model
+//     contract, so the import verb here is confirm/import.
 //
 // Storage plumbing mirrors capture/draft.ts (web localStorage, native encrypted
 // storage). Unlike drafts there is no userId scope: pre-account has no user.

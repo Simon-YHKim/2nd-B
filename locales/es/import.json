@@ -57,5 +57,17 @@
     "ingest": "Añadir la actividad de hoy",
     "consentNeeded": "Aceptar para traer tu actividad",
     "minorLocked": "La sincronización de actividad está desactivada en esta cuenta."
+  },
+  "pendingDevice": {
+    "title": "Notas guardadas en este dispositivo",
+    "body": "Hay {{count}} notas guardadas antes de iniciar sesión en este dispositivo. Podrían ser de otra persona. Impórtalas solo si son tuyas.",
+    "account": "Importar a: {{email}}",
+    "accountUnavailable": "No podemos confirmar el correo de esta cuenta. La importación queda en espera.",
+    "confirm": "Importar mis notas a esta cuenta",
+    "confirmHint": "Guarda las notas de este dispositivo en la cuenta mostrada.",
+    "defer": "Más tarde",
+    "deferHint": "Conserva las notas en este dispositivo.",
+    "importing": "Importando…",
+    "error": "No se pudieron importar algunas notas. Las notas restantes siguen en este dispositivo."
   }
 }
