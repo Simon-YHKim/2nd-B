@@ -119,6 +119,16 @@ export const healthKitSource: HealthSource = {
     }
   },
 
+  // No readGranted() here, so the automatic read (lib/health/auto-read.ts) never runs on
+  // iOS. The blocker is this adapter's call shapes, not HealthKit: it still calls the
+  // pre-v14 @kingstinct/react-native-healthkit API (requestAuthorization(share, read) and
+  // filter.startDate), while the installed 14.x takes requestAuthorization({ toRead }) and
+  // { filter: { date }, limit }. 14.x also has getRequestStatusForAuthorization, which can
+  // tell without a prompt whether access was already requested. Port and check on a device
+  // first. Note that on iOS the registry's health_connect entry also loads (the package
+  // resolves to a proxy that throws only when called) and comes first, so the tap path
+  // never reaches this adapter either.
+
   async read(range: HealthReadRange): Promise<HealthSample[]> {
     const mod = loadModule();
     if (!mod) return [];

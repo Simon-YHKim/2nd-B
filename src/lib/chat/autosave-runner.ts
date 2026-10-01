@@ -832,7 +832,13 @@ export function runManualKeep(
   if (!owner) return Promise.reject(new Error("autosave-owner-not-current"));
   return inOwnerLane(ownerId, async (signal) => {
     if (!owner.isCurrent()) throw new Error("autosave-owner-not-current");
-    const kept = await capture(manualKeepFence(signal));
+    const fence = manualKeepFence(signal, owner);
+    let kept: CaptureResult;
+    try {
+      kept = await capture(fence);
+    } finally {
+      fence.dispose();
+    }
     throwIfAborted(signal);
     if (kept.deduped !== "exact_duplicate") return kept;
     const record: AutosaveUndoRecord = { ownerId, sourceId: String(kept.source.id).toLowerCase() };
@@ -882,7 +888,7 @@ export interface ManualKeepFence {
   readonly journal: CaptureJournal;
 }
 
-function manualKeepFence(lane: AbortSignal): ManualKeepFence {
+function manualKeepFence(lane: AbortSignal, owner: AccountOwnerLease): ManualKeepFence & { dispose: () => void } {
   const journal: CaptureJournal = { uploadSent: false, uploadDone: false, insertSent: false, insertDone: false };
   const controller = new AbortController();
   const cut = (): void => {
@@ -890,7 +896,18 @@ function manualKeepFence(lane: AbortSignal): ManualKeepFence {
   };
   if (lane.aborted) cut();
   else lane.addEventListener("abort", cut, { once: true });
-  return { signal: controller.signal, journal };
+  const stopOwner = subscribeAccountTransition(() => {
+    if (!owner.isCurrent()) cut();
+  });
+  if (!owner.isCurrent()) cut();
+  return {
+    signal: controller.signal,
+    journal,
+    dispose: () => {
+      lane.removeEventListener("abort", cut);
+      stopOwner();
+    },
+  };
 }
 
 /**

@@ -1,3 +1,18 @@
+// r53: 자기동의 층은 이제 나라별이고, jest 의 expo-localization 목은 지역을 안 준다
+// (의도된 기본값). 그래서 그대로 두면 이 수트는 "나라를 모를 때"의 폴백 18 을
+// 재게 된다. 이 파일이 보는 것은 **한국의 14-17 자기동의 밴드**라 기기를 KR 로
+// 박고 시작한다. MIN_SELF_CONSENT_AGE 는 auth.ts 를 불러올 때 한 번 계산되므로,
+// 호이스팅되는 jest.mock 이어야 제때 들어간다.
+//
+// ⚠ 지역을 못 읽는 기기에서는 같은 15세가 막힌다. 그것이 r53 이 남긴 구멍이고,
+// 메우는 것은 숫자를 낮추는 것이 아니라 거주국 자기신고다(consent-age.ts 헤더).
+jest.mock("expo-localization", () => ({
+  getLocales: () => [
+    { languageTag: "ko-KR", languageCode: "ko", regionCode: "KR", textDirection: "ltr" },
+  ],
+  getCalendars: () => [{ calendar: "gregory", timeZone: "Asia/Seoul", uses24hourClock: true }],
+}));
+
 import { dobCorrectionStatus, canSubmitDobCorrection, formatBirthDateInput } from "../dob";
 
 // Anchor "today" so age math is deterministic. ageInYears uses the real clock,

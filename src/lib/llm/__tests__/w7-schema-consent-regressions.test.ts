@@ -12,9 +12,11 @@ const CONSENT_DRAFT_PATH = resolve(
   ROOT,
   "db/migration-drafts/UNNUMBERED_effective_llm_consent_current_contract.sql",
 );
+// The current signup contract: 0208 adds email-v6 (policy 2026-09-29, a
+// notice revision) next to email-v4 and email-v5 (0203).
 const CONSENT_CONTRACT_PATH = resolve(
   ROOT,
-  "db/migrations/0150_signup_consent_contract_20260902.sql",
+  "db/migrations/0208_signup_consent_privacy_20260929.sql",
 );
 const CONSENT_WRITER_PATH = resolve(ROOT, "src/lib/supabase/consent.ts");
 
@@ -157,7 +159,7 @@ describe("W7 current consent and xAI activation contract", () => {
     expect(consentDraft).toContain("JOIN public.llm_consent_receipts provenance");
     expect(consentDraft).toContain("c.sensitive_data_ack IS TRUE");
     expect(consentDraft).toContain("c.safety_notice_ack IS TRUE");
-    expect(consentDraft).toContain("public.signup_consent_contract('email-v3')");
+    expect(consentDraft).toContain("public.signup_consent_contract('email-v4')");
     expect(consentDraft).toContain("c.consent_version = contract.consent_version");
     expect(consentDraft).toContain("c.policy_version = contract.policy_version");
     expect(consentDraft).toContain("c.terms_version = contract.terms_version");
@@ -175,9 +177,9 @@ describe("W7 current consent and xAI activation contract", () => {
     expect(consentDraft).not.toMatch(/^\s*(?:BEGIN|COMMIT)\s*;/im);
   });
 
-  test("the server-owned email-v3 tuple matches the current client ledger constants", () => {
+  test("the server-owned email-v6 tuple matches the current client ledger constants", () => {
     const tuple = consentContract.match(
-      /\('email-v3'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*true\)/,
+      /\('email-v6'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*true\)/,
     );
     expect(tuple).not.toBeNull();
     expect(tuple?.slice(1)).toEqual([

@@ -97,6 +97,10 @@ verify_jwt = true
 # (user_id derived from the JWT, never from the request body).
 verify_jwt = true
 
+[functions.service-consent]
+# The signed-in subject is derived from gateway-verified JWT claims, never a body ID.
+verify_jwt = true
+
 [functions.export-account]
 # Subject data portability (GDPR Art.20 / PIPA). verify_jwt=true so the gateway
 # validates the caller; the function exports ONLY the caller's own data

@@ -38,6 +38,22 @@ describe("buildPersonaSynthesisPrompt", () => {
 });
 
 describe("parsePersonaSynthesis", () => {
+  it("accepts current life-star evidence and rejects retired lifestyle domains", () => {
+    const lifeInput: PersonaSynthesisInput = {
+      sourceKind: "life_star",
+      domainSummaries: [{ domain: "work", level: 3, itemCount: 2, excerpts: ["일하며 함께 만들었다"] }],
+      constructEstimates: [{ construct: "openness", level: 2 }],
+    };
+    const prompt = buildPersonaSynthesisPrompt(lifeInput, "ko");
+    expect(prompt.user).toContain("일하며 함께 만들었다");
+    expect(prompt.system).toContain("삶의 별");
+    const parsed = parsePersonaSynthesis(rawJson([
+      { label: "만드는 사람", summary: "기록에서 보이는 역할", evidence: { domains: ["work", "career"], constructs: ["openness"] } },
+    ]), lifeInput);
+    expect(parsed[0].evidence.domains).toEqual(["work"]);
+    expect(parsed[0].claimStrength).toBe(2);
+  });
+
   it("keeps grounded personas and computes claimStrength = min cited level", () => {
     const out = parsePersonaSynthesis(
       rawJson([

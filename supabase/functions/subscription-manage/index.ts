@@ -46,8 +46,11 @@
 // SECRETS (supabase secrets set):
 //   PADDLE_API_KEY               server-side Paddle API key. NEVER in git.
 //   PADDLE_SELF_SERVICE_ENABLED  '1' to turn the endpoint on. Fails closed otherwise.
-//   PADDLE_API_BASE              optional; defaults to https://api.paddle.com
-//                                (set to https://sandbox-api.paddle.com to test).
+//   PADDLE_ENVIRONMENT           deployment-owned production (default) or sandbox.
+//   PADDLE_API_BASE              optional; must match that environment's API root.
+//   PADDLE_SANDBOX_SUPABASE_URL  sandbox-only target pin; must match SUPABASE_URL
+//                                and differ from PADDLE_LIVE_SUPABASE_URL.
+//                                See docs/PADDLE-SANDBOX-RUNBOOK.md.
 //   PADDLE_SELF_SERVICE_DRYRUN   '1' to exercise the whole path (eligibility,
 //                                ledger, idempotency) WITHOUT calling Paddle.
 //   PADDLE_CHECKOUT_BINDING_SECRET server-only HMAC key shared with the webhook.
@@ -55,11 +58,17 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import {
+  buildPaddleApiUrl,
+  readPaddleApiResponse,
+} from '../_shared/paddle-api-boundary.ts';
 import { createCheckoutBinding } from '../_shared/paddle-checkout-binding.ts';
+import { readPaddleDeployment, paddleApiKeyMatches, paddlePriceAllowed } from '../_shared/paddle-environment.ts';
 import {
   JsonBodyError,
   SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES,
-  readJsonObject,
+  SUBSCRIPTION_MANAGE_JSON_MAX_DEPTH,
+  readStrictJsonObject,
 } from '../_shared/request-json.ts';
 
 const ALLOWED_ORIGINS = new Set<string>([
@@ -148,9 +157,11 @@ type EffectiveFrom = 'next_billing_period' | 'immediately';
 interface ManageBody {
   action: Action;
   effective_from?: EffectiveFrom;
+  price_id?: string;
+  paddle_environment?: 'production' | 'sandbox';
 }
 
-const MANAGE_BODY_KEYS = new Set(['action', 'effective_from']);
+const MANAGE_BODY_KEYS = new Set(['action', 'effective_from', 'price_id', 'paddle_environment']);
 
 function parseManageBody(value: unknown): ManageBody | null {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -161,6 +172,12 @@ function parseManageBody(value: unknown): ManageBody | null {
     return null;
   }
   if (action !== 'cancel' && 'effective_from' in value) return null;
+  if ('price_id' in body || 'paddle_environment' in body) {
+    if (action !== 'checkout_binding' || typeof body.price_id !== 'string'
+      || !/^pri_[a-z0-9]{26}$/.test(body.price_id)
+      || (body.paddle_environment !== 'production' && body.paddle_environment !== 'sandbox')) return null;
+    return { action, price_id: body.price_id, paddle_environment: body.paddle_environment };
+  }
   const effectiveFrom = body.effective_from;
   if (
     effectiveFrom !== undefined
@@ -177,24 +194,38 @@ interface Eligibility {
 
 const PADDLE_TIMEOUT_MS = 15000;
 
-function paddleBase(): string {
-  return (Deno.env.get('PADDLE_API_BASE') ?? 'https://api.paddle.com').replace(/\/+$/, '');
-}
-
 interface PaddleCall {
   ok: boolean;
   status: number;
   ref: string | null;
   error: string | null;
+  // Our configuration refused the endpoint, so nothing was sent to Paddle.
+  misconfigured?: boolean;
 }
 
 // One outbound shape for both actions. `Paddle-Idempotency-Key` is sent so a
 // network retry of the SAME claim cannot produce two adjustments at Paddle even
 // if our own ledger row were somehow replayed.
 async function callPaddle(path: string, body: unknown, idempotencyKey: string): Promise<PaddleCall> {
+  // The API key below is a bearer token, so the endpoint is built on the pinned
+  // Paddle roots first. The configured value is never echoed back or logged.
+  let endpoint: string;
   const apiKey = Deno.env.get('PADDLE_API_KEY') ?? '';
   try {
-    const res = await fetch(`${paddleBase()}${path}`, {
+    const deployment = readPaddleDeployment((name) => Deno.env.get(name));
+    endpoint = buildPaddleApiUrl(Deno.env.get('PADDLE_API_BASE') ?? deployment.apiBase, path);
+    if (new URL(endpoint).origin !== deployment.apiBase) throw new Error('invalid_paddle_api_base');
+    if (!paddleApiKeyMatches(apiKey, deployment.environment)) throw new Error('invalid_paddle_api_key');
+  } catch (e) {
+    const error = e instanceof Error && ['invalid_paddle_api_path', 'invalid_paddle_api_key'].includes(e.message)
+      ? e.message
+      : 'invalid_paddle_api_base';
+    return { ok: false, status: 0, ref: null, error, misconfigured: true };
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'authorization': `Bearer ${apiKey}`,
@@ -203,28 +234,34 @@ async function callPaddle(path: string, body: unknown, idempotencyKey: string): 
         'paddle-idempotency-key': idempotencyKey,
       },
       body: JSON.stringify(body),
+      // A redirect would re-send the request to a URL the pin never saw.
+      // Whether the runtime strips the bearer on a cross-origin hop is not
+      // ours to rely on, so any redirect fails as a transport error.
+      redirect: 'error',
       signal: AbortSignal.timeout(PADDLE_TIMEOUT_MS),
     });
-    let parsed: Record<string, unknown> | null = null;
-    try {
-      parsed = await res.json();
-    } catch {
-      parsed = null;
-    }
-    const dataObj = (parsed?.data ?? null) as Record<string, unknown> | null;
-    const ref = typeof dataObj?.id === 'string' ? dataObj.id : null;
-    if (!res.ok) {
-      const errObj = (parsed?.error ?? null) as Record<string, unknown> | null;
-      const code = typeof errObj?.code === 'string' ? errObj.code : `http_${res.status}`;
-      const detail = typeof errObj?.detail === 'string' ? errObj.detail : '';
-      return { ok: false, status: res.status, ref, error: `${code}${detail ? `: ${detail}` : ''}` };
-    }
-    return { ok: true, status: res.status, ref, error: null };
-  } catch (e) {
+  } catch {
     // A timeout or transport failure is genuinely unknown, not a refusal: the
-    // claim is settled as provider_error so the user can retry.
-    return { ok: false, status: 0, ref: null, error: String(e).slice(0, 300) };
+    // claim is settled as provider_error so the user can retry. The exception
+    // text is not stored; it can carry the URL and runtime detail.
+    return { ok: false, status: 0, ref: null, error: 'provider_transport_error' };
   }
+
+  // The status decides the outcome. The body, read under the boundary's size and
+  // nesting ceilings, only adds a reference or a short error code.
+  const summary = await readPaddleApiResponse(res);
+  if (!summary.bodyAccepted) {
+    console.warn(`[subscription-manage] paddle response body refused (status ${res.status})`);
+  }
+  if (!res.ok) {
+    return {
+      ok: false,
+      status: res.status,
+      ref: summary.ref,
+      error: summary.errorCode ?? `http_${res.status}`,
+    };
+  }
+  return { ok: true, status: res.status, ref: summary.ref, error: null };
 }
 
 Deno.serve(async (req: Request) => {
@@ -239,6 +276,12 @@ Deno.serve(async (req: Request) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!supabaseUrl || !serviceRoleKey) {
     return jsonResponse(req, { error: 'server_misconfigured_supabase_env' }, 500);
+  }
+  let deployment: ReturnType<typeof readPaddleDeployment>;
+  try {
+    deployment = readPaddleDeployment((name) => Deno.env.get(name));
+  } catch {
+    return jsonResponse(req, { error: 'paddle_environment_misconfigured' }, 503);
   }
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -260,7 +303,8 @@ Deno.serve(async (req: Request) => {
 
   let body: ManageBody;
   try {
-    const parsedBody = await readJsonObject(req, SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES);
+    // Strict: a repeated `action` key must not let JSON.parse pick the last one.
+    const parsedBody = await readStrictJsonObject(req, SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES, SUBSCRIPTION_MANAGE_JSON_MAX_DEPTH);
     const validatedBody = parseManageBody(parsedBody);
     if (!validatedBody) return jsonResponse(req, { error: 'invalid_body' }, 400);
     body = validatedBody;
@@ -270,6 +314,9 @@ Deno.serve(async (req: Request) => {
         error: error.code,
         max: error.maxBytes,
       }, 413);
+    }
+    if (error instanceof JsonBodyError && error.code === 'unsupported_media_type') {
+      return jsonResponse(req, { error: error.code }, 415);
     }
     return jsonResponse(req, { error: 'invalid_body' }, 400);
   }
@@ -309,12 +356,26 @@ Deno.serve(async (req: Request) => {
   // account that receives an entitlement. Bind the live Auth user to a nonce
   // with a server-only HMAC; paddle-webhook verifies the complete object.
   if (action === 'checkout_binding') {
+    // Old production clients can finish their v1 checkout rollout. Sandbox
+    // always requires the selected price and the expected environment.
+    if (body.price_id === undefined && deployment.environment === 'sandbox') {
+      return jsonResponse(req, { error: 'checkout_scope_required' }, 400);
+    }
+    if (body.price_id !== undefined && (body.paddle_environment !== deployment.environment
+      || !paddlePriceAllowed((name) => Deno.env.get(name), body.price_id))) {
+      return jsonResponse(req, { error: 'checkout_scope_mismatch' }, 400);
+    }
     const bindingSecret = Deno.env.get('PADDLE_CHECKOUT_BINDING_SECRET') ?? '';
     if (bindingSecret.length < 32) {
       console.error('[subscription-manage] checkout binding secret unavailable');
       return jsonResponse(req, { error: 'checkout_binding_unavailable' }, 503);
     }
     try {
+      if (body.price_id !== undefined) {
+        return jsonResponse(req, await createCheckoutBinding(bindingSecret, userId, {
+          scope: { environment: deployment.environment, audience: deployment.audience, price_id: body.price_id },
+        }));
+      }
       return jsonResponse(req, await createCheckoutBinding(bindingSecret, userId));
     } catch {
       console.error('[subscription-manage] checkout binding creation failed');
@@ -474,6 +535,11 @@ Deno.serve(async (req: Request) => {
 
   if (!call.ok) {
     console.error(`[subscription-manage] paddle ${action} failed:`, call.status, call.error);
+    if (call.misconfigured) {
+      // Same answer as a missing key: support, not a retry against a bad setting.
+      await settleClaim('misconfigured', call);
+      return jsonResponse(req, { ok: false, outcome: 'misconfigured', contact_support: true, eligibility }, 200);
+    }
     await settleClaim('provider_error', call);
     return jsonResponse(req, { ok: false, outcome: 'provider_error', contact_support: true, eligibility }, 200);
   }

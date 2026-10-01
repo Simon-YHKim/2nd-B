@@ -1,4 +1,32 @@
 {
+  "camera": {
+    "aim": "Apuntando a la estrella",
+    "zoom": "Acercando la estrella",
+    "focus": "Ajustando el enfoque",
+    "ready": "Enfoque fijado · Listo para viajar",
+    "return": "Volviendo a la constelación",
+    "shutter": "Tomando una foto"
+  },
+  "telescope": {
+    "label": "Controles del telescopio",
+    "up": "Apuntar arriba",
+    "down": "Apuntar abajo",
+    "left": "Apuntar a la izquierda",
+    "right": "Apuntar a la derecha",
+    "reset": "Volver al origen",
+    "dial": "Dial de aumento",
+    "hint": "W amplía el campo de visión y T acerca la imagen. Al soltar, se mantiene el aumento.",
+    "slider": "Control deslizante de aumento",
+    "joystick": "Joystick de giro e inclinación",
+    "joystickHint": "Empuja para moverte o toca sin arrastrar para volver al origen. Cuanto más lo alejes del centro, más rápido se moverá. Suelta para detenerte. Con teclado, mantén pulsadas las flechas.",
+    "panTilt": "Giro / Incl.",
+    "stopped": "Detenido",
+    "speed": "Vel. {{value}}%",
+    "phone": "Abrir mi panel",
+    "phoneLabel": "Mi móvil",
+    "phoneReveal": "Desliza hacia arriba para sacar el móvil.",
+    "phoneStow": "Toca para abrir el panel o desliza hacia abajo para guardar el móvil."
+  },
   "time": {
     "today": "Hoy",
     "yesterday": "Ayer",
@@ -20,7 +48,7 @@
     "statLinks": "Enlaces",
     "filterAll": "Todo",
     "emptyTag": "Aún no hay nada bajo esta etiqueta. Prueba otra etiqueta o añade una pieza.",
-    "emptyAll": "Aún no hay contenido. Guarda un fragmento o un enlace y podrás volver a verlo aquí.",
+    "emptyAll": "Aún no hay páginas wiki. Guarda una nota o un enlace y organízalo como página desde la bandeja de entrada.",
     "addPiece": "+ Añadir una pieza",
     "backlinks": "Registros enlazados {{count}}",
     "connections": "Enlaces {{count}}",
@@ -145,8 +173,8 @@
     "kindFallback": "Registro"
   },
   "auth": {
-    "appName": "2nd-Brain",
-    "signInLead": "Guarda tus registros y consulta tu resumen en la Estrella Polar.",
+    "appName": "PolaScope",
+    "signInLead": "En la era de la IA, el activo eres tú. Tus registros forman tu Estrella Polar.",
     "signIn": "Iniciar sesión",
     "createAccount": "Crear cuenta",
     "signUpTitle": "Empezar",
@@ -164,10 +192,9 @@
     "haveAccount": "¿Ya tienes una cuenta? Inicia sesión",
     "forgotPassword": "¿Olvidaste tu contraseña?",
     "or": "o",
-    "ageNotice": "Puedes crear una cuenta si tienes 14 años o más.",
-    "brandLabel": "2ND-BRAIN",
-    "signInTitle": "Inicia sesión en 2nd-Brain",
-    "signInEncrypt": "Puedes cambiar tus ajustes de privacidad en cualquier momento.",
+    "ageNotice": "Puedes crear una cuenta si tienes {{minAge}} años o más.",
+    "brandLabel": "POLASCOPE",
+    "signInTitle": "Qué bueno verte de nuevo",
     "emailContinue": "Continuar con correo",
     "signUpPrompt": "¿Primera vez?",
     "legalConsent": "Al continuar, aceptas las Condiciones del servicio y la Política de privacidad.",
@@ -239,7 +266,7 @@
     "viewManual": "Ver el manual",
     "emailUs": "Escríbenos",
     "reportBug": "Reportar un error",
-    "footer": "2nd-Brain v1.0.0 · 2 días hábiles KST",
+    "footer": "PolaScope v1.0.0 · 2 días hábiles KST",
     "faqTitle": "Preguntas frecuentes",
     "noticesTitle": "Avisos"
   },
@@ -385,7 +412,7 @@
     "proActive": "Tu plan de pago está activo",
     "nowPro": "Ya tienes un plan de pago. Gracias.",
     "notAvailableTitle": "Mejora en la app móvil",
-    "notAvailableBody": "Los planes de pago se compran en las tiendas de apps en iOS y Android. Abre 2nd-Brain en tu teléfono para mejorar.",
+    "notAvailableBody": "Los planes de pago se compran en las tiendas de apps en iOS y Android. Abre PolaScope en tu teléfono para mejorar.",
     "support": "Contactar soporte",
     "loadError": "No se pudieron cargar los planes. Inténtalo de nuevo.",
     "purchaseError": "La compra no se completó. Inténtalo de nuevo.",
@@ -554,6 +581,12 @@
     "retry": "Reintentar",
     "empty": "Aún no hay registros de trabajo. Añade un logro para encender esta estrella.",
     "pieceFallback": "Pieza de carrera",
+    "drillDown": "Ver detalles",
+    "originalNote": "Las vistas previas conservan el idioma guardado. Abre una tarjeta para leer el registro completo.",
+    "sourceInterview": "Entrevista de recuerdos",
+    "sourceRecord": "Registro de carrera guardado",
+    "entryUiKorean": "Pantalla al guardar: coreano",
+    "entryUiEnglish": "Pantalla al guardar: inglés",
     "untitled": "(sin título)"
   },
   "careerInput": {
@@ -701,14 +734,19 @@
     "starsFallback": "No pudimos leer tus estrellas; dibujamos el valor por defecto."
   },
   "coachmarks": {
-    "step1": "Esta es tu constelación",
-    "step2": "Toca una estrella",
-    "step3": "Cuando algo te venga a la mente, guárdalo",
-    "step4": "Hay más herramientas en los ajustes",
+    "homeStep": "Toca SecondB para empezar a guardar un registro.",
+    "formatStep": "Primero elige Nota. Una línea es suficiente.",
+    "inputStep": "Escribe lo que tienes en mente. No hace falta una frase completa.",
+    "saveStep": "Por último, toca Guardar para conservar este registro.",
+    "doneStep": "Tu registro está guardado. Vuelve a la constelación para verlo.",
+    "targetHint": "Toca el control resaltado para continuar.",
+    "inputHint": "Escribe al menos un carácter para continuar a Guardar.",
+    "doneHint": "El registro se guardó correctamente.",
+    "inputReady": "Ir a Guardar",
+    "goHome": "Ir a la constelación",
+    "doneCount": "Listo",
     "secondbName": "SecondB",
-    "dontShowAgain": "No volver a mostrar",
-    "start": "Empezar",
-    "next": "Siguiente"
+    "dontShowAgain": "No volver a mostrar"
   },
   "museum": {
     "title": "Museo de la IA",
@@ -732,6 +770,7 @@
     "a11yZoomOut": "Alejar",
     "a11yZoomIn": "Acercar",
     "hintSelected": "{{label}} · toca de nuevo para abrir",
+    "openRecord": "Abrir registro",
     "hintDefault": "Discontinua = registros unidos por una etiqueta compartida. Toca para seleccionar, toca de nuevo para abrir",
     "untitled": "(sin título)",
     "tagLinks": "Enlaces de etiqueta"
@@ -754,11 +793,11 @@
     "rangeNote": "Esta página: ítems {{from}} – {{to}}"
   },
   "shareCardImg": {
-    "eyebrowWeek": "2ND-BRAIN · ESTA SEMANA",
+    "eyebrowWeek": "POLASCOPE · ESTA SEMANA",
     "eyebrowConstellation": "MI CONSTELACIÓN",
     "footerWeek": "Resumen semanal de SecondB",
     "starsLit": "{{count}} estrellas brillando",
-    "signature": "2nd-Brain · {{count}} motas de estrella"
+    "signature": "PolaScope · {{count}} motas de estrella"
   },
   "ds": {
     "growth": {
@@ -913,12 +952,19 @@
       "revoke": "Retirar importación",
       "fileSource": "Importación de archivo",
       "revokeFailed": "No se pudo revocar. Inténtalo de nuevo en un momento.",
+      "revokeKeptShared": "En esta revocación no se eliminó {{count}} fuente: otra importación también la trajo.",
+      "revokeKeptShared_plural": "En esta revocación no se eliminaron {{count}} fuentes: otras importaciones también las trajeron.",
+      "revokeKeptUnconfirmed": "En esta revocación no se eliminó {{count}} fuente: no se pudo confirmar que solo esta importación la trajera.",
+      "revokeKeptUnconfirmed_plural": "En esta revocación no se eliminaron {{count}} fuentes: no se pudo confirmar que solo esta importación las trajera.",
+      "revokeKeptUncertain": "No se pudo comprobar si siguen todas ahí.",
+      "revokeUnserialized": "Este navegador no puede ordenar las revocaciones entre pestañas abiertas, así que no se revocó nada. Inténtalo de nuevo en un navegador actualizado.",
       "healthErrUnavailable": "Este dispositivo no puede conectarse a una app de salud. No se registró nada.",
       "healthErrDenied": "Se rechazó el acceso a salud, así que no se registró nada. Puedes permitirlo en los ajustes del dispositivo.",
       "healthErrEmpty": "Hoy no hay actividad para añadir.",
       "healthReflected": "Reflejado. Elementos añadidos: {{count}}.",
       "healthReflectedNone": "Nada nuevo que reflejar: los registros de hoy ya estaban guardados.",
       "healthRoutinesCompleted": "Rutinas completadas con esto: {{count}}.",
+      "healthAutoDaily": "Con la actualización automática activada, este teléfono también lee pasos, entrenamientos y sueño una vez al día por sí solo.",
       "healthErrFailed": "No se pudo añadir tu actividad. Inténtalo de nuevo en un momento.",
       "summaryPieces": "{{count}} pieza",
       "summaryPieces_plural": "{{count}} piezas",
@@ -1108,6 +1154,13 @@
   },
   "profileDetails": {
     "screenTitle": "Sobre tu vida",
+    "nameLabel": "Nombre visible",
+    "nameHint": "El nombre que aparece en tu perfil. Es opcional y admite hasta 40 caracteres.",
+    "nameLoading": "Cargando tu nombre…",
+    "nameLoadError": "No se pudo cargar tu nombre actual. Inténtalo de nuevo.",
+    "nameSave": "Guardar nombre",
+    "nameSaved": "Nombre guardado",
+    "nameSaveError": "No se pudo guardar tu nombre. Inténtalo de nuevo.",
     "intro": "Completa solo lo que quieras compartir. Puedes guardar estos datos en tu perfil y cambiarlos después.",
     "progress": "{{filled}} de {{total}} completados",
     "save": "Guardar",

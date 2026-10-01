@@ -11,6 +11,11 @@
     "sourceEmpty": "Una fuente capturada. Abre su pantalla abajo para ver el contenido completo.",
     "noText": "Esta pieza no tiene texto."
   },
+  "photos": {
+    "title": "Fotos",
+    "item": "Foto {{n}}",
+    "loadError": "No se pudieron cargar las fotos."
+  },
   "advisor": {
     "heading": "Nota de SecondB",
     "sources": "Fuentes",

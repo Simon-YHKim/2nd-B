@@ -33,7 +33,7 @@ interface Tab {
 
 const TABS: Tab[] = [
   { id: "graph", href: "/", ko: "그래프", en: "Graph" },
-  { id: "capture", href: "/capture", ko: "담기", en: "Capture" },
+  { id: "capture", href: "/capture", ko: "스크랩", en: "Scrap" },
   { id: "secondb", href: "/secondb", ko: "세컨비", en: "SecondB" },
   { id: "profile", href: "/profile", ko: "나", en: "Me" },
 ];

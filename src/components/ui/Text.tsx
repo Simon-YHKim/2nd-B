@@ -1,5 +1,6 @@
-import { Text as RNText, type TextProps as RNTextProps, Platform } from "react-native";
+import { type TextProps as RNTextProps, Platform } from "react-native";
 
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { semantic, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { m3, type M3TypeRole } from "@/lib/theme/m3";

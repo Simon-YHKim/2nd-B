@@ -63,7 +63,7 @@ describe("subscription-manage - auth boundary", () => {
 
 describe("subscription-manage - bounded strict request body", () => {
   test("uses the shared streaming body cap and rejects extra keys", () => {
-    expect(code).toMatch(/readJsonObject\(req, SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES\)/);
+    expect(code).toMatch(/readStrictJsonObject\(req, SUBSCRIPTION_MANAGE_JSON_BODY_LIMIT_BYTES, SUBSCRIPTION_MANAGE_JSON_MAX_DEPTH\)/);
     expect(code).toMatch(/Object\.keys\(value\)\.some\(\(key\) => !MANAGE_BODY_KEYS\.has\(key\)\)/);
     expect(code).toMatch(/error: 'invalid_body'/);
   });

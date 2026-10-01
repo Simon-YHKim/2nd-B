@@ -17,8 +17,10 @@ import { getSupabaseClient } from "../supabase/client";
 import { invalidateDomainLevels } from "../persona/load-domain-levels";
 import { fetchPrivacyPrefs } from "../supabase/privacy";
 import { withTimeout } from "../async/with-timeout";
+import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
 import { getEnv } from "../env";
 import type { StructuredPayload } from "../capture/structured";
+import { recordPhotoPathsOf, removeRecordPhotoObjects, type RecordPhotosPayload } from "../capture/record-photos";
 import { domainTagFor, isDomainId, stripDomainTags, type DomainId } from "../persona/domain-stars";
 import { withDomainTag } from "./detect-domain";
 import { embedAndStoreRecord, recordsEmbeddingAllowed } from "./records-embeddings";
@@ -66,9 +68,25 @@ export interface CreateRecordArgs {
    * Machine-readable form payload (0066): set by form-shaped captures (4W1H,
    * career 3C4P) alongside the flattened human body, so the system and the AI
    * can read the structure. Omitted = column stays null.
+   *
+   * A 글 note with photos (2026-09-30) carries { photos: [...] } here instead:
+   * storage paths only, never the image bytes (capture/record-photos.ts).
    */
-  structured?: StructuredPayload;
+  structured?: StructuredPayload | RecordPhotosPayload;
+  /**
+   * Owner-scoped retry key (0178 records.client_request_id, UNIQUE per
+   * user_id). The same key on a retry makes the server refuse a second row, and
+   * the existing row comes back instead. Only for plain notes with follow-ups
+   * off: the AI follow-up runs BEFORE the insert, so a keyed journal or audit
+   * answer would repeat a paid call on every replay and then throw it away.
+   */
+  clientRequestId?: string;
+  /** Optional account fence for a device-local import with a separately confirmed owner. */
+  session?: AuthenticatedAccountSessionLease;
 }
+
+// Same bound and alphabet as the 0178 records_client_request_id_format CHECK.
+const CLIENT_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
 export type { RecordedEvidence, RecordFollowup } from "./followup";
 
@@ -120,6 +138,18 @@ const XP_ACTION_FOR_KIND: Record<RecordKind, XpAction> = {
 };
 
 export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecord> {
+  if (args.session && args.session.userId !== args.userId) throw new Error("record_session_owner_mismatch");
+  args.session?.assertCurrent();
+  // A caller bug, not user input: reject before any classification or write so
+  // a malformed key never reaches the server CHECK as a failed save.
+  if (
+    args.clientRequestId !== undefined &&
+    (!CLIENT_REQUEST_ID_PATTERN.test(args.clientRequestId) ||
+      args.kind !== "note" ||
+      args.withFollowup !== false)
+  ) {
+    throw new Error("invalid_client_request_id");
+  }
   const supabase = getSupabaseClient();
 
   let aiFollowup: RecordFollowup | null = null;
@@ -142,12 +172,9 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
     (args.kind === "audit_response" || (args.kind === "journal" && advisorAllowed));
   if (!llmPathWillClassify) {
     try {
-      const crisis = await classifyRecordTextForCrisis(
-        args.body,
-        args.locale,
-        args.userId,
-        args.minor === true,
-      );
+      const crisis = args.session
+        ? await classifyRecordTextForCrisis(args.body, args.locale, args.userId, args.minor === true, args.session)
+        : await classifyRecordTextForCrisis(args.body, args.locale, args.userId, args.minor === true);
       if (crisis) {
         aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
       }
@@ -276,6 +303,10 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
       ? [domainTagFor(args.domainIntent), ...stripDomainTags(args.tags ?? [])]
       : withDomainTag(args.tags, [args.body, args.topic].filter(Boolean).join("\n"));
 
+  // Classification can await two audit writes. A device queue import must not
+  // insert after its authenticated account changed during those awaits.
+  args.session?.assertCurrent();
+
   // Bounded. Neither fetch nor supabase-js times out on its own, so a STALLED connection
   // (socket open, nothing coming back -- not the same as a failed one) left this await
   // hanging forever. On /ipip-neo that meant a 120-item, ~15-minute assessment sat behind
@@ -299,13 +330,23 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
         tags,
         // 0066: machine-readable form payload for form-shaped captures.
         structured: args.structured ?? null,
+        // 0178 retry key. NULL for every unkeyed insert: the unique key is
+        // (user_id, client_request_id) and Postgres never treats NULLs as equal,
+        // so ordinary saves stay unconstrained. A plain property on purpose -
+        // records-sources-data-shape.test.ts reads this literal's keys.
+        client_request_id: args.clientRequestId ?? null,
       })
       .select("id")
       .single(),
     RECORD_INSERT_TIMEOUT_MS,
     "record insert",
   );
-  if (error) throw error;
+  if (error) {
+    if (args.clientRequestId !== undefined && error.code === "23505") {
+      return replayKeyedRecord(args, args.clientRequestId, error, aiFollowup);
+    }
+    throw error;
+  }
   if (!data) throw new Error("Insert returned no row");
 
   // The new record carries a domain: tag, so this user's cached home-constellation
@@ -320,43 +361,116 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
   // enrichment must not hold the save button hostage -- least of all the embedding call,
   // which is a network round trip to an AI service. Both now run detached: they still
   // happen, they just stop being something the user waits on.
-  void awardXpSafe(XP_ACTION_FOR_KIND[args.kind]).catch((e: unknown) => {
-    if (typeof console !== "undefined") console.warn("[records] xp award failed", (e as Error).message);
-  });
+  // The import lease is released when this call returns. These detached
+  // helpers use the mutable auth client, so they must not run later under a
+  // different account. XP and automatic embeddings are optional enrichment;
+  // the confirmed record and its C9 routing are the durable import result.
+  if (!args.session) {
+    void awardXpSafe(XP_ACTION_FOR_KIND[args.kind]).catch((e: unknown) => {
+      if (typeof console !== "undefined") console.warn("[records] xp award failed", (e as Error).message);
+    });
 
-  // D5 (J2 auto-embed): when the ADULT user has opted in (records_embedding pref,
-  // OFF by default, privacy/prefs.ts), embed the new record so the semantic
-  // "연결된 기록" surface stays fresh. Best-effort, gated, and skipped in mock mode
-  // (mock embeddings are random vectors that would poison cosine similarity).
-  // Journal text is embedded ONLY under explicit consent: recordsEmbeddingAllowed
-  // hard-blocks minors and requires the opt-in pref, and embedAndStoreRecord fails
-  // closed on top of that. Minors skip without even reading prefs; a failure never
-  // affects the save (which already returned its row).
-  // Detached, for the same reason as the XP call above: the comment already promised "a
-  // failure never affects the save (which already returned its row)" -- and that was true
-  // of the ROW, but not of the CALLER, who was still awaiting this whole function. So a
-  // slow embedding round trip kept the save button spinning long after the record was
-  // safely in the database.
-  if (args.minor !== true && getEnv().EXPO_PUBLIC_LLM_MODE !== "mock") {
-    void (async () => {
-      try {
-        const prefs = await fetchPrivacyPrefs(args.userId);
-        if (recordsEmbeddingAllowed(false, prefs.records_embedding)) {
-          await embedAndStoreRecord(
-            args.userId,
-            { id: data.id, topic: args.topic ?? null, summary: args.summary ?? null, body: args.body },
-            args.locale,
-            false,
-            true,
-          );
-        }
-      } catch (e) {
-        if (typeof console !== "undefined") console.warn("[records] auto-embed skipped", (e as Error).message);
-      }
-    })();
+    embedRecordDetached(args, {
+      id: data.id,
+      topic: args.topic ?? null,
+      summary: args.summary ?? null,
+      body: args.body,
+    });
   }
 
   return { id: data.id, tags, followup: aiFollowup ?? undefined };
+}
+
+// D5 (J2 auto-embed): when the ADULT user has opted in (records_embedding pref,
+// OFF by default, privacy/prefs.ts), embed the saved record so the semantic
+// "연결된 기록" surface stays fresh. Best-effort, gated, and skipped in mock mode
+// (mock embeddings are random vectors that would poison cosine similarity).
+// Journal text is embedded ONLY under explicit consent: recordsEmbeddingAllowed
+// hard-blocks minors and requires the opt-in pref, and embedAndStoreRecord fails
+// closed on top of that. Minors skip without even reading prefs; a failure never
+// affects the save (which already returned its row).
+// Detached, for the same reason as the XP call in createRecord: the comment already
+// promised "a failure never affects the save (which already returned its row)" -- and
+// that was true of the ROW, but not of the CALLER, who was still awaiting this whole
+// function. So a slow embedding round trip kept the save button spinning long after the
+// record was safely in the database.
+// Shared by the first save and the 0178 replay. Repeating it is safe: it is an UPDATE
+// of this one row's embedding columns (storeRecordEmbedding), not a new row.
+function embedRecordDetached(
+  args: Pick<CreateRecordArgs, "userId" | "locale" | "minor">,
+  row: { id: string; topic: string | null; summary: string | null; body: string },
+): void {
+  if (args.minor === true || getEnv().EXPO_PUBLIC_LLM_MODE === "mock") return;
+  void (async () => {
+    try {
+      const prefs = await fetchPrivacyPrefs(args.userId);
+      if (recordsEmbeddingAllowed(false, prefs.records_embedding)) {
+        await embedAndStoreRecord(args.userId, row, args.locale, false, true);
+      }
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[records] auto-embed skipped", (e as Error).message);
+    }
+  })();
+}
+
+// 0178 replay. A 23505 on a keyed insert means an earlier attempt with the same
+// key already committed - its response was lost to the 20s deadline, or the app
+// died before the caller's local queue was acknowledged. Reading that row back
+// turns the retry into a success instead of a failure that repeats forever (or,
+// without the key, a duplicate note). RLS plus the explicit user_id bind the
+// lookup to the owner; kind + body equality stop a reused key from aliasing a
+// different note. The C9 classification above DID run again - it runs before
+// every save and its crisis follow-up is returned so the caller still routes a
+// red entry.
+//
+// Enrichment on a replay: the embedding runs again, through the same detached
+// block as a first save - it is an idempotent UPDATE of this row, and after a
+// timeout the first attempt threw at the insert and never reached it. XP does
+// NOT run again: award_xp is keyed by action, not by record, and "note" is a
+// repeatable rule (0019, once_only false), so a second call is a second award -
+// and a replay cannot tell whether the first attempt got as far as awarding. So a
+// timeout replay leaves that note without its XP (the first attempt threw before
+// awarding, the replay skips it).
+async function replayKeyedRecord(
+  args: CreateRecordArgs,
+  clientRequestId: string,
+  insertError: unknown,
+  followup: RecordFollowup | null,
+): Promise<CreatedRecord> {
+  args.session?.assertCurrent();
+  const { data: existing, error } = await withTimeout(
+    getSupabaseClient()
+      .from("records")
+      .select("id, kind, body, tags, topic, summary")
+      .eq("user_id", args.userId)
+      .eq("client_request_id", clientRequestId)
+      .maybeSingle(),
+    RECORD_INSERT_TIMEOUT_MS,
+    "record replay lookup",
+  );
+  args.session?.assertCurrent();
+  if (error) throw error;
+  // Nothing under this key: the unique violation came from another constraint.
+  if (!existing) throw insertError;
+  if (existing.kind !== args.kind || existing.body !== args.body) {
+    throw new Error("record_idempotency_conflict");
+  }
+  // The first attempt may have died before dropping the cached domain levels.
+  invalidateDomainLevels(args.userId);
+  // Embed what the row holds (body equals args.body, checked above).
+  if (!args.session) {
+    embedRecordDetached(args, {
+      id: existing.id,
+      topic: typeof existing.topic === "string" ? existing.topic : null,
+      summary: typeof existing.summary === "string" ? existing.summary : null,
+      body: existing.body,
+    });
+  }
+  return {
+    id: existing.id,
+    tags: Array.isArray(existing.tags) ? existing.tags : [],
+    followup: followup ?? undefined,
+  };
 }
 
 // How far back the streak query looks, in days. A streak longer than this is
@@ -384,6 +498,20 @@ export async function listRecentRecords(userId: string, limit = 500) {
     .gte("created_at", sinceIso)
     .order("created_at", { ascending: false })
     .limit(limit);
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch Polaris-cited records by id, including evidence older than the
+ *  timeline's 90-day window. Ownership is scoped here as well as by RLS. */
+export async function listRecordsByIds(userId: string, ids: readonly string[]) {
+  const uniqueIds = [...new Set(ids)].filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 60);
+  if (!userId || uniqueIds.length === 0) return [];
+  const { data, error } = await getSupabaseClient()
+    .from("records")
+    .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at, structured")
+    .eq("user_id", userId)
+    .in("id", uniqueIds);
   if (error) throw error;
   return data ?? [];
 }
@@ -449,15 +577,22 @@ export async function updateRecord(
 // index-friendly WHERE fires first.
 export async function deleteRecord(userId: string, recordId: string): Promise<void> {
   const supabase = getSupabaseClient();
-  const { error } = await supabase
+  // The deleted row comes back so its attached photos (records.structured.photos,
+  // 2026-09-30) can be removed from Storage with it instead of staying behind.
+  const { data, error } = await supabase
     .from("records")
     .delete()
     .eq("user_id", userId)
-    .eq("id", recordId);
+    .eq("id", recordId)
+    .select("structured");
   if (error) throw error;
   // Deletes shift domain levels just like saves do (createRecord above) — drop
   // the cached constellation so the sky dims honestly instead of after the TTL.
   invalidateDomainLevels(userId);
+  // Best effort and never a failure: the record is already gone. A photo that
+  // fails to delete here stays in the owner's private folder (record-photos.ts).
+  const photoPaths = recordPhotoPathsOf(data as { structured?: unknown }[] | null, userId);
+  if (photoPaths.length > 0) await removeRecordPhotoObjects(photoPaths);
 }
 
 // Exact count of a user's records of one kind. Used by the free-tier usage

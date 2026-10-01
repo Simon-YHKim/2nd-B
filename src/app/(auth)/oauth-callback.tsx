@@ -12,10 +12,13 @@ import { router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { completeNaverOAuth } from "@/lib/supabase/auth";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { observeAuthConversion } from "@/lib/analytics/auth-conversions";
 import { cosmic, typography } from "@/lib/theme/tokens";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 
 export default function OAuthCallback() {
+  const { refresh } = useAuth();
   const { t } = useTranslation("auth");
   const [failed, setFailed] = useState(false);
 
@@ -52,7 +55,9 @@ export default function OAuthCallback() {
         return;
       }
       try {
-        await completeNaverOAuth({ code, state });
+        const result = await completeNaverOAuth({ code, state });
+        await refresh();
+        void observeAuthConversion(result.userId, "login", "naver");
         if (!cancelled) router.replace("/");
       } catch {
         if (!cancelled) setFailed(true);
@@ -62,7 +67,7 @@ export default function OAuthCallback() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refresh]);
 
   if (failed) {
     const failureMessage = t("oauthCallback.failureMessage");

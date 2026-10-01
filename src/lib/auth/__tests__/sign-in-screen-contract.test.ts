@@ -65,21 +65,77 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
     expect(source).toContain("<PixelSurface");
     expect(source).toContain("<PixelPressable");
     expect(source).toContain("<PixelGlyph");
+    expect(source).toContain("<PixelStarSvg");
+    expect(source).not.toContain("<SecondbHead");
+    expect(source).not.toContain("signInEncrypt");
     expect(source).not.toMatch(/<Pressable\b|RadialGradient|borderRadius|opacity|withAlpha|flattenAlpha/);
     expect(source).toContain("minHeight: m3.minTouch");
   });
 
+  test("fills and twinkles the loading Polaris with reduced-motion support", () => {
+    expect(source).toContain('import { LoadingPolaris } from "@/components/deepspace/LoadingPolaris"');
+    expect(source).toContain(
+      '<LoadingPolaris size={112} accessibilityLabel={t("home:ds.home.polaris")} />',
+    );
+    expect(source).not.toContain("function LoadingPolaris");
+  });
+
+  test("lets the form and legal copy share the gate background", () => {
+    expect(source).toContain("<View style={[styles.formSurface, styles.form]}>");
+    expect(source).toContain("<View style={styles.legal}>");
+    expect(source).not.toContain(
+      '<PixelSurface variant="frame" style={styles.formSurface} contentStyle={styles.form}>',
+    );
+    expect(source).not.toContain('<PixelSurface variant="flat" contentStyle={styles.legal}>');
+    expect(source.match(/variant="inset"/g)).toHaveLength(2);
+  });
+
   test("keeps the real form, provider visibility, and explicit action gates", () => {
     expect(source).toContain("useSignInForm()");
-    expect(source).toContain("visibleProviders.map((provider)");
-    expect(source).toContain("{naverEnabled ? (");
+    expect(source).toContain(
+      'const SIGN_IN_PROVIDERS = ["google", "apple", "github"] as const',
+    );
+    expect(source).toContain("visibleProviders.includes(provider)");
+    expect(source).toContain("signInProviders.map((provider)");
+    expect(source).toContain("<ProviderBrandIcon provider={provider} />");
     expect(source).toContain('secureTextEntry={!showPassword}');
     expect(source).toContain('returnKeyType="next"');
     expect(source).toContain('returnKeyType="go"');
     expect(source).toContain("runAuthActionOnce(actionLock, handleSubmit)");
     expect(source).toContain("runAuthActionOnce(actionLock, () => handleOAuth(provider))");
-    expect(source).toContain("runAuthActionOnce(actionLock, handleNaver)");
-    expect(source).not.toContain("useEffect(");
+    expect(source).not.toContain("PROVIDER_MONOGRAM");
+    expect(source).not.toContain("handleNaver");
+    expect(source).not.toContain("naverEnabled");
+  });
+
+  test("renders the three retained brands as crisp pixel geometry", () => {
+    expect(source).toContain('<Svg width={32} height={32} viewBox="0 0 16 16">');
+    expect(source).toContain("PIXEL_BRAND_CELLS[provider].map");
+    expect(source).toContain("<Rect");
+    expect(source).toContain('"#EA4335"');
+    expect(source).toContain('"#FBBC05"');
+    expect(source).toContain('"#34A853"');
+    expect(source).toContain('"#4285F4"');
+  });
+
+  test("uses the raised bevel as the standard for sign-in actions and legal links", () => {
+    expect(source).toMatch(
+      /variant="bevel"\s+onPress=\{\(\) => void submit\(\)\}/,
+    );
+    expect(source).toMatch(
+      /variant="bevel"\s+onPress=\{\(\) => router\.push\(resetPasswordHref\(email\)\)\}/,
+    );
+    const legalLink = source.slice(source.indexOf("function LegalLink"), source.indexOf("const styles"));
+    expect(legalLink).toContain('variant="bevel"');
+    expect(source).not.toContain('variant={submitDisabled ? "inset" : "bevel"}');
+  });
+
+  test("aligns lower actions to the same horizontal inset as the form controls", () => {
+    expect(source).toContain("<View style={styles.actionInset}>");
+    expect(source).toContain('<View style={[styles.legalLinks, styles.actionInset]}>');
+    expect(source).toContain(
+      'actionInset: { alignSelf: "stretch", paddingHorizontal: m3.spacing.s4 },',
+    );
   });
 
   test("routes to the actual recovery, signup, and three legal surfaces", () => {
@@ -110,6 +166,9 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
 // 2026-09-13: prefix · tail 두 digest 를 재고정했다. reset-password 가
 // AuthContext 의 bounded retry 를 직접 노출하면서 prefix 에 import 한 줄,
 // tail 에 announced retry surface 가 추가됐다.
+// 2026-09-30: prefix digest 만 재고정했다. Text 를 react-native 대신
+// @/components/ui/PlainText 에서 가져오는 import 두 줄뿐이다(앱 전체 한국어
+// 줄바꿈, plain-text-guard.test.ts). tail 은 그대로다.
 // 아래 "legacy sign-in renderer/styles" 검사의 digest 는 그대로다.
 describe("sign-in extraction boundaries", () => {
   test("preserves the shared auth prefix and signup/consent/reset tail byte-for-byte", () => {
@@ -122,7 +181,7 @@ describe("sign-in extraction boundaries", () => {
     expect(split).toBeGreaterThan(0);
     expect(tail).toBeGreaterThan(split);
     expect(sha256(source.slice(0, split))).toBe(
-      "dbc025cbe290360aea396496695e155acbb20978e295c63dc7810688244b53ca",
+      "5a7d2fa617072b75609ca03eb35e342518711e4527f12e07785525e886396446",
     );
     expect(sha256(source.slice(tail))).toBe(
       "65dd568ae43e274affb179d80f94183878e49c253fa450f1054a64e31d2ac62d",

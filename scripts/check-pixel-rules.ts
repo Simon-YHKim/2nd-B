@@ -48,6 +48,8 @@ const MIGRATED: readonly string[] = [
   "src/app/import.tsx",
   "src/app/insights.tsx",
   "src/app/profile.tsx",
+  "src/app/avatar-studio.tsx",
+  "src/app/avatar-palette.tsx",
   "src/components/premium/SceneHero.tsx",
   "src/components/ui/BackArrow.tsx",
   "src/screens/deepspace/DeepSpaceFlowMapScreen.tsx",
@@ -81,6 +83,7 @@ const MIGRATED: readonly string[] = [
   "src/components/deep-space/DeepSpaceLinks.tsx",
   "src/components/deep-space/DeepSpaceScreen.tsx",
   "src/components/deep-space/DeepSpaceViews.tsx",
+  "src/components/deep-space/CaptureOcrSheet.tsx",
   "src/components/deep-space/DomainStarLens.tsx",
   "src/components/deep-space/HomeCoachmarks.tsx",
   "src/components/deep-space/PolarisDeck.tsx",
@@ -102,6 +105,7 @@ const MIGRATED: readonly string[] = [
   "src/components/quant/QuantIntroModal.tsx",
   "src/components/quant/QuantPager.tsx",
   "src/components/records/AdvisorFollowupNote.tsx",
+  "src/components/records/RecordPhotoGallery.tsx",
   "src/components/ui/DrillProgress.tsx",
   "src/components/ui/PreferenceToggle.tsx",
   "src/components/wiki/FormatSchemaView.tsx",
@@ -165,6 +169,9 @@ const MIGRATED: readonly string[] = [
   "src/screens/deepspace/dds-consent-notice-screen.tsx",
   // 2026-09-14 - 프로브 실패 공용 다시 시도. 새 파일이라 처음부터 목록에 둔다.
   "src/components/deep-space/ProfileProbeRetry.tsx",
+  // 2026-09-30 - 폰을 꺼낼 때의 눈부심(디더 밀도 + 계단). 새 파일이라 처음부터 목록에 둔다.
+  // 같은 날 홈 주머니 폰 옆으로 옮겼다(대시보드가 아니라 폰을 올릴 때 재생). 되돌린 것이 아니라 이사다.
+  "src/components/deep-space/PhoneGlare.tsx",
 ];
 
 // ── 규칙 2 ─────────────────────────────────────────────────────────────

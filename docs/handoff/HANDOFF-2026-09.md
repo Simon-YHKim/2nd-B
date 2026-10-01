@@ -4,6 +4,294 @@
 > 기간 보관본. `docs/HANDOFF.md` 가 100KB 상한을 넘어 **기간으로 쪼갠 것**이고,
 > 블록은 원문 그대로다(요약·재작성 없음, Simon 지침 §0-1).
 > 최신이 위. 활성 창은 [../HANDOFF.md](../HANDOFF.md).
+## 2026-09-08 / 에뮬레이터가 살아났다 — arm64 전용 APK 를 x86_64 에뮬에서 돌리는 법
+
+**"에뮬은 못 쓴다"는 서술은 이제 틀렸다.** 막고 있던 것은 에뮬레이터가 아니라 **설치 경로 세 겹**이었고,
+셋 다 풀린다. 출시된 `v0.8.0 preview` APK 를 그대로 돌렸다 — **EAS 빌드를 한 개도 쓰지 않았다**(무료
+할당은 10-01 까지 15/15 소진 상태 그대로다).
+
+전제: 에뮬 이미지에 arm64 번역이 켜져 있어야 한다. `ro.product.cpu.abilist` 가 `x86_64,arm64-v8a` 여야 하고,
+`x86_64` 뿐이면 이 방법도 안 된다.
+
+| 겹 | 증상 | 왜 |
+|---|---|---|
+| 1 | 그냥 설치 → 실행 즉시 `couldn't find DSO to load: libreactnative.so` | PM 이 기기 주 ABI 를 `x86_64` 로 보고, SoLoader 가 `base.apk!/lib/x86_64` 를 찾는다. arm64 전용 APK 엔 그 폴더가 없다 |
+| 2 | `adb install --abi arm64-v8a` → `primaryCpuAbi=arm64-v8a` 가 되는데도 같은 죽음 | 요즘 APK 는 `extractNativeLibs=false` 라 `.so` 를 안 푼다. PM 이 `lib/arm64` 를 **빈 채로** 만든다 |
+| 3 | 그 빈 폴더를 직접 채우면 뜬다 | SoLoader 의 `ApplicationSoSource` 가 정확히 그 경로를 본다. **APK 서명은 건드리지 않는다** |
+
+```bash
+adb install --abi arm64-v8a -r 2nd-Brain-v0.8.0-preview-*.apk
+adb root
+DIR=$(adb shell pm path com.simonk.secondbrain | tr -d '\r' | sed 's|package:||; s|/base.apk||')
+# APK 안 lib/arm64-v8a/*.so 29개를 꺼내 push
+adb push ./arm64libs/. "$DIR/lib/arm64/"
+adb shell "chown -R system:system '$DIR/lib/arm64'
+           chmod 755 '$DIR/lib/arm64'/*.so
+           restorecon -R '$DIR/lib'"
+adb shell monkey -p com.simonk.secondbrain -c android.intent.category.LAUNCHER 1
+```
+
+대가는 속도다. 화면 하나에 10~20초, 프레임 42~61장 스킵, 시스템 UI 가 스스로 ANR 경고를 띄운다.
+
+### 실측한 것 (QA 계정으로 운영 Supabase 로그인)
+
+로그인 · 온보딩 4장 · 만 14세 안내 · 첫 기록 회고(실제 08-30 기록을 읽어옴) · **홈 별자리**(북극성 우세 +
+일곱 별 + 시안 링크 + 지극성 점선 + 세컨비 말풍선) · 설정 전 항목 · 세컨비 인트로. 전부 렌더 정상.
+
+⚠ **홈이 "빈 상자"로 보이면 코치마크다.** 1/4 스포트라이트 프레임이 별자리를 덮는다. 렌더 실패로
+오진하지 말 것 — 코치마크를 닫으면 별자리가 그대로 있다.
+
+### 찾은 결함 — 화면 전환 중 백지, 자력 복구 안 됨 (간헐, 3회 중 2회)
+
+```
+SurfaceMountingManager: java.lang.IllegalStateException:
+  addViewAt: cannot insert view [690] into parent [728]: View already has a parent: [730]
+→ ReactHost.handleHostException → RN 호스트 파괴 → 화면 백지 (강제 종료해야 살아남)
+```
+
+난 자리: ① 온보딩 `Continue` 직후 ② `Go to constellation` 직후. 3회차에는 안 났다.
+**실기기에서도 나는지는 미확인** — 번역 때문에 느려서 드러난 타이밍 문제일 수 있다. 다만 오류 자체는
+속도가 아니라 **마운트 순서** 문제라 실기기에서는 확률만 낮을 가능성이 크다. 실기기 한 바퀴가 필요하다.
+
+사소한 것: 홈의 `Thirties and af…` 라벨이 1440px 폭에서도 잘린다(영어에서만).
+
+### 운영 DB — 0148 · 0149 · 0150 만 진짜 미적용 (승인 대기)
+
+저장소 155 파일 vs 원장 145 행이라 이름 대조로는 11건이 비어 보이지만, **8건은 원장에 안 남았을 뿐
+적용돼 있다**(과거 대시보드 직접 적용). 스키마를 읽어 확인했다 — `0102`(정책 81개가 initplan 래핑,
+안 감싼 것 1개) · `0104`(search_path 없는 SECURITY DEFINER 0개) · `0092`(`runtime_flags` 존재).
+
+진짜 미적용은 셋뿐이고 함수 본문까지 읽어 확인했다:
+
+- `0148` — `complete_verified_email_signup()` 이 아직 `2026-06-02` 를 박고 `safety_notice_ack` 를 안 쓴다
+- `0149` — `complete_profile_signup_consent` 함수 **부재**
+- `0150` — `signup_consent_contract` 함수 **부재**
+
+즉 **이메일 확인 가입자는 화면에서 09-07 판에 동의하는데 원장엔 06-02 판이 찍힌다.** 규모는 작다
+(동의 원장 13행, 마지막 신규 08-23). 0148 은 **과거 행을 일부러 안 고친다** — 0130 이 `NULL` 을
+"안 물어봄"으로 정의했으므로 `false` 로 덮으면 없던 사실을 만든다. **적용은 Simon 승인 대기.**
+
+### #1724 — 충돌은 표시가 아니라 세 판본에서 푼다
+
+두 PR 이 같은 테스트 파일 끝에 각자 `describe` 를 덧붙여 충돌했다. **충돌 표시만 보고 이어붙이면 안 된다** —
+git 이 끝의 `});` 두 줄을 **공통 꼬리로 빼내서**, 그대로 이으면 앞 블록이 안 닫히고 뒤 `describe` 가
+그 안으로 들어간다(파싱 에러). 잘못된 판본을 실제로 돌려 실패를 확인한 뒤, 병합 세 판본(`:1`/`:2`/`:3`)에서
+"양쪽이 정말 덧붙이기만 했는가"를 단언하고 이어붙였다. 검증은 **PR 원본 대비 +70/−0 줄**(우리 쪽 삭제 0)과
+`npm run verify` 종료코드 0(669 스위트 / 7,565 테스트).
+
+### v0.7.1 후속 일곱 결정 — 여섯 마감
+
+1 (0188+고아정리) 완료 · 2 (웹 제목) 완료, 단 **서빙되는 HTML 은 빈 `<title data-rh>` 가 먼저 나가** 링크
+미리보기·크롤러에는 제목이 빈다(JS 가 런타임에 고친다) · 3 (동의·법무) **#1707 로 통합 재작성 머지**,
+초안 5건은 대체됨 처리로 닫힘, DB 만 위와 같이 대기 · 4 (#1645) 재작성되어 머지 · 5 (머지 정지 창)
+`docs/WEB-PUBLISH-RUNBOOK.md` 에 절차+소요시간 표로 못박힘 · 6 (실기기 검사) 위 방법으로 열림 ·
+7 (다음 릴리스) v0.7.2·v0.8.0 이 09-07 에 이미 출시.
+
+
+## 2026-09-08 / 공공데이터 키 두 개를 프록시 뒤로 옮기고 공개 변수를 은퇴시켰다 (#1705 → #1731)
+
+**`EXPO_PUBLIC_*` 는 "공개해도 되는 값"이 아니라 "반드시 공개되는 값"이다.** Metro 가 빌드 때
+값으로 치환하므로 예외가 없다. 2026-09-07 실측: 라이브 웹 번들 `entry-*.js` 의 `searchFoods`
+안에 식약처 서비스키가 64자 리터럴로 있었다 — 2026-06-20(#498)부터 계속. 두 키 모두 계정
+단위 발급 + 할당량이라 가져다 쓰면 우리 몫이 준다.
+
+⚠ **이름 기반 grep 으로는 노출을 측정할 수 없다.** 번들에 남는 것은 값이고 이름은 사라진다.
+첫 측정에서 "번들에 `EXPO_PUBLIC_MFDS_FOOD_KEY` 0건"이 나왔지만 안전하다는 뜻이 아니었다.
+
+| PR | 무엇 |
+|---|---|
+| #1705 | `public-data-proxy` Edge Function 신설 + 배포(ACTIVE v1, `verify_jwt=true`). 클라이언트는 **매개변수만** 보내고 URL 은 서버가 상수로 조립 → SSRF 표면 자체가 없다. anon 키도 유효한 토큰이라 함수 안에서 `role === 'authenticated'` 를 한 번 더 본다 |
+| #1731 | 클라이언트 전환(`foods.ts`·`fx.ts` → `src/lib/public-data/invoke.ts`), `web-deploy.yml` 주입 제거, 은퇴 기록 문서 |
+
+### 지우지 않고 은퇴시킨다 (Simon 규칙 2026-09-08)
+
+*"필요없는게 발견되면 (secret, api 등등) 지우기보단, 참고용 문서를 만들어서 향후 작업시
+알수 있게 하자."* 저장소 Variable 두 개는 **그대로 둔다** — 읽는 곳이 없어 빌드에 영향이
+없고, 지우면 값이 무엇이었는지 확인할 길이 사라진다. 정본: **`docs/PUBLIC-DATA-KEY-RETIREMENT.md`**
+(이름·경로·상태만, **값은 없다**).
+
+### 미결
+
+1. **MFDS 키 회전 미완.** 2026-09-07 로그인 실측 — **data.go.kr 에 셀프 재발급 경로가 없다.**
+   마이페이지에 계정 단위 인증키 하나와 복사 버튼뿐이고 활용 메뉴는 활용연장·활용중지·만료/중지만
+   있다. "재발급"이라는 단어가 화면 어디에도 없다. 남은 길: 고객센터 문의 · 새 계정 · 그대로 두기.
+   피해가 할당량 도용에 한정되므로 급하지 않다.
+2. **수출입은행 재발급 미확인**(콘솔 로그인 이력 없음). 웹 번들에 실린 적은 없다.
+3. **EAS 서버 환경은 그대로.** `eas-update.yml` 의 `allowedServerOnlyByChannel` 은 두 이름이
+   EAS 채널 환경에 **존재할 것**을 요구한다. 지우려면 `eas env:delete` 가 먼저, 목록 제거가
+   나중 — 뒤집으면 검증 스텝이 죽는다. 네이티브 번들에는 어차피 값이 안 실린다(Metro 는
+   참조가 있어야 치환한다). 순서를 워크플로 주석에 못박아 뒀다.
+
+### 가드 함정 — 주석을 세면 자기 설명문에 걸린다
+
+`public-credential-surface.test.ts` 는 이제 **주석을 걷고** 센다. 인라인되는 것은 코드의
+참조뿐이고, 은퇴한 이름일수록 "왜 옮겼는지" 설명 주석에 자주 나온다. 이 저장소에서 주석發
+거짓양성이 이미 네 번 났다. 대신 **변이 검증**으로 무디지 않음을 확인했다 —
+`process.env.EXPO_PUBLIC_EXIM_FX_KEY` 를 코드로 되돌리니 3건이 즉시 실패했다.
+
+
+
+## 2026-09-08 / 말투 라운드는 한국어만 착지했다 (#1711)
+
+2026-09-07 문구 라운드를 키 단위로 main 에 옮겼다. **한국어 1,520키 / 42파일만** 들어갔고,
+en/es/pt/id 는 보류, 문구 4개는 거절했다.
+보고서: <https://claude.ai/code/artifact/d2a43c6e-5dae-460b-96eb-907cbf3c66aa>
+보류 상태 스냅샷: 태그 `haeyo-5lang-snapshot`(5개 언어 전부 적용된 트리).
+
+### 라운드는 "한국어 말투"가 아니라 5개 언어 재작성이었다
+
+| 언어 | 라운드가 바꾸는 값 | 그중 철자·악센트만 | 이번에 넣은 것 |
+|---|---:|---:|---:|
+| ko | 1,520 | — | **1,520** |
+| en | 840 | 8 | 0 |
+| es | 617 | 40 | 0 |
+| pt | 573 | 5 | 0 |
+| id | 421 | 3 | 0 |
+
+Simon 답 두 개가 여기서 충돌한다 — 항목 2 "한국어 말투를 가져온다" 와 항목 8
+"ES/PT/ID 감수는 없다". 교집합이 ko 다. en 동의 화면 11키만 읽어도 회귀 2건이 나왔다
+(`account.export.done` 이 "No read failures were reported for the returned scope",
+`account.export.failed` 가 확인되지 않은 rate-limit 을 원인으로 단정). **버린 것이 아니라
+보류**이고, 감수가 되면 태그에서 한 번에 올린다.
+
+### 거절한 문구 4개 — 말투가 아니라 뜻이 바뀐 것
+
+| 키 | 라운드 값 | 왜 |
+|---|---|---|
+| `auth signUp.existingAccountBody` | "이미 가입한 이메일로는 새 계정을 만들 수 없어요." | **가입 화면이 계정 존재를 확정**한다 → 계정 열거(enumeration) |
+| `interview drill.intro` · `drill.scaffoldNote` | "넘어가도 돼요 … 다른 질문으로 이어갈게요" | #1357/#1358 결정과 반대. **"모르겠다"는 칸을 안 채우고 같은 층에서 각도만 바꾼다**가 원칙 |
+| `capture saved.recordsOwnership` | "기록 보관소에서 다시 읽거나 내보낼 수 있어요." | "작심이틀도 괜찮습니다"가 통째로 사라짐. en 은 여전히 "One sentence is enough for today." |
+
+네 기준점 규칙(FORK/BASE/COPY/MAIN)이 `notice.*` 9개를 자동으로 막았다 — #1589 법률 정정이고
+`CONSENT_VERSION`(`2026-09-07`)이 그 문구를 동의 원장에 고정한다.
+
+### ⚠ 가드를 옮길 때의 규칙 — 문구 핀은 두 종류다
+
+문구를 바꾸면 제약 검사 23개가 깨진다(기준선: main `1434e9cc` 실패 0). "초록이 될 때까지
+가드를 고친다"가 가장 쉬운 유혹이고 그게 이 가드들이 막으려는 실패다. 핀을 **옮기기 전에**
+분류했다:
+
+- **번들 증인 핀** — 문구가 로케일 번들에서 온다는 증거일 뿐. 새 값으로 재지정(50건).
+- **성질 핀** — 문구가 어떤 약속을 나른다. **새 문구에 그 약속이 남아 있는지 확인한 뒤에만** 이동:
+  `ConsentTrust`(기록 본문 미전송) · `CaptureStorageLanguage`(첨부 잔존 고지) ·
+  `SettingsDataDeleteWizard`(전체 삭제 후 남는 것) · `AuthEntrySupplemental`(가입 여부 비노출) ·
+  `paywall-no-dead-cta`(미청구) · `visible-trust-copy`(AI 는 스위치 켰을 때만).
+
+**금지어가 새로 들어온 사례는 0건**이었다 — 실패는 전부 "있어야 할 증인 문구가 다시 쓰였다"였다.
+
+정규식 하나는 표현이 아니라 **주장**을 보게 고쳤다:
+`/청구되지 않습니다|…/` → `/청구(되지|하지)\s?않|…/`. 다음 말투 변경에는 안 깨지고,
+"청구 안 된다"는 말을 지우면 깨진다.
+
+### 도구 함정 2건 (다시 밟지 말 것)
+
+- **중괄호 세기로 검사 블록을 자르면 안 된다.** 박아둔 문구 안에도 `{ }` 가 있어서
+  `ResearchI18nCopy` 뒤의 검사가 전부 한 덩어리로 묶였다. 문자열·주석을 건너뛰게 해야 갈린다.
+- **앞부분 일치 핀을 새 값의 앞부분으로 잘라 붙이면 뜻이 뒤집힌다.** `"기록 본문이 아니라"`
+  가 `"앱을 어떻게 쓰는지"` 로 바뀌었다. 그 자동 규칙은 없애고 손으로 판정하는 것이 맞다.
+- `JSON.stringify` 재작성은 `⁠` 이스케이프를 **보이지 않는 생문자**로 바꾼다.
+  로케일을 프로그램으로 다시 쓸 때는 보이지 않는 문자를 이스케이프로 되돌릴 것(이번 1건).
+
+### 검증
+
+```
+npm run verify   EXIT=0
+664 suites / 7,509 tests   ·   제약 검사 50/50
+```
+
+### 남은 것 — 전부 Simon 결정 대기
+
+- **en/es/pt/id 라운드** — 태그 `haeyo-5lang-snapshot`. en 만 추천(기준 언어, 회귀 2건 제외).
+- **항목 5 웹 게시 권한** — `workflow_dispatch` 제거 + 태그 push 안 제시함. 미적용.
+- **항목 10 공용 폴더 자동 최신화** — 세션 시작 훅 `fetch` + `merge --ff-only`, 잠금파일은 경고만. 미적용.
+- **동의 문구 정정본 웹 게시**(`9e456932`) — 라이브는 아직 정정 전 판.
+- **항목 4 og:image** — 절대 주소 필요. 미결.
+- **플랜/요금제 용어** — 라운드가 37곳을 `요금제` 로 옮겼는데 `ko/deepspace.json` 의
+  자동갱신 고지 두 줄만 `플랜` 으로 남았다. **라운드 원본에도 있는 불일치**다. 법적 고지라 미적용.
+
+### 항목 6·7·9 는 못 한 게 아니라 전제가 없다
+
+`play.google.com` 상세 404(ko·en·US) · `apps.apple.com` 404 ·
+`itunes.apple.com/lookup?id=6792266942` → `"resultCount": 0`.
+**앱이 어느 스토어에도 출시된 적이 없다.** `eas.json` 의 ASC 앱 id 는 *레코드 생성*이지
+출시가 아니고, GitHub Release 는 *저장소* 릴리즈다. 그래서 첫 출시에는 "이번 버전 변경사항"
+칸 자체가 없고(준비된 5개 언어 초안은 두 번째 출시부터), 콘솔 확인은 로그인이 필요한데
+이 머신에 Play·ASC 세션이 없다(대리 로그인 금지 → §4 작업 카드로 넘긴다).
+
+
+## 2026-09-13 — 보안 W1–W8 로컬 통합 인계
+
+### 결론과 소유 경계
+
+- 격리 브랜치 `fix/security-wave8-monetization-260913`에서 W1–W7은 아래 7개 커밋으로 고정했고,
+  W8은 이 절을 포함하는 후속 커밋 한 개로 고정한다. 기준은 `586abb25`다.
+- 이 라운드에서 운영 DB·Auth/Pages 콘솔·secret/flag·Edge 배포·광고 활성화 쓰기는 **0회**다.
+  서버 활성화와 운영 canary는 계속 console owner 소유다.
+- 사용자 작업본 `E:/2ndB/.worktrees/2ndB/TTL-Work`의 미커밋 변경은 수정·정리하지 않았다.
+- 로컬 소스 완료와 프로덕션 완료는 다르다. 아래 draft의 번호 예약, PR의 격리 DB 회귀,
+  운영 순차 적용과 postflight가 끝날 때까지 **프로덕션 보안 완료라고 주장하지 않는다.**
+
+| Wave | 로컬 커밋 | 범위 |
+|---|---|---|
+| W1 | `2c462a68` | 공급망, Actions SHA pin, 배포·자격증명 gate |
+| W2 | `21a33bc8` | 브라우저·정적 산출물·공개 경계 |
+| W3 | `d553f816` | 로컬 미디어와 임시 파일의 계정 귀속 |
+| W4 | `8f062176` | 인증 세션·복구·PKCE |
+| W5 | `d0872261` | 계정 삭제·내보내기·로컬 purge |
+| W6 | `ff6a2963` | 서버 데이터, OAuth, peer/RSS quota |
+| W7 | `0c05d407` | LLM 복원력, audit outbox, consent/vendor 경계 |
+| W8 | 이 절을 포함한 커밋 | Paddle 결제·환불·chargeback, Rewarded SSV |
+
+### W8에서 닫은 경계
+
+- **Paddle:** checkout 소유 binding, adjustment 상태 순서, adjustment 단위 consequence의 exactly-once,
+  ownerless tombstone, durable review queue, 구 Edge의 `eventId:consequence` 혼합 버전 손실을 막았다.
+  self-service API 응답과 webhook이 경쟁해도 서로 다른 `provider_ref`를 덮어쓰지 못한다.
+- **Rewarded SSV:** 클라이언트 자가지급을 제거하고 opaque ticket의 서버 원자 정산만 허용한다.
+  ticket 발급 제한, bounded retention, reasoning/chat 단일 지급자, live ad-unit 계약을 묶었다.
+  무작위 `key_id`는 verifier-key fetch 전에 exact ticket/계약 DB preflight에서 거절되고,
+  유효 ticket도 Google 원본+재시도 합계인 6회까지만 isolate 공통으로 시도할 수 있다.
+- **사용자 표시:** SSV 콜백 대기 상태를 실패와 구분한 `processing`으로 표시하며,
+  처리 중 또는 확인 불가 상태에는 중복 시청 CTA를 다시 열지 않는다.
+- 집중 회귀는 W8 변경 테스트 15 suites / 459 tests를 통과했다. TypeScript, 5개 언어
+  3,756키 패리티, DEFINER grant, workflow YAML, DB shell 구문 검사도 통과했다.
+  전체 `npm run verify`와 `npm run verify:web`의 최종 수치는 세션 상태 JSON과 Output 보고서를 따른다.
+
+### 번호 없는 DB draft 7개
+
+`db/migration-drafts/`의 아래 파일은 운영에 적용된 migration이 아니다.
+
+1. `UNNUMBERED_account_deletion_completion_fence.sql`
+2. `UNNUMBERED_effective_llm_consent_current_contract.sql`
+3. `UNNUMBERED_oauth_naver_rate_limit_completion.sql`
+4. `UNNUMBERED_paddle_refund_consequence_integrity.sql`
+5. `UNNUMBERED_peer_response_rate_limit.sql`
+6. `UNNUMBERED_reward_ssv_hardening.sql`
+7. `UNNUMBERED_rss_proxy_quota.sql`
+
+번호를 붙이기 직전에 remote migration을 다시 스캔하고, 예약 커밋을 즉시 push해야 한다.
+이 절의 파일명을 보고 번호를 추측하거나 로컬 예약만 남기지 않는다.
+
+### W8의 중단선과 순서
+
+1. PR에서 `supabase-dry-run` scratch PostgreSQL 회귀를 통과하기 전에는 두 draft를 운영 후보로 승인하지 않는다.
+   로컬의 `localhost:5432`는 소유·격리가 확인되지 않아 기능 SQL을 실행하지 않았다.
+2. **Paddle:** webhook OFF → in-flight 0 확인 → 번호 migration → 새 Edge → postflight → 제한 canary → ON.
+   checkout binding은 한 signer/two verifier 회전 절차를 지키며, 실패 시 DB down이 아니라 OFF 상태의
+   roll-forward를 사용한다. 상세 명령과 중단 조건은 `docs/SESSION-OWNERSHIP.md`가 정본이다.
+3. **Reward SSV:** `REWARD_SSV_ENABLED=0`과 client capability OFF → 번호 migration → 새 Edge →
+   contract/live unit 일치 확인 → 제한 canary → server 유지 또는 OFF roll-forward → client activation.
+   DB down migration은 금지한다.
+4. 로컬에 Deno CLI가 없어 `deno check`는 실행하지 않았다. 실제 Android/iOS live-unit QA와
+   운영 smoke/canary도 미실행이다.
+
+### 재고 증거
+
+- 최종 35행 처분 자료: `E:/2ndB/Output/260913_2ndB_security_disposition_manifest.json`
+- 두 원본은 branch key로 join해야 하며 배열 index로 묶으면 안 된다. 총 35 branch / 95 occurrence다.
+- 원본에 commit SHA가 없어 기존 `89 unique SHA` 주장은 재현하지 않는다. 현재 로컬 refs로 재구성한
+  tip-N 집합은 91 unique SHA다. `ratchet-up`의 빠진 non-merge는 reflog와 첫 부모에서 `2326445c`로
+  복구했고 현재 후보와 patch-equivalent임을 확인해, 35행 모두 처분 근거를 갖는다.
 
 ## 2026-09-07 / TTL-Work 여섯 세션 통합 종료 — v0.7.1 출시 · 유일본 구제 · 남은 것은 사람 결정뿐
 

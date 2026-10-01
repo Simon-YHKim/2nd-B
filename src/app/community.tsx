@@ -102,7 +102,7 @@ export default function Community() {
   }
 
   return (
-    <DeepSpaceScreen active="lens" variant="windowed" title={t("title")} onBack={() => router.back()}>
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={t("title")} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {!adult ? (
           <MdCard variant="outlined" style={styles.card}>
@@ -110,9 +110,8 @@ export default function Community() {
           </MdCard>
         ) : (
           <>
-            <Text variant="caption" color="textSubtle">
-              {alias ? t("aliasLine", { alias }) : t("intro")}
-            </Text>
+            <Text variant="caption" color="textSubtle">{t("intro")}</Text>
+            {alias ? <Text variant="caption" color="textSubtle">{t("aliasLine", { alias })}</Text> : null}
 
             <MdCard variant="outlined" style={styles.card}>
               <Text variant="body">{t("createTitle")}</Text>

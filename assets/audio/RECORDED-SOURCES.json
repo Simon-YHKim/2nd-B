@@ -1,0 +1,53 @@
+{
+  "verifiedAt": "2026-09-26",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "acquisition": "Publicly exposed high-quality MP3 previews. Not original WAV downloads; no account or access-control bypass.",
+  "sources": [
+    {
+      "id": "ratchet",
+      "title": "Ratchet.wav",
+      "author": "romulofs",
+      "page": "https://freesound.org/people/romulofs/sounds/127533/",
+      "preview": "https://cdn.freesound.org/previews/127/127533_1777005-hq.mp3",
+      "cachedInput": ".media/audio/sfx/sfx_001.mp3",
+      "sha256": "72e6c6e7e14fd1f44d87970538cdeca6586a84e4fd49892149ec5ef99eaa6b78"
+    },
+    {
+      "id": "camera",
+      "title": "Nice Canon Beep & Shutter Click",
+      "author": "amoyssiadis",
+      "page": "https://freesound.org/people/amoyssiadis/sounds/851925/",
+      "preview": "https://cdn.freesound.org/previews/851/851925_997090-hq.mp3",
+      "cachedInput": ".media/audio/sfx/sfx_002.mp3",
+      "sha256": "9ce0a58666cce6c22c2304c3b3432dba6f4db7037c1555a8fcfd97402f457124"
+    }
+  ],
+  "processing": {
+    "script": "scripts/prepare-recorded-camera-sfx.cjs",
+    "tool": "ffmpeg 8.1.1",
+    "format": "PCM signed 16-bit little-endian WAV, mono, 22050 Hz",
+    "sharedFilters": "highpass 180 Hz; fade-in 1 ms; fade-out 8 ms; peak normalization; optional silence padding",
+    "rebuild": "Ingest the two public previews above at cachedInput, verify hashes, then run node scripts/prepare-recorded-camera-sfx.cjs in a checkout without derived WAVs. Script refuses overwrites. No audio synthesis or paid APIs."
+  },
+  "assets": [
+    {
+      "file": "observatory-ratchet.wav", "source": "ratchet", "startSeconds": 8.435,
+      "excerptSeconds": 0.065, "outputSeconds": 0.16, "lowpassHz": 3600, "peak": 0.55,
+      "playbackVolume": 0.08, "loop": true, "bytes": 7100,
+      "sha256": "88645ede47b66537b4f6fcbd2c9f9af9110b9c7dbf8f1495fbd7f18a51211fcb"
+    },
+    {
+      "file": "observatory-focus-lock.wav", "source": "camera", "startSeconds": 0.875,
+      "excerptSeconds": 0.20, "outputSeconds": 0.20, "lowpassHz": 7000, "peak": 0.6,
+      "playbackVolume": 0.18, "loop": false, "bytes": 8864,
+      "sha256": "e466f00ea377f61d8e759ce7bb890b028ac9d85de599cec123a30920a463c70a"
+    },
+    {
+      "file": "observatory-shutter.wav", "source": "camera", "startSeconds": 1.332,
+      "excerptSeconds": 0.29, "outputSeconds": 0.29, "lowpassHz": 10000, "peak": 0.7,
+      "playbackVolume": 0.20, "loop": false, "bytes": 12834,
+      "sha256": "d6358c7b78696af5be1a129c4985b1ea9ba99783e02bbe6cadab1d8c0ea33a4d"
+    }
+  ]
+}

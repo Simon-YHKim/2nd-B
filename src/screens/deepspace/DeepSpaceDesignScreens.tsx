@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
-import { AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text as RNText, TextInput, View } from "react-native";
+import { AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
 import { Redirect, router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -213,13 +214,35 @@ function dsRecencyLabels(t: Tx): RecencyLabels {
 
 type Row = { label: string; value?: string; onPress?: () => void; on?: boolean; disabled?: boolean };
 
+/** Wiki rows, kept with the account they were fetched for.
+ *
+ *  The twin of this type in dds-wiki-records-screens.tsx, deliberately duplicated
+ *  rather than shared: these two loaders feed different screens with different
+ *  visual and data contracts, and merging them is its own change. What is copied
+ *  here is the FENCE, not the screens.
+ *
+ *  Supabase can publish owner A -> owner B with no signed-out frame in between, and
+ *  AuthContext supports that publication on purpose. The scene boundary in
+ *  app/_layout.tsx remounts every product scene on an account epoch, so in the
+ *  shipped tree this state is thrown away before B can read it - that boundary is
+ *  the real defence and this is not a claim that it is broken. But it lives in
+ *  another file and applies per route, so a screen ever mounted outside it would
+ *  read the previous account's rows with nothing here to stop it. */
+interface OwnedWikiRows {
+  ownerId: string | null;
+  pages: WikiPageRow[];
+  edges: WikiEdge[];
+}
+
+/** Shared so an owner mismatch returns a stable reference and costs no re-render. */
+const NO_WIKI_ROWS: OwnedWikiRows = { ownerId: null, pages: [], edges: [] };
+
 // Shared loader for the two graph-backed deep-space screens (/wiki + /research).
 // Mirrors what the legacy /wiki loads: pages + the full edge set, both bounded.
 // A links failure degrades to a zero-edge graph rather than blanking the screen.
 function useWikiGraphData() {
   const { userId, loading: authLoading } = useAuth();
-  const [pages, setPages] = useState<WikiPageRow[]>([]);
-  const [edges, setEdges] = useState<WikiEdge[]>([]);
+  const [held, setHeld] = useState<OwnedWikiRows>(NO_WIKI_ROWS);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -232,13 +255,11 @@ function useWikiGraphData() {
     ])
       .then(([p, e]) => {
         if (!alive) return;
-        setPages(p);
-        setEdges(e);
+        setHeld({ ownerId: userId, pages: p, edges: e });
       })
       .catch(() => {
         if (!alive) return;
-        setPages([]);
-        setEdges([]);
+        setHeld({ ownerId: userId, pages: [], edges: [] });
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -248,7 +269,11 @@ function useWikiGraphData() {
     };
   }, [userId]);
 
-  return { userId, authLoading, pages, edges, loading };
+  // Read back only for the owner they were loaded under. The effect above overwrites
+  // `held` only once the network answers, so without this the previous account's rows
+  // would be what the screen draws for the whole refetch window.
+  const owned = held.ownerId !== null && held.ownerId === userId ? held : NO_WIKI_ROWS;
+  return { userId, authLoading, pages: owned.pages, edges: owned.edges, loading };
 }
 
 // TODO(loading): the standalone ActivityIndicator blocks below (inline loaders
@@ -357,7 +382,7 @@ export function DeepSpaceGraphDesignScreen() {
 }
 
 function IntegrationEntryRow({ source, t }: { source: IntegrationEntrypoint; t: Tx }) {
-  const [held, setHeld] = useState(false);
+  const [held, setHeld] = useState(false); // 이 값이 스타일을 바꾸는 래퍼 View 는 collapsable={false} - 누름·뗌이 자식을 옮기지 않게(PixelPressable 과 같은 이유, 커밋 2eb6266b)
   const name = source.nameKey ? t(source.nameKey) : source.name ?? source.id;
   const detail = t(source.detailKey);
   const action = t(source.actionKey);
@@ -372,7 +397,7 @@ function IntegrationEntryRow({ source, t }: { source: IntegrationEntrypoint; t: 
       accessibilityHint={detail}
       style={cx.integrationHit}
     >
-      <View style={held ? cx.integrationPressed : cx.integrationRest}>
+      <View collapsable={false} style={held ? cx.integrationPressed : cx.integrationRest}>
         <PixelSurface
           variant="bevel"
           pressed={held}
@@ -816,6 +841,10 @@ export function DeepSpacePrivacyDesignScreen() {
     key: Extract<PrivacyPrefKey, "external_analytics" | "ads">,
     next: boolean,
   ) {
+    // The historical ads preference cannot become a new third-party/overseas
+    // transfer consent. While the disclosure is incomplete, allow withdrawal
+    // of an old choice but never save a new opt-in.
+    if (key === "ads" && next) return;
     if (
       !userId ||
       minorRef.current ||
@@ -1072,6 +1101,10 @@ export function DeepSpacePrivacyDesignScreen() {
       <SecondbStatusHeader text={t("privacy.status")} tip={t("privacy.tip")} />
       <Text variant="body" style={styles.lead}>{t("privacy.lead")}</Text>
 
+      <Card>
+        <Action label={consentT("serviceControl.title")} value={t("privacy.view")} onPress={() => router.push("/service-consent")} />
+      </Card>
+
       {/* 한눈에 / At a glance (canonGaps.privacyFacts) — icon + label + value. */}
       <Card>
         <Text variant="caption" style={styles.section}>{ko ? "한눈에" : "At a glance"}</Text>
@@ -1170,29 +1203,22 @@ export function DeepSpacePrivacyDesignScreen() {
               disabled={minor || busy}
               onPress={() => void toggleExternalPreference("external_analytics", !analyticsOn)}
             />
-            {/* Platform-neutral consent copy (Simon pick, 2안, 2026-07-21):
-                the same privacy_prefs.ads value gates web AND native, so a
-                web-scoped label was a consent-specificity gap (#1116 T2).
-                The data-transfer promise is conditional on WATCHING; builds
-                that cannot complete a watch never reach it (#1120 gate). */}
+            {/* Historical preference only. AdMob third-party disclosure and
+                overseas transfer require a new versioned consent flow. */}
             <Toggle
-              label={ko ? "광고 허용" : "Allow ads"}
+              label={consentT("privacy.keys.ads.label")}
               value={
                 minor
                   ? ko
                     ? "만 18세 미만 잠금"
                     : "Locked under 18"
                   : adsOn
-                    ? ko
-                      ? "성인 무료 계정 전용. 광고 시청 시 광고 식별 데이터가 Google에 전달돼요"
-                      : "Adult free accounts only. Watching sends ad identifiers to Google"
-                    : ko
-                      ? "꺼짐"
-                      : "Off"
+                    ? consentT("privacy.keys.ads.savedDesc")
+                    : consentT("privacy.keys.ads.desc")
               }
               on={!minor && adsOn}
-              disabled={minor || busy}
-              onPress={() => void toggleExternalPreference("ads", !adsOn)}
+              disabled={minor || busy || !adsOn}
+              onPress={() => { if (adsOn) void toggleExternalPreference("ads", false); }}
             />
           </>
         )}
@@ -1755,6 +1781,7 @@ export function DeepSpaceThemeScreen() {
 
 export function DeepSpaceManualScreen() {
   const { t, i18n } = useTranslation("deepspace");
+  const { userId } = useAuth();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   return (
     <Shell title={t("manual.title")}>
@@ -1774,13 +1801,15 @@ export function DeepSpaceManualScreen() {
         {/* 홈 코치마크 다시 보기 — 레퍼런스가 안내서에 두는 줄이다.
             같은 기능이 `/settings` 에도 있고 **거기 것을 없애지 않았다**. 설정에서
             "리셋"을 찾는 것과 안내서에서 "다시 보기"를 찾는 것은 다른 행동이라
-            문이 둘인 편이 맞다. 동작은 하나다 — 본 표시를 지우고 홈으로 돌아가면
+            문이 둘인 편이 맞다. 동작은 하나다 — 이 계정의 다시 보기를 켜고 홈으로 돌아가면
             다음 홈 방문에서 4단계 가이드가 다시 재생된다. */}
         <Action
           label={t("manual.replayCoachmarks")}
           onPress={() => {
-            resetCoachmarks();
-            router.replace("/");
+            if (userId) {
+              resetCoachmarks(userId);
+              router.replace("/");
+            }
           }}
         />
       </Card>
@@ -2656,10 +2685,10 @@ export function DeepSpaceFormatsScreen() {
         setResult({ text: r.html, name: r.htmlFilename });
       } else if (format === "markdown") {
         const r = await exportUserWiki(userId, { locale, includeRecords });
-        setResult({ text: r.prompt, name: "2nd-brain-wiki.md" });
+        setResult({ text: r.prompt, name: "polascope-wiki.md" });
       } else {
         const doc = await buildIdenDoc(userId, { locale });
-        setResult({ text: JSON.stringify(doc, null, 2), name: "2nd-brain-iden.json" });
+        setResult({ text: JSON.stringify(doc, null, 2), name: "polascope-iden.json" });
       }
     } catch {
       setNote("error");

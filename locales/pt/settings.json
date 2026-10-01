@@ -41,7 +41,7 @@
     "fullWipeHint": "Exige a confirmação digitada DELETE antes de apagar registros, fontes, páginas da wiki e uso."
   },
   "dataWizard": {
-    "body": "Escolha o que quer excluir: registros, avaliações, wiki e capturas ou todo o conteúdo privado do 2nd-B.",
+    "body": "Escolha o que quer excluir: registros, avaliações, wiki e capturas ou todo o conteúdo privado do PolaScope.",
     "optionA11yLabel": "{{label}}, opção {{index}} de {{total}}, {{state}}.",
     "stateSelected": "selecionado",
     "stateAvailable": "não selecionado",
@@ -65,7 +65,7 @@
       "label": "Exclusão total",
       "hint": "Mostra a confirmação digitada para apagar todos os registros, fontes, páginas da wiki e uso.",
       "body": "A exclusão não pode ser desfeita. Exporte o que quiser guardar e digite DELETE para continuar.",
-      "retained": "Isso limpa o conteúdo privado do 2nd-B nesta conta. Dados da conta, histórico de consentimento e registros de responsabilidade do serviço permanecem."
+      "retained": "Isso limpa o conteúdo privado do PolaScope nesta conta. Dados da conta, histórico de consentimento e registros de responsabilidade do serviço permanecem."
     }
   },
   "modals": {
@@ -127,7 +127,15 @@
   "appleHealthDesc": "Sono e atividade para a estrela da saúde",
   "importNotes": "Importar notas e documentos",
   "manageIntegrations": "Gerenciar integrações",
-  "manageIntegrationsDesc": "Importação por fonte: calendário, saúde, Notion e mais",
+  "manageIntegrationsDesc": "Importações e opções de atualização",
+  "dataRefreshTitle": "Atualizar dados salvos",
+  "dataRefreshScope": "Enquanto o painel estiver aberto e o app ativo, ele relê os dados salvos. Os registros de saúde só são lidos num celular conectado com ‘Registrar atividade de hoje’ no app Android: uma vez por dia depois do horário de atualização, com o app aberto.",
+  "dataRefreshAuto": "Atualização automática",
+  "dataRefreshDaily": "Todos os dias, {{time}}",
+  "dataRefreshTimeLabel": "Horário da atualização automática",
+  "dataRefreshTimeOpen": "Abre um seletor de horário.",
+  "dataRefreshSheetTitle": "Horário de atualização",
+  "dataRefreshSaveError": "Não foi possível salvar a atualização. Tente novamente.",
   "importData": "Importar de arquivo",
   "importDataDesc": "Cole ou escolha um arquivo exportado para virar registros",
   "workingPaused": "Aguarde esta ação terminar para fazer outras alterações ou sair da conta.",

@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "forwardMigration": "UNNUMBERED_service_contract_erasure_registry.sql",
+  "tables": {
+    "account_deletion_tombstones": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "Durable account-deletion fence. Content deletion leaves it unchanged; it intentionally survives account deletion without an auth FK so late requests cannot recreate deleted account data."
+    },
+    "llm_consent_receipts": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "Private provenance and withdrawal state for the retained consent_records ledger. Content deletion preserves it and cannot restore collect-mode legacy access; deletion of the account or source consent record cascades the receipt."
+    },
+    "polaris_generations": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "Polaris lifetime allowance and request replay ledger. Content deletion clears evidence hashes and derived cards, fails and refunds active requests; terminal account deletion cascades the ledger."
+    },
+    "reward_ssv_issue_rate_limits": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "Bounded rewarded-ticket issuance counter. Content deletion must not reset the issuance limit; account deletion cascades the counter through public.users."
+    }
+  }
+}

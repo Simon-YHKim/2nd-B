@@ -478,6 +478,20 @@
       "route": "account"
     },
     {
+      "id": "avatar-palette",
+      "component": null,
+      "appOnly": true,
+      "title": "아바타 팔레트",
+      "route": "avatar-palette"
+    },
+    {
+      "id": "avatar-studio",
+      "component": null,
+      "appOnly": true,
+      "title": "아바타 꾸미기",
+      "route": "avatar-studio"
+    },
+    {
       "id": "beyond",
       "component": null,
       "appOnly": true,
@@ -539,6 +553,20 @@
       "appOnly": true,
       "title": "초대 링크 받기",
       "route": "community/join/[token]"
+    },
+    {
+      "id": "dashboard",
+      "component": null,
+      "appOnly": true,
+      "title": "나의 휴대전화",
+      "route": "dashboard"
+    },
+    {
+      "id": "data-connections",
+      "component": null,
+      "appOnly": true,
+      "title": "데이터 출처 · 새로고침",
+      "route": "data-connections"
     },
     {
       "id": "data",
@@ -756,6 +784,13 @@
       "appOnly": true,
       "title": "삶의 만족도 (RLSS)",
       "route": "rlss"
+    },
+    {
+      "id": "service-consent",
+      "component": null,
+      "appOnly": true,
+      "title": "AI 처리 동의",
+      "route": "service-consent"
     },
     {
       "id": "side-project",

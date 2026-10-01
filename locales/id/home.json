@@ -3,7 +3,7 @@
     "a11y": "Kecerahan Bintang Utara"
   },
   "character": {
-    "a11y": "Karakter Second Brain"
+    "a11y": "Karakter SecondB"
   },
   "bubble": {
     "fresh": "Apa yang mau kamu catat?"
@@ -36,14 +36,14 @@
   },
   "menu": {
     "graph": "Graf",
-    "capture": "Simpan",
+    "capture": "Klip",
     "secondb": "SecondB",
     "profile": "Aku"
   },
   "ds": {
     "dock": {
       "home": "Beranda",
-      "capture": "Simpan",
+      "capture": "Klip",
       "chat": "SecondB",
       "ops": "Asisten",
       "account": "Aku",
@@ -109,6 +109,8 @@
       },
       "inbox": "Notifikasi",
       "headA11y": "Tanya SecondB",
+      "dialogueOpen": "Buka percakapan SecondB",
+      "dialogueClose": "Tutup percakapan SecondB",
       "kind": {
         "domain": "Bidang",
         "profile": "Informasi tentang dirimu"
@@ -116,14 +118,22 @@
       "bubble": {
         "introTag": "Perkenalan",
         "intro": "Halo, aku SecondB. Ketuk kepalaku untuk membuka pilihan.",
-        "menuTag": "SecondB",
+        "tipTag": "Tips",
+        "tip1": "Ketuk bintang untuk melihat catatan dari bagian hidup itu.",
+        "tip2": "Gunakan Tambah di bilah bawah untuk menyimpan catatan baru.",
+        "tip3": "Bintang Utaramu merangkum catatan menjadi satu kalimat yang bisa kamu ubah.",
+        "next": "Berikutnya",
+        "openMenu": "Menu fitur",
+        "menuTag": "Menu",
         "menu": "Apa yang ingin kamu lakukan?",
         "travel": "Jelajahi",
         "later": "Nanti",
+        "returnToSky": "Kembali ke rasi bintang",
         "chatbot": "Chatbot",
         "assistant": "Asisten"
       },
       "star": {
+        "entryAfter": "Simpan catatan pertama di {{star}} untuk membuka bintang ini.",
         "career": {
           "line": "Apa yang sudah kamu bangun dan kumpulkan?"
         },
@@ -143,25 +153,25 @@
           "line": "Apa yang membuatku bisa beristirahat?"
         },
         "profile": {
-          "line": "Nama, tujuan, dan informasi tentang dirimu. Bintang makin terang saat profilmu makin lengkap."
+          "line": "Catat nama, tujuan, dan keseharianmu. Kedua jalur dimulai di sini."
         },
         "infancy": {
-          "line": "Ingatan paling awal. Satu sensasi saja sudah cukup untuk memulai."
+          "line": "Catat kenangan awal dan cerita orang lain tentang masa kecilmu."
         },
         "school": {
-          "line": "Usia 7 sampai 19. Ruang kelas, teman, dirimu saat itu."
+          "line": "Catat sekolah, teman, dan dirimu saat berusia 7 hingga 19 tahun."
         },
         "twenties": {
-          "line": "Pilihan-pilihan di usia dua puluhan. Apa yang kamu pegang, apa yang kamu lepas?"
+          "line": "Catat pilihan, hubungan, dan perubahanmu di usia dua puluhan."
         },
         "later": {
-          "line": "Tiga puluhan dan sesudahnya. Yang sudah mantap dan yang masih bergerak."
+          "line": "Catat keseharian, hubungan, dan perubahanmu sejak usia tiga puluhan."
         },
         "work": {
-          "line": "Kamu saat bekerja. Berapa pun usiamu, sosokmu di dalam pekerjaan."
+          "line": "Catat peran, kebiasaan, dan pengalamanmu saat bekerja."
         },
         "now": {
-          "line": "Kamu, sekarang. Ke mana pikiranmu belakangan ini?"
+          "line": "Catat minat, pilihan, dan hari-harimu saat ini."
         }
       },
       "museumEntry": "Museum AI",
@@ -171,10 +181,8 @@
       "title": "Simpan",
       "subtitle": "Pilih format untuk menyimpan catatan.",
       "modes": {
-        "text": "Teks",
+        "text": "Catatan",
         "link": "Tautan",
-        "photo": "Foto",
-        "voice": "Suara",
         "todo": "Tugas"
       },
       "fields": {
@@ -201,10 +209,26 @@
       },
       "linkHint": "Tempel tautan dan SecondB mengambil judul dan ringkasannya.",
       "linkPlaceholder": "https://",
-      "photoOpen": "Buka kamera atau album",
-      "photoCaption": "Deskripsikan foto",
-      "voiceOpen": "Buka perekam",
-      "voiceHint": "Tulis apa yang kamu katakan",
+      "photoAdd": "Lampirkan foto",
+      "photoAddHint": "Pilih foto dari album. Foto disimpan bersama catatan ini.",
+      "photoLimit": "Maksimal {{max}} foto",
+      "photoRemove": "Hapus foto {{n}}",
+      "photoAttached": "Foto terlampir {{n}}",
+      "photoPickError": "Foto itu tidak bisa ditambahkan. Coba foto lain.",
+      "ocr": "OCR",
+      "ocrA11y": "Baca teks dari foto (OCR)",
+      "ocrHint": "Pilih foto dan AI membaca teksnya. Foto tidak disimpan.",
+      "ocrTitle": "Baca teks dari foto",
+      "ocrImage": "Foto yang dibaca",
+      "ocrResult": "Teks terbaca",
+      "ocrResultHint": "Teks muncul di sini. Kamu bisa mengubahnya.",
+      "ocrReading": "Membaca teks…",
+      "ocrRetry": "Baca lagi",
+      "ocrRepick": "Foto lain",
+      "ocrClose": "Tutup",
+      "ocrInsert": "Tambahkan ke catatan",
+      "ocrInsertWhat": "Tambahkan ke Apa",
+      "ocrInserted": "Teks ditambahkan.",
       "todoHint": "Tugas",
       "todoAdd": "Tambah tugas",
       "banner": "Saat disimpan, SecondB menambahkan bintang dan tag terkait.",
@@ -213,7 +237,8 @@
       "saved": "Tersimpan",
       "openRecords": "Buka catatan",
       "saveError": "Tidak dapat menyimpan. Coba lagi sebentar.",
-      "saveHint": "Isi kolom Apa untuk menyimpan catatan."
+      "saveHint": "Isi sesuatu untuk menyimpan catatan.",
+      "saveHintFourW": "Isi kolom Apa untuk menyimpan catatan."
     },
     "chat": {
       "user": "Akhir-akhir ini aku capek banget. Kenapa ya?",
@@ -578,6 +603,7 @@
       "lockedBody": "Kamu belum sampai di masa ini. Nanti terbuka sendiri.",
       "profileBody": "Informasi dasar yang kamu isi saat mendaftar. Semakin lengkap profilnya, semakin terang bintangnya.",
       "openProfile": "Buka profil",
+      "editAvatar": "Ubah avatarku",
       "loading": "Memuat…",
       "emptyBody": "Belum ada apa-apa di sini. Mulailah dengan percakapan.",
       "dug": "{{n}} dari {{total}} lapis terbuka",

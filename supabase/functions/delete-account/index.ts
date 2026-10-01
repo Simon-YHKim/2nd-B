@@ -2,7 +2,7 @@
 // caller; request data can neither select a user nor weaken deletion checks.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
-import { createClient } from 'jsr:@supabase/supabase-js@2.106.1';
+import { createClient } from 'npm:@supabase/supabase-js@2.106.1';
 import { deleteAuthUserWithReconciliation } from './delete-auth-user.ts';
 import { eraseRawClippings } from './storage-erasure.ts';
 
@@ -238,6 +238,29 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // record-photos (0209) holds the photos a 글 note carries: the same flat,
+    // bounded, fenced sweep, and it too must be observed empty before Auth goes.
+    // A missing bucket fails closed here, which is why 0209 is applied first.
+    const photoBucket = admin.storage.from('record-photos');
+    const preDeletionPhotos = await eraseRawClippings(photoBucket, authUser.id);
+    if (!preDeletionPhotos.ok) {
+      safeLog(`record_photos_${preDeletionPhotos.code}`);
+      return jsonResponse(
+        req,
+        {
+          error: preDeletionPhotos.code === 'storage_cleanup_in_progress'
+            ? 'deletion_cleanup_in_progress'
+            : 'deletion_precondition_failed',
+          deletion_fenced: true,
+          raw_clippings_erased: true,
+          raw_clippings_removed: preDeletionStorage.removed,
+          record_photos_erased: false,
+          record_photos_removed: preDeletionPhotos.removed,
+        },
+        preDeletionPhotos.code === 'storage_cleanup_in_progress' ? 409 : 503,
+      );
+    }
+
     const authDeletion = await deleteAuthUserWithReconciliation(admin.auth.admin, authUser.id);
     if (!authDeletion.ok) {
       safeLog(authDeletion.code);
@@ -274,6 +297,9 @@ Deno.serve(async (req: Request) => {
       raw_clippings_erased: true,
       raw_clippings_empty_at_check: true,
       raw_clippings_removed: preDeletionStorage.removed,
+      record_photos_erased: true,
+      record_photos_empty_at_check: true,
+      record_photos_removed: preDeletionPhotos.removed,
     });
   } catch {
     safeLog('upstream_request_failed');

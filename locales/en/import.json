@@ -17,7 +17,7 @@
   "pasteCard": {
     "eyebrow": "Paste",
     "title": "Reply or test result",
-    "description": "Paste an AI reply, a past personality test result or notes about yourself. 2nd-Brain will sort the content and add tags.",
+    "description": "Paste an AI reply, a past personality test result or notes about yourself. PolaScope will sort the content and add tags.",
     "placeholder": "Paste here...",
     "accessibilityLabel": "Material to import",
     "sort": "Sort and organize",
@@ -37,7 +37,7 @@
       "pro": "Work and specialist topics",
       "life": "Everyday life"
     },
-    "keep": "Save to 2nd-Brain",
+    "keep": "Save to PolaScope",
     "keepHint": "Saves this imported result to your records."
   },
   "saved": {
@@ -48,10 +48,30 @@
     "more": "Import more",
     "moreHint": "Clears this import and starts another one."
   },
+  "appointmentCount": {
+    "label": "Plan mentions: {{count}}",
+    "sub": "Plan mention count → record"
+  },
   "health": {
     "connect": "Turn on activity sync",
     "ingest": "Add today's activity",
     "consentNeeded": "Opt in to bring activity in",
     "minorLocked": "Activity sync is off for this account."
+  },
+  "markdownRetention": {
+    "consent": "The file is analyzed on this device. The titles and text of the notes you choose are kept as encrypted records. Each note's text is limited to 4,000 characters.",
+    "review": "The title and text of each chosen note, up to 4,000 characters per note, are added to your records."
+  },
+  "pendingDevice": {
+    "title": "Notes left on this device",
+    "body": "Notes saved on this device before sign-in: {{count}}. Someone else may have written them. Import only if they are yours.",
+    "account": "Import into: {{email}}",
+    "accountUnavailable": "We can't confirm this account's email right now, so import is paused.",
+    "confirm": "Import my notes into this account",
+    "confirmHint": "Saves the notes on this device to the account shown.",
+    "defer": "Later",
+    "deferHint": "Keeps these notes on this device.",
+    "importing": "Importing…",
+    "error": "Some notes couldn't be imported. The remaining notes are still on this device."
   }
 }

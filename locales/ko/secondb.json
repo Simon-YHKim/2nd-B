@@ -10,6 +10,7 @@
   "clearChatHint": "지금 화면의 대화 내용을 비워요.",
   "viewPlans": "요금제 보기",
   "viewPlansHint": "요금제 화면을 열어요.",
+  "serverLimitReached": "오늘 이 계정의 채팅 이용 한도에 도달했어요. 한도는 KST 자정에 초기화돼요.",
   "intro_title": "세컨비에게 물어보세요",
   "intro_body": "내 위키에 저장한 내용을 참고해 답해요. 답변에 표시된 페이지 이름을 누르면 원문을 볼 수 있어요. \"이번 달에 자주 기록한 주제가 뭐야?\"처럼 물어보세요.",
   "reference_piece_meta": "참고한 별가루",

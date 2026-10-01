@@ -4,10 +4,17 @@ name: GitHub Release (APK + AAB + IPA)
 # It never starts a paid build and never deletes/replaces a tag, release, or
 # asset. A rerun is accepted only when the tag target and all four assets are
 # byte-for-byte identical.
+# Production must provide RELEASE_APP_CLIENT_ID as an environment variable and
+# RELEASE_APP_PRIVATE_KEY as an environment secret. The installed GitHub App is
+# limited to this repository with Contents: write and Workflows: write.
 
 on:
   workflow_dispatch:
     inputs:
+      release_commit:
+        description: "Full main commit SHA used by all three finished EAS builds"
+        required: true
+        type: string
       profile:
         description: "Release contract (paired APK + AAB + IPA only)"
         required: true
@@ -34,7 +41,7 @@ on:
         default: false
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   # The version tag is read from the checked-out app.json, so serialize every
@@ -50,14 +57,70 @@ env:
   APPLE_TEAM_ID: "7CP84WS5C6"
 
 jobs:
+  release-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout release target for policy-only validation
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.release_commit }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node 22 for policy-only validation
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Require the policy checkout to be an exact main ancestor
+        env:
+          RELEASE_PROFILE: ${{ inputs.profile }}
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
+        run: |
+          set -euo pipefail
+          if [ "$RELEASE_PROFILE" != paired ]; then
+            echo "::error::Only the paired APK + AAB + IPA release contract is supported."
+            exit 1
+          fi
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::The release workflow must be dispatched from refs/heads/main."
+            exit 1
+          fi
+          if ! printf '%s' "$RELEASE_COMMIT" | grep -qE '^[0-9a-fA-F]{40}$'; then
+            echo "::error::release_commit must be a full 40-character Git SHA."
+            exit 1
+          fi
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          if [ "$(git rev-parse HEAD)" != "${RELEASE_COMMIT,,}" ]; then
+            echo "::error::The policy checkout does not match release_commit."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$RELEASE_COMMIT" origin/main; then
+            echo "::error::release_commit is not an ancestor of the current origin/main."
+            exit 1
+          fi
+
+      # This is the only job that executes the historical release checkout.
+      # It receives no Production environment, EAS token, signer identity, or
+      # GitHub App credential, and none of its files or outputs cross the job.
+      - name: Install historical dependencies without protected credentials
+        run: npm ci --legacy-peer-deps
+
+      - name: Verify historical OTA/native runtime policy
+        run: npm run check:ota-runtime
+
   release:
+    needs: release-policy
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: production
     steps:
-      - name: Checkout exact release target
+      - name: Checkout workflow tooling commit
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -73,9 +136,11 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Require the current main commit
+      - name: Require release data and workflow tooling to be exact main ancestors
         env:
           RELEASE_PROFILE: ${{ inputs.profile }}
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
+          TOOLING_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
           if [ "$RELEASE_PROFILE" != paired ]; then
@@ -83,23 +148,43 @@ jobs:
             exit 1
           fi
           if [ "$GITHUB_REF" != refs/heads/main ]; then
-            echo "::error::A GitHub release can only target refs/heads/main."
+            echo "::error::The release workflow must be dispatched from refs/heads/main."
             exit 1
           fi
-          git fetch --no-tags origin main
-          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
-            echo "::error::The workflow commit is not the current origin/main head."
+          if ! printf '%s' "$RELEASE_COMMIT" | grep -qE '^[0-9a-fA-F]{40}$'; then
+            echo "::error::release_commit must be a full 40-character Git SHA."
             exit 1
           fi
+          if ! printf '%s' "$TOOLING_COMMIT" | grep -qE '^[0-9a-fA-F]{40}$'; then
+            echo "::error::The workflow tooling commit is not a full Git SHA."
+            exit 1
+          fi
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          if [ "$(git rev-parse HEAD)" != "${TOOLING_COMMIT,,}" ]; then
+            echo "::error::The privileged checkout does not match the workflow tooling commit."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$RELEASE_COMMIT" origin/main; then
+            echo "::error::release_commit is not an ancestor of the current origin/main."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$TOOLING_COMMIT" origin/main; then
+            echo "::error::The workflow tooling commit is not on current origin/main."
+            exit 1
+          fi
+          git cat-file -e "$RELEASE_COMMIT^{commit}"
 
-      - name: Install dependencies
+          release_source="$(mktemp -d "$RUNNER_TEMP/release-source.XXXXXX")"
+          git show "$RELEASE_COMMIT:app.json" > "$release_source/app.json"
+          git show "$RELEASE_COMMIT:CHANGELOG.md" > "$release_source/CHANGELOG.md"
+          node -e 'JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"))' "$release_source/app.json"
+          {
+            printf 'RELEASE_APP_JSON=%s\n' "$release_source/app.json"
+            printf 'RELEASE_CHANGELOG=%s\n' "$release_source/CHANGELOG.md"
+          } >> "$GITHUB_ENV"
+
+      - name: Install trusted workflow dependencies
         run: npm ci --legacy-peer-deps
-
-      - name: Self-test Android artifact verifier
-        run: node scripts/check-apk-target-sdk.js --self-test
-
-      - name: Verify OTA/native runtime policy
-        run: npm run check:ota-runtime
 
       - name: Install pinned bundletool verifier
         run: |
@@ -119,7 +204,8 @@ jobs:
           PREVIEW_BUILD_ID: ${{ inputs.preview_build_id }}
           PRODUCTION_BUILD_ID: ${{ inputs.production_build_id }}
           IOS_BUILD_ID: ${{ inputs.ios_build_id }}
-          EXPECTED_COMMIT: ${{ github.sha }}
+          EXPECTED_COMMIT: ${{ inputs.release_commit }}
+          TOOLING_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
           if [ -z "${EXPO_TOKEN:-}" ]; then
@@ -148,7 +234,7 @@ jobs:
 
           node - "$PREVIEW_JSON" "$PRODUCTION_JSON" "$IOS_JSON" "$RUNNER_TEMP/validated-builds.json" <<'NODE'
           const fs = require("node:fs");
-          const config = require("./app.json").expo;
+          const config = JSON.parse(fs.readFileSync(process.env.RELEASE_APP_JSON, "utf8")).expo;
           const [previewPath, productionPath, iosPath, outputPath] = process.argv.slice(2);
           const expectedCommit = process.env.EXPECTED_COMMIT.toLowerCase();
           const expectedProject = config.extra?.eas?.projectId;
@@ -314,7 +400,7 @@ jobs:
           PRODUCTION_CHANNEL="$(node -p "require('$RUNNER_TEMP/validated-builds.json').production.channel")"
           IOS_CHANNEL="$(node -p "require('$RUNNER_TEMP/validated-builds.json').ios.channel")"
           IOS_BUNDLE_ID="$(node -p "require('$RUNNER_TEMP/validated-builds.json').ios.appIdentifier")"
-          SHORT_SHA="${GITHUB_SHA:0:12}"
+          SHORT_SHA="${EXPECTED_COMMIT:0:12}"
           PREVIEW_FILE="2nd-Brain-v$VERSION-preview-vc$PREVIEW_CODE-$SHORT_SHA.apk"
           PRODUCTION_FILE="2nd-Brain-v$VERSION-production-vc$PRODUCTION_CODE-$SHORT_SHA.aab"
           IOS_FILE="2nd-Brain-v$VERSION-production-build$IOS_BUILD_NUMBER-$SHORT_SHA.ipa"
@@ -334,8 +420,22 @@ jobs:
             fi
           done
 
-          PREVIEW_META="$(node scripts/check-apk-target-sdk.js --json "$PREVIEW_FILE")"
-          PRODUCTION_META="$(node scripts/check-apk-target-sdk.js --json "$PRODUCTION_FILE")"
+          # EAS authentication is finished. Do not expose its token to local
+          # artifact parsers. Materialize the verifier only now, after all
+          # package and EAS code has finished, from the protected workflow commit.
+          unset EXPO_TOKEN
+          tooling_dir="$(mktemp -d "$RUNNER_TEMP/release-apk-verifier.XXXXXX")"
+          APK_VERIFIER="$tooling_dir/check-apk-target-sdk.js"
+          apk_source="scripts/check-apk-target-sdk.js"
+          git show "${TOOLING_COMMIT}:${apk_source}" > "$APK_VERIFIER"
+          apk_blob="$(git rev-parse "${TOOLING_COMMIT}:${apk_source}")"
+          test -s "$APK_VERIFIER"
+          node --check "$APK_VERIFIER"
+          chmod 0500 "$APK_VERIFIER"
+          test "$(git hash-object "$APK_VERIFIER")" = "$apk_blob"
+          node "$APK_VERIFIER" --self-test
+          PREVIEW_META="$(node "$APK_VERIFIER" --json "$PREVIEW_FILE")"
+          PRODUCTION_META="$(node "$APK_VERIFIER" --json "$PRODUCTION_FILE")"
           export PREVIEW_META PRODUCTION_META PREVIEW_CODE PRODUCTION_CODE VERSION
           node <<'NODE'
           for (const [role, raw, code] of [
@@ -538,9 +638,19 @@ jobs:
         env:
           ANDROID_APK_SIGNER_SHA256: ${{ secrets.ANDROID_APK_SIGNER_SHA256 }}
           ANDROID_AAB_SIGNER_SHA256: ${{ secrets.ANDROID_AAB_SIGNER_SHA256 }}
+          TOOLING_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          node scripts/check-android-release-signatures.js verify \
+          tooling_dir="$(mktemp -d "$RUNNER_TEMP/release-signature-verifier.XXXXXX")"
+          SIGNATURE_VERIFIER="$tooling_dir/check-android-release-signatures.js"
+          signature_source="scripts/check-android-release-signatures.js"
+          git show "${TOOLING_COMMIT}:${signature_source}" > "$SIGNATURE_VERIFIER"
+          signature_blob="$(git rev-parse "${TOOLING_COMMIT}:${signature_source}")"
+          test -s "$SIGNATURE_VERIFIER"
+          node --check "$SIGNATURE_VERIFIER"
+          chmod 0500 "$SIGNATURE_VERIFIER"
+          test "$(git hash-object "$SIGNATURE_VERIFIER")" = "$signature_blob"
+          node "$SIGNATURE_VERIFIER" verify \
             "$RUNNER_TEMP/apk-signature.txt" \
             "$RUNNER_TEMP/aab-signature.txt" \
             "$RUNNER_TEMP/aab-certificate.txt" \
@@ -568,14 +678,15 @@ jobs:
           PREVIEW_BUILD_ID: ${{ inputs.preview_build_id }}
           PRODUCTION_BUILD_ID: ${{ inputs.production_build_id }}
           IOS_BUILD_ID: ${{ inputs.ios_build_id }}
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
         run: |
           set -euo pipefail
-          if awk -v v="## [$VERSION]" 'index($0, v) == 1 {found=1} END {exit !found}' CHANGELOG.md; then
+          if awk -v v="## [$VERSION]" 'index($0, v) == 1 {found=1} END {exit !found}' "$RELEASE_CHANGELOG"; then
             awk -v v="## [$VERSION]" '
               index($0, v) == 1 {inside=1; next}
               inside && /^## \[/ {exit}
               inside {print}
-            ' CHANGELOG.md > RELEASE_NOTES.md
+            ' "$RELEASE_CHANGELOG" > RELEASE_NOTES.md
           else
             printf 'Release %s\n' "$VERSION" > RELEASE_NOTES.md
           fi
@@ -596,17 +707,63 @@ jobs:
             `| Production AAB | \`${process.env.PRODUCTION_BUILD_ID}\` | versionCode \`${process.env.PRODUCTION_CODE}\` | \`${process.env.PRODUCTION_CHANNEL} / ${process.env.PRODUCTION_RUNTIME}\` | SDK \`${a.minSdkVersion} / ${a.targetSdkVersion} / ${a.compileSdkVersion}\` | Billing \`${a.billingLibrary}\` | \`${process.env.PRODUCTION_HASH}\` |`,
             `| Production IPA | \`${process.env.IOS_BUILD_ID}\` | buildNumber \`${process.env.IOS_BUILD_NUMBER}\` | \`${process.env.IOS_CHANNEL} / ${process.env.IOS_RUNTIME}\` | bundle \`${process.env.IOS_BUNDLE_ID}\` | App Store profile, expires \`${process.env.IOS_PROFILE_EXPIRES}\` | \`${process.env.IOS_HASH}\` |`,
             "",
-            `Target commit: \`${process.env.GITHUB_SHA}\``,
+            `Target commit: \`${process.env.RELEASE_COMMIT}\``,
             "",
             "This release remains a draft until its install/store checks are reviewed.",
           ].join("\n"));
           NODE
 
+      - name: Materialize release state helper after artifact verification
+        env:
+          TOOLING_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          tooling_dir="$(mktemp -d "$RUNNER_TEMP/release-state-helper.XXXXXX")"
+          helper="$tooling_dir/github-release-state.js"
+          helper_source="scripts/github-release-state.js"
+          git show "${TOOLING_COMMIT}:${helper_source}" > "$helper"
+          helper_blob="$(git rev-parse "${TOOLING_COMMIT}:${helper_source}")"
+          test -s "$helper"
+          node --check "$helper"
+          chmod 0500 "$helper"
+          test "$(git hash-object "$helper")" = "$helper_blob"
+          {
+            printf 'RELEASE_STATE_HELPER=%s\n' "$helper"
+            printf 'RELEASE_STATE_HELPER_BLOB=%s\n' "$helper_blob"
+          } >> "$GITHUB_ENV"
+
+      - name: Require protected release app configuration
+        env:
+          RELEASE_APP_CLIENT_ID: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_APP_CLIENT_ID:-}" ] || [ -z "${RELEASE_APP_PRIVATE_KEY:-}" ]; then
+            echo "::error::Protected Production release app configuration is missing."
+            exit 1
+          fi
+
+      # The Create Release API requires Workflows: write when target_commitish
+      # differs from main under .github/workflows. GITHUB_TOKEN cannot receive
+      # that permission, so mint one short-lived, single-repository app token
+      # only after every artifact has already passed verification.
+      - name: Mint a short-lived release app token
+        id: release-app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-workflows: write
+
       - name: Resolve version and Create the GitHub Release once or verify exact idempotent rerun
         id: publish
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
           GH_REPO: ${{ github.repository }}
+          WORKFLOW_COMMIT: ${{ github.sha }}
           TAG: ${{ steps.artifacts.outputs.tag }}
           VERSION: ${{ steps.artifacts.outputs.version }}
           PREVIEW_FILE: ${{ steps.artifacts.outputs.preview_file }}
@@ -616,9 +773,11 @@ jobs:
           PRODUCTION_HASH: ${{ steps.artifacts.outputs.production_hash }}
           IOS_HASH: ${{ steps.artifacts.outputs.ios_hash }}
           EXPECT_PRERELEASE: ${{ inputs.prerelease }}
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
         run: |
           set -euo pipefail
-          RESOLVED_VERSION="$(node -p "require('./app.json').expo.version")"
+          test "$(git hash-object "$RELEASE_STATE_HELPER")" = "$RELEASE_STATE_HELPER_BLOB"
+          RESOLVED_VERSION="$(node -p "JSON.parse(require('node:fs').readFileSync(process.env.RELEASE_APP_JSON, 'utf8')).expo.version")"
           if [ "$RESOLVED_VERSION" != "$VERSION" ]; then
             echo "::error::Resolved app.json version differs from the verified artifacts."
             exit 1
@@ -630,83 +789,142 @@ jobs:
           TAG_LINE="$(git ls-remote --tags origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')"
           PEELED_LINE="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | awk 'NR==1 {print $1}')"
           TAG_SHA="${PEELED_LINE:-$TAG_LINE}"
+          discover_and_fetch_release() {
+            local release_json="$1"
+            local release_list_json="$release_json.list"
+            local release_id
+            FETCHED_RELEASE_ID=""
+            : > "$release_json"
+            # The list endpoint includes drafts while GET /releases/tags/{tag}
+            # matches published releases only. Use the list solely to discover
+            # one immutable ID, then read all trusted metadata by that ID.
+            if ! gh api --method GET --paginate --slurp \
+              "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+              > "$release_list_json" 2> "$RUNNER_TEMP/release-api.err"; then
+              echo "::error::Could not determine whether the GitHub release exists."
+              return 1
+            fi
+            if ! release_id="$(
+              RELEASE_LIST_JSON="$release_list_json" TAG="$TAG" \
+                node "$RELEASE_STATE_HELPER" select-id
+            )"; then
+              echo "::error::Could not select a unique GitHub release for $TAG."
+              return 1
+            fi
+            if [ -z "$release_id" ]; then return 0; fi
+            if [[ ! "$release_id" =~ ^[0-9]+$ ]]; then
+              echo "::error::Discovered GitHub release ID is invalid."
+              return 1
+            fi
+            if ! gh api --method GET \
+              "repos/$GITHUB_REPOSITORY/releases/$release_id" \
+              > "$release_json" 2> "$RUNNER_TEMP/release-id-api.err"; then
+              echo "::error::Could not read GitHub release ID $release_id."
+              return 1
+            fi
+            RELEASE_JSON="$release_json" RELEASE_ID="$release_id" TAG="$TAG" \
+              node "$RELEASE_STATE_HELPER" assert-identity
+            FETCHED_RELEASE_ID="$release_id"
+          }
+
+          verify_release_metadata() {
+            local release_json="$1"
+            local release_id="$2"
+            RELEASE_JSON="$release_json" RELEASE_ID="$release_id" TAG="$TAG" \
+              node "$RELEASE_STATE_HELPER" verify
+          }
+
+          download_release_asset() {
+            local release_json="$1"
+            local asset_name="$2"
+            local output_path="$3"
+            local asset_id
+            asset_id="$(
+              RELEASE_JSON="$release_json" ASSET_NAME="$asset_name" node <<'NODE'
+          const release = require(process.env.RELEASE_JSON);
+          const matches = (release.assets || []).filter((asset) => asset.name === process.env.ASSET_NAME);
+          if (matches.length !== 1) throw new Error(`asset match count differs: ${matches.length}`);
+          const assetId = matches[0].id;
+          if (!Number.isSafeInteger(assetId) || assetId <= 0) throw new Error("asset id is invalid");
+          process.stdout.write(String(assetId));
+          NODE
+            )"
+            if [[ ! "$asset_id" =~ ^[0-9]+$ ]]; then
+              echo "::error::Could not resolve a trusted asset id for $asset_name."
+              return 1
+            fi
+            gh api --method GET -H "Accept: application/octet-stream" \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id" > "$output_path"
+          }
+
+          verify_release_assets() {
+            local release_json="$1"
+            local download_dir
+            download_dir="$(mktemp -d)"
+            download_release_asset "$release_json" "$PREVIEW_FILE" "$download_dir/$PREVIEW_FILE"
+            download_release_asset "$release_json" "$PRODUCTION_FILE" "$download_dir/$PRODUCTION_FILE"
+            download_release_asset "$release_json" "$IOS_FILE" "$download_dir/$IOS_FILE"
+            download_release_asset "$release_json" "SHA256SUMS.txt" "$download_dir/SHA256SUMS.txt"
+            test "$(sha256sum "$download_dir/$PREVIEW_FILE" | awk '{print $1}')" = "$PREVIEW_HASH"
+            test "$(sha256sum "$download_dir/$PRODUCTION_FILE" | awk '{print $1}')" = "$PRODUCTION_HASH"
+            test "$(sha256sum "$download_dir/$IOS_FILE" | awk '{print $1}')" = "$IOS_HASH"
+            cmp --silent SHA256SUMS.txt "$download_dir/SHA256SUMS.txt"
+            local body
+            body="$(RELEASE_JSON="$release_json" node -p "require(process.env.RELEASE_JSON).body || ''")"
+            printf '%s' "$body" | grep -Fq "$PREVIEW_HASH"
+            printf '%s' "$body" | grep -Fq "$PRODUCTION_HASH"
+            printf '%s' "$body" | grep -Fq "$IOS_HASH"
+          }
+
+          final_recheck() {
+            local expected_release_id="$1"
+            local original_release_json="$2"
+            local fresh_release_json="$3"
+            local final_tag_line final_peeled_line final_tag_sha
+            discover_and_fetch_release "$fresh_release_json"
+            if [ "$FETCHED_RELEASE_ID" != "$expected_release_id" ]; then
+              echo "::error::The final release ID differs from the verified draft."
+              return 1
+            fi
+            verify_release_metadata "$fresh_release_json" "$expected_release_id"
+            EXPECTED_RELEASE_JSON="$original_release_json" RELEASE_JSON="$fresh_release_json" \
+              node "$RELEASE_STATE_HELPER" assert-assets-unchanged
+            final_tag_line="$(git ls-remote --tags origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')"
+            final_peeled_line="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | awk 'NR==1 {print $1}')"
+            final_tag_sha="${final_peeled_line:-$final_tag_line}"
+            if [ -n "$final_tag_sha" ]; then
+              echo "::error::Tag $TAG appeared before the immutable draft verification completed."
+              return 1
+            fi
+            FINAL_RELEASE_JSON="$fresh_release_json"
+          }
+
           RELEASE_JSON="$RUNNER_TEMP/existing-release.json"
-          # Listed, not looked up by tag. GET /releases/tags/{tag} only matches
-          # PUBLISHED releases, so a leftover draft answered 404 and read as
-          # "no release exists" -- and the job then created a second draft. The
-          # list endpoint returns drafts to a token with push access, so a draft
-          # is seen and the tag/release disagreement below catches it.
-          set +e
-          gh api --method GET "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-            --jq "map(select(.tag_name == \"$TAG\")) | .[0] // empty" \
-            > "$RELEASE_JSON" 2> "$RUNNER_TEMP/release-api.err"
-          API_CODE=$?
-          set -e
-          if [ "$API_CODE" -ne 0 ]; then
-            echo "::error::Could not determine whether the GitHub release exists."
-            exit 1
-          fi
-          if [ -s "$RELEASE_JSON" ]; then
-            RELEASE_EXISTS=true
-          else
-            RELEASE_EXISTS=false
-          fi
+          discover_and_fetch_release "$RELEASE_JSON"
+          RELEASE_ID="$FETCHED_RELEASE_ID"
+          if [ -n "$RELEASE_ID" ]; then RELEASE_EXISTS=true; else RELEASE_EXISTS=false; fi
           if [ -n "$TAG_SHA" ]; then TAG_EXISTS=true; else TAG_EXISTS=false; fi
 
-          if [ "$TAG_EXISTS" != "$RELEASE_EXISTS" ]; then
-            if [ "$RELEASE_EXISTS" = true ]; then
-              echo "::error::A release for $TAG exists without a tag, i.e. an unpublished draft from an earlier run. Publish it or delete it, then re-run; this job will not create a second one."
-            else
-              echo "::error::Tag $TAG exists with no release. Refusing to mutate partial external state."
-            fi
-            exit 1
-          fi
+          # A normal draft has no ref. Encode every tag/release combination so
+          # no future edit can accidentally treat a partial state as creatable.
+          RELEASE_STATE="$(
+            TAG_EXISTS="$TAG_EXISTS" RELEASE_EXISTS="$RELEASE_EXISTS" \
+              node "$RELEASE_STATE_HELPER" state
+          )"
 
-          if [ "$TAG_EXISTS" = true ]; then
-            if [ "${TAG_SHA,,}" != "${GITHUB_SHA,,}" ]; then
-              echo "::error::Existing tag $TAG targets a different commit."
-              exit 1
-            fi
-            export RELEASE_JSON PREVIEW_FILE PRODUCTION_FILE IOS_FILE
-            node <<'NODE'
-          const release = require(process.env.RELEASE_JSON);
-          const fs = require("node:fs");
-          const expected = [process.env.PREVIEW_FILE, process.env.PRODUCTION_FILE, process.env.IOS_FILE, "SHA256SUMS.txt"].sort();
-          const actual = (release.assets || []).map((a) => a.name).sort();
-          if (!release.draft) throw new Error("existing release is not a draft");
-          if (Boolean(release.prerelease) !== (process.env.EXPECT_PRERELEASE === "true")) {
-            throw new Error("existing release prerelease flag differs");
-          }
-          if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-            throw new Error(`existing assets differ: ${JSON.stringify(actual)}`);
-          }
-          if (release.name !== `2nd-Brain ${process.env.VERSION}`) throw new Error("existing release title differs");
-          if (release.target_commitish.toLowerCase() !== process.env.GITHUB_SHA.toLowerCase()) {
-            throw new Error("existing release target commit differs");
-          }
-          if (release.body !== fs.readFileSync("RELEASE_NOTES.md", "utf8")) {
-            throw new Error("existing release notes differ");
-          }
-          NODE
-            EXISTING_DIR="$(mktemp -d)"
-            gh release download "$TAG" --dir "$EXISTING_DIR" \
-              --pattern "$PREVIEW_FILE" --pattern "$PRODUCTION_FILE" --pattern "$IOS_FILE" --pattern SHA256SUMS.txt
-            test "$(sha256sum "$EXISTING_DIR/$PREVIEW_FILE" | awk '{print $1}')" = "$PREVIEW_HASH"
-            test "$(sha256sum "$EXISTING_DIR/$PRODUCTION_FILE" | awk '{print $1}')" = "$PRODUCTION_HASH"
-            test "$(sha256sum "$EXISTING_DIR/$IOS_FILE" | awk '{print $1}')" = "$IOS_HASH"
-            cmp --silent SHA256SUMS.txt "$EXISTING_DIR/SHA256SUMS.txt"
-            BODY="$(node -p "require(process.env.RELEASE_JSON).body || ''")"
-            printf '%s' "$BODY" | grep -Fq "$PREVIEW_HASH"
-            printf '%s' "$BODY" | grep -Fq "$PRODUCTION_HASH"
-            printf '%s' "$BODY" | grep -Fq "$IOS_HASH"
+          if [ "$RELEASE_STATE" = verify-existing ]; then
+            verify_release_metadata "$RELEASE_JSON" "$RELEASE_ID"
+            verify_release_assets "$RELEASE_JSON"
+            FINAL_EXISTING_RELEASE_JSON="$RUNNER_TEMP/final-existing-release.json"
+            final_recheck "$RELEASE_ID" "$RELEASE_JSON" "$FINAL_EXISTING_RELEASE_JSON"
             RESULT=verified-existing
             echo "result=$RESULT" >> "$GITHUB_OUTPUT"
-            echo "Exact immutable rerun verified; no GitHub state changed."
+            echo "Exact immutable draft rerun verified; no GitHub state changed."
           else
             # RELEASE_NOTES.md is authoritative; --generate-notes is deliberately
             # not executed because generated text would make an exact rerun mutable.
             ARGS=(release create "$TAG" "$PREVIEW_FILE" "$PRODUCTION_FILE" "$IOS_FILE" SHA256SUMS.txt
-                  --title "2nd-Brain $VERSION" --target "$GITHUB_SHA" --draft
+                  --title "2nd-Brain $VERSION" --target "$RELEASE_COMMIT" --draft
                   --notes-file RELEASE_NOTES.md)
             if [ "${{ inputs.prerelease }}" = "true" ]; then ARGS+=(--prerelease); fi
             # One create invocation receives every asset. A failed partial create
@@ -715,75 +933,69 @@ jobs:
               echo "::error::Could not refresh origin/main immediately before GitHub Release creation."
               exit 1
             fi
-            if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ] || [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]; then
-              echo "::error::origin/main advanced before GitHub Release creation; no tag or draft was created."
+            if [ "$(git rev-parse HEAD)" != "${WORKFLOW_COMMIT,,}" ]; then
+              echo "::error::The privileged workflow checkout changed before GitHub Release creation."
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor "$RELEASE_COMMIT" origin/main; then
+              echo "::error::release_commit is no longer on origin/main; no tag or draft was created."
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor "$WORKFLOW_COMMIT" origin/main; then
+              echo "::error::The dispatched workflow commit is no longer on origin/main."
+              exit 1
+            fi
+            PRECREATE_RELEASE_JSON="$RUNNER_TEMP/precreate-release.json"
+            discover_and_fetch_release "$PRECREATE_RELEASE_JSON"
+            if [ -n "$FETCHED_RELEASE_ID" ]; then
+              echo "::error::A release for $TAG appeared after discovery; no mutation was attempted."
+              exit 1
+            fi
+            PRECREATE_TAG_LINE="$(git ls-remote --tags origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')"
+            PRECREATE_PEELED_LINE="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | awk 'NR==1 {print $1}')"
+            PRECREATE_TAG_SHA="${PRECREATE_PEELED_LINE:-$PRECREATE_TAG_LINE}"
+            if [ -n "$PRECREATE_TAG_SHA" ]; then
+              echo "::error::Tag $TAG appeared immediately before creation; no draft was created."
               exit 1
             fi
             gh "${ARGS[@]}"
             RESULT=created-draft
-            echo "result=$RESULT" >> "$GITHUB_OUTPUT"
             # A draft release has NO tag. GitHub creates the ref only when the
             # draft is published, so requiring one here could never pass: the
             # v0.7.0 release (2026-09-07) died on exactly this line after the
             # draft and all four assets had been created correctly.
             #
             # What binds the release to the commit while it is still a draft is
-            # target_commitish, and the node check below asserts it equals
-            # GITHUB_SHA. The tag is checked here only if one somehow already
-            # exists -- then it must still point at this commit.
+            # target_commitish, and the shared verifier below asserts it equals
+            # RELEASE_COMMIT. Any tag appearing here is an external-state race,
+            # so the workflow fails closed rather than interpreting it.
             CREATED_TAG_SHA="$(git ls-remote --tags origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')"
             CREATED_PEELED_SHA="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | awk 'NR==1 {print $1}')"
             CREATED_TAG_SHA="${CREATED_PEELED_SHA:-$CREATED_TAG_SHA}"
-            if [ -n "$CREATED_TAG_SHA" ] && [ "${CREATED_TAG_SHA,,}" != "${GITHUB_SHA,,}" ]; then
-              echo "::error::Tag $TAG already exists and does not resolve to the requested commit."
+            if [ -n "$CREATED_TAG_SHA" ]; then
+              echo "::error::Draft creation unexpectedly produced or raced with tag $TAG."
               exit 1
             fi
-            # Same reason as the existence probe above: the release we just made
-            # is a draft, so it has no tag and GET /releases/tags/{tag} answers
-            # 404. That 404 killed the v0.7.1 release after the draft and all
-            # four assets were already correct (2026-09-07).
-            gh api --method GET "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-              --jq "map(select(.tag_name == \"$TAG\")) | .[0] // empty" \
-              > "$RUNNER_TEMP/created-release.json"
-            if [ ! -s "$RUNNER_TEMP/created-release.json" ]; then
+            CREATED_RELEASE_JSON="$RUNNER_TEMP/created-release.json"
+            discover_and_fetch_release "$CREATED_RELEASE_JSON"
+            CREATED_RELEASE_ID="$FETCHED_RELEASE_ID"
+            if [ -z "$CREATED_RELEASE_ID" ]; then
               echo "::error::The draft release for $TAG was created but could not be read back."
               exit 1
             fi
-            export CREATED_RELEASE_JSON="$RUNNER_TEMP/created-release.json" PREVIEW_FILE PRODUCTION_FILE IOS_FILE
-            node <<'NODE'
-          const release = require(process.env.CREATED_RELEASE_JSON);
-          const fs = require("node:fs");
-          const expected = [process.env.PREVIEW_FILE, process.env.PRODUCTION_FILE, process.env.IOS_FILE, "SHA256SUMS.txt"].sort();
-          const actual = (release.assets || []).map((a) => a.name).sort();
-          if (
-            !release.draft ||
-            Boolean(release.prerelease) !== (process.env.EXPECT_PRERELEASE === "true") ||
-            release.name !== `2nd-Brain ${process.env.VERSION}` ||
-            release.target_commitish.toLowerCase() !== process.env.GITHUB_SHA.toLowerCase() ||
-            release.body !== fs.readFileSync("RELEASE_NOTES.md", "utf8") ||
-            JSON.stringify(actual) !== JSON.stringify(expected)
-          ) {
-            throw new Error("created draft release did not retain the exact asset set");
-          }
-          NODE
-            CREATED_DIR="$(mktemp -d)"
-            gh release download "$TAG" --dir "$CREATED_DIR" \
-              --pattern "$PREVIEW_FILE" --pattern "$PRODUCTION_FILE" --pattern "$IOS_FILE" --pattern SHA256SUMS.txt
-            test "$(sha256sum "$CREATED_DIR/$PREVIEW_FILE" | awk '{print $1}')" = "$PREVIEW_HASH"
-            test "$(sha256sum "$CREATED_DIR/$PRODUCTION_FILE" | awk '{print $1}')" = "$PRODUCTION_HASH"
-            test "$(sha256sum "$CREATED_DIR/$IOS_FILE" | awk '{print $1}')" = "$IOS_HASH"
-            cmp --silent SHA256SUMS.txt "$CREATED_DIR/SHA256SUMS.txt"
+            verify_release_metadata "$CREATED_RELEASE_JSON" "$CREATED_RELEASE_ID"
+            verify_release_assets "$CREATED_RELEASE_JSON"
+            FINAL_CREATED_RELEASE_JSON="$RUNNER_TEMP/final-created-release.json"
+            final_recheck "$CREATED_RELEASE_ID" "$CREATED_RELEASE_JSON" "$FINAL_CREATED_RELEASE_JSON"
+            echo "result=$RESULT" >> "$GITHUB_OUTPUT"
           fi
 
-          URL="$(gh release view "$TAG" --json url --jq .url)" || {
-            echo "::error::Created or existing release cannot be read back."
-            exit 1
-          }
+          URL="$(RELEASE_JSON="$FINAL_RELEASE_JSON" node -p "require(process.env.RELEASE_JSON).html_url")"
           {
             echo "### GitHub draft release"
             echo
             echo "- Result: \`$RESULT\`"
-            echo "- Tag: \`$TAG\` at \`$GITHUB_SHA\`"
+            echo "- Tag: \`$TAG\` at \`$RELEASE_COMMIT\`"
             echo "- Preview APK: \`$PREVIEW_FILE\`"
             echo "- Production AAB: \`$PRODUCTION_FILE\`"
             echo "- Production IPA: \`$IOS_FILE\`"

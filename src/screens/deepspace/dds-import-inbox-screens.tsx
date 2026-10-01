@@ -9,7 +9,8 @@
 // opt-in/ingest wiring are preserved behind the reference layout.
 
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -24,6 +25,7 @@ import { reactExpression } from "@/lib/companion/expression";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { listInferredLinkDetails, listSources } from "@/lib/wiki/queries";
 import { listPeerInvites } from "@/lib/peer/invite";
+import { armHealthAutoRead } from "@/lib/health/auto-read";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { availableHealthSources } from "@/lib/health/registry";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
@@ -32,9 +34,11 @@ import { splitImportNotes } from "@/lib/wiki/import-notes";
 import {
   addImportHistory,
   getImportHistory,
-  removeImportHistory,
+  withdrawImportHistoryEntry,
   type ImportHistoryEntry,
+  type ImportWithdrawalKept,
 } from "@/lib/import/history";
+import { importWithdrawalJudge, keptNotice } from "@/lib/import/history-ownership";
 import { deleteSourcesByIds, findSurvivingSourceIds } from "@/lib/records/delete-bulk";
 
 // 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
@@ -243,14 +247,20 @@ export function DeepSpaceImportScreen() {
   // to hold a bare boolean and say "Reflected" for every outcome, including the
   // one where the idempotent upsert wrote nothing new. Composition happens at
   // render so a locale change redraws it; only the numbers live in state.
+  // autoDaily: this tap also armed the automatic daily read on this phone (auto-read.ts).
   const [healthDone, setHealthDone] = useState<
-    { kind: "reflected"; inserted: number; autoCompleted: number } | { kind: "nothingNew" } | null
+    | { kind: "reflected"; inserted: number; autoCompleted: number; autoDaily: boolean }
+    | { kind: "nothingNew"; autoDaily: boolean }
+    | null
   >(null);
   const [healthErr, setHealthErr] = useState<string | null>(null);
   // Import history = the persistent device-local log (import-hub 철회 store), so
   // file imports here show up in the same withdrawal list. No seeded fake rows.
   const [history, setHistory] = useState<ImportHistoryEntry[]>([]);
   const [revokeErr, setRevokeErr] = useState<string | null>(null);
+  // Rows the last withdrawal left in place because they were not provably that entry's
+  // own, by why (null = none yet).
+  const [revokeKept, setRevokeKept] = useState<ImportWithdrawalKept | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -312,6 +322,8 @@ export function DeepSpaceImportScreen() {
           atIso: new Date().toISOString(),
           summary: t("ds.import.summaryPieces", { count: tally.imported }),
           sourceIds: createdIds,
+          // Every id here is a row this import created (history-ownership.ts).
+          owned: true,
         });
         setHistory(await getImportHistory(userId));
       }
@@ -329,27 +341,50 @@ export function DeepSpaceImportScreen() {
   async function revokeImport(entry: ImportHistoryEntry) {
     if (!userId) return;
     setRevokeErr(null);
-    if (entry.sourceIds.length > 0) {
-      try {
-        const removed = await deleteSourcesByIds(userId, entry.sourceIds);
-        // A short delete is not a failure on its own: the ids may already be
-        // gone. It is a failure only if any are still there, and that is exactly
-        // what the count cannot tell us. The comment above promises to keep the
-        // pointer for rows that still exist, so ask - but only when the count
-        // came up short, so the ordinary withdrawal costs no extra query.
-        if (
-          removed < entry.sourceIds.length &&
-          (await findSurvivingSourceIds(userId, entry.sourceIds)).length > 0
-        ) {
-          setRevokeErr(t("ds.import.revokeFailed"));
-          return;
-        }
-      } catch {
-        setRevokeErr(t("ds.import.revokeFailed"));
+    setRevokeKept(null);
+    try {
+      // The log is shared with the hub, and the log decides, not this screen's list.
+      // A hub entry logged before 2026-09-20 can point at a row another import created,
+      // so only the rows that are provably this entry's own are deleted
+      // (history-ownership.ts). One withdrawal runs at a time per account, across tabs,
+      // from reading the log to removing the entry, in the session it started in and
+      // within a deadline; a log that cannot be read, an account switch, or a server
+      // that does not answer stops it and the entry stays (history.ts).
+      const outcome = await withdrawImportHistoryEntry(
+        userId,
+        entry.id,
+        importWithdrawalJudge(userId, findSurvivingSourceIds),
+        async (own) => {
+          entry = own;
+          const removed = await deleteSourcesByIds(userId, entry.sourceIds);
+          // A short delete is not a failure on its own: the ids may already be
+          // gone. It is a failure only if any are still there, and that is exactly
+          // what the count cannot tell us. The comment above promises to keep the
+          // pointer for rows that still exist, so ask - but only when the count
+          // came up short, so the ordinary withdrawal costs no extra query.
+          if (
+            removed < entry.sourceIds.length &&
+            (await findSurvivingSourceIds(userId, entry.sourceIds)).length > 0
+          ) {
+            return false;
+          }
+          // The entry leaves the log in history.ts, in one write with any promotion.
+          return true;
+        },
+      );
+      if (!outcome.withdrawn) {
+        // A browser without Web Locks cannot line up two tabs' withdrawals, so it
+        // withdraws nothing there and says so, rather than risk a row with no pointer.
+        setRevokeErr(
+          t(outcome.reason === "unserialized" ? "ds.import.revokeUnserialized" : "ds.import.revokeFailed"),
+        );
         return;
       }
+      setRevokeKept(outcome.kept);
+    } catch {
+      setRevokeErr(t("ds.import.revokeFailed"));
+      return;
     }
-    await removeImportHistory(userId, entry.id);
     setHistory(await getImportHistory(userId));
   }
 
@@ -415,10 +450,15 @@ export function DeepSpaceImportScreen() {
         setHealthErr(t("ds.import.healthErrDenied"));
         return;
       }
+      // The OS grant belongs to the app on this phone, not to the signed-in account. This tap
+      // is the account's own "connect here", so from now on the automatic daily read
+      // (lib/health/auto-read.ts) may read this phone for it, and the result line says so.
+      const autoDaily = typeof native.readGranted === "function" && (await armHealthAutoRead(userId));
+      const autoNote = autoDaily ? " " + t("ds.import.healthAutoDaily") : "";
       const samples = await native.read(range);
       if (samples.length === 0) {
         // Nothing to reflect is not a failure, but it is not "reflected" either.
-        setHealthErr(t("ds.import.healthErrEmpty"));
+        setHealthErr(t("ds.import.healthErrEmpty") + autoNote);
         return;
       }
       // The HONESTY INVARIANT above guards the READ step: never claim a reflection
@@ -430,8 +470,8 @@ export function DeepSpaceImportScreen() {
       const outcome = await ingestHealthSamples(userId, samples, { isMinor, pref: healthPref });
       setHealthDone(
         outcome.inserted.length === 0
-          ? { kind: "nothingNew" }
-          : { kind: "reflected", inserted: outcome.inserted.length, autoCompleted: outcome.autoCompleted.length },
+          ? { kind: "nothingNew", autoDaily }
+          : { kind: "reflected", inserted: outcome.inserted.length, autoCompleted: outcome.autoCompleted.length, autoDaily },
       );
     } catch {
       // Gate rejection or write error: leave the affordance for retry.
@@ -551,12 +591,13 @@ export function DeepSpaceImportScreen() {
                         accessibilityRole="alert"
                         accessibilityLiveRegion="polite"
                       >
-                        {healthDone.kind === "nothingNew"
+                        {(healthDone.kind === "nothingNew"
                           ? t("ds.import.healthReflectedNone")
                           : t("ds.import.healthReflected", { count: healthDone.inserted })
                             + (healthDone.autoCompleted > 0
                               ? " " + t("ds.import.healthRoutinesCompleted", { count: healthDone.autoCompleted })
-                              : "")}
+                              : ""))
+                          + (healthDone.autoDaily ? " " + t("ds.import.healthAutoDaily") : "")}
                       </RNText>
                     ) : null}
                   </MdCard>
@@ -603,7 +644,14 @@ export function DeepSpaceImportScreen() {
             ))}
           </MdCard>
 
-          {/* history */}
+          {/* history. The kept note sits outside it: the entry that kept rows may have been the last. */}
+          {keptNotice(revokeKept).length > 0 ? (
+            <MdCard variant="filled" style={s.resultCard}>
+              <RNText style={[m3TextStyle("bodyMedium"), s.resultText]}>
+                {keptNotice(revokeKept).map((line) => t(line.key, { count: line.count })).join(" ")}
+              </RNText>
+            </MdCard>
+          ) : null}
           {history.length > 0 ? (
             <>
               <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{t("ds.import.historyTitle")}</RNText>

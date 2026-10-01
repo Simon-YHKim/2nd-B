@@ -3,7 +3,7 @@
     "a11y": "Brilho da Estrela do Norte"
   },
   "character": {
-    "a11y": "Personagem do Second Brain"
+    "a11y": "Personagem SecondB"
   },
   "bubble": {
     "fresh": "O que você quer anotar?"
@@ -36,14 +36,14 @@
   },
   "menu": {
     "graph": "Mapa",
-    "capture": "Capturar",
+    "capture": "Recortes",
     "secondb": "SecondB",
     "profile": "Eu"
   },
   "ds": {
     "dock": {
       "home": "Início",
-      "capture": "Capturar",
+      "capture": "Recortes",
       "chat": "SecondB",
       "ops": "Assistente",
       "account": "Eu",
@@ -109,6 +109,8 @@
       },
       "inbox": "Notificações",
       "headA11y": "Perguntar ao SecondB",
+      "dialogueOpen": "Abrir conversa com SecondB",
+      "dialogueClose": "Fechar conversa com SecondB",
       "kind": {
         "domain": "Domínio",
         "profile": "Como te leem"
@@ -116,14 +118,22 @@
       "bubble": {
         "introTag": "Apresentação",
         "intro": "Olá, eu sou o SecondB. Toque na minha cabeça e eu ajudo.",
-        "menuTag": "SecondB",
+        "tipTag": "Dica",
+        "tip1": "Toque em uma estrela para rever os registros dessa fase da sua vida.",
+        "tip2": "Use Adicionar na barra inferior para salvar um novo registro.",
+        "tip3": "Sua Estrela do Norte reúne seus registros em uma frase que você pode revisar.",
+        "next": "Próxima",
+        "openMenu": "Menu de recursos",
+        "menuTag": "Menu",
         "menu": "Como posso ajudar?",
         "travel": "Viajar",
         "later": "Depois",
+        "returnToSky": "Voltar à constelação",
         "chatbot": "Chatbot",
         "assistant": "Assistente"
       },
       "star": {
+        "entryAfter": "Salve seu primeiro registro em {{star}} para abrir esta estrela.",
         "career": {
           "line": "Que trabalhos e projetos você já fez?"
         },
@@ -143,25 +153,25 @@
           "line": "O que me deixa descansar?"
         },
         "profile": {
-          "line": "Seu nome, sua meta e como outras pessoas veem você. Preencha o que quiser apresentar."
+          "line": "Registre seu nome, suas metas e seu dia a dia. Os dois caminhos começam aqui."
         },
         "infancy": {
-          "line": "As primeiras lembranças. Uma sensação já basta para começar."
+          "line": "Registre suas primeiras lembranças e histórias sobre sua infância."
         },
         "school": {
-          "line": "Dos 7 aos 19 anos. Salas de aula, amigos, quem você era então."
+          "line": "Registre escola, amizades e quem você era dos 7 aos 19 anos."
         },
         "twenties": {
-          "line": "Que escolhas você fez nos seus vinte anos? O que decidiu continuar ou deixar?"
+          "line": "Registre escolhas, relações e mudanças durante seus vinte anos."
         },
         "later": {
-          "line": "Dos trinta em diante. O que ficou estável e o que mudou?"
+          "line": "Registre rotina, relações e mudanças a partir dos trinta anos."
         },
         "work": {
-          "line": "Conte sobre seu trabalho em qualquer fase da vida."
+          "line": "Registre seus papéis, hábitos e experiências no trabalho."
         },
         "now": {
-          "line": "O que tem ocupado seus pensamentos ultimamente?"
+          "line": "Registre seus interesses, escolhas e dias de agora."
         }
       },
       "museumEntry": "Museu da IA",
@@ -171,10 +181,8 @@
       "title": "Capturar",
       "subtitle": "Salve um registro no formato que preferir.",
       "modes": {
-        "text": "Texto",
+        "text": "Nota",
         "link": "Link",
-        "photo": "Foto",
-        "voice": "Voz",
         "todo": "Tarefa"
       },
       "fields": {
@@ -201,10 +209,26 @@
       },
       "linkHint": "Cole um link e o SecondB busca o título e o resumo.",
       "linkPlaceholder": "https://",
-      "photoOpen": "Abrir câmera ou álbum",
-      "photoCaption": "Descreva a foto",
-      "voiceOpen": "Abrir gravador",
-      "voiceHint": "Escreva o que você disse",
+      "photoAdd": "Anexar foto",
+      "photoAddHint": "Escolha uma foto do seu álbum. Ela é salva com esta nota.",
+      "photoLimit": "Até {{max}} fotos",
+      "photoRemove": "Remover a foto {{n}}",
+      "photoAttached": "Foto anexada {{n}}",
+      "photoPickError": "Não foi possível adicionar essa foto. Tente outra.",
+      "ocr": "OCR",
+      "ocrA11y": "Ler texto de uma foto (OCR)",
+      "ocrHint": "Escolha uma foto e a IA lê o texto. A foto não é salva.",
+      "ocrTitle": "Ler texto de uma foto",
+      "ocrImage": "Foto para ler",
+      "ocrResult": "Texto lido",
+      "ocrResultHint": "O texto aparece aqui. Você pode editá-lo.",
+      "ocrReading": "Lendo o texto…",
+      "ocrRetry": "Ler de novo",
+      "ocrRepick": "Outra foto",
+      "ocrClose": "Fechar",
+      "ocrInsert": "Adicionar à nota",
+      "ocrInsertWhat": "Adicionar a O quê",
+      "ocrInserted": "Texto adicionado.",
       "todoHint": "Tarefa",
       "todoAdd": "Adicionar uma tarefa",
       "banner": "Ao salvar, o SecondB organiza o registro por estrela e etiquetas.",
@@ -213,7 +237,8 @@
       "saved": "Salvo",
       "openRecords": "Abrir registros",
       "saveError": "Não foi possível salvar. Tente novamente em instantes.",
-      "saveHint": "Adicione o que aconteceu para ativar Capturar."
+      "saveHint": "Digite algum conteúdo para salvar.",
+      "saveHintFourW": "Preencha o campo O quê para salvar."
     },
     "chat": {
       "user": "Ando muito esgotado ultimamente. Por que será?",
@@ -578,6 +603,7 @@
       "lockedBody": "Você ainda não chegou nesta fase. Ela abre quando chegar.",
       "profileBody": "Confira os dados básicos que preencheu ao criar a conta. O brilho aumenta conforme você preenche seu perfil.",
       "openProfile": "Abrir perfil",
+      "editAvatar": "Personalizar meu avatar",
       "loading": "Carregando…",
       "emptyBody": "Ainda não há registros aqui. Comece uma conversa para adicionar o primeiro.",
       "dug": "{{n}} de {{total}} etapas abertas",

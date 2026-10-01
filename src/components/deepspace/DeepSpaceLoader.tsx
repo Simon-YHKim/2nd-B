@@ -1,9 +1,9 @@
 // Deep-space loaders (Claude Design loading.dc.html, A/B/C).
 // Presentational + token-only. Replaces the bare ActivityIndicator (GraphLoading)
 // across deep-space screens:
-//   A "dots"     short route transition  — breathing SecondB + cyan dots
-//   B "ring"     sync / processing       — rotating ring around the breathing head
-//   C "analysis" long star-ignition      — Big-Dipper twinkle + sweep bar, and a
+//   A "dots"     short route transition  — filling and twinkling North Star
+//   B "ring"     sync / processing       — rotating ring around the North Star
+//   C "analysis" long star-ignition      — North Star + sweep bar, and a
 //                                          "continue in background" exit (no trap)
 // Motion is fade + breathe + rotate only (no bounce/elastic). Default copy uses
 // a local shipped-locale table, so check:i18n parity is unaffected. Colors come
@@ -13,18 +13,17 @@
 //   <DeepSpaceLoader variant="ring" />
 //   <DeepSpaceLoader variant="analysis" etaSec={30} onSendToBackground={sendToBackground} />
 
-import { useEffect, useRef, useState, type ComponentProps } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import Svg, { Rect } from "react-native-svg";
-import { ringCells, stepPolyline } from "@/components/pixel/pixel-line";
+import { ringCells } from "@/components/pixel/pixel-line";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, deepSpaceSpacing, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
-import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { Text } from "@/components/ui/Text";
-import { SecondbHead } from "@/components/deepspace/SecondbHead";
+import { LoadingPolaris } from "@/components/deepspace/LoadingPolaris";
 
 export type DeepSpaceLoaderVariant = "dots" | "ring" | "analysis";
 
@@ -42,14 +41,6 @@ export interface DeepSpaceLoaderProps {
   onSendToBackground?: () => void;
   bgLabel?: string;
 }
-
-// ⚠ 원이 아니라 **사각**이다(PIXEL-CLAY 규칙 1). 예전에는 `Circle` 이었는데,
-//   별칭으로 감싸는 바람에 `<Circle` 을 찾는 가드가 못 봤다.
-function SvgRect({ collapsable: _collapsable, ...props }: ComponentProps<typeof Rect> & { collapsable?: boolean }) {
-  return <Rect {...props} />;
-}
-
-const AnimatedRect = Animated.createAnimatedComponent(SvgRect);
 
 type LoaderLocale = "en" | "ko" | "es" | "pt" | "id";
 
@@ -137,62 +128,8 @@ function useHydrated(): boolean {
   return hydrated;
 }
 
-// Big-Dipper (북두칠성) layout from the design canon. dim = faint star.
-/** 별의 어두운 상태 — 원래 `fillOpacity` 0.25 / 0.5 가 하던 일.
- *  바탕은 이 로더가 앉는 화면 배경(`deepSpace.bg`)이다. */
-const STAR_DIM_LO = flattenAlpha(deepSpace.accentDim, 0.25, deepSpace.bg);
-const STAR_SOFT_LO = flattenAlpha(deepSpace.accentSoft, 0.5, deepSpace.bg);
-
-const STARS = [
-  { x: 28, y: 104, r: 3.5, dim: true },
-  { x: 60, y: 86, r: 3.5, dim: false },
-  { x: 96, y: 94, r: 3.5, dim: true },
-  { x: 116, y: 68, r: 4, dim: false },
-  { x: 150, y: 76, r: 3.5, dim: false },
-  { x: 162, y: 44, r: 4, dim: false },
-  { x: 168, y: 96, r: 3.5, dim: true },
-] as const;
-
-function useBloom() {
-  const v = useRef(new Animated.Value(0)).current;
-  // Honour the reduce-motion pref. This matters now that "dots" is the app-wide
-  // loading state: the pixel glyph it replaced in PremiumLoadingState checked
-  // this pref, and unifying must not quietly drop that promise. Settled at 1 =
-  // fully lit dots, no breathing.
-  const reduceMotion = useReducedMotionPref();
-  useEffect(() => {
-    if (reduceMotion) {
-      v.setValue(1);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(v, { toValue: 1, duration: 1100, easing: pixelStepsFor(1100), useNativeDriver: true }),
-        Animated.timing(v, { toValue: 0, duration: 1100, easing: pixelStepsFor(1100), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [v, reduceMotion]);
-  return v;
-}
-
-function Dots({ phase }: { phase: Animated.Value }) {
-  const dot = (i: number) => ({
-    opacity: phase.interpolate({ inputRange: [0, 1], outputRange: [0.25 + i * 0.12, 1] }),
-    transform: [{ scale: phase.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.15] }) }],
-  });
-  return (
-    <View style={styles.dotsRow}>
-      {[0, 1, 2].map((i) => (
-        <Animated.View key={i} style={[styles.dot, dot(i)]} />
-      ))}
-    </View>
-  );
-}
-
-// B: a rotating dashed-arc ring encircling the breathing head (canon: 128/74).
-function Ring({ size = 104, head = 58 }: { size?: number; head?: number }) {
+// B: a rotating dashed-arc ring encircling the shared North Star.
+function Ring({ size = 104, star = 58, label }: { size?: number; star?: number; label: string }) {
   const spin = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -219,65 +156,8 @@ function Ring({ size = 104, head = 58 }: { size?: number; head?: number }) {
           })()}
         </Svg>
       </Animated.View>
-      <SecondbHead size={head} mood="neutral" />
+      <LoadingPolaris size={star} accessibilityLabel={label} />
     </View>
-  );
-}
-
-// C: the Big-Dipper igniting star by star (staggered twinkle).
-function Constellation() {
-  const vals = useRef(STARS.map(() => new Animated.Value(0.4))).current;
-  useEffect(() => {
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    const loops: Animated.CompositeAnimation[] = [];
-    vals.forEach((v, i) => {
-      const lo = STARS[i].dim ? 0.25 : 0.5;
-      const loop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(v, { toValue: 1, duration: 800, easing: pixelStepsFor(800), useNativeDriver: false }),
-          Animated.timing(v, { toValue: lo, duration: 800, easing: pixelStepsFor(800), useNativeDriver: false }),
-        ]),
-      );
-      const t = setTimeout(() => loop.start(), i * 200);
-      timers.push(t);
-      loops.push(loop);
-    });
-    return () => {
-      timers.forEach(clearTimeout);
-      loops.forEach((l) => l.stop());
-    };
-  }, [vals]);
-  return (
-    <Svg width={180} height={140} viewBox="0 0 180 140">
-      {/* 별을 잇는 선 — `<Polyline>` 이었다. 같은 점을 셀 계단으로 잇는다. */}
-      {stepPolyline(
-        [[28, 104], [60, 86], [96, 94], [116, 68], [150, 76], [162, 44], [168, 96]],
-        2,
-      ).map((p, i) => (
-        <Rect key={`ln${i}`} x={p.x} y={p.y} width={2} height={2} fill={deepSpace.cardLine} />
-      ))}
-      {/* 별 — `<Circle r fillOpacity>` 였다. 픽셀아트에서 밝기는 **투명도가 아니라 색**이라
-          (규칙 4) 어두운 쪽을 바탕 위에 미리 합성해 두고 그 사이를 오간다.
-          지름이 곧 사각형의 변이고, 좌표는 정수로 내린다(규칙 6). */}
-      {STARS.map((s, i) => {
-        const side = Math.round(s.r * 2);
-        const lo = s.dim ? STAR_DIM_LO : STAR_SOFT_LO;
-        const hi = s.dim ? deepSpace.accentDim : deepSpace.accentSoft;
-        return (
-          <AnimatedRect
-            key={i}
-            x={Math.round(s.x - s.r)}
-            y={Math.round(s.y - s.r)}
-            width={side}
-            height={side}
-            fill={vals[i].interpolate({
-              inputRange: [0.25, 1],
-              outputRange: [lo, hi],
-            })}
-          />
-        );
-      })}
-    </Svg>
   );
 }
 
@@ -308,7 +188,6 @@ export function DeepSpaceLoader({
   onSendToBackground,
   bgLabel,
 }: DeepSpaceLoaderProps) {
-  const phase = useBloom();
   const { i18n } = useTranslation();
   // Match the server on the first paint, then swap to the real locale.
   const hydrated = useHydrated();
@@ -320,7 +199,7 @@ export function DeepSpaceLoader({
     const bg = bgLabel ?? copy.background;
     return (
       <View style={[styles.wrap, styles.wrapFull]}>
-        <Constellation />
+        <LoadingPolaris size={112} accessibilityLabel={headline} />
         <Text variant="caption" style={styles.headline}>{headline}</Text>
         <SweepBar />
         <Text variant="subtle" style={styles.subCaption}>{hint}</Text>
@@ -344,19 +223,18 @@ export function DeepSpaceLoader({
     const sub = tip ?? copy.ringTip;
     return (
       <View style={styles.wrap}>
-        <Ring />
+        <Ring label={cap} />
         <Text variant="caption" style={styles.caption}>{cap}</Text>
         <Text variant="subtle" style={styles.subCaption}>{sub}</Text>
       </View>
     );
   }
 
-  // A: dots
+  // A: short route/data wait
   const cap = caption ?? title ?? copy.dotsCaption;
   return (
     <View style={styles.wrap}>
-      <SecondbHead size={64} mood="neutral" />
-      <Dots phase={phase} />
+      <LoadingPolaris size={72} accessibilityLabel={cap} />
       <Text variant="caption" style={styles.caption}>{cap}</Text>
     </View>
   );
@@ -365,9 +243,6 @@ export function DeepSpaceLoader({
 const styles = StyleSheet.create({
   wrap: { alignItems: "center", justifyContent: "center", gap: deepSpaceSpacing.md, padding: deepSpaceSpacing.lg },
   wrapFull: { flex: 1, gap: deepSpaceSpacing.lg },
-
-  dotsRow: { flexDirection: "row", gap: 9, marginTop: 4 },
-  dot: { width: 8, height: 8, borderRadius: m3.shape.none, backgroundColor: deepSpace.accent },
 
   headline: { fontSize: 15, color: deepSpace.textHi, textAlign: "center", marginTop: 4 },
   caption: { fontSize: 13, color: deepSpace.textMid, textAlign: "center" },

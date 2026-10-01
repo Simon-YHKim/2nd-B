@@ -1,7 +1,9 @@
 import { GoTrueClient, processLock, type LockFunc, type SupportedStorage } from "@supabase/auth-js";
 import {
   AuthLocalClearUnavailableError,
+  AuthLockWaitTimeoutError,
   AuthSessionOwnerChangedError,
+  AUTH_WEB_LOCK_WAIT_TIMEOUT_MS,
   authStorageKeysForUrl,
   captureAuthSessionExpectation,
   createAuthStorageRuntime,
@@ -306,11 +308,38 @@ describe("auth v2 storage and mutation boundary", () => {
       expect(calls).toEqual(["ordinary"]);
       expect(requests.length).toBeGreaterThanOrEqual(3);
       for (const { options } of requests) {
-        expect(options).toEqual({ mode: "exclusive" });
+        expect(options.mode).toBe("exclusive");
+        expect(options.signal).toBeInstanceOf(AbortSignal);
         expect(options).not.toHaveProperty("steal");
-        expect(options).not.toHaveProperty("signal");
         expect(options).not.toHaveProperty("ifAvailable");
       }
+    },
+  );
+
+  test.each(["resolved", "rejected"] as const)(
+    "a %s malformed manager cannot run a late callback after process fallback",
+    async (outcome) => {
+      const storage = new MemoryStorage();
+      let requests = 0;
+      let lateGrant: (() => Promise<unknown>) | undefined;
+      const request: TestBrowserLockRequest = (name, _options, callback) => {
+        requests += 1;
+        if (requests === 1) return callback({ name, mode: "exclusive" }); // ready()
+        lateGrant = () => callback({ name, mode: "exclusive" });
+        return outcome === "resolved"
+          ? Promise.resolve(undefined as never)
+          : Promise.reject(new Error("manager failed"));
+      };
+      const runtime = createAuthStorageRuntime({
+        url: `https://late-${outcome}.supabase.co`, storage, web: true, navigatorLockRequest: request,
+      });
+      await runtime.ready();
+      const writer = jest.fn();
+      await runtime.runMutation(writer);
+      expect(writer).toHaveBeenCalledTimes(1);
+      expect(lateGrant).toBeDefined();
+      await lateGrant?.();
+      expect(writer).toHaveBeenCalledTimes(1);
     },
   );
 
@@ -335,11 +364,149 @@ describe("auth v2 storage and mutation boundary", () => {
     expect(calls).toBe(1);
   });
 
+  test("an M request that never settles times out without running the mutation or falling back", async () => {
+    jest.useFakeTimers();
+    try {
+      const storage = new MemoryStorage();
+      let requests = 0;
+      let lateGrant: (() => Promise<unknown>) | undefined;
+      let waitingSignal: AbortSignal | undefined;
+      const request: TestBrowserLockRequest = (name, options, callback) => {
+        requests += 1;
+        if (requests === 1) return callback({ name, mode: "exclusive" }); // ready()
+        lateGrant = () => callback({ name, mode: "exclusive" });
+        waitingSignal = options.signal as AbortSignal;
+        return new Promise(() => {}); // manager ignores abort and never settles
+      };
+      const runtime = createAuthStorageRuntime({
+        url: "https://m-never-settles.supabase.co", storage, web: true, navigatorLockRequest: request,
+      });
+      await runtime.ready();
+      const writer = jest.fn();
+      const pending = runtime.runMutation(writer);
+      for (let i = 0; i < 10 && !lateGrant; i += 1) await Promise.resolve();
+      expect(lateGrant).toBeDefined();
+      jest.advanceTimersByTime(AUTH_WEB_LOCK_WAIT_TIMEOUT_MS);
+      await expect(pending).rejects.toBeInstanceOf(AuthLockWaitTimeoutError);
+      expect(waitingSignal?.aborted).toBe(true);
+      expect(writer).not.toHaveBeenCalled();
+      await lateGrant?.();
+      expect(writer).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("an S request that never settles times out and releases M before the SDK writer starts", async () => {
+    jest.useFakeTimers();
+    try {
+      const storage = new MemoryStorage();
+      const url = "https://s-never-settles.supabase.co";
+      const keys = authStorageKeysForUrl(url);
+      const trace: string[] = [];
+      let waitingOnS = false;
+      const request: TestBrowserLockRequest = async (name, _options, callback) => {
+        if (name === `lock:${keys.v2Primary}`) {
+          waitingOnS = true;
+          return new Promise(() => {});
+        }
+        trace.push(`enter:${name}`);
+        try { return await callback({ name, mode: "exclusive" }); }
+        finally { trace.push(`exit:${name}`); }
+      };
+      const runtime = createAuthStorageRuntime({ url, storage, web: true, navigatorLockRequest: request });
+      await runtime.ready();
+      trace.length = 0;
+      const writer = jest.fn();
+      const pending = runtime.runMutation(() => runtime.runSdkUnlockedWriter(writer));
+      for (let i = 0; i < 10 && !waitingOnS; i += 1) await Promise.resolve();
+      expect(waitingOnS).toBe(true);
+      jest.advanceTimersByTime(AUTH_WEB_LOCK_WAIT_TIMEOUT_MS);
+      await expect(pending).rejects.toBeInstanceOf(AuthLockWaitTimeoutError);
+      expect(writer).not.toHaveBeenCalled();
+      expect(trace).toEqual([`enter:${keys.mutationLock}`, `exit:${keys.mutationLock}`]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("a granted S lock is not abandoned when its SDK writer remains pending past the wait deadline", async () => {
+    jest.useFakeTimers();
+    try {
+      const storage = new MemoryStorage();
+      const request: TestBrowserLockRequest = (name, _options, callback) =>
+        callback({ name, mode: "exclusive" });
+      const runtime = createAuthStorageRuntime({
+        url: "https://writer-never-settles.supabase.co", storage, web: true, navigatorLockRequest: request,
+      });
+      await runtime.ready();
+      let release!: () => void;
+      const writer = jest.fn(() => new Promise<void>((resolve) => { release = resolve; }));
+      let settled = false;
+      const pending = runtime.runMutation(() => runtime.runSdkUnlockedWriter(writer));
+      void pending.finally(() => { settled = true; });
+      for (let i = 0; i < 10 && !writer.mock.calls.length; i += 1) await Promise.resolve();
+      expect(writer).toHaveBeenCalledTimes(1);
+      jest.advanceTimersByTime(AUTH_WEB_LOCK_WAIT_TIMEOUT_MS * 2);
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      release();
+      await expect(pending).resolves.toBeUndefined();
+      expect(settled).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("a 200 password response with a stalled JSON body keeps M and S until the SDK can save the session", async () => {
+    jest.useFakeTimers();
+    try {
+      const storage = new MemoryStorage();
+      const url = "https://password-body-stall.supabase.co";
+      const locks: string[] = [];
+      const request: TestBrowserLockRequest = async (name, _options, callback) => {
+        locks.push(`enter:${name}`);
+        try { return await callback({ name, mode: "exclusive" }); }
+        finally { locks.push(`exit:${name}`); }
+      };
+      const runtime = createAuthStorageRuntime({ url, storage, web: true, navigatorLockRequest: request });
+      await runtime.ready();
+      locks.length = 0;
+      let finishBody!: (value: unknown) => void;
+      const body = new Promise<unknown>((resolve) => { finishBody = resolve; });
+      const response = jsonResponse({});
+      response.json = jest.fn(() => body) as typeof response.json;
+      const fetchMock = jest.fn(async () => response);
+      const fetcher = fetchMock as unknown as typeof fetch;
+      const client = makeClient(runtime.storage!, runtime.storageKey, runtime.sdkLock, fetcher);
+      let settled = false;
+      const pending = runtime.runMutation(() => runtime.runSdkUnlockedWriter(() =>
+        client.signInWithPassword({ email: "user@example.invalid", password: "test-password" }),
+      ));
+      void pending.then(() => { settled = true; }, () => { settled = true; });
+      for (let i = 0; i < 30 && !fetchMock.mock.calls.length; i += 1) await Promise.resolve();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(locks).toContain(`enter:${authStorageKeysForUrl(url).mutationLock}`);
+      expect(locks).toContain(`enter:lock:${runtime.storageKey}`);
+      jest.advanceTimersByTime(AUTH_WEB_LOCK_WAIT_TIMEOUT_MS * 2);
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      expect(storage.getItem(runtime.storageKey)).toBeNull();
+      finishBody(session("user", "session"));
+      await expect(pending).resolves.toMatchObject({ error: null });
+      expect(JSON.parse(storage.getItem(runtime.storageKey) ?? "null").user.id).toBe("user");
+      expect(locks).toContain(`exit:lock:${runtime.storageKey}`);
+      expect(locks).toContain(`exit:${authStorageKeysForUrl(url).mutationLock}`);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test("a valid browser lock keeps M before S and holds M until S releases", async () => {
     const storage = new MemoryStorage();
     const trace: string[] = [];
     const request: TestBrowserLockRequest = async (name, options, callback) => {
-      expect(options).toEqual({ mode: "exclusive" });
+      expect(options).toEqual({ mode: "exclusive", signal: expect.any(AbortSignal) });
       trace.push(`enter:${name}`);
       try {
         return await callback({ name, mode: "exclusive" });
@@ -759,5 +926,166 @@ describe("auth v2 storage and mutation boundary", () => {
 
     expect(events).toEqual(["SIGNED_OUT", "SIGNED_IN"]);
     expect(JSON.parse(storage.getItem(runtimeA.storageKey) ?? "null").user.id).toBe("user-b");
+  });
+});
+
+describe("a runtime retired during its v1 -> v2 migration (KZ-1840-1)", () => {
+  // The migration writes the storage directly, not through the fenced storage
+  // the runtime hands its client. A consented reset can retire the runtime
+  // while a retried migration sits between two of those writes. It ends there
+  // and leaves the move to the live runtime, which still waits for it on M.
+  type Keys = ReturnType<typeof authStorageKeysForUrl>;
+
+  const pairsOf = (keys: Keys): Array<[string, string]> => [
+    [keys.v1Primary, keys.v2Primary],
+    [`${keys.v1Primary}-code-verifier`, `${keys.v2Primary}-code-verifier`],
+    [`${keys.v1Primary}-user`, `${keys.v2Primary}-user`],
+    [LEGACY_RECOVERY_PROOF_KEY, RECOVERY_PROOF_KEY],
+    [LEGACY_RECOVERY_PENDING_KEY, RECOVERY_PENDING_KEY],
+  ];
+  const copiesOf = (keys: Keys) => pairsOf(keys).map(([, revised]) => `set:${revised}`);
+  const removalsOf = (keys: Keys) => pairsOf(keys).map(([legacy]) => `remove:${legacy}`);
+  const VALUES = ["session-a", "verifier-a", "user-a", "proof-a", "pending-a"];
+
+  function seedLegacyBundle(storage: MemoryStorage, keys: Keys): void {
+    pairsOf(keys).forEach(([legacy], index) => storage.setItem(legacy, VALUES[index]));
+  }
+
+  /** Where each value sits, [v1, v2], plus the completion marker. */
+  function bundleOnDisk(storage: MemoryStorage, keys: Keys) {
+    return {
+      pairs: pairsOf(keys).map(([legacy, revised]) => [storage.getItem(legacy), storage.getItem(revised)]),
+      marker: storage.getItem(keys.migrationTombstone),
+    };
+  }
+  const MIGRATED = { pairs: VALUES.map((value) => [null, value]), marker: "1" };
+
+  /** One runtime's window onto the shared storage. It logs that runtime's calls
+   *  and can stop once at one of them until the gate opens: a read before it
+   *  answers, a removal after it is done. */
+  function windowOnto(
+    shared: MemoryStorage,
+    log: string[],
+    pause?: { op: "get" | "remove"; key: string; gate: Promise<void> },
+  ): SupportedStorage & { reached(): boolean } {
+    let reached = false;
+    const stopHere = async (op: "get" | "remove", key: string) => {
+      if (!pause || reached || pause.op !== op || pause.key !== key) return;
+      reached = true;
+      await pause.gate;
+    };
+    return {
+      reached: () => reached,
+      async getItem(key) {
+        log.push(`get:${key}`);
+        await stopHere("get", key);
+        return shared.getItem(key);
+      },
+      async setItem(key, value) {
+        log.push(`set:${key}`);
+        shared.setItem(key, value);
+      },
+      async removeItem(key) {
+        log.push(`remove:${key}`);
+        shared.removeItem(key);
+        await stopHere("remove", key);
+      },
+    };
+  }
+
+  async function flush(rounds = 10): Promise<void> {
+    for (let round = 0; round < rounds; round += 1) {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+  }
+
+  async function isPending(promise: Promise<unknown>): Promise<boolean> {
+    const marker = {};
+    const winner = await Promise.race([
+      promise,
+      new Promise((resolve) => setImmediate(() => resolve(marker))),
+    ]);
+    return winner === marker;
+  }
+
+  const writesIn = (log: string[]) => log.filter((entry) => !entry.startsWith("get:"));
+
+  test.each([
+    {
+      point: "while it waits on the v2 read of a pair it would copy",
+      slug: "copy",
+      pause: (keys: Keys) => ({ op: "get" as const, key: keys.v2Primary }),
+      retiredWrites: (_keys: Keys): string[] => [],
+    },
+    {
+      point: "while one of its v1 removals is in flight",
+      slug: "remove",
+      pause: (keys: Keys) => ({ op: "remove" as const, key: keys.v1Primary }),
+      retiredWrites: (keys: Keys) => [...copiesOf(keys), `remove:${keys.v1Primary}`],
+    },
+    {
+      point: "while its last v1 removal is in flight, before the completion marker",
+      slug: "marker",
+      pause: (_keys: Keys) => ({ op: "remove" as const, key: LEGACY_RECOVERY_PENDING_KEY }),
+      retiredWrites: (keys: Keys) => [...copiesOf(keys), ...removalsOf(keys)],
+    },
+  ])("retired $point, it writes nothing more and the live runtime finishes behind M", async ({
+    slug,
+    pause,
+    retiredWrites,
+  }) => {
+    const url = `https://kz1840-${slug}.supabase.co`;
+    const keys = authStorageKeysForUrl(url);
+    const shared = new MemoryStorage();
+    seedLegacyBundle(shared, keys);
+    let openGate!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      openGate = resolve;
+    });
+    const retiringLog: string[] = [];
+    const retiringWindow = windowOnto(shared, retiringLog, { ...pause(keys), gate });
+    const retiring = createAuthStorageRuntime({ url, storage: retiringWindow, web: false });
+    const retiringReady = retiring.ready();
+    await flush();
+    const stoppedMidMigration = retiringWindow.reached() && (await isPending(retiringReady));
+    retiring.retire();
+
+    const liveLog: string[] = [];
+    const live = createAuthStorageRuntime({ url, storage: windowOnto(shared, liveLog), web: false });
+    const liveReady = live.ready();
+    await flush();
+    const liveWaitedOnM = (await isPending(liveReady)) && liveLog.length === 0;
+
+    openGate();
+    await expect(retiringReady).resolves.toBeUndefined();
+    await liveReady;
+
+    expect(stoppedMidMigration).toBe(true);
+    expect(liveWaitedOnM).toBe(true);
+    expect(writesIn(retiringLog)).toEqual(retiredWrites(keys));
+    expect(bundleOnDisk(shared, keys)).toEqual(MIGRATED);
+  });
+
+  test("retired before it ever migrates, its ready() leaves the storage alone and the live runtime migrates", async () => {
+    const url = "https://kz1840-entry.supabase.co";
+    const keys = authStorageKeysForUrl(url);
+    const shared = new MemoryStorage();
+    seedLegacyBundle(shared, keys);
+    const retiringLog: string[] = [];
+    const retiring = createAuthStorageRuntime({
+      url,
+      storage: windowOnto(shared, retiringLog),
+      web: false,
+    });
+    retiring.retire();
+
+    await expect(retiring.ready()).resolves.toBeUndefined();
+    await expect(retiring.storage?.getItem(keys.v2Primary)).resolves.toBeNull();
+    expect(retiringLog).toEqual([]);
+    expect(bundleOnDisk(shared, keys).marker).toBeNull();
+
+    const live = createAuthStorageRuntime({ url, storage: windowOnto(shared, []), web: false });
+    await live.ready();
+    expect(bundleOnDisk(shared, keys)).toEqual(MIGRATED);
   });
 });

@@ -13,7 +13,9 @@
  * (document-global svg ids) never clashes across instances.
  */
 import { forwardRef, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
-import { AccessibilityInfo, type DimensionValue, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { AccessibilityInfo, Keyboard, type DimensionValue, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Image } from "expo-image";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { router, useLocalSearchParams } from "expo-router";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
@@ -31,6 +33,40 @@ import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { type HotlineId } from "@/lib/safety/lexicon";
 import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { composeFourWBody, EMPTY_FOURW, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
+import {
+  MAX_RECORD_PHOTOS,
+  RECORD_PHOTOS_ENABLED,
+  recordPhotosPayload,
+  removeRecordPhotoObjects,
+  uploadRecordPhotos,
+  type RecordPhotoRef,
+} from "@/lib/capture/record-photos";
+import {
+  clampTodoInputHeight,
+  TODO_INPUT_LINE_HEIGHT,
+  TODO_INPUT_MIN_HEIGHT,
+  TODO_INPUT_PADDING_Y,
+  todoInputScrolls,
+  todoItemsForSave,
+  todoSubmitAction,
+} from "@/lib/capture/todo-input";
+import {
+  ocrImageAsset,
+  pickAttachmentImage,
+  pickImageAsset,
+  type PickedAttachmentImage,
+  type PickedImage,
+} from "@/lib/wiki/capture-image";
+import {
+  classifyOcrFailure,
+  insertOcrText,
+  ocrInsertTarget,
+  type OcrFailure,
+  type OcrSheetPhase,
+} from "@/lib/capture/ocr-sheet";
+import { beginAccountSessionLease, type PendingAccountSessionLease } from "@/lib/auth/account-session-lease";
+import { isAbortError } from "@/lib/async/abort";
+import { CaptureOcrSheet } from "./CaptureOcrSheet";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { loadLatestBfi } from "@/lib/persona/build";
 import { getDomainStar, type DomainId } from "@/lib/persona/domain-stars";
@@ -41,6 +77,12 @@ import { SEVEN_STARS, isUnlived } from "@/lib/persona/seven-stars";
 import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
 import { callLlm } from "@/lib/llm/boundary";
 import { IMAGINE_SEEDS, type ImagineSeedIcon } from "./imagine-seeds";
+import { FirstRecordCoachmark } from "./FirstRecordCoachmark";
+import { markCoachmarksSeen } from "@/lib/onboarding/coachmarks-gate";
+import {
+  advanceFirstRecordCoach,
+  type FirstRecordCoachStep,
+} from "@/lib/onboarding/first-record-coach";
 
 /**
  * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
@@ -177,7 +219,10 @@ const CaptureField = forwardRef<TextInput, {
   );
 });
 
-type CaptureMode = "text" | "link" | "photo" | "voice" | "todo";
+// 2026-09-30 (Simon): the 사진 and 음성 tiles are gone from this row. A photo now
+// attaches to 글 (메모 · 4W1H) and is saved with that record; OCR and dictation
+// still live on /capture-full. The canon JSON dropped the two ids in the same change.
+type CaptureMode = "text" | "link" | "todo";
 // Mode ids + icons sourced from the design canon (src/lib/canon → public/proto/data);
 // labels stay on the i18n path (t("ds.capture.modes." + id)) below.
 //
@@ -188,7 +233,6 @@ type CaptureMode = "text" | "link" | "photo" | "voice" | "todo";
 const CAPTURE_MODE_ROW: { id: CaptureMode; icon: AnyGlyphName }[] =
   canonCaptureModes.map((m) => ({ id: m.id as CaptureMode, icon: canonGlyph(m.icon) }));
 
-type CaptureTextFormat = "free" | "fourw";
 
 /** PIXEL-CLAY tile whose outer View owner supplies layout on Android Fabric. */
 function CaptureTile({
@@ -210,7 +254,7 @@ function CaptureTile({
   role: "button" | "radio" | "tab";
   onPress: () => void;
 }) {
-  const [held, setHeld] = useState(false);
+  const [held, setHeld] = useState(false); // the wrapper View it restyles keeps collapsable={false} so press/release never reparents its children, as in PixelPressable (2eb6266b)
   const active = selected && !disabled;
   const color = active ? m3.color.onPrimary : m3.color.onSurfaceVariant;
 
@@ -231,7 +275,7 @@ function CaptureTile({
       aria-selected={role === "button" ? undefined : selected}
       style={styles.capTileHit}
     >
-      <View style={held && !disabled ? styles.capTileSunk : styles.capTileRest}>
+      <View collapsable={false} style={held && !disabled ? styles.capTileSunk : styles.capTileRest}>
         <PixelSurface
           variant={active ? "inset" : "bevel"}
           pressed={held && !disabled}
@@ -249,21 +293,111 @@ function CaptureTile({
   );
 }
 
-export function CaptureView() {
-  const { t, i18n } = useTranslation(["home", "capture"]);
+// react-native-web reports a textarea's scrollHeight, and that never drops
+// below the height already set on it, so a to-do field could grow but never
+// shrink back after text is deleted. Measuring at height 0 reads the content.
+function measureWebTextareaHeight(target: unknown): number | null {
+  const el = target as { style?: { height: string }; scrollHeight?: unknown } | null;
+  if (!el || !el.style || typeof el.scrollHeight !== "number") return null;
+  const previous = el.style.height;
+  el.style.height = "0px";
+  const measured = el.scrollHeight;
+  el.style.height = previous;
+  return typeof measured === "number" ? measured : null;
+}
+
+/**
+ * One to-do field (Simon 2026-09-30: long text wraps downward and pushes the
+ * rows and the add button below it instead of overlapping them). It grows line
+ * by line up to TODO_INPUT_MAX_HEIGHT and then scrolls inside. Return moves to
+ * the next to-do rather than inserting a line break (lib/capture/todo-input.ts).
+ */
+const CaptureTodoInput = forwardRef<TextInput, {
+  value: string;
+  placeholder: string;
+  label: string;
+  onChangeText: (next: string) => void;
+  onSubmitEditing: () => void;
+}>(function CaptureTodoInput({ value, placeholder, label, onChangeText, onSubmitEditing }, ref) {
+  const [height, setHeight] = useState(TODO_INPUT_MIN_HEIGHT);
+  const grow = (contentHeight: number | null) => {
+    if (contentHeight == null) return;
+    const next = clampTodoInputHeight(contentHeight);
+    setHeight((prev) => (prev === next ? prev : next));
+  };
+  return (
+    <TextInput
+      ref={ref}
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={m3.color.onSurfaceVariant}
+      multiline
+      scrollEnabled={todoInputScrolls(height)}
+      textAlignVertical="top"
+      returnKeyType="next"
+      // Native reads submitBehavior; react-native-web only turns Enter into a
+      // submit on a multiline field when blurOnSubmit is set (it blurs after the
+      // handler, by which time focus has already moved to the next to-do).
+      submitBehavior="submit"
+      blurOnSubmit
+      onSubmitEditing={onSubmitEditing}
+      onContentSizeChange={(e) => grow(e.nativeEvent.contentSize.height)}
+      onChange={Platform.OS === "web" ? (e) => grow(measureWebTextareaHeight(e.target)) : undefined}
+      style={[styles.capTodoInput, { height }]}
+      accessibilityLabel={label}
+    />
+  );
+});
+
+export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: boolean } = {}) {
+  const { t, i18n } = useTranslation(["home", "capture", "deepspace"]);
   const { userId, isMinor } = useAuth();
   const locale = i18n.language === "ko" ? "ko" : "en";
-  // rev2 P4a (device QA 2026-07-02) + clone-audit 06-capture: the deep-space 담기
-  // matches the reference — 5 format modes, and 글(text) opens the W4H1 form as
-  // the default. All modes save through the same createRecord(kind:"note") path.
+  // rev2 P4a (device QA 2026-07-02) + clone-audit 06-capture: all modes save
+  // through the same createRecord(kind:"note") path. Three modes since 2026-09-30
+  // (메모 · 링크 · 할 일); photos attach to 메모 instead of a tab of their own.
   const [mode, setMode] = useState<CaptureMode>("text");
-  const [textFormat, setTextFormat] = useState<CaptureTextFormat>("fourw");
+  // 2026-09-30 (Simon): the 메모/4W1H radio became one toggle. OFF (the default)
+  // is the plain memo; ON shows the 4W1H fields. Both keep their text while the
+  // toggle moves, and the save picks the one that is showing: OFF saves tag
+  // "memo" with the memo text, ON saves tag "fourw" with the composed 4W1H body,
+  // exactly as the two radio options did. (The old radio opened on 4W1H.)
+  const [fourwOn, setFourwOn] = useState(false);
   const [fourw, setFourw] = useState<FourWFields>(EMPTY_FOURW);
-  const [text, setText] = useState(""); // link / photo caption / voice transcript
+  const [text, setText] = useState(""); // memo text / link
   const [todos, setTodos] = useState<string[]>(["", ""]);
+  // Photos attached to the 글 note (메모 and 4W1H share them). Local previews
+  // until save; uploaded to the owner's private Storage folder only on save.
+  const [photos, setPhotos] = useState<PickedAttachmentImage[]>([]);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState(false);
+  // OCR popup (2026-09-30). The picked image is only read, never attached.
+  const [ocrOpen, setOcrOpen] = useState(false);
+  const [ocrImage, setOcrImage] = useState<PickedImage | null>(null);
+  const [ocrPhase, setOcrPhase] = useState<OcrSheetPhase>("reading");
+  const [ocrText, setOcrText] = useState("");
+  const [ocrFailure, setOcrFailure] = useState<OcrFailure | null>(null);
+  const [ocrPicking, setOcrPicking] = useState(false);
+  const ocrImageRef = useRef<PickedImage | null>(null);
+  const ocrLeaseRef = useRef<PendingAccountSessionLease | null>(null);
+  const ocrRunRef = useRef(0);
+  // Handlers write the ref first and then the state, so an async pick or the
+  // unmount cleanup always sees the current list (no render-time ref writes).
+  const photosRef = useRef<PickedAttachmentImage[]>([]);
+  const mountedRef = useRef(true);
+  const todoRefs = useRef<(TextInput | null)[]>([]);
+  const pendingTodoFocus = useRef<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
+  const [coachStep, setCoachStep] = useState<FirstRecordCoachStep | null>(
+    firstRecordCoach ? "format" : null,
+  );
+  const scrollRef = useRef<ScrollView>(null);
+  const memoCoachTargetRef = useRef<View>(null);
+  const inputCoachTargetRef = useRef<View>(null);
+  const saveCoachTargetRef = useRef<View>(null);
   // Crisis safety net (parity with the journal path): createRecord runs the
   // local crisis lexicon on every note save; a red zone must surface the same
   // locale/minor-aware hotline here as everywhere else, not a silent "saved".
@@ -272,16 +406,58 @@ export function CaptureView() {
     hotline: "GLOBAL_988",
   });
 
-  const cleanTodos = todos.map((v) => v.trim()).filter((v) => v.length > 0);
+  const cleanTodos = todoItemsForSave(todos);
   const hasContent =
     mode === "text"
-      ? textFormat === "fourw"
+      ? fourwOn
         ? fourWHasContent(fourw)
         : text.trim().length > 0
       : mode === "todo"
         ? cleanTodos.length > 0
         : text.trim().length > 0;
   const canSave = userId != null && hasContent && !saving;
+
+  useEffect(() => {
+    if (!firstRecordCoach) setCoachStep(null);
+    else setCoachStep((current) => current ?? "format");
+  }, [firstRecordCoach]);
+
+  // Picked photos hold a cache copy (native) or an object URL (web). Leaving the
+  // screen without saving releases every one of them.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      for (const photo of photosRef.current) void photo.release();
+      // A paid OCR call still in flight is abandoned with the screen.
+      ocrLeaseRef.current?.abort();
+      void ocrImageRef.current?.release();
+    };
+  }, []);
+
+  // Return in the last to-do adds a field; focus it once it has rendered.
+  useEffect(() => {
+    const index = pendingTodoFocus.current;
+    if (index === null || index >= todos.length) return;
+    pendingTodoFocus.current = null;
+    todoRefs.current[index]?.focus();
+  }, [todos.length]);
+
+  const stopCoach = () => {
+    if (userId) markCoachmarksSeen(userId);
+    setCoachStep(null);
+  };
+
+  const showSaveCoach = () => {
+    if (!text.trim()) return;
+    Keyboard.dismiss();
+    setCoachStep((current) =>
+      current ? advanceFirstRecordCoach(current, "input-confirmed") : current,
+    );
+    [80, 260].forEach((delay) =>
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), delay),
+    );
+  };
 
   const dirty = () => {
     if (saved) setSaved(false);
@@ -295,6 +471,144 @@ export function CaptureView() {
     setTodos((prev) => prev.map((v, idx) => (idx === i ? next : v)));
     dirty();
   };
+  const submitTodoAt = (i: number) => {
+    const action = todoSubmitAction(i, todos);
+    if (action.kind === "focus") {
+      todoRefs.current[action.index]?.focus();
+    } else if (action.kind === "append") {
+      pendingTodoFocus.current = action.index;
+      setTodos((prev) => [...prev, ""]);
+    }
+  };
+
+  const clearPhotos = () => {
+    for (const photo of photosRef.current) void photo.release();
+    photosRef.current = [];
+    setPhotos([]);
+    setPhotoError(false);
+  };
+  const addPhoto = async () => {
+    if (photoBusy || photosRef.current.length >= MAX_RECORD_PHOTOS) return;
+    setPhotoBusy(true);
+    setPhotoError(false);
+    try {
+      const picked = await pickAttachmentImage("library");
+      if (!picked) return;
+      // The screen may have closed, or the cap been reached, while the picker was up.
+      if (!mountedRef.current || photosRef.current.length >= MAX_RECORD_PHOTOS) {
+        void picked.release();
+        return;
+      }
+      photosRef.current = [...photosRef.current, picked];
+      setPhotos(photosRef.current);
+      dirty();
+    } catch {
+      if (mountedRef.current) setPhotoError(true);
+    } finally {
+      if (mountedRef.current) setPhotoBusy(false);
+    }
+  };
+  const removePhotoAt = (index: number) => {
+    const target = photosRef.current[index];
+    if (!target) return;
+    photosRef.current = photosRef.current.filter((_, i) => i !== index);
+    setPhotos(photosRef.current);
+    void target.release();
+    dirty();
+  };
+
+  // ── OCR popup ──────────────────────────────────────────────────────────────
+  // The existing OCR path, unchanged: pickImageAsset -> ocrImageAsset ->
+  // callLlm "capture_ocr" (C1 boundary, C3 audit, C9 classification and the
+  // output-side crisis swap; the proxy enforces the service consent). One paid
+  // call per explicit tap: OCR opens the picker, and only a picked photo is read.
+  const replaceOcrImage = (next: PickedImage | null) => {
+    const previous = ocrImageRef.current;
+    ocrImageRef.current = next;
+    setOcrImage(next);
+    if (previous && previous !== next) void previous.release();
+  };
+  const readOcrImage = async (image: PickedImage) => {
+    if (!userId) return;
+    const run = ++ocrRunRef.current;
+    ocrLeaseRef.current?.abort();
+    const lease = beginAccountSessionLease(userId);
+    ocrLeaseRef.current = lease;
+    setOcrPhase("reading");
+    setOcrFailure(null);
+    setOcrText("");
+    try {
+      const authenticated = await lease.authenticate();
+      authenticated.assertCurrent();
+      const read = await ocrImageAsset(authenticated, locale, image, isMinor === true);
+      authenticated.assertCurrent();
+      if (!mountedRef.current || run !== ocrRunRef.current) return;
+      setOcrText(read);
+      setOcrPhase("ready");
+    } catch (e) {
+      if (isAbortError(e) || lease.signal.aborted) return;
+      if (!mountedRef.current || run !== ocrRunRef.current) return;
+      const failure = classifyOcrFailure(e);
+      if (failure.kind === "crisis") {
+        // Never "try a clearer photo" for crisis content: close and show the hotline.
+        closeOcr();
+        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        return;
+      }
+      setOcrFailure(failure);
+      setOcrPhase("error");
+    } finally {
+      if (ocrLeaseRef.current === lease) ocrLeaseRef.current = null;
+      lease.release();
+    }
+  };
+  const pickOcrImage = async () => {
+    if (!userId || ocrPicking) return;
+    setOcrPicking(true);
+    try {
+      const picked = await pickImageAsset("library");
+      if (!picked) return;
+      if (!mountedRef.current) {
+        void picked.release();
+        return;
+      }
+      replaceOcrImage(picked);
+      setOcrOpen(true);
+      void readOcrImage(picked);
+    } catch (e) {
+      if (!mountedRef.current) return;
+      // A photo the reader can never take (too large, wrong type) is explained
+      // in the popup, with 다른 사진 instead of a retry.
+      ocrRunRef.current += 1;
+      replaceOcrImage(null);
+      setOcrText("");
+      setOcrFailure(classifyOcrFailure(e));
+      setOcrPhase("error");
+      setOcrOpen(true);
+    } finally {
+      if (mountedRef.current) setOcrPicking(false);
+    }
+  };
+  function closeOcr() {
+    ocrRunRef.current += 1;
+    ocrLeaseRef.current?.abort();
+    ocrLeaseRef.current = null;
+    replaceOcrImage(null);
+    setOcrOpen(false);
+    setOcrText("");
+    setOcrFailure(null);
+    setOcrPhase("reading");
+  }
+  const insertOcr = () => {
+    if (ocrInsertTarget(fourwOn) === "what") {
+      setField("what", insertOcrText(fourw.what, ocrText));
+    } else {
+      setText((current) => insertOcrText(current, ocrText));
+      dirty();
+    }
+    closeOcr();
+    AccessibilityInfo.announceForAccessibility(t("ds.capture.ocrInserted"));
+  };
 
   async function savePiece() {
     if (!userId || !canSave) return;
@@ -305,7 +619,7 @@ export function CaptureView() {
       let topic: string | undefined;
       let tag: string;
       if (mode === "text") {
-        if (textFormat === "fourw") {
+        if (fourwOn) {
           body = composeFourWBody(fourw, locale);
           topic = fourw.what.trim().slice(0, 80);
           tag = "fourw";
@@ -321,18 +635,31 @@ export function CaptureView() {
       } else {
         body = text.trim();
         topic = body.slice(0, 80);
-        tag = mode; // link / photo / voice
+        tag = mode; // link
       }
-      const res = await createRecord({
-        userId,
-        locale,
-        kind: "note",
-        body,
-        topic,
-        tags: [tag],
-        withFollowup: false,
-        minor: isMinor === true,
-      });
+      // Photos belong to 글 only. They are uploaded first so the record can point
+      // at them; if the insert then fails, the uploaded files are removed again,
+      // so a failed save leaves nothing in Storage. No AI call touches them.
+      const attached = mode === "text" ? photos : [];
+      const uploaded: RecordPhotoRef[] = attached.length > 0 ? await uploadRecordPhotos(userId, attached) : [];
+      const structured = recordPhotosPayload(uploaded);
+      let res: Awaited<ReturnType<typeof createRecord>>;
+      try {
+        res = await createRecord({
+          userId,
+          locale,
+          kind: "note",
+          body,
+          topic,
+          tags: [tag],
+          withFollowup: false,
+          minor: isMinor === true,
+          ...(structured ? { structured } : {}),
+        });
+      } catch (saveError) {
+        if (uploaded.length > 0) void removeRecordPhotoObjects(uploaded.map((photo) => photo.path));
+        throw saveError;
+      }
       // createRecord ran the local crisis lexicon on this note (withFollowup:false
       // → llmPathWillClassify=false). A red zone means the text tripped crisis
       // detection — surface the hotline exactly like the journal path
@@ -341,12 +668,23 @@ export function CaptureView() {
         setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
       }
       setSaved(true);
+      if (firstRecordCoach) {
+        markCoachmarksSeen(userId);
+        // The real save button can be used before the guide's input confirmation.
+        // Read the latest step so a skip during the request stays dismissed.
+        setCoachStep((current) =>
+          current === null || res.followup?.zone === "red"
+            ? null
+            : advanceFirstRecordCoach(current, "save-succeeded"),
+        );
+      }
       // WCAG 4.1.3 status message: the saved outcome is otherwise only a button
       // label/state change, silent to a screen reader. Announce it.
       AccessibilityInfo.announceForAccessibility(t("ds.capture.saved"));
       setFourw(EMPTY_FOURW);
       setText("");
       setTodos(["", ""]);
+      clearPhotos();
     } catch (e) {
       setError(true);
       AccessibilityInfo.announceForAccessibility(t("ds.capture.saveError"));
@@ -366,19 +704,124 @@ export function CaptureView() {
   const f = (key: string) => t("ds.capture." + key);
   const saveLabel = saving ? f("saving") : saved ? f("saved") : f("save");
 
+  const coachTargetRef =
+    coachStep === "format"
+      ? memoCoachTargetRef
+      : coachStep === "input"
+        ? inputCoachTargetRef
+        : saveCoachTargetRef;
+  const coachCount = coachStep === "done" ? t("deepspace:coachmarks.doneCount") : `${coachStep === "format" ? 2 : coachStep === "input" ? 3 : 4}/4`;
+  const coachMessage =
+    coachStep === "format"
+      ? t("deepspace:coachmarks.formatStep")
+      : coachStep === "input"
+        ? t("deepspace:coachmarks.inputStep")
+        : coachStep === "save"
+          ? t("deepspace:coachmarks.saveStep")
+          : t("deepspace:coachmarks.doneStep");
+
+  // 메모 attachments (2026-09-30): the photo thumbnails, then 사진 첨부 and OCR
+  // side by side. 사진 첨부 stores photos with this memo (record-photos, behind
+  // RECORD_PHOTOS_ENABLED); OCR only reads a photo into the text and keeps nothing.
+  const photosFull = photos.length >= MAX_RECORD_PHOTOS;
+  const photoAddDisabled = photoBusy || photosFull || saving;
+  const ocrDisabled = ocrPicking || saving;
+  const attachStrip = (
+    <View style={styles.capPhotoBlock}>
+      {RECORD_PHOTOS_ENABLED && photos.length > 0 ? (
+        <View style={styles.capPhotoRow}>
+          {photos.map((photo, i) => (
+            <View key={photo.uri} style={styles.capPhotoCell}>
+              <Image
+                source={{ uri: photo.uri }}
+                style={styles.capPhotoThumb}
+                contentFit="cover"
+                cachePolicy="memory"
+                accessibilityLabel={t("ds.capture.photoAttached", { n: i + 1 })}
+              />
+              <Pressable
+                onPress={() => removePhotoAt(i)}
+                disabled={saving}
+                accessibilityRole="button"
+                accessibilityLabel={t("ds.capture.photoRemove", { n: i + 1 })}
+                hitSlop={8}
+                style={styles.capPhotoRemove}
+              >
+                <CaptureIcon name="close" color={m3.color.onSurface} size={14} />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      <View style={styles.capAttachRow}>
+        {RECORD_PHOTOS_ENABLED ? (
+          <View style={styles.capAttachCell}>
+            <MdButton
+              variant="outlined"
+              icon={
+                <CaptureIcon
+                  name="photo_camera"
+                  color={photoAddDisabled ? m3.disabled.onSurface : m3.color.primary}
+                  size={18}
+                />
+              }
+              label={photosFull ? t("ds.capture.photoLimit", { max: MAX_RECORD_PHOTOS }) : f("photoAdd")}
+              disabled={photoAddDisabled}
+              loading={photoBusy}
+              onPress={() => void addPhoto()}
+              accessibilityHint={f("photoAddHint")}
+            />
+          </View>
+        ) : null}
+        <View style={styles.capAttachCell}>
+          <MdButton
+            variant="outlined"
+            icon={
+              <CaptureIcon
+                name="article"
+                color={ocrDisabled ? m3.disabled.onSurface : m3.color.primary}
+                size={18}
+              />
+            }
+            label={f("ocr")}
+            disabled={ocrDisabled}
+            loading={ocrPicking}
+            onPress={() => void pickOcrImage()}
+            accessibilityLabel={f("ocrA11y")}
+            accessibilityHint={f("ocrHint")}
+          />
+        </View>
+      </View>
+      {photoError ? (
+        <Text style={styles.capHint} accessibilityLiveRegion="polite">
+          {f("photoPickError")}
+        </Text>
+      ) : null}
+    </View>
+  );
+
   return (
-    <ScrollView
-      style={styles.capScroll}
-      contentContainerStyle={styles.capBody}
-      keyboardShouldPersistTaps="handled"
-      automaticallyAdjustKeyboardInsets
-    >
-      {/* The reference uses five fixed square tiles, not a scrolling chip row. */}
+    <View style={styles.capCoachRoot}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.capScroll}
+        contentContainerStyle={styles.capBody}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
+      {/* Fixed square tiles, not a scrolling chip row (three since 2026-09-30). */}
       <View style={styles.capModeRow} accessibilityRole="tablist">
         {CAPTURE_MODE_ROW.map((m) => {
           const on = mode === m.id;
+          // The first-record guide's "먼저 메모를 선택해요" step now points at the
+          // 메모 tab itself (the 메모 radio it used to point at is gone, 2026-09-30).
           return (
-            <View key={m.id} style={styles.capModeCell}>
+            <View
+              key={m.id}
+              ref={m.id === "text" ? memoCoachTargetRef : undefined}
+              collapsable={false}
+              style={styles.capModeCell}
+            >
               <CaptureTile
                 role="tab"
                 selected={on}
@@ -387,6 +830,11 @@ export function CaptureView() {
                 onPress={() => {
                   setMode(m.id);
                   dirty();
+                  if (m.id === "text") {
+                    setCoachStep((current) =>
+                      current ? advanceFirstRecordCoach(current, "memo-selected") : current,
+                    );
+                  }
                 }}
               />
             </View>
@@ -397,49 +845,51 @@ export function CaptureView() {
       {/* mode-specific input */}
       {mode === "text" ? (
         <>
-          <View style={styles.capFormatRow} accessibilityRole="radiogroup">
-            <View style={styles.capFormatCell}>
-              <CaptureTile
-                role="radio"
-                selected={textFormat === "free"}
-                horizontal
-                icon="edit_note"
-                label={t("capture:modes.memo.label")}
-                onPress={() => {
-                  setTextFormat("free");
-                  dirty();
-                }}
-              />
-            </View>
-            <View style={styles.capFormatCell}>
-              <CaptureTile
-                role="radio"
-                selected={textFormat === "fourw"}
-                horizontal
-                icon="grid"
-                label={t("capture:modes.fourw.label")}
-                onPress={() => {
-                  setTextFormat("fourw");
-                  dirty();
-                }}
-              />
-            </View>
-          </View>
-          {textFormat === "free" ? (
+          {/* 4W1H is a switch, not a second format tile (Simon 2026-09-30). One
+              row, one touch: the whole row flips it, and it reads as a switch. */}
+          <Pressable
+            onPress={() => {
+              setFourwOn((on) => !on);
+              dirty();
+            }}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: fourwOn }}
+            // react-native-web does not turn accessibilityState into aria-checked;
+            // a switch without it reads as unchecked forever (2026-09-30 QA).
+            aria-checked={fourwOn}
+            accessibilityLabel={t("capture:modes.fourw.label")}
+            accessibilityHint={t("capture:modes.fourw.help")}
+            style={styles.capToggleRow}
+          >
+            <CaptureIcon name="grid" color={fourwOn ? m3.color.primary : m3.color.onSurfaceVariant} size={16} />
+            <Text style={styles.capToggleLabel}>{t("capture:modes.fourw.label")}</Text>
+            <View style={styles.capToggleSpacer} />
+            <PixelSurface
+              variant={fourwOn ? "bevel" : "inset"}
+              background={fourwOn ? m3.color.primaryContainer : m3.color.surfaceVariant}
+              contentStyle={styles.capSwitchTrack}
+            >
+              <View style={[styles.capSwitchThumb, fourwOn ? styles.capSwitchThumbOn : styles.capSwitchThumbOff]} />
+            </PixelSurface>
+          </Pressable>
+          {!fourwOn ? (
             <View style={styles.capForm}>
-              <TextInput
-                value={text}
-                onChangeText={(next) => {
-                  setText(next);
-                  dirty();
-                }}
-                placeholder={f("fields.what.hint")}
-                placeholderTextColor={m3.color.onSurfaceVariant}
-                multiline
-                textAlignVertical="top"
-                style={[styles.capFieldInput, styles.capFreeInput]}
-                accessibilityLabel={t("capture:modes.memo.label")}
-              />
+              <View ref={inputCoachTargetRef} collapsable={false}>
+                <TextInput
+                  value={text}
+                  onChangeText={(next) => {
+                    setText(next);
+                    dirty();
+                  }}
+                  placeholder={f("fields.what.hint")}
+                  placeholderTextColor={m3.color.onSurfaceVariant}
+                  multiline
+                  textAlignVertical="top"
+                  style={[styles.capFieldInput, styles.capFreeInput]}
+                  accessibilityLabel={t("capture:modes.memo.label")}
+                />
+              </View>
+              {attachStrip}
             </View>
           ) : (
             <View style={styles.capForm}>
@@ -492,6 +942,7 @@ export function CaptureView() {
                 onChange={(v) => setField("how", v)}
                 returnKeyType="done"
               />
+              {attachStrip}
             </View>
           )}
         </>
@@ -512,65 +963,24 @@ export function CaptureView() {
             accessibilityLabel={t("ds.capture.modes.link")}
           />
         </View>
-      ) : mode === "photo" ? (
-        <View style={styles.capForm}>
-          <MdButton
-            variant="outlined"
-            icon={<CaptureIcon name="photo_camera" color={m3.color.primary} size={18} />}
-            label={f("photoOpen")}
-            // med#3: open the FULL composer in photo (ocr) mode — this used to
-            // land on the default journal/link pane with the label promising 사진.
-            onPress={() => router.push({ pathname: "/capture-full", params: { text, mode: "ocr" } })}
-            style={styles.capFullWidth}
-          />
-          <TextInput
-            value={text}
-            onChangeText={(v) => {
-              setText(v);
-              dirty();
-            }}
-            placeholder={f("photoCaption")}
-            placeholderTextColor={m3.color.onSurfaceVariant}
-            style={styles.capFieldInput}
-            accessibilityLabel={f("photoCaption")}
-          />
-        </View>
-      ) : mode === "voice" ? (
-        <View style={styles.capForm}>
-          <MdButton
-            variant="outlined"
-            icon={<CaptureIcon name="mic" color={m3.color.primary} size={18} />}
-            label={f("voiceOpen")}
-            // med#3: same — the voice label must open the voice recorder pane.
-            onPress={() => router.push({ pathname: "/capture-full", params: { text, mode: "voice" } })}
-            style={styles.capFullWidth}
-          />
-          <TextInput
-            value={text}
-            onChangeText={(v) => {
-              setText(v);
-              dirty();
-            }}
-            placeholder={f("voiceHint")}
-            placeholderTextColor={m3.color.onSurfaceVariant}
-            multiline
-            textAlignVertical="top"
-            style={[styles.capFieldInput, styles.capFieldInputTall]}
-            accessibilityLabel={f("voiceHint")}
-          />
-        </View>
       ) : (
         <View style={styles.capTodoCol}>
           {todos.map((v, i) => (
+            // One wrapper per to-do, laid out as a column entry: a field that
+            // grows pushes the next row and the add button down (2026-09-30).
             <View key={i} style={styles.capTodoRow}>
-              <CaptureIcon name="radio_unchecked" color={m3.color.outline} size={20} />
-              <TextInput
+              <View style={styles.capTodoIcon}>
+                <CaptureIcon name="radio_unchecked" color={m3.color.outline} size={20} />
+              </View>
+              <CaptureTodoInput
+                ref={(node) => {
+                  todoRefs.current[i] = node;
+                }}
                 value={v}
                 onChangeText={(next) => setTodoAt(i, next)}
+                onSubmitEditing={() => submitTodoAt(i)}
                 placeholder={`${f("todoHint")} ${i + 1}`}
-                placeholderTextColor={m3.color.onSurfaceVariant}
-                style={styles.capTodoInput}
-                accessibilityLabel={`${f("todoHint")} ${i + 1}`}
+                label={`${f("todoHint")} ${i + 1}`}
               />
             </View>
           ))}
@@ -584,7 +994,7 @@ export function CaptureView() {
         </View>
       )}
 
-      <View style={styles.capSubmit}>
+      <View ref={saveCoachTargetRef} collapsable={false} style={styles.capSubmit}>
         <CaptureTile
           role="button"
           selected={canSave || saving || saved}
@@ -592,7 +1002,7 @@ export function CaptureView() {
           horizontal
           icon={saving ? undefined : "add"}
           label={saveLabel}
-          accessibilityHint={!canSave && !saving ? f("saveHint") : undefined}
+          accessibilityHint={!canSave && !saving ? f(mode === "text" && fourwOn ? "saveHintFourW" : "saveHint") : undefined}
           onPress={savePiece}
         />
       </View>
@@ -616,7 +1026,48 @@ export function CaptureView() {
         hotline={crisis.hotline}
         onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
       />
-    </ScrollView>
+      <CaptureOcrSheet
+        visible={ocrOpen}
+        imageUri={ocrImage?.uri ?? null}
+        phase={ocrPhase}
+        text={ocrText}
+        failure={ocrFailure}
+        insertLabel={fourwOn ? f("ocrInsertWhat") : f("ocrInsert")}
+        onChangeText={setOcrText}
+        onRetry={() => {
+          if (ocrImageRef.current) void readOcrImage(ocrImageRef.current);
+        }}
+        onRepick={() => void pickOcrImage()}
+        onInsert={insertOcr}
+        onClose={closeOcr}
+      />
+      </ScrollView>
+      {coachStep ? (
+        <FirstRecordCoachmark
+          targetRef={coachTargetRef}
+          countLabel={coachCount}
+          message={coachMessage}
+          hint={
+            coachStep === "input"
+              ? t("deepspace:coachmarks.inputHint")
+              : coachStep === "done"
+                ? t("deepspace:coachmarks.doneHint")
+                : t("deepspace:coachmarks.targetHint")
+          }
+          skipLabel={coachStep === "done" ? undefined : t("deepspace:coachmarks.dontShowAgain")}
+          actionLabel={
+            coachStep === "input" && text.trim()
+              ? t("deepspace:coachmarks.inputReady")
+              : coachStep === "done"
+                ? t("deepspace:coachmarks.goHome")
+                : undefined
+          }
+          onSkip={stopCoach}
+          onAction={coachStep === "done" ? () => router.replace("/") : showSaveCoach}
+          refreshKey={`${coachStep}:${fourwOn}:${canSave}`}
+        />
+      ) : null}
+    </View>
   );
 }
 
@@ -1952,12 +2403,30 @@ const styles = StyleSheet.create({
   pixelTitle: { color: deepSpace.accentBright, fontSize: 16, fontFamily: fontFamilies.readable, fontWeight: "700" },
 
   // ── 담기 / Capture (M3 track, clone-audit 06-capture) ──────────────────────
+  capCoachRoot: { flex: 1, minHeight: 0 },
   capScroll: { flex: 1 },
   capBody: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 20 },
   capModeRow: { flexDirection: "row", gap: 4 },
   capModeCell: { flex: 1, minWidth: 0 },
-  capFormatRow: { flexDirection: "row", gap: 4, marginTop: 8 },
-  capFormatCell: { flex: 1, minWidth: 0 },
+  // 4W1H switch row (2026-09-30): the whole row is the touch target.
+  capToggleRow: {
+    minHeight: 48,
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: m3.color.outlineVariant,
+    borderRadius: m3.shape.none,
+    backgroundColor: m3.color.surfaceContainerHigh,
+  },
+  capToggleLabel: { ...m3TextStyle("labelLarge"), color: m3.color.onSurface },
+  capToggleSpacer: { flex: 1 },
+  capSwitchTrack: { width: 36, height: 20, paddingHorizontal: 0, paddingVertical: 0, justifyContent: "center" },
+  capSwitchThumb: { position: "absolute", width: 12, height: 12 },
+  capSwitchThumbOn: { right: m3.spacing.s2, backgroundColor: m3.color.onPrimaryContainer },
+  capSwitchThumbOff: { left: m3.spacing.s2, backgroundColor: m3.color.onSurfaceVariant },
   capTileHit: { width: "100%", minHeight: 48 },
   capTileRest: { flex: 1 },
   capTileSunk: { flex: 1, transform: [{ translateY: m3.spacing.s1 }] },
@@ -1996,7 +2465,8 @@ const styles = StyleSheet.create({
   capTodoRow: {
     minHeight: 44,
     flexDirection: "row",
-    alignItems: "center",
+    // Top-aligned: a to-do that wraps keeps its checkbox on the first line.
+    alignItems: "flex-start",
     gap: 10,
     borderWidth: 1,
     borderColor: m3.color.outlineVariant,
@@ -2005,8 +2475,46 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: m3.color.surfaceContainerHighest,
   },
-  capTodoInput: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand, fontSize: 15, padding: 0 },
+  capTodoIcon: { height: TODO_INPUT_MIN_HEIGHT, justifyContent: "center" },
+  // Height comes from the content (CaptureTodoInput); lineHeight pins one line
+  // to TODO_INPUT_LINE_HEIGHT so the clamp in lib/capture/todo-input.ts matches.
+  capTodoInput: {
+    flex: 1,
+    minWidth: 0,
+    color: m3.color.onSurface,
+    fontFamily: m3.font.brand,
+    fontSize: 15,
+    lineHeight: TODO_INPUT_LINE_HEIGHT,
+    paddingHorizontal: 0,
+    paddingTop: TODO_INPUT_PADDING_Y,
+    paddingBottom: TODO_INPUT_PADDING_Y,
+  },
   capTodoAdd: { alignSelf: "flex-start" },
+  capPhotoBlock: { gap: 8, marginTop: 2 },
+  capAttachRow: { flexDirection: "row", gap: 8 },
+  capAttachCell: { flex: 1, minWidth: 0 },
+  capPhotoRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  capPhotoCell: {
+    width: 72,
+    height: 72,
+    borderWidth: 1,
+    borderColor: m3.color.outlineVariant,
+    backgroundColor: m3.color.surfaceContainerHighest,
+  },
+  capPhotoThumb: { width: 70, height: 70 },
+  capPhotoRemove: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: m3.color.surfaceContainerHigh,
+    borderLeftWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: m3.color.outlineVariant,
+  },
   capSubmit: { alignSelf: "stretch", marginTop: 12 },
   capFullWidth: { alignSelf: "stretch", marginTop: 8 },
   capErrorCard: {

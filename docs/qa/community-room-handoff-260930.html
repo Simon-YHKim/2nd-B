@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2ndB 커뮤니티 방 딥링크 완료 보고 · 2026-09-30</title>
+  <style>
+    :root{color-scheme:light dark;--accent:#3157a4;--text:#17243b;--muted:#52647b;background:#f5f7fc;color:var(--text);font:16px/1.55 system-ui,sans-serif}
+    body{max-width:840px;margin:0 auto;padding:24px}h1{font-size:clamp(1.5rem,5vw,2.3rem);line-height:1.2;margin:.35em 0}.sub{color:var(--muted)}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:24px 0}.card,details{border:1px solid color-mix(in srgb,var(--muted) 28%,transparent);border-radius:14px;padding:16px;background:color-mix(in srgb,white 85%,transparent)}
+    .card strong{display:block;font-size:1.65rem;color:var(--accent)}.card span{color:var(--muted)}a{color:var(--accent)}a:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+    details{margin:12px 0}summary{cursor:pointer;font-weight:700}ul{padding-left:1.3em}.flow-wrap{overflow-x:auto}.flow{width:100%;min-width:680px;height:auto;margin:12px 0 0}.flow text{font:600 13px system-ui,sans-serif;fill:var(--text)}.flow rect{fill:transparent;stroke:var(--accent);stroke-width:2}.flow path{stroke:var(--accent);stroke-width:2;fill:none}.flow marker path{fill:var(--accent)}
+    @media(prefers-color-scheme:dark){:root{--accent:#9ab9ff;--text:#e9efff;--muted:#b2c0db;background:#111a2b}.card,details{background:#1b2840}}
+  </style>
+</head>
+<body>
+  <p class="sub">2026-09-30 23:00 KST · main <code>7c96eeec</code></p>
+  <h1>접근할 수 없는 방 링크를 안전하게 표시합니다</h1>
+  <p class="sub">커뮤니티 방 URL의 조회가 끝나기 전까지 대화방 조작을 열지 않고, 접근 불가·일시 오류를 구분합니다.</p>
+  <section class="cards" aria-label="결과 요약">
+    <div class="card"><strong>병합</strong><span><a href="https://github.com/Simon-YHKim/2nd-B/pull/1949">PR #1949</a></span></div>
+    <div class="card"><strong>854/854</strong><span>로컬 테스트 묶음 통과</span></div>
+    <div class="card"><strong>3/3</strong><span>PR CI 통과</span></div>
+    <div class="card"><strong>같음</strong><span>8081과 main 앱 코드·설정</span></div>
+  </section>
+  <div class="flow-wrap"><svg class="flow" viewBox="0 0 760 94" role="img" aria-label="방 URL에서 단일 ID 조회 후 접근 가능 방만 대화방으로, 그 외에는 안내로 이동">
+    <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z"/></marker></defs>
+    <rect x="4" y="24" width="170" height="46" rx="10"/><text x="31" y="53">방 URL 열기</text>
+    <path d="M174 47 H214" marker-end="url(#arrow)"/><rect x="216" y="24" width="190" height="46" rx="10"/><text x="235" y="53">RLS 단일 ID 조회</text>
+    <path d="M406 47 H446" marker-end="url(#arrow)"/><rect x="448" y="4" width="300" height="38" rx="10"/><text x="474" y="29">참여 중: 대화방·입력 표시</text>
+    <path d="M426 47 V72 H446" marker-end="url(#arrow)"/><rect x="448" y="52" width="300" height="38" rx="10"/><text x="474" y="77">그 외: 안내·목록 복귀 표시</text>
+  </svg></div>
+  <details><summary>화면에서 확인한 내용</summary><p>375×812 Chrome의 QA 계정으로 존재하지 않는 방 URL을 열었을 때 입력·보내기·나가기 없이 안내와 목록 복귀 버튼만 보였습니다. 페이지 오류와 가로 넘침은 없었습니다. 잘못된 초대 링크의 오류 화면도 확인했습니다.</p><p>로그인 후 쓰기 요청을 차단했습니다. 초대 링크 화면의 POST 한 건은 실행되지 않았으므로 실제 유효 초대 링크의 입장 성공은 이 검사 범위에 포함되지 않습니다. <a href="community-room-unavailable-260930.md">읽기 전용 QA 기록</a></p></details>
+  <details><summary>검증과 배포 상태</summary><p>PR #1949의 최종 로컬 <code>npm run verify -- --runInBand</code>: 854개 묶음, 11,066개 테스트 통과. CI의 lint·verify·web-export-smoke가 모두 통과했습니다. 8081은 최신 main을 따라왔고 <code>npm run app:parity</code>가 “같음”을 보고했습니다. #1949의 대기 빌드는 뒤따른 문서 병합에 의해 실패했으며, 최신 main의 <a href="https://github.com/Simon-YHKim/2nd-B/actions/runs/36723491160">Android 진단 빌드</a>는 보고 시점에 진행 중입니다.</p></details>
+  <details><summary>남은 확인</summary><ul><li>ARM Android 실기기에서 글꼴 확대·TalkBack 및 유효한 room/join 흐름을 확인합니다.</li><li>운영 동의 모드·503, Play Data Safety와 서버 적용은 <a href="../SESSION-OWNERSHIP.md">콘솔 소유 경계</a>와 기존 게이트를 따릅니다.</li><li>폰용 QA APK는 실제 기기 확인 시에만 게시합니다.</li></ul></details>
+</body>
+</html>

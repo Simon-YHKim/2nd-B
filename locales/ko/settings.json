@@ -65,7 +65,7 @@
       "label": "전체 삭제",
       "hint": "전체 삭제를 확인하는 입력란을 보여줘요. 기록, 캡처, 위키 페이지, 사용량이 모두 삭제돼요.",
       "body": "전체 콘텐츠를 삭제하면 되돌릴 수 없어요. 필요한 내용을 먼저 내보낸 뒤 DELETE를 입력하세요.",
-      "retained": "이 계정의 2nd-B 개인 콘텐츠를 모두 지워요. 계정 정보, 동의 이력, 서비스 책임 기록은 남아요."
+      "retained": "이 계정의 PolaScope 개인 콘텐츠를 모두 지워요. 계정 정보, 동의 이력, 서비스 책임 기록은 남아요."
     }
   },
   "modals": {
@@ -127,7 +127,15 @@
   "appleHealthDesc": "수면·활동을 건강 별에 기록",
   "importNotes": "메모·문서 가져오기",
   "manageIntegrations": "연동 관리",
-  "manageIntegrationsDesc": "캘린더·건강·노션에서 기록 가져오기",
+  "manageIntegrationsDesc": "출처별 가져오기와 새로고침 설정",
+  "dataRefreshTitle": "저장된 데이터 새로고침",
+  "dataRefreshScope": "대시보드가 열려 있고 앱이 활성 상태일 때 저장된 정보를 다시 읽어요. 건강 기록은 Android 앱에서 ‘오늘 반영’ 버튼으로 연결한 폰에서만, 앱이 열려 있을 때 새로고침 시각이 지나면 하루 한 번 읽어요.",
+  "dataRefreshAuto": "자동 새로고침",
+  "dataRefreshDaily": "매일 {{time}}",
+  "dataRefreshTimeLabel": "자동 새로고침 시각",
+  "dataRefreshTimeOpen": "시각을 고르는 창을 열어요.",
+  "dataRefreshSheetTitle": "새로고침 시각",
+  "dataRefreshSaveError": "새로고침 설정을 저장하지 못했어요. 다시 시도해 주세요.",
   "importData": "파일로 가져오기",
   "importDataDesc": "파일 내용을 붙여넣거나 파일을 골라 기록으로 저장",
   "workingPaused": "처리 중이에요. 끝날 때까지 다른 작업이나 로그아웃을 할 수 없어요.",

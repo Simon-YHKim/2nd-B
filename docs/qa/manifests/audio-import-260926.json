@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "kind": "original-input-snapshot-provenance",
+  "qualification": "Hashes identify imported source input bytes, including reviewed mixed hunks; they do not claim to identify the final integrated source bytes.",
+  "snapshotCapturedAt": "2026-09-25T16:50:43.674Z",
+  "sourceInventorySha256": "01666f2251c336865d6343049408740c5a638add63f247b94643dd06826228a2",
+  "files": [
+    {
+      "path": ".gitignore",
+      "sha256": "6df710c5b5274b0e1e4dfa1cfc297f75c7756688d0eabc3bf3942ad601a5ccce",
+      "sourceModifiedAt": "2026-09-25T16:18:04.387Z"
+    },
+    {
+      "path": "assets/audio/observatory-focus-lock.wav",
+      "sha256": "e466f00ea377f61d8e759ce7bb890b028ac9d85de599cec123a30920a463c70a",
+      "sourceModifiedAt": "2026-09-25T16:08:38.305Z"
+    },
+    {
+      "path": "assets/audio/observatory-ratchet.wav",
+      "sha256": "88645ede47b66537b4f6fcbd2c9f9af9110b9c7dbf8f1495fbd7f18a51211fcb",
+      "sourceModifiedAt": "2026-09-25T16:08:38.213Z"
+    },
+    {
+      "path": "assets/audio/observatory-shutter.wav",
+      "sha256": "d6358c7b78696af5be1a129c4985b1ea9ba99783e02bbe6cadab1d8c0ea33a4d",
+      "sourceModifiedAt": "2026-09-25T16:08:38.387Z"
+    },
+    {
+      "path": "assets/audio/RECORDED-SOURCES.json",
+      "sha256": "aeba0730e56ccfa807e6e786e628ebbf7fabbf8bef41ae6e3413c9cb4de69a6d",
+      "sourceModifiedAt": "2026-09-25T16:18:04.388Z"
+    },
+    {
+      "path": "docs/ASSETS.md",
+      "sha256": "0f6e9ac37c4e0da3463fee8869f6689a37bb49d0d28ee710cb4fc4668fb8852b",
+      "sourceModifiedAt": "2026-09-25T16:18:04.388Z"
+    },
+    {
+      "path": "scripts/prepare-recorded-camera-sfx.cjs",
+      "sha256": "6c559c7cfd1d480ebbbb0d6933812457905cb9a158355e15cdd4ef596451b68d",
+      "sourceModifiedAt": "2026-09-25T16:18:04.389Z"
+    },
+    {
+      "path": "src/components/deep-space/__tests__/observatory-pixel-rules.test.ts",
+      "sha256": "e7271e57aa360b8220e5bf66c7798718226014d3ce7996b661b22bedbf9ea9a2",
+      "sourceModifiedAt": "2026-09-25T16:12:09.264Z"
+    },
+    {
+      "path": "src/components/deep-space/CameraCue.tsx",
+      "sha256": "846bd9e3013df7de1967e01c90b0152a7b3b4bd919da5ba49d17d7546c072982",
+      "sourceModifiedAt": "2026-09-25T16:19:27.719Z"
+    },
+    {
+      "path": "src/components/deep-space/StarDestination.tsx",
+      "sha256": "43459381db564b8d41517ec6b148b47c83ae84380d793427682c5dc2fd036ddc",
+      "sourceModifiedAt": "2026-09-25T16:12:09.264Z"
+    },
+    {
+      "path": "src/components/deep-space/TelescopeControls.tsx",
+      "sha256": "9b002264d576e9e9a99c11c6b7010b86dbdac2c538208d7a220fa2cb05ff5fca",
+      "sourceModifiedAt": "2026-09-25T16:48:09.900Z"
+    },
+    {
+      "path": "src/lib/audio/__tests__/motion-sound-player.test.ts",
+      "sha256": "6bafd71661d3fb126ade5100399e9ed6363dae67887d7d67be042189221776fb",
+      "sourceModifiedAt": "2026-09-25T16:10:07.595Z"
+    },
+    {
+      "path": "src/lib/audio/__tests__/recorded-camera-assets.test.ts",
+      "sha256": "6dac1104a1cf392eaa544eacb740e2c2622e1eca6b959ee1995fb210f0840f11",
+      "sourceModifiedAt": "2026-09-25T16:19:46.776Z"
+    },
+    {
+      "path": "src/lib/audio/motion-sound-player.ts",
+      "sha256": "be5a61637ca9a67c62aa8dbed8adb3a2aaa96d1446238de31a3bcb963af0289f",
+      "sourceModifiedAt": "2026-09-25T16:12:09.258Z"
+    },
+    {
+      "path": "src/lib/audio/use-loop-media.ts",
+      "sha256": "de873ecf693fbd1963be4257c25979f7bf3830226431e30496d0c9b473f067d6",
+      "sourceModifiedAt": "2026-09-25T16:18:04.387Z"
+    },
+    {
+      "path": "src/lib/audio/use-loop-media.web.ts",
+      "sha256": "6e3d488f506104d60f8b5b77febec1e5b48b0e1bf8d562eaa12b7f794697c727",
+      "sourceModifiedAt": "2026-09-25T16:28:11.440Z"
+    },
+    {
+      "path": "src/lib/audio/use-motion-sound.ts",
+      "sha256": "a188b624c220c39be1160af3667b4c05ccaffe49618758e8cc5b47c0284b70ce",
+      "sourceModifiedAt": "2026-09-25T16:28:11.439Z"
+    },
+    {
+      "path": "src/lib/motion/__tests__/camera-remote.test.ts",
+      "sha256": "babc493ecc97a4d45370348fb21904a0602ffe4995c413e74696f30efed4b7fd",
+      "sourceModifiedAt": "2026-09-25T16:10:07.597Z"
+    },
+    {
+      "path": "src/lib/motion/camera-remote.ts",
+      "sha256": "105a28b48b7eb461db9fe47e2bfef3eb379f81548462e2e95c7c83e2a8f61508",
+      "sourceModifiedAt": "2026-09-25T16:12:09.262Z"
+    }
+  ]
+}

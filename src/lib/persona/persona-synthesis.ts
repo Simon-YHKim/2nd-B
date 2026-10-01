@@ -20,13 +20,17 @@ import { INJECTION_GUARD, sanitizeUntrusted } from "../llm/untrusted";
 import { containsForbiddenLexicon } from "../safety/classifier";
 import type { LadderLevel } from "./brightness";
 import { isDomainId, type DomainId } from "./domain-stars";
+import { isSevenStarId, type SevenStarId } from "./seven-stars";
+import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
 
 // Deterministic layer-A summary for one domain star (LLM-free; from domain-confidence).
 export interface DomainSummary {
-  domain: DomainId;
+  domain: DomainId | SevenStarId;
   level: LadderLevel;
   itemCount: number;
   topTags?: string[];
+  /** Short excerpts from actual saved interviews, never instructions. */
+  excerpts?: string[];
 }
 
 // One layer-B construct estimate (Big Five trait / attachment / SDT / VIA / ...).
@@ -35,7 +39,7 @@ export interface DomainSummary {
 export interface ConstructEstimate {
   construct: string;
   level: LadderLevel;
-  domains?: DomainId[];
+  domains?: (DomainId | SevenStarId)[];
 }
 
 export interface PersonaSynthesisInput {
@@ -44,6 +48,8 @@ export interface PersonaSynthesisInput {
   // Stability (§3.3): prior ratified/proposed personas, so the LLM proposes a diff
   // rather than a fresh set each run ("매 세션 다른 나" 방지).
   priorPersonas?: SynthesizedPersona[];
+  /** The current seven life stars, not the retired lifestyle-domain stars. */
+  sourceKind?: "life_star";
 }
 
 export interface SynthesizedPersona {
@@ -51,7 +57,7 @@ export interface SynthesizedPersona {
   id: string;
   /** The role / 모자 label. */
   label: string;
-  evidence: { domains: DomainId[]; constructs: string[] };
+  evidence: { domains: (DomainId | SevenStarId)[]; constructs: string[] };
   /** Computed = min level over cited evidence. NOT LLM-set. */
   claimStrength: LadderLevel;
   summary: string;
@@ -109,13 +115,15 @@ export function buildPersonaSynthesisPrompt(
 ): { system: string; user: string } {
   const domainList = input.domainSummaries.map((d) => d.domain).join(", ");
   const constructList = input.constructEstimates.map((c) => c.construct).join(", ");
+  const sourceNameKo = input.sourceKind === "life_star" ? "삶의 별" : "도메인";
+  const sourceNameEn = input.sourceKind === "life_star" ? "life star" : "domain";
   const system =
     locale === "ko"
       ? [
-          "사용자의 삶 도메인 요약과 검증틀(구인) 추정을 종합해 대표 페르소나(역할/모자)를 1~3개 제안하세요. JSON만 출력합니다.",
-          "각 페르소나는 반드시 제공된 도메인 1개 이상 + 구인 1개 이상을 근거(evidence)로 인용해야 합니다. 근거 없는 페르소나는 만들지 마세요.",
+          `사용자의 ${sourceNameKo} 기록과 검증틀(구인) 추정을 종합해 대표 페르소나(역할/모자)를 1~3개 제안하세요. JSON만 출력합니다.`,
+          `각 페르소나는 반드시 제공된 ${sourceNameKo} 1개 이상 + 구인 1개 이상을 근거(evidence)로 인용해야 합니다. 근거 없는 페르소나는 만들지 마세요.`,
           "임상·의료 용어는 절대 쓰지 마세요. 판단이 아니라 기록에서 보이는 패턴으로 표현합니다.",
-          `인용 가능한 도메인: ${domainList}`,
+          `인용 가능한 ${sourceNameKo}: ${domainList}`,
           `인용 가능한 구인: ${constructList}`,
           "",
           "JSON 형식:",
@@ -126,10 +134,10 @@ export function buildPersonaSynthesisPrompt(
           INJECTION_GUARD.ko,
         ].join("\n")
       : [
-          "Synthesize the user's life-domain summaries and validation-framework (construct) estimates into 1-3 representative personas (roles / hats). Return strict JSON only.",
-          "Every persona MUST cite at least one provided domain AND at least one construct as evidence. Do not invent ungrounded personas.",
+          `Synthesize the user's ${sourceNameEn} records and validation-framework (construct) estimates into 1-3 representative personas (roles / hats). Return strict JSON only.`,
+          `Every persona MUST cite at least one provided ${sourceNameEn} AND at least one construct as evidence. Do not invent ungrounded personas.`,
           "Never use clinical or medical vocabulary. Frame as patterns seen in the records, not a verdict.",
-          `Citable domains: ${domainList}`,
+          `Citable ${sourceNameEn}s: ${domainList}`,
           `Citable constructs: ${constructList}`,
           "",
           "JSON shape:",
@@ -143,7 +151,7 @@ export function buildPersonaSynthesisPrompt(
   // topTags and prior persona labels are the only user-influenced strings in
   // this otherwise-numeric prompt — sanitize them (raw until 2026-07-26).
   const domainLines = input.domainSummaries
-    .map((d) => `- ${d.domain}: L${d.level}, ${d.itemCount} items${d.topTags?.length ? ` (<UNTRUSTED type="tags">${sanitizeUntrusted(d.topTags.join(", "))}</UNTRUSTED>)` : ""}`)
+    .map((d) => `- ${d.domain}: L${d.level}, ${d.itemCount} items${d.topTags?.length ? ` (<UNTRUSTED type="tags">${sanitizeUntrusted(d.topTags.join(", "))}</UNTRUSTED>)` : ""}${d.excerpts?.length ? `\n  <UNTRUSTED type="interview_excerpt">${sanitizeUntrusted(d.excerpts.slice(0, 3).join(" / ").slice(0, 900))}</UNTRUSTED>` : ""}`)
     .join("\n");
   const constructLines = input.constructEstimates
     .map((c) => `- ${c.construct}: L${c.level}${c.domains?.length ? ` (from ${c.domains.join(", ")})` : ""}`)
@@ -173,7 +181,7 @@ export function parsePersonaSynthesis(
   }
   if (!Array.isArray(parsed.personas)) return [];
 
-  const domainLevel = new Map<DomainId, LadderLevel>(
+  const domainLevel = new Map<DomainId | SevenStarId, LadderLevel>(
     input.domainSummaries.map((d) => [d.domain, d.level]),
   );
   const constructLevel = new Map<string, LadderLevel>(
@@ -189,7 +197,8 @@ export function parsePersonaSynthesis(
     // Keep only cited evidence that actually exists in the input (anti-hallucination).
     const domains = (Array.isArray(ev.domains) ? ev.domains : [])
       .map((d) => String(d))
-      .filter((d): d is DomainId => isDomainId(d) && domainLevel.has(d as DomainId));
+      .filter((d): d is DomainId | SevenStarId =>
+        (input.sourceKind === "life_star" ? isSevenStarId(d) : isDomainId(d)) && domainLevel.has(d as DomainId | SevenStarId));
     const constructs = (Array.isArray(ev.constructs) ? ev.constructs : [])
       .map((c) => String(c))
       .filter((c) => constructLevel.has(c));
@@ -253,6 +262,8 @@ export async function synthesizePersonas(
   input: PersonaSynthesisInput,
   locale: "en" | "ko",
   minor = false,
+  polarisGenerationId?: string,
+  session?: AuthenticatedAccountSessionLease,
 ): Promise<SynthesizedPersona[]> {
   if (input.domainSummaries.length === 0 || input.constructEstimates.length === 0) return [];
   const { system, user } = buildPersonaSynthesisPrompt(input, locale);
@@ -264,7 +275,12 @@ export async function synthesizePersonas(
     user,
     responseSchema: PERSONA_SYNTHESIS_SCHEMA as unknown as Record<string, unknown>,
     minor,
+    polarisGenerationId,
+    session,
+    signal: session?.signal,
+    effort: "high",
   });
+  if (reply.audit.modelUsed.startsWith("mock:")) throw new Error("polaris_live_required");
   const personas = parsePersonaSynthesis(reply.text, input);
 
   // Adversarial cross-check (REQ-260823-03). Off unless an operator enables it
@@ -277,7 +293,13 @@ export async function synthesizePersonas(
   // is discarded: a check that quietly deletes half of what it was checking is
   // worse than no check, and the loss would read as a thin corpus rather than
   // as a bug.
-  if (personas.length === 0) return personas;
+  // The metered server has already persisted and settled this exact draft.
+  // Its reserved snapshot may be newer than this client's preliminary input.
+  // The caller reloads the authoritative cards; do not reject that success
+  // because the local parser had an older domain list.
+  if (polarisGenerationId) return personas;
+  if (personas.length === 0) throw new Error("polaris_no_grounded_result");
+  if (input.sourceKind === "life_star") return personas;
   const checked = await crosscheck({
     draft: reply.text,
     evidence: user,

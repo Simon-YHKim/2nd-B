@@ -174,7 +174,7 @@ const ownerEffectSource = (): string =>
       ts.isIdentifier(node.expression) &&
       node.expression.text === "useEffect" &&
       node.arguments.length > 0 &&
-      node.arguments[0].getText(AST).includes("ownerId")
+      node.arguments[0].getText(AST).includes("setPendingDelete")
         ? node.arguments[0]
         : undefined,
     "ownerId 로 확인 대기를 비우는 useEffect",

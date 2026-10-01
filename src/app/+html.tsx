@@ -12,11 +12,12 @@ import { ScrollViewStyleReset } from "expo-router/html";
 import { semantic } from "@/lib/theme/tokens";
 import {
   SITE_DESCRIPTION,
+  SITE_NAME,
   SITE_ORIGIN,
   SITE_SHARE_IMAGE,
   SITE_TITLE,
 } from "@/lib/site-meta";
-import { GITHUB_PAGES_CSP, WEB_REFERRER_POLICY } from "@/lib/web-security-policy";
+import { webDocumentCsp, WEB_REFERRER_POLICY } from "@/lib/web-security-policy";
 
 // Reset inline so the rule lands in the first paint. The dark background
 // matches cosmic.space950 (Deep Space Ink) so the white flash that would
@@ -70,6 +71,19 @@ html[data-font="readable"] button, html[data-font="readable"] input,
 html[data-font="readable"] textarea, html[data-font="readable"] select {
   font-family: "Pretendard", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
+/* Line breaking (Simon QA 2026-09-30). Korean wraps at spaces (between
+   eojeol), never between the syllables of one word; the browser default
+   treats Hangul like ideographs and split the refund-policy link label on
+   the sign-in screen one syllable before its last word. word-break is
+   inherited, so one rule on <html> reaches every Text, input and raw DOM
+   node. It changes nothing for Latin scripts, and RN Web Text keeps
+   overflow-wrap: break-word, so a word wider than its box still wraps
+   instead of overflowing. The string literal stays ASCII on purpose
+   (korean-in-code.test.ts). Native gets the same rule from
+   components/ui/PlainText. */
+html {
+  word-break: keep-all;
+}
 `;
 
 export default function Root({ children }: PropsWithChildren) {
@@ -78,7 +92,11 @@ export default function Root({ children }: PropsWithChildren) {
       <head>
         {/* GitHub Pages cannot set project response headers. Keep this first so
             the browser sees the policy before any resource-loading element. */}
-        <meta httpEquiv="Content-Security-Policy" content={GITHUB_PAGES_CSP} />
+        <meta httpEquiv="Content-Security-Policy" content={webDocumentCsp(process.env.NODE_ENV === "development", {
+          paddleEnvironment: process.env.EXPO_PUBLIC_PADDLE_ENVIRONMENT,
+          supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
+          paddleClientToken: process.env.EXPO_PUBLIC_PADDLE_CLIENT_TOKEN,
+        })} />
         <meta name="referrer" content={WEB_REFERRER_POLICY} />
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
@@ -117,7 +135,7 @@ export default function Root({ children }: PropsWithChildren) {
         <title>{SITE_TITLE}</title>
         <meta name="description" content={SITE_DESCRIPTION} />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="2nd-Brain" />
+        <meta property="og:site_name" content={SITE_NAME} />
         <meta property="og:locale" content="ko_KR" />
         <meta property="og:title" content={SITE_TITLE} />
         <meta property="og:description" content={SITE_DESCRIPTION} />

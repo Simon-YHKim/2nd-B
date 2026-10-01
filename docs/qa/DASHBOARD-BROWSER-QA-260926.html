@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2ndB 대시보드 QA와 설계 근거</title>
+  <style>
+    :root{color-scheme:light dark;--bg:#f8fafc;--panel:#fff;--ink:#172132;--muted:#4d5c70;--accent:#225cba;--line:#b8c5d5;--warn:#8b5100}
+    @media(prefers-color-scheme:dark){:root{--bg:#0a0e18;--panel:#141b2e;--ink:#eaf0fa;--muted:#b3c0d4;--accent:#8cb8ff;--line:#3d4866;--warn:#ffd18a}}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,sans-serif}main{max-width:980px;margin:auto;padding:28px 18px 64px}
+    h1,h2{line-height:1.3}h1{font-size:clamp(1.6rem,4vw,2.2rem);margin:.3rem 0 1rem}h2{font-size:1.25rem;margin:2rem 0 .7rem}
+    .eyebrow,.accent{color:var(--accent)}.muted{color:var(--muted)}.warn{color:var(--warn)}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px;margin:20px 0}
+    .card,details{background:var(--panel);border:1px solid var(--line);padding:15px}.card strong{display:block;font-size:1.15rem}.card p{margin:.35rem 0 0}details{margin:10px 0}summary{cursor:pointer;font-weight:700}
+    table{border-collapse:collapse;width:100%;display:block;overflow-x:auto}th,td{text-align:left;vertical-align:top;border-bottom:1px solid var(--line);padding:10px;min-width:115px}th{white-space:nowrap}a{color:var(--accent)}a:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+    code{overflow-wrap:anywhere}figure{margin:12px 0 24px}figure img{display:block;max-width:425px;width:100%;height:auto;border:1px solid var(--line)}figcaption{font-size:.9rem;color:var(--muted);margin-top:5px}footer{margin-top:28px;border-top:1px solid var(--line);padding-top:14px;color:var(--muted)}
+  </style>
+</head>
+<body><main>
+  <p class="eyebrow">2ndB · QA 계정 기준 · 2026-09-26 KST</p>
+  <h1>대시보드 화면 검증과 설계 근거</h1>
+  <p>이 보고서는 사용자가 로그인한 QA 브라우저의 <code>localhost:8081</code>을 대상으로 합니다. 서버는 <code>codex/observatory-dashboard-260925</code> 작업트리를 제공하며, 이 보고서가 저장된 <code>Simon-YHKim/TTL-Work_rev2</code> 작업트리와 다릅니다. 화면은 425×812 뷰포트에서 확인했습니다.</p>
+  <div class="cards" aria-label="검증 상태 요약">
+    <div class="card"><strong class="accent">QA 화면 검증 완료</strong><p>사용자가 전용 브라우저에 로그인한 뒤 대시보드·앱·데이터 연동·리마인더와 기록 상세를 실제로 열었습니다.</p></div>
+    <div class="card"><strong>핵심 흐름 동작</strong><p>QA 인터뷰와 저장 기록이 표시되고, 1시간 기본 주기·30분 변경·복원·수동 새로고침을 확인했습니다.</p></div>
+    <div class="card"><strong class="warn">개선 필요 3건</strong><p>다크 화면의 밝은 스크롤바, 화면 전환 접근성 경고, 반복되는 웹 매니페스트 404를 발견했습니다.</p></div>
+  </div>
+  <h2>실제 브라우저 검증</h2>
+  <table><thead><tr><th>검증 항목</th><th>QA 화면에서 관찰한 결과</th><th>판정</th></tr></thead><tbody>
+    <tr><td>대시보드</td><td>QA 시나리오의 인터뷰 원문·저장 기록, 예정 루틴 없음, 생활 영역별 기록 수를 표시. 없는 일정이나 점수를 만들지 않음.</td><td>통과</td></tr>
+    <tr><td>앱 탭</td><td>개인 비서, 집중 타이머, 리마인더, 지출, 목표, 식사, 커뮤니티, 사람들 도구 8개를 표시.</td><td>통과</td></tr>
+    <tr><td>데이터 연동</td><td>설정 → 연동 관리로 이동. 기본 1시간 선택, 30분 선택 후 1시간으로 복원. 수동 새로고침 뒤 최근 읽은 시각이 21:21에서 21:22로 변경됨.</td><td>통과</td></tr>
+    <tr><td>출처 상태</td><td>Google Calendar·GPS 등은 가져오기 이력 없음, Garmin은 건강 앱 경유·직접 연결 아님, SNS·메신저 일부는 직접 기록만 가능하다고 표시.</td><td>통과</td></tr>
+    <tr><td>휴대전화 알림</td><td>설정 → 휴대전화 알림에서 예약 리마인더 화면으로 이동. QA 계정에는 예약 0개 표시.</td><td>통과</td></tr>
+    <tr><td>근거로 이동</td><td>요약의 ‘인터뷰 원문 열기’를 누르면 해당 기록 상세 화면으로 이동.</td><td>통과</td></tr>
+  </tbody></table>
+  <details><summary>화면 캡처</summary>
+    <figure><img src="dashboard-browser-260926/dashboard-stable.png" alt="QA 대시보드 탭의 인터뷰·저장 기록 카드"><figcaption>대시보드: 실제 QA 자료와 밝은 내부 스크롤바.</figcaption></figure>
+    <figure><img src="dashboard-browser-260926/apps-mobile.png" alt="나의 휴대전화 앱 탭의 2열 도구 목록"><figcaption>앱 탭: 8개 도구.</figcaption></figure>
+    <figure><img src="dashboard-browser-260926/data-connections-mobile.png" alt="설정의 데이터 연동 화면과 새로고침 주기"><figcaption>설정: 주기 선택과 출처별 상태.</figcaption></figure>
+    <figure><img src="dashboard-browser-260926/reminders-mobile.png" alt="QA 계정의 예약 리마인더 0개 화면"><figcaption>설정에서 열린 휴대전화 알림 화면.</figcaption></figure>
+  </details>
+  <h2>발견한 문제</h2>
+  <table><thead><tr><th>우선순위</th><th>현상과 재현</th><th>영향</th></tr></thead><tbody>
+    <tr><td>P2 · 접근성</td><td>설정의 ‘연동 관리’ 또는 ‘휴대전화 알림’으로 이동하면 콘솔에 <code>Blocked aria-hidden ... descendant retained focus</code> 경고가 재현됩니다.</td><td>숨겨진 배경에 키보드 초점이 남아 보조기기 사용 시 문맥이 어긋날 수 있습니다.</td></tr>
+    <tr><td>P2 · 웹 리소스</td><td>전체 경로 새로고침 때 <code>/2nd-B/manifest.webmanifest</code>가 404이고 콘솔 오류가 반복됩니다.</td><td>웹 설치/PWA 메타데이터를 정상적으로 읽지 못합니다. 대시보드 자료 로딩 실패는 관찰되지 않았습니다.</td></tr>
+    <tr><td>P3 · 시각 일관성</td><td>대시보드와 데이터 연동의 스크롤 가능한 부분에 OS 기본의 밝은 스크롤바가 다크 UI 위로 나타납니다.</td><td>픽셀 스타일 화면에서 대비가 과도합니다. 콘텐츠 읽기와 조작은 가능합니다.</td></tr>
+  </tbody></table>
+  <h2>왜 이 구조인가</h2>
+  <table><thead><tr><th>결정</th><th>근거</th><th>현재 구현의 경계</th></tr></thead><tbody>
+    <tr><td>Simon 전용 수치 대신 계정 자료</td><td>사용자가 준 Claude 프롬프트의 Calendar 이벤트 ID·Linear 이슈·Gmail·CI 집계는 한 사람의 작업 데이터입니다. 2ndB는 각 사용자의 기록에서 개인 비서 경험을 제공해야 합니다.</td><td>QA 계정의 승인된 루틴·인터뷰·기록, 동의된 건강 자료, 기기 내 가져오기 이력만 후보가 됩니다. 해당 소스가 없으면 수치를 지어내지 않습니다.</td></tr>
+    <tr><td>JSON 선택 규칙</td><td>화면 구성을 일정하게 유지하면서 계정 자료에 따라 내용을 바꾸라는 요청을 반영했습니다.</td><td><code>dashboard-rules.json</code>이 요약 2칸, 출처별 가중치, 7일 전망, 건강 자료의 최신성 한계를 고정합니다. 현재는 AI가 레이아웃을 새로 생성하지 않습니다.</td></tr>
+    <tr><td>자료 출처 구분</td><td>제공된 프롬프트의 “실데이터·프록시·샘플 구분” 원칙과 앱의 기록→위키→요약 방향을 따릅니다.</td><td>가져오기 이력은 지속 연결이 아니고, 7일 전망은 Google Calendar 일정이 아니라 사용자가 승인한 반복 루틴입니다.</td></tr>
+    <tr><td>갱신을 설정으로</td><td>사용자가 데이터 풀링과 알림을 앱 안 앱이 아닌 설정에서 관리하길 요청했습니다.</td><td>기본 1시간, 수동 전용과 다른 주기를 고를 수 있습니다. 앱 활성 중 저장 자료를 다시 읽을 뿐, 외부 서비스의 백그라운드 동기화는 아닙니다.</td></tr>
+    <tr><td>개인정보 보호</td><td>실제 사용자 경험에서 없는 연결을 연결됐다고 표시하거나, 동의 없이 건강·메시지 자료를 모으면 안 됩니다.</td><td>건강 자료는 성인 확인과 명시적 동의가 있어야 읽고, Garmin은 OS 건강 앱을 통한 경로로만 안내합니다. 직접 Garmin·SNS·메신저 연동은 아직 없습니다.</td></tr>
+  </tbody></table>
+  <details><summary>요청 프롬프트와 다른 부분</summary>
+    <p>현재 구현은 재사용 가능한 제품 화면으로 변환한 첫 단계입니다. Simon 개인 대시보드의 3장 요약 카드, Gmail·Linear·GitHub 수치, 07:00/21:00 예약 HTML 생성, 한국어·영어와 쉬움·전문가 4중 설명은 그대로 이식하지 않았습니다. 대신 앱에 실제로 존재하는 자료만 사용합니다. 따라서 “모든 연결 서비스의 데이터를 자동 수집해 완성된 개인 운영 화면을 만든다”는 최종 목표까지 구현됐다고 볼 수 없습니다.</p>
+  </details>
+  <details><summary>검증 범위와 설치 상태</summary>
+    <p>Windows에서 전용 브라우저 설치 스크립트는 WSL/Bun 경로 문제로 완료되지 않았으나, 기존 <code>browse.exe</code>를 정상 실행해 사용자의 QA 로그인 세션에서 모든 위 화면을 검증했습니다. 이메일 주소 자체는 화면에 표시되지 않아 UI만으로 재확인하지 않았고, QA 계정 여부는 사용자의 로그인 완료 확인과 보이는 QA 시나리오 자료를 근거로 했습니다.</p>
+    <p>콘솔의 반복 404와 초점 경고 외에 대시보드 데이터 로딩을 멈추는 예외는 관찰되지 않았습니다. 장시간 실제 타이머(1시간), 백그라운드 동기화, 외부 서비스 OAuth, 실제 기기 푸시는 시험하지 않았습니다. 브라우저는 외부 데이터를 자동 수집하지 않는다고 화면에 명시합니다.</p>
+    <p>이전 구현 회차의 <code>npm run verify -- --runInBand</code>는 Jest 800개 묶음·10,086개 테스트 통과로 보고됐습니다. 이 QA 회차에는 재실행하지 않았으므로 현재 작업트리 전체가 다시 통과했다고 주장하지 않습니다.</p>
+  </details>
+  <h2>근거 문서</h2>
+  <p><a href="../../docs/PRD.md">PRD</a> · <a href="../../DESIGN.md">DESIGN</a> · <a href="../../docs/CONCEPT.md">CONCEPT</a>. 구현 기준은 서버 작업트리의 <code>src/lib/dashboard/dashboard-rules.json</code>, <code>README.md</code>, <code>summary.ts</code>, <code>load.ts</code>, <code>refresh-cadence.ts</code>입니다.</p>
+  <footer>[QA 계정 대시보드 화면 검증과 설계 근거 / 26.09.26 / 21:26:23]<br>#2ndB #대시보드 #브라우저QA #설계근거</footer>
+</main></body></html>

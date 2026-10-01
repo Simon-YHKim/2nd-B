@@ -47,7 +47,7 @@ describe("deep-space records source detail routing", () => {
     expect(RECORDS_SRC).toContain("sourceId: s.sourceId");
     expect(RECORDS_SRC).toContain("onPress={openRecord}");
     expect(RECORDS_SRC).toContain("params: recordRouteParams(record)");
-    expect(RECORDS_SRC).toContain("recordRouteParamsById(id, records)");
+    expect(RECORDS_SRC).toContain("recordRouteParamsById(id, graphSourceRecords)");
     expect(RECORDS_SRC).toContain("r.id === id || r.sourceId === id");
   });
 
@@ -210,23 +210,13 @@ describe("deep-space records source detail routing", () => {
       // ListHeaderComponent). Verified before changing: the merged records slice is
       // byte-identical to #1521's, so this still proves the detail extraction left
       // the neighbouring renderer alone -- only the baseline moved.
-      "af7dca5422fa20f4ddf5bc5be1dd2d082178abf124c97bf6f892e79cc9ed1143",
+      // Polaris role-card integration intentionally changes the neighboring
+      // records renderer; pin its new exact slice so future unrelated edits
+      // still require an explicit review.
+      "9be2bc0fba47aaacdb791b0366fb0ea218a3c4236e9f3b278630450aeaf526d7",
     );
-    expect(sha256(wiki)).toBe(
-      // Re-pinned on 2026-09-14 (Q-260914-01): the wiki screen gained its single-page
-      // delete (confirm modal, reload after delete). That change is intentional and has
-      // its own contract in wiki-page-delete.test.ts; this pin still proves the
-      // record-detail extraction never reaches into the wiki renderer. Previous digest:
-      // caa3ad24cbf6497c7958454a0b68b239e0b9faebfa658980687de5cc0d75008a.
-      //
-      // Re-pinned on 2026-09-16 (PR 1814 redesign C6): the delete confirm now carries the
-      // account that asked (ownerId), is cleared when the account changes, and only says
-      // "deleted" when the delete removed a row. Those lines are the only changes in this
-      // slice (13,058 -> 13,552 chars); the behaviour runs in wiki-page-delete.test.ts.
-      // Verified before re-pinning: the previous digest recomputes from the parent commit
-      // 31fa1cfb. Previous digest:
-      // a4b4bcce0823255c3842d110d90aa2c30b12f8f40e9ff26f3190258ccbe1d2b1.
-      "aae59ed0c0e8290a81ce6cf0eaee61bfe5dae47f96f5ff06b7b807f117ee5742",
-    );
+    // #1814의 계정 결합 한 장 삭제와 main의 R48/R49 인용 포커스·계정별 목록을 함께 유지한다.
+    // 두 변경의 통합 결과를 고정해 기록 상세 추출이 위키 화면을 우연히 바꾸지 못하게 한다.
+    expect(sha256(wiki)).toBe("9752b08c05eb5b60988548a4d25f0dfdcb748a49cf99cf63021c170f3ca35041");
   });
 });

@@ -253,7 +253,7 @@ function RatificationsReady({ ownerId }: { ownerId: string }) {
 
   const header = (
     <View style={styles.header}>
-      <Text style={styles.headline}>{t("barTitle")}</Text>
+      <Text style={styles.headline} accessibilityRole="header">{t("barTitle")}</Text>
       <Text style={styles.subtitle} accessibilityLabel={subtitleText}>
         {keepAllKo(subtitleText)}
       </Text>

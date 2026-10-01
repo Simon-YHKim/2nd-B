@@ -10,6 +10,7 @@
   "clearChatHint": "Borra la conversación actual.",
   "viewPlans": "Ver planes",
   "viewPlansHint": "Abre la pantalla de planes.",
+  "serverLimitReached": "Esta cuenta ha alcanzado el límite de chat de hoy. El límite se restablece a medianoche, hora de Corea (KST).",
   "intro_title": "Pregúntale a SecondB",
   "intro_body": "SecondB responde a partir de las páginas de tu wiki. Toca el nombre de una página para leer el original. Prueba: \"¿Sobre qué he escrito más este mes?\"",
   "reference_piece_meta": "pieza referenciada",

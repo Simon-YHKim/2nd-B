@@ -59,6 +59,13 @@ jobs:
       # makes the two pipelines structurally unable to drift again.
       - name: Full verify gauntlet (same command as local `npm run verify`)
         run: npm run verify
+      # Resolve the actual Edge SDKs: application tsc excludes these files,
+      # while Jest stubs previously hid an unpublished JSR version.
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2
+        with:
+          deno-version: "2.9.7"
+      - name: Resolve and type-check every Edge function with Deno
+        run: npm run check:edge-runtime
 
   # P0-1 guard (2026-07-19): three web deploys in a row (#1085 era, runs
   # 29642324523/29643931576/29645075631) failed on `expo export --platform

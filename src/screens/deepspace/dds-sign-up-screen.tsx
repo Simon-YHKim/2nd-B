@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { BirthDateField } from "@/components/auth/BirthDateField";
+import { ResidenceCountryField } from "@/components/auth/ResidenceCountryField";
 import { SecondbHead } from "@/components/deepspace";
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -14,7 +16,7 @@ import {
   type ConsentSelections,
 } from "@/lib/auth/consent-selections";
 import { useSignUpForm } from "@/lib/auth/useSignUpForm";
-import { ageInYears, MIN_SELF_CONSENT_AGE, type OAuthProvider } from "@/lib/supabase/auth";
+import { ageInYears, type OAuthProvider } from "@/lib/supabase/auth";
 import { m3 } from "@/lib/theme/m3";
 
 const PROVIDER_KEY: Record<OAuthProvider, string> = {
@@ -52,6 +54,7 @@ export function DeepSpaceSignUpDesignScreen() {
     loading,
     submitting,
     judgeWelcome,
+    avatarSetupAfterConfirmation,
     toast,
     email,
     setEmail,
@@ -59,8 +62,13 @@ export function DeepSpaceSignUpDesignScreen() {
     setPassword,
     birthDate,
     setBirthDate,
+    residenceCountry,
+    setResidenceCountry,
     consent,
     setConsent,
+    residenceRequired,
+    residenceReady,
+    minConsentAge,
     isMinorAge,
     canSubmit,
     oauthSubmitting,
@@ -109,13 +117,16 @@ export function DeepSpaceSignUpDesignScreen() {
 
   // An email sign-up can establish the session before profile/consent
   // sequencing has settled. Keep the gate mounted for those owned states.
-  if (userId && !submitting && !judgeWelcome && !toast) return <Redirect href="/" />;
+  if (userId && !submitting && !judgeWelcome && !toast) {
+    return <Redirect href={avatarSetupAfterConfirmation ? "/avatar-studio?setup=1" : "/"} />;
+  }
 
   const actionBusy = submitting || oauthSubmitting || confirmVerifying;
   const formLocked = actionBusy || confirmSentTo !== null;
   const submitDisabled = !canSubmit || actionBusy;
-  const birthOk = ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE;
-  const showChecklist = email.length > 0 || password.length > 0 || birthDate.length > 0;
+  const birthOk = residenceReady && ageInYears(birthDate) >= minConsentAge;
+  const showChecklist =
+    email.length > 0 || password.length > 0 || birthDate.length > 0 || residenceCountry !== null;
 
   return (
     <PixelGateShell scrollRef={scrollRef} contentContainerStyle={styles.shell}>
@@ -165,7 +176,9 @@ export function DeepSpaceSignUpDesignScreen() {
         </PixelSurface>
         <Text style={styles.title}>{t("deepspace:auth.signUpTitle")}</Text>
         <Text style={styles.lead}>{t("deepspace:auth.signUpLead")}</Text>
-        <Text style={styles.ageNotice}>{t("deepspace:auth.ageNotice")}</Text>
+        <Text style={styles.ageNotice}>
+          {t("deepspace:auth.ageNotice", { minAge: minConsentAge })}
+        </Text>
       </PixelSurface>
 
       {confirmSentTo ? (
@@ -313,8 +326,21 @@ export function DeepSpaceSignUpDesignScreen() {
         </PixelSurface>
         <Text style={styles.helper}>{t("auth:signUp.passwordHelper")}</Text>
 
+        {residenceRequired ? (
+          <ResidenceCountryField
+            value={residenceCountry}
+            onChange={setResidenceCountry}
+            minAge={minConsentAge}
+            disabled={formLocked}
+          />
+        ) : null}
+
         <View pointerEvents={formLocked ? "none" : "auto"}>
-          <BirthDateField value={birthDate} onChange={setBirthDate} />
+          <BirthDateField
+            value={birthDate}
+            onChange={setBirthDate}
+            minAge={minConsentAge}
+          />
         </View>
 
         {showChecklist ? (
@@ -337,7 +363,11 @@ export function DeepSpaceSignUpDesignScreen() {
             />
             <StatusRow
               ok={birthOk}
-              label={birthOk ? t("auth:signUp.checkAge") : t("auth:signUp.checkAgeBlocked")}
+              label={
+                birthOk
+                  ? t("auth:signUp.checkAge", { minAge: minConsentAge })
+                  : t("auth:signUp.checkAgeBlocked", { minAge: minConsentAge })
+              }
             />
           </View>
         ) : null}
@@ -507,6 +537,8 @@ function ConsentBlock({
   return (
     <PixelSurface variant="frame" style={styles.sectionSurface} contentStyle={styles.consentContent}>
       <Text style={styles.sectionTitle}>{t("notice.title")}</Text>
+      {/* PolaScope 병기 안내: 약관 적용일(2026-10-05) 전까지만. 약관·동의 개정 PR 에서 지운다 (DECISIONS 26.09.28). */}
+      <Text style={styles.bodyText}>{t("common:app.renameNote")}</Text>
       <Text style={styles.bodyText}>{t("notice.intro")}</Text>
       {minor ? (
         <PixelSurface

@@ -9,7 +9,7 @@
 // limiter-completion forward migration, and all exact-name secrets are applied.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
-import { createClient } from 'jsr:@supabase/supabase-js@2.106.1';
+import { createClient } from 'npm:@supabase/supabase-js@2.106.1';
 import {
   JsonBodyError,
   OAUTH_JSON_BODY_LIMIT_BYTES,
@@ -135,7 +135,7 @@ interface BoundedReadOptions {
 async function readBoundedBytes(
   body: ReadableStream<Uint8Array> | null,
   options: BoundedReadOptions,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   const expectedLength = options.declaredLength ?? null;
   if (body === null) {
     if (expectedLength !== null && expectedLength !== 0) {

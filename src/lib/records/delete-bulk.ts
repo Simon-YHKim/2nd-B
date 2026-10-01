@@ -12,18 +12,18 @@ import {
   type AuthSessionExpectation,
 } from "../auth/session-mutation";
 import { installAccountLocalDeletionFence } from "../account/local-deletion-fence";
-
+import { recordPhotoPathsOf, removeRecordPhotoObjects } from "../capture/record-photos";
 /** Delete every record belonging to the user. Returns affected count. */
 export async function deleteAllRecords(userId: string): Promise<number> {
   const supabase = getSupabaseClient();
-  const { count, error } = await supabase
+  const { count, error, data } = await supabase
     .from("records")
     .delete({ count: "exact" })
-    .eq("user_id", userId);
+    .eq("user_id", userId).select("structured");
   if (error) throw error;
   // Records shift domain levels — drop this user's cached constellation
   // (same contract as createRecord/deleteRecord in create.ts).
-  if ((count ?? 0) > 0) invalidateDomainLevels(userId);
+  if ((count ?? 0) > 0) { invalidateDomainLevels(userId); await removeRecordPhotoObjects(recordPhotoPathsOf(data, userId)); }
   return count ?? 0;
 }
 
@@ -33,15 +33,15 @@ export async function deleteRecordsByKind(
   kind: "journal" | "note" | "audit_response",
 ): Promise<number> {
   const supabase = getSupabaseClient();
-  const { count, error } = await supabase
+  const { count, error, data } = await supabase
     .from("records")
     .delete({ count: "exact" })
     .eq("user_id", userId)
-    .eq("kind", kind);
+    .eq("kind", kind).select("structured");
   if (error) throw error;
   // Records shift domain levels — drop this user's cached constellation
   // (same contract as createRecord/deleteRecord in create.ts).
-  if ((count ?? 0) > 0) invalidateDomainLevels(userId);
+  if ((count ?? 0) > 0) { invalidateDomainLevels(userId); await removeRecordPhotoObjects(recordPhotoPathsOf(data, userId)); }
   return count ?? 0;
 }
 
@@ -49,15 +49,15 @@ export async function deleteRecordsByKind(
 export async function deleteRecordsByTag(userId: string, tags: string[]): Promise<number> {
   if (tags.length === 0) return 0;
   const supabase = getSupabaseClient();
-  const { count, error } = await supabase
+  const { count, error, data } = await supabase
     .from("records")
     .delete({ count: "exact" })
     .eq("user_id", userId)
-    .overlaps("tags", tags);
+    .overlaps("tags", tags).select("structured");
   if (error) throw error;
   // Records shift domain levels — drop this user's cached constellation
   // (same contract as createRecord/deleteRecord in create.ts).
-  if ((count ?? 0) > 0) invalidateDomainLevels(userId);
+  if ((count ?? 0) > 0) { invalidateDomainLevels(userId); await removeRecordPhotoObjects(recordPhotoPathsOf(data, userId)); }
   return count ?? 0;
 }
 
@@ -65,15 +65,15 @@ export async function deleteRecordsByTag(userId: string, tags: string[]): Promis
 export async function deleteRecordsByIds(userId: string, ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
   const supabase = getSupabaseClient();
-  const { count, error } = await supabase
+  const { count, error, data } = await supabase
     .from("records")
     .delete({ count: "exact" })
     .eq("user_id", userId)
-    .in("id", ids);
+    .in("id", ids).select("structured");
   if (error) throw error;
   // Records shift domain levels — drop this user's cached constellation
   // (same contract as createRecord/deleteRecord in create.ts).
-  if ((count ?? 0) > 0) invalidateDomainLevels(userId);
+  if ((count ?? 0) > 0) { invalidateDomainLevels(userId); await removeRecordPhotoObjects(recordPhotoPathsOf(data, userId)); }
   return count ?? 0;
 }
 
@@ -182,11 +182,11 @@ export async function deleteAllOwnedClipperTemplates(userId: string): Promise<nu
   return count ?? 0;
 }
 
-// Tables a client CANNOT erase (no DELETE RLS policy) and that therefore only
-// disappear via the service-role public.users cascade in requestAccountDeletion:
-//   personas (0008), memorized_patterns (0017), xp_events (0019),
-//   consent_records (0031, append-only ledger), ai_audit_log (0004).
-// A content wipe keeps the account, so it intentionally leaves those in place.
+// Tables a content wipe leaves in place. Superseded as the source of truth by
+// db/erasure-registry.json (every table with an owner column, CI-checked against
+// db/migrations). Two claims that stood here were measured wrong on 2026-09-20:
+// personas IS owner-deletable (personas_owner_all FOR ALL, 0009:53-57), and
+// ai_audit_log does not cascade (0011:20-27 set its FK to ON DELETE SET NULL).
 
 /** Content wipe (keeps the account): wiki pages -> sources -> records ->
  *  chat_usage -> self_contexts -> owned clipper templates. Order matters for
@@ -286,13 +286,13 @@ async function readCleanupProgress(error: unknown): Promise<number | null> {
     const body = await readable.json() as {
       error?: unknown;
       deletion_fenced?: unknown;
-      raw_clippings_erased?: unknown;
+      raw_clippings_erased?: unknown; record_photos_erased?: unknown;
       raw_clippings_removed?: unknown;
     } | null;
     if (
       body?.error !== "deletion_cleanup_in_progress"
       || body.deletion_fenced !== true
-      || body.raw_clippings_erased !== false
+      || (body.raw_clippings_erased !== false && body.record_photos_erased !== false)
     ) return null;
     return readRemovedCount(body.raw_clippings_removed);
   } catch {

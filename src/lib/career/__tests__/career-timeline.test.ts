@@ -1,4 +1,5 @@
 import {
+  careerRecordOrigin,
   careerYearOf,
   groupCareerTimeline,
   type CareerRecordRow,
@@ -15,6 +16,17 @@ const row = (over: Partial<CareerRecordRow>): CareerRecordRow => ({
 });
 
 describe("career CV timeline (P4d)", () => {
+  test("separates an interview's source and entry UI from its saved text", () => {
+    const english = row({ kind: "audit_response", tags: ["domain:career", "interview"], topic: "Recall interview", body: "Q: What did you build?\nA: A tool." });
+    expect(careerRecordOrigin(english)).toEqual({ source: "interview", entryUi: "en" });
+    expect(english.topic).toBe("Recall interview");
+    expect(english.body).toContain("What did you build?");
+    expect(careerRecordOrigin(row({ kind: "audit_response", tags: ["interview"], topic: "Custom title" }))).toEqual({ source: "interview", entryUi: null });
+    expect(careerRecordOrigin(row({ kind: "audit_response", tags: ["interview", "entry-ui:ko"], topic: "Custom title" }))).toEqual({ source: "interview", entryUi: "ko" });
+    expect(careerRecordOrigin(row({ kind: "audit_response", tags: ["interview", "entry-ui:ko", "entry-ui:en"], topic: "Recall interview" }))).toEqual({ source: "interview", entryUi: null });
+    expect(careerRecordOrigin(row({ topic: "Recall interview" }))).toEqual({ source: "record", entryUi: null });
+  });
+
   test("explicit year tag wins over created_at", () => {
     expect(careerYearOf(row({ tags: ["domain:career", "year:2019"] }))).toBe("2019");
     expect(careerYearOf(row({ tags: ["domain:career"] }))).toBe("2026");

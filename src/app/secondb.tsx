@@ -38,7 +38,6 @@ import { canShowRewardedAds } from "@/lib/ads/policy";
 import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
 import { readPrivacyPrefs } from "@/lib/supabase/privacy";
 import { subscribePrivacyPrefsSaved } from "@/lib/privacy/pref-changes";
-import { subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -46,6 +45,7 @@ import {
   beginAccountSessionLease,
   type PendingAccountSessionLease,
 } from "@/lib/auth/account-session-lease";
+import { captureAccountOwnerLease, subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { chatAutosaveAllowed } from "@/lib/chat/autosave";
 import {
@@ -79,7 +79,8 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { writeClipboardText } from "@/lib/capture/clipboard";
 import { getWikiPage } from "@/lib/wiki/queries";
-import { transcribeAudio } from "@/lib/llm/boundary";
+import { LlmConsentError, transcribeAudio, type LlmConsentErrorCode } from "@/lib/llm/boundary";
+import { ServiceConsentLink } from "@/components/consent/ServiceConsentLink";
 import { isAbortError } from "@/lib/async/abort";
 import {
   createRecorderLifecycle,
@@ -165,6 +166,7 @@ interface ChatTurn {
    *  Excluded from the conversation history sent back to the model so it isn't
    *  mis-grounded as something SecondB actually said. */
   synthetic?: boolean;
+  consentError?: LlmConsentErrorCode;
 }
 
 type ChatMode = "analytic" | "divergent";
@@ -590,6 +592,7 @@ export default function SecondBChat() {
 function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const isDeepSpace = variant === "deep-space";
   const { t, i18n } = useTranslation("secondb");
+  const { t: consentT } = useTranslation("consent");
   const { userId, loading: authLoading, isMinor, hasProfile, profileProbeFailed, refresh } = useAuth();
   const progression = useProgression();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -676,6 +679,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     const reply = turns[index];
     if (!userId || !reply || keptTurns.has(reply) || keepingTurns.has(reply)) return false;
     if (!isKeepable(reply)) return false;
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease) return false;
     // 턴별 잠금. 자동 저장이 이 답변을 확인 · 쓰기 · 되돌리는 중이면 받지 않는다 - 같은 짝이 두 번 capture 에
     // 들어가지 않는다. 다른 답변은 막지 않는다.
     const releaseTurn = holdTurnForManualKeep(reply);
@@ -711,11 +716,13 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           journal: fence.journal,
         }),
       );
+      if (!lease.isCurrent()) return false;
       setKeptTurns((prev) => new Set(prev).add(reply));
       const hotline = keepCrisisHotline(body, locale, isMinor);
       if (hotline) setKeepCrisis({ visible: true, hotline });
       return true;
     } catch (e) {
+      if (!lease.isCurrent()) return false;
       // 조용히 넘기지 않는다. 쓰기가 어디까지 갔는지 우리는 모르므로 "담기지
       // 않았다"고 단정하지 않고, 확인할 자리를 알려 준다 (Round21 가져오기와
       // 같은 규율).
@@ -927,7 +934,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     // 세대에서 켜진 채 보내졌어야 한다. 켜기 전에 보낸 질문의 답, 화면에 남아 있던 과거 턴, 그 사이 끄고 다시 켠
     // 질문의 답, 짝이 없는 답변(질문이 새 대화로 비워진 뒤 도착한 것)은 넘기지 않는다. 담기 칩은 남는다.
     const promptIdx = findPromptIndex(turns, idx);
-    const asked = promptIdx < 0 ? undefined : autosaveAskedRef.current.get(turns[promptIdx]);
+    const asked = promptIdx === null ? undefined : autosaveAskedRef.current.get(turns[promptIdx]);
     if (asked === undefined || asked !== autosaveConsentFor(userId).generation) return;
     const { body, rawMd } = exchangeAt(turns, idx);
     autosaveBodiesRef.current.set(last, body);
@@ -1219,8 +1226,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             }
           }
         } catch (e) {
-          const failText = t("replyFailed");
-          setTurns((prev) => [...prev, { role: "secondb", text: failText, synthetic: true }]);
+          const consentError = e instanceof LlmConsentError ? e.code : undefined;
+          const failText = consentError ? consentT(`serviceControl.${consentError}`) : t("replyFailed");
+          setTurns((prev) => [...prev, { role: "secondb", text: failText, synthetic: true, consentError }]);
           reactExpression("negative");
           if (typeof console !== "undefined") console.warn("[secondb] sendChatMessage error", (e as Error).message);
         } finally {
@@ -1243,6 +1251,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       limit,
       companion,
       t,
+      consentT,
     ],
   );
 
@@ -1295,6 +1304,48 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         : "textMuted";
   const compactModeLabel = chatMode === "divergent" ? "New angle" : "Analysis";
 
+  // -- One citation tap, one implementation ---------------------------------
+  // Citations are wiki-page slugs (lib/chat/sources.ts). Resolve the slug to a
+  // page id and deep-link it through /wiki?focusPageId, which the shipped wiki
+  // screen reads (dds-wiki-records-screens.tsx). A miss - no sign-in, an unknown
+  // slug, a failed query - still lands on the wiki list, which is what the tap
+  // used to do unconditionally.
+  //
+  // Hoisted out of the two drawers on purpose. The deep-space chrome resolved
+  // (med#23) while the legacy chrome carried a "once a slug->page resolver
+  // exists" note beside a bare router.push("/wiki") - a logic fork inside a file
+  // whose own header (line 216) promises the two chromes differ in CHROME only.
+  // The fork is now structurally impossible: both drawers call this.
+  //
+  // The lookup is async, so the tap outlives the account that made it. Supabase can
+  // publish owner A -> owner B with no signed-out frame (AuthContext supports that
+  // publication), and a continuation that still calls router.push moves B's app because
+  // of A's tap. This is not a read of A's writing - /wiki re-queries under B's user id
+  // and the query is owner-filtered - it is B's screen being taken somewhere B did not
+  // ask to go. So the owner lease is captured at tap time and both continuations check
+  // it, the same shape lib/ops uses around its permission prompts. A null lease means
+  // the published owner has already moved, so the tap is dropped rather than falling
+  // back to the list: landing B on the wiki list is the same wrong move, quieter.
+  const openCitedPage = (slug: string) => {
+    setRefDrawer(null);
+    if (!userId) {
+      router.push("/wiki");
+      return;
+    }
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease) return;
+    void getWikiPage(userId, slug)
+      .then((page) => {
+        if (!lease.isCurrent()) return;
+        if (page) router.push({ pathname: "/wiki", params: { focusPageId: page.id } });
+        else router.push("/wiki");
+      })
+      .catch(() => {
+        if (lease.isCurrent()) router.push("/wiki");
+      });
+  };
+
+
   // ── Deep-space chrome (real composer + real answers + citations + states) ──
   // Same engine (turns / handleSend / sendChatMessage / parseSourceCitations /
   // canSend) as the legacy branch; only the visual shell differs. Crisis/C9/C3
@@ -1312,12 +1363,87 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     const lensName = isCharacterChat ? persona.name[locale] : t(`rev2.${rev2Persona}.lensName`);
     const inkOnAccent = m3.accent.onAccentInk; // reference send/mic glyph ink on the accent fill
     return (
-      <DeepSpaceScreen active="chat" variant="windowed" personaTint={isCharacterChat ? undefined : rev2Persona}>
+      <DeepSpaceScreen active="chat" variant="windowed" header="none">
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={keyboardBehavior}
           keyboardVerticalOffset={keyboardVerticalOffset}
         >
+          {/* The lens selector is the first thing in the chat window; the
+              companion greeting previously occupying this space is gone. */}
+          {!isCharacterChat ? (
+            <View style={ds.toggleRow} accessibilityLabel={t("rev2.selectorA11y")}>
+              {REV2_PERSONA_IDS.map((id) => {
+                const on = rev2Persona === id;
+                const accent = rev2PersonaAccent(id);
+                const locked = id !== "secondb" && !personaAllowed(effectiveTier, id as "meta" | "twi");
+                const lockPlan = id === "meta" ? t("rev2.lockVoyager") : t("rev2.lockNorthstar");
+                return (
+                  <Pressable
+                    key={id}
+                    onPress={() => (locked ? router.push(`/plans?from=persona_${id}`) : selectRev2Persona(id))}
+                    style={[
+                      ds.lensBtn,
+                      { borderColor: on ? accent : m3.color.outlineVariant },
+                      on ? { backgroundColor: rev2PersonaSoftBg(id) } : null,
+                      locked ? { borderColor: LOCKED_CHIP_BORDER } : null,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on, disabled: locked }}
+                    aria-pressed={on}
+                    accessibilityLabel={
+                      locked
+                        ? `${t(`rev2.${id}.lensName`)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
+                        : `${t(`rev2.${id}.lensName`)} · ${t(`rev2.${id}.role`)}`
+                    }
+                  >
+                    <Text style={[ds.lensName, { color: locked ? LOCKED_CHIP_INK : on ? rev2PersonaOnSoft(id) : m3.color.onSurfaceVariant }]}>
+                      {t(`rev2.${id}.lensName`)}
+                    </Text>
+                    <Text style={[ds.lensTag, { color: locked ? LOCKED_CHIP_INK : on ? accent : m3.color.onSurfaceVariant }]}>
+                      {locked ? lockPlan : t(`rev2.${id}.tag`)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={ds.toggleRow}>
+              <Pressable
+                onPress={() => setChatMode("analytic")}
+                style={[
+                  ds.lensBtn,
+                  { borderColor: chatMode === "analytic" ? lensAccent : m3.color.outlineVariant },
+                  chatMode === "analytic" ? { backgroundColor: lensSoftBg } : null,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: chatMode === "analytic" }}
+                aria-pressed={chatMode === "analytic"}
+                accessibilityLabel={t("analysisMode")}
+              >
+                <Text style={[ds.lensName, { color: chatMode === "analytic" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
+                  {t("analysisChip")}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setChatMode("divergent")}
+                style={[
+                  ds.lensBtn,
+                  { borderColor: chatMode === "divergent" ? lensAccent : m3.color.outlineVariant },
+                  chatMode === "divergent" ? { backgroundColor: lensSoftBg } : null,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: chatMode === "divergent" }}
+                aria-pressed={chatMode === "divergent"}
+                accessibilityLabel={t("newAngleMode")}
+              >
+                <Text style={[ds.lensName, { color: chatMode === "divergent" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
+                  {t("newAngleChip")}
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
           {/* persona banner (reference ChatScreen header): status dot + mono tag +
               wrapping lens description, tinted by the selected lens. Usage counter
               and clear affordance ride the right edge. */}
@@ -1399,6 +1525,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                         {turn.text}
                       </Text>
                     </Pressable>
+                    {turn.consentError ? <ServiceConsentLink /> : null}
                     {copyNotice?.i === i ? (
                       <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
                         {t(copyNotice.ok ? "copied" : "copyFailed")}
@@ -1569,85 +1696,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             </Pressable>
           ) : null}
 
-          {/* persona toggle (reference ChatScreen): 3 equal lenses. Selecting one
-              recolors the whole surface and switches who answers next. Character
-              chat (legacy roster) keeps the 분석/새 관점 mode toggle instead. */}
-          {!isCharacterChat ? (
-            <View style={ds.toggleRow} accessibilityLabel={t("rev2.selectorA11y")}>
-              {REV2_PERSONA_IDS.map((id) => {
-                const on = rev2Persona === id;
-                const accent = rev2PersonaAccent(id);
-                // Phase 4 paid personas: 메타비 = plus+, 트위비 = pro. Judges comp
-                // to pro (C6, mirrors the 0088 server rule). A locked tap goes to
-                // /plans — the persona itself stays visible (honest, no dead end).
-                const locked = id !== "secondb" && !personaAllowed(effectiveTier, id as "meta" | "twi");
-                const lockPlan = id === "meta" ? t("rev2.lockVoyager") : t("rev2.lockNorthstar");
-                return (
-                  <Pressable
-                    key={id}
-                    onPress={() => (locked ? router.push(`/plans?from=persona_${id}`) : selectRev2Persona(id))}
-                    style={[
-                      ds.lensBtn,
-                      { borderColor: on ? accent : m3.color.outlineVariant },
-                      on ? { backgroundColor: rev2PersonaSoftBg(id) } : null,
-                      locked ? { borderColor: LOCKED_CHIP_BORDER } : null,
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: on, disabled: locked }}
-                    aria-pressed={on}
-                    accessibilityLabel={
-                      locked
-                        ? `${t(`rev2.${id}.lensName`)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
-                        : `${t(`rev2.${id}.lensName`)} · ${t(`rev2.${id}.role`)}`
-                    }
-                  >
-                    <Text style={[ds.lensName, { color: locked ? LOCKED_CHIP_INK : on ? rev2PersonaOnSoft(id) : m3.color.onSurfaceVariant }]}>
-                      {t(`rev2.${id}.lensName`)}
-                    </Text>
-                    <Text style={[ds.lensTag, { color: locked ? LOCKED_CHIP_INK : on ? accent : m3.color.onSurfaceVariant }]}>
-                      {locked ? lockPlan : t(`rev2.${id}.tag`)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : (
-            <View style={ds.toggleRow}>
-              <Pressable
-                onPress={() => setChatMode("analytic")}
-                style={[
-                  ds.lensBtn,
-                  { borderColor: chatMode === "analytic" ? lensAccent : m3.color.outlineVariant },
-                  chatMode === "analytic" ? { backgroundColor: lensSoftBg } : null,
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: chatMode === "analytic" }}
-                aria-pressed={chatMode === "analytic"}
-                accessibilityLabel={t("analysisMode")}
-              >
-                <Text style={[ds.lensName, { color: chatMode === "analytic" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
-                  {t("analysisChip")}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setChatMode("divergent")}
-                style={[
-                  ds.lensBtn,
-                  { borderColor: chatMode === "divergent" ? lensAccent : m3.color.outlineVariant },
-                  chatMode === "divergent" ? { backgroundColor: lensSoftBg } : null,
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: chatMode === "divergent" }}
-                aria-pressed={chatMode === "divergent"}
-                accessibilityLabel={t("newAngleMode")}
-              >
-                <Text style={[ds.lensName, { color: chatMode === "divergent" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
-                  {t("newAngleChip")}
-                </Text>
-              </Pressable>
-            </View>
-          )}
-
           {/* input bar (reference ChatScreen): a rounded pill holding the text
               field + inline mic, then a separate 48px round send button that
               fills with the lens accent when there is something to send. Draft
@@ -1742,23 +1790,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                   <Pressable
                     key={slug}
                     style={ds.drawerCard}
-                    onPress={() => {
-                      // med#23: citations are wiki-page slugs — resolve to the
-                      // page id (getWikiPage) and deep-link it via the same
-                      // /wiki?focusPageId mechanism the digest fix uses. A
-                      // failed resolve still lands on the wiki list.
-                      setRefDrawer(null);
-                      if (!userId) {
-                        router.push("/wiki");
-                        return;
-                      }
-                      void getWikiPage(userId, slug)
-                        .then((page) => {
-                          if (page) router.push({ pathname: "/wiki", params: { focusPageId: page.id } });
-                          else router.push("/wiki");
-                        })
-                        .catch(() => router.push("/wiki"));
-                    }}
+                    onPress={() => openCitedPage(slug)}
                     accessibilityRole="button"
                     accessibilityLabel={formatSourceCitationLabel(slug)}
                   >
@@ -2014,6 +2046,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                       {turn.text}
                     </Text>
                   </Pressable>
+                  {turn.consentError ? <ServiceConsentLink /> : null}
                   {copyNotice?.i === i ? (
                     <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
                       {t(copyNotice.ok ? "copied" : "copyFailed")}
@@ -2180,14 +2213,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                   key={slug}
                   title={formatSourceCitationLabel(slug)}
                   meta={t("reference_piece_meta")}
-                  onPress={() => {
-                    // Citations are wiki-page slugs. Route to the 위키 tab (which
-                    // lists the wiki pages) rather than /records, so the user lands
-                    // where the cited page actually lives.
-                    // TODO: once a slug->page resolver exists, deep-link the page.
-                    setRefDrawer(null);
-                    router.push("/wiki");
-                  }}
+                  onPress={() => openCitedPage(slug)}
                 />
               ))}
             </ScrollView>

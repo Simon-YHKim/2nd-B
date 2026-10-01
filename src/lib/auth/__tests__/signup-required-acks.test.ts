@@ -156,7 +156,7 @@ describe("PIXEL-CLAY sign-up renderer", () => {
     expect(screen).toContain('keyboardType="email-address"');
     expect(screen).toContain("secureTextEntry");
     expect(screen).toContain("<BirthDateField");
-    expect(screen).toContain("ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE");
+    expect(screen).toContain("ageInYears(birthDate) >= minConsentAge");
     expect(screen).toContain('autoComplete="one-time-code"');
     expect(screen).toContain('textContentType="oneTimeCode"');
     expect(screen).toContain("canVerifyConfirmCode");
@@ -232,7 +232,8 @@ describe("sign-up authority and preservation boundaries", () => {
     );
     expect(canSubmit).toContain('email.includes("@")');
     expect(canSubmit).toContain("password.length >= 8");
-    expect(canSubmit).toContain("ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE");
+    expect(canSubmit).toContain("residenceReady &&");
+    expect(canSubmit).toContain("ageInYears(birthDate) >= minConsentAge");
     expect(canSubmit).toContain("allRequiredAcksChecked(consent)");
     expect(canSubmit).toContain("!loading");
     expect(canSubmit).toContain("!userId");
@@ -262,12 +263,15 @@ describe("sign-up authority and preservation boundaries", () => {
   // 옛 값은 5b6bbe71 분기점 파일이고, main 이 그 뒤 f42f4db2(C2·C6 대회 제약과
   // judge 이메일 경로 은퇴)와 be629d2b 를 얹었다. 병합 결과는 셋 다 main 과
   // 바이트 동일이라 "이 PR 이 레거시·공용 폼을 안 건드렸다"는 뜻은 그대로다.
-  // ConsentNotice·BirthDateField 는 분기 이후 안 바뀌어 값이 그대로다.
+  // ConsentNotice 는 분기 이후 그대로다. BirthDateField 는 2026-09-22 C10
+  // unreadable-region 복구에서 선택한 나라의 동적 하한을 받도록 의도적으로 바뀌었다.
   // 2026-09-07: dds-auth-screens digest 하나만 재고정했다. ConsentCheckRow 에
   // 웹 스페이스키 배선(import 1 + prop 1)이 들어갔기 때문이다. legacy · styles ·
-  // ConsentNotice · BirthDateField 넷은 값이 그대로 = 안 건드렸다.
+  // ConsentNotice 경계는 그대로고 BirthDateField 는 위 C10 변경으로 재고정했다.
   // 2026-09-13: dds-auth-screens 에 reset-password bootstrap 재시도 표면만
   // 추가해 그 digest 만 재고정했다. 나머지 네 경계는 그대로다.
+  // 2026-09-30: dds-auth-screens digest 만 재고정했다. Text 를 react-native 대신
+  // @/components/ui/PlainText 에서 가져오는 import 두 줄뿐이다(앱 전체 한국어 줄바꿈).
   test("preserves legacy renderer and shared form boundaries while pinning the auth renderer", () => {
     // 대상만 아카이브로 옮겼다. **digest 는 한 글자도 안 바꿨다** — 같은 마커,
     // 같은 해시, 다른 파일이면 옮기면서 고치지 않았다는 증거가 된다.
@@ -282,13 +286,16 @@ describe("sign-up authority and preservation boundaries", () => {
     expect(sha256(legacy)).toBe("630043be84f94b1b90bfa3a932c98cd4f3886f9e92a44a35fb5487298f782904");
     expect(sha256(styles)).toBe("5df5b8ca23806eb75662a694220d7b48f31351aacfb8d8bf476d66b98a83508e");
     expect(sha256(read("src/screens/deepspace/dds-auth-screens.tsx"))).toBe(
-      "685731b74aae005916c3446fae3c22924388eee96f2e42e80373889df91bec1b",
+      "b2be8e90dc37877b3e6c2ea6e8d70a5cf3a9caadf357cdb03cc9d4fbbad3d84c",
     );
+    // 2026-09-28: ConsentNotice gained the "PolaScope, formerly 2nd-Brain" note
+    // (common:app.renameNote) until the 2026-10-05 Terms amendment, which removes
+    // it again. Nothing else in the file changed.
     expect(sha256(read("src/components/consent/ConsentNotice.tsx"))).toBe(
-      "60a019c22ceec84ad550f06568763225b82839bc0e743f382aabea233e4ae170",
+      "14d8274524ec20abc8b9ad4c664ed6681e8c40524d9571b5955df2d8d5dec5b3",
     );
     expect(sha256(read("src/components/auth/BirthDateField.tsx"))).toBe(
-      "9909f26cc188219376e9aeca9a9e46481c74d8d95042a56abfe4858ade4dba0f",
+      "7f995e7a8031b7761aa44fdc1dc373ff6397b4071d80df22a112534c29cc0848",
     );
   });
 

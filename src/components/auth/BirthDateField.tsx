@@ -17,20 +17,22 @@ import { todayISO } from "@/components/m3/date-picker/calendar-math";
 export interface BirthDateFieldProps {
   value: string; // YYYY-MM-DD
   onChange: (next: string) => void;
+  /** Registration can recover a country-specific floor when device region is unavailable. */
+  minAge?: number;
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-export function BirthDateField({ value, onChange }: BirthDateFieldProps) {
+export function BirthDateField({ value, onChange, minAge = MIN_SELF_CONSENT_AGE }: BirthDateFieldProps) {
   const { t } = useTranslation("auth");
   const status = useMemo(() => {
     if (!value) return "empty";
     if (!ISO_DATE.test(value)) return "malformed";
     const age = ageInYears(value);
     if (age < 0) return "malformed";
-    if (age < MIN_SELF_CONSENT_AGE) return "underage";
+    if (age < minAge) return "underage";
     return "ok";
-  }, [value]);
+  }, [minAge, value]);
 
   const showError = value.length > 0 && (status === "underage" || status === "malformed");
   const today = todayISO();
@@ -50,11 +52,11 @@ export function BirthDateField({ value, onChange }: BirthDateFieldProps) {
       error={showError}
       supportingText={
         showError
-          ? t(status === "underage" ? "errors.ageGate" : "errors.invalidBirthDate")
-          : t("signUp.birthDateHelper")
+          ? t(status === "underage" ? "errors.ageGate" : "errors.invalidBirthDate", { minAge })
+          : t("signUp.birthDateHelper", { minAge })
       }
       accessibilityLabel={t("signUp.birthDate")}
-      accessibilityHint={t("signUp.birthDateHelper")}
+      accessibilityHint={t("signUp.birthDateHelper", { minAge })}
       containerStyle={styles.row}
     />
   );

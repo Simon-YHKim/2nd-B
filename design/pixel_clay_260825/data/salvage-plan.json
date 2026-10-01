@@ -173,6 +173,21 @@
   }
  },
  "actualRoutes": {
+  "/data-connections": {
+   "strategy": "adapt-reference",
+   "references": [
+    "connect",
+    "healthdata"
+   ],
+   "implementation": "데이터 출처와 가져오기 상태, 대시보드 저장 데이터의 새로고침 주기를 설정에서 관리한다. 외부 서비스의 자동 수집과 구분해 안내한다.",
+   "doneWhen": "출처 상태와 1시간 기본값·사용자별 주기 저장이 검증되고 앱이 닫힌 동안 외부 자동 동기화가 실행된다는 오해를 만들지 않는다."
+  },
+  "/dashboard": {
+   "strategy": "redesign",
+   "references": [],
+   "implementation": "실제 인터뷰·루틴·가져온 기록을 휴대전화형 PIXEL-CLAY 대시보드에 모으고 출처·마지막 가져오기·권한 상태를 구분한다.",
+   "doneWhen": "빈 상태·읽기 실패·동의 철회·미지원 연결을 정직하게 표시하고 실제 루틴 실행과 기존 가져오기·설정 경로가 검증된다."
+  },
   "/oauth-callback": {
    "strategy": "state-only",
    "references": [],
@@ -297,6 +312,22 @@
    "implementation": "실제 생활 정보 필드에 profile form의 PIXEL-CLAY 계층을 적용한다.",
    "doneWhen": "저장·취소·오류와 한글 clipping이 검증된다."
   },
+  "/avatar-studio": {
+   "strategy": "derive-pattern",
+   "references": [
+    "profile"
+   ],
+   "implementation": "프로필에서 승인된 64셀 아바타 카탈로그를 열고 머리·얼굴·동물·의상을 조합한다.",
+   "doneWhen": "144개 선택지, 사람·동물 의상, 사용자별 저장·재진입, 조회·저장 실패 상태와 Android Back이 검증된다."
+  },
+  "/avatar-palette": {
+   "strategy": "derive-pattern",
+   "references": [
+    "profile"
+   ],
+   "implementation": "휴대전화 도구에서 64셀 픽셀 에셋을 직접 그리고, 슬롯별 초안을 기기 안에 보관한다.",
+   "doneWhen": "캔버스 편집·로컬 저장·재진입, 계정별 격리와 Android 터치가 검증된다."
+  },
   "/jarvis": {
    "strategy": "alias",
    "references": [],
@@ -330,7 +361,13 @@
    "implementation": "앱 밖으로 가져가는 데이터와 공유 경계를 account 패턴으로 정리한다.",
    "doneWhen": "실제 export/share 목적지와 취소 상태가 검증된다."
   },
-  "/processing-log": {
+    "/service-consent": {
+      "strategy": "derive-pattern",
+      "references": [],
+      "implementation": "기존 개인정보 설정의 카드·버튼·체크 항목 패턴으로 AI 동의 상태와 재동의/철회를 표시한다. 문서 확인은 펼친 뒤 제공하고 서버 미활성·조회 실패·충돌을 성공과 구분한다.",
+      "doneWhen": "/privacy 양쪽 렌더러에서 진입하고 명시적 5개 동의, 철회, 중복 클릭, 계정 전환, 저장 실패 후 재확인과 좁은 화면의 스크롤이 검증된다."
+    },
+    "/processing-log": {
    "strategy": "derive-pattern",
    "references": [],
    "implementation": "AI 처리 기록 목록을 기존 목록/카드 패턴에서 파생한다. 전용 디자인 프레임이 번들에 없다.",

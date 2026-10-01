@@ -54,7 +54,10 @@ import {
   normalizeOcrImagePayload,
   normalizeOcrTextResult,
   ocrImageAsset as ocrImageAssetWithSession,
+  pickAttachmentImage,
   pickImageAsset,
+  IMAGE_ATTACHMENT_PREPARE_FAILED_ERROR,
+  MAX_ATTACHMENT_IMAGE_BASE64_BYTES,
 } from "../capture-image";
 
 const JPEG_SIGNATURE_BASE64 = Buffer.from([0xff, 0xd8, 0xff]).toString("base64");
@@ -1407,5 +1410,103 @@ describe("capture image OCR payload guards", () => {
     expect(isImageOcrRepickRequiredError(new Error(IMAGE_OCR_INVALID_DATA_ERROR))).toBe(true);
     expect(isImageOcrRepickRequiredError(new Error(IMAGE_CAMERA_PERMISSION_DENIED_ERROR))).toBe(false);
     expect(isImageOcrRepickRequiredError(new Error("network_down"))).toBe(false);
+  });
+});
+
+// 2026-09-30: photos attached to a 글 record are stored, not read by an AI, so
+// they get their own pick path. It must always re-encode (bounded size, EXIF and
+// its GPS dropped), fail closed when it cannot, and never call a model.
+describe("pickAttachmentImage (글 photo attachments)", () => {
+  beforeEach(() => {
+    mockCallLlm.mockReset();
+    imagePickerMock.launchImageLibraryAsync.mockReset();
+    imagePickerMock.launchCameraAsync.mockReset();
+    imagePickerMock.requestCameraPermissionsAsync.mockReset();
+    imageManipulatorMock.manipulateAsync.mockReset();
+    mockLeaseOwnedTempFile.mockReset();
+    mockLeaseOwnedTempFile.mockImplementation(async (uri) => {
+      if (uri.startsWith("file:///")) return { ok: true, lease: mockOwnedTempLease().lease };
+      return { ok: false, error: "unsafe_target" };
+    });
+  });
+
+  test("re-encodes even a small photo to JPEG, keeps its size, and never asks the picker for base64", async () => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: "file:///cache/small.heic", mimeType: "image/heic", width: 800, height: 600 }],
+    });
+    imageManipulatorMock.manipulateAsync.mockResolvedValue({
+      uri: "file:///cache/small-reencoded.jpg",
+      base64: JPEG_IMAGE_BASE64,
+      width: 800,
+      height: 600,
+    });
+
+    await expect(pickAttachmentImage()).resolves.toEqual({
+      uri: "file:///cache/small-reencoded.jpg",
+      base64: JPEG_IMAGE_BASE64,
+      mimeType: "image/jpeg",
+      width: 800,
+      height: 600,
+      release: expect.any(Function),
+    });
+    expect(imagePickerMock.launchImageLibraryAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ base64: false }),
+    );
+    expect(imageManipulatorMock.manipulateAsync).toHaveBeenCalledWith(
+      "file:///cache/small.heic",
+      [],
+      { compress: 0.7, format: "jpeg", base64: true },
+    );
+    expect(mockCallLlm).not.toHaveBeenCalled();
+  });
+
+  test("shrinks a large photo to the attachment size", async () => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: "file:///cache/big.jpg", mimeType: "image/jpeg", width: 3000, height: 4000 }],
+    });
+    imageManipulatorMock.manipulateAsync
+      .mockResolvedValueOnce({ uri: "file:///cache/try-1600.jpg", base64: "A".repeat(MAX_ATTACHMENT_IMAGE_BASE64_BYTES + 1) })
+      .mockResolvedValueOnce({ uri: "file:///cache/try-1280.jpg", base64: JPEG_IMAGE_BASE64, width: 960, height: 1280 });
+
+    const picked = await pickAttachmentImage();
+
+    expect(imageManipulatorMock.manipulateAsync.mock.calls.map(([, actions]) => actions)).toEqual([
+      [{ resize: { height: 1600 } }],
+      [{ resize: { height: 1280 } }],
+    ]);
+    expect(picked).toEqual(expect.objectContaining({ uri: "file:///cache/try-1280.jpg", width: 960, height: 1280 }));
+  });
+
+  test("fails closed and cleans up when the photo cannot be re-encoded", async () => {
+    const owned = mockOwnedTempLease();
+    mockLeaseOwnedTempFile.mockResolvedValue({ ok: true, lease: owned.lease });
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: "file:///cache/odd.jpg", mimeType: "image/jpeg", width: 800, height: 600 }],
+    });
+    imageManipulatorMock.manipulateAsync.mockRejectedValue(new Error("decode failed"));
+
+    await expect(pickAttachmentImage()).rejects.toThrow(IMAGE_ATTACHMENT_PREPARE_FAILED_ERROR);
+    expect(owned.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  test("rejects re-encoded bytes that are not really a JPEG", async () => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: "file:///cache/x.jpg", mimeType: "image/jpeg", width: 800, height: 600 }],
+    });
+    imageManipulatorMock.manipulateAsync.mockResolvedValue({ uri: "file:///cache/x-out.jpg", base64: PNG_IMAGE_BASE64 });
+
+    await expect(pickAttachmentImage()).rejects.toThrow();
+  });
+
+  test("a cancelled picker returns null without touching anything", async () => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({ canceled: true, assets: [] });
+
+    await expect(pickAttachmentImage()).resolves.toBeNull();
+    expect(imageManipulatorMock.manipulateAsync).not.toHaveBeenCalled();
+    expect(mockLeaseOwnedTempFile).not.toHaveBeenCalled();
   });
 });

@@ -1,0 +1,117 @@
+name: Audit LLM consent mode
+
+# Read-only production check. The catalog contains secret names and digests;
+# keep it in process memory and never print it. Only the finite,
+# non-credential mode class reaches the job log.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-production-mutations
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    if: ${{ github.repository == 'Simon-YHKim/2nd-B' && github.ref == 'refs/heads/main' }}
+    environment: Production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Gate current origin/main and production project
+        env:
+          RUN_REPOSITORY: ${{ github.repository }}
+          RUN_REF: ${{ github.ref }}
+          RUN_SHA: ${{ github.sha }}
+          TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          if [ "$RUN_REPOSITORY" != "Simon-YHKim/2nd-B" ] || [ "$RUN_REF" != "refs/heads/main" ]; then
+            echo "::error title=Consent audit::trusted-main-ref-required"
+            exit 1
+          fi
+          if [ -z "${TOKEN:-}" ] || [ "$PROJECT_REF" != "zoacryukmdeivmolvyhj" ]; then
+            echo "::error title=Consent audit::production-credentials-or-project-mismatch"
+            exit 1
+          fi
+          if ! git fetch --no-tags --depth=1 origin '+refs/heads/main:refs/remotes/origin/main' >/dev/null 2>&1; then
+            echo "::error title=Consent audit::remote-main-fetch-failed"
+            exit 1
+          fi
+          if [ "$(git rev-parse HEAD)" != "$RUN_SHA" ] || \
+             [ "$(git rev-parse refs/remotes/origin/main)" != "$RUN_SHA" ]; then
+            echo "::error title=Consent audit::checkout-is-not-current-remote-main"
+            exit 1
+          fi
+
+      - name: Setup pinned Supabase CLI
+        uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
+        with:
+          version: "2.116.0"
+
+      - name: Classify consent mode without printing secrets
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const { execFileSync } = require("node:child_process");
+          const { createHash } = require("node:crypto");
+
+          const fail = (reason) => {
+            process.stderr.write(`::error title=Consent audit::${reason}\n`);
+            process.exit(1);
+          };
+          let raw;
+          try {
+            raw = execFileSync("supabase", [
+              "secrets", "list", "--project-ref", process.env.PROJECT_REF, "--output", "json",
+            ], { encoding: "utf8", maxBuffer: 4 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+          } catch (error) {
+            const stderr = String(error?.stderr ?? "");
+            const category = error?.code === "ENOENT" ? "cli-not-found"
+              : /401|unauthori[sz]ed|invalid.*token/i.test(stderr) ? "authentication-rejected"
+              : /403|forbidden|permission/i.test(stderr) ? "access-forbidden"
+              : Number.isInteger(error?.status) ? `cli-exit-${error.status}`
+              : "cli-execution-failed";
+            fail(`secret-catalog-query-failed-${category}`);
+          }
+          let catalog;
+          try {
+            catalog = JSON.parse(raw);
+          } catch {
+            fail("secret-catalog-json-invalid");
+          }
+          if (!Array.isArray(catalog)) fail("secret-catalog-array-required");
+          const digest = (value) => createHash("sha256").update(value).digest("hex");
+          const classify = (name, allowed) => {
+            const matches = catalog.filter((row) => row?.name === name);
+            if (matches.length > 1) fail("duplicate-target-name");
+            if (matches.length === 0) return "absent";
+            const raw = matches[0].value;
+            if (typeof raw !== "string" || !/^(?:sha256:)?[0-9a-f]{64}$/i.test(raw)) {
+              fail("target-digest-shape-invalid");
+            }
+            const actual = raw.toLowerCase().replace(/^sha256:/, "");
+            return allowed.find((candidate) => digest(candidate) === actual) ?? "unrecognized";
+          };
+
+          const mode = classify("LLM_CONSENT_MODE", ["off", "collect", "enforce"]);
+          const legacyStrict = classify("LLM_REQUIRE_VERIFIED_CONSENT", ["true", "false"]);
+          // Mirrors resolveLlmConsentMode: an invalid new mode fails closed
+          // before the historical strict switch can take precedence.
+          const effective = mode === "unrecognized" ? "invalid"
+            : legacyStrict === "true" ? "enforce"
+            : mode === "absent" ? "off" : mode;
+          process.stdout.write(`configured_mode=${mode}\nlegacy_strict=${legacyStrict}\neffective_mode=${effective}\n`);
+          NODE

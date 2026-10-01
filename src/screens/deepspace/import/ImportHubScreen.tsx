@@ -10,7 +10,8 @@
 // deepSpace.* tokens only, assembled from the shared Ops kit.
 
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -38,9 +39,11 @@ import { ratifyLedgerEntries, type LedgerRatifyResult } from "@/lib/import/ledge
 import {
   addImportHistory,
   getImportHistory,
-  removeImportHistory,
+  withdrawImportHistoryEntry,
   type ImportHistoryEntry,
+  type ImportWithdrawalKept,
 } from "@/lib/import/history";
+import { createdSourceIds, importWithdrawalJudge, keptNotice } from "@/lib/import/history-ownership";
 import { getEnv } from "@/lib/env";
 import { getGoogleAccessToken } from "@/lib/google/gisToken";
 import { fetchCalendarEvents, googleEventsToIcs, GOOGLE_CALENDAR_READONLY_SCOPE } from "@/lib/google/calendar";
@@ -74,9 +77,9 @@ interface ImportSource {
 }
 
 const SOURCES: ImportSource[] = [
-  { key: "kakao", badge: "KA", nameKo: "카카오톡 대화", nameEn: "KakaoTalk", subKo: "통신 · 파일 내보내기", subEn: "Comms · file export", tier: "critical", mode: "file", minorLocked: true, kind: "kakao", whatKo: "약속·할 일·관계 신호만 뽑아요. 메시지 본문은 저장하지 않아요.", whatEn: "Only plan/relationship signals. We don't store message text." },
+  { key: "kakao", badge: "KA", nameKo: "카카오톡 대화", nameEn: "KakaoTalk", subKo: "통신 · 파일 내보내기", subEn: "Comms · file export", tier: "critical", mode: "file", minorLocked: true, kind: "kakao", whatKo: "약속 언급 횟수와 관계 빈도만 뽑아요. 메시지 본문은 저장하지 않아요.", whatEn: "Only plan mention counts and relationship frequency. We don't store message text." },
   { key: "takeout", badge: "LO", nameKo: "구글 타임라인", nameEn: "Google Timeline", subKo: "위치 · Takeout 파일", subEn: "Location · Takeout file", tier: "critical", mode: "file", minorLocked: true, kind: "takeout-location", whatKo: "자주 가는 장소·머문 시간 패턴만. 정확한 좌표 경로는 저장 안 함.", whatEn: "Only place/dwell patterns. Exact coordinates aren't stored." },
-  { key: "sms", badge: "SM", nameKo: "문자(SMS)", nameEn: "SMS", subKo: "통신 · 백업 파일", subEn: "Comms · backup file", tier: "critical", mode: "file", minorLocked: true, kind: "sms", whatKo: "약속·알림 신호만. 메시지 본문은 저장하지 않아요.", whatEn: "Only plan/reminder signals. We don't store message text." },
+  { key: "sms", badge: "SM", nameKo: "문자(SMS)", nameEn: "SMS", subKo: "통신 · 백업 파일", subEn: "Comms · backup file", tier: "critical", mode: "file", minorLocked: true, kind: "sms", whatKo: "약속 언급 횟수만 뽑아요. 메시지 본문은 저장하지 않아요.", whatEn: "Only plan mention counts. We don't store message text." },
   { key: "live-location", badge: "LV", nameKo: "실시간 위치", nameEn: "Live location", subKo: "위치 · 기기 권한", subEn: "Location · device permission", tier: "critical", mode: "connector", minorLocked: true, kind: "unknown", whatKo: "자주 가는 장소·머문 시간 패턴만. 정확한 좌표 경로는 저장 안 함.", whatEn: "Only place/dwell patterns. Exact coordinates aren't stored." },
   { key: "health", badge: "HE", nameKo: "건강", nameEn: "Health", subKo: "건강 · export 파일", subEn: "Health · export file", tier: "sensitive", mode: "file", minorLocked: false, kind: "apple-health", whatKo: "걸음·운동 등 합계만. 상세 기록 원문은 저장 안 함.", whatEn: "Only totals (steps, etc). Detailed records aren't stored." },
   { key: "email", badge: "EM", nameKo: "이메일", nameEn: "Email", subKo: "이메일 · .eml 파일", subEn: "Email · .eml file", tier: "sensitive", mode: "file", minorLocked: false, kind: "email", whatKo: "약속·일정 신호만. 본문 전체는 저장 안 함.", whatEn: "Only plan/schedule signals, not the full body." },
@@ -104,7 +107,7 @@ const TIER_COLOR: Record<Tier, string> = {
 type Step = "hub" | "consent" | "input" | "review" | "history";
 
 export function ImportHubScreen() {
-  const { i18n } = useTranslation();
+  const { i18n, t: importT } = useTranslation("import");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId, isMinor } = useAuth();
   const progression = useProgression();
@@ -120,6 +123,10 @@ export function ImportHubScreen() {
   // resolved counts. null = no warning; inserted===0 = total failure (safe to
   // advise re-import); inserted>0 = partial (re-import would double-book).
   const [ledgerWarn, setLedgerWarn] = useState<LedgerRatifyResult | null>(null);
+  // How many chosen items the last ratify found already imported, with nothing new
+  // to log (0 = it logged). Without it that ratify ended like a success that left no
+  // history line behind.
+  const [alreadyImported, setAlreadyImported] = useState(0);
   const [active, setActive] = useState<ImportSource | null>(null);
   const [paste, setPaste] = useState("");
   const [outcome, setOutcome] = useState<ImportOutcome | null>(null);
@@ -131,6 +138,10 @@ export function ImportHubScreen() {
   const [history, setHistory] = useState<ImportHistoryEntry[]>([]);
   const [gErr, setGErr] = useState<string | null>(null);
   const [histErr, setHistErr] = useState<string | null>(null);
+  // The rows the last withdrawal left in place because they were not provably that
+  // entry's own, by why (null = none yet). Without it a withdrawal that kept a row read
+  // as a full one.
+  const [histKept, setHistKept] = useState<ImportWithdrawalKept | null>(null);
   const googleClientId = getEnv().EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
   const t = (k: string) => COPY(ko)[k] ?? k;
@@ -288,18 +299,32 @@ export function ImportHubScreen() {
         const failedTxns = booked ? booked.failed : attempted;
         if (failedTxns > 0) setLedgerWarn({ inserted: bookedTxns, failed: failedTxns });
       }
-      await addImportHistory(userId, {
-        id: `${Date.now()}`,
-        sourceKey: active.key,
-        name: name(active),
-        atIso: new Date().toISOString(),
-        summary:
-          (s.notes > 0 ? `${t("notes")} ${s.notes} · ` : "") +
-          (s.watches > 0 ? `${t("watches")} ${s.watches} · ` : "") +
-          (bookedTxns > 0 ? `${t("txns")} ${bookedTxns} · ` : "") +
-          `${t("appts")} ${s.appointments} · ${t("places")} ${s.places + s.events} · ${t("raw")} 0`,
-        sourceIds: [result.source.id],
-      });
+      // An exact duplicate hands back the row an EARLIER import created and writes
+      // nothing, so the entry logs only rows this import created - as the file import
+      // does. Logging the duplicate made withdrawing this entry delete the earlier
+      // import's row (vibe r260919 r29 §3-6). Transactions booked just now are new
+      // rows either way (re-importing is how a failed booking is retried), so they
+      // still get a line.
+      const createdIds = createdSourceIds(result);
+      const logged = createdIds.length > 0 || bookedTxns > 0;
+      if (logged) {
+        await addImportHistory(userId, {
+          id: `${Date.now()}`,
+          sourceKey: active.key,
+          name: name(active),
+          atIso: new Date().toISOString(),
+          summary:
+            (s.notes > 0 ? `${t("notes")} ${s.notes} · ` : "") +
+            (s.watches > 0 ? `${t("watches")} ${s.watches} · ` : "") +
+            (bookedTxns > 0 ? `${t("txns")} ${bookedTxns} · ` : "") +
+            `${t("appts")} ${s.appointments} · ${t("places")} ${s.places + s.events} · ${t("raw")} 0`,
+          sourceIds: createdIds,
+          // Every id here is a row this import created, so its withdrawal may delete
+          // them all without asking whose they are (history-ownership.ts).
+          owned: true,
+        });
+      }
+      setAlreadyImported(logged ? 0 : chosen.length);
       // P0④: the consent sheet the user just walked finally leaves a ledger row
       // (consent_records). Best-effort — the import itself already landed.
       void recordImportConsent({
@@ -362,7 +387,8 @@ export function ImportHubScreen() {
     // strand the imported rows as unrevokable while telling the user they were
     // withdrawn (the exact false-assurance this screen exists to prevent).
     setHistErr(null);
-    const entry = history.find((h) => h.id === id);
+    setHistKept(null);
+    let entry = history.find((h) => h.id === id);
     // med#30: signed out we cannot delete the server rows this import created —
     // wiping only the local log would LOOK like a withdrawal while the data
     // stays on the server (the exact false assurance documented above).
@@ -370,24 +396,49 @@ export function ImportHubScreen() {
       setHistErr(t("revokeNeedsSignIn"));
       return;
     }
-    if (entry && userId && entry.sourceIds.length > 0) {
-      try {
-        const removed = await deleteSourcesByIds(userId, entry.sourceIds);
-        // Same as the deep-space shell: a short delete is only a false assurance
-        // if rows are still there, and the count cannot say. Ask when it is short.
-        if (
-          removed < entry.sourceIds.length &&
-          (await findSurvivingSourceIds(userId, entry.sourceIds)).length > 0
-        ) {
-          setHistErr(t("revokeFailed"));
-          return;
-        }
-      } catch {
-        setHistErr(t("revokeFailed"));
+    if (!userId) return;
+    try {
+      // The log is shared with /import, and the log decides, not this screen's list.
+      // An entry logged before 2026-09-20 can point at a row another import created,
+      // so only the rows that are provably this entry's own are deleted
+      // (history-ownership.ts). One withdrawal runs at a time per account, across
+      // tabs, from reading the log to removing the entry, in the session it started
+      // in and within a deadline; a log that cannot be read, an account switch, or a
+      // server that does not answer stops it and the entry stays (history.ts).
+      const outcome = await withdrawImportHistoryEntry(
+        userId,
+        id,
+        importWithdrawalJudge(userId, findSurvivingSourceIds),
+        async (own) => {
+          entry = own;
+          const removed = await deleteSourcesByIds(userId, entry.sourceIds);
+          // Same as the deep-space shell: a short delete is only a false assurance
+          // if rows are still there, and the count cannot say. Ask when it is short.
+          if (
+            removed < entry.sourceIds.length &&
+            (await findSurvivingSourceIds(userId, entry.sourceIds)).length > 0
+          ) {
+            return false;
+          }
+          // The entry leaves the log in history.ts, in one write with any promotion.
+          return true;
+        },
+      );
+      if (!outcome.withdrawn) {
+        // A browser without Web Locks cannot line up two tabs' withdrawals, so it
+        // withdraws nothing there and says so, rather than risk a row with no pointer.
+        setHistErr(
+          outcome.reason === "unserialized"
+            ? i18n.t("deepspace:ds.import.revokeUnserialized")
+            : t("revokeFailed"),
+        );
         return;
       }
+      setHistKept(outcome.kept);
+    } catch {
+      setHistErr(t("revokeFailed"));
+      return;
     }
-    await removeImportHistory(userId, id);
     // Imported data left the record — a sad beat on the head.
     reactExpression("sad");
     setHistory(await getImportHistory(userId));
@@ -447,6 +498,16 @@ export function ImportHubScreen() {
             }
           />
         ) : null}
+        {alreadyImported > 0 ? (
+          // The file import's result line for the same outcome: nothing added, N
+          // duplicates. N is what the user chose - the hub bundles the choice into one
+          // note, so "1 duplicate" would read as if only one of them were.
+          <View style={styles.noteCard}>
+            <Text variant="body" style={styles.noteText}>
+              {`${i18n.t("deepspace:ds.import.resultAdded", { count: 0 })} · ${i18n.t("deepspace:ds.import.resultDuplicate", { count: alreadyImported })}`}
+            </Text>
+          </View>
+        ) : null}
         {tiers.map((tier) => (
           <View key={tier} style={styles.section}>
             <Text variant="caption" pixelEn style={[styles.tierLabel, { color: TIER_COLOR[tier] }]}>{t(`tier_${tier}`)}</Text>
@@ -501,7 +562,9 @@ export function ImportHubScreen() {
         </View>
         <View style={styles.block}>
           <Text variant="caption" pixelEn style={styles.blockLabel}>{t("where")}</Text>
-          <Text variant="body" style={styles.blockText}>{t("whereBody")}</Text>
+          <Text variant="body" style={styles.blockText}>
+            {s.kind === "markdown" ? importT("markdownRetention.consent") : t("whereBody")}
+          </Text>
         </View>
         <View style={styles.chipRow}>
           <MetaChip label={t("keep90")} />
@@ -510,7 +573,7 @@ export function ImportHubScreen() {
               so analysis really is on-device — but the old toggle here was read
               by nothing (analyze/ratify/chooseFile ignored it), a fake control
               on a privacy promise (audit: /import-hub dead switch). */}
-          <MetaChip label={t("onDeviceOnly")} />
+          <MetaChip label={t("localAnalysis")} />
         </View>
 
         {s.googleKind ? (
@@ -606,8 +669,11 @@ export function ImportHubScreen() {
           {out.summary.transactions > 0 ? <Summary n={out.summary.transactions} label={t("txns")} /> : null}
           <Summary n={out.summary.appointments} label={t("appts")} />
           <Summary n={out.summary.places + out.summary.events} label={t("places")} />
-          <Summary n={0} label={t("raw")} dim />
+          {out.summary.notes === 0 ? <Summary n={0} label={t("raw")} dim /> : null}
         </View>
+        {out.summary.notes > 0 ? (
+          <Text variant="subtle" style={styles.fine}>{importT("markdownRetention.review")}</Text>
+        ) : null}
         <Text variant="caption" pixelEn style={styles.tierLabel}>{t("pickToApply")}</Text>
         {out.proposals.map((p) => {
           const on = selected.has(p.id);
@@ -648,9 +714,18 @@ export function ImportHubScreen() {
   }
 
   function renderHistory() {
+    const kept = keptNotice(histKept);
     return (
       <View style={styles.section}>
         {histErr ? <OpsState variant="error" title={t("errTitle")} body={histErr} /> : null}
+        {kept.length > 0 ? (
+          // Outside the list: the entry that kept them may have been the last one.
+          <View style={styles.noteCard}>
+            <Text variant="body" style={styles.noteText}>
+              {kept.map((line) => i18n.t(`deepspace:${line.key}`, { count: line.count })).join(" ")}
+            </Text>
+          </View>
+        ) : null}
         {history.length === 0 ? (
           <OpsState variant="empty" title={t("emptyTitle")} body={t("emptyBody")} ctaLabel={t("pickSource")} onCta={() => setStep("hub")} />
         ) : (
@@ -690,8 +765,8 @@ function COPY(ko: boolean): Record<string, string> {
         back: "뒤로", import: "가져오기", imported: "가져온 데이터", hubBubble: "무엇을 들여올까요?", hubTip: "네가 승인한 것만 기록에 남아요.",
         tier_critical: "최민감 · 명시 동의 필요", tier_sensitive: "민감", tier_normal: "보통",
         needsConsent: "동의 필요", notLinked: "미연결", locked: "잠김", linked: "연결됨",
-        what: "무엇을", where: "어디에", whereBody: "이 기기에서 분석하고 원문은 버려요. 파생 신호만 암호화해 보관해요.",
-        keep90: "보관 90일", deleteAnytime: "언제든 삭제", onDeviceOnly: "이 기기에서만 처리",
+        what: "무엇을", where: "어디에", whereBody: "이 기기에서 분석해요. 검토 화면에서 고른 결과만 암호화해 보관해요.",
+        keep90: "보관 90일", deleteAnytime: "언제든 삭제", localAnalysis: "파일 분석은 이 기기에서",
         connectorNote: "다음 화면에서 위치 권한을 \"사용 중에만\"으로 요청해요. (네이티브 빌드 필요)",
         googleConnectorNote: "브라우저에서 구글 계정으로 안전하게 연결해요. 읽기 전용(일정 보기)이에요.",
         googleConnect: "구글 연결", connecting: "연결 중…",
@@ -710,15 +785,15 @@ function COPY(ko: boolean): Record<string, string> {
         done: "완료", appts: "약속", places: "장소", notes: "노트", watches: "시청", txns: "거래", raw: "원문", pickToApply: "반영할 항목 고르기",
         sensitiveExcluded: "민감 · 기본 제외", applyN: "고른 {n}건 기록에 반영",
         emptyTitle: "아직 가져온 게 없어요", emptyBody: "소스를 골라 시작해요", pickSource: "소스 고르기",
-        delete: "삭제", historyFine: "삭제는 임포트한 원본을 제거해요. 임포트로 만들어진 인물·가계부 항목은 관계·가계부 화면에서 지울 수 있어요. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있어요.",
+        delete: "삭제", historyFine: "삭제는 이 임포트가 만든 원본을 제거해요. 이 임포트가 만들었다고 확인되지 않은 원본은 남기고, 남긴 까닭을 알려 드려요. 임포트로 만들어진 인물·가계부 항목은 관계·가계부 화면에서 지울 수 있어요. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있어요.",
         revokeFailed: "철회하지 못했어요. 잠시 후 다시 시도해 주세요.", revokeNeedsSignIn: "로그인 후 철회할 수 있어요. 서버에 남은 데이터까지 함께 지워야 해서요.",
       }
     : {
         back: "Back", import: "Import", imported: "Imported data", hubBubble: "What should we bring in?", hubTip: "Only what you approve is kept.",
         tier_critical: "Most sensitive · consent required", tier_sensitive: "Sensitive", tier_normal: "Normal",
         needsConsent: "Needs consent", notLinked: "Not linked", locked: "Locked", linked: "Linked",
-        what: "WHAT", where: "WHERE", whereBody: "Parsed on this device; the raw is discarded. Only derived signals are kept, encrypted.",
-        keep90: "Kept 90 days", deleteAnytime: "Delete anytime", onDeviceOnly: "Process on this device only",
+        what: "WHAT", where: "WHERE", whereBody: "Analyzed on this device. Only the results you choose on the review screen are kept, encrypted.",
+        keep90: "Kept 90 days", deleteAnytime: "Delete anytime", localAnalysis: "File analyzed on device",
         connectorNote: "The next screen requests location \"while using\" only. (needs the native build)",
         googleConnectorNote: "Securely link your Google account in the browser. Read-only (view events).",
         googleConnect: "Connect Google", connecting: "Connecting…",
@@ -737,7 +812,7 @@ function COPY(ko: boolean): Record<string, string> {
         done: "Done", appts: "Plans", places: "Places", notes: "Notes", watches: "Watches", txns: "Entries", raw: "Raw", pickToApply: "Pick what to apply",
         sensitiveExcluded: "sensitive · excluded by default", applyN: "Apply {n} to records",
         emptyTitle: "Nothing imported yet", emptyBody: "Pick a source to start", pickSource: "Pick a source",
-        delete: "Delete", historyFine: "Delete removes the imported source. People and ledger entries created from an import can be removed in the Relationships and Ledger screens. Comms/location import is server-locked for minor accounts.",
+        delete: "Delete", historyFine: "Delete removes the source this import created. A source it can't confirm this import created stays, and you're told why. People and ledger entries created from an import can be removed in the Relationships and Ledger screens. Comms/location import is server-locked for minor accounts.",
         revokeFailed: "Couldn't withdraw. Try again shortly.", revokeNeedsSignIn: "Sign in to withdraw - the server-side rows must be deleted together.",
       };
 }

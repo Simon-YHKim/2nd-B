@@ -65,19 +65,12 @@ SQL
 }
 trap cleanup EXIT
 
-# The numbered baseline deliberately excludes drafts. Apply this draft only to
-# the guarded job-local scratch database so the functional checks can exercise it.
+# The numbered CLI push already applied 0196 once to this scratch database.
+# Exercise replay safety inside a rollback transaction without changing the
+# schema that the functional checks below inspect.
 psql_local <<'SQL'
 BEGIN;
-\i db/migration-drafts/UNNUMBERED_reward_ssv_hardening.sql
-COMMIT;
-SQL
-
-# A second transactional application must succeed. Rolling back the replay
-# keeps the first application's schema untouched while exercising replay safety.
-psql_local <<'SQL'
-BEGIN;
-\i db/migration-drafts/UNNUMBERED_reward_ssv_hardening.sql
+\i db/migrations/0196_reward_ssv_hardening.sql
 ROLLBACK;
 SQL
 

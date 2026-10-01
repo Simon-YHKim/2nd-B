@@ -120,14 +120,16 @@ export async function ensureCommunityProfile(): Promise<string> {
 
 // ---------------------------------------------------------------- rooms
 
-/** Rooms are already scoped to my memberships by RLS — no filter args. */
-export async function listRooms(): Promise<CommunityRoom[]> {
+/** Rooms are scoped to my memberships by RLS. A deep link must bypass the 50-room list limit. */
+export async function listRooms(roomId?: string): Promise<CommunityRoom[]> {
   const supabase = getSupabaseClient();
-  const { data: rooms, error } = await supabase
+  let query = supabase
     .from("community_rooms")
-    .select("id, kind, title, last_message_at, community_room_members(user_id, role)")
+    .select("id, kind, title, last_message_at, community_room_members(user_id, role)");
+  if (roomId) query = query.eq("id", roomId);
+  const { data: rooms, error } = await query
     .order("last_message_at", { ascending: false })
-    .limit(50);
+    .limit(roomId ? 1 : 50);
   if (error) throw error;
 
   const memberIds = new Set<string>();

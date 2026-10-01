@@ -18,6 +18,7 @@ jest.mock("../../llm/crosscheck", () => ({ crosscheck: jest.fn() }));
 
 const mockCall = callLlm as unknown as jest.Mock;
 const mockCross = crosscheck as unknown as jest.Mock;
+const liveReply = (text: string) => ({ text, audit: { modelUsed: "live-test-model" } });
 
 // Two personas that parsePersonaSynthesis will accept, grounded in the input
 // below. The exact shape is the surface's own; what matters here is the COUNT.
@@ -45,7 +46,7 @@ beforeEach(() => {
 
 describe("it is actually wired", () => {
   test("the cross-check is called after a successful synthesis", async () => {
-    mockCall.mockResolvedValue({ text: reply(["A", "B"]) });
+    mockCall.mockResolvedValue(liveReply(reply(["A", "B"])));
     mockCross.mockResolvedValue({ text: reply(["A", "B"]), skipped: "disabled" });
 
     await synthesizePersonas("u1", INPUT, "ko");
@@ -61,9 +62,18 @@ describe("it is actually wired", () => {
   });
 
   test("nothing to check means nothing is spent", async () => {
-    mockCall.mockResolvedValue({ text: JSON.stringify({ personas: [] }) });
-    const out = await synthesizePersonas("u1", INPUT, "ko");
-    expect(out).toEqual([]);
+    mockCall.mockResolvedValue(liveReply(JSON.stringify({ personas: [] })));
+    await expect(synthesizePersonas("u1", INPUT, "ko")).rejects.toThrow("polaris_no_grounded_result");
+    expect(mockCross).not.toHaveBeenCalled();
+  });
+  test("a metered server result can use a newer snapshot than the preliminary client input", async () => {
+    mockCall.mockResolvedValue(liveReply(JSON.stringify({personas:[{
+      label:"Builder",summary:"A role based on the server snapshot.",
+      evidence:{domains:["work"],constructs:["self-reported narrative (same-source)"]},
+    }]})));
+    // INPUT predates the saved work interview. The caller reloads persisted
+    // server cards after this response; an older local parser cannot undo it.
+    await expect(synthesizePersonas("u1",INPUT,"ko",false,"reserved-id")).resolves.toEqual([]);
     expect(mockCross).not.toHaveBeenCalled();
   });
 });
@@ -71,7 +81,7 @@ describe("it is actually wired", () => {
 describe("it cannot cost the user their personas", () => {
   test("a rewrite that parses to FEWER personas is discarded", async () => {
     // The failure that would read as a thin corpus rather than as a bug.
-    mockCall.mockResolvedValue({ text: reply(["A", "B"]) });
+    mockCall.mockResolvedValue(liveReply(reply(["A", "B"])));
     mockCross.mockResolvedValue({ text: reply(["A"]) });
 
     const out = await synthesizePersonas("u1", INPUT, "ko");
@@ -79,7 +89,7 @@ describe("it cannot cost the user their personas", () => {
   });
 
   test("a rewrite that does not parse at all is discarded", async () => {
-    mockCall.mockResolvedValue({ text: reply(["A", "B"]) });
+    mockCall.mockResolvedValue(liveReply(reply(["A", "B"])));
     mockCross.mockResolvedValue({ text: "I have revised the claim as follows: ..." });
 
     const out = await synthesizePersonas("u1", INPUT, "ko");
@@ -89,7 +99,7 @@ describe("it cannot cost the user their personas", () => {
   test("a rewrite that keeps the count is taken", async () => {
     // Otherwise the guard would make the whole feature inert - the point is to
     // accept a genuine improvement, only refusing a destructive one.
-    mockCall.mockResolvedValue({ text: reply(["A", "B"]) });
+    mockCall.mockResolvedValue(liveReply(reply(["A", "B"])));
     mockCross.mockResolvedValue({ text: reply(["Revised A", "Revised B"]) });
 
     const out = await synthesizePersonas("u1", INPUT, "ko");
@@ -98,7 +108,7 @@ describe("it cannot cost the user their personas", () => {
   });
 
   test("a skipped check returns the original without re-parsing", async () => {
-    mockCall.mockResolvedValue({ text: reply(["A", "B"]) });
+    mockCall.mockResolvedValue(liveReply(reply(["A", "B"])));
     mockCross.mockResolvedValue({ text: reply(["A", "B"]), skipped: "vendors_collapsed" });
 
     const out = await synthesizePersonas("u1", INPUT, "ko");

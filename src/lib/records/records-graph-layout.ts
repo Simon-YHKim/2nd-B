@@ -25,6 +25,7 @@ export interface Pt {
 
 const CENTER: Pt = { x: 0.5, y: 0.5 };
 export const RECORDS_GRAPH_MIN_CANVAS_EXTENT = 320;
+export const RECORDS_GRAPH_CANVAS = 1000;
 export const RECORDS_GRAPH_GRID_STEP = 0.14;
 export const MAX_RECORDS_PER_GRAPH_DOMAIN = 3;
 
@@ -36,6 +37,113 @@ export const RECORDS_GRAPH_SVG_PRIMITIVE_BUDGET = 1200;
 export const RECORDS_GRAPH_NON_EDGE_PRIMITIVE_RESERVE = 176;
 export const RECORDS_GRAPH_EDGE_PRIMITIVE_BUDGET =
   RECORDS_GRAPH_SVG_PRIMITIVE_BUDGET - RECORDS_GRAPH_NON_EDGE_PRIMITIVE_RESERVE;
+
+/**
+ * Match the SVG viewBox to the viewport. On a tall phone, bend the safe
+ * lattice's square perimeter into an ellipse so records radiate from Polaris
+ * instead of tracing a visible rectangular frame. Short/square canvases keep
+ * the lattice, where its 44dp hit-target spacing is needed most.
+ */
+export function recordsGraphViewport(width: number, height: number) {
+  const extent = Math.max(1, Math.min(width, height));
+  const canvasWidth = (RECORDS_GRAPH_CANVAS * width) / extent;
+  const canvasHeight = (RECORDS_GRAPH_CANVAS * height) / extent;
+  // The view switch/count rail occupies the top 56dp. Preserve the 320dp
+  // lattice floor so 44dp record targets remain separated on short screens.
+  const topInset = (
+    RECORDS_GRAPH_CANVAS * Math.min(72, Math.max(0, height - RECORDS_GRAPH_MIN_CANVAS_EXTENT))
+  ) / extent;
+  return {
+    width: canvasWidth,
+    height: canvasHeight,
+    project: (point: Pt): Pt => {
+      if (height / width < 1.35 || width < 360) {
+        return {
+          x: point.x * canvasWidth,
+          y: topInset + point.y * (canvasHeight - topInset),
+        };
+      }
+      const dx = (point.x - 0.5) / 0.42;
+      const dy = (point.y - 0.5) / 0.42;
+      // Concentric square-to-disc mapping: equal steps along the original
+      // perimeter become equal angular steps, preventing corner clustering.
+      const alongX = Math.abs(dx) > Math.abs(dy);
+      const radius = alongX ? dx : dy;
+      const angle = radius === 0 ? 0 : alongX
+        ? (Math.PI / 4) * (dy / dx)
+        : Math.PI / 2 - (Math.PI / 4) * (dx / dy);
+      return {
+        x: canvasWidth * (0.5 + 0.44 * radius * Math.cos(angle)),
+        y: topInset + (canvasHeight - topInset) * (0.5 + 0.44 * radius * Math.sin(angle)),
+      };
+    },
+  };
+}
+
+export interface RecordsGraphCamera {
+  zoom: number;
+  x: number;
+  y: number;
+}
+
+export const RECORDS_GRAPH_MAX_ZOOM = 2.6;
+
+/** The sky has no canvas edge; only the lens magnification has stops. */
+export function clampRecordsGraphCamera(camera: RecordsGraphCamera, viewport: { width: number; height: number }): RecordsGraphCamera {
+  void viewport;
+  const zoom = Math.min(RECORDS_GRAPH_MAX_ZOOM, Math.max(1, camera.zoom));
+  return { zoom, x: camera.x, y: camera.y };
+}
+
+/** Telescope lens: zoom and slew together, keeping the touched star under the moving midpoint. */
+export function pinchRecordsGraphCamera(
+  camera: RecordsGraphCamera,
+  requestedZoom: number,
+  startFocal: Pt,
+  currentFocal: Pt,
+  viewport: { width: number; height: number },
+): RecordsGraphCamera {
+  const zoom = Math.min(RECORDS_GRAPH_MAX_ZOOM, Math.max(1, requestedZoom));
+  return {
+    zoom,
+    x: camera.x + startFocal.x * viewport.width / camera.zoom - currentFocal.x * viewport.width / zoom,
+    y: camera.y + startFocal.y * viewport.height / camera.zoom - currentFocal.y * viewport.height / zoom,
+  };
+}
+
+/** focalX/Y are fractions of the visible canvas; the same world point stays under the fingers/cursor. */
+export function zoomRecordsGraphCamera(
+  camera: RecordsGraphCamera,
+  requestedZoom: number,
+  focalX: number,
+  focalY: number,
+  viewport: { width: number; height: number },
+): RecordsGraphCamera {
+  const zoom = Math.min(RECORDS_GRAPH_MAX_ZOOM, Math.max(1, requestedZoom));
+  const fx = Math.min(1, Math.max(0, focalX));
+  const fy = Math.min(1, Math.max(0, focalY));
+  const worldX = camera.x + (fx * viewport.width) / camera.zoom;
+  const worldY = camera.y + (fy * viewport.height) / camera.zoom;
+  return clampRecordsGraphCamera({
+    zoom,
+    x: worldX - (fx * viewport.width) / zoom,
+    y: worldY - (fy * viewport.height) / zoom,
+  }, viewport);
+}
+
+export function panRecordsGraphCamera(
+  camera: RecordsGraphCamera,
+  deltaX: number,
+  deltaY: number,
+  canvas: { width: number; height: number },
+  viewport: { width: number; height: number },
+): RecordsGraphCamera {
+  return clampRecordsGraphCamera({
+    ...camera,
+    x: camera.x - (deltaX * viewport.width) / (canvas.width * camera.zoom),
+    y: camera.y - (deltaY * viewport.height) / (canvas.height * camera.zoom),
+  }, viewport);
+}
 
 type GridPt = readonly [x: number, y: number];
 
@@ -138,6 +246,24 @@ export function budgetRecordsGraphEdgeCells<T>(
 
 export function layoutRecordsGraph(graph: RecordsGraph): Record<string, Pt> {
   const pos: Record<string, Pt> = { polaris: { ...CENTER } };
+
+  // Approved roles occupy three separated second-tier slots. Their cited
+  // records fan out from those slots; no retired lifestyle-domain nodes enter
+  // this graph. Keep the existing domain layout for legacy callers/tests.
+  const roleSlots = [0, 2, 5] as const;
+  for (const node of graph.nodes) {
+    if (node.kind !== "persona") continue;
+    const slot = DOMAIN_GRID[roleSlots[node.personaIndex ?? 0] ?? 0];
+    pos[node.id] = gridPoint(slot.star);
+  }
+  for (const node of graph.nodes) {
+    if (node.kind !== "record" || !node.personaId) continue;
+    const siblings = graph.nodes.filter((candidate) => candidate.kind === "record" && candidate.personaId === node.personaId);
+    const owner = graph.nodes.find((candidate) => candidate.id === node.personaId);
+    const slot = DOMAIN_GRID[roleSlots[owner?.personaIndex ?? 0] ?? 0];
+    const slots = recordSlots(siblings.length, slot);
+    pos[node.id] = gridPoint(slots[siblings.indexOf(node)]);
+  }
 
   // Domain stars on stable lattice slots keyed by their Big-Dipper index.
   for (const n of graph.nodes) {

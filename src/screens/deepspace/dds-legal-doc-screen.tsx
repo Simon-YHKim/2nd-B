@@ -5,7 +5,8 @@
 // draft badge while the body still carries [기입] placeholders -- the screen
 // must not present an unfinished document as final (legal honesty).
 import { useCallback, useMemo, useState } from "react";
-import { BackHandler, Pressable, StyleSheet, Text as RNText, View } from "react-native";
+import { BackHandler, Pressable, StyleSheet, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
@@ -107,6 +108,9 @@ export function DeepSpaceLegalDocScreen({
           <Text variant="caption" style={local.draftBadgeText}>{doc.draftBadge}</Text>
         </View>
       ) : null}
+
+      {/* PolaScope 병기 안내: 약관 적용일(2026-10-05) 전까지만. 약관·동의 개정 PR 에서 지운다 (DECISIONS 26.09.28). */}
+      <Text variant="subtle">{t("common:app.renameNote")}</Text>
 
       <View style={styles.card}>
         {visibleBlocks.map((b, i) => {

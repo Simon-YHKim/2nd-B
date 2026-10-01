@@ -7,6 +7,7 @@ import { resolve } from "node:path";
 
 import { PRIVACY_DOC, REFUND_DOC, TERMS_DOC, isDraft } from "../legal-documents";
 import { expectShape } from "@/lib/testing/expect-shape";
+import { PROFILE_DETAIL_KEYS, type ProfileDetailKey } from "@/lib/persona/profile-details";
 import { CONSENT_VERSION, PRIVACY_POLICY_VERSION } from "../../supabase/consent";
 import {
   parseLegalMarkdown,
@@ -112,8 +113,9 @@ describe("legal document snapshots", () => {
     expect(PRIVACY_DOC.body).toContain("Firebase Analytics");
     expect(PRIVACY_DOC.body).toContain("제28조의8 제1항 제3호");
     expect(PRIVACY_DOC.body).toContain("Article 28-8(1)3");
-    expect(PRIVACY_DOC.body).toContain("건강·활동 측정값은 어떠한 AI 제공자에게도 전송하지 않고");
-    expect(PRIVACY_DOC.body).toContain("health and activity measurements are not sent to any AI provider");
+    // v4 (2026-09-28) names both health sources; the no-AI promise covers both.
+    expect(PRIVACY_DOC.body).toContain("건강·활동 측정값은 Health Connect에서 읽은 것이든 Apple 건강 앱(HealthKit)에서 읽은 것이든 어떠한 AI 제공자에게도 전송하지 않고");
+    expect(PRIVACY_DOC.body).toContain("health and activity measurements, whether read from Health Connect or Apple Health (HealthKit), are not sent to any AI provider");
     expect(PRIVACY_DOC.body).not.toContain("음성·오디오는 텍스트 전사를 위해 Google에 전송");
     expect(PRIVACY_DOC.body).not.toContain("voice/audio is sent to Google");
   });
@@ -128,12 +130,61 @@ describe("legal document snapshots", () => {
     }
   });
 
-  test("2026-09-07 revision: version alignment and technically honest sections 4-5", () => {
+  test("2026-09-29 policy lists the optional avatar setting and keeps drawings on the device", () => {
+    // v5 (a notice revision): the saved avatar recipe (users.avatar_spec, 0206)
+    // is an optional profile item; palette/gallery drawings never leave the device.
+    expect(PRIVACY_DOC.body).toContain("아바타 설정(선택): 고른 아바타 조합(종류·머리·얼굴 장식·표정·색·옷·직업 의상·소품 등). 다른 이용자에게는 보이지 않으며 계정을 지우면 함께 지워집니다. 아바타 조합은 실제 직업·외모 정보로 쓰지 않습니다. 기기에서 그린 픽셀 그림은 회사 서버로 보내지 않습니다.");
+    expect(PRIVACY_DOC.body).toContain("Avatar settings (optional): the avatar combination you choose (type, hair, face items, expression, colors, clothing, job outfit, accessories, etc.). Other users cannot see it, and it is deleted together with your account. The avatar combination is not used as information about your actual job or appearance. Pixel drawings you make on your device are not sent to our servers.");
+    // The Company stores the recipe (Supabase), so "only you" overstated it:
+    // the promise is that OTHER USERS cannot see it (0206 has no cross-user read).
+    expect(PRIVACY_DOC.body).not.toContain("본인만 볼 수 있");
+    expect(PRIVACY_DOC.body).not.toContain("Only you can see");
+    expect(PRIVACY_DOC.body).toContain("| 2026-09-29 | 제1조: 프로필(선택)에 아바타 설정");
+    expect(PRIVACY_DOC.body).toContain("상세 프로필 선택 항목(");
+    expect(PRIVACY_DOC.body).toContain("| 2026-09-29 | Section 1: added avatar settings");
+    expect(PRIVACY_DOC.body).toContain("기존 이용자의 동의는 그대로 유효하고 다시 동의를 받지 않습니다");
+    expect(PRIVACY_DOC.body).toContain("existing consent remains valid and is not asked for again");
+  });
+
+  test("the policy names every optional profile-detail item the app stores (users.profile_details, 0132)", () => {
+    // Bound to the code, not to a copy of the list: adding a key to
+    // PROFILE_DETAIL_KEYS without naming it in the policy fails here.
+    const KO: Record<ProfileDetailKey, string> = {
+      occupation: "직업",
+      region: "사는 지역(시/도 수준)",
+      household: "가구(함께 사는 사람)",
+      dailyRhythm: "생활 리듬",
+      workHours: "주로 일하거나 공부하는 시간대",
+      workDays: "주로 일하는 요일",
+      busiestSeason: "가장 바쁜 시기",
+    };
+    const EN: Record<ProfileDetailKey, string> = {
+      occupation: "occupation",
+      region: "region (province or city level)",
+      household: "household (who you live with)",
+      dailyRhythm: "daily rhythm",
+      workHours: "the hours you usually work or study",
+      workDays: "the days you usually work",
+      busiestSeason: "your busiest time of year",
+    };
+    expect(Object.keys(KO).sort()).toEqual([...PROFILE_DETAIL_KEYS].sort());
+    expect(Object.keys(EN).sort()).toEqual([...PROFILE_DETAIL_KEYS].sort());
+    const koLine = PRIVACY_DOC.body.split("\n").find((l) => l.includes("상세 프로필(선택): "));
+    const enLine = PRIVACY_DOC.body.split("\n").find((l) => l.includes("Detailed profile (optional): "));
+    const koList = koLine?.split("상세 프로필(선택): ")[1]?.split(". ")[0] ?? "";
+    const enList = enLine?.split("Detailed profile (optional): ")[1]?.split(". ")[0] ?? "";
+    for (const key of PROFILE_DETAIL_KEYS) {
+      expect(koList).toContain(KO[key]);
+      expect(enList).toContain(EN[key]);
+    }
+  });
+
+  test("2026-09-29 policy keeps the required notice and prior technical disclosures", () => {
     const md = readFileSync(resolve(ROOT, "docs/legal/privacy-policy.md"), "utf8");
     // md, app snapshot, and the consent writer all carry the same date.
-    expect(md).toContain("_시행일: 2026-09-07 · 최종 개정: 2026-09-07_");
-    expect(PRIVACY_DOC.body).toContain("시행일: 2026-09-07");
-    expect(PRIVACY_POLICY_VERSION).toBe("2026-09-07");
+    expect(md).toContain("_시행일: 2026-09-29 · 최종 개정: 2026-09-29_");
+    expect(PRIVACY_DOC.body).toContain("시행일: 2026-09-29");
+    expect(PRIVACY_POLICY_VERSION).toBe("2026-09-29");
     // #1589 revises the sign-up consent notice itself (ackOverseas and
     // overseasTransfer.body), so the notice version moves with the policy:
     // final tuple = consent 09-02 / policy 09-02 / terms 08-16.

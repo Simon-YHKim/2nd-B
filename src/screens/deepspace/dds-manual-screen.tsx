@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text as RNText, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { router, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 
@@ -10,6 +11,7 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { m3 } from "@/lib/theme/m3";
 
 import {
@@ -20,6 +22,7 @@ import {
 } from "./dds-manual-content";
 
 export function DeepSpaceManualScreen() {
+  const { userId } = useAuth();
   // ⚠ 여기 `i18n.language.startsWith("ko") ? "ko" : "en"` 이 있었다. 앱은 다섯
   // 언어를 제공하는데 안내서만 둘로 좁히고 있었다 — es · pt · id 사용자는 번역이
   // 있는데도 영어를 봤다. 문구가 번들로 갔으니 좁힐 이유가 없다.
@@ -48,7 +51,7 @@ export function DeepSpaceManualScreen() {
             <PixelGlyph name="arrowBack" color={m3.color.onSurface} size={24} />
           </PixelPressable>
           <RNText accessibilityRole="header" style={[m3TextStyle("titleLarge"), styles.title]}>
-            {t("manual.title")}
+            {t("title")}
           </RNText>
         </View>
 
@@ -157,7 +160,7 @@ export function DeepSpaceManualScreen() {
             <PixelPressable
               variant="frame"
               onPress={() => {
-                resetCoachmarks();
+                if (userId) resetCoachmarks(userId);
                 router.replace("/");
               }}
               accessibilityLabel={t("manual.replayCoachmarks")}

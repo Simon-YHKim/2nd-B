@@ -26,7 +26,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 
 // Web-only base reset (no-op on native). See global.css for why it exists.
 import "../../global.css";
@@ -34,22 +34,22 @@ import "../../global.css";
 import { initI18n, useI18nReady } from "@/lib/i18n";
 import {
   captureEvent,
-  getAnalyticsConsentRevision,
   initAnalytics,
   pageView,
   setAnalyticsConsent,
+  suspendAnalyticsForUnresolvedProfile,
 } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
+import { HealthAutoReadSync } from "@/components/health/HealthAutoReadSync";
 import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-store";
-import { requiresGuardianConsent, resolveJurisdiction } from "@/lib/auth/consent-age";
+import { hydrateAnalyticsConsent } from "@/lib/analytics/auth-conversions";
 import { profileRouteHold } from "@/lib/auth/profile-probe";
-import { getSupabaseClient } from "@/lib/supabase/client";
 import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
-import { ageInYears } from "@/lib/supabase/auth";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
+import { AvatarSetupGate, AvatarSetupSceneGuard } from "@/components/avatar/AvatarSetupGate";
 import { EncryptedStorageRecoveryGate } from "@/screens/deepspace/storage-recovery-gate";
 import { BackArrow } from "@/components/ui/BackArrow";
 import { BackgroundTaskDock, CompletionToast, SecondbHeadTrackProvider } from "@/components/deepspace";
@@ -65,11 +65,25 @@ import { SITE_TITLE } from "@/lib/site-meta";
 // Rendered in both root-gate branches so the served page's first <title> is
 // never empty. Hoisted to module scope because it is constant: re-creating the
 // element per render would make helmet re-emit on every root re-render.
-const SITE_HEAD = (
-  <Helmet>
-    <title>{SITE_TITLE}</title>
-  </Helmet>
-);
+//
+// Web only. <Helmet> needs a HelmetProvider above it and nothing mounts one on
+// Android or iOS (src has none), so rendering it there threw "Cannot read
+// property 'add' of undefined" inside HelmetDispatcher during RootLayout's first
+// render, and the app opened straight onto the error screen (main diagnostic
+// APKs dbe4c1ab 4/4 boots and 18ef7f43 1/1; 7a14f812, before PR 1742, 0/1;
+// DECISIONS.md 26.09.14 09:11). On native this is null, so neither branch
+// renders anything extra. The import above is not the problem: the stack shows
+// RootLayout rendering, so this module had already evaluated.
+//
+// The guard is Platform.OS, not `typeof document`: the static export renders
+// this module in Node, where there is no document, and that render is the one
+// whose title ships. site-head-web-only.test.ts holds both.
+const SITE_HEAD =
+  Platform.OS === "web" ? (
+    <Helmet>
+      <title>{SITE_TITLE}</title>
+    </Helmet>
+  ) : null;
 import {
   accountEpochFromSnapshot,
   accountTransitionPendingFromSnapshot,
@@ -191,11 +205,13 @@ export default function RootLayout() {
             <AnalyticsConsentSync />
             <AddressTermSync />
             <AuditWriteOutboxSync />
+            <HealthAutoReadSync />
             {/* Big SecondB head follows touch on every screen (auto by size >= 80);
                 bubbling onTouch* so it never steals taps. Dock + Toast are global
                 overlays for the background-task loading system. */}
             <SecondbHeadTrackProvider>
             <IntroGate>
+              <AvatarSetupGate>
               {/* O-23 Stage③: the Stack mounts every route in BOTH UI modes (the
                   flag only swaps which component `index` renders — see index.tsx —
                   and adds the deep-space /graph alias). This is the nav-contract
@@ -216,6 +232,7 @@ export default function RootLayout() {
               <Stack.Screen name="community" />
               <Stack.Screen name="community/[room]" />
               <Stack.Screen name="community/join/[token]" />
+              <Stack.Screen name="avatar-palette" />
               <Stack.Screen name="jarvis" />
               <Stack.Screen name="plans" />
               <Stack.Screen name="subscription" />
@@ -231,7 +248,10 @@ export default function RootLayout() {
               <Stack.Screen name="trinity" />
               <Stack.Screen name="mbti" />
               <Stack.Screen name="settings" />
+              <Stack.Screen name="dashboard" options={{ presentation: "transparentModal", contentStyle: { backgroundColor: "transparent" } }} />
+              <Stack.Screen name="data-connections" />
               <Stack.Screen name="privacy" />
+              <Stack.Screen name="service-consent" />
               <Stack.Screen name="account" />
               <Stack.Screen name="import" />
               <Stack.Screen name="interview" />
@@ -241,13 +261,16 @@ export default function RootLayout() {
                   five Pattern Cores route to /records + /wiki; the center to
                   /core-brain. (/imagine is now a redirect into Divergent mode.) */}
               <Stack.Screen name="records" options={fadeTransition} />
-              <Stack.Screen name="core-brain" options={fadeTransition} />
+              {/* 북극성 is a card over the sky, not a page (Simon 2026-09-30):
+                  the home stays underneath, PolarisCardOverlay draws the scrim. */}
+              <Stack.Screen name="core-brain" options={{ presentation: "transparentModal", contentStyle: { backgroundColor: "transparent" } }} />
               <Stack.Screen name="+not-found" />
               </ThemedStack>
               <BackArrow />
               <AppTabBar />
               <BackgroundTaskDock />
               <CompletionToast />
+              </AvatarSetupGate>
             </IntroGate>
             </SecondbHeadTrackProvider>
           </AuthProvider>
@@ -287,7 +310,9 @@ function ThemedStack({ children }: { children: React.ReactNode }) {
       <Stack
         screenLayout={({ children: screen, route }) => (
           <ProfileProbeScope routeName={route.name}>
-            <AccountScope routeName={route.name}>{screen}</AccountScope>
+            <AvatarSetupSceneGuard routeName={route.name}>
+              <AccountScope routeName={route.name}>{screen}</AccountScope>
+            </AvatarSetupSceneGuard>
           </ProfileProbeScope>
         )}
         screenOptions={{
@@ -442,71 +467,29 @@ function ThemedStatusBar() {
 }
 
 /**
- * Gates the Stack on auth + intro state.
+ * Gates the Stack on the one-shot opening + auth state.
  *
- *   auth resolving       → InlineLoader (brief, dark)
- *   no auth              → render Stack (lands on /sign-in via /index redirect)
- *   auth + intro pending → LoadingScreen plays cell-team build
+ *   app boot             → LoadingScreen plays while auth/profile resolve
+ *   no auth + intro done → render Stack (lands on /sign-in via /index redirect)
  *   auth + intro done    → render Stack (the main app) once the profile is
  *                          answered; InlineLoader until then, and the shared
  *                          retry if the probe failed (profileRouteHold)
  *
- * The cell-team intro now plays at the post-sign-in handoff: 'cells
- * building your second brain' literally welcomes you in. Returning
- * authenticated users on cold launch see it as 'reloading your brain'.
+ * The opening belongs to cold-start boot, before either the sign-in landing or
+ * an authenticated route. AuthProvider stays mounted behind it, so its four
+ * seconds are useful loading time rather than a post-login interruption.
  */
-const INTRO_SEEN_KEY = "secondB_intro_played_v1";
-
-// P2-9 (persona sim): the seen-flag was sessionStorage-only, which simply
-// does not exist on native — every cold start replayed the >=2.5s tap-gated
-// intro, a real tax on the 60-90 second between-jobs sessions. Web keeps the
-// once-per-tab-session behavior ("reloading your brain" on a fresh tab);
-// native persists once-per-device via AsyncStorage (onboarding/state.ts
-// pattern). The hydrate is async, so IntroGate also checks it in an effect.
-interface AsyncStorageLike {
-  getItem(key: string): Promise<string | null>;
-  setItem(key: string, value: string): Promise<void>;
-}
-
-function nativeIntroStorage(): AsyncStorageLike | null {
-  const nav = globalThis.navigator as { product?: string } | undefined;
-  if (nav?.product !== "ReactNative") return null;
-  try {
-    return require("@react-native-async-storage/async-storage").default as AsyncStorageLike;
-  } catch {
-    return null;
-  }
-}
+// The opening is boot UI, not onboarding. Keep its seen state in this JS
+// runtime only: a full reload/cold launch replays it while navigation and auth
+// events in the same running app do not.
+let introPlayedThisRuntime = false;
 
 function introAlreadyPlayed(): boolean {
-  try {
-    return typeof sessionStorage !== "undefined" && sessionStorage.getItem(INTRO_SEEN_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-async function introAlreadyPlayedNative(): Promise<boolean> {
-  const store = nativeIntroStorage();
-  if (!store) return false;
-  try {
-    return (await store.getItem(INTRO_SEEN_KEY)) === "1";
-  } catch {
-    return false;
-  }
+  return introPlayedThisRuntime;
 }
 
 function markIntroPlayed(): void {
-  try {
-    if (typeof sessionStorage !== "undefined") sessionStorage.setItem(INTRO_SEEN_KEY, "1");
-  } catch {
-    /* ignore — private mode */
-  }
-  void nativeIntroStorage()
-    ?.setItem(INTRO_SEEN_KEY, "1")
-    .catch(() => {
-      /* best-effort */
-    });
+  introPlayedThisRuntime = true;
 }
 
 function IntroGate({ children }: { children: React.ReactNode }) {
@@ -522,26 +505,25 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   } = useAuth();
   const segments = useSegments();
   const pathname = usePathname();
-  // Play the cell-team intro only once per tab session. On re-entry (tab
-  // switch back, navigating home, a fresh auth event) we go straight to the
-  // app instead of re-showing the loader that waits for a tap — that was the
-  // "infinite loading on re-entry" report.
+  // Play the opening only once per running app/tab. A fresh auth event
+  // (including the signed-out -> signed-in transition) must not restart it.
   const [introDone, setIntroDone] = useState(introAlreadyPlayed);
-  // Native (P2-9): the seen-flag persists in AsyncStorage; hydrate it once.
-  // A returning user skips the intro instead of paying 2.5s + a tap on every
-  // cold start. Web is unaffected (the native store is null there).
-  useEffect(() => {
-    if (introDone) return;
-    let cancelled = false;
-    void introAlreadyPlayedNative().then((seen) => {
-      if (seen && !cancelled) setIntroDone(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-    // Hydrate exactly once on mount — introDone is read but deliberately not
-    // a dependency (it only flips one way and the effect self-noops then).
-  }, []);
+
+  // Start the opening before choosing between sign-in and an authenticated
+  // route. It doubles as the loader: auth, recovery and the first profile probe
+  // continue under this branch, and the exit is held until they settle.
+  const profileHold = profileRouteHold({ loading, userId, hasProfile, profileProbeFailed }, segments[0]);
+  if (!introDone) {
+    return (
+      <LoadingScreen
+        ready={!loading && recoveryReady && profileHold !== "loading"}
+        onContinue={() => {
+          markIntroPlayed();
+          setIntroDone(true);
+        }}
+      />
+    );
+  }
 
   // Cold start must not render an ordinary app route until the persisted
   // Supabase session and recovery marker have been reconciled. `introDone`
@@ -570,7 +552,6 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   // C10 ones, (auth) and read-only onboarding; ProfileProbeScope (ThemedStack)
   // holds every scene the same way, so leaving an exemption cannot mount a
   // feature route either.
-  const profileHold = profileRouteHold({ loading, userId, hasProfile, profileProbeFailed }, segments[0]);
   if (profileHold === "retry") return <ProfileProbeRetryScreen />;
 
   // A signed-in user whose profile has not been answered yet is not known either.
@@ -578,12 +559,10 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   // introDone branch below used to render the Stack right then: a restored session
   // opening /records read the user's records before age and consent were known
   // (vibe r260914 r3a2 gate finding). Hold with the loader, not the retry: waiting
-  // is not failing (profileGate in profile-probe.ts). While the intro has not played,
-  // the intro is already the loader (LoadingScreen renders no children and waits on
-  // !loading), so only the played-intro path needs this. Same-user re-probes publish
-  // loading=false from the cache (AuthContext resolveSession), so this does not
-  // flash mid-session.
-  if (profileHold === "loading" && introDone) return <InlineLoader />;
+  // is not failing (profileGate in profile-probe.ts). The boot opening already
+  // waited for this state on cold start; this loader handles later profile
+  // re-probes without replaying the opening.
+  if (profileHold === "loading") return <InlineLoader />;
 
   // Global C10 + PIPA-consent gate (re-audit 2026-06-03: per-screen gating was
   // leaky — inbox/wiki kept slipping through). An authenticated session with NO
@@ -614,37 +593,9 @@ function IntroGate({ children }: { children: React.ReactNode }) {
     return <Redirect href="/complete-profile" />;
   }
 
-  // Never swap the Stack for the intro while the user is INSIDE the (auth)
-  // group (E2E-3 cold-start variant): signUpWithEmail fires SIGNED_IN
-  // mid-submit, and on native introDone is false on every cold start
-  // (sessionStorage is web-only), so this gate used to replace the sign-up
-  // form with the LoadingScreen from the parent — destroying the typed
-  // email/DOB/consent and any failure toast, which the screen's own
-  // guard-hold cannot prevent. The intro still plays at the designed
-  // hand-off: the post-auth arrival at "/" flips segments out of (auth).
-  if (segments[0] === "(auth)") return <>{children}</>;
-
-  // Once the intro has played this session, just render the app/children —
-  // auth re-resolves quietly without re-gating the UI.
-  if (introDone) return <>{children}</>;
-
-  // Unauthenticated visitors skip the cell intro entirely once auth resolves —
-  // they should land on /sign-in immediately, not watch a loader.
-  if (!loading && !userId) return <>{children}</>;
-
-  // Otherwise show the cell-team intro. Crucially, `ready` is driven by the
-  // REAL auth/profile resolution (`!loading`) instead of a hardcoded true —
-  // so the loader genuinely reflects loading: it keeps typing while we resolve
-  // the session and only invites the tap once we're actually ready.
-  return (
-    <LoadingScreen
-      ready={!loading}
-      onContinue={() => {
-        markIntroPlayed();
-        setIntroDone(true);
-      }}
-    />
-  );
+  // The opening is complete for this runtime, so auth events and navigation
+  // render in place without replacing a form or replaying the animation.
+  return <>{children}</>;
 }
 
 // M1 (round-4): gate product analytics on the SERVER decision, not the
@@ -664,11 +615,13 @@ function AnalyticsConsentSync(): null {
   const lastTrackedPageRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Revoke synchronously before any server round-trip. This prevents a
-    // previous adult account's grant from surviving into auth loading, a new
-    // account, or an unresolved/minor age state.
-    setAnalyticsConsent(false, { isMinor: true, confirmedAdult: false });
+    // Account epoch transitions revoke synchronously inside analytics, before
+    // React publication. Do not turn hydration into a user's explicit OFF.
     lastTrackedPageRef.current = null;
+    if (recoveryUserId || recoveryPendingGlobal) {
+      setAnalyticsConsent(false, { isMinor: true, confirmedAdult: false });
+      return;
+    }
     if (loading || recoveryUserId || recoveryPendingGlobal) return;
     // AuthProvider must create the web Supabase client and subscribe before
     // any module starts a query. Otherwise auth-js can emit PASSWORD_RECOVERY
@@ -677,53 +630,19 @@ function AnalyticsConsentSync(): null {
     // the server-derived consent decision below may enable product analytics.
     void initAnalytics();
     if (!userId) {
+      setAnalyticsConsent(false, { isMinor: true, confirmedAdult: false });
       setConsentSyncVersion((version) => version + 1);
       return;
     }
     if (isMinor !== false) {
+      suspendAnalyticsForUnresolvedProfile();
       setConsentSyncVersion((version) => version + 1);
       return;
     }
-    const expectedRevision = getAnalyticsConsentRevision();
     let cancelled = false;
-    void (async () => {
-      try {
-        const supabase = getSupabaseClient();
-        const { data } = await supabase
-          .from("users")
-          .select("privacy_prefs,birth_date")
-          .eq("id", userId)
-          .maybeSingle();
-        const ext =
-          (data?.privacy_prefs as { external_analytics?: boolean } | null)?.external_analytics === true;
-        const age = data?.birth_date ? ageInYears(data.birth_date as string) : null;
-        const underDigitalConsentAge = age !== null && requiresGuardianConsent(age, resolveJurisdiction());
-        // AuthContext also derives isMinor from birth_date. Require BOTH views
-        // to say "adult"; missing or contradictory data stays blocked.
-        const under18 = age === null || age < 18 || isMinor !== false;
-        if (!cancelled) {
-          setAnalyticsConsent(
-            ext,
-            {
-              isMinor: under18,
-              confirmedAdult: !under18,
-              underDigitalConsentAge,
-            },
-            { expectedRevision },
-          );
-          setConsentSyncVersion((version) => version + 1);
-        }
-      } catch {
-        if (!cancelled) {
-          setAnalyticsConsent(
-            false,
-            { isMinor: true, confirmedAdult: false },
-            { expectedRevision },
-          );
-          setConsentSyncVersion((version) => version + 1);
-        }
-      }
-    })();
+    void hydrateAnalyticsConsent(userId).then(() => {
+      if (!cancelled) setConsentSyncVersion((version) => version + 1);
+    });
     return () => {
       cancelled = true;
     };

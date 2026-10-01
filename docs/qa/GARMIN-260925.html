@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2ndB Garmin 연동 경로 추가</title>
+<style>
+:root{color-scheme:light dark;--accent:#6551bd;--text:#252331;--muted:#66616f;background:#faf9fc;color:var(--text);font:16px/1.6 system-ui,sans-serif}body{max-width:860px;margin:40px auto;padding:0 20px}h1{font-size:1.8rem}a{color:var(--accent)}.cards{display:flex;flex-wrap:wrap;gap:12px}.card,details{border:1px solid var(--muted);padding:16px;margin:12px 0}.card{flex:1;min-width:150px}strong{color:var(--accent)}summary{cursor:pointer}svg{width:100%;height:auto;color:var(--text)}small{color:var(--muted)}:focus-visible{outline:3px solid var(--accent);outline-offset:4px}@media(prefers-color-scheme:dark){:root{--accent:#c6baff;--text:#f1eef7;--muted:#aaa5b6;background:#18161e}}
+</style>
+<main>
+<h1>Garmin도 내 폰 대시보드에서</h1>
+<p>Garmin Connect 항목과 기존 건강 데이터 가져오기 경로를 추가했습니다. <strong>Garmin 직접 API 연결이 완료된 것은 아닙니다.</strong></p>
+<small>2026-09-25 19:07 KST 기준 · codex/observatory-dashboard-260925 · 로컬 변경, 운영 배포 없음</small>
+<div class="cards"><div class="card"><strong>추가</strong><br>Garmin 전용 안내와 진입점</div><div class="card"><strong>보존</strong><br>성인 확인·가져오기 동의</div><div class="card"><strong>미구현</strong><br>직접 동기화·Body Battery</div></div>
+<svg viewBox="0 0 810 120" role="img" aria-label="Garmin Connect에서 OS 건강 앱으로 공유하고 사용자가 동의한 뒤 2ndB에서 가져오는 경로">
+<g fill="none" stroke="currentColor"><rect x="5" y="20" width="200" height="80" rx="8"/><path d="M205 60h90m-12-7 12 7-12 7"/><rect x="295" y="20" width="220" height="80" rx="8"/><path d="M515 60h90m-12-7 12 7-12 7"/><rect x="605" y="20" width="200" height="80" rx="8"/></g>
+<g fill="currentColor" text-anchor="middle" font-size="17"><text x="105" y="65">Garmin Connect</text><text x="405" y="52">Apple 건강 /</text><text x="405" y="77">Health Connect</text><text x="705" y="52">동의 후 가져오기</text><text x="705" y="77">2ndB 설치 앱</text></g></svg>
+<details open><summary>지금 가능한 범위와 제한</summary><p>대시보드 → 데이터 → Garmin Connect에서 기존 /import 화면으로 이동합니다. iOS는 Apple 건강, Android는 Android 14 이상 Health Connect 공유를 먼저 설정해야 합니다. 기존 앱은 지원되는 걸음·운동·수면·심박 자료를 읽습니다. 실제 전달 항목과 상세도는 Garmin 공유 기능과 OS 권한에 따라 다릅니다.</p><p>다른 기기의 건강 자료가 있어도 Garmin 연결 완료로 표시하지 않습니다. 현재 저장된 자료의 출처는 HealthKit 또는 Health Connect이며 원래 Garmin 기기인지 증명하지 못합니다. 웹 브라우저에서는 OS 건강 자료를 가져올 수 없습니다.</p></details>
+<details><summary>검증 결과</summary><ul><li>대시보드 단위 테스트: 2개 스위트, 14개 통과. Garmin 미성년·연령 미확인 제한과 허위 연결 표시 방지 포함.</li><li>TypeScript, 변경 파일 ESLint, 5개 언어 키 패리티, 번역 누락, 금지 어휘 검사 통과.</li><li>Orca에서 localhost:8081/dashboard 이동은 성공했으나 화면 스냅샷 중 런타임 연결이 종료되어 육안 검증은 완료하지 못했습니다.</li><li>Garmin 기기 → OS → 설치 앱 전체 흐름과 실제 데이터 수집은 검증하지 않았습니다.</li></ul></details>
+<details><summary>직접 연동을 위한 다음 단계와 공식 근거</summary><p>Garmin 개발자 프로그램 신청·승인 후 Health / Activity API용 OAuth 동의, 서버 커넥터, 출처 식별, 중복 방지와 연결 해제를 구현해야 합니다. 이번 변경에서는 외부 등록·새 자격증명·유료 호출·운영 마이그레이션을 수행하지 않았습니다. 일부 지표의 상업적 조건은 별도 확인해야 합니다.</p><ul><li><a href="https://developer.garmin.com/gc-developer-program/program-faq/">Garmin 개발자 프로그램 FAQ</a></li><li><a href="https://developer.garmin.com/gc-developer-program/health-api/">Health API</a> · <a href="https://developer.garmin.com/gc-developer-program/activity-api/">Activity API</a></li><li><a href="https://support.garmin.com/en-GB/?faq=JToBEy0jfe6pIygark2Ui5">Health Connect 공유</a></li><li><a href="https://support.garmin.com/en-AU/?faq=lK5FPB9iPF5PXFkIpFlFPA">Apple 건강 공유</a></li></ul></details>
+</main>
+</html>

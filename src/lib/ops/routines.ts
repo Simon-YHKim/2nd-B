@@ -14,7 +14,7 @@
 import { getSupabaseClient } from "../supabase/client";
 import type { HealthSample } from "../health/HealthSource";
 import type { OpsDomainId } from "./domains";
-import { routinesSatisfiedBy } from "./health-link";
+import { localDayKeyFromIso, routinesSatisfiedBy } from "./health-link";
 import type { OpsRecommendation } from "./recommend";
 
 export type OpsRecurrence = "daily" | "weekly" | "none";
@@ -239,12 +239,18 @@ export async function logRoutineCompletion(
 export async function applyHealthAutoComplete(
   userId: string,
   sample: { id: string; metricType: HealthSample["metricType"]; value: number; startedAt: string },
+  /** Active routines loaded once by a caller that applies many samples in a row. */
+  preloaded?: ReadonlyArray<Pick<OpsRoutine, "id" | "domain_id" | "created_at">>,
 ): Promise<string[]> {
-  const routines = await listActiveRoutines(userId);
+  const routines = preloaded ?? (await listActiveRoutines(userId));
+  // A sample from a day before the routine existed does not complete it: the automatic read
+  // reaches back to yesterday, and a routine made this morning must not get yesterday's tick.
+  // An unreadable created_at restricts nothing.
+  const createdOn = new Map(routines.map((r) => [r.id, localDayKeyFromIso(r.created_at, new Date(0))]));
   const hits = routinesSatisfiedBy(
     { metricType: sample.metricType, value: sample.value, startedAt: sample.startedAt },
     routines.map((r) => ({ id: r.id, domain_id: r.domain_id })),
-  );
+  ).filter((hit) => hit.completedOn >= (createdOn.get(hit.routineId) ?? ""));
   for (const hit of hits) {
     await logRoutineCompletion(userId, hit.routineId, hit.completedOn, sample.id);
   }

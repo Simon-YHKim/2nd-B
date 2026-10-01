@@ -52,10 +52,13 @@ remote Supabase, real Gemini API calls) are deferred to Sprint 1.
 | Bundled asset + license disclosure | done (was C12; the constraint retired 2026-09-06, the check stays under its own name) |
 | Support SLA section (C11) | done (auto-responder Sprint 1) |
 
-> **Age-gate jurisdiction (current):** there is no country/jurisdiction detection
-> yet, so all users are gated on the KR rule (self-consent age 14, PIPA §22-2).
-> This is valid for the KR-first launch and holds until country detection lands.
-> Accurate non-KR gates (US COPPA under-13, EU GDPR Art.8) ship in a follow-up PR.
+> **Age-gate jurisdiction (current, 2026-09-21):** the self-consent floor is **per
+> country** - `resolveJurisdiction()` reads the device region and applies a 63-country
+> table (statutory 13-20, clamped up to 14); a country we cannot place gets **18**, not KR 14.
+> That client table is live now - it is not the follow-up. What is: **residence
+> self-report** (the device region is a user setting, not proof of residence),
+> **counsel sign-off** on the table, and **per-country enforcement on the server** -
+> the authoritative DB floor is still country-blind 14.
 > See `docs/CONSTRAINTS.md` C10 and `src/lib/auth/consent-age.ts`.
 
 ## Quick start
@@ -90,12 +93,17 @@ are superseded and must not be used.)
 ```bash
 npm run lint               # ESLint (C1: blocks foreign LLM SDKs)
 npm run type-check         # tsc --noEmit
+npm run check:edge-runtime # real Edge imports/types; requires Deno 2.9.7
 npm run check:i18n         # C7 EN/KO key parity
 npm run check:lexicon      # forbidden vocabulary scan
 npm run check:llm-boundary # @google/genai stays in gemini.ts
 npm run check:constraints  # hard-constraint aggregate
 npm test                   # jest (C9 ordering, C3 audit insertion)
 ```
+
+CI also runs `check:edge-runtime` with pinned Deno 2.9.7. It downloads public
+dependencies but never executes handlers. Set `DENO_BINARY` to use an isolated
+binary. This check does not prove hosted Supabase runtime or deployment parity.
 
 ## Bundled assets and licenses
 

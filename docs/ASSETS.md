@@ -96,15 +96,64 @@ screen.
 
 Rebuild: `python scripts/build-dither-tiles.py`.
 
+## Bundled audio (assets/audio/)
+
+- `observatory-ratchet.wav`, `observatory-focus-lock.wav`, `observatory-shutter.wav`:
+  active observatory camera sounds since 2026-09-26, edited from **actual CC0
+  recordings**, not synthesized. Ratchet: [Ratchet.wav by romulofs](https://freesound.org/people/romulofs/sounds/127533/).
+  Focus double beep and mechanical shutter: [Nice Canon Beep & Shutter Click by amoyssiadis](https://freesound.org/people/amoyssiadis/sounds/851925/).
+  Both source pages declare [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+  Sources are their openly published HQ MP3 previews, not the login-only original
+  downloads. Derivatives are mono 22.05 kHz PCM WAV: 160/200/290 ms,
+  7,100/8,864/12,834 bytes. One softened ratchet click plus silence loops at
+  160 ms per cycle during pan/tilt, zoom settling and automatic aim/zoom/return.
+  A focus-lock double beep plays at completion; shutter plays on exposure.
+  Filtering, short fades and level normalization preserve the recorded timbre.
+  Exact source URLs, hashes and edit recipes: `assets/audio/RECORDED-SOURCES.json`;
+  processing script: `scripts/prepare-recorded-camera-sfx.cjs`.
+
+- `camera-aim.mp3`, `camera-focus.mp3`, `camera-shutter.mp3`: original procedural
+  camera servo, focus adjustment, and shutter cues, **superseded and not used by
+  the camera as of 2026-09-26**. Preserved from the earlier iteration. Created locally with
+  `scripts/build-camera-sfx.cjs` (deterministic sine/noise synthesis, then ffmpeg
+  MP3 encoding). No recordings, external samples, paid API or third-party audio
+  licenses. Mono 22.05 kHz, 64 kbps; source lengths 420/360/280 ms. Quiet playback
+  is phase-scoped and suppressed with reduced motion. The generator refuses to
+  overwrite existing assets.
+
+- `telescope-zoom.mp3`: legacy 0.57s camera-motion sweep, **superseded and not used
+  by the camera as of 2026-09-26**. Preserved from the earlier iteration.
+  Unmodified `whoosh-short.mp3` from the installed `media-use` SFX bundle. Its
+  bundled `CREDITS.md` identifies Pixabay and the
+  [Pixabay Content License](https://pixabay.com/service/license-summary/).
+  18,390 bytes; SHA-256
+  `c2efd9d902a59bf9ec5019035d7deadd17762136896b6e3cb6dd99ea50997a30`.
+
+- `jrpg-text-blip.mp3` — 75ms mono UI blip used by the constellation home's
+  typewriter dialogue. It is a trimmed, filtered, and volume-reduced derivative
+  of the `click.mp3` sound bundled with Codex `media-use`; the source is from
+  Pixabay and is used under the
+  [Pixabay Content License](https://pixabay.com/service/license-summary/).
+  The shipped file is 1,010 bytes at 22.05kHz; SHA-256
+  `e3bf89d81485cc20014ca8396d0fcc5a152e608d625a57ee65ef947a0499ee57`.
+
 ## Bundled generated art (AI-generated, in-window)
 
-**How it was made.** Every image below was produced with OpenAI GPT
+**How it was made.** Every image below except the 2026-09-28 phone mini-app pack was produced with OpenAI GPT
 image generation (ChatGPT / `gpt-image`) from prompts written for this
 project. No image was commissioned, purchased, scraped, or taken from a
 stock library. The style bible used for the tesseract/v3 line is
 committed in this repository at
 [`docs/V3_GPT_IMAGE_PROMPT.md`](./V3_GPT_IMAGE_PROMPT.md), so the
 generation inputs are auditable, not just the outputs.
+
+The phone mini-app pack was supplied by Simon as
+`2ndB_phone_app_assets_260928.zip` on 2026-09-28. It includes generation
+prompts and a README, but does not identify the image generator or include an
+independent rights statement. **Simon confirmed on 2026-09-28 (21:4x KST,
+"이상무") that the pack may ship in the app.** The pack still does not name the
+image generator, so its prompts and README remain the provenance record; do
+not infer that the pack has the same provenance as the older artwork.
 
 **When.** Dates below are the day each set first appeared in git. The
 repository's initial commit is 2026-05-25, so no set predates the
@@ -127,12 +176,13 @@ only the path moved.
 | `assets/legacy-art/tesseract-v10/` | 7 PNG | 2026-06-04 | Tesseract worldview set generated from `docs/V3_GPT_IMAGE_PROMPT.md` |
 | `public/landing/` | 7 PNG | 2026-06-15 | Landing background concepts |
 | `public/proto/` | 7 PNG | 2026-07-04 | Deep-space prototype screens |
-| `public/icons/` | 2 PNG | 2026-06-11 | PWA icons (192 / 512), derived from the app icon |
+| `public/icons/` | 2 PNG | 2026-06-11 | PWA icons (192 / 512), derived from the app icon. Since 2026-09-30 both are rasterised by `scripts/build-app-icons.ts` from the Polaris pixel star (first-party code, no third-party pixels) |
 | `assets/deepspace/` | 13 PNG | 2026-06-19 | SecondB canonical head pair plus 11 Nebori style-comparison working images added while the deep-space look was being settled |
 | `assets/opening/` | 1 PNG | 2026-08-27 | HustleK opening sprite sheet (48 frames, 8x6 grid, 320x180 cells) built by `scripts/build-opening-strip.py` from the approved atlas. No new art: the builder refuses to run unless the atlas RGBA hash matches the approved value. |
-| `assets/images/` | 6 PNG | 2026-05-25 | App icon, adaptive-icon layers, splash, favicon. Seeded from the Expo template at initialisation (MIT) and replaced in-window with generated art |
+| `assets/images/` | 9 PNG | 2026-05-25 | App icon, adaptive-icon layers, splash, favicon, and three SecondB phone assets. The home phone and the blank-screen dashboard frame are Simon-provided ChatGPT art (2026-09-26); the earlier silver phone is retained for rollback. Seeded from the Expo template at initialisation (MIT) and replaced in-window with generated art. Since 2026-09-30 the app icon, adaptive foreground and monochrome layers, and favicon are rasterised by `scripts/build-app-icons.ts` from the Polaris pixel star the sign-in screen draws (`pixel-star.ts` geometry, `m3.ts` colours; first-party code, no third-party pixels). The adaptive background and the splash are unchanged |
+| `assets/images/phone-app/` | 31 PNG | 2026-09-28 | Simon-supplied mini-app display pack: 12 app icons, 5 internal dock icons, 12 UI icons, and 1 night-village banner; plus 1 locally drawn avatar-palette app icon on a 4 px grid. Only pixels are bundled; labels, dates, unread counts, and state are rendered by the app. Release rights confirmed by Simon on 2026-09-28; the pack does not name its image generator. |
 
-Total: **246 bundled image files**. `scripts/check-constraints.ts` (C12)
+Current checked inventory: **280 bundled image files**. `scripts/check-constraints.ts` (`AssetLicenseDisclosure`)
 fails if any of these paths stops being mentioned in this file, so a new
 art pack cannot ship undisclosed.
 
@@ -147,6 +197,11 @@ decoded-pixel hashes, exact silhouettes and floor anchors, canonical bytes, and
 the committed JSON SHA-256
 `b599f379db85305b0a2aa82db3f87d7682bc70e59369186bcdcac7c65a79664f`.
 The runtime renders the JSON as SVG rectangles and decodes no opening bitmap.
+`src/components/ui/LoadingScreen.tsx` owns that renderer, and
+`src/app/_layout.tsx` runs it as the cold-start boot gate before either the
+sign-in landing or an authenticated route. Authentication, encrypted-storage
+recovery, and the first profile probe continue while the opening plays; a
+signed-out-to-signed-in transition in the same runtime does not replay it.
 
 **In the repository but not in the build.** Working images also live under
 `docs/` (clone-audit captures, flow thumbnails, QA evidence) and `design/`

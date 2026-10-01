@@ -266,6 +266,7 @@ import { __resetAccountLocalDeletionFencesForTests } from "../../lib/account/loc
 import {
   __resetAccountEpochForTests,
   beginAccountOwnerTransition,
+  captureAccountOwnerLease,
   clearAccountTransition,
   currentAccountEpoch,
   noteResolvedOwner,
@@ -675,6 +676,7 @@ class KeptChatScreen {
         ...this.refs,
         userId: this.userId,
         turns: s.turns,
+        captureAccountOwnerLease,
         keptTurns: s.keptTurns,
         keepingTurns: s.keepingTurns,
         prefsReadKey: s.prefsReadKey,

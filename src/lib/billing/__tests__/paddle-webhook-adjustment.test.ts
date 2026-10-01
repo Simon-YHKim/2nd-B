@@ -10,6 +10,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 
+import * as requestJson from "../../../../supabase/functions/_shared/request-json";
+import * as paddleEnvironment from "../../../../supabase/functions/_shared/paddle-environment";
+import * as checkoutBindings from "../../../../supabase/functions/_shared/paddle-checkout-binding";
+
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const source = readFileSync(
   join(ROOT, "supabase", "functions", "paddle-webhook", "index.ts"),
@@ -137,7 +141,7 @@ describe("paddle-webhook refund adjustments", () => {
 
 describe("paddle-webhook checkout ownership", () => {
   test("verifies the complete HMAC binding and never trusts raw custom_data.user_id", () => {
-    expect(code).toMatch(/verifyCheckoutBindingWithSecrets\(data\.custom_data, bindingSecrets\)/);
+    expect(code).toMatch(/verifyCheckoutBindingWithSecrets\(data\.custom_data, bindingSecrets, undefined,/);
     expect(code).not.toMatch(/const userId = data\.custom_data\?\.user_id/);
     expect(code).toMatch(/p_user_id: resolvedUserId/);
   });
@@ -281,6 +285,8 @@ type RpcReply = { data: unknown; error: { message: string } | null };
 type RpcImplementation = (name: string, args: Record<string, unknown>) => Promise<RpcReply>;
 type EdgeHandler = (request: Request) => Promise<Response>;
 type RuntimeOptions = {
+  env?: Record<string, string | undefined>;
+  realBinding?: boolean;
   bindingUserId?: string | null;
   anchorRows?: Array<{ user_id: unknown }>;
   conflictingOwnerRows?: Array<{ user_id: unknown }>;
@@ -289,15 +295,6 @@ type RuntimeOptions = {
 };
 
 const WEBHOOK_SECRET = "test-secret";
-
-class TestJsonBodyError extends Error {
-  constructor(
-    readonly code: string,
-    readonly maxBytes: number,
-  ) {
-    super(code);
-  }
-}
 
 function loadRuntimeHandler(implementation: RpcImplementation, options: RuntimeOptions = {}) {
   const compiled = ts.transpileModule(source, {
@@ -334,7 +331,8 @@ function loadRuntimeHandler(implementation: RpcImplementation, options: RuntimeO
   ];
   let ownerQueryIndex = 0;
   const from = jest.fn(() => ownerQueries[ownerQueryIndex++] ?? ownerQueries[1]);
-  const verifyBinding = jest.fn(async () => options.bindingUserId ?? null);
+  const verifyBinding = jest.fn(async (...args: Parameters<typeof checkoutBindings.verifyCheckoutBindingWithSecrets>) =>
+    options.realBinding ? checkoutBindings.verifyCheckoutBindingWithSecrets(...args) : options.bindingUserId ?? null);
   let handler: EdgeHandler | null = null;
   const deno = {
     env: {
@@ -346,6 +344,7 @@ function loadRuntimeHandler(implementation: RpcImplementation, options: RuntimeO
         PADDLE_PRICE_CORTEX: "pri_cortex",
         SUPABASE_URL: "https://example.invalid",
         SUPABASE_SERVICE_ROLE_KEY: "test-service-role",
+        ...options.env,
       })[name],
     },
     serve: (value: EdgeHandler) => { handler = value; },
@@ -357,8 +356,10 @@ function loadRuntimeHandler(implementation: RpcImplementation, options: RuntimeO
         return { createClient: () => ({ rpc, from }) };
       }
       if (id === "../_shared/request-json.ts") {
+        // The real media-type check and strict JSON parser run here, so every
+        // signed fixture in this file also crosses the post-HMAC boundary.
         return {
-          JsonBodyError: TestJsonBodyError,
+          ...requestJson,
           PADDLE_WEBHOOK_BODY_LIMIT_BYTES: 256_000,
           readBodyBytes: async (request: Request) => new Uint8Array(await request.arrayBuffer()),
         };
@@ -366,6 +367,7 @@ function loadRuntimeHandler(implementation: RpcImplementation, options: RuntimeO
       if (id === "../_shared/paddle-checkout-binding.ts") {
         return { verifyCheckoutBindingWithSecrets: verifyBinding };
       }
+      if (id === "../_shared/paddle-environment.ts") return paddleEnvironment;
       throw new Error(`Unexpected edge dependency: ${id}`);
     },
     loaded,
@@ -418,6 +420,7 @@ function signedAdjustment(
 function signedBillingEvent(
   customData: unknown,
   eventId = "evt_subscription_1",
+  priceId = "pri_cortex",
 ): Request {
   const payload = {
     event_id: eventId,
@@ -427,7 +430,7 @@ function signedBillingEvent(
       id: "sub_ownership_1",
       status: "active",
       custom_data: customData,
-      items: [{ price: { id: "pri_cortex" } }],
+      items: [{ price: { id: priceId } }],
       current_billing_period: { ends_at: "2026-10-10T01:02:03.000Z" },
     },
   };
@@ -459,6 +462,48 @@ describe("paddle-webhook ownership runtime", () => {
   const USER_ID = "11111111-1111-4111-8111-111111111111";
   const OTHER_USER_ID = "22222222-2222-4222-8222-222222222222";
 
+  test("an isolated sandbox subscription grants only with a matching real scoped HMAC", async () => {
+    Object.defineProperty(globalThis, "crypto", { value: webcrypto, configurable: true });
+    const price = `pri_${"a".repeat(26)}`;
+    const secret = "runtime-checkout-binding-secret-32-bytes";
+    const scope = { environment: "sandbox" as const, audience: "https://sandbox.supabase.co", price_id: price };
+    const env = { PADDLE_ENVIRONMENT: "sandbox", SUPABASE_URL: scope.audience,
+      PADDLE_SANDBOX_SUPABASE_URL: scope.audience, PADDLE_LIVE_SUPABASE_URL: "https://live.supabase.co",
+      PADDLE_PRICE_CORTEX: price,
+    };
+    const binding = await checkoutBindings.createCheckoutBinding(secret, USER_ID, { scope });
+    const good = loadRuntimeHandler(okRpc, { env, realBinding: true });
+    expect((await good.handler(signedBillingEvent(binding, "evt_sandbox", price))).status).toBe(200);
+    expect(good.rpc.mock.calls.find(([name]) => name === "apply_billing_event")?.[1]).toMatchObject({
+      p_user_id: USER_ID, p_tier: "cortex",
+    });
+
+    for (const changed of [
+      { ...binding, environment: "production" }, { ...binding, audience: "https://live.supabase.co" },
+    ]) {
+      const bad = loadRuntimeHandler(okRpc, { env, realBinding: true, anchorRows: [{ user_id: USER_ID }] });
+      expect((await bad.handler(signedBillingEvent(changed, "evt_crossed", price))).status).toBe(403);
+      expect(bad.rpc).not.toHaveBeenCalled();
+      expect(bad.from).not.toHaveBeenCalled();
+    }
+    const legacy = await checkoutBindings.createCheckoutBinding(secret, USER_ID);
+    const bad = loadRuntimeHandler(okRpc, { env, realBinding: true });
+    expect((await bad.handler(signedBillingEvent(legacy, "evt_legacy", price))).status).toBe(403);
+    expect(bad.rpc).not.toHaveBeenCalled();
+  });
+
+  test("sandbox callbacks cannot write refunds or entitlements into the live database", async () => {
+    const { handler, rpc, from } = loadRuntimeHandler(okRpc, { env: {
+      PADDLE_ENVIRONMENT: "sandbox",
+      PADDLE_SANDBOX_SUPABASE_URL: "https://sandbox.supabase.co",
+      PADDLE_LIVE_SUPABASE_URL: "https://live.supabase.co",
+      SUPABASE_URL: "https://live.supabase.co",
+    } });
+    expect((await handler(signedAdjustment())).status).toBe(503);
+    expect(rpc).not.toHaveBeenCalled();
+    expect(from).not.toHaveBeenCalled();
+  });
+
   test("applies a new subscription to the cryptographically verified owner", async () => {
     const { handler, rpc, verifyBinding } = loadRuntimeHandler(okRpc, {
       bindingUserId: USER_ID,
@@ -470,6 +515,8 @@ describe("paddle-webhook ownership runtime", () => {
     expect(verifyBinding).toHaveBeenCalledWith(
       { signed: "fixture" },
       ["runtime-checkout-binding-secret-32-bytes"],
+      undefined,
+      { environment: "production", audience: "https://example.invalid", price_id: "pri_cortex" },
     );
     expect(rpc.mock.calls.find(([name]) => name === "apply_billing_event")?.[1]).toMatchObject({
       p_user_id: USER_ID,
@@ -1178,5 +1225,324 @@ describe("paddle-webhook refund integrity runtime", () => {
     expect(logged).toContain("adj_refund_1");
     expect(logged).not.toContain(rawFailure);
     errorSpy.mockRestore();
+  });
+});
+
+// ── Request boundary: a bounded signature header, the JSON media type, and a
+// post-HMAC shape guard. The guard refuses only JSON types the handler cannot
+// safely forward to SQL or dereference. Value judgments stay with the review
+// rails above, so the malformed amounts, currencies, and refund types those
+// tests route to durable review keep reaching them through the same parser.
+describe("paddle-webhook request boundary runtime", () => {
+  const USER_ID = "11111111-1111-4111-8111-111111111111";
+  const OTHER_USER_ID = "22222222-2222-4222-8222-222222222222";
+  // Literal on purpose: this suite states the contract rather than echoing
+  // the implementation constant.
+  const MAX_JSON_DEPTH = 32;
+  const ZERO_SIGNATURE = "0".repeat(64);
+
+  function refundEvent(eventId: string, data: Record<string, unknown> = {}) {
+    return {
+      event_id: eventId,
+      event_type: "adjustment.updated",
+      occurred_at: "2026-09-10T01:02:03.000Z",
+      data: {
+        id: "adj_refund_1",
+        transaction_id: "txn_refund_1",
+        action: "refund",
+        status: "approved",
+        type: "partial",
+        items: [{ type: "partial" }],
+        totals: { total: "500", currency_code: "USD" },
+        currency_code: "USD",
+        ...data,
+      },
+    };
+  }
+
+  function signedRaw(
+    raw: string,
+    options: {
+      contentType?: string | null;
+      signatureHeaders?: (timestamp: string, signature: string) => string[];
+    } = {},
+  ): Request {
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const signature = createHmac("sha256", WEBHOOK_SECRET)
+      .update(`${timestamp}:${raw}`)
+      .digest("hex");
+    const headers = new Headers();
+    const signatureHeaders = options.signatureHeaders?.(timestamp, signature)
+      ?? [`ts=${timestamp};h1=${signature}`];
+    for (const value of signatureHeaders) headers.append("Paddle-Signature", value);
+    const contentType = options.contentType === undefined ? "application/json" : options.contentType;
+    if (contentType !== null) headers.set("content-type", contentType);
+    // A byte body keeps fetch from inventing a text/plain media type.
+    return new Request("https://example.invalid/functions/v1/paddle-webhook", {
+      method: "POST",
+      headers,
+      body: new TextEncoder().encode(raw),
+    });
+  }
+
+  test("accepts up to eight h1 candidates while Paddle rotates secrets", async () => {
+    const { handler } = loadRuntimeHandler(okRpc);
+
+    const response = await handler(signedRaw(JSON.stringify(refundEvent("evt_eight_h1")), {
+      signatureHeaders: (ts, sig) => [`ts=${ts};${`h1=${ZERO_SIGNATURE};`.repeat(7)}h1=${sig}`],
+    }));
+
+    expect(response.status).toBe(200);
+  });
+
+  test("refuses a ninth h1 candidate even when one of them matches", async () => {
+    const { handler, rpc } = loadRuntimeHandler(okRpc);
+
+    const response = await handler(signedRaw(JSON.stringify(refundEvent("evt_nine_h1")), {
+      signatureHeaders: (ts, sig) => [`ts=${ts};h1=${sig};${`h1=${ZERO_SIGNATURE};`.repeat(8)}`],
+    }));
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "bad_signature" });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  test("bounds the Paddle-Signature header at 4096 characters", async () => {
+    const { handler, rpc } = loadRuntimeHandler(okRpc);
+    const raw = JSON.stringify(refundEvent("evt_header_length"));
+    const paddedTo = (length: number) => (ts: string, sig: string) => {
+      const header = `ts=${ts};h1=${sig};`;
+      return [header + "x".repeat(length - header.length)];
+    };
+
+    const atLimit = await handler(signedRaw(raw, { signatureHeaders: paddedTo(4096) }));
+    const oversized = await handler(signedRaw(raw, { signatureHeaders: paddedTo(4097) }));
+
+    expect(atLimit.status).toBe(200);
+    expect(oversized.status).toBe(403);
+    await expect(oversized.json()).resolves.toEqual({ error: "bad_signature" });
+    expect(rpc.mock.calls.filter(([name]) => name === "record_paddle_refund_adjustment"))
+      .toHaveLength(1);
+  });
+
+  test("refuses two physical Paddle-Signature headers as ambiguous", async () => {
+    const { handler, rpc } = loadRuntimeHandler(okRpc);
+
+    const response = await handler(signedRaw(JSON.stringify(refundEvent("evt_two_headers")), {
+      signatureHeaders: (ts, sig) => [`ts=${ts};h1=${sig}`, `ts=${ts};h1=${sig}`],
+    }));
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "bad_signature" });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  test.each<[string, string | null]>([
+    ["text", "text/plain;charset=UTF-8"],
+    ["a form body", "application/x-www-form-urlencoded"],
+    ["a JSON look-alike", "application/json-patch+json"],
+    ["a missing media type", null],
+  ])("answers %s with 415 before any RPC", async (_label, contentType) => {
+    const { handler, rpc } = loadRuntimeHandler(okRpc);
+
+    const response = await handler(signedRaw(JSON.stringify(refundEvent("evt_media_type")), {
+      contentType,
+    }));
+
+    expect(response.status).toBe(415);
+    await expect(response.json()).resolves.toEqual({ error: "unsupported_media_type" });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  test("accepts a UTF-8 charset parameter on the JSON media type", async () => {
+    const { handler } = loadRuntimeHandler(okRpc);
+
+    const response = await handler(signedRaw(JSON.stringify(refundEvent("evt_charset")), {
+      contentType: "application/json; charset=utf-8",
+    }));
+
+    expect(response.status).toBe(200);
+  });
+
+  test("authenticates before judging JSON: an unsigned ambiguous body is still a 403", async () => {
+    const { handler, rpc } = loadRuntimeHandler(okRpc);
+    const raw = JSON.stringify(refundEvent("evt_unsigned"))
+      .replace('"event_id":', '"event_id":"evt_shadow","event_id":');
+
+    const response = await handler(signedRaw(raw, {
+      signatureHeaders: (ts) => [`ts=${ts};h1=${ZERO_SIGNATURE}`],
+    }));
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "bad_signature" });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  test("a signed duplicate key is refused instead of letting the last value win", async () => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+    const { handler, rpc } = loadRuntimeHandler(okRpc);
+    const raw = JSON.stringify(refundEvent("evt_duplicate_status", { status: "pending_approval" }))
+      .replace('"status":"pending_approval"', '"status":"pending_approval","status":"approved"');
+
+    const response = await handler(signedRaw(raw));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "bad_payload" });
+    expect(rpc).not.toHaveBeenCalled();
+    const logged = errorSpy.mock.calls.flat().join(" ");
+    expect(logged).toContain("[paddle-webhook][ALERT] bad_payload");
+    expect(logged).toContain("duplicate_json_key");
+    errorSpy.mockRestore();
+  });
+
+  test("signed JSON nested past the depth limit is refused, and the limit itself is not", async () => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+    const { handler, rpc } = loadRuntimeHandler(okRpc);
+    // The event object is level 1 and data is level 2, so custom_data holding
+    // `levels` nested objects reaches depth 2 + levels.
+    const nested = (levels: number): unknown =>
+      JSON.parse(`${'{"a":'.repeat(levels)}1${"}".repeat(levels)}`);
+
+    const atLimit = await handler(signedRaw(JSON.stringify(
+      refundEvent("evt_depth_limit", { custom_data: nested(MAX_JSON_DEPTH - 2) }),
+    )));
+    const tooDeep = await handler(signedRaw(JSON.stringify(
+      refundEvent("evt_depth_over", { custom_data: nested(MAX_JSON_DEPTH - 1) }),
+    )));
+
+    expect(atLimit.status).toBe(200);
+    expect(tooDeep.status).toBe(400);
+    await expect(tooDeep.json()).resolves.toEqual({ error: "bad_payload" });
+    expect(rpc.mock.calls.map(([, args]) => args.p_event_id)).not.toContain("evt_depth_over");
+    expect(errorSpy.mock.calls.flat().join(" ")).toContain("json_too_deep");
+    errorSpy.mockRestore();
+  });
+
+  test.each<[string, Record<string, unknown>]>([
+    ["a numeric event_type", { ...refundEvent("evt_type_number"), event_type: 7 }],
+    ["a control character in event_id", refundEvent("evt_forged\nline")],
+    ["a numeric occurred_at", { ...refundEvent("evt_time_number"), occurred_at: 1_788_000_000 }],
+    ["an oversized adjustment transaction id", refundEvent("evt_long_txn", {
+      transaction_id: `txn_${"x".repeat(200)}`,
+    })],
+    ["an object where the subscription id goes", {
+      event_id: "evt_subscription_id_object",
+      event_type: "subscription.created",
+      occurred_at: "2026-09-10T01:02:03.000Z",
+      data: { id: { nested: "sub_1" }, status: "active", items: [{ price: { id: "pri_cortex" } }] },
+    }],
+    ["payments that are not a list", {
+      event_id: "evt_payments_object",
+      event_type: "transaction.completed",
+      occurred_at: "2026-09-10T01:02:03.000Z",
+      data: { id: "txn_1", currency_code: "USD", payments: { status: "captured" } },
+    }],
+    ["a card remnant that is not text", {
+      event_id: "evt_card_number",
+      event_type: "transaction.completed",
+      occurred_at: "2026-09-10T01:02:03.000Z",
+      data: {
+        id: "txn_1",
+        currency_code: "USD",
+        details: { totals: { grand_total: "1000" } },
+        payments: [{
+          status: "captured",
+          method_details: { type: "card", card: { type: "visa", last4: 4242 } },
+        }],
+      },
+    }],
+  ])("refuses a signed payload with %s before any RPC", async (_label, event) => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+    const { handler, rpc, from } = loadRuntimeHandler(okRpc, { bindingUserId: USER_ID });
+
+    const response = await handler(signedRaw(JSON.stringify(event)));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "bad_payload" });
+    expect(rpc).not.toHaveBeenCalled();
+    expect(from).not.toHaveBeenCalled();
+    expect(errorSpy.mock.calls.flat().join(" ")).toContain("[paddle-webhook][ALERT] bad_payload");
+    errorSpy.mockRestore();
+  });
+
+  // The guard must not take a signed adjustment away from the rail that records
+  // it: a 400 here would make Paddle retry until the event is lost (0123).
+  test.each<[string, Record<string, unknown>, string]>([
+    ["a numeric status", { status: 7 }, "unhandled_adjustment_status"],
+    ["a numeric currency", { currency_code: 840 }, "invalid_refund_financials"],
+    ["refund-type evidence that is not a list", { items: "full" }, "ambiguous_refund_type"],
+  ])("still routes a signed adjustment with %s to its review rail", async (_label, data, rail) => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+    const { handler } = loadRuntimeHandler(okRpc);
+
+    const response = await handler(signedRaw(JSON.stringify(refundEvent("evt_review_rail", data))));
+
+    expect(response.status).toBe(200);
+    expect(JSON.stringify(await response.json())).toContain(rail);
+    errorSpy.mockRestore();
+  });
+
+  test("Paddle's documented nulls on a one-off transaction still reach the ledger", async () => {
+    const { handler, rpc, from } = loadRuntimeHandler(okRpc, { bindingUserId: USER_ID });
+    const event = {
+      event_id: "evt_one_off_transaction",
+      event_type: "transaction.completed",
+      occurred_at: "2026-09-10T01:02:03.000Z",
+      data: {
+        id: "txn_one_off",
+        status: "completed",
+        subscription_id: null,
+        custom_data: null,
+        currency_code: "USD",
+        items: [{ price: { id: "pri_pack" }, quantity: 1 }],
+        details: { totals: { grand_total: "1000" } },
+        payments: [{ status: "captured", method_details: { type: "card", card: null } }],
+      },
+    };
+
+    const response = await handler(signedRaw(JSON.stringify(event)));
+
+    expect(response.status).toBe(200);
+    expect(from).not.toHaveBeenCalled();
+    expect(rpc.mock.calls.find(([name]) => name === "apply_billing_event")?.[1]).toMatchObject({
+      p_user_id: USER_ID,
+      p_subscription_id: null,
+      p_transaction_id: "txn_one_off",
+      p_amount_cents: 1000,
+      p_currency: "USD",
+      p_payment_method: "card",
+      p_card_brand: null,
+      p_card_last4: null,
+    });
+  });
+
+  test("a past_due renewal with cleared schedule fields is still recorded", async () => {
+    const { handler, rpc } = loadRuntimeHandler(okRpc, {
+      anchorRows: [{ user_id: OTHER_USER_ID }],
+    });
+    const event = {
+      event_id: "evt_past_due",
+      event_type: "subscription.updated",
+      occurred_at: "2026-09-10T01:02:03.000Z",
+      data: {
+        id: "sub_past_due",
+        status: "past_due",
+        custom_data: null,
+        items: [{ price: { id: "pri_cortex" } }],
+        current_billing_period: null,
+        scheduled_change: null,
+      },
+    };
+
+    const response = await handler(signedRaw(JSON.stringify(event)));
+
+    expect(response.status).toBe(200);
+    expect(rpc.mock.calls.find(([name]) => name === "apply_billing_event")?.[1]).toMatchObject({
+      p_user_id: OTHER_USER_ID,
+      p_subscription_id: "sub_past_due",
+      p_tier: null,
+      p_expires_at: null,
+      p_scheduled_cancel_at: null,
+    });
   });
 });

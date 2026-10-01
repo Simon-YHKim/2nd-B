@@ -7,6 +7,10 @@
 import dayjs from "dayjs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { digitalConsentAge, resolveJurisdiction } from "../auth/consent-age";
+import {
+  resolveRegistrationConsentFloor,
+  type ResidenceCountrySelection,
+} from "../auth/residence-jurisdiction";
 import { allRequiredAcksChecked, type ConsentSelections } from "../auth/consent-selections";
 import {
   assertRecoveryOperationCurrentInsideMutation,
@@ -42,6 +46,7 @@ import {
   signOutExpectedSessionInsideMutation,
   type AuthSessionExpectation,
 } from "../auth/session-mutation";
+import type { SignInProgressStage } from "../auth/sign-in-progress";
 export { AuthSessionOwnerChangedError } from "../auth/session-mutation";
 // ⚠ #1517 은 여기서 `isJudgeEmail` 도 들여왔다. 되살리지 않는다 —
 // main 의 f42f4db2 가 C6 대회 제약과 함께 src/lib/judge/domains.ts 를 통째로
@@ -49,6 +54,7 @@ export { AuthSessionOwnerChangedError } from "../auth/session-mutation";
 // #1587 은 allRequiredAcksChecked 를 더 들여온다 — 가입 동의를 화면만이 아니라
 // 서버도 확인하기 위해서고, 아래 함수가 실제로 호출한다.
 import { getEnv } from "../env";
+import { withTimeout } from "../async/with-timeout";
 import {
   clearAccountScopedLocalNotifications,
   migrateLegacyRoutineNotifications,
@@ -64,21 +70,37 @@ void migrateLegacyRoutineNotifications().catch(() => {
   }
 });
 
-// C10 age tiers: adult users and 14-17 minors self-consent and register
-// directly. Under PIPA, legal-representative consent is mandatory only below 14
-// (Article 22-2); users 14+ may consent themselves under the general provisions
-// (Articles 15/17/22) with age-appropriate notice. Under 14 requires verifiable
-// guardian consent (added in a later PR); until then they are blocked here.
-// Sourced from the jurisdiction matrix (task F) via the single resolveJurisdiction()
-// seam (defaults to KR until a real country signal exists), so the live floor is the
-// KR value (14) unless an operator pins EXPO_PUBLIC_JURISDICTION for QA.
+// C10 age tiers: adults and self-consenting minors register directly. Under PIPA,
+// legal-representative consent is mandatory only below 14 (Article 22-2); 14+ may
+// consent themselves under Articles 15/17/22. Under 14 needs verifiable guardian
+// consent (later PR); until then they are blocked here. 2026-09-21: this is NO
+// longer "KR 14" -- resolveJurisdiction() reads the device region and answers that
+// country's row from a 63-country table (13..20), falling back to 18, NOT KR, when
+// the country is unreadable. Read this constant; never restate it as a literal. It
+// is a CLIENT floor -- the server trigger is a country-blind `< 14` (0050 / 0149).
 export const MIN_SELF_CONSENT_AGE = digitalConsentAge(resolveJurisdiction());
 
 export class AgeGateError extends Error {
-  constructor() {
-    super("Users under 14 cannot register without guardian consent.");
+  constructor(minAge: number = MIN_SELF_CONSENT_AGE) {
+    super(`Users under ${minAge} cannot register without guardian consent.`);
     this.name = "AgeGateError";
   }
+}
+
+/** The device region was unreadable and the registration form has not recovered it yet. */
+export class ResidenceCountryRequiredError extends Error {
+  constructor() {
+    super("Country of residence is required when the device region is unavailable.");
+    this.name = "ResidenceCountryRequiredError";
+  }
+}
+
+function registrationConsentAge(
+  residenceCountry?: ResidenceCountrySelection | null,
+): number {
+  const floor = resolveRegistrationConsentFloor(residenceCountry);
+  if (!floor) throw new ResidenceCountryRequiredError();
+  return digitalConsentAge(floor);
 }
 
 // The email already belongs to ANOTHER auth identity (a different sign-in
@@ -134,26 +156,103 @@ export class ExistingAccountLikelyError extends Error {
 // real result-count from the network.
 // Native devices use expo-crypto to offload the SHA-1 hash to a native module,
 // avoiding JS-thread blocking which can cause frame drops or ANRs during sign-up.
+// The call is bounded: it is aborted after HIBP_TIMEOUT_MS and a body over
+// HIBP_MAX_RESPONSE_BYTES is discarded, so a stalled or oversized answer cannot
+// hold sign-up or a password change open. A tripped bound is an HIBP failure
+// like any other, so the best-effort policy above still applies.
+// The body is only ever read as a stream, so the read can stop at the cap. On
+// native that stream comes from expo/fetch, named here because it is the
+// global fetch only until EXPO_PUBLIC_USE_RN_FETCH opts out, and React
+// Native's own fetch has no body stream. Stopping the read does not stop a
+// native transfer (a body cancelled before its first read, and iOS even after
+// one, keep downloading), so every early exit also aborts the request. What
+// arrives between the response headers and the first read is still buffered
+// natively before JS sees it; only the timeout bounds that window (AA-1826-1).
+// The timeout settles the check itself, not only the transfer. Aborting does
+// not promise that a waiting read settles: on iOS a first read whose
+// startStreaming reaches native after the abort never does (HZ-1837-1). So at
+// the deadline the check stops waiting, aborts and fails open, and once the
+// request is aborted no new read starts.
+const HIBP_TIMEOUT_MS = 5_000;
+const HIBP_MAX_RESPONSE_BYTES = 256 * 1024;
+
+type ExpoFetchModule = typeof import("expo/fetch");
+type HibpFetch = (
+  url: string,
+  init: { headers: Record<string, string>; signal: AbortSignal },
+) => Promise<Response>;
+
+function hibpFetch(): HibpFetch {
+  if (isWebRuntime()) return fetch;
+  return (require("expo/fetch") as ExpoFetchModule).fetch;
+}
+
+async function readBoundedHibpResponse(res: Response, signal: AbortSignal): Promise<string | null> {
+  const declared = res.headers?.get?.("content-length");
+  if (declared && /^\d+$/.test(declared) && Number(declared) > HIBP_MAX_RESPONSE_BYTES) {
+    await res.body?.cancel().catch(() => undefined);
+    return null;
+  }
+  const reader = typeof res.body?.getReader === "function" ? res.body.getReader() : null;
+  // Without a stream nothing could stop the download partway, so the body is
+  // not read at all. That is a tripped bound, and fails open like one.
+  if (!reader) return null;
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  let size = 0;
+  let text = "";
+  while (true) {
+    // A read started after the abort could wait for good (HZ-1837-1).
+    if (signal.aborted) return null;
+    const { done, value } = await reader.read();
+    if (done) return text + decoder.decode();
+    size += value.byteLength;
+    if (size > HIBP_MAX_RESPONSE_BYTES) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+}
+
 export async function isPasswordBreached(password: string): Promise<boolean> {
+  const controller = new AbortController();
+  try {
+    return await withTimeout(checkPasswordRange(password, controller), HIBP_TIMEOUT_MS);
+  } catch {
+    // Only the deadline lands here: checkPasswordRange answers every other
+    // failure itself. Tear the request down and fail open.
+    controller.abort();
+    return false;
+  }
+}
+
+async function checkPasswordRange(password: string, controller: AbortController): Promise<boolean> {
+  let bodyRead = false;
   try {
     const hex = (await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA1, password)).toUpperCase();
     const prefix = hex.slice(0, 5);
     const suffix = hex.slice(5);
-    const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+    const res = await hibpFetch()(`https://api.pwnedpasswords.com/range/${prefix}`, {
       headers: { "Add-Padding": "true" },
+      signal: controller.signal,
     });
     if (!res.ok) return false;
-    const body = await res.text();
+    const body = await readBoundedHibpResponse(res, controller.signal);
+    if (body === null) return false;
+    bodyRead = true;
     return body
       .split("\n")
       .some((line) => line.split(":")[0]?.trim().toUpperCase() === suffix && !line.trim().endsWith(":0"));
   } catch {
     return false;
+  } finally {
+    // Any exit before the whole body was read tears the request down.
+    if (!bodyRead) controller.abort();
   }
 }
 
 // birthDate format: ISO date (YYYY-MM-DD), parsed in local time by dayjs. Returns whole
-// years elapsed. The sign-up floor (MIN_SELF_CONSENT_AGE = 14) is applied by
+// years elapsed. The sign-up floor (MIN_SELF_CONSENT_AGE, per country) is applied by
 // the callers above; the DB no longer hard-codes an age CHECK (0028 relaxed the
 // legacy adult-only rule to a sanity range).
 const ISO_BIRTH_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -187,13 +286,16 @@ export function ageInYears(birthDate: string, now: Date = new Date()): number {
 // matching revision, so an older installed app cannot be stamped as if it had
 // shown newer documents. Any future document change needs a new revision and a
 // forward migration that maps it to server-owned versions.
-export const VERIFIED_EMAIL_SIGNUP_REVISION = "email-v3" as const;
+// Requires the server's email-v6 contract (0208) before this client is published.
+export const VERIFIED_EMAIL_SIGNUP_REVISION = "email-v6" as const;
 
 export interface SignUpArgs {
   email: string;
   password: string;
   birthDate: string; // YYYY-MM-DD
   locale?: "en" | "ko";
+  /** Used only when the device region is unreadable; never persisted. */
+  residenceCountry?: ResidenceCountrySelection | null;
   /** Explicit acknowledgements collected by ConsentNotice. They are copied to
    *  auth metadata so the DB can atomically create the profile + immutable
    *  consent row only after the email address is confirmed. */
@@ -215,7 +317,8 @@ export type SignUpResult =
     };
 
 export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
-  if (ageInYears(args.birthDate) < MIN_SELF_CONSENT_AGE) throw new AgeGateError();
+  const minConsentAge = registrationConsentAge(args.residenceCountry);
+  if (ageInYears(args.birthDate) < minConsentAge) throw new AgeGateError(minConsentAge);
   if (!allRequiredAcksChecked(args.consent)) {
     throw new Error("Required consent acknowledgements are missing.");
   }
@@ -440,7 +543,19 @@ function authCallbackSession(
   return callback;
 }
 
+// The longest native callback public/auth-bridge.html forwards: the reset
+// destination with a 2048-character code (NATIVE_AUTH_CALLBACK_URL below). No
+// longer URL can pass that shape check, so on native a longer one is refused on
+// its length alone, before split, URLSearchParams, new URL or the shape regex
+// copy or scan it. The browser bounds its own address, so web is unchanged.
+const NATIVE_AUTH_CALLBACK_MAX_LENGTH = "secondbrain:///reset-password?code=".length + 2048;
+
+function isOverlongNativeAuthCallbackUrl(url: string): boolean {
+  return !isWebRuntime() && url.length > NATIVE_AUTH_CALLBACK_MAX_LENGTH;
+}
+
 export function authCallbackType(url: string): string | null {
+  if (isOverlongNativeAuthCallbackUrl(url)) return null;
   return authParamsFromUrl(url).type ?? null;
 }
 
@@ -452,6 +567,7 @@ export function authCallbackType(url: string): string | null {
  * after exchange, so a caller-controlled type is never authoritative.
  */
 export function isPasswordRecoveryCallbackUrl(url: string): boolean {
+  if (isOverlongNativeAuthCallbackUrl(url)) return false;
   const params = authParamsFromUrl(url);
   try {
     const parsed = new URL(url);
@@ -479,6 +595,27 @@ class AuthCallbackSessionNotEstablishedError extends Error {
   }
 }
 
+// Whoever opens a callback URL chooses its error text, and callers log this
+// message and match it against "not enabled". Never carry it through.
+const AUTH_CALLBACK_FAILED_MESSAGE = "Authentication callback could not be completed.";
+
+// The exact URLs public/auth-bridge.html forwards to the app: the fixed scheme
+// with an empty host, one of its two destinations, and a single bounded `code`
+// or `error_code` in the bridge's own alphabet. Custom schemes are not exclusive
+// on mobile, so a native callback in any other shape did not come from the
+// bridge and is refused before the quarantine write or the code exchange.
+const NATIVE_AUTH_CALLBACK_URL =
+  /^secondbrain:\/\/\/(reset-password)?\?(?:code=[A-Za-z0-9._~-]{1,2048}|error_code=[A-Za-z0-9._-]{1,128})$/;
+
+function assertBridgeNativeCallbackUrl(url: string, pending: RecoveryPending | null): void {
+  const match = NATIVE_AUTH_CALLBACK_URL.exec(url);
+  // A device-owned recovery accepts only the reset destination, and an
+  // ordinary callback only the root one.
+  if (!match || Boolean(match[1]) !== Boolean(pending)) {
+    throw new AuthCallbackSessionNotEstablishedError(AUTH_CALLBACK_FAILED_MESSAGE);
+  }
+}
+
 async function createSessionFromUrlInsideMutation(
   supabase: SupabaseClient,
   url: string,
@@ -491,9 +628,7 @@ async function createSessionFromUrlInsideMutation(
   const type = params.type ?? null;
   const errorCode = params.error_code ?? params.errorCode;
   if (errorCode) {
-    throw new AuthCallbackSessionNotEstablishedError(
-      params.error_description ?? errorCode,
-    );
+    throw new AuthCallbackSessionNotEstablishedError(AUTH_CALLBACK_FAILED_MESSAGE);
   }
 
   if (params.access_token || params.refresh_token) {
@@ -505,6 +640,8 @@ async function createSessionFromUrlInsideMutation(
       "Bearer-token auth callbacks are disabled; use a PKCE code or explicit OTP verification.",
     );
   }
+
+  if (!isWebRuntime()) assertBridgeNativeCallbackUrl(url, pending);
 
   if (params.code) {
     const quarantine = createAuthCallbackQuarantine(
@@ -632,12 +769,16 @@ async function openNativeOAuthSession(
 export async function signInWithEmail(
   email: string,
   password: string,
+  onProgress?: (stage: SignInProgressStage) => void,
 ): Promise<{ userId: string }> {
+  onProgress?.("mutation-lock");
   return runAuthSessionMutation(async () => {
+    onProgress?.("storage-lock");
     const supabase = getSupabaseClient();
-    const { data, error } = await getAuthStorageRuntime().runSdkUnlockedWriter(() =>
-      supabase.auth.signInWithPassword({ email, password }),
-    );
+    const { data, error } = await getAuthStorageRuntime().runSdkUnlockedWriter(() => {
+      onProgress?.("sdk-response");
+      return supabase.auth.signInWithPassword({ email, password });
+    });
     if (error) throw error;
     if (!data.user) throw new Error("Sign-in returned no user");
     return { userId: data.user.id };
@@ -647,11 +788,20 @@ export async function signInWithEmail(
 // Native recovery deep links are consumed explicitly because detectSessionInUrl
 // is disabled. Only PKCE codes can establish a link session; legacy URL bearer
 // tokens fail closed before any auth mutation. The reset screen supplies its
-// owned pending marker so exchanged recovery sessions can be proof-bound.
+// owned pending marker so exchanged recovery sessions can be proof-bound. On
+// native the URL must also be exactly what the HTTPS bridge forwards, and one
+// longer than any such URL is refused before anything parses it.
 export async function consumeAuthCallbackUrl(
   url: string,
   pending?: RecoveryPending,
 ): Promise<AuthCallbackSession> {
+  if (isOverlongNativeAuthCallbackUrl(url)) {
+    // No parser, auth transaction or exchange runs. An owned recovery marker is
+    // still released, as for every refused callback, or it would lock the next
+    // boot into recovery.
+    if (pending) await clearRecoveryPendingExpected(pending);
+    throw new AuthCallbackSessionNotEstablishedError(AUTH_CALLBACK_FAILED_MESSAGE);
+  }
   const explicitRecoveryIntent =
     isPasswordRecoveryCallbackUrl(url) || authCallbackType(url) === "recovery";
   if (explicitRecoveryIntent && !pending) {
@@ -1479,6 +1629,8 @@ export async function completeNaverOAuth(params: NaverCallbackParams): Promise<{
 export interface CompleteProfileArgs {
   birthDate: string;
   locale: "en" | "ko";
+  /** Used only when the device region is unreadable; never persisted. */
+  residenceCountry?: ResidenceCountrySelection | null;
   /**
    * What the user wants to be called (0127, L4). Optional: onboarding must not
    * become a wall, and a nameless account still works everywhere -- the IDEN
@@ -1493,7 +1645,8 @@ export interface CompleteProfileResult {
 }
 
 export async function ensureUserProfile(args: CompleteProfileArgs): Promise<CompleteProfileResult> {
-  if (ageInYears(args.birthDate) < MIN_SELF_CONSENT_AGE) throw new AgeGateError();
+  const minConsentAge = registrationConsentAge(args.residenceCountry);
+  if (ageInYears(args.birthDate) < minConsentAge) throw new AgeGateError(minConsentAge);
 
   return runAuthSessionMutation(async () => {
     const supabase = getSupabaseClient();

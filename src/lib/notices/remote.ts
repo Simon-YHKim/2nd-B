@@ -3,7 +3,7 @@
 //
 // Error policy follows the two idioms already established in this repo:
 //   * reads that a screen renders around FAIL SOFT - warn and return empty, the
-//     way src/lib/supabase/privacy.ts:12-29 does, so /notices and the home
+//     way src/lib/supabase/privacy.ts:23-32 does, so /notices and the home
 //     screen still render when the tables have not been applied to a given
 //     environment yet or the device is offline.
 //   * the write THROWS on anything except a duplicate key, matching

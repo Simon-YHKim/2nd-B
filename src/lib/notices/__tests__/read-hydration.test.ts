@@ -21,6 +21,7 @@ import {
   getRevision,
   mergeReadIds,
   resetReadStore,
+  snapshotReadIds,
   subscribe,
 } from "../read-store";
 
@@ -76,6 +77,14 @@ describe("read-store notification semantics", () => {
     mergeReadIds("user-1", ["from-unmounted-instance"]);
     expect(getReadIds("user-1").has("from-unmounted-instance")).toBe(true);
   });
+
+  test("a revision-keyed snapshot reflects newly merged reads", () => {
+    const before = snapshotReadIds("user-1", getRevision());
+    mergeReadIds("user-1", ["notice-a"]);
+    const after = snapshotReadIds("user-1", getRevision());
+    expect(before.has("notice-a")).toBe(false);
+    expect(after.has("notice-a")).toBe(true);
+  });
 });
 
 describe("useNoticeCenter read hydration wiring", () => {
@@ -109,5 +118,9 @@ describe("useNoticeCenter read hydration wiring", () => {
     expect(hydrationBlock.indexOf("mergeReadIds")).toBeLessThan(
       hydrationBlock.indexOf("setReadsHydrated(true)"),
     );
+  });
+
+  test("the React Compiler cache key includes the read revision", () => {
+    expect(source).toMatch(/snapshotReadIds\(userId, readRevision\)/);
   });
 });

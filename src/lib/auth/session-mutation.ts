@@ -27,9 +27,19 @@ type AuthSessionRefreshClient = Pick<GoTrueClient, "getSession" | "refreshSessio
 type BrowserLockLike = { readonly name: string; readonly mode: string };
 type BrowserLockRequest = <T>(
   name: string,
-  options: { mode: "exclusive" },
+  options: { mode: "exclusive"; signal: AbortSignal },
   callback: (lock: BrowserLockLike | null) => Promise<T>,
 ) => Promise<T>;
+
+/** Bounds only acquisition. An operation already holding a lock must finish under it. */
+export const AUTH_WEB_LOCK_WAIT_TIMEOUT_MS = 12_000;
+
+export class AuthLockWaitTimeoutError extends Error {
+  constructor() {
+    super("The auth storage lock was not available in time.");
+    this.name = "AuthLockWaitTimeoutError";
+  }
+}
 
 export interface AuthMutationContext {
   /** True only while a real cross-tab Web Lock (or native process lock) is held. */
@@ -69,6 +79,11 @@ export interface AuthStorageRuntime {
   readonly storage: SupportedStorage | undefined;
   readonly sdkLock: LockFunc;
   ready(): Promise<void>;
+  /** Fence this runtime's storage for good: reads answer null, writes and
+   *  removes are dropped, and its v1 -> v2 migration stops before its next
+   *  write. Its locks keep working, so an SDK call that already holds S still
+   *  finishes and still orders the fresh runtime behind it. */
+  retire(): void;
   /** Acquire S around a 2.106.1 SDK writer that does not acquire S itself. */
   runSdkUnlockedWriter<T>(fn: () => MaybePromise<T>): Promise<T>;
   runMutation<T>(
@@ -141,6 +156,7 @@ export function createAuthStorageRuntime(
       ? (options.navigatorLockRequest ?? browserLockRequest())
       : null;
   let readyPromise: Promise<void> | null = null;
+  let retired = false;
   let verifiedMutationDepth = 0;
 
   type GuardedOutcome<T> =
@@ -183,12 +199,19 @@ export function createAuthStorageRuntime(
 
     let operation: Promise<GuardedOutcome<T>> | null = null;
     let callbackClaimed = false;
+    let waitExpired = false;
+    let callbackClosed = false;
     const marker = {};
+    const abort = new AbortController();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
       // Match auth-js's zone.js compatibility yield, but use the standard API
       // directly so a non-spec null lock can never run a destructive callback.
       await Promise.resolve();
-      const managerResult = await lockRequest(name, { mode: "exclusive" }, async (lock) => {
+      const request = lockRequest(name, { mode: "exclusive", signal: abort.signal }, async (lock) => {
+        // A broken manager may ignore abort and grant a lock after the deadline.
+        // Never start a writer after its caller has received a timeout.
+        if (waitExpired || callbackClosed) return { marker: null };
         if (callbackClaimed) return { marker: null };
         callbackClaimed = true;
         if (!lock || lock.name !== name || lock.mode !== "exclusive") {
@@ -197,6 +220,15 @@ export function createAuthStorageRuntime(
         operation = guard(() => fn(true));
         return { marker, outcome: await operation };
       });
+      const waitDeadline = new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => {
+          if (operation) return; // The lock was granted; do not abandon its writer.
+          waitExpired = true;
+          abort.abort();
+          reject(new AuthLockWaitTimeoutError());
+        }, AUTH_WEB_LOCK_WAIT_TIMEOUT_MS);
+      });
+      const managerResult = await Promise.race([request, waitDeadline]);
       if (
         operation &&
         typeof managerResult === "object" &&
@@ -207,20 +239,36 @@ export function createAuthStorageRuntime(
       ) {
         return unwrap(managerResult.outcome as GuardedOutcome<T>);
       }
-    } catch {
+    } catch (error) {
       // If a broken manager throws after invoking the callback, never run the
       // operation a second time. A valid exclusive Lock object was observed.
       if (operation) return unwrap(await operation);
+      if (error instanceof AuthLockWaitTimeoutError) throw error;
+      if (waitExpired) throw new AuthLockWaitTimeoutError();
+    } finally {
+      if (timeout !== undefined) clearTimeout(timeout);
     }
 
     if (operation) return unwrap(await operation);
+    // A malformed manager may return before invoking its callback. Close that
+    // callback before falling back, or a late grant could run fn a second time.
+    callbackClosed = true;
     if (requireCrossTab) throw new AuthLocalClearUnavailableError();
     return processExclusive(name, fn);
   };
 
+  // The migration writes the adapter directly, so the fence on gatedStorage
+  // below cannot see it. A retry of a failed migration can read the v1 session,
+  // wait on the adapter while consent retires this runtime and queues the wipe,
+  // and then write that session to v2 behind the wipe (KZ-1840-1, 2026-09-20).
+  // So a retired runtime starts no migration, and one under way ends at its
+  // next write: each check follows the await before it, with no await between
+  // the check and its adapter call. It still runs under M, so the live
+  // runtime's migration waits for it, and copy -> remove -> marker stays
+  // restart-safe for whichever runtime finishes.
   const migrate = async (): Promise<void> => {
     const underlying = options.storage;
-    if (!underlying) return;
+    if (!underlying || retired) return;
     if ((await storageGet(underlying, keys.migrationTombstone)) === MIGRATION_VALUE) return;
 
     // There is no transaction API on Storage/AsyncStorage. M serializes every
@@ -239,13 +287,16 @@ export function createAuthStorageRuntime(
         storageGet(underlying, legacyKey),
         storageGet(underlying, revisedKey),
       ]);
+      if (retired) return;
       if (legacyValue !== null && revisedValue === null) {
         await storageSet(underlying, revisedKey, legacyValue);
       }
     }
     for (const [legacyKey] of migrationPairs) {
+      if (retired) return;
       await storageRemove(underlying, legacyKey);
     }
+    if (retired) return;
     await storageSet(underlying, keys.migrationTombstone, MIGRATION_VALUE);
   };
 
@@ -262,18 +313,26 @@ export function createAuthStorageRuntime(
     return readyPromise;
   };
 
+  // A consented storage reset retires this runtime in the same turn it queues
+  // the wipe, and the retiring client may still be mid-refresh (R27,
+  // 2026-09-20). No await separates a check from its adapter call, so a call
+  // that passes the check was queued in an earlier turn, ahead of the wipe,
+  // which waits for it and removes it. Every later call is dropped.
   const gatedStorage: SupportedStorage | undefined = options.storage
     ? {
         async getItem(key: string) {
           await ready();
+          if (retired) return null;
           return storageGet(options.storage as SupportedStorage, key);
         },
         async setItem(key: string, value: string) {
           await ready();
+          if (retired) return;
           await storageSet(options.storage as SupportedStorage, key, value);
         },
         async removeItem(key: string) {
           await ready();
+          if (retired) return;
           await storageRemove(options.storage as SupportedStorage, key);
         },
       }
@@ -291,6 +350,9 @@ export function createAuthStorageRuntime(
     storage: gatedStorage,
     sdkLock,
     ready,
+    retire() {
+      retired = true;
+    },
     async runSdkUnlockedWriter<T>(fn: () => MaybePromise<T>): Promise<T> {
       return sdkLock(`lock:${keys.v2Primary}`, -1, async () => await fn());
     },
@@ -367,10 +429,19 @@ export function getAuthStorageRuntime(): AuthStorageRuntime {
   return productionRuntime;
 }
 
+/** Fence the production runtime's storage without replacing it. The consented
+ * reset calls this in the same turn it queues its wipe, so a refresh the
+ * retiring client began before consent cannot save after the wipe. */
+export function retireAuthStorageRuntime(): void {
+  productionRuntime?.retire();
+}
+
 /** Retire the production runtime after an explicitly-consented local recovery.
- * Existing callers may finish only on their already-invalidated client epoch;
- * every new caller receives a fresh migration/lock boundary. */
+ * Existing callers may finish only on their already-invalidated client epoch,
+ * and only their locks still work: their storage is fenced. Every new caller
+ * receives a fresh migration/lock boundary. */
 export function resetAuthStorageRuntime(): void {
+  productionRuntime?.retire();
   productionRuntime = null;
 }
 

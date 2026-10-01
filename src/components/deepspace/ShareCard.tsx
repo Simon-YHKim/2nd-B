@@ -2,7 +2,7 @@
 // (reference-app sb-more ShareCardScreen 1:1).
 //
 // Two variants:
-//   - "A" 통찰 카드: mono eyebrow "2ND-BRAIN · 이번 주", the insight sentence
+//   - "A" 통찰 카드: mono eyebrow "POLASCOPE · 이번 주", the insight sentence
 //     centered, 세컨비 head + "세컨비가 함께 본 한 주" footer.
 //   - "B" 별자리 카드: localized constellation eyebrow, the 7 domain dots at the
 //     prototype's fixed positions (litCount lit, rest dim) around a bright
@@ -19,7 +19,8 @@
 // prototype); the eyebrow uses Roboto Mono — no pixel fonts on the rev2 track.
 
 import { Fragment } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
@@ -171,7 +172,7 @@ export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = B
             </Text>
             <Text style={[styles.sigLine, softInk(0.65), { fontSize: 13 * k, marginTop: 2 * k }]}>
               {pieceCount == null
-                ? "2nd-Brain"
+                ? "PolaScope"
                 : t("deepspace:shareCardImg.signature", { count: pieceCount })}
             </Text>
           </View>

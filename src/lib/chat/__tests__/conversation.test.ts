@@ -34,9 +34,12 @@ jest.mock("../usage", () => ({
     return Promise.resolve((fixtures.used as number ?? 0) + 1);
   }),
   bumpChatUsageIfUnderCap: jest.fn((userId: string, cap: number, day: string) => {
+    if (typeof fixtures.usedAtBump === "number") fixtures.used = fixtures.usedAtBump;
     const used = (fixtures.used as number) ?? 0;
     captured.push({ fn: "bumpChatUsageIfUnderCap", args: [userId, cap, day], ret: used + 1 });
-    if (used >= cap) return Promise.reject(new ChatLimitExceededError());
+    // The server derives its own cap and ignores the client's cap argument.
+    const serverCap = (fixtures.serverCap as number) ?? cap;
+    if (used >= serverCap) return Promise.reject(new ChatLimitExceededError());
     return Promise.resolve(used + 1);
   }),
   ChatLimitExceededError,
@@ -120,6 +123,41 @@ describe("sendChatMessage", () => {
     expect(r.hint).toContain("오늘 채팅 한도");
     expect(r.hint).toContain("KST 자정");
     expect(r.upgradeTo).toBe("cortex");
+  });
+
+  test.each(["en", "ko"] as const)("%s: server rejection does not claim the client override cap was consumed", async (locale) => {
+    fixtures.used = 5;
+    fixtures.serverCap = 5;
+    const r = await sendChatMessage({ userId: "u1", message: "hello", locale, tier: "brain" });
+
+    if (r.status !== "blocked") throw new Error("server cap must still block chat");
+    expect(r.reason).toBe("limit_reached");
+    // The RPC error supplies no cap, so neither 250 nor an inferred 5 is honest.
+    expect(r.limit).toBeNull();
+    expect(r.used).toBe(5);
+    expect(r.upgradeTo).toBeNull();
+    expect(r.hint).toContain(locale === "ko" ? "이 계정" : "This account");
+    expect(r.hint).toContain("KST");
+    expect(r.hint).not.toMatch(/250|\(5\)|Brain|Soma|Cortex/);
+
+    const calls = captured.map((c) => c.fn);
+    expect(calls.filter((name) => name === "readChatUsageDetail")).toHaveLength(2);
+    expect(calls).toContain("bumpChatUsageIfUnderCap");
+    expect(calls).not.toContain("callLlm");
+  });
+
+  test("a concurrent send reaching the known cap preserves the upgrade hint", async () => {
+    fixtures.used = 29;
+    fixtures.usedAtBump = 30;
+    const r = await sendChatMessage({ userId: "u1", message: "hello", locale: "en", tier: "soma" });
+
+    if (r.status !== "blocked") throw new Error("server cap must still block chat");
+    expect(r.limit).toBe(30);
+    expect(r.used).toBe(30);
+    expect(r.upgradeTo).toBe("cortex");
+    expect(r.hint).toContain("chat limit (30)");
+    expect(r.hint).toContain("Cortex");
+    expect(captured.some((c) => c.fn === "callLlm")).toBe(false);
   });
 
   test("happy path: atomic-bumps usage → exports wiki → calls Gemini", async () => {

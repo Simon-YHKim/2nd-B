@@ -17,7 +17,7 @@
   "pasteCard": {
     "eyebrow": "Colar",
     "title": "Resposta ou resultado de teste",
-    "description": "Cole uma resposta de outro assistente, um resultado de teste de personalidade ou notas sobre você. O 2nd-Brain organiza o conteúdo e adiciona etiquetas.",
+    "description": "Cole uma resposta de outro assistente, um resultado de teste de personalidade ou notas sobre você. O PolaScope organiza o conteúdo e adiciona etiquetas.",
     "placeholder": "Cole aqui…",
     "accessibilityLabel": "Material a importar",
     "sort": "Organizar e classificar",
@@ -37,7 +37,7 @@
       "pro": "trabalho e especialidade",
       "life": "cotidiano"
     },
-    "keep": "Salvar no 2nd-Brain",
+    "keep": "Salvar no PolaScope",
     "keepHint": "Salva este resultado importado nos seus registros."
   },
   "saved": {
@@ -48,10 +48,30 @@
     "more": "Importar mais",
     "moreHint": "Limpa esta importação e inicia outra."
   },
+  "appointmentCount": {
+    "label": "Menções a planos: {{count}}",
+    "sub": "Contagem de planos → registro"
+  },
   "health": {
     "connect": "Ativar a sincronização de atividade",
     "ingest": "Adicionar a atividade de hoje",
     "consentNeeded": "Aceitar para trazer sua atividade",
     "minorLocked": "A sincronização de atividade está desativada nesta conta."
+  },
+  "markdownRetention": {
+    "consent": "O arquivo é analisado neste dispositivo. Os títulos e o texto das anotações que você escolher são salvos como registros criptografados. O texto de cada anotação é limitado a 4.000 caracteres.",
+    "review": "O título e o texto de cada anotação escolhida, até 4.000 caracteres por anotação, são adicionados aos seus registros."
+  },
+  "pendingDevice": {
+    "title": "Anotações neste dispositivo",
+    "body": "Anotações salvas neste dispositivo antes de entrar: {{count}}. Elas podem ser de outra pessoa. Importe apenas se forem suas.",
+    "account": "Importar para: {{email}}",
+    "accountUnavailable": "Não foi possível confirmar o e-mail desta conta. A importação ficará em espera.",
+    "confirm": "Importar minhas anotações para esta conta",
+    "confirmHint": "Salva as anotações deste dispositivo na conta exibida.",
+    "defer": "Mais tarde",
+    "deferHint": "Mantém as anotações neste dispositivo.",
+    "importing": "Importando…",
+    "error": "Algumas anotações não foram importadas. As restantes continuam neste dispositivo."
   }
 }

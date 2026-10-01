@@ -22,7 +22,7 @@ const TICKET = "A".repeat(43);
 const TRANSACTION_ID = "ab".repeat(16);
 const SIGNATURE = "B".repeat(94);
 const CONFIG = {
-  adUnitId: "2747237135",
+  adUnitIds: ["2747237135"],
   rewardAmount: 2,
   rewardItem: "reasoning credit",
 };
@@ -81,7 +81,7 @@ function bodyWhoseCancelClosesPendingRead(prefix: Uint8Array) {
 function validSignedQuery(): string {
   const signed = [
     "ad_network=5450213213286189855",
-    `ad_unit=${CONFIG.adUnitId}`,
+    `ad_unit=${CONFIG.adUnitIds[0]}`,
     `custom_data=${TICKET}`,
     `reward_amount=${CONFIG.rewardAmount}`,
     `reward_item=${CONFIG.rewardItem.replace(" ", "%20")}`,
@@ -96,21 +96,21 @@ describe("rewarded SSV environment contract", () => {
     expect(readRewardContractConfig(() => undefined)).toBeNull();
     expect(
       readRewardContractConfig((name) => ({
-        REWARD_SSV_AD_UNIT_ID: ` ${CONFIG.adUnitId} `,
+        REWARD_SSV_AD_UNIT_ID: ` ${CONFIG.adUnitIds[0]} `,
         REWARD_SSV_REWARD_AMOUNT: `0${CONFIG.rewardAmount}`,
         REWARD_SSV_REWARD_ITEM: ` ${CONFIG.rewardItem} `,
       })[name]),
     ).toBeNull();
     expect(
       readRewardContractConfig((name) => ({
-        REWARD_SSV_AD_UNIT_ID: ` ${CONFIG.adUnitId} `,
+        REWARD_SSV_AD_UNIT_ID: ` ${CONFIG.adUnitIds[0]} `,
         REWARD_SSV_REWARD_AMOUNT: String(CONFIG.rewardAmount),
         REWARD_SSV_REWARD_ITEM: ` ${CONFIG.rewardItem} `,
       })[name]),
     ).toEqual(CONFIG);
     expect(
       readRewardContractConfig((name) => ({
-        REWARD_SSV_AD_UNIT_ID: CONFIG.adUnitId,
+        REWARD_SSV_AD_UNIT_ID: CONFIG.adUnitIds[0],
         REWARD_SSV_REWARD_AMOUNT: "5",
         REWARD_SSV_REWARD_ITEM: CONFIG.rewardItem,
       })[name]),
@@ -252,7 +252,7 @@ describe("signed reward callback values", () => {
     expect(parseRewardCallback(parsed!.params, CONFIG)).toEqual({
       ticket: TICKET,
       transactionId: TRANSACTION_ID,
-      adUnitId: CONFIG.adUnitId,
+      adUnitId: CONFIG.adUnitIds[0],
       rewardAmount: CONFIG.rewardAmount,
       rewardItem: CONFIG.rewardItem,
     });

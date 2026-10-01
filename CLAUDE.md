@@ -2,6 +2,68 @@
 
 Project-specific guidance for Claude Code sessions in this repo.
 
+## ⚠ 앱과 localhost 는 같은 소프트웨어다 (Simon 결정 2026-09-29 · 갱신 2026-09-30) — 모든 세션 필수
+
+Simon 원문(09-29): *"앱과 localhost는 같은 s/w여야 한다고. 그리고 localhost를 수정하면 앱에도
+무조껀 동일하게 변경하라고."* (09-30): *"매번 apk 발행은 너무 헤비 한데? 똑같이 apk를 만들수
+있게 코드 수정만 해놓으면 안돼?"* 이 절은 모든 에이전트(Claude · Codex · 그 밖) · 모든 워크트리에
+적용되고, 아래 QA 계정 절의 `.env` 안내보다 이긴다.
+
+**계기 (2026-09-29 실측).** Simon 이 보던 localhost 가 하루에 두 번 폰 앱과 달랐다.
+① 다른 워크트리의 개발 서버: main 보다 뒤처진 기반 + 미커밋 파일 586개 + `.env` 의 등급 강제.
+② main 을 띄웠지만 `.env` 를 복사해 와서 `EXPO_PUBLIC_FORCE_TIER=brain` · 개발 모드였다.
+**코드가 같아도 설정 · 모드가 다르면 다른 앱이다.** 폰 APK 는 `FORCE_TIER=off` · 릴리스 모드다.
+
+**기준은 origin/main 이다.** main 에 머지된 앱 변경마다 CI(`android-release.yml`)가 같은 코드 ·
+같은 설정으로 APK 를 **자동으로** 빌드한다(빌드가 기다리는 사이 main 이 또 움직이면 - 문서 머지
+포함 - 그 빌드는 게이트에서 스스로 끊긴다. 그때는 `app:parity` 가 알리고 다시 빌드하는 명령을
+준다). localhost 가 origin/main 을 그 설정으로 띄우면 그 APK 와 같은 소프트웨어다. 그래서 APK 를
+폰에 게시(QA pre-release)하는 것은 **Simon 이 폰에서 볼 때만** 한다(09-30 갱신 - 09-29 판의
+"머지할 때마다 `app:qa-release`" 는 폐지).
+
+1. **localhost 는 `npm run localhost` 로만 띄운다** (`npm run web` 은 같은 명령 + 브라우저 열기).
+   `expo start` · `npm start` 로 8081 을 띄우지 않는다. 이 명령(`scripts/app-parity.cjs`)은
+   폰 APK 빌드(`.github/workflows/android-release.yml` 의 `jobs.build.env`)의 `EXPO_PUBLIC_*`
+   를 **실행할 때마다 그 파일과 저장소 Variables 에서 읽어** 넣고, `.env` 를 무시하고
+   (`EXPO_NO_DOTENV=1`), 릴리스 모드(`--no-dev --minify`) · 이 서버 전용 Metro 캐시로 띄운다.
+   값을 다른 곳에 복사해 두지 않는다 — 복사본은 반드시 갈라진다.
+2. **8081 은 `E:\2ndB\.worktrees\localhost-main` 이 origin/main 을 스스로 따라간다.** `npm run
+   localhost` 가 그 전용 워크트리(없으면 만든다 · 편집 금지)를 origin/main 으로 맞추고 세션과
+   분리된 감독자를 띄운다. 감독자는 **60초마다** origin/main 을 보고, 앱 경로가 바뀌면 다시 띄우고,
+   문서만 바뀌면 체크아웃만 옮기고, 이 스크립트가 바뀌면 새 스크립트의 점검(preflight)을 통과할 때만
+   새 스크립트로 스스로 갈아탄다(넘겨주기에 실패하면 옛 서버로 되돌리고 10분 뒤부터 간격을 늘려 다시
+   시도). 따라가면 앱과 달라지는 경우(설치된 `node_modules` 가 main 의 `package-lock.json` ·
+   `patches/` 와 다름 · 해석 못 하는 빌드 설정 · 새 스크립트가 거부함)에는 **따라가지 않고 띄운
+   커밋을 둔다**(보류 사유는 `app:parity` 가 보여 준다). **전용 워크트리에 미커밋 변경이 생기면
+   8081 을 멈추고** 깨끗해지면 다시 띄운다. 누가 체크아웃을 옮겨 놓으면 main 으로 다시 띄우거나(보류
+   중이면) 띄운 커밋으로 되돌린다 - 못 되돌리면 멈춘다. main 에 없는 코드는 8081 에 올리지 않는다.
+3. **localhost 에 보이는 것을 바꾸는 길은 main 에 머지하는 것 하나다.** PR → CI → 머지. 그러면
+   8081 이 1분 안에 따라가고, CI 가 같은 커밋의 APK 를 자동으로 만든다(빌드는 쓴 설정의 digest 를
+   run 주석 `app-env-digest` 로 남긴다). **APK 게시(`npm run app:qa-release`)는 Simon 이 폰에서 볼
+   때만** 한다 - 같은 코드 · 같은 설정의 빌드를 골라(없으면 기본 입력으로 새로 돌려) QA pre-release 로
+   올린다(`--latest=false`). 번들에 들어가는 파일은 전부 워크플로의 `on.push.paths` 안에 있어야 한다
+   (`app-parity.test.ts` 가 src 의 import 를 풀어 검사한다) - 밖에 있으면 CI 가 APK 를 다시 안 만든다.
+4. **세션을 끝내기 전에 `npm run app:parity` 가 "같음" 이어야 한다.** 같음 = 8081 이 origin/main
+   과 앱 경로 차이 0 · 설정(워크플로 env + 저장소 Variables) · 의존성(lockfile · patches)이 같음 ·
+   같은 코드 · 같은 설정의 폰용 APK 빌드가 성공했거나 진행 중(끊길 것이 확실한 대기 빌드 · 설정 주석을
+   아직 안 남긴 수동 빌드는 세지 않는다). 저장소 Variables 만 바꿨거나 빌드가 게이트에서 끊겼으면 그
+   코드 · 설정의 APK 가 아직 없으므로 "다름" 이 맞다 - `gh workflow run android-release.yml --ref main`
+   으로 새로 빌드한다. 방금 머지했으면 1분 뒤 다시 친다. 폰 QA APK 가 뒤처진 것은 참고로만 나온다.
+   "다름" 이 남으면 이유와 남은 단계를 HANDOFF 에 적는다.
+5. **세션 자체 확인용 서버**는 8081 이 아닌 포트에서 띄운다:
+   `node scripts/app-parity.cjs serve --port=8082 --allow-diff` (유료 화면은 `--tier=brain`
+   추가). **이것은 앱이 아니다** — Simon 에게 앱 화면으로 보여 주지 않는다.
+6. **설정으로 없앨 수 없는 차이는 남는다**: 웹 vs 네이티브(광고 SDK · 네이티브 모듈 · 권한 ·
+   푸시 · 파일 선택 · 백그라운드). 그런 동작은 폰(또는 에뮬레이터)에서 확인한다.
+
+```powershell
+npm run localhost               # 8081 확인 · 필요하면 띄움(어느 워크트리에서 쳐도 localhost-main 에 띄운다)
+npm run web                     # 위 + 브라우저
+npm run localhost -- --restart  # 강제로 다시 띄우기 · npm run localhost:stop 멈추기
+npm run app:parity              # 대조(기록은 E:\2ndB\.git\app-parity\, 어느 워크트리에서 쳐도 같다)
+npm run app:qa-release          # Simon 이 폰에서 볼 때만
+```
+
 ## Project context
 
 - **What**: 2nd-Brain — *AI 시대 가장 가치있는 자산 = 나 자신* 을 데이터로 축적하고 개인 비서로 키우는 플랫폼. 세 축: (1) 알아가기 · (2) 개인 비서 기반 · (3) 공상 → 구체화.
@@ -493,11 +555,10 @@ Simon 이 결정 콘솔로 항목별 판단을 냈고, 외부 법률·시장 조
 - **F5 미성년 결제 → 열되 보호장치 갖춤.** ⚠ 단 "법정대리인 사전 동의 게이트"를 넣으면
   Simon 의 "14세 이상 평등" 원칙과 충돌한다. 최소안(카카오 약관 제11조식 **고지**만)이
   평등 의도와 가장 잘 맞는다. 어느 강도인지 Simon 확인 필요.
-- **F6 EU 연령 → 국가별 표 구현.** ⚠ **선결 조건: 국가 신호가 없다.**
-  `src/lib/auth/consent-age.ts:8-10,43-46` 이 스스로 적어놨다 — "does not yet collect a reliable
-  jurisdiction signal (locale en/ko is not a country)". 후보는 SIM 지역 / IP 지오 / 프로필 필드 /
-  스토어 계정 국가. 이걸 먼저 정해야 표가 의미를 갖는다. GDPR 제8조 국가별 표의 1차 출처가
-  2021년 스냅샷이라 재확인도 필요.
+- **F6 EU 연령 → 국가별 표 + 판독 불가 복구 구현.** 기기 지역이 읽히면 63개국 표의
+  해당 행을 쓰고 자기신고로 덮어쓰지 않는다. 지역이 읽히지 않을 때만 이메일 가입과 OAuth
+  프로필 완료 화면에서 거주 국가를 묻고, 고른 행을 적용한다. "목록에 없음"은 18세 폴백이다.
+  이 값은 거주 증명이 아니며 저장하지 않고, 서버 하한은 여전히 전역 14세다.
 
 ### 외부 조사 근거 (뒤집힌 배경)
 
@@ -516,13 +577,25 @@ Simon 이 결정 콘솔로 항목별 판단을 냈고, 외부 법률·시장 조
   분리). Apple 5.1.3(i)·Google Health Permissions 가 건강데이터의 광고·분석 전용(轉用)을
   금지하므로 광고 스택과 물리적 분리가 전제. Strava 는 16세 미만에게 심박 항목 자체를 끈다.
 
-### 지금 실제로 뚫려 있는 구멍 2건 (개방 결정과 무관하게 시정)
+### 지금 실제로 뚫려 있는 구멍 (개방 결정과 무관하게 시정) — 둘 중 하나는 닫혔다
 
 - `src/lib/billing/`·페이월에 **`isMinor` 게이트가 없다.** 미성년이 지금 결제 가능하고,
-  민법 제5조 취소권은 제146조상 **최장 8년** 남는다(만 14세 결제 기준).
-- `src/lib/auth/consent-age.ts:55 resolveJurisdiction()` 이 **항상 "KR" 을 반환**해
-  `DIGITAL_CONSENT_AGE` 의 EU=16 값이 프로덕션에서 한 번도 쓰이지 않는다.
-  배포를 넓게 유지하기로 했으므로 EU 16세국의 14~15세가 무효 동의로 가입 가능한 상태다.
+  민법 제5조 취소권은 제146조상 **최장 8년** 남는다(만 14세 결제 기준). **아직 열려 있다.**
+- ~~`src/lib/auth/consent-age.ts:55 resolveJurisdiction()` 이 **항상 "KR" 을 반환**해
+  `DIGITAL_CONSENT_AGE` 의 EU=16 값이 프로덕션에서 한 번도 쓰이지 않는다~~
+  → **닫혔다 (2026-09-21 실측, PR #1855 `claude/jurisdiction-table-260921`).**
+  `resolveJurisdiction()` 은 기기 지역을 읽어 **63개국 표**(`src/lib/auth/consent-age-table.ts`,
+  r51 1차 원문 조사에서 생성, 값 13~20)의 그 나라 행을 돌려주고, 나라를 못 읽으면
+  **폴백 18** 이다(`src/lib/auth/consent-age.ts:97`). **KR 고정 경로는 런타임에 없다** —
+  `"KR"` 은 표의 한 행(14)일 뿐이고, `DIGITAL_CONSENT_AGE` 네 칸도 EU 버킷도 없어졌다.
+  ⚠ **"resolver 가 항상 KR 을 반환한다" 를 새 판단의 근거로 인용하지 말 것.** 현재 등록
+  경로는 지역을 읽지 못했을 때만 거주 국가를 묻고, 고른 표 행을 적용한다(태국은 20).
+  "목록에 없음"과 임의 값은 18세 폴백이며, 읽힌 기기 지역은 자기신고로 낮출 수 없다.
+  다만 이 값은 거주 증명이 아니고 저장하지 않는다.
+  **서버 하한은 여전히 나라를 안 보는 `< 14`**
+  (`db/migrations/0050_health_consent_default.sql:38`)라, 14 를 넘는 클라이언트 층은
+  직접 RPC 호출에 대해 **advisory** 다. 이를 권위 있게 닫으려면 별도 서버 마이그레이션과
+  신뢰할 법역 데이터 모델 결정이 필요하다.
 
 ### 여전히 미결 (건드리지 말 것)
 
@@ -539,7 +612,10 @@ sign in and exercise the real app during QA. **Reuse it — do not create anothe
 - **Credentials**: `.env.test` (committed at repo root) → `QA_TEST_EMAIL` / `QA_TEST_PASSWORD`.
 - **Account**: `qa.ai.b18807@example.com` — email/password sign-in, free tier, adult, `judge_mode=false`, RLS-isolated (only its own rows).
 - Disposable and non-secret (the Supabase anon key is already public). Revoke anytime by deleting the user in Supabase Auth. Real secrets (service_role, API keys, `.env`) still never go in git.
-- To test paywalled features, set `EXPO_PUBLIC_FORCE_TIER` in `.env` (e.g. `brain` unlocks everything) — the account itself stays free.
+- To test paywalled features, run a **session-only** server on another port:
+  `node scripts/app-parity.cjs serve --port=8082 --allow-diff --tier=brain` (the account itself stays free).
+  `npm run localhost` ignores `.env`, so an `EXPO_PUBLIC_FORCE_TIER` there never reaches 8081, and a
+  forced tier is never shown to Simon as the app. See "앱과 localhost 는 같은 소프트웨어다" at the top.
 
 ## Canonical concept & direction (read first)
 
@@ -657,8 +733,8 @@ not eyeballing a mockup.
 trio (`DESIGN_INDEX.md` / `SCREEN_TREE_SPEC.md` / `CLONE_PROTOCOL.md`). Those are a pre-M3 snapshot
 (2026-06-24) from the deep-space cosmic-pixel era, superseded by the reference app above. They are
 kept for history. `SCREEN_TREE_SPEC.md`'s route table in particular is badly out of date (it lists
-40 routes; **the app has 100** — `src/app` 아래 `.tsx` 104개에서 `_layout` 2개와 `+` 특수
-파일 2개를 뺀 수, 2026-09-07 실측. 여기 적혀 있던 85 는 낡은 값이다).
+40 routes; **the app has 101** — `src/app` 아래 `.tsx` 105개에서 `_layout` 2개와 `+` 특수
+파일 2개를 뺀 수, 2026-09-19 실측(origin/main `d0929429`). 09-07 의 100 · 그 전의 85 는 낡은 값이다).
 
 - Do not introduce hex literals in components. Always go through `semantic.*` from `src/lib/theme/tokens.ts`.
 - Do not add glassmorphism, pill chips, or em dashes in UI strings. Gradients are allowed only within the deep-space cyan/soul identity via `deepSpaceGradients` (`src/lib/theme/tokens.ts`); off-palette or decorative gradients stay forbidden. See DESIGN.md "Color rules".

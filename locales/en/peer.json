@@ -32,7 +32,7 @@
   "withdrawCta": "Withdraw my response",
   "withdrawAnytime": "You can withdraw anytime by opening this link again.",
   "subjectTitle": "Ask people who know me",
-  "subjectIntro": "Send a one-time link to people who know you. Once three or more answer, you can see the combined results in Seen self. Individual answers are never shown. Ask friends as well as people you met recently or worked with for a range of views.",
+  "subjectIntro": "Send a one-time link to a friend or someone you met recently to gather different views.",
   "labelField": "Nickname for this person (only you see it)",
   "kind": {
     "friend": "Friend",
@@ -45,7 +45,7 @@
   "creating": "Creating…",
   "createError": "Could not create the link. Try again.",
   "pendingCap": "You have reached the limit of open invitations. Cancel one before sending another.",
-  "privacyLine": "The link works once, expires in 14 days, and stores no contact info.",
+  "privacyLine": "The link works once, expires in 14 days, and stores no contact info. After three or more replies, you see only combined results, never individual answers.",
   "sentTitle": "Invites sent",
   "emptyList": "No invitations yet. Start with one person who knows you well.",
   "status": {

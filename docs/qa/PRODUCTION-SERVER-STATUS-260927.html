@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2ndB 운영 서버 부분 적용 상태 · 2026-09-27</title>
+<style>
+:root{color-scheme:light dark;--bg:#f6f8fc;--card:#fff;--text:#172335;--muted:#4c5d72;--line:#b9c7d8;--accent:#285ca9}
+@media(prefers-color-scheme:dark){:root{--bg:#0c1220;--card:#172238;--text:#edf3ff;--muted:#becbdf;--line:#425270;--accent:#9cc6ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,"Malgun Gothic",sans-serif}main{max-width:1060px;margin:auto;padding:28px 18px 64px}h1{font-size:clamp(1.7rem,4vw,2.3rem);line-height:1.25}h2{margin:30px 0 10px;font-size:1.22rem}a{color:var(--accent)}a:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.eyebrow{color:var(--accent);font-weight:700}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:12px;margin:18px 0}.card,details{background:var(--card);border:1px solid var(--line);padding:16px}.card strong{display:block;font-size:1.45rem;line-height:1.2}.card p{margin:7px 0 0;color:var(--muted)}.scroll{overflow-x:auto}table{width:100%;min-width:680px;border-collapse:collapse}.dependency-table{min-width:860px;table-layout:fixed}.dependency-table th:nth-child(1){width:135px}.dependency-table th:nth-child(2){width:65px}.dependency-table th:nth-child(4){width:170px}th,td{text-align:left;vertical-align:top;border-bottom:1px solid var(--line);padding:9px}th{white-space:nowrap}code{overflow-wrap:anywhere}details{margin:12px 0}summary{cursor:pointer;font-weight:700}small,.muted{color:var(--muted)}.state{font-weight:700}svg{min-width:720px;max-width:100%;height:auto}
+</style>
+</head>
+<body><main>
+<p class="eyebrow">2ndB · 운영 읽기 전용 재조회 · 2026-09-27 00:26 KST</p>
+<h1>서버는 17개 SQL이 추가된 부분 적용 상태</h1>
+<p>기존 인수 기록의 152행은 더 이상 현재값이 아니다. 새 원장의 SQL 본문은 소스와 대조했지만, 필수 서버 계약 일부가 없어 추가 Edge 배포와 공개 클라이언트 전환은 아직 진행할 수 없다.</p>
+<div class="cards" aria-label="현재 상태 요약">
+ <div class="card"><strong>169행</strong><p>운영 migration 원장. 이전 152행보다 17행 증가</p></div>
+ <div class="card"><strong>17/17 일치</strong><p>새 원장 SQL과 현재 Git 파일의 공백 제거 MD5</p></div>
+ <div class="card"><strong>NO-GO</strong><p>통합 리허설·필수 객체·운영 플래그 확인 전 추가 배포</p></div>
+</div>
+<p class="muted"><small>좁은 화면에서는 아래 흐름도와 표를 좌우로 밀어 확인할 수 있다.</small></p>
+<div class="scroll"><svg viewBox="0 0 900 112" role="img" aria-label="원장 확인 뒤 스키마 검사를 거쳐 격리 리허설과 운영 canary가 남아 있음"><rect x="2" y="15" width="190" height="75" rx="8" fill="none" stroke="currentColor"/><text x="20" y="48" fill="currentColor">원장 169행</text><text x="20" y="72" fill="currentColor">새 SQL 17/17 대조</text><path d="M194 52h45" stroke="currentColor" marker-end="url(#arrow)"/><rect x="240" y="15" width="190" height="75" rx="8" fill="none" stroke="currentColor"/><text x="258" y="48" fill="currentColor">스키마 의존 검사</text><text x="258" y="72" fill="currentColor">핵심 Edge 일부 미충족</text><path d="M432 52h45" stroke="currentColor" marker-end="url(#arrow)"/><rect x="478" y="15" width="190" height="75" rx="8" fill="none" stroke="currentColor"/><text x="496" y="48" fill="currentColor">격리 실데이터 리허설</text><text x="496" y="72" fill="currentColor">아직 미실행</text><path d="M670 52h45" stroke="currentColor" marker-end="url(#arrow)"/><rect x="716" y="15" width="182" height="75" rx="8" fill="none" stroke="currentColor"/><text x="734" y="48" fill="currentColor">운영 canary·게시</text><text x="734" y="72" fill="currentColor">보류</text><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0l8 4-8 4z" fill="currentColor"/></marker></defs></svg></div>
+<h2>현재 Edge 소스의 DB 의존성</h2>
+<div class="scroll"><table class="dependency-table"><thead><tr><th>함수</th><th>충족</th><th>빠진 계약</th><th>해석</th></tr></thead><tbody>
+<tr><td><code>openai-proxy</code></td><td>19/22</td><td><code>ai_audit_log.event_source</code>, <code>claim_polaris_generation(uuid,uuid)</code>, <code>settle_polaris_generation(uuid,uuid,jsonb,text,boolean)</code></td><td>현 소스 배포 차단</td></tr>
+<tr><td><code>service-consent</code></td><td>10/13</td><td><code>ai_audit_log.event_source</code>, <code>llm_service_consent_status(uuid)</code>, <code>write_llm_service_consent(...)</code></td><td>함수 자체도 아직 운영에 없음</td></tr>
+<tr><td><code>paddle-webhook</code></td><td>5/7</td><td><code>record_paddle_adjustment_review(...)</code>, <code>set_paddle_refund_review(text,boolean)</code></td><td>OFF·drain·sandbox 선행</td></tr>
+<tr><td><code>delete-account</code></td><td>1/2</td><td><code>begin_account_deletion(uuid,uuid,timestamptz)</code></td><td>현 소스 배포 차단</td></tr>
+<tr><td><code>oauth-naver</code></td><td>6/6</td><td>없음</td><td>스키마 검사만 통과. 배포·호출 검증은 별도</td></tr>
+<tr><td><code>rss-proxy</code></td><td>1/1</td><td>없음</td><td>스키마 검사만 통과. 배포·호출 검증은 별도</td></tr>
+</tbody></table></div>
+<p>위 수치는 <a href="../../scripts/check-edge-function-schema-deps.mjs">배포 게이트</a>가 생성한 카탈로그 SELECT를 운영 DB에서 읽기 전용으로 실행한 결과다. 서명·인자명·<code>service_role</code> 실행 권한·사용 컬럼을 확인한다. 함수의 의미상 호환성, Edge 비밀 설정, 실제 요청 성공을 증명하지 않는다.</p>
+<h2>운영 보류 사유</h2>
+<ul>
+<li><code>0179</code>·<code>0181</code>·<code>0189</code>·<code>0190</code>·<code>0192</code>·<code>0194</code>·<code>0195</code>·<code>0197</code>·<code>0198</code>·<code>0201</code>은 현재 원장에 정확한 소스 이름이 없다. 이는 전체 누락 목록이 아니며, 별칭은 별도로 화해해야 한다.</li>
+<li><code>0177</code>과 <code>0196</code> 효과는 날짜형 별칭으로 기록돼 있고 <code>0172</code>는 두 번 기록돼 있다. 다시 적용하거나 원장 행을 정리하지 않는다.</li>
+<li><code>runtime_flags.llm_enabled=true</code>를 읽었다. Edge secret·보상/Paddle 서버 플래그의 존재와 값은 이 도구로 확인할 수 없다. 보상 v91은 기존 버전이고, <code>service-consent</code>는 운영 함수 목록에 없다.</li>
+<li>실제 운영 데이터와 원장을 복제한 0191–0201 통합 리허설, Reward 서명·변조·재전송 canary, Paddle OFF·drain·sandbox는 미완료다. 최신 앱/웹 공개도 보류한다.</li>
+</ul>
+<details><summary>이번에 추가된 원장 17행과 SQL 대조</summary>
+<p>각 행의 <code>statements</code>는 1개였다. 원장 SQL과 현재 <code>origin/main</code>의 동명 SQL 파일에서 공백을 제거한 MD5가 모두 일치했다. 이는 바이트 동일성이나 운영 데이터 이주 성공을 증명하지 않는다.</p>
+<div class="scroll"><table><thead><tr><th>원장 버전</th><th>소스 이름</th><th>공백 제거 MD5</th></tr></thead><tbody>
+<tr><td>20260926145115</td><td>0171_public_data_quota</td><td><code>710e62758abe84e9225b278ef8c8d16b</code></td></tr>
+<tr><td>20260926145156</td><td>0173_effective_llm_consent</td><td><code>1cdb6fb0f7d57686ea36958ecab314bf</code></td></tr>
+<tr><td>20260926145242</td><td>0174_reasoning_proxy_reservation_claim</td><td><code>c42dffbc78e371589ea32e4023e61aa2</code></td></tr>
+<tr><td>20260926145315</td><td>0175_account_export_rate_limit</td><td><code>f0045c8241d67cb56eea0fcc03ea14c5</code></td></tr>
+<tr><td>20260926145442</td><td>0176_llm_global_capacity_guard</td><td><code>39e261c39adc3dc81bf512a387e29e39</code></td></tr>
+<tr><td>20260926145529</td><td>0178_records_client_request_id</td><td><code>87a68bd9f8a73b54bc5a2ebfa854f255</code></td></tr>
+<tr><td>20260926150042</td><td>0180_llm_capacity_retention</td><td><code>7d8334017974976a24b56e86f4422a3c</code></td></tr>
+<tr><td>20260926150209</td><td>0182_peer_response_atomicity</td><td><code>c52275c4a0eb581336f1a60d67b61e05</code></td></tr>
+<tr><td>20260926150320</td><td>0183_oauth_naver_rate_limit</td><td><code>fd66f67753642158be13115f5ac08296</code></td></tr>
+<tr><td>20260926150352</td><td>0184_billing_self_service_rate_limit</td><td><code>34a54bf36987ae79fab4aebce354f234</code></td></tr>
+<tr><td>20260926150454</td><td>0185_llm_proxy_purpose_quota</td><td><code>3260cd53024cf1e86b474b69270cd6ba</code></td></tr>
+<tr><td>20260926150800</td><td>0186_account_deletion_hardening</td><td><code>8f799d65c1472eecd6ba0dca6c6b7ed8</code></td></tr>
+<tr><td>20260926150828</td><td>0187_knowledge_source_https</td><td><code>8d98871f74374d9b389cc9722103a2db</code></td></tr>
+<tr><td>20260926150907</td><td>0191_signup_consent_admob_20260925</td><td><code>b29b5f4b9db9ce9ce27343affa22d3cf</code></td></tr>
+<tr><td>20260926151132</td><td>0193_effective_llm_consent_current_contract</td><td><code>9a49dcfa20de1e6d3c4844a58ea3e377</code></td></tr>
+<tr><td>20260926151248</td><td>0200_rss_proxy_quota</td><td><code>065a82ff246b6e967ec2d56c915ca9c0</code></td></tr>
+<tr><td>20260926151400</td><td>0199_oauth_naver_rate_limit_completion</td><td><code>51a7ffd28b42309a03ff0db66317ebda</code></td></tr>
+</tbody></table></div></details>
+<details><summary>관찰 범위와 근거</summary><p>대상은 Supabase 운영 프로젝트 <code>zoacryukmdeivmolvyhj</code>. 인증된 <code>list_migrations</code>를 두 번 읽어 169행과 마지막 버전을 확인했고, <code>execute_sql</code>로 원장 해시·카탈로그·세 DB 런타임 플래그를 SELECT했다. <code>list_edge_functions</code>는 활성 함수 15개와 <code>rewarded-ssv</code> v91, <code>paddle-webhook</code> v97, <code>openai-proxy</code> v136을 반환했다. <code>service-consent</code>는 목록에 없다. 운영 DB/Edge/시크릿에는 쓰지 않았다. 저장소 기준은 <code>main 2178c040</code>이며, <a href="SERVER-PROMOTION-260926.md">기존 별칭·백업 인계</a>와 <a href="../SESSION-OWNERSHIP.md">콘솔 소유 경계</a>를 함께 읽어야 한다. 이 화면은 시간 표시가 있는 스냅샷이다.</p></details>
+</main></body></html>

@@ -829,7 +829,7 @@ describe("GitHub Release workflow wiring", () => {
   });
 
   test("feeds only redirected verifier reports to the parser before release mutation", () => {
-    const parserCall = workflow.indexOf("node scripts/check-android-release-signatures.js verify");
+    const parserCall = workflow.indexOf('node "$SIGNATURE_VERIFIER" verify');
     const bundleValidation = workflow.indexOf(
       'java -jar "$BUNDLETOOL_JAR" validate --bundle="$PRODUCTION_FILE"',
     );
@@ -843,7 +843,7 @@ describe("GitHub Release workflow wiring", () => {
     expect(jarVerification).toBeGreaterThan(bundleValidation);
     expect(parserCall).toBeGreaterThan(-1);
     const parserWiring =
-      /check-android-release-signatures\.js verify[\s\S]*?aab-certificate\.txt" \\\r?\n\s+"\$\{\{ steps\.artifacts\.outputs\.production_file \}\}"/;
+      /node "\$SIGNATURE_VERIFIER" verify[\s\S]*?aab-certificate\.txt" \\\r?\n\s+"\$\{\{ steps\.artifacts\.outputs\.production_file \}\}"/;
     expect(workflow).toMatch(parserWiring);
     expect(workflow.replace(/\r?\n/g, "\r\n")).toMatch(parserWiring);
     expect(releaseMutation).toBeGreaterThan(parserCall);

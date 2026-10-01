@@ -43,6 +43,11 @@ const APPROVED_ACTIONS = {
     tag: "v1",
     count: 1,
   },
+  "denoland/setup-deno": {
+    sha: "22d081ff2d3a40755e97629de92e3bcbfa7cf2ed",
+    tag: "v2",
+    count: 1,
+  },
 } as const;
 
 const PGVECTOR_PG16_IMAGE =
@@ -330,7 +335,8 @@ describe("security-sensitive GitHub Actions workflows", () => {
 
     expect(contract).toContain("GitHub은 secret 이름만으로 environment 소유를 보장하지 않는다");
     expect(contract).toContain("동명 repository/organization Actions secret 금지");
-    expect(contract).toContain("아직 provisioning 전");
+    expect(contract).toContain("GitHub API에서 재확인해야 한다");
+    expect(contract).toContain("branch `main`만");
     expect(contract).toContain("ModelRefreshReadOnly");
     expect(contract).toContain("Backup");
     expect(contract).toContain("gh secret list --app actions");

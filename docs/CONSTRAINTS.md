@@ -96,10 +96,11 @@ The jest suite asserts the call order via mock spy.
 ## C10 — Age-tiered registration + guardian consent (phased)
 
 Sign-up requires `birth_date`, which sets an **age tier**:
-- **Adult (≥18)** and **self-consent minor (14–17)** register directly. Under PIPA, legal-representative consent is mandated only *below 14* (Article 22-2); users 14+ self-consent under the general provisions (Articles 15/17/22) with age-appropriate notice.
+- **Adult (≥18)** and **self-consent minors** register directly. ⚠ **[RE-READ 2026-09-21]** the floor is **per country** (63-country table, statutory 13–20, clamped up to 14; **18** when the country cannot be placed) - it is *not* a flat 14–17 band any more. Under PIPA, legal-representative consent is mandated only *below 14* (Article 22-2); users at or above the applied floor self-consent under the general provisions (Articles 15/17/22) with age-appropriate notice.
 - **Under-14** require **verifiable guardian consent** (PIPA Article 22-2; the US COPPA
-  threshold is separately *under-13* — global rollout branches by jurisdiction via the
-  matrix in `src/lib/auth/consent-age.ts`): the account starts in
+  threshold is separately *under-13* — global rollout branches **per country** via the
+  63-country table in `src/lib/auth/consent-age-table.ts`, applied by
+  `src/lib/auth/consent-age.ts`): the account starts in
   `account_status = 'pending_guardian_consent'`, held until a guardian verifies via the
   `guardian_consents` ledger.
 
@@ -109,14 +110,19 @@ Enforcement (phased rollout):
   `guardian_consents` table (per-user RLS); `0029` locks `guardian_consents`; **`0030`
   adds the authoritative `enforce_user_age_tier()` BEFORE INSERT trigger that rejects
   under-14 server-side — the real gate. `users_birth_date_sane` (0028) is only a sanity backstop.**
-- **Client — done:** `auth.ts` gates at `MIN_SELF_CONSENT_AGE` (14). 14-17
-  self-consent minors and adults register directly; under-14 still throw `AgeGateError`
-  pending the guardian-consent flow.
+- **Client — done:** registration resolves a country-specific floor (14 in KR, 16 in DE;
+  see the table below). A readable device region is authoritative for this client gate.
+  When it is unreadable, both email sign-up and OAuth profile completion require a
+  residence selection; a researched country uses its row and "not listed" uses 18.
+  Minors at or above that floor and adults register directly; anyone below it still
+  throws `AgeGateError` pending the guardian-consent flow.
 - **Safety — done (#134):** the minor flag threads from `AuthContext.isMinor`
   through the record/chat/interview/LLM chain. KO minors route to 1388 + 109,
   adults to the unified 109 line (1393 retired 2024-01), EN to 988.
 
-**Jurisdiction — the client branches, the server does not (measured 2026-09-08):**
+**Jurisdiction — the client reads a 63-country table and recovers an unreadable
+region at registration; the server does neither (measured 2026-09-08; table landed
+2026-09-21, recovery landed 2026-09-22):**
 
 ~~the app does not yet collect a reliable country/jurisdiction signal (locale
 `en`/`ko` is not a country). Until country detection lands, **all users are gated
@@ -126,17 +132,31 @@ on the KR rule (self-consent floor 14, PIPA Article 22-2)** via
 
 **Both halves of that were false.** The signal landed 2026-08-16 —
 `resolveJurisdiction()` reads the device region (`src/lib/auth/device-region.ts`)
-and maps it to a bucket — and the client gate is not pinned to KR: `auth.ts:33`
-computes `MIN_SELF_CONSENT_AGE = digitalConsentAge(resolveJurisdiction())`, so
-`signUp` / `signUpWithEmail` throw `AgeGateError` at the *resolved* floor
-(KR 14 · US 13 · EU 16 · unknown 16).
+— and the client gate is not pinned to KR. Registration passes through
+`resolveRegistrationConsentFloor()`: a readable device region keeps its resolved
+floor, while an unreadable one remains blocked until the form supplies a residence
+selection. Both low-level registration mutations enforce the resulting floor before
+calling auth or the database.
+
+⚠ **2026-09-21 (r53) — the four buckets are gone, and so is the 16.** This section
+said the resolved floor was ~~KR 14 · US 13 · EU 16 · unknown 16~~ and that an
+unrecognised or unreadable region stayed on KR 14. Simon closed both on 2026-09-20:
+*"나라마다 나라에 맞게 적용해야지. 일관 14세는 안돼."* The client now reads a
+**63-country table** generated from the r51 research (`src/lib/auth/consent-age-table.ts`,
+which records the source file's sha256), whose values run **13 to 20**. Neither a
+flat 14 nor the old four buckets could hold that spread: 12 countries sit at 13,
+10 at 14, 6 at 15, 12 at 16, 22 at 18 and one (Thailand) at 20.
+
+**The unknown-country fallback is 18, not 16.** With 16 there are 23 rows above it;
+with 18 there is one (Thailand 20), named with its reason in `FALLBACK_SHORTFALL`.
+20 would refuse most countries' 18-19 year old adults over a signal failure.
 
 What is actually true is the opposite asymmetry, and it is the thing worth
 knowing:
 
-| layer | branches by jurisdiction? | floor it enforces |
+| layer | branches by country? | floor it enforces |
 |---|---|---|
-| client (`auth.ts:176`, `:860`) | **yes** | resolved: KR 14 · US 13 · EU 16 · DEFAULT 16 |
+| client registration (`src/lib/supabase/auth.ts`) | **yes, per country** | readable device region, or required residence choice when unreadable: KR 14 · US 14 (statute 13) · FR 15 · DE 16 · TH 20 · **not listed 18** |
 | server (`0086`, `0148`, `0149` — 5 call sites) | **no** | `< 14`, hard-coded |
 
 **No migration reads a jurisdiction or country at all** — `jurisdiction` 0 files,
@@ -147,16 +167,35 @@ So the server floor is 14 everywhere, and this section itself calls
 the server trigger "the real gate" — correctly, because the client check is
 skippable by calling the RPC directly.
 
-**Consequence:** an EU or unknown-jurisdiction 14-15 year old is refused by our
-own client matrix but accepted by the authoritative server gate. The EU floor is
-therefore advisory, not enforced.
+**Consequence:** a user below a country floor above 14 (for example 15 in a
+16-country, or 19 in Thailand) is refused by the client but can still be accepted by
+the authoritative server gate through a direct call. Every floor above 14 is therefore
+advisory, not enforced. The reverse also holds and is why the table stores the
+statutory value separately from the effective one: the 12 rows at 13 (US, GB, SG and
+nine more) are inert today because the server rejects under-14 regardless, and they
+come back the day that floor moves.
+
+**Unreadable-region registration gap — closed 2026-09-22.** The two registration
+paths ask for residence **only when the device region is unreadable**, apply a selected
+table row, and send "not listed" or an unexpected value to the 18 fallback. A readable
+device region cannot be weakened by form state. This is still a self-declared client
+signal, is not persisted, and does not repair the server's global 14 floor; those are
+separate authority/data-model decisions.
+
+**Rows have an expiry.** 14 of the 63 carry `watch: true` — legislation is moving
+(Portugal 13→16 passed a first-reading vote, Spain and Italy 14→16, Norway 13→15,
+a UK delegated power to move 13-16, Chile's new law on 2026-12-01, and downward
+bills in Ukraine, Colombia, Turkey, Israel and Nigeria). `CONSENT_AGE_TABLE_RECHECK_BY`
+is 2026-12-01, the earliest dated change. Do **not** lower a row on a bill that has
+not passed: a wrong low row admits someone who cannot legally consent, while a wrong
+high row only turns away someone who could.
 
 **It is getting more entrenched, not less.** Of the five hard-coded `< 14` sites,
 **four are from the September consent stack** — `0148` (1) and `0149` (3: the
 trigger at L163, and the profile RPC at L395 and L441) — and those were applied
 to production on 2026-09-08. `0086` holds the fifth and oldest. So the newest
 code on this path repeated the same jurisdiction-blind literal three more times
-rather than reading the matrix the client already resolves. Anyone adding a sixth
+rather than reading the table the client already resolves. Anyone adding a sixth
 should know they are widening this gap, not just following local style.
 
 ⚠ **Do not "fix" this by raising the server floor.** Root `CLAUDE.md` lists

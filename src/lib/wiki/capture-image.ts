@@ -58,6 +58,15 @@ interface DownscaledOcrImage {
   mimeType: "image/jpeg";
   ownership: ImageAssetOwnership;
   usesPickerLease: boolean;
+  width?: number;
+  height?: number;
+}
+
+/** A picked photo prepared for storage on a record (always JPEG). */
+export interface PickedAttachmentImage extends PickedImage {
+  mimeType: "image/jpeg";
+  width?: number;
+  height?: number;
 }
 
 type ImageAssetOwnership =
@@ -83,6 +92,36 @@ export const IMAGE_OCR_EMPTY_RESULT_ERROR = "image_ocr_empty_result";
 export const IMAGE_OCR_CRISIS_RESULT_ERROR = "image_ocr_crisis_result";
 export const IMAGE_OCR_TEMP_UNAVAILABLE_ERROR = "image_ocr_temp_unavailable";
 export const IMAGE_TEMP_OPERATION_TIMEOUT_MS = 5_000;
+
+// Photos attached to a 글 record (2026-09-30) are STORED, not read by an AI, so
+// they follow a different policy from OCR: always re-encoded to JPEG (which also
+// drops EXIF, including GPS), a smaller size cap, and no paid call anywhere.
+export const ATTACHMENT_IMAGE_DOWNSCALE_DIMENSIONS = [1600, 1280, 1024] as const;
+export const ATTACHMENT_IMAGE_DOWNSCALE_COMPRESS = 0.7;
+/**
+ * About 1 MB of JPEG (1_360_000 base64 chars = 1_020_000 bytes), well under the
+ * record-photos bucket's 2 MiB object limit (db/migrations/0209).
+ */
+export const MAX_ATTACHMENT_IMAGE_BASE64_BYTES = 1_360_000;
+export const IMAGE_ATTACHMENT_PREPARE_FAILED_ERROR = "image_attachment_prepare_failed";
+
+interface ImageDownscalePolicy {
+  dimensions: readonly number[];
+  compress: number;
+  maxBase64Bytes: number;
+}
+
+const OCR_DOWNSCALE_POLICY: ImageDownscalePolicy = {
+  dimensions: OCR_IMAGE_DOWNSCALE_DIMENSIONS,
+  compress: OCR_IMAGE_DOWNSCALE_COMPRESS,
+  maxBase64Bytes: MAX_OCR_IMAGE_BASE64_BYTES,
+};
+
+const ATTACHMENT_DOWNSCALE_POLICY: ImageDownscalePolicy = {
+  dimensions: ATTACHMENT_IMAGE_DOWNSCALE_DIMENSIONS,
+  compress: ATTACHMENT_IMAGE_DOWNSCALE_COMPRESS,
+  maxBase64Bytes: MAX_ATTACHMENT_IMAGE_BASE64_BYTES,
+};
 
 export const ALLOWED_OCR_IMAGE_MIME_TYPES = [
   "image/jpeg",
@@ -573,11 +612,14 @@ async function proxyImagePayloadErrorMessage(error: unknown): Promise<string | n
 // side stepwise (re-encoding as JPEG) until the payload fits. Returns null when
 // the image cannot be brought under the cap (or the platform fails to decode
 // it) so the caller falls through to the original too-large guard.
-async function downscaleOcrImageAsset(asset: {
-  uri: string;
-  width?: number;
-  height?: number;
-}): Promise<DownscaledOcrImage | null> {
+async function downscaleOcrImageAsset(
+  asset: {
+    uri: string;
+    width?: number;
+    height?: number;
+  },
+  policy: ImageDownscalePolicy = OCR_DOWNSCALE_POLICY,
+): Promise<DownscaledOcrImage | null> {
   const ImageManipulator = loadImageManipulatorModule();
   if (!ImageManipulator || typeof ImageManipulator.manipulateAsync !== "function") return null;
   const width = asset.width ?? 0;
@@ -586,14 +628,14 @@ async function downscaleOcrImageAsset(asset: {
   // Each attempt resizes the longest side (aspect ratio preserved). When the
   // dimensions are unknown or already small (a dense screenshot can be heavy
   // at low resolution), a single JPEG re-encode pass still applies compression.
-  const resizeActions: ImageManipulatorAction[][] = OCR_IMAGE_DOWNSCALE_DIMENSIONS
+  const resizeActions: ImageManipulatorAction[][] = policy.dimensions
     .filter((target) => longestSide > target)
     .map((target) => [{ resize: width >= height ? { width: target } : { height: target } }]);
   if (resizeActions.length === 0) resizeActions.push([]);
 
   for (const actions of resizeActions) {
     const operation = Promise.resolve().then(() => ImageManipulator.manipulateAsync(asset.uri, actions, {
-        compress: OCR_IMAGE_DOWNSCALE_COMPRESS,
+        compress: policy.compress,
         format: ImageManipulator.SaveFormat.JPEG,
         base64: true,
       }));
@@ -622,13 +664,15 @@ async function downscaleOcrImageAsset(asset: {
       ? { kind: "explicitly_unowned" as const }
       : await acquireImageAssetOwnership(result.uri, "manipulator");
     const base64 = result?.base64;
-    if (base64 && base64.length <= MAX_OCR_IMAGE_BASE64_BYTES) {
+    if (base64 && base64.length <= policy.maxBase64Bytes) {
       return {
         uri: result.uri,
         base64,
         mimeType: "image/jpeg",
         ownership,
         usesPickerLease,
+        ...(typeof result.width === "number" ? { width: result.width } : {}),
+        ...(typeof result.height === "number" ? { height: result.height } : {}),
       };
     }
     await disposeImageAssetOwnership(ownership);
@@ -710,6 +754,67 @@ export async function pickImageAsset(
     return picked;
   } finally {
     await disposeImageAssetOwnership(candidateOwnership);
+  }
+}
+
+/**
+ * Pick one photo to attach to a record (글 메모 · 4W1H, 2026-09-30). No network
+ * and no AI: the photo is only prepared for storage.
+ *
+ * Unlike pickImageAsset it never keeps the picker's original bytes. Every photo
+ * goes through the JPEG re-encode, which bounds the size and strips EXIF
+ * metadata (a phone photo usually carries GPS). If the re-encode is not
+ * possible the pick fails closed rather than storing the original.
+ */
+export async function pickAttachmentImage(
+  source: "library" | "camera" = "library",
+): Promise<PickedAttachmentImage | null> {
+  const ImagePicker = loadImagePickerModule();
+  if (!ImagePicker) return null;
+  if (source === "camera") {
+    if (typeof ImagePicker.requestCameraPermissionsAsync !== "function") return null;
+    const cam = await ImagePicker.requestCameraPermissionsAsync();
+    if (cam.status !== "granted") throw new Error(IMAGE_CAMERA_PERMISSION_DENIED_ERROR);
+  }
+  const launch = source === "camera" ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
+  if (typeof launch !== "function") return null;
+  // base64 stays off here: the re-encode below produces the bytes, so the
+  // full-resolution original never has to sit in JS memory as a string.
+  const result = await launch({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    base64: false,
+    quality: 1,
+    allowsEditing: false,
+  });
+  if (result.canceled) return null;
+  const asset = result.assets?.[0];
+  if (!asset) return null;
+
+  let sourceOwnership: ImageAssetOwnership | null = await acquireImageAssetOwnership(asset.uri, "picker");
+  let preparedOwnership: ImageAssetOwnership | null = null;
+  try {
+    const prepared = await downscaleOcrImageAsset(asset, ATTACHMENT_DOWNSCALE_POLICY);
+    if (!prepared) throw new Error(IMAGE_ATTACHMENT_PREPARE_FAILED_ERROR);
+    if (!prepared.usesPickerLease) preparedOwnership = prepared.ownership;
+    // Same signature check as OCR: the stored bytes must really be a JPEG.
+    const payload = normalizeOcrImagePayload({ base64: prepared.base64, mimeType: prepared.mimeType });
+    if (payload.mimeType !== "image/jpeg") throw new Error(IMAGE_ATTACHMENT_PREPARE_FAILED_ERROR);
+    const keep = prepared.usesPickerLease ? sourceOwnership : prepared.ownership;
+    if (prepared.usesPickerLease) sourceOwnership = null;
+    preparedOwnership = null;
+    const picked = pickedImageWithLease(
+      { uri: prepared.uri, base64: payload.base64, mimeType: payload.mimeType },
+      keep,
+    );
+    return {
+      ...picked,
+      mimeType: "image/jpeg",
+      ...(prepared.width !== undefined ? { width: prepared.width } : {}),
+      ...(prepared.height !== undefined ? { height: prepared.height } : {}),
+    };
+  } finally {
+    await disposeImageAssetOwnership(preparedOwnership);
+    await disposeImageAssetOwnership(sourceOwnership);
   }
 }
 

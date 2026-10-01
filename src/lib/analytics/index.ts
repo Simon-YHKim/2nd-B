@@ -23,8 +23,10 @@ import { syncNativeClarity } from "./clarity-native";
 
 import { getEnv, type Env } from "../env";
 import { getSupabaseClient } from "../supabase/client";
+import { currentAccountEpoch, currentAccountOwner, subscribeAccountTransition } from "../auth/account-epoch";
+import { cleanConversionProps, type AnalyticsItem, type WebConversionEvent } from "./conversion-events";
 
-export type AnalyticsPropValue = string | number | boolean | null;
+export type AnalyticsPropValue = string | number | boolean | null | AnalyticsItem[];
 export type AnalyticsProps = Record<string, AnalyticsPropValue | undefined>;
 export type AnalyticsEventName =
   | "page_view"
@@ -36,6 +38,9 @@ export type AnalyticsEventName =
   | "plans_viewed"
   | "plans_tier_focused"
   | "checkout_started"
+  | "login"
+  | "sign_up"
+  | "begin_checkout"
   | "purchase"
   | "proposal_decided";
 
@@ -72,6 +77,7 @@ export type PageViewAnalyticsEvent = { name: "page_view"; props: PageViewEventPr
 export type CaptureAnalyticsEvent = { name: "capture"; props: CaptureEventProps };
 export type SecondBSessionAnalyticsEvent = { name: "secondb_session"; props: SecondBSessionEventProps };
 export type AnalyticsEvent =
+  | WebConversionEvent
   | PageViewAnalyticsEvent
   | CaptureAnalyticsEvent
   | SecondBSessionAnalyticsEvent
@@ -181,12 +187,15 @@ export interface CheckoutStartedEventProps extends AnalyticsProps {
   currency?: string;
 }
 
-// Post-IAP only (creator fn defined now; no call site until native IAP lands).
-export interface PurchaseEventProps extends AnalyticsProps {
+// Web Paddle completion. Incomplete legacy payloads fail closed at capture.
+export interface PurchaseEventProps {
   tier: string;
   price?: number;
   currency?: string;
   period?: string;
+  transaction_id?: string;
+  value?: number;
+  items?: AnalyticsItem[];
 }
 
 // propose→ratify quality signal (2026-07-26): until this event, only the
@@ -395,6 +404,38 @@ const CONSENT_KEY = "2ndb_analytics_consent";
 let initialized = false;
 let analyticsConsent = false;
 let analyticsConsentRevision = 0;
+let analyticsChoiceRevision = 0;
+let analyticsConsentResolved = false;
+let consentAccountEpoch = currentAccountEpoch();
+const observedTransactions = new Set<string>();
+
+// AuthContext raises this boundary synchronously, before publishing a different
+// owner. React consent effects are too late to retire an old Paddle callback.
+subscribeAccountTransition(() => {
+  const epoch = currentAccountEpoch();
+  if (epoch === consentAccountEpoch) return;
+  consentAccountEpoch = epoch;
+  setAnalyticsConsent(false, { isMinor: true, confirmedAdult: false });
+  analyticsConsentResolved = false;
+});
+
+export function getAnalyticsConsentSnapshot(): {
+  ownerId: string | null; epoch: number; revision: number; choiceRevision: number; resolved: boolean; granted: boolean;
+} {
+  return {
+    ownerId: currentAccountOwner(), epoch: currentAccountEpoch(),
+    revision: analyticsConsentRevision, choiceRevision: analyticsChoiceRevision,
+    resolved: analyticsConsentResolved, granted: analyticsConsent,
+  };
+}
+
+export function suspendAnalyticsForUnresolvedProfile(): void {
+  // An age hold is not a user's refusal. Preserve a resolved OFF, and leave an
+  // initial unresolved choice available for a later successful profile retry.
+  if (!analyticsConsent) return;
+  setAnalyticsConsent(false, { isMinor: true, confirmedAdult: false }, { expectedRevision: analyticsConsentRevision });
+  analyticsConsentResolved = false;
+}
 let runtimeAnalyticsFlags = { ...RUNTIME_ANALYTICS_DEFAULTS };
 let runtimeAnalyticsFlagsCheckedAt = 0;
 let runtimeAnalyticsRefresh: Promise<AnalyticsRuntimeFlags> | null = null;
@@ -561,23 +602,35 @@ function hasProductAnalyticsConfig(env: Env): boolean {
   return Boolean(env.EXPO_PUBLIC_GA4_MEASUREMENT_ID);
 }
 
-function cleanProps(props: AnalyticsProps | undefined): Record<string, AnalyticsPropValue> {
+function cleanProps(props: Record<string, unknown> | undefined, keys: readonly string[]): Record<string, AnalyticsPropValue> {
   const out: Record<string, AnalyticsPropValue> = {};
   if (!props) return out;
-  for (const [key, value] of Object.entries(props)) {
-    if (value !== undefined) out[key] = value;
+  for (const key of keys) {
+    const value = props[key];
+    if (typeof value === "string" || typeof value === "boolean" || value === null ||
+      (typeof value === "number" && Number.isFinite(value))) out[key] = value;
   }
   return out;
 }
 
 /** Prepare event properties so a live page URL cannot survive in `path` or `title`. */
 export function cleanAnalyticsEventProps(event: AnalyticsEvent): Record<string, AnalyticsPropValue> {
-  if (event.name !== "page_view") return cleanProps(event.props);
-  return cleanProps({
-    ...event.props,
-    path: sanitizeAnalyticsRoutePath(event.props.path),
-    title: undefined,
-  });
+  if (["login", "sign_up", "begin_checkout", "purchase"].includes(event.name)) {
+    return cleanConversionProps(event.name, event.props) ?? {};
+  }
+  const allowed: Partial<Record<AnalyticsEventName, readonly string[]>> = {
+    page_view: ["path", "locale"], capture: ["action", "mode", "source_kind", "has_file"],
+    secondb_session: ["action", "mode", "turn_count", "outcome", "used", "limit", "tier"],
+    star_lit: ["star_id", "ladder_level", "source", "ms_since_signup", "session_n"],
+    activation_milestone: ["stars_lit_count", "soul_core_brightness", "ms_since_signup"],
+    ai_limit_hit: ["tier", "limit", "upgrade_to", "ms_since_first_star"],
+    plans_viewed: ["current_tier", "source", "locale", "currency_shown"],
+    plans_tier_focused: ["tier", "price", "currency"], checkout_started: ["tier", "price", "currency"],
+    proposal_decided: ["flow", "decision", "count"],
+  };
+  const props = cleanProps(event.props as unknown as Record<string, unknown>, allowed[event.name] ?? []);
+  if (event.name === "page_view") props.path = sanitizeAnalyticsRoutePath(event.props.path);
+  return props;
 }
 
 const GITHUB_PAGES_BASE_PATH = "/2nd-B";
@@ -904,6 +957,8 @@ export function setAnalyticsConsent(
     return false;
   }
   analyticsConsentRevision += 1;
+  if (options?.expectedRevision === undefined) analyticsChoiceRevision += 1;
+  analyticsConsentResolved = true;
   const wasGranted = analyticsConsent;
   analyticsConsent = canLoadProductAnalytics(granted, gate);
   // Both native product-analytics SDKs are reasserted OFF for every resolved
@@ -992,6 +1047,12 @@ export function captureEvent(event: AnalyticsEvent): boolean {
   // production therefore also requires GA's behavioral + diagnostic data
   // transmission controls and automatic history events to be disabled.
   if (!analyticsConsent) return false;
+  // A refresh in flight is not permission to queue during a known operator OFF.
+  if (runtimeAnalyticsFlagsCheckedAt !== 0 && !runtimeAnalyticsFlags.analyticsEnabled) return false;
+  const conversion = ["login", "sign_up", "begin_checkout", "purchase"].includes(event.name);
+  if (conversion && (Platform.OS !== "web" || Object.keys(prepared.props).length === 0)) return false;
+  const transactionId = event.name === "purchase" ? prepared.props.transaction_id as string : null;
+  if (transactionId && (observedTransactions.has(transactionId) || observedTransactions.size >= 1000)) return false;
   if (
     runtimeAnalyticsRefresh ||
     !runtimeAnalyticsFlags.analyticsEnabled ||
@@ -1003,9 +1064,12 @@ export function captureEvent(event: AnalyticsEvent): boolean {
       (runtimeAnalyticsFlags.analyticsEnabled && !productAnalyticsReady);
     if (!awaitingDecision) return false;
     enqueueProductEvent(prepared);
+    if (transactionId) observedTransactions.add(transactionId);
     return true;
   }
-  return deliverProductEvent(prepared);
+  const delivered = deliverProductEvent(prepared);
+  if (delivered && transactionId) observedTransactions.add(transactionId);
+  return delivered;
 }
 
 /**
@@ -1028,6 +1092,10 @@ export function __resetAnalytics(): void {
   initialized = false;
   analyticsConsent = false;
   analyticsConsentRevision = 0;
+  analyticsChoiceRevision = 0;
+  analyticsConsentResolved = false;
+  consentAccountEpoch = currentAccountEpoch();
+  observedTransactions.clear();
   runtimeAnalyticsFlags = { ...RUNTIME_ANALYTICS_DEFAULTS };
   runtimeAnalyticsFlagsCheckedAt = 0;
   runtimeAnalyticsRefresh = null;

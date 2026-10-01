@@ -19,6 +19,27 @@ beforeAll(() => {
 });
 
 describe("Paddle checkout ownership binding", () => {
+  test("scoped bindings cannot cross Paddle environments, projects, or prices", async () => {
+    const scope = { environment: "sandbox" as const, audience: "https://sandbox.supabase.co", price_id: `pri_${"a".repeat(26)}` };
+    const binding = await createCheckoutBinding(SECRET, USER_ID, { issuedAt: ISSUED_AT, scope });
+    await expect(verifyCheckoutBinding(binding, SECRET, ISSUED_AT, scope)).resolves.toBe(USER_ID);
+    for (const changed of [
+      { ...scope, environment: "production" as const },
+      { ...scope, audience: "https://live.supabase.co" },
+      { ...scope, price_id: `pri_${"b".repeat(26)}` },
+    ]) {
+      await expect(verifyCheckoutBinding(binding, SECRET, ISSUED_AT, changed)).resolves.toBeNull();
+      await expect(verifyCheckoutBinding({ ...binding, ...changed }, SECRET, ISSUED_AT, changed)).resolves.toBeNull();
+    }
+  });
+
+  test("sandbox rejects legacy bindings while production retains their signed compatibility", async () => {
+    const binding = await createCheckoutBinding(SECRET, USER_ID, { issuedAt: ISSUED_AT });
+    const scope = { environment: "sandbox" as const, audience: "https://sandbox.supabase.co", price_id: `pri_${"a".repeat(26)}` };
+    await expect(verifyCheckoutBinding(binding, SECRET, ISSUED_AT, scope)).resolves.toBeNull();
+    await expect(verifyCheckoutBinding(binding, SECRET, ISSUED_AT, { ...scope, environment: "production" })).resolves.toBe(USER_ID);
+  });
+
   test("round-trips an exact HMAC-bound user, timestamp, and nonce", async () => {
     const binding = await createCheckoutBinding(SECRET, USER_ID, {
       issuedAt: ISSUED_AT,

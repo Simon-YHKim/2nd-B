@@ -28,6 +28,8 @@ export interface CompleteProfileFlowDeps {
   /** AuthContext.refresh — re-probes the profile so hasProfile/userId are
    *  current before any navigation decision reads them. */
   refreshAuth: () => Promise<void>;
+  /** Optional observation after successful entry; never participates in auth. */
+  onEntered?: (created: boolean) => void;
   /** Supabase sign-out (used by the age gate and cancel paths). */
   signOutUser: () => Promise<void>;
   /** AgeGateError discriminator (kept injectable so tests need no real error class). */
@@ -73,6 +75,7 @@ export async function submitCompleteProfile(
     // next tap retries the refresh, so the old infinite silent loop cannot
     // reproduce.)
     await deps.refreshAuth();
+    try { deps.onEntered?.(result.created); } catch { /* observation cannot block entry */ }
     return { kind: "entered", judgeMode: result.judgeMode, consentRecorded };
   } catch (e) {
     if (deps.isAgeGateError(e)) {

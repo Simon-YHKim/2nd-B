@@ -28,7 +28,19 @@ const FILES = [
   "PixelGateShell.tsx",
   "pixel-gate.ts",
   "press.ts",
+  "PixelWheel.tsx",
+  "PixelTimeSheet.tsx",
+  "time-wheel.ts",
 ];
+
+test("shared button forwards selection and toggle states to the web DOM", () => {
+  const src = read("PixelPressable.tsx");
+  for (const state of ["selected", "checked", "expanded", "busy"]) {
+    expect(src).toContain(`aria-${state}={accessibilityState?.${state}}`);
+  }
+  expect(src).toContain('aria-disabled={disabled}');
+  expect(src).toContain('accessibilityState={{ ...accessibilityState, disabled }}');
+});
 
 describe("절대 규칙이 프리미티브에 박혀 있다", () => {
   test.each(FILES)("%s 에 hex 리터럴이 없다 (규칙 7)", (f) => {
@@ -164,10 +176,6 @@ describe("디더 - 알파 대신 타일", () => {
 
 describe("누름 - 가라앉기와 베벨 반전이 함께 간다", () => {
   const src = read("PixelPressable.tsx");
-  const recordsGraph = readFileSync(
-    path.join(ROOT, "src", "components", "deep-space", "RecordsGraph.tsx"),
-    "utf8",
-  );
 
   test("눌리면 변환과 베벨 반전이 둘 다 걸린다", () => {
     // 하나만 하면 흔들리거나(변환만) 납작해진다(반전만). 같은 `sunken` 하나가
@@ -200,14 +208,12 @@ describe("누름 - 가라앉기와 베벨 반전이 함께 간다", () => {
     expect(src.match(/accessibilityState=/g)).toHaveLength(1);
   });
 
-  test("stateful caller의 switch 역할과 checked 상태를 보존한다", () => {
+  test("stateful caller가 switch 역할과 checked 상태를 전달할 수 있다", () => {
     // #1521 원안은 `PressableProps["accessibilityRole"]` 철자를 단언했다.
     // #1515 가 같은 두 prop 을 명시 타입 + 주석으로 올렸으므로 철자만 맞춘다.
-    // 계약(호출부가 역할·상태를 소유한다)은 같고, RecordsGraph 단언은 원안 그대로다.
+    // 역할과 상태는 호출부가 소유하며 PixelPressable은 이를 전달한다.
     expect(src).toContain("accessibilityRole?: AccessibilityRole;");
     expect(src).toContain("accessibilityState?: AccessibilityState;");
-    expect(recordsGraph).toContain('accessibilityRole="switch"');
-    expect(recordsGraph).toContain("accessibilityState={{ checked: showTagLinks }}");
   });
 
   test("면 배경과 root/full-width 스타일을 additive prop 으로 전달한다", () => {

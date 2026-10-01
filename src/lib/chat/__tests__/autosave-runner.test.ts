@@ -1599,6 +1599,35 @@ describe("재게이트 잔여 (게이트 r260919 재게이트 GA-1814-1~3 · GZ-
       await draining;
       expect({ outcome: await outcome, captures }).toEqual({ outcome: "autosave-owner-not-current", captures: 0 });
     });
+
+    test("계정이 후보 조회 중 바뀌면 손 담기의 미발송 업로드와 행 삽입을 끊는다", async () => {
+      const lookup = hold("candidates");
+      const outcome = runManualKeep(OWNER, (fence) =>
+        captureFromMarkdown({
+          userId: OWNER,
+          rawMd: exchange(2),
+          kindOverride: "self_knowledge",
+          userTags: [CHAT_KEEP_TAG],
+          signal: fence.signal,
+          journal: fence.journal,
+        }),
+      ).then(
+        () => "kept",
+        (error: Error) => error.name,
+      );
+      await lookup.reached;
+      switchAccount(OTHER);
+      lookup.release();
+      expect(await outcome).not.toBe("kept");
+      await spin();
+      expect({ upload: count("upload"), insert: count("insert"), rows: mockServer.sources.length, raw: mockServer.objects.size }).toEqual({
+        upload: 0,
+        insert: 0,
+        rows: 0,
+        raw: 0,
+      });
+    });
+
   });
 
   describe("GA-1814-3: 계정 줄의 시간 상한", () => {

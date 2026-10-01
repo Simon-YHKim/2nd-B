@@ -11,6 +11,10 @@ import path from "node:path";
 // the deployment authority. Every other function keeps gateway JWT checks on.
 const JWT_BYPASS_ALLOWED = new Set(["oauth-naver", "paddle-webhook", "rewarded-ssv"]);
 const FUNCTION_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+// The key of an assignment line: bare, basic-string, or literal-string
+// segments joined by dots, as TOML 1.0 spells them.
+const TOML_ASSIGNMENT_KEY =
+  /^((?:[A-Za-z0-9_-]+|"(?:\\.|[^"\\])*"|'[^']*')(?:\s*\.\s*(?:[A-Za-z0-9_-]+|"(?:\\.|[^"\\])*"|'[^']*'))*)\s*=/;
 
 const fail = (message) => {
   process.stderr.write(`::error title=Edge deploy policy::${message}\n`);
@@ -100,7 +104,17 @@ for (const rawLine of config.split(/\r?\n/)) {
   const line = stripTomlComment(rawLine).trim();
   if (!line) continue;
 
+  // A quoted key, alone or as one segment of a dotted key, can spell
+  // verify_jwt with escapes, and `[[x]]` moves the following settings into
+  // another table. Neither is visible to this scanner.
+  if (/["']/.test(line.match(TOML_ASSIGNMENT_KEY)?.[1] ?? "")) {
+    fail("quoted TOML assignment keys are unsupported by the deploy drift gate.");
+  }
+
   const header = line.match(/^\[([^\[\]]+)\]$/);
+  if (line.startsWith("[") && !header) {
+    fail("unsupported TOML table syntax in the deploy drift gate.");
+  }
   if (header) {
     const section = header[1].trim();
     if (/(?:^|\.)remotes(?:\.|$)/.test(section) || /["']/.test(section)) {

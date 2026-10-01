@@ -776,7 +776,9 @@ results.push(
       completeProfile.includes("PremiumToast") &&
       completeProfile.includes("toastWrap") &&
       completeProfile.includes('t("errors.completeProfileSaveFailed")') &&
-      completeProfile.includes("setToast({ tone: \"danger\", message: t(\"errors.ageGate\") })") &&
+      completeProfile.includes(
+        'setToast({ tone: "danger", message: t("errors.ageGate", { minAge: minConsentAge }) })',
+      ) &&
       audit.includes("PremiumToast") &&
       audit.includes("toastWrap") &&
       audit.includes("Couldn't save your answer. Your answer is still here, so try again.") &&
@@ -1061,13 +1063,16 @@ results.push(
       pixelPressable.includes("accessibilityState={{ ...accessibilityState, disabled }}") &&
       signIn.includes('accessibilityLabel={t("auth:signIn.submit")}') &&
       signIn.includes("disabled={submitDisabled}") &&
-      // OAuth 4종의 라벨은 PROVIDER_KEY 맵에 있고 화면은 t(맵[provider]) 로 부른다.
-      // 맵을 안 보면 구글·애플·카카오가 라벨을 잃어도 검사가 초록이다.
+      // 로그인 화면의 OAuth 허용 목록은 Google · Apple · GitHub 세 종이다.
+      // 라벨은 PROVIDER_KEY 맵에 있고 화면은 t(맵[provider]) 로 부른다.
+      // Kakao · Naver가 다시 섞이면 제품 결정이 조용히 되돌아가므로 부재도 고정한다.
+      signIn.includes('const SIGN_IN_PROVIDERS = ["google", "apple", "github"] as const') &&
       signIn.includes("accessibilityLabel={t(PROVIDER_KEY[provider])}") &&
       signIn.includes('google: "auth:signIn.continueWithGoogle"') &&
       signIn.includes('apple: "auth:signIn.continueWithApple"') &&
-      signIn.includes('kakao: "auth:signIn.continueWithKakao"') &&
-      signIn.includes('accessibilityLabel={t("auth:signIn.continueWithNaver")}') &&
+      signIn.includes('github: "auth:signIn.continueWithGithub"') &&
+      !signIn.includes('kakao: "auth:signIn.continueWithKakao"') &&
+      !signIn.includes('continueWithNaver') &&
       signIn.includes("disabled={authBusy}") &&
       signIn.includes('accessibilityLabel={t("auth:signIn.resetLabel")}') &&
       signIn.includes('accessibilityLabel={t("auth:signIn.email")}') &&
@@ -1082,7 +1087,7 @@ results.push(
       signIn.includes('accessibilityHint={t("auth:resetPassword.requestSubtitle")}') &&
       signIn.includes('accessibilityHint={t("auth:signIn.signUpHint")}') &&
       signIn.includes('accessibilityRole="image"') &&
-      signIn.includes('accessibilityLabel={t("auth:common.entryArtwork")}') &&
+      signIn.includes('label={t("home:ds.home.polaris")}') &&
       // 키는 그대로고 네임스페이스 접두사(auth: / common:)가 붙었을 뿐이다.
       // 하나만 이름이 바뀌었다 — manualLabel -> manualLink.
       signUp.includes('t("auth:language.switchToEnglishLabel")') &&
@@ -1097,7 +1102,7 @@ results.push(
       signUp.includes('accessibilityRole="image"') &&
       signUp.includes('accessibilityLabel={t("auth:common.entryArtwork")}') &&
       birthDateField.includes('accessibilityLabel={t("signUp.birthDate")}') &&
-      birthDateField.includes('accessibilityHint={t("signUp.birthDateHelper")}') &&
+      birthDateField.includes('accessibilityHint={t("signUp.birthDateHelper", { minAge })}') &&
       completeProfile.includes('accessibilityRole="image"') &&
       completeProfile.includes('accessibilityLabel={t("common.entryArtwork")}') &&
       completeProfile.includes('accessibilityHint={t("completeProfile.submitHint")}') &&
@@ -1280,7 +1285,7 @@ results.push(
 results.push(
   check("Onboarding", () => {
     const onboarding = read("src/app/onboarding.tsx");
-    // J4 (rev2): onboarding is a PRE-AUTH 4-slide carousel that hands off to the
+    // J4 (rev2): onboarding is a PRE-AUTH 3-slide carousel that hands off to the
     // real age-tiered auth path (reference sb-flows.jsx OnboardingScreen +
     // 02-onboard.png). The render-broken bug was the `!userId` redirect to
     // /sign-in, which stopped the carousel from ever showing for a signed-out
@@ -1302,18 +1307,24 @@ results.push(
     // wiring to it (canonFlows.onboardingSlides) instead of KO literals living
     // inside the component file.
     const flows = read("public/proto/data/screens/flows.json");
+    const flowPack = JSON.parse(flows) as { onboardingSlides?: unknown[] };
     const ok =
       // render-broken fix: gate on the onboarding flag, never on userId.
       !onboarding.includes("if (!userId) return <Redirect") &&
       onboarding.includes("useOnboardingComplete") &&
       onboarding.includes("markOnboardingComplete") &&
-      // 4-slide carousel sourced from the canon flows pack (verbatim KO copy).
+      // 3-slide carousel sourced from the canon flows pack (verbatim KO copy).
       onboarding.includes("const SLIDES: Slide[]") &&
       onboarding.includes("canonFlows.onboardingSlides") &&
+      flowPack.onboardingSlides?.length === 3 &&
       flows.includes('"icon": "bubble_chart"') &&
       flows.includes("나를 알아가는 AI") &&
-      flows.includes("흩어진 일상이") &&
-      flows.includes("별자리가 돼요") &&
+      flows.includes("일곱 별에") &&
+      flows.includes("내 이야기를 담아요") &&
+      flows.includes('"icon": "check_circle"') &&
+      flows.includes("내가 승인해야 반영돼요") &&
+      !flows.includes("AI의 원리") &&
+      !flows.includes("AI 뮤지엄") &&
       // top-right skip jumps to the final (auth) slide.
       onboarding.includes("건너뛰기") &&
       onboarding.includes("AUTH_STEP") &&
@@ -1324,8 +1335,8 @@ results.push(
       id: "Onboarding",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "pre-auth 4-slide onboarding carousel (gated on the onboarding flag, KO copy verbatim from the canon flows pack via canonFlows.onboardingSlides, hand-off through the real age-tiered sign-in) with no village/node metaphor copy"
-        : "onboarding must be a PRE-AUTH carousel (J4/rev2): gated on useOnboardingComplete (never !userId→/sign-in), SLIDES sourced from canonFlows.onboardingSlides with the canon copy (bubble_chart icon, 나를 알아가는 AI, 흩어진 일상이/별자리가 돼요 in flows.json), a 건너뛰기 skip to the auth slide, and a final hand-off to the real /sign-in (C10 age-gating intact); no multi-step metaphor copy",
+        ? "pre-auth 3-slide onboarding carousel (gated on the onboarding flag, KO copy verbatim from the canon flows pack via canonFlows.onboardingSlides, hand-off through the real age-tiered auth) with no AI-principles lesson or village/node metaphor copy"
+        : "onboarding must be a PRE-AUTH 3-slide carousel (J4/rev2): gated on useOnboardingComplete (never !userId→/sign-in), SLIDES sourced from canonFlows.onboardingSlides with the canon copy (bubble_chart intro, 일곱 별, check_circle approval), no AI-principles or AI Museum lesson, a 건너뛰기 skip to the auth slide, and a final hand-off to the real auth routes (C10 age-gating intact); no multi-step metaphor copy",
     };
   }),
 );
@@ -1611,12 +1622,12 @@ results.push(
       en.includes('"Choose which data to delete. You can delete by type or delete all content."') &&
       en.includes('"{{label}}, option {{index}} of {{total}}, {{state}}."') &&
       en.includes('"Shows the typed confirmation for deleting all records, sources, wiki pages, and usage."') &&
-      en.includes('"This clears private 2nd-B content in this account. Account details, consent history, and service accountability records stay."') &&
+      en.includes('"This clears private PolaScope content in this account. Account details, consent history, and service accountability records stay."') &&
       ko.includes('"dataWizard"') &&
       ko.includes('"삭제할 데이터 종류를 골라주세요. 종류별로 지우거나 전체를 삭제할 수 있어요."') &&
       ko.includes('"{{label}}, {{total}}개 중 {{index}}번째, {{state}}."') &&
       ko.includes('"전체 삭제를 확인하는 입력란을 보여줘요. 기록, 캡처, 위키 페이지, 사용량이 모두 삭제돼요."') &&
-      ko.includes('"이 계정의 2nd-B 개인 콘텐츠를 모두 지워요. 계정 정보, 동의 이력, 서비스 책임 기록은 남아요."');
+      ko.includes('"이 계정의 PolaScope 개인 콘텐츠를 모두 지워요. 계정 정보, 동의 이력, 서비스 책임 기록은 남아요."');
     return {
       id: "SettingsDataDeleteWizard",
       status: ok ? "PASS" : "FAIL",
@@ -2612,7 +2623,7 @@ results.push(
       wiki.includes('t("hero.subtitle")') &&
       wiki.includes('t("hero.speech")') &&
       en.includes("Your saved records and material in one place") &&
-      ko.includes("2nd-Brain에 담은 기록과 자료를 모았어요") &&
+      ko.includes("PolaScope에 담은 기록과 자료를 모았어요") &&
       forbidden.every((term) => !wiki.includes(term) && !en.includes(term) && !ko.includes(term));
     return {
       id: "WikiHeroI18nCopy",
@@ -2704,9 +2715,7 @@ results.push(
     const ko = read("locales/ko/auth.json");
     const enDeep = read("locales/en/deepspace.json");
     const koDeep = read("locales/ko/deepspace.json");
-    // "Welcome back" joined the forbidden list with E2E-6 (e2e-shots-20260610):
-    // the cold-start landing greets FIRST-TIME visitors too, so the hero must
-    // not assume a returning user.
+    // 옛 마을 진입 문구와 폐기된 Welcome back 직역은 다시 들어오지 못하게 둔다.
     const forbidden = [
       "Enter the night village",
       "밤빛 조각마을에 들어가기",
@@ -2716,10 +2725,14 @@ results.push(
     const ok =
       screen.includes('t("deepspace:auth.signInTitle")') &&
       screen.includes('t("deepspace:auth.signInLead")') &&
-      enDeep.includes('"signInTitle": "Sign in to 2nd-Brain"') &&
-      enDeep.includes('"signInLead": "Keep records, learn about yourself and talk with SecondB."') &&
-      koDeep.includes('"signInTitle"') &&
-      koDeep.includes('"signInLead": "기록을 모아 나를 알아가고, 세컨비와 이야기해 보세요."') &&
+      enDeep.includes('"signInTitle": "Good to see you again"') &&
+      enDeep.includes(
+        '"signInLead": "In the AI era, the asset is you. Your records add up to your North Star."',
+      ) &&
+      koDeep.includes('"signInTitle": "다시 만나 반갑습니다"') &&
+      koDeep.includes(
+        '"signInLead": "AI 시대의 자산은 나 자신. 기록이 쌓여 나의 북극성이 됩니다."',
+      ) &&
       forbidden.every(
         (term) =>
           !screen.includes(term) &&
@@ -2732,8 +2745,8 @@ results.push(
       id: "SignInHeroI18nCopy",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "sign-in hero copy uses the auth locale bundle and avoids old night-village wording"
-        : "sign-in hero should source title/subtitle from auth locale copy and avoid old night-village wording",
+        ? "sign-in hero copy uses the current deepspace locale bundle and avoids old night-village wording"
+        : "sign-in hero should source the current title/subtitle from deepspace locale copy and avoid old night-village wording",
     };
   }),
 );
@@ -2762,10 +2775,11 @@ results.push(
     const ok =
       !landing.includes("dataNodes") &&
       !liveConstellation.includes("dataNodes") &&
-      // 홈 코치마크는 **제품 안내**지 사용자 데이터에 대한 주장이 아니다. 첫 방문에
-      // 뜨고 "다시 보지 않기"로 닫힌다 — 그래서 데이터 게이트가 필요 없다. 이 구분을
-      // 안 적으면 다음 사람이 "스포트라이트가 안 잠겼다"고 되돌린다.
-      landing.includes("useCoachmarksGate()") &&
+      // 홈 코치마크는 첫 기록 안내다. 기존 기록이 다른 기기에 있어도 처음으로
+      // 오판하지 않도록 소유자별 단일 게이트가 확인하고 홈에는 결과만 전달한다.
+      landing.includes("useCoachmarksGate(") &&
+      liveConstellation.includes("coachmarksDue = null") &&
+      !liveConstellation.includes("useCoachmarksGate(") &&
       captureScreen.includes('savedKind === "records"') &&
       captureScreen.includes('router.push("/records")') &&
       !recordDetail.includes("highlightRecordId") &&

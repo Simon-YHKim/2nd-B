@@ -174,10 +174,6 @@ function recordingMimeType(uri: string, requestedMimeType?: string): string {
   return "audio/mp4";
 }
 
-function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-}
-
 async function declaredRecordingBytes(
   uri: string,
   declaredBytes: number | undefined,
@@ -212,45 +208,43 @@ async function declaredRecordingBytes(
 
 async function bytesToBase64(
   bytes: Uint8Array,
-  mimeType: string,
   signal?: AbortSignal,
 ): Promise<string> {
-  const blob = new Blob([toArrayBuffer(bytes)], { type: mimeType });
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    let settled = false;
-    const cleanup = (): void => signal?.removeEventListener("abort", onAbort);
-    const finish = (result: { ok: true; value: string } | { ok: false; error: Error }): void => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      if (result.ok) resolve(result.value);
-      else reject(result.error);
-    };
-    const onAbort = (): void => {
-      try {
-        reader.abort?.();
-      } catch {
-        // Rejecting with the stable abort below is the security boundary.
-      }
-      finish({ ok: false, error: abortError() });
-    };
-    reader.onerror = () => finish({ ok: false, error: new Error("voice_read_failed") });
-    reader.onload = () => finish({ ok: true, value: String(reader.result ?? "") });
-    signal?.addEventListener("abort", onAbort, { once: true });
-    if (signal?.aborted) {
-      onAbort();
-      return;
+  // React Native's BlobManager rejects ArrayBuffer parts. Encode the already
+  // bounded byte array directly, yielding between chunks so owner aborts can
+  // interrupt the work without creating an unbounded intermediate Blob.
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const chunkBytes = 48 * 1024; // divisible by 3: padding appears only at EOF
+  const chunks: string[] = [];
+  for (let offset = 0; offset < bytes.length; offset += chunkBytes) {
+    throwIfAborted(signal);
+    const end = Math.min(offset + chunkBytes, bytes.length);
+    const chars: string[] = [];
+    let index = offset;
+    for (; index + 2 < end; index += 3) {
+      const bits = (bytes[index] << 16) | (bytes[index + 1] << 8) | bytes[index + 2];
+      chars.push(
+        alphabet[(bits >>> 18) & 63],
+        alphabet[(bits >>> 12) & 63],
+        alphabet[(bits >>> 6) & 63],
+        alphabet[bits & 63],
+      );
     }
-    try {
-      reader.readAsDataURL(blob);
-    } catch {
-      finish({ ok: false, error: new Error("voice_read_failed") });
+    if (index < end) {
+      const first = bytes[index];
+      const second = index + 1 < end ? bytes[index + 1] : 0;
+      chars.push(
+        alphabet[first >>> 2],
+        alphabet[((first & 3) << 4) | (second >>> 4)],
+        index + 1 < end ? alphabet[(second & 15) << 2] : "=",
+        "=",
+      );
     }
-  });
-  const comma = dataUrl.indexOf(",");
-  if (comma < 0) throw new Error("voice_read_failed");
-  return dataUrl.slice(comma + 1);
+    chunks.push(chars.join(""));
+    if (end < bytes.length) await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+  throwIfAborted(signal);
+  return chunks.join("");
 }
 
 export async function recordingUriToBase64(
@@ -273,7 +267,7 @@ export async function recordingUriToBase64(
     signal,
   );
   throwIfAborted(signal);
-  const base64 = await bytesToBase64(bytes, mimeType, signal);
+  const base64 = await bytesToBase64(bytes, signal);
   throwIfAborted(signal);
   return { base64, mimeType };
 }

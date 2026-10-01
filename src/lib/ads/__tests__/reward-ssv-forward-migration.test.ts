@@ -21,11 +21,14 @@ const dbRegression = readFileSync(
 const ownership = readFileSync(path.join(root, "docs", "SESSION-OWNERSHIP.md"), "utf8");
 const envExample = readFileSync(path.join(root, ".env.example"), "utf8");
 
-describe("unnumbered rewarded SSV hardening draft", () => {
+describe("rewarded SSV hardening migration", () => {
   test("keeps the live client unit coupled to the server SSV contract", () => {
     expect(envExample).toMatch(/^EXPO_PUBLIC_REWARD_SSV=$/m);
     expect(envExample).toMatch(/^EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID=$/m);
-    expect(envExample).toContain("must exactly match REWARD_SSV_AD_UNIT_ID");
+    expect(envExample).toMatch(/^EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_ANDROID=$/m);
+    expect(envExample).toMatch(/^EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS=$/m);
+    expect(envExample).toContain("REWARD_SSV_AD_UNIT_IDS");
+    expect(envExample).toContain("use the numeric suffix");
   });
 
   test("documents the server-first rollout and fail-closed canary window", () => {
@@ -136,7 +139,7 @@ describe("unnumbered rewarded SSV hardening draft", () => {
     expect(claimAt).toBeGreaterThan(0);
     expect(claimAt).toBeLessThan(issueAt);
     expect(claimAt).toBeGreaterThan(edge.indexOf("admin.auth.getUser(accessToken)"));
-    expect(claimAt).toBeGreaterThan(edge.indexOf("readIssueKind(req)"));
+    expect(claimAt).toBeGreaterThan(edge.indexOf("readIssueKind(req, contract)"));
     expect(edge).toMatch(/retry_after_seconds[\s\S]*?429/);
     expect(edge).toMatch(/'retry-after':\s*String\(retryAfter\)/);
   });
@@ -171,11 +174,13 @@ describe("unnumbered rewarded SSV hardening draft", () => {
     );
 
     const handlerAt = edge.indexOf("Deno.serve");
-    const parseAt = edge.indexOf("const parsed = parseSignedSsvQuery(rawQuery)", handlerAt);
+    const parseAt = edge.indexOf("parsed = parseSignedSsvQuery(rawQuery)", handlerAt);
     const derAt = edge.indexOf("derToRawEcdsa", parseAt);
     const contractAt = edge.indexOf("parseRewardCallback(parsed.params, contract)", parseAt);
     const callbackClaimAt = edge.indexOf("'claim_reward_ssv_callback_attempt'", handlerAt);
-    const signatureAt = edge.indexOf("await signatureValid(parsed, rawSignature)", handlerAt);
+    // The no-subject console probe has an earlier verification with zero DB
+    // access. Ticket callbacks still pass admission before key retrieval.
+    const signatureAt = edge.lastIndexOf("await signatureValid(parsed, rawSignature)");
     for (const position of [parseAt, derAt, contractAt, callbackClaimAt, signatureAt]) {
       expect(position).toBeGreaterThan(handlerAt);
     }
@@ -197,9 +202,10 @@ describe("unnumbered rewarded SSV hardening draft", () => {
     expect(migrationWorkflow).toContain("REWARD_SSV_DB_TEST: github-actions-only");
     expect(
       dbRegression.match(
-        /\\i db\/migration-drafts\/UNNUMBERED_reward_ssv_hardening\.sql/g,
+        /\\i db\/migrations\/0196_reward_ssv_hardening\.sql/g,
       ) ?? [],
-    ).toHaveLength(2);
+    ).toHaveLength(1);
+    expect(dbRegression).not.toContain("\\i db/migration-drafts/UNNUMBERED_reward_ssv_hardening.sql");
     expect(dbRegression).toContain("claim_reward_ssv_issue_rate_limit");
     expect(dbRegression).toContain("settle_reward_ssv_ticket_v2");
     expect(dbRegression).toContain("forced settlement failure");

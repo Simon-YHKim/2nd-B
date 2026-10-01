@@ -8,18 +8,52 @@ const workflow = read(".github/workflows/supabase-dry-run.yml");
 const accountDeletionRegression = read("db/tests/account_deletion_completion_fence_regression.sql");
 const peerRegression = read("db/tests/peer_response_rate_limit_regression.sql");
 const rewardRunner = read("scripts/check-reward-ssv-db.sh");
+const polarisRegression = read("db/migration-drafts/tests/polaris-generation-contract.sql");
+const signupBootstrap = read("db/tests/signup_consent_admob_bootstrap.sql");
+const serviceConsentRegression = read("db/migration-drafts/tests/llm-service-consent-management-contract.sql");
+const avatarSpecRegression = read("db/migration-drafts/tests/users-avatar-spec-contract.sql");
 
 const drafts = readdirSync(join(ROOT, "db", "migration-drafts"))
   .filter((name) => /^UNNUMBERED_.*\.sql$/.test(name))
   .sort();
 
-const standaloneDrafts = [
-  "UNNUMBERED_effective_llm_consent_current_contract.sql",
-  "UNNUMBERED_oauth_naver_rate_limit_completion.sql",
-  "UNNUMBERED_rss_proxy_quota.sql",
+const promoted = [
+  ["0191", "signup_consent_admob_20260925"],
+  ["0192", "account_deletion_completion_fence"],
+  ["0193", "effective_llm_consent_current_contract"],
+  ["0194", "llm_service_consent_management"],
+  ["0195", "polaris_generation_allowance"],
+  ["0196", "reward_ssv_hardening"],
+  ["0197", "paddle_refund_consequence_integrity"],
+  ["0198", "service_contract_erasure_registry"],
+  ["0199", "oauth_naver_rate_limit_completion"],
+  ["0200", "rss_proxy_quota"],
+  ["0206", "users_avatar_spec"],
+  ["0207", "users_display_name_update"],
+  ["0208", "signup_consent_privacy_20260929"],
 ] as const;
 
 const behaviorDrafts = {
+  "UNNUMBERED_users_avatar_spec.sql": {
+    runner: avatarSpecRegression,
+    workflowInvocation: "-f db/migration-drafts/tests/users-avatar-spec-contract.sql",
+  },
+  "UNNUMBERED_service_contract_erasure_registry.sql": {
+    runner: read("db/migration-drafts/tests/service-contract-erasure-registry.sql"),
+    workflowInvocation: "node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci",
+  },
+  "UNNUMBERED_llm_service_consent_management.sql": {
+    runner: serviceConsentRegression,
+    workflowInvocation: "node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci",
+  },
+  "UNNUMBERED_signup_consent_admob_20260925.sql": {
+    runner: signupBootstrap,
+    workflowInvocation: "node scripts/test-signup-consent-sql.mjs 5432 signup_local signup_test_ci",
+  },
+  "UNNUMBERED_polaris_generation_allowance.sql": {
+    runner: polarisRegression,
+    workflowInvocation: "node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci",
+  },
   "UNNUMBERED_account_deletion_completion_fence.sql": {
     runner: accountDeletionRegression,
     workflowInvocation: "-f db/tests/account_deletion_completion_fence_regression.sql",
@@ -35,33 +69,91 @@ const behaviorDrafts = {
   },
   "UNNUMBERED_reward_ssv_hardening.sql": {
     runner: rewardRunner,
+    runnerMigration: "0196_reward_ssv_hardening.sql",
     workflowInvocation: "run: bash scripts/check-reward-ssv-db.sh",
   },
+} as const;
+
+// Source-level contracts for drafts without their own scratch SQL runner.
+// display_name was promoted as 0207 (2026-09-28); its grant is also asserted
+// by the users-avatar-spec contract after the numbered replay.
+const plannedDrafts = {
+  "UNNUMBERED_users_display_name_update.sql": "src/lib/supabase/__tests__/users-table-acl-migration.test.ts",
 } as const;
 
 describe("scratch PostgreSQL coverage for inactive security drafts", () => {
   test("accounts for every unnumbered draft exactly once", () => {
     expect(drafts).toEqual(
-      [...standaloneDrafts, ...Object.keys(behaviorDrafts)].sort(),
+      [...Object.keys(behaviorDrafts),
+        ...Object.keys(plannedDrafts),
+        "UNNUMBERED_effective_llm_consent_current_contract.sql",
+        "UNNUMBERED_oauth_naver_rate_limit_completion.sql",
+        "UNNUMBERED_rss_proxy_quota.sql",
+        "UNNUMBERED_signup_consent_privacy_20260929.sql"].sort(),
     );
   });
 
-  test.each(standaloneDrafts)("executes and rolls back %s in the pinned workflow", (draft) => {
-    const step = workflow.slice(
-      workflow.indexOf("- name: Dry-run standalone security migration drafts"),
-      workflow.indexOf("- name: Exercise public-data quota contract"),
-    );
+  test("pins each planned draft to a source-level security contract", () => {
+    for (const [draft, suite] of Object.entries(plannedDrafts)) {
+      expect(read(suite)).toContain(draft);
+      expect(read(`db/migration-drafts/${draft}`)).toContain("public.");
+    }
+    const displayName = read("db/migration-drafts/UNNUMBERED_users_display_name_update.sql");
+    expect(displayName).toMatch(/GRANT UPDATE \(display_name\) ON public\.users TO authenticated;/);
+    expect(displayName).not.toMatch(/GRANT UPDATE ON public\.users/);
+  });
 
-    expect(step).toContain(`db/migration-drafts/${draft}`);
-    expect(step).toContain('for draft in "${drafts[@]}"; do');
-    expect(step).toMatch(/psql -X[\s\S]*BEGIN;[\s\S]*\\i \$draft[\s\S]*ROLLBACK;/);
+  test("numbered replay uses the exact reviewed SQL from every retained draft", () => {
+    const step = workflow.slice(
+      workflow.indexOf("- name: Verify promoted server-first contracts"),
+      workflow.indexOf("- name: Exercise the 0189 rollback round trip"),
+    );
+    for (const [version, stem] of promoted) {
+      expect(read(`db/migrations/${version}_${stem}.sql`))
+        .toBe(read(`db/migration-drafts/UNNUMBERED_${stem}.sql`));
+      expect(step).toContain(`${version}:${stem}`);
+    }
+    expect(step).toContain("cmp -s");
+    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 71");
+    expect(step).toContain("('0201', 'rss_proxy_erasure_registry')");
+    expect(step).not.toMatch(/\\i db\/migration-drafts\/UNNUMBERED_/);
+  });
+
+  test("exercises the numbered Naver limiter without persisting scratch calls", () => {
+    const regression = read("db/tests/oauth_naver_rate_limit_completion_regression.sql");
+    expect(workflow).toContain("-f db/tests/oauth_naver_rate_limit_completion_regression.sql");
+    expect(regression).toContain("global rejection allocated peer rows");
+    expect(regression).toContain("rejected peer spent global quota");
+    expect(regression).toContain("OAuth state was not single-use");
+    expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
+  });
+
+  test("executes numbered RSS quota behavior without replaying its draft", () => {
+    const regression = read("db/tests/rss_proxy_quota_regression.sql");
+    expect(workflow).not.toContain("- name: Dry-run standalone security migration drafts");
+    expect(workflow).toContain("-f db/tests/rss_proxy_quota_regression.sql");
+    expect(regression).toContain("global rejection allocated a user quota row");
+    expect(regression).toContain("account deletion did not cascade RSS user quota");
+    expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
+  });
+
+  test("exercises the numbered 2026-09-29 notice revision without replaying its draft", () => {
+    const regression = read("db/tests/signup_consent_privacy_20260929_regression.sql");
+    expect(workflow).toContain("-f db/tests/signup_consent_privacy_20260929_regression.sql");
+    expect(regression).toContain("email-v6 is not ready");
+    expect(regression).toContain("two current revisions share one document tuple");
+    expect(regression).toContain("consent must stay current after a notice revision");
+    expect(regression).toContain("an email-v3 receipt must not count as current");
+    expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
   });
 
   test.each(Object.entries(behaviorDrafts))(
     "executes %s from its behavioral scratch lane",
-    (draft, { runner, workflowInvocation }) => {
-      const escapedDraft = draft.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      expect(runner).toMatch(new RegExp(`\\\\i(?:r)?\\s+[^\\r\\n]*${escapedDraft}`));
+    (draft, contract) => {
+      const { runner, workflowInvocation } = contract;
+      const migration = "runnerMigration" in contract ? contract.runnerMigration : draft;
+      const escapedMigration = migration.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      expect(runner).toMatch(new RegExp(`\\\\i(?:r)?\\s+[^\\r\\n]*${escapedMigration}`));
       expect(workflow).toContain(workflowInvocation);
     },
   );
@@ -98,5 +190,15 @@ describe("scratch PostgreSQL coverage for inactive security drafts", () => {
       accountDeletionDraft.indexOf('DROP POLICY IF EXISTS "raw_clippings_owner_select"'),
     );
     expect(storagePolicies).not.toContain("FROM public.users");
+  });
+
+  test("runs the signup behavior fixture against the real historical routines", () => {
+    expect(workflow).toContain('"scripts/test-signup-consent-sql.mjs"');
+    expect(read("scripts/test-signup-consent-sql.mjs"))
+      .toContain('"db/tests/signup_consent_admob_bootstrap.sql"');
+    expect(signupBootstrap).toContain("\\ir ../migrations/0148_verified_email_signup_consent_ledger.sql");
+    expect(signupBootstrap).toContain("\\ir ../migrations/0149_atomic_complete_profile_signup_consent.sql");
+    expect(signupBootstrap).toContain("\\ir ../migrations/0150_signup_consent_contract_20260902.sql");
+    expect(signupBootstrap).toContain("\\ir signup_consent_admob_regression.sql");
   });
 });

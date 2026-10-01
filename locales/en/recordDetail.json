@@ -11,6 +11,11 @@
     "sourceEmpty": "This is saved material. Use 'Open original' below to read it in full.",
     "noText": "This record has no text."
   },
+  "photos": {
+    "title": "Photos",
+    "item": "Photo {{n}}",
+    "loadError": "Could not load the photos."
+  },
   "advisor": {
     "heading": "SecondB note",
     "sources": "Sources",

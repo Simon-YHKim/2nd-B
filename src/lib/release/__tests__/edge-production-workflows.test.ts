@@ -147,7 +147,37 @@ describe("deploy-edge-function input and config contract", () => {
 });
 
 describe("edge-flag-set mutation contract", () => {
-  const { job } = load("edge-flag-set.yml");
+  const { raw, job } = load("edge-flag-set.yml");
+
+  // The repository is public. `supabase secrets list` returns every production
+  // secret name with its SHA256 digest, so that catalog must never reach the
+  // run log, the step summary, or an artifact. Only the flag this run changed
+  // is checked, and only inside the runner.
+  test("keeps the production secret catalog out of logs, the step summary, and artifacts", () => {
+    const listSteps = job.steps.filter((step) => step.run?.includes("supabase secrets list"));
+    expect(listSteps).toHaveLength(1);
+    const postflight = listSteps[0];
+    const script = postflight.run ?? "";
+    expect(postflight.name).toBe("Verify selected flag after mutation");
+    expect(job.steps.indexOf(postflight)).toBeGreaterThan(
+      job.steps.indexOf(mutationStep(job, "supabase secrets set")),
+    );
+
+    expect(script).toContain('CATALOG="$RUNNER_TEMP/edge-flag-after.json"');
+    expect(script).toContain("trap 'rm -f \"$CATALOG\"' EXIT");
+    expect(script).toContain(
+      'supabase secrets list --project-ref "$PROJECT_REF" --output json > "$CATALOG"',
+    );
+    expect(script).toContain("item?.name === process.env.FLAG");
+    expect(script).toContain('createHash("sha256")');
+    expect(script).toContain('fail("selected-flag-digest-mismatch")');
+    expect(script).not.toMatch(/console\.|process\.stdout/);
+
+    expect(raw).not.toMatch(/\btee\b/);
+    expect(raw).not.toMatch(/\b(?:before|after)\.txt\b/);
+    expect(raw).not.toContain("GITHUB_STEP_SUMMARY");
+    expect(raw).not.toContain("upload-artifact");
+  });
 
   test("retains shell allowlists and rechecks main immediately before the secret update", () => {
     const scripts = allRunScripts(job);
@@ -163,4 +193,29 @@ describe("edge-flag-set mutation contract", () => {
     expect(comparison).toBeGreaterThan(fetch);
     expect(mutation).toBeGreaterThan(comparison);
   });
+});
+
+test("no workflow prints a Supabase secret listing to its log", () => {
+  const workflows = fs
+    .readdirSync(path.join(root, ".github/workflows"))
+    .filter((name) => /\.ya?ml$/.test(name))
+    .sort();
+  const listings = workflows.flatMap((name) =>
+    fs
+      .readFileSync(path.join(root, ".github/workflows", name), "utf8")
+      .replace(/\\\r?\n\s*/g, " ")
+      .split(/\r?\n/)
+      .filter((line) => /\bsecrets\s+list\b/.test(line))
+      .map((line) => ({ name, line: line.trim() })),
+  );
+
+  expect(listings.length).toBeGreaterThan(0);
+  for (const { name, line } of listings) {
+    expect({ name, line, redirectedToFile: /\s>\s*"\$[A-Z_]+"$/.test(line) }).toEqual({
+      name,
+      line,
+      redirectedToFile: true,
+    });
+    expect({ name, line, piped: /\||\btee\b/.test(line) }).toEqual({ name, line, piped: false });
+  }
 });

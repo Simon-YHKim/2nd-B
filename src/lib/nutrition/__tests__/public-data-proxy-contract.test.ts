@@ -10,6 +10,10 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import ts from "typescript";
+
+import * as publicDataShared from "../../../../supabase/functions/_shared/public-data-proxy";
+import * as requestJson from "../../../../supabase/functions/_shared/request-json";
 
 const ROOT = resolve(__dirname, "../../../..");
 const proxy = readFileSync(resolve(ROOT, "supabase/functions/public-data-proxy/index.ts"), "utf8");
@@ -156,5 +160,112 @@ describe("클라이언트가 실제로 프록시를 탄다", () => {
     expect(invoke).toContain("status === 503 || status === 401");
     expect(foods).toContain('if (outcome.reason === "unconfigured") return [];');
     expect(fx).toContain('if (outcome.reason === "unconfigured") return [];');
+  });
+});
+
+// 요청 본문은 quota 를 쓰기 전에 엄격하게 읽는다. 여기만은 문자열 대조가 아니라
+// 핸들러를 실제로 돌린다: 프록시 소스를 트랜스파일하고 Deno 와 supabase-js 만
+// 가짜로 끼운다. _shared 두 모듈은 진짜다. quota RPC 는 일부러 실패를 돌려줘서,
+// 본문이 통과하면 503 quota_check_unavailable 로 멈추고 상류는 절대 안 부른다.
+describe("요청 본문은 quota 전에 엄격하게 읽는다 (런타임)", () => {
+  type Handler = (request: Request) => Promise<Response>;
+
+  const USER_TOKEN = [
+    "e30",
+    Buffer.from(JSON.stringify({
+      sub: "11111111-1111-4111-8111-111111111111",
+      role: "authenticated",
+    })).toString("base64url"),
+    "signature-checked-by-the-gateway",
+  ].join(".");
+
+  function loadProxy() {
+    const compiled = ts.transpileModule(proxy, {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    }).outputText;
+    const rpc = jest.fn(async () => ({ data: null, error: { message: "quota unavailable" } }));
+    const upstreamFetch = jest.fn(async () => new Response("{}", { status: 200 }));
+    let handler: Handler | null = null;
+    const env: Record<string, string> = {
+      EXIM_FX_KEY: "server-exim-key",
+      MFDS_FOOD_KEY: "server-mfds-key",
+      SUPABASE_URL: "https://example.invalid",
+      SUPABASE_SERVICE_ROLE_KEY: "test-service-role",
+    };
+    const deno = {
+      env: { get: (name: string) => env[name] },
+      serve: (value: Handler) => { handler = value; },
+    };
+    const loaded = { exports: {} as Record<string, unknown> };
+    new Function("require", "module", "exports", "Deno", "fetch", compiled)(
+      (id: string) => {
+        if (id === "jsr:@supabase/functions-js/edge-runtime.d.ts") return {};
+        if (id === "jsr:@supabase/supabase-js@2") return { createClient: () => ({ rpc }) };
+        if (id === "../_shared/public-data-proxy.ts") return publicDataShared;
+        if (id === "../_shared/request-json.ts") return requestJson;
+        throw new Error(`예상하지 못한 의존성: ${id}`);
+      },
+      loaded,
+      loaded.exports,
+      deno,
+      upstreamFetch,
+    );
+    if (!handler) throw new Error("public-data-proxy 가 핸들러를 등록하지 않았다");
+    return { handler: handler as Handler, rpc, upstreamFetch };
+  }
+
+  function proxyRequest(body: string, contentType: string | null): Request {
+    const headers = new Headers({ authorization: `Bearer ${USER_TOKEN}` });
+    if (contentType !== null) headers.set("content-type", contentType);
+    // 바이트 본문이어야 fetch 가 text/plain 을 멋대로 붙이지 않는다.
+    return new Request("https://example.invalid/functions/v1/public-data-proxy", {
+      method: "POST",
+      headers,
+      body: new TextEncoder().encode(body),
+    });
+  }
+
+  test.each(["application/json", "application/json; charset=utf-8"])(
+    "올바른 요청은 그대로 quota 까지 간다: %s",
+    async (contentType) => {
+      const { handler, rpc, upstreamFetch } = loadProxy();
+
+      const response = await handler(proxyRequest('{"source":"exim"}', contentType));
+
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toEqual({ error: "quota_check_unavailable" });
+      expect(rpc).toHaveBeenCalledTimes(1);
+      expect(upstreamFetch).not.toHaveBeenCalled();
+    },
+  );
+
+  test.each<[string, string | null]>([
+    ["text", "text/plain;charset=UTF-8"],
+    ["form", "application/x-www-form-urlencoded"],
+    ["없음", null],
+  ])("JSON 이 아닌 media type(%s)은 quota 전에 415", async (_label, contentType) => {
+    const { handler, rpc, upstreamFetch } = loadProxy();
+
+    const response = await handler(proxyRequest('{"source":"exim"}', contentType));
+
+    expect(response.status).toBe(415);
+    await expect(response.json()).resolves.toEqual({ error: "unsupported_media_type" });
+    expect(rpc).not.toHaveBeenCalled();
+    expect(upstreamFetch).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["source 가 두 번", '{"source":"exim","source":"mfds","query":"사과"}'],
+    ["query 가 두 번", '{"source":"mfds","query":"사과","query":"배","max":3}'],
+    ["깊이 3 초과", '{"source":"mfds","query":"사과","max":[[[1]]]}'],
+  ])("모호하거나 깊은 본문(%s)은 quota 전에 400", async (_label, body) => {
+    const { handler, rpc, upstreamFetch } = loadProxy();
+
+    const response = await handler(proxyRequest(body, "application/json"));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_json" });
+    expect(rpc).not.toHaveBeenCalled();
+    expect(upstreamFetch).not.toHaveBeenCalled();
   });
 });

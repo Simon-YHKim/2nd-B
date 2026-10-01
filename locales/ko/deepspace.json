@@ -1,4 +1,32 @@
 {
+  "camera": {
+    "aim": "별 위치 맞추는 중",
+    "zoom": "별 확대하는 중",
+    "focus": "초점 맞추는 중",
+    "ready": "초점 고정 · 여행 준비 완료",
+    "return": "별자리로 돌아가는 중",
+    "shutter": "촬영 중"
+  },
+  "telescope": {
+    "label": "망원경 조작",
+    "up": "망원경 위로",
+    "down": "망원경 아래로",
+    "left": "망원경 왼쪽으로",
+    "right": "망원경 오른쪽으로",
+    "reset": "원점 복귀",
+    "dial": "배율 다이얼",
+    "hint": "W는 넓게, T는 가깝게 봅니다. 손잡이를 놓으면 배율이 유지됩니다.",
+    "slider": "줌 배율 슬라이더",
+    "joystick": "팬 틸트 조이스틱",
+    "joystickHint": "밀면 이동하고 가만히 누르면 원점으로 돌아갑니다. 멀리 밀수록 빨라지고 놓으면 멈춥니다. 키보드는 방향키를 누르고 계세요.",
+    "panTilt": "방향·기울기",
+    "stopped": "정지",
+    "speed": "속도 {{value}}%",
+    "phone": "내 대시보드 열기",
+    "phoneLabel": "내 폰",
+    "phoneReveal": "위로 쓸어 올려 핸드폰을 꺼냅니다.",
+    "phoneStow": "핸드폰을 누르면 대시보드로 이동하고 아래로 쓸어 내리면 다시 넣습니다."
+  },
   "time": {
     "today": "오늘",
     "yesterday": "어제",
@@ -20,7 +48,7 @@
     "statLinks": "연결",
     "filterAll": "전체",
     "emptyTag": "이 태그로 저장한 지식이 없어요. 다른 태그를 선택하거나 새 자료를 담아보세요.",
-    "emptyAll": "아직 저장한 내용이 없어요. 기록이나 링크를 담으면 여기서 다시 찾을 수 있어요.",
+    "emptyAll": "아직 위키 페이지가 없어요. 자료를 담은 뒤 받은편지함에서 위키 페이지로 정리해 보세요.",
     "addPiece": "+ 별가루 담기",
     "backlinks": "연결된 기록 {{count}}",
     "connections": "연결 {{count}}",
@@ -145,8 +173,8 @@
     "kindFallback": "기록"
   },
   "auth": {
-    "appName": "2nd-Brain",
-    "signInLead": "기록을 모아 나를 알아가고, 세컨비와 이야기해 보세요.",
+    "appName": "PolaScope",
+    "signInLead": "AI 시대의 자산은 나 자신. 기록이 쌓여 나의 북극성이 됩니다.",
     "signIn": "로그인",
     "createAccount": "계정 만들기",
     "signUpTitle": "시작하기",
@@ -164,10 +192,9 @@
     "haveAccount": "이미 계정이 있으신가요? 로그인",
     "forgotPassword": "비밀번호를 잊으셨나요?",
     "or": "또는",
-    "ageNotice": "만 14세 이상부터 가입할 수 있어요.",
-    "brandLabel": "2ND-BRAIN",
-    "signInTitle": "2nd-Brain 로그인",
-    "signInEncrypt": "개인정보 설정은 언제든 바꿀 수 있어요.",
+    "ageNotice": "만 {{minAge}}세 이상부터 가입할 수 있어요.",
+    "brandLabel": "POLASCOPE",
+    "signInTitle": "다시 만나 반갑습니다",
     "emailContinue": "이메일로 계속하기",
     "signUpPrompt": "처음이신가요?",
     "legalConsent": "계속하면 서비스 약관과 개인정보 처리방침에 동의하게 됩니다.",
@@ -239,7 +266,7 @@
     "viewManual": "사용 안내서 보기",
     "emailUs": "이메일 문의",
     "reportBug": "오류 신고",
-    "footer": "2nd-Brain v1.0.0 · 답변까지 영업일 2일 (KST)",
+    "footer": "PolaScope v1.0.0 · 답변까지 영업일 2일 (KST)",
     "faqTitle": "자주 묻는 질문",
     "noticesTitle": "공지사항"
   },
@@ -385,7 +412,7 @@
     "proActive": "유료 요금제 이용 중",
     "nowPro": "유료 요금제로 바뀌었어요.",
     "notAvailableTitle": "모바일 앱에서 업그레이드",
-    "notAvailableBody": "유료 요금제는 iOS와 Android 앱스토어에서 결제해요. 휴대폰에서 두번째 뇌 앱을 열어 주세요.",
+    "notAvailableBody": "유료 요금제는 iOS와 Android 앱스토어에서 결제해요. 휴대폰에서 PolaScope 앱을 열어 주세요.",
     "support": "문의하기",
     "loadError": "요금제를 불러오지 못했어요. 다시 시도해 주세요.",
     "purchaseError": "결제가 완료되지 않았어요. 다시 시도해 주세요.",
@@ -554,6 +581,12 @@
     "retry": "다시 시도",
     "empty": "아직 저장한 성과가 없어요. 최근에 해낸 일을 적어보세요.",
     "pieceFallback": "커리어 별가루",
+    "drillDown": "자세히 보기",
+    "originalNote": "제목과 본문 미리보기는 저장된 언어 그대로예요. 카드를 열면 전체 기록을 볼 수 있어요.",
+    "sourceInterview": "회상 인터뷰",
+    "sourceRecord": "저장된 커리어 기록",
+    "entryUiKorean": "저장 당시 화면: 한국어",
+    "entryUiEnglish": "저장 당시 화면: 영어",
     "untitled": "(제목 없음)"
   },
   "careerInput": {
@@ -701,14 +734,19 @@
     "starsFallback": "별 개수를 불러오지 못해 기본 개수로 표시했어요."
   },
   "coachmarks": {
-    "step1": "여기는 별자리예요",
-    "step2": "별을 눌러보세요",
-    "step3": "떠오르면 담기",
-    "step4": "설정에서 다른 도구도 볼 수 있어요",
+    "homeStep": "세컨비를 눌러 기록 담기를 시작해요.",
+    "formatStep": "먼저 메모를 선택해요. 한 줄이면 충분해요.",
+    "inputStep": "지금 떠오른 생각을 적어보세요. 완성된 문장일 필요는 없어요.",
+    "saveStep": "마지막으로 담기를 눌러 기록을 남겨요.",
+    "doneStep": "기록을 남겼어요. 이제 별자리로 돌아가 확인해요.",
+    "targetHint": "강조된 곳을 직접 눌러 다음 단계로 가요.",
+    "inputHint": "한 글자 이상 적으면 담기 단계로 갈 수 있어요.",
+    "doneHint": "저장 성공을 확인했어요.",
+    "inputReady": "담기로 가기",
+    "goHome": "별자리로 가기",
+    "doneCount": "완료",
     "secondbName": "세컨비",
-    "dontShowAgain": "다시 보지 않기",
-    "start": "시작하기",
-    "next": "다음"
+    "dontShowAgain": "다시 보지 않기"
   },
   "museum": {
     "title": "AI 뮤지엄",
@@ -732,6 +770,7 @@
     "a11yZoomOut": "축소",
     "a11yZoomIn": "확대",
     "hintSelected": "{{label}} · 한 번 더 누르면 열려요",
+    "openRecord": "기록 열기",
     "hintDefault": "점선 = 태그로 이어진 기록. 누르면 선택, 한 번 더 누르면 열려요",
     "untitled": "(제목 없음)",
     "tagLinks": "태그 연결선 표시"
@@ -754,11 +793,11 @@
     "rangeNote": "이번 페이지: {{from}} - {{to}}번 문항"
   },
   "shareCardImg": {
-    "eyebrowWeek": "2ND-BRAIN · 이번 주",
+    "eyebrowWeek": "POLASCOPE · 이번 주",
     "eyebrowConstellation": "나의 별자리",
     "footerWeek": "세컨비가 함께 본 한 주",
     "starsLit": "{{count}}개 별이 빛나는 중",
-    "signature": "2nd-Brain · {{count}}개 별가루"
+    "signature": "PolaScope · {{count}}개 별가루"
   },
   "ds": {
     "growth": {
@@ -913,12 +952,19 @@
       "revoke": "철회",
       "fileSource": "파일 가져오기",
       "revokeFailed": "철회하지 못했어요. 잠시 후 다시 시도해 주세요.",
+      "revokeKeptShared": "이번 철회에서 원본 {{count}}개는 지우지 않았어요. 다른 가져오기도 들여온 원본이에요.",
+      "revokeKeptShared_plural": "이번 철회에서 원본 {{count}}개는 지우지 않았어요. 다른 가져오기도 들여온 원본이에요.",
+      "revokeKeptUnconfirmed": "이번 철회에서 원본 {{count}}개는 지우지 않았어요. 이 가져오기만 들여온 원본인지 확인하지 못했어요.",
+      "revokeKeptUnconfirmed_plural": "이번 철회에서 원본 {{count}}개는 지우지 않았어요. 이 가져오기만 들여온 원본인지 확인하지 못했어요.",
+      "revokeKeptUncertain": "지금도 모두 남아 있는지는 확인하지 못했어요.",
+      "revokeUnserialized": "이 브라우저에서는 열린 탭끼리 철회 순서를 맞출 수 없어서 아무것도 철회하지 않았어요. 최신 브라우저에서 다시 시도해 주세요.",
       "healthErrUnavailable": "이 기기에서는 건강 앱에 연결할 수 없어요. 기록한 내용은 없어요.",
       "healthErrDenied": "건강 데이터 접근 권한이 없어 기록하지 않았어요. 기기 설정에서 허용할 수 있어요.",
       "healthErrEmpty": "오늘 반영할 건강 활동이 없어요.",
       "healthReflected": "반영했습니다. 새로 들어간 항목: {{count}}개.",
       "healthReflectedNone": "새로 반영할 것이 없었습니다. 오늘 기록은 이미 저장돼 있습니다.",
       "healthRoutinesCompleted": "이 기록으로 완료 처리된 루틴: {{count}}개.",
+      "healthAutoDaily": "자동 새로고침이 켜져 있으면 이 폰에서는 걸음·운동·수면을 하루 한 번 자동으로도 읽어요.",
       "healthErrFailed": "건강 데이터를 반영하지 못했어요. 잠시 후 다시 시도해 주세요.",
       "summaryPieces": "별가루 {{count}}개",
       "summaryPieces_plural": "별가루 {{count}}개",
@@ -1108,6 +1154,13 @@
   },
   "profileDetails": {
     "screenTitle": "내 생활 정보",
+    "nameLabel": "표시 이름",
+    "nameHint": "프로필에 표시할 이름이에요. 비워 두어도 돼요. 최대 40자까지 적을 수 있어요.",
+    "nameLoading": "이름을 불러오는 중이에요…",
+    "nameLoadError": "기존 이름을 불러오지 못했어요. 다시 시도해 주세요.",
+    "nameSave": "이름 저장",
+    "nameSaved": "이름을 저장했어요",
+    "nameSaveError": "이름을 저장하지 못했어요. 다시 시도해 주세요.",
     "intro": "원하는 항목만 적어 주세요. 생활 정보를 프로필에 저장하고 나중에 고칠 수 있어요.",
     "progress": "{{total}}칸 중 {{filled}}칸",
     "save": "저장",

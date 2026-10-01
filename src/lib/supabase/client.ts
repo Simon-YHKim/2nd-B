@@ -54,8 +54,10 @@ export function getSupabaseClient(): SupabaseClient {
 }
 
 /** Retire the singleton and its auth-storage barrier after explicitly-consented
- * encrypted local recovery. Dropping references is the boundary; transport
- * cleanup is best-effort and cannot make the unreadable client reusable. */
+ * encrypted local recovery. Dropping references alone is not the boundary: a
+ * refresh the old client already started keeps running, so the retired
+ * runtime's storage fence is what keeps it from saving. Transport cleanup is
+ * best-effort and cannot make the unreadable client reusable. */
 export async function resetSupabaseClient(): Promise<void> {
   const previous = client;
   client = null;

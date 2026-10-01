@@ -5,12 +5,14 @@ const ROOT = join(__dirname, "..", "..", "..", "..");
 const EDGE_PATH = join(ROOT, "supabase", "functions", "rss-proxy", "index.ts");
 const REQUEST_READER_PATH = join(ROOT, "supabase", "functions", "_shared", "request-json.ts");
 const CONFIG_PATH = join(ROOT, "supabase", "config.toml");
-const MIGRATION_PATH = join(ROOT, "db", "migration-drafts", "UNNUMBERED_rss_proxy_quota.sql");
+const MIGRATION_PATH = join(ROOT, "db", "migrations", "0200_rss_proxy_quota.sql");
+const DRAFT_PATH = join(ROOT, "db", "migration-drafts", "UNNUMBERED_rss_proxy_quota.sql");
 
 const EDGE = readFileSync(EDGE_PATH, "utf8");
 const REQUEST_READER = readFileSync(REQUEST_READER_PATH, "utf8");
 const CONFIG = readFileSync(CONFIG_PATH, "utf8");
 const SQL = existsSync(MIGRATION_PATH) ? readFileSync(MIGRATION_PATH, "utf8") : "";
+const DRAFT = readFileSync(DRAFT_PATH, "utf8");
 
 function stripComments(source: string): string {
   return source
@@ -25,7 +27,7 @@ const sqlCode = stripComments(SQL);
 describe("rss-proxy authenticated request boundary", () => {
   test("keeps the gateway gate and verifies the bearer with Supabase Auth", () => {
     expect(CONFIG).toMatch(/\[functions\.rss-proxy\][\s\S]*?verify_jwt\s*=\s*true/);
-    expect(edgeCode).toMatch(/jsr:@supabase\/supabase-js@2\.106\.1/);
+    expect(edgeCode).toMatch(/npm:@supabase\/supabase-js@2\.106\.1/);
     expect(edgeCode).toMatch(/createClient\(supabaseUrl,\s*serviceRoleKey/);
     expect(edgeCode).toMatch(/admin\.auth\.getUser\(accessToken\)/);
     expect(edgeCode).toMatch(/authError\s*\|\|\s*!authUser/);
@@ -125,10 +127,11 @@ describe("rss-proxy authenticated request boundary", () => {
   });
 });
 
-describe("unnumbered rss-proxy quota draft", () => {
+describe("numbered rss-proxy quota migration", () => {
   test("leaves the transaction to the migration runner and keeps executable postconditions", () => {
-    expect(MIGRATION_PATH).toMatch(/migration-drafts[\\/]UNNUMBERED_rss_proxy_quota\.sql$/);
+    expect(MIGRATION_PATH).toMatch(/migrations[\\/]0200_rss_proxy_quota\.sql$/);
     expect(existsSync(MIGRATION_PATH)).toBe(true);
+    expect(SQL).toBe(DRAFT);
     expect(sqlCode).not.toMatch(/^\s*BEGIN\s*;/im);
     expect(sqlCode).not.toMatch(/^\s*COMMIT\s*;/im);
     expect(SQL).toContain("migration runner owns the transaction");

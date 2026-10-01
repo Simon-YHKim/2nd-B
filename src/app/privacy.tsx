@@ -10,11 +10,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect } from "expo-router";
+import { Redirect, router } from "expo-router";
 
 import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { PreferenceToggleRow } from "@/components/ui/PreferenceToggle";
+import { MdButton } from "@/components/m3";
 import { cosmic, radii, semantic, spacing, flattenAlpha } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
@@ -91,6 +92,9 @@ function PrivacyLegacy() {
 
   const onToggle = useCallback(
     (key: PrivacyPrefKey, next: boolean) => {
+      // This historical switch can only withdraw an old choice. A future
+      // specific AdMob consent must be collected through a separate flow.
+      if (key === "ads" && next) return;
       if (!userId) return;
       if (!isPrivacyPrefEditable(key, minor)) return;
       // Compose from prefsRef (kept current each render + updated synchronously
@@ -170,6 +174,7 @@ function PrivacyLegacy() {
           </Text>
         ) : null}
 
+        <MdButton label={t("serviceControl.title")} variant="outlined" onPress={() => router.push("/service-consent")} />
         <View style={styles.section}>
           <Text variant="caption" color="brand" style={[styles.sectionEyebrow, eyebrowTracking]}>
             {t("privacy.sectionLabel")}
@@ -179,13 +184,16 @@ function PrivacyLegacy() {
               promise — so they are replaced by the honest statement below. */}
           {VISIBLE_PRIVACY_KEYS.map((key) => {
             const editable = isPrivacyPrefEditable(key, minor);
+            const heldAds = key === "ads";
             return (
               <PreferenceToggleRow
                 key={key}
                 label={t(`privacy.keys.${key}.label`)}
-                description={t(`privacy.keys.${key}.desc`)}
+                description={heldAds
+                  ? t(prefs.ads ? "privacy.keys.ads.savedDesc" : "privacy.keys.ads.desc")
+                  : t(`privacy.keys.${key}.desc`)}
                 value={prefs[key]}
-                disabled={!ready || !editable}
+                disabled={!ready || !editable || (heldAds && !prefs.ads)}
                 muted={!editable}
                 lockedLabel={!editable ? t("privacy.lockedTag") : undefined}
                 onValueChange={(v) => {

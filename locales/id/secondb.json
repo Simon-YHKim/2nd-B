@@ -10,6 +10,7 @@
   "clearChatHint": "Menghapus percakapan saat ini.",
   "viewPlans": "Lihat paket",
   "viewPlansHint": "Membuka layar paket.",
+  "serverLimitReached": "Akun ini telah mencapai batas obrolan hari ini. Batas direset pada tengah malam waktu Korea (KST).",
   "intro_title": "Hai, aku SecondB",
   "intro_body": "SecondB menjawab berdasarkan halaman wikimu dan mencantumkan sumbernya agar bisa kamu periksa. Kamu bisa bertanya, misalnya, pola apa yang berulang bulan ini.",
   "reference_piece_meta": "catatan yang dirujuk",

@@ -1,5 +1,7 @@
 import { purgeCaptureDraftsForDeletedAccount } from "../capture/draft";
 import { purgeAutosaveUndoForDeletedAccount } from "../chat/autosave-undo-queue";
+import { purgeAvatarPaletteItemsForDeletedAccount } from "../avatar-palette/gallery";
+import { purgeHealthAutoReadForDeletedAccount } from "../health/auto-read";
 import { purgeImportHistoryForDeletedAccount } from "../import/history";
 import { purgeAuditWriteOutboxForOwner } from "../llm/audit-write-outbox";
 import { purgeNoticeLastSeenForDeletedAccount } from "../notices/last-seen";
@@ -34,6 +36,7 @@ export async function purgeDeletedAccountLocalData(userId: string): Promise<Loca
   const purge = (async (): Promise<LocalPurgeOutcome> => {
     const fenceAcknowledged = await installAccountLocalDeletionFence(owner);
     const results = await Promise.all([
+      observe(() => purgeAvatarPaletteItemsForDeletedAccount(owner)),
       observe(() => purgeCaptureDraftsForDeletedAccount(owner)),
       observe(() => purgeAutosaveUndoForDeletedAccount(owner)),
       observe(() => purgeImportHistoryForDeletedAccount(owner)),
@@ -42,6 +45,7 @@ export async function purgeDeletedAccountLocalData(userId: string): Promise<Loca
       observe(() => purgeOpsUsageForDeletedAccount(owner)),
       observe(() => purgeAutoReasoningForDeletedAccount(owner)),
       observe(() => purgeWikiAutoPromoteForDeletedAccount(owner)),
+      observe(() => purgeHealthAutoReadForDeletedAccount(owner)),
       observe(() => purgeNoticeReadStateForDeletedAccount(owner)),
       observe(() => purgeNoticeLastSeenForDeletedAccount(owner)),
       observe(async () => {

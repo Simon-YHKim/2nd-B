@@ -9,10 +9,12 @@ import {
   decodeBase64,
   decodeBase64Url,
   derToRawEcdsa,
+  normalizeAdUnitId,
   parseRewardCallback,
   parseSignedSsvQuery,
   parseVerifierKeyDocument,
   readRewardContractConfig,
+  type RewardContractConfig,
   type RewardKind,
   type SignedSsvQuery,
   type VerifierKey,
@@ -27,6 +29,13 @@ const VERIFIER_KEYS_URL = 'https://www.gstatic.com/admob/reward/verifier-keys.js
 const MAX_VERIFIER_KEY_BYTES = 65_536;
 const MAX_ISSUE_BODY_BYTES = 128;
 const REWARD_TICKET_TTL_SECONDS = 20 * 60;
+// Console verification has no ticket admission. Bound its key/crypto work per
+// isolate, including invalid signatures; this is not a distributed rate limit.
+const PROBE_WINDOW_MS = 60_000;
+const MAX_PROBES_PER_WINDOW = 4;
+let probeWindowStart = 0;
+let probeCount = 0;
+let probeInFlight = false;
 
 function json(body: unknown, status = 200, extraHeaders: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -69,7 +78,10 @@ function bearerToken(req: Request): string | null {
   return token.length > 0 && token.length <= 8_192 && !/\s/.test(token) ? token : null;
 }
 
-async function readIssueKind(req: Request): Promise<RewardKind | null> {
+async function readIssueKind(
+  req: Request,
+  contract: RewardContractConfig,
+): Promise<{ kind: RewardKind; adUnitId: string } | null> {
   const mediaType = (req.headers.get('content-type') ?? '').split(';', 1)[0].trim().toLowerCase();
   if (mediaType !== 'application/json' || !req.body) return null;
   const declared = req.headers.get('content-length')?.trim();
@@ -89,9 +101,14 @@ async function readIssueKind(req: Request): Promise<RewardKind | null> {
     const body: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
     if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
     const keys = Object.keys(body);
-    const kind = (body as { kind?: unknown }).kind;
-    return keys.length === 1 && keys[0] === 'kind' && (kind === 'reasoning' || kind === 'chat')
-      ? kind : null;
+    const { kind, ad_unit_id: requestedUnit } = body as { kind?: unknown; ad_unit_id?: unknown };
+    if (keys.some((key) => key !== 'kind' && key !== 'ad_unit_id')) return null;
+    if (kind !== 'reasoning' && kind !== 'chat') return null;
+    // Old kind-only clients are unambiguous only while there is one unit.
+    const adUnitId = !Object.hasOwn(body, 'ad_unit_id') && contract.adUnitIds.length === 1
+      ? contract.adUnitIds[0]
+      : typeof requestedUnit === 'string' ? normalizeAdUnitId(requestedUnit) : null;
+    return adUnitId && contract.adUnitIds.includes(adUnitId) ? { kind, adUnitId } : null;
   } catch {
     return null;
   }
@@ -170,8 +187,45 @@ async function signatureValid(
 }
 
 Deno.serve(async (req: Request) => {
-  if (Deno.env.get('REWARD_SSV_ENABLED') !== '1') return json({ error: 'disabled' }, 503);
   try {
+    let parsed: SignedSsvQuery | null = null;
+    let rawSignature: Uint8Array | null = null;
+    if (req.method === 'GET') {
+      const questionAt = req.url.indexOf('?');
+      const rawQuery = questionAt < 0 ? '' : req.url.slice(questionAt + 1);
+      if (new TextEncoder().encode(rawQuery).byteLength > MAX_SSV_QUERY_BYTES) {
+        return json({ error: 'query_too_large' }, 400);
+      }
+      parsed = parseSignedSsvQuery(rawQuery);
+      if (!parsed) return json({ error: 'bad_signature' }, 403);
+      const der = decodeBase64Url(parsed.signature);
+      rawSignature = der ? derToRawEcdsa(der) : null;
+      if (!rawSignature) return json({ error: 'bad_signature' }, 403);
+      // AdMob's console can verify the URL before reward activation. A signed
+      // callback with no subject only acknowledges verification, never rewards.
+      // Key fetches still use the bounded cache/cooldown; no DB client is made.
+      if (!parsed.params.has('custom_data') && !parsed.params.has('user_id')) {
+        const now = Date.now();
+        if (now - probeWindowStart >= PROBE_WINDOW_MS) {
+          probeWindowStart = now;
+          probeCount = 0;
+        }
+        if (probeInFlight || probeCount >= MAX_PROBES_PER_WINDOW) {
+          return json({ error: 'verification_rate_limited' }, 429, { 'retry-after': '60' });
+        }
+        probeCount += 1;
+        probeInFlight = true;
+        try {
+          const verification = await signatureValid(parsed, rawSignature);
+          if (verification.status === 'unavailable') return json({ error: 'verifier_keys_unavailable' }, 503);
+          if (verification.status !== 'valid') return json({ error: 'bad_signature' }, 403);
+          return json({ ok: true, verification_only: true });
+        } finally {
+          probeInFlight = false;
+        }
+      }
+    }
+    if (Deno.env.get('REWARD_SSV_ENABLED') !== '1') return json({ error: 'disabled' }, 503);
     const contract = readRewardContractConfig((name) => Deno.env.get(name));
     if (!contract) return json({ error: 'misconfigured_reward_contract' }, 503);
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -187,8 +241,8 @@ Deno.serve(async (req: Request) => {
       const { data: authData, error: authError } = await admin.auth.getUser(accessToken);
       const user = authData?.user;
       if (authError || !user) return json({ error: 'invalid_authorization' }, 401);
-      const kind = await readIssueKind(req);
-      if (!kind) return json({ error: 'invalid_reward_kind' }, 400);
+      const issue = await readIssueKind(req, contract);
+      if (!issue) return json({ error: 'invalid_reward_kind' }, 400);
 
       const { data: retryAfter, error: rateLimitError } = await admin.rpc(
         'claim_reward_ssv_issue_rate_limit',
@@ -210,9 +264,9 @@ Deno.serve(async (req: Request) => {
       const tokenHash = await sha256Hex(ticket);
       const { data: issued, error: issueError } = await admin.rpc('issue_reward_ssv_ticket', {
         p_user_id: user.id,
-        p_reward_kind: kind,
+        p_reward_kind: issue.kind,
         p_token_hash: tokenHash,
-        p_ad_unit_id: contract.adUnitId,
+        p_ad_unit_id: issue.adUnitId,
         p_reward_amount: contract.rewardAmount,
         p_reward_item: contract.rewardItem,
       });
@@ -226,16 +280,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (req.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
-    const questionAt = req.url.indexOf('?');
-    const rawQuery = questionAt < 0 ? '' : req.url.slice(questionAt + 1);
-    if (new TextEncoder().encode(rawQuery).byteLength > MAX_SSV_QUERY_BYTES) {
-      return json({ error: 'query_too_large' }, 400);
-    }
-    const parsed = parseSignedSsvQuery(rawQuery);
-    if (!parsed) return json({ error: 'bad_signature' }, 403);
-    const der = decodeBase64Url(parsed.signature);
-    const rawSignature = der ? derToRawEcdsa(der) : null;
-    if (!rawSignature) return json({ error: 'bad_signature' }, 403);
+    if (!parsed || !rawSignature) return json({ error: 'bad_signature' }, 403);
     const callback = parseRewardCallback(parsed.params, contract);
     if (!callback) return json({ error: 'reward_contract_mismatch' }, 403);
     const tokenHash = await sha256Hex(callback.ticket);

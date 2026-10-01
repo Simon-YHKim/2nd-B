@@ -113,12 +113,18 @@ describe("사용 안내서가 앱이 제공하는 모든 언어로 풀린다", (
 });
 
 describe("PIXEL-CLAY /manual renderer contract", () => {
+  test("resolves the localized title from the manual namespace", () => {
+    const source = read(SCREEN);
+    expect(source).toContain('{t("title")}');
+    expect(source).not.toContain('{t("manual.title")}');
+  });
+
   test("stays public and uses a real TextInput search with one expanded section", () => {
     const source = read(SCREEN);
     expect(source).toContain("<TextInput");
     expect(source).toContain("filterManualTopics");
     expect(source).toContain("const [expandedId, setExpandedId]");
-    expect(source).not.toContain("useAuth");
+    expect(source).toContain("const { userId } = useAuth()");
     expect(source).not.toContain("<Redirect");
     expect(source).not.toContain("StateRow");
   });
@@ -136,7 +142,7 @@ describe("PIXEL-CLAY /manual renderer contract", () => {
     expect(code).toContain("manualScreenCopyFor(t)");
     expect(code).toContain("manualTopicsFor(t)");
     expect(source).toContain('useTranslation(["manual", "deepspace", "common"])');
-    expect(source).toContain("resetCoachmarks()");
+    expect(source).toContain("resetCoachmarks(userId)");
     expect(source).toContain('router.replace("/")');
     expect(source).toContain('router.push("/secondb")');
   });
@@ -172,8 +178,10 @@ describe("PIXEL-CLAY /manual renderer contract", () => {
     const end = route.indexOf("\nexport default function Manual()");
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
+    // 2026-09-27: the app name became PolaScope (DECISIONS 26.09.27), so the
+    // legacy renderer's copy strings changed. Structure and styles did not.
     expect(createHash("sha256").update(route.slice(start, end)).digest("hex")).toBe(
-      "d2f4fcf00df3b7e8a64f470c5481c6773b4d053c42baf72d4706310b1c9e6956",
+      "3fcd88a12a4c4306bb355993d707142436a5e14c22eb54553cd4623319e41846",
     );
   });
 });

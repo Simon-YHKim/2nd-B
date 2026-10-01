@@ -228,18 +228,18 @@ describe("배송 /privacy 화면의 스위치가 키 하나만 저장한다", ()
     expect(screen.shown.errors).toEqual([]);
   });
 
-  test("광고 스위치도 같다: 다른 세션이 끈 대화 저장을 되살리지 않는다", async () => {
-    mockDb.prefs.set(OWNER, { chat_autosave: true, ads: false });
+  test("광고 철회도 같다: 다른 세션이 끈 대화 저장을 되살리지 않는다", async () => {
+    mockDb.prefs.set(OWNER, { chat_autosave: true, ads: true });
     const staleOnScreenA = await fetchPrivacyPrefs(OWNER);
     await savePrivacyPref(OWNER, "chat_autosave", false); // 세션 B 가 대화 저장을 끈다
     const screen = adultScreen(staleOnScreenA);
     const toggle = privacyHandler<(key: "ads", next: boolean) => Promise<void>>("toggleExternalPreference", screen.bindings);
 
-    await toggle("ads", true);
+    await toggle("ads", false);
 
-    expect(stored()).toEqual({ chat_autosave: false, ads: true });
+    expect(stored()).toEqual({ chat_autosave: false, ads: false });
     expect(grantsFor("chat_autosave")).toEqual([]);
-    expect(screen.shown.ads).toEqual([true]);
+    expect(screen.shown.ads).toEqual([false]);
   });
 
   test("이 화면에는 전체 객체를 쓰는 저장이 남아 있지 않다", () => {

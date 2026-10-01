@@ -6,7 +6,8 @@
 // surfaces cannot drift apart. Lives in the (auth) group: IntroGate-exempt,
 // reachable while signed out mid-sign-up. Canon-only (no legacy skin).
 import { useCallback, useRef } from "react";
-import { BackHandler, Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { BackHandler, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 
@@ -85,6 +86,8 @@ export function DeepSpaceConsentNoticeScreen() {
         </Text>
       </View>
       <Text variant="body" style={styles.consentIntro}>{t("consent:detail.intro")}</Text>
+      {/* PolaScope 병기 안내: 약관 적용일(2026-10-05) 전까지만. 약관·동의 개정 PR 에서 지운다 (DECISIONS 26.09.28). */}
+      <Text variant="body" style={styles.consentIntro}>{t("common:app.renameNote")}</Text>
 
       <View style={styles.card}>
         <Text variant="heading" style={styles.section} accessibilityRole="header">

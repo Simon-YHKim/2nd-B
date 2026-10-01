@@ -14,6 +14,9 @@ import { joinFrontmatter } from "./frontmatter";
 import { listSources, listWikiPages } from "./queries";
 import { getSupabaseClient } from "../supabase/client";
 import { stripDomainTags } from "../persona/domain-stars";
+import { CHAT_KEEP_TAG } from "../chat/keep-exchange";
+import { downloadRawClipping } from "./storage";
+import { classifyInputAnyLocale } from "../safety/classifier";
 import type { SourceKind, SourceRow, WikiPageKind, WikiPageRow } from "./types";
 
 // P2-2 (persona sim): journal/note records are the user's MOST personal data,
@@ -59,7 +62,7 @@ export interface WikiExport {
 export const STRINGS = {
   en: {
     header: (n: number, m: number, date: string, name: string | null) =>
-      `# 2nd-Brain knowledge export - ${date}\n\nYou are consulting${name ? ` ${name}'s` : ""} 2nd-Brain - a personal knowledge graph of ${n} wiki page(s) and ${m} source(s). Pages use Obsidian-style [[wikilinks]] that resolve to other slugs in this bundle. When you cite a page in a reply, use its slug in [[double brackets]].`,
+      `# PolaScope knowledge export - ${date}\n\nYou are consulting${name ? ` ${name}'s` : ""} PolaScope - a personal knowledge graph of ${n} wiki page(s) and ${m} source(s). Pages use Obsidian-style [[wikilinks]] that resolve to other slugs in this bundle. When you cite a page in a reply, use its slug in [[double brackets]].`,
     pagesH: "## Wiki pages",
     sourcesH: "## Sources",
     recordsH: "## Records (journal & notes)",
@@ -70,7 +73,7 @@ export const STRINGS = {
   },
   ko: {
     header: (n: number, m: number, date: string, name: string | null) =>
-      `# 두번째 뇌 지식 내보내기 - ${date}\n\n${name ? `${name}의 ` : ""}두번째 뇌를 참고하는 중이에요. 위키 페이지 ${n}개, 소스 ${m}개로 구성돼 있어요. 페이지는 Obsidian 스타일 [[wikilink]]로 서로 연결됩니다. 답변에서 페이지를 인용할 때는 [[슬러그]] 형식을 사용해 주세요.`,
+      `# PolaScope 지식 내보내기 - ${date}\n\n${name ? `${name}의 ` : ""}PolaScope를 참고하는 중이에요. 위키 페이지 ${n}개, 소스 ${m}개로 구성돼 있어요. 페이지는 Obsidian 스타일 [[wikilink]]로 서로 연결됩니다. 답변에서 페이지를 인용할 때는 [[슬러그]] 형식을 사용해 주세요.`,
     pagesH: "## 위키 페이지",
     sourcesH: "## 소스",
     recordsH: "## 기록 (일기·노트)",
@@ -210,6 +213,8 @@ export function composeWikiExport(
 }
 
 export interface ExportUserWikiOpts extends ComposeOpts {
+  /** Chat context only: read explicitly kept exchanges, never ordinary source bodies. */
+  includeSavedConversations?: boolean;
   /** Cap on pages fetched. Defaults to 500. */
   pageLimit?: number;
   /** Cap on sources fetched. Defaults to 500. */
@@ -239,5 +244,23 @@ export async function exportUserWiki(userId: string, opts: ExportUserWikiOpts = 
     listSources(userId, { kinds: opts.sourceKinds, limit: opts.sourceLimit ?? 500 }),
     opts.includeRecords ? listRecordsForExport(userId, opts.recordLimit ?? 500) : Promise.resolve(undefined),
   ]);
-  return composeWikiExport(pages, sources, opts, records);
+  const exported = composeWikiExport(pages, sources, opts, records);
+  if (!opts.includeSavedConversations) return exported;
+  const promotedIds = new Set(pages.map((page) => page.source_id));
+  const kept = sources.filter((source) => source.kind === "self_knowledge" &&
+    source.tags.includes(CHAT_KEEP_TAG) && !promotedIds.has(source.id)).slice(0, 8);
+  const blocks = await Promise.all(kept.map(async (source) => {
+    // The source row is owner-scoped; also refuse a foreign Storage pointer.
+    const stored = source.storage_path.startsWith(`${userId}/`)
+      ? await downloadRawClipping(source.storage_path).catch(() => null) : null;
+    const fallback = source.frontmatter?._body_fallback;
+    const body = stored ?? (typeof fallback === "string" ? fallback : null);
+    if (!body || classifyInputAnyLocale(body, opts.locale ?? "en").zone === "red") return null;
+    // These are saved transcripts, not wiki pages. No invented slug/citation.
+    const clipped = body.slice(0, Math.min(opts.bodyCharLimit ?? 600, 2000));
+    return `### ${source.title}\n\n${clipped}`;
+  }));
+  const present = blocks.filter((block): block is string => block !== null);
+  if (present.length) exported.prompt += `\n## Saved conversations (user words and generated replies; not wiki pages)\n\n${present.join("\n\n")}`;
+  return exported;
 }

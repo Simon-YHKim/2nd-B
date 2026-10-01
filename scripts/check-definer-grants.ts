@@ -15,6 +15,8 @@
 // Two rules:
 //   A (ALL migrations): no explicit `GRANT EXECUTE ON FUNCTION ... TO anon|public`.
 //      An explicit anon/public grant on a function is the smell itself.
+//      The hash-pinned public signup-contract metadata migration below is the
+//      sole reviewed exception; it does not return account data or grant consent.
 //   B (migrations numbered >= BASELINE): any file that CREATEs a SECURITY DEFINER
 //      function must ALSO contain a `REVOKE EXECUTE ON FUNCTION ... FROM anon`
 //      in the same file. Historical migrations (< BASELINE) are grandfathered --
@@ -26,6 +28,7 @@
 // to opt out of rule B. Use sparingly and say why.
 
 import { readFileSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join, relative } from "node:path";
 
 const ROOT = process.cwd();
@@ -54,6 +57,67 @@ const revokesFromAnon =
   /revoke\s+(all|execute)\s+on\s+function[\s\S]*?\bfrom\s+[^;]*\banon\b/i;
 const triggerOnlyOptOut = /--\s*definer-grants-lint:\s*trigger-only/i;
 
+// Reviewed 2026-09-25: public.signup_consent_contract_status() has no arguments,
+// returns only four policy/revision strings and two readiness booleans, and its
+// STABLE SQL body reads contract metadata and the confirmation trigger catalog.
+// Pin the ENTIRE reviewed migration, including its resolver/trigger revokes,
+// rather than trusting a function name or a comment claiming it is read-only.
+// Only checkout line endings and outer whitespace are normalized; SQL literal
+// contents, the body, schema, return shape, search_path, and grants stay pinned.
+// A future body/contract/migration change requires a new security review before
+// changing this digest. Never compute the expected digest from the current draft.
+// Re-reviewed 2026-09-26 (Grok Relay, bus nonce vb-b36e42bf, PASS): the only
+// change from aa0fa63f... is the email-v4 policy_version literal 2026-09-25 ->
+// 2026-09-26 in the contract VALUES row, the DO $verify$ check and one comment.
+// Grants, SECURITY DEFINER, search_path and bodies are unchanged; 0191 was not
+// yet applied in production when this changed.
+// 2026-09-28: 0203 (email-v5, the 2026-09-28 notice revision, Simon) is a
+// second reviewed metadata migration. Its whole file is pinned the same way.
+// Reviewed 2026-09-28 01:20 KST, PASS, by a fresh-context reviewer (same model
+// vendor: the cross-vendor Relay review, bus nonce vb-aea1da95, could not run
+// because Grok was out of quota; Simon approved proceeding). It re-creates the resolver and the
+// public status RPC with one added VALUES row / revision, re-issues the same
+// revokes and the one reviewed grant, and replaces two 0193 LLM-consent
+// functions. 0191 keeps its own pin: it is applied in production and its grant
+// must not become a Rule A failure because a newer contract exists.
+// 2026-09-29: 0208 (email-v6, the 2026-09-29 notice revision that lists the
+// optional avatar setting) is a third metadata migration of the same shape as
+// 0203: one added VALUES row / revision, the same revokes and the one grant,
+// and the two 0193 LLM-consent functions with email-v6 added.
+// Independent adversarial review PASS: Claude workflow agent
+// review:privacy-avatar (wf_291396fd-ee8), 2026-09-29 00:4x KST, normalized
+// sha256 8c7e758936650a982c60fe1f0d828db683c4252ff45124f4766ca016a495e64a:
+// diff vs 0203 is limited to the VALUES row, revision lists, receipts CHECK,
+// capture priority, current LLM list, verify block and comments; the only
+// DEFINER is signup_consent_contract_status with search_path='' and unchanged
+// anon/authenticated grants. Same model vendor as the author, as for 0203.
+const REVIEWED_SIGNUP_METADATA_SHA256S: ReadonlySet<string> = new Set([
+  "6ba82c9ec8a796e99f1398398c58560b58513147119928d3ad004b31b0781648", // 0191 email-v4
+  "58ad7625ee30499a87d840eadf152f0b2d599553f3b416f3a432bf313c7b4290", // 0203 email-v5
+  "8c7e758936650a982c60fe1f0d828db683c4252ff45124f4766ca016a495e64a", // 0208 email-v6 (reviewed 2026-09-29)
+]);
+const REVIEWED_SIGNUP_METADATA_GRANT =
+  "GRANT EXECUTE ON FUNCTION public.signup_consent_contract_status() TO anon, authenticated;";
+// The public DEFINER RPC calls signup_consent_contract(text) with its owner's
+// rights even when that resolver is SECURITY INVOKER. Keeping the helper private
+// does not stop it leaking records through the public RPC if its body changes.
+// The confirmation trigger function also determines confirmation_ready. Protect
+// all three names; historical definitions are accepted only at their exact
+// original path AND content, so replaying an old definition later is not allowed.
+const REVIEWED_SIGNUP_DEPENDENCY_HISTORY: Readonly<Record<string, string>> = {
+  "0086_require_email_confirmation.sql": "0c3ca2e97508337c07ee6483a011b6e8262f81b161b7d2873487cee8c2402569",
+  "0148_verified_email_signup_consent_ledger.sql": "49a2283b26f40a7ee6c656293e92a5d8a43ea7a54f4e02efb5a3d5a8533c658f",
+  "0149_atomic_complete_profile_signup_consent.sql": "02b6006e0c7ce2fc9dfe548df45afc33bc4d32ee22f6032652dc53a908a7bafb",
+  "0150_signup_consent_contract_20260902.sql": "db19e01c85e63ace98e093e60aac30cb0122e8e72d2b2699776ad4119472de42",
+};
+const changesSignupMetadataDependency =
+  /\b(?:create(?:\s+or\s+replace)?|alter|drop)\s+(?:function|routine)\s+(?:if\s+exists\s+)?(?:(?:public|"public")\s*\.\s*)?"?(?:signup_consent_contract_status|signup_consent_contract|complete_verified_email_signup)"?\s*\(/i;
+
+function normalizedSqlSha256(sql: string): string {
+  const normalized = sql.replace(/\r\n/g, "\n").trim();
+  return createHash("sha256").update(normalized).digest("hex");
+}
+
 function migrationNumber(filename: string): number {
   const m = /^(\d+)/.exec(filename);
   return m ? parseInt(m[1], 10) : Number.POSITIVE_INFINITY;
@@ -74,9 +138,25 @@ for (const file of files) {
   const sql = readFileSync(full, "utf8");
   const code = stripSqlComments(sql);
   const rel = relative(ROOT, full);
+  const sqlSha256 = normalizedSqlSha256(sql);
+  const reviewedSignupMetadata = REVIEWED_SIGNUP_METADATA_SHA256S.has(sqlSha256);
+  const reviewedDependencyHistory = sqlSha256 === REVIEWED_SIGNUP_DEPENDENCY_HISTORY[file];
+
+  // CREATE OR REPLACE retains old EXECUTE grants. Once this RPC is public, a
+  // later dependency replacement/ALTER must not evade review by omitting GRANT.
+  // History pins never exempt Rule A or Rule B below.
+  if (!reviewedSignupMetadata && !reviewedDependencyHistory && changesSignupMetadataDependency.test(code)) {
+    errors.push(`${rel}: unreviewed change to the public signup metadata dependency; ` +
+      `review its complete SQL before changing the pinned metadata migration digest.`);
+  }
 
   // Rule A -- all migrations.
-  if (grantToAnonPublic.test(code)) {
+  // Remove exactly the reviewed single-function grant, never all grants in a
+  // named file. PUBLIC, overloads, other functions/roles, and altered SQL fail.
+  const grantCode = reviewedSignupMetadata
+    ? code.replace(REVIEWED_SIGNUP_METADATA_GRANT, " ")
+    : code;
+  if (grantToAnonPublic.test(grantCode)) {
     errors.push(
       `${rel}: explicit GRANT EXECUTE ... TO anon/public on a function. ` +
         `Remove it; rely on default privileges + an explicit REVOKE FROM anon.`,
@@ -105,6 +185,6 @@ if (errors.length > 0) {
   process.exit(1);
 }
 console.log(
-  `SECURITY PASS  ${files.length} migrations: no anon/public function grants; ` +
+  `SECURITY PASS  ${files.length} migrations: no unreviewed anon/public function grants; ` +
     `every DEFINER fn >= ${BASELINE} revokes anon`,
 );

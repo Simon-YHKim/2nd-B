@@ -1,6 +1,24 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
+import {
+  __resetAccountEpochForTests,
+  beginAccountOwnerTransition,
+  captureAccountOwnerLease,
+  noteResolvedOwner,
+  subscribeAccountTransition,
+} from "../../lib/auth/account-epoch";
+import { resetPrivacyChangesForTests } from "../../lib/privacy/changes";
+
+jest.mock("../../lib/supabase/privacy", () => ({
+  fetchPrivacyPrefs: async () => ({ chat_autosave: true }),
+}));
+
+beforeEach(() => {
+  __resetAccountEpochForTests();
+  resetPrivacyChangesForTests();
+  noteResolvedOwner("local-owner");
+});
 
 // 담기가 실패했을 때 화면이 아무 말도 하지 않는 문제를 잡는다.
 //
@@ -131,6 +149,7 @@ function keepHost(
   };
   const bindings = {
     userId: "local-owner",
+    captureAccountOwnerLease,
     keptTurns: state.kept,
     keepingTurns: new Set(state.keepingTurns),
     // r3as2 R3AS2-02: 담긴 표시는 턴 객체에 붙는다. 두 답변이 같은 객체면 한쪽을 담는 순간 다른 쪽도 담긴
@@ -147,9 +166,20 @@ function keepHost(
     runManualKeep: async (ownerId: string, capture: (fence: { signal: AbortSignal; journal: object }) => Promise<unknown>) => {
       state.lanes.push(ownerId);
       state.order.push("lane");
-      const kept = await capture({ signal: new AbortController().signal, journal: {} });
-      if (options.keepRefused) throw new Error("autosave-undo-not-forgotten");
-      return kept;
+      const lease = captureAccountOwnerLease(ownerId);
+      if (!lease) throw new Error("autosave-owner-not-current");
+      const controller = new AbortController();
+      const journal = { uploadSent: false, insertSent: false };
+      const stop = subscribeAccountTransition(() => {
+        if (!lease.isCurrent() && !journal.uploadSent && !journal.insertSent) controller.abort();
+      });
+      try {
+        const kept = await capture({ signal: controller.signal, journal });
+        if (options.keepRefused) throw new Error("autosave-undo-not-forgotten");
+        return kept;
+      } finally {
+        stop();
+      }
     },
     keepCrisisHotline: crisisHotline(state.classified),
     setKeptTurns: (fn: (prev: Set<object>) => Set<object>) => { state.kept = fn(state.kept); },
@@ -289,6 +319,21 @@ describe("담기 실패를 화면이 말한다", () => {
       classified: refused.state.classified,
       released: refused.state.released,
     }).toEqual({ kept: false, notice: [{ turn: REPLY, ok: false }], announced: ["keepFailed"], classified: [], released: [REPLY] });
+  });
+
+  test("계정이 바뀐 뒤 늦게 끝난 담기는 새 화면에 성공이나 실패 안내를 남기지 않는다", async () => {
+    let finish!: () => void;
+    const capture = new Promise<void>((resolve) => { finish = resolve; });
+    const host = keepHost({ capture: () => capture });
+    const keeping = host.keep(1);
+    const payload = host.state.captures[0] as { signal: AbortSignal };
+    beginAccountOwnerTransition("next-owner");
+    expect(payload.signal.aborted).toBe(true);
+    finish();
+    await expect(keeping).resolves.toBe(false);
+    expect(host.state.kept.has(REPLY)).toBe(false);
+    expect(host.state.notice.filter(Boolean)).toEqual([]);
+    expect(host.state.announced).toEqual([]);
   });
 });
 

@@ -177,7 +177,7 @@
   },
   "ocrReview": {
     "heading": "Revisar antes de guardar",
-    "disclosure": "Esta foto va a un servicio de lectura de texto solo para leer su contenido. 2nd-B no conserva la imagen ni la usa para entrenar nada.",
+    "disclosure": "Esta foto va a un servicio de lectura de texto solo para leer su contenido. PolaScope no conserva la imagen ni la usa para entrenar nada.",
     "privateAfterApprove": "Después de que la apruebes, solo el texto editable se guarda como tu registro privado.",
     "body": "Edita el texto extraído y apruébalo antes de guardar.",
     "approve": "Aprobar mi texto extraído",
@@ -350,14 +350,14 @@
     "startRecording": "Empezar a grabar",
     "maybeLater": "Quizás más tarde"
   },
-  "captureTab": "Capturar",
+  "captureTab": "Recortes",
   "formatsTab": "Formatos",
   "importTab": "Importar",
   "inboxTab": "Bandeja",
   "manualTab": "Guía de uso",
   "jot": {
     "title": "Anota una línea",
-    "deviceNote": "Se guarda en este dispositivo. Crea una cuenta para conservarlo en 2nd-Brain.",
+    "deviceNote": "Se guarda en este dispositivo. Crea una cuenta para conservarlo en PolaScope.",
     "placeholder": "Una línea que tengas en mente",
     "inputA11y": "Campo de nota",
     "save": "Guardar",

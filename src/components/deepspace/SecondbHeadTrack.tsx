@@ -15,6 +15,7 @@
 import { createContext, useContext, useRef } from "react";
 import { Animated, Platform, StyleSheet, View, type GestureResponderEvent, type ViewStyle } from "react-native";
 import { PIXEL_STEP } from "@/lib/motion/pixel-physical";
+import { pagePointFromTouch } from "@/lib/motion/touch-point";
 
 export interface SecondbTracking {
   touch: Animated.ValueXY; // window px of the active touch
@@ -56,7 +57,10 @@ export function SecondbHeadTrackProvider({
       spring(1); // smooth start
     }
   };
-  const onTouch = (e: GestureResponderEvent) => move(e.nativeEvent.pageX, e.nativeEvent.pageY);
+  const onTouch = (e: GestureResponderEvent) => {
+    const point = pagePointFromTouch(e.nativeEvent);
+    if (point) move(point.pageX, point.pageY);
+  };
   const end = () => {
     if (active.current) {
       active.current = false;
@@ -69,8 +73,10 @@ export function SecondbHeadTrackProvider({
   const webProps =
     Platform.OS === "web"
       ? ({
-          onMouseMove: (e: { nativeEvent: { pageX: number; pageY: number } }) =>
-            move(e.nativeEvent.pageX, e.nativeEvent.pageY),
+          onMouseMove: (e: { nativeEvent: { pageX: number; pageY: number } }) => {
+            const point = pagePointFromTouch(e.nativeEvent);
+            if (point) move(point.pageX, point.pageY);
+          },
           onMouseLeave: end,
         } as object)
       : null;

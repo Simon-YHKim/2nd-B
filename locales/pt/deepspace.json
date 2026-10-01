@@ -1,4 +1,32 @@
 {
+  "camera": {
+    "aim": "Apontando para a estrela",
+    "zoom": "Aproximando a estrela",
+    "focus": "Ajustando o foco",
+    "ready": "Foco fixado · Pronto para viajar",
+    "return": "Voltando à constelação",
+    "shutter": "Tirando uma foto"
+  },
+  "telescope": {
+    "label": "Controles do telescópio",
+    "up": "Apontar para cima",
+    "down": "Apontar para baixo",
+    "left": "Apontar à esquerda",
+    "right": "Apontar à direita",
+    "reset": "Voltar à origem",
+    "dial": "Seletor de ampliação",
+    "hint": "W amplia o campo de visão e T aproxima a imagem. Solte para manter a ampliação.",
+    "slider": "Controle deslizante de ampliação",
+    "joystick": "Joystick de giro e inclinação",
+    "joystickHint": "Empurre para mover ou toque sem arrastar para voltar à origem. Quanto mais longe do centro, maior a velocidade. Solte para parar. No teclado, mantenha as setas pressionadas.",
+    "panTilt": "Giro / Incl.",
+    "stopped": "Parado",
+    "speed": "Vel. {{value}}%",
+    "phone": "Abrir meu painel",
+    "phoneLabel": "Meu celular",
+    "phoneReveal": "Deslize para cima para mostrar o celular.",
+    "phoneStow": "Toque para abrir o painel ou deslize para baixo para guardar o celular."
+  },
   "time": {
     "today": "Hoje",
     "yesterday": "Ontem",
@@ -20,7 +48,7 @@
     "statLinks": "Conexões",
     "filterAll": "Tudo",
     "emptyTag": "Nenhum registro com esta etiqueta. Escolha outra ou adicione um registro.",
-    "emptyAll": "Ainda não há registros. Salve uma nota ou um link para consultar aqui.",
+    "emptyAll": "Ainda não há páginas wiki. Guarde uma nota ou um link e organize o conteúdo como página na caixa de entrada.",
     "addPiece": "+ Adicionar registro",
     "backlinks": "Registros vinculados {{count}}",
     "connections": "Conexões {{count}}",
@@ -145,8 +173,8 @@
     "kindFallback": "Registro"
   },
   "auth": {
-    "appName": "2nd-Brain",
-    "signInLead": "Entre para ver seus registros e seu resumo na Estrela Polar.",
+    "appName": "PolaScope",
+    "signInLead": "Na era da IA, o ativo é você. Seus registros formam sua Estrela Polar.",
     "signIn": "Entrar",
     "createAccount": "Criar conta",
     "signUpTitle": "Começar",
@@ -164,10 +192,9 @@
     "haveAccount": "Já tem uma conta? Entrar",
     "forgotPassword": "Esqueceu a senha?",
     "or": "ou",
-    "ageNotice": "Você pode criar uma conta se tiver 14 anos ou mais.",
-    "brandLabel": "2ND-BRAIN",
-    "signInTitle": "Entre no 2nd-Brain",
-    "signInEncrypt": "Você pode mudar as configurações de privacidade quando quiser.",
+    "ageNotice": "Você pode criar uma conta se tiver {{minAge}} anos ou mais.",
+    "brandLabel": "POLASCOPE",
+    "signInTitle": "Que bom te ver de novo",
     "emailContinue": "Continuar com e-mail",
     "signUpPrompt": "Primeira vez?",
     "legalConsent": "Ao continuar, você concorda com os Termos de Serviço e a Política de Privacidade.",
@@ -239,7 +266,7 @@
     "viewManual": "Ver o manual",
     "emailUs": "Fale conosco",
     "reportBug": "Relatar um erro",
-    "footer": "2nd-Brain v1.0.0 · 2 dias úteis KST",
+    "footer": "PolaScope v1.0.0 · 2 dias úteis KST",
     "faqTitle": "Perguntas frequentes",
     "noticesTitle": "Avisos"
   },
@@ -385,7 +412,7 @@
     "proActive": "Seu plano pago está ativo",
     "nowPro": "Você está num plano pago agora. Obrigado.",
     "notAvailableTitle": "Faça upgrade no app móvel",
-    "notAvailableBody": "Os planos pagos são comprados nas lojas de apps no iOS e Android. Abra o 2nd-Brain no seu celular para fazer upgrade.",
+    "notAvailableBody": "Os planos pagos são comprados nas lojas de apps no iOS e Android. Abra o PolaScope no seu celular para fazer upgrade.",
     "support": "Falar com o suporte",
     "loadError": "Não foi possível carregar os planos. Tente de novo.",
     "purchaseError": "A compra não foi concluída. Tente de novo.",
@@ -554,6 +581,12 @@
     "retry": "Tentar de novo",
     "empty": "Ainda não há registros de carreira. Comece por uma conquista que você lembra.",
     "pieceFallback": "Registro de carreira",
+    "drillDown": "Ver detalhes",
+    "originalNote": "As prévias mantêm o idioma em que foram salvas. Abra um cartão para ler o registro completo.",
+    "sourceInterview": "Entrevista de memórias",
+    "sourceRecord": "Registro de carreira salvo",
+    "entryUiKorean": "Tela ao salvar: coreano",
+    "entryUiEnglish": "Tela ao salvar: inglês",
     "untitled": "(sem título)"
   },
   "careerInput": {
@@ -701,14 +734,19 @@
     "starsFallback": "Não conseguimos ler suas estrelas; desenhamos o padrão."
   },
   "coachmarks": {
-    "step1": "Esta é a sua constelação",
-    "step2": "Toque em uma estrela",
-    "step3": "Quando algo vier à mente, guarde",
-    "step4": "Há mais ferramentas nas configurações",
+    "homeStep": "Toque no SecondB para começar a salvar um registro.",
+    "formatStep": "Primeiro escolha Memorando. Uma linha é suficiente.",
+    "inputStep": "Escreva o que está pensando. Não precisa ser uma frase completa.",
+    "saveStep": "Por fim, toque em Salvar para guardar este registro.",
+    "doneStep": "Seu registro foi salvo. Volte à constelação para vê-lo.",
+    "targetHint": "Toque no controle destacado para continuar.",
+    "inputHint": "Escreva pelo menos um caractere para continuar até Salvar.",
+    "doneHint": "O registro foi salvo com sucesso.",
+    "inputReady": "Ir para Salvar",
+    "goHome": "Ir para a constelação",
+    "doneCount": "Concluído",
     "secondbName": "SecondB",
-    "dontShowAgain": "Não mostrar novamente",
-    "start": "Começar",
-    "next": "Próximo"
+    "dontShowAgain": "Não mostrar novamente"
   },
   "museum": {
     "title": "Museu da IA",
@@ -732,6 +770,7 @@
     "a11yZoomOut": "Diminuir zoom",
     "a11yZoomIn": "Aumentar zoom",
     "hintSelected": "{{label}} · toque novamente para abrir",
+    "openRecord": "Abrir registro",
     "hintDefault": "Tracejada = registros ligados por uma tag em comum. Toque para selecionar, toque novamente para abrir",
     "untitled": "(sem título)",
     "tagLinks": "Vínculos de tags"
@@ -754,11 +793,11 @@
     "rangeNote": "Esta página: itens {{from}} – {{to}}"
   },
   "shareCardImg": {
-    "eyebrowWeek": "2ND-BRAIN · ESTA SEMANA",
+    "eyebrowWeek": "POLASCOPE · ESTA SEMANA",
     "eyebrowConstellation": "MINHA CONSTELACAO",
     "footerWeek": "Uma semana vista ao lado do SecondB",
     "starsLit": "{{count}} estrelas brilhando",
-    "signature": "2nd-Brain · {{count}} fagulhas de estrela"
+    "signature": "PolaScope · {{count}} fagulhas de estrela"
   },
   "ds": {
     "growth": {
@@ -913,12 +952,19 @@
       "revoke": "Revogar",
       "fileSource": "Importação de arquivo",
       "revokeFailed": "Não foi possível revogar. Tente novamente em instantes.",
+      "revokeKeptShared": "Nesta revogação, {{count}} fonte não foi excluída: outra importação também a trouxe.",
+      "revokeKeptShared_plural": "Nesta revogação, {{count}} fontes não foram excluídas: outras importações também as trouxeram.",
+      "revokeKeptUnconfirmed": "Nesta revogação, {{count}} fonte não foi excluída: não foi possível confirmar que só esta importação a trouxe.",
+      "revokeKeptUnconfirmed_plural": "Nesta revogação, {{count}} fontes não foram excluídas: não foi possível confirmar que só esta importação as trouxe.",
+      "revokeKeptUncertain": "Não foi possível verificar se todas ainda estão lá.",
+      "revokeUnserialized": "Este navegador não consegue ordenar as revogações entre abas abertas, então nada foi revogado. Tente novamente em um navegador atualizado.",
       "healthErrUnavailable": "Este dispositivo não consegue conectar a um app de saúde. Nada foi registrado.",
       "healthErrDenied": "O acesso à saúde foi recusado, então nada foi registrado. Você pode permitir nas configurações do dispositivo.",
       "healthErrEmpty": "Nenhuma atividade para registrar hoje.",
       "healthReflected": "Refletido. Itens adicionados: {{count}}.",
       "healthReflectedNone": "Nada de novo para refletir: os registros de hoje já estavam salvos.",
       "healthRoutinesCompleted": "Rotinas concluídas a partir disto: {{count}}.",
+      "healthAutoDaily": "Com a atualização automática ligada, este celular também lê passos, treinos e sono uma vez por dia sozinho.",
       "healthErrFailed": "Não foi possível registrar seus dados de saúde. Tente novamente.",
       "summaryPieces": "{{count}} item",
       "summaryPieces_plural": "{{count}} itens",
@@ -1108,6 +1154,13 @@
   },
   "profileDetails": {
     "screenTitle": "Sobre a sua vida",
+    "nameLabel": "Nome de exibição",
+    "nameHint": "O nome exibido no seu perfil. É opcional e pode ter até 40 caracteres.",
+    "nameLoading": "Carregando seu nome…",
+    "nameLoadError": "Não foi possível carregar seu nome atual. Tente novamente.",
+    "nameSave": "Salvar nome",
+    "nameSaved": "Nome salvo",
+    "nameSaveError": "Não foi possível salvar seu nome. Tente novamente.",
     "intro": "Preencha só o que quiser compartilhar. Salve estes dados no perfil e altere depois.",
     "progress": "{{filled}} de {{total}} preenchidos",
     "save": "Guardar",

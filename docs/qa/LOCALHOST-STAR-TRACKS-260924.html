@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2ndB 별자리 입력 순서와 포커스 검증</title>
+<style>
+:root{color-scheme:light dark;--bg:#f7f9fc;--card:#fff;--text:#18243b;--muted:#52627b;--accent:#3567c4;--line:#bdd0f0}
+@media(prefers-color-scheme:dark){:root{--bg:#0a0e18;--card:#141b2e;--text:#eaf0ff;--muted:#a9b8d2;--accent:#8bb8ff;--line:#3d527c}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,"Malgun Gothic",sans-serif}main{max-width:880px;margin:auto;padding:28px 20px 60px}h1{font-size:1.6rem;line-height:1.3;margin:0 0 10px}h2{font-size:1.1rem;margin:0 0 10px}.muted{color:var(--muted)}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:22px 0}.card,details{border:1px solid var(--line);background:var(--card);padding:16px}.card strong{display:block;color:var(--accent);font-size:1.15rem}svg{display:block;width:100%;height:auto;background:var(--card);border:1px solid var(--line);margin:16px 0}svg text{fill:var(--text);font:14px system-ui,"Malgun Gothic",sans-serif}svg path{stroke:var(--accent);stroke-width:2;fill:none}svg rect{fill:var(--card);stroke:var(--accent);stroke-width:2}details{margin:10px 0}summary{cursor:pointer;font-weight:700}a{color:var(--accent)}:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+</style>
+</head>
+<body><main>
+<h1>별자리 입력을 두 갈래로 연결했습니다</h1>
+<p class="muted">2026-09-24 17:17:34 KST · 로컬호스트 화면 검증</p>
+<section class="cards" aria-label="결과 요약">
+<div class="card"><strong>2개 입력 트랙</strong>프로필에서 생애 기록과 직장·현재 기록으로 갈라집니다.</div>
+<div class="card"><strong>첫 기록으로 다음 별 열림</strong>이전 별의 첫 저장 입력이 L2가 되면 다음 별에 입력할 수 있습니다.</div>
+<div class="card"><strong>포커스와 복귀</strong>별 터치 시 별자리와 선택 별을 부드럽게 확대하고, 빈 하늘 터치 시 축소합니다.</div>
+</section>
+<h2>입력 순서</h2>
+<svg viewBox="0 0 820 260" role="img" aria-label="프로필에서 영유아기, 학창시절, 20대, 30대 이후로 가는 길과 프로필에서 직장, 지금으로 가는 길">
+<path d="M120 130 H152 M152 130 V65 H170 M152 130 V198 H275 M260 65 H292 M382 65 H415 M505 65 H535 M365 198 H482"/>
+<g><rect x="20" y="105" width="100" height="50"/><text x="70" y="135" text-anchor="middle">프로필</text></g>
+<g><rect x="170" y="40" width="90" height="50"/><text x="215" y="70" text-anchor="middle">영유아기</text></g>
+<g><rect x="292" y="40" width="90" height="50"/><text x="337" y="70" text-anchor="middle">학창시절</text></g>
+<g><rect x="415" y="40" width="90" height="50"/><text x="460" y="70" text-anchor="middle">20대</text></g>
+<g><rect x="535" y="40" width="90" height="50"/><text x="580" y="70" text-anchor="middle">30대 이후</text></g>
+<g><rect x="275" y="173" width="90" height="50"/><text x="320" y="203" text-anchor="middle">직장</text></g>
+<g><rect x="482" y="173" width="90" height="50"/><text x="527" y="203" text-anchor="middle">지금</text></g>
+</svg>
+<p>입력 잠금은 홈의 ‘여행하기’, 별 요약의 인터뷰 버튼, 직접 연 인터뷰 주소에 공통 적용했습니다. 기존 기록은 잠긴 별의 요약에서도 계속 읽을 수 있습니다. 나이가 닿지 않은 시기를 잠그는 기존 규칙도 유지합니다.</p>
+<details><summary>로컬호스트에서 확인한 화면</summary><p><a href="http://localhost:8081/">별자리 홈</a>에서 별을 선택하면 기록 주제와 선행 별 안내가 나타났습니다. 빈 하늘을 누르면 소개 상태로 돌아왔고, 잠긴 ‘지금’ 별의 여행 버튼은 비활성화됐습니다. <a href="http://localhost:8081/me/now">별 요약</a>은 기존 기록 1건과 진행도를 보여주면서 추가 입력 버튼을 감췄습니다. <a href="http://localhost:8081/interview?period=now">직접 인터뷰 주소</a>도 ‘직장’ 선행 입력 안내를 표시했습니다.</p></details>
+<details><summary>검증과 남은 범위</summary><p>타입 검사, 5개 언어 키 일치, 린트(기존 경고만), 단일 프로세스 Jest 779개 스위트·9,928개 테스트가 통과했습니다. <code>npm run verify</code>의 정적 게이트와 UI 검사는 통과했으나, 병렬 Jest에서 다른 검사가 생성·삭제하는 임시 파일을 읽는 경합으로 1개 스위트가 실패했습니다. 모바일 네이티브 기기에서의 손동작·화면 잘림은 아직 직접 확인하지 못했습니다.</p></details>
+</main></body></html>

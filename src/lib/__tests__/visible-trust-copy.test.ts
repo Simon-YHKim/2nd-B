@@ -241,7 +241,7 @@ describe("visible trust copy", () => {
     // 그래프 노드를 만들지 않으므로(J1).
     //
     // 2026-09-08: 그 카드가 legacy/screens/index.tsx 로 나갔고, **배송 홈에는
-    // 첫 실행 카드가 없다.** 첫 실행 안내는 HomeCoachmarks 가 4단계로 진다.
+    // 첫 실행 카드가 없다.** 첫 실행 안내는 실제 첫 기록을 완성하는 코치마크가 진다.
     // 고칠 주장이 없으니 계약은 더 강하게 성립한다 — 그래서 지금 지키는 것은
     // **그 약속이 어디에도 없다**는 것이다. 카피가 로케일에서 부활해도 운다.
     const root = path.resolve(__dirname, "../../..");
@@ -263,7 +263,7 @@ describe("visible trust copy", () => {
     expect(text).not.toContain("첫 별가루를 남기면 길이 조금씩 켜져요");
     expect(text).not.toMatch(/light(s)? the graph|길이 (조금씩 )?켜/);
     // 첫 실행 안내 자체는 있어야 한다 - 없으면 "약속 안 함"이 공허해진다.
-    expect(shell).toContain("useCoachmarksGate()");
+    expect(shell).toContain("useCoachmarksGate(");
   });
 
   test("sign-in exposes account creation as a route and reset as inline help", () => {

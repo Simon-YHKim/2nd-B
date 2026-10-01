@@ -10,6 +10,7 @@
   "clearChatHint": "Limpa a conversa atual.",
   "viewPlans": "Ver planos",
   "viewPlansHint": "Abre a tela de planos.",
+  "serverLimitReached": "Esta conta atingiu o limite de conversas de hoje. O limite é restabelecido à meia-noite, no horário da Coreia (KST).",
   "intro_title": "Olá, sou o SecondB",
   "intro_body": "O SecondB responde usando suas páginas da wiki e mostra quais consultou. Abra essas páginas para conferir. Você pode perguntar, por exemplo, quais assuntos se repetem nos registros do mês.",
   "reference_piece_meta": "registro usado na resposta",

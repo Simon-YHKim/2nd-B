@@ -44,6 +44,7 @@ function Glyph({ name, color, size = 20 }: { name: string; color: string; size?:
 
 export default function NorthstarSentence() {
   const { t, i18n } = useTranslation("deepspace");
+  const { t: tCore } = useTranslation("core-brain");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const subText = t("ds.northstar.sub");
   const { userId, loading, isMinor } = useAuth();
@@ -203,6 +204,7 @@ export default function NorthstarSentence() {
       </View>
 
       <Text style={styles.suggestLabel}>{t("ds.northstar.suggestLabel")}</Text>
+      <Text variant="caption" color="textMuted">{tCore("sentenceSeparate")}</Text>
       <View style={styles.suggestList}>
         {suggestions?.map((s) => {
           const on = s === draft;

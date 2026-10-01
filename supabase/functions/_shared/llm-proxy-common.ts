@@ -285,6 +285,11 @@ export async function consumeLlmPurposeQuota(
   provider: LlmProxyVendor,
   purpose: string,
 ): Promise<LlmPurposeQuotaResult> {
+  // Polaris v1 settlement is implemented by the OpenAI wrapper. Other
+  // vendors stay closed until they own the same reservation lifecycle.
+  if (purpose === 'persona_synthesis' && provider !== 'openai') {
+    return { ok: false, reason: 'unavailable' };
+  }
   let result: LlmPurposeQuotaRpcResult;
   try {
     result = await executeRpc('consume_llm_proxy_purpose_quota', {
@@ -482,10 +487,12 @@ function decodeJsonObject(bytes: Uint8Array, code: LlmBodyErrorCode): Record<str
   }
 }
 
-export async function readLlmProxyJsonObject(req: Request): Promise<Record<string, unknown>> {
+export async function readLlmProxyJsonObject(
+  req: Request, maxBytes = LLM_PROXY_JSON_BODY_LIMIT_BYTES,
+): Promise<Record<string, unknown>> {
   const bytes = await readBoundedBody(
     req,
-    LLM_PROXY_JSON_BODY_LIMIT_BYTES,
+    maxBytes,
     'request_body_too_large',
     'invalid_json',
     LLM_PROXY_REQUEST_BODY_TIMEOUT_MS,

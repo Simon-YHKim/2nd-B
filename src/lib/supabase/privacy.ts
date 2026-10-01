@@ -10,6 +10,7 @@ import { getSupabaseClient } from "./client";
 import { recordHealthImportConsent } from "./consent";
 import { resolvePrivacyPrefs, PRIVACY_PREF_KEYS, type PrivacyPrefs } from "../privacy/prefs";
 import { publishPrivacyPrefsIntent, publishPrivacyPrefsSaved, publishPrivacyPrefsSaveFailed } from "../privacy/pref-changes";
+import { beginPrivacyChange, commitPrivacyChange } from "../privacy/changes";
 
 export async function fetchPrivacyPrefs(userId: string): Promise<PrivacyPrefs> {
   try {
@@ -92,6 +93,7 @@ export async function savePrivacyPrefs(
   prefs: PrivacyPrefs,
   options: SavePrivacyPrefsOptions = {},
 ): Promise<void> {
+  const revision = beginPrivacyChange(userId, prefs);
   const supabase = getSupabaseClient();
   // PR #1814 redesign C2: announce before the first round trip, so a withdrawal this whole object
   // carries (chat_autosave false) is taken before either request leaves (see pref-changes.ts).
@@ -110,6 +112,7 @@ export async function savePrivacyPrefs(
   );
   // r3as H1: tell still-mounted screens what was just written (the chat screen stays in
   // the Stack behind /privacy), before the best-effort ledger append below.
+  commitPrivacyChange(userId, revision, prefs);
   publishPrivacyPrefsSaved(userId, prefs, intent);
   // Append only AFTER a successful write (a failed save recorded no consent
   // change). Best-effort and never rethrows, so the change ledger can't break

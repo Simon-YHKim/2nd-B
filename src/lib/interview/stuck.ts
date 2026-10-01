@@ -56,7 +56,8 @@ export function isNonAnswer(text: string, locale: "en" | "ko"): boolean {
   const clean = normalize(text);
   if (clean.length === 0) return false;
   if (clean.length > NON_ANSWER_MAX_LEN) return false;
-  return NON_ANSWER[locale].test(clean);
+  // English word boundaries need spaces; punctuation-only normalization erased them.
+  return NON_ANSWER[locale].test(locale === "en" ? text.toLowerCase().replace(/[’]/g, "'") : clean);
 }
 
 /**

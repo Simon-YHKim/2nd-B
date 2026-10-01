@@ -6,6 +6,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "../supabase/client";
+import { observeAuthConversion, publishAnalyticsProfileGate } from "../analytics/auth-conversions";
 import {
   ageInYears,
   consumeCurrentWebAuthCallback,
@@ -26,8 +27,8 @@ import {
 import { subscribeRecoveryStorageEvent } from "./recovery-storage-events";
 import { nextRecoveryProof } from "./reset-password-helpers";
 import {
-  attemptEncryptedNativeStorageRecovery,
-  isEncryptedStorageRecoveryRequired,
+  attemptEncryptedNativeStorageRecovery, clearFailClosedColdStarts,
+  escalateFailClosedLockIfPersistent, isEncryptedStorageRecoveryRequired,
 } from "./storage-recovery";
 import {
   armWebRecoveryPendingFromLocation, applyAuthCallbackQuarantineStorageValue,
@@ -306,6 +307,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    let freshWebCallbackUserId: string | null = null;
     const effectEpoch = authClientEpoch;
     const isCurrentEffect = () => !cancelled
       && authClientEpochRef.current === effectEpoch
@@ -367,6 +369,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const lastProbe = lastProbeRef.current;
       if (userId === lastUserIdRef.current && lastProbe !== null) {
         noteResolvedOwner(userId);
+        publishAnalyticsProfileGate(userId, lastProbe.isMinor);
         setState({
           userId,
           hasProfile: lastProbe.hasProfile,
@@ -389,6 +392,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!isCurrentEffect() || gen !== probeGenRef.current) return;
         lastProbeRef.current = refreshed;
         noteResolvedOwner(userId);
+        publishAnalyticsProfileGate(userId, refreshed.isMinor);
         setState({
           userId,
           hasProfile: refreshed.hasProfile,
@@ -402,6 +406,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       // First resolve for this user: mark loading until we know the profile.
       noteResolvedOwner(userId);
+      publishAnalyticsProfileGate(userId, null);
       setState({ userId, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, sessionUnavailable: false, loading: true });
       const probe = await probeProfile(
         userId,
@@ -419,6 +424,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastUserIdRef.current = userId;
       lastProbeRef.current = probe;
       noteResolvedOwner(userId);
+      publishAnalyticsProfileGate(userId, probe.isMinor);
       setState({
         userId,
         hasProfile: probe.hasProfile,
@@ -437,6 +443,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // noteResolvedOwner() 가 불린다.
     type QueuedAuthEvent = { event: AuthChangeEvent; session: Session | null };
     let bootstrapped = false;
+    // The ONE place a bootstrap is declared settled. Reaching it means this run
+    // classified auth storage, so the fail-closed persistence streak ends here
+    // (fail-closed-persistence.ts). Best-effort: it never blocks the boot.
+    const markBootstrapped = () => {
+      bootstrapped = true;
+      void clearFailClosedColdStarts();
+    };
     const queuedAuthEvents: QueuedAuthEvent[] = [];
     let storageProofGeneration = 0;
 
@@ -552,6 +565,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRecoveryReady(false);
         setState((current) => ({ ...current, loading: true }));
         failClosedRunning = false;
+        // The lock above is published first and is unchanged. Only a failure that
+        // PERSISTS across cold starts trades it for the explicit two-step consent
+        // gate, which discards nothing before the user agrees. Never retry through
+        // refresh() here: it does not read the recovery markers.
+        void escalateFailClosedLockIfPersistent({
+          isCurrent: isCurrentEffect,
+          escalate: () => {
+            if (typeof console !== "undefined") {
+              console.warn("[auth] recovery fail-closed lock persisted across cold starts; phase=fail-closed-escalate");
+            }
+            markStorageRecoveryRequired();
+          },
+        });
         return false;
       }
     };
@@ -736,6 +762,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const armedPending = await armWebRecoveryPendingFromLocation();
         const callback = await consumeCurrentWebAuthCallback(armedPending);
+        if (callback && callback.type !== "recovery") freshWebCallbackUserId = callback.userId;
         // Web accepts PKCE only. consumeCurrentWebAuthCallback has already
         // committed recovery session + proof + own pending clear under M;
         // activation below only publishes that durable owner to React.
@@ -826,7 +853,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           publishRecoveryProof(null);
           setRecoveryPendingGlobal(false);
           setRecoveryReady(true);
-          bootstrapped = true;
+          markBootstrapped();
           publishSessionUnavailable();
           return;
         }
@@ -837,7 +864,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           publishRecoveryProof(null);
           setRecoveryPendingGlobal(false);
           setRecoveryReady(true);
-          bootstrapped = true;
+          markBootstrapped();
           await resolveSession(null);
           return;
         }
@@ -988,7 +1015,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       publishRecoveryProof(proof);
       if (!latestSessionRef.current) latestSessionRef.current = session;
-      bootstrapped = true;
+      markBootstrapped();
       const sessionForResolve = latestSessionRef.current ?? session;
       const proofMatchesSession =
         !proof ||
@@ -1009,7 +1036,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         rawSessionLoad,
         isCancelled: () => !isCurrentEffect(),
         setRecoveryReady,
-        resolveSession,
+        resolveSession: async (resolvedUserId) => {
+          await resolveSession(resolvedUserId);
+          // Only an explicitly consumed callback can produce this login.
+          // INITIAL_SESSION, refresh, tab focus, and repeated SIGNED_IN do not.
+          const callbackUserId = freshWebCallbackUserId;
+          freshWebCallbackUserId = null;
+          if (callbackUserId && resolvedUserId === callbackUserId && !proof &&
+            isCurrentEffect() && lastUserIdRef.current === callbackUserId && lastProbeRef.current?.hasProfile) {
+            void observeAuthConversion(callbackUserId, "login", undefined, true);
+          }
+        },
         publishSessionUnavailable,
         isRecoveryPendingInMemory,
         currentRecoveryProof: () => recoveryProofRef.current,
@@ -1027,7 +1064,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Keep the app fail-closed by clearing local auth before publishing signed-out.
       void failClosedRecovery(recoveryProofRef.current, error).then((closed) => {
         if (closed) {
-          bootstrapped = true;
+          markBootstrapped();
           setRecoveryReady(true);
         }
       });
@@ -1167,6 +1204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     lastUserIdRef.current = uid;
     lastProbeRef.current = probe;
     noteResolvedOwner(uid);
+    publishAnalyticsProfileGate(uid, probe.isMinor);
     setState({
       userId: uid,
       hasProfile: probe.hasProfile,

@@ -79,7 +79,7 @@ import {
   type PickedFile,
 } from "@/lib/wiki/capture-file";
 import {
-  CAPTURE_MODES,
+  CAPTURE_MODES, captureModeOpensFullIntake,
   createCaptureTransientDraft,
   acknowledgeCaptureSubmissionIfOwned,
   acknowledgeCaptureSubmissionState,
@@ -160,6 +160,7 @@ import {
   withSelectedLifeArea,
   type LifeAreaId,
 } from "@/lib/capture/life-area-intent";
+import { FIRST_RECORD_COACH_PARAM } from "@/lib/onboarding/first-record-coach";
 
 // 이 넷은 크롬 라벨(칩·모드·버튼)이지 읽는 글이 아니다.
 //
@@ -355,7 +356,7 @@ export default function Capture() {
   // and the two hooks below run identically on every path so hook order is stable.
   // Web Share Target(manifest.webmanifest share_target.action=/capture)은
   // 딥스페이스에서도 이 라우트로 들어오는데 CaptureView 는 share 파라미터를
-  // 소비하지 않는다 — share/mode/tag/first-run 파라미터가 하나라도 있으면 소비
+  // 소비하지 않는다 — share/mode(ocr·voice 는 글로, 09-30)/tag/first-run 이 있으면 소비
   // 배선을 가진 full intake 를 딥스페이스 셸 안에 렌더한다. 최초 프레임은 현재
   // 파라미터로 즉시 고르고, effect 소유 state latch 가 URL strip 뒤에도 이 mount
   // 를 유지한다. render 중 ref write 는 React Compiler purity 를 깨므로 쓰지 않는다.
@@ -366,7 +367,9 @@ export default function Capture() {
     title?: string;
     mode?: string;
     tag?: string;
+    coach?: string;
   }>();
+  const firstRecordCoach = captureParams.coach === FIRST_RECORD_COACH_PARAM;
   const hasFullCaptureParams =
     normalizeSharedCaptureParams({
       url: captureParams.url,
@@ -374,7 +377,7 @@ export default function Capture() {
       title: captureParams.title,
     }) !== null ||
     (typeof captureParams.mode === "string" &&
-      (CAPTURE_MODES as readonly string[]).includes(captureParams.mode)) ||
+      captureModeOpensFullIntake(captureParams.mode)) ||
     (typeof captureParams.tag === "string" && captureParams.tag.trim().length > 0) ||
     captureParams.entry === "firstRun";
   const [fullCaptureActive, setFullCaptureActive] = useState(hasFullCaptureParams);
@@ -402,7 +405,7 @@ export default function Capture() {
     }
     return (
       <DeepSpaceScreen active="capture" header="none" variant="windowed">
-        <CaptureView />
+        <CaptureView firstRecordCoach={firstRecordCoach} />
       </DeepSpaceScreen>
     );
   }
@@ -4681,8 +4684,13 @@ const styles = StyleSheet.create({
     ...pixelShadowStyle(),
   },
   modeTab: {
-    flex: 1,
+    // Give wrapped native rows a stable tab width and height so the help
+    // text below stays clear of the selected tab.
+    flexBasis: "21%",
+    flexGrow: 1,
+    flexShrink: 0,
     minWidth: 72,
+    minHeight: 64,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xs,
     borderRadius: gameboy.radius,
@@ -4696,14 +4704,14 @@ const styles = StyleSheet.create({
     borderWidth: gameboy.borderWidth,
     borderColor: semantic.border,
     borderRadius: gameboy.radius,
-    minHeight: 48,
+    minHeight: 64,
   },
   modeMoreTabExpanded: { borderColor: semantic.brand },
   modeGlyph: { width: 24, height: 24 },
   modeLabel: { color: semantic.textMuted, fontSize: capSize(typography.sizes.xs, 12), fontWeight: capWeight("600"), fontFamily: capFont(12, "500") },
   modeLabelActive: { color: semantic.background, fontWeight: capWeight("700"), fontFamily: capFont(12, "700") },
   modeMoreLabel: { color: semantic.brand, fontSize: capSize(typography.sizes.sm, 12), fontWeight: capWeight("700"), fontFamily: capFont(12, "700") },
-  modeHelp: { lineHeight: 18, marginTop: -spacing.xs },
+  modeHelp: { lineHeight: 18, marginTop: spacing.xs },
   fieldGroup: {
     gap: spacing.xs,
     backgroundColor: semantic.surface,

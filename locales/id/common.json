@@ -4,8 +4,9 @@
     "removeUpsell": "Berlangganan untuk menghapus iklan."
   },
   "app": {
-    "name": "2nd-Brain",
-    "tagline": "Otak kedua yang dibangun dari apa yang kamu tulis dan simpan."
+    "name": "PolaScope",
+    "tagline": "Otak kedua yang dibangun dari apa yang kamu tulis dan simpan.",
+    "renameNote": "PolaScope adalah nama baru 2nd-Brain. Sampai Ketentuan berubah pada 5 Oktober 2026, 2nd-Brain dalam teks persetujuan dan Ketentuan berarti PolaScope."
   },
   "actions": {
     "continue": "Lanjutkan",
@@ -23,6 +24,16 @@
     "confirm": "OK",
     "placeholder": "Pilih tanggal",
     "yearPlaceholder": "Pilih tahun"
+  },
+  "timePicker": {
+    "pattern": "HH.mm",
+    "am": "AM",
+    "pm": "PM",
+    "period": "AM atau PM",
+    "hour": "Jam",
+    "minute": "Menit",
+    "hourValue": "jam {{value}}",
+    "minuteValue": "{{value}} menit"
   },
   "states": {
     "loading": "Memuat…"
@@ -50,10 +61,10 @@
     "ko": "한국어"
   },
   "loadingGate": {
-    "hint": "Ketuk untuk membuka otak keduamu",
-    "open": "Buka 2nd-Brain",
-    "opening": "Membuka 2nd-Brain",
-    "loading": "Memuat 2nd-Brain",
+    "hint": "Ketuk untuk membuka PolaScope",
+    "open": "Buka PolaScope",
+    "opening": "Membuka PolaScope",
+    "loading": "Memuat PolaScope",
     "enterHint": "Ketuk dua kali untuk masuk ke layar utama.",
     "skipHint": "Ketuk dua kali untuk melewati animasi pembuka."
   },

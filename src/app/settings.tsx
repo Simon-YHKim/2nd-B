@@ -15,7 +15,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text as RNText,
   View,
   type AccessibilityRole,
   type StyleProp,
@@ -24,6 +23,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
@@ -39,6 +39,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { deepSpace, flattenAlpha, semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
+import { useFontStyle } from "@/lib/settings/readable-font";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useTheme } from "@/lib/theme/ThemeContext";
 import { signOut } from "@/lib/supabase/auth";
@@ -258,6 +259,7 @@ function M3Divider() {
 }
 
 function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChange }: { icon: string; label: string; sub: string; subAccessibilityLabel?: string; checked: boolean; onChange: (v: boolean) => void }) {
+  useFontStyle();
   const pixel = isDeepSpaceUI();
   return (
     <View style={[m3Styles.row, pixel ? m3Styles.pixelRow : null]}>
@@ -266,7 +268,7 @@ function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChang
         <RNText style={[m3Styles.rowLabel, pixel ? m3Styles.pixelRowLabel : null]}>{label}</RNText>
         {/* subAccessibilityLabel: when sub went through keepAllKo, screen readers
             get the raw string (U+2060 joiners disorient braille / char review). */}
-        <RNText style={[m3Styles.rowSub, pixel ? m3Styles.pixelRowSub : null]} accessibilityLabel={subAccessibilityLabel}>{sub}</RNText>
+        <RNText style={[m3Styles.rowSub, pixel ? m3TextStyle("bodyMedium") : null, pixel ? m3Styles.pixelRowSub : null]} accessibilityLabel={subAccessibilityLabel}>{sub}</RNText>
       </View>
       <M3Switch checked={checked} onChange={onChange} accessibilityLabel={label} />
     </View>
@@ -279,6 +281,7 @@ function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChang
 // hands off honestly to the import/integration surfaces instead of claiming a
 // state that isn't there.
 function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: string; sub?: string; badge?: number; onPress: () => void }) {
+  useFontStyle();
   const [held, setHeld] = useState(false);
   const pixel = isDeepSpaceUI();
   return (
@@ -294,7 +297,7 @@ function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: 
       <M3IconBadge icon={icon} active={false} />
       <View style={m3Styles.rowText}>
         <RNText style={[m3Styles.rowLabel, pixel ? m3Styles.pixelRowLabel : null]}>{label}</RNText>
-        {sub ? <RNText style={[m3Styles.rowSub, pixel ? m3Styles.pixelRowSub : null]}>{sub}</RNText> : null}
+        {sub ? <RNText style={[m3Styles.rowSub, pixel ? m3TextStyle("bodyMedium") : null, pixel ? m3Styles.pixelRowSub : null]}>{sub}</RNText> : null}
       </View>
       {badge && badge > 0 ? (
         <View style={m3Styles.rowBadge}>
@@ -334,7 +337,7 @@ function SettingsActionButton({
   full = true,
   selected,
 }: SettingsActionButtonProps) {
-  const [held, setHeld] = useState(false);
+  const [held, setHeld] = useState(false); // the pixel wrapper View it restyles keeps collapsable={false} so press/release never reparents its children, as in PixelPressable (2eb6266b)
   const isDisabled = disabled || loading;
   const labelColor = isDisabled
     ? BTN_DISABLED_LABEL
@@ -364,7 +367,7 @@ function SettingsActionButton({
         onPressOut={() => setHeld(false)}
         style={[styles.pixelButtonRoot, full ? styles.settingsButtonFull : null, style]}
       >
-        <View style={held ? styles.pixelButtonHeld : null}>
+        <View collapsable={false} style={held ? styles.pixelButtonHeld : null}>
           <PixelSurface
             variant={isDisabled ? "frame" : "bevel"}
             pressed={held && !isDisabled}
@@ -417,6 +420,7 @@ function Button(props: SettingsActionButtonProps) {
 
 type DisclosureSectionProps = {
   title: string;
+  icon: string;
   expanded: boolean;
   onToggle: () => void;
   tone?: "brand" | "warning";
@@ -425,6 +429,7 @@ type DisclosureSectionProps = {
 
 function DisclosureSection({
   title,
+  icon,
   expanded,
   onToggle,
   tone = "brand",
@@ -445,11 +450,7 @@ function DisclosureSection({
         onPressOut={() => setHeld(false)}
         style={[
           styles.disclosureHeader,
-          held
-            ? pixel
-              ? styles.pixelDisclosureHeaderPressed
-              : styles.disclosureHeaderPressed
-            : null,
+          held ? styles.disclosureHeaderPressed : null,
         ]}
       >
         <Text variant="caption" color={textColor} style={styles.sectionEyebrow}>
@@ -466,13 +467,31 @@ function DisclosureSection({
   if (pixel) {
     return (
       <PixelSurface
-        variant="frame"
-        background={m3.color.surfaceContainer}
+        variant="bevel"
         style={styles.pixelDisclosure}
         contentStyle={styles.pixelDisclosureContent}
       >
-        <View pointerEvents="none" style={[styles.pixelDisclosureTone, { backgroundColor: borderStartColor }]} />
-        {contents}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={title}
+          accessibilityState={{ expanded }}
+          onPress={onToggle}
+          onPressIn={() => setHeld(true)}
+          onPressOut={() => setHeld(false)}
+          style={[m3Styles.row, m3Styles.pixelRow, held ? styles.pixelDisclosureHeaderPressed : null]}
+        >
+          <M3IconBadge icon={icon} active={false} />
+          <RNText style={[m3Styles.rowLabel, m3Styles.pixelRowLabel, styles.pixelDisclosureTitle, tone === "warning" ? styles.pixelDisclosureWarning : null]}>
+            {title}
+          </RNText>
+          <M3Icon name={expanded ? "expand_less" : "expand_more"} size={20} color={m3.color.onSurfaceVariant} />
+        </Pressable>
+        {expanded ? (
+          <>
+            <M3Divider />
+            <View style={[styles.disclosureBody, styles.pixelDisclosureBody]}>{children}</View>
+          </>
+        ) : null}
       </PixelSurface>
     );
   }
@@ -484,8 +503,24 @@ function DisclosureSection({
   );
 }
 
+// Keep this wrapper outside Settings so a local state update does not remount
+// the ScrollView and reset its position to the top.
+function SettingsChrome({ children }: { children: ReactNode }) {
+  return isDeepSpaceUI() ? (
+    <DeepSpaceScreen active="settings" header="none" variant="windowed">
+      {children}
+    </DeepSpaceScreen>
+  ) : (
+    <View style={styles.screen}>
+      <View style={styles.glow} pointerEvents="none" />
+      {children}
+    </View>
+  );
+}
+
 export default function Settings() {
   const { t, i18n } = useTranslation("settings");
+  const { t: tOps } = useTranslation("ops");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const displayLocale = AVAILABLE_UI_LOCALES.includes(i18n.language as AvailableUiLocale)
@@ -719,24 +754,10 @@ export default function Settings() {
     }
   }
 
-  // rev2: settings is a windowed ROOT tab — the dock stays visible, no top bar
-  // and no companion header (sb-app §4: companion is capture/chat/records only).
-  const Chrome = ({ children }: { children: ReactNode }) =>
-    isDeepSpaceUI() ? (
-      <DeepSpaceScreen active="settings" header="none" variant="windowed">
-        {children}
-      </DeepSpaceScreen>
-    ) : (
-      <View style={styles.screen}>
-        <View style={styles.glow} pointerEvents="none" />
-        {children}
-      </View>
-    );
-
   const newSurfaceCopy = SETTINGS_SURFACE_COPY[displayLocale];
 
   return (
-    <Chrome>
+    <SettingsChrome>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
           contentContainerStyle={[styles.scroll, isDeepSpaceUI() ? styles.pixelScroll : null]}
@@ -855,7 +876,7 @@ export default function Settings() {
           {t("dataConnections")}
         </M3SectionLabel>
         <M3Group>
-          <M3LinkRow icon="sync_alt" label={t("manageIntegrations")} sub={t("manageIntegrationsDesc")} onPress={() => router.push("/integrations")} />
+          <M3LinkRow icon="sync_alt" label={t("manageIntegrations")} sub={t("manageIntegrationsDesc")} onPress={() => router.push("/data-connections")} />
           <M3Divider />
           <M3LinkRow icon="upload_file" label={t("importData")} sub={t("importDataDesc")} onPress={() => router.push("/import-hub")} />
         </M3Group>
@@ -924,6 +945,8 @@ export default function Settings() {
               <M3LinkRow icon="book" label={t("nav.records")} sub={t("nav.recordsHint")} onPress={() => router.push("/records")} />
               <M3Divider />
               <M3LinkRow icon="lock" label={t("permissions")} onPress={() => router.push("/permissions")} />
+              <M3Divider />
+              <M3LinkRow icon="notifications" label={tOps("phone.notifications")} sub={Platform.OS === "web" ? tOps("phone.push.web") : tOps("phone.reminderSettings")} onPress={() => router.push("/reminders")} />
             </M3Group>
 
             <M3SectionLabel>{t("support")}</M3SectionLabel>
@@ -941,7 +964,7 @@ export default function Settings() {
                 label={t("resetCoachmarks")}
                 sub={t("resetCoachmarksDesc")}
                 onPress={() => {
-                  resetCoachmarks();
+                  resetCoachmarks(userId);
                   router.replace("/");
                 }}
               />
@@ -967,13 +990,14 @@ export default function Settings() {
                 accessibilityHint={t("resetCoachmarksDesc")}
                 variant="secondary"
                 onPress={() => {
-                  resetCoachmarks();
+                  resetCoachmarks(userId);
                   router.replace("/");
                 }}
               />
               <Button label={t("nav.data")} accessibilityHint={t("nav.dataHint")} variant="secondary" onPress={() => router.push("/data")} />
               <Button label={t("nav.records")} accessibilityHint={t("nav.recordsHint")} variant="secondary" onPress={() => router.push("/records")} />
               <Button label={t("nav.support")} accessibilityHint={t("nav.supportHint")} variant="secondary" onPress={() => router.push("/support")} />
+              <Button label={tOps("phone.notifications")} accessibilityHint={Platform.OS === "web" ? tOps("phone.push.web") : tOps("phone.reminderSettings")} variant="secondary" onPress={() => router.push("/reminders")} />
             </View>
           </>
         )}
@@ -983,6 +1007,7 @@ export default function Settings() {
           // signed-in users (auth screens had a toggle, settings had none).
           // Renders from AVAILABLE_UI_LOCALES - options appear as packs ship.
           title={t("language.title")}
+          icon="article"
           expanded={openDisclosures.language}
           onToggle={() => toggleDisclosure("language")}
         >
@@ -1033,6 +1058,7 @@ export default function Settings() {
           // Was titled identically to the nav.data button above (two controls,
           // same name, different destinations — audit confusion finding).
           title={t("deleteData")}
+          icon="trash"
           expanded={openDisclosures.data}
           onToggle={() => toggleDisclosure("data")}
           tone="warning"
@@ -1343,7 +1369,7 @@ export default function Settings() {
           ) : null}
         </View>
       </PremiumModal>
-    </Chrome>
+    </SettingsChrome>
   );
 }
 
@@ -1379,7 +1405,7 @@ const m3Styles = StyleSheet.create({
   rowLabel: { ...koType(16, 22, 0.15, "400"), color: m3.color.onSurface },
   pixelRowLabel: { ...m3TextStyle("titleMedium") },
   rowSub: { ...koType(12, 16, 0.3, "400"), color: m3.color.onSurfaceVariant, marginTop: 1 },
-  pixelRowSub: { ...m3TextStyle("labelSmall"), marginTop: m3.spacing.s1 },
+  pixelRowSub: { marginTop: m3.spacing.s1 },
   iconBadge: { width: 38, height: 38, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center" },
   pixelIconBadge: { width: 42, height: 42 },
   pixelIconBadgeContent: { width: 38, height: 38, paddingHorizontal: 0, paddingVertical: 0, alignItems: "center", justifyContent: "center" },
@@ -1448,18 +1474,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   pixelDisclosure: { alignSelf: "stretch", marginTop: m3.spacing.s5 },
-  pixelDisclosureContent: {
-    position: "relative",
-    paddingHorizontal: m3.spacing.s6,
-    paddingVertical: m3.spacing.s4,
-  },
-  pixelDisclosureTone: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    width: m3.spacing.s1,
-  },
+  pixelDisclosureContent: { paddingHorizontal: 0, paddingVertical: 0 },
+  pixelDisclosureTitle: { flex: 1, minWidth: 0 },
+  pixelDisclosureWarning: { color: semantic.warning },
+  pixelDisclosureBody: { paddingHorizontal: m3.spacing.s6, paddingVertical: m3.spacing.s4 },
   destructiveGroup: {
     gap: spacing.sm,
     paddingTop: spacing.sm,

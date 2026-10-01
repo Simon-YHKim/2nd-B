@@ -411,6 +411,8 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
   {
     title: "개인 비서",
     screens: [
+      { file: "dashboard", href: "/dashboard", label: "나의 휴대전화", auth: true },
+      { file: "avatar-palette", href: "/avatar-palette", label: "아바타 팔레트", auth: true, note: "기기 안에만 초안 저장, 공유 기능 보류" },
       // 게이트가 라우트에서 화면으로 모였다 — research·insights·import 와 같은 모양이다.
       {
         file: "ops",
@@ -517,6 +519,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
     title: "설정 · 계정",
     screens: [
       { file: "settings", href: "/settings", label: "설정", auth: true },
+      { file: "data-connections", href: "/data-connections", label: "데이터 출처 · 새로고침", auth: true },
       { file: "account", href: "/account", label: "계정", auth: true },
       // 게이트가 라우트에서 화면으로 모였다.
       {
@@ -529,6 +532,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         },
       },
       { file: "profile-details", href: "/profile-details", label: "내 생활 정보", auth: true },
+      { file: "avatar-studio", href: "/avatar-studio", label: "아바타 꾸미기", auth: true },
       {
         file: "change-password",
         href: "/change-password",
@@ -545,6 +549,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "data", href: "/data", label: "데이터 관리", auth: true },
       { file: "permissions", href: "/permissions", label: "권한 관리" },
       { file: "privacy", href: "/privacy", label: "개인정보 한눈에", auth: true },
+      { file: "service-consent", href: "/service-consent", label: "AI 처리 동의", auth: true },
       { file: "processing-log", href: "/processing-log", label: "데이터 처리 기록", auth: true },
       { file: "notices", href: "/notices", label: "공지", auth: true },
       { file: "support", href: "/support", label: "지원", auth: true },

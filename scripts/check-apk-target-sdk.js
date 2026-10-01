@@ -88,9 +88,10 @@ const REQUIRED_PERMISSION_EVIDENCE = ["android.permission.RECORD_AUDIO"];
 //
 // FOREGROUND_SERVICE_MEDIA_PLAYBACK: Play flagged it on vc 38 (2026-09-01) and
 // demanded a "media playback" declaration. We cannot make that declaration —
-// expo-audio is used for RECORDING only (useAudioRecorder in
-// call-reflection/capture/secondb; zero uses of useAudioPlayer or
-// createAudioPlayer), so it would be false.
+// expo-audio records in call-reflection/capture/secondb and plays one short,
+// foreground-only dialogue UI blip on the constellation home. Neither use
+// needs sustained or background media playback, so the Play declaration would
+// still be false.
 //
 // ⚠ The first version of this comment said the permission arrived transitively
 // from the androidx.media3 AAR. That was wrong, and the error mattered: it
@@ -107,7 +108,7 @@ const REQUIRED_PERMISSION_EVIDENCE = ["android.permission.RECORD_AUDIO"];
 const FORBIDDEN_PERMISSIONS = [
   {
     name: "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-    why: "added by expo-audio's config plugin when enableBackgroundPlayback is left at its default true, together with a mediaPlayback foreground service; this app records audio but never plays media, so Play's media-playback declaration would be false. app.json turns the plugin option off and also lists it in android.blockedPermissions.",
+    why: "added by expo-audio's config plugin when enableBackgroundPlayback is left at its default true, together with a mediaPlayback foreground service; this app records audio and plays only a short foreground UI blip, so Play's background media-playback declaration would be false. app.json turns the plugin option off and also lists it in android.blockedPermissions.",
   },
 ];
 

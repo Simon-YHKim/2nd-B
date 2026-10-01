@@ -5585,7 +5585,9 @@ test('me Stage 1 contract covers every stable route across all three deck pages'
     'utf8',
   );
   assert.doesNotMatch(deck, /flattenAlpha|pdAlpha/);
-  assert.match(deck, /backgroundColor: m3\.color\.surfaceContainerHighest/);
+  // 2026-09-30: the card is the Polaris colour now (Simon localhost QA - "북극성
+  // 색상의 카드"). Still an opaque token, which is what this pin guards.
+  assert.match(deck, /backgroundColor: m3\.polarisCard\.surface/);
   assert.match(deck, /backgroundColor: deepSpace\.accentDim/);
 
   const screen = readFileSync(path.join(REPO, 'src', 'app', 'core-brain.tsx'), 'utf8');
@@ -5594,7 +5596,8 @@ test('me Stage 1 contract covers every stable route across all three deck pages'
   assert.ok(start >= 0 && end > start);
   const deckStyles = screen.slice(start, end);
   assert.doesNotMatch(deckStyles, /coreAlpha/);
-  assert.match(deckStyles, /backgroundColor: m3\.color\.surfaceContainerLow/);
+  // 2026-09-30: inner panels sit on the violet Polaris card (opaque token).
+  assert.match(deckStyles, /backgroundColor: m3\.polarisCard\.surfaceLow/);
 });
 
 test('network failures stay bound to the route health that started the request', async () => {
@@ -6066,7 +6069,16 @@ test('salvage plan classifies every non-direct frame and production route exactl
   // "레퍼런스 화면이 직접 덮지 않는 배송 라우트" 개수이고, 배송 앱에만 있는
   // 화면을 하나 더 만들었으니 하나 는다. 낮추는 방향이었다면 근거를 따로 적어야
   // 하지만 여기서는 새 화면 하나가 곧 근거다 (salvage-plan 의 /sources 항목).
-  assert.equal(expectedActualHrefs.length, 24);
+  // 24 -> 25 (2026-09-25): /dashboard is an app-only phone dashboard with no
+  // matching prototype frame; salvage-plan records its explicit redesign.
+  // 25 -> 26 (2026-09-26): /service-consent adds the current consent receipt.
+  // 26 -> 27 (2026-09-28): /avatar-studio adds an approved avatar wardrobe.
+  // 27 -> 28 (2026-09-28): /avatar-palette adds a local in-phone pixel editor.
+  // 28 -> 29 (2026-09-28): /data-connections moves data-source management
+  // out of the phone dashboard and into settings.
+  assert.equal(expectedActualHrefs.length, 29);
+  assert.equal(salvage.actualRoutes['/dashboard'].strategy, 'redesign');
+  assert.equal(salvage.actualRoutes['/data-connections'].strategy, 'adapt-reference');
   assert.deepEqual(Object.keys(salvage.actualRoutes).sort(), expectedActualHrefs);
   for (const [href, plan] of Object.entries(salvage.actualRoutes)) {
     for (const reference of plan.references) {

@@ -1,6 +1,11 @@
 {
   "loading": "프로필을 불러오는 중…",
   "fallbackName": "게스트",
+  "avatarStudio": {
+    "label": "아바타 꾸미기",
+    "hint": "내 캐릭터의 모양과 옷을 바꿔요.",
+    "loadError": "아바타를 불러오지 못했어요. 다시 시도해 주세요."
+  },
   "hero": {
     "eyebrow": "나",
     "title": "{{displayName}}님의 프로필",

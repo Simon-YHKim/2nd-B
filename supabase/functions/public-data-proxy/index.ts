@@ -18,7 +18,8 @@ import {
 import {
   JsonBodyError,
   PUBLIC_DATA_PROXY_JSON_BODY_LIMIT_BYTES,
-  readJsonObject,
+  PUBLIC_DATA_PROXY_JSON_MAX_DEPTH,
+  readStrictJsonObject,
 } from "../_shared/request-json.ts";
 
 const FETCH_TIMEOUT_MS = 7_000;
@@ -119,12 +120,17 @@ Deno.serve(async (req: Request) => {
   const userId = authenticatedUserIdFromJwt(authHeader);
   if (!userId) return jsonResponse(req, { error: "authentication_required" }, 401);
 
+  // Strict before quota is spent: a repeated key must not mean one thing to a
+  // proxy or log reader and another thing to parsePublicDataRequest below.
   let rawBody: unknown;
   try {
-    rawBody = await readJsonObject(req, PUBLIC_DATA_PROXY_JSON_BODY_LIMIT_BYTES);
+    rawBody = await readStrictJsonObject(req, PUBLIC_DATA_PROXY_JSON_BODY_LIMIT_BYTES, PUBLIC_DATA_PROXY_JSON_MAX_DEPTH);
   } catch (error) {
     if (error instanceof JsonBodyError && error.code === "request_body_too_large") {
       return jsonResponse(req, { error: error.code }, 413);
+    }
+    if (error instanceof JsonBodyError && error.code === "unsupported_media_type") {
+      return jsonResponse(req, { error: error.code }, 415);
     }
     return jsonResponse(req, { error: "invalid_json" }, 400);
   }

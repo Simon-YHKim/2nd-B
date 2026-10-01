@@ -123,14 +123,6 @@ jobs:
         with:
           version: "2.116.0"
 
-      - name: Record digests before mutation
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
-          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
-        run: |
-          set -euo pipefail
-          supabase secrets list --project-ref "$PROJECT_REF" | tee before.txt
-
       - name: Recheck main and set the validated flag
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
@@ -151,7 +143,10 @@ jobs:
           fi
           supabase secrets set "$FLAG=$VALUE" --project-ref "$PROJECT_REF"
 
-      - name: Record digests after mutation
+      # The repository is public. The listing holds every production secret
+      # name and digest, so it goes to a runner temp file, is never printed,
+      # and only the selected flag's digest is compared.
+      - name: Verify selected flag after mutation
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
           PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
@@ -159,20 +154,32 @@ jobs:
           VALUE: ${{ steps.input_gate.outputs.value }}
         run: |
           set -euo pipefail
-          supabase secrets list --project-ref "$PROJECT_REF" | tee after.txt
-          {
-            echo "## Set \`$FLAG\` = \`$VALUE\`"
-            echo ""
-            echo "The bounded reason remains in the workflow dispatch metadata."
-            echo ""
-            echo "The dashboard only shows SHA256 digests; compare the selected flag below."
-            echo ""
-            echo "### Before"
-            echo '```'
-            grep -E "NAME|$FLAG" before.txt || cat before.txt
-            echo '```'
-            echo "### After"
-            echo '```'
-            grep -E "NAME|$FLAG" after.txt || cat after.txt
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          CATALOG="$RUNNER_TEMP/edge-flag-after.json"
+          trap 'rm -f "$CATALOG"' EXIT
+          supabase secrets list --project-ref "$PROJECT_REF" --output json > "$CATALOG"
+          CATALOG="$CATALOG" node <<'NODE'
+          const fs = require("node:fs");
+          const { createHash } = require("node:crypto");
+
+          const fail = (message) => {
+            process.stderr.write(`::error title=Edge flag postflight::${message}\n`);
+            process.exit(1);
+          };
+
+          let catalog;
+          try {
+            catalog = JSON.parse(fs.readFileSync(process.env.CATALOG, "utf8"));
+          } catch {
+            fail("secret-catalog-json-required");
+          }
+
+          if (!Array.isArray(catalog)) fail("secret-catalog-array-required");
+          const matches = catalog.filter((item) => item?.name === process.env.FLAG);
+          if (matches.length !== 1 || typeof matches[0].value !== "string") {
+            fail("selected-flag-returned-once-required");
+          }
+          const actual = matches[0].value.toLowerCase().replace(/^sha256:/, "");
+          const expected = createHash("sha256").update(process.env.VALUE ?? "").digest("hex");
+          if (actual !== expected) fail("selected-flag-digest-mismatch");
+          NODE
+          echo "Selected edge flag verified."

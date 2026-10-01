@@ -92,6 +92,16 @@ export function getReadIds(userId: string | null): ReadonlySet<string> {
   return bucket(userId);
 }
 
+/**
+ * Give React Compiler an explicit revision dependency. A call to getReadIds()
+ * alone can be cached against userId even though this module-level store
+ * changed; the revision is deliberately part of this function's call contract.
+ */
+export function snapshotReadIds(userId: string | null, revision: number): Set<string> {
+  void revision;
+  return new Set(getReadIds(userId));
+}
+
 export function subscribe(listener: Listener): () => void {
   listeners.add(listener);
   return () => {

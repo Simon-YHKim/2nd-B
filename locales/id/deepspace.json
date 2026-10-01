@@ -1,4 +1,32 @@
 {
+  "camera": {
+    "aim": "Mengarahkan ke bintang",
+    "zoom": "Memperbesar bintang",
+    "focus": "Menyesuaikan fokus",
+    "ready": "Fokus terkunci · Siap berkunjung",
+    "return": "Kembali ke rasi bintang",
+    "shutter": "Memotret"
+  },
+  "telescope": {
+    "label": "Kontrol teleskop",
+    "up": "Arahkan ke atas",
+    "down": "Arahkan ke bawah",
+    "left": "Arahkan ke kiri",
+    "right": "Arahkan ke kanan",
+    "reset": "Kembali ke posisi awal",
+    "dial": "Dial perbesaran",
+    "hint": "W memperlebar pandangan, T mendekatkan gambar. Lepaskan untuk mempertahankan perbesaran.",
+    "slider": "Penggeser perbesaran",
+    "joystick": "Joystick arah dan kemiringan",
+    "joystickHint": "Dorong untuk bergerak, atau ketuk tanpa menyeret untuk kembali ke awal. Semakin jauh dari tengah, semakin cepat gerakannya. Lepaskan untuk berhenti. Di papan ketik, tahan tombol panah.",
+    "panTilt": "Arah / Sudut",
+    "stopped": "Berhenti",
+    "speed": "Laju {{value}}%",
+    "phone": "Buka dasbor saya",
+    "phoneLabel": "Ponsel saya",
+    "phoneReveal": "Geser ke atas untuk menampilkan ponsel.",
+    "phoneStow": "Ketuk untuk membuka dasbor atau geser ke bawah untuk menyimpan ponsel."
+  },
   "time": {
     "today": "Hari ini",
     "yesterday": "Kemarin",
@@ -20,7 +48,7 @@
     "statLinks": "Tautan",
     "filterAll": "Semua",
     "emptyTag": "Belum ada catatan dengan tag ini. Pilih tag lain atau tambah catatan.",
-    "emptyAll": "Belum ada yang tersimpan. Catatan dan tautan yang kamu tambahkan akan muncul di sini.",
+    "emptyAll": "Belum ada halaman wiki. Simpan catatan atau tautan, lalu susun sebagai halaman dari Kotak Masuk.",
     "addPiece": "+ Tambah catatan",
     "backlinks": "Catatan tertaut {{count}}",
     "connections": "Tautan {{count}}",
@@ -145,8 +173,8 @@
     "kindFallback": "Catatan"
   },
   "auth": {
-    "appName": "2nd-Brain",
-    "signInLead": "Simpan catatan tentang dirimu dan rangkum di Bintang Utara.",
+    "appName": "PolaScope",
+    "signInLead": "Di era AI, asetnya adalah kamu. Catatanmu menumpuk menjadi Bintang Utaramu.",
     "signIn": "Masuk",
     "createAccount": "Buat akun",
     "signUpTitle": "Mulai",
@@ -164,10 +192,9 @@
     "haveAccount": "Sudah punya akun? Masuk",
     "forgotPassword": "Lupa kata sandi?",
     "or": "atau",
-    "ageNotice": "Kamu bisa membuat akun jika berusia 14 tahun atau lebih.",
-    "brandLabel": "2ND-BRAIN",
-    "signInTitle": "Masuk ke 2nd-Brain",
-    "signInEncrypt": "Kamu bisa mengubah pengaturan privasi kapan saja.",
+    "ageNotice": "Kamu bisa membuat akun jika berusia {{minAge}} tahun atau lebih.",
+    "brandLabel": "POLASCOPE",
+    "signInTitle": "Senang bertemu lagi",
     "emailContinue": "Lanjut dengan email",
     "signUpPrompt": "Baru di sini?",
     "legalConsent": "Dengan melanjutkan, kamu menyetujui Ketentuan Layanan dan Kebijakan Privasi.",
@@ -239,7 +266,7 @@
     "viewManual": "Lihat manual",
     "emailUs": "Email kami",
     "reportBug": "Laporkan bug",
-    "footer": "2nd-Brain v1.0.0 · 2 hari kerja KST",
+    "footer": "PolaScope v1.0.0 · 2 hari kerja KST",
     "faqTitle": "Pertanyaan umum",
     "noticesTitle": "Pengumuman"
   },
@@ -385,7 +412,7 @@
     "proActive": "Paket berbayarmu aktif",
     "nowPro": "Kamu sekarang pakai paket berbayar. Terima kasih.",
     "notAvailableTitle": "Tingkatkan di aplikasi seluler",
-    "notAvailableBody": "Paket berbayar dibeli melalui app store di iOS dan Android. Buka 2nd-Brain di ponselmu untuk meningkatkan.",
+    "notAvailableBody": "Paket berbayar dibeli melalui app store di iOS dan Android. Buka PolaScope di ponselmu untuk meningkatkan.",
     "support": "Hubungi dukungan",
     "loadError": "Tidak bisa memuat paket. Coba lagi.",
     "purchaseError": "Pembelian tidak berhasil. Coba lagi.",
@@ -554,6 +581,12 @@
     "retry": "Coba lagi",
     "empty": "Belum ada catatan karier. Tambahkan pencapaian yang ingin kamu simpan.",
     "pieceFallback": "Catatan karier",
+    "drillDown": "Lihat detail",
+    "originalNote": "Pratinjau judul dan isi tetap memakai bahasa saat disimpan. Buka kartu untuk membaca catatan lengkap.",
+    "sourceInterview": "Wawancara kilas balik",
+    "sourceRecord": "Catatan karier tersimpan",
+    "entryUiKorean": "Layar saat menyimpan: Korea",
+    "entryUiEnglish": "Layar saat menyimpan: Inggris",
     "untitled": "(tanpa judul)"
   },
   "careerInput": {
@@ -701,14 +734,19 @@
     "starsFallback": "Tidak bisa membaca bintangmu; jadi kami gambar versi bawaannya."
   },
   "coachmarks": {
-    "step1": "Ini rasi bintangmu",
-    "step2": "Ketuk sebuah bintang",
-    "step3": "Saat sesuatu terlintas, simpanlah",
-    "step4": "Ada lebih banyak alat di pengaturan",
+    "homeStep": "Ketuk SecondB untuk mulai menyimpan catatan.",
+    "formatStep": "Pilih Memo terlebih dahulu. Satu baris sudah cukup.",
+    "inputStep": "Tulis pikiranmu saat ini. Tidak harus berupa kalimat lengkap.",
+    "saveStep": "Terakhir, ketuk Simpan untuk menyimpan catatan ini.",
+    "doneStep": "Catatanmu sudah tersimpan. Kembali ke rasi untuk melihatnya.",
+    "targetHint": "Ketuk kontrol yang disorot untuk melanjutkan.",
+    "inputHint": "Tulis setidaknya satu karakter untuk lanjut ke Simpan.",
+    "doneHint": "Catatan berhasil disimpan.",
+    "inputReady": "Ke Simpan",
+    "goHome": "Ke rasi bintang",
+    "doneCount": "Selesai",
     "secondbName": "SecondB",
-    "dontShowAgain": "Jangan tampilkan lagi",
-    "start": "Mulai",
-    "next": "Berikutnya"
+    "dontShowAgain": "Jangan tampilkan lagi"
   },
   "museum": {
     "title": "Museum AI",
@@ -732,6 +770,7 @@
     "a11yZoomOut": "Perkecil",
     "a11yZoomIn": "Perbesar",
     "hintSelected": "{{label}} · ketuk lagi untuk membuka",
+    "openRecord": "Buka catatan",
     "hintDefault": "Putus-putus = catatan yang terhubung oleh tag yang sama. Ketuk untuk memilih, ketuk lagi untuk membuka",
     "untitled": "(tanpa judul)",
     "tagLinks": "Tautan tag"
@@ -754,11 +793,11 @@
     "rangeNote": "Halaman ini: butir {{from}} – {{to}}"
   },
   "shareCardImg": {
-    "eyebrowWeek": "2ND-BRAIN · MINGGU INI",
+    "eyebrowWeek": "POLASCOPE · MINGGU INI",
     "eyebrowConstellation": "KONSTELASI SAYA",
     "footerWeek": "Seminggu yang dilihat bersama SecondB",
     "starsLit": "{{count}} bintang bersinar",
-    "signature": "2nd-Brain · {{count}} serpihan bintang"
+    "signature": "PolaScope · {{count}} serpihan bintang"
   },
   "ds": {
     "growth": {
@@ -913,12 +952,19 @@
       "revoke": "Cabut",
       "fileSource": "Impor file",
       "revokeFailed": "Tidak bisa mencabut. Coba lagi sebentar lagi.",
+      "revokeKeptShared": "Dalam pencabutan ini, {{count}} sumber tidak dihapus: impor lain juga membawanya masuk.",
+      "revokeKeptShared_plural": "Dalam pencabutan ini, {{count}} sumber tidak dihapus: impor lain juga membawanya masuk.",
+      "revokeKeptUnconfirmed": "Dalam pencabutan ini, {{count}} sumber tidak dihapus: tidak bisa dipastikan hanya impor ini yang membawanya masuk.",
+      "revokeKeptUnconfirmed_plural": "Dalam pencabutan ini, {{count}} sumber tidak dihapus: tidak bisa dipastikan hanya impor ini yang membawanya masuk.",
+      "revokeKeptUncertain": "Belum bisa dicek apakah semuanya masih ada.",
+      "revokeUnserialized": "Browser ini tidak bisa mengurutkan pencabutan antar-tab yang terbuka, jadi tidak ada yang dicabut. Coba lagi di browser yang sudah diperbarui.",
       "healthErrUnavailable": "Perangkat ini tidak dapat terhubung ke aplikasi kesehatan. Tidak ada yang dicatat.",
       "healthErrDenied": "Akses kesehatan ditolak, jadi tidak ada yang dicatat. Kamu bisa mengizinkannya di pengaturan perangkat.",
       "healthErrEmpty": "Tidak ada aktivitas kesehatan untuk dicerminkan hari ini.",
       "healthReflected": "Tercermin. Item yang ditambahkan: {{count}}.",
       "healthReflectedNone": "Tidak ada yang baru untuk dicerminkan: catatan hari ini sudah tersimpan.",
       "healthRoutinesCompleted": "Rutinitas yang diselesaikan dari ini: {{count}}.",
+      "healthAutoDaily": "Selama penyegaran otomatis aktif, ponsel ini juga membaca langkah, olahraga, dan tidur sekali sehari secara otomatis.",
       "healthErrFailed": "Tidak dapat mencerminkan data kesehatanmu. Coba lagi sebentar lagi.",
       "summaryPieces": "{{count}} potongan",
       "summaryPieces_plural": "{{count}} potongan",
@@ -1108,6 +1154,13 @@
   },
   "profileDetails": {
     "screenTitle": "Tentang hidupmu",
+    "nameLabel": "Nama tampilan",
+    "nameHint": "Nama yang tampil di profilmu. Opsional, maksimal 40 karakter.",
+    "nameLoading": "Memuat namamu…",
+    "nameLoadError": "Nama saat ini gagal dimuat. Coba lagi.",
+    "nameSave": "Simpan nama",
+    "nameSaved": "Nama tersimpan",
+    "nameSaveError": "Nama gagal disimpan. Coba lagi.",
     "intro": "Isi hanya yang ingin kamu bagikan. Simpan informasi ini di profil dan ubah kapan saja.",
     "progress": "{{filled}} dari {{total}} terisi",
     "save": "Simpan",
