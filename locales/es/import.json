@@ -60,7 +60,7 @@
   },
   "pendingDevice": {
     "title": "Notas guardadas en este dispositivo",
-    "body": "Hay {{count}} notas guardadas antes de iniciar sesión en este dispositivo. Podrían ser de otra persona. Impórtalas solo si son tuyas.",
+    "body": "Notas guardadas en este dispositivo antes de iniciar sesión: {{count}}. Podrían ser de otra persona. Impórtalas solo si son tuyas.",
     "account": "Importar a: {{email}}",
     "accountUnavailable": "No podemos confirmar el correo de esta cuenta. La importación queda en espera.",
     "confirm": "Importar mis notas a esta cuenta",

@@ -60,7 +60,7 @@
   },
   "pendingDevice": {
     "title": "Anotações neste dispositivo",
-    "body": "Há {{count}} anotações salvas antes do login neste dispositivo. Elas podem ser de outra pessoa. Importe apenas se forem suas.",
+    "body": "Anotações salvas neste dispositivo antes de entrar: {{count}}. Elas podem ser de outra pessoa. Importe apenas se forem suas.",
     "account": "Importar para: {{email}}",
     "accountUnavailable": "Não foi possível confirmar o e-mail desta conta. A importação ficará em espera.",
     "confirm": "Importar minhas anotações para esta conta",
