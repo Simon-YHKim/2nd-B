@@ -2,7 +2,7 @@
 // timeline. The data conversion, stable ordering, geometry, and reference
 // labels remain owned by museum-timeline-data.ts. This file owns rendering and
 // local selection/seek state only.
-import {
+import React, {
   Fragment,
   useCallback,
   useEffect,
@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import {
+  BackHandler,
   AccessibilityInfo,
   Animated,
   FlatList,
@@ -24,7 +25,7 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect } from "react-native-svg";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 // MdButton and the M3 colour-token imports left with the renderer this PR
@@ -141,12 +142,75 @@ function SheetAction({
   );
 }
 
-export function MuseumTimelineScreen() {
+export interface MuseumPhonePresentation {
+  /** Width of the phone's live display, not the desktop/browser window. */
+  width: number;
+  onBack: () => void;
+  backLabel: string;
+}
+
+/** A phone page must give this screen a bounded flex height outside its FlatList. */
+export function MuseumPhoneContent(props: MuseumPhonePresentation) {
+  return <MuseumTimelineScreen phone={props} />;
+}
+
+function MuseumViewportHost({ phone, children }: { phone: boolean; children: React.ReactNode }) {
+  if (!phone) return <>{children}</>;
+  // The 400px two-lane canvas must scroll vertically on a short phone. Its own
+  // timeline remains horizontal; the phone page itself must not scroll.
+  return (
+    <ScrollView style={styles.viewport} contentContainerStyle={styles.phoneViewportScroll} nestedScrollEnabled>
+      {children}
+    </ScrollView>
+  );
+}
+
+function MuseumShell({ phone, title, onBack, backLabel, children }: {
+  phone?: MuseumPhonePresentation;
+  title: string;
+  onBack: () => void;
+  backLabel: string;
+  children: React.ReactNode;
+}) {
+  if (phone) {
+    return (
+      <View style={styles.phoneRoot}>
+        <PixelPressable
+          onPress={onBack}
+          accessibilityLabel={backLabel}
+          fullWidth
+          background={PANEL}
+          contentStyle={styles.phoneHeader}
+        >
+          <PixelGlyph name="arrow_back" color={m3.accent.skyTextHi} size={24} />
+          <Text variant="heading" numberOfLines={1} style={styles.phoneTitle}>{title}</Text>
+        </PixelPressable>
+        {children}
+      </View>
+    );
+  }
+  return (
+    <DeepSpaceScreen active="lens" variant="museumLike" title={title} onBack={onBack}>
+      {children}
+    </DeepSpaceScreen>
+  );
+}
+
+function MuseumSheetSurface({ phone, children }: { phone: boolean; children: React.ReactNode }) {
+  if (phone) return <View style={styles.phoneSheetSurface}>{children}</View>;
+  return (
+    <PixelSurface variant="bevel" background={PANEL} contentStyle={styles.sheetSurfaceContent}>
+      {children}
+    </PixelSurface>
+  );
+}
+
+export function MuseumTimelineScreen({ phone }: { phone?: MuseumPhonePresentation } = {}) {
   const { t, i18n } = useTranslation("deepspace");
   const locale = i18n.language ?? "en";
   const { width: windowWidth } = useWindowDimensions();
-  const compact = windowWidth < 360;
-  const compactTimeline = windowWidth < 600;
+  const compact = (phone?.width ?? windowWidth) < 360;
+  const compactTimeline = (phone?.width ?? windowWidth) < 600;
   const [mobileMode, setMobileMode] = useState<"overview" | "timeline">("overview");
   const reducedMotionPref = useReducedMotionPref();
   const [nativeReducedMotion, setNativeReducedMotion] = useState(false);
@@ -182,6 +246,25 @@ export function MuseumTimelineScreen() {
     : CANON_MUSEUM_LANGUAGE;
   const previousId = stepMuseumSelection(MUSEUM_BY_YEAR, selectedId, -1);
   const nextId = stepMuseumSelection(MUSEUM_BY_YEAR, selectedId, 1);
+  const phoneBack = phone?.onBack;
+  const back = useCallback(() => {
+    if (!phoneBack) {
+      router.back();
+    } else if (selectedId !== null) {
+      setSelectedId(null);
+    } else {
+      phoneBack();
+    }
+  }, [phoneBack, selectedId]);
+
+  useFocusEffect(useCallback(() => {
+    if (!phoneBack) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      back();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [back, phoneBack, selectedId]));
 
   useEffect(() => {
     let mounted = true;
@@ -344,11 +427,11 @@ export function MuseumTimelineScreen() {
   );
 
   return (
-    <DeepSpaceScreen
-      active="lens"
-      variant="museumLike"
+    <MuseumShell
+      phone={phone}
       title={t("deepspace:museum.title")}
-      onBack={() => router.back()}
+      onBack={back}
+      backLabel={selectedId ? t("deepspace:museum.close") : phone?.backLabel ?? t("deepspace:museum.title")}
     >
       <View style={styles.body}>
         <PixelSurface variant="inset" contentStyle={styles.rangeRow}>
@@ -455,8 +538,8 @@ export function MuseumTimelineScreen() {
           </View>
         ) : null}
 
-        {(!compactTimeline || mobileMode === "timeline") ? <View
-          style={styles.viewport}
+        {(!compactTimeline || mobileMode === "timeline") ? <MuseumViewportHost phone={!!phone}><View
+          style={[styles.viewport, phone && styles.phoneViewport]}
           onLayout={(event) => {
             viewportWidth.current = Math.max(1, event.nativeEvent.layout.width);
             if (didInitialSeek.current) return;
@@ -632,7 +715,7 @@ export function MuseumTimelineScreen() {
               );
             })}
           </ScrollView>
-        </View> : null}
+        </View></MuseumViewportHost> : null}
 
         {(!compactTimeline || mobileMode === "timeline") ? <View style={styles.dialBlock}>
           <View style={styles.dialHeading}>
@@ -690,6 +773,7 @@ export function MuseumTimelineScreen() {
             style={[
               styles.sheet,
               compact && styles.sheetCompact,
+              phone && styles.phoneSheet,
               {
                 transform: [
                   {
@@ -710,11 +794,7 @@ export function MuseumTimelineScreen() {
             accessibilityState={{ expanded: true }}
             {...sheetPan.panHandlers}
           >
-            <PixelSurface
-              variant="bevel"
-              background={PANEL}
-              contentStyle={styles.sheetSurfaceContent}
-            >
+            <MuseumSheetSurface phone={!!phone}>
               <View style={styles.sheetHeader}>
                 <SheetAction
                   icon="chevron_left"
@@ -745,7 +825,7 @@ export function MuseumTimelineScreen() {
               </View>
 
               <ScrollView
-                style={styles.sheetScroll}
+                style={[styles.sheetScroll, phone && styles.phoneSheetScroll]}
                 contentContainerStyle={styles.sheetBody}
                 showsVerticalScrollIndicator={false}
               >
@@ -969,23 +1049,23 @@ export function MuseumTimelineScreen() {
 
                 {selected.here ? (
                   <PixelPressable
-                    onPress={() => router.replace("/")}
-                    accessibilityLabel={t("deepspace:museum.backToConstellation")}
+                    onPress={phoneBack ?? (() => router.replace("/"))}
+                    accessibilityLabel={phone?.backLabel ?? t("deepspace:museum.backToConstellation")}
                     fullWidth
                     contentStyle={styles.homeAction}
                     background={m3.color.primary}
                   >
-                    <MuseumGlyph name="home" color={m3.color.onPrimary} size={24} />
+                    <MuseumGlyph name={phone ? "arrow_back" : "home"} color={m3.color.onPrimary} size={24} />
                     <Text style={styles.homeActionLabel}>
-                      {t("deepspace:museum.backToConstellation")}
+                      {phone?.backLabel ?? t("deepspace:museum.backToConstellation")}
                     </Text>
                   </PixelPressable>
                 ) : null}
               </ScrollView>
-            </PixelSurface>
+            </MuseumSheetSurface>
           </Animated.View>
         ) : null}
       </View>
-    </DeepSpaceScreen>
+    </MuseumShell>
   );
 }

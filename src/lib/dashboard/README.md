@@ -52,6 +52,31 @@ only in this host; the phone list owns scrolling. Standalone routes keep their
 current shell. The host checks auth before mounting and keys content by
 account so local shelf and GitHub handle state cannot carry across accounts.
 
+### Museum inside the phone
+
+`MuseumPhoneContent` reuses the 43-event `/museum` screen. Pass the live display
+width (`frame.screen.width`), a phone-local `onBack` callback returning to Apps,
+and the localized Apps-back label. While Museum is open, render it as the sole
+bounded flex child of `pageBody`, **outside the parent FlatList**. Hide the phone
+hero, tabs, page controls and dock for that page so the 400px two-lane timeline
+has a usable viewport. Disable the parent's `pagePan` and `phonePan` responders
+there: the Museum owns horizontal timeline gestures, vertical overview/timeline
+scrolling, and detail-sheet swipes. The physical phone exit remains available.
+Putting Museum inside the existing FlatList or keeping the parent responders
+would clip the AI lane or steal gestures. The adapter keeps the standalone
+`/museum` route unchanged; its phone Back closes an open detail first, then
+returns to Apps, and the terminal event's action also returns to Apps.
+
+After the phone launcher is wired, QA from an isolated branch with
+`node scripts/app-parity.cjs localhost --port=8082 --allow-diff`: open
+`/2nd-B/dashboard`, sign in with the repository QA account, choose Apps → Museum,
+and inspect at 320×568 and 375×667. Select a recent event, scroll its long
+detail, verify Back closes the sheet and another Back returns to Apps. Switch
+to Timeline, scroll vertically to the AI lane and horizontally across years;
+those gestures must not change the phone page or dismiss the phone. This adapter
+branch alone has no launcher entry, so these interactive checks belong to the
+integration branch.
+
 `/ops`, `/reminders`, `/permissions`, `/privacy`, `/import`, `/import-hub`, the six `/star` areas, focus, goals, ledger, meals, and the existing adult-only community. Consent, native permission requests, import review, revocation, and deletion remain owned by those flows.
 
 Google Calendar / Tasks, ICS, Google Timeline export, KakaoTalk export and SMS backups use existing imports. The current calendar import stores selected summary material, not a queryable timed event feed; the dashboard therefore does not fabricate a calendar agenda. A new import does not imply background synchronization.

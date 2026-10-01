@@ -42,6 +42,15 @@ export const MUSEUM_LANE_TONE: Record<
 };
 
 export const museumTimelineStyles = StyleSheet.create({
+  phoneRoot: { flex: 1, minHeight: 0, overflow: "hidden", backgroundColor: MUSEUM_GROUND },
+  phoneHeader: {
+    minHeight: m3.minTouch,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: m3.spacing.s2,
+    paddingHorizontal: m3.spacing.s2,
+  },
+  phoneTitle: { flex: 1, color: m3.accent.skyTextHi },
   body: { flex: 1, minHeight: 0 },
   rangeRow: {
     minHeight: m3.minTouch,
@@ -103,6 +112,8 @@ export const museumTimelineStyles = StyleSheet.create({
   overviewEventTitle: { fontSize: 14, lineHeight: 21, color: TEXT, fontWeight: "700" },
   overviewEventLane: { fontSize: 12, lineHeight: 18 },
   viewport: { flex: 1, minHeight: 0, overflow: "hidden" },
+  phoneViewportScroll: { minHeight: MZ.TH },
+  phoneViewport: { flex: 0, height: MZ.TH },
   timelineCanvas: { width: MZ.PAD * 2 + (MZ.END - MZ.START) * MZ.PXY, height: MZ.TH },
   laneLegendRow: {
     flexDirection: "row",
@@ -222,6 +233,16 @@ export const museumTimelineStyles = StyleSheet.create({
     maxHeight: 440,
     zIndex: 20,
   },
+  phoneSheet: { top: 0, maxHeight: undefined, overflow: "hidden" },
+  phoneSheetSurface: {
+    flex: 1,
+    minHeight: 0,
+    gap: m3.spacing.s2,
+    backgroundColor: MUSEUM_PANEL,
+    paddingHorizontal: m3.spacing.s4,
+    paddingVertical: m3.spacing.s4,
+  },
+  phoneSheetScroll: { flex: 1, minHeight: 0 },
   sheetCompact: { maxHeight: 460 },
   sheetSurfaceContent: {
     paddingHorizontal: m3.spacing.s4,
