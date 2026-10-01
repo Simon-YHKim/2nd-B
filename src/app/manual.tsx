@@ -34,8 +34,8 @@ const SECTIONS: ManualSection[] = [
       ko: "PolaScope란",
     },
     body: {
-      en: "A second brain built from what you write and save. Daily journaling, past-me interviews, and saved sources build a personal knowledge map you own. Export your notes anytime as a portable bundle.",
-      ko: "당신이 쓰고 저장한 것들로 만드는 두번째 뇌예요. 매일의 일기, 과거의 나 인터뷰, 저장한 자료가 모여 당신만의 지식 지도가 됩니다. 언제든 하나의 묶음으로 내보낼 수 있어요.",
+      en: "PolaScope helps you understand yourself through what you write and save. Daily journaling, past-me interviews, and saved sources build a personal knowledge map you own. Export your notes anytime as a portable bundle.",
+      ko: "폴라스코프는 당신이 쓰고 저장한 기록을 모아 나를 알아가는 곳이에요. 매일의 일기, 과거의 나 인터뷰, 저장한 자료가 모여 당신만의 지식 지도가 됩니다. 언제든 하나의 묶음으로 내보낼 수 있어요.",
     },
   },
   {

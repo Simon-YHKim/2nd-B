@@ -2631,6 +2631,13 @@ jobs:
             END IF;
           END $$;
           SQL
+      # The 2026-10-05 PolaScope contract stays a draft until the announced
+      # effective date. Exercise it only on this disposable CI database, after
+      # all numbered-migration regressions, preserving v4/v5/v6 and service-v1.
+      - name: Dry-run PolaScope 2026-10-05 forward consent contract
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/polascope-consent-forward-contract.sql
       - name: Exercise inactive avatar column draft on scratch PostgreSQL
         env:
           PGPASSWORD: postgres

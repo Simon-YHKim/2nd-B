@@ -46,6 +46,10 @@ const behaviorDrafts = {
     runner: serviceConsentRegression,
     workflowInvocation: "node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci",
   },
+  "UNNUMBERED_polascope_consent_20260928.sql": {
+    runner: read("db/migration-drafts/tests/polascope-consent-forward-contract.sql"),
+    workflowInvocation: "node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci",
+  },
   "UNNUMBERED_signup_consent_admob_20260925.sql": {
     runner: signupBootstrap,
     workflowInvocation: "node scripts/test-signup-consent-sql.mjs 5432 signup_local signup_test_ci",

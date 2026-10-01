@@ -5,8 +5,7 @@
   },
   "app": {
     "name": "PolaScope",
-    "tagline": "Un segundo cerebro construido a partir de lo que escribes y guardas.",
-    "renameNote": "PolaScope es el nuevo nombre de 2nd-Brain. Hasta que cambien los Términos el 5 de octubre de 2026, 2nd-Brain en el texto de consentimiento y en los Términos se refiere a PolaScope."
+    "tagline": "Un segundo cerebro construido a partir de lo que escribes y guardas."
   },
   "actions": {
     "continue": "Continuar",

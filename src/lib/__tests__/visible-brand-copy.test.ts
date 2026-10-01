@@ -41,15 +41,16 @@ describe("visible brand copy", () => {
 
   // 2026-09-27: the app is called PolaScope (Simon, DECISIONS 26.09.27). App
   // surfaces carry the new name and none of the old app-name family. The
-  // consent copy is the exception until the terms/consent amendment ships: it is
-  // tied to CONSENT_VERSION and the server tuple, so it still says 2nd-Brain and
-  // only keeps the older rule (no informal 2nd-B / 2ndB).
-  test("consent copy keeps 2nd-Brain until the consent amendment, never 2nd-B or 2ndB", () => {
+  // The 10-05 notice names PolaScope. Its new consent and terms versions use
+  // email-v7 while the published 09-29 privacy policy v5 remains unchanged.
+  test("10-05 consent copy names PolaScope without changing the character tag", () => {
     const root = path.resolve(__dirname, "../../..");
     for (const file of ["locales/en/consent.json", "locales/ko/consent.json"]) {
       const source = readFileSync(path.join(root, file), "utf8");
-      expect(source).not.toMatch(/2nd-B(?!rain)|2ndB/);
+      expect(source).not.toMatch(/2nd-Brain|2nd-B|2ndB/);
     }
+    expect(readFileSync(path.join(root, "locales/en/consent.json"), "utf8")).toContain("PolaScope");
+    expect(readFileSync(path.join(root, "locales/ko/consent.json"), "utf8")).toContain("폴라스코프");
   });
 
   test("app surfaces use PolaScope instead of 2nd-Brain, 2nd-B or 2ndB", () => {
@@ -82,7 +83,7 @@ describe("visible brand copy", () => {
     expect(commonEn).toContain('"name": "PolaScope"');
   });
 
-  test("Korean locale copy uses 세컨비 for the AI companion", () => {
+  test("Korean lens copy says 세컨비 while preserving the 2nd-B persona name and tag", () => {
     const root = path.resolve(__dirname, "../../..");
     const localeDir = path.join(root, "locales/ko");
 
@@ -90,6 +91,10 @@ describe("visible brand copy", () => {
       const source = readFileSync(path.join(localeDir, file), "utf8");
       expect(source).not.toMatch(/\bSecondB\b/);
     }
+    const secondb = JSON.parse(readFileSync(path.join(localeDir, "secondb.json"), "utf8"));
+    expect(secondb.rev2.secondb.lensName).toBe("세컨비");
+    expect(secondb.rev2.secondb.name).toBe("2nd-B");
+    expect(secondb.rev2.secondb.tag).toBe("2nd-B");
 
     const appFiles = [
       "src/app/core-brain.tsx",

@@ -28,9 +28,7 @@ const FROZEN_SIGNUP_REVISION_TUPLES = {
     termsVersion: "2026-08-16",
     confirmationEligible: false,
   },
-  // 2026-09-07: 09-02 개정안과 09-04 사실 정정을 합친 판. 이 셋은 consent.ts 의
-  // CONSENT_VERSION · PRIVACY_POLICY_VERSION · TERMS_VERSION 과 같아야 하고,
-  // 아래 "pins only the revision emitted by today's email client" 검사가 그걸 본다.
+  // 2026-09-07: 09-02 개정안과 09-04 사실 정정을 합친 역사 판.
   "email-v3": {
     consentVersion: "2026-09-07",
     policyVersion: "2026-09-07",
@@ -59,6 +57,14 @@ const FROZEN_SIGNUP_REVISION_TUPLES = {
     termsVersion: "2026-08-16",
     confirmationEligible: true,
   },
+  // 2026-10-05 changes the displayed name in the required notice and terms.
+  // The 2026-09-29 privacy policy v5 remains unchanged.
+  "email-v7": {
+    consentVersion: "2026-10-05",
+    policyVersion: "2026-09-29",
+    termsVersion: "2026-10-05",
+    confirmationEligible: true,
+  },
 } as const;
 
 const migrations = readdirSync(migrationDir)
@@ -69,10 +75,14 @@ const migrations = readdirSync(migrationDir)
     return { name, exec: sql.replace(/^\s*--.*$/gm, "") };
   });
 
-// The 0191 draft overlay that used to be appended here is gone: 0191 is a
-// numbered, production-applied file byte-identical to its draft (enforced by
-// scripts/__tests__/supabase-security-drafts.test.ts). Appending it last would
-// now shadow 0208, the current candidate, which is itself a numbered file.
+// Validate the release candidate overlay without rewriting a shipped migration.
+// Production publication separately requires the live status RPC to match it.
+const policyDraftName = "UNNUMBERED_polascope_consent_20260928.sql";
+migrations.push({
+  name: policyDraftName,
+  exec: readFileSync(join(process.cwd(), "db", "migration-drafts", policyDraftName), "utf8")
+    .split(CR).join("").replace(/^\s*--.*$/gm, ""),
+});
 
 function lastPatternMatch(source: string, pattern: RegExp) {
   const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
@@ -175,8 +185,9 @@ describe("verified-email consent ledger", () => {
   });
 
   test("keeps current and historical email revisions confirmation-eligible", () => {
-    expect(authSignupRevision()).toBe("email-v6");
-    expect(contractTuple(authSignupRevision() as "email-v6").confirmationEligible).toBe(true);
+    expect(authSignupRevision()).toBe("email-v7");
+    expect(contractTuple(authSignupRevision() as "email-v7").confirmationEligible).toBe(true);
+    expect(contractTuple("email-v6").confirmationEligible).toBe(true);
     expect(contractTuple("email-v5").confirmationEligible).toBe(true);
     expect(contractTuple("email-v4").confirmationEligible).toBe(true);
     expect(contractTuple("email-v3").confirmationEligible).toBe(true);

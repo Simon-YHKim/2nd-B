@@ -172,7 +172,7 @@ describe("PIXEL-CLAY /manual renderer contract", () => {
     expect(route).toContain("if (isDeepSpaceUI()) return <DeepSpaceManualScreen />");
   });
 
-  test("leaves the complete legacy renderer and styles byte-for-byte unchanged", () => {
+  test("keeps the reviewed PolaScope legacy renderer and styles byte-for-byte stable", () => {
     const route = read(ROUTE);
     const start = route.indexOf("interface ManualSection");
     const end = route.indexOf("\nexport default function Manual()");
@@ -181,7 +181,7 @@ describe("PIXEL-CLAY /manual renderer contract", () => {
     // 2026-09-27: the app name became PolaScope (DECISIONS 26.09.27), so the
     // legacy renderer's copy strings changed. Structure and styles did not.
     expect(createHash("sha256").update(route.slice(start, end)).digest("hex")).toBe(
-      "3fcd88a12a4c4306bb355993d707142436a5e14c22eb54553cd4623319e41846",
+      "fa1c92bdcb73b93acc0efffba1ef9b50d22a4502498794329210d195a03cc4f3",
     );
   });
 });

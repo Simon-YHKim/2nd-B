@@ -113,8 +113,6 @@ function ConsentForm({ userId, locale }: { userId: string; locale: AvailableUiLo
             <MdButton label={t("serviceControl.review")} disabled={busy} onPress={() => { setSelections(emptyConsentSelections()); setReviewing(true); }} />
           ) : null}
           {reviewing ? <View style={styles.review}>
-            {/* PolaScope 병기 안내: 약관 적용일(2026-10-05) 전까지만. 약관·동의 개정 PR 에서 지운다 (DECISIONS 26.09.28). */}
-            <Text variant="subtle">{t("common:app.renameNote")}</Text>
             <Text variant="body">{t("notice.intro")}</Text>
             <Text variant="subtle">{t("serviceControl.versions", { consent: status.consent_version, policy: status.policy_version, terms: status.terms_version })}</Text>
             {REQUIRED_ACK_KEYS.map((key) => <Pressable key={key}

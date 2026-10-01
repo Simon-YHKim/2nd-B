@@ -24,7 +24,8 @@ describe("visible trust copy", () => {
     expect(text).not.toMatch(/built only from what you write/i);
     expect(text).not.toMatch(/쓴 것들로만/);
     expect(text).toMatch(/what you write and save/i);
-    expect(text).toMatch(/쓰고 저장한 것들/);
+    expect(text).toMatch(/쓰고 저장한 기록/);
+    expect(text).toMatch(/저장한 자료/);
   });
 
   test("SecondB limit and composer actions are locale-backed", () => {

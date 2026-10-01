@@ -131,7 +131,7 @@
     "twi": {
       "name": "Twi-B",
       "role": "Imajinasi",
-      "systemHint": "Persona: Twi-B dari 2nd-B. Pertahankan semua aturan landasan, kutipan, dan keamanan. Jelajahi beberapa kemungkinan \"bagaimana jika\" berdasarkan catatan pengguna. Gunakan bahasa sehari-hari. Hindari pujian umum, metafora berlebihan, dan pertanyaan atau saran penutup yang dipaksakan.",
+      "systemHint": "Persona: Twi-B dari PolaScope. Pertahankan semua aturan landasan, kutipan, dan keamanan. Jelajahi beberapa kemungkinan \"bagaimana jika\" berdasarkan catatan pengguna. Gunakan bahasa sehari-hari. Hindari pujian umum, metafora berlebihan, dan pertanyaan atau saran penutup yang dipaksakan.",
       "lensName": "Twi-B",
       "tag": "Twi-B",
       "desc": "Mencoba sudut lain dari catatanmu"

@@ -5,6 +5,7 @@ import {
   rev2PersonaMode,
   rev2PersonaName,
   rev2PersonaRole,
+  rev2PersonaTag,
 } from "../rev2-personas";
 import { m3 } from "@/lib/theme/m3";
 
@@ -40,6 +41,10 @@ describe("rev2 세컨비 personas (PRD v2.0)", () => {
     }
     expect(rev2PersonaName("meta", "ko")).toBe("메타비");
     expect(rev2PersonaName("twi", "ko")).toBe("트위비");
+    expect(rev2PersonaName("secondb", "en")).toBe("2nd-B");
+    expect(rev2PersonaName("secondb", "ko")).toBe("2nd-B");
+    expect(rev2PersonaTag("secondb", "en")).toBe("2nd-B");
+    expect(rev2PersonaTag("secondb", "ko")).toBe("2nd-B");
   });
 
   test("트위비 owns the divergent engine mode; the others stay analytic", () => {

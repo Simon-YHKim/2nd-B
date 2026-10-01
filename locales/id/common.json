@@ -5,8 +5,7 @@
   },
   "app": {
     "name": "PolaScope",
-    "tagline": "Otak kedua yang dibangun dari apa yang kamu tulis dan simpan.",
-    "renameNote": "PolaScope adalah nama baru 2nd-Brain. Sampai Ketentuan berubah pada 5 Oktober 2026, 2nd-Brain dalam teks persetujuan dan Ketentuan berarti PolaScope."
+    "tagline": "Otak kedua yang dibangun dari apa yang kamu tulis dan simpan."
   },
   "actions": {
     "continue": "Lanjutkan",
