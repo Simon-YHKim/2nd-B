@@ -1,0 +1,11 @@
+{
+  "base": "http://localhost:8084",
+  "viewport": "390x844",
+  "locale": "ko-KR",
+  "consentCopyVisible": true,
+  "localAnalysisChipVisible": true,
+  "reviewCopyVisible": true,
+  "rawZeroHidden": true,
+  "blockedWrites": 0,
+  "pageErrors": []
+}
