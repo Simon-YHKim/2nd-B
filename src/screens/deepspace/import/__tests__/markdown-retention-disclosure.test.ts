@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const screen = readFileSync(resolve(__dirname, "../ImportHubScreen.tsx"), "utf8");
+const screen = readFileSync(resolve(__dirname, "../ImportHubScreen.tsx"), "utf8").replace(/\r\n?/g, "\n");
 const localeRoot = resolve(__dirname, "../../../../../locales");
 const localeCopy = Object.fromEntries(
   ["en", "ko", "es", "pt", "id"].map((locale) => [
