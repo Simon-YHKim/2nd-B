@@ -10,7 +10,7 @@
 
 ## 서버 선행 조건
 
-1. 운영 콘솔 담당이 migration 원장을 읽기 전용으로 확인한다. `0191`·`0193`·`0203`·`0208`와 아직 운영 미적용인 `0194`가 적용됐는지 확인한다. `0194`가 없으면 그 파일의 Storage 리허설 선행 조건부터 충족한다.
+1. 운영 콘솔 담당이 10월 5일 전환 전에 migration 원장을 읽기 전용으로 재조회해 `0191`·`0193`·`0203`·`0208`·`0194`의 현재 적용 상태를 확인한다. [2026-09-29 운영 적용 기록](ACCOUNT-DELETION-ROLLOUT-260929.md)에는 `0194` 원장 `20260929143632`가 보고됐지만, 전환 판단은 최신 원장 조회를 따른다. `0194`가 실제 원장에 없으면 그 파일의 Storage 리허설 선행 조건부터 충족한다.
 2. [새 forward SQL 초안](../../db/migration-drafts/UNNUMBERED_polascope_consent_20260928.sql)을 최신 원격 번호(0209 이상)로 승격하기 전에 격리 PostgreSQL에서 [회귀 테스트](../../db/migration-drafts/tests/polascope-consent-forward-contract.sql)를 실행한다. 기존 `email-v4`·`email-v5`·`email-v6`·`service-v1` 계약과 원장/영수증을 다시 쓰지 않는다. SQL 승격과 운영 적용은 콘솔 세션 소유권 규칙을 따른다.
 3. SQL 적용 뒤 `service-consent` Edge의 dual-version 판을 배포한다. 다른 AI 프록시, 광고, Paddle 설정은 이 이름 전환에 포함되지 않는다.
 4. 관리 Edge가 `collect` 또는 `enforce` 모드인지 확인하고, 인증된 기존 QA 계정으로 **모델 호출·원장 쓰기 없이** 읽기 전용 `status` 두 요청을 확인한다. `off`라면 503이 정상이고 이번 읽기 검증은 성립하지 않으므로 별도 설정 변경 범위를 확인한다. 구 앱 형식 `{"action":"status"}`는 `service-v1`과 `2026-09-07 / 2026-09-29 / 2026-08-16`을, 새 형식 `{"action":"status","contractRevision":"service-v2"}`는 `service-v2`와 `2026-10-05 / 2026-09-29 / 2026-10-05`를 돌려야 한다. 양쪽 모두 응답 필드, HTTP 상태, Edge 배포 버전과 시각을 기록한다. 인증 없는 요청은 거부돼야 한다. 실제 grant/revoke 쓰기는 별도 검증 계획과 승인 범위에서만 한다.
