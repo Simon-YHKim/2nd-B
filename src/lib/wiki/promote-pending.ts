@@ -9,10 +9,22 @@
 // promotePendingUploads re-uploads pending bodies and clears the flags.
 // Called opportunistically (inbox load); every step is best-effort and
 // bounded, so a still-broken bucket just means "try again next time".
+//
+// A deletion can land between the listing and the upload (R30, JA-1839-1): the
+// full wipe used to empty the folder, report done, and then watch this module
+// put the old body back and "clear" a row that no longer existed (a 0-row
+// UPDATE read as success). So each row is re-read right before its upload and
+// skipped when it is gone, repointed, no longer pending, or claimed by an
+// erasure; the flags are cleared only through a write that sees the row still
+// there (clearStoragePending, wiki/source-erasure.ts); and when that clear does
+// not land the upload is taken back unless a row that still needs the object
+// points at it. An app killed between the upload and that take-back can still
+// leave the object behind - closing that needs the server-side fence.
 
-import { listStoragePendingSources, updateSourceFrontmatter } from "./queries";
+import { getSource, listStoragePendingSources } from "./queries";
 import { storageSafeSlug } from "./slug";
 import { rawClippingPath, uploadRawClipping } from "./storage";
+import { clearStoragePending, isSourceBeingErased, removeRawClippingUnlessHeld } from "./source-erasure";
 
 export interface PromoteResult {
   /** Pending rows seen this run (bounded by the query limit). */
@@ -43,23 +55,41 @@ export async function promotePendingUploads(userId: string): Promise<PromoteResu
     const slug = storageSafeSlug(storedSlug);
     const healedPath = slug === storedSlug ? undefined : rawClippingPath(userId, slug);
     try {
+      // The listing can be stale by now: never upload for a row that is gone,
+      // repointed, already promoted elsewhere, or being erased.
+      const current = await getSource(userId, row.id);
+      if (
+        !current
+        || current.storage_path !== row.storage_path
+        || current.frontmatter?._storage_pending !== true
+        || isSourceBeingErased(current.frontmatter)
+      ) continue;
+    } catch {
+      continue; // Could not re-read — retry later rather than upload blind.
+    }
+    try {
       // overwrite: the original upload may have actually landed (client-side
       // timeout after a server-side success) — promotion must be idempotent.
       await uploadRawClipping(userId, slug, body, { overwrite: true });
     } catch {
       continue; // Storage still unavailable — keep the fallback, retry later.
     }
-    const { _storage_pending, _body_fallback, ...rest } = fm;
-    void _storage_pending;
-    void _body_fallback;
     try {
-      if (healedPath) await updateSourceFrontmatter(userId, row.id, rest, healedPath);
-      else await updateSourceFrontmatter(userId, row.id, rest);
-      promoted++;
+      if ((await clearStoragePending(userId, row.id, row.storage_path, healedPath)) === "cleared") {
+        promoted++;
+        continue;
+      }
     } catch (e) {
-      // Upload landed but the flag didn't clear — next run re-uploads the
-      // same body (idempotent overwrite), so nothing is lost.
+      // Fall through: whether the row still exists is unknown, and the take-back
+      // below keeps the object whenever a row that needs it is still there.
       if (typeof console !== "undefined") console.warn("[promote-pending] flag clear failed", e);
+    }
+    // The flags did not clear: the row went away, an erasure claimed it, or it
+    // moved. Take the upload back unless a row that still needs it points at it.
+    try {
+      await removeRawClippingUnlessHeld(userId, healedPath ?? row.storage_path);
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[promote-pending] upload take-back failed", e);
     }
   }
   return { pending: rows.length, promoted };
