@@ -30,7 +30,41 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-01 19:11 / GUI 통합 후보 재개: 결함 3개 수정, 웹 GUI QA 42/42, 브랜치는 로컬 유지
+## Latest — 2026-10-02 01:59 / 폰 안 전체 화면 호스팅: 55개 경로와 커뮤니티·인터뷰, 네이티브 빌드는 메모리 부족으로 중단
+
+### 확인된 완료 상태
+
+- Simon 지시(10-01 저녁): **"남은작업 모두 진행해."** 통합 브랜치 `fix/gui-phone-integrate-261001` 을 push 하고 [Draft PR #2005](https://github.com/Simon-YHKim/2nd-B/pull/2005)를 열었다. HEAD `e65f989c`. **병합하지 않았다** — #2000 게이트의 Android Back 실기 확인이 남았다.
+- 근거가 된 Simon 의도: TTL-Work_rev2 의 `docs/qa/ui-audit-260930/phone-only-report.html` — "핸드폰에서 연 모든 기능은 프레임 안에서 진행", "기존 기능 전체를 단순 축소해 끼우지 않고 화면별로 조정", "연결 설정은 기존 설정 화면을 정본으로".
+- 구조(화면마다 어댑터를 따로 만들지 않는다):
+  - `src/lib/nav/phone-embed.tsx` — `PhoneEmbedProvider`, `useAppRouter()`(expo-router `router` 의 대체. 폰 밖에서는 그 자체), `useScreenParams()`, `useHardwareBack()`(폰의 Back claim 스택. 자식 effect 가 부모보다 먼저 돌아 화면 자체 BackHandler 가 폰 리스너에 지는 문제를 막는다), `displayWidth`.
+  - `DeepSpaceScreen` 이 폰 안에서는 하늘·창·safe area·앱 독 없이 뒤로 줄 하나만 그린다(`ownBack` 이면 안 그림).
+  - `DashboardPhone` 이 `phone-screens.tsx` 레지스트리의 화면을 목록 밖 bounded View 로 route key 를 달아 띄운다. push 는 폰 안에 머문다(못 그리는 경로는 "아직 연결되지 않았어요"), push/replace("/") 는 폰을 닫고, 인증 경로만 폰을 떠난다. `/persona`·`/mbti` → `/core-brain`, `/wiki?focusPageId=` → 폰 위키 페이지, `/records?tags=` → 폰 노트 필터, `/capture?text=`·`?tag=` → 폰 메모 채움.
+- 호스팅: 등록 55개 + 커뮤니티 목록·방·초대 참여 + `/me/<star>`. 설정과 그 하위 18곳, 프로필 허브 7곳, 북극성과 그 링크, 측정 도구(Big Five·IPIP-NEO·애착·RLSS·ESM·seen·audit·values·strengths·motivation), 확인 이력·검토, 약관·동의·처리 기록, 계정 하위(비밀번호·IDEN·앱 밖에서), discover·research·imagine·digest·peer-invites·northstar·share-card, 인터뷰(`/me/<star>`·`/interview`), 세컨비 대화, 아바타 팔레트·스튜디오, 위키 그래프·태그(`/wiki/graph`, 폰 자체 위키 검색 옆).
+- 커뮤니티 분리 작업(`community-phone-261001`, 미커밋이던 것)은 `npm run verify` 874묶음/11,339건 통과 후 `eac08696` 으로 커밋해 통합 브랜치에 병합했다. 인터뷰 진입은 `/me/now` 를 `/capture` 로 바꿔 보내던 것을 되돌렸다.
+- 좁은 화면 수정: 뮤지엄 타임라인 칸 49→97px(320), 독 '프로필' 잘림(main 에도 있던 것), 지출 금액 칸, 개인정보 Toggle 글 칸, 망원경 조작 224px 하한, 위키 88px 띠, 세컨비 머리말 compact, 가져오기 제목 줄.
+- 검증: 로컬 `npm run verify` 종료코드 0, **882묶음/11,391건**(마지막 README 커밋 전). 웹 GUI(세션 전용 8772, `--allow-diff`): 21개 진입점 + 설정 하위 18곳 × 320·375 = **78/78**, 프로필 허브 7/7 · 북극성 링크 7/7(375). 페이지 오류 0 · 쓰기 요청 0. 소스 핀·DPIA 줄 인용은 변환이 옮긴 곳만 다시 고정했다(다이제스트는 해당 편집만 되돌려 옛 값이 재현되는지 확인).
+
+### 막힌 것
+
+- **네이티브 미확인.** CI `android-release.yml` 은 `refs/heads/main` 전용이라 브랜치 APK 를 만들지 못한다(디스패치 `36879063165` 는 skipped). 로컬 `E:/Coding Infra/tools/qa_apk_build.py`(워크트리 `qa-apk-260920`, `e65f989c` 로 detached, prebuild 완료)가 gradle 단계에서, 세션 전용 8772 서버와 함께 **01:56 KST 호스트 메모리 부족으로 중단**됐다(남은 메모리 약 7.6 GB / 32 GB). 지시에 따라 다시 띄우지 않았다.
+- 미실행 웹 QA: 깊은 체인 15개(375) 와 320 깊은 체인 전부.
+
+### 남은 것
+
+- 폰 안 차이: RN `Modal`(프리미엄·한도 시트·설문 안내·저장 축하·채팅 첫 안내·위기 안내)은 창 전체를 덮는다. `usePathname()` 이 `/dashboard` 라 보상형 광고 제안은 폰 안에서 숨는다(닫힌 쪽으로 실패). `useNavigation()` 가드(개인정보 삭제 펜스·audit·팔레트 미저장)는 대시보드 경로에 붙는다.
+- 호스팅 안 함: 위키 내보내기(앱 안 진입 없음), `/integrations`, `/capture-full`, 전체 `/capture`·`/records`(폰 자체 페이지 유지), `/dev-screens`.
+- 213px 에서 좁음: strengths 결과 카드, beyond 180px 카드, share-card 칩 줄, brightness 히트맵, 세컨비 대화(저장 안내가 떠 있으면 목록이 거의 없다).
+
+### 재개할 때
+
+1. 다음 1개(Simon 지시가 있을 때): 메모리를 확인하고 `python "E:/Coding Infra/tools/qa_apk_build.py" --wt E:/2ndB/.worktrees/qa-apk-260920 --abi x86_64 --tag gui-phone --skip-prebuild` → 에뮬레이터에서 Android Back 확인(설정 하위 → 설정 → 앱 → 대시보드 → 종료 확인, 팔레트 미저장 확인, 설문 중 Back, 뮤지엄 시트). 빌드 중에는 에뮬레이터를 끈다.
+2. 남은 웹 QA 는 통합 워크트리에서 `node scripts/app-parity.cjs localhost --port=8772 --allow-diff` 로 띄워 진행한다(8081 은 쓰지 않는다).
+3. 작업 기록: `E:\2ndB\.git\2ndb-session-state\GUI-PHONE-PARITY-261001.json` · `QA-APK-WORKTREE-261002.json`(둘 다 blocked). 아래 블록의 #1902/#1917(10월 5일), #1814/#1839 게이트는 그대로다.
+
+---
+
+## 2026-10-01 19:11 / GUI 통합 후보 재개: 결함 3개 수정, 웹 GUI QA 42/42, 브랜치는 로컬 유지
 
 ### 확인된 완료 상태
 
