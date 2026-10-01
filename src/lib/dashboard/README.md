@@ -23,12 +23,34 @@ First dashboard entry does not start an OAuth/login flow. Existing owner-scoped 
 
 ## Reachable existing flows
 
-The phone can embed the existing reading shelf or side-project screen with
-`OpsPhoneContent` (`reading` / `side-project`) and a phone-local `onBack` callback.
-Its `OpsFrame` adapter drops the second app shell and inner scroll only in that
-host; the phone list owns scrolling. Both standalone routes keep their current
-shell. The host checks auth before mounting and keys the content by account so
-GitHub handle and shelf state do not carry across account changes.
+The phone-originated controls now keep their first view in the phone display.
+Its back control and Android Back step through phone history; the physical
+home-button area returns to the phone home, then asks before exit. A downward
+pull from a nested screen goes back one level, while a deliberate pull from
+the phone home exits. The independent route entry points are unchanged.
+
+This is a bounded in-phone surface, not a claim that every full-page feature has
+been transplanted. Saved records, record search/detail, short plain-note capture,
+accepted routine completion, notifications, and a foreground-only focus timer
+have real in-phone behavior. The phone's wiki search reads up to 200 owner-scoped
+`wiki_pages`, matches title and saved name, and opens the complete page body
+with linked-back pages inside the phone; the list and backlinks share its one
+virtualized scroll view. The full wiki's tag filters, graph, export, page
+deletion, source brief, and SecondB handoffs are still separate-route features.
+Area views show tagged records from the bounded
+read, **not** ledger entries or goal status. Museum, community, avatar palette,
+and the interview flow report that their phone-specific screens are not yet
+connected. They no longer silently leave the phone. Full feature parity will
+require extracting reusable contents from their independent screens without
+changing those independent entry points.
+
+`OpsPhoneContent` is a reusable adapter for the existing reading shelf and
+side-project screens with a phone-local `onBack` callback. Its `OpsFrame`
+adapter drops the second app shell and inner scroll only in that host; the
+phone list owns scrolling. Both standalone routes keep their current shell.
+The host checks auth before mounting and keys content by account so GitHub
+handle and shelf state do not carry across account changes. The phone launcher
+has not yet connected this adapter.
 
 `/ops`, `/reminders`, `/permissions`, `/privacy`, `/import`, `/import-hub`, the six `/star` areas, focus, goals, ledger, meals, and the existing adult-only community. Consent, native permission requests, import review, revocation, and deletion remain owned by those flows.
 
