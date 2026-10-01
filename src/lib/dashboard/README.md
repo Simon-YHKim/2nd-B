@@ -44,13 +44,13 @@ connected. They no longer silently leave the phone. Full feature parity will
 require extracting reusable contents from their independent screens without
 changing those independent entry points.
 
-`OpsPhoneContent` is a reusable adapter for the existing reading shelf and
-side-project screens with a phone-local `onBack` callback. Its `OpsFrame`
-adapter drops the second app shell and inner scroll only in that host; the
-phone list owns scrolling. Both standalone routes keep their current shell.
-The host checks auth before mounting and keys content by account so GitHub
-handle and shelf state do not carry across account changes. The phone launcher
-has not yet connected this adapter.
+`OpsPhoneContent` reuses the existing assistant, reminders, ledger, goals,
+meals, reading shelf, and side-project screens with a phone-local `onBack`
+callback. The reminders screen also sends its assistant link through the phone
+navigation callback. `OpsFrame` drops the second app shell and inner scroll
+only in this host; the phone list owns scrolling. Standalone routes keep their
+current shell. The host checks auth before mounting and keys content by
+account so local shelf and GitHub handle state cannot carry across accounts.
 
 `/ops`, `/reminders`, `/permissions`, `/privacy`, `/import`, `/import-hub`, the six `/star` areas, focus, goals, ledger, meals, and the existing adult-only community. Consent, native permission requests, import review, revocation, and deletion remain owned by those flows.
 

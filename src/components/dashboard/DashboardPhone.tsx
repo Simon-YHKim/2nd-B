@@ -31,6 +31,7 @@ import { filterPhoneWikiPages } from "@/lib/wiki/phone-search";
 import { getBacklinks, getWikiPageById, listWikiPages } from "@/lib/wiki/queries";
 import type { WikiPageRow } from "@/lib/wiki/types";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import { OpsPhoneContent, type OpsPhoneScreen } from "@/screens/deepspace/ops/PhoneOpsContent";
 import type { ProductNotice } from "@/lib/notices/types";
 
 type Tab = "dashboard" | "tools";
@@ -52,6 +53,15 @@ const APP_ORDER: PhoneAppId[] = [
   "community", "relationships", "settings", "more",
 ];
 const PHONE_NAV = ["home", "note", "add", "search", "profile"] as const;
+const OPS_PHONE_ROUTES: Record<string, OpsPhoneScreen> = {
+  "/ops": "ops",
+  "/reading": "reading",
+  "/reminders": "reminders",
+  "/ledger": "ledger",
+  "/milestones": "milestones",
+  "/meals": "meals",
+  "/side-project": "side-project",
+};
 const PIXEL_IMAGE = Platform.OS === "web" ? { imageRendering: "pixelated" } as ImageStyle : undefined;
 
 // The phone bezel is always dark, including when the rest of the app uses its
@@ -344,17 +354,12 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   }
 
   function internalPage(route: string) {
+    const opsScreen = OPS_PHONE_ROUTES[route];
+    if (opsScreen) return <OpsPhoneContent screen={opsScreen} onBack={backInside} onNavigate={go} />;
     const records = data?.records.ok ? data.records.value : [];
     const recordFailed = !!data && !data.records.ok;
-    const area = route.startsWith("/star/") ? route.slice(6) :
-      route === "/ledger" ? "finance" : route === "/milestones" ? "growth" :
-      route === "/meals" ? "health" : null;
-    const title = route === "/ops" ? t("phone.apps.assistant") :
-      route === "/focus" ? t("phone.apps.focus") :
-      route === "/reminders" ? t("phone.apps.reminders") :
-      route === "/ledger" ? t("phone.apps.money") :
-      route === "/milestones" ? t("phone.apps.growth") :
-      route === "/meals" ? t("phone.apps.meals") :
+    const area = route.startsWith("/star/") ? route.slice(6) : null;
+    const title = route === "/focus" ? t("phone.apps.focus") :
       route === "/museum" ? t("phone.apps.museum") :
       route === "/community" ? t("phone.apps.community") :
       route === "/avatar-palette" ? t("phone.apps.avatarPalette") :
@@ -387,15 +392,6 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
           <PhoneAction label={t("phone.internal.reset")} glyph="refresh" onPress={() => { setFocusRunning(false); setFocusSeconds(25 * 60); }} />
         </View>
       </PixelSurface> : null}
-      {route === "/ops" || route === "/reminders" ? <View style={styles.stack}>
-        <Text variant="caption" style={styles.muted}>{t("phone.weekAheadScope")}</Text>
-        {failed ? <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : !data || loading ? <Text variant="caption" style={styles.muted}>{t("phone.loading")}</Text> : !data.routines.ok || !data.completions.ok ?
-          <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : agenda.length ? agenda.map((item) => <PixelSurface key={item.id} variant="frame" contentStyle={styles.routine}>
-            <Text variant="body">{item.title}</Text>
-            <Text variant="caption" style={styles.muted}>{item.completed ? t("phone.completed") : item.reminder_time?.slice(0, 5) ?? t("phone.anytime")}</Text>
-            {!item.completed ? <PhoneAction label={t(busy === item.id ? "phone.saving" : "phone.markDone")} glyph="check" disabled={busy !== null} onPress={() => { void complete(item.id); }} /> : null}
-          </PixelSurface>) : <Text variant="caption" style={styles.muted}>{t("phone.emptyAgenda")}</Text>}
-      </View> : null}
       {route === "/wiki" ? <View style={styles.stack}>
         <TextInput accessibilityLabel={t("wiki:searchPieces")} value={wikiQuery} onChangeText={setWikiQuery} placeholder={t("wiki:searchPieces")} placeholderTextColor={m3.color.onSurfaceVariant} style={[styles.searchInput, styles.phoneText]} />
         {wikiLoading ? <Text variant="caption" style={styles.muted}>{t("wiki:loading")}</Text> : null}
@@ -585,6 +581,8 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       <PhoneAction label={t("phone.moreApps.records")} glyph="article" onPress={() => go("/records")} />
       <PhoneAction label={t("phone.moreApps.wiki")} onPress={() => go("/wiki")} />
       <PhoneAction label={t("phone.moreApps.capture")} glyph="add" onPress={() => go("/capture")} />
+      <PhoneAction label={t("tools.reading.label")} onPress={() => go("/reading")} />
+      <PhoneAction label={t("tools.sideProject.label")} onPress={() => go("/side-project")} />
     </View>;
     return <View style={styles.launcherStack}>
       <View style={styles.launcherHeading}>

@@ -1218,7 +1218,7 @@ function ReminderCard({ vm, starWord, onToggle }: { vm: ReminderVM; starWord: st
   );
 }
 
-export function RemindersScreen() {
+export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => void } = {}) {
   const c = useOpsCopy();
   const { userId } = useAuth();
   const supported = remindersSupported();
@@ -1344,7 +1344,7 @@ export function RemindersScreen() {
       bubble={c.scheduledReminders}
       tip={c.remindersTip}
       footer={
-        <MdButton variant="tonal" label={c.addFromAssistant} onPress={() => router.push("/ops")} />
+        <MdButton variant="tonal" label={c.addFromAssistant} onPress={onOpenAssistant ?? (() => router.push("/ops"))} />
       }
     >
       {routines.status === "error" ? (
