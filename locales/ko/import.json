@@ -48,6 +48,10 @@
     "more": "더 가져오기",
     "moreHint": "이번 가져오기를 비우고 새로 시작해요."
   },
+  "appointmentCount": {
+    "label": "약속 신호 {{count}}건",
+    "sub": "약속 언급 횟수 → 기록"
+  },
   "health": {
     "connect": "활동 동기화 켜기",
     "ingest": "오늘 활동 추가",

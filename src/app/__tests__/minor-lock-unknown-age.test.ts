@@ -127,7 +127,8 @@ describe("가져오기 허브 - 통신 · 위치 잠금은 모름도 막는다",
     await h.ratifyAll();
     expect(h.writes).toHaveLength(1);
     expect(h.writes[0].kindOverride).toBe("self_knowledge");
-    expect(h.writes[0].rawMd).toContain("meeting tomorrow");
+    expect(h.writes[0].rawMd).toContain("Plan mentions: 1");
+    expect(h.writes[0].rawMd).not.toContain("meeting tomorrow");
   });
 
   test.each([true, null])("isMinor=%s: SMS 타일이 안 열리고 저장 호출은 0이다", async (isMinor) => {

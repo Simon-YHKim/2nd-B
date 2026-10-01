@@ -6,10 +6,12 @@
 
 import i18next from "i18next";
 
+import enImport from "../../../locales/en/import.json";
+import koImport from "../../../locales/ko/import.json";
 import { systemLocaleFor, type SystemLocale } from "@/lib/i18n/locales";
 import type { ImportKind } from "./detect";
-import { aggregateRelationSignals, extractAppointmentHints, parseKakaoExport, type KakaoRelationSignal } from "./kakao";
-import { extractSmsAppointmentHints, parseSmsBackup } from "./sms";
+import { aggregateRelationSignals, countAppointmentHints, parseKakaoExport, type KakaoRelationSignal } from "./kakao";
+import { countSmsAppointmentHints, parseSmsBackup } from "./sms";
 import { parseTakeoutLocations, summarizeLocations } from "./location";
 import { parseIcs } from "./ics";
 import { parseAppleHealthExport, summarizeHealth } from "./health-export";
@@ -106,21 +108,19 @@ export function splitMarkdownSections(content: string): Array<{ title: string; b
 }
 
 /** Pure: parse `content` per `kind` and build derived proposals + summary. */
-export function buildProposals(kind: ImportKind, content: string): ImportOutcome {
+export function buildProposals(kind: ImportKind, content: string, localeTag: string = i18next.language ?? "en"): ImportOutcome {
   const proposals: ImportProposal[] = [];
   const summary: ImportSummary = { ...empty };
 
   let relationSignals: KakaoRelationSignal[] | undefined;
   if (kind === "kakao") {
     const messages = parseKakaoExport(content);
-    const hints = extractAppointmentHints(messages);
-    summary.appointments = hints.length;
-    for (const h of hints) proposals.push({ id: `kakao-${proposals.length}`, label: h.text, sub: "약속 → 캘린더 후보", sensitive: true });
+    summary.appointments = countAppointmentHints(messages);
+    if (summary.appointments > 0) proposals.push(appointmentCountProposal("kakao", summary.appointments, localeTag));
     relationSignals = aggregateRelationSignals(messages);
   } else if (kind === "sms") {
-    const hints = extractSmsAppointmentHints(parseSmsBackup(content));
-    summary.appointments = hints.length;
-    for (const h of hints) proposals.push({ id: `sms-${proposals.length}`, label: h.text, sub: "약속 → 캘린더 후보", sensitive: true });
+    summary.appointments = countSmsAppointmentHints(parseSmsBackup(content));
+    if (summary.appointments > 0) proposals.push(appointmentCountProposal("sms", summary.appointments, localeTag));
   } else if (kind === "takeout-location") {
     const s = summarizeLocations(parseTakeoutLocations(safeJson(content)));
     summary.places = s.places.length;
@@ -201,6 +201,22 @@ export function buildProposals(kind: ImportKind, content: string): ImportOutcome
     proposals: proposals.slice(0, PROPOSAL_CAP),
     summary,
     ...(relationSignals && relationSignals.length > 0 ? { relationSignals } : {}),
+  };
+}
+
+/** One ratifiable derived count; no message body, sender, phone number or timestamp. */
+function appointmentCountProposal(kind: "kakao" | "sms", count: number, localeTag: string): ImportProposal {
+  const copy = systemLocaleFor(localeTag) === "ko" ? koImport.appointmentCount : enImport.appointmentCount;
+  const translated = i18next.isInitialized && i18next.exists("appointmentCount.label", { ns: "import", lng: localeTag });
+  return {
+    id: `${kind}-count`,
+    label: translated
+      ? i18next.t("appointmentCount.label", { ns: "import", lng: localeTag, count })
+      : copy.label.replace("{{count}}", String(count)),
+    sub: translated
+      ? i18next.t("appointmentCount.sub", { ns: "import", lng: localeTag })
+      : copy.sub,
+    sensitive: true,
   };
 }
 

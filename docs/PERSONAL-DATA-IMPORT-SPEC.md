@@ -20,8 +20,8 @@
 ## 2. 구현된 파서 (전부 PURE · 네트워크/LLM/저장 0 · $0 · 온디바이스)
 | 파일 | 입력 | 출력(원시) | 파생 신호 | 민감도 |
 |---|---|---|---|---|
-| `src/lib/import/kakao.ts` | 카톡 .txt | `KakaoMessage[]` | `extractAppointmentHints` | 🔴 통신 |
-| `src/lib/import/sms.ts` | SMS B&R XML | `SmsMessage[]` | `extractSmsAppointmentHints` | 🔴 통신 |
+| `src/lib/import/kakao.ts` | 카톡 .txt | `KakaoMessage[]` | `countAppointmentHints`(건수) · `aggregateRelationSignals`(가명 빈도) | 🔴 통신 |
+| `src/lib/import/sms.ts` | SMS B&R XML | `SmsMessage[]` | `countSmsAppointmentHints`(건수) | 🔴 통신 |
 | `src/lib/import/location.ts` | Takeout JSON | `LocationVisit[]` | `summarizeLocations`(장소/기간) | 🔴 위치 |
 | `src/lib/import/ics.ts` | .ics | `CalendarEvent[]` | (이벤트 자체) | 🟡 일정 |
 | `src/lib/import/health-export.ts` | 애플 헬스 export.xml | `HealthRecord[]` | `summarizeHealth`(타입별 합계) | 🟠 건강 |
@@ -45,7 +45,8 @@
 ## 4. 파생 신호 → 비서 연결 (구현 시)
 | 소스 | 파생 | 비서 활용 |
 |---|---|---|
-| 카톡·문자·이메일 | 약속 힌트(시간·상대) | 리마인더/캘린더 푸시 후보(기존 push.ts/reminders) |
+| 카톡·문자 | 약속 언급 건수(본문·발신자·전화번호 비보존) | 승인한 건수만 기록. 개별 일정·리마인더로 만들지 않음 |
+| 이메일 | 약속 가능성·제목 | 리마인더/캘린더 푸시 후보(기존 push.ts/reminders) |
 | 캘린더(.ics) | 이벤트 | /ops 일정 맥락, 충돌 회피 |
 | 위치(Takeout) | 장소·이동 패턴 | 운동·집중·집정리 루틴 자동완료 근거(health-link 패턴) |
 | 애플 헬스 | 타입별 합계(걸음 등) | 운동·건강 루틴 자동완료(applyHealthAutoComplete 결정론 매핑) |

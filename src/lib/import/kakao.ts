@@ -5,7 +5,7 @@
 // Android. The only viable path is the user's own "대화 내보내기" .txt export →
 // this pure parser. No network, no LLM, no storage — it transforms text the user
 // explicitly handed us. The caller persists only DERIVED signals (appointment
-// hints), never the raw transcript ("원문 비보존").
+// mention count and pseudonymous relation frequency), never message text.
 //
 // Defensive by design: handles the common KR Android and iOS export line
 // formats, tolerates multi-line messages, skips header/date-separator lines,
@@ -87,26 +87,17 @@ export function parseKakaoExport(raw: string): KakaoMessage[] {
   return out;
 }
 
-export interface AppointmentHint {
-  atIso: string | null;
-  sender: string;
-  /** the clamped message text that triggered the hint. */
-  text: string;
-}
-
 /**
- * Pure heuristic: messages that look like they mention a plan/appointment. This
- * is the DERIVED signal a caller may persist — the raw transcript is not kept.
+ * Count messages that look like they mention a plan/appointment. Only the count
+ * leaves the parser: neither the message body nor the sender can reach a saved
+ * proposal through this path.
  */
-export function extractAppointmentHints(messages: ReadonlyArray<KakaoMessage>, max = 50): AppointmentHint[] {
-  const out: AppointmentHint[] = [];
+export function countAppointmentHints(messages: ReadonlyArray<KakaoMessage>): number {
+  let count = 0;
   for (const m of messages) {
-    if (out.length >= max) break;
-    if (looksLikeAppointment(m.text)) {
-      out.push({ atIso: m.atIso, sender: m.sender, text: m.text.slice(0, 140) });
-    }
+    if (looksLikeAppointment(m.text)) count += 1;
   }
-  return out;
+  return count;
 }
 
 // ── Relation signals (연동 P0③) ────────────────────────────────────────

@@ -10,7 +10,37 @@ describe("buildProposals (propose, derived-only)", () => {
     expect(summary.appointments).toBe(1);
     expect(summary.raw).toBe(0);
     expect(proposals[0].sensitive).toBe(true);
-    expect(proposals[0].sub).toContain("캘린더");
+    expect(proposals[0].sub).toContain("record");
+  });
+
+  test.each([
+    ["kakao", "2024년 1월 5일 오후 3:42, 수민 : 내일 3시에 만나자 SECRET_KAKAO_BODY"],
+    ["sms", '<smses><sms address="01012345678" date="1704430920000" type="1" body="내일 3시에 만나자 SECRET_SMS_BODY" /></smses>'],
+  ] as const)("%s proposal and saved markdown never retain message text", (kind, content) => {
+    const outcome = buildProposals(kind, content, "ko");
+    expect(outcome.summary.appointments).toBe(1);
+    expect(outcome.proposals).toHaveLength(1);
+    expect(outcome.proposals[0].sensitive).toBe(true);
+    expect(outcome.proposals[0].label).toBe("약속 신호 1건");
+    const serialized = JSON.stringify(outcome);
+    const markdown = proposalsToMarkdown(kind, outcome.proposals, "ko");
+    expect(serialized).not.toContain("SECRET_");
+    expect(markdown).not.toContain("SECRET_");
+    expect(markdown).not.toContain("내일 3시에 만나자");
+    expect(serialized).not.toContain("01012345678");
+    expect(serialized).not.toContain("수민");
+  });
+
+  test("multiple plan messages become one ratifiable count, with no message text", () => {
+    const content = [
+      "2024년 1월 5일 오후 3:42, 수민 : 내일 3시에 만나자 PRIVATE_ONE",
+      "2024년 1월 5일 오후 3:43, 수민 : 모레 4시에도 볼까 PRIVATE_TWO",
+    ].join("\n");
+    const outcome = buildProposals("kakao", content, "ko");
+    expect(outcome.summary.appointments).toBe(2);
+    expect(outcome.proposals).toHaveLength(1);
+    expect(outcome.proposals[0].label).toBe("약속 신호 2건");
+    expect(JSON.stringify(outcome)).not.toMatch(/PRIVATE_(ONE|TWO)/);
   });
 
   test("takeout location → place proposals", () => {
