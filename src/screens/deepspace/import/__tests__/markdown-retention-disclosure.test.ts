@@ -2,17 +2,23 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const screen = readFileSync(resolve(__dirname, "../ImportHubScreen.tsx"), "utf8");
+const localeRoot = resolve(__dirname, "../../../../../locales");
+const localeCopy = Object.fromEntries(
+  ["en", "ko", "es", "pt", "id"].map((locale) => [
+    locale,
+    JSON.parse(readFileSync(resolve(localeRoot, locale, "import.json"), "utf8")).markdownRetention,
+  ]),
+);
 
 describe("Markdown import retention disclosure", () => {
-  test("both languages disclose that selected note text is kept, with its limit", () => {
-    const notesCopy = [...screen.matchAll(/whereBodyNotes: "([^"]+)"/g)].map((match) => match[1]);
-    const reviewCopy = [...screen.matchAll(/noteBodyReview: "([^"]+)"/g)].map((match) => match[1]);
-
-    expect(notesCopy).toHaveLength(2);
-    expect(reviewCopy).toHaveLength(2);
-    expect(notesCopy[0]).toContain("본문");
-    expect(notesCopy[1]).toContain("text");
-    for (const copy of [...notesCopy, ...reviewCopy]) expect(copy).toContain("4,000");
+  test("five locales disclose that selected note text is kept, with its limit", () => {
+    for (const locale of ["en", "ko", "es", "pt", "id"]) {
+      const { consent, review } = localeCopy[locale];
+      expect(consent).toMatch(/4[,.]000/);
+      expect(review).toMatch(/4[,.]000/);
+    }
+    expect(localeCopy.ko.consent).toContain("본문");
+    expect(localeCopy.en.consent).toContain("text");
   });
 
   test("consent covers content detection and the review does not claim zero raw notes", () => {
@@ -26,8 +32,9 @@ describe("Markdown import retention disclosure", () => {
     expect(screen).toContain('localAnalysis: "File analyzed on device"');
     expect(screen).not.toContain("Process on this device only");
 
-    expect(screen).toContain('s.kind === "markdown" ? t("whereBodyNotes") : t("whereBody")');
+    expect(screen).toContain('useTranslation("import")');
+    expect(screen).toContain('s.kind === "markdown" ? importT("markdownRetention.consent") : t("whereBody")');
     expect(screen).toContain('out.summary.notes === 0 ? <Summary n={0} label={t("raw")} dim /> : null');
-    expect(screen).toContain('out.summary.notes > 0 ? (\n          <Text variant="subtle" style={styles.fine}>{t("noteBodyReview")}</Text>');
+    expect(screen).toContain('out.summary.notes > 0 ? (\n          <Text variant="subtle" style={styles.fine}>{importT("markdownRetention.review")}</Text>');
   });
 });

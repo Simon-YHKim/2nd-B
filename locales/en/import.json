@@ -58,6 +58,10 @@
     "consentNeeded": "Opt in to bring activity in",
     "minorLocked": "Activity sync is off for this account."
   },
+  "markdownRetention": {
+    "consent": "The file is analyzed on this device. The titles and text of the notes you choose are kept as encrypted records. Each note's text is limited to 4,000 characters.",
+    "review": "The title and text of each chosen note, up to 4,000 characters per note, are added to your records."
+  },
   "pendingDevice": {
     "title": "Notes left on this device",
     "body": "Notes saved on this device before sign-in: {{count}}. Someone else may have written them. Import only if they are yours.",

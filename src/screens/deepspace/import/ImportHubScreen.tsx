@@ -107,7 +107,7 @@ const TIER_COLOR: Record<Tier, string> = {
 type Step = "hub" | "consent" | "input" | "review" | "history";
 
 export function ImportHubScreen() {
-  const { i18n } = useTranslation();
+  const { i18n, t: importT } = useTranslation("import");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId, isMinor } = useAuth();
   const progression = useProgression();
@@ -563,7 +563,7 @@ export function ImportHubScreen() {
         <View style={styles.block}>
           <Text variant="caption" pixelEn style={styles.blockLabel}>{t("where")}</Text>
           <Text variant="body" style={styles.blockText}>
-            {s.kind === "markdown" ? t("whereBodyNotes") : t("whereBody")}
+            {s.kind === "markdown" ? importT("markdownRetention.consent") : t("whereBody")}
           </Text>
         </View>
         <View style={styles.chipRow}>
@@ -672,7 +672,7 @@ export function ImportHubScreen() {
           {out.summary.notes === 0 ? <Summary n={0} label={t("raw")} dim /> : null}
         </View>
         {out.summary.notes > 0 ? (
-          <Text variant="subtle" style={styles.fine}>{t("noteBodyReview")}</Text>
+          <Text variant="subtle" style={styles.fine}>{importT("markdownRetention.review")}</Text>
         ) : null}
         <Text variant="caption" pixelEn style={styles.tierLabel}>{t("pickToApply")}</Text>
         {out.proposals.map((p) => {
@@ -766,7 +766,6 @@ function COPY(ko: boolean): Record<string, string> {
         tier_critical: "최민감 · 명시 동의 필요", tier_sensitive: "민감", tier_normal: "보통",
         needsConsent: "동의 필요", notLinked: "미연결", locked: "잠김", linked: "연결됨",
         what: "무엇을", where: "어디에", whereBody: "이 기기에서 분석해요. 검토 화면에서 고른 결과만 암호화해 보관해요.",
-        whereBodyNotes: "파일은 이 기기에서 분석해요. 선택한 노트의 제목과 본문을 암호화해 기록으로 보관해요. 본문은 노트당 최대 4,000자예요.",
         keep90: "보관 90일", deleteAnytime: "언제든 삭제", localAnalysis: "파일 분석은 이 기기에서",
         connectorNote: "다음 화면에서 위치 권한을 \"사용 중에만\"으로 요청해요. (네이티브 빌드 필요)",
         googleConnectorNote: "브라우저에서 구글 계정으로 안전하게 연결해요. 읽기 전용(일정 보기)이에요.",
@@ -783,7 +782,7 @@ function COPY(ko: boolean): Record<string, string> {
         ledgerWarnBody: "가져오기는 저장됐어요. 다만 고른 거래 내역을 적지 못했어요. 같은 파일을 다시 가져오면 반영돼요.",
         ledgerWarnPartTitle: "거래 일부를 적지 못했어요",
         ledgerWarnPartBody: "고른 거래 중 {failed}건을 적지 못했어요. {inserted}건은 반영됐어요. 같은 파일을 다시 가져오면 이미 반영된 내역이 중복되니, 빠진 내역은 직접 추가해 주세요.",
-        done: "완료", appts: "약속", places: "장소", notes: "노트", watches: "시청", txns: "거래", raw: "원문", noteBodyReview: "고른 노트의 제목과 본문(노트당 최대 4,000자)을 기록에 반영해요.", pickToApply: "반영할 항목 고르기",
+        done: "완료", appts: "약속", places: "장소", notes: "노트", watches: "시청", txns: "거래", raw: "원문", pickToApply: "반영할 항목 고르기",
         sensitiveExcluded: "민감 · 기본 제외", applyN: "고른 {n}건 기록에 반영",
         emptyTitle: "아직 가져온 게 없어요", emptyBody: "소스를 골라 시작해요", pickSource: "소스 고르기",
         delete: "삭제", historyFine: "삭제는 이 임포트가 만든 원본을 제거해요. 이 임포트가 만들었다고 확인되지 않은 원본은 남기고, 남긴 까닭을 알려 드려요. 임포트로 만들어진 인물·가계부 항목은 관계·가계부 화면에서 지울 수 있어요. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있어요.",
@@ -794,7 +793,6 @@ function COPY(ko: boolean): Record<string, string> {
         tier_critical: "Most sensitive · consent required", tier_sensitive: "Sensitive", tier_normal: "Normal",
         needsConsent: "Needs consent", notLinked: "Not linked", locked: "Locked", linked: "Linked",
         what: "WHAT", where: "WHERE", whereBody: "Analyzed on this device. Only the results you choose on the review screen are kept, encrypted.",
-        whereBodyNotes: "The file is analyzed on this device. The titles and text of the notes you choose are kept as encrypted records. Each note's text is limited to 4,000 characters.",
         keep90: "Kept 90 days", deleteAnytime: "Delete anytime", localAnalysis: "File analyzed on device",
         connectorNote: "The next screen requests location \"while using\" only. (needs the native build)",
         googleConnectorNote: "Securely link your Google account in the browser. Read-only (view events).",
@@ -811,7 +809,7 @@ function COPY(ko: boolean): Record<string, string> {
         ledgerWarnBody: "The import itself was saved, but the chosen transactions were not booked. Re-import the same file to book them.",
         ledgerWarnPartTitle: "Some transactions were not booked",
         ledgerWarnPartBody: "{failed} of the chosen transactions could not be booked; {inserted} were. Re-importing the same file would duplicate the booked rows, so please add the missing ones by hand.",
-        done: "Done", appts: "Plans", places: "Places", notes: "Notes", watches: "Watches", txns: "Entries", raw: "Raw", noteBodyReview: "The title and text of each chosen note, up to 4,000 characters per note, are added to your records.", pickToApply: "Pick what to apply",
+        done: "Done", appts: "Plans", places: "Places", notes: "Notes", watches: "Watches", txns: "Entries", raw: "Raw", pickToApply: "Pick what to apply",
         sensitiveExcluded: "sensitive · excluded by default", applyN: "Apply {n} to records",
         emptyTitle: "Nothing imported yet", emptyBody: "Pick a source to start", pickSource: "Pick a source",
         delete: "Delete", historyFine: "Delete removes the source this import created. A source it can't confirm this import created stays, and you're told why. People and ledger entries created from an import can be removed in the Relationships and Ledger screens. Comms/location import is server-locked for minor accounts.",

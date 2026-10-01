@@ -58,6 +58,10 @@
     "consentNeeded": "Setujui untuk membawa aktivitas masuk",
     "minorLocked": "Sinkronisasi aktivitas nonaktif untuk akun ini."
   },
+  "markdownRetention": {
+    "consent": "File dianalisis di perangkat ini. Judul dan isi catatan yang Anda pilih disimpan sebagai entri terenkripsi. Isi setiap catatan dibatasi hingga 4.000 karakter.",
+    "review": "Judul dan isi setiap catatan yang dipilih, hingga 4.000 karakter per catatan, ditambahkan ke catatan Anda."
+  },
   "pendingDevice": {
     "title": "Catatan tersimpan di perangkat ini",
     "body": "Ada {{count}} catatan yang disimpan sebelum masuk di perangkat ini. Catatan itu mungkin milik orang lain. Impor hanya jika catatan itu milik Anda.",
