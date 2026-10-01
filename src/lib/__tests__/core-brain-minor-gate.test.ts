@@ -633,7 +633,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
 
     expect(mockPolarisStatusRpc).toHaveBeenCalledWith("polaris_generation_status", { p_user_id: "ordinary-user" });
     expect(generate?.props.disabled).toBe(true);
-    expect(renderedText(rolePage)).toContain("생성 기능 설정을 기다리고 있어요. 저장된 카드와 시기별 빈칸은 볼 수 있어요.");
+    expect(renderedText(rolePage)).toContain("생성 기능 설정을 기다리고 있습니다. 저장된 카드와 시기별 빈칸은 볼 수 있습니다.");
     assertNoMutationEgress();
   });
 

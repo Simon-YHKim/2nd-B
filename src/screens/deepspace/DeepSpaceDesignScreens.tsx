@@ -1066,14 +1066,14 @@ export function DeepSpacePrivacyDesignScreen() {
         <Text variant="body" style={styles.lead}>
           {isMinor === null
             ? ko
-              ? "생년월일을 확인한 뒤 사용 통계와 광고 설정을 보여드려요."
+              ? "생년월일을 확인한 뒤 사용 통계와 광고 설정을 보여드립니다."
               : "Usage analytics and ad settings appear after your birth date is confirmed."
             : minor
             ? ko
-              ? "생년월일 기준 만 18세 미만은 사용 통계와 광고가 잠겨 있어요."
+              ? "생년월일 기준 만 18세 미만은 사용 통계와 광고가 잠겨 있습니다."
               : "Usage analytics and ads are locked when the birth date shows an age under 18."
             : ko
-              ? "선택 사항이며 설정은 저장돼요. 웹에서는 Google Analytics에 적용되고, Android의 Firebase Analytics와 Microsoft Clarity는 현재 비활성화되어 있어요."
+              ? "선택 사항이며 설정은 저장됩니다. 웹에서는 Google Analytics에 적용되고, Android의 Firebase Analytics와 Microsoft Clarity는 현재 비활성화되어 있습니다."
               : "Optional. Your choice is saved and applies to Google Analytics on the web. Firebase Analytics and Microsoft Clarity are currently disabled on Android."}
         </Text>
         {analyticsOn === null || adsOn === null ? (
@@ -1131,13 +1131,13 @@ export function DeepSpacePrivacyDesignScreen() {
             {externalError.key === "external_analytics"
               ? externalError.attemptedOn
                 ? ko
-                  ? "통계 설정을 켜지 못했어요. 다시 시도해 주세요."
+                  ? "통계 설정을 켜지 못했습니다. 다시 시도해 주세요."
                   : "Couldn't enable analytics. Please try again."
                 : ko
-                  ? "저장에 실패했어요. 통계 철회는 이 기기에서 즉시 적용됐지만 다시 저장해 주세요."
+                  ? "저장에 실패했습니다. 통계 철회는 이 기기에서 즉시 적용됐지만 다시 저장해 주세요."
                   : "Couldn't save. Analytics withdrawal took effect on this device; please try saving again."
               : ko
-                ? "광고 설정을 저장하지 못했어요. 다시 시도해 주세요."
+                ? "광고 설정을 저장하지 못했습니다. 다시 시도해 주세요."
                 : "Couldn't save the ads setting. Please try again."}
           </Text>
         ) : null}
@@ -1147,14 +1147,14 @@ export function DeepSpacePrivacyDesignScreen() {
         <Text variant="caption" style={styles.section}>{ko ? "맞춤 추천" : "Recommendations"}</Text>
         {minor ? (
           <Text variant="subtle" style={styles.footer}>
-            {ko ? "맞춤 추천은 보호를 위해 꺼져 있고 켤 수 없어요." : "Recommendations are off and locked for your protection."}
+            {ko ? "맞춤 추천은 보호를 위해 꺼져 있고 켤 수 없습니다." : "Recommendations are off and locked for your protection."}
           </Text>
         ) : recOn === null ? (
           <Text variant="subtle" style={styles.footer}>{ko ? "불러오는 중…" : "Loading…"}</Text>
         ) : recOn ? (
           <>
             <Text variant="body" style={styles.lead}>
-              {ko ? "켜져 있어요. 기록을 분석해 연결을 제안합니다." : "On. Your records are analyzed to suggest connections."}
+              {ko ? "켜져 있습니다. 기록을 분석해 연결을 제안합니다." : "On. Your records are analyzed to suggest connections."}
             </Text>
             <Pressable style={styles.secondary} onPress={() => void disableRecommendations()} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "추천 끄기" : "Turn off recommendations"}>
               <Text variant="body" style={styles.secondaryText}>{ko ? "추천 끄기" : "Turn off"}</Text>
@@ -1163,7 +1163,7 @@ export function DeepSpacePrivacyDesignScreen() {
         ) : !understanding ? (
           <>
             <Text variant="body" style={styles.lead}>
-              {ko ? "꺼져 있어요. 켜면 기록에서 연결·패턴을 제안받을 수 있어요." : "Off. Turn it on to get suggested connections from your records."}
+              {ko ? "꺼져 있습니다. 켜면 기록에서 연결·패턴을 제안받을 수 있습니다." : "Off. Turn it on to get suggested connections from your records."}
             </Text>
             <Pressable style={styles.secondary} onPress={() => setUnderstanding(true)} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "추천 켜기" : "Turn on recommendations"}>
               <Text variant="body" style={styles.secondaryText}>{ko ? "추천 켜기" : "Turn on"}</Text>
@@ -1173,7 +1173,7 @@ export function DeepSpacePrivacyDesignScreen() {
           <>
             <Text variant="body" style={styles.lead}>
               {ko
-                ? `켜기 전에 알아두세요. 추천을 켜면 당신의 기록 묶음이 분석을 위해 ${recommendationVendorLabel()} 서버로 전송돼요(해외에서 처리). 연결·패턴 제안에만 쓰이고 언제든 끌 수 있어요. 동의는 기록에 남습니다.`
+                ? `켜기 전에 알아두세요. 추천을 켜면 당신의 기록 묶음이 분석을 위해 ${recommendationVendorLabel()} 서버로 전송됩니다(해외에서 처리). 연결·패턴 제안에만 쓰이고 언제든 끌 수 있습니다. 동의는 기록에 남습니다.`
                 : `Before you turn it on. Your records are sent to ${recommendationVendorLabel()} for analysis (processed overseas), used only to suggest connections and patterns. You can turn it off anytime. Your consent is logged.`}
             </Text>
             <View style={styles.ctaRow}>
@@ -1187,7 +1187,7 @@ export function DeepSpacePrivacyDesignScreen() {
           </>
         )}
         {recError ? (
-          <Text variant="subtle" style={styles.footer}>{ko ? "저장에 실패했어요. 잠시 후 다시 시도해 주세요." : "Couldn't save. Please try again."}</Text>
+          <Text variant="subtle" style={styles.footer}>{ko ? "저장에 실패했습니다. 잠시 후 다시 시도해 주세요." : "Couldn't save. Please try again."}</Text>
         ) : null}
       </Card>
 
@@ -1195,14 +1195,14 @@ export function DeepSpacePrivacyDesignScreen() {
         <Text variant="caption" style={styles.section}>{ko ? "기록 의미 연결" : "Semantic record connections"}</Text>
         {minor ? (
           <Text variant="subtle" style={styles.footer}>
-            {ko ? "기록 의미 연결은 보호를 위해 꺼져 있고 켤 수 없어요." : "Semantic connections are off and locked for your protection."}
+            {ko ? "기록 의미 연결은 보호를 위해 꺼져 있고 켤 수 없습니다." : "Semantic connections are off and locked for your protection."}
           </Text>
         ) : embedOn === null ? (
           <Text variant="subtle" style={styles.footer}>{ko ? "불러오는 중…" : "Loading…"}</Text>
         ) : embedOn ? (
           <>
             <Text variant="body" style={styles.lead}>
-              {ko ? "켜져 있어요. 기록을 의미로 색인해 비슷한 기록을 이어 보여줘요." : "On. Records are indexed by meaning to surface similar ones."}
+              {ko ? "켜져 있습니다. 기록을 의미로 색인해 비슷한 기록을 이어 보여줍니다." : "On. Records are indexed by meaning to surface similar ones."}
             </Text>
             <Pressable style={styles.secondary} onPress={() => void disableEmbedding()} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "의미 연결 끄기" : "Turn off semantic connections"}>
               <Text variant="body" style={styles.secondaryText}>{ko ? "끄고 벡터 삭제" : "Turn off and delete vectors"}</Text>
@@ -1211,7 +1211,7 @@ export function DeepSpacePrivacyDesignScreen() {
         ) : !embedUnderstanding ? (
           <>
             <Text variant="body" style={styles.lead}>
-              {ko ? "꺼져 있어요. 켜면 태그가 겹치지 않아도 의미가 비슷한 기록을 이어 보여줘요." : "Off. Turn it on to connect records that are similar in meaning, even without shared tags."}
+              {ko ? "꺼져 있습니다. 켜면 태그가 겹치지 않아도 의미가 비슷한 기록을 이어 보여줍니다." : "Off. Turn it on to connect records that are similar in meaning, even without shared tags."}
             </Text>
             <Pressable style={styles.secondary} onPress={() => setEmbedUnderstanding(true)} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "의미 연결 켜기" : "Turn on semantic connections"}>
               <Text variant="body" style={styles.secondaryText}>{ko ? "의미 연결 켜기" : "Turn on"}</Text>
@@ -1221,7 +1221,7 @@ export function DeepSpacePrivacyDesignScreen() {
           <>
             <Text variant="body" style={styles.lead}>
               {ko
-                ? `켜기 전에 알아두세요. 켜면 지금까지 담아 둔 기록과 앞으로 담는 기록의 내용이 의미 벡터로 변환·저장돼, 서로 비슷한 기록을 이어 보여드려요. 변환을 위해 기록 텍스트가 ${embedVendorLabel()}(해외)로 전송됩니다. 위기 관련 내용은 전송되지 않아요. 성인만 켤 수 있고, 끄면 이후 색인이 멈추고 저장된 벡터도 삭제돼요. 동의는 기록에 남습니다.`
+                ? `켜기 전에 알아두세요. 켜면 지금까지 담아 둔 기록과 앞으로 담는 기록의 내용이 의미 벡터로 변환·저장돼, 서로 비슷한 기록을 이어 보여드립니다. 변환을 위해 기록 텍스트가 ${embedVendorLabel()}(해외)로 전송됩니다. 위기 관련 내용은 전송되지 않습니다. 성인만 켤 수 있고, 끄면 이후 색인이 멈추고 저장된 벡터도 삭제됩니다. 동의는 기록에 남습니다.`
                 : `Before you turn it on. Your existing records and every new record will be turned into meaning vectors and stored so similar records can be linked. To do that, record text is sent to ${embedVendorLabel()} (processed overseas). Crisis-related content is not sent. Adults only; turning it off stops indexing and deletes the stored vectors. Your consent is logged.`}
             </Text>
             <View style={styles.ctaRow}>
@@ -1235,7 +1235,7 @@ export function DeepSpacePrivacyDesignScreen() {
           </>
         )}
         {embedErr ? (
-          <Text variant="subtle" style={styles.footer}>{ko ? "저장에 실패했어요. 잠시 후 다시 시도해 주세요." : "Couldn't save. Please try again."}</Text>
+          <Text variant="subtle" style={styles.footer}>{ko ? "저장에 실패했습니다. 잠시 후 다시 시도해 주세요." : "Couldn't save. Please try again."}</Text>
         ) : null}
       </Card>
 
@@ -1261,7 +1261,7 @@ export function DeepSpacePrivacyDesignScreen() {
         <Text variant="caption" style={styles.section}>{ko ? "계정 삭제" : "Delete account"}</Text>
         <Text variant="subtle" style={styles.footer}>
           {ko
-            ? "기록·캡처·위키·세컨비 사용량과 계정이 영구 삭제돼요. 되돌릴 수 없어요. 필요한 내용은 먼저 내보내기로 챙겨두세요."
+            ? "기록·캡처·위키·세컨비 사용량과 계정이 영구 삭제됩니다. 되돌릴 수 없습니다. 필요한 내용은 먼저 내보내기로 챙겨두세요."
             : "Your records, captures, wiki, usage and account are permanently erased. This cannot be undone. Export anything you need first."}
         </Text>
         <Text variant="subtle" style={styles.footer}>
@@ -1303,7 +1303,7 @@ export function DeepSpacePrivacyDesignScreen() {
         {delError ? (
           <Text variant="subtle" style={styles.footer}>
             {ko
-              ? "삭제를 끝내지 못했어요. 일부 데이터가 남아 있을 수 있어요. 잠시 후 다시 시도해 주세요."
+              ? "삭제를 끝내지 못했습니다. 일부 데이터가 남아 있을 수 있습니다. 잠시 후 다시 시도해 주세요."
               : "Couldn't finish deletion. Some data may remain. Please try again shortly."}
           </Text>
         ) : null}
@@ -1588,20 +1588,20 @@ export function DeepSpaceDataDesignScreen() {
   const rights: { icon: CloneIconName; label: string; sub: string; route: string; danger?: boolean }[] = [
     { icon: "download", label: ko ? "내 데이터 전체 내보내기" : "Export all my data", sub: ko ? "IDEN · 원문 · 파생 신호" : "IDEN, raw, derived signals", route: "/iden" },
     { icon: "cloud_off", label: ko ? "파생 신호만 초기화" : "Reset derived signals only", sub: ko ? "원문은 두고 추정만 지우기" : "Keep raw, clear inferences", route: "/privacy" },
-    { icon: "trash", label: ko ? "계정·데이터 영구 삭제" : "Delete account and data", sub: ko ? "되돌릴 수 없어요" : "This cannot be undone", route: "/privacy", danger: true },
+    { icon: "trash", label: ko ? "계정·데이터 영구 삭제" : "Delete account and data", sub: ko ? "되돌릴 수 없습니다" : "This cannot be undone", route: "/privacy", danger: true },
   ];
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={ko ? "내 데이터 리뷰" : "My data review"} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={cx.body} keyboardShouldPersistTaps="handled">
-        <RNText style={[m3TextStyle("bodyMedium"), cx.lead]}>{ko ? "내 데이터가 어떻게 쓰이는지 전부 보여줘요. 무엇이든 열람하고 지울 수 있어요." : "I show exactly how your data is used. You can open and delete anything."}</RNText>
+        <RNText style={[m3TextStyle("bodyMedium"), cx.lead]}>{ko ? "내 데이터가 어떻게 쓰이는지 전부 보여줍니다. 무엇이든 열람하고 지울 수 있습니다." : "I show exactly how your data is used. You can open and delete anything."}</RNText>
 
         <MdCard variant="outlined" style={cx.sourceCard}>
           <RNText style={[m3TextStyle("titleSmall"), cx.signalTo]}>
-            {ko ? "아직 모아둔 데이터가 없어요" : "No data gathered yet"}
+            {ko ? "아직 모아둔 데이터가 없습니다" : "No data gathered yet"}
           </RNText>
           <RNText style={[m3TextStyle("bodySmall"), cx.lead]}>
             {ko
-              ? "기록이 쌓이면 원문 조각과 파생 신호를 여기서 열람하고 지울 수 있어요."
+              ? "기록이 쌓이면 원문 조각과 파생 신호를 여기서 열람하고 지울 수 있습니다."
               : "As your records build up, you can review and delete the raw pieces and derived signals here."}
           </RNText>
         </MdCard>

@@ -107,7 +107,7 @@ const SETTINGS_SURFACE_COPY: Record<
     reasoning: "리즈닝",
     reasoningSub: "자동 실행 · 자료 선택",
     wikiAuto: "위키 자동 만들기",
-    wikiAutoSub: "새로 담은 자료를 알아서 위키 페이지로 만들어요",
+    wikiAutoSub: "새로 담은 자료를 알아서 위키 페이지로 만듭니다",
     devScreens: "개발자",
     devScreensSub: "모든 화면에 바로 들어가기",
   },

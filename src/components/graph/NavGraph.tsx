@@ -207,34 +207,34 @@ export const MENU_NODES: readonly NavNode[] = [
   // former "imagine" core was removed: the old imagine surface is now SecondB's Divergent mode (트위비).
   { id: "work", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "work" } },
     label: { en: "Growth Core", ko: "그로스 코어" },
-    description: { en: "Where the pieces that move today's you gather: work and growth.", ko: "오늘의 나를 움직이는 일과 성장의 별가루들이 모이는 곳이에요." } },
+    description: { en: "Where the pieces that move today's you gather: work and growth.", ko: "오늘의 나를 움직이는 일과 성장의 별가루들이 모이는 곳입니다." } },
   { id: "relation", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "relation" } },
     label: { en: "Bond Core", ko: "본드 코어" },
-    description: { en: "Where memories, promises, and conversations with people connect.", ko: "사람들과의 기억, 약속, 대화 별가루가 이어지는 곳이에요." } },
+    description: { en: "Where memories, promises, and conversations with people connect.", ko: "사람들과의 기억, 약속, 대화 별가루가 이어지는 곳입니다." } },
   { id: "knowledge", tier: 2, parentId: "core", href: "/wiki", bubbleAction: "upload",
     label: { en: "Wisdom Core", ko: "위즈덤 코어" },
-    description: { en: "Where what you've learned and understood stacks up as knowledge.", ko: "배우고 이해한 것들이 지식 별가루로 쌓이는 곳이에요." } },
+    description: { en: "Where what you've learned and understood stacks up as knowledge.", ko: "배우고 이해한 것들이 지식 별가루로 쌓이는 곳입니다." } },
   { id: "records", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "records" } },
     label: { en: "Narrative Core", ko: "내러티브 코어" },
-    description: { en: "Where every piece you've kept gathers so you can find it again.", ko: "남긴 모든 별가루가 다시 찾아볼 수 있게 모이는 곳이에요." } },
+    description: { en: "Where every piece you've kept gathers so you can find it again.", ko: "남긴 모든 별가루가 다시 찾아볼 수 있게 모이는 곳입니다." } },
   { id: "taste", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "taste" } },
     label: { en: "Muse Core", ko: "뮤즈 코어" },
-    description: { en: "Where the things you like, are drawn to, and find inspiring gather.", ko: "좋아하는 것, 끌리는 것, 영감의 별가루가 모이는 곳이에요." } },
+    description: { en: "Where the things you like, are drawn to, and find inspiring gather.", ko: "좋아하는 것, 끌리는 것, 영감의 별가루가 모이는 곳입니다." } },
   // O-R3 assistant ops axis. Art/accent/worker are provisional (G1: Simon's
   // color-wheel pass) - swap the rhythm_core placeholder PNGs to restyle.
   { id: "rhythm", tier: 2, parentId: "core", href: "/ops",
     label: { en: "Rhythm Core", ko: "리듬 코어" },
-    description: { en: "Where routines and plans for the days ahead take shape.", ko: "하루하루의 루틴과 계획이 모양을 잡는 곳이에요." } },
+    description: { en: "Where routines and plans for the days ahead take shape.", ko: "하루하루의 루틴과 계획이 모양을 잡는 곳입니다." } },
 
   // Tier 3 — real sub-places under a district; revealed on zoom/selection.
   // Wave 1: the focus timer is a sub-place of the Rhythm Core (daily_focus).
   { id: "focus-timer", tier: 3, parentId: "rhythm", href: "/focus",
     label: { en: "Focus Timer", ko: "집중 타이머" },
-    description: { en: "A focus session that ticks today's focus routine.", ko: "오늘의 집중 루틴을 자동으로 체크하는 집중 세션이에요." } },
+    description: { en: "A focus session that ticks today's focus routine.", ko: "오늘의 집중 루틴을 자동으로 체크하는 집중 세션입니다." } },
   // Wave 1: language flashcards are a sub-place of the Rhythm Core (language_practice).
   { id: "srs-review", tier: 3, parentId: "rhythm", href: "/srs",
     label: { en: "Language Review", ko: "언어 복습" },
-    description: { en: "A flashcard review that ticks today's language routine.", ko: "오늘의 언어 루틴을 자동으로 체크하는 카드 복습이에요." } },
+    description: { en: "A flashcard review that ticks today's language routine.", ko: "오늘의 언어 루틴을 자동으로 체크하는 카드 복습입니다." } },
   { id: "wiki-daily", tier: 3, parentId: "knowledge", href: "/wiki",
     label: { en: "Daily Wiki", ko: "일상 지식" },
     description: { en: "Everyday notes and captures.", ko: "일상의 메모와 자료." } },

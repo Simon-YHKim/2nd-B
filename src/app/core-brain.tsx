@@ -172,7 +172,7 @@ function buildCoreCenterCards(persona: PersonaCard, locale: "en" | "ko"): Center
       title: locale === "ko" ? "기존 저장 결과" : "Previously saved result",
       body:
         locale === "ko"
-          ? "기존 저장 결과예요. 출처가 기록되지 않아 지금의 방향으로 단정하지 않아요."
+          ? "기존 저장 결과입니다. 출처가 기록되지 않아 지금의 방향으로 단정하지 않습니다."
           : "Previously saved result. Its source was not recorded, so we do not present it as your current direction.",
       accent: cosmic.pixelLamp,
     },

@@ -114,7 +114,7 @@ function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
       const top = [...order].sort((a, b) => result.domains[b] - result.domains[a])[0];
       const conclusion =
         locale === "ko"
-          ? `오늘 가장 높은 축: ${labels[top]} (${result.domains[top].toFixed(1)}/5) · 30개 세부 특질도 함께 저장됐어요`
+          ? `오늘 가장 높은 축: ${labels[top]} (${result.domains[top].toFixed(1)}/5) · 30개 세부 특질도 함께 저장됐습니다`
           : `Highest domain today: ${labels[top]} (${result.domains[top].toFixed(1)}/5) · all 30 facets saved too`;
       await createRecord({
         userId,
@@ -134,7 +134,7 @@ function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
         tone: "danger",
         message:
           locale === "ko"
-            ? "저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요."
+            ? "저장하지 못했습니다. 답변은 그대로 남아 있으니 다시 시도해 주세요."
             : "Couldn't save. Your answers are still here; please try again.",
       });
     } finally {
@@ -153,7 +153,7 @@ function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
           estimatedMinutes={15}
           description={
             locale === "ko"
-              ? "성격의 5가지 큰 축과 그 아래 30개 세부 특질(facet)까지 재는 검증된 공개 도구예요. 각 문장이 당신을 얼마나 정확히 묘사하는지 1(전혀 아니다) ~ 5(매우 그렇다)로 답해 주세요. 120문항이라 조금 길어요. ※ 한국어 문항은 아직 검증되지 않은 참고용 번역이에요(영문이 검증된 원본)."
+              ? "성격의 5가지 큰 축과 그 아래 30개 세부 특질(facet)까지 재는 검증된 공개 도구입니다. 각 문장이 당신을 얼마나 정확히 묘사하는지 1(전혀 아니다) ~ 5(매우 그렇다)로 답해 주세요. 120문항이라 조금 깁니다. ※ 한국어 문항은 아직 검증되지 않은 참고용 번역입니다(영문이 검증된 원본)."
               : "A validated public-domain measure of the five domains AND their 30 underlying facets. Rate how accurately each statement describes you from 1 (very inaccurate) to 5 (very accurate). 120 items, so it takes a bit longer."
           }
           citation={

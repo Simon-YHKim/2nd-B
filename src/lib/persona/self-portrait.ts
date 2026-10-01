@@ -56,11 +56,11 @@ const LABELS: Record<"en" | "ko", Record<SelfPortraitFieldId, string>> = {
 // say plainly that their automatic portrait summary is not connected yet.
 const HINTS: Record<"en" | "ko", Record<SelfPortraitFieldId, string>> = {
   ko: {
-    who: "관계 패턴 체크에서 나를 설명하는 단서를 하나 더할 수 있어요.",
-    forWhom: "스무고개에 사람 이야기를 남길 수 있어요 · 이 칸의 자동 요약은 준비 중이에요.",
-    goal: "세컨비 새 관점 모드에서 다음 한 걸음을 펼칠 수 있어요 · 자동 요약은 준비 중이에요.",
-    do: "오늘의 별가루에 실제로 한 일을 남길 수 있어요 · 자동 요약은 준비 중이에요.",
-    fuel: "라이프 오딧에서 자주 돌아오는 가치를 살펴볼 수 있어요.",
+    who: "관계 패턴 체크에서 나를 설명하는 단서를 하나 더할 수 있습니다.",
+    forWhom: "스무고개에 사람 이야기를 남길 수 있습니다 · 이 칸의 자동 요약은 준비 중입니다.",
+    goal: "세컨비 새 관점 모드에서 다음 한 걸음을 펼칠 수 있습니다 · 자동 요약은 준비 중입니다.",
+    do: "오늘의 별가루에 실제로 한 일을 남길 수 있습니다 · 자동 요약은 준비 중입니다.",
+    fuel: "라이프 오딧에서 자주 돌아오는 가치를 살펴볼 수 있습니다.",
   },
   en: {
     who: "A relationship-pattern check can add one more clue about you.",

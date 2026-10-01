@@ -257,22 +257,22 @@ test("five locales preserve subtree parity and three explicit English mirrors", 
   const keys = (value: Record<string, unknown>, prefix = ""): string[] => Object.entries(value).flatMap(([key, child]) =>
     child && typeof child === "object" ? keys(child as Record<string, unknown>, `${prefix}${key}.`) : `${prefix}${key}`).sort();
   const en = subtree("en"); const ko = subtree("ko");
-  expect(en.title).toBe("Account deletion confirmed"); expect(ko.title).toBe("계정 삭제를 확인했어요");
+  expect(en.title).toBe("Account deletion confirmed"); expect(ko.title).toBe("계정 삭제를 확인했습니다");
   expect(keys(ko)).toEqual(keys(en));
   for (const locale of ["es", "id", "pt"]) expect(subtree(locale)).toEqual(en);
   expect(en.scope).toContain("at the time");
   expect(en.scope).toContain("Missing results do not confirm that a check occurred");
   expect(en.notReported).toBe("No usable result was returned for this check.");
-  expect(ko.notReported).toBe("확인 가능한 결과가 응답에 없어요.");
+  expect(ko.notReported).toBe("확인 가능한 결과가 응답에 없습니다.");
   expect(en.proofConfirmed).toBe("Confirmed by the server.");
-  expect(ko.proofConfirmed).toBe("서버가 확인했어요.");
+  expect(ko.proofConfirmed).toBe("서버가 확인했습니다.");
   expect(en.proofReportedFalse).toBe("The server explicitly reported that this proof was not established.");
-  expect(ko.proofReportedFalse).toBe("서버가 이 증명이 성립하지 않았다고 명시적으로 보고했어요.");
+  expect(ko.proofReportedFalse).toBe("서버가 이 증명이 성립하지 않았다고 명시적으로 보고했습니다.");
   expect(en.localPurge["retry-scheduled"]).toContain("could not be confirmed");
   expect(en.localPurge["retry-scheduled"]).toContain("next app start");
   expect(ko.localPurge["retry-scheduled"]).toContain("다음 앱 시작");
   expect(en.localPurge["retry-scheduled"]).not.toContain("remains");
-  expect(ko.localPurge["retry-scheduled"]).not.toContain("남아 있어");
+  expect(ko.localPurge["retry-scheduled"]).not.toContain("남아 있"); // both registers (10-02 B안)
   expect(en.support).toContain("kim0405@hayangzip.com");
   expect(ko.support).toContain("kim0405@hayangzip.com");
 });
