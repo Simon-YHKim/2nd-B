@@ -27,9 +27,19 @@ type AuthSessionRefreshClient = Pick<GoTrueClient, "getSession" | "refreshSessio
 type BrowserLockLike = { readonly name: string; readonly mode: string };
 type BrowserLockRequest = <T>(
   name: string,
-  options: { mode: "exclusive" },
+  options: { mode: "exclusive"; signal: AbortSignal },
   callback: (lock: BrowserLockLike | null) => Promise<T>,
 ) => Promise<T>;
+
+/** Bounds only acquisition. An operation already holding a lock must finish under it. */
+export const AUTH_WEB_LOCK_WAIT_TIMEOUT_MS = 12_000;
+
+export class AuthLockWaitTimeoutError extends Error {
+  constructor() {
+    super("The auth storage lock was not available in time.");
+    this.name = "AuthLockWaitTimeoutError";
+  }
+}
 
 export interface AuthMutationContext {
   /** True only while a real cross-tab Web Lock (or native process lock) is held. */
@@ -189,12 +199,19 @@ export function createAuthStorageRuntime(
 
     let operation: Promise<GuardedOutcome<T>> | null = null;
     let callbackClaimed = false;
+    let waitExpired = false;
+    let callbackClosed = false;
     const marker = {};
+    const abort = new AbortController();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
       // Match auth-js's zone.js compatibility yield, but use the standard API
       // directly so a non-spec null lock can never run a destructive callback.
       await Promise.resolve();
-      const managerResult = await lockRequest(name, { mode: "exclusive" }, async (lock) => {
+      const request = lockRequest(name, { mode: "exclusive", signal: abort.signal }, async (lock) => {
+        // A broken manager may ignore abort and grant a lock after the deadline.
+        // Never start a writer after its caller has received a timeout.
+        if (waitExpired || callbackClosed) return { marker: null };
         if (callbackClaimed) return { marker: null };
         callbackClaimed = true;
         if (!lock || lock.name !== name || lock.mode !== "exclusive") {
@@ -203,6 +220,15 @@ export function createAuthStorageRuntime(
         operation = guard(() => fn(true));
         return { marker, outcome: await operation };
       });
+      const waitDeadline = new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => {
+          if (operation) return; // The lock was granted; do not abandon its writer.
+          waitExpired = true;
+          abort.abort();
+          reject(new AuthLockWaitTimeoutError());
+        }, AUTH_WEB_LOCK_WAIT_TIMEOUT_MS);
+      });
+      const managerResult = await Promise.race([request, waitDeadline]);
       if (
         operation &&
         typeof managerResult === "object" &&
@@ -213,13 +239,20 @@ export function createAuthStorageRuntime(
       ) {
         return unwrap(managerResult.outcome as GuardedOutcome<T>);
       }
-    } catch {
+    } catch (error) {
       // If a broken manager throws after invoking the callback, never run the
       // operation a second time. A valid exclusive Lock object was observed.
       if (operation) return unwrap(await operation);
+      if (error instanceof AuthLockWaitTimeoutError) throw error;
+      if (waitExpired) throw new AuthLockWaitTimeoutError();
+    } finally {
+      if (timeout !== undefined) clearTimeout(timeout);
     }
 
     if (operation) return unwrap(await operation);
+    // A malformed manager may return before invoking its callback. Close that
+    // callback before falling back, or a late grant could run fn a second time.
+    callbackClosed = true;
     if (requireCrossTab) throw new AuthLocalClearUnavailableError();
     return processExclusive(name, fn);
   };
