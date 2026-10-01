@@ -30,7 +30,34 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-01 18:09 / Simon 중단 요청: QA APK 동등성 완료, GUI 후보 로컬 보존
+## Latest — 2026-10-01 19:11 / GUI 통합 후보 재개: 결함 3개 수정, 웹 GUI QA 42/42, 브랜치는 로컬 유지
+
+### 확인된 완료 상태
+
+- Simon이 새 세션 질문에서 **"통합 브랜치 재개"**를 골랐다(병합·push는 #2000 게이트 확인 뒤 별도 판단). 통합 브랜치 `fix/gui-phone-integrate-261001`(작업 트리 `E:\2ndB\.worktrees\gui-phone-integrate-261001`)는 **여전히 로컬 전용이다. push·PR·병합 없음.**
+- 커밋: `b15932e7` 직전 세션의 미커밋 3개(뮤지엄 런처 연결)를 내용 그대로 커밋 → `6dc1178d` main `91075889` 병합(충돌 0) → `69d3944e` fix(museum) → `5cffa5da` fix(dashboard). HEAD `5cffa5da`에서 전체 `npm run verify` 종료코드 0, **880묶음/11,379건**. 미커밋 3개 커밋 직후에도 879묶음/11,371건 통과.
+- 찾아서 고친 결함 3개(세션 전용 8772 서버 `node scripts/app-parity.cjs localhost --port=8772 --allow-diff`, 헤드리스 Chromium, 저장소 QA 계정):
+  1. 폰 안 뮤지엄 **사건 상세 본문 0px**. `[sheetScroll { flexGrow: 0 }, phoneSheetScroll { flex: 1 }]`는 Yoga·react-native-web 모두 명시 flexGrow가 이겨 grow 0·basis 0이 된다. 네이티브에서도 났을 가능성이 크다(앱으로는 미확인). 고친 뒤 320에서 221px·375에서 296px, 스크롤 동작.
+  2. 폰 안 **타임라인 캔버스 0px**. RN-web 0.21이 `flex: 0`을 CSS `0 1 0%`로 넘겨 `height: 400`을 덮었다. Yoga는 basis auto로 읽으니 네이티브는 안 났을 수 있다(미확인). 고친 뒤 400px, 2022 위치, AI 레인·가로 연도 이동 확인.
+  3. Ops 7개 화면(개인 비서·리마인더·지출·목표·식사·독서·사이드 프로젝트)에 **Back이 두 개**(핸드폰 Back 줄 + 화면 머리 화살표, 둘 다 `backInside`). `contentOwnsBack`일 때 핸드폰 줄을 숨긴다. 7개 화면 모두 최상위가 `OpsFrame`이고 앞선 return이 없음을 확인했다.
+- 옛 테스트 두 줄이 소스 문자열로 **고장 난 값 자체를 고정**하고 있어 초록이었다. 새 `src/screens/deepspace/museum/__tests__/museum-phone-flex.test.ts`는 실제 스타일 객체를 엔진별(Yoga·웹)로 해석해 높이를 본다. 각 수정을 옛 값으로 되돌리면 빨강을 확인했다. Back 소유 규칙은 `phone-internal-navigation-contract.test.ts`에 추가.
+- 웹 GUI: 진입점 21개(앱 11·더보기 6·아래 독 4) × 320×568·375×667 = **42/42 통과**(주소 `/dashboard` 유지, 핸드폰 이동·닫힘 없음, 가로 넘침 없음, 보이는 Back 정확히 1개, Back으로 복귀, 페이지 오류 0, 서버 쓰기 요청 0). 뮤지엄 흐름: Back 1회 시트 닫힘·2회 앱 복귀, 끌기에 핸드폰 안 닫힘.
+- 보고서: [Artifact](https://claude.ai/artifact/2bKWS5zHyo6TYxz9EA7J67) · 저장소 사본 [qa/gui-phone-integrate-qa-261001.html](qa/gui-phone-integrate-qa-261001.html)(전후 화면 포함). 8772 서버는 종료했다. `npm run app:parity`는 **같음**(8081 = main `91075889`, QA APK `qa-261001-6d648431-r36838147144` 앱 경로 차이 0). 작업 기록 `E:\2ndB\.git\2ndb-session-state\GUI-PHONE-INTEGRATE-QA-261001.json` = done.
+
+### 남은 것
+
+- **미확인**: 안드로이드 하드웨어 Back, 에뮬레이터·실기기 APK. 이번 확인은 웹 마우스·휠이며 터치 스와이프는 아니다.
+- 320×568에서 타임라인 세로 칸이 49px(닿지만 좁다, 디자인 판단 필요), 지출 입력 '분류' 칸 오른쪽 잘림, Ops 제목 말줄임. 아래 독 '프로필' 320 잘림은 main과 같은 스타일이라 기존 문제다.
+- 설정은 범위 안내만, 커뮤니티·아바타 팔레트·인터뷰는 "아직 연결되지 않았어요" 안내만. 폰 위키는 읽기 중심(태그·그래프·내보내기·삭제 없음). 커뮤니티 분리 작업 `E:\2ndB\.worktrees\community-phone-261001` 미커밋 4건은 **손대지 않았다**. 원본 TTL-Work_rev2 미커밋도 그대로다.
+
+### 재개할 때
+
+1. 다음 1개: Simon 확인 뒤 통합 브랜치를 Draft PR로 push → CI와 x86_64 진단 APK → 에뮬레이터에서 안드로이드 Back·뮤지엄 스와이프 확인. #2000 게이트를 닫기 전 병합하지 않는다.
+2. 아래 18:09 블록의 #1902/#1917(10월 5일 법률 판본·서버 선행), #1814/#1839(S3 삭제 fence·Storage 리허설) 게이트는 그대로다.
+
+---
+
+## 2026-10-01 18:09 / Simon 중단 요청: QA APK 동등성 완료, GUI 후보 로컬 보존
 
 ### 확인된 완료 상태
 
