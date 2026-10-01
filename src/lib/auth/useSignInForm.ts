@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { AuthLockWaitTimeoutError } from "@/lib/auth/session-mutation";
 import { observeAuthConversion } from "@/lib/analytics/auth-conversions";
 import {
   isNaverEnabled,
@@ -39,6 +40,7 @@ export const SIGN_IN_PROVIDERS = SUPABASE_OAUTH_PROVIDERS;
 export { isProviderNotEnabledError, startOAuthProvider as startSignInProvider };
 
 const PROVIDER_LABEL = OAUTH_PROVIDER_LABEL;
+export const SIGN_IN_LONG_WAIT_MS = 15_000;
 
 export interface UseSignInForm {
   // session/routing signals
@@ -52,6 +54,7 @@ export interface UseSignInForm {
   showPassword: boolean;
   toggleShowPassword: () => void;
   submitting: boolean;
+  signInTakingLong: boolean;
   oauthSubmitting: boolean;
   canSubmit: boolean;
   toast: SignInToast | null;
@@ -76,6 +79,7 @@ export function useSignInForm(): UseSignInForm {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [signInTakingLong, setSignInTakingLong] = useState(false);
   const [oauthSubmitting, setOauthSubmitting] = useState(false);
   const [toast, setToast] = useState<SignInToast | null>(null);
   const [resetHelpVisible, setResetHelpVisible] = useState(false);
@@ -90,6 +94,17 @@ export function useSignInForm(): UseSignInForm {
     const timeout = setTimeout(() => setToast(null), 2800);
     return () => clearTimeout(timeout);
   }, [toast]);
+
+  useEffect(() => {
+    if (!submitting) {
+      setSignInTakingLong(false);
+      return;
+    }
+    // Keep the original auth operation and the screen's action lock alive. A
+    // late SDK writer may still persist a session, so this is guidance only.
+    const timer = setTimeout(() => setSignInTakingLong(true), SIGN_IN_LONG_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [submitting]);
 
   // Stage 3 (O-31): hardware Back on the auth gate returns to the constellation
   // home instead of exiting the app (no dead-end). Web uses the browser back.
@@ -167,7 +182,12 @@ export function useSignInForm(): UseSignInForm {
       router.replace("/");
     } catch (e) {
       // Generic message to avoid email-enumeration. CSO finding R3.
-      setToast({ tone: "danger", message: t("errors.signInFailed") });
+      setToast({
+        tone: "danger",
+        message: e instanceof AuthLockWaitTimeoutError
+          ? t("errors.signInBusy")
+          : t("errors.signInFailed"),
+      });
       if (typeof console !== "undefined") console.warn("[auth] signIn error", (e as Error).message);
     } finally {
       setSubmitting(false);
@@ -212,6 +232,7 @@ export function useSignInForm(): UseSignInForm {
     showPassword,
     toggleShowPassword,
     submitting,
+    signInTakingLong,
     oauthSubmitting,
     canSubmit,
     toast,
