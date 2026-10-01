@@ -97,6 +97,11 @@ describe("buildProposals (propose, derived-only)", () => {
   test("markdown that is only whitespace → 0 proposals (hub shows the format error)", () => {
     expect(buildProposals("markdown", "  \n\n  ").proposals).toEqual([]);
   });
+
+  test("markdown note bodies follow the 4,000-character limit shown before import", () => {
+    const { proposals } = buildProposals("markdown", `# Note\n${"a".repeat(4001)}`);
+    expect(proposals[0].body).toBe("a".repeat(4000));
+  });
 });
 
 describe("proposalsToMarkdown", () => {
