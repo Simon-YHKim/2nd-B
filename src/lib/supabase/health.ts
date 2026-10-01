@@ -70,3 +70,39 @@ export async function listRecentSamples(userId: string, limit = 50): Promise<Hea
   if (error) throw error;
   return (data ?? []) as HealthSampleRow[];
 }
+
+/**
+ * Deletes this user's samples of one metric and returns how many went. Withdrawal deletes
+ * metric by metric so a large account does not run one long statement (heart rate alone can
+ * be many thousands of rows). health_samples is owner-only RLS (0049), so the user_id filter
+ * only narrows what the policy already allows.
+ */
+export async function deleteHealthSamplesOfMetric(userId: string, metric: HealthSample["metricType"]): Promise<number> {
+  const supabase = getSupabaseClient();
+  const { error, count } = await supabase
+    .from("health_samples")
+    .delete({ count: "exact" })
+    .eq("user_id", userId)
+    .eq("metric_type", metric);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** Deletes whatever samples remain for this user, any metric. */
+export async function deleteRemainingHealthSamples(userId: string): Promise<number> {
+  const supabase = getSupabaseClient();
+  const { error, count } = await supabase.from("health_samples").delete({ count: "exact" }).eq("user_id", userId);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** How many samples this user still has (a head request: no rows come back). */
+export async function countHealthSamples(userId: string): Promise<number> {
+  const supabase = getSupabaseClient();
+  const { count, error } = await supabase
+    .from("health_samples")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+  if (error) throw error;
+  return count ?? 0;
+}

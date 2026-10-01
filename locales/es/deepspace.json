@@ -1188,5 +1188,24 @@
   "reviewAxisNow": "Revisar mi Big Five",
   "reviewAxisRelational": "Revisar mi estilo de apego",
   "reviewAxisValues": "Revisar mis valores",
-  "reviewNothingToReview": "Haz una prueba primero: aún no hay nada medido que revisar."
+  "reviewNothingToReview": "Haz una prueba primero: aún no hay nada medido que revisar.",
+  "privacyHealth": {
+    "title": "Vínculo de datos de salud",
+    "onBody": "Activado. Al desactivarlo se borran de inmediato los {{count}} registros de salud guardados en la app y se detiene la lectura automática en este teléfono.",
+    "onBodyNoCount": "Activado. Al desactivarlo se borran de inmediato los registros de salud guardados en la app y se detiene la lectura automática en este teléfono.",
+    "keeps": "Este botón no borra los originales ni el permiso en la app de salud del teléfono, las rutinas marcadas como hechas ni los registros de salud importados desde un archivo.",
+    "turnOff": "Desactivar y borrar registros de salud",
+    "turnOffA11y": "Desactivar el vínculo de datos de salud y borrar los registros de salud guardados",
+    "residueBody": "Desactivado, pero aún quedan {{count}} registros de salud guardados.",
+    "deleteRest": "Borrar los registros de salud restantes",
+    "offBody": "Desactivado. Puedes activarlo desde la pantalla de importación.",
+    "openImport": "Abrir la pantalla de importación",
+    "loadFailed": "No se pudo cargar el estado del vínculo.",
+    "retryLoad": "Cargar de nuevo",
+    "unchanged": "No se pudo desactivar. No cambió nada. Inténtalo de nuevo en un momento.",
+    "partial": "El vínculo está desactivado, así que no entran registros nuevos. Aún no se pudieron borrar {{count}} registros de salud. Vuelve a borrarlos.",
+    "partialNoCount": "El vínculo está desactivado, así que no entran registros nuevos. No se pudo confirmar que se borraran todos los registros de salud. Vuelve a borrarlos.",
+    "done": "Se borraron {{count}} registros de salud. El vínculo está desactivado.",
+    "doneNone": "El vínculo está desactivado y no quedan registros de salud."
+  }
 }

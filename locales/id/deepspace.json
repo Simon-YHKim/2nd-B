@@ -1188,5 +1188,24 @@
   "reviewAxisNow": "Tinjau Big Five saya",
   "reviewAxisRelational": "Tinjau gaya kelekatan saya",
   "reviewAxisValues": "Tinjau nilai-nilai saya",
-  "reviewNothingToReview": "Ikuti satu tes dulu. Belum ada hasil terukur untuk ditinjau."
+  "reviewNothingToReview": "Ikuti satu tes dulu. Belum ada hasil terukur untuk ditinjau.",
+  "privacyHealth": {
+    "title": "Tautan data kesehatan",
+    "onBody": "Aktif. Jika dimatikan, {{count}} catatan kesehatan yang tersimpan di aplikasi langsung dihapus dan pembacaan otomatis di ponsel ini berhenti.",
+    "onBodyNoCount": "Aktif. Jika dimatikan, catatan kesehatan yang tersimpan di aplikasi langsung dihapus dan pembacaan otomatis di ponsel ini berhenti.",
+    "keeps": "Tombol ini tidak menghapus data asli dan izin di aplikasi kesehatan ponsel, centang rutinitas, atau catatan kesehatan yang diimpor dari file.",
+    "turnOff": "Matikan dan hapus catatan kesehatan",
+    "turnOffA11y": "Matikan tautan data kesehatan dan hapus catatan kesehatan yang tersimpan",
+    "residueBody": "Nonaktif, tetapi masih ada {{count}} catatan kesehatan yang tersimpan.",
+    "deleteRest": "Hapus sisa catatan kesehatan",
+    "offBody": "Nonaktif. Aktifkan dari layar impor.",
+    "openImport": "Buka layar impor",
+    "loadFailed": "Status tautan tidak dapat dimuat.",
+    "retryLoad": "Muat ulang",
+    "unchanged": "Tidak dapat dimatikan. Tidak ada yang berubah. Coba lagi sebentar lagi.",
+    "partial": "Tautan sudah nonaktif, jadi catatan baru tidak masuk. {{count}} catatan kesehatan belum bisa dihapus. Hapus sekali lagi.",
+    "partialNoCount": "Tautan sudah nonaktif, jadi catatan baru tidak masuk. Belum dapat dipastikan semua catatan kesehatan terhapus. Hapus sekali lagi.",
+    "done": "{{count}} catatan kesehatan dihapus. Tautan nonaktif.",
+    "doneNone": "Tautan nonaktif dan tidak ada catatan kesehatan yang tersisa."
+  }
 }

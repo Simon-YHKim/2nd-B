@@ -73,5 +73,8 @@
     "deferHint": "Conserva las notas en este dispositivo.",
     "importing": "Importando…",
     "error": "No se pudieron importar algunas notas. Las notas restantes siguen en este dispositivo."
+  },
+  "retention": {
+    "chip": "Se borra al eliminar la cuenta"
   }
 }
