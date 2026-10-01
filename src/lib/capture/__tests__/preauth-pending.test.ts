@@ -267,8 +267,9 @@ describe("가입 전에 담은 것을 계정으로 옮기는 자리", () => {
 
   it("홈 라우트가 배수구를 마운트한다", () => {
     const route = read("src/app/index.tsx");
-    expect(route).toContain("useImportPendingCaptures();");
+    expect(route).toContain("const { crisis, dismissCrisis } = useImportPendingCaptures();");
     expect(route).toContain('import { useImportPendingCaptures } from "@/lib/capture/use-import-pending";');
+    expect(route).toContain("<CrisisRouter visible={crisis.visible} hotline={crisis.hotline} onClose={dismissCrisis} />");
   });
 
   it("배수구는 로그인과 프로필이 갖춰진 뒤에만 돈다", () => {
@@ -276,6 +277,7 @@ describe("가입 전에 담은 것을 계정으로 옮기는 자리", () => {
     const hook = read("src/lib/capture/use-import-pending.ts");
     expect(hook).toContain("if (!userId || hasProfile !== true) return;");
     expect(hook).toContain("minor: ctx.minor");
+    expect(hook).toContain("const minor = isMinor !== false;");
     // 한 번만 - 세션마다 다시 붓지 않는다.
     expect(hook).toContain("if (ran.current) return;");
   });

@@ -13,9 +13,15 @@
 // runs on every home mount, and moving it into the shell would change when it
 // fires relative to the redirects the shell performs.
 import { useImportPendingCaptures } from "@/lib/capture/use-import-pending";
+import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { DeepSpaceShell } from "@/components/deep-space/DeepSpaceShell";
 
 export default function Index() {
-  useImportPendingCaptures();
-  return <DeepSpaceShell />;
+  const { crisis, dismissCrisis } = useImportPendingCaptures();
+  return (
+    <>
+      <DeepSpaceShell />
+      <CrisisRouter visible={crisis.visible} hotline={crisis.hotline} onClose={dismissCrisis} />
+    </>
+  );
 }

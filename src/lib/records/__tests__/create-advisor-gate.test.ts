@@ -77,6 +77,24 @@ describe("createRecord — Advisor premium gate", () => {
     expect(mockCallAdvisor).not.toHaveBeenCalled();
   });
 
+  test("a queued first-person note runs minor crisis routing even with AI follow-up off", async () => {
+    mockClassifyRecordCrisis.mockResolvedValue({ text: "youth hotline guidance" });
+
+    const result = await createRecord({
+      userId: "u1",
+      locale: "ko",
+      kind: "note",
+      body: "red zone note",
+      withFollowup: false,
+      minor: true,
+    });
+
+    expect(mockClassifyRecordCrisis).toHaveBeenCalledWith("red zone note", "ko", "u1", true);
+    expect(mockCallAdvisor).not.toHaveBeenCalled();
+    expect(mockCallLlm).not.toHaveBeenCalled();
+    expect(result.followup).toEqual({ text: "youth hotline guidance", zone: "red", fixedTemplate: true });
+  });
+
   test("free-tier red-zone journal: hotline follow-up attaches as a fixed template and the entry STILL saves", async () => {
     mockClassifyRecordCrisis.mockResolvedValue({ text: "지금 많이 힘드신 것 같아요. 109로 연락해 주세요." });
 
