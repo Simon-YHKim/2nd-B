@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2ndB 작업 중단 및 인수 보고 · 2026-10-01</title>
+  <style>
+    :root { color-scheme: light dark; --accent:#2563eb; --text:#172033; --muted:#5f6b7d; background:#f7f9fc; color:var(--text); font:16px/1.55 system-ui,sans-serif; }
+    @media (prefers-color-scheme:dark) { :root { --accent:#82aaff; --text:#edf2fb; --muted:#abb8cc; background:#101722; } }
+    body { max-width:860px; margin:0 auto; padding:2rem 1rem 4rem; }
+    h1 { line-height:1.2; } p,li { max-width:72ch; } .muted { color:var(--muted); }
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:.8rem; margin:1.5rem 0; }
+    .card,details { border:1px solid var(--muted); border-radius:12px; padding:1rem; }
+    .card strong { display:block; color:var(--accent); font-size:1.3rem; }
+    details { margin:.8rem 0; } summary { cursor:pointer; font-weight:700; } a { color:var(--accent); }
+    :focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+    code { overflow-wrap:anywhere; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>작업 중단 및 인수</h1>
+    <p class="muted">2ndB · 2026-10-01 18:13:08 KST</p>
+    <p>Simon의 중단 요청에 따라 GUI 후보 작업을 멈췄습니다. 인수 문서만 별도 브랜치에서 갱신했습니다.</p>
+    <div class="cards" aria-label="상태 요약">
+      <div class="card"><strong>중단</strong>GUI 후보는 로컬에 보존</div>
+      <div class="card"><strong>완료</strong>QA APK 출처 검증과 비교</div>
+      <div class="card"><strong>인수</strong><a href="../HANDOFF.md">HANDOFF.md</a> 최신 블록</div>
+    </div>
+    <svg viewBox="0 0 680 90" role="img" aria-label="완료된 QA 검증에서 인수 기록으로 이어지고, GUI 후보는 중단 상태로 보존됨" style="width:100%;height:auto;max-width:680px">
+      <path d="M155 45H260M405 45H510" stroke="currentColor" stroke-width="2"/>
+      <g fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="12" width="150" height="66" rx="10"/><rect x="260" y="12" width="145" height="66" rx="10"/><rect x="510" y="12" width="165" height="66" rx="10"/></g>
+      <g fill="currentColor" font-size="17" text-anchor="middle"><text x="80" y="53">QA 확인 완료</text><text x="332" y="53">GUI 중단</text><text x="592" y="53">인수 기록</text></g>
+    </svg>
+    <details><summary>완료 내용 자세히</summary><p><a href="https://github.com/Simon-YHKim/2nd-B/pull/2002">PR #2002</a>는 병합됐고 지정 Android QA 빌드 출처를 검증합니다. 진단 빌드 36838147144는 성공했으며 QA APK를 별도 prerelease로 남겼습니다. 앱 동등성 검사는 같음으로 판정됐습니다.</p></details>
+    <details><summary>보존한 작업 자세히</summary><p><code>fix/gui-phone-integrate-261001</code>에는 세 파일의 미커밋 변경이 있습니다. 커뮤니티 작업 트리도 미커밋 상태입니다. 두 후보 모두 전체 검증과 GUI 조작 검사가 끝나지 않아 병합하지 않았습니다.</p></details>
+    <details><summary>재개 조건 자세히</summary><p>Simon이 작업 재개를 지시한 뒤 각 작업 트리의 상태와 diff를 먼저 확인합니다. 전체 verify, 화면 QA, 기능 동등성 게이트를 마칠 때까지 GUI 후보를 배포하지 않습니다.</p></details>
+  </main>
+</body>
+</html>
