@@ -114,6 +114,15 @@ describe("importPendingCaptures - 0178 retry key", () => {
 
   const item = (localId: string) => ({ localId, text: "t", capturedAt: "x" });
 
+  test("a capture added during import remains queued after imported items are removed", async () => {
+    await addPendingCapture("old", "2026-06-21T00:00:00.000Z");
+    const result = await importPendingCaptures({ userId: "u1", locale: "ko" }, async () => {
+      await addPendingCapture("new", "2026-06-21T00:01:00.000Z");
+    }, sha256);
+    expect(result).toEqual({ total: 1, imported: 1, failed: 0 });
+    expect((await loadPendingCaptures()).map((capture) => capture.text)).toEqual(["new"]);
+  });
+
   test("the key is preauth: + SHA-256 of the id, the same on every call, and never the id itself", async () => {
     const localId = "p_1782000000000_abc12";
     const first = await pendingClientRequestId(item(localId), sha256);
@@ -230,6 +239,18 @@ describe("importPendingCaptures - 0178 retry key", () => {
     expect(keys[0]).toBeUndefined();
     expect(keys[1]).toBeUndefined();
     expect(keys[2]).toMatch(/^preauth:[0-9a-f]{64}$/);
+  });
+
+  test("a failed duplicate id remains queued when its other entry imports", async () => {
+    await replacePendingCaptures([
+      { localId: "p_1782000000000_abc12", text: "succeeded", capturedAt: "x" },
+      { localId: "p_1782000000000_abc12", text: "failed", capturedAt: "x" },
+    ]);
+    const result = await importPendingCaptures({ userId: "u1", locale: "en" }, async (entry) => {
+      if (entry.text === "failed") throw new Error("transient");
+    }, sha256);
+    expect(result).toEqual({ total: 2, imported: 1, failed: 1 });
+    expect((await loadPendingCaptures()).map((entry) => entry.text)).toEqual(["failed"]);
   });
 
   test("a conflict error on an unkeyed import is an ordinary failure: the capture stays", async () => {
