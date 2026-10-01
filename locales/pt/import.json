@@ -58,6 +58,10 @@
     "consentNeeded": "Aceitar para trazer sua atividade",
     "minorLocked": "A sincronização de atividade está desativada nesta conta."
   },
+  "markdownRetention": {
+    "consent": "O arquivo é analisado neste dispositivo. Os títulos e o texto das anotações que você escolher são salvos como registros criptografados. O texto de cada anotação é limitado a 4.000 caracteres.",
+    "review": "O título e o texto de cada anotação escolhida, até 4.000 caracteres por anotação, são adicionados aos seus registros."
+  },
   "pendingDevice": {
     "title": "Anotações neste dispositivo",
     "body": "Anotações salvas neste dispositivo antes de entrar: {{count}}. Elas podem ser de outra pessoa. Importe apenas se forem suas.",

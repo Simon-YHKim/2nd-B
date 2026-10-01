@@ -107,7 +107,7 @@ const TIER_COLOR: Record<Tier, string> = {
 type Step = "hub" | "consent" | "input" | "review" | "history";
 
 export function ImportHubScreen() {
-  const { i18n } = useTranslation();
+  const { i18n, t: importT } = useTranslation("import");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId, isMinor } = useAuth();
   const progression = useProgression();
@@ -562,7 +562,9 @@ export function ImportHubScreen() {
         </View>
         <View style={styles.block}>
           <Text variant="caption" pixelEn style={styles.blockLabel}>{t("where")}</Text>
-          <Text variant="body" style={styles.blockText}>{t("whereBody")}</Text>
+          <Text variant="body" style={styles.blockText}>
+            {s.kind === "markdown" ? importT("markdownRetention.consent") : t("whereBody")}
+          </Text>
         </View>
         <View style={styles.chipRow}>
           <MetaChip label={t("keep90")} />
@@ -571,7 +573,7 @@ export function ImportHubScreen() {
               so analysis really is on-device — but the old toggle here was read
               by nothing (analyze/ratify/chooseFile ignored it), a fake control
               on a privacy promise (audit: /import-hub dead switch). */}
-          <MetaChip label={t("onDeviceOnly")} />
+          <MetaChip label={t("localAnalysis")} />
         </View>
 
         {s.googleKind ? (
@@ -667,8 +669,11 @@ export function ImportHubScreen() {
           {out.summary.transactions > 0 ? <Summary n={out.summary.transactions} label={t("txns")} /> : null}
           <Summary n={out.summary.appointments} label={t("appts")} />
           <Summary n={out.summary.places + out.summary.events} label={t("places")} />
-          <Summary n={0} label={t("raw")} dim />
+          {out.summary.notes === 0 ? <Summary n={0} label={t("raw")} dim /> : null}
         </View>
+        {out.summary.notes > 0 ? (
+          <Text variant="subtle" style={styles.fine}>{importT("markdownRetention.review")}</Text>
+        ) : null}
         <Text variant="caption" pixelEn style={styles.tierLabel}>{t("pickToApply")}</Text>
         {out.proposals.map((p) => {
           const on = selected.has(p.id);
@@ -760,8 +765,8 @@ function COPY(ko: boolean): Record<string, string> {
         back: "뒤로", import: "가져오기", imported: "가져온 데이터", hubBubble: "무엇을 들여올까요?", hubTip: "네가 승인한 것만 기록에 남아요.",
         tier_critical: "최민감 · 명시 동의 필요", tier_sensitive: "민감", tier_normal: "보통",
         needsConsent: "동의 필요", notLinked: "미연결", locked: "잠김", linked: "연결됨",
-        what: "무엇을", where: "어디에", whereBody: "이 기기에서 분석하고 원문은 버려요. 파생 신호만 암호화해 보관해요.",
-        keep90: "보관 90일", deleteAnytime: "언제든 삭제", onDeviceOnly: "이 기기에서만 처리",
+        what: "무엇을", where: "어디에", whereBody: "이 기기에서 분석해요. 검토 화면에서 고른 결과만 암호화해 보관해요.",
+        keep90: "보관 90일", deleteAnytime: "언제든 삭제", localAnalysis: "파일 분석은 이 기기에서",
         connectorNote: "다음 화면에서 위치 권한을 \"사용 중에만\"으로 요청해요. (네이티브 빌드 필요)",
         googleConnectorNote: "브라우저에서 구글 계정으로 안전하게 연결해요. 읽기 전용(일정 보기)이에요.",
         googleConnect: "구글 연결", connecting: "연결 중…",
@@ -787,8 +792,8 @@ function COPY(ko: boolean): Record<string, string> {
         back: "Back", import: "Import", imported: "Imported data", hubBubble: "What should we bring in?", hubTip: "Only what you approve is kept.",
         tier_critical: "Most sensitive · consent required", tier_sensitive: "Sensitive", tier_normal: "Normal",
         needsConsent: "Needs consent", notLinked: "Not linked", locked: "Locked", linked: "Linked",
-        what: "WHAT", where: "WHERE", whereBody: "Parsed on this device; the raw is discarded. Only derived signals are kept, encrypted.",
-        keep90: "Kept 90 days", deleteAnytime: "Delete anytime", onDeviceOnly: "Process on this device only",
+        what: "WHAT", where: "WHERE", whereBody: "Analyzed on this device. Only the results you choose on the review screen are kept, encrypted.",
+        keep90: "Kept 90 days", deleteAnytime: "Delete anytime", localAnalysis: "File analyzed on device",
         connectorNote: "The next screen requests location \"while using\" only. (needs the native build)",
         googleConnectorNote: "Securely link your Google account in the browser. Read-only (view events).",
         googleConnect: "Connect Google", connecting: "Connecting…",
