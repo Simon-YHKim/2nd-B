@@ -1,7 +1,9 @@
 import { GoTrueClient, processLock, type LockFunc, type SupportedStorage } from "@supabase/auth-js";
 import {
   AuthLocalClearUnavailableError,
+  AuthLockWaitTimeoutError,
   AuthSessionOwnerChangedError,
+  AUTH_WEB_LOCK_WAIT_TIMEOUT_MS,
   authStorageKeysForUrl,
   captureAuthSessionExpectation,
   createAuthStorageRuntime,
@@ -306,11 +308,38 @@ describe("auth v2 storage and mutation boundary", () => {
       expect(calls).toEqual(["ordinary"]);
       expect(requests.length).toBeGreaterThanOrEqual(3);
       for (const { options } of requests) {
-        expect(options).toEqual({ mode: "exclusive" });
+        expect(options.mode).toBe("exclusive");
+        expect(options.signal).toBeInstanceOf(AbortSignal);
         expect(options).not.toHaveProperty("steal");
-        expect(options).not.toHaveProperty("signal");
         expect(options).not.toHaveProperty("ifAvailable");
       }
+    },
+  );
+
+  test.each(["resolved", "rejected"] as const)(
+    "a %s malformed manager cannot run a late callback after process fallback",
+    async (outcome) => {
+      const storage = new MemoryStorage();
+      let requests = 0;
+      let lateGrant: (() => Promise<unknown>) | undefined;
+      const request: TestBrowserLockRequest = (name, _options, callback) => {
+        requests += 1;
+        if (requests === 1) return callback({ name, mode: "exclusive" }); // ready()
+        lateGrant = () => callback({ name, mode: "exclusive" });
+        return outcome === "resolved"
+          ? Promise.resolve(undefined as never)
+          : Promise.reject(new Error("manager failed"));
+      };
+      const runtime = createAuthStorageRuntime({
+        url: `https://late-${outcome}.supabase.co`, storage, web: true, navigatorLockRequest: request,
+      });
+      await runtime.ready();
+      const writer = jest.fn();
+      await runtime.runMutation(writer);
+      expect(writer).toHaveBeenCalledTimes(1);
+      expect(lateGrant).toBeDefined();
+      await lateGrant?.();
+      expect(writer).toHaveBeenCalledTimes(1);
     },
   );
 
@@ -335,11 +364,105 @@ describe("auth v2 storage and mutation boundary", () => {
     expect(calls).toBe(1);
   });
 
+  test("an M request that never settles times out without running the mutation or falling back", async () => {
+    jest.useFakeTimers();
+    try {
+      const storage = new MemoryStorage();
+      let requests = 0;
+      let lateGrant: (() => Promise<unknown>) | undefined;
+      let waitingSignal: AbortSignal | undefined;
+      const request: TestBrowserLockRequest = (name, options, callback) => {
+        requests += 1;
+        if (requests === 1) return callback({ name, mode: "exclusive" }); // ready()
+        lateGrant = () => callback({ name, mode: "exclusive" });
+        waitingSignal = options.signal as AbortSignal;
+        return new Promise(() => {}); // manager ignores abort and never settles
+      };
+      const runtime = createAuthStorageRuntime({
+        url: "https://m-never-settles.supabase.co", storage, web: true, navigatorLockRequest: request,
+      });
+      await runtime.ready();
+      const writer = jest.fn();
+      const pending = runtime.runMutation(writer);
+      for (let i = 0; i < 10 && !lateGrant; i += 1) await Promise.resolve();
+      expect(lateGrant).toBeDefined();
+      jest.advanceTimersByTime(AUTH_WEB_LOCK_WAIT_TIMEOUT_MS);
+      await expect(pending).rejects.toBeInstanceOf(AuthLockWaitTimeoutError);
+      expect(waitingSignal?.aborted).toBe(true);
+      expect(writer).not.toHaveBeenCalled();
+      await lateGrant?.();
+      expect(writer).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("an S request that never settles times out and releases M before the SDK writer starts", async () => {
+    jest.useFakeTimers();
+    try {
+      const storage = new MemoryStorage();
+      const url = "https://s-never-settles.supabase.co";
+      const keys = authStorageKeysForUrl(url);
+      const trace: string[] = [];
+      let waitingOnS = false;
+      const request: TestBrowserLockRequest = async (name, _options, callback) => {
+        if (name === `lock:${keys.v2Primary}`) {
+          waitingOnS = true;
+          return new Promise(() => {});
+        }
+        trace.push(`enter:${name}`);
+        try { return await callback({ name, mode: "exclusive" }); }
+        finally { trace.push(`exit:${name}`); }
+      };
+      const runtime = createAuthStorageRuntime({ url, storage, web: true, navigatorLockRequest: request });
+      await runtime.ready();
+      trace.length = 0;
+      const writer = jest.fn();
+      const pending = runtime.runMutation(() => runtime.runSdkUnlockedWriter(writer));
+      for (let i = 0; i < 10 && !waitingOnS; i += 1) await Promise.resolve();
+      expect(waitingOnS).toBe(true);
+      jest.advanceTimersByTime(AUTH_WEB_LOCK_WAIT_TIMEOUT_MS);
+      await expect(pending).rejects.toBeInstanceOf(AuthLockWaitTimeoutError);
+      expect(writer).not.toHaveBeenCalled();
+      expect(trace).toEqual([`enter:${keys.mutationLock}`, `exit:${keys.mutationLock}`]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("a granted S lock is not abandoned when its SDK writer remains pending past the wait deadline", async () => {
+    jest.useFakeTimers();
+    try {
+      const storage = new MemoryStorage();
+      const request: TestBrowserLockRequest = (name, _options, callback) =>
+        callback({ name, mode: "exclusive" });
+      const runtime = createAuthStorageRuntime({
+        url: "https://writer-never-settles.supabase.co", storage, web: true, navigatorLockRequest: request,
+      });
+      await runtime.ready();
+      let release!: () => void;
+      const writer = jest.fn(() => new Promise<void>((resolve) => { release = resolve; }));
+      let settled = false;
+      const pending = runtime.runMutation(() => runtime.runSdkUnlockedWriter(writer));
+      void pending.finally(() => { settled = true; });
+      for (let i = 0; i < 10 && !writer.mock.calls.length; i += 1) await Promise.resolve();
+      expect(writer).toHaveBeenCalledTimes(1);
+      jest.advanceTimersByTime(AUTH_WEB_LOCK_WAIT_TIMEOUT_MS * 2);
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      release();
+      await expect(pending).resolves.toBeUndefined();
+      expect(settled).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test("a valid browser lock keeps M before S and holds M until S releases", async () => {
     const storage = new MemoryStorage();
     const trace: string[] = [];
     const request: TestBrowserLockRequest = async (name, options, callback) => {
-      expect(options).toEqual({ mode: "exclusive" });
+      expect(options).toEqual({ mode: "exclusive", signal: expect.any(AbortSignal) });
       trace.push(`enter:${name}`);
       try {
         return await callback({ name, mode: "exclusive" });
