@@ -100,7 +100,7 @@ const PACK_STRINGS = {
   ko: {
     title: (name: string | null) => `# ${name ? `${name}의` : "나의"} 개인 컨텍스트 — 먼저 읽어주세요`,
     whoH: "## 이 사람은",
-    whoFallback: "아직 작성된 소개가 없어요.",
+    whoFallback: "아직 작성된 소개가 없습니다.",
     patterns: (p: string[]) => (p.length > 0 ? ` 반복되는 패턴: ${p.join(", ")}.` : ""),
     rulesH: "## 사용 방법 (규칙)",
     rules: (name: string) => [

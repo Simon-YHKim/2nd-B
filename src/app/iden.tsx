@@ -84,7 +84,7 @@ const IDEN_ROW_COPY: Record<IdenLocale, Record<string, { label: string; sub: str
 
 const IDEN_FOOTNOTE_COPY: Record<IdenLocale, string> = {
   en: "Only enabled, currently displayed items are serialized into every format.",
-  ko: "켜 둔 현재 표시 항목만 모든 형식에 직렬화돼요.",
+  ko: "켜 둔 현재 표시 항목만 모든 형식에 직렬화됩니다.",
   es: "Solo los elementos visibles y activados se serializan en cada formato.",
   pt: "Somente os itens atuais, visíveis e ativados são serializados em cada formato.",
   id: "Hanya item saat ini yang terlihat dan aktif yang diserialkan ke setiap format.",

@@ -1320,9 +1320,9 @@ results.push(
       flows.includes('"icon": "bubble_chart"') &&
       flows.includes("나를 알아가는 AI") &&
       flows.includes("일곱 별에") &&
-      flows.includes("내 이야기를 담아요") &&
+      flows.includes("내 이야기를 담습니다") &&
       flows.includes('"icon": "check_circle"') &&
-      flows.includes("내가 승인해야 반영돼요") &&
+      flows.includes("내가 승인해야 반영됩니다") &&
       !flows.includes("AI의 원리") &&
       !flows.includes("AI 뮤지엄") &&
       // top-right skip jumps to the final (auth) slide.

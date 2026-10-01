@@ -774,7 +774,7 @@ export default function ReasoningScreen() {
       setPhase("error");
       setErrorText(
         ko
-          ? "백그라운드 리즈닝을 마치지 못했어요. 다시 시도해 주세요."
+          ? "백그라운드 리즈닝을 마치지 못했습니다. 다시 시도해 주세요."
           : "Background reasoning didn't finish. Try again.",
       );
     }
@@ -866,7 +866,7 @@ export default function ReasoningScreen() {
         setRewardCredits(usage.rewardCredits);
       })
       .catch(() => {
-        if (!cancelled) setErrorText(ko ? "자료를 불러오지 못했어요. 다시 열어 주세요." : "Couldn't load your items.");
+        if (!cancelled) setErrorText(ko ? "자료를 불러오지 못했습니다. 다시 열어 주세요." : "Couldn't load your items.");
       })
       .finally(() => {
         if (!cancelled) setListLoading(false);
@@ -1021,7 +1021,7 @@ export default function ReasoningScreen() {
             setPhase("idle");
           } else {
             setPhase("error");
-            setErrorText(ko ? "별을 잇지 못했어요. 잠시 뒤 다시 시도해 주세요." : "Couldn't connect these items. Try again.");
+            setErrorText(ko ? "별을 잇지 못했습니다. 잠시 뒤 다시 시도해 주세요." : "Couldn't connect these items. Try again.");
           }
         }
       },
@@ -1101,7 +1101,7 @@ export default function ReasoningScreen() {
       }
       setErrorText(
         ko
-          ? "선택한 제안을 반영하지 못했어요. 잠시 뒤 다시 시도해 주세요."
+          ? "선택한 제안을 반영하지 못했습니다. 잠시 뒤 다시 시도해 주세요."
           : "Couldn't apply the selected proposals. Try again.",
       );
     } finally {
@@ -1144,10 +1144,10 @@ export default function ReasoningScreen() {
   const progressTitle =
     phase === "done"
       ? ko
-        ? "별을 모두 이었어요"
+        ? "별을 모두 이었습니다"
         : "All items are connected"
       : ko
-        ? "별을 잇는 중이에요"
+        ? "별을 잇는 중입니다"
         : "Connecting your stars";
 
   // Split display (spec 결정 5 + 계약 13): weekly base and monthly reward are
@@ -1155,7 +1155,7 @@ export default function ReasoningScreen() {
   // "N회 남음 · 월요일 초기화" line. The RUN gate (depleted) still counts both.
   const quotaCopy = unlimited
     ? ko
-      ? "무제한으로 별을 이을 수 있어요"
+      ? "무제한으로 별을 이을 수 있습니다"
       : "Unlimited connections"
     : formatWeeklyRemaining(ko, cap ?? 0, used);
   const rewardCopy =
@@ -1219,12 +1219,12 @@ export default function ReasoningScreen() {
                   <View style={styles.depletedTitleRow}>
                     <Glyph name="bolt" color={m3.color.error} size={22} />
                     <RNText style={styles.depletedTitle}>
-                      {ko ? "이번 주 기본 리즈닝을 다 썼어요" : "You've used this week's base reasoning runs"}
+                      {ko ? "이번 주 기본 리즈닝을 다 썼습니다" : "You've used this week's base reasoning runs"}
                     </RNText>
                   </View>
                   <RNText style={styles.depletedBody}>
                     {ko
-                      ? `월요일 00:00에 다시 ${cap ?? 0}회가 채워져요.`
+                      ? `월요일 00:00에 다시 ${cap ?? 0}회가 채워집니다.`
                       : `${cap ?? 0} runs refill Monday at 00:00 KST.`}
                   </RNText>
                   <View style={styles.depletedActions}>
@@ -1326,10 +1326,10 @@ export default function ReasoningScreen() {
                       <RNText style={styles.rowSub}>
                         {phase === "done"
                           ? ko
-                            ? `${proposals.length}건의 연결을 제안했어요. 반영할 항목만 선택해 주세요.`
+                            ? `${proposals.length}건의 연결을 제안했습니다. 반영할 항목만 선택해 주세요.`
                             : `${proposals.length} connections are proposed. Select only what you want to apply.`
                           : ko
-                            ? `선택한 ${selectedItems.length}건을 읽고 있어요 · ${completedCount} / ${selectedItems.length}`
+                            ? `선택한 ${selectedItems.length}건을 읽고 있습니다 · ${completedCount} / ${selectedItems.length}`
                             : `Reading ${selectedItems.length} items · ${completedCount} / ${selectedItems.length}`}
                       </RNText>
                     </View>
@@ -1344,10 +1344,10 @@ export default function ReasoningScreen() {
                   <RNText style={styles.autoNote}>
                     {phase === "done"
                       ? ko
-                        ? "선택한 제안만 반영돼요. 선택하지 않은 항목은 기존대로 남아요."
+                        ? "선택한 제안만 반영됩니다. 선택하지 않은 항목은 기존대로 남습니다."
                         : "Only selected proposals are applied. Unselected items stay unchanged."
                       : ko
-                        ? "지금 다른 화면을 봐도 돼요. 다 되면 위에서 알려드릴게요."
+                        ? "지금 다른 화면을 봐도 됩니다. 다 되면 위에서 알려드리겠습니다."
                         : "You can leave this screen. SecondB will let you know when it's ready."}
                   </RNText>
                 </View>
@@ -1398,10 +1398,10 @@ export default function ReasoningScreen() {
               <RNText style={styles.emptyTitle}>
                 {listLoading
                   ? ko
-                    ? "자료를 불러오는 중이에요"
+                    ? "자료를 불러오는 중입니다"
                     : "Loading your items"
                   : ko
-                    ? "아직 담은 자료가 없어요"
+                    ? "아직 담은 자료가 없습니다"
                     : "No captured items yet"}
               </RNText>
               {!listLoading ? (
@@ -1491,7 +1491,7 @@ export default function ReasoningScreen() {
           />
           {selected.size === 0 && phase === "idle" ? (
             <RNText style={styles.runHint}>
-              {ko ? "자료를 선택하면 실행 버튼이 켜져요." : "Select items to enable reasoning."}
+              {ko ? "자료를 선택하면 실행 버튼이 켜집니다." : "Select items to enable reasoning."}
             </RNText>
           ) : null}
         </View>

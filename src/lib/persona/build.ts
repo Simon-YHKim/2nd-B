@@ -830,7 +830,7 @@ export async function buildPersona(
   } else {
     summaryText =
       locale === "ko"
-        ? "아직 글로 남긴 기록이 없어서 요약할 이야기가 없어요. 한 줄이라도 적으면 여기에 패턴이 보이기 시작해요."
+        ? "아직 글로 남긴 기록이 없어서 요약할 이야기가 없습니다. 한 줄이라도 적으면 여기에 패턴이 보이기 시작합니다."
         : "No written entries yet to summarize. Add even one and your patterns start to show here.";
   }
 

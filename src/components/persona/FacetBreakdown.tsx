@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 
 const NOTE_COPY: Record<string, string> = {
   en: "Each of the 5 domains, broken into its facets. Bars are from your own self-report.",
-  ko: "5가지 축을 그 아래 세부 특질까지 펼쳐봤어요. 막대는 자기보고 기준이에요.",
+  ko: "5가지 축을 그 아래 세부 특질까지 펼쳐봤습니다. 막대는 자기보고 기준입니다.",
   es: "Cada uno de los 5 dominios, dividido en sus facetas. Las barras vienen de tu autoinforme.",
   pt: "Cada um dos 5 domínios, dividido em suas facetas. As barras vêm do seu autorrelato.",
   id: "Masing-masing dari 5 domain, dipecah menjadi fasetnya. Batang berasal dari laporan dirimu sendiri.",

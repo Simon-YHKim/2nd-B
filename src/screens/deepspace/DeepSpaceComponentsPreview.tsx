@@ -15,8 +15,8 @@ export function DeepSpaceComponentsPreview() {
         </View>
         <SecondbStatusHeader
           mood="positive"
-          text="오늘도 왔네요. 지금의 당신이 별 7개로 빛나고 있어요."
-          tip="가장 어두운 별부터 채워보면 좋아요."
+          text="오늘도 왔습니다. 지금의 당신이 별 7개로 빛나고 있습니다."
+          tip="가장 어두운 별부터 채워보면 좋습니다."
         />
         <View style={styles.body}>
           <SecondbHead mood="positive" size={72} />

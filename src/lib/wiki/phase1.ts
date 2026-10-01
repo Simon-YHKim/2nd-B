@@ -144,7 +144,7 @@ function parsePhase1Reply(
 function mockStub(title: string, locale: "en" | "ko"): Omit<Phase1Result, "generated_at" | "model"> {
   return locale === "ko"
     ? {
-        summary: `지금은 오프라인 미리보기예요. 아래 질문은 예시이며, "${title}"을 분석해서 만든 요약은 아니에요.`,
+        summary: `지금은 오프라인 미리보기입니다. 아래 질문은 예시이며, "${title}"을 분석해서 만든 요약은 아닙니다.`,
         entities: [],
         concepts: [],
         questions: [
