@@ -29,7 +29,7 @@
 // free of native imports, and so tests can hash with a real SHA-256 - the jest
 // expo-crypto mock ignores the algorithm and always returns SHA-1.
 
-import { loadPendingCaptures, replacePendingCaptures, type PendingCapture } from "./preauth-pending";
+import { loadPendingCaptures, removeImportedPendingCaptures, type PendingCapture } from "./preauth-pending";
 
 // Mirrors the 0178 records_client_request_id_format CHECK (and createRecord's
 // guard). Kept local: importing records/create would pull the LLM + Supabase
@@ -142,7 +142,8 @@ async function runImport(
     seen.add(item.localId);
   }
 
-  const failures: PendingCapture[] = [];
+  const importedItems: PendingCapture[] = [];
+  let failed = 0;
   let imported = 0;
   for (const item of list) {
     let key: string | undefined;
@@ -150,6 +151,7 @@ async function runImport(
       key = repeated.has(item.localId) ? undefined : await pendingClientRequestId(item, sha256Hex);
       await createOne(item, ctx, key);
       imported += 1;
+      importedItems.push(item);
     } catch (e) {
       if (key !== undefined && isIdempotencyConflict(e)) {
         // This capture's own key already holds a row whose body differs: an
@@ -158,13 +160,13 @@ async function runImport(
         // It reached the server, so it leaves the queue. Retaining it would fail
         // the same way every session and re-run C9 on the stale text each time.
         imported += 1;
+        importedItems.push(item);
         continue;
       }
       // Keep the failed item; never lose a capture on a transient error.
-      failures.push(item);
+      failed += 1;
     }
   }
-  // Retain only what failed (clears the queue when everything imported).
-  await replacePendingCaptures(failures);
-  return { total: list.length, imported, failed: failures.length };
+  await removeImportedPendingCaptures(importedItems);
+  return { total: list.length, imported, failed };
 }
