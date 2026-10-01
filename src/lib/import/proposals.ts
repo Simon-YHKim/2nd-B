@@ -13,7 +13,8 @@ import type { ImportKind } from "./detect";
 import { aggregateRelationSignals, countAppointmentHints, parseKakaoExport, type KakaoRelationSignal } from "./kakao";
 import { countSmsAppointmentHints, parseSmsBackup } from "./sms";
 import { parseTakeoutLocations, summarizeLocations } from "./location";
-import { parseIcs } from "./ics";
+import { eventWhen } from "./event-when";
+import { parseIcs, type CalendarEvent } from "./ics";
 import { parseAppleHealthExport, summarizeHealth } from "./health-export";
 import { emailLooksLikeAppointment, parseEml } from "./email";
 import { parseFinanceCsv, type FinanceTxn } from "./finance-csv";
@@ -128,7 +129,7 @@ export function buildProposals(kind: ImportKind, content: string, localeTag: str
   } else if (kind === "ics") {
     const events = parseIcs(content);
     summary.events = events.length;
-    for (const e of events) proposals.push({ id: `ics-${proposals.length}`, label: e.title, sub: "일정 → 캘린더", sensitive: false });
+    proposals.push(...calendarEventProposals(events));
   } else if (kind === "apple-health") {
     const s = summarizeHealth(parseAppleHealthExport(content));
     summary.health = s.byType.length;
@@ -201,6 +202,25 @@ export function buildProposals(kind: ImportKind, content: string, localeTag: str
     proposals: proposals.slice(0, PROPOSAL_CAP),
     summary,
     ...(relationSignals && relationSignals.length > 0 ? { relationSignals } : {}),
+  };
+}
+
+/**
+ * One review row per calendar event, its time in front of its title. Shared by .ics files,
+ * Google Calendar (which arrives as .ics text) and the phone calendar (phone-calendar.ts).
+ */
+export function calendarEventProposals(events: ReadonlyArray<CalendarEvent>): ImportProposal[] {
+  return events.map((event, i) => {
+    const when = eventWhen(event);
+    return { id: `ics-${i}`, label: when ? `${when} ${event.title}` : event.title, sub: "일정 → 캘린더", sensitive: false };
+  });
+}
+
+/** The import outcome for events that arrive as data rather than as a file (the phone calendar). */
+export function calendarEventsOutcome(events: ReadonlyArray<CalendarEvent>): ImportOutcome {
+  return {
+    proposals: calendarEventProposals(events).slice(0, PROPOSAL_CAP),
+    summary: { ...empty, events: events.length },
   };
 }
 
