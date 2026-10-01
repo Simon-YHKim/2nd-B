@@ -30,7 +30,15 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-01 15:47 / 자동저장 Draft 통합과 웹 로그인 현장 점검
+## Latest — 2026-10-01 16:13 / 원문 삭제 Draft 최신 통합과 릴리스 차단
+
+- [#1839](https://github.com/Simon-YHKim/2nd-B/pull/1839)는 main a379ad6c을 충돌 없이 통합해 Draft head ea122316으로 갱신했다. 로컬 npm run verify 874묶음/11,393건, PR CI 3종이 통과했다. main 병합·운영 적용은 하지 않았다.
+- **출시 차단은 두 가지다.** 서버 S3 삭제 의도·Storage 영수증·업로드 세대 보호가 없어 늦은 업로드 뒤 원문 재생성을 막지 못한다. 추가로 원문 삭제 중 Storage remove/list가 응답하지 않으면 인증 변경 잠금 M을 계속 잡는다. 웹 로그인·로그아웃은 잠금 획득 기한 뒤 실패하고, 네이티브에서는 대기가 끝나지 않을 수 있다. Storage remove에는 SDK 취소 신호 인자가 없어 Promise.race로 M만 풀면 늦은 삭제의 세션 보장이 약해진다. 실제 취소 가능한 요청 기한과 무응답 회귀 검증 전 #1839는 Draft 유지한다. 상세 차단 조건은 PR 본문 첫머리에 적었다.
+- PolaScope [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)와 메일 제목 [#1917](https://github.com/Simon-YHKim/2nd-B/pull/1917)은 10월 5일 전 Draft다. 공개 가입 RPC 재조회는 HTTP 200이지만 email-v7 0행이며 #1902 가입 게이트는 exit 1이다. 비로그인 GUI 10개 화면 검사는 앞선 블록에 기록됐고 인증 Edge·네이티브 출시는 미검증이다. SQL·Edge·대시보드 적용은 콘솔/Grok 소유이며 Simon 지시대로 이번에는 진행하지 않았다.
+- 다음: #1839의 응답 없는 Storage/인증 변경 경합을 실제 취소 가능한 경로로 검증하고 서버 S3와 함께 재게이트한다. 10월 5일 서버 계약 적용·가입 게이트 통과 뒤 #1902/#1917을 재검토한다. 웹 로그인 #1863 현장 단계 확인은 계측 운영 게시 뒤 가능하다.
+
+---
+## 2026-10-01 15:47 / 자동저장 Draft 통합과 웹 로그인 현장 점검
 
 - 통합 기준 main은 fe2a4723이었다. [#1889](https://github.com/Simon-YHKim/2nd-B/pull/1889)의 0행 삭제 뒤 인증 SDK 잠금 재진입 수정은 CI 3종 통과 후 #1814의 내부 브랜치에 병합됐다(43d01d2a). main에는 아직 없다.
 - [#1814](https://github.com/Simon-YHKim/2nd-B/pull/1814)는 #1889 head와 최신 main 사이 충돌 10곳을 격리 워크트리에서 해결하고 Draft head e161478a로 fast-forward push했다. 로컬 npm run verify는 정적 게이트와 Jest 883묶음/11,654건 통과, diff check·추가 줄 시크릿 검사 이상 0건이다. PR CI 3종(verify·lint·web-export-smoke)도 모두 통과했다. 운영 서버 S1 원자 설정, S2 동의 결합 쓰기, S3 삭제 의도·Storage 영수증/업로드 세대 보호와 관리형 Storage·네이티브 E2E가 없어 **Draft 해제·main 병합 금지**다.
