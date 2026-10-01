@@ -58,6 +58,10 @@
     "consentNeeded": "Aceptar para traer tu actividad",
     "minorLocked": "La sincronización de actividad está desactivada en esta cuenta."
   },
+  "markdownRetention": {
+    "consent": "El archivo se analiza en este dispositivo. Los títulos y el texto de las notas que elijas se guardan como registros cifrados. El texto de cada nota se limita a 4.000 caracteres.",
+    "review": "El título y el texto de cada nota elegida, hasta 4.000 caracteres por nota, se añaden a tus registros."
+  },
   "pendingDevice": {
     "title": "Notas guardadas en este dispositivo",
     "body": "Notas guardadas en este dispositivo antes de iniciar sesión: {{count}}. Podrían ser de otra persona. Impórtalas solo si son tuyas.",
