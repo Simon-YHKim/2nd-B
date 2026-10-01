@@ -35,14 +35,55 @@ accepted routine completion, notifications, and a foreground-only focus timer
 have real in-phone behavior. The phone's wiki search reads up to 200 owner-scoped
 `wiki_pages`, matches title and saved name, and opens the complete page body
 with linked-back pages inside the phone; the list and backlinks share its one
-virtualized scroll view. The full wiki's tag filters, graph, export, page
-deletion, source brief, and SecondB handoffs are still separate-route features.
-Area views show tagged records from the bounded read; the separate ledger and
-goals apps use their existing data and actions. Community, avatar palette, and
-the interview flow report that their phone-specific screens are not yet
-connected. They no longer silently leave the phone. Full feature parity will
-require extracting reusable contents from their independent screens without
-changing those independent entry points.
+virtualized scroll view. Its "Graph and tags" button opens the deep-space wiki
+screen's tag filter and graph inside the phone (`/wiki/graph`); that screen has
+no search, so the phone keeps both. Wiki export (`/formats?view=export`) has no
+in-app entry yet, and page deletion and the SecondB handoff exist only in the
+legacy skin. Area views show tagged records from the bounded read; the separate
+ledger and goals apps use their existing data and actions.
+
+### Full screens hosted in the phone
+
+`phone-screens.tsx` lists the standalone screens the phone renders whole:
+Settings and everything it links to (profile, notices, plans, subscription,
+reasoning, data connections, import hub, import, account, privacy, theme, data,
+permissions, support, manual, sources), the avatar palette, community (list,
+room, invite join), and the wiki graph. The host draws each one as a bounded
+view outside the phone's list, keyed by route, so a route change unmounts the
+previous screen; the phone's dock, status rows and pan gestures step aside, as
+for Museum.
+
+Two pieces make a standalone screen hostable without changing it outside the
+phone (`src/lib/nav/phone-embed.tsx`):
+
+- `DeepSpaceScreen` sees the phone's `PhoneEmbedProvider` and renders a compact
+  shell: no sky, window, safe area or app dock, and one back row wired to the
+  screen's own `onBack` or the phone's history. A screen that draws its own back
+  button passes `ownBack`, so the shell adds none.
+- The screen takes `router` from `useAppRouter()` and its query from
+  `useScreenParams()`. Outside the phone these are expo-router's own. Inside,
+  `push` opens the route in the phone (a route the phone cannot draw yet shows
+  its "not yet connected" page; nothing opened from the phone leaves it),
+  `replace("/")` closes the phone, and only a replace to the auth screens
+  (sign-out) leaves. A screen that still calls expo-router's `router.back()`
+  directly would pop the app stack, so only converted screens may be listed.
+
+Android Back inside the phone has one listener, the phone's. A hosted screen
+with its own back logic (the palette's unsaved-changes guard, an in-flight
+community join) uses `useHardwareBack()`, which claims Back through the phone
+instead of `BackHandler`: React runs child effects before parent effects, so a
+screen's own listener would end up older than the phone's and lose.
+`displayWidth` gives screens that size themselves from the window (the palette
+canvas) the phone display's width instead.
+
+Known differences inside the phone: React Native `Modal` sheets (premium,
+reasoning limit, notice dialog, time picker) cover the whole window; screens
+that read `usePathname()` see `/dashboard`, so the rewarded-ad offer on plans
+and the reasoning limit sheet stays hidden (it fails closed); route guards that
+use `useNavigation()` (privacy's deletion fence, the palette's unsaved-changes
+prompt) attach to the dashboard route; and a profile-incomplete `<Redirect>`
+navigates the app, not the phone. Wiki export and the interview flow are not
+hosted.
 
 `OpsPhoneContent` reuses the existing assistant, reminders, ledger, goals,
 meals, reading shelf, and side-project screens with a phone-local `onBack`

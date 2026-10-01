@@ -10,9 +10,10 @@ import {
   View,
 } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -593,6 +594,8 @@ export function NoticeDialog({
 }
 
 export default function NoticesScreen() {
+  // Phone-aware: inside the dashboard phone, Back steps the phone, not the app.
+  const router = useAppRouter();
   const { userId, loading } = useAuth();
   const { i18n } = useTranslation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;

@@ -93,7 +93,9 @@ describe("a cited piece opens the piece", () => {
     // failure mode this repo already keeps a guard family for
     // (route-params-have-a-reader).
     const src = read(WIKI);
-    expect(src).toMatch(/useLocalSearchParams<\{ focusPageId\?: string \}>\(\)/);
+    // useScreenParams is useLocalSearchParams outside the dashboard phone and the
+    // phone route's query inside it (src/lib/nav/phone-embed.tsx).
+    expect(src).toMatch(/useScreenParams<\{ focusPageId\?: string \}>\(\)/);
     expect(src).toMatch(/setExpandedId\(focusPageId\)/);
   });
 

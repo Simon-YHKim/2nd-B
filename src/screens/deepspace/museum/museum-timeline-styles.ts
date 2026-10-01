@@ -125,6 +125,8 @@ export const museumTimelineStyles = StyleSheet.create({
     paddingVertical: m3.spacing.s2,
   },
   laneLegendItem: { flex: 1, minWidth: 0, minHeight: m3.minTouch },
+  // The legend is a label, not a control: no touch height inside the phone.
+  phoneLaneLegendItem: { minHeight: 0 },
   laneLegendContent: {
     flexDirection: "row",
     alignItems: "center",

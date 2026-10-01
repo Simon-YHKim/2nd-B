@@ -12,7 +12,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import { Redirect, router, usePathname } from "expo-router";
+import { Redirect, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
 import type { PurchasesPackage } from "react-native-purchases";
 
@@ -39,6 +39,7 @@ import {
 } from "@/lib/entitlements/tiers";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { addRewardCredits, monthBucket, weekBucket } from "@/lib/entitlements/usage";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import {
   arePurchasesAvailable,
   configurePurchases,
@@ -179,6 +180,8 @@ function krw(value: number): string {
 }
 
 function DockShell({ children, title }: { children: ReactNode; title?: string }) {
+  // Phone-aware: inside the dashboard phone, back steps the phone's stack.
+  const router = useAppRouter();
   return (
     <DeepSpaceScreen
       active="lens"
@@ -312,6 +315,8 @@ function GateState({
 }
 
 export function DeepSpacePlansScreen() {
+  // Phone-aware: inside the dashboard phone, links open in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language === "ko";
   const auth = useAuth();

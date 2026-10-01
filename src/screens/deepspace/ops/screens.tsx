@@ -803,7 +803,7 @@ export function LedgerScreen() {
             onChangeText={setAmount}
             placeholder={c.amountPlaceholder}
             placeholderTextColor={deepSpace.textLo}
-            style={[styles.searchInput, { flex: 0, width: 118 }]}
+            style={[styles.searchInput, styles.amountInput]}
             keyboardType="number-pad"
             returnKeyType="next"
             accessibilityLabel={c.amountPlaceholder}
@@ -1450,8 +1450,12 @@ const styles = StyleSheet.create({
   },
   saveErrText: { color: deepSpace.danger },
   searchRow: { flexDirection: "row", gap: deepSpaceSpacing.sm },
+  // Shrinks to 64px inside the dashboard phone (~180px column at 320x568); 118px
+  // otherwise. `flex: 0` would reach RN-web as CSS `0 1 0%` and ignore the width.
+  amountInput: { flexGrow: 0, flexShrink: 1, flexBasis: 118, minWidth: 64 },
   searchInput: {
     flex: 1,
+    minWidth: 0,
     minHeight: 44,
     borderWidth: 1,
     borderColor: deepSpace.cardLineStrong,

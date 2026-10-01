@@ -45,7 +45,7 @@
     "brand": "MEU DIA",
     "returnToStars": "Voltar à constelação",
     "internal": {
-      "back": "Voltar dentro do telefone", "closePhone": "Fechar telefone", "exitTitle": "Fechar o telefone?", "exitHint": "Voltar à constelação sem alterar os dados salvos.", "cancel": "Continuar vendo",
+      "back": "Voltar dentro do telefone", "wikiGraph": "Grafo e etiquetas", "closePhone": "Fechar telefone", "exitTitle": "Fechar o telefone?", "exitHint": "Voltar à constelação sem alterar os dados salvos.", "cancel": "Continuar vendo",
       "captureScope": "Salve uma nota curta aqui. Entrevistas e outros modos de captura continuam em telas próprias.",
       "noteInput": "Escreva algo para guardar", "startNote": "Escrever uma nota", "saveNote": "Salvar nota", "saved": "Nota salva.",
       "focusLocal": "Este temporizador funciona apenas enquanto sua tela está aberta.", "start": "Iniciar", "pause": "Pausar", "reset": "Redefinir",

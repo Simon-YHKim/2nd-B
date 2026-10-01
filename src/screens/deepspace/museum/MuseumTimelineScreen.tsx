@@ -434,14 +434,17 @@ export function MuseumTimelineScreen({ phone }: { phone?: MuseumPhonePresentatio
       backLabel={selectedId ? t("deepspace:museum.close") : phone?.backLabel ?? t("deepspace:museum.title")}
     >
       <View style={styles.body}>
-        <PixelSurface variant="inset" contentStyle={styles.rangeRow}>
+        {/* In the phone the mode buttons below already name the active view,
+            and the 1936-2026 range costs the timeline its height on a short
+            display (49px at 320x568, 2026-10-01 QA). */}
+        {phone && compactTimeline ? null : <PixelSurface variant="inset" contentStyle={styles.rangeRow}>
           <Text style={styles.rangeLabel}>{`${MZ.START} - ${MUSEUM_VISIBLE_MAX_YEAR}`}</Text>
           <Text style={styles.rangeHint}>
             {compactTimeline && mobileMode === "overview"
               ? t("deepspace:museum.seekYear")
               : t("deepspace:museum.rangeHint")}
           </Text>
-        </PixelSurface>
+        </PixelSurface>}
 
         {compactTimeline ? (
           <View style={styles.mobileModeRow}>
@@ -525,7 +528,7 @@ export function MuseumTimelineScreen({ phone }: { phone?: MuseumPhonePresentatio
                   key={laneId}
                   variant="flat"
                   background={tone.wash}
-                  style={styles.laneLegendItem}
+                  style={[styles.laneLegendItem, phone && styles.phoneLaneLegendItem]}
                   contentStyle={styles.laneLegendContent}
                 >
                   <View style={[styles.laneSquare, { backgroundColor: tone.accent }]} />

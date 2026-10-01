@@ -414,7 +414,7 @@ export function OpsFrame({ title, onBack, children, footer }: OpsFrameProps) {
           >
             <PixelGlyph name="arrow_back" color={deepSpace.accentBright} size={24} />
           </Pressable>
-          <Text variant="heading" numberOfLines={1} style={styles.embeddedTitle}>{title}</Text>
+          <Text variant="heading" numberOfLines={2} style={styles.embeddedTitle}>{title}</Text>
         </View>
         {children}
         {footer ? <View style={styles.footer}>{footer}</View> : null}

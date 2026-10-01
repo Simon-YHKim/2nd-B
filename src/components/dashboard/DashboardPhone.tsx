@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, AppState, BackHandler, FlatList, PanResponder, Platform, Pressable, StyleSheet, TextInput, View, type ImageStyle } from "react-native";
 import { Image } from "expo-image";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -33,6 +33,8 @@ import type { WikiPageRow } from "@/lib/wiki/types";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { OpsPhoneContent, type OpsPhoneScreen } from "@/screens/deepspace/ops/PhoneOpsContent";
 import { MuseumPhoneContent } from "@/screens/deepspace/museum/MuseumTimelineScreen";
+import { PhoneEmbedProvider, splitPhoneRoute, type PhoneEmbedNav } from "@/lib/nav/phone-embed";
+import { resolvePhoneScreen } from "./phone-screens";
 import type { ProductNotice } from "@/lib/notices/types";
 
 type Tab = "dashboard" | "tools";
@@ -63,6 +65,8 @@ const OPS_PHONE_ROUTES: Record<string, OpsPhoneScreen> = {
   "/meals": "meals",
   "/side-project": "side-project",
 };
+/** A hosted screen replacing itself with one of these leaves the phone (sign-out). */
+const AUTH_EXIT_PATHS = new Set(["/sign-in", "/sign-up", "/onboarding"]);
 const PIXEL_IMAGE = Platform.OS === "web" ? { imageRendering: "pixelated" } as ImageStyle : undefined;
 
 // The phone bezel is always dark, including when the rest of the app uses its
@@ -134,9 +138,15 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const scheduledReadPending = useRef(false);
   const insideRoute = screenStack[screenStack.length - 1] ?? null;
   const museumOpen = insideRoute === "/museum";
-  // Museum and the Ops screens draw their own header Back wired to backInside,
-  // so the phone's Back row would be a second one. Back lives in one place.
-  const contentOwnsBack = museumOpen || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);
+  const phoneScreen = insideRoute ? resolvePhoneScreen(insideRoute) : null;
+  // Museum and the hosted full screens (phone-screens.tsx) own the display:
+  // their own scroll, gestures and header Back. The phone's list, pan
+  // gestures, status rows and dock step aside for them.
+  const ownsDisplay = museumOpen || phoneScreen !== null;
+  // Those screens and the Ops screens draw their own header Back wired to
+  // backInside, so the phone's Back row would be a second one. Back lives in
+  // one place.
+  const contentOwnsBack = ownsDisplay || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);
   const wikiDetailId = insideRoute?.startsWith("/wiki/page/")
     ? decodeURIComponent(insideRoute.slice("/wiki/page/".length)) : null;
   const go = useCallback((route: string) => {
@@ -158,9 +168,41 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     if (tab === "tools") { setTab("dashboard"); return; }
     setExitPrompt(true);
   }, [exitPrompt, selectedNoticeId, screenStack.length, phoneApp, tab]);
+  // Android Back handlers claimed by hosted screens (useHardwareBack), newest
+  // last. The phone's one listener asks them before stepping back itself.
+  const claimedBack = useRef<Array<() => boolean>>([]);
+  const claimBack = useCallback((handler: () => boolean) => {
+    claimedBack.current = [...claimedBack.current, handler];
+    return () => {
+      const at = claimedBack.current.lastIndexOf(handler);
+      if (at >= 0) claimedBack.current = [...claimedBack.current.slice(0, at), ...claimedBack.current.slice(at + 1)];
+    };
+  }, []);
+  // Navigation for hosted screens. Everything opened from the phone stays in
+  // the phone (Simon 2026-09-30); a route the phone cannot draw yet shows its
+  // "not yet connected" page. Only a replace to home closes the phone, and a
+  // replace to the auth screens (sign-out) leaves it.
+  const embedNav = useMemo<PhoneEmbedNav>(() => ({
+    push: go,
+    replace: (route) => {
+      const { path } = splitPhoneRoute(route);
+      if (path === "/") { closePhone(); return; }
+      if (AUTH_EXIT_PATHS.has(path)) { router.replace(route as Href); return; }
+      scrollY.current = 0;
+      setScreenStack((current) => [...current.slice(0, -1), route]);
+    },
+    back: backInside,
+    params: splitPhoneRoute(insideRoute ?? "").params,
+    displayWidth: frame?.screen.width,
+    claimBack,
+  }), [backInside, claimBack, closePhone, frame?.screen.width, go, insideRoute]);
   useFocusEffect(useCallback(() => {
     if (museumOpen) return;
-    const listener = BackHandler.addEventListener("hardwareBackPress", () => { backInside(); return true; });
+    const listener = BackHandler.addEventListener("hardwareBackPress", () => {
+      for (let i = claimedBack.current.length - 1; i >= 0; i -= 1) if (claimedBack.current[i]()) return true;
+      backInside();
+      return true;
+    });
     return () => listener.remove();
   }, [backInside, museumOpen]));
   useEffect(() => {
@@ -367,9 +409,6 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     const area = route.startsWith("/star/") ? route.slice(6) : null;
     const title = route === "/focus" ? t("phone.apps.focus") :
       route === "/museum" ? t("phone.apps.museum") :
-      route === "/community" ? t("phone.apps.community") :
-      route === "/avatar-palette" ? t("phone.apps.avatarPalette") :
-      route === "/settings" ? t("phone.apps.settings") :
       route === "/profile" ? t("phone.nav.profile") :
       route === "/capture" ? t("phone.nav.add") :
       route === "/wiki" || route.startsWith("/wiki/page/") ? t("phone.moreApps.wiki") :
@@ -399,6 +438,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         </View>
       </PixelSurface> : null}
       {route === "/wiki" ? <View style={styles.stack}>
+        <PhoneAction label={t("phone.internal.wikiGraph")} glyph="bubble_chart" onPress={() => go("/wiki/graph")} />
         <TextInput accessibilityLabel={t("wiki:searchPieces")} value={wikiQuery} onChangeText={setWikiQuery} placeholder={t("wiki:searchPieces")} placeholderTextColor={m3.color.onSurfaceVariant} style={[styles.searchInput, styles.phoneText]} />
         {wikiLoading ? <Text variant="caption" style={styles.muted}>{t("wiki:loading")}</Text> : null}
         {wikiFailed ? <View style={styles.stack}>
@@ -439,10 +479,8 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
             <Text variant="caption" style={styles.muted}>{date(selected.created_at)}</Text>
           </PixelSurface> : <Text variant="caption" style={styles.muted}>{t("phone.operational.sourceStates.empty")}</Text>}
       </View> : null}
-      {route === "/settings" ? <Text variant="caption" style={styles.muted}>{t("phone.internal.settingsScope")}</Text> : null}
       {route === "/profile" ? <Text variant="caption" style={styles.muted}>{failed ? t("phone.readError") : !data || loading ? t("phone.loading") : data.records.ok ? t("phone.internal.profileSummary", { count: data.records.value.length }) : t("phone.readError")}</Text> : null}
-      {["/community", "/avatar-palette"].includes(route) ? <Text variant="caption" style={styles.muted}>{t("phone.internal.unavailable")}</Text> : null}
-      {!["/capture", "/focus", "/ops", "/reminders", "/records", "/wiki", "/search", "/settings", "/profile", "/community", "/avatar-palette"].includes(route) && !route.startsWith("/wiki/page/") && !route.startsWith("/star/") && !route.startsWith("/record/") && !area ?
+      {!["/capture", "/focus", "/ops", "/reminders", "/records", "/wiki", "/search", "/profile"].includes(route) && !route.startsWith("/wiki/page/") && !route.startsWith("/star/") && !route.startsWith("/record/") && !area ?
         <Text variant="caption" style={styles.muted}>{t("phone.internal.unavailable")}</Text> : null}
     </View>;
   }
@@ -646,9 +684,10 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   // above its fixed internal dock on smaller phones, not hide the last labels.
   const appTileHeight = Math.max(48, Math.min(67, Math.floor(((frame?.screen.height ?? 512) - 300) / 3)));
   const appIconSize = Math.max(25, Math.min(36, appTileHeight - 29));
+  const narrowDock = (frame?.screen.width ?? Infinity) < 240;
   return <DeepSpaceScreen active="ops" header="none" variant="fullbleed" showSharedSky transparentBackdrop={transparentBackdrop}>
     <View pointerEvents="none" style={styles.phoneBackdrop}><PixelScrim style={styles.phoneScrimImage} /></View>
-    <Animated.View {...(museumOpen ? {} : phonePan.panHandlers)} testID="dashboard-phone" style={[styles.phone, { transform: [{ translateY: dismissY }] }]} onLayout={({ nativeEvent: { layout } }) => {
+    <Animated.View {...(ownsDisplay ? {} : phonePan.panHandlers)} testID="dashboard-phone" style={[styles.phone, { transform: [{ translateY: dismissY }] }]} onLayout={({ nativeEvent: { layout } }) => {
       setFrameSize((current) => current.width === layout.width && current.height === layout.height
         ? current : { width: layout.width, height: layout.height });
     }}>
@@ -694,10 +733,12 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
           {pageIndex < 2 ? <Image source={PHONE_UI_ART.next} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
         </Pressable>
       </View> : null}
-      {!museumOpen && loading ? <Text accessibilityLiveRegion="polite" variant="caption" style={styles.readStatus}>{t("phone.loading")}</Text> : null}
-      {!museumOpen && (failed || partial) ? <View style={styles.errorRow}><Text variant="caption" style={styles.flexText}>{t("phone.partialError")}</Text><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} /></View> : null}
-      <View style={styles.pageBody} {...(museumOpen ? {} : pagePan.panHandlers)}>
-      {museumOpen ? <MuseumPhoneContent width={frame.screen.width} onBack={backInside} backLabel={t("phone.appsBack")} /> : <FlatList
+      {!ownsDisplay && loading ? <Text accessibilityLiveRegion="polite" variant="caption" style={styles.readStatus}>{t("phone.loading")}</Text> : null}
+      {!ownsDisplay && (failed || partial) ? <View style={styles.errorRow}><Text variant="caption" style={styles.flexText}>{t("phone.partialError")}</Text><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} /></View> : null}
+      <View style={styles.pageBody} {...(ownsDisplay ? {} : pagePan.panHandlers)}>
+      {museumOpen ? <MuseumPhoneContent width={frame.screen.width} onBack={backInside} backLabel={t("phone.appsBack")} /> : phoneScreen ? <View key={insideRoute} testID="phone-hosted-screen" style={styles.hostedScreen}>
+        <PhoneEmbedProvider value={embedNav}>{phoneScreen}</PhoneEmbedProvider>
+      </View> : <FlatList
         key={`${tab}-${phoneApp}-${insideRoute ?? "home"}-${exitPrompt ? "exit" : "open"}-${selectedNoticeId ? "detail" : "list"}`}
         testID="dashboard-phone-scroll"
         onScroll={(event) => { scrollY.current = event.nativeEvent.contentOffset.y; }}
@@ -719,12 +760,12 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         contentContainerStyle={styles.content}
       />}
       </View>
-      {!museumOpen ? <View style={styles.phoneDock} accessibilityLabel={t("phone.navLabel")}>
+      {!ownsDisplay ? <View style={[styles.phoneDock, narrowDock && styles.phoneDockNarrow]} accessibilityLabel={t("phone.navLabel")}>
         {PHONE_NAV.map((item) => <Pressable key={item} accessibilityRole="button" accessibilityLabel={t(`phone.nav.${item}`)} onPress={() => {
           if (item === "home") { showPage(0); return; }
           go(item === "note" ? "/records" : item === "add" ? "/capture" : item === "search" ? "/wiki" : "/profile");
-        }} style={[styles.navButton, item === "add" && styles.navAdd]}>
-          <Image source={PHONE_NAV_ICONS[item]} contentFit="contain" style={[item === "add" ? styles.navAddIcon : styles.navIcon, PIXEL_IMAGE]} accessible={false} />
+        }} style={[styles.navButton, narrowDock && styles.navButtonNarrow, item === "add" && styles.navAdd]}>
+          <Image source={PHONE_NAV_ICONS[item]} contentFit="contain" style={[item === "add" ? (narrowDock ? styles.navAddIconNarrow : styles.navAddIcon) : styles.navIcon, PIXEL_IMAGE]} accessible={false} />
           {item !== "add" ? <Text variant="caption" style={[styles.navText, item === "home" && tab === "dashboard" && styles.navActive]}>{t(`phone.nav.${item}`)}</Text> : null}
         </Pressable>)}
       </View> : null}
@@ -772,12 +813,19 @@ const styles = StyleSheet.create({
   pageDotButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   pageDot: { width: 11, height: 11 },
   pageBody: { flex: 1, minHeight: 0 },
+  hostedScreen: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0 },
   content: { paddingHorizontal: 9, paddingTop: 5, paddingBottom: 12, gap: 10 },
   phoneDock: { height: 53, marginHorizontal: 8, marginBottom: 4, flexDirection: "row", alignItems: "center", justifyContent: "space-around", borderWidth: 1, borderColor: m3.color.outline, backgroundColor: m3.color.surfaceContainerLowest },
   navButton: { minWidth: 44, minHeight: 48, flex: 1, alignItems: "center", justifyContent: "center", gap: 0 },
   navIcon: { width: 27, height: 27 },
   navAdd: { flex: 1.15 },
   navAddIcon: { width: 49, height: 49 },
+  // A 320px window leaves ~195px for five buttons; 44px minimums pushed
+  // Profile off the right edge (2026-10-01 QA). Narrow docks share the width
+  // (each button still >= 39px wide, 48px tall) and shrink the center icon.
+  phoneDockNarrow: { marginHorizontal: 4 },
+  navButtonNarrow: { minWidth: 0 },
+  navAddIconNarrow: { width: 40, height: 40 },
   navText: { color: m3.color.onSurfaceVariant, fontFamily: "Galmuri11", fontSize: 10, lineHeight: 14 },
   navActive: { color: m3.color.primary },
   stack: { gap: 12 },

@@ -12,7 +12,7 @@
     "nav": { "home": "Home", "note": "Notes", "add": "Add", "search": "Search", "profile": "Profile" },
     "returnToStars": "Return to constellation",
     "internal": {
-      "back": "Back inside phone", "closePhone": "Close phone", "exitTitle": "Close the phone?", "exitHint": "Return to the constellation without changing your saved data.", "cancel": "Keep viewing",
+      "back": "Back inside phone", "wikiGraph": "Graph and tags", "closePhone": "Close phone", "exitTitle": "Close the phone?", "exitHint": "Return to the constellation without changing your saved data.", "cancel": "Keep viewing",
       "captureScope": "Save a short note here. Interviews and other capture modes remain in their dedicated screens.",
       "noteInput": "Write something to keep", "startNote": "Write a note", "saveNote": "Save note", "saved": "Note saved.",
       "focusLocal": "This timer runs only while its screen is open.", "start": "Start", "pause": "Pause", "reset": "Reset",

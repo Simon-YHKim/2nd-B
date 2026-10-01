@@ -28,7 +28,8 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 
 import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -519,6 +520,8 @@ function SettingsChrome({ children }: { children: ReactNode }) {
 }
 
 export default function Settings() {
+  // Phone-aware: inside the dashboard phone, links open in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("settings");
   const { t: tOps } = useTranslation("ops");
   const { userId, loading } = useAuth();

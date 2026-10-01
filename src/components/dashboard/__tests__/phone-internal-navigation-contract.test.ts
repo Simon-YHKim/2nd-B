@@ -30,11 +30,25 @@ test("phone-originated routes stay inside the display, with separate back and ex
 test("an in-phone page shows one Back: the phone row, or the content's own header", () => {
   // 2026-10-01 web QA: Ops screens showed the phone's Back row above their own
   // embedded header Back (both call backInside).
-  expect(phone).toContain("const contentOwnsBack = museumOpen || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);");
+  expect(phone).toContain("const ownsDisplay = museumOpen || phoneScreen !== null;");
+  expect(phone).toContain("const contentOwnsBack = ownsDisplay || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);");
   expect(phone).toContain("{internalActive && !contentOwnsBack ? <PhoneAction");
   expect(phone).not.toContain("{internalActive && !museumOpen ? <PhoneAction");
   expect(phone).toContain("<OpsPhoneContent screen={opsScreen} onBack={backInside}");
   expect(phone).toContain("<MuseumPhoneContent width={frame.screen.width} onBack={backInside}");
+});
+
+test("hosted full screens get a bounded view, the phone's navigation, and no phone gestures", () => {
+  // Outside the FlatList, keyed by route so a route change unmounts the old screen.
+  expect(phone).toContain('phoneScreen ? <View key={insideRoute} testID="phone-hosted-screen" style={styles.hostedScreen}>');
+  expect(phone).toContain("<PhoneEmbedProvider value={embedNav}>{phoneScreen}</PhoneEmbedProvider>");
+  expect(phone).toContain("{...(ownsDisplay ? {} : phonePan.panHandlers)}");
+  expect(phone).toContain("{...(ownsDisplay ? {} : pagePan.panHandlers)}");
+  expect(phone).toContain("{!ownsDisplay ? <View style={[styles.phoneDock, narrowDock && styles.phoneDockNarrow]}");
+  // Pushes stay in the phone; only home and the auth screens leave it.
+  expect(phone).toContain("push: go,");
+  expect(phone).toContain('if (path === "/") { closePhone(); return; }');
+  expect(phone).toContain("if (AUTH_EXIT_PATHS.has(path)) { router.replace(route as Href); return; }");
 });
 
 test("source states, empty records, retry and a safe phone note remain explicit", () => {
