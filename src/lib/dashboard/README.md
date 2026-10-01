@@ -23,6 +23,13 @@ First dashboard entry does not start an OAuth/login flow. Existing owner-scoped 
 
 ## Reachable existing flows
 
+The phone can embed the existing reading shelf or side-project screen with
+`OpsPhoneContent` (`reading` / `side-project`) and a phone-local `onBack` callback.
+Its `OpsFrame` adapter drops the second app shell and inner scroll only in that
+host; the phone list owns scrolling. Both standalone routes keep their current
+shell. The host checks auth before mounting and keys the content by account so
+GitHub handle and shelf state do not carry across account changes.
+
 `/ops`, `/reminders`, `/permissions`, `/privacy`, `/import`, `/import-hub`, the six `/star` areas, focus, goals, ledger, meals, and the existing adult-only community. Consent, native permission requests, import review, revocation, and deletion remain owned by those flows.
 
 Google Calendar / Tasks, ICS, Google Timeline export, KakaoTalk export and SMS backups use existing imports. The current calendar import stores selected summary material, not a queryable timed event feed; the dashboard therefore does not fabricate a calendar agenda. A new import does not imply background synchronization.
