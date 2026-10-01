@@ -46,7 +46,9 @@ changing those independent entry points.
 
 `OpsPhoneContent` reuses the existing assistant, reminders, ledger, goals,
 meals, reading shelf, and side-project screens with a phone-local `onBack`
-callback. The reminders screen also sends its assistant link through the phone
+callback. Their embedded header Back is the only Back on those pages: the
+phone hides its own Back row there (`contentOwnsBack`), as it does for Museum.
+Android Back still steps through the phone history. The reminders screen also sends its assistant link through the phone
 navigation callback. `OpsFrame` drops the second app shell and inner scroll
 only in this host; the phone list owns scrolling. Standalone routes keep their
 current shell. The host checks auth before mounting and keys content by

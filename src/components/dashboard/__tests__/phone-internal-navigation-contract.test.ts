@@ -27,6 +27,16 @@ test("phone-originated routes stay inside the display, with separate back and ex
   expect(phone).toContain('"phone.internal.closePhone"');
 });
 
+test("an in-phone page shows one Back: the phone row, or the content's own header", () => {
+  // 2026-10-01 web QA: Ops screens showed the phone's Back row above their own
+  // embedded header Back (both call backInside).
+  expect(phone).toContain("const contentOwnsBack = museumOpen || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);");
+  expect(phone).toContain("{internalActive && !contentOwnsBack ? <PhoneAction");
+  expect(phone).not.toContain("{internalActive && !museumOpen ? <PhoneAction");
+  expect(phone).toContain("<OpsPhoneContent screen={opsScreen} onBack={backInside}");
+  expect(phone).toContain("<MuseumPhoneContent width={frame.screen.width} onBack={backInside}");
+});
+
 test("source states, empty records, retry and a safe phone note remain explicit", () => {
   expect(phone).toContain('t("phone.operational.sourceStates.unknown")');
   expect(phone).toContain('t("phone.operational.sourceStates.empty")');

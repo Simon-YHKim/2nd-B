@@ -134,6 +134,9 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const scheduledReadPending = useRef(false);
   const insideRoute = screenStack[screenStack.length - 1] ?? null;
   const museumOpen = insideRoute === "/museum";
+  // Museum and the Ops screens draw their own header Back wired to backInside,
+  // so the phone's Back row would be a second one. Back lives in one place.
+  const contentOwnsBack = museumOpen || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);
   const wikiDetailId = insideRoute?.startsWith("/wiki/page/")
     ? decodeURIComponent(insideRoute.slice("/wiki/page/".length)) : null;
   const go = useCallback((route: string) => {
@@ -675,7 +678,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
           <Text variant="caption" style={styles.heroSubtitle}>{t("phone.bannerSubtitle")}</Text>
         </View>
       </View> : null}
-      {internalActive && !museumOpen ? <PhoneAction label={selectedNoticeId ? t("phone.noticeListBack") : t("phone.internal.back")} glyph="arrow_back" onPress={backInside} /> : null}
+      {internalActive && !contentOwnsBack ? <PhoneAction label={selectedNoticeId ? t("phone.noticeListBack") : t("phone.internal.back")} glyph="arrow_back" onPress={backInside} /> : null}
       {!internalActive ? <View style={styles.tabs}>{TABS.map((item, index) => <PixelPressable key={item} rootStyle={styles.tab} onPress={() => showPage(index)} accessibilityRole="tab" accessibilityState={{ selected: tab === item }} background={tab === item ? m3.color.primaryContainer : m3.color.surfaceContainer} contentStyle={styles.tabContent}>
         <Image source={item === "dashboard" ? PHONE_UI_ART.dashboard : PHONE_UI_ART.apps} contentFit="contain" style={[styles.tabIcon, PIXEL_IMAGE]} accessible={false} />
         <Text variant="caption" style={styles.tabLabel}>{t(`phone.tabs.${item}`)}</Text>
