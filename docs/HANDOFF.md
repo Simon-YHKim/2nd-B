@@ -30,7 +30,18 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-01 15:09 / 가져오기 고지 병합과 PolaScope GUI 확인
+## Latest — 2026-10-01 15:47 / 자동저장 Draft 통합과 웹 로그인 현장 점검
+
+- main fe2a4723은 이번 구간에 변경하지 않았다. [#1889](https://github.com/Simon-YHKim/2nd-B/pull/1889)의 0행 삭제 뒤 인증 SDK 잠금 재진입 수정은 CI 3종 통과 후 #1814의 내부 브랜치에 병합됐다(43d01d2a). main에는 아직 없다.
+- [#1814](https://github.com/Simon-YHKim/2nd-B/pull/1814)는 #1889 head와 최신 main 사이 충돌 10곳을 격리 워크트리에서 해결하고 Draft head e161478a로 fast-forward push했다. 로컬 npm run verify는 정적 게이트와 Jest 883묶음/11,654건 통과, diff check·추가 줄 시크릿 검사 이상 0건이다. PR CI 3종(verify·lint·web-export-smoke)도 모두 통과했다. 운영 서버 S1 원자 설정, S2 동의 결합 쓰기, S3 삭제 의도·Storage 영수증/업로드 세대 보호와 관리형 Storage·네이티브 E2E가 없어 **Draft 해제·main 병합 금지**다.
+- 합성 데이터로 #1814의 손 담기 원문 업로드를 A 계정에서 송신한 뒤 B 계정으로 전환하면 A Storage 원문 1개가 남고 B의 sources INSERT는 RLS에서 거부되어 행 0개인 경로를 재현했다. 클라이언트는 송신된 업로드를 확정적으로 취소하거나 B 권한으로 A 원문을 지울 수 없다. 재현·영향을 src/lib/chat/autosave.ts에 기록했으며 서버 계약 전 출시는 차단한다. DPIA의 0186 미적용 표기는 [운영 원장](qa/PRODUCTION-SERVER-STATUS-260927.html)의 적용 기록으로 정정했으나 삭제 완료 보장은 주장하지 않는다.
+- [#1839](https://github.com/Simon-YHKim/2nd-B/pull/1839)는 최신 main과 충돌 없이 병합 가능한 Draft지만 서버 S3 삭제 의도·업로드 세대 보호가 없다. 기존 CI는 이전 main 기준으로 통과했고 최신 통합 CI/관리형 Storage 경합은 미검증이다. **Draft 유지**.
+- [#1863](https://github.com/Simon-YHKim/2nd-B/issues/1863)은 Chrome에서 로컬 로그인 3회·공개 사이트 1회 모두 /token 200과 정상 이동을 관찰했다. 인위적 17초 응답 지연에서는 15초 단계 로그가 동작했다. 공개 사이트 JS에는 아직 이 계측이 없어 실제 간헐적 멈춤의 단계는 미확정이다. [재현·배포 차이 기록](https://github.com/Simon-YHKim/2nd-B/issues/1863#issuecomment-5926043010)을 남기고 이슈를 열어 뒀다. 운영 웹 게시는 실행하지 않았다.
+- PolaScope [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)는 10월 5일 email-v7·service-v2 및 운영 원장 게이트를 기다리는 Draft다. 10개 비로그인 화면 GUI 검사는 통과했고 인증 서버 계약은 판정하지 않았다. npm run app:parity는 main·localhost 앱 경로 0개 차이와 Android 진단 APK 성공으로 **같음**이다. 사용자 GUI 워크트리 TTL-Work_rev2의 미커밋 변경은 건드리지 않았다.
+- 다음: #1814 새 head CI 확인과 Draft 차단 조건 PR 상단 반영; #1902 날짜·운영 계약 확인; #1863은 운영 웹에 계측이 게시된 뒤 현장 로그 수집. Supabase 운영 DB·Edge·격리 복원은 SESSION-OWNERSHIP 및 Simon 지시에 따라 Grok 담당 후속으로 미뤘고 이번 구간에 실행하지 않았다. Simon의 최신 지시는 작은 판단을 다시 묻지 않고 진행하는 것이다.
+
+---
+## 2026-10-01 15:09 / 가져오기 고지 병합과 PolaScope GUI 확인
 
 - main `f5ad2ef7`: [#1993](https://github.com/Simon-YHKim/2nd-B/pull/1993)으로 Notion·Obsidian Markdown 가져오기 동의·검토 화면의 노트 제목·본문 보관 고지를 바로잡았다. 5개 언어 문구와 [동의·검토 화면 증거](qa/import-markdown-disclosure-261001/)를 함께 병합했다. 로컬 `npm run verify` 873묶음/11,325건, PR CI 3종, 격리 Chrome 한국어 390×844 화면 검사가 통과했고 페이지 오류·기록 쓰기 0건이다.
 - 새 GUI 고지 테스트는 main의 Windows CRLF 체크아웃에서 줄바꿈 문자열 비교 1건이 실패했다. [#1994](https://github.com/Simon-YHKim/2nd-B/pull/1994)에서 테스트가 읽는 소스의 줄바꿈만 LF로 정규화했고, `npm run verify` 873묶음/11,325건과 PR CI 3종이 통과해 main `2844922b`에 병합됐다. 앱 동작 변경은 없다.
