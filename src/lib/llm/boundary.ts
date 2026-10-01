@@ -462,7 +462,9 @@ export async function classifyRecordTextForCrisis(
   locale: "en" | "ko",
   userId: string,
   minor = false,
+  session?: AuthenticatedAccountSessionLease,
 ): Promise<LlmResult<string> | null> {
+  session?.assertCurrent();
   // Dual-locale, same as the chat input path (callLlm): catch a crisis term
   // written in a language other than the UI locale (a ko-UI user typing English
   // self-harm text, or vice versa). The note-save path previously used the
@@ -470,7 +472,7 @@ export async function classifyRecordTextForCrisis(
   // while the chat path caught them (persona-validate: crisis-lexicon parity).
   const safety = classifyInputAnyLocale(text, locale, { minor });
   if (safety.zone !== "red") return null;
-  return routeCrisis(safety, locale, userId, djb2(text), minor, "record_save_red");
+  return routeCrisis(safety, locale, userId, djb2(text), minor, "record_save_red", { session });
 }
 
 // Interview answers are classified by the screen before any non-answer or

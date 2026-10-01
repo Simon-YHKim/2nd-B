@@ -303,31 +303,36 @@ test("unavailable storage never reports a saved capture", async () => {
   }
 });
 
-// ── 홈 라우트가 이 배수구를 붙들고 있는가 ───────────────────────────────
+// ── 홈 라우트가 기기 큐의 명시적 소유 확인을 붙들고 있는가 ──────────────
 //
 // 2026-09-08 에 홈 라우트가 22줄 래퍼가 됐다. 얇아 보이는 파일은 "정리" 대상이
-// 되기 쉬운데, 그 안의 `useImportPendingCaptures()` 한 줄이 **계정 만들기 전에
-// 담아둔 것들을 계정으로 옮기는 유일한 자리**다. 지우면 예외도 안 나고 화면도
-// 안 죽고, 가입 전에 적어둔 글만 기기에 남는다.
+// 되기 쉬운데, 그 안의 `useImportPendingCaptures()`가 **기기에 남은
+// 메모를 확인한 계정으로만 옮기는 자리**다. 자동 가져오기는 다른 사람이
+// 남긴 메모를 현재 계정에 쓸 수 있으므로 버튼 선택 전에는 금지한다.
 //
 // 부르는 곳이 여기 하나뿐이라 이 핀이 없으면 아무도 안 운다(실측: 정의 파일과
 // 라우트 밖 참조 0건).
-describe("가입 전에 담은 것을 계정으로 옮기는 자리", () => {
+describe("기기에 남은 메모의 소유 확인 자리", () => {
   const read = (rel: string): string =>
     readFileSync(join(process.cwd(), rel), "utf8").replace(/\r\n/g, "\n");
 
-  it("홈 라우트가 배수구를 마운트한다", () => {
+  it("홈 라우트가 명시적 가져오기와 위기 안내를 마운트한다", () => {
     const route = read("src/app/index.tsx");
-    expect(route).toContain("useImportPendingCaptures();");
+    expect(route).toContain("const { prompt, confirmImport, deferImport, crisis, dismissCrisis } = useImportPendingCaptures();");
     expect(route).toContain('import { useImportPendingCaptures } from "@/lib/capture/use-import-pending";');
+    expect(route).toContain("<PendingImportPrompt prompt={prompt} onConfirm={confirmImport} onDefer={deferImport} />");
+    expect(route).toContain("<CrisisRouter visible={crisis.visible} hotline={crisis.hotline} onClose={dismissCrisis} />");
   });
 
-  it("배수구는 로그인과 프로필이 갖춰진 뒤에만 돈다", () => {
+  it("로그인·프로필·안정된 홈 뒤에만 제안하고, 확인 버튼에서만 가져온다", () => {
     // C10 - 나이를 모르는 채로 기록을 만들지 않는다.
     const hook = read("src/lib/capture/use-import-pending.ts");
-    expect(hook).toContain("if (!userId || hasProfile !== true) return;");
+    expect(hook).toContain("loading || !userId || hasProfile !== true || profileProbeFailed ||");
+    expect(hook).toContain("onboardingComplete !== true || autoTriggerTTFV !== false");
     expect(hook).toContain("minor: ctx.minor");
-    // 한 번만 - 세션마다 다시 붓지 않는다.
-    expect(hook).toContain("if (ran.current) return;");
+    expect(hook).toContain("const minor = isMinor !== false;");
+    expect(hook).toContain("const confirmImport = useCallback(() => {");
+    expect(hook).toContain("items: offer.items");
+    expect(hook).toContain("const deferImport = useCallback(() => {");
   });
 });
