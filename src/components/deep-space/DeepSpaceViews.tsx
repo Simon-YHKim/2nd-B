@@ -17,7 +17,7 @@ import { AccessibilityInfo, Keyboard, type DimensionValue, Platform, Pressable, 
 import { Image } from "expo-image";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
-import { router, useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import { canonCaptureModes } from "@/lib/canon";
@@ -28,6 +28,7 @@ import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { canonGlyph, type AnyGlyphName } from "@/components/pixel/pixel-glyphs";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { createRecord } from "@/lib/records/create";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { type HotlineId } from "@/lib/safety/lexicon";
@@ -2085,9 +2086,13 @@ function starRangeLabel(
 }
 
 export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
+  // Phone-aware: /interview draws this when its period is missing. Inside the
+  // dashboard phone the picked era opens in the phone, and `origin` is the
+  // phone route's query, not /dashboard's.
+  const router = useAppRouter();
   const { t } = useTranslation("home");
   const { age } = useAuth();
-  const { origin: originParam } = useLocalSearchParams<{ origin?: string | string[] }>();
+  const { origin: originParam } = useScreenParams<{ origin?: string | string[] }>();
   const growthOrigin = (Array.isArray(originParam) ? originParam[0] : originParam) === "domain-growth";
   void isKo; // copy is t()-driven; prop kept for caller-convention parity
   // 별 일곱 그대로. 인터뷰가 없는 프로필은 여기 목록에 안 낸다 -- 이 화면은

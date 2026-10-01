@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { Redirect } from "expo-router";
 import Svg from "react-native-svg";
 
 import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
@@ -39,6 +39,7 @@ import {
   type LifePeriod,
 } from "@/lib/interview/probe";
 import { coveredDrillLayers, meStarStaticParams } from "@/lib/nav/me-star-route";
+import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
 import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
 import { starEntryStatus, type StarEntryStatus } from "@/lib/persona/star-entry-tracks";
@@ -79,8 +80,11 @@ async function loadSummary(userId: string, period: LifePeriod | null): Promise<S
 }
 
 export default function StarSummaryRoute() {
+  // Phone-aware: inside the dashboard phone, the interview opens in the phone,
+  // back steps the phone, and `star` comes from the phone route (/me/now).
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("home");
-  const { star } = useLocalSearchParams<{ star?: string }>();
+  const { star } = useScreenParams<{ star?: string }>();
   const { userId, loading, age } = useAuth();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [entry, setEntry] = useState<StarEntryStatus | null>(null);

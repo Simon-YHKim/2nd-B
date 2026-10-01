@@ -10,7 +10,7 @@
 // Only screens whose navigation is phone-aware may be listed: a direct
 // `router.back()` inside the phone would pop the app stack and leave the
 // dashboard. See src/lib/nav/phone-embed.tsx.
-import { useCallback, useRef, useState, type ComponentType, type ReactElement } from "react";
+import { useCallback, useMemo, useRef, useState, type ComponentType, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CommunityJoinContent } from "@/components/community/CommunityJoinContent";
@@ -24,7 +24,9 @@ import DataScreen from "@/app/data";
 import DataConnectionsScreen from "@/app/data-connections";
 import ImportScreen from "@/app/import";
 import ImportHubScreen from "@/app/import-hub";
+import InterviewScreen from "@/app/interview";
 import ManualScreen from "@/app/manual";
+import StarSummaryScreen from "@/app/me/[star]";
 import NoticesScreen from "@/app/notices";
 import PermissionsScreen from "@/app/permissions";
 import PlansScreen from "@/app/plans";
@@ -36,7 +38,7 @@ import SourcesScreen from "@/app/sources";
 import SubscriptionScreen from "@/app/subscription";
 import SupportScreen from "@/app/support";
 import ThemeScreen from "@/app/theme";
-import { splitPhoneRoute, useHardwareBack, usePhoneEmbed, type PhoneEmbedNav } from "@/lib/nav/phone-embed";
+import { PhoneEmbedProvider, splitPhoneRoute, useHardwareBack, usePhoneEmbed, type PhoneEmbedNav } from "@/lib/nav/phone-embed";
 
 function useNav(): PhoneEmbedNav {
   const nav = usePhoneEmbed();
@@ -102,6 +104,15 @@ function PhoneCommunityJoin({ token }: { token: string }) {
   );
 }
 
+/** /me/<star>: the phone stack keeps only the query in `params`, so the segment
+ *  is added here for useScreenParams(). The interview saves back to any of the
+ *  dated stars, not just `now`. */
+function PhoneStarSummary({ star }: { star: string }) {
+  const nav = useNav();
+  const value = useMemo(() => ({ ...nav, params: { ...nav.params, star } }), [nav, star]);
+  return <PhoneEmbedProvider value={value}><StarSummaryScreen /></PhoneEmbedProvider>;
+}
+
 /** Standalone route screens converted to useAppRouter / useScreenParams. */
 const PHONE_ROUTE_SCREENS: Readonly<Record<string, ComponentType>> = {
   "/account": AccountScreen,
@@ -110,6 +121,7 @@ const PHONE_ROUTE_SCREENS: Readonly<Record<string, ComponentType>> = {
   "/data-connections": DataConnectionsScreen,
   "/import": ImportScreen,
   "/import-hub": ImportHubScreen,
+  "/interview": InterviewScreen,
   "/manual": ManualScreen,
   "/notices": NoticesScreen,
   "/permissions": PermissionsScreen,
@@ -135,6 +147,8 @@ export function resolvePhoneScreen(route: string): ReactElement | null {
   if (join) return <PhoneCommunityJoin token={decodeURIComponent(join[1])} />;
   const room = /^\/community\/([^/]+)$/.exec(path);
   if (room) return <PhoneCommunityRoom roomId={decodeURIComponent(room[1])} />;
+  const star = /^\/me\/([^/]+)$/.exec(path);
+  if (star) return <PhoneStarSummary star={decodeURIComponent(star[1])} />;
   const Screen = PHONE_ROUTE_SCREENS[path];
   return Screen ? <Screen /> : null;
 }

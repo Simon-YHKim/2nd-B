@@ -520,7 +520,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         <Text variant="caption" style={styles.accent}>{t("phone.todayLabel")}</Text>
         <Text variant="heading">{priority.evidence ?? t(`phone.priority.${priority.kind}.title`)}</Text>
         <Text variant="caption" style={styles.muted}>{t(`phone.priority.${priority.kind}.detail`)}</Text>
-        {priority.route ? <PhoneAction label={t(priority.kind === "startInterview" ? "phone.internal.startNote" : `phone.priority.${priority.kind}.action`)} onPress={() => go(priority.route === "/me/now" ? "/capture" : priority.route!)} /> : null}
+        {priority.route ? <PhoneAction label={t(`phone.priority.${priority.kind}.action`)} onPress={() => go(priority.route!)} /> : null}
       </PixelSurface> : !loading ? <Text variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : null}
       <Text variant="heading">{t("phone.operational.atGlance")}</Text>
       <View style={styles.metricGrid}>{rules.metricOrder.map((id) => <PixelPressable key={id} variant="inset" rootStyle={styles.metric} onPress={() => setExpandedMetric((current) => current === id ? null : id)} accessibilityLabel={`${t(`phone.metricsSummary.${id}.title`)}: ${metricValue(id)}`} accessibilityState={{ expanded: expandedMetric === id }} contentStyle={styles.metricContent}>
