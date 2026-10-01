@@ -30,6 +30,14 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
+## Latest — 2026-10-01 12:28 / 기기 메모 계정 확인 Android GUI
+
+- main `c329415a`의 [x86_64 Android 진단 빌드](https://github.com/Simon-YHKim/2nd-B/actions/runs/36808246889)가 성공했고 ABI 검사 뒤 Android 36 에뮬레이터에 설치했다. 글꼴 배율 `2.0`에서 합성 기기 메모 1개의 확인창은 **건수·현재 QA 계정의 정확한 이메일·가져오기/나중에 버튼**을 표시했고, 메모 본문은 노출하지 않았다. `나중에`를 누르고 앱을 강제 종료·재실행한 뒤에도 1개 확인창이 재등장했다. 실기기·TalkBack은 아직 미검증이다.
+- 좌표를 화면 축소 비율로 잘못 계산해 첫 합성 메모 1개는 실수로 `가져오기`를 눌렀다. 공유 QA 계정에 테스트 기록 1개가 생성됐고 기기 큐는 비워졌다. 이 변경을 숨기거나 운영 사용자 데이터로 취급하지 말 것. 두 번째 합성 메모로 `나중에` 보존을 별도 검증했으며, 현재 그 메모 1개는 격리 에뮬레이터의 암호화 큐에 남아 있다.
+- 네이티브 확인창에서 영어 `1 notes`를 발견했다. 영어·스페인어·포르투갈어는 단수·복수에 관계없이 자연스럽게 읽히는 건수 표시 문구로 수정했다. `npm run verify`는 871묶음/11,319건 통과했다. 화면 증거는 Git 밖 `E:\2ndB\.git\2ndb-session-state\PREAUTH-OWNER-PROMPT-NATIVE-261001.png`(SHA-256 `22d52a46f6377c04aa5e5625f5498c0c8192433875073b01d1e76babfc0a0e27`)와 `PREAUTH-OWNER-DEFER-RESTART-NATIVE-261001.png`(SHA-256 `2e9ff44ac5cbf0dcd9b1cb5bba4a381ff2ad9b8c070693ee65364b31044db4ce`)에 있다. 두 이미지는 문구 수정 전 APK 화면이다.
+
+---
+
 ## Latest — 2026-10-01 11:47 / 기기 메모 계정 확인 웹 GUI
 
 - [#1989](https://github.com/Simon-YHKim/2nd-B/pull/1989)는 CI 전부 통과 후 main `ca3b8859`에 병합됐다. `npm run app:parity`는 main·localhost의 앱 경로 차이 0, 설정·의존성 일치, Android 진단 런 `36807045290` 진행 중으로 **같음**이다.

@@ -60,7 +60,7 @@
   },
   "pendingDevice": {
     "title": "Notes left on this device",
-    "body": "There are {{count}} notes saved before sign-in on this device. Someone else may have written them. Import only if they are yours.",
+    "body": "Notes saved on this device before sign-in: {{count}}. Someone else may have written them. Import only if they are yours.",
     "account": "Import into: {{email}}",
     "accountUnavailable": "We can't confirm this account's email right now, so import is paused.",
     "confirm": "Import my notes into this account",
