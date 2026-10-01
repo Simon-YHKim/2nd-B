@@ -25,6 +25,7 @@
 - 저장소 lockfile은 `@supabase/supabase-js`와 `@supabase/storage-js` **2.106.1**이다. [해당 버전 SDK 원문](https://raw.githubusercontent.com/supabase/supabase-js/v2.106.1/packages/core/storage-js/src/packages/StorageFileApi.ts): `remove(paths)`에는 `signal`/`AbortController` 인자가 없다(L1054-1105). `listV2(options, parameters)`의 두 번째 인자는 `signal`을 받을 수 있지만 **experimental**이다(L1272-1341). `Promise.race`만으로 `remove`를 취소했다고 간주하면 안 된다.
 - 같은 SDK에서 일반 upsert는 `storage.objects` SELECT·INSERT·UPDATE를 요구한다(L187-191). signed upload는 업로드 시 추가 RLS 권한이 필요 없고 발급 후 **2시간** 유효하다(L210-246, L312-315). 현재 앱의 signed-upload 사용 여부와 기존 발급 토큰은 별도로 조사해야 한다. RLS 개정만으로 모든 이미 발급된 업로드를 차단한다고 가정하지 않는다.
 - [Storage 구현의 uploader](https://github.com/supabase/storage/blob/master/src/storage/uploader.ts)는 업로드 **시작**에 RLS를 검사한 뒤 bytes를 보내고, 완료 단계에서 `asSuperUser()`로 `storage.objects`를 upsert한다. 이는 공개 master의 코드이며 운영 배포 버전 증거는 아니다. 그래서 시작 시점 RLS뿐 아니라 완료 시점의 `BEFORE INSERT OR UPDATE` 트리거까지 관리형 프로젝트에서 경합으로 입증해야 한다.
+- [Supabase Storage schema 문서](https://supabase.com/docs/guides/storage/schema/design)는 Storage 스키마 변경을 강하게 만류한다. 현재 저장소의 계정 삭제 트리거를 콘텐츠 삭제까지 확장하는 안도 관리형 환경의 호환성과 업그레이드 영향을 검증하기 전에는 확정하지 않는다.
 - [Supabase Storage schema 문서](https://supabase.com/docs/guides/storage/schema/design)와 [삭제 문서](https://supabase.com/docs/guides/storage/management/delete-objects)는 `storage.objects` SQL DELETE가 실제 객체를 제거하지 않는다고 명시한다. 삭제는 Storage API로 하며 `remove` 호출당 최대 1,000개다. DB 트랜잭션과 Storage 삭제는 하나의 트랜잭션이 될 수 없다.
 
 ## 구현 가능한 최소 서버 계약 초안
