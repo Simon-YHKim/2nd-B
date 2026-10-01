@@ -1,6 +1,7 @@
 # S3 Storage 삭제 fence 조사 — 2026-10-01
 
 상태: **설계·검증 준비만 완료. SQL/Edge/client 구현 없음. #1814·#1839 Draft 유지.**
+후속 코드별 쓰기 경로: [S3 writer inventory](S3-WRITER-INVENTORY-261001.md).
 기준: `origin/main` `d3b80cdb`, #1814 Draft `e161478a`, #1839 Draft `ea122316`.
 운영 DB·Edge·Storage 쓰기와 관리형 Storage 경합 실험은 수행하지 않았다.
 
