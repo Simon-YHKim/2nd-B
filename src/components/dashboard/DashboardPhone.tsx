@@ -32,6 +32,7 @@ import { getBacklinks, getWikiPageById, listWikiPages } from "@/lib/wiki/queries
 import type { WikiPageRow } from "@/lib/wiki/types";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { OpsPhoneContent, type OpsPhoneScreen } from "@/screens/deepspace/ops/PhoneOpsContent";
+import { MuseumPhoneContent } from "@/screens/deepspace/museum/MuseumTimelineScreen";
 import type { ProductNotice } from "@/lib/notices/types";
 
 type Tab = "dashboard" | "tools";
@@ -132,6 +133,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const captureBusyRef = useRef(false);
   const scheduledReadPending = useRef(false);
   const insideRoute = screenStack[screenStack.length - 1] ?? null;
+  const museumOpen = insideRoute === "/museum";
   const wikiDetailId = insideRoute?.startsWith("/wiki/page/")
     ? decodeURIComponent(insideRoute.slice("/wiki/page/".length)) : null;
   const go = useCallback((route: string) => {
@@ -154,9 +156,10 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     setExitPrompt(true);
   }, [exitPrompt, selectedNoticeId, screenStack.length, phoneApp, tab]);
   useFocusEffect(useCallback(() => {
+    if (museumOpen) return;
     const listener = BackHandler.addEventListener("hardwareBackPress", () => { backInside(); return true; });
     return () => listener.remove();
-  }, [backInside]));
+  }, [backInside, museumOpen]));
   useEffect(() => {
     if (!focusRunning || insideRoute !== "/focus") return;
     const timer = setInterval(() => setFocusSeconds((seconds) => {
@@ -642,7 +645,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const appIconSize = Math.max(25, Math.min(36, appTileHeight - 29));
   return <DeepSpaceScreen active="ops" header="none" variant="fullbleed" showSharedSky transparentBackdrop={transparentBackdrop}>
     <View pointerEvents="none" style={styles.phoneBackdrop}><PixelScrim style={styles.phoneScrimImage} /></View>
-    <Animated.View {...phonePan.panHandlers} testID="dashboard-phone" style={[styles.phone, { transform: [{ translateY: dismissY }] }]} onLayout={({ nativeEvent: { layout } }) => {
+    <Animated.View {...(museumOpen ? {} : phonePan.panHandlers)} testID="dashboard-phone" style={[styles.phone, { transform: [{ translateY: dismissY }] }]} onLayout={({ nativeEvent: { layout } }) => {
       setFrameSize((current) => current.width === layout.width && current.height === layout.height
         ? current : { width: layout.width, height: layout.height });
     }}>
@@ -672,7 +675,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
           <Text variant="caption" style={styles.heroSubtitle}>{t("phone.bannerSubtitle")}</Text>
         </View>
       </View> : null}
-      {internalActive ? <PhoneAction label={selectedNoticeId ? t("phone.noticeListBack") : t("phone.internal.back")} glyph="arrow_back" onPress={backInside} /> : null}
+      {internalActive && !museumOpen ? <PhoneAction label={selectedNoticeId ? t("phone.noticeListBack") : t("phone.internal.back")} glyph="arrow_back" onPress={backInside} /> : null}
       {!internalActive ? <View style={styles.tabs}>{TABS.map((item, index) => <PixelPressable key={item} rootStyle={styles.tab} onPress={() => showPage(index)} accessibilityRole="tab" accessibilityState={{ selected: tab === item }} background={tab === item ? m3.color.primaryContainer : m3.color.surfaceContainer} contentStyle={styles.tabContent}>
         <Image source={item === "dashboard" ? PHONE_UI_ART.dashboard : PHONE_UI_ART.apps} contentFit="contain" style={[styles.tabIcon, PIXEL_IMAGE]} accessible={false} />
         <Text variant="caption" style={styles.tabLabel}>{t(`phone.tabs.${item}`)}</Text>
@@ -688,10 +691,10 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
           {pageIndex < 2 ? <Image source={PHONE_UI_ART.next} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
         </Pressable>
       </View> : null}
-      {loading ? <Text accessibilityLiveRegion="polite" variant="caption" style={styles.readStatus}>{t("phone.loading")}</Text> : null}
-      {failed || partial ? <View style={styles.errorRow}><Text variant="caption" style={styles.flexText}>{t("phone.partialError")}</Text><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} /></View> : null}
-      <View style={styles.pageBody} {...pagePan.panHandlers}>
-      <FlatList
+      {!museumOpen && loading ? <Text accessibilityLiveRegion="polite" variant="caption" style={styles.readStatus}>{t("phone.loading")}</Text> : null}
+      {!museumOpen && (failed || partial) ? <View style={styles.errorRow}><Text variant="caption" style={styles.flexText}>{t("phone.partialError")}</Text><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} /></View> : null}
+      <View style={styles.pageBody} {...(museumOpen ? {} : pagePan.panHandlers)}>
+      {museumOpen ? <MuseumPhoneContent width={frame.screen.width} onBack={backInside} backLabel={t("phone.appsBack")} /> : <FlatList
         key={`${tab}-${phoneApp}-${insideRoute ?? "home"}-${exitPrompt ? "exit" : "open"}-${selectedNoticeId ? "detail" : "list"}`}
         testID="dashboard-phone-scroll"
         onScroll={(event) => { scrollY.current = event.nativeEvent.contentOffset.y; }}
@@ -711,9 +714,9 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
           <PhoneAction label={t("phone.internal.cancel")} glyph="arrow_back" onPress={() => setExitPrompt(false)} />
         </View> : insideRoute ? internalPage(insideRoute) : tab === "dashboard" ? dashboard() : tools()}
         contentContainerStyle={styles.content}
-      />
+      />}
       </View>
-      <View style={styles.phoneDock} accessibilityLabel={t("phone.navLabel")}>
+      {!museumOpen ? <View style={styles.phoneDock} accessibilityLabel={t("phone.navLabel")}>
         {PHONE_NAV.map((item) => <Pressable key={item} accessibilityRole="button" accessibilityLabel={t(`phone.nav.${item}`)} onPress={() => {
           if (item === "home") { showPage(0); return; }
           go(item === "note" ? "/records" : item === "add" ? "/capture" : item === "search" ? "/wiki" : "/profile");
@@ -721,7 +724,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
           <Image source={PHONE_NAV_ICONS[item]} contentFit="contain" style={[item === "add" ? styles.navAddIcon : styles.navIcon, PIXEL_IMAGE]} accessible={false} />
           {item !== "add" ? <Text variant="caption" style={[styles.navText, item === "home" && tab === "dashboard" && styles.navActive]}>{t(`phone.nav.${item}`)}</Text> : null}
         </Pressable>)}
-      </View>
+      </View> : null}
       </View>
       <Pressable
         accessibilityRole="button"

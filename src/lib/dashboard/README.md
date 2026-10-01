@@ -37,9 +37,9 @@ have real in-phone behavior. The phone's wiki search reads up to 200 owner-scope
 with linked-back pages inside the phone; the list and backlinks share its one
 virtualized scroll view. The full wiki's tag filters, graph, export, page
 deletion, source brief, and SecondB handoffs are still separate-route features.
-Area views show tagged records from the bounded
-read, **not** ledger entries or goal status. Museum, community, avatar palette,
-and the interview flow report that their phone-specific screens are not yet
+Area views show tagged records from the bounded read; the separate ledger and
+goals apps use their existing data and actions. Community, avatar palette, and
+the interview flow report that their phone-specific screens are not yet
 connected. They no longer silently leave the phone. Full feature parity will
 require extracting reusable contents from their independent screens without
 changing those independent entry points.
@@ -67,15 +67,13 @@ would clip the AI lane or steal gestures. The adapter keeps the standalone
 `/museum` route unchanged; its phone Back closes an open detail first, then
 returns to Apps, and the terminal event's action also returns to Apps.
 
-After the phone launcher is wired, QA from an isolated branch with
+QA the integrated launcher from an isolated branch with
 `node scripts/app-parity.cjs localhost --port=8082 --allow-diff`: open
 `/2nd-B/dashboard`, sign in with the repository QA account, choose Apps → Museum,
 and inspect at 320×568 and 375×667. Select a recent event, scroll its long
 detail, verify Back closes the sheet and another Back returns to Apps. Switch
 to Timeline, scroll vertically to the AI lane and horizontally across years;
-those gestures must not change the phone page or dismiss the phone. This adapter
-branch alone has no launcher entry, so these interactive checks belong to the
-integration branch.
+those gestures must not change the phone page or dismiss the phone.
 
 `/ops`, `/reminders`, `/permissions`, `/privacy`, `/import`, `/import-hub`, the six `/star` areas, focus, goals, ledger, meals, and the existing adult-only community. Consent, native permission requests, import review, revocation, and deletion remain owned by those flows.
 

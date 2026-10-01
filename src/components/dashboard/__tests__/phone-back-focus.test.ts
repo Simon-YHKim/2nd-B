@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 
-function focusedBackCallback(BackHandler: { addEventListener: (event: string, handler: () => boolean) => { remove: () => void } }, backInside: () => void): () => () => void {
+function focusedBackCallback(BackHandler: { addEventListener: (event: string, handler: () => boolean) => { remove: () => void } }, backInside: () => void, museumOpen = false): () => (() => void) | undefined {
   const file = join(__dirname, "..", "DashboardPhone.tsx");
   const source = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const hasBackRegistration = (node: ts.Node): boolean => {
@@ -22,7 +22,7 @@ function focusedBackCallback(BackHandler: { addEventListener: (event: string, ha
   const js = ts.transpileModule(`const focus = ${callback.getText(source)}; return focus;`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  return new Function("BackHandler", "backInside", js)(BackHandler, backInside) as () => () => void;
+  return new Function("BackHandler", "backInside", "museumOpen", js)(BackHandler, backInside, museumOpen) as () => (() => void) | undefined;
 }
 
 test("Android back is handled only while the phone screen has focus", () => {
@@ -42,10 +42,15 @@ test("Android back is handled only while the phone screen has focus", () => {
   expect([...handlers][0]()).toBe(true);
   expect(backInside).toHaveBeenCalledTimes(1);
 
-  blur();
+  blur?.();
   expect(handlers.size).toBe(0);
   const blurAgain = focus();
   expect(handlers.size).toBe(1);
-  blurAgain();
+  blurAgain?.();
+  expect(handlers.size).toBe(0);
+
+  // Museum owns its detail-sheet Back action while embedded in the phone.
+  const museumFocus = focusedBackCallback(BackHandler, backInside, true);
+  expect(museumFocus()).toBeUndefined();
   expect(handlers.size).toBe(0);
 });
