@@ -48,6 +48,10 @@
     "more": "Import more",
     "moreHint": "Clears this import and starts another one."
   },
+  "appointmentCount": {
+    "label": "Plan mentions: {{count}}",
+    "sub": "Plan mention count → record"
+  },
   "health": {
     "connect": "Turn on activity sync",
     "ingest": "Add today's activity",

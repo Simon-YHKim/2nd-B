@@ -48,6 +48,10 @@
     "more": "Importar mais",
     "moreHint": "Limpa esta importação e inicia outra."
   },
+  "appointmentCount": {
+    "label": "Menções a planos: {{count}}",
+    "sub": "Contagem de planos → registro"
+  },
   "health": {
     "connect": "Ativar a sincronização de atividade",
     "ingest": "Adicionar a atividade de hoje",

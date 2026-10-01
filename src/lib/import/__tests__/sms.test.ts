@@ -1,4 +1,4 @@
-import { extractSmsAppointmentHints, parseSmsBackup } from "../sms";
+import { countSmsAppointmentHints, parseSmsBackup } from "../sms";
 
 const XML = [
   '<?xml version="1.0" encoding="UTF-8"?>',
@@ -26,10 +26,8 @@ describe("parseSmsBackup (SMS Backup & Restore XML)", () => {
   });
 });
 
-describe("extractSmsAppointmentHints", () => {
+describe("countSmsAppointmentHints", () => {
   test("flags only plan-like messages", () => {
-    const hints = extractSmsAppointmentHints(parseSmsBackup(XML));
-    expect(hints).toHaveLength(1);
-    expect(hints[0].text).toContain("내일 3시");
+    expect(countSmsAppointmentHints(parseSmsBackup(XML))).toBe(1);
   });
 });

@@ -5,8 +5,8 @@
 // file — the de-facto format is "SMS Backup & Restore" XML:
 //   <sms address="010..." date="1704430920000" type="1|2" body="..." />
 // (type 1 = received/inbox, 2 = sent). This pure parser reads that file; no
-// network, no LLM, no storage. The caller persists only DERIVED signals
-// (appointment hints), never the raw bodies ("원문 비보존").
+// network, no LLM, no storage. The caller persists only the DERIVED count of
+// appointment mentions, never the raw bodies or phone numbers.
 
 import { looksLikeAppointment } from "./hints";
 
@@ -71,20 +71,11 @@ export function parseSmsBackup(raw: string): SmsMessage[] {
   return out;
 }
 
-export interface SmsAppointmentHint {
-  atIso: string | null;
-  address: string;
-  text: string;
-}
-
-/** Derived signal: SMS that look like a plan/appointment. The caller persists only this. */
-export function extractSmsAppointmentHints(messages: ReadonlyArray<SmsMessage>, max = 50): SmsAppointmentHint[] {
-  const out: SmsAppointmentHint[] = [];
+/** Count plan-like SMS messages without returning bodies or phone numbers. */
+export function countSmsAppointmentHints(messages: ReadonlyArray<SmsMessage>): number {
+  let count = 0;
   for (const m of messages) {
-    if (out.length >= max) break;
-    if (looksLikeAppointment(m.text)) {
-      out.push({ atIso: m.atIso, address: m.address, text: m.text.slice(0, 140) });
-    }
+    if (looksLikeAppointment(m.text)) count += 1;
   }
-  return out;
+  return count;
 }

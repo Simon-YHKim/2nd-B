@@ -1,4 +1,4 @@
-import { extractAppointmentHints, parseKakaoExport } from "../kakao";
+import { countAppointmentHints, parseKakaoExport } from "../kakao";
 
 const ANDROID_SAMPLE = [
   "홍길동님과 카카오톡 대화",
@@ -42,11 +42,9 @@ describe("parseKakaoExport (KR Android)", () => {
   });
 });
 
-describe("extractAppointmentHints (derived signal, no raw kept by caller)", () => {
+describe("countAppointmentHints (derived signal, no raw returned)", () => {
   test("flags plan/appointment messages only", () => {
     const msgs = parseKakaoExport(ANDROID_SAMPLE);
-    const hints = extractAppointmentHints(msgs);
-    expect(hints.length).toBe(1);
-    expect(hints[0].text).toContain("내일 3시");
+    expect(countAppointmentHints(msgs)).toBe(1);
   });
 });
