@@ -64,3 +64,10 @@ Simon의 2026-09-26 결정은 Q5를 **처리위탁(안 A)**으로 채택했다. 
 - `apkanalyzer manifest print`에서 `MobileAdsInitProvider`, GMA 앱 ID, `ca-app-pub-` 일치 항목은 0개다. DEX의 `com.google.android.gms.ads` 아래 정의된 클래스 4개는 모두 `ads.identifier`에 속하며 광고 표시 SDK 클래스는 없다. APK ZIP에 AdMob/GoogleMobileAds 이름의 항목도 없다. 따라서 **이 진단 APK의 광고 표시 SDK 제외**는 정적 패키지로 확인됐다.
 - 매니페스트에는 `com.google.android.gms.permission.AD_ID`와 `android.permission.ACCESS_ADSERVICES_AD_ID`가 남아 있고, `firebase_analytics_collection_enabled=false`, `io.sentry.auto-init=false`다. 광고 ID 실제 접근·동의 전 송신 여부는 이 정적 검사로 알 수 없다. APK는 이 PC의 `E:\2ndB\.git\app-parity\android-438d42a0-static-261001`에만 보관하고 Git에는 넣지 않았다.
 - Play에 현재 배포된 vc56 AAB는 다른 바이너리이며 GMA Provider를 포함한다. **이 APK 검사만으로 vc56 Play 데이터 보안 신고를 축소하지 않는다.** 다음 공개 후보의 정확한 AAB와 기기 네트워크·동의 상태를 따로 검증한다.
+
+## 2026-10-01 vc56 로그인 전 반복 실행 관찰
+
+- 위 vc56 AAB(동일 SHA-256)의 기존 테스트 APK를 전용 Android 16/API 36 Google APIs AVD에서 **읽기 전용 콜드 부팅**했다. 새 빌드·앱 데이터 삭제·로그인·동의·광고 요청은 하지 않았다. 시작과 끝 모두 로그인 화면이었고 Wi-Fi는 연결돼 있었다. 따라서 이는 9월 27일의 **첫 설치 후 첫 실행**을 재현한 검사가 아니라, 같은 설치본의 별도 부팅·프로세스 재시작 검사다.
+- 앱 UID `10216`만 세는 비종결 IPv4/IPv6 OUTPUT 규칙을 임시로 추가하고 카운터를 0으로 만든 뒤 앱을 다시 시작했다. Android 시간 00:04:29~00:07:37 UTC에 게스트 `tcpdump -i any -s 256`으로 패킷을 캡처했고, 00:08:39까지 카운터를 확인했다. 앱 UID의 송신은 **IPv4 12패킷/1,660바이트, IPv6 0패킷**으로, 시작 직후 이후 추가되지 않았다. 전체 캡처의 송신 패킷 중 이 12개는 모두 `104.18.4.104:443`으로 향했고, 앱 UID의 새 TCP 소켓을 `ss -tunep`로 확인했다. 첫 패킷은 이전 연결을 닫는 RST다. 새 연결의 TLS ClientHello에는 `u.expo.dev` SNI가 보인다. 전체 캡처의 다른 Android·Google 패킷을 앱 UID나 AdMob에 귀속하지 않는다.
+- 이 반복 실행 구간에 **명시적인 AdMob 호스트나 광고 요청은 관찰되지 않았다.** 하지만 암호화된 본문, 디버그 서명, Google APIs AVD, 별도 프로세스의 SDK 트래픽 미귀속, 첫 설치가 아닌 재실행이라는 한계가 있다. 따라서 GMA 25.0.0의 모든 동의 전 송신 부재나 Play의 대략적 위치·상호작용·진단 정보가 `선택`이라는 결론으로 쓰지 않는다. 앞선 vc56 기기 ID `필수` 권고와 광고 SDK 포함 신규 공개 보류는 그대로다.
+- 원증거는 Git 밖의 `E:\2ndB\.git\app-parity\vc56-extended-run-261001-complete.pcap`(61,413바이트, SHA-256 `251d1bae07546fa22d151240bbc32befa47af52d19a1cf915e525bdf362d07a3`)과 `vc56-extended-end-screen-261001.png`다. 원 캡처의 마지막 27바이트가 미완성 패킷이어서 완전한 448개 패킷 레코드만 새 파일로 보존하고 게스트 `tcpdump`에서 다시 읽어 확인했다. 임시 OUTPUT 규칙을 제거하고 전용 AVD를 종료했다. 원증거는 네트워크 메타데이터를 포함할 수 있으므로 Git에 넣지 않는다.
