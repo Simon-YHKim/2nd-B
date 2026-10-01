@@ -326,7 +326,8 @@ describe("가입 전에 담은 것을 계정으로 옮기는 자리", () => {
   it("배수구는 로그인과 프로필이 갖춰진 뒤에만 돈다", () => {
     // C10 - 나이를 모르는 채로 기록을 만들지 않는다.
     const hook = read("src/lib/capture/use-import-pending.ts");
-    expect(hook).toContain("if (!userId || hasProfile !== true) return;");
+    expect(hook).toContain("loading || !userId || hasProfile !== true || profileProbeFailed ||");
+    expect(hook).toContain("onboardingComplete !== true || autoTriggerTTFV !== false");
     expect(hook).toContain("minor: ctx.minor");
     expect(hook).toContain("const minor = isMinor !== false;");
     // 한 번만 - 세션마다 다시 붓지 않는다.

@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useOnboardingComplete } from "@/lib/onboarding/state";
+import { useAutoTriggerTTFV } from "@/lib/onboarding/ttfv-gate";
 import { crisisHotlines } from "@/lib/safety/classifier";
 import type { HotlineId } from "@/lib/safety/lexicon";
 
@@ -15,7 +17,9 @@ import { importPendingCaptures } from "./import-pending";
 // for next time, and a session with no pending captures does no work (the import
 // returns early before any createRecord). The local C9 classifier still runs on
 // these first-person notes; the home route must surface its red-zone result.
-// Mounted from the home route so it runs after auth + profile (C10).
+// Mounted from the home route only after auth, profile, onboarding and the
+// first-day TTFV redirect settle. Otherwise the crisis modal could be unmounted
+// by the home shell's redirect before the user sees it.
 //
 // ⚠ 2026-09-08: 여기 "for both home variants" 라고 적혀 있었다. 변형은 이제 하나다 —
 // 레거시 홈이 legacy/screens/index.tsx 로 나갔다. 마운트 자리는 **그대로 라우트다**:
@@ -30,7 +34,9 @@ export function useImportPendingCaptures(): {
   crisis: PendingImportCrisis;
   dismissCrisis: () => void;
 } {
-  const { userId, hasProfile, isMinor } = useAuth();
+  const { userId, hasProfile, isMinor, loading, profileProbeFailed } = useAuth();
+  const onboardingComplete = useOnboardingComplete();
+  const autoTriggerTTFV = useAutoTriggerTTFV();
   const { i18n } = useTranslation();
   const ran = useRef(false);
   const crisisShown = useRef(false);
@@ -38,7 +44,10 @@ export function useImportPendingCaptures(): {
 
   useEffect(() => {
     if (ran.current) return;
-    if (!userId || hasProfile !== true) return;
+    if (
+      loading || !userId || hasProfile !== true || profileProbeFailed ||
+      onboardingComplete !== true || autoTriggerTTFV !== false
+    ) return;
     ran.current = true;
     const locale = i18n.language === "ko" ? "ko" : "en";
     // Unknown age takes the protective youth route until the profile resolves.
@@ -70,7 +79,7 @@ export function useImportPendingCaptures(): {
       ran.current = false;
       if (typeof console !== "undefined") console.warn("[capture] pending import failed; retry on next home mount");
     });
-  }, [userId, hasProfile, isMinor, i18n.language]);
+  }, [userId, hasProfile, isMinor, loading, profileProbeFailed, onboardingComplete, autoTriggerTTFV, i18n.language]);
 
   return {
     crisis,

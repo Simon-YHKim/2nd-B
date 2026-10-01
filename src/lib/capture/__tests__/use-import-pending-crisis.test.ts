@@ -8,16 +8,25 @@ const mockCreateRecord = jest.fn();
 const mockSetCrisis = jest.fn();
 const mockLanguage = { current: "ko" };
 const mockEffects: Array<() => void> = [];
+const mockRefs: Array<{ current: unknown }> = [];
+const mockRenderCursor = { current: 0 };
+const mockOnboardingComplete = jest.fn();
+const mockAutoTriggerTTFV = jest.fn();
 
 jest.mock("react", () => ({
   useEffect: (effect: () => void) => { mockEffects.push(effect); effect(); },
-  useRef: (initial: unknown) => ({ current: initial }),
+  useRef: (initial: unknown) => {
+    const slot = mockRenderCursor.current++;
+    return mockRefs[slot] ?? (mockRefs[slot] = { current: initial });
+  },
   useState: (initial: unknown) => [initial, mockSetCrisis],
 }));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ i18n: { language: mockLanguage.current } }),
 }));
 jest.mock("@/lib/auth/AuthContext", () => ({ useAuth: () => mockAuth() }));
+jest.mock("@/lib/onboarding/state", () => ({ useOnboardingComplete: () => mockOnboardingComplete() }));
+jest.mock("@/lib/onboarding/ttfv-gate", () => ({ useAutoTriggerTTFV: () => mockAutoTriggerTTFV() }));
 jest.mock("../import-pending", () => ({ importPendingCaptures: (...args: unknown[]) => mockImport(...args) }));
 jest.mock("../../records/create", () => ({ createRecord: (...args: unknown[]) => mockCreateRecord(...args) }));
 
@@ -27,12 +36,20 @@ describe("pre-account first-person note crisis hand-off", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockEffects.length = 0;
+    mockRefs.length = 0;
+    mockRenderCursor.current = 0;
     mockLanguage.current = "ko";
-    mockAuth.mockReturnValue({ userId: "u1", hasProfile: true, isMinor: true });
+    mockAuth.mockReturnValue({
+      userId: "u1", hasProfile: true, isMinor: true, loading: false, profileProbeFailed: false,
+    });
+    mockOnboardingComplete.mockReturnValue(true);
+    mockAutoTriggerTTFV.mockReturnValue(false);
   });
 
   test("an unresolved age uses the youth route, and two red notes show one modal", async () => {
-    mockAuth.mockReturnValue({ userId: "u1", hasProfile: true, isMinor: null });
+    mockAuth.mockReturnValue({
+      userId: "u1", hasProfile: true, isMinor: null, loading: false, profileProbeFailed: false,
+    });
     mockCreateRecord.mockResolvedValue({ id: "r1", tags: [], followup: { zone: "red" } });
     mockImport.mockImplementation(async (ctx, createOne) => {
       await createOne({ text: "first" }, ctx, "preauth:first");
@@ -51,7 +68,9 @@ describe("pre-account first-person note crisis hand-off", () => {
   });
 
   test("adult red note selects 109; non-red notes do not show a modal", async () => {
-    mockAuth.mockReturnValue({ userId: "u1", hasProfile: true, isMinor: false });
+    mockAuth.mockReturnValue({
+      userId: "u1", hasProfile: true, isMinor: false, loading: false, profileProbeFailed: false,
+    });
     mockCreateRecord
       .mockResolvedValueOnce({ id: "r1", tags: [] })
       .mockResolvedValueOnce({ id: "r2", tags: [], followup: { zone: "red" } });
@@ -70,7 +89,55 @@ describe("pre-account first-person note crisis hand-off", () => {
   });
 
   test("no import starts before the profile gate settles", () => {
-    mockAuth.mockReturnValue({ userId: "u1", hasProfile: false, isMinor: null });
+    mockAuth.mockReturnValue({
+      userId: "u1", hasProfile: false, isMinor: null, loading: false, profileProbeFailed: false,
+    });
+
+    useImportPendingCaptures();
+
+    expect(mockImport).not.toHaveBeenCalled();
+    expect(mockSetCrisis).not.toHaveBeenCalled();
+  });
+
+  test("waits through onboarding and TTFV redirects, then hands off red once on the stable home", async () => {
+    mockCreateRecord.mockResolvedValue({ id: "r1", tags: [], followup: { zone: "red" } });
+    mockImport.mockImplementation(async (ctx, createOne) => {
+      await createOne({ text: "saved before sign-up" }, ctx);
+      return { total: 1, imported: 1, failed: 0 };
+    });
+
+    mockOnboardingComplete.mockReturnValue(false);
+    useImportPendingCaptures();
+    expect(mockImport).not.toHaveBeenCalled();
+
+    mockRenderCursor.current = 0;
+    mockOnboardingComplete.mockReturnValue(true);
+    mockAutoTriggerTTFV.mockReturnValue(true);
+    useImportPendingCaptures();
+    expect(mockImport).not.toHaveBeenCalled();
+
+    mockRenderCursor.current = 0;
+    mockAutoTriggerTTFV.mockReturnValue(false);
+    useImportPendingCaptures();
+    await mockImport.mock.results[0].value;
+
+    expect(mockImport).toHaveBeenCalledTimes(1);
+    expect(mockSetCrisis).toHaveBeenCalledTimes(1);
+    expect(mockSetCrisis).toHaveBeenCalledWith({ visible: true, hotline: "KR_1388" });
+  });
+
+  test.each([
+    ["auth loading", { loading: true }, true, false],
+    ["failed profile probe", { profileProbeFailed: true }, true, false],
+    ["onboarding hydration", {}, null, false],
+    ["TTFV hydration", {}, true, null],
+  ])("does not import during %s", (_name, authPatch, onboarding, ttfv) => {
+    mockAuth.mockReturnValue({
+      userId: "u1", hasProfile: true, isMinor: true, loading: false,
+      profileProbeFailed: false, ...authPatch,
+    });
+    mockOnboardingComplete.mockReturnValue(onboarding);
+    mockAutoTriggerTTFV.mockReturnValue(ttfv);
 
     useImportPendingCaptures();
 
