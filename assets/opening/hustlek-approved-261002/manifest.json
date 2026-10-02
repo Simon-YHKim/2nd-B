@@ -1,0 +1,1054 @@
+{
+  "version": 1,
+  "sourceAssetSet": "a6c0043ad6c06cad85e0a17a",
+  "approvalSha256": "9d66ce82c7e2e2842592ccabd6a9f07171d9763fed1294acd8a37d98bf968ced",
+  "sourceFolder": "../avatar-observatory-integration-260928/Output/hustlek-total-opening-261002",
+  "totalMs": 10119.523809523811,
+  "rawTotalMs": 11980,
+  "scene": {
+    "width": 1024,
+    "height": 1536,
+    "groundY": 1440,
+    "telescope": {
+      "x": 768,
+      "y": 1196,
+      "scale": 1
+    },
+    "character": {
+      "x": 784,
+      "y": 1228,
+      "scale": 0.4
+    }
+  },
+  "phone": {
+    "width": 320,
+    "height": 692,
+    "cameraX": 704,
+    "cameraY": 800
+  },
+  "approach": {
+    "startX": 528,
+    "endX": 784,
+    "durationMs": 4000,
+    "grid": 4,
+    "cycles": 4,
+    "notes": "승인한6컷 보행을4회 반복합니다. 원본 보행4초에 사용자1.6배속을 적용해2.5초 동안 망원경까지 이동합니다."
+  },
+  "opening": {
+    "cameraStart": {
+      "x": 704,
+      "y": 800
+    },
+    "cameraEnd": {
+      "x": 704,
+      "y": 40
+    },
+    "cameraEasing": "easeInOutCubic",
+    "grid": 4,
+    "star": {
+      "x": 864,
+      "y": 386,
+      "width": 24,
+      "height": 24,
+      "anchor": "center",
+      "source": "existing opening Polaris",
+      "frames": [
+        {
+          "id": "polaris-24",
+          "size": 24
+        },
+        {
+          "id": "polaris-32",
+          "size": 32
+        },
+        {
+          "id": "polaris-40",
+          "size": 40
+        },
+        {
+          "id": "polaris-32",
+          "size": 32
+        },
+        {
+          "id": "polaris-24",
+          "size": 24
+        }
+      ],
+      "twinkle": {
+        "durationMs": 900,
+        "flashCount": 2,
+        "pixelSize": 4,
+        "flashColor": "#FFFFFF",
+        "sparkleColor": "#DDF1FF"
+      }
+    }
+  },
+  "frames": [
+    {
+      "id": "walk-03",
+      "group": "walk",
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "walk-04",
+      "group": "walk",
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "walk-05",
+      "group": "walk",
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "walk-06",
+      "group": "walk",
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "walk-07",
+      "group": "walk",
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "walk-08",
+      "group": "walk",
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "turn-1",
+      "group": "turn",
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "turn-2",
+      "group": "turn",
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "turn-3",
+      "group": "turn",
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "adjust-1",
+      "group": "adjust",
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "adjust-2",
+      "group": "adjust",
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "adjust-3",
+      "group": "adjust",
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "wrist-1",
+      "group": "adjust",
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "wrist-2",
+      "group": "adjust",
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "observe-1",
+      "group": "observe",
+      "width": 480,
+      "height": 560
+    },
+    {
+      "id": "observe-2",
+      "group": "observe",
+      "width": 480,
+      "height": 560
+    },
+    {
+      "id": "observe-3",
+      "group": "observe",
+      "width": 480,
+      "height": 560
+    }
+  ],
+  "sequence": [
+    {
+      "uid": "full-opening-1",
+      "frameId": "walk-03",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-2",
+      "frameId": "walk-04",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-3",
+      "frameId": "walk-05",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-4",
+      "frameId": "walk-06",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-5",
+      "frameId": "walk-07",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-6",
+      "frameId": "walk-08",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-7",
+      "frameId": "walk-03",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-8",
+      "frameId": "walk-04",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-9",
+      "frameId": "walk-05",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-10",
+      "frameId": "walk-06",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-11",
+      "frameId": "walk-07",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-12",
+      "frameId": "walk-08",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-13",
+      "frameId": "walk-03",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-14",
+      "frameId": "walk-04",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-15",
+      "frameId": "walk-05",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-16",
+      "frameId": "walk-06",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-17",
+      "frameId": "walk-07",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-18",
+      "frameId": "walk-08",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-19",
+      "frameId": "walk-03",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-20",
+      "frameId": "walk-04",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-21",
+      "frameId": "walk-05",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-22",
+      "frameId": "walk-06",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-23",
+      "frameId": "walk-07",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-24",
+      "frameId": "walk-08",
+      "durationMs": 104.16666666666666,
+      "included": true,
+      "stage": "walk",
+      "rawDurationMs": 166.66666666666666
+    },
+    {
+      "uid": "full-opening-25",
+      "frameId": "turn-1",
+      "durationMs": 90,
+      "included": true,
+      "stage": "turn",
+      "rawDurationMs": 90
+    },
+    {
+      "uid": "full-opening-26",
+      "frameId": "turn-3",
+      "durationMs": 150,
+      "included": true,
+      "stage": "turn",
+      "rawDurationMs": 150
+    },
+    {
+      "uid": "full-opening-27",
+      "frameId": "adjust-1",
+      "durationMs": 60,
+      "included": true,
+      "stage": "adjust",
+      "rawDurationMs": 180
+    },
+    {
+      "uid": "full-opening-28",
+      "frameId": "adjust-2",
+      "durationMs": 73.33333333333333,
+      "included": true,
+      "stage": "adjust",
+      "rawDurationMs": 220
+    },
+    {
+      "uid": "full-opening-29",
+      "frameId": "adjust-3",
+      "durationMs": 93.33333333333333,
+      "included": true,
+      "stage": "adjust",
+      "rawDurationMs": 280
+    },
+    {
+      "uid": "full-opening-30",
+      "frameId": "wrist-1",
+      "durationMs": 53.333333333333336,
+      "included": true,
+      "stage": "adjust",
+      "rawDurationMs": 160
+    },
+    {
+      "uid": "full-opening-31",
+      "frameId": "wrist-2",
+      "durationMs": 53.333333333333336,
+      "included": true,
+      "stage": "adjust",
+      "rawDurationMs": 160
+    },
+    {
+      "uid": "full-opening-32",
+      "frameId": "adjust-3",
+      "durationMs": 93.33333333333333,
+      "included": true,
+      "stage": "adjust",
+      "rawDurationMs": 280
+    },
+    {
+      "uid": "full-opening-33",
+      "frameId": "observe-1",
+      "durationMs": 200,
+      "included": true,
+      "stage": "observe",
+      "rawDurationMs": 200
+    },
+    {
+      "uid": "full-opening-34",
+      "frameId": "observe-2",
+      "durationMs": 240,
+      "included": true,
+      "stage": "observe",
+      "rawDurationMs": 240
+    },
+    {
+      "uid": "full-opening-35",
+      "frameId": "observe-3",
+      "durationMs": 1000,
+      "included": true,
+      "stage": "observe",
+      "rawDurationMs": 1000
+    },
+    {
+      "uid": "scene-contact",
+      "frameId": "observe-3",
+      "durationMs": 400,
+      "included": true,
+      "scenePhase": "contact",
+      "stage": "contact",
+      "rawDurationMs": 400
+    },
+    {
+      "uid": "scene-pan",
+      "frameId": "observe-3",
+      "durationMs": 3142.857142857143,
+      "included": true,
+      "scenePhase": "pan",
+      "stage": "pan",
+      "rawDurationMs": 2200
+    },
+    {
+      "uid": "scene-center",
+      "frameId": "observe-3",
+      "durationMs": 320,
+      "included": true,
+      "scenePhase": "center",
+      "stage": "center",
+      "rawDurationMs": 320
+    },
+    {
+      "uid": "scene-ping",
+      "frameId": "observe-3",
+      "durationMs": 450,
+      "included": true,
+      "scenePhase": "ping",
+      "stage": "ping",
+      "rawDurationMs": 900
+    },
+    {
+      "uid": "scene-end",
+      "frameId": "observe-3",
+      "durationMs": 1200,
+      "included": true,
+      "scenePhase": "end",
+      "stage": "end",
+      "rawDurationMs": 1200
+    }
+  ],
+  "sounds": {
+    "grassA": "grass-a",
+    "grassB": "grass-b",
+    "ratchet": "ratchet",
+    "ping": "ping"
+  },
+  "cues": [
+    {
+      "sourceId": "grass",
+      "stage": "walk",
+      "frameId": "walk-03",
+      "itemUid": "full-opening-1",
+      "atMs": 0,
+      "variantId": "grass-a",
+      "variantIndex": 0,
+      "key": "grass:full-opening-1",
+      "skipOnLoop": false,
+      "volume": 0.2,
+      "enabled": true
+    },
+    {
+      "sourceId": "grass",
+      "stage": "walk",
+      "frameId": "walk-06",
+      "itemUid": "full-opening-4",
+      "atMs": 312.5,
+      "variantId": "grass-b",
+      "variantIndex": 1,
+      "key": "grass:full-opening-4",
+      "skipOnLoop": false,
+      "volume": 0.2,
+      "enabled": true
+    },
+    {
+      "sourceId": "grass",
+      "stage": "walk",
+      "frameId": "walk-03",
+      "itemUid": "full-opening-7",
+      "atMs": 624.9999999999999,
+      "variantId": "grass-a",
+      "variantIndex": 0,
+      "key": "grass:full-opening-7",
+      "skipOnLoop": false,
+      "volume": 0.2,
+      "enabled": true
+    },
+    {
+      "sourceId": "grass",
+      "stage": "walk",
+      "frameId": "walk-06",
+      "itemUid": "full-opening-10",
+      "atMs": 937.4999999999998,
+      "variantId": "grass-b",
+      "variantIndex": 1,
+      "key": "grass:full-opening-10",
+      "skipOnLoop": false,
+      "volume": 0.2,
+      "enabled": true
+    },
+    {
+      "sourceId": "grass",
+      "stage": "walk",
+      "frameId": "walk-03",
+      "itemUid": "full-opening-13",
+      "atMs": 1250,
+      "variantId": "grass-a",
+      "variantIndex": 0,
+      "key": "grass:full-opening-13",
+      "skipOnLoop": false,
+      "volume": 0.2,
+      "enabled": true
+    },
+    {
+      "sourceId": "grass",
+      "stage": "walk",
+      "frameId": "walk-06",
+      "itemUid": "full-opening-16",
+      "atMs": 1562.5000000000002,
+      "variantId": "grass-b",
+      "variantIndex": 1,
+      "key": "grass:full-opening-16",
+      "skipOnLoop": false,
+      "volume": 0.2,
+      "enabled": true
+    },
+    {
+      "sourceId": "grass",
+      "stage": "walk",
+      "frameId": "walk-03",
+      "itemUid": "full-opening-19",
+      "atMs": 1875.0000000000005,
+      "variantId": "grass-a",
+      "variantIndex": 0,
+      "key": "grass:full-opening-19",
+      "skipOnLoop": false,
+      "volume": 0.2,
+      "enabled": true
+    },
+    {
+      "sourceId": "grass",
+      "stage": "walk",
+      "frameId": "walk-06",
+      "itemUid": "full-opening-22",
+      "atMs": 2187.5000000000005,
+      "variantId": "grass-b",
+      "variantIndex": 1,
+      "key": "grass:full-opening-22",
+      "skipOnLoop": false,
+      "volume": 0.2,
+      "enabled": true
+    },
+    {
+      "sourceId": "ratchet",
+      "stage": "adjust",
+      "frameId": "adjust-1",
+      "itemUid": "full-opening-27",
+      "atMs": 2740,
+      "variantId": "ratchet",
+      "variantIndex": 0,
+      "key": "ratchet:full-opening-27",
+      "skipOnLoop": false,
+      "volume": 0.2,
+      "enabled": true
+    },
+    {
+      "sourceId": "ratchet",
+      "stage": "adjust",
+      "frameId": "adjust-2",
+      "itemUid": "full-opening-28",
+      "atMs": 2800,
+      "variantId": "ratchet",
+      "variantIndex": 0,
+      "key": "ratchet:full-opening-28",
+      "skipOnLoop": false,
+      "volume": 0.2,
+      "enabled": true
+    },
+    {
+      "sourceId": "ratchet",
+      "stage": "adjust",
+      "frameId": "adjust-3",
+      "itemUid": "full-opening-29",
+      "atMs": 2873.3333333333335,
+      "variantId": "ratchet",
+      "variantIndex": 0,
+      "key": "ratchet:full-opening-29",
+      "skipOnLoop": false,
+      "volume": 0.2,
+      "enabled": true
+    },
+    {
+      "sourceId": "ratchet",
+      "stage": "adjust",
+      "frameId": "wrist-1",
+      "itemUid": "full-opening-30",
+      "atMs": 2966.666666666667,
+      "variantId": "ratchet",
+      "variantIndex": 0,
+      "key": "ratchet:full-opening-30",
+      "skipOnLoop": false,
+      "volume": 0.2,
+      "enabled": true
+    },
+    {
+      "sourceId": "ratchet",
+      "stage": "adjust",
+      "frameId": "wrist-2",
+      "itemUid": "full-opening-31",
+      "atMs": 3020.0000000000005,
+      "variantId": "ratchet",
+      "variantIndex": 0,
+      "key": "ratchet:full-opening-31",
+      "skipOnLoop": false,
+      "volume": 0.2,
+      "enabled": true
+    },
+    {
+      "sourceId": "ratchet",
+      "stage": "adjust",
+      "frameId": "adjust-3",
+      "itemUid": "full-opening-32",
+      "atMs": 3073.333333333334,
+      "variantId": "ratchet",
+      "variantIndex": 0,
+      "key": "ratchet:full-opening-32",
+      "skipOnLoop": false,
+      "volume": 0.2,
+      "enabled": true
+    },
+    {
+      "sourceId": "ping",
+      "stage": "ping",
+      "frameId": "observe-3",
+      "itemUid": "scene-ping",
+      "atMs": 8469.523809523811,
+      "variantId": "ping",
+      "variantIndex": 0,
+      "key": "ping:scene-ping",
+      "skipOnLoop": false,
+      "volume": 0.1,
+      "enabled": true
+    }
+  ],
+  "actionSettings": {
+    "walk": {
+      "speed": 1.6,
+      "volume": 0.2,
+      "soundEnabled": true
+    },
+    "turn": {
+      "speed": 1,
+      "volume": 0,
+      "soundEnabled": false
+    },
+    "adjust": {
+      "speed": 3,
+      "volume": 0.2,
+      "soundEnabled": true
+    },
+    "observe": {
+      "speed": 1,
+      "volume": 0,
+      "soundEnabled": false
+    },
+    "contact": {
+      "speed": 1,
+      "volume": 0,
+      "soundEnabled": false
+    },
+    "pan": {
+      "speed": 0.7,
+      "volume": 0,
+      "soundEnabled": false
+    },
+    "center": {
+      "speed": 1,
+      "volume": 0,
+      "soundEnabled": false
+    },
+    "ping": {
+      "speed": 2,
+      "volume": 0.1,
+      "soundEnabled": true
+    },
+    "end": {
+      "speed": 1,
+      "volume": 0,
+      "soundEnabled": false
+    }
+  },
+  "twinkleEnabled": true,
+  "credits": [
+    {
+      "sourceId": "grass",
+      "license": "CC0-1.0",
+      "url": "https://kenney.nl/assets/impact-sounds"
+    },
+    {
+      "sourceId": "ratchet",
+      "license": "CC0-1.0",
+      "url": "https://freesound.org/people/romulofs/sounds/127533/"
+    }
+  ],
+  "assets": [
+    {
+      "id": "background",
+      "role": "image",
+      "file": "images/background.png",
+      "sourceFile": "inputs/background.png",
+      "sha256": "398636f83a35c03b432520b045ebd0805f26458155e6b079dc5979c36f50a3fe",
+      "bytes": 213734,
+      "width": 1024,
+      "height": 1536
+    },
+    {
+      "id": "telescope",
+      "role": "image",
+      "file": "images/telescope.png",
+      "sourceFile": "inputs/telescope.png",
+      "sha256": "891621672be23852ad63b5c8379e3d1132722593dde24d2dca6aa12a169c057c",
+      "bytes": 3660,
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "walk-03",
+      "role": "image",
+      "file": "frames/walk-03.png",
+      "sourceFile": "inputs/walk-03.png",
+      "sha256": "cbcd18f7af4dcd1c1d754e1d172d254503e7e16702967e7c7a4ec7af6c32def1",
+      "bytes": 101736,
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "walk-04",
+      "role": "image",
+      "file": "frames/walk-04.png",
+      "sourceFile": "inputs/walk-04.png",
+      "sha256": "900affbbaee7bf7c4e3fdfc60c97ec4a4eaf3ff9b9ced8e13546072f17ad09dc",
+      "bytes": 117239,
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "walk-05",
+      "role": "image",
+      "file": "frames/walk-05.png",
+      "sourceFile": "inputs/walk-05.png",
+      "sha256": "2a2370be2abcd0cec23e18a695f885a1d420331aa2f1d693c3c4ad5792e6f99e",
+      "bytes": 115130,
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "walk-06",
+      "role": "image",
+      "file": "frames/walk-06.png",
+      "sourceFile": "inputs/walk-06.png",
+      "sha256": "9131f4ad54b6963a2e48b720ec4ff3139ad01b6bc25bf895873103f7efe1c9c0",
+      "bytes": 108215,
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "walk-07",
+      "role": "image",
+      "file": "frames/walk-07.png",
+      "sourceFile": "inputs/walk-07.png",
+      "sha256": "d42d34faf794f0e957c6a82fa4151d4a1aa66460ff07d1a363a2d1be27cc8277",
+      "bytes": 103255,
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "walk-08",
+      "role": "image",
+      "file": "frames/walk-08.png",
+      "sourceFile": "inputs/walk-08.png",
+      "sha256": "233f7aa29f0988f24f627f5da136b85f5f65d5bb27f66688704f3142f6d1cfb8",
+      "bytes": 120363,
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "turn-1",
+      "role": "image",
+      "file": "frames/turn-1.png",
+      "sourceFile": "frames/turn-1.png",
+      "sha256": "24d0d54a16689b907b419643e9d0d3a52e53ca3bba45fe96bfb7bf7a89c5ae04",
+      "bytes": 5042,
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "turn-2",
+      "role": "image",
+      "file": "frames/turn-2.png",
+      "sourceFile": "frames/turn-2.png",
+      "sha256": "2d1d8db2f3ecdaceca578360a7595fb0b2e6d2fde04f8c8491ed5fba846960e9",
+      "bytes": 5045,
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "turn-3",
+      "role": "image",
+      "file": "frames/turn-3.png",
+      "sourceFile": "frames/turn-3.png",
+      "sha256": "920f1bb8934093fb8fa4233f1afa8def4366c3411ce80ca19da5006cbc388bc4",
+      "bytes": 5034,
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "adjust-1",
+      "role": "image",
+      "file": "frames/adjust-1.png",
+      "sourceFile": "frames/adjust-1.png",
+      "sha256": "cef354947911de03dfb29c7af5fad57e546a2f84ab18ebe20981163a505cfd6a",
+      "bytes": 5066,
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "adjust-2",
+      "role": "image",
+      "file": "frames/adjust-2.png",
+      "sourceFile": "frames/adjust-2.png",
+      "sha256": "b1f88aae6052e28379bf9720a7fc1c478f3a1956b0f424099b4b3a78e5874416",
+      "bytes": 5055,
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "adjust-3",
+      "role": "image",
+      "file": "frames/adjust-3.png",
+      "sourceFile": "frames/adjust-3.png",
+      "sha256": "e16212e3b446b6c9db494e00a0c15708599e1529e9d3e99f19540883a684168d",
+      "bytes": 5005,
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "wrist-1",
+      "role": "image",
+      "file": "frames/wrist-1.png",
+      "sourceFile": "frames/wrist-1.png",
+      "sha256": "2b730b5af3b925e67ebfd008912cfe6b74cd5b53f62d0db16ccf12aeec01206d",
+      "bytes": 5001,
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "wrist-2",
+      "role": "image",
+      "file": "frames/wrist-2.png",
+      "sourceFile": "frames/wrist-2.png",
+      "sha256": "f25f523548a4cbc76108070c506ff345bf5ac0c7880590d08c3198ec30b211e7",
+      "bytes": 4989,
+      "width": 400,
+      "height": 560
+    },
+    {
+      "id": "observe-1",
+      "role": "image",
+      "file": "frames/observe-1.png",
+      "sourceFile": "frames/observe-1.png",
+      "sha256": "b92aaa13d82bb69ae8aaf16fe5d895cb42e86c2557467a41e43642f299e82e19",
+      "bytes": 5568,
+      "width": 480,
+      "height": 560
+    },
+    {
+      "id": "observe-2",
+      "role": "image",
+      "file": "frames/observe-2.png",
+      "sourceFile": "frames/observe-2.png",
+      "sha256": "523b7533ddcc797ed471e38f5dd8d1a9c4a174dca75756f2c84cd0757632a3ea",
+      "bytes": 5554,
+      "width": 480,
+      "height": 560
+    },
+    {
+      "id": "observe-3",
+      "role": "image",
+      "file": "frames/observe-3.png",
+      "sourceFile": "frames/observe-3.png",
+      "sha256": "e2d79859dbab78a058d1d722eadc944c76d95606760c9feed2755512e45fcdef",
+      "bytes": 5371,
+      "width": 480,
+      "height": 560
+    },
+    {
+      "id": "polaris-24",
+      "role": "image",
+      "file": "stars/polaris-24.png",
+      "sourceFile": "inputs/polaris-12.png",
+      "sha256": "dd32c5f6d8408d39e4c1e9a7e00de70f5a432018e94dff7bf883297afe1011e8",
+      "bytes": 156,
+      "width": 24,
+      "height": 24
+    },
+    {
+      "id": "polaris-32",
+      "role": "image",
+      "file": "stars/polaris-32.png",
+      "sourceFile": "inputs/polaris-16.png",
+      "sha256": "1c3cef0ca1606e82d750b1514fb2ca2058ae19f981726dcca6a5c14b65b6c90d",
+      "bytes": 168,
+      "width": 32,
+      "height": 32
+    },
+    {
+      "id": "polaris-40",
+      "role": "image",
+      "file": "stars/polaris-40.png",
+      "sourceFile": "inputs/polaris-20.png",
+      "sha256": "db0047ed39794e364d7098769d24109f64cabf09bb7dfed2de3f8af782568748",
+      "bytes": 183,
+      "width": 40,
+      "height": 40
+    },
+    {
+      "id": "grass-a",
+      "role": "audio",
+      "file": "sounds/grass-a.wav",
+      "sourceFile": "inputs/grass-footsteps/grass-step-a-44100.wav",
+      "sha256": "e136b88a5bec2a7b9029ecf9de9e7dfa783a120ebf34fcb0d69563631a93df4c",
+      "bytes": 68404,
+      "encoding": 1,
+      "channels": 1,
+      "sampleRate": 44100,
+      "bits": 16,
+      "durationMs": 774.6712018140589
+    },
+    {
+      "id": "grass-b",
+      "role": "audio",
+      "file": "sounds/grass-b.wav",
+      "sourceFile": "inputs/grass-footsteps/grass-step-b-44100.wav",
+      "sha256": "a7adb65627581dfeb6dba141293eff93b483e196368ee1bd120e5b07588c4033",
+      "bytes": 59234,
+      "encoding": 1,
+      "channels": 1,
+      "sampleRate": 44100,
+      "bits": 16,
+      "durationMs": 670.7029478458049
+    },
+    {
+      "id": "ratchet",
+      "role": "audio",
+      "file": "sounds/ratchet.wav",
+      "sourceFile": "inputs/telescope-ratchet.wav",
+      "sha256": "88645ede47b66537b4f6fcbd2c9f9af9110b9c7dbf8f1495fbd7f18a51211fcb",
+      "bytes": 7100,
+      "encoding": 1,
+      "channels": 1,
+      "sampleRate": 22050,
+      "bits": 16,
+      "durationMs": 160
+    },
+    {
+      "id": "ping",
+      "role": "audio",
+      "file": "sounds/ping.wav",
+      "sourceFile": "inputs/polaris-ping.wav",
+      "sha256": "639fa0f4f3da3bab1967f4c64610a99f904c7a4cf1ef0f7faf8dff8944386aa8",
+      "bytes": 72368,
+      "encoding": 1,
+      "channels": 1,
+      "sampleRate": 44100,
+      "bits": 16,
+      "durationMs": 820
+    }
+  ]
+}

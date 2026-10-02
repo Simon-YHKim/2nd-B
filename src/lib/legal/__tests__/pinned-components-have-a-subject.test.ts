@@ -55,7 +55,8 @@ const PINNED_WITHOUT_A_RENDERER: Readonly<Record<string, string>> = {
     "tools-reachable 의 바이트 핀이 이 슬라이스를 못박는다. docs/FIDELITY_AUDIT.md(2026-06-21 " +
     "스냅샷)가 /trinity 구현으로 적었지만 trinity.tsx 는 이 이름을 import 하지 않는다 - " +
     "참조는 06-22 에 사라졌다(리다이렉트가 아니라 import 제거가 원인).",
-  RleCell: "문서 흔적 0건. 이 명단에서 유일하게 근거가 없는 줄 - 처분을 먼저 정할 것.",
+  // RleCell은 승인 PNG 렌더러로 교체됨. 바이트·픽셀·표시 계약은
+  // src/lib/opening/__tests__/hustlek-approved.test.ts와 src/lib/__tests__/hustlek-opening-runtime.test.ts가 지킨다.
 };
 
 /**

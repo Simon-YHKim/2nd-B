@@ -30,6 +30,15 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
+## Latest — 2026-10-02 22:00 / 승인 HustleK 전체 오프닝 앱 통합
+
+- **사용자 요청**: 승인한 전체화면 오프닝을 앱 및 localhost 8081·8082·8083에 적용. 정식 변경은 최신 `origin/main` 기반 `codex/hustlek-app-opening-261002`에서 준비한다. 기존 아바타 실험 워크트리 전체를 합치지 않는다.
+- **승인 소스**: `hustlek-total-opening-261002/opening.html`의 asset set `a6c0043ad6c06cad85e0a17a`; 원본 사용자 JSON SHA-256 `9d66ce82c7e2e2842592ccabd6a9f07171d9763fed1294acd8a37d98bf968ced`. 이미지·음원 바이트와 10,119.52 ms 타임라인을 보존한다.
+- **앱 구현**: `LoadingScreen`에서 승인 PNG 22개를 `expo-image`로 재생. 로컬 WAV 4개는 grass A/B, 라쳇3개 겹침 풀, 고음 ping으로 구성한다. 웹은 사용자의 소리 켜기 터치 후 재생한다. foreground 시계, 준비 게이트, 재시도, 별 반짝임과 안전 영역 버튼을 포함한다. `IntroGate`의 인증·프로필·복구 계약은 유지한다.
+- **보존/범위**: v2 atlas 계보 파일과 검사는 남기되 런타임에서는 쓰지 않는다. 5언어 `loadingGate`에 소리·건너뛰기·재시도 키만 추가한다. 설치된 native APK의 실기기 재생은 별도 검증이 필요하다.
+- **포트**: 8082(`data-conn-260930`)·8083(`2ndB/TTL-Work_rev2`)의 기존 변경은 보존하면서 오프닝만 적용한다. 8081은 clean `origin/main` 전용이므로 PR/main 반영 전 새 오프닝을 넣지 않는다. 정상 parity 감독자로만 재시작한다.
+- **인수 안내**: [HUSTLEK-OPENING.md](HUSTLEK-OPENING.md), [에셋·라이선스](ASSETS.md). 에셋 검사: `node scripts/build-hustlek-approved-opening.cjs --verify-only`. 전체 게이트: `npm run verify`. 이번 실행 결과는 로컬 `Output/hustlek-app-integration-261002/`에 기록한다.
+
 ## Latest — 2026-10-02 02:40 / 폰 캘린더 읽기(결정 B) 1단계: 읽기 모듈은 꺼진 채로 · 일정 시각 보존 · 고지 초안
 
 - **결정(Simon, 데이터 연동 보고서 결정 탭)**: Q-261001-01 = **B**(폰 캘린더에서 읽은 일정을 기록·위키에 저장), Q-261001-02 = **A**(카카오톡·SMS 카드는 '가져오기가 필요한 자료'에 그대로). DECISIONS 26.10.02 02:32 에 실행 순서와 함께 적었다.
