@@ -27,6 +27,10 @@ const mockRpc = jest.fn(async (name: string, args: Row) => {
 
 function mockQuery(table: string) {
   const filters: ((row: Row) => boolean)[] = [];
+  const columnValue = (row: Row, column: string): unknown => {
+    const value = column.split(/->>?/).reduce<unknown>((item, key) => (item as Row | null | undefined)?.[key], row);
+    return column.includes("->>") && value != null ? String(value) : value;
+  };
   let action = "select";
   let payload: Row | Row[] = {};
   let max = Infinity;
@@ -43,11 +47,12 @@ function mockQuery(table: string) {
       });
     } else if (action === "update") data.forEach((row) => Object.assign(row, payload));
     else if (action === "delete") mockTables[table] = rows.filter((row) => !data.includes(row));
-    return { data: data.slice(0, max).map((row) => ({ ...row })), error: null };
+    return { data: data.slice(0, max).map((row) => ({ ...row })), count: data.length, error: null };
   };
   const q = {
     select: () => q,
-    eq: (key: string, value: unknown) => { filters.push((row) => row[key] === value); return q; },
+    eq: (key: string, value: unknown) => { filters.push((row) => columnValue(row, key) === value); return q; },
+    is: (key: string, value: unknown) => { filters.push((row) => value === null ? columnValue(row, key) == null : columnValue(row, key) === value); return q; },
     in: (key: string, values: unknown[]) => { filters.push((row) => values.includes(row[key])); return q; },
     not: (key: string, _op: string, value: unknown) => { filters.push((row) => row[key] != value); return q; },
     overlaps: (key: string, values: unknown[]) => { filters.push((row) => (row[key] ?? []).some((v: unknown) => values.includes(v))); return q; },

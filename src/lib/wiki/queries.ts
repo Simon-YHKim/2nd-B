@@ -10,6 +10,7 @@
 // always equal auth.uid() (otherwise RLS rejects the operation).
 
 import { getSupabaseClient } from "../supabase/client";
+import { eraseSourcesWithRawClippings } from "./source-erasure";
 import { diffWikiLinks } from "./link-diff";
 import { extractWikilinkSlugs } from "./wikilinks";
 import type { RelationType, SourceKind, SourceRow, WikiPageKind, WikiPageRow } from "./types";
@@ -135,24 +136,25 @@ export async function markSourceIngested(userId: string, sourceId: string): Prom
 }
 
 /**
- * Delete a source row. wiki_pages.source_id is ON DELETE SET NULL, but
- * the wiki_pages_source_kind_pair CHECK constraint requires kind='source'
- * ⇔ source_id IS NOT NULL. So sources that have been promoted to a
- * wiki page CAN'T be cleanly deleted without first deleting the wiki page.
- * The inbox UI only exposes the delete action on un-ingested rows.
+ * Delete a source row together with its raw-clippings original, raw first so
+ * a failed Storage call leaves the row (and its storage_path) to retry from
+ * (wiki/source-erasure.ts, R28 2026-09-20). This used to delete the row only
+ * and leave the .md in Storage, where the account export still listed it.
  *
- * Storage cleanup (deleting the .md from raw-clippings) is not automated
- * here — operator can prune Storage manually or via a scheduled Edge
- * Function later.
+ * wiki_pages.source_id is ON DELETE SET NULL, but the
+ * wiki_pages_source_kind_pair CHECK requires kind='source' ⇔ source_id IS NOT
+ * NULL, so a source promoted to a wiki page CAN'T be deleted without first
+ * deleting the wiki page. Such a source is left untouched, original included,
+ * and this throws, as the row delete used to - so does one a wiki page is
+ * being made from right now (its claim came first). A source that is already
+ * gone is not an error. The call is bound to the session that starts it and
+ * throws AuthSessionOwnerChangedError if that session changes (R30).
+ *
+ * The inbox UI only exposes the delete action on un-ingested rows.
  */
 export async function deleteSource(userId: string, sourceId: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase
-    .from("sources")
-    .delete()
-    .eq("user_id", userId)
-    .eq("id", sourceId);
-  if (error) throw error;
+  const { kept } = await eraseSourcesWithRawClippings(userId, { ids: [sourceId] });
+  if (kept > 0) throw new Error("source is kept: a wiki page points at it or is being made from it");
 }
 
 /** Sources whose Storage upload failed at capture time (frontmatter carries
@@ -171,25 +173,13 @@ export async function listStoragePendingSources(userId: string, limit = 10): Pro
   return (data ?? []) as SourceRow[];
 }
 
-/** Replace a source's frontmatter wholesale (promote-pending clears the
- *  _storage_pending/_body_fallback pair after a successful re-upload).
- *  `storagePath` heals rows whose original path was Storage-invalid (pre-fix
- *  Hangul keys): promotion re-uploads to an ASCII-safe key and repoints the
- *  row at it in the same write. */
-export async function updateSourceFrontmatter(
-  userId: string,
-  sourceId: string,
-  frontmatter: Record<string, unknown>,
-  storagePath?: string,
-): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase
-    .from("sources")
-    .update({ frontmatter, ...(storagePath ? { storage_path: storagePath } : {}) })
-    .eq("user_id", userId)
-    .eq("id", sourceId);
-  if (error) throw error;
-}
+// updateSourceFrontmatter lived here: an unconditional wholesale write that read
+// a 0-row UPDATE (the row deleted meanwhile) as success, so a late promotion
+// "cleared" a row that no longer existed and left its re-uploaded original
+// behind (R30, JA-1839-1). promote-pending now clears the pair through
+// clearStoragePending (wiki/source-erasure.ts): conditional on the claim
+// markers, told apart gone / erasing / cleared, and followed by a take-back of
+// the upload when the clear did not land.
 
 /** Replace a source's tags column (inbox accepts an AI-suggested tag before
  *  promotion). Caller passes the full desired set; we don't merge here. */
