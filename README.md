@@ -10,7 +10,8 @@ deadline.
 
 [Master Blueprint](./docs/ARCHITECTURE.md) ·
 [Constraints](./docs/CONSTRAINTS.md) ·
-[Bundled assets and licenses](./docs/ASSETS.md)
+[Bundled assets and licenses](./docs/ASSETS.md) ·
+[HustleK opening](./docs/HUSTLEK-OPENING.md)
 
 ---
 

@@ -1,6 +1,10 @@
 # Keep deterministic opening sources byte-identical across Windows and Linux.
 /assets/deepspace/hustlek-opening-v2.json text eol=lf
 /scripts/build-hustlek-opening-v2.py text eol=lf
+# The submitted settings hash and generated runtime must survive a Windows checkout.
+/assets/opening/hustlek-approved-261002/*.json text eol=lf
+/src/lib/opening/hustlek-approved.ts text eol=lf
+/scripts/build-hustlek-approved-opening.cjs text eol=lf
 # Keep approved avatar app sources byte-identical to design/avatar-style-v2 on Windows.
 /src/lib/avatar/engine.js text eol=lf
 /src/lib/avatar/renderer.js text eol=lf

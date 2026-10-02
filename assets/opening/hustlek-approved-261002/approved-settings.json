@@ -1,0 +1,647 @@
+{
+  "schemaVersion": 4,
+  "assetSet": "8e0f83465c046eba5b504f48",
+  "mode": "full-opening",
+  "scenePhases": [
+    {
+      "id": "contact",
+      "included": true,
+      "durationMs": 400
+    },
+    {
+      "id": "pan",
+      "included": true,
+      "durationMs": 2200
+    },
+    {
+      "id": "center",
+      "included": true,
+      "durationMs": 320
+    },
+    {
+      "id": "ping",
+      "included": true,
+      "durationMs": 900
+    },
+    {
+      "id": "end",
+      "included": true,
+      "durationMs": 1200
+    }
+  ],
+  "parameters": {
+    "contactHold": 400,
+    "camPanDuration": 2200,
+    "centerHold": 320,
+    "pingDuration": 900,
+    "endHold": 1200,
+    "volume": 0.1,
+    "soundEnabled": true,
+    "twinkleEnabled": true
+  },
+  "actionSettings": {
+    "walk": {
+      "speed": 1.6,
+      "volume": 0.2,
+      "soundEnabled": true
+    },
+    "turn": {
+      "speed": 1,
+      "volume": 0,
+      "soundEnabled": false
+    },
+    "adjust": {
+      "speed": 3,
+      "volume": 0.2,
+      "soundEnabled": true
+    },
+    "observe": {
+      "speed": 1,
+      "volume": 0,
+      "soundEnabled": false
+    },
+    "contact": {
+      "speed": 1,
+      "volume": 0,
+      "soundEnabled": false
+    },
+    "pan": {
+      "speed": 0.7,
+      "volume": 0,
+      "soundEnabled": false
+    },
+    "center": {
+      "speed": 1,
+      "volume": 0,
+      "soundEnabled": false
+    },
+    "ping": {
+      "speed": 2,
+      "volume": 0.1,
+      "soundEnabled": true
+    },
+    "end": {
+      "speed": 1,
+      "volume": 0,
+      "soundEnabled": false
+    }
+  },
+  "sequences": {
+    "chain": [
+      {
+        "uid": "chain-1",
+        "frameId": "walk-03",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-2",
+        "frameId": "walk-04",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-3",
+        "frameId": "walk-05",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-4",
+        "frameId": "walk-06",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-5",
+        "frameId": "walk-07",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-6",
+        "frameId": "walk-08",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-7",
+        "frameId": "walk-03",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-8",
+        "frameId": "walk-04",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-9",
+        "frameId": "walk-05",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-10",
+        "frameId": "walk-06",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-11",
+        "frameId": "walk-07",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-12",
+        "frameId": "walk-08",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-13",
+        "frameId": "walk-03",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-14",
+        "frameId": "walk-04",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-15",
+        "frameId": "walk-05",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-16",
+        "frameId": "walk-06",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-17",
+        "frameId": "walk-07",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-18",
+        "frameId": "walk-08",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-19",
+        "frameId": "walk-03",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-20",
+        "frameId": "walk-04",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-21",
+        "frameId": "walk-05",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-22",
+        "frameId": "walk-06",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-23",
+        "frameId": "walk-07",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-24",
+        "frameId": "walk-08",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "chain-25",
+        "frameId": "turn-1",
+        "durationMs": 90,
+        "included": true
+      },
+      {
+        "uid": "chain-26",
+        "frameId": "turn-3",
+        "durationMs": 150,
+        "included": true
+      },
+      {
+        "uid": "chain-27",
+        "frameId": "adjust-1",
+        "durationMs": 180,
+        "included": true
+      },
+      {
+        "uid": "chain-28",
+        "frameId": "adjust-2",
+        "durationMs": 220,
+        "included": true
+      },
+      {
+        "uid": "chain-29",
+        "frameId": "adjust-3",
+        "durationMs": 280,
+        "included": true
+      },
+      {
+        "uid": "chain-30",
+        "frameId": "wrist-1",
+        "durationMs": 160,
+        "included": true
+      },
+      {
+        "uid": "chain-31",
+        "frameId": "wrist-2",
+        "durationMs": 160,
+        "included": true
+      },
+      {
+        "uid": "chain-32",
+        "frameId": "adjust-3",
+        "durationMs": 280,
+        "included": true
+      },
+      {
+        "uid": "chain-33",
+        "frameId": "observe-1",
+        "durationMs": 200,
+        "included": true
+      },
+      {
+        "uid": "chain-34",
+        "frameId": "observe-2",
+        "durationMs": 240,
+        "included": true
+      },
+      {
+        "uid": "chain-35",
+        "frameId": "observe-3",
+        "durationMs": 1000,
+        "included": true
+      }
+    ],
+    "walk": [
+      {
+        "uid": "walk-1",
+        "frameId": "walk-03",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "walk-2",
+        "frameId": "walk-04",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "walk-3",
+        "frameId": "walk-05",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "walk-4",
+        "frameId": "walk-06",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "walk-5",
+        "frameId": "walk-07",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "walk-6",
+        "frameId": "walk-08",
+        "durationMs": 166.66666666666666,
+        "included": true
+      }
+    ],
+    "turn": [
+      {
+        "uid": "turn-1",
+        "frameId": "walk-08",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "turn-2",
+        "frameId": "turn-1",
+        "durationMs": 90,
+        "included": true
+      },
+      {
+        "uid": "turn-3",
+        "frameId": "turn-3",
+        "durationMs": 150,
+        "included": true
+      }
+    ],
+    "adjust": [
+      {
+        "uid": "adjust-1",
+        "frameId": "turn-3",
+        "durationMs": 150,
+        "included": true
+      },
+      {
+        "uid": "adjust-2",
+        "frameId": "adjust-1",
+        "durationMs": 180,
+        "included": true
+      },
+      {
+        "uid": "adjust-3",
+        "frameId": "adjust-2",
+        "durationMs": 220,
+        "included": true
+      },
+      {
+        "uid": "adjust-4",
+        "frameId": "adjust-3",
+        "durationMs": 280,
+        "included": true
+      },
+      {
+        "uid": "adjust-5",
+        "frameId": "wrist-1",
+        "durationMs": 160,
+        "included": true
+      },
+      {
+        "uid": "adjust-6",
+        "frameId": "wrist-2",
+        "durationMs": 160,
+        "included": true
+      },
+      {
+        "uid": "adjust-7",
+        "frameId": "adjust-3",
+        "durationMs": 280,
+        "included": true
+      }
+    ],
+    "observe": [
+      {
+        "uid": "observe-1",
+        "frameId": "adjust-3",
+        "durationMs": 280,
+        "included": true
+      },
+      {
+        "uid": "observe-2",
+        "frameId": "observe-1",
+        "durationMs": 200,
+        "included": true
+      },
+      {
+        "uid": "observe-3",
+        "frameId": "observe-2",
+        "durationMs": 240,
+        "included": true
+      },
+      {
+        "uid": "observe-4",
+        "frameId": "observe-3",
+        "durationMs": 1000,
+        "included": true
+      }
+    ],
+    "post-observe": [],
+    "full-opening": [
+      {
+        "uid": "full-opening-1",
+        "frameId": "walk-03",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-2",
+        "frameId": "walk-04",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-3",
+        "frameId": "walk-05",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-4",
+        "frameId": "walk-06",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-5",
+        "frameId": "walk-07",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-6",
+        "frameId": "walk-08",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-7",
+        "frameId": "walk-03",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-8",
+        "frameId": "walk-04",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-9",
+        "frameId": "walk-05",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-10",
+        "frameId": "walk-06",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-11",
+        "frameId": "walk-07",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-12",
+        "frameId": "walk-08",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-13",
+        "frameId": "walk-03",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-14",
+        "frameId": "walk-04",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-15",
+        "frameId": "walk-05",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-16",
+        "frameId": "walk-06",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-17",
+        "frameId": "walk-07",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-18",
+        "frameId": "walk-08",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-19",
+        "frameId": "walk-03",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-20",
+        "frameId": "walk-04",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-21",
+        "frameId": "walk-05",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-22",
+        "frameId": "walk-06",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-23",
+        "frameId": "walk-07",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-24",
+        "frameId": "walk-08",
+        "durationMs": 166.66666666666666,
+        "included": true
+      },
+      {
+        "uid": "full-opening-25",
+        "frameId": "turn-1",
+        "durationMs": 90,
+        "included": true
+      },
+      {
+        "uid": "full-opening-26",
+        "frameId": "turn-3",
+        "durationMs": 150,
+        "included": true
+      },
+      {
+        "uid": "full-opening-27",
+        "frameId": "adjust-1",
+        "durationMs": 180,
+        "included": true
+      },
+      {
+        "uid": "full-opening-28",
+        "frameId": "adjust-2",
+        "durationMs": 220,
+        "included": true
+      },
+      {
+        "uid": "full-opening-29",
+        "frameId": "adjust-3",
+        "durationMs": 280,
+        "included": true
+      },
+      {
+        "uid": "full-opening-30",
+        "frameId": "wrist-1",
+        "durationMs": 160,
+        "included": true
+      },
+      {
+        "uid": "full-opening-31",
+        "frameId": "wrist-2",
+        "durationMs": 160,
+        "included": true
+      },
+      {
+        "uid": "full-opening-32",
+        "frameId": "adjust-3",
+        "durationMs": 280,
+        "included": true
+      },
+      {
+        "uid": "full-opening-33",
+        "frameId": "observe-1",
+        "durationMs": 200,
+        "included": true
+      },
+      {
+        "uid": "full-opening-34",
+        "frameId": "observe-2",
+        "durationMs": 240,
+        "included": true
+      },
+      {
+        "uid": "full-opening-35",
+        "frameId": "observe-3",
+        "durationMs": 1000,
+        "included": true
+      }
+    ]
+  },
+  "speed": 1,
+  "loop": false,
+  "qaNote": "걷기 소리가 탁-탁-탁-탁 식의 규칙적인 소리여야 하는데, 타닥-타닥 처럼 들려."
+}
