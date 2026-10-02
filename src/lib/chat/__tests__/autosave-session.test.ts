@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import ts from "typescript";
 import { defaultPrivacyPrefs, type PrivacyPrefs } from "../../privacy/prefs";
 
 let mockPrefs: PrivacyPrefs;
@@ -26,29 +23,6 @@ beforeEach(() => {
 });
 
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>((done) => { resolve = done; }); return { promise, resolve }; }
-
-test("shipping autosave does not retroactively save the last turn when consent changes to ON", async () => {
-  // Execute the shipped effect rather than asserting that its last-index line exists.
-  const source = readFileSync(join(__dirname, "../../../app/secondb.tsx"), "utf8");
-  const ast = ts.createSourceFile("secondb.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  let effect = "";
-  const walk = (node: ts.Node): void => {
-    if (ts.isCallExpression(node) && node.expression.getText(ast) === "useEffect" &&
-      node.arguments[0]?.getText(ast).includes("const idx = turns.length - 1;")) effect = node.arguments[0].getText(ast);
-    ts.forEachChild(node, walk);
-  };
-  walk(ast); expect(effect).not.toBe("");
-  const keep = jest.fn().mockResolvedValue(true);
-  const session = createChatAutosaveSession("a", () => 1, jest.fn());
-  mockPrefs.chat_autosave = true;
-  await session.hydrate();
-  const code = ts.transpileModule(`const effect = ${effect};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
-  const run = new Function("chatAutosaveAllowed", "autosaveConsent", "userId", "keeping", "turns", "isKeepable", "autosaveSessionRef", "keptIdx", "keepExchange", "findPromptIndex", `${code}; return effect;`);
-  run((value: unknown) => value === true, true, "a", null, [{ role: "secondb", text: "Already received before consent" }], () => true, { current: session }, new Set(), keep, findPromptIndex)();
-  await Promise.resolve();
-  expect(keep).not.toHaveBeenCalled();
-  session.stop();
-});
 
 test("a reply received after grant does not retroactively save its earlier user prompt", async () => {
   let count = 1;

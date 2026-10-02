@@ -76,7 +76,7 @@ const CITES: CommentCite[] = [
   },
   {
     from: "src/lib/notices/remote.ts",
-    cite: "src/lib/supabase/privacy.ts:12-29",
+    cite: "src/lib/supabase/privacy.ts:23-32",
     symbol: "return resolvePrivacyPrefs(null)",
     why: "'읽기는 FAIL SOFT 한다' 의 실제 동작 - catch 안에서 기본값을 돌려주는 그 줄.",
   },

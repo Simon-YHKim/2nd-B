@@ -53,7 +53,9 @@ describe("화면 배선", () => {
     // 닫기만 있으면 켜는 방법을 못 찾고, 열기만 있으면 빠져나갈 수 없다.
     expect(src).toContain("chatSaveNoticeOpen");
     expect(src).toContain("chatSaveNoticeDismiss");
-    expect(src).toContain('router.push("/privacy")');
+    // 설정 화면 맨 위가 아니라 대화 저장 카드로 보낸다 (Q-260914-01, 2026-09-14).
+    // 예전에는 "/privacy" 로만 보냈고, 배송 개인정보 화면에는 그 토글 자체가 없었다.
+    expect(src).toContain('router.push({ pathname: "/privacy", params: { focusPref: "chat_autosave" } })');
   });
 
   it("문구가 로케일에서 온다", () => {
@@ -67,5 +69,39 @@ describe("화면 배선", () => {
     // 켜기 전 대화는 저장되지 않는다는 사실을 빠뜨리면 안 된다 — 켜자마자
     // 지난 대화가 다 남을 거라고 기대하게 된다.
     expect(ko.chatSaveNoticeBody).toContain("켜기 전");
+  });
+});
+
+describe("배너가 보내는 자리에 받는 쪽이 있다", () => {
+  // 파라미터를 보내기만 하고 아무도 안 읽으면 버튼이 약속을 못 지킨다. 그 부류는
+  // route-params-have-a-reader 가 전역으로 세지만, 그 검사는 "어딘가에서 같은 이름을
+  // 읽는다"까지만 본다. 여기서는 **이 화면**이 읽고 카드로 옮기는지를 본다.
+  const ds = readFileSync(
+    join(process.cwd(), "src", "screens", "deepspace", "DeepSpaceDesignScreens.tsx"),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
+  const at = ds.indexOf("export function DeepSpacePrivacyDesignScreen(");
+  const privacy = at < 0 ? "" : ds.slice(at, ds.indexOf("\nexport function", at + 10));
+
+  it("배송 개인정보 화면이 focusPref 를 읽고 대화 저장 카드로 스크롤한다", () => {
+    expect(at).toBeGreaterThan(0);
+    expect(privacy).toContain("useLocalSearchParams<{ focusPref?: string }>()");
+    expect(privacy).toContain('focusPref === "chat_autosave"');
+    expect(privacy).toContain("scrollRef={privacyScrollRef}");
+    expect(privacy).toContain("privacyScrollRef.current?.scrollTo(");
+  });
+
+  it("배너 문구가 그 카드의 이름을 부른다 - 다섯 언어", () => {
+    for (const loc of ["en", "ko", "es", "pt", "id"]) {
+      const body = (
+        JSON.parse(readFileSync(join(process.cwd(), "locales", loc, "secondb.json"), "utf8")) as Record<string, string>
+      ).chatSaveNoticeBody;
+      const section = (
+        JSON.parse(readFileSync(join(process.cwd(), "locales", loc, "deepspace.json"), "utf8")) as {
+          privacy: Record<string, string>;
+        }
+      ).privacy.chatSaveSection;
+      expect({ loc, ok: body.toLowerCase().includes(section.toLowerCase()) }).toEqual({ loc, ok: true });
+    }
   });
 });

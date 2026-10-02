@@ -1,4 +1,5 @@
 import { purgeCaptureDraftsForDeletedAccount } from "../capture/draft";
+import { purgeAutosaveUndoForDeletedAccount } from "../chat/autosave-undo-queue";
 import { purgeAvatarPaletteItemsForDeletedAccount } from "../avatar-palette/gallery";
 import { purgeHealthAutoReadForDeletedAccount } from "../health/auto-read";
 import { purgeImportHistoryForDeletedAccount } from "../import/history";
@@ -37,6 +38,7 @@ export async function purgeDeletedAccountLocalData(userId: string): Promise<Loca
     const results = await Promise.all([
       observe(() => purgeAvatarPaletteItemsForDeletedAccount(owner)),
       observe(() => purgeCaptureDraftsForDeletedAccount(owner)),
+      observe(() => purgeAutosaveUndoForDeletedAccount(owner)),
       observe(() => purgeImportHistoryForDeletedAccount(owner)),
       observe(() => purgeGithubUsernameForDeletedAccount(owner)),
       observe(() => purgeAuditWriteOutboxForOwner(owner)),

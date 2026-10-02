@@ -61,8 +61,9 @@ function harness(options: { consentRecorded?: boolean; consentThrows?: boolean }
     setRecOn: (on: boolean) => { calls.recOn.push(on); },
     setRecError: (on: boolean) => { calls.recError.push(on); },
     fetchPrivacyPrefs: async () => ({ recommendations: false }),
-    savePrivacyPrefs: async (_id: string, prefs: { recommendations: boolean }) => {
-      calls.saved.push(prefs.recommendations);
+    // r3as F-01: 화면은 불러온 객체 전체가 아니라 키 하나를 최신 서버 값 위에 저장한다.
+    savePrivacyPref: async (_id: string, key: string, value: boolean) => {
+      if (key === "recommendations") calls.saved.push(value);
     },
     recordRecommendationsConsent: async (args: unknown) => {
       calls.consentArgs.push(args);

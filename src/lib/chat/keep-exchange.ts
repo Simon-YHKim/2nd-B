@@ -53,7 +53,10 @@ export function findPrompt(turns: readonly KeepableTurn[], replyIndex: number): 
   return index === null ? null : turns[index].text.trim();
 }
 
-/** The pair's first turn also has to follow the autosave consent boundary. */
+/**
+ * findPrompt 가 짝으로 고르는 사용자 발화의 자리. 없으면 null.
+ * 자동 담기는 답변에 붙는 질문을 보낸 순간의 동의도 확인하므로 두 경로가 같은 짝을 골라야 한다.
+ */
 export function findPromptIndex(turns: readonly KeepableTurn[], replyIndex: number): number | null {
   for (let i = replyIndex - 1; i >= 0; i--) {
     const t = turns[i];

@@ -39,7 +39,7 @@ export const PRIVACY_PREF_KEYS = [
   // 다루는 종류의 변화라서 여기에 둔다.
   //
   // 다만 바깥으로 나가는 것은 없다. 사용자 자신의 말이 사용자 자신의 위키로 갈 뿐이고 RLS 로 격리돼 있다.
-  // ⚠ "`/wiki` 에서 언제든 지울 수 있다(deleteWikiPage)" 는 2026-09-08 실측 거짓 — src/lib/chat/autosave.ts 정정 참조.
+  // ⚠ "`/wiki` 에서 언제든 지울 수 있다(deleteWikiPage)" 는 2026-09-08 실측 거짓. 2026-09-14 정정: 자동 저장은 sources 에 쓰고, 배송 기록 상세가 그 한 건을 지운다. src/lib/chat/autosave.ts 정정 참조.
   // 그래서 `ops_push` 와 같은 이유로 **미성년도 스스로 켤 수 있다** — 기기·계정
   // 내부의 이동이지 외부 데이터 흐름이 아니다. 오히려 미성년만 막으면 그 사용자의
   // 대화는 영영 페르소나에 기여하지 못해 제품이 반쪽이 된다.
@@ -137,4 +137,21 @@ export const VISIBLE_PRIVACY_KEYS: readonly PrivacyPrefKey[] = [
 export function isPrivacyPrefEditable(key: PrivacyPrefKey, isMinor: boolean): boolean {
   if (!isMinor) return true;
   return MINOR_PROMOTABLE_KEYS.includes(key);
+}
+
+// One switch -> the whole prefs object to save, or null when that switch must
+// not move (a minor on a non-promotable key) or nothing changed. The shipped
+// /privacy screen routes chat_autosave through here so the minor rule stays in
+// this file: its analytics/ads handler locks every minor, which is right for
+// those keys and wrong for a MINOR_PROMOTABLE_KEYS member. Persist the result
+// with savePrivacyPrefs, which appends a consent_changes grant/revoke per key.
+export function nextPrivacyPrefs(
+  current: PrivacyPrefs,
+  key: PrivacyPrefKey,
+  next: boolean,
+  isMinor: boolean,
+): PrivacyPrefs | null {
+  if (!isPrivacyPrefEditable(key, isMinor)) return null;
+  if (current[key] === next) return null;
+  return { ...current, [key]: next };
 }

@@ -585,6 +585,7 @@ describe("a fetched citation row belongs to the account that fetched it", () => 
 // guard that covered only the citation would be an incomplete claim.
 
 const ROWS_PIECES = [
+  lift(WIKI_AST, "[reloadKey, setReloadKey]"),
   lift(WIKI_AST, "[held, setHeld]"),
   lift(WIKI_AST, "listWikiPages(userId, { limit: 200 })", "effect"),
   lift(WIKI_AST, "const owned = held.ownerId"),
@@ -598,9 +599,9 @@ interface OwnedRows {
 
 describe("the loaded window belongs to the account that loaded it", () => {
   test("the lifted pieces are the real ones", () => {
-    expect(ROWS_PIECES[1].startsWith("useEffect(")).toBe(true);
-    expect(ROWS_PIECES[1]).toContain("setHeld({ ownerId: userId, pages: p, edges: e })");
-    expect(ROWS_PIECES[2]).toContain("held.ownerId === userId");
+    expect(ROWS_PIECES[2].startsWith("useEffect(")).toBe(true);
+    expect(ROWS_PIECES[2]).toContain("setHeld({ ownerId: userId, pages: p, edges: e })");
+    expect(ROWS_PIECES[3]).toContain("held.ownerId === userId");
   });
 
   test("rows loaded for A are not readable once B is the owner", async () => {

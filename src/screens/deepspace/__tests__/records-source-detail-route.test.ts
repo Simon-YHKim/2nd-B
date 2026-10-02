@@ -137,14 +137,24 @@ describe("deep-space records source detail routing", () => {
     expect(DETAIL_SRC).toContain("await deleteRecord(userId, primary.piece.id)");
   });
 
-  test("sources expose only an explicit promotion action and never promote on mount", () => {
+  test("sources expose explicit promotion and delete actions and never run either on mount", () => {
     expect(DETAIL_SRC).toContain('primary.piece.origin !== "source"');
     expect(DETAIL_SRC).toContain("locksRef.current.promote");
     expect(DETAIL_SRC).toContain("onPress={() => void promoteToWiki()}");
     expect(DETAIL_SRC).toContain("await promotePendingUploads(userId)");
     expect(DETAIL_SRC).toContain("await generateSourcePage(userId, sourceId)");
+    // 2026-09-14 (Q-260914-01): a captured source can be deleted from here. Chat
+    // autosave writes to `sources`, and this is where a kept exchange shows up, so
+    // without it the shipped app had no per-item undo. It goes through its own
+    // confirm modal (the record modal stays record-only) and the ordered delete in
+    // lib/wiki/delete-captured-source.ts.
+    expect(DETAIL_SRC).toContain('import { deleteCapturedSource } from "@/lib/wiki/delete-captured-source";');
+    expect(DETAIL_SRC).toContain("await deleteCapturedSource(userId, sourceId)");
+    expect(DETAIL_SRC).toContain("onPress={() => void handleDeleteSource()}");
+    expect(DETAIL_SRC).toContain('t("deepspace:recordDetail.deleteSourceConfirmBody")');
+    expect(DETAIL_SRC).toContain('accessibilityLabel={t("deepspace:recordDetail.a11yDeleteSource")}');
     expect(DETAIL_SRC).not.toMatch(
-      /useEffect\([\s\S]{0,800}(promotePendingUploads|generateSourcePage)/,
+      /useEffect\([\s\S]{0,800}(promotePendingUploads|generateSourcePage|deleteCapturedSource)/,
     );
   });
 
@@ -205,24 +215,8 @@ describe("deep-space records source detail routing", () => {
       // still require an explicit review.
       "9be2bc0fba47aaacdb791b0366fb0ea218a3c4236e9f3b278630450aeaf526d7",
     );
-    // Re-pinned 2026-09-20 (R48): the wiki screen now honours a ?focusPageId= that names
-    // a page outside the 200-row slice it loads -- the RAG citation path can cite one,
-    // and the old effect dropped it silently. Slice 8,406 -> 10,217 chars / 177 -> 217
-    // lines (+1,811 / +40): a `useRef` and a `getWikiPageById` import specifier, the
-    // rewritten focus effect and its two new state holders, a `listedPages` memo, and
-    // three call sites reading that memo instead of `pages` -- plus their comments.
-    //
-    // Re-pinned again 2026-09-20 (R49): the row that effect fetches is now carried with
-    // the account it was fetched for, the honour guard is keyed on the (account, id)
-    // pair instead of the id alone, and the default-open row is chosen from what the
-    // view can actually draw rather than from any non-null id. Slice 10,217 -> 11,609
-    // chars / 217 -> 237 lines (+1,392 / +20), all of it inside those three edits and
-    // their comments. Verified before re-pinning: the R48 digest below recomputes
-    // byte-for-byte from HEAD's copy of this file, so this change is the only delta in
-    // the slice.
-    //   git show HEAD:src/screens/deepspace/dds-wiki-records-screens.tsx
-    //     | slice from "export function DeepSpaceWikiScreen()" -> sha256
-    //     = 0b269d67992b803d9c6093032b2101b7d373c6c6cb811d0522d372e1f14eae19  (matches)
-    expect(sha256(wiki)).toBe("677ed103ab26600b77ae9084ce8fa5c67dd71940b9cec7151298aeac0c0bf870");
+    // #1814의 계정 결합 한 장 삭제와 main의 R48/R49 인용 포커스·계정별 목록을 함께 유지한다.
+    // 두 변경의 통합 결과를 고정해 기록 상세 추출이 위키 화면을 우연히 바꾸지 못하게 한다.
+    expect(sha256(wiki)).toBe("9752b08c05eb5b60988548a4d25f0dfdcb748a49cf99cf63021c170f3ca35041");
   });
 });
