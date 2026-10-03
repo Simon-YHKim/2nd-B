@@ -55,6 +55,7 @@ import { detectDomain } from "@/lib/records/detect-domain";
 import { getRecordById, listRecentRecords, updateRecordTags } from "@/lib/records/create";
 import { listSourcePieces } from "@/lib/records/source-pieces";
 import { classifyInputAnyLocale } from "@/lib/safety/classifier";
+import { isAiExcludedSource } from "@/lib/wiki/ai-exclusion";
 import { generateSourcePage } from "@/lib/wiki/phase2";
 import { getSource, updateSourceTags } from "@/lib/wiki/queries";
 import { downloadRawClipping } from "@/lib/wiki/storage";
@@ -311,6 +312,8 @@ async function loadSafeBatchText(
       const fallback = typeof fm._body_fallback === "string" ? fm._body_fallback : null;
       const body =
         fallback ?? (await downloadRawClipping(source.storage_path).catch(() => null)) ?? "";
+      // Health measurements stay out of the model: the title alone is sent (ai-exclusion.ts).
+      if (isAiExcludedSource(source.frontmatter, body)) return [item.key, source.title] as const;
       return [item.key, `${source.title}\n${body}`] as const;
     }),
   );
