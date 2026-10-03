@@ -11,6 +11,7 @@ import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { useOpeningSounds } from "@/lib/audio/use-opening-sounds";
 import { APPROVED_OPENING_ASSETS, APPROVED_OPENING_DURATION_MS, APPROVED_OPENING_IMAGES_IN_USE_ORDER, approvedOpeningSourcesNeeded, getApprovedOpeningCues, getApprovedOpeningScene } from "@/lib/opening/hustlek-approved";
 import { DeepSpaceLoader } from "@/components/deepspace/DeepSpaceLoader";
+import { OpeningFade } from "@/components/ui/OpeningFade";
 import { deepSpace, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
@@ -166,6 +167,9 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
       </> : null}
       {sceneVisible && scene.twinkle.rects.map((pixel, index) => <View key={index} style={[styles.pixel, { left: scene.twinkle.left + pixel.left, top: scene.twinkle.top + pixel.top, width: pixel.width, height: pixel.height, backgroundColor: pixel.color, opacity: pixel.alpha }]} />)}
     </View>
+    {/* The opening starts with a pixel fade-in from the right (Simon 2026-10-03),
+        on the opening clock: it waits while the clock waits and pauses with it. */}
+    {sceneVisible ? <OpeningFade elapsedMs={elapsedMs} width={viewport.width} height={viewport.height} reducedMotion={reducedMotion} /> : null}
     {/* One small skip button in the bottom-right corner (Simon localhost QA
         2026-10-03: "건너뛰기를 우 하단에다가 작게"). It looks small, but hitSlop
         keeps the touch target at 44 dp. The sound toggle stays removed; sound
