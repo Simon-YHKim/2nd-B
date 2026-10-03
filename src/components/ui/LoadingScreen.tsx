@@ -12,6 +12,7 @@ import { useOpeningSounds } from "@/lib/audio/use-opening-sounds";
 import { APPROVED_OPENING_ASSETS, APPROVED_OPENING_DURATION_MS, APPROVED_OPENING_IMAGES_IN_USE_ORDER, approvedOpeningSourcesNeeded, getApprovedOpeningCues, getApprovedOpeningScene } from "@/lib/opening/hustlek-approved";
 import { DeepSpaceLoader } from "@/components/deepspace/DeepSpaceLoader";
 import { OpeningFade } from "@/components/ui/OpeningFade";
+import { markOpeningImagesSettled } from "@/lib/opening/opening-images-signal";
 import { deepSpace, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
@@ -102,9 +103,12 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
       const [asset] = await Asset.loadAsync(source);
       return Image.prefetch([asset.localUri ?? asset.uri], { cachePolicy: "memory-disk" });
     };
+    // When every image is in (or loading failed), the web font loader may start:
+    // it waits so it does not take the line from these images.
     return createOpeningPreloadQueue(APPROVED_OPENING_IMAGES_IN_USE_ORDER, load, source => {
       loaded.current.add(source); setLoadedCount(count => count + 1);
-    }, () => setAssetError(true));
+      if (loaded.current.size >= APPROVED_OPENING_IMAGES_IN_USE_ORDER.length) markOpeningImagesSettled();
+    }, () => { setAssetError(true); markOpeningImagesSettled(); });
   }, [attempt]);
 
   useEffect(() => {
