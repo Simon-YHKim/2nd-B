@@ -40,6 +40,8 @@ export function createOpeningTicker(clock: Pick<ReturnType<typeof createOpeningC
 }
 /** Frames that must already be in memory before the clock may run past them. */
 export const OPENING_LOOKAHEAD_MS = 400;
+/** Longest the opening waits for its sounds once the frames are ready; then it plays silently. */
+export const OPENING_SOUND_WAIT_MS = 1500;
 /**
  * Loads sources in the given order with a few requests in flight, so the first
  * scene arrives first instead of finishing together with the last image.
@@ -93,16 +95,23 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   const sceneLoaded = has(approvedOpeningSourcesNeeded(displayMs));
   const aheadLoaded = has(approvedOpeningSourcesNeeded(displayMs, reducedMotion ? 0 : OPENING_LOOKAHEAD_MS));
   const sceneVisible = sceneLoaded || elapsedMs > 0;
-  const playbackReady = aheadLoaded && (reducedMotion || !sounds.enabled || sounds.ready);
+  // Sound never holds the opening for long: a player that cannot load (an
+  // Android release once could not, see patches/expo-updates) would otherwise
+  // freeze the first frame forever.
+  const [soundWaitOver, setSoundWaitOver] = useState(false);
+  const playbackReady = aheadLoaded && (reducedMotion || !sounds.enabled || sounds.ready || soundWaitOver);
   const plan = openingStateAt({ elapsedMs, readyAtMs: ready ? 0 : null, tapAtMs, reducedMotion });
   const scene = getApprovedOpeningScene(displayMs, Math.max(1, viewport.width), Math.max(1, viewport.height));
 
   useEffect(() => {
     loaded.current = new Set(); setLoadedCount(0); setAssetError(false);
-    const load = async (source: number) => {
+    // Native apps ship these images inside the app; there is nothing to fetch,
+    // and the embedded-asset lookup Asset.loadAsync uses is the path that broke
+    // the opening on Android release (2026-10-04). Only the web downloads them.
+    const load = Platform.OS === "web" ? async (source: number) => {
       const [asset] = await Asset.loadAsync(source);
       return Image.prefetch([asset.localUri ?? asset.uri], { cachePolicy: "memory-disk" });
-    };
+    } : async () => true;
     // When every image is in (or loading failed), the web font loader may start:
     // it waits so it does not take the line from these images.
     return createOpeningPreloadQueue(APPROVED_OPENING_IMAGES_IN_USE_ORDER, load, source => {
@@ -138,10 +147,24 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   }, [playbackReady, assetError, foreground, reducedMotion, plan.shouldContinue, plan.phase]);
 
   useEffect(() => {
+    if (!aheadLoaded || reducedMotion || !sounds.enabled || sounds.ready || soundWaitOver) return;
+    const timer = setTimeout(() => setSoundWaitOver(true), OPENING_SOUND_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [aheadLoaded, reducedMotion, sounds.enabled, sounds.ready, soundWaitOver]);
+
+  useEffect(() => {
     if (!plan.shouldContinue) return;
     clock.current.pause(); soundRef.current.stop();
     deliverContinueOnce(continued, onContinue);
   }, [plan.shouldContinue, onContinue]);
+
+  // The opening is decoration: if its images cannot load, the app still opens
+  // as soon as it is ready, instead of waiting on a retry that may never work.
+  useEffect(() => {
+    if (!assetError || !ready) return;
+    clock.current.pause(); soundRef.current.stop();
+    deliverContinueOnce(continued, onContinue);
+  }, [assetError, ready, onContinue]);
 
   useEffect(() => {
     if (Platform.OS !== "web") return;
