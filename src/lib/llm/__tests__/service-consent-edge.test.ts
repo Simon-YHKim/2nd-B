@@ -13,6 +13,12 @@ const statusV2 = {
   ...status, contract_revision: "service-v2", consent_version: "2026-10-05",
   policy_version: "2026-09-29", terms_version: "2026-10-05",
 };
+// Re-consent revision (docs/legal/calendar-read-disclosure-draft-261002.md §8).
+const statusV3 = {
+  ...status, contract_revision: "service-v3", consent_version: "2026-10-05",
+  policy_version: "2026-10-05", terms_version: "2026-10-05", needs_reconsent: true,
+};
+const confirmAcks = { service: true, overseasTransfer: true, sensitiveData: true, safetyNotice: true };
 const compiled = new Map<string, string>();
 
 function host(mode: string | null = "collect", oldRequired = false) {
@@ -24,7 +30,12 @@ function host(mode: string | null = "collect", oldRequired = false) {
     if (rpcResult) return rpcResult;
     if (name === "llm_service_consent_status") return { data: status };
     if (name === "llm_service_consent_status_v2") return { data: statusV2 };
-    if (name === "write_llm_service_consent") return { data: { ...(args.p_contract_revision === "service-v2" ? statusV2 : status), state: args.p_action === "grant" ? "granted" : "revoked", created: true } };
+    if (name === "llm_service_consent_status_v3") return { data: statusV3 };
+    if (name === "write_llm_service_consent") {
+      const base = args.p_contract_revision === "service-v3" ? { ...statusV3, needs_reconsent: false }
+        : args.p_contract_revision === "service-v2" ? statusV2 : status;
+      return { data: { ...base, state: args.p_action === "grant" ? "granted" : "revoked", created: true } };
+    }
     throw new Error(`Unexpected local RPC ${name}`);
   });
   const createClient = jest.fn(() => ({ rpc }));
@@ -89,6 +100,53 @@ describe("service consent management Edge", () => {
     expect(saved.status).toBe(200);
     expect(await saved.json()).toEqual({ mode: "collect", ...statusV2, state: "granted", created: true });
     expect(fixture.rpc).toHaveBeenCalledWith("write_llm_service_consent", expect.objectContaining({ p_contract_revision: "service-v2" }));
+  });
+  it("routes the re-consent v3 status, grant and withdrawn-AI confirm", async () => {
+    const fixture = host();
+    const response = await fixture.run({ action: "status", contractRevision: "service-v3" });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ mode: "collect", ...statusV3 });
+    expect(fixture.rpc).toHaveBeenCalledWith("llm_service_consent_status_v3", { p_user_id: userId });
+    for (const body of [
+      { ...grant, contractRevision: "service-v3" },
+      { ...grant, action: "confirm", contractRevision: "service-v3", requiredAcks: confirmAcks },
+      { ...revoke, contractRevision: "service-v3" },
+    ]) {
+      const saved = await fixture.run(body);
+      expect(saved.status).toBe(200);
+      expect(await saved.json()).toEqual({
+        mode: "collect", ...statusV3, needs_reconsent: false,
+        state: body.action === "grant" ? "granted" : "revoked", created: true,
+      });
+      expect(fixture.rpc).toHaveBeenLastCalledWith("write_llm_service_consent", {
+        p_user_id: userId, p_contract_revision: "service-v3", p_expected_change_token: changeToken,
+        p_action: body.action, p_required_acks: body.requiredAcks, p_locale: "ko",
+      });
+    }
+  });
+  it.each([
+    ["confirm on v1", { ...grant, action: "confirm", requiredAcks: confirmAcks }],
+    ["confirm on v2", { ...grant, action: "confirm", contractRevision: "service-v2", requiredAcks: confirmAcks }],
+    ["confirm carrying the AI item", { ...grant, action: "confirm", contractRevision: "service-v3" }],
+    ["confirm missing an item", { ...grant, action: "confirm", contractRevision: "service-v3", requiredAcks: { ...confirmAcks, safetyNotice: false } }],
+    ["grant without the AI item", { ...grant, contractRevision: "service-v3", requiredAcks: confirmAcks }],
+    ["unknown revision", { ...grant, contractRevision: "service-v4" }],
+    ["unknown revision status", { action: "status", contractRevision: "service-v4" }],
+    ["explicit v1 status", { action: "status", contractRevision: "service-v1" }],
+  ])("rejects %s before a write", async (_label, body) => {
+    const fixture = host(); expect((await fixture.run(body)).status).toBe(400);
+    expect(fixture.rpc).not.toHaveBeenCalled();
+  });
+  it.each([
+    ["v3 without needs_reconsent", "service-v3", { ...statusV3, needs_reconsent: undefined }],
+    ["v3 with a non-boolean needs_reconsent", "service-v3", { ...statusV3, needs_reconsent: "true" }],
+    ["v2 with an extra needs_reconsent", "service-v2", { ...statusV2, needs_reconsent: false }],
+    ["v3 answered with the v2 status", "service-v3", statusV2],
+  ])("fails closed on %s", async (_label, contractRevision, value) => {
+    const fixture = host(); fixture.result(JSON.parse(JSON.stringify(value)));
+    const response = await fixture.run({ action: "status", contractRevision });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "service_consent_unavailable" });
   });
   it("fails closed when the v2 database status returns a legacy tuple", async () => {
     const fixture = host(); fixture.result(status);
