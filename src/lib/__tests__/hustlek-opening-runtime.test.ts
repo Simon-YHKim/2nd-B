@@ -200,7 +200,7 @@ describe("opening preload queue (no loading screen before the opening)", () => {
     const source = readFileSync(SCREEN, "utf8");
     expect(source).toContain("createOpeningPreloadQueue(APPROVED_OPENING_IMAGES_IN_USE_ORDER, load,");
     expect(source).toContain("approvedOpeningSourcesNeeded(displayMs, reducedMotion ? 0 : OPENING_LOOKAHEAD_MS)");
-    expect(source).toContain("const playbackReady = aheadLoaded && (reducedMotion || !sounds.enabled || sounds.ready);");
+    expect(source).toContain("const playbackReady = aheadLoaded && (reducedMotion || !sounds.enabled || sounds.ready || soundWaitOver);");
     expect(source).not.toContain("Asset.loadAsync(APPROVED_OPENING_IMAGE_SOURCES)");
     expect(loadScreen().OPENING_LOOKAHEAD_MS).toBe(400);
   });
