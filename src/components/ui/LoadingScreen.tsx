@@ -9,7 +9,8 @@ import { useTranslation } from "react-i18next";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { useOpeningSounds } from "@/lib/audio/use-opening-sounds";
-import { APPROVED_OPENING_ASSETS, APPROVED_OPENING_DURATION_MS, APPROVED_OPENING_IMAGE_SOURCES, getApprovedOpeningCues, getApprovedOpeningScene } from "@/lib/opening/hustlek-approved";
+import { APPROVED_OPENING_ASSETS, APPROVED_OPENING_DURATION_MS, APPROVED_OPENING_IMAGES_IN_USE_ORDER, approvedOpeningSourcesNeeded, getApprovedOpeningCues, getApprovedOpeningScene } from "@/lib/opening/hustlek-approved";
+import { DeepSpaceLoader } from "@/components/deepspace/DeepSpaceLoader";
 import { deepSpace, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
@@ -35,6 +36,28 @@ export function createOpeningTicker(clock: Pick<ReturnType<typeof createOpeningC
   const timer = setInterval(() => onTick(clock.elapsed()), 16);
   return () => clearInterval(timer);
 }
+/** Frames that must already be in memory before the clock may run past them. */
+export const OPENING_LOOKAHEAD_MS = 400;
+/**
+ * Loads sources in the given order with a few requests in flight, so the first
+ * scene arrives first instead of finishing together with the last image.
+ * Returns a cancel function; a failed load reports once and stops its lane.
+ */
+export function createOpeningPreloadQueue(sources: readonly number[], load: (source: number) => Promise<boolean>, onLoaded: (source: number) => void, onError: () => void, concurrency = 3): () => void {
+  let next = 0, active = true, failed = false;
+  const fail = () => { if (active && !failed) { failed = true; onError(); } };
+  const pump = () => {
+    if (!active || failed || next >= sources.length) return;
+    const source = sources[next++];
+    load(source).then(ok => {
+      if (!active) return;
+      if (!ok) { fail(); return; }
+      onLoaded(source); pump();
+    }, fail);
+  };
+  for (let lane = 0; lane < concurrency; lane++) pump();
+  return () => { active = false; };
+}
 export function deliverContinueOnce(gate: { current: boolean }, onContinue?: () => void): void {
   if (gate.current) return;
   gate.current = true;
@@ -52,26 +75,35 @@ interface Props { ready?: boolean; onContinue?: () => void }
 export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   const { t } = useTranslation("common"), reducedMotion = useReducedMotionPref(), insets = useSafeAreaInsets(), windowSize = useWindowDimensions();
   const [viewport, setViewport] = useState({ width: windowSize.width, height: windowSize.height });
-  const [assetsReady, setAssetsReady] = useState(false), [assetError, setAssetError] = useState(false), [attempt, setAttempt] = useState(0);
+  const [, setLoadedCount] = useState(0), [assetError, setAssetError] = useState(false), [attempt, setAttempt] = useState(0);
+  const loaded = useRef(new Set<number>());
   const [foreground, setForeground] = useState(AppState.currentState !== "background" && AppState.currentState !== "inactive" && (Platform.OS !== "web" || typeof document === "undefined" || !document.hidden));
   const [elapsedMs, setElapsedMs] = useState(0), [tapAtMs, setTapAtMs] = useState<number | null>(null);
   const clock = useRef(createOpeningClock()), continued = useRef(false), cueFrom = useRef(-Number.EPSILON);
   const sounds = useOpeningSounds(APPROVED_OPENING_ASSETS.audio), soundRef = useRef(sounds);
   soundRef.current = sounds;
-  const playbackReady = assetsReady && (reducedMotion || !sounds.enabled || sounds.ready);
-  const plan = openingStateAt({ elapsedMs, readyAtMs: ready ? 0 : null, tapAtMs, reducedMotion });
   const displayMs = reducedMotion ? APPROVED_OPENING_DURATION_MS : Math.min(elapsedMs, APPROVED_OPENING_DURATION_MS);
+  // No loading screen before the opening (Simon 2026-10-03). The scene appears
+  // as soon as its own images are in memory, and the clock runs only while the
+  // next OPENING_LOOKAHEAD_MS of frames are too; a frame that has not arrived
+  // holds the current one instead of showing a gap.
+  const has = (sources: number[]) => sources.every(source => loaded.current.has(source));
+  const sceneLoaded = has(approvedOpeningSourcesNeeded(displayMs));
+  const aheadLoaded = has(approvedOpeningSourcesNeeded(displayMs, reducedMotion ? 0 : OPENING_LOOKAHEAD_MS));
+  const sceneVisible = sceneLoaded || elapsedMs > 0;
+  const playbackReady = aheadLoaded && (reducedMotion || !sounds.enabled || sounds.ready);
+  const plan = openingStateAt({ elapsedMs, readyAtMs: ready ? 0 : null, tapAtMs, reducedMotion });
   const scene = getApprovedOpeningScene(displayMs, Math.max(1, viewport.width), Math.max(1, viewport.height));
 
   useEffect(() => {
-    let active = true;
-    setAssetsReady(false); setAssetError(false);
-    void Asset.loadAsync(APPROVED_OPENING_IMAGE_SOURCES).then(assets => Image.prefetch(assets.map(asset => asset.localUri ?? asset.uri), { cachePolicy: "memory-disk" })).then(okay => {
-      if (!active) return;
-      if (!okay) { setAssetError(true); return; }
-      setAssetsReady(true);
-    }).catch(() => { if (active) setAssetError(true); });
-    return () => { active = false; };
+    loaded.current = new Set(); setLoadedCount(0); setAssetError(false);
+    const load = async (source: number) => {
+      const [asset] = await Asset.loadAsync(source);
+      return Image.prefetch([asset.localUri ?? asset.uri], { cachePolicy: "memory-disk" });
+    };
+    return createOpeningPreloadQueue(APPROVED_OPENING_IMAGES_IN_USE_ORDER, load, source => {
+      loaded.current.add(source); setLoadedCount(count => count + 1);
+    }, () => setAssetError(true));
   }, [attempt]);
 
   useEffect(() => {
@@ -126,21 +158,25 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   }} accessibilityLabel={t("loadingGate.loading")}>
     <StatusBar hidden animated={false} />
     <View testID="hustlek-approved-opening" pointerEvents="none" style={styles.stage} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <SceneImage box={scene.background} testID="opening-background" onError={failImage} />
-      <SceneImage box={scene.telescope} testID="opening-telescope" onError={failImage} />
-      {assetsReady && scene.character ? <SceneImage box={scene.character} testID="opening-character" onError={failImage} /> : null}
-      <SceneImage box={scene.star} testID="opening-polaris" onError={failImage} />
-      {scene.twinkle.rects.map((pixel, index) => <View key={index} style={[styles.pixel, { left: scene.twinkle.left + pixel.left, top: scene.twinkle.top + pixel.top, width: pixel.width, height: pixel.height, backgroundColor: pixel.color, opacity: pixel.alpha }]} />)}
+      {sceneVisible ? <>
+        <SceneImage box={scene.background} testID="opening-background" onError={failImage} />
+        <SceneImage box={scene.telescope} testID="opening-telescope" onError={failImage} />
+        {loaded.current.has(scene.character.source) ? <SceneImage box={scene.character} testID="opening-character" onError={failImage} /> : null}
+        <SceneImage box={scene.star} testID="opening-polaris" onError={failImage} />
+      </> : null}
+      {sceneVisible && scene.twinkle.rects.map((pixel, index) => <View key={index} style={[styles.pixel, { left: scene.twinkle.left + pixel.left, top: scene.twinkle.top + pixel.top, width: pixel.width, height: pixel.height, backgroundColor: pixel.color, opacity: pixel.alpha }]} />)}
     </View>
-    {/* No visible buttons over the opening (Simon localhost QA 2026-10-03: the
-        skip and sound buttons were removed). Tapping anywhere still ends it once
-        the app is ready, and screen readers reach the same action here. Sound
+    {/* One small skip button in the bottom-right corner (Simon localhost QA
+        2026-10-03: "건너뛰기를 우 하단에다가 작게"). It looks small, but hitSlop
+        keeps the touch target at 44 dp. The sound toggle stays removed; sound
         keeps its platform default: on in the native app, off on the web. */}
-    <Pressable testID="opening-skip" style={styles.tapLayer} onPress={skip} disabled={!ready} accessibilityRole="button" accessibilityLabel={t("loadingGate.skip")} accessibilityHint={t("loadingGate.skipHint")} accessibilityState={{ disabled: !ready }}>
-      <View pointerEvents="none" style={styles.fill} />
-    </Pressable>
+    {sceneVisible ? <Pressable testID="opening-skip" style={[styles.skip, { bottom: insets.bottom + 12, right: insets.right + 16 }]} hitSlop={8} onPress={skip} disabled={!ready} accessibilityRole="button" accessibilityLabel={t("loadingGate.skip")} accessibilityHint={t("loadingGate.skipHint")} accessibilityState={{ disabled: !ready }}>
+      <Text style={[styles.skipText, !ready && styles.disabled]}>{t("loadingGate.skipShort")}</Text>
+    </Pressable> : null}
     {assetError ? <Pressable testID="opening-retry" style={[styles.error, { bottom: insets.bottom + 32 }]} onPress={() => setAttempt(value => value + 1)} accessibilityRole="button"><Text style={styles.buttonText}>{t("loadingGate.retry")}</Text></Pressable> : null}
-    {!assetError && (!playbackReady || plan.phase === "waiting-ready") ? <Text style={[styles.hint, { bottom: insets.bottom + 32 }]}>{t("loadingGate.loading")}</Text> : null}
+    {/* Only after the opening, while the app itself is still getting ready:
+        the app-wide loader, not a screen of its own (Simon 2026-10-03). */}
+    {!assetError && plan.phase === "waiting-ready" ? <View testID="opening-waiting" pointerEvents="none" style={[styles.waiting, { bottom: insets.bottom + 24 }]}><DeepSpaceLoader variant="dots" caption={t("loadingGate.loading")} /></View> : null}
   </View>;
 }
 
@@ -149,9 +185,10 @@ const styles = StyleSheet.create({
   stage: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, overflow: "hidden" },
   image: { position: "absolute" },
   pixel: { position: "absolute", zIndex: 5 },
-  tapLayer: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, zIndex: 5 },
-  fill: { flex: 1 },
+  skip: { position: "absolute", zIndex: 7, minHeight: 28, justifyContent: "center", paddingHorizontal: 8, backgroundColor: deepSpace.bgEdge, borderWidth: 1, borderColor: deepSpace.accentDim },
+  skipText: { color: deepSpace.textHi, fontFamily: fontFamilies.pixelKo, fontSize: typography.sizes.xs, lineHeight: 18, paddingBottom: 2 },
+  disabled: { color: deepSpace.textMuted },
   buttonText: { color: deepSpace.textHi, fontFamily: fontFamilies.pixelKo, fontSize: typography.sizes.xs, lineHeight: 20, paddingBottom: 2 },
-  hint: { position: "absolute", zIndex: 6, left: 24, right: 24, textAlign: "center", color: deepSpace.textHi, fontFamily: fontFamilies.pixelKo, fontSize: typography.sizes.xs, lineHeight: 20, paddingBottom: 2 },
+  waiting: { position: "absolute", zIndex: 6, left: 0, right: 0, alignItems: "center" },
   error: { position: "absolute", zIndex: 6, alignSelf: "center", minHeight: 44, justifyContent: "center", paddingHorizontal: 16, backgroundColor: deepSpace.bgEdge },
 });

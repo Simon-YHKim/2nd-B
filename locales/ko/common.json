@@ -67,7 +67,9 @@
     "loading": "PolaScope 불러오는 중",
     "enterHint": "두 번 탭하면 메인 화면으로 이동합니다.",
     "skipHint": "두 번 탭하면 시작 애니메이션을 건너뜁니다.",
-    "skip": "오프닝 건너뛰기",
+    "skip": "오프닝 건너뛰기",
+
+    "skipShort": "건너뛰기",
     "retry": "오프닝 다시 불러오기"
   },
   "worldview": {
