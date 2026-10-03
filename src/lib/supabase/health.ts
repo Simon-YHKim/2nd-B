@@ -6,6 +6,7 @@
 // UNIQUE(user_id, source, metric_type, started_at, external_id) key so a
 // re-import is a no-op (idempotent), matching the routine completion ledger.
 
+import { withTimeout } from "../async/with-timeout";
 import { getSupabaseClient } from "./client";
 import type { HealthSample } from "../health/HealthSource";
 
@@ -102,29 +103,37 @@ export async function deleteHealthSamplesOfMetricByWeek(
   userId: string,
   metric: HealthSample["metricType"],
   assertCurrent: () => void,
+  /** A deadline for each request, so one that never answers fails this step instead of hanging it. */
+  requestTimeoutMs?: number,
 ): Promise<number> {
   const supabase = getSupabaseClient();
+  const bounded = <T>(work: PromiseLike<T>): Promise<T> =>
+    requestTimeoutMs === undefined ? Promise.resolve(work) : withTimeout(work, requestTimeoutMs, "health_delete_week");
   let deleted = 0;
   for (let step = 0; step < BY_WEEK_MAX_STEPS; step++) {
-    const { data, error } = await supabase
-      .from("health_samples")
-      .select("started_at")
-      .eq("user_id", userId)
-      .eq("metric_type", metric)
-      .order("started_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+    const { data, error } = await bounded(
+      supabase
+        .from("health_samples")
+        .select("started_at")
+        .eq("user_id", userId)
+        .eq("metric_type", metric)
+        .order("started_at", { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+    );
     if (error) throw error;
     assertCurrent();
     const oldest = (data as { started_at?: unknown } | null)?.started_at;
     if (typeof oldest !== "string") return deleted;
     const until = new Date(Date.parse(oldest) + WEEK_MS).toISOString();
-    const { error: deleteError, count } = await supabase
-      .from("health_samples")
-      .delete({ count: "exact" })
-      .eq("user_id", userId)
-      .eq("metric_type", metric)
-      .lt("started_at", until);
+    const { error: deleteError, count } = await bounded(
+      supabase
+        .from("health_samples")
+        .delete({ count: "exact" })
+        .eq("user_id", userId)
+        .eq("metric_type", metric)
+        .lt("started_at", until),
+    );
     if (deleteError) throw deleteError;
     assertCurrent();
     deleted += count ?? 0;
