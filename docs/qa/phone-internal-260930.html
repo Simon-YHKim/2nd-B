@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2ndB 나의 핸드폰 내부 화면 QA · 2026-09-30</title>
+<style>
+  :root{color-scheme:light dark;--bg:#f8f9fc;--card:#fff;--text:#101827;--muted:#475569;--line:#cbd5e1;--accent:#2563eb}
+  @media(prefers-color-scheme:dark){:root{--bg:#0a0e18;--card:#141b2e;--text:#eef2fa;--muted:#b6c3d6;--line:#3d4866;--accent:#76b9ff}}
+  *{box-sizing:border-box}body{max-width:920px;margin:auto;padding:24px;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sans-serif}
+  h1{font-size:1.6rem;margin:0 0 8px}h2{font-size:1.1rem}p{margin:8px 0}small,.muted{color:var(--muted)}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:20px 0}.card,details{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:14px}.card strong{display:block;font-size:1.1rem}.status{color:var(--accent);font-weight:700}table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{width:36%}a{color:var(--accent)}details{margin:12px 0}summary{cursor:pointer;font-weight:700}code{overflow-wrap:anywhere}ul{padding-left:1.3rem}
+</style>
+<main>
+  <h1>나의 핸드폰 내부 화면 QA</h1>
+  <p class="muted">2026-09-30 18:36 KST · 작업 브랜치 <code>Simon-YHKim/TTL-Work_rev2</code> · 범위: 핸드폰 내부만</p>
+  <section class="cards" aria-label="결과 요약">
+    <div class="card"><strong>프레임 에셋 유지</strong><span class="status">코드 확인</span><p>제공된 PNG 경로와 화면 맞춤 함수를 변경하지 않았다.</p></div>
+    <div class="card"><strong>내부 이동 분리</strong><span class="status">구현·계약 테스트 통과</span><p>아이콘·하단 메뉴는 핸드폰 내부 스택으로 이동한다.</p></div>
+    <div class="card"><strong>375·425px</strong><span class="status">QA 계정 브라우저 확인</span><p>375×812·425×747에서 프레임과 앱 그리드가 잘리지 않았다.</p></div>
+    <div class="card"><strong>전체 코드 검증</strong><span class="status">통과</span><p><code>npm run verify</code>: 848 suites, 10,949 tests.</p></div>
+  </section>
+  <p><strong>판정:</strong> QA 계정의 <code>localhost:8083/2nd-B/dashboard</code>에서 핸드폰 내부 이동, 뒤로가기, 아래 드래그와 종료 확인 단계를 검증했다. Android 실기와 읽기 실패의 서버 강제 재현은 아직 검증하지 않았다. 독립 진입 화면과 별자리 메인은 변경하지 않았다.</p>
+  <details open><summary>변경 근거와 구현</summary>
+    <table><tbody>
+      <tr><th>화면 경계</th><td>기존 아이콘이 독립 라우트로 빠져나가던 경로를 내부 화면 스택으로 바꿨다. 독립 진입 화면과 별자리 메인은 수정하지 않았다.</td></tr>
+      <tr><th>대시보드 첫 화면</th><td>첫 화면 위의 큰 배너를 앱 목록에만 남겨, 첫 행동 카드가 작은 화면에서 먼저 보이도록 했다. 요약·근거의 순서를 유지한다.</td></tr>
+      <tr><th>뒤로가기와 종료</th><td>내부 뒤로가기·Android Back·하단 홈 버튼은 내부 화면을 정리한다. 핸드폰 루트의 종료 버튼은 확인 단계를 거친다. 루트에서 아래로 스와이프하면 종료하고, 하위 화면에서는 한 단계 뒤로 간다.</td></tr>
+      <tr><th>자료 상태</th><td>최근 기록·루틴·건강 자료의 실제 값, 자료 없음, 읽기 실패를 분리한다. 전체 읽기 실패 시 이전 성공 자료를 최신인 것처럼 표시하지 않는다.</td></tr>
+      <tr><th>실제 화면에서 발견한 오류</th><td>일반 기록 상세의 제목이 ‘인터뷰 원문 열기’였던 것을 ‘기록 보기’로 고쳤다. 회귀 테스트를 먼저 실패시킨 뒤 수정하고, QA 계정 화면에서 문구를 재확인했다.</td></tr>
+      <tr><th>안전</th><td>핸드폰 안의 짧은 메모 저장은 기존 기록 생성·위기 분류 경로를 사용하고, 위험 응답은 안전 안내로 연결한다.</td></tr>
+    </tbody></table>
+  </details>
+  <details><summary>검증 매트릭스</summary>
+    <table><tbody>
+      <tr><th>375px · 425px 프레임</th><td>통과: <code>fitPhoneArtwork</code> 단위 테스트 및 실제 375×812·425×747 스크린샷. 원본 프레임 전체와 내부 도크가 모두 보인다.</td></tr>
+      <tr><th>내부 이동·뒤로가기</th><td>QA 계정에서 앱→집중 타이머, 앱→리마인더→하단 노트, 하단 검색→기록 상세를 클릭했다. URL은 계속 <code>/2nd-B/dashboard</code>였다. 내부 뒤로가기는 한 단계씩 돌아갔다.</td></tr>
+      <tr><th>아래 스와이프·종료</th><td>브라우저 창에서 아래로 드래그했다. 집중 타이머에서는 앱 목록으로 돌아갔고, 루트에서는 핸드폰을 닫았다. 물리 홈 버튼은 바로 종료하지 않고 확인 화면을 보여주며 ‘계속 보기’로 취소됐다. 루트 종료 후 QA 계정은 앱의 기존 IntroGate에 의해 <code>/2nd-B/onboarding</code>으로 이동했다.</td></tr>
+      <tr><th>접근성</th><td>브라우저 접근성 트리에서 앱 아이콘, 내부 뒤로가기, 검색 입력, 하단 버튼, 종료 확인 선택지가 역할·이름으로 노출됐다. 스크린리더 실기는 미수행.</td></tr>
+      <tr><th>빈 상태·읽기 실패</th><td>리마인더의 ‘오늘 예정된 루틴이 없어요’ 빈 상태와 최근 기록 14건의 실데이터 표시를 QA 계정에서 확인했다. 읽기 실패 UI는 코드 계약 테스트만 통과했으며 서버 실패를 강제 재현하지 않았다.</td></tr>
+      <tr><th>브라우저 콘솔</th><td>내부 클릭 흐름에서 콘솔을 비운 뒤 새 오류는 없었다. 전체 페이지 새로고침에서는 <code>manifest.webmanifest</code> 404와 React Native Web 애니메이션 경고가 보였다. 핸드폰 기능 오류로 단정하지 않고 별도 웹 셸 점검 대상으로 남긴다.</td></tr>
+      <tr><th>앱/localhost 동등성</th><td><code>npm run app:parity</code>는 현재 8081과 공개 QA APK가 같다고 판정. 이 브랜치 수정본은 둘에 반영되지 않은 별도 미리보기다.</td></tr>
+    </tbody></table>
+  </details>
+  <details><summary>남은 제약</summary><ul>
+    <li>개인 비서·지출·뮤지엄 등 일부 항목은 아직 원래 독립 화면의 전체 기능을 핸드폰에 이식하지 않았다. 내부에서는 승인 루틴·저장 기록 등 연결된 실제 자료의 제한된 보기 또는 미연결 상태만 제공한다.</li>
+    <li>수정본을 실제 QA 앱과 8081에 동시에 반영하려면 이 브랜치의 통합·QA APK 빌드·8081 재기동 및 모바일 재검증이 필요하다.</li>
+    <li><code>npx expo-doctor</code>는 19/22 항목 통과, 3항목 미통과(프로젝트의 런타임·의존성 점검). 이번 핸드폰 변경과의 인과 관계는 확인하지 않았다.</li>
+    <li>이번 QA에서 발생한 새 유료 호출·데이터 변경은 없다.</li>
+  </ul></details>
+  <details><summary>화면 증거</summary><ul>
+    <li><a href="phone-internal-260930/375-root.png">375px 대시보드 첫 화면</a> · <a href="phone-internal-260930/425-root.png">425px 대시보드 첫 화면</a></li>
+    <li><a href="phone-internal-260930/375-apps.png">375px 앱 목록</a> · <a href="phone-internal-260930/425-apps.png">425px 앱 목록</a></li>
+    <li><a href="phone-internal-260930/375-focus.png">집중 타이머 내부 화면</a> · <a href="phone-internal-260930/375-notes.png">노트 내부 화면</a> · <a href="phone-internal-260930/375-exit-confirm.png">종료 확인</a></li>
+  </ul></details>
+  <p><small>이 문서는 실행한 검사만 기록한다. 스크린샷에는 QA 계정의 노트 목록 일부가 포함되지만 로그인 정보와 긴 기록 상세 원문은 저장하지 않았다.</small></p>
+</main>
+</html>
