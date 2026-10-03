@@ -790,12 +790,17 @@ export function DeepSpacePrivacyDesignScreen() {
     let cancelled = false;
     void fetchPrivacyPrefs(targetUserId).then((p) => {
       if (!cancelled && activeUserRef.current === targetUserId) {
-        prefsRef.current = p;
-        prefsUserRef.current = targetUserId;
-        setAnalyticsOn(p.external_analytics === true);
-        setAdsOn(p.ads === true);
-        setRecOn(p.recommendations === true);
-        setEmbedOn(p.records_embedding === true);
+        // A save or a strict read on this screen (the health card) may have landed first;
+        // this fail-soft read is older then and must not become the copy saves start from.
+        if (prefsUserRef.current !== targetUserId) {
+          prefsRef.current = p;
+          prefsUserRef.current = targetUserId;
+        }
+        const shown = prefsRef.current ?? p;
+        setAnalyticsOn(shown.external_analytics === true);
+        setAdsOn(shown.ads === true);
+        setRecOn(shown.recommendations === true);
+        setEmbedOn(shown.records_embedding === true);
       }
     });
     return () => {
@@ -1243,8 +1248,10 @@ export function DeepSpacePrivacyDesignScreen() {
         busy={busy}
         onBusyChange={setBusy}
         onOpenImport={() => router.push("/import?mode=account")}
-        onPrefsSaved={(ownerId, saved) => {
-          if (prefsUserRef.current === ownerId) prefsRef.current = saved;
+        onPrefsKnown={(ownerId, known) => {
+          if (activeUserRef.current !== ownerId) return;
+          prefsRef.current = known;
+          prefsUserRef.current = ownerId;
         }}
       />
 

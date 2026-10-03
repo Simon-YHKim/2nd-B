@@ -5,11 +5,15 @@ import path from "node:path";
 // RN 0.85). The flow itself is tested in lib/health/__tests__/withdraw.test.ts.
 //
 // 1. The privacy screen shows the health card, shares its busy flag (every save there writes
-//    the whole prefs object) and takes the saved prefs back into the copy the analytics toggle
-//    saves from. Without that, the next analytics tap would write health_import back to true.
-// 2. The card withdraws through the flow under an account lease and never saves prefs itself,
-//    so it has no way to turn the consent on.
-// 3. Every key the card shows exists in all five locales.
+//    the whole prefs object) and takes every prefs object the card reads or saves into the
+//    copy its other toggles save from. Its own first read, which is fail-soft and may land
+//    last, no longer overwrites a newer copy. Without both, an analytics tap could write
+//    health_import back to true (and log a separate consent the user never gave).
+// 2. The card withdraws through the flow under an account lease with a deadline, reloads when
+//    the screen comes back into focus, and never saves prefs itself, so it has no way to turn
+//    the consent on.
+// 3. Every key the card shows exists in all five locales, and each button is named by the text
+//    it shows (WCAG 2.5.3).
 // 4. The import consent chip no longer promises "90 days": nothing is deleted on day 90.
 const ROOT = process.cwd();
 const read = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8");
@@ -32,32 +36,42 @@ function lookup(tree: unknown, key: string): unknown {
 }
 
 describe("health card on the privacy screen", () => {
-  test("is rendered once, shares the busy flag and hands the saved prefs back", () => {
+  test("is rendered once, shares the busy flag and takes the card's prefs as the copy to save from", () => {
     const screen = privacyScreen();
     expect(screen.match(/<HealthWithdrawCard\b/g)).toHaveLength(1);
     expect(screen).toMatch(/busy=\{busy\}/);
     expect(screen).toMatch(/onBusyChange=\{setBusy\}/);
-    expect(screen).toMatch(/onPrefsSaved=\{\(ownerId, saved\) => \{\s*if \(prefsUserRef\.current === ownerId\) prefsRef\.current = saved;/);
+    expect(screen).toMatch(/onPrefsKnown=\{\(ownerId, known\) => \{\s*if \(activeUserRef\.current !== ownerId\) return;\s*prefsRef\.current = known;\s*prefsUserRef\.current = ownerId;/);
   });
 
-  test("withdraws under an account lease and never saves prefs on its own", () => {
+  test("the screen's own first read does not overwrite a newer copy", () => {
+    const screen = privacyScreen();
+    expect(screen).toMatch(/if \(prefsUserRef\.current !== targetUserId\) \{\s*prefsRef\.current = p;\s*prefsUserRef\.current = targetUserId;\s*\}/);
+  });
+
+  test("withdraws under an account lease and a deadline, reloads on focus, never saves prefs on its own", () => {
     const card = read(CARD);
     expect(card).toMatch(/beginAccountSessionLease\(owner\)/);
-    expect(card).toMatch(/withdrawHealthImport\(owner, healthWithdrawDeps\(\(\) => lease\.assertCurrent\(\)\)\)/);
+    expect(card).toMatch(/withTimeout\(\s*withdrawHealthImport\(owner, healthWithdrawDeps\(\(\) => lease\.assertCurrent\(\)\)\),\s*WITHDRAW_DEADLINE_MS,/);
     expect(card).toMatch(/lease\.release\(\)/);
+    expect(card).toMatch(/useFocusRefetch\(/);
     expect(card).not.toMatch(/savePrivacyPrefs/);
     for (const file of [CARD, FLOW]) expect(read(file)).not.toMatch(/health_import:\s*true/);
   });
 
-  test("shows only keys that exist in every locale, and no inline Korean", () => {
+  test("shows only keys that exist in every locale, no inline Korean, and names each button by its text", () => {
     const card = read(CARD);
     expect(card).not.toMatch(/[ㄱ-ㆎ가-힣]/);
     const keys = [...card.matchAll(/\bt\("([^"]+)"/g)].map((match) => match[1]);
-    expect(keys).toEqual(expect.arrayContaining(["privacyHealth.turnOff", "privacyHealth.deleteRest", "import.healthMinorLocked"]));
+    expect(keys).toEqual(expect.arrayContaining(["privacyHealth.turnOff", "privacyHealth.deleteRest", "privacyHealth.residueUnknown", "import.healthMinorLocked"]));
     for (const locale of LOCALES) {
       const tree = JSON.parse(read(`locales/${locale}/deepspace.json`));
       for (const key of keys) expect([locale, key, typeof lookup(tree, key)]).toEqual([locale, key, "string"]);
     }
+    const buttons = [...card.matchAll(/accessibilityLabel=\{t\("([^"]+)"\)\}>\s*<Text[^>]*>\{t\("([^"]+)"\)\}/g)];
+    expect(buttons.length).toBe((card.match(/<Pressable\s/g) ?? []).length);
+    expect(buttons.length).toBeGreaterThanOrEqual(4);
+    for (const [, label, shown] of buttons) expect(label).toBe(shown);
   });
 });
 
