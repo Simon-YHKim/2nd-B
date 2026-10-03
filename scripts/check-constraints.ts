@@ -1183,8 +1183,8 @@ results.push(
       formats.includes("PreferenceSwitch") &&
       formats.includes('accessibilityLabel={tf("deleteModal.label")}') &&
       formats.includes('accessibilityLabel={tf("guideModal.label")}') &&
-      // The approved opening has separate localized sound, skip and retry
-      // controls. Their individual roles and states replace the old gate button.
+      // The approved opening shows no buttons (Simon 2026-10-03): tap-to-skip
+      // and retry keep their own roles and states; the sound toggle stays gone.
       openingA11yContract(loadingScreen) &&
       oauthCallback.includes('accessibilityRole="alert"') &&
       oauthCallback.includes("accessibilityLabel={retryLabel}") &&

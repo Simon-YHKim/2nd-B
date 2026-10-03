@@ -67,9 +67,6 @@
     "loading": "Carregando o PolaScope",
     "enterHint": "Toque duas vezes para entrar na tela principal.",
     "skipHint": "Toque duas vezes para pular a animação de abertura.",
-    "soundOn": "Som ativado",
-    "soundOff": "Desativar sons da abertura",
-    "soundEnable": "Ativar sons da abertura",
     "skip": "Pular abertura",
     "retry": "Tentar abertura novamente"
   },
