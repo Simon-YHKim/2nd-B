@@ -182,3 +182,35 @@ export function getApprovedOpeningCues(fromMs: number, toMs: number): ApprovedOp
   for (const cue of APPROVED_OPENING_CONFIG.cues) if (cue.enabled && cue.atMs > fromMs && cue.atMs <= toMs + 1e-8) latest[cue.sourceId] = cue;
   return Object.values(latest).sort((a, b) => a.atMs - b.atMs);
 }
+
+// Loading in use order (Simon localhost QA 2026-10-03: no loading screen before
+// the opening). Waiting for all 22 images showed "PolaScope 불러오는 중" for
+// about 1.9 s on localhost and 9.5 s on a 4G-like link, because every image
+// was requested at once and the first scene finished together with the last.
+// The screen now loads images in the order the opening first shows them and
+// starts as soon as the current scene is in memory.
+function approvedSceneSources(elapsedMs: number): number[] {
+  const scene = getApprovedOpeningScene(elapsedMs, 390, 844);
+  return [scene.background.source, scene.telescope.source, scene.star.source, scene.character.source];
+}
+
+/** Every opening image, in the order the opening first shows it. */
+export const APPROVED_OPENING_IMAGES_IN_USE_ORDER: readonly number[] = (() => {
+  const order: number[] = [];
+  const add = (source: number) => { if (!order.includes(source)) order.push(source); };
+  for (let time = 0; time <= APPROVED_OPENING_DURATION_MS; time += 20) approvedSceneSources(time).forEach(add);
+  approvedSceneSources(APPROVED_OPENING_DURATION_MS).forEach(add);
+  APPROVED_OPENING_IMAGE_SOURCES.forEach(add);
+  return order;
+})();
+
+/** Images the opening shows from elapsedMs up to lookaheadMs later (sampled every 50 ms). */
+export function approvedOpeningSourcesNeeded(elapsedMs: number, lookaheadMs = 0): number[] {
+  const needed: number[] = [];
+  const end = Math.min(APPROVED_OPENING_DURATION_MS, Math.max(0, elapsedMs) + Math.max(0, lookaheadMs));
+  for (let time = Math.max(0, Math.min(elapsedMs, APPROVED_OPENING_DURATION_MS)); ; time += 50) {
+    for (const source of approvedSceneSources(Math.min(time, end))) if (!needed.includes(source)) needed.push(source);
+    if (time >= end) break;
+  }
+  return needed;
+}

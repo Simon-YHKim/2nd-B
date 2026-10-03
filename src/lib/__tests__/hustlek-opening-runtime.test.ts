@@ -15,6 +15,8 @@ type Module = {
   createOpeningClock: (now?: () => number) => Clock;
   createOpeningTicker: (clock: Pick<Clock, "elapsed">, onTick: (elapsed: number) => void) => () => void;
   deliverContinueOnce: (gate: { current: boolean }, onContinue?: () => void) => void;
+  createOpeningPreloadQueue: (sources: readonly number[], load: (source: number) => Promise<boolean>, onLoaded: (source: number) => void, onError: () => void, concurrency?: number) => () => void;
+  OPENING_LOOKAHEAD_MS: number;
   LoadingScreen: React.ComponentType<{ ready?: boolean; onContinue?: () => void }>;
 };
 
@@ -59,6 +61,7 @@ function loadScreen(platform: "ios" | "web" = "ios"): Module {
     if (id === "@/lib/motion/use-reduced-motion") return { useReducedMotionPref: () => false };
     if (id === "@/lib/audio/use-opening-sounds") return { useOpeningSounds: () => ({ enabled: platform !== "web", ready: true, setEnabled: jest.fn(), play: jest.fn(), stop: jest.fn(), unlock: jest.fn().mockResolvedValue(true) }) };
     if (id === "@/lib/opening/hustlek-approved") return engine;
+    if (id === "@/components/deepspace/DeepSpaceLoader") return { DeepSpaceLoader: host("app-loader") };
     if (id === "@/lib/theme/tokens") return { deepSpace: { bgEdge: "#000", accentDim: "#123", textHi: "#fff", textMuted: "#aaa" }, typography: { sizes: { xs: 12 } } };
     if (id === "@/theme/typography") return { fontFamilies: { pixelKo: "Galmuri11" } };
     throw new Error("Unexpected loading runtime dependency: " + id);
@@ -130,12 +133,20 @@ describe("approved opening screen", () => {
   test.each(["ios", "web"] as const)("%s uses approved images with one small corner skip and no sound toggle", platform => {
     const module = loadScreen(platform), markup = renderToStaticMarkup(React.createElement(module.LoadingScreen, { ready: true }));
     expect(markup).toContain('data-testid="hustlek-approved-opening"');
-    expect(markup).toContain('data-testid="opening-background"'); expect(markup).toContain('data-testid="opening-telescope"');
-    expect(markup).toContain('data-testid="opening-polaris"'); expect(markup).not.toContain('data-testid="opening-sound"'); expect(markup).toContain('data-testid="opening-skip"');
+    // Before any image is in memory there is no loading screen: no text, no loader,
+    // no half-drawn scene (Simon 2026-10-03). The scene draws once its images load.
+    expect(markup).not.toContain('data-testid="opening-background"'); expect(markup).not.toContain(">loadingGate.loading<");
+    expect(markup).not.toContain('data-testid="opening-waiting"'); expect(markup).not.toContain("<app-loader");
+    expect(markup).not.toContain('data-testid="opening-sound"'); expect(markup).not.toContain('data-testid="opening-skip"'); // the skip arrives with the scene
     expect(markup).not.toContain("<svg");
     const source = readFileSync(SCREEN, "utf8");
     expect(source).toContain('from "expo-image"'); expect(source).toContain('cachePolicy="memory-disk"'); expect(source).toContain("transition={0}");
     expect(source).toContain("soundRef.current.stop()"); expect(source).toContain("clock.current.pause()"); expect(source).not.toContain("hustlek-opening-v2.json");
+    for (const id of ["opening-background", "opening-telescope", "opening-character", "opening-polaris", "opening-skip"]) expect(source).toContain(`testID="${id}"`);
+    expect(source).toContain('{sceneVisible ? <Pressable testID="opening-skip"');
+    // The one wait that remains (after the opening, app not ready) is the app-wide loader.
+    expect(source).toContain('<DeepSpaceLoader variant="dots" caption={t("loadingGate.loading")} />');
+    expect(source).toContain('plan.phase === "waiting-ready" ? <View testID="opening-waiting"');
   });
 
   test("all five loading namespaces retain PolaScope, parity, and current-main B wording", () => {
@@ -147,5 +158,69 @@ describe("approved opening screen", () => {
       for (const key of ["skip", "skipShort", "skipHint", "retry"]) expect(namespace[key].length).toBeGreaterThan(0);
     }
     expect(namespaces[1].enterHint).toBe("두 번 탭하면 메인 화면으로 이동합니다.");
+  });
+});
+
+describe("opening preload queue (no loading screen before the opening)", () => {
+  type Pending = { source: number; resolve: (ok: boolean) => void; reject: () => void };
+  const harness = (sources: number[]) => {
+    const pending: Pending[] = [], started: number[] = [], loaded: number[] = [], errors: number[] = [];
+    const load = (source: number) => new Promise<boolean>((resolve, reject) => { started.push(source); pending.push({ source, resolve, reject: () => reject(new Error("net")) }); });
+    const cancel = loadScreen().createOpeningPreloadQueue(sources, load, (s: number) => loaded.push(s), () => errors.push(1)); // the screen relies on the default lanes
+    const settle = async (source: number, ok = true) => { const p = pending.find(x => x.source === source)!; p.resolve(ok); await Promise.resolve(); await Promise.resolve(); };
+    return { pending, started, loaded, errors, cancel, settle };
+  };
+
+  test("requests in the given order with at most three in flight", async () => {
+    const h = harness([1, 2, 3, 4, 5]);
+    expect(h.started).toEqual([1, 2, 3]);
+    await h.settle(2);
+    expect(h.loaded).toEqual([2]); expect(h.started).toEqual([1, 2, 3, 4]);
+    await h.settle(1); await h.settle(3);
+    expect(h.started).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  test("a failed image reports once and stops new requests", async () => {
+    const h = harness([1, 2, 3, 4, 5]);
+    await h.settle(1, false);
+    h.pending.find(x => x.source === 2)!.reject(); await Promise.resolve(); await Promise.resolve();
+    await h.settle(3);
+    expect(h.errors).toEqual([1]); expect(h.started).toEqual([1, 2, 3]);
+  });
+
+  test("cancel drops late results and starts nothing new", async () => {
+    const h = harness([1, 2, 3, 4]);
+    h.cancel(); await h.settle(1);
+    expect(h.loaded).toEqual([]); expect(h.started).toEqual([1, 2, 3]);
+  });
+
+  test("the screen loads in use order and waits for the next frames before running the clock", () => {
+    const source = readFileSync(SCREEN, "utf8");
+    expect(source).toContain("createOpeningPreloadQueue(APPROVED_OPENING_IMAGES_IN_USE_ORDER, load,");
+    expect(source).toContain("approvedOpeningSourcesNeeded(displayMs, reducedMotion ? 0 : OPENING_LOOKAHEAD_MS)");
+    expect(source).toContain("const playbackReady = aheadLoaded && (reducedMotion || !sounds.enabled || sounds.ready);");
+    expect(source).not.toContain("Asset.loadAsync(APPROVED_OPENING_IMAGE_SOURCES)");
+    expect(loadScreen().OPENING_LOOKAHEAD_MS).toBe(400);
+  });
+});
+
+describe("opening images in use order", () => {
+  const engine = loadEngine() as Record<string, unknown> & { APPROVED_OPENING_IMAGES_IN_USE_ORDER: number[]; APPROVED_OPENING_IMAGE_SOURCES: number[]; APPROVED_OPENING_DURATION_MS: number; approvedOpeningSourcesNeeded: (t: number, a?: number) => number[]; getApprovedOpeningScene: (t: number, w: number, h: number) => { background: { source: number }; telescope: { source: number }; star: { source: number }; character: { source: number } } };
+  const scene = (t: number) => { const s = engine.getApprovedOpeningScene(t, 390, 844); return [s.background.source, s.telescope.source, s.star.source, s.character.source]; };
+
+  test("covers every opening image exactly once", () => {
+    const order = engine.APPROVED_OPENING_IMAGES_IN_USE_ORDER;
+    expect(new Set(order).size).toBe(order.length);
+    expect([...order].sort((a, b) => a - b)).toEqual([...engine.APPROVED_OPENING_IMAGE_SOURCES].sort((a, b) => a - b));
+  });
+
+  test("the first scene's images come first", () => {
+    expect(new Set(engine.APPROVED_OPENING_IMAGES_IN_USE_ORDER.slice(0, 4))).toEqual(new Set(scene(0)));
+  });
+
+  test("needed images include every frame inside the lookahead window", () => {
+    const needed = engine.approvedOpeningSourcesNeeded(0, 400);
+    for (let t = 0; t <= 400; t += 10) for (const s of scene(t)) expect(needed).toContain(s);
+    expect(new Set(engine.approvedOpeningSourcesNeeded(engine.APPROVED_OPENING_DURATION_MS, 0))).toEqual(new Set(scene(engine.APPROVED_OPENING_DURATION_MS)));
   });
 });
