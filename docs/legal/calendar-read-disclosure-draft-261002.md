@@ -196,7 +196,7 @@ Q-261002-01 을 썼으니 보고서 이름으로 구분한다.
 | 순서 | 무엇 | 누가 | 막는 것 |
 |---|---|---|---|
 | 0 | #1902 머지(email-v7 · service-v2 · PolaScope) | #1902 세션 | 아래 전부 |
-| 1 | 운영 `LLM_CONSENT_MODE=collect` (Q-261003-01) | **Simon GO** | 재동의 저장 · AI 동의 영수증 |
+| 1 | 운영 `LLM_CONSENT_MODE=collect` (Q-261003-01 = **A**, 10-04: #1902 출시 직후) | 코딩 세션(GO 받음) | 재동의 저장 · AI 동의 영수증 |
 | 2 | 서버 마이그레이션(번호는 push 직전 0210 이상) | 코딩 세션 + 운영 적용 GO | 3 · 4 |
 | 3 | Edge `service-consent` 판별 맵(v1 · v2 · v3) 재배포 | 코딩 세션(배포 승인은 세션 몫) | 4 |
 | 4 | 클라이언트: 처리방침 개정(한 · 영 + `public/legal` 재생성) · 판본 상수 · ReconsentGate 화면과 저장 | 코딩 세션 | 시행 |
@@ -220,6 +220,36 @@ Q-261002-01 을 썼으니 보고서 이름으로 구분한다.
 게이트 화면은 대조표(바뀐 점) · 시행일 · 이전 판 · 전문 링크 · 필수 5개(철회자는 4개) · 캘린더 한 줄 · 출구 5개다.
 스위치 `RECONSENT_GATE_ENABLED` 는 처리방침 개정과 같은 PR 에서 켜고, 서버 신호(시행일 전에는 needs_reconsent 를 주지 않음)가
 두 번째 겹이다. 새 한국어 문구는 말투 B안(사실은 ~습니다)을 따른다.
+
+### 8-1. 동의 모드 켜기 절차 (Q-261003-01 = A, 10-04)
+
+**언제.** #1902 출시 단계(email-v7 계약 SQL 운영 적용 → service-consent Edge 배포 → 클라이언트 머지)가 끝난 직후. 머지만 되고
+계약이 운영에 없으면 v2 저장이 400 · 409 로 막힌다.
+
+**먼저 확인할 것.**
+- 프록시 넷(claude · gemini · xai · openai)의 배포본이 main 과 같은 동의 코드를 쓴다. 10-04 확인: 프록시 넷의 배포본이 main 과 바이트까지 같다(claude v134 · gemini v154 · xai v70 · openai v139, 동의 코드 sha 2994b2630dd9). effective_llm_consent_snapshot_v2 는 운영에 있고 service_role 만 실행한다. 영수증 0 · 활성 15 · 비활성 0(10-04 00:54 실측)이라, 지금 켜도 15명 모두 '영수증 없는 활성 계정' 예전 기록 허용으로 통과한다. 더해지는 것은 호출마다 동의 RPC(users 행 잠금) 한 번이다.
+  배포본이 `collect` 를 모르면 켜는 순간 그 프록시의 AI 호출이 전부 503 이 된다.
+- 운영에 `effective_llm_consent_snapshot_v2` · `llm_service_consent_status` · `write_llm_service_consent` 가 있다(10-03 확인).
+
+**켜기.** 값은 비밀이 아니다(off · collect · enforce 중 하나).
+
+```
+npx supabase secrets set LLM_CONSENT_MODE=collect --project-ref zoacryukmdeivmolvyhj
+```
+
+**카나리아 (켠 뒤 10분 안).**
+1. QA 계정으로 동의 상태 조회(service-consent `{action:'status'}`): 200 이고 `mode` 가 collect.
+2. QA 계정으로 AI 호출 한 번(세컨비 대화): 200. 영수증이 없는 계정은 예전 가입 기록으로 잠정 허용된다.
+3. 일회용 계정으로 grant → revoke → 경합(같은 change_token 두 번): 200 · 200 · 409.
+4. Edge 로그 10분: `consent_check_unavailable` 503 이 늘지 않는다.
+
+**되돌리기.** 하나라도 실패하면 바로
+
+```
+npx supabase secrets unset LLM_CONSENT_MODE --project-ref zoacryukmdeivmolvyhj
+```
+
+(없으면 off). 시각과 실패 내용을 DECISIONS · HANDOFF 에 적는다. enforce 는 미동의 · 차단 계정이 0 이 된 뒤 따로 정한다.
 
 **하지 말 것.** #1902 파일을 그 세션과 맞추지 않고 고치지 않는다. 운영 마이그레이션 · 비밀값 변경을 GO 없이 하지 않는다.
 off 인 상태에서 게이트를 켜지 않는다(저장할 수 없는 확인 화면으로 앱을 막게 된다).
