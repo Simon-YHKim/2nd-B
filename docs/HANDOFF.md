@@ -30,7 +30,22 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-04 04:11 / 재동의 서버 초안 Draft #2024(#1902 위) · 게이트의 blocked 규칙 정정
+## Latest — 2026-10-04 04:40 / TTL-Work_rev2 워크트리 작업 착지: #2005 · #2023 · #2000 · #2025
+
+- **무엇을**: Simon "이 워크트리에 있는 모든 작업에 대해 머지하고 깃허브 머지까지 진행하자." (`.worktrees/2ndB/TTL-Work_rev2`, 브랜치 `Simon-YHKim/TTL-Work_rev2` @ `354e8d03`, main 보다 110 커밋 뒤 · 미커밋 49건)
+- **백업 먼저**: 미커밋 전부(122 파일)를 `backup/ttl-work-rev2-wip-261004` (`a97531d8`)로 원격에 올렸다. 아래 판정이 틀렸으면 거기서 꺼낸다.
+- **착지**
+  - [#2005](https://github.com/Simon-YHKim/2nd-B/pull/2005) 휴대폰 안에서 앱 열기(세션 128f6ff1 작업): main 병합 · 충돌 1건(`inbox/signals.test.ts` 소스 핀, 양쪽 메모 + 병합본 해시) · 새 휴대폰 문구 6개 B안 → `294588b9`. verify 898/11,552 · 375px 웹 확인(노트·검색·프로필이 `/dashboard` 안에서 열림, 오류 0, 쓰기 0)
+  - [#2023](https://github.com/Simon-YHKim/2nd-B/pull/2023) QA·UX 기록 문서(휴대폰 QA 09-30 · UI 감사 09-30 · 대시보드 캡처 09-26 · 버그 감사 10-02 · agy 말투 감사 10-02)
+  - [#2000](https://github.com/Simon-YHKim/2nd-B/pull/2000) 휴대폰 이동 게이트 기록 + "#2005 가 어떻게 풀었나" 절(진짜 화면 호스팅 · Back 리스너가 포커스 단위)
+  - [#2025](https://github.com/Simon-YHKim/2nd-B/pull/2025) agy 한국어 문구 21개(B안 적용, `{{who}}님`→`{{who}}`) + 대화 지침(페이스메이커 · '당신' 금지 · 먼저 듣고 위로와 지지). EN 은 줄 수를 안 바꾸고 기존 줄에 접었다(법무 문서 줄 인용 때문, 첫 시도에서 2건 빨강) → `d82bfd12`
+- **안 가져온 것(main 이 이미 더 새 것)**: 옛 오프닝(`LoadingScreen` · 소리 버튼 문구, #2014~#2020 이 대체) · 옛 `DashboardPhone`(#2005 가 대체) · `.gitattributes` · `docs/ASSETS.md` · `scripts/check-constraints.ts` 옛판. hunk 단위로 main 대조해서 판정했다.
+- **agy 문구 중 반영 안 한 11개(코딩 세션 판단, PR #2025 표)**: 사실과 다름(`phone.emptyAgenda` 예정 없음을 "모두 마쳤습니다" · `ds.head.home.text` "이미 담아보았습니다" · `research.noProposals` "연결된 기록이 없습니다") · AI/추정 고지 삭제(`aiApprox` · `research.getProposals`) · 개수를 "분석"으로(`phone.areaScope`) · propose→ratify 어휘(`roleApprove` · `reviewProposal` · `openDigest` · `research.proposalsLabel`) · #2009 와 같은 뜻(`personas.secondb.systemHint`).
+- **지금 상태**: TTL-Work_rev2 워크트리의 미커밋 49건은 **그대로 남겼다** — 전부 착지했거나 대체됐고 백업이 있다. 지우는 것(리셋)은 Simon 확인 후.
+- **미검증**: Android 실기의 휴대폰 안 Back(웹만 확인) · agy 문구가 들어간 화면 전수(세컨비 소개 · 휴대폰 기록 줄만 봤다).
+- **다음 1개**: TTL-Work_rev2 워크트리 정리 여부를 Simon 에게 묻는다(백업 브랜치 있음).
+
+## 2026-10-04 04:11 / 재동의 서버 초안 Draft #2024(#1902 위) · 게이트의 blocked 규칙 정정
 
 - **무엇을**: "할일 진행해줘." 남은 일은 전부 #1902(다른 세션 Draft, 10-01 이후 갱신 없음)에 막혀 있다. 그 세션의 몫(#1902 머지 · 인수)은 건드리지 않고,
   §8 의 2 · 3 단계를 **#1902 브랜치를 base 로 한 Draft PR [#2024](https://github.com/Simon-YHKim/2nd-B/pull/2024)** 로 미리 쌓았다. 머지 · 번호 · 운영 적용 없음.
