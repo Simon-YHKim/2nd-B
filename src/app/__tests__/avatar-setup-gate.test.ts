@@ -7,7 +7,7 @@ const gate = readFileSync(join(root, "src/components/avatar/AvatarSetupGate.tsx"
 
 describe("first avatar setup entry order", () => {
   test("the avatar gate wraps product routes only inside the existing recovery/C10 gate", () => {
-    const introStart = layout.indexOf("<IntroGate>");
+    const introStart = layout.indexOf("<IntroGate");
     const avatarStart = layout.indexOf("<AvatarSetupGate>");
     const stackStart = layout.indexOf("<ThemedStack>");
     const avatarEnd = layout.indexOf("</AvatarSetupGate>");

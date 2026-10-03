@@ -63,6 +63,7 @@ function loadScreen(platform: "ios" | "web" = "ios"): Module {
     if (id === "@/lib/opening/hustlek-approved") return engine;
     if (id === "@/components/deepspace/DeepSpaceLoader") return { DeepSpaceLoader: host("app-loader") };
     if (id === "@/components/ui/OpeningFade") return { OpeningFade: host("opening-fade") };
+    if (id === "@/lib/opening/opening-images-signal") return { markOpeningImagesSettled: jest.fn() };
     if (id === "@/lib/theme/tokens") return { deepSpace: { bgEdge: "#000", accentDim: "#123", textHi: "#fff", textMuted: "#aaa" }, typography: { sizes: { xs: 12 } } };
     if (id === "@/theme/typography") return { fontFamilies: { pixelKo: "Galmuri11" } };
     throw new Error("Unexpected loading runtime dependency: " + id);
