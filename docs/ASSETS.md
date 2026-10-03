@@ -1,5 +1,11 @@
 # Bundled Assets and Licenses
 
+## HustleK approved opening (2026-10-02)
+
+`assets/opening/hustlek-approved-261002/` contains the approved avatar opening: 17 character poses, the field/night-sky background, telescope, three native Polaris sizes, and four WAV files. The 22 PNG and four WAV files preserve the approved source bytes. `approved-settings.json` preserves the submitted settings; `manifest.json` stores the effective timeline, source paths and SHA-256 hashes. `validation.json`, `source-parity.json`, and `CREDITS.md` record file verification, comparison with the approved review and licenses.
+
+Grass A/B are from Kenney Impact Sounds (CC0); the ratchet is the same bundled `observatory-ratchet.wav` already used by the app (CC0, romulofs); the approved high Polaris ping is project-generated. Character/background/telescope art is the user's approved generated artwork. Existing Polaris artwork is reused. `scripts/build-hustlek-approved-opening.cjs --verify-only` verifies the shipped files without requiring the local review folder.
+
 > **Why this file exists.** The fonts we ship are SIL OFL 1.1, which requires
 > the copyright notice and the Reserved Font Name to travel with the font.
 > This file is the only place in the repository that records them, so deleting

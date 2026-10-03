@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, AppState, FlatList, PanResponder, Platform, Pressable, StyleSheet, View, type ImageStyle } from "react-native";
+import { Animated, AppState, BackHandler, FlatList, PanResponder, Platform, Pressable, StyleSheet, TextInput, View, type ImageStyle } from "react-native";
 import { Image } from "expo-image";
-import { router, useFocusEffect, useLocalSearchParams, type Href } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -26,6 +26,8 @@ import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { m3 } from "@/lib/theme/m3";
 import { useNoticeCenter } from "@/app/notices";
 import { renderableBlocks } from "@/lib/notices/markdown";
+import { createRecord } from "@/lib/records/create";
+import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { ProductNotice } from "@/lib/notices/types";
 
 type Tab = "dashboard" | "tools";
@@ -48,11 +50,6 @@ const APP_ORDER: PhoneAppId[] = [
 ];
 const PHONE_NAV = ["home", "note", "add", "search", "profile"] as const;
 const PIXEL_IMAGE = Platform.OS === "web" ? { imageRendering: "pixelated" } as ImageStyle : undefined;
-
-function go(route: string) {
-  if (typeof document !== "undefined") (document.activeElement as HTMLElement | null)?.blur?.();
-  router.push(route as Href);
-}
 
 // The phone bezel is always dark, including when the rest of the app uses its
 // light palette. Do not inherit a dark theme's text color onto this surface.
@@ -80,6 +77,15 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const [tab, setTab] = useState<Tab>(app === "notifications" ? "tools" : "dashboard");
   const [phoneApp, setPhoneApp] = useState<"notifications" | "more" | null>(app === "notifications" ? "notifications" : null);
   const [selectedNoticeId, setSelectedNoticeId] = useState<string | null>(null);
+  const [screenStack, setScreenStack] = useState<string[]>([]);
+  const [exitPrompt, setExitPrompt] = useState(false);
+  const [recordQuery, setRecordQuery] = useState("");
+  const [draft, setDraft] = useState("");
+  const [captureBusy, setCaptureBusy] = useState(false);
+  const [captureState, setCaptureState] = useState<"idle" | "saved" | "failed">("idle");
+  const [crisisVisible, setCrisisVisible] = useState(false);
+  const [focusSeconds, setFocusSeconds] = useState(25 * 60);
+  const [focusRunning, setFocusRunning] = useState(false);
   const noticeCenter = useNoticeCenter(ownerId);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -97,7 +103,39 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const dismissing = useRef(false);
   const mounted = useRef(true);
   const actionBusy = useRef(false);
+  const captureBusyRef = useRef(false);
   const scheduledReadPending = useRef(false);
+  const insideRoute = screenStack[screenStack.length - 1] ?? null;
+  const go = useCallback((route: string) => {
+    // Phone-originated navigation stays in the supplied phone display. The
+    // independent routes keep their own existing entry points unchanged.
+    if (typeof document !== "undefined") (document.activeElement as HTMLElement | null)?.blur?.();
+    scrollY.current = 0;
+    setRecordQuery("");
+    setExitPrompt(false);
+    setScreenStack((current) => [...current, route]);
+  }, []);
+  const backInside = useCallback(() => {
+    scrollY.current = 0;
+    if (exitPrompt) { setExitPrompt(false); return; }
+    if (selectedNoticeId) { setSelectedNoticeId(null); return; }
+    if (screenStack.length) { setScreenStack((current) => current.slice(0, -1)); return; }
+    if (phoneApp) { setPhoneApp(null); return; }
+    if (tab === "tools") { setTab("dashboard"); return; }
+    setExitPrompt(true);
+  }, [exitPrompt, selectedNoticeId, screenStack.length, phoneApp, tab]);
+  useEffect(() => {
+    const listener = BackHandler.addEventListener("hardwareBackPress", () => { backInside(); return true; });
+    return () => listener.remove();
+  }, [backInside]);
+  useEffect(() => {
+    if (!focusRunning || insideRoute !== "/focus") return;
+    const timer = setInterval(() => setFocusSeconds((seconds) => {
+      if (seconds <= 1) { setFocusRunning(false); return 0; }
+      return seconds - 1;
+    }), 1000);
+    return () => clearInterval(timer);
+  }, [focusRunning, insideRoute]);
   const settlePhone = useCallback(() => {
     Animated.timing(dismissY, {
       toValue: 0,
@@ -117,6 +155,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     },
     onPanResponderRelease: (_event, gesture) => {
       if (!shouldCompletePhoneDismiss(gesture.dy, gesture.vy)) { settlePhone(); return; }
+      if (insideRoute || phoneApp || exitPrompt) { backInside(); settlePhone(); return; }
       dismissing.current = true;
       Animated.timing(dismissY, {
         toValue: frameSize.height || 700,
@@ -126,22 +165,24 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       }).start(({ finished }) => { if (finished && mounted.current) closePhone(); });
     },
     onPanResponderTerminate: settlePhone,
-  }), [closePhone, dismissY, frameSize.height, reducedMotion, settlePhone]);
+  }), [backInside, closePhone, dismissY, exitPrompt, frameSize.height, insideRoute, phoneApp, reducedMotion, settlePhone]);
   const pageIndex = tab === "dashboard" ? 0 : phoneApp === "more" ? 2 : 1;
   const showPage = useCallback((index: number) => {
     if (index < 0 || index > 2) return;
     scrollY.current = 0;
     setSelectedNoticeId(null);
+    setScreenStack([]);
+    setExitPrompt(false);
     setTab(index === 0 ? "dashboard" : "tools");
     setPhoneApp(index === 2 ? "more" : null);
   }, []);
   const pagePan = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponder: (_event, gesture) =>
-      Math.abs(gesture.dx) > 30 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+      !insideRoute && !exitPrompt && Math.abs(gesture.dx) > 30 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
     onPanResponderRelease: (_event, gesture) => {
       if (Math.abs(gesture.dx) > 55) showPage(pageIndex + (gesture.dx < 0 ? 1 : -1));
     },
-  }), [pageIndex, showPage]);
+  }), [exitPrompt, insideRoute, pageIndex, showPage]);
   useEffect(() => () => dismissY.stopAnimation(), [dismissY]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useFocusEffect(useCallback(() => {
@@ -150,7 +191,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     setFailed(false);
     void loadDashboard(ownerId, isMinor).then((next) => {
       if (active) setData(next);
-    }).catch(() => { if (active) setFailed(true); }).finally(() => {
+    }).catch(() => { if (active) { setData(null); setFailed(true); } }).finally(() => {
       if (active) { setLoading(false); scheduledReadPending.current = false; }
     });
     return () => { active = false; scheduledReadPending.current = false; };
@@ -207,7 +248,115 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     finally { actionBusy.current = false; if (mounted.current && lease.isCurrent()) setBusy(null); }
   }
 
+  async function savePhoneNote() {
+    const body = draft.trim();
+    if (!body || captureBusyRef.current) return;
+    const lease = captureAccountOwnerLease(ownerId);
+    if (!lease?.isCurrent()) return;
+    captureBusyRef.current = true;
+    setCaptureBusy(true);
+    setCaptureState("idle");
+    try {
+      const saved = await createRecord({
+        userId: ownerId, locale: i18n.language.toLowerCase().startsWith("ko") ? "ko" : "en",
+        minor: isMinor === true, kind: "note", body, withFollowup: false,
+      });
+      if (!mounted.current || !lease.isCurrent()) return;
+      setDraft("");
+      setCaptureState("saved");
+      if (saved.followup?.zone === "red") setCrisisVisible(true);
+      setRefresh((value) => value + 1);
+    } catch {
+      if (mounted.current && lease.isCurrent()) setCaptureState("failed");
+    } finally {
+      captureBusyRef.current = false;
+      if (mounted.current && lease.isCurrent()) setCaptureBusy(false);
+    }
+  }
+
+  function internalPage(route: string) {
+    const records = data?.records.ok ? data.records.value : [];
+    const recordFailed = !!data && !data.records.ok;
+    const area = route.startsWith("/star/") ? route.slice(6) :
+      route === "/ledger" ? "finance" : route === "/milestones" ? "growth" :
+      route === "/meals" ? "health" : null;
+    const title = route === "/ops" ? t("phone.apps.assistant") :
+      route === "/focus" ? t("phone.apps.focus") :
+      route === "/reminders" ? t("phone.apps.reminders") :
+      route === "/ledger" ? t("phone.apps.money") :
+      route === "/milestones" ? t("phone.apps.growth") :
+      route === "/meals" ? t("phone.apps.meals") :
+      route === "/museum" ? t("phone.apps.museum") :
+      route === "/community" ? t("phone.apps.community") :
+      route === "/avatar-palette" ? t("phone.apps.avatarPalette") :
+      route === "/settings" ? t("phone.apps.settings") :
+      route === "/profile" ? t("phone.nav.profile") :
+      route === "/capture" ? t("phone.nav.add") :
+      route === "/wiki" ? t("phone.moreApps.wiki") :
+      route === "/search" ? t("phone.nav.search") :
+      route === "/records" ? t("phone.nav.note") :
+      area && LIFE_AREAS.some((item) => item === area) ? t(`phone.areas.${area}`) :
+      route.startsWith("/record/") ? t("phone.moreApps.records") : t("phone.moreTitle");
+    const searchList = route === "/records" || route === "/wiki" || route === "/search";
+    const filtered = records.filter((record) => (!area || record.tags?.includes(`domain:${area}`)) &&
+      (!recordQuery || record.body?.toLocaleLowerCase().includes(recordQuery.toLocaleLowerCase())));
+    const selected = route.startsWith("/record/") ? [...records, ...interviews].find((record) => record.id === decodeURIComponent(route.slice(8))) : null;
+    return <View style={styles.stack}>
+      <Text variant="heading">{title}</Text>
+      {route === "/capture" ? <PixelSurface variant="frame" contentStyle={styles.routine}>
+        <Text variant="caption" style={styles.muted}>{t("phone.internal.captureScope")}</Text>
+        <TextInput accessibilityLabel={t("phone.internal.noteInput")} multiline value={draft} onChangeText={setDraft} placeholder={t("phone.internal.noteInput")} placeholderTextColor={m3.color.onSurfaceVariant} style={[styles.noteInput, styles.phoneText]} />
+        <PhoneAction label={captureBusy ? t("phone.saving") : t("phone.internal.saveNote")} glyph="check" disabled={!draft.trim() || captureBusy} onPress={() => { void savePhoneNote(); }} />
+        {captureState === "saved" ? <Text accessibilityRole="alert" variant="caption" style={styles.accent}>{t("phone.internal.saved")}</Text> : null}
+        {captureState === "failed" ? <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.saveError")}</Text> : null}
+      </PixelSurface> : null}
+      {route === "/focus" ? <PixelSurface variant="frame" contentStyle={styles.routine}>
+        <Text variant="heading" style={styles.focusClock}>{`${String(Math.floor(focusSeconds / 60)).padStart(2, "0")}:${String(focusSeconds % 60).padStart(2, "0")}`}</Text>
+        <Text variant="caption" style={styles.muted}>{t("phone.internal.focusLocal")}</Text>
+        <View style={styles.actions}>
+          <PhoneAction label={t(focusRunning ? "phone.internal.pause" : "phone.internal.start")} glyph="timer" onPress={() => setFocusRunning((value) => !value)} />
+          <PhoneAction label={t("phone.internal.reset")} glyph="refresh" onPress={() => { setFocusRunning(false); setFocusSeconds(25 * 60); }} />
+        </View>
+      </PixelSurface> : null}
+      {route === "/ops" || route === "/reminders" ? <View style={styles.stack}>
+        <Text variant="caption" style={styles.muted}>{t("phone.weekAheadScope")}</Text>
+        {failed ? <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : !data || loading ? <Text variant="caption" style={styles.muted}>{t("phone.loading")}</Text> : !data.routines.ok || !data.completions.ok ?
+          <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : agenda.length ? agenda.map((item) => <PixelSurface key={item.id} variant="frame" contentStyle={styles.routine}>
+            <Text variant="body">{item.title}</Text>
+            <Text variant="caption" style={styles.muted}>{item.completed ? t("phone.completed") : item.reminder_time?.slice(0, 5) ?? t("phone.anytime")}</Text>
+            {!item.completed ? <PhoneAction label={t(busy === item.id ? "phone.saving" : "phone.markDone")} glyph="check" disabled={busy !== null} onPress={() => { void complete(item.id); }} /> : null}
+          </PixelSurface>) : <Text variant="caption" style={styles.muted}>{t("phone.emptyAgenda")}</Text>}
+      </View> : null}
+      {searchList ? <TextInput accessibilityLabel={t("phone.internal.searchRecords")} value={recordQuery} onChangeText={setRecordQuery} placeholder={t("phone.internal.searchRecords")} placeholderTextColor={m3.color.onSurfaceVariant} style={[styles.searchInput, styles.phoneText]} /> : null}
+      {searchList || area ? <View style={styles.stack}>
+        <Text variant="caption" style={styles.muted}>{t(area ? "phone.areaScope" : "phone.metricsSummary.records.scope")}</Text>
+        {failed ? <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : !data || loading ? <Text variant="caption" style={styles.muted}>{t("phone.loading")}</Text> : recordFailed ?
+          <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : filtered.length ? filtered.slice(0, 20).map((record) => <PixelPressable key={record.id} fullWidth onPress={() => go(`/record/${encodeURIComponent(record.id)}`)} accessibilityLabel={record.body?.trim().slice(0, 80) || t("phone.internal.untitledRecord")} contentStyle={styles.evidence}>
+            <Text variant="body" numberOfLines={3}>{record.body?.trim() || t("phone.internal.untitledRecord")}</Text>
+            <Text variant="caption" style={styles.muted}>{date(record.created_at)}</Text>
+          </PixelPressable>) : <Text variant="caption" style={styles.muted}>{t("phone.operational.sourceStates.empty")}</Text>}
+      </View> : null}
+      {route.startsWith("/record/") ? <View style={styles.stack}>
+        {failed ? <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : !data || loading ? <Text variant="caption" style={styles.muted}>{t("phone.loading")}</Text> : recordFailed && !selected ?
+          <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : selected ? <PixelSurface variant="frame" contentStyle={styles.evidence}>
+            <Text variant="body">{selected.body?.trim() || t("phone.internal.untitledRecord")}</Text>
+            <Text variant="caption" style={styles.muted}>{date(selected.created_at)}</Text>
+          </PixelSurface> : <Text variant="caption" style={styles.muted}>{t("phone.operational.sourceStates.empty")}</Text>}
+      </View> : null}
+      {route === "/settings" ? <Text variant="caption" style={styles.muted}>{t("phone.internal.settingsScope")}</Text> : null}
+      {route === "/profile" ? <Text variant="caption" style={styles.muted}>{failed ? t("phone.readError") : !data || loading ? t("phone.loading") : data.records.ok ? t("phone.internal.profileSummary", { count: data.records.value.length }) : t("phone.readError")}</Text> : null}
+      {["/community", "/avatar-palette"].includes(route) ? <Text variant="caption" style={styles.muted}>{t("phone.internal.unavailable")}</Text> : null}
+      {!["/capture", "/focus", "/ops", "/reminders", "/records", "/wiki", "/search", "/settings", "/profile", "/community", "/avatar-palette"].includes(route) && !route.startsWith("/star/") && !route.startsWith("/record/") && !area ?
+        <Text variant="caption" style={styles.muted}>{t("phone.internal.unavailable")}</Text> : null}
+    </View>;
+  }
+
   function dashboard() {
+    if (failed) return <View style={styles.stack}>
+      <Text variant="heading">{t("phone.operational.title")}</Text>
+      <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text>
+      <PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} />
+    </View>;
     const now = new Date();
     const priority = selectDashboardPriority(data, now);
     const trend = recentRecordTrend(data, now);
@@ -215,26 +364,27 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     const maxTrend = Math.max(1, ...(trend?.days.map((day) => day.count) ?? []));
     const metricValue = (id: string) => {
       if (id === "routines") {
-        if (!data?.routines.ok || !data.completions.ok) return t("phone.metricsSummary.unknown");
-        return agenda.length ? `${completed}/${agenda.length}` : t("phone.metricsSummary.empty");
+        if (!data?.routines.ok || !data.completions.ok) return t("phone.operational.sourceStates.unknown");
+        return agenda.length ? `${completed}/${agenda.length}` : t("phone.operational.sourceStates.empty");
       }
       if (id === "records") {
-        if (!data?.records.ok) return t("phone.metricsSummary.unknown");
-        return data.records.value.length >= rules.recordReadLimit ? `${rules.recordReadLimit}+` : String(data.records.value.length);
+        if (!data?.records.ok) return t("phone.operational.sourceStates.unknown");
+        return !data.records.value.length ? t("phone.operational.sourceStates.empty") :
+          data.records.value.length >= rules.recordReadLimit ? `${rules.recordReadLimit}+` : String(data.records.value.length);
       }
       if (isMinor !== false) return t("phone.metricsSummary.restricted");
-      if (!data?.health.ok) return t("phone.metricsSummary.unknown");
+      if (!data?.health.ok) return t("phone.operational.sourceStates.unknown");
       if (!data.healthEnabled) return t("phone.metricsSummary.off");
-      return health ? `${health.value.toLocaleString(i18n.language)} ${health.unit}` : t("phone.metricsSummary.empty");
+      return health ? `${health.value.toLocaleString(i18n.language)} ${health.unit}` : t("phone.operational.sourceStates.empty");
     };
     return <View style={styles.stack}>
       <Text variant="heading">{t("phone.operational.title")}</Text>
-      <Text variant="caption" style={styles.muted}>{t("phone.operational.scope")}</Text>
+      <Text variant="caption" numberOfLines={2} style={styles.dashboardScope}>{t("phone.operational.scope")}</Text>
       {priority ? <PixelSurface variant="frame" contentStyle={styles.lead}>
         <Text variant="caption" style={styles.accent}>{t("phone.todayLabel")}</Text>
         <Text variant="heading">{priority.evidence ?? t(`phone.priority.${priority.kind}.title`)}</Text>
         <Text variant="caption" style={styles.muted}>{t(`phone.priority.${priority.kind}.detail`)}</Text>
-        {priority.route ? <PhoneAction label={t(`phone.priority.${priority.kind}.action`)} onPress={() => go(priority.route!)} /> : null}
+        {priority.route ? <PhoneAction label={t(priority.kind === "startInterview" ? "phone.internal.startNote" : `phone.priority.${priority.kind}.action`)} onPress={() => go(priority.route === "/me/now" ? "/capture" : priority.route!)} /> : null}
       </PixelSurface> : !loading ? <Text variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : null}
       <Text variant="heading">{t("phone.operational.atGlance")}</Text>
       <View style={styles.metricGrid}>{rules.metricOrder.map((id) => <PixelPressable key={id} variant="inset" rootStyle={styles.metric} onPress={() => setExpandedMetric((current) => current === id ? null : id)} accessibilityLabel={`${t(`phone.metricsSummary.${id}.title`)}: ${metricValue(id)}`} accessibilityState={{ expanded: expandedMetric === id }} contentStyle={styles.metricContent}>
@@ -246,7 +396,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       <Text variant="heading">{t("phone.operational.outlook")}</Text>
       <PixelSurface variant="frame" contentStyle={styles.routine}>
         <Text variant="body">{t("phone.operational.recordTrend")}</Text>
-        {trend ? <View style={styles.chart}>{trend.days.map((day) => <View key={day.key} style={styles.chartDay}>
+        {trend && data?.records.ok && data.records.value.length === 0 ? <Text variant="caption" style={styles.muted}>{t("phone.operational.sourceStates.empty")}</Text> : trend ? <View style={styles.chart}>{trend.days.map((day) => <View key={day.key} style={styles.chartDay}>
           <Text variant="caption" style={styles.centered}>{day.count}</Text>
           <View style={styles.chartTrack}><View style={[styles.chartBar, { height: day.count ? Math.max(4, Math.round(42 * day.count / maxTrend)) : 0 }]} /></View>
           <Text variant="caption" style={styles.centered}>{day.date.toLocaleDateString(i18n.language, { weekday: "short" })}</Text>
@@ -256,7 +406,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       <PixelSurface variant="frame" contentStyle={styles.routine}>
         <Text variant="body">{t("phone.weekAhead")}</Text>
         <Text variant="caption" style={styles.muted}>{t("phone.weekAheadScope")}</Text>
-        {week.length ? <View style={styles.week}>{week.map((day) => <PixelPressable key={day.key} rootStyle={styles.weekDay} accessibilityLabel={`${day.date.toLocaleDateString(i18n.language, { month: "short", day: "numeric" })}: ${t("phone.weekAheadCount", { count: day.count })}`} onPress={() => go("/reminders")} contentStyle={styles.weekDayContent}>
+        {data?.routines.ok && data.routines.value.length === 0 ? <Text variant="caption" style={styles.muted}>{t("phone.operational.sourceStates.empty")}</Text> : week.length ? <View style={styles.week}>{week.map((day) => <PixelPressable key={day.key} rootStyle={styles.weekDay} accessibilityLabel={`${day.date.toLocaleDateString(i18n.language, { month: "short", day: "numeric" })}: ${t("phone.weekAheadCount", { count: day.count })}`} onPress={() => go("/reminders")} contentStyle={styles.weekDayContent}>
           <Text variant="caption" style={styles.centered}>{day.date.toLocaleDateString(i18n.language, { weekday: "short" })}</Text>
           <Text variant="caption" style={day.count ? styles.accent : styles.muted}>{day.count}</Text>
         </PixelPressable>)}</View> : <Text variant="caption" style={styles.muted}>{t("phone.readError")}</Text>}
@@ -295,7 +445,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
           <Text variant="caption" style={styles.muted}>{t("phone.interviewSource", { date: date(interviews[0].created_at) })}</Text>
         </PixelPressable> : <View style={styles.stack}>
           <Text variant="body" style={styles.muted}>{t("phone.emptyInterview")}</Text>
-          <PhoneAction label={t("phone.startInterview")} glyph="bubble" onPress={() => go("/me/now")} />
+          <PhoneAction label={t("phone.internal.startNote")} glyph="bubble" onPress={() => go("/capture")} />
         </View>}
       <Text variant="heading">{t("phone.lifeAreas")}</Text>
       <Text variant="caption" style={styles.muted}>{t("phone.areaScope")}</Text>
@@ -317,7 +467,6 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       const selected = noticeCenter.notices.find((item) => item.id === selectedNoticeId);
       const ko = i18n.language.toLowerCase().startsWith("ko");
       return <View style={styles.stack}>
-        <PhoneAction label={t("phone.appsBack")} glyph="arrow_back" onPress={() => { setSelectedNoticeId(null); setPhoneApp(null); }} />
         <Text variant="heading">{t("phone.apps.notifications")}</Text>
         {selected ? <PixelSurface variant="frame" contentStyle={styles.noticeDetail}>
             <Text variant="caption" style={styles.accent}>{ko ? selected.listMeta.ko : selected.listMeta.en}</Text>
@@ -325,7 +474,6 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
             {renderableBlocks(selected.body, ko).map((block, index) => <Text key={`${selected.id}-${index}`} variant="caption" style={styles.muted}>
               {block.kind === "bullet" ? "• " : ""}{ko ? block.text.ko : block.text.en}
             </Text>)}
-            <PhoneAction label={t("phone.noticeListBack")} glyph="arrow_back" onPress={() => setSelectedNoticeId(null)} />
           </PixelSurface> : null}
       </View>;
     }
@@ -381,7 +529,8 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   }
 
   const unreadCount = noticeCenter.notices.filter((item) => noticeCenter.isUnread(item.id)).length;
-  const noticeListOpen = tab === "tools" && phoneApp === "notifications" && !selectedNoticeId;
+  const noticeListOpen = !insideRoute && tab === "tools" && phoneApp === "notifications" && !selectedNoticeId;
+  const internalActive = !!insideRoute || phoneApp === "notifications" || exitPrompt;
   const phoneRows: (ProductNotice | number)[] = noticeListOpen
     ? (noticeCenter.hydrated ? noticeCenter.notices : []) : [0];
   const frame = fitPhoneArtwork(frameSize.width, frameSize.height);
@@ -414,18 +563,19 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
           <Image source={PHONE_UI_ART.sun} contentFit="contain" style={[styles.headerIcon, PIXEL_IMAGE]} accessible={false} />
         </View>
       </View>
-      <View style={styles.heroBanner} accessible={false}>
+      {!internalActive && tab === "tools" ? <View style={styles.heroBanner} accessible={false}>
         <Image source={PHONE_UI_ART.hero} contentFit="cover" pointerEvents="none" style={[StyleSheet.absoluteFill, PIXEL_IMAGE]} />
         <View style={styles.heroCopy}>
           <Text variant="body" style={styles.heroTitle}>{t("phone.bannerTitle")}</Text>
           <Text variant="caption" style={styles.heroSubtitle}>{t("phone.bannerSubtitle")}</Text>
         </View>
-      </View>
-      <View style={styles.tabs}>{TABS.map((item, index) => <PixelPressable key={item} rootStyle={styles.tab} onPress={() => showPage(index)} accessibilityRole="tab" accessibilityState={{ selected: tab === item }} background={tab === item ? m3.color.primaryContainer : m3.color.surfaceContainer} contentStyle={styles.tabContent}>
+      </View> : null}
+      {internalActive ? <PhoneAction label={selectedNoticeId ? t("phone.noticeListBack") : t("phone.internal.back")} glyph="arrow_back" onPress={backInside} /> : null}
+      {!internalActive ? <View style={styles.tabs}>{TABS.map((item, index) => <PixelPressable key={item} rootStyle={styles.tab} onPress={() => showPage(index)} accessibilityRole="tab" accessibilityState={{ selected: tab === item }} background={tab === item ? m3.color.primaryContainer : m3.color.surfaceContainer} contentStyle={styles.tabContent}>
         <Image source={item === "dashboard" ? PHONE_UI_ART.dashboard : PHONE_UI_ART.apps} contentFit="contain" style={[styles.tabIcon, PIXEL_IMAGE]} accessible={false} />
         <Text variant="caption" style={styles.tabLabel}>{t(`phone.tabs.${item}`)}</Text>
-      </PixelPressable>)}</View>
-      <View style={styles.pageControls} accessibilityLabel={t("phone.pageControls")}>
+      </PixelPressable>)}</View> : null}
+      {!internalActive ? <View style={styles.pageControls} accessibilityLabel={t("phone.pageControls")}>
         <Pressable accessibilityRole="button" accessibilityLabel={t("phone.previousPage")} disabled={pageIndex === 0} onPress={() => showPage(pageIndex - 1)} style={styles.pageArrow}>
           {pageIndex > 0 ? <Image source={PHONE_UI_ART.previous} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
         </Pressable>
@@ -435,12 +585,12 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         <Pressable accessibilityRole="button" accessibilityLabel={t("phone.nextPage")} disabled={pageIndex === 2} onPress={() => showPage(pageIndex + 1)} style={styles.pageArrow}>
           {pageIndex < 2 ? <Image source={PHONE_UI_ART.next} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
         </Pressable>
-      </View>
+      </View> : null}
       {loading ? <Text accessibilityLiveRegion="polite" variant="caption" style={styles.readStatus}>{t("phone.loading")}</Text> : null}
       {failed || partial ? <View style={styles.errorRow}><Text variant="caption" style={styles.flexText}>{t("phone.partialError")}</Text><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} /></View> : null}
       <View style={styles.pageBody} {...pagePan.panHandlers}>
       <FlatList
-        key={`${tab}-${phoneApp}-${selectedNoticeId ? "detail" : "list"}`}
+        key={`${tab}-${phoneApp}-${insideRoute ?? "home"}-${exitPrompt ? "exit" : "open"}-${selectedNoticeId ? "detail" : "list"}`}
         testID="dashboard-phone-scroll"
         onScroll={(event) => { scrollY.current = event.nativeEvent.contentOffset.y; }}
         scrollEventThrottle={16}
@@ -448,12 +598,16 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         showsVerticalScrollIndicator={false}
         keyExtractor={(item) => typeof item === "number" ? `${tab}-screen` : item.id}
         ListHeaderComponent={noticeListOpen ? <View style={styles.stack}>
-          <PhoneAction label={t("phone.appsBack")} glyph="arrow_back" onPress={() => setPhoneApp(null)} />
           <Text variant="heading">{t("phone.apps.notifications")}</Text>
           {!noticeCenter.hydrated ? <Text variant="caption" style={styles.muted}>{t("phone.noticeLoading")}</Text> : null}
         </View> : null}
         ListEmptyComponent={noticeListOpen && noticeCenter.hydrated ? <Text variant="caption" style={styles.muted}>{t("phone.noticeEmpty")}</Text> : null}
-        renderItem={({ item }) => noticeListOpen ? noticeRow(item as ProductNotice) : tab === "dashboard" ? dashboard() : tools()}
+        renderItem={({ item }) => noticeListOpen ? noticeRow(item as ProductNotice) : exitPrompt ? <View style={styles.stack}>
+          <Text variant="heading">{t("phone.internal.exitTitle")}</Text>
+          <Text variant="caption" style={styles.muted}>{t("phone.internal.exitHint")}</Text>
+          <PhoneAction label={t("phone.returnToStars")} glyph="arrow_forward" onPress={closePhone} />
+          <PhoneAction label={t("phone.internal.cancel")} glyph="arrow_back" onPress={() => setExitPrompt(false)} />
+        </View> : insideRoute ? internalPage(insideRoute) : tab === "dashboard" ? dashboard() : tools()}
         contentContainerStyle={styles.content}
       />
       </View>
@@ -469,12 +623,13 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={t("phone.returnToStars")}
-        onPress={closePhone}
+        accessibilityLabel={t(internalActive || tab === "tools" ? "phone.nav.home" : "phone.internal.closePhone")}
+        onPress={() => { if (internalActive || tab === "tools") showPage(0); else setExitPrompt(true); }}
         style={[styles.homeButton, frame.homeButton]}
       />
       </> : null}
     </Animated.View>
+    <CrisisRouter visible={crisisVisible} hotline={i18n.language.toLowerCase().startsWith("ko") ? isMinor ? "KR_1388" : "KR_109" : "GLOBAL_988"} onClose={() => setCrisisVisible(false)} />
   </DeepSpaceScreen>;
 }
 
@@ -564,4 +719,8 @@ const styles = StyleSheet.create({
   flexText: { flex: 1, flexShrink: 1 },
   readStatus: { paddingHorizontal: 12, paddingVertical: 8, color: m3.color.onSurfaceVariant },
   errorRow: { flexDirection: "row", gap: 8, padding: 12, alignItems: "center" },
+  dashboardScope: { color: m3.color.onSurfaceVariant, fontSize: 12, lineHeight: 18, paddingBottom: 2 },
+  searchInput: { minHeight: 44, borderWidth: 1, borderColor: m3.color.outline, backgroundColor: m3.color.surfaceContainer, paddingHorizontal: 10, fontSize: 13 },
+  noteInput: { minHeight: 112, borderWidth: 1, borderColor: m3.color.outline, backgroundColor: m3.color.surfaceContainer, padding: 10, fontSize: 13, textAlignVertical: "top" },
+  focusClock: { textAlign: "center", color: m3.color.primary, fontVariant: ["tabular-nums"] },
 });

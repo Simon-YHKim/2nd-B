@@ -21,6 +21,22 @@ First dashboard entry does not start an OAuth/login flow. Existing owner-scoped 
 
 ## Reachable existing flows
 
+The phone-originated controls now keep their first view in the phone display.
+Its back control and Android Back step through phone history; the physical
+home-button area returns to the phone home, then asks before exit. A downward
+pull from a nested screen goes back one level, while a deliberate pull from
+the phone home exits. The independent route entry points are unchanged.
+
+This is a bounded in-phone surface, not a claim that every full-page feature has
+been transplanted. Saved records, record search/detail, short plain-note capture,
+accepted routine completion, notifications, and a foreground-only focus timer
+have real in-phone behavior. Area views show tagged records from the bounded
+read, **not** ledger entries or goal status. Museum, community, avatar palette,
+and the interview flow report that their phone-specific screens are not yet
+connected. They no longer silently leave the phone. Full feature parity will
+require extracting reusable contents from their independent screens without
+changing those independent entry points.
+
 `/ops`, `/reminders`, `/permissions`, `/privacy`, `/import`, `/import-hub`, the six `/star` areas, focus, goals, ledger, meals, and the existing adult-only community. Consent, native permission requests, import review, revocation, and deletion remain owned by those flows.
 
 Google Calendar / Tasks, ICS, Google Timeline export, KakaoTalk export and SMS backups use existing imports. The current calendar import stores selected summary material, not a queryable timed event feed; the dashboard therefore does not fabricate a calendar agenda. A new import does not imply background synchronization.

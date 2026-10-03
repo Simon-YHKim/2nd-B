@@ -8,6 +8,7 @@ import { join } from "node:path";
 
 import { FORBIDDEN_TERMS, CRISIS_TERMS } from "../src/lib/safety/lexicon";
 import { describeOwners, findMainVerifyOwners } from "./main-verify-owner";
+import { openingA11yContract } from "./opening-a11y-contract";
 
 const ROOT = process.cwd();
 
@@ -1182,12 +1183,9 @@ results.push(
       formats.includes("PreferenceSwitch") &&
       formats.includes('accessibilityLabel={tf("deleteModal.label")}') &&
       formats.includes('accessibilityLabel={tf("guideModal.label")}') &&
-      loadingScreen.includes('accessibilityRole="button"') &&
-      loadingScreen.includes("accessibilityState={{ busy: phase !== \"ready\", disabled: phase === \"zooming\" }}") &&
-      // Localized 260717 (judge-rehearsal #3): the gate label/hint moved from
-      // hardcoded Korean into the common bundle's loadingGate.* keys.
-      loadingScreen.includes('t("loadingGate.open")') &&
-      loadingScreen.includes('t("loadingGate.enterHint")') &&
+      // The approved opening has separate localized sound, skip and retry
+      // controls. Their individual roles and states replace the old gate button.
+      openingA11yContract(loadingScreen) &&
       oauthCallback.includes('accessibilityRole="alert"') &&
       oauthCallback.includes("accessibilityLabel={retryLabel}") &&
       oauthCallback.includes("accessibilityHint={retryHint}") &&

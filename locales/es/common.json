@@ -56,7 +56,12 @@
     "opening": "Abriendo PolaScope",
     "loading": "Cargando PolaScope",
     "enterHint": "Toca dos veces para entrar a la pantalla principal.",
-    "skipHint": "Toca dos veces para saltar la animación de inicio."
+    "skipHint": "Toca dos veces para saltar la animación de inicio.",
+    "soundOn": "Sonido activado",
+    "soundOff": "Desactivar sonidos de apertura",
+    "soundEnable": "Activar sonidos de apertura",
+    "skip": "Saltar apertura",
+    "retry": "Reintentar apertura"
   },
   "worldview": {
     "soulCore": "Estrella del Norte",

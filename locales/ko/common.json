@@ -56,7 +56,12 @@
     "opening": "PolaScope 여는 중",
     "loading": "PolaScope 불러오는 중",
     "enterHint": "두 번 탭하면 메인 화면으로 이동해요.",
-    "skipHint": "두 번 탭하면 시작 애니메이션을 건너뜁니다."
+    "skipHint": "두 번 탭하면 시작 애니메이션을 건너뜁니다.",
+    "soundOn": "소리 켜짐",
+    "soundOff": "오프닝 소리 끄기",
+    "soundEnable": "오프닝 소리 켜기",
+    "skip": "오프닝 건너뛰기",
+    "retry": "오프닝 다시 불러오기"
   },
   "worldview": {
     "soulCore": "북극성",

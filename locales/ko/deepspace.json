@@ -72,13 +72,13 @@
     "noLinks": "아직 서로 연결된 기록이 없어요. 새 기록을 담으면 관련된 내용을 찾을 수 있어요.",
     "surprise": "‘{{from}}’과 ‘{{to}}’ 사이에 연결이 있어요. 두 기록은 서로 다른 주제예요.",
     "islandChip": "지식 묶음 {{count}}",
-    "proposalsLabel": "제안된 연결",
-    "noProposals": "아직 연결 제안이 없어요. 아래 버튼을 눌러 관련된 기록을 찾아보세요.",
+    "proposalsLabel": "발견된 생각 연결",
+    "noProposals": "아직 서로 연결된 기록이 없습니다. 아래 버튼을 눌러 관련된 생각을 찾아볼까요?",
     "confidence": "{{percent}}% 일치",
     "reject": "거절",
     "ratify": "승인",
     "ratifying": "승인 중…",
-    "getProposals": "AI 연결 제안 받기",
+    "getProposals": "관련된 기록 찾아보기",
     "gettingProposals": "연결을 찾는 중…"
   },
   "records": {

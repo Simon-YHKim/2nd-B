@@ -38,7 +38,7 @@ test("data controls live in Settings, not inside the phone's app tabs", () => {
   expect(phone).not.toContain('ListFooterComponent=');
   expect(phone).toContain("nextRefreshAt(new Date(), refreshSettings)");
   expect(phone).toContain("shouldRefreshAfterResume(");
-  expect(phone).not.toContain("setInterval(");
+  expect(phone).toContain('if (!focusRunning || insideRoute !== "/focus") return;');
   expect(phone).toContain('AppState.currentState === "active"');
 });
 

@@ -2,12 +2,6 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import React from "react";
-import ts from "typescript";
-
-const { renderToStaticMarkup } = require("react-dom/server") as {
-  renderToStaticMarkup: (element: React.ReactNode) => string;
-};
 
 const { PNG } = require("pngjs") as {
   PNG: { sync: { read: (bytes: Buffer) => { width: number; height: number; data: Buffer } } };
@@ -17,7 +11,6 @@ const ROOT = path.resolve(__dirname, "../../..");
 const SOURCE = path.join(ROOT, "design/hustlek-opening-v1/hustlek-opening-atlas.png");
 const ATLAS = path.join(ROOT, "assets/deepspace/hustlek-opening-v2.json");
 const BUILDER = path.join(ROOT, "scripts/build-hustlek-opening-v2.py");
-const LOADING_SCREEN = path.join(ROOT, "src/components/ui/LoadingScreen.tsx");
 
 const SOURCE_FILE_SHA256 = "2780df89aa6f1d472ec82a03610a6d7e81a20dbf9e767103cd198233e44213be";
 const SOURCE_RGBA_SHA256 = "b077a2d1a4c77c320e92a18b92a722f4a2905340e7b1ba27c47d6a0cf2c8cc49";
@@ -56,35 +49,6 @@ type RleAtlas = {
   w: RectRun[][];
   k: RectRun[][];
   t: RectRun[];
-};
-
-type OpeningPlan = {
-  frame: number;
-  phase: "story" | "waiting-ready" | "ready" | "exiting" | "done";
-  shouldContinue: boolean;
-};
-
-type ScenePlan = {
-  character: { kind: "walk" | "key"; index: number; centerX: number } | null;
-  cameraTop: number;
-  polarisSize: number;
-  veilHeight: number;
-};
-
-type LoadingModule = {
-  openingStateAt?: (input: {
-    elapsedMs: number;
-    readyAtMs: number | null;
-    tapAtMs: number | null;
-    reducedMotion: boolean;
-  }) => OpeningPlan;
-  openingSceneForFrame?: (frame: number) => ScenePlan;
-  pixelUnitScale?: (pixelRatio: number) => number;
-  fullscreenPixelUnit?: (pixelRatio: number, viewportWidth: number) => number;
-  createOpeningTicker?: (startedAtMs: number, onTick: (elapsedMs: number) => void) => () => void;
-  deliverContinueOnce?: (gate: { current: boolean }, onContinue?: () => void) => void;
-  RleCell?: React.ComponentType<{ rects: RectRun[]; width: number; height: number }>;
-  LoadingScreen?: React.ComponentType<{ ready?: boolean; onContinue?: () => void }>;
 };
 
 function sha256(bytes: Buffer | Uint8Array): string {
@@ -208,76 +172,7 @@ function expectLineagePreserved(source: Uint8Array, rendered: Uint8Array): void 
   expect(renderedFloor).toBe(sourceFloor);
 }
 
-function host(tag: string): React.ComponentType<Record<string, unknown>> {
-  return function Host({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) {
-    return React.createElement(tag, props, children);
-  };
-}
-
-function loadLoadingModule(platform: "ios" | "web" = "ios", reducedMotion = false): LoadingModule {
-  const source = readFileSync(LOADING_SCREEN, "utf8");
-  const output = ts.transpileModule(source, {
-    compilerOptions: {
-      esModuleInterop: true,
-      jsx: ts.JsxEmit.ReactJSX,
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2020,
-    },
-  }).outputText;
-  const loaded: { exports: LoadingModule } = { exports: {} };
-  const customRequire = (id: string): unknown => {
-    if (id === "react" || id === "react/jsx-runtime") return require(id);
-    if (id === "react-native") {
-      return {
-        Pressable: host("pressable"),
-        Text: host("text"),
-        View: host("view"),
-        Platform: { OS: platform },
-        PixelRatio: { get: () => (platform === "web" ? 3 : 2.625) },
-        useWindowDimensions: () => ({ width: 390, height: 844, scale: 3, fontScale: 1 }),
-        StyleSheet: { create: <T,>(styles: T) => styles },
-      };
-    }
-    if (id === "react-native-svg") return { Svg: host("svg"), Rect: host("rect") };
-    if (id === "react-i18next") return { useTranslation: () => ({ t: (key: string) => key }) };
-    if (id === "@/lib/motion/use-reduced-motion") return { useReducedMotionPref: () => reducedMotion };
-    if (id === "@/lib/theme/tokens") {
-      return {
-        deepSpace: {
-          accentDim: "accentDim",
-          accentGlow: "accentGlow",
-          bgEdge: "bgEdge",
-          bgGlow: "bgGlow",
-          bgMid: "bgMid",
-          soul: "soul",
-          soulDeep: "soulDeep",
-          textHi: "textHi",
-        },
-        typography: { sizes: { xs: 12 } },
-      };
-    }
-    if (id === "@/theme/typography") return { fontFamilies: { pixelKo: "Galmuri11" } };
-    if (id.endsWith("hustlek-opening-v2.json")) return readAtlas();
-    throw new Error(`Unexpected LoadingScreen dependency in contract test: ${id}`);
-  };
-  new Function("require", "module", "exports", output)(customRequire, loaded, loaded.exports);
-  return loaded.exports;
-}
-
-function stateAt(
-  elapsedMs: number,
-  {
-    readyAtMs = 0,
-    tapAtMs = null,
-    reducedMotion = false,
-  }: { readyAtMs?: number | null; tapAtMs?: number | null; reducedMotion?: boolean } = {},
-): OpeningPlan {
-  const module = loadLoadingModule();
-  if (!module.openingStateAt) throw new Error("LoadingScreen must export openingStateAt");
-  return module.openingStateAt({ elapsedMs, readyAtMs, tapAtMs, reducedMotion });
-}
-
-describe("HustleK opening v2 deterministic rect atlas", () => {
+describe("HustleK opening v2 historical rect atlas lineage", () => {
   test("builder --check returns PASS for one compact source-derived atlas", () => {
     expect(existsSync(BUILDER)).toBe(true);
     expect(existsSync(ATLAS)).toBe(true);
@@ -357,165 +252,5 @@ describe("HustleK opening v2 deterministic rect atlas", () => {
       }
     }
     expect(nonUniformBlocks).toBe(0);
-  });
-});
-
-describe("HustleK opening v2 integer renderer", () => {
-  test.each([1, 2, 2.625, 3])("DPR %s maps one source unit to integer physical pixels", (dpr) => {
-    const module = loadLoadingModule();
-    if (!module.pixelUnitScale) throw new Error("LoadingScreen must export pixelUnitScale");
-    const physicalPixels = module.pixelUnitScale(dpr) * dpr;
-    expect(physicalPixels).toBeGreaterThanOrEqual(1);
-    expect(Number.isInteger(physicalPixels)).toBe(true);
-  });
-
-  test.each([
-    { dpr: 1, viewportWidth: 520 },
-    { dpr: 2.625, viewportWidth: 390 },
-    { dpr: 3, viewportWidth: 430 },
-  ])("$viewportWidth CSS px viewport fills the screen with integer physical pixels at DPR $dpr", ({ dpr, viewportWidth }) => {
-    const module = loadLoadingModule();
-    if (!module.fullscreenPixelUnit) throw new Error("LoadingScreen must export fullscreenPixelUnit");
-    const unit = module.fullscreenPixelUnit(dpr, viewportWidth);
-    const physicalPixelsPerSourceUnit = unit * dpr;
-    const widthRatio = (320 * unit) / viewportWidth;
-    expect(Number.isInteger(physicalPixelsPerSourceUnit)).toBe(true);
-    expect(widthRatio).toBeGreaterThanOrEqual(0.85);
-    expect(widthRatio).toBeLessThanOrEqual(1.25);
-  });
-
-  test("the stage and transition veil own the full viewport instead of a fixed 320x260 card", () => {
-    const source = readFileSync(LOADING_SCREEN, "utf8");
-    expect(source).toContain("style={styles.stage}");
-    expect(source).toContain("height: viewportHeight * veilRatio");
-    expect(source).toContain('width: "100%"');
-    expect(source).toContain('height: "100%"');
-    expect(source).not.toContain("style={[styles.stage, { width: STAGE_WIDTH * unit, height: STAGE_HEIGHT * unit }]}");
-  });
-
-  test.each(["ios", "web"] as const)("%s renders SVG rects and never a bitmap image", (platform) => {
-    const module = loadLoadingModule(platform);
-    const atlas = readAtlas();
-    if (!module.RleCell || !module.LoadingScreen) throw new Error("rect renderer exports missing");
-    const cellMarkup = renderToStaticMarkup(
-      React.createElement(module.RleCell, { rects: atlas.w[0], width: 96, height: 96 }),
-    );
-    const screenMarkup = renderToStaticMarkup(React.createElement(module.LoadingScreen, { ready: true }));
-    expect(cellMarkup).toContain("<svg");
-    expect(cellMarkup).toContain("<rect");
-    expect(cellMarkup).not.toContain("<img");
-    expect(screenMarkup).not.toContain("<img");
-    if (platform === "web") expect(cellMarkup).toContain('shape-rendering="crispEdges"');
-    else expect(cellMarkup).not.toContain("shape-rendering");
-    expect(readFileSync(LOADING_SCREEN, "utf8")).not.toMatch(/expo-image|<Image\b|\.png["']/i);
-  });
-
-  test("web first paint matches static export with reduced motion enabled", () => {
-    const screen = (reducedMotion: boolean, platform: "web" | "ios") => {
-      const component = loadLoadingModule(platform, reducedMotion).LoadingScreen;
-      if (!component) throw new Error("LoadingScreen export missing");
-      return renderToStaticMarkup(React.createElement(component, { ready: true }));
-    };
-
-    expect(sha256(Buffer.from(screen(true, "web")))).toBe(sha256(Buffer.from(screen(false, "web"))));
-    expect(sha256(Buffer.from(screen(true, "ios")))).not.toBe(sha256(Buffer.from(screen(false, "ios"))));
-  });
-});
-
-describe("HustleK opening v2 readiness runtime", () => {
-  beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date(1_000));
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
-  test("ticker advances on the 80ms grid and cleanup removes its interval", () => {
-    const module = loadLoadingModule();
-    if (!module.createOpeningTicker) throw new Error("LoadingScreen must export createOpeningTicker");
-    const onTick = jest.fn();
-    const cleanup = module.createOpeningTicker(Date.now(), onTick);
-    expect(jest.getTimerCount()).toBe(1);
-    jest.advanceTimersByTime(240);
-    expect(onTick.mock.calls.map(([elapsed]) => elapsed)).toEqual([80, 160, 240]);
-    cleanup();
-    expect(jest.getTimerCount()).toBe(0);
-    jest.advanceTimersByTime(240);
-    expect(onTick).toHaveBeenCalledTimes(3);
-  });
-
-  test("exactly-once gate protects onContinue from tap/auto races", () => {
-    const module = loadLoadingModule();
-    if (!module.deliverContinueOnce) throw new Error("LoadingScreen must export deliverContinueOnce");
-    const gate = { current: false };
-    const onContinue = jest.fn();
-    module.deliverContinueOnce(gate, onContinue);
-    module.deliverContinueOnce(gate, onContinue);
-    expect(onContinue).toHaveBeenCalledTimes(1);
-    expect(gate.current).toBe(true);
-  });
-
-  test("hard-ready at 9s survives an early tap and then exits exactly once", () => {
-    expect(stateAt(8_999, { readyAtMs: null, tapAtMs: 500 })).toMatchObject({
-      frame: 44,
-      phase: "waiting-ready",
-      shouldContinue: false,
-    });
-    expect(stateAt(9_000, { readyAtMs: null, tapAtMs: 500 })).toMatchObject({ frame: 45, phase: "exiting" });
-    expect(stateAt(9_239, { readyAtMs: null, tapAtMs: 500 }).shouldContinue).toBe(false);
-    expect(stateAt(9_240, { readyAtMs: null, tapAtMs: 500 })).toMatchObject({
-      phase: "done",
-      shouldContinue: true,
-    });
-  });
-
-  test("fast/late readiness, tap, auto and reduced-motion preserve the story contract", () => {
-    expect(stateAt(2_000, { tapAtMs: 500 })).toMatchObject({ phase: "story", shouldContinue: false });
-    expect(stateAt(3_600, { tapAtMs: 500 })).toMatchObject({ frame: 45, phase: "exiting" });
-    expect(stateAt(3_840, { tapAtMs: 500 })).toMatchObject({ phase: "done", shouldContinue: true });
-    expect(stateAt(4_999, { readyAtMs: 5_000 })).toMatchObject({ phase: "waiting-ready", frame: 44 });
-    expect(stateAt(5_000, { readyAtMs: 5_000 })).toMatchObject({ phase: "exiting", frame: 45 });
-    expect(stateAt(3_760)).toMatchObject({ phase: "exiting", frame: 45 });
-    expect(stateAt(4_000)).toMatchObject({ phase: "done", shouldContinue: true });
-    expect(stateAt(0, { reducedMotion: true })).toMatchObject({ frame: 44, phase: "ready" });
-    expect(stateAt(1_000, { reducedMotion: true, tapAtMs: 1_000 })).toMatchObject({
-      frame: 44,
-      phase: "done",
-      shouldContinue: true,
-    });
-  });
-
-  test("all 48 frames preserve establish, walk, turn, hold, pan, Polaris, and exit beats", () => {
-    const module = loadLoadingModule();
-    if (!module.openingSceneForFrame) throw new Error("LoadingScreen must export openingSceneForFrame");
-    const scenes = Array.from({ length: 48 }, (_, frame) => module.openingSceneForFrame?.(frame));
-    expect(scenes.slice(0, 4).every((scene) => scene?.character === null)).toBe(true);
-    expect(scenes.slice(4, 18).map((scene) => scene?.character?.kind)).toEqual(
-      Array.from({ length: 14 }, () => "walk"),
-    );
-    expect(scenes.slice(4, 18).map((scene) => scene?.character?.index)).toEqual([
-      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1,
-    ]);
-    expect(scenes.slice(18, 26).map((scene) => scene?.character?.index)).toEqual([
-      0, 1, 1, 2, 2, 3, 4, 5,
-    ]);
-    expect(scenes.slice(26, 32).every((scene) => scene?.character?.index === 5)).toBe(true);
-    expect(scenes.slice(32, 40).map((scene) => scene?.cameraTop)).toEqual([
-      -64, -48, -28, -4, 24, 48, 72, 96,
-    ]);
-    expect(scenes.slice(40, 45).map((scene) => scene?.polarisSize)).toEqual([12, 16, 20, 16, 12]);
-    expect(scenes.slice(45, 48).map((scene) => scene?.veilHeight)).toEqual([86, 174, 260]);
-    for (const scene of scenes) {
-      expect(scene).toBeDefined();
-      expect(Number.isInteger(scene?.cameraTop)).toBe(true);
-      expect(Number.isInteger(scene?.polarisSize)).toBe(true);
-      expect(Number.isInteger(scene?.veilHeight)).toBe(true);
-      if (scene?.character) {
-        expect(Number.isInteger(scene.character.index)).toBe(true);
-        expect(Number.isInteger(scene.character.centerX)).toBe(true);
-      }
-    }
   });
 });
