@@ -1253,6 +1253,9 @@ export function DeepSpacePrivacyDesignScreen() {
           prefsRef.current = known;
           prefsUserRef.current = ownerId;
         }}
+        onPrefsUnknown={(ownerId) => {
+          if (prefsUserRef.current === ownerId) prefsUserRef.current = null;
+        }}
       />
 
       <Card>

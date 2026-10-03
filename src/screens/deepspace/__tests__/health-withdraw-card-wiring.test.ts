@@ -9,9 +9,11 @@ import path from "node:path";
 //    copy its other toggles save from. Its own first read, which is fail-soft and may land
 //    last, no longer overwrites a newer copy. Without both, an analytics tap could write
 //    health_import back to true (and log a separate consent the user never gave).
-// 2. The card withdraws through the flow under an account lease with a deadline, reloads when
-//    the screen comes back into focus, and never saves prefs itself, so it has no way to turn
-//    the consent on.
+// 2. The card withdraws through the flow under an account lease, hands the OFF to the screen
+//    before it lets the screen's other toggles save again, withdraws the screen's copy when the
+//    outcome is not known, does not overwrite a copy a screen save made while it was reading,
+//    reloads when the screen comes back into focus, and never saves prefs itself, so it has no
+//    way to turn the consent on.
 // 3. Every key the card shows exists in all five locales, and each button is named by the text
 //    it shows (WCAG 2.5.3).
 // 4. The import consent chip no longer promises "90 days": nothing is deleted on day 90.
@@ -42,6 +44,9 @@ describe("health card on the privacy screen", () => {
     expect(screen).toMatch(/busy=\{busy\}/);
     expect(screen).toMatch(/onBusyChange=\{setBusy\}/);
     expect(screen).toMatch(/onPrefsKnown=\{\(ownerId, known\) => \{\s*if \(activeUserRef\.current !== ownerId\) return;\s*prefsRef\.current = known;\s*prefsUserRef\.current = ownerId;/);
+    expect(screen).toMatch(/onPrefsUnknown=\{\(ownerId\) => \{\s*if \(prefsUserRef\.current === ownerId\) prefsUserRef\.current = null;/);
+    // The analytics / ads toggle refuses to save without an owned copy, which is what onPrefsUnknown withdraws.
+    expect(screen).toMatch(/prefsUserRef\.current !== userId \|\|\s*!prefsRef\.current \|\|\s*busy\s*\) return;/);
   });
 
   test("the screen's own first read does not overwrite a newer copy", () => {
@@ -49,12 +54,15 @@ describe("health card on the privacy screen", () => {
     expect(screen).toMatch(/if \(prefsUserRef\.current !== targetUserId\) \{\s*prefsRef\.current = p;\s*prefsUserRef\.current = targetUserId;\s*\}/);
   });
 
-  test("withdraws under an account lease and a deadline, reloads on focus, never saves prefs on its own", () => {
+  test("withdraws under an account lease, hands the OFF on before unlocking, withdraws the copy when unsure", () => {
     const card = read(CARD);
     expect(card).toMatch(/beginAccountSessionLease\(owner\)/);
-    expect(card).toMatch(/withTimeout\(\s*withdrawHealthImport\(owner, healthWithdrawDeps\(\(\) => lease\.assertCurrent\(\)\)\),\s*WITHDRAW_DEADLINE_MS,/);
+    expect(card).toMatch(/withdrawHealthImport\(owner, healthWithdrawDeps\(\(\) => lease\.assertCurrent\(\), \(prefs\) => \{\s*if \(!current\(\)\) return;[^}]*knownRef\.current\(owner, prefs\);\s*setConsent\(false\);\s*releaseBusy\(\);/);
+    expect(card).not.toMatch(/withTimeout\(\s*withdrawHealthImport/);
+    expect(card).toMatch(/if \(!settled && current\(\)\) \{[^}]*unknownRef\.current\(owner\);/);
     expect(card).toMatch(/lease\.release\(\)/);
-    expect(card).toMatch(/useFocusRefetch\(/);
+    expect(card).toMatch(/useFocusRefetch\(\(\) => \{\s*if \(!runningRef\.current && !busyRef\.current\)/);
+    expect(card).toMatch(/if \(!startedBusy && !busyRef\.current && busyEpochRef\.current === epoch\) knownRef\.current\(owner, prefs\);/);
     expect(card).not.toMatch(/savePrivacyPrefs/);
     for (const file of [CARD, FLOW]) expect(read(file)).not.toMatch(/health_import:\s*true/);
   });

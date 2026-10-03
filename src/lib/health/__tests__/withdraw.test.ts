@@ -1,10 +1,19 @@
 // Turning health_import off from the privacy screen deletes what the consent let in
 // (PIPA §37③ · §38④). These run the real flow against a small in-memory account: the
-// stored prefs, the health rows per metric and the phone's automatic-read marks.
+// stored prefs, the consent_changes ledger, the health rows per metric and the phone's
+// automatic-read marks.
 import { abortError } from "../../async/abort";
+import { TimeoutError } from "../../async/with-timeout";
 import { defaultPrivacyPrefs, type PrivacyPrefs } from "../../privacy/prefs";
 import type { HealthMetricType } from "../HealthSource";
-import { healthCardMode, healthWithdrawDeps, withdrawHealthImport, WITHDRAW_METRICS, type HealthWithdrawDeps } from "../withdraw";
+import {
+  healthCardMode,
+  healthWithdrawDeps,
+  withdrawHealthImport,
+  WITHDRAW_METRICS,
+  WITHDRAW_REQUEST_DEADLINE_MS,
+  type HealthWithdrawDeps,
+} from "../withdraw";
 
 jest.mock("../../persona/load-domain-levels", () => ({ invalidateDomainLevels: jest.fn() }));
 jest.mock("../../supabase/health", () => ({
@@ -13,14 +22,15 @@ jest.mock("../../supabase/health", () => ({
   deleteHealthSamplesOfMetricByWeek: jest.fn(),
   deleteRemainingHealthSamples: jest.fn(),
 }));
-jest.mock("../../supabase/privacy", () => ({ savePrivacyPrefs: jest.fn() }));
-jest.mock("../../supabase/privacy-strict", () => ({ readPrivacyPrefsStrict: jest.fn() }));
+jest.mock("../../supabase/privacy", () => ({ recordConsentChanges: jest.fn(), savePrivacyPrefs: jest.fn() }));
+jest.mock("../../supabase/privacy-strict", () => ({ latestConsentChange: jest.fn(), readPrivacyPrefsStrict: jest.fn() }));
 jest.mock("../auto-read", () => ({ forgetHealthAutoReadMarks: jest.fn() }));
 
 const OWNER = "user-a";
 
 interface Account {
   prefs: PrivacyPrefs;
+  ledger: Array<"grant" | "revoke">;
   rows: Record<string, number>;
   armed: boolean;
 }
@@ -29,9 +39,14 @@ interface Fault {
   readFails?: boolean;
   /** Only reads after the first one fail. */
   rereadFails?: boolean;
+  /** The server refuses the update. */
   saveFails?: boolean;
-  /** The update lands on the server but its response is lost. */
+  /** The update never answers and has not landed (yet). */
+  saveTimesOut?: boolean;
+  /** The update lands but its response is lost, so the save's own ledger write never runs. */
   saveLandsThenFails?: boolean;
+  /** The save lands but its ledger write fails (it is best effort and swallows that). */
+  saveLedgerFails?: boolean;
   /** The single delete of this metric fails (a statement timeout); the week fallback works. */
   bigMetric?: HealthMetricType;
   /** The week fallback fails too. */
@@ -48,12 +63,14 @@ interface Fault {
 function setup(start: Partial<Account> = {}, fault: Fault = {}) {
   const account: Account = {
     prefs: { ...defaultPrivacyPrefs(), health_import: true, recommendations: true, external_analytics: true },
+    ledger: ["grant"],
     rows: { steps: 12, workout: 3, sleep: 7, heart_rate: 40 },
     armed: true,
     ...start,
   };
   const calls: string[] = [];
   const saves: Array<{ prefs: PrivacyPrefs; before: PrivacyPrefs }> = [];
+  const known: PrivacyPrefs[] = [];
   let current = true;
   let reads = 0;
   let counts = 0;
@@ -71,10 +88,20 @@ function setup(start: Partial<Account> = {}, fault: Fault = {}) {
     savePrefs: async (_owner, prefs, before) => {
       calls.push("save");
       saves.push({ prefs: { ...prefs }, before: { ...before } });
-      if (fault.saveFails) throw new Error("update failed");
+      if (fault.saveFails) throw new Error("update refused");
+      if (fault.saveTimesOut) throw new TimeoutError(WITHDRAW_REQUEST_DEADLINE_MS, "health_withdraw_save");
       account.prefs = { ...prefs };
       if (fault.saveLandsThenFails) throw new Error("response lost");
+      if (!fault.saveLedgerFails && before.health_import && !prefs.health_import) account.ledger.push("revoke");
       if (fault.switchAccountAfter === "save") current = false;
+    },
+    onConsentOff: (prefs) => {
+      calls.push("consent-off");
+      known.push({ ...prefs });
+    },
+    ensureRevoke: async () => {
+      calls.push("ensure-revoke");
+      if (account.ledger.at(-1) !== "revoke") account.ledger.push("revoke");
     },
     disarm: async () => {
       calls.push("disarm");
@@ -114,20 +141,23 @@ function setup(start: Partial<Account> = {}, fault: Fault = {}) {
       calls.push("invalidate");
     },
   };
-  return { account, calls, saves, deps };
+  return { account, calls, saves, known, deps };
 }
 
 describe("withdrawHealthImport", () => {
-  test("saves the OFF first, then deletes every row and confirms none are left", async () => {
-    const { account, calls, deps } = setup();
+  test("saves the OFF, hands it on before deleting, then deletes every row and confirms none are left", async () => {
+    const { account, calls, known, deps } = setup();
     const outcome = await withdrawHealthImport(OWNER, deps);
-    expect(outcome).toEqual({ kind: "done", deleted: 62, prefs: { ...account.prefs } });
+    expect(outcome).toEqual({ kind: "done", deleted: 62, exact: true, prefs: { ...account.prefs } });
     expect(account.prefs.health_import).toBe(false);
     expect(account.rows).toEqual({ steps: 0, workout: 0, sleep: 0, heart_rate: 0 });
     expect(account.armed).toBe(false);
+    expect(known).toEqual([{ ...account.prefs }]);
     expect(calls).toEqual([
       "read",
       "save",
+      "consent-off",
+      "ensure-revoke",
       "disarm",
       ...WITHDRAW_METRICS.map((metric) => `delete:${metric}`),
       "delete:rest",
@@ -143,6 +173,16 @@ describe("withdrawHealthImport", () => {
     expect(saves).toEqual([{ prefs: { ...before, health_import: false }, before }]);
   });
 
+  test("the ledger ends with exactly one revoke, also when the save's own ledger write failed", async () => {
+    const normal = setup();
+    await withdrawHealthImport(OWNER, normal.deps);
+    expect(normal.account.ledger).toEqual(["grant", "revoke"]);
+
+    const ledgerFailed = setup({}, { saveLedgerFails: true });
+    await withdrawHealthImport(OWNER, ledgerFailed.deps);
+    expect(ledgerFailed.account.ledger).toEqual(["grant", "revoke"]);
+  });
+
   test("a failed read changes nothing", async () => {
     const { account, calls, deps } = setup({}, { readFails: true });
     expect(await withdrawHealthImport(OWNER, deps)).toEqual({ kind: "unchanged", prefs: null });
@@ -152,22 +192,28 @@ describe("withdrawHealthImport", () => {
     expect(account.rows.heart_rate).toBe(40);
   });
 
-  test("a save that really failed is confirmed by a re-read and deletes nothing", async () => {
+  test("a refused save is confirmed by a re-read, deletes nothing and is not handed on as off", async () => {
     const { account, calls, deps } = setup({}, { saveFails: true });
     const outcome = await withdrawHealthImport(OWNER, deps);
     expect(outcome).toEqual({ kind: "unchanged", prefs: { ...account.prefs } });
-    expect(outcome.kind === "unchanged" && outcome.prefs?.health_import).toBe(true);
     expect(calls).toEqual(["read", "save", "read"]);
     expect(account.armed).toBe(true);
     expect(account.rows.steps).toBe(12);
   });
 
-  test("a save whose response was lost is noticed by the re-read and the deletion goes on", async () => {
+  test("a save that timed out is never reported as unchanged: it may still land", async () => {
+    const { calls, known, deps } = setup({}, { saveTimesOut: true });
+    expect(await withdrawHealthImport(OWNER, deps)).toEqual({ kind: "uncertain" });
+    expect(calls).toEqual(["read", "save", "read"]);
+    expect(known).toEqual([]);
+  });
+
+  test("a save whose response was lost is noticed by the re-read; the revoke is still recorded and the deletion goes on", async () => {
     const { account, calls, deps } = setup({}, { saveLandsThenFails: true });
     const outcome = await withdrawHealthImport(OWNER, deps);
     expect(outcome).toMatchObject({ kind: "done", deleted: 62 });
-    expect(outcome.kind === "done" && outcome.prefs.health_import).toBe(false);
-    expect(calls.slice(0, 4)).toEqual(["read", "save", "read", "disarm"]);
+    expect(calls.slice(0, 5)).toEqual(["read", "save", "read", "consent-off", "ensure-revoke"]);
+    expect(account.ledger).toEqual(["grant", "revoke"]);
     expect(account.rows.heart_rate).toBe(0);
   });
 
@@ -177,10 +223,10 @@ describe("withdrawHealthImport", () => {
     expect(calls).toEqual(["read", "save", "read"]);
   });
 
-  test("a metric too big for one delete is deleted a week at a time", async () => {
+  test("a metric too big for one delete is deleted a week at a time, and the total is marked inexact", async () => {
     const { account, calls, deps } = setup({}, { bigMetric: "heart_rate" });
     const outcome = await withdrawHealthImport(OWNER, deps);
-    expect(outcome).toMatchObject({ kind: "done", deleted: 62 });
+    expect(outcome).toMatchObject({ kind: "done", exact: false });
     expect(calls).toContain("week:heart_rate");
     expect(account.rows.heart_rate).toBe(0);
   });
@@ -195,13 +241,12 @@ describe("withdrawHealthImport", () => {
 
   test("a row that is back after the deletes is not a success", async () => {
     const { deps } = setup({}, { rowReappears: true });
-    const outcome = await withdrawHealthImport(OWNER, deps);
-    expect(outcome).toMatchObject({ kind: "partial", remaining: 1 });
+    expect(await withdrawHealthImport(OWNER, deps)).toMatchObject({ kind: "partial", remaining: 1 });
   });
 
-  test("a lost answer after every row is gone still ends as done", async () => {
+  test("a lost answer after every row is gone ends as done, without claiming a count", async () => {
     const { deps } = setup({}, { firstCountFails: true });
-    expect(await withdrawHealthImport(OWNER, deps)).toMatchObject({ kind: "done", deleted: 62 });
+    expect(await withdrawHealthImport(OWNER, deps)).toMatchObject({ kind: "done", exact: false });
   });
 
   test("when nothing can be counted the result says so instead of claiming success", async () => {
@@ -209,11 +254,15 @@ describe("withdrawHealthImport", () => {
     expect(await withdrawHealthImport(OWNER, deps)).toMatchObject({ kind: "partial", remaining: null });
   });
 
-  test("a consent already off still deletes the rows left behind, without saving", async () => {
-    const { calls, deps } = setup({ prefs: { ...defaultPrivacyPrefs(), health_import: false } });
+  test("a consent already off is handed on, deletes the rows left behind, and writes nothing to the ledger", async () => {
+    const off = { ...defaultPrivacyPrefs(), health_import: false };
+    const { account, calls, known, deps } = setup({ prefs: off, ledger: ["grant", "revoke"] });
     const outcome = await withdrawHealthImport(OWNER, deps);
-    expect(outcome).toEqual({ kind: "done", deleted: 62, prefs: { ...defaultPrivacyPrefs(), health_import: false } });
+    expect(outcome).toEqual({ kind: "done", deleted: 62, exact: true, prefs: off });
     expect(calls).not.toContain("save");
+    expect(calls).not.toContain("ensure-revoke");
+    expect(known).toEqual([off]);
+    expect(account.ledger).toEqual(["grant", "revoke"]);
   });
 
   test("stops at once when the signed-in account changes", async () => {
@@ -237,25 +286,62 @@ describe("withdrawHealthImport", () => {
 });
 
 describe("healthWithdrawDeps", () => {
+  const strict = jest.requireMock("../../supabase/privacy-strict");
+  const privacy = jest.requireMock("../../supabase/privacy");
+  const health = jest.requireMock("../../supabase/health");
+  const autoRead = jest.requireMock("../auto-read");
+  const levels = jest.requireMock("../../persona/load-domain-levels");
+
   test("the shipped flow reads strictly, saves with that read as before, and uses the owner-scoped helpers", async () => {
-    const strict = jest.requireMock("../../supabase/privacy-strict");
-    const privacy = jest.requireMock("../../supabase/privacy");
-    const health = jest.requireMock("../../supabase/health");
-    const autoRead = jest.requireMock("../auto-read");
-    const levels = jest.requireMock("../../persona/load-domain-levels");
-    const deps = healthWithdrawDeps(() => undefined);
-    expect(deps.readPrefs).toBe(strict.readPrivacyPrefsStrict);
-    expect(deps.disarm).toBe(autoRead.forgetHealthAutoReadMarks);
-    expect(deps.deleteMetric).toBe(health.deleteHealthSamplesOfMetric);
-    expect(deps.deleteMetricByWeek).toBe(health.deleteHealthSamplesOfMetricByWeek);
-    expect(deps.deleteRest).toBe(health.deleteRemainingHealthSamples);
-    expect(deps.count).toBe(health.countHealthSamples);
     const before = { ...defaultPrivacyPrefs(), health_import: true };
     const prefs = { ...before, health_import: false };
+    strict.readPrivacyPrefsStrict.mockResolvedValue(before);
+    privacy.savePrivacyPrefs.mockResolvedValue(undefined);
+    health.deleteHealthSamplesOfMetric.mockResolvedValue(3);
+    health.deleteRemainingHealthSamples.mockResolvedValue(0);
+    health.countHealthSamples.mockResolvedValue(0);
+    const onConsentOff = jest.fn();
+    const deps = healthWithdrawDeps(() => undefined, onConsentOff);
+    expect(await deps.readPrefs(OWNER)).toEqual(before);
+    expect(strict.readPrivacyPrefsStrict).toHaveBeenCalledWith(OWNER);
     await deps.savePrefs(OWNER, prefs, before);
     expect(privacy.savePrivacyPrefs).toHaveBeenCalledWith(OWNER, prefs, { before });
+    expect(await deps.deleteMetric(OWNER, "steps")).toBe(3);
+    expect(health.deleteHealthSamplesOfMetric).toHaveBeenCalledWith(OWNER, "steps");
+    await deps.deleteMetricByWeek(OWNER, "heart_rate", deps.assertCurrent);
+    expect(health.deleteHealthSamplesOfMetricByWeek).toHaveBeenCalledWith(OWNER, "heart_rate", deps.assertCurrent, WITHDRAW_REQUEST_DEADLINE_MS);
+    expect(await deps.count(OWNER)).toBe(0);
+    expect(deps.disarm).toBe(autoRead.forgetHealthAutoReadMarks);
+    deps.onConsentOff(prefs);
+    expect(onConsentOff).toHaveBeenCalledWith(prefs);
     deps.invalidate(OWNER);
     expect(levels.invalidateDomainLevels).toHaveBeenCalledWith(OWNER);
+  });
+
+  test("ensureRevoke writes only the health revoke, and only when the ledger does not end in one", async () => {
+    const before = { ...defaultPrivacyPrefs(), health_import: true, recommendations: true };
+    const deps = healthWithdrawDeps(() => undefined);
+    strict.latestConsentChange.mockResolvedValueOnce("revoke");
+    privacy.recordConsentChanges.mockClear();
+    await deps.ensureRevoke(OWNER, before);
+    expect(privacy.recordConsentChanges).not.toHaveBeenCalled();
+    strict.latestConsentChange.mockResolvedValueOnce("grant");
+    await deps.ensureRevoke(OWNER, before);
+    expect(strict.latestConsentChange).toHaveBeenLastCalledWith(OWNER, "health_import");
+    expect(privacy.recordConsentChanges).toHaveBeenCalledWith(OWNER, before, { ...before, health_import: false });
+  });
+
+  test("a request that never answers fails its step after the deadline", async () => {
+    jest.useFakeTimers();
+    try {
+      strict.readPrivacyPrefsStrict.mockReturnValueOnce(new Promise(() => undefined));
+      const read = healthWithdrawDeps(() => undefined).readPrefs(OWNER);
+      const settled = read.then(() => "answered", (error: Error) => error.name);
+      jest.advanceTimersByTime(WITHDRAW_REQUEST_DEADLINE_MS + 1);
+      expect(await settled).toBe("TimeoutError");
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 

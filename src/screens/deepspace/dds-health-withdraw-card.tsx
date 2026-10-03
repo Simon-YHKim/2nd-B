@@ -7,12 +7,14 @@
 // prefs object and two at once would put back what the other turned off. For the same reason
 // every strict read it makes goes back to the screen (onPrefsKnown), so the screen's other
 // toggles save on top of what the server holds now, not a copy from when the screen opened.
+// The flag is held only until the consent is known to be off and that copy has reached the
+// screen; the deletes that follow do not touch the prefs. When the outcome is not known, the
+// screen's copy is withdrawn (onPrefsUnknown) until a fresh strict read replaces it.
 import { useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
-import { withTimeout } from "@/lib/async/with-timeout";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { healthCardMode, healthWithdrawDeps, withdrawHealthImport } from "@/lib/health/withdraw";
@@ -21,9 +23,6 @@ import type { PrivacyPrefs } from "@/lib/privacy/prefs";
 import { countHealthSamples } from "@/lib/supabase/health";
 import { readPrivacyPrefsStrict } from "@/lib/supabase/privacy-strict";
 import { ddsStyles as styles } from "./dds-styles";
-
-/** A request with no answer must not hold the screen's busy flag for good. */
-const WITHDRAW_DEADLINE_MS = 60_000;
 
 type Notice =
   | { kind: "unchanged" }
@@ -38,9 +37,11 @@ export interface HealthWithdrawCardProps {
   onOpenImport: () => void;
   /** Prefs this card has just read or saved for this owner, newest first. */
   onPrefsKnown: (ownerId: string, prefs: PrivacyPrefs) => void;
+  /** The server state is not known after a withdrawal; the screen must not save from its copy. */
+  onPrefsUnknown: (ownerId: string) => void;
 }
 
-export function HealthWithdrawCard({ busy, onBusyChange, onOpenImport, onPrefsKnown }: HealthWithdrawCardProps) {
+export function HealthWithdrawCard({ busy, onBusyChange, onOpenImport, onPrefsKnown, onPrefsUnknown }: HealthWithdrawCardProps) {
   const { t } = useTranslation("deepspace");
   const { userId, isMinor } = useAuth();
   const [consent, setConsent] = useState<boolean | "loading" | "error">("loading");
@@ -52,6 +53,15 @@ export function HealthWithdrawCard({ busy, onBusyChange, onOpenImport, onPrefsKn
   userRef.current = userId;
   const knownRef = useRef(onPrefsKnown);
   knownRef.current = onPrefsKnown;
+  const unknownRef = useRef(onPrefsUnknown);
+  unknownRef.current = onPrefsUnknown;
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+  /** Bumped whenever the screen becomes busy: a read that overlapped a save there is older than its copy. */
+  const busyEpochRef = useRef(0);
+  useEffect(() => {
+    if (busy) busyEpochRef.current += 1;
+  }, [busy]);
   const mountedRef = useRef(true);
   const runningRef = useRef(false);
   /** Bumped by every load and every withdrawal; an answer from an older one is dropped. */
@@ -62,7 +72,7 @@ export function HealthWithdrawCard({ busy, onBusyChange, onOpenImport, onPrefsKn
   }, []);
 
   useFocusRefetch(() => {
-    if (!runningRef.current) setReload((n) => n + 1);
+    if (!runningRef.current && !busyRef.current) setReload((n) => n + 1);
   }, Boolean(userId));
 
   useEffect(() => {
@@ -76,10 +86,13 @@ export function HealthWithdrawCard({ busy, onBusyChange, onOpenImport, onPrefsKn
     const owner = userId;
     const generation = ++generationRef.current;
     const current = () => mountedRef.current && generationRef.current === generation && userRef.current === owner;
+    const epoch = busyEpochRef.current;
+    const startedBusy = busyRef.current;
     void readPrivacyPrefsStrict(owner).then(
       (prefs) => {
         if (!current()) return;
-        knownRef.current(owner, prefs);
+        // Hand it to the screen only if no save there overlapped this read.
+        if (!startedBusy && !busyRef.current && busyEpochRef.current === epoch) knownRef.current(owner, prefs);
         setConsent(prefs.health_import === true);
       },
       () => { if (current()) setConsent("error"); },
@@ -96,22 +109,31 @@ export function HealthWithdrawCard({ busy, onBusyChange, onOpenImport, onPrefsKn
     const generation = ++generationRef.current;
     const lease = beginAccountSessionLease(owner);
     const current = () => mountedRef.current && generationRef.current === generation && userRef.current === owner;
+    let holdingBusy = true;
+    const releaseBusy = () => {
+      if (!holdingBusy) return;
+      holdingBusy = false;
+      if (mountedRef.current) onBusyChange(false);
+    };
     runningRef.current = true;
     setRunning(true);
     onBusyChange(true);
     setNotice(null);
+    let settled = false;
     try {
-      const outcome = await withTimeout(
-        withdrawHealthImport(owner, healthWithdrawDeps(() => lease.assertCurrent())),
-        WITHDRAW_DEADLINE_MS,
-        "health_withdraw",
-      );
-      if (outcome.kind === "aborted" || !current()) return;
-      if (outcome.kind === "uncertain") {
-        setConsent("error");
-        setNotice({ kind: "uncertain" });
+      const outcome = await withdrawHealthImport(owner, healthWithdrawDeps(() => lease.assertCurrent(), (prefs) => {
+        if (!current()) return;
+        // The screen's other toggles may save again from here on: give them this copy first.
+        knownRef.current(owner, prefs);
+        setConsent(false);
+        releaseBusy();
+      }));
+      if (outcome.kind === "aborted" || !current()) {
+        settled = true;
         return;
       }
+      if (outcome.kind === "uncertain") return;
+      settled = true;
       if (outcome.prefs) {
         knownRef.current(owner, outcome.prefs);
         setConsent(outcome.prefs.health_import === true);
@@ -120,24 +142,25 @@ export function HealthWithdrawCard({ busy, onBusyChange, onOpenImport, onPrefsKn
         setNotice({ kind: fromResidue ? "deleteFailed" : "unchanged" });
       } else if (outcome.kind === "done") {
         setCount(0);
-        setNotice({ kind: "done", deleted: outcome.deleted });
+        setNotice(outcome.exact ? { kind: "done", deleted: outcome.deleted } : { kind: "done", deleted: 0 });
       } else {
         setCount(outcome.remaining);
         setNotice({ kind: "partial", remaining: outcome.remaining });
       }
     } catch {
-      // Timed out or failed in a way the flow could not classify: what landed is unknown.
-      if (current()) {
+      // A failure the flow could not classify: what landed is not known.
+    } finally {
+      if (!settled && current()) {
+        // The consent may be on or off: the screen must not save from a copy that may be stale.
+        unknownRef.current(owner);
         setConsent("error");
         setNotice({ kind: "uncertain" });
+        setReload((n) => n + 1);
       }
-    } finally {
       lease.release();
       runningRef.current = false;
-      if (mountedRef.current) {
-        setRunning(false);
-        onBusyChange(false);
-      }
+      if (mountedRef.current) setRunning(false);
+      releaseBusy();
     }
   }
 

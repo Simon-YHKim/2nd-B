@@ -21,7 +21,8 @@ function builder(): unknown {
   }
   target.maybeSingle = () => {
     chain.calls.push(["maybeSingle", []]);
-    return Promise.resolve(next());
+    const result = next() as Result & { hang?: boolean };
+    return result.hang ? new Promise(() => undefined) : Promise.resolve(result);
   };
   target.then = (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
     Promise.resolve(next()).then(resolve, reject);
@@ -43,7 +44,7 @@ import {
   deleteHealthSamplesOfMetricByWeek,
   deleteRemainingHealthSamples,
 } from "../health";
-import { readPrivacyPrefsStrict } from "../privacy-strict";
+import { latestConsentChange, readPrivacyPrefsStrict } from "../privacy-strict";
 
 beforeEach(() => {
   chain.calls = [];
@@ -101,6 +102,19 @@ describe("health_samples withdrawal queries", () => {
     ]);
   });
 
+  test("the week fallback gives each request a deadline when asked to", async () => {
+    jest.useFakeTimers();
+    try {
+      chain.queue = [{ hang: true } as unknown as Result];
+      const run = deleteHealthSamplesOfMetricByWeek("user-a", "heart_rate", () => undefined, 1000);
+      const settled = run.then(() => "answered", (error: Error) => error.name);
+      jest.advanceTimersByTime(1001);
+      expect(await settled).toBe("TimeoutError");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test("the week fallback stops when the account changes", async () => {
     chain.queue = [{ error: null, data: { started_at: "2026-01-01T00:00:00.000Z" } }];
     await expect(deleteHealthSamplesOfMetricByWeek("user-a", "steps", () => {
@@ -138,7 +152,25 @@ describe("health_samples withdrawal queries", () => {
   });
 });
 
-describe("strict consent read", () => {
+describe("strict consent reads", () => {
+  test("the latest ledger row for one key, newest first", async () => {
+    chain.result = { error: null, data: { event_type: "revoke" } };
+    expect(await latestConsentChange("user-a", "health_import")).toBe("revoke");
+    expect(chain.calls).toEqual([
+      ["from", ["consent_changes"]],
+      ["select", ["event_type"]],
+      ["eq", ["user_id", "user-a"]],
+      ["eq", ["pref_key", "health_import"]],
+      ["order", ["created_at", { ascending: false }]],
+      ["limit", [1]],
+      ["maybeSingle", []],
+    ]);
+    chain.result = { error: null, data: null };
+    expect(await latestConsentChange("user-a", "health_import")).toBeNull();
+    chain.result = { error: new Error("network"), data: null };
+    await expect(latestConsentChange("user-a", "health_import")).rejects.toThrow("network");
+  });
+
   test("reads the stored prefs of one owner", async () => {
     chain.result = { error: null, data: { privacy_prefs: { health_import: true } } };
     const prefs = await readPrivacyPrefsStrict("user-a");
