@@ -154,16 +154,22 @@ Q-261002-01 을 썼으니 보고서 이름으로 구분한다.
   강요가 된다(§38④ 취지). 그 사람은 나머지 넷만 체크하고, AI 처리는 철회 상태 그대로다. 서버는 그 확인 기록이
   AI 동의를 되살리지 않는 행 모양으로 받는다(T1: `llm_consent_current_decision` 은 모든 튜플을 현재로 보므로,
   email-v8 행이 llmProcessing 을 품으면 철회가 뒤집힌다). "AI 처리는 멈추지 않는다"(03 = A)는 이미 동의한 사람에 대한 말이다.
+- **철회는 `revoked` 하나뿐이다 (10-04 정정).** 10-03 코드는 `blocked`(선택 항목이 꺼졌거나 옛 영수증이라 AI가 꺼진 계정)도
+  넷만 묻게 묶었는데, 그건 본인이 철회한 것이 아니라 위 보호의 대상이 아니다. `blocked` 는 다섯 개를 다시 체크하고 서버에는 grant 로
+  남는다(선택 항목이 꺼져 있으면 grant 뒤에도 AI는 꺼진 채다). 서버의 넷 확인(`confirm`)은 `revoked` 에서만 받는다.
 - **막는 것(03 = A)의 예외가 05 = A 다.** 판정은 `src/lib/legal/reconsent-gate.ts` 의 `reconsentGateMode` 가 한다
-  (스위치 `RECONSENT_GATE_ENABLED = false`, 처리방침 개정 전에는 켤 수 없다는 테스트가 붙어 있다).
+  (스위치 `RECONSENT_GATE_ENABLED = false`, 처리방침 개정 전에는 켤 수 없다는 테스트가 붙어 있다). 서버가 확인을 기록할 수 없는
+  계정(`can_grant` false: 비활성 · 나이와 등급 불일치 등)도 안내만 받는다. 막아 놓고 저장할 길이 없으면 출구만 남기 때문이다(10-04).
 
 **자리와 스위치 (그대로).** `_layout.tsx` 의 IntroGate 와 AvatarSetupGate 사이에 ReconsentGate 를 둔다. 예외 경로는
 (auth) · onboarding · service-consent · reset-password 이고, dashboard 는 예외가 아니다. 스위치는 두 겹이다. 클라이언트
-상수(판본 · 한·영 캘린더 절 · v3)와 서버 신호(시행일 전에는 '재동의 필요'를 주지 않음)가 모두 켜져야 한다.
+상수(판본 · 한·영 캘린더 절 · v3)와 서버 신호가 모두 켜져야 한다. ⚠ 10-04 정정: 서버 신호에 날짜 판정은 넣지 않았다.
+두 번째 겹은 배포 순서다. v3 상태 경로는 개정 PR 과 함께 나가는 v3 클라이언트만 부른다. DB 시각으로 날짜를 판정하면 시행일
+전에는 CI 가 그 분기를 검사할 수 없다.
 
-**서버 (#1902 머지 뒤 별도 마이그레이션).** email-v8 튜플, service-v3 status(재동의 필요 신호), writer v3 분기,
-옛 리비전 grant 닫기(구판 앱이 옛 튜플로 저장하고 성공으로 오인하는 것을 막음)가 들어간다. 03 = A 이므로 현재 판
-목록은 줄이지 않는다(옛 판 동의도 계속 유효).
+**서버 (#1902 머지 뒤 별도 마이그레이션).** email-v8 튜플, service-v3 status(재동의 필요 신호), writer v3 분기가 들어간다.
+03 = A 이므로 현재 판 목록은 줄이지 않는다(옛 판 동의도 계속 유효). ~~옛 리비전 grant 닫기~~는 §8 조사(10-03)에서 빠졌다.
+옛 앱이 옛 튜플로 저장해도 유효하고, 새 앱에서는 재동의 신호가 다시 게이트를 띄운다.
 
 **처리방침 문장 (개정 PR 에 넣을 것).**
 
@@ -197,8 +203,8 @@ Q-261002-01 을 썼으니 보고서 이름으로 구분한다.
 |---|---|---|---|
 | 0 | #1902 머지(email-v7 · service-v2 · PolaScope) | #1902 세션 | 아래 전부 |
 | 1 | 운영 `LLM_CONSENT_MODE=collect` (Q-261003-01 = **A**, 10-04: #1902 출시 직후) | 코딩 세션(GO 받음) | 재동의 저장 · AI 동의 영수증 |
-| 2 | 서버 마이그레이션(번호는 push 직전 0210 이상) | 코딩 세션 + 운영 적용 GO | 3 · 4 |
-| 3 | Edge `service-consent` 판별 맵(v1 · v2 · v3) 재배포 | 코딩 세션(배포 승인은 세션 몫) | 4 |
+| 2 | 서버 마이그레이션(번호는 push 직전 0210 이상). **초안: Draft PR #2024**(#1902 위, 10-04) | 코딩 세션 + 운영 적용 GO | 3 · 4 |
+| 3 | Edge `service-consent` 판별 맵(v1 · v2 · v3) 재배포. **같은 Draft PR #2024** | 코딩 세션(배포 승인은 세션 몫) | 4 |
 | 4 | 클라이언트: 처리방침 개정(한 · 영 + `public/legal` 재생성) · 판본 상수 · ReconsentGate 화면과 저장 | 코딩 세션 | 시행 |
 | 5 | 그 PR 머지 = 시행일, 같은 날 웹 게시 | 코딩 세션 | - |
 | 6 | 캘린더 켜기: `calendar_import` 동의 키 + 미성년 잠금 마이그레이션 · 연결 화면 · 하루 한 번 읽기 · iOS 문구(새 네이티브 빌드) · Play 데이터 보안 | 코딩 세션 + Simon(Play 제출) | `PHONE_CALENDAR_READ_ENABLED` |
@@ -216,10 +222,20 @@ Q-261002-01 을 썼으니 보고서 이름으로 구분한다.
   revoke 는 v1 · v2 에서도 계속 받는다.
 - 확인은 로컬 PG 재생(sql job 전 레인)으로 하고, 일회용 계정으로 grant · revoke · 경합 canary 를 운영에서 돌린 뒤 4 로 간다.
 
+**2 · 3 초안 (Draft PR #2024, 10-04).** 위 설계 그대로다. 정해진 것:
+- 철회자의 확인은 writer 의 새 동작 `confirm`(service-v3 전용)이다. 필수 넷만 받고 `llm_processing_ack=false` ·
+  `service_action='revoke'` 로 저장한다. `revoked` 상태가 아니면 거부한다. 철회자가 다시 AI를 켜고 싶으면 다섯 개 grant 로 한다.
+- `needs_reconsent` 는 최신 서비스 기록(grant · 철회 · 확인 모두)의 튜플이 email-v8 이 아니거나 기록이 없으면 true 다.
+- SQL 은 #1902 초안 함수 본문을 `scripts/build-reconsent-v8-draft.py` 가 복사한 뒤 검토된 치환만 한 생성물이다. 시행일이
+  밀리면 그 스크립트의 `EFFECTIVE` 하나를 고치고 다시 만든다.
+- 확인: 로컬 PG 18 재생 30레인 중 29 초록(08 은 로컬에 CLI 없음), 새 단계 PASS, SQL 변이 12/12 · Edge 변이 6/6.
+  Edge 배포 스키마 게이트가 `llm_service_consent_status_v3` 를 의존성으로 잡아 SQL 없이 Edge 를 배포할 수 없다.
+
 **4 클라이언트.** `src/lib/legal/reconsent-gate.ts` 의 `reconsentGateMode` 에 `needsConfirmation = status.needs_reconsent` 를 넣는다.
+`canGrant = status.can_grant` 도 넣는다(false 면 안내만). 철회자(`revoked`)의 저장은 `confirm`, 나머지는 grant 다.
 게이트 화면은 대조표(바뀐 점) · 시행일 · 이전 판 · 전문 링크 · 필수 5개(철회자는 4개) · 캘린더 한 줄 · 출구 5개다.
-스위치 `RECONSENT_GATE_ENABLED` 는 처리방침 개정과 같은 PR 에서 켜고, 서버 신호(시행일 전에는 needs_reconsent 를 주지 않음)가
-두 번째 겹이다. 새 한국어 문구는 말투 B안(사실은 ~습니다)을 따른다.
+스위치 `RECONSENT_GATE_ENABLED` 는 처리방침 개정과 같은 PR 에서 켠다. 두 번째 겹은 배포 순서다(v3 경로는 그 PR 의 클라이언트만
+부른다, 위 10-04 정정). 새 한국어 문구는 말투 B안(사실은 ~습니다)을 따른다.
 
 ### 8-1. 동의 모드 켜기 절차 (Q-261003-01 = A, 10-04)
 

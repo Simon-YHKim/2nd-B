@@ -30,7 +30,23 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-04 00:55 / Q-261003-01 = A: 운영 동의 모드는 #1902 출시 직후 collect · 켜는 절차와 프록시 준비 확인
+## Latest — 2026-10-04 04:11 / 재동의 서버 초안 Draft #2024(#1902 위) · 게이트의 blocked 규칙 정정
+
+- **무엇을**: "할일 진행해줘." 남은 일은 전부 #1902(다른 세션 Draft, 10-01 이후 갱신 없음)에 막혀 있다. 그 세션의 몫(#1902 머지 · 인수)은 건드리지 않고,
+  §8 의 2 · 3 단계를 **#1902 브랜치를 base 로 한 Draft PR [#2024](https://github.com/Simon-YHKim/2nd-B/pull/2024)** 로 미리 쌓았다. 머지 · 번호 · 운영 적용 없음.
+  - SQL `db/migration-drafts/UNNUMBERED_reconsent_v8_20261005.sql`: email-v8 · v4~v7 유지 · `llm_service_consent_status_v3.needs_reconsent` ·
+    writer service-v3 + 철회자 전용 `confirm`(넷만, `llm_processing_ack=false` · `service_action='revoke'` 로 저장 → 철회가 안 되살아남).
+    #1902 초안 함수 본문을 `scripts/build-reconsent-v8-draft.py` 가 복사 + 검토된 치환만. 시행일이 밀리면 `EFFECTIVE` 하나 고치고 재생성.
+  - Edge `service-consent`: service-v3 상태(키 정확 일치) · grant · confirm(v3 전용) · revoke. v1 · v2 그대로.
+  - 검증: 로컬 PG 18 재생 실행 가능 30레인 중 29 초록(08 = 로컬에 CLI 없음), #1902 단계 · 새 단계 PASS · SQL 변이 12/12 · Edge 변이 6/6 ·
+    `npm run verify` 865 묶음 11,240건. Edge 배포 스키마 게이트가 `llm_service_consent_status_v3` 를 의존성으로 잡는다(SQL 없이 Edge 배포 불가).
+- **정정(이 PR)**: `src/lib/legal/reconsent-gate.ts` 가 `blocked` 도 넷만 묻게 묶고 있었다(§7-2 원문은 철회자만). blocked 는 다섯 개를 체크하고,
+  `canGrant`(서버 `can_grant`) false 면 안내만. 게이트는 아직 꺼져 있어 앱 화면은 그대로다. DECISIONS 26.10.04 04:11 줄.
+- **문서 안 충돌 정리**: 초안 문서 §7-2 의 "옛 리비전 grant 닫기"(§8 조사에서 빠진 것) · "시행일 전에는 서버가 신호를 주지 않음"(실제 두 번째 겹은 배포 순서)을 고쳐 적었다.
+- **다음 1개**: #1902 출시가 끝나면 §8-1(collect 켜기 + 카나리아). 그다음 #2024 를 main 기준으로 다시 쌓아(그때 #1902 는 머지돼 있다) 번호를 받고 운영 적용 GO.
+- **막힌 것**: #1902 (다른 세션). 캘린더 켜기 · 처리방침 개정 PR 은 2 · 3 뒤.
+
+## 2026-10-04 00:55 / Q-261003-01 = A: 운영 동의 모드는 #1902 출시 직후 collect · 켜는 절차와 프록시 준비 확인
 
 - **Simon**: "a 안으로 가자." 운영 `LLM_CONSENT_MODE` 를 #1902 머지 직후 collect 로 켠다. DECISIONS 26.10.04 00:55 줄.
 - **해석**: '직후'는 #1902 출시 단계(SQL 적용 → Edge 배포 → 클라이언트 머지)가 끝난 직후다. 10-04 00:52 기준 #1902 는 아직 Draft 이고 10-01 이후 갱신이 없다.
