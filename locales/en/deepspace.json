@@ -1191,21 +1191,21 @@
   "reviewNothingToReview": "No test results to review yet. Take a test to get started.",
   "privacyHealth": {
     "title": "Health data link",
-    "onBody": "On. Turning it off deletes the {{count}} health records stored in the app right away and stops the automatic read on this phone.",
-    "onBodyNoCount": "On. Turning it off deletes the health records stored in the app right away and stops the automatic read on this phone.",
+    "onBody": "On. Health records stored in the app: {{count}}. Turning it off deletes them right away and stops the automatic read.",
+    "onBodyNoCount": "On. Turning it off deletes the health records stored in the app right away and stops the automatic read.",
     "keeps": "This button does not delete the originals or the permission in your phone's health app, routine check-offs, or health records imported from a file.",
     "turnOff": "Turn off and delete health records",
     "turnOffA11y": "Turn off the health data link and delete the stored health records",
-    "residueBody": "Off, but {{count}} health records are still stored.",
+    "residueBody": "Off, but some health records are still stored ({{count}}).",
     "deleteRest": "Delete the remaining health records",
     "offBody": "Off. You can turn it on from the import screen.",
     "openImport": "Open the import screen",
     "loadFailed": "The link status could not be loaded.",
     "retryLoad": "Load again",
     "unchanged": "It could not be turned off. Nothing changed. Please try again in a moment.",
-    "partial": "The link is off, so no new records come in. {{count}} health records could not be deleted yet. Please delete them again.",
+    "partial": "The link is off, so no new records come in. Health records not deleted yet: {{count}}. Please delete them again.",
     "partialNoCount": "The link is off, so no new records come in. It could not be confirmed that every health record was deleted. Please delete them again.",
-    "done": "Deleted {{count}} health records. The link is off.",
+    "done": "Health records deleted: {{count}}. The link is off.",
     "doneNone": "The link is off, and no health records are left."
   }
 }

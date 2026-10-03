@@ -1191,21 +1191,21 @@
   "reviewNothingToReview": "Faça um teste primeiro. Ainda não há nada medido para rever.",
   "privacyHealth": {
     "title": "Vínculo de dados de saúde",
-    "onBody": "Ativado. Ao desativar, os {{count}} registros de saúde salvos no app são apagados na hora e a leitura automática neste celular para.",
-    "onBodyNoCount": "Ativado. Ao desativar, os registros de saúde salvos no app são apagados na hora e a leitura automática neste celular para.",
+    "onBody": "Ativado. Registros de saúde salvos no app: {{count}}. Ao desativar, eles são apagados na hora e a leitura automática para.",
+    "onBodyNoCount": "Ativado. Ao desativar, os registros de saúde salvos no app são apagados na hora e a leitura automática para.",
     "keeps": "Este botão não apaga os originais nem a permissão no app de saúde do celular, as rotinas marcadas como feitas nem os registros de saúde importados de um arquivo.",
     "turnOff": "Desativar e apagar registros de saúde",
     "turnOffA11y": "Desativar o vínculo de dados de saúde e apagar os registros de saúde salvos",
-    "residueBody": "Desativado, mas ainda há {{count}} registros de saúde salvos.",
+    "residueBody": "Desativado, mas ainda há registros de saúde salvos ({{count}}).",
     "deleteRest": "Apagar os registros de saúde restantes",
     "offBody": "Desativado. Você pode ativar na tela de importação.",
     "openImport": "Abrir a tela de importação",
     "loadFailed": "Não foi possível carregar o estado do vínculo.",
     "retryLoad": "Carregar de novo",
     "unchanged": "Não foi possível desativar. Nada mudou. Tente de novo em instantes.",
-    "partial": "O vínculo está desativado, então nenhum registro novo entra. Ainda não foi possível apagar {{count}} registros de saúde. Apague de novo.",
+    "partial": "O vínculo está desativado, então nenhum registro novo entra. Registros de saúde ainda não apagados: {{count}}. Apague de novo.",
     "partialNoCount": "O vínculo está desativado, então nenhum registro novo entra. Não foi possível confirmar que todos os registros de saúde foram apagados. Apague de novo.",
-    "done": "{{count}} registros de saúde apagados. O vínculo está desativado.",
+    "done": "Registros de saúde apagados: {{count}}. O vínculo está desativado.",
     "doneNone": "O vínculo está desativado e não há registros de saúde salvos."
   }
 }

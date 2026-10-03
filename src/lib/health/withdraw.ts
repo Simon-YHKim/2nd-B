@@ -23,7 +23,7 @@ import type { PrivacyPrefs } from "../privacy/prefs";
 import { countHealthSamples, deleteHealthSamplesOfMetric, deleteRemainingHealthSamples } from "../supabase/health";
 import { recordConsentChanges, savePrivacyPrefs } from "../supabase/privacy";
 import { latestConsentChange, readPrivacyPrefsStrict } from "../supabase/privacy-strict";
-import { disarmHealthAutoRead } from "./auto-read";
+import { forgetHealthAutoReadMarks } from "./auto-read";
 import type { HealthMetricType } from "./HealthSource";
 
 /** health_samples.metric_type (0049). One delete per metric keeps each statement short. */
@@ -60,7 +60,7 @@ export function healthWithdrawDeps(assertCurrent: () => void): HealthWithdrawDep
     savePrefs: (ownerId, prefs) => savePrivacyPrefs(ownerId, prefs),
     latestRevokeOrGrant: (ownerId) => latestConsentChange(ownerId, "health_import"),
     recordChanges: recordConsentChanges,
-    disarm: disarmHealthAutoRead,
+    disarm: forgetHealthAutoReadMarks,
     deleteMetric: deleteHealthSamplesOfMetric,
     deleteRest: deleteRemainingHealthSamples,
     count: countHealthSamples,

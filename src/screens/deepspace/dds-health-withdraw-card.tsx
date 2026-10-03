@@ -144,8 +144,8 @@ export function HealthWithdrawCard({ busy, onBusyChange, onOpenImport, onPrefsSa
       ) : (
         <>
           <Text variant="subtle" style={styles.footer}>{t("privacyHealth.offBody")}</Text>
-          <Pressable onPress={onOpenImport} disabled={locked} accessibilityRole="link" accessibilityLabel={t("privacyHealth.openImport")}>
-            <Text variant="body" style={styles.link}>{t("privacyHealth.openImport")}</Text>
+          <Pressable style={styles.secondary} onPress={onOpenImport} disabled={locked} accessibilityRole="link" accessibilityLabel={t("privacyHealth.openImport")}>
+            <Text variant="body" style={styles.secondaryText}>{t("privacyHealth.openImport")}</Text>
           </Pressable>
         </>
       )}

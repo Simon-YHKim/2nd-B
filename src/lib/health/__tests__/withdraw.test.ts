@@ -5,13 +5,17 @@
 import { abortError } from "../../async/abort";
 import { defaultPrivacyPrefs, type PrivacyPrefs } from "../../privacy/prefs";
 import type { HealthMetricType } from "../HealthSource";
-import { healthCardMode, withdrawHealthImport, WITHDRAW_METRICS, type HealthWithdrawDeps } from "../withdraw";
+import { healthCardMode, healthWithdrawDeps, withdrawHealthImport, WITHDRAW_METRICS, type HealthWithdrawDeps } from "../withdraw";
 
 jest.mock("../../persona/load-domain-levels", () => ({ invalidateDomainLevels: jest.fn() }));
-jest.mock("../../supabase/health", () => ({}));
-jest.mock("../../supabase/privacy", () => ({}));
-jest.mock("../../supabase/privacy-strict", () => ({}));
-jest.mock("../auto-read", () => ({}));
+jest.mock("../../supabase/health", () => ({
+  countHealthSamples: jest.fn(),
+  deleteHealthSamplesOfMetric: jest.fn(),
+  deleteRemainingHealthSamples: jest.fn(),
+}));
+jest.mock("../../supabase/privacy", () => ({ recordConsentChanges: jest.fn(), savePrivacyPrefs: jest.fn() }));
+jest.mock("../../supabase/privacy-strict", () => ({ latestConsentChange: jest.fn(), readPrivacyPrefsStrict: jest.fn() }));
+jest.mock("../auto-read", () => ({ forgetHealthAutoReadMarks: jest.fn() }));
 
 const OWNER = "user-a";
 
@@ -207,6 +211,30 @@ describe("withdrawHealthImport", () => {
     };
     expect(await withdrawHealthImport(OWNER, deps)).toEqual({ kind: "aborted" });
     expect(calls).toEqual([]);
+  });
+});
+
+describe("healthWithdrawDeps", () => {
+  test("the shipped flow reads strictly and uses the owner-scoped helpers", async () => {
+    const strict = jest.requireMock("../../supabase/privacy-strict");
+    const privacy = jest.requireMock("../../supabase/privacy");
+    const health = jest.requireMock("../../supabase/health");
+    const autoRead = jest.requireMock("../auto-read");
+    const levels = jest.requireMock("../../persona/load-domain-levels");
+    const deps = healthWithdrawDeps(() => undefined);
+    expect(deps.readPrefs).toBe(strict.readPrivacyPrefsStrict);
+    expect(deps.recordChanges).toBe(privacy.recordConsentChanges);
+    expect(deps.disarm).toBe(autoRead.forgetHealthAutoReadMarks);
+    expect(deps.deleteMetric).toBe(health.deleteHealthSamplesOfMetric);
+    expect(deps.deleteRest).toBe(health.deleteRemainingHealthSamples);
+    expect(deps.count).toBe(health.countHealthSamples);
+    const prefs = { ...defaultPrivacyPrefs(), health_import: false };
+    await deps.savePrefs(OWNER, prefs);
+    expect(privacy.savePrivacyPrefs).toHaveBeenCalledWith(OWNER, prefs);
+    await deps.latestRevokeOrGrant(OWNER);
+    expect(strict.latestConsentChange).toHaveBeenCalledWith(OWNER, "health_import");
+    deps.invalidate(OWNER);
+    expect(levels.invalidateDomainLevels).toHaveBeenCalledWith(OWNER);
   });
 });
 

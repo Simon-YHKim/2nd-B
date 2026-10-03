@@ -218,7 +218,7 @@ export async function armHealthAutoRead(ownerId: string, at: Date = new Date()):
  * Turning it on again then needs the explicit '오늘 반영' tap before the automatic read
  * resumes, instead of picking up silently from the old mark. True when all marks are gone.
  */
-export async function disarmHealthAutoRead(ownerId: string): Promise<boolean> {
+export async function forgetHealthAutoReadMarks(ownerId: string): Promise<boolean> {
   return clearAutoReadMarks(ownerId);
 }
 
