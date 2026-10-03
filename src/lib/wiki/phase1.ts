@@ -19,6 +19,7 @@ import { INJECTION_GUARD, wrapUntrusted } from "@/lib/llm/untrusted";
 import { getEnv } from "@/lib/env";
 
 import { getSource } from "./queries";
+import { isAiExcludedSource, SourceAiExcludedError } from "./ai-exclusion";
 import { downloadRawClipping } from "./storage";
 import { getSupabaseClient } from "../supabase/client";
 import { containsForbiddenLexicon } from "../safety/classifier";
@@ -186,7 +187,9 @@ export async function runPhase1(input: RunPhase1Input): Promise<Phase1Result> {
   const source = await getSource(input.userId, input.sourceId);
   if (!source) throw new Error(`No source row for id=${input.sourceId}`);
 
+  if (isAiExcludedSource(source.frontmatter)) throw new SourceAiExcludedError(input.sourceId);
   const body = await downloadRawClipping(source.storage_path);
+  if (isAiExcludedSource(null, body)) throw new SourceAiExcludedError(input.sourceId);
   const env = getEnv();
 
   const reply = await callLlm({
