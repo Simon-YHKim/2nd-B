@@ -127,7 +127,7 @@ describe("opening playback clock", () => {
 });
 
 describe("approved opening screen", () => {
-  test.each(["ios", "web"] as const)("%s uses approved images with no visible buttons, tap anywhere to skip", platform => {
+  test.each(["ios", "web"] as const)("%s uses approved images with one small corner skip and no sound toggle", platform => {
     const module = loadScreen(platform), markup = renderToStaticMarkup(React.createElement(module.LoadingScreen, { ready: true }));
     expect(markup).toContain('data-testid="hustlek-approved-opening"');
     expect(markup).toContain('data-testid="opening-background"'); expect(markup).toContain('data-testid="opening-telescope"');
@@ -144,7 +144,7 @@ describe("approved opening screen", () => {
     for (const namespace of namespaces) {
       expect(Object.keys(namespace).sort()).toEqual(Object.keys(namespaces[0]).sort());
       for (const key of ["hint", "open", "opening", "loading"]) expect(namespace[key]).toContain("PolaScope");
-      for (const key of ["skip", "skipHint", "retry"]) expect(namespace[key].length).toBeGreaterThan(0);
+      for (const key of ["skip", "skipShort", "skipHint", "retry"]) expect(namespace[key].length).toBeGreaterThan(0);
     }
     expect(namespaces[1].enterHint).toBe("두 번 탭하면 메인 화면으로 이동합니다.");
   });

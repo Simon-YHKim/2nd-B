@@ -132,12 +132,12 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
       <SceneImage box={scene.star} testID="opening-polaris" onError={failImage} />
       {scene.twinkle.rects.map((pixel, index) => <View key={index} style={[styles.pixel, { left: scene.twinkle.left + pixel.left, top: scene.twinkle.top + pixel.top, width: pixel.width, height: pixel.height, backgroundColor: pixel.color, opacity: pixel.alpha }]} />)}
     </View>
-    {/* No visible buttons over the opening (Simon localhost QA 2026-10-03: the
-        skip and sound buttons were removed). Tapping anywhere still ends it once
-        the app is ready, and screen readers reach the same action here. Sound
+    {/* One small skip button in the bottom-right corner (Simon localhost QA
+        2026-10-03: "건너뛰기를 우 하단에다가 작게"). It looks small, but hitSlop
+        keeps the touch target at 44 dp. The sound toggle stays removed; sound
         keeps its platform default: on in the native app, off on the web. */}
-    <Pressable testID="opening-skip" style={styles.tapLayer} onPress={skip} disabled={!ready} accessibilityRole="button" accessibilityLabel={t("loadingGate.skip")} accessibilityHint={t("loadingGate.skipHint")} accessibilityState={{ disabled: !ready }}>
-      <View pointerEvents="none" style={styles.fill} />
+    <Pressable testID="opening-skip" style={[styles.skip, { bottom: insets.bottom + 12, right: insets.right + 16 }]} hitSlop={8} onPress={skip} disabled={!ready} accessibilityRole="button" accessibilityLabel={t("loadingGate.skip")} accessibilityHint={t("loadingGate.skipHint")} accessibilityState={{ disabled: !ready }}>
+      <Text style={[styles.skipText, !ready && styles.disabled]}>{t("loadingGate.skipShort")}</Text>
     </Pressable>
     {assetError ? <Pressable testID="opening-retry" style={[styles.error, { bottom: insets.bottom + 32 }]} onPress={() => setAttempt(value => value + 1)} accessibilityRole="button"><Text style={styles.buttonText}>{t("loadingGate.retry")}</Text></Pressable> : null}
     {!assetError && (!playbackReady || plan.phase === "waiting-ready") ? <Text style={[styles.hint, { bottom: insets.bottom + 32 }]}>{t("loadingGate.loading")}</Text> : null}
@@ -149,8 +149,9 @@ const styles = StyleSheet.create({
   stage: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, overflow: "hidden" },
   image: { position: "absolute" },
   pixel: { position: "absolute", zIndex: 5 },
-  tapLayer: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, zIndex: 5 },
-  fill: { flex: 1 },
+  skip: { position: "absolute", zIndex: 7, minHeight: 28, justifyContent: "center", paddingHorizontal: 8, backgroundColor: deepSpace.bgEdge, borderWidth: 1, borderColor: deepSpace.accentDim },
+  skipText: { color: deepSpace.textHi, fontFamily: fontFamilies.pixelKo, fontSize: typography.sizes.xs, lineHeight: 18, paddingBottom: 2 },
+  disabled: { color: deepSpace.textMuted },
   buttonText: { color: deepSpace.textHi, fontFamily: fontFamilies.pixelKo, fontSize: typography.sizes.xs, lineHeight: 20, paddingBottom: 2 },
   hint: { position: "absolute", zIndex: 6, left: 24, right: 24, textAlign: "center", color: deepSpace.textHi, fontFamily: fontFamilies.pixelKo, fontSize: typography.sizes.xs, lineHeight: 20, paddingBottom: 2 },
   error: { position: "absolute", zIndex: 6, alignSelf: "center", minHeight: 44, justifyContent: "center", paddingHorizontal: 16, backgroundColor: deepSpace.bgEdge },

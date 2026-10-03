@@ -67,7 +67,9 @@
     "loading": "Loading PolaScope",
     "enterHint": "Double tap to enter the main screen.",
     "skipHint": "Double tap to skip the intro animation.",
-    "skip": "Skip opening",
+    "skip": "Skip opening",
+
+    "skipShort": "Skip",
     "retry": "Retry opening"
   },
   "worldview": {

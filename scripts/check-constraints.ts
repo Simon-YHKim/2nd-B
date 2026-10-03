@@ -1183,8 +1183,8 @@ results.push(
       formats.includes("PreferenceSwitch") &&
       formats.includes('accessibilityLabel={tf("deleteModal.label")}') &&
       formats.includes('accessibilityLabel={tf("guideModal.label")}') &&
-      // The approved opening shows no buttons (Simon 2026-10-03): tap-to-skip
-      // and retry keep their own roles and states; the sound toggle stays gone.
+      // The approved opening has one small bottom-right skip and a retry, each
+      // with its own role and state (Simon 2026-10-03); the sound toggle stays gone.
       openingA11yContract(loadingScreen) &&
       oauthCallback.includes('accessibilityRole="alert"') &&
       oauthCallback.includes("accessibilityLabel={retryLabel}") &&
