@@ -132,7 +132,7 @@ function RlssSurvey({
           : `Life satisfaction: ${result.mean.toFixed(1)}/7 · ${bandLabel}`;
       const conclusion =
         locale === "ko"
-          ? "지금 이 순간의 자기보고예요. 시간이 지나며 달라질 수 있어요."
+          ? "지금 이 순간의 자기보고입니다. 시간이 지나며 달라질 수 있습니다."
           : "A self-report for this moment. It can shift over time.";
       await createRecord({
         userId,

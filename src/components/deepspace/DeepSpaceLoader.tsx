@@ -62,10 +62,10 @@ const LOADER_COPY: Record<LoaderLocale, {
   },
   ko: {
     analysisHeadline: "너를 살펴보는 중",
-    analysisHint: (etaSec) => `길어질 수 있어요 · 약 ${etaSec}초`,
-    background: "백그라운드에서 계속 · 다른 거 할게요",
+    analysisHint: (etaSec) => `길어질 수 있습니다 · 약 ${etaSec}초`,
+    background: "백그라운드에서 계속 · 다른 거 하겠습니다",
     ringCaption: "정리하는 중",
-    ringTip: "잠깐이면 돼요",
+    ringTip: "잠깐이면 됩니다",
     dotsCaption: "불러오는 중",
   },
   es: {

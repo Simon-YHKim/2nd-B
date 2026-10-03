@@ -50,7 +50,7 @@ export const LIFE_AREA_INTENT_COPY = {
   },
   ko: {
     title: "생활 영역으로 시작",
-    helper: "이 메모의 맥락을 고르세요. 언제든 지울 수 있어요.",
+    helper: "이 메모의 맥락을 고르세요. 언제든 지울 수 있습니다.",
     selected: "선택한 생활 영역",
     clear: "영역 선택 지우기",
     cards: {

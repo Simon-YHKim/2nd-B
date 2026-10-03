@@ -213,8 +213,21 @@ export async function armHealthAutoRead(ownerId: string, at: Date = new Date()):
   }
 }
 
+/**
+ * Forgets that this account connected health on this phone, when the consent is turned off.
+ * Turning it on again then needs the explicit '오늘 반영' tap before the automatic read
+ * resumes, instead of picking up silently from the old mark. True when all marks are gone.
+ */
+export async function forgetHealthAutoReadMarks(ownerId: string): Promise<boolean> {
+  return clearAutoReadMarks(ownerId);
+}
+
 /** Local purge after terminal account deletion (lib/account/local-purge.ts). */
 export async function purgeHealthAutoReadForDeletedAccount(ownerId: string): Promise<boolean> {
+  return clearAutoReadMarks(ownerId);
+}
+
+async function clearAutoReadMarks(ownerId: string): Promise<boolean> {
   const owner = ownerId.trim();
   if (!owner) return false;
   const keys = [ARMED + owner, ATTEMPTED + owner, READ_THROUGH + owner];

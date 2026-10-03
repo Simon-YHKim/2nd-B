@@ -73,5 +73,8 @@
     "deferHint": "Keeps these notes on this device.",
     "importing": "Importing…",
     "error": "Some notes couldn't be imported. The remaining notes are still on this device."
+  },
+  "retention": {
+    "chip": "Erased on account deletion"
   }
 }

@@ -60,13 +60,13 @@ const starRoute = (id: SevenStarId): string => `/me/${id}`;
 // 2026-08-25: 새 일곱(나를 알아가는 자리) 기준으로 재작성. 프로필만 인터뷰가
 // 없는 별이라 다음 걸음도 항목 채우기다.
 const STEP: Record<SevenStarId, { obsKo: string; obsEn: string; stepKo: string; stepEn: string; domain: OpsDomainId }> = {
-  profile: { obsKo: "내 기본 정보를 채워간 한 주였어요.", obsEn: "You filled in more of your basics this week.", stepKo: "프로필 항목 하나 채우기", stepEn: "Fill in one profile field", domain: "daily_focus" },
-  infancy: { obsKo: "가장 이른 기억을 파본 한 주였어요.", obsEn: "You dug into your earliest memories.", stepKo: "떠오른 장면 한 조각 적어두기", stepEn: "Note one scene that came up", domain: "learning_goals" },
-  school: { obsKo: "학창시절을 되짚은 한 주였어요.", obsEn: "You revisited your school years.", stepKo: "그 시절 한 장면 더 파보기", stepEn: "Dig into one more scene from then", domain: "learning_goals" },
-  twenties: { obsKo: "20대의 나를 깊게 판 한 주였어요.", obsEn: "You went deep on your twenties.", stepKo: "그때의 선택 하나 적어보기", stepEn: "Write down one choice from then", domain: "learning_goals" },
-  later: { obsKo: "서른 이후의 변화를 돌아본 한 주였어요.", obsEn: "You looked at how you changed after thirty.", stepKo: "달라진 것 한 줄 적기", stepEn: "Write one line about what changed", domain: "daily_focus" },
-  work: { obsKo: "일하는 나를 들여다본 한 주였어요.", obsEn: "You looked at yourself at work.", stepKo: "이번 주 일의 한 장면 적기", stepEn: "Note one scene from work this week", domain: "career_check" },
-  now: { obsKo: "지금의 나를 자주 들여다봤어요.", obsEn: "You checked in on yourself often.", stepKo: "오늘 한 줄 돌아보기", stepEn: "One line of reflection today", domain: "daily_focus" },
+  profile: { obsKo: "내 기본 정보를 채워간 한 주였습니다.", obsEn: "You filled in more of your basics this week.", stepKo: "프로필 항목 하나 채우기", stepEn: "Fill in one profile field", domain: "daily_focus" },
+  infancy: { obsKo: "가장 이른 기억을 파본 한 주였습니다.", obsEn: "You dug into your earliest memories.", stepKo: "떠오른 장면 한 조각 적어두기", stepEn: "Note one scene that came up", domain: "learning_goals" },
+  school: { obsKo: "학창시절을 되짚은 한 주였습니다.", obsEn: "You revisited your school years.", stepKo: "그 시절 한 장면 더 파보기", stepEn: "Dig into one more scene from then", domain: "learning_goals" },
+  twenties: { obsKo: "20대의 나를 깊게 판 한 주였습니다.", obsEn: "You went deep on your twenties.", stepKo: "그때의 선택 하나 적어보기", stepEn: "Write down one choice from then", domain: "learning_goals" },
+  later: { obsKo: "서른 이후의 변화를 돌아본 한 주였습니다.", obsEn: "You looked at how you changed after thirty.", stepKo: "달라진 것 한 줄 적기", stepEn: "Write one line about what changed", domain: "daily_focus" },
+  work: { obsKo: "일하는 나를 들여다본 한 주였습니다.", obsEn: "You looked at yourself at work.", stepKo: "이번 주 일의 한 장면 적기", stepEn: "Note one scene from work this week", domain: "career_check" },
+  now: { obsKo: "지금의 나를 자주 들여다봤습니다.", obsEn: "You checked in on yourself often.", stepKo: "오늘 한 줄 돌아보기", stepEn: "One line of reflection today", domain: "daily_focus" },
 };
 
 export function WeeklyGrowthScreen() {

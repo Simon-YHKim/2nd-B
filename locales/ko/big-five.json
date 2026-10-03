@@ -1,14 +1,14 @@
 {
-  "loading": "검사를 불러오고 있어요…",
+  "loading": "검사를 불러오고 있습니다…",
   "title": "Big Five (BFI-44)",
   "counter": "Big Five · BFI-44",
-  "saved": "저장했어요. 나의 요약에서 다시 볼 수 있어요.",
+  "saved": "저장했습니다. 나의 요약에서 다시 볼 수 있습니다.",
   "exit": {
     "notice": "검사 종료 안내",
     "title": "검사를 그만할까요?",
     "cancel": "취소",
-    "cancelHint": "검사를 계속해요.",
+    "cancelHint": "검사를 계속합니다.",
     "confirm": "종료하기",
-    "confirmHint": "검사를 끝내고 이전 화면으로 돌아가요."
+    "confirmHint": "검사를 끝내고 이전 화면으로 돌아갑니다."
   }
 }

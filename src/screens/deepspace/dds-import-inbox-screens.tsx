@@ -28,6 +28,8 @@ import { listInferredLinkDetails, listSources } from "@/lib/wiki/queries";
 import { listPeerInvites } from "@/lib/peer/invite";
 import { armHealthAutoRead } from "@/lib/health/auto-read";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
+import { healthWithdrawDeps, withdrawHealthImport } from "@/lib/health/withdraw";
+import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { availableHealthSources } from "@/lib/health/registry";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { pickImportFiles } from "@/lib/wiki/capture-file";
@@ -261,6 +263,8 @@ export function DeepSpaceImportScreen() {
     | null
   >(null);
   const [healthErr, setHealthErr] = useState<string | null>(null);
+  // The outcome of turning health data off from this card, shown under it.
+  const [withdrawNotice, setWithdrawNotice] = useState<string | null>(null);
   // Import history = the persistent device-local log (import-hub 철회 store), so
   // file imports here show up in the same withdrawal list. No seeded fake rows.
   const [history, setHistory] = useState<ImportHistoryEntry[]>([]);
@@ -488,6 +492,44 @@ export function DeepSpaceImportScreen() {
     }
   }
 
+  // Withdraw where the consent was given (PIPA §38④): one tap, the same flow as the privacy
+  // screen's card (lib/health/withdraw.ts), which also deletes the stored health rows. The
+  // health busy flag is held until the deletes end, so an opt-in or an ingest cannot land rows
+  // the deletes would then remove. Not age-gated: an account of any age can withdraw.
+  async function handleHealthWithdraw() {
+    if (!userId || healthBusy) return;
+    const owner = userId;
+    const lease = beginAccountSessionLease(owner);
+    setHealthBusy(true);
+    setHealthDone(null);
+    setHealthErr(null);
+    setWithdrawNotice(null);
+    try {
+      const outcome = await withdrawHealthImport(owner, healthWithdrawDeps(() => lease.assertCurrent(), () => setHealthPref(false)));
+      if (outcome.kind === "aborted") return;
+      if (outcome.kind === "uncertain") {
+        setWithdrawNotice(t("privacyHealth.uncertain"));
+        return;
+      }
+      if (outcome.kind === "unchanged") {
+        if (outcome.prefs) setHealthPref(outcome.prefs.health_import === true);
+        setWithdrawNotice(t("privacyHealth.unchanged"));
+        return;
+      }
+      setHealthPref(false);
+      if (outcome.kind === "done") {
+        setWithdrawNotice(outcome.exact && outcome.deleted > 0 ? t("privacyHealth.done", { count: outcome.deleted }) : t("privacyHealth.doneNone"));
+      } else {
+        setWithdrawNotice(outcome.remaining !== null ? t("privacyHealth.partial", { count: outcome.remaining }) : t("privacyHealth.partialNoCount"));
+      }
+    } catch {
+      setWithdrawNotice(t("privacyHealth.uncertain"));
+    } finally {
+      lease.release();
+      setHealthBusy(false);
+    }
+  }
+
   const consents: { icon: AnyGlyphName; label: string; note: string }[] = [
     { icon: "cloud_upload", label: t("ds.import.consentSourceLabel"), note: t("ds.import.consentSourceNote") },
     { icon: "memory", label: t("ds.import.consentDeviceLabel"), note: t("ds.import.consentDeviceNote") },
@@ -624,6 +666,21 @@ export function DeepSpaceImportScreen() {
                   </MdCard>
                 ),
               )}
+              {healthPref ? (
+                <MdButton
+                  label={t("privacyHealth.turnOff")}
+                  variant="text"
+                  loading={healthBusy}
+                  disabled={healthBusy}
+                  onPress={() => void handleHealthWithdraw()}
+                  accessibilityLabel={t("privacyHealth.turnOff")}
+                />
+              ) : null}
+              {withdrawNotice !== null ? (
+                <RNText style={[m3TextStyle("bodySmall"), s.healthNote]} accessibilityLiveRegion="polite">
+                  {withdrawNotice}
+                </RNText>
+              ) : null}
             </View>
           )}
 

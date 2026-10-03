@@ -1,572 +1,225 @@
-// LoadingScreen: deterministic 48-step HustleK opening.
-//
-// Approved v1 pixels are stored as compact, binary-alpha integer rectangles.
-// Every source unit maps to an integer number of physical pixels and every
-// pose change is a hard 80 ms cut. No bitmap sampler, pose tween, blur, or
-// duplicated telescope participates in the runtime.
-
+// Approved HustleK PNG poses, camera and sounds share one playback clock.
 import { useEffect, useRef, useState } from "react";
-import {
-  PixelRatio,
-  Platform,
-  Pressable,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-  type ViewStyle,
-} from "react-native";
-import { PlainText as Text } from "@/components/ui/PlainText";
-import { Rect, Svg } from "react-native-svg";
+import { AppState, Platform, Pressable, StyleSheet, useWindowDimensions, View, type ImageStyle } from "react-native";
+import { Image } from "expo-image";
+import { Asset } from "expo-asset";
+import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
+import { useOpeningSounds } from "@/lib/audio/use-opening-sounds";
+import { APPROVED_OPENING_ASSETS, APPROVED_OPENING_DURATION_MS, APPROVED_OPENING_IMAGES_IN_USE_ORDER, approvedOpeningSourcesNeeded, getApprovedOpeningCues, getApprovedOpeningScene } from "@/lib/opening/hustlek-approved";
+import { DeepSpaceLoader } from "@/components/deepspace/DeepSpaceLoader";
+import { OpeningFade } from "@/components/ui/OpeningFade";
+import { markOpeningImagesSettled } from "@/lib/opening/opening-images-signal";
 import { deepSpace, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
-type RectRun = [palette: number, x: number, y: number, width: number, height: number];
-type RleAtlas = {
-  v: 2;
-  u: 1;
-  p: string[];
-  w: RectRun[][];
-  k: RectRun[][];
-  t: RectRun[];
-};
-
-const openingAtlas = require("../../../assets/deepspace/hustlek-opening-v2.json") as RleAtlas;
-
-const FRAME_MS = 80;
-const LAST_MEANINGFUL_FRAME = 44;
-const STORY_END_MS = (LAST_MEANINGFUL_FRAME + 1) * FRAME_MS;
-const EXIT_FIRST_FRAME = 45;
-const LAST_FRAME = 47;
-const EXIT_DURATION_MS = (LAST_FRAME - EXIT_FIRST_FRAME + 1) * FRAME_MS;
-const AUTO_CONTINUE_MS = 4_000;
-const AUTO_EXIT_START_MS = AUTO_CONTINUE_MS - EXIT_DURATION_MS;
-const HARD_READY_MS = 9_000;
-
-const CHARACTER_CELL = 96;
-const TELESCOPE_CELL = 128;
-const STAGE_WIDTH = 320;
-const STAGE_HEIGHT = 260;
-const NORTH_X = STAGE_WIDTH / 2;
-const GROUND_Y = 220;
-const CHARACTER_FLOOR = 94;
-const TELESCOPE_FLOOR = 124;
-
-const WALK_CENTERS = [-32, -22, -10, 4, 20, 38, 58, 80, 102, 122, 138, 150, 158, 160] as const;
-const TURN_KEYS = [0, 1, 1, 2, 2, 3, 4, 5] as const;
-const PAN_CAMERA_TOP = [-64, -48, -28, -4, 24, 48, 72, 96] as const;
-const POLARIS_PING = [12, 16, 20, 16, 12] as const;
-const SKY_STARS = [
-  [20, 30, 2],
-  [48, 84, 2],
-  [74, 22, 3],
-  [104, 112, 2],
-  [134, 58, 2],
-  [190, 28, 2],
-  [220, 98, 3],
-  [250, 48, 2],
-  [286, 118, 2],
-  [302, 72, 2],
-] as const;
-
-export type OpeningPhase = "story" | "waiting-ready" | "ready" | "exiting" | "done";
-
-export interface OpeningPlan {
-  frame: number;
-  phase: OpeningPhase;
-  shouldContinue: boolean;
+export type OpeningPhase = "story" | "waiting-ready" | "ready" | "done";
+export interface OpeningPlan { phase: OpeningPhase; shouldContinue: boolean }
+interface OpeningStateInput { elapsedMs: number; readyAtMs: number | null; tapAtMs: number | null; reducedMotion: boolean }
+export function openingStateAt({ elapsedMs, readyAtMs, tapAtMs, reducedMotion }: OpeningStateInput): OpeningPlan {
+  const elapsed = Math.max(0, elapsedMs), ready = readyAtMs !== null && elapsed >= readyAtMs;
+  if (tapAtMs !== null && elapsed >= tapAtMs) return { phase: ready ? "done" : "waiting-ready", shouldContinue: ready };
+  const end = reducedMotion ? 1200 : APPROVED_OPENING_DURATION_MS;
+  if (elapsed < end) return { phase: "story", shouldContinue: false };
+  return { phase: ready ? "done" : "waiting-ready", shouldContinue: ready };
 }
-
-interface OpeningStateInput {
-  elapsedMs: number;
-  readyAtMs: number | null;
-  tapAtMs: number | null;
-  reducedMotion: boolean;
-}
-
-export function openingStateAt({
-  elapsedMs,
-  readyAtMs,
-  tapAtMs,
-  reducedMotion,
-}: OpeningStateInput): OpeningPlan {
-  const elapsed = Math.max(0, Math.floor(elapsedMs));
-  const effectiveReadyAt = readyAtMs ?? HARD_READY_MS;
-
-  if (reducedMotion) {
-    const requestedAt = tapAtMs ?? AUTO_CONTINUE_MS;
-    const continueAt = Math.max(effectiveReadyAt, requestedAt);
-    if (elapsed >= continueAt) {
-      return { frame: LAST_MEANINGFUL_FRAME, phase: "done", shouldContinue: true };
-    }
-    return {
-      frame: LAST_MEANINGFUL_FRAME,
-      phase: elapsed < effectiveReadyAt ? "waiting-ready" : "ready",
-      shouldContinue: false,
-    };
-  }
-
-  if (elapsed < STORY_END_MS) {
-    return {
-      frame: Math.min(Math.floor(elapsed / FRAME_MS), LAST_MEANINGFUL_FRAME),
-      phase: "story",
-      shouldContinue: false,
-    };
-  }
-
-  if (elapsed < effectiveReadyAt) {
-    return { frame: LAST_MEANINGFUL_FRAME, phase: "waiting-ready", shouldContinue: false };
-  }
-
-  const requestedAt = tapAtMs ?? AUTO_EXIT_START_MS;
-  const exitAt = Math.max(STORY_END_MS, effectiveReadyAt, requestedAt);
-  if (elapsed < exitAt) {
-    return { frame: LAST_MEANINGFUL_FRAME, phase: "ready", shouldContinue: false };
-  }
-
-  const exitElapsed = elapsed - exitAt;
-  if (exitElapsed >= EXIT_DURATION_MS) {
-    return { frame: LAST_FRAME, phase: "done", shouldContinue: true };
-  }
+export function createOpeningClock(now: () => number = Date.now) {
+  let accumulated = 0, startedAt: number | null = null;
   return {
-    frame: EXIT_FIRST_FRAME + Math.floor(exitElapsed / FRAME_MS),
-    phase: "exiting",
-    shouldContinue: false,
+    elapsed: () => accumulated + (startedAt === null ? 0 : Math.max(0, now() - startedAt)),
+    start: () => { if (startedAt === null) startedAt = now(); },
+    pause: () => { if (startedAt !== null) { accumulated += Math.max(0, now() - startedAt); startedAt = null; } },
   };
 }
-
-type CharacterPlan =
-  | { kind: "walk"; index: number; centerX: number }
-  | { kind: "key"; index: number; centerX: number };
-
-export interface OpeningScenePlan {
-  character: CharacterPlan | null;
-  cameraTop: number;
-  polarisSize: number;
-  veilHeight: number;
-}
-
-export function openingSceneForFrame(frameInput: number): OpeningScenePlan {
-  const frame = Math.max(0, Math.min(LAST_FRAME, Math.floor(frameInput)));
-  let character: CharacterPlan | null = null;
-
-  if (frame >= 4 && frame <= 17) {
-    const walkStep = frame - 4;
-    character = {
-      kind: "walk",
-      index: walkStep % 12,
-      centerX: WALK_CENTERS[walkStep],
-    };
-  } else if (frame >= 18) {
-    const keyIndex = frame <= 25 ? TURN_KEYS[frame - 18] : 5;
-    character = { kind: "key", index: keyIndex, centerX: NORTH_X };
-  }
-
-  const cameraTop =
-    frame < 32 ? PAN_CAMERA_TOP[0] : frame <= 39 ? PAN_CAMERA_TOP[frame - 32] : PAN_CAMERA_TOP[7];
-  const polarisSize = frame >= 40 && frame <= 44 ? POLARIS_PING[frame - 40] : POLARIS_PING[0];
-  const veilHeight =
-    frame === 0
-      ? STAGE_HEIGHT
-      : frame === 1
-        ? 174
-        : frame === 2
-          ? 86
-          : frame === 45
-            ? 86
-            : frame === 46
-              ? 174
-              : frame >= 47
-                ? STAGE_HEIGHT
-                : 0;
-
-  return { character, cameraTop, polarisSize, veilHeight };
-}
-
-export function pixelUnitScale(pixelRatio: number): number {
-  const safeRatio = Number.isFinite(pixelRatio) && pixelRatio > 0 ? pixelRatio : 1;
-  const physicalPixelsPerUnit = Math.max(1, Math.floor(safeRatio + Number.EPSILON));
-  return physicalPixelsPerUnit / safeRatio;
-}
-
-export function fullscreenPixelUnit(pixelRatio: number, viewportWidth: number): number {
-  const safeRatio = Number.isFinite(pixelRatio) && pixelRatio > 0 ? pixelRatio : 1;
-  const safeWidth =
-    Number.isFinite(viewportWidth) && viewportWidth > 0 ? viewportWidth : STAGE_WIDTH;
-  const desiredPhysicalPixelsPerUnit = (safeWidth * safeRatio) / STAGE_WIDTH;
-  const physicalPixelsPerUnit = Math.max(1, Math.round(desiredPhysicalPixelsPerUnit));
-  return physicalPixelsPerUnit / safeRatio;
-}
-
-function snapToPhysicalPixel(value: number, pixelRatio: number): number {
-  const safeRatio = Number.isFinite(pixelRatio) && pixelRatio > 0 ? pixelRatio : 1;
-  return Math.round(value * safeRatio) / safeRatio;
-}
-
-export function createOpeningTicker(
-  startedAtMs: number,
-  onTick: (elapsedMs: number) => void,
-): () => void {
-  const timer = setInterval(() => onTick(Date.now() - startedAtMs), FRAME_MS);
+export function createOpeningTicker(clock: Pick<ReturnType<typeof createOpeningClock>, "elapsed">, onTick: (elapsedMs: number) => void): () => void {
+  const timer = setInterval(() => onTick(clock.elapsed()), 16);
   return () => clearInterval(timer);
 }
-
-export function deliverContinueOnce(
-  gate: { current: boolean },
-  onContinue?: () => void,
-): void {
+/** Frames that must already be in memory before the clock may run past them. */
+export const OPENING_LOOKAHEAD_MS = 400;
+/** Longest the opening waits for its sounds once the frames are ready; then it plays silently. */
+export const OPENING_SOUND_WAIT_MS = 1500;
+/**
+ * Loads sources in the given order with a few requests in flight, so the first
+ * scene arrives first instead of finishing together with the last image.
+ * Returns a cancel function; a failed load reports once and stops its lane.
+ */
+export function createOpeningPreloadQueue(sources: readonly number[], load: (source: number) => Promise<boolean>, onLoaded: (source: number) => void, onError: () => void, concurrency = 3): () => void {
+  let next = 0, active = true, failed = false;
+  const fail = () => { if (active && !failed) { failed = true; onError(); } };
+  const pump = () => {
+    if (!active || failed || next >= sources.length) return;
+    const source = sources[next++];
+    load(source).then(ok => {
+      if (!active) return;
+      if (!ok) { fail(); return; }
+      onLoaded(source); pump();
+    }, fail);
+  };
+  for (let lane = 0; lane < concurrency; lane++) pump();
+  return () => { active = false; };
+}
+export function deliverContinueOnce(gate: { current: boolean }, onContinue?: () => void): void {
   if (gate.current) return;
   gate.current = true;
   onContinue?.();
 }
 
-interface RleCellProps {
-  rects: RectRun[];
-  width: number;
-  height: number;
-  unit?: number;
-  style?: ViewStyle;
+type ImageBox = { left: number; top: number; width: number; height: number; source: number; zIndex?: number };
+const webPixels = { imageRendering: "pixelated" } as ImageStyle;
+function SceneImage({ box, testID, onError }: { box: ImageBox; testID: string; onError: () => void }) {
+  return <Image testID={testID} pointerEvents="none" source={box.source} transition={0} contentFit="fill" cachePolicy="memory-disk" allowDownscaling={false} priority="high" onError={onError} accessible={false}
+    style={[styles.image, { left: box.left, top: box.top, width: box.width, height: box.height, zIndex: box.zIndex ?? 0 }, Platform.OS === "web" ? webPixels : undefined]} />;
 }
 
-export function RleCell({
-  rects,
-  width,
-  height,
-  unit = pixelUnitScale(PixelRatio.get()),
-  style,
-}: RleCellProps) {
-  const crispProps = Platform.OS === "web" ? { shapeRendering: "crispEdges" as const } : {};
-
-  return (
-    <View
-      pointerEvents="none"
-      style={[styles.rleCell, style, { width: width * unit, height: height * unit }]}
-    >
-      <Svg
-        {...crispProps}
-        width={width * unit}
-        height={height * unit}
-        viewBox={"0 0 " + width + " " + height}
-      >
-        {rects.map(([band, x, y, rectWidth, rectHeight], index) => (
-          <Rect
-            key={index}
-            x={x}
-            y={y}
-            width={rectWidth}
-            height={rectHeight}
-            fill={openingAtlas.p[band]}
-          />
-        ))}
-      </Svg>
-    </View>
-  );
-}
-
-function CharacterCell({ plan, unit }: { plan: CharacterPlan; unit: number }) {
-  const rects = plan.kind === "walk" ? openingAtlas.w[plan.index] : openingAtlas.k[plan.index];
-  return (
-    <RleCell
-      rects={rects}
-      width={CHARACTER_CELL}
-      height={CHARACTER_CELL}
-      unit={unit}
-      style={{
-        left: (plan.centerX - CHARACTER_CELL / 2) * unit,
-        top: (GROUND_Y - CHARACTER_FLOOR) * unit,
-      }}
-    />
-  );
-}
-
-function Polaris({ size, unit }: { size: number; unit: number }) {
-  const thickness = 4;
-  const inset = Math.floor((size - thickness) / 2);
-  return (
-    <View
-      pointerEvents="none"
-      style={[
-        styles.polaris,
-        {
-          width: size * unit,
-          height: size * unit,
-          left: (NORTH_X - size / 2) * unit,
-          top: 20 * unit,
-        },
-      ]}
-    >
-      <View style={[styles.polarisOuter, { left: 0, top: inset * unit, width: size * unit, height: thickness * unit }]} />
-      <View style={[styles.polarisOuter, { left: inset * unit, top: 0, width: thickness * unit, height: size * unit }]} />
-      <View
-        style={[
-          styles.polarisCore,
-          { left: inset * unit, top: inset * unit, width: thickness * unit, height: thickness * unit },
-        ]}
-      />
-    </View>
-  );
-}
-
-function OpeningStage({ frame }: { frame: number }) {
-  const scene = openingSceneForFrame(frame);
-  const pixelRatio = PixelRatio.get();
-  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
-  const unit = fullscreenPixelUnit(pixelRatio, viewportWidth);
-  const canvasWidth = STAGE_WIDTH * unit;
-  const canvasHeight = STAGE_HEIGHT * unit;
-  const canvasLeft = snapToPhysicalPixel((viewportWidth - canvasWidth) / 2, pixelRatio);
-  const canvasTop = snapToPhysicalPixel((viewportHeight - canvasHeight) / 2, pixelRatio);
-  const veilRatio = scene.veilHeight / STAGE_HEIGHT;
-
-  return (
-    <View
-      style={styles.stage}
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    >
-      <View pointerEvents="none" style={styles.skyBands}>
-        <View style={styles.skyTop} />
-        <View style={styles.skyMiddle} />
-        <View style={styles.skyBottom} />
-      </View>
-
-      <View
-        pointerEvents="none"
-        style={[
-          styles.sceneCanvas,
-          { left: canvasLeft, top: canvasTop, width: canvasWidth, height: canvasHeight },
-        ]}
-      >
-        {SKY_STARS.map(([left, top, size]) => (
-          <View
-            key={left + "-" + top}
-            style={[
-              styles.skyStar,
-              { left: left * unit, top: top * unit, width: size * unit, height: size * unit },
-            ]}
-          />
-        ))}
-
-        <View
-          style={[
-            styles.world,
-            { top: scene.cameraTop * unit, width: canvasWidth, height: 360 * unit },
-          ]}
-        >
-          <Polaris size={scene.polarisSize} unit={unit} />
-          <View
-            style={[
-              styles.groundLine,
-              {
-                left: -canvasLeft,
-                top: GROUND_Y * unit,
-                width: viewportWidth,
-                height: 4 * unit,
-              },
-            ]}
-          />
-          <View
-            style={[
-              styles.groundBand,
-              {
-                left: -canvasLeft,
-                top: (GROUND_Y + 4) * unit,
-                width: viewportWidth,
-                height: Math.max(136 * unit, viewportHeight),
-              },
-            ]}
-          />
-          <RleCell
-            rects={openingAtlas.t}
-            width={TELESCOPE_CELL}
-            height={TELESCOPE_CELL}
-            unit={unit}
-            style={{
-              left: (NORTH_X - TELESCOPE_CELL / 2) * unit,
-              top: (GROUND_Y - TELESCOPE_FLOOR) * unit,
-            }}
-          />
-          {scene.character ? <CharacterCell plan={scene.character} unit={unit} /> : null}
-        </View>
-      </View>
-
-      {veilRatio > 0 ? (
-        <View
-          style={[
-            styles.veil,
-            { width: "100%", height: viewportHeight * veilRatio },
-          ]}
-        />
-      ) : null}
-    </View>
-  );
-}
-
-interface Props {
-  ready?: boolean;
-  onContinue?: () => void;
-}
-
+interface Props { ready?: boolean; onContinue?: () => void }
 export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
-  const { t } = useTranslation("common");
-  const prefersReducedMotion = useReducedMotionPref();
-  // Static web export cannot know matchMedia or a persisted lite-mode choice.
-  // Keep its frame 0 on the first client render, then honor the preference.
-  const [webHydrated, setWebHydrated] = useState(Platform.OS !== "web");
-  useEffect(() => { setWebHydrated(true); }, []);
-  const reducedMotion = webHydrated && prefersReducedMotion;
-  const startedAt = useRef(Date.now());
-  const stopTickerRef = useRef<(() => void) | null>(null);
-  const continuedRef = useRef(false);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const [readyAtMs, setReadyAtMs] = useState<number | null>(ready ? 0 : null);
-  const [tapAtMs, setTapAtMs] = useState<number | null>(null);
+  const { t } = useTranslation("common"), reducedMotion = useReducedMotionPref(), insets = useSafeAreaInsets(), windowSize = useWindowDimensions();
+  const [viewport, setViewport] = useState({ width: windowSize.width, height: windowSize.height });
+  const [, setLoadedCount] = useState(0), [assetError, setAssetError] = useState(false), [attempt, setAttempt] = useState(0);
+  const loaded = useRef(new Set<number>());
+  const [foreground, setForeground] = useState(AppState.currentState !== "background" && AppState.currentState !== "inactive" && (Platform.OS !== "web" || typeof document === "undefined" || !document.hidden));
+  const [elapsedMs, setElapsedMs] = useState(0), [tapAtMs, setTapAtMs] = useState<number | null>(null);
+  const clock = useRef(createOpeningClock()), continued = useRef(false), cueFrom = useRef(-Number.EPSILON);
+  const sounds = useOpeningSounds(APPROVED_OPENING_ASSETS.audio), soundRef = useRef(sounds);
+  soundRef.current = sounds;
+  const displayMs = reducedMotion ? APPROVED_OPENING_DURATION_MS : Math.min(elapsedMs, APPROVED_OPENING_DURATION_MS);
+  // No loading screen before the opening (Simon 2026-10-03). The scene appears
+  // as soon as its own images are in memory, and the clock runs only while the
+  // next OPENING_LOOKAHEAD_MS of frames are too; a frame that has not arrived
+  // holds the current one instead of showing a gap.
+  const has = (sources: number[]) => sources.every(source => loaded.current.has(source));
+  const sceneLoaded = has(approvedOpeningSourcesNeeded(displayMs));
+  const aheadLoaded = has(approvedOpeningSourcesNeeded(displayMs, reducedMotion ? 0 : OPENING_LOOKAHEAD_MS));
+  const sceneVisible = sceneLoaded || elapsedMs > 0;
+  // Sound never holds the opening for long: a player that cannot load (an
+  // Android release once could not, see patches/expo-updates) would otherwise
+  // freeze the first frame forever.
+  const [soundWaitOver, setSoundWaitOver] = useState(false);
+  const playbackReady = aheadLoaded && (reducedMotion || !sounds.enabled || sounds.ready || soundWaitOver);
+  const plan = openingStateAt({ elapsedMs, readyAtMs: ready ? 0 : null, tapAtMs, reducedMotion });
+  const scene = getApprovedOpeningScene(displayMs, Math.max(1, viewport.width), Math.max(1, viewport.height));
 
   useEffect(() => {
-    const stop = createOpeningTicker(startedAt.current, setElapsedMs);
-    stopTickerRef.current = stop;
-    return () => {
-      stop();
-      if (stopTickerRef.current === stop) stopTickerRef.current = null;
+    loaded.current = new Set(); setLoadedCount(0); setAssetError(false);
+    // Native apps ship these images inside the app; there is nothing to fetch,
+    // and the embedded-asset lookup Asset.loadAsync uses is the path that broke
+    // the opening on Android release (2026-10-04). Only the web downloads them.
+    const load = Platform.OS === "web" ? async (source: number) => {
+      const [asset] = await Asset.loadAsync(source);
+      return Image.prefetch([asset.localUri ?? asset.uri], { cachePolicy: "memory-disk" });
+    } : async () => true;
+    // When every image is in (or loading failed), the web font loader may start:
+    // it waits so it does not take the line from these images.
+    return createOpeningPreloadQueue(APPROVED_OPENING_IMAGES_IN_USE_ORDER, load, source => {
+      loaded.current.add(source); setLoadedCount(count => count + 1);
+      if (loaded.current.size >= APPROVED_OPENING_IMAGES_IN_USE_ORDER.length) markOpeningImagesSettled();
+    }, () => { setAssetError(true); markOpeningImagesSettled(); });
+  }, [attempt]);
+
+  useEffect(() => {
+    const change = (active: boolean) => {
+      if (!active) { clock.current.pause(); soundRef.current.stop(); cueFrom.current = clock.current.elapsed(); }
+      setForeground(active);
     };
+    const app = AppState.addEventListener("change", state => change(state === "active"));
+    const blur = Platform.OS === "android" ? AppState.addEventListener("blur", () => change(false)) : undefined;
+    const focus = Platform.OS === "android" ? AppState.addEventListener("focus", () => change(true)) : undefined;
+    const visibility = () => change(!document.hidden);
+    if (Platform.OS === "web") document.addEventListener("visibilitychange", visibility);
+    return () => { app.remove(); blur?.remove(); focus?.remove(); if (Platform.OS === "web") document.removeEventListener("visibilitychange", visibility); clock.current.pause(); soundRef.current.stop(); };
   }, []);
 
   useEffect(() => {
-    if (!ready || readyAtMs !== null) return;
-    setReadyAtMs(Date.now() - startedAt.current);
-  }, [ready, readyAtMs]);
+    if (!playbackReady || assetError || !foreground || plan.shouldContinue || plan.phase === "waiting-ready") { clock.current.pause(); soundRef.current.stop(); return; }
+    clock.current.start();
+    const tick = (value: number) => {
+      if (!reducedMotion) for (const cue of getApprovedOpeningCues(cueFrom.current, value)) soundRef.current.play(cue);
+      cueFrom.current = value;
+      setElapsedMs(value);
+    };
+    tick(clock.current.elapsed());
+    const stop = createOpeningTicker(clock.current, tick);
+    return () => { stop(); clock.current.pause(); soundRef.current.stop(); };
+  }, [playbackReady, assetError, foreground, reducedMotion, plan.shouldContinue, plan.phase]);
 
-  const plan = openingStateAt({ elapsedMs, readyAtMs, tapAtMs, reducedMotion });
-  const phase: "typing" | "ready" | "zooming" =
-    plan.phase === "ready"
-      ? "ready"
-      : plan.phase === "exiting" || plan.phase === "done"
-        ? "zooming"
-        : "typing";
+  useEffect(() => {
+    if (!aheadLoaded || reducedMotion || !sounds.enabled || sounds.ready || soundWaitOver) return;
+    const timer = setTimeout(() => setSoundWaitOver(true), OPENING_SOUND_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [aheadLoaded, reducedMotion, sounds.enabled, sounds.ready, soundWaitOver]);
 
   useEffect(() => {
     if (!plan.shouldContinue) return;
-    stopTickerRef.current?.();
-    stopTickerRef.current = null;
-    deliverContinueOnce(continuedRef, onContinue);
-  }, [onContinue, plan.shouldContinue]);
+    clock.current.pause(); soundRef.current.stop();
+    deliverContinueOnce(continued, onContinue);
+  }, [plan.shouldContinue, onContinue]);
 
-  function handlePress() {
-    if (plan.phase === "exiting" || plan.phase === "done" || tapAtMs !== null) return;
-    setTapAtMs(Date.now() - startedAt.current);
+  // The opening is decoration: if its images cannot load, the app still opens
+  // as soon as it is ready, instead of waiting on a retry that may never work.
+  useEffect(() => {
+    if (!assetError || !ready) return;
+    clock.current.pause(); soundRef.current.stop();
+    deliverContinueOnce(continued, onContinue);
+  }, [assetError, ready, onContinue]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const css = document.createElement("style");
+    css.textContent = '[data-testid="loading-screen"] img{image-rendering:pixelated}';
+    document.head.append(css);
+    return () => css.remove();
+  }, []);
+
+  function skip() {
+    soundRef.current.stop();
+    const current = clock.current.elapsed();
+    setTapAtMs(current); setElapsedMs(current);
   }
-
-  const accessibilityLabel =
-    plan.phase === "ready"
-      ? t("loadingGate.open")
-      : plan.phase === "exiting" || plan.phase === "done"
-        ? t("loadingGate.opening")
-        : t("loadingGate.loading");
-  const accessibilityHint = plan.phase === "ready" ? t("loadingGate.enterHint") : undefined;
-
-  return (
-    <Pressable
-      testID="loading-screen"
-      style={styles.container}
-      onPress={handlePress}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      accessibilityHint={accessibilityHint}
-      accessibilityState={{ busy: phase !== "ready", disabled: phase === "zooming" }}
-    >
-      <OpeningStage frame={plan.frame} />
-      {plan.phase === "ready" ? <Text style={styles.hint}>{t("loadingGate.hint")}</Text> : null}
-    </Pressable>
-  );
+  const failImage = () => setAssetError(true);
+  return <View testID="loading-screen" style={styles.container} onLayout={event => {
+    const { width, height } = event.nativeEvent.layout;
+    if (width > 0 && height > 0) setViewport(previous => previous.width === width && previous.height === height ? previous : { width, height });
+  }} accessibilityLabel={t("loadingGate.loading")}>
+    <StatusBar hidden animated={false} />
+    <View testID="hustlek-approved-opening" pointerEvents="none" style={styles.stage} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {sceneVisible ? <>
+        <SceneImage box={scene.background} testID="opening-background" onError={failImage} />
+        <SceneImage box={scene.telescope} testID="opening-telescope" onError={failImage} />
+        {loaded.current.has(scene.character.source) ? <SceneImage box={scene.character} testID="opening-character" onError={failImage} /> : null}
+        <SceneImage box={scene.star} testID="opening-polaris" onError={failImage} />
+      </> : null}
+      {sceneVisible && scene.twinkle.rects.map((pixel, index) => <View key={index} style={[styles.pixel, { left: scene.twinkle.left + pixel.left, top: scene.twinkle.top + pixel.top, width: pixel.width, height: pixel.height, backgroundColor: pixel.color, opacity: pixel.alpha }]} />)}
+    </View>
+    {/* The opening starts with a pixel fade-in from the right (Simon 2026-10-03),
+        on the opening clock: it waits while the clock waits and pauses with it. */}
+    {sceneVisible ? <OpeningFade elapsedMs={elapsedMs} width={viewport.width} height={viewport.height} reducedMotion={reducedMotion} /> : null}
+    {/* One small skip button in the bottom-right corner (Simon localhost QA
+        2026-10-03: "건너뛰기를 우 하단에다가 작게"). It looks small, but hitSlop
+        keeps the touch target at 44 dp. The sound toggle stays removed; sound
+        keeps its platform default: on in the native app, off on the web. */}
+    {sceneVisible ? <Pressable testID="opening-skip" style={[styles.skip, { bottom: insets.bottom + 12, right: insets.right + 16 }]} hitSlop={8} onPress={skip} disabled={!ready} accessibilityRole="button" accessibilityLabel={t("loadingGate.skip")} accessibilityHint={t("loadingGate.skipHint")} accessibilityState={{ disabled: !ready }}>
+      <Text style={[styles.skipText, !ready && styles.disabled]}>{t("loadingGate.skipShort")}</Text>
+    </Pressable> : null}
+    {assetError ? <Pressable testID="opening-retry" style={[styles.error, { bottom: insets.bottom + 32 }]} onPress={() => setAttempt(value => value + 1)} accessibilityRole="button"><Text style={styles.buttonText}>{t("loadingGate.retry")}</Text></Pressable> : null}
+    {/* Only after the opening, while the app itself is still getting ready:
+        the app-wide loader, not a screen of its own (Simon 2026-10-03). */}
+    {!assetError && plan.phase === "waiting-ready" ? <View testID="opening-waiting" pointerEvents="none" style={[styles.waiting, { bottom: insets.bottom + 24 }]}><DeepSpaceLoader variant="dots" caption={t("loadingGate.loading")} /></View> : null}
+  </View>;
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: deepSpace.bgEdge,
-  },
-  stage: {
-    flex: 1,
-    alignSelf: "stretch",
-    width: "100%",
-    height: "100%",
-    overflow: "hidden",
-    backgroundColor: deepSpace.bgEdge,
-  },
-  skyBands: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-  },
-  skyTop: {
-    flex: 88,
-    backgroundColor: deepSpace.bgGlow,
-  },
-  skyMiddle: {
-    flex: 88,
-    backgroundColor: deepSpace.bgMid,
-  },
-  skyBottom: {
-    flex: 84,
-    backgroundColor: deepSpace.bgEdge,
-  },
-  sceneCanvas: {
-    position: "absolute",
-  },
-  skyStar: {
-    position: "absolute",
-    backgroundColor: deepSpace.accentDim,
-  },
-  world: {
-    position: "absolute",
-    left: 0,
-  },
-  groundLine: {
-    position: "absolute",
-    left: 0,
-    backgroundColor: deepSpace.accentGlow,
-  },
-  groundBand: {
-    position: "absolute",
-    left: 0,
-    backgroundColor: deepSpace.bgMid,
-  },
-  rleCell: {
-    position: "absolute",
-  },
-  polaris: {
-    position: "absolute",
-  },
-  polarisOuter: {
-    position: "absolute",
-    backgroundColor: deepSpace.soulDeep,
-  },
-  polarisCore: {
-    position: "absolute",
-    backgroundColor: deepSpace.soul,
-  },
-  veil: {
-    position: "absolute",
-    left: 0,
-    bottom: 0,
-    backgroundColor: deepSpace.bgEdge,
-  },
-  hint: {
-    position: "absolute",
-    right: 24,
-    bottom: 32,
-    left: 24,
-    color: deepSpace.textHi,
-    fontFamily: fontFamilies.pixelKo,
-    fontSize: typography.sizes.xs,
-    lineHeight: 16,
-    textAlign: "center",
-    paddingBottom: 2,
-  },
+  container: { flex: 1, width: "100%", height: "100%", overflow: "hidden", backgroundColor: deepSpace.bgEdge },
+  stage: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, overflow: "hidden" },
+  image: { position: "absolute" },
+  pixel: { position: "absolute", zIndex: 5 },
+  skip: { position: "absolute", zIndex: 7, minHeight: 28, justifyContent: "center", paddingHorizontal: 8, backgroundColor: deepSpace.bgEdge, borderWidth: 1, borderColor: deepSpace.accentDim },
+  skipText: { color: deepSpace.textHi, fontFamily: fontFamilies.pixelKo, fontSize: typography.sizes.xs, lineHeight: 18, paddingBottom: 2 },
+  disabled: { color: deepSpace.textMuted },
+  buttonText: { color: deepSpace.textHi, fontFamily: fontFamilies.pixelKo, fontSize: typography.sizes.xs, lineHeight: 20, paddingBottom: 2 },
+  waiting: { position: "absolute", zIndex: 6, left: 0, right: 0, alignItems: "center" },
+  error: { position: "absolute", zIndex: 6, alignSelf: "center", minHeight: 44, justifyContent: "center", paddingHorizontal: 16, backgroundColor: deepSpace.bgEdge },
 });

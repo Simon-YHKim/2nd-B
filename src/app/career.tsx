@@ -154,7 +154,7 @@ export default function CareerTimelineScreen() {
             <MdCard variant="outlined" style={styles.cardPad}>
               <Text variant="body" color="textMuted">
                 {locale === "ko"
-                  ? "학력·병역·수상·자격·경력 같은 공식 이력은 연동하면 여기에 자동으로 정리돼요. 지금은 메인에서 직접 담은 성과가 쌓여요."
+                  ? "학력·병역·수상·자격·경력 같은 공식 이력은 연동하면 여기에 자동으로 정리됩니다. 지금은 메인에서 직접 담은 성과가 쌓입니다."
                   : "Official records like education, military, awards, licenses, and experience organize here once you connect a source. For now, your own achievements build up under Main."}
               </Text>
             </MdCard>
