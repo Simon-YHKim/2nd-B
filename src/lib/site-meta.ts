@@ -16,7 +16,7 @@
 export const SITE_NAME = "PolaScope";
 export const SITE_TITLE = `${SITE_NAME} · 기록으로 알아가는 나`;
 export const SITE_DESCRIPTION =
-  "경험과 메모를 모아 나를 돌아보고, 세컨비와 기록을 바탕으로 이야기해요.";
+  "경험과 메모를 모아 나를 돌아보고, 세컨비와 기록을 바탕으로 이야기합니다.";
 
 // Where the site is actually served, including the Pages sub-path
 // (expo.experiments.baseUrl = /2nd-B). Only share metadata needs this: Open

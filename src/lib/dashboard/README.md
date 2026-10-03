@@ -23,11 +23,121 @@ First dashboard entry does not start an OAuth/login flow. Existing owner-scoped 
 
 ## Reachable existing flows
 
+The phone-originated controls now keep their first view in the phone display.
+Its back control and Android Back step through phone history; the physical
+home-button area returns to the phone home, then asks before exit. A downward
+pull from a nested screen goes back one level, while a deliberate pull from
+the phone home exits. The independent route entry points are unchanged.
+
+This is a bounded in-phone surface, not a claim that every full-page feature has
+been transplanted. Saved records, record search/detail, short plain-note capture,
+accepted routine completion, notifications, and a foreground-only focus timer
+have real in-phone behavior. The phone's wiki search reads up to 200 owner-scoped
+`wiki_pages`, matches title and saved name, and opens the complete page body
+with linked-back pages inside the phone; the list and backlinks share its one
+virtualized scroll view. Its "Graph and tags" button opens the deep-space wiki
+screen's tag filter and graph inside the phone (`/wiki/graph`); that screen has
+no search, so the phone keeps both. Wiki export (`/formats?view=export`) has no
+in-app entry yet, and page deletion and the SecondB handoff exist only in the
+legacy skin. Area views show tagged records from the bounded read; the separate
+ledger and goals apps use their existing data and actions.
+
+### Full screens hosted in the phone
+
+`phone-screens.tsx` lists the standalone screens the phone renders whole
+(about fifty): Settings and what it links to (profile hub, notices, plans,
+subscription, reasoning, data connections, import hub, import, account,
+privacy, theme, data, permissions, support, manual, sources), the profile hub's
+destinations (Polaris, profile details, avatar studio, insights, brightness,
+growth and the self-understanding instruments: Big Five, IPIP-NEO, attachment,
+life satisfaction, ESM, seen, audit, values, strengths, motivation, plus
+ratifications and review), the legal and consent pages, the account's
+password/IDEN/beyond pages, discover, research, imagine, digest, peer invites,
+northstar, the share card, the interview flow (`/me/<star>`, `/interview`),
+SecondB chat, the avatar palette, community (list, room, invite join), and the
+wiki graph. `/persona` and the dormant `/mbti` are redirects to Polaris, so the
+phone maps them there; `/wiki?focusPageId=` opens the phone's wiki page view;
+`/records?tags=` filters the phone's notes; `/capture?text=` and `?tag=` fill
+the phone's note page. The host draws each one as a bounded
+view outside the phone's list, keyed by route, so a route change unmounts the
+previous screen; the phone's dock, status rows and pan gestures step aside, as
+for Museum.
+
+Two pieces make a standalone screen hostable without changing it outside the
+phone (`src/lib/nav/phone-embed.tsx`):
+
+- `DeepSpaceScreen` sees the phone's `PhoneEmbedProvider` and renders a compact
+  shell: no sky, window, safe area or app dock, and one back row wired to the
+  screen's own `onBack` or the phone's history. A screen that draws its own back
+  button passes `ownBack`, so the shell adds none.
+- The screen takes `router` from `useAppRouter()` and its query from
+  `useScreenParams()`. Outside the phone these are expo-router's own. Inside,
+  `push` opens the route in the phone (a route the phone cannot draw yet shows
+  its "not yet connected" page; nothing opened from the phone leaves it),
+  `push("/")` and `replace("/")` close the phone, and only the auth screens
+  (sign-out, re-sign-in after a password change) leave it. A screen that still calls expo-router's `router.back()`
+  directly would pop the app stack, so only converted screens may be listed.
+
+Android Back inside the phone has one listener, the phone's. A hosted screen
+with its own back logic (the palette's unsaved-changes guard, an in-flight
+community join) uses `useHardwareBack()`, which claims Back through the phone
+instead of `BackHandler`: React runs child effects before parent effects, so a
+screen's own listener would end up older than the phone's and lose.
+`displayWidth` gives screens that size themselves from the window (the palette
+canvas) the phone display's width instead.
+
+Known differences inside the phone: React Native `Modal` sheets (premium,
+reasoning limit, notice dialog, time picker, survey intros and save
+celebrations, the chat's first-visit intro, crisis routing) cover the whole
+window; screens that read `usePathname()` see `/dashboard`, so the rewarded-ad
+offers on plans, the reasoning limit sheet and chat stay hidden (they fail
+closed); route guards that use `useNavigation()` (privacy's deletion fence,
+the audit's beforeRemove, the palette's unsaved-changes prompt) attach to the
+dashboard route; and a profile-incomplete `<Redirect>` navigates the app, not
+the phone. Not hosted: wiki export (no in-app entry), `/integrations`,
+`/capture-full`, the full `/capture` and `/records` screens (the phone keeps
+its own note and notes pages), and `/dev-screens`. Some result layouts are
+cramped at 213px (strengths signature cards, beyond's 180px widget cards, the
+share card's chip row, the brightness heatmap).
+
+`OpsPhoneContent` reuses the existing assistant, reminders, ledger, goals,
+meals, reading shelf, and side-project screens with a phone-local `onBack`
+callback. Their embedded header Back is the only Back on those pages: the
+phone hides its own Back row there (`contentOwnsBack`), as it does for Museum.
+Android Back still steps through the phone history. The reminders screen also sends its assistant link through the phone
+navigation callback. `OpsFrame` drops the second app shell and inner scroll
+only in this host; the phone list owns scrolling. Standalone routes keep their
+current shell. The host checks auth before mounting and keys content by
+account so local shelf and GitHub handle state cannot carry across accounts.
+
+### Museum inside the phone
+
+`MuseumPhoneContent` reuses the 43-event `/museum` screen. Pass the live display
+width (`frame.screen.width`), a phone-local `onBack` callback returning to Apps,
+and the localized Apps-back label. While Museum is open, render it as the sole
+bounded flex child of `pageBody`, **outside the parent FlatList**. Hide the phone
+hero, tabs, page controls and dock for that page so the 400px two-lane timeline
+has a usable viewport. Disable the parent's `pagePan` and `phonePan` responders
+there: the Museum owns horizontal timeline gestures, vertical overview/timeline
+scrolling, and detail-sheet swipes. The physical phone exit remains available.
+Putting Museum inside the existing FlatList or keeping the parent responders
+would clip the AI lane or steal gestures. The adapter keeps the standalone
+`/museum` route unchanged; its phone Back closes an open detail first, then
+returns to Apps, and the terminal event's action also returns to Apps.
+
+QA the integrated launcher from an isolated branch with
+`node scripts/app-parity.cjs localhost --port=8082 --allow-diff`: open
+`/2nd-B/dashboard`, sign in with the repository QA account, choose Apps → Museum,
+and inspect at 320×568 and 375×667. Select a recent event, scroll its long
+detail, verify Back closes the sheet and another Back returns to Apps. Switch
+to Timeline, scroll vertically to the AI lane and horizontally across years;
+those gestures must not change the phone page or dismiss the phone.
+
 `/ops`, `/reminders`, `/permissions`, `/privacy`, `/import`, `/import-hub`, the six `/star` areas, focus, goals, ledger, meals, and the existing adult-only community. Consent, native permission requests, import review, revocation, and deletion remain owned by those flows.
 
-Google Calendar / Tasks, ICS, Google Timeline export, KakaoTalk export and SMS backups use existing imports. The current calendar import stores selected summary material, not a queryable timed event feed; the dashboard therefore does not fabricate a calendar agenda. A new import does not imply background synchronization.
+Google Calendar / Tasks, ICS, Google Timeline export, KakaoTalk export and SMS backups use existing imports. The current calendar import stores the selected events as one note, each with its date and time (`eventWhen` in `lib/import/proposals.ts`; it used to keep titles only), not a queryable timed event feed; the dashboard therefore does not fabricate a calendar agenda. A new import does not imply background synchronization.
 
-Sources are listed phone-first in three groups (`SOURCE_GROUPS`, Simon 2026-09-30): what a device permission can read (health, and Garmin through the OS health store), what genuinely needs an import (Google Timeline, calendar, Google Tasks, KakaoTalk, SMS backups), and services with no connection. Device cards open `/import?mode=account`; there, in the installed app, the person consents and taps "reflect today", which asks for the OS permission and reads today. On Android that tap also **arms the automatic read for that account on that phone** (`lib/health/auto-read.ts`, run by `lib/health/auto-read-runner.ts` from `components/health/HealthAutoReadSync.tsx`). The OS grant belongs to the app, not to an account, so another adult who signs in on the same phone does not inherit it. Once armed, and while automatic refresh is on, it reads once a day after the refresh time, only while the app is in the foreground (Health Connect refuses background reads; leaving the foreground abandons the run), adults only, with consent re-read from the server, with only what is already granted (`readGranted`, never `requestPermission`), one run at a time under an account lease and a five-minute deadline, and with a timer at the next slot while the app stays open. It reads steps, workouts and sleep (heart rate is one row per reading, thousands a day, and stays tap-only), every Health Connect page, from the start of the day of the last complete read (yesterday at the latest, three days back at most; the overlap catches watches that sync late) and sends them to `ingestHealthSamples` in chunks of 1,000. A failed or cut-off read counts as today's attempt but does not move the read-through date, so the next day reads the gap again. iOS is not read: the HealthKit adapter predates `@kingstinct/react-native-healthkit` 14 (`requestAuthorization({ toRead })`, `filter.date`, `limit`), and on iOS the registry's Health Connect entry also loads and comes first. Known gaps: the dashboard does not reload when an automatic read lands (it shows the samples on the next focus), and the tap's "new items" count includes rows the upsert only updated (the upsert returns updated rows too). A consented source with nothing read says "consent on", never that the OS permission is granted, because the app only knows the consent flag. Device-calendar and location reads are not implemented; they need a privacy-policy revision, store disclosures and, for location, a legal review before they can move into the permission group.
+Sources are listed phone-first in three groups (`SOURCE_GROUPS`, Simon 2026-09-30): what a device permission can read (health, and Garmin through the OS health store), what genuinely needs an import (Google Timeline, calendar, Google Tasks, KakaoTalk, SMS backups), and services with no connection. Device cards open `/import?mode=account`; there, in the installed app, the person consents and taps "reflect today", which asks for the OS permission and reads today. On Android that tap also **arms the automatic read for that account on that phone** (`lib/health/auto-read.ts`, run by `lib/health/auto-read-runner.ts` from `components/health/HealthAutoReadSync.tsx`). The OS grant belongs to the app, not to an account, so another adult who signs in on the same phone does not inherit it. Once armed, and while automatic refresh is on, it reads once a day after the refresh time, only while the app is in the foreground (Health Connect refuses background reads; leaving the foreground abandons the run), adults only, with consent re-read from the server, with only what is already granted (`readGranted`, never `requestPermission`), one run at a time under an account lease and a five-minute deadline, and with a timer at the next slot while the app stays open. It reads steps, workouts and sleep (heart rate is one row per reading, thousands a day, and stays tap-only), every Health Connect page, from the start of the day of the last complete read (yesterday at the latest, three days back at most; the overlap catches watches that sync late) and sends them to `ingestHealthSamples` in chunks of 1,000. A failed or cut-off read counts as today's attempt but does not move the read-through date, so the next day reads the gap again. iOS is not read: the HealthKit adapter predates `@kingstinct/react-native-healthkit` 14 (`requestAuthorization({ toRead })`, `filter.date`, `limit`), and on iOS the registry's Health Connect entry also loads and comes first. Known gaps: the dashboard does not reload when an automatic read lands (it shows the samples on the next focus), and the tap's "new items" count includes rows the upsert only updated (the upsert returns updated rows too). A consented source with nothing read says "consent on", never that the OS permission is granted, because the app only knows the consent flag. Reading the phone calendar was decided on 2026-10-02 (Q-261001-01 = B: events are saved into the user's records). The reader exists (`lib/import/phone-calendar.ts`: status without a prompt, a request only for an explicit tap, title/start/end/all-day only) but stays off behind `lib/import/phone-calendar-gate.ts` until the privacy policy, the consent text, the iOS permission text and the store forms cover it; `phone-calendar-gate.test.ts` fails the build if it is switched on before the policy, the iOS text and the `calendar_import` key exist. Draft texts and the switch-on order: `docs/legal/calendar-read-disclosure-draft-261002.md`. Location reads are not implemented; they need a privacy-policy revision, store disclosures and a legal review.
 
 Instagram, Facebook, X, Nike Run Club, LINE and WhatsApp have no direct connector in this application. They share one card that offers a user-chosen capture, not a promise to parse an arbitrary export or read private history; the card also says that Nike Run Club activity shared to Apple Health or Health Connect is read through the health card. Nike activity already shared to an OS health source can be imported through that existing source, depending on the user's other apps.
 

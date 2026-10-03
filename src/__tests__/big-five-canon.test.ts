@@ -275,10 +275,10 @@ describe("exact BFI-44 and createRecord contract", () => {
     });
     expect(bfiSurveyCopy("ko")).toEqual({
       intro:
-        '성격의 5가지 큰 축을 재는 검증된 자기보고 도구입니다. "이런 사람이다" 라는 문장에 1(전혀 아니다) ~ 5(매우 그렇다)로 답해 주세요. 정답은 없어요. 한 페이지에 5문항씩, 9페이지로 나눠집니다.',
+        '성격의 5가지 큰 축을 재는 검증된 자기보고 도구입니다. "이런 사람이다" 라는 문장에 1(전혀 아니다) ~ 5(매우 그렇다)로 답해 주세요. 정답은 없습니다. 한 페이지에 5문항씩, 9페이지로 나눠집니다.',
       citation: "John, Donahue, & Kentle (1991) · public domain",
       instruction: "다음 문장이 당신과 얼마나 맞는지 골라주세요. 「나는 …」",
-      failure: "저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요.",
+      failure: "저장하지 못했습니다. 답변은 그대로 남아 있으니 다시 시도해 주세요.",
       exit: "정말 성격 검사를 종료하시겠습니까? 작성 중이던 답변이 저장되지 않고 사라집니다.",
     });
   });
@@ -379,10 +379,13 @@ describe("big-five PIXEL-CLAY route discipline", () => {
   });
 
   test("saved CTA, header Back, and Android Back converge on current-owner one-shot completion", () => {
-    const requestBack = SCREEN.match(/const requestBack = useCallback\([\s\S]*?(?=\n\n  useEffect\(\(\) => \{\n    if \(phase)/)?.[0];
+    // Android Back is registered through useHardwareBack (src/lib/nav/phone-embed.tsx)
+    // so the dashboard phone can host this screen: the same focused BackHandler
+    // listener standalone, the phone's claim stack inside the phone.
+    const requestBack = SCREEN.match(/const requestBack = useCallback\([\s\S]*?(?=\n\n(?: {2}\/\/[^\n]*\n)* {2}useHardwareBack\(useCallback\(\(\) => \{\n {4}if \(phase)/)?.[0];
     expect(requestBack).toContain('phase === "saved"');
     expect(requestBack).toContain("handleSavedDone()");
-    expect(SCREEN).toMatch(/BackHandler\.addEventListener\("hardwareBackPress"[\s\S]*?phase === "saved"\) handleSavedDone\(\)/);
+    expect(SCREEN).toMatch(/useHardwareBack\(useCallback\(\(\) => \{[\s\S]*?phase === "saved"\) handleSavedDone\(\)/);
     expect(SCREEN).toContain("<SavedState onDone={handleSavedDone} />");
     expect(SCREEN).toContain("if (submitting) return true;");
     expect(SCREEN).toContain('visible={exitOpen && phase === "questions" && !submitting}');
@@ -414,8 +417,10 @@ describe("big-five PIXEL-CLAY route discipline", () => {
     expect(SCREEN).toContain('flexWrap: "wrap"');
     expect(SCREEN).toContain("prefersReducedMotion");
     expect(SCREEN).toContain("clearTimeout");
-    expect(SCREEN).toContain("BackHandler.addEventListener");
-    expect(SCREEN).toContain("subscription.remove()");
+    // Android Back through useHardwareBack: the hook owns the listener and removes
+    // it on blur and unmount (src/lib/nav/phone-embed.tsx).
+    expect(SCREEN).toContain("useHardwareBack(useCallback(");
+    expect(normalize(read("lib/nav/phone-embed.tsx"))).toContain("return () => sub.remove();");
     expect(SCREEN).not.toMatch(/DUMMY|fixture|heuristic|sample trait/i);
   });
 

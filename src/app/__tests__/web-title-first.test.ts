@@ -29,7 +29,7 @@ const html = read("../+html.tsx");
 
 /** 루트 게이트의 로더 분기 본문 (if (...) { ... } 안쪽). */
 function loaderBranch(): string {
-  const gate = layout.indexOf("if ((!fontsLoaded && !fontError) || !i18nReady)");
+  const gate = layout.indexOf("if ((!fontsReady && !OPENING_LOADS_FONTS) || !i18nReady)");
   if (gate < 0) throw new Error("루트 게이트를 못 찾았다 — 조건이 바뀌었으면 이 검사부터 고칠 것");
   const rest = layout.slice(gate);
   const end = rest.indexOf("\n  }");
@@ -60,10 +60,13 @@ describe("서빙되는 첫 <title> 은 비어 있지 않다", () => {
     expect(mainBranch()).toContain("{SITE_HEAD}");
   });
 
-  it("게이트 조건 자체는 건드리지 않았다", () => {
+  it("게이트 조건: i18n 은 그대로, 글꼴은 웹에서만 오프닝 뒤로", () => {
     // 이전 세션이 보류한 이유가 "부트 경로(#1626/#1646)를 바꾸게 된다" 였다.
-    // 이 수정의 전제는 조건을 그대로 둔다는 것이므로, 조건을 고정한다.
-    expect(layout).toContain("if ((!fontsLoaded && !fontError) || !i18nReady) {");
+    // 2026-10-04: i18n 조건(#1626/#1646)은 그대로 두고, 웹만 글꼴을 기다리지
+    // 않게 바꿨다 — 오프닝이 글꼴을 받는 동안 재생되고, 넘어가는 순간에만
+    // 글꼴을 기다린다(use-app-fonts.web.ts). 네이티브는 여전히 여기서 기다린다.
+    expect(layout).toContain("if ((!fontsReady && !OPENING_LOADS_FONTS) || !i18nReady) {");
+    expect(layout).toContain("const OPENING_LOADS_FONTS = Platform.OS === \"web\";");
   });
 
   it("런타임 대입은 남아 있다 — helmet 없는 런타임과 클라이언트 네비게이션용", () => {

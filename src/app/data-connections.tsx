@@ -1,8 +1,9 @@
 import { useCallback, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { Redirect, router, useFocusEffect, type Href } from "expo-router";
+import { Redirect, useFocusEffect, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
@@ -34,6 +35,8 @@ export default function DataConnections() {
 }
 
 function DataConnectionsBody({ ownerId, isMinor }: { ownerId: string; isMinor: boolean | null }) {
+  // Phone-aware: inside the dashboard phone, links and Back stay in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation(["settings", "ops", "common"]);
   const [refreshSettings, setRefreshSettingsState] = useState<RefreshSettings>(DEFAULT_REFRESH_SETTINGS);
   const [timeSheetOpen, setTimeSheetOpen] = useState(false);

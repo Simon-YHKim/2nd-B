@@ -91,7 +91,7 @@ export async function upsertKakaoRelationPeople(
           last_interaction_on: lastOn,
           tags: [KAKAO_IMPORT_TAG, `${SUBJECT_TAG_PREFIX}${signal.subjectKey}`],
           note: ko
-            ? "카카오 가져오기에서 만든 별칭이에요. 실제 이름은 저장하지 않았어요."
+            ? "카카오 가져오기에서 만든 별칭입니다. 실제 이름은 저장하지 않았습니다."
             : "An alias from a KakaoTalk import. The real name was not stored.",
         });
       }

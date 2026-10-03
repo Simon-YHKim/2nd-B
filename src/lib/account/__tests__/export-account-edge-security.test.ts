@@ -322,6 +322,59 @@ describe("export-account trust boundary", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("cdn-cache-control")).toBe("no-store");
   });
+
+  test("exports a raw clipping whose full owner path is exactly 1024 UTF-8 bytes", async () => {
+    const setup = successfulAdmin();
+    const name = `${"a".repeat(984)}.md`;
+    const path = `${OWNER_ID}/${name}`;
+    expect(new TextEncoder().encode(path).byteLength).toBe(1024);
+    setup.bucket.list
+      .mockResolvedValueOnce({ data: [{ name, metadata: { size: 7 } }], error: null })
+      .mockResolvedValue({ data: [], error: null });
+    setup.bucket.download.mockResolvedValue({ data: new Blob(["content"]), error: null });
+    createClientMock.mockReturnValue(setup.admin);
+
+    const response = await edge.handler(request({ token: jwt(), body: "{}" }));
+    expect(response.status).toBe(200);
+    const body = await response.json() as { storage: { path: string; markdown: string }[] };
+    expect(body.storage).toEqual([{ path, markdown: "content" }]);
+    expect(setup.bucket.download).toHaveBeenCalledWith(path);
+  });
+
+  test.each([
+    ["oversized owner path", `${"a".repeat(985)}.md`],
+    ["oversized multibyte owner path", `${"한".repeat(329)}.md`],
+    ["nested path", "folder/clip.md"],
+    ["backslash path", "folder\\clip.md"],
+    ["parent segment", ".."],
+    ["control character", "clip\nname.md"],
+  ])("fails closed on an unsafe raw clipping name: %s", async (_case, name) => {
+    const setup = successfulAdmin();
+    setup.bucket.list.mockResolvedValueOnce({
+      data: [{ name, metadata: { size: 7 } }], error: null,
+    });
+    createClientMock.mockReturnValue(setup.admin);
+
+    const response = await edge.handler(request({ token: jwt(), body: "{}" }));
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "export_temporarily_unavailable" });
+    expect(setup.bucket.download).not.toHaveBeenCalled();
+  });
+
+  test("keeps the record-photos name limit at 255 characters", async () => {
+    const setup = successfulAdmin();
+    setup.bucket.list
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({
+        data: [{ name: "p".repeat(256), metadata: { size: 1 } }], error: null,
+      });
+    createClientMock.mockReturnValue(setup.admin);
+
+    const response = await edge.handler(request({ token: jwt(), body: "{}" }));
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "export_temporarily_unavailable" });
+    expect(setup.bucket.download).not.toHaveBeenCalled();
+  });
 });
 
 describe("export-account bounded owned readers", () => {

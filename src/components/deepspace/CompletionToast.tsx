@@ -20,7 +20,7 @@ import { reactExpression } from "@/lib/companion/expression";
 
 const COMPLETION_COPY = {
   en: { done: "Analysis is ready", sub: "Take a look?", see: "See result", later: "Later" },
-  ko: { done: "분석이 끝났어요", sub: "보러 갈래요?", see: "결과 보기", later: "나중에" },
+  ko: { done: "분석이 끝났습니다", sub: "보러 갈래요?", see: "결과 보기", later: "나중에" },
   es: { done: "El analisis esta listo", sub: "Quieres verlo?", see: "Ver resultado", later: "Mas tarde" },
   pt: { done: "A analise esta pronta", sub: "Quer ver?", see: "Ver resultado", later: "Mais tarde" },
   id: { done: "Analisis sudah siap", sub: "Mau lihat?", see: "Lihat hasil", later: "Nanti" },

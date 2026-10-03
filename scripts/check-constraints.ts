@@ -8,6 +8,7 @@ import { join } from "node:path";
 
 import { FORBIDDEN_TERMS, CRISIS_TERMS } from "../src/lib/safety/lexicon";
 import { describeOwners, findMainVerifyOwners } from "./main-verify-owner";
+import { openingA11yContract } from "./opening-a11y-contract";
 
 const ROOT = process.cwd();
 
@@ -1182,12 +1183,9 @@ results.push(
       formats.includes("PreferenceSwitch") &&
       formats.includes('accessibilityLabel={tf("deleteModal.label")}') &&
       formats.includes('accessibilityLabel={tf("guideModal.label")}') &&
-      loadingScreen.includes('accessibilityRole="button"') &&
-      loadingScreen.includes("accessibilityState={{ busy: phase !== \"ready\", disabled: phase === \"zooming\" }}") &&
-      // Localized 260717 (judge-rehearsal #3): the gate label/hint moved from
-      // hardcoded Korean into the common bundle's loadingGate.* keys.
-      loadingScreen.includes('t("loadingGate.open")') &&
-      loadingScreen.includes('t("loadingGate.enterHint")') &&
+      // The approved opening has one small bottom-right skip and a retry, each
+      // with its own role and state (Simon 2026-10-03); the sound toggle stays gone.
+      openingA11yContract(loadingScreen) &&
       oauthCallback.includes('accessibilityRole="alert"') &&
       oauthCallback.includes("accessibilityLabel={retryLabel}") &&
       oauthCallback.includes("accessibilityHint={retryHint}") &&
@@ -1320,9 +1318,9 @@ results.push(
       flows.includes('"icon": "bubble_chart"') &&
       flows.includes("나를 알아가는 AI") &&
       flows.includes("일곱 별에") &&
-      flows.includes("내 이야기를 담아요") &&
+      flows.includes("내 이야기를 담습니다") &&
       flows.includes('"icon": "check_circle"') &&
-      flows.includes("내가 승인해야 반영돼요") &&
+      flows.includes("내가 승인해야 반영됩니다") &&
       !flows.includes("AI의 원리") &&
       !flows.includes("AI 뮤지엄") &&
       // top-right skip jumps to the final (auth) slide.
@@ -1371,7 +1369,7 @@ results.push(
       enConsent.notice.ackOverseas.includes("encrypted service data") &&
       koConsent.notice.ackOverseas.includes("암호화된 서비스 데이터") &&
       enConsent.privacy.keys.external_analytics.desc.includes("Record contents are not sent") &&
-      koConsent.privacy.keys.external_analytics.desc.includes("기록 본문은 보내지 않아요") &&
+      koConsent.privacy.keys.external_analytics.desc.includes("기록 본문은 보내지 않습니다") &&
       notice.includes('t("notice.trustTitle")') &&
       notice.includes('t("notice.trustBody")') &&
       // ⚠ 2026-09-08: 여기 privacy.tsx 가 privacy.trust* 를 띄운다는 단언이 있었다.
@@ -1493,13 +1491,13 @@ results.push(
       "Opens privacy settings.",
       "Opens data management.",
       "Signs out and returns to the sign-in screen.",
-      "설정을 불러오는 중이에요…",
+      "설정을 불러오는 중입니다…",
       "설정 삭제 확인",
       "설정 변경 결과",
-      "프로필 설정을 열어요.",
-      "개인정보 보호 설정을 열어요.",
-      "데이터 관리를 열어요.",
-      "로그아웃하고 로그인 화면으로 돌아가요.",
+      "프로필 설정을 엽니다.",
+      "개인정보 보호 설정을 엽니다.",
+      "데이터 관리를 엽니다.",
+      "로그아웃하고 로그인 화면으로 돌아갑니다.",
     ];
     const ok =
       codeRequired.every((snippet) => settings.includes(snippet)) &&
@@ -1513,7 +1511,7 @@ results.push(
       en.includes('"Signs out and returns to the sign-in screen."') &&
       ko.includes('"nav"') &&
       ko.includes('"설정 삭제 확인"') &&
-      ko.includes('"로그아웃하고 로그인 화면으로 돌아가요."') &&
+      ko.includes('"로그아웃하고 로그인 화면으로 돌아갑니다."') &&
       forbiddenInlineCopy.every((term) => !settings.includes(term));
     return {
       id: "SettingsNavModalI18nCopy",
@@ -1561,24 +1559,24 @@ results.push(
       "이 기기에 다크 테마를 적용합니다.",
       "이 기기에 라이트 테마를 적용합니다.",
       "장식 그래프 크루 밀도를",
-      "모든 일기를 삭제할지 한 번 더 물어요.",
-      "모든 노트를 삭제할지 한 번 더 물어요.",
-      "과거의 나 답변을 모두 삭제할지 한 번 더 물어요.",
-      "저장한 Big Five 결과를 삭제할지 한 번 더 물어요.",
-      "저장한 애착 결과를 삭제할지 한 번 더 물어요.",
-      "저장한 MBTI 참고 결과를 삭제할지 한 번 더 물어요.",
-      "모든 위키 페이지를 삭제할지 한 번 더 물어요.",
-      "아직 위키로 정리하지 않은 캡처를 삭제할지 한 번 더 물어요.",
-      "일일 사용량을 초기화할지 한 번 더 물어요.",
+      "모든 일기를 삭제할지 한 번 더 묻습니다.",
+      "모든 노트를 삭제할지 한 번 더 묻습니다.",
+      "과거의 나 답변을 모두 삭제할지 한 번 더 묻습니다.",
+      "저장한 Big Five 결과를 삭제할지 한 번 더 묻습니다.",
+      "저장한 애착 결과를 삭제할지 한 번 더 묻습니다.",
+      "저장한 MBTI 참고 결과를 삭제할지 한 번 더 묻습니다.",
+      "모든 위키 페이지를 삭제할지 한 번 더 묻습니다.",
+      "아직 위키로 정리하지 않은 캡처를 삭제할지 한 번 더 묻습니다.",
+      "일일 사용량을 초기화할지 한 번 더 묻습니다.",
       "전체 삭제 확인.",
-      "기록, 캡처, 위키 페이지, 사용량을 모두 삭제하려면 DELETE를 입력하고 한 번 더 확인해야 해요.",
+      "기록, 캡처, 위키 페이지, 사용량을 모두 삭제하려면 DELETE를 입력하고 한 번 더 확인해야 합니다.",
     ];
     const ok =
       requiredCode.every((snippet) => settings.includes(snippet)) &&
       en.includes('"deleteJournalsHint": "Opens a confirmation before deleting every journal entry."') &&
       en.includes('"fullWipeHint": "Requires typed DELETE confirmation before wiping records, sources, wiki pages, and usage."') &&
-      ko.includes('"deleteJournalsHint": "모든 일기를 삭제할지 한 번 더 물어요."') &&
-      ko.includes('"fullWipeHint": "기록, 캡처, 위키 페이지, 사용량을 모두 삭제하려면 DELETE를 입력하고 한 번 더 확인해야 해요."') &&
+      ko.includes('"deleteJournalsHint": "모든 일기를 삭제할지 한 번 더 묻습니다."') &&
+      ko.includes('"fullWipeHint": "기록, 캡처, 위키 페이지, 사용량을 모두 삭제하려면 DELETE를 입력하고 한 번 더 확인해야 합니다."') &&
       forbiddenInlineCopy.every((term) => !settings.includes(term));
     return {
       id: "SettingsActionHintsI18nCopy",
@@ -1624,10 +1622,10 @@ results.push(
       en.includes('"Shows the typed confirmation for deleting all records, sources, wiki pages, and usage."') &&
       en.includes('"This clears private PolaScope content in this account. Account details, consent history, and service accountability records stay."') &&
       ko.includes('"dataWizard"') &&
-      ko.includes('"삭제할 데이터 종류를 골라주세요. 종류별로 지우거나 전체를 삭제할 수 있어요."') &&
+      ko.includes('"삭제할 데이터 종류를 골라주세요. 종류별로 지우거나 전체를 삭제할 수 있습니다."') &&
       ko.includes('"{{label}}, {{total}}개 중 {{index}}번째, {{state}}."') &&
-      ko.includes('"전체 삭제를 확인하는 입력란을 보여줘요. 기록, 캡처, 위키 페이지, 사용량이 모두 삭제돼요."') &&
-      ko.includes('"이 계정의 PolaScope 개인 콘텐츠를 모두 지워요. 계정 정보, 동의 이력, 서비스 책임 기록은 남아요."');
+      ko.includes('"전체 삭제를 확인하는 입력란을 보여줍니다. 기록, 캡처, 위키 페이지, 사용량이 모두 삭제됩니다."') &&
+      ko.includes('"이 계정의 PolaScope 개인 콘텐츠를 모두 지웁니다. 계정 정보, 동의 이력, 서비스 책임 기록은 남습니다."');
     return {
       id: "SettingsDataDeleteWizard",
       status: ok ? "PASS" : "FAIL",
@@ -1671,8 +1669,8 @@ results.push(
       "Type DELETE to enable the account deletion button.",
       "Opens a final confirmation before deleting your account and data.",
       "Starts account and data deletion.",
-      "계정을 불러오고 있어요…",
-      "계정 삭제를 끝내지 못했어요.",
+      "계정을 불러오고 있습니다…",
+      "계정 삭제를 끝내지 못했습니다.",
       "생일을 저장하지 못했습니다.",
       "계정 삭제 최종 확인",
       "계정 안내",
@@ -1687,7 +1685,7 @@ results.push(
       en.includes('"label": "Account feedback notice"') &&
       en.includes('"inputLabel": "Account deletion confirmation phrase"') &&
       en.includes('"confirmCtaHint": "Starts account and data deletion."') &&
-      ko.includes('"loading": "계정을 불러오고 있어요…"') &&
+      ko.includes('"loading": "계정을 불러오고 있습니다…"') &&
       ko.includes('"label": "계정 안내"') &&
       ko.includes('"inputLabel": "계정 삭제 확인 문구"') &&
       ko.includes('"confirmCtaHint": "계정과 데이터 삭제를 시작합니다."') &&
@@ -1727,7 +1725,7 @@ results.push(
       '"취소"',
       '"닫기"',
       "안내를 닫습니다.",
-      "선택한 받은편지함 작업을 실행해요.",
+      "선택한 받은편지함 작업을 실행합니다.",
     ];
     const ok =
       requiredCode.every((snippet) => inbox.includes(snippet)) &&
@@ -1736,7 +1734,7 @@ results.push(
       en.includes('"confirmHint": "Runs the selected inbox action."') &&
       ko.includes('"noticeLabel": "받은편지함 안내"') &&
       ko.includes('"confirmLabel": "받은편지함 작업 확인"') &&
-      ko.includes('"confirmHint": "선택한 받은편지함 작업을 실행해요."') &&
+      ko.includes('"confirmHint": "선택한 받은편지함 작업을 실행합니다."') &&
       forbiddenInlineCopy.every((term) => !inbox.includes(term));
     return {
       id: "InboxFeedbackI18nCopy",
@@ -1763,10 +1761,10 @@ results.push(
     ];
     const ok =
       inbox.includes('t("deleteConfirmBody")') &&
-      read("locales/ko/inbox.json").includes("첨부된 본문 파일은 계정에 남을 수 있어요") &&
+      read("locales/ko/inbox.json").includes("첨부된 본문 파일은 계정에 남을 수 있습니다") &&
       capture.includes('t("file.attachedNoPreview")') &&
       enCapture.file?.attachedNoPreview === "File attached. Text preview is not available." &&
-      koCapture.file?.attachedNoPreview === "파일을 첨부했어요. 본문은 여기서 미리 볼 수 없어요." &&
+      koCapture.file?.attachedNoPreview === "파일을 첨부했습니다. 본문은 여기서 미리 볼 수 없습니다." &&
       forbiddenUserLanguage.every((term) => !inbox.includes(term) && !capture.includes(term));
     return {
       id: "CaptureStorageLanguage",
@@ -1990,7 +1988,7 @@ results.push(
         i18n.includes("notFound: enNotFound") &&
         i18n.includes("notFound: koNotFound") &&
         en.includes("This page does not exist") &&
-        ko.includes("화면을 찾을 수 없어요") &&
+        ko.includes("화면을 찾을 수 없습니다") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term)) &&
         forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
       return {
@@ -2210,7 +2208,7 @@ results.push(
         en.includes('"oauthCallback"') &&
         ko.includes('"oauthCallback"') &&
         en.includes("Couldn't complete sign-in") &&
-        ko.includes("로그인을 완료하지 못했어요") &&
+        ko.includes("로그인을 완료하지 못했습니다") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term));
       return {
         id: "OAuthCallbackI18nCopy",
@@ -2243,8 +2241,8 @@ results.push(
         "Could not start Naver sign-up",
         "Sign-up failed. Please try again in a moment.",
         "Could not save your profile. Please try again in a moment.",
-        "로그인을 시작하지 못했어요",
-        "가입을 시작하지 못했어요",
+        "로그인을 시작하지 못했습니다",
+        "가입을 시작하지 못했습니다",
         "로그인에 실패했습니다",
         "가입에 실패했습니다",
         "프로필 저장에 실패했습니다",
@@ -2373,7 +2371,7 @@ results.push(
         "New here? Read the 1-min user guide",
         "확인하는 중…",
         "세컨비 입장 이미지",
-        "입력한 비밀번호를 보여줘요.",
+        "입력한 비밀번호를 보여줍니다.",
         "비밀번호를 잊으셨나요?",
         "가입 이메일 주소로 support@2nd-brain.app",
         "이 앱이 처음이라면 사용 안내서 보기",
@@ -2582,7 +2580,7 @@ results.push(
       '"savedFolder": "저장 폴더"',
       '"detailsToSave": "저장할 세부 정보"',
       '"detailNamePlaceholder": "항목 이름 (예: 주제)"',
-      '"commonOnly": "요약, 해시태그, 관련도처럼 모든 자료에 쓰는 항목만 저장해요."',
+      '"commonOnly": "요약, 해시태그, 관련도처럼 모든 자료에 쓰는 항목만 저장합니다."',
     ];
     const forbidden = [
       '"Base kind"',
@@ -2623,7 +2621,7 @@ results.push(
       wiki.includes('t("hero.subtitle")') &&
       wiki.includes('t("hero.speech")') &&
       en.includes("Your saved records and material in one place") &&
-      ko.includes("PolaScope에 담은 기록과 자료를 모았어요") &&
+      ko.includes("PolaScope에 담은 기록과 자료를 모았습니다") &&
       forbidden.every((term) => !wiki.includes(term) && !en.includes(term) && !ko.includes(term));
     return {
       id: "WikiHeroI18nCopy",
@@ -2662,7 +2660,7 @@ results.push(
       manual.includes("세컨비는 북극성 요약이 아니라 그 원문을 읽습니다") &&
       manual.includes("Ask SecondB in your own words") &&
       read("locales/en/settings.json").includes("Adjust your app settings") &&
-      read("locales/ko/settings.json").includes("앱 설정을 바꿀 수 있어요") &&
+      read("locales/ko/settings.json").includes("앱 설정을 바꿀 수 있습니다") &&
       forbiddenReadme.every((term) => !readme.includes(term)) &&
       forbiddenManual.every((term) => !manual.includes(term)) &&
       forbiddenSettings.every((term) => !settings.includes(term));
@@ -2929,7 +2927,7 @@ results.push(
       "AI가 다시 쓸 수 있는",
       "AI로 정리 기준 만들기",
       "정리 기준을 만들지 못했습니다",
-      "형식을 저장하지 못했어요",
+      "형식을 저장하지 못했습니다",
       "제안된 형식",
       "이 형식 추가",
     ];

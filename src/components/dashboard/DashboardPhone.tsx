@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, AppState, FlatList, PanResponder, Platform, Pressable, StyleSheet, View, type ImageStyle } from "react-native";
+import { Animated, AppState, BackHandler, FlatList, PanResponder, Platform, Pressable, StyleSheet, TextInput, View, type ImageStyle } from "react-native";
 import { Image } from "expo-image";
 import { router, useFocusEffect, useLocalSearchParams, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -26,6 +26,15 @@ import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { m3 } from "@/lib/theme/m3";
 import { useNoticeCenter } from "@/app/notices";
 import { renderableBlocks } from "@/lib/notices/markdown";
+import { createRecord } from "@/lib/records/create";
+import { filterPhoneWikiPages } from "@/lib/wiki/phone-search";
+import { getBacklinks, getWikiPageById, listWikiPages } from "@/lib/wiki/queries";
+import type { WikiPageRow } from "@/lib/wiki/types";
+import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import { OpsPhoneContent, type OpsPhoneScreen } from "@/screens/deepspace/ops/PhoneOpsContent";
+import { MuseumPhoneContent } from "@/screens/deepspace/museum/MuseumTimelineScreen";
+import { PhoneEmbedProvider, splitPhoneRoute, type PhoneEmbedNav } from "@/lib/nav/phone-embed";
+import { resolvePhoneScreen } from "./phone-screens";
 import type { ProductNotice } from "@/lib/notices/types";
 
 type Tab = "dashboard" | "tools";
@@ -47,12 +56,28 @@ const APP_ORDER: PhoneAppId[] = [
   "community", "relationships", "settings", "more",
 ];
 const PHONE_NAV = ["home", "note", "add", "search", "profile"] as const;
-const PIXEL_IMAGE = Platform.OS === "web" ? { imageRendering: "pixelated" } as ImageStyle : undefined;
-
-function go(route: string) {
-  if (typeof document !== "undefined") (document.activeElement as HTMLElement | null)?.blur?.();
-  router.push(route as Href);
+const OPS_PHONE_ROUTES: Record<string, OpsPhoneScreen> = {
+  "/ops": "ops",
+  "/reading": "reading",
+  "/reminders": "reminders",
+  "/ledger": "ledger",
+  "/milestones": "milestones",
+  "/meals": "meals",
+  "/side-project": "side-project",
+};
+/** A query route whose target the phone draws as its own page: a wiki citation
+ *  (/wiki?focusPageId=) opens the phone's page view. */
+function phonePage(route: string): string {
+  const { path, params } = splitPhoneRoute(route);
+  if (path === "/wiki" && params.focusPageId) return `/wiki/page/${encodeURIComponent(params.focusPageId)}`;
+  // /persona (and the dormant /mbti that points at it) is a redirect to Polaris;
+  // its <Redirect> would move the app, not the phone.
+  if (path === "/persona" || path === "/mbti") return "/core-brain";
+  return route;
 }
+/** A hosted screen replacing itself with one of these leaves the phone (sign-out). */
+const AUTH_EXIT_PATHS = new Set(["/sign-in", "/sign-up", "/onboarding"]);
+const PIXEL_IMAGE = Platform.OS === "web" ? { imageRendering: "pixelated" } as ImageStyle : undefined;
 
 // The phone bezel is always dark, including when the rest of the app uses its
 // light palette. Do not inherit a dark theme's text color onto this surface.
@@ -80,6 +105,28 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const [tab, setTab] = useState<Tab>(app === "notifications" ? "tools" : "dashboard");
   const [phoneApp, setPhoneApp] = useState<"notifications" | "more" | null>(app === "notifications" ? "notifications" : null);
   const [selectedNoticeId, setSelectedNoticeId] = useState<string | null>(null);
+  const [screenStack, setScreenStack] = useState<string[]>([]);
+  const [exitPrompt, setExitPrompt] = useState(false);
+  const [recordQuery, setRecordQuery] = useState("");
+  const [wikiQuery, setWikiQuery] = useState("");
+  const [wikiPages, setWikiPages] = useState<WikiPageRow[]>([]);
+  const [wikiOwnerId, setWikiOwnerId] = useState<string | null>(null);
+  const [wikiLoading, setWikiLoading] = useState(false);
+  const [wikiFailed, setWikiFailed] = useState(false);
+  const [wikiRefresh, setWikiRefresh] = useState(0);
+  const [wikiPage, setWikiPage] = useState<WikiPageRow | null>(null);
+  const [wikiBacklinks, setWikiBacklinks] = useState<WikiPageRow[]>([]);
+  const [wikiBacklinksFailed, setWikiBacklinksFailed] = useState(false);
+  const [wikiDetailLoading, setWikiDetailLoading] = useState(false);
+  const [wikiDetailFailed, setWikiDetailFailed] = useState(false);
+  const [draft, setDraft] = useState("");
+  // A tag carried by /capture?tag= (Discover), saved with the note and shown on the page.
+  const [captureTag, setCaptureTag] = useState<string | null>(null);
+  const [captureBusy, setCaptureBusy] = useState(false);
+  const [captureState, setCaptureState] = useState<"idle" | "saved" | "failed">("idle");
+  const [crisisVisible, setCrisisVisible] = useState(false);
+  const [focusSeconds, setFocusSeconds] = useState(25 * 60);
+  const [focusRunning, setFocusRunning] = useState(false);
   const noticeCenter = useNoticeCenter(ownerId);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -99,7 +146,96 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const dismissing = useRef(false);
   const mounted = useRef(true);
   const actionBusy = useRef(false);
+  const captureBusyRef = useRef(false);
   const scheduledReadPending = useRef(false);
+  const insideRoute = screenStack[screenStack.length - 1] ?? null;
+  const museumOpen = insideRoute === "/museum";
+  const phoneScreen = insideRoute ? resolvePhoneScreen(insideRoute) : null;
+  // Museum and the hosted full screens (phone-screens.tsx) own the display:
+  // their own scroll, gestures and header Back. The phone's list, pan
+  // gestures, status rows and dock step aside for them.
+  const ownsDisplay = museumOpen || phoneScreen !== null;
+  // Those screens and the Ops screens draw their own header Back wired to
+  // backInside, so the phone's Back row would be a second one. Back lives in
+  // one place.
+  const contentOwnsBack = ownsDisplay || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);
+  const wikiDetailId = insideRoute?.startsWith("/wiki/page/")
+    ? decodeURIComponent(insideRoute.slice("/wiki/page/".length)) : null;
+  const go = useCallback((target: string) => {
+    // Phone-originated navigation stays in the supplied phone display. The
+    // independent routes keep their own existing entry points unchanged.
+    if (typeof document !== "undefined") (document.activeElement as HTMLElement | null)?.blur?.();
+    const route = phonePage(target);
+    const { path, params } = splitPhoneRoute(route);
+    scrollY.current = 0;
+    setRecordQuery("");
+    if (path === "/wiki") setWikiQuery("");
+    // "Save this" from chat (/capture?text=) arrives with the words filled in.
+    if (path === "/capture" && params.text) setDraft(params.text);
+    if (path === "/capture") setCaptureTag(params.tag ?? null);
+    setExitPrompt(false);
+    setScreenStack((current) => [...current, route]);
+  }, []);
+  const backInside = useCallback(() => {
+    scrollY.current = 0;
+    if (exitPrompt) { setExitPrompt(false); return; }
+    if (selectedNoticeId) { setSelectedNoticeId(null); return; }
+    if (screenStack.length) { setScreenStack((current) => current.slice(0, -1)); return; }
+    if (phoneApp) { setPhoneApp(null); return; }
+    if (tab === "tools") { setTab("dashboard"); return; }
+    setExitPrompt(true);
+  }, [exitPrompt, selectedNoticeId, screenStack.length, phoneApp, tab]);
+  // Android Back handlers claimed by hosted screens (useHardwareBack), newest
+  // last. The phone's one listener asks them before stepping back itself.
+  const claimedBack = useRef<Array<() => boolean>>([]);
+  const claimBack = useCallback((handler: () => boolean) => {
+    claimedBack.current = [...claimedBack.current, handler];
+    return () => {
+      const at = claimedBack.current.lastIndexOf(handler);
+      if (at >= 0) claimedBack.current = [...claimedBack.current.slice(0, at), ...claimedBack.current.slice(at + 1)];
+    };
+  }, []);
+  // Navigation for hosted screens. Everything opened from the phone stays in
+  // the phone (Simon 2026-09-30); a route the phone cannot draw yet shows its
+  // "not yet connected" page. Only a replace to home closes the phone, and a
+  // replace to the auth screens (sign-out) leaves it.
+  const embedNav = useMemo<PhoneEmbedNav>(() => ({
+    // push("/") from a hosted screen ("go home") closes the phone like replace("/").
+    push: (route) => {
+      const { path } = splitPhoneRoute(route);
+      if (path === "/") closePhone();
+      else if (AUTH_EXIT_PATHS.has(path)) router.replace(route as Href);
+      else go(route);
+    },
+    replace: (route) => {
+      const { path } = splitPhoneRoute(route);
+      if (path === "/") { closePhone(); return; }
+      if (AUTH_EXIT_PATHS.has(path)) { router.replace(route as Href); return; }
+      scrollY.current = 0;
+      setScreenStack((current) => [...current.slice(0, -1), route]);
+    },
+    back: backInside,
+    params: splitPhoneRoute(insideRoute ?? "").params,
+    displayWidth: frame?.screen.width,
+    claimBack,
+  }), [backInside, claimBack, closePhone, frame?.screen.width, go, insideRoute]);
+  useFocusEffect(useCallback(() => {
+    if (museumOpen) return;
+    const listener = BackHandler.addEventListener("hardwareBackPress", () => {
+      for (let i = claimedBack.current.length - 1; i >= 0; i -= 1) if (claimedBack.current[i]()) return true;
+      backInside();
+      return true;
+    });
+    return () => listener.remove();
+  }, [backInside, museumOpen]));
+  useEffect(() => {
+    if (!focusRunning || insideRoute !== "/focus") return;
+    const timer = setInterval(() => setFocusSeconds((seconds) => {
+      if (seconds <= 1) { setFocusRunning(false); return 0; }
+      return seconds - 1;
+    }), 1000);
+    return () => clearInterval(timer);
+  }, [focusRunning, insideRoute]);
   const settlePhone = useCallback(() => {
     Animated.timing(dismissY, {
       toValue: 0,
@@ -119,6 +255,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     },
     onPanResponderRelease: (_event, gesture) => {
       if (!shouldCompletePhoneDismiss(gesture.dy, gesture.vy)) { settlePhone(); return; }
+      if (insideRoute || phoneApp || exitPrompt) { backInside(); settlePhone(); return; }
       dismissing.current = true;
       Animated.timing(dismissY, {
         toValue: frameSize.height || 700,
@@ -128,22 +265,24 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       }).start(({ finished }) => { if (finished && mounted.current) closePhone(); });
     },
     onPanResponderTerminate: settlePhone,
-  }), [closePhone, dismissY, frameSize.height, reducedMotion, settlePhone]);
+  }), [backInside, closePhone, dismissY, exitPrompt, frameSize.height, insideRoute, phoneApp, reducedMotion, settlePhone]);
   const pageIndex = tab === "dashboard" ? 0 : phoneApp === "more" ? 2 : 1;
   const showPage = useCallback((index: number) => {
     if (index < 0 || index > 2) return;
     scrollY.current = 0;
     setSelectedNoticeId(null);
+    setScreenStack([]);
+    setExitPrompt(false);
     setTab(index === 0 ? "dashboard" : "tools");
     setPhoneApp(index === 2 ? "more" : null);
   }, []);
   const pagePan = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponder: (_event, gesture) =>
-      Math.abs(gesture.dx) > 30 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+      !insideRoute && !exitPrompt && Math.abs(gesture.dx) > 30 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
     onPanResponderRelease: (_event, gesture) => {
       if (Math.abs(gesture.dx) > 55) showPage(pageIndex + (gesture.dx < 0 ? 1 : -1));
     },
-  }), [pageIndex, showPage]);
+  }), [exitPrompt, insideRoute, pageIndex, showPage]);
   useEffect(() => () => dismissY.stopAnimation(), [dismissY]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useFocusEffect(useCallback(() => {
@@ -152,7 +291,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     setFailed(false);
     void loadDashboard(ownerId, isMinor).then((next) => {
       if (active) setData(next);
-    }).catch(() => { if (active) setFailed(true); }).finally(() => {
+    }).catch(() => { if (active) { setData(null); setFailed(true); } }).finally(() => {
       if (active) { setLoading(false); scheduledReadPending.current = false; }
     });
     return () => { active = false; scheduledReadPending.current = false; };
@@ -180,6 +319,56 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     });
     return () => { if (timer) clearTimeout(timer); subscription.remove(); };
   }, [refreshSettings, data?.readAt, refresh]));
+
+  useFocusEffect(useCallback(() => {
+    if (insideRoute !== "/wiki") return;
+    let active = true;
+    const lease = captureAccountOwnerLease(ownerId);
+    setWikiLoading(true);
+    setWikiFailed(false);
+    if (!lease?.isCurrent()) {
+      setWikiLoading(false);
+      setWikiFailed(true);
+      return;
+    }
+    void listWikiPages(ownerId, { limit: 200 }).then((pages) => {
+      if (active && lease.isCurrent()) { setWikiPages(pages); setWikiOwnerId(ownerId); }
+    }).catch(() => { if (active && lease.isCurrent()) setWikiFailed(true); }).finally(() => {
+      if (active && lease.isCurrent()) setWikiLoading(false);
+    });
+    return () => { active = false; };
+  }, [insideRoute, ownerId, wikiRefresh]));
+
+  useFocusEffect(useCallback(() => {
+    if (!wikiDetailId) return;
+    let active = true;
+    const lease = captureAccountOwnerLease(ownerId);
+    setWikiPage(null);
+    setWikiBacklinks([]);
+    setWikiBacklinksFailed(false);
+    setWikiDetailLoading(true);
+    setWikiDetailFailed(false);
+    if (!lease?.isCurrent()) {
+      setWikiDetailLoading(false);
+      setWikiDetailFailed(true);
+      return;
+    }
+    void Promise.all([getWikiPageById(ownerId, wikiDetailId), getBacklinks(ownerId, wikiDetailId)
+      .then((pages) => ({ pages, failed: false }))
+      .catch(() => ({ pages: [] as WikiPageRow[], failed: true }))]).then(([page, backlinks]) => {
+      if (active && lease.isCurrent()) {
+        setWikiPage(page);
+        setWikiBacklinks(backlinks.pages);
+        setWikiBacklinksFailed(backlinks.failed);
+      }
+    }).catch(() => { if (active && lease.isCurrent()) setWikiDetailFailed(true); }).finally(() => {
+      if (active && lease.isCurrent()) setWikiDetailLoading(false);
+    });
+    return () => { active = false; };
+  }, [wikiDetailId, ownerId, wikiRefresh]));
+
+  const filteredWikiPages = useMemo(() => wikiOwnerId === ownerId
+    ? filterPhoneWikiPages(wikiPages, wikiQuery) : [], [wikiOwnerId, ownerId, wikiPages, wikiQuery]);
 
   const date = (value: string, includeTime = false) => {
     const parsed = new Date(value);
@@ -209,7 +398,129 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     finally { actionBusy.current = false; if (mounted.current && lease.isCurrent()) setBusy(null); }
   }
 
+  async function savePhoneNote() {
+    const body = draft.trim();
+    if (!body || captureBusyRef.current) return;
+    const lease = captureAccountOwnerLease(ownerId);
+    if (!lease?.isCurrent()) return;
+    captureBusyRef.current = true;
+    setCaptureBusy(true);
+    setCaptureState("idle");
+    try {
+      const saved = await createRecord({
+        userId: ownerId, locale: i18n.language.toLowerCase().startsWith("ko") ? "ko" : "en",
+        minor: isMinor === true, kind: "note", body, withFollowup: false,
+        tags: captureTag ? [captureTag] : undefined,
+      });
+      if (!mounted.current || !lease.isCurrent()) return;
+      setDraft("");
+      setCaptureState("saved");
+      if (saved.followup?.zone === "red") setCrisisVisible(true);
+      setRefresh((value) => value + 1);
+    } catch {
+      if (mounted.current && lease.isCurrent()) setCaptureState("failed");
+    } finally {
+      captureBusyRef.current = false;
+      if (mounted.current && lease.isCurrent()) setCaptureBusy(false);
+    }
+  }
+
+  function internalPage(stackRoute: string) {
+    // Query routes draw the same page; /records?tags= filters it, and
+    // /record/<id>?origin= opens the record.
+    const { path: route, params: routeParams } = splitPhoneRoute(stackRoute);
+    const tagFilter = routeParams.tags ? routeParams.tags.split(",") : null;
+    const opsScreen = OPS_PHONE_ROUTES[route];
+    if (opsScreen) return <OpsPhoneContent screen={opsScreen} onBack={backInside} onNavigate={go} />;
+    const records = data?.records.ok ? data.records.value : [];
+    const recordFailed = !!data && !data.records.ok;
+    const area = route.startsWith("/star/") ? route.slice(6) : null;
+    const title = route === "/focus" ? t("phone.apps.focus") :
+      route === "/museum" ? t("phone.apps.museum") :
+      route === "/profile" ? t("phone.nav.profile") :
+      route === "/capture" ? t("phone.nav.add") :
+      route === "/wiki" || route.startsWith("/wiki/page/") ? t("phone.moreApps.wiki") :
+      route === "/search" ? t("phone.nav.search") :
+      route === "/records" ? t("phone.nav.note") :
+      area && LIFE_AREAS.some((item) => item === area) ? t(`phone.areas.${area}`) :
+      route.startsWith("/record/") ? t("phone.moreApps.records") : t("phone.moreTitle");
+    const searchList = route === "/records" || route === "/search";
+    const filtered = records.filter((record) => (!area || record.tags?.includes(`domain:${area}`)) &&
+      (!tagFilter || tagFilter.some((tag) => record.tags?.includes(tag))) &&
+      (!recordQuery || record.body?.toLocaleLowerCase().includes(recordQuery.toLocaleLowerCase())));
+    const selected = route.startsWith("/record/") ? [...records, ...interviews].find((record) => record.id === decodeURIComponent(route.slice(8))) : null;
+    return <View style={styles.stack}>
+      <Text variant="heading">{title}</Text>
+      {route === "/capture" ? <PixelSurface variant="frame" contentStyle={styles.routine}>
+        <Text variant="caption" style={styles.muted}>{t("phone.internal.captureScope")}</Text>
+        {captureTag ? <Text variant="caption" style={styles.accent}>{`#${captureTag}`}</Text> : null}
+        <TextInput accessibilityLabel={t("phone.internal.noteInput")} multiline value={draft} onChangeText={setDraft} placeholder={t("phone.internal.noteInput")} placeholderTextColor={m3.color.onSurfaceVariant} style={[styles.noteInput, styles.phoneText]} />
+        <PhoneAction label={captureBusy ? t("phone.saving") : t("phone.internal.saveNote")} glyph="check" disabled={!draft.trim() || captureBusy} onPress={() => { void savePhoneNote(); }} />
+        {captureState === "saved" ? <Text accessibilityRole="alert" variant="caption" style={styles.accent}>{t("phone.internal.saved")}</Text> : null}
+        {captureState === "failed" ? <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.saveError")}</Text> : null}
+      </PixelSurface> : null}
+      {route === "/focus" ? <PixelSurface variant="frame" contentStyle={styles.routine}>
+        <Text variant="heading" style={styles.focusClock}>{`${String(Math.floor(focusSeconds / 60)).padStart(2, "0")}:${String(focusSeconds % 60).padStart(2, "0")}`}</Text>
+        <Text variant="caption" style={styles.muted}>{t("phone.internal.focusLocal")}</Text>
+        <View style={styles.actions}>
+          <PhoneAction label={t(focusRunning ? "phone.internal.pause" : "phone.internal.start")} glyph="timer" onPress={() => setFocusRunning((value) => !value)} />
+          <PhoneAction label={t("phone.internal.reset")} glyph="refresh" onPress={() => { setFocusRunning(false); setFocusSeconds(25 * 60); }} />
+        </View>
+      </PixelSurface> : null}
+      {route === "/wiki" ? <View style={styles.stack}>
+        <PhoneAction label={t("phone.internal.wikiGraph")} glyph="bubble_chart" onPress={() => go("/wiki/graph")} />
+        <TextInput accessibilityLabel={t("wiki:searchPieces")} value={wikiQuery} onChangeText={setWikiQuery} placeholder={t("wiki:searchPieces")} placeholderTextColor={m3.color.onSurfaceVariant} style={[styles.searchInput, styles.phoneText]} />
+        {wikiLoading ? <Text variant="caption" style={styles.muted}>{t("wiki:loading")}</Text> : null}
+        {wikiFailed ? <View style={styles.stack}>
+          <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text>
+          <PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setWikiRefresh((value) => value + 1)} />
+        </View> : null}
+        {!wikiLoading && !wikiFailed && wikiOwnerId === ownerId && wikiPages.length === 0 ? <Text variant="caption" style={styles.muted}>{t("wiki:empty")}</Text> : null}
+        {!wikiLoading && !wikiFailed && wikiOwnerId === ownerId && wikiPages.length > 0 && filteredWikiPages.length === 0 ? <Text variant="caption" style={styles.muted}>{t("wiki:noMatch", { query: wikiQuery.trim() })}</Text> : null}
+      </View> : null}
+      {route.startsWith("/wiki/page/") ? <View style={styles.stack}>
+        {wikiDetailLoading ? <Text variant="caption" style={styles.muted}>{t("wiki:loading")}</Text> : null}
+        {wikiDetailFailed ? <View style={styles.stack}>
+          <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text>
+          <PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setWikiRefresh((value) => value + 1)} />
+        </View> : null}
+        {!wikiDetailLoading && !wikiDetailFailed && wikiPage?.user_id === ownerId && wikiPage.id === wikiDetailId ? <PixelSurface variant="frame" contentStyle={styles.evidence}>
+          <Text variant="heading">{wikiPage.title || wikiPage.slug}</Text>
+          <Text variant="caption" style={styles.muted}>{t("wiki:savedAs", { name: wikiPage.slug })}</Text>
+          <Text variant="body">{wikiPage.body_md || t("wiki:emptyBody")}</Text>
+          <Text variant="caption" style={styles.muted}>{t("wiki:backlinks")} ({wikiBacklinks.length})</Text>
+          {wikiBacklinksFailed ? <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : null}
+        </PixelSurface> : null}
+        {!wikiDetailLoading && !wikiDetailFailed && wikiPage === null ? <Text variant="caption" style={styles.muted}>{t("wiki:empty")}</Text> : null}
+      </View> : null}
+      {searchList ? <TextInput accessibilityLabel={t("phone.internal.searchRecords")} value={recordQuery} onChangeText={setRecordQuery} placeholder={t("phone.internal.searchRecords")} placeholderTextColor={m3.color.onSurfaceVariant} style={[styles.searchInput, styles.phoneText]} /> : null}
+      {searchList || area ? <View style={styles.stack}>
+        <Text variant="caption" style={styles.muted}>{t(area ? "phone.areaScope" : "phone.metricsSummary.records.scope")}</Text>
+        {failed ? <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : !data || loading ? <Text variant="caption" style={styles.muted}>{t("phone.loading")}</Text> : recordFailed ?
+          <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : filtered.length ? filtered.slice(0, 20).map((record) => <PixelPressable key={record.id} fullWidth onPress={() => go(`/record/${encodeURIComponent(record.id)}`)} accessibilityLabel={record.body?.trim().slice(0, 80) || t("phone.internal.untitledRecord")} contentStyle={styles.evidence}>
+            <Text variant="body" numberOfLines={3}>{record.body?.trim() || t("phone.internal.untitledRecord")}</Text>
+            <Text variant="caption" style={styles.muted}>{date(record.created_at)}</Text>
+          </PixelPressable>) : <Text variant="caption" style={styles.muted}>{t("phone.operational.sourceStates.empty")}</Text>}
+      </View> : null}
+      {route.startsWith("/record/") ? <View style={styles.stack}>
+        {failed ? <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : !data || loading ? <Text variant="caption" style={styles.muted}>{t("phone.loading")}</Text> : recordFailed && !selected ?
+          <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : selected ? <PixelSurface variant="frame" contentStyle={styles.evidence}>
+            <Text variant="body">{selected.body?.trim() || t("phone.internal.untitledRecord")}</Text>
+            <Text variant="caption" style={styles.muted}>{date(selected.created_at)}</Text>
+          </PixelSurface> : <Text variant="caption" style={styles.muted}>{t("phone.operational.sourceStates.empty")}</Text>}
+      </View> : null}
+      {route === "/profile" ? <Text variant="caption" style={styles.muted}>{failed ? t("phone.readError") : !data || loading ? t("phone.loading") : data.records.ok ? t("phone.internal.profileSummary", { count: data.records.value.length }) : t("phone.readError")}</Text> : null}
+      {!["/capture", "/focus", "/ops", "/reminders", "/records", "/wiki", "/search", "/profile"].includes(route) && !route.startsWith("/wiki/page/") && !route.startsWith("/star/") && !route.startsWith("/record/") && !area ?
+        <Text variant="caption" style={styles.muted}>{t("phone.internal.unavailable")}</Text> : null}
+    </View>;
+  }
+
   function dashboard() {
+    if (failed) return <View style={styles.stack}>
+      <Text variant="heading">{t("phone.operational.title")}</Text>
+      <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text>
+      <PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} />
+    </View>;
     const now = new Date();
     const priority = selectDashboardPriority(data, now);
     const trend = recentRecordTrend(data, now);
@@ -217,22 +528,23 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     const maxTrend = Math.max(1, ...(trend?.days.map((day) => day.count) ?? []));
     const metricValue = (id: string) => {
       if (id === "routines") {
-        if (!data?.routines.ok || !data.completions.ok) return t("phone.metricsSummary.unknown");
-        return agenda.length ? `${completed}/${agenda.length}` : t("phone.metricsSummary.empty");
+        if (!data?.routines.ok || !data.completions.ok) return t("phone.operational.sourceStates.unknown");
+        return agenda.length ? `${completed}/${agenda.length}` : t("phone.operational.sourceStates.empty");
       }
       if (id === "records") {
-        if (!data?.records.ok) return t("phone.metricsSummary.unknown");
-        return data.records.value.length >= rules.recordReadLimit ? `${rules.recordReadLimit}+` : String(data.records.value.length);
+        if (!data?.records.ok) return t("phone.operational.sourceStates.unknown");
+        return !data.records.value.length ? t("phone.operational.sourceStates.empty") :
+          data.records.value.length >= rules.recordReadLimit ? `${rules.recordReadLimit}+` : String(data.records.value.length);
       }
       if (isMinor !== false) return t("phone.metricsSummary.restricted");
-      if (!data?.health.ok) return t("phone.metricsSummary.unknown");
+      if (!data?.health.ok) return t("phone.operational.sourceStates.unknown");
       if (!data.healthEnabled) return t("phone.metricsSummary.off");
-      return health ? `${health.value.toLocaleString(i18n.language)} ${health.unit}` : t("phone.metricsSummary.empty");
+      return health ? `${health.value.toLocaleString(i18n.language)} ${health.unit}` : t("phone.operational.sourceStates.empty");
     };
     return <View style={styles.stack}>
       {!compactDisplay ? <>
         <Text variant="heading">{t("phone.operational.title")}</Text>
-        <Text variant="caption" style={styles.muted}>{t("phone.operational.scope")}</Text>
+        <Text variant="caption" numberOfLines={2} style={styles.dashboardScope}>{t("phone.operational.scope")}</Text>
       </> : null}
       {priority ? <PixelSurface variant="frame" contentStyle={styles.lead}>
         <Text variant="caption" style={styles.accent}>{t("phone.todayLabel")}</Text>
@@ -250,7 +562,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       <Text variant="heading">{t("phone.operational.outlook")}</Text>
       <PixelSurface variant="frame" contentStyle={styles.routine}>
         <Text variant="body">{t("phone.operational.recordTrend")}</Text>
-        {trend ? <View style={styles.chart}>{trend.days.map((day) => <View key={day.key} style={styles.chartDay}>
+        {trend && data?.records.ok && data.records.value.length === 0 ? <Text variant="caption" style={styles.muted}>{t("phone.operational.sourceStates.empty")}</Text> : trend ? <View style={styles.chart}>{trend.days.map((day) => <View key={day.key} style={styles.chartDay}>
           <Text variant="caption" style={styles.centered}>{day.count}</Text>
           <View style={styles.chartTrack}><View style={[styles.chartBar, { height: day.count ? Math.max(4, Math.round(42 * day.count / maxTrend)) : 0 }]} /></View>
           <Text variant="caption" style={styles.centered}>{day.date.toLocaleDateString(i18n.language, { weekday: "short" })}</Text>
@@ -260,7 +572,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       <PixelSurface variant="frame" contentStyle={styles.routine}>
         <Text variant="body">{t("phone.weekAhead")}</Text>
         <Text variant="caption" style={styles.muted}>{t("phone.weekAheadScope")}</Text>
-        {week.length ? <View style={styles.week}>{week.map((day) => <PixelPressable key={day.key} rootStyle={styles.weekDay} accessibilityLabel={`${day.date.toLocaleDateString(i18n.language, { month: "short", day: "numeric" })}: ${t("phone.weekAheadCount", { count: day.count })}`} onPress={() => go("/reminders")} contentStyle={styles.weekDayContent}>
+        {data?.routines.ok && data.routines.value.length === 0 ? <Text variant="caption" style={styles.muted}>{t("phone.operational.sourceStates.empty")}</Text> : week.length ? <View style={styles.week}>{week.map((day) => <PixelPressable key={day.key} rootStyle={styles.weekDay} accessibilityLabel={`${day.date.toLocaleDateString(i18n.language, { month: "short", day: "numeric" })}: ${t("phone.weekAheadCount", { count: day.count })}`} onPress={() => go("/reminders")} contentStyle={styles.weekDayContent}>
           <Text variant="caption" style={styles.centered}>{day.date.toLocaleDateString(i18n.language, { weekday: "short" })}</Text>
           <Text variant="caption" style={day.count ? styles.accent : styles.muted}>{day.count}</Text>
         </PixelPressable>)}</View> : <Text variant="caption" style={styles.muted}>{t("phone.readError")}</Text>}
@@ -299,7 +611,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
           <Text variant="caption" style={styles.muted}>{t("phone.interviewSource", { date: date(interviews[0].created_at) })}</Text>
         </PixelPressable> : <View style={styles.stack}>
           <Text variant="body" style={styles.muted}>{t("phone.emptyInterview")}</Text>
-          <PhoneAction label={t("phone.startInterview")} glyph="bubble" onPress={() => go("/me/now")} />
+          <PhoneAction label={t("phone.internal.startNote")} glyph="bubble" onPress={() => go("/capture")} />
         </View>}
       <Text variant="heading">{t("phone.lifeAreas")}</Text>
       <Text variant="caption" style={styles.muted}>{t("phone.areaScope")}</Text>
@@ -321,7 +633,6 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       const selected = noticeCenter.notices.find((item) => item.id === selectedNoticeId);
       const ko = i18n.language.toLowerCase().startsWith("ko");
       return <View style={styles.stack}>
-        <PhoneAction label={t("phone.appsBack")} glyph="arrow_back" onPress={() => { setSelectedNoticeId(null); setPhoneApp(null); }} />
         <Text variant="heading">{t("phone.apps.notifications")}</Text>
         {selected ? <PixelSurface variant="frame" contentStyle={styles.noticeDetail}>
             <Text variant="caption" style={styles.accent}>{ko ? selected.listMeta.ko : selected.listMeta.en}</Text>
@@ -329,7 +640,6 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
             {renderableBlocks(selected.body, ko).map((block, index) => <Text key={`${selected.id}-${index}`} variant="caption" style={styles.muted}>
               {block.kind === "bullet" ? "• " : ""}{ko ? block.text.ko : block.text.en}
             </Text>)}
-            <PhoneAction label={t("phone.noticeListBack")} glyph="arrow_back" onPress={() => setSelectedNoticeId(null)} />
           </PixelSurface> : null}
       </View>;
     }
@@ -345,6 +655,8 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       <PhoneAction label={t("phone.moreApps.records")} glyph="article" onPress={() => go("/records")} />
       <PhoneAction label={t("phone.moreApps.wiki")} onPress={() => go("/wiki")} />
       <PhoneAction label={t("phone.moreApps.capture")} glyph="add" onPress={() => go("/capture")} />
+      <PhoneAction label={t("tools.reading.label")} onPress={() => go("/reading")} />
+      <PhoneAction label={t("tools.sideProject.label")} onPress={() => go("/side-project")} />
     </View>;
     return <View style={styles.launcherStack}>
       <View style={styles.launcherHeading}>
@@ -385,16 +697,27 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   }
 
   const unreadCount = noticeCenter.notices.filter((item) => noticeCenter.isUnread(item.id)).length;
-  const noticeListOpen = tab === "tools" && phoneApp === "notifications" && !selectedNoticeId;
-  const phoneRows: (ProductNotice | number)[] = noticeListOpen
-    ? (noticeCenter.hydrated ? noticeCenter.notices : []) : [0];
+  const noticeListOpen = !insideRoute && tab === "tools" && phoneApp === "notifications" && !selectedNoticeId;
+  const internalActive = !!insideRoute || phoneApp === "notifications" || exitPrompt;
+  const wikiListOpen = insideRoute === "/wiki";
+  const wikiDetailOpen = wikiDetailId !== null;
+  const phoneRows: (ProductNotice | WikiPageRow | number)[] = noticeListOpen
+    ? (noticeCenter.hydrated ? noticeCenter.notices : [])
+    : wikiListOpen ? [0, ...(!wikiLoading && !wikiFailed ? filteredWikiPages : [])]
+    : wikiDetailOpen ? [0, ...(!wikiDetailLoading && !wikiDetailFailed && wikiPage?.user_id === ownerId && wikiPage.id === wikiDetailId ? wikiBacklinks : [])]
+    : [0];
+  const wikiRow = (page: WikiPageRow) => <PixelPressable fullWidth onPress={() => go(`/wiki/page/${encodeURIComponent(page.id)}`)} accessibilityLabel={t("wiki:openPage", { title: page.title || page.slug })} contentStyle={styles.evidence}>
+    <Text variant="body" numberOfLines={2}>{page.title || page.slug}</Text>
+    <Text variant="caption" style={styles.muted}>{t("wiki:savedAs", { name: page.slug })}</Text>
+  </PixelPressable>;
   // The display shrinks with the bezel; the launcher must fit all three rows
   // above its fixed internal dock on smaller phones, not hide the last labels.
   const appTileHeight = Math.max(48, Math.min(67, Math.floor(((frame?.screen.height ?? 512) - 300) / 3)));
   const appIconSize = Math.max(25, Math.min(36, appTileHeight - 29));
+  const narrowDock = (frame?.screen.width ?? Infinity) < 240;
   return <DeepSpaceScreen active="ops" header="none" variant="fullbleed" showSharedSky transparentBackdrop={transparentBackdrop}>
     <View pointerEvents="none" style={styles.phoneBackdrop}><PixelScrim style={styles.phoneScrimImage} /></View>
-    <Animated.View {...phonePan.panHandlers} testID="dashboard-phone" style={[styles.phone, { transform: [{ translateY: dismissY }] }]} onLayout={({ nativeEvent: { layout } }) => {
+    <Animated.View {...(ownsDisplay ? {} : phonePan.panHandlers)} testID="dashboard-phone" style={[styles.phone, { transform: [{ translateY: dismissY }] }]} onLayout={({ nativeEvent: { layout } }) => {
       setFrameSize((current) => current.width === layout.width && current.height === layout.height
         ? current : { width: layout.width, height: layout.height });
     }}>
@@ -417,18 +740,19 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
           <Image source={PHONE_UI_ART.sun} contentFit="contain" style={[styles.headerIcon, PIXEL_IMAGE]} accessible={false} />
         </View>
       </View>
-      {!compactDisplay ? <View style={styles.heroBanner} accessible={false}>
+      {!compactDisplay && !internalActive && tab === "tools" ? <View style={styles.heroBanner} accessible={false}>
         <Image source={PHONE_UI_ART.hero} contentFit="cover" pointerEvents="none" style={[StyleSheet.absoluteFill, PIXEL_IMAGE]} />
         <View style={styles.heroCopy}>
           <Text variant="body" style={styles.heroTitle}>{t("phone.bannerTitle")}</Text>
           <Text variant="caption" style={styles.heroSubtitle}>{t("phone.bannerSubtitle")}</Text>
         </View>
       </View> : null}
-      <View style={styles.tabs}>{TABS.map((item, index) => <PixelPressable key={item} rootStyle={styles.tab} onPress={() => showPage(index)} accessibilityRole="tab" accessibilityState={{ selected: tab === item }} background={tab === item ? m3.color.primaryContainer : m3.color.surfaceContainer} contentStyle={styles.tabContent}>
+      {internalActive && !contentOwnsBack ? <PhoneAction label={selectedNoticeId ? t("phone.noticeListBack") : t("phone.internal.back")} glyph="arrow_back" onPress={backInside} /> : null}
+      {!internalActive ? <View style={styles.tabs}>{TABS.map((item, index) => <PixelPressable key={item} rootStyle={styles.tab} onPress={() => showPage(index)} accessibilityRole="tab" accessibilityState={{ selected: tab === item }} background={tab === item ? m3.color.primaryContainer : m3.color.surfaceContainer} contentStyle={styles.tabContent}>
         <Image source={item === "dashboard" ? PHONE_UI_ART.dashboard : PHONE_UI_ART.apps} contentFit="contain" style={[styles.tabIcon, PIXEL_IMAGE]} accessible={false} />
         <Text variant="caption" style={styles.tabLabel}>{t(`phone.tabs.${item}`)}</Text>
-      </PixelPressable>)}</View>
-      <View style={styles.pageControls} accessibilityLabel={t("phone.pageControls")}>
+      </PixelPressable>)}</View> : null}
+      {!internalActive ? <View style={styles.pageControls} accessibilityLabel={t("phone.pageControls")}>
         <Pressable accessibilityRole="button" accessibilityLabel={t("phone.previousPage")} disabled={pageIndex === 0} onPress={() => showPage(pageIndex - 1)} style={styles.pageArrow}>
           {pageIndex > 0 ? <Image source={PHONE_UI_ART.previous} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
         </Pressable>
@@ -438,12 +762,14 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         <Pressable accessibilityRole="button" accessibilityLabel={t("phone.nextPage")} disabled={pageIndex === 2} onPress={() => showPage(pageIndex + 1)} style={styles.pageArrow}>
           {pageIndex < 2 ? <Image source={PHONE_UI_ART.next} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
         </Pressable>
-      </View>
-      {loading ? <Text accessibilityLiveRegion="polite" variant="caption" style={styles.readStatus}>{t("phone.loading")}</Text> : null}
-      {failed || partial ? <View style={styles.errorRow}><Text variant="caption" style={styles.flexText}>{t("phone.partialError")}</Text><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} /></View> : null}
-      <View style={styles.pageBody} {...pagePan.panHandlers}>
-      <FlatList
-        key={`${tab}-${phoneApp}-${selectedNoticeId ? "detail" : "list"}`}
+      </View> : null}
+      {!ownsDisplay && loading ? <Text accessibilityLiveRegion="polite" variant="caption" style={styles.readStatus}>{t("phone.loading")}</Text> : null}
+      {!ownsDisplay && (failed || partial) ? <View style={styles.errorRow}><Text variant="caption" style={styles.flexText}>{t("phone.partialError")}</Text><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} /></View> : null}
+      <View style={styles.pageBody} {...(ownsDisplay ? {} : pagePan.panHandlers)}>
+      {museumOpen ? <MuseumPhoneContent width={frame.screen.width} onBack={backInside} backLabel={t("phone.appsBack")} /> : phoneScreen ? <View key={insideRoute} testID="phone-hosted-screen" style={styles.hostedScreen}>
+        <PhoneEmbedProvider value={embedNav}>{phoneScreen}</PhoneEmbedProvider>
+      </View> : <FlatList
+        key={`${tab}-${phoneApp}-${insideRoute ?? "home"}-${exitPrompt ? "exit" : "open"}-${selectedNoticeId ? "detail" : "list"}`}
         testID="dashboard-phone-scroll"
         onScroll={(event) => { scrollY.current = event.nativeEvent.contentOffset.y; }}
         scrollEventThrottle={16}
@@ -451,33 +777,38 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         showsVerticalScrollIndicator={false}
         keyExtractor={(item) => typeof item === "number" ? `${tab}-screen` : item.id}
         ListHeaderComponent={noticeListOpen ? <View style={styles.stack}>
-          <PhoneAction label={t("phone.appsBack")} glyph="arrow_back" onPress={() => setPhoneApp(null)} />
           <Text variant="heading">{t("phone.apps.notifications")}</Text>
           {!noticeCenter.hydrated ? <Text variant="caption" style={styles.muted}>{t("phone.noticeLoading")}</Text> : null}
         </View> : null}
         ListEmptyComponent={noticeListOpen && noticeCenter.hydrated ? <Text variant="caption" style={styles.muted}>{t("phone.noticeEmpty")}</Text> : null}
-        renderItem={({ item }) => noticeListOpen ? noticeRow(item as ProductNotice) : tab === "dashboard" ? dashboard() : tools()}
+        renderItem={({ item }) => noticeListOpen ? noticeRow(item as ProductNotice) : (wikiListOpen || wikiDetailOpen) && typeof item !== "number" ? wikiRow(item as WikiPageRow) : exitPrompt ? <View style={styles.stack}>
+          <Text variant="heading">{t("phone.internal.exitTitle")}</Text>
+          <Text variant="caption" style={styles.muted}>{t("phone.internal.exitHint")}</Text>
+          <PhoneAction label={t("phone.returnToStars")} glyph="arrow_forward" onPress={closePhone} />
+          <PhoneAction label={t("phone.internal.cancel")} glyph="arrow_back" onPress={() => setExitPrompt(false)} />
+        </View> : insideRoute ? internalPage(insideRoute) : tab === "dashboard" ? dashboard() : tools()}
         contentContainerStyle={styles.content}
-      />
+      />}
       </View>
-      <View style={styles.phoneDock} accessibilityLabel={t("phone.navLabel")}>
+      {!ownsDisplay ? <View style={[styles.phoneDock, narrowDock && styles.phoneDockNarrow]} accessibilityLabel={t("phone.navLabel")}>
         {PHONE_NAV.map((item) => <Pressable key={item} accessibilityRole="button" accessibilityLabel={t(`phone.nav.${item}`)} onPress={() => {
           if (item === "home") { showPage(0); return; }
           go(item === "note" ? "/records" : item === "add" ? "/capture" : item === "search" ? "/wiki" : "/profile");
-        }} style={[styles.navButton, item === "add" && styles.navAdd]}>
-          <Image source={PHONE_NAV_ICONS[item]} contentFit="contain" style={[item === "add" ? styles.navAddIcon : styles.navIcon, PIXEL_IMAGE]} accessible={false} />
+        }} style={[styles.navButton, narrowDock && styles.navButtonNarrow, item === "add" && styles.navAdd]}>
+          <Image source={PHONE_NAV_ICONS[item]} contentFit="contain" style={[item === "add" ? (narrowDock ? styles.navAddIconNarrow : styles.navAddIcon) : styles.navIcon, PIXEL_IMAGE]} accessible={false} />
           {item !== "add" ? <Text variant="caption" style={[styles.navText, item === "home" && tab === "dashboard" && styles.navActive]}>{t(`phone.nav.${item}`)}</Text> : null}
         </Pressable>)}
-      </View>
+      </View> : null}
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={t("phone.returnToStars")}
-        onPress={closePhone}
+        accessibilityLabel={t(internalActive || tab === "tools" ? "phone.nav.home" : "phone.internal.closePhone")}
+        onPress={() => { if (internalActive || tab === "tools") showPage(0); else setExitPrompt(true); }}
         style={[styles.homeButton, frame.homeButton]}
       />
       </> : null}
     </Animated.View>
+    <CrisisRouter visible={crisisVisible} hotline={i18n.language.toLowerCase().startsWith("ko") ? isMinor ? "KR_1388" : "KR_109" : "GLOBAL_988"} onClose={() => setCrisisVisible(false)} />
   </DeepSpaceScreen>;
 }
 
@@ -512,12 +843,19 @@ const styles = StyleSheet.create({
   pageDotButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   pageDot: { width: 11, height: 11 },
   pageBody: { flex: 1, minHeight: 0 },
+  hostedScreen: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0 },
   content: { paddingHorizontal: 9, paddingTop: 5, paddingBottom: 12, gap: 10 },
   phoneDock: { height: 53, marginHorizontal: 8, marginBottom: 4, flexDirection: "row", alignItems: "center", justifyContent: "space-around", borderWidth: 1, borderColor: m3.color.outline, backgroundColor: m3.color.surfaceContainerLowest },
   navButton: { minWidth: 44, minHeight: 48, flex: 1, alignItems: "center", justifyContent: "center", gap: 0 },
   navIcon: { width: 27, height: 27 },
   navAdd: { flex: 1.15 },
   navAddIcon: { width: 49, height: 49 },
+  // A 320px window leaves ~195px for five buttons; 44px minimums pushed
+  // Profile off the right edge (2026-10-01 QA). Narrow docks share the width
+  // (each button still >= 39px wide, 48px tall) and shrink the center icon.
+  phoneDockNarrow: { marginHorizontal: 4 },
+  navButtonNarrow: { minWidth: 0 },
+  navAddIconNarrow: { width: 40, height: 40 },
   navText: { color: m3.color.onSurfaceVariant, fontFamily: "Galmuri11", fontSize: 10, lineHeight: 14 },
   navActive: { color: m3.color.primary },
   stack: { gap: 12 },
@@ -567,4 +905,8 @@ const styles = StyleSheet.create({
   flexText: { flex: 1, flexShrink: 1 },
   readStatus: { paddingHorizontal: 12, paddingVertical: 8, color: m3.color.onSurfaceVariant },
   errorRow: { flexDirection: "row", gap: 8, padding: 12, alignItems: "center" },
+  dashboardScope: { color: m3.color.onSurfaceVariant, fontSize: 12, lineHeight: 18, paddingBottom: 2 },
+  searchInput: { minHeight: 44, borderWidth: 1, borderColor: m3.color.outline, backgroundColor: m3.color.surfaceContainer, paddingHorizontal: 10, fontSize: 13 },
+  noteInput: { minHeight: 112, borderWidth: 1, borderColor: m3.color.outline, backgroundColor: m3.color.surfaceContainer, padding: 10, fontSize: 13, textAlignVertical: "top" },
+  focusClock: { textAlign: "center", color: m3.color.primary, fontVariant: ["tabular-nums"] },
 });

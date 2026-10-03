@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FlatList, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { colors, spacing } from "@/theme/tokens";
@@ -24,6 +24,7 @@ import { WikiGraph } from "@/components/deep-space/WikiGraph";
 import { RecordsGraph } from "@/components/deep-space/RecordsGraph";
 import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { listRecentRecords, listRecordsByIds } from "@/lib/records/create";
 import { buildRoleRecordsGraph } from "@/lib/records/records-graph";
@@ -260,11 +261,14 @@ function RecordSeparator() {
 }
 
 export function DeepSpaceRecordsScreen() {
+  // Phone-aware: inside the dashboard phone, links open in the phone and the
+  // query below is the phone route's, not /dashboard's.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const isKo = i18n.language === "ko";
   const { userId, loading: authLoading } = useAuth();
   // ?tags=a,b filters to pieces whose tags intersect the set (trinity 영역 drilldown).
-  const recordsParams = useLocalSearchParams<{ tags?: string }>();
+  const recordsParams = useScreenParams<{ tags?: string }>();
   const tagFilter = useMemo(
     () =>
       (recordsParams.tags ?? "")
@@ -394,7 +398,7 @@ export function DeepSpaceRecordsScreen() {
   // change (React.memo keeps unchanged rows from re-rendering on filter taps).
   const openRecord = useCallback(
     (record: RecordsTimelineRecord) => router.push({ pathname: "/record/[id]", params: recordRouteParams(record) }),
-    [],
+    [router],
   );
 
   // Per-record time label reuses the tested timeline bucketer (방금 / N시간 전 / 어제 …).
@@ -733,7 +737,15 @@ const rStyles = StyleSheet.create({
 
 export { DeepSpaceRecordDetailScreen } from "./dds-record-detail-screen";
 
+const NO_FLOAT_CLEAR = { paddingTop: 0 } as const;
+
 export function DeepSpaceWikiScreen() {
+  // Phone-aware: inside the dashboard phone, /capture opens in the phone and
+  // focusPageId is read from the phone route's query.
+  const router = useAppRouter();
+  // The phone shell draws no floating companion header, so the 88px clearance
+  // for it would only push the graph below a short display.
+  const floatClear = usePhoneEmbed() ? [styles.wikiFloatClear, NO_FLOAT_CLEAR] : styles.wikiFloatClear;
   const { t, i18n } = useTranslation("deepspace");
   const isKo = i18n.language === "ko";
   const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
@@ -742,7 +754,7 @@ export function DeepSpaceWikiScreen() {
   // page id is not a record id. They send it here instead, which is where it belongs.
   // (The legacy wiki screen has focusSourceId, keyed on source_id; this is the live
   // deep-space screen and it read no params at all.)
-  const { focusPageId } = useLocalSearchParams<{ focusPageId?: string }>();
+  const { focusPageId } = useScreenParams<{ focusPageId?: string }>();
   const [activeTag, setActiveTag] = useState<string | null>(null);
   // Which page row is expanded. null until the user taps; the first page renders
   // expanded by default (matching the old fixed-open-first behaviour) but any row
@@ -836,7 +848,7 @@ export function DeepSpaceWikiScreen() {
   if (authLoading) {
     return (
       <DeepSpaceScreen active="wiki" header="floating">
-        <View style={styles.wikiFloatClear}>
+        <View style={floatClear}>
           <DockBody title={t("wiki.title")}><GraphLoading /></DockBody>
         </View>
       </DeepSpaceScreen>
@@ -856,7 +868,7 @@ export function DeepSpaceWikiScreen() {
   // clears its height instead of being pushed by a header band.
   return (
     <DeepSpaceScreen active="wiki" header="floating">
-      <View style={styles.wikiFloatClear}>
+      <View style={floatClear}>
       <DockBody title={t("wiki.title")}>
       <View style={styles.wikiStatRow}>
         <View style={styles.wikiStat}><Text variant="heading" style={styles.wikiStatNum}>{view.pageCount}</Text><Text variant="subtle" style={styles.wikiStatCap}>{t("wiki.statPages")}</Text></View>

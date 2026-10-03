@@ -4,7 +4,7 @@
     "eyebrow": "테마",
     "title": "화면 밝기를 고르세요",
     "subtitle": "어두운 화면 · 밝은 화면",
-    "speech": "메인 그래프는 항상 어두운 배경이에요. 별과 연결이 잘 보이도록 유지해요."
+    "speech": "메인 그래프는 항상 어두운 배경입니다. 별과 연결이 잘 보이도록 유지합니다."
   },
   "options": {
     "dark": {
@@ -29,7 +29,7 @@
       }
     },
     "useFontLabel": "{{label}} 적용",
-    "useFontHint": "이 기기의 제목과 본문에 선택한 글꼴을 써요."
+    "useFontHint": "이 기기의 제목과 본문에 선택한 글꼴을 씁니다."
   },
   "performance": {
     "title": "성능",
@@ -44,13 +44,13 @@
       }
     },
     "usePerformanceLabel": "{{label}} 사용",
-    "usePerformanceHint": "선택한 화면 효과를 이 기기에 적용해요."
+    "usePerformanceHint": "선택한 화면 효과를 이 기기에 적용합니다."
   },
   "actions": {
     "inUse": "사용 중",
     "use": "적용",
     "useThemeLabel": "{{label}} 테마 적용",
-    "useThemeHint": "선택한 테마를 이 기기에 적용해요."
+    "useThemeHint": "선택한 테마를 이 기기에 적용합니다."
   },
-  "note": "라이트 모드에서도 메인 그래프는 어두운 배경이에요. 별과 연결이 잘 보이도록 유지해요."
+  "note": "라이트 모드에서도 메인 그래프는 어두운 배경입니다. 별과 연결이 잘 보이도록 유지합니다."
 }

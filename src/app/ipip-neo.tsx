@@ -6,10 +6,10 @@
 // validated channel; the KO translation is a reference, NOT validated (disclosed
 // in the intro).
 
-import { useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 
 import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { Button } from "@/components/ui/Button";
@@ -19,6 +19,7 @@ import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tok
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { LensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useHardwareBack } from "@/lib/nav/phone-embed";
 import { createRecord } from "@/lib/records/create";
 import { loadLatestIpip } from "@/lib/persona/build";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -49,7 +50,18 @@ type Toast = { message: string; tone: "danger" | "info" | "success" };
 // Shell-agnostic survey body (canon wraps in DeepSpaceScreen, legacy in
 // PremiumAppShell). The only writer of the "ipip_neo"-tagged record. Stores the
 // 5 domain means + 30 facet means so the lenses can read either level.
-function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
+function IpipNeoSurvey({
+  onComplete,
+  onCancel,
+  backActionRef,
+}: {
+  onComplete: () => void;
+  onCancel: () => void;
+  /** The dashboard phone's back row asks this survey (the same question Android Back asks). */
+  backActionRef?: RefObject<(() => void) | null>;
+}) {
+  // Phone-aware: inside the dashboard phone the first-star nudge opens in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("ipip-neo");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -70,16 +82,22 @@ function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
   // is 120 items; that is about fifteen minutes of someone's self-report, gone to one tap.
   //
   // ANDROID_QA_GUIDELINES: the subscription MUST be removed on unmount, or the handler leaks
-  // and keeps swallowing back presses on later screens.
-  useEffect(() => {
-    if (!started || Object.keys(responses).length === 0 || saved) return;
-    const onBackPress = () => {
-      setExitConfirmOpen(true);
-      return true;
+  // and keeps swallowing back presses on later screens. useHardwareBack removes it on blur
+  // and unmount, and inside the dashboard phone claims Back through the phone instead.
+  // Nothing to lose -> false, so Back keeps its default.
+  useHardwareBack(useCallback(() => {
+    if (!started || Object.keys(responses).length === 0 || saved) return false;
+    setExitConfirmOpen(true);
+    return true;
+  }, [started, responses, saved]));
+  // The phone's back row (IpipNeoDeepSpace) takes the same guard instead of
+  // dropping the answers. Standalone the fullbleed shell draws no back row.
+  if (backActionRef) {
+    backActionRef.current = () => {
+      if (!started || Object.keys(responses).length === 0 || saved) onCancel();
+      else setExitConfirmOpen(true);
     };
-    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => subscription.remove();
-  }, [started, responses, saved]);
+  }
 
   useEffect(() => {
     if (!toast) return;
@@ -114,7 +132,7 @@ function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
       const top = [...order].sort((a, b) => result.domains[b] - result.domains[a])[0];
       const conclusion =
         locale === "ko"
-          ? `오늘 가장 높은 축: ${labels[top]} (${result.domains[top].toFixed(1)}/5) · 30개 세부 특질도 함께 저장됐어요`
+          ? `오늘 가장 높은 축: ${labels[top]} (${result.domains[top].toFixed(1)}/5) · 30개 세부 특질도 함께 저장됐습니다`
           : `Highest domain today: ${labels[top]} (${result.domains[top].toFixed(1)}/5) · all 30 facets saved too`;
       await createRecord({
         userId,
@@ -134,7 +152,7 @@ function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
         tone: "danger",
         message:
           locale === "ko"
-            ? "저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요."
+            ? "저장하지 못했습니다. 답변은 그대로 남아 있으니 다시 시도해 주세요."
             : "Couldn't save. Your answers are still here; please try again.",
       });
     } finally {
@@ -153,7 +171,7 @@ function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
           estimatedMinutes={15}
           description={
             locale === "ko"
-              ? "성격의 5가지 큰 축과 그 아래 30개 세부 특질(facet)까지 재는 검증된 공개 도구예요. 각 문장이 당신을 얼마나 정확히 묘사하는지 1(전혀 아니다) ~ 5(매우 그렇다)로 답해 주세요. 120문항이라 조금 길어요. ※ 한국어 문항은 아직 검증되지 않은 참고용 번역이에요(영문이 검증된 원본)."
+              ? "성격의 5가지 큰 축과 그 아래 30개 세부 특질(facet)까지 재는 검증된 공개 도구입니다. 각 문장이 당신을 얼마나 정확히 묘사하는지 1(전혀 아니다) ~ 5(매우 그렇다)로 답해 주세요. 120문항이라 조금 깁니다. ※ 한국어 문항은 아직 검증되지 않은 참고용 번역입니다(영문이 검증된 원본)."
               : "A validated public-domain measure of the five domains AND their 30 underlying facets. Rate how accurately each statement describes you from 1 (very inaccurate) to 5 (very accurate). 120 items, so it takes a bit longer."
           }
           citation={
@@ -311,6 +329,7 @@ function IpipNeoDeepSpace() {
   const [hasError, setHasError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [taking, setTaking] = useState(false);
+  const surveyBackRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -337,14 +356,21 @@ function IpipNeoDeepSpace() {
   }, [userId, loading, reloadKey]);
 
   if (taking) {
+    // onBack is drawn only by the dashboard phone's compact shell (the fullbleed
+    // shell has no back row): it asks the survey before leaving mid-answer.
     return (
-      <DeepSpaceScreen active="lens" header="none">
+      <DeepSpaceScreen
+        active="lens"
+        header="none"
+        onBack={() => (surveyBackRef.current ? surveyBackRef.current() : setTaking(false))}
+      >
         <IpipNeoSurvey
           onComplete={() => {
             setTaking(false);
             setReloadKey((k) => k + 1);
           }}
           onCancel={() => setTaking(false)}
+          backActionRef={surveyBackRef}
         />
       </DeepSpaceScreen>
     );

@@ -203,7 +203,16 @@ describe("deep-space records source detail routing", () => {
       // Polaris role-card integration intentionally changes the neighboring
       // records renderer; pin its new exact slice so future unrelated edits
       // still require an explicit review.
-      "9be2bc0fba47aaacdb791b0366fb0ea218a3c4236e9f3b278630450aeaf526d7",
+      //
+      // Re-pinned 2026-10-02 (dashboard phone hosting): the screen takes its router
+      // from useAppRouter() and its ?tags= from useScreenParams() (phone-embed.tsx), so
+      // inside the dashboard phone it navigates the phone and reads the phone route's
+      // query. Three added lines (the hook and its two-line comment), the params call
+      // renamed, and `openRecord`'s deps `[]` -> `[router]`: slice 19,674 -> 19,843
+      // chars / 472 -> 475 lines. Verified before re-pinning: the previous digest
+      // 9be2bc0fba47aaacdb791b0366fb0ea218a3c4236e9f3b278630450aeaf526d7 recomputes
+      // byte-for-byte from HEAD's copy, so this change is the only delta in the slice.
+      "2444ee96d5da7e7b2ca6064337ee169615efdc976a25f0de5d8af96be2bd5337",
     );
     // Re-pinned 2026-09-20 (R48): the wiki screen now honours a ?focusPageId= that names
     // a page outside the 200-row slice it loads -- the RAG citation path can cite one,
@@ -223,6 +232,21 @@ describe("deep-space records source detail routing", () => {
     //   git show HEAD:src/screens/deepspace/dds-wiki-records-screens.tsx
     //     | slice from "export function DeepSpaceWikiScreen()" -> sha256
     //     = 0b269d67992b803d9c6093032b2101b7d373c6c6cb811d0522d372e1f14eae19  (matches)
-    expect(sha256(wiki)).toBe("677ed103ab26600b77ae9084ce8fa5c67dd71940b9cec7151298aeac0c0bf870");
+    //
+    // Re-pinned 2026-10-02 (dashboard phone hosting): the router comes from
+    // useAppRouter() and focusPageId from useScreenParams() (phone-embed.tsx); outside
+    // the phone both are expo-router's own. Three added lines (the hook and its comment)
+    // and the params call renamed: slice 11,609 -> 11,770 chars / 237 -> 240 lines.
+    // Verified before re-pinning: the R49 digest
+    // 677ed103ab26600b77ae9084ce8fa5c67dd71940b9cec7151298aeac0c0bf870 recomputes
+    // byte-for-byte from HEAD's copy, so this change is the only delta in the slice.
+    //
+    // Re-pinned again 2026-10-02 (phone wiki graph): inside the dashboard phone the
+    // screen drops the 88px clearance for the floating companion header, which the
+    // phone shell does not draw (`floatClear`, its two-line comment, and the two
+    // `<View style={floatClear}>` call sites). Slice 11,770 -> 11,992 chars / 239 -> 242
+    // lines. Verified before re-pinning: undoing exactly those edits recomputes the
+    // previous digest 3df2eb1f8ceb487c0c0ba75257ed3382587f5ba32c78cc959a221a91f0d5affc.
+    expect(sha256(wiki)).toBe("5d80807c7a6a749cbf626635569dae37114b18959c9c79df806b2b8f9db4351a");
   });
 });

@@ -76,7 +76,7 @@ export function buildCenterCards(persona: PersonaCard, locale: "en" | "ko"): Cen
     id: "direction",
     title: ko ? "지금 가장 밝은 방향" : "Brightest direction now",
     body: ko
-      ? `요즘 가장 밝게 켜진 방향은 '${directionLabel}' 쪽이에요.`
+      ? `요즘 가장 밝게 켜진 방향은 '${directionLabel}' 쪽입니다.`
       : `What's lit brightest in you right now leans toward ${directionLabel}.`,
     accent: cosmic.signalMint,
   };
@@ -89,10 +89,10 @@ export function buildCenterCards(persona: PersonaCard, locale: "en" | "ko"): Cen
     title: ko ? "요즘 불 켜진 동네" : "The lit-up neighborhood",
     body: topFramework
       ? ko
-        ? `요즘 우리가 자주 머문 동네는 '${labelFramework(topFramework, locale)}' 쪽이에요.`
+        ? `요즘 우리가 자주 머문 동네는 '${labelFramework(topFramework, locale)}' 쪽입니다.`
         : `Lately we keep wandering back to ${labelFramework(topFramework, locale)}.`
       : ko
-        ? "아직 한 동네로 모이는 중이에요. 조금만 더 쌓이면 불이 켜질 거예요."
+        ? "아직 한 동네로 모이는 중입니다. 조금만 더 쌓이면 불이 켜질 것입니다."
         : "Still settling into one neighborhood - a little more and it'll light up.",
     accent: cosmic.signalBlue,
   };
@@ -118,7 +118,7 @@ export function buildCenterCards(persona: PersonaCard, locale: "en" | "ko"): Cen
     id: "pieces",
     title: ko ? "이걸 만든 별가루" : "The pieces behind this",
     body: ko
-      ? `지금 이 모습은 ${joinSources(sources, locale)}에서 모은 별가루예요.`
+      ? `지금 이 모습은 ${joinSources(sources, locale)}에서 모은 별가루입니다.`
       : `This shape is pieced together from ${joinSources(sources, locale)}.`,
     accent: cosmic.pixelLamp,
   };

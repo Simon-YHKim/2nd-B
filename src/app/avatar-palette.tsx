@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  BackHandler,
   FlatList,
   Platform,
   ScrollView,
@@ -11,7 +10,7 @@ import {
   type GestureResponderEvent,
 } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
-import { Redirect, router, useFocusEffect, useNavigation } from "expo-router";
+import { Redirect, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect, SvgXml } from "react-native-svg";
@@ -21,6 +20,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PremiumLoadingState } from "@/components/premium";
 import { PixelPressable, PixelSurface } from "@/components/pixel";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useHardwareBack, usePhoneEmbed } from "@/lib/nav/phone-embed";
 import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { DEFAULT_AVATAR_SPEC, renderAvatarSvg } from "@/lib/avatar";
 import {
@@ -98,7 +98,12 @@ function ActionButton({ label, onPress, disabled = false, selected = false }: {
 
 export default function AvatarPaletteScreen() {
   const { t, i18n } = useTranslation(["avatarPalette", "common"]);
-  const { width } = useWindowDimensions();
+  // Inside the dashboard phone: navigate the phone, and size the canvas to
+  // the phone's display, not the window (the shell there has no side gutter).
+  const router = useAppRouter();
+  const embed = usePhoneEmbed();
+  const { width: windowWidth } = useWindowDimensions();
+  const width = embed?.displayWidth ?? windowWidth;
   const navigation = useNavigation();
   const { userId, hasProfile, profileProbeFailed, loading: authLoading, refresh: refreshAuth } = useAuth();
   const [viewMode, setViewMode] = useState<ViewMode>("gallery");
@@ -136,7 +141,7 @@ export default function AvatarPaletteScreen() {
   const ready = readState === "ready" && readOwnerId === userId;
   const dirty = hasProfile === true && ready && viewMode === "editor" &&
     (slot !== saved.slot || title !== saved.title || pixels !== saved.pixels);
-  const canvasSize = Math.max(64, Math.floor(Math.min(width - 80, 384) / 64) * 64);
+  const canvasSize = Math.max(64, Math.floor(Math.min(width - (embed ? 40 : 80), 384) / 64) * 64);
   const cells = cellWindow(zoom);
   const cellSize = canvasSize / cells;
   const painted = useMemo(() => countOpaquePixels(pixels), [pixels]);
@@ -154,17 +159,19 @@ export default function AvatarPaletteScreen() {
 
   // The editor's back action returns to the personal gallery. Native swipe-back
   // would remove the route instead, so keep the visible Back control authoritative.
+  // Inside the phone `navigation` is the dashboard's: leave its options alone.
   useEffect(() => {
+    if (embed) return;
     navigation.setOptions({
       gestureEnabled: viewMode !== "editor",
       headerBackButtonMenuEnabled: false,
     });
-  }, [navigation, viewMode]);
+  }, [embed, navigation, viewMode]);
 
   const navigateBack = useCallback(() => {
     if (router.canGoBack()) router.back();
     else router.replace("/dashboard");
-  }, []);
+  }, [router]);
 
   const goBack = useCallback(() => {
     if (busy) return;
@@ -179,10 +186,8 @@ export default function AvatarPaletteScreen() {
     navigateBack();
   }, [busy, clearConfirm, deleteCandidate, pendingTransition, viewMode, dirty, navigateBack]);
 
-  useFocusEffect(useCallback(() => {
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => { goBack(); return true; });
-    return () => sub.remove();
-  }, [goBack]));
+  // Through the phone's claim stack inside the dashboard phone (see useHardwareBack).
+  useHardwareBack(useCallback(() => { goBack(); return true; }, [goBack]));
 
   useEffect(() => {
     setPendingTransition(null);

@@ -66,7 +66,11 @@
     "opening": "Abrindo o PolaScope",
     "loading": "Carregando o PolaScope",
     "enterHint": "Toque duas vezes para entrar na tela principal.",
-    "skipHint": "Toque duas vezes para pular a animação de abertura."
+    "skipHint": "Toque duas vezes para pular a animação de abertura.",
+    "skip": "Pular abertura",
+
+    "skipShort": "Pular",
+    "retry": "Tentar abertura novamente"
   },
   "worldview": {
     "soulCore": "Estrela do Norte",

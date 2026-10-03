@@ -36,7 +36,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { useTranslation } from "react-i18next";
 
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -89,6 +90,8 @@ function Loading() {
 }
 
 export function DeepSpaceSourcesScreen() {
+  // Phone-aware: inside the dashboard phone, Back and links stay in the phone.
+  const router = useAppRouter();
   const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
 
@@ -106,6 +109,7 @@ export function DeepSpaceSourcesScreen() {
 }
 
 function SourcesBody({ userId, title }: { userId: string; title: string }) {
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const { isMinor } = useAuth();
   const locale = promptLocale(i18n.language);

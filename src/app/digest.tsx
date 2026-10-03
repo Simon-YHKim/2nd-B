@@ -10,7 +10,7 @@ import { View, StyleSheet, ScrollView, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
@@ -19,6 +19,7 @@ import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { reactExpression } from "@/lib/companion/expression";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { planResurface } from "@/lib/resurface/plan";
@@ -49,6 +50,8 @@ function bandLabel(confidence: number, t: TFunction<"ratifications">): string {
 }
 
 export default function Digest() {
+  // Phone-aware: inside the dashboard phone, links open in the phone.
+  const router = useAppRouter();
   const { userId, loading } = useAuth();
   const { t } = useTranslation("ratifications");
   const [items, setItems] = useState<InferredLinkDetail[] | null>(null);
