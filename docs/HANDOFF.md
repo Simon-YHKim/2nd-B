@@ -30,7 +30,20 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-03 22:13 / 남은 작업: 건강 측정값 AI 제외 · 가져오기 화면 끄기 · 운영 동의 모드 확인 · 재동의 발주서
+## Latest — 2026-10-04 00:55 / Q-261003-01 = A: 운영 동의 모드는 #1902 출시 직후 collect · 켜는 절차와 프록시 준비 확인
+
+- **Simon**: "a 안으로 가자." 운영 `LLM_CONSENT_MODE` 를 #1902 머지 직후 collect 로 켠다. DECISIONS 26.10.04 00:55 줄.
+- **해석**: '직후'는 #1902 출시 단계(SQL 적용 → Edge 배포 → 클라이언트 머지)가 끝난 직후다. 10-04 00:52 기준 #1902 는 아직 Draft 이고 10-01 이후 갱신이 없다.
+- **프록시 준비 확인(10-04)**: 프록시 넷의 배포본이 main 과 바이트까지 같다(claude v134 · gemini v154 · xai v70 · openai v139, 동의 코드 sha 2994b2630dd9). effective_llm_consent_snapshot_v2 는 운영에 있고 service_role 만 실행한다. 영수증 0 · 활성 15 · 비활성 0(10-04 00:54 실측)이라, 지금 켜도 15명 모두 '영수증 없는 활성 계정' 예전 기록 허용으로 통과한다. 더해지는 것은 호출마다 동의 RPC(users 행 잠금) 한 번이다
+- **켜는 절차 · 카나리아 · 되돌리기**: `docs/legal/calendar-read-disclosure-draft-261002.md` §8-1 ([#2022](https://github.com/Simon-YHKim/2nd-B/pull/2022)).
+  - 켜기: `npx supabase secrets set LLM_CONSENT_MODE=collect --project-ref zoacryukmdeivmolvyhj`
+  - 카나리아: 상태 조회 200 · AI 호출 200 · 일회용 계정 grant/revoke/경합 · 10분 로그.
+  - 하나라도 실패하면 `secrets unset` 으로 되돌린다.
+- **다음 1개**: #1902 출시가 끝나면 §8-1 을 그대로 실행하고 결과를 DECISIONS · HANDOFF 에 적는다. 그다음 §8 의 2번(서버 마이그레이션)으로 간다.
+
+---
+
+## 2026-10-03 22:13 / 남은 작업: 건강 측정값 AI 제외 · 가져오기 화면 끄기 · 운영 동의 모드 확인 · 재동의 발주서
 
 - **Simon**: "남은작업 모두 진행해."
 - **[#2015](https://github.com/Simon-YHKim/2nd-B/pull/2015)**:
