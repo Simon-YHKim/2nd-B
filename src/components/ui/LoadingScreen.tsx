@@ -119,10 +119,6 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
     const current = clock.current.elapsed();
     setTapAtMs(current); setElapsedMs(current);
   }
-  function toggleSound() {
-    sounds.setEnabled(!sounds.enabled);
-    cueFrom.current = clock.current.elapsed();
-  }
   const failImage = () => setAssetError(true);
   return <View testID="loading-screen" style={styles.container} onLayout={event => {
     const { width, height } = event.nativeEvent.layout;
@@ -136,14 +132,13 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
       <SceneImage box={scene.star} testID="opening-polaris" onError={failImage} />
       {scene.twinkle.rects.map((pixel, index) => <View key={index} style={[styles.pixel, { left: scene.twinkle.left + pixel.left, top: scene.twinkle.top + pixel.top, width: pixel.width, height: pixel.height, backgroundColor: pixel.color, opacity: pixel.alpha }]} />)}
     </View>
-    <View pointerEvents="box-none" style={[styles.controls, { top: insets.top + 12, left: insets.left + 16, right: insets.right + 16 }]}>
-      <Pressable testID="opening-sound" style={styles.button} onPress={toggleSound} accessibilityRole="button" accessibilityLabel={t(sounds.enabled ? "loadingGate.soundOff" : "loadingGate.soundEnable")} accessibilityState={{ selected: sounds.enabled }}>
-        <Text style={styles.buttonText}>{t(sounds.enabled ? "loadingGate.soundOn" : "loadingGate.soundEnable")}</Text>
-      </Pressable>
-      <Pressable testID="opening-skip" style={styles.button} onPress={skip} disabled={!ready} accessibilityRole="button" accessibilityLabel={t("loadingGate.skip")} accessibilityState={{ disabled: !ready }}>
-        <Text style={[styles.buttonText, !ready && styles.disabled]}>{t("loadingGate.skip")}</Text>
-      </Pressable>
-    </View>
+    {/* No visible buttons over the opening (Simon localhost QA 2026-10-03: the
+        skip and sound buttons were removed). Tapping anywhere still ends it once
+        the app is ready, and screen readers reach the same action here. Sound
+        keeps its platform default: on in the native app, off on the web. */}
+    <Pressable testID="opening-skip" style={styles.tapLayer} onPress={skip} disabled={!ready} accessibilityRole="button" accessibilityLabel={t("loadingGate.skip")} accessibilityHint={t("loadingGate.skipHint")} accessibilityState={{ disabled: !ready }}>
+      <View pointerEvents="none" style={styles.fill} />
+    </Pressable>
     {assetError ? <Pressable testID="opening-retry" style={[styles.error, { bottom: insets.bottom + 32 }]} onPress={() => setAttempt(value => value + 1)} accessibilityRole="button"><Text style={styles.buttonText}>{t("loadingGate.retry")}</Text></Pressable> : null}
     {!assetError && (!playbackReady || plan.phase === "waiting-ready") ? <Text style={[styles.hint, { bottom: insets.bottom + 32 }]}>{t("loadingGate.loading")}</Text> : null}
   </View>;
@@ -154,10 +149,9 @@ const styles = StyleSheet.create({
   stage: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, overflow: "hidden" },
   image: { position: "absolute" },
   pixel: { position: "absolute", zIndex: 5 },
-  controls: { position: "absolute", zIndex: 6, flexDirection: "row", justifyContent: "space-between" },
-  button: { minHeight: 44, justifyContent: "center", paddingHorizontal: 12, backgroundColor: deepSpace.bgEdge, borderWidth: 1, borderColor: deepSpace.accentDim },
+  tapLayer: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, zIndex: 5 },
+  fill: { flex: 1 },
   buttonText: { color: deepSpace.textHi, fontFamily: fontFamilies.pixelKo, fontSize: typography.sizes.xs, lineHeight: 20, paddingBottom: 2 },
-  disabled: { color: deepSpace.textMuted },
   hint: { position: "absolute", zIndex: 6, left: 24, right: 24, textAlign: "center", color: deepSpace.textHi, fontFamily: fontFamilies.pixelKo, fontSize: typography.sizes.xs, lineHeight: 20, paddingBottom: 2 },
   error: { position: "absolute", zIndex: 6, alignSelf: "center", minHeight: 44, justifyContent: "center", paddingHorizontal: 16, backgroundColor: deepSpace.bgEdge },
 });

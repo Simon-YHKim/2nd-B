@@ -127,11 +127,11 @@ describe("opening playback clock", () => {
 });
 
 describe("approved opening screen", () => {
-  test.each(["ios", "web"] as const)("%s uses approved images with separate sound and skip controls", platform => {
+  test.each(["ios", "web"] as const)("%s uses approved images with no visible buttons, tap anywhere to skip", platform => {
     const module = loadScreen(platform), markup = renderToStaticMarkup(React.createElement(module.LoadingScreen, { ready: true }));
     expect(markup).toContain('data-testid="hustlek-approved-opening"');
     expect(markup).toContain('data-testid="opening-background"'); expect(markup).toContain('data-testid="opening-telescope"');
-    expect(markup).toContain('data-testid="opening-polaris"'); expect(markup).toContain('data-testid="opening-sound"'); expect(markup).toContain('data-testid="opening-skip"');
+    expect(markup).toContain('data-testid="opening-polaris"'); expect(markup).not.toContain('data-testid="opening-sound"'); expect(markup).toContain('data-testid="opening-skip"');
     expect(markup).not.toContain("<svg");
     const source = readFileSync(SCREEN, "utf8");
     expect(source).toContain('from "expo-image"'); expect(source).toContain('cachePolicy="memory-disk"'); expect(source).toContain("transition={0}");
@@ -144,7 +144,7 @@ describe("approved opening screen", () => {
     for (const namespace of namespaces) {
       expect(Object.keys(namespace).sort()).toEqual(Object.keys(namespaces[0]).sort());
       for (const key of ["hint", "open", "opening", "loading"]) expect(namespace[key]).toContain("PolaScope");
-      for (const key of ["soundOn", "soundOff", "soundEnable", "skip", "retry"]) expect(namespace[key].length).toBeGreaterThan(0);
+      for (const key of ["skip", "skipHint", "retry"]) expect(namespace[key].length).toBeGreaterThan(0);
     }
     expect(namespaces[1].enterHint).toBe("두 번 탭하면 메인 화면으로 이동합니다.");
   });
