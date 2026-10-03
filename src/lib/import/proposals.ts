@@ -41,7 +41,15 @@ export interface ImportProposal {
    * ones, mirroring the #1075 relation-alias "propose, then persist" law.
    */
   ledgerEntry?: FinanceTxn;
+  /**
+   * Health measurements (Apple Health totals): kept as the person's record but never sent to
+   * an AI provider (lib/wiki/ai-exclusion.ts). proposalsToMarkdown marks the source with it.
+   */
+  aiExcluded?: "health_measurements";
 }
+
+/** The routing line of an Apple Health measurement; ai-exclusion.ts recognises older imports by it. */
+export const HEALTH_PROPOSAL_SUB = "건강 → 루틴 자동완료";
 
 export interface ImportSummary {
   appointments: number;
@@ -133,7 +141,7 @@ export function buildProposals(kind: ImportKind, content: string, localeTag: str
   } else if (kind === "apple-health") {
     const s = summarizeHealth(parseAppleHealthExport(content));
     summary.health = s.byType.length;
-    for (const t of s.byType) proposals.push({ id: `hk-${proposals.length}`, label: `${t.type} ${Math.round(t.total)}${t.unit}`, sub: "건강 → 루틴 자동완료", sensitive: true });
+    for (const t of s.byType) proposals.push({ id: `hk-${proposals.length}`, label: `${t.type} ${Math.round(t.total)}${t.unit}`, sub: HEALTH_PROPOSAL_SUB, sensitive: true, aiExcluded: "health_measurements" });
   } else if (kind === "email") {
     const email = parseEml(content);
     if (email && emailLooksLikeAppointment(email)) {
@@ -264,7 +272,9 @@ export function proposalsToMarkdown(
   chosen: ReadonlyArray<ImportProposal>,
   locale: SystemLocale = systemLocaleFor(i18next.language),
 ): string {
-  const lines = [locale === "ko" ? `# ${sourceName} 가져오기` : `# ${sourceName} import`, ""];
+  // ai_excluded is AI_EXCLUDED_KEY in lib/wiki/ai-exclusion.ts (not imported: that module imports this one).
+  const mark = chosen.some((p) => p.aiExcluded) ? ["---", "ai_excluded: health_measurements", "---"] : [];
+  const lines = [...mark, locale === "ko" ? `# ${sourceName} 가져오기` : `# ${sourceName} import`, ""];
   for (const p of chosen) {
     if (p.body) {
       lines.push(`## ${p.label}`, "", p.body, "");

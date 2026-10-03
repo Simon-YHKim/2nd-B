@@ -339,14 +339,17 @@ export function ImportHubScreen() {
       // toggle is off or the auto allowance is spent). A later ratify stamps
       // the domain tag that lets this import brighten its star — the only
       // honest path (propose→ratify) from imported data to the constellation.
-      enqueueAutoReasoningSource({
-        userId,
-        locale: ko ? "ko" : "en",
-        minor: isMinor === true,
-        tier: progression.tier,
-        id: result.source.id,
-        title: result.source.title,
-      });
+      // Health measurements are never sent to an AI provider (lib/wiki/ai-exclusion.ts).
+      if (!chosen.some((p) => p.aiExcluded)) {
+        enqueueAutoReasoningSource({
+          userId,
+          locale: ko ? "ko" : "en",
+          minor: isMinor === true,
+          tier: progression.tier,
+          id: result.source.id,
+          title: result.source.title,
+        });
+      }
       // P0③ (kakao only): pseudonymous per-person signals become star-alias
       // people ("새벽에 걷는 베텔게우스") in relation_people — the relation
       // star's real backing. Best-effort after the import itself landed.

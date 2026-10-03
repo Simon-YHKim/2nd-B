@@ -63,6 +63,8 @@ jest.mock("../materialize", () => ({
 }));
 
 import { generateSourcePage, SourceNotFoundError, SourceBodyUnavailableError } from "../phase2";
+import { SourceAiExcludedError } from "../ai-exclusion";
+import { HEALTH_PROPOSAL_SUB } from "../../import/proposals";
 
 function reset() {
   captured.length = 0;
@@ -403,5 +405,37 @@ describe("slug collision never overwrites somebody else's page", () => {
     await generateSourcePage("u1", "bbbbbbbb-0000-0000-0000-000000000000");
     const upsert = captured.find((c) => c.fn === "upsertWikiPage");
     expect((upsert?.args[0] as { slug: string }).slug).toBe("async-loops-bbbbbbbb");
+  });
+});
+
+// Imported health measurements never become a wiki page (lib/wiki/ai-exclusion.ts): the page
+// body is embedded and read into the chat context, both AI providers.
+describe("generateSourcePage: health measurements", () => {
+  beforeEach(reset);
+  const base = {
+    id: "s9",
+    user_id: "u1",
+    kind: "self_knowledge",
+    title: "Apple Health import",
+    source_url: null,
+    storage_path: "u1/apple-health.md",
+    tags: [],
+    simon_relevance: 3,
+    ingested: false,
+    ingested_at: null,
+    captured_at: "2026-10-03T00:00:00Z",
+  };
+
+  test("a marked source is refused before its body is even read", async () => {
+    fixtures.source = { ...base, frontmatter: { ai_excluded: "health_measurements" } };
+    await expect(generateSourcePage("u1", "s9")).rejects.toBeInstanceOf(SourceAiExcludedError);
+    expect(callOrder()).toEqual(["getSource"]);
+  });
+
+  test("an older import without the mark is recognised by its measurement lines", async () => {
+    fixtures.source = { ...base, frontmatter: {} };
+    fixtures.body = "# Apple Health import\n\n- HKQuantityTypeIdentifierStepCount 120count _(" + HEALTH_PROPOSAL_SUB + ")_";
+    await expect(generateSourcePage("u1", "s9")).rejects.toBeInstanceOf(SourceAiExcludedError);
+    expect(callOrder()).toEqual(["getSource", "downloadRawClipping"]);
   });
 });
