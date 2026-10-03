@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, FlatList, Pressable, StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
@@ -679,6 +680,9 @@ type DeferredRunError = "limit" | "safety" | "generic";
 const deferredRunErrors = new Map<string, DeferredRunError>();
 
 export default function ReasoningScreen() {
+  // Phone-aware: inside the dashboard phone, every Back below steps the phone
+  // and /plans or /capture open in the phone.
+  const router = useAppRouter();
   const {
     userId,
     loading,

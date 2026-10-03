@@ -14,7 +14,7 @@ import { subscribeFontStyle } from "@/lib/settings/readable-font";
 import { View, StyleSheet, ScrollView, Modal, Platform, Pressable, TouchableOpacity } from "react-native";
 import { Rect, Svg } from "react-native-svg";
 import { useTranslation } from "react-i18next";
-import { Redirect, router, type Href } from "expo-router";
+import { Redirect, type Href } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { ServiceConsentLink } from "@/components/consent/ServiceConsentLink";
@@ -66,6 +66,7 @@ import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionS
 import { IslandArt } from "@/components/art/IslandArt";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 
 // D-25: Polaris brightness shows as a qualitative band, never a raw %.
 const SOUL_CORE_BAND_KO: Record<BrightnessBand, string> = { dim: "흐릿", fair: "보통", bright: "밝음" };
@@ -184,6 +185,8 @@ export default function CoreBrain() {
 }
 
 function CoreBrainScreen() {
+  // Phone-aware: inside the dashboard phone, the deck's links open in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("core-brain");
   const { t: consentT } = useTranslation("consent");
   // 별 이름은 홈 별자리와 **같은 키**에서 읽는다 -- 두 화면이 갈라지면

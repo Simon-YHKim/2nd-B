@@ -13,7 +13,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
-import { router } from "expo-router";
+import { useAppRouter, usePhoneEmbed } from "@/lib/nav/phone-embed";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceSpacing, flattenAlpha } from "@/lib/theme/tokens";
@@ -107,6 +107,12 @@ const TIER_COLOR: Record<Tier, string> = {
 type Step = "hub" | "consent" | "input" | "review" | "history";
 
 export function ImportHubScreen() {
+  // Phone-aware: inside the dashboard phone, back from the hub step steps the
+  // phone back instead of popping the app stack.
+  const router = useAppRouter();
+  // Inside the dashboard phone (~180px column at 320x568) the history link
+  // ran off the title row; let that row wrap there.
+  const inPhone = usePhoneEmbed() !== null;
   const { i18n, t: importT } = useTranslation("import");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId, isMinor } = useAuth();
@@ -458,12 +464,15 @@ export function ImportHubScreen() {
   // ⚠ active="capture" 는 하이라이트용이고 pathname 이 /capture 가 아니라서
   // DeepSpaceScreen 의 '루트 탭 → 홈' 하드웨어 뒤로가기 특례는 걸리지 않는다.
   // 단계 안의 뒤로(‹ → back())와 하드웨어 뒤로 동선은 그대로다.
+  //
+  // ownBack: 뒤로는 본문 제목 줄의 ‹ 하나다. 대시보드 폰 안에서 셸이 두 번째 뒤로를
+  // 붙이지 않는다(뒤로는 한 곳에만 - O-7).
   return (
-    <DeepSpaceScreen active="capture" header="none">
+    <DeepSpaceScreen active="capture" header="none" ownBack>
       <View style={styles.glow} pointerEvents="none" />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <SecondbStatusHeader text={t("hubBubble")} tip={t("hubTip")} />
-        <View style={styles.titleRow}>
+        <View style={[styles.titleRow, inPhone && styles.titleRowWrap]}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("back")} onPress={back} hitSlop={10} style={styles.backBtn}>
             <RNText style={styles.backIcon}>‹</RNText>
           </Pressable>
@@ -826,6 +835,7 @@ const styles = StyleSheet.create({
   glow: { position: "absolute", top: 0, left: 0, right: 0, height: 220, backgroundColor: flattenAlpha(deepSpace.bgGlow, 0.5, deepSpace.bg) },
   scroll: { padding: deepSpaceSpacing.lg, paddingBottom: 40, gap: deepSpaceSpacing.md },
   titleRow: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },
+  titleRowWrap: { flexWrap: "wrap" },
   backBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   backIcon: { color: deepSpace.accentBright, fontSize: 24 },
   title: { fontSize: 18, color: deepSpace.accentBright },

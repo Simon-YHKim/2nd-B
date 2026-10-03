@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard } from "@/components/m3";
@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { accountTransitionPendingFromSnapshot, accountTransitionSnapshot, subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { allRequiredAcksChecked, emptyConsentSelections, REQUIRED_ACK_KEYS } from "@/lib/auth/consent-selections";
 import { isAvailableUiLocale, type AvailableUiLocale } from "@/lib/i18n/locales";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { loadServiceConsent, matchesServiceConsentContract, saveServiceConsent, ServiceConsentError, type ServiceConsentStatus } from "@/lib/privacy/service-consent";
 import { m3 } from "@/lib/theme/m3";
 
@@ -19,6 +20,8 @@ const ACK_COPY = {
 
 /** The key fences both account changes and an A -> B -> A epoch transition. */
 export default function ServiceConsentScreen() {
+  // Phone-aware: inside the dashboard phone, back and the links stay in the phone.
+  const router = useAppRouter();
   const { userId, loading } = useAuth();
   const { t, i18n } = useTranslation("consent");
   const transition = useSyncExternalStore(subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot);
@@ -35,6 +38,7 @@ export default function ServiceConsentScreen() {
 }
 
 function ConsentForm({ userId, locale }: { userId: string; locale: AvailableUiLocale }) {
+  const router = useAppRouter();
   const { t } = useTranslation("consent");
   const [status, setStatus] = useState<ServiceConsentStatus | null>(null);
   const [loading, setLoading] = useState(true);

@@ -12,7 +12,6 @@
 // `lib/persona/profile-details.ts` 헤더와 0132 마이그레이션 주석에 있다.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  BackHandler,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -20,7 +19,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Redirect, router, useFocusEffect } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -29,6 +28,7 @@ import { PixelSurface } from "@/components/pixel";
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState, PremiumToast } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useHardwareBack } from "@/lib/nav/phone-embed";
 import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
@@ -93,6 +93,8 @@ function choiceLabelKey(field: ProfileDetailKey, value: string): string {
 }
 
 export default function ProfileDetailsScreen() {
+  // Phone-aware: inside the dashboard phone, cancel steps the phone's stack.
+  const router = useAppRouter();
   const { t } = useTranslation(["deepspace", "common"]);
   const {
     userId,
@@ -132,15 +134,13 @@ export default function ProfileDetailsScreen() {
       return;
     }
     router.replace("/profile");
-  }, []);
+  }, [router]);
 
-  useFocusEffect(
+  // Through the phone's claim stack inside the dashboard phone (see useHardwareBack).
+  useHardwareBack(
     useCallback(() => {
-      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-        onCancel();
-        return true;
-      });
-      return () => sub.remove();
+      onCancel();
+      return true;
     }, [onCancel]),
   );
 

@@ -40,6 +40,7 @@ const USER_PROSE: readonly string[] = [
   "src/app/northstar.tsx",
   "src/app/(auth)/complete-profile.tsx",
   "src/components/deep-space/DeepSpaceViews.tsx",
+  "src/components/dashboard/DashboardPhone.tsx",
 ];
 
 /** Call sites whose `body` is machine-built, with the reason. Crisis text

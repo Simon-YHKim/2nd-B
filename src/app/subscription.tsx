@@ -19,10 +19,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { MdButton, MdCard } from "@/components/m3";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PremiumModal } from "@/components/premium";
@@ -65,6 +66,9 @@ function formatDate(iso: string | null | undefined, locale: string): string | nu
 }
 
 export default function SubscriptionScreen() {
+  // Phone-aware: inside the dashboard phone, Back and the policy/plans links
+  // stay in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("settings");
   const { userId, loading: authLoading } = useAuth();
   const { tier, refresh: refreshTier } = useProgression();

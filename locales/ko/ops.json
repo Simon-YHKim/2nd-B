@@ -11,6 +11,15 @@
     "navLabel": "휴대전화 바로가기",
     "nav": { "home": "홈", "note": "노트", "add": "추가", "search": "검색", "profile": "프로필" },
     "returnToStars": "별자리로 돌아가기",
+    "internal": {
+      "back": "핸드폰 안에서 뒤로가기", "wikiGraph": "그래프와 태그로 보기", "closePhone": "핸드폰 닫기", "exitTitle": "핸드폰을 닫을까요?", "exitHint": "저장된 내용은 그대로 두고 별자리로 돌아갑니다.", "cancel": "계속 보기",
+      "captureScope": "이 핸드폰에서는 짧은 메모를 저장할 수 있습니다. 인터뷰와 다른 담기 방식은 별도 화면에서 제공됩니다.",
+      "noteInput": "남기고 싶은 내용을 적어주세요", "startNote": "메모 남기기", "saveNote": "메모 저장", "saved": "메모를 저장했습니다.",
+      "focusLocal": "이 타이머는 집중 타이머 화면을 열어 둔 동안만 작동합니다.", "start": "시작", "pause": "일시정지", "reset": "초기화",
+      "searchRecords": "저장한 기록 검색", "untitledRecord": "내용 없는 기록", "settingsScope": "데이터 연동과 갱신 주기 변경은 설정에서 관리합니다.",
+      "profileSummary": "최근 기록 {{count}}개를 읽었습니다. 전체 기록 수나 프로필 내용은 아닙니다.",
+      "unavailable": "이 기능의 핸드폰 내부 화면은 아직 연결되지 않았습니다. 자료를 임의로 표시하지 않습니다."
+    },
     "operational": {
       "title": "개인 대시보드",
       "scope": "지금 할 일, 최근 변화, 데이터 근거를 한눈에 봅니다.",

@@ -112,7 +112,9 @@ function scan(): Scan {
         senders.get(name)!.add(rel);
       }
     }
-    for (const m of live.matchAll(/useLocalSearchParams<\{([^}]*)\}>/g)) {
+    // useScreenParams (src/lib/nav/phone-embed.tsx) is useLocalSearchParams for a
+    // screen the dashboard phone can also host - the same reader.
+    for (const m of live.matchAll(/(?:useLocalSearchParams|useScreenParams)<\{([^}]*)\}>/g)) {
       for (const key of m[1].matchAll(/(\w+)\??\s*:/g)) readers.add(key[1]);
     }
     for (const m of live.matchAll(/params\.(\w+)/g)) readers.add(m[1]);

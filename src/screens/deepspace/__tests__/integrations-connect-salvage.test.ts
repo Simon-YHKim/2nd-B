@@ -80,7 +80,9 @@ describe("connect frame layout salvage -> production /integrations", () => {
     });
 
     const owner = read("src/screens/deepspace/dds-import-inbox-screens.tsx");
-    expect(owner).toContain("useLocalSearchParams<{ mode?: string }>()");
+    // useScreenParams = useLocalSearchParams outside the dashboard phone, the phone
+    // route's query inside it (src/lib/nav/phone-embed.tsx).
+    expect(owner).toContain("useScreenParams<{ mode?: string }>()");
     expect(owner).toContain('requestedMode === "account" ? "account" : "file"');
     expect(owner).toContain('t("import.healthName")');
     expect(owner).toContain("handleHealthConsent");

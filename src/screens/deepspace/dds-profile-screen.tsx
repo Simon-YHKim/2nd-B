@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { Redirect, router, useFocusEffect, type Href } from "expo-router";
+import { Redirect, useFocusEffect, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -13,6 +13,7 @@ import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { DEFAULT_AVATAR_SPEC, type AvatarSpec } from "@/lib/avatar";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { useProgression } from "@/lib/progression/useProgression";
 import { fetchAvatarSpec } from "@/lib/supabase/avatar-spec";
 import { m3 } from "@/lib/theme/m3";
@@ -51,6 +52,8 @@ interface AvatarState {
 }
 
 export function DeepSpaceProfileScreen() {
+  // Phone-aware: inside the dashboard phone, links and back stay in the phone.
+  const router = useAppRouter();
   const { t } = useTranslation("profile");
   const { t: tDeepSpace } = useTranslation("deepspace");
   const { t: tHome } = useTranslation("home");
@@ -236,8 +239,10 @@ export function DeepSpaceProfileScreen() {
   ];
   const activeGroup = routeGroups.find((group) => group.key === activeSection) ?? routeGroups[0];
 
+  // ownBack: the top bar below draws this screen's back button, so the phone
+  // shell adds no second one. The loading state above has none and keeps it.
   return (
-    <DeepSpaceScreen active="settings" header="none">
+    <DeepSpaceScreen active="settings" header="none" ownBack>
       <View style={styles.screen}>
         <View style={styles.topBar}>
           <PixelPressable

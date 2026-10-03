@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect } from "react-native-svg";
 
@@ -12,6 +12,7 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { m3 } from "@/lib/theme/m3";
 import { flattenAlpha } from "@/lib/theme/tokens";
 
@@ -56,6 +57,9 @@ function StarGlow() {
 }
 
 export default function BeyondScreen() {
+  // Phone-aware: inside the dashboard phone, the top bar's back and the
+  // capture / settings links go through the phone.
+  const router = useAppRouter();
   const { t } = useTranslation(["deepspace", "common"]);
   const { userId, loading } = useAuth();
   const [openPreview, setOpenPreview] = useState<BeyondPreviewId | null>("widgets");
@@ -73,8 +77,10 @@ export default function BeyondScreen() {
 
   const previewTag = t("beyond.preview");
 
+  // ownBack: the top bar below draws this screen's back button, so the phone
+  // shell adds no second one. The loading state above has none and keeps it.
   return (
-    <DeepSpaceScreen active="settings" header="none">
+    <DeepSpaceScreen active="settings" header="none" ownBack>
       <View style={styles.topBar}>
         <PixelPressable
           variant="bevel"

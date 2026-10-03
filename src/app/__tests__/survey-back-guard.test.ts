@@ -15,6 +15,14 @@ import { resolve } from "path";
 const read = (name: string): string =>
   readFileSync(resolve(__dirname, "..", `${name}.tsx`), "utf8").replace(/\r\n/g, "\n");
 
+// A survey the dashboard phone can host registers its guard through
+// useHardwareBack (src/lib/nav/phone-embed.tsx) instead: the same focused
+// BackHandler listener standalone, the phone's claim stack inside the phone. The
+// subscription and its removal then live in that hook, so they are checked there.
+const PHONE_EMBED = readFileSync(resolve(__dirname, "..", "..", "lib", "nav", "phone-embed.tsx"), "utf8")
+  .replace(/\r\n/g, "\n");
+const usesPhoneBack = (src: string): boolean => /useHardwareBack\(useCallback\(/.test(src);
+
 // Every screen where the user is mid-way through answering something they cannot get back.
 const SURVEYS = [
   "values",
@@ -34,20 +42,35 @@ describe.each(SURVEYS)("%s guards the Android back button", (name) => {
   });
 
   test("it intercepts hardwareBackPress", () => {
-    expect(src).toMatch(/BackHandler\.addEventListener\("hardwareBackPress"/);
+    if (usesPhoneBack(src)) {
+      expect(PHONE_EMBED).toMatch(/BackHandler\.addEventListener\("hardwareBackPress", handler\)/);
+    } else {
+      expect(src).toMatch(/BackHandler\.addEventListener\("hardwareBackPress"/);
+    }
     // Returning true is what stops the default (close the screen and lose everything).
     expect(src).toMatch(/return true;/);
   });
 
   test("it only intercepts while there is something to lose", () => {
     // Guarding an empty survey would trap the user on a screen they have not started.
-    expect(src).toMatch(/if \(!started \|\| Object\.keys\(responses\)\.length === 0 \|\| saved\) return;/);
+    // (The always-registered useHardwareBack form says so by returning false.)
+    expect(src).toMatch(
+      usesPhoneBack(src)
+        ? /if \(!started \|\| Object\.keys\(responses\)\.length === 0 \|\| saved\) return false;/
+        : /if \(!started \|\| Object\.keys\(responses\)\.length === 0 \|\| saved\) return;/,
+    );
   });
 
   test("it removes the subscription on unmount", () => {
     // ANDROID_QA_GUIDELINES: a leaked handler keeps swallowing back presses on LATER
     // screens, which is a worse bug than the one being fixed.
-    expect(src).toMatch(/return \(\) => subscription\.remove\(\);/);
+    if (usesPhoneBack(src)) {
+      // Removed on blur and unmount (useFocusEffect cleanup), and the phone claim released.
+      expect(PHONE_EMBED).toMatch(/useFocusEffect\(useCallback\(\(\) => \{\n    if \(embed\) return embed\.claimBack\(handler\);/);
+      expect(PHONE_EMBED).toMatch(/return \(\) => sub\.remove\(\);/);
+    } else {
+      expect(src).toMatch(/return \(\) => subscription\.remove\(\);/);
+    }
   });
 
   test("it asks before discarding, rather than just discarding", () => {

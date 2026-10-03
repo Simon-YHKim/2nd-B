@@ -11,7 +11,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph, type AnyGlyphName } from "@/components/pixel/pixel-glyphs";
@@ -21,6 +21,7 @@ import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { DeepSpaceLoader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { reactExpression } from "@/lib/companion/expression";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { listInferredLinkDetails, listSources } from "@/lib/wiki/queries";
@@ -68,6 +69,8 @@ function Loading() {
 // cards (those were placeholders presented as real state to zero-data users).
 
 export function DeepSpaceInboxScreen() {
+  // Phone-aware: inside the dashboard phone, back and links stay in the phone.
+  const router = useAppRouter();
   const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
 
@@ -100,6 +103,7 @@ type InboxItem = {
 // hardcoded empty array: honest-looking, but the pipeline behind the bell was
 // simply not wired (audit: /inbox stub).
 function DeepSpaceInboxBody({ userId, title }: { userId: string; title: string }) {
+  const router = useAppRouter();
   const { t } = useTranslation("deepspace");
   const [items, setItems] = useState<InboxItem[] | null>(null);
 
@@ -230,9 +234,12 @@ type ImportMode = "file" | "account";
 // row runs the real device-health opt-in/ingest (minors, and an age not confirmed
 // yet, stay hard-locked).
 export function DeepSpaceImportScreen() {
+  // Phone-aware: inside the dashboard phone, back stays in the phone and `mode`
+  // comes from the phone route (/import?mode=account).
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const { userId, loading: authLoading, isMinor } = useAuth();
-  const { mode: requestedMode } = useLocalSearchParams<{ mode?: string }>();
+  const { mode: requestedMode } = useScreenParams<{ mode?: string }>();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
 
   // `/integrations` can point straight at the account/health owner. Unknown or

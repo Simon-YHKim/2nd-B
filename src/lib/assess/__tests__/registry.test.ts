@@ -49,7 +49,9 @@ describe("레지스트리가 실재하는 화면을 가리킨다", () => {
     expect(screenFor(audit.route)).toBe("src/app/audit.tsx");
 
     const screen = read(screenFor(audit.route));
-    expect(screen).toContain("useLocalSearchParams");
+    // useScreenParams (src/lib/nav/phone-embed.tsx) is useLocalSearchParams for a
+    // screen the dashboard phone can also host: there it reads the phone route's query.
+    expect(screen).toMatch(/useLocalSearchParams|useScreenParams/);
     expect(screen).toMatch(/screener\s*===\s*["']1["']/);
     expect(screen).toMatch(/function AuditScreenerShell[\s\S]*isDeepSpaceUI\(\)[\s\S]*<DeepSpaceScreen/);
     expect(screen).toMatch(/<DeepSpaceScreen[\s\S]*active="lens"[\s\S]*onBack=\{onBack\}/);
@@ -58,7 +60,9 @@ describe("레지스트리가 실재하는 화면을 가리킨다", () => {
       screen.indexOf("function AuditLegacy"),
     );
     expect(shell).not.toContain("onBack={() => router.back()}");
-    expect(screen).toContain('BackHandler.addEventListener("hardwareBackPress", requestBack)');
+    // Android Back through useHardwareBack (the same focused BackHandler listener
+    // standalone, the phone's claim stack inside the dashboard phone), only mid-session.
+    expect(screen).toMatch(/useHardwareBack\(useCallback\(\n\s*\(\) => \(period === null \|\| done \? false : requestBack\(\)\)/);
     expect(screen.split("<AuditScreenerShell onBack={requestBack}>").length - 1).toBe(4);
     expect(screen).toContain('navigation.addListener("beforeRemove"');
     expect(screen).toContain("const hasUnsavedProgress =");

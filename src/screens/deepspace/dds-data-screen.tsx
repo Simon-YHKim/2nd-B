@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { Redirect, router, type Href } from "expo-router";
+import { Redirect, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -11,6 +11,7 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { m3 } from "@/lib/theme/m3";
 
 import {
@@ -20,6 +21,8 @@ import {
 } from "./dds-data-content";
 
 export function DeepSpaceDataScreen() {
+  // Phone-aware: inside the dashboard phone, links and back stay in the phone.
+  const router = useAppRouter();
   const { t } = useTranslation(["data", "common", "deepspace", "consent", "iden"]);
   const { userId, loading } = useAuth();
   const [expandedId, setExpandedId] = useState<DataRightId | null>(null);
@@ -35,8 +38,10 @@ export function DeepSpaceDataScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
+  // ownBack: the top bar below draws this screen's back button, so the phone
+  // shell adds no second one. The loading state above has none and keeps it.
   return (
-    <DeepSpaceScreen active="settings" header="none">
+    <DeepSpaceScreen active="settings" header="none" ownBack>
       <View style={styles.screen}>
         <View style={styles.topBar}>
           <PixelPressable

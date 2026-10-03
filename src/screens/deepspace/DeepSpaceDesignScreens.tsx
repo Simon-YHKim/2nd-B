@@ -3,6 +3,7 @@ import { AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollVie
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
 import { Redirect, router, useNavigation } from "expo-router";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect, SvgXml } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -293,6 +294,8 @@ function GraphLoading() {
 // moving from Shell to DockShell must also join DEEP_SPACE_DOCK_PATHS so the
 // floating BackArrow chip yields to the top bar.
 function DockShell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
+  // Phone-aware: inside the dashboard phone, back steps the phone's stack.
+  const router = useAppRouter();
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title ?? ""} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -355,7 +358,7 @@ function Action({ label, value, onPress }: Row) {
 function Toggle({ label, value, on = true, onPress, disabled = false }: Row) {
   const body = (
     <>
-      <View><Text variant="body" style={styles.actionLabel}>{label}</Text>{value ? <Text variant="body" style={styles.actionValue}>{value}</Text> : null}</View>
+      <View style={TOGGLE_TEXT}><Text variant="body" style={styles.actionLabel}>{label}</Text>{value ? <Text variant="body" style={styles.actionValue}>{value}</Text> : null}</View>
       <View style={[styles.toggle,on&&styles.toggleOn]}><View style={[styles.knob,on&&styles.knobOn]} /></View>
     </>
   );
@@ -517,6 +520,8 @@ const gap = StyleSheet.create({
 });
 
 export function DeepSpaceSupportDesignScreen() {
+  // Phone-aware: inside the dashboard phone, links open in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -607,6 +612,9 @@ export function DeepSpaceAccountDesignScreen() {
 }
 
 export function DeepSpacePrivacyDesignScreen() {
+  // Phone-aware: inside the dashboard phone, links open in the phone. The
+  // post-deletion replace("/sign-in") still leaves the phone (auth exit path).
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const { t: consentT } = useTranslation("consent");
   const navigation = useNavigation();
@@ -1362,6 +1370,8 @@ export function DeepSpacePrivacyDesignScreen() {
 }
 
 export function DeepSpaceInsightsScreen() {
+  // Phone-aware: inside the dashboard phone, the cards open in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language === "ko";
   const { userId, loading: authLoading } = useAuth();
@@ -1831,6 +1841,8 @@ function PermissionRow({ kind, label, value }: { kind: keyof typeof permissionAd
 }
 
 export function DeepSpacePermissionsScreen() {
+  // Phone-aware: "continue" steps the phone back instead of leaving the dashboard.
+  const router = useAppRouter();
   const { t } = useTranslation("deepspace");
   // Web has no equivalent OS permission model for these capture features, so the
   // rows are hidden there rather than shown as controls that cannot act.
@@ -1871,6 +1883,7 @@ export function DeepSpacePermissionsScreen() {
 // Counts, not percentages: a tag that went 0 -> 3 has no meaningful percentage, and
 // inventing one would repeat the original sin in a smaller font.
 export function DeepSpaceDiscoverScreen() {
+  const router = useAppRouter(); // Phone-aware: inside the dashboard phone, the cards open in the phone.
   const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
   // undefined = still loading, null = the read failed, [] = genuinely nothing yet.
@@ -1946,6 +1959,7 @@ export function DeepSpaceReviewScreen() {
 }
 
 function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps) {
+  const router = useAppRouter(); // Phone-aware: inside the dashboard phone, a cited record opens in the phone.
   const { t, i18n } = useTranslation("deepspace");
   // 시기 별 버튼의 이름은 홈 별자리와 **같은 키**에서 온다 -- 화면마다 다른
   // 이름을 배우면 사용자는 같은 별을 두 개로 안다.
@@ -2273,6 +2287,7 @@ const RESEARCH_SAT = [
 ] as const;
 
 export function DeepSpaceResearchScreen() {
+  const router = useAppRouter(); // Phone-aware: inside the dashboard phone, links and proposals open in the phone.
   const { t, i18n } = useTranslation("deepspace");
   // D-27 Phase 1c: the research view runs on RECORDS, the ratified node-set.
   // It used to read useWikiGraphData(), and wiki_pages has never held a single
@@ -3886,3 +3901,9 @@ const cx = StyleSheet.create({
   rightsLabelDanger: { color: m3.color.error, fontFamily: m3.font.brand },
   rightsSub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
 });
+
+// Toggle's text column shares the row with the switch. Without a flex basis it
+// kept its natural width and long labels ran past narrow screens (132px in the
+// dashboard phone, 2026-10-02 QA). Kept at the end of the file so the line
+// citations into this file (DPIA) do not move.
+const TOGGLE_TEXT = { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0 } as const;

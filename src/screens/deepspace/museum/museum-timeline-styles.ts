@@ -42,6 +42,15 @@ export const MUSEUM_LANE_TONE: Record<
 };
 
 export const museumTimelineStyles = StyleSheet.create({
+  phoneRoot: { flex: 1, minHeight: 0, overflow: "hidden", backgroundColor: MUSEUM_GROUND },
+  phoneHeader: {
+    minHeight: m3.minTouch,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: m3.spacing.s2,
+    paddingHorizontal: m3.spacing.s2,
+  },
+  phoneTitle: { flex: 1, color: m3.accent.skyTextHi },
   body: { flex: 1, minHeight: 0 },
   rangeRow: {
     minHeight: m3.minTouch,
@@ -103,6 +112,11 @@ export const museumTimelineStyles = StyleSheet.create({
   overviewEventTitle: { fontSize: 14, lineHeight: 21, color: TEXT, fontWeight: "700" },
   overviewEventLane: { fontSize: 12, lineHeight: 18 },
   viewport: { flex: 1, minHeight: 0, overflow: "hidden" },
+  phoneViewportScroll: { minHeight: MZ.TH },
+  // Longhands, not `flex: 0`: RN-web hands `flex: 0` to CSS as `0 1 0%`, and a
+  // 0% basis overrides `height`, so the two-lane canvas measured 0px tall
+  // inside the phone (web QA, 2026-10-01). Yoga reads `flex: 0` as basis auto.
+  phoneViewport: { flexGrow: 0, flexShrink: 0, flexBasis: "auto", height: MZ.TH },
   timelineCanvas: { width: MZ.PAD * 2 + (MZ.END - MZ.START) * MZ.PXY, height: MZ.TH },
   laneLegendRow: {
     flexDirection: "row",
@@ -111,6 +125,8 @@ export const museumTimelineStyles = StyleSheet.create({
     paddingVertical: m3.spacing.s2,
   },
   laneLegendItem: { flex: 1, minWidth: 0, minHeight: m3.minTouch },
+  // The legend is a label, not a control: no touch height inside the phone.
+  phoneLaneLegendItem: { minHeight: 0 },
   laneLegendContent: {
     flexDirection: "row",
     alignItems: "center",
@@ -222,6 +238,21 @@ export const museumTimelineStyles = StyleSheet.create({
     maxHeight: 440,
     zIndex: 20,
   },
+  phoneSheet: { top: 0, maxHeight: undefined, overflow: "hidden" },
+  phoneSheetSurface: {
+    flex: 1,
+    minHeight: 0,
+    gap: m3.spacing.s2,
+    backgroundColor: MUSEUM_PANEL,
+    paddingHorizontal: m3.spacing.s4,
+    paddingVertical: m3.spacing.s4,
+  },
+  // Longhands, not `flex: 1`: this follows `sheetScroll`'s explicit
+  // `flexGrow: 0`, and both Yoga and RN-web let an explicit flexGrow beat the
+  // `flex` shorthand. With `flex: 1` the detail body resolved to grow 0 and
+  // basis 0, so the phone sheet showed only its header (320x568 web QA,
+  // 2026-10-01).
+  phoneSheetScroll: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0 },
   sheetCompact: { maxHeight: 460 },
   sheetSurfaceContent: {
     paddingHorizontal: m3.spacing.s4,

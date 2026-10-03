@@ -44,6 +44,15 @@
     "title": "Meu telefone",
     "brand": "MEU DIA",
     "returnToStars": "Voltar à constelação",
+    "internal": {
+      "back": "Voltar dentro do telefone", "wikiGraph": "Grafo e etiquetas", "closePhone": "Fechar telefone", "exitTitle": "Fechar o telefone?", "exitHint": "Voltar à constelação sem alterar os dados salvos.", "cancel": "Continuar vendo",
+      "captureScope": "Salve uma nota curta aqui. Entrevistas e outros modos de captura continuam em telas próprias.",
+      "noteInput": "Escreva algo para guardar", "startNote": "Escrever uma nota", "saveNote": "Salvar nota", "saved": "Nota salva.",
+      "focusLocal": "Este temporizador funciona apenas enquanto sua tela está aberta.", "start": "Iniciar", "pause": "Pausar", "reset": "Redefinir",
+      "searchRecords": "Buscar registros salvos", "untitledRecord": "Registro sem texto", "settingsScope": "Gerencie conexões e frequência de atualização nas Configurações.",
+      "profileSummary": "Foram lidos {{count}} registros recentes. Não é o total nem o conteúdo do perfil.",
+      "unavailable": "Esta função ainda não tem tela interna no telefone. Nenhum dado é inventado."
+    },
     "tabs": {
       "dashboard": "Painel",
       "sources": "Fontes",

@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState } from "@/components/premium";
@@ -16,6 +16,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdChip } from "@/components/m3";
 import { ShareCard } from "@/components/deepspace/ShareCard";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, usePhoneEmbed } from "@/lib/nav/phone-embed";
 import { spacing } from "@/lib/theme/tokens";
 import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
 import { fetchCurrentNorthstar } from "@/lib/persona/northstar";
@@ -23,6 +24,11 @@ import { deriveCardProps, shareInsightCard } from "@/lib/share/insight-card";
 import { countUserPieces } from "@/lib/share/piece-count";
 
 export default function ShareCardScreen() {
+  // Phone-aware: inside the dashboard phone, back steps the phone, and the
+  // on-screen preview fits the phone's display (the 1080 capture host is unchanged).
+  const router = useAppRouter();
+  const embed = usePhoneEmbed();
+  const previewSize = embed?.displayWidth ? Math.min(330, Math.floor(embed.displayWidth - spacing.lg * 2)) : 330;
   const { t, i18n } = useTranslation("deepspace");
   const { userId, loading } = useAuth();
   const isKo = i18n.language === "ko";
@@ -151,7 +157,7 @@ export default function ShareCardScreen() {
         </View>
 
         <View style={styles.preview}>
-          <ShareCard variant={variant} insight={card.insight} pieceCount={pieceCount} litCount={card.litCount} size={330} isKo={isKo} />
+          <ShareCard variant={variant} insight={card.insight} pieceCount={pieceCount} litCount={card.litCount} size={previewSize} isKo={isKo} />
         </View>
 
         {/* sb-more L503-506: two side-by-side actions — filled 이미지 저장 + tonal 공유. */}

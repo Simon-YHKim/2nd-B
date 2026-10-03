@@ -44,6 +44,15 @@
     "title": "Ponsel saya",
     "brand": "HARI SAYA",
     "returnToStars": "Kembali ke rasi bintang",
+    "internal": {
+      "back": "Kembali di dalam ponsel", "wikiGraph": "Grafik dan tag", "closePhone": "Tutup ponsel", "exitTitle": "Tutup ponsel?", "exitHint": "Kembali ke rasi bintang tanpa mengubah data tersimpan.", "cancel": "Lanjut melihat",
+      "captureScope": "Simpan catatan singkat di sini. Wawancara dan cara penyimpanan lain tetap ada di layar khusus.",
+      "noteInput": "Tulis sesuatu untuk disimpan", "startNote": "Tulis catatan", "saveNote": "Simpan catatan", "saved": "Catatan tersimpan.",
+      "focusLocal": "Pengatur waktu ini berjalan hanya saat layarnya terbuka.", "start": "Mulai", "pause": "Jeda", "reset": "Atur ulang",
+      "searchRecords": "Cari catatan tersimpan", "untitledRecord": "Catatan tanpa teks", "settingsScope": "Kelola sambungan data dan jadwal penyegaran di Pengaturan.",
+      "profileSummary": "Membaca {{count}} catatan terbaru. Ini bukan jumlah total atau isi profil Anda.",
+      "unavailable": "Fitur ini belum memiliki layar di dalam ponsel. Data tidak dibuat-buat."
+    },
     "tabs": {
       "dashboard": "Dasbor",
       "sources": "Sumber",
