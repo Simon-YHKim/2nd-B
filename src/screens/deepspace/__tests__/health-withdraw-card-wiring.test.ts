@@ -95,3 +95,26 @@ describe("import consent retention chip", () => {
     }
   });
 });
+
+describe("health withdrawal on the import screen (where the consent is given)", () => {
+  const IMPORT = "src/screens/deepspace/dds-import-inbox-screens.tsx";
+
+  test("one tap withdraws through the same flow, under a lease, never age-gated", () => {
+    const screen = read(IMPORT).replace(/\r\n/g, "\n");
+    const start = screen.indexOf("async function handleHealthWithdraw()");
+    expect(start).toBeGreaterThan(-1);
+    const end = screen.indexOf("\n  }\n", start);
+    expect(end).toBeGreaterThan(start);
+    const handler = screen.slice(start, end);
+    expect(handler).toMatch(/beginAccountSessionLease\(owner\)/);
+    expect(handler).toMatch(/withdrawHealthImport\(owner, healthWithdrawDeps\(\(\) => lease\.assertCurrent\(\), \(\) => setHealthPref\(false\)\)\)/);
+    expect(handler).toMatch(/lease\.release\(\)/);
+    expect(handler).not.toMatch(/isMinor/);
+    expect(handler).not.toMatch(/health_import:\s*true/);
+  });
+
+  test("the button shows whenever the consent is on and is named by its text", () => {
+    const screen = read(IMPORT);
+    expect(screen).toMatch(/\{healthPref \? \(\s*<MdButton\s*label=\{t\("privacyHealth\.turnOff"\)\}[\s\S]*?onPress=\{\(\) => void handleHealthWithdraw\(\)\}\s*accessibilityLabel=\{t\("privacyHealth\.turnOff"\)\}/);
+  });
+});
