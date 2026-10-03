@@ -2638,6 +2638,12 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/polascope-consent-forward-contract.sql
+      # Re-consent for the calendar-reading policy revision (email-v8 / service-v3),
+      # stacked on the PolaScope contract above. Draft until the revision merges.
+      - name: Dry-run re-consent email-v8 / service-v3 forward contract
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/reconsent-v8-forward-contract.sql
       - name: Exercise inactive avatar column draft on scratch PostgreSQL
         env:
           PGPASSWORD: postgres

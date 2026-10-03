@@ -8,9 +8,19 @@ import {
   readLlmProxyJsonObject, userIdFromJwt,
 } from '../_shared/llm-proxy-common.ts';
 
-const CURRENT_REVISION = 'service-v2';
+const CURRENT_REVISION = 'service-v3';
 const LEGACY_REVISION = 'service-v1';
+// service-v2 is the PolaScope client that shipped before the re-consent revision.
+const REVISIONS = new Set([LEGACY_REVISION,'service-v2',CURRENT_REVISION]);
+const STATUS_RPC: Record<string, string> = {
+  'service-v1':'llm_service_consent_status',
+  'service-v2':'llm_service_consent_status_v2',
+  'service-v3':'llm_service_consent_status_v3',
+};
 const ACK_KEYS = ['service','llmProcessing','overseasTransfer','sensitiveData','safetyNotice'];
+// confirm records the revision for an account whose AI consent is withdrawn, so it
+// never carries the AI acknowledgement (the database also rejects it for anyone else).
+const CONFIRM_ACK_KEYS = ACK_KEYS.filter((key) => key !== 'llmProcessing');
 const STATUS_KEYS = ['contract_revision','consent_version','policy_version','terms_version','state','change_token','can_grant'];
 const TOKEN = /^[a-f0-9]{64}$/;
 const LOCALES = new Set(['en','ko','es','pt','id']);
@@ -18,8 +28,10 @@ function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boo
   return Object.keys(value).length === keys.length && keys.every((key) => Object.prototype.hasOwnProperty.call(value,key));
 }
 function validStatus(value: unknown, writing: boolean, revision: string): value is Record<string, unknown> {
-  if (!isLlmJsonObject(value) || !exactKeys(value,writing ? [...STATUS_KEYS,'created'] : STATUS_KEYS)) return false;
+  const keys = revision === CURRENT_REVISION ? [...STATUS_KEYS,'needs_reconsent'] : STATUS_KEYS;
+  if (!isLlmJsonObject(value) || !exactKeys(value,writing ? [...keys,'created'] : keys)) return false;
   return value.contract_revision === revision &&
+    (revision !== CURRENT_REVISION || typeof value.needs_reconsent === 'boolean') &&
     ['consent_version','policy_version','terms_version'].every((key) => typeof value[key] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value[key])) &&
     ['uncovered','granted','revoked','blocked'].includes(value.state as string) &&
     typeof value.change_token === 'string' && TOKEN.test(value.change_token) &&
@@ -42,23 +54,24 @@ Deno.serve(async (req: Request) => {
   catch (error) {
     return jsonResponse(req,{error:'invalid_request'},error instanceof LlmBodyError && error.code === 'request_body_too_large' ? 413 : 400);
   }
-  const writing = body.action === 'grant' || body.action === 'revoke';
+  const writing = body.action === 'grant' || body.action === 'revoke' || body.action === 'confirm';
   // Old clients send only {action:'status'} and keep the reviewed v1 tuple.
-  // Current clients explicitly request v2. Both use the same owner-bound API.
-  const revision = body.contractRevision === CURRENT_REVISION ? CURRENT_REVISION : LEGACY_REVISION;
+  // Newer clients name their revision. All use the same owner-bound API.
+  const revision = typeof body.contractRevision === 'string' && REVISIONS.has(body.contractRevision)
+    ? body.contractRevision : LEGACY_REVISION;
   const acks = body.requiredAcks;
+  const ackKeys = body.action === 'grant' ? ACK_KEYS : body.action === 'confirm' ? CONFIRM_ACK_KEYS : [];
   if (body.action === 'status') {
     if (!(exactKeys(body,['action']) ||
-      (exactKeys(body,['action','contractRevision']) && body.contractRevision === CURRENT_REVISION))) {
+      (exactKeys(body,['action','contractRevision']) && revision !== LEGACY_REVISION && body.contractRevision === revision))) {
       return jsonResponse(req,{error:'invalid_request'},400);
     }
   } else if (!writing || !exactKeys(body,['action','contractRevision','expectedChangeToken','requiredAcks','locale']) ||
-    (body.contractRevision !== CURRENT_REVISION && body.contractRevision !== LEGACY_REVISION) ||
+    body.contractRevision !== revision ||
+    (body.action === 'confirm' && revision !== CURRENT_REVISION) ||
     typeof body.expectedChangeToken !== 'string' || !TOKEN.test(body.expectedChangeToken) ||
     typeof body.locale !== 'string' || !LOCALES.has(body.locale) || !isLlmJsonObject(acks) ||
-    (body.action === 'grant'
-      ? !exactKeys(acks,ACK_KEYS) || ACK_KEYS.some((key) => acks[key] !== true)
-      : !exactKeys(acks,[]))) {
+    !exactKeys(acks,ackKeys) || ackKeys.some((key) => acks[key] !== true)) {
     return jsonResponse(req,{error:'invalid_request'},400);
   }
 
@@ -74,7 +87,7 @@ Deno.serve(async (req: Request) => {
         p_user_id:userId,p_contract_revision:revision,p_expected_change_token:body.expectedChangeToken,
         p_action:body.action,p_required_acks:body.requiredAcks,p_locale:body.locale,
       })
-      : await admin.rpc(revision === CURRENT_REVISION ? 'llm_service_consent_status_v2' : 'llm_service_consent_status',{p_user_id:userId});
+      : await admin.rpc(STATUS_RPC[revision],{p_user_id:userId});
     if (error) {
       if (error.code === '40001' && error.message === 'llm_service_consent_changed') {
         return jsonResponse(req,{error:'service_consent_changed'},409);
