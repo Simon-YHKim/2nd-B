@@ -567,7 +567,7 @@ export function ImportHubScreen() {
           </Text>
         </View>
         <View style={styles.chipRow}>
-          <MetaChip label={t("keep90")} />
+          <MetaChip label={importT("retention.chip")} />
           <MetaChip label={t("deleteAnytime")} />
           {/* Truthful STATIC fact, not a switch: buildProposals parses locally,
               so analysis really is on-device — but the old toggle here was read
@@ -766,7 +766,7 @@ function COPY(ko: boolean): Record<string, string> {
         tier_critical: "최민감 · 명시 동의 필요", tier_sensitive: "민감", tier_normal: "보통",
         needsConsent: "동의 필요", notLinked: "미연결", locked: "잠김", linked: "연결됨",
         what: "무엇을", where: "어디에", whereBody: "이 기기에서 분석합니다. 검토 화면에서 고른 결과만 암호화해 보관합니다.",
-        keep90: "보관 90일", deleteAnytime: "언제든 삭제", localAnalysis: "파일 분석은 이 기기에서",
+        deleteAnytime: "언제든 삭제", localAnalysis: "파일 분석은 이 기기에서",
         connectorNote: "다음 화면에서 위치 권한을 \"사용 중에만\"으로 요청합니다. (네이티브 빌드 필요)",
         googleConnectorNote: "브라우저에서 구글 계정으로 안전하게 연결합니다. 읽기 전용(일정 보기)입니다.",
         googleConnect: "구글 연결", connecting: "연결 중…",
@@ -793,7 +793,7 @@ function COPY(ko: boolean): Record<string, string> {
         tier_critical: "Most sensitive · consent required", tier_sensitive: "Sensitive", tier_normal: "Normal",
         needsConsent: "Needs consent", notLinked: "Not linked", locked: "Locked", linked: "Linked",
         what: "WHAT", where: "WHERE", whereBody: "Analyzed on this device. Only the results you choose on the review screen are kept, encrypted.",
-        keep90: "Kept 90 days", deleteAnytime: "Delete anytime", localAnalysis: "File analyzed on device",
+        deleteAnytime: "Delete anytime", localAnalysis: "File analyzed on device",
         connectorNote: "The next screen requests location \"while using\" only. (needs the native build)",
         googleConnectorNote: "Securely link your Google account in the browser. Read-only (view events).",
         googleConnect: "Connect Google", connecting: "Connecting…",

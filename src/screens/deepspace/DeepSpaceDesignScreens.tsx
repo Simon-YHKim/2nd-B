@@ -117,7 +117,7 @@ import {
 } from "@/lib/records/records-embeddings";
 import { recordHealthImportConsent, recordRecommendationsConsent } from "@/lib/supabase/consent";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
-import { availableHealthSources } from "@/lib/health/registry";
+import { HealthWithdrawCard } from "./dds-health-withdraw-card";
 import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
 import { opsRouteForDomain } from "@/lib/ops/nav";
 import { loadPickCandidates } from "@/lib/ops/load-picks";
@@ -790,12 +790,17 @@ export function DeepSpacePrivacyDesignScreen() {
     let cancelled = false;
     void fetchPrivacyPrefs(targetUserId).then((p) => {
       if (!cancelled && activeUserRef.current === targetUserId) {
-        prefsRef.current = p;
-        prefsUserRef.current = targetUserId;
-        setAnalyticsOn(p.external_analytics === true);
-        setAdsOn(p.ads === true);
-        setRecOn(p.recommendations === true);
-        setEmbedOn(p.records_embedding === true);
+        // A save or a strict read on this screen (the health card) may have landed first;
+        // this fail-soft read is older then and must not become the copy saves start from.
+        if (prefsUserRef.current !== targetUserId) {
+          prefsRef.current = p;
+          prefsUserRef.current = targetUserId;
+        }
+        const shown = prefsRef.current ?? p;
+        setAnalyticsOn(shown.external_analytics === true);
+        setAdsOn(shown.ads === true);
+        setRecOn(shown.recommendations === true);
+        setEmbedOn(shown.records_embedding === true);
       }
     });
     return () => {
@@ -1238,6 +1243,17 @@ export function DeepSpacePrivacyDesignScreen() {
           <Text variant="subtle" style={styles.footer}>{ko ? "저장에 실패했습니다. 잠시 후 다시 시도해 주세요." : "Couldn't save. Please try again."}</Text>
         ) : null}
       </Card>
+
+      <HealthWithdrawCard
+        busy={busy}
+        onBusyChange={setBusy}
+        onOpenImport={() => router.push("/import?mode=account")}
+        onPrefsKnown={(ownerId, known) => {
+          if (activeUserRef.current !== ownerId) return;
+          prefsRef.current = known;
+          prefsUserRef.current = ownerId;
+        }}
+      />
 
       <Card>
         {/* audit med#17: these rows rendered as buttons with no onPress — dead
