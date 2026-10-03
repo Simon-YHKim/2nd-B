@@ -67,7 +67,9 @@
     "loading": "Carregando o PolaScope",
     "enterHint": "Toque duas vezes para entrar na tela principal.",
     "skipHint": "Toque duas vezes para pular a animação de abertura.",
-    "skip": "Pular abertura",
+    "skip": "Pular abertura",
+
+    "skipShort": "Pular",
     "retry": "Tentar abertura novamente"
   },
   "worldview": {

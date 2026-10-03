@@ -1,9 +1,9 @@
 /** Each opening control must carry its own role, label and state. A label on
  * another button cannot satisfy a missing label in this control.
  *
- * Simon (localhost QA 2026-10-03) removed the visible skip and sound buttons.
- * Skip survives as a full-screen tap layer, so it keeps the same role, label
- * and ready gate; the sound toggle must stay gone. */
+ * Simon (localhost QA 2026-10-03) removed the sound toggle and moved skip to a
+ * small bottom-right button (its touch target stays 44 dp through hitSlop). Skip
+ * keeps its role, label, hint and ready gate; the sound toggle must stay gone. */
 export function openingA11yContract(source: string): boolean {
   const control = (id: string) => {
     const marker = source.indexOf(`testID="${id}"`);
@@ -20,7 +20,10 @@ export function openingA11yContract(source: string): boolean {
     source.includes('importantForAccessibility="no-hide-descendants"') &&
     !source.includes('testID="opening-sound"') &&
     !source.includes("toggleSound") &&
-    skip.includes("style={styles.tapLayer}") &&
+    skip.includes("style={[styles.skip, ") &&
+    skip.includes("hitSlop={8}") &&
+    skip.includes('t("loadingGate.skipShort")') &&
+    skip.includes('accessibilityHint={t("loadingGate.skipHint")}') &&
     skip.includes('accessibilityRole="button"') &&
     skip.includes("onPress={skip}") &&
     skip.includes("disabled={!ready}") &&

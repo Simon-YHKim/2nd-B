@@ -4,7 +4,7 @@ import { openingA11yContract } from "../opening-a11y-contract";
 
 const source = readFileSync(resolve(__dirname, "../../src/components/ui/LoadingScreen.tsx"), "utf8");
 
-test("the approved opening has accessible loading, tap-to-skip and retry, and no visible buttons", () => {
+test("the approved opening has accessible loading, a small corner skip and retry, and no sound toggle", () => {
   expect(openingA11yContract(source)).toBe(true);
 });
 
@@ -12,7 +12,10 @@ test.each([
   'accessibilityLabel={t("loadingGate.loading")}',
   'importantForAccessibility="no-hide-descendants"',
   "accessibilityElementsHidden",
-  "style={styles.tapLayer}",
+  "style={[styles.skip, ",
+  "hitSlop={8}",
+  't("loadingGate.skipShort")',
+  'accessibilityHint={t("loadingGate.skipHint")}',
   "onPress={skip}",
   "disabled={!ready}",
   'accessibilityLabel={t("loadingGate.skip")}',
