@@ -180,7 +180,48 @@ Q-261002-01 을 썼으니 보고서 이름으로 구분한다.
 
 ### 7-3. 확인할 사실 (코딩 세션)
 
-- **F1** 운영 `LLM_CONSENT_MODE` 값과 service-consent status 503 의 원인(09-30 기록, 이번에 다시 재지 않음).
-  off 면 재동의 기록 자체가 안 된다.
+- **F1 (확인 10-03 21:5x)** 운영 비밀값 45개 가운데 `LLM_CONSENT_MODE` 와 `LLM_REQUIRE_VERIFIED_CONSENT` 가 **없다**
+  (Supabase CLI 목록의 이름만 대조, 값은 읽지 않음). 없으면 `supabase/functions/_shared/llm-consent.ts` 가 off 로 본다. 그래서
+  service-consent 의 503 은 결함이 아니라 off 게이트(`supabase/functions/service-consent/index.ts:36-37`)다. 배포 이후 POST 는 401 2건 · 503 9건 · 200 0건이고,
+  `llm_consent_receipts` 는 0행이다. **off 인 동안에는 재동의 확인을 저장할 길이 없다.**
 - **L1(법률, 미확인)** 일정 제목에 섞인 건강 · 종교 내용이 §23 민감정보 처리인지, 캘린더 일정에
   §28-8①3(계약 이행 국외 이전)을 쓸 수 있는지. 안전하게 가면 캘린더 동의 화면에 §28-8② 다섯 항목을 적는다.
+
+## 8. 재동의 · 캘린더 켜기 실행 순서 (발주서, 10-03)
+
+**왜 지금 코드로 쌓지 않았나.** 서버 판본과 클라이언트 동의 상수는 #1902(다른 세션의 10-05 출시 묶음, Draft, 81파일)
+위에 서야 하고, 운영 동의 모드가 off 라 끝까지 확인할 수 없으며, 시행일(= 머지일, 04 = C)이 동의 튜플의 정체라 미리
+박아 둘 수 없다. 아래 순서는 #1902 가 들어온 뒤 이어서 하는 사람(나 포함)을 위한 것이다.
+
+| 순서 | 무엇 | 누가 | 막는 것 |
+|---|---|---|---|
+| 0 | #1902 머지(email-v7 · service-v2 · PolaScope) | #1902 세션 | 아래 전부 |
+| 1 | 운영 `LLM_CONSENT_MODE=collect` (Q-261003-01) | **Simon GO** | 재동의 저장 · AI 동의 영수증 |
+| 2 | 서버 마이그레이션(번호는 push 직전 0210 이상) | 코딩 세션 + 운영 적용 GO | 3 · 4 |
+| 3 | Edge `service-consent` 판별 맵(v1 · v2 · v3) 재배포 | 코딩 세션(배포 승인은 세션 몫) | 4 |
+| 4 | 클라이언트: 처리방침 개정(한 · 영 + `public/legal` 재생성) · 판본 상수 · ReconsentGate 화면과 저장 | 코딩 세션 | 시행 |
+| 5 | 그 PR 머지 = 시행일, 같은 날 웹 게시 | 코딩 세션 | - |
+| 6 | 캘린더 켜기: `calendar_import` 동의 키 + 미성년 잠금 마이그레이션 · 연결 화면 · 하루 한 번 읽기 · iOS 문구(새 네이티브 빌드) · Play 데이터 보안 | 코딩 세션 + Simon(Play 제출) | `PHONE_CALENDAR_READ_ENABLED` |
+
+**2 서버 마이그레이션 내용 (#1902 모델 기준, 조사 10-03).**
+- `signup_consent_contract` 에 email-v8 행(동의 문구 · 처리방침 · 약관 날짜 셋, 처리방침 날짜 = 시행일). 옛 행은 남긴다.
+- provenance CHECK 와 우선순위에 email-v8 추가.
+- **current_contract 에서 v4~v7 을 빼지 않는다.** 03 = A(AI 처리는 멈추지 않는다)라 옛 판 동의는 계속 유효하다.
+  빼면 영수증이 있는 계정이 enforce 에서 막힌다. 그래서 옛 리비전 grant 를 닫을 필요도 없다. 옛 앱이 옛 튜플로 저장해도
+  유효하고, 새 앱에서는 아래 신호가 다시 게이트를 띄운다.
+- `llm_service_consent_status_v3`: v2 필드에 `needs_reconsent`(이 계정의 최신 확인이 email-v8 이 아니면 true)를 더한다. v3 경로에서만
+  내보낸다(옛 클라이언트와 Edge 는 모르는 키를 거부한다).
+- writer 에 service-v3 → email-v8 분기. 확인 행은 `["service"]` 목적, 날짜는 상태 값에서. AI 처리 동의를 철회한 계정의 확인은
+  llmProcessing 을 담지 않는 행 모양으로 받는다(T1: `llm_consent_current_decision` 이 모든 튜플을 현재로 보므로 담으면 철회가 뒤집힌다).
+  revoke 는 v1 · v2 에서도 계속 받는다.
+- 확인은 로컬 PG 재생(sql job 전 레인)으로 하고, 일회용 계정으로 grant · revoke · 경합 canary 를 운영에서 돌린 뒤 4 로 간다.
+
+**4 클라이언트.** `src/lib/legal/reconsent-gate.ts` 의 `reconsentGateMode` 에 `needsConfirmation = status.needs_reconsent` 를 넣는다.
+게이트 화면은 대조표(바뀐 점) · 시행일 · 이전 판 · 전문 링크 · 필수 5개(철회자는 4개) · 캘린더 한 줄 · 출구 5개다.
+스위치 `RECONSENT_GATE_ENABLED` 는 처리방침 개정과 같은 PR 에서 켜고, 서버 신호(시행일 전에는 needs_reconsent 를 주지 않음)가
+두 번째 겹이다. 새 한국어 문구는 말투 B안(사실은 ~습니다)을 따른다.
+
+**하지 말 것.** #1902 파일을 그 세션과 맞추지 않고 고치지 않는다. 운영 마이그레이션 · 비밀값 변경을 GO 없이 하지 않는다.
+off 인 상태에서 게이트를 켜지 않는다(저장할 수 없는 확인 화면으로 앱을 막게 된다).
+
+위 방법은 출발점일 뿐이다. 더 효율적인 경로가 보이면 그쪽을 택하고, 왜 바꿨는지 함께 보고할 것.
