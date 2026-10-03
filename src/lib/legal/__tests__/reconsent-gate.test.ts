@@ -14,7 +14,7 @@ import {
 } from "../reconsent-gate";
 
 const ROOT = path.resolve(__dirname, "../../../..");
-const adult: ReconsentAccount = { needsConfirmation: true, age: 30, emailVerified: true, aiConsent: "granted" };
+const adult: ReconsentAccount = { needsConfirmation: true, age: 30, emailVerified: true, aiConsent: "granted", canGrant: true };
 
 describe("reconsentGateMode", () => {
   test("blocks an account that can consent and lists every required item, with the exits open (02 = A, 03 = A)", () => {
@@ -33,6 +33,10 @@ describe("reconsentGateMode", () => {
     expect(reconsentGateMode({ ...adult, emailVerified: false }, true)).toEqual({ kind: "notice" });
   });
 
+  test("an account the server cannot record a confirmation from is not blocked", () => {
+    expect(reconsentGateMode({ ...adult, canGrant: false }, true)).toEqual({ kind: "notice" });
+  });
+
   test("nothing shows once confirmed, or while the gate is off", () => {
     expect(reconsentGateMode({ ...adult, needsConfirmation: false }, true)).toEqual({ kind: "none" });
     expect(reconsentGateMode(adult, false)).toEqual({ kind: "none" });
@@ -46,16 +50,16 @@ describe("reconsentGateMode", () => {
 
 describe("reconsentRecheckKeys", () => {
   test("a withdrawn AI consent is not asked again, so the withdrawal stands", () => {
-    for (const state of ["revoked", "blocked"] as const) {
-      const keys = reconsentRecheckKeys(state);
-      expect(keys).not.toContain("llmProcessing");
-      expect(keys).toEqual(REQUIRED_ACK_KEYS.filter((key) => key !== "llmProcessing"));
-    }
+    const keys = reconsentRecheckKeys("revoked");
+    expect(keys).not.toContain("llmProcessing");
+    expect(keys).toEqual(REQUIRED_ACK_KEYS.filter((key) => key !== "llmProcessing"));
+    expect(reconsentGateMode({ ...adult, aiConsent: "revoked" }, true)).toMatchObject({ kind: "block", recheck: keys });
   });
 
-  test("everyone else re-checks all five", () => {
+  test("everyone else re-checks all five, including blocked: AI being off for another reason is not a withdrawal", () => {
     expect(reconsentRecheckKeys("granted")).toEqual(REQUIRED_ACK_KEYS);
     expect(reconsentRecheckKeys("uncovered")).toEqual(REQUIRED_ACK_KEYS);
+    expect(reconsentRecheckKeys("blocked")).toEqual(REQUIRED_ACK_KEYS);
     expect(REQUIRED_ACK_KEYS).toHaveLength(5);
   });
 });

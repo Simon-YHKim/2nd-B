@@ -13,6 +13,10 @@
 // One reading of the coding session (same §7-2): a person who withdrew consent to AI processing
 // is not asked for the AI item again. Re-checking it would press them to undo a withdrawal
 // (PIPA §38④), so they confirm the other required items and the withdrawal stands.
+// Only a withdrawal ("revoked") counts. "blocked" means AI is off for another reason (an optional
+// item turned off, an old receipt), which the person did not ask for, so they re-check all five.
+// The server takes the four-item confirmation from a withdrawn account only
+// (db/migration-drafts/UNNUMBERED_reconsent_v8_20261005.sql, stacked on #1902).
 //
 // The gate stays off until the revision exists (reconsent-gate.test.ts checks the policy text).
 import { REQUIRED_ACK_KEYS } from "../auth/consent-selections";
@@ -36,6 +40,8 @@ export interface ReconsentAccount {
   emailVerified: boolean;
   /** The AI-processing consent state (service-consent). */
   aiConsent: AiConsentState;
+  /** The server can record a confirmation from this account (service-consent `can_grant`). */
+  canGrant: boolean;
 }
 
 export type ReconsentGateMode =
@@ -47,13 +53,14 @@ export type ReconsentGateMode =
 
 /** The required items asked again. The AI item is left out after a withdrawal. */
 export function reconsentRecheckKeys(aiConsent: AiConsentState): readonly RequiredAckKey[] {
-  if (aiConsent === "revoked" || aiConsent === "blocked") return REQUIRED_ACK_KEYS.filter((key) => key !== "llmProcessing");
+  if (aiConsent === "revoked") return REQUIRED_ACK_KEYS.filter((key) => key !== "llmProcessing");
   return REQUIRED_ACK_KEYS;
 }
 
 export function reconsentGateMode(account: ReconsentAccount, enabled: boolean = RECONSENT_GATE_ENABLED): ReconsentGateMode {
   if (!enabled || !account.needsConfirmation) return { kind: "none" };
-  const canConsent = account.emailVerified && account.age !== null && account.age >= SELF_CONSENT_MIN_AGE;
+  // Blocking an account the server cannot record a confirmation from would leave no way through.
+  const canConsent = account.emailVerified && account.age !== null && account.age >= SELF_CONSENT_MIN_AGE && account.canGrant;
   if (!canConsent) return { kind: "notice" };
   return { kind: "block", recheck: reconsentRecheckKeys(account.aiConsent), exits: RECONSENT_EXITS };
 }
