@@ -195,10 +195,7 @@ describe("PIXEL-CLAY sign-up renderer", () => {
     expect(screen).toContain('router.push("/sign-in")');
     expect(screen).toContain('router.push("/manual")');
     expect(screen).toContain('router.push("/terms")');
-    // 홈 출구는 goHome 이다(게이트 NS-04 r2: push("/") 는 누를 때마다 홈을 하나 더 쌓았다).
-    // 지키는 성질은 그대로다 - 홈 출구도 같은 동기 가드 뒤에 있다.
-    expect(screen).toContain("if (canLeaveGate()) goHome();");
-    expect(screen).not.toContain('router.push("/")');
+    expect(screen).toContain('router.push("/")');
     expect(screen).toContain("if (canLeaveGate())");
     expect(hook).toContain("if (actionLockRef.current.active !== null) return true;");
   });
@@ -279,6 +276,10 @@ describe("sign-up authority and preservation boundaries", () => {
   // go-home import 한 줄(import 블록의 빈 줄 자리)과 reset-password 화면 안의 네 곳뿐이다:
   // 재설정 잠금을 useGoHomeStop 에 올린 한 줄, 홈 출구 셋을 goHome / replaceOrGoHome
   // 으로. 가입 렌더러 · 공용 폼 경계는 그대로다.
+  // 2026-10-05: dds-auth-screens digest 만 다시 재고정했다(PR #2044 8회차). 홈 출구 셋
+  // (하드웨어 뒤로 · 나가기 링크 · 완료 버튼)은 사람이 누르는 동작이라 PR 이전의
+  // router.replace 로 되돌렸다. main 과 남은 차이는 go-home import 한 줄(빈 줄 자리)과
+  // useGoHomeStop 한 줄뿐이다(값 60c4074d 는 7회차 본문).
   test("preserves legacy renderer and shared form boundaries while pinning the auth renderer", () => {
     // 대상만 아카이브로 옮겼다. **digest 는 한 글자도 안 바꿨다** — 같은 마커,
     // 같은 해시, 다른 파일이면 옮기면서 고치지 않았다는 증거가 된다.
@@ -293,7 +294,7 @@ describe("sign-up authority and preservation boundaries", () => {
     expect(sha256(legacy)).toBe("630043be84f94b1b90bfa3a932c98cd4f3886f9e92a44a35fb5487298f782904");
     expect(sha256(styles)).toBe("5df5b8ca23806eb75662a694220d7b48f31351aacfb8d8bf476d66b98a83508e");
     expect(sha256(read("src/screens/deepspace/dds-auth-screens.tsx"))).toBe(
-      "60c4074d311b848304a580bc3b6704f16c905d581b9fb885fd89fdf32c9daa6c",
+      "1731bf61a178cbc13f89cab2513633e28bbf27a7b69b8ede97858553e10779b3",
     );
     // 2026-09-28: ConsentNotice gained the "PolaScope, formerly 2nd-Brain" note
     // (common:app.renameNote) until the 2026-10-05 Terms amendment, which removes

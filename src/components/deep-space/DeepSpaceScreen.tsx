@@ -243,11 +243,7 @@ export function DeepSpaceScreen({
           const target = TAB_ROUTE[tab as DeepSpaceTab];
           // Sub-screens highlight their owning root tab. Tapping that highlighted
           // item must still return to the root instead of becoming a no-op.
-          // Home pops back to the existing home rather than replacing this
-          // route with a second one (D-12).
-          if (tab === active && pathname === target) return;
-          if (target === "/") goHome();
-          else router.replace(target);
+          if (tab !== active || pathname !== target) router.replace(target);
         }}
       />
     </SafeAreaView>

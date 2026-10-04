@@ -19,7 +19,7 @@ import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
-import { goHome } from "@/lib/nav/go-home";
+
 import { canonCaptureModes } from "@/lib/canon";
 import { deepSpace, deepSpaceGradients, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
@@ -1064,7 +1064,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
                 : undefined
           }
           onSkip={stopCoach}
-          onAction={coachStep === "done" ? () => goHome() : showSaveCoach}
+          onAction={coachStep === "done" ? () => router.replace("/") : showSaveCoach}
           refreshKey={`${coachStep}:${fourwOn}:${canSave}`}
         />
       ) : null}
@@ -2354,7 +2354,7 @@ export function MeSynthView({ isKo, domainLevels }: { isKo?: boolean; domainLeve
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("ds.me.toConstellation")}
-          onPress={() => goHome()}
+          onPress={() => router.replace("/")}
           android_ripple={{ color: dsAlpha(deepSpace.accentSoft, 0.12) }}
         >
           <Text style={styles.meLink}>{t("ds.me.toConstellation")}</Text>

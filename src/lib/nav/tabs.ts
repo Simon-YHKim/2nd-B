@@ -197,11 +197,9 @@ export const BACK_ARROW_HIDDEN_PATHS = [
   "/sign-in",
   "/sign-up",
   "/complete-profile",
-  // This route owns a stricter recovery exit policy. The global chip pops to
-  // the home below (goHome, since 2026-10-04; it used to push a new home and
-  // skip usePreventRemove entirely). Popping can now meet the screen's silent
-  // exit lock, so a chip here could be a button that does nothing. Only the
-  // screen's safe back/cancel controls may show.
+  // This route owns a stricter recovery exit policy. The global chip uses
+  // router.push("/"), which does not remove the current route and can bypass
+  // usePreventRemove, so only the screen's safe back/cancel controls may show.
   "/reset-password",
   "/oauth-callback",
   "/",

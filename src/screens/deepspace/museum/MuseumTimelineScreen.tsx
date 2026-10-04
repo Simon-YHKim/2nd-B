@@ -26,7 +26,7 @@ import {
 import { useTranslation } from "react-i18next";
 import Svg, { Rect } from "react-native-svg";
 import { router, useFocusEffect } from "expo-router";
-import { goHome } from "@/lib/nav/go-home";
+
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 // MdButton and the M3 colour-token imports left with the renderer this PR
 // replaced. The alpha-compositing helper in particular is banned on a migrated
@@ -1052,7 +1052,7 @@ export function MuseumTimelineScreen({ phone }: { phone?: MuseumPhonePresentatio
 
                 {selected.here ? (
                   <PixelPressable
-                    onPress={phoneBack ?? (() => goHome())}
+                    onPress={phoneBack ?? (() => router.replace("/"))}
                     accessibilityLabel={phone?.backLabel ?? t("deepspace:museum.backToConstellation")}
                     fullWidth
                     contentStyle={styles.homeAction}

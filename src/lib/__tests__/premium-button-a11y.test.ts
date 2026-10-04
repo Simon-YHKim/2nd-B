@@ -64,11 +64,7 @@ describe("PremiumButton disabled accessibility", () => {
     expect(source).not.toMatch(/BTN_DISABLED_\w+\s*=\s*\{[^}]*opacity/);
     expect(source).not.toMatch(/if\s*\(isDisabled\)\s*{\s*return\s*\(\s*<View/s);
     expect(source).toContain("disabled={isDisabled}");
-    // busy 는 버튼이 직접 돌 때(loading)뿐 아니라 부른 쪽이 기다린다고 알릴 때도 켠다
-    // (/esm 의 홈 버튼: 저장이 끝날 때까지 disabled + busy).
-    expect(source).toContain(
-      "accessibilityState={{ ...accessibilityState, disabled: !!isDisabled, busy: !!loading || !!accessibilityState?.busy }}",
-    );
+    expect(source).toContain("accessibilityState={{ ...accessibilityState, disabled: !!isDisabled, busy: !!loading }}");
     expect(source).toContain("!isDisabled ? animatedPressStyle : null");
   });
 

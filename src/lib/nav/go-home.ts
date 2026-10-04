@@ -1,19 +1,18 @@
-// 홈으로 가는 길은 하나다 (QA 261004 D-01 · D-12).
+// 저절로 넘기는 홈은 아래의 홈으로 돌아간다 (QA 261004 D-01 · D-12).
 //
 // ## 왜 이 파일이 있나
 //
-// `router.replace("/")` · `router.push("/")` · `<Redirect href="/" />` 는 셋 다
-// **홈을 하나 더 만든다.** expo-router 56 의 REPLACE 는 현재 칸을 새 key 의
-// `index` 로 바꿀 뿐 스택 아래에 이미 있는 홈을 찾아보지 않는다
-// (node_modules/expo-router/build/react-navigation/routers/StackRouter.js 의
-// `case 'REPLACE'`). PUSH 는 말 그대로 위에 얹는다. 루트는 네이티브 스택이라
-// 묻힌 홈도 마운트된 채 남는다. 홈 하나가 view 약 1,930개와 효과음 플레이어
-// 셋을 들고 있어서, 안드로이드 에뮬레이터에서 홈이 열 개쯤 쌓이자 Java 힙
+// `router.replace("/")` · `<Redirect href="/" />` 는 홈을 하나 더 만든다.
+// expo-router 56 의 REPLACE 는 현재 칸을 새 key 의 `index` 로 바꿀 뿐 스택 아래에
+// 이미 있는 홈을 찾아보지 않는다(node_modules/expo-router/build/react-navigation/
+// routers/StackRouter.js 의 `case 'REPLACE'`). 루트는 네이티브 스택이라 묻힌 홈도
+// 마운트된 채 남는다. 홈 하나가 view 약 1,930개와 효과음 플레이어 셋을 들고 있어서,
+// 안드로이드 에뮬레이터에서 리다이렉트 라우트를 열 번쯤 열자 홈이 쌓여 Java 힙
 // 상한(192MB)에 닿아 앱이 죽었다(2/2 재현, 2026-10-04 QA).
 //
 // `router.dismissTo("/")` 는 POP_TO 다. 아래에 홈이 있으면 그 홈까지 걷어내고,
 // 없으면(딥링크로 바로 들어왔거나 웹에서 새로고침한 경우) 현재 칸을 홈으로
-// 바꾼다(같은 파일의 `case 'POP_TO'`). 그래서 어느 길로 와도 홈은 하나다.
+// 바꾼다(같은 파일의 `case 'POP_TO'`).
 //
 // 웹: 걷어낸 칸 수만큼 브라우저 기록을 되돌린다. 되돌릴 기록이 없으면
 // 앱 안에서 멈추고 replaceState 로 주소만 `/` 로 바꾼다 - 앱 밖으로 나가지
@@ -26,6 +25,25 @@
 // 안에 있고, 그것이 계정 epoch 를 key 로 쓰며 다른 계정으로 넘어가는 동안은
 // 아예 그리지 않는다. 그래서 A 의 별 밝기가 B 에게 남지 않는다.
 //
+// ## 쓰는 자리는 둘뿐이다 (PR #2044 8회차, 2026-10-05)
+//
+// 1. 저절로 넘기는 자리: 화면이 마운트되자마자 홈으로 보내는 곳(`<RedirectHome />`).
+//    DevOnlyRoute · 로그인한 사람이 연 인증 화면 · 모르는 별/영역 id · 이미 끝낸
+//    온보딩. 사람이 누르지 않아도 열릴 때마다 돌기 때문에, 딥링크를 되풀이하면
+//    홈이 쌓였다.
+// 2. 탭 루트의 하드웨어 뒤로(D-12, DeepSpaceScreen). 예전 replace("/") 는 탭
+//    루트가 홈 위에 쌓여 있을 때 홈을 하나 더 얹어서, 앱을 나가는 데 뒤로를
+//    두 번 더 눌러야 했다.
+//
+// 사람이 누르는 홈 동작(독의 홈 · BackArrow 칩 · 화면 안 '홈으로' 버튼 · 인증
+// 화면의 하드웨어 뒤로 · 저장이나 가입이 끝난 뒤의 이동)은 **일부러 쓰지 않는다** -
+// PR 이전의 push/replace 그대로다. 4~7회차에 그 동작까지 걷어내는 길로 바꿨더니
+// 저장 중인 화면이나 요청을 기다리는 로그인 화면을 걷어내는 새 경로가 회차마다
+// 나왔다. 그리고 1단계 안드로이드 실측에서 탭 바로 홈과 설정을 오갈 때는 홈이
+// 쌓이지 않았다(Views 1,949 ↔ 1,725, QA 보고 폴더 android/relaunch.md §3).
+// 홈이 쌓인 원인은 자동 리다이렉트 · 반복 딥링크 · 탭 루트 하드웨어 뒤로였다.
+// 쓰는 자리가 이 둘뿐인지는 go-home.test.ts 가 이름 붙인 명단으로 지킨다.
+//
 // ## 묻힌 화면의 가드 (게이트 NS-02, 2026-10-04)
 //
 // 걷어내는 길이라 사이에 묻힌 화면의 `beforeRemove` · `usePreventRemove` 가
@@ -37,27 +55,12 @@
 //
 // 그래서 막을 수 있는 화면은 스스로 이름을 올린다(`useGoHomeStop`). goHome 은
 // 지금 칸과 홈 사이에서 **지금 막고 있는** 가장 가까운 화면을 찾으면 홈 대신 그
-// 화면까지만 걷어낸다. 그 화면이 포커스를 얻고, 홈을 다시 누르면 그때 가드가
+// 화면까지만 걷어낸다. 그 화면이 포커스를 얻고, 다시 홈으로 가려 하면 그때 가드가
 // 보이는 자리에서 묻는다. 지금 칸 자신의 가드는 예전처럼 동작한다 - 포커스된
 // 화면이라 보인다. 가드를 단 화면이 이 훅을 같이 부르는지는 go-home.test.ts 가
 // 지킨다.
-//
-// `src/lib/nav/__tests__/go-home.test.ts` 가 지킨다: 실제 라우터로 POP_TO 가
-// 홈을 하나로 남기는지, 막는 화면 앞에서 멈추는지, 그리고 배송 코드에 홈을
-// 쌓는 이동(`<Redirect>` · push · replace · navigate)이 명단 밖으로 늘지 않는지.
-//
-// ## 저장이 응답을 기다리는 동안 (게이트 NAV-R3-01)
-//
-// 지금 포커스된 화면의 저장이 응답을 기다리면(`./save-in-flight`) goHome 은 아무것도
-// 하지 않는다. 걷어낸 칸으로 실패 안내가 가지 않게 하려는 것이다. 이미 떠난 화면의
-// 저장은 막지 않는다 - 다른 화면의 RedirectHome 이 한 번 부른 goHome 을 삼키면 빈
-// 화면이 남는다(게이트 NAV-S6-01). 명단은 마지막으로 올린 뒤 20초가 지나면 저절로
-// 비므로 영구히 막히지 않는다.
 import { useCallback, useEffect, useRef } from "react";
-import { router, useFocusEffect, useNavigationContainerRef, useRoute, type Href } from "expo-router";
-
-import { usePhoneEmbed } from "./phone-embed";
-import { isSaveInFlight } from "./save-in-flight";
+import { router, useFocusEffect, useNavigationContainerRef, useRoute } from "expo-router";
 
 /** 홈 라우트. 문자열을 흩뿌리지 않으려고 하나만 둔다. */
 export const HOME_HREF = "/" as const;
@@ -223,10 +226,9 @@ function readRootState(ref: ContainerRef): GoHomeNavState | undefined {
 // ── 홈으로 ─────────────────────────────────────────────────────────────────
 
 /** 스택 아래의 홈으로 돌아간다. 홈이 없으면 지금 칸을 홈으로 바꾼다. 사이에
- *  지금 막는 화면이 있으면 그 화면까지만 돌아간다. 지금 보이는 화면의 저장이
- *  응답을 기다리는 동안에는 아무것도 하지 않는다. */
+ *  지금 막는 화면이 있으면 그 화면까지만 돌아간다. 저절로 넘기는 자리와 탭 루트의
+ *  하드웨어 뒤로만 부른다(머리 주석 "쓰는 자리는 둘뿐이다"). */
 export function goHome(): void {
-  if (isSaveInFlight()) return;
   const ref = containerRef;
   if (stops.size > 0 && ref) {
     const plan = planGoHome(findHomeStack(readRootState(ref)), isGoHomeStop);
@@ -238,27 +240,6 @@ export function goHome(): void {
     }
   }
   router.dismissTo(HOME_HREF);
-}
-
-/** `router.replace(href)` 와 같되 목적지가 홈이면 goHome. 목적지가 그때그때
- *  정해지는 자리(가입 뒤 "/" 또는 아바타 설정)용이다. */
-export function replaceOrGoHome(href: Href): void {
-  if (href === HOME_HREF) goHome();
-  else router.replace(href);
-}
-
-/**
- * `useAppRouter()` 를 쓰는 화면(대시보드 폰 안에서도 그려지는 화면)의 홈.
- * 폰 안에서는 폰의 `replace("/")` 가 폰을 닫는다(그 자리가 홈으로 간다). 폰
- * 밖에서는 goHome 이다. `useAppRouter().replace("/")` 를 폰 밖에서 그대로 두면
- * 새 홈을 쌓는다.
- */
-export function useGoHome(): () => void {
-  const embed = usePhoneEmbed();
-  return useCallback(() => {
-    if (embed) embed.replace(HOME_HREF);
-    else goHome();
-  }, [embed]);
 }
 
 /**

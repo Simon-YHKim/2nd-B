@@ -172,6 +172,10 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
 // 2026-10-04: prefix · tail 두 digest 를 재고정했다(QA 261004 게이트 NS-02 · NS-04).
 // prefix 는 go-home import 한 줄(빈 줄 자리)뿐이고, tail 은 reset-password 화면의
 // 재설정 잠금 등록 한 줄과 홈 출구 셋(goHome / replaceOrGoHome)뿐이다.
+// 2026-10-05: prefix · tail 두 digest 를 다시 재고정했다(PR #2044 8회차). 홈 출구 셋은
+// 사람이 누르는 동작이라 PR 이전의 router.replace 로 되돌렸고, import 는 useGoHomeStop
+// 하나만 남았다. main 과 남은 차이는 prefix 의 import 한 줄(빈 줄 자리)과 tail 의
+// 재설정 잠금 등록 한 줄뿐이다(값 112f807f · 171a1d37 은 7회차 본문).
 // 아래 "legacy sign-in renderer/styles" 검사의 digest 는 그대로다.
 describe("sign-in extraction boundaries", () => {
   test("preserves the shared auth prefix and signup/consent/reset tail byte-for-byte", () => {
@@ -184,10 +188,10 @@ describe("sign-in extraction boundaries", () => {
     expect(split).toBeGreaterThan(0);
     expect(tail).toBeGreaterThan(split);
     expect(sha256(source.slice(0, split))).toBe(
-      "112f807f015ffb4f1b2c0485f0b9774c7f56d0d2686fdebfd2767e822ca58f46",
+      "77c527d66f24032978901794cd937fe4548bfc6e0d8a9f129d0fd5236aa45f29",
     );
     expect(sha256(source.slice(tail))).toBe(
-      "171a1d3737eec93aa96041855d2d656e4ab2c3421fce6a3de3b85846ee6b65c1",
+      "0eac9cf42d925caa397f9a858697744f38b79f4aea5269dd80172ce02f60b97e",
     );
   });
 

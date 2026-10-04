@@ -16,11 +16,8 @@ describe("PIXEL-CLAY settings screen contract", () => {
 
   test("keeps every production destination while removing duplicate deep-space navigation", () => {
     const routes = [
-      ...[...source.matchAll(/router\.(?:push|replace)\("([^"]+)"\)/g)].map((match) => match[1]),
-      // QA 261004 gate NS-04: home is goHome() (pops to the home below, or closes
-      // the dashboard phone), no longer router.replace("/").
-      ...[...source.matchAll(/\bgoHome\(\)/g)].map(() => "/"),
-    ];
+      ...source.matchAll(/router\.(?:push|replace)\("([^"]+)"\)/g),
+    ].map((match) => match[1]);
 
     expect(routes.filter((route) => route === "/data-connections")).toHaveLength(1);
 

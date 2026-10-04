@@ -2,7 +2,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 // Post-OAuth profile completion. Users who sign in via Google land here when
 // the public.users row doesn't exist yet — we need their date of birth to
 // satisfy C10 (age gate) before letting them into the app.
-import { RedirectHome, replaceOrGoHome } from "@/lib/nav/go-home";
+import { RedirectHome } from "@/lib/nav/go-home";
 import { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -239,10 +239,10 @@ function CompleteProfileBody() {
         if (result.judgeMode) {
           setJudgeWelcome(true); // hold the redirect guard open for the toast
           setToast({ tone: "success", message: t("judge.welcome") });
-          setTimeout(() => replaceOrGoHome(nextRoute), 900);
+          setTimeout(() => router.replace(nextRoute), 900);
           return;
         }
-        replaceOrGoHome(nextRoute);
+        router.replace(nextRoute);
         return;
       }
       if (result.kind === "emailInUse") {

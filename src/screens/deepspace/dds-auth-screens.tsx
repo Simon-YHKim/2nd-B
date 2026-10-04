@@ -9,7 +9,7 @@ import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, Sty
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { Redirect, router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
-import { goHome, replaceOrGoHome, useGoHomeStop } from "@/lib/nav/go-home";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Defs, Line, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -677,7 +677,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
 
       const sub = BackHandler.addEventListener("hardwareBackPress", () => {
         if (exitLocked) return true;
-        replaceOrGoHome(step === "done" || userId ? "/" : "/sign-in");
+        router.replace(step === "done" || userId ? "/" : "/sign-in");
         return true;
       });
       return () => sub.remove();
@@ -732,7 +732,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
       <View style={resetStyles.header}>
         {(step === "request" || step === "verify") && !exitLocked ? (
           <Pressable
-            onPress={() => replaceOrGoHome(exitHref)}
+            onPress={() => router.replace(exitHref)}
             accessibilityRole="link"
             accessibilityLabel={exitLabel}
             accessibilityHint={exitHint}
@@ -846,7 +846,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
           </>
         ) : step === "done" ? (
           <ResetAction
-            onPress={() => goHome()}
+            onPress={() => router.replace("/")}
             label={t("auth:resetPassword.continue")}
             hint={t("auth:resetPassword.continueHint")}
           />

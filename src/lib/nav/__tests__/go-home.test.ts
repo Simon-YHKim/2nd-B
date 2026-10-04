@@ -11,9 +11,11 @@
 //   4. 계정이 바뀐 뒤 다시 쓰는 홈(게이트 NS-01 반박): 칸은 같아도 화면은 새로
 //      마운트된다는 전제가 정말 서 있는가.
 //   5. 배송 코드: 홈을 쌓는 이동(`<Redirect>` · `<Link>` · push · replace ·
-//      navigate)이 자리(파일 · 컴포넌트 · 감싼 조건 · 앞 문장)까지 고정한 명단
-//      밖으로 늘지 않고(홈 push 는 0), 칸을 막는 가드는 전부 goHome 에 이름을
-//      올리며, 인증 화면의 하드웨어 뒤로는 포커스된 동안만 듣는다(게이트 NS-04 r2).
+//      navigate)이 자리(파일 · 컴포넌트 · 감싼 조건 · 앞 문장)까지 고정한 두 명단
+//      (칸 하나뿐인 자리 · 사람이 누르는 홈 동작) 밖으로 늘지 않고, 저절로 넘기는
+//      `<Redirect href="/">` 는 0 이며, goHome · RedirectHome 을 쓰는 자리는
+//      저절로 넘기는 곳과 탭 루트 하드웨어 뒤로뿐이고(PR #2044 8회차), 칸을 막는
+//      가드는 전부 goHome 에 이름을 올린다.
 //
 // 렌더 테스트는 이 저장소에서 막혀 있어(RN 0.85) 소스는 TypeScript AST 로 읽는다.
 // 주석은 AST 에 없으므로 설명문이 증거로 읽히지 않는다.
@@ -168,9 +170,11 @@ describe("POP_TO 는 홈을 하나로 남긴다 (expo-router 56 StackRouter)", (
     expect(next?.routes[1].key).not.toBe("index-k0");
   });
 
-  // 게이트 NS-04 r2: `/` → `/audit` → 화면 안의 '뒤로'(예전 push("/")) 를 되풀이하면
-  // [홈, audit, 홈, audit, 홈 …] 이 되어 D-01 의 OOM 경로가 그대로 돌아온다. /esm 도 같다.
-  it("audit · esm 왕복을 열 번 되풀이해도 홈은 하나다 - 대조군 PUSH 는 왕복마다 홈이 하나씩 쌓인다", () => {
+  // 라우터 사실: `/` → `/audit` → 화면 안의 '뒤로'(push("/")) 를 되풀이하면 [홈, audit,
+  // 홈, audit, 홈 …] 이 된다. /esm 도 같다. 게이트 NS-04 r2 는 그 버튼들을 goHome 으로
+  // 옮겼지만, 8회차에 사람이 누르는 홈 동작은 PR 이전의 push 로 되돌렸다(아래
+  // USER_HOME_NAVIGATIONS) - 이 대조군이 그 잔여의 크기를 보여 준다.
+  it("POP_TO 로 왕복을 열 번 되풀이하면 홈은 하나다 - 대조군 PUSH(지금 /audit · /esm 의 버튼)는 왕복마다 홈이 하나씩 쌓인다", () => {
     const pushTo = (name: string) => ({ type: "PUSH", target: "root", payload: { name, params: {} } });
     const homes = (state: StackState | null) => state?.routes.filter((r) => r.name === "index").length;
     let fixed: StackState | null = stack(HOME);
@@ -647,15 +651,25 @@ const CAN_GO_BACK_ELSE = "else:router.canGoBack()";
 /**
  * 아직 남은, 홈을 쌓을 수 있는 이동. **개수가 아니라 자리로** 묶는다 - 파일 ·
  * 종류 · 그 이동이 사는 컴포넌트(가장 바깥 함수) · 감싼 조건 · 바로 앞 문장.
- * 같은 파일 안에서 안전한 자리(canGoBack() 이 거짓일 때만)를 지우고 조건 없는
- * 자리를 하나 넣으면 개수는 같아도 자리가 달라서 빨개진다. 줄면 여기서 같이 지운다.
+ * 같은 파일 안에서 한 자리를 지우고 다른 자리를 하나 넣으면 개수는 같아도 자리가
+ * 달라서 빨개진다. 줄면 여기서 같이 지운다.
  *
- * 남은 것은 두 부류다. push 는 하나도 없다(2026-10-05 게이트 r2 에서 다섯을 전부
- * goHome / useGoHome 으로 옮겼다).
- * - 뒤로 갈 곳이 없을 때만 부르는 `canGoBack() ? back() : replace("/")` 꼴.
- *   스택에 칸이 하나뿐이라 replace 가 만드는 홈은 정확히 하나다.
- * - 스택에 칸이 하나뿐인 것이 구조로 정해진 자리(계정 전환 해소 · 웹 전용
- *   외부 리디렉트 착지)와 런타임에 고르지 않는 레거시 반쪽.
+ * 두 명단으로 나눈다.
+ * - KNOWN_HOME_NAVIGATIONS: 칸이 하나뿐일 때만 도는 자리. 뒤로 갈 곳이 없을 때만
+ *   부르는 `canGoBack() ? back() : replace("/")` 꼴, 스택에 칸이 하나뿐인 것이
+ *   구조로 정해진 자리(계정 전환 해소 · 웹 전용 외부 리디렉트 착지), 런타임에
+ *   고르지 않는 레거시 반쪽.
+ * - USER_HOME_NAVIGATIONS: 사람이 누르는 홈 동작(PR #2044 8회차, 2026-10-05).
+ *   4~7회차에 이것들까지 goHome(POP_TO)으로 바꿨다가 저장 중인 화면 · 요청을
+ *   기다리는 로그인 화면을 걷어내는 새 경로가 회차마다 나와서, PR 이전의
+ *   push/replace 로 되돌렸다. 홈이 쌓인 원인은 자동 리다이렉트 · 반복 딥링크 ·
+ *   탭 루트 하드웨어 뒤로였고(1단계 안드로이드 실측: 탭 바로 홈 ↔ 설정은 Views
+ *   1,949 ↔ 1,725 로 누적 없음), 그 셋은 아래 GO_HOME_USES 가 지킨다. push 인
+ *   자리(BackArrow · /audit · /esm · 인증 화면 뒤로)는 왕복을 되풀이하면 홈을
+ *   하나씩 얹는다 - 위 PUSH 대조군 그대로이고, 받아들인 잔여다.
+ *
+ * 새 자리가 생기면 어느 명단인지, 저절로 넘기는 자리라면 RedirectHome 으로 가야
+ * 하는지부터 본다.
  */
 const KNOWN_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] = [
   {
@@ -732,6 +746,218 @@ const KNOWN_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] =
   },
 ];
 
+/** 사람이 누르는 홈 동작 - PR 이전의 push/replace 그대로(8회차). 위 설명 참고. */
+const USER_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] = [
+  {
+    file: "src/app/(auth)/complete-profile.tsx",
+    kind: "replace",
+    owner: "CompleteProfileBody",
+    guard: "then:result.judgeMode",
+    before: "",
+    why: "사람이 누른 프로필 완성 제출 뒤의 이동(심사 계정 안내 뒤). 마운트 즉시 넘기는 가드는 RedirectHome 이다.",
+  },
+  {
+    file: "src/app/(auth)/complete-profile.tsx",
+    kind: "replace",
+    owner: "CompleteProfileBody",
+    guard: "then:result.kind === \"entered\"",
+    before: "if (result.judgeMode) { setJudgeWelcome(true); // hold the redirect guard open for the toast setToast({ tone: \"success\", message: t(\"judge.welcome\") }); setTimeout(() => router.replace(nextRoute), 900); return; }",
+    why: "사람이 누른 프로필 완성 제출 뒤의 이동. 마운트 즉시 넘기는 가드는 RedirectHome 이다.",
+  },
+  {
+    file: "src/app/+not-found.tsx",
+    kind: "replace",
+    owner: "NotFound",
+    guard: "",
+    before: "",
+    why: "모르는 주소 화면의 '홈으로' 버튼과 하드웨어 뒤로가 같이 쓰는 함수(사람이 누른다).",
+  },
+  {
+    file: "src/app/audit.tsx",
+    kind: "push",
+    owner: "AuditLegacy",
+    guard: "then:period === null",
+    before: "",
+    why: "기간 선택 화면의 '뒤로' 버튼(사람이 누른다). push 라 /audit 왕복을 되풀이하면 홈이 쌓인다(위 PUSH 대조군) - 8회차에 받아들인 잔여.",
+  },
+  {
+    file: "src/app/avatar-studio.tsx",
+    kind: "replace",
+    owner: "AvatarStudioScreen",
+    guard: "then:setupMode",
+    before: "",
+    why: "아바타 설정 모드에서 나가기 · 저장 뒤 이동(사람이 누른다).",
+  },
+  {
+    file: "src/app/avatar-studio.tsx",
+    kind: "replace",
+    owner: "AvatarStudioScreen",
+    guard: "then:setupMode",
+    before: "if (userId) markAvatarSetupDeferredForSession(userId);",
+    why: "아바타 설정 모드에서 나가기 · 저장 뒤 이동(사람이 누른다).",
+  },
+  {
+    file: "src/app/esm.tsx",
+    kind: "push",
+    owner: "EsmCheckInScreen",
+    guard: "",
+    before: "",
+    why: "ESM 화면의 '홈으로' 버튼(사람이 누른다). push 라 왕복을 되풀이하면 홈이 쌓인다 - 8회차에 받아들인 잔여.",
+  },
+  {
+    file: "src/app/onboarding.tsx",
+    kind: "replace",
+    owner: "Onboarding",
+    guard: "then:destination === \"/\"",
+    before: "",
+    why: "온보딩 마지막의 '홈으로' 선택(사람이 누른다). 이미 끝낸 온보딩의 자동 리다이렉트는 RedirectHome 이다.",
+  },
+  {
+    file: "src/app/settings.tsx",
+    kind: "replace",
+    owner: "Settings",
+    guard: "else:isDeepSpaceUI()",
+    before: "resetCoachmarks(userId);",
+    why: "설정의 '안내 다시 보기'(사람이 누른다).",
+  },
+  {
+    file: "src/app/settings.tsx",
+    kind: "replace",
+    owner: "Settings",
+    guard: "then:isDeepSpaceUI()",
+    before: "resetCoachmarks(userId);",
+    why: "설정의 '안내 다시 보기'(사람이 누른다).",
+  },
+  {
+    file: "src/components/dashboard/DashboardPhone.tsx",
+    kind: "replace",
+    owner: "DashboardPhone",
+    guard: "else:transparentBackdrop",
+    before: "",
+    why: "대시보드 폰 닫기(사람이 누른다). 홈이 연 폰이면 back() 이다.",
+  },
+  {
+    file: "src/components/deep-space/DeepSpaceViews.tsx",
+    kind: "replace",
+    owner: "CaptureView",
+    guard: "then:coachStep === \"done\"",
+    before: "",
+    why: "첫 기록 안내의 마지막 '홈으로'(사람이 누른다).",
+  },
+  {
+    file: "src/components/deep-space/DeepSpaceViews.tsx",
+    kind: "replace",
+    owner: "MeSynthView",
+    guard: "",
+    before: "",
+    why: "나 요약의 '별자리로' 링크(사람이 누른다).",
+  },
+  {
+    file: "src/components/ui/BackArrow.tsx",
+    kind: "push",
+    owner: "BackArrow",
+    guard: "",
+    before: "",
+    why: "떠 있는 BackArrow 칩(사람이 누른다). push 라 누를 때마다 홈을 하나 얹는다 - 8회차에 받아들인 잔여.",
+  },
+  {
+    file: "src/lib/auth/useSignInForm.ts",
+    kind: "push",
+    owner: "useSignInForm",
+    guard: "",
+    before: "",
+    why: "로그인 화면의 하드웨어 뒤로(사람이 누른다). 8회차: PR 이전 그대로.",
+  },
+  {
+    file: "src/lib/auth/useSignInForm.ts",
+    kind: "replace",
+    owner: "useSignInForm",
+    guard: "",
+    before: "void observeAuthConversion(result.userId, \"login\", \"email\");",
+    why: "사람이 누른 로그인 제출이 성공한 뒤의 이동. 로그인 상태의 로그인 화면 가드는 RedirectHome 이다.",
+  },
+  {
+    file: "src/lib/auth/useSignUpForm.ts",
+    kind: "push",
+    owner: "useSignUpForm",
+    guard: "",
+    before: "if (actionLockRef.current.active !== null) return true;",
+    why: "가입 화면의 하드웨어 뒤로(사람이 누른다). 인증 쓰기 중에는 먼저 소비된다.",
+  },
+  {
+    file: "src/lib/auth/useSignUpForm.ts",
+    kind: "replace",
+    owner: "useSignUpForm",
+    guard: "then:mountedRef.current",
+    before: "",
+    why: "사람이 누른 가입 제출 뒤의 이동(심사 계정 안내 뒤).",
+  },
+  {
+    file: "src/lib/auth/useSignUpForm.ts",
+    kind: "replace",
+    owner: "useSignUpForm",
+    guard: "then:result.kind === \"entered\"",
+    before: "if (result.judgeMode) { setJudgeWelcome(true); // hold the guest guard open for the toast setToast({ tone: \"success\", message: t(\"judge.welcome\") }); judgeRouteTimerRef.current = setTimeout(() => { if (mountedRef.current) router.replace(nextRoute); }, 900); return; }",
+    why: "사람이 누른 가입 제출 뒤의 이동.",
+  },
+  {
+    file: "src/screens/deepspace/dds-auth-screens.tsx",
+    kind: "replace",
+    owner: "DeepSpaceResetPasswordDesignScreen",
+    guard: "",
+    before: "if (exitLocked) return true;",
+    why: "비밀번호 재설정 화면의 하드웨어 뒤로(사람이 누른다). 잠금 중에는 먼저 소비된다.",
+  },
+  {
+    file: "src/screens/deepspace/dds-auth-screens.tsx",
+    kind: "replace",
+    owner: "DeepSpaceResetPasswordDesignScreen",
+    guard: "then:(step === \"request\" || step === \"verify\") && !exitLocked",
+    before: "",
+    why: "비밀번호 재설정 화면의 나가기 링크(사람이 누른다).",
+  },
+  {
+    file: "src/screens/deepspace/dds-auth-screens.tsx",
+    kind: "replace",
+    owner: "DeepSpaceResetPasswordDesignScreen",
+    guard: "then:step === \"done\"",
+    before: "",
+    why: "비밀번호 재설정 완료 화면의 '계속'(사람이 누른다).",
+  },
+  {
+    file: "src/screens/deepspace/dds-manual-screen.tsx",
+    kind: "replace",
+    owner: "DeepSpaceManualScreen",
+    guard: "",
+    before: "if (userId) resetCoachmarks(userId);",
+    why: "안내서의 '안내 다시 보기'(사람이 누른다).",
+  },
+  {
+    file: "src/screens/deepspace/dds-sign-up-screen.tsx",
+    kind: "push",
+    owner: "DeepSpaceSignUpDesignScreen",
+    guard: "then:canLeaveGate()",
+    before: "",
+    why: "가입 화면 상단 뒤로(게스트, 사람이 누른다). 같은 동기 가드 뒤에 있다.",
+  },
+  {
+    file: "src/screens/deepspace/museum/MuseumTimelineScreen.tsx",
+    kind: "replace",
+    owner: "MuseumTimelineScreen",
+    guard: "then:selected.here",
+    before: "",
+    why: "뮤지엄의 '별자리로 돌아가기'(사람이 누른다). 폰 안에서는 폰의 뒤로다.",
+  },
+  {
+    file: "src/screens/deepspace/onboarding/TTFVScreen.tsx",
+    kind: "replace",
+    owner: "TTFVScreen",
+    guard: "then:save.status === \"saved\"",
+    before: "",
+    why: "첫 가치 화면 저장 뒤의 '홈으로'(사람이 누른다).",
+  },
+];
+
 describe("배송 코드에서 홈으로 가는 길", () => {
   it("판정기는 별칭 · 상수 · 객체 · 조건식 가지를 따라가고, 다른 목적지와 문자열 replace 는 잡지 않는다", () => {
     const fixture = [
@@ -787,50 +1013,205 @@ describe("배송 코드에서 홈으로 가는 길", () => {
     expect(raw.every((hit) => hidden(shadow, hit.line))).toBe(true);
   });
 
-  it("홈을 쌓을 수 있는 이동은 자리까지 고정한 명단 밖으로 늘지 않는다 - 나머지는 goHome / RedirectHome", () => {
-    const expected = KNOWN_HOME_NAVIGATIONS.map(({ why: _why, ...occurrence }) => occurrenceId(occurrence)).sort();
+  it("홈을 쌓을 수 있는 이동은 자리까지 고정한 두 명단 밖으로 늘지 않는다", () => {
+    const expected = [...KNOWN_HOME_NAVIGATIONS, ...USER_HOME_NAVIGATIONS]
+      .map(({ why: _why, ...occurrence }) => occurrenceId(occurrence))
+      .sort();
     expect(shippedHomeNavigations()).toEqual(expected);
   });
 
-  it("홈 push 는 하나도 남지 않는다 (게이트 NS-04 r2: audit · esm · 인증 셋)", () => {
-    expect(shippedHomeNavigations().filter((id) => id.includes(" | push | "))).toEqual([]);
-    const read = (file: string) => readFileSync(join(ROOT, file), "utf8");
-    // 폰 안에서는 useGoHome 이 폰을 닫고(예전 push("/") 와 같은 자리), 폰 밖에서는 goHome.
-    for (const file of ["src/app/audit.tsx", "src/app/esm.tsx"]) {
-      expect({ file, hook: read(file).includes("const goHome = useGoHome();") }).toEqual({ file, hook: true });
-    }
-    expect(read("src/app/audit.tsx")).toContain("onPress={goHome}");
-    expect(read("src/app/esm.tsx")).toContain("onPress={goHome}");
-    expect(read("src/screens/deepspace/dds-sign-up-screen.tsx")).toContain("if (canLeaveGate()) goHome();");
+  it("저절로 넘기는 <Redirect href=\"/\"> 와 <Link href=\"/\"> 는 배송 코드에 하나도 없다 (D-01)", () => {
+    // 화면이 마운트되자마자 넘기는 자리는 사람이 누르지 않아도 열릴 때마다 돈다.
+    // 딥링크를 되풀이하면 그때마다 홈이 하나씩 쌓였다(D-01, 2/2 OOM). 그 자리는
+    // RedirectHome 이다. 이 검사는 두 명단과 따로 선다 - 명단에 Redirect 를 적어
+    // 넣어도 여기서 빨개진다.
+    expect(shippedHomeNavigations().filter((id) => / \| (Redirect|Link) \| /.test(id))).toEqual([]);
   });
 
-  it("D-01 이 지목한 자리들은 헬퍼로 간다", () => {
-    const read = (file: string) => readFileSync(join(ROOT, file), "utf8");
-    for (const file of [
-      "src/components/ui/DevOnlyRoute.tsx",
-      "src/screens/deepspace/dds-sign-in-screen.tsx",
-      "src/screens/deepspace/dds-sign-up-screen.tsx",
-      "src/app/onboarding.tsx",
-      "src/app/(auth)/complete-profile.tsx",
-      "src/app/me/[star].tsx",
-      "src/app/star/[domain].tsx",
-    ]) {
-      expect({ file, uses: read(file).includes("<RedirectHome />") }).toEqual({ file, uses: true });
-    }
-    expect(read("src/app/onboarding.tsx")).toMatch(/if \(destination === "\/"\) \{\s*goHome\(\);/);
-    expect(read("src/components/ui/BackArrow.tsx")).toContain("onPress={() => goHome()}");
-  });
-
-  it("D-12: 탭 루트의 하드웨어 뒤로와 독의 홈은 goHome 이다", () => {
+  it("D-12: 탭 루트의 하드웨어 뒤로는 goHome 이고, 독은 PR 이전 그대로 지금 칸을 바꾼다", () => {
     const screen = readFileSync(join(ROOT, "src/components/deep-space/DeepSpaceScreen.tsx"), "utf8");
     const back = screen.slice(screen.indexOf('addEventListener("hardwareBackPress"'), screen.indexOf("return () => sub.remove();"));
     expect(back).toContain("goHome();");
     expect(back).not.toContain('router.replace("/")');
     // 핸들러는 정리된다(ANDROID_QA_GUIDELINES: BackHandler 누수).
     expect(screen).toContain("return () => sub.remove();");
+    // 독의 홈은 사람이 누르는 동작이다(8회차). 지금 칸을 바꾸므로 탭 사이를 오가도
+    // 칸은 늘지 않는다 - 1단계 안드로이드 실측 그대로.
     const dock = screen.slice(screen.indexOf("onSelect={(tab) => {"), screen.indexOf("</SafeAreaView>"));
-    expect(dock).toContain('if (target === "/") goHome();');
-    expect(dock).toContain("else router.replace(target);");
+    expect(dock).toContain("if (tab !== active || pathname !== target) router.replace(target);");
+    expect(dock).not.toContain("goHome");
+  });
+});
+
+// ── goHome 을 쓰는 자리는 저절로 넘기는 곳과 탭 루트 뒤로뿐이다 (8회차) ─────────
+//
+// 4~7회차에는 사람이 누르는 홈 동작(독 · BackArrow 칩 · 화면 안 홈 버튼 · 로그인
+// 화면 하드웨어 뒤로)도 goHome 이었다. POP_TO 는 지금 칸을 걷어내서, 저장 중인
+// /esm 이나 요청을 기다리는 로그인 화면을 걷는 새 경로가 회차마다 나왔고, 그걸 막는
+// 장치(저장 중 카운터 · 로그인 Back 소비)가 또 다른 빈 화면을 만들었다. 그래서
+// 쓰는 자리를 둘로 좁혔다. goHome 을 부르거나 넘기는(onPress={goHome}) 자리 하나
+// 하나와 <RedirectHome /> 하나하나를 자리까지 적는다.
+
+type GoHomeUseKind = "RedirectHome" | "goHome";
+interface GoHomeUse {
+  line: number;
+  kind: GoHomeUseKind;
+  owner: string;
+  guard: string;
+  /** 가장 가까운 JSX 속성(`jsx:onPress`) 또는 이벤트 리스너(`listener:hardwareBackPress`). 없으면 "". */
+  handler: string;
+}
+
+/** 이 노드를 담은 가장 가까운 JSX 속성 또는 addEventListener 의 이벤트 이름. */
+function nearestHandler(node: ts.Node): string {
+  for (let current = node.parent; current && !ts.isSourceFile(current); current = current.parent) {
+    if (ts.isJsxAttribute(current)) return `jsx:${current.name.getText()}`;
+    if (
+      ts.isCallExpression(current) &&
+      ts.isPropertyAccessExpression(current.expression) &&
+      current.expression.name.text === "addEventListener" &&
+      current.arguments[0] !== undefined &&
+      ts.isStringLiteralLike(current.arguments[0])
+    ) {
+      return `listener:${current.arguments[0].text}`;
+    }
+  }
+  return "";
+}
+
+/** go-home 에서 가져온 이름 전부와, goHome · RedirectHome 을 쓰는 자리(별칭 포함). */
+function goHomeUses(source: string, file: string): { imported: string[]; uses: GoHomeUse[] } {
+  const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const locals = new Map<string, GoHomeUseKind>();
+  const imported: string[] = [];
+  for (const statement of sf.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    if (!/(^|\/)go-home$/.test(statement.moduleSpecifier.text)) continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (!bindings || !ts.isNamedImports(bindings)) continue;
+    for (const element of bindings.elements) {
+      const name = (element.propertyName ?? element.name).text;
+      imported.push(name);
+      if (name === "goHome" || name === "RedirectHome") locals.set(element.name.text, name);
+    }
+  }
+  const uses: GoHomeUse[] = [];
+  const hit = (node: ts.Node, kind: GoHomeUseKind) =>
+    uses.push({
+      line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
+      kind,
+      owner: outermostOwner(node, sf),
+      guard: nearestGuard(node, sf),
+      handler: nearestHandler(node),
+    });
+  const visit = (node: ts.Node) => {
+    if ((ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) && locals.get(node.tagName.getText(sf)) === "RedirectHome") {
+      hit(node, "RedirectHome");
+    } else if (
+      ts.isIdentifier(node) &&
+      locals.get(node.text) === "goHome" &&
+      !ts.isImportSpecifier(node.parent) &&
+      !(ts.isPropertyAccessExpression(node.parent) && node.parent.name === node)
+    ) {
+      hit(node, "goHome"); // 부르든(goHome()) 넘기든(onPress={goHome}) 자리 하나
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return { imported, uses };
+}
+
+const goHomeUseId = (file: string, u: Omit<GoHomeUse, "line">) => `${file} | ${u.kind} | ${u.owner} | ${u.guard} | ${u.handler}`;
+
+/** go-home 을 쓰는 자리 전부. 정의하는 파일 자신과 테스트는 빼고, 안 그려지는 반쪽도 뺀다. */
+const GO_HOME_USES: readonly { file: string; use: Omit<GoHomeUse, "line">; why: string }[] = [
+  {
+    file: "src/app/(auth)/complete-profile.tsx",
+    use: { kind: "RedirectHome", owner: "CompleteProfileBody", guard: 'then:postEntryRoute === "/"', handler: "" },
+    why: "프로필이 이미 있는 로그인 사람이 이 화면을 열면 마운트 즉시 홈으로.",
+  },
+  {
+    file: "src/app/me/[star].tsx",
+    use: { kind: "RedirectHome", owner: "StarSummaryRoute", guard: "then:!id || !meta", handler: "" },
+    why: "모르는 별 id(옛 링크) - 마운트 즉시 홈으로.",
+  },
+  {
+    file: "src/app/onboarding.tsx",
+    use: { kind: "RedirectHome", owner: "Onboarding", guard: "then:onboardingComplete === true", handler: "" },
+    why: "이미 끝낸 온보딩 - 마운트 즉시 홈으로.",
+  },
+  {
+    file: "src/app/star/[domain].tsx",
+    use: { kind: "RedirectHome", owner: "DomainStarScreen", guard: "then:!domainId", handler: "" },
+    why: "모르는 영역 id - 마운트 즉시 홈으로.",
+  },
+  {
+    file: "src/components/deep-space/DeepSpaceScreen.tsx",
+    use: { kind: "goHome", owner: "DeepSpaceScreen", guard: "", handler: "listener:hardwareBackPress" },
+    why: "D-12: 탭 루트의 하드웨어 뒤로. replace(\"/\") 는 탭 루트가 홈 위에 있을 때 홈을 하나 더 얹었다.",
+  },
+  {
+    file: "src/components/ui/DevOnlyRoute.tsx",
+    use: { kind: "RedirectHome", owner: "DevOnlyRoute", guard: "then:!isDevSurfaceEnabled()", handler: "" },
+    why: "프로덕션에서 dev 전용 라우트 - 마운트 즉시 홈으로. dev 딥링크를 되풀이하면 OOM 까지 쌓였다(D-01).",
+  },
+  {
+    file: "src/screens/deepspace/dds-sign-in-screen.tsx",
+    use: { kind: "RedirectHome", owner: "DeepSpaceSignInDesignScreen", guard: "then:userId", handler: "" },
+    why: "로그인한 사람이 연 로그인 화면 - 마운트 즉시 홈으로.",
+  },
+  {
+    file: "src/screens/deepspace/dds-sign-up-screen.tsx",
+    use: { kind: "RedirectHome", owner: "DeepSpaceSignUpDesignScreen", guard: "else:avatarSetupAfterConfirmation", handler: "" },
+    why: "로그인한 사람이 연 가입 화면 - 마운트 즉시 홈으로(아바타 설정이 남았으면 그쪽).",
+  },
+];
+
+function shippedGoHomeUses(): { imported: Set<string>; uses: string[] } {
+  const hidden = unrenderedLine();
+  const imported = new Set<string>();
+  const uses: string[] = [];
+  for (const file of sourceFiles(join(ROOT, "src"))) {
+    if (file === "src/lib/nav/go-home.ts") continue;
+    const found = goHomeUses(readFileSync(join(ROOT, file), "utf8"), file);
+    found.imported.forEach((name) => imported.add(name));
+    for (const { line, ...use } of found.uses) {
+      if (hidden(file, line)) continue;
+      uses.push(goHomeUseId(file, use));
+    }
+  }
+  return { imported, uses: uses.sort() };
+}
+
+describe("goHome 을 쓰는 자리는 저절로 넘기는 곳과 탭 루트 뒤로뿐이다 (PR #2044 8회차)", () => {
+  it("판정기: 별칭 · 넘긴 참조 · JSX 를 자리(컴포넌트 · 조건 · 핸들러)까지 적고, 가져온 이름을 모은다", () => {
+    const fixture = [
+      'import { goHome as home, RedirectHome as Back, useGoHomeStop } from "@/lib/nav/go-home";', // 1
+      "function A() { if (!ok) return <Back />; return null; }", // 2  RedirectHome
+      'function B() { useEffect(() => { const s = BackHandler.addEventListener("hardwareBackPress", () => { home(); return true; }); return () => s.remove(); }, []); }', // 3
+      "function C() { return <Button onPress={home} />; }", // 4  넘긴 참조
+      "function D() { return <Button onPress={() => x.home()} />; }", // 5  아님: 다른 객체의 속성
+      "function E() { useGoHomeStop(() => dirty); }", // 6  아님: 쓰는 자리가 아니다
+    ].join("\n");
+    const { imported, uses } = goHomeUses(fixture, "f.tsx");
+    expect(imported).toEqual(["goHome", "RedirectHome", "useGoHomeStop"]);
+    expect(uses).toEqual([
+      { line: 2, kind: "RedirectHome", owner: "A", guard: "then:!ok", handler: "" },
+      { line: 3, kind: "goHome", owner: "B", guard: "", handler: "listener:hardwareBackPress" },
+      { line: 4, kind: "goHome", owner: "C", guard: "", handler: "jsx:onPress" },
+    ]);
+  });
+
+  it("배송 코드에서 goHome · RedirectHome 을 쓰는 자리는 명단과 정확히 같다", () => {
+    const expected = GO_HOME_USES.map(({ file, use }) => goHomeUseId(file, use)).sort();
+    expect(shippedGoHomeUses().uses).toEqual(expected);
+  });
+
+  it("go-home 에서 가져오는 이름은 RedirectHome · goHome · useGoHomeStop · HOME_HREF 뿐이다", () => {
+    // 4~7회차의 useGoHome(폰 밖 홈 버튼) · replaceOrGoHome(제출 뒤 이동)은 사람이
+    // 누르는 동작을 걷어내는 길이라 없앴다. 되살아나면 여기서 빨개진다.
+    const allowed = new Set(["RedirectHome", "goHome", "useGoHomeStop", "HOME_HREF"]);
+    expect([...shippedGoHomeUses().imported].filter((name) => !allowed.has(name))).toEqual([]);
   });
 });
 
@@ -941,104 +1322,13 @@ describe("칸을 막는 가드는 goHome 에 이름을 올린다 (게이트 NS-0
   });
 });
 
-// ── 인증 화면의 하드웨어 뒤로는 포커스된 동안만 (게이트 NS-04 r2) ─────────────
+// ── 은퇴한 검사 (PR #2044 8회차, 2026-10-05) ─────────────────────────────────
 //
-// 고치기 전: useSignInForm / useSignUpForm 이 BackHandler 를 그냥 useEffect 로 달았다.
-// 그래서 화면이 묻혀도(가입 화면 위에 /manual, 로그인 위에 /sign-up 이 열려도) 계속
-// 들었다. BackHandler 는 나중에 단 리스너부터 묻고, 내비게이션 컨테이너의 기본
-// 뒤로(expo-router 의 useBackButton)는 그보다 먼저 달려 있다. 위 화면에 자기 뒤로가
-// 없으면 묻힌 인증 화면이 가로채 push("/") 했다 - 한 칸 뒤가 아니라 새 홈(게스트는
-// 다시 /sign-in)으로 가고, 누를 때마다 칸이 하나씩 쌓였다.
-
-interface BackListener {
-  line: number;
-  /** useFocusEffect(…) 의 콜백 안에서 달았는가. 화면이 포커스를 잃으면 떨어진다. */
-  focusScoped: boolean;
-  /** 핸들러가 goHome() 을 부르는가. */
-  callsGoHome: boolean;
-}
-
-function hardwareBackListeners(source: string, file: string): BackListener[] {
-  const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const focusNames = new Set<string>(["useFocusEffect"]);
-  const goHomeNames = new Set<string>(["goHome"]);
-  for (const statement of sf.statements) {
-    if (!ts.isImportDeclaration(statement)) continue;
-    const bindings = statement.importClause?.namedBindings;
-    if (!bindings || !ts.isNamedImports(bindings)) continue;
-    for (const element of bindings.elements) {
-      const imported = (element.propertyName ?? element.name).text;
-      if (imported === "useFocusEffect") focusNames.add(element.name.text);
-      if (imported === "goHome") goHomeNames.add(element.name.text);
-    }
-  }
-  /** 이름으로 넘긴 핸들러는 같은 함수 안의 선언을 찾아 본문을 읽는다. */
-  const handlerBody = (call: ts.CallExpression): ts.Node | undefined => {
-    const handler = call.arguments[1];
-    if (!handler || !ts.isIdentifier(handler)) return handler;
-    let found: ts.Node | undefined;
-    let scope: ts.Node = sf;
-    for (let current = call.parent; current; current = current.parent) {
-      if (ts.isFunctionDeclaration(current) || ts.isArrowFunction(current) || ts.isFunctionExpression(current)) {
-        scope = current;
-        break;
-      }
-    }
-    const seek = (node: ts.Node) => {
-      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === handler.text) found = node.initializer;
-      if (!found) ts.forEachChild(node, seek);
-    };
-    seek(scope);
-    return found;
-  };
-  const listeners: BackListener[] = [];
-  const visit = (node: ts.Node) => {
-    if (
-      ts.isCallExpression(node) &&
-      ts.isPropertyAccessExpression(node.expression) &&
-      node.expression.name.text === "addEventListener" &&
-      node.arguments[0] !== undefined &&
-      ts.isStringLiteralLike(node.arguments[0]) &&
-      node.arguments[0].text === "hardwareBackPress"
-    ) {
-      let focusScoped = false;
-      for (let current = node.parent; current; current = current.parent) {
-        if (ts.isCallExpression(current) && ts.isIdentifier(current.expression) && focusNames.has(current.expression.text)) {
-          focusScoped = true;
-          break;
-        }
-      }
-      const body = handlerBody(node);
-      listeners.push({
-        line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
-        focusScoped,
-        callsGoHome: body ? callsNamed(body, goHomeNames) : false,
-      });
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(sf);
-  return listeners;
-}
-
-describe("인증 화면의 하드웨어 뒤로는 포커스된 동안만 듣고 goHome 으로 간다 (게이트 NS-04 r2)", () => {
-  it("판정기: useEffect 로 단 리스너는 포커스 밖, useFocusEffect 안은 포커스 안 - 이름으로 넘긴 핸들러도 읽는다", () => {
-    const fixture = [
-      'import { useFocusEffect as onFocus } from "expo-router";',
-      'import { goHome as home } from "@/lib/nav/go-home";',
-      'function A() { useEffect(() => { const s = BackHandler.addEventListener("hardwareBackPress", () => { router.push("/"); return true; }); return () => s.remove(); }, []); }',
-      'function B() { onFocus(useCallback(() => { const go = () => { home(); return true; }; const s = BackHandler.addEventListener("hardwareBackPress", go); return () => s.remove(); }, [])); }',
-    ].join("\n");
-    expect(hardwareBackListeners(fixture, "f.tsx").map(({ focusScoped, callsGoHome }) => [focusScoped, callsGoHome])).toEqual([
-      [false, false],
-      [true, true],
-    ]);
-  });
-
-  it.each(["src/lib/auth/useSignInForm.ts", "src/lib/auth/useSignUpForm.ts"])("%s", (file) => {
-    const listeners = hardwareBackListeners(readFileSync(join(ROOT, file), "utf8"), file);
-    expect(listeners.map(({ focusScoped, callsGoHome }) => ({ focusScoped, callsGoHome }))).toEqual([
-      { focusScoped: true, callsGoHome: true },
-    ]);
-  });
-});
+// - "인증 화면의 하드웨어 뒤로는 포커스된 동안만 듣고 goHome 으로 간다"(게이트 NS-04 r2):
+//   로그인 · 가입 화면의 하드웨어 뒤로는 사람이 누르는 홈 동작이라 PR 이전 코드(useEffect +
+//   push("/"))로 되돌렸다. 지킬 성질이 없어졌다. 그 자리는 USER_HOME_NAVIGATIONS 에 있고,
+//   goHome 을 다시 부르면 GO_HOME_USES 에서 빨개진다.
+// - "홈 push 는 하나도 남지 않는다": 같은 이유로 push 다섯 자리(BackArrow · /audit ·
+//   /esm · 인증 화면 뒤로 둘 · 가입 상단 뒤로)가 돌아왔다. 자리는 위 명단이 고정한다.
+// - "D-01 이 지목한 자리들은 헬퍼로 간다": RedirectHome 자리는 GO_HOME_USES 의 정확한
+//   명단으로 옮겼다. 온보딩 '홈으로' · BackArrow 는 사람이 누르는 동작이라 빠졌다.

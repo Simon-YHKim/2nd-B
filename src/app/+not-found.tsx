@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { BackHandler, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
-import { goHome as popToHome } from "@/lib/nav/go-home";
+import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -20,11 +20,9 @@ export default function NotFound() {
   // makes the fallback update immediately when readable body copy is enabled.
   useFontStyle();
 
-  // Never push: returning from home must not reopen the bad URL. Pop back to
-  // the home already below (a cold deep link has none, so this entry becomes
-  // home, as replace did). replace("/") stacked a second home whenever this
-  // screen sat on top of one (QA 261004 gate NS-04, lib/nav/go-home.ts).
-  const goHome = useCallback(() => popToHome(), []);
+  // Replace, rather than push: returning from home must not reopen the bad URL.
+  // Expo Router also resolves this root against app.json's web baseUrl.
+  const goHome = useCallback(() => router.replace("/"), []);
 
   useEffect(() => {
     // The root overlay normally supplies a back-to-home chip on unknown paths.

@@ -13,7 +13,6 @@ import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppRouter } from "@/lib/nav/phone-embed";
-import { useGoHome } from "@/lib/nav/go-home";
 import { m3 } from "@/lib/theme/m3";
 
 import {
@@ -27,7 +26,6 @@ export function DeepSpaceManualScreen() {
   // Phone-aware: inside the dashboard phone, links and the top bar's back
   // button navigate the phone's stack.
   const router = useAppRouter();
-  const goHome = useGoHome();
   const { userId } = useAuth();
   // ⚠ 여기 `i18n.language.startsWith("ko") ? "ko" : "en"` 이 있었다. 앱은 다섯
   // 언어를 제공하는데 안내서만 둘로 좁히고 있었다 — es · pt · id 사용자는 번역이
@@ -167,7 +165,7 @@ export function DeepSpaceManualScreen() {
               variant="frame"
               onPress={() => {
                 if (userId) resetCoachmarks(userId);
-                goHome();
+                router.replace("/");
               }}
               accessibilityLabel={t("deepspace:manual.replayCoachmarks")}
               fullWidth

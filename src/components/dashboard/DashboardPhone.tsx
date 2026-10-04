@@ -34,7 +34,6 @@ import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { OpsPhoneContent, type OpsPhoneScreen } from "@/screens/deepspace/ops/PhoneOpsContent";
 import { MuseumPhoneContent } from "@/screens/deepspace/museum/MuseumTimelineScreen";
 import { PhoneEmbedProvider, splitPhoneRoute, type PhoneEmbedNav } from "@/lib/nav/phone-embed";
-import { goHome } from "@/lib/nav/go-home";
 import { resolvePhoneScreen } from "./phone-screens";
 import type { ProductNotice } from "@/lib/notices/types";
 
@@ -101,7 +100,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const transparentBackdrop = overlay === "home" && router.canGoBack();
   const closePhone = useCallback(() => {
     if (transparentBackdrop) router.back();
-    else goHome(); // pops to a home below instead of stacking one (gate NS-04)
+    else router.replace("/");
   }, [transparentBackdrop]);
   const [tab, setTab] = useState<Tab>(app === "notifications" ? "tools" : "dashboard");
   const [phoneApp, setPhoneApp] = useState<"notifications" | "more" | null>(app === "notifications" ? "notifications" : null);

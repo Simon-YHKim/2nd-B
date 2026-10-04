@@ -95,11 +95,11 @@ describe("/onboarding PIXEL-CLAY handoff contract", () => {
   test("completion is recorded only inside a final handoff action", () => {
     const handoff = functionBody("finishOnboarding");
     expect(handoff).toContain("markOnboardingComplete();");
-    expect(handoff).toContain("goHome();");
+    expect(handoff).toContain('router.replace("/");');
     expect(handoff).toContain('router.replace("/sign-up");');
     expect(handoff).toContain('router.replace("/sign-in");');
     expect(handoff.indexOf("markOnboardingComplete();")).toBeLessThan(
-      handoff.indexOf("goHome();"),
+      handoff.indexOf('router.replace("/");'),
     );
     expect(SRC.match(/markOnboardingComplete\(\)/g)).toHaveLength(1);
     expect(SRC).toMatch(/onPress=\{\(\) => finishOnboarding\("\/sign-up"\)\}/);

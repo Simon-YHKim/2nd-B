@@ -9,11 +9,11 @@
 // (src/app/(auth)/sign-in.tsx); the only addition is facebook/github in the
 // provider set (same signInWithProvider path as google).
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BackHandler, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { useFocusEffect } from "expo-router";
-import { goHome } from "@/lib/nav/go-home";
+import { router } from "expo-router";
+
 import { useAuth } from "@/lib/auth/AuthContext";
 import { AuthLockWaitTimeoutError } from "@/lib/auth/session-mutation";
 import { createSignInProgress } from "@/lib/auth/sign-in-progress";
@@ -89,15 +89,6 @@ export function useSignInForm(): UseSignInForm {
   // A provider whose OAuth start failed with a "not configured" error is hidden
   // for the rest of the session so the user is not left tapping a dead button.
   const [hiddenProviders, setHiddenProviders] = useState<Set<string>>(new Set());
-  // While the email request is out, hardware Back does nothing (PR #2044 gate
-  // NAV-R3-01, sign-in form). goHome is POP_TO: it removed this route and the
-  // failure toast went to a screen that was gone; push("/") used to leave the
-  // form below. Only the Back handler reads this - goHome and <RedirectHome />
-  // after a success are never held. Set before the first await, cleared in
-  // finally and when the long-wait notice shows (that notice tells the user to
-  // reopen this screen), so a request that never answers holds Back for
-  // SIGN_IN_LONG_WAIT_MS at most.
-  const backHeldRef = useRef(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -112,29 +103,20 @@ export function useSignInForm(): UseSignInForm {
     }
     // Keep the original auth operation and the screen's action lock alive. A
     // late SDK writer may still persist a session, so this is guidance only.
-    const timer = setTimeout(() => {
-      backHeldRef.current = false;
-      setSignInTakingLong(true);
-    }, SIGN_IN_LONG_WAIT_MS);
+    const timer = setTimeout(() => setSignInTakingLong(true), SIGN_IN_LONG_WAIT_MS);
     return () => clearTimeout(timer);
   }, [submitting]);
 
   // Stage 3 (O-31): hardware Back on the auth gate returns to the constellation
   // home instead of exiting the app (no dead-end). Web uses the browser back.
-  // goHome, not push("/"): a guest's home sends them back here, so push stacked
-  // one more sign-in per press. Only while focused: a screen opened above this
-  // one (/sign-up, /reset-password) keeps its own Back instead of this handler
-  // jumping home from under it (QA 261004 gate NS-04).
-  useFocusEffect(
-    useCallback(() => {
-      const onBackPress = () => {
-        if (!backHeldRef.current) goHome();
-        return true;
-      };
-      const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-      return () => sub.remove();
-    }, []),
-  );
+  useEffect(() => {
+    const onBackPress = () => {
+      router.push("/");
+      return true;
+    };
+    const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => sub.remove();
+  }, []);
 
   const setEmailAndClearReset = useCallback(
     (value: string) => {
@@ -191,7 +173,6 @@ export function useSignInForm(): UseSignInForm {
 
   const handleSubmit = useCallback(async () => {
     setSubmitting(true);
-    backHeldRef.current = true;
     const progress = Platform.OS === "web"
       ? createSignInProgress((stage, elapsedMs) => {
           if (typeof console !== "undefined") {
@@ -207,9 +188,8 @@ export function useSignInForm(): UseSignInForm {
       void observeAuthConversion(result.userId, "login", "email");
       // AuthContext picks up the new session; IntroGate plays the cell
       // LoadingScreen and then mounts the Stack. Route to /index so the
-      // post-loading hand-off lands on the graph view (the new main). Pop to the
-      // home below when a session ran out over it; replace stacked a second one.
-      goHome();
+      // post-loading hand-off lands on the graph view (the new main).
+      router.replace("/");
     } catch (e) {
       // Generic message to avoid email-enumeration. CSO finding R3.
       setToast({
@@ -220,7 +200,6 @@ export function useSignInForm(): UseSignInForm {
       });
       if (typeof console !== "undefined") console.warn("[auth] signIn error", (e as Error).message);
     } finally {
-      backHeldRef.current = false;
       progress?.finish();
       setSubmitting(false);
     }

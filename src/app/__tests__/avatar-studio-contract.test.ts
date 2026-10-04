@@ -51,11 +51,7 @@ describe("approved avatar studio screen", () => {
   // always be leavable (back, hardware back, "Later"), deferring for the session.
   test("offers first-run setup but can always be left for later", () => {
     expect(source).toContain('const setupMode = setup === "1"');
-    // QA 261004 gate NS-04: home pops back to the home below (or closes the
-    // dashboard phone) instead of stacking a second one.
-    expect(source).toContain("const goHome = useGoHome();");
-    expect(source).toContain("if (setupMode) goHome()");
-    expect(source).not.toContain('router.replace("/")');
+    expect(source).toContain('if (setupMode) router.replace("/")');
     expect(source).toContain('t("avatar:setupRequiredHint")');
     expect(source).toContain("if (userId) markAvatarSetupDeferredForSession(userId);");
     expect(source).toContain("onBack={onCancel}");

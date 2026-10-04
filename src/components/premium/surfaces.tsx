@@ -299,7 +299,7 @@ export function PremiumButton({
       accessibilityRole={a11yRole}
       accessibilityLabel={resolvedAccessibilityLabel}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ ...accessibilityState, disabled: !!isDisabled, busy: !!loading || !!accessibilityState?.busy }}
+      accessibilityState={{ ...accessibilityState, disabled: !!isDisabled, busy: !!loading }}
       style={[
         fullStyle,
         styles.btn,
