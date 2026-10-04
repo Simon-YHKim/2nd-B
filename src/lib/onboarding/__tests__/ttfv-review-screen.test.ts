@@ -9,7 +9,7 @@ const mockMarkTTFVSeen = jest.fn();
 
 jest.mock("@/lib/auth/AuthContext", () => ({ useAuth: () => mockAuth.current }));
 jest.mock("@/lib/onboarding/ttfv-gate", () => ({
-  markTTFVSeen: (...args: unknown[]) => mockMarkTTFVSeen(...args),
+  markTTFVSeen: () => mockMarkTTFVSeen(),
 }));
 jest.mock("react-native", () => ({
   ScrollView: "ScrollView",
@@ -90,8 +90,6 @@ describe("/ttfv auth and seen gate", () => {
 
     (tree.props.onContentReady as () => void)();
     expect(mockMarkTTFVSeen).toHaveBeenCalledTimes(1);
-    // The flag is the signed-in owner's, not the device's (R2-03).
-    expect(mockMarkTTFVSeen).toHaveBeenCalledWith("owner-1");
   });
 
   it("marks only honest record or empty content, never loading or load error", () => {

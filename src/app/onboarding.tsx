@@ -65,9 +65,7 @@ export default function Onboarding() {
   // check:constraints pins the literal Korean skip label in this file.
   const skipLabel = locale === "ko" ? "건너뛰기" : "Skip";
   const { userId, loading } = useAuth();
-  // Signed in: this account's completion. Signed out: the device-wide flag the
-  // next account to sign in claims (src/lib/onboarding/state.ts).
-  const onboardingComplete = useOnboardingComplete(userId);
+  const onboardingComplete = useOnboardingComplete();
   const [step, setStep] = useState(0);
 
   // Android hardware Back reverses one slide, including the final handoff frame.
@@ -88,7 +86,7 @@ export default function Onboarding() {
   // Completion is deliberately written only when a real destination is chosen.
   // Merely mounting the route, paging, or skipping to the handoff does not write.
   function finishOnboarding(destination: HandoffDestination) {
-    markOnboardingComplete(userId);
+    markOnboardingComplete();
     if (destination === "/") {
       router.replace("/");
       return;

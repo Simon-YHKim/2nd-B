@@ -5,8 +5,6 @@ import { purgeImportHistoryForDeletedAccount } from "../import/history";
 import { purgeAuditWriteOutboxForOwner } from "../llm/audit-write-outbox";
 import { purgeNoticeLastSeenForDeletedAccount } from "../notices/last-seen";
 import { purgeNoticeReadStateForDeletedAccount } from "../notices/read-store";
-import { purgeOnboardingForDeletedAccount } from "../onboarding/state";
-import { purgeTTFVSeenForDeletedAccount } from "../onboarding/ttfv-gate";
 import { clearAccountScopedLocalNotifications } from "../ops/reminders";
 import { purgeOpsUsageForDeletedAccount } from "../ops/usage";
 import { purgeGithubUsernameForDeletedAccount } from "../projects/github-link";
@@ -48,8 +46,6 @@ export async function purgeDeletedAccountLocalData(userId: string): Promise<Loca
       observe(() => purgeHealthAutoReadForDeletedAccount(owner)),
       observe(() => purgeNoticeReadStateForDeletedAccount(owner)),
       observe(() => purgeNoticeLastSeenForDeletedAccount(owner)),
-      observe(() => purgeOnboardingForDeletedAccount(owner)),
-      observe(() => purgeTTFVSeenForDeletedAccount(owner)),
       observe(async () => {
         await clearAccountScopedLocalNotifications(owner);
         return true;

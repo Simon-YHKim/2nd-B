@@ -10,8 +10,6 @@ const mockWikiPurge = jest.fn<Promise<boolean>, [string]>();
 const mockNoticeReadPurge = jest.fn<Promise<boolean>, [string]>();
 const mockNoticeLastSeenPurge = jest.fn<Promise<boolean>, [string]>();
 const mockHealthAutoReadPurge = jest.fn<Promise<boolean>, [string]>();
-const mockOnboardingPurge = jest.fn<Promise<boolean>, [string]>();
-const mockTTFVSeenPurge = jest.fn<Promise<boolean>, [string]>();
 const mockInstallFence = jest.fn<Promise<boolean>, [string]>();
 
 jest.mock("../../capture/draft", () => ({
@@ -50,12 +48,6 @@ jest.mock("../../notices/last-seen", () => ({
 jest.mock("../../health/auto-read", () => ({
   purgeHealthAutoReadForDeletedAccount: (owner: string) => mockHealthAutoReadPurge(owner),
 }));
-jest.mock("../../onboarding/state", () => ({
-  purgeOnboardingForDeletedAccount: (owner: string) => mockOnboardingPurge(owner),
-}));
-jest.mock("../../onboarding/ttfv-gate", () => ({
-  purgeTTFVSeenForDeletedAccount: (owner: string) => mockTTFVSeenPurge(owner),
-}));
 jest.mock("../local-deletion-fence", () => ({
   installAccountLocalDeletionFence: (owner: string) => mockInstallFence(owner),
 }));
@@ -80,8 +72,6 @@ beforeEach(() => {
     mockNoticeReadPurge,
     mockNoticeLastSeenPurge,
     mockHealthAutoReadPurge,
-    mockOnboardingPurge,
-    mockTTFVSeenPurge,
   ]) {
     purge.mockReset().mockResolvedValue(true);
   }
@@ -103,8 +93,6 @@ describe("purgeDeletedAccountLocalData", () => {
       mockNoticeReadPurge,
       mockNoticeLastSeenPurge,
       mockHealthAutoReadPurge,
-      mockOnboardingPurge,
-      mockTTFVSeenPurge,
     ]) {
       expect(purge).toHaveBeenCalledWith("owner-a");
     }
@@ -161,18 +149,6 @@ describe("purgeDeletedAccountLocalData", () => {
     expect(mockWikiPurge).toHaveBeenCalledTimes(1);
     expect(mockNoticeReadPurge).toHaveBeenCalledTimes(1);
     expect(mockNoticeLastSeenPurge).toHaveBeenCalledTimes(1);
-  });
-
-  test("never claims local completion when the owner's /ttfv seen flag remains (R2-03)", async () => {
-    mockTTFVSeenPurge.mockResolvedValueOnce(false);
-    await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("unconfirmed");
-    expect(mockTTFVSeenPurge).toHaveBeenCalledWith("owner-a");
-  });
-
-  test("never claims local completion when the onboarding owner key remains (BL-02)", async () => {
-    mockOnboardingPurge.mockResolvedValueOnce(false);
-    await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("unconfirmed");
-    expect(mockOnboardingPurge).toHaveBeenCalledWith("owner-a");
   });
 
   test("never claims local completion when private avatar art remains", async () => {
