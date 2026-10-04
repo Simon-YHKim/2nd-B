@@ -9,7 +9,7 @@
 // (src/app/(auth)/sign-in.tsx); the only addition is facebook/github in the
 // provider set (same signInWithProvider path as google).
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useFocusEffect } from "expo-router";
@@ -89,6 +89,10 @@ export function useSignInForm(): UseSignInForm {
   // A provider whose OAuth start failed with a "not configured" error is hidden
   // for the rest of the session so the user is not left tapping a dead button.
   const [hiddenProviders, setHiddenProviders] = useState<Set<string>>(new Set());
+  // Auth requests (email sign-in, OAuth/Naver start, reset mail) still waiting
+  // for an answer. A ref, not state, so the press that starts one has already
+  // set it before any Back in the next frame reads it.
+  const authRequestsRef = useRef(0);
 
   useEffect(() => {
     if (!toast) return;
@@ -116,6 +120,10 @@ export function useSignInForm(): UseSignInForm {
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
+        // While a request is out, keep this screen: goHome would pop it, and a
+        // failure would then land on an unmounted screen with the typed address
+        // gone (gate NAV-R3-01; useSignUpForm's actionLockRef is the same rule).
+        if (authRequestsRef.current > 0) return true;
         goHome();
         return true;
       };
@@ -136,6 +144,7 @@ export function useSignInForm(): UseSignInForm {
 
   const handleOAuth = useCallback(
     async (provider: OAuthProvider) => {
+      authRequestsRef.current += 1;
       setOauthSubmitting(true);
       try {
         await startOAuthProvider(provider);
@@ -154,6 +163,7 @@ export function useSignInForm(): UseSignInForm {
         });
         if (typeof console !== "undefined") console.warn(`[auth] ${provider} oauth error`, msg);
       } finally {
+        authRequestsRef.current -= 1;
         setOauthSubmitting(false);
       }
     },
@@ -163,6 +173,7 @@ export function useSignInForm(): UseSignInForm {
   // Naver uses a custom web redirect (not Supabase-native), so it has its own
   // handler. isNaverEnabled() keeps it hidden on native.
   const handleNaver = useCallback(async () => {
+    authRequestsRef.current += 1;
     setOauthSubmitting(true);
     try {
       await signInWithNaver();
@@ -173,6 +184,7 @@ export function useSignInForm(): UseSignInForm {
       });
       if (typeof console !== "undefined") console.warn("[auth] naver oauth error", (e as Error).message);
     } finally {
+      authRequestsRef.current -= 1;
       setOauthSubmitting(false);
     }
   }, [t]);
@@ -186,6 +198,7 @@ export function useSignInForm(): UseSignInForm {
           }
         })
       : null;
+    authRequestsRef.current += 1;
     try {
       const result = await signInWithEmail(email.trim(), password, progress?.mark);
       progress?.mark("session-refresh");
@@ -208,6 +221,7 @@ export function useSignInForm(): UseSignInForm {
       if (typeof console !== "undefined") console.warn("[auth] signIn error", (e as Error).message);
     } finally {
       progress?.finish();
+      authRequestsRef.current -= 1;
       setSubmitting(false);
     }
   }, [email, password, refresh, t]);
@@ -220,6 +234,7 @@ export function useSignInForm(): UseSignInForm {
       setToast({ tone: "info", message: t("signIn.resetToast") });
       return;
     }
+    authRequestsRef.current += 1;
     setResetSubmitting(true);
     try {
       await sendPasswordResetEmail(resetEmail);
@@ -229,6 +244,7 @@ export function useSignInForm(): UseSignInForm {
       setToast({ tone: "danger", message: t("errors.passwordResetFailed") });
       if (typeof console !== "undefined") console.warn("[auth] password reset email error", (e as Error).message);
     } finally {
+      authRequestsRef.current -= 1;
       setResetSubmitting(false);
     }
   }, [email, t]);

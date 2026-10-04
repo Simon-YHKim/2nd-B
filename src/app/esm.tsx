@@ -7,6 +7,7 @@ import { PremiumAppShell, PremiumButton, PremiumCard, SceneHero, PremiumToast } 
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useGoHome } from "@/lib/nav/go-home";
+import { useSaveExitHold } from "@/lib/nav/save-exit-hold";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { m3 } from "@/lib/theme/m3";
 import { cosmic, deepSpace, flattenAlpha, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -30,7 +31,9 @@ function EsmCheckInScreen() {
   const [kind, setKind] = useState<PromptKind>("context");
   const [scaleValue, setScaleValue] = useState<number | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [saving, setSaving] = useState(false);
+  // 저장하는 동안 이 칸을 걷어내지 않는다. 홈 · 독 · 뒤로를 저장이 끝날 때까지
+  // 붙들고, 실패하면 화면과 고른 값이 남아 실패 표시가 보인다(게이트 NAV-R3-01).
+  const { saving, run: runSave, whenIdle } = useSaveExitHold();
   const [saved, setSaved] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
 
@@ -68,28 +71,31 @@ function EsmCheckInScreen() {
   }
 
   async function handleSubmit() {
-    if (!userId || !canSubmit || saving) return;
-    setSaving(true);
-    const supabase = getSupabaseClient();
-    const { error } = await supabase.from("esm_responses").insert({
-      user_id: userId,
-      prompt_kind: kind,
-      scale_value: kind === "energy" ? scaleValue : null,
-      context_tags: kind === "context" ? selectedTags : [],
-    });
-    setSaving(false);
-
-    if (error) {
-      setToast({
-        tone: "danger",
-        message: t("toast.saveFailed"),
+    if (!userId || !canSubmit) return;
+    // runSave 는 첫 await 보다 먼저 잠근다. 이미 저장 중이면 이 저장은 시작하지 않는다.
+    await runSave(async () => {
+      const supabase = getSupabaseClient();
+      const { error } = await supabase.from("esm_responses").insert({
+        user_id: userId,
+        prompt_kind: kind,
+        scale_value: kind === "energy" ? scaleValue : null,
+        context_tags: kind === "context" ? selectedTags : [],
       });
-      return;
-    }
 
-    setSaved(true);
-    setScaleValue(null);
-    setSelectedTags([]);
+      if (error) {
+        // 고른 값은 지우지 않는다. 화면이 남아 있으니 다시 누르면 같은 값으로 보낸다.
+        setToast({
+          tone: "danger",
+          message: t("toast.saveFailed"),
+        });
+        return false;
+      }
+
+      setSaved(true);
+      setScaleValue(null);
+      setSelectedTags([]);
+      return true;
+    });
   }
 
   return (
@@ -204,7 +210,8 @@ function EsmCheckInScreen() {
             <PremiumButton
               label={t("actions.backHome")}
               variant="ghost"
-              onPress={goHome}
+              onPress={whenIdle(goHome)}
+              disabled={saving}
               full
               accessibilityHint={t("actions.backHomeHint")}
             />

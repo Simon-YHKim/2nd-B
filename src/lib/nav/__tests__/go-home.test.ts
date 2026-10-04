@@ -13,7 +13,9 @@
 //   5. 배송 코드: 홈을 쌓는 이동(`<Redirect>` · `<Link>` · push · replace ·
 //      navigate)이 자리(파일 · 컴포넌트 · 감싼 조건 · 앞 문장)까지 고정한 명단
 //      밖으로 늘지 않고(홈 push 는 0), 칸을 막는 가드는 전부 goHome 에 이름을
-//      올리며, 인증 화면의 하드웨어 뒤로는 포커스된 동안만 듣는다(게이트 NS-04 r2).
+//      올리며, 인증 화면의 하드웨어 뒤로는 포커스된 동안만 듣고(게이트 NS-04 r2)
+//      묻히면 정리 함수가 떼며(r3), 요청이 응답을 기다리는 동안은 삼킨다(NAV-R3-01).
+//      /esm 의 저장 중 잠금은 save-exit-hold.test.ts 가 본다.
 //
 // 렌더 테스트는 이 저장소에서 막혀 있어(RN 0.85) 소스는 TypeScript AST 로 읽는다.
 // 주석은 AST 에 없으므로 설명문이 증거로 읽히지 않는다.
@@ -572,17 +574,35 @@ function homeNavigations(source: string, file: string): HomeNav[] {
       if (/(^|\/)go-home$/.test(from) && imported === "HOME_HREF") homeNames.add(local);
     }
   }
-  const collect = (node: ts.Node) => {
+  // 지역 별칭은 여러 단계라도 끝까지 따라간다(게이트 NAV-R1-01 r3): `const a = HOME_HREF;
+  // const b = a;` 의 b, `const r = useR(); const n = r;` 의 n. 새 이름이 더 안 나올 때까지
+  // 되풀이한다. 이름 기준이라 같은 이름의 다른 바인딩까지 라우터 · 홈으로 볼 수 있는데,
+  // 그쪽으로 틀리면 아래 명단 비교가 빨개져 사람이 본다 - 조용히 빠지는 쪽보다 낫다.
+  const collect = (node: ts.Node): boolean => {
+    let grew = false;
     if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      const name = node.name.text;
       const init = unwrap(node.initializer);
-      if (homeTarget(init, new Set())) homeNames.add(node.name.text);
-      if (ts.isCallExpression(init) && ts.isIdentifier(init.expression) && isRouterHook(init.expression.text)) {
-        routers.add(node.name.text);
+      if (!homeNames.has(name) && homeTarget(init, homeNames)) {
+        homeNames.add(name);
+        grew = true;
+      }
+      const isRouter =
+        (ts.isCallExpression(init) && ts.isIdentifier(init.expression) && isRouterHook(init.expression.text)) ||
+        (ts.isIdentifier(init) && routers.has(init.text));
+      if (isRouter && !routers.has(name)) {
+        routers.add(name);
+        grew = true;
       }
     }
-    ts.forEachChild(node, collect);
+    ts.forEachChild(node, (child) => {
+      if (collect(child)) grew = true;
+    });
+    return grew;
   };
-  collect(sf);
+  while (collect(sf)) {
+    // 새 별칭이 더 없을 때까지.
+  }
 
   const hits: HomeNav[] = [];
   const hit = (node: ts.Node, kind: HomeNavKind): HomeNav => ({
@@ -778,6 +798,22 @@ describe("배송 코드에서 홈으로 가는 길", () => {
     ]);
   });
 
+  it("판정기는 라우터 · 홈 목적지의 지역 별칭을 여러 단계로 따라간다 (게이트 NAV-R1-01 r3)", () => {
+    const fixture = [
+      'import { HOME_HREF } from "@/lib/nav/go-home";', // 1
+      'import { router } from "expo-router";', // 2
+      "function Q() { const a = HOME_HREF; const b = a; router.replace(b); }", // 3  홈 상수의 별칭의 별칭
+      'function R() { const r = useRouter(); const n = r; const m = n; m.push("/"); }', // 4  훅 결과의 별칭 둘
+      'function S() { const nav = router; nav.navigate({ pathname: "/" }); }', // 5  가져온 router 의 별칭
+      'function T() { const other = "/settings"; const o2 = other; router.replace(o2); }', // 6 아님: 홈이 아니다
+    ].join("\n");
+    expect(homeNavigations(fixture, "fixture.tsx").map(({ line, kind }) => ({ line, kind }))).toEqual([
+      { line: 3, kind: "replace" },
+      { line: 4, kind: "push" },
+      { line: 5, kind: "navigate" },
+    ]);
+  });
+
   it("시야 대조: 그림자 사본의 홈 리다이렉트는 날것의 스캔에 보이고, 안 그려지는 줄이라 빠진다", () => {
     // 이 대조가 없으면 '0건'이 스캔이 파일을 못 읽어서인지 진짜 0인지 모른다.
     const shadow = "src/screens/deepspace/dds-auth-screens.tsx";
@@ -800,7 +836,9 @@ describe("배송 코드에서 홈으로 가는 길", () => {
       expect({ file, hook: read(file).includes("const goHome = useGoHome();") }).toEqual({ file, hook: true });
     }
     expect(read("src/app/audit.tsx")).toContain("onPress={goHome}");
-    expect(read("src/app/esm.tsx")).toContain("onPress={goHome}");
+    // esm 은 저장 중에는 홈을 누르지 못한다(whenIdle + disabled, 게이트 NAV-R3-01 -
+    // save-exit-hold.test.ts 가 배선을 본다). 가는 곳은 여전히 useGoHome 의 goHome 이다.
+    expect(read("src/app/esm.tsx")).toContain("onPress={whenIdle(goHome)}");
     expect(read("src/screens/deepspace/dds-sign-up-screen.tsx")).toContain("if (canLeaveGate()) goHome();");
   });
 
@@ -934,6 +972,7 @@ describe("칸을 막는 가드는 goHome 에 이름을 올린다 (게이트 NS-0
     expect([...new Set(guards.map((g) => g.file))].sort()).toEqual([
       "src/app/audit.tsx",
       "src/app/avatar-palette.tsx",
+      "src/lib/nav/save-exit-hold.ts",
       "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
       "src/screens/deepspace/dds-auth-screens.tsx",
     ]);
@@ -956,6 +995,63 @@ interface BackListener {
   focusScoped: boolean;
   /** 핸들러가 goHome() 을 부르는가. */
   callsGoHome: boolean;
+  /** goHome() 보다 앞에 `if (…) return true;` 가 있는가 - 요청이 응답을 기다리는 동안
+   *  뒤로를 삼켜 화면을 남긴다(게이트 NAV-R3-01). */
+  guardedBeforeGoHome: boolean;
+  /** 리스너를 받은 변수의 remove() 를 그 효과의 정리 함수가 부르는가. 안 부르면
+   *  화면이 묻혀도 계속 듣는다(게이트 NS-04 r3). */
+  removedOnCleanup: boolean;
+}
+
+/** `return true` 이거나 그것 하나만 담은 블록. */
+function returnsTrue(statement: ts.Statement): boolean {
+  if (ts.isReturnStatement(statement)) return statement.expression?.kind === ts.SyntaxKind.TrueKeyword;
+  return ts.isBlock(statement) && statement.statements.length === 1 && returnsTrue(statement.statements[0]);
+}
+
+/** 핸들러 본문에서 goHome 을 부르는 문장보다 앞에 `if (…) return true;` 가 있는가. */
+function guardsBeforeGoHome(handler: ts.Node, goHomeNames: ReadonlySet<string>): boolean {
+  const body = ts.isArrowFunction(handler) || ts.isFunctionExpression(handler) ? handler.body : handler;
+  if (!ts.isBlock(body)) return false;
+  let guarded = false;
+  for (const statement of body.statements) {
+    if (callsNamed(statement, goHomeNames)) return guarded;
+    if (ts.isIfStatement(statement) && returnsTrue(statement.thenStatement)) guarded = true;
+  }
+  return false;
+}
+
+/** `const sub = X.addEventListener(…)` 를 감싼 함수가 `return () => sub.remove()` 꼴로 지우는가. */
+function cleanupRemoves(call: ts.CallExpression): boolean {
+  const declaration = call.parent;
+  if (!declaration || !ts.isVariableDeclaration(declaration) || !ts.isIdentifier(declaration.name)) return false;
+  const sub = declaration.name.text;
+  let scope: ts.Node | undefined = declaration.parent;
+  while (scope && !ts.isArrowFunction(scope) && !ts.isFunctionExpression(scope) && !ts.isFunctionDeclaration(scope)) {
+    scope = scope.parent;
+  }
+  const body = scope && (scope as ts.FunctionLikeDeclaration).body;
+  if (!body || !ts.isBlock(body)) return false;
+  return body.statements.some((statement) => {
+    if (!ts.isReturnStatement(statement) || !statement.expression) return false;
+    const cleanup = unwrap(statement.expression);
+    if (!ts.isArrowFunction(cleanup) && !ts.isFunctionExpression(cleanup)) return false;
+    let removes = false;
+    const visit = (node: ts.Node) => {
+      if (
+        ts.isCallExpression(node) &&
+        ts.isPropertyAccessExpression(node.expression) &&
+        node.expression.name.text === "remove" &&
+        ts.isIdentifier(node.expression.expression) &&
+        node.expression.expression.text === sub
+      ) {
+        removes = true;
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(cleanup);
+    return removes;
+  });
 }
 
 function hardwareBackListeners(source: string, file: string): BackListener[] {
@@ -1013,6 +1109,8 @@ function hardwareBackListeners(source: string, file: string): BackListener[] {
         line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
         focusScoped,
         callsGoHome: body ? callsNamed(body, goHomeNames) : false,
+        guardedBeforeGoHome: body ? guardsBeforeGoHome(body, goHomeNames) : false,
+        removedOnCleanup: cleanupRemoves(node),
       });
     }
     ts.forEachChild(node, visit);
@@ -1022,23 +1120,140 @@ function hardwareBackListeners(source: string, file: string): BackListener[] {
 }
 
 describe("인증 화면의 하드웨어 뒤로는 포커스된 동안만 듣고 goHome 으로 간다 (게이트 NS-04 r2)", () => {
-  it("판정기: useEffect 로 단 리스너는 포커스 밖, useFocusEffect 안은 포커스 안 - 이름으로 넘긴 핸들러도 읽는다", () => {
+  it("판정기: 포커스 범위 · goHome · 그 앞의 잠금 · 정리 함수의 remove() 를 각각 본다", () => {
     const fixture = [
       'import { useFocusEffect as onFocus } from "expo-router";',
       'import { goHome as home } from "@/lib/nav/go-home";',
+      // A: useEffect 로 단 리스너(포커스 밖), push("/")
       'function A() { useEffect(() => { const s = BackHandler.addEventListener("hardwareBackPress", () => { router.push("/"); return true; }); return () => s.remove(); }, []); }',
+      // B: 포커스 안, 이름으로 넘긴 핸들러, 잠금 없음
       'function B() { onFocus(useCallback(() => { const go = () => { home(); return true; }; const s = BackHandler.addEventListener("hardwareBackPress", go); return () => s.remove(); }, [])); }',
+      // C: goHome 앞에 잠금
+      'function C() { onFocus(useCallback(() => { const s = BackHandler.addEventListener("hardwareBackPress", () => { if (busy.current > 0) return true; home(); return true; }); return () => s.remove(); }, [])); }',
+      // D: 대조 - goHome 뒤의 잠금은 잠금이 아니다, 정리 함수가 없다
+      'function D() { onFocus(useCallback(() => { const s = BackHandler.addEventListener("hardwareBackPress", () => { home(); if (busy.current > 0) return true; return true; }); }, [])); }',
+      // E: 대조 - 정리 함수가 다른 것을 지운다
+      'function E() { onFocus(useCallback(() => { const s = BackHandler.addEventListener("hardwareBackPress", () => { home(); return true; }); return () => other.remove(); }, [])); }',
     ].join("\n");
-    expect(hardwareBackListeners(fixture, "f.tsx").map(({ focusScoped, callsGoHome }) => [focusScoped, callsGoHome])).toEqual([
-      [false, false],
-      [true, true],
+    expect(
+      hardwareBackListeners(fixture, "f.tsx").map(({ focusScoped, callsGoHome, guardedBeforeGoHome, removedOnCleanup }) => [
+        focusScoped,
+        callsGoHome,
+        guardedBeforeGoHome,
+        removedOnCleanup,
+      ]),
+    ).toEqual([
+      [false, false, false, true],
+      [true, true, false, true],
+      [true, true, true, true],
+      [true, true, false, false],
+      [true, true, false, false],
     ]);
   });
 
+  // 둘 다: 포커스된 동안만 듣고, 묻히면 정리 함수가 떼며(게이트 NS-04 r3), 요청이 응답을
+  // 기다리는 동안은 goHome 앞에서 뒤로를 삼킨다 - 가입은 actionLockRef, 로그인은
+  // authRequestsRef(아래 블록, 게이트 NAV-R3-01 과 같은 모양).
   it.each(["src/lib/auth/useSignInForm.ts", "src/lib/auth/useSignUpForm.ts"])("%s", (file) => {
     const listeners = hardwareBackListeners(readFileSync(join(ROOT, file), "utf8"), file);
-    expect(listeners.map(({ focusScoped, callsGoHome }) => ({ focusScoped, callsGoHome }))).toEqual([
-      { focusScoped: true, callsGoHome: true },
+    expect(listeners.map(({ line: _line, ...rest }) => rest)).toEqual([
+      { focusScoped: true, callsGoHome: true, guardedBeforeGoHome: true, removedOnCleanup: true },
     ]);
+  });
+});
+
+// ── 로그인 요청 중의 뒤로 (게이트 NAV-R3-01 과 같은 모양) ──────────────────────
+//
+// /esm 과 같은 모양이다. 요청이 응답을 기다리는 동안 하드웨어 뒤로가 goHome(POP_TO)
+// 으로 로그인 화면을 걷어내면 실패 안내는 사라진 화면으로 가고 입력한 주소도
+// 사라진다. 예전 push("/") 는 그 화면을 아래에 남겼다. 가입 화면은 actionLockRef 로
+// 이미 삼키고 있었고, 로그인은 같은 규칙을 authRequestsRef 로 따른다.
+
+interface RequestHandler {
+  /** 첫 await 보다 먼저 잠금 ref 를 올리는가. 누른 그 프레임에 이미 걸려 있다. */
+  raisedBeforeAwait: boolean;
+  /** finally 에서 내리는가. 실패 · 예외에도 풀린다. */
+  loweredInFinally: boolean;
+}
+
+/** 뒤로가 읽는 `if (X.current > 0) return true` 의 X 와, 비동기 핸들러마다 X 를 다루는 모양. */
+function requestLock(source: string, file: string): { ref: string | null; handlers: RequestHandler[] } {
+  const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let ref: string | null = null;
+  const asyncFns: (ts.ArrowFunction | ts.FunctionExpression)[] = [];
+  const visit = (node: ts.Node) => {
+    if (
+      ts.isIfStatement(node) &&
+      returnsTrue(node.thenStatement) &&
+      ts.isBinaryExpression(node.expression) &&
+      node.expression.operatorToken.kind === ts.SyntaxKind.GreaterThanToken &&
+      ts.isPropertyAccessExpression(node.expression.left) &&
+      node.expression.left.name.text === "current" &&
+      ts.isIdentifier(node.expression.left.expression)
+    ) {
+      ref = node.expression.left.expression.text;
+    }
+    if (
+      (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) &&
+      node.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword)
+    ) {
+      asyncFns.push(node);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  const target = `${ref}.current`;
+  const handlers = asyncFns.map((fn): RequestHandler => {
+    let firstAwait = Infinity;
+    let raisedAt = Infinity;
+    let loweredInFinally = false;
+    const isStep = (node: ts.Node, op: ts.SyntaxKind) =>
+      ts.isBinaryExpression(node) && node.operatorToken.kind === op && node.left.getText(sf) === target;
+    const walk = (node: ts.Node, inFinally: boolean): void => {
+      if (ts.isAwaitExpression(node)) firstAwait = Math.min(firstAwait, node.getStart(sf));
+      if (isStep(node, ts.SyntaxKind.PlusEqualsToken)) raisedAt = Math.min(raisedAt, node.getStart(sf));
+      if (inFinally && isStep(node, ts.SyntaxKind.MinusEqualsToken)) loweredInFinally = true;
+      if (ts.isTryStatement(node)) {
+        walk(node.tryBlock, inFinally);
+        if (node.catchClause) walk(node.catchClause, inFinally);
+        if (node.finallyBlock) walk(node.finallyBlock, true);
+        return;
+      }
+      ts.forEachChild(node, (child) => {
+        walk(child, inFinally);
+      });
+    };
+    walk(fn.body, false);
+    return { raisedBeforeAwait: raisedAt < firstAwait, loweredInFinally };
+  });
+  return { ref, handlers };
+}
+
+describe("로그인은 요청이 응답을 기다리는 동안 뒤로를 삼킨다 (게이트 NAV-R3-01 과 같은 모양)", () => {
+  it("판정기: 첫 await 전에 올리고 finally 에서 내려야 한다", () => {
+    const fixture = [
+      "function F() {",
+      "  const onBack = () => { if (busy.current > 0) return true; goHome(); return true; };",
+      "  const good = async () => { busy.current += 1; try { await a(); } finally { busy.current -= 1; } };",
+      "  const late = async () => { try { await a(); busy.current += 1; } finally { busy.current -= 1; } };",
+      "  const leaks = async () => { busy.current += 1; try { await a(); busy.current -= 1; } catch {} };",
+      "}",
+    ].join("\n");
+    expect(requestLock(fixture, "f.ts")).toEqual({
+      ref: "busy",
+      handlers: [
+        { raisedBeforeAwait: true, loweredInFinally: true },
+        { raisedBeforeAwait: false, loweredInFinally: true },
+        { raisedBeforeAwait: true, loweredInFinally: false },
+      ],
+    });
+  });
+
+  it("useSignInForm: 로그인 · OAuth · 네이버 · 재설정 메일 넷 다 첫 await 전에 잠그고 finally 에서 푼다", () => {
+    const file = "src/lib/auth/useSignInForm.ts";
+    expect(requestLock(readFileSync(join(ROOT, file), "utf8"), file)).toEqual({
+      ref: "authRequestsRef",
+      handlers: Array.from({ length: 4 }, () => ({ raisedBeforeAwait: true, loweredInFinally: true })),
+    });
   });
 });
