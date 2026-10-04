@@ -182,7 +182,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/app/ipip-neo.tsx": 16,
   "src/app/manual.tsx": 42,
   "src/app/motivation.tsx": 6,
-  "src/app/notices.tsx": 38,
+  "src/app/notices.tsx": 10, // 38 -> 10: D-06 (QA 261004) 디자인 목업 공지 5건 제거
   "src/app/onboarding.tsx": 1,
   "src/app/peer-invites.tsx": 1,
   "src/app/persona.tsx": 32,
