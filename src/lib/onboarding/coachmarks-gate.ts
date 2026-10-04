@@ -167,6 +167,33 @@ export function useCoachmarksGate(ownerId: string | null, ready: boolean, retryT
   return ready && ownerId && decision?.ownerId === ownerId ? decision.due : null;
 }
 
+/** Local purge after terminal account deletion (lib/account/local-purge.ts).
+ * Both flags are owner-scoped device data, so they go with the account. A
+ * native write still queued for this owner runs first; removing ahead of it
+ * would let that write land afterwards and bring a flag back. True only when
+ * both keys read back empty. */
+export async function purgeCoachmarksForDeletedAccount(userId: string): Promise<boolean> {
+  const owner = userId.trim();
+  if (!owner) return false;
+  const keys = [COACHMARKS_SEEN_KEY(owner), COACHMARKS_REPLAY_KEY(owner)];
+  memoryFlags.delete(owner);
+  try {
+    const web = ls();
+    if (web) {
+      for (const key of keys) web.removeItem(key);
+      return keys.every((key) => web.getItem(key) === null);
+    }
+    const native = nativeStorage();
+    if (!native) return false;
+    await (nativeWrites.get(owner) ?? Promise.resolve());
+    for (const key of keys) await native.removeItem(key);
+    const remaining = await Promise.all(keys.map((key) => native.getItem(key)));
+    return remaining.every((value) => value === null);
+  } catch {
+    return false;
+  }
+}
+
 export function __resetCoachmarksGateForTests(): void {
   memoryFlags.clear();
   versions.clear();

@@ -20,6 +20,7 @@ import {
   __resetCoachmarksGateForTests,
   hasCoachmarkContent,
   markCoachmarksSeen,
+  purgeCoachmarksForDeletedAccount,
   resetCoachmarks,
   useCoachmarksGate,
 } from "../coachmarks-gate";
@@ -232,5 +233,92 @@ describe("owner-scoped coachmarks gate", () => {
     expect(hook.due("owner-A")).toBe(false);
     expect(queries).toHaveLength(2);
     hook.stop();
+  });
+});
+
+// QA 261004 BL-02: both flags are owner-scoped device data and were missing
+// from the account-deletion purge (lib/account/local-purge.ts).
+describe("account deletion purges the owner's guide flags", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    __resetCoachmarksGateForTests();
+    mockGetItem.mockResolvedValue(null);
+    mockSetItem.mockResolvedValue(undefined);
+    mockRemoveItem.mockResolvedValue(undefined);
+    (useState as jest.Mock).mockReset();
+    (useEffect as jest.Mock).mockReset();
+  });
+
+  test("native: removes both keys, drops the memory flag, and reports success", async () => {
+    fakeClient(() => empty());
+    markCoachmarksSeen("owner-A");
+    await flush();
+    const before = hookHarness();
+    before.render("owner-A");
+    await flush();
+    expect(before.due("owner-A")).toBe(false);
+    before.stop();
+
+    await expect(purgeCoachmarksForDeletedAccount("owner-A")).resolves.toBe(true);
+    expect(mockRemoveItem).toHaveBeenCalledWith(COACHMARKS_SEEN_KEY("owner-A"));
+    expect(mockRemoveItem).toHaveBeenCalledWith(COACHMARKS_REPLAY_KEY("owner-A"));
+    expect(mockRemoveItem).not.toHaveBeenCalledWith(COACHMARKS_SEEN_KEY("owner-B"));
+
+    // The in-memory "seen" went with it: the same id reads storage again.
+    const after = hookHarness();
+    after.render("owner-A");
+    await flush();
+    expect(after.due("owner-A")).toBe(true);
+    after.stop();
+  });
+
+  test("native: a queued write for the owner finishes before the purge removes", async () => {
+    let finishReplay!: () => void;
+    mockSetItem.mockImplementation((key: string) => key === COACHMARKS_REPLAY_KEY("owner-A")
+      ? new Promise<void>((resolve) => { finishReplay = resolve; })
+      : Promise.resolve());
+    resetCoachmarks("owner-A");
+    await flush();
+    const purge = purgeCoachmarksForDeletedAccount("owner-A");
+    await flush();
+    expect(mockRemoveItem).not.toHaveBeenCalled();
+    finishReplay();
+    await expect(purge).resolves.toBe(true);
+    const removed = mockRemoveItem.mock.calls.map(([key]) => key);
+    expect(removed).toEqual(expect.arrayContaining([COACHMARKS_SEEN_KEY("owner-A"), COACHMARKS_REPLAY_KEY("owner-A")]));
+  });
+
+  test("native: a key that reads back is not a completed purge", async () => {
+    mockGetItem.mockImplementation((key: string) => Promise.resolve(key === COACHMARKS_SEEN_KEY("owner-A") ? "2026-10-05" : null));
+    await expect(purgeCoachmarksForDeletedAccount("owner-A")).resolves.toBe(false);
+  });
+
+  test("an empty owner never widens into a purge", async () => {
+    await expect(purgeCoachmarksForDeletedAccount("  ")).resolves.toBe(false);
+    expect(mockRemoveItem).not.toHaveBeenCalled();
+  });
+
+  test("web: removes only this owner's keys from localStorage", async () => {
+    const store = new Map<string, string>();
+    const local = {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => { store.set(key, value); },
+      removeItem: (key: string) => { store.delete(key); },
+    };
+    Object.defineProperty(globalThis, "localStorage", { value: local, configurable: true, writable: true });
+    try {
+      markCoachmarksSeen("owner-A");
+      resetCoachmarks("owner-A");
+      markCoachmarksSeen("owner-B");
+      expect(store.has(COACHMARKS_SEEN_KEY("owner-A"))).toBe(true);
+      expect(store.has(COACHMARKS_REPLAY_KEY("owner-A"))).toBe(true);
+
+      await expect(purgeCoachmarksForDeletedAccount("owner-A")).resolves.toBe(true);
+      expect(store.has(COACHMARKS_SEEN_KEY("owner-A"))).toBe(false);
+      expect(store.has(COACHMARKS_REPLAY_KEY("owner-A"))).toBe(false);
+      expect(store.has(COACHMARKS_SEEN_KEY("owner-B"))).toBe(true);
+    } finally {
+      delete (globalThis as { localStorage?: unknown }).localStorage;
+    }
   });
 });

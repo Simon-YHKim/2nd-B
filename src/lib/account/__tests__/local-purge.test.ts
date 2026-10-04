@@ -10,6 +10,7 @@ const mockWikiPurge = jest.fn<Promise<boolean>, [string]>();
 const mockNoticeReadPurge = jest.fn<Promise<boolean>, [string]>();
 const mockNoticeLastSeenPurge = jest.fn<Promise<boolean>, [string]>();
 const mockHealthAutoReadPurge = jest.fn<Promise<boolean>, [string]>();
+const mockCoachmarksPurge = jest.fn<Promise<boolean>, [string]>();
 const mockInstallFence = jest.fn<Promise<boolean>, [string]>();
 
 jest.mock("../../capture/draft", () => ({
@@ -48,6 +49,9 @@ jest.mock("../../notices/last-seen", () => ({
 jest.mock("../../health/auto-read", () => ({
   purgeHealthAutoReadForDeletedAccount: (owner: string) => mockHealthAutoReadPurge(owner),
 }));
+jest.mock("../../onboarding/coachmarks-gate", () => ({
+  purgeCoachmarksForDeletedAccount: (owner: string) => mockCoachmarksPurge(owner),
+}));
 jest.mock("../local-deletion-fence", () => ({
   installAccountLocalDeletionFence: (owner: string) => mockInstallFence(owner),
 }));
@@ -72,6 +76,7 @@ beforeEach(() => {
     mockNoticeReadPurge,
     mockNoticeLastSeenPurge,
     mockHealthAutoReadPurge,
+    mockCoachmarksPurge,
   ]) {
     purge.mockReset().mockResolvedValue(true);
   }
@@ -93,10 +98,21 @@ describe("purgeDeletedAccountLocalData", () => {
       mockNoticeReadPurge,
       mockNoticeLastSeenPurge,
       mockHealthAutoReadPurge,
+      mockCoachmarksPurge,
     ]) {
       expect(purge).toHaveBeenCalledWith("owner-a");
     }
     expect(mockNotificationPurge).toHaveBeenCalledWith("owner-a");
+  });
+
+  // QA 261004 BL-02: the home guide's per-owner completion/replay flags
+  // (onboarding.coachmarks.home.v2.<owner>.seenAt / replayAt, since #1883) were
+  // the one owner-scoped namespace this list did not reach.
+  test("the home guide's owner flags are part of the purge and of its verdict", async () => {
+    mockCoachmarksPurge.mockResolvedValueOnce(false);
+    await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("unconfirmed");
+    expect(mockCoachmarksPurge).toHaveBeenCalledWith("owner-a");
+    expect(mockCapturePurge).toHaveBeenCalledTimes(1);
   });
 
   test("reports unconfirmed without skipping the remaining purges", async () => {
@@ -122,6 +138,7 @@ describe("purgeDeletedAccountLocalData", () => {
     expect(mockWikiPurge).not.toHaveBeenCalled();
     expect(mockNoticeReadPurge).not.toHaveBeenCalled();
     expect(mockNoticeLastSeenPurge).not.toHaveBeenCalled();
+    expect(mockCoachmarksPurge).not.toHaveBeenCalled();
     expect(mockNotificationPurge).not.toHaveBeenCalled();
     expect(mockInstallFence).not.toHaveBeenCalled();
   });
