@@ -7,6 +7,7 @@ import { PremiumAppShell, PremiumButton, PremiumCard, SceneHero, PremiumToast } 
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useGoHome } from "@/lib/nav/go-home";
+import { beginSaveInFlight } from "@/lib/nav/save-in-flight";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { m3 } from "@/lib/theme/m3";
 import { cosmic, deepSpace, flattenAlpha, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -70,14 +71,24 @@ function EsmCheckInScreen() {
   async function handleSubmit() {
     if (!userId || !canSubmit || saving) return;
     setSaving(true);
-    const supabase = getSupabaseClient();
-    const { error } = await supabase.from("esm_responses").insert({
-      user_id: userId,
-      prompt_kind: kind,
-      scale_value: kind === "energy" ? scaleValue : null,
-      context_tags: kind === "context" ? selectedTags : [],
-    });
-    setSaving(false);
+    // 응답을 기다리는 동안 goHome(독 · 이 화면의 홈)은 이 칸을 걷어내지 않는다.
+    // 실패 안내와 고른 값이 사라진 칸으로 가지 않게 한다(게이트 NAV-R3-01).
+    const endSave = beginSaveInFlight();
+    let error: unknown = null;
+    try {
+      const supabase = getSupabaseClient();
+      ({ error } = await supabase.from("esm_responses").insert({
+        user_id: userId,
+        prompt_kind: kind,
+        scale_value: kind === "energy" ? scaleValue : null,
+        context_tags: kind === "context" ? selectedTags : [],
+      }));
+    } catch (e) {
+      error = e;
+    } finally {
+      endSave();
+      setSaving(false);
+    }
 
     if (error) {
       setToast({
@@ -205,6 +216,8 @@ function EsmCheckInScreen() {
               label={t("actions.backHome")}
               variant="ghost"
               onPress={goHome}
+              disabled={saving}
+              accessibilityState={{ busy: saving }}
               full
               accessibilityHint={t("actions.backHomeHint")}
             />
