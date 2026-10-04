@@ -47,5 +47,6 @@
     "backHome": "Volver al inicio",
     "backHomeHint": "Regresa a la pantalla de inicio."
   },
-  "saved": "Registro guardado."
+  "saved": "Registro guardado.",
+  "unconfirmed": "El guardado tardó demasiado en responder y aún no está confirmado. Tus respuestas siguen aquí. Si guardas lo mismo otra vez, quedará un solo registro."
 }

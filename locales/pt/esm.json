@@ -47,5 +47,6 @@
     "backHome": "Voltar ao início",
     "backHomeHint": "Volta para a tela inicial."
   },
-  "saved": "Registro salvo."
+  "saved": "Registro salvo.",
+  "unconfirmed": "O salvamento demorou para responder e ainda não foi confirmado. Suas escolhas continuam aqui. Salvar as mesmas escolhas de novo mantém um único registro."
 }

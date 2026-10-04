@@ -1153,7 +1153,7 @@ describe("인증 화면의 하드웨어 뒤로는 포커스된 동안만 듣고 
 
   // 둘 다: 포커스된 동안만 듣고, 묻히면 정리 함수가 떼며(게이트 NS-04 r3), 요청이 응답을
   // 기다리는 동안은 goHome 앞에서 뒤로를 삼킨다 - 가입은 actionLockRef, 로그인은
-  // authRequestsRef(아래 블록, 게이트 NAV-R3-01 과 같은 모양).
+  // authRequests(아래 블록, 게이트 NAV-R3-01 과 같은 모양, NAV-R4-01 의 제한 시간).
   it.each(["src/lib/auth/useSignInForm.ts", "src/lib/auth/useSignUpForm.ts"])("%s", (file) => {
     const listeners = hardwareBackListeners(readFileSync(join(ROOT, file), "utf8"), file);
     expect(listeners.map(({ line: _line, ...rest }) => rest)).toEqual([
@@ -1167,31 +1167,58 @@ describe("인증 화면의 하드웨어 뒤로는 포커스된 동안만 듣고 
 // /esm 과 같은 모양이다. 요청이 응답을 기다리는 동안 하드웨어 뒤로가 goHome(POP_TO)
 // 으로 로그인 화면을 걷어내면 실패 안내는 사라진 화면으로 가고 입력한 주소도
 // 사라진다. 예전 push("/") 는 그 화면을 아래에 남겼다. 가입 화면은 actionLockRef 로
-// 이미 삼키고 있었고, 로그인은 같은 규칙을 authRequestsRef 로 따른다.
+// 이미 삼키고 있었고, 로그인은 같은 규칙을 authRequests 로 따른다.
+//
+// r4 의 모양(`if (authRequestsRef.current > 0) return true`)은 요청이 끝나지 않으면 뒤로를
+// 영영 삼켰다(게이트 NAV-R4-01). 지금은 `createRequestBackHold(limit)` 가 요청마다 제한
+// 시간까지만 붙든다(시간 동작은 save-exit-hold.test.ts). 여기서는 배선을 본다: 뒤로가
+// 읽는 붙들기가 제한 시간을 단 그 붙들기이고, 핸들러마다 첫 await 전에 등록해 finally 에서
+// 푼다.
 
 interface RequestHandler {
-  /** 첫 await 보다 먼저 잠금 ref 를 올리는가. 누른 그 프레임에 이미 걸려 있다. */
+  /** 첫 await 보다 먼저 요청을 등록하는가(`const end = X.begin()`). 누른 그 프레임에 이미 걸려 있다. */
   raisedBeforeAwait: boolean;
-  /** finally 에서 내리는가. 실패 · 예외에도 풀린다. */
+  /** 등록이 돌려준 해제 함수를 finally 에서 부르는가. 실패 · 예외에도 풀린다. */
   loweredInFinally: boolean;
 }
 
-/** 뒤로가 읽는 `if (X.current > 0) return true` 의 X 와, 비동기 핸들러마다 X 를 다루는 모양. */
-function requestLock(source: string, file: string): { ref: string | null; handlers: RequestHandler[] } {
+/**
+ * 뒤로가 읽는 `if (X.holding()) return true` 의 X, X 를 만든 `createRequestBackHold(limit)` 의
+ * limit, 그리고 비동기 핸들러마다 X 를 다루는 모양.
+ */
+function requestLock(
+  source: string,
+  file: string,
+): { hold: string | null; limit: string | null; handlers: RequestHandler[] } {
   const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  let ref: string | null = null;
+  let hold: string | null = null;
+  const created = new Map<string, string>();
   const asyncFns: (ts.ArrowFunction | ts.FunctionExpression)[] = [];
   const visit = (node: ts.Node) => {
     if (
       ts.isIfStatement(node) &&
       returnsTrue(node.thenStatement) &&
-      ts.isBinaryExpression(node.expression) &&
-      node.expression.operatorToken.kind === ts.SyntaxKind.GreaterThanToken &&
-      ts.isPropertyAccessExpression(node.expression.left) &&
-      node.expression.left.name.text === "current" &&
-      ts.isIdentifier(node.expression.left.expression)
+      ts.isCallExpression(node.expression) &&
+      node.expression.arguments.length === 0 &&
+      ts.isPropertyAccessExpression(node.expression.expression) &&
+      node.expression.expression.name.text === "holding" &&
+      ts.isIdentifier(node.expression.expression.expression)
     ) {
-      ref = node.expression.left.expression.text;
+      hold = node.expression.expression.expression.text;
+    }
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "createRequestBackHold") {
+      let declaration: ts.Node | undefined = node.parent;
+      while (declaration && !ts.isVariableDeclaration(declaration)) declaration = declaration.parent;
+      if (declaration && ts.isVariableDeclaration(declaration)) {
+        const binding = declaration.name;
+        const first = ts.isArrayBindingPattern(binding) ? binding.elements[0] : undefined;
+        const name = ts.isIdentifier(binding)
+          ? binding.text
+          : first && ts.isBindingElement(first) && ts.isIdentifier(first.name)
+            ? first.name.text
+            : null;
+        if (name) created.set(name, node.arguments[0]?.getText(sf) ?? "");
+      }
     }
     if (
       (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) &&
@@ -1202,17 +1229,31 @@ function requestLock(source: string, file: string): { ref: string | null; handle
     ts.forEachChild(node, visit);
   };
   visit(sf);
-  const target = `${ref}.current`;
+  const holdName: string | null = hold;
   const handlers = asyncFns.map((fn): RequestHandler => {
     let firstAwait = Infinity;
     let raisedAt = Infinity;
     let loweredInFinally = false;
-    const isStep = (node: ts.Node, op: ts.SyntaxKind) =>
-      ts.isBinaryExpression(node) && node.operatorToken.kind === op && node.left.getText(sf) === target;
+    const ends = new Set<string>();
+    const registers = (node: ts.Node): node is ts.VariableDeclaration =>
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      !!node.initializer &&
+      ts.isCallExpression(node.initializer) &&
+      node.initializer.arguments.length === 0 &&
+      ts.isPropertyAccessExpression(node.initializer.expression) &&
+      node.initializer.expression.name.text === "begin" &&
+      ts.isIdentifier(node.initializer.expression.expression) &&
+      node.initializer.expression.expression.text === holdName;
     const walk = (node: ts.Node, inFinally: boolean): void => {
       if (ts.isAwaitExpression(node)) firstAwait = Math.min(firstAwait, node.getStart(sf));
-      if (isStep(node, ts.SyntaxKind.PlusEqualsToken)) raisedAt = Math.min(raisedAt, node.getStart(sf));
-      if (inFinally && isStep(node, ts.SyntaxKind.MinusEqualsToken)) loweredInFinally = true;
+      if (registers(node)) {
+        raisedAt = Math.min(raisedAt, node.getStart(sf));
+        ends.add((node.name as ts.Identifier).text);
+      }
+      if (inFinally && ts.isCallExpression(node) && ts.isIdentifier(node.expression) && ends.has(node.expression.text)) {
+        loweredInFinally = true;
+      }
       if (ts.isTryStatement(node)) {
         walk(node.tryBlock, inFinally);
         if (node.catchClause) walk(node.catchClause, inFinally);
@@ -1226,33 +1267,66 @@ function requestLock(source: string, file: string): { ref: string | null; handle
     walk(fn.body, false);
     return { raisedBeforeAwait: raisedAt < firstAwait, loweredInFinally };
   });
-  return { ref, handlers };
+  return { hold: holdName, limit: holdName === null ? null : (created.get(holdName) ?? null), handlers };
 }
 
-describe("로그인은 요청이 응답을 기다리는 동안 뒤로를 삼킨다 (게이트 NAV-R3-01 과 같은 모양)", () => {
-  it("판정기: 첫 await 전에 올리고 finally 에서 내려야 한다", () => {
+describe("로그인은 요청이 응답을 기다리는 동안 뒤로를 삼킨다 - 요청마다 제한 시간까지 (게이트 NAV-R3-01 · NAV-R4-01)", () => {
+  it("판정기: 제한 시간을 단 붙들기를 읽고, 첫 await 전에 등록해 finally 에서 풀어야 한다", () => {
     const fixture = [
       "function F() {",
-      "  const onBack = () => { if (busy.current > 0) return true; goHome(); return true; };",
-      "  const good = async () => { busy.current += 1; try { await a(); } finally { busy.current -= 1; } };",
-      "  const late = async () => { try { await a(); busy.current += 1; } finally { busy.current -= 1; } };",
-      "  const leaks = async () => { busy.current += 1; try { await a(); busy.current -= 1; } catch {} };",
+      "  const [busy] = useState(() => createRequestBackHold(LIMIT));",
+      "  const cache = makeCache();",
+      "  const onBack = () => { if (busy.holding()) return true; goHome(); return true; };",
+      "  const good = async () => { const end = busy.begin(); try { await a(); } finally { end(); } };",
+      "  const late = async () => { await a(); const end = busy.begin(); try { await b(); } finally { end(); } };",
+      "  const leaks = async () => { const end = busy.begin(); try { await a(); end(); } catch {} };",
+      "  const other = async () => { const end = cache.begin(); try { await a(); } finally { end(); } };",
       "}",
     ].join("\n");
     expect(requestLock(fixture, "f.ts")).toEqual({
-      ref: "busy",
+      hold: "busy",
+      limit: "LIMIT",
       handlers: [
         { raisedBeforeAwait: true, loweredInFinally: true },
         { raisedBeforeAwait: false, loweredInFinally: true },
         { raisedBeforeAwait: true, loweredInFinally: false },
+        { raisedBeforeAwait: false, loweredInFinally: false },
       ],
     });
   });
 
-  it("useSignInForm: 로그인 · OAuth · 네이버 · 재설정 메일 넷 다 첫 await 전에 잠그고 finally 에서 푼다", () => {
+  it("판정기: r4 의 제한 없는 카운터(`ref.current > 0`)는 붙들기로 보지 않는다", () => {
+    const fixture = [
+      "function F() {",
+      "  const busy = useRef(0);",
+      "  const onBack = () => { if (busy.current > 0) return true; goHome(); return true; };",
+      "  const go = async () => { busy.current += 1; try { await a(); } finally { busy.current -= 1; } };",
+      "}",
+    ].join("\n");
+    expect(requestLock(fixture, "f.ts")).toEqual({
+      hold: null,
+      limit: null,
+      handlers: [{ raisedBeforeAwait: false, loweredInFinally: false }],
+    });
+  });
+
+  it("판정기: 제한 시간 없이 만든 붙들기는 limit 이 비고, 다른 이름의 붙들기는 잡히지 않는다", () => {
+    const base = [
+      "function F() {",
+      "  const [busy] = useState(() => createRequestBackHold(LIMIT));",
+      "  const onBack = () => { if (busy.holding()) return true; goHome(); return true; };",
+      "}",
+    ].join("\n");
+    expect(requestLock(base, "f.ts").limit).toBe("LIMIT");
+    expect(requestLock(base.replace("createRequestBackHold(LIMIT)", "makeHold()"), "f.ts").limit).toBeNull();
+    expect(requestLock(base.replace("const [busy]", "const [other]"), "f.ts").limit).toBeNull();
+  });
+
+  it("useSignInForm: 로그인 · OAuth · 네이버 · 재설정 메일 넷 다 첫 await 전에 등록하고 finally 에서 풀며, 붙들기는 SIGN_IN_LONG_WAIT_MS 까지다", () => {
     const file = "src/lib/auth/useSignInForm.ts";
     expect(requestLock(readFileSync(join(ROOT, file), "utf8"), file)).toEqual({
-      ref: "authRequestsRef",
+      hold: "authRequests",
+      limit: "SIGN_IN_LONG_WAIT_MS",
       handlers: Array.from({ length: 4 }, () => ({ raisedBeforeAwait: true, loweredInFinally: true })),
     });
   });
