@@ -30,7 +30,7 @@
     "thinking": "Preparando la siguiente pregunta…",
     "enough": "Parar aquí",
     "closing": "¿Quieres guardar lo que has contado hasta ahora?",
-    "dayLimit": "Por hoy es todo. Ya no quedan preguntas para hoy. Guarda lo que has contado hasta ahora y sigue mañana.",
+    "dayLimit": "Esta conversación termina aquí. Se alcanzó el límite de uso diario. Guarda lo que has contado hasta ahora y sigue más tarde.",
     "turnLabel": "Turno {{n}}",
     "loopNote": "Voy a cambiar de dirección un momento.",
     "failed": "No se pudo obtener la siguiente pregunta. Inténtalo de nuevo.",

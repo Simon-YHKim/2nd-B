@@ -321,6 +321,15 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     [locale, t],
   );
 
+  // 모델에 보내지 않고 화면이 발판으로 받는 답인가. `send()` 가 이걸로 막힘을 정하고,
+  // 건너뛰기 가드도 **같은 판정**으로 그런 답을 답으로 세지 않는다(session-end.ts).
+  // 둘이 갈라지면 "모르겠어요 → 건너뛰기" 교대가 다시 끝없이 길어진다(F2049-02).
+  const isLocalNonAnswer = useCallback(
+    (text: string, layer: DrillLayer | null | undefined): boolean =>
+      layer != null && (isBlockedAnswer(text) || !canCreditAnswer(text, layer, locale)),
+    [isBlockedAnswer, locale],
+  );
+
   // 이번 대화의 사용자 답변 -> 되묻기 판정의 재료. theme 를 시기로 두면
   // "같은 시기를 새 말 없이 계속 맴돈다" 가 잡힌다.
   const entriesOf = useCallback(
@@ -557,7 +566,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     //
     // 판정은 결정론적이고(`stuck.ts`) 보수적이다 -- 사용자가 스스로 포기를
     // 말했을 때만 안 셀다. 밝기가 LLM 의 기분에 달려서는 안 되기 때문이다.
-    const blocked = pendingLayer !== null && (isBlockedAnswer(text) || !canCreditAnswer(text, pendingLayer, locale));
+    const blocked = isLocalNonAnswer(text, pendingLayer);
     const nextCoverage = coverage;
     const nextStreak = blocked ? stuckStreak + 1 : 0;
     const stuck = blocked && pendingLayer ? { layer: pendingLayer, streak: nextStreak } : null;
@@ -583,7 +592,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     if (busy || ended.current) return;
     // 모델을 부르지 않는 길이라 서버 한도에 안 닿는다. 답 없이 연달아 붙은 질문만
     // 세서 막는다 -- 건너뛰기를 계속 눌러도 끝없이 길어지지 않게(session-end.ts).
-    if (localPromptsExhausted(turns)) {
+    // "모르겠어요"처럼 발판으로 받은 답은 답으로 세지 않는다 -- send() 와 같은 판정.
+    if (localPromptsExhausted(turns, (turn) => isLocalNonAnswer(turn.text, turn.layer))) {
       finish();
       return;
     }

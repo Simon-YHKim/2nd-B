@@ -23,7 +23,16 @@
 //     본문 `{ error: "daily_limit_exceeded" }`.
 //
 // 프록시는 목적별 몫을 먼저 본다. 그래서 인터뷰에서는 대개 그쪽이 먼저 닿는다.
-// 둘 다 "오늘은 더 못 한다"는 같은 뜻이라 같은 끝맺음으로 받는다.
+// 둘 다 "하루 한도에 닿았다"는 같은 뜻이라 같은 끝맺음으로 받는다.
+//
+// ⚠ 끝맺음 안내(`drill.dayLimit`)는 **재개 시각도, 받은 질문 수도 말하지 않는다**
+// (게이트 F2049-03, 2026-10-05). 두 카운터는 하루를 다르게 끊는다 -- 목적별 몫은
+// KST 자정, 지출 한도는 UTC 자정(KST 09:00)이다. KST 08:50 에 지출 한도로 거절돼도
+// 10분 뒤 풀리고, 다른 나라 사용자에게 KST 자정은 "내일"이 아니다. 그리고 목적별 몫은
+// 질문을 받은 횟수가 아니다 -- openai-proxy 는 몫을 먼저 쓰고 지출 · 처리량을 나중에
+// 보며, 처리량 거절의 환불은 지출 카운터만 돌려준다. 실패한 요청도 몫을 쓴다.
+// 그래서 안내는 "하루 사용 한도에 닿았다 · 나중에 이어서"까지만 말한다. 시각을 말하려면
+// 어느 카운터인지와 그 경계를 사용자 시간대로 바꿔 보여 줘야 하는데, 그건 이 판정 밖이다.
 //
 // ⚠ 같은 429 라도 `llm_capacity_exceeded`(전역 동시 처리량)는 하루 한도가 아니다.
 // 잠시 뒤면 풀리므로 여전히 "다시 시도" 오류다. 그걸 "내일 이어서"라고 말하면 거짓이다.
@@ -36,6 +45,15 @@
 // 세는 것은 **답 없이 연달아 붙은 질문 수**다. 답을 하나라도 하면 0 으로 돌아간다.
 // 예전 검사는 대화 전체의 질문 수를 셌다. 그러면 긴 대화 끝에서 건너뛰기 한 번이
 // 대화를 끊는다 -- 12턴 상한이 이름만 바꿔 남는 셈이라 그렇게 두지 않았다.
+//
+// ⚠ **"모르겠어요"와 너무 짧은 답은 답으로 세지 않는다** (게이트 F2049-02, 2026-10-05).
+// 화면은 그런 답을 모델에 보내지 않고 고정 발판 질문으로 받는다. 처음에는 사용자
+// 턴이면 무엇이든 0 으로 돌렸는데, 그러면 "모르겠어요 → 건너뛰기"를 번갈아 누르는
+// 것만으로 매번 0 이 됐다 -- 건너뛰기가 새 장면을 열며 막힘 횟수도 지우므로 발판 종료에도
+// 안 닿고, 모델도 안 불러 서버 한도에도 안 닿는다. 대화 배열만 끝없이 커진다.
+// 그래서 어느 사용자 턴이 "로컬에서 받은 답이 아닌 답"인지는 **화면이 정한다** -- 화면이
+// 모델에 보낼지 정할 때 쓰는 판정과 같은 것을 넘겨야 한다(`isLocalNonAnswer`). 그 턴은
+// 질문 수에 더하지도, 셈을 0 으로 돌리지도 않고 건너뛴다.
 
 /** 답 없이 연달아 붙을 수 있는 질문 수. 씨앗 질문 하나 + 건너뛰기 열한 번까지.
  *  값은 예전 `MAX_TURNS` 의 12 를 그대로 옮겼다. 바뀐 것은 무엇을 세느냐다. */
@@ -44,19 +62,36 @@ export const MAX_UNANSWERED_PROMPTS = 12;
 /** 이 화면이 부르는 LLM 목적. 프록시의 목적별 거절은 이 이름을 `feature` 로 돌려준다. */
 export const INTERVIEW_PURPOSE = "interview_probe";
 
-/** 마지막 사용자 답 뒤로 연달아 붙은 질문 수. 답이 하나도 없으면 전체 질문 수다. */
-export function unansweredPromptRun(turns: readonly { role: "interviewer" | "user" }[]): number {
+type GuardTurn = { role: "interviewer" | "user" };
+
+/**
+ * 마지막 실질 답 뒤로 연달아 붙은 질문 수. 실질 답이 하나도 없으면 전체 질문 수다.
+ *
+ * `isLocalNonAnswer` 가 true 인 사용자 턴(화면이 모델 없이 발판으로 받은 답)은 셈을
+ * 0 으로 돌리지 않는다. 판정을 일부러 필수로 받는다 -- 빠뜨리면 위 교대 반복이 다시 열린다.
+ */
+export function unansweredPromptRun<T extends GuardTurn>(
+  turns: readonly T[],
+  isLocalNonAnswer: (turn: T) => boolean,
+): number {
   let run = 0;
   for (let i = turns.length - 1; i >= 0; i -= 1) {
-    if (turns[i].role === "user") break;
+    const turn = turns[i];
+    if (turn.role === "user") {
+      if (isLocalNonAnswer(turn)) continue;
+      break;
+    }
     run += 1;
   }
   return run;
 }
 
 /** 모델을 부르지 않고 질문을 더 붙이면 안 되는가(건너뛰기 · 사실만). */
-export function localPromptsExhausted(turns: readonly { role: "interviewer" | "user" }[]): boolean {
-  return unansweredPromptRun(turns) >= MAX_UNANSWERED_PROMPTS;
+export function localPromptsExhausted<T extends GuardTurn>(
+  turns: readonly T[],
+  isLocalNonAnswer: (turn: T) => boolean,
+): boolean {
+  return unansweredPromptRun(turns, isLocalNonAnswer) >= MAX_UNANSWERED_PROMPTS;
 }
 
 /**
