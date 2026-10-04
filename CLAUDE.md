@@ -732,7 +732,7 @@ not eyeballing a mockup.
 **STALE — do not use as the reference for new work:** `legacy/design/*.dc.html` and the `legacy/docs/ui-audit/`
 trio (`DESIGN_INDEX.md` / `SCREEN_TREE_SPEC.md` / `CLONE_PROTOCOL.md`). Those are a pre-M3 snapshot
 (2026-06-24) from the deep-space cosmic-pixel era, superseded by the reference app above. They are
-kept for history. `SCREEN_TREE_SPEC.md`'s route table in particular is badly out of date (it lists
+kept for history **outside the repo**: `E:/Legacy/2ndB/legacy/design/` · `E:/Legacy/2ndB/legacy/docs/ui-audit/` 로 이동(2026-10-04). 같은 06월 핸드오프 묶음(`design/FIX_TASKS.md` · `DESIGN_AUDIT.md` · `screenshots/` · zip 둘)은 `E:/Legacy/2ndB/design/` 에 있고, 꺼내는 명령은 `E:/Legacy/2ndB/MANIFEST.jsonl` 의 `restore` 칸이다. `SCREEN_TREE_SPEC.md`'s route table in particular is badly out of date (it lists
 40 routes; **the app has 101** — `src/app` 아래 `.tsx` 105개에서 `_layout` 2개와 `+` 특수
 파일 2개를 뺀 수, 2026-09-19 실측(origin/main `d0929429`). 09-07 의 100 · 그 전의 85 는 낡은 값이다).
 
