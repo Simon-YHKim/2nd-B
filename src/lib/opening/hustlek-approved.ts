@@ -157,6 +157,15 @@ export function twinkleAt(elapsedMs: number): { x: number; y: number; width: num
   return rects;
 }
 
+// One fixed box for every character frame (Simon localhost QA 2026-10-04).
+// The observe frames are 480 px wide and the others 400 px. While the box
+// followed each frame, it widened at adjust-3 -> observe-1 one paint before the
+// new image was on screen, so adjust-3 was drawn 1.2x wide for a frame (web
+// 13-15 ms, Android emulator 86 ms) and read as a sudden eyepiece pose. The
+// slot keeps the widest frame's size; LoadingScreen draws each frame inside it
+// with contain + top-left, which lands exactly on `character` below.
+const CHARACTER_SLOT = { width: Math.max(...APPROVED_OPENING_CONFIG.frames.map(frame => frame.width)), height: Math.max(...APPROVED_OPENING_CONFIG.frames.map(frame => frame.height)) };
+
 export function getApprovedOpeningScene(elapsedMs: number, width: number, height: number) {
   const view = getApprovedOpeningFrame(elapsedMs), config = APPROVED_OPENING_CONFIG, layout = viewportLayout(width, height);
   const camera = cameraForViewport(cameraAt(view.elapsedMs), layout), unit = layout.unit;
@@ -166,9 +175,11 @@ export function getApprovedOpeningScene(elapsedMs: number, width: number, height
   const starFrame = ping && view.elapsedMs >= ping.startMs && view.elapsedMs < ping.startMs + ping.durationMs ? star.frames[Math.min(star.frames.length - 1, Math.floor((view.elapsedMs - ping.startMs) / ping.durationMs * star.frames.length))] : star.frames[0];
   const starUnit = layout.starScale * unit;
   const box = (p: Placement, w: number, h: number, source: number, zIndex: number): ApprovedOpeningBox => ({ left: (p.x - camera.x) * unit, top: (p.y - camera.y) * unit, width: w * p.scale * unit, height: h * p.scale * unit, source, zIndex });
+  const characterZ = view.frame.layer === "behind-telescope" ? 1 : 3;
   return { ...view, layout, camera,
     background: { left: -camera.x * unit, top: -camera.y * unit, width: config.scene.width * unit, height: config.scene.height * unit, source: SOURCES.background, zIndex: 0 },
-    character: box(placement, view.frame.width, view.frame.height, view.frame.source, view.frame.layer === "behind-telescope" ? 1 : 3),
+    character: box(placement, view.frame.width, view.frame.height, view.frame.source, characterZ),
+    characterSlot: box(placement, CHARACTER_SLOT.width, CHARACTER_SLOT.height, view.frame.source, characterZ),
     telescope: box(telescope, 256, 256, SOURCES.telescope, 2),
     star: { left: (star.x - camera.x) * unit - starFrame.size * starUnit / 2, top: (star.y - camera.y) * unit - starFrame.size * starUnit / 2, width: starFrame.size * starUnit, height: starFrame.size * starUnit, source: SOURCES[starFrame.id], zIndex: 4 },
     twinkle: { left: (star.x - camera.x) * unit - 64 * starUnit, top: (star.y - camera.y) * unit - 64 * starUnit, width: 128 * starUnit, height: 128 * starUnit, unit: starUnit, rects: twinkleAt(view.elapsedMs).map(rect => ({ left: (rect.x + 64) * starUnit, top: (rect.y + 64) * starUnit, width: rect.width * starUnit, height: rect.height * starUnit, color: rect.color, alpha: rect.alpha })) as ApprovedTwinkleRect[] },

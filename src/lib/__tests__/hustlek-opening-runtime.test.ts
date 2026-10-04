@@ -145,6 +145,9 @@ describe("approved opening screen", () => {
     expect(source).toContain('from "expo-image"'); expect(source).toContain('cachePolicy="memory-disk"'); expect(source).toContain("transition={0}");
     expect(source).toContain("soundRef.current.stop()"); expect(source).toContain("clock.current.pause()"); expect(source).not.toContain("hustlek-opening-v2.json");
     for (const id of ["opening-background", "opening-telescope", "opening-character", "opening-polaris", "opening-skip"]) expect(source).toContain(`testID="${id}"`);
+    // The character draws in the fixed slot, never in its per-frame box (stretched adjust-3, 2026-10-04).
+    expect(source).toContain('<SceneImage box={scene.characterSlot} fit="contain" testID="opening-character"');
+    expect(source).not.toContain("box={scene.character} ");
     expect(source).toContain('{sceneVisible ? <Pressable testID="opening-skip"');
     // The one wait that remains (after the opening, app not ready) is the app-wide loader.
     expect(source).toContain('<DeepSpaceLoader variant="dots" caption={t("loadingGate.loading")} />');
