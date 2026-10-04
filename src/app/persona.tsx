@@ -205,7 +205,7 @@ function PersonaLegacy() {
     if (builtKey.current === buildKey) return;
     builtKey.current = buildKey;
     function runBuild() {
-      if (!userId) return;
+      if (!userId || isMinor === null) return; // the function that builds checks the age itself (C10 call-site check)
       setBuilding(true);
       setBuildError(false);
       buildPersona(userId, locale, isMinor === true)

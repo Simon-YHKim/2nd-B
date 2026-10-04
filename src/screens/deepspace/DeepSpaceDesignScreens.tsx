@@ -2611,7 +2611,7 @@ const FORMAT_CARDS: { id: ExportFormat; name: string; descKey: string }[] = [
 
 export function DeepSpaceFormatsScreen() {
   const { t, i18n } = useTranslation("deepspace");
-  const { userId, loading: authLoading } = useAuth();
+  const { userId, loading: authLoading, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [format, setFormat] = useState<ExportFormat>("iden");
@@ -2621,22 +2621,27 @@ export function DeepSpaceFormatsScreen() {
   const [note, setNote] = useState<"copied" | "copyFailed" | "error" | null>(null);
 
   async function runExport() {
-    if (!userId || exporting) return;
+    // C10 / DPIA 5A-R7: .iden, HTML and JSON all build the persona (exportIden /
+    // buildIdenDoc -> buildPersona -> callLlm persona_narrative), and its crisis output
+    // picks the hotline from `minor`. These calls used to pass no age, so buildIdenDoc
+    // fell back to adult routing for a minor (QA 261004 L1-07). Same contract as /review:
+    // nothing builds while the age is unresolved, then the resolved age goes along.
+    if (!userId || isMinor === null || exporting) return;
     setExporting(true);
     setResult(null);
     setNote(null);
     try {
       if (format === "iden") {
-        const r = await exportIden(userId, { locale });
+        const r = await exportIden(userId, { locale, minor: isMinor === true });
         setResult({ text: r.iden, name: r.idenFilename });
       } else if (format === "html") {
-        const r = await exportIden(userId, { locale });
+        const r = await exportIden(userId, { locale, minor: isMinor === true });
         setResult({ text: r.html, name: r.htmlFilename });
       } else if (format === "markdown") {
         const r = await exportUserWiki(userId, { locale, includeRecords });
         setResult({ text: r.prompt, name: "polascope-wiki.md" });
       } else {
-        const doc = await buildIdenDoc(userId, { locale });
+        const doc = await buildIdenDoc(userId, { locale, minor: isMinor === true });
         setResult({ text: JSON.stringify(doc, null, 2), name: "polascope-iden.json" });
       }
     } catch {
@@ -2723,7 +2728,13 @@ export function DeepSpaceFormatsScreen() {
           <Text variant="subtle" style={styles.footer}>{t("formats.scope3MarkdownOnly")}</Text>
         )}
       </Card>
-      <Pressable style={[styles.soulPrimary, exporting && { opacity: 0.6 }]} onPress={() => void runExport()} disabled={exporting}>
+      <Pressable
+        style={[styles.soulPrimary, (exporting || isMinor === null) && { opacity: 0.6 }]}
+        onPress={() => void runExport()}
+        disabled={exporting || isMinor === null}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: exporting || isMinor === null }}
+      >
         <Text variant="caption" style={styles.primaryText}>{exporting ? t("formats.exporting") : t("formats.export")}</Text>
       </Pressable>
       {note === "error" ? <Text variant="body" style={styles.opsReason}>{t("formats.exportError")}</Text> : null}
