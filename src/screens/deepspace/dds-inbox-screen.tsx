@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import {
   countPendingProposals,
   countRespondedPeerInvites,
+  countUnreadSources,
   inboxAuthGate,
   InboxSignalSession,
   openInboxRoute,
@@ -26,8 +27,10 @@ import { listPeerInvites, type PeerInvitation } from "@/lib/peer/invite";
 import { m3 } from "@/lib/theme/m3";
 import {
   listInferredLinkDetails,
+  listSources,
   type InferredLinkDetail,
 } from "@/lib/wiki/queries";
+import type { SourceRow } from "@/lib/wiki/types";
 import { m3TextStyle } from "@/components/m3";
 
 const READERS = {
@@ -39,11 +42,20 @@ const READERS = {
     read: (ownerId: string) => listPeerInvites(ownerId),
     count: countRespondedPeerInvites,
   },
+  // 아직 위키 페이지가 안 된 가져온 자료. 이 줄이 생기기 전까지 가져온 자료는 저장은
+  // 되는데 그것을 띄우는 화면으로 가는 길이 배송 허브에 없었다(#1796 은 그림자 허브
+  // 사본에만 들어갔다, qa261004 L1-20). 허브는 목록을 열지 않는다 - 한 줄로 알리고
+  // /sources 로 넘긴다(화면 하나에 메시지 하나 · O-7). 상한 100 은 그 사본과 같다.
+  sources: {
+    read: (ownerId: string) => listSources(ownerId, { ingested: false, limit: 100 }),
+    count: countUnreadSources,
+  },
 };
 
 const INITIAL_SNAPSHOT: InboxSignalSnapshot = {
   proposals: { status: "loading" },
   peers: { status: "loading" },
+  sources: { status: "loading" },
 };
 
 function Frame({ children, title }: { children: ReactNode; title: string }) {
@@ -123,7 +135,7 @@ function SignalCard({
   route,
   onOpen,
 }: {
-  icon: "link" | "forum";
+  icon: "link" | "forum" | "inbox";
   title: string;
   body: string;
   cta: string;
@@ -143,7 +155,7 @@ function SignalCard({
         <PixelSurface variant="inset" style={styles.iconSurface} contentStyle={styles.iconContent}>
           <PixelGlyph
             name={icon}
-            color={icon === "link" ? m3.color.primary : m3.color.tertiary}
+            color={icon === "forum" ? m3.color.tertiary : m3.color.primary}
             size={24}
           />
         </PixelSurface>
@@ -163,7 +175,7 @@ function SignalCard({
 function InboxReady({ userId }: { userId: string }) {
   const { t } = useTranslation("deepspace");
   const [snapshot, setSnapshot] = useState<InboxSignalSnapshot>(INITIAL_SNAPSHOT);
-  const sessionRef = useRef<InboxSignalSession<InferredLinkDetail, PeerInvitation> | null>(null);
+  const sessionRef = useRef<InboxSignalSession<InferredLinkDetail, PeerInvitation, SourceRow> | null>(null);
   if (sessionRef.current === null) {
     sessionRef.current = new InboxSignalSession(READERS, setSnapshot);
   }
@@ -191,12 +203,23 @@ function InboxReady({ userId }: { userId: string }) {
   const sourceLabel = {
     proposals: t("ds.inbox.proposalsTitle"),
     peers: t("ds.inbox.peerTitle"),
+    sources: t("ds.inbox.sourcesTitle"),
   };
 
   return (
     <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
       <RNText style={[m3TextStyle("headlineSmall"), styles.pageTitle]}>{t("ds.inbox.title")}</RNText>
       <View style={styles.stack}>
+        {snapshot.sources.status === "ready" ? (
+          <SignalCard
+            icon="inbox"
+            title={sourceLabel.sources}
+            body={t("ds.inbox.sourcesBody", { n: summary.sourceCount })}
+            cta={t("ds.inbox.sourcesCta")}
+            route="/sources"
+            onOpen={open}
+          />
+        ) : null}
         {snapshot.proposals.status === "ready" ? (
           <SignalCard
             icon="link"
@@ -215,6 +238,18 @@ function InboxReady({ userId }: { userId: string }) {
             cta={t("ds.inbox.peerCta")}
             route="/peer-invites"
             onOpen={open}
+          />
+        ) : null}
+
+        {snapshot.sources.status === "loading" ? (
+          <LoadingSurface label={`${sourceLabel.sources}. ${t("star.loading")}`} />
+        ) : snapshot.sources.status === "error" || snapshot.sources.status === "timeout" ? (
+          <ErrorSurface
+            state={snapshot.sources}
+            sourceLabel={sourceLabel.sources}
+            message={t("star.loadError")}
+            retryLabel={t("star.retry")}
+            onRetry={() => retry("sources")}
           />
         ) : null}
 
