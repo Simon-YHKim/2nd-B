@@ -480,7 +480,7 @@ export async function nextProbe(
   // 구조화 출력이 깨져도 화면이 멈추지 않게 원문 첫 줄로 떨어진다.
   // 그 아래 대체 문장까지 있으니 두 겹이다.
   // ⚠ `callLlm` 은 스키마를 줘도 **문자열**을 돌려준다. 파싱은 부르는 쪽 몫이다
-  // (`audit/axis-estimate.ts` 가 같은 관용구를 쓴다). 실측 2026-08-24: 여기서
+  // (`persona/northstar.ts` 도 같은 관용구를 쓴다). 실측 2026-08-24: 여기서
   // 파싱된 객체를 기대했더니 `bodyType:"string"` 이라 판정이 통째로 버려졌고,
   // 겉으로는 그냥 "거부권이 안 걸리네" 로만 보였다.
   const parsed = parseProbeReply(typeof res.text === "string" ? res.text : "");

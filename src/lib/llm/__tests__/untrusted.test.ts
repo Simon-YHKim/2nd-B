@@ -73,7 +73,6 @@ const FENCED_SURFACES = [
   "src/lib/persona/propose-self-model.ts", // self_model_propose: evidence
   "src/lib/persona/build.ts", // persona_narrative: record bodies
   "src/lib/persona/persona-synthesis.ts", // persona_synthesis: tags + labels
-  "src/lib/audit/axis-estimate.ts", // axis_estimate: answer digest
   "src/lib/ops/recommend.ts", // ops_recommend: wiki snapshot
   "src/lib/ops/daily-brief.ts", // ops_daily_brief: wiki snapshot
   "src/lib/wiki/phase1.ts", // source_ingest: clipped page body
@@ -91,6 +90,12 @@ const FENCED_SURFACES = [
 // `@/lib/wiki/import-external` 의 소비자가 0 이 됐다 — 그래서 이 줄은 실제 표면이
 // 아니라 은퇴한 표면을 지키고 있었다. 프롬프트 쪽 fence 는 위의
 // import-external.ts 항목이 계속 지킨다. 호출자가 돌아오면 이 줄도 돌아와야 한다.
+//
+// ⚠ `src/lib/audit/axis-estimate.ts`(axis_estimate: answer digest)도 여기 있었다.
+// 뺀 이유는 위와 같다: 표면 자체가 없어졌다(Simon 결정 Q-261004-23, 2026-10-05).
+// 2026-07-05 #745 가 AxisCheck 화면에서 호출을 걷어낸 뒤 배송 앱에서 한 번도 돌지
+// 않았는데, 이 목록은 그 fence 를 계속 "지키는 중"으로 세고 있었다. 파일은
+// E:/Legacy/2ndB/src/lib/audit/ 로 옮겼다. 호출자가 돌아오면 이 줄도 돌아와야 한다.
 
 describe("fence coverage", () => {
   const repoRoot = path.resolve(__dirname, "../../../..");
