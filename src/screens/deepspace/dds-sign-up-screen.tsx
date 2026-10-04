@@ -3,7 +3,7 @@ import { Platform, ScrollView, StyleSheet, TextInput, View } from "react-native"
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { RedirectHome } from "@/lib/nav/go-home";
+import { goHome, RedirectHome } from "@/lib/nav/go-home";
 import { BirthDateField } from "@/components/auth/BirthDateField";
 import { ResidenceCountryField } from "@/components/auth/ResidenceCountryField";
 import { SecondbHead } from "@/components/deepspace";
@@ -134,7 +134,7 @@ export function DeepSpaceSignUpDesignScreen() {
         <PixelPressable
           variant="frame"
           onPress={() => {
-            if (canLeaveGate()) router.push("/");
+            if (canLeaveGate()) goHome();
           }}
           disabled={actionBusy}
           accessibilityLabel={t("common:navGraph.drilldown.back")}

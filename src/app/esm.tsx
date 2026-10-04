@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { PremiumAppShell, PremiumButton, PremiumCard, SceneHero, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useAppRouter } from "@/lib/nav/phone-embed";
+import { useGoHome } from "@/lib/nav/go-home";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { m3 } from "@/lib/theme/m3";
 import { cosmic, deepSpace, flattenAlpha, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -23,7 +23,7 @@ const CONTEXT_TAGS = ["alone", "with_people", "work_study", "moving", "resting",
 
 function EsmCheckInScreen() {
   // Phone-aware: inside the dashboard phone the home link goes through the phone.
-  const router = useAppRouter();
+  const goHome = useGoHome();
   const { t } = useTranslation("esm");
   const { userId, loading: authLoading } = useAuth();
 
@@ -204,7 +204,7 @@ function EsmCheckInScreen() {
             <PremiumButton
               label={t("actions.backHome")}
               variant="ghost"
-              onPress={() => router.push("/")}
+              onPress={goHome}
               full
               accessibilityHint={t("actions.backHomeHint")}
             />

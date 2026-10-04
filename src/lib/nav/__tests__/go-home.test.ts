@@ -11,8 +11,9 @@
 //   4. 계정이 바뀐 뒤 다시 쓰는 홈(게이트 NS-01 반박): 칸은 같아도 화면은 새로
 //      마운트된다는 전제가 정말 서 있는가.
 //   5. 배송 코드: 홈을 쌓는 이동(`<Redirect>` · `<Link>` · push · replace ·
-//      navigate)이 정확한 개수 명단 밖으로 늘지 않고, 칸을 막는 가드는 전부
-//      goHome 에 이름을 올린다.
+//      navigate)이 자리(파일 · 컴포넌트 · 감싼 조건 · 앞 문장)까지 고정한 명단
+//      밖으로 늘지 않고(홈 push 는 0), 칸을 막는 가드는 전부 goHome 에 이름을
+//      올리며, 인증 화면의 하드웨어 뒤로는 포커스된 동안만 듣는다(게이트 NS-04 r2).
 //
 // 렌더 테스트는 이 저장소에서 막혀 있어(RN 0.85) 소스는 TypeScript AST 로 읽는다.
 // 주석은 AST 에 없으므로 설명문이 증거로 읽히지 않는다.
@@ -99,7 +100,7 @@ interface StackState {
 }
 
 const ROOT = process.cwd();
-const ROUTE_NAMES = ["index", "canon", "settings", "account", "audit", "result", "(auth)"];
+const ROUTE_NAMES = ["index", "canon", "settings", "account", "audit", "esm", "result", "(auth)"];
 const AUTH_NAMES = ["sign-in", "reset-password"];
 const OPTIONS = { routeNames: ROUTE_NAMES, routeParamList: {}, routeGetIdList: {} };
 
@@ -165,6 +166,33 @@ describe("POP_TO 는 홈을 하나로 남긴다 (expo-router 56 StackRouter)", (
     expect(next?.routes.map((r) => r.name)).toEqual(["index", "index"]);
     expect(next?.routes[0].key).toBe("index-k0");
     expect(next?.routes[1].key).not.toBe("index-k0");
+  });
+
+  // 게이트 NS-04 r2: `/` → `/audit` → 화면 안의 '뒤로'(예전 push("/")) 를 되풀이하면
+  // [홈, audit, 홈, audit, 홈 …] 이 되어 D-01 의 OOM 경로가 그대로 돌아온다. /esm 도 같다.
+  it("audit · esm 왕복을 열 번 되풀이해도 홈은 하나다 - 대조군 PUSH 는 왕복마다 홈이 하나씩 쌓인다", () => {
+    const pushTo = (name: string) => ({ type: "PUSH", target: "root", payload: { name, params: {} } });
+    const homes = (state: StackState | null) => state?.routes.filter((r) => r.name === "index").length;
+    let fixed: StackState | null = stack(HOME);
+    let before: StackState | null = stack(HOME);
+    for (let round = 0; round < 10; round++) {
+      const screen = round % 2 === 0 ? "audit" : "esm";
+      fixed = router.getStateForAction(router.getStateForAction(fixed!, pushTo(screen), OPTIONS)!, POP_TO_HOME, OPTIONS);
+      before = router.getStateForAction(router.getStateForAction(before!, pushTo(screen), OPTIONS)!, pushTo("index"), OPTIONS);
+    }
+    expect(keysOf(fixed)).toEqual(["index-k0"]);
+    expect(homes(before)).toBe(11);
+    expect(before?.routes).toHaveLength(21);
+  });
+
+  it("이미 홈이 둘인 스택에서도 goHome 은 홈을 늘리지 않는다 - 가장 가까운 홈으로 돌아갈 뿐이다", () => {
+    // POP_TO 는 가장 가까운 홈만 찾으므로 그 아래의 홈을 걷지는 않는다(지적 그대로).
+    // 그래서 지키는 것은 '중복을 만드는 길이 배송 코드에 없다' 쪽이다 - 아래
+    // "배송 코드에서 홈으로 가는 길" 이 push 0 · replace 는 칸 하나일 때만으로 묶는다.
+    const dup = stack(HOME, AUDIT, { key: "index-k2", name: "index" }, { key: "esm-k3", name: "esm" });
+    const next = router.getStateForAction(dup, POP_TO_HOME, OPTIONS);
+    expect(keysOf(next)).toEqual(["index-k0", "audit-k1", "index-k2"]);
+    expect(next?.routes.filter((r) => r.name === "index")).toHaveLength(2);
   });
 });
 
@@ -416,6 +444,57 @@ type HomeNavKind = "Redirect" | "Link" | "push" | "replace" | "navigate";
 interface HomeNav {
   line: number;
   kind: HomeNavKind;
+  /** 가장 바깥 함수(컴포넌트 · 훅)의 이름. 모듈 최상위면 "(module)". */
+  owner: string;
+  /** 이 이동을 감싼 가장 가까운 조건: `then:<조건>` · `else:<조건>` · `and:<조건>`. 없으면 "". */
+  guard: string;
+  /** 같은 블록에서 바로 앞 문장(공백 정규화). 없으면 "". */
+  before: string;
+}
+
+const squash = (text: string) => text.replace(/\s+/g, " ").trim();
+
+/** 가장 바깥의 함수 노드와 그 이름(아래 NS-02 판정기와 같은 규칙). */
+function outermostOwner(node: ts.Node, sf: ts.SourceFile): string {
+  let found: ts.Node | null = null;
+  for (let current: ts.Node | undefined = node.parent; current; current = current.parent) {
+    if (ts.isFunctionDeclaration(current) || ts.isArrowFunction(current) || ts.isFunctionExpression(current)) found = current;
+  }
+  if (!found) return "(module)";
+  if (ts.isFunctionDeclaration(found) && found.name) return found.name.text;
+  if (found.parent && ts.isVariableDeclaration(found.parent)) return found.parent.name.getText(sf);
+  return "(anonymous)";
+}
+
+/** 이 노드를 가지 하나에 담은 가장 가까운 조건. canGoBack() 가지에서 꺼내면 바뀐다. */
+function nearestGuard(node: ts.Node, sf: ts.SourceFile): string {
+  let child: ts.Node = node;
+  for (let current = node.parent; current && !ts.isSourceFile(current); child = current, current = current.parent) {
+    if (ts.isIfStatement(current) && child !== current.expression) {
+      return `${child === current.thenStatement ? "then" : "else"}:${squash(current.expression.getText(sf))}`;
+    }
+    if (ts.isConditionalExpression(current) && child !== current.condition) {
+      return `${child === current.whenTrue ? "then" : "else"}:${squash(current.condition.getText(sf))}`;
+    }
+    if (
+      ts.isBinaryExpression(current) &&
+      current.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken &&
+      child === current.right
+    ) {
+      return `and:${squash(current.left.getText(sf))}`;
+    }
+  }
+  return "";
+}
+
+/** 이동이 문장 하나로 블록 안에 있으면 바로 앞 문장(예: 계정 전환의 dismissAll()). */
+function statementBefore(node: ts.Node, sf: ts.SourceFile): string {
+  const statement = node.parent;
+  if (!statement || !ts.isExpressionStatement(statement)) return "";
+  const block = statement.parent;
+  if (!block || !(ts.isBlock(block) || ts.isSourceFile(block))) return "";
+  const at = block.statements.indexOf(statement);
+  return at > 0 ? squash(block.statements[at - 1].getText(sf)) : "";
 }
 
 function unwrap(node: ts.Expression): ts.Expression {
@@ -463,15 +542,18 @@ function homeTarget(node: ts.Expression | undefined, homeNames: ReadonlySet<stri
  *
  * - `<Redirect>` · `<Link>`: expo-router 에서 가져온 이름(별칭 포함)과 맨 이름.
  * - `X.push / replace / navigate(홈)`: X 가 expo-router 의 `router`(별칭 포함),
- *   `use…Router()` 의 결과, 또는 이름이 `router` 인 값일 때. 문자열의
- *   `.replace("/", …)` 는 받는 쪽이 라우터가 아니라 잡지 않는다.
+ *   `use…Router()` 의 결과(훅을 별칭으로 가져와도 - 가져온 이름으로 본다), 또는
+ *   이름이 `router` 인 값일 때. 문자열의 `.replace("/", …)` 는 받는 쪽이 라우터가
+ *   아니라 잡지 않는다.
  * - `dismissTo` 는 홈을 쌓지 않으므로 세지 않는다(goHome 의 정체다).
  */
 function homeNavigations(source: string, file: string): HomeNav[] {
   const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const tags = new Map<string, HomeNavKind>([["Redirect", "Redirect"], ["Link", "Link"]]);
   const routers = new Set<string>(["router"]);
+  const routerHooks = new Set<string>();
   const homeNames = new Set<string>();
+  const isRouterHook = (name: string) => routerHooks.has(name) || /^use\w*Router$/.test(name);
 
   for (const statement of sf.statements) {
     if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
@@ -485,6 +567,8 @@ function homeNavigations(source: string, file: string): HomeNav[] {
         if (imported === "Redirect" || imported === "Link") tags.set(local, imported);
         if (imported === "router") routers.add(local);
       }
+      // useRouter · useAppRouter 를 어떤 이름으로 가져와도 그 결과는 라우터다.
+      if (/^use\w*Router$/.test(imported)) routerHooks.add(local);
       if (/(^|\/)go-home$/.test(from) && imported === "HOME_HREF") homeNames.add(local);
     }
   }
@@ -492,7 +576,7 @@ function homeNavigations(source: string, file: string): HomeNav[] {
     if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
       const init = unwrap(node.initializer);
       if (homeTarget(init, new Set())) homeNames.add(node.name.text);
-      if (ts.isCallExpression(init) && ts.isIdentifier(init.expression) && /^use\w*Router$/.test(init.expression.text)) {
+      if (ts.isCallExpression(init) && ts.isIdentifier(init.expression) && isRouterHook(init.expression.text)) {
         routers.add(node.name.text);
       }
     }
@@ -501,7 +585,13 @@ function homeNavigations(source: string, file: string): HomeNav[] {
   collect(sf);
 
   const hits: HomeNav[] = [];
-  const lineOf = (node: ts.Node) => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+  const hit = (node: ts.Node, kind: HomeNavKind): HomeNav => ({
+    line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
+    kind,
+    owner: outermostOwner(node, sf),
+    guard: nearestGuard(node, sf),
+    before: statementBefore(node, sf),
+  });
   const visit = (node: ts.Node) => {
     if (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) {
       const kind = tags.get(node.tagName.getText(sf));
@@ -510,7 +600,7 @@ function homeNavigations(source: string, file: string): HomeNav[] {
       );
       const init = href?.initializer;
       const expr = init && ts.isJsxExpression(init) ? init.expression : init && ts.isStringLiteral(init) ? init : undefined;
-      if (kind && homeTarget(expr, homeNames)) hits.push({ line: lineOf(node), kind });
+      if (kind && homeTarget(expr, homeNames)) hits.push(hit(node, kind));
     }
     if (
       ts.isCallExpression(node) &&
@@ -520,7 +610,7 @@ function homeNavigations(source: string, file: string): HomeNav[] {
     ) {
       const method = node.expression.name.text;
       if ((method === "push" || method === "replace" || method === "navigate") && homeTarget(node.arguments[0], homeNames)) {
-        hits.push({ line: lineOf(node), kind: method });
+        hits.push(hit(node, method));
       }
     }
     ts.forEachChild(node, visit);
@@ -529,53 +619,118 @@ function homeNavigations(source: string, file: string): HomeNav[] {
   return hits;
 }
 
-/** 배송 코드(src, 테스트 · 안 그려지는 반쪽 제외)의 파일별 · 종류별 개수. */
-function shippedHomeNavigations(): Record<string, Partial<Record<HomeNavKind, number>>> {
-  const hidden = unrenderedLine();
-  const counts: Record<string, Partial<Record<HomeNavKind, number>>> = {};
-  for (const file of sourceFiles(join(ROOT, "src"))) {
-    for (const hit of homeNavigations(readFileSync(join(ROOT, file), "utf8"), file)) {
-      if (hidden(file, hit.line)) continue;
-      const entry = (counts[file] ??= {});
-      entry[hit.kind] = (entry[hit.kind] ?? 0) + 1;
-    }
-  }
-  return counts;
+interface HomeNavOccurrence {
+  file: string;
+  kind: HomeNavKind;
+  owner: string;
+  guard: string;
+  before: string;
 }
 
+const occurrenceId = (o: HomeNavOccurrence) => `${o.file} | ${o.kind} | ${o.owner} | ${o.guard} | ${o.before}`;
+
+/** 배송 코드(src, 테스트 · 안 그려지는 반쪽 제외)의 홈 이동 하나하나. 줄 번호는 빼고 자리로 적는다. */
+function shippedHomeNavigations(): string[] {
+  const hidden = unrenderedLine();
+  const out: string[] = [];
+  for (const file of sourceFiles(join(ROOT, "src"))) {
+    for (const { line, ...rest } of homeNavigations(readFileSync(join(ROOT, file), "utf8"), file)) {
+      if (hidden(file, line)) continue;
+      out.push(occurrenceId({ file, ...rest }));
+    }
+  }
+  return out.sort();
+}
+
+const CAN_GO_BACK_ELSE = "else:router.canGoBack()";
+
 /**
- * 아직 남은, 홈을 쌓을 수 있는 이동. **파일이 아니라 개수로** 묶는다 - 이미
- * 이름이 오른 파일 안에서 하나가 늘어도 빨개진다. 줄면 여기서 같이 줄인다.
+ * 아직 남은, 홈을 쌓을 수 있는 이동. **개수가 아니라 자리로** 묶는다 - 파일 ·
+ * 종류 · 그 이동이 사는 컴포넌트(가장 바깥 함수) · 감싼 조건 · 바로 앞 문장.
+ * 같은 파일 안에서 안전한 자리(canGoBack() 이 거짓일 때만)를 지우고 조건 없는
+ * 자리를 하나 넣으면 개수는 같아도 자리가 달라서 빨개진다. 줄면 여기서 같이 지운다.
  *
- * 남은 것은 세 부류다.
+ * 남은 것은 두 부류다. push 는 하나도 없다(2026-10-05 게이트 r2 에서 다섯을 전부
+ * goHome / useGoHome 으로 옮겼다).
  * - 뒤로 갈 곳이 없을 때만 부르는 `canGoBack() ? back() : replace("/")` 꼴.
  *   스택에 칸이 하나뿐이라 replace 가 만드는 홈은 정확히 하나다.
  * - 스택에 칸이 하나뿐인 것이 구조로 정해진 자리(계정 전환 해소 · 웹 전용
  *   외부 리디렉트 착지)와 런타임에 고르지 않는 레거시 반쪽.
- * - push 하는 자리 다섯(D-01 판정 범위 밖, 2026-10-04 첫 라운드에서 명단에 묶음).
  */
-const KNOWN_HOME_NAVIGATIONS: Readonly<Record<string, Partial<Record<HomeNavKind, number>> & { why: string }>> = {
-  "src/app/(auth)/oauth-callback.tsx": {
-    replace: 1,
+const KNOWN_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] = [
+  {
+    file: "src/app/(auth)/oauth-callback.tsx",
+    kind: "replace",
+    owner: "OAuthCallback",
+    guard: "then:!cancelled",
+    before: "",
     why: "네이버 OAuth 착지. 파일 머리가 밝히듯 웹 전용이고, 외부 리디렉트로 앱을 새로 띄운 자리라 칸이 하나다.",
   },
-  "src/app/(auth)/reset-password.tsx": {
-    replace: 1,
+  {
+    file: "src/app/(auth)/reset-password.tsx",
+    kind: "replace",
+    owner: "ResetPasswordLegacy",
+    guard: "then:complete",
+    before: "",
     why: "ResetPasswordLegacy 안. 기본 export 가 recoverySafetyPinsPixelClay=true 로 런타임에 고르지 않는다(판정기 밖의 꼴).",
   },
-  "src/app/_layout.tsx": { replace: 1, why: "계정 전환 해소: 바로 앞의 dismissAll() 로 칸이 하나뿐일 때만 replace." },
-  "src/app/audit.tsx": { push: 1, why: "검사 화면 안의 '뒤로' 버튼(push). 미저장 응답 가드는 useGoHomeStop 이 따로 본다." },
-  "src/app/esm.tsx": { push: 1, why: "경험 표집 화면의 '홈으로' 버튼(push)." },
-  "src/components/deep-space/PolarisCardOverlay.tsx": { replace: 1, why: "canGoBack() 이 거짓일 때만 - 칸 하나." },
-  "src/components/deep-space/ProfileProbeRetry.tsx": { replace: 1, why: "canGoBack() 이 거짓일 때만 - 칸 하나." },
-  "src/lib/auth/useSignInForm.ts": { push: 1, why: "로그인 화면의 안드로이드 뒤로(게스트, push). 게스트 홈은 다시 /sign-in 으로 보낸다." },
-  "src/lib/auth/useSignUpForm.ts": { push: 1, why: "가입 화면의 안드로이드 뒤로(게스트, push). 위와 같다." },
-  "src/screens/deepspace/dds-consent-notice-screen.tsx": { replace: 1, why: "canGoBack() 이 거짓일 때만 - 칸 하나." },
-  "src/screens/deepspace/dds-legal-doc-screen.tsx": { replace: 1, why: "canGoBack() 이 거짓일 때만 - 칸 하나." },
-  "src/screens/deepspace/dds-manual-screen.tsx": { replace: 1, why: "상단 뒤로: canGoBack() 이 거짓일 때만 - 칸 하나." },
-  "src/screens/deepspace/dds-profile-screen.tsx": { replace: 1, why: "canGoBack() 이 거짓일 때만 - 칸 하나." },
-  "src/screens/deepspace/dds-sign-up-screen.tsx": { push: 1, why: "가입 화면 상단의 뒤로(게스트, push). signup-required-acks 가 지킨다." },
-};
+  {
+    file: "src/app/_layout.tsx",
+    kind: "replace",
+    owner: "PendingAccountTransitionResolver",
+    guard: "then:shouldDispatch",
+    before: "router.dismissAll();",
+    why: "계정 전환 해소: 바로 앞의 dismissAll() 로 칸이 하나뿐일 때만 replace.",
+  },
+  {
+    file: "src/components/deep-space/PolarisCardOverlay.tsx",
+    kind: "replace",
+    owner: "PolarisCardOverlay",
+    guard: CAN_GO_BACK_ELSE,
+    before: "",
+    why: "canGoBack() 이 거짓일 때만 - 칸 하나.",
+  },
+  {
+    file: "src/components/deep-space/ProfileProbeRetry.tsx",
+    kind: "replace",
+    owner: "useBackOrHome",
+    guard: CAN_GO_BACK_ELSE,
+    before: "",
+    why: "canGoBack() 이 거짓일 때만 - 칸 하나.",
+  },
+  {
+    file: "src/screens/deepspace/dds-consent-notice-screen.tsx",
+    kind: "replace",
+    owner: "DeepSpaceConsentNoticeScreen",
+    guard: CAN_GO_BACK_ELSE,
+    before: "",
+    why: "canGoBack() 이 거짓일 때만 - 칸 하나.",
+  },
+  {
+    file: "src/screens/deepspace/dds-legal-doc-screen.tsx",
+    kind: "replace",
+    owner: "DeepSpaceLegalDocScreen",
+    guard: CAN_GO_BACK_ELSE,
+    before: "",
+    why: "canGoBack() 이 거짓일 때만 - 칸 하나.",
+  },
+  {
+    file: "src/screens/deepspace/dds-manual-screen.tsx",
+    kind: "replace",
+    owner: "DeepSpaceManualScreen",
+    guard: CAN_GO_BACK_ELSE,
+    before: "",
+    why: "상단 뒤로: canGoBack() 이 거짓일 때만 - 칸 하나.",
+  },
+  {
+    file: "src/screens/deepspace/dds-profile-screen.tsx",
+    kind: "replace",
+    owner: "DeepSpaceProfileScreen",
+    guard: CAN_GO_BACK_ELSE,
+    before: "",
+    why: "canGoBack() 이 거짓일 때만 - 칸 하나.",
+  },
+];
 
 describe("배송 코드에서 홈으로 가는 길", () => {
   it("판정기는 별칭 · 상수 · 객체 · 조건식 가지를 따라가고, 다른 목적지와 문자열 replace 는 잡지 않는다", () => {
@@ -593,13 +748,33 @@ describe("배송 코드에서 홈으로 가는 길", () => {
       'function I() { return <Link href={{ pathname: HOME }} />; }', // 11 Link
       "function J() { return <RedirectHome />; }", // 12 아님
     ].join("\n");
-    expect(homeNavigations(fixture, "fixture.tsx")).toEqual([
+    expect(homeNavigations(fixture, "fixture.tsx").map(({ line, kind }) => ({ line, kind }))).toEqual([
       { line: 4, kind: "Redirect" },
       { line: 5, kind: "replace" },
       { line: 6, kind: "navigate" },
       { line: 8, kind: "push" },
       { line: 10, kind: "Redirect" },
       { line: 11, kind: "Link" },
+    ]);
+  });
+
+  it("판정기는 별칭으로 가져온 라우터 훅의 결과도 라우터로 보고, 이동마다 자리(컴포넌트 · 조건 · 앞 문장)를 적는다", () => {
+    const fixture = [
+      'import { useAppRouter as useNav } from "@/lib/nav/phone-embed";', // 1
+      'import { useRouter as useR } from "expo-router";', // 2
+      'function K() { const n = useNav(); n.push("/"); }', // 3  push (별칭 훅)
+      'function L() { const r = useR(); r.replace("/"); }', // 4  replace (별칭 훅)
+      'function M() { const back = () => { if (router.canGoBack()) router.back(); else router.replace("/"); }; }', // 5
+      'function N() { if (go) { router.dismissAll(); router.replace("/"); } }', // 6
+      'function O() { return ok && <Link href="/" />; }', // 7
+      'function P() { const x = useNavHelper(); x.push("/"); }', // 8 아님: 라우터 훅이 아니다
+    ].join("\n");
+    expect(homeNavigations(fixture, "fixture.tsx")).toEqual([
+      { line: 3, kind: "push", owner: "K", guard: "", before: "const n = useNav();" },
+      { line: 4, kind: "replace", owner: "L", guard: "", before: "const r = useR();" },
+      { line: 5, kind: "replace", owner: "M", guard: "else:router.canGoBack()", before: "" },
+      { line: 6, kind: "replace", owner: "N", guard: "then:go", before: "router.dismissAll();" },
+      { line: 7, kind: "Link", owner: "O", guard: "and:ok", before: "" },
     ]);
   });
 
@@ -612,11 +787,21 @@ describe("배송 코드에서 홈으로 가는 길", () => {
     expect(raw.every((hit) => hidden(shadow, hit.line))).toBe(true);
   });
 
-  it("홈을 쌓을 수 있는 이동은 정확한 개수 명단 밖으로 늘지 않는다 - 나머지는 goHome / RedirectHome", () => {
-    const expected = Object.fromEntries(
-      Object.entries(KNOWN_HOME_NAVIGATIONS).map(([file, { why: _why, ...counts }]) => [file, counts]),
-    );
+  it("홈을 쌓을 수 있는 이동은 자리까지 고정한 명단 밖으로 늘지 않는다 - 나머지는 goHome / RedirectHome", () => {
+    const expected = KNOWN_HOME_NAVIGATIONS.map(({ why: _why, ...occurrence }) => occurrenceId(occurrence)).sort();
     expect(shippedHomeNavigations()).toEqual(expected);
+  });
+
+  it("홈 push 는 하나도 남지 않는다 (게이트 NS-04 r2: audit · esm · 인증 셋)", () => {
+    expect(shippedHomeNavigations().filter((id) => id.includes(" | push | "))).toEqual([]);
+    const read = (file: string) => readFileSync(join(ROOT, file), "utf8");
+    // 폰 안에서는 useGoHome 이 폰을 닫고(예전 push("/") 와 같은 자리), 폰 밖에서는 goHome.
+    for (const file of ["src/app/audit.tsx", "src/app/esm.tsx"]) {
+      expect({ file, hook: read(file).includes("const goHome = useGoHome();") }).toEqual({ file, hook: true });
+    }
+    expect(read("src/app/audit.tsx")).toContain("onPress={goHome}");
+    expect(read("src/app/esm.tsx")).toContain("onPress={goHome}");
+    expect(read("src/screens/deepspace/dds-sign-up-screen.tsx")).toContain("if (canLeaveGate()) goHome();");
   });
 
   it("D-01 이 지목한 자리들은 헬퍼로 간다", () => {
@@ -753,5 +938,107 @@ describe("칸을 막는 가드는 goHome 에 이름을 올린다 (게이트 NS-0
       "src/screens/deepspace/dds-auth-screens.tsx",
     ]);
     expect(guards.filter((g) => !g.registersStop).map(({ file, line, owner }) => `${file}:${line} ${owner}`)).toEqual([]);
+  });
+});
+
+// ── 인증 화면의 하드웨어 뒤로는 포커스된 동안만 (게이트 NS-04 r2) ─────────────
+//
+// 고치기 전: useSignInForm / useSignUpForm 이 BackHandler 를 그냥 useEffect 로 달았다.
+// 그래서 화면이 묻혀도(가입 화면 위에 /manual, 로그인 위에 /sign-up 이 열려도) 계속
+// 들었다. BackHandler 는 나중에 단 리스너부터 묻고, 내비게이션 컨테이너의 기본
+// 뒤로(expo-router 의 useBackButton)는 그보다 먼저 달려 있다. 위 화면에 자기 뒤로가
+// 없으면 묻힌 인증 화면이 가로채 push("/") 했다 - 한 칸 뒤가 아니라 새 홈(게스트는
+// 다시 /sign-in)으로 가고, 누를 때마다 칸이 하나씩 쌓였다.
+
+interface BackListener {
+  line: number;
+  /** useFocusEffect(…) 의 콜백 안에서 달았는가. 화면이 포커스를 잃으면 떨어진다. */
+  focusScoped: boolean;
+  /** 핸들러가 goHome() 을 부르는가. */
+  callsGoHome: boolean;
+}
+
+function hardwareBackListeners(source: string, file: string): BackListener[] {
+  const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const focusNames = new Set<string>(["useFocusEffect"]);
+  const goHomeNames = new Set<string>(["goHome"]);
+  for (const statement of sf.statements) {
+    if (!ts.isImportDeclaration(statement)) continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (!bindings || !ts.isNamedImports(bindings)) continue;
+    for (const element of bindings.elements) {
+      const imported = (element.propertyName ?? element.name).text;
+      if (imported === "useFocusEffect") focusNames.add(element.name.text);
+      if (imported === "goHome") goHomeNames.add(element.name.text);
+    }
+  }
+  /** 이름으로 넘긴 핸들러는 같은 함수 안의 선언을 찾아 본문을 읽는다. */
+  const handlerBody = (call: ts.CallExpression): ts.Node | undefined => {
+    const handler = call.arguments[1];
+    if (!handler || !ts.isIdentifier(handler)) return handler;
+    let found: ts.Node | undefined;
+    let scope: ts.Node = sf;
+    for (let current = call.parent; current; current = current.parent) {
+      if (ts.isFunctionDeclaration(current) || ts.isArrowFunction(current) || ts.isFunctionExpression(current)) {
+        scope = current;
+        break;
+      }
+    }
+    const seek = (node: ts.Node) => {
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === handler.text) found = node.initializer;
+      if (!found) ts.forEachChild(node, seek);
+    };
+    seek(scope);
+    return found;
+  };
+  const listeners: BackListener[] = [];
+  const visit = (node: ts.Node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "addEventListener" &&
+      node.arguments[0] !== undefined &&
+      ts.isStringLiteralLike(node.arguments[0]) &&
+      node.arguments[0].text === "hardwareBackPress"
+    ) {
+      let focusScoped = false;
+      for (let current = node.parent; current; current = current.parent) {
+        if (ts.isCallExpression(current) && ts.isIdentifier(current.expression) && focusNames.has(current.expression.text)) {
+          focusScoped = true;
+          break;
+        }
+      }
+      const body = handlerBody(node);
+      listeners.push({
+        line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
+        focusScoped,
+        callsGoHome: body ? callsNamed(body, goHomeNames) : false,
+      });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return listeners;
+}
+
+describe("인증 화면의 하드웨어 뒤로는 포커스된 동안만 듣고 goHome 으로 간다 (게이트 NS-04 r2)", () => {
+  it("판정기: useEffect 로 단 리스너는 포커스 밖, useFocusEffect 안은 포커스 안 - 이름으로 넘긴 핸들러도 읽는다", () => {
+    const fixture = [
+      'import { useFocusEffect as onFocus } from "expo-router";',
+      'import { goHome as home } from "@/lib/nav/go-home";',
+      'function A() { useEffect(() => { const s = BackHandler.addEventListener("hardwareBackPress", () => { router.push("/"); return true; }); return () => s.remove(); }, []); }',
+      'function B() { onFocus(useCallback(() => { const go = () => { home(); return true; }; const s = BackHandler.addEventListener("hardwareBackPress", go); return () => s.remove(); }, [])); }',
+    ].join("\n");
+    expect(hardwareBackListeners(fixture, "f.tsx").map(({ focusScoped, callsGoHome }) => [focusScoped, callsGoHome])).toEqual([
+      [false, false],
+      [true, true],
+    ]);
+  });
+
+  it.each(["src/lib/auth/useSignInForm.ts", "src/lib/auth/useSignUpForm.ts"])("%s", (file) => {
+    const listeners = hardwareBackListeners(readFileSync(join(ROOT, file), "utf8"), file);
+    expect(listeners.map(({ focusScoped, callsGoHome }) => ({ focusScoped, callsGoHome }))).toEqual([
+      { focusScoped: true, callsGoHome: true },
+    ]);
   });
 });

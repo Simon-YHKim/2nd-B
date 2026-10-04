@@ -195,7 +195,10 @@ describe("PIXEL-CLAY sign-up renderer", () => {
     expect(screen).toContain('router.push("/sign-in")');
     expect(screen).toContain('router.push("/manual")');
     expect(screen).toContain('router.push("/terms")');
-    expect(screen).toContain('router.push("/")');
+    // 홈 출구는 goHome 이다(게이트 NS-04 r2: push("/") 는 누를 때마다 홈을 하나 더 쌓았다).
+    // 지키는 성질은 그대로다 - 홈 출구도 같은 동기 가드 뒤에 있다.
+    expect(screen).toContain("if (canLeaveGate()) goHome();");
+    expect(screen).not.toContain('router.push("/")');
     expect(screen).toContain("if (canLeaveGate())");
     expect(hook).toContain("if (actionLockRef.current.active !== null) return true;");
   });

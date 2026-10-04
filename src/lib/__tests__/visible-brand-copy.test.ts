@@ -30,7 +30,8 @@ describe("visible brand copy", () => {
     // 레거시의 "홈으로"는 자기 화면으로 오는 제자리 고리였다. /sign-up 에서는
     // 뒤로가기가 /sign-in 이라는 실제 목적지를 가지므로 그쪽 계약은 남는다.
     // 기능이 줄어든 것이 아니라 고리가 하나 빠졌다.
-    expect(signUp).toContain('router.push("/")');
+    // 홈으로 가는 컨트롤은 goHome 이다(게이트 NS-04 r2). push("/") 는 홈을 하나 더 쌓았다.
+    expect(signUp).toContain("if (canLeaveGate()) goHome();");
     expect(signUp).toContain('t("common:navGraph.drilldown.back")');
     expect(signUp).toContain("styles.topBar");
     expect(signUp).toContain("styles.brand");

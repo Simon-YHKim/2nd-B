@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BackHandler, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { goHome } from "@/lib/nav/go-home";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { AuthLockWaitTimeoutError } from "@/lib/auth/session-mutation";
@@ -109,14 +109,20 @@ export function useSignInForm(): UseSignInForm {
 
   // Stage 3 (O-31): hardware Back on the auth gate returns to the constellation
   // home instead of exiting the app (no dead-end). Web uses the browser back.
-  useEffect(() => {
-    const onBackPress = () => {
-      router.push("/");
-      return true;
-    };
-    const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => sub.remove();
-  }, []);
+  // goHome, not push("/"): a guest's home sends them back here, so push stacked
+  // one more sign-in per press. Only while focused: a screen opened above this
+  // one (/sign-up, /reset-password) keeps its own Back instead of this handler
+  // jumping home from under it (QA 261004 gate NS-04).
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        goHome();
+        return true;
+      };
+      const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+      return () => sub.remove();
+    }, []),
+  );
 
   const setEmailAndClearReset = useCallback(
     (value: string) => {

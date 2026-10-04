@@ -14,9 +14,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { useURL } from "expo-linking";
-import { replaceOrGoHome } from "@/lib/nav/go-home";
+import { goHome, replaceOrGoHome } from "@/lib/nav/go-home";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { observeAuthConversion } from "@/lib/analytics/auth-conversions";
 import {
@@ -263,19 +263,19 @@ export function useSignUpForm(): UseSignUpForm {
     };
   }, [deepLinkUrl, refresh, t, userId]);
 
-  // Stage 3 (O-31): hardware Back on the auth gate returns to the constellation
-  // home instead of exiting the app (no dead-end). Web uses the browser back.
-  useEffect(() => {
+  // Stage 3 (O-31): focused auth gate's hardware Back goes home (goHome: no 2nd
+  // home), not out of the app; a screen above keeps its Back (gate NS-04).
+  useFocusEffect(useCallback(() => {
     const onBackPress = () => {
       // Consume hardware Back while any auth write owns the synchronous lock.
       // This closes the same-frame gap before React can paint disabled links.
       if (actionLockRef.current.active !== null) return true;
-      router.push("/");
+      goHome();
       return true;
     };
     const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => sub.remove();
-  }, []);
+  }, []));
 
   // A valid DOB between the applied floor and 17 drives the high-privacy notice variant and
   // the minor_self consent band.

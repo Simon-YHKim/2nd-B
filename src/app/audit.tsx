@@ -14,7 +14,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { DdsAuditScreen } from "@/screens/deepspace/dds-audit-screen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppRouter, useHardwareBack, useScreenParams } from "@/lib/nav/phone-embed";
-import { useGoHomeStop } from "@/lib/nav/go-home";
+import { useGoHome, useGoHomeStop } from "@/lib/nav/go-home";
 import { questionsForPeriod, type AuditPeriod } from "@/lib/audit/questions";
 import { isUnlived, type SevenStarId } from "@/lib/persona/seven-stars";
 import { createRecord } from "@/lib/records/create";
@@ -152,6 +152,8 @@ function AuditLegacy() {
   // Phone-aware: /audit?screener=1 draws this in every skin. Inside the
   // dashboard phone Back and the exits go through the phone.
   const router = useAppRouter();
+  // Out of the phone goHome (pops to the home below), in it the phone closes.
+  const goHome = useGoHome();
   const { t, i18n } = useTranslation("audit");
   const { userId, loading, isMinor, hasProfile, age } = useAuth();
   const navigation = useNavigation();
@@ -336,7 +338,7 @@ function AuditLegacy() {
             <Button
               label={t("back")}
               variant="secondary"
-              onPress={() => router.push("/")}
+              onPress={goHome}
             />
           </View>
         </ScrollView>
