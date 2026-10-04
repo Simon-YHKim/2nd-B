@@ -32,6 +32,5 @@ export {
 } from "./graph-bits";
 export { PremiumTabBar, TAB_BAR_HEIGHT } from "./tab-bar";
 export { PixelCorner } from "./PixelCorner";
-export { PowerOnOverlay } from "./PowerOnOverlay";
 export { SceneHero } from "./SceneHero";
 export { starField, type Star } from "./star-field";

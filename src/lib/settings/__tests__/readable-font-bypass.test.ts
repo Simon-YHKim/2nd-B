@@ -41,7 +41,8 @@ const BASELINE: Readonly<Record<string, number>> = {
   "src/components/deep-space/ConstellationHome.tsx": 4,
   "src/components/deep-space/DeepSpaceViews.tsx": 50,
   "src/components/deepspace/ShareCard.tsx": 4,
-  "src/components/graph/NavGraph.tsx": 5,
+  // components/graph/NavGraph.tsx 5 는 2026-10-04 에 빠졌다. 고친 것이 아니라 파일째
+  // E:/Legacy 로 옮겨졌다(QA L2-01 · L4-06).
   "src/components/premium/surfaces.tsx": 1,
   "src/components/ui/Input.tsx": 1,
   "src/screens/deepspace/DeepSpaceHubDockScreen.tsx": 1,

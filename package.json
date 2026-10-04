@@ -20,7 +20,7 @@
     "localhost:stop": "node scripts/app-parity.cjs stop",
     "app:parity": "node scripts/app-parity.cjs status",
     "app:qa-release": "node scripts/app-parity.cjs qa-release",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "type-check": "tsc --noEmit",
     "check:edge-runtime": "node scripts/check-edge-runtime.mjs",
     "test": "jest",

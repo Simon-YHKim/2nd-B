@@ -9,7 +9,7 @@
 
 import { type ReactNode, useEffect, useState } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname } from "expo-router";
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop, Line } from "react-native-svg";
 import ReAnimated, {
@@ -133,8 +133,6 @@ const GLOW_STEPS = [
   { coreLit: 0.39, coreDim: 0.078, midLit: 0.218, midDim: 0.039 },
   { coreLit: 0.5, coreDim: 0.1, midLit: 0.28, midDim: 0.05 },
 ] as const;
-/** 그 주기를 나누는 칸 수. 칸당 40ms ≈ 25fps — 픽셀 애니메이션의 프레임 감각. */
-const BREATH_STEPS = Math.round(BREATH_MS / 40);
 
 // Animate the additive glow GROUP's opacity (one shared "breath") via a
 // reanimated View wrapping an Svg — avoids per-star animated SVG props and the

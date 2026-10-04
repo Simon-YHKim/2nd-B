@@ -110,7 +110,24 @@ describe("/onboarding PIXEL-CLAY handoff contract", () => {
     expect(SRC).not.toMatch(/BirthDateField|TextInput|setBirthDate|ageInYears|MIN_SELF_CONSENT_AGE/);
     expect(SRC).not.toMatch(/18\+|adultState|guardianState|pending_guardian_consent/);
     expect(SRC).toContain('t("auth:signUp.ageNotice")');
-    expect(SRC).toContain('t("auth:signUp.birthDateHelper")');
+  });
+
+  test("the sign-up age floor is shown once, and only to a signed-out visitor (QA 261004 W-11)", () => {
+    // The final slide showed ageNotice as a title and birthDateHelper (the same
+    // floor again, plus a birth-date line with no birth-date field here) under
+    // it, to every visitor. Behind the login wall that is mostly signed-in users.
+    const code = SRC.replace(/^\s*\/\/.*$/gm, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+    expect(code.match(/t\("auth:signUp\.ageNotice"\)/g) ?? []).toHaveLength(1);
+    expect(code).not.toContain("auth:signUp.birthDateHelper");
+    const gate = code.indexOf("{userId ? null : (");
+    const notice = code.indexOf('t("auth:signUp.ageNotice")');
+    expect(gate).toBeGreaterThan(-1);
+    expect(notice).toBeGreaterThan(gate);
+    // The gated block is exactly the age card: it opens right after the gate
+    // and its PixelSurface closes after the notice.
+    const close = code.indexOf("</PixelSurface>", notice);
+    expect(close).toBeGreaterThan(notice);
+    expect(code.slice(gate, close).match(/<PixelSurface\b/g) ?? []).toHaveLength(1);
   });
 
   test("uses Pixel primitives with the Fabric-safe 44dp press contract", () => {

@@ -85,7 +85,6 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   "src/lib/google/tasks.ts": "가져오기 출처 라벨",
   "src/lib/import/ledger-ratify.ts": "가져오기 출처 라벨",
   "src/lib/relation/import-signals.ts": "카카오 별칭 안내 (한국 기능 전용)",
-  "src/lib/share/insight-card.ts": "공유 카드 기본 문구",
   // 정적 웹 셸의 <title>·description·og 태그. 하이드레이션 전에 그려지고
   // static export 는 모든 라우트에 같은 셸 하나를 쓰므로 t() 를 부를 자리가
   // 없다. 셸이 이미 lang="ko" 로 한국어 우선을 선언하고 있고, 문구는
@@ -182,7 +181,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/app/ipip-neo.tsx": 16,
   "src/app/manual.tsx": 42,
   "src/app/motivation.tsx": 6,
-  "src/app/notices.tsx": 38,
+  "src/app/notices.tsx": 10, // 38 -> 10: D-06 (QA 261004) 디자인 목업 공지 5건 제거
   "src/app/onboarding.tsx": 1,
   "src/app/peer-invites.tsx": 1,
   "src/app/persona.tsx": 32,
@@ -204,8 +203,6 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/components/deepspace/CompletionToast.tsx": 4,
   "src/components/deepspace/DeepSpaceLoader.tsx": 7,
   "src/components/deepspace/ops/copy.ts": 105,
-  "src/components/graph/CharacterPathLayer.tsx": 1,
-  "src/components/graph/NavGraph.tsx": 31,
   "src/components/m3/date-picker/DatePicker.tsx": 38,
   "src/components/persona/FacetBreakdown.tsx": 1,
   "src/components/persona/TraitRadar.tsx": 3,

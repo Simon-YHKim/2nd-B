@@ -14,7 +14,6 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import {
-  LOCALE_PACK_ATTACHED_EVENT,
   LOCALE_PACK_GATE_TIMEOUT_MS,
   openGateWhenSettledOrTimedOut,
 } from "../pack-gate";

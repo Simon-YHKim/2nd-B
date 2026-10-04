@@ -961,7 +961,7 @@ export default function Settings() {
               <M3Divider />
               <M3LinkRow icon="box" label={t("aiMuseum")} onPress={() => router.push("/museum")} />
               <M3Divider />
-              <M3LinkRow icon="ops" label={t("routines")} onPress={() => router.push("/ops")} />
+              <M3LinkRow icon="ops" label={tOps("todaysAssistant")} onPress={() => router.push("/ops")} />
               <M3Divider />
               <M3LinkRow
                 icon="refresh"
@@ -1055,8 +1055,8 @@ export default function Settings() {
             production surface. Home early-returns <DeepSpaceShell/> for
             isDeepSpaceUI() (index.tsx), and /graph is wrapped in DevOnlyRoute.
             So every density here moved a slider the user could never see the
-            effect of. The pref plumbing stays in lib/settings/crew-density.ts:
-            a control returns only WITH its screen. */}
+            effect of. The pref plumbing (crew-density.ts) left for E:/Legacy
+            with NavGraph on 2026-10-04: a control returns only WITH its screen. */}
 
         <DisclosureSection
           // Was titled identically to the nav.data button above (two controls,

@@ -9,8 +9,8 @@
 // applied automatically.
 // deepSpace.* tokens only, assembled from the shared Ops kit.
 
-import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 import { useAppRouter, usePhoneEmbed } from "@/lib/nav/phone-embed";
@@ -34,7 +34,7 @@ import { deleteSourcesByIds, findSurvivingSourceIds } from "@/lib/records/delete
 import { captureEvent, proposalDecided } from "@/lib/analytics";
 import { detectImportKind, type ImportKind } from "@/lib/import/detect";
 import { fileImportSupported, pickTextFile } from "@/lib/import/file-read";
-import { buildProposals, proposalsToMarkdown, type ImportOutcome, type ImportProposal } from "@/lib/import/proposals";
+import { buildProposals, proposalsToMarkdown, type ImportOutcome } from "@/lib/import/proposals";
 import { ratifyLedgerEntries, type LedgerRatifyResult } from "@/lib/import/ledger-ratify";
 import {
   addImportHistory,

@@ -6,7 +6,7 @@
 // "grounded in your data" framing is not self-proving; showing the receipts is).
 //
 // Thin supabase read + the pure mapper (toEvidenceShard); returns [] on error so a
-// read failure never blocks the screen. Mirrors load-tier-shifts.ts discipline.
+// read failure never blocks the screen. Mirrors load-tier-observations.ts discipline.
 
 import { getSupabaseClient } from "../supabase/client";
 import {

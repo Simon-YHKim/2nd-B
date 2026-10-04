@@ -118,23 +118,6 @@ Rebuild: `python scripts/build-dither-tiles.py`.
   Exact source URLs, hashes and edit recipes: `assets/audio/RECORDED-SOURCES.json`;
   processing script: `scripts/prepare-recorded-camera-sfx.cjs`.
 
-- `camera-aim.mp3`, `camera-focus.mp3`, `camera-shutter.mp3`: original procedural
-  camera servo, focus adjustment, and shutter cues, **superseded and not used by
-  the camera as of 2026-09-26**. Preserved from the earlier iteration. Created locally with
-  `scripts/build-camera-sfx.cjs` (deterministic sine/noise synthesis, then ffmpeg
-  MP3 encoding). No recordings, external samples, paid API or third-party audio
-  licenses. Mono 22.05 kHz, 64 kbps; source lengths 420/360/280 ms. Quiet playback
-  is phase-scoped and suppressed with reduced motion. The generator refuses to
-  overwrite existing assets.
-
-- `telescope-zoom.mp3`: legacy 0.57s camera-motion sweep, **superseded and not used
-  by the camera as of 2026-09-26**. Preserved from the earlier iteration.
-  Unmodified `whoosh-short.mp3` from the installed `media-use` SFX bundle. Its
-  bundled `CREDITS.md` identifies Pixabay and the
-  [Pixabay Content License](https://pixabay.com/service/license-summary/).
-  18,390 bytes; SHA-256
-  `c2efd9d902a59bf9ec5019035d7deadd17762136896b6e3cb6dd99ea50997a30`.
-
 - `jrpg-text-blip.mp3` — 75ms mono UI blip used by the constellation home's
   typewriter dialogue. It is a trimmed, filtered, and volume-reduced derivative
   of the `click.mp3` sound bundled with Codex `media-use`; the source is from
@@ -142,6 +125,28 @@ Rebuild: `python scripts/build-dither-tiles.py`.
   [Pixabay Content License](https://pixabay.com/service/license-summary/).
   The shipped file is 1,010 bytes at 22.05kHz; SHA-256
   `e3bf89d81485cc20014ca8396d0fcc5a152e608d625a57ee65ef947a0499ee57`.
+
+### Retired camera audio (moved out of the repo on 2026-10-04)
+
+These four files were superseded by the recorded `observatory-*.wav` cues on
+2026-09-26 and were never required by the shipped camera. On 2026-10-04 they
+and their generator left the repo for the read-only archive
+`E:/Legacy/2ndB/assets/audio/` and `E:/Legacy/2ndB/scripts/build-camera-sfx.cjs`
+(rows in `E:/Legacy/2ndB/MANIFEST.jsonl`, restore from git history per its README, source commit
+`ba7afdfd`). The provenance record stays here:
+
+- `camera-aim.mp3`, `camera-focus.mp3`, `camera-shutter.mp3`: original procedural
+  camera servo, focus adjustment, and shutter cues created locally with
+  `scripts/build-camera-sfx.cjs` (deterministic sine/noise synthesis, then ffmpeg
+  MP3 encoding). No recordings, external samples, paid API or third-party audio
+  licenses. Mono 22.05 kHz, 64 kbps; source lengths 420/360/280 ms.
+
+- `telescope-zoom.mp3`: legacy 0.57s camera-motion sweep. Unmodified
+  `whoosh-short.mp3` from the installed `media-use` SFX bundle. Its
+  bundled `CREDITS.md` identifies Pixabay and the
+  [Pixabay Content License](https://pixabay.com/service/license-summary/).
+  18,390 bytes; SHA-256
+  `c2efd9d902a59bf9ec5019035d7deadd17762136896b6e3cb6dd99ea50997a30`.
 
 ## Bundled generated art (AI-generated, in-window)
 
@@ -177,9 +182,9 @@ only the path moved.
 
 | Path | Files | First in git | Contents |
 |------|-------|--------------|----------|
-| `assets/legacy-art/cosmic-pixel-v3-soulcore/` | 142 (79 PNG · 63 SVG) | 2026-06-02 | Legacy "cosmic pixel" skin, still shipped behind `EXPO_PUBLIC_UI=legacy`: soul-core tiers 1–4, pattern cores / data / logs, pattern links, mobile graph, companion sprites (`archon`, `iris`, `lumen`, `relia`, `foreman_momo`), momo-crew, sprite sheets |
-| `assets/legacy-art/2ndb-production-premium-v1/` | 52 PNG | 2026-05-30 | Current production skin: graph islands, tier icons, worker redraws, shards, auth gate hero |
-| `assets/legacy-art/tesseract-v10/` | 7 PNG | 2026-06-04 | Tesseract worldview set generated from `docs/V3_GPT_IMAGE_PROMPT.md` |
+| `assets/legacy-art/cosmic-pixel-v3-soulcore/` | 20 (6 PNG · 14 SVG) | 2026-06-02 | Legacy "cosmic pixel" skin: the six 256px pattern cores (`EXPO_PUBLIC_UI=legacy` fallback), companion idle poses (`archon`, `iris`, `lumen`, `relia`, `foreman_momo`), momo-crew moods, the Pattern Data node and Log chip. The other 122 images (soul-core tiers, data / log / link PNGs, per-state companion poses, sprite sheets, mobile-graph cores, edges and overlays) moved to `E:/Legacy/2ndB` on 2026-10-04 (batch `qa261004-art`) |
+| `assets/legacy-art/2ndb-production-premium-v1/` | 34 PNG | 2026-05-30 | Tier icons, worker redraws, shards, wiki card thumbs, auth gate hero. The 15 graph-island PNGs, the clean auth hero and the two Vela worker PNGs moved to `E:/Legacy/2ndB` on 2026-10-04 (batch `qa261004-art`) |
+| `assets/legacy-art/tesseract-v10/` | 1 PNG | 2026-06-04 | Tesseract worldview set generated from `docs/V3_GPT_IMAGE_PROMPT.md`. Only `soul_core.png` remains (the /core-brain empty and load-error art); the six pattern-core PNGs moved to `E:/Legacy/2ndB` on 2026-10-04 |
 | `public/landing/` | 7 PNG | 2026-06-15 | Landing background concepts |
 | `public/proto/` | 7 PNG | 2026-07-04 | Deep-space prototype screens |
 | `public/icons/` | 2 PNG | 2026-06-11 | PWA icons (192 / 512), derived from the app icon. Since 2026-09-30 both are rasterised by `scripts/build-app-icons.ts` from the Polaris pixel star (first-party code, no third-party pixels) |
@@ -188,7 +193,7 @@ only the path moved.
 | `assets/images/` | 9 PNG | 2026-05-25 | App icon, adaptive-icon layers, splash, favicon, and three SecondB phone assets. The home phone and the blank-screen dashboard frame are Simon-provided ChatGPT art (2026-09-26); the earlier silver phone is retained for rollback. Seeded from the Expo template at initialisation (MIT) and replaced in-window with generated art. Since 2026-09-30 the app icon, adaptive foreground and monochrome layers, and favicon are rasterised by `scripts/build-app-icons.ts` from the Polaris pixel star the sign-in screen draws (`pixel-star.ts` geometry, `m3.ts` colours; first-party code, no third-party pixels). The adaptive background and the splash are unchanged |
 | `assets/images/phone-app/` | 31 PNG | 2026-09-28 | Simon-supplied mini-app display pack: 12 app icons, 5 internal dock icons, 12 UI icons, and 1 night-village banner; plus 1 locally drawn avatar-palette app icon on a 4 px grid. Only pixels are bundled; labels, dates, unread counts, and state are rendered by the app. Release rights confirmed by Simon on 2026-09-28; the pack does not name its image generator. |
 
-Current checked inventory: **280 bundled image files**. `scripts/check-constraints.ts` (`AssetLicenseDisclosure`)
+Current checked inventory: **157 bundled image files** (2026-10-04, after the `qa261004-art` move). `scripts/check-constraints.ts` (`AssetLicenseDisclosure`)
 fails if any of these paths stops being mentioned in this file, so a new
 art pack cannot ship undisclosed.
 

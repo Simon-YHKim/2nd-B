@@ -12,7 +12,7 @@ import { Text } from "@/components/ui/Text";
 import { CompanionMoment } from "@/components/art/CompanionSprite";
 import { reactExpression } from "@/lib/companion/expression";
 import { prefersReducedMotion } from "@/lib/motion/signature";
-import { semantic, spacing } from "@/lib/theme/tokens";
+import { spacing } from "@/lib/theme/tokens";
 
 // Momo filing the freshly-saved record + the journal-saved premium cue burst.
 const MOMENT = { companion: "momo", state: "store", cue: "journal_saved" } as const;

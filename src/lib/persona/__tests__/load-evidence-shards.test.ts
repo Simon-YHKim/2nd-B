@@ -1,5 +1,5 @@
 // Verifiable-receipt loader: turns `record:<id>` evidence citations (0060) into
-// openable EvidenceShards. Mocks supabase per the load-tier-shifts pattern.
+// openable EvidenceShards. Mocks the supabase client as a thenable query chain.
 
 import { recordIdsFromCitations } from "../evidence";
 

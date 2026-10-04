@@ -150,6 +150,35 @@ describe("PIXEL-CLAY /manual renderer contract", () => {
     expect(source).toContain('router.push("/secondb")');
   });
 
+  test("every literal t() key on the screen resolves in its namespace (no raw keys)", () => {
+    // QA 261004 W-01/D-03: #1789 moved the default namespace to `manual` but left
+    // the two footer buttons on unprefixed `t("manual.askDirect")`. That key does
+    // not exist in manual.json, and i18n has no fallbackNS, so the buttons showed
+    // the raw key (screen text and screen reader label). Resolve every literal key
+    // the way react-i18next does: an explicit `ns:` prefix wins, otherwise the
+    // first namespace in useTranslation([...]).
+    const code = read(SCREEN).replace(/^\s*\/\/.*$/gm, "");
+    const nsList = /useTranslation\(\[([^\]]+)\]\)/.exec(code)?.[1];
+    expect(nsList).toBeDefined();
+    const defaultNs = /"([^"]+)"/.exec(nsList ?? "")?.[1];
+    expect(defaultNs).toBe("manual");
+    const keys = [...code.matchAll(/\bt\("([^"]+)"/g)].map((m) => m[1]);
+    expect(keys.length).toBeGreaterThanOrEqual(4);
+    for (const locale of LOCALES) {
+      const unresolved = keys.filter((key) => {
+        const [ns, path] = key.includes(":") ? key.split(":", 2) : [defaultNs, key];
+        const bundle: unknown = JSON.parse(
+          readFileSync(join(ROOT, "locales", locale, `${ns}.json`), "utf8"),
+        );
+        const value = path
+          .split(".")
+          .reduce<unknown>((node, part) => (node as Record<string, unknown>)?.[part], bundle);
+        return typeof value !== "string";
+      });
+      expect({ locale, unresolved }).toEqual({ locale, unresolved: [] });
+    }
+  });
+
   test("uses shared PIXEL-CLAY primitives with full-width accessible tap roots", () => {
     const source = read(SCREEN);
     expect(source).toContain("PixelSurface");

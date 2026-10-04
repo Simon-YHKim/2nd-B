@@ -24,44 +24,6 @@
   "personaHero": {
     "speech": "Lihat pola yang berulang di catatanmu."
   },
-  "monologues": {
-    "secondb": [
-      "Bagian mana dari catatanmu yang ingin kamu pahami lebih jauh?",
-      "Adakah catatan lain yang berkaitan dengan ini?",
-      "Kamu bisa memeriksa catatan atau mencoba ide lain.",
-      "Buka sumbernya untuk memeriksa jawaban."
-    ],
-    "archi": [
-      "Bagaimana keadaan pekerjaanmu sekarang?",
-      "Pengalaman mana yang bisa membantu kamu mempertimbangkan pilihan ini?",
-      "Jika langkah berikutnya terlalu besar, pecah menjadi lebih kecil.",
-      "Apa yang bisa kamu coba saat bekerja nanti?"
-    ],
-    "gadi": [
-      "Apa yang terjadi di antara kalian?",
-      "Apa yang belum terucap dalam percakapan itu?",
-      "Bagaimana perasaanmu saat percakapan itu berlangsung?",
-      "Apa yang ingin kamu ubah dalam hubungan ini?"
-    ],
-    "lulu": [
-      "Di mana pengetahuan ini bisa dipakai?",
-      "Bagian mana yang masih membingungkan?",
-      "Adakah catatan lain tentang topik ini?",
-      "Bisakah kamu memberi contoh dari kehidupan sehari-hari?"
-    ],
-    "momo": [
-      "Pilih kategori agar catatan ini mudah ditemukan nanti.",
-      "Tulis apa yang terjadi dan kapan agar mudah ditemukan nanti.",
-      "Kamu ingat kapan ini terjadi?",
-      "Tambahkan kapan dan di mana agar catatan mudah ditemukan."
-    ],
-    "lumi": [
-      "Apa yang sedang kamu senangi belakangan ini?",
-      "Apakah ada waktu untuk kegiatan ini hari ini?",
-      "Apa yang masih kamu nikmati dari kegiatan ini?",
-      "Apa yang menarik perhatianmu hari ini?"
-    ]
-  },
   "personas": {
     "secondb": {
       "greeting": "Catatanmu ada di sini. Apa yang ingin kamu lihat dulu?",

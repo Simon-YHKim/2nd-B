@@ -58,11 +58,11 @@ export default [
       // Edge Functions target the Deno runtime, not Node — separate type
       // pipeline. Linted by the Supabase CLI when deployed.
       "supabase/functions/**",
-      // Design-clone reference bundle (vendored web prototype) + Workflow-runtime
-      // orchestration scripts (top-level await/return, wrapped by the runtime) —
-      // not lintable as plain ES modules and not app source.
+      // Design-clone reference bundle (vendored web prototype): not lintable as
+      // plain ES modules and not app source. The Workflow-runtime glob
+      // "scripts/wf-*.mjs" (top-level await/return) left with its only file,
+      // scripts/wf-gap-analysis.mjs, on 2026-10-04; restore both together.
       "docs/clone-audit/**",
-      "scripts/wf-*.mjs",
     ],
   },
   {

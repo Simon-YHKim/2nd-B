@@ -119,12 +119,6 @@ describe("/discover is reachable from BOTH insights states (audit 260904 A3)", (
   // recent week (which reads as first-week) had no path to a screen that was
   // fully built on their historical data. Verified live: the QA account (102
   // records, quiet recent week) landed on the first-week state with no door.
-  const insights = src.slice(
-    src.indexOf("function DeepSpaceInsightsScreen"),
-    src.indexOf("function DeepSpaceInsightsScreen") >= 0
-      ? src.indexOf("\n}\n", src.indexOf("summary.isFirstWeek")) // through the first-week branch and beyond
-      : undefined,
-  );
 
   test("the guard is reading a real slice", () => {
     expect(src).toContain("summary.isFirstWeek");

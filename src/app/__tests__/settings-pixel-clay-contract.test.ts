@@ -103,4 +103,22 @@ describe("PIXEL-CLAY settings screen contract", () => {
     expect(source).toContain("visible={actionError !== null}");
     expect(source).toContain('accessibilityRole="switch"');
   });
+
+  test("the /ops row is labelled with the title of the screen it opens", () => {
+    // QA 261004 W-03: the row said "App status" / "앱 작동 상태" but opened /ops,
+    // whose title is "Today's assistant". The label now reads the destination's
+    // own title key, so the two cannot drift apart again in any locale.
+    const opsRows = source
+      .split("\n")
+      .filter((line) => line.includes('router.push("/ops")') && line.includes("label="));
+    expect(opsRows.length).toBeGreaterThan(0);
+    for (const row of opsRows) {
+      expect(row).toContain('label={tOps("todaysAssistant")}');
+    }
+    const opsScreen = readFileSync(
+      path.resolve(__dirname, "../../screens/deepspace/dds-ops-screen.tsx"),
+      "utf8",
+    );
+    expect(opsScreen).toContain('t("todaysAssistant")');
+  });
 });

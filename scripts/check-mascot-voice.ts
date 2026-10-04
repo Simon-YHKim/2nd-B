@@ -109,7 +109,7 @@ if (failures.length > 0) {
   console.error(
     "\nUser-addressed mascot copy must not regress to presence/companion framing (Wall 1),\n" +
       "and any claim about the user must speak from their own records/patterns (Wall 2).\n" +
-      "First-person monologues (src/lib/graph/monologues.ts) are exempt - they have no addressee.",
+      "First-person self-talk is exempt - it has no addressee.",
   );
   process.exit(1);
 }

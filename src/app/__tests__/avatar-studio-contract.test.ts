@@ -63,4 +63,13 @@ describe("approved avatar studio screen", () => {
     expect(source).not.toContain('if (loadState.status === "error" && userId)');
   });
 
+  // D-08 (QA 261004): the category/colour tab strips are horizontal ScrollViews
+  // inside a height-bounded column. Without flexShrink 0 Yoga squeezed the strip
+  // to 28.6dp of its 64dp on Android, cutting the tabs and their touch targets.
+  test("horizontal tab strips keep their own height", () => {
+    const strips = source.match(/<ScrollView horizontal[^>]*>/g) ?? [];
+    expect(strips.length).toBeGreaterThanOrEqual(2);
+    for (const tag of strips) expect(tag).toContain("style={styles.tabStrip}");
+    expect(source).toContain("tabStrip: { flexGrow: 0, flexShrink: 0 },");
+  });
 });

@@ -6,7 +6,7 @@ Fidelity loop for cloning the finalized design handoff (`2ndB_proto_rev2`) scree
 - `reference-captures/` — 37 target screen captures (390px). The pixel-diff ground truth.
 - `current/` — current app renders at 390x844 (regenerate with the tooling below).
 - `capture-report.json` — route → screenshot map + console errors.
-- `gap-backlog.json` — per-screen fidelity gaps (from wf-gap-analysis).
+- `gap-backlog.json` — per-screen fidelity gaps (from wf-gap-analysis; that generator left the repo on 2026-10-04 for `E:/Legacy/2ndB/scripts/wf-gap-analysis.mjs`).
 
 ## Loop
 1. `npx expo export --platform web`

@@ -1,6 +1,9 @@
-// First-run onboarding stays a PRE-AUTH three-slide carousel. Its final frame is
-// only a handoff: date-of-birth input, consent, storage, and age-tier decisions
-// remain owned by the real /sign-up and /complete-profile boundaries (C10).
+// First-run onboarding is a three-slide carousel. It is not gated on auth, but
+// since the login wall (Simon 2026-07-15: "/" sends signed-out visitors to
+// /sign-in) the usual way in is AFTER sign-in, as a welcome; a signed-out visitor
+// only arrives by opening /onboarding directly. Its final frame is only a
+// handoff: date-of-birth input, consent, storage, and age-tier decisions remain
+// owned by the real /sign-up and /complete-profile boundaries (C10).
 
 import { useEffect, useState } from "react";
 import { BackHandler, StyleSheet, View } from "react-native";
@@ -133,18 +136,24 @@ export default function Onboarding() {
             <Text variant="heading" style={styles.title}>{t("onboarding.authTitle")}</Text>
             <Text variant="body" style={styles.body}>{t("onboarding.authBody")}</Text>
           </View>
-          <PixelSurface
-            variant="inset"
-            background={m3.color.surfaceVariant}
-            style={styles.ageSurface}
-            contentStyle={styles.ageContent}
-          >
-            <PixelGlyph name="today" size={24} color={m3.color.primary} />
-            <View style={styles.ageCopy}>
-              <Text variant="body" style={styles.ageTitle}>{t("auth:signUp.ageNotice")}</Text>
-              <Text variant="caption" style={styles.ageHelper}>{t("auth:signUp.birthDateHelper")}</Text>
-            </View>
-          </PixelSurface>
+          {/* The sign-up age floor is for someone about to sign up, so only a
+              signed-out visitor sees it, and it is said once. The login wall
+              ("/" sends signed-out users to /sign-in) means most people reach
+              this slide already signed in, where it read as a second, irrelevant
+              notice; and the helper line repeated the same floor (QA 261004 W-11). */}
+          {userId ? null : (
+            <PixelSurface
+              variant="inset"
+              background={m3.color.surfaceVariant}
+              style={styles.ageSurface}
+              contentStyle={styles.ageContent}
+            >
+              <PixelGlyph name="today" size={24} color={m3.color.primary} />
+              <View style={styles.ageCopy}>
+                <Text variant="body" style={styles.ageTitle}>{t("auth:signUp.ageNotice")}</Text>
+              </View>
+            </PixelSurface>
+          )}
         </View>
       ) : (
         <View style={styles.slideHero}>
@@ -321,12 +330,6 @@ const styles = StyleSheet.create({
     color: m3.color.onSurface,
     fontSize: 15,
     lineHeight: 22,
-    paddingBottom: m3.spacing.s1,
-  },
-  ageHelper: {
-    color: m3.color.onSurfaceVariant,
-    fontSize: 12,
-    lineHeight: 18,
     paddingBottom: m3.spacing.s1,
   },
   bottomBar: {

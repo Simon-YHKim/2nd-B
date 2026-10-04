@@ -322,11 +322,19 @@ const makeStyles = () => StyleSheet.create({
     elevation: 0,
   },
   heroLabel: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 1.2, color: m3.color.tertiary },
+  // D-08: Android draws the placeholder with the font's own spacing, not
+  // lineHeight, and adds font padding from Galmuri11's yMax/yMin (1700/-400 of
+  // 1200 upem = +10dp top, +4dp bottom at 24). The box was measured as 2x28 = 56dp
+  // and the second placeholder line lost its lower ~6dp. Drop the font padding and
+  // give each line the face's full advance (hhea 1200+200+200 = 1600 -> 32 at 24),
+  // so placeholder and typed text both fit the measured box.
   heroInput: {
     fontFamily: m3.font.plain,
     fontSize: 24,
     fontWeight: "600",
-    lineHeight: 28,
+    lineHeight: 32,
+    includeFontPadding: false,
+    textAlignVertical: "top",
     color: m3.color.onSurface,
     padding: 0,
   },

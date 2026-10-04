@@ -245,7 +245,17 @@ const styles = StyleSheet.create({
   wrapFull: { flex: 1, gap: deepSpaceSpacing.lg },
 
   headline: { fontSize: 15, color: deepSpace.textHi, textAlign: "center", marginTop: 4 },
-  caption: { fontSize: 13, color: deepSpace.textMid, textAlign: "center" },
+  // D-08: variant="caption" draws Galmuri11 (labelLarge 12). Overriding it to 13 put
+  // the pixel face off its grid, and with no lineHeight Android measured a box that
+  // lost the bottom pixel row and the last glyph ("Loadin"). Stay on the 12 grid and
+  // give the line its full height plus a bottom margin for descenders.
+  caption: {
+    fontSize: m3.type.labelLarge.size,
+    lineHeight: m3.type.labelLarge.line,
+    paddingBottom: 2,
+    color: deepSpace.textMid,
+    textAlign: "center",
+  },
   subCaption: { fontSize: 12, color: deepSpace.textLo, textAlign: "center", paddingHorizontal: deepSpaceSpacing.lg },
 
   barTrack: {

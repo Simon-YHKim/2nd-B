@@ -6,7 +6,7 @@ import { Redirect, router } from "expo-router";
 import { PremiumAppShell, PremiumErrorState, PremiumLoadingState, PremiumToast, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -205,7 +205,7 @@ function PersonaLegacy() {
     if (builtKey.current === buildKey) return;
     builtKey.current = buildKey;
     function runBuild() {
-      if (!userId) return;
+      if (!userId || isMinor === null) return; // the function that builds checks the age itself (C10 call-site check)
       setBuilding(true);
       setBuildError(false);
       buildPersona(userId, locale, isMinor === true)

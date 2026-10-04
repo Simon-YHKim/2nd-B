@@ -84,3 +84,15 @@ describe.each(LEGAL_SCREENS)("%s back contract (phone-aware)", (screenPath) => {
     expect(screen).toContain("style={local.backTarget}");
   });
 });
+
+// D-08 (QA 261004): /terms, /refund and /privacy-policy put the title in a row
+// next to the chevron. Native Text does not shrink by default, so "Refund
+// Policy" ran past the right edge on Android. The title must shrink and wrap.
+describe("legal document title row", () => {
+  const screen = read("screens/deepspace/dds-legal-doc-screen.tsx");
+
+  test("the title wraps inside the row instead of running off the edge", () => {
+    expect(screen).toContain('style={[styles.title, local.title]} accessibilityRole="header"');
+    expect(screen).toContain("title: { flexShrink: 1 },");
+  });
+});

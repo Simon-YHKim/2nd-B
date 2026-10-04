@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
+import { AppState, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
 import { Redirect, router, useNavigation } from "expo-router";
@@ -7,7 +7,6 @@ import { useAppRouter } from "@/lib/nav/phone-embed";
 import { useGoHomeStop } from "@/lib/nav/go-home";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect, SvgXml } from "react-native-svg";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors, spacing } from "@/theme/tokens";
 import { GLYPH_ALIAS, glyphMarkup, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
@@ -26,13 +25,10 @@ import { ddsStyles as styles } from "./dds-styles";
 import { canonGaps, canonMore } from "@/lib/canon";
 import { reactExpression } from "@/lib/companion/expression";
 import { kstDateToday } from "@/lib/chat/limits";
-import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { PremiumModal } from "@/components/premium";
-import { TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
-import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
-import { getReasoningUsage } from "@/lib/entitlements/usage";
 import { Text } from "@/components/ui/Text";
 import { HelpDirectory } from "@/components/safety/HelpDirectory";
 import { useTheme } from "@/lib/theme/ThemeContext";
@@ -45,16 +41,10 @@ import { buildInfoLine } from "@/lib/build-info";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { gatherRisingInterests } from "@/lib/trends/gather";
 import type { RisingInterest } from "@/lib/trends/rising";
-import { useSignInForm } from "@/lib/auth/useSignInForm";
-import { useSignUpForm } from "@/lib/auth/useSignUpForm";
-import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
 import {
   AuthSessionOwnerChangedError,
-  ageInYears,
   captureSignOutExpectation,
-  MIN_SELF_CONSENT_AGE,
   signOutExpected,
-  type OAuthProvider,
 } from "@/lib/supabase/auth";
 import { requestAccountDeletion } from "@/lib/records/delete-bulk";
 import {
@@ -91,22 +81,7 @@ import type { StarId } from "@/lib/persona/stars";
 import { loadEvidenceShards } from "@/lib/persona/load-evidence-shards";
 import { type EvidenceShard } from "@/lib/persona/evidence";
 import { RatifySheet, runRatifyDecisionOnce } from "@/components/persona/RatifySheet";
-import {
-  allRequiredAcksChecked,
-  setAllRequiredAcks,
-  type ConsentSelections,
-} from "@/lib/auth/consent-selections";
-import { formatBirthDateInput } from "@/lib/account/dob";
 import { useProgression } from "@/lib/progression/useProgression";
-import {
-  arePurchasesAvailable,
-  configurePurchases,
-  getOfferings,
-  getProStatus,
-  purchasePackage,
-  restorePurchases,
-} from "@/lib/payments/purchases";
-import type { PurchasesPackage } from "react-native-purchases";
 import { systemLocaleFor } from "@/lib/i18n/locales";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { captureEvent, proposalDecided, setAnalyticsConsent } from "@/lib/analytics";
@@ -116,8 +91,7 @@ import {
   clearRecordEmbeddings,
   embedVendorLabel,
 } from "@/lib/records/records-embeddings";
-import { recordHealthImportConsent, recordRecommendationsConsent } from "@/lib/supabase/consent";
-import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
+import { recordRecommendationsConsent } from "@/lib/supabase/consent";
 import { HealthWithdrawCard } from "./dds-health-withdraw-card";
 import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
 import { opsRouteForDomain } from "@/lib/ops/nav";
@@ -175,7 +149,7 @@ import { recordsToResearchGraph } from "@/lib/records/records-research";
 import type { GraphRecord } from "@/lib/records/records-graph";
 import { listSourcePieces } from "@/lib/records/source-pieces";
 import { summarizeWeeklyInsights, weeklyDomainFocus } from "@/lib/insights/weekly";
-import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
+import type { WikiPageRow } from "@/lib/wiki/types";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
 import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 import {
@@ -186,25 +160,12 @@ import {
   type WikiEdge,
 } from "./wiki-graph-view";
 import {
-  type TimelineLabels,
-} from "./records-timeline";
-import {
   INTEGRATION_ENTRYPOINTS,
   type IntegrationEntrypoint,
 } from "./integrations/sources";
 
 // i18n label builders for the pure date helpers (which stay i18n-free).
 type Tx = (key: string, options?: Record<string, unknown>) => string;
-function dsTimeLabels(t: Tx): TimelineLabels {
-  return {
-    today: t("time.today"),
-    yesterday: t("time.yesterday"),
-    monthDay: (m, d) => t("time.monthDay", { month: m, day: d }),
-    now: t("time.now"),
-    hoursAgo: (h) => t("time.hoursAgo", { count: h }),
-    fallbackTitle: t("time.recordFallback"),
-  };
-}
 function dsRecencyLabels(t: Tx): RecencyLabels {
   return {
     today: t("time.today"),
@@ -619,7 +580,7 @@ export function DeepSpacePrivacyDesignScreen() {
   const { t: consentT } = useTranslation("consent");
   const navigation = useNavigation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
-  const { userId, isMinor } = useAuth();
+  const { userId, isMinor, loading: authLoading } = useAuth();
   // AuthContext derives this from users.birth_date. Unknown age fails closed,
   // so Clarity/GA4 and ads cannot be enabled while the profile is resolving.
   const minor = isMinor !== false;
@@ -691,10 +652,10 @@ export function DeepSpacePrivacyDesignScreen() {
       receipt = await requestAccountDeletion(authExpectation);
     } catch {
       deleteInFlightRef.current = false;
-      if (privacyMountedRef.current && activeUserRef.current === targetUserId) {
-        setDelError(true);
-        setDeleting(false);
-      }
+      // Lift the fence whoever owns the screen now: a stuck `deleting` exempts a signed-out visitor from the guard below.
+      if (privacyMountedRef.current) setDeleting(false);
+      // Only the account that asked sees its failure.
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setDelError(true);
       return;
     }
 
@@ -1045,6 +1006,17 @@ export function DeepSpacePrivacyDesignScreen() {
     }
   }
 
+  // Signed out, this screen used to draw the settings and wait forever on a
+  // birth date that never arrives; the redirect lived only in the legacy half.
+  // Every owner change, the deletion's own A -> null included, remounts this
+  // scene (AccountScope in _layout.tsx keys it by account epoch), so no state
+  // or ref reaches the next owner. `deleting` fences this instance only: a
+  // loading flip mid-deletion must not swap the flow out for the loader.
+  if (authLoading && !deleting) {
+    return <Shell title={t("privacy.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId && !deleting) return <Redirect href="/sign-in" />;
+
   return (
     <Shell title={t("privacy.title")}>
       <SecondbStatusHeader text={t("privacy.status")} tip={t("privacy.tip")} />
@@ -1372,8 +1344,7 @@ export function DeepSpacePrivacyDesignScreen() {
 export function DeepSpaceInsightsScreen() {
   // Phone-aware: inside the dashboard phone, the cards open in the phone.
   const router = useAppRouter();
-  const { t, i18n } = useTranslation("deepspace");
-  const ko = i18n.language === "ko";
+  const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
 
   // Real week-over-week data. We reuse listRecentRecords (the same client other
@@ -2600,7 +2571,7 @@ const FORMAT_CARDS: { id: ExportFormat; name: string; descKey: string }[] = [
 
 export function DeepSpaceFormatsScreen() {
   const { t, i18n } = useTranslation("deepspace");
-  const { userId, loading: authLoading } = useAuth();
+  const { userId, loading: authLoading, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [format, setFormat] = useState<ExportFormat>("iden");
@@ -2610,22 +2581,27 @@ export function DeepSpaceFormatsScreen() {
   const [note, setNote] = useState<"copied" | "copyFailed" | "error" | null>(null);
 
   async function runExport() {
-    if (!userId || exporting) return;
+    // C10 / DPIA 5A-R7: .iden, HTML and JSON all build the persona (exportIden /
+    // buildIdenDoc -> buildPersona -> callLlm persona_narrative), and its crisis output
+    // picks the hotline from `minor`. These calls used to pass no age, so buildIdenDoc
+    // fell back to adult routing for a minor (QA 261004 L1-07). Same contract as /review:
+    // nothing builds while the age is unresolved, then the resolved age goes along.
+    if (!userId || isMinor === null || exporting) return;
     setExporting(true);
     setResult(null);
     setNote(null);
     try {
       if (format === "iden") {
-        const r = await exportIden(userId, { locale });
+        const r = await exportIden(userId, { locale, minor: isMinor === true });
         setResult({ text: r.iden, name: r.idenFilename });
       } else if (format === "html") {
-        const r = await exportIden(userId, { locale });
+        const r = await exportIden(userId, { locale, minor: isMinor === true });
         setResult({ text: r.html, name: r.htmlFilename });
       } else if (format === "markdown") {
         const r = await exportUserWiki(userId, { locale, includeRecords });
         setResult({ text: r.prompt, name: "polascope-wiki.md" });
       } else {
-        const doc = await buildIdenDoc(userId, { locale });
+        const doc = await buildIdenDoc(userId, { locale, minor: isMinor === true });
         setResult({ text: JSON.stringify(doc, null, 2), name: "polascope-iden.json" });
       }
     } catch {
@@ -2712,7 +2688,13 @@ export function DeepSpaceFormatsScreen() {
           <Text variant="subtle" style={styles.footer}>{t("formats.scope3MarkdownOnly")}</Text>
         )}
       </Card>
-      <Pressable style={[styles.soulPrimary, exporting && { opacity: 0.6 }]} onPress={() => void runExport()} disabled={exporting}>
+      <Pressable
+        style={[styles.soulPrimary, (exporting || isMinor === null) && { opacity: 0.6 }]}
+        onPress={() => void runExport()}
+        disabled={exporting || isMinor === null}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: exporting || isMinor === null }}
+      >
         <Text variant="caption" style={styles.primaryText}>{exporting ? t("formats.exporting") : t("formats.export")}</Text>
       </Pressable>
       {note === "error" ? <Text variant="body" style={styles.opsReason}>{t("formats.exportError")}</Text> : null}
@@ -2979,7 +2961,6 @@ export function DeepSpaceOpsScreen() {
   const doneR = todayRoutines.filter((r) => completedIds.has(r.id)).length;
   const pct = totalR > 0 ? doneR / totalR : 0;
   const HERO_R = 22;
-  const HERO_C = 2 * Math.PI * HERO_R;
   const opsTools: { icon: CloneIconName; label: string; sub: string; route: string }[] = [
     { icon: "timer", label: t("tools.focus.label"), sub: t("tools.focus.sub"), route: "/focus" },
     { icon: "schedule", label: t("tools.reminders.label"), sub: t("tools.reminders.sub"), route: "/reminders" },

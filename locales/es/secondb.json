@@ -24,44 +24,6 @@
   "personaHero": {
     "speech": "Aquí está lo que se repite en tus registros. Comprueba si encaja contigo."
   },
-  "monologues": {
-    "secondb": [
-      "Busca temas que se repiten.",
-      "Busca registros relacionados.",
-      "Revisa los registros o piensa en otra opción.",
-      "Reúne los registros en un solo lugar."
-    ],
-    "archi": [
-      "Empieza por la situación laboral actual.",
-      "Vuelve a revisar los registros de trabajo.",
-      "Si resulta demasiado, divídelo en tareas más pequeñas.",
-      "Usa estos registros para decidir qué hacer después."
-    ],
-    "gadi": [
-      "Repasa lo que pasó con otras personas.",
-      "Mira qué se dijo ese día.",
-      "Busca hechos parecidos en los registros.",
-      "Mira qué relaciones resultaron cómodas."
-    ],
-    "lulu": [
-      "¿Dónde se podría usar lo aprendido?",
-      "Busca lo que necesite más explicación.",
-      "¿Hay una fuente relacionada entre los materiales guardados?",
-      "¿Se te ocurre un ejemplo de la vida diaria?"
-    ],
-    "momo": [
-      "Añade una categoría al registro.",
-      "Anota qué pasó y cuándo para encontrarlo después.",
-      "Organiza los registros para encontrarlos después.",
-      "Agrupa las notas cortas por fecha."
-    ],
-    "lumi": [
-      "¿Hay alguna afición nueva que probar?",
-      "¿Hay tiempo para disfrutar esta recomendación?",
-      "Busca formas de seguir disfrutando una afición.",
-      "Repasa lo que resultó agradable."
-    ]
-  },
   "personas": {
     "secondb": {
       "greeting": "¿Qué quieres encontrar en tus registros?",

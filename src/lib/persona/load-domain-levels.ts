@@ -12,7 +12,7 @@
 import { getSupabaseClient } from "../supabase/client";
 import { isDomainId, type DomainEntry, type DomainId } from "./domain-stars";
 import { type LadderLevel } from "./brightness";
-import { domainStarLevels, northStarBrightness } from "./north-star";
+import { domainStarLevels } from "./north-star"; // northStarBrightness stays out on purpose: see the 2026-08-24 note at the return below.
 
 export interface DomainBrightness {
   domainLevels: Record<DomainId, LadderLevel>;
