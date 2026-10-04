@@ -2939,7 +2939,6 @@ export function DeepSpaceOpsScreen() {
   const doneR = todayRoutines.filter((r) => completedIds.has(r.id)).length;
   const pct = totalR > 0 ? doneR / totalR : 0;
   const HERO_R = 22;
-  const HERO_C = 2 * Math.PI * HERO_R;
   const opsTools: { icon: CloneIconName; label: string; sub: string; route: string }[] = [
     { icon: "timer", label: t("tools.focus.label"), sub: t("tools.focus.sub"), route: "/focus" },
     { icon: "schedule", label: t("tools.reminders.label"), sub: t("tools.reminders.sub"), route: "/reminders" },
