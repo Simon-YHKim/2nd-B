@@ -11,7 +11,6 @@ import { isDevSurfaceEnabled } from "@/lib/dev/gate";
 import { reactExpression } from "@/lib/companion/expression";
 import {
   ActivityIndicator,
-  TouchableOpacity,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -44,10 +43,8 @@ import { useFontStyle } from "@/lib/settings/readable-font";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useTheme } from "@/lib/theme/ThemeContext";
 import { signOut } from "@/lib/supabase/auth";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 // Direct module import (NOT the components/deepspace barrel) — the barrel has a
 // known require cycle that crashed the /settings path once already (PR 711).
-import { SecondbStatusHeader } from "@/components/deep-space/SecondbStatusHeader";
 import { changeUiLanguage } from "@/lib/i18n";
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META, type AvailableUiLocale } from "@/lib/i18n/locales";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
@@ -166,110 +163,74 @@ function M3Icon({ name, color, size = 20 }: { name: string; color: string; size?
 // M3 Switch (1:1 from reference-app MdSwitch): 52×32 track, 2dp border, thumb
 // 16→24. Colors via m3.color tokens (no hex). Announces switch role + checked.
 function M3Switch({ checked, onChange, accessibilityLabel }: { checked: boolean; onChange: (v: boolean) => void; accessibilityLabel?: string }) {
-  if (isDeepSpaceUI()) {
-    return (
-      <Pressable
-        accessibilityRole="switch"
-        accessibilityState={{ checked }}
-        accessibilityLabel={accessibilityLabel}
-        onPress={() => onChange(!checked)}
-        hitSlop={12}
-        style={m3Styles.pixelSwitchPressable}
-      >
-        <PixelSurface
-          variant={checked ? "bevel" : "inset"}
-          background={checked ? m3.color.primaryContainer : m3.color.surfaceVariant}
-          contentStyle={m3Styles.pixelSwitchContent}
-        >
-          <View
-            style={[
-              m3Styles.pixelSwitchThumb,
-              checked ? m3Styles.pixelSwitchThumbChecked : m3Styles.pixelSwitchThumbOff,
-            ]}
-          />
-        </PixelSurface>
-      </Pressable>
-    );
-  }
   return (
     <Pressable
       accessibilityRole="switch"
       accessibilityState={{ checked }}
       accessibilityLabel={accessibilityLabel}
       onPress={() => onChange(!checked)}
-      hitSlop={8}
-      style={[
-        m3Styles.switchTrack,
-        { borderColor: checked ? m3.color.primary : m3.color.outline, backgroundColor: checked ? m3.color.primary : m3.color.surfaceContainerHighest },
-      ]}
+      hitSlop={12}
+      style={m3Styles.pixelSwitchPressable}
     >
-      <View
-        style={[
-          m3Styles.switchThumb,
-          checked
-            ? { width: 24, height: 24, right: 2, backgroundColor: m3.color.onPrimary }
-            : { width: 16, height: 16, left: 7, backgroundColor: m3.color.outline },
-        ]}
-      />
+      <PixelSurface
+        variant={checked ? "bevel" : "inset"}
+        background={checked ? m3.color.primaryContainer : m3.color.surfaceVariant}
+        contentStyle={m3Styles.pixelSwitchContent}
+      >
+        <View
+          style={[
+            m3Styles.pixelSwitchThumb,
+            checked ? m3Styles.pixelSwitchThumbChecked : m3Styles.pixelSwitchThumbOff,
+          ]}
+        />
+      </PixelSurface>
     </Pressable>
   );
 }
 
 function M3IconBadge({ icon, active }: { icon: string; active: boolean }) {
-  if (isDeepSpaceUI()) {
-    return (
-      <PixelSurface
-        variant={active ? "bevel" : "inset"}
-        background={active ? m3.color.primaryContainer : m3.color.surfaceVariant}
-        style={m3Styles.pixelIconBadge}
-        contentStyle={m3Styles.pixelIconBadgeContent}
-      >
-        <M3Icon name={icon} fill={active} color={active ? m3.color.onPrimaryContainer : m3.color.onSurfaceVariant} />
-      </PixelSurface>
-    );
-  }
   return (
-    <View style={[m3Styles.iconBadge, { backgroundColor: active ? m3.color.primary : m3.color.surfaceContainerHighest }]}>
-      <M3Icon name={icon} fill={active} color={active ? m3.color.onPrimary : m3.color.onSurfaceVariant} />
-    </View>
+    <PixelSurface
+      variant={active ? "bevel" : "inset"}
+      background={active ? m3.color.primaryContainer : m3.color.surfaceVariant}
+      style={m3Styles.pixelIconBadge}
+      contentStyle={m3Styles.pixelIconBadgeContent}
+    >
+      <M3Icon name={icon} fill={active} color={active ? m3.color.onPrimaryContainer : m3.color.onSurfaceVariant} />
+    </PixelSurface>
   );
 }
 
 function M3SectionLabel({ children, action }: { children: string; action?: ReactNode }) {
-  const pixel = isDeepSpaceUI();
   return (
     <View style={m3Styles.sectionLabelRow}>
-      <RNText style={[m3Styles.sectionLabel, pixel ? m3Styles.pixelSectionLabel : null]}>{children}</RNText>
+      <RNText style={[m3Styles.sectionLabel, m3Styles.pixelSectionLabel]}>{children}</RNText>
       {action}
     </View>
   );
 }
 
 function M3Group({ children }: { children: ReactNode }) {
-  if (isDeepSpaceUI()) {
-    return (
-      <PixelSurface variant="bevel" style={m3Styles.pixelGroup} contentStyle={m3Styles.pixelGroupContent}>
-        {children}
-      </PixelSurface>
-    );
-  }
-  return <View style={m3Styles.card}>{children}</View>;
+  return (
+    <PixelSurface variant="bevel" style={m3Styles.pixelGroup} contentStyle={m3Styles.pixelGroupContent}>
+      {children}
+    </PixelSurface>
+  );
 }
 function M3Divider() {
-  return <View style={[m3Styles.divider, isDeepSpaceUI() ? m3Styles.pixelDivider : null]} />;
+  return <View style={[m3Styles.divider, m3Styles.pixelDivider]} />;
 }
 
 function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChange }: { icon: string; label: string; sub: string; subAccessibilityLabel?: string; checked: boolean; onChange: (v: boolean) => void }) {
   useFontStyle();
-  const pixel = isDeepSpaceUI();
   return (
-    <View style={[m3Styles.row, pixel ? m3Styles.pixelRow : null]}>
+    <View style={[m3Styles.row, m3Styles.pixelRow]}>
       <M3IconBadge icon={icon} active={checked} />
       <View style={m3Styles.rowText}>
-        <RNText style={[m3Styles.rowLabel, pixel ? m3Styles.pixelRowLabel : null]}>{label}</RNText>
+        <RNText style={[m3Styles.rowLabel, m3Styles.pixelRowLabel]}>{label}</RNText>
         {/* subAccessibilityLabel: when sub went through keepAllKo, screen readers
             get the raw string (U+2060 joiners disorient braille / char review). */}
-        <RNText style={[m3Styles.rowSub, pixel ? m3TextStyle("bodyMedium") : null, pixel ? m3Styles.pixelRowSub : null]} accessibilityLabel={subAccessibilityLabel}>{sub}</RNText>
+        <RNText style={[m3Styles.rowSub, m3TextStyle("bodyMedium"), m3Styles.pixelRowSub]} accessibilityLabel={subAccessibilityLabel}>{sub}</RNText>
       </View>
       <M3Switch checked={checked} onChange={onChange} accessibilityLabel={label} />
     </View>
@@ -284,10 +245,9 @@ function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChang
 function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: string; sub?: string; badge?: number; onPress: () => void }) {
   useFontStyle();
   const [held, setHeld] = useState(false);
-  const pixel = isDeepSpaceUI();
   return (
     <Pressable
-      style={[m3Styles.row, pixel ? m3Styles.pixelRow : null, pixel && held ? m3Styles.pixelRowPressed : null]}
+      style={[m3Styles.row, m3Styles.pixelRow, held ? m3Styles.pixelRowPressed : null]}
       onPress={onPress}
       onPressIn={() => setHeld(true)}
       onPressOut={() => setHeld(false)}
@@ -297,12 +257,12 @@ function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: 
     >
       <M3IconBadge icon={icon} active={false} />
       <View style={m3Styles.rowText}>
-        <RNText style={[m3Styles.rowLabel, pixel ? m3Styles.pixelRowLabel : null]}>{label}</RNText>
-        {sub ? <RNText style={[m3Styles.rowSub, pixel ? m3TextStyle("bodyMedium") : null, pixel ? m3Styles.pixelRowSub : null]}>{sub}</RNText> : null}
+        <RNText style={[m3Styles.rowLabel, m3Styles.pixelRowLabel]}>{label}</RNText>
+        {sub ? <RNText style={[m3Styles.rowSub, m3TextStyle("bodyMedium"), m3Styles.pixelRowSub]}>{sub}</RNText> : null}
       </View>
       {badge && badge > 0 ? (
         <View style={m3Styles.rowBadge}>
-          <RNText style={[m3Styles.rowBadgeText, pixel ? m3Styles.pixelRowBadgeText : null]}>{badge}</RNText>
+          <RNText style={[m3Styles.rowBadgeText, m3Styles.pixelRowBadgeText]}>{badge}</RNText>
         </View>
       ) : null}
       <M3Icon name="chevron_right" size={20} color={m3.color.onSurfaceVariant} />
@@ -348,70 +308,38 @@ function SettingsActionButton({
         ? deepSpace.textHi
         : deepSpace.text;
 
-  if (isDeepSpaceUI()) {
-    const background = isDisabled
-      ? BTN_DISABLED_BG
-      : variant === "primary"
-        ? deepSpace.mint
-        : variant === "danger"
-          ? semantic.zoneRed
-          : m3.color.surfaceContainerHigh;
-    return (
-      <Pressable
-        accessibilityRole={accessibilityRole}
-        accessibilityLabel={accessibilityLabel ?? label}
-        accessibilityHint={accessibilityHint}
-        accessibilityState={{ disabled: isDisabled, busy: loading, selected }}
-        disabled={isDisabled}
-        onPress={onPress ? () => void onPress() : undefined}
-        onPressIn={() => setHeld(true)}
-        onPressOut={() => setHeld(false)}
-        style={[styles.pixelButtonRoot, full ? styles.settingsButtonFull : null, style]}
-      >
-        <View collapsable={false} style={held ? styles.pixelButtonHeld : null}>
-          <PixelSurface
-            variant={isDisabled ? "frame" : "bevel"}
-            pressed={held && !isDisabled}
-            background={background}
-            style={styles.pixelButtonSurface}
-            contentStyle={styles.pixelButtonContent}
-          >
-            {loading ? <ActivityIndicator size="small" color={labelColor} /> : null}
-            <Text style={[styles.pixelButtonLabel, { color: labelColor }]}>{label}</Text>
-          </PixelSurface>
-        </View>
-      </Pressable>
-    );
-  }
-
+  const background = isDisabled
+    ? BTN_DISABLED_BG
+    : variant === "primary"
+      ? deepSpace.mint
+      : variant === "danger"
+        ? semantic.zoneRed
+        : m3.color.surfaceContainerHigh;
   return (
-    <View
-      style={[
-        styles.settingsButton,
-        full ? styles.settingsButtonFull : null,
-        style,
-        variant === "primary"
-          ? styles.settingsButtonPrimary
-          : variant === "danger"
-            ? styles.settingsButtonDanger
-            : styles.settingsButtonSecondary,
-        isDisabled ? styles.settingsButtonDisabled : null,
-      ]}
+    <Pressable
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: isDisabled, busy: loading, selected }}
+      disabled={isDisabled}
+      onPress={onPress ? () => void onPress() : undefined}
+      onPressIn={() => setHeld(true)}
+      onPressOut={() => setHeld(false)}
+      style={[styles.pixelButtonRoot, full ? styles.settingsButtonFull : null, style]}
     >
-      <TouchableOpacity
-        accessibilityRole={accessibilityRole}
-        accessibilityLabel={accessibilityLabel ?? label}
-        accessibilityHint={accessibilityHint}
-        accessibilityState={{ disabled: isDisabled, busy: loading, selected }}
-        disabled={isDisabled}
-        onPress={onPress ? () => void onPress() : undefined}
-        style={styles.settingsButtonPressable}
-        activeOpacity={0.78}
-      >
-        {loading ? <ActivityIndicator size="small" color={labelColor} /> : null}
-        <Text style={[styles.settingsButtonLabel, { color: labelColor }]}>{label}</Text>
-      </TouchableOpacity>
-    </View>
+      <View collapsable={false} style={held ? styles.pixelButtonHeld : null}>
+        <PixelSurface
+          variant={isDisabled ? "frame" : "bevel"}
+          pressed={held && !isDisabled}
+          background={background}
+          style={styles.pixelButtonSurface}
+          contentStyle={styles.pixelButtonContent}
+        >
+          {loading ? <ActivityIndicator size="small" color={labelColor} /> : null}
+          <Text style={[styles.pixelButtonLabel, { color: labelColor }]}>{label}</Text>
+        </PixelSurface>
+      </View>
+    </Pressable>
   );
 }
 
@@ -437,11 +365,12 @@ function DisclosureSection({
   children,
 }: DisclosureSectionProps) {
   const [held, setHeld] = useState(false);
-  const pixel = isDeepSpaceUI();
-  const borderStartColor = tone === "warning" ? semantic.warning : semantic.brand;
-  const textColor: keyof typeof semantic = tone === "warning" ? "warning" : "brand";
-  const contents = (
-    <>
+  return (
+    <PixelSurface
+      variant="bevel"
+      style={styles.pixelDisclosure}
+      contentStyle={styles.pixelDisclosureContent}
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={title}
@@ -449,73 +378,31 @@ function DisclosureSection({
         onPress={onToggle}
         onPressIn={() => setHeld(true)}
         onPressOut={() => setHeld(false)}
-        style={[
-          styles.disclosureHeader,
-          held ? styles.disclosureHeaderPressed : null,
-        ]}
+        style={[m3Styles.row, m3Styles.pixelRow, held ? styles.pixelDisclosureHeaderPressed : null]}
       >
-        <Text variant="caption" color={textColor} style={styles.sectionEyebrow}>
+        <M3IconBadge icon={icon} active={false} />
+        <RNText style={[m3Styles.rowLabel, m3Styles.pixelRowLabel, styles.pixelDisclosureTitle, tone === "warning" ? styles.pixelDisclosureWarning : null]}>
           {title}
-        </Text>
-        <Text variant="caption" color={textColor} style={styles.disclosureIndicator}>
-          {expanded ? "-" : "+"}
-        </Text>
+        </RNText>
+        <M3Icon name={expanded ? "expand_less" : "expand_more"} size={20} color={m3.color.onSurfaceVariant} />
       </Pressable>
-      {expanded ? <View style={styles.disclosureBody}>{children}</View> : null}
-    </>
-  );
-
-  if (pixel) {
-    return (
-      <PixelSurface
-        variant="bevel"
-        style={styles.pixelDisclosure}
-        contentStyle={styles.pixelDisclosureContent}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={title}
-          accessibilityState={{ expanded }}
-          onPress={onToggle}
-          onPressIn={() => setHeld(true)}
-          onPressOut={() => setHeld(false)}
-          style={[m3Styles.row, m3Styles.pixelRow, held ? styles.pixelDisclosureHeaderPressed : null]}
-        >
-          <M3IconBadge icon={icon} active={false} />
-          <RNText style={[m3Styles.rowLabel, m3Styles.pixelRowLabel, styles.pixelDisclosureTitle, tone === "warning" ? styles.pixelDisclosureWarning : null]}>
-            {title}
-          </RNText>
-          <M3Icon name={expanded ? "expand_less" : "expand_more"} size={20} color={m3.color.onSurfaceVariant} />
-        </Pressable>
-        {expanded ? (
-          <>
-            <M3Divider />
-            <View style={[styles.disclosureBody, styles.pixelDisclosureBody]}>{children}</View>
-          </>
-        ) : null}
-      </PixelSurface>
-    );
-  }
-
-  return (
-    <View style={[styles.section, { borderStartColor }]}>
-      {contents}
-    </View>
+      {expanded ? (
+        <>
+          <M3Divider />
+          <View style={[styles.disclosureBody, styles.pixelDisclosureBody]}>{children}</View>
+        </>
+      ) : null}
+    </PixelSurface>
   );
 }
 
 // Keep this wrapper outside Settings so a local state update does not remount
 // the ScrollView and reset its position to the top.
 function SettingsChrome({ children }: { children: ReactNode }) {
-  return isDeepSpaceUI() ? (
+  return (
     <DeepSpaceScreen active="settings" header="none" variant="windowed">
       {children}
     </DeepSpaceScreen>
-  ) : (
-    <View style={styles.screen}>
-      <View style={styles.glow} pointerEvents="none" />
-      {children}
-    </View>
   );
 }
 
@@ -581,15 +468,10 @@ export default function Settings() {
       </View>
     );
     // rev2: settings is a windowed ROOT tab (dock visible, no top bar/companion).
-    return isDeepSpaceUI() ? (
+    return (
       <DeepSpaceScreen active="settings" header="none" variant="windowed">
         {loadingBody}
       </DeepSpaceScreen>
-    ) : (
-      <View style={styles.screen}>
-        <View style={styles.glow} pointerEvents="none" />
-        {loadingBody}
-      </View>
     );
   }
   if (!userId) {
@@ -763,45 +645,30 @@ export default function Settings() {
     <SettingsChrome>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
-          contentContainerStyle={[styles.scroll, isDeepSpaceUI() ? styles.pixelScroll : null]}
+          contentContainerStyle={[styles.scroll, styles.pixelScroll]}
           keyboardShouldPersistTaps="handled"
         >
-        {/* Legacy track keeps its pre-rev2 companion header EXACTLY (it is the
-            live-pinned track); only the deep-space track trades it for the
-            caption below (sb-app §4: no companion outside capture/chat/records). */}
-        {!isDeepSpaceUI() && (
-          <SecondbStatusHeader
-            text={t("tuneSettings")}
-            tip={
-              t("deletionUndo")
-            }
-          />
-        )}
-        <RNText style={[m3Styles.headline, isDeepSpaceUI() ? m3Styles.pixelHeadline : null]}>{t("settings")}</RNText>
+        {/* sb-app §4: no companion header outside capture/chat/records - the
+            caption below carries the guidance line. */}
+        <RNText style={[m3Styles.headline, m3Styles.pixelHeadline]}>{t("settings")}</RNText>
         {/* Guidance line (kept from the companion era — OldGuidanceCopyResidue
             pins this SecondB-voiced wording; rev2 drops the header, not the copy). */}
-        {isDeepSpaceUI() && (
-          <Text variant="caption" color="textMuted" style={styles.guidance}>
-            {t("subtitleFull")}
-          </Text>
-        )}
+        <Text variant="caption" color="textMuted" style={styles.guidance}>
+          {t("subtitleFull")}
+        </Text>
 
         {/* PIXEL-CLAY reference starts with identity. We keep the production
             profile route and user-owned data instead of importing its sample
-            avatar/name. Legacy keeps the original lower navigation cluster. */}
-        {isDeepSpaceUI() ? (
-          <>
-            <M3SectionLabel>{t("myAccount")}</M3SectionLabel>
-            <M3Group>
-              <M3LinkRow
-                icon="person"
-                label={t("nav.profile")}
-                sub={t("nav.profileHint")}
-                onPress={() => router.push("/profile")}
-              />
-            </M3Group>
-          </>
-        ) : null}
+            avatar/name. */}
+        <M3SectionLabel>{t("myAccount")}</M3SectionLabel>
+        <M3Group>
+          <M3LinkRow
+            icon="person"
+            label={t("nav.profile")}
+            sub={t("nav.profileHint")}
+            onPress={() => router.push("/profile")}
+          />
+        </M3Group>
 
         {/* ── rev2 M3 toggle-card clone (모양 / 기능 / 데이터 연동) ── */}
         {/* 모양 */}
@@ -906,104 +773,62 @@ export default function Settings() {
             and sign-out are disabled, instead of letting the user escape a
             half-finished wipe by navigating away or signing out. */}
         {busy !== null ? (
-          isDeepSpaceUI() ? (
-            <PixelSurface
-              variant="inset"
-              style={styles.pixelBusyBanner}
-              contentStyle={styles.pixelBusyContent}
-            >
-              <View accessibilityRole="alert" accessibilityLiveRegion="polite">
-                <Text variant="caption" color="textMuted">
-                  {t("workingPaused")}
-                </Text>
-              </View>
-            </PixelSurface>
-          ) : (
-            <View style={styles.busyBanner} accessibilityRole="alert" accessibilityLiveRegion="polite">
+          <PixelSurface
+            variant="inset"
+            style={styles.pixelBusyBanner}
+            contentStyle={styles.pixelBusyContent}
+          >
+            <View accessibilityRole="alert" accessibilityLiveRegion="polite">
               <Text variant="caption" color="textMuted">
                 {t("workingPaused")}
               </Text>
             </View>
-          )
+          </PixelSurface>
         ) : null}
 
         {/* The active PIXEL-CLAY surface exposes every production destination
             once. The old DeepSpaceLinks block repeated routes already shown
-            above; legacy retains its original two button clusters. */}
-        {isDeepSpaceUI() ? (
-          <>
-            <M3SectionLabel>{t("account")}</M3SectionLabel>
-            <M3Group>
-              <M3LinkRow icon="person" label={t("nav.account")} sub={t("nav.accountHint")} onPress={() => router.push("/account")} />
-              <M3Divider />
-              <M3LinkRow icon="lock" label={t("nav.privacy")} sub={t("nav.privacyHint")} onPress={() => router.push("/privacy")} />
-            </M3Group>
+            above. */}
+        <M3SectionLabel>{t("account")}</M3SectionLabel>
+        <M3Group>
+          <M3LinkRow icon="person" label={t("nav.account")} sub={t("nav.accountHint")} onPress={() => router.push("/account")} />
+          <M3Divider />
+          <M3LinkRow icon="lock" label={t("nav.privacy")} sub={t("nav.privacyHint")} onPress={() => router.push("/privacy")} />
+        </M3Group>
 
-            <M3SectionLabel>{t("app")}</M3SectionLabel>
-            <M3Group>
-              <M3LinkRow icon="settings" label={t("nav.theme")} sub={t("nav.themeHint")} onPress={() => router.push("/theme")} />
-              <M3Divider />
-              <M3LinkRow icon="article" label={t("nav.data")} sub={t("nav.dataHint")} onPress={() => router.push("/data")} />
-              <M3Divider />
-              <M3LinkRow icon="book" label={t("nav.records")} sub={t("nav.recordsHint")} onPress={() => router.push("/records")} />
-              <M3Divider />
-              <M3LinkRow icon="lock" label={t("permissions")} onPress={() => router.push("/permissions")} />
-              <M3Divider />
-              <M3LinkRow icon="notifications" label={tOps("phone.notifications")} sub={Platform.OS === "web" ? tOps("phone.push.web") : tOps("phone.reminderSettings")} onPress={() => router.push("/reminders")} />
-            </M3Group>
+        <M3SectionLabel>{t("app")}</M3SectionLabel>
+        <M3Group>
+          <M3LinkRow icon="settings" label={t("nav.theme")} sub={t("nav.themeHint")} onPress={() => router.push("/theme")} />
+          <M3Divider />
+          <M3LinkRow icon="article" label={t("nav.data")} sub={t("nav.dataHint")} onPress={() => router.push("/data")} />
+          <M3Divider />
+          <M3LinkRow icon="book" label={t("nav.records")} sub={t("nav.recordsHint")} onPress={() => router.push("/records")} />
+          <M3Divider />
+          <M3LinkRow icon="lock" label={t("permissions")} onPress={() => router.push("/permissions")} />
+          <M3Divider />
+          <M3LinkRow icon="notifications" label={tOps("phone.notifications")} sub={Platform.OS === "web" ? tOps("phone.push.web") : tOps("phone.reminderSettings")} onPress={() => router.push("/reminders")} />
+        </M3Group>
 
-            <M3SectionLabel>{t("support")}</M3SectionLabel>
-            <M3Group>
-              <M3LinkRow icon="info" label={t("nav.support")} sub={t("nav.supportHint")} onPress={() => router.push("/support")} />
-              <M3Divider />
-              <M3LinkRow icon="book" label={t("manual")} onPress={() => router.push("/manual")} />
-              <M3Divider />
-              <M3LinkRow icon="box" label={t("aiMuseum")} onPress={() => router.push("/museum")} />
-              <M3Divider />
-              <M3LinkRow icon="ops" label={tOps("todaysAssistant")} onPress={() => router.push("/ops")} />
-              <M3Divider />
-              <M3LinkRow
-                icon="refresh"
-                label={t("resetCoachmarks")}
-                sub={t("resetCoachmarksDesc")}
-                onPress={() => {
-                  resetCoachmarks(userId);
-                  router.replace("/");
-                }}
-              />
-            </M3Group>
-          </>
-        ) : (
-          <>
-            <View style={styles.section}>
-              <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
-                {t("myAccount")}
-              </Text>
-              <Button label={t("nav.profile")} accessibilityHint={t("nav.profileHint")} variant="secondary" onPress={() => router.push("/profile")} />
-              <Button label={t("nav.privacy")} accessibilityHint={t("nav.privacyHint")} variant="secondary" onPress={() => router.push("/privacy")} />
-              <Button label={t("nav.account")} accessibilityHint={t("nav.accountHint")} variant="secondary" onPress={() => router.push("/account")} />
-            </View>
-            <View style={styles.section}>
-              <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
-                {t("app")}
-              </Text>
-              <Button label={t("nav.theme")} accessibilityHint={t("nav.themeHint")} variant="secondary" onPress={() => router.push("/theme")} />
-              <Button
-                label={t("resetCoachmarks")}
-                accessibilityHint={t("resetCoachmarksDesc")}
-                variant="secondary"
-                onPress={() => {
-                  resetCoachmarks(userId);
-                  router.replace("/");
-                }}
-              />
-              <Button label={t("nav.data")} accessibilityHint={t("nav.dataHint")} variant="secondary" onPress={() => router.push("/data")} />
-              <Button label={t("nav.records")} accessibilityHint={t("nav.recordsHint")} variant="secondary" onPress={() => router.push("/records")} />
-              <Button label={t("nav.support")} accessibilityHint={t("nav.supportHint")} variant="secondary" onPress={() => router.push("/support")} />
-              <Button label={tOps("phone.notifications")} accessibilityHint={Platform.OS === "web" ? tOps("phone.push.web") : tOps("phone.reminderSettings")} variant="secondary" onPress={() => router.push("/reminders")} />
-            </View>
-          </>
-        )}
+        <M3SectionLabel>{t("support")}</M3SectionLabel>
+        <M3Group>
+          <M3LinkRow icon="info" label={t("nav.support")} sub={t("nav.supportHint")} onPress={() => router.push("/support")} />
+          <M3Divider />
+          <M3LinkRow icon="book" label={t("manual")} onPress={() => router.push("/manual")} />
+          <M3Divider />
+          <M3LinkRow icon="box" label={t("aiMuseum")} onPress={() => router.push("/museum")} />
+          <M3Divider />
+          <M3LinkRow icon="ops" label={tOps("todaysAssistant")} onPress={() => router.push("/ops")} />
+          <M3Divider />
+          <M3LinkRow
+            icon="refresh"
+            label={t("resetCoachmarks")}
+            sub={t("resetCoachmarksDesc")}
+            onPress={() => {
+              resetCoachmarks(userId);
+              router.replace("/");
+            }}
+          />
+        </M3Group>
 
         <DisclosureSection
           // O-R2 (2) language-pack infra: first in-app language switch for
@@ -1051,8 +876,8 @@ export default function Settings() {
         {/* 그래프 크루 밀도 control removed (audit pattern A, same rule as the
             feature switches above): the crew only draws in CrewLayer, which
             mounts inside NavGraph — and NavGraph is reachable on neither
-            production surface. Home early-returns <DeepSpaceShell/> for
-            isDeepSpaceUI() (index.tsx), and /graph is wrapped in DevOnlyRoute.
+            production surface. Home renders <DeepSpaceShell/> (index.tsx), and
+            /graph is wrapped in DevOnlyRoute.
             So every density here moved a slider the user could never see the
             effect of. The pref plumbing (crew-density.ts) left for E:/Legacy
             with NavGraph on 2026-10-04: a control returns only WITH its screen. */}
@@ -1396,7 +1221,6 @@ const m3Styles = StyleSheet.create({
   },
   sectionLabel: { ...koType(14, 20, 0.1, "500"), color: m3.color.onSurfaceVariant },
   pixelSectionLabel: { ...m3TextStyle("labelLarge") },
-  card: { backgroundColor: m3.color.surfaceContainerHighest, borderRadius: m3.shape.medium, padding: m3.spacing.s1 },
   pixelGroup: { alignSelf: "stretch" },
   pixelGroupContent: { paddingHorizontal: 0, paddingVertical: 0 },
   divider: { height: 1, backgroundColor: m3.color.outlineVariant, marginHorizontal: m3.spacing.s3 },
@@ -1409,14 +1233,11 @@ const m3Styles = StyleSheet.create({
   pixelRowLabel: { ...m3TextStyle("titleMedium") },
   rowSub: { ...koType(12, 16, 0.3, "400"), color: m3.color.onSurfaceVariant, marginTop: 1 },
   pixelRowSub: { marginTop: m3.spacing.s1 },
-  iconBadge: { width: 38, height: 38, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center" },
   pixelIconBadge: { width: 42, height: 42 },
   pixelIconBadgeContent: { width: 38, height: 38, paddingHorizontal: 0, paddingVertical: 0, alignItems: "center", justifyContent: "center" },
   rowBadge: { minWidth: 24, height: 24, borderRadius: m3.shape.none, paddingHorizontal: 7, alignItems: "center", justifyContent: "center", backgroundColor: m3.accent.alertDot },
   rowBadgeText: { ...koType(12, 16, 0, "700"), color: m3.color.onPrimary },
   pixelRowBadgeText: { ...m3TextStyle("labelLarge") },
-  switchTrack: { width: 52, height: 32, borderRadius: m3.shape.none, borderWidth: 2, justifyContent: "center" },
-  switchThumb: { position: "absolute", borderRadius: m3.shape.none },
   pixelSwitchPressable: { minWidth: m3.minTouch, minHeight: m3.minTouch, alignItems: "center", justifyContent: "center" },
   pixelSwitchContent: { width: 36, height: 20, paddingHorizontal: 0, paddingVertical: 0, justifyContent: "center" },
   pixelSwitchThumb: { position: "absolute", width: 12, height: 12, backgroundColor: m3.color.onPrimaryContainer },
@@ -1432,8 +1253,6 @@ const BTN_DISABLED_LABEL = flattenAlpha(deepSpace.text, 0.5, BTN_DISABLED_BG);
 
 const styles = StyleSheet.create({
   // Deep-space shell (replaces the legacy PremiumAppShell light cosmic body).
-  screen: { flex: 1, backgroundColor: deepSpace.bg },
-  glow: { position: "absolute", top: 0, left: 0, right: 0, height: 200, backgroundColor: deepSpace.bgGlow },
   center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   scroll: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xl, gap: spacing.lg },
   pixelScroll: {
@@ -1445,33 +1264,10 @@ const styles = StyleSheet.create({
   header: { gap: spacing.xs, marginBottom: spacing.md },
   title: { fontSize: 20, color: deepSpace.textHi, marginBottom: spacing.xs },
   guidance: { marginTop: -6, marginBottom: spacing.xs },
-  section: {
-    backgroundColor: deepSpace.card,
-    borderColor: deepSpace.cardLine,
-    borderWidth: 1,
-    borderRadius: m3.shape.large,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
   sectionEyebrow: { letterSpacing: 0, fontWeight: "700" },
-  disclosureHeader: {
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-  },
-  disclosureHeaderPressed: {
-    opacity: 0.78,
-  },
   pixelDisclosureHeaderPressed: {
     transform: [{ translateY: m3.spacing.s1 }],
     backgroundColor: m3.color.surfaceVariant,
-  },
-  disclosureIndicator: {
-    minWidth: 24,
-    textAlign: "right",
-    fontWeight: "800",
   },
   disclosureBody: {
     gap: spacing.sm,
@@ -1497,14 +1293,6 @@ const styles = StyleSheet.create({
     flexBasis: "47%",
     minWidth: 148,
   },
-  busyBanner: {
-    backgroundColor: deepSpace.card,
-    borderColor: deepSpace.cardLine,
-    borderWidth: 1,
-    borderRadius: m3.shape.medium,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
   pixelBusyBanner: { alignSelf: "stretch", marginTop: m3.spacing.s5 },
   pixelBusyContent: { paddingHorizontal: m3.spacing.s6, paddingVertical: m3.spacing.s4 },
   pixelButtonRoot: { alignSelf: "stretch", minHeight: m3.minTouch },
@@ -1523,50 +1311,12 @@ const styles = StyleSheet.create({
     ...m3TextStyle("labelLarge"),
     textAlign: "center",
   },
-  settingsButton: {
-    minHeight: 48,
-    borderRadius: m3.shape.medium,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
   settingsButtonFull: {
     alignSelf: "stretch",
     width: "100%",
   },
-  settingsButtonPressable: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    minHeight: 48,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  settingsButtonPrimary: {
-    backgroundColor: deepSpace.mint,
-    borderColor: deepSpace.mint,
-  },
-  settingsButtonSecondary: {
-    backgroundColor: deepSpace.card,
-    borderColor: deepSpace.cardLineStrong,
-  },
-  settingsButtonDanger: {
-    backgroundColor: semantic.zoneRed,
-    borderColor: semantic.zoneRed,
-  },
-  settingsButtonDisabled: {
-    backgroundColor: BTN_DISABLED_BG,
-    borderColor: deepSpace.cardLine,
-  },
   settingsButtonPressed: {
     opacity: 0.78,
-  },
-  settingsButtonLabel: {
-    fontSize: 15,
-    fontWeight: "800",
-    letterSpacing: 0,
-    textAlign: "center",
-    fontFamily: fontFamilies.pixelKo,
   },
   actions: { gap: spacing.sm, marginTop: spacing.md },
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },

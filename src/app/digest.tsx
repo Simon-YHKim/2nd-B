@@ -7,7 +7,6 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { View, StyleSheet, ScrollView, Pressable } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Redirect } from "expo-router";
@@ -15,7 +14,6 @@ import { Redirect } from "expo-router";
 import { Text } from "@/components/ui/Text";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -410,22 +408,14 @@ export default function Digest() {
 // ⚠ active="lens" 는 TABS 밖이라 어떤 탭도 잘못 하이라이트되지 않고,
 // DeepSpaceScreen 의 '루트 탭 → 홈' 하드웨어 뒤로가기 특례도 걸리지 않는다.
 function Frame({ children }: { children: ReactNode }) {
-  if (isDeepSpaceUI()) {
-    return (
-      <DeepSpaceScreen active="lens" header="none">
-        {children}
-      </DeepSpaceScreen>
-    );
-  }
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+    <DeepSpaceScreen active="lens" header="none">
       {children}
-    </SafeAreaView>
+    </DeepSpaceScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: deepSpace.bg },
   flex: { flex: 1 },
   body: { padding: deepSpaceSpacing.lg, gap: deepSpaceSpacing.md },
   header: { flexDirection: "row", gap: deepSpaceSpacing.sm, alignItems: "flex-start" },
