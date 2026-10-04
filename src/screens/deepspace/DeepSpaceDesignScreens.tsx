@@ -604,9 +604,9 @@ export function DeepSpacePrivacyDesignScreen() {
     deleteInFlightRef.current = true;
     setDeleting(true);
     setDelError(false);
-    // The receipt says what the server erased and what it could not confirm.
-    // It used to be discarded here, so a user who deleted their account was
-    // signed out and shown a sign-in form, and never learned any of it.
+    // Bound to the account before the first await, not to this screen: an A -> null
+    // can unmount /privacy mid-request, and the receipt must outlive that.
+    const completion = createAccountDeletionCompletion(targetUserId, currentAccountEpoch());
     let receipt: Awaited<ReturnType<typeof requestAccountDeletion>>;
     let authExpectation: Awaited<ReturnType<typeof captureSignOutExpectation>>;
     try {
@@ -619,6 +619,7 @@ export function DeepSpacePrivacyDesignScreen() {
       // empty, and only then deletes Auth so the database cascade runs last.
       receipt = await requestAccountDeletion(authExpectation);
     } catch {
+      completion.dispose();
       deleteInFlightRef.current = false;
       // Lift the fence whoever owns the screen now: a stuck `deleting` exempts a signed-out visitor from the guard below.
       if (privacyMountedRef.current) setDeleting(false);
@@ -639,22 +640,20 @@ export function DeepSpacePrivacyDesignScreen() {
     }
 
     // Terminal erasure already succeeded. Do not let a local sign-out failure
-    // expose a destructive Retry, and never sign out a newly active B session
-    // after an A request resolves late.
-    if (!privacyMountedRef.current) return;
-    if (activeUserRef.current !== targetUserId) {
+    // expose a destructive Retry. The account boundary, not this screen, says who
+    // may see the receipt: A, or this device signed out after A -> null. Never
+    // sign out, or hand A's receipt to, a B published after the request.
+    const showsAnotherAccount = privacyMountedRef.current
+      && activeUserRef.current !== null && activeUserRef.current !== targetUserId;
+    if (showsAnotherAccount || !completion.beginSignOut(receipt, localPurge)) {
+      completion.dispose();
       deleteInFlightRef.current = false;
-      setDeleting(false);
+      if (privacyMountedRef.current) setDeleting(false);
       return;
     }
     // Successful erasure may itself trigger an auth-driven route removal.
     // Let that navigation, sign-out, and the explicit replacement proceed.
     allowDeletionNavigationRef.current = true;
-    // Hand the receipt to the store that survives exactly this owner -> null
-    // transition, so the destination screen can show it with the observed
-    // local-cleanup result.
-    const completion = createAccountDeletionCompletion(targetUserId, currentAccountEpoch());
-    completion.beginSignOut(receipt, localPurge);
     try {
       await signOutExpected(authExpectation);
       completion.finishSignOut(true);
@@ -675,6 +674,7 @@ export function DeepSpacePrivacyDesignScreen() {
       }
     }
     completion.dispose();
+    // Even from an unmounted scene: a signed-out device is sent to the receipt.
     router.dismissAll();
     router.replace("/sign-in");
   }

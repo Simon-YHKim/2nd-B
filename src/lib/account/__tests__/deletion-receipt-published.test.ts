@@ -56,6 +56,21 @@ function deleteCallback(context: Record<string, unknown>) {
   return new Function(...Object.keys(context), `${js}\nreturn run;`)(...Object.values(context)) as () => Promise<unknown>;
 }
 
+interface HarnessHandles {
+  owner: { current: string | null };
+  mounted: { current: boolean };
+  epoch: typeof import("../../auth/account-epoch");
+}
+
+/** AuthContext 가 계정을 바꾸는 순서 그대로: hold(owner 이벤트 없음) → 게시.
+ *  AccountScope 가 epoch 로 장면을 다시 마운트하므로 옛 /privacy 는 내려간다. */
+function publishOwner(h: HarnessHandles, next: string | null) {
+  h.epoch.beginAccountOwnerTransition(next);
+  h.epoch.noteResolvedOwner(next);
+  h.mounted.current = false;
+  h.owner.current = next;
+}
+
 function harness(
   options: {
     signOutFails?: boolean;
@@ -67,6 +82,10 @@ function harness(
     ownerBeforeFailure?: string | null;
     /** 로그아웃 기대값을 잡는 순간 이미 다른 계정이다 → AuthSessionOwnerChangedError. */
     expectationOwner?: string;
+    /** 서버 삭제가 성공하기 직전에 일어나는 일(외부 로그아웃 · 다른 계정 · 화면 내려감). */
+    duringRequest?: (h: HarnessHandles) => void;
+    /** signOutExpected 안에서 AuthContext 가 하는 일(hold → 게시)을 흉내 낸다. */
+    duringSignOut?: (h: HarnessHandles) => void;
   } = {},
 ) {
   const calls = { purge: 0, signOut: 0, dismissAll: 0, replace: [] as string[] };
@@ -78,6 +97,7 @@ function harness(
   class TestAuthSessionOwnerChangedError extends Error {}
   const completion = require("../deletion-completion") as typeof import("../deletion-completion");
   const epoch = require("../../auth/account-epoch") as typeof import("../../auth/account-epoch");
+  const handles: HarnessHandles = { owner, mounted, epoch };
   const context: Record<string, unknown> = {
     userId: OWNER, delConfirm: "DELETE",
     deleteConfirmUserRef: { current: OWNER },
@@ -103,6 +123,7 @@ function harness(
         throw new Error("terminal deletion failed");
       }
       if (options.deletionFails) throw new Error("terminal deletion failed");
+      options.duringRequest?.(handles);
       return RECEIPT;
     },
     purgeDeletedAccountLocalData: async () => {
@@ -112,6 +133,7 @@ function harness(
     },
     signOutExpected: async () => {
       calls.signOut += 1;
+      options.duringSignOut?.(handles);
       if (options.ownerChangedDuringFinalizer) {
         throw new TestAuthSessionOwnerChangedError();
       }
@@ -262,5 +284,84 @@ describe("삭제가 실패하면 울타리는 소유자와 무관하게 풀린�
     expect(h.state.deleting).toBe(true);
     expect(h.state.delErrorShown).toBe(0);
     expect(h.inFlight.current).toBe(false);
+  });
+});
+
+// 계정 삭제 기존 결함 두 갈래 (QA 261004 2단계 게이트, 2026-10-05).
+//
+// ① 정상 경로에서도 영수증이 버려졌다. AuthContext 의 로그아웃은 hold
+//    (beginAccountOwnerTransition(null), owner 이벤트 없음) 다음 게시
+//    (noteResolvedOwner(null)) 로 epoch 를 두 칸 올리는데, 영수증은 정확히 +1 만
+//    받았다. 위 하네스의 signOutExpected 는 epoch 를 건드리지 않아서 그 길을
+//    한 번도 지나지 않았다 - 기존 테스트가 전부 초록이었던 이유다.
+// ② 서버 삭제를 기다리는 동안 외부 A -> null 로 화면이 내려가면 성공 결과·영수증·
+//    로컬 정리 결과가 전부 사라졌다(`if (!privacyMountedRef.current) return`).
+describe("영수증은 화면이 아니라 계정을 따라간다", () => {
+  test("① 로그아웃이 AuthContext 처럼 hold → 게시로 epoch 를 두 칸 올려도 영수증이 남는다", async () => {
+    const { run, calls } = harness({ duringSignOut: (h) => publishOwner(h, null) });
+    await run();
+    expect(getAccountDeletionNotice()?.localSignOut).toBe("complete");
+    expect(getAccountDeletionNotice()?.receipt.profileErased).toBe(true);
+    expect(calls.replace).toEqual(["/sign-in"]);
+  });
+
+  test("① 로그아웃이 hold 와 게시 사이에 끝나도 '진행 중' 으로 멈추지 않는다", async () => {
+    let publishNull: (() => void) | null = null;
+    const { run } = harness({
+      duringSignOut: (h) => {
+        h.epoch.beginAccountOwnerTransition(null);
+        publishNull = () => h.epoch.noteResolvedOwner(null);
+      },
+    });
+    await run();
+    // AuthContext 는 정리 게이트를 기다린 뒤에 게시한다.
+    (publishNull as (() => void) | null)?.();
+    expect(getAccountDeletionNotice()?.localSignOut).toBe("complete");
+  });
+
+  test("② 요청 중 외부 A -> null 로 화면이 내려가도 영수증과 로컬 정리 결과가 남는다", async () => {
+    const { run, calls } = harness({
+      localPurgeUnconfirmed: true,
+      duringRequest: (h) => publishOwner(h, null),
+    });
+    await run();
+    const notice = getAccountDeletionNotice();
+    expect(notice).not.toBeNull();
+    expect(notice?.receipt.unconfirmed).toEqual(["rawClippings"]);
+    expect(notice?.localPurge).toBe("unconfirmed");
+    expect(calls.purge).toBe(1);
+    // 세션이 이미 비어 있으면 signOutExpected 는 alreadyCleared 로 한 번 더
+    // SIGNED_OUT 을 보낸다(session-mutation.ts). 그 결과까지 영수증에 남는다.
+    expect(calls.signOut).toBe(1);
+    expect(notice?.localSignOut).toBe("complete");
+    expect(calls.replace).toEqual(["/sign-in"]);
+  });
+
+  test.each([
+    ["A -> B", ["22222222-2222-4222-8222-222222222222"]],
+    ["A -> null -> B", [null, "22222222-2222-4222-8222-222222222222"]],
+  ] as const)("② 요청 중 %s 이면 B 는 A 의 영수증을 보지 않고 로그아웃되지도 않는다", async (_label, owners) => {
+    const { run, calls, state, inFlight } = harness({
+      duringRequest: (h) => { for (const next of owners) publishOwner(h, next); },
+    });
+    await run();
+    expect(getAccountDeletionNotice()).toBeNull();
+    expect(calls.signOut).toBe(0);
+    expect(calls.dismissAll).toBe(0);
+    expect(calls.replace).toEqual([]);
+    // 지워진 A 의 기기 자료는 그래도 정리한다 - 서버에서는 이미 없는 계정이다.
+    expect(calls.purge).toBe(1);
+    expect(inFlight.current).toBe(false);
+    expect(state.delErrorShown).toBe(0);
+  });
+
+  test("② 화면이 경계보다 먼저 B 를 그리고 있어도 B 를 로그아웃하지 않는다", async () => {
+    const { run, calls } = harness({
+      duringRequest: (h) => { h.owner.current = "22222222-2222-4222-8222-222222222222"; },
+    });
+    await run();
+    expect(getAccountDeletionNotice()).toBeNull();
+    expect(calls.signOut).toBe(0);
+    expect(calls.replace).toEqual([]);
   });
 });
