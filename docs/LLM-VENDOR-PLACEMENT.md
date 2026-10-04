@@ -149,6 +149,11 @@ lite → nano, flash → mini, pro → 프론티어.
 그 뒤 콘솔 소유자가 gate를 켠다. 첫 실호출에서 아래 셋을 계정으로 확인한다. 확인 방법은 하나뿐이다 —
 `ai_audit_log.reasoning_vendor = 'xai'` 행이 생기는지 본다.
 
+> **운영 스위치 실제 이력(2026-10-04 정정):** 위 표의 "OFF"는 코드 기본값이다. 운영(`zoacryukmdeivmolvyhj`)의
+> `ENABLE_XAI_PROXY` 는 **2026-09-19 09:47 KST 에 `true` 로 설정**돼 있었고, **2026-10-04 18:41 KST
+> Simon GO(18:38)에 따라 `false` 로 바꿨다**(secrets list digest = sha256("false") 확인). 함수와 `XAI_API_KEY` 는
+> 그대로 두었다. 다시 켜려면 위 선행 조건을 먼저 채운다.
+
 ## 4. Claude 를 언제 넣나
 
 claude-proxy 는 **이미 배포·키 완료**고 좌석표도 있다(sonnet 8 · opus 4).
