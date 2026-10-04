@@ -3,12 +3,18 @@
 // with an in-memory fallback. The TTFV first-day screen must surface exactly
 // ONCE, on the user's first day after onboarding. So we persist a "seen" flag
 // and only auto-trigger while still inside the first-day window, anchored on the
-// onboarding completedAt timestamp that state.ts already stores under
-// ONBOARDING_KEY (no DB round-trip needed).
+// signed-in account's onboarding completion (state.ts onboardingCompletedAt).
+//
+// W-12 (QA 261004): the anchor used to be the device-wide ONBOARDING_KEY, so an
+// existing account on a new browser finished the repeated welcome with a fresh
+// timestamp and got the first-day screen again. The anchor is now the owner's
+// own completion, read only after onboarding has resolved for that owner. A
+// completion inferred from existing rows is not a date, so it never opens the
+// window.
 
 import { useEffect, useState } from "react";
 
-import { ONBOARDING_KEY } from "./state";
+import { onboardingCompletedAt } from "./state";
 
 export const TTFV_SEEN_KEY = "onboarding.ttfv.v1.seenAt";
 
@@ -21,7 +27,6 @@ interface AsyncStorageLike {
 }
 
 let memorySeen = false;
-let memoryCompletedAt: string | null = null;
 let memoryHydrated = false;
 
 function ls(): Storage | null {
@@ -75,70 +80,65 @@ export function isWithinFirstDay(completedAtISO: string | null, nowMs: number): 
   return delta > -FIRST_DAY_MS && delta < FIRST_DAY_MS;
 }
 
-interface TTFVGateState {
-  seen: boolean;
-  completedAt: string | null;
+function syncSeen(): boolean | null {
+  const local = ls();
+  if (local) return !!local.getItem(TTFV_SEEN_KEY);
+  if (memoryHydrated) return memorySeen;
+  return nativeStorage() ? null : false;
 }
 
 /**
  * Decides whether to auto-trigger the first-day TTFV screen on the graph home.
- *   null  = native persistence still hydrating (caller shows a loader, matching
- *           the onboarding gate, rather than flashing the graph then redirecting)
- *   false = already seen, or no onboarding timestamp, or past the first day
+ *   null  = not decidable yet: onboarding has not resolved for this owner, or
+ *           native persistence is still hydrating (caller shows a loader rather
+ *           than flashing the graph then redirecting)
+ *   false = already seen, or no first-day anchor, or past the first day
  *   true  = show /ttfv now
  *
+ * Pass the signed-in owner and that owner's useOnboardingComplete() result.
  * Web reads localStorage synchronously so it resolves on first render; only
- * native pays a one-tick hydrate.
+ * native pays a one-tick hydrate of the seen flag.
  */
-export function useAutoTriggerTTFV(): boolean | null {
-  const [state, setState] = useState<TTFVGateState | null>(() => {
-    const local = ls();
-    if (local) {
-      return {
-        seen: !!local.getItem(TTFV_SEEN_KEY),
-        completedAt: local.getItem(ONBOARDING_KEY),
-      };
-    }
-    if (memoryHydrated) return { seen: memorySeen, completedAt: memoryCompletedAt };
-    return nativeStorage() ? null : { seen: false, completedAt: null };
-  });
+export function useAutoTriggerTTFV(ownerId: string | null, onboardingComplete: boolean | null): boolean | null {
+  const [hydratedSeen, setHydratedSeen] = useState<boolean | null>(() => syncSeen());
 
   useEffect(() => {
-    if (state !== null) return;
+    if (hydratedSeen !== null) return;
     const storage = nativeStorage();
     if (!storage) {
       memoryHydrated = true;
-      setState({ seen: memorySeen, completedAt: memoryCompletedAt });
+      setHydratedSeen(memorySeen);
       return;
     }
 
     let cancelled = false;
-    Promise.all([storage.getItem(TTFV_SEEN_KEY), storage.getItem(ONBOARDING_KEY)])
-      .then(([seenVal, completedAt]) => {
+    storage
+      .getItem(TTFV_SEEN_KEY)
+      .then((seenVal) => {
         if (cancelled) return;
-        memorySeen = !!seenVal;
-        memoryCompletedAt = completedAt;
+        memorySeen = memorySeen || !!seenVal;
         memoryHydrated = true;
-        setState({ seen: memorySeen, completedAt });
+        setHydratedSeen(memorySeen);
       })
       .catch(() => {
         if (cancelled) return;
         memoryHydrated = true;
-        setState({ seen: memorySeen, completedAt: memoryCompletedAt });
+        setHydratedSeen(memorySeen);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [state]);
+  }, [hydratedSeen]);
 
-  if (state === null) return null;
-  if (state.seen) return false;
-  return isWithinFirstDay(state.completedAt, Date.now());
+  if (!ownerId || onboardingComplete !== true) return null;
+  const seen = syncSeen() ?? hydratedSeen;
+  if (seen === null) return null;
+  if (seen) return false;
+  return isWithinFirstDay(onboardingCompletedAt(ownerId), Date.now());
 }
 
 export function __resetTTFVGateForTests(): void {
   memorySeen = false;
-  memoryCompletedAt = null;
   memoryHydrated = false;
 }

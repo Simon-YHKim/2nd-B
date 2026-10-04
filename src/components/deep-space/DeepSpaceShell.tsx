@@ -27,10 +27,12 @@ import { ProfileProbeRetryScreen } from "./ProfileProbeRetry";
 
 export function DeepSpaceShell() {
   const { userId, hasProfile, loading, profileProbeFailed } = useAuth();
-  const onboardingComplete = useOnboardingComplete();
+  // Onboarding belongs to the account (W-12): a new device or a private window
+  // must not send an existing account back through the welcome.
+  const onboardingComplete = useOnboardingComplete(userId);
   // First-day activation: once onboarded + signed in, a first-launcher is sent
   // to the TTFV "첫 별 점등" once (the gate self-clears after the screen is seen).
-  const autoTriggerTTFV = useAutoTriggerTTFV();
+  const autoTriggerTTFV = useAutoTriggerTTFV(userId, onboardingComplete);
 
   // Live brightness for the home constellation: the no-LLM loadDomainLevels path
   // derives per-domain L1-L5 levels + the 북극성 aggregate from the user's real

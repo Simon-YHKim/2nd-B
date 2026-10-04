@@ -1,20 +1,52 @@
 // First-run onboarding completion state. Web uses localStorage; native uses
 // AsyncStorage so Android/iOS do not bounce back to onboarding after the
 // final CTA.
+//
+// Completion belongs to the signed-in ACCOUNT, not the device (W-12, QA 261004).
+// Onboarding has been a post-login welcome since #1000, yet the flag was one
+// device-wide key: a new browser, a private window or a reinstall put an existing
+// account back through the carousel (and then the first-day /ttfv screen), and a
+// second account on the same device skipped it. coachmarks-gate.ts moved to
+// "owner key + existing rows" in #1883 for the same reason; this follows it:
+//
+//   1. the owner's own key (memory, then localStorage / AsyncStorage)
+//   2. the server: one record or source row for this owner means the account is
+//      not new. That is recorded as ONBOARDING_FROM_RECORDS, which is not a date,
+//      so the /ttfv first-day window never opens for it.
+//   3. the old device-wide key (written by earlier builds, or by the carousel while
+//      signed out) is claimed by the first account that reaches this point, then
+//      removed, so a later account on the device does not inherit it.
+//   4. a failed server read is never read as "empty account": the owner counts as
+//      onboarded for this session only (nothing is written; the next launch asks
+//      again), instead of being pushed into the welcome on a network blip.
 
 import { useEffect, useState } from "react";
 
+import { hasCoachmarkContent as hasOwnerContent } from "./coachmarks-gate";
+
+/** Device-wide completion not tied to an account: earlier builds wrote it, and the
+ *  carousel still writes it when finished while signed out. Claimed once (above). */
 export const ONBOARDING_KEY = "onboarding.cosmicPixel.v2.completedAt";
+export const ONBOARDING_OWNER_KEY = (ownerId: string) => `onboarding.v3.${ownerId}.completedAt`;
+/** Stored instead of a timestamp when completion is inferred from existing rows. */
+export const ONBOARDING_FROM_RECORDS = "inferred:existing-records";
 export const FIRST_STAR_CHAT_KEY = "onboarding.firstStarChat.v1.nudgedAt";
 
 interface AsyncStorageLike {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
+  removeItem?(key: string): Promise<void>;
 }
 
+// Device-wide (ownerless) flag, as before.
 let memoryComplete = false;
 let memoryHydrated = false;
 let memoryStarChat = false;
+// Per-owner completion values. Only completed owners are held here.
+const memoryOwner = new Map<string, string>();
+// Owners treated as onboarded for this session only, after a failed server read.
+const sessionOnly = new Set<string>();
+const inflight = new Map<string, Promise<boolean>>();
 
 function ls(): Storage | null {
   try {
@@ -39,25 +71,159 @@ function nativeStorage(): AsyncStorageLike | null {
   }
 }
 
-export function isOnboardingComplete(): boolean {
-  const local = ls();
-  if (local) return !!local.getItem(ONBOARDING_KEY);
-  return memoryHydrated ? memoryComplete : false;
+function warn(operation: string, error: unknown): void {
+  if (typeof console !== "undefined") console.warn(`[onboarding] ${operation} failed`, error);
 }
 
-export function markOnboardingComplete(): void {
-  const completedAt = new Date().toISOString();
-  memoryComplete = true;
-  memoryHydrated = true;
-  ls()?.setItem(ONBOARDING_KEY, completedAt);
+function lsGet(key: string): string | null {
+  try {
+    return ls()?.getItem(key) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function storedValue(key: string): Promise<string | null> {
+  const local = lsGet(key);
+  if (local) return local;
+  const storage = nativeStorage();
+  if (!storage) return null;
+  try {
+    return await storage.getItem(key);
+  } catch (error) {
+    warn("read", error);
+    return null;
+  }
+}
+
+function persist(key: string, value: string): void {
+  try {
+    ls()?.setItem(key, value);
+  } catch (error) {
+    warn("persist", error);
+  }
   const storage = nativeStorage();
   // Persistence is best-effort (memory + localStorage layers still hold the
   // flag for this session), but a swallowed failure means silent re-onboarding
   // on next launch — leave a trace for debugging.
-  if (storage)
-    void storage.setItem(ONBOARDING_KEY, completedAt).catch((e) => {
-      if (typeof console !== "undefined") console.warn("[onboarding] persist failed", e);
-    });
+  if (storage) void storage.setItem(key, value).catch((e) => warn("persist", e));
+}
+
+function forget(key: string): void {
+  try {
+    ls()?.removeItem(key);
+  } catch (error) {
+    warn("remove", error);
+  }
+  const storage = nativeStorage();
+  if (storage?.removeItem) void storage.removeItem(key).catch((e) => warn("remove", e));
+}
+
+function recordOwner(ownerId: string, value: string): void {
+  memoryOwner.set(ownerId, value);
+  sessionOnly.delete(ownerId);
+  persist(ONBOARDING_OWNER_KEY(ownerId), value);
+}
+
+/**
+ * Synchronous answer when one is available without a read that can wait:
+ * memory, or localStorage on web. null = it needs resolveOnboardingComplete().
+ * Without an owner this is the device-wide flag (the signed-out carousel).
+ */
+export function isOnboardingComplete(ownerId: string | null = null): boolean | null {
+  if (!ownerId) {
+    const local = ls();
+    if (local) return !!lsGet(ONBOARDING_KEY);
+    if (memoryHydrated) return memoryComplete;
+    return nativeStorage() ? null : false;
+  }
+  if (memoryOwner.has(ownerId) || sessionOnly.has(ownerId)) return true;
+  const local = lsGet(ONBOARDING_OWNER_KEY(ownerId));
+  if (local) {
+    memoryOwner.set(ownerId, local);
+    return true;
+  }
+  return null;
+}
+
+/**
+ * The value the owner's completion was recorded with: an ISO timestamp when they
+ * finished the carousel (or claimed a device-wide one), ONBOARDING_FROM_RECORDS
+ * when inferred from their rows, null when unknown or session-only. /ttfv anchors
+ * its first-day window on it.
+ */
+export function onboardingCompletedAt(ownerId: string | null): string | null {
+  if (!ownerId) return null;
+  if (!memoryOwner.has(ownerId)) isOnboardingComplete(ownerId);
+  return memoryOwner.get(ownerId) ?? null;
+}
+
+async function resolveOwner(ownerId: string): Promise<boolean> {
+  const stored = await storedValue(ONBOARDING_OWNER_KEY(ownerId));
+  if (stored) {
+    memoryOwner.set(ownerId, stored);
+    return true;
+  }
+
+  let hasRows: boolean | null;
+  try {
+    hasRows = await hasOwnerContent(ownerId);
+  } catch (error) {
+    warn("existing-rows check", error);
+    hasRows = null;
+  }
+  const device = await storedValue(ONBOARDING_KEY);
+
+  if (hasRows === true) {
+    recordOwner(ownerId, ONBOARDING_FROM_RECORDS);
+    // This device's old completion now belongs to an account with data; do not
+    // leave it for a later account to inherit.
+    if (device) forget(ONBOARDING_KEY);
+    return true;
+  }
+  if (device) {
+    recordOwner(ownerId, device);
+    forget(ONBOARDING_KEY);
+    memoryComplete = false;
+    memoryHydrated = true;
+    return true;
+  }
+  if (hasRows === null) {
+    sessionOnly.add(ownerId);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Has this account been onboarded? Reads the owner's key, then (only when there is
+ * none) the server and the old device-wide key, in the order the header gives.
+ * Concurrent callers for one owner share one read.
+ */
+export function resolveOnboardingComplete(ownerId: string): Promise<boolean> {
+  const sync = isOnboardingComplete(ownerId);
+  if (sync !== null) return Promise.resolve(sync);
+  const pending = inflight.get(ownerId);
+  if (pending) return pending;
+  const next = resolveOwner(ownerId).finally(() => inflight.delete(ownerId));
+  inflight.set(ownerId, next);
+  return next;
+}
+
+/**
+ * Record completion. With an owner it belongs to that account; without one (the
+ * carousel finished while signed out) it is the device-wide flag that the next
+ * account to sign in claims.
+ */
+export function markOnboardingComplete(ownerId: string | null = null): void {
+  const completedAt = new Date().toISOString();
+  if (ownerId) {
+    recordOwner(ownerId, completedAt);
+    return;
+  }
+  memoryComplete = true;
+  memoryHydrated = true;
+  persist(ONBOARDING_KEY, completedAt);
 }
 
 // First-star chat nudge: after a user lights their very first star we steer them
@@ -127,50 +293,56 @@ export function markFirstStarChatNudged(): void {
     });
 }
 
-export function useOnboardingComplete(): boolean | null {
-  const [complete, setComplete] = useState<boolean | null>(() => {
-    const local = ls();
-    if (local) return !!local.getItem(ONBOARDING_KEY);
-    if (memoryHydrated) return memoryComplete;
-    return nativeStorage() ? null : false;
-  });
+async function hydrateDeviceFlag(): Promise<boolean> {
+  const storage = nativeStorage();
+  if (!storage) {
+    memoryHydrated = true;
+    return memoryComplete;
+  }
+  try {
+    const value = await storage.getItem(ONBOARDING_KEY);
+    memoryComplete = memoryComplete || !!value;
+  } catch {
+    // keep what memory says
+  }
+  memoryHydrated = true;
+  return memoryComplete;
+}
+
+/**
+ * Pass the signed-in owner (null while signed out or still loading).
+ *   null  = still reading (the caller shows a loader)
+ *   true  = this account has been onboarded
+ *   false = a new account with no completion anywhere: show the welcome
+ */
+export function useOnboardingComplete(ownerId: string | null): boolean | null {
+  const sync = isOnboardingComplete(ownerId);
+  const [resolved, setResolved] = useState<{ ownerId: string | null; complete: boolean } | null>(null);
 
   useEffect(() => {
-    if (complete !== null) return;
-    const storage = nativeStorage();
-    if (!storage) {
-      memoryHydrated = true;
-      memoryComplete = false;
-      setComplete(false);
-      return;
-    }
-
+    if (sync !== null) return;
+    if (resolved && resolved.ownerId === ownerId) return;
     let cancelled = false;
-    storage
-      .getItem(ONBOARDING_KEY)
-      .then((value) => {
-        if (cancelled) return;
-        memoryComplete = !!value;
-        memoryHydrated = true;
-        setComplete(memoryComplete);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        memoryComplete = false;
-        memoryHydrated = true;
-        setComplete(false);
-      });
-
+    const read = ownerId
+      ? resolveOnboardingComplete(ownerId).catch(() => true)
+      : hydrateDeviceFlag().catch(() => false);
+    void read.then((complete) => {
+      if (!cancelled) setResolved({ ownerId, complete });
+    });
     return () => {
       cancelled = true;
     };
-  }, [complete]);
+  }, [ownerId, sync, resolved]);
 
-  return complete;
+  if (sync !== null) return sync;
+  return resolved?.ownerId === ownerId ? resolved.complete : null;
 }
 
 export function __resetOnboardingStateForTests(): void {
   memoryComplete = false;
   memoryHydrated = false;
   memoryStarChat = false;
+  memoryOwner.clear();
+  sessionOnly.clear();
+  inflight.clear();
 }
