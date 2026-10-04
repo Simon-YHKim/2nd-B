@@ -102,13 +102,15 @@ const triggerOnlyOptOut = /--\s*definer-grants-lint:\s*trigger-only/i;
 // First fresh-context review (2026-10-04 15:59 KST) of 02331977... FAILED only on
 // the GRANT spacing (F1, fixed: one space) and asked for 0208-style $verify$
 // checks (F3, added, verification-only); F2 is recorded here.
-// REVIEW: PENDING second fresh-context review, 2026-10-04. normalized sha256
+// REVIEW: second independent fresh-context review PASS, 2026-10-04 KST, no
+// blocking findings (/workspace/outbox-dev-infra/review2-0210-signup-consent.md),
+// recomputed normalized sha256
 // 12a40e2208601f237cbccac5a3b49043f004719e916f828078eccf388f407b9f.
 const REVIEWED_SIGNUP_METADATA_SHA256S: ReadonlySet<string> = new Set([
   "6ba82c9ec8a796e99f1398398c58560b58513147119928d3ad004b31b0781648", // 0191 email-v4
   "58ad7625ee30499a87d840eadf152f0b2d599553f3b416f3a432bf313c7b4290", // 0203 email-v5
   "8c7e758936650a982c60fe1f0d828db683c4252ff45124f4766ca016a495e64a", // 0208 email-v6 (reviewed 2026-09-29)
-  "12a40e2208601f237cbccac5a3b49043f004719e916f828078eccf388f407b9f", // 0210 email-v7 + service-v2 writer (PENDING second fresh-context review, 2026-10-04)
+  "12a40e2208601f237cbccac5a3b49043f004719e916f828078eccf388f407b9f", // 0210 email-v7 + service-v2 writer (reviewed 2026-10-04, second review PASS)
 ]);
 const REVIEWED_SIGNUP_METADATA_GRANT =
   "GRANT EXECUTE ON FUNCTION public.signup_consent_contract_status() TO anon, authenticated;";
