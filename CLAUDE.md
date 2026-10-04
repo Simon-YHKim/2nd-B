@@ -732,7 +732,7 @@ not eyeballing a mockup.
 **STALE — do not use as the reference for new work:** `legacy/design/*.dc.html` and the `legacy/docs/ui-audit/`
 trio (`DESIGN_INDEX.md` / `SCREEN_TREE_SPEC.md` / `CLONE_PROTOCOL.md`). Those are a pre-M3 snapshot
 (2026-06-24) from the deep-space cosmic-pixel era, superseded by the reference app above. They are
-kept for history **outside the repo**: `E:/Legacy/2ndB/legacy/design/` · `E:/Legacy/2ndB/legacy/docs/ui-audit/` 로 이동(2026-10-04). 같은 06월 핸드오프 묶음(`design/FIX_TASKS.md` · `DESIGN_AUDIT.md` · `screenshots/` · zip 둘)은 `E:/Legacy/2ndB/design/` 에 있다. 그 사본은 읽기용이고, 저장소로 되살릴 때는 git 이력을 쓴다(`E:/Legacy/2ndB/README.md` 의 "되살리는 명령": 새 브랜치 작업 폴더에서 `git checkout <sourceCommit> -- "<path>"`). `MANIFEST.jsonl` 의 `restore` 칸은 정본 `E:/2ndB` 작업 트리에 쓰는 기록이라 그대로 치지 않는다. `SCREEN_TREE_SPEC.md`'s route table in particular is badly out of date (it lists
+kept for history **outside the repo**: `E:/Legacy/2ndB/legacy/design/` · `E:/Legacy/2ndB/legacy/docs/ui-audit/` 로 이동(2026-10-04). 같은 06월 핸드오프 묶음(`design/FIX_TASKS.md` · `DESIGN_AUDIT.md` · `screenshots/` · zip 둘)은 `E:/Legacy/2ndB/design/` 에 있다. 그 사본은 읽기용이고, 저장소로 되살릴 때는 git 이력을 쓴다(`E:/Legacy/2ndB/README.md` 의 "되살리는 명령" ②: `git -C E:/2ndB worktree add` 로 복원 전용 새 워크트리를 만들고, 그 최상위 · 브랜치 · 깨끗함을 확인한 뒤에만 `git -C "<그 워크트리>" checkout <sourceCommit> -- "<path>"`. 위치를 적지 않은 `git checkout` 은 지금 셸이 서 있는 폴더에 쓰므로 치지 않는다). `MANIFEST.jsonl` 의 `restore` 칸은 정본 `E:/2ndB` 작업 트리에 쓰는 기록이라 그대로 치지 않는다. `SCREEN_TREE_SPEC.md`'s route table in particular is badly out of date (it lists
 40 routes; **the app has 101** — `src/app` 아래 `.tsx` 105개에서 `_layout` 2개와 `+` 특수
 파일 2개를 뺀 수, 2026-09-19 실측(origin/main `d0929429`). 09-07 의 100 · 그 전의 85 는 낡은 값이다).
 
