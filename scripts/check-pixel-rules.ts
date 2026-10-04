@@ -704,7 +704,11 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 // 147 → 146 (2026-09-08, 4차): sign-in 렌더러가 나가면서 1건이 더 빌드 밖으로.
 // 같은 이유, 같은 단서 — **고친 것이 아니다.** 그 1건은 지금 legacy/screens/sign-in.tsx
 // 안에 그대로 있고, 되살리는 사람이 다시 만나게 된다.
-const RATCHET_BASELINE = 146;
+// 146 → 137 (2026-10-04, qa261004-art · L4-09): SoulcoreFinalArt 의 소울 불꽃 오버레이
+// (FLAME_CELLS 7 · SPARK_CELLS 2)가 호출 0건(v45 variant 를 넘기는 곳이 없음)이라
+// E:/Legacy/2ndB 로 나갔다. 역시 **고친 것이 아니라 빠진 것**이다. 남은 4건은
+// SNOWFLAKE_CELLS(고아 NavGraph 가 아직 import 한다)다.
+const RATCHET_BASELINE = 137;
 
 // 래칫이 통과해도 **남은 빚이 어디 있는지** 볼 수 있어야 한다. 수만 보면 고칠 곳을
 // 모른다(채점기 D·E·B 축도 이름을 붙이고 나서야 고칠 것이 드러났다).
