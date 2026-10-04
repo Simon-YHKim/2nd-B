@@ -93,6 +93,24 @@ describe("approved HustleK opening", () => {
     expect(contact.character.width / contact.character.height).toBeCloseTo(480 / 560, 12);
   });
 
+  // Simon localhost QA 2026-10-04: the character box widened at adjust-3 -> observe-1
+  // before the new image was drawn, so adjust-3 showed 1.2x wide for one frame on
+  // web and Android. The slot must never change size; contain + top-left inside it
+  // must land exactly on each frame's own box.
+  test.each([[320, 692], [390, 844], [412, 915], [1920, 1080]])("keeps one character slot size at %i×%i so a frame swap cannot stretch the old frame", (width, height) => {
+    const sizes = new Set<string>();
+    for (let time = 0; time <= APPROVED_OPENING_DURATION_MS; time += 5) {
+      const scene = getApprovedOpeningScene(time, width, height), slot = scene.characterSlot, own = scene.character;
+      sizes.add(`${slot.width}x${slot.height}`);
+      const fit = Math.min(slot.width / scene.frame.width, slot.height / scene.frame.height);
+      expect([slot.left, slot.top, slot.source, slot.zIndex]).toEqual([own.left, own.top, own.source, own.zIndex]);
+      expect(scene.frame.width * fit).toBeCloseTo(own.width, 9);
+      expect(scene.frame.height * fit).toBeCloseTo(own.height, 9);
+    }
+    expect(sizes.size).toBe(1);
+    expect(new Set(APPROVED_OPENING_CONFIG.frames.map(frame => frame.width))).toEqual(new Set([400, 480]));
+  });
+
   test("matches the approved cubic camera path and 4px snap", () => {
     expect(cameraAt(panStart)).toEqual({ x: 704, y: 800 });
     expect(cameraAt(panEnd)).toEqual({ x: 704, y: 40 });

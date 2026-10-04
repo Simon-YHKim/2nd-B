@@ -70,8 +70,9 @@ export function deliverContinueOnce(gate: { current: boolean }, onContinue?: () 
 
 type ImageBox = { left: number; top: number; width: number; height: number; source: number; zIndex?: number };
 const webPixels = { imageRendering: "pixelated" } as ImageStyle;
-function SceneImage({ box, testID, onError }: { box: ImageBox; testID: string; onError: () => void }) {
-  return <Image testID={testID} pointerEvents="none" source={box.source} transition={0} contentFit="fill" cachePolicy="memory-disk" allowDownscaling={false} priority="high" onError={onError} accessible={false}
+const topLeft = { top: 0, left: 0 };
+function SceneImage({ box, testID, onError, fit = "fill" }: { box: ImageBox; testID: string; onError: () => void; fit?: "fill" | "contain" }) {
+  return <Image testID={testID} pointerEvents="none" source={box.source} transition={0} contentFit={fit} contentPosition={fit === "contain" ? topLeft : undefined} cachePolicy="memory-disk" allowDownscaling={false} priority="high" onError={onError} accessible={false}
     style={[styles.image, { left: box.left, top: box.top, width: box.width, height: box.height, zIndex: box.zIndex ?? 0 }, Platform.OS === "web" ? webPixels : undefined]} />;
 }
 
@@ -189,7 +190,9 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
       {sceneVisible ? <>
         <SceneImage box={scene.background} testID="opening-background" onError={failImage} />
         <SceneImage box={scene.telescope} testID="opening-telescope" onError={failImage} />
-        {loaded.current.has(scene.character.source) ? <SceneImage box={scene.character} testID="opening-character" onError={failImage} /> : null}
+        {/* A source swap shows the old image until the new one is drawn, so the box
+            must not change size with the frame (stretched adjust-3, 2026-10-04). */}
+        {loaded.current.has(scene.character.source) ? <SceneImage box={scene.characterSlot} fit="contain" testID="opening-character" onError={failImage} /> : null}
         <SceneImage box={scene.star} testID="opening-polaris" onError={failImage} />
       </> : null}
       {sceneVisible && scene.twinkle.rects.map((pixel, index) => <View key={index} style={[styles.pixel, { left: scene.twinkle.left + pixel.left, top: scene.twinkle.top + pixel.top, width: pixel.width, height: pixel.height, backgroundColor: pixel.color, opacity: pixel.alpha }]} />)}
