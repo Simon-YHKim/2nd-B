@@ -126,7 +126,9 @@ export function DeepSpaceShell() {
         // 매번 처음부터 시작하는 기분이 되기 때문이다.
         // `/star/[domain]` 은 남는다 -- 생활 도메인 대시보드가 계속 쓴다.
         onStarTravel={(id) => router.push(`/me/${id}`)}
-        onPolarisPress={() => router.push("/core-brain")}
+        // overlay=home: only this entry may let the home show through the
+        // card (lib/nav/over-home.ts, QA 261004 D-05) - same as /dashboard.
+        onPolarisPress={() => router.push({ pathname: "/core-brain", params: { overlay: "home" } })}
         // [Simon 결정 6 = B] 생활 여섯 영역(커리어·재정·성장·관계·건강·휴식)은
         // 더 이상 별이 아니다. 그 대시보드로 가는 입구가 **세컨비 머리**다 --
         // 별자리에서 머리를 터치하면 대화창이 그것을 펴 보인다.
