@@ -30,6 +30,7 @@
     "thinking": "Preparando a próxima pergunta…",
     "enough": "Por hoje já basta",
     "closing": "Tudo bem parar aqui. Guardo o que você compartilhou hoje?",
+    "dayLimit": "Por hoje é só. As perguntas de hoje acabaram. Guarde o que você compartilhou até agora e continue amanhã.",
     "turnLabel": "Rodada {{n}}",
     "loopNote": "Vou mudar de direção por um instante.",
     "failed": "Não foi possível obter a próxima pergunta. Tente novamente.",
