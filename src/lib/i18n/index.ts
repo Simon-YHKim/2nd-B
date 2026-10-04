@@ -13,16 +13,13 @@ import enData from "../../../locales/en/data.json";
 import enEsm from "../../../locales/en/esm.json";
 import enFormats from "../../../locales/en/formats.json";
 import enImport from "../../../locales/en/import.json";
-import enInsights from "../../../locales/en/insights.json";
 import enInbox from "../../../locales/en/inbox.json";
 import enSecondb from "../../../locales/en/secondb.json";
 import enPlans from "../../../locales/en/plans.json";
 import enOps from "../../../locales/en/ops.json";
 import enNotFound from "../../../locales/en/notFound.json";
-import enPermissions from "../../../locales/en/permissions.json";
 import enProfile from "../../../locales/en/profile.json";
 import enRecordDetail from "../../../locales/en/recordDetail.json";
-import enResearch from "../../../locales/en/research.json";
 import enSafety from "../../../locales/en/safety.json";
 import enSettings from "../../../locales/en/settings.json";
 import enSupport from "../../../locales/en/support.json";
@@ -40,16 +37,13 @@ import koData from "../../../locales/ko/data.json";
 import koEsm from "../../../locales/ko/esm.json";
 import koFormats from "../../../locales/ko/formats.json";
 import koImport from "../../../locales/ko/import.json";
-import koInsights from "../../../locales/ko/insights.json";
 import koInbox from "../../../locales/ko/inbox.json";
 import koSecondb from "../../../locales/ko/secondb.json";
 import koPlans from "../../../locales/ko/plans.json";
 import koOps from "../../../locales/ko/ops.json";
 import koNotFound from "../../../locales/ko/notFound.json";
-import koPermissions from "../../../locales/ko/permissions.json";
 import koProfile from "../../../locales/ko/profile.json";
 import koRecordDetail from "../../../locales/ko/recordDetail.json";
-import koResearch from "../../../locales/ko/research.json";
 import koSafety from "../../../locales/ko/safety.json";
 import koSettings from "../../../locales/ko/settings.json";
 import koSupport from "../../../locales/ko/support.json";
@@ -74,10 +68,7 @@ import enManual from "../../../locales/en/manual.json";
 import enPersona from "../../../locales/en/persona.json";
 import enPrivacy from "../../../locales/en/privacy.json";
 import enRatifications from "../../../locales/en/ratifications.json";
-import enRecords from "../../../locales/en/records.json";
-import enReview from "../../../locales/en/review.json";
 import enRlss from "../../../locales/en/rlss.json";
-import enTrinity from "../../../locales/en/trinity.json";
 import koAttachment from "../../../locales/ko/attachment.json";
 import koAudit from "../../../locales/ko/audit.json";
 import koBigFive from "../../../locales/ko/big-five.json";
@@ -90,12 +81,7 @@ import koManual from "../../../locales/ko/manual.json";
 import koPersona from "../../../locales/ko/persona.json";
 import koPrivacy from "../../../locales/ko/privacy.json";
 import koRatifications from "../../../locales/ko/ratifications.json";
-import koRecords from "../../../locales/ko/records.json";
-import koReview from "../../../locales/ko/review.json";
 import koRlss from "../../../locales/ko/rlss.json";
-import koTrinity from "../../../locales/ko/trinity.json";
-import enIndex from "../../../locales/en/index.json";
-import koIndex from "../../../locales/ko/index.json";
 import { detectLanguage, loadNativeLanguagePreference, saveLanguagePreference } from "./languageDetector";
 import { isAvailableUiLocale, type AvailableUiLocale } from "./locales";
 import {
@@ -105,7 +91,7 @@ import {
 import { LOCALE_PACK_ATTACHED_EVENT, openGateWhenSettledOrTimedOut } from "./pack-gate";
 import { digitalConsentAge, resolveJurisdiction } from "../auth/consent-age";
 
-export const NAMESPACES = ["common", "auth", "avatar", "avatarPalette", "safety", "consent", "capture", "community", "inbox", "secondb", "plans", "wiki", "support", "data", "esm", "formats", "insights", "research", "recordDetail", "theme", "import", "notFound", "ops", "profile", "permissions", "settings", "iden", "home", "deepspace", "peer", "attachment", "audit", "big-five", "brightness", "core-brain", "imagine", "interview", "ipip-neo", "manual", "persona", "privacy", "ratifications", "records", "review", "rlss", "trinity", "index"] as const;
+export const NAMESPACES = ["common", "auth", "avatar", "avatarPalette", "safety", "consent", "capture", "community", "inbox", "secondb", "plans", "wiki", "support", "data", "esm", "formats", "recordDetail", "theme", "import", "notFound", "ops", "profile", "settings", "iden", "home", "deepspace", "peer", "attachment", "audit", "big-five", "brightness", "core-brain", "imagine", "interview", "ipip-neo", "manual", "persona", "privacy", "ratifications", "rlss"] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
 // Two tiers of locale packs (audit D6-04, 2026-09-06):
@@ -126,9 +112,9 @@ export type LazyLocale = Exclude<AvailableUiLocale, EagerLocale>;
 
 export const resources = {
   en: { common: enCommon, community: enCommunity, auth: enAuth, avatar: enAvatar, avatarPalette: enAvatarPalette, safety: enSafety, consent: enConsent, capture: enCapture, inbox: enInbox, secondb: enSecondb, plans: enPlans, wiki: enWiki,
-    peer: enPeer, support: enSupport, data: enData, esm: enEsm, formats: enFormats, insights: enInsights, research: enResearch, recordDetail: enRecordDetail, theme: enTheme, import: enImport, notFound: enNotFound, ops: enOps, profile: enProfile, permissions: enPermissions, settings: enSettings, iden: enIden, home: enHome, deepspace: enDeepspace, attachment: enAttachment, audit: enAudit, "big-five": enBigFive, brightness: enBrightness, "core-brain": enCoreBrain, imagine: enImagine, interview: enInterview, "ipip-neo": enIpipNeo, manual: enManual, persona: enPersona, privacy: enPrivacy, ratifications: enRatifications, records: enRecords, review: enReview, rlss: enRlss, trinity: enTrinity, index: enIndex },
+    peer: enPeer, support: enSupport, data: enData, esm: enEsm, formats: enFormats, recordDetail: enRecordDetail, theme: enTheme, import: enImport, notFound: enNotFound, ops: enOps, profile: enProfile, settings: enSettings, iden: enIden, home: enHome, deepspace: enDeepspace, attachment: enAttachment, audit: enAudit, "big-five": enBigFive, brightness: enBrightness, "core-brain": enCoreBrain, imagine: enImagine, interview: enInterview, "ipip-neo": enIpipNeo, manual: enManual, persona: enPersona, privacy: enPrivacy, ratifications: enRatifications, rlss: enRlss },
   ko: { common: koCommon, community: koCommunity, auth: koAuth, avatar: koAvatar, avatarPalette: koAvatarPalette, safety: koSafety, consent: koConsent, capture: koCapture, inbox: koInbox, secondb: koSecondb, plans: koPlans, wiki: koWiki,
-    peer: koPeer, support: koSupport, data: koData, esm: koEsm, formats: koFormats, insights: koInsights, research: koResearch, recordDetail: koRecordDetail, theme: koTheme, import: koImport, notFound: koNotFound, ops: koOps, profile: koProfile, permissions: koPermissions, settings: koSettings, iden: koIden, home: koHome, deepspace: koDeepspace, attachment: koAttachment, audit: koAudit, "big-five": koBigFive, brightness: koBrightness, "core-brain": koCoreBrain, imagine: koImagine, interview: koInterview, "ipip-neo": koIpipNeo, manual: koManual, persona: koPersona, privacy: koPrivacy, ratifications: koRatifications, records: koRecords, review: koReview, rlss: koRlss, trinity: koTrinity, index: koIndex },
+    peer: koPeer, support: koSupport, data: koData, esm: koEsm, formats: koFormats, recordDetail: koRecordDetail, theme: koTheme, import: koImport, notFound: koNotFound, ops: koOps, profile: koProfile, settings: koSettings, iden: koIden, home: koHome, deepspace: koDeepspace, attachment: koAttachment, audit: koAudit, "big-five": koBigFive, brightness: koBrightness, "core-brain": koCoreBrain, imagine: koImagine, interview: koInterview, "ipip-neo": koIpipNeo, manual: koManual, persona: koPersona, privacy: koPrivacy, ratifications: koRatifications, rlss: koRlss },
 } as const satisfies Record<EagerLocale, Record<Namespace, unknown>>;
 
 interface LocalePackModule {

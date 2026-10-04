@@ -2,7 +2,7 @@
 //
 // The auth gate stays here because it decides whether the screen renders at
 // all, which is not a skin question. The legacy-track copy of the screen that
-// used to sit below it is now legacy/screens/theme.tsx, out of the build but
+// used to sit below it is now E:/Legacy/2ndB/legacy/screens/theme.tsx, out of the build but
 // still readable. Accessibility comes from the shared SelectRow (role=radio +
 // checked state + label), not from hints written into this file.
 //

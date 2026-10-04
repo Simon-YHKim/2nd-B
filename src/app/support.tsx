@@ -2,7 +2,7 @@
 //
 // The auth gate stays here because it decides whether the screen renders at
 // all; the screen itself is DeepSpaceSupportDesignScreen. The legacy-track copy that
-// used to sit below this gate is now legacy/screens/support.tsx, out of the build
+// used to sit below this gate is now E:/Legacy/2ndB/legacy/screens/support.tsx, out of the build
 // but still readable. Its accessibility hints moved with it — the live screen
 // keys label/hint/role per action off its own data (see check:constraints A11y).
 //
