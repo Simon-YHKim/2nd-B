@@ -86,8 +86,13 @@ function EsmCheckInScreen() {
     }
 
     setSaved(true);
-    setScaleValue(null);
-    setSelectedTags([]);
+    // Clear only what this save sent. `scaleValue` and `selectedTags` here are
+    // the values at the press; a pick changed while the insert was out is not
+    // saved yet, so it stays on screen for the next save (QA 261004).
+    setScaleValue((current) => (current === scaleValue ? null : current));
+    setSelectedTags((current) =>
+      current.length === selectedTags.length && current.every((tag) => selectedTags.includes(tag)) ? [] : current,
+    );
   }
 
   return (
