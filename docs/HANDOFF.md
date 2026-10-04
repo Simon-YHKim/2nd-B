@@ -30,7 +30,16 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-04 13:09 / 2ndB 워크트리 97곳 · LLM 세션 9개 정리 (Orca 경량화)
+## Latest — 2026-10-04 14:02 / 미푸시 브랜치 10개 삭제 (번들 백업)
+
+- **무엇을**: 13:09 블록의 "브랜치는 하나도 지우지 않았다" 를 이 블록이 갱신한다. Simon: "굳이 남겨놓을 필요 없겠어. 전부 정리하자."
+- **지운 것**: origin 에 없는 커밋을 가진 로컬 브랜치 10개(`fix/legacy-archive-integrity-pin-260913` · `claude/health-withdraw-261002` · `codex/prod-workflow-ref-gates-260913` · `claude/records-260921` · `fix/gui-back-focus-261001` · `codex/museum-phone-261001` · `fix/android-voice-base64-260926` · `codex/ops-embed-261001` · `qa/polascope-1902-mergecheck-f5-261001` · `fix/preauth-owner-consent-261001`).
+- **지우기 전 판정**: 9개는 main 에 착지했거나(추가 줄의 main 존재율 75~100% · #2005 · #2011) 착지할 내용이 없는 merge 커밋(#1856 · mergecheck). `legacy-archive-integrity` 는 package-lock 제외 93% 착지, 마이그레이션은 0196 · 0197 로 번호가 바뀌어 들어갔고, `capture-file.ts` · `storage-erasure.ts` · `auth.ts` 등 2,019줄은 미확인인 채로 지웠다.
+- **백업**: `E:/Coding Infra/_rescue/worktrees-261004/branches-261004.bundle`(verify ok · 머리 10개 == `branches-261004.tips`). 되살리기: `git fetch "<bundle>" refs/heads/<br>:refs/heads/<br>`.
+- **남은 로컬 브랜치**: 지운 워크트리의 나머지 85개는 커밋이 전부 origin 에 있다. 원격 브랜치는 손대지 않았다.
+- **다음 1개**: 없음.
+
+## 2026-10-04 13:09 / 2ndB 워크트리 97곳 · LLM 세션 9개 정리 (Orca 경량화)
 
 - **무엇을**: Simon 지시 "현재의 워크트리와 세션 제외하고, 우리 프로젝트에 띄워져 있는 워크트리와 llm 세션, 모두 정리해줘". 모든 PR 머지 뒤 Orca 가 무거워져서.
 - **남은 것**: 워크트리 3개(`E:/2ndB` main · `.worktrees/2ndB/TTL-Work_rev2` · `.worktrees/localhost-main`). 2ndB 의 Orca 터미널은 지시한 세션 1개뿐.
