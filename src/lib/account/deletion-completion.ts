@@ -1,18 +1,15 @@
-// ⚠ NOT WIRED YET, and that is deliberate - "dormant is a decision".
-//
-// This module was written but never committed to any ref; it lived only in a
-// shared worktree, where it would have been lost. It lands here on its own so
-// the work is not lost twice, ahead of the screen wiring that will use it.
-// Landing it and its tests separately keeps the diff readable and lets the
-// wiring be reviewed against main's current pixel-clay account screen rather
-// than against the worktree's pre-migration copy of it.
-//
-// Do not delete it for having no callers. Its caller is the next change.
-//
 // Holds the post-deletion receipt between the terminal server call and whatever
-// screen shows it, and drops it the moment the account owner changes. It is a
-// store, not an actor: it deletes nothing.
-import { isCurrentAccountEpoch, onAccountOwnerChange } from "../auth/account-epoch";
+// screen shows it, and drops it the moment another account can see this device.
+// It is a store, not an actor: it deletes nothing.
+//
+// Wired: /privacy (DeepSpacePrivacyDesignScreen) creates one operation per
+// confirmed deletion and /sign-in renders the notice. (The header used to say
+// "not wired yet"; that stopped being true when the receipt reached /sign-in.)
+import {
+  currentResolvedAccountOwner,
+  isCurrentAccountEpoch,
+  onAccountOwnerChange,
+} from "../auth/account-epoch";
 import type { AccountDeletionReceipt, DeletionSweep } from "../records/delete-bulk";
 
 export type LocalPurgeOutcome = "complete" | "retry-scheduled" | "unconfirmed";
@@ -54,9 +51,46 @@ export function dismissAccountDeletionNotice(): void {
   emit();
 }
 
+/**
+ * Follow one owner's account by PUBLISHED owner events, never by epoch
+ * arithmetic.
+ *
+ * ⚠ The epoch is the wrong ruler for "was this the deletion's own sign-out".
+ * AuthContext moves it twice for one ordinary sign-out: the pre-publication
+ * hold beginAccountOwnerTransition(null) goes E -> E+1 with no owner event, and
+ * noteResolvedOwner(null) goes E+1 -> E+2 with the only owner event. A direct
+ * noteResolvedOwner(null) (publishSessionUnavailable) moves it once. This module
+ * used to accept exactly `epoch + 1`, so the normal sign-out after a successful
+ * deletion discarded the receipt every time (QA 261004 gates DEL-R3-01 and
+ * EXIST-DEL-01B, 2026-10-05). The unit tests had published null with a bare
+ * noteResolvedOwner(null), the one path where +1 happens to hold.
+ *
+ * What the receipt must survive is the first published change when it is
+ * owner -> null. Any other published change (owner -> B, or null -> anyone
+ * after it) means another account can be looking at this device, so it ends
+ * the operation. Pre-publication holds expose no owner and therefore do not
+ * count; AuthContext calls noteResolvedOwner() before every setState, so the
+ * dismissal is synchronous and runs before B's state becomes observable.
+ *
+ * The A -> null is accepted at most once without a flag: once null is
+ * published, every later event starts from null, never from A.
+ */
+function followOwnerToSignOut(owner: string, onOther: () => void) {
+  let signedOut = false;
+  const stop = onAccountOwnerChange((change) => {
+    if (change.previousOwner === owner && change.owner === null) {
+      signedOut = true;
+      return;
+    }
+    onOther();
+  });
+  return { stop, isSignedOut: () => signedOut };
+}
+
 /** Memory-only handoff: never put account IDs, credentials or receipts in URLs
- * or device storage. It survives just this operation's A -> null transition. */
-function publish(owner: string, epoch: number, receipt: AccountDeletionReceipt, localPurge: LocalPurgeOutcome) {
+ * or device storage. It survives just this owner's A -> null transition; when
+ * that already happened before publication, the next change clears it. */
+function publish(owner: string, receipt: AccountDeletionReceipt, localPurge: LocalPurgeOutcome) {
   dismissAccountDeletionNotice();
   const pending: AccountDeletionNotice = Object.freeze({
     // ⚠ 필드를 하나씩 적는 것은 장황해서가 아니라 그것이 이 자리의 방어다.
@@ -84,42 +118,39 @@ function publish(owner: string, epoch: number, receipt: AccountDeletionReceipt, 
     }), localPurge, localSignOut: "pending",
   });
   snapshot = pending;
-  stopNoticeOwner = onAccountOwnerChange((change) => {
-    if (change.previousOwner === owner && change.owner === null && change.epoch === epoch + 1) return;
-    dismissAccountDeletionNotice();
-  });
+  stopNoticeOwner = followOwnerToSignOut(owner, dismissAccountDeletionNotice).stop;
   emit();
   return pending;
 }
 
 /** UI continuation guard, not an SDK lock or a remote deletion retry worker.
- * Before sign-out every epoch change invalidates the operation. During sign-out
- * exactly the original A -> null is allowed, even when it unmounts the screen.
+ *
+ * Create it when the deletion starts, before the first await, while `owner` is
+ * the published owner at `epoch`; a stale capture is dead on arrival. From then
+ * on it follows the account, not the screen that created it: the owner's own
+ * A -> null (the deletion's sign-out, or another tab's, or a session that the
+ * server already revoked) keeps it alive even when it unmounts that screen, and
+ * every other published change invalidates it.
  * Already-running SDK signOut/login races remain a separate Auth concern. */
 export function createAccountDeletionCompletion(owner: string, epoch: number) {
-  let continuationEpoch = epoch;
-  let invalidated = false;
-  let stopOperationOwner: (() => void) | null = null;
+  let invalidated = !isCurrentAccountEpoch(epoch) || currentResolvedAccountOwner() !== owner;
   let pending: AccountDeletionNotice | null = null;
-  const isCurrent = () => !invalidated && isCurrentAccountEpoch(epoch);
+  const watch = followOwnerToSignOut(owner, () => { invalidated = true; });
+  // The listener already ends the operation on any other published change; the
+  // owner read is a second, independent check against this module and
+  // account-epoch ever disagreeing.
+  const isCurrent = () => !invalidated
+    && currentResolvedAccountOwner() === (watch.isSignedOut() ? null : owner);
 
   return {
     isCurrent,
     beginSignOut(receipt: AccountDeletionReceipt, localPurge: LocalPurgeOutcome): boolean {
       if (!isCurrent() || pending !== null) return false;
-      stopOperationOwner = onAccountOwnerChange((change) => {
-        if (change.previousOwner === owner && change.owner === null
-          && change.epoch === epoch + 1 && continuationEpoch === epoch) {
-          continuationEpoch = change.epoch;
-        } else {
-          invalidated = true;
-        }
-      });
-      pending = publish(owner, epoch, receipt, localPurge);
+      pending = publish(owner, receipt, localPurge);
       return true;
     },
     finishSignOut(confirmed: boolean): boolean {
-      if (!pending || invalidated || !isCurrentAccountEpoch(continuationEpoch)) return false;
+      if (!pending || !isCurrent()) return false;
       if (snapshot === pending) {
         snapshot = Object.freeze({ ...pending, localSignOut: confirmed ? "complete" : "unconfirmed" });
         emit();
@@ -127,8 +158,7 @@ export function createAccountDeletionCompletion(owner: string, epoch: number) {
       return true;
     },
     dispose(): void {
-      stopOperationOwner?.();
-      stopOperationOwner = null;
+      watch.stop();
       // The notice retains its own owner listener until dismissal or transition.
     },
   };
