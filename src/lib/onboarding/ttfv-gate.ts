@@ -1,5 +1,5 @@
 // First-day TTFV ("첫날 자기이해 한 컷") auto-trigger gate. Mirrors
-// onboarding/state.ts and empty-card.ts: web localStorage, native AsyncStorage,
+// onboarding/state.ts and comfort-offer.ts: web localStorage, native AsyncStorage,
 // with an in-memory fallback. The TTFV first-day screen must surface exactly
 // ONCE, on the user's first day after onboarding. So we persist a "seen" flag
 // and only auto-trigger while still inside the first-day window, anchored on the
@@ -53,7 +53,7 @@ export function markTTFVSeen(): void {
   memoryHydrated = true;
   ls()?.setItem(TTFV_SEEN_KEY, at);
   const storage = nativeStorage();
-  // Best-effort native persist with a trace (parity with empty-card.ts). A
+  // Best-effort native persist with a trace (parity with comfort-offer.ts). A
   // silent failure would let the first-day screen auto-trigger again next
   // launch, so leave something to debug instead of swallowing it.
   if (storage)
