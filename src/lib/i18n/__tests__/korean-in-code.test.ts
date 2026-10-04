@@ -213,7 +213,6 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/components/ui/BackArrow.tsx": 31,
   "src/components/ui/DrillProgress.tsx": 10,
   "src/lib/audit/axis-checks.ts": 24,
-  "src/lib/audit/axis-estimate.ts": 8,
   "src/lib/audit/frameworkLabels.ts": 18,
   "src/lib/audit/questions.ts": 25,
   "src/lib/capture/fourw.ts": 5,

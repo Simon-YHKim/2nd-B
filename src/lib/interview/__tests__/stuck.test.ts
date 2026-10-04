@@ -247,7 +247,8 @@ describe("발판은 네트워크 없이 즉시 보여준다", () => {
     const classifier = SCREEN.indexOf("classifyInputAnyLocale(text, locale, { minor: isMinor === true })", sendStart);
     const redStart = SCREEN.indexOf('if (safety.zone === "red") {', classifier);
     const redReturn = SCREEN.indexOf("return;", redStart);
-    const nonAnswer = SCREEN.indexOf("isBlockedAnswer(text)", sendStart);
+    // 막힘 판정은 send() 가 `isLocalNonAnswer` 로 부른다(건너뛰기 가드와 같은 판정, F2049-02).
+    const nonAnswer = SCREEN.indexOf("isLocalNonAnswer(text, pendingLayer)", sendStart);
     const coverageWrite = SCREEN.indexOf("setCoverage(nextCoverage)", sendStart);
     const llmBoundary = SCREEN.indexOf("await ask(nextTurns, nextCoverage", sendStart);
 

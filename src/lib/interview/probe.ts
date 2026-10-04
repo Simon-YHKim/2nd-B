@@ -279,8 +279,11 @@ export function nextLayerSuggestion(
 ): DrillLayer {
   const cov = c[period];
   const open = DRILL_LAYERS.filter((l) => !abandoned.includes(l));
-  // 전부 포기했으면 포기 목록을 무시한다 -- 달리 돌려줄 것이 없고,
-  // 턴 상한(MAX_TURNS)이 어차피 대화를 끝낸다.
+  // 전부 포기했으면 포기 목록을 무시한다 -- 달리 돌려줄 것이 없다.
+  // 대화를 끝내는 것은 이 함수가 아니다. 화면은 `nextMove` 에 thread 를 넘기고,
+  // 그 분기가 다섯 층을 모두 포기했을 때 `finish` 를 돌려준다(위 `abandoned.length
+  // === DRILL_LAYERS.length`). 여기 적혀 있던 "턴 상한(MAX_TURNS)이 어차피 끝낸다"는
+  // 그 상한과 함께 없어졌다(Simon 결정 2026-10-05, 12턴 상한 해제).
   const pool = open.length > 0 ? open : DRILL_LAYERS;
 
   if (pool.includes("fact") && cov.fact === 0) return "fact";
@@ -480,7 +483,7 @@ export async function nextProbe(
   // 구조화 출력이 깨져도 화면이 멈추지 않게 원문 첫 줄로 떨어진다.
   // 그 아래 대체 문장까지 있으니 두 겹이다.
   // ⚠ `callLlm` 은 스키마를 줘도 **문자열**을 돌려준다. 파싱은 부르는 쪽 몫이다
-  // (`audit/axis-estimate.ts` 가 같은 관용구를 쓴다). 실측 2026-08-24: 여기서
+  // (`persona/northstar.ts` 도 같은 관용구를 쓴다). 실측 2026-08-24: 여기서
   // 파싱된 객체를 기대했더니 `bodyType:"string"` 이라 판정이 통째로 버려졌고,
   // 겉으로는 그냥 "거부권이 안 걸리네" 로만 보였다.
   const parsed = parseProbeReply(typeof res.text === "string" ? res.text : "");

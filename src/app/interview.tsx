@@ -79,6 +79,7 @@ import {
   type LifePeriod,
 } from "@/lib/interview/probe";
 import { LOOP_CHECK_KEYS, type ReflectionEntry } from "@/lib/interview/loop-check";
+import { INTERVIEW_PURPOSE, localPromptsExhausted, readDayLimitRefusal } from "@/lib/interview/session-end";
 
 // 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
 // 원래 이 자리에 문자열 SVG 레지스트리가 있었다(저장소에서 열하나 번째).
@@ -86,11 +87,11 @@ function Glyph({ name, color, size = 20 }: { name: string; color: string; size?:
   return <PixelGlyph name={canonGlyph(name)} color={color} size={size} />;
 }
 
-// 한 세션의 턴 상한. 드릴은 원래 "축이 목표 등급에 닿을 때까지"인데
-// (`drill-stop.ts`), 등급 추정은 이 화면이 하지 않는다 -- 지금 추정치를 지어내지
-// 않는다는 것이 이 화면의 기존 약속이고, 그건 유지한다. 그래서 여기서는 **비용과
-// 피로**로만 끊는다. 사용자는 언제든 "여기까지"로 먼저 끝낼 수 있다.
-const MAX_TURNS = 12;
+// 턴 상한은 없다 (Simon 결정 2026-10-05). 여기 있던 `MAX_TURNS = 12` 는 답이 12개가
+// 되면 대화를 끊었다. 깊은 이야기가 언제 끝날지는 화면이 정할 수 없다.
+// 대화는 사용자가 끝내거나, 한 장면을 다 팠거나, 서버가 오늘 몫이 찼다고 거절할 때
+// 끝난다. 마지막 것도 오류가 아니라 끝맺음이다. 이유와 응답 모양은
+// `lib/interview/session-end.ts` 에 있다. 비용은 그 서버 한도가 막는다.
 
 function InterviewFrame({ children }: { children: ReactNode }) {
   // Phone-aware: inside the dashboard phone, back steps the phone's stack.
@@ -273,6 +274,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   /** 이번 질문에 딸린 **말문 후보**. 누르면 보내지 않고 입력창을 채운다. */
   const [openers, setOpeners] = useState<string[]>([]);
   const [done, setDone] = useState(false);
+  /** 서버가 오늘 몫이 찼다고 거절해서 끝났다. 끝 화면의 안내 한 줄만 바뀐다. */
+  const [dayLimited, setDayLimited] = useState(false);
   const ended = useRef(false);
   const [concreteOnly, setConcreteOnly] = useState(false);
   const [coverageReady, setCoverageReady] = useState(false);
@@ -316,6 +319,15 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   const isBlockedAnswer = useCallback(
     (text: string): boolean => text === t("drill.dontKnow") || isNonAnswer(text, locale),
     [locale, t],
+  );
+
+  // 모델에 보내지 않고 화면이 발판으로 받는 답인가. `send()` 가 이걸로 막힘을 정하고,
+  // 건너뛰기 가드도 **같은 판정**으로 그런 답을 답으로 세지 않는다(session-end.ts).
+  // 둘이 갈라지면 "모르겠어요 → 건너뛰기" 교대가 다시 끝없이 길어진다(F2049-02).
+  const isLocalNonAnswer = useCallback(
+    (text: string, layer: DrillLayer | null | undefined): boolean =>
+      layer != null && (isBlockedAnswer(text) || !canCreditAnswer(text, layer, locale)),
+    [isBlockedAnswer, locale],
   );
 
   // 이번 대화의 사용자 답변 -> 되묻기 판정의 재료. theme 를 시기로 두면
@@ -446,7 +458,17 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         setTurns([...assessed, { role: "interviewer", text: probe.question, layer: probe.layer, period }]);
         setPendingLayer(probe.layer);
         setOpeners(probe.openers);
-      } catch {
+      } catch (error) {
+        // 오늘 몫이 찼다는 서버 거절은 오류가 아니라 끝맺음이다(session-end.ts).
+        // 지금까지의 대화와 판 칸은 그대로 남고, 담기는 끝 화면의 같은 버튼이 한다.
+        // 마지막 답의 칸은 모델 확인을 못 받았으므로 더하지 않는다 -- 실패 때와 같은 규칙.
+        if (await readDayLimitRefusal(error, INTERVIEW_PURPOSE)) {
+          if (!ended.current) {
+            setDayLimited(true);
+            finish();
+          }
+          return;
+        }
         setNotice(t("drill.failed"));
       } finally {
         setBusy(false);
@@ -544,7 +566,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     //
     // 판정은 결정론적이고(`stuck.ts`) 보수적이다 -- 사용자가 스스로 포기를
     // 말했을 때만 안 셀다. 밝기가 LLM 의 기분에 달려서는 안 되기 때문이다.
-    const blocked = pendingLayer !== null && (isBlockedAnswer(text) || !canCreditAnswer(text, pendingLayer, locale));
+    const blocked = isLocalNonAnswer(text, pendingLayer);
     const nextCoverage = coverage;
     const nextStreak = blocked ? stuckStreak + 1 : 0;
     const stuck = blocked && pendingLayer ? { layer: pendingLayer, streak: nextStreak } : null;
@@ -563,17 +585,15 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     setDraft("");
     setOpeners([]);
     setPendingLayer(null);
-    if (nextTurns.filter((turn) => turn.role === "user").length >= MAX_TURNS) {
-      finish();
-      return;
-    }
     await ask(nextTurns, nextCoverage, stuck, nextAbandoned, blocked ? null : pendingLayer);
   }
 
   function changeAngle(choice: "skip" | "concrete") {
     if (busy || ended.current) return;
-    // Bound local choices too; a series of skipped prompts must not loop forever.
-    if (turns.filter((turn) => turn.role === "interviewer").length >= MAX_TURNS) {
+    // 모델을 부르지 않는 길이라 서버 한도에 안 닿는다. 답 없이 연달아 붙은 질문만
+    // 세서 막는다 -- 건너뛰기를 계속 눌러도 끝없이 길어지지 않게(session-end.ts).
+    // "모르겠어요"처럼 발판으로 받은 답은 답으로 세지 않는다 -- send() 와 같은 판정.
+    if (localPromptsExhausted(turns, (turn) => isLocalNonAnswer(turn.text, turn.layer))) {
       finish();
       return;
     }
@@ -661,7 +681,9 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         {done ? (
           <>
             <Text style={[m3TextStyle("titleLarge"), styles.saveTitle]}>{t("drill.saveTitle")}</Text>
-            <Text style={[m3TextStyle("bodyMedium"), styles.saveBody]}>{t("drill.closing")}</Text>
+            <Text style={[m3TextStyle("bodyMedium"), styles.saveBody]}>
+              {dayLimited ? t("drill.dayLimit") : t("drill.closing")}
+            </Text>
             {/* 이만큼 팠다 -- 담을지 정하는 자리에서 보여준다.
              *
              *  대화 중에는 안 띄운다: 화면 하나에 메시지 하나라는 규율도 있고,
