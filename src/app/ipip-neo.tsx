@@ -355,6 +355,20 @@ function IpipNeoDeepSpace() {
     };
   }, [userId, loading, reloadKey]);
 
+  // The shipped lens needs its own gate: the survey's redirect only ran after
+  // "start", so a signed-out visitor got the empty lens first. After every hook,
+  // so the hook order never depends on auth.
+  if (loading) {
+    return (
+      <DeepSpaceScreen active="lens" header="none">
+        <View style={styles.center}>
+          <PremiumLoadingState />
+        </View>
+      </DeepSpaceScreen>
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
   if (taking) {
     // onBack is drawn only by the dashboard phone's compact shell (the fullbleed
     // shell has no back row): it asks the survey before leaving mid-answer.

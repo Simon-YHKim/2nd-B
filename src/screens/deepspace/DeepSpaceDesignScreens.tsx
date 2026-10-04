@@ -619,7 +619,7 @@ export function DeepSpacePrivacyDesignScreen() {
   const { t: consentT } = useTranslation("consent");
   const navigation = useNavigation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
-  const { userId, isMinor } = useAuth();
+  const { userId, isMinor, loading: authLoading } = useAuth();
   // AuthContext derives this from users.birth_date. Unknown age fails closed,
   // so Clarity/GA4 and ads cannot be enabled while the profile is resolving.
   const minor = isMinor !== false;
@@ -1044,6 +1044,17 @@ export function DeepSpacePrivacyDesignScreen() {
       if (privacyMountedRef.current && activeUserRef.current === targetUserId) setBusy(false);
     }
   }
+
+  // Signed out, this screen used to draw the settings and wait forever on a
+  // birth date that never arrives; the redirect lived only in the legacy half.
+  // Account deletion is the one sign-out this screen causes on purpose:
+  // runDeleteAccount hands the receipt over across the owner -> null change and
+  // replaces the route itself, so while it runs (`deleting`) neither branch
+  // below may cut in.
+  if (authLoading && !deleting) {
+    return <Shell title={t("privacy.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId && !deleting) return <Redirect href="/sign-in" />;
 
   return (
     <Shell title={t("privacy.title")}>
