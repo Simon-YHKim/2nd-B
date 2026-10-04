@@ -86,6 +86,21 @@ export default [
       "react-hooks/rules-of-hooks": "error",
     },
   },
+  // `npm run lint` fails on any warning (--max-warnings 0). One unused binding is
+  // left on purpose: HERO_C, inside the shadow DeepSpaceOpsScreen copy in this
+  // file that no route renders (src/lib/legal/shadow-screens.ts). That span is
+  // byte-frozen by the sha256 pins in
+  // src/screens/deepspace/ops/__tests__/tools-reachable.test.ts, so deleting the
+  // line means re-pinning that digest, which belongs with moving the shadow copy
+  // out. Until then this one file may leave exactly that one name unused, with
+  // every other option as above. scripts/__tests__/lint-warning-gate.test.ts
+  // fails once the copy is gone and this block is still here.
+  {
+    files: ["src/screens/deepspace/DeepSpaceDesignScreens.tsx"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^(?:_|HERO_C$)" }],
+    },
+  },
   // Allow @google/genai ONLY inside the wrapper module + the safety classifier
   // (which is itself called only from the wrapper). The boundary script
   // `scripts/check-llm-import-boundary.ts` provides the second line of defense.
