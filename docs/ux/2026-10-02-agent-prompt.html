@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2nd-Brain UI 톤앤매너 개편 턴키 프롬프트 · Turnkey Agent Prompt</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #030712;
+    --surface: #0f172a;
+    --surface-elevated: #1e293b;
+    --border: rgba(148, 163, 184, 0.16);
+    --border-accent: rgba(56, 189, 248, 0.35);
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+    --text-subtle: #64748b;
+    --accent: #38bdf8;
+    --accent-glow: rgba(56, 189, 248, 0.15);
+    --warning: #f59e0b;
+    --warning-bg: rgba(245, 158, 11, 0.1);
+    --danger: #ef4444;
+    --danger-bg: rgba(239, 68, 68, 0.1);
+    --success: #10b981;
+    --success-bg: rgba(16, 185, 129, 0.12);
+    --purple: #a855f7;
+    --purple-bg: rgba(168, 85, 247, 0.12);
+    --code-bg: #090d16;
+  }
+  [data-theme="light"] {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-elevated: #f1f5f9;
+    --border: #e2e8f0;
+    --border-accent: rgba(2, 132, 199, 0.35);
+    --text: #0f172a;
+    --text-muted: #475569;
+    --text-subtle: #64748b;
+    --accent: #0284c7;
+    --accent-glow: rgba(2, 132, 199, 0.1);
+    --warning: #d97706;
+    --warning-bg: #fef3c7;
+    --danger: #dc2626;
+    --danger-bg: #fee2e2;
+    --success: #059669;
+    --success-bg: #d1fae5;
+    --purple: #9333ea;
+    --purple-bg: #f3e8ff;
+    --code-bg: #1e293b;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-elevated: #f1f5f9;
+      --border: #e2e8f0;
+      --border-accent: rgba(2, 132, 199, 0.35);
+      --text: #0f172a;
+      --text-muted: #475569;
+      --text-subtle: #64748b;
+      --accent: #0284c7;
+      --accent-glow: rgba(2, 132, 199, 0.1);
+      --warning: #d97706;
+      --warning-bg: #fef3c7;
+      --danger: #dc2626;
+      --danger-bg: #fee2e2;
+      --success: #059669;
+      --success-bg: #d1fae5;
+      --purple: #9333ea;
+      --purple-bg: #f3e8ff;
+      --code-bg: #1e293b;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 48px 24px 80px; }
+  
+  /* Top Bar */
+  .top-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 36px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .top-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: var(--accent-glow);
+    color: var(--accent);
+    border: 1px solid var(--border-accent);
+  }
+  .theme-toggle-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+  }
+  .theme-toggle-btn:hover {
+    color: var(--text);
+    border-color: var(--accent);
+  }
+
+  h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 10px; line-height: 1.3; }
+  .lead { font-size: 16px; color: var(--text-muted); line-height: 1.6; max-width: 860px; }
+  .meta-tags { display: flex; gap: 12px; margin-top: 14px; font-size: 13px; color: var(--text-subtle); flex-wrap: wrap; }
+  .meta-tag { background: var(--surface-elevated); padding: 2px 8px; border-radius: 4px; }
+
+  /* Hero Banner */
+  .hero-banner {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(168, 85, 247, 0.08));
+    border: 1px solid var(--border-accent);
+    border-radius: 16px;
+    padding: 26px;
+    margin: 32px 0;
+  }
+  .hero-banner h2 { font-size: 18px; margin-bottom: 8px; color: var(--accent); border: none; padding: 0; }
+  .hero-banner p { color: var(--text); font-size: 14.5px; line-height: 1.65; }
+
+  h2 { font-size: 21px; font-weight: 700; margin: 44px 0 18px; border-bottom: 1px solid var(--border); padding-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+  h3 { font-size: 16px; font-weight: 600; margin: 24px 0 10px; color: var(--text); }
+
+  /* Prompt Card & Copy Button */
+  .prompt-card {
+    background: var(--surface);
+    border: 1px solid var(--border-accent);
+    border-radius: 16px;
+    overflow: hidden;
+    margin: 28px 0;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  }
+  .prompt-card-header {
+    background: var(--surface-elevated);
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .prompt-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .copy-btn {
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 12px var(--accent-glow);
+    transition: all 0.2s ease;
+  }
+  .copy-btn:hover {
+    transform: translateY(-1px);
+    opacity: 0.95;
+  }
+  .copy-btn.copied {
+    background: var(--success);
+  }
+  .prompt-content {
+    background: var(--code-bg);
+    padding: 24px;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    color: #e2e8f0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 580px;
+    overflow-y: auto;
+  }
+
+  /* Grid Layouts */
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; margin: 20px 0; }
+  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 20px 0; }
+  
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .card.highlight {
+    border-color: var(--border-accent);
+    background: linear-gradient(180deg, var(--surface) 0%, rgba(56, 189, 248, 0.03) 100%);
+  }
+  .card strong { color: var(--text); font-size: 15px; }
+  .card p { color: var(--text-muted); font-size: 13.5px; margin-top: 6px; }
+
+  /* Formula Box */
+  .formula-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: var(--surface);
+    border: 2px dashed var(--accent);
+    padding: 22px;
+    border-radius: 16px;
+    margin: 24px 0;
+    flex-wrap: wrap;
+  }
+  .formula-part {
+    text-align: center;
+    padding: 12px 18px;
+    border-radius: 10px;
+    background: var(--surface-elevated);
+  }
+  .formula-part strong { display: block; font-size: 15px; color: var(--accent); }
+  .formula-part span { font-size: 12.5px; color: var(--text-muted); }
+  .formula-plus { font-size: 20px; font-weight: 800; color: var(--text-subtle); }
+  .formula-equals { font-size: 20px; font-weight: 800; color: var(--success); }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+  th, td { padding: 12px 14px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  th { background: var(--surface-elevated); color: var(--text-muted); font-weight: 600; font-size: 13px; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .pill-ai { color: var(--danger); background: var(--danger-bg); padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-block; }
+  .pill-human { color: var(--success); background: var(--success-bg); padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-block; }
+
+  /* Callout & Steps */
+  .callout-box {
+    border-left: 4px solid var(--accent);
+    padding: 16px 20px;
+    background: var(--accent-glow);
+    border-radius: 0 12px 12px 0;
+    margin: 18px 0;
+    font-size: 14px;
+  }
+  .callout-box.warning {
+    border-left-color: var(--warning);
+    background: var(--warning-bg);
+  }
+
+  .step-box {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px 20px;
+    border-radius: 12px;
+  }
+  .step-num {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+    min-width: 28px;
+  }
+  .step-body h4 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .step-body p { font-size: 13.5px; color: var(--text-muted); }
+  code {
+    background: var(--surface-elevated);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: var(--accent);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="top-nav">
+    <div class="top-badge">
+      <span>⚡ TURNKEY AGENT PROMPT</span>
+      <span>·</span>
+      <span>2026-10-02</span>
+    </div>
+    <button class="theme-toggle-btn" id="themeBtn" onclick="toggleTheme()">
+      <span id="themeIcon">☀️</span>
+      <span id="themeText">라이트 모드</span>
+    </button>
+  </nav>
+
+  <header>
+    <h1>2nd-Brain UI 톤앤매너 전면 개편 턴키 프롬프트</h1>
+    <p class="lead">
+      다른 세션이나 다른 LLM(Claude Code, Codex, Antigravity 등)에 그대로 전달하여 UI 전반의 인공지능스러운 어조를 '친구 같은 개인 비서' 어조로 일괄 개편하도록 지시하는 독립 실행형 프롬프트입니다.
+    </p>
+    <div class="meta-tags">
+      <span class="meta-tag">작성자: Antigravity Assistant</span>
+      <span class="meta-tag">승인: Simon (2026-10-02)</span>
+      <span class="meta-tag">대상: 7개 핵심 파일 및 UI 로케일 전역</span>
+      <span class="meta-tag">포트: localhost:8083 QA 검증</span>
+    </div>
+  </header>
+
+  <div class="hero-banner">
+    <h2>🎯 1분 요약: 새 세션 에이전트 인수인계 방법</h2>
+    <p>
+      아래 카드 상단의 <strong>[프롬프트 복사하기]</strong> 버튼을 누른 후, 새 세션의 AI 터미널에 그대로 붙여넣으시면 됩니다.<br>
+      에이전트가 독자적으로 <strong>Simon의 황금 표현 공식</strong>, <strong>대상 파일 7종</strong>, <strong>무관용 CI 가드레일</strong>을 준수하며 변경 작업을 완수하도록 모든 제약이 패키징되어 있습니다.
+    </p>
+  </div>
+
+  <h2>📋 원클릭 실행 프롬프트 (타 세션 전달용)</h2>
+
+  <div class="prompt-card">
+    <div class="prompt-card-header">
+      <div class="prompt-card-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        <span>STANDALONE AGENT PROMPT (MARKDOWN)</span>
+      </div>
+      <button class="copy-btn" id="copyBtn" onclick="copyPrompt()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        <span id="copyBtnText">프롬프트 복사하기</span>
+      </button>
+    </div>
+    <pre class="prompt-content" id="promptText"># 작업 지시서: 2nd-Brain UI 톤앤매너 전면 개편 ("합쇼체 설명 + 해요체 질문" 결합 모델)
+
+## 1. 배경 및 Simon의 핵심 제품 철학
+현재 2nd-Brain 앱 전반의 한국어 UI 카피와 세컨비(SecondB) 대화 어조가 지나치게 차갑고 "연구용 AI 시스템 감사관"처럼 느껴집니다.
+- **Simon의 제품 철학 (2026-08-17)**: "사용자와 소통해서 깊게 파악하고, 그를 기반으로 심리상담(친구 같은)·개인 비서 역할을 하게 하는 것."
+- **주의 (C1 하드 제약)**: 임상 용어("심리상담", "치료", "우울증", "진단" 등)는 의료법상 UI 텍스트에 사용이 엄격히 금지됩니다(`scripts/check-forbidden-lexicon.ts`). 단, **기능 자체는 제약이 없으므로** "친구처럼 깊게 듣고 파악하는 다정하고 편안한 페이스메이커" 톤을 구현해야 합니다.
+
+---
+
+## 2. 톤앤매너 핵심 공식 (Simon 확정 원칙)
+1. **황금 표현 공식**:
+   `[객관적 사실·분석 데이터 안내: 단정한 합쇼체 (~합니다 / ~입니다)] + [사용자 생각 묻기·제안: 다정한 해요체 (~어떤가요?, ~해볼까요?)]`
+   - *모범 예시*: `"000은 000합니다. [이름]님은 어떤가요?"`
+2. **영문 번역투 '당신' 전면 배제**:
+   - `당신` → `{{who}}님` (동적 사용자명) 또는 주어 생략 (`"어떤 생각이 드시나요?"`, `"어떻게 생각하세요?"`)
+3. **엔지니어링·아키텍처 어휘 정제**:
+   - `주간 리즈닝 횟수` → `주간 심층 분석 횟수`
+   - `이 페르소나 승인 (Ratify)` → `이 모습으로 담기`
+   - `페르소나 제안 받기` → `기록으로 나의 모습 정리하기`
+   - `AI 연결 제안` → `관련된 기록 찾아보기`
+   - `L1~L5` 등 내부 모델 계층 표현 노출 제거
+4. **차가운 방어적 면책문(Disclaimer)을 따뜻한 대화형 제안으로 전환**:
+   - As-Is: `"AI가 추정한 결과예요. 나와 맞는지 확인해 주세요."`
+   - To-Be: `"남겨주신 기록들을 토대로 정리한 나의 모습입니다. {{who}}님이 느끼는 내 모습과 잘 맞나요?"`
+   - As-Is: `"최근 80개만 읽었어요. 점수가 아니에요."`
+   - To-Be: `"최근 남겨주신 80개의 기록을 바탕으로 분석했습니다. 요즘 내 일상과 가장 가까운 영역은 어디인가요?"`
+
+---
+
+## 3. 수정 대상 파일 및 변경 지침
+1. `src/lib/chat/conversation.ts`:
+   - `SYSTEM_PROMPT_HEADER.ko` 수정
+   - **불변식 주의**: `src/lib/chat/__tests__/identity-prompt.test.ts`를 반드시 만족해야 함 (`'~습니다'`, `'~나요?'`, `'개인 매니저'` 포함 필수)
+2. `locales/ko/core-brain.json`:
+   - 북극성 별자리, 페르소나 요약, 요금제/심층분석 횟수 카피 정비
+3. `locales/ko/secondb.json`:
+   - 세컨비 첫인사, 대화 인트로, systemHint 리라이팅 (친구 같은 편안한 말투)
+   - **마스코트 규칙 주의**: `scripts/check-mascot-voice.ts` Wall 2 검증 통과 필수 (대화 유도/질문형 종결 또는 '기록' 포함)
+4. `locales/ko/ops.json`:
+   - 대시보드 통계 요약, 루틴 마감 안내 카피 정비
+5. `locales/ko/home.json`:
+   - 홈 상단 배너 (`ds.head.*`) 카피 정비
+6. `locales/ko/deepspace.json`:
+   - 지식 연결, 별자리 기록 제안 카피 정비
+7. `locales/ko/manual.json` & `interview.json`:
+   - 기계적 설명문 정비
+
+---
+
+## 4. 엄격한 CI/CD 가드레일 (무관용 게이트)
+모든 변경 작업 후 아래 검사를 반드시 통과(ALL PASS)해야 합니다:
+```bash
+npm run check:i18n               # C7: 영-한 번역 키 누락/불일치 검사
+npm run check:i18n-untranslated  # 한국어 누락 검사
+npm run check:anti-anthro        # D-19: 허위 감정 연기("보고 싶었어요", "사랑해요") 금지
+npm run check:mascot-voice       # D-21: Wall 1 & Wall 2 소스 규칙 준수
+npm run check:lexicon            # 임상 금지어("심리상담", "치료", "환자" 등) 검사
+npm run check:emdash             # 전각 대시(—) 검사
+npm run check:cycles             # 무관용: 모듈 순환 참조 0개 유지
+npm run lint                     # ESLint
+npm run type-check               # TypeScript 컴파일 검사
+npx jest src/lib/chat/__tests__/identity-prompt.test.ts  # 프롬프트 단위 테스트
+```
+
+---
+
+## 5. 실행 절차
+1. 변경 전 `git status` 및 현재 브랜치 확인 (반드시 `.worktrees/` 작업 브랜치에서 수행).
+2. 대상 파일 순차적으로 수정 (황금 공식 및 불변식 준수).
+3. 로컬 검증 스크립트 실행하여 오류 0건 확인.
+4. Before vs After 변경 내역 요약 보고서 작성.</pre>
+  </div>
+
+  <h2>💡 핵심 톤앤매너 설계 원리</h2>
+
+  <div class="formula-box">
+    <div class="formula-part">
+      <strong>합쇼체 (~합니다 / ~입니다)</strong>
+      <span>객관적 사실 · 데이터 집계 · 시스템 상태</span>
+    </div>
+    <div class="formula-plus">+</div>
+    <div class="formula-part">
+      <strong>해요체 (~어떤가요? / ~해볼까요?)</strong>
+      <span>사용자 생각 묻기 · 다정한 제안 · 질문</span>
+    </div>
+    <div class="formula-equals">=</div>
+    <div class="formula-part" style="background: var(--accent-glow); border: 1px solid var(--border-accent);">
+      <strong style="color: var(--text);">친구 같은 개인 비서</strong>
+      <span style="color: var(--accent);">신뢰성 + 친근감 완벽 밸런스</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card highlight">
+      <strong>1. 신뢰감과 권위 (합쇼체 영역)</strong>
+      <p>
+        "최근 80개의 기록을 분석했습니다", "이번 주 루틴 달성률은 78%입니다." 처럼 앱이 데이터를 집계하고 상태를 전달할 때는 단정한 격식체로 신뢰감을 부여합니다.
+      </p>
+    </div>
+    <div class="card highlight">
+      <strong>2. 심리적 연결과 질문 (해요체 영역)</strong>
+      <p>
+        "{{who}}님은 이 분석에 대해 어떻게 생각하세요?", "오늘 저녁 가볍게 회고해볼까요?" 처럼 사용자의 마음에 말을 건네어 대화형 성찰(Reflective Dialogue)을 유도합니다.
+      </p>
+    </div>
+  </div>
+
+  <h2>📊 표현 개선 매트릭스 (As-Is vs To-Be)</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 22%;">영역 / 위치</th>
+        <th style="width: 38%;">기존 표현 (AI스러운 느낌)</th>
+        <th style="width: 40%;">개선 표현 (합쇼체+해요체 황금 공식)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>엔지니어링 어휘</strong><br><small style="color:var(--text-subtle);">core-brain.json</small></td>
+        <td><span class="pill-ai">AI 느낌</span> 주간 리즈닝 횟수 (남은 횟수: 3/5)</td>
+        <td><span class="pill-human">인간적</span> <strong>주간 심층 분석 횟수</strong> (이번 주 남은 횟수: 3/5회)</td>
+      </tr>
+      <tr>
+        <td><strong>권한 / 저장 액션</strong><br><small style="color:var(--text-subtle);">core-brain.json</small></td>
+        <td><span class="pill-ai">기계적</span> 이 페르소나 승인하기 (Ratify)</td>
+        <td><span class="pill-human">자연스러움</span> <strong>이 모습으로 담기</strong> / 내 모습으로 확정하기</td>
+      </tr>
+      <tr>
+        <td><strong>추천 / 탐색 액션</strong><br><small style="color:var(--text-subtle);">deepspace.json</small></td>
+        <td><span class="pill-ai">AI 느낌</span> AI 연결 제안 (Semantic Link)</td>
+        <td><span class="pill-human">친근함</span> <strong>관련된 기록 찾아보기</strong> / 이어지는 생각들</td>
+      </tr>
+      <tr>
+        <td><strong>세컨비 첫인사</strong><br><small style="color:var(--text-subtle);">secondb.json</small></td>
+        <td><span class="pill-ai">감사관 말투</span> 기록된 데이터를 기반으로 분석할 준비가 완료되었습니다.</td>
+        <td><span class="pill-human">친구·비서</span> <strong>오늘 하루 남겨주신 기록들을 읽어보았습니다. {{who}}님, 오늘 어떤 일이 가장 기억에 남으시나요?</strong></td>
+      </tr>
+      <tr>
+        <td><strong>방어적 면책문</strong><br><small style="color:var(--text-subtle);">core-brain.json</small></td>
+        <td><span class="pill-ai">면책 회피</span> AI가 추정한 결과예요. 실제 나와 맞는지 확인해 주세요.</td>
+        <td><span class="pill-human">성찰 유도</span> <strong>남겨주신 기록들을 바탕으로 정리한 나의 모습입니다. {{who}}님이 느끼는 실제 모습과 잘 맞나요?</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>🛡️ CI 무관용 가드레일 (인수인계 시 필수 강조)</h2>
+
+  <div class="callout-box warning">
+    <strong>⚠️ 새 에이전트가 흔히 빠지는 함정 (CI Failure 방지)</strong>
+    <p style="margin-top: 6px;">
+      1. <strong>임상 금지어 스캔 (`check:lexicon`)</strong>: '심리상담'이라는 단어를 UI에 쓰면 CI가 즉시 깨집니다. 단어 대신 '깊은 대화', '되돌아보기', '마음 정리' 등의 표현을 사용해야 합니다.<br>
+      2. <strong>마스코트 보이스 (`check:mascot-voice`)</strong>: Wall 2 키는 반드시 사용자 발화를 유도하는 물음표(<code>?</code>)로 끝나거나 <code>기록</code>이라는 단어가 포함되어야 합니다.<br>
+      3. <strong>시스템 프롬프트 테스트 (`identity-prompt.test.ts`)</strong>: <code>conversation.ts</code> 수정 시 <code>~습니다</code>, <code>~나요?</code>, <code>개인 매니저</code> 키워드가 빠지면 테스트가 실패합니다.
+    </p>
+  </div>
+
+  <h2>🚀 작업 단계 가이드</h2>
+
+  <div class="step-box">
+    <div class="step-num">01</div>
+    <div class="step-body">
+      <h4>프롬프트 복사 및 전달</h4>
+      <p>위 카드에서 프롬프트를 복사하여 새 세션의 AI(Claude Code, Codex 등)에게 첫 메시지로 전달합니다.</p>
+    </div>
+  </div>
+
+  <div class="step-box">
+    <div class="step-num">02</div>
+    <div class="step-body">
+      <h4>에이전트의 파일 수정 및 CI 실행</h4>
+      <p>에이전트가 7개 파일을 순차적으로 수정한 후 <code>npm run verify</code> 또는 개별 <code>check:*</code> 스크립트를 실행하여 무결성을 검증합니다.</p>
+    </div>
+  </div>
+
+  <div class="step-box">
+    <div class="step-num">03</div>
+    <div class="step-body">
+      <h4>localhost:8083 확인 및 머지</h4>
+      <p>수정 사항을 <code>http://localhost:8083</code>에서 QA 계정으로 직접 확인한 뒤 PR 생성 및 검토를 진행합니다.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const next = current === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    updateThemeBtn(next);
+  }
+
+  function updateThemeBtn(theme) {
+    const icon = document.getElementById('themeIcon');
+    const text = document.getElementById('themeText');
+    if (theme === 'light') {
+      icon.textContent = '🌙';
+      text.textContent = '다크 모드';
+    } else {
+      icon.textContent = '☀️';
+      text.textContent = '라이트 모드';
+    }
+  }
+
+  // Init theme
+  (function() {
+    const saved = localStorage.getItem('theme');
+    if (saved) {
+      document.documentElement.setAttribute('data-theme', saved);
+      updateThemeBtn(saved);
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      updateThemeBtn(prefersDark ? 'dark' : 'light');
+    }
+  })();
+
+  function copyPrompt() {
+    const text = document.getElementById('promptText').innerText;
+    navigator.clipboard.writeText(text).then(function() {
+      const btn = document.getElementById('copyBtn');
+      const btnText = document.getElementById('copyBtnText');
+      btn.classList.add('copied');
+      btnText.textContent = '복사 완료! (Copied)';
+      setTimeout(function() {
+        btn.classList.remove('copied');
+        btnText.textContent = '프롬프트 복사하기';
+      }, 2500);
+    }).catch(function(err) {
+      alert('복사에 실패했습니다. 텍스트를 직접 드래그하여 복사해 주세요.');
+    });
+  }
+</script>
+</body>
+</html>

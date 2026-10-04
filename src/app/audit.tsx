@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router, useLocalSearchParams, useNavigation } from "expo-router";
+import { Redirect, useNavigation } from "expo-router";
 
 import { PremiumAppShell, PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -13,6 +13,7 @@ import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { DdsAuditScreen } from "@/screens/deepspace/dds-audit-screen";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useHardwareBack, useScreenParams } from "@/lib/nav/phone-embed";
 import { questionsForPeriod, type AuditPeriod } from "@/lib/audit/questions";
 import { isUnlived, type SevenStarId } from "@/lib/persona/seven-stars";
 import { createRecord } from "@/lib/records/create";
@@ -147,6 +148,9 @@ function AuditScreenerShell({ children, onBack }: { children: ReactNode; onBack:
 }
 
 function AuditLegacy() {
+  // Phone-aware: /audit?screener=1 draws this in every skin. Inside the
+  // dashboard phone Back and the exits go through the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("audit");
   const { userId, loading, isMinor, hasProfile, age } = useAuth();
   const navigation = useNavigation();
@@ -185,7 +189,7 @@ function AuditLegacy() {
 
     router.back();
     return true;
-  }, [done, hasUnsavedProgress, period]);
+  }, [done, hasUnsavedProgress, period, router]);
 
   useEffect(() => {
     if (!toast) return;
@@ -195,12 +199,13 @@ function AuditLegacy() {
 
   // Android hardware back handler: intercept navigation back requests while the
   // life audit session is in progress to prevent accidental loss of written answers.
-  useEffect(() => {
-    if (period === null || done) return;
-
-    const subscription = BackHandler.addEventListener("hardwareBackPress", requestBack);
-    return () => subscription.remove();
-  }, [done, period, requestBack]);
+  // useHardwareBack: the same focused listener standalone (removed on blur and
+  // unmount), the phone's claim stack inside the dashboard phone. Outside a
+  // session -> false, so Back keeps its default.
+  useHardwareBack(useCallback(
+    () => (period === null || done ? false : requestBack()),
+    [done, period, requestBack],
+  ));
 
   // The persistent deep-space dock navigates inside DeepSpaceScreen, outside
   // AuditScreenerShell's onBack prop. Gate every route removal while a response
@@ -573,7 +578,8 @@ function AuditDeepSpace() {
 }
 
 export default function Audit() {
-  const { screener } = useLocalSearchParams<{ screener?: string }>();
+  // useScreenParams: inside the dashboard phone `screener` is the phone route's query.
+  const { screener } = useScreenParams<{ screener?: string }>();
   // `/audit` is currently the deep-space PastMe compatibility entry. The
   // assessment registry uses this explicit query so the period-specific
   // 5–15-question Life Audit remains reachable regardless of the active visual skin.

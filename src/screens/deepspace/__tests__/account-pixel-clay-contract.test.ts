@@ -145,7 +145,9 @@ describe("PIXEL-CLAY /account contract", () => {
     expect(accountToolFromParam(undefined)).toBeNull();
 
     const source = read(SCREEN);
-    expect(source).toContain("useLocalSearchParams");
+    // useScreenParams is useLocalSearchParams outside the dashboard phone and the
+    // phone route's query inside it (src/lib/nav/phone-embed.tsx).
+    expect(source).toContain("useScreenParams");
     expect(source).toContain('setExportOpen(requestedTool === "export")');
     expect(source).toContain('setDobOpen(requestedTool === "dob")');
     expect(source).toMatch(/setDobOpen\(\(open\) => !open\);\s*setExportOpen\(false\);/);

@@ -44,6 +44,15 @@
     "title": "Ponsel saya",
     "brand": "HARI SAYA",
     "returnToStars": "Kembali ke rasi bintang",
+    "internal": {
+      "back": "Kembali di dalam ponsel", "wikiGraph": "Grafik dan tag", "closePhone": "Tutup ponsel", "exitTitle": "Tutup ponsel?", "exitHint": "Kembali ke rasi bintang tanpa mengubah data tersimpan.", "cancel": "Lanjut melihat",
+      "captureScope": "Simpan catatan singkat di sini. Wawancara dan cara penyimpanan lain tetap ada di layar khusus.",
+      "noteInput": "Tulis sesuatu untuk disimpan", "startNote": "Tulis catatan", "saveNote": "Simpan catatan", "saved": "Catatan tersimpan.",
+      "focusLocal": "Pengatur waktu ini berjalan hanya saat layarnya terbuka.", "start": "Mulai", "pause": "Jeda", "reset": "Atur ulang",
+      "searchRecords": "Cari catatan tersimpan", "untitledRecord": "Catatan tanpa teks", "settingsScope": "Kelola sambungan data dan jadwal penyegaran di Pengaturan.",
+      "profileSummary": "Membaca {{count}} catatan terbaru. Ini bukan jumlah total atau isi profil Anda.",
+      "unavailable": "Fitur ini belum memiliki layar di dalam ponsel. Data tidak dibuat-buat."
+    },
     "tabs": {
       "dashboard": "Dasbor",
       "sources": "Sumber",
@@ -124,7 +133,7 @@
     "sourceNotes": {
       "calendar": "Impor melalui Google Calendar di web, atau berkas .ics di aplikasi terpasang. Kalender tidak disinkronkan terus-menerus.",
       "location": "Impor berkas ekspor Google Timeline. Pelacakan GPS di latar belakang tidak terhubung.",
-      "health": "Di aplikasi terpasang, setelah Anda setuju dan memberi izin, aplikasi dapat membaca langkah, olahraga, tidur, dan detak jantung dari Health Connect (Android) atau Apple Health (iOS). Untuk saat ini, catatan hari ini dibaca saat Anda mengetuk ‘Terapkan hari ini’.",
+      "health": "Di aplikasi Android yang terpasang, beri persetujuan lalu ketuk ‘Terapkan hari ini’ untuk memberi izin, dan aplikasi membaca langkah, olahraga, tidur, dan detak jantung. Setelah itu, ponsel tersebut juga membaca langkah, olahraga, dan tidur sekali sehari secara otomatis. iPhone (Apple Health) belum bisa dibaca.",
       "garmin": "Aktifkan berbagi dari Garmin Connect ke Apple Health (iOS) atau Health Connect (Android 14+), lalu aplikasi terpasang juga dapat membaca data yang didukung dengan izin kesehatan yang sama. Koneksi langsung Garmin dan Body Battery tidak didukung.",
       "tasks": "Impor Google Tasks dengan akun Google di web. Aplikasi terpasang belum bisa menghubungkannya, dan perubahan tidak disinkronkan terus-menerus.",
       "kakao": "Impor ekspor percakapan KakaoTalk dan tinjau informasi yang dipilih. Percakapan pribadi tidak dibaca secara langsung.",

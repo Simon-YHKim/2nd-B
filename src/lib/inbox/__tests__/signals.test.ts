@@ -316,7 +316,11 @@ describe("legacy preservation and pixel registration", () => {
     // 2026-09-20 재고정 - vibe r260919 r35 · 철회를 계정마다 한 줄로 세우는 연산(withdrawImportHistoryEntry)으로 옮기고, 새 항목에 owned 표지 · 남긴 행 알림 한 줄 · inbox 와 무관.
     // 2026-09-20 재고정 - vibe r260919 R37-FIX1841C · 철회 콜백이 항목을 직접 빼지 않고(history.ts 가 승격과 한 번에 쓴다), Web Locks 없는 브라우저의 거절 문구 · 남긴 행 알림을 까닭별 줄(keptNotice)로 · inbox 와 무관.
     // 2026-09-30 재고정 - Text 를 react-native 대신 @/components/ui/PlainText 에서 가져오는 import 두 줄(앱 전체 한국어 줄바꿈) · inbox 와 무관.
-    expect(sha(source)).toBe("eead7f32593fc6bb10feedc0ccfcffdf10e29fb31d5a54b96f3db1f1a52c0be8");
+    // 2026-10-01 재고정 - '오늘 반영' 탭이 OS 권한을 받은 뒤 이 폰에서 이 계정의 건강 자동 읽기를 켜고(armHealthAutoRead: 권한은 폰의 앱에 붙어서, 같은 폰의 다른 계정이 물려받지 않게) 결과 줄에 그 사실(healthAutoDaily)을 붙인다 · inbox 와 무관.
+    // 2026-10-02 재고정 - 대시보드 폰 통합: 세 화면 함수(DeepSpaceInboxScreen · DeepSpaceInboxBody · DeepSpaceImportScreen)가 expo-router 의 `router` 대신 `useAppRouter()` 를, 가져오기 `mode` 가 `useLocalSearchParams` 대신 `useScreenParams` 를 쓴다(lib/nav/phone-embed.tsx). 폰 밖 동작은 같다 · **inbox 도 건드렸다**(라우터 훅 한 줄씩).
+    // 2026-10-03 재고정 - 건강 카드 아래 '끄고 건강 기록 지우기' 버튼과 결과 줄(handleHealthWithdraw: 동의한 자리에서 한 번 탭으로 철회, lib/health/withdraw.ts 흐름) · inbox 와 무관.
+    // 2026-10-04 재고정 - 통합 머지(#2005 폰 통합 + main): 위 두 변경이 함께 들어간 파일 · inbox 는 라우터 훅 한 줄씩만.
+    expect(sha(source)).toBe("05da0cd8cf7e3621d0cebb8981597a0a90b1bdb0e5024189e71cbef67fb58f29");
   });
 
   test("keeps InboxLegacy and its styles byte-stable while routing deep-space directly", () => {

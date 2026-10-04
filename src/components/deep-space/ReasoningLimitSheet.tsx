@@ -22,11 +22,12 @@ import { Animated, Modal, Pressable, StyleSheet, View, useWindowDimensions } fro
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router, usePathname } from "expo-router";
+import { usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { MdButton } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { canShowRewardedAds } from "@/lib/ads/policy";
 import { canCompleteRewardedWatch, showRewardedAd } from "@/lib/ads/rewarded";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
@@ -74,6 +75,9 @@ export interface ReasoningLimitSheetProps {
 }
 
 export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLimitSheetProps) {
+  // Phone-aware: opened from /reasoning inside the dashboard phone, /plans
+  // opens in the phone too. Home gets expo-router's router unchanged.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const { userId, isMinor } = useAuth();
   const progression = useProgression();
@@ -212,7 +216,7 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
   const goPlans = useCallback(() => {
     onClose();
     router.push("/plans?from=reasoning_limit");
-  }, [onClose]);
+  }, [onClose, router]);
 
   const translateY = rise.interpolate({ inputRange: [0, 1], outputRange: [height, 0] });
 

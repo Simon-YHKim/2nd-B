@@ -9,9 +9,10 @@
 //   - Honest capacity: the queue is HARD-CAPPED and reports near-full / full so
 //     the UI can say "saved on this device, almost full" instead of silently
 //     dropping a clip (silent loss is the real trust break, per persona-sim).
-//   - On account creation the queue is DRAINED (load + clear) and each item is
-//     imported via the normal post-account path; "ratify" stays reserved for the
-//     edge/self-model contract, so the import verb here is confirm/import.
+//   - A signed-in person explicitly confirms that these device notes belong to
+//     them before importing into the displayed account. Only server-confirmed
+//     imports leave the queue; "ratify" stays reserved for the edge/self-model
+//     contract, so the import verb here is confirm/import.
 //
 // Storage plumbing mirrors capture/draft.ts (web localStorage, native encrypted
 // storage). Unlike drafts there is no userId scope: pre-account has no user.
@@ -43,6 +44,16 @@ export const PREAUTH_PENDING_NEAR = 45;
 export const PREAUTH_PENDING_MAX_CHARS = 4000;
 
 const STATE_KEY = "capture.preauthPending.v1";
+
+// Serialize writes in this runtime. An async native read/write otherwise lets two
+// additions read the same old value and acknowledge one that the other overwrote.
+let mutationTail: Promise<void> = Promise.resolve();
+
+function mutateQueue<T>(operation: () => Promise<T>): Promise<T> {
+  const task = mutationTail.then(operation);
+  mutationTail = task.then(() => undefined, () => undefined);
+  return task;
+}
 
 export interface PendingStatus {
   count: number;
@@ -157,11 +168,7 @@ function newLocalId(now: string): string {
 export async function loadPendingCaptures(): Promise<PendingCapture[]> {
   const local = ls();
   if (local) {
-    try {
-      return parseList(local.getItem(STATE_KEY));
-    } catch {
-      return [];
-    }
+    return parseList(local.getItem(STATE_KEY));
   }
   const native = nativeStorage();
   if (!native) return [];
@@ -172,25 +179,23 @@ async function writeList(list: PendingCapture[]): Promise<void> {
   const raw = JSON.stringify(normalizePendingList(list));
   const local = ls();
   if (local) {
-    try {
-      local.setItem(STATE_KEY, raw);
-    } catch {
-      /* quota/private mode: best-effort */
-    }
+    local.setItem(STATE_KEY, raw);
     return;
   }
   const native = nativeStorage();
-  if (!native) return;
+  if (!native) throw new Error("pending_storage_unavailable");
   await native.setItem(STATE_KEY, raw);
 }
 
 /** Append a plaintext capture to the device-local pending queue (no account needed). */
 export async function addPendingCapture(text: string, now?: string): Promise<AddPendingResult> {
   const stamp = now ?? new Date().toISOString();
-  const current = await loadPendingCaptures();
-  const result = addToPendingList(current, text, stamp, newLocalId(stamp));
-  if (result.ok) await writeList(result.list);
-  return result;
+  return mutateQueue(async () => {
+    const current = await loadPendingCaptures();
+    const result = addToPendingList(current, text, stamp, newLocalId(stamp));
+    if (result.ok) await writeList(result.list);
+    return result;
+  });
 }
 
 export async function countPendingCaptures(): Promise<number> {
@@ -202,38 +207,47 @@ export async function getPendingStatus(): Promise<PendingStatus> {
 }
 
 export async function clearPendingCaptures(): Promise<void> {
-  const local = ls();
-  if (local) {
-    try {
+  await mutateQueue(async () => {
+    const local = ls();
+    if (local) {
       local.removeItem(STATE_KEY);
-    } catch {
-      /* best-effort */
+      return;
     }
-    return;
-  }
-  const native = nativeStorage();
-  if (!native) return;
-  await native.removeItem(STATE_KEY);
+    const native = nativeStorage();
+    if (native) await native.removeItem(STATE_KEY);
+  });
 }
 
 /**
- * Drain the queue for import after account creation: returns every pending item
- * and clears local storage in one step. The caller imports each item through the
- * normal post-account path (createSource / record). Nothing here touches the
- * server, so draining is safe to call before the import actually runs only if the
- * caller persists the returned list first.
+ * Remove only captures confirmed on the server. Read the latest queue inside the
+ * mutation lock so a capture appended while an import was in flight stays queued.
+ * Match complete entries and count duplicates independently: a repeated localId
+ * does not authorize dropping a distinct capture.
  */
-export async function drainPendingCaptures(): Promise<PendingCapture[]> {
-  const list = await loadPendingCaptures();
-  if (list.length > 0) await clearPendingCaptures();
-  return list;
+export async function removeImportedPendingCaptures(imported: PendingCapture[]): Promise<void> {
+  if (imported.length === 0) return;
+  await mutateQueue(async () => {
+    const counts = new Map<string, number>();
+    for (const item of imported) {
+      const key = JSON.stringify([item.localId, item.text, item.capturedAt]);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const current = await loadPendingCaptures();
+    const remaining = current.filter((item) => {
+      const key = JSON.stringify([item.localId, item.text, item.capturedAt]);
+      const count = counts.get(key) ?? 0;
+      if (count === 0) return true;
+      counts.set(key, count - 1);
+      return false;
+    });
+    if (remaining.length !== current.length) await writeList(remaining);
+  });
 }
 
 /**
- * Overwrite the queue with exactly `list`. Used by the post-account import to
- * retain ONLY the items that failed to import (so a partial failure never loses
- * a capture and never re-imports a succeeded one on retry). Passing [] clears it.
+ * Replace the full queue for explicit local maintenance and test setup. Imports
+ * must use removeImportedPendingCaptures so a concurrent addition survives.
  */
 export async function replacePendingCaptures(list: PendingCapture[]): Promise<void> {
-  await writeList(list);
+  await mutateQueue(() => writeList(list));
 }

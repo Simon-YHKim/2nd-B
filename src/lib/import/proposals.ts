@@ -6,12 +6,15 @@
 
 import i18next from "i18next";
 
+import enImport from "../../../locales/en/import.json";
+import koImport from "../../../locales/ko/import.json";
 import { systemLocaleFor, type SystemLocale } from "@/lib/i18n/locales";
 import type { ImportKind } from "./detect";
-import { aggregateRelationSignals, extractAppointmentHints, parseKakaoExport, type KakaoRelationSignal } from "./kakao";
-import { extractSmsAppointmentHints, parseSmsBackup } from "./sms";
+import { aggregateRelationSignals, countAppointmentHints, parseKakaoExport, type KakaoRelationSignal } from "./kakao";
+import { countSmsAppointmentHints, parseSmsBackup } from "./sms";
 import { parseTakeoutLocations, summarizeLocations } from "./location";
-import { parseIcs } from "./ics";
+import { eventWhen } from "./event-when";
+import { parseIcs, type CalendarEvent } from "./ics";
 import { parseAppleHealthExport, summarizeHealth } from "./health-export";
 import { emailLooksLikeAppointment, parseEml } from "./email";
 import { parseFinanceCsv, type FinanceTxn } from "./finance-csv";
@@ -38,7 +41,15 @@ export interface ImportProposal {
    * ones, mirroring the #1075 relation-alias "propose, then persist" law.
    */
   ledgerEntry?: FinanceTxn;
+  /**
+   * Health measurements (Apple Health totals): kept as the person's record but never sent to
+   * an AI provider (lib/wiki/ai-exclusion.ts). proposalsToMarkdown marks the source with it.
+   */
+  aiExcluded?: "health_measurements";
 }
+
+/** The routing line of an Apple Health measurement; ai-exclusion.ts recognises older imports by it. */
+export const HEALTH_PROPOSAL_SUB = "건강 → 루틴 자동완료";
 
 export interface ImportSummary {
   appointments: number;
@@ -106,21 +117,19 @@ export function splitMarkdownSections(content: string): Array<{ title: string; b
 }
 
 /** Pure: parse `content` per `kind` and build derived proposals + summary. */
-export function buildProposals(kind: ImportKind, content: string): ImportOutcome {
+export function buildProposals(kind: ImportKind, content: string, localeTag: string = i18next.language ?? "en"): ImportOutcome {
   const proposals: ImportProposal[] = [];
   const summary: ImportSummary = { ...empty };
 
   let relationSignals: KakaoRelationSignal[] | undefined;
   if (kind === "kakao") {
     const messages = parseKakaoExport(content);
-    const hints = extractAppointmentHints(messages);
-    summary.appointments = hints.length;
-    for (const h of hints) proposals.push({ id: `kakao-${proposals.length}`, label: h.text, sub: "약속 → 캘린더 후보", sensitive: true });
+    summary.appointments = countAppointmentHints(messages);
+    if (summary.appointments > 0) proposals.push(appointmentCountProposal("kakao", summary.appointments, localeTag));
     relationSignals = aggregateRelationSignals(messages);
   } else if (kind === "sms") {
-    const hints = extractSmsAppointmentHints(parseSmsBackup(content));
-    summary.appointments = hints.length;
-    for (const h of hints) proposals.push({ id: `sms-${proposals.length}`, label: h.text, sub: "약속 → 캘린더 후보", sensitive: true });
+    summary.appointments = countSmsAppointmentHints(parseSmsBackup(content));
+    if (summary.appointments > 0) proposals.push(appointmentCountProposal("sms", summary.appointments, localeTag));
   } else if (kind === "takeout-location") {
     const s = summarizeLocations(parseTakeoutLocations(safeJson(content)));
     summary.places = s.places.length;
@@ -128,11 +137,11 @@ export function buildProposals(kind: ImportKind, content: string): ImportOutcome
   } else if (kind === "ics") {
     const events = parseIcs(content);
     summary.events = events.length;
-    for (const e of events) proposals.push({ id: `ics-${proposals.length}`, label: e.title, sub: "일정 → 캘린더", sensitive: false });
+    proposals.push(...calendarEventProposals(events));
   } else if (kind === "apple-health") {
     const s = summarizeHealth(parseAppleHealthExport(content));
     summary.health = s.byType.length;
-    for (const t of s.byType) proposals.push({ id: `hk-${proposals.length}`, label: `${t.type} ${Math.round(t.total)}${t.unit}`, sub: "건강 → 루틴 자동완료", sensitive: true });
+    for (const t of s.byType) proposals.push({ id: `hk-${proposals.length}`, label: `${t.type} ${Math.round(t.total)}${t.unit}`, sub: HEALTH_PROPOSAL_SUB, sensitive: true, aiExcluded: "health_measurements" });
   } else if (kind === "email") {
     const email = parseEml(content);
     if (email && emailLooksLikeAppointment(email)) {
@@ -204,6 +213,41 @@ export function buildProposals(kind: ImportKind, content: string): ImportOutcome
   };
 }
 
+/**
+ * One review row per calendar event, its time in front of its title. Shared by .ics files,
+ * Google Calendar (which arrives as .ics text) and the phone calendar (phone-calendar.ts).
+ */
+export function calendarEventProposals(events: ReadonlyArray<CalendarEvent>): ImportProposal[] {
+  return events.map((event, i) => {
+    const when = eventWhen(event);
+    return { id: `ics-${i}`, label: when ? `${when} ${event.title}` : event.title, sub: "일정 → 캘린더", sensitive: false };
+  });
+}
+
+/** The import outcome for events that arrive as data rather than as a file (the phone calendar). */
+export function calendarEventsOutcome(events: ReadonlyArray<CalendarEvent>): ImportOutcome {
+  return {
+    proposals: calendarEventProposals(events).slice(0, PROPOSAL_CAP),
+    summary: { ...empty, events: events.length },
+  };
+}
+
+/** One ratifiable derived count; no message body, sender, phone number or timestamp. */
+function appointmentCountProposal(kind: "kakao" | "sms", count: number, localeTag: string): ImportProposal {
+  const copy = systemLocaleFor(localeTag) === "ko" ? koImport.appointmentCount : enImport.appointmentCount;
+  const translated = i18next.isInitialized && i18next.exists("appointmentCount.label", { ns: "import", lng: localeTag });
+  return {
+    id: `${kind}-count`,
+    label: translated
+      ? i18next.t("appointmentCount.label", { ns: "import", lng: localeTag, count })
+      : copy.label.replace("{{count}}", String(count)),
+    sub: translated
+      ? i18next.t("appointmentCount.sub", { ns: "import", lng: localeTag })
+      : copy.sub,
+    sensitive: true,
+  };
+}
+
 function safeJson(content: string): unknown {
   try {
     return JSON.parse(content);
@@ -228,7 +272,9 @@ export function proposalsToMarkdown(
   chosen: ReadonlyArray<ImportProposal>,
   locale: SystemLocale = systemLocaleFor(i18next.language),
 ): string {
-  const lines = [locale === "ko" ? `# ${sourceName} 가져오기` : `# ${sourceName} import`, ""];
+  // ai_excluded is AI_EXCLUDED_KEY in lib/wiki/ai-exclusion.ts (not imported: that module imports this one).
+  const mark = chosen.some((p) => p.aiExcluded) ? ["---", "ai_excluded: health_measurements", "---"] : [];
+  const lines = [...mark, locale === "ko" ? `# ${sourceName} 가져오기` : `# ${sourceName} import`, ""];
   for (const p of chosen) {
     if (p.body) {
       lines.push(`## ${p.label}`, "", p.body, "");

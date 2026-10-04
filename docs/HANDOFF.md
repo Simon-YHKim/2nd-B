@@ -11,7 +11,8 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-09-25 ~ 2026-09-27 | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 35 | 81KB |
+| 2026-09-28 01:2x ~ 2026-09-30 23:00 | [handoff/HANDOFF-2026-09-p4.md](handoff/HANDOFF-2026-09-p4.md) | 23 | 61KB |
+| 2026-09-25 ~ 2026-09-28 00:4x | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 37 | 86KB |
 | 2026-09-08 ~ 2026-09-21 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 16 | 94KB |
 | 2026-09-01 ~ 2026-09-08 (+09-13 인계 1) | [handoff/HANDOFF-2026-09.md](handoff/HANDOFF-2026-09.md) | 18 | 92KB |
 | 2026-08-25 ~ 2026-08-30 | [handoff/HANDOFF-2026-08-p4.md](handoff/HANDOFF-2026-08-p4.md) | 11 | 89KB |
@@ -29,13 +30,500 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-01 01:46 / Android 진단 성공·공개 법률 웹 QA·10월 계약 현황
+## Latest — 2026-10-04 15:20 / 오프닝 한 프레임 늘어남 수정(#2031) · 0.10.0 컷(#2032) · 에뮬레이터 확인
 
-- **Android·앱 동등성**: [진단 빌드 36741708266](https://github.com/Simon-YHKim/2nd-B/actions/runs/36741708266)이 `3f8c7544`에서 성공했다. APK 생성·`arm64-v8a` 확인·artifact 업로드가 통과했고 환경 digest `e90c4cb7…`는 localhost와 같다. 그 뒤 다른 세션의 [#1965](https://github.com/Simon-YHKim/2nd-B/pull/1965)가 main `0e2bb32e`에 병합됐다. 8081은 이 SHA를 따라갔고 `npm run app:parity`는 앱 경로 차이 0·설정/의존성 일치로 **같음**(exit 0)이다. 새 SHA의 [진단 빌드 36745473207](https://github.com/Simon-YHKim/2nd-B/actions/runs/36745473207)은 서명 전 최신 main 게이트를 통과하고 진행 중이다. 폰 QA APK 게시는 실행하지 않았다.
+- **무엇을**: Simon: "망원경을 조정하다가 갑자기 1 프레임 정도 접안 모션을 보여주는 상태야. 이거 수정 가능해?" → "혹시 localhost 에서만 그런가? … 에뮬레이터로 확인 해볼래? 최신 apk를 만들어서 작업하자. 마이너 버전으로."
+- **원인**: 승인 시퀀스의 컷이 아니다(manifest = approved-settings). observe-* 만 폭 480 · 나머지 400 인데 캐릭터 틀이 컷마다 크기를 따라갔다. expo-image 는 새 그림이 그려질 때까지 옛 그림을 붙잡으므로 adjust-3 → observe-1 순간 adjust-3 이 1.2배로 늘어난 채 한 번 그려졌다. 웹 8081 13~15ms(캐시 유무 둘 다) · 안드로이드 에뮬레이터(x86_64 CI APK `e4ee955e`) 72ms. **localhost 전용이 아니었다.**
+- **수정 #2031 `f235273c`**: `getApprovedOpeningScene` 이 가장 넓은 컷 크기의 `characterSlot` 을 주고 `LoadingScreen` 이 `contentFit="contain"` + 왼쪽 위로 그린다(모든 컷 높이 560 이라 각 컷이 제 자리 · 제 크기). 승인 바이트 · 타이밍 · 순서 불변. 테스트 2개(변이 4 · 2 실패), verify 898 suites / 11,557 tests.
+- **0.10.0 #2032 `4bf55812`**: `app.json` 0.9.0 → 0.10.0 · CHANGELOG 199개(문서 96 · 기능 36 · 수정 57) · `notice:release` SILENT · `versionCode` 40 유지(EAS remote). 새로 설치해야 하는 판.
+- **APK · 에뮬레이터**: x86_64 [런 37180995493](https://github.com/Simon-YHKim/2nd-B/actions/runs/37180995493) 성공(versionName 0.10.0) → Orca `emulator-5554` 에 `install -r`, 오프닝 3회 녹화에서 늘어난 프레임 **0**(전 1). 폰용 arm64 push [런 37180962217](https://github.com/Simon-YHKim/2nd-B/actions/runs/37180962217) 은 서명 게이트를 지나 빌드 중(이 블록 시점). 폰 QA APK 는 게시하지 않았다(Simon 이 폰에서 볼 때만).
+- **정정**: #2031 커밋 메시지 · CHANGELOG · 코드 주석에 안드로이드 86ms 로 적었다. 확대 그림에 시각을 붙일 때 프레임 번호를 한 칸 밀려 읽은 값이고, 다시 세면 72ms(10.693s → 10.765s)다. CHANGELOG · 주석은 이 PR 에서 고쳤고 커밋 메시지는 남는다.
+- **덤으로 본 것(안 고침)**: 처음 켤 때 53ms 손목 컷이 이미지 디코딩 지연으로 건너뛰어질 수 있다(웹 · 캐시 없음). 에뮬레이터에서 오프닝이 1.4~1.5초씩 두 번 멈췄다(실기기 미확인).
+- **보고서**: <https://claude.ai/artifact/5b9uBaxGS1yxrZdT6BRSaz>
+- **앱/localhost**: 이 블록 시점 `npm run app:parity` = 같음(8081 = `4bf55812`, 같은 코드 arm64 빌드 진행 중). 이 PR 은 코드 주석을 바꿔 새 arm64 빌드를 하나 더 돌린다.
+- **다음 1개**: Simon 이 폰에서 보고 싶어 하면 `npm run app:qa-release`.
+
+## 2026-10-04 14:02 / 미푸시 브랜치 10개 삭제 (번들 백업)
+
+- **무엇을**: 13:09 블록의 "브랜치는 하나도 지우지 않았다" 를 이 블록이 갱신한다. Simon: "굳이 남겨놓을 필요 없겠어. 전부 정리하자."
+- **지운 것**: origin 에 없는 커밋을 가진 로컬 브랜치 10개(`fix/legacy-archive-integrity-pin-260913` · `claude/health-withdraw-261002` · `codex/prod-workflow-ref-gates-260913` · `claude/records-260921` · `fix/gui-back-focus-261001` · `codex/museum-phone-261001` · `fix/android-voice-base64-260926` · `codex/ops-embed-261001` · `qa/polascope-1902-mergecheck-f5-261001` · `fix/preauth-owner-consent-261001`).
+- **지우기 전 판정**: 9개는 main 에 착지했거나(추가 줄의 main 존재율 75~100% · #2005 · #2011) 착지할 내용이 없는 merge 커밋(#1856 · mergecheck). `legacy-archive-integrity` 는 package-lock 제외 93% 착지, 마이그레이션은 0196 · 0197 로 번호가 바뀌어 들어갔고, `capture-file.ts` · `storage-erasure.ts` · `auth.ts` 등 2,019줄은 미확인인 채로 지웠다.
+- **백업**: `E:/Coding Infra/_rescue/worktrees-261004/branches-261004.bundle`(verify ok · 머리 10개 == `branches-261004.tips`). 되살리기: `git fetch "<bundle>" refs/heads/<br>:refs/heads/<br>`.
+- **남은 로컬 브랜치**: 지운 워크트리의 나머지 85개는 커밋이 전부 origin 에 있다. 원격 브랜치는 손대지 않았다.
+- **다음 1개**: 없음.
+
+## 2026-10-04 13:09 / 2ndB 워크트리 97곳 · LLM 세션 9개 정리 (Orca 경량화)
+
+- **무엇을**: Simon 지시 "현재의 워크트리와 세션 제외하고, 우리 프로젝트에 띄워져 있는 워크트리와 llm 세션, 모두 정리해줘". 모든 PR 머지 뒤 Orca 가 무거워져서.
+- **남은 것**: 워크트리 3개(`E:/2ndB` main · `.worktrees/2ndB/TTL-Work_rev2` · `.worktrees/localhost-main`). 2ndB 의 Orca 터미널은 지시한 세션 1개뿐.
+  - `localhost-main` 은 일부러 남겼다. 8081 감독자가 거기서 돈다. 지우면 localhost 가 멈추고 `app:parity` 가 "다름" 이 된다(`npm run localhost` 가 다시 만들기는 한다).
+- **구제**: `E:/Coding Infra/_rescue/worktrees-261004/<이름>/` 에 `tracked.patch`(sha256 은 manifest.json) · `untracked/` · `ignored/`. 같은 E: 볼륨 안 이동이라 복사 0. 목록 `index.json`, 삭제 기록 `deleted.json`.
+  - 미커밋이 있던 10곳: 2ndB/TTL-Work(수정 575 · 새 파일 816) · avatar-observatory-integration-260928 · brand-meta-260927 · data-conn-260930 · grok-qa-complement-260925 · localhost-260921-287e56f1 · native-260926 · observatory-260925 · qa-integration-260920 · reward-ledger-retention-260927.
+- **브랜치는 하나도 지우지 않았다**(95개 존재 확인). 미푸시 커밋이 있는 브랜치 10개(legacy-archive-integrity-260913 의 97개 등)는 그대로 있다.
+- **수치**: E: 여유 101.8 → 135.4 GB · 메모리 여유 5.9 → 8.3 GB · claude.exe 11 → 6 · codex.exe 7 → 5 · 공용 node_modules 726 → 726. `app:parity` = 같음.
+- **손대지 않은 것**: `.worktrees/_backup` · `_legacy` · `.npm-security-landing-260906`(보안 트랙) · `.orca-*` · `2ndB/_sync`. 빈 폴더 9개만 지웠다. `Coding Infra` 폴더 터미널은 2ndB 가 아니라 그대로.
+- **도구**: `E:/Coding Infra/_rescue/tools/cleanup-261004/`(`rescue_move.py` · `delete_wt.py`). `orca worktree rm` 은 로컬 브랜치까지 지워서 쓰지 않았다.
+- **다음 1개**: 없음. 새 작업은 새 워크트리로 시작한다.
+
+## 2026-10-04 12:40 / Q-261004-01 · 02 = A: TTL-Work_rev2 정리 · agy 11개는 지금 문구
+
+- **무엇을**: Simon 답 "Q-261004-01 : a ok / Q-261004-02 : a ok".
+- **Q-261004-01 = A**: `.worktrees/2ndB/TTL-Work_rev2` 의 미커밋 49건(파일 122)을 지우고 `Simon-YHKim/TTL-Work_rev2` 를 origin/main(`c61c6f3e`)으로 fast-forward 했다. 미커밋 0 · 앞 0 · 뒤 0. node_modules 정션 유지, 공용 726.
+  - 지우기 전: 워크트리 트리 해시가 백업 `backup/ttl-work-rev2-wip-261004`(`a97531d8`)와 같았다(`e124e7dd`) → 백업 뒤에 생긴 변경 0. 같은 워크트리의 다른 rev2 세션(ed · 99 · d2 · 8b) 모두 idle.
+  - **이 워크트리를 쓰던 세션이 깨어나면**: 옛 미커밋 파일은 이제 없다. 내용은 main 에 있거나(#2005 · #2023 · #2000 · #2025) 더 새 판으로 대체됐고, 원본은 백업 브랜치에 있다.
+- **Q-261004-02 = A**: #2025 에서 뺀 agy 문구 11개는 main 문구 그대로. 할 일 없음.
+- **다음 1개**: 없음(이 건 종료). 폰에서 오늘 바뀐 것을 보려면 `npm run app:qa-release` (폰 QA APK 는 10-01 판).
+
+## 2026-10-04 04:40 / TTL-Work_rev2 워크트리 작업 착지: #2005 · #2023 · #2000 · #2025
+
+- **무엇을**: Simon "이 워크트리에 있는 모든 작업에 대해 머지하고 깃허브 머지까지 진행하자." (`.worktrees/2ndB/TTL-Work_rev2`, 브랜치 `Simon-YHKim/TTL-Work_rev2` @ `354e8d03`, main 보다 110 커밋 뒤 · 미커밋 49건)
+- **백업 먼저**: 미커밋 전부(122 파일)를 `backup/ttl-work-rev2-wip-261004` (`a97531d8`)로 원격에 올렸다. 아래 판정이 틀렸으면 거기서 꺼낸다.
+- **착지**
+  - [#2005](https://github.com/Simon-YHKim/2nd-B/pull/2005) 휴대폰 안에서 앱 열기(세션 128f6ff1 작업): main 병합 · 충돌 1건(`inbox/signals.test.ts` 소스 핀, 양쪽 메모 + 병합본 해시) · 새 휴대폰 문구 6개 B안 → `294588b9`. verify 898/11,552 · 375px 웹 확인(노트·검색·프로필이 `/dashboard` 안에서 열림, 오류 0, 쓰기 0)
+  - [#2023](https://github.com/Simon-YHKim/2nd-B/pull/2023) QA·UX 기록 문서(휴대폰 QA 09-30 · UI 감사 09-30 · 대시보드 캡처 09-26 · 버그 감사 10-02 · agy 말투 감사 10-02)
+  - [#2000](https://github.com/Simon-YHKim/2nd-B/pull/2000) 휴대폰 이동 게이트 기록 + "#2005 가 어떻게 풀었나" 절(진짜 화면 호스팅 · Back 리스너가 포커스 단위)
+  - [#2025](https://github.com/Simon-YHKim/2nd-B/pull/2025) agy 한국어 문구 21개(B안 적용, `{{who}}님`→`{{who}}`) + 대화 지침(페이스메이커 · '당신' 금지 · 먼저 듣고 위로와 지지). EN 은 줄 수를 안 바꾸고 기존 줄에 접었다(법무 문서 줄 인용 때문, 첫 시도에서 2건 빨강) → `d82bfd12`
+- **안 가져온 것(main 이 이미 더 새 것)**: 옛 오프닝(`LoadingScreen` · 소리 버튼 문구, #2014~#2020 이 대체) · 옛 `DashboardPhone`(#2005 가 대체) · `.gitattributes` · `docs/ASSETS.md` · `scripts/check-constraints.ts` 옛판. hunk 단위로 main 대조해서 판정했다.
+- **agy 문구 중 반영 안 한 11개(코딩 세션 판단, PR #2025 표)**: 사실과 다름(`phone.emptyAgenda` 예정 없음을 "모두 마쳤습니다" · `ds.head.home.text` "이미 담아보았습니다" · `research.noProposals` "연결된 기록이 없습니다") · AI/추정 고지 삭제(`aiApprox` · `research.getProposals`) · 개수를 "분석"으로(`phone.areaScope`) · propose→ratify 어휘(`roleApprove` · `reviewProposal` · `openDigest` · `research.proposalsLabel`) · #2009 와 같은 뜻(`personas.secondb.systemHint`).
+- **지금 상태**: TTL-Work_rev2 워크트리의 미커밋 49건은 **그대로 남겼다** — 전부 착지했거나 대체됐고 백업이 있다. 지우는 것(리셋)은 Simon 확인 후.
+- **미검증**: Android 실기의 휴대폰 안 Back(웹만 확인) · agy 문구가 들어간 화면 전수(세컨비 소개 · 휴대폰 기록 줄만 봤다).
+- **다음 1개**: TTL-Work_rev2 워크트리 정리 여부를 Simon 에게 묻는다(백업 브랜치 있음).
+
+## 2026-10-04 04:11 / 재동의 서버 초안 Draft #2024(#1902 위) · 게이트의 blocked 규칙 정정
+
+- **무엇을**: "할일 진행해줘." 남은 일은 전부 #1902(다른 세션 Draft, 10-01 이후 갱신 없음)에 막혀 있다. 그 세션의 몫(#1902 머지 · 인수)은 건드리지 않고,
+  §8 의 2 · 3 단계를 **#1902 브랜치를 base 로 한 Draft PR [#2024](https://github.com/Simon-YHKim/2nd-B/pull/2024)** 로 미리 쌓았다. 머지 · 번호 · 운영 적용 없음.
+  - SQL `db/migration-drafts/UNNUMBERED_reconsent_v8_20261005.sql`: email-v8 · v4~v7 유지 · `llm_service_consent_status_v3.needs_reconsent` ·
+    writer service-v3 + 철회자 전용 `confirm`(넷만, `llm_processing_ack=false` · `service_action='revoke'` 로 저장 → 철회가 안 되살아남).
+    #1902 초안 함수 본문을 `scripts/build-reconsent-v8-draft.py` 가 복사 + 검토된 치환만. 시행일이 밀리면 `EFFECTIVE` 하나 고치고 재생성.
+  - Edge `service-consent`: service-v3 상태(키 정확 일치) · grant · confirm(v3 전용) · revoke. v1 · v2 그대로.
+  - 검증: 로컬 PG 18 재생 실행 가능 30레인 중 29 초록(08 = 로컬에 CLI 없음), #1902 단계 · 새 단계 PASS · SQL 변이 12/12 · Edge 변이 6/6 ·
+    `npm run verify` 865 묶음 11,240건. Edge 배포 스키마 게이트가 `llm_service_consent_status_v3` 를 의존성으로 잡는다(SQL 없이 Edge 배포 불가).
+- **정정(이 PR)**: `src/lib/legal/reconsent-gate.ts` 가 `blocked` 도 넷만 묻게 묶고 있었다(§7-2 원문은 철회자만). blocked 는 다섯 개를 체크하고,
+  `canGrant`(서버 `can_grant`) false 면 안내만. 게이트는 아직 꺼져 있어 앱 화면은 그대로다. DECISIONS 26.10.04 04:11 줄.
+- **문서 안 충돌 정리**: 초안 문서 §7-2 의 "옛 리비전 grant 닫기"(§8 조사에서 빠진 것) · "시행일 전에는 서버가 신호를 주지 않음"(실제 두 번째 겹은 배포 순서)을 고쳐 적었다.
+- **다음 1개**: #1902 출시가 끝나면 §8-1(collect 켜기 + 카나리아). 그다음 #2024 를 main 기준으로 다시 쌓아(그때 #1902 는 머지돼 있다) 번호를 받고 운영 적용 GO.
+- **막힌 것**: #1902 (다른 세션). 캘린더 켜기 · 처리방침 개정 PR 은 2 · 3 뒤.
+
+## 2026-10-04 00:55 / Q-261003-01 = A: 운영 동의 모드는 #1902 출시 직후 collect · 켜는 절차와 프록시 준비 확인
+
+- **Simon**: "a 안으로 가자." 운영 `LLM_CONSENT_MODE` 를 #1902 머지 직후 collect 로 켠다. DECISIONS 26.10.04 00:55 줄.
+- **해석**: '직후'는 #1902 출시 단계(SQL 적용 → Edge 배포 → 클라이언트 머지)가 끝난 직후다. 10-04 00:52 기준 #1902 는 아직 Draft 이고 10-01 이후 갱신이 없다.
+- **프록시 준비 확인(10-04)**: 프록시 넷의 배포본이 main 과 바이트까지 같다(claude v134 · gemini v154 · xai v70 · openai v139, 동의 코드 sha 2994b2630dd9). effective_llm_consent_snapshot_v2 는 운영에 있고 service_role 만 실행한다. 영수증 0 · 활성 15 · 비활성 0(10-04 00:54 실측)이라, 지금 켜도 15명 모두 '영수증 없는 활성 계정' 예전 기록 허용으로 통과한다. 더해지는 것은 호출마다 동의 RPC(users 행 잠금) 한 번이다
+- **켜는 절차 · 카나리아 · 되돌리기**: `docs/legal/calendar-read-disclosure-draft-261002.md` §8-1 ([#2022](https://github.com/Simon-YHKim/2nd-B/pull/2022)).
+  - 켜기: `npx supabase secrets set LLM_CONSENT_MODE=collect --project-ref zoacryukmdeivmolvyhj`
+  - 카나리아: 상태 조회 200 · AI 호출 200 · 일회용 계정 grant/revoke/경합 · 10분 로그.
+  - 하나라도 실패하면 `secrets unset` 으로 되돌린다.
+- **다음 1개**: #1902 출시가 끝나면 §8-1 을 그대로 실행하고 결과를 DECISIONS · HANDOFF 에 적는다. 그다음 §8 의 2번(서버 마이그레이션)으로 간다.
+
+---
+
+## 2026-10-03 22:13 / 남은 작업: 건강 측정값 AI 제외 · 가져오기 화면 끄기 · 운영 동의 모드 확인 · 재동의 발주서
+
+- **Simon**: "남은작업 모두 진행해."
+- **[#2015](https://github.com/Simon-YHKim/2nd-B/pull/2015)**:
+  - **건강 측정값을 AI 로 보내지 않는다**(처리방침 §12 09-07 약속). 자동 연결을 켜면 Apple 건강 가져오기 본문이 저장 직후 reasoning 으로 갔고, 위키 승격이 그 본문을 임베딩과 대화 맥락으로 보냈다.
+    - `lib/wiki/ai-exclusion.ts`: 가져올 때 `ai_excluded` 표시를 남긴다(예전 가져오기는 측정 줄로 알아본다). 자동 연결 대기에서 빼고, reasoning 에는 제목만 보내고, phase1 · 위키 승격은 거절한다.
+    - 가드 테스트: 원문을 읽고 모델 · 임베딩을 부르는 파일은 반드시 판정을 거친다.
+    - 자동 연결 안내 시트에 AI 제공자(해외) 전송과 건강 측정값 제외를 적었다(5개 언어).
+  - **가져오기 화면 건강 카드 아래 끄기 버튼**(§38④, 같은 철회 흐름, 나이 무관). `signals.test.ts` sha 를 재고정했다. #2005 도 같은 줄을 재고정하므로 나중에 들어가는 쪽이 다시 계산한다.
+  - 검증: `npm run verify` 종료코드 0(885 묶음 · 11,473건), 변이 10곳 10/10.
+- **F1 확정**: 운영 비밀값에 `LLM_CONSENT_MODE` 가 **없다**(= off). Supabase CLI 목록 이름만 대조했고 값은 읽지 않았다.
+  - service-consent 503 은 결함이 아니라 off 게이트다. 영수증은 0행이다.
+  - **지금은 재동의 확인을 저장할 길이 없다.** collect 로 켜는 것은 Simon GO 가 필요하다(Q-261003-01).
+- **재동의 본체 · 캘린더 켜기는 쌓지 않았다**(근거와 순서: 초안 §8, 이 PR [#2016](https://github.com/Simon-YHKim/2nd-B/pull/2016)). 순서: #1902 머지 → collect GO → 서버 마이그레이션(v4~v7 유지, status v3 에 `needs_reconsent`, 철회자 행 모양 T1) → Edge 판별 맵 → 처리방침 개정 · 게이트 화면(머지일 = 시행일, 그날 웹 게시) → 캘린더 켜기.
+- **다음 1개**: Simon 답 Q-261003-01(운영 동의 모드 collect). 그다음 #1902 머지를 기다린다.
+
+---
+
+## 2026-10-03 21:30 / 건강 연동 끄기 3차 수정: 끔을 먼저 넘기고 잠금 해제 · 요청마다 기한 · 원장 확인
+
+- **왜**: #2011(머지됨) 2차 수정분을 적대적으로 검증했다. 지적 5건 모두 반박되지 않았다. 가장 큰 것은 60초 전체 기한이었다. 기한이 지나면 화면 잠금이 풀리는데 화면의 저장용 사본은 health_import:true 로 남아, 통계 토글 한 번에 철회한 건강 동의가 되살아나고 받은 적 없는 별도 동의 기록까지 생겼다(검증 에이전트가 실제 코드로 재현).
+- **이 PR([#2013](https://github.com/Simon-YHKim/2nd-B/pull/2013))**:
+  - `lib/health/withdraw.ts`: 끔이 확정되는 순간 `onConsentOff` 를 부른다. 카드는 그 사본을 화면에 넘기고 나서 잠금을 푼다. 삭제는 그 뒤에 이어 간다.
+  - 전체 기한을 없애고 요청마다 20초 기한을 둔다(주 단위 삭제의 각 요청 포함).
+  - 저장이 시간 초과로 끝났는데 다시 읽어도 켜져 있으면 '바뀐 것 없음'이 아니라 '확인하지 못함'으로 본다. 늦게 반영될 수 있기 때문이다.
+  - 철회 원장 행은 저장 뒤에 한 번 더 확인해 남긴다(`latestConsentChange` 를 되살렸다).
+  - 응답을 잃었을 수 있으면 삭제 건수를 숫자로 보이지 않는다.
+  - 카드: 결과를 모르면 화면 사본을 거둔다(`onPrefsUnknown`, 통계·광고 토글이 저장을 거부). 그다음 엄격히 다시 읽는다.
+  - 화면 저장과 겹친 읽기 결과는 화면 사본을 덮지 않는다. 화면이 바쁠 때는 포커스 재조회도 하지 않는다.
+- **검증**: `npm run verify` 종료코드 0(884 묶음 · 11,465건). 변이 7곳 7/7 잡힘. 실서버·실기기 확인은 없다.
+- **다음 1개**: 그대로다. #1902 머지 뒤 처리방침 개정 PR(머지일 = 시행일, 그날 웹 게시).
+
+---
+
+## 2026-10-03 21:18 / 재동의 확정(Q-261002-02~05) · 게이트 판정 규칙 코드화 · #2011 머지와 8081 복구
+
+- **결정(Simon, 재동의 보고서 결정 탭)**: Q-261002-02 = **A**(바뀐 점 확인 + 필수 항목 재체크, 캘린더는 켤 때 따로), 03 = **A**(막되 출구는 열어 둔다, AI 처리는 멈추지 않는다), 04 = **C**(머지하는 날 바로 시행), 05 = **A**(안내만, 잠금 그대로). DECISIONS 26.10.03 21:18 줄.
+- **상충과 해석**:
+  - 04 = C 의 시행일은 개정 PR **머지일**이다. 머지는 게시가 아니므로 같은 날 웹 게시까지 한다. 사전 공지 기간은 법령에도 우리 §11 에도 없다.
+  - 05 는 03(막기)의 예외다.
+  - AI 처리 동의를 철회한 사람에게는 llmProcessing 을 다시 묻지 않는다(재체크가 철회를 되돌리는 강요가 되므로).
+  - 질문 번호 Q-261002-01 은 말투 보고서와 겹친다.
+- **이 PR([#2012](https://github.com/Simon-YHKim/2nd-B/pull/2012))**:
+  - `docs/legal/calendar-read-disclosure-draft-261002.md` §7-2 를 확정안으로 고쳤다. 처리방침 §12 개정 이력 문장(한·영)도 넣었다.
+  - `src/lib/legal/reconsent-gate.ts` 에 게이트 판정을 넣었다(`RECONSENT_GATE_ENABLED = false`, 처리방침에 캘린더가 들어가기 전에는 켤 수 없다는 테스트 포함). 판정: 막기·안내·없음, 재체크 목록, 출구 5개.
+  - HANDOFF 의 09-30 블록 6개를 `handoff/HANDOFF-2026-09-p4.md` 맨 위로 원문 그대로 옮겼다(100KB 상한).
+- **#2011**: 21:09 머지(`796226d8`). 8081 감독자가 메모리 부족 정리 때 함께 죽어 있어 `npm run localhost` 로 다시 띄웠다. `npm run app:parity` = 같음(21:16), APK 는 CI 빌드 중이었다.
+- **다음 1개**: #1902 머지(10-05 예정, 아직 Draft) 뒤 처리방침 개정 PR. 내용은 email-v8 · service-v3(재동의 신호, 옛 리비전 grant 닫기, 철회자 행 모양 T1) · ReconsentGate 화면과 저장이고, 머지 당일 웹 게시까지 한다.
+
+---
+
+## 2026-10-03 21:06 / 재동의 결정(Q-261002-01 = B) 기록 · 건강 연동 끄기와 기록 삭제 · "보관 90일" 정정
+
+- **결정(Simon)**: Q-261002-01 = **B** "모든 이용자에게 새 처리방침 동의를 다시 받는다".
+  - 법령·지침 원문과 대조하니 세 군데에서 부딪힌다. 처리방침은 동의 대상이 아니고(작성지침 p.13, 질의응답 Q56), 선택 항목을 거부했다고 서비스를 막으면 안 되며(§16③·§22⑤), 09-29판 §12 와도 어긋난다.
+  - 그래서 "바뀐 점 확인 + 필수 항목 재체크, 캘린더는 켤 때 따로"를 제안했고 Simon 답(S1~S4 = 보고서 Q-261002-02~05)을 기다린다.
+  - 근거는 DECISIONS 26.10.02 03:28 과 `docs/legal/calendar-read-disclosure-draft-261002.md` §7([#2008](https://github.com/Simon-YHKim/2nd-B/pull/2008))에 있다.
+- **이 PR([#2011](https://github.com/Simon-YHKim/2nd-B/pull/2011))**: 결정 B 와 상관없이 법적 의무인 결함 둘(§38④ · §37③)을 고쳤다.
+  - 개인정보 화면 **건강 데이터 연동 카드**(`dds-health-withdraw-card.tsx`)
+    - 한 번 누르면 연동이 꺼지고 `health_samples` 가 지워진다. 켜기는 가져오기 화면에서만 한다. 지우기에 나이 조건은 없다.
+    - 순서는 `lib/health/withdraw.ts`: 엄격 읽기 → 끔 저장(엄격 읽기를 before 로 넘겨 원장에 철회 1행만 남김) → 이 폰 자동 읽기 표식 삭제 → 항목별 삭제(실패하면 1주 구간 삭제) → 남은 수 세기.
+    - 저장 응답이 끊기면 다시 읽어 판정하고, 판정이 안 되면 "확인하지 못했습니다"라고 쓴다.
+  - 카드가 읽거나 저장한 prefs 는 화면이 저장에 쓰는 사본으로 들어간다. 화면의 늦은 첫 읽기는 그 사본을 덮지 않는다.
+    - 이렇게 하지 않으면 통계 토글이 health_import 를 다시 true 로 쓰고, 하지 않은 별도 동의 기록까지 남긴다.
+  - 가져오기 동의 칩 "보관 90일" → "계정 삭제 시 함께 삭제"(5개 언어). 90일째 지워지는 것은 없었다.
+- **실측**:
+  - 운영 PostgREST 는 DELETE 의 limit 을 무시한다(QA 계정으로 5건 중 limit 2 → 5건 삭제, 계정 원상 복구). 그래서 큰 계정은 시간 구간으로 나눠 지운다.
+  - 8082 세션 서버에서 QA 계정으로 켜짐 2건 → 한 번 탭 → 0건 · 철회 원장 1행 · 다른 동의 그대로 · 페이지 오류 0(10-02 04:33, 1차 코드).
+- **넣지 않은 것**:
+  - 가져오기 철회 시 원문 파일 삭제는 Draft #1839 몫이다.
+  - 0128 잠금 없는 읽기는 마이그레이션이 필요하다.
+  - 가져오기 화면 건강 카드의 끄기 버튼은 #2005 뒤에 넣는다.
+  - 건강으로 자동 체크된 루틴 기록은 남긴다.
+- **주의**: `.worktrees/data-conn-260930` 에 다른 세션(HustleK 오프닝, 10-02 22시)의 미커밋 파일이 있다. `.gitattributes` · `locales/ko/common.json` · `check-constraints.ts` · 오프닝 테스트 1개가 main 과 다르다. 손대지 않았다.
+- **검증**: `npm run verify` 종료코드 0(883 묶음 · 11,451건). 변이 15곳 15/15 잡힘(도달 불가 코드 변이는 단언 실패 3/19로 재확인). 8082 세션 서버 실측은 1차 코드(10-02 04:33)만이고, 2차 수정 뒤에는 서버가 메모리 부족으로 정지돼 다시 돌리지 않았다. 실기기·에뮬레이터 확인 없음.
+- **보고서**: <https://claude.ai/artifact/FeDn6iae66jyhcGGFcGr9L> (결정 탭 Q-261002-02~05)
+- **다음 1개**: Simon 답(Q-261002-02 재동의 모양부터). 그다음 #1902 머지 뒤 처리방침 개정 PR.
+
+---
+
+## 2026-10-02 22:00 / 승인 HustleK 전체 오프닝 앱 통합
+
+- **사용자 요청**: 승인한 전체화면 오프닝을 앱 및 localhost 8081·8082·8083에 적용. 정식 변경은 최신 `origin/main` 기반 `codex/hustlek-app-opening-261002`에서 준비한다. 기존 아바타 실험 워크트리 전체를 합치지 않는다.
+- **승인 소스**: `hustlek-total-opening-261002/opening.html`의 asset set `a6c0043ad6c06cad85e0a17a`; 원본 사용자 JSON SHA-256 `9d66ce82c7e2e2842592ccabd6a9f07171d9763fed1294acd8a37d98bf968ced`. 이미지·음원 바이트와 10,119.52 ms 타임라인을 보존한다.
+- **앱 구현**: `LoadingScreen`에서 승인 PNG 22개를 `expo-image`로 재생. 로컬 WAV 4개는 grass A/B, 라쳇3개 겹침 풀, 고음 ping으로 구성한다. 웹은 사용자의 소리 켜기 터치 후 재생한다. foreground 시계, 준비 게이트, 재시도, 별 반짝임과 안전 영역 버튼을 포함한다. `IntroGate`의 인증·프로필·복구 계약은 유지한다.
+- **보존/범위**: v2 atlas 계보 파일과 검사는 남기되 런타임에서는 쓰지 않는다. 5언어 `loadingGate`에 소리·건너뛰기·재시도 키만 추가한다. 설치된 native APK의 실기기 재생은 별도 검증이 필요하다.
+- **포트**: 8082(`data-conn-260930`)·8083(`2ndB/TTL-Work_rev2`)의 기존 변경은 보존하면서 오프닝만 적용한다. 8081은 clean `origin/main` 전용이므로 PR/main 반영 전 새 오프닝을 넣지 않는다. 정상 parity 감독자로만 재시작한다.
+- **인수 안내**: [HUSTLEK-OPENING.md](HUSTLEK-OPENING.md), [에셋·라이선스](ASSETS.md). 에셋 검사: `node scripts/build-hustlek-approved-opening.cjs --verify-only`. 전체 게이트: `npm run verify`. 이번 실행 결과는 로컬 `Output/hustlek-app-integration-261002/`에 기록한다.
+
+## 2026-10-02 02:40 / 폰 캘린더 읽기(결정 B) 1단계: 읽기 모듈은 꺼진 채로 · 일정 시각 보존 · 고지 초안
+
+- **결정(Simon, 데이터 연동 보고서 결정 탭)**: Q-261001-01 = **B**(폰 캘린더에서 읽은 일정을 기록·위키에 저장), Q-261001-02 = **A**(카카오톡·SMS 카드는 '가져오기가 필요한 자료'에 그대로). DECISIONS 26.10.02 02:32 에 실행 순서와 함께 적었다.
+- **이 PR([#2007](https://github.com/Simon-YHKim/2nd-B/pull/2007))**:
+  - `src/lib/import/phone-calendar.ts`: 폰 캘린더 읽기 모듈. 권한 확인은 창 없이, 요청은 명시적 탭에서만 하고, 제목·시작·종료·종일만 남긴다. 메모·참석자·주최자·장소·알림은 버린다. 고른 캘린더만 읽고, 숨긴 캘린더와 취소된 일정은 건너뛰고, 500개에서 자른다.
+  - 모듈은 **`PHONE_CALENDAR_READ_ENABLED = false`**(`phone-calendar-gate.ts`)로 꺼져 있다. 호출하는 화면도, 동의 키도, 서버 변경도 없어서 앱과 localhost 에 보이는 변화가 없다.
+  - `phone-calendar-gate.test.ts`: 처리방침(한·영) · iOS 권한 문구 · `calendar_import` 동의 키 가운데 하나라도 없이 켜면 실패한다.
+  - 캘린더 가져오기(.ics · Google) 메모에 일정마다 날짜·시각을 붙인다(`src/lib/import/event-when.ts`). 예전에는 제목만 남겨 Google 타일의 "제목·시간" 약속과 어긋났다. 종일 일정은 UTC 로 읽고 뉴욕 시간대 자식 프로세스로 검사한다(`event-when-zone.test.ts`).
+  - 고지 초안: `docs/legal/calendar-read-disclosure-draft-261002.md`(처리방침 §1·§2·§3·§5·§12 한·영, 동의 화면, iOS 문구, Play 데이터 보안, 켜는 순서).
+- **상충과 우선순위**(자세한 것은 초안 §5·§6):
+  1. 처리방침 개정은 #1902(10-05) 머지 **뒤** 별도 판본으로 한다. #1902 가 `consent.ts` 판본 상수와 email-v7 묶음(처리방침 2026-09-29 고정)을 건드린다.
+  2. **기존 결함 먼저**: 배포 화면에 건강 동의를 끄는 스위치가 없고, 꺼도 `health_samples` 가 남는데 화면은 "언제든 지울 수 있어요"라고 한다. 가져오기 철회는 원문 파일(`raw-clippings`)과 `ingest_log` 를 남긴다. 보관 안내는 90일인데 실제는 365일이다. 가져오기 동의는 `llmProcessingAck: false` 인데 자동 추론이 LLM 에 보낸다.
+  3. Simon 이 할 일: 고지일과 재동의 여부(법률 판단), Play 데이터 보안 "캘린더 일정" 제출, iOS 새 빌드 시점.
+- **검증**: `npm run verify` 876 묶음 · 11,367건(종료코드 0). 일부러 망가뜨린 7곳(스위치 강제 켜기 · 요청이 스위치 무시 · 권한 없이 읽기 · 메모·장소 보관 · 숨긴 캘린더 읽기 · 종일을 현지 시각으로 · 시각 없는 제목) 모두 테스트가 잡았다. 실기기와 에뮬레이터 검증은 없다. 스위치가 꺼져 있어 확인할 동작도 없다.
+- **다음 1개**: 건강 동의 끄기 스위치 + 철회하면 지우기 + 보관 기간·AI 처리 문구 정정(기존 결함, 캘린더도 같은 틀을 쓴다). 그다음 10-05 이후 처리방침 개정 PR.
+
+---
+
+## 2026-10-02 01:59 / 폰 안 전체 화면 호스팅: 55개 경로와 커뮤니티·인터뷰, 네이티브 빌드는 메모리 부족으로 중단
+
+### 확인된 완료 상태
+
+- Simon 지시(10-01 저녁): **"남은작업 모두 진행해."** 통합 브랜치 `fix/gui-phone-integrate-261001` 을 push 하고 [Draft PR #2005](https://github.com/Simon-YHKim/2nd-B/pull/2005)를 열었다. HEAD `e65f989c`. **병합하지 않았다** — #2000 게이트의 Android Back 실기 확인이 남았다.
+- 근거가 된 Simon 의도: TTL-Work_rev2 의 `docs/qa/ui-audit-260930/phone-only-report.html` — "핸드폰에서 연 모든 기능은 프레임 안에서 진행", "기존 기능 전체를 단순 축소해 끼우지 않고 화면별로 조정", "연결 설정은 기존 설정 화면을 정본으로".
+- 구조(화면마다 어댑터를 따로 만들지 않는다):
+  - `src/lib/nav/phone-embed.tsx` — `PhoneEmbedProvider`, `useAppRouter()`(expo-router `router` 의 대체. 폰 밖에서는 그 자체), `useScreenParams()`, `useHardwareBack()`(폰의 Back claim 스택. 자식 effect 가 부모보다 먼저 돌아 화면 자체 BackHandler 가 폰 리스너에 지는 문제를 막는다), `displayWidth`.
+  - `DeepSpaceScreen` 이 폰 안에서는 하늘·창·safe area·앱 독 없이 뒤로 줄 하나만 그린다(`ownBack` 이면 안 그림).
+  - `DashboardPhone` 이 `phone-screens.tsx` 레지스트리의 화면을 목록 밖 bounded View 로 route key 를 달아 띄운다. push 는 폰 안에 머문다(못 그리는 경로는 "아직 연결되지 않았어요"), push/replace("/") 는 폰을 닫고, 인증 경로만 폰을 떠난다. `/persona`·`/mbti` → `/core-brain`, `/wiki?focusPageId=` → 폰 위키 페이지, `/records?tags=` → 폰 노트 필터, `/capture?text=`·`?tag=` → 폰 메모 채움.
+- 호스팅: 등록 55개 + 커뮤니티 목록·방·초대 참여 + `/me/<star>`. 설정과 그 하위 18곳, 프로필 허브 7곳, 북극성과 그 링크, 측정 도구(Big Five·IPIP-NEO·애착·RLSS·ESM·seen·audit·values·strengths·motivation), 확인 이력·검토, 약관·동의·처리 기록, 계정 하위(비밀번호·IDEN·앱 밖에서), discover·research·imagine·digest·peer-invites·northstar·share-card, 인터뷰(`/me/<star>`·`/interview`), 세컨비 대화, 아바타 팔레트·스튜디오, 위키 그래프·태그(`/wiki/graph`, 폰 자체 위키 검색 옆).
+- 커뮤니티 분리 작업(`community-phone-261001`, 미커밋이던 것)은 `npm run verify` 874묶음/11,339건 통과 후 `eac08696` 으로 커밋해 통합 브랜치에 병합했다. 인터뷰 진입은 `/me/now` 를 `/capture` 로 바꿔 보내던 것을 되돌렸다.
+- 좁은 화면 수정: 뮤지엄 타임라인 칸 49→97px(320), 독 '프로필' 잘림(main 에도 있던 것), 지출 금액 칸, 개인정보 Toggle 글 칸, 망원경 조작 224px 하한, 위키 88px 띠, 세컨비 머리말 compact, 가져오기 제목 줄.
+- 검증: 로컬 `npm run verify` 종료코드 0, **882묶음/11,391건**(마지막 README 커밋 전). 웹 GUI(세션 전용 8772, `--allow-diff`): 21개 진입점 + 설정 하위 18곳 × 320·375 = **78/78**, 프로필 허브 7/7 · 북극성 링크 7/7(375). 페이지 오류 0 · 쓰기 요청 0. 소스 핀·DPIA 줄 인용은 변환이 옮긴 곳만 다시 고정했다(다이제스트는 해당 편집만 되돌려 옛 값이 재현되는지 확인).
+
+### 막힌 것
+
+- **네이티브 미확인.** CI `android-release.yml` 은 `refs/heads/main` 전용이라 브랜치 APK 를 만들지 못한다(디스패치 `36879063165` 는 skipped). 로컬 `E:/Coding Infra/tools/qa_apk_build.py`(워크트리 `qa-apk-260920`, `e65f989c` 로 detached, prebuild 완료)가 gradle 단계에서, 세션 전용 8772 서버와 함께 **01:56 KST 호스트 메모리 부족으로 중단**됐다(남은 메모리 약 7.6 GB / 32 GB). 지시에 따라 다시 띄우지 않았다.
+- 미실행 웹 QA: 깊은 체인 15개(375) 와 320 깊은 체인 전부.
+
+### 남은 것
+
+- 폰 안 차이: RN `Modal`(프리미엄·한도 시트·설문 안내·저장 축하·채팅 첫 안내·위기 안내)은 창 전체를 덮는다. `usePathname()` 이 `/dashboard` 라 보상형 광고 제안은 폰 안에서 숨는다(닫힌 쪽으로 실패). `useNavigation()` 가드(개인정보 삭제 펜스·audit·팔레트 미저장)는 대시보드 경로에 붙는다.
+- 호스팅 안 함: 위키 내보내기(앱 안 진입 없음), `/integrations`, `/capture-full`, 전체 `/capture`·`/records`(폰 자체 페이지 유지), `/dev-screens`.
+- 213px 에서 좁음: strengths 결과 카드, beyond 180px 카드, share-card 칩 줄, brightness 히트맵, 세컨비 대화(저장 안내가 떠 있으면 목록이 거의 없다).
+
+### 재개할 때
+
+1. 다음 1개(Simon 지시가 있을 때): 메모리를 확인하고 `python "E:/Coding Infra/tools/qa_apk_build.py" --wt E:/2ndB/.worktrees/qa-apk-260920 --abi x86_64 --tag gui-phone --skip-prebuild` → 에뮬레이터에서 Android Back 확인(설정 하위 → 설정 → 앱 → 대시보드 → 종료 확인, 팔레트 미저장 확인, 설문 중 Back, 뮤지엄 시트). 빌드 중에는 에뮬레이터를 끈다.
+2. 남은 웹 QA 는 통합 워크트리에서 `node scripts/app-parity.cjs localhost --port=8772 --allow-diff` 로 띄워 진행한다(8081 은 쓰지 않는다).
+3. 작업 기록: `E:\2ndB\.git\2ndb-session-state\GUI-PHONE-PARITY-261001.json` · `QA-APK-WORKTREE-261002.json`(둘 다 blocked). 아래 블록의 #1902/#1917(10월 5일), #1814/#1839 게이트는 그대로다.
+
+---
+
+## 2026-10-01 19:11 / GUI 통합 후보 재개: 결함 3개 수정, 웹 GUI QA 42/42, 브랜치는 로컬 유지
+
+### 확인된 완료 상태
+
+- Simon이 새 세션 질문에서 **"통합 브랜치 재개"**를 골랐다(병합·push는 #2000 게이트 확인 뒤 별도 판단). 통합 브랜치 `fix/gui-phone-integrate-261001`(작업 트리 `E:\2ndB\.worktrees\gui-phone-integrate-261001`)는 **여전히 로컬 전용이다. push·PR·병합 없음.**
+- 커밋: `b15932e7` 직전 세션의 미커밋 3개(뮤지엄 런처 연결)를 내용 그대로 커밋 → `6dc1178d` main `91075889` 병합(충돌 0) → `69d3944e` fix(museum) → `5cffa5da` fix(dashboard). HEAD `5cffa5da`에서 전체 `npm run verify` 종료코드 0, **880묶음/11,379건**. 미커밋 3개 커밋 직후에도 879묶음/11,371건 통과.
+- 찾아서 고친 결함 3개(세션 전용 8772 서버 `node scripts/app-parity.cjs localhost --port=8772 --allow-diff`, 헤드리스 Chromium, 저장소 QA 계정):
+  1. 폰 안 뮤지엄 **사건 상세 본문 0px**. `[sheetScroll { flexGrow: 0 }, phoneSheetScroll { flex: 1 }]`는 Yoga·react-native-web 모두 명시 flexGrow가 이겨 grow 0·basis 0이 된다. 네이티브에서도 났을 가능성이 크다(앱으로는 미확인). 고친 뒤 320에서 221px·375에서 296px, 스크롤 동작.
+  2. 폰 안 **타임라인 캔버스 0px**. RN-web 0.21이 `flex: 0`을 CSS `0 1 0%`로 넘겨 `height: 400`을 덮었다. Yoga는 basis auto로 읽으니 네이티브는 안 났을 수 있다(미확인). 고친 뒤 400px, 2022 위치, AI 레인·가로 연도 이동 확인.
+  3. Ops 7개 화면(개인 비서·리마인더·지출·목표·식사·독서·사이드 프로젝트)에 **Back이 두 개**(핸드폰 Back 줄 + 화면 머리 화살표, 둘 다 `backInside`). `contentOwnsBack`일 때 핸드폰 줄을 숨긴다. 7개 화면 모두 최상위가 `OpsFrame`이고 앞선 return이 없음을 확인했다.
+- 옛 테스트 두 줄이 소스 문자열로 **고장 난 값 자체를 고정**하고 있어 초록이었다. 새 `src/screens/deepspace/museum/__tests__/museum-phone-flex.test.ts`는 실제 스타일 객체를 엔진별(Yoga·웹)로 해석해 높이를 본다. 각 수정을 옛 값으로 되돌리면 빨강을 확인했다. Back 소유 규칙은 `phone-internal-navigation-contract.test.ts`에 추가.
+- 웹 GUI: 진입점 21개(앱 11·더보기 6·아래 독 4) × 320×568·375×667 = **42/42 통과**(주소 `/dashboard` 유지, 핸드폰 이동·닫힘 없음, 가로 넘침 없음, 보이는 Back 정확히 1개, Back으로 복귀, 페이지 오류 0, 서버 쓰기 요청 0). 뮤지엄 흐름: Back 1회 시트 닫힘·2회 앱 복귀, 끌기에 핸드폰 안 닫힘.
+- 보고서: [Artifact](https://claude.ai/artifact/2bKWS5zHyo6TYxz9EA7J67) · 저장소 사본 [qa/gui-phone-integrate-qa-261001.html](qa/gui-phone-integrate-qa-261001.html)(전후 화면 포함). 8772 서버는 종료했다. `npm run app:parity`는 **같음**(8081 = main `91075889`, QA APK `qa-261001-6d648431-r36838147144` 앱 경로 차이 0). 작업 기록 `E:\2ndB\.git\2ndb-session-state\GUI-PHONE-INTEGRATE-QA-261001.json` = done.
+
+### 남은 것
+
+- **미확인**: 안드로이드 하드웨어 Back, 에뮬레이터·실기기 APK. 이번 확인은 웹 마우스·휠이며 터치 스와이프는 아니다.
+- 320×568에서 타임라인 세로 칸이 49px(닿지만 좁다, 디자인 판단 필요), 지출 입력 '분류' 칸 오른쪽 잘림, Ops 제목 말줄임. 아래 독 '프로필' 320 잘림은 main과 같은 스타일이라 기존 문제다.
+- 설정은 범위 안내만, 커뮤니티·아바타 팔레트·인터뷰는 "아직 연결되지 않았어요" 안내만. 폰 위키는 읽기 중심(태그·그래프·내보내기·삭제 없음). 커뮤니티 분리 작업 `E:\2ndB\.worktrees\community-phone-261001` 미커밋 4건은 **손대지 않았다**. 원본 TTL-Work_rev2 미커밋도 그대로다.
+
+### 재개할 때
+
+1. 다음 1개: Simon 확인 뒤 통합 브랜치를 Draft PR로 push → CI와 x86_64 진단 APK → 에뮬레이터에서 안드로이드 Back·뮤지엄 스와이프 확인. #2000 게이트를 닫기 전 병합하지 않는다.
+2. 아래 18:09 블록의 #1902/#1917(10월 5일 법률 판본·서버 선행), #1814/#1839(S3 삭제 fence·Storage 리허설) 게이트는 그대로다.
+
+---
+
+## 2026-10-01 18:09 / Simon 중단 요청: QA APK 동등성 완료, GUI 후보 로컬 보존
+
+### 확인된 완료 상태
+
+- main `94f9d46c`: [#1999](https://github.com/Simon-YHKim/2nd-B/pull/1999) 내보내기 긴 raw 경로 보완과 [#2002](https://github.com/Simon-YHKim/2nd-B/pull/2002) 지정 Android QA 빌드 출처 검증이 병합됐다. #2002 로컬 `npm run verify` 873묶음/11,350건, PR CI 3종 통과.
+- [진단 빌드 36838147144](https://github.com/Simon-YHKim/2nd-B/actions/runs/36838147144)는 `6d648431`에서 성공했다. [QA APK `qa-261001-6d648431-r36838147144`](https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-261001-6d648431-r36838147144)를 게시했다. Play 제출이 아니다. 8081은 `localhost-main`의 `94f9d46c`로 재기동했고 `npm run app:parity`는 **같음**(앱 경로 차이 0, 설정 digest 일치)이다.
+- Chrome Play Console 읽기 전용 확인: 비공개 Alpha `0.9.0 (56)` 활성, 9월 27일 Alpha 제출과 9월 28일 스토어 등록정보 제출은 `출시됨`. 새 Play 제출·게시·설정 변경은 없었다.
+
+### 중단 지점과 로컬 보존
+
+- Simon이 “멈추고 그만해. 그리고 /simon-handoff”라고 지시했다. 병렬 작업을 중단했고 이번 후보 미리보기 8772 서버를 종료했다. **GUI 후보 코드는 main에 병합·push하지 않았다.** 기존 8081 비교 서버는 유지한다.
+- 통합 브랜치 `fix/gui-phone-integrate-261001`, 작업 트리 `E:\2ndB\.worktrees\gui-phone-integrate-261001`: 로컬 커밋 `de13a05d`(Ops 호스트), `db55c88c`(폰 위키·Back), `fdca9a7c`(실제 Ops 화면 연결), `68e38f9f`(뮤지엄 호스트). 이어 `DashboardPhone.tsx`, Back 테스트, README **3개 미커밋**에서 뮤지엄 런처를 연결했다. 타입 검사·순환 검사·관련 Jest는 통과했지만, 이 최종 상태의 전체 `npm run verify`와 실제 화면 조작 QA는 미실행이다. 미커밋 변경을 지우거나 원본 TTL 작업 트리에 덮어쓰지 말 것.
+- 커뮤니티 공유 화면 분리 작업은 `E:\2ndB\.worktrees\community-phone-261001`에 **미커밋**으로 남았다. 타입·순환 검사와 커뮤니티 Jest 12건은 통과했고 전체 verify 중 중단됐다. 완성·병합으로 간주하지 말 것.
+- 원본 `E:\2ndB\.worktrees\2ndB\TTL-Work_rev2`의 GUI 시안과 미커밋 파일은 그대로다. [GUI 게이트 Draft #2000](https://github.com/Simon-YHKim/2nd-B/pull/2000), [S3 쓰기 경로 조사 Draft #2001](https://github.com/Simon-YHKim/2nd-B/pull/2001)는 CI 통과 상태이나 병합하지 않았다.
+
+### 재개할 때
+
+1. Simon이 다시 진행하라고 할 때만 위 두 GUI 작업 트리의 `git status`와 diff를 확인한다. 통합 브랜치의 3개 미커밋을 보존한 채 전체 verify와 320×568·375×667 실제 GUI QA를 수행한다. 폰 내부 위키는 읽기 중심이며 태그·그래프·내보내기·삭제, 설정·아바타·커뮤니티·인터뷰 등의 기능 동등성이 아직 남았다. #2000 게이트를 닫기 전 후보를 병합하지 않는다.
+2. #1902/#1917은 10월 5일 법률 판본·서버 선행 게이트, #1814/#1839는 S3 삭제 fence·Storage 리허설 게이트를 유지한다. 운영 DB·Edge·백업은 `docs/SESSION-OWNERSHIP.md`의 콘솔 소유다. Grok 후속 전달은 Simon 지시에 따라 나중으로 둔다.
+3. 새 세션은 `git fetch origin main` 후 `git show origin/main:docs/HANDOFF.md`를 읽는다. main 직접 push와 공유 작업 트리 초기화 금지. Simon의 “더 묻지 말고 판단”은 안전한 후속 작업에 적용하되, 이번 **중단 요청**이 우선한다.
+
+---
+
+## 2026-10-01 16:13 / 원문 삭제 Draft 최신 통합과 릴리스 차단
+
+- [#1839](https://github.com/Simon-YHKim/2nd-B/pull/1839)는 main a379ad6c을 충돌 없이 통합해 Draft head ea122316으로 갱신했다. 로컬 npm run verify 874묶음/11,393건, PR CI 3종이 통과했다. main 병합·운영 적용은 하지 않았다.
+- **출시 차단은 두 가지다.** 서버 S3 삭제 의도·Storage 영수증·업로드 세대 보호가 없어 늦은 업로드 뒤 원문 재생성을 막지 못한다. 추가로 원문 삭제 중 Storage remove/list가 응답하지 않으면 인증 변경 잠금 M을 계속 잡는다. 웹 로그인·로그아웃은 잠금 획득 기한 뒤 실패하고, 네이티브에서는 대기가 끝나지 않을 수 있다. Storage remove에는 SDK 취소 신호 인자가 없어 Promise.race로 M만 풀면 늦은 삭제의 세션 보장이 약해진다. 실제 취소 가능한 요청 기한과 무응답 회귀 검증 전 #1839는 Draft 유지한다. 상세 차단 조건은 PR 본문 첫머리에 적었다.
+- PolaScope [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)와 메일 제목 [#1917](https://github.com/Simon-YHKim/2nd-B/pull/1917)은 10월 5일 전 Draft다. 공개 가입 RPC 재조회는 HTTP 200이지만 email-v7 0행이며 #1902 가입 게이트는 exit 1이다. 비로그인 GUI 10개 화면 검사는 앞선 블록에 기록됐고 인증 Edge·네이티브 출시는 미검증이다. SQL·Edge·대시보드 적용은 콘솔/Grok 소유이며 Simon 지시대로 이번에는 진행하지 않았다.
+- 다음: #1839의 응답 없는 Storage/인증 변경 경합을 실제 취소 가능한 경로로 검증하고 서버 S3와 함께 재게이트한다. 10월 5일 서버 계약 적용·가입 게이트 통과 뒤 #1902/#1917을 재검토한다. 웹 로그인 #1863 현장 단계 확인은 계측 운영 게시 뒤 가능하다.
+
+---
+
+## 2026-10-01 15:47 / 자동저장 Draft 통합과 웹 로그인 현장 점검
+
+- 통합 기준 main은 fe2a4723이었다. [#1889](https://github.com/Simon-YHKim/2nd-B/pull/1889)의 0행 삭제 뒤 인증 SDK 잠금 재진입 수정은 CI 3종 통과 후 #1814의 내부 브랜치에 병합됐다(43d01d2a). main에는 아직 없다.
+- [#1814](https://github.com/Simon-YHKim/2nd-B/pull/1814)는 #1889 head와 최신 main 사이 충돌 10곳을 격리 워크트리에서 해결하고 Draft head e161478a로 fast-forward push했다. 로컬 npm run verify는 정적 게이트와 Jest 883묶음/11,654건 통과, diff check·추가 줄 시크릿 검사 이상 0건이다. PR CI 3종(verify·lint·web-export-smoke)도 모두 통과했다. 운영 서버 S1 원자 설정, S2 동의 결합 쓰기, S3 삭제 의도·Storage 영수증/업로드 세대 보호와 관리형 Storage·네이티브 E2E가 없어 **Draft 해제·main 병합 금지**다.
+- 합성 데이터로 #1814의 손 담기 원문 업로드를 A 계정에서 송신한 뒤 B 계정으로 전환하면 A Storage 원문 1개가 남고 B의 sources INSERT는 RLS에서 거부되어 행 0개인 경로를 재현했다. 클라이언트는 송신된 업로드를 확정적으로 취소하거나 B 권한으로 A 원문을 지울 수 없다. 재현·영향을 src/lib/chat/autosave.ts에 기록했으며 서버 계약 전 출시는 차단한다. DPIA의 0186 미적용 표기는 [운영 원장](qa/PRODUCTION-SERVER-STATUS-260927.html)의 적용 기록으로 정정했으나 삭제 완료 보장은 주장하지 않는다.
+- [#1839](https://github.com/Simon-YHKim/2nd-B/pull/1839)는 최신 main과 충돌 없이 병합 가능한 Draft지만 서버 S3 삭제 의도·업로드 세대 보호가 없다. 기존 CI는 이전 main 기준으로 통과했고 최신 통합 CI/관리형 Storage 경합은 미검증이다. **Draft 유지**.
+- [#1863](https://github.com/Simon-YHKim/2nd-B/issues/1863)은 Chrome에서 로컬 로그인 3회·공개 사이트 1회 모두 /token 200과 정상 이동을 관찰했다. 인위적 17초 응답 지연에서는 15초 단계 로그가 동작했다. 공개 사이트 JS에는 아직 이 계측이 없어 실제 간헐적 멈춤의 단계는 미확정이다. [재현·배포 차이 기록](https://github.com/Simon-YHKim/2nd-B/issues/1863#issuecomment-5926043010)을 남기고 이슈를 열어 뒀다. 운영 웹 게시는 실행하지 않았다.
+- PolaScope [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)는 10월 5일 email-v7·service-v2 및 운영 원장 게이트를 기다리는 Draft다. 10개 비로그인 화면 GUI 검사는 통과했고 인증 서버 계약은 판정하지 않았다. npm run app:parity는 main·localhost 앱 경로 0개 차이와 Android 진단 APK 성공으로 **같음**이다. 사용자 GUI 워크트리 TTL-Work_rev2의 미커밋 변경은 건드리지 않았다.
+- 다음: #1814 서버 S1~S3 계약·관리형 Storage 경합 검증 후 재게이트; #1902 날짜·운영 계약 확인; #1863은 운영 웹에 계측이 게시된 뒤 현장 로그 수집. Supabase 운영 DB·Edge·격리 복원은 SESSION-OWNERSHIP 및 Simon 지시에 따라 Grok 담당 후속으로 미뤘고 이번 구간에 실행하지 않았다. Simon의 최신 지시는 작은 판단을 다시 묻지 않고 진행하는 것이다.
+
+---
+
+## 2026-10-01 15:09 / 가져오기 고지 병합과 PolaScope GUI 확인
+
+- main `f5ad2ef7`: [#1993](https://github.com/Simon-YHKim/2nd-B/pull/1993)으로 Notion·Obsidian Markdown 가져오기 동의·검토 화면의 노트 제목·본문 보관 고지를 바로잡았다. 5개 언어 문구와 [동의·검토 화면 증거](qa/import-markdown-disclosure-261001/)를 함께 병합했다. 로컬 `npm run verify` 873묶음/11,325건, PR CI 3종, 격리 Chrome 한국어 390×844 화면 검사가 통과했고 페이지 오류·기록 쓰기 0건이다.
+- 새 GUI 고지 테스트는 main의 Windows CRLF 체크아웃에서 줄바꿈 문자열 비교 1건이 실패했다. [#1994](https://github.com/Simon-YHKim/2nd-B/pull/1994)에서 테스트가 읽는 소스의 줄바꿈만 LF로 정규화했고, `npm run verify` 873묶음/11,325건과 PR CI 3종이 통과해 main `2844922b`에 병합됐다. 앱 동작 변경은 없다.
+- main `f5ad2ef7`의 웹 빌드 [36818423134](https://github.com/Simon-YHKim/2nd-B/actions/runs/36818423134)는 성공하고 운영 게시는 건너뛰었다. OTA [36818423130](https://github.com/Simon-YHKim/2nd-B/actions/runs/36818423130)는 게이트만 통과하고 발행은 건너뛰었다. Android 진단 빌드 [36818423172](https://github.com/Simon-YHKim/2nd-B/actions/runs/36818423172)는 성공했고 APK artifact를 남겼다. 새 main `2844922b`의 웹 빌드 [36821326370](https://github.com/Simon-YHKim/2nd-B/actions/runs/36821326370)도 성공·게시 건너뜀, OTA [36821326373](https://github.com/Simon-YHKim/2nd-B/actions/runs/36821326373)는 발행 없이 성공했다. Android 진단 빌드 [36821326349](https://github.com/Simon-YHKim/2nd-B/actions/runs/36821326349)도 성공했고 `2ndb-android-2844922bda6aeaee6a1f068c0e018786312ac167` APK artifact를 남겼다. `npm run app:parity`는 main·localhost 앱 경로 0개 차이와 설정/의존성 일치로 **같음**이다. 실기기 QA 릴리스 `qa-260930-5e52894b`는 옛판이라 앱 경로 207개가 다르며 새 APK 설치 검사는 별도다.
+- 원문 삭제 [#1839](https://github.com/Simon-YHKim/2nd-B/pull/1839)는 main `715b8f7f`와의 충돌을 해결한 `9f76a4f9`를 기존 Draft에 올렸다. 기존 사진 삭제와 새 raw-clippings 삭제를 함께 보존했고 로컬 `npm run verify` 873묶음/11,390건과 PR CI 3종이 통과했다. 서버 삭제 의도·업로드 세대 보호가 없어 늦은 업로드 등을 완전히 막지 못하므로 **Draft 유지, 병합 금지**다. `erase_my_data` RPC는 등록돼 있지만 인증 사용자 실행 권한이 잠겨 있다.
+- [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)는 10월 5일 email-v7·service-v2·법률/5언어·네이티브 이름을 묶은 Draft다. 일반 UI·웹 이름과 Play 이름/설명은 이미 별도로 반영됐다. [10월 1일 공개 계약 검사](qa/polascope-contract-readiness-261001.md)는 가입 RPC HTTP 200이지만 email-v7 0행·출시 게이트 exit 1을 기록한다. [9월 29일 적용 기록](qa/ACCOUNT-DELETION-ROLLOUT-260929.md)은 0194 적용을 확인해 출시 절차 문서를 `ae22ada5`로 정정했다. 당시 main `f5ad2ef7`과의 비공개 격리 통합 `103dec59`는 충돌 0건이고 #1994의 Windows 테스트 수정까지 포함해 `npm run verify -- --runInBand` 872묶음/11,328건, UI Work0 76건, 동의/SQL 집중 119건이 통과했다. 통합 커밋은 push하지 않았다. [비공개 GUI 검사와 캡처](https://github.com/Simon-YHKim/2nd-B/blob/2d929518/docs/qa/polascope-1902-gui-261001/README.md)는 공개·비로그인 화면 10건 HTTP 200/본문 렌더, 페이지·콘솔·자산 오류와 쓰기 요청 각 0건을 기록한다. 공개 Pages `/2nd-B/sign-up` GET도 200이었다. PR head에는 이 QA 증거만 추가했고 최신 PR CI 4종이 모두 통과했지만 Draft를 유지한다. service-consent v1 인증 상태는 503이고 원인은 미확정이다. 운영 원장·서버 계약·날짜 게이트를 확인하기 전 #1902를 병합·공개하지 않는다.
+- 다음 순서: #1902의 서버 계약/운영 원장 재확인; [#1863](https://github.com/Simon-YHKim/2nd-B/issues/1863) 웹 로그인 현장 단계 로그 확인. Supabase 격리 리허설·S3 서버 적용은 `docs/SESSION-OWNERSHIP.md`의 콘솔 소유 범위이며 Simon 지시에 따라 Grok 담당 후속으로 미룬다. 운영 DB·Edge·웹 게시·스토어 변경은 이번 작업에서 실행하지 않았다.
+- Simon의 최신 지시: 작은 판단은 다시 묻지 말고 진행한다. 운영 삭제·배포·비용 등 저장소 `AGENTS.md` §8의 명시 승인 경계는 유지한다. 인계 위치는 main `docs/HANDOFF.md`; 작업 기록은 두 PR 본문에도 있다.
+
+---
+
+## 2026-10-01 13:15 / 웹 로그인 장기 대기 단계 계측
+
+- [#1863](https://github.com/Simon-YHKim/2nd-B/issues/1863)의 `submitting=true`는 `signInWithEmail`뿐 아니라 뒤따르는 `refresh()` 대기일 수도 있다. `/token` 서버 200도 브라우저의 응답 본문 수신·JSON 파싱 완료를 증명하지 않는다. 현장 원인은 아직 미확정이다.
+- 웹 로그인에 15초 장기 대기 시 단계명과 경과 밀리초만 기록한다. 단계는 인증 변경 잠금, SDK 저장소 잠금, SDK 응답, 세션 갱신, 화면 이동이다. 이메일·비밀번호·토큰·세션·응답 본문은 기록하지 않는다. 잠금/SDK 동작이나 로그인 UI의 결과를 바꾸지 않는다.
+- 실제 auth-js 클라이언트로 HTTP 200 응답의 JSON 본문을 지연시켜 M/S 잠금 획득 뒤 24초가 지나도 세션이 저장되지 않고 Promise가 대기함을 재현했다. 본문을 완료하면 세션 저장·잠금 해제가 끝난다. 새 단계 진단 테스트와 전체 `npm run verify` 872묶음/11,322건 통과. Live 재현·배포 검증은 남는다.
+
+---
+
+## 2026-10-01 12:28 / 기기 메모 계정 확인 Android GUI
+
+- main `c329415a`의 [x86_64 Android 진단 빌드](https://github.com/Simon-YHKim/2nd-B/actions/runs/36808246889)가 성공했고 ABI 검사 뒤 Android 36 에뮬레이터에 설치했다. 글꼴 배율 `2.0`에서 합성 기기 메모 1개의 확인창은 **건수·현재 QA 계정의 정확한 이메일·가져오기/나중에 버튼**을 표시했고, 메모 본문은 노출하지 않았다. `나중에`를 누르고 앱을 강제 종료·재실행한 뒤에도 1개 확인창이 재등장했다. 실기기·TalkBack은 아직 미검증이다.
+- 좌표를 화면 축소 비율로 잘못 계산해 첫 합성 메모 1개는 실수로 `가져오기`를 눌렀다. 공유 QA 계정에 테스트 기록 1개가 생성됐고 기기 큐는 비워졌다. 이 변경을 숨기거나 운영 사용자 데이터로 취급하지 말 것. 두 번째 합성 메모로 `나중에` 보존을 별도 검증했으며, 현재 그 메모 1개는 격리 에뮬레이터의 암호화 큐에 남아 있다.
+- 네이티브 확인창에서 영어 `1 notes`를 발견했다. 영어·스페인어·포르투갈어는 단수·복수에 관계없이 자연스럽게 읽히는 건수 표시 문구로 수정했다. `npm run verify`는 871묶음/11,319건 통과했다. 화면 증거는 Git 밖 `E:\2ndB\.git\2ndb-session-state\PREAUTH-OWNER-PROMPT-NATIVE-261001.png`(SHA-256 `22d52a46f6377c04aa5e5625f5498c0c8192433875073b01d1e76babfc0a0e27`)와 `PREAUTH-OWNER-DEFER-RESTART-NATIVE-261001.png`(SHA-256 `2e9ff44ac5cbf0dcd9b1cb5bba4a381ff2ad9b8c070693ee65364b31044db4ce`)에 있다. 두 이미지는 문구 수정 전 APK 화면이다.
+
+---
+
+## 2026-10-01 11:47 / 기기 메모 계정 확인 웹 GUI
+
+- [#1989](https://github.com/Simon-YHKim/2nd-B/pull/1989)는 CI 전부 통과 후 main `ca3b8859`에 병합됐다. `npm run app:parity`는 main·localhost의 앱 경로 차이 0, 설정·의존성 일치, Android 진단 런 `36807045290` 진행 중으로 **같음**이다.
+- 별도 Chrome의 `localhost:8081` 릴리스 모드에서 공유 QA 계정으로 로그인하고 합성 기기 메모 1개를 브라우저 저장소에 넣어 확인했다. 온보딩·첫 기록 화면에서는 메모 확인창이 뜨지 않았다. 첫 기록 화면의 표시 확인 후 홈으로 이동하니 확인창에 **1개·현재 계정 이메일**만 보였고 메모 본문은 보이지 않았다. `나중에`를 누른 뒤 확인창은 닫혔고 기기 큐 1개는 그대로였다. 페이지 오류는 0건이다. 공유 QA 계정의 기존 기록은 수정하지 않았다.
+- 화면 증거는 로컬 Git 공용 상태 폴더 `E:\2ndB\.git\2ndb-session-state\PREAUTH-OWNER-PROMPT-WEB-261001.png`에 보관했다(SHA-256 `7ac0c4aa119fb869925bf73717e1bdcddbf4d4675b9fe8aad225c62c0a6a2ae4`). 현재 연결 Android 기기 0대라 네이티브 모달·큰 글꼴 실기기 QA는 미실행이다.
+
+---
+
+## 2026-10-01 11:30 / 기기 메모 가져오기 계정 확인
+
+- [#1989](https://github.com/Simon-YHKim/2nd-B/pull/1989) 검토 중 구 `/jot` 화면이 실제로 계정 없는 기기 큐에 메모를 남길 수 있었음을 확인했다. 기존 자동 가져오기는 그 큐를 다음에 로그인한 **아무 계정**에 저장할 수 있어 Draft 병합을 보류하고 계정 소유 확인을 같은 PR에 추가했다.
+- 홈 전환이 끝나면 큐 **건수와 현재 세션의 정확한 이메일**만 보여 준다. 사용자가 해당 계정으로 가져오기를 명시적으로 확인해야 확인 당시 항목만 저장한다. `나중에`는 큐를 보존하고, 세션 이메일을 확인하지 못하면 가져오기 버튼을 잠근다. 계정이 바뀌면 위기 분류·감사 기록·레코드 저장 직전의 소유 검사가 다음 작업을 중단하고 미처리 메모를 기기에 남긴다. 가져온 메모의 red 위기 안내는 홈에서 계속 표시한다.
+- 승인 후 새 항목·내용 변경 제외와 계정 전환 회귀 테스트가 통과했다. PR 브랜치 통합 `npm run verify`도 871묶음/11,319건 통과했고 CI는 갱신 전이다. 연결된 Android 기기는 없어서 모달의 실기기·큰 글꼴 시각 QA는 남는다. DB·운영 설정 변경은 없다.
+
+---
+
+## 2026-10-01 11:06 / 가입 전 메모 위기 안내 인계
+
+- [#516](https://github.com/Simon-YHKim/2nd-B/issues/516)의 남은 안전 경로를 확인했다. 기존 큐의 1인칭 메모는 `createRecord`에서 연령별 위기 분류·감사 기록이 실행되지만 홈 훅이 red 후속 안내를 버렸다. 제3자 기사 전용 `classifyIngestClipping`을 적용하면 연락처 안내가 차단되므로 사용하지 않았다.
+- 홈의 `CrisisRouter`에 red 결과를 배치당 한 번 전달하고, 연령 미확정은 청소년 경로로 처리한다. 인증·프로필·온보딩·첫 기록 화면 전환이 모두 끝나 홈이 안정될 때만 큐를 가져온다. 저장소 오류는 큐를 보존하고 다음 홈 진입에서 재시도할 수 있게 포착한다.
+- 집중 회귀 검사에서 한국어 청소년 1388·성인 109, 안정 홈 전 가져오기 0건, 안정 홈 뒤 위기 안내 1건을 확인했다. 실제 기기 모달 표시는 아직 확인하지 못했다. 큐에 현재 일반 화면의 추가 호출자가 없고, 전역 기기 큐의 계정 간 소유 문제는 별도 설계 검토가 필요하므로 #516은 아직 닫지 않는다.
+
+---
+
+## 2026-10-01 10:56 / 웹 로그인 장기 대기 방어
+
+- [#1863](https://github.com/Simon-YHKim/2nd-B/issues/1863)의 `/token` 200 응답 뒤 무한 `들어가는 중…` 현상은 실제 잠금·SDK·프로필 갱신 중 어느 단계에서 멈췄는지 재현 증거가 없다. 인증 경계의 Web Lock **획득 대기**에는 12초 취소 기한을 두고, 취소 뒤 늦은 callback과 비정상 manager 응답 뒤 중복 실행을 차단했다. 이미 잠금을 획득한 SDK 작업은 강제로 중단하지 않는다.
+- 로그인 화면은 15초 장기 대기 뒤 상태 미확정 안내와 웹 새로 열기 동작을 보인다. 작업이 완료되기 전 중복 제출 잠금은 유지한다. 5개 언어와 [인증 잠금 계약](AUTH-SESSION-MUTATION.md)을 갱신했다.
+- Web Lock 대기·늦은 callback·획득 후 지연 회귀 검사, 전체 `npm run verify` 870묶음/11,292건을 통과했다(최신 main 통합 후 재검증 진행). 실제 로그인 재현과 SDK/refresh 내부 영구 대기의 원인 규명은 남아 있으므로 #1863은 닫지 않는다.
+
+---
+
+## 2026-10-01 10:46 / 가입 전 임시저장 큐 손실 경로 수정
+
+- [#516](https://github.com/Simon-YHKim/2nd-B/issues/516)의 세 경로를 현재 main에서 재현했다. 병렬 native 저장은 두 성공 응답 중 한 항목을 잃었고, 웹 quota 오류는 저장 성공으로 표시했으며, 가져오는 동안 추가한 항목은 마지막 큐 덮어쓰기로 사라졌다.
+- 저장 변경을 직렬화하고 웹 읽기·쓰기 오류 및 저장소 부재를 실패로 전파한다. 가져오기는 서버 저장이 확인된 항목만 최신 큐에서 제거한다. 호출자가 없는 선삭제 `drainPendingCaptures`는 제거했다. 중복 `localId`의 서로 다른 항목과 저장 실패 후 재시도도 회귀 검사에 넣었다.
+- 수정 전 3개 재현 테스트 실패, 수정 후 집중 테스트 통과. 전체 `npm run verify`는 마지막 웹 읽기 실패 검사 추가 전 870묶음/11,294건 통과했고 최종 재검증을 진행한다. 일반 화면에는 현재 `addPendingCapture` 호출자가 없으므로 병렬 저장 버그는 잠재 경로다. 기존 큐 가져오기 경로는 실제 홈에서 호출된다. #516의 연령·위기 처리 항목은 별도 검토 후 닫는다.
+
+---
+
+## 2026-10-01 10:10 / 카카오톡·SMS 가져오기 원문 비보존 수정
+
+- **발견**: [#522](https://github.com/Simon-YHKim/2nd-B/issues/522)의 미해결 지적을 현재 main에서 재현했다. 카카오톡·SMS의 약속 메시지 본문 140자가 제안 라벨→저장용 Markdown→`captureFromMarkdown`으로 전달돼 화면의 “메시지 본문은 저장하지 않아요”와 [데이터 계약](PERSONAL-DATA-IMPORT-SPEC.md)이 어긋났다. 고유 표식으로 만든 회귀 테스트는 수정 전 두 소스에서 모두 실패했다.
+- **수정**: 기기 안에서 원문을 읽는 파서 뒤의 약속 제안 경로는 본문·발신자·전화번호 대신 약속 언급 건수만 내보내고, 가져오기 승인은 소스별 건수 제안 한 건으로 묶었다. 카카오 관계 빈도는 기존 가명 신호 경로를 유지한다. 승인 화면·저장 Markdown에 메시지 본문을 담지 않고, 안내 문구와 5개 언어의 건수 라벨·명세를 맞췄다. 개별 메시지로 일정·알림을 만들지 않는다는 범위도 명시했다.
+- **검증·남은 것**: 수정 전 재현 두 건 실패, 수정 후 가져오기·연령 잠금 집중 테스트 통과. 첫 `npm run verify`에서 옛 원문 저장 기대와 한국어 문자열 래칫이 실패해 새 계약에 맞췄고, 최종 전체 `npm run verify`는 870묶음/11,289건 통과했다. PR CI는 뒤따른다. 이 변경은 **새 가져오기**에만 적용된다. 이미 저장된 통신 원문 존재 여부와 필요한 삭제는 운영 데이터 확인이 필요하며 Grok 소유 서버 작업으로 남긴다.
+
+---
+
+## 2026-10-01 09:41 / Play PolaScope 스토어 등록정보 두 건 게시
+
+- **Simon Q-260928-06 실행**: Simon의 로그인된 Chrome에서 Google 승인 후 `게시 준비됨` 목록이 영어(미국) 앱 이름 `PolaScope`와 전체 설명 변경 두 건뿐임을 확인하고 관리형 게시했다. Play 제출 활동 **#5는 2026-10-01 09:37 KST `출시됨`**으로 표시된다. 게시 개요의 준비 목록은 비었고 최근 게시일은 10월 1일이다. [GUI 원증거·범위](qa/PLAY-POLASCOPE-STORE-PUBLISH-261001.md).
+- **범위**: 스토어 등록정보만 게시했다. 프로덕션 접근 신청·새 바이너리 출시·Play 데이터 보안 Revision 2 제출은 하지 않았다. vc56의 위치·진단·상호작용 분류와 광고 SDK 공개 게이트는 여전히 미완이다. #1984의 vc56 로그인 전 반복 실행 기록은 `ce0bc3f9`로 병합됐다.
+- **다음**: Q-260928-08 App Store Connect 부제는 Simon Chrome에서 Apple 로그인 화면(`authResult=FAILED`)으로 이동해 미입력이다. 로그인 가능 시 초안 `Self-understanding from notes`를 입력한다. Grok 소유 Supabase 후속은 Simon 지시대로 보류한다.
+
+---
+
+## 2026-10-01 07:44 / vc56 SDK 신고 근거 재확인
+
+- **원본 AAB**: GMA Provider·측정 지연, Firebase Analytics 수집·Sentry 자동 초기화 OFF. 56초 캡처와 GMA 25.5.0 공개표로는 vc56의 25.0.0 위치·진단·상호작용을 확정할 수 없어 양식 유지·최종 제출 보류. [근거](qa/play-data-safety-live-261001.html).
+- **현행 APK**: CI 438d42a0은 main과 앱 경로 동일, GMA 표시 SDK 0·AD_ID 권한 잔존. [검사](qa/ADMOB-STARTUP-NETWORK-260926.md).
+
+---
+
+## 2026-10-01 07:24 / Play vc56 비공개 테스트 계측 확인
+
+- **Play GUI**: vc56 alpha 배포율 100%, 출시 상세의 사용 가능 사용자 0명·국가 1/1. 9/19~26 일별 설치 사용자 5~6명과 대시보드 12명 이상 참여·14일 조건 완료는 집계가 다른 지표라 차이의 원인은 미판정.
+- **검증**: Android vitals의 28일 사용자 인지 크래시/ANR 결과 없음; 사전 출시 보고서 없음. 앱 콘텐츠 QA 로그인 안내 등록·Google 테스트 사용 허용 켜짐. Play 테스트 의견은 비어 있음. [상세 보고](qa/play-data-safety-live-261001.html).
+- **다음**: 참여·의견 증거와 보고서 부재 원인을 확인한 뒤 프로덕션 재신청 판단. 데이터 보안 최종 제출·Grok 후속은 보류.
+
+---
+
+## 2026-10-01 06:58 / Play 파일 신고 범위와 프로덕션 접근 재확인
+
+- **파일 범위 정정**: vc56은 TXT·MD 등 지원 텍스트만 추출한다. PDF·DOCX 본문은 읽지 않고 파일명·유형·크기 대체문을 클리퍼에 보낸다. 이전 보고서의 과도한 PDF 본문 설명을 [실측 보고](qa/play-data-safety-live-261001.html)에서 바로잡았다. vc56 EAS의 OpenAI backbone·장애 전환 없음과 OpenAI DPA/Play 서비스 제공자 예외는 파일·문서 ‘공유 아님’ 초안을 지지하지만, 계정 계약과 활성 버전 전체는 미검증이다.
+- **Play 출시 상태**: GUI에는 비공개 alpha vc56만 표시된다. 프로덕션 신청 형식 조건 3개는 완료됐지만 8/24 검토 결과 ‘추가 테스트 필요’가 남아 있고 Play ‘테스트 의견’ 화면은 비어 있다. 외부 채널 의견 유무는 알 수 없다. 새 프로덕션 신청·데이터 보안 최종 제출은 하지 않았다. 화면 증거는 Git 밖 `E:\2ndB\.git\app-parity\play-data-safety-live-261001`에 있다.
+- **다음**: 위치·진단·앱 상호작용의 vc56 SDK 전송 근거, 테스터 사용·의견과 반영한 개선 증거를 확정한다. Grok 후속은 보류한다.
+
+---
+
+## 2026-10-01 06:34 / Play 데이터 보안 4항목 초안 정정과 CSV 재검증
+
+- **GUI 초안**: Play Console 원본 CSV 782행을 vc56 코드·현행 방침·Google Play 분류와 대조했다. 누락된 운동 정보·파일/문서 유형을 수집·선택·비임시·앱 기능으로 추가하고, 구매 내역을 필수→선택으로 바꾸고, 기기 ID 수집에 앱 기능 목적을 추가했다. 직전 세션의 기기 ID 필수 정정은 유지했다. 원본 대비 응답값 변경은 정확히 13셀이고, 현재 초안은 16개 유형이다. [실측 보고](qa/play-data-safety-live-261001.html).
+- **지속 확인**: CSV 가져오기·임시저장 뒤 재내보낸 파일과 페이지 새로고침 뒤 재내보낸 파일의 SHA-256이 일치한다(`A424DAC7059A1140FB1CCB5E26AE4FBBDD6827FBF46C7550276CB441EEAE87B0`). 마지막 5/5 저장·Play 검토 제출·공개는 실행하지 않았다. 원본·수정 CSV와 화면 증거는 Git 밖 `E:\2ndB\.git\app-parity\play-data-safety-live-261001`에 있다.
+- **남은 검증**: 위치·진단·앱 상호작용의 vc56 SDK/네트워크 근거와 파일/문서 AI 처리 경로의 Play 공유 예외를 확정해야 한다. Grok 후속은 보류하고, 원래 `TTL-Work_rev2`의 다른 세션 미커밋 변경은 건드리지 않는다.
+
+---
+
+## 2026-10-01 05:52 / Play 데이터 보안 양식 확인과 기기 ID 초안 정정
+
+- **Play GUI**: 로그인된 PolaScope(`com.simonk.secondbrain`) Play Console에서 비공개 테스트 0.9.0(vc56) alpha와 앱 콘텐츠의 데이터 보안 양식을 읽었다. 대략적 위치·진단은 모두 수집·공유 및 **필수**, 기기 또는 기타 ID는 수집·공유 및 **선택**으로 남아 있었다. 위치·진단의 적합성은 미판정이다. [실측 보고](qa/play-data-safety-live-261001.html).
+- **기기 ID 초안**: vc56 동의 전 Firebase Installations 연결, Firebase의 FID 자동 수집 안내, 현행 방침의 ‘앱 설정으로 끌 수 없음’을 근거로 기기 ID를 **필수**로 바꿔 Play 양식의 임시저장을 실행했다. 새로고침 뒤에도 필수 선택이 유지된다. 마지막 미리보기의 ‘저장’·검토 제출·프로덕션 신청은 누르지 않았으므로 공개 신고는 바뀌었다고 판정하지 않는다.
+- **앱·빌드**: 제목 접근성 [#1975](https://github.com/Simon-YHKim/2nd-B/pull/1975)가 main `438d42a0`에 병합됐다. `npm run verify` 870묶음/11,286건과 PR CI 3종 통과. [Android 진단 빌드 36772298937](https://github.com/Simon-YHKim/2nd-B/actions/runs/36772298937)은 성공했고 arm64 ABI 검사·44,140,850바이트 artifact 업로드가 통과했다. [웹 빌드 36772298874](https://github.com/Simon-YHKim/2nd-B/actions/runs/36772298874) 성공/deploy skipped, OTA 36772298918 gate/report 성공/update skipped. 05:49 KST `npm run app:parity` **같음**.
+- **다음**: 위치·진단 신고의 실제 SDK/네트워크 근거를 확정하고 기기 ID 초안의 Play 최종 제출 경계를 검토한다. ARM 실기기 사진→OCR·최대 글꼴·TalkBack, 10월 5일 서버 `email-v7` 뒤 Draft #1902·#1917 검토가 남는다. Grok 후속은 보류한다. 원래 `TTL-Work_rev2`의 다른 세션 미커밋 변경은 건드리지 않았다.
+
+---
+
+## 2026-10-01 04:55 / PolaScope 계약·메일 제목 Draft 선행 검증
+
+- **Draft 통합 검사**: main `8918e0db`와 [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902) 원격 head `4c81c0ce`를 별도 워크트리에서 커밋 없이 합쳤다. 충돌 0, `npm run verify` 869묶음/11,289건 통과, `git diff --check` 통과. #1902 브랜치는 push하지 않았다. [상세 기록](qa/polascope-contract-readiness-261001.md).
+- **운영 계약 현황**: 운영 프로젝트 `zoacryukmdeivmolvyhj`의 공개 `signup_consent_contract_status` RPC는 HTTP 200과 6행을 반환했다. `email-v6`까지 있고 #1902가 요구하는 `email-v7`은 0행이다. 클라이언트 요구는 `email-v7` · 동의/약관 `2026-10-05` · 방침 `2026-09-29`이며 출시 게이트는 exit 1로 게시를 차단했다. 이전 “RPC 404” 기록은 더 이상 현재 상태가 아니다. 키 값은 출력하지 않았다.
+- **메일 제목 Draft 검증**: [#1917](https://github.com/Simon-YHKim/2nd-B/pull/1917) 원격 head `6a61ca66`과 최신 main `6354bca0`을 별도 워크트리에서 커밋 없이 합쳤다. 충돌 0, main 대비 변경은 `supabase/config.toml`의 제목 두 줄, `check:supabase-auth-config` 통과, `npm run verify` 870묶음/11,286건 통과. PR 브랜치는 push하지 않았고 메일 발송·대시보드 설정 변경도 하지 않았다. [상세 기록](qa/polascope-contract-readiness-261001.md).
+- **출시 순서**: 서버 계약·원장 선행 적용과 게이트 재검증 뒤, 10월 5일 #1902·#1917 Draft를 재검토한다. 대시보드 메일 제목과 저장소 설정을 같은 날 맞춘다. 두 Draft·운영 DB/Edge·Play 양식·웹 게시를 이번에 바꾸지 않았다. Grok 후속 보류를 유지한다.
+
+---
+
+## 2026-10-01 04:14 / 한국어 따옴표·조사 수정의 병합 뒤 화면 검증
+
+- **반영**: Android 사진 QA [PR #1970](https://github.com/Simon-YHKim/2nd-B/pull/1970)은 main `cefa48fe`, 웹 한국어 조사 줄바꿈 [PR #1971](https://github.com/Simon-YHKim/2nd-B/pull/1971)은 main `f0559166`에 병합됐다. 이 브랜치에는 새 앱 코드 변경이 없다.
+- **실제 GUI 확인**: main `f0559166`을 따르는 8081 `/ratifications`에 공용 QA 계정으로 로그인해 `보류`·`거절`의 `‘승인’에서` 문구를 확인했다. 320·375·425px에서 닫는 따옴표/조사 윗좌표는 각각 440/440, 392/392, 374/374px이고 가로 넘침은 모두 0px이다. 인증 외 쓰기 요청 차단 상태에서 차단 건수 0, 페이지 오류 0이다. [상세 결과](qa/web-quote-josa-261001.md). 스크린 리더 음성·초점 순서와 다른 보간 화면은 미검증이다.
+- **CI·게시**: [웹 빌드 36761343755](https://github.com/Simon-YHKim/2nd-B/actions/runs/36761343755)는 성공했고 deploy는 건너뛰었다. [OTA 36761343914](https://github.com/Simon-YHKim/2nd-B/actions/runs/36761343914)도 gate/report 성공, update 건너뜀이다. [Android 진단 빌드 36761343696](https://github.com/Simon-YHKim/2nd-B/actions/runs/36761343696)는 main `f0559166`에서 성공했고 APK artifact 1개(44,140,830바이트)가 있다. 이 문서 브랜치의 `npm run verify`는 870묶음/11,286건 통과했고 빌드 완료 뒤 04:14 KST의 `npm run app:parity`는 **같음**이다.
+- **다음 확인**: 최신 ARM 실기기에서 사진 선택→OCR·최대 글꼴·TalkBack을 확인한다. 10월 5일 계약 Draft #1902·메일 제목 #1917은 날짜 전 병합하지 않는다. Grok 후속 보류를 유지한다. 원래 `TTL-Work_rev2`의 다른 세션 미커밋 변경은 건드리지 않았다.
+
+---
+
+## 2026-10-01 03:41 / 웹 한국어 닫는 따옴표 뒤 조사 줄바꿈 수정
+
+- **원인·수정**: 웹의 `word-break: keep-all`은 `‘오늘 반영’을`에서 닫는 따옴표 뒤 조사를 다음 줄로 보낼 수 있다. [PR #1971](https://github.com/Simon-YHKim/2nd-B/pull/1971)은 공통 `PlainText` 웹 경로에서 닫는 `’`/`”`의 양쪽에 U+2060을 넣어 붙인다. 네이티브 `keepAllKo`, 선택 가능한 텍스트, 기존 가운데점 규칙은 유지한다. [재현·QA](qa/web-quote-josa-261001.md).
+- **검증**: main `cefa48fe` 통합 후 `npm run verify` 870묶음/11,286건 통과. Chrome 114px 상자에서 원문 따옴표/조사 윗좌표 11/42px → 수정 107/107px, 가로 넘침 0px. 관련 단위 테스트 2묶음/33건 및 타입 검사 통과. PR CI 최종 상태는 병합 전에 확인한다.
+- **반영 순서**: Android 사진 QA [#1970](https://github.com/Simon-YHKim/2nd-B/pull/1970)은 main `cefa48fe`에 병합됐다. 같은 SHA의 [웹 빌드 36759942816](https://github.com/Simon-YHKim/2nd-B/actions/runs/36759942816)은 성공했고 게시 단계는 건너뛰어 공개 웹 변경은 없다. 이제 #1971을 병합한 뒤 새 main의 앱 동등성·Android 진단 빌드를 확인한다. OTA는 워크플로상 `[ota]`/`[release]` 표시 없는 main push에서 gate-only다.
+- **남은 확인**: 병합 후 8081 실제 한국어 화면의 좁은 폭, 화면 읽기 순서, 최신 ARM 기기의 사진 선택→OCR·최대 글꼴·TalkBack. 10월 5일 PolaScope 계약 Draft #1902·메일 제목 #1917은 날짜 전 병합하지 않는다. Grok 후속 보류도 유지한다.
+
+---
+
+## 2026-10-01 03:00 / Android 사진 선택·권한 거부·글꼴 130% 네이티브 QA
+
+- **기록**: [Android 사진 입력 QA 보고](qa/android-native-photo-261001.html)와 [증거·절차](qa/android-native-photo-261001/README.md)에 Pixel 7 Android 16 x86_64 에뮬레이터의 시스템 Photo Picker, 카메라 권한 거부 후 안내·복귀, 글꼴 130%에서 사진 입력 하단 버튼 접근 결과와 화면 3장을 남겼다. 검사 뒤 에뮬레이터 글꼴 배율을 1.0으로 복원했다. 사진 선택·메모 저장은 하지 않았다.
+- **빌드 한계**: 실행한 x86_64 APK는 `4ee03669`의 [기존 수동 진단 빌드](https://github.com/Simon-YHKim/2nd-B/actions/runs/36687352385)다. `0e2bb32e`의 [최근 성공 APK](https://github.com/Simon-YHKim/2nd-B/actions/runs/36745473207)는 arm64-v8a 전용이라 x86_64 에뮬레이터에서 네이티브 라이브러리를 찾지 못했다. 이 오류는 ABI 불일치로 분류했다. 따라서 이번 결과는 **네이티브 플랫폼 경로**만 증명한다. 구 main `b81faefc`의 진단 빌드 36754062889는 새 main이 올라온 뒤 취소했다. 현 main `36623cc1`의 [진단 빌드 36755588373](https://github.com/Simon-YHKim/2nd-B/actions/runs/36755588373)은 성공했고 APK artifact가 있다.
+- **남은 QA**: 최신 main의 ARM 실기기에서 실제 사진 선택→OCR, 최대 글꼴, TalkBack, 뒤로가기, 10월 5일 PolaScope 시스템 앱 이름을 확인한다. 실제 유효한 커뮤니티 초대·Play Console 신고 양식·운영 서버 적용은 별개다. [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)와 [#1917](https://github.com/Simon-YHKim/2nd-B/pull/1917)은 10월 5일 전 Draft를 유지한다. Grok 후속 보류도 유지한다.
+- **작업 경계**: 원래 `TTL-Work_rev2` 워크트리의 다른 세션 미커밋 변경은 건드리지 않았다. Android QA 기록은 별도 브랜치 `docs/android-native-photo-qa-261001`에서 작성했다. `npm run app:parity`는 `b81faefc` 시점에 같음이었으며 새 main에서도 다시 확인한다.
+- **검증**: main `36623cc1` 통합 뒤 `npm run verify` 870묶음/11,279건 통과. `npm run app:parity`는 앱 경로·설정·의존성 일치와 같은 코드·설정의 APK 빌드 성공으로 **같음**(03:33 KST). PR #1970의 lint·verify·web-export-smoke 3종도 통과했다.
+
+---
+
+## 2026-10-01 02:57 / #1968 머지 뒤 확인: 앱 = localhost 같음 · 8081 브라우저 검사 14/14 · 따옴표 뒤 조사 줄바꿈
+
+- **#1968 머지**: 02:48 KST, main `b81faefc`. CI lint · verify · web-export-smoke 통과. `npm run app:parity` **같음**(02:50:07). 8081 이 `b81faefc` 로 다시 떴고(02:49) 앱 경로 차이 0 · 설정 digest `e90c4cb7453f` 일치. 폰 APK 빌드 [36754062889](https://github.com/Simon-YHKim/2nd-B/actions/runs/36754062889)는 확인 시점에 진행 중이었다. QA APK 게시는 하지 않았다(Simon 이 폰에서 볼 때만).
+- **8081 에서 `docs/qa/data-connections-260930/check.cjs` 14/14**, 막힌 쓰기 0. 새 문구가 보이는 것까지 화면으로 확인했다.
+- **발견 · 고침(이 PR)**: 웹 8081 에서 건강 카드의 `‘오늘 반영’을` 이 `’` 뒤에서 끊겨 "을"이 줄 머리에 혼자 섰다. CSS `word-break: keep-all` 은 닫는 따옴표와 뒤 한글 사이 줄바꿈을 허용한다(UAX #14 LB19a). 네이티브는 `keepAllKo` 가 단어를 붙여 안 끊긴다. 이 화면의 두 문구를 `‘오늘 반영’ 버튼을/버튼으로` 로 바꾸고, `data-connections-contract.test.ts` 가 이 화면 한국어 문구에 `/[’”][가-힣]/` 가 없음을 지킨다(되돌리면 실패 확인).
+- **넘김 · 줄바꿈 담당(#1933 계열)**: 같은 모양(닫는 따옴표 바로 뒤 한글)이 한국어 로케일에 **16개** 남아 있다. 이 PR 의 둘을 빼면 14개이고, `deepspace` 4 · `consent` 3 · `ops` · `settings` · `attachment` · `home` · `profile` · `ratifications` 에 있다. 웹에서만 같은 증상이 난다. 근본 수정은 웹 경로(`keepMiddleDotOffLineStart`)가 한글에 붙은 따옴표 양옆에 WORD JOINER 를 넣는 것인데, 공용 줄바꿈 코드라 건드리지 않았다.
+- **다음 세션**: 폰(Health Connect)에서 자동 읽기 확인(#1968 HANDOFF 블록의 ①②③) · 결정 대기 Q-261001-01 · Q-261001-02.
+---
+
+## 2026-10-01 02:43 / 건강 기록 자동 읽기(Android): 이 폰에서 연결한 계정만 · 하루 한 번 · 권한 창 없이
+
+- **왜**: Simon 09-30 `/data-connections` 지시("핸드폰 권한을 얻어야 하는것은 권한을 부여해서 작업할수 있게 … 자동으로 읽어낼수 있게 셋팅하자" · "하루 한번"). [#1965](https://github.com/Simon-YHKim/2nd-B/pull/1965) 는 출처를 폰 권한 우선으로 묶기만 했고 "자동으로 읽는 건 아직 없다"고 적었다. 이 PR 이 그 건강 부분이다.
+- **무엇** ([#1968](https://github.com/Simon-YHKim/2nd-B/pull/1968)): `src/lib/health/auto-read.ts`(무엇을 읽나) + `auto-read-runner.ts`(언제 도나) + `src/components/health/HealthAutoReadSync.tsx`(`_layout.tsx` 의 `AuthProvider` 안에 하나).
+  - 조건: 성인 · 자동 새로고침 켜짐 · 하루 한 번(새로고침 시각 뒤) · 서버 `health_import` 동의 · 이미 허용된 것만(`readGranted`, 창 없음, 자동 경로의 `requestPermission` 호출 0).
+  - **이 폰에서 이 계정이 '오늘 반영'으로 권한을 준 적이 있어야 한다**(armed 표시). OS 권한은 계정이 아니라 폰의 앱에 붙어서, 이게 없으면 같은 폰에 로그인한 다른 성인 계정이 주인의 기록을 물려받는다.
+  - 앱이 앞에 있을 때만 시작하고 뒤로 가면 버린다(Health Connect 가 백그라운드 읽기를 거부). 한 번에 하나 · 계정 리스 · 5분 기한 · 앱을 켜 둔 채 시각이 지나면 타이머로.
+  - 걸음·운동·수면만. 심박은 판독값마다 한 줄(하루 수천 줄)이고 최근 50개 화면에서 수면을 밀어내서 탭 전용으로 남겼다.
+  - 범위: 마지막 **완전한** 읽기 날 0시 → 지금(늦어도 어제 0시, 최대 3일 전). 실패·중단된 읽기는 '시도'만 표시하고 범위 기준은 그대로 둬서 다음에 다시 읽는다. 1,000건씩 저장.
+- **같이 고친 기존 결함**: ① Health Connect `read()` 가 첫 페이지(1,000건)만 읽었다 → `pageToken` 끝까지, 실패한 페이지 앞은 보존. ② 저장된 행마다 루틴 목록을 다시 불러왔다 → 호출마다 한 번. ③ 어제 기록이 오늘 만든 루틴을 어제 날짜로 완료하지 않게.
+- **문구(5개 언어)**: 새로고침 설명에 "대시보드가 열려 있을 때"를 되살리고, 건강은 "Android 앱에서 '오늘 반영'으로 연결한 폰에서만"으로 한정했다. 건강 카드 안내에서 iOS 약속을 뺐다("iPhone은 아직 읽지 못해요"). '오늘 반영' 결과 줄에 "이 폰에서는 하루 한 번 자동으로도 읽어요"를 붙인다.
+- **검증**: `npm run verify` 870 묶음 · 11,278건 통과(종료코드 0) · 일부러 망가뜨린 11곳 전부 잡힘 · 적대적 리뷰 4관점 20건(겹침 포함) → 확인 18 · 반박 2.
+- **알려진 한계**: 자동 읽기가 끝나도 열린 대시보드는 다시 포커스될 때 보인다(`DashboardPhone.tsx` 는 다른 세션이 수정 중이라 건드리지 않았다) · '오늘 반영'의 "새로 들어간 항목" 수는 upsert 가 갱신된 행도 돌려줘서 부풀려진다(기존 결함, 서버 RPC 필요) · iOS 는 HealthKit 어댑터를 @kingstinct 14 에 맞추고 레지스트리 순서를 고쳐야 한다 · 실기기 검증 없음(Health Connect 에 시험 기록을 넣을 도구가 이 PC 에 없다).
+- **다음 세션**: Health Connect 가 있는 폰에서 ① 성인 계정으로 '오늘 반영'(동의 · 권한) ② 다음 날 새로고침 시각 뒤에 앱 열기 ③ 건강 기록에 전날 저녁 기록이 들어왔는지. 결정 대기: Q-261001-01(폰 캘린더 · #1902 와 묶음) · Q-261001-02(카카오톡 · SMS 카드).
+
+---
+
+## 2026-10-01 02:10 / Android 진단 성공·공개 법률 웹 QA·10월 Draft 준비
+
+- **Android·앱 동등성**: [진단 빌드 36741708266](https://github.com/Simon-YHKim/2nd-B/actions/runs/36741708266)이 `3f8c7544`에서 성공했다. APK 생성·`arm64-v8a` 확인·artifact 업로드가 통과했고 환경 digest `e90c4cb7…`는 localhost와 같다. 그 뒤 다른 세션의 [#1965](https://github.com/Simon-YHKim/2nd-B/pull/1965)가 main `0e2bb32e`에 병합됐다. 8081은 문서 반영 main `a0bdd6e6`까지 따라갔고 `npm run app:parity`는 앱 경로 차이 0·설정/의존성 일치로 **같음**(exit 0)이다. 새 SHA의 [진단 빌드 36745473207](https://github.com/Simon-YHKim/2nd-B/actions/runs/36745473207)도 성공했다. APK 생성·`arm64-v8a`·artifact 업로드가 모두 통과했다. 폰 QA APK 게시는 실행하지 않았다.
 - **공개 웹 읽기 전용 QA**: 375×812 Chrome에서 `/`, `/privacy-policy`, `/terms`, `/refund`, `/legal/privacy.html`, `/legal/terms.html`, `/legal/refund.html`의 HTTP 200, JS 페이지 오류 0, 가로 넘침 0, 보이는 깨진 이미지 0을 확인했다. 요청 쓰기 0건. 앱 개인정보처리방침은 시행 2026-09-29, 약관은 2026-08-16으로 렌더링되고 10월 5일 이름 전환 전 `2nd-Brain`과 `PolaScope`의 관계를 설명한다. 정적 법률 HTML의 제목은 아직 `2nd-Brain`이다. 운영 웹 재게시는 하지 않았다. 결과 파일은 로컬 `E:\2ndB\.git\app-parity\legal-live-qa-results-261001.json`이다.
-- **10월 5일 계약 Draft**: [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902) 본문의 오래된 “0194 미적용” 주장을 9월 29일 콘솔 claim `PROD-DELETE-CONSENT-260929`의 0192·0194 적용 기록에 맞춰 정정했다. 코드 브랜치는 수정하지 않았다. 현재 main과 충돌하는 파일은 `docs/legal/DPIA-2ndB-minors-draft.md` 한 개이고 이전 CI는 9월 29일 기준이다. #1902와 메일 제목 [#1917](https://github.com/Simon-YHKim/2nd-B/pull/1917)은 적용일 전 Draft로 유지한다. 전환 전 운영 원장 재조회·법률 계약·서버 선행 조건 검증이 필요하다.
+- **10월 5일 계약 Draft**: [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902) 본문의 오래된 “0194 미적용” 주장을 9월 29일 콘솔 claim `PROD-DELETE-CONSENT-260929`의 0192·0194 적용 기록에 맞춰 정정했다. 법률 계약 내용은 바꾸지 않고, 한 파일의 최신 인용 충돌을 풀어 Draft head `4c81c0ce`에 main `a0bdd6e6`을 통합했다. 로컬 verify 865 suites/11,226 tests 및 PR CI `lint`·`verify`·`web-export-smoke`·PostgreSQL `sql` 4종이 통과했고 GitHub는 충돌 없음으로 판정했다. #1902와 메일 제목 [#1917](https://github.com/Simon-YHKim/2nd-B/pull/1917)은 적용일 전 Draft로 유지한다. 전환 전 운영 원장 재조회·법률 계약·서버 선행 조건 검증이 필요하다.
 - **세션 정리·남은 확인**: 병합이 확인된 제 공유 claim 네 개(#1894·#1899·#1900 SQL PASS·#1911)를 `done`으로 갱신했다. Play Console 로그인 창은 보이지 않았고 `adb devices -l`에는 연결 기기가 없다. 실제 Android 사진 선택기·TalkBack·유효한 초대 서버 경로와 Play Data Safety 양식은 미검증이다. 운영 DB·Edge·콘솔 변경은 `docs/SESSION-OWNERSHIP.md`의 담당 경계를 따른다. Grok 후속은 Simon 지시대로 보류한다. 원래 `TTL-Work_rev2`의 다른 세션 미커밋 대시보드 변경은 건드리지 않았다.
-- **다음 세션**: `git fetch origin main` → `git show origin/main:docs/HANDOFF.md` → 빌드 36745473207 최종 결과와 `npm run app:parity` 확인. 건강 자동 읽기는 #1965 담당 세션의 후속이다. 10월 5일 전 #1902·#1917을 병합하지 않는다. 운영·공개·비용·삭제 게이트는 기존 승인 범위와 저장소 지침을 확인한다.
+- **다음 세션**: `git fetch origin main` → `git show origin/main:docs/HANDOFF.md` → 후속 main 변경 시 `npm run app:parity`와 같은 앱 코드의 진단 빌드를 확인. 건강 자동 읽기는 #1965 담당 세션의 후속이다. 10월 5일 전 #1902·#1917을 병합하지 않는다. 운영·공개·비용·삭제 게이트는 기존 승인 범위와 저장소 지침을 확인한다.
 
 ---
 
@@ -69,468 +557,6 @@
 - **앱/localhost**: 8081 감독자가 `90fd6b83`을 따라갔다. `npm run app:parity`는 앱 경로 차이 0, 설정·의존성 일치, 같은 SHA의 [Android 진단 빌드 36732694009](https://github.com/Simon-YHKim/2nd-B/actions/runs/36732694009) 진행 중으로 **같음**을 보고했다. 빌드는 서명 전 최신 main 게이트를 통과했으며 최종 성공은 아직 확인하지 않았다. OTA 런 36732693996은 성공했다. QA APK 게시는 Simon이 폰에서 보기를 원할 때만 한다.
 - **남은 확인**: 실제 유효한 초대의 서버 권한·만료·소진 규칙과 ARM Android 실기기 뒤로가기·글꼴 확대·TalkBack은 검증하지 못했다. `adb devices -l`에 연결 기기가 없었다. Play Console 로그인 상태도 확인되지 않았다. 운영 동의 모드·503·Play Data Safety·서버 적용은 `docs/SESSION-OWNERSHIP.md`의 담당 경계를 따른다. Grok 후속은 Simon의 보류를 유지한다. 원래 `TTL-Work_rev2`의 다른 세션 미커밋 변경은 건드리지 않았다.
 - **다음 세션**: `git fetch origin main` → `git show origin/main:docs/HANDOFF.md` → 빌드 36732694009 최종 결과와 `npm run app:parity` 재확인. 실제 기기와 서버 접근이 가능해지면 위 미검증 항목을 검증한다. Simon의 최신 지시대로 작은 구현 판단을 반복 질문하지 않는다. 공개·운영·비용·삭제 게이트는 기존 승인 범위와 저장소 지침을 확인한다.
-
----
-
-## 2026-09-30 23:00 / 커뮤니티 방 딥링크 오류 상태·앱 동등성 확인
-
-- **main `7c96eeec`**: [PR #1949](https://github.com/Simon-YHKim/2nd-B/pull/1949)는 `246c5a0b`에 CI 3종 통과 후 병합됐다. 참여하지 않는 방 URL에서 빈 대화방·입력·나가기 대신 접근 불가 안내와 목록 복귀를 표시한다. 단일 ID 조회가 최근 50개 목록 제한보다 먼저 적용되고, 경로 전환 중 이전 방 상태·늦은 응답이 새 방에 섞이지 않는다. 5개 언어 문구와 회귀 테스트를 포함한다. 그 뒤 #1951·#1953 문서와 #1952 앱 변경이 main에 추가됐다.
-- **검증**: 최신 main을 통합한 로컬 `npm run verify -- --runInBand` 854 suites/11,066 tests 통과. PR CI `lint`·`verify`·`web-export-smoke` 3/3 통과. QA 계정의 375×812 Chrome 읽기 전용 검사에서 존재하지 않는 방의 입력·나가기 0건, pageerror·가로 넘침 0건. 잘못된 초대 링크는 오류 화면만 검증했고 프로필 POST 1건을 차단했다. [QA 기록](qa/community-room-unavailable-260930.md) · [완료 보고](qa/community-room-handoff-260930.html).
-- **앱/localhost**: 8081 감독자가 최신 `7c96eeec`를 따라간 뒤 `npm run app:parity`가 앱 경로 차이 0, 설정·의존성 일치, 같은 앱 코드 `ad42a1f5`의 [Android 진단 빌드 36723491160](https://github.com/Simon-YHKim/2nd-B/actions/runs/36723491160) 진행 중으로 **같음**을 보고했다. #1949의 대기 빌드 36722377116은 뒤따른 문서 병합 시 게이트에서 실패했고, 별도 세션이 재실행한 빌드 36723106509도 진행 중이다. 두 대체 빌드는 마지막 main 게이트를 통과했으나 최종 성공 여부는 후속 확인한다. QA APK는 09-30 결정대로 Simon이 폰에서 볼 때만 게시한다.
-- **남은 확인**: ARM Android 실기기에서 글꼴 확대·TalkBack과 실제 유효한 커뮤니티 room/join 흐름을 확인한다. 운영 동의 모드·503·Play Data Safety 및 서버 적용은 콘솔 소유 경계를 따른다. Grok 후속은 Simon의 기존 보류를 유지한다. 원래 `TTL-Work_rev2`의 다른 세션 미커밋 변경은 건드리지 않았다.
-- **다음 세션**: `git fetch origin main` → `git show origin/main:docs/HANDOFF.md` → Android 빌드 결과와 `npm run app:parity` 확인. #1953의 빌드 중단 기록은 바로 아래 22:39 블록에 보존했다. 공개·운영 적용 전 별도 게이트는 아래 기록과 `docs/SESSION-OWNERSHIP.md`를 따른다.
-
----
-
-## 2026-09-30 22:39 / 덧붙임 — 문서 머지(#1951)가 #1949 의 대기 빌드를 끊음 → main 으로 다시 빌드
-
-> 발행: CLI 코딩 세션(TTL-Work_rev2, session_011kqZojB5KVspmMgAZ4rZ89). 바로 아래 22:27 블록 뒤에 생긴 일이다.
-
-- **무슨 일.** 22:27 블록을 올린 문서 PR #1951 이 22:37 에 머지됐다. 그 PR 이 CI 를 도는 사이 다른 세션의 앱 변경 #1949(`246c5a0b`)가 먼저 머지됐다. #1949 의 push 빌드(런 36722377116)는 대기열에 있었다. #1951 머지로 main 이 `89b31885` 로 움직였으므로, 그 빌드는 시작하면 게이트에서 끊긴다. 문서 머지로는 새 빌드가 돌지 않는다.
-- **왜 막지 못했나.** 자동 머지를 켜기 전에 한 번만 확인했다(그때 가장 최근 빌드는 게이트를 지난 뒤였다). CI 가 도는 사이 끼어든 머지는 보지 못했다.
-- **메운 것.** 22:38 에 `gh workflow run android-release.yml --ref main` 을 돌렸다(런 36723106509, `89b31885`). CLAUDE.md 에 적힌 대처 그대로다. 이 빌드가 끝나기 전까지는 `app:parity` 가 '수동 빌드 진행 중 - 끝나야 판정' 으로 '다름' 을 낸다. 끝나면 같은 코드 · 같은 설정의 성공으로 바뀐다.
-- **교훈(모든 세션).** 스크립트 · 문서만 바꾸는 PR 은 자동 머지를 켜지 말고, CI 초록 뒤 머지 **직전에** 대기 · 진행 중인 main 빌드가 마지막 게이트('Recheck current main before signing credentials')를 지났는지 다시 보고 손으로 머지한다. 이 덧붙임 PR 도 그렇게 머지했다.
-
----
-
-## 2026-09-30 22:27 / 마무리 — 세 번째 자기 갱신 성공 · 최종 대조 같음 · 정리
-
-> 발행: CLI 코딩 세션(TTL-Work_rev2, session_011kqZojB5KVspmMgAZ4rZ89). 바로 아래 22:00 블록의 "머지되면 한 번 더 갈아탄다" 가 어떻게 됐는지 적는다.
-
-- **세 번째 자기 갱신 성공.** #1948 이 22:06 에 머지됐다. 약 35초 뒤 새 감독자(pid 12996)가 `422a352f` 로 넘겨받았다. 첫 번들은 77초 걸렸고 두 주소 모두 200 이었다. 22:20 에는 다른 세션의 앱 변경 `97bfecc3`(#1947)도 따라가 다시 띄웠다.
-- **최종 대조(22:22).** 같음.
-  - localhost-main 이 `97bfecc3` 로 origin/main 과 같고, digest `e90c4cb7` · 의존성도 같다.
-  - 같은 코드의 APK 는 빌드 중이다(런 36720868405).
-  - 캐시를 비운 직후인데도 판정이 정확했다. 필터 없는 런 목록(#1948) 덕이다.
-- **빌드.** `24501600`(런 36716945818)은 성공했고, 주석은 digest `e90c4cb7…` · `arm64-v8a` 다.
-- **정리.**
-  - 작업 워크트리 `app-parity-follow-260930` 를 지웠다. 정션을 먼저 끊었고, 공용 node_modules 는 726 → 726 으로 그대로다.
-  - 머지된 브랜치 4개를 로컬 · 원격에서 지웠다(#1940 · #1942 · #1945 · #1948).
-- **보고서 v2.** https://claude.ai/artifact/STLymvskwA1tBNFgv4ArrL (같은 주소를 갱신했다).
-- **다음 1개.** 없음. 머지만 하면 8081 과 CI 빌드가 따라간다. 폰에서 보실 때만 `npm run app:qa-release`.
-
----
-
-## 2026-09-30 22:00 / 정정: 대조의 '기록 없음' 원인은 불완전한 런 목록 — 필터 없는 조회로 바꿈 · 두 번째 자기 갱신 성공
-
-> 발행: CLI 코딩 세션(TTL-Work_rev2, session_011kqZojB5KVspmMgAZ4rZ89). 바로 아래 21:38 블록을 바로잡는다.
-
-- **두 번째 자기 갱신 성공.** #1945 가 21:46 에 머지됐다. 21:47:24 에 옛 감독자가 기록을 넘겼고, 21:47:35 에 새 감독자(pid 45552)가 `24501600` 으로 떴다. 옛 감독자(44976)는 끝났다. 127.0.0.1 · ::1 모두 200.
-- **그 직후 대조가 세 번째로 '기록 없음' 을 냈다.** #1945 에 넣은 근거 표시가 원인을 보여 줬다.
-  - 찍힌 최근 런 셋이 전부 옛 수동 빌드(`4ee03669` · `c423ba88` · `2d688ef0`)였다.
-  - 방금 생긴 push 런(`24501600` 대기 · `4249f73f` 진행)은 하나도 없었다. 즉 `gh run list --branch main --event push` 가 빈 목록을 성공으로 돌려줬다.
-  - 세 번 모두 이 길로 설명된다. 세 번 모두 8081 이 캐시를 비우고 번들링하던 때였다.
-- **정정: 21:38 블록의 "그 판정에 이르는 길은 앱 코드 대조(git diff)의 오류를 삼키는 것뿐이다" 는 틀렸다.** 런 목록이 불완전하게 오는 길을 놓쳤다. #1942(결론이 빈 '완료') · #1945(대조 오류 드러내기)는 다른 틈을 막으므로 그대로 둔다.
-- **고침(이 PR).**
-  - 필터 없는 REST 목록(`actions/workflows/android-release.yml/runs?per_page=100`)을 받아 main 의 push · 수동 런을 여기서 거른다. GitHub 문서상 branch · event 필터가 붙은 조회는 검색 색인을 거친다.
-  - main 의 push 런이 하나도 없으면 3초 뒤 다시 묻고, 세 번째도 없으면 '확인 못 함' 으로 멈춘다.
-- **실측(부하).** 12코어를 가득 태우면 `gh run list` 한 번이 8~60초 걸렸고, 8번 중 2번은 60초 제한을 넘기거나 연결 오류로 끝났다. '성공인데 빈 목록' 은 재현되지 않았다. 그래서 네트워크 상한을 60초에서 120초로 늘렸다.
-- **지금(22:00).** 같음. localhost-main `24501600` = origin/main, digest `e90c4cb7`, 의존성 같음. 같은 코드의 APK 는 빌드 중이다(런 36716945818).
-- **다음 1개.** 없음. 이 PR 도 스크립트를 바꾸므로 머지되면 감독자가 한 번 더 갈아탄다. 워크플로는 건드리지 않았다.
-
----
-
-## 2026-09-30 21:38 / #1940 머지 뒤 실측 — 8081 인수 · CI digest 일치 · 따라가기 3종과 첫 자기 갱신 성공 · 대조 오류 드러내기
-
-> 발행: CLI 코딩 세션(TTL-Work_rev2, session_011kqZojB5KVspmMgAZ4rZ89). 아래 20:13 블록의 '다음 1개' 와 '미검증 1건' 을 실행하고 확인한 기록이다.
-
-- **8081 인수(20:27 KST).** `npm run localhost` 가 옛 방식 감독자를 감독자로 알아봤다(pid 30172, `node scripts/app-parity.cjs localhost` - --port 없음). main `8f27d5e4` 스크립트의 preflight 가 통과한 뒤에 멈추고 넘겨받았다.
-  - 헤드리스로 확인: 로그인 화면이 뜬다. `__DEV__` false, 번들 `dev=false&minify=true`. 번들 값은 FORCE_TIER `off` · ALLOW_DEV_TIER `false` · LLM_MODE `live` · ENABLE_ADS `true`. 콘솔 오류 0. 127.0.0.1 · ::1 모두 200.
-- **미검증 1건 해소.** #1940 로 돈 첫 빌드(런 36708582875)의 `app-env-digest` 주석이 `e90c4cb7453f…` 로 로컬 계산과 같다. 러너는 값이 빈 `EXPO_PUBLIC_SAFETY_VENDOR` 도 넘긴다. `app-apk-abi` 주석은 `arm64-v8a`.
-  - 그 빌드는 Gradle 이 NDK 27.0.12077973 을 받다가 압축이 깨져 한 번 실패했다("Archive is not a ZIP archive"). 러너 쪽 문제다. 같은 커밋으로 재실행(attempt 2)하니 **성공**했다.
-  - #1941 빌드(런 36709884906)도 성공했고, digest 일치 · arm64 다.
-- **따라가기 실측 3종.**
-  - 다른 세션의 앱 변경 #1941 → "앱 경로 29개 바뀜 - 다시 띄운다".
-  - 문서 #1943 → "옮겼다(앱 경로 변경 없음, 서버 유지)".
-  - 스크립트 #1942 → **첫 실제 자기 갱신**: 21:17:02 KST 에 새 스크립트 preflight 를 통과했고, 약 10초 뒤 새 감독자(pid 44976)가 `f275fde4` 로 기록을 넘겨받았다. 옛 감독자는 스스로 끝났다. 뒤이은 #1944(앱 아이콘)도 따라갔다.
-- **정정 - 20:13 블록의 "진행 중인 수동 빌드도 1분 안에 폰용인지 알 수 있다" 는 틀렸다.** GitHub 는 check-run 주석을 job 이 끝난 뒤에야 보여 준다. digest 단계를 지난 진행 중 job 의 annotations_count 가 0 이었다(실측). 그래서 진행 중인 수동 빌드는 끝나야 폰용 · 같은 설정인지 판정된다. `qa-release` 는 이제 그런 빌드를 주석 폴링 없이 끝날 때까지 기다린다.
-- **대조가 두 번 틀린 이름('기록 없음')을 냈다.** 둘 다 8081 이 새로 뜨며 캐시를 비우고 번들링하던 때였고, 몇 분 뒤 다시 치면 바르게 나왔다.
-  - 1번째(#1940 직후)는 런이 '완료' 로 바뀐 순간 결론이 비어 있던 틈이었다 → #1942 에서 진행 중으로 본다.
-  - 2번째(#1942 직후)는 같은 앱 코드인 런이 있는데도 나왔다. 그 판정에 이르는 길은 앱 코드 대조(git diff)의 오류를 '다른 코드' 로 삼키는 것뿐이다 → 이 PR 에서 받은 커밋의 대조 오류는 한 번 더 보고, 그래도 나면 '확인 못 함' 으로 드러낸다. 주석 조회 실패도 건수를 밝히고, '같음' 이 아닌 판정에는 최근 런 셋을 근거로 붙인다.
-  - 실측: gh 호출이 가끔 10~18초 걸렸다(평소 2~3초).
-- **지금 대조(21:3x).** 같음. localhost-main 이 origin/main 과 같고 digest `e90c4cb7` · 의존성이 같다. 같은 코드의 APK 빌드는 진행 중이다(런 36715653238, `4249f73f`). 폰 QA APK(`qa-260930-5e52894b`)는 앱 경로 31개 뒤처졌고 참고로만 나온다.
-- **다른 세션.** ttl-work-rev2-3a · 6f 에 09-30 판 규칙을 알렸다.
-- **남긴 것.** TTL-Work_rev2 체크아웃은 main 으로 당기지 않았다. 다른 세션의 미커밋 변경(locales ops.json · DashboardPhone.tsx 등)이 있어서다.
-- **다음 1개.** 없음. 머지만 하면 8081 과 CI 빌드가 따라간다. 이 PR 은 스크립트와 워크플로(주석)를 바꾸므로 머지되면 감독자가 한 번 더 갈아타고 새 빌드가 돈다. 폰에서 보실 때만 `npm run app:qa-release`.
-
----
-
-## 2026-09-30 20:41 / 모바일 GUI P2 맥락·출처 보완과 앱 parity
-
-- **main `864fd061`**: [PR #1941](https://github.com/Simon-YHKim/2nd-B/pull/1941) 병합. 커뮤니티·초대·검사 등 9개 경로에서 부적절한 공통 렌즈 TIP을 숨기고 화면별 안내를 표시했다. 커리어 기록에는 인터뷰/기록 출처와 저장 당시 화면 언어를 분리해 표시한다. 옛 기록의 불명확한 언어는 추정하지 않으며 원문 제목·본문은 그대로다. 위키 0페이지 안내·데이터 연결 로딩 문구·375px 커리어 제목/버튼 배치도 수정했다.
-- **검증**: 최신 main 병합 후 로컬 `npm run verify` 848 suites/11,012 tests 통과, PR CI `lint`·`verify`·`web-export-smoke` 3/3 통과. QA 계정 Chrome 375px의 9개 경로에서 잘못된 TIP·page error 0건, 425px의 커뮤니티·커리어·위키에서 가로 넘침·page error 0건. [자체완결 GUI 보고서](qa/gui-p2-260930/report.html). 동적 room/join 링크와 Android 네이티브 글꼴 확대·TalkBack은 직접 검증하지 않았다.
-- **앱/localhost**: 20:39 KST `localhost-main`이 `864fd061`을 따라갔고 `npm run app:parity`는 앱 경로 차이 0, 설정/의존성 일치, 동일 SHA의 Android [자동 빌드 #36709884906](https://github.com/Simon-YHKim/2nd-B/actions/runs/36709884906) 대기 중으로 **같음**. 빌드 완료 여부는 다시 확인할 것. 폰 QA APK `qa-260930-5e52894b`는 과거 버전이며, 09-30 결정에 따라 Simon이 폰에서 볼 때만 새 QA APK를 게시한다.
-- **작업 경계**: 원래 `TTL-Work_rev2`의 대시보드 관련 미커밋 작업은 다른 세션 소유라 손대지 않았다. Grok 후속 발주는 사용자의 기존 보류를 유지한다. GUI P2는 격리 브랜치에서만 작업했고 Supabase 운영 쓰기·광고 ON·스토어/웹 게시를 하지 않았다.
-
-### 다음 확인
-1. Android 자동 빌드 #36709884906의 성공과 `npm run app:parity`의 계속된 **같음**을 확인한다. 폰용 QA APK는 Simon이 실제 설치/확인을 원할 때만 게시한다.
-2. 실제 Android에서 글꼴 확대·TalkBack, 커뮤니티 동적 room/join 경로를 확인한다. 운영 DB/Edge·AdMob·스토어 공개의 기존 게이트는 아래 최신 결정 기록과 `docs/SESSION-OWNERSHIP.md`를 따른다.
-3. 사용자는 반복 질문 없이 안전한 작업을 판단해 진행하라고 요청했다. 비용·파괴·운영 적용에 명시 승인 요건이 남는 경우 기존 승인 범위와 저장소 지침을 먼저 확인한다.
-
----
-
-## 2026-09-30 20:13 / 앱 = localhost 의 기준을 origin/main 으로 — 8081 이 main 을 스스로 따라간다 · APK 게시는 볼 때만
-
-> 발행: CLI 코딩 세션(TTL-Work_rev2, session_011kqZojB5KVspmMgAZ4rZ89). Simon(09-30) 원문:
-> "항상 localhost를 수정하면 앱에도 동일하게 적용되게 하고 싶은데, 매번 apk 발행은 너무 헤비 한데?
-> 똑같이 apk를 만들수 있게 코드 수정만 해놓으면 안돼?"
-
-- **바뀐 기준.** '같음' 은 이제 origin/main 을 기준으로 한다. 조건은 셋이다.
-  - 8081 이 origin/main 과 코드 · 설정 · 의존성(lockfile · patches 내용, 지운 · 고친 옛 패치가 남지 않음)이 같다.
-  - 같은 코드 · 같은 설정의 폰용(arm64) CI APK 빌드가 성공했거나 진행 중이다. 끊길 것이 확실한 대기 빌드와 설정 주석을 아직 안 남긴 수동 빌드는 세지 않는다.
-  - QA APK 게시(`npm run app:qa-release`)는 폰에서 볼 때만 한다. 같은 설정의 빌드가 없으면 기본 입력으로 새로 빌드한다. 09-29 판의 "머지할 때마다 게시" 는 폐지했다.
-- **8081 이 main 을 따라간다.** `npm run localhost` 는 먼저 origin/main 의 스크립트에게 `preflight --ref` 로 묻는다. 체크아웃은 옮기지 않은 채 묻고, 통과해야 옮긴다. 그다음 세션과 분리된 감독자를 숨은 창(WMI)으로 띄운다. 감독자는 60초마다 이렇게 움직인다.
-  - 앱 경로가 바뀌면 체크아웃한 뒤 다시 띄운다.
-  - 문서만 바뀌면 체크아웃만 옮긴다.
-  - 스크립트가 바뀌면 새 스크립트의 preflight 가 통과할 때만 갈아탄다. 새 감독자가 기록을 안 쓰면 띄운 것을 멈추고 옛 커밋 · 옛 서버로 되돌린 뒤, 그 스크립트로는 10분 뒤부터(실패할 때마다 두 배, 상한 4시간) 다시 시도한다. 거부는 10분 기억한다.
-  - 설치 불일치 · 해석 못 하는 설정 · 새 스크립트 거부면 보류하고 띄운 커밋을 그대로 둔다. 그 사이 누가 체크아웃을 옮기면 띄운 커밋으로 되돌린다(못 되돌리면 멈춘다).
-  - 전용 워크트리에 미커밋 변경이 생기면 8081 을 멈추고, 깨끗해지면 띄운 커밋인지 확인한 뒤 다시 띄운다.
-- **`android-release.yml` 세 곳을 고쳤다.**
-  - 빌드 경로에 번들 입력 5개를 넣었다: `locales/**` · `public/proto/**` · `design/avatar-style-v2/**` · `tsconfig.json` · `metro-module-id.js`. 지금까지는 문구 · 캐논 · 아바타만 바뀐 머지가 APK 를 다시 안 만들었다. 원래 있던 구멍이다.
-  - 첫 게이트 뒤(Setup Node 직후, npm ci 전)에 EXPO_PUBLIC digest 와 ABI 를 run 주석 `app-env-digest` · `app-apk-abi` 로 남긴다. 저장소 Variables 만 바뀐 경우와 에뮬레이터용 x86_64 빌드를 가려내고, 진행 중인 수동 빌드도 1분 안에 폰용인지 알 수 있다. 주석이라 새 액션이 들지 않아 보안 테스트의 액션 수 고정도 그대로다. 뒤 단계가 EXPO_PUBLIC_* 를 바꾸지 않는 것은 테스트가 지킨다.
-- **리뷰 세 차례(적대 리뷰 워크플로, 에이전트 합계 16).**
-  - 1차(8): 34건 중 27건을 확인했다. 번들 입력이 경로 밖 · Variables 만 바뀐 APK · 머지 전 인수 시 8081 꺼짐 · 점검 전 서버 종료 · 정본 detach 위험 · 판정 불일치 등이다.
-  - 2차(4): 23건이 닫힌 것을 확인했고, 새로 20건을 찾았다. 살아 있는 체크아웃을 옮겨 가며 묻기 · x86 빌드 게시 · 게이트 밀림을 실패로 보고 · 패치 시각 판정 · 없는 빌드를 '같음' 으로 판정 등이다.
-  - 3차(4): 앞선 지적 20건 중 11건이 닫힌 것을 확인했다. 덜 닫힌 3건과 새로 확인된 8건(모두 낮음, 겹친 2건 제외)을 고쳤고, 반박된 2건(되돌린 기록의 childPid 표시 · NODE_PATH 테스트 공백)도 반영했다. 고친 것: 보류 중 옮겨진 체크아웃을 띄운 커밋으로 되돌리기(못 되돌리면 멈춤) · 넘겨주기 실패 때 띄운 새 감독자를 멈추고 재시도 간격 두기 · 되돌린 기록을 서버를 띄운 뒤에 쓰기 · 거부 기억 10분 · 지운 · 고친 옛 패치가 설치에 남은 것 잡기 · 끊길 대기 빌드와 주석 없는 수동 빌드 · x86 빌드를 '빌드 중' 으로 세지 않기 · qa-release 가 디스패치한 빌드를 SHA 대신 시각으로 찾기 · 09-29 판 감독자 명령줄(--port 없음) 알아보기 · 감독자 없이 남은 Metro 를 포트 주인으로 찾기 · CLAUDE.md 보류 문구.
-- **검증.** app-parity 테스트 58개(실제 git 저장소 따라가기 16가지 포함) 통과 · 이번 수정 변이 15종 전부 테스트가 잡음(원본 해시 복원 확인) · 실제 설치 3곳 패치 드리프트 0건 · 워크플로 테스트 112개 통과 · 8081 읽기 전용 대조(옛 감독자 알아봄 · 남은 Metro = 포트 주인) · `npm run verify` 통과(종료코드 0 · 848 suites / 11,011 tests)
-- **미검증 1건.** CI 가 남기는 digest 가 로컬 계산(현재 `e90c4cb7…`)과 같은지는 이 PR 머지 뒤 첫 빌드의 주석으로만 확인할 수 있다. 걸린 것은 값이 빈 `EXPO_PUBLIC_SAFETY_VENDOR` 다. 로그의 단계 env 머리에는 빈 값으로 찍혀 있어 러너가 넘기는 것으로 보이지만, process.env 에 실제로 들어가는지는 아직 확인하지 못했다. 다르면 모든 빌드가 '다른 설정' 으로 나와 '다름' 쪽으로 멈춘다(거짓 '같음' 은 아니다).
-- **다음 1개.** 이 PR 이 머지되면 아무 워크트리에서나 `npm run localhost` 를 한 번 친다. main 스크립트의 preflight 가 통과한 뒤에야 옛 방식 감독자(`node scripts/app-parity.cjs localhost`, --port 없음 - 이제 감독자로 알아본다)를 멈추고 넘겨받는다. 그다음 `npm run app:parity` 를 친다. 이 PR 의 워크플로 변경으로 도는 첫 빌드의 digest 주석을 로컬 값과 대조한다. 그 뒤로는 머지만 하면 된다.
-
----
-
-## 2026-09-30 19:20 / 모바일 GUI P0·P1와 동의 모드 진단
-
-- main `f62433a0`: [#1937](https://github.com/Simon-YHKim/2nd-B/pull/1937) 뮤지엄 모바일 43사건 목록·2축 전환, 식단 21칸의 고유 버튼 이름·최소 44px를 병합했다. CI 3종과 로컬 verify 848묶음/10,966테스트 통과. [화면·측정 보고서](qa/gui-260930/report.html)는 375/425px Chrome, 사건 상세·식단 입력창 열림, 페이지 오류 0건을 기록한다. Android 실기기 보조기술은 미검증이다.
-- [#1934](https://github.com/Simon-YHKim/2nd-B/pull/1934)·[#1935](https://github.com/Simon-YHKim/2nd-B/pull/1935)의 보호된 읽기 진단은 [run 36691474238](https://github.com/Simon-YHKim/2nd-B/actions/runs/36691474238)에서 `access-forbidden`으로 끝났다. 현재 Production 토큰으로 Supabase Edge secret 목록을 읽을 수 없다. `service-consent`의 정상 status와 잘못된 JSON이 모두 503인 것은 확인됐으나 실제 모드값은 미확인이다. 설정·운영 데이터는 바꾸지 않았다.
-- Android 자동 빌드 [36693557705](https://github.com/Simon-YHKim/2nd-B/actions/runs/36693557705) 성공. [QA APK `qa-260930-f62433a0`](https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260930-f62433a0)를 발행했고, 8081 `localhost-main`을 동일 SHA로 재기동했다. `npm run app:parity`는 앱 경로 차이 0·설정/의존성 일치로 **같음**.
-- GUI P1 [#1938](https://github.com/Simon-YHKim/2nd-B/pull/1938)은 main `5e52894b`에 병합됐다(CI 3종 통과). 대시보드 첫 행동, 설정 12px 설명, 북극성 44px 페이지 탭, 기록 선택 카드의 직접 열기를 보완했다. 로컬 verify 848묶음/10,966테스트와 [375/425px 화면 검증](qa/gui-p1-260930/report.html)이 통과했다. Android 빌드 [36699151536](https://github.com/Simon-YHKim/2nd-B/actions/runs/36699151536) 성공 후 [QA APK `qa-260930-5e52894b`](https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260930-5e52894b) 발행, 8081 재기동·`app:parity` **같음**(앱 차이 0).
-- Play Console에는 영어 이름·설명 게시 준비 2건이 남았다. Data Safety Revision 2의 중단 조건에 따라 양식 저장·게시는 하지 않았다. [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)는 10월 5일 동의 계약 Draft다.
-- GUI 후속: Android ARM 실기기·TalkBack·글꼴 확대 검증, P2 맥락형 TIP·원문 출처 표시·빈 상태 문구. 이 PC의 x86_64 에뮬레이터는 arm64 전용 QA APK를 로드하지 못해 네이티브 화면 판정에 쓰지 않는다. 원본 QA 보고서는 TTL-Work_rev2의 미커밋 `docs/qa/ui-audit-260930/report.html`에 있으며 건드리지 않았다.
-- 다음: ① ARM 실기기 GUI·TalkBack QA ② 콘솔 소유자가 적정 권한으로 동의 모드 분류 후 단계별 canary ③ Play 이름·법률·Data Safety 동시 출시 순서 확정. Grok 후속은 Simon 지시대로 보류.
-
----
-
-## 2026-09-30 17:5x / 한국어 줄바꿈을 어절 단위로(#1933) · QA APK `qa-260930-4ee03669` · 8081 재기동
-
-> 발행: CLI 코딩 세션(Claude Code, 작업 워크트리 `.worktrees/qa-linebreak`, session_01CYhHkCyCfp3J4x36dz1mdw). Simon 과 localhost QA 를 시작한 첫 건이다.
-
-- **요청.** Simon(localhost QA): 로그인 화면 법무 링크가 "환불 및 청약철회 정 / 책" → "각 언어별 줄바꿈 규칙을 확인하고, 합리적으로 개선하자."
-- **측정.** 8081(폰 APK `f17ce1b3` 와 같은 빌드)을 헤드리스 크롬 393px 로 열어 글자 위치로 줄이 바뀐 자리를 분류했다.
-  - 로그아웃 9화면: 한국어 단어 중간 끊김 285, 가운뎃점 줄머리 13(ko 11 · en 2).
-  - en · es · pt · id: 긴 URL 1건뿐이다(맞는 동작).
-  - 로그인 후: 앱 화면 24곳 약 98건(추정), 영어 화면에 보이는 한국어 기록 34건.
-- **#1933 머지** `4ee03669`(17:02 KST)
-  - 웹: `+html.tsx` 에 `word-break: keep-all`.
-  - 앱: `components/ui/PlainText`(keepAllKo = U+2060). `<Text variant>` 와, RN `Text` 를 직접 쓰던 64개 파일이 이것을 거친다.
-  - keepAllKo 는 멱등이고 그래핌을 쪼개지 않는다. klreq 7.1.2 가운뎃점 줄머리 금지는 웹 · 앱 공통이다. `plain-text-guard.test.ts` 가 재발을 막는다.
-  - 수정 후 전부 0건. verify 848 묶음 / 10,966 테스트 · CI 3종 초록.
-- **폰.** QA APK [`qa-260930-4ee03669`](https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260930-4ee03669)(arm64, sha256 `b54665a3…fbf4b9`).
-  - 같은 커밋의 x86_64 진단 빌드(런 36687352385)를 `Pixel_9_Pro_XL` 에뮬에 올렸다(`install -r`, 데이터 유지). 한국어 · 글자 1.3배로 로그인 화면과 처리방침을 봤다. 정상 실행이고 띄어쓰기에서만 줄이 바뀐다.
-  - 에뮬의 font_scale · 앱 로케일은 원래대로 돌리고 종료했다.
-- **8081.** 17:01 에 오류 없이 멈춰 있었다(원인 미상. 이전 로그는 `.git/app-parity/localhost-8081-until-260930-1701.log`). localhost-main 을 `ace0b2e1`(앱 경로 차이 0)로 옮겨 다시 띄웠다. `app:parity` 결과 같음.
-  - ⚠ WMI(`Win32_Process Create`)로 띄우면 Expo 가 "Logs for your project will appear below." 직후 스스로 끝났다(stdin 이 닫혀서로 추정). `Start-Process cmd.exe -WindowStyle Hidden` 으로 띄우면 산다.
-- **남긴 것.**
-  - 뮤지엄 "Backpropagati / on"(영어 단어가 카드보다 김): 하이픈은 웹 · Android 만 가능해서 넣으면 앱과 localhost 가 달라진다. 그대로 두기를 권한다(Simon 판단).
-  - 홈 별 이름 `Animated.Text` 4곳은 폭 측정 로직이 따로 있어 적용하지 않았다.
-  - 보고서: [qa/LINEBREAK-QA-260930.html](qa/LINEBREAK-QA-260930.html).
-- **다음 1개.** Simon 폰에 `qa-260930-4ee03669` 를 설치하고 localhost QA 를 이어 간다.
-
----
-
-## 2026-09-30 16:14 / Polaris 서버 선행 적용 · 동의 모드 후속 검증
-
-- Simon의 09-27 운영 GO(`simon-go-attested-prod-mig-remaining-edge-redeploy.md`)와 콘솔 claim `PROD-POLARIS-OPENAI-260930`에 따라 운영 `zoacryukmdeivmolvyhj`에 **0195**(`20260930070200`)와 **0198**(`20260930070253`)을 main의 정확한 SQL로 적용했다. 원장 183→185행. Polaris 설정은 `enabled=false`, 생성 행 0이다. 0195의 claim/settle은 service_role 전용이고 기록 삭제 트리거 2개가 활성이다. 0198 등록부는 67→71행이며 기존 67행 지문은 유지됐다.
-- 적용 전 [암호화 백업 run 36588721188](https://github.com/Simon-YHKim/2nd-B/actions/runs/36588721188) 성공(artifact `db-backup-36588721188`, SHA-256 `6c7476df…c6e9d`). OpenAI 스키마 가드의 22개 객체가 모두 통과한 뒤 [배포 run 36681787965](https://github.com/Simon-YHKim/2nd-B/actions/runs/36681787965)로 `openai-proxy` v138→v139를 배포했다. JWT 검증이 켜져 있고 배포된 7개 파일이 main과 정확히 같다. QA 인증으로 잘못된 JSON은 400, 빈 본문 객체는 400이었다. 제공자 호출·과금 canary는 실행하지 않았다.
-- 작업 중 `runtime_flags.llm_enabled`를 잠시 false로 두고 이전 `updated_at`에 대한 조건부 UPDATE로 true를 복원했다. 최종 운영 상태: flag true, Polaris off, 생성 원장 0, 등록부 71행. Claude/Gemini/xAI 배포본도 현재 main의 동의 공용 코드 및 각 index와 일치한다. Supabase advisor에 이번 변경 관련 CRITICAL은 없다. [상세 검증 기록](qa/POLARIS-OPENAI-ROLLOUT-260930.html)을 참조.
-- **남은 게이트:** 서비스 동의 `status`를 배포 후 다시 확인해도 503이고 `LLM_CONSENT_MODE`의 실제 값은 확인되지 않았다. collect/enforce 전환·grant/revoke·철회 경합 canary·Polaris 활성화·운영 전체 계정 삭제 canary는 미실행. Play Console에는 PolaScope 이름·전체 설명 2건이 게시 준비 중이고 데이터 보안 Revision 2 원본 양식은 아직 검증되지 않았다. 폼 저장·제출·게시하지 않았다. `#1902`는 10월 5일 계약 Draft로 유지한다.
-- 재개: `git fetch origin main` → `git show origin/main:docs/HANDOFF.md`. 우선 동의 모드의 비밀값을 노출하지 않는 확인 경로와 무과금 canary를 마련한 뒤 collect 검증, 별도 일회용 계정의 삭제 전체 흐름, Play 데이터 보안 원본/활성 빌드 대조 순서로 진행한다.
-
----
-
-## 2026-09-30 00:1x / 앱 = localhost 적용 완료 — QA APK `qa-260930-f17ce1b3` · 8081 을 main `f17ce1b3` 로 재기동 · TTL-Work_rev2 앞당김
-
-> 발행: CLI 코딩 세션(TTL-Work_rev2, session_011kqZojB5KVspmMgAZ4rZ89). 아래 23:1x 블록(#1928)의 "다음 1개"를 끝냈다.
-
-- **#1928 머지** `f17ce1b3`(2026-09-29 23:42 KST, CI lint · verify · web-export-smoke 초록). 중간에 CI 가 한 번 빨강이었다: DPIA:683 의 `HANDOFF.md:331,486` 줄 번호 인용이 새 블록으로 밀려 빈 줄을 가리켰다. 원문이 있는 닫힌 보관 파일로 옮겨 고쳤다.
-- **폰 APK.** android-release 런 36584676465 → [`qa-260930-f17ce1b3`](https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260930-f17ce1b3)(`npm run app:qa-release`, `--latest=false`). `com.simonk.secondbrain` 0.9.0(40) · arm64-v8a · 진단 키 `03bcf8fa…fe89a`(내려받은 파일 sha256 이 SHA256SUMS 와 일치) · sha256 `9a91fde6fb2ab388e27cc78844ab1852e97c86ba91ba87613628924e81a3932a`.
-  이전 APK(`qa-260929-2fab54f0`)와 앱 경로 차이는 `package.json` 의 scripts 뿐이라 **앱 기능 차이는 없다.** 규칙상 폰이 최신 QA APK 와 같도록 설치를 권한다. 같은 진단 키라 덮어 설치된다.
-- **8081.** localhost-main 을 `f17ce1b3` 로 옮기고, 그 체크아웃의 `npm run localhost` 로 다시 띄웠다(WMI, 2026-09-30 00:09 KST). `npm run app:parity` 결과: **같음**(코드 · 설정 · 의존성).
-- **TTL-Work_rev2.** `5c4e4b4a` → origin/main 으로 ff 했다(117커밋+). 그래서 이 워크트리의 새 세션은 규칙이 든 CLAUDE.md 를 읽는다.
-  미커밋 14개는 `E:\Coding Infra\_rescue\ttl-work-rev2-260929\` 에 SHA256SUMS 와 함께 있다. 그중 main 과 같은 8개와 main 판이 최신인 1개는 치웠다. main 에 없는 PNG 4개는 제자리에 남겼다.
-- **함정 예방.** `docs/legal/trademark-clearance-brief-260825.md` 의 "작성 당시 `docs/HANDOFF.md:N`" 역사 표기 3곳에서 백틱을 벗겼다. HANDOFF 에 블록이 얹힐 때마다 그 번호가 밀려 법무 인용 검사가 언젠가 빈 줄을 만나기 때문이다. 실제 근거 인용(p4 보관 파일)은 그대로다.
-- **다음 1개.** 없음. 이후 화면을 바꾸는 세션은 CLAUDE.md 맨 위 절 순서를 그대로 따른다.
-
----
-
-## 2026-09-29 23:47 / 삭제 fence·서비스 동의 서버 선행 적용과 잔여 canary
-
-- main `90650414`의 [#1929](https://github.com/Simon-YHKim/2nd-B/pull/1929)는 현행 `0194`의 `service-v1`/`email-v6` SQL 회귀를 추가했다. 로컬 verify 846 suites·10,933 tests, PR CI 4종 PASS 뒤 병합했다. 웹 운영 게시와 Android 빌드는 없었다.
-- 콘솔 claim `PROD-DELETE-CONSENT-260929`에서 운영 `zoacryukmdeivmolvyhj`에 **0192**(`20260929143410`)와 **0194**(`20260929143632`)를 적용했다. 원장 181→183행. Storage 정책·trigger·tombstone RLS와 서비스 동의 RPC ACL·`email-v6` 판본을 확인했다. 9월 27일 격리 리허설 PASS/삭제 완료로 새 임시 프로젝트는 만들지 않았다.
-- [삭제 Edge run 36583694890](https://github.com/Simon-YHKim/2nd-B/actions/runs/36583694890)으로 `delete-account` v135, [동의 run 36583979169](https://github.com/Simon-YHKim/2nd-B/actions/runs/36583979169)으로 `service-consent` v1을 배포했다. 두 함수는 JWT 검증·main 소스 일치·비인증 401이다. [운영 전환 기록](qa/ACCOUNT-DELETION-ROLLOUT-260929.md)과 Relay `claim-prod-delete-consent-260929.coding.result.md` 참조.
-- **남은 서버 게이트:** QA 계정의 서비스 동의 `status`는 503 `service_consent_unavailable`이었다. 잘못된 body도 503이어서 mode gate 거부로 추정하나 설정값은 모른다. 운영 삭제 전체 흐름은 일회용 계정이 없어 미검증이다. 공용 QA 계정·서버 설정은 변경하지 않았다.
-- [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)는 10월 5일 `email-v7/service-v2` Draft로 둔다. 일반 Chrome의 로그인된 Play Console에서 PolaScope 게시 개요를 읽었다. **게시 준비 변경 2건**(영어 앱 이름·전체 설명)이 있어 데이터 보안 Revision 2를 저장·제출하면 섞일 위험이 있다. 폼 저장·검토 제출·게시를 하지 않았다.
-- 재개: `git fetch origin main` → `git show origin/main:docs/HANDOFF.md`. 다음은 동의 mode·읽기 canary, 일회용 계정 삭제 canary, Play 데이터 보안 원본과 게시 준비 2건의 출시 순서 확인. 관측은 09-29 23:47 KST 기준.
-
----
-
-## 2026-09-29 23:1x / 앱과 localhost 는 같은 소프트웨어다 — `npm run localhost` 신설 · 8081 교체
-
-> 발행: CLI 코딩 세션(TTL-Work_rev2, session_011kqZojB5KVspmMgAZ4rZ89). Simon 목표(원문):
-> "폰 앱과 똑같이 동작하게 localhost를 변경해. 그리고 이 워크트리에서 작업하는 모든 세션이 공통으로,
-> 필수로 알게해. 앱과 localhost는 같은 s/w여야 한다고. 그리고 localhost를 수정하면 앱에도 무조껀 동일하게 변경하라고."
-
-- **무엇이 달랐나(실측).** ① 저녁까지 Simon 이 보던 localhost 는 Codex 워크트리의 개발 서버였다(기반 `287e56f1` + 미커밋 586개, 그중 104개는 main 쪽이 더 새것, `.env` 등급 강제).
-  ② 22:58 에 다른 세션이 Simon 요청("localhost 띄워줘")으로 `.worktrees/localhost-main`(main `235c56bf`, detached)에서 띄운 서버는 코드는 폰 APK 와 앱 경로 차이 0 이었다. 그러나 TTL-Work_rev2 의 `.env` 를 복사해 와서 `EXPO_PUBLIC_FORCE_TIER=brain` 이었고 개발 모드(`expo start --web`)였다. 폰 APK 는 `off` · 릴리스다.
-- **한 일.** [#1928](https://github.com/Simon-YHKim/2nd-B/pull/1928) 에서 `scripts/app-parity.cjs`(+테스트)와 `npm run localhost` · `web` · `app:parity` · `app:qa-release` 를 추가했다. 폰 APK 빌드 env 를 워크플로에서 읽고, `.env` 를 무시하고, 릴리스 모드와 전용 Metro 캐시로 띄운다. 8081 은 폰 QA APK 와 앱 경로가 다르면 거부한다.
-  문서는 네 곳을 고쳤다: `CLAUDE.md` 맨 위 규칙 절, `AGENTS.md` 전제, 두 파일 QA 절의 "`.env` 에 FORCE_TIER" 안내 교체, `docs/ANDROID-BUILD.md` 의 QA pre-release 예외.
-- **8081 교체(23:04 KST).** 띄운 세션(ttl-work-rev2-3a)의 동의를 받고 pid 43596 을 멈췄다. 같은 localhost-main 에서 새 스크립트로 다시 띄웠다. WMI 로 띄워 세션이 끝나도 산다. 로그는 `E:\2ndB\.git\app-parity\localhost-8081.log`, 기록은 같은 폴더의 `localhost-8081.json` 이다.
-  localhost-main 의 복사본 `.env` 는 지웠다. 원본은 TTL-Work_rev2 에 그대로 있다.
-- **검증.** 헤드리스 크롬으로 열었다: 로그인 화면, `__DEV__=false`, 번들 요청 `dev=false&minify=true`, 콘솔 오류 0.
-  번들에 박힌 값은 `FORCE_TIER "off"` · `ALLOW_DEV_TIER "false"` · `LLM_MODE "live"` · `ENABLE_ADS "true"` 이고 AdSense 는 없다.
-  폰 APK 런 36447786361 의 CI 로그와 EXPO_PUBLIC 30개를 대조해 29개가 일치했다. 나머지 anon 키는 로그에서 `***` 로 가려져 있어서 APK Hermes 번들에서 같은 값을 확인했다. `app:parity` 결과는 **같음**(종료코드 0)이다.
-  `npm run verify` 는 25단계 통과, jest 는 846/847 이었다. 남은 1개(`approved-avatar-app`)는 #1926 이전에 받은 CRLF 체크아웃 탓이었고, 두 파일을 다시 받자 4/4 통과했다. 새 테스트 12개는 변이 3종을 모두 잡았다.
-- **알게 된 함정.** `expo start --localhost` 는 `::1` 에만 뜬다. 127.0.0.1 로 여는 도구는 못 붙고 브라우저는 붙는다. 그래서 그 플래그는 뺐고, 포트 검사는 두 주소를 다 본다.
-  Metro 기본 캐시(`os.tmpdir()/metro-cache`)는 모든 워크트리가 같이 쓴다. 그래서 localhost 서버에는 전용 임시 폴더를 준다.
-  HANDOFF 맨 위에 블록을 얹으면 법무 문서의 줄 번호 인용이 밀린다. CI 에서 DPIA:683 의 `HANDOFF.md:331,486` 이 빈 줄을 가리켜 빨강이 났다. 원문이 있는 닫힌 보관 파일 `ARCHIVE-2026-05-25_to_2026-06-16.md:561,716` 으로 옮겼다.
-- **다음 1개.** 이 PR 이 머지되면 `package.json` 변경으로 android-release 빌드가 돈다. `npm run app:qa-release` 로 새 QA APK 를 올리고, localhost-main 을 그 커밋으로 옮겨 8081 을 다시 띄운 뒤, Simon 에게 APK 링크를 준다.
-  그 전까지 8081(`235c56bf`)과 폰 APK(`2fab54f0`)는 앱 경로 차이 0 이라 같은 앱이다.
-
----
-
-## 2026-09-29 22:34 / 방침 v5·0208 운영 확인과 10-05 계약 Draft 정합화
-
-- main `2fab54f0`의 [#1925](https://github.com/Simon-YHKim/2nd-B/pull/1925)는 09-29 개인정보처리방침 v5와 `email-v6`을 반영했다. 운영 0208은 00:53 KST 적용돼 원장 181행, 기존 v4·v5와 새 v6의 `status`가 ready다. 웹 [게시 run 36448554124](https://github.com/Simon-YHKim/2nd-B/actions/runs/36448554124) 뒤 공개 `/privacy-policy`에서 09-29 시행일과 선택 아바타·상세 프로필 항목을 확인했고, 인앱 공지 `ff1da0ea-21bd-4261-86f8-b95c3bec387a`도 발행됐다. 근거: `.bots/relay/outbox/claim-prod-mig-0208.coding.result.md`.
-- [QA APK `qa-260929-2fab54f0`](https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-260929-2fab54f0)는 arm64, `com.simonk.secondbrain` 0.9.0이며 다운로드 SHA-256이 릴리스 체크섬과 일치한다. 이 PC의 연결 Android 기기는 0대라 설치·실기기 GUI 검증은 미실행이다.
-- **[#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)는 계속 Draft·미병합.** 02:2x 아래 역사 블록의 `email-v6`=10-05×3 설명은 #1925 이후 무효다. 10-05 계약은 `email-v7`=(동의 10-05 / 방침 09-29 / 약관 10-05)로 고치고, 운영 `email-v6`와 방침 v5의 아바타·상세 프로필 문구를 보존한다. 캐릭터 `2nd-B` 태그도 유지한다. 0194 서비스 동의는 운영 미적용이며 새 SQL·Edge보다 먼저 계약과 적용 순서를 검증한다.
-- Play 데이터 보안 Revision 2는 아직 콘솔 제출 증거가 없다. Simon의 별도 Chrome for Testing 로그인 완료 알림 뒤 현재 폼·대기 변경을 읽고 수정한다. 광고 ON·스토어 공개는 별도 게이트를 따른다. 결제 전환은 `claim-paddle-session-ownership-13` 소유 세션과 중복 실행하지 않는다.
-- 재개: `git fetch origin main` → `git show origin/main:docs/HANDOFF.md`. 다음 순서: #1902 계약·CI 수리, Play Console GUI 확인, APK 실기기 QA. 이 블록은 09-29 22:34 KST의 확인 범위다.
-
----
-
-## 2026-09-28 21:0x / 워크트리 작업 전부 통합 — 아바타(0206·0207 운영 적용) · 관측소 2차 · QA 도구 → 폰 테스트용 APK
-
-> 발행: CLI 코딩 세션(TTL-Work_rev2). Simon 19:3x(폰): "너가 직접 진행해. 승인할께 … 현재의 워크트리에서 작업된 모든 내용을 종합 통합 … APK 파일 하나" + "워크트리상에 작업한것은 놓치지 말고 모두 적용해." DECISIONS 26.09.28 19:3x · 20:5x.
-
-**지금까지**
-- 워크트리 51개를 **내용 기준**으로 전수 분류했다(squash 머지 때문에 '앞선 커밋' 수는 믿을 수 없다). 30개는 이미 main 에 있었다.
-- 통합 PR: #1900(광고 보상 삭제 SQL 회귀 테스트) · #1899(Play 데이터 보안 vc56 QA 문서) · #1919(공유 워크트리의 캡처 스크립트 + 합성 인물 QA 보고서, README 동작 설명 갱신) · **#1921 아바타**(Codex 10커밋 + 0206/0207 승격 + 첫 설정 '나중에') · **이 PR 관측소 2차**.
-- **운영 마이그레이션 0206 `users.avatar_spec` · 0207 `GRANT UPDATE (display_name)`** 적용(20:36, 원장 178→180). authenticated UPDATE 열이 정확히 6개(avatar_spec · birth_date · display_name · privacy_prefs · profile_details · reasoning_prefs), anon 0, 표 단위 UPDATE 없음, 정책 md5 불변. 결과 `.bots/relay/outbox/claim-prod-mig-0206-0207.coding.result.md`.
-- 아바타 첫 설정: Codex 판은 기존 계정 전원을 출구 없는 설정 화면에 가뒀다 → 언제든 나갈 수 있게(뒤로 · "나중에", 세션 동안 미룸) 고쳤다. 처리방침 "프로필(선택)… 이용 제한 없음" 과 맞춘 것.
-- **관측소 2차**(원본: `avatar-observatory-integration-260928` 미커밋 586경로, Codex): 새 파일 115 · 수정 61 이식 · 낡은 사본 64 제외. 두 탭 휴대전화 대시보드(DashboardPhone), 주머니 폰(PocketPhone), 휴대전화 미니앱 그림 31 PNG + 폰 3장, 망원경 조작부 개편, `/data-connections`, 대시보드 규칙(`src/lib/dashboard/*`). 독립 검토: 누락 0 · main 되돌림 0(PolaScope · #1883 · #1904 · #1912 줄 전부 유지). CameraCue 는 낡은 사본이라 뺐다(옮기면 셔터음 두 번).
-- 원본 워크트리(Codex 두 곳 · TTL-Work_rev2)는 **읽기만** 했다. 8081 · 8082 개발 서버도 그대로다.
-
-**통합하지 않은 것(이유)**
-- #1814 · #1839 · #1889: S3 서버 계약(삭제 의도 대기열 · 업로드 세대)이 main 에 없다. #1814 는 로그인 잠금 회귀(G7A-1814-2)를 안고 있다. 재료로 보존.
-- #1902: 10-05 약관 묶음(어긋남 둘은 별도 알림).
-- reward-ledger-retention: 채택되지 않은 'memo 만 지움' 안(0202 번호 충돌).
-- 정본 체크아웃 미추적 19파일(봇 운영 문서): 공개 저장소인데 제3자 연락처 · 구독 결제 일정이 있다 → **Simon 결정**.
-- TTL-Work(771 미커밋): 09-13 구제본이 있고 처분은 Simon 몫. 단 0178 · 0179 를 호출하는 앱 코드가 여기에만 있다(재구현 여부 결정 필요).
-- 처분 후보(지우지 않음): brand-meta(.tmp-og-render 안 브라우저 프로필) · qa-integration(임시 서버 · zip) · observatory-260925(avatar-observatory 에 흡수됨) · reward-ledger-retention.
-
-**다음 1개**: main 머지 → `android-release.yml` 진단 APK(arm64) → QA pre-release `qa-260928-<sha8>` → Simon 폰 설치(기존 앱 먼저 삭제 — 서명이 다르다).
-
-**후속**
-1. `docs/ASSETS.md`: 휴대전화 미니앱 그림 팩의 생성 도구 · 사용 권리 **Simon 확인**(배포 전 게이트).
-2. 처리방침 §1 프로필(선택)에 "아바타 설정" 추가 — 다음 방침 판본에서.
-3. `src/components/dashboard/phone-apps.ts` 는 이제 자기 테스트만 쓴다(새 DashboardPhone 이 대체) — 정리 여부.
-4. `src/lib/avatar/{engine,renderer}.js` 가 Windows(autocrlf) 체크아웃에서 CRLF 로 풀려 `approved-avatar-app.test` 가 로컬에서만 실패한다 — `.gitattributes` 에 `eol=lf` 권장(CI 는 초록).
-5. CLAUDE.md 의 `ConstellationHome.tsx:85` 인용이 87 로 밀렸다(법무 인용 아님).
-
----
-
-## 2026-09-28 11:44 / 공용 셰어 보류 · 개인 팔레트/갤러리
-
-> Simon 정정: 공용 공유만 보류하고 개인 갤러리는 유지한다. 현재 범위: [아바타 팔레트 보고서](qa/AVATAR-PALETTE-260928.html). 바로 아래 10:53 아바타 셰어 블록은 결정 이전의 역사 기록이다.
-
-- 휴대전화 진입은 `/avatar-palette`로 바꾼다. 로그인한 사용자가 64×64 투명 격자와 16색 팔레트로 머리·소품·옷을 그린다. 기본 아바타 가이드, 확대·이동, 격자, 지우개, 마지막 그리기 되돌리기와 임시 합성 미리보기를 제공한다. 미리보기는 프로필 아바타에 적용하지 않는다.
-- 계정별 개인 갤러리에 슬롯과 무관하게 작품 최대 30개를 저장하고 열기·다시 편집·삭제한다. 기존 슬롯별 초안 최대 3개는 갤러리로 이전한다. 네이티브는 암호화 저장소, 웹은 계정별 `localStorage`이며 기기 간 동기화는 없다. 읽기 실패 시 빈 갤러리로 덮어쓰지 않고 계정 삭제 시 로컬 작품을 정리한다.
-- 공용 업로드·공용 갤러리·타인 작품 가져오기·신고·차단·판매 및 공유 서버 SQL 초안은 제거한다. 첫 프로필 설정·첫 번째 별 편집과 별도 `users.avatar_spec`·표시 이름 SQL 초안은 유지한다. 운영 DB에는 새 변경을 적용하지 않았다.
-- 검증: `npm run verify` 전체 게이트·Jest 836 suites / 10,851 tests, `npm run verify:web` 130개 정적 문서 통과. 마지막 UI 수정 후 lint·type-check·화면 집중 테스트도 재통과. Android 연결 기기는 없어 손가락 그리기와 스크롤 충돌·성능은 아직 확인하지 못했다.
-
----
-
-## 2026-09-28 10:53 / 첫 아바타 설정 · 프로필 편집 · 아바타 셰어
-
-> 브랜치: `codex/avatar-style-regeneration-260928`. 화면과 공개 전 순서: [아바타 셰어 완료 보고서](qa/AVATAR-SHARE-260928.html).
-
-- 새 프로필 완료 직후 아바타 스튜디오로 이동한다. 기존 계정도 `users.avatar_spec`이 실제 `NULL`이면 첫 저장까지 앱 진입을 붙잡는다. 읽기 실패는 세션 내 탈출 경로를 둔다. 첫 번째 프로필 별에서 표시 이름·생활 정보와 아바타를 다시 편집한다. 스튜디오에서 셰어로 갈 때는 미저장 선택을 먼저 저장한다.
-- 휴대전화에 `/avatar-share`를 추가했다. 성인 계정은 64×64 고정 팔레트 픽셀로 머리·옷·소품을 그리고 제출한다. 제출은 pending, 서비스 역할의 운영 검토 후 승인품만 갤러리/개인 아바타에 사용한다. 신고(에셋·제작자), 차단, 삭제, 24시간 제출 한도, 30개 보유 상한과 계정 삭제 등록부 초안을 넣었다. 타인의 그림은 픽셀만 렌더링하고 승인·노출 여부를 다시 확인한다.
-- 서버 초안 `UNNUMBERED_users_avatar_spec.sql`, `UNNUMBERED_users_display_name_update.sql`, `UNNUMBERED_avatar_share.sql`, `UNNUMBERED_avatar_share_erasure_registry.sql`은 **운영 미적용**. 격리 PostgreSQL 18에서 RLS/연령/동시 제출/신고 자동 숨김을 실행 확인했고 임시 DB 서버는 정지했다. 운영 검토자와 신고 대응 절차, 약관·재사용 문구를 확정해야 공개할 수 있다.
-- 검증: `npm run verify` 전체 게이트·Jest, `npm run verify:web` 정적 웹 문서 130개, 아바타 에셋·픽셀 규칙, 캐논 미러 및 디자인 참조 검사 통과. Android 실기기에서 그리기 제스처와 SVG 비용은 미측정.
-- 다음 순서: 콘솔 소유 세션이 최신 SQL 번호 예약 → 서버 적용 → 실계정 RLS 및 검토 작업 흐름 확인 → Android 기기 QA → 앱 공개. 수익화는 무료 기본 공유의 사용량·신고 비용을 먼저 보고, 편집 편의 기능 또는 별도 제작자 라이선스 계약을 나중에 검토한다.
-
----
-
-## 2026-09-28 09:49 / 승인 아바타 144종 앱 연결 · 공개 전 서버 순서
-
-> 브랜치: `codex/avatar-style-regeneration-260928`. 전체 결과: [아바타 앱 연결 보고서](qa/AVATAR-APP-INTEGRATION-260928.html).
-
-- 사용자 승인 64셀 카탈로그 144개를 React Native 앱의 `/avatar-studio`와 `/profile`에 연결했다. PNG는 선택지 예시이고 실제 조합은 승인 생성기와 렌더러가 그린다. 사람·동물 모두 일반 옷 6종을 선택하며, 직업 의상은 실제 직업 텍스트를 바꾸지 않는다.
-- `users.avatar_spec`은 사용자 본인 행에 저장하는 번호 없는 SQL 초안이다. 앱 조회·저장은 구현됐고 SQL 초안의 재적용·권한·본인 RLS·형식 제약은 CI scratch PostgreSQL 단계에 등록했다. 운영 DB에는 **미적용**이다.
-- `npm run verify`: 828 suites / 10,810 tests 통과. `npm run verify:web`: 129개 정적 문서와 새 경로 통과. 144 PNG · 8픽셀 그리드 · 2,892 조합 · 프로토타입 동기화 검사 통과. 연결된 Android 기기는 없어 기기 반응성·메모리 실측은 미실행.
-- **다음 순서**: 콘솔 소유 세션이 최신 번호를 예약·push하고 초안을 운영에 적용 → 실제 `has_column_privilege`와 본인/타인 RLS를 확인 → 첫 웹 게시·OTA·네이티브 빌드 전에 Android 기기에서 편집·저장·재진입을 확인한다. 서버 선행 증거 없이 공개하지 않는다.
-
----
-
-## 2026-09-28 07:5x / PolaScope 마무리 — 기록 누락 정리 · 10-05 단일 목록 · 메일 제목 Draft #1917 · #1902 어긋남 알림
-
-> 발행: CLI 코딩 세션(TTL-Work_rev2, PolaScope). 근거: 읽기 전용 감사 2레인(07:22~07:31 KST) · DECISIONS 26.09.28 01:5x · 07:5x.
-
-**지금까지**
-- **#1912(내보내기 쿨다운 안내, Q-07)는 02:16:25 에 머지됐지만 라이브 웹에는 없다.** 웹 게시(02:15:29)보다 56초 늦었다. 라이브 번들에서 `export_cooldown` 0건(07:2x 실측). 다음 웹 게시와 새 네이티브 빌드에 실린다. 01:2x 블록 '막힌 것 1'(쿨다운 안내를 무엇으로 할지)은 이걸로 닫는다.
-- Simon 01:5x 가 Q-06~08 을 맡겼다(DECISIONS 01:5x): Play 최종 게시는 Google 승인 뒤 코딩 세션이 누른다(게시 준비됨이 이름 변경 2건뿐일 때) · ASC 부제 = "Self-understanding from notes" · GUI 는 **Simon 크롬(Claude in Chrome)만**. 이 세션에는 크롬 도구가 붙지 않아 둘 다 대기다.
-- 병기 안내(#1905)는 라이브에 있다 — 번들 `renameNote` 7건. 인앱 공지 `53a0c132` 는 withdrawn_at 없이 살아 있다(07:24 조회).
-- 조종 크롬 정리: 02:1x 메모리 부족으로 조종기가 멈추며 창이 닫혔고, 긴 경로 프로필(227MB)을 지웠다. ASC 용 짧은 경로 프로필은 01:36 에 지웠다. 로그인 세션 잔존 없음. 스크립트 `driver2.mjs`·`run2.mjs` 는 다른 세션 재사용을 위해 남겼다.
-- **#1902(10-05 초안, 다른 세션 · 소유 세션 미확인) 어긋남 둘**: 캐릭터 태그 2nd-B→SecondB(결정 23:2x 는 "그대로") · 개인정보처리방침 시행일 10-05(공지 `53a0c132` 에 방침은 0회). `relay/inbox/pr1902-decision-mismatch-260928.note.md` + ttl-work-rev2-f6 가 #1902 댓글로 전달. 방침 본문에는 앱 이름이 0회라 **방침을 09-28(v4)로 두면 공지 없는 개정이 생기지 않는다**.
-- main HANDOFF 02:2x 블록이 링크한 `docs/qa/POLASCOPE-RELEASE-260928.md` 는 #1902 브랜치에만 있다 — main 에서는 깨진 링크.
-- 메일 제목 Draft **#1917**: `supabase/config.toml:42,52` `[2nd-Brain]`→`[PolaScope]`. 10-05 머지, 같은 날 Simon 이 대시보드 값을 바꾼다(`supabase config push` 금지).
-- 교훈: #1912 는 es/pt/id `consent.json` 에 번역을 넣어 `check:safety-consent-locale`(F2)에 떨어졌다가 en 사본으로 고쳤다 — 로케일을 건드리면 `check:*` 전부를 돌린다.
-
-**10-05 적용일 단일 목록** (흩어져 있던 00:1x · 00:4x 블록 · #1903 설명 · 보고서 표를 한 곳에 모았다)
-
-| # | 항목 | 담당 | GO | PR |
-|---|---|---|---|---|
-| 1 | 약관·동의 개정(제1조 PolaScope · TERMS/CONSENT 판본 · email-v6 튜플) + 병기 안내·`rename-note.test.ts` 제거 | #1902 소유 세션 | Simon(운영 SQL) | #1902 Draft — **어긋남 둘 먼저 해소** |
-| 2 | 메일 제목 2개 | 코딩 #1917 + Simon 대시보드 | Simon | #1917 Draft |
-| 3 | 웹 게시(#1912 쿨다운 안내 포함) | 게시 담당 세션 | Simon Production 승인 | — |
-| 4 | `app.json` expo.name + 새 네이티브 빌드(홈 화면 이름) | 코딩 | Simon | #1902 포함 여부 확인 |
-| 5 | 로그인 동의 화면 이름(Google · Kakao · Naver · Apple) | Simon 콘솔(크롬) | Simon | — |
-| 6 | Paddle 상품명 · 카드 명세서 표시 이름(적용일 **전** 권장) | 결제 전환 세션 + Simon 콘솔 | Simon | — |
-| 7 | 놓친 옛 이름 4곳(THIRD_PARTY_NOTICES 제목 · id `systemHint` · site-meta 주석 · 공개 proto) | #1902 안 | — | #1902 |
-| 8 | (날짜 무관) Play 최종 게시 Q-06 · ASC 부제 Q-08 | 코딩(Simon 크롬) | 결정됨 | — |
-
-**다음 1개**: Simon 이 이 세션에 크롬 연동을 켠다(`/chrome`, 안 되면 `claude --chrome --resume`) → ASC 부제 입력, Play 승인 여부 확인.
-
-**막힌 것**
-1. Claude in Chrome 도구가 이 세션에 없다(확장은 Simon 크롬에 설치됨).
-2. Play 데이터 보안 Revision 2 가 먼저 제출되면 게시 준비됨 목록이 섞여 Q-06 조건이 깨진다 — 순서 주의.
-3. #1902 방침 날짜: 09-28 유지(권장) 또는 10-05 유지 + 오늘 새 공지(운영 쓰기, Simon 결정).
-
----
-
-## 2026-09-28 02:2x / 10-05 PolaScope 동의 Draft·SQL 검증
-
-- [PR #1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)는 **2026-10-05 적용일까지 Draft**다. 운영 0203의 `email-v5`(09-07 동의 / 09-28 방침 / 08-16 약관)를 보존하고, 새 가입 `email-v6`(세 판본 모두 10-05)·`service-v2`를 별도 계약으로 준비했다. 기존 원장 영수증을 고치지 않는다.
-- 번호 없는 forward SQL 초안은 **운영에 미적용**이다. 일회용 PostgreSQL에서 신·구 가입·서비스 동의·CAS·ACL을 실제 실행하는 PR SQL CI run `36336770728`이 통과했다. 최신 main #1912 통합 뒤 로컬 `npm run verify -- --runInBand`는 824 suites / 10,759 tests 통과. PR 일반 CI는 최종 push 기준으로 확인한다.
-- 다음 서버 작업은 10-05 적용일과 최종 법률문서를 확인한 뒤 초안을 최신 번호로 승격하고, 콘솔 소유 세션의 운영 적용·Edge 신/구 `status` 카나리아를 마치는 것이다. 그 전에는 #1902 병합·공개를 하지 않는다. 자세한 순서는 [배포 게이트](https://github.com/Simon-YHKim/2nd-B/blob/fix/polascope-web-260927/docs/qa/POLASCOPE-RELEASE-260928.md).
-- 별도 GUI 잔여: Play 데이터 보안 Revision 2 제출은 Simon의 Play Console 로그인 완료 알림을 기다린다. 결제 전환 3단계 이후는 `claim-paddle-session-ownership-13` 소유 세션이 담당한다. 이 두 작업의 상태를 #1902 계약 적용과 혼동하지 않는다.
-
----
-
-## 2026-09-28 02:1x / 방침 v4(공지형) 운영 반영 · 웹 게시(PolaScope) · 방침 공지
-
-**목적**: Simon 01:1x "남은 작업 진행(승인함), GUI 도" — Grok 봇 사용량 소진으로 코딩 세션(ttl-work-rev2-f6)이 운영 적용 · 게시 · Production 승인을 대행했다. PolaScope 세션(ttl-work-rev2-7b)과 역할을 나눴다(콘솔 이름 · export 는 그쪽).
-
-**지금까지**
-- **#1909** 방침 v4 = 공지형 개정(Simon 00:4x): 본문(Gaius v4, buy · r90 · r90x 뺌) · `PRIVACY_POLICY_VERSION=2026-09-28` · `email-v5` · **0203**(가입 계약 v5 + LLM 동의 현재 = v4·v5, 판정은 사용자당 한 줄) · 0194 수정(운영 미적용) · `check-definer-grants` 해시 **집합**(0191·0203). 검토는 새 문맥 **같은 벤더** 검토자 PASS(교차 벤더 Relay 불가).
-- **0203 운영 적용 01:35**: 원장 175→**176**, 지문 적용 전 `af24e78e…` / 적용 뒤 `0a1534bb…` = 로컬 운영 재현본.
-- **#1904** FCM 자동 등록 끄기 머지(다음 네이티브 빌드에 실림). **#1911**(Codex 세션 PR, app.json 웹 이름) 넘겨받아 머지 — ⚠ `expo.web.name` 도 Expo **지문 소스**다(Android `14c874c6→337f773a`). OTA 는 이미 #1904 로 vc56 런타임에서 벗어났다.
-- **웹 게시 02:15:29 KST**: 런 36335857143, main `57ddc0db`, 승인은 Simon 지시로 코딩 세션. 라이브 제목 · og · manifest = PolaScope, 방침 시행일 09-28, 번들 `email-v5`.
-- **방침 원격 공지** 02:16:46: notices `721ae87c-8699-4174-86fd-1a4ea6584d1b`(major).
-
-**다음 1개**: Simon 이 이 코딩 세션에 **Claude in Chrome 연결**(`/chrome`, 확장 설치) → 결제 전환 3단계(바인딩 시크릿)부터 GUI 진행.
-
-**막힌 것**
-1. 결제 전환 3·5·6·7·11단계는 Supabase · Paddle 대시보드 GUI. Playwright 로 띄운 별도 크롬은 Google 로그인이 막혔다(Simon 확인). CLI 에서 computer use 는 Windows 미지원(Desktop 앱만).
-2. Play 데이터 보안 Revision 2 제출(방침 게시일과 같은 날) — Play Console GUI.
-3. 보관 · 삭제 구조(B1~X1 · 카드 정보 · 등록부 문구) — 등록부 가드가 과거 행 변경을 막아 가드 설계부터. 급하지 않다(방침에서 해당 문장은 뺐다).
-
-**함정**
-- 웹 게시는 두 단계다: 같은 SHA 의 push(build-only) 빌드 로그에서 `PUBLIC_CONFIG_SHA256` · `ARTIFACT_CONTENT_SHA256` 을 얻어 `publish:<sha>:<cfg>:<art>` 로 디스패치. 빌드~승인 사이 main 이 움직이면 죽으므로 다른 세션과 창을 맞출 것.
-- 같은 Simon 지시가 두 코딩 세션에 동시에 갈 수 있다 → 운영 쓰기 전 버스 claim 과 `ListAgents`/SendMessage 로 분담부터.
-
-## 2026-09-28 01:4x / 콘솔 3곳 앱 이름 PolaScope 완료 — Play 는 검토 중(최종 게시는 Simon)
-
-> 발행: CLI 코딩 세션(TTL-Work_rev2). DECISIONS 26.09.28 01:3x(코디네이터 판단). 결과: `.bots/relay/outbox/console-rename-polascope.coding.result.md`.
-
-**지금까지**
-- Grok 봇 사용량 소진(Simon 01:1x) → 코딩 세션이 Playwright 파이프 제어 크롬으로 직접 했다. 로그인 · 2FA 는 Simon 본인. Relay 요청서에 인수 claim.
-- **AdMob**: `2nd-B Android` → `PolaScope Android`, `2nd-B iOS` → `PolaScope iOS`(내부 이름, 플랫폼 접미사 유지). 새로고침 뒤 값 확인.
-- **Play**(`com.simonk.secondbrain`, en-US 하나): 이름 `2nd-Brain: Self Knowledge` → `PolaScope`, 자세한 설명 속 이름 1곳 교체. 대기 변경 2건뿐임을 보고 **검토 전송** → "검토 중인 변경사항".
-- **App Store Connect**(`6792266942`, 영어(미국) 하나): 이름 `2nd-Brain: Self Knowledge` → `PolaScope`. 새로고침 뒤 이름 칸과 머리 제목 확인. 부제는 원래 빈칸.
-- 함정: 조종 크롬 프로필을 긴 Temp 경로에 두면 **CacheStorage 가 전 사이트에서 실패**하고 ASC 는 로그인 뒤 흰 화면이다(API 는 200). 짧은 경로(`%LOCALAPPDATA%` 아래) 프로필로 새 창을 띄워 해결했고, 그 창은 닫고 프로필을 지웠다.
-
-**다음 1개**: Play 검토가 통과하면 Simon 이 게시 개요에서 최종 "게시"를 누를지 정한다(관리형 게시).
-
-**막힌 것**
-1. ASC 부제(빈칸) · Play 간단한 설명은 이번 범위 밖이다. 정본은 `docs/store-copy/drafts.json`(appStoreSubtitle 5개 언어)이다.
-2. 첫 조종 크롬 창(긴 경로 프로필)은 Simon 이 다른 탭에서 쓰는 중이라 열어 두었다. Simon 이 닫으면 프로필 폴더를 지운다.
-
----
-
-## 2026-09-28 01:2x / 상담 "써도 된대" · export-account 재배포 완료(카나리아 통과) · 콘솔 이름은 코딩 세션이 직접
-
-> 발행: CLI 코딩 세션(TTL-Work_rev2). DECISIONS 26.09.28 00:3x(Simon). PR #1908.
-> 보고서: "PolaScope 적용 현황" <https://claude.ai/artifact/UZei9vfkSSkLCFMjkgLeiv>
-
-**지금까지**
-- Simon(00:3x): "1. 써도 된대. 2. 최대한 빨리 3. 너가 바꿔줘." → 무료 변리사 상담 결과 PolaScope 사용 가능(상담 세부는 기록 없음) · export-account 즉시 재배포 · 콘솔 이름 변경을 코딩 세션에 맡김.
-- 사전 점검(읽기 전용 2레인, 00:40~00:55 KST): 운영 스키마 46/46 present · 설치 앱 4판(v0.7.0 · v0.8.0 · QA APK · 라이브 웹 557f2c02) 호환 · blocker 0. 남은 위험은 `claim_account_export` 의 운영 첫 실행이었다.
-- **export-account 재배포**: 런 36331196441(main `f1aa4f14`), Simon Production 승인, **01:17 KST success**. 스키마 게이트 "1 function(s), 45 table(s), and 0 column(s) present".
-- **카나리아(QA 계정, 01:18 KST)**: 200 · `content-disposition: attachment; filename="polascope-account-export.json"` · 표 45 · errors 0 · 6.1초.
-  `account_export_rate_limits` 1행 = claim 게이트(`billing_request_role`)가 Edge 키로 통과한다는 첫 실측. 5분 안 재호출은 429 `export_cooldown`(retry-after 278), 웹 Origin 호출도 같은 429 에 ACAO 일치.
-  배포 전 기준선(v129, 00:5x): 200 · 파일명 헤더 없음 · 표 37 · 5.9초.
-- 되돌리기 원본: 운영 v129 = `92cf02d8` 판(08-25 resurface ledger). 워크플로는 main 에서만 배포하므로 되돌리려면 되돌림 PR 이 필요하다.
-- **콘솔 이름(ASC · Play · AdMob)**: Grok 봇 사용량 소진(Simon 01:1x) → 코딩 세션이 Playwright 파이프 제어 크롬(전용 새 프로필, 디버깅 포트 없음)으로 직접 한다. 로그인·2FA 는 Simon 본인. `relay/inbox/console-rename-polascope.note.md` 에 인수 갱신 + `.claim`.
-- 역할 분담(다른 코딩 세션 ttl-work-rev2-f6 과 합의): #1909 · 0203 · **웹 게시** · 방침 공지 · #1904 · Paddle 2~13단계는 그쪽. 이 세션은 웹 게시를 디스패치하지 않는다.
-
-**다음 1개**: Simon 이 2번 모니터 크롬 창에서 Google · Apple 로그인 → 코딩 세션이 AdMob → Play → ASC 이름을 `PolaScope` 로.
-
-**막힌 것 · 달라진 동작**
-1. 쿨다운(300초)이 데이터 읽기 **전에** 소모된다. 실패·공유 시트 취소 뒤 다시 누르면 5분간 실패 문구만 나오고, 옛 APK 문구는 "다시 시도해 주세요"다. `retry_after_seconds` 표시와 재요청 없는 재전달(`export-session.ts` 연결) 중 무엇을 할지 정해야 한다.
-2. 부분 실패 200(표별 errors) → **전체 503**(fail-closed). 표 이름 변경 · 열 삭제 PR 은 export-account 목록을 함께 봐야 한다. 안 그러면 내보내기 전체가 죽는다.
-3. 프로필(`public.users`) 없는 auth 사용자 4명은 이제 503 이다(이전에는 200 빈 내보내기). 내보낼 데이터는 사실상 없다.
-
----
-
-## 2026-09-28 00:4x / PolaScope 공지 발행 · 병기 안내 · 파일명 — 엣지 재배포는 범위 확인 대기
-
-> 발행: CLI 코딩 세션(TTL-Work_rev2). DECISIONS 26.09.28 00:1x(Simon) · 00:2x(코디네이터 판단).
-> 보고서: "PolaScope 적용 현황" <https://claude.ai/artifact/UZei9vfkSSkLCFMjkgLeiv>
-
-**지금까지**
-- Simon 선택(00:1x): 약관 적용일 **2026-10-05(월)** · 공지 2026-09-28 · 공지 발행 GO · 적용일 전 게시 시 병기 안내 먼저 · 내보내기 파일명 polascope-*.
-- **인앱 공지 발행**: 2026-09-28 00:08:25 KST 운영 `notices` major 1건(id `53a0c132-f24a-4ac3-88e5-434a04d86133`, min_app_version NULL). 발행 전 같은 제목 0건 확인.
-  철회가 필요하면 `withdrawn_at` 을 채운다(0114). 로그인 사용자에게만 보인다.
-- **#1905 병기 안내**: 가입 ConsentBlock · ConsentNotice · service-consent · 동의 상세 · 약관 문서 화면에 "PolaScope는 2nd-Brain의 새 이름…" 한 줄.
-  인용 줄보다 뒤에만 넣었다. `rename-note.test.ts` 가 고정하고, 약관·동의 개정 PR 에서 함께 지운다.
-- **23:15 Relay 증명 GO**(이름 변경 뒤 웹 게시, 실행자 Hadrianus)의 조건이 #1903 머지로 채워졌다. `relay/inbox/web-publish-after-renamenote.note.md` 로 **#1905 머지 뒤 게시**를 요청했다.
-- **#1906 파일명**: polascope-data-* · polascope-wiki.md · polascope-iden.json · polascope-routine.ics · polascope-account-export.json. 형식 식별자 `2nd-b-account-export` 는 유지.
-
-**다음 1개**: Simon 무료 변리사 상담(02-525-3476) — "지금 PolaScope 를 써도 되는가".
-
-**막힌 것**
-1. **export-account 엣지 재배포는 디스패치하지 않았다.** 운영은 v129(2026-08-24)이고 main 에는 그 뒤 08-25 원장 표 · 09-13 보안 강화(+601/-152)가 있다.
-   재배포하면 파일명만이 아니라 그 변경 전부가 나간다. 전제 RPC `claim_account_export` 는 운영에 있다. 범위를 보여 주고 Simon GO 를 받은 뒤 `deploy-edge-function.yml`.
-2. 적용일(10-05) 같은 날 묶음: 약관·동의 PR(TERMS_VERSION · CONSENT_VERSION · 서버 계약 마이그레이션 · 제1조 "PolaScope(구 명칭 2nd-Brain)") + 병기 안내 제거 +
-   메일 제목(대시보드 + config.toml) + app.json 표시 이름 + 새 네이티브 빌드 + 로그인 동의 화면 이름. 각각 Simon GO.
-3. 이 블록을 쓰며 09-21 새벽 블록을 `handoff/HANDOFF-2026-09-p2.md` 맨 위로 원문 그대로 옮겼다(p2 16블록).
-
----
-
-## 2026-09-28 00:1x / 앱 이름은 PolaScope 로 확정·적용 — 머지 ≠ 게시, 약관 적용일에 맞춰 공개
-
-> 발행: CLI 코딩 세션(TTL-Work_rev2). Simon 원문 23:2x: "어찌됐거나 누가 뭐라든 지금부터 앱 이름은 PolaScope 이다. 적용해."
-> DECISIONS 23:2x(Simon) · 23:5x(코디네이터 판단) 두 줄.
-
-**지금까지**
-- 브랜치 `feat/app-name-polascope`: 앱 이름 가족 전체(2nd-Brain · 이름으로 쓴 두번째 뇌 · 약칭 2nd-B · 웹/광고 2ndB)를 **PolaScope** 로 바꿨다.
-  로케일 5개 · 웹(SITE_NAME · manifest · landing · og 카드 + `public/og-image.png` 다시 뽑음) · 앱 문구 · LLM 프롬프트 속 자기 이름 · 스토어 초안 · CI 핀.
-  한국어는 라틴 표기에 받침 없는 조사(는/가/를/와/로/란).
-- 검토 세 레인(놓친 곳 · CI · 같은 흐름 충돌) 반영: 한국어 통화 회고 2줄, 캐논 온보딩 태그(한국어 첫 장이 런타임에 읽음), 캐릭터 a11y, 매뉴얼 해시 핀.
-- 일부러 **안 바꾼 것**: 식별자·경로 전부, 캐릭터 가족, `consent.json` · 약관(사전 공지 뒤 별도 PR), 메일 제목(대시보드와 함께),
-  릴리스 파일명, LLM 지식 시드, 내보내기 파일명(`2nd-brain-*`), 개념 태그라인("A second brain built from …").
-- **`app.json` 표시 이름은 이번 PR 에서 뺐다.** expo.name 이 fingerprint 소스라 머지하면 새 빌드 전까지 OTA 가 전부 막힌다. 네이티브 빌드 PR 로 간다.
-- 로컬 검증: jest 876 suites(src/lib 671 · screens+scripts 56 · 나머지 149) 통과 · tsc 0 · eslint 오류 0 · check:* 13종 + constraints FAIL 0.
-
-**다음 1개**: Simon 이 무료 변리사 상담(지식재산처 서울사무소 · 대한변리사회 공익상담 02-525-3476)에서 "지금 PolaScope 를 써도 되는가"(의뢰서 Q4)를 먼저 묻는다.
-
-**막힌 것 · 순서**
-1. **머지 ≠ 게시.** 가입 화면은 PolaScope 인데 동의 문구 · 약관 · 메일 제목은 2nd-Brain 이다. 권고 순서:
-   인앱 공지(D0, 운영 쓰기 GO) → 적용일 D+7 에 약관·동의 PR(TERMS_VERSION · CONSENT_VERSION · 서버 튜플 마이그레이션) + 웹 게시 + 새 네이티브 빌드(app.json 이름 포함) + 콘솔 이름들을 같은 날.
-   그 전에 게시해야 하면(결제 전환의 웹 게시 단계 등) 가입 흐름에 '구 2nd-Brain' 병기 안내를 먼저 넣는다.
-2. 콘솔 이름 변경(각 Simon GO): ASC 앱 이름 · Play 등록정보 · AdMob · Google/Kakao/Naver/Apple 로그인 동의 화면 · Supabase 메일 제목(+config.toml) · Paddle 상품명·명세서 표시.
-3. 이미 기기에 예약된 루틴 알림 제목은 '2nd Brain' 으로 남는다(루틴을 다시 저장하면 바뀐다).
 
 ---
 

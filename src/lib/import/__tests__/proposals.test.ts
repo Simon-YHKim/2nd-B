@@ -1,4 +1,5 @@
-import { buildProposals, proposalsToMarkdown } from "../proposals";
+import { eventWhen } from "../event-when";
+import { buildProposals, calendarEventsOutcome, proposalsToMarkdown } from "../proposals";
 
 describe("buildProposals (propose, derived-only)", () => {
   test("kakao → appointment proposals (sensitive), summary counts", () => {
@@ -10,7 +11,37 @@ describe("buildProposals (propose, derived-only)", () => {
     expect(summary.appointments).toBe(1);
     expect(summary.raw).toBe(0);
     expect(proposals[0].sensitive).toBe(true);
-    expect(proposals[0].sub).toContain("캘린더");
+    expect(proposals[0].sub).toContain("record");
+  });
+
+  test.each([
+    ["kakao", "2024년 1월 5일 오후 3:42, 수민 : 내일 3시에 만나자 SECRET_KAKAO_BODY"],
+    ["sms", '<smses><sms address="01012345678" date="1704430920000" type="1" body="내일 3시에 만나자 SECRET_SMS_BODY" /></smses>'],
+  ] as const)("%s proposal and saved markdown never retain message text", (kind, content) => {
+    const outcome = buildProposals(kind, content, "ko");
+    expect(outcome.summary.appointments).toBe(1);
+    expect(outcome.proposals).toHaveLength(1);
+    expect(outcome.proposals[0].sensitive).toBe(true);
+    expect(outcome.proposals[0].label).toBe("약속 신호 1건");
+    const serialized = JSON.stringify(outcome);
+    const markdown = proposalsToMarkdown(kind, outcome.proposals, "ko");
+    expect(serialized).not.toContain("SECRET_");
+    expect(markdown).not.toContain("SECRET_");
+    expect(markdown).not.toContain("내일 3시에 만나자");
+    expect(serialized).not.toContain("01012345678");
+    expect(serialized).not.toContain("수민");
+  });
+
+  test("multiple plan messages become one ratifiable count, with no message text", () => {
+    const content = [
+      "2024년 1월 5일 오후 3:42, 수민 : 내일 3시에 만나자 PRIVATE_ONE",
+      "2024년 1월 5일 오후 3:43, 수민 : 모레 4시에도 볼까 PRIVATE_TWO",
+    ].join("\n");
+    const outcome = buildProposals("kakao", content, "ko");
+    expect(outcome.summary.appointments).toBe(2);
+    expect(outcome.proposals).toHaveLength(1);
+    expect(outcome.proposals[0].label).toBe("약속 신호 2건");
+    expect(JSON.stringify(outcome)).not.toMatch(/PRIVATE_(ONE|TWO)/);
   });
 
   test("takeout location → place proposals", () => {
@@ -66,6 +97,11 @@ describe("buildProposals (propose, derived-only)", () => {
 
   test("markdown that is only whitespace → 0 proposals (hub shows the format error)", () => {
     expect(buildProposals("markdown", "  \n\n  ").proposals).toEqual([]);
+  });
+
+  test("markdown note bodies follow the 4,000-character limit shown before import", () => {
+    const { proposals } = buildProposals("markdown", `# Note\n${"a".repeat(4001)}`);
+    expect(proposals[0].body).toBe("a".repeat(4000));
   });
 });
 
@@ -166,5 +202,42 @@ describe("이메일 제안 · 제3자 보호", () => {
     const out = buildProposals("email", eml("점심 약속"));
     const p = out.proposals.find((x) => x.id === "email-0");
     if (p) expect(p.sensitive).toBe(true);
+  });
+});
+
+describe("calendar events keep their time (eventWhen)", () => {
+  // Timed events read in local time, so the inputs are built in local time too.
+  const local = (y: number, mo: number, d: number, h: number, mi: number) => new Date(y, mo - 1, d, h, mi).toISOString();
+  const event = (startIso: string | null, endIso: string | null, allDay: boolean) => ({ title: "x", startIso, endIso, allDay });
+
+  test("timed: same day, across midnight, no end", () => {
+    expect(eventWhen(event(local(2026, 10, 2, 14, 0), local(2026, 10, 2, 15, 30), false))).toBe("2026-10-02 14:00~15:30");
+    expect(eventWhen(event(local(2026, 10, 2, 23, 30), local(2026, 10, 3, 1, 0), false))).toBe("2026-10-02 23:30~10-03 01:00");
+    expect(eventWhen(event(local(2026, 10, 2, 9, 5), null, false))).toBe("2026-10-02 09:05");
+  });
+
+  test("all day: read in UTC, the end date is exclusive", () => {
+    expect(eventWhen(event("2026-10-02T00:00:00.000Z", "2026-10-03T00:00:00.000Z", true))).toBe("2026-10-02");
+    expect(eventWhen(event("2026-10-02T00:00:00.000Z", "2026-10-05T00:00:00.000Z", true))).toBe("2026-10-02~10-04");
+    expect(eventWhen(event("2026-10-02T00:00:00.000Z", null, true))).toBe("2026-10-02");
+  });
+
+  test("an unreadable start gives no time; an end before the start is ignored", () => {
+    expect(eventWhen(event(null, null, false))).toBeNull();
+    expect(eventWhen(event("not a date", null, false))).toBeNull();
+    expect(eventWhen(event(local(2026, 10, 2, 14, 0), local(2026, 10, 2, 13, 0), false))).toBe("2026-10-02 14:00");
+  });
+
+  test("an .ics import saves the time with the title (the Google tile promised titles and times)", () => {
+    const ics = ["BEGIN:VEVENT", "SUMMARY:Standup", "DTSTART;VALUE=DATE:20240105", "DTEND;VALUE=DATE:20240106", "END:VEVENT"].join("\n");
+    const { proposals } = buildProposals("ics", ics);
+    expect(proposals[0].label).toBe("2024-01-05 Standup");
+    expect(proposalsToMarkdown("Calendar", proposals, "en")).toContain("- 2024-01-05 Standup _(일정 → 캘린더)_");
+  });
+
+  test("phone calendar events become the same review rows", () => {
+    const outcome = calendarEventsOutcome([{ title: "Lunch", startIso: "2026-10-02T00:00:00.000Z", endIso: null, allDay: true }]);
+    expect(outcome.summary.events).toBe(1);
+    expect(outcome.proposals).toEqual([{ id: "ics-0", label: "2026-10-02 Lunch", sub: "일정 → 캘린더", sensitive: false }]);
   });
 });

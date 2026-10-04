@@ -7,14 +7,17 @@
 // /peer-invites), so this route only wraps it in the lens dock — the same shape
 // as /big-five and /attachment. Legacy (non-deep-space) has no standalone skin,
 // so it falls back to the persona synthesis.
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { SeenLensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 
 function SeenDeepSpace() {
+  // Phone-aware: inside the dashboard phone Back steps the phone back.
+  const router = useAppRouter();
   const { t } = useTranslation("home");
   return (
     <DeepSpaceScreen

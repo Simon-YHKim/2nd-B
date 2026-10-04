@@ -143,6 +143,60 @@ describe("health_connect source", () => {
     expect(out.map((s) => `${s.metricType}:${s.value}`)).toEqual(["steps:8500"]);
   });
 
+  test("on RN runtime: every page is read, not only the first", async () => {
+    setNavigatorProduct("ReactNative");
+    hcReadRecords.mockImplementation((type: string, options: { pageToken?: string }) => {
+      if (type !== "Steps") return Promise.resolve({ records: [] });
+      if (!options.pageToken) {
+        return Promise.resolve({
+          records: [{ count: 100, startTime: range.startIso, endTime: range.endIso, metadata: { id: "p1" } }],
+          pageToken: "next",
+        });
+      }
+      return Promise.resolve({
+        records: [{ count: 200, startTime: range.startIso, endTime: range.endIso, metadata: { id: "p2" } }],
+      });
+    });
+
+    const out = await healthConnectSource.read(range);
+    expect(out.map((s) => s.value).sort()).toEqual([100, 200]);
+    const stepsCalls = hcReadRecords.mock.calls.filter(([type]) => type === "Steps");
+    expect(stepsCalls.map(([, options]) => (options as { pageToken?: string }).pageToken)).toEqual([undefined, "next"]);
+  });
+
+  test("on RN runtime: a page that fails keeps the pages before it", async () => {
+    setNavigatorProduct("ReactNative");
+    hcReadRecords.mockImplementation((type: string, options: { pageToken?: string }) => {
+      if (type !== "Steps") return Promise.resolve({ records: [] });
+      if (!options.pageToken) {
+        return Promise.resolve({
+          records: [{ count: 100, startTime: range.startIso, endTime: range.endIso, metadata: { id: "p1" } }],
+          pageToken: "next",
+        });
+      }
+      return Promise.reject(new Error("SecurityException: app is in the background"));
+    });
+
+    const out = await healthConnectSource.read(range);
+    expect(out.map((s) => `${s.metricType}:${s.value}`)).toEqual(["steps:100"]);
+  });
+
+  test("on RN runtime: a page token that never ends stops at the page cap", async () => {
+    setNavigatorProduct("ReactNative");
+    let page = 0;
+    hcReadRecords.mockImplementation((type: string) => {
+      if (type !== "Steps") return Promise.resolve({ records: [] });
+      page += 1;
+      return Promise.resolve({
+        records: [{ count: page, startTime: range.startIso, endTime: range.endIso, metadata: { id: `loop-${page}` } }],
+        pageToken: "again",
+      });
+    });
+
+    const out = await healthConnectSource.read(range);
+    expect(out).toHaveLength(50);
+  });
+
   test("requestPermission returns granted only when a permission is returned", async () => {
     setNavigatorProduct("ReactNative");
     hcGetSdkStatus.mockResolvedValue(3);

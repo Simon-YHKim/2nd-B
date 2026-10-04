@@ -1,12 +1,14 @@
 import { View, Pressable, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
 import { Text } from "@/components/ui/Text";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { m3 } from "@/lib/theme/m3";
 import { polarisProgress } from "@/lib/persona/polaris-progress";
 import type { RoleCard } from "@/lib/persona/role-cards";
 
 export function PolarisCategorySlots({ cards }: { cards: readonly RoleCard[] }) {
+  // Phone-aware: inside the dashboard phone, a slot opens its star in the phone.
+  const router = useAppRouter();
   const { t } = useTranslation("core-brain");
   const { t: home } = useTranslation("home");
   const progress = polarisProgress(cards);

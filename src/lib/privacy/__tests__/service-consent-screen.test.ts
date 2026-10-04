@@ -94,7 +94,10 @@ function mountRoute() {
   const dependencies: Record<string, unknown> = {
     react: hooks,
     "react-native": { View: "View", Pressable: "Pressable", ScrollView: "ScrollView", StyleSheet: { create: (value: unknown) => value } },
-    "expo-router": { Redirect: "Redirect", router: { push, back: jest.fn() } },
+    "expo-router": { Redirect: "Redirect" },
+    // The screen navigates through the phone-aware router (standalone it is
+    // expo-router's own `router`).
+    "@/lib/nav/phone-embed": { useAppRouter: () => ({ push, back: jest.fn() }) },
     "react-i18next": { useTranslation: () => ({ t: (key: string) => key, i18n: { language } }) },
     "@/components/deep-space/DeepSpaceScreen": { DeepSpaceScreen: "DeepSpaceScreen" },
     "@/components/m3": { MdButton: "MdButton", MdCard: "MdCard" },

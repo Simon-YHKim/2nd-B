@@ -5,9 +5,9 @@
 // draft badge while the body still carries [기입] placeholders -- the screen
 // must not present an unfinished document as final (legal honesty).
 import { useCallback, useMemo, useState } from "react";
-import { BackHandler, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { router, useFocusEffect } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { colors, spacing } from "@/theme/tokens";
@@ -25,6 +25,7 @@ import {
 import { isDraft, type LegalDoc } from "@/lib/legal/legal-documents";
 import { systemLocaleFor } from "@/lib/i18n/locales";
 import { registerOwnBack } from "@/lib/nav/own-back";
+import { useAppRouter, useHardwareBack, usePhoneEmbed } from "@/lib/nav/phone-embed";
 
 export function DeepSpaceLegalDocScreen({
   doc,
@@ -34,6 +35,10 @@ export function DeepSpaceLegalDocScreen({
   /** Optional sibling document links (terms / refund / privacy policy). */
   crossLinks?: Array<{ href: "/terms" | "/refund" | "/privacy-policy"; label: string }>;
 }) {
+  // Phone-aware: inside the dashboard phone, the chevron, Android Back and the
+  // sibling-document links stay in the phone.
+  const router = useAppRouter();
+  const embed = usePhoneEmbed();
   const { t, i18n } = useTranslation(["common"]);
   const [documentLanguage, setDocumentLanguage] = useState<LegalDocumentLanguage>(() =>
     systemLocaleFor(i18n.resolvedLanguage ?? i18n.language),
@@ -53,22 +58,22 @@ export function DeepSpaceLegalDocScreen({
     // would keep suppressing the global chip on the home it just opened.
     else router.replace("/");
     return true;
-  }, []);
+  }, [router]);
 
   // Focus-scoped, not mount-scoped: the native stack keeps buried screens
   // MOUNTED, so a mount-scoped registration would keep suppressing the global
   // BackArrow (own-back.ts is one global counter) and keep a hardware-back
-  // handler alive underneath whatever is pushed on top. One effect owns both
-  // registrations so blur releases them together.
+  // handler alive underneath whatever is pushed on top. Both registrations are
+  // focus effects, so blur releases them together. useHardwareBack is the
+  // focused BackHandler listener standalone and the phone's claim stack inside
+  // the dashboard phone. The floating chip belongs to the app's screen, not to
+  // a page inside the phone, so the phone copy leaves it alone.
+  useHardwareBack(requestBack);
   useFocusEffect(
     useCallback(() => {
-      const unregister = registerOwnBack();
-      const sub = BackHandler.addEventListener("hardwareBackPress", requestBack);
-      return () => {
-        sub.remove();
-        unregister();
-      };
-    }, [requestBack]),
+      if (embed) return undefined;
+      return registerOwnBack();
+    }, [embed]),
   );
 
   return (

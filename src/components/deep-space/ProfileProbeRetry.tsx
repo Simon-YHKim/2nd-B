@@ -17,7 +17,6 @@
 // 기능 라우트여도 라우트 게이트(app/_layout.tsx 의 IntroGate · ProfileProbeScope)가 다시 붙든다.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
-import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { MdTopAppBar } from "@/components/m3/MdTopAppBar";
@@ -27,13 +26,24 @@ import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { signOut } from "@/lib/supabase/auth";
 import { m3 } from "@/lib/theme/m3";
 
-/** 딥링크로 들어와 돌아갈 곳이 없으면 홈으로 간다. 홈도 실패 중이면 라우트 게이트가 같은 다시 시도를 보인다. */
-function backOrHome(): void {
-  if (router.canGoBack()) router.back();
-  else router.replace("/");
+/**
+ * 딥링크로 들어와 돌아갈 곳이 없으면 홈으로 간다. 홈도 실패 중이면 라우트 게이트가 같은 다시 시도를 보인다.
+ *
+ * 훅인 이유: 대시보드 폰 안에서는 뒤로가 앱 스택이 아니라 폰의 한 단계 뒤로여야 한다
+ * (lib/nav/phone-embed.tsx). 폰 밖에서 `useAppRouter()` 는 expo-router 의 `router` 그
+ * 자체라 단독 라우트 동작은 그대로다. 네비게이터 훅을 쓰지 않으므로 네비게이터가 없는
+ * 전역 게이트(IntroGate · ProfileProbeScope)에서 불러도 안전하다.
+ */
+function useBackOrHome(): () => void {
+  const router = useAppRouter();
+  return useCallback(() => {
+    if (router.canGoBack()) router.back();
+    else router.replace("/");
+  }, [router]);
 }
 
 /**
@@ -156,6 +166,7 @@ export function ProfileProbeRetryScreen({
   title?: string;
   onBack?: () => void;
 }) {
+  const backOrHome = useBackOrHome();
   return (
     <PixelGateShell contentContainerStyle={styles.shell}>
       {title === undefined ? null : <MdTopAppBar title={title} onBack={onBack ?? backOrHome} />}

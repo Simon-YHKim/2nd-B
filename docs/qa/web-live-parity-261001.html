@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PolaScope 웹 화면과 운영 게시본 비교 · 2026-10-01</title>
+  <style>
+    :root { color-scheme: light dark; --accent:#375fcb; --text:#172033; --muted:#5b6575; --surface:#f4f6fb; --line:#d5dbea; }
+    @media (prefers-color-scheme: dark) { :root { --accent:#9ab6ff; --text:#f0f3fa; --muted:#b8c2d3; --surface:#1c2434; --line:#45516a; } }
+    * { box-sizing:border-box; } body { margin:0; background:Canvas; color:var(--text); font:16px/1.6 system-ui,sans-serif; }
+    main { max-width:980px; margin:auto; padding:32px 20px 64px; } h1,h2,h3 { line-height:1.25; }
+    h1 { margin:0 0 8px; font-size:clamp(1.8rem,4vw,2.6rem); } h2 { margin-top:36px; }
+    p { max-width:80ch; } a { color:var(--accent); } a:focus-visible,summary:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+    .eyebrow { color:var(--accent); font-weight:700; letter-spacing:.05em; } .muted,small { color:var(--muted); }
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(185px,1fr)); gap:12px; margin:26px 0; }
+    .card { padding:18px; border:1px solid var(--line); border-radius:12px; background:var(--surface); }
+    .card strong { display:block; font-size:1.65rem; line-height:1.2; } .card span { color:var(--muted); }
+    .scroll { overflow-x:auto; } table { width:100%; border-collapse:collapse; min-width:620px; }
+    th,td { padding:12px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { background:var(--surface); } code { overflow-wrap:anywhere; }
+    details { border:1px solid var(--line); border-radius:10px; padding:12px 16px; margin:12px 0; }
+    summary { cursor:pointer; font-weight:700; } svg { width:100%; height:auto; max-width:760px; }
+  </style>
+</head>
+<body><main>
+  <header>
+    <div class="eyebrow">PolaScope · 웹 GUI QA</div>
+    <h1>공개 사이트는 열리지만, 최신 앱 화면과 배포본은 다릅니다</h1>
+    <p>2026-10-01 08:44 KST · 공개 사이트와 최신 main의 8081 앱을 같은 QA 계정으로 읽기 검사했다. 운영 게시·계정 데이터·테스터 설정은 변경하지 않았다.</p>
+  </header>
+  <section class="cards" aria-label="검증 요약">
+    <div class="card"><strong>8 / 8</strong><span>공개 주요 경로 HTTP 200·화면 표시</span></div>
+    <div class="card"><strong>0</strong><span>공개 화면의 빈 화면·콘솔 오류·로그인 이탈</span></div>
+    <div class="card"><strong>237</strong><span>마지막 게시 소스와 main의 선택된 앱 경로 차이</span></div>
+    <div class="card"><strong>게시 보류</strong><span>전체 이름·가입 계약 출시 순서 유지</span></div>
+  </section>
+  <section aria-labelledby="result">
+    <h2 id="result">확인한 결과</h2>
+    <div class="scroll"><table><thead><tr><th>대상</th><th>실측</th><th>판정 범위</th></tr></thead><tbody>
+      <tr><td>공개 사이트</td><td><code>/</code>, <code>/profile</code>, <code>/settings</code>, <code>/capture</code>, <code>/records</code>, <code>/ratifications</code>, <code>/core-brain</code>, <code>/privacy</code> 모두 HTTP 200. 인증 후 8개 중 빈 화면·콘솔 오류·<code>/sign-in</code> 이탈은 0.</td><td>390×844 웹 뷰포트의 읽기 검사다. <code>/</code>는 새 QA 브라우저 세션에서 <code>/onboarding</code>으로 이동했다. 네이티브 기기·전체 100개 정적 경로·쓰기 흐름은 검사하지 않았다.</td></tr>
+      <tr><td>최신 main의 8081 앱</td><td>선택한 13개 경로 모두 화면이 그려지고 빈 화면은 0. <code>npm run app:parity</code>는 main <code>5b4302a0</code>과 코드·설정·의존성 동일 판정.</td><td>8081 개발 서버는 <code>/2nd-B/*</code> 직접 요청에 앱 HTML을 담아 HTTP 404를 보냈다. <code>/</code>의 HTTP 200 HTML과 세 파일의 SHA-256이 같았다. 이는 공개 사이트 응답이 아니다.</td></tr>
+      <tr><td>북극성 카드 화면</td><td>공개본은 “옆으로 넘겨 카드를 살펴보세요”, 최신 main은 “좌우로 넘기고, 위아래로 밀어 닫아요”를 보여 준다. 최신 main의 카드 오버레이도 공개본과 다르다.</td><td>배포본 차이의 재현 사례다. 두 화면 모두 표시됐으므로 화면 장애로 판정하지 않는다.</td></tr>
+    </tbody></table></div>
+  </section>
+  <section aria-labelledby="release">
+    <h2 id="release">소스와 게시 경계</h2>
+    <svg viewBox="0 0 760 150" role="img" aria-label="9월 29일 운영 게시 소스 2fab54f에서 10월 1일 main 5b4302a로 앱 경로 237개가 변경됐고 새 운영 게시는 없다">
+      <rect x="8" y="20" width="290" height="100" rx="12" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="28" y="57" fill="var(--text)" font-size="18" font-weight="700">공개 게시 · 2fab54f</text>
+      <text x="28" y="89" fill="var(--muted)" font-size="15">9월 29일 01:43 KST 완료</text>
+      <path d="M300 70 H445" stroke="var(--accent)" stroke-width="3" marker-end="url(#arrow)"/>
+      <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10Z" fill="var(--accent)"/></marker></defs>
+      <rect x="447" y="20" width="305" height="100" rx="12" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="467" y="57" fill="var(--text)" font-size="18" font-weight="700">최신 main · 5b4302a</text>
+      <text x="467" y="89" fill="var(--muted)" font-size="15">빌드 성공, 게시 단계 건너뜀</text>
+    </svg>
+    <p><a href="https://github.com/Simon-YHKim/2nd-B/actions/runs/36448554124">마지막 성공한 수동 웹 게시</a>는 승인 소스 <code>2fab54f0190ca01a8579f97d2588be1801255426</code>를 빌드·게시했다. 이후 확인한 최신 main <code>5b4302a0d1c6790fe9e9d49cbd6a18160be1ae41</code>의 <a href="https://github.com/Simon-YHKim/2nd-B/actions/runs/36791343801">웹 빌드</a>는 성공했지만 게시 단계는 건너뛰었다. 두 커밋 사이 <code>src</code>·<code>locales</code>·앱 설정 등 선택된 앱 경로 237개가 달랐다.</p>
+    <p>전체 PolaScope 이름과 가입 계약의 출시 순서는 <a href="polascope-contract-readiness-261001.md">계약 선행 검증</a> 및 Draft <a href="https://github.com/Simon-YHKim/2nd-B/pull/1902">#1902</a>·<a href="https://github.com/Simon-YHKim/2nd-B/pull/1917">#1917</a>에 남아 있다. 이번 QA는 최신 main의 운영 게시 승인이거나 해당 게이트 통과 증거가 아니다.</p>
+  </section>
+  <details><summary>재현 방법과 증거 범위</summary>
+    <p><code>scripts/capture-screens.mjs</code>을 같은 QA 계정과 390×844 뷰포트로 8081과 공개 사이트에 각각 실행했다. 서명된 화면 캡처·<code>report.json</code>은 Git 밖 <code>E:\2ndB\.git\app-parity\web-qa-main-261001</code>과 <code>E:\2ndB\.git\app-parity\web-qa-live-261001</code>에 보관했다. 저장소에는 로그인 화면 캡처나 세션 토큰을 넣지 않았다.</p>
+    <p>공개 루트·<code>/profile</code>·웹 매니페스트는 별도 HTTP 요청에서도 200이었다. 8081의 <code>/2nd-B/</code>·<code>/2nd-B/profile</code>은 404지만 루트와 같은 53,948바이트 HTML을 반환했다. 공개 화면 비교는 실제 렌더와 GitHub Actions 게시 실행을 함께 확인했으며, 모든 사용자 상태에서 같은 화면이 나온다는 증거는 아니다.</p>
+  </details>
+  <details><summary>다음 출시 검증</summary>
+    <p>서버 가입 계약과 이름 변경 Draft의 병합 조건을 재검증한 뒤, 게시하려는 정확한 main SHA와 공개 설정·웹 산출물 해시를 새로 고정해야 한다. 그 소스의 앱 화면·법률 문구와 공개 사이트를 다시 대조한다. ARM 기기 사진→OCR·최대 글꼴·TalkBack QA와 Play 데이터 보안 최종 신고는 별도 미완료 항목이다.</p>
+  </details>
+</main></body></html>

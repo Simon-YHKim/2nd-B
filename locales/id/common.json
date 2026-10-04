@@ -65,7 +65,11 @@
     "opening": "Membuka PolaScope",
     "loading": "Memuat PolaScope",
     "enterHint": "Ketuk dua kali untuk masuk ke layar utama.",
-    "skipHint": "Ketuk dua kali untuk melewati animasi pembuka."
+    "skipHint": "Ketuk dua kali untuk melewati animasi pembuka.",
+    "skip": "Lewati pembukaan",
+
+    "skipShort": "Lewati",
+    "retry": "Coba pembukaan lagi"
   },
   "worldview": {
     "soulCore": "Bintang Utara",

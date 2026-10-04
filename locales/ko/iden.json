@@ -4,37 +4,37 @@
     "eyebrow": "나의 정보 내보내기",
     "title": "나에 대한 정보를 파일 하나에",
     "subtitle": "다른 AI에 전할 파일과 한 장짜리 프로필",
-    "speech": "나에 대한 정보를 다른 AI에도 전달할 수 있어요."
+    "speech": "나에 대한 정보를 다른 AI에도 전달할 수 있습니다."
   },
   "intro": {
-    "body": "IDEN은 나에 대해 알게 된 내용을 파일 하나로 모아요. 다른 AI에 붙여 넣어 나를 설명하거나, 한 장짜리 프로필로 볼 수 있어요."
+    "body": "IDEN은 나에 대해 알게 된 내용을 파일 하나로 모읍니다. 다른 AI에 붙여 넣어 나를 설명하거나, 한 장짜리 프로필로 볼 수 있습니다."
   },
   "generate": {
     "button": "내 IDEN 만들기",
-    "accessibilityHint": "저장된 데이터로 나에 대한 정보 파일을 만들어요."
+    "accessibilityHint": "저장된 데이터로 나에 대한 정보 파일을 만듭니다."
   },
   "result": {
-    "title": "IDEN이 준비됐어요",
-    "hint": "ChatGPT, Gemini, Claude에 붙여 넣으면 나에 대한 정보를 전할 수 있어요. 요청할 내용은 맨 아래에 적어 주세요.",
+    "title": "IDEN이 준비됐습니다",
+    "hint": "ChatGPT, Gemini, Claude에 붙여 넣으면 나에 대한 정보를 전할 수 있습니다. 요청할 내용은 맨 아래에 적어 주세요.",
     "copy": ".iden 복사",
-    "copied": "클립보드에 복사했어요",
+    "copied": "클립보드에 복사했습니다",
     "share": "공유",
     "openSheet": "한 장짜리 프로필 열기",
     "close": "닫기"
   },
-  "error": "IDEN을 만들지 못했어요. 새로고침한 뒤 다시 시도해 주세요.",
+  "error": "IDEN을 만들지 못했습니다. 새로고침한 뒤 다시 시도해 주세요.",
   "entry": {
     "eyebrow": "나의 정보 내보내기",
-    "body": "나에 대해 알게 된 내용을 다른 AI에 전달할 파일과 한 장짜리 프로필로 만들어요.",
+    "body": "나에 대해 알게 된 내용을 다른 AI에 전달할 파일과 한 장짜리 프로필로 만듭니다.",
     "button": "나의 정보 내보내기",
-    "accessibilityHint": "IDEN 내보내기 화면을 열어요."
+    "accessibilityHint": "IDEN 내보내기 화면을 엽니다."
   },
   "ds": {
     "screenTitle": "IDEN · 나의 정보 내보내기",
-    "loading": "불러오는 중이에요…",
-    "loadError": "IDEN을 불러오지 못했어요.",
+    "loading": "불러오는 중입니다…",
+    "loadError": "IDEN을 불러오지 못했습니다.",
     "retry": "다시 시도",
-    "empty": "아직 내보낼 정보가 없어요. 나에 대한 기록부터 남겨보세요.",
+    "empty": "아직 내보낼 정보가 없습니다. 나에 대한 기록부터 남겨보세요.",
     "startGathering": "기록 담기",
     "signed": "서명됨",
     "whatGoesIn": "무엇을 담을까요",
@@ -42,8 +42,8 @@
     "sendToAi": "AI에 전달",
     "export": "내보내기",
     "preview": "미리보기",
-    "jsonCopied": "JSON을 복사했어요",
-    "copyFailed": "복사하지 못했어요",
-    "previewWebOnly": "한 장짜리 프로필은 웹에서 미리 볼 수 있어요"
+    "jsonCopied": "JSON을 복사했습니다",
+    "copyFailed": "복사하지 못했습니다",
+    "previewWebOnly": "한 장짜리 프로필은 웹에서 미리 볼 수 있습니다"
   }
 }

@@ -6,13 +6,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, ProgressLinear } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { isSevenTierKey, resolveStarName } from "@/lib/persona/star-name";
@@ -27,6 +28,8 @@ import { tierShiftNudge, detectTierShift } from "@/lib/persona/tier-history";
 const CELL_OPACITY: Record<number, number> = { 1: 0.16, 2: 0.32, 3: 0.5, 4: 0.72, 5: 1 };
 
 export default function BrightnessTimelineScreen() {
+  // Phone-aware: inside the dashboard phone, back and links stay in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("brightness");
   const { t: tHome } = useTranslation("home");
   // 이름은 홈 별자리와 **같은 키**에서 온다. 화면마다 다른 이름을 배우면

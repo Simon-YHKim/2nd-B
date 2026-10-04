@@ -1,4 +1,4 @@
-import { keepAllChildren, keepAllKo, keepMiddleDotOffLineStart } from "../keep-all";
+import { keepAllChildren, keepAllKo, keepMiddleDotOffLineStart, keepWebPunctuationTogether } from "../keep-all";
 
 const WJ = "⁠";
 
@@ -92,6 +92,32 @@ describe("a middle dot never starts a line (W3C klreq 7.1.2, cl-07)", () => {
     const LF = String.fromCharCode(10);
     expect(keepMiddleDotOffLineStart(`첫 줄${LF}· 둘째 줄`)).toBe(`첫 줄${LF}· 둘째 줄`);
     expect(keepMiddleDotOffLineStart("no dot here")).toBe("no dot here");
+  });
+});
+
+describe("web closing quote and Korean particle stay on one line", () => {
+  test.each([
+    "‘오늘 반영’을 누르세요",
+    "‘승인’에서 볼 수 있어요",
+    "‘건강’에 가장 많은 기록이 있어요",
+    "“PolaScope”는 새 이름이에요",
+    "‘🌟’을 기록했어요",
+  ])("joins both sides of a closing quote in %s", (input) => {
+    const out = keepWebPunctuationTogether(input);
+    expect(out.replaceAll(WJ, "")).toBe(input);
+    expect(out).toMatch(new RegExp(`${WJ}[’”]${WJ}[가-힣]`));
+    expect(keepWebPunctuationTogether(out)).toBe(out);
+  });
+
+  test("leaves separated quotes and other languages unchanged", () => {
+    expect(keepWebPunctuationTogether("‘승인’ 메뉴에서 보세요")).toBe("‘승인’ 메뉴에서 보세요");
+    expect(keepWebPunctuationTogether("“PolaScope” is the name")).toBe("“PolaScope” is the name");
+  });
+
+  test("preserves the existing middle-dot rule", () => {
+    expect(keepWebPunctuationTogether("기록·분석을 ‘승인’에서 봐요")).toBe(
+      `기록${WJ}·분석을 ‘승인${WJ}’${WJ}에서 봐요`,
+    );
   });
 });
 

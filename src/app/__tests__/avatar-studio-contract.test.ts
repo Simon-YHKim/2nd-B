@@ -37,8 +37,12 @@ describe("approved avatar studio screen", () => {
     expect(source).toContain("if (!userId || !readyForUser || saveInFlightRef.current) return");
     expect(source).toContain("activeUserIdRef.current !== saveUserId");
     expect(source).toContain("await saveAvatarSpec(saveUserId, spec)");
-    expect(source).toContain('BackHandler.addEventListener("hardwareBackPress"');
-    expect(source).toContain("return () => sub.remove()");
+    // 2026-10-02 (dashboard phone): Back goes through useHardwareBack, a focused
+    // BackHandler listener standalone and the phone's claim stack inside the
+    // phone, and navigation through useAppRouter() (lib/nav/phone-embed.tsx).
+    expect(source).toContain("useHardwareBack(");
+    expect(source).toContain("const router = useAppRouter();");
+    expect(source).not.toContain("BackHandler.addEventListener");
     expect(source).toContain('router.replace("/profile")');
   });
 

@@ -18,6 +18,11 @@ const noStorage = typeof localStorage === "undefined";
 // returns SHA-1, so the app's digest cannot be exercised through it; the import
 // takes the digest as a parameter and the tests hand it node's.
 const sha256 = async (s: string): Promise<string> => createHash("sha256").update(s, "utf8").digest("hex");
+const approveAll = async (userId = "u1") => ({
+  userId,
+  items: await loadPendingCaptures(),
+  isCurrent: () => true,
+});
 
 describe("importPendingCaptures (D-25 Phase 2 post-account import)", () => {
   beforeEach(async () => {
@@ -29,7 +34,7 @@ describe("importPendingCaptures (D-25 Phase 2 post-account import)", () => {
     const calls: string[] = [];
     const r = await importPendingCaptures({ userId: "u1", locale: "ko" }, async (i) => {
       calls.push(i.text);
-    }, sha256);
+    }, sha256, await approveAll());
     expect(r).toEqual({ total: 0, imported: 0, failed: 0 });
     expect(calls).toEqual([]);
   });
@@ -43,7 +48,7 @@ describe("importPendingCaptures (D-25 Phase 2 post-account import)", () => {
     const r = await importPendingCaptures({ userId: "u1", locale: "ko", minor: true }, async (item, ctx) => {
       if (seen.length === 0) firstCtx = ctx;
       seen.push(item.text);
-    }, sha256);
+    }, sha256, await approveAll());
     expect(r).toEqual({ total: 2, imported: 2, failed: 0 });
     expect(seen).toEqual(["a", "b"]);
     expect(firstCtx).toEqual({ userId: "u1", locale: "ko", minor: true });
@@ -57,7 +62,7 @@ describe("importPendingCaptures (D-25 Phase 2 post-account import)", () => {
     await addPendingCapture("ok2", "2026-06-21T00:02:00.000Z");
     const r = await importPendingCaptures({ userId: "u1", locale: "en" }, async (item) => {
       if (item.text === "boom") throw new Error("transient");
-    }, sha256);
+    }, sha256, await approveAll());
     expect(r).toEqual({ total: 3, imported: 2, failed: 1 });
     const remaining = await loadPendingCaptures();
     expect(remaining.map((i) => i.text)).toEqual(["boom"]);
@@ -74,9 +79,10 @@ describe("importPendingCaptures (D-25 Phase 2 post-account import)", () => {
     // Two overlapping imports (e.g. the home route unmounting/remounting mid-import)
     // must NOT each drain the still-uncleared queue and duplicate every capture.
     const ctx = { userId: "u1", locale: "ko" as const };
+    const approval = await approveAll();
     const [r1, r2] = await Promise.all([
-      importPendingCaptures(ctx, create, sha256),
-      importPendingCaptures(ctx, create, sha256),
+      importPendingCaptures(ctx, create, sha256, approval),
+      importPendingCaptures(ctx, create, sha256, approval),
     ]);
     expect(seen).toEqual(["a", "b"]); // each captured item imported exactly once
     expect(r1).toBe(r2); // both callers share the single run's summary
@@ -113,6 +119,15 @@ describe("importPendingCaptures - 0178 retry key", () => {
   beforeEach(() => backing.clear());
 
   const item = (localId: string) => ({ localId, text: "t", capturedAt: "x" });
+
+  test("a capture added during import remains queued after imported items are removed", async () => {
+    await addPendingCapture("old", "2026-06-21T00:00:00.000Z");
+    const result = await importPendingCaptures({ userId: "u1", locale: "ko" }, async () => {
+      await addPendingCapture("new", "2026-06-21T00:01:00.000Z");
+    }, sha256, await approveAll());
+    expect(result).toEqual({ total: 1, imported: 1, failed: 0 });
+    expect((await loadPendingCaptures()).map((capture) => capture.text)).toEqual(["new"]);
+  });
 
   test("the key is preauth: + SHA-256 of the id, the same on every call, and never the id itself", async () => {
     const localId = "p_1782000000000_abc12";
@@ -169,11 +184,11 @@ describe("importPendingCaptures - 0178 retry key", () => {
       }
     };
 
-    const first = await importPendingCaptures({ userId: "u1", locale: "en" }, create, sha256);
+    const first = await importPendingCaptures({ userId: "u1", locale: "en" }, create, sha256, await approveAll());
     expect(first).toEqual({ total: 2, imported: 1, failed: 1 });
     expect((await loadPendingCaptures()).map((i) => i.text)).toEqual(["second"]);
 
-    const second = await importPendingCaptures({ userId: "u1", locale: "en" }, create, sha256);
+    const second = await importPendingCaptures({ userId: "u1", locale: "en" }, create, sha256, await approveAll());
     expect(second).toEqual({ total: 1, imported: 1, failed: 0 });
 
     // Two captures, two rows - the lost response did not become a third.
@@ -201,13 +216,13 @@ describe("importPendingCaptures - 0178 retry key", () => {
       if (k !== undefined && row === undefined) server.set(`${ctx.userId}|${k}`, item.text);
     };
 
-    const r = await importPendingCaptures({ userId: "u1", locale: "en" }, create, sha256);
+    const r = await importPendingCaptures({ userId: "u1", locale: "en" }, create, sha256, await approveAll());
 
     // It reached the server once already, so it counts as imported, not failed.
     expect(r).toEqual({ total: 1, imported: 1, failed: 0 });
     expect(await loadPendingCaptures()).toEqual([]);
     // And the next session has nothing to retry.
-    await importPendingCaptures({ userId: "u1", locale: "en" }, create, sha256);
+    await importPendingCaptures({ userId: "u1", locale: "en" }, create, sha256, await approveAll());
     expect(calls).toBe(1);
     // The edited note was not overwritten or duplicated.
     expect([...server.values()]).toEqual(["draft as captured, then edited"]);
@@ -224,7 +239,7 @@ describe("importPendingCaptures - 0178 retry key", () => {
     const keys: Array<string | undefined> = [];
     const r = await importPendingCaptures({ userId: "u1", locale: "en" }, async (_i, _c, k) => {
       keys.push(k);
-    }, sha256);
+    }, sha256, await approveAll());
 
     expect(r).toEqual({ total: 3, imported: 3, failed: 0 });
     expect(keys[0]).toBeUndefined();
@@ -232,13 +247,101 @@ describe("importPendingCaptures - 0178 retry key", () => {
     expect(keys[2]).toMatch(/^preauth:[0-9a-f]{64}$/);
   });
 
+  test("a failed duplicate id remains queued when its other entry imports", async () => {
+    await replacePendingCaptures([
+      { localId: "p_1782000000000_abc12", text: "succeeded", capturedAt: "x" },
+      { localId: "p_1782000000000_abc12", text: "failed", capturedAt: "x" },
+    ]);
+    const result = await importPendingCaptures({ userId: "u1", locale: "en" }, async (entry) => {
+      if (entry.text === "failed") throw new Error("transient");
+    }, sha256, await approveAll());
+    expect(result).toEqual({ total: 2, imported: 1, failed: 1 });
+    expect((await loadPendingCaptures()).map((entry) => entry.text)).toEqual(["failed"]);
+  });
+
   test("a conflict error on an unkeyed import is an ordinary failure: the capture stays", async () => {
     await replacePendingCaptures([{ localId: "not-a-generated-id", text: "keep me", capturedAt: "x" }]);
     const r = await importPendingCaptures({ userId: "u1", locale: "en" }, async () => {
       throw new Error(RECORD_IDEMPOTENCY_CONFLICT);
-    }, sha256);
+    }, sha256, await approveAll());
 
     expect(r).toEqual({ total: 1, imported: 0, failed: 1 });
     expect((await loadPendingCaptures()).map((i) => i.text)).toEqual(["keep me"]);
+  });
+
+  test("an unapproved or wrong-account import cannot write or clear the device queue", async () => {
+    await addPendingCapture("legacy note", "2026-06-21T00:00:00.000Z");
+    const create = jest.fn(async (_item: { text: string }) => undefined);
+    await expect(importPendingCaptures(
+      { userId: "u1", locale: "en" }, create, sha256,
+      { userId: "u2", items: await loadPendingCaptures(), isCurrent: () => true },
+    )).rejects.toThrow("pending_import_approval_required");
+    expect(create).not.toHaveBeenCalled();
+    expect((await loadPendingCaptures()).map((entry) => entry.text)).toEqual(["legacy note"]);
+  });
+
+  test("approval applies only to the exact snapshot; newer entries stay on device", async () => {
+    await addPendingCapture("mine", "2026-06-21T00:00:00.000Z");
+    const approval = await approveAll();
+    await addPendingCapture("added after confirmation", "2026-06-21T00:01:00.000Z");
+    const create = jest.fn(async (_item: { text: string }) => undefined);
+    const result = await importPendingCaptures({ userId: "u1", locale: "en" }, create, sha256, approval);
+    expect(result).toEqual({ total: 1, imported: 1, failed: 0 });
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(create.mock.calls[0][0].text).toBe("mine");
+    expect((await loadPendingCaptures()).map((entry) => entry.text)).toEqual(["added after confirmation"]);
+  });
+
+  test("editing a queued entry after approval does not import the changed text", async () => {
+    await addPendingCapture("old text", "2026-06-21T00:00:00.000Z");
+    const approval = await approveAll();
+    await replacePendingCaptures([{ ...approval.items[0], text: "changed text" }]);
+    const create = jest.fn(async () => undefined);
+
+    const result = await importPendingCaptures({ userId: "u1", locale: "en" }, create, sha256, approval);
+    expect(result).toEqual({ total: 0, imported: 0, failed: 0 });
+    expect(create).not.toHaveBeenCalled();
+    expect((await loadPendingCaptures()).map((entry) => entry.text)).toEqual(["changed text"]);
+  });
+
+  test("owner change during hashing stops before the first server write", async () => {
+    await addPendingCapture("old owner", "2026-06-21T00:00:00.000Z");
+    let current = true;
+    const create = jest.fn(async () => undefined);
+    const result = await importPendingCaptures(
+      { userId: "u1", locale: "en" }, create,
+      async (value) => { current = false; return sha256(value); },
+      { ...(await approveAll()), isCurrent: () => current },
+    );
+    expect(result).toEqual({ total: 1, imported: 0, failed: 0 });
+    expect(create).not.toHaveBeenCalled();
+    expect((await loadPendingCaptures()).map((entry) => entry.text)).toEqual(["old owner"]);
+  });
+
+  test("owner change after one confirmed write keeps the unprocessed tail", async () => {
+    await addPendingCapture("first", "2026-06-21T00:00:00.000Z");
+    await addPendingCapture("second", "2026-06-21T00:01:00.000Z");
+    let current = true;
+    const create = jest.fn(async () => { current = false; });
+    const result = await importPendingCaptures(
+      { userId: "u1", locale: "en" }, create, sha256,
+      { ...(await approveAll()), isCurrent: () => current },
+    );
+    expect(result).toEqual({ total: 2, imported: 1, failed: 0 });
+    expect(create).toHaveBeenCalledTimes(1);
+    expect((await loadPendingCaptures()).map((entry) => entry.text)).toEqual(["second"]);
+  });
+
+  test("an owner-lease rejection during a write counts as failure and retains the item", async () => {
+    await addPendingCapture("pending", "2026-06-21T00:00:00.000Z");
+    let current = true;
+    const result = await importPendingCaptures(
+      { userId: "u1", locale: "en" },
+      async () => { current = false; throw new Error("owner changed"); },
+      sha256,
+      { ...(await approveAll()), isCurrent: () => current },
+    );
+    expect(result).toEqual({ total: 1, imported: 0, failed: 1 });
+    expect((await loadPendingCaptures()).map((entry) => entry.text)).toEqual(["pending"]);
   });
 });

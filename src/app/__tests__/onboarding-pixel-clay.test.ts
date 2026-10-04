@@ -68,9 +68,9 @@ describe("/onboarding PIXEL-CLAY handoff contract", () => {
 
     expect(FLOWS.onboardingSlides[2]).toEqual({
       tag: "내가 결정하기",
-      title: "AI의 요약은\n내가 확인해요",
+      title: "AI의 요약은\n내가 확인합니다",
       icon: "check_circle",
-      body: "나에 대한 요약은 제안이에요.\n내가 승인해야 반영돼요.",
+      body: "나에 대한 요약은 제안입니다.\n내가 승인해야 반영됩니다.",
     });
     expect(SRC).toContain('tag: "Your choice"');
     expect(SRC).toContain('title: "AI summaries need\\nyour approval"');

@@ -44,6 +44,15 @@
     "title": "Mi teléfono",
     "brand": "MI DÍA",
     "returnToStars": "Volver a la constelación",
+    "internal": {
+      "back": "Volver dentro del teléfono", "wikiGraph": "Grafo y etiquetas", "closePhone": "Cerrar teléfono", "exitTitle": "¿Cerrar el teléfono?", "exitHint": "Volver a la constelación sin cambiar los datos guardados.", "cancel": "Seguir viendo",
+      "captureScope": "Aquí puedes guardar una nota breve. Las entrevistas y otros modos de captura siguen en sus pantallas específicas.",
+      "noteInput": "Escribe algo para guardar", "startNote": "Escribir una nota", "saveNote": "Guardar nota", "saved": "Nota guardada.",
+      "focusLocal": "Este temporizador funciona solo mientras su pantalla esté abierta.", "start": "Iniciar", "pause": "Pausar", "reset": "Restablecer",
+      "searchRecords": "Buscar registros guardados", "untitledRecord": "Registro sin texto", "settingsScope": "Gestiona conexiones y frecuencia de actualización en Ajustes.",
+      "profileSummary": "Se leyeron {{count}} registros recientes. No es el total ni el contenido de tu perfil.",
+      "unavailable": "Esta función aún no tiene pantalla interna en el teléfono. No se inventan datos."
+    },
     "tabs": {
       "dashboard": "Panel",
       "sources": "Fuentes",
@@ -124,7 +133,7 @@
     "sourceNotes": {
       "calendar": "Importa con Google Calendar en la web o con un archivo .ics en la app instalada. Tu calendario no se sincroniza continuamente.",
       "location": "Importa un archivo de Google Timeline. No hay seguimiento GPS en segundo plano.",
-      "health": "En la app instalada, cuando aceptas y das permiso, la app puede leer pasos, entrenamientos, sueño y ritmo cardiaco de Health Connect (Android) o Salud de Apple (iOS). Por ahora lee los registros de hoy cuando tocas ‘Añadir lo de hoy’.",
+      "health": "En la app instalada de Android, acepta y toca ‘Añadir lo de hoy’ para dar permiso, y la app lee pasos, entrenamientos, sueño y ritmo cardiaco. Después, ese teléfono también lee pasos, entrenamientos y sueño una vez al día por sí solo. El iPhone (Salud de Apple) todavía no se puede leer.",
       "garmin": "Activa el intercambio de Garmin Connect con Salud de Apple (iOS) o Health Connect (Android 14+) y la app instalada también podrá leer los datos compatibles con el mismo permiso de salud. No hay conexión directa con Garmin ni Body Battery.",
       "tasks": "Importa Google Tasks con tu cuenta de Google en la web. La app instalada todavía no puede conectarlo y los cambios no se sincronizan continuamente.",
       "kakao": "Importa una conversación exportada de KakaoTalk y revisa las señales seleccionadas. No se leen chats privados en directo.",

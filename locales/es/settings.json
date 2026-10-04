@@ -129,7 +129,7 @@
   "manageIntegrations": "Gestionar conexiones",
   "manageIntegrationsDesc": "Importaciones y ajustes de actualización",
   "dataRefreshTitle": "Actualizar los datos guardados",
-  "dataRefreshScope": "Mientras el panel esté abierto y la app activa, vuelve a leer los datos guardados. No recopila automáticamente datos nuevos de servicios externos.",
+  "dataRefreshScope": "Mientras el panel esté abierto y la app activa, vuelve a leer los datos guardados. Los registros de salud solo se leen en un teléfono conectado con ‘Añadir lo de hoy’ en la app de Android: una vez al día después de la hora de actualización, con la app abierta.",
   "dataRefreshAuto": "Actualización automática",
   "dataRefreshDaily": "Todos los días, {{time}}",
   "dataRefreshTimeLabel": "Hora de la actualización automática",

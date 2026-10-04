@@ -40,14 +40,14 @@ export function formatProposalForDisplay(p: SelfModelProposal, locale: "en" | "k
     after: p.after,
     rationale: p.rationale,
     ratifyNote: ko
-      ? "승인하면 이 항목이 실행가능(L5)으로 올라가요."
+      ? "승인하면 이 항목이 실행가능(L5)으로 올라갑니다."
       : "Ratifying moves this to actionable (L5).",
     ratifyLabel: ko ? "승인" : "Ratify",
     declineLabel: ko ? "아니요" : "Not now",
     // 세션 01 실증(저항 존중): 분석을 밀어냈을 때 "거울은 거울이지 본인이
     // 아니다" 라고 받아준 것이 신뢰를 만들었다. 제안 시트가 같은 자세를 갖는다.
     mirrorNote: ko
-      ? "이 제안은 거울이지 당신이 아니에요. 어디가 빗나갔는지 알려주셔도 됩니다."
+      ? "이 제안은 거울이지 당신이 아닙니다. 어디가 빗나갔는지 알려주셔도 됩니다."
       : "This proposal is a mirror, not you. Feel free to say where it misses.",
     citationCount: p.citations.length,
   };

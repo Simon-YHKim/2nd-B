@@ -5,12 +5,14 @@
 
 const upsertMock = jest.fn();
 const autoCompleteMock = jest.fn();
+const listRoutinesMock = jest.fn();
 
 jest.mock("../../supabase/health", () => ({
   upsertHealthSamples: (...a: unknown[]) => upsertMock(...a),
 }));
 jest.mock("../../ops/routines", () => ({
   applyHealthAutoComplete: (...a: unknown[]) => autoCompleteMock(...a),
+  listActiveRoutines: (...a: unknown[]) => listRoutinesMock(...a),
 }));
 
 import {
@@ -46,6 +48,7 @@ describe("ingestHealthSamples enforces the gate at the single choke point", () =
   beforeEach(() => {
     upsertMock.mockReset().mockResolvedValue([{ id: "s-1", metric_type: "workout", value: 30, started_at: sample.startedAt }]);
     autoCompleteMock.mockReset().mockResolvedValue(["r-ex"]);
+    listRoutinesMock.mockReset().mockResolvedValue([{ id: "r-ex", domain_id: "exercise_routine" }]);
   });
 
   test("REJECTS a minor (health_import server-locked OFF): nothing is written, no auto-complete runs", async () => {
@@ -70,5 +73,22 @@ describe("ingestHealthSamples enforces the gate at the single choke point", () =
     expect(upsertMock).toHaveBeenCalledTimes(1);
     expect(autoCompleteMock).toHaveBeenCalledTimes(1);
     expect(res.autoCompleted).toEqual(["r-ex"]);
+  });
+
+  test("the routines are loaded once per call, not once per row", async () => {
+    const rows = Array.from({ length: 3 }, (_, i) => ({ id: `s-${i}`, metric_type: "heart_rate", value: 70, started_at: sample.startedAt }));
+    upsertMock.mockResolvedValue(rows);
+    autoCompleteMock.mockResolvedValue([]);
+    await ingestHealthSamples("user-1", [sample], { isMinor: false, pref: true });
+    expect(listRoutinesMock).toHaveBeenCalledTimes(1);
+    expect(autoCompleteMock).toHaveBeenCalledTimes(3);
+    for (const call of autoCompleteMock.mock.calls) expect(call[2]).toEqual([{ id: "r-ex", domain_id: "exercise_routine" }]);
+  });
+
+  test("nothing persisted means no routines query at all", async () => {
+    upsertMock.mockResolvedValue([]);
+    await ingestHealthSamples("user-1", [sample], { isMinor: false, pref: true });
+    expect(listRoutinesMock).not.toHaveBeenCalled();
+    expect(autoCompleteMock).not.toHaveBeenCalled();
   });
 });

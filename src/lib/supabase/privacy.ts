@@ -33,6 +33,12 @@ export async function fetchPrivacyPrefs(userId: string): Promise<PrivacyPrefs> {
 export interface SavePrivacyPrefsOptions {
   /** Stamped onto the consent_records row when a sensitive-data pref is granted. */
   locale?: "en" | "ko";
+  /**
+   * The stored prefs the caller has just read strictly. Used for the consent_changes diff
+   * instead of the fail-soft read below, which turns a failed read into "everything off":
+   * a withdrawal would then lose its revoke row and log a grant for every other consent on.
+   */
+  before?: PrivacyPrefs;
 }
 
 export async function savePrivacyPrefs(
@@ -44,8 +50,9 @@ export async function savePrivacyPrefs(
   const supabase = getSupabaseClient();
   // D-3: snapshot the before-state so we can append a consent-change row per
   // toggled key after the write. fetchPrivacyPrefs is fail-soft (never throws),
-  // so this can't block the save; a read miss resolves to all-off defaults.
-  const before = await fetchPrivacyPrefs(userId);
+  // so this can't block the save; a read miss resolves to all-off defaults. A
+  // caller that has just read strictly (the health withdrawal) passes that instead.
+  const before = options.before ?? (await fetchPrivacyPrefs(userId));
   const { error } = await supabase.from("users").update({ privacy_prefs: prefs }).eq("id", userId);
   if (error) throw error;
   commitPrivacyChange(userId, revision, prefs);

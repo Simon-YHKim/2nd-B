@@ -1,8 +1,9 @@
 import { useCallback, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { Redirect, router, useFocusEffect, type Href } from "expo-router";
+import { Redirect, useFocusEffect, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
@@ -34,6 +35,8 @@ export default function DataConnections() {
 }
 
 function DataConnectionsBody({ ownerId, isMinor }: { ownerId: string; isMinor: boolean | null }) {
+  // Phone-aware: inside the dashboard phone, links and Back stay in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation(["settings", "ops", "common"]);
   const [refreshSettings, setRefreshSettingsState] = useState<RefreshSettings>(DEFAULT_REFRESH_SETTINGS);
   const [timeSheetOpen, setTimeSheetOpen] = useState(false);
@@ -185,7 +188,8 @@ function DataConnectionsBody({ ownerId, isMinor }: { ownerId: string; isMinor: b
               : data ? sourceState(source, data, isMinor) : { status: "unknown" as const, lastImport: null };
             const name = BRAND_NAMES[source.id] ?? t(`ops:phone.sourceNames.${source.id}`);
             // Device cards open the tab that holds the consent and OS-permission row and the "reflect today"
-            // read. Nothing reads health data automatically yet, so the label names the screen, not a read.
+            // read. That tap also arms the daily automatic read on this phone (lib/health/auto-read.ts), so
+            // the label names the screen, not a read.
             const action = t(group === "device" ? "ops:phone.openHealth" : "ops:phone.manageSource");
             return <PixelSurface key={source.id} variant="frame" contentStyle={styles.panel}>
               <View style={styles.sourceTitle}>

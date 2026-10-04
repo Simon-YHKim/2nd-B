@@ -8,6 +8,7 @@ import { m3 } from '@/lib/theme/m3';
 import { stepPolyline } from '@/components/pixel/pixel-line';
 import { createCameraRemote, joystickInput, zoomFromPosition, zoomToPosition } from '@/lib/motion/camera-remote';
 import { a11yValue } from '@/lib/a11y/accessibility-value';
+import { usePhoneEmbed } from '@/lib/nav/phone-embed';
 import { useUiSound } from '@/lib/audio/use-ui-sound';
 import { useMotionSound } from '@/lib/audio/use-motion-sound';
 import { createRatchetTick } from '@/lib/haptics/ratchet-haptics';
@@ -88,6 +89,9 @@ export function TelescopeControls({ zoom, minZoom, maxZoom, zoomStops = DEFAULT_
   onZoom: (value: number) => void;
   onReset: () => void;
 }) {
+  // The dashboard phone's display is 177-220px wide inside its padding; the
+  // 224px floor would clip the zoom end there.
+  const inPhone = usePhoneEmbed() !== null;
   const { t } = useTranslation('deepspace');
   const reducedMotion = useReducedMotionPref();
   const [backdropSize, setBackdropSize] = useState({ width: 0, height: 0 });
@@ -292,7 +296,7 @@ export function TelescopeControls({ zoom, minZoom, maxZoom, zoomStops = DEFAULT_
   // below the minimum or above the maximum. One rect per shade run, not one per 4px cell.
   const baseline = dialBaseline(dial.start, dial.end + 2, dial.offset, railWidth, 4, fraction => dialColor(fraction, hudActive));
   return (
-    <View collapsable={false} style={[styles.root, Platform.OS === 'web' && webTouchStyle]} accessibilityLabel={t('telescope.label')} testID="telescope-remote"
+    <View collapsable={false} style={[styles.root, inPhone && styles.rootInPhone, Platform.OS === 'web' && webTouchStyle]} accessibilityLabel={t('telescope.label')} testID="telescope-remote"
       onLayout={({ nativeEvent: { layout } }) => setBackdropSize((current) => current.width === layout.width && current.height === layout.height
         ? current : { width: layout.width, height: layout.height })}>
       {backdropSize.width > 0 ? <Svg pointerEvents="none" width={backdropSize.width} height={backdropSize.height} style={styles.backdrop}>
@@ -409,6 +413,7 @@ export function TelescopeControls({ zoom, minZoom, maxZoom, zoomStops = DEFAULT_
 
 const styles = StyleSheet.create({
   root: { flexGrow: 1, flexShrink: 1, minWidth: 224, maxWidth: 440, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  rootInPhone: { minWidth: 0 },
   backdrop: { position: 'absolute', left: 0, top: 0 },
   direction: { width: STICK_SIZE, alignItems: 'center', flexShrink: 0 },
   joystick: { width: STICK_SIZE, height: STICK_SIZE, aspectRatio: 1, flexShrink: 0 },

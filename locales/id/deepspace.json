@@ -952,6 +952,7 @@
       "healthReflected": "Tercermin. Item yang ditambahkan: {{count}}.",
       "healthReflectedNone": "Tidak ada yang baru untuk dicerminkan: catatan hari ini sudah tersimpan.",
       "healthRoutinesCompleted": "Rutinitas yang diselesaikan dari ini: {{count}}.",
+      "healthAutoDaily": "Selama penyegaran otomatis aktif, ponsel ini juga membaca langkah, olahraga, dan tidur sekali sehari secara otomatis.",
       "healthErrFailed": "Tidak dapat mencerminkan data kesehatanmu. Coba lagi sebentar lagi.",
       "summaryPieces": "{{count}} potongan",
       "summaryPieces_plural": "{{count}} potongan",
@@ -1187,5 +1188,26 @@
   "reviewAxisNow": "Tinjau Big Five saya",
   "reviewAxisRelational": "Tinjau gaya kelekatan saya",
   "reviewAxisValues": "Tinjau nilai-nilai saya",
-  "reviewNothingToReview": "Ikuti satu tes dulu. Belum ada hasil terukur untuk ditinjau."
+  "reviewNothingToReview": "Ikuti satu tes dulu. Belum ada hasil terukur untuk ditinjau.",
+  "privacyHealth": {
+    "title": "Tautan data kesehatan",
+    "onBody": "Aktif. Catatan kesehatan yang tersimpan di aplikasi: {{count}}. Jika dimatikan, catatan itu langsung dihapus dan pembacaan otomatis berhenti.",
+    "onBodyNoCount": "Aktif. Jika dimatikan, catatan kesehatan yang tersimpan di aplikasi langsung dihapus dan pembacaan otomatis berhenti.",
+    "keeps": "Tombol ini tidak menghapus data asli dan izin di aplikasi kesehatan ponsel, centang rutinitas, atau catatan kesehatan yang diimpor dari file.",
+    "turnOff": "Matikan dan hapus catatan kesehatan",
+    "residueBody": "Nonaktif, tetapi masih ada catatan kesehatan yang tersimpan ({{count}}).",
+    "deleteRest": "Hapus sisa catatan kesehatan",
+    "residueUnknown": "Nonaktif. Belum dapat dipastikan apakah masih ada catatan kesehatan.",
+    "deleteFailed": "Sisa catatan kesehatan tidak dapat dihapus. Coba lagi sebentar lagi.",
+    "offBody": "Nonaktif. Aktifkan dari layar impor.",
+    "openImport": "Buka layar impor",
+    "loadFailed": "Status tautan tidak dapat dimuat.",
+    "retryLoad": "Muat ulang",
+    "unchanged": "Tidak dapat dimatikan. Tidak ada yang berubah. Coba lagi sebentar lagi.",
+    "uncertain": "Belum dapat dipastikan apakah tautan sudah dimatikan. Muat ulang statusnya.",
+    "partial": "Tautan sudah nonaktif, jadi catatan baru tidak masuk. Catatan kesehatan yang belum terhapus: {{count}}. Hapus sekali lagi.",
+    "partialNoCount": "Tautan sudah nonaktif, jadi catatan baru tidak masuk. Belum dapat dipastikan semua catatan kesehatan terhapus. Hapus sekali lagi.",
+    "done": "Catatan kesehatan dihapus: {{count}}. Tautan nonaktif.",
+    "doneNone": "Tautan nonaktif dan tidak ada catatan kesehatan yang tersisa."
+  }
 }

@@ -73,13 +73,13 @@ export const STRINGS = {
   },
   ko: {
     header: (n: number, m: number, date: string, name: string | null) =>
-      `# PolaScope 지식 내보내기 - ${date}\n\n${name ? `${name}의 ` : ""}PolaScope를 참고하는 중이에요. 위키 페이지 ${n}개, 소스 ${m}개로 구성돼 있어요. 페이지는 Obsidian 스타일 [[wikilink]]로 서로 연결됩니다. 답변에서 페이지를 인용할 때는 [[슬러그]] 형식을 사용해 주세요.`,
+      `# PolaScope 지식 내보내기 - ${date}\n\n${name ? `${name}의 ` : ""}PolaScope를 참고하는 중입니다. 위키 페이지 ${n}개, 소스 ${m}개로 구성돼 있습니다. 페이지는 Obsidian 스타일 [[wikilink]]로 서로 연결됩니다. 답변에서 페이지를 인용할 때는 [[슬러그]] 형식을 사용해 주세요.`,
     pagesH: "## 위키 페이지",
     sourcesH: "## 소스",
     recordsH: "## 기록 (일기·노트)",
-    noPages: "_(아직 위키 페이지가 없어요)_",
-    noSources: "_(아직 소스가 없어요)_",
-    noRecords: "_(아직 기록이 없어요)_",
+    noPages: "_(아직 위키 페이지가 없습니다)_",
+    noSources: "_(아직 소스가 없습니다)_",
+    noRecords: "_(아직 기록이 없습니다)_",
     truncated: (n: number) => `\n\n_(본문 잘림 - 원본은 ${n}자)_`,
   },
 } as const;

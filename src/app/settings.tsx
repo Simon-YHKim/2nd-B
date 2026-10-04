@@ -28,7 +28,8 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 
 import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -107,7 +108,7 @@ const SETTINGS_SURFACE_COPY: Record<
     reasoning: "리즈닝",
     reasoningSub: "자동 실행 · 자료 선택",
     wikiAuto: "위키 자동 만들기",
-    wikiAutoSub: "새로 담은 자료를 알아서 위키 페이지로 만들어요",
+    wikiAutoSub: "새로 담은 자료를 알아서 위키 페이지로 만듭니다",
     devScreens: "개발자",
     devScreensSub: "모든 화면에 바로 들어가기",
   },
@@ -519,6 +520,8 @@ function SettingsChrome({ children }: { children: ReactNode }) {
 }
 
 export default function Settings() {
+  // Phone-aware: inside the dashboard phone, links open in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("settings");
   const { t: tOps } = useTranslation("ops");
   const { userId, loading } = useAuth();

@@ -1,7 +1,8 @@
 // Post-account import of the device-local pending queue (D-17 / D-25 Phase 2).
 //
-// After sign-up, each plaintext line captured before the account existed is
-// imported as a normal record. This module is PURE orchestration: the record
+// Only after a signed-in person confirms the device notes belong to them,
+// each approved plaintext line is imported as a normal record. This module is
+// PURE orchestration: the record
 // creator is injected by the caller (the import sheet passes a closure over
 // `createRecord`), so this file never imports the LLM/Supabase graph and stays
 // trivially testable. The natural mapping is a `note` record (a captured
@@ -12,8 +13,8 @@
 //     body: item.text, minor: c.minor, withFollowup: false, clientRequestId,
 //   }), (s) => digestStringAsync(CryptoDigestAlgorithm.SHA256, s))
 //
-// Failures are retained in the queue so a partial import never loses a capture
-// and a retry never duplicates an already-imported one.
+// Failures and entries outside the confirmed snapshot remain in the queue so
+// a partial import never loses a capture and a retry never duplicates a saved one.
 //
 // That second promise only held for an insert that FAILED cleanly. Two retries
 // used to duplicate: an insert that committed but hit the 20s client deadline
@@ -29,7 +30,7 @@
 // free of native imports, and so tests can hash with a real SHA-256 - the jest
 // expo-crypto mock ignores the algorithm and always returns SHA-1.
 
-import { loadPendingCaptures, replacePendingCaptures, type PendingCapture } from "./preauth-pending";
+import { loadPendingCaptures, removeImportedPendingCaptures, type PendingCapture } from "./preauth-pending";
 
 // Mirrors the 0178 records_client_request_id_format CHECK (and createRecord's
 // guard). Kept local: importing records/create would pull the LLM + Supabase
@@ -103,21 +104,62 @@ export type PendingRecordCreator = (
   clientRequestId?: string,
 ) => Promise<void>;
 
+/** A one-time, account-specific decision over exactly the items shown in the prompt. */
+export interface PendingImportApproval {
+  userId: string;
+  items: readonly PendingCapture[];
+  /** An account epoch lease. Check again immediately before each server write. */
+  isCurrent: () => boolean;
+}
+
+function captureKey(item: PendingCapture): string {
+  return JSON.stringify([item.localId, item.text, item.capturedAt]);
+}
+
+/** A later capture, or an edited old entry, was not part of this approval. */
+export function approvedPendingItems(
+  current: readonly PendingCapture[],
+  approved: readonly PendingCapture[],
+): PendingCapture[] {
+  const counts = new Map<string, number>();
+  for (const item of approved) {
+    const key = captureKey(item);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return current.filter((item) => {
+    const key = captureKey(item);
+    const count = counts.get(key) ?? 0;
+    if (count === 0) return false;
+    counts.set(key, count - 1);
+    return true;
+  });
+}
+
 // Module-level single-flight lock. The queue is loaded up front and only cleared
 // at the very end, so two overlapping runs would each read the same uncleared
 // queue and import every capture twice. The hook's guard is a per-instance useRef
 // that a remount resets, so it does NOT prevent this; a durable module-scoped lock
 // does — concurrent callers share the one in-flight run.
 let inFlight: Promise<ImportPendingSummary> | null = null;
+let inFlightOwner: string | null = null;
 
 export function importPendingCaptures(
   ctx: ImportPendingContext,
   createOne: PendingRecordCreator,
   sha256Hex: Sha256Hex,
+  approval: PendingImportApproval,
 ): Promise<ImportPendingSummary> {
-  if (inFlight) return inFlight;
-  inFlight = runImport(ctx, createOne, sha256Hex).finally(() => {
+  if (!approval || approval.userId !== ctx.userId || !approval.isCurrent()) {
+    return Promise.reject(new Error("pending_import_approval_required"));
+  }
+  if (inFlight) {
+    if (inFlightOwner !== ctx.userId) return Promise.reject(new Error("pending_import_owner_changed"));
+    return inFlight;
+  }
+  inFlightOwner = ctx.userId;
+  inFlight = runImport(ctx, createOne, sha256Hex, approval).finally(() => {
     inFlight = null;
+    inFlightOwner = null;
   });
   return inFlight;
 }
@@ -130,26 +172,32 @@ async function runImport(
   ctx: ImportPendingContext,
   createOne: PendingRecordCreator,
   sha256Hex: Sha256Hex,
+  approval: PendingImportApproval,
 ): Promise<ImportPendingSummary> {
-  const list = await loadPendingCaptures();
+  const currentQueue = await loadPendingCaptures();
+  const list = approvedPendingItems(currentQueue, approval.items);
   if (list.length === 0) return { total: 0, imported: 0, failed: 0 };
 
   // A local id seen twice in one queue cannot name one capture: key neither copy.
   const seen = new Set<string>();
   const repeated = new Set<string>();
-  for (const item of list) {
+  for (const item of currentQueue) {
     if (seen.has(item.localId)) repeated.add(item.localId);
     seen.add(item.localId);
   }
 
-  const failures: PendingCapture[] = [];
+  const importedItems: PendingCapture[] = [];
+  let failed = 0;
   let imported = 0;
   for (const item of list) {
+    if (!approval.isCurrent()) break;
     let key: string | undefined;
     try {
       key = repeated.has(item.localId) ? undefined : await pendingClientRequestId(item, sha256Hex);
+      if (!approval.isCurrent()) break;
       await createOne(item, ctx, key);
       imported += 1;
+      importedItems.push(item);
     } catch (e) {
       if (key !== undefined && isIdempotencyConflict(e)) {
         // This capture's own key already holds a row whose body differs: an
@@ -158,13 +206,13 @@ async function runImport(
         // It reached the server, so it leaves the queue. Retaining it would fail
         // the same way every session and re-run C9 on the stale text each time.
         imported += 1;
+        importedItems.push(item);
         continue;
       }
       // Keep the failed item; never lose a capture on a transient error.
-      failures.push(item);
+      failed += 1;
     }
   }
-  // Retain only what failed (clears the queue when everything imported).
-  await replacePendingCaptures(failures);
-  return { total: list.length, imported, failed: failures.length };
+  await removeImportedPendingCaptures(importedItems);
+  return { total: list.length, imported, failed };
 }

@@ -21,7 +21,6 @@ import {
   ThemeProvider as NavThemeProvider,
   DarkTheme as NavDarkTheme,
 } from "expo-router";
-import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
@@ -40,6 +39,7 @@ import {
   suspendAnalyticsForUnresolvedProfile,
 } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
+import { HealthAutoReadSync } from "@/components/health/HealthAutoReadSync";
 import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-store";
 import { hydrateAnalyticsConsent } from "@/lib/analytics/auth-conversions";
@@ -54,7 +54,7 @@ import { BackArrow } from "@/components/ui/BackArrow";
 import { BackgroundTaskDock, CompletionToast, SecondbHeadTrackProvider } from "@/components/deepspace";
 import { PremiumTabBar } from "@/components/premium";
 import { pixelStackTransition } from "@/lib/motion/pixel-physical";
-import { fontAssets } from "@/theme/typography";
+import { useAppFonts } from "@/lib/fonts/use-app-fonts";
 import { ThemeProvider, useThemePalette } from "@/lib/theme/ThemeContext";
 import { hydrateFirstStarChatNudge } from "@/lib/onboarding/state";
 import { Helmet } from "expo-router/vendor/react-helmet-async/lib";
@@ -126,8 +126,12 @@ void initAnalytics();
 // 함수 이름을 **주석에도 적으면 안 된다**. 스캐너는 주석을 걸러내지 않는다.
 void SplashScreen.preventAutoHideAsync();
 
+/** The web plays the opening while the app fonts download; native waits for them under the splash. */
+const OPENING_LOADS_FONTS = Platform.OS === "web";
+
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts(fontAssets);
+  const [fontsLoaded, fontError] = useAppFonts();
+  const fontsReady = fontsLoaded || !!fontError;
   // Synchronously true for en/ko (their packs are in the entry), so those
   // users keep today's first-render timing to the frame. A lazy locale
   // (es/pt/id) holds the loader until its pack chunk is attached, so the
@@ -136,10 +140,10 @@ export default function RootLayout() {
   const fadeTransition = pixelStackTransition("fade");
 
   useEffect(() => {
-    if ((fontsLoaded || fontError) && i18nReady) {
+    if (fontsReady && i18nReady) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError, i18nReady]);
+  }, [fontsReady, i18nReady]);
 
   // The first-star chat nudge is persisted to AsyncStorage but nothing read it
   // back, so on native it re-armed on every cold start and re-nudged users who
@@ -184,7 +188,10 @@ export default function RootLayout() {
   // Brief minimal loader during font resolution. The branded cell-team
   // intro now lives inside IntroGate (gated on auth) — unauthenticated
   // visitors should land on /sign-in immediately, NOT see the loader.
-  if ((!fontsLoaded && !fontError) || !i18nReady) {
+  // On the web the opening plays while the fonts download (use-app-fonts.web.ts):
+  // they are not on its critical path, and IntroGate holds only the hand-over
+  // until they are in. Native keeps waiting here, under the splash screen.
+  if ((!fontsReady && !OPENING_LOADS_FONTS) || !i18nReady) {
     return (
       <>
         {SITE_HEAD}
@@ -204,11 +211,12 @@ export default function RootLayout() {
             <AnalyticsConsentSync />
             <AddressTermSync />
             <AuditWriteOutboxSync />
+            <HealthAutoReadSync />
             {/* Big SecondB head follows touch on every screen (auto by size >= 80);
                 bubbling onTouch* so it never steals taps. Dock + Toast are global
                 overlays for the background-task loading system. */}
             <SecondbHeadTrackProvider>
-            <IntroGate>
+            <IntroGate fontsReady={fontsReady}>
               <AvatarSetupGate>
               {/* O-23 Stage③: the Stack mounts every route in BOTH UI modes (the
                   flag only swaps which component `index` renders — see index.tsx —
@@ -490,7 +498,7 @@ function markIntroPlayed(): void {
   introPlayedThisRuntime = true;
 }
 
-function IntroGate({ children }: { children: React.ReactNode }) {
+function IntroGate({ children, fontsReady = true }: { children: React.ReactNode; fontsReady?: boolean }) {
   const {
     userId,
     loading,
@@ -514,7 +522,7 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   if (!introDone) {
     return (
       <LoadingScreen
-        ready={!loading && recoveryReady && profileHold !== "loading"}
+        ready={fontsReady && !loading && recoveryReady && profileHold !== "loading"}
         onContinue={() => {
           markIntroPlayed();
           setIntroDone(true);
@@ -531,6 +539,9 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   // ordinary bootstrap wait it requires a user decision. Render the explicit
   // Pixel-Clay consent gate before recoveryReady's loader so it is reachable
   // from every route and no authenticated screen remains mounted underneath.
+  // The opening already waited for the fonts before handing over; this only
+  // matters when the intro was played earlier in this tab and the fonts are not.
+  if (!fontsReady) return <InlineLoader />;
   if (storageRecoveryRequired) return <EncryptedStorageRecoveryGate />;
   if (!recoveryReady) return <InlineLoader />;
 

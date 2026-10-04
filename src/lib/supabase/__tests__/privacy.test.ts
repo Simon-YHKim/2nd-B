@@ -141,6 +141,16 @@ describe("savePrivacyPrefs -> consent_changes ledger (D-3)", () => {
     expect(__insert).not.toHaveBeenCalled();
   });
 
+  test("a strict before from the caller replaces the fail-soft read: one revoke, no false grants", async () => {
+    // Without it, a failed before-read would resolve to all-off defaults: the health revoke
+    // would vanish and every other consent that is on would be logged as a fresh grant.
+    __maybeSingle.mockResolvedValueOnce({ data: null, error: new Error("network") });
+    const before = { ...defaultPrivacyPrefs(), health_import: true, recommendations: true, external_analytics: true };
+    await savePrivacyPrefs("u1", { ...before, health_import: false }, { before });
+    expect(__maybeSingle).not.toHaveBeenCalled();
+    expect(__insert).toHaveBeenCalledWith([{ user_id: "u1", pref_key: "health_import", event_type: "revoke" }]);
+  });
+
   test("a ledger-append failure never breaks the save (best-effort)", async () => {
     mockBeforeState({ recommendations: false });
     __insert.mockResolvedValueOnce({ error: new Error("consent_changes missing pre-migration") });

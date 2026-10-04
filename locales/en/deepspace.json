@@ -952,6 +952,7 @@
       "healthReflected": "Reflected. Items added: {{count}}.",
       "healthReflectedNone": "Nothing new to reflect - today's records were already saved.",
       "healthRoutinesCompleted": "Routines completed from this: {{count}}.",
+      "healthAutoDaily": "While automatic refresh is on, this phone also reads steps, workouts and sleep once a day on its own.",
       "healthErrFailed": "Couldn't add your health activity. Try again shortly.",
       "summaryPieces": "{{count}} piece",
       "summaryPieces_plural": "{{count}} pieces",
@@ -1187,5 +1188,26 @@
   "reviewAxisNow": "Review my Big Five",
   "reviewAxisRelational": "Review my attachment style",
   "reviewAxisValues": "Review my values",
-  "reviewNothingToReview": "No test results to review yet. Take a test to get started."
+  "reviewNothingToReview": "No test results to review yet. Take a test to get started.",
+  "privacyHealth": {
+    "title": "Health data link",
+    "onBody": "On. Health records stored in the app: {{count}}. Turning it off deletes them right away and stops the automatic read.",
+    "onBodyNoCount": "On. Turning it off deletes the health records stored in the app right away and stops the automatic read.",
+    "keeps": "This button does not delete the originals or the permission in your phone's health app, routine check-offs, or health records imported from a file.",
+    "turnOff": "Turn off and delete health records",
+    "residueBody": "Off, but some health records are still stored ({{count}}).",
+    "deleteRest": "Delete the remaining health records",
+    "residueUnknown": "Off. It could not be checked whether any health records are left.",
+    "deleteFailed": "The remaining health records could not be deleted. Please try again in a moment.",
+    "offBody": "Off. You can turn it on from the import screen.",
+    "openImport": "Open the import screen",
+    "loadFailed": "The link status could not be loaded.",
+    "retryLoad": "Load again",
+    "unchanged": "It could not be turned off. Nothing changed. Please try again in a moment.",
+    "uncertain": "It could not be confirmed whether the link was turned off. Please load the status again.",
+    "partial": "The link is off, so no new records come in. Health records not deleted yet: {{count}}. Please delete them again.",
+    "partialNoCount": "The link is off, so no new records come in. It could not be confirmed that every health record was deleted. Please delete them again.",
+    "done": "Health records deleted: {{count}}. The link is off.",
+    "doneNone": "The link is off, and no health records are left."
+  }
 }

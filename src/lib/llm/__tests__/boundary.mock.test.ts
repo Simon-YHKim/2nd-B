@@ -31,7 +31,8 @@ jest.mock("../../env", () => ({
   }),
 }));
 
-import { callLlm } from "../boundary";
+import { callLlm, classifyRecordTextForCrisis } from "../boundary";
+import type { AuthenticatedAccountSessionLease } from "../../auth/account-session-lease";
 import {
   flushAuditWriteOutbox,
   getAuditWriteOutboxForTests,
@@ -101,5 +102,21 @@ describe("callLlm (mock mode)", () => {
     await flushAuditWriteOutbox("u1");
     expect(insertMock).toHaveBeenCalledTimes(2);
     expect(await getAuditWriteOutboxForTests()).toHaveLength(0);
+  });
+
+  test("a pending-record C9 route stops ledger continuation when its owner lease changes", async () => {
+    let current = true;
+    const lease = {
+      userId: "u1",
+      accessToken: "test-session-token",
+      signal: new AbortController().signal,
+      assertCurrent: () => { if (!current) throw new Error("owner changed"); },
+    } as unknown as AuthenticatedAccountSessionLease;
+    insertMock.mockImplementationOnce(async () => { current = false; });
+
+    await expect(classifyRecordTextForCrisis("I want to die", "en", "u1", false, lease))
+      .rejects.toThrow("owner changed");
+    expect(insertMock).toHaveBeenCalledTimes(1);
+    expect(crisisMock).not.toHaveBeenCalled();
   });
 });

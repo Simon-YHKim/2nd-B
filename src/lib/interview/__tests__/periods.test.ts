@@ -259,7 +259,9 @@ describe("인터뷰 화면이 엄격한 라우트 계약을 지킨다", () => {
     expect(DOMAIN_STAR_SCREEN).toContain('route: "/audit?origin=domain-growth"');
     expect(DOMAIN_STAR_SCREEN).toContain('.select("id, topic, body, created_at, audit_period")');
     expect(DOMAIN_STAR_LENS).toContain('router.push("/audit?origin=domain-growth")');
-    expect(DEEP_SPACE_VIEWS).toContain("useLocalSearchParams<{ origin?: string | string[] }>()");
+    // useScreenParams (lib/nav/phone-embed.tsx) is useLocalSearchParams outside the
+    // dashboard phone; inside it reads the phone route's query.
+    expect(DEEP_SPACE_VIEWS).toContain("useScreenParams<{ origin?: string | string[] }>()");
     expect(DEEP_SPACE_VIEWS).toContain('{ period: star.period ?? "now", origin: "domain-growth" }');
     expect(INTERVIEW_SCREEN).toContain('domainIntent: growthOrigin ? "growth" : undefined');
     expect(INTERVIEW_SCREEN).toContain('router.replace("/star/growth")');

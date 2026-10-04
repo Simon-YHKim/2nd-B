@@ -1,10 +1,10 @@
 // The signed-in user's approved 64-cell avatar. Catalog PNGs are choice
 // previews; the saved combination is always rendered from its specification.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BackHandler, FlatList, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { Image } from "expo-image";
-import { Redirect, router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Redirect, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { AvatarPreview } from "@/components/avatar/AvatarPreview";
@@ -12,6 +12,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PremiumLoadingState } from "@/components/premium";
 import { PixelPressable, PixelSurface } from "@/components/pixel";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useHardwareBack, useScreenParams } from "@/lib/nav/phone-embed";
 import {
   AVATAR_CATALOG,
   AVATAR_COLORS,
@@ -79,8 +80,11 @@ function choicesFor(category: Category, field: ColorField, species: string): Cho
 }
 
 export default function AvatarStudioScreen() {
+  // Phone-aware: inside the dashboard phone, leaving steps the phone's stack
+  // and `setup` comes from the phone route (/avatar-studio?setup=1).
+  const router = useAppRouter();
   const { t, i18n } = useTranslation(["avatar", "common"]);
-  const { setup } = useLocalSearchParams<{ setup?: string }>();
+  const { setup } = useScreenParams<{ setup?: string }>();
   const setupMode = setup === "1";
   const {
     userId,
@@ -119,14 +123,12 @@ export default function AvatarStudioScreen() {
     }
     if (router.canGoBack()) router.back();
     else router.replace("/profile");
-  }, [loadState.status, setupMode, userId]);
+  }, [loadState.status, router, setupMode, userId]);
 
-  useFocusEffect(useCallback(() => {
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      onCancel();
-      return true;
-    });
-    return () => sub.remove();
+  // Through the phone's claim stack inside the dashboard phone (see useHardwareBack).
+  useHardwareBack(useCallback(() => {
+    onCancel();
+    return true;
   }, [onCancel]));
 
   // Re-read saved wardrobe choices when returning to this route.
@@ -224,7 +226,7 @@ export default function AvatarStudioScreen() {
         setSaving(false);
       }
     }
-  }, [userId, readyForUser, spec, setupMode]);
+  }, [userId, readyForUser, router, spec, setupMode]);
 
   const isSelected = useCallback((choice: Choice): boolean => {
     if (choice.kind === "color") return spec[choice.field] === choice.value;

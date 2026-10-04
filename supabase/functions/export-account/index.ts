@@ -541,7 +541,7 @@ async function readOwnedStorage(
       }
 
       for (const object of data) {
-        if (typeof object?.name !== 'string' || !SAFE_STORAGE_NAME.test(object.name)) {
+        if (!isSafeRawClippingName(object?.name, userId)) {
           throw new ExportSourceError();
         }
         const expectedSize = assertStorageDownloadAllowed(object, budget);
@@ -789,4 +789,15 @@ async function readOwnedRecordPhotos(
     budget.bytes = initialBytes;
     throw error;
   }
+}
+
+// Keep this below the cited export/record-photo ranges in the DPIA. The
+// raw-clippings deletion sweep accepts owner-prefixed paths up to 1024 UTF-8
+// bytes; record-photos retains the 255-character name check above.
+const MAX_RAW_CLIPPING_PATH_BYTES = 1024;
+const SAFE_RAW_CLIPPING_NAME = /^(?!\.{1,2}$)[^/\\\u0000-\u001f\u007f]+$/u;
+
+function isSafeRawClippingName(name: unknown, userId: string): name is string {
+  return typeof name === 'string' && SAFE_RAW_CLIPPING_NAME.test(name) &&
+    utf8ByteLength(`${userId}/${name}`) <= MAX_RAW_CLIPPING_PATH_BYTES;
 }

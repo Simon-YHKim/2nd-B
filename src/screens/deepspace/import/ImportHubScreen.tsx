@@ -13,7 +13,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
-import { router } from "expo-router";
+import { useAppRouter, usePhoneEmbed } from "@/lib/nav/phone-embed";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceSpacing, flattenAlpha } from "@/lib/theme/tokens";
@@ -77,16 +77,16 @@ interface ImportSource {
 }
 
 const SOURCES: ImportSource[] = [
-  { key: "kakao", badge: "KA", nameKo: "카카오톡 대화", nameEn: "KakaoTalk", subKo: "통신 · 파일 내보내기", subEn: "Comms · file export", tier: "critical", mode: "file", minorLocked: true, kind: "kakao", whatKo: "약속·할 일·관계 신호만 뽑아요. 메시지 본문은 저장하지 않아요.", whatEn: "Only plan/relationship signals. We don't store message text." },
+  { key: "kakao", badge: "KA", nameKo: "카카오톡 대화", nameEn: "KakaoTalk", subKo: "통신 · 파일 내보내기", subEn: "Comms · file export", tier: "critical", mode: "file", minorLocked: true, kind: "kakao", whatKo: "약속 언급 횟수와 관계 빈도만 뽑습니다. 메시지 본문은 저장하지 않습니다.", whatEn: "Only plan mention counts and relationship frequency. We don't store message text." },
   { key: "takeout", badge: "LO", nameKo: "구글 타임라인", nameEn: "Google Timeline", subKo: "위치 · Takeout 파일", subEn: "Location · Takeout file", tier: "critical", mode: "file", minorLocked: true, kind: "takeout-location", whatKo: "자주 가는 장소·머문 시간 패턴만. 정확한 좌표 경로는 저장 안 함.", whatEn: "Only place/dwell patterns. Exact coordinates aren't stored." },
-  { key: "sms", badge: "SM", nameKo: "문자(SMS)", nameEn: "SMS", subKo: "통신 · 백업 파일", subEn: "Comms · backup file", tier: "critical", mode: "file", minorLocked: true, kind: "sms", whatKo: "약속·알림 신호만. 메시지 본문은 저장하지 않아요.", whatEn: "Only plan/reminder signals. We don't store message text." },
+  { key: "sms", badge: "SM", nameKo: "문자(SMS)", nameEn: "SMS", subKo: "통신 · 백업 파일", subEn: "Comms · backup file", tier: "critical", mode: "file", minorLocked: true, kind: "sms", whatKo: "약속 언급 횟수만 뽑습니다. 메시지 본문은 저장하지 않습니다.", whatEn: "Only plan mention counts. We don't store message text." },
   { key: "live-location", badge: "LV", nameKo: "실시간 위치", nameEn: "Live location", subKo: "위치 · 기기 권한", subEn: "Location · device permission", tier: "critical", mode: "connector", minorLocked: true, kind: "unknown", whatKo: "자주 가는 장소·머문 시간 패턴만. 정확한 좌표 경로는 저장 안 함.", whatEn: "Only place/dwell patterns. Exact coordinates aren't stored." },
   { key: "health", badge: "HE", nameKo: "건강", nameEn: "Health", subKo: "건강 · export 파일", subEn: "Health · export file", tier: "sensitive", mode: "file", minorLocked: false, kind: "apple-health", whatKo: "걸음·운동 등 합계만. 상세 기록 원문은 저장 안 함.", whatEn: "Only totals (steps, etc). Detailed records aren't stored." },
   { key: "email", badge: "EM", nameKo: "이메일", nameEn: "Email", subKo: "이메일 · .eml 파일", subEn: "Email · .eml file", tier: "sensitive", mode: "file", minorLocked: false, kind: "email", whatKo: "약속·일정 신호만. 본문 전체는 저장 안 함.", whatEn: "Only plan/schedule signals, not the full body." },
-  { key: "notion", badge: "NO", nameKo: "Notion · Obsidian", nameEn: "Notion · Obsidian", subKo: "노트 · export 파일", subEn: "Notes · export file", tier: "normal", mode: "file", minorLocked: false, kind: "markdown", whatKo: "노트를 기록으로 들여와요.", whatEn: "Brings your notes in as records." },
-  { key: "google", badge: "GC", nameKo: "구글 캘린더", nameEn: "Google Calendar", subKo: "일정 · 계정 연결", subEn: "Schedule · account link", tier: "normal", mode: "connector", minorLocked: false, kind: "ics", googleKind: "calendar", whatKo: "다가오는 일정의 제목·시간만 가져와요. 본문·참석자는 저장 안 해요.", whatEn: "Brings only upcoming event titles + times. No body/attendees." },
-  { key: "google-tasks", badge: "GT", nameKo: "구글 할 일", nameEn: "Google Tasks", subKo: "할 일 · 계정 연결", subEn: "To-dos · account link", tier: "normal", mode: "connector", minorLocked: false, kind: "markdown", googleKind: "tasks", whatKo: "할 일 목록의 제목만 기록으로 가져와요.", whatEn: "Brings your to-do titles in as records." },
-  { key: "calendar", badge: "IC", nameKo: "캘린더(.ics)", nameEn: "Calendar (.ics)", subKo: "일정 · 파일", subEn: "Schedule · file", tier: "normal", mode: "file", minorLocked: false, kind: "ics", whatKo: "일정 이벤트를 들여와요.", whatEn: "Brings your calendar events in." },
+  { key: "notion", badge: "NO", nameKo: "Notion · Obsidian", nameEn: "Notion · Obsidian", subKo: "노트 · export 파일", subEn: "Notes · export file", tier: "normal", mode: "file", minorLocked: false, kind: "markdown", whatKo: "노트를 기록으로 들여옵니다.", whatEn: "Brings your notes in as records." },
+  { key: "google", badge: "GC", nameKo: "구글 캘린더", nameEn: "Google Calendar", subKo: "일정 · 계정 연결", subEn: "Schedule · account link", tier: "normal", mode: "connector", minorLocked: false, kind: "ics", googleKind: "calendar", whatKo: "다가오는 일정의 제목·시간만 가져옵니다. 본문·참석자는 저장 안 합니다.", whatEn: "Brings only upcoming event titles + times. No body/attendees." },
+  { key: "google-tasks", badge: "GT", nameKo: "구글 할 일", nameEn: "Google Tasks", subKo: "할 일 · 계정 연결", subEn: "To-dos · account link", tier: "normal", mode: "connector", minorLocked: false, kind: "markdown", googleKind: "tasks", whatKo: "할 일 목록의 제목만 기록으로 가져옵니다.", whatEn: "Brings your to-do titles in as records." },
+  { key: "calendar", badge: "IC", nameKo: "캘린더(.ics)", nameEn: "Calendar (.ics)", subKo: "일정 · 파일", subEn: "Schedule · file", tier: "normal", mode: "file", minorLocked: false, kind: "ics", whatKo: "일정 이벤트를 들여옵니다.", whatEn: "Brings your calendar events in." },
 ];
 
 // F7 (C10): the parser kinds behind the minor-locked comms/location tiles. Derived
@@ -107,7 +107,13 @@ const TIER_COLOR: Record<Tier, string> = {
 type Step = "hub" | "consent" | "input" | "review" | "history";
 
 export function ImportHubScreen() {
-  const { i18n } = useTranslation();
+  // Phone-aware: inside the dashboard phone, back from the hub step steps the
+  // phone back instead of popping the app stack.
+  const router = useAppRouter();
+  // Inside the dashboard phone (~180px column at 320x568) the history link
+  // ran off the title row; let that row wrap there.
+  const inPhone = usePhoneEmbed() !== null;
+  const { i18n, t: importT } = useTranslation("import");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId, isMinor } = useAuth();
   const progression = useProgression();
@@ -339,14 +345,17 @@ export function ImportHubScreen() {
       // toggle is off or the auto allowance is spent). A later ratify stamps
       // the domain tag that lets this import brighten its star — the only
       // honest path (propose→ratify) from imported data to the constellation.
-      enqueueAutoReasoningSource({
-        userId,
-        locale: ko ? "ko" : "en",
-        minor: isMinor === true,
-        tier: progression.tier,
-        id: result.source.id,
-        title: result.source.title,
-      });
+      // Health measurements are never sent to an AI provider (lib/wiki/ai-exclusion.ts).
+      if (!chosen.some((p) => p.aiExcluded)) {
+        enqueueAutoReasoningSource({
+          userId,
+          locale: ko ? "ko" : "en",
+          minor: isMinor === true,
+          tier: progression.tier,
+          id: result.source.id,
+          title: result.source.title,
+        });
+      }
       // P0③ (kakao only): pseudonymous per-person signals become star-alias
       // people ("새벽에 걷는 베텔게우스") in relation_people — the relation
       // star's real backing. Best-effort after the import itself landed.
@@ -455,12 +464,15 @@ export function ImportHubScreen() {
   // ⚠ active="capture" 는 하이라이트용이고 pathname 이 /capture 가 아니라서
   // DeepSpaceScreen 의 '루트 탭 → 홈' 하드웨어 뒤로가기 특례는 걸리지 않는다.
   // 단계 안의 뒤로(‹ → back())와 하드웨어 뒤로 동선은 그대로다.
+  //
+  // ownBack: 뒤로는 본문 제목 줄의 ‹ 하나다. 대시보드 폰 안에서 셸이 두 번째 뒤로를
+  // 붙이지 않는다(뒤로는 한 곳에만 - O-7).
   return (
-    <DeepSpaceScreen active="capture" header="none">
+    <DeepSpaceScreen active="capture" header="none" ownBack>
       <View style={styles.glow} pointerEvents="none" />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <SecondbStatusHeader text={t("hubBubble")} tip={t("hubTip")} />
-        <View style={styles.titleRow}>
+        <View style={[styles.titleRow, inPhone && styles.titleRowWrap]}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("back")} onPress={back} hitSlop={10} style={styles.backBtn}>
             <RNText style={styles.backIcon}>‹</RNText>
           </Pressable>
@@ -562,16 +574,18 @@ export function ImportHubScreen() {
         </View>
         <View style={styles.block}>
           <Text variant="caption" pixelEn style={styles.blockLabel}>{t("where")}</Text>
-          <Text variant="body" style={styles.blockText}>{t("whereBody")}</Text>
+          <Text variant="body" style={styles.blockText}>
+            {s.kind === "markdown" ? importT("markdownRetention.consent") : t("whereBody")}
+          </Text>
         </View>
         <View style={styles.chipRow}>
-          <MetaChip label={t("keep90")} />
+          <MetaChip label={importT("retention.chip")} />
           <MetaChip label={t("deleteAnytime")} />
           {/* Truthful STATIC fact, not a switch: buildProposals parses locally,
               so analysis really is on-device — but the old toggle here was read
               by nothing (analyze/ratify/chooseFile ignored it), a fake control
               on a privacy promise (audit: /import-hub dead switch). */}
-          <MetaChip label={t("onDeviceOnly")} />
+          <MetaChip label={t("localAnalysis")} />
         </View>
 
         {s.googleKind ? (
@@ -667,8 +681,11 @@ export function ImportHubScreen() {
           {out.summary.transactions > 0 ? <Summary n={out.summary.transactions} label={t("txns")} /> : null}
           <Summary n={out.summary.appointments} label={t("appts")} />
           <Summary n={out.summary.places + out.summary.events} label={t("places")} />
-          <Summary n={0} label={t("raw")} dim />
+          {out.summary.notes === 0 ? <Summary n={0} label={t("raw")} dim /> : null}
         </View>
+        {out.summary.notes > 0 ? (
+          <Text variant="subtle" style={styles.fine}>{importT("markdownRetention.review")}</Text>
+        ) : null}
         <Text variant="caption" pixelEn style={styles.tierLabel}>{t("pickToApply")}</Text>
         {out.proposals.map((p) => {
           const on = selected.has(p.id);
@@ -757,38 +774,38 @@ function Summary({ n, label, dim }: { n: number; label: string; dim?: boolean })
 function COPY(ko: boolean): Record<string, string> {
   return ko
     ? {
-        back: "뒤로", import: "가져오기", imported: "가져온 데이터", hubBubble: "무엇을 들여올까요?", hubTip: "네가 승인한 것만 기록에 남아요.",
+        back: "뒤로", import: "가져오기", imported: "가져온 데이터", hubBubble: "무엇을 들여올까요?", hubTip: "네가 승인한 것만 기록에 남습니다.",
         tier_critical: "최민감 · 명시 동의 필요", tier_sensitive: "민감", tier_normal: "보통",
         needsConsent: "동의 필요", notLinked: "미연결", locked: "잠김", linked: "연결됨",
-        what: "무엇을", where: "어디에", whereBody: "이 기기에서 분석하고 원문은 버려요. 파생 신호만 암호화해 보관해요.",
-        keep90: "보관 90일", deleteAnytime: "언제든 삭제", onDeviceOnly: "이 기기에서만 처리",
-        connectorNote: "다음 화면에서 위치 권한을 \"사용 중에만\"으로 요청해요. (네이티브 빌드 필요)",
-        googleConnectorNote: "브라우저에서 구글 계정으로 안전하게 연결해요. 읽기 전용(일정 보기)이에요.",
+        what: "무엇을", where: "어디에", whereBody: "이 기기에서 분석합니다. 검토 화면에서 고른 결과만 암호화해 보관합니다.",
+        deleteAnytime: "언제든 삭제", localAnalysis: "파일 분석은 이 기기에서",
+        connectorNote: "다음 화면에서 위치 권한을 \"사용 중에만\"으로 요청합니다. (네이티브 빌드 필요)",
+        googleConnectorNote: "브라우저에서 구글 계정으로 안전하게 연결합니다. 읽기 전용(일정 보기)입니다.",
         googleConnect: "구글 연결", connecting: "연결 중…",
-        gErrNoEvents: "다가오는 일정이 없어요.", gErrDenied: "연결이 취소됐어요. 다시 시도해 주세요.",
-        gErrNative: "지금은 웹에서만 연결돼요. 앱(네이티브)은 추후 지원해요.", gErrGeneric: "연결하지 못했어요. 잠시 후 다시 시도해 주세요.",
+        gErrNoEvents: "다가오는 일정이 없습니다.", gErrDenied: "연결이 취소됐습니다. 다시 시도해 주세요.",
+        gErrNative: "지금은 웹에서만 연결됩니다. 앱(네이티브)은 추후 지원합니다.", gErrGeneric: "연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
         consentPick: "동의하고 파일 선택", orImportFile: "대신 파일로 가져오기",
-        consentFine: "수집 항목·보관 위치·기간·삭제권에 동의해요. 미성년은 통신·위치 임포트가 잠겨 있어요.",
+        consentFine: "수집 항목·보관 위치·기간·삭제권에 동의합니다. 미성년은 통신·위치 임포트가 잠겨 있습니다.",
         chooseFile: "파일 선택", orPaste: "또는 아래에 직접 붙여넣기",
         pasteHint: "내보낸 파일 내용을 붙여넣어 주세요.", pastePlaceholder: "여기에 붙여넣기", analyze: "분석",
-        errTitle: "파일 형식을 못 읽었어요", errBody: "내보낸 형식이 맞는지 확인해 주세요",
-        importFailed: "가져오지 못했어요. 아무것도 기록되지 않았어요. 다시 시도해 주세요.",
-        ledgerWarnTitle: "거래 반영은 실패했어요",
-        ledgerWarnBody: "가져오기는 저장됐어요. 다만 고른 거래 내역을 적지 못했어요. 같은 파일을 다시 가져오면 반영돼요.",
-        ledgerWarnPartTitle: "거래 일부를 적지 못했어요",
-        ledgerWarnPartBody: "고른 거래 중 {failed}건을 적지 못했어요. {inserted}건은 반영됐어요. 같은 파일을 다시 가져오면 이미 반영된 내역이 중복되니, 빠진 내역은 직접 추가해 주세요.",
+        errTitle: "파일 형식을 못 읽었습니다", errBody: "내보낸 형식이 맞는지 확인해 주세요",
+        importFailed: "가져오지 못했습니다. 아무것도 기록되지 않았습니다. 다시 시도해 주세요.",
+        ledgerWarnTitle: "거래 반영은 실패했습니다",
+        ledgerWarnBody: "가져오기는 저장됐습니다. 다만 고른 거래 내역을 적지 못했습니다. 같은 파일을 다시 가져오면 반영됩니다.",
+        ledgerWarnPartTitle: "거래 일부를 적지 못했습니다",
+        ledgerWarnPartBody: "고른 거래 중 {failed}건을 적지 못했습니다. {inserted}건은 반영됐습니다. 같은 파일을 다시 가져오면 이미 반영된 내역이 중복되니, 빠진 내역은 직접 추가해 주세요.",
         done: "완료", appts: "약속", places: "장소", notes: "노트", watches: "시청", txns: "거래", raw: "원문", pickToApply: "반영할 항목 고르기",
         sensitiveExcluded: "민감 · 기본 제외", applyN: "고른 {n}건 기록에 반영",
-        emptyTitle: "아직 가져온 게 없어요", emptyBody: "소스를 골라 시작해요", pickSource: "소스 고르기",
-        delete: "삭제", historyFine: "삭제는 이 임포트가 만든 원본을 제거해요. 이 임포트가 만들었다고 확인되지 않은 원본은 남기고, 남긴 까닭을 알려 드려요. 임포트로 만들어진 인물·가계부 항목은 관계·가계부 화면에서 지울 수 있어요. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있어요.",
-        revokeFailed: "철회하지 못했어요. 잠시 후 다시 시도해 주세요.", revokeNeedsSignIn: "로그인 후 철회할 수 있어요. 서버에 남은 데이터까지 함께 지워야 해서요.",
+        emptyTitle: "아직 가져온 게 없습니다", emptyBody: "소스를 골라 시작합니다", pickSource: "소스 고르기",
+        delete: "삭제", historyFine: "삭제는 이 임포트가 만든 원본을 제거합니다. 이 임포트가 만들었다고 확인되지 않은 원본은 남기고, 남긴 까닭을 알려 드립니다. 임포트로 만들어진 인물·가계부 항목은 관계·가계부 화면에서 지울 수 있습니다. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있습니다.",
+        revokeFailed: "철회하지 못했습니다. 잠시 후 다시 시도해 주세요.", revokeNeedsSignIn: "로그인 후 철회할 수 있습니다. 서버에 남은 데이터까지 함께 지워야 하기 때문입니다.",
       }
     : {
         back: "Back", import: "Import", imported: "Imported data", hubBubble: "What should we bring in?", hubTip: "Only what you approve is kept.",
         tier_critical: "Most sensitive · consent required", tier_sensitive: "Sensitive", tier_normal: "Normal",
         needsConsent: "Needs consent", notLinked: "Not linked", locked: "Locked", linked: "Linked",
-        what: "WHAT", where: "WHERE", whereBody: "Parsed on this device; the raw is discarded. Only derived signals are kept, encrypted.",
-        keep90: "Kept 90 days", deleteAnytime: "Delete anytime", onDeviceOnly: "Process on this device only",
+        what: "WHAT", where: "WHERE", whereBody: "Analyzed on this device. Only the results you choose on the review screen are kept, encrypted.",
+        deleteAnytime: "Delete anytime", localAnalysis: "File analyzed on device",
         connectorNote: "The next screen requests location \"while using\" only. (needs the native build)",
         googleConnectorNote: "Securely link your Google account in the browser. Read-only (view events).",
         googleConnect: "Connect Google", connecting: "Connecting…",
@@ -818,6 +835,7 @@ const styles = StyleSheet.create({
   glow: { position: "absolute", top: 0, left: 0, right: 0, height: 220, backgroundColor: flattenAlpha(deepSpace.bgGlow, 0.5, deepSpace.bg) },
   scroll: { padding: deepSpaceSpacing.lg, paddingBottom: 40, gap: deepSpaceSpacing.md },
   titleRow: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },
+  titleRowWrap: { flexWrap: "wrap" },
   backBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   backIcon: { color: deepSpace.accentBright, fontSize: 24 },
   title: { fontSize: 18, color: deepSpace.accentBright },

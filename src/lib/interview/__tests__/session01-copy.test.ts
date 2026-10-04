@@ -36,7 +36,7 @@ describe("① 인트로 선언", () => {
 describe("② 발판 문구", () => {
   it("모르는 답을 데이터로 설득하지 않고 건너뛰기를 안내한다 (ko)", () => {
     const ko = JSON.parse(read("locales/ko/interview.json")) as { drill: Record<string, string> };
-    expect(ko.drill.scaffoldNote).toContain("몰라도 괜찮아요");
+    expect(ko.drill.scaffoldNote).toContain("몰라도 괜찮습니다");
     expect(ko.drill.scaffoldNote).toContain("건너뛰어도");
   });
 });
@@ -93,7 +93,7 @@ describe("④ 거절 철회 + 거울 카피", () => {
     // The 2026-09-07 register round rephrased the locale line; the promise it has to
     // carry — nothing applied, nothing recorded — is unchanged. review.tsx below is
     // the legacy screen and still carries the older wording.
-    expect(ko.reviewLeftAsIs).toContain("기록에 남기지 않았어요");
+    expect(ko.reviewLeftAsIs).toContain("기록에 남기지 않았습니다");
     // 레거시 렌더러가 아카이브로 나갔다. 라이브 쪽 같은 문구는 아래 딥스페이스
       // 항목이 지고, 여기서는 보관본이 그 문구를 유지하는지를 본다.
       expect(read("legacy/screens/review.tsx")).toContain("기록에 남지 않습니다");

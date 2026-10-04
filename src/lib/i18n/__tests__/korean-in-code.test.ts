@@ -234,7 +234,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/iden/build-iden.ts": 21,
   "src/lib/iden/load-persisted-iden.ts": 12,
   "src/lib/iden/render-html.ts": 8,
-  "src/lib/import/proposals.ts": 19,
+  "src/lib/import/proposals.ts": 17,
   // 2026-09-25: two KO/EN paired scene-continuity and voluntary-disclosure prompt rules.
   "src/lib/interview/probe.ts": 58,
   // Offline-only layer fixtures; all five questions have an explicit English branch.
@@ -284,7 +284,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/screens/deepspace/dds-record-detail-screen.tsx": 4,
   "src/screens/deepspace/dds-wiki-records-screens.tsx": 4,
   "src/screens/deepspace/growth/WeeklyGrowthScreen.tsx": 14,
-  "src/screens/deepspace/import/ImportHubScreen.tsx": 87,
+  "src/screens/deepspace/import/ImportHubScreen.tsx": 86,
   "src/screens/deepspace/museum/AiMuseumScreen.tsx": 86,
   "src/screens/deepspace/onboarding/TTFVScreen.tsx": 29,
   "src/screens/deepspace/ops/screens.tsx": 14,

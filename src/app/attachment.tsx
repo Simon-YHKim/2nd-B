@@ -7,8 +7,8 @@
 // empty-state / retake CTA (mirrors BigFive). Legacy renders the survey directly
 // in the premium shell.
 
-import { useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -21,6 +21,7 @@ import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { AttachmentLensM3, type AttachmentLensResult } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useHardwareBack } from "@/lib/nav/phone-embed";
 import { createRecord } from "@/lib/records/create";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { loadLatestAttachment } from "@/lib/persona/build";
@@ -176,7 +177,18 @@ type Toast = { message: string; tone: "danger" | "info" | "success" };
 // tracks. It is the ONLY writer of the ["attachment","ecr"] record that
 // loadLatestAttachment reads. onComplete fires after the save celebration so the
 // caller decides where to go next; onCancel backs out of the intro / exit modal.
-function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
+function AttachmentSurvey({
+  onComplete,
+  onCancel,
+  backActionRef,
+}: {
+  onComplete: () => void;
+  onCancel: () => void;
+  /** The dashboard phone's back row asks this survey (the same question Android Back asks). */
+  backActionRef?: RefObject<(() => void) | null>;
+}) {
+  // Phone-aware: inside the dashboard phone the first-star nudge opens in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("attachment");
   const { userId, loading } = useAuth();
   const displayLocale = displayLocaleFor(i18n.language);
@@ -192,18 +204,22 @@ function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; on
   const result = useMemo(() => scoreEcr(responses), [responses]);
 
   // Android hardware back handler: intercept navigation back requests while the
-  // survey is in progress to prevent accidental loss of responses.
-  useEffect(() => {
-    if (!started || Object.keys(responses).length === 0 || saved) return;
-
-    const onBackPress = () => {
-      setExitConfirmOpen(true);
-      return true; // Consume the event, preventing immediate navigation back
+  // survey is in progress to prevent accidental loss of responses. useHardwareBack
+  // removes the listener on blur and unmount, and inside the dashboard phone
+  // claims Back through the phone instead. Nothing to lose -> false, default Back.
+  useHardwareBack(useCallback(() => {
+    if (!started || Object.keys(responses).length === 0 || saved) return false;
+    setExitConfirmOpen(true);
+    return true; // Consume the event, preventing immediate navigation back
+  }, [started, responses, saved]));
+  // The phone's back row (AttachmentDeepSpace) takes the same guard instead of
+  // dropping the answers. Standalone the fullbleed shell draws no back row.
+  if (backActionRef) {
+    backActionRef.current = () => {
+      if (!started || Object.keys(responses).length === 0 || saved) onCancel();
+      else setExitConfirmOpen(true);
     };
-
-    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => subscription.remove();
-  }, [started, responses, saved]);
+  }
 
   useEffect(() => {
     if (!toast) return;
@@ -436,12 +452,15 @@ const styles = StyleSheet.create({
 // filled -> the 회피×불안 map + propose→ratify estimate. `taking` flips to the
 // survey inside the same dock (the BigFive pattern).
 function AttachmentDeepSpace() {
+  // Phone-aware: inside the dashboard phone Back and the lens links stay in the phone.
+  const router = useAppRouter();
   const { t } = useTranslation("home");
   const { userId, loading } = useAuth();
   const [result, setResult] = useState<AttachmentLensResult | null>(null);
   const [hasError, setHasError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [taking, setTaking] = useState(false);
+  const surveyBackRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -469,14 +488,21 @@ function AttachmentDeepSpace() {
   }, [userId, loading, reloadKey]);
 
   if (taking) {
+    // onBack is drawn only by the dashboard phone's compact shell (the fullbleed
+    // shell has no back row): it asks the survey before leaving mid-answer.
     return (
-      <DeepSpaceScreen active="lens" header="none">
+      <DeepSpaceScreen
+        active="lens"
+        header="none"
+        onBack={() => (surveyBackRef.current ? surveyBackRef.current() : setTaking(false))}
+      >
         <AttachmentSurvey
           onComplete={() => {
             setTaking(false);
             setReloadKey((k) => k + 1);
           }}
           onCancel={() => setTaking(false)}
+          backActionRef={surveyBackRef}
         />
       </DeepSpaceScreen>
     );

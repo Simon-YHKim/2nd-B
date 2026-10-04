@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { BirthDateField } from "@/components/auth/BirthDateField";
@@ -21,6 +21,7 @@ import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { canSubmitDobCorrection } from "@/lib/account/dob";
 import { buildInfoLine } from "@/lib/build-info";
+import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { m3 } from "@/lib/theme/m3";
 import {
   ACCOUNT_DESTINATIONS,
@@ -68,9 +69,12 @@ function warnAccountAction(action: "dob-load" | "dob-save" | "export"): void {
 }
 
 export function DeepSpaceAccountScreen() {
+  // Phone-aware: inside the dashboard phone, links and back stay in the phone,
+  // and `tool` comes from the phone route (/account?tool=export).
+  const router = useAppRouter();
   const { t } = useTranslation(["deepspace", "consent", "common"]);
   const { userId, loading, refresh } = useAuth();
-  const { tool } = useLocalSearchParams<{ tool?: string | string[] }>();
+  const { tool } = useScreenParams<{ tool?: string | string[] }>();
   const requestedTool = accountToolFromParam(tool);
 
   const [dobOpen, setDobOpen] = useState(false);
@@ -256,8 +260,10 @@ export function DeepSpaceAccountScreen() {
   const dobReady = dobOwner === userId && !dobLoading;
   const dobSubmittable = dobReady && canSubmitDobCorrection(origDob, birthDate);
 
+  // ownBack: the top bar below draws this screen's back button, so the phone
+  // shell adds no second one. The loading state above has none and keeps it.
   return (
-    <DeepSpaceScreen active="settings" header="none">
+    <DeepSpaceScreen active="settings" header="none" ownBack>
       <KeyboardAvoidingView
         style={styles.screen}
         behavior={Platform.OS === "ios" ? "padding" : undefined}

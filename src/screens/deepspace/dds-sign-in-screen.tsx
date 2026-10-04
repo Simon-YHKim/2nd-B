@@ -142,6 +142,7 @@ export function DeepSpaceSignInDesignScreen() {
     showPassword,
     toggleShowPassword,
     submitting,
+    signInTakingLong,
     oauthSubmitting,
     canSubmit,
     toast,
@@ -224,6 +225,32 @@ export function DeepSpaceSignInDesignScreen() {
             >
               <Text style={styles.sessionRetryLabel}>{t("common:actions.retry")}</Text>
             </PixelPressable>
+          </PixelSurface>
+        </View>
+      ) : null}
+
+      {signInTakingLong ? (
+        <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+          <PixelSurface
+            variant="frame"
+            background={m3.color.primaryContainer}
+            contentStyle={styles.sessionAlert}
+          >
+            <Text style={[styles.toastText, styles.toastInfo]}>
+              {t("auth:signIn.longWait")}
+            </Text>
+            {Platform.OS === "web" ? (
+              <PixelPressable
+                variant="bevel"
+                onPress={() => window.location.reload()}
+                accessibilityLabel={t("auth:signIn.reopen")}
+                background={m3.color.primary}
+                fullWidth
+                contentStyle={styles.sessionRetry}
+              >
+                <Text style={styles.sessionRetryLabel}>{t("auth:signIn.reopen")}</Text>
+              </PixelPressable>
+            ) : null}
           </PixelSurface>
         </View>
       ) : null}
