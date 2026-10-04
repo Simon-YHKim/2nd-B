@@ -339,7 +339,7 @@ export default function Digest() {
         {remindersOk ? (
           <View style={styles.reminder}>
             <PreferenceToggleRow
-              label={t("digest.reminder.label")}
+              label={t("digest.reminder.label", { time: formatDailyReviewHour(reminderHour) })}
               description={t("digest.reminder.desc")}
               value={reminderOn}
               disabled={reminderBusy}

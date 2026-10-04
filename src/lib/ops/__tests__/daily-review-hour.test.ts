@@ -69,5 +69,11 @@ describe("화면이 시각을 다시 하드코딩하지 않는다", () => {
       readFileSync(join(process.cwd(), "locales", "ko", "ratifications.json"), "utf8"),
     ) as { digest: { reminder: Record<string, string> } };
     expect(ko.digest.reminder.label).toContain("{{time}}");
+    // QA 261004 D-04: the locale carried {{time}} since #1260 but the screen
+    // called t() with no value, so native users read "Remind me daily at
+    // {{time}}". The test name always promised interpolation; now it checks it.
+    expect(digest).toMatch(
+      /t\("digest\.reminder\.label",\s*\{\s*time:\s*formatDailyReviewHour\(reminderHour\)\s*\}\)/,
+    );
   });
 });
