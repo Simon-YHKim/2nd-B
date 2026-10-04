@@ -188,12 +188,12 @@ only the path moved.
 | `public/landing/` | 7 PNG | 2026-06-15 | Landing background concepts |
 | `public/proto/` | 7 PNG | 2026-07-04 | Deep-space prototype screens |
 | `public/icons/` | 2 PNG | 2026-06-11 | PWA icons (192 / 512), derived from the app icon. Since 2026-09-30 both are rasterised by `scripts/build-app-icons.ts` from the Polaris pixel star (first-party code, no third-party pixels) |
-| `assets/deepspace/` | 13 PNG | 2026-06-19 | SecondB canonical head pair plus 11 Nebori style-comparison working images added while the deep-space look was being settled |
+| `assets/deepspace/` | 12 PNG | 2026-06-19 | SecondB canonical face-baked head (`secondb-head-front.png`, the share card capture; its blank-face pair `secondb-head-blank.png` had no reader after 2026-09-05 and moved out of the repo to `E:/Legacy/2ndB/assets/deepspace/` on 2026-10-04) plus 11 Nebori style-comparison working images added while the deep-space look was being settled |
 | `assets/opening/` | 1 PNG | 2026-08-27 | HustleK opening sprite sheet (48 frames, 8x6 grid, 320x180 cells) built by `scripts/build-opening-strip.py` from the approved atlas. No new art: the builder refuses to run unless the atlas RGBA hash matches the approved value. |
 | `assets/images/` | 9 PNG | 2026-05-25 | App icon, adaptive-icon layers, splash, favicon, and three SecondB phone assets. The home phone and the blank-screen dashboard frame are Simon-provided ChatGPT art (2026-09-26); the earlier silver phone is retained for rollback. Seeded from the Expo template at initialisation (MIT) and replaced in-window with generated art. Since 2026-09-30 the app icon, adaptive foreground and monochrome layers, and favicon are rasterised by `scripts/build-app-icons.ts` from the Polaris pixel star the sign-in screen draws (`pixel-star.ts` geometry, `m3.ts` colours; first-party code, no third-party pixels). The adaptive background and the splash are unchanged |
 | `assets/images/phone-app/` | 31 PNG | 2026-09-28 | Simon-supplied mini-app display pack: 12 app icons, 5 internal dock icons, 12 UI icons, and 1 night-village banner; plus 1 locally drawn avatar-palette app icon on a 4 px grid. Only pixels are bundled; labels, dates, unread counts, and state are rendered by the app. Release rights confirmed by Simon on 2026-09-28; the pack does not name its image generator. |
 
-Current checked inventory: **280 bundled image files**. `scripts/check-constraints.ts` (`AssetLicenseDisclosure`)
+Current checked inventory: **302 bundled image files** (2026-10-04). `scripts/check-constraints.ts` (`AssetLicenseDisclosure`)
 fails if any of these paths stops being mentioned in this file, so a new
 art pack cannot ship undisclosed.
 
