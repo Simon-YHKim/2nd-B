@@ -9,7 +9,8 @@
 // discipline as the values/data/career screens). Structured sources such as
 // the ledger, people map, recreation items and health samples stay real too.
 import { useCallback, useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 

@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "metricOrder": ["routines", "records", "activity"],
+  "priorityOrder": ["dueRoutine", "allDone", "planRoutine", "startInterview"],
+  "recordTrendDays": 7,
+  "recordReadLimit": 80,
+  "upcomingDays": 7
+}

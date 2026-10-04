@@ -9,9 +9,9 @@ import {
   Platform,
   SectionList,
   StyleSheet,
-  Text as RNText,
   View,
 } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 

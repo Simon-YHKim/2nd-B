@@ -264,6 +264,11 @@ jest.mock("react-i18next", () => ({
   }),
 }));
 jest.mock("expo-router", () => ({ Redirect: "Redirect", router: { back: jest.fn(), push: jest.fn() } }));
+// The screen takes its router from useAppRouter() (dashboard phone, lib/nav/phone-embed.tsx),
+// which reads a context; this harness calls the screen outside a React render.
+jest.mock("@/lib/nav/phone-embed", () => ({
+  useAppRouter: () => jest.requireMock<{ router: unknown }>("expo-router").router,
+}));
 jest.mock("@/components/ui/Text", () => ({ Text: "Text" }));
 jest.mock("@/components/ui/Button", () => ({ Button: "Button" }));
 jest.mock("@/components/premium", () => ({
@@ -282,12 +287,19 @@ jest.mock("@/lib/theme/tokens", () => ({
 jest.mock("@/components/pixel/PixelDither", () => ({ PixelScrim: "PixelScrim" }));
 jest.mock("@/lib/ui-mode", () => ({ isDeepSpaceUI: () => mockDeepSpaceUI.current }));
 jest.mock("@/components/deep-space/DeepSpaceScreen", () => ({ DeepSpaceScreen: "DeepSpaceScreen" }));
+// 2026-09-30: on deep-space the screen's shell is the Polaris card overlay (a
+// transparent modal over the sky), not a DeepSpaceScreen page.
+jest.mock("@/components/deep-space/PolarisCardOverlay", () => ({
+  PolarisCardOverlay: "PolarisCardOverlay",
+  PolarisCardSurface: "PolarisCardSurface",
+}));
 jest.mock("@/components/deep-space/PolarisDeck", () => ({ PolarisDeck: "PolarisDeck" }));
 jest.mock("@/components/pixel/PixelStarSvg", () => ({ PixelStarSvg: "PixelStarSvg" }));
 jest.mock("@/components/m3", () => ({ MdButton: "MdButton", m3TextStyle: () => ({}) }));
 jest.mock("@/lib/theme/m3", () => ({
   m3: {
     accent: { starDim: "starDim", polarisEdge: "polarisEdge" },
+    polarisCard: new Proxy({}, { get: (_target, key) => String(key) }),
     color: new Proxy({}, { get: (_target, key) => String(key) }),
     font: new Proxy({}, { get: (_target, key) => String(key) }),
     shape: { none: 0 },
@@ -626,7 +638,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
 
     expect(mockPolarisStatusRpc).toHaveBeenCalledWith("polaris_generation_status", { p_user_id: "ordinary-user" });
     expect(generate?.props.disabled).toBe(true);
-    expect(renderedText(rolePage)).toContain("생성 기능 설정을 기다리고 있어요. 저장된 카드와 시기별 빈칸은 볼 수 있어요.");
+    expect(renderedText(rolePage)).toContain("생성 기능 설정을 기다리고 있습니다. 저장된 카드와 시기별 빈칸은 볼 수 있습니다.");
     assertNoMutationEgress();
   });
 

@@ -5,7 +5,8 @@
 /* eslint-disable */
 // TODO(split-2): trim the import set + re-enable lint once the move settles.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
-import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View, useWindowDimensions } from "react-native";
+import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { Redirect, router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { useTranslation } from "react-i18next";

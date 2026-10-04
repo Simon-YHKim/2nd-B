@@ -8,16 +8,31 @@ service, and keep the existing $0/month dependency cost.
 
 - **M (app mutation lock):** every app path that can create, replace, or remove
   an auth session or PKCE verifier runs here. Web uses a strict standard
-  `navigator.locks.request(..., { mode: "exclusive" })` with no timeout or
-  steal; native and browsers without working Web Locks use
-  `processLock(..., -1)` for ordinary auth. Destructive expected-owner
+  `navigator.locks.request(..., { mode: "exclusive", signal })` with a 12-second
+  acquisition deadline and no steal; native and browsers without working Web
+  Locks use `processLock(..., -1)` for ordinary auth. Destructive expected-owner
   operations fail closed on web when a real exclusive Lock object is not
   obtained. This intentionally rejects auth-js 2.106.1's compatibility behavior
   that runs a callback unlocked when a non-compliant manager returns `null`.
-- **S (SDK storage lock):** auth-js receives a lock function that always uses
-  the same no-timeout policy. The SDK lock waits for the one-time migration
+- **S (SDK storage lock):** auth-js receives a lock function that uses the same
+  web acquisition deadline. The SDK lock waits for the one-time migration
   barrier before acquiring S. App operations therefore follow M -> S; SDK
   initialization and background refresh use S alone.
+- An acquisition deadline aborts only a queued Web Lock request. It never
+  releases an acquired M or S lock or abandons a running SDK writer. A timed-out
+  request does not fall back to the process lock, which could bypass another
+  tab's held lock. A manager that ignores abort cannot start a late callback.
+  If an already-running SDK writer remains pending, sign-in keeps its action
+  locked and shows a long-wait notice with a web reload action; the result is
+  still unknown until the writer settles or the page is reopened.
+- On web, a sign-in still pending after 15 seconds writes a console diagnostic
+  with only elapsed milliseconds and its current stage: `mutation-lock`
+  (includes the migration barrier), `storage-lock`, `sdk-response`,
+  `session-refresh`, or `route`. Later stage transitions are also logged until
+  the attempt settles. No email, password, token, session, or response body is
+  logged. A `sdk-response` stall means S was acquired, but does not by itself
+  distinguish network fetch, JSON body parsing, SDK persistence, or auth events.
+  Compare it with the browser Network panel before assigning a root cause.
 - Background initialize/refresh may rotate a token for the current
   `user_id`/`session_id`, or remove an invalid session. With
   `detectSessionInUrl: false`, it cannot introduce a callback identity. Web and

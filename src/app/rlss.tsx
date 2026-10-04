@@ -6,10 +6,10 @@
 // validated instruments. Mirrors big-five.tsx (shell-agnostic survey + canon /
 // legacy wrappers) and reuses the same quant components.
 
-import { useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 
 import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { Button } from "@/components/ui/Button";
@@ -18,6 +18,7 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useHardwareBack } from "@/lib/nav/phone-embed";
 import { createRecord } from "@/lib/records/create";
 import {
   RLSS_ITEMS,
@@ -49,7 +50,18 @@ type Toast = { message: string; tone: "danger" | "info" | "success" };
 // The RLSS body, shell-agnostic so the SAME survey mounts in both tracks: canon
 // wraps it in DeepSpaceScreen, legacy in PremiumAppShell. onComplete fires after
 // the save celebration (caller decides where to go); onCancel backs out of intro.
-function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
+function RlssSurvey({
+  onComplete,
+  onCancel,
+  backActionRef,
+}: {
+  onComplete: () => void;
+  onCancel: () => void;
+  /** The dashboard phone's back row asks this survey (the same question Android Back asks). */
+  backActionRef?: RefObject<(() => void) | null>;
+}) {
+  // Phone-aware: inside the dashboard phone the first-star nudge opens in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("rlss");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -70,16 +82,22 @@ function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel
   // is 120 items; that is about fifteen minutes of someone's self-report, gone to one tap.
   //
   // ANDROID_QA_GUIDELINES: the subscription MUST be removed on unmount, or the handler leaks
-  // and keeps swallowing back presses on later screens.
-  useEffect(() => {
-    if (!started || Object.keys(responses).length === 0 || saved) return;
-    const onBackPress = () => {
-      setExitConfirmOpen(true);
-      return true;
+  // and keeps swallowing back presses on later screens. useHardwareBack removes it on blur
+  // and unmount, and inside the dashboard phone claims Back through the phone instead.
+  // Nothing to lose -> false, so Back keeps its default.
+  useHardwareBack(useCallback(() => {
+    if (!started || Object.keys(responses).length === 0 || saved) return false;
+    setExitConfirmOpen(true);
+    return true;
+  }, [started, responses, saved]));
+  // The phone's back row (RlssDeepSpace) takes the same guard instead of
+  // dropping the answers. Standalone the fullbleed shell draws no back row.
+  if (backActionRef) {
+    backActionRef.current = () => {
+      if (!started || Object.keys(responses).length === 0 || saved) onCancel();
+      else setExitConfirmOpen(true);
     };
-    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => subscription.remove();
-  }, [started, responses, saved]);
+  }
 
   useEffect(() => {
     if (!toast) return;
@@ -114,7 +132,7 @@ function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel
           : `Life satisfaction: ${result.mean.toFixed(1)}/7 · ${bandLabel}`;
       const conclusion =
         locale === "ko"
-          ? "지금 이 순간의 자기보고예요. 시간이 지나며 달라질 수 있어요."
+          ? "지금 이 순간의 자기보고입니다. 시간이 지나며 달라질 수 있습니다."
           : "A self-report for this moment. It can shift over time.";
       await createRecord({
         userId,
@@ -294,9 +312,22 @@ const styles = StyleSheet.create({
 // Canon: the same survey inside the deep-space dock. On completion we return to
 // the persona screen where the saved RLSS record surfaces with the other tools.
 function RlssDeepSpace() {
+  // Phone-aware: inside the dashboard phone completion and Back stay in the phone.
+  const router = useAppRouter();
+  const surveyBackRef = useRef<(() => void) | null>(null);
+  // onBack is drawn only by the dashboard phone's compact shell (the fullbleed
+  // shell has no back row): it asks the survey before leaving mid-answer.
   return (
-    <DeepSpaceScreen active="lens">
-      <RlssSurvey onComplete={() => router.replace("/persona")} onCancel={() => router.back()} />
+    <DeepSpaceScreen
+      active="lens"
+      header="none"
+      onBack={() => (surveyBackRef.current ? surveyBackRef.current() : router.back())}
+    >
+      <RlssSurvey
+        onComplete={() => router.replace("/persona")}
+        onCancel={() => router.back()}
+        backActionRef={surveyBackRef}
+      />
     </DeepSpaceScreen>
   );
 }

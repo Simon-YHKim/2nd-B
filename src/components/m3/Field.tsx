@@ -2,7 +2,8 @@
 // TextInput; the outline + label recolour on focus / error. Consumes m3.*
 // tokens only. Input text uses Pretendard (KR body); the label uses M3 chrome.
 import { forwardRef, useState } from "react";
-import { StyleSheet, type StyleProp, Text, TextInput, type TextInputProps, View, type ViewStyle } from "react-native";
+import { StyleSheet, type StyleProp, TextInput, type TextInputProps, View, type ViewStyle } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 
 import { m3 } from "@/lib/theme/m3";
 

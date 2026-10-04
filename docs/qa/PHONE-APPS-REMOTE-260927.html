@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2ndB · 핸드폰 앱과 망원경 조작부 검증</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#fafbff; --card:#fff; --ink:#17233a; --muted:#52617a; --line:#cbd5e5; --accent:#3265c7; --ok:#18754a; --warn:#a45b00; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#0b1020; --card:#151f34; --ink:#eef4ff; --muted:#bac7dc; --line:#3b4d6a; --accent:#8eb2ff; --ok:#8de0af; --warn:#ffd18d; } }
+    * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 system-ui,sans-serif; }
+    main { max-width:880px; margin:auto; padding:28px 16px 60px; } h1 { font-size:clamp(1.45rem,4vw,2rem); line-height:1.2; margin:0 0 8px; } h2 { font-size:1.1rem; margin:0 0 12px; }
+    p { margin:0 0 12px; } .muted,small { color:var(--muted); } .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:22px 0; }
+    .card,details { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; } .card strong { display:block; font-size:1.12rem; margin-bottom:4px; }
+    details { margin:12px 0; } summary { cursor:pointer; font-weight:700; } details > *:not(summary) { margin-top:12px; } ul { margin:8px 0; padding-left:1.3rem; }
+    a { color:var(--accent); } a:focus-visible,summary:focus-visible { outline:3px solid var(--accent); outline-offset:3px; } .ok { color:var(--ok); } .warn { color:var(--warn); }
+    svg { width:100%; height:auto; } svg text { font:14px system-ui,sans-serif; fill:var(--ink); } svg .box { fill:var(--card); stroke:var(--line); stroke-width:2; } svg .path { stroke:var(--accent); stroke-width:2; fill:none; marker-end:url(#arrow); }
+    code { overflow-wrap:anywhere; } @media (max-width:640px) { .grid { grid-template-columns:1fr; } main { padding-top:18px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>핸드폰 앱과 망원경 조작부</h1>
+    <p class="muted">로컬 개발 화면 검증 · 2026-09-27 23:06:51 KST · 브랜치 codex/observatory-dashboard-260925</p>
+  </header>
+  <div class="grid" aria-label="결과 요약">
+    <div class="card"><strong>상단 버튼 정리</strong>커뮤니티 제거, AI 뮤지엄은 핸드폰 앱 탭으로 이동</div>
+    <div class="card"><strong>핸드폰 안의 알림</strong>종 아이콘 → 핸드폰 알림 목록 → 상세 보기</div>
+    <div class="card"><strong>조작부 배경</strong>단계형 둥근 모서리와 외곽 페이드 적용</div>
+  </div>
+  <section aria-labelledby="flow-title">
+    <h2 id="flow-title">화면 흐름</h2>
+    <svg viewBox="0 0 820 130" role="img" aria-label="홈의 종 아이콘을 누르면 핸드폰의 알림 목록이 열리고, 항목을 누르면 같은 핸드폰 안에서 상세를 본다">
+      <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0 L8 3 L0 6 Z" fill="var(--accent)"/></marker></defs>
+      <rect class="box" x="4" y="25" width="210" height="70" rx="9"/><text x="24" y="65">홈 · 종 아이콘</text>
+      <path class="path" d="M215 60 H290"/><rect class="box" x="292" y="25" width="230" height="70" rx="9"/><text x="310" y="65">핸드폰 · 알림 목록</text>
+      <path class="path" d="M523 60 H598"/><rect class="box" x="600" y="25" width="214" height="70" rx="9"/><text x="618" y="65">핸드폰 · 알림 상세</text>
+    </svg>
+  </section>
+  <details open><summary>왜 이렇게 바꿨나</summary>
+    <ul>
+      <li>상단 바는 알림 진입에 집중하고, 서비스성 기능인 AI 뮤지엄은 사용자가 기대하는 핸드폰 앱 목록에 배치했다. 커뮤니티의 상단 버튼은 제거했지만 기존 핸드폰 앱 진입은 유지했다.</li>
+      <li>알림을 별도 전체 화면으로 전환하면 핸드폰을 조작한다는 흐름이 끊긴다. 그래서 목록과 상세를 핸드폰 프레임 내부에서 렌더링하고, 긴 목록은 FlatList로 처리했다.</li>
+      <li>망원경 조작부는 PIXEL-CLAY의 정적 불투명 색 규칙을 지키도록 검은색을 배경색에 미리 합성한 네 겹의 색 띠와 SVG 직사각형으로 구성했다. 블러나 반투명 오버레이 없이 모서리를 단계적으로 잘라 둥근 인상을 준다.</li>
+    </ul>
+  </details>
+  <details open><summary>검증 및 남은 상태</summary>
+    <ul>
+      <li class="ok">TypeScript type-check, 변경 파일 ESLint, 관련 Jest 23개 통과. i18n 5개 언어 키 검사와 런타임 require cycle 0건 확인.</li>
+      <li class="ok">localhost 375px 브라우저에서 상단 버튼, 핸드폰 알림 목록·상세, 앱 탭의 AI 뮤지엄 이동을 확인했다. 알림 상세 클릭 후 콘솔 오류 0건.</li>
+      <li class="warn">전체 <code>npm run verify</code>는 완료하지 않았다. <code>check:pixel-rules</code>가 작업 범위 밖 화면의 위반 4건 증가(146→150)를 보고해 실패한다. 이 보고서는 그 게이트를 통과했다고 주장하지 않는다.</li>
+      <li>네이티브 Android/iOS 실제 기기에서 제스처·레이아웃은 이번 검증 범위에 포함되지 않았다.</li>
+    </ul>
+  </details>
+</main>
+</body>
+</html>

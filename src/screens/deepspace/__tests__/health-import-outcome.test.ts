@@ -57,6 +57,10 @@ interface Options {
   permission?: string;
   noSource?: boolean;
   ingestThrows?: boolean;
+  /** The source can read without asking (Health Connect), so the tap can arm the daily read. */
+  silentRead?: boolean;
+  /** What armHealthAutoRead reports (false: the account is being deleted on this phone). */
+  armWrites?: boolean;
 }
 
 function harness(options: Options = {}) {
@@ -66,6 +70,7 @@ function harness(options: Options = {}) {
     err: [] as unknown[],
     tKeys: [] as string[],
     tArgs: [] as unknown[],
+    armed: [] as string[],
   };
   const context: Record<string, unknown> = {
     userId: "user-a", healthBusy: false, canHealth: true, isMinor: false, healthPref: true,
@@ -83,7 +88,12 @@ function harness(options: Options = {}) {
       id: "health_connect",
       requestPermission: async () => options.permission ?? "granted",
       read: async () => Array.from({ length: read }, (_, i) => ({ metricType: "steps", value: i })),
+      ...(options.silentRead ? { readGranted: async () => null } : {}),
     }],
+    armHealthAutoRead: async (owner: string) => {
+      calls.armed.push(owner);
+      return options.armWrites ?? true;
+    },
     ingestHealthSamples: async () => {
       if (options.ingestThrows) throw new Error("gate rejected");
       return {
@@ -145,6 +155,49 @@ test("권한 거부·소스 없음·던져진 실패는 지금까지 그대로�
   const threw = harness({ ingestThrows: true });
   await threw.run();
   expect(threw.calls.tKeys).toContain("ds.import.healthErrFailed");
+});
+
+describe("이 폰에서 하루 한 번 자동 읽기 (auto-read.ts)", () => {
+  // OS 권한은 계정이 아니라 폰의 앱에 붙는다. 그래서 자동 읽기는 이 계정이 이 폰에서
+  // 직접 탭하고 허용했을 때만 켜진다. 그 탭이 여기다.
+  const autoDaily = (screen: ReturnType<typeof harness>) => (outcome(screen) as { autoDaily?: boolean } | null)?.autoDaily;
+
+  test("권한을 받은 뒤에만 이 계정으로 표시하고, 결과에 그 사실을 싣는다", async () => {
+    const screen = harness({ silentRead: true });
+    await screen.run();
+    expect(screen.calls.armed).toEqual(["user-a"]);
+    expect(autoDaily(screen)).toBe(true);
+  });
+
+  test("거부·소스 없음이면 표시하지 않는다", async () => {
+    const denied = harness({ silentRead: true, permission: "denied" });
+    await denied.run();
+    const none = harness({ silentRead: true, noSource: true });
+    await none.run();
+    expect([...denied.calls.armed, ...none.calls.armed]).toEqual([]);
+  });
+
+  test("묻지 않고 읽을 수 없는 소스(iOS 어댑터 등)나 표시가 막히면 자동 읽기를 말하지 않는다", async () => {
+    const tapOnly = harness({ silentRead: false });
+    await tapOnly.run();
+    expect(tapOnly.calls.armed).toEqual([]);
+    expect(autoDaily(tapOnly)).toBe(false);
+    const fenced = harness({ silentRead: true, armWrites: false });
+    await fenced.run();
+    expect(autoDaily(fenced)).toBe(false);
+  });
+
+  test("읽을 것이 없어도 자동 읽기가 켜졌다는 말은 한다", async () => {
+    const screen = harness({ silentRead: true, read: 0 });
+    await screen.run();
+    expect(screen.calls.tKeys).toEqual(expect.arrayContaining(["ds.import.healthErrEmpty", "ds.import.healthAutoDaily"]));
+  });
+
+  test("렌더가 결과 줄 뒤에 붙이고, 키가 5개 로케일에 있다", () => {
+    const source = fs.readFileSync(path.join(process.cwd(), FILE), "utf8");
+    expect(source).toMatch(/healthDone\.autoDaily \? " " \+ t\("ds\.import\.healthAutoDaily"\)/);
+    for (const code of LOCALES) expect(bundle(code).healthAutoDaily?.trim().length).toBeGreaterThan(0);
+  });
 });
 
 describe("문구", () => {

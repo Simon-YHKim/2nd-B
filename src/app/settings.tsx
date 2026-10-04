@@ -15,7 +15,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text as RNText,
   View,
   type AccessibilityRole,
   type StyleProp,
@@ -24,11 +23,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 
 import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -39,6 +40,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { deepSpace, flattenAlpha, semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
+import { useFontStyle } from "@/lib/settings/readable-font";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useTheme } from "@/lib/theme/ThemeContext";
 import { signOut } from "@/lib/supabase/auth";
@@ -106,7 +108,7 @@ const SETTINGS_SURFACE_COPY: Record<
     reasoning: "리즈닝",
     reasoningSub: "자동 실행 · 자료 선택",
     wikiAuto: "위키 자동 만들기",
-    wikiAutoSub: "새로 담은 자료를 알아서 위키 페이지로 만들어요",
+    wikiAutoSub: "새로 담은 자료를 알아서 위키 페이지로 만듭니다",
     devScreens: "개발자",
     devScreensSub: "모든 화면에 바로 들어가기",
   },
@@ -258,6 +260,7 @@ function M3Divider() {
 }
 
 function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChange }: { icon: string; label: string; sub: string; subAccessibilityLabel?: string; checked: boolean; onChange: (v: boolean) => void }) {
+  useFontStyle();
   const pixel = isDeepSpaceUI();
   return (
     <View style={[m3Styles.row, pixel ? m3Styles.pixelRow : null]}>
@@ -266,7 +269,7 @@ function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChang
         <RNText style={[m3Styles.rowLabel, pixel ? m3Styles.pixelRowLabel : null]}>{label}</RNText>
         {/* subAccessibilityLabel: when sub went through keepAllKo, screen readers
             get the raw string (U+2060 joiners disorient braille / char review). */}
-        <RNText style={[m3Styles.rowSub, pixel ? m3Styles.pixelRowSub : null]} accessibilityLabel={subAccessibilityLabel}>{sub}</RNText>
+        <RNText style={[m3Styles.rowSub, pixel ? m3TextStyle("bodyMedium") : null, pixel ? m3Styles.pixelRowSub : null]} accessibilityLabel={subAccessibilityLabel}>{sub}</RNText>
       </View>
       <M3Switch checked={checked} onChange={onChange} accessibilityLabel={label} />
     </View>
@@ -279,6 +282,7 @@ function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChang
 // hands off honestly to the import/integration surfaces instead of claiming a
 // state that isn't there.
 function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: string; sub?: string; badge?: number; onPress: () => void }) {
+  useFontStyle();
   const [held, setHeld] = useState(false);
   const pixel = isDeepSpaceUI();
   return (
@@ -294,7 +298,7 @@ function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: 
       <M3IconBadge icon={icon} active={false} />
       <View style={m3Styles.rowText}>
         <RNText style={[m3Styles.rowLabel, pixel ? m3Styles.pixelRowLabel : null]}>{label}</RNText>
-        {sub ? <RNText style={[m3Styles.rowSub, pixel ? m3Styles.pixelRowSub : null]}>{sub}</RNText> : null}
+        {sub ? <RNText style={[m3Styles.rowSub, pixel ? m3TextStyle("bodyMedium") : null, pixel ? m3Styles.pixelRowSub : null]}>{sub}</RNText> : null}
       </View>
       {badge && badge > 0 ? (
         <View style={m3Styles.rowBadge}>
@@ -516,7 +520,10 @@ function SettingsChrome({ children }: { children: ReactNode }) {
 }
 
 export default function Settings() {
+  // Phone-aware: inside the dashboard phone, links open in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("settings");
+  const { t: tOps } = useTranslation("ops");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const displayLocale = AVAILABLE_UI_LOCALES.includes(i18n.language as AvailableUiLocale)
@@ -872,7 +879,7 @@ export default function Settings() {
           {t("dataConnections")}
         </M3SectionLabel>
         <M3Group>
-          <M3LinkRow icon="sync_alt" label={t("manageIntegrations")} sub={t("manageIntegrationsDesc")} onPress={() => router.push("/integrations")} />
+          <M3LinkRow icon="sync_alt" label={t("manageIntegrations")} sub={t("manageIntegrationsDesc")} onPress={() => router.push("/data-connections")} />
           <M3Divider />
           <M3LinkRow icon="upload_file" label={t("importData")} sub={t("importDataDesc")} onPress={() => router.push("/import-hub")} />
         </M3Group>
@@ -941,6 +948,8 @@ export default function Settings() {
               <M3LinkRow icon="book" label={t("nav.records")} sub={t("nav.recordsHint")} onPress={() => router.push("/records")} />
               <M3Divider />
               <M3LinkRow icon="lock" label={t("permissions")} onPress={() => router.push("/permissions")} />
+              <M3Divider />
+              <M3LinkRow icon="notifications" label={tOps("phone.notifications")} sub={Platform.OS === "web" ? tOps("phone.push.web") : tOps("phone.reminderSettings")} onPress={() => router.push("/reminders")} />
             </M3Group>
 
             <M3SectionLabel>{t("support")}</M3SectionLabel>
@@ -991,6 +1000,7 @@ export default function Settings() {
               <Button label={t("nav.data")} accessibilityHint={t("nav.dataHint")} variant="secondary" onPress={() => router.push("/data")} />
               <Button label={t("nav.records")} accessibilityHint={t("nav.recordsHint")} variant="secondary" onPress={() => router.push("/records")} />
               <Button label={t("nav.support")} accessibilityHint={t("nav.supportHint")} variant="secondary" onPress={() => router.push("/support")} />
+              <Button label={tOps("phone.notifications")} accessibilityHint={Platform.OS === "web" ? tOps("phone.push.web") : tOps("phone.reminderSettings")} variant="secondary" onPress={() => router.push("/reminders")} />
             </View>
           </>
         )}
@@ -1398,7 +1408,7 @@ const m3Styles = StyleSheet.create({
   rowLabel: { ...koType(16, 22, 0.15, "400"), color: m3.color.onSurface },
   pixelRowLabel: { ...m3TextStyle("titleMedium") },
   rowSub: { ...koType(12, 16, 0.3, "400"), color: m3.color.onSurfaceVariant, marginTop: 1 },
-  pixelRowSub: { ...m3TextStyle("labelSmall"), marginTop: m3.spacing.s1 },
+  pixelRowSub: { marginTop: m3.spacing.s1 },
   iconBadge: { width: 38, height: 38, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center" },
   pixelIconBadge: { width: 42, height: 42 },
   pixelIconBadgeContent: { width: 38, height: 38, paddingHorizontal: 0, paddingVertical: 0, alignItems: "center", justifyContent: "center" },

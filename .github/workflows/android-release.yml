@@ -50,6 +50,14 @@ on:
       - "metro.config.js"
       - "patches/**"
       - ".github/workflows/android-release.yml"
+      # src 가 번들로 끌어오는 저장소 밖 경로(2026-09-30 실측). 여기 없으면 문구 · 캐논 · 아바타만 바뀐
+      # 머지에 APK 가 다시 빌드되지 않는다. scripts/__tests__/app-parity.test.ts 가 src 의 import 를
+      # 전부 풀어 이 목록 밖이 없는지 검사한다.
+      - "locales/**"
+      - "public/proto/**"
+      - "design/avatar-style-v2/**"
+      - "tsconfig.json"
+      - "metro-module-id.js"
 
 permissions:
   contents: read
@@ -203,6 +211,19 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
+
+      # 앱과 localhost 는 같은 소프트웨어다(CLAUDE.md 맨 위 절). scripts/app-parity.cjs 가 이 주석 둘을 읽어
+      # localhost(8081)의 설정과 이 APK 의 설정이 같은지, 이 APK 가 폰용(arm64-v8a)인지 본다. digest 는
+      # 공개용 EXPO_PUBLIC_* 값의 sha256 이고(비밀 아님), 계산은 app-parity.cjs 의 envDigest 와 같다.
+      # 게이트를 지나자마자(npm ci 전에) 남긴다 - 뒤 단계에서 빌드가 실패해도 주석은 남는다. GitHub 는 주석을
+      # job 이 끝난 뒤에야 보여 준다(2026-09-30 실측). EXPO_PUBLIC_* 는 job env 로만 정해지고 뒤 단계가 바꾸지
+      # 않는다(app-parity.test.ts 가 지킨다).
+      - name: Record EXPO_PUBLIC digest for localhost parity
+        run: >-
+          node -e 'const k=Object.keys(process.env).filter((n)=>n.startsWith("EXPO_PUBLIC_")).sort();
+          const b=k.map((n)=>n+"="+process.env[n]+"\n").join("");
+          console.log("::notice title=app-env-digest::"+require("crypto").createHash("sha256").update(b).digest("hex"));
+          console.log("::notice title=app-apk-abi::"+(process.env.ANDROID_ABI_FILTER||"unknown"))'
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps

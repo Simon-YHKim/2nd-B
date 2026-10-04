@@ -1,7 +1,21 @@
+import { SKY_ZOOM_MAX, SKY_ZOOM_MIN, clampZoom } from './telescope-dial';
+
 type Point = { x: number; y: number };
 type Viewport = { width: number; height: number };
 
 export const STAR_CAMERA_STOPS = [0, 0.4, 0.8, 0.9, 1];
+/** Lens breathing at the focus beat, as a multiple of the settled magnification. */
+export const STAR_FOCUS_BREATH = 1.025;
+
+/**
+ * Magnification a star tap settles at: the star's light fills the destination
+ * frame, but on the same 1x..10x scale the telescope dial uses. On a wide window
+ * the ideal fill passes 10x (10.81x at 1440x900); the tap then stops at 10x and
+ * the frame shrinks to the star instead of the dial stretching past its maximum.
+ */
+export function starFocusZoom(frameRadius: number, starRadius: number) {
+  return clampZoom(frameRadius / starRadius, SKY_ZOOM_MIN, SKY_ZOOM_MAX);
+}
 
 /** One world camera. Its first keyframe is exactly the current jog/dial pose. */
 export function starCameraFlight(
@@ -16,7 +30,10 @@ export function starCameraFlight(
   const worldCentre = { x: viewport.width / 2, y: (viewport.height - controlsHeight) / 2 };
   const relative = { x: point.x - world.width / 2, y: point.y - world.height / 2 };
   const start = { x: -camera.x * camera.zoom, y: -camera.y * camera.zoom };
-  const zoom = frame.radius / starRadius;
+  const ideal = frame.radius / starRadius;
+  const zoom = starFocusZoom(frame.radius, starRadius);
+  // Where the star actually lands. Equal to the frame unless the scale's ceiling held the tap back.
+  const radius = zoom === ideal ? frame.radius : starRadius * zoom;
   const pan = (z: number) => ({
     x: frame.centre.x - worldCentre.x - relative.x * z,
     y: frame.centre.y - worldCentre.y - relative.y * z,
@@ -24,10 +41,11 @@ export function starCameraFlight(
   const aim = pan(camera.zoom);
   const end = pan(zoom);
   // Lens breathing stays centred: the star and its light are one physical body.
-  const focusZoom = zoom * 1.025;
+  // It never breathes past the dial's maximum either.
+  const focusZoom = Math.min(SKY_ZOOM_MAX, zoom * STAR_FOCUS_BREATH);
   const focus = pan(focusZoom);
   return {
-    ...frame, worldCentre,
+    ...frame, radius, diameter: radius * 2, worldCentre,
     origin: { x: worldCentre.x + start.x + relative.x * camera.zoom, y: worldCentre.y + start.y + relative.y * camera.zoom },
     x: [start.x, aim.x, end.x, focus.x, end.x],
     y: [start.y, aim.y, end.y, focus.y, end.y],

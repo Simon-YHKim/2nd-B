@@ -39,6 +39,13 @@ export interface HealthReadRange {
   endIso: string;
 }
 
+/** What a read without any prompt returned (HealthSource.readGranted). */
+export interface GrantedRead {
+  samples: HealthSample[];
+  /** False when a granted metric could not be read in full: a failed or unfinished page. */
+  complete: boolean;
+}
+
 export interface HealthSource {
   readonly id: HealthSourceId;
   /** True only when this adapter can actually run on the current platform. */
@@ -48,6 +55,15 @@ export interface HealthSource {
    * ('granted' for manual/mock); the native OS prompt is a Slice 2 concern.
    */
   requestPermission(): Promise<HealthPermission>;
+  /**
+   * Reads the given metrics, but only those the user ALREADY granted, and shows nothing:
+   * no permission prompt, no activity. Resolves null when none of them is granted or the
+   * provider cannot answer. The automatic read (lib/health/auto-read.ts) uses only this,
+   * never requestPermission(), so opening the app can never raise a permission dialog.
+   * A source that cannot tell what is granted without asking leaves this out, and is
+   * then read only on an explicit tap.
+   */
+  readGranted?(range: HealthReadRange, metrics: readonly HealthMetricType[]): Promise<GrantedRead | null>;
   /** Read samples in the given range. Returns [] when nothing is available. */
   read(range: HealthReadRange): Promise<HealthSample[]>;
 }

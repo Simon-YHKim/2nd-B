@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>이전 계획 기록 · 첫 아바타 설정과 아바타 셰어 · 2026-09-28</title>
+  <style>
+    :root{color-scheme:light dark;--accent:#696949;--text:#20201c;--muted:#57584e;--paper:#f6f5ef;--line:#c9c8bb}
+    @media(prefers-color-scheme:dark){:root{--accent:#bbbca0;--text:#f2f0e7;--muted:#cbcbbd;--paper:#24251f;--line:#5b5e50}}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--text);font:16px/1.55 system-ui,sans-serif}
+    main{max-width:940px;margin:auto;padding:28px 20px 64px}h1,h2{line-height:1.22}h1{font-size:clamp(2rem,5vw,3.2rem);margin:.3em 0}
+    .eyebrow{color:var(--accent);font-weight:800;letter-spacing:.08em}.lead{max-width:70ch;font-size:1.12rem}
+    .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:24px 0}.card{border:1px solid var(--line);padding:14px}.card strong{display:block;font-size:1.35rem;color:var(--accent)}
+    section{margin-top:32px}ul{padding-left:1.35em}li{margin:.45em 0}code{font-size:.9em}table{width:100%;border-collapse:collapse}th,td{padding:10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+    details{border-top:1px solid var(--line);padding:13px 0}summary{cursor:pointer;font-weight:700}a{color:var(--accent)}a:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+    .gate{border-left:5px solid var(--accent);padding:12px 18px;background:color-mix(in srgb,var(--accent) 9%,var(--paper))}
+    .superseded{border:3px solid var(--accent);padding:18px;margin-bottom:26px;background:color-mix(in srgb,var(--accent) 12%,var(--paper))}.superseded strong{display:block;font-size:1.2rem}
+    .flow{width:100%;height:auto;border:1px solid var(--line);padding:8px}.flow rect{fill:var(--paper);stroke:var(--accent);stroke-width:2}.flow text{fill:var(--text);font:13px system-ui,sans-serif}.flow line{stroke:var(--accent);stroke-width:2}
+    footer{margin-top:32px;color:var(--muted);font-size:.85rem}@media(max-width:680px){.cards{grid-template-columns:repeat(2,1fr)}table{font-size:.9rem}}
+  </style>
+</head>
+<body>
+<main>
+  <aside class="superseded" aria-label="현재 범위 안내">
+    <strong>이 문서는 공유 보류 결정 이전의 기록입니다.</strong>
+    <p>2026-09-28 사용자 결정으로 현재 범위는 기기 안에서 픽셀 에셋을 그리고 <strong>개인 갤러리</strong>에 보관하는 아바타 팔레트입니다. 아래의 업로드·검토·공용 갤러리·다른 사용자 작품 가져오기·신고·수익화 흐름은 이번 구현 범위에 포함되지 않습니다.</p>
+    <a href="AVATAR-PALETTE-260928.html">현재 작업 범위와 검증 상태 보기</a>
+  </aside>
+  <div class="eyebrow">2ndB · Avatar Share</div>
+  <h1>첫 아바타 설정과 픽셀 에셋 공유</h1>
+  <p class="lead">가입 시 프로필을 만든 뒤 아바타를 고르게 하고, 첫 번째 프로필 별에서 표시 이름·생활 정보·아바타를 다시 편집할 수 있게 했다. 휴대전화 안의 아바타 셰어에서는 64×64 픽셀 에셋을 직접 그려 검토를 요청하고, 승인된 그림을 개인 아바타에 가져온다.</p>
+  <div class="cards" aria-label="핵심 결과">
+    <div class="card"><strong>64×64</strong>고정 픽셀 격자</div>
+    <div class="card"><strong>16색</strong>승인 스타일 팔레트</div>
+    <div class="card"><strong>3종</strong>머리·옷·소품 슬롯</div>
+    <div class="card"><strong>검토 후</strong>공용 갤러리 공개</div>
+  </div>
+  <section>
+    <h2>사용 흐름</h2>
+    <svg class="flow" viewBox="0 0 900 145" role="img" aria-label="프로필 생성, 첫 아바타 저장, 픽셀 제작, 서버 검토, 공유 에셋 가져오기 순서">
+      <rect x="10" y="35" width="140" height="70" rx="4"/><text x="80" y="75" text-anchor="middle">프로필 생성</text>
+      <line x1="150" y1="70" x2="190" y2="70"/><rect x="190" y="35" width="140" height="70" rx="4"/><text x="260" y="75" text-anchor="middle">첫 아바타 저장</text>
+      <line x1="330" y1="70" x2="370" y2="70"/><rect x="370" y="35" width="140" height="70" rx="4"/><text x="440" y="75" text-anchor="middle">픽셀 제작·제출</text>
+      <line x1="510" y1="70" x2="550" y2="70"/><rect x="550" y="35" width="140" height="70" rx="4"/><text x="620" y="75" text-anchor="middle">운영 검토·승인</text>
+      <line x1="690" y1="70" x2="730" y2="70"/><rect x="730" y="35" width="160" height="70" rx="4"/><text x="810" y="75" text-anchor="middle">내 아바타에 적용</text>
+    </svg>
+    <p>프로필 별은 표시 이름·생활정보 편집과 아바타 꾸미기를 각각 연다. 셰어를 열면 현재 아바타 선택을 먼저 저장하고, 돌아오면 서버의 새 공유 에셋을 다시 읽는다. 공유 에셋은 고정 팔레트의 투명 픽셀만 저장하며, 승인되지 않은 제출물은 작성자 외에 보이지 않는다. 갤러리에는 에셋 신고·제작자 신고·제작자 차단과 고객지원 경로가 있다.</p>
+  </section>
+  <section>
+    <h2>향후 수익화 판단</h2>
+    <table>
+      <thead><tr><th>단계</th><th>제안</th><th>시작 조건</th></tr></thead>
+      <tbody>
+        <tr><td>지금</td><td>기본 제작·공유·가져오기는 무료로 운영한다. 제작 완료율, 승인율, 가져오기율과 신고 처리량을 집계한다.</td><td>운영 검토와 신고 대응을 감당할 수 있는지 먼저 확인</td></tr>
+        <tr><td>첫 유료 후보</td><td>기존 구독 상품의 선택 기능으로 개인 초안 보관, 작업 이력, 편집 편의 기능을 검토한다. 공용 갤러리의 기본 사용은 열어 둔다.</td><td>반복 제작 수요와 저장·전송 비용 확인</td></tr>
+        <tr><td>나중 후보</td><td>선별된 제작자 팩을 별도 참여 동의와 수익 배분 계약으로 판매한다.</td><td>저작권 검증, 환불·정산·세금·스토어 결제 설계 완료</td></tr>
+      </tbody>
+    </table>
+    <p>현재 업로드 동의는 <strong>앱 안에서 다른 사용자의 프로필 재사용</strong>에 한정한다. 제출한 그림의 유료 판매 권한은 이 동의로 얻지 않는다. 유료 디지털 기능을 앱에서 팔 때는 배포 지역과 예외를 확인한 뒤 스토어 결제 규칙에 맞춘다. <a href="https://developer.apple.com/app-store/review/guidelines/">Apple App Review Guidelines</a> · <a href="https://support.google.com/googleplay/android-developer/answer/9858738?hl=en">Google Play 결제 정책</a></p>
+  </section>
+  <section class="gate">
+    <h2>공개 전 순서</h2>
+    <p><code>users.avatar_spec</code>, 표시 이름 권한, 아바타 셰어/삭제 등록부 SQL은 아직 번호 없는 초안이다. 콘솔 소유 세션이 번호를 예약하고 서버에 먼저 적용한 뒤 실제 성인·미성년·작성자·타인 권한을 확인해야 한다. 운영 검토 담당자와 신고 응답 절차, 콘텐츠 기준·연락처, 다른 사용자 재사용 동의 문구를 확정한 다음 앱을 공개한다. <a href="https://developer.apple.com/app-store/review/guidelines/">Apple UGC 기준 §1.2</a> · <a href="https://support.google.com/googleplay/android-developer/answer/9876937?hl=en">Google Play UGC 정책</a></p>
+  </section>
+  <details><summary>검증과 제한</summary>
+    <ul>
+      <li><code>npm run verify</code> 전체 검사와 <code>npm run verify:web</code> 정적 웹 문서 130개 검사를 통과했다.</li>
+      <li>격리 PostgreSQL에서 제출·승인·연령 제한·신고·차단·3회/24시간 제한을 실행 검증했다. 운영 DB는 변경하지 않았다.</li>
+      <li>Android 실기기에서 픽셀 드래그·스크롤 충돌과 SVG 노드 비용은 아직 측정하지 못했다.</li>
+      <li>현재 Supabase Free 한도는 데이터베이스 500MB/프로젝트, 비캐시 전송 5GB/조직이다. 24개 목록의 픽셀 문자열만 약 96KB이므로 호출량을 관찰해야 한다(추정치). <a href="https://supabase.com/docs/guides/platform/billing-on-supabase">Supabase 요금 문서</a></li>
+    </ul>
+  </details>
+  <footer>갱신: 2026-09-28 10:53:09 KST · 브랜치: <code>codex/avatar-style-regeneration-260928</code></footer>
+</main>
+</body>
+</html>

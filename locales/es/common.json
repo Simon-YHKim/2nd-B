@@ -25,6 +25,16 @@
     "placeholder": "Selecciona una fecha",
     "yearPlaceholder": "Selecciona un año"
   },
+  "timePicker": {
+    "pattern": "H:mm",
+    "am": "a. m.",
+    "pm": "p. m.",
+    "period": "a. m. o p. m.",
+    "hour": "Hora",
+    "minute": "Minuto",
+    "hourValue": "{{value}} h",
+    "minuteValue": "{{value}} min"
+  },
   "states": {
     "loading": "Cargando…"
   },
@@ -56,7 +66,11 @@
     "opening": "Abriendo PolaScope",
     "loading": "Cargando PolaScope",
     "enterHint": "Toca dos veces para entrar a la pantalla principal.",
-    "skipHint": "Toca dos veces para saltar la animación de inicio."
+    "skipHint": "Toca dos veces para saltar la animación de inicio.",
+    "skip": "Saltar apertura",
+
+    "skipShort": "Omitir",
+    "retry": "Reintentar apertura"
   },
   "worldview": {
     "soulCore": "Estrella del Norte",

@@ -7,12 +7,13 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text as RNText,
   View,
 } from "react-native";
-import { Redirect, router } from "expo-router";
+import { PlainText as RNText } from "@/components/ui/PlainText";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -67,26 +68,26 @@ export const PRODUCT_NOTICES: readonly ProductNotice[] = [
     version: "v1.4.0",
     when: { ko: "2026.07.17 · 패치노트", en: "2026.07.17 · Patch notes" },
     listMeta: { ko: "패치 v1.4.0 · 오늘", en: "Patch v1.4.0 · Today" },
-    title: { ko: "리즈닝 실행 방식이 새로워졌어요", en: "Reasoning has a new workflow" },
+    title: { ko: "리즈닝 실행 방식이 새로워졌습니다", en: "Reasoning has a new workflow" },
     body: [
       {
         kind: "bullet",
         text: {
-          ko: "자동 리즈닝 토글이 생겼어요. 담은 자료의 연결을 제안해요.",
+          ko: "자동 리즈닝 토글이 생겼습니다. 담은 자료의 연결을 제안합니다.",
           en: "Automatic reasoning is now available. It proposes connections for captured items.",
         },
       },
       {
         kind: "bullet",
         text: {
-          ko: "실행 전에 자료를 직접 고를 수 있어요.",
+          ko: "실행 전에 자료를 직접 고를 수 있습니다.",
           en: "You can choose the items before each manual run.",
         },
       },
       {
         kind: "bullet",
         text: {
-          ko: "위키 그래프가 더 부드럽게 움직여요.",
+          ko: "위키 그래프가 더 부드럽게 움직입니다.",
           en: "The Wiki graph now moves more smoothly.",
         },
       },
@@ -107,21 +108,21 @@ export const PRODUCT_NOTICES: readonly ProductNotice[] = [
       {
         kind: "paragraph",
         text: {
-          ko: "안녕하세요, 세컨비를 만드는 팀이에요.",
+          ko: "안녕하세요, 세컨비를 만드는 팀입니다.",
           en: "Hello, we're the team building SecondB.",
         },
       },
       {
         kind: "paragraph",
         text: {
-          ko: "여러분이 담아준 별가루가 이번 달에만 12만 개를 넘었어요. 하나하나가 누군가의 하루라 생각하면 조심스럽고 고맙습니다.",
+          ko: "여러분이 담아준 별가루가 이번 달에만 12만 개를 넘었습니다. 하나하나가 누군가의 하루라 생각하면 조심스럽고 고맙습니다.",
           en: "You captured more than 120,000 pieces this month. Each one holds part of someone's day, and we handle that trust with care.",
         },
       },
       {
         kind: "paragraph",
         text: {
-          ko: "다음 업데이트에선 '북극성'을 더 또렷하게 다듬고 있어요. 조금만 기다려 주세요.",
+          ko: "다음 업데이트에선 '북극성'을 더 또렷하게 다듬고 있습니다. 조금만 기다려 주세요.",
           en: "We're refining Polaris for the next update. Thank you for waiting with us.",
         },
       },
@@ -139,7 +140,7 @@ export const PRODUCT_NOTICES: readonly ProductNotice[] = [
       {
         kind: "paragraph",
         text: {
-          ko: "일요일 새벽 서버 점검이 있어요. 이 시간엔 담기·리즈닝이 잠시 멈춰요. 담아둔 자료는 안전하게 보관되고 연결되면 자동 동기화돼요.",
+          ko: "일요일 새벽 서버 점검이 있습니다. 이 시간엔 담기·리즈닝이 잠시 멈춥니다. 담아둔 자료는 안전하게 보관되고 연결되면 자동 동기화됩니다.",
           en: "Server maintenance is scheduled for early Sunday. Capture and reasoning will pause briefly. Saved items remain stored and sync automatically after service returns.",
         },
       },
@@ -153,12 +154,12 @@ export const PRODUCT_NOTICES: readonly ProductNotice[] = [
     version: "v1.3.0",
     when: { ko: "2026.06.26 · 패치노트", en: "2026.06.26 · Patch notes" },
     listMeta: { ko: "패치 v1.3.0 · 3주 전", en: "Patch v1.3.0 · 3 weeks ago" },
-    title: { ko: "v1.3.0: AI 뮤지엄이 열렸어요", en: "v1.3.0: AI Museum is open" },
+    title: { ko: "v1.3.0: AI 뮤지엄이 열렸습니다", en: "v1.3.0: AI Museum is open" },
     body: [
       {
         kind: "paragraph",
         text: {
-          ko: "AI 뮤지엄에서 지금까지 담은 자료와 새로 발견한 연결을 시간의 흐름으로 둘러볼 수 있어요.",
+          ko: "AI 뮤지엄에서 지금까지 담은 자료와 새로 발견한 연결을 시간의 흐름으로 둘러볼 수 있습니다.",
           en: "Explore captured items and newly found connections over time in AI Museum.",
         },
       },
@@ -171,12 +172,12 @@ export const PRODUCT_NOTICES: readonly ProductNotice[] = [
     eyebrow: { ko: "공지", en: "NOTE" },
     when: { ko: "2026.06.05 · 세컨비 팀", en: "2026.06.05 · SecondB team" },
     listMeta: { ko: "공지 · 6주 전", en: "Note · 6 weeks ago" },
-    title: { ko: "베타에 함께해줘서 고마워요", en: "Thank you for joining the beta" },
+    title: { ko: "베타에 함께해줘서 고맙습니다", en: "Thank you for joining the beta" },
     body: [
       {
         kind: "paragraph",
         text: {
-          ko: "여러분이 남겨준 기록과 의견 덕분에 별자리가 조금씩 또렷해지고 있어요. 함께 만들어줘서 고마워요.",
+          ko: "여러분이 남겨준 기록과 의견 덕분에 별자리가 조금씩 또렷해지고 있습니다. 함께 만들어줘서 고맙습니다.",
           en: "Your records and feedback are helping the constellation take shape. Thank you for building it with us.",
         },
       },
@@ -404,10 +405,10 @@ export function NoticeDialog({
     ? ""
     : reloads
       ? ko
-        ? `${updateVersion} 버전부터 쓸 수 있어요. 새로고침하면 최신 버전으로 바뀌어요.`
+        ? `${updateVersion} 버전부터 쓸 수 있습니다. 새로고침하면 최신 버전으로 바뀝니다.`
         : `This arrives in version ${updateVersion}. Reload the page to get it.`
       : ko
-        ? `${updateVersion} 버전부터 쓸 수 있어요. 스토어에서 앱을 업데이트해 주세요.`
+        ? `${updateVersion} 버전부터 쓸 수 있습니다. 스토어에서 앱을 업데이트해 주세요.`
         : `This arrives in version ${updateVersion}. Update the app in the store to get it.`;
   const confirmLabel = !needsUpdate
     ? ko
@@ -593,6 +594,8 @@ export function NoticeDialog({
 }
 
 export default function NoticesScreen() {
+  // Phone-aware: inside the dashboard phone, Back steps the phone, not the app.
+  const router = useAppRouter();
   const { userId, loading } = useAuth();
   const { i18n } = useTranslation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;

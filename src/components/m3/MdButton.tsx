@@ -11,7 +11,7 @@
 // onPressIn/onPressOut local state, so the children tree is STATIC and every
 // one of this button's call sites is safe at once. Do not reintroduce a
 // function child or a function style here.
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   type GestureResponderEvent,
@@ -19,10 +19,10 @@ import {
   type PressableProps,
   StyleSheet,
   type StyleProp,
-  Text,
   View,
   type ViewStyle,
 } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 
 import { m3 } from "@/lib/theme/m3";
 
@@ -74,6 +74,23 @@ const DISABLED_CONTAINER: Record<MdButtonVariant, ViewStyle> = {
   elevated: { backgroundColor: m3.disabled.surfaceContainerLow, ...m3.elevation.level1 },
 };
 
+/**
+ * A surface with its own ground re-tints the buttons drawn on it: the Polaris
+ * card is deep violet, where `primary` blue reads 4.16:1 and the navy tonal
+ * container disappears. The provider swaps the enabled colours only; disabled
+ * keeps the shared pre-composited set.
+ */
+export interface MdButtonTint {
+  container: Record<MdButtonVariant, ViewStyle>;
+  fg: Record<MdButtonVariant, string>;
+}
+
+const MdButtonTintContext = createContext<MdButtonTint | null>(null);
+
+export function MdButtonTintProvider({ tint, children }: { tint: MdButtonTint; children: ReactNode }) {
+  return <MdButtonTintContext.Provider value={tint}>{children}</MdButtonTintContext.Provider>;
+}
+
 const DISABLED_FG: Record<MdButtonVariant, string> = {
   filled: m3.disabled.onPrimary,
   tonal: m3.disabled.onSecondaryContainer,
@@ -98,7 +115,8 @@ export function MdButton({
   // 비활성일 때 전경도 미리 합성한 색을 쓴다. 전에는 컨테이너의 불투명도가
   // 글자까지 함께 덮었으므로, 컨테이너만 바꾸고 글자를 그대로 두면
   // 비활성이 활성보다 또렷해진다. 규칙은 지키고 뜻은 뒤집히는 셈이다.
-  const fg = isDisabled ? DISABLED_FG[variant] : FG[variant];
+  const tint = useContext(MdButtonTintContext);
+  const fg = isDisabled ? DISABLED_FG[variant] : (tint?.fg[variant] ?? FG[variant]);
   // M3 pressed state layer without a function child. onPressOut also fires when
   // the gesture is cancelled (drag-off), so the layer cannot stick on.
   const [pressed, setPressed] = useState(false);
@@ -125,7 +143,7 @@ export function MdButton({
       android_ripple={isDisabled ? undefined : { color: fg }}
       style={[
         styles.base,
-        isDisabled ? DISABLED_CONTAINER[variant] : CONTAINER[variant],
+        isDisabled ? DISABLED_CONTAINER[variant] : (tint?.container[variant] ?? CONTAINER[variant]),
         style,
       ]}
     >

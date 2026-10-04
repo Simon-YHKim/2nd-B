@@ -280,15 +280,18 @@ describe("no product route opts out of the account boundary", () => {
       children: unknown[];
     }
     const exported: { f?: (args: { children: unknown; route: { name: string } }) => Node } = {};
-    new Function("exports", "React", "ProfileProbeScope", "AccountScope", js)(
+    new Function("exports", "React", "ProfileProbeScope", "AvatarSetupSceneGuard", "AccountScope", js)(
       exported,
       { createElement: (type: unknown, _p: unknown, ...children: unknown[]) => ({ type, children }) },
       "ProfileProbeScope",
+      "AvatarSetupSceneGuard",
       "AccountScope",
     );
     const tree = exported.f!({ children: "SCENE", route: { name: "secondb" } });
     expect(tree.type).toBe("ProfileProbeScope");
-    const inner = tree.children[0] as Node;
+    const avatarGuard = tree.children[0] as Node;
+    expect(avatarGuard.type).toBe("AvatarSetupSceneGuard");
+    const inner = avatarGuard.children[0] as Node;
     expect(inner.type).toBe("AccountScope");
     expect(inner.children).toEqual(["SCENE"]);
   });

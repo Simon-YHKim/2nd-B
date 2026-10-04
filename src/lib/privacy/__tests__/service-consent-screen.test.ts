@@ -27,7 +27,7 @@ function status(patch: Partial<ServiceConsentStatus> = {}): ServiceConsentStatus
   return {
     ownerId: "owner-a", ownerEpoch: account.currentAccountEpoch(), mode: "collect",
     contract_revision: "service-v1", consent_version: "2026-09-07",
-    policy_version: "2026-09-28", terms_version: "2026-08-16",
+    policy_version: "2026-09-29", terms_version: "2026-08-16",
     state: "uncovered", change_token: "a".repeat(64), can_grant: true, ...patch,
   };
 }
@@ -94,7 +94,10 @@ function mountRoute() {
   const dependencies: Record<string, unknown> = {
     react: hooks,
     "react-native": { View: "View", Pressable: "Pressable", ScrollView: "ScrollView", StyleSheet: { create: (value: unknown) => value } },
-    "expo-router": { Redirect: "Redirect", router: { push, back: jest.fn() } },
+    "expo-router": { Redirect: "Redirect" },
+    // The screen navigates through the phone-aware router (standalone it is
+    // expo-router's own `router`).
+    "@/lib/nav/phone-embed": { useAppRouter: () => ({ push, back: jest.fn() }) },
     "react-i18next": { useTranslation: () => ({ t: (key: string) => key, i18n: { language } }) },
     "@/components/deep-space/DeepSpaceScreen": { DeepSpaceScreen: "DeepSpaceScreen" },
     "@/components/m3": { MdButton: "MdButton", MdCard: "MdCard" },

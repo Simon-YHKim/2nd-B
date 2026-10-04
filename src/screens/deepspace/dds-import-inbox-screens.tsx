@@ -9,8 +9,9 @@
 // opt-in/ingest wiring are preserved behind the reference layout.
 
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
-import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph, type AnyGlyphName } from "@/components/pixel/pixel-glyphs";
@@ -20,11 +21,15 @@ import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { DeepSpaceLoader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { reactExpression } from "@/lib/companion/expression";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { listInferredLinkDetails, listSources } from "@/lib/wiki/queries";
 import { listPeerInvites } from "@/lib/peer/invite";
+import { armHealthAutoRead } from "@/lib/health/auto-read";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
+import { healthWithdrawDeps, withdrawHealthImport } from "@/lib/health/withdraw";
+import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { availableHealthSources } from "@/lib/health/registry";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { pickImportFiles } from "@/lib/wiki/capture-file";
@@ -64,6 +69,8 @@ function Loading() {
 // cards (those were placeholders presented as real state to zero-data users).
 
 export function DeepSpaceInboxScreen() {
+  // Phone-aware: inside the dashboard phone, back and links stay in the phone.
+  const router = useAppRouter();
   const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
 
@@ -96,6 +103,7 @@ type InboxItem = {
 // hardcoded empty array: honest-looking, but the pipeline behind the bell was
 // simply not wired (audit: /inbox stub).
 function DeepSpaceInboxBody({ userId, title }: { userId: string; title: string }) {
+  const router = useAppRouter();
   const { t } = useTranslation("deepspace");
   const [items, setItems] = useState<InboxItem[] | null>(null);
 
@@ -226,9 +234,12 @@ type ImportMode = "file" | "account";
 // row runs the real device-health opt-in/ingest (minors, and an age not confirmed
 // yet, stay hard-locked).
 export function DeepSpaceImportScreen() {
+  // Phone-aware: inside the dashboard phone, back stays in the phone and `mode`
+  // comes from the phone route (/import?mode=account).
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const { userId, loading: authLoading, isMinor } = useAuth();
-  const { mode: requestedMode } = useLocalSearchParams<{ mode?: string }>();
+  const { mode: requestedMode } = useScreenParams<{ mode?: string }>();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
 
   // `/integrations` can point straight at the account/health owner. Unknown or
@@ -245,10 +256,15 @@ export function DeepSpaceImportScreen() {
   // to hold a bare boolean and say "Reflected" for every outcome, including the
   // one where the idempotent upsert wrote nothing new. Composition happens at
   // render so a locale change redraws it; only the numbers live in state.
+  // autoDaily: this tap also armed the automatic daily read on this phone (auto-read.ts).
   const [healthDone, setHealthDone] = useState<
-    { kind: "reflected"; inserted: number; autoCompleted: number } | { kind: "nothingNew" } | null
+    | { kind: "reflected"; inserted: number; autoCompleted: number; autoDaily: boolean }
+    | { kind: "nothingNew"; autoDaily: boolean }
+    | null
   >(null);
   const [healthErr, setHealthErr] = useState<string | null>(null);
+  // The outcome of turning health data off from this card, shown under it.
+  const [withdrawNotice, setWithdrawNotice] = useState<string | null>(null);
   // Import history = the persistent device-local log (import-hub 철회 store), so
   // file imports here show up in the same withdrawal list. No seeded fake rows.
   const [history, setHistory] = useState<ImportHistoryEntry[]>([]);
@@ -445,10 +461,15 @@ export function DeepSpaceImportScreen() {
         setHealthErr(t("ds.import.healthErrDenied"));
         return;
       }
+      // The OS grant belongs to the app on this phone, not to the signed-in account. This tap
+      // is the account's own "connect here", so from now on the automatic daily read
+      // (lib/health/auto-read.ts) may read this phone for it, and the result line says so.
+      const autoDaily = typeof native.readGranted === "function" && (await armHealthAutoRead(userId));
+      const autoNote = autoDaily ? " " + t("ds.import.healthAutoDaily") : "";
       const samples = await native.read(range);
       if (samples.length === 0) {
         // Nothing to reflect is not a failure, but it is not "reflected" either.
-        setHealthErr(t("ds.import.healthErrEmpty"));
+        setHealthErr(t("ds.import.healthErrEmpty") + autoNote);
         return;
       }
       // The HONESTY INVARIANT above guards the READ step: never claim a reflection
@@ -460,13 +481,51 @@ export function DeepSpaceImportScreen() {
       const outcome = await ingestHealthSamples(userId, samples, { isMinor, pref: healthPref });
       setHealthDone(
         outcome.inserted.length === 0
-          ? { kind: "nothingNew" }
-          : { kind: "reflected", inserted: outcome.inserted.length, autoCompleted: outcome.autoCompleted.length },
+          ? { kind: "nothingNew", autoDaily }
+          : { kind: "reflected", inserted: outcome.inserted.length, autoCompleted: outcome.autoCompleted.length, autoDaily },
       );
     } catch {
       // Gate rejection or write error: leave the affordance for retry.
       setHealthErr(t("ds.import.healthErrFailed"));
     } finally {
+      setHealthBusy(false);
+    }
+  }
+
+  // Withdraw where the consent was given (PIPA §38④): one tap, the same flow as the privacy
+  // screen's card (lib/health/withdraw.ts), which also deletes the stored health rows. The
+  // health busy flag is held until the deletes end, so an opt-in or an ingest cannot land rows
+  // the deletes would then remove. Not age-gated: an account of any age can withdraw.
+  async function handleHealthWithdraw() {
+    if (!userId || healthBusy) return;
+    const owner = userId;
+    const lease = beginAccountSessionLease(owner);
+    setHealthBusy(true);
+    setHealthDone(null);
+    setHealthErr(null);
+    setWithdrawNotice(null);
+    try {
+      const outcome = await withdrawHealthImport(owner, healthWithdrawDeps(() => lease.assertCurrent(), () => setHealthPref(false)));
+      if (outcome.kind === "aborted") return;
+      if (outcome.kind === "uncertain") {
+        setWithdrawNotice(t("privacyHealth.uncertain"));
+        return;
+      }
+      if (outcome.kind === "unchanged") {
+        if (outcome.prefs) setHealthPref(outcome.prefs.health_import === true);
+        setWithdrawNotice(t("privacyHealth.unchanged"));
+        return;
+      }
+      setHealthPref(false);
+      if (outcome.kind === "done") {
+        setWithdrawNotice(outcome.exact && outcome.deleted > 0 ? t("privacyHealth.done", { count: outcome.deleted }) : t("privacyHealth.doneNone"));
+      } else {
+        setWithdrawNotice(outcome.remaining !== null ? t("privacyHealth.partial", { count: outcome.remaining }) : t("privacyHealth.partialNoCount"));
+      }
+    } catch {
+      setWithdrawNotice(t("privacyHealth.uncertain"));
+    } finally {
+      lease.release();
       setHealthBusy(false);
     }
   }
@@ -581,12 +640,13 @@ export function DeepSpaceImportScreen() {
                         accessibilityRole="alert"
                         accessibilityLiveRegion="polite"
                       >
-                        {healthDone.kind === "nothingNew"
+                        {(healthDone.kind === "nothingNew"
                           ? t("ds.import.healthReflectedNone")
                           : t("ds.import.healthReflected", { count: healthDone.inserted })
                             + (healthDone.autoCompleted > 0
                               ? " " + t("ds.import.healthRoutinesCompleted", { count: healthDone.autoCompleted })
-                              : "")}
+                              : ""))
+                          + (healthDone.autoDaily ? " " + t("ds.import.healthAutoDaily") : "")}
                       </RNText>
                     ) : null}
                   </MdCard>
@@ -606,6 +666,21 @@ export function DeepSpaceImportScreen() {
                   </MdCard>
                 ),
               )}
+              {healthPref ? (
+                <MdButton
+                  label={t("privacyHealth.turnOff")}
+                  variant="text"
+                  loading={healthBusy}
+                  disabled={healthBusy}
+                  onPress={() => void handleHealthWithdraw()}
+                  accessibilityLabel={t("privacyHealth.turnOff")}
+                />
+              ) : null}
+              {withdrawNotice !== null ? (
+                <RNText style={[m3TextStyle("bodySmall"), s.healthNote]} accessibilityLiveRegion="polite">
+                  {withdrawNotice}
+                </RNText>
+              ) : null}
             </View>
           )}
 

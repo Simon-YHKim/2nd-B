@@ -11,6 +11,7 @@ const rewardRunner = read("scripts/check-reward-ssv-db.sh");
 const polarisRegression = read("db/migration-drafts/tests/polaris-generation-contract.sql");
 const signupBootstrap = read("db/tests/signup_consent_admob_bootstrap.sql");
 const serviceConsentRegression = read("db/migration-drafts/tests/llm-service-consent-management-contract.sql");
+const avatarSpecRegression = read("db/migration-drafts/tests/users-avatar-spec-contract.sql");
 
 const drafts = readdirSync(join(ROOT, "db", "migration-drafts"))
   .filter((name) => /^UNNUMBERED_.*\.sql$/.test(name))
@@ -27,9 +28,16 @@ const promoted = [
   ["0198", "service_contract_erasure_registry"],
   ["0199", "oauth_naver_rate_limit_completion"],
   ["0200", "rss_proxy_quota"],
+  ["0206", "users_avatar_spec"],
+  ["0207", "users_display_name_update"],
+  ["0208", "signup_consent_privacy_20260929"],
 ] as const;
 
 const behaviorDrafts = {
+  "UNNUMBERED_users_avatar_spec.sql": {
+    runner: avatarSpecRegression,
+    workflowInvocation: "-f db/migration-drafts/tests/users-avatar-spec-contract.sql",
+  },
   "UNNUMBERED_service_contract_erasure_registry.sql": {
     runner: read("db/migration-drafts/tests/service-contract-erasure-registry.sql"),
     workflowInvocation: "node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci",
@@ -66,14 +74,33 @@ const behaviorDrafts = {
   },
 } as const;
 
+// Source-level contracts for drafts without their own scratch SQL runner.
+// display_name was promoted as 0207 (2026-09-28); its grant is also asserted
+// by the users-avatar-spec contract after the numbered replay.
+const plannedDrafts = {
+  "UNNUMBERED_users_display_name_update.sql": "src/lib/supabase/__tests__/users-table-acl-migration.test.ts",
+} as const;
+
 describe("scratch PostgreSQL coverage for inactive security drafts", () => {
   test("accounts for every unnumbered draft exactly once", () => {
     expect(drafts).toEqual(
       [...Object.keys(behaviorDrafts),
+        ...Object.keys(plannedDrafts),
         "UNNUMBERED_effective_llm_consent_current_contract.sql",
         "UNNUMBERED_oauth_naver_rate_limit_completion.sql",
-        "UNNUMBERED_rss_proxy_quota.sql"].sort(),
+        "UNNUMBERED_rss_proxy_quota.sql",
+        "UNNUMBERED_signup_consent_privacy_20260929.sql"].sort(),
     );
+  });
+
+  test("pins each planned draft to a source-level security contract", () => {
+    for (const [draft, suite] of Object.entries(plannedDrafts)) {
+      expect(read(suite)).toContain(draft);
+      expect(read(`db/migration-drafts/${draft}`)).toContain("public.");
+    }
+    const displayName = read("db/migration-drafts/UNNUMBERED_users_display_name_update.sql");
+    expect(displayName).toMatch(/GRANT UPDATE \(display_name\) ON public\.users TO authenticated;/);
+    expect(displayName).not.toMatch(/GRANT UPDATE ON public\.users/);
   });
 
   test("numbered replay uses the exact reviewed SQL from every retained draft", () => {
@@ -107,6 +134,16 @@ describe("scratch PostgreSQL coverage for inactive security drafts", () => {
     expect(workflow).toContain("-f db/tests/rss_proxy_quota_regression.sql");
     expect(regression).toContain("global rejection allocated a user quota row");
     expect(regression).toContain("account deletion did not cascade RSS user quota");
+    expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
+  });
+
+  test("exercises the numbered 2026-09-29 notice revision without replaying its draft", () => {
+    const regression = read("db/tests/signup_consent_privacy_20260929_regression.sql");
+    expect(workflow).toContain("-f db/tests/signup_consent_privacy_20260929_regression.sql");
+    expect(regression).toContain("email-v6 is not ready");
+    expect(regression).toContain("two current revisions share one document tuple");
+    expect(regression).toContain("consent must stay current after a notice revision");
+    expect(regression).toContain("an email-v3 receipt must not count as current");
     expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
   });
 

@@ -12,7 +12,7 @@
  * character accessibilityLabel pattern to THIS file.
  */
 import { useEffect, type ReactNode } from "react";
-import { BackHandler, StyleSheet, View } from "react-native";
+import { BackHandler, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, usePathname, type Href } from "expo-router";
@@ -24,6 +24,9 @@ import { MdNavBar, MdTopAppBar } from "@/components/m3";
 import { SecondbStatusHeader } from "./SecondbStatusHeader";
 import { SbStarfield } from "./SbStarfield";
 import { TabIcon, type DeepSpaceTab } from "./DeepSpaceDock";
+import { Text } from "@/components/ui/Text";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { usePhoneEmbed } from "@/lib/nav/phone-embed";
 
 /**
  * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
@@ -61,9 +64,11 @@ export function DeepSpaceScreen({
   header = "companion",
   variant = "fullbleed",
   showSharedSky = false,
+  transparentBackdrop = false,
   title,
   onBack,
   action,
+  ownBack = false,
   children,
 }: {
   active: DeepSpaceTab;
@@ -83,10 +88,15 @@ export function DeepSpaceScreen({
   variant?: "fullbleed" | "windowed" | "museumLike";
   /** Immersive screens may expose the shared seeded constellation sky directly. */
   showSharedSky?: boolean;
+  /** Modal surfaces can reveal the still-mounted screen underneath. */
+  transparentBackdrop?: boolean;
   /** Windowed sub-screens: M3 top app bar title + back (TopAppBar). */
   title?: string;
   onBack?: () => void;
   action?: ReactNode;
+  /** The screen draws its own back button in its body. Inside the dashboard
+   *  phone the shell then adds no second one (Back lives in one place). */
+  ownBack?: boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation("home");
@@ -110,6 +120,7 @@ export function DeepSpaceScreen({
   // sub-screen reuses a tab's `active` for dock highlight (e.g. /capture-full
   // with active="capture"): only the tab's ROOT route gets the home-back rule.
   const pathname = usePathname();
+  const embed = usePhoneEmbed();
   useEffect(() => {
     if (active === "home" || !TABS.includes(active)) return;
     if (pathname !== TAB_ROUTE[active]) return;
@@ -128,13 +139,38 @@ export function DeepSpaceScreen({
     icon: (color: string) => <TabIcon tab={key} color={color} size={24} />,
   }));
 
+  // Inside the dashboard phone the phone is the frame: no sky, window, safe
+  // area or dock (the dock would navigate the app, not the phone). One back
+  // row, wired to the screen's own back (converted to useAppRouter) or the
+  // phone's history. The screen keeps its own scroll; the phone hosts it in
+  // a bounded view outside its list.
+  if (embed) {
+    return (
+      <View style={styles.embedded}>
+        {ownBack && !title && !action ? null : <View style={styles.embeddedHeader}>
+          {ownBack ? null : <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("ops:phone.internal.back")}
+            onPress={onBack ?? embed.back}
+            style={styles.embeddedBack}
+          >
+            <PixelGlyph name="arrow_back" color={deepSpace.accentBright} size={24} />
+          </Pressable>}
+          {title ? <Text variant="heading" numberOfLines={2} style={styles.embeddedTitle}>{title}</Text> : <View style={styles.embeddedTitle} />}
+          {action}
+        </View>}
+        <View style={styles.embeddedBody}>{children}</View>
+      </View>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
+    <SafeAreaView style={[styles.root, transparentBackdrop && styles.rootTransparent]} edges={["top", "bottom"]}>
       {/* rev2 shared constellation wallpaper (sb-app SbStarfield + SB_COSMIC),
           seed-locked so every screen sits under the same sky. */}
-      <View pointerEvents="none" style={styles.spaceWash}>
+      {!transparentBackdrop ? <View pointerEvents="none" style={styles.spaceWash}>
         <SbStarfield cosmic />
-      </View>
+      </View> : null}
       {variant === "museumLike" ? (
         // rev2 museumLike (sb-app §4): the screen paints its own full-bleed
         // sky; a single top scrim spans the title zone so the sky reads as one
@@ -210,7 +246,13 @@ export function DeepSpaceScreen({
 }
 
 const styles = StyleSheet.create({
+  embedded: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0, backgroundColor: deepSpace.bgMid },
+  embeddedHeader: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 4 },
+  embeddedBack: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  embeddedTitle: { flexGrow: 1, flexShrink: 1, flexBasis: 0, color: deepSpace.accentBright },
+  embeddedBody: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0 },
   root: { flex: 1, backgroundColor: deepSpace.bgEdge },
+  rootTransparent: { backgroundColor: "transparent" },
   spaceWash: { ...StyleSheet.absoluteFill, overflow: "hidden" },
   body: {
     flex: 1,

@@ -1,6 +1,11 @@
 {
   "loading": "Loading profile...",
   "fallbackName": "Guest",
+  "avatarStudio": {
+    "label": "Customize avatar",
+    "hint": "Change your character's look and clothes.",
+    "loadError": "Couldn't load your avatar. Please try again."
+  },
   "hero": {
     "eyebrow": "Me",
     "title": "{{displayName}}'s profile",

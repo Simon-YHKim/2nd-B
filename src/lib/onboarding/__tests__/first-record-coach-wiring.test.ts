@@ -5,13 +5,14 @@ const root = resolve(__dirname, "../../../..");
 const read = (path: string) => readFileSync(resolve(root, path), "utf8");
 
 describe("first-record coach wiring", () => {
-  test("home points at the live SecondB head and opens the coached capture route", () => {
+  test("home points at the upper-left SecondB launcher and opens the coached capture route", () => {
     const shell = read("src/components/deep-space/DeepSpaceShell.tsx");
     const home = read("src/components/deep-space/ConstellationHome.tsx");
 
     expect(shell).toContain("coachHeadTargetRef={coachHeadTargetRef}");
     expect(shell).toContain('params: { coach: FIRST_RECORD_COACH_PARAM }');
     expect(home).toContain("ref={coachHeadTargetRef}");
+    expect(home).toContain('testID="secondb-dialogue-launcher"');
     expect(home).toContain("if (coachFirstRecord)");
     expect(home).toContain("onCoachHeadPress?.()");
   });

@@ -226,8 +226,8 @@ export function linkEdgeCount(graph: RecordsGraph): number {
  * ON because its canon corpus is ~20 records (a dozen dashed links). A real
  * corpus of 100+ records can produce hundreds of cross-domain links that turn
  * the graph center into unreadable moiré, so above TAG_LINK_DENSITY_LIMIT the
- * overlay starts OFF and the user opts in via the toggle. Pure + deterministic
- * so the default is unit-testable independent of the SVG surface.
+ * overlay stays hidden. Pure + deterministic so this density rule is unit-testable
+ * independent of the SVG surface.
  */
 export function initialTagLinksVisible(linkCount: number): boolean {
   return linkCount <= TAG_LINK_DENSITY_LIMIT;

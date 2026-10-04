@@ -38,7 +38,7 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { useTranslation } from "react-i18next";
-import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { Redirect } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
@@ -52,6 +52,7 @@ import type { HotlineId } from "@/lib/safety/lexicon";
 import { classifyInputAnyLocale } from "@/lib/safety/classifier";
 import { startInterviewCrisisRouting } from "@/lib/llm/boundary";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { livedPeriods, resolveInterviewRoutePeriod } from "@/lib/interview/periods";
 import { DrillProgress } from "@/components/ui/DrillProgress";
 import { isNonAnswer, scaffoldQuestion, shouldScaffold, MAX_SCAFFOLDS_PER_LAYER } from "@/lib/interview/stuck";
@@ -92,6 +93,8 @@ function Glyph({ name, color, size = 20 }: { name: string; color: string; size?:
 const MAX_TURNS = 12;
 
 function InterviewFrame({ children }: { children: ReactNode }) {
+  // Phone-aware: inside the dashboard phone, back steps the phone's stack.
+  const router = useAppRouter();
   const { t } = useTranslation("interview");
   return (
     <DeepSpaceScreen
@@ -109,7 +112,9 @@ function InterviewFrame({ children }: { children: ReactNode }) {
 export default function InterviewRoute() {
   const { t } = useTranslation("interview");
   const { t: homeT } = useTranslation("home");
-  const { period: periodParam, origin: originParam } = useLocalSearchParams<{
+  // Inside the dashboard phone these come from the phone route
+  // (/interview?period=now), not from /dashboard's query.
+  const { period: periodParam, origin: originParam } = useScreenParams<{
     period?: string | string[];
     origin?: string | string[];
   }>();
@@ -234,6 +239,9 @@ function TrackGatedInterview({
 }
 
 function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growthOrigin: boolean }) {
+  // Phone-aware: inside the dashboard phone, the post-save return to the star
+  // summary replaces the phone's screen instead of the app's route.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("interview");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "ko" | "en";
   // 기록에 남기는 시기도 같은 id 로 쓴다. Growth 렌즈가 이 값을 생애 장의 정본으로
@@ -607,7 +615,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
             ? `${userTurns}턴 회상 인터뷰`
             : `${userTurns}-turn recall interview`,
         // 옛 스크리너와 같은 태그. assess/registry.ts 가 이걸로 완료를 판정한다.
-        tags: ["interview", "recall", "screener"],
+        tags: ["interview", "recall", "screener", `entry-ui:${locale}`],
         auditPeriod,
         domainIntent: growthOrigin ? "growth" : undefined,
         withFollowup: false,

@@ -3,12 +3,23 @@ import { AppState, Platform } from 'react-native';
 import { useFocusEffect, useNavigation } from 'expo-router';
 import { useReducedMotionPref } from '@/lib/motion/use-reduced-motion';
 import { useLoopMedia } from './use-loop-media';
+import { createRatchetLoop } from '@/lib/haptics/ratchet-haptics';
 
 const RATCHET = require('../../../assets/audio/observatory-ratchet.wav');
 
 /** Foreground only. Coming back never replays an old movement request. */
 export function useMotionSound() {
-  const setMoving = useLoopMedia(RATCHET, 0.08);
+  const setSound = useLoopMedia(RATCHET, 0.08);
+  // A short, weak haptic pulse on every ratchet click while the loop plays
+  // (Simon 2026-10-01). It follows the sound's gate exactly: every path below
+  // that starts or stops the sound goes through setMoving.
+  const haptics = useRef<ReturnType<typeof createRatchetLoop> | null>(null);
+  if (haptics.current === null) haptics.current = createRatchetLoop();
+  const setMoving = useCallback((moving: boolean) => {
+    setSound(moving);
+    haptics.current?.set(moving);
+  }, [setSound]);
+  useEffect(() => () => haptics.current?.set(false), []);
   const reducedMotion = useReducedMotionPref();
   const navigation = useNavigation();
   // Router's useFocusEffect waits for loaded navigation. The aim phase starts

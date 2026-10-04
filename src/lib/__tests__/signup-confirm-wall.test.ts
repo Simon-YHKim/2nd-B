@@ -97,7 +97,9 @@ describe("sign-up confirm code (deliverability P1, 260718)", () => {
 describe("loading gate i18n (judge-rehearsal #3)", () => {
   test("LoadingScreen carries no hardcoded gate/a11y Korean literals", () => {
     const screen = read("src/components/ui/LoadingScreen.tsx");
-    expect(screen).toContain('t("loadingGate.hint")');
+    for (const key of ["loading", "skip", "skipShort", "skipHint", "retry"]) {
+      expect(screen).toContain('"loadingGate.' + key + '"');
+    }
     expect(screen).not.toMatch(/탭해서 두번째|두 번 탭하면|불러오는 중"/);
   });
 

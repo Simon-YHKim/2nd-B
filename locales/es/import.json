@@ -48,10 +48,33 @@
     "more": "Importar más",
     "moreHint": "Borra esta importación y comienza otra."
   },
+  "appointmentCount": {
+    "label": "Menciones de planes: {{count}}",
+    "sub": "Recuento de planes → registro"
+  },
   "health": {
     "connect": "Activar la sincronización de actividad",
     "ingest": "Añadir la actividad de hoy",
     "consentNeeded": "Aceptar para traer tu actividad",
     "minorLocked": "La sincronización de actividad está desactivada en esta cuenta."
+  },
+  "markdownRetention": {
+    "consent": "El archivo se analiza en este dispositivo. Los títulos y el texto de las notas que elijas se guardan como registros cifrados. El texto de cada nota se limita a 4.000 caracteres.",
+    "review": "El título y el texto de cada nota elegida, hasta 4.000 caracteres por nota, se añaden a tus registros."
+  },
+  "pendingDevice": {
+    "title": "Notas guardadas en este dispositivo",
+    "body": "Notas guardadas en este dispositivo antes de iniciar sesión: {{count}}. Podrían ser de otra persona. Impórtalas solo si son tuyas.",
+    "account": "Importar a: {{email}}",
+    "accountUnavailable": "No podemos confirmar el correo de esta cuenta. La importación queda en espera.",
+    "confirm": "Importar mis notas a esta cuenta",
+    "confirmHint": "Guarda las notas de este dispositivo en la cuenta mostrada.",
+    "defer": "Más tarde",
+    "deferHint": "Conserva las notas en este dispositivo.",
+    "importing": "Importando…",
+    "error": "No se pudieron importar algunas notas. Las notas restantes siguen en este dispositivo."
+  },
+  "retention": {
+    "chip": "Se borra al eliminar la cuenta"
   }
 }

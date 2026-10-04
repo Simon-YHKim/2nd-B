@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text as RNText, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { router } from "expo-router";
 
 import { DeepSpaceHubDock, SecondbStatusHeader, type DeepSpaceHubTab } from "@/components/deepspace";
@@ -19,10 +20,10 @@ const hdAlpha = (c: string, a: number): string => flattenAlpha(c, a, colors.bgDe
 
 
 const HEADER_COPY: Record<DeepSpaceHubTab, { text: string; tip: string }> = {
-  capture: { text: "담기 화면이에요. 핵심만 추렸어요.", tip: "천천히 둘러보세요." },
-  secondb: { text: "세컨비챗 화면이에요. 핵심만 추렸어요.", tip: "천천히 둘러보세요." },
-  trend: { text: "트렌드 화면이에요. 핵심만 추렸어요.", tip: "천천히 둘러보세요." },
-  review: { text: "점검 화면이에요. 핵심만 추렸어요.", tip: "천천히 둘러보세요." },
+  capture: { text: "담기 화면입니다. 핵심만 추렸습니다.", tip: "천천히 둘러보세요." },
+  secondb: { text: "세컨비챗 화면입니다. 핵심만 추렸습니다.", tip: "천천히 둘러보세요." },
+  trend: { text: "트렌드 화면입니다. 핵심만 추렸습니다.", tip: "천천히 둘러보세요." },
+  review: { text: "점검 화면입니다. 핵심만 추렸습니다.", tip: "천천히 둘러보세요." },
 };
 
 export function DeepSpaceHubDockScreen() {
@@ -126,7 +127,7 @@ function CaptureContent({ captureMode, setCaptureMode, captured, setCaptured }: 
         onPress={() => setCaptured(true)}
         style={styles.primaryButton}
       >
-        <Text variant="caption" style={styles.primaryButtonText}>{captured ? "담겼어요" : "담기"}</Text>
+        <Text variant="caption" style={styles.primaryButtonText}>{captured ? "담겼습니다" : "담기"}</Text>
       </Pressable>
     </>
   );
@@ -137,10 +138,10 @@ function SecondbContent({ chatDraft, setChatDraft, chatSent, setChatSent }: HubS
     <View style={styles.chatStack}>
       <Text variant="body" style={styles.userBubble}>나 요즘 너무 산만한 것 같아. 예전엔 안 그랬는데?</Text>
       <View style={styles.aiGroup}>
-        <Text variant="body" style={styles.aiBubble}>기록을 보면 3월부터 작업 전환이 잦아졌어요. 외향성이 오른 시기와 겹쳐요. 산만함보다 관심이 넓어진 신호일 수 있어요.</Text>
+        <Text variant="body" style={styles.aiBubble}>기록을 보면 3월부터 작업 전환이 잦아졌습니다. 외향성이 오른 시기와 겹칩니다. 산만함보다 관심이 넓어진 신호일 수 있습니다.</Text>
         <Text variant="subtle" style={styles.evidence}>📎 내 기록 3건 근거</Text>
       </View>
-      {chatSent ? <Text variant="subtle" style={styles.sentNote}>보냈어요. 이 미리보기에서는 대화가 저장되지 않습니다.</Text> : null}
+      {chatSent ? <Text variant="subtle" style={styles.sentNote}>보냈습니다. 이 미리보기에서는 대화가 저장되지 않습니다.</Text> : null}
       <View style={styles.inputBar}>
         <TextInput
           accessibilityLabel="세컨비에게 물어보기"
@@ -170,7 +171,7 @@ function TrendContent({ trendAction, setTrendAction }: HubState) {
       <Text variant="body" style={styles.subtitle}>요즘 너의 관심이 향하는 다음 한 걸음</Text>
       <TrendCard title="자기이해 도구" delta="▲ 관심 +32%" body="최근 3주간 가장 자주 담은 주제. 관련 검사 애착(ECR-S)를 해볼까요?" onPress={() => setTrendAction("자기이해 도구")} />
       <TrendCard title="아침 루틴" delta="▲ 관심 +18%" body="기분이 좋은 날의 공통점. 리듬에 기록을 더 담아볼까요?" onPress={() => setTrendAction("아침 루틴")} />
-      {trendAction ? <Text variant="subtle" style={styles.sentNote}>{trendAction} 제안을 열 준비가 됐어요.</Text> : null}
+      {trendAction ? <Text variant="subtle" style={styles.sentNote}>{trendAction} 제안을 열 준비가 됐습니다.</Text> : null}
       <View style={styles.emptyCard}><Text variant="body" style={styles.mutedBody}>데이터가 더 쌓이면 새로운 제안이 나타납니다.</Text></View>
     </>
   );
@@ -182,7 +183,7 @@ function ReviewContent({ reviewDecision, setReviewDecision }: HubState) {
       <Text variant="body" style={styles.subtitle}>내가 달라졌다면 별자리도 함께 점검</Text>
       <View style={styles.reviewCard}>
         <Text variant="caption" pixelEn style={styles.sectionLabelSoul}>세컨비의 제안</Text>
-        <Text variant="body" style={styles.reviewBody}>최근 기록을 보면 외향성이 올라간 것 같아요. 별 밝기를 올릴까요?</Text>
+        <Text variant="body" style={styles.reviewBody}>최근 기록을 보면 외향성이 올라간 것 같습니다. 별 밝기를 올릴까요?</Text>
         <View style={styles.scoreRow}><Score label="지금" value="61" /><RNText style={styles.arrow}>→</RNText><Score label="제안" value="68" /><Text variant="subtle" style={styles.evidenceRight}>근거{"\n"}기록 5건</Text></View>
       </View>
       <Text variant="subtle" style={styles.reviewNote}>승인해야만 반영됩니다 · 모든 제안은 기록에 남습니다</Text>

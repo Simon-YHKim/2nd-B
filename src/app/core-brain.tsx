@@ -14,7 +14,7 @@ import { subscribeFontStyle } from "@/lib/settings/readable-font";
 import { View, StyleSheet, ScrollView, Modal, Platform, Pressable, TouchableOpacity } from "react-native";
 import { Rect, Svg } from "react-native-svg";
 import { useTranslation } from "react-i18next";
-import { Redirect, router, type Href } from "expo-router";
+import { Redirect, type Href } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { ServiceConsentLink } from "@/components/consent/ServiceConsentLink";
@@ -31,7 +31,7 @@ import { PixelScrim } from "@/components/pixel/PixelDither";
 import { stepPolyline } from "@/components/pixel/pixel-line";
 import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { PolarisCardOverlay, PolarisCardSurface } from "@/components/deep-space/PolarisCardOverlay";
 import { PolarisDeck, type PolarisDeckPage } from "@/components/deep-space/PolarisDeck";
 import { PolarisCategorySlots } from "@/components/deep-space/PolarisCategorySlots";
 import { MdButton, m3TextStyle } from "@/components/m3";
@@ -66,6 +66,7 @@ import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionS
 import { IslandArt } from "@/components/art/IslandArt";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 
 // D-25: Polaris brightness shows as a qualitative band, never a raw %.
 const SOUL_CORE_BAND_KO: Record<BrightnessBand, string> = { dim: "흐릿", fair: "보통", bright: "밝음" };
@@ -139,18 +140,14 @@ async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promi
 // (evidence, persona, the eight sections, the evidence drawer) and every CTA are
 // identical and live in both. (LensView is the 7-axis per-trait view — wrong fit
 // for the aggregate Polaris readout, so it is no longer used here.)
-function CoreShell({ children }: { children: ReactNode }) {
-  const { t } = useTranslation("core-brain");
+//
+// 2026-09-30 (Simon localhost QA): on deep-space the Polaris is a card over the
+// constellation, not a page. The route is a transparent modal and the shell is
+// PolarisCardOverlay (swipe up / down to close, left / right through the deck).
+// States that are not a deck (loading, load error) sit in one Polaris card.
+function CoreShell({ children, deck = false }: { children: ReactNode; deck?: boolean }) {
   return isDeepSpaceUI() ? (
-    <DeepSpaceScreen
-      active="home"
-      header="none"
-      variant="windowed"
-      title={t("polaris")}
-      onBack={() => router.back()}
-    >
-      {children}
-    </DeepSpaceScreen>
+    <PolarisCardOverlay>{deck ? children : <PolarisCardSurface>{children}</PolarisCardSurface>}</PolarisCardOverlay>
   ) : (
     <PremiumAppShell>{children}</PremiumAppShell>
   );
@@ -176,7 +173,7 @@ function buildCoreCenterCards(persona: PersonaCard, locale: "en" | "ko"): Center
       title: locale === "ko" ? "기존 저장 결과" : "Previously saved result",
       body:
         locale === "ko"
-          ? "기존 저장 결과예요. 출처가 기록되지 않아 지금의 방향으로 단정하지 않아요."
+          ? "기존 저장 결과입니다. 출처가 기록되지 않아 지금의 방향으로 단정하지 않습니다."
           : "Previously saved result. Its source was not recorded, so we do not present it as your current direction.",
       accent: cosmic.pixelLamp,
     },
@@ -188,6 +185,8 @@ export default function CoreBrain() {
 }
 
 function CoreBrainScreen() {
+  // Phone-aware: inside the dashboard phone, the deck's links open in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("core-brain");
   const { t: consentT } = useTranslation("consent");
   // 별 이름은 홈 별자리와 **같은 키**에서 읽는다 -- 두 화면이 갈라지면
@@ -489,7 +488,7 @@ function CoreBrainScreen() {
   if (evidence.length === 0) {
     const dimStarColor = m3.starLadder.rest[0];
     return (
-      <CoreShell>
+      <CoreShell deck>
         <PolarisDeck isKo={locale === "ko"} pages={[
           { key: "empty", title: t("polaris"), body: (
         <View style={styles.center}>
@@ -847,7 +846,7 @@ function CoreBrainScreen() {
       },
     ];
     return (
-      <CoreShell>
+      <CoreShell deck>
         <View style={dsDeck.wrap}>
           <PolarisDeck pages={deckPages} isKo={locale === "ko"} />
         </View>
@@ -1116,11 +1115,11 @@ const makeDsDeck = () => StyleSheet.create({
     width: "100%",
     alignItems: "center",
     paddingVertical: 8,
-    backgroundColor: m3.color.surfaceContainerLow,
+    backgroundColor: m3.polarisCard.surfaceLow,
   },
   roleStatement: {
     ...m3TextStyle("bodyLarge"),
-    color: m3.color.onSurface,
+    color: m3.polarisCard.ink,
     lineHeight: 24,
     textAlign: "center",
   },
@@ -1128,16 +1127,16 @@ const makeDsDeck = () => StyleSheet.create({
   pageBody: { gap: 12 },
   pageHeadline: {
     ...m3TextStyle("headlineSmall"),
-    color: m3.color.onSurface,
+    color: m3.polarisCard.ink,
     fontWeight: "700",
   },
   pageDescription: {
     ...m3TextStyle("bodyLarge"),
-    color: m3.color.onSurfaceVariant,
+    color: m3.polarisCard.inkMuted,
   },
   progressiveSummary: {
     padding: 12,
-    backgroundColor: m3.color.surfaceContainerLow,
+    backgroundColor: m3.polarisCard.surfaceLow,
   },
   validationHead: { marginTop: 16 },
   secondaryActions: {

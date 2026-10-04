@@ -270,6 +270,8 @@ describe("sign-up authority and preservation boundaries", () => {
   // ConsentNotice 경계는 그대로고 BirthDateField 는 위 C10 변경으로 재고정했다.
   // 2026-09-13: dds-auth-screens 에 reset-password bootstrap 재시도 표면만
   // 추가해 그 digest 만 재고정했다. 나머지 네 경계는 그대로다.
+  // 2026-09-30: dds-auth-screens digest 만 재고정했다. Text 를 react-native 대신
+  // @/components/ui/PlainText 에서 가져오는 import 두 줄뿐이다(앱 전체 한국어 줄바꿈).
   test("preserves legacy renderer and shared form boundaries while pinning the auth renderer", () => {
     // 대상만 아카이브로 옮겼다. **digest 는 한 글자도 안 바꿨다** — 같은 마커,
     // 같은 해시, 다른 파일이면 옮기면서 고치지 않았다는 증거가 된다.
@@ -284,7 +286,7 @@ describe("sign-up authority and preservation boundaries", () => {
     expect(sha256(legacy)).toBe("630043be84f94b1b90bfa3a932c98cd4f3886f9e92a44a35fb5487298f782904");
     expect(sha256(styles)).toBe("5df5b8ca23806eb75662a694220d7b48f31351aacfb8d8bf476d66b98a83508e");
     expect(sha256(read("src/screens/deepspace/dds-auth-screens.tsx"))).toBe(
-      "685731b74aae005916c3446fae3c22924388eee96f2e42e80373889df91bec1b",
+      "b2be8e90dc37877b3e6c2ea6e8d70a5cf3a9caadf357cdb03cc9d4fbbad3d84c",
     );
     // 2026-09-28: ConsentNotice gained the "PolaScope, formerly 2nd-Brain" note
     // (common:app.renameNote) until the 2026-10-05 Terms amendment, which removes

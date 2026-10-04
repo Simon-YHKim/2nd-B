@@ -77,6 +77,24 @@ describe("createRecord — Advisor premium gate", () => {
     expect(mockCallAdvisor).not.toHaveBeenCalled();
   });
 
+  test("a queued first-person note runs minor crisis routing even with AI follow-up off", async () => {
+    mockClassifyRecordCrisis.mockResolvedValue({ text: "youth hotline guidance" });
+
+    const result = await createRecord({
+      userId: "u1",
+      locale: "ko",
+      kind: "note",
+      body: "red zone note",
+      withFollowup: false,
+      minor: true,
+    });
+
+    expect(mockClassifyRecordCrisis).toHaveBeenCalledWith("red zone note", "ko", "u1", true);
+    expect(mockCallAdvisor).not.toHaveBeenCalled();
+    expect(mockCallLlm).not.toHaveBeenCalled();
+    expect(result.followup).toEqual({ text: "youth hotline guidance", zone: "red", fixedTemplate: true });
+  });
+
   test("free-tier red-zone journal: hotline follow-up attaches as a fixed template and the entry STILL saves", async () => {
     mockClassifyRecordCrisis.mockResolvedValue({ text: "지금 많이 힘드신 것 같아요. 109로 연락해 주세요." });
 
@@ -627,7 +645,11 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     expect(manifest.share_target?.action?.endsWith("/capture")).toBe(true);
     const wrapper = src.split("export function CaptureLegacy")[0] ?? "";
     expect(wrapper).toContain("const hasFullCaptureParams =");
-    expect(wrapper).toContain("(CAPTURE_MODES as readonly string[]).includes(captureParams.mode)");
+    // 2026-09-30: the 사진·음성 tiles left the simple screen, so `?mode=ocr|voice`
+    // now lands on CaptureView's 글 instead of the full intake. Every other mode
+    // still opens it; captureModeOpensFullIntake (draft.ts) holds the rule and
+    // draft.test.ts pins its table.
+    expect(wrapper).toContain("captureModeOpensFullIntake(captureParams.mode)");
     expect(wrapper).toContain("captureParams.tag.trim().length > 0");
     expect(wrapper).toContain('captureParams.entry === "firstRun"');
     expect(wrapper).toContain("useState(hasFullCaptureParams)");

@@ -79,7 +79,7 @@ import {
   type PickedFile,
 } from "@/lib/wiki/capture-file";
 import {
-  CAPTURE_MODES,
+  CAPTURE_MODES, captureModeOpensFullIntake,
   createCaptureTransientDraft,
   acknowledgeCaptureSubmissionIfOwned,
   acknowledgeCaptureSubmissionState,
@@ -356,7 +356,7 @@ export default function Capture() {
   // and the two hooks below run identically on every path so hook order is stable.
   // Web Share Target(manifest.webmanifest share_target.action=/capture)은
   // 딥스페이스에서도 이 라우트로 들어오는데 CaptureView 는 share 파라미터를
-  // 소비하지 않는다 — share/mode/tag/first-run 파라미터가 하나라도 있으면 소비
+  // 소비하지 않는다 — share/mode(ocr·voice 는 글로, 09-30)/tag/first-run 이 있으면 소비
   // 배선을 가진 full intake 를 딥스페이스 셸 안에 렌더한다. 최초 프레임은 현재
   // 파라미터로 즉시 고르고, effect 소유 state latch 가 URL strip 뒤에도 이 mount
   // 를 유지한다. render 중 ref write 는 React Compiler purity 를 깨므로 쓰지 않는다.
@@ -377,7 +377,7 @@ export default function Capture() {
       title: captureParams.title,
     }) !== null ||
     (typeof captureParams.mode === "string" &&
-      (CAPTURE_MODES as readonly string[]).includes(captureParams.mode)) ||
+      captureModeOpensFullIntake(captureParams.mode)) ||
     (typeof captureParams.tag === "string" && captureParams.tag.trim().length > 0) ||
     captureParams.entry === "firstRun";
   const [fullCaptureActive, setFullCaptureActive] = useState(hasFullCaptureParams);
@@ -1325,9 +1325,9 @@ function CaptureLegacySession({
       // 서로 다른 별은 병합·재분류하지 않았다 — 어디에 담겼는지 알린다.
       // (capture 네임스페이스에 이 케이스의 키가 없어 인라인 이중언어로 둔다.)
       showFeedback(
-        locale === "ko" ? "쓰던 기록 초안의 별을 지켰어요" : "Kept your record draft intact",
+        locale === "ko" ? "쓰던 기록 초안의 별을 지켰습니다" : "Kept your record draft intact",
         locale === "ko"
-          ? "쓰던 기록 초안은 원래 별에 그대로 두고, 공유된 내용은 다른 자리에 담았어요."
+          ? "쓰던 기록 초안은 원래 별에 그대로 두고, 공유된 내용은 다른 자리에 담았습니다."
           : "Your existing record draft kept its original star. The shared content was placed separately so nothing was refiled.",
       );
     }
@@ -1469,9 +1469,9 @@ function CaptureLegacySession({
     }
     if (plan.journalConflict !== null) {
       showFeedback(
-        locale === "ko" ? "쓰던 별 초안을 그대로 지켰어요" : "Kept your star draft intact",
+        locale === "ko" ? "쓰던 별 초안을 그대로 지켰습니다" : "Kept your star draft intact",
         locale === "ko"
-          ? "기존 초안을 저장하거나 비운 뒤 다른 별에서 다시 담아 주세요. 내용과 별은 바꾸지 않았어요."
+          ? "기존 초안을 저장하거나 비운 뒤 다른 별에서 다시 담아 주세요. 내용과 별은 바꾸지 않았습니다."
           : "Save or clear the existing draft before capturing from another star. Its text and star were not changed.",
       );
       // 충돌 억제는 "이 파라미터로 바꿀 durable 상태가 없다" 는 **확정 판정**이라
@@ -1750,11 +1750,11 @@ function CaptureLegacySession({
           {draftHydrationError ? (
             <>
               <Text variant="heading">
-                {locale === "ko" ? "초안을 불러오지 못했어요" : "Couldn't load your draft"}
+                {locale === "ko" ? "초안을 불러오지 못했습니다" : "Couldn't load your draft"}
               </Text>
               <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
                 {locale === "ko"
-                  ? "기존 초안을 보호하기 위해 입력 화면을 열지 않았어요. 저장소를 확인한 뒤 다시 시도해 주세요."
+                  ? "기존 초안을 보호하기 위해 입력 화면을 열지 않았습니다. 저장소를 확인한 뒤 다시 시도해 주세요."
                   : "The editor stayed closed to protect your existing draft. Check storage and try again."}
               </Text>
               <Button
@@ -1851,9 +1851,9 @@ function CaptureLegacySession({
   function showDraftCleanupFailure(): void {
     if (!captureOwnsFocusedSession()) return;
     showFeedback(
-      locale === "ko" ? "저장은 끝났지만 초안을 정리하지 못했어요" : "Saved, but draft cleanup failed",
+      locale === "ko" ? "저장은 끝났지만 초안을 정리하지 못했습니다" : "Saved, but draft cleanup failed",
       locale === "ko"
-        ? "기록은 안전하게 저장됐어요. 앱을 다시 열면 같은 초안이 보일 수 있으니 다시 저장하지 말고 비워 주세요."
+        ? "기록은 안전하게 저장됐습니다. 앱을 다시 열면 같은 초안이 보일 수 있으니 다시 저장하지 말고 비워 주세요."
         : "Your record is safe. If the same draft reappears after restart, clear it instead of saving it again.",
     );
   }
@@ -1949,9 +1949,9 @@ function CaptureLegacySession({
     if (claim.accepted) return claim.ticket;
 
     showFeedback(
-      locale === "ko" ? "같은 내용의 저장을 확인하고 있어요" : "Checking the same save",
+      locale === "ko" ? "같은 내용의 저장을 확인하고 있습니다" : "Checking the same save",
       locale === "ko"
-        ? "이전 화면에서 시작한 저장 결과를 확인한 뒤 초안을 다시 불러올게요. 다른 내용은 계속 담을 수 있어요."
+        ? "이전 화면에서 시작한 저장 결과를 확인한 뒤 초안을 다시 불러오겠습니다. 다른 내용은 계속 담을 수 있습니다."
         : "We'll reload the draft after checking the save started on the previous screen. You can still capture different content.",
     );
     void claim.completion.then((outcome) => {
@@ -1963,8 +1963,8 @@ function CaptureLegacySession({
         submittedDraftEpoch(submitted) === startModeEpoch
       ) {
         showFeedback(
-          locale === "ko" ? "이전 저장이 끝나지 않았어요" : "The previous save didn't finish",
-          locale === "ko" ? "초안은 그대로예요. 다시 저장해 주세요." : "Your draft is unchanged. Please save it again.",
+          locale === "ko" ? "이전 저장이 끝나지 않았습니다" : "The previous save didn't finish",
+          locale === "ko" ? "초안은 그대로입니다. 다시 저장해 주세요." : "Your draft is unchanged. Please save it again.",
         );
       }
     });

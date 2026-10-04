@@ -1,12 +1,14 @@
 import { View, Pressable, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
 import { Text } from "@/components/ui/Text";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { m3 } from "@/lib/theme/m3";
 import { polarisProgress } from "@/lib/persona/polaris-progress";
 import type { RoleCard } from "@/lib/persona/role-cards";
 
 export function PolarisCategorySlots({ cards }: { cards: readonly RoleCard[] }) {
+  // Phone-aware: inside the dashboard phone, a slot opens its star in the phone.
+  const router = useAppRouter();
   const { t } = useTranslation("core-brain");
   const { t: home } = useTranslation("home");
   const progress = polarisProgress(cards);
@@ -30,8 +32,8 @@ export function PolarisCategorySlots({ cards }: { cards: readonly RoleCard[] }) 
 
 const styles = StyleSheet.create({
   list: { gap: 12, width: "100%" },
-  slot: { minHeight: 56, padding: 12, borderWidth: 1, borderColor: m3.color.outlineVariant, flexDirection: "row", alignItems: "center", gap: 12 },
-  square: { width: 12, height: 12, borderWidth: 2, borderColor: m3.color.outline },
+  slot: { minHeight: 56, padding: 12, borderWidth: 1, borderColor: m3.polarisCard.edge, flexDirection: "row", alignItems: "center", gap: 12 },
+  square: { width: 12, height: 12, borderWidth: 2, borderColor: m3.polarisCard.inkSubtle },
   filled: { backgroundColor: m3.color.tertiary, borderColor: m3.color.tertiary },
   copy: { flex: 1, gap: 4 },
 });

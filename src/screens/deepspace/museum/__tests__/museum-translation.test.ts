@@ -159,10 +159,10 @@ describe("화면이 번역 층을 지난다", () => {
   });
 
   test("언어 표시가 사건마다 결정된다 - 상수를 직접 붙이지 않는다", () => {
-    // 이 회차 전에는 두 자리 모두 CANON_MUSEUM_LANGUAGE 상수였다. 번역이
+    // 이 회차 전에는 사건 자리 모두 CANON_MUSEUM_LANGUAGE 상수였다. 번역이
     // 들어온 지금 그 상수를 그대로 두면 영어 카드에 "ko" 가 붙는다.
     const tagged = jsxAttributes("accessibilityLanguage");
-    expect(tagged.length).toBe(2);
+    expect(tagged.length).toBe(3);
     for (const element of tagged) {
       expect(element.get("accessibilityLanguage")).not.toBe("{CANON_MUSEUM_LANGUAGE}");
       expect(element.get("accessibilityLanguage")).toMatch(/museumContentLanguage|Language\b/);
@@ -172,6 +172,6 @@ describe("화면이 번역 층을 지난다", () => {
   test("번역되는 크롬에는 여전히 언어를 달지 않는다", () => {
     // 제목·힌트는 로케일 번들에서 오므로 언어를 박으면 그게 거짓이 된다.
     expect(SOURCE).toMatch(/title=\{t\("deepspace:museum\.title"\)\}/);
-    expect(jsxAttributes("accessibilityLanguage").length).toBe(2);
+    expect(jsxAttributes("accessibilityLanguage").length).toBe(3);
   });
 });

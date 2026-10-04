@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2ndB 대시보드·설정 이관 완료 보고</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f8fafc; --panel:#fff; --ink:#172132; --muted:#4d5c70; --accent:#225cba; --line:#b8c5d5; }
+    @media (prefers-color-scheme:dark) { :root { --bg:#0a0e18; --panel:#141b2e; --ink:#eaf0fa; --muted:#b3c0d4; --accent:#8cb8ff; --line:#3d4866; } }
+    * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 system-ui,sans-serif; }
+    main { max-width:980px; margin:auto; padding:32px 20px 72px; } h1,h2 { line-height:1.25; } h1 { margin:.3rem 0 1rem; font-size:clamp(1.5rem,4vw,2.2rem); }
+    .eyebrow { color:var(--accent); font-weight:700; letter-spacing:.04em; } .muted { color:var(--muted); }
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin:24px 0; }
+    .card, details { background:var(--panel); border:1px solid var(--line); padding:16px; }
+    .card strong { display:block; color:var(--accent); font-size:1.3rem; } .card p { margin:.4rem 0 0; }
+    details { margin:12px 0; } summary { cursor:pointer; font-weight:700; } summary:focus-visible,a:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+    table { width:100%; border-collapse:collapse; } th,td { padding:8px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+    a { color:var(--accent); } code { overflow-wrap:anywhere; } footer { border-top:1px solid var(--line); margin-top:30px; padding-top:14px; color:var(--muted); }
+  </style>
+</head>
+<body><main>
+  <p class="eyebrow">2ndB · 2026-09-26 16:28:11 KST</p>
+  <h1>나의 휴대전화 대시보드와 설정 이관</h1>
+  <p>‘오늘’ 탭을 ‘대시보드’로 바꾸고, 실제 계정 자료에 따라 요약 카드와 7일 루틴 전망이 달라지도록 연결했습니다. 알림과 새로고침 조작은 설정으로 옮겼습니다.</p>
+  <div class="cards" aria-label="결과 요약">
+    <div class="card"><strong>2개</strong><p>실제 근거가 있는 맞춤 요약 카드 최대 표시 수</p></div>
+    <div class="card"><strong>7일</strong><p>승인된 반복 루틴 전망. 외부 일정은 포함하지 않음</p></div>
+    <div class="card"><strong>1시간</strong><p>활성 앱 기본 자동 갱신. 수동 전용·다른 주기 선택 가능</p></div>
+    <div class="card"><strong>10,086</strong><p>전체 테스트 통과 · 800개 묶음</p></div>
+  </div>
+  <details open><summary>구현과 데이터 출처</summary>
+    <table><thead><tr><th>화면</th><th>변경</th><th>진실성 경계</th></tr></thead><tbody>
+      <tr><td>대시보드</td><td>JSON 우선순위로 루틴·인터뷰·기록·건강 자료·가져온 이력 중 실제 자료를 선택</td><td>없거나 읽기 실패한 출처는 숫자·카드로 만들지 않음</td></tr>
+      <tr><td>7일 전망</td><td>수락된 반복 루틴만 일자별 집계</td><td>Google Calendar 실시간 일정으로 표시하지 않음</td></tr>
+      <tr><td>설정 → 연동 관리</td><td>마지막 읽은 시각, 수동 새로고침, 수동 전용·30분~24시간 주기</td><td>저장된 자료의 전경 재조회만 수행. 외부 계정 수집·백그라운드 예약 아님</td></tr>
+      <tr><td>설정 → 휴대전화 알림</td><td>알림 안내와 리마인더 진입을 휴대전화 앱 탭 밖으로 이동</td><td>브라우저 알림은 연결되지 않았다고 표시</td></tr>
+    </tbody></table>
+    <p><a href="../../src/lib/dashboard/dashboard-rules.json">대시보드 JSON 규칙</a> · <a href="../../src/lib/dashboard/README.md">데이터 계약과 제약</a></p>
+  </details>
+  <details><summary>검증과 남은 범위</summary>
+    <p><code>npm run verify -- --runInBand</code> 성공: lint 오류 0, 기존 경고 72, 타입·번역·안전·설계 제약 및 Jest 800/800 묶음·10,086/10,086 테스트 통과. 새 경로에 맞춰 설정 화면 계약 테스트를 갱신했습니다.</p>
+    <p>실제 localhost 화면 스크린샷·클릭 검증은 미실행입니다. <code>browse</code> 스킬 전용 브라우저가 이 Windows 환경에 없고 1회 설치 확인을 기다리고 있습니다. Gmail·Linear·GitHub 직접 연결, 외부 서비스 자동 가져오기, 앱 종료 중 갱신은 구현·검증되지 않았습니다.</p>
+    <p>기존 미커밋 변경이 많은 <code>codex/observatory-dashboard-260925</code> 워크트리에서 관련 파일만 편집했습니다. 커밋·push·배포·외부 데이터 쓰기는 하지 않았습니다.</p>
+  </details>
+  <footer>[나의 휴대전화 대시보드 및 갱신 설정 / 26.09.26 / 16:28:11] #2ndB #대시보드 #설정</footer>
+</main></body></html>

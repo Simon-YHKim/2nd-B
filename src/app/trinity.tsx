@@ -12,7 +12,8 @@
 // `건강`, `앱`, `뇌`, `재정` and the trinity classifier normalizes.
 
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View, ActivityIndicator, Pressable, Text as RNText } from "react-native";
+import { ScrollView, StyleSheet, View, ActivityIndicator, Pressable } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { Link, Redirect, router } from "expo-router";
 
@@ -224,7 +225,7 @@ function TrinityLegacy() {
           accent={VILLAGE_UI.work.accent}
           speech={
             locale === "ko"
-              ? "태그가 붙은 기록을 네 영역으로 나눴어요. 비어 있는 영역부터 살펴볼까요?"
+              ? "태그가 붙은 기록을 네 영역으로 나눴습니다. 비어 있는 영역부터 살펴볼까요?"
               : "I grouped tagged records into four areas. Want to inspect the quietest one?"
           }
           primaryAction={{
@@ -241,7 +242,7 @@ function TrinityLegacy() {
           <View style={styles.emptyCard}>
             <Text variant="body" color="textMuted">
               {locale === "ko"
-                ? "이 4개 태그(health · app · brain · finance 또는 건강·앱·뇌·재정)가 붙은 기록이 없어요."
+                ? "이 4개 태그(health · app · brain · finance 또는 건강·앱·뇌·재정)가 붙은 기록이 없습니다."
                 : "No records tagged with the four domains (health · app · brain · finance) yet."}
             </Text>
             <Link href="/capture" asChild>
@@ -335,7 +336,7 @@ function TrinityLegacy() {
         </Text>
         <Text variant="body" color="textMuted" style={styles.modalBody}>
           {locale === "ko"
-            ? "잠시 연결이 흔들렸어요. 다시 시도하면 4영역을 새로 불러올게요."
+            ? "잠시 연결이 흔들렸습니다. 다시 시도하면 4영역을 새로 불러오겠습니다."
             : "The connection hiccuped for a moment. Try again to reload your four areas."}
         </Text>
         <View style={styles.modalActions}>

@@ -4,9 +4,12 @@ import { join } from "node:path";
 const source = readFileSync(join(__dirname, "..", "ConstellationHome.tsx"), "utf8");
 
 describe("별자리 홈 상단 알림 전광판", () => {
-  it("공지 센터의 실제 제목을 사용하고 같은 공지를 열 수 있다", () => {
+  it("실제 공지 제목과 사용 팁을 순환하고 공지는 같은 공지를 연다", () => {
     expect(source).toContain("manualNotice.title[");
-    expect(source).toMatch(/<NoticeTicker[\s\S]*?text=\{tickerText\}[\s\S]*?onPress=\{openNotice\}/);
+    expect(source).toContain('HOME_TIP_KEYS.map((key) => ({ kind: "tip"');
+    expect(source).toContain('key={tickerItem.text} text={tickerItem.text}');
+    expect(source).toContain('tickerItem.kind === "notice" ? openNotice');
+    expect(source).toContain('return () => clearInterval(timer)');
   });
 
   it("모션 줄이기에서는 움직이는 텍스트 대신 정지된 문장을 보여준다", () => {

@@ -15,7 +15,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop } from "react-native-svg";

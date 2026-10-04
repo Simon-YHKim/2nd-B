@@ -4,21 +4,22 @@
 // legacy imports, no glassmorphism/pill/em dash. Primary action = mint fill,
 // secondary = ghost. Touch targets ≥44px. The 6 domain screens assemble these.
 
-import { type ReactNode } from "react";
+import React, { createContext, useContext, type ReactNode } from "react";
 import {
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
-  Text as RNText,
   View,
 } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
 import { router } from "expo-router";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { OPS_DOMAIN_GROUP, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
 
 // --- domain color mapping (deepSpace palette) --------------------------
@@ -383,18 +384,50 @@ export interface OpsFrameProps {
   footer?: ReactNode;
 }
 
+type EmbeddedFrame = { onBack: () => void; backLabel: string };
+const OpsEmbeddedFrameContext = createContext<EmbeddedFrame | null>(null);
+
+/** The phone owns scrolling and navigation; domain screens keep their real data/actions. */
+export function OpsEmbeddedFrameHost({ onBack, backLabel, children }: EmbeddedFrame & { children: ReactNode }) {
+  return (
+    <OpsEmbeddedFrameContext.Provider value={{ onBack, backLabel }}>
+      {children}
+    </OpsEmbeddedFrameContext.Provider>
+  );
+}
+
 // rev2 windowed shell (sb-app §4): the M3 top app bar carries the title; the
 // mini companion bubble retires (companion belongs to capture/chat/records
 // only). `bubble`/`tip` stay in the props contract so the seven call sites
 // don't churn, but they no longer render.
-export function OpsFrame({ title, children, footer }: OpsFrameProps) {
+export function OpsFrame({ title, onBack, children, footer }: OpsFrameProps) {
+  const embedded = useContext(OpsEmbeddedFrameContext);
+  if (embedded) {
+    return (
+      <View style={styles.embeddedFrame}>
+        <View style={styles.embeddedHeader}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={embedded.backLabel}
+            onPress={embedded.onBack}
+            style={styles.embeddedBack}
+          >
+            <PixelGlyph name="arrow_back" color={deepSpace.accentBright} size={24} />
+          </Pressable>
+          <Text variant="heading" numberOfLines={2} style={styles.embeddedTitle}>{title}</Text>
+        </View>
+        {children}
+        {footer ? <View style={styles.footer}>{footer}</View> : null}
+      </View>
+    );
+  }
   return (
     <DeepSpaceScreen
       active="lens"
       header="none"
       variant="windowed"
       title={title}
-      onBack={() => router.back()}
+      onBack={onBack ?? (() => router.back())}
     >
       <ScrollView contentContainerStyle={styles.frameScroll} showsVerticalScrollIndicator={false}>
         {children}
@@ -407,6 +440,14 @@ export function OpsFrame({ title, children, footer }: OpsFrameProps) {
 // --- styles (deepSpace tokens only) ------------------------------------
 
 const styles = StyleSheet.create({
+  embeddedFrame: {
+    gap: deepSpaceSpacing.md,
+    padding: deepSpaceSpacing.md,
+    backgroundColor: deepSpace.bgMid,
+  },
+  embeddedHeader: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },
+  embeddedBack: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  embeddedTitle: { flex: 1, color: deepSpace.accentBright },
   frame: { flex: 1, backgroundColor: deepSpace.bg },
   glow: {
     position: "absolute",

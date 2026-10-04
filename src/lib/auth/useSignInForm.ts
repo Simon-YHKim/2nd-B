@@ -10,11 +10,13 @@
 // provider set (same signInWithProvider path as google).
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BackHandler } from "react-native";
+import { BackHandler, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { AuthLockWaitTimeoutError } from "@/lib/auth/session-mutation";
+import { createSignInProgress } from "@/lib/auth/sign-in-progress";
 import { observeAuthConversion } from "@/lib/analytics/auth-conversions";
 import {
   isNaverEnabled,
@@ -39,6 +41,7 @@ export const SIGN_IN_PROVIDERS = SUPABASE_OAUTH_PROVIDERS;
 export { isProviderNotEnabledError, startOAuthProvider as startSignInProvider };
 
 const PROVIDER_LABEL = OAUTH_PROVIDER_LABEL;
+export const SIGN_IN_LONG_WAIT_MS = 15_000;
 
 export interface UseSignInForm {
   // session/routing signals
@@ -52,6 +55,7 @@ export interface UseSignInForm {
   showPassword: boolean;
   toggleShowPassword: () => void;
   submitting: boolean;
+  signInTakingLong: boolean;
   oauthSubmitting: boolean;
   canSubmit: boolean;
   toast: SignInToast | null;
@@ -76,6 +80,7 @@ export function useSignInForm(): UseSignInForm {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [signInTakingLong, setSignInTakingLong] = useState(false);
   const [oauthSubmitting, setOauthSubmitting] = useState(false);
   const [toast, setToast] = useState<SignInToast | null>(null);
   const [resetHelpVisible, setResetHelpVisible] = useState(false);
@@ -90,6 +95,17 @@ export function useSignInForm(): UseSignInForm {
     const timeout = setTimeout(() => setToast(null), 2800);
     return () => clearTimeout(timeout);
   }, [toast]);
+
+  useEffect(() => {
+    if (!submitting) {
+      setSignInTakingLong(false);
+      return;
+    }
+    // Keep the original auth operation and the screen's action lock alive. A
+    // late SDK writer may still persist a session, so this is guidance only.
+    const timer = setTimeout(() => setSignInTakingLong(true), SIGN_IN_LONG_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [submitting]);
 
   // Stage 3 (O-31): hardware Back on the auth gate returns to the constellation
   // home instead of exiting the app (no dead-end). Web uses the browser back.
@@ -157,9 +173,18 @@ export function useSignInForm(): UseSignInForm {
 
   const handleSubmit = useCallback(async () => {
     setSubmitting(true);
+    const progress = Platform.OS === "web"
+      ? createSignInProgress((stage, elapsedMs) => {
+          if (typeof console !== "undefined") {
+            console.warn(`[auth] sign-in pending: ${stage} (${elapsedMs}ms)`);
+          }
+        })
+      : null;
     try {
-      const result = await signInWithEmail(email.trim(), password);
+      const result = await signInWithEmail(email.trim(), password, progress?.mark);
+      progress?.mark("session-refresh");
       await refresh();
+      progress?.mark("route");
       void observeAuthConversion(result.userId, "login", "email");
       // AuthContext picks up the new session; IntroGate plays the cell
       // LoadingScreen and then mounts the Stack. Route to /index so the
@@ -167,9 +192,15 @@ export function useSignInForm(): UseSignInForm {
       router.replace("/");
     } catch (e) {
       // Generic message to avoid email-enumeration. CSO finding R3.
-      setToast({ tone: "danger", message: t("errors.signInFailed") });
+      setToast({
+        tone: "danger",
+        message: e instanceof AuthLockWaitTimeoutError
+          ? t("errors.signInBusy")
+          : t("errors.signInFailed"),
+      });
       if (typeof console !== "undefined") console.warn("[auth] signIn error", (e as Error).message);
     } finally {
+      progress?.finish();
       setSubmitting(false);
     }
   }, [email, password, refresh, t]);
@@ -212,6 +243,7 @@ export function useSignInForm(): UseSignInForm {
     showPassword,
     toggleShowPassword,
     submitting,
+    signInTakingLong,
     oauthSubmitting,
     canSubmit,
     toast,

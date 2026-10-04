@@ -4,10 +4,10 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Text,
   View,
   type ListRenderItemInfo,
 } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 
 import { PixelPressable, PixelSurface } from "@/components/pixel";

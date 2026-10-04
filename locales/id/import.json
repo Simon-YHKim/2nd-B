@@ -48,10 +48,33 @@
     "more": "Impor lagi",
     "moreHint": "Mengosongkan impor ini dan memulai yang baru."
   },
+  "appointmentCount": {
+    "label": "Sebutan rencana: {{count}}",
+    "sub": "Jumlah sebutan rencana → catatan"
+  },
   "health": {
     "connect": "Nyalakan sinkronisasi aktivitas",
     "ingest": "Tambahkan aktivitas hari ini",
     "consentNeeded": "Setujui untuk membawa aktivitas masuk",
     "minorLocked": "Sinkronisasi aktivitas nonaktif untuk akun ini."
+  },
+  "markdownRetention": {
+    "consent": "File dianalisis di perangkat ini. Judul dan isi catatan yang Anda pilih disimpan sebagai entri terenkripsi. Isi setiap catatan dibatasi hingga 4.000 karakter.",
+    "review": "Judul dan isi setiap catatan yang dipilih, hingga 4.000 karakter per catatan, ditambahkan ke catatan Anda."
+  },
+  "pendingDevice": {
+    "title": "Catatan tersimpan di perangkat ini",
+    "body": "Ada {{count}} catatan yang disimpan sebelum masuk di perangkat ini. Catatan itu mungkin milik orang lain. Impor hanya jika catatan itu milik Anda.",
+    "account": "Impor ke: {{email}}",
+    "accountUnavailable": "Email akun ini belum dapat dipastikan. Impor ditunda.",
+    "confirm": "Impor catatan saya ke akun ini",
+    "confirmHint": "Menyimpan catatan di perangkat ini ke akun yang ditampilkan.",
+    "defer": "Nanti saja",
+    "deferHint": "Menyimpan catatan tetap di perangkat ini.",
+    "importing": "Mengimpor…",
+    "error": "Beberapa catatan gagal diimpor. Catatan yang tersisa tetap ada di perangkat ini."
+  },
+  "retention": {
+    "chip": "Dihapus saat akun dihapus"
   }
 }

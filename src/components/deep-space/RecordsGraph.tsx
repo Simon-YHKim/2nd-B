@@ -15,14 +15,13 @@ import Svg, { G, Rect, Text as SvgText } from "react-native-svg";
 import { TelescopeControls } from "./TelescopeControls";
 import { moveTelescopeCamera } from "@/lib/motion/camera-remote";
 
-import { PixelGlyph } from "@/components/pixel/PixelGlyph";
-import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
+import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelNodeSvg, PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { stepLine } from "@/components/pixel/pixel-line";
 
 import { Text } from "@/components/ui/Text";
-import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import type { RecordsGraph as RecordsGraphData } from "@/lib/records/records-graph";
 import { initialTagLinksVisible, linkEdgeCount } from "@/lib/records/records-graph";
@@ -94,11 +93,9 @@ export function RecordsGraph({
   const cameraRef = useRef(camera);
   const [canvasSize, setCanvasSize] = useState({ width: 390, height: 390 });
   const [controlsHeight, setControlsHeight] = useState(118);
-  // Adaptive default follows the link density of this bounded visual subset.
-  // Initial only — a manual toggle wins.
+  // Keep dense tag-link overlays hidden by default so the graph remains legible.
   const linkCount = useMemo(() => linkEdgeCount(graph), [graph]);
-  const [tagLinksOverride, setTagLinksOverride] = useState<boolean | null>(null);
-  const showTagLinks = tagLinksOverride ?? initialTagLinksVisible(linkCount);
+  const showTagLinks = initialTagLinksVisible(linkCount);
 
   const pos = useMemo(() => layoutRecordsGraph(graph), [graph]);
   const viewport = useMemo(
@@ -304,23 +301,18 @@ export function RecordsGraph({
           onZoom={(zoom) => commitCamera(zoomRecordsGraphCamera(cameraRef.current, zoom, 0.5, 0.5, viewport))}
           onReset={() => commitCamera({ zoom: 1, x: 0, y: 0 })}
         />
-        <PixelPressable
-          onPress={() => setTagLinksOverride(!showTagLinks)}
-          accessibilityLabel={t("deepspace:recordsGraph.tagLinks")}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: showTagLinks }}
-          variant={showTagLinks ? "inset" : "bevel"}
-          contentStyle={styles.iconButtonContent}
-        >
-          <PixelGlyph name="link" color={showTagLinks ? deepSpace.textHi : deepSpace.textMuted} size={18} />
-        </PixelPressable>
       </View>
 
       {selected && selected.kind === "record" ? (
         <PixelSurface variant="frame" style={[styles.selection, { bottom: controlsHeight + 8 }]} contentStyle={styles.selectionContent}>
-          <Text variant="caption" color="textSubtle" numberOfLines={1}>
-            {t("deepspace:recordsGraph.hintSelected", { label: selected.label })}
-          </Text>
+          <Text variant="body" numberOfLines={3}>{selected.label}</Text>
+          <PixelPressable
+            onPress={() => onOpenRecord(selected.id)}
+            accessibilityLabel={`${t("deepspace:recordsGraph.openRecord")}: ${selected.label}`}
+            contentStyle={styles.openRecord}
+          >
+            <Text variant="caption">{t("deepspace:recordsGraph.openRecord")}</Text>
+          </PixelPressable>
         </PixelSurface>
       ) : null}
       {selected && selected.kind === "persona" ? (
@@ -342,8 +334,8 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     overflow: "hidden",
   },
-  controls: { paddingHorizontal: 12, paddingVertical: 8, alignItems: "flex-end", justifyContent: "space-between", flexDirection: "row", gap: 8 },
-  iconButtonContent: { width: 44, minHeight: 44, paddingHorizontal: 0, paddingVertical: 0, alignItems: "center", justifyContent: "center" },
+  controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: m3.spacing.s4, paddingVertical: 2 },
   selection: { position: "absolute", left: 16, right: 16, zIndex: 6 },
-  selectionContent: { minHeight: 44, justifyContent: "center" },
+  selectionContent: { minHeight: 44, justifyContent: "center", gap: 8, padding: 10 },
+  openRecord: { minHeight: 44, alignItems: "center", justifyContent: "center" },
 });

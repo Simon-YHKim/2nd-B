@@ -24,8 +24,10 @@ DECLARE
   rows_seen bigint;
   decision_allowed boolean;
 BEGIN
-  IF (SELECT count(*) FROM public.signup_consent_contract_status()) <> 5 THEN
-    RAISE EXCEPTION '0203: expected five supported contracts';
+  -- 0208 (email-v6) runs before this file in the numbered replay, so later
+  -- contracts may add rows; the five from 0203 must stay.
+  IF (SELECT count(*) FROM public.signup_consent_contract_status()) < 5 THEN
+    RAISE EXCEPTION '0203: expected at least five supported contracts';
   END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.signup_consent_contract_status()
@@ -82,11 +84,12 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- An unknown revision still provisions nothing.
+  -- An unknown revision still provisions nothing. (This used 'email-v6' until
+  -- 0208 made that a real contract; use a name no contract will take.)
   subject := gen_random_uuid();
   INSERT INTO auth.users(id, email, raw_user_meta_data)
   VALUES (subject, subject::text || '@example.invalid', jsonb_build_object(
-    'signup_flow', 'email-v6', 'signup_birth_date', '1990-01-01',
+    'signup_flow', 'email-unassigned', 'signup_birth_date', '1990-01-01',
     'signup_consent_service', true, 'signup_consent_llm_processing', true,
     'signup_consent_overseas_transfer', true, 'signup_consent_sensitive_data', true,
     'signup_consent_safety_notice', true
@@ -100,7 +103,7 @@ END
 $test$;
 
 SET LOCAL ROLE anon;
-SELECT 1 / CASE WHEN count(*) = 5 THEN 1 ELSE 0 END AS anonymous_public_metadata
+SELECT 1 / CASE WHEN count(*) >= 5 THEN 1 ELSE 0 END AS anonymous_public_metadata
 FROM public.signup_consent_contract_status();
 RESET ROLE;
 

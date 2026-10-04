@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
@@ -53,6 +54,7 @@ export function DeepSpaceSignUpDesignScreen() {
     loading,
     submitting,
     judgeWelcome,
+    avatarSetupAfterConfirmation,
     toast,
     email,
     setEmail,
@@ -115,7 +117,9 @@ export function DeepSpaceSignUpDesignScreen() {
 
   // An email sign-up can establish the session before profile/consent
   // sequencing has settled. Keep the gate mounted for those owned states.
-  if (userId && !submitting && !judgeWelcome && !toast) return <Redirect href="/" />;
+  if (userId && !submitting && !judgeWelcome && !toast) {
+    return <Redirect href={avatarSetupAfterConfirmation ? "/avatar-studio?setup=1" : "/"} />;
+  }
 
   const actionBusy = submitting || oauthSubmitting || confirmVerifying;
   const formLocked = actionBusy || confirmSentTo !== null;

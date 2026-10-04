@@ -46,6 +46,7 @@ import {
   signOutExpectedSessionInsideMutation,
   type AuthSessionExpectation,
 } from "../auth/session-mutation";
+import type { SignInProgressStage } from "../auth/sign-in-progress";
 export { AuthSessionOwnerChangedError } from "../auth/session-mutation";
 // ⚠ #1517 은 여기서 `isJudgeEmail` 도 들여왔다. 되살리지 않는다 —
 // main 의 f42f4db2 가 C6 대회 제약과 함께 src/lib/judge/domains.ts 를 통째로
@@ -285,8 +286,8 @@ export function ageInYears(birthDate: string, now: Date = new Date()): number {
 // matching revision, so an older installed app cannot be stamped as if it had
 // shown newer documents. Any future document change needs a new revision and a
 // forward migration that maps it to server-owned versions.
-// Requires the server's email-v5 contract (0203) before this client is published.
-export const VERIFIED_EMAIL_SIGNUP_REVISION = "email-v5" as const;
+// Requires the server's email-v6 contract (0208) before this client is published.
+export const VERIFIED_EMAIL_SIGNUP_REVISION = "email-v6" as const;
 
 export interface SignUpArgs {
   email: string;
@@ -768,12 +769,16 @@ async function openNativeOAuthSession(
 export async function signInWithEmail(
   email: string,
   password: string,
+  onProgress?: (stage: SignInProgressStage) => void,
 ): Promise<{ userId: string }> {
+  onProgress?.("mutation-lock");
   return runAuthSessionMutation(async () => {
+    onProgress?.("storage-lock");
     const supabase = getSupabaseClient();
-    const { data, error } = await getAuthStorageRuntime().runSdkUnlockedWriter(() =>
-      supabase.auth.signInWithPassword({ email, password }),
-    );
+    const { data, error } = await getAuthStorageRuntime().runSdkUnlockedWriter(() => {
+      onProgress?.("sdk-response");
+      return supabase.auth.signInWithPassword({ email, password });
+    });
     if (error) throw error;
     if (!data.user) throw new Error("Sign-in returned no user");
     return { userId: data.user.id };

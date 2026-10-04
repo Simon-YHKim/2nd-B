@@ -27,6 +27,9 @@ describe("deep-space dock routes", () => {
     expect(isDeepSpaceDockPath("/big-five")).toBe(true);
     expect(isDeepSpaceDockPath("/account")).toBe(true);
     expect(isDeepSpaceDockPath("/ops")).toBe(true);
+    expect(isDeepSpaceDockPath("/dashboard")).toBe(true);
+    expect(isDeepSpaceDockPath("/avatar-palette")).toBe(true);
+    expect(isDeepSpaceDockPath("/avatar-studio")).toBe(true);
     // /wiki is a dock tab root since P2-cont (#658) — the BackArrow hides there.
     expect(isDeepSpaceDockPath("/wiki")).toBe(true);
     // P4c/d/e lens screens render the dock too (QA W1-b — chip floated on /people).

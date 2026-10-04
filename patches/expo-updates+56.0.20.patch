@@ -1,0 +1,43 @@
+diff --git a/node_modules/expo-updates/utils/build/createManifestForBuildAsync.js b/node_modules/expo-updates/utils/build/createManifestForBuildAsync.js
+index c20930b..a72ad84 100644
+--- a/node_modules/expo-updates/utils/build/createManifestForBuildAsync.js
++++ b/node_modules/expo-updates/utils/build/createManifestForBuildAsync.js
+@@ -78,11 +78,18 @@ function getAndroidResourceFolderName(asset) {
+ // copied from react-native/Libraries/Image/assetPathUtils.js
+ function getAndroidResourceIdentifier(asset) {
+     const folderPath = getBasePath(asset);
+-    return (folderPath + '/' + asset.name)
++    const identifier = (folderPath + '/' + asset.name)
+         .toLowerCase()
+         .replace(/\//g, '_') // Encode folder structure in file name
+         .replace(/([^a-z0-9_])/g, '') // Remove illegal chars
+         .replace(/^assets_/, ''); // Remove "assets_" prefix
++    // 2nd-Brain: same digit-first rule as the @react-native/assets-registry,
++    // @react-native/community-cli-plugin and @expo/cli patches (#557). The web
++    // baseUrl "/2nd-B" makes every name start with "2", which is not a valid
++    // Android resource name, so the packaged resource is "a_2ndb_...". Without
++    // this the embedded manifest points Asset.downloadAsync and expo-audio at
++    // "2ndb_..." resources that do not exist.
++    return /^[a-z]/.test(identifier) ? identifier : `a_${identifier}`;
+ }
+ function getIosDestinationDir(asset) {
+     // react-native-cli replaces `..` with `_` when embedding assets in the iOS app bundle
+diff --git a/node_modules/expo-updates/utils/src/createManifestForBuildAsync.ts b/node_modules/expo-updates/utils/src/createManifestForBuildAsync.ts
+index 3fba73f..1baab08 100644
+--- a/node_modules/expo-updates/utils/src/createManifestForBuildAsync.ts
++++ b/node_modules/expo-updates/utils/src/createManifestForBuildAsync.ts
+@@ -99,11 +99,13 @@ function getAndroidResourceFolderName(asset: HashedAssetData) {
+ // copied from react-native/Libraries/Image/assetPathUtils.js
+ function getAndroidResourceIdentifier(asset: HashedAssetData) {
+   const folderPath = getBasePath(asset);
+-  return (folderPath + '/' + asset.name)
++  const identifier = (folderPath + '/' + asset.name)
+     .toLowerCase()
+     .replace(/\//g, '_') // Encode folder structure in file name
+     .replace(/([^a-z0-9_])/g, '') // Remove illegal chars
+     .replace(/^assets_/, ''); // Remove "assets_" prefix
++  // 2nd-Brain: same digit-first rule as the other asset-name patches (#557).
++  return /^[a-z]/.test(identifier) ? identifier : `a_${identifier}`;
+ }
+ 
+ function getIosDestinationDir(asset: HashedAssetData) {

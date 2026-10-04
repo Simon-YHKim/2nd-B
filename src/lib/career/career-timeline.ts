@@ -23,6 +23,23 @@ export interface CareerYearGroup {
   items: CareerRecordRow[];
 }
 
+// Entry-screen metadata identifies the UI language, not the language of every answer.
+// Legacy English interviews used a fixed generated title; other legacy titles
+// remain unknown rather than inferring the user's writing language.
+export function careerRecordOrigin(row: CareerRecordRow): {
+  source: "interview" | "record";
+  entryUi: "ko" | "en" | null;
+} {
+  const interview = row.kind === "audit_response" && (row.tags ?? []).includes("interview");
+  if (!interview) return { source: "record", entryUi: null };
+  const hasKoTag = (row.tags ?? []).includes("entry-ui:ko");
+  const hasEnTag = (row.tags ?? []).includes("entry-ui:en");
+  const entryUi = hasKoTag && hasEnTag ? null
+    : hasKoTag ? "ko"
+    : hasEnTag || row.topic === "Recall interview" ? "en" : null;
+  return { source: "interview", entryUi };
+}
+
 export const CAREER_YEAR_TAG_PREFIX = "year:";
 
 export function careerYearOf(row: CareerRecordRow): string {

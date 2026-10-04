@@ -6,8 +6,9 @@
 // surfaces cannot drift apart. Lives in the (auth) group: IntroGate-exempt,
 // reachable while signed out mid-sign-up. Canon-only (no legacy skin).
 import { useCallback, useRef } from "react";
-import { BackHandler, Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
+import { useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { colors, spacing } from "@/theme/tokens";
@@ -15,6 +16,7 @@ import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 import { REQUIRED_ACK_KEYS } from "@/lib/auth/consent-selections";
 import { registerOwnBack } from "@/lib/nav/own-back";
+import { useAppRouter, useHardwareBack, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { ddsStyles as styles } from "./dds-styles";
 import { AuthShell } from "./dds-auth-screens";
 
@@ -24,8 +26,12 @@ export const CONSENT_DETAIL_ITEMS = [...REQUIRED_ACK_KEYS, "marketing"] as const
 export type ConsentDetailItem = (typeof CONSENT_DETAIL_ITEMS)[number];
 
 export function DeepSpaceConsentNoticeScreen() {
+  // Phone-aware: inside the dashboard phone, the chevron and Android Back step
+  // the phone, and ?item= comes from the phone route (/consent-notice?item=...).
+  const router = useAppRouter();
+  const embed = usePhoneEmbed();
   const { t } = useTranslation(["consent", "common"]);
-  const { item } = useLocalSearchParams<{ item?: string }>();
+  const { item } = useScreenParams<{ item?: string }>();
   const target = (CONSENT_DETAIL_ITEMS as readonly string[]).includes(item ?? "")
     ? (item as ConsentDetailItem)
     : null;
@@ -38,22 +44,22 @@ export function DeepSpaceConsentNoticeScreen() {
     // would keep suppressing the global chip on the home it just opened.
     else router.replace("/");
     return true;
-  }, []);
+  }, [router]);
 
   // Focus-scoped, not mount-scoped: the native stack keeps buried screens
   // MOUNTED, so a mount-scoped registration would keep suppressing the global
   // BackArrow (own-back.ts is one global counter) and keep a hardware-back
-  // handler alive underneath whatever is pushed on top. One effect owns both
-  // registrations so blur releases them together.
+  // handler alive underneath whatever is pushed on top. Both registrations are
+  // focus effects, so blur releases them together. useHardwareBack is the
+  // focused BackHandler listener standalone and the phone's claim stack inside
+  // the dashboard phone. The floating chip belongs to the app's screen, not to
+  // a page inside the phone, so the phone copy leaves it alone.
+  useHardwareBack(requestBack);
   useFocusEffect(
     useCallback(() => {
-      const unregister = registerOwnBack();
-      const sub = BackHandler.addEventListener("hardwareBackPress", requestBack);
-      return () => {
-        sub.remove();
-        unregister();
-      };
-    }, [requestBack]),
+      if (embed) return undefined;
+      return registerOwnBack();
+    }, [embed]),
   );
 
   // Sections lay out top-down; when the target section reports its y, jump once.

@@ -1,16 +1,21 @@
-import { useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text as RNText, View } from "react-native";
-import { Redirect, router, type Href } from "expo-router";
+import { useCallback, useRef, useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { PlainText as RNText } from "@/components/ui/PlainText";
+import { Redirect, useFocusEffect, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { DeepSpaceLoader, SecondbHead } from "@/components/deepspace";
+import { AvatarPreview } from "@/components/avatar/AvatarPreview";
+import { DeepSpaceLoader } from "@/components/deepspace";
 import { m3TextStyle } from "@/components/m3";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { DEFAULT_AVATAR_SPEC, type AvatarSpec } from "@/lib/avatar";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { useProgression } from "@/lib/progression/useProgression";
+import { fetchAvatarSpec } from "@/lib/supabase/avatar-spec";
 import { m3 } from "@/lib/theme/m3";
 import { canPublishProfileIdentity, loadProfileIdentity } from "./dds-profile-identity";
 
@@ -40,7 +45,15 @@ interface IdentityState {
   loading: boolean;
 }
 
+interface AvatarState {
+  owner: string | null;
+  value: AvatarSpec | null;
+  status: "idle" | "loading" | "ready" | "error";
+}
+
 export function DeepSpaceProfileScreen() {
+  // Phone-aware: inside the dashboard phone, links and back stay in the phone.
+  const router = useAppRouter();
   const { t } = useTranslation("profile");
   const { t: tDeepSpace } = useTranslation("deepspace");
   const { t: tHome } = useTranslation("home");
@@ -51,10 +64,17 @@ export function DeepSpaceProfileScreen() {
   const sections = t("sections", { returnObjects: true }) as Record<string, HubCopy>;
   const [activeSection, setActiveSection] = useState<ProfileSection>("know");
   const [identity, setIdentity] = useState<IdentityState>({ owner: null, value: null, loading: true });
+  const [avatar, setAvatar] = useState<AvatarState>({
+    owner: null,
+    value: null,
+    status: "idle",
+  });
+  const [avatarReloadKey, setAvatarReloadKey] = useState(0);
   const activeUserRef = useRef(userId);
   activeUserRef.current = userId;
 
-  useEffect(() => {
+  // Returning from profile details must show the saved name immediately.
+  useFocusEffect(useCallback(() => {
     if (!userId) {
       setIdentity({ owner: null, value: null, loading: false });
       return;
@@ -73,7 +93,39 @@ export function DeepSpaceProfileScreen() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId]));
+
+  // Re-read on focus so a saved outfit is visible as soon as the studio closes.
+  // Keep the owner with the value: a previous account's portrait must never flash.
+  useFocusEffect(useCallback(() => {
+    if (!userId) {
+      setAvatar({ owner: null, value: null, status: "idle" });
+      return;
+    }
+    const requestedUserId = userId;
+    let cancelled = false;
+    setAvatar((current) => ({
+      owner: requestedUserId,
+      value: current.owner === requestedUserId ? current.value : null,
+      status: "loading",
+    }));
+    void fetchAvatarSpec(requestedUserId)
+      .then((value) => {
+        if (!cancelled && activeUserRef.current === requestedUserId) {
+          setAvatar({ owner: requestedUserId, value, status: "ready" });
+        }
+      })
+      .catch(() => {
+        if (!cancelled && activeUserRef.current === requestedUserId) {
+          setAvatar((current) => ({
+            owner: requestedUserId,
+            value: current.owner === requestedUserId ? current.value : null,
+            status: "error",
+          }));
+        }
+      });
+    return () => { cancelled = true; };
+  }, [userId, avatarReloadKey]));
 
   if (loading) {
     return (
@@ -109,6 +161,12 @@ export function DeepSpaceProfileScreen() {
           route: "/profile-details",
           label: tDeepSpace("profileDetails.screenTitle"),
           hint: tDeepSpace("profileDetails.intro"),
+        },
+        {
+          key: "avatar-studio",
+          route: "/avatar-studio",
+          label: t("avatarStudio.label"),
+          hint: t("avatarStudio.hint"),
         },
         {
           key: "insights",
@@ -181,8 +239,10 @@ export function DeepSpaceProfileScreen() {
   ];
   const activeGroup = routeGroups.find((group) => group.key === activeSection) ?? routeGroups[0];
 
+  // ownBack: the top bar below draws this screen's back button, so the phone
+  // shell adds no second one. The loading state above has none and keeps it.
   return (
-    <DeepSpaceScreen active="settings" header="none">
+    <DeepSpaceScreen active="settings" header="none" ownBack>
       <View style={styles.screen}>
         <View style={styles.topBar}>
           <PixelPressable
@@ -204,7 +264,11 @@ export function DeepSpaceProfileScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.identityRow}>
-            <SecondbHead size={48} mood="neutral" />
+            <AvatarPreview
+              spec={avatar.owner === userId ? avatar.value ?? DEFAULT_AVATAR_SPEC : DEFAULT_AVATAR_SPEC}
+              size={40}
+              crop
+            />
             <RNText
               accessibilityLabel={profileTitle}
               numberOfLines={1}
@@ -226,6 +290,20 @@ export function DeepSpaceProfileScreen() {
               </RNText>
             </PixelPressable>
           </View>
+
+          {avatar.owner === userId && avatar.status === "error" ? (
+            <View style={styles.avatarErrorRow} accessibilityRole="alert">
+              <RNText style={styles.avatarErrorText}>{t("avatarStudio.loadError")}</RNText>
+              <PixelPressable
+                variant="bevel"
+                onPress={() => setAvatarReloadKey((key) => key + 1)}
+                accessibilityLabel={tCommon("actions.retry")}
+                contentStyle={styles.avatarRetryContent}
+              >
+                <RNText style={styles.avatarRetryText}>{tCommon("actions.retry")}</RNText>
+              </PixelPressable>
+            </View>
+          ) : null}
 
           <PixelPressable
             variant="bevel"
@@ -346,6 +424,10 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     paddingBottom: m3.spacing.s1,
   },
+  avatarErrorRow: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s2 },
+  avatarErrorText: { flex: 1, color: m3.color.error, lineHeight: 18, paddingBottom: m3.spacing.s1 },
+  avatarRetryContent: { minHeight: m3.minTouch, paddingHorizontal: m3.spacing.s3 },
+  avatarRetryText: { color: m3.color.onSurface, lineHeight: 16, paddingBottom: m3.spacing.s1 },
   settingsContent: {
     minHeight: m3.minTouch,
     flexDirection: "row",

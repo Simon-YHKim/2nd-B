@@ -11,7 +11,7 @@ import { subscribeFontStyle } from "@/lib/settings/readable-font";
 import { reactExpression } from "@/lib/companion/expression";
 import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
@@ -22,6 +22,7 @@ import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { spacing, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import {
@@ -43,6 +44,9 @@ function Glyph({ name, color, size = 20 }: { name: string; color: string; size?:
 }
 
 export default function NorthstarSentence() {
+  // Phone-aware: inside the dashboard phone, back, cancel and the paywall stay
+  // in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const { t: tCore } = useTranslation("core-brain");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -131,7 +135,7 @@ export default function NorthstarSentence() {
     } finally {
       setProposing(false);
     }
-  }, [userId, locale, isMinor, proposing, reasoningUnlimited, reasoningRemaining]);
+  }, [userId, locale, isMinor, proposing, reasoningUnlimited, reasoningRemaining, router]);
 
   const save = useCallback(async () => {
     if (!userId || saving || draft.trim().length === 0) return;
@@ -157,7 +161,7 @@ export default function NorthstarSentence() {
       setSaveErr(true);
       setSaving(false);
     }
-  }, [userId, locale, draft, isMinor, saving]);
+  }, [userId, locale, draft, isMinor, saving, router]);
 
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;

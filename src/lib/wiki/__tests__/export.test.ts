@@ -78,7 +78,7 @@ describe("composeWikiExport", () => {
     const r = composeWikiExport([], [], { asOf: "2026-05-25", locale: "ko" }, []);
     expect(r.recordCount).toBe(0);
     expect(r.prompt).toContain("## 기록 (일기·노트)");
-    expect(r.prompt).toContain("_(아직 기록이 없어요)_");
+    expect(r.prompt).toContain("_(아직 기록이 없습니다)_");
   });
 
   test("record bodies honor the same truncation contract as pages", () => {

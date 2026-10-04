@@ -60,7 +60,7 @@ BEGIN
     u,'service-v1',token,'grant',acks,'ko'),'40001','llm_service_consent_changed');
   SELECT c.* INTO rec FROM public.consent_records c JOIN public.llm_consent_receipts p ON p.consent_record_id=c.id
     WHERE p.user_id=u ORDER BY p.receipt_order DESC LIMIT 1;
-  IF rec.locale<>'ko' OR rec.age_band<>'adult' OR rec.policy_version<>'2026-09-28'
+  IF rec.locale<>'ko' OR rec.age_band<>'adult' OR rec.policy_version<>'2026-09-29'
     OR rec.optional_consents<>'{}'::jsonb OR rec.ip_hash IS NOT NULL OR rec.ua_hash IS NOT NULL THEN
     RAISE EXCEPTION 'writer accepted invented metadata/optional grants'; END IF;
   token:=saved->>'change_token';

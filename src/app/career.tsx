@@ -7,7 +7,7 @@
 // sb-careerinput.jsx; the full seven-section form replaced it rather than sitting
 // beside it, because two ways to enter the same thing is how one of them rots.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -20,7 +20,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { domainTagFor } from "@/lib/persona/domain-stars";
 import { deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
-import { groupCareerTimeline, type CareerRecordRow } from "@/lib/career/career-timeline";
+import { careerRecordOrigin, groupCareerTimeline, type CareerRecordRow } from "@/lib/career/career-timeline";
 
 /**
  * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
@@ -49,6 +49,8 @@ async function listCareerRecords(userId: string): Promise<CareerRecordRow[]> {
 export default function CareerTimelineScreen() {
   const { t, i18n } = useTranslation("deepspace");
   const { userId, loading } = useAuth();
+  const { width } = useWindowDimensions();
+  const narrow = width < 600;
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [rows, setRows] = useState<CareerRecordRow[] | null>(null);
@@ -90,21 +92,24 @@ export default function CareerTimelineScreen() {
   return (
     <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={t("deepspace:career.screenTitle")} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.headRow}>
-          <Text variant="heading" style={{ flex: 1 }}>
+        <View style={[styles.headRow, narrow && styles.headRowNarrow]}>
+          <Text variant="heading" style={narrow ? undefined : styles.headTitleWide}>
             {t("deepspace:career.timelineTitle")}
           </Text>
-          <MdButton
-            variant="outlined"
-            label="Drill Down"
-            onPress={() => router.push("/career-drilldown")}
-          />
-          <MdButton
-            variant="tonal"
-            label={t("deepspace:career.addAchievement")}
-            onPress={() => router.push("/career-input")}
-          />
+          <View style={styles.headActions}>
+            <MdButton
+              variant="outlined"
+              label={t("deepspace:career.drillDown")}
+              onPress={() => router.push("/career-drilldown")}
+            />
+            <MdButton
+              variant="tonal"
+              label={t("deepspace:career.addAchievement")}
+              onPress={() => router.push("/career-input")}
+            />
+          </View>
         </View>
+        <Text variant="body" color="textSubtle">{t("deepspace:career.originalNote")}</Text>
 
         {/* 쌓아온 길 (rev2 11-star): 메인 = 직접 담은 성과 실기록, 사이드 = 공식 이력
             (학력/병역/수상/자격/경력). 공식 이력은 연동으로 채워지는 트랙이라, mock
@@ -149,7 +154,7 @@ export default function CareerTimelineScreen() {
             <MdCard variant="outlined" style={styles.cardPad}>
               <Text variant="body" color="textMuted">
                 {locale === "ko"
-                  ? "학력·병역·수상·자격·경력 같은 공식 이력은 연동하면 여기에 자동으로 정리돼요. 지금은 메인에서 직접 담은 성과가 쌓여요."
+                  ? "학력·병역·수상·자격·경력 같은 공식 이력은 연동하면 여기에 자동으로 정리됩니다. 지금은 메인에서 직접 담은 성과가 쌓입니다."
                   : "Official records like education, military, awards, licenses, and experience organize here once you connect a source. For now, your own achievements build up under Main."}
               </Text>
             </MdCard>
@@ -185,16 +190,25 @@ export default function CareerTimelineScreen() {
                 </Text>
                 <View style={styles.yearLine} />
               </View>
-              {group.items.map((item) => (
-                <Pressable
+              {group.items.map((item) => {
+                const origin = careerRecordOrigin(item);
+                const source = t(`deepspace:career.${origin.source === "interview" ? "sourceInterview" : "sourceRecord"}`);
+                const entryUi = origin.entryUi ? t(`deepspace:career.${origin.entryUi === "ko" ? "entryUiKorean" : "entryUiEnglish"}`) : null;
+                return <Pressable
                   key={item.id}
                   onPress={() => router.push({ pathname: "/record/[id]", params: { id: item.id } })}
                   accessibilityRole="button"
-                  accessibilityLabel={item.topic ?? t("deepspace:career.pieceFallback")}
+                  accessibilityLabel={[source, entryUi, item.topic ?? t("deepspace:career.pieceFallback")].filter(Boolean).join(". ")}
                 >
                   <MdCard variant="outlined" style={styles.entry}>
                     <View style={styles.entryDot} />
                     <View style={{ flex: 1 }}>
+                      <View style={styles.sourceRow}>
+                        <View style={styles.sourceChip}>
+                          <Text variant="body" style={styles.sourceLabel}>{source}</Text>
+                        </View>
+                        {entryUi ? <Text variant="body" color="textSubtle">{entryUi}</Text> : null}
+                      </View>
                       <Text variant="body" numberOfLines={1}>
                         {item.topic ?? item.body?.split("\n")[0] ?? t("deepspace:career.untitled")}
                       </Text>
@@ -206,7 +220,7 @@ export default function CareerTimelineScreen() {
                     </View>
                   </MdCard>
                 </Pressable>
-              ))}
+              })}
             </View>
           ))
         )}
@@ -219,6 +233,9 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl },
   headRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  headRowNarrow: { flexDirection: "column", alignItems: "stretch" },
+  headTitleWide: { flex: 1 },
+  headActions: { flexDirection: "row", alignItems: "center", gap: spacing.sm, flexWrap: "wrap" },
   cardPad: { padding: spacing.md, gap: spacing.sm },
   pathHead: { marginTop: spacing.xs },
   trackRow: { flexDirection: "row", gap: spacing.sm },
@@ -235,4 +252,7 @@ const styles = StyleSheet.create({
   yearLine: { flex: 1, height: 1, backgroundColor: carAlpha(deepSpace.accentDim, 0.25) },
   entry: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, padding: spacing.md },
   entryDot: { width: 8, height: 8, borderRadius: m3.shape.none, marginTop: 6, backgroundColor: m3.accent.starCore },
+  sourceRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.xs, marginBottom: spacing.xs },
+  sourceChip: { borderWidth: 1, borderColor: carAlpha(m3.accent.skyTextHi, 0.45), paddingHorizontal: spacing.xs, paddingVertical: 2 },
+  sourceLabel: { color: m3.accent.skyTextHi },
 });

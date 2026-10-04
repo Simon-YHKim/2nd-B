@@ -13,7 +13,8 @@
  *
  * Uses only deepSpace.* tokens (no hex literals) per CLAUDE.md / DESIGN.md.
  */
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { PlainText as Text } from "@/components/ui/PlainText";
 import { router, type Href } from "expo-router";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";

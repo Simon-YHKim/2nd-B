@@ -17,8 +17,8 @@
 //
 // Both entry flows collect and both write, but the write does not always live
 // in the screen file, so name all four sites:
-//   collect  <ConsentBlock>             src/screens/deepspace/dds-sign-up-screen.tsx:372
-//                                       src/app/(auth)/complete-profile.tsx:369
+//   collect  <ConsentBlock>             src/screens/deepspace/dds-sign-up-screen.tsx:376
+//                                       src/app/(auth)/complete-profile.tsx:374
 //            <ConsentNotice>
 //
 // ⚠ 2026-09-08: 이 줄은 `sign-up.tsx:219` 을 가리키고 있었다 - `<ConsentNotice>` 가
@@ -27,8 +27,8 @@
 // 배송되는 가입 화면은 `<ConsentBlock>` 을 그리고, `signup-required-acks.test.ts`
 // 가 **그 화면을 읽어서** 필수 ack 이 전부 렌더되는지 본다. 두 진입 화면이 서로
 // 다른 컴포넌트를 쓴다 - 같은 이름일 거라고 넘겨짚은 것이 이 오류의 전부다.
-//   write    recordConsentBestEffort(   src/lib/auth/useSignUpForm.ts:353
-//                                       src/app/(auth)/complete-profile.tsx:187
+//   write    recordConsentBestEffort(   src/lib/auth/useSignUpForm.ts:358
+//                                       src/app/(auth)/complete-profile.tsx:190
 //
 // ⚠ 2026-09-08: this comment used to cite `sign-up.tsx:103` and
 // `complete-profile.tsx:90`. Neither line was right (:103 is a back-chevron
@@ -62,7 +62,7 @@ import { getSupabaseClient } from "./client";
 
 // 판본 상수 셋은 한 벌로 움직인다. 하나만 올리면 원장이 가리키는 판과 화면에
 // 뜨는 판이 어긋나고, 그 어긋남은 예외도 안 나고 검사도 안 걸리며 그냥 거짓 기록이
-// 된다. 아래 세 값과 현재 email-v5 서버 튜플, 그리고
+// 된다. 아래 세 값과 현재 email-v6 서버 튜플, 그리고
 // verified-email-consent-ledger.test.ts 의 FROZEN_SIGNUP_REVISION_TUPLES 가
 // 같은 문서 판을 가리켜야 한다. 0150의 email-v3는 과거 판으로 보존한다.
 //
@@ -84,10 +84,10 @@ import { getSupabaseClient } from "./client";
 // ⚠ 이 값들을 올려도 **기존 계정에는 닿지 않는다.** 재동의 흐름은 별도 작업이고,
 // 알려진 공백이다: 기존 계정은 새 판을 다시 안내받지 않는다.
 export const CONSENT_VERSION = "2026-09-07" as const;
-// 2026-09-28 (policy v4): a NOTICE revision, Simon 09-28. email-v5 maps this
-// tuple for new signups; 0203 keeps email-v4 (2026-09-26, AdMob disclosure)
-// current for LLM consent too, so existing consent stays valid, never re-asked.
-export const PRIVACY_POLICY_VERSION = "2026-09-28" as const;
+// 2026-09-29 (policy v5, avatar setting): a NOTICE revision like v4. email-v6
+// maps this tuple for new signups; 0208 keeps email-v4 and email-v5 current
+// for LLM consent too, so existing consent stays valid and is never re-asked.
+export const PRIVACY_POLICY_VERSION = "2026-09-29" as const;
 export const TERMS_VERSION = "2026-08-16" as const;
 
 export type ConsentAgeBand = "minor_self" | "adult";

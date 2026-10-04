@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "pngFiles": 22,
+  "wavFiles": 4,
+  "pngCrcPassed": true,
+  "originalBytesPreserved": true,
+  "assetBytes": 1147675,
+  "fullOpeningMs": 10119.523809523811,
+  "pingStartMs": 8469.523809523811,
+  "grassCueSpacingMs": 312.5,
+  "sourceAssetSet": "a6c0043ad6c06cad85e0a17a",
+  "approvalSha256": "9d66ce82c7e2e2842592ccabd6a9f07171d9763fed1294acd8a37d98bf968ced"
+}

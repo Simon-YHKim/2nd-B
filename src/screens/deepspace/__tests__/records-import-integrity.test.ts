@@ -94,7 +94,7 @@ describe("PIXEL-CLAY records root composition", () => {
     expect(src).not.toContain("setRecords(merged.slice(");
   });
 
-  it("uses the PIXEL-CLAY rail and integer rect graph cells with 44dp controls", () => {
+  it("uses the PIXEL-CLAY rail and integer rect graph cells with a full-width camera remote", () => {
     expect(src).toContain('from "@/components/pixel/PixelPressable"');
     expect(src).toContain('from "@/components/pixel/PixelSurface"');
     expect(graph).toContain("sampledEdgeCells(");
@@ -102,7 +102,7 @@ describe("PIXEL-CLAY records root composition", () => {
     expect(graph).toContain("edgeCells.map((cell)");
     expect(graph).not.toContain("<G key={i}>");
     expect(graph).not.toContain("<Line");
-    expect(graph).toContain("width: 44, minHeight: 44");
+    expect(graph).toContain("paddingHorizontal: m3.spacing.s4, paddingVertical: 2");
     expect(graph).toContain("root: { flex: 1, minHeight: 0 }");
     expect(graph).toContain("const hitTargetSize = (44 * spanX) / canvasSize.width;");
     expect(graph).toContain("viewBox={`${vbX} ${vbY} ${spanX} ${spanY}`}");
@@ -118,8 +118,8 @@ describe("PIXEL-CLAY records root composition", () => {
     expect(graph).not.toContain("<GestureDetector");
     expect(graph).not.toContain('addEventListener("wheel"');
     expect(graph).not.toContain('addEventListener("pointermove"');
-    expect(graph).toContain('accessibilityRole="switch"');
-    expect(graph).toContain("accessibilityState={{ checked: showTagLinks }}");
+    expect(graph).not.toContain('accessibilityRole="switch"');
+    expect(graph).not.toContain("setTagLinksOverride");
   });
 
   it("caps the whole SVG edge layer deterministically and gives non-links first claim", () => {

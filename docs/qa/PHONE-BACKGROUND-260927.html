@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>핸드폰 뒤 별자리 배경 검증 · 2026-09-27</title>
+  <style>
+    :root { color-scheme: light dark; font: 16px/1.6 system-ui, sans-serif; }
+    body { max-width: 850px; margin: 2rem auto; padding: 0 1rem; background: #101827; color: #f2f5fc; }
+    h1 { font-size: 1.65rem; } h2 { font-size: 1.15rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .7rem; }
+    .card, details { padding: 1rem; border: 1px solid #6c91c5; background: #1c2b43; }
+    .card strong { display: block; color: #a8d5ff; }
+    code { color: #b9deff; } summary { cursor: pointer; }
+    a { color: #a8d5ff; }
+    @media (prefers-color-scheme: light) { body { background: #f7f9fc; color: #17243b; } .card, details { background: #fff; } code, a { color: #245b9e; } .card strong { color: #245b9e; } }
+  </style>
+</head>
+<body>
+  <h1>핸드폰 뒤 별자리 배경</h1>
+  <p>QA 계정 화면 검증 · 2026-09-27 03:23:19 KST</p>
+  <div class="cards">
+    <div class="card"><strong>홈에서 열기</strong>기존 별자리 화면을 유지한 채 핸드폰을 투명 모달로 표시</div>
+    <div class="card"><strong>직접 진입</strong><code>/dashboard</code>에서는 공용 별하늘을 배경으로 표시</div>
+    <div class="card"><strong>닫기</strong>홈에서 연 경우 이전 별자리 상태로 복귀</div>
+  </div>
+  <h2>검증</h2>
+  <p>단위 테스트 3/3, TypeScript 타입 검사, 변경 파일 ESLint 통과. 브라우저에서 425×812와 768×900 화면을 확인했고, 홈 → 핸드폰 → 홈 복귀 및 직접 URL 진입을 확인했다.</p>
+  <details><summary>구현 근거와 남은 주의 사항</summary>
+    <p>홈의 별자리 장면을 복제하지 않고 실제 홈 화면을 모달 아래에 남겨 배경의 위치와 상태를 보존한다. 직접 진입에서는 밑에 홈 화면이 없으므로 기존 공용 별하늘을 사용한다.</p>
+    <p>개발 서버 콘솔에는 이 변경과 별개인 <code>/2nd-B/manifest.webmanifest</code> 404 및 React Native Web 경고가 남아 있다. Android 실기기 검증은 이번 작업에서 실행하지 않았다.</p>
+  </details>
+</body>
+</html>

@@ -16,11 +16,12 @@
 -- creates positive ACKs for an uncovered account. CAS requires a fresh displayed
 -- contract/status; each explicit submission appends an immutable canonical row.
 --
--- 2026-09-28 (Simon, notice revision): new grants record the email-v5 tuple
--- (policy 2026-09-28). 0203 must be applied first in production; the
--- migration-time check below still reads email-v4, which 0203 keeps, so the
--- numbered replay (0194 before 0203) passes. The writer re-checks email-v5 at
--- call time and fails closed without it.
+-- 2026-09-28 (Simon, notice revision): new grants record the newest notice
+-- tuple, now email-v6 (policy 2026-09-29, optional avatar setting; 0208).
+-- 0208 must be applied first in production; the migration-time check below
+-- still reads email-v4, which 0203 and 0208 keep, so the numbered replay
+-- (0194 before 0203/0208) passes. The writer re-checks email-v6 at call time
+-- and fails closed without it.
 SET LOCAL lock_timeout = '10s';
 
 DO $$ BEGIN
@@ -77,9 +78,9 @@ BEGIN
     WHEN (decision->>'allowed')::boolean THEN 'granted' ELSE 'blocked' END;
   change_token := encode(sha256(convert_to(jsonb_build_array('service-v1',p_user_id,
     prior.consent_record_id,prior.state_revision,profile.birth_date,profile.minor_tier,
-    profile.account_status,'2026-09-07','2026-09-28','2026-08-16')::text,'UTF8')),'hex');
+    profile.account_status,'2026-09-07','2026-09-29','2026-08-16')::text,'UTF8')),'hex');
   RETURN jsonb_build_object('contract_revision','service-v1','consent_version','2026-09-07',
-    'policy_version','2026-09-28','terms_version','2026-08-16','state',state,
+    'policy_version','2026-09-29','terms_version','2026-08-16','state',state,
     'change_token',change_token,'can_grant',eligible);
 END $$;
 REVOKE ALL ON FUNCTION public.llm_service_consent_status(uuid) FROM PUBLIC,anon,authenticated,service_role;
@@ -101,8 +102,8 @@ BEGIN
   -- status performs the role, confirmed identity, deletion and row-lock checks.
   current_status := public.llm_service_consent_status(p_user_id);
   IF p_contract_revision IS DISTINCT FROM 'service-v1'
-    OR NOT EXISTS(SELECT 1 FROM public.signup_consent_contract('email-v5') c
-      WHERE c.consent_version='2026-09-07' AND c.policy_version='2026-09-28'
+    OR NOT EXISTS(SELECT 1 FROM public.signup_consent_contract('email-v6') c
+      WHERE c.consent_version='2026-09-07' AND c.policy_version='2026-09-29'
         AND c.terms_version='2026-08-16' AND c.confirmation_eligible) THEN
     RAISE EXCEPTION 'llm_service_consent_contract_changed' USING ERRCODE='22023';
   END IF;
@@ -130,7 +131,7 @@ BEGIN
   record_minor_tier := CASE WHEN p_action='revoke' AND prior.id IS NOT NULL THEN prior.minor_tier ELSE profile.minor_tier END;
   INSERT INTO public.consent_records(user_id,age_band,minor_tier,consent_version,policy_version,terms_version,
     purposes,required_ack,optional_consents,llm_processing_ack,overseas_transfer_ack,sensitive_data_ack,safety_notice_ack,locale)
-  VALUES(p_user_id,record_age_band,record_minor_tier,'2026-09-07','2026-09-28','2026-08-16','["service"]',
+  VALUES(p_user_id,record_age_band,record_minor_tier,'2026-09-07','2026-09-29','2026-08-16','["service"]',
     CASE WHEN p_action='grant' THEN true ELSE COALESCE(prior.required_ack,false) END,
     COALESCE(prior.optional_consents,'{}'::jsonb),p_action='grant',
     CASE WHEN p_action='grant' THEN true ELSE COALESCE(prior.overseas_transfer_ack,false) END,

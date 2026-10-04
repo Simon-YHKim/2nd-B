@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2ndB 휴대폰 에셋·망원경 조작 완료 보고</title>
+  <style>
+    :root { color-scheme: light dark; --accent:#2868bc; --text:#17263b; --muted:#56677f; --paper:#f5f8fc; }
+    @media (prefers-color-scheme: dark) { :root { --accent:#8fc0ff; --text:#edf3fc; --muted:#aabbd3; --paper:#101827; } }
+    * { box-sizing:border-box; } body { margin:0; background:var(--paper); color:var(--text); font:16px/1.55 system-ui,sans-serif; }
+    main { max-width:820px; margin:auto; padding:32px 20px 64px; } h1 { font-size:clamp(1.5rem,4vw,2.2rem); line-height:1.25; }
+    h2 { font-size:1.12rem; margin:28px 0 12px; } p { margin:8px 0; } small,.muted { color:var(--muted); }
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin:22px 0; }
+    .card,details { border:1px solid var(--muted); border-radius:8px; padding:14px; background:color-mix(in srgb,var(--paper) 88%,var(--accent)); }
+    .card strong { display:block; color:var(--accent); font-size:1.3rem; } details { margin:10px 0; } summary { cursor:pointer; font-weight:700; }
+    summary:focus-visible { outline:3px solid var(--accent); outline-offset:4px; } code { overflow-wrap:anywhere; }
+    svg { display:block; width:100%; max-width:660px; height:auto; margin:10px auto; }
+    .node { fill:var(--paper); stroke:var(--accent); stroke-width:2; } .arrow { stroke:var(--accent); stroke-width:2; fill:none; }
+    svg text { fill:var(--text); font:14px system-ui,sans-serif; text-anchor:middle; }
+  </style>
+</head>
+<body>
+<main>
+  <small>2ndB · 26.09.26 03:17:56 KST</small>
+  <h1>제공된 픽셀 휴대폰을 별자리 화면에 적용했습니다</h1>
+  <p>휴대폰은 카메라 조작부 뒤에서 상단만 보입니다. 위로 쓸면 전체가 나오고, 누르면 내 대시보드로 이동하며, 아래로 쓸면 다시 들어갑니다. 카메라 조작부는 세컨비 대화창과 폭을 맞췄습니다.</p>
+  <div class="cards" aria-label="검증 요약">
+    <div class="card"><strong>3개 폭</strong><span>320 · 425 · 768px 확인</span></div>
+    <div class="card"><strong>14개</strong><span>조작·레이아웃 테스트 통과</span></div>
+    <div class="card"><strong>0건</strong><span>브라우저 페이지 오류</span></div>
+    <div class="card"><strong>통과</strong><span>타입·번역·에셋·픽셀 규칙</span></div>
+    <div class="card"><strong>생성 완료</strong><span>Android JS 번들</span></div>
+  </div>
+  <h2>사용 흐름</h2>
+  <svg viewBox="0 0 660 150" role="img" aria-label="상단만 보이는 폰을 위로 쓸면 전체 표시, 그 상태에서 누르면 대시보드로 가고 아래로 쓸면 다시 넣기">
+    <rect class="node" x="12" y="18" width="150" height="65" rx="6"/><text x="87" y="45">폰 상단 노출</text><text x="87" y="66">조작부 뒤</text>
+    <path class="arrow" d="M164 50h68m-8-7 8 7-8 7"/><text x="198" y="38">위로</text>
+    <rect class="node" x="234" y="18" width="150" height="65" rx="6"/><text x="309" y="45">폰 전체 표시</text><text x="309" y="66">꺼낸 상태</text>
+    <path class="arrow" d="M386 50h68m-8-7 8 7-8 7"/><text x="420" y="38">누름</text>
+    <rect class="node" x="456" y="18" width="190" height="65" rx="6"/><text x="551" y="45">내 대시보드</text><text x="551" y="66">화면 진입</text>
+    <path class="arrow" d="M309 86v34H87V86m-8 8 8-8 8 8"/><text x="198" y="141">아래로 쓸면 다시 넣기</text>
+  </svg>
+  <details><summary>변경 내용</summary><p>제공된 <code>E:\2ndb_Cellphone.png</code>의 외부 흰 배경만 투명화한 PNG를 앱 에셋으로 추가했습니다. 휴대폰 본체 비율은 유지하고 기존 버튼보다 두 배 넓게 표시합니다. 별도 원점 버튼은 없앴고, 조이스틱을 움직이지 않고 누르면 원점으로 돌아갑니다. 포커스 이동이 새 줌을 취소하던 문제와 포인터 취소 후 이동이 재개되던 문제도 해결했습니다.</p></details>
+  <details><summary>검증 범위와 남은 확인</summary><p>로컬 웹에서 실제 QA 계정으로 조이스틱, 줌, 스와이프, 위키 그래프, 대시보드 진입을 검증했습니다. Android JS 번들에도 새 PNG가 포함됐습니다. Android/iOS 실기기의 손가락 제스처와 이미지 선명도는 별도 실기기 확인이 필요합니다. Expo 의존성 버전 불일치와 Google Services 설정 파일 경고는 이번 변경 이전부터 존재합니다.</p></details>
+  <details><summary>에셋 제작 기록</summary><p>입력: 사용자 제공 픽셀 휴대폰 PNG. 방법: built-in imagegen의 background-extraction 편집. 지시: 휴대폰의 픽셀·색·형태와 화면 아이콘을 유지하고 외부 흰 배경만 실제 투명 알파로 교체, 추가 장식 금지. 결과: <code>assets/images/secondb-cellphone-transparent.png</code> (원본 파일은 변경하지 않음).</p></details>
+</main>
+</body>
+</html>

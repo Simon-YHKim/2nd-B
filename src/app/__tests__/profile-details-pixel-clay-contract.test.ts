@@ -35,9 +35,12 @@ describe("/profile-details PIXEL-CLAY contract", () => {
   });
 
   test("scopes Android back to focus and keeps a safe deep-link fallback", () => {
-    expect(source).toContain("useFocusEffect(");
-    expect(source).toContain('BackHandler.addEventListener("hardwareBackPress"');
-    expect(source).toContain("return () => sub.remove()");
+    // 2026-10-02 (dashboard phone): Back goes through useHardwareBack, a focused
+    // BackHandler listener standalone and the phone's claim stack inside the
+    // phone, and navigation through useAppRouter() (lib/nav/phone-embed.tsx).
+    expect(source).toContain("useHardwareBack(");
+    expect(source).toContain("const router = useAppRouter();");
+    expect(source).not.toContain("BackHandler.addEventListener");
     expect(source).toContain("router.canGoBack()");
     expect(source).toContain('router.replace("/profile")');
     expect(source.match(/onBack=\{onCancel\}/g)).toHaveLength(6);
@@ -83,6 +86,18 @@ describe("/profile-details PIXEL-CLAY contract", () => {
     expect(source).toContain("setReloadKey((key) => key + 1)");
     expect(source).toContain("refresh: refreshAuth");
     expect(source).toContain("onPress={() => void refreshAuth()}");
+  });
+
+  test("only saves a confirmed owner name and refreshes the profile star", () => {
+    expect(source).toContain("fetchDisplayName(userId)");
+    expect(source).toContain('setNameLoadState({ userId, status: "error" })');
+    expect(source).toContain('nameLoadState.userId === userId && nameLoadState.status === "ready"');
+    expect(source).toContain("if (!userId || !nameReadyForUser || nameSaving) return");
+    expect(source).toContain("saveDisplayName(saveUserId, displayName)");
+    expect(source).toContain("activeUserIdRef.current === saveUserId");
+    expect(source).toContain("invalidateProfileStarLevel(saveUserId)");
+    expect(source).toContain("setNameReloadKey((key) => key + 1)");
+    expect(source).toContain("maxLength={DISPLAY_NAME_MAX_LENGTH}");
   });
 
   test("relays Android IME next through consecutive text fields", () => {
