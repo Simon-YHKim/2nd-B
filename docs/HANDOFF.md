@@ -11,7 +11,7 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-09-28 01:2x ~ 2026-09-30 22:39 | [handoff/HANDOFF-2026-09-p4.md](handoff/HANDOFF-2026-09-p4.md) | 22 | 59KB |
+| 2026-09-28 01:2x ~ 2026-09-30 23:00 | [handoff/HANDOFF-2026-09-p4.md](handoff/HANDOFF-2026-09-p4.md) | 23 | 61KB |
 | 2026-09-25 ~ 2026-09-28 00:4x | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 37 | 86KB |
 | 2026-09-08 ~ 2026-09-21 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 16 | 94KB |
 | 2026-09-01 ~ 2026-09-08 (+09-13 인계 1) | [handoff/HANDOFF-2026-09.md](handoff/HANDOFF-2026-09.md) | 18 | 92KB |
@@ -30,7 +30,20 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-04 14:02 / 미푸시 브랜치 10개 삭제 (번들 백업)
+## Latest — 2026-10-04 15:20 / 오프닝 한 프레임 늘어남 수정(#2031) · 0.10.0 컷(#2032) · 에뮬레이터 확인
+
+- **무엇을**: Simon: "망원경을 조정하다가 갑자기 1 프레임 정도 접안 모션을 보여주는 상태야. 이거 수정 가능해?" → "혹시 localhost 에서만 그런가? … 에뮬레이터로 확인 해볼래? 최신 apk를 만들어서 작업하자. 마이너 버전으로."
+- **원인**: 승인 시퀀스의 컷이 아니다(manifest = approved-settings). observe-* 만 폭 480 · 나머지 400 인데 캐릭터 틀이 컷마다 크기를 따라갔다. expo-image 는 새 그림이 그려질 때까지 옛 그림을 붙잡으므로 adjust-3 → observe-1 순간 adjust-3 이 1.2배로 늘어난 채 한 번 그려졌다. 웹 8081 13~15ms(캐시 유무 둘 다) · 안드로이드 에뮬레이터(x86_64 CI APK `e4ee955e`) 72ms. **localhost 전용이 아니었다.**
+- **수정 #2031 `f235273c`**: `getApprovedOpeningScene` 이 가장 넓은 컷 크기의 `characterSlot` 을 주고 `LoadingScreen` 이 `contentFit="contain"` + 왼쪽 위로 그린다(모든 컷 높이 560 이라 각 컷이 제 자리 · 제 크기). 승인 바이트 · 타이밍 · 순서 불변. 테스트 2개(변이 4 · 2 실패), verify 898 suites / 11,557 tests.
+- **0.10.0 #2032 `4bf55812`**: `app.json` 0.9.0 → 0.10.0 · CHANGELOG 199개(문서 96 · 기능 36 · 수정 57) · `notice:release` SILENT · `versionCode` 40 유지(EAS remote). 새로 설치해야 하는 판.
+- **APK · 에뮬레이터**: x86_64 [런 37180995493](https://github.com/Simon-YHKim/2nd-B/actions/runs/37180995493) 성공(versionName 0.10.0) → Orca `emulator-5554` 에 `install -r`, 오프닝 3회 녹화에서 늘어난 프레임 **0**(전 1). 폰용 arm64 push [런 37180962217](https://github.com/Simon-YHKim/2nd-B/actions/runs/37180962217) 은 서명 게이트를 지나 빌드 중(이 블록 시점). 폰 QA APK 는 게시하지 않았다(Simon 이 폰에서 볼 때만).
+- **정정**: #2031 커밋 메시지 · CHANGELOG · 코드 주석에 안드로이드 86ms 로 적었다. 확대 그림에 시각을 붙일 때 프레임 번호를 한 칸 밀려 읽은 값이고, 다시 세면 72ms(10.693s → 10.765s)다. CHANGELOG · 주석은 이 PR 에서 고쳤고 커밋 메시지는 남는다.
+- **덤으로 본 것(안 고침)**: 처음 켤 때 53ms 손목 컷이 이미지 디코딩 지연으로 건너뛰어질 수 있다(웹 · 캐시 없음). 에뮬레이터에서 오프닝이 1.4~1.5초씩 두 번 멈췄다(실기기 미확인).
+- **보고서**: <https://claude.ai/artifact/5b9uBaxGS1yxrZdT6BRSaz>
+- **앱/localhost**: 이 블록 시점 `npm run app:parity` = 같음(8081 = `4bf55812`, 같은 코드 arm64 빌드 진행 중). 이 PR 은 코드 주석을 바꿔 새 arm64 빌드를 하나 더 돌린다.
+- **다음 1개**: Simon 이 폰에서 보고 싶어 하면 `npm run app:qa-release`.
+
+## 2026-10-04 14:02 / 미푸시 브랜치 10개 삭제 (번들 백업)
 
 - **무엇을**: 13:09 블록의 "브랜치는 하나도 지우지 않았다" 를 이 블록이 갱신한다. Simon: "굳이 남겨놓을 필요 없겠어. 전부 정리하자."
 - **지운 것**: origin 에 없는 커밋을 가진 로컬 브랜치 10개(`fix/legacy-archive-integrity-pin-260913` · `claude/health-withdraw-261002` · `codex/prod-workflow-ref-gates-260913` · `claude/records-260921` · `fix/gui-back-focus-261001` · `codex/museum-phone-261001` · `fix/android-voice-base64-260926` · `codex/ops-embed-261001` · `qa/polascope-1902-mergecheck-f5-261001` · `fix/preauth-owner-consent-261001`).
@@ -547,12 +560,3 @@
 
 ---
 
-## 2026-09-30 23:00 / 커뮤니티 방 딥링크 오류 상태·앱 동등성 확인
-
-- **main `7c96eeec`**: [PR #1949](https://github.com/Simon-YHKim/2nd-B/pull/1949)는 `246c5a0b`에 CI 3종 통과 후 병합됐다. 참여하지 않는 방 URL에서 빈 대화방·입력·나가기 대신 접근 불가 안내와 목록 복귀를 표시한다. 단일 ID 조회가 최근 50개 목록 제한보다 먼저 적용되고, 경로 전환 중 이전 방 상태·늦은 응답이 새 방에 섞이지 않는다. 5개 언어 문구와 회귀 테스트를 포함한다. 그 뒤 #1951·#1953 문서와 #1952 앱 변경이 main에 추가됐다.
-- **검증**: 최신 main을 통합한 로컬 `npm run verify -- --runInBand` 854 suites/11,066 tests 통과. PR CI `lint`·`verify`·`web-export-smoke` 3/3 통과. QA 계정의 375×812 Chrome 읽기 전용 검사에서 존재하지 않는 방의 입력·나가기 0건, pageerror·가로 넘침 0건. 잘못된 초대 링크는 오류 화면만 검증했고 프로필 POST 1건을 차단했다. [QA 기록](qa/community-room-unavailable-260930.md) · [완료 보고](qa/community-room-handoff-260930.html).
-- **앱/localhost**: 8081 감독자가 최신 `7c96eeec`를 따라간 뒤 `npm run app:parity`가 앱 경로 차이 0, 설정·의존성 일치, 같은 앱 코드 `ad42a1f5`의 [Android 진단 빌드 36723491160](https://github.com/Simon-YHKim/2nd-B/actions/runs/36723491160) 진행 중으로 **같음**을 보고했다. #1949의 대기 빌드 36722377116은 뒤따른 문서 병합 시 게이트에서 실패했고, 별도 세션이 재실행한 빌드 36723106509도 진행 중이다. 두 대체 빌드는 마지막 main 게이트를 통과했으나 최종 성공 여부는 후속 확인한다. QA APK는 09-30 결정대로 Simon이 폰에서 볼 때만 게시한다.
-- **남은 확인**: ARM Android 실기기에서 글꼴 확대·TalkBack과 실제 유효한 커뮤니티 room/join 흐름을 확인한다. 운영 동의 모드·503·Play Data Safety 및 서버 적용은 콘솔 소유 경계를 따른다. Grok 후속은 Simon의 기존 보류를 유지한다. 원래 `TTL-Work_rev2`의 다른 세션 미커밋 변경은 건드리지 않았다.
-- **다음 세션**: `git fetch origin main` → `git show origin/main:docs/HANDOFF.md` → Android 빌드 결과와 `npm run app:parity` 확인. #1953의 빌드 중단 기록은 바로 아래 22:39 블록에 보존했다. 공개·운영 적용 전 별도 게이트는 아래 기록과 `docs/SESSION-OWNERSHIP.md`를 따른다.
-
----

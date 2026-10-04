@@ -161,7 +161,7 @@ export function twinkleAt(elapsedMs: number): { x: number; y: number; width: num
 // The observe frames are 480 px wide and the others 400 px. While the box
 // followed each frame, it widened at adjust-3 -> observe-1 one paint before the
 // new image was on screen, so adjust-3 was drawn 1.2x wide for a frame (web
-// 13-15 ms, Android emulator 86 ms) and read as a sudden eyepiece pose. The
+// 13-15 ms, Android emulator 72 ms) and read as a sudden eyepiece pose. The
 // slot keeps the widest frame's size; LoadingScreen draws each frame inside it
 // with contain + top-left, which lands exactly on `character` below.
 const CHARACTER_SLOT = { width: Math.max(...APPROVED_OPENING_CONFIG.frames.map(frame => frame.width)), height: Math.max(...APPROVED_OPENING_CONFIG.frames.map(frame => frame.height)) };
