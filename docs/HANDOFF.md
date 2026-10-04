@@ -30,7 +30,20 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-04 12:40 / Q-261004-01 · 02 = A: TTL-Work_rev2 정리 · agy 11개는 지금 문구
+## Latest — 2026-10-04 13:09 / 2ndB 워크트리 97곳 · LLM 세션 9개 정리 (Orca 경량화)
+
+- **무엇을**: Simon 지시 "현재의 워크트리와 세션 제외하고, 우리 프로젝트에 띄워져 있는 워크트리와 llm 세션, 모두 정리해줘". 모든 PR 머지 뒤 Orca 가 무거워져서.
+- **남은 것**: 워크트리 3개(`E:/2ndB` main · `.worktrees/2ndB/TTL-Work_rev2` · `.worktrees/localhost-main`). 2ndB 의 Orca 터미널은 지시한 세션 1개뿐.
+  - `localhost-main` 은 일부러 남겼다. 8081 감독자가 거기서 돈다. 지우면 localhost 가 멈추고 `app:parity` 가 "다름" 이 된다(`npm run localhost` 가 다시 만들기는 한다).
+- **구제**: `E:/Coding Infra/_rescue/worktrees-261004/<이름>/` 에 `tracked.patch`(sha256 은 manifest.json) · `untracked/` · `ignored/`. 같은 E: 볼륨 안 이동이라 복사 0. 목록 `index.json`, 삭제 기록 `deleted.json`.
+  - 미커밋이 있던 10곳: 2ndB/TTL-Work(수정 575 · 새 파일 816) · avatar-observatory-integration-260928 · brand-meta-260927 · data-conn-260930 · grok-qa-complement-260925 · localhost-260921-287e56f1 · native-260926 · observatory-260925 · qa-integration-260920 · reward-ledger-retention-260927.
+- **브랜치는 하나도 지우지 않았다**(95개 존재 확인). 미푸시 커밋이 있는 브랜치 10개(legacy-archive-integrity-260913 의 97개 등)는 그대로 있다.
+- **수치**: E: 여유 101.8 → 135.4 GB · 메모리 여유 5.9 → 8.3 GB · claude.exe 11 → 6 · codex.exe 7 → 5 · 공용 node_modules 726 → 726. `app:parity` = 같음.
+- **손대지 않은 것**: `.worktrees/_backup` · `_legacy` · `.npm-security-landing-260906`(보안 트랙) · `.orca-*` · `2ndB/_sync`. 빈 폴더 9개만 지웠다. `Coding Infra` 폴더 터미널은 2ndB 가 아니라 그대로.
+- **도구**: `E:/Coding Infra/_rescue/tools/cleanup-261004/`(`rescue_move.py` · `delete_wt.py`). `orca worktree rm` 은 로컬 브랜치까지 지워서 쓰지 않았다.
+- **다음 1개**: 없음. 새 작업은 새 워크트리로 시작한다.
+
+## 2026-10-04 12:40 / Q-261004-01 · 02 = A: TTL-Work_rev2 정리 · agy 11개는 지금 문구
 
 - **무엇을**: Simon 답 "Q-261004-01 : a ok / Q-261004-02 : a ok".
 - **Q-261004-01 = A**: `.worktrees/2ndB/TTL-Work_rev2` 의 미커밋 49건(파일 122)을 지우고 `Simon-YHKim/TTL-Work_rev2` 를 origin/main(`c61c6f3e`)으로 fast-forward 했다. 미커밋 0 · 앞 0 · 뒤 0. node_modules 정션 유지, 공용 726.
