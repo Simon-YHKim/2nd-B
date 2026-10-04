@@ -707,7 +707,13 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 // 146 → 135 (2026-10-04): 옛 홈 그래프 묶음(NavGraph 2 · CharacterPathLayer 2 ·
 // lib/graph/depth-style 3 · glow-style 2 · premium/PowerOnOverlay 2 = 11건)이
 // E:/Legacy 로 나갔다(QA L2-01 · L4-06). 같은 이유, 같은 단서 — **고친 것이 아니다.**
-const RATCHET_BASELINE = 135;
+// 146 → 137 (2026-10-04, qa261004-art · L4-09): SoulcoreFinalArt 의 소울 불꽃 오버레이
+// (FLAME_CELLS 7 · SPARK_CELLS 2)가 호출 0건(v45 variant 를 넘기는 곳이 없음)이라
+// E:/Legacy/2ndB 로 나갔다. 역시 **고친 것이 아니라 빠진 것**이다.
+// 두 줄(146 → 135, 146 → 137)은 같은 날 다른 PR(#2038 · #2041)에서 따로 내린 값이다. 합친 실측은
+// 146 − 11 − 9 = 126 (겹침 0). SoulcoreFinalArt 의 SNOWFLAKE_CELLS 4건은 남아 있고, 그것을 그리던
+// NavGraph 는 #2038 로 나갔다 — 남은 소비자는 다음 레거시 정리에서 다시 센다.
+const RATCHET_BASELINE = 126;
 
 // 래칫이 통과해도 **남은 빚이 어디 있는지** 볼 수 있어야 한다. 수만 보면 고칠 곳을
 // 모른다(채점기 D·E·B 축도 이름을 붙이고 나서야 고칠 것이 드러났다).

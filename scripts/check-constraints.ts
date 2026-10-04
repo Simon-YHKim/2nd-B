@@ -3074,6 +3074,10 @@ results.push(
   check("ArtA11ySemantics", () => {
     const secondbSprite = read("src/components/art/SecondBSprite.tsx");
     const islandArt = read("src/components/art/IslandArt.tsx");
+    // IslandArt now only routes to FinalCoreArt (2026-10-04, L4-10), so the island
+    // pixels and their a11y hiding live in SoulcoreFinalArt. Pin both files: the
+    // IslandArt strings alone would be satisfied by ShardArt.
+    const soulcoreFinalArt = read("src/components/art/SoulcoreFinalArt.tsx");
     const workerSprite = read("src/components/art/WorkerSprite.tsx");
     const jarvis = read("src/app/secondb.tsx");
     const graphBits = read("src/components/premium/graph-bits.tsx");
@@ -3090,6 +3094,8 @@ results.push(
       graphBits.includes('accessible accessibilityRole="image" accessibilityLabel={meta.name[locale]}') &&
       islandArt.includes("accessibilityElementsHidden") &&
       islandArt.includes('importantForAccessibility="no-hide-descendants"') &&
+      soulcoreFinalArt.includes("accessibilityElementsHidden") &&
+      soulcoreFinalArt.includes('importantForAccessibility="no-hide-descendants"') &&
       workerSprite.includes("accessibilityElementsHidden") &&
       workerSprite.includes('importantForAccessibility="no-hide-descendants"');
     return {
