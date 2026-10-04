@@ -132,7 +132,7 @@ These four files were superseded by the recorded `observatory-*.wav` cues on
 2026-09-26 and were never required by the shipped camera. On 2026-10-04 they
 and their generator left the repo for the read-only archive
 `E:/Legacy/2ndB/assets/audio/` and `E:/Legacy/2ndB/scripts/build-camera-sfx.cjs`
-(rows in `E:/Legacy/2ndB/MANIFEST.jsonl`, restore with its `restore.py`, source commit
+(rows in `E:/Legacy/2ndB/MANIFEST.jsonl`, restore from git history per its README, source commit
 `ba7afdfd`). The provenance record stays here:
 
 - `camera-aim.mp3`, `camera-focus.mp3`, `camera-shutter.mp3`: original procedural
