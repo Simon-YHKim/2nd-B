@@ -153,7 +153,6 @@
   "manual": "사용 안내서",
   "integrations": "연동",
   "aiMuseum": "AI 뮤지엄",
-  "routines": "앱 작동 상태",
   "deleteData": "데이터 삭제",
   "partialByKind": "기록 종류별 삭제",
   "partialByKindDesc": "고른 종류의 기록만 삭제합니다. 다른 기록과 위키는 남습니다.",

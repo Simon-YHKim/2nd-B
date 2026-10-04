@@ -153,7 +153,6 @@
   "manual": "Guía de uso",
   "integrations": "Integraciones",
   "aiMuseum": "Museo de IA",
-  "routines": "Rutinas",
   "deleteData": "Eliminar datos (zona de peligro)",
   "partialByKind": "Parcial: por tipo",
   "partialByKindDesc": "Elimina solo un tipo. Los demás tipos y tu wiki se conservan.",

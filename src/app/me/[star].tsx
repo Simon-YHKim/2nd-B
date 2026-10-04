@@ -34,7 +34,6 @@ import {
 import { loadCoverage } from "@/lib/interview/coverage-store";
 import {
   DRILL_LAYERS,
-  LAYER_LABEL,
   type DrillLayer,
   type LifePeriod,
 } from "@/lib/interview/probe";
@@ -83,7 +82,7 @@ export default function StarSummaryRoute() {
   // Phone-aware: inside the dashboard phone, the interview opens in the phone,
   // back steps the phone, and `star` comes from the phone route (/me/now).
   const router = useAppRouter();
-  const { t, i18n } = useTranslation("home");
+  const { t } = useTranslation("home");
   const { star } = useScreenParams<{ star?: string }>();
   const { userId, loading, age } = useAuth();
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -114,7 +113,6 @@ export default function StarSummaryRoute() {
   if (!id || !meta) return <Redirect href="/" />;
 
   const name = t(`ds.star.${meta.key}`);
-  const layerLocale = i18n.resolvedLanguage?.startsWith("ko") ? "ko" : "en";
   const range = meta.ageBand
     ? meta.ageBand.to === null
       ? t("ds.audit.rangeFrom", { from: meta.ageBand.from })
@@ -225,7 +223,11 @@ export default function StarSummaryRoute() {
                               isCovered ? styles.layerOn : styles.layerOff,
                             ]}
                           >
-                            {LAYER_LABEL[layerLocale][layer]}
+                            {/* Layer name only. The interview's "L1 · Fact" labels put an
+                                L number on each cell, and in this app L1~L5 is the
+                                brightness ladder: a fifth covered cell read as "L5"
+                                while coverage tops out at L4 (QA 261004 W-08/D-10). */}
+                            {t(`ds.star.layer.${layer}`)}
                           </Text>
                         </View>
                       );
@@ -235,7 +237,7 @@ export default function StarSummaryRoute() {
                     {t("ds.star.recordsLabel")}
                   </Text>
                   <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
-                    {t("ds.star.records", { n: summary.records })}
+                    {t("ds.star.records", { count: summary.records })}
                   </Text>
                 </>
               )}

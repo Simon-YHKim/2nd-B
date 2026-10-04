@@ -153,7 +153,6 @@
   "manual": "User Guide",
   "integrations": "Integrations",
   "aiMuseum": "AI Museum",
-  "routines": "App status",
   "deleteData": "Delete data",
   "partialByKind": "Delete by record type",
   "partialByKindDesc": "Delete one kind only. Other kinds and your wiki stay.",

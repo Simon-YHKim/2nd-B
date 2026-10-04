@@ -598,7 +598,7 @@ export function DeepSpaceImportScreen() {
             <View style={s.dropZone}>
               <Glyph name="cloud_upload" color={m3.color.onSurfaceVariant} size={40} />
               <RNText style={[m3TextStyle("bodyLarge"), s.dropTitle]}>{t("ds.import.dropTitle")}</RNText>
-              <RNText style={[m3TextStyle("bodySmall"), s.dropExt]}>.json · .zip · .txt · .md · .csv</RNText>
+              <RNText style={[m3TextStyle("bodySmall"), s.dropExt]}>.json · .txt · .md · .html</RNText>
               <MdButton
                 label={picking ? t("ds.import.btnOpening") : importing ? t("ds.import.btnImporting") : t("ds.import.btnChooseFile")}
                 variant="tonal"

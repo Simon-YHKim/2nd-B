@@ -101,17 +101,26 @@ export default function ShareCardScreen() {
     );
   }
 
-  const card = deriveCardProps({ litStars, northStarSentence: sentence });
+  // QA 261004 W-04/D-09: the default sentence comes from the bundle (it was a
+  // Korean constant), and an unknown star count stays unknown. Until the count
+  // loads, the preview waits and nothing can be exported, so no card ever leaves
+  // with invented stars.
+  const card = deriveCardProps({
+    litStars,
+    northStarSentence: sentence,
+    fallbackInsight: t("deepspace:shareCard.fallbackInsight"),
+  });
+  const litCount = card.litCount;
 
   async function handleShare() {
-    if (sharing || saving) return;
+    if (sharing || saving || litCount === null) return;
     setSharing(true);
     try {
       await shareInsightCard({
         variant,
         insight: card.insight,
         handle: card.handle,
-        litCount: card.litCount,
+        litCount,
         viewRef: captureRef.current ?? undefined,
       });
     } finally {
@@ -123,14 +132,14 @@ export default function ShareCardScreen() {
   // surfaces Save-to-Photos/Download. Same off-screen capture ref as 공유; without
   // an added media-library dep the OS sheet is the honest save affordance.
   async function handleSave() {
-    if (sharing || saving) return;
+    if (sharing || saving || litCount === null) return;
     setSaving(true);
     try {
       await shareInsightCard({
         variant,
         insight: card.insight,
         handle: card.handle,
-        litCount: card.litCount,
+        litCount,
         viewRef: captureRef.current ?? undefined,
       });
     } finally {
@@ -157,21 +166,25 @@ export default function ShareCardScreen() {
         </View>
 
         <View style={styles.preview}>
-          <ShareCard variant={variant} insight={card.insight} pieceCount={pieceCount} litCount={card.litCount} size={previewSize} isKo={isKo} />
+          {litCount === null ? (
+            <PremiumLoadingState message={t("deepspace:shareCard.loading")} />
+          ) : (
+            <ShareCard variant={variant} insight={card.insight} pieceCount={pieceCount} litCount={litCount} size={previewSize} isKo={isKo} />
+          )}
         </View>
 
         {/* sb-more L503-506: two side-by-side actions — filled 이미지 저장 + tonal 공유. */}
         <View style={styles.actionRow}>
           <MdButton
             variant="filled"
-            disabled={saving || sharing}
+            disabled={saving || sharing || litCount === null}
             label={saving ? t("deepspace:shareCard.saving") : t("deepspace:shareCard.saveImage")}
             onPress={handleSave}
             style={styles.actionBtn}
           />
           <MdButton
             variant="tonal"
-            disabled={sharing || saving}
+            disabled={sharing || saving || litCount === null}
             label={sharing ? t("deepspace:shareCard.opening") : t("deepspace:shareCard.share")}
             onPress={handleShare}
             style={styles.actionBtn}
@@ -180,20 +193,18 @@ export default function ShareCardScreen() {
         <Text variant="caption" color="textSubtle" style={styles.introCopy}>
           {t("deepspace:shareCard.introPrivacy")}
         </Text>
-        {litStars === null ? (
-          <Text variant="caption" color="textSubtle" style={styles.introCopy}>
-            {t("deepspace:shareCard.starsFallback")}
-          </Text>
-        ) : null}
 
         {/* Off-screen capture host at 1080x1080 (react-native-view-shot needs a
             mounted view; the lib captures THIS ref, the preview above stays
-            responsive). Kept out of the a11y tree. */}
-        <View style={styles.captureHost} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <View ref={captureRef} collapsable={false}>
-            <ShareCard variant={variant} insight={card.insight} pieceCount={pieceCount} litCount={card.litCount} size={1080} isKo={isKo} />
+            responsive). Kept out of the a11y tree. Mounted only once the real
+            star count is known. */}
+        {litCount !== null ? (
+          <View style={styles.captureHost} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <View ref={captureRef} collapsable={false}>
+              <ShareCard variant={variant} insight={card.insight} pieceCount={pieceCount} litCount={litCount} size={1080} isKo={isKo} />
+            </View>
           </View>
-        </View>
+        ) : null}
       </ScrollView>
     </DeepSpaceScreen>
   );
