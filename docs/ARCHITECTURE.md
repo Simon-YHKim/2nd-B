@@ -3,7 +3,7 @@
 > **Status:** 개념/세계관 정본은 아래 3-layer 별자리 모델. rev2 Material-3 마이그레이션 진행 중
 > (`docs/REV2-MIGRATION.md` — 개념 불변, 크롬만 변경). 나머지 아키텍처 상세는 각 섹션 참조.
 > ⚠️ 2026-05-25 Sprint 0 의 5계층 **Soul Core / Pattern Core / Pattern Tesseract** 모델은 **폐기(legacy)** —
-> `EXPO_PUBLIC_UI=legacy` 롤백 스킨에만 존재(이전 판은 git history).
+> git history 와 E:/Legacy/2ndB 에만 존재(롤백 레버 `EXPO_PUBLIC_UI` 는 2026-10-05 에 없어졌다(Simon 결정 Q-261004-11)).
 
 ## 세계관 — 3-layer 별자리 (canonical)
 
@@ -23,7 +23,7 @@
 
 **공상**(3축 중 "공상 → 구체화")은 별도 장소 노드가 아니라 세컨비 대화 / 공상 시드로 다뤄진다
 (`src/app/imagine.tsx`, deep-space=seeds). 모든 LLM 경로는 C9 → C3 → `src/lib/llm/boundary.ts` 안전 분류를 지킨다.
-구 `/graph` · `/core-brain` · `/trinity` · `/imagine` 라우트·스크린·에셋은 `EXPO_PUBLIC_UI=legacy` 롤백용으로만 vestigial 보존.
+구 `/graph` · `/core-brain` · `/trinity` · `/imagine` 라우트·스크린·에셋은 `EXPO_PUBLIC_UI=legacy` 롤백용으로만 vestigial 보존 — ⚠ 2026-10-05 정정: 롤백 레버 `EXPO_PUBLIC_UI` 는 2026-10-05 에 없어졌다(Simon 결정 Q-261004-11). 그 롤백용 반쪽은 git 이력 · E:/Legacy/2ndB 로 나갔고, 라우트는 배송 화면만 그린다(`/trinity` 는 `/core-brain` 리다이렉트, Q-261004-33).
 
 ## Seven Engines
 
