@@ -19,7 +19,7 @@ import {
   DOMAIN_TAG_PREFIX,
   getDomainStar,
   isDomainId,
-  stripDomainTags,
+  stripSystemTags,
   type DomainId,
 } from "../persona/domain-stars";
 
@@ -129,11 +129,13 @@ export function buildRecordsGraph(
   ];
   const edges: RecordsGraphEdge[] = [];
 
-  // Annotate each record with its domain + user (non-domain) tags once.
+  // Annotate each record with its domain + user tags (system scaffolding such as
+  // domain:, interview, first_light stripped) once, so two records are never
+  // linked just because the app tagged both the same way.
   const annotated = records.map((r) => ({
     r,
     domain: recordDomain(r.tags),
-    tags: stripDomainTags(r.tags ?? []),
+    tags: stripSystemTags(r.tags ?? []),
   }));
 
   // Domain stars: keep DOMAIN_STARS order (Big Dipper). Only stars that carry a

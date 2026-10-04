@@ -10,7 +10,7 @@
 // domainConfidence / domainLevel / northStarBrightness do the deterministic math.
 
 import { getSupabaseClient } from "../supabase/client";
-import { isDomainId, type DomainEntry, type DomainId } from "./domain-stars";
+import { isDomainId, isSystemTag, type DomainEntry, type DomainId } from "./domain-stars";
 import { type LadderLevel } from "./brightness";
 import { domainStarLevels, northStarBrightness } from "./north-star";
 
@@ -25,12 +25,9 @@ const DOMAIN_TAG_PREFIX = "domain:";
 // `domain:` tag (and capture-mode markers) can't make a raw brain-dump look
 // curated — otherwise every record would read as "organized" and the §4.5 ②
 // L3/L4 downgrade for raw-heavy domains would never fire.
-const SYSTEM_TAGS = new Set(["voice", "todo", "interview"]);
-
-function isSystemTag(tag: string): boolean {
-  const t = tag.toLowerCase();
-  return t.startsWith(DOMAIN_TAG_PREFIX) || SYSTEM_TAGS.has(t);
-}
+// The list lives in domain-stars.ts (isSystemTag) so the topic surfaces
+// (/discover, /research, /records graph) strip the same scaffolding; it now also
+// covers the recall interview's recall/screener/entry-ui:* and first_light tags.
 
 /** The DomainId encoded in a record's tags, or null if none / unknown slug. */
 function domainOf(tags: readonly string[]): DomainId | null {

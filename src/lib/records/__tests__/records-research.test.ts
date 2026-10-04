@@ -73,6 +73,20 @@ describe("recordsToResearchGraph", () => {
     expect(edges).toHaveLength(1);
   });
 
+  it("drops every app-written tag, not only domain: (QA 261004 D-07)", () => {
+    // /research showed chips "first_light · 11", "first_light:affirm · 11",
+    // "interview · 6" and the label "Knowledge about first_light".
+    const { pages, edges } = recordsToResearchGraph([
+      rec("a", ["domain:career", "first_light", "first_light:affirm"]),
+      rec("b", ["domain:health", "first_light", "first_light:affirm"]),
+      rec("c", ["domain:growth", "interview", "recall", "screener", "entry-ui:en", "reading"]),
+      rec("d", ["domain:rest", "interview", "recall", "screener", "entry-ui:en"]),
+    ]);
+    expect(pages.flatMap((p) => p.tags ?? [])).toEqual(["reading"]);
+    // Two records the app tagged the same way are not a discovered connection.
+    expect(edges).toEqual([]);
+  });
+
   it("uses the record summary as the page body", () => {
     const { pages } = recordsToResearchGraph([rec("a", ["domain:career"], "  a thought  ")]);
     expect(pages[0]?.body_md).toBe("a thought");

@@ -81,6 +81,40 @@ export function stripDomainTags(tags: readonly string[]): string[] {
   return tags.filter((t) => !isDomainTag(t));
 }
 
+// Tags the APP writes to say how or where a record was captured, never a topic
+// the user chose. One list, so every consumer that counts or displays tags as
+// user topics agrees on what is scaffolding:
+//   voice / todo            capture-mode markers (load-domain-levels' old list)
+//   interview / recall /    the recall interview (src/app/interview.tsx); also
+//   screener                  assess/registry completion tags
+//   entry-ui:<locale>       the UI language the interview ran in
+//   first_light[:<choice>]  the first-run TTFV note (TTFVScreen)
+//   domain:<slug>           the reserved domain namespace (isDomainTag)
+// Storage readers (assess completionTags, career-timeline entry-ui, TTFV
+// isFirstLight) keep reading the raw tags; only topic surfaces strip these.
+// QA 261004 D-07: /discover and /research showed first_light, first_light:affirm
+// and interview as the user's "interests" because they stripped domain: only.
+const SYSTEM_TAG_EXACT: ReadonlySet<string> = new Set([
+  "voice",
+  "todo",
+  "interview",
+  "recall",
+  "screener",
+  "first_light",
+]);
+const SYSTEM_TAG_PREFIXES: readonly string[] = [DOMAIN_TAG_PREFIX, "first_light:", "entry-ui:"];
+
+/** True for a tag the app writes as capture scaffolding (case-insensitive). */
+export function isSystemTag(tag: string): boolean {
+  const t = tag.trim().toLowerCase();
+  return SYSTEM_TAG_EXACT.has(t) || SYSTEM_TAG_PREFIXES.some((p) => t.startsWith(p));
+}
+
+/** Drop app-written scaffolding tags, leaving only the user's own topic tags. */
+export function stripSystemTags(tags: readonly string[]): string[] {
+  return tags.filter((t) => !isSystemTag(t));
+}
+
 // A single life-data item under a domain star — the unit domain-confidence counts.
 // Minimal by design; real records carry more, but coverage + organized-ratio is all
 // the v1 brightness adapter needs. `category`/`tags` presence marks the item as

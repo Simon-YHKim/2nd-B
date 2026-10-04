@@ -5,7 +5,7 @@
 // records the user already captured. The screen turns each into a "담기 → /capture"
 // suggestion (propose only; nothing is applied automatically).
 
-import { stripDomainTags } from "../persona/domain-stars";
+import { stripSystemTags } from "../persona/domain-stars";
 
 export interface RecordTagRow {
   tags: string[];
@@ -49,9 +49,10 @@ export function rankRisingInterests(
     if (Number.isNaN(ts)) continue;
     const bucket = ts >= recentStart ? recent : ts >= priorStart ? prior : null;
     if (!bucket) continue;
-    // The reserved domain: tag rides on every record — exclude it so it can't
-    // masquerade as a rising "interest" the user is told they care about.
-    for (const raw of stripDomainTags(row.tags ?? [])) {
+    // The reserved domain: tag rides on every record, and the app writes other
+    // scaffolding tags too (first_light, interview, entry-ui:*). Exclude them all
+    // so none can masquerade as a rising "interest" the user is told they care about.
+    for (const raw of stripSystemTags(row.tags ?? [])) {
       const trimmed = (raw ?? "").trim();
       if (!trimmed) continue;
       const key = trimmed.toLowerCase();

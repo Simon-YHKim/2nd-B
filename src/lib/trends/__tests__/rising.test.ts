@@ -44,4 +44,20 @@ describe("rankRisingInterests", () => {
     expect(out.length).toBe(6);
     expect(out.every((r) => r.tag.trim().length > 0)).toBe(true);
   });
+
+  test("app-written scaffolding tags never surface as interests (QA 261004 D-07)", () => {
+    // A brand-new user who answered the first-run note has exactly this record.
+    // Before the fix /discover listed "first_light" and "first_light:affirm".
+    const ttfvOnly: RecordTagRow[] = [
+      { tags: ["first_light", "first_light:affirm", "domain:growth"], created_at: daysAgo(1) },
+      { tags: ["interview", "recall", "screener", "entry-ui:en"], created_at: daysAgo(2) },
+      { tags: ["FIRST_LIGHT:soft", "Voice", "todo"], created_at: daysAgo(3) },
+    ];
+    expect(rankRisingInterests(ttfvOnly, NOW)).toEqual([]);
+
+    const mixed: RecordTagRow[] = [
+      { tags: ["first_light", "interview", "reading"], created_at: daysAgo(1) },
+    ];
+    expect(rankRisingInterests(mixed, NOW).map((r) => r.tag)).toEqual(["reading"]);
+  });
 });
