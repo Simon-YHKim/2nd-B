@@ -1,8 +1,4 @@
 {
-  "ads": {
-    "label": "Sponsored",
-    "removeUpsell": "Prefer no ads? Subscriptions remove them."
-  },
   "app": {
     "name": "PolaScope",
     "tagline": "A second brain built from what you write and save.",

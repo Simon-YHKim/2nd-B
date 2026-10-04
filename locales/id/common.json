@@ -1,8 +1,4 @@
 {
-  "ads": {
-    "label": "Bersponsor",
-    "removeUpsell": "Berlangganan untuk menghapus iklan."
-  },
   "app": {
     "name": "PolaScope",
     "tagline": "Otak kedua yang dibangun dari apa yang kamu tulis dan simpan.",

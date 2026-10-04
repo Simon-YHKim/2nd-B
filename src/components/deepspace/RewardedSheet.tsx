@@ -7,7 +7,7 @@
 //
 // GATE — this component does NOT decide whether it may appear. The CALLER must
 // only present it when ads are eligible: adult + ads consent + non-sensitive
-// (ad-allowed) route + free tier, per canShowAds() in src/lib/ads/policy.ts.
+// (rewarded-allowed) route + free tier, per canShowRewardedAds() in src/lib/ads/policy.ts.
 // (Minors and sensitive surfaces never reach here.) The privacy line restates
 // that contract to the user.
 //

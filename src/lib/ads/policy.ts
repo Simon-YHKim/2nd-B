@@ -15,12 +15,12 @@
 //   3. No ads until the specific third-party disclosure and overseas-transfer
 //      consent flow is published. The historical adsConsent boolean alone is
 //      not legal authorization for an ad network request.
-//   4. ALLOW-list, not a deny-list: ads may render ONLY on the routes named
-//      below. A new route is ad-free by default — a deny-list would make
+//   4. ALLOW-list, not a deny-list: an ad entry may open ONLY on the routes
+//      named below. A new route is ad-free by default — a deny-list would make
 //      every future screen ad-eligible until someone remembered to add it
-//      (review finding). Crisis-adjacent (/secondb), reading one's own piece,
-//      auth, consent, and writing surfaces are therefore excluded by
-//      construction.
+//      (review finding). Auth, consent, reading one's own piece and writing
+//      surfaces are therefore excluded by construction; /secondb is listed
+//      only as a user-initiated reward entry, never as display space.
 //   5. Ads are OFF by default at the build level (EXPO_PUBLIC_ENABLE_ADS) so
 //      every live surface stays ad-free until the operator opts in.
 
@@ -28,8 +28,11 @@ import { getEnv } from "../env";
 import type { SubscriptionTier } from "../progression/entitlements";
 import { adNetworkPublicationReady } from "./legal-readiness";
 
-/** The ONLY routes where an ad slot may render (rule 4). Prefix match. */
-export const AD_ALLOWED_ROUTE_PREFIXES: readonly string[] = ["/records"];
+// 2026-10-05 (Simon Q-261004-16): the web AdSense banner half of this module
+// (canShowAds, adsConfigured, isAdAllowedRoute and its "/records" allow-list)
+// left with its only renderer, src/components/ads/AdSlot.tsx. No shipped screen
+// had drawn that slot since 2026-09-08. The originals are kept in E:/Legacy
+// (docs/ADSENSE-WEB-RETIREMENT.md). What remains is the rewarded (AdMob) track.
 
 export interface AdEligibilityInput {
   /** Resolved subscription tier. null = still resolving — fail closed. */
@@ -38,37 +41,15 @@ export interface AdEligibilityInput {
   isMinor: boolean | null;
   /** Explicit ads consent. null/undefined (never asked) = no ads. */
   adsConsent: boolean | null | undefined;
-  /** Current route pathname ("/records"). */
+  /** Current route pathname ("/plans"). */
   route: string;
 }
 
-export function isAdAllowedRoute(route: string): boolean {
-  return AD_ALLOWED_ROUTE_PREFIXES.some((p) => route === p || route.startsWith(`${p}/`));
-}
-
-/** Build-level switch: both the flag AND a configured AdSense client are
- *  required on web. Native (AdMob) ships in the native build track. */
-export function adsConfigured(): boolean {
-  if (!adNetworkPublicationReady()) return false;
-  const env = getEnv();
-  return env.EXPO_PUBLIC_ENABLE_ADS === true && !!env.EXPO_PUBLIC_ADSENSE_CLIENT;
-}
-
-export function canShowAds(input: AdEligibilityInput): boolean {
-  if (!adsConfigured()) return false;
-  if (input.tier !== "free") return false; // rule 1 (null/loading fails closed)
-  if (input.isMinor !== false) return false; // rule 2 (null = fail closed)
-  if (input.adsConsent !== true) return false; // rule 3
-  if (!isAdAllowedRoute(input.route)) return false; // rule 4 (allow-list)
-  return true;
-}
-
 // ---------------------------------------------------------------------------
-// Rewarded track (watch-to-earn). Same five rules, SEPARATE allow-list
+// Rewarded track (watch-to-earn). The five rules above with its own allow-list
 // (Simon 2026-07-18): rewarded is a user-INITIATED earn surface (/plans
-// count top-up, /secondb chat +2), while the banner list above is passive
-// display space - /secondb stays banner-free even though its reward entry
-// lives there, and /records stays rewarded-free.
+// count top-up, /secondb chat +2), never passive display space. Any route
+// not listed below, /records included, stays rewarded-free.
 
 /** The ONLY routes where a rewarded-ad entry may open (prefix match). "/" is
  *  exact-match by construction (its startsWith arm would need "//"), so listing
@@ -82,8 +63,8 @@ export function isRewardedAdAllowedRoute(route: string): boolean {
 }
 
 /** Build-level switch for the rewarded track: the flag alone. Rewarded ships
- *  via the native AdMob SDK, so the web AdSense client is irrelevant here;
- *  SDK/ad-unit availability is rewarded.ts's own seam (fail-closed, #1068). */
+ *  via the native AdMob SDK; SDK/ad-unit availability is rewarded.ts's own
+ *  seam (fail-closed, #1068). */
 export function rewardedAdsConfigured(): boolean {
   if (!adNetworkPublicationReady()) return false;
   const env = getEnv();
@@ -91,7 +72,7 @@ export function rewardedAdsConfigured(): boolean {
 }
 
 /** Rewarded-entry eligibility. Every branch fails closed (null tier, unknown
- *  minor status, unresolved consent all block), mirroring canShowAds. */
+ *  minor status, unresolved consent all block). */
 export function canShowRewardedAds(input: AdEligibilityInput): boolean {
   if (!rewardedAdsConfigured()) return false;
   if (input.tier !== "free") return false; // rule 1 (null/loading fails closed)

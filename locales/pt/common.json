@@ -1,8 +1,4 @@
 {
-  "ads": {
-    "label": "Patrocinado",
-    "removeUpsell": "Prefere sem anúncios? As assinaturas os removem."
-  },
   "app": {
     "name": "PolaScope",
     "tagline": "Um segundo cérebro construído com o que você escreve e salva.",

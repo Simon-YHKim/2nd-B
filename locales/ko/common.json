@@ -1,8 +1,4 @@
 {
-  "ads": {
-    "label": "광고",
-    "removeUpsell": "구독하면 광고 없이 쓸 수 있습니다."
-  },
   "app": {
     "name": "PolaScope",
     "tagline": "내가 쓰고 저장한 것들로 만드는 두번째 뇌.",
