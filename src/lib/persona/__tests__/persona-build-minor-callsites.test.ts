@@ -22,40 +22,59 @@
 //   1. the age argument is present (buildPersona's 3rd argument, or `minor` in the opts
 //      object of the other two) and nothing after it in that object can override it (a
 //      later spread, a later computed key, an accessor);
-//   2. it is never an adult default - no `false` literal and no `?? false` / `|| false`;
-//   3. a screen (.tsx) passes `isMinor === true`, and some function enclosing the call
-//      has an unconditional `if (... || isMinor === null) return;` as a top-level
-//      statement of its body, ahead of the statement that holds the call. A guard nested
-//      inside another `if`, or a closure built before the guard, does not count
-//      (fail-closed while the age is unknown, the /review pattern). The guard is a bare
-//      `return;`, and a hoisted helper that holds the call is not named in or before it,
-//      so the guard cannot itself run the build. The `isMinor` the call passes is the
-//      same binding the guard checked (not a nearer parameter or const of that name), and
-//      nothing assigns to it;
+//   2. it is never an adult default - no adult constant and no fallback to one ("Adult"
+//      below: `false`, `isMinor ?? false`, `known ? isMinor : false`, ...);
+//   3. a screen (.tsx) passes `isMinor === true`, and the function that makes the call
+//      (the nearest function around it, not one further out) has an unconditional
+//      `if (... || isMinor === null) return;` as a top-level statement of its body, ahead
+//      of the statement that holds the call (fail-closed while the age is unknown, the
+//      /review pattern). A guard nested inside another `if`, or a guard in an outer
+//      function, does not count: a helper can be called before the outer guard however
+//      late it is written (QA 261004 gate r4). The guard is a bare `return;`. The
+//      `isMinor` the call passes is the binding the guard checked, that binding is the
+//      resolved age, and nothing assigns to it. The resolved age is
+//      `const { isMinor } = useAuth()` with `useAuth` imported from the auth context, or a
+//      verified prop: the props of a component that is not exported, whose name is only
+//      ever a JSX tag in its file, and whose every render passes `isMinor={x}` with no
+//      spread and `x` resolved the same way (/review's keyed session). A plain parameter
+//      or a value from anywhere else is not: a helper that takes the age as an argument
+//      has no resolved age behind it (gate r4). `cloneElement` re-propping a rendered
+//      element is outside this syntactic check, as are dynamic keys and `eval`;
 //   4. outside a screen (.ts) the only calls are the listed library chain
 //      exportIden -> buildIdenDoc -> buildPersona. Each one passes on the age its own
 //      caller gave it, read from its own required `opts` parameter, and nothing in that
-//      function writes to `opts`, aliases it, or hands it to a call before the build.
+//      function writes to `opts`, aliases it, or hands it to a call before the build. A
+//      hand-off inside a nested function counts as before the build wherever it is
+//      written, since a hoisted helper can run first (gate r4).
 //      Any other .ts call is a wrapper (QA 261004 gate r3): a wrapper's age has no screen
 //      guard behind it, so `wrap(u, minor = false)` would pass rules 1-2 on `minor`.
 // And over every source file under src/, persona chain or not:
-//   5. no parameter, binding, or variable named `minor` / `isMinor` defaults to adult
-//      (`= false`, `= x ?? false`, `{ minor: m = false }`);
-//   6. no `minor` / `isMinor` property or variable is written an adult value
-//      (`{ minor: false }`, `x.minor = false`, `x["minor"] = y ?? false`).
+//   5. no parameter, binding, variable, or class field named `minor` / `isMinor` defaults
+//      to adult (`= false`, `= x ?? false`, `{ minor: m = false }`, `({ minor = false } = o)`);
+//   6. no `minor` / `isMinor` property, variable, JSX attribute, or positional argument is
+//      written an adult value (`{ minor: false }`, `x.minor = false`, `<P minor={false} />`,
+//      and `f(x, false)` where some function `f` in src takes `minor` at that position).
+//   "Adult" is any constant that is falsy whatever runs (`false`, `!true`, `0`, `""`), or
+//   an expression that falls back to one (`?? F`, `|| F`, `&& F`, a `?:` branch). `null`
+//   and `undefined` are not: `isMinor` is null while the age is unknown, and rule 3
+//   handles that state. Names other than `minor` / `isMinor` are out of reach here; for
+//   the persona chain, rules 1-4 hold the age whatever it is called.
 //   Rules 5 and 6 are ratchets: the sites that predate them (2026-10-05) are frozen in
-//   KNOWN_AGE_DEFAULTS / KNOWN_AGE_WRITES. A new one anywhere fails, and an entry whose
-//   site is gone fails until it is deleted, so the lists only shrink. None of the frozen
-//   sites is on the persona build path - rule 4 keeps every .ts builder call on the
-//   listed chain - and removing them changes callLlm and the crisis classifier for every
-//   other caller, which is its own decision.
+//   KNOWN_AGE_DEFAULTS / KNOWN_AGE_WRITES, one entry per site (gate r4: an entry is the
+//   site's function, name, shape, text, and the calls around it, not the function
+//   alone). A new site anywhere fails, a second site in a frozen function fails, and an
+//   entry whose site is gone fails until it is deleted, so the lists only shrink. Some
+//   frozen functions sit under the persona build (callLlm -> routeCrisis ->
+//   crisisHotlines), but that path hands them the age explicitly, so their defaults do
+//   not fire there. Removing the defaults changes callLlm and the crisis classifier for
+//   every other caller, which is its own decision.
 //
 // The bottom blocks feed the checker one small source per bypass form, so a rule that
 // stops seeing its case turns this suite red instead of passing on a tree that happens
 // to be clean (QA 261004 gates r2 and r3, GATE-TEST-001).
 
 import { readdirSync, readFileSync } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { join, posix as posixPath, relative, sep } from "node:path";
 import * as ts from "typescript";
 
 const ROOT = join(__dirname, "..", "..", "..", "..");
@@ -73,32 +92,45 @@ const LIBRARY_SITES: ReadonlyArray<{ file: string; fn: string; callee: Builder; 
   { file: "src/lib/iden/iden-export.ts", fn: "exportIden", callee: "buildIdenDoc", age: "forward" },
 ];
 const OPTS = "opts";
+/** Rule 3: the only source of a screen's `isMinor` (`useAuth`, imported from here). */
+const AUTH_MODULE = "src/lib/auth/AuthContext";
 
-/** Rule 5 ratchet: `<file> <function> <name>` of every adult age default on 2026-10-05. */
+// Rules 5-6 ratchets, one entry per site that existed on 2026-10-05:
+//   `<file> <function> <name> | <shape> | <text>[ | in <calls and closures around it>]`
+// The same entry twice would allow two sites; each list is the whole allowance.
+
+/** Rule 5 ratchet: every adult age default. */
 const KNOWN_AGE_DEFAULTS: readonly string[] = [
-  "src/lib/interview/probe.ts nextProbe minor",
-  "src/lib/llm/boundary.ts proxyCrisisSafetyResult minor",
-  "src/lib/llm/boundary.ts classifyRecordTextForCrisis minor",
-  "src/lib/llm/boundary.ts classifyInterviewTextForCrisis minor",
-  "src/lib/llm/boundary.ts routeCrisis minor",
-  "src/lib/llm/safety.ts fixedCrisisResponse minor",
-  "src/lib/persona/persona-synthesis.ts synthesizePersonas minor",
-  "src/lib/persona/propose-self-model.ts proposeSelfModelChange minor",
-  "src/lib/persona/role-cards.ts proposeRoleCards minor",
-  "src/lib/records/records-embeddings.ts embedAndStoreRecord minor",
-  "src/lib/safety/classifier.ts crisisHotlines minor",
-  "src/lib/safety/classifier.ts pickCrisisHotline minor",
-  "src/lib/wiki/capture-image.ts ocrImageAsset minor",
-  "src/lib/wiki/classify-clipper.ts classifyClipper minor",
-  "src/lib/wiki/embeddings.ts embedAndStorePage minor",
-  "src/lib/wiki/propose-template.ts proposeClipperTemplate minor",
+  "src/lib/interview/probe.ts nextProbe minor | param | minor = false",
+  "src/lib/llm/boundary.ts proxyCrisisSafetyResult minor | param | minor = false",
+  "src/lib/llm/boundary.ts classifyRecordTextForCrisis minor | param | minor = false",
+  "src/lib/llm/boundary.ts classifyInterviewTextForCrisis minor | param | minor = false",
+  "src/lib/llm/boundary.ts routeCrisis minor | param | minor = false",
+  "src/lib/llm/safety.ts fixedCrisisResponse minor | param | minor = false",
+  "src/lib/persona/persona-synthesis.ts synthesizePersonas minor | param | minor = false",
+  "src/lib/persona/propose-self-model.ts proposeSelfModelChange minor | param | minor = false",
+  "src/lib/persona/role-cards.ts proposeRoleCards minor | param | minor = false",
+  "src/lib/records/records-embeddings.ts embedAndStoreRecord minor | param | minor = false",
+  "src/lib/safety/classifier.ts crisisHotlines minor | param | minor = false",
+  "src/lib/safety/classifier.ts pickCrisisHotline minor | param | minor = false",
+  "src/lib/wiki/capture-image.ts ocrImageAsset minor | param | minor = false",
+  "src/lib/wiki/classify-clipper.ts classifyClipper minor | param | minor = false",
+  "src/lib/wiki/embeddings.ts embedAndStorePage minor | param | minor = false",
+  "src/lib/wiki/propose-template.ts proposeClipperTemplate minor | param | minor = false",
 ];
 
-/** Rule 6 ratchet: `<file> <function> <name>` of every adult age write on 2026-10-05. */
+/** Rule 6 ratchet: every adult age write. */
 const KNOWN_AGE_WRITES: readonly string[] = [
-  "src/lib/chat/rag.ts retrieveChatContext minor",
-  "src/lib/records/records-embeddings.ts backfillRecordEmbeddings minor",
-  "src/lib/wiki/embeddings.ts backfillEmbeddings minor",
+  "src/lib/chat/rag.ts retrieveChatContext minor | prop | minor: opts.minor ?? false | in embedTexts()",
+  "src/lib/records/records-embeddings.ts backfillRecordEmbeddings minor | prop | minor: opts.minor ?? false | in embedTexts()",
+  "src/lib/wiki/embeddings.ts backfillEmbeddings minor | prop | minor: opts.minor ?? false | in embedTexts()",
+  // Positional ones, frozen when rule 6 began reading call arguments (gate r4). The two in
+  // create.ts sit behind `if (args.minor === true ...) return;`, so they are adult only
+  // when the caller left the age out.
+  "src/lib/records/create.ts embedRecordDetached isMinor | arg | false | in recordsEmbeddingAllowed() < => < <expr>()",
+  "src/lib/records/create.ts embedRecordDetached minor | arg | false | in embedAndStoreRecord() < => < <expr>()",
+  "src/lib/records/records-embeddings.ts backfillRecordEmbeddings minor | arg | opts.minor ?? false | in embedAndStoreRecord()",
+  "src/lib/wiki/embeddings.ts backfillEmbeddings minor | arg | opts.minor ?? false | in embedAndStorePage()",
 ];
 
 const AGE_NAME = /^(minor|isMinor)$/;
@@ -400,21 +432,46 @@ function ageArgument(site: CallSite): AgeArg {
   return { kind: "expr", expr: age };
 }
 
-/** True when the expression is, or contains, an adult default. */
+/**
+ * A constant that is falsy whatever runs: `false`, `0`, `""`, `!true`, `!1`, `!!0`. Not
+ * `null` / `undefined`: `isMinor` is null while the age is unknown (rule 3's state).
+ */
+function staticFalsy(expr: ts.Expression): boolean {
+  const e = unwrap(expr);
+  if (e.kind === ts.SyntaxKind.FalseKeyword) return true;
+  if (ts.isNumericLiteral(e)) return Number(e.text) === 0;
+  if (ts.isStringLiteralLike(e)) return e.text === "";
+  return ts.isPrefixUnaryExpression(e) && e.operator === ts.SyntaxKind.ExclamationToken && staticTruthy(e.operand);
+}
+
+function staticTruthy(expr: ts.Expression): boolean {
+  const e = unwrap(expr);
+  if (e.kind === ts.SyntaxKind.TrueKeyword) return true;
+  if (ts.isNumericLiteral(e)) return Number(e.text) !== 0;
+  if (ts.isStringLiteralLike(e)) return e.text !== "";
+  if (ts.isObjectLiteralExpression(e) || ts.isArrayLiteralExpression(e) || ts.isArrowFunction(e) || ts.isFunctionExpression(e)) {
+    return true;
+  }
+  return ts.isPrefixUnaryExpression(e) && e.operator === ts.SyntaxKind.ExclamationToken && staticFalsy(e.operand);
+}
+
+const FALLBACK_OPS = [ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.AmpersandAmpersandToken];
+
+/**
+ * True when the expression is an adult constant, has one as a `?:` branch, or contains a
+ * fallback to one (`x ?? F`, `x || F`, `x && F`).
+ */
 function defaultsToAdult(expr: ts.Expression): boolean {
-  let found = unwrap(expr).kind === ts.SyntaxKind.FalseKeyword;
+  const e = unwrap(expr);
+  if (staticFalsy(e)) return true;
+  if (ts.isConditionalExpression(e) && (defaultsToAdult(e.whenTrue) || defaultsToAdult(e.whenFalse))) return true;
+  let found = false;
   const visit = (node: ts.Node): void => {
-    if (
-      ts.isBinaryExpression(node) &&
-      (node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken ||
-        node.operatorToken.kind === ts.SyntaxKind.BarBarToken) &&
-      unwrap(node.right).kind === ts.SyntaxKind.FalseKeyword
-    ) {
-      found = true;
-    }
-    ts.forEachChild(node, visit);
+    if (found) return;
+    if (ts.isBinaryExpression(node) && FALLBACK_OPS.includes(node.operatorToken.kind) && staticFalsy(node.right)) found = true;
+    else ts.forEachChild(node, visit);
   };
-  visit(expr);
+  visit(e);
   return found;
 }
 
@@ -445,51 +502,148 @@ function contains(outer: ts.Node, inner: ts.Node): boolean {
   return false;
 }
 
-function mentions(node: ts.Node, name: string): boolean {
-  let found = false;
-  const visit = (n: ts.Node): void => {
-    if (found) return;
-    if (ts.isIdentifier(n) && n.text === name) found = true;
-    else ts.forEachChild(n, visit);
-  };
-  visit(node);
-  return found;
+/** The function whose own body runs this node: the nearest function-like around it. */
+function nearestFunction(node: ts.Node): ts.SignatureDeclaration | undefined {
+  for (let n: ts.Node | undefined = node.parent; n; n = n.parent) if (ts.isFunctionLike(n)) return n;
+  return undefined;
 }
 
 /**
  * The unconditional unknown-age guards that have run before the call: the `isMinor` of each.
  *
- * A guard has to be a top-level statement of an enclosing function's body. Statements of
- * one block run in order, so a guard there has always run (and returned on a null age) by
- * the time any later statement starts - which is not true of a guard inside some other `if`
- * or `try`. The statement holding the call has to come after the guard, so a closure built
- * before the guard does not borrow it. A hoisted `function` declaration can run before the
- * guard however late it is written, or from inside the guard's own condition, so it counts
- * only when nothing up to and including the guard names it. "Unconditional" also means
- * `isMinor === null` is one disjunct of the `||` chain: `x && isMinor === null` lets the
- * build run when x is false.
+ * A guard has to be a top-level statement of the body of the function that makes the
+ * call. Statements of one block run in order, so a guard there has always run (and
+ * returned on a null age) by the time any later statement of the same call starts - which
+ * is not true of a guard inside some other `if` or `try`. The statement holding the call
+ * has to come after the guard, so a guard cannot run the build from its own condition.
+ *
+ * A guard in a function further out never counts (QA 261004 gate r4). Where a helper is
+ * written says nothing about when it runs: a hoisted `function` declared after the guard
+ * can be called before it, directly or through another helper, so the only order this
+ * check can trust is the one inside a single body. A helper that builds guards itself.
+ * "Unconditional" also means `isMinor === null` is one disjunct of the `||` chain:
+ * `x && isMinor === null` lets the build run when x is false.
  */
 function unknownAgeGuards(site: CallSite): ts.Identifier[] {
+  const fn = nearestFunction(site.call);
+  const body = fn && (fn as ts.FunctionLikeDeclaration).body;
+  if (!body || !ts.isBlock(body)) return [];
+  const stmts = body.statements;
+  // -1 when the call is not in the body at all (a parameter default): no guard has run.
+  const holderAt = stmts.findIndex((s) => contains(s, site.call));
   const found: ts.Identifier[] = [];
-  for (let node: ts.Node | undefined = site.call.parent; node; node = node.parent) {
-    if (!ts.isFunctionLike(node)) continue;
-    const body = (node as ts.FunctionLikeDeclaration).body;
-    if (!body || !ts.isBlock(body)) continue;
-    const stmts = body.statements;
-    const holderAt = stmts.findIndex((s) => contains(s, site.call));
-    if (holderAt === -1) continue;
-    const holder = stmts[holderAt];
-    for (let i = 0; i < holderAt; i++) {
-      const guard = unknownAgeGuard(stmts[i], site.sf);
-      if (!guard) continue;
-      if (ts.isFunctionDeclaration(holder) && holder.name) {
-        const name = holder.name.text;
-        if (stmts.slice(0, i + 1).some((s) => mentions(s, name))) continue;
-      }
-      found.push(guard);
-    }
+  for (let i = 0; i < holderAt; i++) {
+    const guard = unknownAgeGuard(stmts[i], site.sf);
+    if (guard) found.push(guard);
   }
   return found;
+}
+
+/** Where a module specifier points, as a repo path with no extension, for `@/` and relative specifiers. */
+function importTarget(file: string, spec: string): string | undefined {
+  if (spec.startsWith("@/")) return `src/${spec.slice(2)}`;
+  if (spec.startsWith(".")) return posixPath.normalize(posixPath.join(posixPath.dirname(file), spec));
+  return undefined;
+}
+
+/** The name a function is declared or assigned under, and the node its export flags sit on. */
+function componentName(fn: ts.SignatureDeclaration): { name: ts.Identifier; decl: ts.Declaration } | undefined {
+  if (ts.isFunctionDeclaration(fn) && fn.name) return { name: fn.name, decl: fn };
+  if ((ts.isArrowFunction(fn) || ts.isFunctionExpression(fn)) && ts.isVariableDeclaration(fn.parent) && ts.isIdentifier(fn.parent.name)) {
+    return { name: fn.parent.name, decl: fn.parent };
+  }
+  return undefined;
+}
+
+/**
+ * Why an `isMinor` that is a component's prop is not the resolved age, or undefined when it
+ * is. The /review session takes the age as a prop: its screen reads `useAuth()` and keys a
+ * session on the age, so a switch of user or age remounts it. That is a verified prop when
+ * the component cannot be given the age by anyone else: it is not exported, every use of
+ * its name in the file is a JSX tag, and every render passes `isMinor={x}` once, with no
+ * spread, where `x` is itself the resolved age (from `useAuth()`, or such a prop again).
+ */
+function propSourceProblem(param: ts.ParameterDeclaration, file: string, sf: ts.SourceFile, seen: Set<ts.Node>): string | undefined {
+  const fn = param.parent;
+  if (fn.parameters[0] !== param) return "is not taken from a component's props (its first parameter)";
+  const component = componentName(fn);
+  if (!component) return "is a prop of an anonymous component, whose renders cannot be found";
+  const { name } = component;
+  if (ts.getCombinedModifierFlags(component.decl) & (ts.ModifierFlags.Export | ts.ModifierFlags.Default)) {
+    return `is a prop of \`${name.text}\`, which is exported, so other files can render it with any age`;
+  }
+  let renders = 0;
+  let problem: string | undefined;
+  const visit = (n: ts.Node): void => {
+    if (problem) return;
+    if (ts.isIdentifier(n) && n !== name && n.text === name.text && declarationOf(n) === name) {
+      const p = n.parent;
+      const line = lineOf(sf, n);
+      if (ts.isJsxClosingElement(p) && p.tagName === n) return;
+      if (!(ts.isJsxOpeningElement(p) || ts.isJsxSelfClosingElement(p)) || p.tagName !== n) {
+        problem = `is a prop of \`${name.text}\`, which line ${line} uses as a value, not only renders`;
+        return;
+      }
+      renders++;
+      const attrs = p.attributes.properties;
+      if (attrs.some((a) => ts.isJsxSpreadAttribute(a))) {
+        problem = `is a prop of \`${name.text}\`, rendered at line ${line} with a spread, which can carry any \`isMinor\``;
+        return;
+      }
+      const given = attrs.filter((a): a is ts.JsxAttribute => ts.isJsxAttribute(a) && a.name.getText(sf) === "isMinor");
+      const init = given.length === 1 ? given[0].initializer : undefined;
+      const value = init && ts.isJsxExpression(init) && init.expression ? unwrap(init.expression) : undefined;
+      if (!value || !ts.isIdentifier(value)) {
+        problem = `is a prop of \`${name.text}\`, rendered at line ${line} without one plain \`isMinor={name}\``;
+        return;
+      }
+      const from = declarationOf(value);
+      const why = from ? ageSourceProblem(from, file, sf, seen) : "is not declared in this file";
+      const written = from && !why ? writesTo(from, sf) : undefined;
+      if (why) problem = `is a prop of \`${name.text}\`, rendered at line ${line} with an \`isMinor\` that ${why}`;
+      else if (written !== undefined) problem = `is a prop of \`${name.text}\`, rendered at line ${line} with an \`isMinor\` assigned at line ${written}`;
+      return;
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(sf);
+  if (problem) return problem;
+  return renders === 0 ? `is a prop of \`${name.text}\`, which this file never renders` : undefined;
+}
+
+/**
+ * Why this `isMinor` binding is not the resolved age from the auth context, or undefined
+ * when it is: `const { isMinor } = useAuth()` (or `{ isMinor: isMinor }`), no default, with
+ * `useAuth` the name imported from AUTH_MODULE, or a verified prop (propSourceProblem). A
+ * plain parameter, a renamed field, or a local `useAuth` all fail: their value is whatever
+ * a caller chose (QA 261004 gate r4).
+ */
+function ageSourceProblem(decl: ts.Identifier, file: string, sf: ts.SourceFile, seen: Set<ts.Node> = new Set()): string | undefined {
+  if (seen.has(decl)) return "is passed back to itself";
+  seen.add(decl);
+  const el = decl.parent;
+  if (!ts.isBindingElement(el) || el.name !== decl || !ts.isObjectBindingPattern(el.parent)) {
+    return "is not destructured from an object (a parameter, a plain variable, or an import)";
+  }
+  if (el.initializer || el.dotDotDotToken) return "has a default or is a rest element";
+  if ((el.propertyName ? keyOf(el.propertyName) : decl.text) !== "isMinor") return "is another field renamed to `isMinor`";
+  const v = el.parent.parent;
+  if (ts.isParameter(v)) return propSourceProblem(v, file, sf, seen);
+  if (!ts.isVariableDeclaration(v) || !v.initializer || !(v.parent.flags & ts.NodeFlags.Const)) {
+    return "is not a `const` declaration with a value (a parameter or a `let`)";
+  }
+  const init = unwrap(v.initializer);
+  if (!ts.isCallExpression(init) || init.arguments.length > 0 || !ts.isIdentifier(init.expression) || init.expression.text !== "useAuth") {
+    return "is not read from `useAuth()`";
+  }
+  const hook = declarationOf(init.expression);
+  const spec = hook?.parent;
+  if (!spec || !ts.isImportSpecifier(spec) || spec.isTypeOnly || (spec.propertyName && spec.propertyName.text !== "useAuth")) {
+    return "reads a `useAuth` that is not the imported hook";
+  }
+  const importDecl = spec.parent.parent.parent;
+  const from = ts.isStringLiteral(importDecl.moduleSpecifier) ? importTarget(file, importDecl.moduleSpecifier.text) : undefined;
+  return from === AUTH_MODULE ? undefined : `reads \`useAuth\` from somewhere other than ${AUTH_MODULE}`;
 }
 
 const where = (s: CallSite): string => `${s.file}:${s.line} ${s.callee}`;
@@ -514,7 +668,7 @@ function screenViolations(site: CallSite): string[] {
   if (text !== "isMinor === true") bad.push(`${where(site)}: age is \`${text || age.kind}\`, not \`isMinor === true\``);
   const guards = unknownAgeGuards(site);
   if (guards.length === 0) {
-    bad.push(`${where(site)}: no \`if (... || isMinor === null) return;\` before the build`);
+    bad.push(`${where(site)}: no \`if (... || isMinor === null) return;\` before the build, in the function that makes it`);
     return bad;
   }
   if (age.kind !== "expr" || text !== "isMinor === true") return bad;
@@ -523,13 +677,18 @@ function screenViolations(site: CallSite): string[] {
     bad.push(`${where(site)}: the \`isMinor\` it passes is not the one a guard checked (a nearer binding shadows it)`);
     return bad;
   }
+  const source = ageSourceProblem(passed, site.file, site.sf);
+  if (source) {
+    bad.push(`${where(site)}: the \`isMinor\` it passes is not the resolved age from \`useAuth()\`: it ${source}`);
+    return bad;
+  }
   const written = writesTo(passed, site.sf);
   if (written !== undefined) bad.push(`${where(site)}: \`isMinor\` is assigned at line ${written}, so the guarded value may not be the one passed`);
   return bad;
 }
 
 /** What is wrong with one use of the library function's own `opts`, if anything. */
-function optsUseProblem(id: ts.Identifier, stmts: ts.NodeArray<ts.Statement>, buildAt: number): string | undefined {
+function optsUseProblem(id: ts.Identifier, fn: ts.FunctionDeclaration, stmts: ts.NodeArray<ts.Statement>, buildAt: number): string | undefined {
   const p = id.parent;
   if (ts.isPropertyAccessExpression(p) && p.expression === id) {
     // `opts.x` is a read, unless the access chain is written, deleted, or called as a method.
@@ -547,6 +706,10 @@ function optsUseProblem(id: ts.Identifier, stmts: ts.NodeArray<ts.Statement>, bu
     return undefined;
   }
   if (ts.isCallExpression(p) && p.arguments.includes(id)) {
+    // Inside a nested function, where the hand-off is written says nothing about when it
+    // runs: a hoisted helper declared after the build can be called before it (QA 261004
+    // gate r4). Only the function's own statements run in the order they are written.
+    if (nearestFunction(p) !== fn) return "hands it to a call inside a nested function, which can run before the build";
     // Handed on after the build has the age it was given: nothing it does reaches that build.
     const at = stmts.findIndex((s) => contains(s, p));
     return buildAt !== -1 && at > buildAt ? undefined : "hands it to a call before the build, which can change it";
@@ -586,12 +749,13 @@ function libraryViolations(site: CallSite): string[] {
   if (!ref || ref.text !== OPTS) return [`${where(site)}: passes the age as something other than \`${want}\``];
   if (declarationOf(ref) !== declared) return [`${where(site)}: \`${OPTS}\` here is not \`${entry.fn}\`'s parameter (shadowed)`];
 
+  const fnDecl = fn;
   const stmts = fn.body.statements;
   const buildAt = stmts.findIndex((s) => contains(s, site.call));
   const bad: string[] = [];
   const visit = (n: ts.Node): void => {
     if (ts.isIdentifier(n) && n.text === OPTS && n !== ref && !isNameOnly(n) && declarationOf(n) === declared) {
-      const why = optsUseProblem(n, stmts, buildAt);
+      const why = optsUseProblem(n, fnDecl, stmts, buildAt);
       if (why) bad.push(`${site.file}:${lineOf(site.sf, n)} ${entry.fn}: \`${norm(n.parent, site.sf).slice(0, 60)}\` ${why}`);
     }
     ts.forEachChild(n, visit);
@@ -603,25 +767,55 @@ function libraryViolations(site: CallSite): string[] {
 // ---- Rules 5-6, per file
 
 interface AgeWrite {
+  /** `<file> <function> <name>`: where, for a reader. */
   key: string;
+  /** The ratchet's identity of one site: key, shape, text, and the calls and closures around it. */
+  id: string;
   at: string;
   text: string;
 }
 
-/** The nearest named function (or the const it is assigned to) around a node. */
-function ownerOf(node: ts.Node): string {
+type AgeShape = "param" | "binding" | "var" | "field" | "assign-default" | "prop" | "assign" | "jsx" | "arg";
+
+/** A function's own name, or the const / key it is assigned to; undefined when anonymous. */
+function functionName(fn: ts.Node): string | undefined {
+  const named = (fn as ts.Node & { name?: ts.Node }).name;
+  if (named && (ts.isIdentifier(named) || ts.isStringLiteral(named))) return named.text;
+  const host = fn.parent;
+  if (host && ts.isVariableDeclaration(host) && ts.isIdentifier(host.name)) return host.name.text;
+  if (host && ts.isPropertyAssignment(host)) return keyOf(host.name);
+  return undefined;
+}
+
+/** The name a call is made by: `f(...)` and `x.f(...)` give f. */
+function calleeName(expr: ts.Expression): string {
+  const e = unwrap(expr);
+  if (ts.isIdentifier(e)) return e.text;
+  if (ts.isPropertyAccessExpression(e)) return e.name.text;
+  if (ts.isElementAccessExpression(e) && ts.isStringLiteralLike(e.argumentExpression)) return e.argumentExpression.text;
+  return "<expr>";
+}
+
+/**
+ * The nearest named function around a node (the owner), and what lies between them: each
+ * call or JSX element the node sits in, and `=>` for each anonymous function. Siblings do
+ * not enter it, so an edit elsewhere in the function leaves a frozen site's identity alone,
+ * while moving the site into another call, closure, or element changes it.
+ */
+function siteOf(node: ts.Node, sf: ts.SourceFile): { owner: string; path: string[] } {
+  const path: string[] = [];
   for (let n: ts.Node | undefined = node.parent; n; n = n.parent) {
-    if (!ts.isFunctionLike(n)) continue;
-    const named = (n as ts.Node & { name?: ts.Node }).name;
-    if (named && (ts.isIdentifier(named) || ts.isStringLiteral(named))) return named.text;
-    const host = n.parent;
-    if (host && ts.isVariableDeclaration(host) && ts.isIdentifier(host.name)) return host.name.text;
-    if (host && ts.isPropertyAssignment(host)) {
-      const key = keyOf(host.name);
-      if (key) return key;
+    if (ts.isCallExpression(n)) path.push(`${calleeName(n.expression)}()`);
+    else if (ts.isNewExpression(n)) path.push(`new ${calleeName(n.expression)}()`);
+    else if (ts.isJsxOpeningElement(n) || ts.isJsxSelfClosingElement(n)) path.push(`<${norm(n.tagName, sf)}>`);
+    else if ((ts.isClassDeclaration(n) || ts.isClassExpression(n)) && n.name) return { owner: n.name.text, path };
+    else if (ts.isFunctionLike(n)) {
+      const name = functionName(n);
+      if (name) return { owner: name, path };
+      path.push("=>");
     }
   }
-  return "<module>";
+  return { owner: "<module>", path };
 }
 
 /** The age name a parameter, binding, or variable declares (or reads, for `{ minor: m }`). */
@@ -645,25 +839,77 @@ function ageTargetName(target: ts.Expression): string | undefined {
   return undefined;
 }
 
+/**
+ * Every function in a file that takes an age as a plain positional parameter, by the name
+ * it is called by: parameter index -> parameter name. Rule 6 then reads that position of
+ * every call by that name. Names are not resolved through imports, so two functions of the
+ * same name share an entry; that can only add a report, never hide one.
+ */
+type AgeParams = Map<string, Map<number, string>>;
+function collectAgeParams(sf: ts.SourceFile, into: AgeParams): void {
+  const visit = (n: ts.Node): void => {
+    if (ts.isFunctionLike(n)) {
+      const name = functionName(n);
+      n.parameters.forEach((p, i) => {
+        if (!name || !ts.isIdentifier(p.name) || !AGE_NAME.test(p.name.text)) return;
+        const at = into.get(name) ?? new Map<number, string>();
+        at.set(i, p.name.text);
+        into.set(name, at);
+      });
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(sf);
+}
+
 /** Rules 5 and 6 over one file. */
-function ageWrites(file: string, sf: ts.SourceFile): { defaults: AgeWrite[]; writes: AgeWrite[] } {
+function ageWrites(file: string, sf: ts.SourceFile, ageParams: AgeParams): { defaults: AgeWrite[]; writes: AgeWrite[] } {
   const defaults: AgeWrite[] = [];
   const writes: AgeWrite[] = [];
-  const add = (list: AgeWrite[], node: ts.Node, name: string): void => {
-    list.push({ key: `${file} ${ownerOf(node)} ${name}`, at: `${file}:${lineOf(sf, node)}`, text: norm(node, sf).slice(0, 80) });
+  const add = (list: AgeWrite[], node: ts.Node, name: string, shape: AgeShape): void => {
+    const { owner, path } = siteOf(node, sf);
+    const key = `${file} ${owner} ${name}`;
+    const text = norm(node, sf);
+    const id = `${key} | ${shape} | ${text}${path.length > 0 ? ` | in ${path.join(" < ")}` : ""}`;
+    list.push({ key, id, at: `${file}:${lineOf(sf, node)}`, text: text.slice(0, 80) });
   };
   const visit = (n: ts.Node): void => {
+    // Rule 5: defaults.
     if ((ts.isParameter(n) || ts.isBindingElement(n) || ts.isVariableDeclaration(n)) && n.initializer) {
       const name = ageBindingName(n);
-      if (name && defaultsToAdult(n.initializer)) add(defaults, n, name);
+      const shape = ts.isParameter(n) ? "param" : ts.isBindingElement(n) ? "binding" : "var";
+      if (name && defaultsToAdult(n.initializer)) add(defaults, n, name, shape);
     }
+    if (ts.isPropertyDeclaration(n) && n.initializer) {
+      const key = keyOf(n.name);
+      if (key && AGE_NAME.test(key) && defaultsToAdult(n.initializer)) add(defaults, n, key, "field");
+    }
+    // `({ minor = false } = opts)`: a destructuring assignment's default.
+    if (ts.isShorthandPropertyAssignment(n) && n.objectAssignmentInitializer && AGE_NAME.test(n.name.text)) {
+      if (defaultsToAdult(n.objectAssignmentInitializer)) add(defaults, n, n.name.text, "assign-default");
+    }
+    // Rule 6: writes.
     if (ts.isPropertyAssignment(n)) {
       const key = keyOf(n.name);
-      if (key && AGE_NAME.test(key) && defaultsToAdult(n.initializer)) add(writes, n, key);
+      if (key && AGE_NAME.test(key) && defaultsToAdult(n.initializer)) add(writes, n, key, "prop");
     }
     if (ts.isBinaryExpression(n) && isAssignment(n.operatorToken.kind)) {
       const name = ageTargetName(n.left);
-      if (name && defaultsToAdult(n.right)) add(writes, n, name);
+      if (name && defaultsToAdult(n.right)) add(writes, n, name, "assign");
+    }
+    if (ts.isJsxAttribute(n) && AGE_NAME.test(n.name.getText(sf)) && n.initializer && ts.isJsxExpression(n.initializer)) {
+      const value = n.initializer.expression;
+      if (value && defaultsToAdult(value)) add(writes, n, n.name.getText(sf), "jsx");
+    }
+    if (ts.isCallExpression(n)) {
+      const at = ageParams.get(calleeName(n.expression));
+      const spreadAt = n.arguments.findIndex((a) => ts.isSpreadElement(a));
+      for (const [i, name] of at ?? []) {
+        const arg = n.arguments[i];
+        // After a spread argument the positions are not known; rule 1 already refuses a
+        // spread in a builder call, and elsewhere this rule does not reach it.
+        if (arg && (spreadAt === -1 || i < spreadAt) && defaultsToAdult(arg)) add(writes, arg, name, "arg");
+      }
     }
     ts.forEachChild(n, visit);
   };
@@ -674,13 +920,17 @@ function ageWrites(file: string, sf: ts.SourceFile): { defaults: AgeWrite[]; wri
 let treeAgeWrites: { defaults: AgeWrite[]; writes: AgeWrite[] } | undefined;
 function scanTreeAgeWrites(): { defaults: AgeWrite[]; writes: AgeWrite[] } {
   if (treeAgeWrites) return treeAgeWrites;
+  const files = sourceFiles(SRC).map((full) => ({ full, text: readFileSync(full, "utf8") }));
+  // Every name rules 5-6 look for contains "minor" in some case, and so does every age parameter.
+  const ageParams: AgeParams = new Map();
+  for (const f of files) if (/minor/i.test(f.text)) collectAgeParams(parse(f.full, f.text), ageParams);
+  const callees = [...ageParams.keys()];
   const defaults: AgeWrite[] = [];
   const writes: AgeWrite[] = [];
-  for (const full of sourceFiles(SRC)) {
-    const text = readFileSync(full, "utf8");
-    // Every name rules 5-6 look for contains "minor" in some case.
-    if (!/minor/i.test(text)) continue;
-    const found = ageWrites(posix(relative(ROOT, full)), parse(full, text));
+  for (const f of files) {
+    // A file that names no age and calls no function taking one has nothing for rules 5-6.
+    if (!/minor/i.test(f.text) && !callees.some((c) => f.text.includes(c))) continue;
+    const found = ageWrites(posix(relative(ROOT, f.full)), parse(f.full, f.text), ageParams);
     defaults.push(...found.defaults);
     writes.push(...found.writes);
   }
@@ -688,12 +938,38 @@ function scanTreeAgeWrites(): { defaults: AgeWrite[]; writes: AgeWrite[] } {
   return treeAgeWrites;
 }
 
+/**
+ * Rules 5-6 ratchet. Each frozen entry stands for one site: a found site uses up one
+ * matching entry, so a second site with the same identity is `added` (QA 261004 gate r4,
+ * GATE-RATCHET-001), and an entry nothing used up is `gone`.
+ */
+function ratchet(frozen: readonly string[], found: readonly AgeWrite[]): { added: AgeWrite[]; gone: string[] } {
+  const left = new Map<string, number>();
+  for (const id of frozen) left.set(id, (left.get(id) ?? 0) + 1);
+  const added: AgeWrite[] = [];
+  for (const w of found) {
+    const n = left.get(w.id) ?? 0;
+    if (n > 0) left.set(w.id, n - 1);
+    else added.push(w);
+  }
+  const gone = [...left].flatMap(([id, n]) => Array.from({ length: n }, () => id));
+  return { added, gone };
+}
+
 const show = (w: AgeWrite): string => `${w.at} ${w.key}: \`${w.text}\``;
+
+/** Rules 5-6 over one source text, with the age parameters it declares itself. */
+function fileAgeWrites(file: string, text: string): { defaults: AgeWrite[]; writes: AgeWrite[] } {
+  const sf = parse(file, text);
+  const ageParams: AgeParams = new Map();
+  collectAgeParams(sf, ageParams);
+  return ageWrites(file, sf, ageParams);
+}
 
 /** Every rule against one source text (no ratchet: a fixture is never on a frozen list). */
 function violations(file: string, text: string): string[] {
   const scan = scanSource(file, text);
-  const found = ageWrites(file, parse(file, text));
+  const found = fileAgeWrites(file, text);
   return [
     ...scan.indirect,
     ...scan.sites.flatMap((s) => [...ageViolations(s), ...screenViolations(s), ...libraryViolations(s)]),
@@ -787,27 +1063,27 @@ describe("every persona build carries the resolved age (C10 / DPIA 5A-R7)", () =
     expect(age.kind === "expr" ? age.expr.getText(inner!.sf) : age.kind).toBe("opts.minor");
   });
 
-  test("no age parameter or binding anywhere in src defaults to adult beyond the frozen list (rule 5)", () => {
+  test("no age parameter or binding anywhere in src defaults to adult beyond the frozen sites (rule 5)", () => {
     const { defaults } = scanTreeAgeWrites();
-    expect(defaults.filter((w) => !KNOWN_AGE_DEFAULTS.includes(w.key)).map(show)).toEqual([]);
+    expect(ratchet(KNOWN_AGE_DEFAULTS, defaults).added.map((w) => `${w.at} ${w.id}`)).toEqual([]);
   });
 
-  test("no `minor` anywhere in src is written an adult value beyond the frozen list (rule 6)", () => {
+  test("no `minor` anywhere in src is written an adult value beyond the frozen sites (rule 6)", () => {
     const { writes } = scanTreeAgeWrites();
-    expect(writes.filter((w) => !KNOWN_AGE_WRITES.includes(w.key)).map(show)).toEqual([]);
+    expect(ratchet(KNOWN_AGE_WRITES, writes).added.map((w) => `${w.at} ${w.id}`)).toEqual([]);
   });
 
-  test("the frozen lists only shrink: every entry still names a site in the tree", () => {
+  test("the frozen lists only shrink: every entry still stands for a site in the tree", () => {
     const { defaults, writes } = scanTreeAgeWrites();
-    const gone = (known: readonly string[], found: AgeWrite[]) => known.filter((k) => !found.some((w) => w.key === k));
-    expect(gone(KNOWN_AGE_DEFAULTS, defaults)).toEqual([]);
-    expect(gone(KNOWN_AGE_WRITES, writes)).toEqual([]);
+    expect(ratchet(KNOWN_AGE_DEFAULTS, defaults).gone).toEqual([]);
+    expect(ratchet(KNOWN_AGE_WRITES, writes).gone).toEqual([]);
   });
 });
 
 // One screen per case. `body` is the inside of the async handler; the real screens put
 // the guard first and the build inside `try`, which is the clean control below.
 const IMPORTS = [
+  'import { useAuth } from "@/lib/auth/AuthContext";',
   'import { buildPersona } from "@/lib/persona/build";',
   'import * as persona from "@/lib/persona/build";',
   'import { exportIden } from "@/lib/iden/iden-export";',
@@ -829,12 +1105,12 @@ const FIXTURE = "src/screens/__fixture__/Screen.tsx";
 describe("the checker sees each way around it (GATE-TEST-001)", () => {
   const check = (text: string): string[] => violations(FIXTURE, text);
 
-  test("clean controls stay clean: the /review shape, a spread before `minor`, a late hoisted helper", () => {
+  test("clean controls stay clean: the /review shape, a spread before `minor`, a helper that guards itself", () => {
     expect(check(screen(`${GUARD}\ntry { await buildPersona(userId, "en", isMinor === true); } catch {}`))).toEqual([]);
     expect(check(screen(`${GUARD}\nawait exportIden(userId, { ...overrideOpts, locale: "en", minor: isMinor === true });`))).toEqual([]);
     expect(check(screen(`${GUARD}\nawait persona.buildPersona(userId, "en", isMinor === true);`))).toEqual([]);
-    // persona.tsx's shape: guard, then a function declaration, then its call.
-    expect(check(screen(`${GUARD}\nfunction go() { void buildPersona(userId!, "en", isMinor === true); }\ngo();`))).toEqual([]);
+    // persona.tsx's shape: a function declaration that checks the age itself, then its call.
+    expect(check(screen(`${GUARD}\nfunction go() { ${GUARD} void buildPersona(userId, "en", isMinor === true); }\ngo();`))).toEqual([]);
   });
 
   test("an aliased import is reported", () => {
@@ -1027,14 +1303,230 @@ describe("the checker sees each way around it (QA 261004 gate r3, GATE-TEST-001)
   });
 
   test("the `isMinor` passed has to be the one the guard checked (rule 3)", () => {
-    // A parameter of the same name in a closure built after the guard.
+    // A parameter of the same name in a closure built after the guard: the closure has no
+    // guard of its own, and with one, its parameter is not the age from useAuth().
     expect(check(screen(`${GUARD}\nconst inner = (isMinor: boolean | null) => buildPersona(userId!, "en", isMinor === true);\nawait inner(null);`)).join("\n"))
-      .toMatch(/is not the one a guard checked/);
+      .toMatch(/no `if \(\.\.\. \|\| isMinor === null\) return;` before the build, in the function that makes it/);
+    expect(check(screen(`${GUARD}\nconst inner = (isMinor: boolean | null) => { if (isMinor === null) return; return buildPersona(userId!, "en", isMinor === true); };\nawait inner(false);`)).join("\n"))
+      .toMatch(/is not the resolved age from `useAuth\(\)`: it is not destructured from an object/);
     // A block-scoped const of the same name.
     expect(check(screen(`${GUARD}\n{ const isMinor: boolean | null = null; await buildPersona(userId!, "en", isMinor === true); }`)).join("\n"))
       .toMatch(/is not the one a guard checked/);
     // The guarded binding itself, reassigned after the guard.
     expect(check(screen(`${GUARD}\nisMinor = await refetchAge();\nawait buildPersona(userId!, "en", isMinor === true);`)).join("\n"))
       .toMatch(/`isMinor` is assigned at line \d+/);
+  });
+});
+
+// ---- QA 261004 gate r4: a .tsx helper's age, helper order, and the ratchet per site.
+
+describe("the checker sees each way around it (QA 261004 gate r4, GATE-TEST-001 / GATE-RATCHET-001)", () => {
+  const check = (text: string): string => violations(FIXTURE, text).join("\n");
+  const NOT_FROM_AUTH = /is not the resolved age from `useAuth\(\)`/;
+
+  test("a .tsx helper that takes the age as an argument is reported, however it guards it (rule 3)", () => {
+    // The helper guards its own parameter, so rules 1-3 alone would pass it, and its
+    // caller hands it `false`.
+    const moduleHelper = [
+      IMPORTS,
+      "async function exportFor(userId: string, isMinor: boolean | null) {",
+      "  if (!userId || isMinor === null) return;",
+      '  await buildPersona(userId, "en", isMinor === true);',
+      "}",
+      "export function Screen() {",
+      "  const { userId } = useAuth();",
+      "  async function run() { if (!userId) return; await exportFor(userId, false); }",
+      "}",
+    ].join("\n");
+    expect(check(moduleHelper)).toMatch(NOT_FROM_AUTH);
+    // The same helper inside the component.
+    expect(check(screen(`${GUARD}\nasync function inner(isMinor: boolean | null) { if (isMinor === null) return; await buildPersona(userId!, "en", isMinor === true); }\nawait inner(false);`)))
+      .toMatch(NOT_FROM_AUTH);
+  });
+
+  test("the guarded `isMinor` has to be the one useAuth() resolved, nothing else of that name (rule 3)", () => {
+    const local = (decl: string, imports: string = IMPORTS) =>
+      check(screen(`${decl}\nif (!userId || isMinor === null) return;\nawait buildPersona(userId, "en", isMinor === true);`, imports));
+    // Another hook, a renamed field, a default, a `let`.
+    expect(local("const { isMinor } = useProfile();")).toMatch(/it is not read from `useAuth\(\)`/);
+    expect(local("const { isAdult: isMinor } = useAuth();")).toMatch(/it is another field renamed to `isMinor`/);
+    expect(local("const { isMinor = null } = useAuth();")).toMatch(/it has a default/);
+    expect(local("let { isMinor } = useAuth();")).toMatch(/it is not a `const` declaration/);
+    // A `useAuth` that is not the hook from the auth context.
+    const fake = IMPORTS.replace('"@/lib/auth/AuthContext"', '"@/lib/auth/fake-auth"');
+    expect(local("const { isMinor } = useAuth();", fake)).toMatch(/reads `useAuth` from somewhere other than src\/lib\/auth\/AuthContext/);
+    expect(local("const { isMinor } = useAuth();", IMPORTS.replace("{ useAuth }", "{ useAuthStub as useAuth }")))
+      .toMatch(/reads a `useAuth` that is not the imported hook/);
+    expect(local("function useAuth() { return { isMinor: null }; }\nconst { isMinor } = useAuth();"))
+      .toMatch(/reads a `useAuth` that is not the imported hook/);
+  });
+
+  test("clean controls: the hook's own binding, imported by a relative path, or read in a custom hook", () => {
+    const relative = IMPORTS.replace('"@/lib/auth/AuthContext"', '"../../lib/auth/AuthContext"');
+    expect(violations(FIXTURE, screen(`${GUARD}\nawait buildPersona(userId, "en", isMinor === true);`, relative))).toEqual([]);
+    const customHook = [
+      IMPORTS,
+      "export function useExportIden() {",
+      "  const { userId, isMinor } = useAuth();",
+      "  return async () => {",
+      `    ${GUARD}`,
+      '    return exportIden(userId, { locale: "en", minor: isMinor === true });',
+      "  };",
+      "}",
+    ].join("\n");
+    expect(violations(FIXTURE, customHook)).toEqual([]);
+  });
+
+  // /review's shape: the screen reads useAuth() and renders a keyed session with the age.
+  function session(render: string, opts: { exported?: boolean; extra?: string } = {}): string {
+    return [
+      IMPORTS,
+      "interface P { userId: string | null; isMinor: boolean | null }",
+      "export function Outer() {",
+      "  const { userId, isMinor } = useAuth();",
+      `  return ${render};`,
+      "}",
+      `${opts.exported ? "export " : ""}function Inner({ userId, isMinor }: P) {`,
+      `  async function go() { ${GUARD} await buildPersona(userId, "en", isMinor === true); }`,
+      "  return null;",
+      "}",
+      opts.extra ?? "",
+    ].join("\n");
+  }
+  const RENDER = '<Inner key="k" userId={userId} isMinor={isMinor} />';
+
+  test("a verified prop is the resolved age: /review's keyed session (rule 3)", () => {
+    expect(violations(FIXTURE, session(RENDER))).toEqual([]);
+    // Passed down twice is still the same age.
+    const twice = session(RENDER.replace("<Inner", "<Middle"), {
+      extra: "function Middle({ userId, isMinor }: P) { return <Inner userId={userId} isMinor={isMinor} />; }",
+    });
+    expect(violations(FIXTURE, twice)).toEqual([]);
+  });
+
+  test("a prop is not the resolved age when anyone else can set it (rule 3)", () => {
+    expect(check(session(RENDER, { exported: true }))).toMatch(/`Inner`, which is exported/);
+    expect(check(session(RENDER.replace("isMinor={isMinor}", "isMinor={false}")))).toMatch(/without one plain `isMinor=\{name\}`/);
+    expect(check(session(RENDER.replace("isMinor={isMinor}", "{...{ isMinor }}")))).toMatch(/with a spread/);
+    expect(check(session(RENDER.replace("isMinor={isMinor}", "isMinor={isMinor} isMinor={isMinor}")))).toMatch(/without one plain/);
+    expect(check(session("null"))).toMatch(/`Inner`, which this file never renders/);
+    // Not the props: React hands a component's second parameter something else entirely.
+    expect(check(session(RENDER).replace("function Inner({ userId, isMinor }: P)", "function Inner({ userId }: P, { isMinor }: P)")))
+      .toMatch(/is not taken from a component's props \(its first parameter\)/);
+    // A second render that hands it something else.
+    expect(check(session(`<>${RENDER}<Inner userId={userId} isMinor={pretend} /></>`, { extra: "const pretend = null;" })))
+      .toMatch(/rendered at line \d+ with an `isMinor` that is not destructured/);
+    // The component used as a value: called, aliased, or given to createElement.
+    expect(check(session(RENDER, { extra: "export const Alias = Inner;" }))).toMatch(/which line \d+ uses as a value/);
+    expect(check(session(RENDER, { extra: 'createElement(Inner, { userId: "u", isMinor: null });' }))).toMatch(/uses as a value/);
+  });
+
+  test("a helper does not borrow a guard from the function around it, wherever it is written (rule 3)", () => {
+    // The pre-r4 persona.tsx shape: the guard is outside, the helper that builds has none.
+    expect(check(screen(`${GUARD}\nfunction go() { void buildPersona(userId!, "en", isMinor === true); }\ngo();`)))
+      .toMatch(/no `if \(\.\.\. \|\| isMinor === null\) return;` before the build, in the function that makes it/);
+    // Declared after the guard, run before it through another hoisted helper.
+    expect(check(screen(`pre();\n${GUARD}\nfunction go() { void buildPersona(userId!, "en", isMinor === true); }\nfunction pre() { go(); }`)))
+      .toMatch(/before the build, in the function that makes it/);
+  });
+
+  test("a nested function cannot hand `opts` on before the build, wherever it is written (rule 4)", () => {
+    // A hoisted helper declared after the build and called before it.
+    expect(violations(FORWARDER, forwarder(`normalize();\n${FORWARD}\nfunction normalize() { Object.assign(opts, { locale: "en" }); }`)).join("\n"))
+      .toMatch(/hands it to a call inside a nested function, which can run before the build/);
+    expect(violations(BUILD_IDEN, buildIden(`tweak();\n${BUILD}\nfunction tweak() { reshape(opts); }`)).join("\n"))
+      .toMatch(/hands it to a call inside a nested function, which can run before the build/);
+    // A callback is a nested function too.
+    expect(violations(FORWARDER, forwarder(`[0].forEach(() => reshape(opts));\n${FORWARD}`)).join("\n"))
+      .toMatch(/hands it to a call inside a nested function/);
+  });
+
+  // The ratchet itself, on a small file standing in for a frozen one.
+  const RFILE = "src/lib/fixture.ts";
+  const FROZEN_SRC = [
+    "export function route(text: string, minor = false) { return text; }",
+    "export async function embed(opts: { minor?: boolean }) {",
+    "  return embedTexts({ texts: [], minor: opts.minor ?? false });",
+    "}",
+  ].join("\n");
+  const frozen = fileAgeWrites(RFILE, FROZEN_SRC);
+  const frozenDefaults = frozen.defaults.map((w) => w.id);
+  const frozenWrites = frozen.writes.map((w) => w.id);
+  const against = (text: string) => {
+    const found = fileAgeWrites(RFILE, text);
+    return { defaults: ratchet(frozenDefaults, found.defaults), writes: ratchet(frozenWrites, found.writes) };
+  };
+  const ids = (r: { added: AgeWrite[]; gone: string[] }) => ({ added: r.added.map((w) => w.id), gone: r.gone });
+
+  test("a frozen entry names one site: its function, shape, text, and the calls around it (GATE-RATCHET-001)", () => {
+    expect(frozenDefaults).toEqual(["src/lib/fixture.ts route minor | param | minor = false"]);
+    expect(frozenWrites).toEqual(["src/lib/fixture.ts embed minor | prop | minor: opts.minor ?? false | in embedTexts()"]);
+    const same = against(FROZEN_SRC);
+    expect([ids(same.defaults), ids(same.writes)]).toEqual([{ added: [], gone: [] }, { added: [], gone: [] }]);
+  });
+
+  test("a second site in a frozen function is reported, even one identical to the frozen site (GATE-RATCHET-001)", () => {
+    // The same call twice: same identity, so only the count can tell them apart.
+    const twice = against(FROZEN_SRC.replace(
+      "  return embedTexts(",
+      "  await embedTexts({ texts: [\"again\"], minor: opts.minor ?? false });\n  return embedTexts(",
+    ));
+    expect(ids(twice.writes)).toEqual({ added: [frozenWrites[0]], gone: [] });
+    // A second default in the frozen function, in a closure inside it.
+    const inner = against(FROZEN_SRC.replace("{ return text; }", "{ const pick = (minor = false) => minor; return pick() ? text : text; }"));
+    expect(ids(inner.defaults)).toEqual({ added: ["src/lib/fixture.ts pick minor | param | minor = false"], gone: [] });
+    const anon = against(FROZEN_SRC.replace("{ return text; }", "{ return [text].map((t, i, a, minor = false) => (minor ? t : t))[0]; }"));
+    expect(ids(anon.defaults)).toEqual({ added: ["src/lib/fixture.ts route minor | param | minor = false | in => < map()"], gone: [] });
+  });
+
+  test("swapping a frozen site for another under the same key is reported both ways (GATE-RATCHET-001)", () => {
+    // The parameter default traded for a variable of the same name and value.
+    const swapped = against(FROZEN_SRC.replace("minor = false) { return text; }", "minor?: boolean) { const minor = false; return text; }"));
+    expect(ids(swapped.defaults).added).toEqual(["src/lib/fixture.ts route minor | var | minor = false"]);
+    expect(ids(swapped.defaults).gone).toEqual([frozenDefaults[0]]);
+    // The write moved into another call in the same function.
+    const moved = against(FROZEN_SRC.replace(
+      "return embedTexts({ texts: [], minor: opts.minor ?? false });",
+      "return embedTexts({ texts: [] }).then(() => callLlm({ minor: opts.minor ?? false }));",
+    ));
+    expect(ids(moved.writes)).toEqual({
+      added: ["src/lib/fixture.ts embed minor | prop | minor: opts.minor ?? false | in callLlm() < => < then()"],
+      gone: [frozenWrites[0]],
+    });
+  });
+
+  test("an edit elsewhere in a frozen function leaves its site alone (GATE-RATCHET-001)", () => {
+    const edited = against(FROZEN_SRC.replace("{ return text; }", "{\n  const trimmed = text.trim();\n  return trimmed;\n}")
+      .replace("  return embedTexts(", "  const n = 1;\n  return embedTexts("));
+    expect([ids(edited.defaults), ids(edited.writes)]).toEqual([{ added: [], gone: [] }, { added: [], gone: [] }]);
+  });
+
+  test("rules 5-6 see an adult constant in any spelling, a JSX attribute, a class field, and a positional argument", () => {
+    const lib = (text: string, file = RFILE): string => violations(file, text).join("\n");
+    for (const [text, shape] of [
+      ["export function f(minor = !true) {}", "minor = !true"],
+      ["export function g(isMinor = !1) {}", "isMinor = !1"],
+      ["export class Req { minor = false; }", "minor = false;"],
+      ["export function h(o: { minor?: boolean }) { let minor: boolean; ({ minor = false } = o); return minor; }", "minor = false"],
+    ] as const) {
+      expect(lib(text)).toMatch(new RegExp(`\`${shape}\` defaults the age to adult`));
+    }
+    for (const [text, shape] of [
+      ['callLlm({ purpose: "x", minor: known ? isMinor : false });', "minor: known \\? isMinor : false"],
+      ['callLlm({ purpose: "x", minor: x && 0 });', "minor: x && 0"],
+      ['callLlm({ purpose: "x", isMinor: "" });', 'isMinor: ""'],
+    ] as const) {
+      expect(lib(text)).toMatch(new RegExp(`\`${shape}\` writes an adult age`));
+    }
+    expect(lib("export const P = () => <Panel minor={false} />;", "src/screens/__fixture__/P.tsx"))
+      .toMatch(/`minor=\{false\}` writes an adult age/);
+    // A positional `false` where a function in the tree takes the age.
+    const positional = "export function routeIt(text: string, minor: boolean) { return text; }\nrouteIt(\"x\", false);\nroute.routeIt(\"x\", !true);";
+    expect(lib(positional).split("\n").filter((l) => l.includes("writes an adult age"))).toEqual([
+      expect.stringMatching(/:2 src\/lib\/fixture\.ts <module> minor: `false` writes/),
+      expect.stringMatching(/:3 src\/lib\/fixture\.ts <module> minor: `!true` writes/),
+    ]);
+    // `null` is the unknown age, not an adult one, and a computed age is not a constant.
+    expect(lib('callLlm({ purpose: "x", isMinor: null, minor: age < 18 });')).toBe("");
   });
 });
