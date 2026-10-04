@@ -260,19 +260,63 @@ BEGIN
 END
 $p9$;
 
--- P10 (PR-7b 에서 추가, 0213 필요): TODO(CI) issue_reward_ssv_ticket 로 실제 티켓을 만든 뒤
---   settle_reward_ssv_ticket_v3(..., now_ms)            → 1행
---   settle_reward_ssv_ticket_v3(..., now_ms - 91일)      → 0행
---   settle_reward_ssv_ticket_v3(..., now_ms - 2일)       → 0행
---   settle_reward_ssv_ticket_v3(..., now_ms + 1시간)     → 0행
---   settle_reward_ssv_ticket_v3(..., issued_at_ms - 10분) → 0행
---   ADMOB-TS ②(자릿수로 단위 판단, 인수는 p_callback_ts = 받은 값 그대로):
---   reward_ssv_callback_is_fresh(h, now_s)             10자리 초        → true
---   reward_ssv_callback_is_fresh(h, now_ms)            13자리 밀리초    → true
---   reward_ssv_callback_is_fresh(h, now_ms*1000+123)   16자리 마이크로초 → true
---   10·16자리의 2일 전, 16자리의 1시간 미래, 10자리의 티켓 발급 10분 전 → false
---   9·11·12·14·15·17자리, 0, 음수, NULL                                  → false
---   settle_reward_ssv_ticket_v3(..., now_ms/10)        12자리           → 0행
---   (local-smoke/10_scenarios.sql 의 $fresh$ 블록과 같은 기대값)
+-- P10 (PR-7b, 0213): 콜백 timestamp 신선도. 자릿수로 단위를 정한다(ADMOB-TS ②: 10 = 초,
+--   13 = 밀리초, 16 = 마이크로초, 그 밖은 거부). 0213 이 없으면(PR-7a 단독) 건너뛴다.
+--   같은 사례가 scripts/check-reward-ssv-db.sh 끝 절과 local-smoke/10_scenarios.sql $fresh$ 에 있다.
+--   주의: 지금 발급한 티켓으로는 2일 전 값이 "발급 5분 전보다 이르다" 검사에 먼저 걸려서 1일 창이
+--   맞는지 보이지 않는다. 그래서 1일 창은 티켓 발급 시각을 3일 전으로 돌려 따로 본다
+--   (그 창을 100일로 바꾼 변이로 확인했다).
+SET LOCAL request.jwt.claim.role = 'service_role';
+DO $p10$
+DECLARE
+  v_one constant uuid := '30000000-0000-0000-0000-000000000211';
+  c_ticket constant text := pg_catalog.repeat('a1', 32);
+  now_ms constant bigint := (extract(epoch FROM pg_catalog.now()) * 1000)::bigint;
+  day_ms constant bigint := 86400000;
+  n integer;
+BEGIN
+  IF to_regprocedure('public.settle_reward_ssv_ticket_v3(text,text,text,integer,text,bigint)') IS NULL THEN
+    RETURN;
+  END IF;
+  IF NOT public.issue_reward_ssv_ticket(v_one, 'reasoning', c_ticket, 'ci-ad-unit', 2, 'reasoning credit') THEN
+    RAISE EXCEPTION 'P10: ticket not issued'; END IF;
+
+  IF NOT public.reward_ssv_callback_is_fresh(c_ticket, now_ms / 1000)
+     OR NOT public.reward_ssv_callback_is_fresh(c_ticket, now_ms)
+     OR NOT public.reward_ssv_callback_is_fresh(c_ticket, now_ms * 1000 + 123) THEN
+    RAISE EXCEPTION 'P10: a fresh 10/13/16-digit timestamp was refused'; END IF;
+  IF public.reward_ssv_callback_is_fresh(c_ticket, (now_ms + 3600000) * 1000)
+     OR public.reward_ssv_callback_is_fresh(c_ticket, (now_ms - 600000) / 1000)
+     OR public.reward_ssv_callback_is_fresh(c_ticket, now_ms / 10)
+     OR public.reward_ssv_callback_is_fresh(c_ticket, now_ms / 10000)
+     OR public.reward_ssv_callback_is_fresh(c_ticket, now_ms * 10000)
+     OR public.reward_ssv_callback_is_fresh(c_ticket, 0)
+     OR public.reward_ssv_callback_is_fresh(c_ticket, -now_ms)
+     OR public.reward_ssv_callback_is_fresh(c_ticket, NULL) THEN
+    RAISE EXCEPTION 'P10: future, pre-ticket, wrong-digit, 0, negative or NULL timestamp accepted'; END IF;
+
+  UPDATE public.reward_ssv_tickets SET issued_at = pg_catalog.now() - interval '3 days'
+   WHERE token_hash = c_ticket;
+  IF public.reward_ssv_callback_is_fresh(c_ticket, (now_ms - 2 * day_ms) / 1000)
+     OR public.reward_ssv_callback_is_fresh(c_ticket, now_ms - 2 * day_ms)
+     OR public.reward_ssv_callback_is_fresh(c_ticket, (now_ms - 2 * day_ms) * 1000)
+     OR public.reward_ssv_callback_is_fresh(c_ticket, now_ms - 91 * day_ms) THEN
+    RAISE EXCEPTION 'P10: a callback older than one day was accepted'; END IF;
+  IF NOT public.reward_ssv_callback_is_fresh(c_ticket, now_ms - 3600000) THEN
+    RAISE EXCEPTION 'P10: an hour-old callback was refused'; END IF;
+  UPDATE public.reward_ssv_tickets SET issued_at = pg_catalog.now() WHERE token_hash = c_ticket;
+
+  SELECT count(*) INTO n FROM public.settle_reward_ssv_ticket_v3(
+    c_ticket, 'txn-p90-v3', 'ci-ad-unit', 2, 'reasoning credit', now_ms / 10);
+  IF n <> 0 THEN RAISE EXCEPTION 'P10: v3 paid a 12-digit timestamp'; END IF;
+  SELECT count(*) INTO n FROM public.settle_reward_ssv_ticket_v3(
+    c_ticket, 'txn-p90-v3', 'ci-ad-unit', 2, 'reasoning credit', now_ms - 91 * day_ms);
+  IF n <> 0 THEN RAISE EXCEPTION 'P10: v3 paid a 91-day-old timestamp'; END IF;
+  SELECT count(*) INTO n FROM public.settle_reward_ssv_ticket_v3(
+    c_ticket, 'txn-p90-v3', 'ci-ad-unit', 2, 'reasoning credit', now_ms);
+  IF n <> 1 THEN RAISE EXCEPTION 'P10: v3 did not pay a fresh callback'; END IF;
+END
+$p10$;
+RESET request.jwt.claim.role;
 
 ROLLBACK;

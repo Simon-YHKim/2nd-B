@@ -45,6 +45,9 @@ readonly old_ticket='ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 readonly stale_ticket='eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
 readonly active_ticket='ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
 readonly failure_ticket='9999999999999999999999999999999999999999999999999999999999999999'
+# 0213 freshness cases run as a second user (see the section at the end).
+readonly fresh_user='7e770000-0000-4000-8000-000000000002'
+readonly fresh_ticket='5151515151515151515151515151515151515151515151515151515151515151'
 test_dir="$(mktemp -d)"
 
 cleanup() {
@@ -52,8 +55,8 @@ cleanup() {
   psql_local <<SQL >/dev/null 2>&1
 DROP TRIGGER IF EXISTS reward_ssv_ci_forced_failure ON public.rewarded_ssv_txns;
 DROP FUNCTION IF EXISTS public.reward_ssv_ci_forced_failure();
-DELETE FROM public.users WHERE id = '$test_user';
-DELETE FROM auth.users WHERE id = '$test_user';
+DELETE FROM public.users WHERE id IN ('$test_user', '$fresh_user');
+DELETE FROM auth.users WHERE id IN ('$test_user', '$fresh_user');
 SQL
   rm -f -- \
     "$test_dir/lock-ready" \
@@ -502,4 +505,137 @@ BEGIN
   END IF;
 END
 \$race_verify\$;
+SQL
+
+# 0213: settle_reward_ssv_ticket_v3 puts a callback-timestamp freshness check in
+# front of v2, so a transaction id the 89-day purge (0211) deleted cannot be
+# paid again from a replayed callback. ADMOB-TS (2): the unit comes from the
+# digit count, 10 = seconds, 13 = milliseconds, 16 = microseconds, anything else
+# is refused; the callback must be at most one day old, at most five minutes in
+# the future, and not more than five minutes before its ticket was issued.
+# reward_ssv_callback_is_fresh has no grant at all (v3 calls it as definer), so
+# these direct calls work only because this script connects as postgres.
+# A second user keeps the monthly cap and three-ticket limit above out of it.
+psql_local <<SQL
+INSERT INTO auth.users (id, email, email_confirmed_at)
+VALUES ('$fresh_user', 'reward-ssv-ci-fresh@example.invalid', clock_timestamp());
+
+INSERT INTO public.users (id, email, birth_date, locale, privacy_prefs)
+VALUES (
+  '$fresh_user',
+  'reward-ssv-ci-fresh@example.invalid',
+  DATE '1990-01-01',
+  'en',
+  '{"ads":true}'::jsonb
+);
+
+SET request.jwt.claim.role = 'service_role';
+
+DO \$callback_freshness\$
+DECLARE
+  now_ms constant bigint := (extract(epoch FROM now()) * 1000)::bigint;
+  day_ms constant bigint := 86400000;
+  result_count integer;
+  ts bigint;
+BEGIN
+  IF NOT public.issue_reward_ssv_ticket(
+    '$fresh_user', 'reasoning', '$fresh_ticket', 'ci-ad-unit', 2, 'reasoning credit'
+  ) THEN
+    RAISE EXCEPTION 'freshness ticket was not issued';
+  END IF;
+
+  -- The same instant in each accepted unit.
+  IF NOT public.reward_ssv_callback_is_fresh('$fresh_ticket', now_ms / 1000) THEN
+    RAISE EXCEPTION 'fresh 10-digit (seconds) timestamp was refused';
+  END IF;
+  IF NOT public.reward_ssv_callback_is_fresh('$fresh_ticket', now_ms) THEN
+    RAISE EXCEPTION 'fresh 13-digit (milliseconds) timestamp was refused';
+  END IF;
+  IF NOT public.reward_ssv_callback_is_fresh('$fresh_ticket', now_ms * 1000 + 123) THEN
+    RAISE EXCEPTION 'fresh 16-digit (microseconds) timestamp was refused';
+  END IF;
+
+  -- Too old, in the future, or before the ticket existed, in each unit it
+  -- could arrive in.
+  IF public.reward_ssv_callback_is_fresh('$fresh_ticket', (now_ms - 2 * day_ms) / 1000)
+     OR public.reward_ssv_callback_is_fresh('$fresh_ticket', (now_ms - 2 * day_ms) * 1000)
+     OR public.reward_ssv_callback_is_fresh('$fresh_ticket', now_ms - 91 * day_ms)
+     OR public.reward_ssv_callback_is_fresh('$fresh_ticket', (now_ms + 3600000) * 1000)
+     OR public.reward_ssv_callback_is_fresh('$fresh_ticket', (now_ms - 600000) / 1000) THEN
+    RAISE EXCEPTION 'stale, future or pre-ticket timestamp was accepted';
+  END IF;
+
+  -- The one-day window on its own. With the ticket issued now, every old value
+  -- above is also earlier than the ticket and would be refused for that alone,
+  -- so age the ticket first: a two-day-old callback must still be refused, and
+  -- an hour-old one accepted.
+  UPDATE public.reward_ssv_tickets SET issued_at = now() - interval '3 days'
+   WHERE token_hash = '$fresh_ticket';
+  IF public.reward_ssv_callback_is_fresh('$fresh_ticket', (now_ms - 2 * day_ms) / 1000)
+     OR public.reward_ssv_callback_is_fresh('$fresh_ticket', now_ms - 2 * day_ms)
+     OR public.reward_ssv_callback_is_fresh('$fresh_ticket', (now_ms - 2 * day_ms) * 1000) THEN
+    RAISE EXCEPTION 'a two-day-old callback was accepted (one-day window)';
+  END IF;
+  IF NOT public.reward_ssv_callback_is_fresh('$fresh_ticket', now_ms - 3600000) THEN
+    RAISE EXCEPTION 'an hour-old callback was refused for a ticket issued before it';
+  END IF;
+  UPDATE public.reward_ssv_tickets SET issued_at = now()
+   WHERE token_hash = '$fresh_ticket';
+
+  -- Any other digit count, and values that are not a time at all.
+  FOREACH ts IN ARRAY ARRAY[
+    now_ms / 10000,            -- 9 digits
+    now_ms / 100,              -- 11
+    now_ms / 10,               -- 12
+    now_ms * 10,               -- 14
+    now_ms * 100,              -- 15
+    now_ms * 10000,            -- 17
+    0::bigint,
+    -now_ms
+  ] LOOP
+    IF public.reward_ssv_callback_is_fresh('$fresh_ticket', ts) THEN
+      RAISE EXCEPTION 'timestamp with % digits was accepted', length(abs(ts)::text);
+    END IF;
+  END LOOP;
+  IF public.reward_ssv_callback_is_fresh('$fresh_ticket', NULL) THEN
+    RAISE EXCEPTION 'NULL timestamp was accepted';
+  END IF;
+  IF public.reward_ssv_callback_is_fresh(
+       '0000000000000000000000000000000000000000000000000000000000000000', now_ms) THEN
+    RAISE EXCEPTION 'timestamp for an unknown ticket was accepted';
+  END IF;
+
+  -- Through v3: refused callbacks pay nothing and leave the ticket unused.
+  SELECT count(*) INTO result_count
+    FROM public.settle_reward_ssv_ticket_v3(
+      '$fresh_ticket', 'reward-ci-fresh', 'ci-ad-unit', 2, 'reasoning credit', now_ms / 10
+    );
+  IF result_count <> 0 THEN
+    RAISE EXCEPTION 'v3 paid a 12-digit timestamp';
+  END IF;
+  SELECT count(*) INTO result_count
+    FROM public.settle_reward_ssv_ticket_v3(
+      '$fresh_ticket', 'reward-ci-fresh', 'ci-ad-unit', 2, 'reasoning credit', now_ms - 91 * day_ms
+    );
+  IF result_count <> 0 THEN
+    RAISE EXCEPTION 'v3 paid a 91-day-old timestamp';
+  END IF;
+  IF (SELECT consumed_transaction_id FROM public.reward_ssv_tickets
+       WHERE token_hash = '$fresh_ticket') IS NOT NULL THEN
+    RAISE EXCEPTION 'a refused v3 callback consumed the ticket';
+  END IF;
+
+  SELECT count(*) INTO result_count
+    FROM public.settle_reward_ssv_ticket_v3(
+      '$fresh_ticket', 'reward-ci-fresh', 'ci-ad-unit', 2, 'reasoning credit', now_ms
+    );
+  IF result_count <> 1 THEN
+    RAISE EXCEPTION 'v3 did not pay a fresh 13-digit callback';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.rewarded_ssv_txns
+                  WHERE transaction_id = 'reward-ci-fresh' AND user_id = '$fresh_user') THEN
+    RAISE EXCEPTION 'v3 payment left no ledger row';
+  END IF;
+END
+\$callback_freshness\$;
 SQL
