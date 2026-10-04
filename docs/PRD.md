@@ -298,4 +298,4 @@ XPRIZE KPI 는 전부 폐기. 새 구조의 정직한 계기:
 | `src/lib/persona/seven-stars.ts` · `src/lib/canon/` | 코드가 곧 정본인 것들 |
 | `docs/CONSTELLATION-DESIGN.md` | ⚠ **역사 기록** — 6 도메인 별 골격, 2026-08-24 이전 |
 | `docs/CONCEPT.md` | 반쪽 — 시각 방향 절만 최신, Layer A 서술은 낡음 |
-| `legacy/docs/ui-audit/*` · v3 PRD | 역사 기록 |
+| `legacy/docs/ui-audit/*` · v3 PRD | 역사 기록 (ui-audit 는 2026-10-04 저장소 밖 `E:/Legacy/2ndB/legacy/docs/ui-audit/` 로 이동) |

@@ -1,6 +1,6 @@
 /**
  * STEP 3 — <SecondbStatusHeader /> : the per-screen status bar from
- * legacy/design/prototype.dc.html. Left = small SecondbHead; right = a speech bubble
+ * E:/Legacy/2ndB/legacy/design/prototype.dc.html. Left = small SecondbHead; right = a speech bubble
  * (tail on the left, square corners since the PIXEL-CLAY rule-2 pass) carrying the
  * current `text` plus a TIP line. Every deep-space screen lays this at the top and
  * injects its own copy.

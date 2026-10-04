@@ -256,6 +256,8 @@ const LIVE_DOCS_NAMING_SOURCE = [
 const REMOVED_SOURCE_PATHS = [
   ["src/lib/llm/gemini.ts", "boundary.ts"],
   ["src/lib/judge/domains.ts", "삭제"],
+  // 2026-10-04 E:/Legacy 로 나갔다(L2-07). 같은 넛지는 /brightness 가 이 로더로 그린다.
+  ["src/lib/persona/load-tier-shifts.ts", "load-tier-observations"],
 ] as const;
 
 describe("문서가 지목하는 소스 경로", () => {

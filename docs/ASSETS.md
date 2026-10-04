@@ -118,23 +118,6 @@ Rebuild: `python scripts/build-dither-tiles.py`.
   Exact source URLs, hashes and edit recipes: `assets/audio/RECORDED-SOURCES.json`;
   processing script: `scripts/prepare-recorded-camera-sfx.cjs`.
 
-- `camera-aim.mp3`, `camera-focus.mp3`, `camera-shutter.mp3`: original procedural
-  camera servo, focus adjustment, and shutter cues, **superseded and not used by
-  the camera as of 2026-09-26**. Preserved from the earlier iteration. Created locally with
-  `scripts/build-camera-sfx.cjs` (deterministic sine/noise synthesis, then ffmpeg
-  MP3 encoding). No recordings, external samples, paid API or third-party audio
-  licenses. Mono 22.05 kHz, 64 kbps; source lengths 420/360/280 ms. Quiet playback
-  is phase-scoped and suppressed with reduced motion. The generator refuses to
-  overwrite existing assets.
-
-- `telescope-zoom.mp3`: legacy 0.57s camera-motion sweep, **superseded and not used
-  by the camera as of 2026-09-26**. Preserved from the earlier iteration.
-  Unmodified `whoosh-short.mp3` from the installed `media-use` SFX bundle. Its
-  bundled `CREDITS.md` identifies Pixabay and the
-  [Pixabay Content License](https://pixabay.com/service/license-summary/).
-  18,390 bytes; SHA-256
-  `c2efd9d902a59bf9ec5019035d7deadd17762136896b6e3cb6dd99ea50997a30`.
-
 - `jrpg-text-blip.mp3` — 75ms mono UI blip used by the constellation home's
   typewriter dialogue. It is a trimmed, filtered, and volume-reduced derivative
   of the `click.mp3` sound bundled with Codex `media-use`; the source is from
@@ -142,6 +125,28 @@ Rebuild: `python scripts/build-dither-tiles.py`.
   [Pixabay Content License](https://pixabay.com/service/license-summary/).
   The shipped file is 1,010 bytes at 22.05kHz; SHA-256
   `e3bf89d81485cc20014ca8396d0fcc5a152e608d625a57ee65ef947a0499ee57`.
+
+### Retired camera audio (moved out of the repo on 2026-10-04)
+
+These four files were superseded by the recorded `observatory-*.wav` cues on
+2026-09-26 and were never required by the shipped camera. On 2026-10-04 they
+and their generator left the repo for the read-only archive
+`E:/Legacy/2ndB/assets/audio/` and `E:/Legacy/2ndB/scripts/build-camera-sfx.cjs`
+(rows in `E:/Legacy/2ndB/MANIFEST.jsonl`, restore from git history per its README, source commit
+`ba7afdfd`). The provenance record stays here:
+
+- `camera-aim.mp3`, `camera-focus.mp3`, `camera-shutter.mp3`: original procedural
+  camera servo, focus adjustment, and shutter cues created locally with
+  `scripts/build-camera-sfx.cjs` (deterministic sine/noise synthesis, then ffmpeg
+  MP3 encoding). No recordings, external samples, paid API or third-party audio
+  licenses. Mono 22.05 kHz, 64 kbps; source lengths 420/360/280 ms.
+
+- `telescope-zoom.mp3`: legacy 0.57s camera-motion sweep. Unmodified
+  `whoosh-short.mp3` from the installed `media-use` SFX bundle. Its
+  bundled `CREDITS.md` identifies Pixabay and the
+  [Pixabay Content License](https://pixabay.com/service/license-summary/).
+  18,390 bytes; SHA-256
+  `c2efd9d902a59bf9ec5019035d7deadd17762136896b6e3cb6dd99ea50997a30`.
 
 ## Bundled generated art (AI-generated, in-window)
 

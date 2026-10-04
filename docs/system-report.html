@@ -403,13 +403,13 @@ const STEPS = [
     "title_ko": "tier 변화 감지 → 재점검 넛지",
     "title_en": "Detect tier shift → re-check nudge",
     "layer": "analytics",
-    "what_ko": "review.tsx 마운트 시 loadTierShifts가 star_tier_history를 recorded_at 오름차순으로 읽어 detectTierShift로 별별 최신 2개 관측 레벨을 비교, 달라진 별을 TierShift(up/down)로 반환한다. shifts가 있으면 '최근 변화 감지 … 점검해볼까요?' 배너를 띄워 재점검 루프를 닫는다.",
+    "what_ko": "/brightness(brightness.tsx) 마운트 시 loadTierObservations가 star_tier_history를 recorded_at 오름차순으로 읽고(새 일곱 별 행만 남김) detectTierShift로 별별 최신 2개 관측 레벨을 비교, 달라진 별을 TierShift(up/down)로 반환한다. shifts가 있으면 '최근 변화 감지 … 점검해볼까요?' 문구(tierShiftNudge)를 띄워 재점검 루프를 닫는다. 옛 review.tsx 의 loadTierShifts 경로는 2026-10-04 저장소 밖으로 나갔다.",
     "inputs": "userId → TierObservation[] (star_id, level, recorded_at)",
     "outputs": "TierShift[] → 변화 감지 배너(별 이름 + ↑/↓)",
     "key_files": [
-      "src/lib/persona/load-tier-shifts.ts",
+      "src/lib/persona/load-tier-observations.ts",
       "src/lib/persona/tier-history.ts",
-      "src/app/review.tsx"
+      "src/app/brightness.tsx"
     ],
     "constraints": [],
     "limitations_ko": "detectTierShift가 level 스칼라만 비교 — evidence 컬럼이 없으니 넛지는 '근거 인용된' 재점검이 아니라 단순 '레벨 바뀜' 신호일 뿐이다. 같은 별을 두 번 비준해야(관측 ≥2) 발화하고, 배너는 제안 생성으로 자동 연결되지 않아 루프가 사용자 수동 재진입에 의존한다.",
