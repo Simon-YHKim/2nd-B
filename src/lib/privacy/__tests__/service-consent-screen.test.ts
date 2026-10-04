@@ -50,6 +50,8 @@ function mountRoute() {
   const fibers = new Map<string, Fiber>();
   let visited = new Set<string>();
   let effects: Array<() => void> = [];
+  // The latest probe ConsentForm handed to useGoHomeStop (gate NAV-S7-01).
+  let goHomeStop: (() => boolean) | null = null;
 
   function slot(): { fiber: Fiber; entry: Slot } {
     if (!rendering) throw new Error("Hook outside actual component invocation");
@@ -98,6 +100,7 @@ function mountRoute() {
     // The screen navigates through the phone-aware router (standalone it is
     // expo-router's own `router`).
     "@/lib/nav/phone-embed": { useAppRouter: () => ({ push, back: jest.fn() }) },
+    "@/lib/nav/go-home": { useGoHomeStop: (probe: () => boolean) => { goHomeStop = probe; } },
     "react-i18next": { useTranslation: () => ({ t: (key: string) => key, i18n: { language } }) },
     "@/components/deep-space/DeepSpaceScreen": { DeepSpaceScreen: "DeepSpaceScreen" },
     "@/components/m3": { MdButton: "MdButton", MdCard: "MdCard" },
@@ -178,6 +181,7 @@ function mountRoute() {
     auth(next: Partial<typeof auth>) { auth = { ...auth, ...next }; dirty = true; render(); },
     locale(next: string) { language = next; dirty = true; render(); },
     lateWrites: () => lateWrites,
+    holdsHome: () => goHomeStop?.() ?? null,
     unmount() { mounted = false; fibers.forEach(dispose); fibers.clear(); nodes = []; },
   };
 }
@@ -243,6 +247,43 @@ test("five explicit selections grant once under two taps in the same render fram
   pending.resolve(status({ state: "granted", change_token: "b".repeat(64) })); await ui.settle();
   expect(ui.texts()).toEqual(expect.arrayContaining(["serviceControl.saved", "serviceControl.states.granted"]));
   expect(ui.checkboxes()).toHaveLength(0);
+});
+
+// Gate NAV-S7-01: a home jump from a route above (RedirectHome, tab-root Back)
+// would unmount this form, which aborts a save that is out and drops the notice
+// that answers it. The form names itself to goHome while it holds either.
+test("a home jump from above stops here during review, while a save is out and while its notice is up; a load error alone does not hold", async () => {
+  const failing = screen(); await failing.settle();
+  expect(failing.holdsHome()).toBe(false);
+  failing.unmount();
+  load.mockRejectedValueOnce(new ServiceConsentError("unavailable"));
+  const broken = screen(); await broken.settle();
+  expect(broken.texts()).toContain("serviceControl.loadError");
+  expect(broken.holdsHome()).toBe(false); // reload recovers it
+  broken.unmount();
+
+  const pending = deferred<ServiceConsentStatus>(); save.mockReturnValueOnce(pending.promise);
+  const ui = screen(); await ui.settle();
+  ui.press("serviceControl.review");
+  expect(ui.holdsHome()).toBe(true);
+  ui.checkAll(); ui.press("serviceControl.agree");
+  expect(save).toHaveBeenCalledTimes(1);
+  expect(ui.holdsHome()).toBe(true);
+  pending.resolve(status({ state: "granted", change_token: "b".repeat(64) })); await ui.settle();
+  expect(ui.texts()).toContain("serviceControl.saved");
+  expect(ui.holdsHome()).toBe(true);
+  ui.unmount();
+
+  // Withdrawal has no review step: only the request itself holds.
+  load.mockResolvedValueOnce(status({ state: "granted" }));
+  const revoke = deferred<ServiceConsentStatus>(); save.mockReturnValueOnce(revoke.promise);
+  const out = screen(); await out.settle();
+  expect(out.holdsHome()).toBe(false);
+  out.press("serviceControl.withdraw");
+  expect(out.holdsHome()).toBe(true);
+  revoke.resolve(status({ state: "revoked", change_token: "c".repeat(64) })); await out.settle();
+  expect(out.texts()).toContain("serviceControl.withdrawn");
+  expect(out.holdsHome()).toBe(true);
 });
 
 test("a recorded grant that remains blocked preserves the restriction and offers privacy settings", async () => {

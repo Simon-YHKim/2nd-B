@@ -62,7 +62,12 @@
 //
 // 가드가 없어도 걷히면 잃는 것이 있는 화면도 이름을 올린다(게이트 NAV-S7-01).
 // /esm 은 저장 요청이 나가 있거나 고른 값이 남아 있는 동안 멈춘다 - 실패 안내를
-// 띄울 자리와 고른 값이 그 화면에만 있다. 부르는 자리 전부는 같은 테스트의 명단이다.
+// 띄울 자리와 고른 값이 그 화면에만 있다. 같은 까닭으로 /formats(편집 · 추가 중 ·
+// 쓰기 요청 · 결과 토스트) · /peer/[token](적은 답 · 제출 중 · 실패 안내) ·
+// /service-consent(검토 중 · 저장 중 · 결과 안내) · /subscription(해지 · 환불 시트 ·
+// 요청 중 · 결과 안내) · /interview(대화 · 쓰던 답 · 요청 중 · 안전 안내)도 올린다.
+// 이 명단은 닫혀 있지 않다 - 상태를 가진 화면을 새로 만들면 여기에 올릴지 본다.
+// 부르는 자리 전부는 같은 테스트의 명단이다.
 import { useCallback, useEffect, useRef } from "react";
 import { router, useFocusEffect, useNavigationContainerRef, useRoute } from "expo-router";
 

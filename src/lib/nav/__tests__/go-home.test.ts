@@ -15,8 +15,10 @@
 //      (칸 하나뿐인 자리 · 사람이 누르는 홈 동작) 밖으로 늘지 않고, 저절로 넘기는
 //      `<Redirect href="/">` 는 0 이며, goHome · RedirectHome 을 쓰는 자리는
 //      저절로 넘기는 곳과 탭 루트 하드웨어 뒤로뿐이고(PR #2044 8회차), 칸을 막는
-//      가드는 전부 goHome 에 이름을 올린다. 가드 없이 이름을 올리는 /esm(저장 중 ·
-//      고른 값)까지 부르는 자리 전부를 명단으로 고정한다(게이트 NAV-S7-01).
+//      가드는 전부 goHome 에 이름을 올린다. 가드 없이 이름을 올리는 여섯 화면(/esm ·
+//      /formats · /peer/[token] · /service-consent · /subscription · /interview)까지
+//      부르는 자리 전부를 명단으로 고정하고, 각 판정을 값 표에 대고 돌린다(게이트
+//      NAV-S7-01).
 //
 // 렌더 테스트는 이 저장소에서 막혀 있어(RN 0.85) 소스는 TypeScript AST 로 읽는다.
 // 주석은 AST 에 없으므로 설명문이 증거로 읽히지 않는다.
@@ -103,7 +105,21 @@ interface StackState {
 }
 
 const ROOT = process.cwd();
-const ROUTE_NAMES = ["index", "canon", "settings", "account", "audit", "esm", "result", "(auth)"];
+const ROUTE_NAMES = [
+  "index",
+  "canon",
+  "settings",
+  "account",
+  "audit",
+  "esm",
+  "result",
+  "(auth)",
+  "formats",
+  "peer/[token]",
+  "service-consent",
+  "subscription",
+  "interview",
+];
 const AUTH_NAMES = ["sign-in", "reset-password"];
 const OPTIONS = { routeNames: ROUTE_NAMES, routeParamList: {}, routeGetIdList: {} };
 
@@ -1408,11 +1424,16 @@ function esmSaveHold(source: string): { raisedBeforeAwait: boolean; clearedInFin
   };
 }
 
-/** useGoHomeStop 을 부르는 자리 전부. 가드가 있는 넷과 가드 없는 /esm 하나. */
+/** useGoHomeStop 을 부르는 자리 전부. 가드가 있는 넷과 가드 없는 여섯. */
 const GO_HOME_STOP_USES: readonly { file: string; owner: string; why: string }[] = [
   { file: "src/app/audit.tsx", owner: "AuditLegacy", why: "저장 안 한 감사 답 - beforeRemove 확인창." },
   { file: "src/app/avatar-palette.tsx", owner: "AvatarPaletteScreen", why: "고친 아바타 - 나가기 확인창." },
   { file: "src/app/esm.tsx", owner: "EsmCheckInScreen", why: "가드 없음 - 저장 요청 중 · 저장 안 한 고른 값(NAV-S7-01)." },
+  { file: "src/app/formats.tsx", owner: "FormatsLegacy", why: "가드 없음 - 편집 · 추가 중 · 쓰기 요청 · 결과 토스트(NAV-S7-01 재확인)." },
+  { file: "src/app/interview.tsx", owner: "InterviewSession", why: "가드 없음 - 담기 전 대화 · 쓰던 답 · 요청 중 · 안전 안내 창(NAV-S7-01 재확인)." },
+  { file: "src/app/peer/[token].tsx", owner: "PeerInformant", why: "가드 없음 - 적은 답 · 제출 · 철회 중 · 실패 안내(NAV-S7-01 재확인)." },
+  { file: "src/app/service-consent.tsx", owner: "ConsentForm", why: "가드 없음 - 검토 중 · 저장 중(언마운트가 abort) · 결과 안내(NAV-S7-01 재확인)." },
+  { file: "src/app/subscription.tsx", owner: "SubscriptionScreen", why: "가드 없음 - 해지 · 환불 시트 · 요청 중 · 결과 안내(NAV-S7-01 재확인)." },
   { file: "src/screens/deepspace/DeepSpaceDesignScreens.tsx", owner: "DeepSpacePrivacyDesignScreen", why: "계정 삭제 요청 중." },
   { file: "src/screens/deepspace/dds-auth-screens.tsx", owner: "DeepSpaceResetPasswordDesignScreen", why: "비밀번호 재설정 잠금." },
 ];
@@ -1466,6 +1487,216 @@ describe("가드 없이 이름을 올리는 화면 /esm (게이트 NAV-S7-01)", 
     ]);
     expect(esmSaveHold(source)).toEqual({ raisedBeforeAwait: true, clearedInFinally: true });
   });
+});
+
+// ── 가드 없는 여섯 화면의 판정 (게이트 NAV-S7-01 재확인, 2026-10-05) ─────────────
+//
+// /esm 하나만 올리자 게이트가 같은 모양을 다섯 화면에서 더 찾았다: [홈, 상태를 가진
+// 화면 X, 위 칸] 에서 위 칸의 RedirectHome 이나 탭 루트 하드웨어 뒤로가 POP_TO 로 X 까지
+// 걷어낸다. PR 이전의 replace 는 X 를 새 홈 아래에 묻어 둘 뿐이었다.
+//
+// 각 화면의 판정을 소스에서 꺼내(위 goHomeStopUses) 값 표에 대고 돌린다. 깨끗한 상태는
+// 거짓이고(그대로 홈까지 간다), 잃을 것 하나만 있어도 참이다. 판정에서 항 하나를 빼면
+// 그 항의 줄이 빨개지고, 판정이 표에 없는 이름을 읽기 시작하면 던져서 빨개진다.
+
+/** 판정 글(화살표 함수)을 값 표에 대고 돌린다. 표에 없는 이름을 읽으면 던진다. */
+function runProbe(probe: string, scope: Readonly<Record<string, unknown>>): boolean {
+  // transpile 은 머리에 "use strict"; 를 붙인다 - 떼야 return 이 화살표 함수를 돌려준다.
+  const js = ts
+    .transpile(`(${probe})`, { target: ts.ScriptTarget.ES2020 })
+    .replace(/^\s*"use strict";\s*/, "")
+    .trim()
+    .replace(/;$/, "");
+  const make = new Function(...Object.keys(scope), `"use strict"; return ${js};`) as (...values: unknown[]) => () => unknown;
+  return !!make(...Object.values(scope))();
+}
+
+interface NoGuardScreen {
+  file: string;
+  route: string;
+  /** 잃을 것이 없는 상태. 판정이 읽는 이름 전부. */
+  clean: Readonly<Record<string, unknown>>;
+  /** 하나씩 clean 위에 얹는다. 하나만 있어도 멈춰야 한다. */
+  holds: readonly [string, Readonly<Record<string, unknown>>][];
+  /** 바뀌어도 잃을 것이 없다 - 홈까지 가야 한다. */
+  free: readonly [string, Readonly<Record<string, unknown>>][];
+}
+
+const NO_GUARD_SCREENS: readonly NoGuardScreen[] = [
+  {
+    file: "src/app/esm.tsx",
+    route: "esm",
+    clean: { savingRef: { current: false }, scaleValue: null, selectedTags: [] },
+    holds: [
+      ["저장 요청 중", { savingRef: { current: true } }],
+      ["고른 척도", { scaleValue: 3 }],
+      ["고른 태그", { selectedTags: ["calm"] }],
+    ],
+    free: [],
+  },
+  {
+    file: "src/app/formats.tsx",
+    route: "formats",
+    clean: {
+      editing: null,
+      adding: false,
+      saving: false,
+      confirmDelete: null,
+      busyId: null,
+      moderating: null,
+      modBusy: false,
+      pendingShareIds: new Set<string>(),
+      toast: null,
+    },
+    holds: [
+      ["편집 중", { editing: { id: "t1" } }],
+      ["추가 중", { adding: true }],
+      ["저장 요청 중", { saving: true }],
+      ["삭제 확인", { confirmDelete: { id: "t1" } }],
+      ["삭제 요청 중", { busyId: "t1" }],
+      ["신고 · 차단 시트", { moderating: { id: "t2" } }],
+      ["신고 · 차단 요청 중", { modBusy: true }],
+      ["공유 요청 중", { pendingShareIds: new Set(["t1"]) }],
+      ["결과 토스트", { toast: { message: "saved", tone: "success" } }],
+    ],
+    free: [],
+  },
+  {
+    file: "src/app/peer/[token].tsx",
+    route: "peer/[token]",
+    clean: {
+      busy: false,
+      error: null,
+      phase: "form",
+      ratings: {},
+      ackLlm: false,
+      ackOverseas: false,
+      minor: false,
+      guardian: false,
+      birthYear: "",
+    },
+    holds: [
+      ["제출 · 철회 요청 중", { busy: true }],
+      ["실패 안내", { error: "submitError" }],
+      ["매긴 점수", { ratings: { openness: 3 } }],
+      ["처리 고지 확인", { ackLlm: true }],
+      ["국외 이전 확인", { ackOverseas: true }],
+      ["미성년 표시", { minor: true }],
+      ["보호자 동의", { guardian: true }],
+      ["출생 연도", { birthYear: "1990" }],
+    ],
+    // 제출이 끝난 뒤의 점수는 서버에 있다. 잃을 것이 없다.
+    free: [["제출 완료", { phase: "done", ratings: { openness: 3 }, ackLlm: true }]],
+  },
+  {
+    file: "src/app/service-consent.tsx",
+    route: "service-consent",
+    clean: { inFlight: { current: false }, busy: false, reviewing: false, notice: null },
+    holds: [
+      ["저장 요청 중(ref)", { inFlight: { current: true } }],
+      ["저장 요청 중", { busy: true }],
+      ["검토 중", { reviewing: true }],
+      ["저장 안내", { notice: "saved" }],
+      ["철회 안내", { notice: "withdrawn" }],
+      ["저장 실패 안내", { notice: "saveError" }],
+      ["충돌 안내", { notice: "conflict" }],
+    ],
+    // 불러오기 실패는 '다시 불러오기' 가 되살린다.
+    free: [["불러오기 실패", { notice: "loadError" }]],
+  },
+  {
+    file: "src/app/subscription.tsx",
+    route: "subscription",
+    clean: { busy: false, sheet: null, notice: null },
+    holds: [
+      ["요청 중", { busy: true }],
+      ["해지 시트", { sheet: "cancel" }],
+      ["환불 시트", { sheet: "refund" }],
+      ["결과 안내", { notice: { kind: "ok", key: "refundRequested" } }],
+    ],
+    free: [],
+  },
+  {
+    file: "src/app/interview.tsx",
+    route: "interview",
+    clean: {
+      busy: false,
+      saving: false,
+      crisis: { visible: false, hotline: "KR_109" },
+      draft: "",
+      turns: [{ role: "interviewer", text: "q" }],
+    },
+    holds: [
+      ["질문 요청 중", { busy: true }],
+      ["저장 요청 중", { saving: true }],
+      ["안전 안내 창", { crisis: { visible: true, hotline: "KR_109" } }],
+      ["쓰던 답", { draft: "그때" }],
+      ["담기 전 대화", { turns: [{ role: "interviewer", text: "q" }, { role: "user", text: "a" }] }],
+    ],
+    // 질문만 받고 아무 답도 안 한 대화, 공백뿐인 입력은 잃을 것이 없다.
+    free: [["공백 입력", { draft: "   " }]],
+  },
+];
+
+/** 그 파일에서 useGoHomeStop 에 넘긴 판정. 명단의 주인이 부른 것 하나여야 한다. */
+function probeOf(file: string): string {
+  const uses = goHomeStopUses(readFileSync(join(ROOT, file), "utf8"), file);
+  const owner = GO_HOME_STOP_USES.find((use) => use.file === file)?.owner;
+  expect(uses.map((use) => use.owner)).toEqual([owner]);
+  return uses[0].probe;
+}
+
+describe("가드 없는 여섯 화면은 잃을 것이 있는 동안만 홈 이동을 멈춘다 (게이트 NAV-S7-01 재확인)", () => {
+  it("판정기 시야 대조: runProbe 는 표에 없는 이름을 읽으면 던진다", () => {
+    expect(runProbe("() => a || b.length > 0", { a: false, b: [1] })).toBe(true);
+    expect(() => runProbe("() => a || missing", { a: false })).toThrow();
+  });
+
+  it.each(NO_GUARD_SCREENS.map((screen) => [screen.file, screen] as const))(
+    "%s: 깨끗하면 거짓, 잃을 것이 하나라도 있으면 참",
+    (_file, screen) => {
+      const probe = probeOf(screen.file);
+      expect(runProbe(probe, screen.clean)).toBe(false);
+      for (const [label, patch] of screen.holds) {
+        expect([label, runProbe(probe, { ...screen.clean, ...patch })]).toEqual([label, true]);
+      }
+      for (const [label, patch] of screen.free) {
+        expect([label, runProbe(probe, { ...screen.clean, ...patch })]).toEqual([label, false]);
+      }
+    },
+  );
+
+  const tops: readonly [string, StackRoute][] = [
+    ["dev 전용 라우트의 RedirectHome", { key: "canon-k2", name: "canon" }],
+    ["탭 루트(설정)의 하드웨어 뒤로", { key: "settings-k3", name: "settings" }],
+  ];
+  it.each(NO_GUARD_SCREENS.flatMap((screen) => tops.map(([label, top]) => [screen.route, label, screen, top] as const)))(
+    "[홈, /%s, 위 칸] · %s: 실제 StackRouter 에서 잃을 것이 있으면 그 화면 앞에서 멈추고, 없으면 홈까지 간다",
+    (_route, _label, screen, top) => {
+      const buried: StackRoute = { key: `${screen.route}-k1`, name: screen.route };
+      const state = stack(HOME, buried, top);
+      // 대조군: 이름이 없으면 POP_TO 가 그 화면까지 걷는다.
+      expect(keysOf(router.getStateForAction(state, POP_TO_HOME, OPTIONS))).toEqual(["index-k0"]);
+
+      mockRootState.current = { key: "container", index: 0, routeNames: ["__root"], routes: [{ key: "__root-0", name: "__root", state }] };
+      mockRoute.key = buried.key;
+      const probe = probeOf(screen.file);
+      let scope: Readonly<Record<string, unknown>> = { ...screen.clean, ...screen.holds[0][1] };
+      useGoHomeStop(() => runProbe(probe, scope));
+
+      goHome();
+      expect(mockDismissTo).not.toHaveBeenCalled();
+      expect(mockDispatch).toHaveBeenCalledTimes(1);
+      expect(keysOf(router.getStateForAction(state, mockDispatch.mock.calls[0][0], OPTIONS))).toEqual(["index-k0", buried.key]);
+
+      // 잃을 것이 없어지면 다시 홈까지 간다.
+      scope = screen.clean;
+      mockDispatch.mockReset();
+      goHome();
+      expect(mockDispatch).not.toHaveBeenCalled();
+      expect(mockDismissTo).toHaveBeenCalledWith("/");
+    },
+  );
 });
 
 // ── 은퇴한 검사 (PR #2044 8회차, 2026-10-05) ─────────────────────────────────
