@@ -5,8 +5,8 @@
 import { useEffect, useState } from "react";
 import { BackHandler, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
-
+import { router } from "expo-router";
+import { RedirectHome, goHome } from "@/lib/nav/go-home";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph, type AnyGlyphName } from "@/components/pixel/pixel-glyphs";
@@ -81,14 +81,14 @@ export default function Onboarding() {
   }, [step]);
 
   if (loading || onboardingComplete === null) return <InlineLoader />;
-  if (onboardingComplete === true) return <Redirect href="/" />;
+  if (onboardingComplete === true) return <RedirectHome />;
 
   // Completion is deliberately written only when a real destination is chosen.
   // Merely mounting the route, paging, or skipping to the handoff does not write.
   function finishOnboarding(destination: HandoffDestination) {
     markOnboardingComplete();
     if (destination === "/") {
-      router.replace("/");
+      goHome();
       return;
     }
     if (destination === "/sign-up") {

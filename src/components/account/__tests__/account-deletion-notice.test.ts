@@ -65,6 +65,8 @@ function routeRenderer(path: string, functionName: string) {
     useAccountDeletionNotice: hook, AccountDeletionNoticePanel: "AccountDeletionNoticePanel",
     AuthShell: "AuthShell", View: "View", ScrollView: "ScrollView", InlineLoader: "InlineLoader",
     Redirect: "Redirect", styles: { root: {}, scroll: {} }, Platform: { OS: "web" },
+    // QA 261004 D-01: the signed-in guard now pops to the home underneath.
+    RedirectHome: "RedirectHome",
   };
   const module = { exports: {} as Record<string, () => unknown> };
   new Function("require", "module", "exports", ...Object.keys(scope), code)(
@@ -100,6 +102,7 @@ test.each([
     // 이긴 것인지 렌더가 통째로 빈 것인지 구분되지 않았다.
     expectShape(nodes, { type: "AccountDeletionNoticePanel" }, "노드");
     expectNoShape(nodes, { type: "Redirect" }, "노드");
+    expectNoShape(nodes, { type: "RedirectHome" }, "노드");
     expectNoShape(nodes, { type: loader }, "노드");
   }
   expectShape(
@@ -108,7 +111,7 @@ test.each([
     "노드",
   );
   expectShape(screen.render(null, { loading: true, userId: null }), { type: loader }, "노드");
-  expect(screen.render(null, { loading: false, userId: "another-owner" }).some(node => node.type === "Redirect" && node.props?.href === "/")).toBe(true);
+  expect(screen.render(null, { loading: false, userId: "another-owner" }).some(node => node.type === "RedirectHome")).toBe(true);
   expect(screen.hook).toHaveBeenCalledTimes(5);
 });
 

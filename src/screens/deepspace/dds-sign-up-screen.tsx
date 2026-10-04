@@ -3,7 +3,7 @@ import { Platform, ScrollView, StyleSheet, TextInput, View } from "react-native"
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
-
+import { RedirectHome } from "@/lib/nav/go-home";
 import { BirthDateField } from "@/components/auth/BirthDateField";
 import { ResidenceCountryField } from "@/components/auth/ResidenceCountryField";
 import { SecondbHead } from "@/components/deepspace";
@@ -118,7 +118,7 @@ export function DeepSpaceSignUpDesignScreen() {
   // An email sign-up can establish the session before profile/consent
   // sequencing has settled. Keep the gate mounted for those owned states.
   if (userId && !submitting && !judgeWelcome && !toast) {
-    return <Redirect href={avatarSetupAfterConfirmation ? "/avatar-studio?setup=1" : "/"} />;
+    return avatarSetupAfterConfirmation ? <Redirect href="/avatar-studio?setup=1" /> : <RedirectHome />;
   }
 
   const actionBusy = submitting || oauthSubmitting || confirmVerifying;

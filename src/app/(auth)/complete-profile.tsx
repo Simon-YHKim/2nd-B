@@ -2,7 +2,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 // Post-OAuth profile completion. Users who sign in via Google land here when
 // the public.users row doesn't exist yet — we need their date of birth to
 // satisfy C10 (age gate) before letting them into the app.
-
+import { RedirectHome } from "@/lib/nav/go-home";
 import { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -161,7 +161,7 @@ function CompleteProfileBody() {
   // true) BEFORE the handler navigates, and this guard must not unmount the
   // screen (killing toasts and the handler's own navigation) in that window.
   if (userId && hasProfile && !submitting && !judgeWelcome && !crisis.visible) {
-    return <Redirect href={postEntryRoute} />;
+    return postEntryRoute === "/" ? <RedirectHome /> : <Redirect href={postEntryRoute} />;
   }
 
   // Not signed in at all — bounce to sign-in.

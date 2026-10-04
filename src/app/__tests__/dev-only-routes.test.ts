@@ -85,7 +85,9 @@ describe("개발 전용 라우트", () => {
     // 판정은 gate.ts 로 옮겼다 (2026-08-19). 설정의 진입 버튼이 라우트 게이트와
     // **같은 판단**을 써야 눌리는데 안 열리는 버튼이 안 생긴다.
     expect(route).toContain("isDevSurfaceEnabled()");
-    expect(route).toContain('<Redirect href="/" />');
+    // 2026-10-04 (QA D-01): 새 홈을 쌓지 않고 아래에 있는 홈으로 돌아간다.
+    expect(route).toContain("<RedirectHome />");
+    expect(route).not.toMatch(/<Redirect[\s/]/);
 
     // fail-closed 를 두 문 모두에서 강제한다. 런타임을 모르면 감춘다 —
     // 반대로 짜면(`!== false` 같은 형태) 프로덕션에 새어나간다.

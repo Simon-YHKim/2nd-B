@@ -9,9 +9,10 @@
 import { useSyncExternalStore } from "react";
 import { TouchableOpacity, StyleSheet, View, I18nManager } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router, useLocalSearchParams, usePathname } from "expo-router";
+import { useLocalSearchParams, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
 
+import { goHome } from "@/lib/nav/go-home";
 import { hasOwnBack, subscribeOwnBack } from "@/lib/nav/own-back";
 import { Text } from "@/components/ui/Text";
 import { VILLAGE_IDS, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
@@ -150,8 +151,10 @@ export function BackArrow() {
 
   return (
     <View style={[styles.wrap, { top: insets.top + 8 }, positionStyle]} pointerEvents="box-none">
+      {/* Back to the home already under this screen. Pushing "/" stacked a
+          second home on every tap (QA 261004 D-01). */}
       <TouchableOpacity
-        onPress={() => router.push("/")}
+        onPress={() => goHome()}
         hitSlop={16}
         accessibilityRole="button"
         accessibilityLabel={t("backToGraph")}

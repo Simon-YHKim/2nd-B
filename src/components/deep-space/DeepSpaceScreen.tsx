@@ -26,6 +26,7 @@ import { SbStarfield } from "./SbStarfield";
 import { TabIcon, type DeepSpaceTab } from "./DeepSpaceDock";
 import { Text } from "@/components/ui/Text";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { goHome } from "@/lib/nav/go-home";
 import { usePhoneEmbed } from "@/lib/nav/phone-embed";
 
 /**
@@ -119,13 +120,17 @@ export function DeepSpaceScreen({
   // default pop behavior — both when `active` is not in TABS AND when a
   // sub-screen reuses a tab's `active` for dock highlight (e.g. /capture-full
   // with active="capture"): only the tab's ROOT route gets the home-back rule.
+  // goHome pops to the home already in the stack (or swaps this route for one
+  // when there is none). replace("/") put a SECOND home on top whenever the tab
+  // root had been pushed over home, so Back then needed two more presses to
+  // leave the app and the extra homes stayed mounted (QA 261004 D-12, D-01).
   const pathname = usePathname();
   const embed = usePhoneEmbed();
   useEffect(() => {
     if (active === "home" || !TABS.includes(active)) return;
     if (pathname !== TAB_ROUTE[active]) return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      router.replace("/");
+      goHome();
       return true;
     });
     return () => sub.remove();
@@ -238,7 +243,11 @@ export function DeepSpaceScreen({
           const target = TAB_ROUTE[tab as DeepSpaceTab];
           // Sub-screens highlight their owning root tab. Tapping that highlighted
           // item must still return to the root instead of becoming a no-op.
-          if (tab !== active || pathname !== target) router.replace(target);
+          // Home pops back to the existing home rather than replacing this
+          // route with a second one (D-12).
+          if (tab === active && pathname === target) return;
+          if (target === "/") goHome();
+          else router.replace(target);
         }}
       />
     </SafeAreaView>
