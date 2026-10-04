@@ -11,7 +11,7 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-09-28 01:2x ~ 2026-09-30 23:00 | [handoff/HANDOFF-2026-09-p4.md](handoff/HANDOFF-2026-09-p4.md) | 23 | 61KB |
+| 2026-09-28 01:2x ~ 2026-09-30 23:57 | [handoff/HANDOFF-2026-09-p4.md](handoff/HANDOFF-2026-09-p4.md) | 24 | 66KB |
 | 2026-09-25 ~ 2026-09-28 00:4x | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 37 | 86KB |
 | 2026-09-08 ~ 2026-09-21 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 16 | 94KB |
 | 2026-09-01 ~ 2026-09-08 (+09-13 인계 1) | [handoff/HANDOFF-2026-09.md](handoff/HANDOFF-2026-09.md) | 18 | 92KB |
@@ -30,7 +30,19 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-04 15:20 / 오프닝 한 프레임 늘어남 수정(#2031) · 0.10.0 컷(#2032) · 에뮬레이터 확인
+## Latest — 2026-10-05 05:40 / Grok 봇 협업 재개 · #1863 게시 승인 · Paddle 5단계 · vc59 QA · SSV 89일 정리 PR-7a/7b 로컬
+
+- **무엇을**: Simon /vibe "그록 봇 작업 현황을 확인하고 소통해서 … 유기적으로 작업할 수 있도록" (10-04 16:3x). 봇 버스 `E:/2ndB/.bots`(relay inbox/outbox)로 주고받았다. 보고서 <https://claude.ai/artifact/BSKXDaA96Rc7APfCUscx4y>
+- **#1863 웹 게시**: Hadrianus 의 run 37185846604 가 Production 승인에서 20분 멈춰 있었다(Relay 는 Pages 승인 권한이 없다). 소스 `ba7afdfd` = origin/main · 다이제스트 일치 · Cassius QA ①~③ · Simon GO 16:13 확인 뒤 16:47:39 승인, 16:48:30 게시.
+- **봇 질문 3건 답**(`coding-sync-261004-1701`): GA4 9/26 이후 0건 = 분석 동의한 성인의 웹 세션 0(설계대로, 서버 스위치 켜짐 · 라이브 태그 있음) · 동의 collect 는 막지 않는다(enforce 만) · main 광고는 `adNetworkPublicationReady()` false 로 꺼져 있다.
+- **Paddle 5단계**(Simon GO 17:45): 새 client-side token `polascope-web-binding-261004`(Simon 18:31 로그인 → Relay 18:34 발급) → 저장소 변수 `PADDLE_CLIENT_TOKEN_NEXT`(sha256 `636bb5ed…`). 격리 preview(CI 공개 설정 다이제스트 `05179aa0…` 재현)에서 v2 바인딩 custom_data 확인, 승인 도메인 201. localhost 는 Paddle 이 403 "checkout creation is blocked for this vendor"(미승인 도메인이라 토큰 탓이 아니다). 미결제 초안 거래 2건 생김(7단계 목록). `relay/outbox/vb-paddle-step5-go-1745.result.md`
+- **vc59(0.10.0) 에뮬레이터 QA**(봇 컴퓨터 메모리 부족으로 이관): ①③④⑤⑥ PASS · ② 미검증(에뮬 `network delay` 미적용) · **F1 세컨비 입력창이 키보드에 가린다**(API 36). `secondb.tsx` 가 Android 에서 KeyboardAvoidingView 를 끄고 adjustResize 에 기대는데 targetSdk 36 edge-to-edge 에서는 resize 가 안 된다는 것이 가설(실기기 미확인). `web-qa/inbox/vc59-emulator-qa.coding.result.md`
+- **SSV 89일 정리**(Simon 20:29 "코드는 PC 코딩 LLM"): 요청서 v3 반영. 로컬 브랜치만 — `feat/ssv-90d-purge`(PR-7a 4커밋) · `feat/ssv-callback-freshness`(PR-7b 2커밋, 7a 위). 둘 다 `npm run verify` rc=0, CI sql job 로컬 재생 통과. 초안의 1일 창은 발급 시각 검사에 가려 관측되지 않았다(사례 추가, 변이로 확인). 워크트리 `.worktrees/ssv-90d-purge-261004`. `dev-infra/outbox/coding-llm-request-ssv-90d-purge.coding.result.md`
+- **다음 1개**: Simon 결정 둘 — ① SSV GO-1(push·PR 2개. main 이 `5964f1ba` 로 움직여 rebase 필요, 0211~0214 는 아직 비었다) ② 결제 전환 6~13단계 일정(지금 공개 웹은 옛 토큰으로 결제창이 열리고 webhook 은 0).
+- **남은 것**: F1 수정 · `.worktrees/paddle5-preview-261004` 정리(정션 먼저 해제).
+- **앱/localhost**: 이 세션은 앱 코드를 main 에 넣지 않았다(이 PR 은 문서).
+
+## 2026-10-04 15:20 / 오프닝 한 프레임 늘어남 수정(#2031) · 0.10.0 컷(#2032) · 에뮬레이터 확인
 
 - **무엇을**: Simon: "망원경을 조정하다가 갑자기 1 프레임 정도 접안 모션을 보여주는 상태야. 이거 수정 가능해?" → "혹시 localhost 에서만 그런가? … 에뮬레이터로 확인 해볼래? 최신 apk를 만들어서 작업하자. 마이너 버전으로."
 - **원인**: 승인 시퀀스의 컷이 아니다(manifest = approved-settings). observe-* 만 폭 480 · 나머지 400 인데 캐릭터 틀이 컷마다 크기를 따라갔다. expo-image 는 새 그림이 그려질 때까지 옛 그림을 붙잡으므로 adjust-3 → observe-1 순간 adjust-3 이 1.2배로 늘어난 채 한 번 그려졌다. 웹 8081 13~15ms(캐시 유무 둘 다) · 안드로이드 에뮬레이터(x86_64 CI APK `e4ee955e`) 72ms. **localhost 전용이 아니었다.**
@@ -549,14 +561,3 @@
 - **다음 세션**: `git fetch origin main` → `git show origin/main:docs/HANDOFF.md` → 빌드 36741708266 최종 결과와 `npm run app:parity`를 재확인한다. 기기·콘솔 접근이 가능해지면 위 미검증 항목을 확인한다. Simon의 최신 지시대로 작은 구현 판단을 반복 질문하지 않는다. 운영·공개·비용·삭제 게이트는 기존 승인 범위와 저장소 지침을 확인한다.
 
 ---
-
-## 2026-09-30 23:57 / 커뮤니티 초대 입장 경합 수정·GUI 검증·앱 동등성
-
-- **PR #1958 병합 SHA `90fd6b83`**: [PR #1958](https://github.com/Simon-YHKim/2nd-B/pull/1958)이 CI `lint`·`verify`·`web-export-smoke` 3/3 통과 후 병합됐다. 초대 A의 비동기 프로필·입장 결과가 토큰 B, 사용자 변경, 재시도, 화면 이탈 뒤 현재 화면을 이동시키거나 오류를 덮지 않도록 요청 유효성을 검사한다. A가 프로필 단계에서 낡아졌다면 입장 RPC도 호출하지 않는다. DB·운영 설정 변경은 없다.
-- **검증**: 병합 전 최신 main 기반 `npm run verify -- --runInBand` 861 suites/11,141 tests 통과. 지연 Promise 회귀 테스트 4개가 현재 성공·프로필 중 초대 전환·입장 중 전환·오래된 오류 무시를 검증한다. 375×812 Chrome QA에서 잘못된 초대의 오류 화면과 모의 입장의 방 경로 이동을 확인했다. 페이지 오류·가로 넘침 0건이며 쓰기 응답은 모의 처리했다. [QA 기록](qa/community-join-lifecycle-260930.md) · [화면](qa/community-join-lifecycle-260930.png).
-- **앱/localhost**: 8081 감독자가 `90fd6b83`을 따라갔다. `npm run app:parity`는 앱 경로 차이 0, 설정·의존성 일치, 같은 SHA의 [Android 진단 빌드 36732694009](https://github.com/Simon-YHKim/2nd-B/actions/runs/36732694009) 진행 중으로 **같음**을 보고했다. 빌드는 서명 전 최신 main 게이트를 통과했으며 최종 성공은 아직 확인하지 않았다. OTA 런 36732693996은 성공했다. QA APK 게시는 Simon이 폰에서 보기를 원할 때만 한다.
-- **남은 확인**: 실제 유효한 초대의 서버 권한·만료·소진 규칙과 ARM Android 실기기 뒤로가기·글꼴 확대·TalkBack은 검증하지 못했다. `adb devices -l`에 연결 기기가 없었다. Play Console 로그인 상태도 확인되지 않았다. 운영 동의 모드·503·Play Data Safety·서버 적용은 `docs/SESSION-OWNERSHIP.md`의 담당 경계를 따른다. Grok 후속은 Simon의 보류를 유지한다. 원래 `TTL-Work_rev2`의 다른 세션 미커밋 변경은 건드리지 않았다.
-- **다음 세션**: `git fetch origin main` → `git show origin/main:docs/HANDOFF.md` → 빌드 36732694009 최종 결과와 `npm run app:parity` 재확인. 실제 기기와 서버 접근이 가능해지면 위 미검증 항목을 검증한다. Simon의 최신 지시대로 작은 구현 판단을 반복 질문하지 않는다. 공개·운영·비용·삭제 게이트는 기존 승인 범위와 저장소 지침을 확인한다.
-
----
-
