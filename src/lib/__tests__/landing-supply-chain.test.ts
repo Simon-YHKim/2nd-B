@@ -1,16 +1,16 @@
-import { createHash } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+// The 2026-06-15 background-concept board (public/landing/bg-concepts/) and the
+// test here that kept its seven pages network-closed left the repo on 2026-10-05
+// (Simon decision Q-261004-28, batch qa261004-batch2). The pre-cut file is kept at
+// E:/Legacy/2ndB/src/lib/__tests__/landing-supply-chain.test.ts. The landing page
+// itself is still guarded below.
 const ROOT = process.cwd();
 const read = (path: string): string =>
   readFileSync(join(ROOT, path), "utf8").replace(/\r\n?/g, "\n");
 
 const html = read("public/landing/index.html");
-const bgConceptHtml = readdirSync(join(ROOT, "public", "landing", "bg-concepts"))
-  .filter((name) => name.endsWith(".html"))
-  .sort()
-  .map((name) => ({ name, source: read(`public/landing/bg-concepts/${name}`) }));
 const workflow = read(".github/workflows/web-deploy.yml");
 const packageJson = JSON.parse(read("package.json")) as {
   devDependencies?: Record<string, string>;
@@ -38,25 +38,6 @@ function contentSecurityPolicy(): Map<string, string[]> {
   );
 }
 
-function policyFor(source: string): Map<string, string[]> {
-  const match = source.match(
-    /<meta\s+http-equiv=["']Content-Security-Policy["']\s+content=["']([\s\S]*?)["']\s*\/?>/i,
-  );
-  if (!match) throw new Error("nested landing Content-Security-Policy meta is missing");
-  return new Map(
-    match[1].split(";").map((value) => value.trim()).filter(Boolean).map((directive) => {
-      const [name, ...values] = directive.split(/\s+/);
-      return [name, values] as const;
-    }),
-  );
-}
-
-function inlineScriptHashes(source: string): string[] {
-  return [...source.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map((match) =>
-    `'sha256-${createHash("sha256").update(match[1], "utf8").digest("base64")}'`,
-  );
-}
-
 describe("standalone landing supply chain", () => {
   test("loads only a local, non-inline executable bundle", () => {
     const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
@@ -75,32 +56,6 @@ describe("standalone landing supply chain", () => {
     expect(html).not.toContain("Date.now()");
     expect(html).not.toContain("fonts.googleapis.com");
     expect(html).not.toContain("fonts.gstatic.com");
-  });
-
-  test("keeps every nested background concept network-closed with exact script hashes", () => {
-    expect(bgConceptHtml).toHaveLength(7);
-    for (const { name, source } of bgConceptHtml) {
-      expect(source).not.toMatch(
-        /<(?:link|script|img|audio|video|iframe)\b[^>]*(?:href|src)=["']https?:\/\//i,
-      );
-      expect(source).not.toMatch(/@import\s+(?:url\()?\s*["']?https?:\/\//i);
-      expect(source).toMatch(
-        /<meta\s+name=["']referrer["']\s+content=["']no-referrer["']/i,
-      );
-
-      const policy = policyFor(source);
-      expect({ name, value: policy.get("default-src") }).toEqual({ name, value: ["'none'"] });
-      expect({ name, value: policy.get("script-src") }).toEqual({
-        name,
-        value:
-        inlineScriptHashes(source).length ? inlineScriptHashes(source) : ["'none'"],
-      });
-      expect(policy.get("script-src")).not.toContain("'unsafe-inline'");
-      expect(policy.get("connect-src")).toEqual(["'none'"]);
-      expect(policy.get("object-src")).toEqual(["'none'"]);
-      expect(policy.get("base-uri")).toEqual(["'none'"]);
-      expect(policy.get("form-action")).toEqual(["'none'"]);
-    }
   });
 
   test("uses an exact default-deny CSP and no-referrer policy", () => {
