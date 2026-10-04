@@ -346,7 +346,7 @@ export default function AvatarStudioScreen() {
         ))}
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabStrip} contentContainerStyle={styles.categoryRow}>
         {visibleCategories.map((entry) => (
           <PixelPressable
             key={entry}
@@ -366,7 +366,7 @@ export default function AvatarStudioScreen() {
       </ScrollView>
 
       {activeCategory === "color" ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorFieldRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabStrip} contentContainerStyle={styles.colorFieldRow}>
           {visibleColorFields.map((entry) => (
             <PixelPressable
               key={entry}
@@ -454,6 +454,10 @@ const styles = StyleSheet.create({
   typeRow: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s2 },
   sectionLabel: { color: m3.color.onSurfaceVariant, fontSize: m3.type.labelMedium.size, lineHeight: m3.type.labelMedium.line, paddingBottom: m3.spacing.s1, marginRight: m3.spacing.s2 },
   typeContent: { minHeight: m3.minTouch, minWidth: m3.minTouch + m3.spacing.s8, alignItems: "center", paddingHorizontal: m3.spacing.s3 },
+  // D-08: a horizontal ScrollView inside a height-bounded column shrinks when the
+  // FlatList below overflows (Android measured 28.6dp of the 64dp row). Hold its
+  // own height so the tabs and their touch targets stay whole.
+  tabStrip: { flexGrow: 0, flexShrink: 0 },
   categoryRow: { flexDirection: "row", gap: m3.spacing.s2, paddingVertical: m3.spacing.s2 },
   colorFieldRow: { flexDirection: "row", gap: m3.spacing.s2, paddingVertical: m3.spacing.s1 },
   tabContent: { minHeight: m3.minTouch, alignItems: "center", paddingHorizontal: m3.spacing.s3 },

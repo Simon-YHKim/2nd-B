@@ -1,11 +1,17 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import {
   deriveCardProps,
   captureCardProps,
-  FALLBACK_INSIGHT,
   FALLBACK_LIT_COUNT,
   fallbackShareText,
 } from "../insight-card";
 import { SITE_ORIGIN } from "@/lib/site-meta";
+
+const ROOT = join(__dirname, "..", "..", "..", "..");
+const FALLBACK = "Understand myself deeply, live more like myself.";
+const LOCALES = ["en", "ko", "es", "pt", "id"] as const;
 
 // Pure mapping only — the native capture/share path is NOT tested here (it
 // lazy-imports react-native-view-shot + expo-sharing, which are native-only).
@@ -15,6 +21,7 @@ describe("deriveCardProps (core-brain + star_tier_history → ShareCard props)",
       northStarSentence: "나는 호기심으로 세상을 읽는다.",
       litStars: 6,
       handle: "simon",
+      fallbackInsight: FALLBACK,
     });
     expect(props).toEqual({
       insight: "나는 호기심으로 세상을 읽는다.",
@@ -23,42 +30,70 @@ describe("deriveCardProps (core-brain + star_tier_history → ShareCard props)",
     });
   });
 
-  test("missing / blank sentence falls back to the canonical sentence", () => {
-    expect(deriveCardProps({ handle: "x" }).insight).toBe(FALLBACK_INSIGHT);
-    expect(deriveCardProps({ northStarSentence: "   ", handle: "x" }).insight).toBe(
-      FALLBACK_INSIGHT,
-    );
-    expect(deriveCardProps({ northStarSentence: null, handle: "x" }).insight).toBe(
-      FALLBACK_INSIGHT,
-    );
+  test("missing / blank sentence falls back to the caller's localized sentence", () => {
+    // QA 261004 W-04/D-09: the fallback was a Korean constant, so an English
+    // card read "깊이 이해하고, 더 나답게 산다.". It now comes from the caller.
+    const f = { handle: "x", fallbackInsight: FALLBACK };
+    expect(deriveCardProps(f).insight).toBe(FALLBACK);
+    expect(deriveCardProps({ ...f, northStarSentence: "   " }).insight).toBe(FALLBACK);
+    expect(deriveCardProps({ ...f, northStarSentence: null }).insight).toBe(FALLBACK);
+    expect(deriveCardProps(f).insight).not.toMatch(/[가-힣]/);
   });
 
   test("trims surrounding whitespace from a real sentence", () => {
     expect(
-      deriveCardProps({ northStarSentence: "  깊이 산다.  ", handle: "x" }).insight,
+      deriveCardProps({ northStarSentence: "  깊이 산다.  ", handle: "x", fallbackInsight: FALLBACK })
+        .insight,
     ).toBe("깊이 산다.");
   });
 
-  test("missing / non-finite litStars falls back to the canonical 4", () => {
-    expect(deriveCardProps({ handle: "x" }).litCount).toBe(FALLBACK_LIT_COUNT);
-    expect(deriveCardProps({ litStars: null, handle: "x" }).litCount).toBe(
-      FALLBACK_LIT_COUNT,
-    );
-    expect(deriveCardProps({ litStars: NaN, handle: "x" }).litCount).toBe(
-      FALLBACK_LIT_COUNT,
-    );
+  test("missing / non-finite litStars stays unknown instead of inventing 4", () => {
+    // D-09: a share surface must not draw a star count it did not read.
+    const f = { handle: "x", fallbackInsight: FALLBACK };
+    expect(deriveCardProps(f).litCount).toBeNull();
+    expect(deriveCardProps({ ...f, litStars: null }).litCount).toBeNull();
+    expect(deriveCardProps({ ...f, litStars: NaN }).litCount).toBeNull();
   });
 
   test("litStars is clamped to 0..7 and rounded", () => {
-    expect(deriveCardProps({ litStars: -3, handle: "x" }).litCount).toBe(0);
-    expect(deriveCardProps({ litStars: 12, handle: "x" }).litCount).toBe(7);
-    expect(deriveCardProps({ litStars: 3.6, handle: "x" }).litCount).toBe(4);
+    const f = { handle: "x", fallbackInsight: FALLBACK };
+    expect(deriveCardProps({ ...f, litStars: -3 }).litCount).toBe(0);
+    expect(deriveCardProps({ ...f, litStars: 12 }).litCount).toBe(7);
+    expect(deriveCardProps({ ...f, litStars: 3.6 }).litCount).toBe(4);
   });
 
   test("blank handle falls back to 'me'", () => {
-    expect(deriveCardProps({ handle: "" }).handle).toBe("me");
-    expect(deriveCardProps({ handle: null }).handle).toBe("me");
-    expect(deriveCardProps({ handle: "  ari  " }).handle).toBe("ari");
+    const f = { fallbackInsight: FALLBACK };
+    expect(deriveCardProps({ ...f, handle: "" }).handle).toBe("me");
+    expect(deriveCardProps({ ...f, handle: null }).handle).toBe("me");
+    expect(deriveCardProps({ ...f, handle: "  ari  " }).handle).toBe("ari");
+  });
+});
+
+describe("/share-card uses a localized fallback and waits for the real star count", () => {
+  const screen = readFileSync(join(ROOT, "src", "app", "share-card.tsx"), "utf8");
+
+  test("every locale carries the fallback sentence; only ko is Korean", () => {
+    for (const locale of LOCALES) {
+      const bundle = JSON.parse(
+        readFileSync(join(ROOT, "locales", locale, "deepspace.json"), "utf8"),
+      ) as { shareCard: Record<string, string> };
+      const value = bundle.shareCard.fallbackInsight;
+      expect(typeof value).toBe("string");
+      expect(value.trim().length).toBeGreaterThan(10);
+      expect({ locale, hangul: /[가-힣]/.test(value) }).toEqual({ locale, hangul: locale === "ko" });
+      // The old "using the default count" notice described the invented 4.
+      expect(bundle.shareCard.starsFallback).toBeUndefined();
+    }
+  });
+
+  test("the screen passes the bundle sentence and gates the card on a known count", () => {
+    expect(screen).toContain('fallbackInsight: t("deepspace:shareCard.fallbackInsight")');
+    expect(screen).not.toContain("starsFallback");
+    expect(screen).toContain("disabled={saving || sharing || litCount === null}");
+    expect(screen).toContain("disabled={sharing || saving || litCount === null}");
+    expect(screen).toContain("{litCount !== null ? (");
+    expect(screen.split("litCount === null) return;")).toHaveLength(3);
   });
 });
 

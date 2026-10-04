@@ -18,9 +18,9 @@ const WORLDVIEW_CONCEPT_FILES = [
   "docs/VISION.md",
   "src/lib/characters.ts",
   "src/lib/chat/personas.ts",
-  "src/lib/graph/monologues.ts",
+  // lib/graph/monologues.ts · components/graph/NavGraph.tsx 는 2026-10-04 에
+  // E:/Legacy 로 갔다(QA L2-01 · L4-06).
   "src/components/art/SoulcoreFinalArt.tsx",
-  "src/components/graph/NavGraph.tsx",
   "src/components/premium/graph-bits.tsx",
   "src/lib/assets/soulcore-v3.ts",
   "src/lib/theme/tokens.ts",

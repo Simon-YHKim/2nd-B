@@ -24,44 +24,6 @@
   "personaHero": {
     "speech": "Here are things that come up often in your records. Check whether they fit you."
   },
-  "monologues": {
-    "secondb": [
-      "Look for topics that came up often.",
-      "Find records that might be related.",
-      "Read the records or consider another option.",
-      "Bring the records into one place."
-    ],
-    "archi": [
-      "Start with the current work situation.",
-      "Look through the work records again.",
-      "Split it into smaller tasks if it is too much at once.",
-      "Use these records to decide what to do next."
-    ],
-    "gadi": [
-      "Look back at what happened with other people.",
-      "Check what was said that day.",
-      "Look for similar events in the records.",
-      "See which relationships felt comfortable."
-    ],
-    "lulu": [
-      "Where could this knowledge be useful?",
-      "Look up anything that needs more explanation.",
-      "Is there a relevant source in the saved materials?",
-      "An example could make this easier to understand."
-    ],
-    "momo": [
-      "Add a category to the new record.",
-      "Make it easy to find what happened when.",
-      "Organize records so they are easy to find.",
-      "Keep short notes together by date."
-    ],
-    "lumi": [
-      "Is there a new hobby to try?",
-      "Is there time to enjoy this recommendation?",
-      "Find ways to keep enjoying an interest.",
-      "Look back at what was enjoyable."
-    ]
-  },
   "personas": {
     "secondb": {
       "greeting": "What would you like to find in your records?",

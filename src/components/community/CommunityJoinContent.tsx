@@ -12,7 +12,7 @@ import { MdButton, MdCard } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { spacing } from "@/lib/theme/tokens";
 import { communityErrorCode, ensureCommunityProfile, joinByToken } from "@/lib/community/chat";
-import { runCommunityJoinAttempt } from "@/lib/community/join-attempt";
+import { joinErrorKey, runCommunityJoinAttempt } from "@/lib/community/join-attempt";
 
 type Phase = "joining" | "error";
 type JoinState = { token: string | null; userId: string | null; adult: boolean; phase: Phase; errorKey: string };
@@ -106,17 +106,6 @@ export function CommunityJoinContent({ token, onJoined, onReturnToList, backActi
       </View>
     </>
   );
-}
-
-function joinErrorKey(code: string | null): string {
-  switch (code) {
-    case "community_adult_only": return "adultOnly";
-    case "community_invite_unknown": return "inviteUnknown";
-    case "community_invite_expired": return "inviteExpired";
-    case "community_invite_spent": return "inviteSpent";
-    case "community_room_full": return "roomFull";
-    default: return "joinFailed";
-  }
 }
 
 const styles = StyleSheet.create({
