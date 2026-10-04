@@ -26,7 +26,7 @@
   > (타일은 개당 78~82바이트 · 4x4~12x12 라 이 규칙이 막으려는 OOM 표면이 아닙니다).
   > 이 예외는 `src/lib/release/__tests__/android-qa-guidelines.test.ts` 가 지킵니다.
 - **Reanimated 애니메이션 누수**: 언마운트 시점(`useEffect`의 cleanup)에서 `cancelAnimation`을 호출해 백그라운드 Worklet 좀비 현상을 제거하세요.
-- **SVG 브릿지 병목**: 다량의 SVG 노드(`NavGraph` 등)는 JS-Native 통신량을 폭증시킵니다. 안드로이드에서는 `hardwareAccelerated` 최적화나 Skia 전환 등을 고려해야 합니다.
+- **SVG 브릿지 병목**: 다량의 SVG 노드(옛 홈 그래프 `NavGraph` 같은 것, 2026-10-04 `E:/Legacy` 로 이동)는 JS-Native 통신량을 폭증시킵니다. 안드로이드에서는 `hardwareAccelerated` 최적화나 Skia 전환 등을 고려해야 합니다.
 
 ## 4. 생태계 & 생명주기 (Lifecycle & Permissions)
 - **하드웨어 백버튼 (BackHandler) 필수 연동**: 커스텀 모달이나 바텀시트가 열려 있을 때 안드로이드 시스템 뒤로가기 버튼을 누르면 화면이 닫혀야 합니다. 연동하지 않으면 앱이 강제 종료되거나 스택이 꼬입니다.

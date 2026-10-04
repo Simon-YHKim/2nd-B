@@ -24,44 +24,6 @@
   "personaHero": {
     "speech": "Veja o que se repete nos seus registros. Você pode conferir as fontes e decidir o que fazer a seguir."
   },
-  "monologues": {
-    "secondb": [
-      "Qual assunto dos seus registros você quer entender melhor?",
-      "Que outro registro pode estar relacionado a este?",
-      "Você pode analisar os registros ou explorar outras ideias.",
-      "Abra as fontes para conferir a resposta."
-    ],
-    "archi": [
-      "Como está seu trabalho hoje?",
-      "Que experiência sua ajuda a pensar nesta decisão?",
-      "Se o próximo passo for grande demais, divida em partes menores.",
-      "O que você poderia tentar no próximo dia de trabalho?"
-    ],
-    "gadi": [
-      "O que aconteceu entre vocês?",
-      "Ficou algo que você queria ter dito?",
-      "Como você se sentiu durante essa conversa?",
-      "O que você gostaria de mudar nessa relação?"
-    ],
-    "lulu": [
-      "Onde você poderia usar o que aprendeu?",
-      "Qual parte ainda ficou confusa?",
-      "Que outra nota fala sobre esse assunto?",
-      "Consegue pensar em um exemplo do dia a dia?"
-    ],
-    "momo": [
-      "Escolha uma categoria para encontrar este registro depois.",
-      "Anote o que aconteceu e quando para encontrar o registro depois.",
-      "Lembra em que dia isso aconteceu?",
-      "Um título específico facilita encontrar o registro depois."
-    ],
-    "lumi": [
-      "O que você tem gostado de fazer ultimamente?",
-      "Essa atividade cabe no seu dia de hoje?",
-      "Quanto tempo você gostaria de reservar para esse hobby?",
-      "O que chamou sua atenção hoje?"
-    ]
-  },
   "personas": {
     "secondb": {
       "greeting": "Seus registros estão aqui. O que você quer olhar primeiro?",
