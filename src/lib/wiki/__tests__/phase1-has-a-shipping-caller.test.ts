@@ -22,6 +22,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { deadRendererSpans } from "@/lib/legal/dead-renderer-spans";
+import { shadowedScreens } from "@/lib/legal/shadow-screens";
 
 const ROOT = process.cwd();
 
@@ -164,9 +165,22 @@ describe("요약 + 질문 넷은 배송되는 앱에서 부를 수 있다", () =
 
   test("알림 허브에서 그 자리로 가는 길이 있다", () => {
     // 화면을 만들어 두고 아무도 못 찾으면 만들지 않은 것과 같다.
-    const hub = stripComments(read("src/screens/deepspace/dds-import-inbox-screens.tsx"));
-    expect(hub).toContain('route: "/sources"');
-    expect(hub).toContain("listSources(userId, { ingested: false");
+    //
+    // ⚠ 2026-10-04 재조준 (qa261004 L1-20). 이 검사는 dds-import-inbox-screens.tsx 를
+    // 읽고 초록이었다. 그런데 그 파일의 DeepSpaceInboxScreen 은 **그림자 사본**이다 -
+    // /inbox 라우트는 08-31 부터 dds-inbox-screen.tsx 를 그렸고, #1796(09-13)의 신호
+    // 카드는 그림자에만 들어갔다. 배송 허브에서 /sources 로 가는 길은 0건이었는데
+    // 이 검사는 거짓 초록을 냈다. 그래서 이제 허브 파일을 **라우트가 실제로
+    // import 하는 곳에서** 읽고, 그 파일이 그림자가 아닌지도 판정기로 확인한다.
+    const route = stripComments(read("src/app/inbox.tsx"));
+    const imported = /import\s*\{[^}]*\bDeepSpaceInboxScreen\b[^}]*\}\s*from\s*"@\/([^"]+)"/.exec(route);
+    expect(imported).not.toBeNull();
+    const hubFile = `src/${imported![1]}.tsx`;
+    const inboxShadows = shadowedScreens(ROOT).filter((s) => s.component === "DeepSpaceInboxScreen");
+    expect(inboxShadows.every((s) => s.shipped === hubFile && s.shadow !== hubFile)).toBe(true);
+    const hub = stripComments(read(hubFile));
+    expect(hub).toMatch(/route="\/sources"/);
+    expect(hub).toContain("listSources(ownerId, { ingested: false");
     // 라우트가 실재한다.
     expect(fs.existsSync(path.join(ROOT, "src/app/sources.tsx"))).toBe(true);
     const screen = stripComments(read("src/screens/deepspace/dds-sources-screen.tsx"));

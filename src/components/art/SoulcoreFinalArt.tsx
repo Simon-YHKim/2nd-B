@@ -1,8 +1,5 @@
 import { Image } from "expo-image";
-import { useEffect, useRef } from "react";
 import {
-  Animated,
-  AppState,
   StyleSheet,
   View,
   type ImageSourcePropType,
@@ -10,11 +7,9 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import Svg, { Polygon, Rect } from "react-native-svg";
 
 import { LivingAsset } from "@/components/motion/LivingAsset";
-import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import type { PatternDataColorKey } from "@/lib/graph/pattern-data-color";
 import { cosmic, flattenAlpha } from "@/lib/theme/tokens";
 
@@ -29,25 +24,40 @@ import { cosmic, flattenAlpha } from "@/lib/theme/tokens";
 //   면과 섞였고 여기서는 바닥과 섞는다. **그 차이가 규칙이 없애려는 것**이다
 //   (겹침에 따라 색이 달라지는 것).
 //
-// ⚠ 이 파일은 레거시 스킨이라 배포에 안 실린다(모든 배포가 deep-space 고정).
+// ⚠ 이 보석 면(아래 V10PatternDataVector)은 레거시 마을 그래프(NavGraph)만 그린다(배포는 deep-space 고정).
 //   그래도 면제가 아니다 — #1304 의 "레거시를 지키지 않는다"는 **규칙을 적용한다**는 뜻이다.
 const ART_GROUND = cosmic.space950;
 const artFlat = (c: string, a: number): string => flattenAlpha(c, a, ART_GROUND);
 
 const PIXELATED = { imageRendering: "pixelated" } as unknown as ImageStyle;
-const SOUL_FLAME_HOT = cosmic.moonWhite;
-const SOUL_FLAME_WARM = cosmic.pixelLamp;
-const SOUL_FLAME_DEEP = cosmic.soulViolet;
 const SNOW_CRYSTAL_HOT = cosmic.moonWhite;
 const SNOW_CRYSTAL_COOL = cosmic.signalBlue;
 
 export type FinalCoreId = "core" | "work_growth" | "relationship" | "knowledge" | "records" | "inspiration" | "routine";
-export type FinalPatternDataId = "bond" | "wisdom" | "narrative" | "muse" | "growth";
-export type FinalLogId = "work" | "relationship" | "knowledge" | "love" | "hobby";
-export type FinalPatternLinkId = "near" | "mid" | "far" | "current";
 
-const FINAL_CORE_ART: Record<FinalCoreId, ImageSourcePropType> = {
-  core: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier1_soul_core/soul_core_256.png"),
+// ─── What this module bundles (2026-10-04 · D-14 · L4-09 · L4-10) ───────────
+// Metro bakes every static require() below into every web/APK/IPA bundle,
+// whichever branch a screen renders. So a require stays here only while some
+// renderer can reach it:
+//
+// - `core` -> tesseract-v10/soul_core.png. The shipped deep-space build draws it
+//   on the /core-brain load-error and empty states (core-brain.tsx -> IslandArt
+//   id="core"). It is the only tesseract a deep-space user sees.
+// - the six pattern cores -> the v45 256px set (6 files, 71,931 B). Only the
+//   EXPO_PUBLIC_UI=legacy rollback skin (SceneHero's legacy half) and the orphan
+//   NavGraph pass a non-core id. They used to resolve to the v10 set (6 files,
+//   9.4 MB) that no deep-space screen draws; the small set keeps the rollback
+//   skin's look until that lever is retired.
+//
+// Moved out of the repo to E:/Legacy/2ndB (MANIFEST.jsonl, batch qa261004-art):
+// the v10 non-core PNGs, the v45 soul core and every v45 Pattern Data / Log /
+// Pattern Link PNG, plus the code that had no caller: the `variant` prop (the
+// v45 comparison set; its preview route left in #583), the soul-flame overlay,
+// FinalPatternDataArt, FinalLogArt, FinalPatternLinkArt,
+// finalPatternDataIdForDomain and finalLogIdForGraphPiece.
+const SOUL_CORE_ART: ImageSourcePropType = require("../../../assets/legacy-art/tesseract-v10/soul_core.png");
+
+const PATTERN_CORE_ART: Record<Exclude<FinalCoreId, "core">, ImageSourcePropType> = {
   work_growth: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/growth_core_256.png"),
   relationship: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/bond_core_256.png"),
   knowledge: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/wisdom_core_256.png"),
@@ -56,60 +66,6 @@ const FINAL_CORE_ART: Record<FinalCoreId, ImageSourcePropType> = {
   // PLACEHOLDER (O-R3 G1): narrative copy - overwrite rhythm_core_256.png to apply the real asset.
   routine: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/rhythm_core_256.png"),
 };
-
-const FINAL_PATTERN_DATA_ART: Record<FinalPatternDataId, ImageSourcePropType> = {
-  bond: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/bond_pattern_data_96.png"),
-  wisdom: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/wisdom_pattern_data_96.png"),
-  narrative: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/narrative_pattern_data_96.png"),
-  muse: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/muse_pattern_data_96.png"),
-  growth: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/growth_pattern_data_96.png"),
-};
-
-const FINAL_LOG_ART: Record<FinalLogId, ImageSourcePropType> = {
-  work: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/work_log_96x72.png"),
-  relationship: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/relationship_log_96x72.png"),
-  knowledge: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/knowledge_log_96x72.png"),
-  love: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/love_log_96x72.png"),
-  hobby: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/hobby_log_96x72.png"),
-};
-
-const FINAL_PATTERN_LINK_ART: Record<FinalPatternLinkId, ImageSourcePropType> = {
-  near: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_near_320x64.png"),
-  mid: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_mid_320x64.png"),
-  far: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_far_320x64.png"),
-  current: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_current_320x64.png"),
-};
-
-// ─── Tesseract art variants (v45 legacy PNG, v10 production default) ─────────
-// 2026-06-04 — the v10 clean-cutout reviewed set (assets/legacy-art/tesseract-v10)
-// is the PRODUCTION DEFAULT (better cutouts, 18px safe margins). The legacy v45
-// set stays reachable via the `variant` prop for comparison. v10 covers tier1
-// cores + tier3 pattern-data; tier-4 Log + pattern_link still use the v45 set.
-export type AssetVariant = "v45" | "v10";
-
-// v10 core map (FinalCoreId → v10 file). Simple flat filenames per the v10
-// manifest. NOTE: ids archi/gadi/lulu/momo/lumi are not renamed this PR (large
-// scope — asset filenames key off them); see TODO at finalPatternDataIdForDomain.
-const FINAL_CORE_ART_V10: Record<FinalCoreId, ImageSourcePropType> = {
-  core: require("../../../assets/legacy-art/tesseract-v10/soul_core.png"),
-  work_growth: require("../../../assets/legacy-art/tesseract-v10/growth_core.png"),
-  relationship: require("../../../assets/legacy-art/tesseract-v10/bond_core.png"),
-  knowledge: require("../../../assets/legacy-art/tesseract-v10/wisdom_core.png"),
-  records: require("../../../assets/legacy-art/tesseract-v10/narrative_core.png"),
-  inspiration: require("../../../assets/legacy-art/tesseract-v10/muse_core.png"),
-  // PLACEHOLDER (O-R3 G1): production default variant - overwrite rhythm_core.png to apply.
-  routine: require("../../../assets/legacy-art/tesseract-v10/rhythm_core.png"),
-};
-
-const CORE_ART_BY_VARIANT: Record<AssetVariant, Record<FinalCoreId, ImageSourcePropType>> = {
-  v45: FINAL_CORE_ART,
-  v10: FINAL_CORE_ART_V10,
-};
-
-// Production default variant. Flip this to swap which tesseract set production
-// surfaces (NavGraph / IslandArt) render. Preview routes pass an explicit
-// variant, so they stay pinned to their own set regardless of this default.
-export const DEFAULT_ASSET_VARIANT: AssetVariant = "v10";
 
 // Tier-3 Pattern Data: 9 color variants keyed by PatternDataColorKey, resolved
 // upstream by resolvePatternDataColor(). Production (v10) renders these with the
@@ -156,42 +112,32 @@ const V10_PATTERN_DATA_PIXELS: readonly { x: number; y: number; size: number; to
   { x: 78, y: 38, size: 4, tone: "glint", mix: 0.65 },
 ];
 
-export function hasFinalCoreArt(id: string): id is FinalCoreId {
-  return id in FINAL_CORE_ART;
-}
-
 export function FinalCoreArt({
   id,
   size,
   style,
   animated = true,
-  variant = DEFAULT_ASSET_VARIANT,
 }: {
   id: FinalCoreId;
   size: number;
   style?: StyleProp<ViewStyle>;
   animated?: boolean;
-  variant?: AssetVariant;
 }) {
-  if (id === "core") return <SoulCoreArt size={size} style={style} animated={animated} variant={variant} />;
+  if (id === "core") return <SoulCoreArt size={size} style={style} />;
   return (
     <LivingAsset preset="patternCore" id={id} size={size} style={style} enabled={animated} pointerEvents="none">
-      <Image source={CORE_ART_BY_VARIANT[variant][id]} style={[{ width: size, height: size }, PIXELATED]} contentFit="contain" />
+      <Image
+        source={PATTERN_CORE_ART[id]}
+        style={[{ width: size, height: size }, PIXELATED]}
+        contentFit="contain"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      />
     </LivingAsset>
   );
 }
 
-function SoulCoreArt({
-  size,
-  style,
-  animated = true,
-  variant = DEFAULT_ASSET_VARIANT,
-}: {
-  size: number;
-  style?: StyleProp<ViewStyle>;
-  animated?: boolean;
-  variant?: AssetVariant;
-}) {
+function SoulCoreArt({ size, style }: { size: number; style?: StyleProp<ViewStyle> }) {
   return (
     <View
       pointerEvents="none"
@@ -199,191 +145,12 @@ function SoulCoreArt({
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <Image source={CORE_ART_BY_VARIANT[variant].core} style={[{ width: size, height: size }, PIXELATED]} contentFit="contain" />
-      {/* P3: the v10 soul_core.png already bakes a cyan lotus bloom; the warm
-          orange flame overlay clashed with the references' cool 3-colour
-          palette, so it only renders for the legacy v45 set. */}
-      {variant === "v45" ? <SoulFlameFlicker size={size} active={animated} /> : null}
-    </View>
-  );
-}
-
-function SoulFlameFlicker({ size, active }: { size: number; active: boolean }) {
-  const flicker = useRef(new Animated.Value(0)).current;
-  const spark = useRef(new Animated.Value(0)).current;
-  // Subscribed read: a lite-mode toggle must stop/restart the flame loops on
-  // the mounted core (the pure function would freeze at its mount value).
-  const reduced = useReducedMotionPref();
-
-  useEffect(() => {
-    if (!active || reduced) {
-      flicker.setValue(0);
-      spark.setValue(0);
-      return;
-    }
-    const flameLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(flicker, { toValue: 1, duration: 220, easing: pixelStepsFor(220), useNativeDriver: true }),
-        Animated.timing(flicker, { toValue: 0.24, duration: 180, easing: pixelStepsFor(180), useNativeDriver: true }),
-        Animated.timing(flicker, { toValue: 0.78, duration: 260, easing: pixelStepsFor(260), useNativeDriver: true }),
-        Animated.timing(flicker, { toValue: 0, duration: 300, easing: pixelStepsFor(300), useNativeDriver: true }),
-      ]),
-    );
-    const sparkLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(spark, { toValue: 1, duration: 780, easing: pixelStepsFor(780), useNativeDriver: true }),
-        Animated.timing(spark, { toValue: 0, duration: 80, easing: pixelStepsFor(80), useNativeDriver: true }),
-      ]),
-    );
-
-    if (AppState.currentState === "active") {
-      flameLoop.start();
-      sparkLoop.start();
-    }
-
-    const sub = AppState.addEventListener("change", (next) => {
-      if (next === "active") {
-        flameLoop.start();
-        sparkLoop.start();
-      } else {
-        flameLoop.stop();
-        sparkLoop.stop();
-      }
-    });
-
-    return () => {
-      flameLoop.stop();
-      sparkLoop.stop();
-      sub.remove();
-    };
-  }, [active, reduced, flicker, spark]);
-
-  if (!active || reduced) return null;
-
-  const overlayW = size * 0.25;
-  const overlayH = size * 0.34;
-  const px = Math.max(1.5, size * 0.018);
-  const left = size * 0.5 - overlayW / 2;
-  const top = size * 0.275;
-  const flameOpacity = flicker.interpolate({
-    inputRange: [0, 0.45, 1],
-    outputRange: [0.28, 0.78, 0.5],
-  });
-  const glowOpacity = flicker.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0.12, 0.38, 0.2],
-  });
-  const translateY = flicker.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0, -size * 0.012, size * 0.004],
-  });
-  const sparkOpacity = spark.interpolate({
-    inputRange: [0, 0.25, 0.7, 1],
-    outputRange: [0, 0.95, 0.3, 0],
-  });
-  const sparkLift = spark.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -size * 0.12],
-  });
-
-  return (
-    <View pointerEvents="none" style={[styles.flameLayer, { left, top, width: overlayW, height: overlayH }]}>
-      <Animated.View
-        style={[
-          styles.flameGlow,
-          {
-            left: overlayW * 0.2,
-            top: overlayH * 0.14,
-            width: overlayW * 0.6,
-            height: overlayH * 0.68,
-            opacity: glowOpacity,
-            transform: [{ translateY }],
-          },
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.pixelFlame,
-          {
-            opacity: flameOpacity,
-            transform: [{ translateY }],
-          },
-        ]}
-      >
-        {FLAME_CELLS.map((cell, i) => (
-          <View
-            key={`${cell.x}-${cell.y}-${i}`}
-            style={[
-              styles.flameCell,
-              {
-                left: overlayW * 0.5 + (cell.x - 4.5) * px,
-                top: overlayH * 0.03 + cell.y * px,
-                width: px * cell.w,
-                height: px * cell.h,
-                backgroundColor: cell.color,
-                opacity: cell.opacity ?? 1,
-              },
-            ]}
-          />
-        ))}
-      </Animated.View>
-      <Animated.View style={[styles.pixelFlame, { opacity: sparkOpacity, transform: [{ translateY: sparkLift }] }]}>
-        {SPARK_CELLS.map((cell, i) => (
-          <View
-            key={`${cell.x}-${cell.y}-${i}`}
-            style={[
-              styles.flameCell,
-              {
-                left: overlayW * 0.5 + (cell.x - 4.5) * px,
-                top: overlayH * 0.18 + cell.y * px,
-                width: px * cell.w,
-                height: px * cell.h,
-                backgroundColor: cell.color,
-                opacity: cell.opacity ?? 1,
-              },
-            ]}
-          />
-        ))}
-      </Animated.View>
+      <Image source={SOUL_CORE_ART} style={[{ width: size, height: size }, PIXELATED]} contentFit="contain" />
     </View>
   );
 }
 
 type PixelCell = { x: number; y: number; w: number; h: number; color: string; opacity?: number };
-
-const FLAME_CELLS: PixelCell[] = [
-  { x: 4, y: 0, w: 1, h: 1, color: SOUL_FLAME_HOT },
-  { x: 4, y: 1, w: 1, h: 1, color: SOUL_FLAME_WARM },
-  { x: 3, y: 2, w: 1, h: 1, color: SOUL_FLAME_DEEP },
-  { x: 4, y: 2, w: 1, h: 1, color: SOUL_FLAME_WARM },
-  { x: 5, y: 2, w: 1, h: 1, color: SOUL_FLAME_DEEP },
-  { x: 3, y: 3, w: 1, h: 1, color: SOUL_FLAME_DEEP },
-  { x: 4, y: 3, w: 1, h: 1, color: SOUL_FLAME_WARM },
-  { x: 5, y: 3, w: 1, h: 1, color: SOUL_FLAME_DEEP },
-  { x: 2, y: 4, w: 1, h: 1, color: SOUL_FLAME_DEEP, opacity: 0.85 },
-  { x: 3, y: 4, w: 1, h: 1, color: SOUL_FLAME_WARM },
-  { x: 4, y: 4, w: 1, h: 1, color: SOUL_FLAME_HOT },
-  { x: 5, y: 4, w: 1, h: 1, color: SOUL_FLAME_WARM },
-  { x: 6, y: 4, w: 1, h: 1, color: SOUL_FLAME_DEEP, opacity: 0.85 },
-  { x: 2, y: 5, w: 1, h: 1, color: SOUL_FLAME_DEEP, opacity: 0.8 },
-  { x: 3, y: 5, w: 1, h: 1, color: SOUL_FLAME_WARM },
-  { x: 4, y: 5, w: 1, h: 1, color: SOUL_FLAME_HOT },
-  { x: 5, y: 5, w: 1, h: 1, color: SOUL_FLAME_WARM },
-  { x: 6, y: 5, w: 1, h: 1, color: SOUL_FLAME_DEEP, opacity: 0.8 },
-  { x: 3, y: 6, w: 1, h: 1, color: SOUL_FLAME_DEEP },
-  { x: 4, y: 6, w: 1, h: 1, color: SOUL_FLAME_WARM },
-  { x: 5, y: 6, w: 1, h: 1, color: SOUL_FLAME_DEEP },
-  { x: 3, y: 7, w: 1, h: 1, color: SOUL_FLAME_DEEP, opacity: 0.72 },
-  { x: 4, y: 7, w: 1, h: 1, color: SOUL_FLAME_WARM },
-  { x: 5, y: 7, w: 1, h: 1, color: SOUL_FLAME_DEEP, opacity: 0.72 },
-  { x: 4, y: 8, w: 1, h: 1, color: SOUL_FLAME_DEEP, opacity: 0.7 },
-];
-
-const SPARK_CELLS: PixelCell[] = [
-  { x: 3, y: 2, w: 0.8, h: 0.8, color: SOUL_FLAME_HOT },
-  { x: 6, y: 3, w: 0.75, h: 0.75, color: SOUL_FLAME_WARM, opacity: 0.85 },
-  { x: 5, y: 0, w: 0.7, h: 0.7, color: SOUL_FLAME_DEEP, opacity: 0.8 },
-];
 
 const SNOWFLAKE_CELLS: PixelCell[] = [
   { x: 0.5, y: 0.04, w: 1, h: 1.6, color: SNOW_CRYSTAL_HOT },
@@ -397,24 +164,8 @@ const SNOWFLAKE_CELLS: PixelCell[] = [
   { x: 0.5, y: 0.5, w: 1.7, h: 1.7, color: SNOW_CRYSTAL_HOT },
 ];
 
-export function FinalPatternDataArt({
-  id,
-  size,
-  style,
-  animated = true,
-}: {
-  id: FinalPatternDataId;
-  size: number;
-  style?: StyleProp<ViewStyle>;
-  animated?: boolean;
-}) {
-  return (
-    <LivingAsset preset="patternData" id={id} size={size} style={style} enabled={animated} pointerEvents="none">
-      <Image source={FINAL_PATTERN_DATA_ART[id]} style={[{ width: size, height: size }, PIXELATED]} contentFit="contain" />
-    </LivingAsset>
-  );
-}
-
+// Pattern Data snowflake: only the orphan NavGraph imports it. It stays while
+// NavGraph sits in src/ (tsconfig compiles it); it bundles no image file.
 export function FinalPatternDataSnowflakeArt({
   colorKey,
   size,
@@ -446,22 +197,10 @@ export function FinalPatternDataSnowflakeArt({
             ]}
           />
         ))}
-        <PatternDataByVariant colorKey={colorKey} size={size} style={styles.snowflakeImage} />
+        <V10PatternDataVector colorKey={colorKey} size={size} style={styles.snowflakeImage} />
       </View>
     </LivingAsset>
   );
-}
-
-function PatternDataByVariant({
-  colorKey,
-  size,
-  style,
-}: {
-  colorKey: PatternDataColorKey;
-  size: number;
-  style?: StyleProp<ViewStyle>;
-}) {
-  return <V10PatternDataVector colorKey={colorKey} size={size} style={style} />;
 }
 
 function V10PatternDataVector({
@@ -508,99 +247,7 @@ function V10PatternDataVector({
   );
 }
 
-export function FinalLogArt({
-  id,
-  width,
-  height,
-  style,
-  animated = true,
-}: {
-  id: FinalLogId;
-  width: number;
-  height: number;
-  style?: StyleProp<ViewStyle>;
-  animated?: boolean;
-}) {
-  return (
-    <LivingAsset preset="log" id={id} style={[{ width, height }, style]} enabled={animated} pointerEvents="none">
-      <Image source={FINAL_LOG_ART[id]} style={[{ width, height }, PIXELATED]} contentFit="contain" />
-    </LivingAsset>
-  );
-}
-
-export function FinalPatternLinkArt({
-  id,
-  width,
-  height,
-  style,
-  animated = true,
-}: {
-  id: FinalPatternLinkId;
-  width: number;
-  height: number;
-  style?: StyleProp<ViewStyle>;
-  animated?: boolean;
-}) {
-  return (
-    <LivingAsset preset="patternLink" id={id} style={[{ width, height }, style]} enabled={animated} pointerEvents="none">
-      <Image source={FINAL_PATTERN_LINK_ART[id]} style={[{ width, height }, PIXELATED]} contentFit="contain" />
-    </LivingAsset>
-  );
-}
-
-// TODO(naming): internal worker/asset ids (archi/gadi/lulu/momo/lumi) are NOT
-// renamed to the display cast (Archon/Relia/Lumen/Foreman Momo/Lumina) in this
-// PR — that is large scope (asset filenames + personas key off these ids). The
-// user-facing display names are already correct in MENU_NODES / personas. Track
-// the id rename separately.
-export function finalPatternDataIdForDomain(domain: string | undefined): FinalPatternDataId {
-  switch (domain) {
-    case "work": return "growth";
-    case "relation": return "bond";
-    case "knowledge": return "wisdom";
-    case "records": return "narrative";
-    case "taste": return "muse";
-    default: return "narrative";
-  }
-}
-
-export function finalLogIdForGraphPiece(parentId: string | undefined, tags: readonly string[] = [], title = ""): FinalLogId {
-  const text = [parentId ?? "", title, ...tags].join(" ").toLowerCase();
-  if (/\b(work|career|growth|job|planning|sprint)\b/.test(text)) return "work";
-  if (/\b(love|romance|promise)\b/.test(text)) return "love";
-  if (/\b(relation|relationship|bond|family|care|trust)\b/.test(text)) return "relationship";
-  if (/\b(knowledge|learning|book|question|wisdom|study)\b/.test(text)) return "knowledge";
-  if (/\b(taste|hobby|music|playlist|muse|inspiration|curation)\b/.test(text)) return "hobby";
-  return parentId === "records" ? "knowledge" : "work";
-}
-
 const styles = StyleSheet.create({
-  flameLayer: {
-    position: "absolute",
-  },
-  flameGlow: {
-    position: "absolute",
-    borderRadius: 0,
-    backgroundColor: SOUL_FLAME_WARM,
-    shadowColor: SOUL_FLAME_WARM,
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  pixelFlame: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-  },
-  flameCell: {
-    position: "absolute",
-    shadowColor: SOUL_FLAME_WARM,
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    shadowOffset: { width: 0, height: 0 },
-  },
   snowflakeFrame: {
     position: "relative",
     alignItems: "center",

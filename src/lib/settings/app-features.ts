@@ -1,6 +1,6 @@
 // App feature preferences for the 설정 (settings) root tab — the reference
 // SettingsScreen `env` surface (sb-app.jsx): feature on/off flags, data-source
-// connections, and the accent palette. Persisted like crew-density (web
+// connections, and the accent palette. Persisted like readable-font (web
 // localStorage / native AsyncStorage / memory fallback) so a toggle survives a
 // restart. These are user PREFERENCES; the deep feature wiring (real app-lock,
 // call transcription, live OAuth) lands per workstream — the persistence,
@@ -41,7 +41,7 @@ const DEFAULT_STATE: AppFeaturesState = {
 
 export const APP_FEATURES_KEY = "settings.appFeatures.v1";
 
-// ─── Persistence (mirrors src/lib/settings/crew-density.ts) ──────────────────
+// ─── Persistence (mirrors src/lib/settings/readable-font.ts) ─────────────────
 interface AsyncStorageLike {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;

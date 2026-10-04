@@ -129,3 +129,63 @@ describe("각 별에 이름이 있다 (다섯 로케일)", () => {
     expect((star.editAvatar ?? "").length).toBeGreaterThan(0);
   });
 });
+
+// QA 261004 W-08/D-10. The /me/<star> gauge labelled its five cells with the
+// interview's "L1 · Fact" … "L5 · Echo". In this app L1~L5 is the brightness
+// ladder, and coverage tops out at L4 (L5 comes only from ratification), so a
+// fully covered period showed a lit "L5 · Echo" next to a home star at L4. The
+// copy also called the layers "topics", and "{{n}} records" read "1 records".
+describe("/me/<star> 게이지는 층 이름만 쓰고 단위·복수를 맞춘다", () => {
+  const LOCALES = ["en", "ko", "es", "pt", "id"] as const;
+  const LAYERS = ["fact", "feeling", "meaning", "belief", "echo"] as const;
+  type StarCopy = Record<string, unknown> & { layer?: Record<string, unknown> };
+  const starCopy = (loc: string) =>
+    (JSON.parse(read(`locales/${loc}/home.json`)) as { ds: { star: StarCopy } }).ds.star;
+
+  it("화면이 인터뷰의 L 번호 라벨을 그리지 않는다", () => {
+    const page = read("src/app/me/[star].tsx");
+    expect(page).not.toContain("LAYER_LABEL");
+    expect(page).toContain("t(`ds.star.layer.${layer}`)");
+    expect(page).toContain('t("ds.star.records", { count: summary.records })');
+  });
+
+  it.each(LOCALES)("%s: 층 이름에 L 번호가 없고, 단위가 '주제'가 아니다", (loc) => {
+    const star = starCopy(loc);
+    for (const layer of LAYERS) {
+      const name = star.layer?.[layer];
+      expect(typeof name).toBe("string");
+      expect({ layer, name }).not.toEqual({ layer, name: expect.stringMatching(/\bL\d|·/) });
+    }
+    for (const key of ["meter", "dug"]) {
+      expect({ key, value: star[key] }).not.toEqual({
+        key,
+        value: expect.stringMatching(/주제|topic|tema|etapa/i),
+      });
+    }
+  });
+
+  it.each(LOCALES)("%s: 기록 개수는 count 복수형 쌍이다", (loc) => {
+    const star = starCopy(loc);
+    expect(star.records).toEqual(expect.stringContaining("{{count}}"));
+    expect(star.records_plural).toEqual(expect.stringContaining("{{count}}"));
+  });
+
+  it("i18next(v3 호환)로 풀면 1 record / 2 records 가 된다", async () => {
+    const i18next = (await import("i18next")).default;
+    const inst = i18next.createInstance();
+    await inst.init({
+      lng: "en",
+      compatibilityJSON: "v3",
+      resources: Object.fromEntries(
+        LOCALES.map((loc) => [loc, { home: JSON.parse(read(`locales/${loc}/home.json`)) }]),
+      ),
+      defaultNS: "home",
+      interpolation: { escapeValue: false },
+    });
+    expect(inst.t("ds.star.records", { count: 1 })).toBe("1 record");
+    expect(inst.t("ds.star.records", { count: 2 })).toBe("2 records");
+    expect(inst.t("ds.star.records", { count: 1, lng: "es" })).toBe("1 registro");
+    expect(inst.t("ds.star.records", { count: 3, lng: "ko" })).toBe("기록 3개");
+    expect(inst.t("ds.star.layer.echo", { lng: "ko" })).toBe("울림");
+  });
+});

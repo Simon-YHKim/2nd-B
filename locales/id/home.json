@@ -607,12 +607,20 @@
       "loading": "Memuat…",
       "emptyBody": "Belum ada apa-apa di sini. Mulailah dengan percakapan.",
       "dug": "{{n}} dari {{total}} lapis terbuka",
-      "records": "{{n}} catatan",
+      "records": "{{count}} catatan",
+      "records_plural": "{{count}} catatan",
       "start": "Mulai",
       "continue": "Lanjutkan",
       "pageLabel": "Ringkasan bintang",
       "meter": "Berdasarkan cerita yang sudah kamu isi · {{n}}/{{total}} lapis",
-      "recordsLabel": "Yang sudah kamu simpan"
+      "recordsLabel": "Yang sudah kamu simpan",
+      "layer": {
+        "fact": "Fakta",
+        "feeling": "Perasaan",
+        "meaning": "Makna",
+        "belief": "Keyakinan",
+        "echo": "Gema"
+      }
     },
     "dashboard": {
       "title": "Yang kutahu tentangmu",

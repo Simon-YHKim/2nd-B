@@ -243,8 +243,32 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
           component: "DeepSpaceRecordsScreen",
         },
       },
-      { file: "record/[id]", href: "/record/sample", label: "별가루 상세", auth: true, sample: true, note: "실제 id 가 아니라서 '없음' 상태가 보인다" },
-      { file: "wiki", href: "/wiki", label: "위키 둘러보기", auth: true },
+      // record/[id] · wiki 의 라우트 리다이렉트는 legacy 반쪽(RecordDetailLegacy ·
+      // WikiLegacy) 안에만 있다. 배송되는 딥스페이스 화면이 자기 가드를 갖고 있어서
+      // 로그인은 실제로 필요하고, 그 가드가 있는 곳을 적는다(2026-10-04).
+      {
+        file: "record/[id]",
+        href: "/record/sample",
+        label: "별가루 상세",
+        auth: {
+          gateFile: "src/screens/deepspace/dds-record-detail-screen.tsx",
+          component: "DeepSpaceRecordDetailScreen",
+        },
+        sample: true,
+        note: "실제 id 가 아니라서 '없음' 상태가 보인다",
+      },
+      {
+        file: "wiki",
+        href: "/wiki",
+        label: "위키 둘러보기",
+        auth: {
+          gateFile: "src/screens/deepspace/dds-wiki-records-screens.tsx",
+          component: "DeepSpaceWikiScreen",
+        },
+      },
+      // 2026-10-04 W-02: 로그아웃이면 빈 렌즈('검사 시작')가 먼저 보였다. 라우트의
+      // 리다이렉트가 '검사 시작' 뒤의 설문 안에만 있었기 때문이다. 이제 배송되는
+      // AttachmentDeepSpace 가 직접 가드를 갖는다(screen-index.test 배송 경로 가드).
       { file: "attachment", href: "/attachment", label: "애착 유형", auth: true },
       {
         file: "journal",
@@ -274,7 +298,11 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "share-card", href: "/share-card", label: "공유 카드", auth: true },
       // 위임 게이트 — 이 파일에는 리다이렉트 리터럴이 없고 `DeepSpaceSrsScreen` 이 갖는다.
       { file: "srs", href: "/srs", label: "언어 복습 (SRS)", auth: { gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx", component: "DeepSpaceSrsScreen" }, note: "로그인이 필요하다 — 게이트는 이 파일이 아니라 DeepSpaceSrsScreen 에 있다" },
-      { file: "reading", href: "/reading", label: "읽기 · 배움 선반" },
+      // 2026-10-04 W-13: 아래 여덟 화면(reading · review · milestones · ledger · growth ·
+      // meals · discover · reminders)은 로그아웃 상태로 URL 을 열면 입력 UI 를 그렸고
+      // 저장은 조용히 아무 일도 안 했다. 대시보드 폰 안의 같은 화면은 이미
+      // PhoneOpsContent 가 막고 있었다. 이제 라우트 파일이 직접 리다이렉트한다.
+      { file: "reading", href: "/reading", label: "읽기 · 배움 선반", auth: true },
     ],
   },
   {
@@ -339,7 +367,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         },
       },
       { file: "reasoning", href: "/reasoning", label: "리즈닝", auth: true },
-      { file: "review", href: "/review", label: "제안 확인 (propose→ratify)" },
+      { file: "review", href: "/review", label: "제안 확인 (propose→ratify)", auth: true },
       { file: "ratifications", href: "/ratifications", label: "확인 이력", auth: true },
     ],
   },
@@ -355,6 +383,9 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         note: "딥스페이스(기본)에서 '나를 보는 자리'의 정본은 /core-brain 이라 그리로 넘긴다. legacy 는 실화면",
       },
       { file: "big-five", href: "/big-five", label: "Big Five", auth: true },
+      // 2026-10-04 W-02: attachment 와 같은 모양이었다. 배송되는 IpipNeoDeepSpace 가
+      // 이제 직접 가드를 갖는다. big-five 는 일부러 둔 인라인 로그인 카드
+      // (dds-big-five-screen 의 SignedOutGate)라 그대로다.
       { file: "ipip-neo", href: "/ipip-neo", label: "IPIP-NEO-120", auth: true },
       { file: "rlss", href: "/rlss", label: "삶의 만족도 (RLSS)", auth: true },
       { file: "values", href: "/values", label: "가치관", auth: true },
@@ -398,11 +429,11 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
     screens: [
       { file: "career", href: "/career", label: "커리어 타임라인", auth: true },
       { file: "career-input", href: "/career-input", label: "성과 입력", auth: true },
-      { file: "milestones", href: "/milestones", label: "목표 · 마일스톤" },
-      { file: "ledger", href: "/ledger", label: "돈 점검" },
-      { file: "growth", href: "/growth", label: "나의 변화" },
+      { file: "milestones", href: "/milestones", label: "목표 · 마일스톤", auth: true },
+      { file: "ledger", href: "/ledger", label: "돈 점검", auth: true },
+      { file: "growth", href: "/growth", label: "나의 변화", auth: true },
       { file: "rest", href: "/rest", label: "취미 · 여가", auth: true },
-      { file: "meals", href: "/meals", label: "주간 식사" },
+      { file: "meals", href: "/meals", label: "주간 식사", auth: true },
       { file: "side-project", href: "/side-project", label: "사이드 프로젝트", auth: true },
       { file: "people", href: "/people", label: "사람 기록", auth: true },
       { file: "call-reflection", href: "/call-reflection", label: "통화 회고", auth: true },
@@ -445,10 +476,21 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         file: "discover",
         href: "/discover",
         label: "발견",
+        auth: true,
         note: "실화면. legacy 트랙일 때 /insights 로 넘기던 분기는 은퇴했다 (legacy/screens/INDEX.md). 진입: /insights 카드",
       },
-      { file: "reminders", href: "/reminders", label: "예약 리마인더" },
-      { file: "inbox", href: "/inbox", label: "알림함", auth: true },
+      { file: "reminders", href: "/reminders", label: "예약 리마인더", auth: true },
+      // 라우트 리다이렉트는 legacy 반쪽(InboxLegacy) 안에만 있다. 배송되는
+      // DeepSpaceInboxScreen 이 자기 가드를 갖는다(2026-10-04).
+      {
+        file: "inbox",
+        href: "/inbox",
+        label: "알림함",
+        auth: {
+          gateFile: "src/screens/deepspace/dds-inbox-screen.tsx",
+          component: "DeepSpaceInboxScreen",
+        },
+      },
       { file: "museum", href: "/museum", label: "AI 뮤지엄" },
       {
         file: "trinity",
@@ -548,7 +590,19 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "theme", href: "/theme", label: "테마", auth: true },
       { file: "data", href: "/data", label: "데이터 관리", auth: true },
       { file: "permissions", href: "/permissions", label: "권한 관리" },
-      { file: "privacy", href: "/privacy", label: "개인정보 한눈에", auth: true },
+      // 2026-10-04 W-02: 라우트의 리다이렉트는 legacy 반쪽(PrivacyLegacy) 안에만
+      // 있었고, 배송되는 화면은 로그아웃이면 설정을 그린 채 '생년월일을 확인하는
+      // 중' 에서 멈췄다. 가드를 그 화면에 넣었으므로 위임으로 적는다. 계정 삭제가
+      // 진행 중일 때만 리다이렉트를 미룬다(삭제 흐름이 직접 /sign-in 으로 보낸다).
+      {
+        file: "privacy",
+        href: "/privacy",
+        label: "개인정보 한눈에",
+        auth: {
+          gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
+          component: "DeepSpacePrivacyDesignScreen",
+        },
+      },
       { file: "service-consent", href: "/service-consent", label: "AI 처리 동의", auth: true },
       { file: "processing-log", href: "/processing-log", label: "데이터 처리 기록", auth: true },
       { file: "notices", href: "/notices", label: "공지", auth: true },
