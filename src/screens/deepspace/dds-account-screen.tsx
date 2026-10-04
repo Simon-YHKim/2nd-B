@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   Share,
   StyleSheet,
   View,
 } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -264,10 +264,7 @@ export function DeepSpaceAccountScreen() {
   // shell adds no second one. The loading state above has none and keeps it.
   return (
     <DeepSpaceScreen active="settings" header="none" ownBack>
-      <KeyboardAvoidingView
-        style={styles.screen}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <KeyboardAvoidingArea style={styles.screen}>
         <View style={styles.topBar}>
           <PixelPressable
             variant="bevel"
@@ -519,7 +516,7 @@ export function DeepSpaceAccountScreen() {
 
           <RNText style={[m3TextStyle("bodySmall"), styles.footer]}>{buildInfoLine()}</RNText>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
     </DeepSpaceScreen>
   );
 }

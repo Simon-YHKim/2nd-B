@@ -9,7 +9,7 @@
 - **절대 위치 탭바(Absolute Tab Bar) 콘텐츠 가림**: `position: absolute` 탭바를 사용할 때는, 모든 ScrollView의 `contentContainerStyle.paddingBottom`에 탭바 높이와 안드로이드 투명 네비게이션 바(Insets)를 합산한 동적 패딩을 삽입해야 합니다.
 
 ## 2. 폼 & 스크롤 (Forms & Scroll)
-- **키보드 패딩 고정값 절대 금지**: `KeyboardAvoidingView` 안에서 `ScrollView`의 하단 여백을 고정 픽셀(예: `spacing.xl`)로 주면 안드로이드(`adjustResize` 동작)에서 하단 버튼이 영원히 키보드 밑에 가려집니다. `useKeyboard` 등의 훅을 통해 패딩을 동적으로 할당하세요.
+- **키보드 피하기는 `KeyboardAvoidingArea` 하나로, 패딩 고정값 절대 금지**: 화면은 RN `KeyboardAvoidingView` 나 `behavior={Platform.OS === "ios" ? "padding" : undefined}` 같은 플랫폼 분기를 직접 쓰지 말고 `src/lib/ui/keyboard.tsx` 의 `KeyboardAvoidingArea` 를 쓰세요(`src/lib/ui/__tests__/keyboard-avoidance.test.ts` 가 지킵니다). Expo 56 · targetSdk 36 의 edge-to-edge 창에서는 `adjustResize` 가 창을 줄이지 않아서, Android 를 비워 두면 하단 입력창이 키보드 밑에 그대로 깔립니다(2026-10-05 /secondb, API 36 에뮬레이터). 그 안의 `ScrollView` 하단 여백도 고정 픽셀(예: `spacing.xl`)로 두지 말고 `useKeyboard` 등의 훅으로 동적으로 주세요.
 - **TextInput 흐름(Flow) 보장**: `onSubmitEditing` 릴레이와 `returnKeyType="next"` 설정을 누락하지 마세요. 사용자가 매번 키보드를 내려야 하는 최악의 UX를 초래합니다.
 - **Gestures 충돌 금지**: 기본 `<ScrollView>` 안에서 Reanimated 등 터치를 가로채는 제스처를 혼용하면 안드로이드 터치 시스템이 꼬입니다. 필요 시 `react-native-gesture-handler`의 `ScrollView`로 교체하세요.
 

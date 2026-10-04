@@ -11,7 +11,8 @@
 // capped well under 100%; the populated layout only ever shows the user's real
 // answers/percentages (motivation-survey.ts), never the prototype's example numbers.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
 
 import { MdButton } from "@/components/m3";
@@ -183,7 +184,7 @@ function MotivationSurvey({ onComplete, onCancel, registerBackGuard }: { onCompl
       ) : null}
 
       {started ? (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingArea style={{ flex: 1 }}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
               {t("ds.axisCheck.motivation.survey.title")}
@@ -232,7 +233,7 @@ function MotivationSurvey({ onComplete, onCancel, registerBackGuard }: { onCompl
               );
             }}
           />
-        </KeyboardAvoidingView>
+        </KeyboardAvoidingArea>
       ) : null}
 
       {saved ? (

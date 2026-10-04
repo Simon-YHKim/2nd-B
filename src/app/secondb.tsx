@@ -14,7 +14,8 @@
 //     reappear every session.
 
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
+import { AccessibilityInfo, Modal, View, StyleSheet, ScrollView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";
 import { Redirect, usePathname } from "expo-router";
@@ -526,12 +527,12 @@ function SecondBChatBody() {
   const progression = useProgression();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const insets = useSafeAreaInsets();
-  // iOS uses "padding"; Android relies on native adjustResize (app.json
-  // softwareKeyboardLayoutMode="resize"), so the KAV must stay inert — layering
-  // behavior="height" on top of adjustResize double-shrinks the composer and
-  // opens a dead gap above the keyboard. Matches jot/settings/dds-auth.
-  const keyboardBehavior = Platform.OS === "ios" ? "padding" : undefined;
-  const keyboardVerticalOffset = Platform.OS === "ios" ? insets.top : 0;
+  // Keyboard: <KeyboardAvoidingArea> below (src/lib/ui/keyboard.tsx) is the one
+  // rule every screen shares. iOS keeps behavior="padding" with this top offset.
+  // Android used to stay inert and wait for adjustResize, but the edge-to-edge
+  // window (RN 0.85 + Expo 56, targetSdk 36) never shrinks for the IME, so the
+  // composer sat under the keyboard (vc59 API 36 emulator, 2026-10-05). The area
+  // now pads by the measured overlap instead.
   const messageListBottomPadding = Math.max(styles.scroll.paddingBottom, insets.bottom + spacing.md);
 
   // nodeContext entry (chat pack §3/§7): a graph node passed its label.
@@ -1124,10 +1125,9 @@ function SecondBChatBody() {
   const inkOnAccent = m3.accent.onAccentInk; // reference send/mic glyph ink on the accent fill
   return (
     <DeepSpaceScreen active="chat" variant="windowed" header="none">
-      <KeyboardAvoidingView
+      <KeyboardAvoidingArea
         style={{ flex: 1 }}
-        behavior={keyboardBehavior}
-        keyboardVerticalOffset={keyboardVerticalOffset}
+        iosKeyboardVerticalOffset={insets.top}
       >
         {/* The lens selector is the first thing in the chat window; the
             companion greeting previously occupying this space is gone. */}
@@ -1465,7 +1465,7 @@ function SecondBChatBody() {
           lensName={lensName}
           inkOnAccent={inkOnAccent}
         />
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
 
       {/* 첫 진입 인사 모달 */}
       <Modal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
