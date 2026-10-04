@@ -1351,6 +1351,90 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/promo_lot_account_erasure_regression.sql
+      # 0211: rewarded-ad records go 89 days after they were granted (policy max
+      # 90). Old ad lots go whole with no orphan rows or balance drift, purchase
+      # lots and recent records stay, a held transaction (and its month and day
+      # counters) stays until the hold is released, an account deletion still
+      # removes a held transaction, dispute audit rows go three years after the
+      # dispute ended, reviews push the deadline out by 90 days, and client
+      # roles cannot reach any of it. Rolled back.
+      - name: Exercise 89-day reward purge
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/reward_records_90d_purge_regression.sql
+      # rollback/0211_down.sql is run by hand mid-incident, like 0189's, and no
+      # other step here runs it. On a throw-away clone it must remove the eight
+      # functions, two tables and seven indexes 0211 made (the cron job too, when
+      # pg_cron exists), and 0211 must then apply twice in a row to the same set.
+      - name: Round-trip the 89-day reward purge rollback
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          clone_db="rollback_0211_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ || ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0211 rollback round trip refuses an unsafe database name" >&2
+            exit 1
+          fi
+          sql() { # <db> <one statement>
+            psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
+          }
+          apply() { # <db> <file>
+            psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -f "$2" >/dev/null
+          }
+          sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+          trap 'sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true' EXIT
+          made="SELECT (SELECT pg_catalog.count(*) FROM pg_catalog.pg_proc AS p
+                          JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
+                         WHERE n.nspname = 'public'
+                           AND p.proname IN ('purge_reward_records', 'reward_retention_health',
+                                             'place_reward_dispute_hold', 'review_reward_dispute_hold',
+                                             'release_reward_dispute_hold', 'reward_hold_caller_role',
+                                             'reward_dispute_holds_log_delete',
+                                             'reward_dispute_hold_events_append_only'))
+                  || '/' ||
+                  (SELECT pg_catalog.count(*) FROM pg_catalog.pg_class AS c
+                     JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+                    WHERE n.nspname = 'public'
+                      AND c.relname IN ('reward_dispute_holds', 'reward_dispute_hold_events',
+                                        'reward_dispute_hold_events_case_idx',
+                                        'reward_dispute_hold_events_txn_idx',
+                                        'rewarded_ssv_txns_granted_at_idx',
+                                        'credit_ledger_ad_reward_opened_idx',
+                                        'usage_counters_reward_nonzero_idx',
+                                        'chat_usage_ad_bonus_nonzero_idx',
+                                        'reward_ssv_issue_rate_limits_updated_idx'))"
+          # cron.job may not exist on the scratch server. A static reference fails at
+          # plan time even under a CASE, so the job is counted in a separate call.
+          made_all() { # <db>
+            local cron="no_cron"
+            if [[ "$(sql "$1" "SELECT pg_catalog.to_regclass('cron.job') IS NOT NULL")" == "t" ]]; then
+              cron="$(sql "$1" "SELECT pg_catalog.count(*) FROM cron.job WHERE jobname = 'purge-reward-records-90d'")"
+            fi
+            echo "$(sql "$1" "$made")/$cron"
+          }
+          before="$(made_all "$clone_db")"
+          echo "0211 objects before the rollback: $before (functions/relations/cron)"
+          if [[ "$before" != 8/9/* ]]; then
+            echo "0211 rollback round trip cannot start: expected 8 functions and 9 relations, found [$before]" >&2
+            exit 1
+          fi
+          apply "$clone_db" db/migrations/rollback/0211_down.sql
+          after_down="$(made_all "$clone_db")"
+          echo "after rollback/0211_down.sql: $after_down"
+          if [[ "$after_down" != "0/0/0" && "$after_down" != "0/0/no_cron" ]]; then
+            echo "rollback/0211_down.sql left 0211 objects behind: [$after_down]" >&2
+            exit 1
+          fi
+          apply "$clone_db" db/migrations/0211_reward_records_90d_purge.sql
+          apply "$clone_db" db/migrations/0211_reward_records_90d_purge.sql
+          again="$(made_all "$clone_db")"
+          echo "after re-applying 0211 twice: $again"
+          if [[ "$again" != "$before" ]]; then
+            echo "0211 did not come back to the same set after its rollback: [$before] -> [$again]" >&2
+            exit 1
+          fi
       # 0203: the 2026-09-28 privacy policy is a NOTICE revision (Simon). A v5
       # signup must get the new tuple and an email-v5 receipt, an installed v4
       # client must still sign up, and LLM consent must count both tuples as
