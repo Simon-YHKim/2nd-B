@@ -2181,21 +2181,27 @@ export function DeepSpaceResearchScreen() {
   // orphans / islands all keep working, now over real data. $0: pure tag
   // overlap, no LLM and no embeddings (the kNN layer stays consent-gated).
   const { userId, loading: authLoading } = useAuth();
-  const [records, setRecords] = useState<GraphRecord[] | null>(null);
+  // Every load below is held WITH the account it was loaded for, and read back
+  // only while that account is still the one signed in. The route can stay
+  // mounted across an account change (A out, B in); a bare value kept A's
+  // records, tag chips and link proposals on B's screen until B's own loads
+  // answered (QA 261004 SG-02). A different owner reads as "not loaded yet".
+  const [heldRecords, setHeldRecords] = useState<{ ownerId: string; rows: GraphRecord[] } | null>(null);
   useEffect(() => {
     if (!userId) return;
     let alive = true;
     void listRecentRecords(userId)
       .then((rows) => {
-        if (alive) setRecords(rows as GraphRecord[]);
+        if (alive) setHeldRecords({ ownerId: userId, rows: rows as GraphRecord[] });
       })
       .catch(() => {
-        if (alive) setRecords([]);
+        if (alive) setHeldRecords({ ownerId: userId, rows: [] });
       });
     return () => {
       alive = false;
     };
   }, [userId]);
+  const records = heldRecords !== null && userId !== null && heldRecords.ownerId === userId ? heldRecords.rows : null;
   const loading = userId != null && records === null;
   const view = useMemo(() => {
     const graph = recordsToResearchGraph(records ?? [], {
@@ -2206,10 +2212,14 @@ export function DeepSpaceResearchScreen() {
   // Cluster chip selection. The research view derives from graph-stats (no
   // server-side re-cluster), so selecting a chip drives the highlight + the
   // graph's focused tag label rather than refetching.
-  const [activeCluster, setActiveCluster] = useState<string | null>(null);
+  // The picked chip is one of the owner's own tag names, and the graph caption
+  // prints it, so it is held with its owner like the records it came from.
+  const [clusterPick, setClusterPick] = useState<{ ownerId: string; tag: string } | null>(null);
+  const activeCluster = clusterPick !== null && userId !== null && clusterPick.ownerId === userId ? clusterPick.tag : null;
 
   // propose->ratify: AI-proposed (inferred) links awaiting the user's verdict.
-  const [proposals, setProposals] = useState<InferredLinkDetail[]>([]);
+  const [heldProposals, setHeldProposals] = useState<{ ownerId: string; rows: InferredLinkDetail[] } | null>(null);
+  const proposals = heldProposals !== null && userId !== null && heldProposals.ownerId === userId ? heldProposals.rows : [];
   const [proposing, setProposing] = useState(false);
   const [actingKey, setActingKey] = useState<string | null>(null);
   // Screen-reader feedback for ratify/reject: the row removal alone is silent,
@@ -2217,16 +2227,21 @@ export function DeepSpaceResearchScreen() {
   const [announce, setAnnounce] = useState("");
 
   const loadProposals = useMemo(
-    () => async (uid: string) => {
+    () => async (uid: string, current: () => boolean = () => true) => {
       const rows = await listInferredLinkDetails(uid).catch(() => [] as InferredLinkDetail[]);
-      setProposals(rows);
+      if (current()) setHeldProposals({ ownerId: uid, rows });
     },
     [],
   );
 
   useEffect(() => {
     if (!userId) return;
-    void loadProposals(userId);
+    // A slow answer for the previous owner must not land after this owner's.
+    let alive = true;
+    void loadProposals(userId, () => alive);
+    return () => {
+      alive = false;
+    };
   }, [userId, loadProposals]);
 
   async function findProposals() {
@@ -2336,7 +2351,7 @@ export function DeepSpaceResearchScreen() {
                   label={`${c.tag} · ${c.count}`}
                   active={activeCluster === c.tag}
                   violet={activeCluster === null ? i === 0 : false}
-                  onPress={() => setActiveCluster((prev) => (prev === c.tag ? null : c.tag))}
+                  onPress={() => setClusterPick(activeCluster === c.tag ? null : { ownerId: userId, tag: c.tag })}
                 />
               ))}
             </View>
