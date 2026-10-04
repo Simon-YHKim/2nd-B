@@ -691,10 +691,10 @@ export function DeepSpacePrivacyDesignScreen() {
       receipt = await requestAccountDeletion(authExpectation);
     } catch {
       deleteInFlightRef.current = false;
-      if (privacyMountedRef.current && activeUserRef.current === targetUserId) {
-        setDelError(true);
-        setDeleting(false);
-      }
+      // Lift the fence whoever owns the screen now: a stuck `deleting` exempts a signed-out visitor from the guard below.
+      if (privacyMountedRef.current) setDeleting(false);
+      // Only the account that asked sees its failure.
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setDelError(true);
       return;
     }
 
