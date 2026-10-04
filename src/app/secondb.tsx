@@ -349,7 +349,7 @@ const ChatComposer = memo(
           setVoiceNotice(t("voice.permissionDenied"));
           return;
         }
-        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, interruptionMode: "mixWithOthers" });
         ownerGuard.assertCurrent();
         await audioRecorder.prepareToRecordAsync();
         prepared = true;
