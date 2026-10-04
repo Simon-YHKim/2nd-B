@@ -16,7 +16,7 @@ import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { Text } from "@/components/ui/Text";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
-import { cosmic, deepSpace, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
+import { cosmic, deepSpace, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { m3 } from "@/lib/theme/m3";
 import { PremiumButton } from "./surfaces";

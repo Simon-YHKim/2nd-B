@@ -139,7 +139,6 @@ results.push(
   check("C7", () => {
     const capture = read("src/app/capture.tsx");
     const jarvis = read("src/app/secondb.tsx");
-    const manual = read("src/app/manual.tsx");
     const enCapture = JSON.parse(read("locales/en/capture.json")) as Record<string, unknown>;
     const koCapture = JSON.parse(read("locales/ko/capture.json")) as Record<string, unknown>;
     const enJarvis = JSON.parse(read("locales/en/secondb.json")) as { intro_body?: string; reference_piece_meta?: string };

@@ -88,7 +88,6 @@ describe("딥스페이스 표면은 캐논 램프 안에 있다", () => {
   test("우주 워시 그라디언트의 스톱도 전부 램프 안", () => {
     // ⚠ 그라디언트 **구조**는 아직 남아 있다. PIXEL-CLAY 는 불투명도 대신 디더/색
     // 밴딩을 요구하므로 이건 색만 맞춘 중간 단계고, 밴딩 전환은 컴포넌트 작업이다.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { deepSpaceGradients } = require("@/lib/theme/tokens") as {
       deepSpaceGradients: { screenBg: readonly string[] };
     };

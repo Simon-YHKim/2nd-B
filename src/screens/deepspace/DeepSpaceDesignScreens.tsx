@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
+import { AppState, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
 import { Redirect, router, useNavigation } from "expo-router";
 import { useAppRouter } from "@/lib/nav/phone-embed";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect, SvgXml } from "react-native-svg";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { colors, spacing } from "@/theme/tokens";
@@ -26,13 +25,10 @@ import { ddsStyles as styles } from "./dds-styles";
 import { canonGaps, canonMore } from "@/lib/canon";
 import { reactExpression } from "@/lib/companion/expression";
 import { kstDateToday } from "@/lib/chat/limits";
-import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { PremiumModal } from "@/components/premium";
-import { TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
-import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
-import { getReasoningUsage } from "@/lib/entitlements/usage";
 import { Text } from "@/components/ui/Text";
 import { HelpDirectory } from "@/components/safety/HelpDirectory";
 import { useTheme } from "@/lib/theme/ThemeContext";
@@ -45,16 +41,10 @@ import { buildInfoLine } from "@/lib/build-info";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { gatherRisingInterests } from "@/lib/trends/gather";
 import type { RisingInterest } from "@/lib/trends/rising";
-import { useSignInForm } from "@/lib/auth/useSignInForm";
-import { useSignUpForm } from "@/lib/auth/useSignUpForm";
-import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
 import {
   AuthSessionOwnerChangedError,
-  ageInYears,
   captureSignOutExpectation,
-  MIN_SELF_CONSENT_AGE,
   signOutExpected,
-  type OAuthProvider,
 } from "@/lib/supabase/auth";
 import { requestAccountDeletion } from "@/lib/records/delete-bulk";
 import {
@@ -91,22 +81,7 @@ import type { StarId } from "@/lib/persona/stars";
 import { loadEvidenceShards } from "@/lib/persona/load-evidence-shards";
 import { type EvidenceShard } from "@/lib/persona/evidence";
 import { RatifySheet, runRatifyDecisionOnce } from "@/components/persona/RatifySheet";
-import {
-  allRequiredAcksChecked,
-  setAllRequiredAcks,
-  type ConsentSelections,
-} from "@/lib/auth/consent-selections";
-import { formatBirthDateInput } from "@/lib/account/dob";
 import { useProgression } from "@/lib/progression/useProgression";
-import {
-  arePurchasesAvailable,
-  configurePurchases,
-  getOfferings,
-  getProStatus,
-  purchasePackage,
-  restorePurchases,
-} from "@/lib/payments/purchases";
-import type { PurchasesPackage } from "react-native-purchases";
 import { systemLocaleFor } from "@/lib/i18n/locales";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { captureEvent, proposalDecided, setAnalyticsConsent } from "@/lib/analytics";
@@ -116,8 +91,7 @@ import {
   clearRecordEmbeddings,
   embedVendorLabel,
 } from "@/lib/records/records-embeddings";
-import { recordHealthImportConsent, recordRecommendationsConsent } from "@/lib/supabase/consent";
-import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
+import { recordRecommendationsConsent } from "@/lib/supabase/consent";
 import { HealthWithdrawCard } from "./dds-health-withdraw-card";
 import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
 import { opsRouteForDomain } from "@/lib/ops/nav";
@@ -175,7 +149,7 @@ import { recordsToResearchGraph } from "@/lib/records/records-research";
 import type { GraphRecord } from "@/lib/records/records-graph";
 import { listSourcePieces } from "@/lib/records/source-pieces";
 import { summarizeWeeklyInsights, weeklyDomainFocus } from "@/lib/insights/weekly";
-import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
+import type { WikiPageRow } from "@/lib/wiki/types";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
 import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 import {
@@ -186,25 +160,12 @@ import {
   type WikiEdge,
 } from "./wiki-graph-view";
 import {
-  type TimelineLabels,
-} from "./records-timeline";
-import {
   INTEGRATION_ENTRYPOINTS,
   type IntegrationEntrypoint,
 } from "./integrations/sources";
 
 // i18n label builders for the pure date helpers (which stay i18n-free).
 type Tx = (key: string, options?: Record<string, unknown>) => string;
-function dsTimeLabels(t: Tx): TimelineLabels {
-  return {
-    today: t("time.today"),
-    yesterday: t("time.yesterday"),
-    monthDay: (m, d) => t("time.monthDay", { month: m, day: d }),
-    now: t("time.now"),
-    hoursAgo: (h) => t("time.hoursAgo", { count: h }),
-    fallbackTitle: t("time.recordFallback"),
-  };
-}
 function dsRecencyLabels(t: Tx): RecencyLabels {
   return {
     today: t("time.today"),
@@ -1372,8 +1333,7 @@ export function DeepSpacePrivacyDesignScreen() {
 export function DeepSpaceInsightsScreen() {
   // Phone-aware: inside the dashboard phone, the cards open in the phone.
   const router = useAppRouter();
-  const { t, i18n } = useTranslation("deepspace");
-  const ko = i18n.language === "ko";
+  const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
 
   // Real week-over-week data. We reuse listRecentRecords (the same client other

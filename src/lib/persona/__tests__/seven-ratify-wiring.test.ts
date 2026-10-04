@@ -10,7 +10,7 @@ const calls: string[] = [];
 
 jest.mock("../../supabase/client", () => ({
   getSupabaseClient: () => ({
-    from: (table: string) => {
+    from: () => {
       const node: Record<string, unknown> = {
         select: () => node,
         eq: (col: string, v: unknown) => {

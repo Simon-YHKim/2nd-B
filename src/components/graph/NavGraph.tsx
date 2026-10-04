@@ -2108,7 +2108,6 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
           + hashtags and a single 자세히 button. */}
       {!drilldownCoreId && activeDataNode ? (
         <DataNodeSheet
-          locale={locale}
           title={activeDataNode.title}
           summary={activeDataNode.summary ?? ""}
           tags={activeDataNode.tags ?? []}
@@ -2394,14 +2393,12 @@ function DrilldownSheet({
 // Piece popup for a tapped tier-4 data node: the AI summary + hashtags and a
 // single 자세히 button that opens the piece's village (2026-06-02 directive).
 function DataNodeSheet({
-  locale,
   title,
   summary,
   tags,
   onDetail,
   onClose,
 }: {
-  locale: "en" | "ko";
   title: string;
   summary: string;
   tags: readonly string[];

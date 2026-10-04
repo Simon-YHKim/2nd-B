@@ -4,7 +4,7 @@
 // (every write is behind a user tap). Strings come from the bilingual ops copy.
 
 import { useEffect, useMemo, useState, type DependencyList } from "react";
-import { Linking, Modal, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
+import { Linking, Modal, Pressable, Share, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 
 import { router } from "expo-router";
@@ -123,7 +123,7 @@ function useAsync<T>(fn: () => Promise<T>, deps: DependencyList): Async<T> {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // fn stays out of this list on purpose: every caller passes what fn reads as deps.
   }, [...deps, nonce]);
   return { status, data, reload: () => setNonce((n) => n + 1) };
 }

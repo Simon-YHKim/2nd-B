@@ -6,7 +6,7 @@
 import { View, StyleSheet, ScrollView, Pressable } from "react-native";
 
 import { Text } from "@/components/ui/Text";
-import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { facetRows } from "@/lib/persona/facet-rows";
 import { type BigFiveTrait } from "@/lib/persona/bfi";
