@@ -2,6 +2,8 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 
+import { isReservedAppTag } from "@/lib/persona/domain-stars";
+
 const RECORDS_SRC = fs.readFileSync(
   path.resolve(__dirname, "..", "dds-wiki-records-screens.tsx"),
   "utf8",
@@ -118,7 +120,9 @@ describe("deep-space records source detail routing", () => {
 
   test("internal domain tags never become visible, editable, or logged", () => {
     expect(DETAIL_SRC).toContain("stripDomainTags(readyPiece?.tags ?? [])");
-    expect(DETAIL_SRC).toContain("if (isDomainTag(tag))");
+    // Adding a tag refuses every app namespace, domain: among them (QA 261004 gate SG-01).
+    expect(DETAIL_SRC).toContain("if (isReservedAppTag(tag))");
+    expect(["domain:career", "DOMAIN:growth"].every(isReservedAppTag)).toBe(true);
     expect(DETAIL_SRC).toContain("return [...stripDomainTags(tags), domainTagFor(target)]");
     expect(DETAIL_SRC).not.toContain("console.");
     expect(DETAIL_SRC).not.toMatch(/\(piece\.tags \?\? \[\]\)\.map\([^)]*<RNText/);

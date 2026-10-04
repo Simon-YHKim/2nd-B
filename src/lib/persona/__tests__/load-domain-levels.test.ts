@@ -137,8 +137,9 @@ describe("loadDomainLevels (cheap, no-Gemini)", () => {
   test("brightness-honesty reads the record's kind: app markers stay raw, user hashtags organize (gate SG-01 / BL-01)", async () => {
     const rows = (kind: string, tags: string[]) =>
       Array.from({ length: 20 }, (_, i) => ({ id: `${kind}-${i}`, created_at: RECENT_ISO, kind, tags }));
-    // The capture mode marker and the recall interview's tags are the app's:
-    // 20 such records are still raw, so the high band drops to L3.
+    // A note's first voice/todo tag (capture's mode, or the one tag /dashboard's
+    // capture writes) and the recall interview's or TTFV's tags are not the user
+    // organizing the record: 20 such records are still raw, so L3.
     tableFixtures["records:select"] = { data: rows("note", ["domain:career", "voice"]), error: null };
     expect((await loadDomainLevels("u1")).domainLevels.career).toBe(3);
     reset();
@@ -147,6 +148,16 @@ describe("loadDomainLevels (cheap, no-Gemini)", () => {
       error: null,
     };
     expect((await loadDomainLevels("u1")).domainLevels.career).toBe(3);
+    reset();
+    tableFixtures["records:select"] = { data: rows("note", ["domain:career", "first_light", "first_light:soft"]), error: null };
+    expect((await loadDomainLevels("u1")).domainLevels.career).toBe(3);
+    // The same pair typed by the user after capture's mode is the user organizing it.
+    reset();
+    tableFixtures["records:select"] = {
+      data: rows("note", ["domain:career", "voice", "first_light", "first_light:soft"]),
+      error: null,
+    };
+    expect((await loadDomainLevels("u1")).domainLevels.career).toBe(4);
     // The same words typed by the user as hashtags are the user organizing the record.
     reset();
     tableFixtures["records:select"] = { data: rows("journal", ["domain:career", "todo", "interview"]), error: null };

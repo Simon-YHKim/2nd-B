@@ -81,29 +81,35 @@ describe("recordsToResearchGraph", () => {
       rec("a", ["domain:career", "first_light", "first_light:affirm"], "", "note"),
       rec("b", ["domain:health", "first_light", "first_light:affirm"], "", "note"),
       rec("c", ["domain:growth", "interview", "recall", "screener", "entry-ui:en", "reading"], "", "audit_response"),
-      rec("d", ["domain:rest", "interview", "recall", "screener", "entry-ui:en"], "", "audit_response"),
-      rec("e", ["domain:finance", "todo"], "", "note"),
-      rec("f", ["domain:relation", "todo"], "", "note"),
+      rec("d", ["domain:recreation", "interview", "recall", "screener", "entry-ui:en"], "", "audit_response"),
+      // Call reflection's voice is the app's (gate SG-03).
+      rec("e", ["domain:relation", "call_reflection", "voice"], "", "note"),
     ]);
-    expect(pages.flatMap((p) => p.tags ?? [])).toEqual(["reading"]);
+    expect(pages.flatMap((p) => p.tags ?? [])).toEqual(["reading", "call_reflection"]);
     // Two records the app tagged the same way are not a discovered connection.
     expect(edges).toEqual([]);
   });
 
   it("keeps a tag the user typed even when the app writes the same word (gate SG-01 / BL-01)", () => {
-    // Two journals about job interviews and a to-do hashtag on another: the
-    // user chose these words, so they are chips and a real shared connection.
+    // Two journals about job interviews, an /audit answer the user tagged
+    // "Interview" in record detail, and notes whose first tag /dashboard's
+    // capture (/capture?tag=todo) or record detail may have written: the user
+    // chose these words, so they are chips and real shared connections.
     const { pages, edges } = recordsToResearchGraph([
       rec("a", ["domain:career", "Interview"], "", "journal"),
       rec("b", ["domain:health", "Interview", "todo"], "", "journal"),
-      rec("c", ["domain:rest", "voice", "todo"], "", "note"),
+      rec("c", ["domain:recreation", "voice", "todo"], "", "note"),
+      rec("d", ["domain:growth", "life_audit", "values", "Interview"], "", "audit_response"),
+      rec("e", ["domain:collect", "todo"], "", "note"),
     ]);
     expect(pages.map((p) => [p.id, p.tags])).toEqual([
       ["a", ["Interview"]],
       ["b", ["Interview", "todo"]],
-      ["c", ["todo"]],
+      ["c", ["voice", "todo"]],
+      ["d", ["life_audit", "values", "Interview"]],
+      ["e", ["todo"]],
     ]);
-    expect(edges.map((e) => `${e.from_page}-${e.to_page}`).sort()).toEqual(["a-b", "b-c"]);
+    expect(edges.map((e) => `${e.from_page}-${e.to_page}`).sort()).toEqual(["a-b", "a-d", "b-c", "b-d", "b-e", "c-e"]);
   });
 
   it("uses the record summary as the page body", () => {

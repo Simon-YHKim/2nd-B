@@ -10,8 +10,8 @@ import { stripSystemTags } from "../persona/domain-stars";
 export interface RecordTagRow {
   tags: string[];
   created_at: string;
-  /** records.kind. It is how stripSystemTags tells the app's own interview /
-   *  voice / todo tags from the same words the user typed; unknown keeps them. */
+  /** records.kind. With the tags' order it lets stripSystemTags prove a tag is
+   *  the app's (a writer's exact array); unknown keeps every tag but domain:. */
   kind?: string | null;
 }
 
@@ -55,8 +55,8 @@ export function rankRisingInterests(
     // The reserved domain: tag rides on every record, and the app writes other
     // scaffolding tags too (first_light, interview, entry-ui:*). Exclude them all
     // so none can masquerade as a rising "interest" the user is told they care about.
-    // The record's kind decides whether a bare "interview" or "todo" is the app's
-    // marker or a topic the user chose (gate SG-01 / BL-01).
+    // Only a writer's exact array on that kind of record makes a bare "interview"
+    // the app's; a word the user chose stays a topic (gate SG-01 / BL-01).
     for (const raw of stripSystemTags(row.tags ?? [], { kind: row.kind })) {
       const trimmed = (raw ?? "").trim();
       if (!trimmed) continue;

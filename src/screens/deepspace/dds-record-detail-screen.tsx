@@ -31,6 +31,7 @@ import {
   getDomainStar,
   isDomainId,
   isDomainTag,
+  isReservedAppTag,
   stripDomainTags,
   type DomainId,
 } from "@/lib/persona/domain-stars";
@@ -589,7 +590,9 @@ export function DeepSpaceRecordDetailScreen() {
       setTagDraft("");
       return;
     }
-    if (isDomainTag(tag)) {
+    // The app's namespaces (domain:, first_light:, entry-ui:) are never typed by hand:
+    // a hand-built first_light pair would read as the app's first-run note (tagSources).
+    if (isReservedAppTag(tag)) {
       setAddingTag(false);
       setTagDraft("");
       announceActionError();

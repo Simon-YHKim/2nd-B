@@ -87,64 +87,107 @@ export function stripDomainTags(tags: readonly string[]): string[] {
 // stripped domain: only. One rule, so every consumer that counts or displays
 // tags as user topics agrees on what is scaffolding.
 //
-// The user can type any hashtag (capture's sanitizeChips rejects only domain:),
-// and an LLM-suggested or hand-typed "interview" or "todo" is a real topic.
-// So a tag is judged with the record it sits on, never by its spelling alone
-// (gate SG-01 / BL-01):
+// A tag is the app's only when the record proves it (gate SG-01 / BL-01 /
+// SG-03). Its spelling proves nothing: the user can type any hashtag except
+// domain: (capture, record detail, /dashboard's capture from /capture?tag=).
+// Neither does the record's kind alone (/audit answers are audit_response too,
+// and record detail adds tags to any kind), nor "first tag of a note"
+// (/dashboard's capture stores [<tag>], and record detail can give an untagged
+// note its first tag). What does prove it:
 //
-// 1. Reserved namespaces. A tag in one of these is the app's by construction:
-//      domain:<slug>          the domain namespace (isDomainTag)
-//      first_light:<choice>   the first-run TTFV note (TTFVScreen)
-//      entry-ui:<locale>      the UI language the recall interview ran in
-// 2. Bare words the app also writes. Each is dropped only when the record
-//    itself proves the app wrote that copy; otherwise it stays a user topic:
-//      first_light            beside a first_light:<choice> tag (TTFV always
-//                               writes the pair)
-//      interview / recall /   on a kind "audit_response" record (the recall
-//      screener                 interview; no hashtag input writes that kind)
-//      voice / todo           on a kind "note" record as its first tag outside
-//                               the reserved namespaces (capture writes
-//                               [mode, ...hashtags] and createRecord puts the
-//                               one domain: tag before it)
+// 1. domain:<slug>. createRecord strips it from the caller's tags and every tag
+//    input refuses it, so a stored one is always the app's.
+// 2. The exact array a writer stores, as the first of the record's tags.
+//    createRecord stores [domain:<slug>, ...writer tags]; later the app only
+//    moves domain: (record detail's Move puts it last) or puts domain: and
+//    reasoning:ratified in front (/reasoning), and record detail appends the
+//    user's tags at the end. Setting those two aside, the writer's array is
+//    still the prefix:
+//      TTFV first-run note    note            first_light, first_light:affirm|soft
+//      recall interview       audit_response  interview, recall, screener[, entry-ui:ko|en]
+//      drill interview        audit_response  interview, life_audit, period-<p>, ...
+//        (before #745, 2026-07-05; only interview is a word this rule hides)
+//      call reflection        note            call_reflection, voice
+//        (only voice is a word this rule hides)
+//    Record detail refuses the first_light: and entry-ui: namespaces
+//    (isReservedAppTag), so the TTFV pair cannot be rebuilt by hand on an
+//    untagged note.
+// 3. Nothing else. A note whose first tag is voice or todo is UNCLEAR: capture's
+//    voice/todo mode stores [mode, ...hashtags] and the deep-space CaptureView
+//    stores [todo], but /dashboard's capture and record detail store the same
+//    shape with the user's word. Topic surfaces keep it (stripSystemTags);
+//    the brightness signal does not count it as the user organizing the record
+//    (provenUserTags), as load-domain-levels never did.
 // Storage readers (assess completionTags, career-timeline entry-ui, TTFV
 // isFirstLight) keep reading the raw tags; only topic surfaces strip these.
 const APP_TAG_NAMESPACES: readonly string[] = [DOMAIN_TAG_PREFIX, "first_light:", "entry-ui:"];
-const AUDIT_RESPONSE_TAGS: ReadonlySet<string> = new Set(["interview", "recall", "screener"]);
+// /reasoning writes it beside domain: when the user ratifies a proposal
+// (src/app/reasoning.tsx REASONING_RATIFIED_TAG).
+const REASONING_RATIFIED_TAG = "reasoning:ratified";
 const CAPTURE_MODE_TAGS: ReadonlySet<string> = new Set(["voice", "todo"]);
 
-function normalizeTag(tag: string): string {
-  return tag.trim().toLowerCase();
-}
-
-/** True for a tag in a namespace only the app writes (domain:, first_light:,
- *  entry-ui:). A bare word is never judged here: see stripSystemTags. */
+/** True for a tag in a namespace the app writes (domain:, first_light:,
+ *  entry-ui:). Record detail refuses to add one by hand. It does not decide
+ *  what a topic surface hides: see tagSources. */
 export function isReservedAppTag(tag: string): boolean {
-  const t = normalizeTag(tag);
+  const t = tag.trim().toLowerCase();
   return APP_TAG_NAMESPACES.some((p) => t.startsWith(p));
 }
 
 /** What a caller knows about the record a tag list came from. `kind` is
- *  records.kind; leave it out when unknown, and the bare words that need proof
- *  then stay as the user's own. */
+ *  records.kind; leave it out when unknown, and no writer's array can be
+ *  proven, so only domain: is the app's. */
 export interface TagOrigin {
   kind?: string | null;
 }
 
-/** Drop the app-written scaffolding tags of ONE record, leaving the user's own
- *  topic tags. Pass the whole tag list of that record plus its kind. */
+/** "app": the record proves the app wrote it. "unclear": an app writer and a
+ *  user path both store this shape. "user": nothing says the app wrote it. */
+export type TagSource = "app" | "unclear" | "user";
+
+/** Label every tag of ONE record (the whole list, plus its kind). */
+export function tagSources(tags: readonly string[], origin: TagOrigin = {}): TagSource[] {
+  const out: TagSource[] = tags.map((t) => (isDomainTag(t) ? "app" : "user"));
+  // The writer's array, with the tags the app adds later set aside.
+  const slots = tags.flatMap((t, i) => (out[i] === "user" && t !== REASONING_RATIFIED_TAG ? [i] : []));
+  const at = (k: number): string | undefined => (k < slots.length ? tags[slots[k]] : undefined);
+  const mark = (k: number, source: TagSource) => {
+    out[slots[k]] = source;
+  };
+  if (origin.kind === "note") {
+    if (at(0) === "first_light" && (at(1) === "first_light:affirm" || at(1) === "first_light:soft")) {
+      mark(0, "app");
+      mark(1, "app");
+    } else if (at(0) === "call_reflection" && at(1) === "voice") {
+      mark(1, "app");
+    } else if (CAPTURE_MODE_TAGS.has(at(0) ?? "")) {
+      mark(0, "unclear");
+    }
+  } else if (origin.kind === "audit_response") {
+    if (at(0) === "interview" && at(1) === "recall" && at(2) === "screener") {
+      mark(0, "app");
+      mark(1, "app");
+      mark(2, "app");
+      if (at(3) === "entry-ui:ko" || at(3) === "entry-ui:en") mark(3, "app");
+    } else if (at(0) === "interview" && at(1) === "life_audit" && (at(2) ?? "").startsWith("period-")) {
+      mark(0, "app");
+    }
+  }
+  return out;
+}
+
+/** Drop the app-written scaffolding tags of ONE record, for surfaces that show
+ *  or link the user's topics. A tag the rule cannot prove is kept. */
 export function stripSystemTags(tags: readonly string[], origin: TagOrigin = {}): string[] {
-  const norm = tags.map(normalizeTag);
-  const reserved = norm.map((t) => APP_TAG_NAMESPACES.some((p) => t.startsWith(p)));
-  const hasTtfvChoice = norm.some((t) => t.startsWith("first_light:"));
-  const modeIndex = origin.kind === "note" ? reserved.indexOf(false) : -1;
-  return tags.filter((_, i) => {
-    const t = norm[i];
-    if (reserved[i]) return false;
-    if (t === "first_light" && hasTtfvChoice) return false;
-    if (AUDIT_RESPONSE_TAGS.has(t) && origin.kind === "audit_response") return false;
-    if (CAPTURE_MODE_TAGS.has(t) && i === modeIndex) return false;
-    return true;
-  });
+  const sources = tagSources(tags, origin);
+  return tags.filter((_, i) => sources[i] !== "app");
+}
+
+/** Only the tags nothing says the app wrote: what counts as the user organizing
+ *  that record. The unclear first tag of a note is left out. */
+export function provenUserTags(tags: readonly string[], origin: TagOrigin = {}): string[] {
+  const sources = tagSources(tags, origin);
+  return tags.filter((_, i) => sources[i] === "user");
 }
 
 // A single life-data item under a domain star — the unit domain-confidence counts.

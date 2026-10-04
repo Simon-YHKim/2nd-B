@@ -52,32 +52,42 @@ describe("rankRisingInterests", () => {
     const appOnly: RecordTagRow[] = [
       { tags: ["domain:growth", "first_light", "first_light:affirm"], created_at: daysAgo(1), kind: "note" },
       { tags: ["domain:career", "interview", "recall", "screener", "entry-ui:en"], created_at: daysAgo(2), kind: "audit_response" },
-      { tags: ["domain:rest", "Voice"], created_at: daysAgo(3), kind: "note" },
-      { tags: ["domain:collect", "todo"], created_at: daysAgo(4), kind: "note" },
+      { tags: ["domain:career", "interview", "recall", "screener"], created_at: daysAgo(3), kind: "audit_response" },
     ];
     expect(rankRisingInterests(appOnly, NOW)).toEqual([]);
 
     const mixed: RecordTagRow[] = [
       { tags: ["domain:career", "interview", "recall", "screener", "entry-ui:ko", "reading"], created_at: daysAgo(1), kind: "audit_response" },
+      // Call reflection's voice is the app's (gate SG-03).
+      { tags: ["domain:relation", "call_reflection", "voice"], created_at: daysAgo(2), kind: "note" },
     ];
-    expect(rankRisingInterests(mixed, NOW).map((r) => r.tag)).toEqual(["reading"]);
+    expect(rankRisingInterests(mixed, NOW).map((r) => r.tag).sort()).toEqual(["call_reflection", "reading"]);
   });
 
   test("a topic the user typed survives even when the app writes the same word (gate SG-01 / BL-01)", () => {
-    // A journal about a job interview, a to-do hashtag, a "recall" practice tag:
-    // the user chose these, so they are interests, whatever their spelling.
-    const userTyped: RecordTagRow[] = [
-      { tags: ["domain:career", "Interview"], created_at: daysAgo(1), kind: "journal" },
-      { tags: ["domain:career", "interview", "todo"], created_at: daysAgo(2), kind: "journal" },
-      // A voice note the user hashtagged "todo": the mode marker goes, the hashtag stays.
-      { tags: ["domain:rest", "voice", "todo"], created_at: daysAgo(3), kind: "note" },
-      // first_light without its first_light:<choice> pair is not the TTFV note.
-      { tags: ["domain:growth", "first_light", "recall"], created_at: daysAgo(4), kind: "note" },
-      // Kind unknown: no proof the app wrote it, so it is kept.
-      { tags: ["screener"], created_at: daysAgo(5) },
-    ];
-    expect(rankRisingInterests(userTyped, NOW).map((r) => `${r.tag}:${r.recent}`).sort()).toEqual(
-      ["Interview:2", "first_light:1", "recall:1", "screener:1", "todo:2"],
-    );
+    const tagsOf = (rows: RecordTagRow[]) =>
+      rankRisingInterests(rows, NOW).map((r) => `${r.tag}:${r.recent}`).sort();
+    // A journal about a job interview, a to-do hashtag: the user chose these.
+    // A note's first tag may be the user's too (/dashboard's capture from
+    // /capture?tag=, or record detail on an untagged note), so it is kept.
+    expect(
+      tagsOf([
+        { tags: ["domain:career", "Interview"], created_at: daysAgo(1), kind: "journal" },
+        { tags: ["domain:career", "interview", "todo"], created_at: daysAgo(2), kind: "journal" },
+        { tags: ["domain:recreation", "voice", "todo"], created_at: daysAgo(3), kind: "note" },
+      ]),
+    ).toEqual(["Interview:2", "todo:2", "voice:1"]);
+    // A first_light pair the user typed beside capture's mode is not the TTFV note.
+    expect(
+      tagsOf([{ tags: ["domain:growth", "voice", "first_light", "first_light:soft"], created_at: daysAgo(1), kind: "note" }]),
+    ).toEqual(["first_light:1", "first_light:soft:1", "voice:1"]);
+    // An /audit answer the user tagged in record detail is not the recall
+    // interview; with kind unknown nothing is proven, so it is kept.
+    expect(
+      tagsOf([
+        { tags: ["domain:growth", "life_audit", "values", "recall"], created_at: daysAgo(1), kind: "audit_response" },
+        { tags: ["screener"], created_at: daysAgo(2) },
+      ]),
+    ).toEqual(["life_audit:1", "recall:1", "screener:1", "values:1"]);
   });
 });

@@ -31,8 +31,8 @@ export async function gatherRisingInterests(
   if (error) throw error;
   const rows = (data ?? []) as Array<{ tags: string[] | null; created_at: string; kind: string | null }>;
   return rankRisingInterests(
-    // kind lets the ranker keep a user's own "interview" / "todo" topic while it
-    // drops the same word when the app wrote it (gate SG-01 / BL-01).
+    // kind lets the ranker drop the app's interview / first_light tags (a writer's
+    // exact array) and keep the same words the user typed (gate SG-01 / BL-01).
     rows.map((r) => ({ tags: r.tags ?? [], created_at: r.created_at, kind: r.kind })),
     now,
   );

@@ -10,7 +10,7 @@
 // domainConfidence / domainLevel / northStarBrightness do the deterministic math.
 
 import { getSupabaseClient } from "../supabase/client";
-import { isDomainId, stripSystemTags, type DomainEntry, type DomainId } from "./domain-stars";
+import { isDomainId, provenUserTags, type DomainEntry, type DomainId } from "./domain-stars";
 import { type LadderLevel } from "./brightness";
 import { domainStarLevels, northStarBrightness } from "./north-star";
 
@@ -25,11 +25,11 @@ const DOMAIN_TAG_PREFIX = "domain:";
 // `domain:` tag (and capture-mode markers) can't make a raw brain-dump look
 // curated — otherwise every record would read as "organized" and the §4.5 ②
 // L3/L4 downgrade for raw-heavy domains would never fire.
-// The rule lives in domain-stars.ts (stripSystemTags) so the topic surfaces
-// (/discover, /research, /records graph) strip the same scaffolding; it now also
-// covers the recall interview's recall/screener/entry-ui:* and first_light tags.
-// It judges a tag with its record's kind, so a hashtag the user typed (even
-// "todo" or "interview") counts as organizing that record (gate SG-01 / BL-01).
+// The rule lives in domain-stars.ts (tagSources) so the topic surfaces
+// (/discover, /research, /records graph) hide the same scaffolding. Only a
+// writer's exact array proves a tag is the app's (gate SG-01 / BL-01): a hashtag
+// the user typed, even "todo" or "interview", organizes its record, while a
+// note's first voice/todo tag (capture's mode, or the user's) stays raw.
 
 /** The DomainId encoded in a record's tags, or null if none / unknown slug. */
 function domainOf(tags: readonly string[]): DomainId | null {
@@ -128,7 +128,7 @@ async function fetchDomainLevels(userId: string): Promise<DomainBrightness> {
     // Records captured before the migration (no domain: tag) simply don't
     // count yet — an honest dark star, not a fabricated one.
     if (!domain) continue;
-    const userTags = stripSystemTags(tags, { kind: row.kind });
+    const userTags = provenUserTags(tags, { kind: row.kind });
     (entriesByDomain[domain] ??= []).push({
       domain,
       createdAt: row.created_at ?? undefined,
