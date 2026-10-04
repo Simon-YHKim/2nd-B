@@ -31,6 +31,7 @@ const promoted = [
   ["0206", "users_avatar_spec"],
   ["0207", "users_display_name_update"],
   ["0208", "signup_consent_privacy_20260929"],
+  ["0210", "polascope_consent_20260928"],
 ] as const;
 
 const behaviorDrafts = {
@@ -149,6 +150,17 @@ describe("scratch PostgreSQL coverage for inactive security drafts", () => {
     expect(regression).toContain("consent must stay current after a notice revision");
     expect(regression).toContain("an email-v3 receipt must not count as current");
     expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
+  });
+
+  test("exercises the numbered 2026-10-05 PolaScope contract without replaying its draft", () => {
+    const regression = read("db/tests/polascope_consent_20261005_regression.sql");
+    const draftLane = read("db/migration-drafts/tests/polascope-consent-forward-contract.sql");
+    expect(workflow).toContain("-f db/tests/polascope_consent_20261005_regression.sql");
+    expect(workflow).not.toContain("-f db/migration-drafts/tests/polascope-consent-forward-contract.sql");
+    expect(regression).not.toMatch(/\\i(?:r)?\s+[^\r\n]*UNNUMBERED_/);
+    expect(regression).toContain("signup tuple preservation/current contract failed");
+    expect(regression).toContain("email-v6 legacy confirmation/provenance changed");
+    expect(draftLane).toContain("\\ir ../../tests/polascope_consent_20261005_regression.sql");
   });
 
   test.each(Object.entries(behaviorDrafts))(
