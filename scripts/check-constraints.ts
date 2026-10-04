@@ -932,7 +932,6 @@ results.push(
     const input = read("src/components/ui/Input.tsx");
     const backArrow = read("src/components/ui/BackArrow.tsx");
     const drillProgress = read("src/components/ui/DrillProgress.tsx");
-    const xpBar = read("src/components/progression/XpBar.tsx");
     const quantPager = read("src/components/quant/QuantPager.tsx");
     const interview = read("src/app/interview.tsx");
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
@@ -1244,15 +1243,10 @@ results.push(
       drillProgress.includes("Interview progress matrix. ${totalAnswers} total answers.") &&
       drillProgress.includes("Next question target: ${activeTarget}") &&
       drillProgress.includes("Cell numbers show answer counts by life period and question layer.") &&
-      xpBar.includes('accessibilityRole="progressbar"') &&
-      xpBar.includes("accessibilityLabel={accessibilityLabel}") &&
-      // The pinned literal was the OBJECT form, which React Native Web drops
-      // on the floor - the bar announced as a progressbar with no value at all
-      // on web. The guard's intent is "this bar announces its value", so it now
-      // pins the form that actually reaches both platforms.
-      xpBar.includes("{...a11yValue({ min: 0, max: 100, now: pct, text: trailing })}") &&
-      xpBar.includes("accessibilityHint={accessibilityHint}") &&
-      xpBar.includes('t("progression.maxLevelHint"') &&
+      // 2026-10-05: XP 진행 막대 XpBar 의 핀 5줄을 걷었다. 05-31(#79) 뒤로 어느 화면도
+      // 그리지 않았고 레벨 · XP 를 보여 주는 배송 화면이 없어 재조준할 곳이 없다.
+      // Simon 결정 Q-261004-18 로 XP 는 내부 수치다(서버 award_xp 적립은 그대로).
+      // progressbar 값 낭독 계약은 quantPager 핀(아래)이 같은 a11yValue 형태로 계속 진다.
       interview.includes("const kbHeight = useKeyboard()") &&
       interview.includes("paddingBottom: kbHeight + spacing.sm") &&
       interview.includes("minHeight: 48") &&
@@ -1265,8 +1259,8 @@ results.push(
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research insight cards, assessment choices, inbox/capture/manual/records/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/drillprogress/xpbar/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
-        : "visual-selected controls, research insight cards, inbox/capture/manual/records/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/drillprogress/xpbar/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research insight cards, assessment choices, inbox/capture/manual/records/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/drillprogress/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
+        : "visual-selected controls, research insight cards, inbox/capture/manual/records/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/drillprogress/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
     };
   }),
 );

@@ -47,7 +47,7 @@ const ROOT = process.cwd();
 const PINNED_WITHOUT_A_RENDERER: Readonly<Record<string, string>> = {
   // ConsentDialog 줄은 2026-10-05 에 걷었다. 위 순서의 2단계(등가물 없음 → 사람에게)를
   // 거쳐 Simon 이 Q-261004-17 로 결론 냈다: 후기 동의 창은 E:/Legacy 로, C5 는 DB 제약만.
-  XpBar: "docs/handoff/master-handoff.html 이 아는 컴포넌트. 처분 미정.",
+  // XpBar 줄도 같은 날 같은 길로 걷었다(Q-261004-18): XP 는 내부 수치, 막대는 E:/Legacy.
   TraitRadar: "handoff 브리프 2건이 아는 컴포넌트. 처분 미정.",
   DeepSpaceDomainsScreen:
     "tools-reachable 의 바이트 핀이 이 슬라이스를 못박는다. docs/FIDELITY_AUDIT.md(2026-06-21 " +

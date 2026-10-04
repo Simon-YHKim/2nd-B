@@ -261,6 +261,7 @@ const REMOVED_SOURCE_PATHS = [
   // 2026-10-05 E:/Legacy 로 나갔다. 배송 화면이 그리지 않던 부품이다.
   ["src/components/ads/AdSlot.tsx", "E:/Legacy"], // Q-261004-16 웹 AdSense 배너
   ["src/components/consent/ConsentDialog.tsx", "E:/Legacy"], // Q-261004-17 후기 동의 창
+  ["src/components/progression/XpBar.tsx", "E:/Legacy"], // Q-261004-18 XP 진행 막대
 ] as const;
 
 describe("문서가 지목하는 소스 경로", () => {
