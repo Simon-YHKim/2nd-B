@@ -10,6 +10,9 @@ import { stripSystemTags } from "../persona/domain-stars";
 export interface RecordTagRow {
   tags: string[];
   created_at: string;
+  /** records.kind. It is how stripSystemTags tells the app's own interview /
+   *  voice / todo tags from the same words the user typed; unknown keeps them. */
+  kind?: string | null;
 }
 
 export interface RisingInterest {
@@ -52,7 +55,9 @@ export function rankRisingInterests(
     // The reserved domain: tag rides on every record, and the app writes other
     // scaffolding tags too (first_light, interview, entry-ui:*). Exclude them all
     // so none can masquerade as a rising "interest" the user is told they care about.
-    for (const raw of stripSystemTags(row.tags ?? [])) {
+    // The record's kind decides whether a bare "interview" or "todo" is the app's
+    // marker or a topic the user chose (gate SG-01 / BL-01).
+    for (const raw of stripSystemTags(row.tags ?? [], { kind: row.kind })) {
       const trimmed = (raw ?? "").trim();
       if (!trimmed) continue;
       const key = trimmed.toLowerCase();

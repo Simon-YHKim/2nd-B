@@ -57,6 +57,9 @@ export interface GraphRecord {
   topic?: string | null;
   summary?: string | null;
   tags?: string[] | null;
+  /** records.kind. stripSystemTags uses it to tell the app's own interview /
+   *  voice / todo tags from the same words the user typed; unknown keeps them. */
+  kind?: string | null;
 }
 
 export interface GraphRoleCard {
@@ -131,11 +134,12 @@ export function buildRecordsGraph(
 
   // Annotate each record with its domain + user tags (system scaffolding such as
   // domain:, interview, first_light stripped) once, so two records are never
-  // linked just because the app tagged both the same way.
+  // linked just because the app tagged both the same way. The record's kind
+  // keeps a user-typed "interview" or "todo" as a real shared topic.
   const annotated = records.map((r) => ({
     r,
     domain: recordDomain(r.tags),
-    tags: stripSystemTags(r.tags ?? []),
+    tags: stripSystemTags(r.tags ?? [], { kind: r.kind }),
   }));
 
   // Domain stars: keep DOMAIN_STARS order (Big Dipper). Only stars that carry a

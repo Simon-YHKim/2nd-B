@@ -82,37 +82,69 @@ export function stripDomainTags(tags: readonly string[]): string[] {
 }
 
 // Tags the APP writes to say how or where a record was captured, never a topic
-// the user chose. One list, so every consumer that counts or displays tags as
-// user topics agrees on what is scaffolding:
-//   voice / todo            capture-mode markers (load-domain-levels' old list)
-//   interview / recall /    the recall interview (src/app/interview.tsx); also
-//   screener                  assess/registry completion tags
-//   entry-ui:<locale>       the UI language the interview ran in
-//   first_light[:<choice>]  the first-run TTFV note (TTFVScreen)
-//   domain:<slug>           the reserved domain namespace (isDomainTag)
+// the user chose. QA 261004 D-07: /discover and /research showed first_light,
+// first_light:affirm and interview as the user's "interests" because they
+// stripped domain: only. One rule, so every consumer that counts or displays
+// tags as user topics agrees on what is scaffolding.
+//
+// The user can type any hashtag (capture's sanitizeChips rejects only domain:),
+// and an LLM-suggested or hand-typed "interview" or "todo" is a real topic.
+// So a tag is judged with the record it sits on, never by its spelling alone
+// (gate SG-01 / BL-01):
+//
+// 1. Reserved namespaces. A tag in one of these is the app's by construction:
+//      domain:<slug>          the domain namespace (isDomainTag)
+//      first_light:<choice>   the first-run TTFV note (TTFVScreen)
+//      entry-ui:<locale>      the UI language the recall interview ran in
+// 2. Bare words the app also writes. Each is dropped only when the record
+//    itself proves the app wrote that copy; otherwise it stays a user topic:
+//      first_light            beside a first_light:<choice> tag (TTFV always
+//                               writes the pair)
+//      interview / recall /   on a kind "audit_response" record (the recall
+//      screener                 interview; no hashtag input writes that kind)
+//      voice / todo           on a kind "note" record as its first tag outside
+//                               the reserved namespaces (capture writes
+//                               [mode, ...hashtags] and createRecord puts the
+//                               one domain: tag before it)
 // Storage readers (assess completionTags, career-timeline entry-ui, TTFV
 // isFirstLight) keep reading the raw tags; only topic surfaces strip these.
-// QA 261004 D-07: /discover and /research showed first_light, first_light:affirm
-// and interview as the user's "interests" because they stripped domain: only.
-const SYSTEM_TAG_EXACT: ReadonlySet<string> = new Set([
-  "voice",
-  "todo",
-  "interview",
-  "recall",
-  "screener",
-  "first_light",
-]);
-const SYSTEM_TAG_PREFIXES: readonly string[] = [DOMAIN_TAG_PREFIX, "first_light:", "entry-ui:"];
+const APP_TAG_NAMESPACES: readonly string[] = [DOMAIN_TAG_PREFIX, "first_light:", "entry-ui:"];
+const AUDIT_RESPONSE_TAGS: ReadonlySet<string> = new Set(["interview", "recall", "screener"]);
+const CAPTURE_MODE_TAGS: ReadonlySet<string> = new Set(["voice", "todo"]);
 
-/** True for a tag the app writes as capture scaffolding (case-insensitive). */
-export function isSystemTag(tag: string): boolean {
-  const t = tag.trim().toLowerCase();
-  return SYSTEM_TAG_EXACT.has(t) || SYSTEM_TAG_PREFIXES.some((p) => t.startsWith(p));
+function normalizeTag(tag: string): string {
+  return tag.trim().toLowerCase();
 }
 
-/** Drop app-written scaffolding tags, leaving only the user's own topic tags. */
-export function stripSystemTags(tags: readonly string[]): string[] {
-  return tags.filter((t) => !isSystemTag(t));
+/** True for a tag in a namespace only the app writes (domain:, first_light:,
+ *  entry-ui:). A bare word is never judged here: see stripSystemTags. */
+export function isReservedAppTag(tag: string): boolean {
+  const t = normalizeTag(tag);
+  return APP_TAG_NAMESPACES.some((p) => t.startsWith(p));
+}
+
+/** What a caller knows about the record a tag list came from. `kind` is
+ *  records.kind; leave it out when unknown, and the bare words that need proof
+ *  then stay as the user's own. */
+export interface TagOrigin {
+  kind?: string | null;
+}
+
+/** Drop the app-written scaffolding tags of ONE record, leaving the user's own
+ *  topic tags. Pass the whole tag list of that record plus its kind. */
+export function stripSystemTags(tags: readonly string[], origin: TagOrigin = {}): string[] {
+  const norm = tags.map(normalizeTag);
+  const reserved = norm.map((t) => APP_TAG_NAMESPACES.some((p) => t.startsWith(p)));
+  const hasTtfvChoice = norm.some((t) => t.startsWith("first_light:"));
+  const modeIndex = origin.kind === "note" ? reserved.indexOf(false) : -1;
+  return tags.filter((_, i) => {
+    const t = norm[i];
+    if (reserved[i]) return false;
+    if (t === "first_light" && hasTtfvChoice) return false;
+    if (AUDIT_RESPONSE_TAGS.has(t) && origin.kind === "audit_response") return false;
+    if (CAPTURE_MODE_TAGS.has(t) && i === modeIndex) return false;
+    return true;
+  });
 }
 
 // A single life-data item under a domain star — the unit domain-confidence counts.

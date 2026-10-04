@@ -48,16 +48,36 @@ describe("rankRisingInterests", () => {
   test("app-written scaffolding tags never surface as interests (QA 261004 D-07)", () => {
     // A brand-new user who answered the first-run note has exactly this record.
     // Before the fix /discover listed "first_light" and "first_light:affirm".
-    const ttfvOnly: RecordTagRow[] = [
-      { tags: ["first_light", "first_light:affirm", "domain:growth"], created_at: daysAgo(1) },
-      { tags: ["interview", "recall", "screener", "entry-ui:en"], created_at: daysAgo(2) },
-      { tags: ["FIRST_LIGHT:soft", "Voice", "todo"], created_at: daysAgo(3) },
+    // Each row is what its writer stores: createRecord puts domain: first.
+    const appOnly: RecordTagRow[] = [
+      { tags: ["domain:growth", "first_light", "first_light:affirm"], created_at: daysAgo(1), kind: "note" },
+      { tags: ["domain:career", "interview", "recall", "screener", "entry-ui:en"], created_at: daysAgo(2), kind: "audit_response" },
+      { tags: ["domain:rest", "Voice"], created_at: daysAgo(3), kind: "note" },
+      { tags: ["domain:collect", "todo"], created_at: daysAgo(4), kind: "note" },
     ];
-    expect(rankRisingInterests(ttfvOnly, NOW)).toEqual([]);
+    expect(rankRisingInterests(appOnly, NOW)).toEqual([]);
 
     const mixed: RecordTagRow[] = [
-      { tags: ["first_light", "interview", "reading"], created_at: daysAgo(1) },
+      { tags: ["domain:career", "interview", "recall", "screener", "entry-ui:ko", "reading"], created_at: daysAgo(1), kind: "audit_response" },
     ];
     expect(rankRisingInterests(mixed, NOW).map((r) => r.tag)).toEqual(["reading"]);
+  });
+
+  test("a topic the user typed survives even when the app writes the same word (gate SG-01 / BL-01)", () => {
+    // A journal about a job interview, a to-do hashtag, a "recall" practice tag:
+    // the user chose these, so they are interests, whatever their spelling.
+    const userTyped: RecordTagRow[] = [
+      { tags: ["domain:career", "Interview"], created_at: daysAgo(1), kind: "journal" },
+      { tags: ["domain:career", "interview", "todo"], created_at: daysAgo(2), kind: "journal" },
+      // A voice note the user hashtagged "todo": the mode marker goes, the hashtag stays.
+      { tags: ["domain:rest", "voice", "todo"], created_at: daysAgo(3), kind: "note" },
+      // first_light without its first_light:<choice> pair is not the TTFV note.
+      { tags: ["domain:growth", "first_light", "recall"], created_at: daysAgo(4), kind: "note" },
+      // Kind unknown: no proof the app wrote it, so it is kept.
+      { tags: ["screener"], created_at: daysAgo(5) },
+    ];
+    expect(rankRisingInterests(userTyped, NOW).map((r) => `${r.tag}:${r.recent}`).sort()).toEqual(
+      ["Interview:2", "first_light:1", "recall:1", "screener:1", "todo:2"],
+    );
   });
 });

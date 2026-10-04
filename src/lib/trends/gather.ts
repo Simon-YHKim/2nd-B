@@ -24,14 +24,16 @@ export async function gatherRisingInterests(
   const since = new Date(now.getTime() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await getSupabaseClient()
     .from("records")
-    .select("tags, created_at")
+    .select("tags, created_at, kind")
     .eq("user_id", userId)
     .gte("created_at", since)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  const rows = (data ?? []) as Array<{ tags: string[] | null; created_at: string }>;
+  const rows = (data ?? []) as Array<{ tags: string[] | null; created_at: string; kind: string | null }>;
   return rankRisingInterests(
-    rows.map((r) => ({ tags: r.tags ?? [], created_at: r.created_at })),
+    // kind lets the ranker keep a user's own "interview" / "todo" topic while it
+    // drops the same word when the app wrote it (gate SG-01 / BL-01).
+    rows.map((r) => ({ tags: r.tags ?? [], created_at: r.created_at, kind: r.kind })),
     now,
   );
 }

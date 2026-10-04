@@ -77,6 +77,7 @@ export function recordsToResearchGraph(
     // entry-ui:*): they reached the chips and "Knowledge about first_light".
     const tags = stripSystemTags(
       (source?.tags ?? []).filter((t): t is string => typeof t === "string"),
+      { kind: source?.kind },
     );
     pages.push({
       id: node.id,
