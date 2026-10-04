@@ -45,21 +45,19 @@ export type SpecialScreenEntry =
 /** `entry` 를 생략한 화면은 기존 앱 안의 정상 진입을 그대로 뜻한다. */
 export type ScreenEntry = { kind: "standard" } | SpecialScreenEntry;
 
-/** UI 모드 한쪽에서의 렌더 결과. */
-export type ModeRender =
-  | { kind: "screen" }
-  | { kind: "redirect"; to: string }
-  /** 개발 빌드에서만 실화면, production 빌드는 redirect (예: /trinity). */
-  | { kind: "dev-gated-screen"; productionRedirect: string };
-
-/** UI 모드별 렌더 축 — 실화면이 아닌 라우트만 명시한다. */
+/**
+ * 렌더 축 — 실화면이 아닌 라우트만 명시한다.
+ *
+ * 2026-10-05: 여기 있던 두 번째 갈래 `ui-mode-split`(딥스페이스와 legacy 가 서로 다른
+ * 것을 그린다)과 그 한쪽 결과 타입 ModeRender 를 걷었다. 롤백 레버 EXPO_PUBLIC_UI 가
+ * 없어져(Simon 결정 Q-261004-11 C) 라우트가 모드에 따라 갈릴 수 없고, 그 축을 쓰던
+ * /persona · /trinity 는 /core-brain 리다이렉트 전용이 됐다(Q-261004-33 B).
+ */
 export type SpecialRenderBehavior =
-  /** 어느 모드에서든 다른 라우트로 넘기기만 한다. 은퇴 화면의 호환 경로. */
-  | { kind: "redirect"; to: string; lifecycle: "retired" }
-  /** 딥스페이스(기본)와 legacy(EXPO_PUBLIC_UI=legacy)가 서로 다른 것을 그린다. */
-  | { kind: "ui-mode-split"; deepspace: ModeRender; legacy: ModeRender };
+  /** 다른 라우트로 넘기기만 한다. 은퇴 화면의 호환 경로. */
+  { kind: "redirect"; to: string; lifecycle: "retired" };
 
-/** `render` 를 생략한 화면은 어느 모드에서든 실화면을 그린다. */
+/** `render` 를 생략한 화면은 실화면을 그린다. */
 export type RenderBehavior = { kind: "screen" } | SpecialRenderBehavior;
 
 const STANDARD_SCREEN_ENTRY = { kind: "standard" } as const satisfies ScreenEntry;
@@ -381,10 +379,18 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         render: { kind: "redirect", to: "/core-brain", lifecycle: "retired" },
         note: "'나를 보는 자리'의 정본은 /core-brain 이라 그리로 넘긴다. 레거시 실화면(PersonaLegacy)은 2026-10-05 EXPO_PUBLIC_UI 레버와 함께 빠졌다(Q-261004-11)",
       },
-      { file: "big-five", href: "/big-five", label: "Big Five", auth: true },
+      // big-five 는 리다이렉트하지 않는다 - 로그아웃이면 일부러 둔 인라인 로그인 카드
+      // (dds-big-five-screen 의 SignedOutGate)를 그린다. 2026-10-04 까지 `auth: true` 였던
+      // 근거는 라우트의 legacy 반쪽(BigFiveSurveyOwner)에 있던 리터럴이었고, 그 반쪽은
+      // 2026-10-05 롤백 레버와 함께 빠졌다(Q-261004-11 C).
+      {
+        file: "big-five",
+        href: "/big-five",
+        label: "Big Five",
+        note: "로그아웃이면 리다이렉트 대신 인라인 로그인 카드(SignedOutGate)를 그린다",
+      },
       // 2026-10-04 W-02: attachment 와 같은 모양이었다. 배송되는 IpipNeoDeepSpace 가
-      // 이제 직접 가드를 갖는다. big-five 는 일부러 둔 인라인 로그인 카드
-      // (dds-big-five-screen 의 SignedOutGate)라 그대로다.
+      // 이제 직접 가드를 갖는다.
       { file: "ipip-neo", href: "/ipip-neo", label: "IPIP-NEO-120", auth: true },
       { file: "rlss", href: "/rlss", label: "삶의 만족도 (RLSS)", auth: true },
       { file: "values", href: "/values", label: "가치관", auth: true },
@@ -745,9 +751,8 @@ export interface EntryRoleCounts {
   deepLink: number;
   legacyLink: number;
   designLab: number;
-  /** 렌더 축. 항상 redirect (은퇴 호환) / UI 모드 분기. */
+  /** 렌더 축. 항상 redirect (은퇴 호환). */
   alwaysRedirect: number;
-  modeSplit: number;
   /** 진입·렌더 축과 직교하는 DevOnlyRoute 접근 게이트 수. */
   devOnly: number;
   /** `<Redirect href="/sign-in" />` 를 가진 화면 수. */
@@ -763,7 +768,6 @@ export function entryRoleCounts(screens: readonly DevScreen[] = devScreens()): E
     legacyLink: 0,
     designLab: 0,
     alwaysRedirect: 0,
-    modeSplit: 0,
     devOnly: 0,
     authRequired: 0,
   };
@@ -776,7 +780,6 @@ export function entryRoleCounts(screens: readonly DevScreen[] = devScreens()): E
     if (entry.kind === "dev" && entry.collection === "design-lab") counts.designLab += 1;
     const render = screenRender(screen);
     if (render.kind === "redirect") counts.alwaysRedirect += 1;
-    if (render.kind === "ui-mode-split") counts.modeSplit += 1;
     if (screen.dev) counts.devOnly += 1;
     if (screen.auth) counts.authRequired += 1;
   }

@@ -342,10 +342,10 @@ const RULE1_EXEMPT: readonly { prefix: string; why: string }[] = [
     prefix: "src/screens/deepspace/DeepSpaceHomeScreen.tsx",
     why: "DevOnlyRoute(/deepspace-home)가 렌더하는 화면",
   },
-  {
-    prefix: "src/screens/deepspace/dds-auth-screens.tsx",
-    why: "Apple·네이버 등 **브랜드 마크**. 로고를 픽셀로 다시 그리는 것은 상표 문제지 규칙 이주가 아니다",
-  },
+  // (dds-auth-screens.tsx 의 예외는 2026-10-05 에 걷었다. 그 파일의 브랜드 마크 곡선
+  //  — AppleGlyph · ProviderMark — 은 라우트가 안 그리던 가입 화면 그림자 사본에만
+  //  있었고 그 사본과 함께 나갔다(E:/Legacy/2ndB, batch qa261004-lever). 배송 가입
+  //  화면은 dds-sign-up-screen.tsx 다. 지킬 곡선이 없는 예외는 새 곡선을 숨길 뿐이다.)
   {
     prefix: "src/lib/iden/render-html.ts",
     why:
@@ -702,8 +702,8 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 // 148 → 147 (2026-09-08, 3차): sign-up 렌더러가 나가면서 1건이 더 빌드 밖으로.
 // 같은 이유, 같은 단서 — **고친 것이 아니다.**
 // 147 → 146 (2026-09-08, 4차): sign-in 렌더러가 나가면서 1건이 더 빌드 밖으로.
-// 같은 이유, 같은 단서 — **고친 것이 아니다.** 그 1건은 지금 legacy/screens/sign-in.tsx
-// 안에 그대로 있고, 되살리는 사람이 다시 만나게 된다.
+// 같은 이유, 같은 단서 — **고친 것이 아니다.** 그 1건은 legacy/screens/sign-in.tsx
+// 안에 그대로 있었고(2026-10-05 에 E:/Legacy/2ndB 로 나갔다), 되살리는 사람이 다시 만나게 된다.
 // 146 → 135 (2026-10-04): 옛 홈 그래프 묶음(NavGraph 2 · CharacterPathLayer 2 ·
 // lib/graph/depth-style 3 · glow-style 2 · premium/PowerOnOverlay 2 = 11건)이
 // E:/Legacy 로 나갔다(QA L2-01 · L4-06). 같은 이유, 같은 단서 — **고친 것이 아니다.**
@@ -713,7 +713,13 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 // 두 줄(146 → 135, 146 → 137)은 같은 날 다른 PR(#2038 · #2041)에서 따로 내린 값이다. 합친 실측은
 // 146 − 11 − 9 = 126 (겹침 0). SoulcoreFinalArt 의 SNOWFLAKE_CELLS 4건은 남아 있고, 그것을 그리던
 // NavGraph 는 #2038 로 나갔다 — 남은 소비자는 다음 레거시 정리에서 다시 센다.
-const RATCHET_BASELINE = 126;
+// 126 → 95 (2026-10-05, 롤백 레버 제거 · Simon 결정 Q-261004-11 C): 레버를 접으면서
+// 어느 빌드도 그리지 않던 반쪽이 나갔다 — reset-password 5 · inbox 4 · SceneHero 4 ·
+// trinity 3 · big-five 2 · data 2 · manual 2 · persona 2 · gameboy-tokens(cosmic 팔레트) 2 ·
+// DeepSpaceDesignScreens(그림자 사본 manual · ops) 2 · settings 1 · wiki 1 · tab-bar 1 = 31건.
+// 실측은 e0b274d0 과 이 브랜치를 PIXEL_RULES_LIST=1 로 파일별 대조했다. 같은 이유, 같은 단서 —
+// **고친 것이 아니다.** 되살리기 원본(legacy/screens/)으로 간 반쪽의 위반은 되살릴 때 다시 만난다.
+const RATCHET_BASELINE = 95;
 
 // 래칫이 통과해도 **남은 빚이 어디 있는지** 볼 수 있어야 한다. 수만 보면 고칠 곳을
 // 모른다(채점기 D·E·B 축도 이름을 붙이고 나서야 고칠 것이 드러났다).

@@ -5,13 +5,22 @@ import { MANUAL_GUIDE_MODULE, manualRouteRendersScannedGuide } from "../manual-r
 // GATE-02 (PR #2045): the lint cleanup dropped C7's unused route read, and with it
 // the only thing in C7 that failed when /manual went away. These pin the named
 // condition that replaced it.
+//
+// 2026-10-05 (Simon decision Q-261004-11 C): the route is now the wrapper
+// (`return <DeepSpaceManualScreen />;`). The skin branch it used to carry
+// (`if (isDeepSpaceUI()) return …`) left with the EXPO_PUBLIC_UI lever, and the
+// predicate no longer accepts it. The skin-branch mutations that used to sit in the
+// "keeps passing" and "skin test" groups below now sit in the failing group.
 const route = readFileSync(resolve(__dirname, "../../src/app/manual.tsx"), "utf8");
 const shippedImport = `import { DeepSpaceManualScreen } from "${MANUAL_GUIDE_MODULE}";`;
-const dispatch = "if (isDeepSpaceUI()) return <DeepSpaceManualScreen />;";
+const dispatch = "return <DeepSpaceManualScreen />;";
+/** The skin branch the route carried until 2026-10-05, built so no lever name sits in this file's code. */
+const skinTest = "isDeepSpace" + "UI()";
 
 test("the /manual route renders the shipped guide that C7 scans", () => {
   expect(route).toContain(shippedImport);
   expect(route).toContain(dispatch);
+  expect(route).not.toContain(skinTest);
   expect(manualRouteRendersScannedGuide(route)).toBe(true);
 });
 
@@ -19,7 +28,7 @@ test("a deleted or empty route fails", () => {
   expect(manualRouteRendersScannedGuide("")).toBe(false);
 });
 
-test("re-pointing the route at the same-name shadow copy fails", () => {
+test("re-pointing the route at another module that once held a same-name copy fails", () => {
   const shadow = route.replace(
     shippedImport,
     'import { DeepSpaceManualScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";',
@@ -46,16 +55,20 @@ test("an alias that hands the name to another screen fails", () => {
 });
 
 test.each([
-  ["the skin branch draws the legacy half", "if (isDeepSpaceUI()) return <ManualLegacy />;"],
-  ["the skin branch is inverted", "if (!isDeepSpaceUI()) return <DeepSpaceManualScreen />;"],
+  ["the guide is replaced by the legacy half", "return <ManualLegacy />;"],
   ["the dispatch is gone", ""],
+  // The shapes the predicate accepted until 2026-10-05. A route that grows a skin
+  // branch again is bringing the lever back; that is a decision, not a refactor.
+  ["the old skin branch comes back", `if (${skinTest}) return <DeepSpaceManualScreen />;\n  return <ManualLegacy />;`],
+  ["the old skin branch comes back inverted", `if (!${skinTest}) return <ManualLegacy />;\n  return <DeepSpaceManualScreen />;`],
+  ["the guide sits behind any condition", "if (Math.random() > 2) return <DeepSpaceManualScreen />;\n  return null;"],
 ])("%s: fails", (_label, replacement) => {
   const mutated = route.replace(dispatch, replacement);
   expect(mutated).not.toBe(route);
   expect(manualRouteRendersScannedGuide(mutated)).toBe(false);
 });
 
-test("the wrapper left after the legacy half retires still passes", () => {
+test("the wrapper passes with either line ending", () => {
   const wrapper =
     "// Route: /manual. The screen itself is DeepSpaceManualScreen.\n" +
     `${shippedImport}\n\n` +
@@ -85,24 +98,14 @@ test.each([
 });
 
 test.each([
-  ["before the dispatch", (src: string) => src.replace(dispatch, `// The shipped guide; the legacy half is the rollback skin.\n  ${dispatch}`)],
+  ["before the dispatch", (src: string) => src.replace(dispatch, `// The shipped guide C7 scans.\n  ${dispatch}`)],
   ["inside the import braces", (src: string) => src.replace(shippedImport, shippedImport.replace("{ ", "{ /* shipped guide */ "))],
   ["between the signature and the body", (src: string) => src.replace("export default function Manual() {", "export default function Manual() /* route */ {")],
-  ["inside the returned element", (src: string) => src.replace(dispatch, "if (isDeepSpaceUI()) return (\n    // the guide C7 scans\n    <DeepSpaceManualScreen />\n  );")],
+  ["inside the returned element", (src: string) => src.replace(dispatch, "return (\n    // the guide C7 scans\n    <DeepSpaceManualScreen />\n  );")],
 ])("an explanatory comment %s keeps a correct route passing", (_label, edit) => {
   const mutated = edit(route);
   expect(mutated).not.toBe(route);
   expect(manualRouteRendersScannedGuide(mutated)).toBe(true);
-});
-
-test.each([
-  ["imported from another module", (src: string) => src.replace('from "@/lib/ui-mode";', 'from "@/lib/legacy-ui-mode";')],
-  ["aliased from another export", (src: string) => src.replace("import { isDeepSpaceUI }", "import { isLegacyUI as isDeepSpaceUI }")],
-  ["shadowed by a local", (src: string) => src.replace("export default function Manual() {", "const isDeepSpaceUI = () => false;\nexport default function Manual() {")],
-])("the skin test %s: fails", (_label, edit) => {
-  const mutated = edit(route);
-  expect(mutated).not.toBe(route);
-  expect(manualRouteRendersScannedGuide(mutated)).toBe(false);
 });
 
 test.each([
@@ -120,7 +123,7 @@ test.each([
   ["a type-only specifier", (src: string) => src.replace(shippedImport, shippedImport.replace("{ ", "{ type "))],
   ["a second default export", (src: string) => `${src}\nexport { ManualLegacy as default };\n`],
   ["an async default export", (src: string) => src.replace("export default function Manual()", "export default async function Manual()")],
-  ["props on the guide", (src: string) => src.replace(dispatch, "if (isDeepSpaceUI()) return <DeepSpaceManualScreen legacy />;")],
+  ["props on the guide", (src: string) => src.replace(dispatch, "return <DeepSpaceManualScreen legacy />;")],
   ["a syntax error the parser recovers from", (src: string) => `${src}\nconst broken = ;\n`],
 ])("%s: fails", (_label, edit) => {
   const mutated = edit(route);

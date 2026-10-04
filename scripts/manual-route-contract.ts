@@ -27,12 +27,15 @@
  *   function;
  * - the file has exactly one default export, a plain (not async, not generator)
  *   function declaration with a body;
- * - that function's first statement renders `<DeepSpaceManualScreen />` with no
- *   props, either as today's skin branch
- *   (`if (isDeepSpaceUI()) return <DeepSpaceManualScreen />;`, where
- *   `isDeepSpaceUI` is likewise the only declaration of its name and is imported
- *   from the ui-mode module) or as the wrapper left once the legacy half retires
- *   (`return <DeepSpaceManualScreen />;`, the src/app/profile.tsx shape).
+ * - that function's first statement is `return <DeepSpaceManualScreen />;` with no
+ *   props (the wrapper shape, as in src/app/profile.tsx).
+ *
+ * 2026-10-05 (Simon decision Q-261004-11 C): until then a second shape was accepted,
+ * the skin branch `if (isDeepSpaceUI()) return <DeepSpaceManualScreen />;` with
+ * `isDeepSpaceUI` imported from the ui-mode module. The EXPO_PUBLIC_UI rollback lever
+ * and that module are gone and the route is the wrapper, so the skin branch is now a
+ * failing shape like any other (ui-lever-retired.test.ts keeps the lever out of the
+ * code as a whole). This narrows what passes; it does not widen it.
  *
  * Any other shape is false (for example `export default Manual;` or
  * `export { Manual as default }`): the check errs toward failing, and a new shape
@@ -40,10 +43,8 @@
 import * as ts from "typescript";
 
 export const MANUAL_GUIDE_MODULE = "@/screens/deepspace/dds-manual-screen";
-export const UI_MODE_MODULE = "@/lib/ui-mode";
 
 const SCREEN = "DeepSpaceManualScreen";
-const SKIN_TEST = "isDeepSpaceUI";
 const FILE_NAME = "manual.tsx";
 
 function parse(route: string): ts.SourceFile | null {
@@ -144,17 +145,6 @@ function returnsGuide(statement: ts.Statement | undefined): boolean {
   return s !== undefined && ts.isReturnStatement(s) && rendersGuide(s.expression);
 }
 
-function isSkinTest(expression: ts.Expression): boolean {
-  return (
-    ts.isCallExpression(expression) &&
-    ts.isIdentifier(expression.expression) &&
-    expression.expression.text === SKIN_TEST &&
-    expression.questionDotToken === undefined &&
-    expression.typeArguments === undefined &&
-    expression.arguments.length === 0
-  );
-}
-
 export function manualRouteRendersScannedGuide(route: string): boolean {
   const file = parse(route);
   if (file === null) return false;
@@ -165,13 +155,6 @@ export function manualRouteRendersScannedGuide(route: string): boolean {
   if (hasModifier(fn, ts.SyntaxKind.AsyncKeyword)) return false;
 
   const first = fn.body.statements[0];
-  if (first === undefined) return false;
-  if (ts.isIfStatement(first)) {
-    return (
-      isSkinTest(first.expression) &&
-      soleValueImport(file, SKIN_TEST, UI_MODE_MODULE) &&
-      returnsGuide(first.thenStatement)
-    );
-  }
+  if (first === undefined || ts.isIfStatement(first)) return false;
   return returnsGuide(first);
 }

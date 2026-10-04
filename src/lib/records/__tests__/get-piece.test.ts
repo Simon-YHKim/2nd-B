@@ -8,10 +8,11 @@
 // queries `records`. So it looked for `src-<uuid>` in the records table, found nothing, and
 // showed "찾을 수 없어요".
 //
-// The legacy record-detail screen gets this RIGHT -- src/app/record/[id].tsx:65 has a
-// correct `origin === "source"` branch. It just never runs: line 263 is
-// `if (isDeepSpaceUI()) return <DeepSpaceRecordDetailScreen />`, and deep-space is the
-// default. Correct code, unreachable. That is why the bug survived a screen that visibly
+// The legacy record-detail screen got this RIGHT -- e0b274d0:src/app/record/[id].tsx:54 has
+// a correct `origin === "source"` branch. It never ran: line 268 there is
+// `if (isDeepSpaceUI()) return <DeepSpaceRecordDetailScreen />`, and deep-space was the
+// default. Correct code, unreachable. (Pinned to that commit: the half left the route with
+// the EXPO_PUBLIC_UI lever on 2026-10-05 and is the revive source legacy/screens/record-detail.tsx.) That is why the bug survived a screen that visibly
 // handles the case.
 //
 // I asserted the opposite in #984 -- "the other 11 /record/[id] call sites are FINE, they

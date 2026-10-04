@@ -150,7 +150,8 @@ test('preview export rejects incomplete or mock env and shell-quotes public valu
     "export EXPO_PUBLIC_LLM_MODE='live'",
     "export EXPO_PUBLIC_SUPABASE_ANON_KEY='public'\"'\"'anonymous'",
     "export EXPO_PUBLIC_SUPABASE_URL='https://project.supabase.co'",
-    "export EXPO_PUBLIC_UI='deep-space'",
+    // EXPO_PUBLIC_UI 줄은 2026-10-05 에 빠졌다 - 롤백 레버가 없어져(Simon 결정
+    // Q-261004-11 C) 미리보기 빌드가 넣어 줄 스킨 값이 없다.
   ]);
   assert.equal(lines.join('\n').includes('must-not-appear'), false);
 });

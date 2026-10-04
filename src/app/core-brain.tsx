@@ -9,7 +9,9 @@
 // 밝아진 동네 · 자주 보이는 나의 모습 · 이걸 만든 별가루들 · 다음 한 걸음 ·
 // 세컨비에게 이 중심으로 묻기.
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+// React stays a value import: jest compiles this route with the classic JSX runtime
+// (jest.config.js ts-jest jsx: "react") and core-brain-minor-gate.test.ts renders it.
+import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import { subscribeFontStyle } from "@/lib/settings/readable-font";
 import { View, StyleSheet, ScrollView, Modal, Platform, Pressable, TouchableOpacity } from "react-native";
 import { Rect, Svg } from "react-native-svg";

@@ -24,10 +24,15 @@ const PHONE_EMBED = readFileSync(resolve(__dirname, "..", "..", "lib", "nav", "p
 const usesPhoneBack = (src: string): boolean => /useHardwareBack\(useCallback\(/.test(src);
 
 // Every screen where the user is mid-way through answering something they cannot get back.
+//
+// 2026-10-05: "big-five" left this list. The route file used to carry the legacy
+// survey (and its back guard) for the EXPO_PUBLIC_UI=legacy track; that lever and the
+// survey left together (Simon decision Q-261004-11 C), and the route is now a wrapper
+// around dds-big-five-screen.tsx, which keeps its draft in a `phase` state machine
+// rather than `responses` + `started`. Its guard is checked below in its own shape.
 const SURVEYS = [
   "values",
   "strengths",
-  "big-five",
   "motivation",
   "attachment",
   "ipip-neo",
@@ -78,6 +83,32 @@ describe.each(SURVEYS)("%s guards the Android back button", (name) => {
     // And the dialog is actually rendered -- a state nobody reads is a fix that does
     // nothing, which this session has already produced once.
     expect(src).toMatch(/visible=\{exitConfirmOpen\}/);
+  });
+});
+
+describe("big-five (shipped screen) guards the Android back button", () => {
+  const src = readFileSync(
+    resolve(__dirname, "..", "..", "screens", "deepspace", "dds-big-five-screen.tsx"),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
+  const route = read("big-five");
+
+  test("the route renders this screen and nothing else", () => {
+    expect(route).toMatch(/export default function BigFive\(\) \{\s*return <DeepSpaceBigFiveScreen \/>;\s*\}/);
+    expect(src.length).toBeGreaterThan(1000);
+  });
+
+  test("it intercepts Back through the phone-aware hook, only while there is something to lose", () => {
+    expect(usesPhoneBack(src)).toBe(true);
+    expect(PHONE_EMBED).toMatch(/BackHandler\.addEventListener\("hardwareBackPress", handler\)/);
+    expect(PHONE_EMBED).toMatch(/return \(\) => sub\.remove\(\);/);
+    // Nothing to lose (not mid-questions with a dirty draft, not saving, not saved) -> false.
+    expect(src).toContain('if (phase !== "saved" && !submitting && (phase !== "questions" || !dirty)) return false;');
+  });
+
+  test("it asks before discarding, and the dialog is actually rendered", () => {
+    expect(src).toMatch(/else setExitOpen\(true\);\s*\n\s*return true;/);
+    expect(src).toContain('visible={exitOpen && phase === "questions" && !submitting}');
   });
 });
 

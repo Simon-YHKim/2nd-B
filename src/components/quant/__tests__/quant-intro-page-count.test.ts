@@ -13,7 +13,9 @@ const PAGER = read("components/quant/QuantPager.tsx");
 // route -> the perPage each screen hands QuantPager
 const SCREENS: [string, string][] = [
   ["app/attachment.tsx", "5"],
-  ["app/big-five.tsx", "5"],
+  // ("app/big-five.tsx" 는 2026-10-05 에 뺐다. QuantIntroModal + QuantPager 를 쓰던 것은
+  //  그 라우트의 레거시 설문이었고 롤백 레버와 함께 빠졌다(Simon 결정 Q-261004-11 C).
+  //  배송 dds-big-five-screen.tsx 는 공용 quant 부품을 쓰지 않는다.)
   ["app/ipip-neo.tsx", "8"],
   ["app/motivation.tsx", "4"],
   ["app/rlss.tsx", "RLSS_ITEMS.length"],

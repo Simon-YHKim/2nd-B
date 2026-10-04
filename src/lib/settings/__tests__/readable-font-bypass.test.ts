@@ -37,7 +37,8 @@ const BASELINE: Readonly<Record<string, number>> = {
   "src/app/notices.tsx": 6,
   "src/app/reasoning.tsx": 13,
   "src/app/secondb.tsx": 23,
-  "src/app/trinity.tsx": 1,
+  // app/trinity.tsx 1 은 2026-10-05 에 빠졌다. 고친 것이 아니라 그 화면(TrinityLegacy ·
+  // M3 리메이크)이 통째로 E:/Legacy 로 나가고 라우트가 리다이렉트 전용이 됐다(Q-261004-33 B).
   "src/components/deep-space/ConstellationHome.tsx": 4,
   "src/components/deep-space/DeepSpaceViews.tsx": 50,
   "src/components/deepspace/ShareCard.tsx": 4,
@@ -106,10 +107,15 @@ describe("읽기 글꼴 우회는 줄어들기만 한다", () => {
     expect(cap).not.toContain("CAPTURE_LABEL_FONT");
     expect(cap).toMatch(/const capFont = \(grid: number, weight: "500" \| "700"\)/);
     // 크롬 라벨 여섯 자리 전부 굵기를 합성하지 않는다.
+    // 2026-10-05: 여기서 `capWeight(` 를 요구했다 - 그 도우미는 레거시 스킨에서만 굵기를
+    // 돌려주고 딥스페이스에서는 undefined 였다. 롤백 레버가 없어져(Q-261004-11 C) 도우미도
+    // 빠졌고, 굵기는 이제 격자 얼굴 이름(capFont 의 weight 인자) 하나로만 정해진다. 그래서
+    // 같은 성질 - 합성 굵기 0 - 을 "capFont 를 쓰고 fontWeight 리터럴이 없다" 로 본다.
     for (const style of ["trackChipText", "trackChipTextActive", "modeLabel", "modeLabelActive", "modeMoreLabel", "tossBtnText"]) {
       const line = cap.split("\n").find((l) => l.trim().startsWith(`${style}:`)) ?? "";
-      expect({ style, hasCapWeight: line.includes("capWeight(") }).toEqual({ style, hasCapWeight: true });
-      expect({ style, rawWeight: /fontWeight: "\d00"/.test(line) }).toEqual({ style, rawWeight: false });
+      expect({ style, gridFace: line.includes("capFont(") }).toEqual({ style, gridFace: true });
+      expect({ style, rawWeight: /fontWeight\s*:/.test(line) }).toEqual({ style, rawWeight: false });
+      expect({ style, weightHelper: line.includes("capWeight(") }).toEqual({ style, weightHelper: false });
     }
   });
 });
