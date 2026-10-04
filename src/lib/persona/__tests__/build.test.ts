@@ -686,7 +686,7 @@ describe("buildPersona", () => {
         {
           patterns: {
             summary: "cached mirror",
-            __summary_sig: personaSummarySig("en", 2, "2026-01-03T00:00:00Z"),
+            __summary_sig: personaSummarySig("en", false, 2, "2026-01-03T00:00:00Z"),
           },
         },
       ],
@@ -709,7 +709,7 @@ describe("buildPersona", () => {
           patterns: {
             summary: "old mirror",
             // Signature from when only one row existed — stale now.
-            __summary_sig: personaSummarySig("en", 1, "2026-01-02T00:00:00Z"),
+            __summary_sig: personaSummarySig("en", false, 1, "2026-01-02T00:00:00Z"),
           },
         },
       ],
@@ -718,11 +718,83 @@ describe("buildPersona", () => {
     const card = await buildPersona("u1", "en", false);
     expect(callLlm).toHaveBeenCalledTimes(1);
     expect(card.patterns.summary).toBe("mock summary");
-    expect(card.patterns.__summary_sig).toBe(personaSummarySig("en", 2, "2026-01-05T00:00:00Z"));
+    expect(card.patterns.__summary_sig).toBe(personaSummarySig("en", false, 2, "2026-01-05T00:00:00Z"));
     const personaUpsert = upsertCalls.find((u) => u.table === "personas");
     expect(
       (personaUpsert?.payload as { patterns?: Record<string, string> })?.patterns?.__summary_sig,
-    ).toBe(personaSummarySig("en", 2, "2026-01-05T00:00:00Z"));
+    ).toBe(personaSummarySig("en", false, 2, "2026-01-05T00:00:00Z"));
+  });
+
+  // C10 (QA 261004 gate r3, C10-CACHE-001). The summary is crisis-capable: callLlm swaps a
+  // red-zone reply for the crisis message of the age it was handed. The cache signature
+  // used to sign only locale and rows, so a summary built on adult routing (the export
+  // screen left the age out until L1-07) matched a later build for the same minor, and
+  // that build reused it without reaching callLlm({ minor: true }).
+  describe("summary cache: the age is part of the signature", () => {
+    const LAST = "2026-01-03T00:00:00Z";
+    const twoRows = () => {
+      tableFixtures["records:select"] = {
+        data: [
+          { id: "r2", prompt: "Q2", body: "A2", created_at: LAST, tags: [] },
+          { id: "r1", prompt: "Q1", body: "A1", created_at: "2026-01-02T00:00:00Z", tags: [] },
+        ],
+        error: null,
+      };
+    };
+    const cached = (sig: string) => {
+      tableFixtures["personas:select"] = {
+        data: [{ patterns: { summary: "summary on the other age's routing", __summary_sig: sig } }],
+        error: null,
+      };
+    };
+    const storedSig = () =>
+      (upsertCalls.find((u) => u.table === "personas")?.payload as { patterns?: Record<string, string> })
+        ?.patterns?.__summary_sig;
+
+    test("the same locale and rows sign differently for a minor and an adult", () => {
+      expect(personaSummarySig("en", true, 2, LAST)).not.toBe(personaSummarySig("en", false, 2, LAST));
+    });
+
+    test("a summary cached for the other age is rebuilt on the age the caller resolved", async () => {
+      for (const [cachedMinor, minor] of [
+        [false, true],
+        [true, false],
+      ] as const) {
+        reset();
+        twoRows();
+        cached(personaSummarySig("en", cachedMinor, 2, LAST));
+        const card = await buildPersona("u1", "en", minor);
+        expect(callLlm).toHaveBeenCalledTimes(1);
+        expect(callLlm).toHaveBeenCalledWith(expect.objectContaining({ purpose: "persona_narrative", minor }));
+        expect(card.patterns.summary).toBe("mock summary");
+        expect(storedSig()).toBe(personaSummarySig("en", minor, 2, LAST));
+      }
+    });
+
+    test("a summary cached for the same age is still reused", async () => {
+      for (const minor of [true, false]) {
+        reset();
+        twoRows();
+        cached(personaSummarySig("en", minor, 2, LAST));
+        const card = await buildPersona("u1", "en", minor);
+        expect(callLlm).not.toHaveBeenCalled();
+        expect(card.patterns.summary).toBe("summary on the other age's routing");
+      }
+    });
+
+    test("a row cached before the age was signed (v1) misses once for either age", async () => {
+      // The exact v1 shape: `v1:<locale>:<rows>:<newest created_at>`, with no age in it.
+      for (const minor of [true, false]) {
+        reset();
+        twoRows();
+        cached(`v1:en:2:${LAST}`);
+        const card = await buildPersona("u1", "en", minor);
+        expect(callLlm).toHaveBeenCalledTimes(1);
+        expect(callLlm).toHaveBeenCalledWith(expect.objectContaining({ purpose: "persona_narrative", minor }));
+        expect(card.patterns.summary).toBe("mock summary");
+        expect(storedSig()).toBe(personaSummarySig("en", minor, 2, LAST));
+      }
+    });
   });
 
   test("summary windowing: interview transcripts are excluded and bodies clipped", async () => {
