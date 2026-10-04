@@ -171,7 +171,7 @@ function useDateLabels(): DateLabels {
 }
 
 // ---------------------------------------------------------------------------
-// Glyphs (inline SVG, no asset load — mirrors ui/EyeIcon.tsx).
+// Glyphs (named pixel glyphs, no asset load; coordinates live in pixel-glyphs.ts).
 // ---------------------------------------------------------------------------
 /** 꺾쇠 방향 → 정본 글리프 이름. 좌표는 `pixel-glyphs.ts` 가 갖는다. */
 const CHEVRON_GLYPH: Record<"left" | "right" | "down", "chevron_left" | "chevron_right" | "expand_more"> = {

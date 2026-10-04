@@ -880,7 +880,6 @@ results.push(
     // 이제 홈은 하나뿐이다 — liveHome, 사용자가 실제로 여는 별자리.
     const liveHome = read("src/components/deep-space/ConstellationHome.tsx");
     const jarvis = read("src/app/secondb.tsx");
-    const navGraph = read("src/components/graph/NavGraph.tsx");
     // /profile 의 a11y 도 배송 화면에 있다. 계약은 같다 — 허브 항목마다 label +
     // hint + role="link". 접근자 이름만 바뀌었다(itemCopy -> sections.<섹션>.items.<항목>).
     const esm = read("src/app/esm.tsx");
@@ -931,7 +930,6 @@ results.push(
     const tierIconContract = read("src/components/art/tier-icon-contract.ts");
     const input = read("src/components/ui/Input.tsx");
     const backArrow = read("src/components/ui/BackArrow.tsx");
-    const characterPath = read("src/components/graph/CharacterPathLayer.tsx");
     const drillProgress = read("src/components/ui/DrillProgress.tsx");
     const xpBar = read("src/components/progression/XpBar.tsx");
     const quantPager = read("src/components/quant/QuantPager.tsx");
@@ -948,7 +946,6 @@ results.push(
     const liveHomeRoles = (liveHome.match(/accessibilityRole="button"/g) ?? []).length;
     const liveHomeLabels = (liveHome.match(/accessibility(?:Label|Hint)=/g) ?? []).length;
     const jarvisButtons = (jarvis.match(/accessibilityRole="button"/g) ?? []).length;
-    const navGraphButtons = (navGraph.match(/accessibilityRole="button"/g) ?? []).length;
     const esmTabs = (esm.match(/accessibilityRole="tab"/g) ?? []).length;
     const esmRadios = (esm.match(/accessibilityRole="radio"/g) ?? []).length;
     const esmCheckboxes = (esm.match(/accessibilityRole="checkbox"/g) ?? []).length;
@@ -1140,15 +1137,10 @@ results.push(
       jarvis.includes('accessibilityLabel={t("intro_mute")}') &&
       jarvis.includes('accessibilityLabel={t("intro_ok")}') &&
       jarvis.includes('t("closeReferencedHint")') &&
-      navGraphButtons >= 7 &&
-      navGraph.includes('t("navPieceSummary")') &&
-      navGraph.includes('t("navVillageNode")') &&
-      navGraph.includes('t("navCenterVillage")') &&
-      navGraph.includes('t("navResetHint")') &&
-      navGraph.includes('t("navCloseVillage")') &&
-      navGraph.includes('t("navOpenAngleName"') &&
-      navGraph.includes('t("navOpenAngleVillage")') &&
-      navGraph.includes('t("navClosePiece")') &&
+      // 2026-10-04: 옛 홈 그래프 NavGraph 의 핀 9줄(버튼 수 >= 7 · nav* 키 8개)을
+      // 걷었다. 그 화면은 어느 빌드도 그리지 않았고(유일한 소비자가 빌드 밖
+      // legacy/screens/index.tsx), 파일째 E:/Legacy 로 옮겨졌다(QA L2-01 · L4-06).
+      // 배송 홈의 a11y 는 위 liveHomeRoles/liveHomeLabels 가 계속 본다.
       esm.includes('from("esm_responses").insert') &&
       esm.includes("prompt_kind: kind") &&
       esm.includes('scale_value: kind === "energy" ? scaleValue : null') &&
@@ -1232,8 +1224,9 @@ results.push(
       settings.includes('accessibilityHint={t("nav.dataHint")}') &&
       // (theme quick-toggle hints removed with the duplicate disclosure —
       // /theme owns theme switching; see O-R1 settings restructure.)
-      // (crew-density hints removed with the control itself — CrewLayer only
-      //  renders inside NavGraph, which no production surface mounts.)
+      // (crew-density hints removed with the control itself. CrewLayer only
+      //  rendered inside NavGraph, which no production surface mounted; both
+      //  moved to E:/Legacy on 2026-10-04 with lib/settings/crew-density.ts.)
       settings.includes('accessibilityHint={t("actions.deleteJournalsHint")}') &&
       settings.includes('accessibilityHint={t("actions.deleteBfiHint")}') &&
       settings.includes('accessibilityHint={t("actions.fullWipeHint")}') &&
@@ -1249,10 +1242,9 @@ results.push(
       backArrow.includes('"/journal": { en: "Journal", ko: "일기" }') &&
       backArrow.includes('"/mbti": { en: "Persona", ko: "페르소나" }') &&
       backArrow.includes('t("backToGraphHint")') &&
-      characterPath.includes('t("charSelfTalk")') &&
-      characterPath.includes("accessibilityState={{ expanded: line != null }}") &&
-      characterPath.includes('accessibilityLiveRegion="polite"') &&
-      characterPath.includes("accessibilityLabel={text}") &&
+      // 2026-10-04: 캐릭터 혼잣말 말풍선(CharacterPathLayer) 핀 4줄을 걷었다.
+      // NavGraph 안에서만 그려지던 부품이라 같은 날 함께 E:/Legacy 로 갔고,
+      // 배송 화면에 같은 말풍선이 없어 재조준할 곳이 없다(QA L2-01 · L4-06).
       drillProgress.includes('accessibilityRole="summary"') &&
       drillProgress.includes("Interview progress matrix. ${totalAnswers} total answers.") &&
       drillProgress.includes("Next question target: ${activeTarget}") &&
@@ -1278,8 +1270,8 @@ results.push(
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research insight cards, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/xpbar/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
-        : "visual-selected controls, research insight cards, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/xpbar/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research insight cards, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/drillprogress/xpbar/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
+        : "visual-selected controls, research insight cards, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/drillprogress/xpbar/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
     };
   }),
 );
@@ -3086,6 +3078,10 @@ results.push(
   check("ArtA11ySemantics", () => {
     const secondbSprite = read("src/components/art/SecondBSprite.tsx");
     const islandArt = read("src/components/art/IslandArt.tsx");
+    // IslandArt now only routes to FinalCoreArt (2026-10-04, L4-10), so the island
+    // pixels and their a11y hiding live in SoulcoreFinalArt. Pin both files: the
+    // IslandArt strings alone would be satisfied by ShardArt.
+    const soulcoreFinalArt = read("src/components/art/SoulcoreFinalArt.tsx");
     const workerSprite = read("src/components/art/WorkerSprite.tsx");
     const jarvis = read("src/app/secondb.tsx");
     const graphBits = read("src/components/premium/graph-bits.tsx");
@@ -3102,6 +3098,8 @@ results.push(
       graphBits.includes('accessible accessibilityRole="image" accessibilityLabel={meta.name[locale]}') &&
       islandArt.includes("accessibilityElementsHidden") &&
       islandArt.includes('importantForAccessibility="no-hide-descendants"') &&
+      soulcoreFinalArt.includes("accessibilityElementsHidden") &&
+      soulcoreFinalArt.includes('importantForAccessibility="no-hide-descendants"') &&
       workerSprite.includes("accessibilityElementsHidden") &&
       workerSprite.includes('importantForAccessibility="no-hide-descendants"');
     return {
@@ -3122,9 +3120,9 @@ results.push(
       "docs/VISION.md",
       "src/lib/characters.ts",
       "src/lib/chat/personas.ts",
-      "src/lib/graph/monologues.ts",
+      // monologues.ts · NavGraph.tsx 는 2026-10-04 E:/Legacy 로 갔다(QA L2-01).
+      // 남은 파일이 아래 단언의 용어를 전부 가진다(실측).
       "src/components/art/SoulcoreFinalArt.tsx",
-      "src/components/graph/NavGraph.tsx",
       "src/components/premium/graph-bits.tsx",
       "src/lib/assets/soulcore-v3.ts",
       "src/lib/theme/tokens.ts",

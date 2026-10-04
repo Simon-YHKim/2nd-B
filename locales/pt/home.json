@@ -606,13 +606,21 @@
       "editAvatar": "Personalizar meu avatar",
       "loading": "Carregando…",
       "emptyBody": "Ainda não há registros aqui. Comece uma conversa para adicionar o primeiro.",
-      "dug": "{{n}} de {{total}} etapas abertas",
-      "records": "{{n}} registros",
+      "dug": "{{n}} de {{total}} camadas abertas",
+      "records": "{{count}} registro",
+      "records_plural": "{{count}} registros",
       "start": "Começar",
       "continue": "Continuar",
       "pageLabel": "Resumo da estrela",
-      "meter": "Brilho conforme os registros · {{n}}/{{total}} etapas",
-      "recordsLabel": "O que você guardou até agora"
+      "meter": "Brilho conforme os registros · {{n}}/{{total}} camadas",
+      "recordsLabel": "O que você guardou até agora",
+      "layer": {
+        "fact": "Fato",
+        "feeling": "Sentimento",
+        "meaning": "Significado",
+        "belief": "Crença",
+        "echo": "Eco"
+      }
     },
     "dashboard": {
       "title": "Seus registros por área",

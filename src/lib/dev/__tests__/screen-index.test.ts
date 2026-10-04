@@ -20,6 +20,7 @@ import * as ts from "typescript";
 
 import { DB_TIER_BY_PUBLIC } from "@/lib/entitlements/tier-map";
 import { personaAllowed } from "@/lib/entitlements/tiers";
+import { deadRendererSpans } from "@/lib/legal/dead-renderer-spans";
 import {
   DEV_SCREEN_GROUPS,
   canOpenFromDevRegistry,
@@ -98,6 +99,20 @@ const EXPECTED_DELEGATED_AUTH: Record<string, DelegatedAuthFixture> = {
   srs: { gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx", component: "DeepSpaceSrsScreen" },
   plans: { gateFile: "src/screens/deepspace/dds-plans-screen.tsx", component: "DeepSpacePlansScreen" },
   trends: { gateFile: "src/screens/deepspace/trends/TrendsScreen.tsx", component: "TrendsScreen" },
+  // 아래 넷은 라우트 파일에 리터럴이 **있다** — 그런데 전부 legacy 반쪽 안이다.
+  // 2026-10-04 까지 `auth: true` 로 적혀 있었고, 그 근거가 배송 안 되는 반쪽의
+  // 리터럴이었다. privacy 는 그 사이 배송 화면에 가드가 없었다(W-02). 직접 판정이
+  // 죽은 반쪽을 빼고 보게 되면서 실제 게이트 자리로 옮겨 적는다.
+  privacy: {
+    gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
+    component: "DeepSpacePrivacyDesignScreen",
+  },
+  inbox: { gateFile: "src/screens/deepspace/dds-inbox-screen.tsx", component: "DeepSpaceInboxScreen" },
+  "record/[id]": {
+    gateFile: "src/screens/deepspace/dds-record-detail-screen.tsx",
+    component: "DeepSpaceRecordDetailScreen",
+  },
+  wiki: { gateFile: "src/screens/deepspace/dds-wiki-records-screens.tsx", component: "DeepSpaceWikiScreen" },
 };
 
 function isDelegatedAuth(value: unknown): value is DelegatedAuthFixture {
@@ -207,6 +222,26 @@ function hasLiteralSignInRedirect(source: string, file: string): boolean {
   };
   visit(parsed);
   return found;
+}
+
+/**
+ * 라우트 파일에서 **배송되지 않는 반쪽**을 비운 소스.
+ *
+ * `if (isDeepSpaceUI()) return <A />; return <Legacy />;` 의 Legacy 는
+ * EXPO_PUBLIC_UI=legacy 에서만 그려진다. 그 안의 `<Redirect href="/sign-in" />` 를
+ * 직접 가드의 근거로 세면 배지는 맞아 보이는데 배송 화면은 안 막힌다 — /privacy 가
+ * 정확히 그랬다(2026-10-04 W-02). 판정은 저장소의 판정기(dead-renderer-spans)에
+ * 맡긴다: 줄을 지우지 않고 비워서 나머지의 AST 와 줄 위치를 그대로 둔다.
+ */
+const DEAD_SPANS = new Map(deadRendererSpans(process.cwd()).map((span) => [span.file, span]));
+function shippedRouteSource(file: string): string {
+  const source = readFileSync(join(APP, `${file}.tsx`), "utf8");
+  const span = DEAD_SPANS.get(`src/app/${file}.tsx`);
+  if (!span) return source;
+  return source
+    .split("\n")
+    .map((line, index) => (index >= span.from - 1 && index < span.to ? "" : line))
+    .join("\n");
 }
 
 /** 정상 진입이 아닌 화면 전부. 여기 없는 화면이 특수 entry 를 달면 실패한다. */
@@ -473,18 +508,43 @@ function returnShapes(fn: ts.FunctionDeclaration): string[] {
   return shapes;
 }
 
+/** `!name` 인가. */
+function isNegatedIdentifier(node: ts.Expression, name: string): boolean {
+  return (
+    ts.isPrefixUnaryExpression(node) &&
+    node.operator === ts.SyntaxKind.ExclamationToken &&
+    ts.isIdentifier(node.operand) &&
+    node.operand.text === name
+  );
+}
+
+/**
+ * 로그아웃 조건인가. 기본은 `!userId` 하나다. `fence` 를 주면 **`!userId && !fence`
+ * 만** 받는다 — 화면이 스스로 일으키는 로그아웃(계정 삭제) 동안 리다이렉트를
+ * 미루는 모양이고, 울타리가 빠진 맨 `!userId` 는 그 흐름과 경합하므로 실패다.
+ * 다른 항, `||`, 순서 바꿈은 받지 않는다.
+ */
+function isSignedOutCondition(c: ts.Expression, fence?: string): boolean {
+  if (fence === undefined) return isNegatedIdentifier(c, "userId");
+  return (
+    ts.isBinaryExpression(c) &&
+    c.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken &&
+    isNegatedIdentifier(c.left, "userId") &&
+    isNegatedIdentifier(c.right, fence)
+  );
+}
+
 /**
  * 본문 **직계**에 `if (!userId) return <Redirect href="/sign-in" />;` 가 있는가.
  * 순서대로 읽고 무조건 return/throw 를 먼저 만나면 그 뒤는 도달 불가라 멈춘다.
  * 중첩 if · false 가지 · prop 안의 Redirect 는 인정하지 않는다.
+ * `fence` 는 isSignedOutCondition 참고.
  */
-function hasSignInGuard(fn: ts.FunctionDeclaration): boolean {
+function hasSignInGuard(fn: ts.FunctionDeclaration, fence?: string): boolean {
   for (const s of fn.body?.statements ?? []) {
     if (ts.isReturnStatement(s) || ts.isThrowStatement(s)) return false;
     if (!ts.isIfStatement(s)) continue;
-    const c = s.expression;
-    if (!ts.isPrefixUnaryExpression(c) || c.operator !== ts.SyntaxKind.ExclamationToken) continue;
-    if (!ts.isIdentifier(c.operand) || c.operand.text !== "userId") continue;
+    if (!isSignedOutCondition(s.expression, fence)) continue;
     let branch: ts.Statement = s.thenStatement;
     if (ts.isBlock(branch)) {
       if (branch.statements.length !== 1) continue;
@@ -501,6 +561,85 @@ function hasSignInGuard(fn: ts.FunctionDeclaration): boolean {
   }
   return false;
 }
+
+/**
+ * 가드 **앞에** 인증 로딩을 기다리는 직계 `if (<loading>…) return …;` 가 있는가.
+ *
+ * 없으면 가드가 오히려 해롭다: 콜드 로드 직후 AuthContext 는 `loading: true,
+ * userId: null` 이라 로그인한 사용자도 세션이 복원되기 전에 /sign-in 으로 튕긴다.
+ * 조건은 로딩 이름 하나이거나 `<loading> && !fence` 다.
+ */
+function waitsForAuthBeforeGuard(fn: ts.FunctionDeclaration, loading: string, fence?: string): boolean {
+  let waited = false;
+  for (const s of fn.body?.statements ?? []) {
+    if (ts.isReturnStatement(s) || ts.isThrowStatement(s)) return false;
+    if (!ts.isIfStatement(s)) continue;
+    if (isSignedOutCondition(s.expression, fence)) return waited;
+    const c = s.expression;
+    const isLoading =
+      (ts.isIdentifier(c) && c.text === loading) ||
+      (fence !== undefined &&
+        ts.isBinaryExpression(c) &&
+        c.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken &&
+        ts.isIdentifier(c.left) &&
+        c.left.text === loading &&
+        isNegatedIdentifier(c.right, fence));
+    const branch = ts.isBlock(s.thenStatement) ? s.thenStatement.statements[0] : s.thenStatement;
+    if (isLoading && branch !== undefined && ts.isReturnStatement(branch)) waited = true;
+  }
+  return false;
+}
+
+/** `const [name, …] = useState(false);` 가 본문 직계에 있는가 — 울타리가 이 화면의 상태인지. */
+function declaresBooleanState(fn: ts.FunctionDeclaration, name: string): boolean {
+  return (fn.body?.statements ?? []).some(
+    (s) =>
+      ts.isVariableStatement(s) &&
+      s.declarationList.declarations.some((d) => {
+        if (!ts.isArrayBindingPattern(d.name)) return false;
+        const first: ts.ArrayBindingElement | undefined = d.name.elements[0];
+        if (first === undefined || !ts.isBindingElement(first) || first.name.getText() !== name) return false;
+        const init = d.initializer;
+        if (init === undefined || !ts.isCallExpression(init) || init.expression.getText() !== "useState") return false;
+        const arg: ts.Expression | undefined = init.arguments[0];
+        return init.arguments.length === 1 && arg !== undefined && arg.kind === ts.SyntaxKind.FalseKeyword;
+      }),
+  );
+}
+
+/**
+ * 배송 경로 가드 (2026-10-04 W-02 · W-13).
+ *
+ * 리터럴 판정은 "파일 어딘가에 있다" 만 본다. W-02 의 attachment · ipip-neo 는
+ * 리터럴이 '검사 시작' 뒤의 설문 안에만 있어서 배지는 맞는데 로그아웃 방문자는 빈
+ * 렌즈를 먼저 봤고, privacy 는 legacy 반쪽 안에만 있었다. W-13 의 여덟 라우트는
+ * 아예 없었다. 그래서 고친 열한 곳은 **배송되는 선언**에 도달 가능한 가드가 있고,
+ * 그 가드가 인증 로딩을 먼저 기다린다는 것까지 못박는다.
+ *
+ * ⚠ 일반 판정기가 아니다(AUTH_DELEGATES 주석과 같은 이유). 고친 곳만 적는다.
+ * `fn: null` 은 라우트의 default export 자체다. `fence` 는 isSignedOutCondition 참고.
+ */
+const W13_ROUTES = ["ledger", "milestones", "meals", "reading", "reminders", "growth", "review", "discover"] as const;
+const SHIPPED_PATH_GUARDS: {
+  route: string;
+  path: string;
+  fn: string | null;
+  loading: string;
+  fence?: string;
+}[] = [
+  { route: "attachment", path: join(APP, "attachment.tsx"), fn: "AttachmentDeepSpace", loading: "loading" },
+  { route: "ipip-neo", path: join(APP, "ipip-neo.tsx"), fn: "IpipNeoDeepSpace", loading: "loading" },
+  {
+    route: "privacy",
+    path: join(SCREENS, "DeepSpaceDesignScreens.tsx"),
+    fn: "DeepSpacePrivacyDesignScreen",
+    loading: "authLoading",
+    // 계정 삭제는 owner -> null 을 지나며 영수증을 넘기고 직접 /sign-in 으로 간다.
+    // 그 사이에 리다이렉트가 끼면 안 된다.
+    fence: "deleting",
+  },
+  ...W13_ROUTES.map((route) => ({ route, path: join(APP, `${route}.tsx`), fn: null, loading: "loading" })),
+];
 
 /** 로그인 게이트 뒤인가 — 파일 리터럴이거나 위 셋 중 하나이거나. */
 function routeRequiresAuth(routeFile: string): boolean {
@@ -615,13 +754,46 @@ describe("개발자 화면 목록", () => {
     }
   });
 
-  it("auth=true 표시만 route 자체의 로그인 리다이렉트와 일치한다", () => {
+  it("auth=true 표시만 route 의 배송 반쪽에 있는 로그인 리다이렉트와 일치한다", () => {
+    // legacy 반쪽의 리터럴은 근거가 아니다(shippedRouteSource). 그 반쪽에만 있으면
+    // 게이트는 다른 곳에 있어야 하고, 그러면 `true` 가 아니라 위임으로 적는다.
     for (const s of devScreens()) {
-      const routeSource = readFileSync(join(APP, `${s.file}.tsx`), "utf8");
       expect({ file: s.file, directAuth: s.auth === true }).toEqual({
         file: s.file,
-        directAuth: hasLiteralSignInRedirect(routeSource, `${s.file}.tsx`),
+        directAuth: hasLiteralSignInRedirect(shippedRouteSource(s.file), `${s.file}.tsx`),
       });
+    }
+  });
+
+  it("배송 반쪽 판정이 실제로 legacy 반쪽을 비운다", () => {
+    // 판정기가 아무것도 못 찾으면 위 검사는 옛 리터럴 판정으로 조용히 돌아간다.
+    const privacy = readFileSync(join(APP, "privacy.tsx"), "utf8");
+    expect(hasLiteralSignInRedirect(privacy, "privacy.tsx")).toBe(true);
+    expect(hasLiteralSignInRedirect(shippedRouteSource("privacy"), "privacy.tsx")).toBe(false);
+    expect(shippedRouteSource("privacy").split("\n")).toHaveLength(privacy.split("\n").length);
+  });
+
+  it("배송 경로 가드: 고친 열한 곳은 로그아웃 방문자를 /sign-in 으로 보내고 인증 로딩을 먼저 기다린다", () => {
+    for (const g of SHIPPED_PATH_GUARDS) {
+      const fn = declarationAt(g.path, g.fn);
+      expect({
+        route: g.route,
+        gated: hasSignInGuard(fn, g.fence),
+        waits: waitsForAuthBeforeGuard(fn, g.loading, g.fence),
+        declared: devScreens().find((s) => s.file === g.route)?.auth !== undefined,
+      }).toEqual({ route: g.route, gated: true, waits: true, declared: true });
+      if (g.fence !== undefined) {
+        expect({ route: g.route, fenceIsOwnState: declaresBooleanState(fn, g.fence) })
+          .toEqual({ route: g.route, fenceIsOwnState: true });
+      }
+      if (g.fn !== null) {
+        // 가드가 있는 선언을 라우트가 실제로 그린다(딥스페이스 기본 분기).
+        const file = `${g.route}.tsx`;
+        expect({
+          route: g.route,
+          renders: rendersComponent(defaultRouteFunctionSource(readFileSync(join(APP, file), "utf8"), file), file, g.fn),
+        }).toEqual({ route: g.route, renders: true });
+      }
     }
   });
 
@@ -671,6 +843,29 @@ describe("개발자 화면 목록", () => {
     const guard = (src: string) => hasSignInGuard(declarationFrom(src, "G"));
     expect(guard('function G(){ if (!userId) return <Redirect href="/sign-in" />; return <X/>; }')).toBe(true);
     expect(guard('function G(){ return <X/>; if (!userId) return <Redirect href="/sign-in" />; }')).toBe(false);
+
+    // 울타리는 이름을 준 하나만, `&&` 로, `!userId` 가 앞일 때만 받고, 울타리를
+    // 요구하면 맨 `!userId` 는 실패다(삭제 흐름과 경합한다).
+    const fenced = (src: string, fence?: string) => hasSignInGuard(declarationFrom(src, "G"), fence);
+    const deleting = 'function G(){ if (!userId && !deleting) return <Redirect href="/sign-in" />; return <X/>; }';
+    expect(fenced(deleting, "deleting")).toBe(true);
+    expect(fenced(deleting)).toBe(false);
+    expect(fenced(deleting, "busy")).toBe(false);
+    expect(fenced('function G(){ if (!userId) return <Redirect href="/sign-in" />; return <X/>; }', "deleting")).toBe(false);
+    expect(fenced('function G(){ if (!userId || !deleting) return <Redirect href="/sign-in" />; }', "deleting")).toBe(false);
+    expect(fenced('function G(){ if (!deleting && !userId) return <Redirect href="/sign-in" />; }', "deleting")).toBe(false);
+
+    // 로딩 대기는 가드보다 **앞**이어야 하고 return 이어야 한다.
+    const waits = (src: string, fence?: string) => waitsForAuthBeforeGuard(declarationFrom(src, "G"), "loading", fence);
+    expect(waits('function G(){ if (loading) return null; if (!userId) return <Redirect href="/sign-in" />; return <X/>; }')).toBe(true);
+    expect(waits('function G(){ if (!userId) return <Redirect href="/sign-in" />; if (loading) return null; return <X/>; }')).toBe(false);
+    expect(waits('function G(){ if (loading) log(); if (!userId) return <Redirect href="/sign-in" />; return <X/>; }')).toBe(false);
+    expect(waits('function G(){ if (loading) return null; return <X/>; }')).toBe(false);
+    expect(waits('function G(){ if (loading && !deleting) return null; if (!userId && !deleting) return <Redirect href="/sign-in" />; }', "deleting")).toBe(true);
+
+    expect(declaresBooleanState(declarationFrom("function G(){ const [deleting, setDeleting] = useState(false); }", "G"), "deleting")).toBe(true);
+    expect(declaresBooleanState(declarationFrom("function G(){ const deleting = false; }", "G"), "deleting")).toBe(false);
+    expect(declaresBooleanState(declarationFrom("function G(){ const [deleting] = useState(true); }", "G"), "deleting")).toBe(false);
   });
 
   it("wrapper/re-export auth 위임은 확정된 네 화면만 정확히 선언한다", () => {

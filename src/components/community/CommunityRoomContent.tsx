@@ -28,7 +28,7 @@ import {
   sendMessage,
   type CommunityMessage,
 } from "@/lib/community/chat";
-import { communityRoomView, type RoomLookup } from "@/lib/community/room-view";
+import { communityRoomView, isCommunityRoomId, type RoomLookup } from "@/lib/community/room-view";
 
 export interface CommunityRoomContentProps {
   roomId: string;
@@ -56,6 +56,8 @@ export function CommunityRoomContent({ roomId, onReturnToList, onTitleChange }: 
   activeRoomId.current = roomId;
 
   const adult = isMinor === false;
+  // A non-uuid route id can never name a room (W-07): no read, no poll, "unavailable".
+  const wellFormedRoom = isCommunityRoomId(roomId);
   const roomView = communityRoomView(roomId, roomLookup);
   const room = roomView.room;
   const title = room ? roomDisplayTitle(room, userId ?? "", t("dmPending")) : t("title");
@@ -69,7 +71,7 @@ export function CommunityRoomContent({ roomId, onReturnToList, onTitleChange }: 
   useEffect(() => { onTitleChangeRef.current?.(title); }, [title]);
 
   const refresh = useCallback(() => {
-    if (!userId || !roomId || !adult) return;
+    if (!userId || !wellFormedRoom || !adult) return;
     listMessages(roomId)
       .then((rows) => {
         if (activeRoomId.current !== roomId) return;
@@ -88,18 +90,18 @@ export function CommunityRoomContent({ roomId, onReturnToList, onTitleChange }: 
         setRoomLookup((prev) => prev?.roomId === roomId && prev.state === "ready"
           ? prev : { roomId, state: "error" });
       });
-  }, [userId, roomId, adult]);
+  }, [userId, roomId, wellFormedRoom, adult]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!userId || !adult) return;
+      if (!userId || !adult || !wellFormedRoom) return;
       refresh();
       pollRef.current = setInterval(refresh, COMMUNITY_ROOM_POLL_MS);
       return () => {
         if (pollRef.current) clearInterval(pollRef.current);
         pollRef.current = null;
       };
-    }, [userId, adult, refresh]),
+    }, [userId, adult, wellFormedRoom, refresh]),
   );
 
   useEffect(() => {

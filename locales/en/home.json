@@ -606,13 +606,21 @@
       "editAvatar": "Customize my avatar",
       "loading": "Loading…",
       "emptyBody": "No stories here yet. Start a conversation to add one.",
-      "dug": "{{n}} of {{total}} topics discussed",
-      "records": "{{n}} records",
+      "dug": "{{n}} of {{total}} layers discussed",
+      "records": "{{count}} record",
+      "records_plural": "{{count}} records",
       "start": "Start",
       "continue": "Keep going",
       "pageLabel": "Star summary",
-      "meter": "Brighter as you share more · {{n}}/{{total}} topics",
-      "recordsLabel": "What you have kept so far"
+      "meter": "Brighter as you share more · {{n}}/{{total}} layers",
+      "recordsLabel": "What you have kept so far",
+      "layer": {
+        "fact": "Fact",
+        "feeling": "Feeling",
+        "meaning": "Meaning",
+        "belief": "Belief",
+        "echo": "Echo"
+      }
     },
     "dashboard": {
       "title": "Your life in your records",

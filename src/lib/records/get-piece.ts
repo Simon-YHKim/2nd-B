@@ -192,6 +192,11 @@ function sourceBodyFallback(frontmatter: Record<string, unknown> | null): string
  * Supporting both is not indulgence -- it is what stops a caller that forgets the origin
  * from silently getting a 404, which is exactly how this bug worked.
  *
+ * A row id that is not a uuid returns null before any read (W-07, QA 261004). Both tables key
+ * on uuid, so PostgREST answers such an id with a 400 (invalid input syntax for type uuid)
+ * that no retry can fix; thrown, it reached the screen as "couldn't load, retry". It is not a
+ * read failure, it is "no such piece", and the screen shows the not-found state.
+ *
  * @throws on a read failure. `null` means "read fine, no such piece" -- the two must stay
  *         distinguishable, or an offline user is told their piece was deleted.
  */
@@ -203,11 +208,13 @@ export async function getPieceById(
   const fromSources = origin === "source" || isSourcePieceId(id);
 
   if (!fromSources) {
+    if (!UUID.test(id)) return null;
     const r = (await getRecordById(userId, id)) as PieceDetail | null;
     return r ? { ...r, origin: "record" } : null;
   }
 
   const sourceId = isSourcePieceId(id) ? id.slice(SOURCE_ID_PREFIX.length) : id;
+  if (!UUID.test(sourceId)) return null;
   const { data, error } = await getSupabaseClient()
     .from("sources")
     .select("id, kind, title, captured_at, tags, storage_path, frontmatter")

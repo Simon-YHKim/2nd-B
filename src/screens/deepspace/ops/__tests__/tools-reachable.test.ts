@@ -404,8 +404,13 @@ describe("비서 허브 PIXEL·legacy 회귀", () => {
     // 2026-09-28: two download names in this slice became polascope-wiki.md /
     // polascope-iden.json (PolaScope rename, DECISIONS 26.09.28). Only those two
     // string literals changed; the other digests stay as they were.
+    // 2026-10-04 (QA 261004 L1-07): the export now waits for the resolved age and
+    // passes it (`isMinor === null` return, `minor: isMinor === true` on the three
+    // persona-building calls, the button disabled meanwhile). That property is held by
+    // src/lib/persona/__tests__/persona-build-minor-callsites.test.ts; this digest only
+    // moved with it. The other two digests did not change.
     expect(sha256(sourceSlice(GIANT, "export function DeepSpaceFormatsScreen()", "// Calendar hand-off needs"))).toBe(
-      "933d633702712e0703021fc7a52c82e56a6384df37c005e7174f1d3eb574aeb4",
+      "0ae10b95e13affbf453974a11e420f73792a352895ec4fee4e9d310c81ed5902",
     );
     expect(sha256(sourceSlice(GIANT, "// Calendar hand-off needs", "export { DeepSpaceRecordsScreen"))).toBe(
       // 2026-10-05 (QA 261004 S-01, PR #2045): one line left this slice, the unused

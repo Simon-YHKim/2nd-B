@@ -5,7 +5,7 @@ import {
 } from "../comfort-offer";
 
 // Node test env: pin the web path with an in-memory localStorage shim
-// (same approach as empty-card.test.ts).
+// (same approach as state.test.ts).
 const store = new Map<string, string>();
 beforeAll(() => {
   (globalThis as { localStorage?: unknown }).localStorage = {

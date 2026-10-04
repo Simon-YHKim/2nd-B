@@ -580,7 +580,7 @@ export function DeepSpacePrivacyDesignScreen() {
   const { t: consentT } = useTranslation("consent");
   const navigation = useNavigation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
-  const { userId, isMinor } = useAuth();
+  const { userId, isMinor, loading: authLoading } = useAuth();
   // AuthContext derives this from users.birth_date. Unknown age fails closed,
   // so Clarity/GA4 and ads cannot be enabled while the profile is resolving.
   const minor = isMinor !== false;
@@ -652,10 +652,10 @@ export function DeepSpacePrivacyDesignScreen() {
       receipt = await requestAccountDeletion(authExpectation);
     } catch {
       deleteInFlightRef.current = false;
-      if (privacyMountedRef.current && activeUserRef.current === targetUserId) {
-        setDelError(true);
-        setDeleting(false);
-      }
+      // Lift the fence whoever owns the screen now: a stuck `deleting` exempts a signed-out visitor from the guard below.
+      if (privacyMountedRef.current) setDeleting(false);
+      // Only the account that asked sees its failure.
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setDelError(true);
       return;
     }
 
@@ -1005,6 +1005,17 @@ export function DeepSpacePrivacyDesignScreen() {
       if (privacyMountedRef.current && activeUserRef.current === targetUserId) setBusy(false);
     }
   }
+
+  // Signed out, this screen used to draw the settings and wait forever on a
+  // birth date that never arrives; the redirect lived only in the legacy half.
+  // Every owner change, the deletion's own A -> null included, remounts this
+  // scene (AccountScope in _layout.tsx keys it by account epoch), so no state
+  // or ref reaches the next owner. `deleting` fences this instance only: a
+  // loading flip mid-deletion must not swap the flow out for the loader.
+  if (authLoading && !deleting) {
+    return <Shell title={t("privacy.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId && !deleting) return <Redirect href="/sign-in" />;
 
   return (
     <Shell title={t("privacy.title")}>
@@ -2560,7 +2571,7 @@ const FORMAT_CARDS: { id: ExportFormat; name: string; descKey: string }[] = [
 
 export function DeepSpaceFormatsScreen() {
   const { t, i18n } = useTranslation("deepspace");
-  const { userId, loading: authLoading } = useAuth();
+  const { userId, loading: authLoading, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [format, setFormat] = useState<ExportFormat>("iden");
@@ -2570,22 +2581,27 @@ export function DeepSpaceFormatsScreen() {
   const [note, setNote] = useState<"copied" | "copyFailed" | "error" | null>(null);
 
   async function runExport() {
-    if (!userId || exporting) return;
+    // C10 / DPIA 5A-R7: .iden, HTML and JSON all build the persona (exportIden /
+    // buildIdenDoc -> buildPersona -> callLlm persona_narrative), and its crisis output
+    // picks the hotline from `minor`. These calls used to pass no age, so buildIdenDoc
+    // fell back to adult routing for a minor (QA 261004 L1-07). Same contract as /review:
+    // nothing builds while the age is unresolved, then the resolved age goes along.
+    if (!userId || isMinor === null || exporting) return;
     setExporting(true);
     setResult(null);
     setNote(null);
     try {
       if (format === "iden") {
-        const r = await exportIden(userId, { locale });
+        const r = await exportIden(userId, { locale, minor: isMinor === true });
         setResult({ text: r.iden, name: r.idenFilename });
       } else if (format === "html") {
-        const r = await exportIden(userId, { locale });
+        const r = await exportIden(userId, { locale, minor: isMinor === true });
         setResult({ text: r.html, name: r.htmlFilename });
       } else if (format === "markdown") {
         const r = await exportUserWiki(userId, { locale, includeRecords });
         setResult({ text: r.prompt, name: "polascope-wiki.md" });
       } else {
-        const doc = await buildIdenDoc(userId, { locale });
+        const doc = await buildIdenDoc(userId, { locale, minor: isMinor === true });
         setResult({ text: JSON.stringify(doc, null, 2), name: "polascope-iden.json" });
       }
     } catch {
@@ -2672,7 +2688,13 @@ export function DeepSpaceFormatsScreen() {
           <Text variant="subtle" style={styles.footer}>{t("formats.scope3MarkdownOnly")}</Text>
         )}
       </Card>
-      <Pressable style={[styles.soulPrimary, exporting && { opacity: 0.6 }]} onPress={() => void runExport()} disabled={exporting}>
+      <Pressable
+        style={[styles.soulPrimary, (exporting || isMinor === null) && { opacity: 0.6 }]}
+        onPress={() => void runExport()}
+        disabled={exporting || isMinor === null}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: exporting || isMinor === null }}
+      >
         <Text variant="caption" style={styles.primaryText}>{exporting ? t("formats.exporting") : t("formats.export")}</Text>
       </Pressable>
       {note === "error" ? <Text variant="body" style={styles.opsReason}>{t("formats.exportError")}</Text> : null}

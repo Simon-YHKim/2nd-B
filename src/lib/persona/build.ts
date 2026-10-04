@@ -526,8 +526,8 @@ export async function loadLatestIpip(
 // iden (3+ identical flash calls minutes apart) with ALL audit_response bodies
 // plus whole interview transcripts as input (unbounded token growth). The
 // summary is now cached in personas.patterns keyed by a staleness signature
-// (row count + newest created_at + locale), and its input is windowed.
-const SUMMARY_SIG_VERSION = "v1";
+// (row count + newest created_at + locale + age), and its input is windowed.
+const SUMMARY_SIG_VERSION = "v2";
 const MAX_SUMMARY_ROWS = 120;
 const MAX_SUMMARY_BODY_CHARS = 500;
 // The edge proxy caps the `user` channel at 8000 chars (gemini-proxy
@@ -678,22 +678,42 @@ export async function loadPersonaSnapshot(userId: string): Promise<PersonaCard |
 }
 
 /** Staleness signature for the cached narrative summary. Pure (exported for
- *  tests). Any new/removed record or locale switch changes it. */
+ *  tests). Any new/removed record, a locale switch, or a different age changes it.
+ *
+ *  The age is signed because the summary is crisis-capable: on a red-zone entry
+ *  callLlm swaps the reply for the crisis message of the age it was handed, so a
+ *  minor's summary carries the youth line and an adult's the adult line. v1 signed
+ *  only locale and rows. A summary built on adult routing (the /formats export left
+ *  the age out until QA 261004 L1-07) therefore matched a later build for the same
+ *  minor and was reused without ever reaching callLlm({ minor: true }) (gate r3,
+ *  C10-CACHE-001). v2 adds the age, and no v1 signature can equal a v2 one, so every
+ *  row cached before this change misses once and is rebuilt on the age the caller
+ *  resolved. That costs one persona_narrative call per user, once. */
 export function personaSummarySig(
   locale: "en" | "ko",
+  minor: boolean,
   rowCount: number,
   lastCreatedAt: string,
 ): string {
-  return `${SUMMARY_SIG_VERSION}:${locale}:${rowCount}:${lastCreatedAt}`;
+  return `${SUMMARY_SIG_VERSION}:${locale}:${minor ? "minor" : "adult"}:${rowCount}:${lastCreatedAt}`;
 }
 
 export async function buildPersona(
   userId: string,
   locale: "en" | "ko",
   // C10: forwarded to callLlm so a minor's crisis output-swap routes to the
-  // youth hotline (KO 1388 + 109), not adult-only. Defaults to adult routing.
-  minor = false,
+  // youth hotline (KO 1388 + 109), not adult-only. Required, with no adult
+  // default: it was `minor = false`, so a caller that dropped it compiled and
+  // routed a minor as an adult (QA 261004 L1-07, gate r2 C10-001). The caller
+  // resolves the age first (the /review pattern); nothing here can guess it.
+  minor: boolean,
 ): Promise<PersonaCard> {
+  // The type is not enough on its own: a JS caller or an `as` cast can still
+  // hand over undefined. Refuse before the first read, so no LLM call is made
+  // on a guessed age. persona-build-minor-callsites.test.ts holds the callers.
+  if (typeof minor !== "boolean") {
+    throw new TypeError("buildPersona: minor must be the resolved age (a boolean)");
+  }
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("records")
@@ -763,13 +783,16 @@ export async function buildPersona(
     // session (interview rows are excluded from the input below).
     summarySig = personaSummarySig(
       locale,
+      minor,
       summaryBase.length,
       summaryBase[summaryBase.length - 1]?.created_at ?? "",
     );
     // Read-back cache: personas.patterns carries the last summary + its
     // signature. A fresh signature means no records changed since the last
-    // build — reuse the summary and skip the LLM call entirely (this is what
-    // turns the 3-screen mount storm into one call per data change).
+    // build and that build had the same age (a summary made on the other
+    // age's crisis routing never matches) — reuse the summary and skip the
+    // LLM call entirely (this is what turns the 3-screen mount storm into
+    // one call per data change).
     let cachedSummary: string | null = null;
     try {
       const { data: personaRow } = await supabase

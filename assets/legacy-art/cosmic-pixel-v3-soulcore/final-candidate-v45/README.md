@@ -1,5 +1,7 @@
 # Integrated Soul Core Final Candidate Set
 
+> 2026-10-04: files named below that are no longer in this pack were moved to `E:/Legacy/2ndB` (same relative path; `MANIFEST.jsonl`, batch `qa261004-art`).
+
 Preview-only final candidate set. Existing app assets were not overwritten.
 
 ## Selected Passes

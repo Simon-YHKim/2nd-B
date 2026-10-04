@@ -63,27 +63,45 @@ function harness(
     deletionFails?: boolean;
     localPurgeFails?: boolean;
     localPurgeUnconfirmed?: boolean;
+    /** 삭제 요청이 실패하기 직전에 이 화면의 소유자가 바뀐다(다른 탭 로그아웃 = null, 다른 계정 = B). */
+    ownerBeforeFailure?: string | null;
+    /** 로그아웃 기대값을 잡는 순간 이미 다른 계정이다 → AuthSessionOwnerChangedError. */
+    expectationOwner?: string;
   } = {},
 ) {
   const calls = { purge: 0, signOut: 0, dismissAll: 0, replace: [] as string[] };
   const mounted = { current: true };
   const owner = { current: OWNER as string | null };
+  // 화면 상태를 실제 setter 처럼 마지막 값으로 들고 있는다.
+  const state = { deleting: false, delError: false, delErrorShown: 0 };
+  const inFlight = { current: false };
   class TestAuthSessionOwnerChangedError extends Error {}
   const completion = require("../deletion-completion") as typeof import("../deletion-completion");
   const epoch = require("../../auth/account-epoch") as typeof import("../../auth/account-epoch");
   const context: Record<string, unknown> = {
     userId: OWNER, delConfirm: "DELETE",
     deleteConfirmUserRef: { current: OWNER },
-    deleteInFlightRef: { current: false },
+    deleteInFlightRef: inFlight,
     allowDeletionNavigationRef: { current: false },
     privacyMountedRef: mounted, activeUserRef: owner,
-    setDeleting: () => undefined, setDelError: () => undefined,
-    captureSignOutExpectation: async () => ({
-      userId: OWNER,
-      sessionId: "session-a",
-      accessToken: "test-token",
-    }),
+    setDeleting: (value: boolean) => { state.deleting = value; },
+    setDelError: (value: boolean) => {
+      state.delError = value;
+      if (value) state.delErrorShown += 1;
+    },
+    captureSignOutExpectation: async () => {
+      if (options.expectationOwner !== undefined) owner.current = options.expectationOwner;
+      return {
+        userId: options.expectationOwner ?? OWNER,
+        sessionId: "session-a",
+        accessToken: "test-token",
+      };
+    },
     requestAccountDeletion: async () => {
+      if (options.ownerBeforeFailure !== undefined) {
+        owner.current = options.ownerBeforeFailure;
+        throw new Error("terminal deletion failed");
+      }
       if (options.deletionFails) throw new Error("terminal deletion failed");
       return RECEIPT;
     },
@@ -106,7 +124,7 @@ function harness(
     currentAccountEpoch: epoch.currentAccountEpoch,
     console: { warn: () => undefined },
   };
-  return { run: deleteCallback(context), calls, owner };
+  return { run: deleteCallback(context), calls, owner, state, inFlight, mounted };
 }
 
 beforeEach(() => {
@@ -191,5 +209,58 @@ describe("삭제한 사람이 서버가 말한 것을 듣는다", () => {
     expect(signIn).toContain("AccountDeletionNoticePanel");
     // 게스트 가드보다 앞에 있어야 한다. 뒤에 있으면 로딩·리다이렉트가 결과를 밀어낸다.
     expect(signIn.indexOf("AccountDeletionNoticePanel")).toBeLessThan(signIn.indexOf("if (loading)"));
+  });
+});
+
+// 실패 경로의 울타리 (게이트 지적 AG-02 · AUTH-01, PR #2040).
+//
+// `deleting` 은 /privacy 의 로그인 가드를 면제하는 울타리다(`!userId && !deleting`).
+// 소유자 변경 effect 는 요청이 날아가는 동안 그것을 일부러 안 푼다 — "그 흐름이
+// 불일치를 보고 푼다". 그런데 요청이 **실패**하면 catch 는 소유자가 그대로일 때만
+// 풀었다. 삭제 중 다른 탭에서 로그아웃하고 요청이 실패하면 울타리가 영영 남고,
+// 로그아웃한 방문자가 /sign-in 으로 가지 않은 채 /privacy 에 남았다.
+// 오류 표시는 원래 소유자에게만 띄운다 — B 가 A 의 실패를 보면 안 된다.
+describe("삭제가 실패하면 울타리는 소유자와 무관하게 풀린다", () => {
+  test("소유자가 그대로면 오류를 띄우고 울타리를 푼다(기존 동작)", async () => {
+    const { run, state, inFlight, calls } = harness({ deletionFails: true });
+    await run();
+    expect(state.deleting).toBe(false);
+    expect(state.delErrorShown).toBe(1);
+    expect(inFlight.current).toBe(false);
+    expect(calls.replace).toEqual([]);
+  });
+
+  test.each([
+    ["다른 탭에서 로그아웃(null)", null],
+    ["다른 계정 B", "22222222-2222-4222-8222-222222222222"],
+  ])("요청 중 소유자가 %s 로 바뀐 뒤 실패해도 울타리를 풀고, 오류는 띄우지 않는다", async (_label, next) => {
+    const { run, state, inFlight, calls } = harness({ ownerBeforeFailure: next });
+    await run();
+    expect(state.deleting).toBe(false);
+    expect(state.delErrorShown).toBe(0);
+    expect(inFlight.current).toBe(false);
+    expect(calls.signOut).toBe(0);
+    expect(calls.replace).toEqual([]);
+    expect(getAccountDeletionNotice()).toBeNull();
+  });
+
+  test("로그아웃 기대값을 잡을 때 이미 B 였으면(AuthSessionOwnerChangedError) 울타리를 푼다", async () => {
+    const { run, state, inFlight } = harness({ expectationOwner: "22222222-2222-4222-8222-222222222222" });
+    await run();
+    expect(state.deleting).toBe(false);
+    expect(state.delErrorShown).toBe(0);
+    expect(inFlight.current).toBe(false);
+  });
+
+  test("화면이 이미 내려갔으면 상태를 건드리지 않는다", async () => {
+    const h = harness({ ownerBeforeFailure: null });
+    const pending = h.run();
+    // run 은 첫 await 전에 울타리를 세운다. 그 뒤 화면이 내려간다.
+    expect(h.state.deleting).toBe(true);
+    h.mounted.current = false;
+    await pending;
+    expect(h.state.deleting).toBe(true);
+    expect(h.state.delErrorShown).toBe(0);
+    expect(h.inFlight.current).toBe(false);
   });
 });

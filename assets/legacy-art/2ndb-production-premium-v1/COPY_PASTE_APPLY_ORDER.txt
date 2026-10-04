@@ -12,19 +12,19 @@ Critical rules:
 - Preserve NavGraph, pan/zoom, route handoffs, and safety paths.
 
 Replace these assets:
-1. core_center_premium_clean.png
+1. core_center_premium_clean.png  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
 Use for Core Brain / 나의 중심 island/art. Replace any core image that shows a cyan square or black rectangular crop.
 
-2. auth_secondb_gate_hero_clean.png
+2. auth_secondb_gate_hero_clean.png  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
 Use for auth/login hero. Replace any hero image that appears inside a black rectangular box.
 
 3. Domain islands
-work_growth -> domain_work_growth_premium.png
-relationship -> domain_relationship_premium.png
-knowledge -> domain_knowledge_premium.png
-records -> domain_records_premium.png
-imagine -> domain_imagine_premium.png
-inspiration -> domain_inspiration_premium.png
+work_growth -> domain_work_growth_premium.png  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
+relationship -> domain_relationship_premium.png  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
+knowledge -> domain_knowledge_premium.png  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
+records -> domain_records_premium.png  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
+imagine -> domain_imagine_premium.png  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
+inspiration -> domain_inspiration_premium.png  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
 
 4. Characters/workers
 SecondB -> secondb_premium_idle.png + secondb_premium_walk_strip_6f.png
@@ -32,7 +32,7 @@ Archi -> archi_premium_idle.png + archi_premium_walk_strip_6f.png
 Gadi -> gadi_premium_idle.png + gadi_premium_walk_strip_6f.png
 Lulu -> lulu_premium_idle.png + lulu_premium_walk_strip_6f.png
 Momo -> momo_premium_idle.png + momo_premium_walk_strip_6f.png
-Vela -> vela_premium_idle.png + vela_premium_walk_strip_6f.png
+Vela -> vela_premium_idle.png + vela_premium_walk_strip_6f.png  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
 Lumi -> lumi_premium_idle.png + lumi_premium_walk_strip_6f.png
 
 5. Optional wiki thumbnails

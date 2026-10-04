@@ -349,7 +349,7 @@ const ChatComposer = memo(
           setVoiceNotice(t("voice.permissionDenied"));
           return;
         }
-        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, interruptionMode: "mixWithOthers" });
         ownerGuard.assertCurrent();
         await audioRecorder.prepareToRecordAsync();
         prepared = true;
@@ -1535,6 +1535,12 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             accessibilityLabel={t("closeIntro")}
             accessibilityHint={t("closeIntroHint")}
           >
+            {/* 스크림은 디더다(PIXEL-CLAY 규칙 4). 바탕을 모르는 층이라 sbAlpha 로
+                미리 합성하면 불투명 단색이 돼 대화 화면이 사라진다(W-09). 이미지는
+                width/height 100% 로 준다. absoluteFill 만 주면 웹에서 4×4 한 칸만 그린다. */}
+            <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+              <PixelScrim style={ds.modalScrimImage} />
+            </View>
             <Pressable style={ds.modalCard} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
               <Text style={ds.modalEyebrow}>{t("intro_title")}</Text>
               {/* keepAllKo joins Hangul words with U+2060 so they wrap at spaces; the
@@ -1579,6 +1585,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             accessibilityLabel={t("closeReferenced")}
             accessibilityHint={t("closeReferencedHint")}
           >
+            <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+              <PixelScrim style={ds.modalScrimImage} />
+            </View>
             <Pressable
               style={ds.drawer}
               onPress={(e) => e.stopPropagation()}
@@ -2584,13 +2593,16 @@ const ds = StyleSheet.create({
     flexShrink: 0,
   },
 
+  // 배경색 없음: 가리는 것은 자식 PixelScrim 디더다. 여기에 sbAlpha(…) 를 두면
+  // 미리 합성된 불투명 단색이 돼 대화 화면이 통째로 사라진다(W-09, f8bd9336 회귀).
   modalBackdrop: {
     flex: 1,
-    backgroundColor: sbAlpha(deepSpace.bgEdge, 0.8),
     alignItems: "center",
     justifyContent: "center",
     padding: deepSpaceSpacing.lg,
   },
+  // RN Web 은 디더 타일을 고유 크기(4×4)로만 반복한다. 전면을 덮으려면 크기를 명시한다.
+  modalScrimImage: { width: "100%", height: "100%" },
   modalCard: {
     width: "100%",
     maxWidth: 420,
