@@ -10,7 +10,11 @@
 //   3. every setAudioModeAsync call in src names interruptionMode, because the
 //      Android call overwrites the whole mode and an omitted field resets to
 //      null, which is GAIN_TRANSIENT again;
-//   4. the installed SDK still behaves the way 1 and 3 assume.
+//   4. the installed SDK still behaves the way 1 and 3 assume;
+//   5. the boot call changes focus only, not silent-mode playback: Android keeps
+//      the SDK default playsInSilentMode true (play() returns early when it is
+//      false and the ringer is not normal), iOS keeps obeying the silent switch
+//      (.ambient, as the system default .soloAmbient did). Gate r1, PR #2036.
 // Modules are transpiled and run with a fake require, as opening-sound-player.test
 // does, so react-native and expo-audio never load in the node environment.
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -20,11 +24,20 @@ import ts from "typescript";
 const ROOT = resolve(__dirname, "../../../..");
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8").replace(/\r\n/g, "\n");
 
-const EXPECTED_EFFECTS_MODE = {
+const ANDROID_SDK_PLAYS_IN_SILENT_MODE = (() => {
+  const records = read("node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt");
+  const match = /class AudioMode\([\s\S]*?@Field val playsInSilentMode: Boolean = (true|false)\s*\)/.exec(records);
+  if (!match) throw new Error("expo-audio AudioMode.playsInSilentMode default not found");
+  return match[1] === "true";
+})();
+
+const expectedEffectsMode = (platform: string) => ({
   interruptionMode: "mixWithOthers",
   shouldPlayInBackground: false,
-  playsInSilentMode: false,
-};
+  // Android: the SDK default, so vibrate/silent ringer playback is unchanged.
+  // iOS: false is .ambient, which obeys the silent switch like the default .soloAmbient.
+  playsInSilentMode: platform === "android" ? ANDROID_SDK_PLAYS_IN_SILENT_MODE : false,
+});
 
 type SessionModule = { configureEffectsAudioSession: () => Promise<void>; EFFECTS_AUDIO_MODE?: unknown };
 
@@ -56,8 +69,8 @@ describe("boot audio session (native)", () => {
 
     expect(second).toBe(first);
     expect(setAudioModeAsync).toHaveBeenCalledTimes(1);
-    expect(setAudioModeAsync).toHaveBeenCalledWith(EXPECTED_EFFECTS_MODE);
-    expect(session.EFFECTS_AUDIO_MODE).toEqual(EXPECTED_EFFECTS_MODE);
+    expect(setAudioModeAsync).toHaveBeenCalledWith(expectedEffectsMode(platform));
+    expect(session.EFFECTS_AUDIO_MODE).toEqual(expectedEffectsMode(platform));
     expect(Object.isFrozen(session.EFFECTS_AUDIO_MODE)).toBe(true);
   });
 
@@ -236,6 +249,30 @@ describe("installed expo-audio still matches what this fix assumes", () => {
     const start = android.indexOf('AsyncFunction("setAudioModeAsync")');
     expect(start).toBeGreaterThan(-1);
     expect(android.slice(start, start + 400)).toContain("interruptionMode = mode.interruptionMode");
+  });
+
+  test("Android play() is skipped off the normal ringer unless playsInSilentMode is true", () => {
+    // Why the Android boot value must stay the SDK default: false would mute every
+    // effect in vibrate or silent ringer mode, which the app never did before.
+    const playStart = android.indexOf('Function("play") { player: AudioPlayer ->');
+    expect(playStart).toBeGreaterThan(-1);
+    const play = android.slice(playStart, android.indexOf('Function("pause")', playStart));
+    expect(play).toMatch(/if \(!shouldPlayInSilentMode\(\)\) \{\s*return@Function\s*\}/);
+    expect(body("private fun shouldPlayInSilentMode()")).toContain(
+      "playsInSilentMode || audioManager.ringerMode == AudioManager.RINGER_MODE_NORMAL",
+    );
+    expect(android).toMatch(/private var playsInSilentMode = (true|false)\n/);
+    expect(android).toContain(`private var playsInSilentMode = ${ANDROID_SDK_PLAYS_IN_SILENT_MODE}\n`);
+  });
+
+  test("iOS maps playsInSilentMode false to .ambient and sets no category before setAudioMode", () => {
+    const ios = read("node_modules/expo-audio/ios/AudioModule.swift");
+    expect(ios).toMatch(/if !mode\.playsInSilentMode \{\s*if mode\.interruptionMode == \.doNotMix \{\s*category = \.soloAmbient\s*\} else \{\s*category = \.ambient\s*\}/);
+    // Only setAudioMode chooses a category, so before the boot call the session kept
+    // the system default (.soloAmbient), which also obeys the silent switch.
+    expect(ios.match(/\.setCategory\(/g)).toHaveLength(2);
+    const setAudioMode = ios.slice(ios.indexOf("private func setAudioMode(mode: AudioMode)"), ios.indexOf("private func activateSession()"));
+    expect(setAudioMode.match(/\.setCategory\(/g)).toHaveLength(2);
   });
 
   test("players still build a media session with no JS switch (left for a separate decision)", () => {
