@@ -468,7 +468,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
     title: "커뮤니티 · 지인",
     screens: [
       { file: "community", href: "/community", label: "커뮤니티", auth: true },
-      { file: "community/[room]", href: "/community/sample", label: "커뮤니티 방", auth: true, sample: true, note: "실제 방 id 가 아니라서 목록으로 되돌아간다" },
+      { file: "community/[room]", href: "/community/sample", label: "커뮤니티 방", auth: true, sample: true, note: "실제 방 id 가 아니라서 '방을 찾지 못했다'는 안내와 목록으로 가는 버튼이 보인다(재시도 없음)" },
       {
         file: "community/join/[token]",
         href: "/community/join/sample",
