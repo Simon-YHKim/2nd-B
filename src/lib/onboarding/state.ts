@@ -18,10 +18,22 @@
 //      removed, so a later account on the device does not inherit it.
 //   4. a failed server read is never read as "empty account": the owner counts as
 //      onboarded for this session only (nothing is written; the next launch asks
-//      again), instead of being pushed into the welcome on a network blip.
+//      again), instead of being pushed into the welcome on a network blip. This is
+//      decided before step 3: a failed read neither claims nor removes the
+//      device-wide key, so an existing account cannot take a fresh device
+//      completion as its own first day (BL-01).
+//
+// The owner key is account data: purgeOnboardingForDeletedAccount() removes it on
+// terminal deletion (src/lib/account/local-purge.ts), and once the deletion fence
+// is up nothing for that owner is written again, including by a read that was
+// already in flight (BL-02).
 
 import { useEffect, useState } from "react";
 
+import {
+  isAccountLocalDeletionFencedInMemory,
+  runAccountLocalMutation,
+} from "../account/local-deletion-fence";
 import { hasCoachmarkContent as hasOwnerContent } from "./coachmarks-gate";
 
 /** Device-wide completion not tied to an account: earlier builds wrote it, and the
@@ -119,10 +131,26 @@ function forget(key: string): void {
   if (storage?.removeItem) void storage.removeItem(key).catch((e) => warn("remove", e));
 }
 
-function recordOwner(ownerId: string, value: string): void {
+async function persistOwner(key: string, value: string): Promise<void> {
+  try {
+    ls()?.setItem(key, value);
+  } catch (error) {
+    warn("persist", error);
+  }
+  const storage = nativeStorage();
+  if (storage) await storage.setItem(key, value).catch((e) => warn("persist", e));
+}
+
+/** false = the owner's deletion fence is up, so nothing was recorded (BL-02). */
+function recordOwner(ownerId: string, value: string): boolean {
+  if (isAccountLocalDeletionFencedInMemory(ownerId)) return false;
   memoryOwner.set(ownerId, value);
   sessionOnly.delete(ownerId);
-  persist(ONBOARDING_OWNER_KEY(ownerId), value);
+  const key = ONBOARDING_OWNER_KEY(ownerId);
+  // Serialised with account deletion: a write that would land after the durable
+  // fence (another tab, or a read that was in flight) is dropped, not resurrected.
+  void runAccountLocalMutation(ownerId, () => persistOwner(key, value)).catch((e) => warn("persist", e));
+  return true;
 }
 
 /**
@@ -161,7 +189,7 @@ export function onboardingCompletedAt(ownerId: string | null): string | null {
 async function resolveOwner(ownerId: string): Promise<boolean> {
   const stored = await storedValue(ONBOARDING_OWNER_KEY(ownerId));
   if (stored) {
-    memoryOwner.set(ownerId, stored);
+    if (!isAccountLocalDeletionFencedInMemory(ownerId)) memoryOwner.set(ownerId, stored);
     return true;
   }
 
@@ -172,24 +200,27 @@ async function resolveOwner(ownerId: string): Promise<boolean> {
     warn("existing-rows check", error);
     hasRows = null;
   }
+  // Deleted while the read was in flight (BL-02): record nothing, claim nothing.
+  if (isAccountLocalDeletionFencedInMemory(ownerId)) return true;
+  // A failed read is settled before the device-wide key is looked at (BL-01):
+  // session only, nothing written or removed, the next launch asks again.
+  if (hasRows === null) {
+    sessionOnly.add(ownerId);
+    return true;
+  }
   const device = await storedValue(ONBOARDING_KEY);
 
   if (hasRows === true) {
-    recordOwner(ownerId, ONBOARDING_FROM_RECORDS);
     // This device's old completion now belongs to an account with data; do not
     // leave it for a later account to inherit.
-    if (device) forget(ONBOARDING_KEY);
+    if (recordOwner(ownerId, ONBOARDING_FROM_RECORDS) && device) forget(ONBOARDING_KEY);
     return true;
   }
   if (device) {
-    recordOwner(ownerId, device);
+    if (!recordOwner(ownerId, device)) return true;
     forget(ONBOARDING_KEY);
     memoryComplete = false;
     memoryHydrated = true;
-    return true;
-  }
-  if (hasRows === null) {
-    sessionOnly.add(ownerId);
     return true;
   }
   return false;
@@ -224,6 +255,33 @@ export function markOnboardingComplete(ownerId: string | null = null): void {
   memoryComplete = true;
   memoryHydrated = true;
   persist(ONBOARDING_KEY, completedAt);
+}
+
+/**
+ * Remove one terminally deleted owner's completion: the stored key and the
+ * in-memory and session-only answers. true only when the key is confirmed gone.
+ * purgeDeletedAccountLocalData() calls it after the deletion fence is up, so a
+ * read still in flight cannot write it back (recordOwner checks the fence).
+ */
+export async function purgeOnboardingForDeletedAccount(userId: string): Promise<boolean> {
+  const owner = userId.trim();
+  if (!owner) return false;
+  const key = ONBOARDING_OWNER_KEY(owner);
+  memoryOwner.delete(owner);
+  sessionOnly.delete(owner);
+  try {
+    const web = ls();
+    if (web) {
+      web.removeItem(key);
+      return web.getItem(key) === null;
+    }
+    const native = nativeStorage();
+    if (!native?.removeItem) return false;
+    await native.removeItem(key);
+    return (await native.getItem(key)) === null;
+  } catch {
+    return false;
+  }
 }
 
 // First-star chat nudge: after a user lights their very first star we steer them

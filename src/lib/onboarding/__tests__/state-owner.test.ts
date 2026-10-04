@@ -18,6 +18,10 @@ jest.mock("react", () => ({
 
 import { useState } from "react";
 import {
+  __resetAccountLocalDeletionFencesForTests,
+  installAccountLocalDeletionFence,
+} from "../../account/local-deletion-fence";
+import {
   __resetOnboardingStateForTests,
   isOnboardingComplete,
   markOnboardingComplete,
@@ -25,6 +29,7 @@ import {
   ONBOARDING_KEY,
   ONBOARDING_OWNER_KEY,
   onboardingCompletedAt,
+  purgeOnboardingForDeletedAccount,
   resolveOnboardingComplete,
 } from "../state";
 import { __resetTTFVGateForTests, useAutoTriggerTTFV } from "../ttfv-gate";
@@ -35,6 +40,8 @@ const B = "bbbbbbbb-0000-4000-8000-000000000002";
 type Rows = { records: number; sources: number } | "error";
 let rows: Record<string, Rows> = {};
 let reads = 0;
+// Holds every server read until released (an in-flight read racing a deletion).
+let serverGate: Promise<void> | null = null;
 
 function supabaseFor(): unknown {
   return {
@@ -42,6 +49,7 @@ function supabaseFor(): unknown {
       select: () => ({
         eq: (_col: string, owner: string) => ({
           limit: async () => {
+            if (serverGate) await serverGate;
             reads += 1;
             const r = rows[owner] ?? { records: 0, sources: 0 };
             if (r === "error") return { data: null, error: new Error("network") };
@@ -63,10 +71,12 @@ const mockLs = {
 beforeEach(() => {
   __resetOnboardingStateForTests();
   __resetTTFVGateForTests();
+  __resetAccountLocalDeletionFencesForTests();
   for (const k of Object.keys(store)) delete store[k];
   (globalThis as { localStorage?: Storage }).localStorage = mockLs;
   rows = {};
   reads = 0;
+  serverGate = null;
   mockGetSupabaseClient.mockReset().mockImplementation(supabaseFor);
   jest.spyOn(console, "warn").mockImplementation(() => undefined);
 });
@@ -113,6 +123,25 @@ describe("onboarding completion is per account (W-12)", () => {
     __resetOnboardingStateForTests();
     rows[A] = { records: 0, sources: 0 };
     await expect(resolveOnboardingComplete(A)).resolves.toBe(false);
+  });
+
+  test("a failed server read does not claim or consume the device-wide key (BL-01)", async () => {
+    // The device key is fresh (inside the first-day window). If a failed read let
+    // an existing account claim it, /ttfv would open its first-day screen and the
+    // owner key would stop the server from ever being asked again.
+    const fresh = new Date(Date.now() - 60_000).toISOString();
+    store[ONBOARDING_KEY] = fresh;
+    rows[A] = "error";
+    await expect(resolveOnboardingComplete(A)).resolves.toBe(true);
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBeUndefined();
+    expect(store[ONBOARDING_KEY]).toBe(fresh);
+    expect(onboardingCompletedAt(A)).toBeNull();
+    // The next launch, with the server back, asks again and finds the rows.
+    __resetOnboardingStateForTests();
+    rows[A] = { records: 1, sources: 0 };
+    await expect(resolveOnboardingComplete(A)).resolves.toBe(true);
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBe(ONBOARDING_FROM_RECORDS);
+    expect(store[ONBOARDING_KEY]).toBeUndefined();
   });
 
   test("the old device-wide completion is claimed once by a new account, then removed", async () => {
@@ -178,5 +207,94 @@ describe("the first-day /ttfv screen follows the account, not the device (W-12)"
   test("undecided until onboarding has resolved for the signed-in owner", () => {
     expect(ttfv(A, null)).toBeNull();
     expect(ttfv(null, true)).toBeNull();
+  });
+
+  test("a failed read does not hand an existing account a fresh device-wide first day (BL-01)", async () => {
+    store[ONBOARDING_KEY] = new Date(Date.now() - 60_000).toISOString();
+    rows[A] = "error";
+    await expect(resolveOnboardingComplete(A)).resolves.toBe(true);
+    expect(ttfv(A, true)).toBe(false);
+  });
+});
+
+describe("a deleted account's onboarding key goes with it (BL-02)", () => {
+  test("purge removes the owner key and the in-memory answer, and leaves other accounts alone", async () => {
+    markOnboardingComplete(A);
+    markOnboardingComplete(B);
+    await expect(purgeOnboardingForDeletedAccount(A)).resolves.toBe(true);
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBeUndefined();
+    expect(onboardingCompletedAt(A)).toBeNull();
+    expect(isOnboardingComplete(A)).toBeNull();
+    expect(store[ONBOARDING_OWNER_KEY(B)]).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(isOnboardingComplete(B)).toBe(true);
+  });
+
+  test("a session-only answer from a failed read is dropped too", async () => {
+    rows[A] = "error";
+    await expect(resolveOnboardingComplete(A)).resolves.toBe(true);
+    expect(isOnboardingComplete(A)).toBe(true); // session-only
+    await expect(purgeOnboardingForDeletedAccount(A)).resolves.toBe(true);
+    expect(isOnboardingComplete(A)).toBeNull();
+  });
+
+  test("a read still in flight when the account is deleted does not write the key back", async () => {
+    let release!: () => void;
+    serverGate = new Promise<void>((resolve) => { release = resolve; });
+    rows[A] = { records: 1, sources: 0 };
+    const pending = resolveOnboardingComplete(A);
+    await installAccountLocalDeletionFence(A);
+    await expect(purgeOnboardingForDeletedAccount(A)).resolves.toBe(true);
+    release();
+    await pending;
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBeUndefined();
+    expect(onboardingCompletedAt(A)).toBeNull();
+  });
+
+  test("a deleted account does not claim the device-wide key on its way out", async () => {
+    let release!: () => void;
+    serverGate = new Promise<void>((resolve) => { release = resolve; });
+    store[ONBOARDING_KEY] = "2026-10-01T09:00:00.000Z";
+    const pending = resolveOnboardingComplete(A); // a new account: no rows
+    await installAccountLocalDeletionFence(A);
+    await purgeOnboardingForDeletedAccount(A);
+    release();
+    await pending;
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBeUndefined();
+    expect(store[ONBOARDING_KEY]).toBe("2026-10-01T09:00:00.000Z");
+  });
+
+  test("a failed read still in flight when the account is deleted leaves no session-only answer", async () => {
+    let release!: () => void;
+    serverGate = new Promise<void>((resolve) => { release = resolve; });
+    rows[A] = "error";
+    const pending = resolveOnboardingComplete(A);
+    await installAccountLocalDeletionFence(A);
+    await purgeOnboardingForDeletedAccount(A);
+    release();
+    await pending;
+    expect(isOnboardingComplete(A)).toBeNull();
+  });
+
+  test("another tab's durable deletion fence stops the stored write", () => {
+    // The fence marker is in shared storage but this runtime never saw the
+    // deletion, so only the serialised write path can tell.
+    store[`account.deletionFence.v1:${A}`] = "terminal";
+    markOnboardingComplete(A);
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBeUndefined();
+  });
+
+  test("finishing the carousel after the deletion fence is up writes nothing", async () => {
+    await installAccountLocalDeletionFence(A);
+    markOnboardingComplete(A);
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBeUndefined();
+    expect(onboardingCompletedAt(A)).toBeNull();
+  });
+
+  test("reports false when the key could not be removed, and refuses an empty owner", async () => {
+    markOnboardingComplete(A);
+    const removeItem = jest.spyOn(mockLs, "removeItem").mockImplementation(() => undefined);
+    await expect(purgeOnboardingForDeletedAccount(A)).resolves.toBe(false);
+    removeItem.mockRestore();
+    await expect(purgeOnboardingForDeletedAccount("  ")).resolves.toBe(false);
   });
 });
