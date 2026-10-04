@@ -167,7 +167,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         label: "별자리 홈",
         // 2026-09-08: 라우트가 래퍼가 되면서 로그인 리다이렉트도 화면으로 내려갔다.
         // 전에는 index.tsx 안의 GraphScreen 이 직접 `!userId -> /sign-in` 을 했고,
-        // 그 반쪽은 legacy/screens/index.tsx 로 나갔다. 이제 게이트는 셸이 진다.
+        // 그 반쪽은 legacy/screens/index.tsx 로 나갔고 2026-10-05 에 E:/Legacy/2ndB 로 갔다. 이제 게이트는 셸이 진다.
         auth: {
           gateFile: "src/components/deep-space/DeepSpaceShell.tsx",
           component: "DeepSpaceShell",
@@ -354,7 +354,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         file: "imagine",
         href: "/imagine",
         label: "공상하기",
-        note: "진입: /ops 도구 격자 · /growth. legacy 트랙일 때 /secondb 의 Divergent 모드로 넘기던 분기는 은퇴했다 (legacy/screens/INDEX.md)",
+        note: "진입: /ops 도구 격자 · /growth. legacy 트랙일 때 /secondb 의 Divergent 모드로 넘기던 분기는 은퇴했다 (E:/Legacy/2ndB/legacy/screens/INDEX.md)",
       },
       // 게이트가 라우트에서 화면으로 모였다 — change-password 와 같은 모양이다.
       {
@@ -378,9 +378,8 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         file: "persona",
         href: "/persona",
         label: "페르소나",
-        auth: true,
-        render: { kind: "ui-mode-split", deepspace: { kind: "redirect", to: "/core-brain" }, legacy: { kind: "screen" } },
-        note: "딥스페이스(기본)에서 '나를 보는 자리'의 정본은 /core-brain 이라 그리로 넘긴다. legacy 는 실화면",
+        render: { kind: "redirect", to: "/core-brain", lifecycle: "retired" },
+        note: "'나를 보는 자리'의 정본은 /core-brain 이라 그리로 넘긴다. 레거시 실화면(PersonaLegacy)은 2026-10-05 EXPO_PUBLIC_UI 레버와 함께 빠졌다(Q-261004-11)",
       },
       { file: "big-five", href: "/big-five", label: "Big Five", auth: true },
       // 2026-10-04 W-02: attachment 와 같은 모양이었다. 배송되는 IpipNeoDeepSpace 가
@@ -398,7 +397,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         label: "MBTI (은퇴)",
         entry: { kind: "legacy-link" },
         render: { kind: "redirect", to: "/persona", lifecycle: "retired" },
-        note: "저장된 옛 링크 호환 전용. /persona 가 스킨 분기를 소유해서 딥스페이스에선 두 홉으로 /core-brain 까지 간다",
+        note: "저장된 옛 링크 호환 전용. /persona 가 다시 /core-brain 으로 넘기므로 두 홉으로 /core-brain 까지 간다",
       },
       { file: "iden", href: "/iden", label: "IDEN 포터블 정체성", auth: true },
       {
@@ -406,7 +405,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         href: "/seen",
         label: "보여지는 나",
         auth: true,
-        note: "legacy 트랙일 때 독립 스킨이 없어 /persona 종합으로 넘기던 분기는 은퇴했다 (legacy/screens/INDEX.md). 진입: 프로필 허브 분석 그룹",
+        note: "legacy 트랙일 때 독립 스킨이 없어 /persona 종합으로 넘기던 분기는 은퇴했다 (E:/Legacy/2ndB/legacy/screens/INDEX.md). 진입: 프로필 허브 분석 그룹",
       },
       {
         file: "audit",
@@ -477,7 +476,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         href: "/discover",
         label: "발견",
         auth: true,
-        note: "실화면. legacy 트랙일 때 /insights 로 넘기던 분기는 은퇴했다 (legacy/screens/INDEX.md). 진입: /insights 카드",
+        note: "실화면. legacy 트랙일 때 /insights 로 넘기던 분기는 은퇴했다 (E:/Legacy/2ndB/legacy/screens/INDEX.md). 진입: /insights 카드",
       },
       { file: "reminders", href: "/reminders", label: "예약 리마인더", auth: true },
       // 라우트 리다이렉트는 legacy 반쪽(InboxLegacy) 안에만 있다. 배송되는
@@ -495,14 +494,9 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       {
         file: "trinity",
         href: "/trinity",
-        label: "브레인 트리니티 (레거시)",
-        auth: true,
-        render: {
-          kind: "ui-mode-split",
-          deepspace: { kind: "dev-gated-screen", productionRedirect: "/core-brain" },
-          legacy: { kind: "screen" },
-        },
-        note: "딥스페이스 production 빌드는 /core-brain 으로 넘어가고, 개발 빌드는 M3 리메이크를 참조용으로 연다. legacy 는 /profile quickGrid 에서 실화면으로 들어간다",
+        label: "브레인 트리니티 (은퇴)",
+        render: { kind: "redirect", to: "/core-brain", lifecycle: "retired" },
+        note: "리다이렉트 전용(Simon 결정 Q-261004-33 B). TrinityLegacy 와 개발 빌드의 M3 리메이크가 둘 다 2026-10-05 에 빠졌다",
       },
     ],
   },
