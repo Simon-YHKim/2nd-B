@@ -17,6 +17,8 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 import {
   __resetAccountLocalDeletionFencesForTests,
   installAccountLocalDeletionFence,
+  isAccountLocalDeletionFencedInMemory,
+  releaseAccountLocalDeletionIntent,
   runAccountLocalMutation,
 } from "../local-deletion-fence";
 
@@ -169,5 +171,122 @@ describe("account-local deletion fence", () => {
     const write = jest.fn(async () => true);
     await expect(runAccountLocalMutation("owner-b", write)).resolves.toEqual({ executed: false });
     expect(write).not.toHaveBeenCalled();
+  });
+});
+
+// A deletion that never reached the server must not leave a live account fenced
+// (QA 261004 gates R3-05 / BL-07, 2026-10-05). The deletion now raises a
+// reversible intent, promotes it to terminal right before the first Edge call,
+// and lifts the intent if it fails before that. Terminal stays irreversible.
+describe("reversible intent, irreversible terminal", () => {
+  const KEY = "account.deletionFence.v1:owner-a";
+  const write = () => jest.fn(async () => "saved");
+
+  test("an intent fences writes exactly like the terminal marker", async () => {
+    await expect(installAccountLocalDeletionFence("owner-a", "intent")).resolves.toBe(true);
+    expect(webStore.get(KEY)).toBe("intent");
+    const blocked = write();
+    await expect(runAccountLocalMutation("owner-a", blocked)).resolves.toEqual({ executed: false });
+    expect(blocked).not.toHaveBeenCalled();
+    expect(isAccountLocalDeletionFencedInMemory("owner-a")).toBe(true);
+  });
+
+  test("releasing an intent clears the durable marker and the memory fence", async () => {
+    await installAccountLocalDeletionFence("owner-a", "intent");
+    await expect(releaseAccountLocalDeletionIntent("owner-a")).resolves.toBe(true);
+    expect(webStore.has(KEY)).toBe(false);
+    expect(isAccountLocalDeletionFencedInMemory("owner-a")).toBe(false);
+    const allowed = write();
+    await expect(runAccountLocalMutation("owner-a", allowed)).resolves.toEqual({ executed: true, value: "saved" });
+  });
+
+  test("the gate's case: no Web Locks, intent unacknowledged, release leaves nothing behind", async () => {
+    useWebRuntime(false);
+    await expect(installAccountLocalDeletionFence("owner-a", "intent")).resolves.toBe(false);
+    // The marker was written even though it could not be acknowledged.
+    expect(webStore.get(KEY)).toBe("intent");
+    await expect(releaseAccountLocalDeletionIntent("owner-a")).resolves.toBe(true);
+    expect(webStore.has(KEY)).toBe(false);
+    const allowed = write();
+    await expect(runAccountLocalMutation("owner-a", allowed)).resolves.toEqual({ executed: true, value: "saved" });
+  });
+
+  test("a terminal marker is never released, from memory or from storage", async () => {
+    await installAccountLocalDeletionFence("owner-a", "intent");
+    await expect(installAccountLocalDeletionFence("owner-a")).resolves.toBe(true);
+    await expect(releaseAccountLocalDeletionIntent("owner-a")).resolves.toBe(false);
+    expect(webStore.get(KEY)).toBe("terminal");
+    expect(isAccountLocalDeletionFencedInMemory("owner-a")).toBe(true);
+
+    // Another runtime (reload) that only finds the terminal marker on disk.
+    __resetAccountLocalDeletionFencesForTests();
+    await expect(releaseAccountLocalDeletionIntent("owner-a")).resolves.toBe(false);
+    expect(webStore.get(KEY)).toBe("terminal");
+    const blocked = write();
+    await expect(runAccountLocalMutation("owner-a", blocked)).resolves.toEqual({ executed: false });
+    expect(blocked).not.toHaveBeenCalled();
+  });
+
+  test("an intent never downgrades a terminal marker that is already there", async () => {
+    await installAccountLocalDeletionFence("owner-a");
+    await expect(installAccountLocalDeletionFence("owner-a", "intent")).resolves.toBe(true);
+    expect(webStore.get(KEY)).toBe("terminal");
+    await expect(releaseAccountLocalDeletionIntent("owner-a")).resolves.toBe(false);
+    expect(isAccountLocalDeletionFencedInMemory("owner-a")).toBe(true);
+  });
+
+  test("another tab that hit the intent is not fenced after the release", async () => {
+    await installAccountLocalDeletionFence("owner-a", "intent");
+    // The other tab: its own memory, the same storage.
+    __resetAccountLocalDeletionFencesForTests();
+    const duringIntent = write();
+    await expect(runAccountLocalMutation("owner-a", duringIntent)).resolves.toEqual({ executed: false });
+    expect(isAccountLocalDeletionFencedInMemory("owner-a")).toBe(false);
+    // The deleting tab lifts it (simulated on storage; this runtime never raised it).
+    webStore.delete(KEY);
+    const afterRelease = write();
+    await expect(runAccountLocalMutation("owner-a", afterRelease)).resolves.toEqual({ executed: true, value: "saved" });
+  });
+
+  test("a release that cannot clear storage keeps the owner fenced", async () => {
+    await installAccountLocalDeletionFence("owner-a", "intent");
+    webStorage.removeItem.mockImplementationOnce(() => { throw new Error("quota"); });
+    await expect(releaseAccountLocalDeletionIntent("owner-a")).resolves.toBe(false);
+    expect(webStore.get(KEY)).toBe("intent");
+    expect(isAccountLocalDeletionFencedInMemory("owner-a")).toBe(true);
+  });
+
+  test("a removal that silently did nothing is caught by the read-back", async () => {
+    await installAccountLocalDeletionFence("owner-a", "intent");
+    webStorage.removeItem.mockImplementationOnce(() => undefined);
+    await expect(releaseAccountLocalDeletionIntent("owner-a")).resolves.toBe(false);
+    expect(isAccountLocalDeletionFencedInMemory("owner-a")).toBe(true);
+  });
+
+  test("a terminal acknowledged in this runtime stays fenced even if storage later loses it", async () => {
+    await expect(installAccountLocalDeletionFence("owner-a")).resolves.toBe(true);
+    webStore.delete(KEY); // site data cleared, or another writer
+    await expect(releaseAccountLocalDeletionIntent("owner-a")).resolves.toBe(false);
+    expect(isAccountLocalDeletionFencedInMemory("owner-a")).toBe(true);
+  });
+
+  test("an unknown marker value is left in place and keeps fencing", async () => {
+    webStore.set(KEY, "something-else");
+    await expect(releaseAccountLocalDeletionIntent("owner-a")).resolves.toBe(false);
+    expect(webStore.get(KEY)).toBe("something-else");
+  });
+
+  test("native: the intent lives in AsyncStorage and is released through the owner queue", async () => {
+    useNativeRuntime();
+    await expect(installAccountLocalDeletionFence("owner-a", "intent")).resolves.toBe(true);
+    expect(asyncStore.get(KEY)).toBe("intent");
+    await expect(releaseAccountLocalDeletionIntent("owner-a")).resolves.toBe(true);
+    expect(asyncStore.has(KEY)).toBe(false);
+    const allowed = write();
+    await expect(runAccountLocalMutation("owner-a", allowed)).resolves.toEqual({ executed: true, value: "saved" });
+
+    await installAccountLocalDeletionFence("owner-a");
+    await expect(releaseAccountLocalDeletionIntent("owner-a")).resolves.toBe(false);
+    expect(asyncStore.get(KEY)).toBe("terminal");
   });
 });
