@@ -4,12 +4,11 @@ import path from "node:path";
 import { recordsToResearchGraph } from "../records-research";
 import type { GraphRecord } from "../records-graph";
 
-const rec = (id: string, tags: string[], summary = "", kind?: string): GraphRecord => ({
+const rec = (id: string, tags: string[], summary = ""): GraphRecord => ({
   id,
   topic: `topic-${id}`,
   summary,
   tags,
-  ...(kind === undefined ? {} : { kind }),
 });
 
 describe("recordsToResearchGraph", () => {
@@ -72,44 +71,6 @@ describe("recordsToResearchGraph", () => {
       rec("b", ["domain:health", "reading"]),
     ]);
     expect(edges).toHaveLength(1);
-  });
-
-  it("drops every app-written tag, not only domain: (QA 261004 D-07)", () => {
-    // /research showed chips "first_light · 11", "first_light:affirm · 11",
-    // "interview · 6" and the label "Knowledge about first_light".
-    const { pages, edges } = recordsToResearchGraph([
-      rec("a", ["domain:career", "first_light", "first_light:affirm"], "", "note"),
-      rec("b", ["domain:health", "first_light", "first_light:affirm"], "", "note"),
-      rec("c", ["domain:growth", "interview", "recall", "screener", "entry-ui:en", "reading"], "", "audit_response"),
-      rec("d", ["domain:recreation", "interview", "recall", "screener", "entry-ui:en"], "", "audit_response"),
-      // Call reflection's voice is the app's (gate SG-03).
-      rec("e", ["domain:relation", "call_reflection", "voice"], "", "note"),
-    ]);
-    expect(pages.flatMap((p) => p.tags ?? [])).toEqual(["reading", "call_reflection"]);
-    // Two records the app tagged the same way are not a discovered connection.
-    expect(edges).toEqual([]);
-  });
-
-  it("keeps a tag the user typed even when the app writes the same word (gate SG-01 / BL-01)", () => {
-    // Two journals about job interviews, an /audit answer the user tagged
-    // "Interview" in record detail, and notes whose first tag /dashboard's
-    // capture (/capture?tag=todo) or record detail may have written: the user
-    // chose these words, so they are chips and real shared connections.
-    const { pages, edges } = recordsToResearchGraph([
-      rec("a", ["domain:career", "Interview"], "", "journal"),
-      rec("b", ["domain:health", "Interview", "todo"], "", "journal"),
-      rec("c", ["domain:recreation", "voice", "todo"], "", "note"),
-      rec("d", ["domain:growth", "life_audit", "values", "Interview"], "", "audit_response"),
-      rec("e", ["domain:collect", "todo"], "", "note"),
-    ]);
-    expect(pages.map((p) => [p.id, p.tags])).toEqual([
-      ["a", ["Interview"]],
-      ["b", ["Interview", "todo"]],
-      ["c", ["voice", "todo"]],
-      ["d", ["life_audit", "values", "Interview"]],
-      ["e", ["todo"]],
-    ]);
-    expect(edges.map((e) => `${e.from_page}-${e.to_page}`).sort()).toEqual(["a-b", "a-d", "b-c", "b-d", "b-e", "c-e"]);
   });
 
   it("uses the record summary as the page body", () => {

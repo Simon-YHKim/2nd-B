@@ -19,7 +19,7 @@
 // than the consent-and-cost-gated kNN layer.
 
 import { buildRecordsGraph, type GraphRecord } from "./records-graph";
-import { stripSystemTags } from "../persona/domain-stars";
+import { stripDomainTags } from "../persona/domain-stars";
 import type { WikiPageRow } from "../wiki/types";
 
 /** Structural mirror of wiki-graph-view's WikiEdge (kept local to avoid a
@@ -73,11 +73,8 @@ export function recordsToResearchGraph(
     // save, not something the user chose, so leaving them in made "domain:career"
     // the top cluster chip on almost every account — crowding out the real shared
     // tags the clusters exist to surface. /records strips them for the same reason.
-    // The same holds for the other app-written tags (first_light, interview,
-    // entry-ui:*): they reached the chips and "Knowledge about first_light".
-    const tags = stripSystemTags(
+    const tags = stripDomainTags(
       (source?.tags ?? []).filter((t): t is string => typeof t === "string"),
-      { kind: source?.kind },
     );
     pages.push({
       id: node.id,

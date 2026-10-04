@@ -19,7 +19,7 @@ import {
   DOMAIN_TAG_PREFIX,
   getDomainStar,
   isDomainId,
-  stripSystemTags,
+  stripDomainTags,
   type DomainId,
 } from "../persona/domain-stars";
 
@@ -57,9 +57,6 @@ export interface GraphRecord {
   topic?: string | null;
   summary?: string | null;
   tags?: string[] | null;
-  /** records.kind. With the tags' order it lets stripSystemTags prove a tag is
-   *  the app's (a writer's exact array); unknown keeps every tag but domain:. */
-  kind?: string | null;
 }
 
 export interface GraphRoleCard {
@@ -132,14 +129,11 @@ export function buildRecordsGraph(
   ];
   const edges: RecordsGraphEdge[] = [];
 
-  // Annotate each record with its domain + user tags (system scaffolding such as
-  // domain:, interview, first_light stripped) once, so two records are never
-  // linked just because the app tagged both the same way. A word the user typed,
-  // even "interview" or "todo", stays a real shared topic.
+  // Annotate each record with its domain + user (non-domain) tags once.
   const annotated = records.map((r) => ({
     r,
     domain: recordDomain(r.tags),
-    tags: stripSystemTags(r.tags ?? [], { kind: r.kind }),
+    tags: stripDomainTags(r.tags ?? []),
   }));
 
   // Domain stars: keep DOMAIN_STARS order (Big Dipper). Only stars that carry a

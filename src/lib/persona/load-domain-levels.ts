@@ -10,7 +10,7 @@
 // domainConfidence / domainLevel / northStarBrightness do the deterministic math.
 
 import { getSupabaseClient } from "../supabase/client";
-import { isDomainId, provenUserTags, type DomainEntry, type DomainId } from "./domain-stars";
+import { isDomainId, type DomainEntry, type DomainId } from "./domain-stars";
 import { type LadderLevel } from "./brightness";
 import { domainStarLevels, northStarBrightness } from "./north-star";
 
@@ -25,11 +25,12 @@ const DOMAIN_TAG_PREFIX = "domain:";
 // `domain:` tag (and capture-mode markers) can't make a raw brain-dump look
 // curated — otherwise every record would read as "organized" and the §4.5 ②
 // L3/L4 downgrade for raw-heavy domains would never fire.
-// The rule lives in domain-stars.ts (tagSources) so the topic surfaces
-// (/discover, /research, /records graph) hide the same scaffolding. Only a
-// writer's exact array proves a tag is the app's (gate SG-01 / BL-01): a hashtag
-// the user typed, even "todo" or "interview", organizes its record, while a
-// note's first voice/todo tag (capture's mode, or the user's) stays raw.
+const SYSTEM_TAGS = new Set(["voice", "todo", "interview"]);
+
+function isSystemTag(tag: string): boolean {
+  const t = tag.toLowerCase();
+  return t.startsWith(DOMAIN_TAG_PREFIX) || SYSTEM_TAGS.has(t);
+}
 
 /** The DomainId encoded in a record's tags, or null if none / unknown slug. */
 function domainOf(tags: readonly string[]): DomainId | null {
@@ -45,7 +46,6 @@ function domainOf(tags: readonly string[]): DomainId | null {
 interface DomainRow {
   created_at?: string | null;
   tags?: string[] | null;
-  kind?: string | null;
 }
 
 // One structured manage-layer row (relation_people 0058 / recreation_items 0059).
@@ -72,7 +72,7 @@ async function fetchDomainLevels(userId: string): Promise<DomainBrightness> {
     await Promise.all([
       supabase
         .from("records")
-        .select("id, created_at, tags, kind")
+        .select("id, created_at, tags")
         .eq("user_id", userId)
         // Newest first: if PostgREST's max-rows cap truncates a heavy user's
         // history, keep the MOST RECENT records so the §4.5 ④ recency signal (a
@@ -128,7 +128,7 @@ async function fetchDomainLevels(userId: string): Promise<DomainBrightness> {
     // Records captured before the migration (no domain: tag) simply don't
     // count yet — an honest dark star, not a fabricated one.
     if (!domain) continue;
-    const userTags = provenUserTags(tags, { kind: row.kind });
+    const userTags = tags.filter((t) => !isSystemTag(t));
     (entriesByDomain[domain] ??= []).push({
       domain,
       createdAt: row.created_at ?? undefined,
