@@ -619,7 +619,7 @@ export function DeepSpacePrivacyDesignScreen() {
   const { t: consentT } = useTranslation("consent");
   const navigation = useNavigation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
-  const { userId, isMinor } = useAuth();
+  const { userId, isMinor, loading: authLoading } = useAuth();
   // AuthContext derives this from users.birth_date. Unknown age fails closed,
   // so Clarity/GA4 and ads cannot be enabled while the profile is resolving.
   const minor = isMinor !== false;
@@ -691,10 +691,10 @@ export function DeepSpacePrivacyDesignScreen() {
       receipt = await requestAccountDeletion(authExpectation);
     } catch {
       deleteInFlightRef.current = false;
-      if (privacyMountedRef.current && activeUserRef.current === targetUserId) {
-        setDelError(true);
-        setDeleting(false);
-      }
+      // Lift the fence whoever owns the screen now: a stuck `deleting` exempts a signed-out visitor from the guard below.
+      if (privacyMountedRef.current) setDeleting(false);
+      // Only the account that asked sees its failure.
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setDelError(true);
       return;
     }
 
@@ -1044,6 +1044,17 @@ export function DeepSpacePrivacyDesignScreen() {
       if (privacyMountedRef.current && activeUserRef.current === targetUserId) setBusy(false);
     }
   }
+
+  // Signed out, this screen used to draw the settings and wait forever on a
+  // birth date that never arrives; the redirect lived only in the legacy half.
+  // Every owner change, the deletion's own A -> null included, remounts this
+  // scene (AccountScope in _layout.tsx keys it by account epoch), so no state
+  // or ref reaches the next owner. `deleting` fences this instance only: a
+  // loading flip mid-deletion must not swap the flow out for the loader.
+  if (authLoading && !deleting) {
+    return <Shell title={t("privacy.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId && !deleting) return <Redirect href="/sign-in" />;
 
   return (
     <Shell title={t("privacy.title")}>

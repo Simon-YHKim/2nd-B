@@ -5,14 +5,14 @@ shards/ and tier-icons/ are promoted premium cue assets copied from the refine p
 
 - archi_premium_idle.png / 128x128 / transparent=True / 01_character_sheet_premium.png; extracted/recomposited transparent idle sprite; accent glow preserved
 - archi_premium_walk_strip_6f.png / 768x128 / transparent=True / 01_character_sheet_premium.png; 6-frame sprite strip derived from premium idle; transparent
-- auth_secondb_gate_hero_clean.png / 768x360 / transparent=True / 08_onboarding_premium.png + 04_core_brain_premium.png; SecondB + core; transparent; no baked rectangle
-- core_center_premium_clean.png / 512x512 / transparent=True / 04_core_brain_premium.png + 02_main_graph_premium.png; accent soul-violet #A78BFA; transparent; no cyan/square frame
-- domain_imagine_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif imagine; accent #FF9FD6; transparent island sprite
-- domain_inspiration_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif inspiration; accent #FFD166; transparent island sprite
-- domain_knowledge_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif knowledge; accent #72F2C7; transparent island sprite
-- domain_records_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif records; accent #FFD166; transparent island sprite
-- domain_relationship_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif relationship; accent #FF7A90; transparent island sprite
-- domain_work_growth_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif work; accent #4CC9F0; transparent island sprite
+- auth_secondb_gate_hero_clean.png / 768x360 / transparent=True / 08_onboarding_premium.png + 04_core_brain_premium.png; SecondB + core; transparent; no baked rectangle  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
+- core_center_premium_clean.png / 512x512 / transparent=True / 04_core_brain_premium.png + 02_main_graph_premium.png; accent soul-violet #A78BFA; transparent; no cyan/square frame  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
+- domain_imagine_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif imagine; accent #FF9FD6; transparent island sprite  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
+- domain_inspiration_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif inspiration; accent #FFD166; transparent island sprite  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
+- domain_knowledge_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif knowledge; accent #72F2C7; transparent island sprite  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
+- domain_records_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif records; accent #FFD166; transparent island sprite  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
+- domain_relationship_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif relationship; accent #FF7A90; transparent island sprite  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
+- domain_work_growth_premium.png / 512x512 / transparent=True / 02_main_graph_premium.png; domain motif work; accent #4CC9F0; transparent island sprite  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
 - gadi_premium_idle.png / 128x128 / transparent=True / 01_character_sheet_premium.png; extracted/recomposited transparent idle sprite; accent glow preserved
 - gadi_premium_walk_strip_6f.png / 768x128 / transparent=True / 01_character_sheet_premium.png; 6-frame sprite strip derived from premium idle; transparent
 - lulu_premium_idle.png / 128x128 / transparent=True / 01_character_sheet_premium.png; extracted/recomposited transparent idle sprite; accent glow preserved
@@ -23,8 +23,8 @@ shards/ and tier-icons/ are promoted premium cue assets copied from the refine p
 - momo_premium_walk_strip_6f.png / 768x128 / transparent=True / 01_character_sheet_premium.png; 6-frame sprite strip derived from premium idle; transparent
 - secondb_premium_idle.png / 128x128 / transparent=True / 01_character_sheet_premium.png; extracted/recomposited transparent idle sprite; accent glow preserved
 - secondb_premium_walk_strip_6f.png / 768x128 / transparent=True / 01_character_sheet_premium.png; 6-frame sprite strip derived from premium idle; transparent
-- vela_premium_idle.png / 128x128 / transparent=True / 01_character_sheet_premium.png; extracted/recomposited transparent idle sprite; accent glow preserved
-- vela_premium_walk_strip_6f.png / 768x128 / transparent=True / 01_character_sheet_premium.png; 6-frame sprite strip derived from premium idle; transparent
+- vela_premium_idle.png / 128x128 / transparent=True / 01_character_sheet_premium.png; extracted/recomposited transparent idle sprite; accent glow preserved  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
+- vela_premium_walk_strip_6f.png / 768x128 / transparent=True / 01_character_sheet_premium.png; 6-frame sprite strip derived from premium idle; transparent  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
 - wiki_card_thumb_core_brain_premium.png / 256x256 / transparent=True / 07_wiki_records_premium.png style; optional wiki card thumbnail; transparent
 - wiki_card_thumb_imagine_premium.png / 256x256 / transparent=True / 07_wiki_records_premium.png style; optional wiki card thumbnail; transparent
 - wiki_card_thumb_library_premium.png / 256x256 / transparent=True / 07_wiki_records_premium.png style; optional wiki card thumbnail; transparent

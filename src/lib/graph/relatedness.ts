@@ -3,7 +3,7 @@
 // that matches its meaning AND draw connections between pieces that are
 // actually related — not just hang everything under one fixed node.
 //
-// Two pure functions, both unit-tested so NavGraph/index stay thin:
+// Two pure functions, both unit-tested so the screens using them stay thin:
 //   1. domainForTags  — route a piece's tags to one of the five Pattern Cores.
 //   2. relatedEdges   — connect pieces that share enough tags.
 //
@@ -11,7 +11,7 @@
 
 import { stripDomainTags } from "../persona/domain-stars";
 
-// The tier-2 Pattern Cores (NavGraph MENU_NODES tier-2 ids). The former
+// The tier-2 Pattern Cores (ids of the old NavGraph, now E:/Legacy). The former
 // "imagine" district was removed in worldview v-final (imagine → SecondB Divergent
 // mode); its keywords fold into `taste` (Muse Core). Internal ids unchanged.
 // `rhythm` (O-R3 assistant ops axis) is appended LAST on purpose: VILLAGE_IDS
@@ -27,7 +27,7 @@ export const VILLAGE_IDS: readonly VillageId[] = [
   "rhythm",
 ];
 
-/** Canonical user-facing village names (kept in step with NavGraph's tier-2
+/** Canonical user-facing village names (were in step with NavGraph's tier-2
  *  node labels). Single source for any surface that filters by village — e.g.
  *  the Records domain chips — so the wording can't drift from the graph. */
 export const VILLAGE_LABEL: Record<VillageId, { en: string; ko: string }> = {
