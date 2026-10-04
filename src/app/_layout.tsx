@@ -46,6 +46,7 @@ import { hydrateAnalyticsConsent } from "@/lib/analytics/auth-conversions";
 import { profileRouteHold } from "@/lib/auth/profile-probe";
 import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
+import { configureEffectsAudioSession } from "@/lib/audio/audio-session";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { AvatarSetupGate, AvatarSetupSceneGuard } from "@/components/avatar/AvatarSetupGate";
@@ -105,6 +106,10 @@ export { ErrorBoundary } from "@/components/ui/RootErrorBoundary";
 void armWebRecoveryPendingFromLocation().catch(() => undefined);
 initI18n();
 void initAnalytics();
+// Sound effects must not take audio focus from other apps' music (QA 261004 D-02). This runs at
+// module scope so the mode is sent before RootLayout mounts LoadingScreen and its opening players.
+// Native only: the .web module is an empty function. audio-session.test.ts holds the placement.
+void configureEffectsAudioSession();
 
 // ⚠ #1517 은 여기서 네이티브 크래시 리포팅 SDK 초기화를 켰다. 되살리지 않는다 —
 // main 이 `964db854 fix(analytics): hard-disable Sentry runtimes (#1586)` 로 껐다.
