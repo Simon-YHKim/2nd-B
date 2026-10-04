@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Redirect } from "expo-router";
+import { Redirect, useNavigation } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { PremiumAppShell, PremiumButton, PremiumCard, SceneHero, PremiumToast } from "@/components/premium";
@@ -45,6 +45,12 @@ function EsmCheckInScreen() {
     return () => clearTimeout(h);
   }, [toast]);
 
+  // 저장 중 홈 막기는 이 화면이 포커스된 동안만이다. 사라지면(뒤로 · 폰 안 뒤로) 남은
+  // 저장은 더 이상 다른 화면의 홈 이동을 막지 않는다(게이트 NAV-S6-01).
+  const navigation = useNavigation();
+  const endSaveRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => endSaveRef.current?.(), []);
+
   if (authLoading) {
     return (
       <EsmShell>
@@ -73,7 +79,8 @@ function EsmCheckInScreen() {
     setSaving(true);
     // 응답을 기다리는 동안 goHome(독 · 이 화면의 홈)은 이 칸을 걷어내지 않는다.
     // 실패 안내와 고른 값이 사라진 칸으로 가지 않게 한다(게이트 NAV-R3-01).
-    const endSave = beginSaveInFlight();
+    const endSave = beginSaveInFlight(() => navigation.isFocused());
+    endSaveRef.current = endSave;
     let error: unknown = null;
     try {
       const supabase = getSupabaseClient();

@@ -48,9 +48,11 @@
 //
 // ## 저장이 응답을 기다리는 동안 (게이트 NAV-R3-01)
 //
-// 저장 중 수(`./save-in-flight`)가 0 보다 크면 goHome 은 아무것도 하지 않는다.
-// 걷어낸 칸으로 실패 안내가 가지 않게 하려는 것이다. 수는 마지막으로 올린 뒤
-// 20초가 지나면 저절로 0 이 되므로 영구히 막히지 않는다.
+// 지금 포커스된 화면의 저장이 응답을 기다리면(`./save-in-flight`) goHome 은 아무것도
+// 하지 않는다. 걷어낸 칸으로 실패 안내가 가지 않게 하려는 것이다. 이미 떠난 화면의
+// 저장은 막지 않는다 - 다른 화면의 RedirectHome 이 한 번 부른 goHome 을 삼키면 빈
+// 화면이 남는다(게이트 NAV-S6-01). 명단은 마지막으로 올린 뒤 20초가 지나면 저절로
+// 비므로 영구히 막히지 않는다.
 import { useCallback, useEffect, useRef } from "react";
 import { router, useFocusEffect, useNavigationContainerRef, useRoute, type Href } from "expo-router";
 
@@ -221,8 +223,8 @@ function readRootState(ref: ContainerRef): GoHomeNavState | undefined {
 // ── 홈으로 ─────────────────────────────────────────────────────────────────
 
 /** 스택 아래의 홈으로 돌아간다. 홈이 없으면 지금 칸을 홈으로 바꾼다. 사이에
- *  지금 막는 화면이 있으면 그 화면까지만 돌아간다. 저장이 응답을 기다리는
- *  동안에는 아무것도 하지 않는다. */
+ *  지금 막는 화면이 있으면 그 화면까지만 돌아간다. 지금 보이는 화면의 저장이
+ *  응답을 기다리는 동안에는 아무것도 하지 않는다. */
 export function goHome(): void {
   if (isSaveInFlight()) return;
   const ref = containerRef;

@@ -9,7 +9,7 @@
 // (src/app/(auth)/sign-in.tsx); the only addition is facebook/github in the
 // provider set (same signInWithProvider path as google).
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useFocusEffect } from "expo-router";
@@ -89,6 +89,15 @@ export function useSignInForm(): UseSignInForm {
   // A provider whose OAuth start failed with a "not configured" error is hidden
   // for the rest of the session so the user is not left tapping a dead button.
   const [hiddenProviders, setHiddenProviders] = useState<Set<string>>(new Set());
+  // While the email request is out, hardware Back does nothing (PR #2044 gate
+  // NAV-R3-01, sign-in form). goHome is POP_TO: it removed this route and the
+  // failure toast went to a screen that was gone; push("/") used to leave the
+  // form below. Only the Back handler reads this - goHome and <RedirectHome />
+  // after a success are never held. Set before the first await, cleared in
+  // finally and when the long-wait notice shows (that notice tells the user to
+  // reopen this screen), so a request that never answers holds Back for
+  // SIGN_IN_LONG_WAIT_MS at most.
+  const backHeldRef = useRef(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -103,7 +112,10 @@ export function useSignInForm(): UseSignInForm {
     }
     // Keep the original auth operation and the screen's action lock alive. A
     // late SDK writer may still persist a session, so this is guidance only.
-    const timer = setTimeout(() => setSignInTakingLong(true), SIGN_IN_LONG_WAIT_MS);
+    const timer = setTimeout(() => {
+      backHeldRef.current = false;
+      setSignInTakingLong(true);
+    }, SIGN_IN_LONG_WAIT_MS);
     return () => clearTimeout(timer);
   }, [submitting]);
 
@@ -116,7 +128,7 @@ export function useSignInForm(): UseSignInForm {
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        goHome();
+        if (!backHeldRef.current) goHome();
         return true;
       };
       const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
@@ -179,6 +191,7 @@ export function useSignInForm(): UseSignInForm {
 
   const handleSubmit = useCallback(async () => {
     setSubmitting(true);
+    backHeldRef.current = true;
     const progress = Platform.OS === "web"
       ? createSignInProgress((stage, elapsedMs) => {
           if (typeof console !== "undefined") {
@@ -207,6 +220,7 @@ export function useSignInForm(): UseSignInForm {
       });
       if (typeof console !== "undefined") console.warn("[auth] signIn error", (e as Error).message);
     } finally {
+      backHeldRef.current = false;
       progress?.finish();
       setSubmitting(false);
     }
