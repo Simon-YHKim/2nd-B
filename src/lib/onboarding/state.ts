@@ -23,10 +23,18 @@
 //      device-wide key, so an existing account cannot take a fresh device
 //      completion as its own first day (BL-01).
 //
+// Step 3 runs in one queue for all owners (BL-03): the device-wide key is read,
+// stored under the owner and removed there, so two owners resolving at once
+// cannot both take it, and a read whose screens moved to another account
+// leaves it alone. It is removed only after the owner's own key is confirmed
+// stored (R2-01): a write that failed or that the deletion fence refused
+// leaves it for the next launch.
+//
 // The owner key is account data: purgeOnboardingForDeletedAccount() removes it on
 // terminal deletion (src/lib/account/local-purge.ts), and once the deletion fence
 // is up nothing for that owner is written again, including by a read that was
-// already in flight (BL-02).
+// already in flight (BL-02). A write the fence refuses also takes back the
+// owner's in-memory answer.
 
 import { useEffect, useState } from "react";
 
@@ -43,6 +51,10 @@ export const ONBOARDING_OWNER_KEY = (ownerId: string) => `onboarding.v3.${ownerI
 /** Stored instead of a timestamp when completion is inferred from existing rows. */
 export const ONBOARDING_FROM_RECORDS = "inferred:existing-records";
 export const FIRST_STAR_CHAT_KEY = "onboarding.firstStarChat.v1.nudgedAt";
+/** Earlier builds' device-wide /ttfv "seen" flag. It moves with ONBOARDING_KEY
+ *  (claimDeviceTTFVSeen below); ttfv-gate.ts reads only the owner's key. */
+export const TTFV_SEEN_DEVICE_KEY = "onboarding.ttfv.v1.seenAt";
+export const TTFV_SEEN_OWNER_KEY = (ownerId: string) => `onboarding.ttfv.v2.${ownerId}.seenAt`;
 
 interface AsyncStorageLike {
   getItem(key: string): Promise<string | null>;
@@ -121,35 +133,100 @@ function persist(key: string, value: string): void {
   if (storage) void storage.setItem(key, value).catch((e) => warn("persist", e));
 }
 
-function forget(key: string): void {
+async function forget(key: string): Promise<void> {
   try {
     ls()?.removeItem(key);
   } catch (error) {
     warn("remove", error);
   }
   const storage = nativeStorage();
-  if (storage?.removeItem) void storage.removeItem(key).catch((e) => warn("remove", e));
+  if (storage?.removeItem) await storage.removeItem(key).catch((e) => warn("remove", e));
 }
 
-async function persistOwner(key: string, value: string): Promise<void> {
+/** true only when every store present holds the value afterwards. */
+async function persistOwner(key: string, value: string): Promise<boolean> {
+  const web = ls();
+  const storage = nativeStorage();
+  if (!web && !storage) return false;
   try {
-    ls()?.setItem(key, value);
+    if (web) {
+      web.setItem(key, value);
+      if (web.getItem(key) !== value) return false;
+    }
+    if (storage) await storage.setItem(key, value);
+    return true;
   } catch (error) {
     warn("persist", error);
+    return false;
   }
-  const storage = nativeStorage();
-  if (storage) await storage.setItem(key, value).catch((e) => warn("persist", e));
 }
 
-/** false = the owner's deletion fence is up, so nothing was recorded (BL-02). */
-function recordOwner(ownerId: string, value: string): boolean {
-  if (isAccountLocalDeletionFencedInMemory(ownerId)) return false;
-  memoryOwner.set(ownerId, value);
-  sessionOnly.delete(ownerId);
+/**
+ * saved  = the owner key is stored (memory holds it too)
+ * failed = not stored, the account is not known to be deleted (storage or the
+ *          fence read failed)
+ * fenced = the owner's deletion fence refused the write, or went up while it ran
+ */
+type OwnerRecord = "saved" | "failed" | "fenced";
+
+/**
+ * Store one owner's completion, serialised with account deletion. The result is
+ * the write's, not a guess (R2-01 / BL-02): a write refused by a durable fence
+ * this runtime had not seen (another tab, a read that was in flight) reports
+ * "fenced" and takes back any in-memory answer for the owner.
+ *
+ * optimistic: put the value in memory before the write lands (the carousel
+ * finish, which routes home synchronously). Otherwise memory follows a saved
+ * write only.
+ */
+async function recordOwner(ownerId: string, value: string, optimistic: boolean): Promise<OwnerRecord> {
+  if (isAccountLocalDeletionFencedInMemory(ownerId)) return "fenced";
+  if (optimistic) {
+    memoryOwner.set(ownerId, value);
+    sessionOnly.delete(ownerId);
+  }
   const key = ONBOARDING_OWNER_KEY(ownerId);
-  // Serialised with account deletion: a write that would land after the durable
-  // fence (another tab, or a read that was in flight) is dropped, not resurrected.
-  void runAccountLocalMutation(ownerId, () => persistOwner(key, value)).catch((e) => warn("persist", e));
+  let outcome: OwnerRecord;
+  try {
+    const result = await runAccountLocalMutation(ownerId, () => persistOwner(key, value));
+    outcome = result.executed && result.value ? "saved" : "failed";
+  } catch (error) {
+    warn("persist", error);
+    outcome = "failed";
+  }
+  // runAccountLocalMutation() raises the memory fence when it finds the durable
+  // marker, and installAccountLocalDeletionFence() raises it before waiting for
+  // this write, so this one check covers both "refused" and "deleted meanwhile".
+  if (isAccountLocalDeletionFencedInMemory(ownerId)) {
+    memoryOwner.delete(ownerId);
+    sessionOnly.delete(ownerId);
+    return "fenced";
+  }
+  if (outcome === "saved" && !optimistic) {
+    memoryOwner.set(ownerId, value);
+    sessionOnly.delete(ownerId);
+  }
+  return outcome;
+}
+
+// One device-wide completion, one owner (BL-03): every read-claim-remove of the
+// device-wide key runs in this queue, for all owners, so two owners resolving at
+// once (an account switch while the first read is still out) cannot both read
+// it before either has removed it.
+let deviceClaimTail: Promise<void> = Promise.resolve();
+
+function withDeviceClaim<T>(operation: () => Promise<T>): Promise<T> {
+  const result = deviceClaimTail.then(operation);
+  deviceClaimTail = result.then(() => undefined, () => undefined);
+  return result;
+}
+
+/** Remove the device-wide key only if it still holds the value that was claimed. */
+async function forgetDeviceKey(claimed: string): Promise<boolean> {
+  if ((await storedValue(ONBOARDING_KEY)) !== claimed) return false;
+  await forget(ONBOARDING_KEY);
+  memoryComplete = false;
+  memoryHydrated = true;
   return true;
 }
 
@@ -186,7 +263,7 @@ export function onboardingCompletedAt(ownerId: string | null): string | null {
   return memoryOwner.get(ownerId) ?? null;
 }
 
-async function resolveOwner(ownerId: string): Promise<boolean> {
+async function resolveOwner(ownerId: string, wanted: () => boolean): Promise<boolean> {
   const stored = await storedValue(ONBOARDING_OWNER_KEY(ownerId));
   if (stored) {
     if (!isAccountLocalDeletionFencedInMemory(ownerId)) memoryOwner.set(ownerId, stored);
@@ -208,35 +285,99 @@ async function resolveOwner(ownerId: string): Promise<boolean> {
     sessionOnly.add(ownerId);
     return true;
   }
+  const rowsFound = hasRows;
+  return withDeviceClaim(() => settleOwner(ownerId, rowsFound, wanted));
+}
+
+/**
+ * Runs inside the device-claim queue. The device-wide key is read here, not
+ * before, so an owner settled earlier in the queue has already taken it.
+ * It is removed only after this owner's own key is stored (R2-01 / BL-02): a
+ * refused or failed write leaves it for the next launch, and the owner counts
+ * as onboarded for this session only.
+ */
+async function settleOwner(ownerId: string, hasRows: boolean, wanted: () => boolean): Promise<boolean> {
+  if (isAccountLocalDeletionFencedInMemory(ownerId)) return true;
   const device = await storedValue(ONBOARDING_KEY);
 
-  if (hasRows === true) {
+  if (hasRows) {
     // This device's old completion now belongs to an account with data; do not
-    // leave it for a later account to inherit.
-    if (recordOwner(ownerId, ONBOARDING_FROM_RECORDS) && device) forget(ONBOARDING_KEY);
+    // leave it for a later account to inherit. A lookup the screens have dropped
+    // (account switch) leaves it for the account now on screen. Asked before the
+    // write: the stored owner key itself settles the screens' own answer and ends
+    // their wait, which must not read as "dropped".
+    const discard = !!device && wanted();
+    const outcome = await recordOwner(ownerId, ONBOARDING_FROM_RECORDS, false);
+    if (outcome === "failed") sessionOnly.add(ownerId);
+    if (outcome === "saved" && discard && device && (await forgetDeviceKey(device))) {
+      await forget(TTFV_SEEN_DEVICE_KEY);
+    }
     return true;
   }
-  if (device) {
-    if (!recordOwner(ownerId, device)) return true;
-    forget(ONBOARDING_KEY);
-    memoryComplete = false;
-    memoryHydrated = true;
+  if (!device) return false;
+  // A lookup the screens have dropped (account switch, BL-03) does not take the
+  // device's completion: it is left for the account now on screen.
+  if (!wanted()) return false;
+  const outcome = await recordOwner(ownerId, device, false);
+  if (outcome === "fenced") return true;
+  if (outcome === "failed") {
+    sessionOnly.add(ownerId);
     return true;
   }
-  return false;
+  await claimDeviceTTFVSeen(ownerId);
+  await forgetDeviceKey(device);
+  return true;
 }
+
+/**
+ * The device-wide /ttfv "seen" flag of earlier builds goes with the device-wide
+ * completion it belonged to (R2-03): to the account that claims it, and away
+ * with it when an account with rows discards it. It is never read as any
+ * account's own. Removed only once the owner's copy is stored.
+ */
+async function claimDeviceTTFVSeen(ownerId: string): Promise<void> {
+  const seen = await storedValue(TTFV_SEEN_DEVICE_KEY);
+  if (!seen) return;
+  const moved = await runAccountLocalMutation(ownerId, () => persistOwner(TTFV_SEEN_OWNER_KEY(ownerId), seen)).catch(
+    (error: unknown) => {
+      warn("persist", error);
+      return { executed: false } as const;
+    },
+  );
+  if (moved.executed && moved.value) await forget(TTFV_SEEN_DEVICE_KEY);
+}
+
+// Callers still waiting on an owner's in-flight read. A screen that moved to
+// another account (or unmounted) reports false, and when no caller is left the
+// read records what it found about its owner but leaves the device-wide key
+// alone (BL-03).
+const interest = new Map<string, Set<() => boolean>>();
+const ALWAYS_WANTED = () => true;
 
 /**
  * Has this account been onboarded? Reads the owner's key, then (only when there is
  * none) the server and the old device-wide key, in the order the header gives.
  * Concurrent callers for one owner share one read.
+ *
+ * stillWanted: the hook passes "my effect is not cancelled"; a direct caller
+ * omits it and always counts.
  */
-export function resolveOnboardingComplete(ownerId: string): Promise<boolean> {
+export function resolveOnboardingComplete(ownerId: string, stillWanted: () => boolean = ALWAYS_WANTED): Promise<boolean> {
   const sync = isOnboardingComplete(ownerId);
   if (sync !== null) return Promise.resolve(sync);
+  let callers = interest.get(ownerId);
+  if (!callers) {
+    callers = new Set();
+    interest.set(ownerId, callers);
+  }
+  callers.add(stillWanted);
   const pending = inflight.get(ownerId);
   if (pending) return pending;
-  const next = resolveOwner(ownerId).finally(() => inflight.delete(ownerId));
+  const waiting = callers;
+  const next = resolveOwner(ownerId, () => [...waiting].some((isWanted) => isWanted())).finally(() => {
+    inflight.delete(ownerId);
+    if (interest.get(ownerId) === waiting) interest.delete(ownerId);
+  });
   inflight.set(ownerId, next);
   return next;
 }
@@ -249,7 +390,10 @@ export function resolveOnboardingComplete(ownerId: string): Promise<boolean> {
 export function markOnboardingComplete(ownerId: string | null = null): void {
   const completedAt = new Date().toISOString();
   if (ownerId) {
-    recordOwner(ownerId, completedAt);
+    // Memory first: the caller routes home in the same tick. A write the deletion
+    // fence refuses takes it back (recordOwner); a plain storage failure keeps it
+    // for this session, as before.
+    void recordOwner(ownerId, completedAt, true);
     return;
   }
   memoryComplete = true;
@@ -381,8 +525,10 @@ export function useOnboardingComplete(ownerId: string | null): boolean | null {
     if (sync !== null) return;
     if (resolved && resolved.ownerId === ownerId) return;
     let cancelled = false;
+    // Cancelled (account switch, unmount): the read goes on, but no longer asks
+    // for the device-wide completion on this screen's behalf (BL-03).
     const read = ownerId
-      ? resolveOnboardingComplete(ownerId).catch(() => true)
+      ? resolveOnboardingComplete(ownerId, () => !cancelled).catch(() => true)
       : hydrateDeviceFlag().catch(() => false);
     void read.then((complete) => {
       if (!cancelled) setResolved({ ownerId, complete });
@@ -403,4 +549,6 @@ export function __resetOnboardingStateForTests(): void {
   memoryOwner.clear();
   sessionOnly.clear();
   inflight.clear();
+  interest.clear();
+  deviceClaimTail = Promise.resolve();
 }

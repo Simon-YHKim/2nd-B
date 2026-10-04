@@ -16,7 +16,7 @@ jest.mock("react", () => ({
   useState: jest.fn(),
 }));
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   __resetAccountLocalDeletionFencesForTests,
   installAccountLocalDeletionFence,
@@ -31,10 +31,19 @@ import {
   onboardingCompletedAt,
   purgeOnboardingForDeletedAccount,
   resolveOnboardingComplete,
+  useOnboardingComplete,
 } from "../state";
-import { __resetTTFVGateForTests, useAutoTriggerTTFV } from "../ttfv-gate";
+import {
+  __resetTTFVGateForTests,
+  markTTFVSeen,
+  purgeTTFVSeenForDeletedAccount,
+  TTFV_SEEN_KEY,
+  TTFV_SEEN_OWNER_KEY,
+  useAutoTriggerTTFV,
+} from "../ttfv-gate";
 
 const A = "aaaaaaaa-0000-4000-8000-000000000001";
+const ISO = new RegExp("^[0-9]{4}-[0-9]{2}-[0-9]{2}T");
 const B = "bbbbbbbb-0000-4000-8000-000000000002";
 
 type Rows = { records: number; sources: number } | "error";
@@ -78,9 +87,21 @@ beforeEach(() => {
   reads = 0;
   serverGate = null;
   mockGetSupabaseClient.mockReset().mockImplementation(supabaseFor);
+  (useEffect as jest.Mock).mockReset();
+  (useState as jest.Mock).mockReset();
   jest.spyOn(console, "warn").mockImplementation(() => undefined);
 });
 afterEach(() => jest.restoreAllMocks());
+
+function hold(): () => void {
+  let release!: () => void;
+  serverGate = new Promise<void>((resolve) => { release = resolve; });
+  return release;
+}
+
+function flush(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
 
 describe("onboarding completion is per account (W-12)", () => {
   test("an existing account on an empty browser is onboarded, from its rows, without the carousel", async () => {
@@ -153,6 +174,94 @@ describe("onboarding completion is per account (W-12)", () => {
     await expect(resolveOnboardingComplete(B)).resolves.toBe(false);
   });
 
+  test("a lookup its screens dropped (account switch) leaves the device-wide key to the next account (BL-03)", async () => {
+    store[ONBOARDING_KEY] = "2026-10-01T09:00:00.000Z";
+    await expect(resolveOnboardingComplete(A, () => false)).resolves.toBe(false);
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBeUndefined();
+    expect(store[ONBOARDING_KEY]).toBe("2026-10-01T09:00:00.000Z");
+    await expect(resolveOnboardingComplete(B)).resolves.toBe(true);
+    expect(store[ONBOARDING_OWNER_KEY(B)]).toBe("2026-10-01T09:00:00.000Z");
+    expect(store[ONBOARDING_KEY]).toBeUndefined();
+  });
+
+  test("one caller still on screen is enough for a shared read to claim (BL-03)", async () => {
+    store[ONBOARDING_KEY] = "2026-10-01T09:00:00.000Z";
+    const release = hold();
+    const dropped = resolveOnboardingComplete(A, () => false);
+    const live = resolveOnboardingComplete(A, () => true);
+    release();
+    await expect(Promise.all([dropped, live])).resolves.toEqual([true, true]);
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBe("2026-10-01T09:00:00.000Z");
+  });
+
+  test("the hook's read stops asking for the device-wide key once its effect is cleaned up (BL-03)", async () => {
+    // Account switch while A's read is out: the hook's effect cleanup runs, the
+    // read itself goes on, and it must not take the device's completion.
+    store[ONBOARDING_KEY] = "2026-10-01T09:00:00.000Z";
+    const release = hold();
+    let effect: (() => void | (() => void)) | undefined;
+    (useEffect as jest.Mock).mockImplementation((fn: () => void | (() => void)) => { effect = fn; });
+    (useState as jest.Mock).mockImplementation((init: unknown) => [
+      typeof init === "function" ? (init as () => unknown)() : init,
+      jest.fn(),
+    ]);
+    expect(useOnboardingComplete(A)).toBeNull();
+    const cleanup = effect?.();
+    expect(typeof cleanup).toBe("function");
+    (cleanup as () => void)();
+    release();
+    for (let i = 0; i < 10; i += 1) await flush();
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBeUndefined();
+    expect(store[ONBOARDING_KEY]).toBe("2026-10-01T09:00:00.000Z");
+    // The account now on screen takes it.
+    await expect(resolveOnboardingComplete(B)).resolves.toBe(true);
+    expect(store[ONBOARDING_OWNER_KEY(B)]).toBe("2026-10-01T09:00:00.000Z");
+  });
+
+  test("the same hook, never cleaned up, claims it (BL-03 control)", async () => {
+    store[ONBOARDING_KEY] = "2026-10-01T09:00:00.000Z";
+    let effect: (() => void | (() => void)) | undefined;
+    (useEffect as jest.Mock).mockImplementation((fn: () => void | (() => void)) => { effect = fn; });
+    (useState as jest.Mock).mockImplementation((init: unknown) => [
+      typeof init === "function" ? (init as () => unknown)() : init,
+      jest.fn(),
+    ]);
+    useOnboardingComplete(A);
+    effect?.();
+    for (let i = 0; i < 10; i += 1) await flush();
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBe("2026-10-01T09:00:00.000Z");
+  });
+
+  test("the owner key settling the screen's own answer is not read as a dropped lookup (BL-03)", async () => {
+    // On web the stored owner key flips the hook's synchronous answer, which
+    // cleans up its effect. That happens after the decision, so the account with
+    // rows still discards the device-wide key.
+    store[ONBOARDING_KEY] = "2026-10-01T09:00:00.000Z";
+    rows[A] = { records: 1, sources: 0 };
+    await expect(resolveOnboardingComplete(A, () => store[ONBOARDING_OWNER_KEY(A)] === undefined)).resolves.toBe(true);
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBe(ONBOARDING_FROM_RECORDS);
+    expect(store[ONBOARDING_KEY]).toBeUndefined();
+  });
+
+  test("a dropped lookup with rows records its owner but does not discard the device-wide key (BL-03)", async () => {
+    store[ONBOARDING_KEY] = "2026-10-01T09:00:00.000Z";
+    rows[A] = { records: 1, sources: 0 };
+    await expect(resolveOnboardingComplete(A, () => false)).resolves.toBe(true);
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBe(ONBOARDING_FROM_RECORDS);
+    expect(store[ONBOARDING_KEY]).toBe("2026-10-01T09:00:00.000Z");
+  });
+
+  test("two owners resolving at once on web: only one takes the device-wide key (BL-03)", async () => {
+    store[ONBOARDING_KEY] = "2026-10-01T09:00:00.000Z";
+    const release = hold();
+    const both = Promise.all([resolveOnboardingComplete(A), resolveOnboardingComplete(B)]);
+    release();
+    const results = await both;
+    const holders = [A, B].filter((o) => store[ONBOARDING_OWNER_KEY(o)] === "2026-10-01T09:00:00.000Z");
+    expect(holders).toHaveLength(1);
+    expect(results.filter(Boolean)).toHaveLength(1);
+  });
+
   test("an account with rows consumes the old device-wide key instead of leaving it", async () => {
     store[ONBOARDING_KEY] = "2026-10-01T09:00:00.000Z";
     rows[A] = { records: 2, sources: 0 };
@@ -207,6 +316,65 @@ describe("the first-day /ttfv screen follows the account, not the device (W-12)"
   test("undecided until onboarding has resolved for the signed-in owner", () => {
     expect(ttfv(A, null)).toBeNull();
     expect(ttfv(null, true)).toBeNull();
+  });
+
+  test("account A having seen /ttfv does not spend account B's first day (R2-03)", () => {
+    markOnboardingComplete(A);
+    markTTFVSeen(A);
+    expect(ttfv(A, true)).toBe(false);
+    markOnboardingComplete(B);
+    expect(ttfv(B, true)).toBe(true);
+  });
+
+  test("the seen flag is stored under the owner, never the old device-wide key (R2-03)", async () => {
+    markTTFVSeen(A);
+    await flush();
+    expect(store[TTFV_SEEN_OWNER_KEY(A)]).toMatch(ISO);
+    expect(store[TTFV_SEEN_KEY]).toBeUndefined();
+    // A later launch reads it back from storage.
+    __resetTTFVGateForTests();
+    markOnboardingComplete(A);
+    expect(ttfv(A, true)).toBe(false);
+  });
+
+  test("an old device-wide seen flag is nobody's own (R2-03)", () => {
+    store[TTFV_SEEN_KEY] = "2026-10-01T09:30:00.000Z";
+    markOnboardingComplete(A);
+    expect(ttfv(A, true)).toBe(true);
+  });
+
+  test("the old device-wide seen flag moves with the device completion it belonged to (R2-03)", async () => {
+    const fresh = new Date(Date.now() - 60_000).toISOString();
+    store[ONBOARDING_KEY] = fresh;
+    store[TTFV_SEEN_KEY] = new Date(Date.now() - 30_000).toISOString();
+    await expect(resolveOnboardingComplete(A)).resolves.toBe(true);
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBe(fresh);
+    expect(store[TTFV_SEEN_OWNER_KEY(A)]).toMatch(ISO);
+    expect(store[TTFV_SEEN_KEY]).toBeUndefined();
+    expect(ttfv(A, true)).toBe(false); // already seen on the earlier build
+  });
+
+  test("an account with rows discards the old seen flag along with the device completion (R2-03)", async () => {
+    store[ONBOARDING_KEY] = "2026-10-01T09:00:00.000Z";
+    store[TTFV_SEEN_KEY] = "2026-10-01T09:30:00.000Z";
+    rows[A] = { records: 1, sources: 0 };
+    await resolveOnboardingComplete(A);
+    expect(store[TTFV_SEEN_KEY]).toBeUndefined();
+    expect(store[TTFV_SEEN_OWNER_KEY(A)]).toBeUndefined();
+  });
+
+  test("a deleted account's seen flag is purged, and not written after the fence (R2-03)", async () => {
+    markTTFVSeen(A);
+    markTTFVSeen(B);
+    await flush();
+    await expect(purgeTTFVSeenForDeletedAccount(A)).resolves.toBe(true);
+    expect(store[TTFV_SEEN_OWNER_KEY(A)]).toBeUndefined();
+    expect(store[TTFV_SEEN_OWNER_KEY(B)]).toMatch(ISO);
+    await installAccountLocalDeletionFence(A);
+    markTTFVSeen(A);
+    await flush();
+    expect(store[TTFV_SEEN_OWNER_KEY(A)]).toBeUndefined();
+    await expect(purgeTTFVSeenForDeletedAccount("  ")).resolves.toBe(false);
   });
 
   test("a failed read does not hand an existing account a fresh device-wide first day (BL-01)", async () => {
@@ -281,6 +449,43 @@ describe("a deleted account's onboarding key goes with it (BL-02)", () => {
     store[`account.deletionFence.v1:${A}`] = "terminal";
     markOnboardingComplete(A);
     expect(store[ONBOARDING_OWNER_KEY(A)]).toBeUndefined();
+  });
+
+  test("another tab's fence found by an in-flight read: no memory, and the device key stays (R2-01)", async () => {
+    // Codex repro: another tab installs A's durable fence and finishes the
+    // deletion while this tab's read for A is out; this runtime has no memory
+    // fence. The refused write must not leave an in-memory completion behind,
+    // and the device-wide key must not be spent on it.
+    const release = hold();
+    store[ONBOARDING_KEY] = "2026-10-01T09:00:00.000Z";
+    const pending = resolveOnboardingComplete(A); // a new account: no rows
+    store[`account.deletionFence.v1:${A}`] = "terminal";
+    release();
+    await expect(pending).resolves.toBe(true);
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBeUndefined();
+    expect(onboardingCompletedAt(A)).toBeNull();
+    expect(store[ONBOARDING_KEY]).toBe("2026-10-01T09:00:00.000Z");
+  });
+
+  test("the same, for an account with rows: nothing in memory, the device key is not consumed (R2-01)", async () => {
+    const release = hold();
+    store[ONBOARDING_KEY] = "2026-10-01T09:00:00.000Z";
+    rows[A] = { records: 1, sources: 0 };
+    const pending = resolveOnboardingComplete(A);
+    store[`account.deletionFence.v1:${A}`] = "terminal";
+    release();
+    await expect(pending).resolves.toBe(true);
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBeUndefined();
+    expect(onboardingCompletedAt(A)).toBeNull();
+    expect(store[ONBOARDING_KEY]).toBe("2026-10-01T09:00:00.000Z");
+  });
+
+  test("a carousel finish refused by another tab's fence takes its in-memory answer back (R2-01)", async () => {
+    store[`account.deletionFence.v1:${A}`] = "terminal";
+    markOnboardingComplete(A);
+    await flush();
+    expect(store[ONBOARDING_OWNER_KEY(A)]).toBeUndefined();
+    expect(onboardingCompletedAt(A)).toBeNull();
   });
 
   test("finishing the carousel after the deletion fence is up writes nothing", async () => {

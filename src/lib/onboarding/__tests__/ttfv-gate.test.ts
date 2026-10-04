@@ -11,7 +11,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 }));
 
 import {
-  TTFV_SEEN_KEY,
+  TTFV_SEEN_OWNER_KEY,
   FIRST_DAY_MS,
   markTTFVSeen,
   isWithinFirstDay,
@@ -47,13 +47,13 @@ describe("markTTFVSeen", () => {
     __resetTTFVGateForTests();
   });
 
-  test("persists an ISO timestamp under the canonical key", async () => {
-    markTTFVSeen();
+  test("persists an ISO timestamp under the owner's key", async () => {
+    markTTFVSeen("owner-1");
     await flushMicrotasks();
 
     expect(mockSetItem).toHaveBeenCalledTimes(1);
     const [key, value] = mockSetItem.mock.calls[0]!;
-    expect(key).toBe(TTFV_SEEN_KEY);
+    expect(key).toBe(TTFV_SEEN_OWNER_KEY("owner-1"));
     expect(Number.isNaN(Date.parse(value as string))).toBe(false);
   });
 
@@ -61,7 +61,7 @@ describe("markTTFVSeen", () => {
     const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
     mockSetItem.mockRejectedValueOnce(new Error("disk full"));
 
-    expect(() => markTTFVSeen()).not.toThrow();
+    expect(() => markTTFVSeen("owner-1")).not.toThrow();
     await flushMicrotasks();
 
     expect(warn).toHaveBeenCalledWith("[ttfv-gate] persist failed", expect.any(Error));
