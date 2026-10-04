@@ -193,8 +193,10 @@ describe("PIXEL-CLAY reset-password presenter", () => {
     expect(resetPixelClaySource).toContain("confirmRef.current?.focus()");
     expect(resetPixelClaySource).toContain("helperDanger && resetStyles.helperDanger");
     expect(resetPixelClaySource).toContain('const exitHref = userId ? "/" : "/sign-in"');
-    expect(resetPixelClaySource).toContain("router.replace(exitHref)");
-    expect(resetPixelClaySource).toContain('router.replace("/")');
+    // QA 261004 gate NS-04: a home exit pops to the home below instead of
+    // stacking one; /sign-in is still a replace.
+    expect(resetPixelClaySource).toContain("replaceOrGoHome(exitHref)");
+    expect(resetPixelClaySource).toContain("onPress={() => goHome()}");
     expect(resetActionSource).toContain('accessibilityState={{ busy }}');
     expect(resetActionSource).toContain("disabled={disabled}");
     expect(resetActionSource).toContain("accessibilityHint={hint}");

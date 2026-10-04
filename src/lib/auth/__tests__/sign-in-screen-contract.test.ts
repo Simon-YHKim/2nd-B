@@ -169,6 +169,9 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
 // 2026-09-30: prefix digest 만 재고정했다. Text 를 react-native 대신
 // @/components/ui/PlainText 에서 가져오는 import 두 줄뿐이다(앱 전체 한국어
 // 줄바꿈, plain-text-guard.test.ts). tail 은 그대로다.
+// 2026-10-04: prefix · tail 두 digest 를 재고정했다(QA 261004 게이트 NS-02 · NS-04).
+// prefix 는 go-home import 한 줄(빈 줄 자리)뿐이고, tail 은 reset-password 화면의
+// 재설정 잠금 등록 한 줄과 홈 출구 셋(goHome / replaceOrGoHome)뿐이다.
 // 아래 "legacy sign-in renderer/styles" 검사의 digest 는 그대로다.
 describe("sign-in extraction boundaries", () => {
   test("preserves the shared auth prefix and signup/consent/reset tail byte-for-byte", () => {
@@ -181,10 +184,10 @@ describe("sign-in extraction boundaries", () => {
     expect(split).toBeGreaterThan(0);
     expect(tail).toBeGreaterThan(split);
     expect(sha256(source.slice(0, split))).toBe(
-      "5a7d2fa617072b75609ca03eb35e342518711e4527f12e07785525e886396446",
+      "112f807f015ffb4f1b2c0485f0b9774c7f56d0d2686fdebfd2767e822ca58f46",
     );
     expect(sha256(source.slice(tail))).toBe(
-      "65dd568ae43e274affb179d80f94183878e49c253fa450f1054a64e31d2ac62d",
+      "171a1d3737eec93aa96041855d2d656e4ab2c3421fce6a3de3b85846ee6b65c1",
     );
   });
 

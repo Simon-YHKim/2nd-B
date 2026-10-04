@@ -14,6 +14,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { DdsAuditScreen } from "@/screens/deepspace/dds-audit-screen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppRouter, useHardwareBack, useScreenParams } from "@/lib/nav/phone-embed";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { questionsForPeriod, type AuditPeriod } from "@/lib/audit/questions";
 import { isUnlived, type SevenStarId } from "@/lib/persona/seven-stars";
 import { createRecord } from "@/lib/records/create";
@@ -227,6 +228,9 @@ function AuditLegacy() {
       setExitConfirmOpen(true);
     });
   }, [hasUnsavedProgress, navigation]);
+  // A home jump from a screen above this one stops here instead of meeting
+  // the guard out of sight (gate NS-02, lib/nav/go-home.ts).
+  useGoHomeStop(() => hasUnsavedProgress && !allowNavigationRef.current);
 
   if (loading) {
     return (

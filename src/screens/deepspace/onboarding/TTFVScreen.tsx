@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
+import { goHome } from "@/lib/nav/go-home";
 import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg from "react-native-svg";
@@ -510,7 +511,7 @@ export function TTFVScreen(props: TTFVScreenProps) {
           </MessageSurface>
         ) : save.status === "saved" ? (
           <MessageSurface glyph="check" title={copy.savedTitle} body={copy.savedBody}>
-            <Action label={copy.homeAction} glyph="star" primary onPress={() => router.replace("/")} />
+            <Action label={copy.homeAction} glyph="star" primary onPress={() => goHome()} />
           </MessageSurface>
         ) : (
           <View style={styles.reviewWrap}>

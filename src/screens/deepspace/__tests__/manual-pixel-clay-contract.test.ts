@@ -143,7 +143,10 @@ describe("PIXEL-CLAY /manual renderer contract", () => {
     expect(code).toContain("manualTopicsFor(t)");
     expect(source).toContain('useTranslation(["manual", "deepspace", "common"])');
     expect(source).toContain("resetCoachmarks(userId)");
-    expect(source).toContain('router.replace("/")');
+    // QA 261004 gate NS-04: replaying the coach marks pops to the home below
+    // (or closes the dashboard phone) instead of stacking a second home.
+    expect(source).toContain("const goHome = useGoHome();");
+    expect(source).toMatch(/resetCoachmarks\(userId\);\s*goHome\(\);/);
     expect(source).toContain('router.push("/secondb")');
   });
 

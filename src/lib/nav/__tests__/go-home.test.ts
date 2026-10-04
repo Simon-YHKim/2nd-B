@@ -1,13 +1,18 @@
 // 홈으로 가는 길이 홈을 하나 더 만들지 않는가 (QA 261004 D-01 · D-12).
 //
-// 세 층을 본다.
+// 다섯 층을 본다.
 //
 //   1. 라우터: expo-router 56 이 실제로 쓰는 StackRouter 에 POP_TO 를 넣으면
 //      아래의 홈이 그대로 남고 하나뿐이다. 같은 자리에서 REPLACE 는 홈을 둘로
 //      만든다 - 고치기 전의 모양을 대조군으로 같이 적는다.
 //   2. 헬퍼: goHome / RedirectHome 이 정말 dismissTo("/") 를 부른다.
-//   3. 배송 코드: 홈을 쌓는 `<Redirect href="/">` 가 다시 생기지 않고, 홈으로
-//      push 하는 자리는 아래 명단에서 늘지 않는다.
+//   3. 막는 화면(게이트 NS-02): 지금 칸과 홈 사이에 저장 안 한 화면이 있으면
+//      그 화면 바로 위까지만 걷어낸다 - 같은 실제 라우터로 확인한다.
+//   4. 계정이 바뀐 뒤 다시 쓰는 홈(게이트 NS-01 반박): 칸은 같아도 화면은 새로
+//      마운트된다는 전제가 정말 서 있는가.
+//   5. 배송 코드: 홈을 쌓는 이동(`<Redirect>` · `<Link>` · push · replace ·
+//      navigate)이 정확한 개수 명단 밖으로 늘지 않고, 칸을 막는 가드는 전부
+//      goHome 에 이름을 올린다.
 //
 // 렌더 테스트는 이 저장소에서 막혀 있어(RN 0.85) 소스는 TypeScript AST 로 읽는다.
 // 주석은 AST 에 없으므로 설명문이 증거로 읽히지 않는다.
@@ -15,21 +20,56 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import ts from "typescript";
 
+import {
+  __resetAccountEpochForTests,
+  accountEpochFromSnapshot,
+  accountTransitionSnapshot,
+  clearAccountTransition,
+  currentAccountEpoch,
+  isAccountTransitionPending,
+  noteResolvedOwner,
+  shouldReleaseAccountTransition,
+} from "@/lib/auth/account-epoch";
 import { deadRendererSpans } from "@/lib/legal/dead-renderer-spans";
 import { shadowedScreens } from "@/lib/legal/shadow-screens";
 
-import { HOME_HREF, RedirectHome, goHome } from "../go-home";
+import {
+  HOME_HREF,
+  RedirectHome,
+  findHomeStack,
+  goHome,
+  isGoHomeStop,
+  planGoHome,
+  registerGoHomeStop,
+  useGoHomeStop,
+  type GoHomeNavState,
+} from "../go-home";
 
 const mockDismissTo = jest.fn();
+const mockDispatch = jest.fn();
+const mockRoute = { key: "unset" };
+const mockRootState: { current: unknown } = { current: undefined };
+const mockCleanups: (() => void)[] = [];
 jest.mock("expo-router", () => ({
   router: { dismissTo: (...args: unknown[]) => mockDismissTo(...args) },
   // 포커스를 얻은 것으로 치고 효과를 바로 돌린다.
   useFocusEffect: (effect: () => void) => effect(),
+  useRoute: () => mockRoute,
+  useNavigationContainerRef: () => ({
+    isReady: () => true,
+    getRootState: () => mockRootState.current,
+    dispatch: (...args: unknown[]) => mockDispatch(...args),
+  }),
 }));
 jest.mock("react", () => ({
   ...jest.requireActual("react"),
-  // RedirectHome 을 렌더 없이 함수로 부르기 위해 메모이즈만 걷어낸다.
+  // 훅을 렌더 없이 함수로 부르기 위해 메모이즈와 효과 예약만 걷어낸다.
   useCallback: <T>(fn: T) => fn,
+  useRef: <T>(value: T) => ({ current: value }),
+  useEffect: (effect: () => void | (() => void)) => {
+    const cleanup = effect();
+    if (typeof cleanup === "function") mockCleanups.push(cleanup);
+  },
 }));
 
 const { StackRouter } = require("expo-router/build/react-navigation/routers/StackRouter") as {
@@ -42,11 +82,11 @@ const { StackRouter } = require("expo-router/build/react-navigation/routers/Stac
   };
 };
 
-
 interface StackRoute {
   key: string;
   name: string;
   params?: object;
+  state?: StackState;
 }
 interface StackState {
   key: string;
@@ -59,7 +99,8 @@ interface StackState {
 }
 
 const ROOT = process.cwd();
-const ROUTE_NAMES = ["index", "canon", "settings", "account", "(auth)"];
+const ROUTE_NAMES = ["index", "canon", "settings", "account", "audit", "result", "(auth)"];
+const AUTH_NAMES = ["sign-in", "reset-password"];
 const OPTIONS = { routeNames: ROUTE_NAMES, routeParamList: {}, routeGetIdList: {} };
 
 function stack(...routes: StackRoute[]): StackState {
@@ -74,18 +115,30 @@ function stack(...routes: StackRoute[]): StackState {
   };
 }
 
+function authStack(...routes: StackRoute[]): StackState {
+  return { ...stack(...routes), key: "auth-stack", routeNames: AUTH_NAMES };
+}
+
 const HOME: StackRoute = { key: "index-k0", name: "index" };
 /** goHome 이 보내는 것. expo-router 의 getNavigateAction 이 dismissTo 를 이렇게 만든다. */
 const POP_TO_HOME = { type: "POP_TO", target: "root", payload: { name: "index", params: {} } };
 /** 고치기 전 `router.replace("/")` / `<Redirect href="/">` 가 보내던 것. */
 const REPLACE_HOME = { type: "REPLACE", target: "root", payload: { name: "index", params: {} } };
 
-describe("POP_TO 는 홈을 하나로 남긴다 (expo-router 56 StackRouter)", () => {
-  const router = StackRouter({});
+const router = StackRouter({});
+const keysOf = (state: StackState | null | undefined) => state?.routes.map((r) => r.key);
 
+afterEach(() => {
+  while (mockCleanups.length) mockCleanups.pop()!();
+  mockDismissTo.mockReset();
+  mockDispatch.mockReset();
+  mockRootState.current = undefined;
+});
+
+describe("POP_TO 는 홈을 하나로 남긴다 (expo-router 56 StackRouter)", () => {
   it("아래에 홈이 있으면 그 홈으로 돌아간다 - 같은 key, 칸 하나", () => {
     const next = router.getStateForAction(stack(HOME, { key: "canon-k1", name: "canon" }), POP_TO_HOME, OPTIONS);
-    expect(next?.routes.map((r) => r.key)).toEqual(["index-k0"]);
+    expect(keysOf(next)).toEqual(["index-k0"]);
   });
 
   it("홈 위에 여러 칸이 쌓여 있어도 홈 하나로 접힌다 (D-12: 설정 → 계정 → 설정)", () => {
@@ -99,7 +152,7 @@ describe("POP_TO 는 홈을 하나로 남긴다 (expo-router 56 StackRouter)", (
       POP_TO_HOME,
       OPTIONS,
     );
-    expect(next?.routes.map((r) => r.key)).toEqual(["index-k0"]);
+    expect(keysOf(next)).toEqual(["index-k0"]);
   });
 
   it("홈이 없으면(딥링크 · 웹 새로고침) 지금 칸을 홈으로 바꾼다 - 예전 replace 와 같은 결과", () => {
@@ -116,8 +169,6 @@ describe("POP_TO 는 홈을 하나로 남긴다 (expo-router 56 StackRouter)", (
 });
 
 describe("goHome / RedirectHome", () => {
-  beforeEach(() => mockDismissTo.mockReset());
-
   it("goHome 은 dismissTo(\"/\") 다", () => {
     goHome();
     expect(HOME_HREF).toBe("/");
@@ -128,6 +179,209 @@ describe("goHome / RedirectHome", () => {
   it("RedirectHome 은 포커스를 얻으면 goHome 을 부르고 아무것도 그리지 않는다", () => {
     expect(RedirectHome()).toBeNull();
     expect(mockDismissTo).toHaveBeenCalledWith("/");
+  });
+});
+
+// ── 막는 화면 (게이트 NS-02) ───────────────────────────────────────────────
+//
+// 고치기 전: POP_TO 는 지금 칸과 홈 사이를 전부 걷어내므로 그 사이에 묻힌 화면의
+// beforeRemove / usePreventRemove 가 불리고, 하나라도 막으면 동작 전체가
+// 취소된다. 확인창은 안 보이는 화면에서 열리거나(아바타 팔레트) 아무 표시 없이
+// 막히고(재설정 잠금 · 계정 삭제 중), RedirectHome 은 빈 화면으로 남았다.
+
+const AUDIT: StackRoute = { key: "audit-k1", name: "audit" };
+const RESULT: StackRoute = { key: "result-k2", name: "result" };
+
+/** 실제 라우터에 계획을 적용한다. stop 은 겨눈 스택(중첩이면 그 칸 안)에 POP. */
+function apply(state: StackState, plan: ReturnType<typeof planGoHome>): StackState | null {
+  if (plan.kind === "home") return router.getStateForAction(state, POP_TO_HOME, OPTIONS);
+  const action = { type: "POP", payload: { count: plan.count }, target: plan.target };
+  if (plan.target === state.key) return router.getStateForAction(state, action, OPTIONS);
+  // 중첩 스택을 겨눈 POP: 그 칸의 state 만 바꾼다.
+  const routes = state.routes.map((route) =>
+    route.state && route.state.key === plan.target
+      ? { ...route, state: router.getStateForAction(route.state, action, { ...OPTIONS, routeNames: AUTH_NAMES })! }
+      : route,
+  );
+  return { ...state, routes };
+}
+
+describe("goHome 은 지금 막고 있는 화면 앞에서 멈춘다 (게이트 NS-02)", () => {
+  const stopOnly = (...keys: string[]) => (key: string) => keys.includes(key);
+
+  it("대조군: 막는 화면이 사이에 있어도 POP_TO 는 그 화면까지 걷어낸다 - 그래서 가드가 끼어들었다", () => {
+    const next = router.getStateForAction(stack(HOME, AUDIT, RESULT), POP_TO_HOME, OPTIONS);
+    expect(keysOf(next)).toEqual(["index-k0"]);
+  });
+
+  it("홈과 지금 칸 사이에 막는 화면이 있으면 그 화면 바로 위까지만 걷어낸다", () => {
+    const state = stack(HOME, AUDIT, RESULT);
+    const plan = planGoHome(state, stopOnly("audit-k1"));
+    expect(plan).toEqual({ kind: "stop", target: "root", count: 1 });
+    expect(keysOf(apply(state, plan))).toEqual(["index-k0", "audit-k1"]);
+  });
+
+  it("막는 화면이 여럿이면 지금 칸에서 가장 가까운 것에서 멈춘다", () => {
+    const state = stack(HOME, AUDIT, { key: "audit-k3", name: "audit" }, { key: "canon-k4", name: "canon" }, RESULT);
+    const plan = planGoHome(state, stopOnly("audit-k1", "audit-k3"));
+    expect(keysOf(apply(state, plan))).toEqual(["index-k0", "audit-k1", "audit-k3"]);
+  });
+
+  it("React Navigation 의 실제 판정(shouldPreventRemove)으로: POP_TO 는 막히고, 계획한 POP 은 막히지 않는다", () => {
+    // 고치기 전의 결함을 라우터 다음 단계까지 재현한다. 묻힌 감사 화면이 막으면
+    // 동작 전체가 취소된다 - 부른 쪽은 모르고, RedirectHome 이면 빈 화면이 남는다.
+    const { shouldPreventRemove } = require("expo-router/build/react-navigation/core/useOnPreventRemove") as {
+      shouldPreventRemove: (
+        emitter: { emit: (e: { target: string }) => { defaultPrevented: boolean } },
+        listeners: Record<string, unknown>,
+        current: StackRoute[],
+        next: StackRoute[],
+        action: object,
+      ) => boolean;
+    };
+    const asked: string[] = [];
+    const emitter = {
+      emit: (event: { target: string }) => {
+        asked.push(event.target);
+        return { defaultPrevented: event.target === "audit-k1" }; // 저장 안 한 응답
+      },
+    };
+    const state = stack(HOME, AUDIT, RESULT);
+
+    const popTo = router.getStateForAction(state, POP_TO_HOME, OPTIONS)!;
+    expect(shouldPreventRemove(emitter, {}, state.routes, popTo.routes, POP_TO_HOME)).toBe(true);
+    expect(asked).toEqual(["result-k2", "audit-k1"]); // 묻힌 화면의 가드가 불렸다
+
+    asked.length = 0;
+    const plan = planGoHome(state, stopOnly("audit-k1"));
+    const action = { type: "POP", payload: { count: (plan as { count: number }).count }, target: "root" };
+    const popped = router.getStateForAction(state, action, OPTIONS)!;
+    expect(shouldPreventRemove(emitter, {}, state.routes, popped.routes, action)).toBe(false);
+    expect(asked).toEqual(["result-k2"]); // 지금 칸만 - 묻힌 가드는 불리지 않는다
+  });
+
+  it("막는 조건이 거짓이면 그대로 홈까지 간다", () => {
+    expect(planGoHome(stack(HOME, AUDIT, RESULT), stopOnly())).toEqual({ kind: "home" });
+  });
+
+  it("지금 칸 자신의 가드는 건너뛴다 - 포커스된 화면이라 그 자리에서 보인다", () => {
+    expect(planGoHome(stack(HOME, RESULT, AUDIT), stopOnly("audit-k1"))).toEqual({ kind: "home" });
+  });
+
+  it("홈 아래의 칸과, 홈이 없을 때의 묻힌 칸은 POP_TO 가 걷지 않으므로 보지 않는다", () => {
+    expect(planGoHome(stack(AUDIT, HOME, RESULT), stopOnly("audit-k1"))).toEqual({ kind: "home" });
+    const noHome = stack(AUDIT, RESULT);
+    expect(planGoHome(noHome, stopOnly("audit-k1"))).toEqual({ kind: "home" });
+    // 확인: 홈이 없을 때 POP_TO 는 지금 칸만 바꾸고 묻힌 칸은 남긴다.
+    expect(keysOf(router.getStateForAction(noHome, POP_TO_HOME, OPTIONS))?.[0]).toBe("audit-k1");
+  });
+
+  it("사이 칸 안에 중첩된 가드(재설정 잠금)도 찾는다", () => {
+    const auth: StackRoute = { key: "auth-k1", name: "(auth)", state: authStack({ key: "reset-k5", name: "reset-password" }) };
+    const state = stack(HOME, auth, RESULT);
+    const plan = planGoHome(state, stopOnly("reset-k5"));
+    expect(plan).toEqual({ kind: "stop", target: "root", count: 1 });
+    expect(keysOf(apply(state, plan))).toEqual(["index-k0", "auth-k1"]);
+  });
+
+  it("지금 칸 안의 중첩 스택에서 지금 화면 아래에 묻힌 가드는 그 스택 안에서 멈춘다", () => {
+    const inner = authStack({ key: "reset-k5", name: "reset-password" }, { key: "signin-k6", name: "sign-in" });
+    const state = stack(HOME, { key: "auth-k1", name: "(auth)", state: inner });
+    const plan = planGoHome(state, stopOnly("reset-k5"));
+    expect(plan).toEqual({ kind: "stop", target: "auth-stack", count: 1 });
+    const next = apply(state, plan);
+    expect(keysOf(next)).toEqual(["index-k0", "auth-k1"]);
+    expect(keysOf(next?.routes[1].state)).toEqual(["reset-k5"]);
+  });
+
+  it("findHomeStack 은 expo-router 의 __root 칸 아래 스택을 찾는다", () => {
+    const inner = stack(HOME, AUDIT);
+    const root = { key: "container", type: "stack", index: 0, routeNames: ["__root"], routes: [{ key: "__root-0", name: "__root", state: inner }] };
+    expect(findHomeStack(root as GoHomeNavState)).toBe(inner);
+    expect(findHomeStack(undefined)).toBeUndefined();
+  });
+
+  it("판정이 던지면 막는 쪽으로 본다 - 모르는 채로 저장 안 한 화면을 걷지 않는다", () => {
+    const release = registerGoHomeStop("throws-k9", () => {
+      throw new Error("probe");
+    });
+    try {
+      expect(isGoHomeStop("throws-k9")).toBe(true);
+    } finally {
+      release();
+    }
+    expect(isGoHomeStop("throws-k9")).toBe(false);
+  });
+
+  it("useGoHomeStop 으로 이름을 올린 화면 앞에서 goHome 이 실제로 멈춘다 (POP, 그 스택을 겨눔)", () => {
+    const state = stack(HOME, AUDIT, RESULT);
+    mockRootState.current = { key: "container", index: 0, routeNames: ["__root"], routes: [{ key: "__root-0", name: "__root", state }] };
+    mockRoute.key = "audit-k1";
+    let unsaved = true;
+    useGoHomeStop(() => unsaved);
+
+    goHome();
+    expect(mockDismissTo).not.toHaveBeenCalled();
+    expect(mockDispatch).toHaveBeenCalledWith({ type: "POP", payload: { count: 1 }, target: "root" });
+    expect(keysOf(router.getStateForAction(state, mockDispatch.mock.calls[0][0], OPTIONS))).toEqual(["index-k0", "audit-k1"]);
+
+    // 저장했거나 버렸으면(가드가 풀리면) 다시 홈까지 간다.
+    unsaved = false;
+    mockDispatch.mockReset();
+    goHome();
+    expect(mockDispatch).not.toHaveBeenCalled();
+    expect(mockDismissTo).toHaveBeenCalledWith("/");
+  });
+
+  it("RedirectHome 도 같은 계획을 쓴다 - 막히면 빈 화면이 아니라 막는 화면이 포커스를 얻는다", () => {
+    const state = stack(HOME, AUDIT, { key: "canon-k7", name: "canon" });
+    mockRootState.current = { key: "container", index: 0, routeNames: ["__root"], routes: [{ key: "__root-0", name: "__root", state }] };
+    mockRoute.key = "audit-k1";
+    useGoHomeStop(() => true);
+    expect(RedirectHome()).toBeNull();
+    expect(mockDispatch).toHaveBeenCalledWith({ type: "POP", payload: { count: 1 }, target: "root" });
+    expect(mockDismissTo).not.toHaveBeenCalled();
+  });
+});
+
+// ── 계정이 바뀐 뒤 다시 쓰는 홈 (게이트 NS-01 반박) ──────────────────────────
+//
+// 지적: A 의 홈이 스택 아래 남아 있다가 B 로그인 뒤 RedirectHome 이 그 홈을
+// 다시 써서 A 의 별 밝기가 보인다. 칸(route key)을 다시 쓰는 것은 맞다(위
+// POP_TO 테스트). 그러나 그 칸의 화면은 루트 스택의 screenLayout 이 감싼
+// AccountScope 안에 있고, AccountScope 는 계정 epoch 를 key 로 쓰며 다른
+// 계정으로 넘어가는 동안은 아무것도 그리지 않는다(src/app/_layout.tsx).
+// 그 전제 셋을 여기서 다시 확인한다. 배선 자체는 account-scope.test.ts 가 지킨다.
+
+describe("계정이 바뀌면 다시 쓰는 홈 칸의 화면은 새로 마운트된다 (게이트 NS-01)", () => {
+  beforeEach(() => __resetAccountEpochForTests());
+  afterAll(() => __resetAccountEpochForTests());
+
+  it("A → 로그아웃 → B 에서 epoch 가 매번 바뀌고, 홈 하나만 남을 때까지 제품 화면을 붙든다", () => {
+    noteResolvedOwner("owner-a");
+    const a = currentAccountEpoch();
+    noteResolvedOwner(null);
+    const out = currentAccountEpoch();
+    noteResolvedOwner("owner-b");
+    const b = currentAccountEpoch();
+    expect(new Set([a, out, b]).size).toBe(3); // AccountScope 의 key={epoch} 가 세 번 다르다
+    expect(isAccountTransitionPending()).toBe(true); // 그동안 AccountScope 는 null
+
+    // RedirectHome 의 POP_TO 가 남긴 모양: 홈 칸 하나. 이때만 풀린다.
+    const popped = router.getStateForAction(stack(HOME, { key: "auth-k1", name: "(auth)" }), POP_TO_HOME, OPTIONS);
+    expect(keysOf(popped)).toEqual(["index-k0"]);
+    expect(shouldReleaseAccountTransition([], popped!)).toBe(true);
+    expect(shouldReleaseAccountTransition([], stack(HOME, HOME))).toBe(false);
+    expect(clearAccountTransition(accountEpochFromSnapshot(accountTransitionSnapshot()))).toBe(true);
+    expect(isAccountTransitionPending()).toBe(false);
+  });
+
+  it("홈 라우트는 AccountScope 를 벗어나지 않는다 - (auth) 만 예외", () => {
+    const layout = readFileSync(join(ROOT, "src/app/_layout.tsx"), "utf8").replace(/\r\n/g, "\n");
+    expect(layout).toContain("<AccountScope routeName={route.name}>{screen}</AccountScope>");
+    expect(layout).toContain('if (routeName === "(auth)") return <>{children}</>;');
+    expect(layout).toContain("return <Fragment key={epoch}>{children}</Fragment>;");
+    expect(layout).toMatch(/<Stack\.Screen name="index" \/>/);
   });
 });
 
@@ -158,110 +412,211 @@ function unrenderedLine(): (file: string, line: number) => boolean {
   return (file, line) => spans.some((s) => s.file === file && line >= s.from && line <= s.to);
 }
 
-function containsHomeLiteral(node: ts.Node): boolean {
-  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text === "/";
-  return ts.forEachChild(node, (child) => (containsHomeLiteral(child) ? true : undefined)) ?? false;
+type HomeNavKind = "Redirect" | "Link" | "push" | "replace" | "navigate";
+interface HomeNav {
+  line: number;
+  kind: HomeNavKind;
 }
 
-/** `<Redirect href=…>` 중 href 식 어디에든 "/" 가 있는 것. 조건식의 한쪽 가지도 잡는다. */
-function homeRedirects(source: string, file: string): number[] {
+function unwrap(node: ts.Expression): ts.Expression {
+  let current = node;
+  while (
+    ts.isParenthesizedExpression(current) ||
+    ts.isAsExpression(current) ||
+    ts.isSatisfiesExpression(current) ||
+    ts.isNonNullExpression(current) ||
+    ts.isTypeAssertionExpression(current)
+  ) {
+    current = current.expression;
+  }
+  return current;
+}
+
+/**
+ * 홈을 가리키는 목적지인가. "/" 문자열 · 같은 파일의 `const X = "/"` ·
+ * go-home 의 HOME_HREF(별칭 포함) · `{ pathname: <그것> }` · 조건식의 어느 한 가지.
+ */
+function homeTarget(node: ts.Expression | undefined, homeNames: ReadonlySet<string>): boolean {
+  if (!node) return false;
+  const expr = unwrap(node);
+  if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) return expr.text === HOME_HREF;
+  if (ts.isIdentifier(expr)) return homeNames.has(expr.text);
+  if (ts.isConditionalExpression(expr)) return homeTarget(expr.whenTrue, homeNames) || homeTarget(expr.whenFalse, homeNames);
+  if (
+    ts.isBinaryExpression(expr) &&
+    [ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.AmpersandAmpersandToken].includes(
+      expr.operatorToken.kind,
+    )
+  ) {
+    return homeTarget(expr.left, homeNames) || homeTarget(expr.right, homeNames);
+  }
+  if (ts.isObjectLiteralExpression(expr)) {
+    return expr.properties.some(
+      (p) => ts.isPropertyAssignment(p) && p.name.getText() === "pathname" && homeTarget(p.initializer, homeNames),
+    );
+  }
+  return false;
+}
+
+/**
+ * 홈으로 가는 이동을 import 심볼 기준으로 찾는다.
+ *
+ * - `<Redirect>` · `<Link>`: expo-router 에서 가져온 이름(별칭 포함)과 맨 이름.
+ * - `X.push / replace / navigate(홈)`: X 가 expo-router 의 `router`(별칭 포함),
+ *   `use…Router()` 의 결과, 또는 이름이 `router` 인 값일 때. 문자열의
+ *   `.replace("/", …)` 는 받는 쪽이 라우터가 아니라 잡지 않는다.
+ * - `dismissTo` 는 홈을 쌓지 않으므로 세지 않는다(goHome 의 정체다).
+ */
+function homeNavigations(source: string, file: string): HomeNav[] {
   const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const lines: number[] = [];
+  const tags = new Map<string, HomeNavKind>([["Redirect", "Redirect"], ["Link", "Link"]]);
+  const routers = new Set<string>(["router"]);
+  const homeNames = new Set<string>();
+
+  for (const statement of sf.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const from = statement.moduleSpecifier.text;
+    const bindings = statement.importClause?.namedBindings;
+    if (!bindings || !ts.isNamedImports(bindings)) continue;
+    for (const element of bindings.elements) {
+      const imported = (element.propertyName ?? element.name).text;
+      const local = element.name.text;
+      if (from === "expo-router") {
+        if (imported === "Redirect" || imported === "Link") tags.set(local, imported);
+        if (imported === "router") routers.add(local);
+      }
+      if (/(^|\/)go-home$/.test(from) && imported === "HOME_HREF") homeNames.add(local);
+    }
+  }
+  const collect = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      const init = unwrap(node.initializer);
+      if (homeTarget(init, new Set())) homeNames.add(node.name.text);
+      if (ts.isCallExpression(init) && ts.isIdentifier(init.expression) && /^use\w*Router$/.test(init.expression.text)) {
+        routers.add(node.name.text);
+      }
+    }
+    ts.forEachChild(node, collect);
+  };
+  collect(sf);
+
+  const hits: HomeNav[] = [];
+  const lineOf = (node: ts.Node) => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
   const visit = (node: ts.Node) => {
-    if ((ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) && node.tagName.getText(sf) === "Redirect") {
+    if (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) {
+      const kind = tags.get(node.tagName.getText(sf));
       const href = node.attributes.properties.find(
         (p): p is ts.JsxAttribute => ts.isJsxAttribute(p) && p.name.getText(sf) === "href",
       );
-      if (href?.initializer && containsHomeLiteral(href.initializer)) {
-        lines.push(sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1);
+      const init = href?.initializer;
+      const expr = init && ts.isJsxExpression(init) ? init.expression : init && ts.isStringLiteral(init) ? init : undefined;
+      if (kind && homeTarget(expr, homeNames)) hits.push({ line: lineOf(node), kind });
+    }
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      ts.isIdentifier(node.expression.expression) &&
+      routers.has(node.expression.expression.text)
+    ) {
+      const method = node.expression.name.text;
+      if ((method === "push" || method === "replace" || method === "navigate") && homeTarget(node.arguments[0], homeNames)) {
+        hits.push({ line: lineOf(node), kind: method });
       }
     }
     ts.forEachChild(node, visit);
   };
   visit(sf);
-  return lines;
+  return hits;
 }
 
-/** `x.push("/")` 와 `x.push({ pathname: "/" })`. */
-function homePushes(source: string, file: string): number[] {
-  const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const lines: number[] = [];
-  const visit = (node: ts.Node) => {
-    if (
-      ts.isCallExpression(node) &&
-      ts.isPropertyAccessExpression(node.expression) &&
-      node.expression.name.text === "push" &&
-      node.arguments.length > 0
-    ) {
-      const arg = node.arguments[0];
-      const literal = ts.isStringLiteral(arg) && arg.text === "/";
-      const object =
-        ts.isObjectLiteralExpression(arg) &&
-        arg.properties.some(
-          (p) =>
-            ts.isPropertyAssignment(p) &&
-            p.name.getText(sf) === "pathname" &&
-            ts.isStringLiteral(p.initializer) &&
-            p.initializer.text === "/",
-        );
-      if (literal || object) lines.push(sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1);
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(sf);
-  return lines;
-}
-
-function scan(find: (source: string, file: string) => number[]): { file: string; line: number }[] {
+/** 배송 코드(src, 테스트 · 안 그려지는 반쪽 제외)의 파일별 · 종류별 개수. */
+function shippedHomeNavigations(): Record<string, Partial<Record<HomeNavKind, number>>> {
   const hidden = unrenderedLine();
-  const hits: { file: string; line: number }[] = [];
+  const counts: Record<string, Partial<Record<HomeNavKind, number>>> = {};
   for (const file of sourceFiles(join(ROOT, "src"))) {
-    const source = readFileSync(join(ROOT, file), "utf8");
-    for (const line of find(source, file)) hits.push({ file, line });
+    for (const hit of homeNavigations(readFileSync(join(ROOT, file), "utf8"), file)) {
+      if (hidden(file, hit.line)) continue;
+      const entry = (counts[file] ??= {});
+      entry[hit.kind] = (entry[hit.kind] ?? 0) + 1;
+    }
   }
-  return hits.filter((hit) => !hidden(hit.file, hit.line));
+  return counts;
 }
 
 /**
- * 아직 홈으로 push 하는 자리. 하나하나가 홈을 하나 더 얹는다. D-01 판정 범위 밖이라
- * 이번에 고치지 않았고, 새로 생기지 않게 명단으로 묶어 둔다. 고치면 여기서 지운다.
+ * 아직 남은, 홈을 쌓을 수 있는 이동. **파일이 아니라 개수로** 묶는다 - 이미
+ * 이름이 오른 파일 안에서 하나가 늘어도 빨개진다. 줄면 여기서 같이 줄인다.
+ *
+ * 남은 것은 세 부류다.
+ * - 뒤로 갈 곳이 없을 때만 부르는 `canGoBack() ? back() : replace("/")` 꼴.
+ *   스택에 칸이 하나뿐이라 replace 가 만드는 홈은 정확히 하나다.
+ * - 스택에 칸이 하나뿐인 것이 구조로 정해진 자리(계정 전환 해소 · 웹 전용
+ *   외부 리디렉트 착지)와 런타임에 고르지 않는 레거시 반쪽.
+ * - push 하는 자리 다섯(D-01 판정 범위 밖, 2026-10-04 첫 라운드에서 명단에 묶음).
  */
-const KNOWN_HOME_PUSHES: Readonly<Record<string, string>> = {
-  "src/app/audit.tsx": "검사 화면 안의 '뒤로' 버튼. 미저장 응답 가드(beforeRemove)와 함께 따로 볼 것.",
-  "src/app/esm.tsx": "경험 표집 화면의 '홈으로' 버튼.",
-  "src/lib/auth/useSignInForm.ts": "로그인 화면의 안드로이드 뒤로(게스트). 게스트 홈은 다시 /sign-in 으로 보낸다.",
-  "src/lib/auth/useSignUpForm.ts": "가입 화면의 안드로이드 뒤로(게스트). 위와 같다.",
-  "src/screens/deepspace/dds-sign-up-screen.tsx": "가입 화면 상단의 뒤로(게스트). signup-required-acks 가 지킨다.",
+const KNOWN_HOME_NAVIGATIONS: Readonly<Record<string, Partial<Record<HomeNavKind, number>> & { why: string }>> = {
+  "src/app/(auth)/oauth-callback.tsx": {
+    replace: 1,
+    why: "네이버 OAuth 착지. 파일 머리가 밝히듯 웹 전용이고, 외부 리디렉트로 앱을 새로 띄운 자리라 칸이 하나다.",
+  },
+  "src/app/(auth)/reset-password.tsx": {
+    replace: 1,
+    why: "ResetPasswordLegacy 안. 기본 export 가 recoverySafetyPinsPixelClay=true 로 런타임에 고르지 않는다(판정기 밖의 꼴).",
+  },
+  "src/app/_layout.tsx": { replace: 1, why: "계정 전환 해소: 바로 앞의 dismissAll() 로 칸이 하나뿐일 때만 replace." },
+  "src/app/audit.tsx": { push: 1, why: "검사 화면 안의 '뒤로' 버튼(push). 미저장 응답 가드는 useGoHomeStop 이 따로 본다." },
+  "src/app/esm.tsx": { push: 1, why: "경험 표집 화면의 '홈으로' 버튼(push)." },
+  "src/components/deep-space/PolarisCardOverlay.tsx": { replace: 1, why: "canGoBack() 이 거짓일 때만 - 칸 하나." },
+  "src/components/deep-space/ProfileProbeRetry.tsx": { replace: 1, why: "canGoBack() 이 거짓일 때만 - 칸 하나." },
+  "src/lib/auth/useSignInForm.ts": { push: 1, why: "로그인 화면의 안드로이드 뒤로(게스트, push). 게스트 홈은 다시 /sign-in 으로 보낸다." },
+  "src/lib/auth/useSignUpForm.ts": { push: 1, why: "가입 화면의 안드로이드 뒤로(게스트, push). 위와 같다." },
+  "src/screens/deepspace/dds-consent-notice-screen.tsx": { replace: 1, why: "canGoBack() 이 거짓일 때만 - 칸 하나." },
+  "src/screens/deepspace/dds-legal-doc-screen.tsx": { replace: 1, why: "canGoBack() 이 거짓일 때만 - 칸 하나." },
+  "src/screens/deepspace/dds-manual-screen.tsx": { replace: 1, why: "상단 뒤로: canGoBack() 이 거짓일 때만 - 칸 하나." },
+  "src/screens/deepspace/dds-profile-screen.tsx": { replace: 1, why: "canGoBack() 이 거짓일 때만 - 칸 하나." },
+  "src/screens/deepspace/dds-sign-up-screen.tsx": { push: 1, why: "가입 화면 상단의 뒤로(게스트, push). signup-required-acks 가 지킨다." },
 };
 
 describe("배송 코드에서 홈으로 가는 길", () => {
-  it("판정기는 조건식 가지 안의 \"/\" 도 잡고, 다른 목적지는 잡지 않는다", () => {
+  it("판정기는 별칭 · 상수 · 객체 · 조건식 가지를 따라가고, 다른 목적지와 문자열 replace 는 잡지 않는다", () => {
     const fixture = [
-      "function A() { return <Redirect href=\"/\" />; }",
-      "function B() { return <Redirect href={x ? \"/avatar-studio?setup=1\" : \"/\"} />; }",
-      "function C() { return <Redirect href=\"/sign-in\" />; }",
-      "function D() { return <RedirectHome />; }",
+      'import { Redirect as Go, Link, router as nav } from "expo-router";', // 1
+      'import { HOME_HREF as H } from "@/lib/nav/go-home";', // 2
+      'const HOME = "/";', // 3
+      "function A() { return <Go href={H} />; }", // 4  Redirect (별칭 + HOME_HREF 별칭)
+      "function B() { nav.replace(HOME); }", // 5  replace (별칭 router + 같은 파일 상수)
+      'function C() { const r = useAppRouter(); r.navigate({ pathname: "/" }); }', // 6 navigate (훅 결과)
+      'function D() { "a/b".replace("/", "-"); path.replace("/", ""); }', // 7 문자열 replace: 아님
+      'function E() { router.push(x ? "/" : "/sign-in"); }', // 8  push (조건식 한 가지)
+      'function F() { router.replace("/sign-in"); router.dismissTo("/"); }', // 9 다른 목적지 · dismissTo: 아님
+      'function G() { return <Redirect href="/" />; }', // 10 Redirect (맨 이름)
+      'function I() { return <Link href={{ pathname: HOME }} />; }', // 11 Link
+      "function J() { return <RedirectHome />; }", // 12 아님
     ].join("\n");
-    expect(homeRedirects(fixture, "fixture.tsx")).toEqual([1, 2]);
-    expect(homePushes('router.push("/"); router.push({ pathname: "/" }); router.push("/sign-in");', "f.ts")).toEqual([1, 1]);
+    expect(homeNavigations(fixture, "fixture.tsx")).toEqual([
+      { line: 4, kind: "Redirect" },
+      { line: 5, kind: "replace" },
+      { line: 6, kind: "navigate" },
+      { line: 8, kind: "push" },
+      { line: 10, kind: "Redirect" },
+      { line: 11, kind: "Link" },
+    ]);
   });
 
   it("시야 대조: 그림자 사본의 홈 리다이렉트는 날것의 스캔에 보이고, 안 그려지는 줄이라 빠진다", () => {
     // 이 대조가 없으면 '0건'이 스캔이 파일을 못 읽어서인지 진짜 0인지 모른다.
     const shadow = "src/screens/deepspace/dds-auth-screens.tsx";
-    const raw = homeRedirects(readFileSync(join(ROOT, shadow), "utf8"), shadow);
+    const raw = homeNavigations(readFileSync(join(ROOT, shadow), "utf8"), shadow).filter((h) => h.kind === "Redirect");
     expect(raw.length).toBeGreaterThan(0);
     const hidden = unrenderedLine();
-    expect(raw.every((line) => hidden(shadow, line))).toBe(true);
+    expect(raw.every((hit) => hidden(shadow, hit.line))).toBe(true);
   });
 
-  it("그려지는 코드에 홈을 쌓는 <Redirect href=\"/\"> 가 0건이다 - RedirectHome 을 쓴다", () => {
-    expect(scan(homeRedirects)).toEqual([]);
-  });
-
-  it("홈으로 push 하는 자리는 알려진 명단 밖으로 늘지 않는다", () => {
-    const files = [...new Set(scan(homePushes).map((hit) => hit.file))].sort();
-    expect(files).toEqual(Object.keys(KNOWN_HOME_PUSHES).sort());
+  it("홈을 쌓을 수 있는 이동은 정확한 개수 명단 밖으로 늘지 않는다 - 나머지는 goHome / RedirectHome", () => {
+    const expected = Object.fromEntries(
+      Object.entries(KNOWN_HOME_NAVIGATIONS).map(([file, { why: _why, ...counts }]) => [file, counts]),
+    );
+    expect(shippedHomeNavigations()).toEqual(expected);
   });
 
   it("D-01 이 지목한 자리들은 헬퍼로 간다", () => {
@@ -291,5 +646,112 @@ describe("배송 코드에서 홈으로 가는 길", () => {
     const dock = screen.slice(screen.indexOf("onSelect={(tab) => {"), screen.indexOf("</SafeAreaView>"));
     expect(dock).toContain('if (target === "/") goHome();');
     expect(dock).toContain("else router.replace(target);");
+  });
+});
+
+// ── 칸을 막는 가드는 goHome 에 이름을 올린다 (게이트 NS-02) ────────────────
+
+interface RemovalGuard {
+  file: string;
+  line: number;
+  owner: string;
+  registersStop: boolean;
+}
+
+/** 가장 바깥의 함수(컴포넌트) 노드와 그 이름. */
+function outermostFunction(node: ts.Node, sf: ts.SourceFile): { fn: ts.Node; name: string } | null {
+  let found: ts.Node | null = null;
+  for (let current: ts.Node | undefined = node.parent; current; current = current.parent) {
+    if (ts.isFunctionDeclaration(current) || ts.isArrowFunction(current) || ts.isFunctionExpression(current)) found = current;
+  }
+  if (!found) return null;
+  let name = "(anonymous)";
+  if (ts.isFunctionDeclaration(found) && found.name) name = found.name.text;
+  else if (found.parent && ts.isVariableDeclaration(found.parent)) name = found.parent.name.getText(sf);
+  return { fn: found, name };
+}
+
+function callsNamed(root: ts.Node, names: ReadonlySet<string>): boolean {
+  let hit = false;
+  const visit = (node: ts.Node) => {
+    if (hit) return;
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && names.has(node.expression.text)) {
+      hit = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(root);
+  return hit;
+}
+
+/** `usePreventRemove(…)`(별칭 포함)와 `x.addListener("beforeRemove", …)`. */
+function removalGuards(source: string, file: string): RemovalGuard[] {
+  const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const prevent = new Set<string>(["usePreventRemove"]);
+  const stop = new Set<string>(["useGoHomeStop"]);
+  for (const statement of sf.statements) {
+    if (!ts.isImportDeclaration(statement)) continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (!bindings || !ts.isNamedImports(bindings)) continue;
+    for (const element of bindings.elements) {
+      const imported = (element.propertyName ?? element.name).text;
+      if (imported === "usePreventRemove") prevent.add(element.name.text);
+      if (imported === "useGoHomeStop") stop.add(element.name.text);
+    }
+  }
+  const guards: RemovalGuard[] = [];
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node)) {
+      const callee = node.expression;
+      const isPrevent = ts.isIdentifier(callee) && prevent.has(callee.text);
+      const first = node.arguments[0];
+      const isListener =
+        ts.isPropertyAccessExpression(callee) &&
+        callee.name.text === "addListener" &&
+        first !== undefined &&
+        ts.isStringLiteralLike(first) &&
+        first.text === "beforeRemove";
+      if (isPrevent || isListener) {
+        const owner = outermostFunction(node, sf);
+        guards.push({
+          file,
+          line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
+          owner: owner?.name ?? "(module)",
+          registersStop: owner ? callsNamed(owner.fn, stop) : false,
+        });
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return guards;
+}
+
+describe("칸을 막는 가드는 goHome 에 이름을 올린다 (게이트 NS-02)", () => {
+  it("판정기: 가드가 있는 컴포넌트가 useGoHomeStop 을 부르는지 본다(별칭 포함)", () => {
+    const fixture = [
+      'import { usePreventRemove as keep } from "expo-router/react-navigation";',
+      'import { useGoHomeStop as stopHere } from "@/lib/nav/go-home";',
+      "function A() { keep(dirty, cb); stopHere(() => dirty); }",
+      'function B() { useEffect(() => navigation.addListener("beforeRemove", (e) => e.preventDefault()), []); }',
+      'function C() { navigation.addListener("focus", f); }',
+    ].join("\n");
+    expect(removalGuards(fixture, "f.tsx").map(({ owner, registersStop }) => [owner, registersStop])).toEqual([
+      ["A", true],
+      ["B", false],
+    ]);
+  });
+
+  it("src 의 모든 removal 가드가 같은 컴포넌트에서 useGoHomeStop 을 부른다", () => {
+    const guards = sourceFiles(join(ROOT, "src")).flatMap((file) => removalGuards(readFileSync(join(ROOT, file), "utf8"), file));
+    // 시야 대조: 스캔이 아무것도 못 읽어서 통과하는 것이 아니다.
+    expect([...new Set(guards.map((g) => g.file))].sort()).toEqual([
+      "src/app/audit.tsx",
+      "src/app/avatar-palette.tsx",
+      "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
+      "src/screens/deepspace/dds-auth-screens.tsx",
+    ]);
+    expect(guards.filter((g) => !g.registersStop).map(({ file, line, owner }) => `${file}:${line} ${owner}`)).toEqual([]);
   });
 });

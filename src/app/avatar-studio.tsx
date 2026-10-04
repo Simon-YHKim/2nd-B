@@ -13,6 +13,7 @@ import { PremiumLoadingState } from "@/components/premium";
 import { PixelPressable, PixelSurface } from "@/components/pixel";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppRouter, useHardwareBack, useScreenParams } from "@/lib/nav/phone-embed";
+import { useGoHome } from "@/lib/nav/go-home";
 import {
   AVATAR_CATALOG,
   AVATAR_COLORS,
@@ -83,6 +84,7 @@ export default function AvatarStudioScreen() {
   // Phone-aware: inside the dashboard phone, leaving steps the phone's stack
   // and `setup` comes from the phone route (/avatar-studio?setup=1).
   const router = useAppRouter();
+  const goHome = useGoHome();
   const { t, i18n } = useTranslation(["avatar", "common"]);
   const { setup } = useScreenParams<{ setup?: string }>();
   const setupMode = setup === "1";
@@ -118,12 +120,12 @@ export default function AvatarStudioScreen() {
     // Leaving defers the prompt for this session only; nothing is written.
     if (setupMode) {
       if (userId) markAvatarSetupDeferredForSession(userId);
-      router.replace("/");
+      goHome();
       return;
     }
     if (router.canGoBack()) router.back();
     else router.replace("/profile");
-  }, [loadState.status, router, setupMode, userId]);
+  }, [goHome, loadState.status, router, setupMode, userId]);
 
   // Through the phone's claim stack inside the dashboard phone (see useHardwareBack).
   useHardwareBack(useCallback(() => {
@@ -214,7 +216,7 @@ export default function AvatarStudioScreen() {
       if (saveOperationRef.current !== operation || activeUserIdRef.current !== saveUserId) return;
       saveInFlightRef.current = false;
       setSaving(false);
-      if (setupMode) router.replace("/");
+      if (setupMode) goHome();
       else if (router.canGoBack()) router.back();
       else router.replace("/profile");
     } catch {
@@ -226,7 +228,7 @@ export default function AvatarStudioScreen() {
         setSaving(false);
       }
     }
-  }, [userId, readyForUser, router, spec, setupMode]);
+  }, [goHome, userId, readyForUser, router, spec, setupMode]);
 
   const isSelected = useCallback((choice: Choice): boolean => {
     if (choice.kind === "color") return spec[choice.field] === choice.value;

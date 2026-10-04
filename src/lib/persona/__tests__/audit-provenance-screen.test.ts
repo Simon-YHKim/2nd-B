@@ -187,13 +187,19 @@ describe("deep-space /audit screen contract", () => {
       .update(app.slice(legacyStart, legacyEnd))
       .digest("hex");
     expect(legacyHash).toBe(
-      // 대시보드 폰 이식에서 재고정(2026-10-02). 옛 값 e131c71f 는 이 이식 직전
-      // 본문이고, 이번 편집만 되돌리면 그 값이 그대로 다시 나온다. 바뀐 것은
-      // 레거시 설문이 `/audit?screener=1` 로 폰 안에서도 그려지게 한 것뿐이다:
-      // router 를 useAppRouter() 로(의존성 배열 한 줄 포함), Android Back 을
-      // useHardwareBack 으로(src/lib/nav/phone-embed.tsx). 폰 밖 동작과 저장
-      // 경로는 그대로다.
-      "13b50e3b094749d614ebf295d6b2162357c8ce2697e229029ef6d06c4b063f76");
+      // QA 261004 게이트 NS-02 에서 재고정(2026-10-04). 옛 값 13b50e3b 는 이 편집
+      // 직전 본문이고, 이번 편집만 되돌리면 그 값이 다시 나온다. 바뀐 것은 미저장
+      // 응답 beforeRemove 가드 바로 아래 useGoHomeStop 한 호출(주석 두 줄 포함)
+      // 뿐이다: 위 화면에서 홈으로 갈 때 이 화면 앞에서 멈춘다. 확인창 · 저장 경로는
+      // 그대로다.
+      "f7a1fbf6bc0ada1e4ffbe595501736fc93e4737137c2b6b82f74e7fff2e75dc3");
+    // 이전 값 13b50e3b094749d614ebf295d6b2162357c8ce2697e229029ef6d06c4b063f76:
+    // 대시보드 폰 이식에서 재고정(2026-10-02). 옛 값 e131c71f 는 이 이식 직전
+    // 본문이고, 이번 편집만 되돌리면 그 값이 그대로 다시 나온다. 바뀐 것은
+    // 레거시 설문이 `/audit?screener=1` 로 폰 안에서도 그려지게 한 것뿐이다:
+    // router 를 useAppRouter() 로(의존성 배열 한 줄 포함), Android Back 을
+    // useHardwareBack 으로(src/lib/nav/phone-embed.tsx). 폰 밖 동작과 저장
+    // 경로는 그대로다.
     // 이전 값 e131c71f2aa6f53b57c98042b9509894514592433877772d738146313eff11e8:
     // 통합 머지에서 재고정. 옛 값은 5b6bbe71 분기점 본문이고, 그 뒤 main 이
     // #1552(명시적 life audit 입구 복원)00b7#1602(딥스페이스 게이트) 를 얹었다.

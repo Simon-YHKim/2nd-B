@@ -258,7 +258,7 @@ describe("TTFV five-locale and PIXEL-CLAY source contract", () => {
     expect(SCREEN).toMatch(/await\s+createRecord\s*\(/);
     expect(SCREEN).not.toMatch(/createRecord[\s\S]{0,200}\.catch\s*\(\s*\(\)\s*=>\s*\{?\s*\}?\s*\)/);
     expect(SCREEN).toContain('router.push("/capture")');
-    expect(SCREEN).toContain('router.replace("/")');
+    expect(SCREEN).toContain("onPress={() => goHome()}"); // pops to the home below (gate NS-04)
     expect(SCREEN).toContain("numberOfLines={4}");
   });
 

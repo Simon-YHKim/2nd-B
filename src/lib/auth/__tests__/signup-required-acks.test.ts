@@ -272,6 +272,10 @@ describe("sign-up authority and preservation boundaries", () => {
   // 추가해 그 digest 만 재고정했다. 나머지 네 경계는 그대로다.
   // 2026-09-30: dds-auth-screens digest 만 재고정했다. Text 를 react-native 대신
   // @/components/ui/PlainText 에서 가져오는 import 두 줄뿐이다(앱 전체 한국어 줄바꿈).
+  // 2026-10-04: dds-auth-screens digest 만 재고정했다(QA 261004 게이트 NS-02 · NS-04).
+  // go-home import 한 줄(import 블록의 빈 줄 자리)과 reset-password 화면 안의 네 곳뿐이다:
+  // 재설정 잠금을 useGoHomeStop 에 올린 한 줄, 홈 출구 셋을 goHome / replaceOrGoHome
+  // 으로. 가입 렌더러 · 공용 폼 경계는 그대로다.
   test("preserves legacy renderer and shared form boundaries while pinning the auth renderer", () => {
     // 대상만 아카이브로 옮겼다. **digest 는 한 글자도 안 바꿨다** — 같은 마커,
     // 같은 해시, 다른 파일이면 옮기면서 고치지 않았다는 증거가 된다.
@@ -286,7 +290,7 @@ describe("sign-up authority and preservation boundaries", () => {
     expect(sha256(legacy)).toBe("630043be84f94b1b90bfa3a932c98cd4f3886f9e92a44a35fb5487298f782904");
     expect(sha256(styles)).toBe("5df5b8ca23806eb75662a694220d7b48f31351aacfb8d8bf476d66b98a83508e");
     expect(sha256(read("src/screens/deepspace/dds-auth-screens.tsx"))).toBe(
-      "b2be8e90dc37877b3e6c2ea6e8d70a5cf3a9caadf357cdb03cc9d4fbbad3d84c",
+      "60c4074d311b848304a580bc3b6704f16c905d581b9fb885fd89fdf32c9daa6c",
     );
     // 2026-09-28: ConsentNotice gained the "PolaScope, formerly 2nd-Brain" note
     // (common:app.renameNote) until the 2026-10-05 Terms amendment, which removes

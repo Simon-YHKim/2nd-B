@@ -39,6 +39,7 @@ test("phone detail sheet stays in the display and Back closes it before leaving"
   expect(screen.replace(/\r\n?/g, "\n")).toContain("if (!phoneBack) {\n      router.back();");
   expect(screen).toContain("if (!phoneBack) return;");
   expect(screen).toContain("BackHandler.addEventListener(\"hardwareBackPress\"");
-  expect(screen).toContain("onPress={phoneBack ?? (() => router.replace(\"/\"))}");
+  // QA 261004 gate NS-04: outside the phone it pops to the home below.
+  expect(screen).toContain("onPress={phoneBack ?? (() => goHome())}");
   expect(screen).toContain("phone?.backLabel ?? t(\"deepspace:museum.backToConstellation\")");
 });

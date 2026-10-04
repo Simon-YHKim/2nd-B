@@ -4,8 +4,12 @@ import { resolve } from "node:path";
 const source = readFileSync(resolve(__dirname, "..", "+not-found.tsx"), "utf8").replace(/\r\n/g, "\n");
 
 describe("the real Expo Router not-found fallback", () => {
-  test("replaces the invalid history entry with canonical home", () => {
-    expect(source).toContain('router.replace("/")');
+  test("returns to the canonical home without reopening the bad URL or stacking a second home", () => {
+    // QA 261004 gate NS-04: pops to the home below (or turns this entry into
+    // home on a cold deep link). replace("/") stacked a second home.
+    expect(source).toContain('import { goHome as popToHome } from "@/lib/nav/go-home";');
+    expect(source).toContain("const goHome = useCallback(() => popToHome(), []);");
+    expect(source).not.toContain('router.replace("/")');
     expect(source).toContain("onPress={goHome}");
     expect(source).not.toMatch(/router\.(push|back)\(/);
     expect(source).not.toContain("/deepspace-home");

@@ -9,10 +9,10 @@ import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, Sty
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { Redirect, router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
+import { goHome, replaceOrGoHome, useGoHomeStop } from "@/lib/nav/go-home";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Defs, Line, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
 import { colors, radius, spacing } from "@/theme/tokens";
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
@@ -665,6 +665,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
   const confirmRef = useRef<TextInput>(null);
 
   usePreventRemove(exitLocked, useCallback(() => {}, []));
+  useGoHomeStop(() => exitLocked); // a home jump from above stops here (gate NS-02)
 
   // Keep native Back aligned with the visible recovery controls. Before a
   // recovery session exists, Back returns to sign-in. Once the password step
@@ -676,7 +677,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
 
       const sub = BackHandler.addEventListener("hardwareBackPress", () => {
         if (exitLocked) return true;
-        router.replace(step === "done" || userId ? "/" : "/sign-in");
+        replaceOrGoHome(step === "done" || userId ? "/" : "/sign-in");
         return true;
       });
       return () => sub.remove();
@@ -731,7 +732,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
       <View style={resetStyles.header}>
         {(step === "request" || step === "verify") && !exitLocked ? (
           <Pressable
-            onPress={() => router.replace(exitHref)}
+            onPress={() => replaceOrGoHome(exitHref)}
             accessibilityRole="link"
             accessibilityLabel={exitLabel}
             accessibilityHint={exitHint}
@@ -845,7 +846,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
           </>
         ) : step === "done" ? (
           <ResetAction
-            onPress={() => router.replace("/")}
+            onPress={() => goHome()}
             label={t("auth:resetPassword.continue")}
             hint={t("auth:resetPassword.continueHint")}
           />

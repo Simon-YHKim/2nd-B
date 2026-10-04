@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { BackHandler, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
-
+import { goHome } from "@/lib/nav/go-home";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { AuthLockWaitTimeoutError } from "@/lib/auth/session-mutation";
 import { createSignInProgress } from "@/lib/auth/sign-in-progress";
@@ -188,8 +188,9 @@ export function useSignInForm(): UseSignInForm {
       void observeAuthConversion(result.userId, "login", "email");
       // AuthContext picks up the new session; IntroGate plays the cell
       // LoadingScreen and then mounts the Stack. Route to /index so the
-      // post-loading hand-off lands on the graph view (the new main).
-      router.replace("/");
+      // post-loading hand-off lands on the graph view (the new main). Pop to the
+      // home below when a session ran out over it; replace stacked a second one.
+      goHome();
     } catch (e) {
       // Generic message to avoid email-enumeration. CSO finding R3.
       setToast({

@@ -4,11 +4,11 @@ import { PlainText as RNText } from "@/components/ui/PlainText";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
 import { Redirect, router, useNavigation } from "expo-router";
 import { useAppRouter } from "@/lib/nav/phone-embed";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect, SvgXml } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
 import { colors, spacing } from "@/theme/tokens";
 import { GLYPH_ALIAS, glyphMarkup, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
 import { ringCells, stepLine } from "@/components/pixel/pixel-line";
@@ -756,9 +756,8 @@ export function DeepSpacePrivacyDesignScreen() {
     setDeleteConfirmOpen(true);
   }
 
-  // Shell's top back action and persistent dock both remove this route. Once
-  // the user confirms terminal erasure, keep the screen mounted until the Edge
-  // Function reports success/failure so navigation cannot strand a half-flow.
+  // Shell's top back action and persistent dock both remove this route. Once the user confirms terminal
+  // erasure, keep the screen mounted until the Edge Function reports success/failure so navigation cannot strand a half-flow.
   useEffect(() => {
     // Register once instead of waiting for the deleting-state render. The ref
     // flips synchronously inside runDeleteAccount, so even a same-frame dock tap
@@ -768,6 +767,7 @@ export function DeepSpacePrivacyDesignScreen() {
       event.preventDefault();
     });
   }, [navigation]);
+  useGoHomeStop(() => deleteInFlightRef.current && !allowDeletionNavigationRef.current); // gate NS-02
 
   useEffect(() => {
     prefsRef.current = null;

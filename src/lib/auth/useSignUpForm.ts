@@ -16,7 +16,7 @@ import { BackHandler, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 import { useURL } from "expo-linking";
-
+import { replaceOrGoHome } from "@/lib/nav/go-home";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { observeAuthConversion } from "@/lib/analytics/auth-conversions";
 import {
@@ -382,12 +382,12 @@ export function useSignUpForm(): UseSignUpForm {
           setJudgeWelcome(true); // hold the guest guard open for the toast
           setToast({ tone: "success", message: t("judge.welcome") });
           judgeRouteTimerRef.current = setTimeout(() => {
-            if (mountedRef.current) router.replace(nextRoute);
+            if (mountedRef.current) replaceOrGoHome(nextRoute);
           }, 900);
           return;
         }
         // First-time profiles complete their avatar after age/consent settlement.
-        router.replace(nextRoute);
+        replaceOrGoHome(nextRoute);
         return;
       }
       if (result.kind === "ageGate") {

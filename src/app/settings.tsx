@@ -30,7 +30,7 @@ import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 import { useAppRouter } from "@/lib/nav/phone-embed";
-
+import { useGoHome } from "@/lib/nav/go-home";
 import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
@@ -522,6 +522,7 @@ function SettingsChrome({ children }: { children: ReactNode }) {
 export default function Settings() {
   // Phone-aware: inside the dashboard phone, links open in the phone.
   const router = useAppRouter();
+  const goHome = useGoHome();
   const { t, i18n } = useTranslation("settings");
   const { t: tOps } = useTranslation("ops");
   const { userId, loading } = useAuth();
@@ -968,7 +969,7 @@ export default function Settings() {
                 sub={t("resetCoachmarksDesc")}
                 onPress={() => {
                   resetCoachmarks(userId);
-                  router.replace("/");
+                  goHome();
                 }}
               />
             </M3Group>
@@ -994,7 +995,7 @@ export default function Settings() {
                 variant="secondary"
                 onPress={() => {
                   resetCoachmarks(userId);
-                  router.replace("/");
+                  goHome();
                 }}
               />
               <Button label={t("nav.data")} accessibilityHint={t("nav.dataHint")} variant="secondary" onPress={() => router.push("/data")} />
