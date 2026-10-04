@@ -9,6 +9,7 @@ import {
   decodeBase64,
   decodeBase64Url,
   derToRawEcdsa,
+  isCallbackFresh,
   normalizeAdUnitId,
   parseRewardCallback,
   parseSignedSsvQuery,
@@ -301,12 +302,26 @@ Deno.serve(async (req: Request) => {
     if (signature.status === 'unavailable') return json({ error: 'verifier_keys_unavailable' }, 503);
     if (signature.status !== 'valid') return json({ error: 'bad_signature' }, 403);
 
-    const { data: settled, error: settleError } = await admin.rpc('settle_reward_ssv_ticket_v2', {
+    // The signed timestamp must be at most one day old and five minutes ahead.
+    // 0213 repeats the check with the ticket's issue time, so a transaction id
+    // the 89-day purge (0211) deleted cannot be paid again from a replay. Only
+    // the digit count is logged, for GO-5b: never the value, the transaction,
+    // the user, the signature or the ticket.
+    const fresh = isCallbackFresh(callback.callbackTimestampMs, Date.now());
+    console.log(JSON.stringify({
+      event: 'ssv_callback_ts',
+      digits: callback.callbackTimestampDigits,
+      accepted: fresh,
+    }));
+    if (!fresh) return json({ error: 'invalid_or_expired_ticket' }, 403);
+
+    const { data: settled, error: settleError } = await admin.rpc('settle_reward_ssv_ticket_v3', {
       p_token_hash: tokenHash,
       p_txn_id: callback.transactionId,
       p_ad_unit_id: callback.adUnitId,
       p_reward_amount: callback.rewardAmount,
       p_reward_item: callback.rewardItem,
+      p_callback_ts: callback.callbackTimestampRaw,
     });
     if (settleError) return json({ error: 'settlement_service_unavailable' }, 503);
     const row = Array.isArray(settled) && settled.length === 1 ? settled[0] : null;
