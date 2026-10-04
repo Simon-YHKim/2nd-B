@@ -47,6 +47,5 @@
     "backHome": "Back home",
     "backHomeHint": "Returns to the home screen."
   },
-  "saved": "Check-in saved.",
-  "unconfirmed": "The save took too long to answer, so it is not confirmed yet. Your picks are still here. Saving the same picks again keeps a single entry."
+  "saved": "Check-in saved."
 }

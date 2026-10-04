@@ -14,7 +14,6 @@ import { BackHandler, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useFocusEffect } from "expo-router";
 import { goHome } from "@/lib/nav/go-home";
-import { createRequestBackHold } from "@/lib/nav/save-exit-hold";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { AuthLockWaitTimeoutError } from "@/lib/auth/session-mutation";
 import { createSignInProgress } from "@/lib/auth/sign-in-progress";
@@ -90,14 +89,6 @@ export function useSignInForm(): UseSignInForm {
   // A provider whose OAuth start failed with a "not configured" error is hidden
   // for the rest of the session so the user is not left tapping a dead button.
   const [hiddenProviders, setHiddenProviders] = useState<Set<string>>(new Set());
-  // Auth requests (email sign-in, OAuth/Naver start, reset mail) still waiting
-  // for an answer. Not React state, so the press that starts one has already
-  // registered it before any Back in the next frame reads it. Each request holds
-  // Back for SIGN_IN_LONG_WAIT_MS only: past that the screen already says it is
-  // taking long, and Back is the way out instead of a dead end until the app is
-  // killed (gate NAV-R4-01). The request itself is not cancelled - a late SDK
-  // writer may still sign in, and nothing here claims it was cancelled.
-  const [authRequests] = useState(() => createRequestBackHold(SIGN_IN_LONG_WAIT_MS));
 
   useEffect(() => {
     if (!toast) return;
@@ -125,17 +116,12 @@ export function useSignInForm(): UseSignInForm {
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        // While a request is out, keep this screen: goHome would pop it, and a
-        // failure would then land on an unmounted screen with the typed address
-        // gone (gate NAV-R3-01; useSignUpForm's actionLockRef is the same rule).
-        // Only up to the time limit per request (gate NAV-R4-01).
-        if (authRequests.holding()) return true;
         goHome();
         return true;
       };
       const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
       return () => sub.remove();
-    }, [authRequests]),
+    }, []),
   );
 
   const setEmailAndClearReset = useCallback(
@@ -150,7 +136,6 @@ export function useSignInForm(): UseSignInForm {
 
   const handleOAuth = useCallback(
     async (provider: OAuthProvider) => {
-      const endRequest = authRequests.begin();
       setOauthSubmitting(true);
       try {
         await startOAuthProvider(provider);
@@ -169,17 +154,15 @@ export function useSignInForm(): UseSignInForm {
         });
         if (typeof console !== "undefined") console.warn(`[auth] ${provider} oauth error`, msg);
       } finally {
-        endRequest();
         setOauthSubmitting(false);
       }
     },
-    [authRequests, t],
+    [t],
   );
 
   // Naver uses a custom web redirect (not Supabase-native), so it has its own
   // handler. isNaverEnabled() keeps it hidden on native.
   const handleNaver = useCallback(async () => {
-    const endRequest = authRequests.begin();
     setOauthSubmitting(true);
     try {
       await signInWithNaver();
@@ -190,10 +173,9 @@ export function useSignInForm(): UseSignInForm {
       });
       if (typeof console !== "undefined") console.warn("[auth] naver oauth error", (e as Error).message);
     } finally {
-      endRequest();
       setOauthSubmitting(false);
     }
-  }, [authRequests, t]);
+  }, [t]);
 
   const handleSubmit = useCallback(async () => {
     setSubmitting(true);
@@ -204,7 +186,6 @@ export function useSignInForm(): UseSignInForm {
           }
         })
       : null;
-    const endRequest = authRequests.begin();
     try {
       const result = await signInWithEmail(email.trim(), password, progress?.mark);
       progress?.mark("session-refresh");
@@ -227,10 +208,9 @@ export function useSignInForm(): UseSignInForm {
       if (typeof console !== "undefined") console.warn("[auth] signIn error", (e as Error).message);
     } finally {
       progress?.finish();
-      endRequest();
       setSubmitting(false);
     }
-  }, [authRequests, email, password, refresh, t]);
+  }, [email, password, refresh, t]);
 
   const handleForgotPassword = useCallback(async () => {
     setResetHelpVisible(true);
@@ -240,7 +220,6 @@ export function useSignInForm(): UseSignInForm {
       setToast({ tone: "info", message: t("signIn.resetToast") });
       return;
     }
-    const endRequest = authRequests.begin();
     setResetSubmitting(true);
     try {
       await sendPasswordResetEmail(resetEmail);
@@ -250,10 +229,9 @@ export function useSignInForm(): UseSignInForm {
       setToast({ tone: "danger", message: t("errors.passwordResetFailed") });
       if (typeof console !== "undefined") console.warn("[auth] password reset email error", (e as Error).message);
     } finally {
-      endRequest();
       setResetSubmitting(false);
     }
-  }, [authRequests, email, t]);
+  }, [email, t]);
 
   const canSubmit = email.includes("@") && password.length > 0 && !submitting;
 

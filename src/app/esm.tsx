@@ -7,7 +7,6 @@ import { PremiumAppShell, PremiumButton, PremiumCard, SceneHero, PremiumToast } 
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useGoHome } from "@/lib/nav/go-home";
-import { useSaveExitHold } from "@/lib/nav/save-exit-hold";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { m3 } from "@/lib/theme/m3";
 import { cosmic, deepSpace, flattenAlpha, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -31,12 +30,8 @@ function EsmCheckInScreen() {
   const [kind, setKind] = useState<PromptKind>("context");
   const [scaleValue, setScaleValue] = useState<number | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  // 저장하는 동안 이 칸을 걷어내지 않는다. 홈 · 독 · 뒤로를 저장이 끝날 때까지
-  // 붙들고, 실패하면 화면과 고른 값이 남아 실패 표시가 보인다(게이트 NAV-R3-01).
-  // 응답이 제한 시간 안에 오지 않으면 붙들기를 풀고 "아직 모른다" 를 알린다(NAV-R4-01).
-  const { saving, run: runSave, whenIdle } = useSaveExitHold();
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [unconfirmed, setUnconfirmed] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
 
   const canSubmit = kind === "energy" ? scaleValue !== null : selectedTags.length > 0;
@@ -73,45 +68,28 @@ function EsmCheckInScreen() {
   }
 
   async function handleSubmit() {
-    if (!userId || !canSubmit) return;
-    const answer = {
+    if (!userId || !canSubmit || saving) return;
+    setSaving(true);
+    const supabase = getSupabaseClient();
+    const { error } = await supabase.from("esm_responses").insert({
+      user_id: userId,
       prompt_kind: kind,
       scale_value: kind === "energy" ? scaleValue : null,
       context_tags: kind === "context" ? selectedTags : [],
-    };
-    // 같은 답(태그 순서는 보지 않는다)을 다시 보내면 같은 재시도 키다. 키가 행의 id 라,
-    // 결과를 모른 채 다시 눌러도 앞선 요청이 이미 들어갔다면 23505 로 돌아오고 행은 하나다.
-    const fingerprint = JSON.stringify({ ...answer, context_tags: [...answer.context_tags].sort() });
-    // runSave 는 첫 await 보다 먼저 잠근다. 이미 저장 중이면 이 저장은 시작하지 않는다.
-    // 저장 함수는 화면 상태를 건드리지 않는다 - 제한 시간 뒤의 늦은 결과는 버려진다.
-    const outcome = await runSave(fingerprint, async (key) => {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase.from("esm_responses").insert({
-        id: key,
-        user_id: userId,
-        ...answer,
-      });
-      // 23505: 같은 키의 앞선 시도가 이미 저장됐다(응답만 늦었다). 저장된 것이다.
-      return !error || error.code === "23505";
     });
+    setSaving(false);
 
-    if (outcome === "saved") {
-      setUnconfirmed(false);
-      setSaved(true);
-      setScaleValue(null);
-      setSelectedTags([]);
-    } else if (outcome === "failed") {
-      // 고른 값은 지우지 않는다. 화면이 남아 있으니 다시 누르면 같은 값 · 같은 키로 보낸다.
-      setUnconfirmed(false);
+    if (error) {
       setToast({
         tone: "danger",
         message: t("toast.saveFailed"),
       });
-    } else if (outcome === "unsettled") {
-      // 제한 시간이 지났다. 홈 · 뒤로가 다시 열리고 고른 값은 남는다. 요청을 취소한
-      // 것이 아니므로(이미 들어갔을 수 있다) 실패라고도 취소됐다고도 말하지 않는다.
-      setUnconfirmed(true);
+      return;
     }
+
+    setSaved(true);
+    setScaleValue(null);
+    setSelectedTags([]);
   }
 
   return (
@@ -226,8 +204,7 @@ function EsmCheckInScreen() {
             <PremiumButton
               label={t("actions.backHome")}
               variant="ghost"
-              onPress={whenIdle(goHome)}
-              disabled={saving}
+              onPress={goHome}
               full
               accessibilityHint={t("actions.backHomeHint")}
             />
@@ -238,13 +215,6 @@ function EsmCheckInScreen() {
           <PremiumCard accent={cosmic.signalMint} style={styles.savedCard}>
             <Text variant="body" color="text">
               {t("saved")}
-            </Text>
-          </PremiumCard>
-        ) : null}
-        {unconfirmed ? (
-          <PremiumCard accent={semantic.warning} style={styles.savedCard}>
-            <Text variant="body" color="text" accessibilityLiveRegion="polite">
-              {t("unconfirmed")}
             </Text>
           </PremiumCard>
         ) : null}
