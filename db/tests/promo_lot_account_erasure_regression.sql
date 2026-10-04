@@ -123,8 +123,10 @@ BEGIN
   IF (SELECT r.reason FROM public.erasure_registry AS r
        WHERE r.table_name = 'credit_ledger' AND r.class = 'retained')
      IS DISTINCT FROM
-     '로트 종류마다 계정 삭제 때 운명이 다르다. 구매(purchase) 로트는 여는 행과 그 로트의 모든 행이 구매 사실과 미사용 잔량의 증거다. 취소권 기간이 계정보다 오래 살아남으므로 user_id 만 NULL 로 비우고 남긴다(0134 ON DELETE SET NULL · 설계서 F5). 광고 보상(ad_reward)·프로모(promo) 로트는 돈을 낸 기록이 아니므로, 계정 삭제 직전 public.users 의 BEFORE DELETE 트리거가 여는 행과 그 로트의 모든 행을 지운다(0202 · 0204). 콘텐츠 삭제(erase_my_data)는 이 표를 건드리지 않는다.' THEN
-    RAISE EXCEPTION 'erasure_registry still describes credit_ledger as before 0204/0205';
+     -- 0212 restated this reason again for the 89-day reward purge (0211); the 0204/0205
+     -- facts it pins (purchase SET NULL, ad-reward and promo lots deleted) are still in it.
+     '로트 종류마다 계정 삭제 때 운명이 다르다. 구매(purchase) 로트는 여는 행과 그 로트의 모든 행이 구매 사실과 미사용 잔량의 증거다. 취소권 기간이 계정보다 오래 살아남으므로 user_id 만 NULL 로 비우고 남긴다(0134 ON DELETE SET NULL · 설계서 F5). 광고 보상(ad_reward)·프로모(promo) 로트는 돈을 낸 기록이 아니므로, 계정 삭제 직전 public.users 의 BEFORE DELETE 트리거가 여는 행과 그 로트의 모든 행을 지운다(0202 · 0204). 광고 보상 로트는 계정이 남아 있어도, 여는 행이 89일(방침 최대 90일)보다 오래되고 만료돼 합계가 0 이면 purge_reward_records() 가 매일 로트 전체를 지운다(0211, 분쟁 보류 중인 거래의 로트는 보류가 풀릴 때까지 남는다). 콘텐츠 삭제(erase_my_data)는 이 표를 건드리지 않는다.' THEN
+    RAISE EXCEPTION 'erasure_registry still describes credit_ledger as before 0204/0205/0212';
   END IF;
   IF pg_catalog.col_description('public.credit_ledger'::regclass,
        (SELECT a.attnum FROM pg_catalog.pg_attribute AS a

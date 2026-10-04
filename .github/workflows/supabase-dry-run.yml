@@ -577,7 +577,7 @@ jobs:
           port="${PGPORT:-5432}"
           source_db="${PGDATABASE:-postgres}"
           down="db/migrations/rollback/0189_down.sql"
-          pair="erasure_registry lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason"
+          pair="erasure_registry lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason reward_records_erasure_registry_reason"
           run_token="${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$_${RANDOM}"
           control_db="rollback_control_${run_token}"
           fixed_db="rollback_fixed_${run_token}"
@@ -645,7 +645,8 @@ jobs:
                       FROM supabase_migrations.schema_migrations AS m
                       WHERE m.name IN ('erasure_registry', 'lock_erase_my_data_authenticated',
                                        'service_contract_erasure_registry', 'rss_proxy_erasure_registry',
-                                       'credit_ledger_erasure_registry_reason')"
+                                       'credit_ledger_erasure_registry_reason',
+                                       'reward_records_erasure_registry_reason')"
           }
           can_execute() { # <db> <role>
             sql "$1" "SELECT pg_catalog.has_function_privilege('$2', 'public.erase_my_data(text)', 'EXECUTE')"
@@ -928,7 +929,7 @@ jobs:
             fi
           done
 
-          # The registry forwards (0198, 0201) and the reason revision (0205) are kept
+          # The registry forwards (0198, 0201) and the reason revisions (0205, 0212) are kept
           # with 0190: each one's guard refuses to run while erase_my_data is open, so
           # re-applying them here would stop the push before the control can look.
           echo "== control: retain 0190 and every registry forward, then replay only 0189"
@@ -938,7 +939,8 @@ jobs:
                              WHERE name IN ('lock_erase_my_data_authenticated',
                                             'service_contract_erasure_registry',
                                             'rss_proxy_erasure_registry',
-                                            'credit_ledger_erasure_registry_reason')"
+                                            'credit_ledger_erasure_registry_reason',
+                                            'reward_records_erasure_registry_reason')"
           roll_back "$control_db"
           # ON CONFLICT: if the rollback under test leaves the row in place (the very
           # regression this lane is for), the control still builds the same state
@@ -951,7 +953,7 @@ jobs:
           push_again "$control_db"
           control_open="$(can_execute "$control_db" authenticated)"
           echo "control: ledger before the re-push [$control_ledger] -> authenticated EXECUTE after it = $control_open"
-          if [[ "$control_ledger" != "lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason" ]]; then
+          if [[ "$control_ledger" != "lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason reward_records_erasure_registry_reason" ]]; then
             fail "the control did not reach the pre-fix state: ledger held [$control_ledger], expected 0190 and every registry forward"
           fi
           if [[ "$control_open" != "t" ]]; then
@@ -1148,10 +1150,12 @@ jobs:
           # if it had been left off the list, and push again. If everything
           # owned_state reads still comes back, nothing visible here needs that
           # migration re-applied, and it is on the list for no reason this step can
-          # check: red. A push failure is evidence only when it is the exact causal
-          # 0190/42883 failure produced by retaining 0189's row. Every other failure
-          # is inconclusive and red; the causal case must recover after that one row
-          # is removed before the gate may call it necessary.
+          # check: red. A push failure is evidence only when it is one of the exact
+          # causal failures listed in needs(): 0190/42883 from retaining 0189's row,
+          # 0198/P0001 from retaining 0190's, and 0212/P0001 from retaining 0198's or
+          # 0205's (0212 finds the registry row those two write outside its recorded
+          # state). Every other failure is inconclusive and red; the causal case must
+          # recover after that one row is removed before the gate may call it necessary.
           #
           # This is the control's move, for every row instead of 0190's alone. The
           # control stays because it asks for more than "differs": it demands the
@@ -1200,6 +1204,19 @@ jobs:
                 && grep -Fq "erasure_additions_rpc_must_remain_locked" "$push_log" \
                 && grep -Fq "SQLSTATE P0001" "$push_log"; then
                 causal_failure="0198/P0001 unlocked function"
+              # 0212 restates reasons on rows 0198 adds (reward_ssv_issue_rate_limits)
+              # and 0205 rewrote (credit_ledger). Retaining either row skips its
+              # migration, so 0212 meets a row outside its recorded state and stops.
+              elif [[ "$1" == "service_contract_erasure_registry" ]] \
+                && grep -Fq "Applying migration 0212_reward_records_erasure_registry_reason.sql" "$push_log" \
+                && grep -Fq "erasure_revisions_row_not_in_recorded_state: reward_ssv_issue_rate_limits" "$push_log" \
+                && grep -Fq "SQLSTATE P0001" "$push_log"; then
+                causal_failure="0212/P0001 registry row 0198 adds"
+              elif [[ "$1" == "credit_ledger_erasure_registry_reason" ]] \
+                && grep -Fq "Applying migration 0212_reward_records_erasure_registry_reason.sql" "$push_log" \
+                && grep -Fq "erasure_revisions_row_not_in_recorded_state: credit_ledger" "$push_log" \
+                && grep -Fq "SQLSTATE P0001" "$push_log"; then
+                causal_failure="0212/P0001 credit_ledger reason 0205 writes"
               fi
               if [[ -z "$causal_failure" ]]; then
                 fail "INCONCLUSIVE necessity check: '$1' re-push exited $push_rc without a reviewed causal SQL failure. Infrastructure, CLI, authentication, timeout, and unrelated SQL failures are never evidence that a ledger row belongs in c_names."

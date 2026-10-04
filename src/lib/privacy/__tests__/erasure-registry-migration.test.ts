@@ -598,6 +598,9 @@ describe(`${FILE} -- structure`, () => {
     // 0205 revises the credit_ledger reason. The re-pushed 0189 seed writes the
     // historical reason back, so 0205 has to be re-applied after it.
     expected.push("credit_ledger_erasure_registry_reason");
+    // 0212 revises the four reward reasons the same way (89-day purge, 0211).
+    // Without it the re-pushed seed writes the 0189/0198/0205 wording back.
+    expected.push("reward_records_erasure_registry_reason");
     // The list grows with every later migration that leans on these objects.
     const names = rollbackLedgerNames();
     expect(names).toEqual(expect.arrayContaining(expected));
