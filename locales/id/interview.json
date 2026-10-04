@@ -30,6 +30,7 @@
     "thinking": "Menyiapkan pertanyaan…",
     "enough": "Cukup untuk sekarang",
     "closing": "Simpan percakapan sampai di sini?",
+    "dayLimit": "Percakapan ini berhenti di sini. Batas penggunaan harian sudah tercapai. Simpan yang sudah kamu ceritakan dan lanjutkan nanti.",
     "turnLabel": "Giliran {{n}}",
     "loopNote": "Kita beralih ke sisi lain.",
     "failed": "Tidak bisa mengambil pertanyaan berikutnya. Silakan coba lagi.",

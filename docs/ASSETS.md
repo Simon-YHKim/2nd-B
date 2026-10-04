@@ -185,15 +185,15 @@ only the path moved.
 | `assets/legacy-art/cosmic-pixel-v3-soulcore/` | 20 (6 PNG · 14 SVG) | 2026-06-02 | Legacy "cosmic pixel" skin: the six 256px pattern cores (`EXPO_PUBLIC_UI=legacy` fallback), companion idle poses (`archon`, `iris`, `lumen`, `relia`, `foreman_momo`), momo-crew moods, the Pattern Data node and Log chip. The other 122 images (soul-core tiers, data / log / link PNGs, per-state companion poses, sprite sheets, mobile-graph cores, edges and overlays) moved to `E:/Legacy/2ndB` on 2026-10-04 (batch `qa261004-art`) |
 | `assets/legacy-art/2ndb-production-premium-v1/` | 34 PNG | 2026-05-30 | Tier icons, worker redraws, shards, wiki card thumbs, auth gate hero. The 15 graph-island PNGs, the clean auth hero and the two Vela worker PNGs moved to `E:/Legacy/2ndB` on 2026-10-04 (batch `qa261004-art`) |
 | `assets/legacy-art/tesseract-v10/` | 1 PNG | 2026-06-04 | Tesseract worldview set generated from `docs/V3_GPT_IMAGE_PROMPT.md`. Only `soul_core.png` remains (the /core-brain empty and load-error art); the six pattern-core PNGs moved to `E:/Legacy/2ndB` on 2026-10-04 |
-| `public/landing/` | 7 PNG | 2026-06-15 | Landing background concepts |
+| `public/landing/` | 1 PNG | 2026-06-15 | Standalone landing page head art (`assets/head-angle-v2/`, read by `main.js`). The 2026-06-15 background-concept board (`bg-concepts/`, 7 HTML pages and 6 screenshots) moved to `E:/Legacy/2ndB` on 2026-10-05 (batch `qa261004-batch2`) |
 | `public/proto/` | 7 PNG | 2026-07-04 | Deep-space prototype screens |
 | `public/icons/` | 2 PNG | 2026-06-11 | PWA icons (192 / 512), derived from the app icon. Since 2026-09-30 both are rasterised by `scripts/build-app-icons.ts` from the Polaris pixel star (first-party code, no third-party pixels) |
-| `assets/deepspace/` | 13 PNG | 2026-06-19 | SecondB canonical head pair plus 11 Nebori style-comparison working images added while the deep-space look was being settled |
+| `assets/deepspace/` | 2 PNG | 2026-06-19 | SecondB canonical head pair (`secondb-head-front.png`, `secondb-head-blank.png`). The 11 Nebori style-comparison working images added while the deep-space look was being settled moved to `E:/Legacy/2ndB` on 2026-10-05 with their four `docs/nebori-*` reports (batch `qa261004-batch2`) |
 | `assets/opening/` | 1 PNG | 2026-08-27 | HustleK opening sprite sheet (48 frames, 8x6 grid, 320x180 cells) built by `scripts/build-opening-strip.py` from the approved atlas. No new art: the builder refuses to run unless the atlas RGBA hash matches the approved value. |
 | `assets/images/` | 9 PNG | 2026-05-25 | App icon, adaptive-icon layers, splash, favicon, and three SecondB phone assets. The home phone and the blank-screen dashboard frame are Simon-provided ChatGPT art (2026-09-26); the earlier silver phone is retained for rollback. Seeded from the Expo template at initialisation (MIT) and replaced in-window with generated art. Since 2026-09-30 the app icon, adaptive foreground and monochrome layers, and favicon are rasterised by `scripts/build-app-icons.ts` from the Polaris pixel star the sign-in screen draws (`pixel-star.ts` geometry, `m3.ts` colours; first-party code, no third-party pixels). The adaptive background and the splash are unchanged |
-| `assets/images/phone-app/` | 31 PNG | 2026-09-28 | Simon-supplied mini-app display pack: 12 app icons, 5 internal dock icons, 12 UI icons, and 1 night-village banner; plus 1 locally drawn avatar-palette app icon on a 4 px grid. Only pixels are bundled; labels, dates, unread counts, and state are rendered by the app. Release rights confirmed by Simon on 2026-09-28; the pack does not name its image generator. |
+| `assets/images/phone-app/` | 28 PNG | 2026-09-28 | Simon-supplied mini-app display pack: 12 app icons, 5 internal dock icons, 9 UI icons, and 1 night-village banner; plus 1 locally drawn avatar-palette app icon on a 4 px grid. Only pixels are bundled; labels, dates, unread counts, and state are rendered by the app. Release rights confirmed by Simon on 2026-09-28; the pack does not name its image generator. The three unused UI icons (`badge_3`, `sparkle_gold`, `calendar`) moved to `E:/Legacy/2ndB` on 2026-10-05 (batch `qa261004-batch2`). |
 
-Current checked inventory: **157 bundled image files** (2026-10-04, after the `qa261004-art` move). `scripts/check-constraints.ts` (`AssetLicenseDisclosure`)
+Current checked inventory: **137 bundled image files** (2026-10-05, after the `qa261004-batch2` move). `scripts/check-constraints.ts` (`AssetLicenseDisclosure`)
 fails if any of these paths stops being mentioned in this file, so a new
 art pack cannot ship undisclosed.
 
@@ -218,7 +218,7 @@ signed-out-to-signed-in transition in the same runtime does not replay it.
 `docs/` (clone-audit captures, flow thumbnails, QA evidence) and `design/`
 (prototype renders, reference boards, app screenshots, and reproducible art
 packs). These paths are not packaged into the app or web export, and `src/`
-contains no image files, so the shipped set remains exactly the 246 files
+contains no image files, so the shipped set remains within the image files
 listed above. The working-material count is intentionally not hard-coded so
 that adding review evidence does not make this registry stale.
 

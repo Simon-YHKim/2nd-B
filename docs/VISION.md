@@ -140,7 +140,7 @@
 - **북극성 밝기 (레이어 C)** = 7 도메인 별 밝기의 종합 (평균 + 전별점등 보너스). `soulCoreBrightness`(내부 키 유지, 표시명 "북극성"; 입력 의미만 도메인축으로). "모든 별이 켜지면 북극성이 더 밝아진다." 신규 `domainConfidence` 어댑터가 도메인 항목수를 밝기 체인에 연결.
 - **실데이터 도출**: `buildPersona`가 `starLevels` + `soulCoreBrightness` 산출(`star-levels.ts`); 홈은 Gemini 없는 `load-star-levels.ts`로 마운트 시 표시(도메인 별 입력으로 retarget).
 - **렌더**: 별자리 홈(유일한 홈) · 북극성 종합 뷰(구 `/core-brain` 흡수) · `/persona`(밝기% + 켜진 도메인 별).
-- **드릴 정지규칙** (메모 §3d): 인터뷰가 목표 L 도달 시 종료(`interview/drill-stop.ts` + `narrative-level.ts`), 50턴은 하드캡. 소프트캡-only 대체.
+- **드릴 정지규칙** (메모 §3d): ~~인터뷰가 목표 L 도달 시 종료(`interview/drill-stop.ts` + `narrative-level.ts`), 50턴은 하드캡. 소프트캡-only 대체.~~ ⚠ **2026-10-05 정정 (Simon 결정 Q-261004-24):** 등급으로 멈추는 규칙은 2026-07-05(#745) 이후 배선된 적이 없고, `drill-stop.ts` 는 `E:/Legacy/2ndB` 로 옮겼다. 턴 상한(12턴)도 같은 결정으로 없앴다. 인터뷰는 **사용자가 끝내거나**("여기까지" · 거절하는 답), 한 장면을 다 팠거나(`probe.ts` `nextMove`), 서버의 하루 몫(목적별 하루 몫 · 사용자별 하루 지출 한도)이 차서 끝난다. 마지막 것도 오류가 아니라 "하루 사용 한도에 닿았다 · 나중에 이어서" 안내다(`interview/session-end.ts`). 재개 시각은 말하지 않는다 -- 목적별 몫은 KST 자정, 지출 한도는 UTC 자정에 풀리고, 실패한 요청도 목적별 몫을 쓴다. `narrative-level.ts` 는 남아 서사 별 등급(`persona/narrative-star.ts`)에 쓰인다.
 - **propose→ratify** (메모 §3f): AI는 자기모델을 직접 못 바꾼다. `SelfModelProposal` diff 제안(`propose-self-model.ts`, C9→C3→gemini) 후 사용자 승인만 L5(`proposal.ts::applyRatify`). 임상어휘 게이트 통과 제안만 표면화.
 
 > 세 축 관계: **알아가기**(도메인 별 점등·밝기 상승) → **개인 비서**(밝기·도메인·검증틀 근거로 세컨비 응답) → **공상→구체화**(세컨비 Divergent + 북극성 propose→ratify 다음 한 걸음).

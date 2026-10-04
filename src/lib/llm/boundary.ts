@@ -156,6 +156,20 @@ function assertDirectEgressAllowed(env: ReturnType<typeof getEnv>): void {
   }
 }
 
+// Purposes whose ONLY cost bound is the proxies' per-user counters (F2049-04).
+// The interview has no turn cap since Q-261004-24 (2026-10-04): it ends when the
+// user ends it or when a proxy answers 429 for today's purpose quota or daily
+// spend cap (interview/session-end.ts). The direct @google/genai branch has
+// neither counter, so the Vertex exemption above cannot hold for these purposes:
+// a live call goes to a proxy even when EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION is off.
+// The output re-classification after a successful call stays one per answered
+// call, so it is bounded by the same counter.
+const SERVER_CAPPED_PURPOSES: ReadonlySet<PromptPurpose> = new Set(["interview_probe"]);
+
+function mustReachServerCap(env: ReturnType<typeof getEnv>, purpose: PromptPurpose): boolean {
+  return env.EXPO_PUBLIC_LLM_MODE === "live" && SERVER_CAPPED_PURPOSES.has(purpose);
+}
+
 async function writeAiAuditLog(
   userId: string,
   audit: AuditMeta,
@@ -749,9 +763,11 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
 
   // Route through an edge function when configured, OR whenever the vendor is
   // non-Gemini (Claude/OpenAI have no client-side path — the keys live only in
-  // their proxies). proxyFnForVendor picks the matching function.
+  // their proxies), OR when the purpose's cost bound is the server counter
+  // (mustReachServerCap). proxyFnForVendor picks the matching function.
   if (
     env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION ||
+    mustReachServerCap(env, input.purpose) ||
     (reasoningProvider != null && reasoningProvider !== "gemini")
   ) {
     const proxyBody = {
