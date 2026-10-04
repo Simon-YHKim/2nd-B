@@ -55,6 +55,34 @@ describe("every tripwire the schema sets is actually read", () => {
   });
 });
 
+describe("the 89-day reward purge is watched too (0211)", () => {
+  test("it is read in its own psql call, only after asking whether it exists", () => {
+    // Inside the one-row SQL, the function missing (before 0211 reaches
+    // production) would fail the whole query and silence every money tripwire.
+    const m = /\n\s+SQL="([\s\S]*?)"\n/.exec(wf);
+    expect(m).not.toBeNull();
+    expect(m![1]).not.toContain("reward_retention_health");
+    expect(wf).toContain("to_regprocedure('public.reward_retention_health()') is not null");
+    expect(wf).toMatch(/if \[ "\$HAS_FN" = "t" \]; then/);
+  });
+
+  test("a failed read fires the tripwire instead of looking quiet", () => {
+    expect(wf).toContain('RROW="f|-1|query_failed|query_failed"');
+    expect(wf).toMatch(/if \[ "\$RET_OK" != "t" \]; then RETENTION=1; fi/);
+  });
+
+  test("it has a row and counts into the total", () => {
+    expect(wf).toContain('row "reward_retention" "$RETENTION"');
+    expect(wf).toMatch(/TOTAL=\$\(\([^)]*\+ RETENTION \)\)/);
+  });
+
+  test("it keeps counts and flags only", () => {
+    // reward_retention_health() returns counts and times. The step keeps the
+    // boolean, one summed count and two slash-joined counters, nothing else.
+    expect(wf).toMatch(/IFS='\|' read -r RET_OK RET_OVERDUE RET_HOLDS RET_CRON <<< "\$RROW"/);
+  });
+});
+
 describe("it cannot leak what it is counting", () => {
   test("the query selects counts only, never a user id or a payload", () => {
     // Anchored to a line that STARTS with SQL=, so it cannot match PSQL= above it.
