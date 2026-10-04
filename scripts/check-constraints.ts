@@ -887,7 +887,6 @@ results.push(
     const esm = read("src/app/esm.tsx");
     const profile = read("src/screens/deepspace/dds-profile-screen.tsx");
     const consentNotice = read("src/components/consent/ConsentNotice.tsx");
-    const consentDialog = read("src/components/consent/ConsentDialog.tsx");
     const premiumFeedback = read("src/components/premium/feedback.tsx");
     const formats = read("src/app/formats.tsx");
     // 공용 토글 컴포넌트의 계약은 그대로 본다(다른 화면들이 쓴다). /privacy 는
@@ -1155,9 +1154,10 @@ results.push(
       preferenceCheckboxes >= 1 &&
       preferenceToggle.includes("accessibilityLabel={label}") &&
       consentNotice.includes("PreferenceCheckRow") &&
-      consentDialog.includes("accessibilityViewIsModal") &&
-      consentDialog.includes('accessibilityLabel={t("testimonial.title")}') &&
-      consentDialog.includes('accessibilityHint={t("testimonial.body")}') &&
+      // 2026-10-05: 후기(testimonial) 동의 창 ConsentDialog 의 핀 3줄을 걷었다. 어느
+      // 화면도 그리지 않았고 testimonials INSERT 도 0건이라 같은 계약을 질 배송
+      // 등가물이 없다. Simon 결정 Q-261004-17 로 E:/Legacy 에 갔다. C5 는 DB 제약
+      // (consent_given_at NOT NULL)만 남았고 그 검사는 위 C5 블록이 SQL 로 본다.
       premiumFeedback.includes("accessibilityLabel={accessibilityLabel}") &&
       tierIconContract.includes("export const TIER_ICON_IDS") &&
       tierIconAssetsMapped &&

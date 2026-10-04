@@ -260,6 +260,7 @@ const REMOVED_SOURCE_PATHS = [
   ["src/lib/persona/load-tier-shifts.ts", "load-tier-observations"],
   // 2026-10-05 E:/Legacy 로 나갔다. 배송 화면이 그리지 않던 부품이다.
   ["src/components/ads/AdSlot.tsx", "E:/Legacy"], // Q-261004-16 웹 AdSense 배너
+  ["src/components/consent/ConsentDialog.tsx", "E:/Legacy"], // Q-261004-17 후기 동의 창
 ] as const;
 
 describe("문서가 지목하는 소스 경로", () => {

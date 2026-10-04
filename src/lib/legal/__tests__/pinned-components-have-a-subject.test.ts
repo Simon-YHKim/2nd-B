@@ -45,10 +45,8 @@ const ROOT = process.cwd();
  * left to explain" are different states and both are worth hearing about.
  */
 const PINNED_WITHOUT_A_RENDERER: Readonly<Record<string, string>> = {
-  ConsentDialog:
-    "C5 후기(testimonial) 동의 UI. 앱에 testimonials INSERT 가 0건이라 띄운 적 없는 기능이고, " +
-    "share_with_judges_flag 가 대회 잔재다. CLAUDE.md 가 대회 잔재의 임의 제거를 금지하고 " +
-    "C5 는 아직 하드 제약이므로, 기능이 켜질 때 필요한 a11y 핀을 그대로 둔다.",
+  // ConsentDialog 줄은 2026-10-05 에 걷었다. 위 순서의 2단계(등가물 없음 → 사람에게)를
+  // 거쳐 Simon 이 Q-261004-17 로 결론 냈다: 후기 동의 창은 E:/Legacy 로, C5 는 DB 제약만.
   XpBar: "docs/handoff/master-handoff.html 이 아는 컴포넌트. 처분 미정.",
   TraitRadar: "handoff 브리프 2건이 아는 컴포넌트. 처분 미정.",
   DeepSpaceDomainsScreen:
