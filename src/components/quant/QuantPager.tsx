@@ -8,7 +8,7 @@ import { View, StyleSheet, ScrollView } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useTranslation } from "react-i18next";
 import { a11yValue } from "@/lib/a11y/accessibility-value";

@@ -1,7 +1,7 @@
 import { canonPolarisBrightness } from "@/lib/canon";
 
 import { HEADLINE_STAR_IDS, domainStarLevels, northStarBrightness } from "../north-star";
-import type { DomainEntry, DomainId } from "../domain-stars";
+import type { DomainEntry } from "../domain-stars";
 
 const organized = (n: number): DomainEntry[] =>
   Array.from({ length: n }, () => ({ domain: "career" as const, category: "c", tags: ["t"] }));

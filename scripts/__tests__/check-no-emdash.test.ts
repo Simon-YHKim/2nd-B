@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import * as ts from "typescript";
 
 // The guard now covers src/, not just locales/. A guard that only ever passes is
 // indistinguishable from no guard, so prove it fails on the things it exists to
@@ -20,12 +21,13 @@ import { join, resolve } from "node:path";
 // EMDASH_GUARD_SCAN_ROOT. **Nothing here writes inside the repo.**
 const ROOT = resolve(__dirname, "../..");
 const SCRIPT = "scripts/check-no-emdash.ts";
+const TSX_CLI = require.resolve("tsx/cli");
 const EM = String.fromCharCode(0x2014);
 
 function run(scanRoot?: string): { code: number; output: string } {
   const env = scanRoot ? { ...process.env, EMDASH_GUARD_SCAN_ROOT: scanRoot } : process.env;
   try {
-    const output = execFileSync("npx", ["tsx", SCRIPT], { cwd: ROOT, encoding: "utf8", shell: true, env });
+    const output = execFileSync(process.execPath, [TSX_CLI, SCRIPT], { cwd: ROOT, encoding: "utf8", env });
     return { code: 0, output };
   } catch (error) {
     const failure = error as { status?: number; stdout?: string; stderr?: string };
@@ -84,7 +86,7 @@ describe("check-no-emdash", () => {
   test("a new file is covered by default - the list is exclusions, not an allowlist", () => {
     // The same probe file is not named anywhere in the guard, and it is still
     // scanned. That is the property that keeps the guard from rotting.
-    const source = execFileSync("node", ["-e", `process.stdout.write(require('fs').readFileSync(${JSON.stringify(join(ROOT, SCRIPT))}, 'utf8'))`], { encoding: "utf8" });
+    const source = readFileSync(join(ROOT, SCRIPT), "utf8");
     expect(source).not.toContain("emdash-guard-probe");
     writeFileSync(probe, `export const copy = "a ${EM} b";\n`);
     expect(run(tree).code).toBe(1);
@@ -96,5 +98,63 @@ describe("check-no-emdash", () => {
     const { code, output } = run(tree);
     expect(code).toBe(0);
     expect(output).not.toContain("Stale entries");
+  });
+});
+
+describe("how the guard is launched", () => {
+  test("straight through node, with no shell in between", () => {
+    // An argument array plus the shell option is Node's DEP0190: it printed a
+    // deprecation warning on every verify run, and a shell joins the arguments
+    // without escaping them. process.execPath + tsx/cli needs no shell
+    // (scripts/__tests__/definer-grants.test.ts launches its checker the same way).
+    //
+    // GATE-04 (PR #2045 gate): this used to ban only the text `shell:`, so moving
+    // to a string-command API (execSync, exec), which always goes through a shell,
+    // still passed. It now reads this file's syntax tree: child_process gives
+    // exactly execFileSync, called once, as node + [tsx cli, script] with a plain
+    // options object that has no shell key, no computed key and no spread.
+    const self = ts.createSourceFile(__filename, readFileSync(__filename, "utf8"), ts.ScriptTarget.Latest, true);
+    const childProcess = /^(?:node:)?child_process$/;
+    const fromChildProcess: string[] = [];
+    const launches: ts.CallExpression[] = [];
+    const visit = (node: ts.Node): void => {
+      if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && childProcess.test(node.moduleSpecifier.text)) {
+        const clause = node.importClause;
+        if (clause?.name) fromChildProcess.push(`default as ${clause.name.text}`);
+        const bindings = clause?.namedBindings;
+        if (bindings && ts.isNamespaceImport(bindings)) fromChildProcess.push(`* as ${bindings.name.text}`);
+        if (bindings && ts.isNamedImports(bindings)) {
+          for (const e of bindings.elements) fromChildProcess.push(e.getText(self));
+        }
+      }
+      if (ts.isCallExpression(node)) {
+        const [first] = node.arguments;
+        const loads =
+          (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+            (ts.isIdentifier(node.expression) && node.expression.text === "require")) &&
+          first !== undefined &&
+          ts.isStringLiteral(first) &&
+          childProcess.test(first.text);
+        if (loads) fromChildProcess.push(node.getText(self));
+        if (ts.isIdentifier(node.expression) && node.expression.text === "execFileSync") launches.push(node);
+      }
+      node.forEachChild(visit);
+    };
+    visit(self);
+
+    expect(fromChildProcess).toEqual(["execFileSync"]);
+    expect(launches).toHaveLength(1);
+    const [command, args, options] = launches[0].arguments;
+    expect(command?.getText(self)).toBe("process.execPath");
+    expect(args?.getText(self)).toBe("[TSX_CLI, SCRIPT]");
+    expect(options !== undefined && ts.isObjectLiteralExpression(options)).toBe(true);
+    const keys = (options as ts.ObjectLiteralExpression).properties.map((p) =>
+      ts.isSpreadAssignment(p)
+        ? "<spread>"
+        : p.name !== undefined && (ts.isIdentifier(p.name) || ts.isStringLiteral(p.name))
+          ? p.name.text
+          : "<computed>",
+    );
+    expect(keys).toEqual(["cwd", "encoding", "env"]);
   });
 });
