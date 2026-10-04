@@ -606,13 +606,21 @@
       "editAvatar": "내 아바타 꾸미기",
       "loading": "불러오는 중…",
       "emptyBody": "아직 남긴 이야기가 없습니다. 대화로 시작해 보세요.",
-      "dug": "{{total}}개 주제 중 {{n}}개를 이야기했습니다",
-      "records": "기록 {{n}}개",
+      "dug": "{{total}}개 층 중 {{n}}개를 이야기했습니다",
+      "records": "기록 {{count}}개",
+      "records_plural": "기록 {{count}}개",
       "start": "시작하기",
       "continue": "이어가기",
       "pageLabel": "별 요약",
-      "meter": "이야기한 만큼 밝아집니다 · {{n}}/{{total}}개 주제",
-      "recordsLabel": "지금까지 담은 것"
+      "meter": "이야기한 만큼 밝아집니다 · {{n}}/{{total}}층",
+      "recordsLabel": "지금까지 담은 것",
+      "layer": {
+        "fact": "사실",
+        "feeling": "감정",
+        "meaning": "의미",
+        "belief": "믿음",
+        "echo": "울림"
+      }
     },
     "dashboard": {
       "title": "기록으로 본 나",
