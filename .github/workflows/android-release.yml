@@ -148,8 +148,6 @@ jobs:
       # Server-side crisis classifier vendor. Dormant unless
       # EXPO_PUBLIC_SERVER_SAFETY is also on.
       EXPO_PUBLIC_SAFETY_VENDOR: ${{ vars.EXPO_PUBLIC_SAFETY_VENDOR || '' }}
-      EXPO_PUBLIC_UI: "deep-space"
-      EXPO_PUBLIC_CHARACTER: "fallback"
       EXPO_PUBLIC_FORCE_TIER: "off"
       # Ads GO (Simon 2026-07-21, #1116) -- mirror eas.json production so this
       # diagnostic APK is the SAME app EAS builds (dbl FAIL 1: without it the

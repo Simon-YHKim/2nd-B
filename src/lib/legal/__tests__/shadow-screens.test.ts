@@ -29,6 +29,7 @@
 // 쓴 import 를 grep 으로 확인해 통과시킬 뻔했다. 원본(`git show origin/main:…`)을
 // 보고 잡았다. 사본이 둘이면 사람도 도구도 같은 실수를 한다.
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 import {
@@ -50,32 +51,20 @@ interface Shadowed {
   why: string;
 }
 
-const SHADOWED: Shadowed[] = [
-  {
-    component: "DeepSpaceSignUpDesignScreen",
-    shipped: "src/screens/deepspace/dds-sign-up-screen.tsx",
-    shadow: "src/screens/deepspace/dds-auth-screens.tsx",
-    why: "회차 71 이 여기서 걸렸다 - DPIA 의 C-AGE 행이 그림자 쪽 `:373` 을 인용하고 있었다. 두 파일의 그 줄이 **글자까지 같아서** 좌표만으로는 구분이 안 된다.",
-  },
-  {
-    component: "DeepSpaceInboxScreen",
-    shipped: "src/screens/deepspace/dds-inbox-screen.tsx",
-    shadow: "src/screens/deepspace/dds-import-inbox-screens.tsx",
-    why: "아직 인용이 없다. 생기기 전에 세워 둔다.",
-  },
-  {
-    component: "DeepSpaceManualScreen",
-    shipped: "src/screens/deepspace/dds-manual-screen.tsx",
-    shadow: "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
-    why: "그림자 파일 자체는 살아 있다 - 그 파일의 **다른 부분**이 법무 문서에 정당하게 인용된다. **파일이 아니라 스팬**으로 물어야 하는 이유가 이것이고, 그 성질은 아래 '그림자 파일이 스팬 **밖**에서는 인용된다' 가 검사한다. ⚠ 처음엔 여기에 인용 두 개를 예로 적었는데 **하나가 한 회차 만에 사라졌다**(회차 71 이 그림자를 가리키던 D-20 인용을 지웠다). 근거를 예시로 적으면 예시가 낡는다 - 그래서 **성질로 적고 검사로 못박는다.**",
-  },
-  {
-    component: "DeepSpaceOpsScreen",
-    shipped: "src/screens/deepspace/dds-ops-screen.tsx",
-    shadow: "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
-    why: "같은 사정. D-20 인용 일곱 건이 **배송 쪽**(`dds-ops-screen.tsx:588-595`)을 가리키고 있어 오늘은 맞다.",
-  },
-];
+/**
+ * 지금 그림자는 **0건**이다. 이 명단은 비어 있는 것이 정상이고, 위 2026-09-08 의 사연이
+ * 다시 생기면 아래 첫 검사가 즉시 실패한다(새 사본은 명단에 이유와 함께 적어야 통과).
+ *
+ * 2026-10-05 까지 넷이 있었다 - 라우트가 import 하지 않는 같은 이름의 사본:
+ *   DeepSpaceSignUpDesignScreen  dds-auth-screens.tsx       (배송: dds-sign-up-screen.tsx)
+ *   DeepSpaceInboxScreen         dds-import-inbox-screens.tsx (배송: dds-inbox-screen.tsx)
+ *   DeepSpaceManualScreen        DeepSpaceDesignScreens.tsx  (배송: dds-manual-screen.tsx)
+ *   DeepSpaceOpsScreen           DeepSpaceDesignScreens.tsx  (배송: dds-ops-screen.tsx)
+ * 그림자에만 있던 기능 둘(/sources 신호 카드 · 웹 Space 키)이 #2037 로 배송 화면에 옮겨진
+ * 뒤, 롤백 레버 제거 PR(Simon 결정 Q-261004-11 C)이 네 사본을 걷었다. 바이트 사본은
+ * E:/Legacy/2ndB (MANIFEST batch qa261004-lever).
+ */
+const SHADOWED: Shadowed[] = [];
 
 // 판정은 `../shadow-screens` 한 곳에만 있다. 회차 64 가 이유다 - 죽은-렌더러
 // 판정이 두 벌이었을 때 한쪽은 112, 다른 쪽은 110 을 셌고 **그 차이가 아무에게도
@@ -114,8 +103,24 @@ describe("그림자 화면 - 같은 컴포넌트가 두 파일에 있을 때", (
 
   it("겹치는 이름이 명단과 정확히 같다 - 새 사본은 즉시 걸린다", () => {
     // 늘어나면 새 그림자가 생긴 것이고, 줄어들면 명단에 죽은 줄이 남은 것이다.
-    // 둘 다 사람이 봐야 하는 일이라 양방향으로 못박는다.
+    // 둘 다 사람이 봐야 하는 일이라 양방향으로 못박는다. 명단이 빈 지금은 이것이
+    // **그림자 0 무관용 가드**다(2026-10-05).
     expect(duplicated).toEqual(SHADOWED.map(s => s.component).sort());
+  });
+
+  it("양성 대조 - 겹치는 이름을 실제로 알아본다", () => {
+    // 위 가드가 빈 결과만 내는 자가 아니라는 증거: 같은 판정 함수를 임시 저장소에
+    // 돌려, 한 이름을 두 파일이 export 하면 그 이름이 나오고 하나만이면 안 나오는지 본다.
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "shadow-screens-"));
+    try {
+      fs.mkdirSync(path.join(root, "src", "screens"), { recursive: true });
+      fs.writeFileSync(path.join(root, "src", "screens", "a.tsx"), "export function DemoScreen() { return null; }");
+      expect(duplicatedComponentNames(root)).toEqual([]);
+      fs.writeFileSync(path.join(root, "src", "screens", "b.tsx"), "export function DemoScreen() { return null; }");
+      expect(duplicatedComponentNames(root)).toEqual(["DemoScreen"]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("명단이 지목한 '배송되는 쪽'을 라우트가 실제로 import 한다", () => {
@@ -163,27 +168,10 @@ describe("그림자 화면 - 같은 컴포넌트가 두 파일에 있을 때", (
     expect(bad).toEqual([]);
   });
 
-  it("그림자 파일이 스팬 **밖**에서는 인용된다 - 파일째 막으면 안 되는 이유", () => {
-    // 위 검사가 "파일 전체가 아니라 스팬만" 막는다고 말한다. 그 구분이 **필요한지**를
-    // 여기서 확인한다: 그림자를 품은 파일이 스팬 밖에서 정당하게 인용되고 있어야
-    // 그 구분에 값어치가 있다. 하나도 없으면 파일째 막아도 되고, 그러면 위 검사는
-    // 필요 이상으로 복잡한 것이다.
-    //
-    // 성질로 적는다 - 어느 인용인지 예로 들면 그 예시가 낡는다(실제로 한 회차 만에
-    // 하나가 사라졌다).
-    const outside: string[] = [];
-    for (const s of SHADOWED) {
-      const sp = span(s.shadow, s.component);
-      if (!sp) continue;
-      for (const doc of legalDocs()) {
-        for (const m of doc.text.matchAll(CITE)) {
-          if (m[1] !== s.shadow) continue;
-          if (citedLines(m[2]).every(n => n < sp.from || n > sp.to)) outside.push(s.shadow);
-        }
-      }
-    }
-    expect(outside.length).toBeGreaterThanOrEqual(1);
-  });
+  // "그림자 파일이 스팬 **밖**에서는 인용된다" 는 2026-10-05 에 은퇴했다. 그 검사는
+  // "파일째가 아니라 스팬만 막아야 하는 이유" 를 지켰는데, 그 이유가 될 그림자가 이제
+  // 없다(위 SHADOWED 주석). 그림자가 다시 생기면 이 성질도 다시 세운다 - 그때는 그
+  // 그림자를 품은 파일의 다른 부분이 법무 문서에 인용되는지부터 본다.
 
   it("명단의 모든 줄이 근거를 적었다", () => {
     expect(SHADOWED.filter(s => s.why.trim().length < 15).map(s => s.component)).toEqual([]);

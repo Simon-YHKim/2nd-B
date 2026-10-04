@@ -58,10 +58,13 @@ describe("두 화면이 해석기를 실제로 쓴다 (직조회 재발 금지)"
     expect(src).not.toContain("SELF_UNDERSTANDING_STARS.find");
   });
 
-  it("/review 넛지", () => {
-    // 레거시 렌더러가 legacy/screens/review.tsx 로 나갔다(2026-09-08).
-    const src = read("legacy/screens/review.tsx");
-    expect(src).toContain("resolveStarName(id, loc");
+  it("/brightness", () => {
+    // 2026-10-05 재조준: 여기서 레거시 /review 넛지(legacy/screens/review.tsx)를 읽었다.
+    // 그 보관본은 롤백 레버 제거와 함께 E:/Legacy/2ndB 로 나갔고(Simon 결정 Q-261004-11 C)
+    // 검사는 보관본을 읽지 않는다. 같은 해석기(resolveStarName)를 쓰는 배송 화면은
+    // /brightness 다 - 직조회 재발 금지라는 성질을 그쪽에서 본다.
+    const src = read("src/app/brightness.tsx");
+    expect(src).toContain("resolveStarName(starId, locale");
     expect(src).not.toContain("SELF_UNDERSTANDING_STARS.find");
   });
 });

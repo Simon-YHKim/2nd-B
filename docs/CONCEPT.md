@@ -10,7 +10,7 @@
 
 | 이름 | 상태 | 무엇인가 |
 |---|---|---|
-| **cosmic-pixel** | 🔴 폐기 | 2026-06 이전의 원래 스킨 (Cosmic Pixel Graph Village · phytoncide · 마을 그래프). `EXPO_PUBLIC_UI=legacy` 롤백으로만 생존 |
+| **cosmic-pixel** | 🔴 폐기 | 2026-06 이전의 원래 스킨 (Cosmic Pixel Graph Village · phytoncide · 마을 그래프). git 이력 · E:/Legacy/2ndB 에만 있다. 롤백 레버 `EXPO_PUBLIC_UI` 는 2026-10-05 에 없어졌다(Simon 결정 Q-261004-11) |
 | **M3-deepspace** | 🟡 현행 | 지금 사용자에게 배포돼 있는 것. Material 3 + 딥스페이스. 이주의 **출발점** |
 | **PIXEL-CLAY v4** | 🟢 채택 | 2026-08-18 Claude Design 산출 픽셀아트 체계. 이주의 **목적지** |
 
@@ -30,8 +30,8 @@ L1~L5 는 그대로다. 바뀌는 것은 시각 체계뿐이다.
 - **Concept SoT = `docs/PRD.md` (Draft v4, 2026-08-25).** This file just names canonical vs
   legacy. ⚠ `docs/CONSTELLATION-DESIGN.md` 는 2026-08-24 별 개편으로 **역사 기록**이 됐다
   (문서 머리 배너 참조).
-- **Direction: deep-space constellation.** A character-led home shell (the `EXPO_PUBLIC_UI`
-  default). The constellation is the **single home / navigation**; tap a star → its domain,
+- **Direction: deep-space constellation.** A character-led home shell (the only shell: the
+  `EXPO_PUBLIC_UI` rollback lever was removed on 2026-10-05, Simon decision Q-261004-11). The constellation is the **single home / navigation**; tap a star → its domain,
   tap 북극성 → the aggregate + 세컨비. No 4-tab shell, no village graph.
 - **Canonical model = 3-layer 별자리** (PRD §4):
   - **Layer A — input: 일곱 별 = 나를 알아가는 자리** (2026-08-24 개편, 정본
@@ -62,7 +62,9 @@ L1~L5 는 그대로다. 바뀌는 것은 시각 체계뿐이다.
 
 ## Legacy (do NOT use as the reference for new work)
 
-Kept only as a rollback skin (`EXPO_PUBLIC_UI=legacy`) or as history:
+Kept only as history (git, and the out-of-repo archive E:/Legacy/2ndB). The rollback skin
+lever `EXPO_PUBLIC_UI=legacy` that used to draw them was removed on 2026-10-05 (Simon decision
+Q-261004-11):
 
 - The **gameboy** UI track and the **Cosmic Pixel Graph Village** system.
 - **Phytoncide** tokens (`src/theme/tokens.ts`, marked `@deprecated`).

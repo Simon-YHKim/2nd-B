@@ -63,9 +63,11 @@ const sha256 = (value: string): string =>
 const screen = read("src/screens/deepspace/dds-sign-up-screen.tsx");
 const hook = read("src/lib/auth/useSignUpForm.ts");
 const route = read("src/app/(auth)/sign-up.tsx");
-// 레거시 렌더러는 2026-09-08 에 아카이브로 나갔다. 아래 바이트 핀은 지우지 않고
-// 대상만 옮긴다 — 같은 마커·같은 해시·다른 파일이면 옮기면서 안 고쳤다는 증거다.
-const legacyArchive = read("legacy/screens/sign-up.tsx");
+// 레거시 렌더러는 2026-09-08 에 아카이브(legacy/screens/sign-up.tsx)로 나갔고, 그
+// 보관본은 2026-10-05 롤백 레버 제거와 함께 E:/Legacy/2ndB 로 나갔다(Simon 결정
+// Q-261004-11 C, 같은 바이트). 검사는 보관본을 읽지 않으므로(legacy-archive-integrity.test.ts)
+// 그 바이트 핀 둘(630043be… · 5df5b8ca…)도 함께 은퇴했다 - 이제 바이트를 지키는 것은
+// E:/Legacy MANIFEST 의 sha256 기록이다.
 
 describe("sign-up action ownership", () => {
   test("one synchronous lock blocks same-frame and cross-action races", () => {
@@ -132,10 +134,9 @@ describe("PIXEL-CLAY sign-up renderer", () => {
       'import { DeepSpaceSignUpDesignScreen } from "@/screens/deepspace/dds-sign-up-screen";',
     );
     expect(route).toContain("return <DeepSpaceSignUpDesignScreen />;");
-    // 폴백은 사라졌다 — 레거시 렌더러가 legacy/screens/sign-up.tsx 로 나갔다.
+    // 폴백은 사라졌다 — 레거시 렌더러는 저장소 밖(E:/Legacy/2ndB)에 있다.
     expect(route).not.toContain("SignUpLegacy");
-    expect(route).not.toContain("isDeepSpaceUI");
-    expect(legacyArchive).toContain("function SignUpLegacy()");
+    expect(route).not.toContain("isDeepSpace" + "UI");
   });
 
   test("uses the gate shell and only square Pixel interaction primitives", () => {
@@ -272,21 +273,14 @@ describe("sign-up authority and preservation boundaries", () => {
   // 추가해 그 digest 만 재고정했다. 나머지 네 경계는 그대로다.
   // 2026-09-30: dds-auth-screens digest 만 재고정했다. Text 를 react-native 대신
   // @/components/ui/PlainText 에서 가져오는 import 두 줄뿐이다(앱 전체 한국어 줄바꿈).
-  test("preserves legacy renderer and shared form boundaries while pinning the auth renderer", () => {
-    // 대상만 아카이브로 옮겼다. **digest 는 한 글자도 안 바꿨다** — 같은 마커,
-    // 같은 해시, 다른 파일이면 옮기면서 고치지 않았다는 증거가 된다.
-    const legacy = legacyArchive.slice(
-      legacyArchive.indexOf("function SignUpLegacy()"),
-      legacyArchive.indexOf("function ChecklistItem"),
-    );
-    const styles = legacyArchive.slice(
-      legacyArchive.indexOf("const styles = StyleSheet.create"),
-      legacyArchive.indexOf("export default function SignUp()"),
-    );
-    expect(sha256(legacy)).toBe("630043be84f94b1b90bfa3a932c98cd4f3886f9e92a44a35fb5487298f782904");
-    expect(sha256(styles)).toBe("5df5b8ca23806eb75662a694220d7b48f31351aacfb8d8bf476d66b98a83508e");
+  // 2026-10-05: dds-auth-screens digest 를 재고정했다. 그 파일의 가입 화면 그림자 사본
+  // (라우트가 import 하지 않던 DeepSpaceSignUpDesignScreen 과 그 동의 블록)이 롤백 레버
+  // 제거 PR 에서 나갔다(Q-261004-11 C). 남은 재설정 화면 구간은 e0b274d0 과 바이트
+  // 동일이다(sign-in-screen-contract.test.ts 의 tail 핀). 레거시 보관본 핀 둘은 위
+  // legacyArchive 주석대로 은퇴했다.
+  test("preserves shared form boundaries while pinning the auth renderer", () => {
     expect(sha256(read("src/screens/deepspace/dds-auth-screens.tsx"))).toBe(
-      "b2be8e90dc37877b3e6c2ea6e8d70a5cf3a9caadf357cdb03cc9d4fbbad3d84c",
+      "64e12090705155cbfa5edd9f4bc180d40f09cc2be7d24ec9d13970638db3124d",
     );
     // 2026-09-28: ConsentNotice gained the "PolaScope, formerly 2nd-Brain" note
     // (common:app.renameNote) until the 2026-10-05 Terms amendment, which removes

@@ -84,18 +84,17 @@ describe("④ 거절 철회 + 거울 카피", () => {
     expect(d.targetLabel).not.toContain("철학");
   });
 
-  it("거절 결과줄이 철회로 읽힌다 (딥스페이스 5로케일 + 레거시)", () => {
+  it("거절 결과줄이 철회로 읽힌다 (딥스페이스 5로케일)", () => {
     for (const loc of LOCALES) {
       const d = JSON.parse(read(`locales/${loc}/deepspace.json`)) as Record<string, string>;
       expect(d.reviewLeftAsIs.length).toBeGreaterThan(10);
     }
     const ko = JSON.parse(read("locales/ko/deepspace.json")) as Record<string, string>;
     // The 2026-09-07 register round rephrased the locale line; the promise it has to
-    // carry — nothing applied, nothing recorded — is unchanged. review.tsx below is
-    // the legacy screen and still carries the older wording.
+    // carry — nothing applied, nothing recorded — is unchanged.
     expect(ko.reviewLeftAsIs).toContain("기록에 남기지 않았습니다");
-    // 레거시 렌더러가 아카이브로 나갔다. 라이브 쪽 같은 문구는 아래 딥스페이스
-      // 항목이 지고, 여기서는 보관본이 그 문구를 유지하는지를 본다.
-      expect(read("legacy/screens/review.tsx")).toContain("기록에 남지 않습니다");
+    // 2026-10-05: 레거시 /review 보관본(legacy/screens/review.tsx)의 옛 문구 단언을
+    // 걷었다. 그 보관본은 롤백 레버 제거와 함께 E:/Legacy/2ndB 로 나갔고(Simon 결정
+    // Q-261004-11 C), 검사는 보관본을 읽지 않는다(legacy-archive-integrity.test.ts).
   });
 });

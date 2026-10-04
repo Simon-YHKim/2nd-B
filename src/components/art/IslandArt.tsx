@@ -41,14 +41,12 @@ export function IslandArt({
   id,
   size,
   style,
-  animated = true,
 }: {
   id: IslandId;
   size: number;
   style?: StyleProp<ViewStyle>;
-  animated?: boolean;
 }) {
-  return <FinalCoreArt id={id} size={size} style={style} animated={animated} />;
+  return <FinalCoreArt id={id} size={size} style={style} />;
 }
 
 export function ShardArt({

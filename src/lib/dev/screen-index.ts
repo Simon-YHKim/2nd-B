@@ -45,21 +45,19 @@ export type SpecialScreenEntry =
 /** `entry` 를 생략한 화면은 기존 앱 안의 정상 진입을 그대로 뜻한다. */
 export type ScreenEntry = { kind: "standard" } | SpecialScreenEntry;
 
-/** UI 모드 한쪽에서의 렌더 결과. */
-export type ModeRender =
-  | { kind: "screen" }
-  | { kind: "redirect"; to: string }
-  /** 개발 빌드에서만 실화면, production 빌드는 redirect (예: /trinity). */
-  | { kind: "dev-gated-screen"; productionRedirect: string };
-
-/** UI 모드별 렌더 축 — 실화면이 아닌 라우트만 명시한다. */
+/**
+ * 렌더 축 — 실화면이 아닌 라우트만 명시한다.
+ *
+ * 2026-10-05: 여기 있던 두 번째 갈래 `ui-mode-split`(딥스페이스와 legacy 가 서로 다른
+ * 것을 그린다)과 그 한쪽 결과 타입 ModeRender 를 걷었다. 롤백 레버 EXPO_PUBLIC_UI 가
+ * 없어져(Simon 결정 Q-261004-11 C) 라우트가 모드에 따라 갈릴 수 없고, 그 축을 쓰던
+ * /persona · /trinity 는 /core-brain 리다이렉트 전용이 됐다(Q-261004-33 B).
+ */
 export type SpecialRenderBehavior =
-  /** 어느 모드에서든 다른 라우트로 넘기기만 한다. 은퇴 화면의 호환 경로. */
-  | { kind: "redirect"; to: string; lifecycle: "retired" }
-  /** 딥스페이스(기본)와 legacy(EXPO_PUBLIC_UI=legacy)가 서로 다른 것을 그린다. */
-  | { kind: "ui-mode-split"; deepspace: ModeRender; legacy: ModeRender };
+  /** 다른 라우트로 넘기기만 한다. 은퇴 화면의 호환 경로. */
+  { kind: "redirect"; to: string; lifecycle: "retired" };
 
-/** `render` 를 생략한 화면은 어느 모드에서든 실화면을 그린다. */
+/** `render` 를 생략한 화면은 실화면을 그린다. */
 export type RenderBehavior = { kind: "screen" } | SpecialRenderBehavior;
 
 const STANDARD_SCREEN_ENTRY = { kind: "standard" } as const satisfies ScreenEntry;
@@ -167,7 +165,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         label: "별자리 홈",
         // 2026-09-08: 라우트가 래퍼가 되면서 로그인 리다이렉트도 화면으로 내려갔다.
         // 전에는 index.tsx 안의 GraphScreen 이 직접 `!userId -> /sign-in` 을 했고,
-        // 그 반쪽은 legacy/screens/index.tsx 로 나갔다. 이제 게이트는 셸이 진다.
+        // 그 반쪽은 legacy/screens/index.tsx 로 나갔고 2026-10-05 에 E:/Legacy/2ndB 로 갔다. 이제 게이트는 셸이 진다.
         auth: {
           gateFile: "src/components/deep-space/DeepSpaceShell.tsx",
           component: "DeepSpaceShell",
@@ -354,7 +352,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         file: "imagine",
         href: "/imagine",
         label: "공상하기",
-        note: "진입: /ops 도구 격자 · /growth. legacy 트랙일 때 /secondb 의 Divergent 모드로 넘기던 분기는 은퇴했다 (legacy/screens/INDEX.md)",
+        note: "진입: /ops 도구 격자 · /growth. legacy 트랙일 때 /secondb 의 Divergent 모드로 넘기던 분기는 은퇴했다 (E:/Legacy/2ndB/legacy/screens/INDEX.md)",
       },
       // 게이트가 라우트에서 화면으로 모였다 — change-password 와 같은 모양이다.
       {
@@ -378,14 +376,21 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         file: "persona",
         href: "/persona",
         label: "페르소나",
-        auth: true,
-        render: { kind: "ui-mode-split", deepspace: { kind: "redirect", to: "/core-brain" }, legacy: { kind: "screen" } },
-        note: "딥스페이스(기본)에서 '나를 보는 자리'의 정본은 /core-brain 이라 그리로 넘긴다. legacy 는 실화면",
+        render: { kind: "redirect", to: "/core-brain", lifecycle: "retired" },
+        note: "'나를 보는 자리'의 정본은 /core-brain 이라 그리로 넘긴다. 레거시 실화면(PersonaLegacy)은 2026-10-05 EXPO_PUBLIC_UI 레버와 함께 빠졌다(Q-261004-11)",
       },
-      { file: "big-five", href: "/big-five", label: "Big Five", auth: true },
+      // big-five 는 리다이렉트하지 않는다 - 로그아웃이면 일부러 둔 인라인 로그인 카드
+      // (dds-big-five-screen 의 SignedOutGate)를 그린다. 2026-10-04 까지 `auth: true` 였던
+      // 근거는 라우트의 legacy 반쪽(BigFiveSurveyOwner)에 있던 리터럴이었고, 그 반쪽은
+      // 2026-10-05 롤백 레버와 함께 빠졌다(Q-261004-11 C).
+      {
+        file: "big-five",
+        href: "/big-five",
+        label: "Big Five",
+        note: "로그아웃이면 리다이렉트 대신 인라인 로그인 카드(SignedOutGate)를 그린다",
+      },
       // 2026-10-04 W-02: attachment 와 같은 모양이었다. 배송되는 IpipNeoDeepSpace 가
-      // 이제 직접 가드를 갖는다. big-five 는 일부러 둔 인라인 로그인 카드
-      // (dds-big-five-screen 의 SignedOutGate)라 그대로다.
+      // 이제 직접 가드를 갖는다.
       { file: "ipip-neo", href: "/ipip-neo", label: "IPIP-NEO-120", auth: true },
       { file: "rlss", href: "/rlss", label: "삶의 만족도 (RLSS)", auth: true },
       { file: "values", href: "/values", label: "가치관", auth: true },
@@ -398,7 +403,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         label: "MBTI (은퇴)",
         entry: { kind: "legacy-link" },
         render: { kind: "redirect", to: "/persona", lifecycle: "retired" },
-        note: "저장된 옛 링크 호환 전용. /persona 가 스킨 분기를 소유해서 딥스페이스에선 두 홉으로 /core-brain 까지 간다",
+        note: "저장된 옛 링크 호환 전용. /persona 가 다시 /core-brain 으로 넘기므로 두 홉으로 /core-brain 까지 간다",
       },
       { file: "iden", href: "/iden", label: "IDEN 포터블 정체성", auth: true },
       {
@@ -406,7 +411,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         href: "/seen",
         label: "보여지는 나",
         auth: true,
-        note: "legacy 트랙일 때 독립 스킨이 없어 /persona 종합으로 넘기던 분기는 은퇴했다 (legacy/screens/INDEX.md). 진입: 프로필 허브 분석 그룹",
+        note: "legacy 트랙일 때 독립 스킨이 없어 /persona 종합으로 넘기던 분기는 은퇴했다 (E:/Legacy/2ndB/legacy/screens/INDEX.md). 진입: 프로필 허브 분석 그룹",
       },
       {
         file: "audit",
@@ -477,7 +482,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         href: "/discover",
         label: "발견",
         auth: true,
-        note: "실화면. legacy 트랙일 때 /insights 로 넘기던 분기는 은퇴했다 (legacy/screens/INDEX.md). 진입: /insights 카드",
+        note: "실화면. legacy 트랙일 때 /insights 로 넘기던 분기는 은퇴했다 (E:/Legacy/2ndB/legacy/screens/INDEX.md). 진입: /insights 카드",
       },
       { file: "reminders", href: "/reminders", label: "예약 리마인더", auth: true },
       // 라우트 리다이렉트는 legacy 반쪽(InboxLegacy) 안에만 있다. 배송되는
@@ -495,14 +500,9 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       {
         file: "trinity",
         href: "/trinity",
-        label: "브레인 트리니티 (레거시)",
-        auth: true,
-        render: {
-          kind: "ui-mode-split",
-          deepspace: { kind: "dev-gated-screen", productionRedirect: "/core-brain" },
-          legacy: { kind: "screen" },
-        },
-        note: "딥스페이스 production 빌드는 /core-brain 으로 넘어가고, 개발 빌드는 M3 리메이크를 참조용으로 연다. legacy 는 /profile quickGrid 에서 실화면으로 들어간다",
+        label: "브레인 트리니티 (은퇴)",
+        render: { kind: "redirect", to: "/core-brain", lifecycle: "retired" },
+        note: "리다이렉트 전용(Simon 결정 Q-261004-33 B). TrinityLegacy 와 개발 빌드의 M3 리메이크가 둘 다 2026-10-05 에 빠졌다",
       },
     ],
   },
@@ -751,9 +751,8 @@ export interface EntryRoleCounts {
   deepLink: number;
   legacyLink: number;
   designLab: number;
-  /** 렌더 축. 항상 redirect (은퇴 호환) / UI 모드 분기. */
+  /** 렌더 축. 항상 redirect (은퇴 호환). */
   alwaysRedirect: number;
-  modeSplit: number;
   /** 진입·렌더 축과 직교하는 DevOnlyRoute 접근 게이트 수. */
   devOnly: number;
   /** `<Redirect href="/sign-in" />` 를 가진 화면 수. */
@@ -769,7 +768,6 @@ export function entryRoleCounts(screens: readonly DevScreen[] = devScreens()): E
     legacyLink: 0,
     designLab: 0,
     alwaysRedirect: 0,
-    modeSplit: 0,
     devOnly: 0,
     authRequired: 0,
   };
@@ -782,7 +780,6 @@ export function entryRoleCounts(screens: readonly DevScreen[] = devScreens()): E
     if (entry.kind === "dev" && entry.collection === "design-lab") counts.designLab += 1;
     const render = screenRender(screen);
     if (render.kind === "redirect") counts.alwaysRedirect += 1;
-    if (render.kind === "ui-mode-split") counts.modeSplit += 1;
     if (screen.dev) counts.devOnly += 1;
     if (screen.auth) counts.authRequired += 1;
   }

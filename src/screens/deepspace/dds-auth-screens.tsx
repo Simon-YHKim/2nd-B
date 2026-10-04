@@ -1,45 +1,32 @@
-// dds-auth-screens: the three deep-space auth screens (sign-in / sign-up /
-// reset-password) + their shared shell, toast, and provider maps, moved
-// verbatim from DeepSpaceDesignScreens.tsx (P5 megafile split, tranche 1).
-// DeepSpaceDesignScreens re-exports them so every route import is unchanged.
-/* eslint-disable */
-// TODO(split-2): trim the import set + re-enable lint once the move settles.
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
+// dds-auth-screens: the deep-space reset-password screen + the shared auth shell,
+// moved verbatim from DeepSpaceDesignScreens.tsx (P5 megafile split, tranche 1),
+// and a re-export of the sign-in screen (dds-sign-in-screen). DeepSpaceDesignScreens
+// re-exports them so every route import is unchanged.
+//
+// 2026-10-05: the unrouted sign-up copy that lived here (DeepSpaceSignUpDesignScreen
+// + its consent block, provider row and toast) left the repo with the
+// `EXPO_PUBLIC_UI=legacy` lever (Simon decision Q-261004-11). The /sign-up route
+// renders dds-sign-up-screen.tsx; the copy is in E:/Legacy/2ndB (MANIFEST batch
+// qa261004-lever) and git history.
+import { useCallback, useEffect, useRef, type ReactNode, type Ref } from "react";
 import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
-import { PlainText as RNText } from "@/components/ui/PlainText";
-import { Redirect, router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
+import { router, useFocusEffect, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { useTranslation } from "react-i18next";
-import Svg, { Circle, Defs, Line, Path, RadialGradient, Rect, Stop } from "react-native-svg";
+import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors, radius, spacing } from "@/theme/tokens";
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
-import { fontFamilies } from "@/theme/typography";
 import { Text } from "@/components/ui/Text";
 import { ddsStyles as styles } from "./dds-styles";
-import { SecondbHead } from "@/components/deepspace";
-import { useSignInForm } from "@/lib/auth/useSignInForm";
-import { useSignUpForm } from "@/lib/auth/useSignUpForm";
 import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { ageInYears, MIN_SELF_CONSENT_AGE, type OAuthProvider } from "@/lib/supabase/auth";
-import { allRequiredAcksChecked, setAllRequiredAcks, type ConsentSelections } from "@/lib/auth/consent-selections";
-import { DateField } from "@/components/m3";
 import { InlineLoader } from "@/components/ui/InlineLoader";
-import { BusinessFooter } from "@/components/deepspace/BusinessFooter";
-import { todayISO } from "@/components/m3/date-picker/calendar-math";
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
-import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 import { m3TextStyle } from "@/components/m3/typeface";
 import { useFontStyle } from "@/lib/settings/readable-font";
-
-// Keyboard-aware shell for the auth screens (sign-in / sign-up / reset). The
-// generic Shell above is for in-app graph screens and has no keyboard handling;
-// auth forms need KeyboardAvoidingView + scroll padding (ANDROID_QA_GUIDELINES).
-function Card({ children, style }: { children: ReactNode; style?: object }) { return <View style={[styles.card, style]}>{children}</View>; }
 
 // Shared starfield, seeded as fractional positions so it scales to any viewport
 // (mirrors DeepSpaceBackdrop). Static — no animation lock risk (ANDROID_QA).
@@ -89,6 +76,9 @@ function AuthBackdrop() {
   );
 }
 
+// Keyboard-aware shell for the auth screens (sign-in / sign-up / reset). The
+// generic Shell above is for in-app graph screens and has no keyboard handling;
+// auth forms need KeyboardAvoidingView + scroll padding (ANDROID_QA_GUIDELINES).
 export function AuthShell({ children, scrollRef }: { children: ReactNode; scrollRef?: Ref<ScrollView> }) {
   // Reserve the Android bottom inset: under edge-to-edge (Expo SDK 56 default)
   // the shared scroll's fixed paddingBottom:40 lets the last CTA on a tall
@@ -122,440 +112,7 @@ export function AuthShell({ children, scrollRef }: { children: ReactNode; scroll
   );
 }
 
-// Provider leading marks. Apple / email get a small token-colored glyph; the
-// other providers keep a bold letter badge. No emoji, no pill chips (DESIGN.md).
-function AppleGlyph({ color }: { color: string }) {
-  return (
-    <Svg width={17} height={17} viewBox="0 0 24 24">
-      <Path
-        fill={color}
-        d="M16.36 12.9c.02 2.14 1.87 2.85 1.89 2.86-.02.05-.3 1.02-.98 2.02-.59.87-1.2 1.73-2.16 1.75-.94.02-1.25-.56-2.33-.56-1.08 0-1.42.54-2.31.58-.93.03-1.64-.94-2.23-1.8-1.22-1.77-2.15-5-.9-7.18.62-1.08 1.73-1.77 2.93-1.79.91-.02 1.77.62 2.33.62.55 0 1.6-.76 2.7-.65.46.02 1.75.19 2.58 1.4-.07.04-1.54.9-1.52 2.68zM14.66 6.36c.49-.6.82-1.42.73-2.25-.71.03-1.56.47-2.07 1.07-.45.53-.85 1.37-.74 2.18.79.06 1.59-.4 2.08-1z"
-      />
-    </Svg>
-  );
-}
-
-function AuthToast({ message, tone }: { message: string; tone: "info" | "success" | "danger" }) {
-  const toneStyle =
-    tone === "success" ? styles.authToastSuccess : tone === "danger" ? styles.authToastDanger : styles.authToastInfo;
-  return (
-    <View style={styles.authToastWrap} pointerEvents="none">
-      <View style={[styles.authToast, toneStyle]} accessibilityRole="alert">
-        <Text variant="body" style={styles.authToastText}>{message}</Text>
-      </View>
-    </View>
-  );
-}
-
-// Per-provider button label keys live in the auth namespace (full C7 parity),
-// reused by both the legacy and deep-space presentations.
-const PROVIDER_SIGNIN_KEY: Record<OAuthProvider, string> = {
-  google: "auth:signIn.continueWithGoogle",
-  apple: "auth:signIn.continueWithApple",
-  kakao: "auth:signIn.continueWithKakao",
-  facebook: "auth:signIn.continueWithFacebook",
-  github: "auth:signIn.continueWithGithub",
-};
-const PROVIDER_SIGNUP_KEY: Record<OAuthProvider, string> = {
-  google: "auth:signUp.continueWithGoogle",
-  apple: "auth:signUp.continueWithApple",
-  kakao: "auth:signUp.continueWithKakao",
-  facebook: "auth:signUp.continueWithFacebook",
-  github: "auth:signUp.continueWithGithub",
-};
-// Per-provider mark shown before the label (design: a bold "G" glyph, not an
-// emoji or pill chip). Empty string = no badge (e.g. Apple, whose glyph is not
-// portable across platforms; it stays label-only).
-const PROVIDER_BADGE: Record<OAuthProvider, string> = {
-  google: "G",
-  apple: "",
-  kakao: "K",
-  facebook: "f",
-  github: "GH",
-};
-
-// Monochrome brand marks for the icon-only provider circles (flow request #2).
-// Single-color per DESIGN.md's palette discipline; every major brand permits a
-// one-color mark on dark UI. Facebook has no path here and falls back to its
-// letter badge (it ships flag-off by default).
-const PROVIDER_MARK_PATH: Partial<Record<OAuthProvider | "naver", string>> = {
-  google:
-    "M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81Z",
-  kakao:
-    "M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.06.24.01.24.01.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.12 1.77.12 5.52 0 10-3.54 10-7.9S17.52 3 12 3Z",
-  github:
-    "M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1.17-.02-2.12-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.75 2.69 1.25 3.34.95.1-.74.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18.92-.26 1.9-.38 2.88-.39.98.01 1.96.13 2.88.39 2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.73.81 1.18 1.83 1.18 3.09 0 4.41-2.69 5.38-5.25 5.67.41.35.77 1.05.77 2.12 0 1.53-.01 2.76-.01 3.14 0 .3.2.67.8.55C20.22 21.38 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5Z",
-  naver: "M16.27 12.85 7.42 0H0v24h7.73V11.15L16.58 24H24V0h-7.73v12.85Z",
-};
-
-function ProviderMark({ provider, color }: { provider: OAuthProvider | "naver"; color: string }) {
-  if (provider === "apple") return <AppleGlyph color={color} />;
-  const d = PROVIDER_MARK_PATH[provider];
-  if (d) {
-    // Naver's mark is a full-bleed square N; render it smaller so its optical
-    // weight matches the padded 24-viewBox marks.
-    const size = provider === "naver" ? 14 : 20;
-    return (
-      <Svg width={size} height={size} viewBox="0 0 24 24">
-        <Path fill={color} d={d} />
-      </Svg>
-    );
-  }
-  return <RNText style={styles.providerMarkDark}>{PROVIDER_BADGE[provider as OAuthProvider] ?? ""}</RNText>;
-}
-
-// Icon-only circular provider row: all social methods in ONE horizontal line
-// instead of stacked full-width bars, so the auth screens stay short (flow
-// request #2). Icon-only buttons keep the FULL provider label for a11y; Naver
-// (custom OAuth, separate handler) joins the same row visually.
-function ProviderIconRow({ providers, naverEnabled, disabled, busy, labelKeys, naverLabel, onProvider, onNaver }: {
-  providers: readonly OAuthProvider[];
-  naverEnabled: boolean;
-  disabled: boolean;
-  busy: boolean;
-  labelKeys: Record<OAuthProvider, string>;
-  naverLabel: string;
-  onProvider: (provider: OAuthProvider) => void;
-  onNaver: () => void;
-}) {
-  const { t } = useTranslation(["auth"]);
-  if (providers.length === 0 && !naverEnabled) return null;
-  return (
-    <View style={styles.providerCircleRow}>
-      {providers.map((provider) => (
-        <Pressable
-          key={provider}
-          onPress={() => onProvider(provider)}
-          disabled={disabled}
-          style={[styles.providerCircle, disabled && styles.btnDisabled]}
-          accessibilityRole="button"
-          accessibilityLabel={t(labelKeys[provider])}
-          accessibilityState={{ disabled, busy }}
-        >
-          <ProviderMark provider={provider} color={colors.textTitle} />
-        </Pressable>
-      ))}
-      {naverEnabled ? (
-        <Pressable
-          onPress={onNaver}
-          disabled={disabled}
-          style={[styles.providerCircle, disabled && styles.btnDisabled]}
-          accessibilityRole="button"
-          accessibilityLabel={naverLabel}
-          accessibilityState={{ disabled, busy }}
-        >
-          <ProviderMark provider="naver" color={colors.textTitle} />
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
-
 export { DeepSpaceSignInDesignScreen } from "./dds-sign-in-screen";
-
-// Deep-space consent block: drives the SAME ConsentSelections state + helpers the
-// legacy ConsentNotice uses, so the C10 ledger (buildSignUpConsentArgs in the
-// hook) is byte-for-byte equivalent. That parity claim was FALSE for
-// safetyNotice until 2026-08-21 - the row was simply missing here while the
-// legacy component had it - and signup-required-acks.test.ts now checks the
-// claim instead of restating it. Copy comes from the reviewed `consent`
-// namespace (notice.*). Styling is deep-space tokens only.
-function ConsentCheckRow({ checked, label, emphasize, onToggle, onDetail, detailLabel }: { checked: boolean; label: string; emphasize?: boolean; onToggle: () => void; onDetail?: () => void; detailLabel?: string }) {
-  return (
-    <View style={styles.consentRow}>
-      <Pressable
-        style={styles.consentToggleArea}
-        onPress={onToggle}
-        {...checkboxSpaceKeyProps(onToggle)}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked }}
-        accessibilityLabel={label}
-      >
-        <View style={[styles.consentCheckbox, checked && styles.consentCheckboxOn]}>
-          {checked ? <RNText style={styles.consentCheckmark}>✓</RNText> : null}
-        </View>
-        <Text variant="body" style={[styles.consentLabel, emphasize && { color: colors.textTitle }]}>{label}</Text>
-      </Pressable>
-      {onDetail ? (
-        // The faint chevron the flow request asked for: its own target (44x40)
-        // so a detail tap can never flip the checkbox, with its own a11y label.
-        <Pressable
-          onPress={onDetail}
-          hitSlop={10}
-          style={styles.consentDetailBtn}
-          accessibilityRole="button"
-          accessibilityLabel={detailLabel ?? label}
-        >
-          <RNText style={styles.chev}>›</RNText>
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
-
-function DeepSpaceConsentBlock({ minor, value, onChange }: { minor: boolean; value: ConsentSelections; onChange: (next: ConsentSelections) => void }) {
-  const { t } = useTranslation("consent");
-  const allChecked = allRequiredAcksChecked(value);
-  const toggle = (key: keyof ConsentSelections) => onChange({ ...value, [key]: !value[key] });
-  // Each row's faint chevron opens the full notice for THAT item (what is
-  // collected, why, retention, refusal right) on /consent-notice — the legal
-  // detail lives there, the sign-up screen stays one-message lean (flow #4).
-  const detailProps = (item: keyof ConsentSelections) => ({
-    onDetail: () => router.push({ pathname: "/consent-notice", params: { item } }),
-    detailLabel: `${t(`detail.${item}.title`)} ${t("notice.detailLink")}`,
-  });
-  return (
-    <Card>
-      <Text variant="heading" style={styles.section}>{t("notice.title")}</Text>
-      <Text variant="body" style={styles.consentIntro}>{t("notice.intro")}</Text>
-      {minor ? (
-        <View style={styles.minorBanner}>
-          <Text variant="body" style={styles.minorBannerText}>{t("notice.minorBanner")}</Text>
-        </View>
-      ) : null}
-      <Text variant="caption" pixelEn style={styles.consentGroupLabel}>{t("notice.requiredLabel")}</Text>
-      <ConsentCheckRow checked={allChecked} label={t("notice.agreeAll")} emphasize onToggle={() => onChange(setAllRequiredAcks(value, !allChecked))} />
-      <View style={styles.consentDivider} />
-      <ConsentCheckRow checked={value.service} label={t("notice.ackService")} onToggle={() => toggle("service")} {...detailProps("service")} />
-      <ConsentCheckRow checked={value.llmProcessing} label={t("notice.ackLlm")} onToggle={() => toggle("llmProcessing")} {...detailProps("llmProcessing")} />
-      <ConsentCheckRow checked={value.overseasTransfer} label={t("notice.ackOverseas")} onToggle={() => toggle("overseasTransfer")} {...detailProps("overseasTransfer")} />
-      <ConsentCheckRow checked={value.sensitiveData} label={t("notice.ackSensitive")} onToggle={() => toggle("sensitiveData")} {...detailProps("sensitiveData")} />
-      {/* PIPA 제23조 별도 동의 - 안전 안내. 별도 항목으로 서 있는 것 자체가
-          "별도" 동의라는 요건이고, 그래서 이 줄은 생략할 수 있는 줄이 아니다.
-          이 줄이 없는 동안 이 화면은 두 가지 방식으로 틀렸다: 개별로 네 줄을
-          다 눌러도 allRequiredAcksChecked 가 safetyNotice 를 요구해 제출이
-          영영 안 열렸고, "모두 동의"를 누르면 setAllRequiredAcks 가 화면에
-          보인 적 없는 항목까지 true 로 원장에 남겼다. */}
-      <ConsentCheckRow checked={value.safetyNotice} label={t("notice.ackSafety")} onToggle={() => toggle("safetyNotice")} {...detailProps("safetyNotice")} />
-      <Text variant="caption" pixelEn style={styles.consentGroupLabel}>{t("notice.optionalLabel")}</Text>
-      <ConsentCheckRow checked={value.marketing} label={t("notice.optMarketing")} onToggle={() => toggle("marketing")} {...detailProps("marketing")} />
-    </Card>
-  );
-}
-
-export function DeepSpaceSignUpDesignScreen() {
-  const { t } = useTranslation(["deepspace", "auth", "common"]);
-  const {
-    userId,
-    loading,
-    submitting,
-    judgeWelcome,
-    toast,
-    email,
-    setEmail,
-    password,
-    setPassword,
-    birthDate,
-    setBirthDate,
-    consent,
-    setConsent,
-    isMinorAge,
-    canSubmit,
-    oauthSubmitting,
-    existingAccountHelp,
-    confirmSentTo,
-    confirmCode,
-    setConfirmCode,
-    canVerifyConfirmCode,
-    confirmVerifying,
-    handleVerifyConfirmCode,
-    visibleProviders,
-    naverEnabled,
-    handleSubmit,
-    handleOAuth,
-    handleNaver,
-  } = useSignUpForm();
-  const passwordRef = useRef<TextInput>(null);
-
-  if (loading) {
-    return <InlineLoader />;
-  }
-  if (userId && !submitting && !judgeWelcome && !toast) return <Redirect href="/" />;
-
-  const birthOk = ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE;
-  const showChecklist = email.length > 0 || password.length > 0 || birthDate.length > 0;
-
-  return (
-    <AuthShell>
-      <View style={styles.authHero}>
-        <SecondbHead size={120} mood="neutral" />
-        <Text variant="heading" style={styles.big}>{t("deepspace:auth.signUpTitle")}</Text>
-        <Text variant="body" style={styles.lead}>{t("deepspace:auth.signUpLead")}</Text>
-        <Text variant="body" style={styles.authHelper}>{t("deepspace:auth.ageNotice")}</Text>
-      </View>
-
-      {/* Judge-rehearsal #1: mandatory confirmation (0086) deserves the top
-          slot, not a two-word toast. Persists until the address changes or
-          the confirmation link lands. */}
-      {confirmSentTo ? (
-        <View style={styles.authHelpCard} accessibilityRole="alert" accessibilityLiveRegion="polite">
-          <Text variant="heading" style={styles.authHelpTitle}>{t("auth:signUp.confirmSentTitle")}</Text>
-          <Text variant="body" style={styles.authHelpBody}>{t("auth:signUp.confirmSentBody", { email: confirmSentTo })}</Text>
-          {/* Deliverability P1 (260718): the confirmation mail is code-only
-              (Gmail buries supabase.co links), so the card carries the finish
-              step itself. Mirrors the reset-password OTP input. */}
-          <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signUp.confirmCodeLabel")}</Text>
-          <TextInput
-            value={confirmCode}
-            onChangeText={setConfirmCode}
-            keyboardType="number-pad"
-            autoComplete="one-time-code"
-            textContentType="oneTimeCode"
-            maxLength={6}
-            placeholder="000000"
-            placeholderTextColor={colors.textLo}
-            accessibilityLabel={t("auth:signUp.confirmCodeLabel")}
-            accessibilityHint={t("auth:signUp.confirmCodeHint")}
-            style={styles.input}
-            returnKeyType="go"
-            onSubmitEditing={() => {
-              if (canVerifyConfirmCode) void handleVerifyConfirmCode();
-            }}
-          />
-          <Pressable
-            onPress={() => void handleVerifyConfirmCode()}
-            disabled={!canVerifyConfirmCode}
-            style={[styles.primary, !canVerifyConfirmCode && styles.btnDisabled]}
-            accessibilityRole="button"
-            accessibilityLabel={t("auth:signUp.confirmCodeVerify")}
-            accessibilityState={{ disabled: !canVerifyConfirmCode, busy: confirmVerifying }}
-          >
-            <Text variant="caption" style={styles.primaryText}>
-              {confirmVerifying ? t("auth:resetPassword.verifying") : t("auth:signUp.confirmCodeVerify")}
-            </Text>
-          </Pressable>
-        </View>
-      ) : null}
-      <Card>
-        <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signUp.email")}</Text>
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          autoComplete="email"
-          textContentType="emailAddress"
-          placeholder="email@example.com"
-          placeholderTextColor={colors.textLo}
-          accessibilityLabel={t("auth:signUp.email")}
-          style={styles.input}
-          returnKeyType="next"
-          blurOnSubmit={false}
-          onSubmitEditing={() => passwordRef.current?.focus()}
-        />
-        <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signUp.password")}</Text>
-        <TextInput
-          ref={passwordRef}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoComplete="new-password"
-          textContentType="newPassword"
-          placeholder="••••••••"
-          placeholderTextColor={colors.textLo}
-          accessibilityLabel={t("auth:signUp.password")}
-          style={styles.input}
-          returnKeyType="done"
-        />
-        <Text variant="body" style={styles.authHelper}>{t("auth:signUp.passwordHelper")}</Text>
-        <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signUp.birthDate")}</Text>
-        <DateField
-          value={birthDate}
-          onChange={setBirthDate}
-          minDate="1900-01-01"
-          maxDate={todayISO()}
-          initialView="year"
-          initialCursorDate={`${Number(todayISO().slice(0, 4)) - 20}-01-01`}
-          accessibilityLabel={t("auth:signUp.birthDate")}
-        />
-        <Text variant="body" style={styles.authHelper}>{t("auth:signUp.birthDateHelper")}</Text>
-
-        {showChecklist ? (
-          <View style={{ gap: 6 }}>
-            <View style={styles.checklistRow}>
-              <View style={[styles.checklistDot, { backgroundColor: email.includes("@") ? colors.mint : colors.textLo }]} />
-              <Text variant="body" style={[styles.checklistText, { color: email.includes("@") ? colors.mint : colors.textMid }]}>
-                {email.includes("@") ? t("auth:signUp.checkEmail") : t("auth:signUp.checkEmailMissing")}
-              </Text>
-            </View>
-            <View style={styles.checklistRow}>
-              <View style={[styles.checklistDot, { backgroundColor: password.length >= 8 ? colors.mint : colors.textLo }]} />
-              <Text variant="body" style={[styles.checklistText, { color: password.length >= 8 ? colors.mint : colors.textMid }]}>
-                {password.length >= 8 ? t("auth:signUp.checkPassword") : t("auth:signUp.checkPasswordShort")}
-              </Text>
-            </View>
-            <View style={styles.checklistRow}>
-              <View style={[styles.checklistDot, { backgroundColor: birthOk ? colors.mint : colors.textLo }]} />
-              <Text variant="body" style={[styles.checklistText, { color: birthOk ? colors.mint : colors.textMid }]}>
-                {birthOk ? t("auth:signUp.checkAge") : t("auth:signUp.checkAgeBlocked")}
-              </Text>
-            </View>
-          </View>
-        ) : null}
-      </Card>
-
-      <DeepSpaceConsentBlock minor={isMinorAge} value={consent} onChange={setConsent} />
-
-      {existingAccountHelp ? (
-        <View style={styles.authHelpCard} accessibilityRole="alert" accessibilityLiveRegion="polite">
-          <Text variant="heading" style={styles.authHelpTitle}>{t("auth:signUp.existingAccountTitle")}</Text>
-          <Text variant="body" style={styles.authHelpBody}>{t("auth:signUp.existingAccountBody")}</Text>
-          <Pressable style={styles.providerBtn} onPress={() => router.push("/sign-in")} accessibilityRole="button" accessibilityLabel={t("auth:signUp.existingAccountSignIn")}>
-            <Text variant="caption" style={styles.providerBtnText}>{t("auth:signUp.existingAccountSignIn")}</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      <Card>
-        {visibleProviders.length > 0 || naverEnabled ? (
-          <View style={styles.authDividerRow}>
-            <View style={styles.authDividerLine} />
-            <Text variant="caption" pixelEn style={styles.authDividerLabel}>{t("deepspace:auth.or")}</Text>
-            <View style={styles.authDividerLine} />
-          </View>
-        ) : null}
-        <ProviderIconRow
-          providers={visibleProviders}
-          naverEnabled={naverEnabled}
-          disabled={oauthSubmitting || submitting}
-          busy={oauthSubmitting}
-          labelKeys={PROVIDER_SIGNUP_KEY}
-          naverLabel={t("auth:signUp.continueWithNaver")}
-          onProvider={(provider) => void handleOAuth(provider)}
-          onNaver={() => void handleNaver()}
-        />
-      </Card>
-
-      <Pressable
-        onPress={() => void handleSubmit()}
-        disabled={!canSubmit}
-        style={[styles.primary, !canSubmit && styles.btnDisabled]}
-        accessibilityRole="button"
-        accessibilityLabel={t("auth:signUp.submit")}
-        accessibilityState={{ disabled: !canSubmit, busy: submitting }}
-      >
-        <Text variant="caption" style={styles.primaryText}>{t("auth:signUp.submit")}</Text>
-      </Pressable>
-
-      <Pressable onPress={() => router.push("/sign-in")} style={styles.authLinkRow} accessibilityRole="link" accessibilityLabel={t("auth:signUp.signInLink")}>
-        <Text variant="body" style={styles.link}>{t("deepspace:auth.haveAccount")}</Text>
-      </Pressable>
-
-      {/* D2 (decision-sheet 260717): sign-up had NO route to the documents the
-          consent block references — only the /consent-notice summaries. Same
-          line as sign-in; /terms cross-links /refund and /privacy-policy. */}
-      <Pressable
-        onPress={() => router.push("/terms")}
-        hitSlop={10}
-        accessibilityRole="link"
-        accessibilityLabel={t("deepspace:auth.legalConsent")}
-      >
-        <Text variant="caption" style={[styles.authLegal, { textDecorationLine: "underline" }]}>{t("deepspace:auth.legalConsent")}</Text>
-      </Pressable>
-      {toast ? <AuthToast message={toast.message} tone={toast.tone} /> : null}
-    </AuthShell>
-  );
-}
 
 function ResetAction({
   onPress,

@@ -10,9 +10,10 @@ Applies to: React Native, Android, iOS, and web
 
 This file contains only the active deep-space design contract. The former
 Cosmic Pixel, Game Boy, village, Soul Core, Pattern Core, character-voice, and
-old visual-tier systems are legacy rollback material. They remain available in
-git history and behind `EXPO_PUBLIC_UI=legacy`, but they are never references
-for new work.
+old visual-tier systems are legacy material. They remain available in git
+history (and in the out-of-repo archive E:/Legacy/2ndB), but they are never
+references for new work. The `EXPO_PUBLIC_UI=legacy` rollback lever that used
+to draw them was removed on 2026-10-05 (Simon decision Q-261004-11).
 
 ## 1. Source of truth and conflict order
 
@@ -281,11 +282,14 @@ Before OTA:
 
 ## 11. Legacy boundary
 
-Legacy exists only for explicit rollback through `EXPO_PUBLIC_UI=legacy`.
-Do not copy its components, names, fonts, palette, motion, route structure, or
-visual tiers into deep-space work. If rollback behavior must change, isolate it
-in a legacy-only change and do not edit this active contract to make the legacy
-skin look canonical.
+There is no rollback skin any more. The `EXPO_PUBLIC_UI=legacy` lever was
+removed on 2026-10-05 (Simon decision Q-261004-11); reverting is a git revert,
+and `src/lib/__tests__/ui-lever-retired.test.ts` keeps the lever from coming
+back without that decision. Do not copy legacy components, names, fonts,
+palette, motion, route structure, or visual tiers into deep-space work. A
+feature worth keeping from a legacy half is revived by moving it onto the
+shipped screen (Q-261004-12), not by bringing the skin branch back, and this
+active contract is never edited to make the legacy skin look canonical.
 
 The compatibility identifier `Muse/Lumina` may remain only where old persisted
 data or a migration contract requires it. It is not a visible home star, a

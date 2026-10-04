@@ -11,10 +11,12 @@
 // queries `records`. So it looked for `src-<uuid>` in the records table, found nothing, and
 // showed "찾을 수 없어요". EVERY link, clip and import in the list was a dead tap.
 //
-// The legacy record-detail screen actually got this right -- src/app/record/[id].tsx:65 has
-// a correct `origin === "source"` branch that reads the sources table. It just never runs:
-// line 263 is `if (isDeepSpaceUI()) return <DeepSpaceRecordDetailScreen />`, and deep-space
-// is the default. Correct code, unreachable.
+// The legacy record-detail screen actually got this right -- e0b274d0:src/app/record/[id].tsx:54
+// has a correct `origin === "source"` branch that reads the sources table. It just never ran:
+// line 268 there is `if (isDeepSpaceUI()) return <DeepSpaceRecordDetailScreen />`, and
+// deep-space was the default. Correct code, unreachable. (Line numbers are pinned to that
+// commit: on 2026-10-05 the EXPO_PUBLIC_UI lever was removed and that half became the revive
+// source legacy/screens/record-detail.tsx, out of the build.)
 //
 // The id is self-describing, so the caller does not have to remember to pass an origin --
 // which is exactly the kind of thing callers forget. `src-` means sources.

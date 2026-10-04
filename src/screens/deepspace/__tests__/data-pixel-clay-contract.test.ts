@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -113,21 +112,15 @@ describe("PIXEL-CLAY /data renderer contract", () => {
     );
   });
 
-  test("routes only the gated renderer to the new small screen", () => {
+  test("routes only to the new small screen after the shipped gate", () => {
     const route = read(ROUTE);
     expect(route).toContain('from "@/screens/deepspace/dds-data-screen"');
     expect(route).not.toContain('from "@/screens/deepspace/DeepSpaceDesignScreens"');
-    expect(route).toContain("if (isDeepSpaceUI()) return <DeepSpaceDataScreen />");
-  });
-
-  test("leaves the complete legacy renderer and styles byte-for-byte unchanged", () => {
-    const route = read(ROUTE);
-    const start = route.indexOf("function DataManagementLegacy()");
-    const end = route.indexOf("\nexport default function DataManagement()");
-    expect(start).toBeGreaterThan(-1);
-    expect(end).toBeGreaterThan(start);
-    expect(createHash("sha256").update(route.slice(start, end)).digest("hex")).toBe(
-      "fca410b8389ccb150101ed9725223d411f483adc3e70ec52bd0e4c60c9891302",
-    );
+    // 2026-10-05: 레거시 반쪽(DataManagementLegacy)이 롤백 레버와 함께 라우트에서 빠졌다
+    // (Simon 결정 Q-261004-11 C). 게이트 블록은 배송이라 라우트에 남았고, 그 끝이 이 화면이다.
+    // 반쪽의 바이트 핀(fca410b8…)은 은퇴했다 - 되살리기 원본 legacy/screens/data.tsx 의
+    // 바이트는 legacy-archive-integrity.test.ts 가 지킨다.
+    expect(route).toMatch(/if \(gate !== "ready"\) \{[\s\S]*?\}\s*return <DeepSpaceDataScreen \/>;\s*\}/);
+    expect(route).not.toContain("DataManagementLegacy");
   });
 });

@@ -11,7 +11,8 @@
 // for any historic consumer (LoadingScreen.tsx, etc.). New work should
 // reach for `semantic` or the `cosmic` raw palette below.
 //
-// `lightSky` stays only for the raw sky/loader layer (useSkyPalette).
+// `lightSky` lost its last reader (useSkyPalette) on 2026-10-05 with the
+// `EXPO_PUBLIC_UI=legacy` lever; it is kept as the light sky-family values.
 // The cosmic-light palette (`lightCosmic` / `semanticLight`, queue item G)
 // is the real light mode for card surfaces. The handoff says "main screen
 // remains dark even in light mode" (Prompt D), so the light variant only
@@ -20,7 +21,6 @@
 // ─── Cosmic Pixel palette — raw colors from the 2026-05-29 handoff ──
 // Group naming mirrors the handoff CSS variables so designers can
 // cross-reference the doc 1:1.
-import { UI_MODE } from "../ui-mode";
 
 /**
  * 합성 FX 토큰들이 앉는 바탕. `cosmic.space950` 과 **같은 값**이어야 한다 —
@@ -121,38 +121,8 @@ export function flattenAlpha(hex: string, alpha: number, ground: string): string
   return "#" + mix.map((c) => c.toString(16).padStart(2, "0")).join("");
 }
 
-const darkSkyLegacy = {
-  bg: "#02040A",
-  // ⚠ 미리 합성한 색이다(PIXEL-CLAY 규칙 4). 바탕은 **바로 위의 `bg`** 다.
-  surface: flattenAlpha("#FFFFFF", 0.04, "#02040A"),
-  border: flattenAlpha("#8FB7F4", 0.18, "#02040A"),
-  text: "#E5EDFA",
-  textMuted: "#C7D4EA",
-  textSubtle: "#7FB3F4",
-  brand: "#2F97FC",
-  accent: "#7FB3F4",
-} as const;
-
-// Cosmic entry palette — same SHAPE as `darkSky` (bg/surface/border/text/
-// textMuted/textSubtle/brand/accent) so the unauthenticated entry surface
-// (sign-in, loaders) can drop-in replace the legacy sky-blue look with the
-// Cosmic Pixel identity (deep-space bg + mint brand + violet accent). This
-// is what makes the rebrand visible before login.
-const cosmicSkyLegacy = {
-  bg: cosmic.space950,
-  // ⚠ 미리 합성한 색이다(PIXEL-CLAY 규칙 4). 바탕은 **바로 위의 `bg`** 다.
-  surface: flattenAlpha("#A78BFA", 0.07, cosmic.space950),
-  border: cosmic.lineDim,
-  text: cosmic.moonWhite,
-  textMuted: "#C9D0E6",
-  textSubtle: cosmic.mistGray,
-  brand: cosmic.signalMint,
-  accent: cosmic.soulViolet,
-} as const;
-
-// Legacy light-mode counterpart in the sky-blue family. Still consumed by
-// useSkyPalette() for the loader / raw-sky surfaces. Kept as-is; the
-// cosmic-light palette below is what secondary card surfaces now use.
+// Light-mode counterpart in the sky-blue family. The cosmic-light palette below
+// is what secondary card surfaces use.
 export const lightSky = {
   bg: "#F2F7FF",
   // ⚠ 미리 합성한 색이다(PIXEL-CLAY 규칙 4). 바탕은 **바로 위의 `bg`** 다.
@@ -166,10 +136,9 @@ export const lightSky = {
 } as const;
 
 // Cyan global pivot (2026-06-18, Phase 2): the unauthenticated entry surface
-// (sign-in, reset-password) + raw-sky / loader layer read as eye-cyan in the
-// deep-space build. Same 8-key shape as darkSky/cosmicSky, so useSkyPalette()
-// and the entry screens swap in with no edits. Legacy keeps the cosmic / sky-blue
-// values for rollback.
+// (sign-in, reset-password) + raw-sky / loader layer read as eye-cyan. The
+// cosmic / sky-blue rollback values (darkSkyLegacy · cosmicSkyLegacy) left with
+// the `EXPO_PUBLIC_UI=legacy` lever on 2026-10-05 (Simon decision Q-261004-11).
 const skyDeepSpace = {
   // 표면 그룹 — 위 semanticDeepSpace 와 같은 캐논 램프를 쓴다(c00/c01/c02).
   bg: "#0a0e18",
@@ -182,8 +151,8 @@ const skyDeepSpace = {
   accent: "#5FD4FF",
 } as const;
 
-export const darkSky = UI_MODE === "deep-space" ? skyDeepSpace : darkSkyLegacy;
-export const cosmicSky = UI_MODE === "deep-space" ? skyDeepSpace : cosmicSkyLegacy;
+export const darkSky = skyDeepSpace;
+export const cosmicSky = skyDeepSpace;
 
 // ─── Cosmic-light palette (queue item G, 2026-05-29) ────────────────
 // The light counterpart to `cosmic`. Same hue family (deep-space navy ink
@@ -204,67 +173,13 @@ export const lightCosmic = {
   brand: "#0A7A57", // deep Electric Mint — AA-safe on light
 } as const;
 
-// Default `semantic` = Cosmic Pixel tones. Keys mirror the legacy
-// shape so every existing `semantic.background` / `semantic.text` /
-// `semantic.brand` consumer keeps working. The shape is also what the
-// light-mode runtime palette returns via useThemePalette() — same keys,
-// different values.
-export const semanticCosmic = {
-  background: cosmic.space950,
-  // ⚠ 미리 합성한 색이다(PIXEL-CLAY 규칙 4). 바탕은 **바로 위의 `bg`** 다.
-  surface: flattenAlpha("#0D1530", 0.84, cosmic.space950), // glassy night panel
-  surfaceAlt: flattenAlpha("#16213E", 0.68, cosmic.space950), // graph-slate wash for nested controls
-  border: flattenAlpha("#8D98B8", 0.3, cosmic.space950),
-  // ⚠ `backdrop` / `backdropStrong` 은 2026-08-27 에 **없앴다.**
-  //   모달 스크림은 바탕을 모르는 자리라(어느 화면 위에도 뜬다) 미리 합성이
-  //   불가능하고, PIXEL-CLAY 규칙 4 가 정확히 이 경우를 위해 "평탄화 말고
-  //   디더"라고 못박고 있다. 여덟 호출부 전부 `<PixelScrim />` 로 옮겼다.
-  //   되살리지 말 것 — 알파 스크림을 다시 들이면 규칙 4 가드가 잡는다.
-  text: cosmic.moonWhite,
-  textMuted: "#C9D0E6", // slightly above mist-gray for body text
-  textSubtle: cosmic.mistGray,
-  brand: cosmic.signalMint, // active-connection mint = primary accent
-  // Zone tones — kept saturated so they read in both modes.
-  zoneGreen: cosmic.signalMint,
-  zoneYellow: cosmic.pixelLamp,
-  zoneRed: cosmic.guardRose,
-  // Info / success / warning / danger — mapped onto cosmic signals.
-  info: cosmic.signalBlue,
-  success: cosmic.signalMint,
-  warning: cosmic.pixelLamp,
-  danger: cosmic.guardRose,
-  // ⚠ 캐논 `--c00`. 원래 `#0A0E1A` 로 2 만큼 어긋나 있었다.
-  deepSpaceBg: "#0A0E18",
-  deepSpaceAccent: "#46B6FF",
-  deepSpaceText: "#5FD4FF",
-  deepSpaceTextMuted: "#428eb0",
-  // 셋 다 원래 `rgba(70,182,255, …)` 였고 미리 합성한 값으로 바꿨다(규칙 4).
-  //
-  // ⚠ **2026-08-26 정정 — 여기 적혀 있던 "딥스페이스 카드는 이 토큰으로
-  //   칠해진다 … 가장 큰 단일 지렛대" 는 틀렸다.** 이 블록은 `semanticCosmic`
-  //   즉 **레거시 스킨**이다(191행). 배포되는 쪽은 `semanticDeepSpace`(235행)이고
-  //   그쪽의 같은 세 토큰은 **이미 단색**이었다(262~264행: #141b2e / #232e4a).
-  //   갈라지는 지점은 268행의 `UI_MODE === "deep-space"` 다.
-  //
-  //   그래서 이 세 줄은 배포 빌드에 아무 영향이 없다. 같은 커밋이 함께 한
-  //   **12개 파일 일괄 재데이트(164곳)와 `dds-styles`(19곳)가 실제 일을 했다.**
-  //   수치가 떨어졌다고 그 원인을 맞혀놓은 것은 아니다 — 화면 실측은 한 커밋
-  //   안의 여러 변경을 갈라보지 못한다.
-  //
-  //   바닥은 레거시 우주 바닥(#0a0e18)이다.
-  deepSpaceCard: "#0e1826", // = rgba(70,182,255,0.06) over #0a0e18
-  deepSpaceCardPressed: "#112234", // = rgba(70,182,255,0.12) over #0a0e18
-  deepSpaceCardLine: "#18364f", // = rgba(70,182,255,0.24) over #0a0e18
-} as const;
-
 // Cyan global pivot (2026-06-18): the deep-space build maps the SAME semantic
 // keys onto the eye-cyan identity, so every `semantic.*` consumer (most screens)
 // reads as deep-space — not just the character shell. Surfaces stay a solid dark
 // navy panel so cards keep their substance; the cyan comes from brand/border/
-// text/accents. Keys are identical to semanticCosmic, so screens inherit the
-// tone with no per-screen edit (the repo's established palette-pivot pattern).
-// The legacy build (EXPO_PUBLIC_UI=legacy) keeps the cosmic tones; cosmic stays
-// exported for tests + the legacy track.
+// text/accents. The cosmic-tone `semanticCosmic` that the old
+// `EXPO_PUBLIC_UI=legacy` build used left with that lever on 2026-10-05 (Simon
+// decision Q-261004-11); the raw `cosmic` colors stay exported.
 const semanticDeepSpace = {
   // PIXEL-CLAY 표면 그룹 (2026-08-30). 캐논 midnight 램프의 c00~c02 단색이다
   // (design/pixel_clay_260825/data/tokens.json 의 --c00/--c01/--c02).
@@ -306,8 +221,8 @@ const semanticDeepSpace = {
   deepSpaceCardLine: "#232e4a",
 } as const;
 
-// Active palette for this build. UI_MODE is the build-time EXPO_PUBLIC_UI flag.
-export const semantic = UI_MODE === "deep-space" ? semanticDeepSpace : semanticCosmic;
+// The active palette.
+export const semantic = semanticDeepSpace;
 
 // O-23 (D-22/D-23): deep-space character UI track tokens. Eye-cyan monotone so the
 // whole UI reads as the character's body/screen — kept to <=3 core colors per D-22

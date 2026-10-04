@@ -55,13 +55,13 @@ const SCREENISH = /Screen|Shell|Legacy/;
 /**
  * 이름이 겹치는 화면마다 **배송되는 정의 파일**. 코드에서 파생하지 않고 적는다 —
  * 위 ②의 이유. 새 그림자 짝이 생기면 아래 검사가 "명단에 없다"로 실패한다.
+ *
+ * 지금은 **비어 있다.** 2026-10-05 까지 넷(DeepSpaceInboxScreen · DeepSpaceManualScreen ·
+ * DeepSpaceOpsScreen · DeepSpaceSignUpDesignScreen)이 있었는데, 라우트가 import 하지
+ * 않던 그림자 사본들이 롤백 레버 제거 PR(Simon 결정 Q-261004-11 C)에서 나갔다. 빈 명단과
+ * 아래 "겹치는 이름의 명단이 실제 중복과 일치한다" 가 함께 그림자 0 을 지킨다.
  */
-const SHIPPED_OF: Readonly<Record<string, string>> = {
-  DeepSpaceInboxScreen: "src/screens/deepspace/dds-inbox-screen.tsx",
-  DeepSpaceManualScreen: "src/screens/deepspace/dds-manual-screen.tsx",
-  DeepSpaceOpsScreen: "src/screens/deepspace/dds-ops-screen.tsx",
-  DeepSpaceSignUpDesignScreen: "src/screens/deepspace/dds-sign-up-screen.tsx",
-};
+const SHIPPED_OF: Readonly<Record<string, string>> = {};
 
 const IMPORT = /import\s*\{([^}]*)\}\s*from\s*["']([^"']+)["']/g;
 

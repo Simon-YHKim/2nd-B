@@ -3,16 +3,14 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import { PremiumAppShell, PremiumButton, PremiumCard, SceneHero, PremiumToast } from "@/components/premium";
+import { PremiumButton, PremiumCard, SceneHero, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppRouter } from "@/lib/nav/phone-embed";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { m3 } from "@/lib/theme/m3";
 import { cosmic, deepSpace, flattenAlpha, radii, semantic, spacing } from "@/lib/theme/tokens";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 type PromptKind = "context" | "energy";
 type Toast = { message: string; tone: "danger" | "info" | "success" };
@@ -99,9 +97,6 @@ function EsmCheckInScreen() {
           eyebrow={t("hero.eyebrow")}
           title={t("hero.title")}
           subtitle={t("hero.subtitle")}
-          island={CORE_VILLAGE_UI.island}
-          worker={CORE_VILLAGE_UI.worker}
-          accent={CORE_VILLAGE_UI.accent}
           speech={t("hero.speech")}
         />
 
@@ -237,9 +232,6 @@ function EsmCheckInScreen() {
 //   `m3.accent.stageFloor` 를 0.92 로 깔고 그 아래가 `deepSpace.bgEdge` 다
 //   (`components/deep-space/DeepSpaceScreen.tsx` 의 `root`·stage 스타일).
 //   바탕이 틀리면 알파를 그냥 두는 것보다 나쁘므로, 옮기는 사람은 여기부터 다시 잴 것.
-//
-// ⚠ 레거시 셸(`isDeepSpaceUI()` 가 false)일 때는 바탕이 다르다. 그러나 모든 배포가
-//   deep-space 고정이라 그쪽은 실제로 그려지지 않는다 — 되살리는 사람이 다시 잰다.
 const ESM_GROUND = flattenAlpha(m3.accent.stageFloor, 0.92, deepSpace.bgEdge);
 const esmAlpha = (c: string, a: number): string => flattenAlpha(c, a, ESM_GROUND);
 
@@ -337,16 +329,12 @@ const styles = StyleSheet.create({
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
 
-// Canon (deep-space) and legacy share ONE functional screen — the ESM check-in.
-// Canon previously showed a placeholder RhythmLensView with a dead CTA; now both
-// render the real check-in (context/energy prompt → save). Only the chrome
-// differs: the deep-space dock (DeepSpaceScreen) vs the premium shell.
+// The ESM check-in (context/energy prompt → save) in the deep-space dock. Canon
+// once showed a placeholder RhythmLensView with a dead CTA; this is the real
+// check-in. The premium-shell chrome of the old `EXPO_PUBLIC_UI=legacy` track
+// left with the lever on 2026-10-05 (Simon decision Q-261004-11).
 function EsmShell({ children }: { children: ReactNode }) {
-  return isDeepSpaceUI() ? (
-    <DeepSpaceScreen active="lens" header="none">{children}</DeepSpaceScreen>
-  ) : (
-    <PremiumAppShell>{children}</PremiumAppShell>
-  );
+  return <DeepSpaceScreen active="lens" header="none">{children}</DeepSpaceScreen>;
 }
 
 export default function EsmCheckIn() {

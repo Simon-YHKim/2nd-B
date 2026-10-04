@@ -53,7 +53,6 @@ import { AvatarSetupGate, AvatarSetupSceneGuard } from "@/components/avatar/Avat
 import { EncryptedStorageRecoveryGate } from "@/screens/deepspace/storage-recovery-gate";
 import { BackArrow } from "@/components/ui/BackArrow";
 import { BackgroundTaskDock, CompletionToast, SecondbHeadTrackProvider } from "@/components/deepspace";
-import { PremiumTabBar } from "@/components/premium";
 import { pixelStackTransition } from "@/lib/motion/pixel-physical";
 import { useAppFonts } from "@/lib/fonts/use-app-fonts";
 import { ThemeProvider, useThemePalette } from "@/lib/theme/ThemeContext";
@@ -278,7 +277,6 @@ export default function RootLayout() {
               <Stack.Screen name="+not-found" />
               </ThemedStack>
               <BackArrow />
-              <AppTabBar />
               <BackgroundTaskDock />
               <CompletionToast />
               </AvatarSetupGate>
@@ -458,12 +456,6 @@ function PendingAccountTransitionResolver(): null {
   }, [epoch, pending, resetPass, rootState, segments]);
 
   return null;
-}
-
-/** Locale-aware premium bottom tab bar (shows only on primary routes). */
-function AppTabBar() {
-  const { i18n } = useTranslation();
-  return <PremiumTabBar locale={i18n.language === "ko" ? "ko" : "en"} />;
 }
 
 

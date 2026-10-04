@@ -15,7 +15,10 @@ describe("/capture 공통 인증 관문", () => {
     const missingProfileAt = CAPTURE.indexOf(
       'if (hasProfile === false) return <Redirect href="/complete-profile" />;',
     );
-    const deepSpaceAt = CAPTURE.indexOf("if (isDeepSpaceUI())");
+    // 2026-10-05: 앵커가 스킨 분기 `if (isDeepSpaceUI())` 였다. 롤백 레버가 없어져
+    // (Simon 결정 Q-261004-11 C) 그 분기가 사라졌고, 관문 뒤 첫 딥스페이스 렌더는
+    // DeepSpaceScreen 을 여는 첫 반환이다.
+    const deepSpaceAt = CAPTURE.indexOf("<DeepSpaceScreen");
 
     expect(CAPTURE).toContain("const { userId, loading, hasProfile } = useAuth();");
     expect(loadingAt).toBeGreaterThan(-1);

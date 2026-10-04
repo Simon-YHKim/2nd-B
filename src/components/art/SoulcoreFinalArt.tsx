@@ -33,7 +33,12 @@ const PIXELATED = { imageRendering: "pixelated" } as unknown as ImageStyle;
 const SNOW_CRYSTAL_HOT = cosmic.moonWhite;
 const SNOW_CRYSTAL_COOL = cosmic.signalBlue;
 
-export type FinalCoreId = "core" | "work_growth" | "relationship" | "knowledge" | "records" | "inspiration" | "routine";
+// Only the soul core is drawn. The six pattern-core ids (work_growth ·
+// relationship · knowledge · records · inspiration · routine) were passed only by
+// the `EXPO_PUBLIC_UI=legacy` SceneHero half, which left with that lever on
+// 2026-10-05 (Simon decision Q-261004-11). Widening this type again means
+// bringing back art for those ids first.
+export type FinalCoreId = "core";
 
 // ─── What this module bundles (2026-10-04 · D-14 · L4-09 · L4-10) ───────────
 // Metro bakes every static require() below into every web/APK/IPA bundle,
@@ -43,11 +48,10 @@ export type FinalCoreId = "core" | "work_growth" | "relationship" | "knowledge" 
 // - `core` -> tesseract-v10/soul_core.png. The shipped deep-space build draws it
 //   on the /core-brain load-error and empty states (core-brain.tsx -> IslandArt
 //   id="core"). It is the only tesseract a deep-space user sees.
-// - the six pattern cores -> the v45 256px set (6 files, 71,931 B). Only the
-//   EXPO_PUBLIC_UI=legacy rollback skin (SceneHero's legacy half) and the orphan
-//   NavGraph pass a non-core id. They used to resolve to the v10 set (6 files,
-//   9.4 MB) that no deep-space screen draws; the small set keeps the rollback
-//   skin's look until that lever is retired.
+// - the six pattern cores -> the v45 256px set (6 files, 71,931 B) was kept for
+//   the EXPO_PUBLIC_UI=legacy rollback skin (SceneHero's legacy half) only. That
+//   lever was retired on 2026-10-05 (Q-261004-11) and the set moved to
+//   E:/Legacy/2ndB (MANIFEST.jsonl, batch qa261004-lever) with PATTERN_CORE_ART.
 //
 // Moved out of the repo to E:/Legacy/2ndB (MANIFEST.jsonl, batch qa261004-art):
 // the v10 non-core PNGs, the v45 soul core and every v45 Pattern Data / Log /
@@ -57,15 +61,6 @@ export type FinalCoreId = "core" | "work_growth" | "relationship" | "knowledge" 
 // finalPatternDataIdForDomain and finalLogIdForGraphPiece.
 const SOUL_CORE_ART: ImageSourcePropType = require("../../../assets/legacy-art/tesseract-v10/soul_core.png");
 
-const PATTERN_CORE_ART: Record<Exclude<FinalCoreId, "core">, ImageSourcePropType> = {
-  work_growth: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/growth_core_256.png"),
-  relationship: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/bond_core_256.png"),
-  knowledge: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/wisdom_core_256.png"),
-  records: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/narrative_core_256.png"),
-  inspiration: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/muse_core_256.png"),
-  // PLACEHOLDER (O-R3 G1): narrative copy - overwrite rhythm_core_256.png to apply the real asset.
-  routine: require("../../../assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/rhythm_core_256.png"),
-};
 
 // Tier-3 Pattern Data: 9 color variants keyed by PatternDataColorKey, resolved
 // upstream by resolvePatternDataColor(). Production (v10) renders these with the
@@ -112,29 +107,17 @@ const V10_PATTERN_DATA_PIXELS: readonly { x: number; y: number; size: number; to
   { x: 78, y: 38, size: 4, tone: "glint", mix: 0.65 },
 ];
 
+// `id` stays a required prop typed FinalCoreId, so a caller that passes any other
+// id fails to compile instead of silently drawing the soul core.
 export function FinalCoreArt({
-  id,
   size,
   style,
-  animated = true,
 }: {
   id: FinalCoreId;
   size: number;
   style?: StyleProp<ViewStyle>;
-  animated?: boolean;
 }) {
-  if (id === "core") return <SoulCoreArt size={size} style={style} />;
-  return (
-    <LivingAsset preset="patternCore" id={id} size={size} style={style} enabled={animated} pointerEvents="none">
-      <Image
-        source={PATTERN_CORE_ART[id]}
-        style={[{ width: size, height: size }, PIXELATED]}
-        contentFit="contain"
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-      />
-    </LivingAsset>
-  );
+  return <SoulCoreArt size={size} style={style} />;
 }
 
 function SoulCoreArt({ size, style }: { size: number; style?: StyleProp<ViewStyle> }) {

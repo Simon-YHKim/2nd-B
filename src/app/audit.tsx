@@ -3,13 +3,12 @@ import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "re
 import { useTranslation } from "react-i18next";
 import { Redirect, useNavigation } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
+import { PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { DdsAuditScreen } from "@/screens/deepspace/dds-audit-screen";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -131,20 +130,17 @@ function dataLocaleFor(language: string | undefined): AuditDataLocale {
 
 function AuditScreenerShell({ children, onBack }: { children: ReactNode; onBack: () => void }) {
   const { t } = useTranslation("core-brain");
-  if (isDeepSpaceUI()) {
-    return (
-      <DeepSpaceScreen
-        active="lens"
-        header="none"
-        variant="windowed"
-        title={t("auditCheck")}
-        onBack={onBack}
-      >
-        {children}
-      </DeepSpaceScreen>
-    );
-  }
-  return <PremiumAppShell>{children}</PremiumAppShell>;
+  return (
+    <DeepSpaceScreen
+      active="lens"
+      header="none"
+      variant="windowed"
+      title={t("auditCheck")}
+      onBack={onBack}
+    >
+      {children}
+    </DeepSpaceScreen>
+  );
 }
 
 function AuditLegacy() {
@@ -253,10 +249,10 @@ function AuditLegacy() {
       // wrote the safety ledger and showed the user NOTHING - the gap capture.tsx
       // (:2497) and northstar.tsx (:141) already closed.
       //
-      // ⚠ Round 61 wired this, then reverted it after reading only
-      // `if (isDeepSpaceUI()) return <AuditDeepSpace />;` and concluding the
-      // questionnaire was unreachable. It is reachable: line 550 sends
-      // `/audit?screener=1` here BEFORE the skin check, in every build.
+      // ⚠ Round 61 wired this, then reverted it after reading only the old skin
+      // branch (`return <AuditDeepSpace />`) and concluding the questionnaire was
+      // unreachable. It is reachable: the default export sends
+      // `/audit?screener=1` here first, in every build.
       const res = await createRecord({
         userId,
         locale,
@@ -580,10 +576,9 @@ function AuditDeepSpace() {
 export default function Audit() {
   // useScreenParams: inside the dashboard phone `screener` is the phone route's query.
   const { screener } = useScreenParams<{ screener?: string }>();
-  // `/audit` is currently the deep-space PastMe compatibility entry. The
-  // assessment registry uses this explicit query so the period-specific
-  // 5–15-question Life Audit remains reachable regardless of the active visual skin.
+  // `/audit` is the deep-space PastMe compatibility entry. The assessment
+  // registry uses this explicit query so the period-specific 5–15-question Life
+  // Audit (AuditLegacy, named for its history; it ships) stays reachable.
   if (screener === "1") return <AuditLegacy />;
-  if (isDeepSpaceUI()) return <AuditDeepSpace />;
-  return <AuditLegacy />;
+  return <AuditDeepSpace />;
 }

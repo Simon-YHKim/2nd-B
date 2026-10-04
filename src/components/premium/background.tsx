@@ -19,9 +19,7 @@ import { cosmic, deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
 import { ForceDark } from "@/lib/theme/ThemeContext";
 import { useConstellation } from "@/lib/constellation/useConstellation";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
-import { backArrowVisible, isTabPath } from "@/components/ui/BackArrow";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { TAB_BAR_HEIGHT } from "./tab-bar";
+import { backArrowVisible } from "@/components/ui/BackArrow";
 import { starField } from "./star-field";
 import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 
@@ -339,27 +337,15 @@ export function PremiumAppShell({
   // reserve top padding so first headings never collide with it. This also
   // applies to tab destinations, which still render full screen titles.
   const needsArrowHeadroom = backArrowVisible(pathname);
-  // Tab screens render under the absolute bottom tab bar; reserve its height so
-  // a screen's last element (e.g. the 세컨비 chat composer / send button) isn't
-  // hidden behind it. Applies regardless of `padded` (horizontal-only).
-  //
-  // ⚠ deep-space 에서는 PremiumTabBar 가 무조건 null 을 반환한다(tab-bar.tsx).
-  // 그리는 조건과 자리를 비우는 조건이 갈리면 아무것도 없는 자리를 비워 두게
-  // 된다 — 딥스페이스 /capture 가 공유로 full intake 를 렌더하면서 실제로 그
-  // 사공간이 났다. nav/tabs.ts 가 "이 세 소비자는 어긋나지 않는다" 고 적어 둔
-  // 그 약속을 여기서 지킨다.
+  // There is no absolute bottom tab bar to clear: the old PremiumTabBar always
+  // returned null on deep-space and left with the `EXPO_PUBLIC_UI=legacy` lever
+  // on 2026-10-05 (Simon decision Q-261004-11). Navigation is the deep-space dock.
   const ownsBottomClearance = bottomClearanceOwner === "shell";
-  const onTabBar = ownsBottomClearance && isTabPath(pathname) && !isDeepSpaceUI();
 
-  // Dynamic bottom padding: clears the absolute bottom tab bar, safe area bottom (insets.bottom)
-  // and maintains a visual gap on Android/iOS. An embedding parent such as
-  // DeepSpaceScreen already keeps its dock in normal flow and owns that safe
-  // area, so the child shell must not reserve the same inset a second time.
-  const bottomClearance = !ownsBottomClearance
-    ? 0
-    : onTabBar
-      ? TAB_BAR_HEIGHT + spacing.lg + insets.bottom
-      : insets.bottom;
+  // Dynamic bottom padding: the safe area bottom (insets.bottom). An embedding
+  // parent such as DeepSpaceScreen already keeps its dock in normal flow and owns
+  // that safe area, so the child shell must not reserve the same inset a second time.
+  const bottomClearance = ownsBottomClearance ? insets.bottom : 0;
 
   // Dynamic top padding: states insets.top, plus optional breathing room
   const topClearance = insets.top + (padded ? spacing.sm : 0) + (padded && needsArrowHeadroom ? 60 : 0);

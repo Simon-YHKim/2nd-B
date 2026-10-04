@@ -92,7 +92,10 @@ function installLocalStorageSpy(): {
 describe("{{who}} placeholder", () => {
   it("한국어에서 실제로 쓰이고 있다", () => {
     const used = localeValues("ko").filter((v) => v.includes("{{who}}"));
-    expect(used.length).toBeGreaterThanOrEqual(30);
+    // 30 -> 29 (2026-10-05): 그 하나는 locales/ko/trinity.json 의 값이었다. /trinity 가
+    // 리다이렉트 전용이 되며(Simon 결정 Q-261004-33 B) 그 번들이 다섯 로케일째 나갔다.
+    // 고친 것도 줄인 것도 아니고 쓰던 화면이 빠진 것이다. 이 하한은 0건 통과를 막는 자다.
+    expect(used.length).toBeGreaterThanOrEqual(29);
   });
 
   it("한국어가 아닌 로케일에는 새지 않는다", () => {

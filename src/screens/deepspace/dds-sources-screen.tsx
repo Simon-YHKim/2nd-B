@@ -8,7 +8,9 @@
 //
 // 그래서 Phase 1(자료를 읽고 요약과 되새김 질문 넷을 만드는 길)의 **배송
 // 호출부가 0건**이었다. 호출부 둘은 둘 다 배송되지 않는 반쪽 안에 있었고
-// (`src/app/inbox.tsx:452`, `src/app/wiki.tsx:318`),
+// (`e0b274d0:src/app/inbox.tsx:452`, `e0b274d0:src/app/wiki.tsx:318` — 커밋을 박은
+// 인용이다. 그 반쪽은 2026-10-05 롤백 레버 제거로 라우트에서 빠져 legacy/screens/ 의
+// 되살리기 원본이 됐다),
 // `DeepSpaceDesignScreens.tsx` 는 152·159·160 세 줄에서
 // `listSources` · `generateSourcePage` · `runPhase1` 을 **import 만 하고 한
 // 번도 쓰지 않았다** — 이 화면을 만들려다 멈춘 자리다. eslint 의
