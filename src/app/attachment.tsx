@@ -451,11 +451,42 @@ const styles = StyleSheet.create({
 // ecr-tagged record; empty -> dark-star state whose CTA launches the survey;
 // filled -> the 회피×불안 map + propose→ratify estimate. `taking` flips to the
 // survey inside the same dock (the BigFive pattern).
+//
+// This is only the gate. The shipped lens needs its own: the survey's redirect
+// only ran after "start", so a signed-out visitor got the empty lens first.
+// Everything that belongs to one account (the loaded result, an answer in
+// progress) lives in the session below, keyed by its owner, so an A -> B change
+// remounts it. Cancelling A's late load was not enough: A's result stayed on
+// screen until B's load came back, and A's answers stayed in a survey B could save.
 function AttachmentDeepSpace() {
   // Phone-aware: inside the dashboard phone Back and the lens links stay in the phone.
   const router = useAppRouter();
   const { t } = useTranslation("home");
   const { userId, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <DeepSpaceScreen
+        active="lens"
+        variant="windowed"
+        header="none"
+        title={t("ds.attachment.headline")}
+        onBack={() => router.back()}
+      >
+        <View style={styles.center}>
+          <PremiumLoadingState />
+        </View>
+      </DeepSpaceScreen>
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  return <AttachmentDeepSpaceSession key={userId} userId={userId} />;
+}
+
+function AttachmentDeepSpaceSession({ userId }: { userId: string }) {
+  const router = useAppRouter();
+  const { t } = useTranslation("home");
   const [result, setResult] = useState<AttachmentLensResult | null>(null);
   const [hasError, setHasError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -463,12 +494,6 @@ function AttachmentDeepSpace() {
   const surveyBackRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (loading) return;
-    if (!userId) {
-      setResult(null);
-      setHasError(false);
-      return;
-    }
     let cancelled = false;
     loadLatestAttachment(getSupabaseClient(), userId)
       .then((r) => {
@@ -485,7 +510,7 @@ function AttachmentDeepSpace() {
     return () => {
       cancelled = true;
     };
-  }, [userId, loading, reloadKey]);
+  }, [userId, reloadKey]);
 
   if (taking) {
     // onBack is drawn only by the dashboard phone's compact shell (the fullbleed

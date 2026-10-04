@@ -1,7 +1,10 @@
 export const INBOX_READ_TIMEOUT_MS = 8_000;
 
-export type InboxSourceKey = "proposals" | "peers";
-export type InboxRoute = "/digest" | "/peer-invites";
+// 신호 셋. sources 는 아직 위키 페이지가 안 된 가져온 자료다(2026-10-04 배송 허브로 이식,
+// qa261004 L1-20). 09-13 #1796 이 그 한 줄을 그림자 허브 사본에만 넣어서, 배송 /inbox 에서
+// /sources 로 가는 길이 없었다. 허브는 목록을 열지 않는다 - 개수 한 줄만 알리고 넘긴다.
+export type InboxSourceKey = "proposals" | "peers" | "sources";
+export type InboxRoute = "/digest" | "/peer-invites" | "/sources";
 
 export type InboxReadState =
   | { status: "loading" }
@@ -13,6 +16,7 @@ export type InboxReadState =
 export interface InboxSignalSnapshot {
   proposals: InboxReadState;
   peers: InboxReadState;
+  sources: InboxReadState;
 }
 
 export interface InboxAuthState {
@@ -29,9 +33,10 @@ export interface InboxReader<T> {
   count: (rows: readonly T[]) => number;
 }
 
-export interface InboxReaders<TProposal, TPeer> {
+export interface InboxReaders<TProposal, TPeer, TSource> {
   proposals: InboxReader<TProposal>;
   peers: InboxReader<TPeer>;
+  sources: InboxReader<TSource>;
 }
 
 interface InboxRequestTicket {
@@ -97,6 +102,11 @@ export function countPendingProposals(rows: readonly unknown[]): number {
   return rows.length;
 }
 
+/** 위키 페이지가 아직 안 된 자료 수. 읽기 쪽이 `ingested: false` 로 이미 걸러 온다. */
+export function countUnreadSources(rows: readonly unknown[]): number {
+  return rows.length;
+}
+
 export function countRespondedPeerInvites(
   rows: readonly { responded_at: string | null; status: string }[],
 ): number {
@@ -105,27 +115,27 @@ export function countRespondedPeerInvites(
   ).length;
 }
 
+const SOURCE_KEYS: readonly InboxSourceKey[] = ["proposals", "peers", "sources"];
+
 export function summarizeInboxSignals(snapshot: InboxSignalSnapshot): {
   proposalCount: number;
   peerCount: number;
+  sourceCount: number;
   genuineEmpty: boolean;
   hasPendingRead: boolean;
   failedSources: InboxSourceKey[];
 } {
-  const proposalCount = snapshot.proposals.status === "ready" ? snapshot.proposals.count : 0;
-  const peerCount = snapshot.peers.status === "ready" ? snapshot.peers.count : 0;
-  const failedSources: InboxSourceKey[] = [];
-  if (snapshot.proposals.status === "error" || snapshot.proposals.status === "timeout") {
-    failedSources.push("proposals");
-  }
-  if (snapshot.peers.status === "error" || snapshot.peers.status === "timeout") {
-    failedSources.push("peers");
-  }
+  const countOf = (state: InboxReadState) => (state.status === "ready" ? state.count : 0);
+  const failedSources = SOURCE_KEYS.filter(
+    (key) => snapshot[key].status === "error" || snapshot[key].status === "timeout",
+  );
   return {
-    proposalCount,
-    peerCount,
-    genuineEmpty: snapshot.proposals.status === "empty" && snapshot.peers.status === "empty",
-    hasPendingRead: snapshot.proposals.status === "loading" || snapshot.peers.status === "loading",
+    proposalCount: countOf(snapshot.proposals),
+    peerCount: countOf(snapshot.peers),
+    sourceCount: countOf(snapshot.sources),
+    // 셋 다 실제로 비었다고 답했을 때만 "비었다" 다. 하나라도 실패·대기면 아니다.
+    genuineEmpty: SOURCE_KEYS.every((key) => snapshot[key].status === "empty"),
+    hasPendingRead: SOURCE_KEYS.some((key) => snapshot[key].status === "loading"),
     failedSources,
   };
 }
@@ -134,13 +144,13 @@ class InboxRequestGuard {
   private ownerId: string | null = null;
   private ownerEpoch = 0;
   private active = false;
-  private requestIds: Record<InboxSourceKey, number> = { proposals: 0, peers: 0 };
+  private requestIds: Record<InboxSourceKey, number> = { proposals: 0, peers: 0, sources: 0 };
 
   activate(ownerId: string): void {
     this.ownerEpoch += 1;
     this.ownerId = ownerId;
     this.active = true;
-    this.requestIds = { proposals: 0, peers: 0 };
+    this.requestIds = { proposals: 0, peers: 0, sources: 0 };
   }
 
   deactivate(): void {
@@ -174,15 +184,16 @@ class InboxRequestGuard {
 const INITIAL_SNAPSHOT: InboxSignalSnapshot = {
   proposals: { status: "loading" },
   peers: { status: "loading" },
+  sources: { status: "loading" },
 };
 
-export class InboxSignalSession<TProposal, TPeer> {
+export class InboxSignalSession<TProposal, TPeer, TSource> {
   private readonly guard = new InboxRequestGuard();
   private ownerId: string | null = null;
   private snapshot: InboxSignalSnapshot = INITIAL_SNAPSHOT;
 
   constructor(
-    private readonly readers: InboxReaders<TProposal, TPeer>,
+    private readonly readers: InboxReaders<TProposal, TPeer, TSource>,
     private readonly onChange: (snapshot: InboxSignalSnapshot) => void,
     private readonly timeoutMs = INBOX_READ_TIMEOUT_MS,
   ) {}
@@ -193,10 +204,10 @@ export class InboxSignalSession<TProposal, TPeer> {
     this.snapshot = {
       proposals: { status: "loading" },
       peers: { status: "loading" },
+      sources: { status: "loading" },
     };
     this.emit();
-    this.start("proposals");
-    this.start("peers");
+    for (const source of SOURCE_KEYS) this.start(source);
   }
 
   deactivate(): void {
@@ -222,7 +233,9 @@ export class InboxSignalSession<TProposal, TPeer> {
     if (!ownerId || !ticket) return;
     const result = source === "proposals"
       ? loadInboxCount(ownerId, this.readers.proposals, this.timeoutMs)
-      : loadInboxCount(ownerId, this.readers.peers, this.timeoutMs);
+      : source === "peers"
+        ? loadInboxCount(ownerId, this.readers.peers, this.timeoutMs)
+        : loadInboxCount(ownerId, this.readers.sources, this.timeoutMs);
     void result.then((state) => {
       if (!this.guard.accepts(ticket)) return;
       this.setSource(source, state);
@@ -239,8 +252,8 @@ export class InboxSignalSession<TProposal, TPeer> {
   }
 }
 
-export function syncInboxSessionWithAuth<TProposal, TPeer>(
-  session: InboxSignalSession<TProposal, TPeer>,
+export function syncInboxSessionWithAuth<TProposal, TPeer, TSource>(
+  session: InboxSignalSession<TProposal, TPeer, TSource>,
   auth: InboxAuthState,
 ): InboxAuthGate {
   const gate = inboxAuthGate(auth);

@@ -203,8 +203,6 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/components/deepspace/CompletionToast.tsx": 4,
   "src/components/deepspace/DeepSpaceLoader.tsx": 7,
   "src/components/deepspace/ops/copy.ts": 105,
-  "src/components/graph/CharacterPathLayer.tsx": 1,
-  "src/components/graph/NavGraph.tsx": 31,
   "src/components/m3/date-picker/DatePicker.tsx": 38,
   "src/components/persona/FacetBreakdown.tsx": 1,
   "src/components/persona/TraitRadar.tsx": 3,

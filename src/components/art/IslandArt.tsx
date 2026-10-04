@@ -11,21 +11,18 @@ import { Image } from "expo-image";
 import { type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
 
 import { LivingAsset } from "@/components/motion/LivingAsset";
-import { FinalCoreArt, hasFinalCoreArt, type FinalCoreId } from "@/components/art/SoulcoreFinalArt";
+import { FinalCoreArt, type FinalCoreId } from "@/components/art/SoulcoreFinalArt";
 
-// Legacy island PNGs. Only ids that FinalCoreArt does NOT cover live here: every
-// FinalCoreId is routed to <FinalCoreArt> below regardless of UI mode, so its
-// *_premium_hq.png was a dead require() that Metro still baked into every
-// APK/IPA (7 files, 14.7 MB; audit D6-06, 2026-09-05). The PNGs stay on disk in
-// assets/legacy-art/ (deleting them is a separate decision); they are just no
-// longer bundled.
-const LEGACY_ISLANDS = {
-  imagine: require("../../../assets/legacy-art/2ndb-production-premium-v1/graph/islands/domain_imagine_premium_hq.png"),
-} as const;
-
-type LegacyIslandId = keyof typeof LEGACY_ISLANDS;
-
-export type IslandId = FinalCoreId | LegacyIslandId;
+// Island art is the tesseract set in SoulcoreFinalArt; this module only routes to
+// it. The legacy island PNGs left the bundle in two steps:
+// - 2026-09-05 (audit D6-06): every FinalCoreId's *_premium_hq.png was a dead
+//   require() (7 files, 14.7 MB) because FinalCoreArt drew those ids.
+// - 2026-10-04 (L4-10): the last one, `imagine` (domain_imagine_premium_hq.png,
+//   2.07 MB), had no caller that passes "imagine" (village-ui's island type has
+//   no imagine, and src/app may not hard-code island=).
+// The files themselves now live in E:/Legacy/2ndB (MANIFEST.jsonl, batch
+// qa261004-art), not in assets/legacy-art/.
+export type IslandId = FinalCoreId;
 
 const SHARDS = {
   core_violet: require("../../../assets/legacy-art/2ndb-production-premium-v1/shards/shard_core_violet.png"),
@@ -51,23 +48,7 @@ export function IslandArt({
   style?: StyleProp<ViewStyle>;
   animated?: boolean;
 }) {
-  // Worldview v-final: render the final transparent PNG tesseract set when it
-  // exists; otherwise fall back to the legacy PNG for retired ids like imagine.
-  // FinalCoreArt defaults to DEFAULT_ASSET_VARIANT (production = v10 clean
-  // cutout); v49 + v45 stay available via its `variant` prop for comparison.
-  // hasFinalCoreArt narrows `id`, so the fallback only ever sees a LegacyIslandId.
-  if (hasFinalCoreArt(id)) return <FinalCoreArt id={id} size={size} style={style} animated={animated} />;
-  return (
-    <LivingAsset preset="patternCore" id={id} size={size} style={style} enabled={animated} pointerEvents="none">
-      <Image
-        source={LEGACY_ISLANDS[id]}
-        style={[{ width: size, height: size }, PIXELATED]}
-        contentFit="contain"
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-      />
-    </LivingAsset>
-  );
+  return <FinalCoreArt id={id} size={size} style={style} animated={animated} />;
 }
 
 export function ShardArt({

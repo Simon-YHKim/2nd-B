@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   countPendingProposals,
   countRespondedPeerInvites,
+  countUnreadSources,
   inboxAuthGate,
   InboxSignalSession,
   loadInboxCount,
@@ -18,6 +19,7 @@ import {
 
 type Proposal = { key: string };
 type Peer = { responded_at: string | null; status: string };
+type Source = { id: string };
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -38,10 +40,14 @@ async function settle(): Promise<void> {
 function readers(
   proposalRead: (ownerId: string) => Promise<readonly Proposal[]>,
   peerRead: (ownerId: string) => Promise<readonly Peer[]>,
-): InboxReaders<Proposal, Peer> {
+  // 2026-10-04: 세 번째 신호(아직 위키가 안 된 자료, qa261004 L1-20). 기존 경우들은
+  // 이 신호가 비어 있다고 두고, 아래 전용 경우들이 이 신호를 직접 다룬다.
+  sourceRead: (ownerId: string) => Promise<readonly Source[]> = async () => [],
+): InboxReaders<Proposal, Peer, Source> {
   return {
     proposals: { read: proposalRead, count: countPendingProposals },
     peers: { read: peerRead, count: countRespondedPeerInvites },
+    sources: { read: sourceRead, count: countUnreadSources },
   };
 }
 
@@ -64,10 +70,11 @@ describe("inbox auth boundary", () => {
     expect(inboxAuthGate(auth)).toBe(gate);
   });
 
-  test("runs neither owner query until the profile probe is confirmed", async () => {
+  test("runs no owner query until the profile probe is confirmed", async () => {
     const proposalRead = jest.fn(async () => [] as Proposal[]);
     const peerRead = jest.fn(async () => [] as Peer[]);
-    const session = new InboxSignalSession(readers(proposalRead, peerRead), () => {});
+    const sourceRead = jest.fn(async () => [] as Source[]);
+    const session = new InboxSignalSession(readers(proposalRead, peerRead, sourceRead), () => {});
 
     for (const auth of [
       { ...base, loading: true },
@@ -80,12 +87,15 @@ describe("inbox auth boundary", () => {
     }
     expect(proposalRead).not.toHaveBeenCalled();
     expect(peerRead).not.toHaveBeenCalled();
+    expect(sourceRead).not.toHaveBeenCalled();
 
     expect(syncInboxSessionWithAuth(session, base)).toBe("ready");
     expect(proposalRead).toHaveBeenCalledTimes(1);
     expect(proposalRead).toHaveBeenCalledWith("owner-a");
     expect(peerRead).toHaveBeenCalledTimes(1);
     expect(peerRead).toHaveBeenCalledWith("owner-a");
+    expect(sourceRead).toHaveBeenCalledTimes(1);
+    expect(sourceRead).toHaveBeenCalledWith("owner-a");
     await settle();
   });
 });
@@ -132,6 +142,7 @@ describe("independent inbox reads", () => {
     expect(session.getSnapshot()).toEqual({
       proposals: { status: "ready", count: 1 },
       peers: { status: "error" },
+      sources: { status: "empty", count: 0 },
     });
     expect(summarizeInboxSignals(session.getSnapshot()).genuineEmpty).toBe(false);
 
@@ -139,11 +150,13 @@ describe("independent inbox reads", () => {
     expect(session.getSnapshot()).toEqual({
       proposals: { status: "ready", count: 1 },
       peers: { status: "loading" },
+      sources: { status: "empty", count: 0 },
     });
     await settle();
     expect(session.getSnapshot()).toEqual({
       proposals: { status: "ready", count: 1 },
       peers: { status: "ready", count: 1 },
+      sources: { status: "empty", count: 0 },
     });
     expect(proposalRead).toHaveBeenCalledTimes(1);
     expect(peerRead).toHaveBeenCalledTimes(2);
@@ -151,10 +164,11 @@ describe("independent inbox reads", () => {
     expect(proposalRead).toHaveBeenCalledTimes(1);
   });
 
-  test("shows the shared empty state only when both sources genuinely resolve empty", () => {
+  test("shows the shared empty state only when every source genuinely resolves empty", () => {
     const empty: InboxSignalSnapshot = {
       proposals: { status: "empty", count: 0 },
       peers: { status: "empty", count: 0 },
+      sources: { status: "empty", count: 0 },
     };
     expect(summarizeInboxSignals(empty).genuineEmpty).toBe(true);
     expect(
@@ -163,6 +177,42 @@ describe("independent inbox reads", () => {
     expect(
       summarizeInboxSignals({ ...empty, proposals: { status: "loading" } }).genuineEmpty,
     ).toBe(false);
+    // 자료 신호가 실패하면 "새 알림이 없습니다" 라고 말하지 않는다 - 모르는 것이다.
+    expect(
+      summarizeInboxSignals({ ...empty, sources: { status: "timeout" } }),
+    ).toMatchObject({ genuineEmpty: false, failedSources: ["sources"] });
+    expect(
+      summarizeInboxSignals({ ...empty, sources: { status: "loading" } }),
+    ).toMatchObject({ genuineEmpty: false, hasPendingRead: true });
+    expect(
+      summarizeInboxSignals({ ...empty, sources: { status: "ready", count: 3 } }),
+    ).toMatchObject({ genuineEmpty: false, sourceCount: 3 });
+  });
+
+  test("the unread-material signal counts what it was given and retries on its own", async () => {
+    // 허브는 목록을 열지 않는다. 읽기 쪽이 ingested=false 로 걸러 온 행의 수만 센다.
+    expect(countUnreadSources([])).toBe(0);
+    expect(countUnreadSources([{ id: "a" }, { id: "b" }])).toBe(2);
+
+    const sourceRead = jest
+      .fn<Promise<Source[]>, [string]>()
+      .mockRejectedValueOnce(new Error("read failed"))
+      .mockResolvedValueOnce([{ id: "a" }, { id: "b" }]);
+    const proposalRead = jest.fn(async () => [] as Proposal[]);
+    const session = new InboxSignalSession(
+      readers(proposalRead, async () => [], sourceRead),
+      () => {},
+    );
+    session.activate("owner-a");
+    await settle();
+    expect(session.getSnapshot().sources).toEqual({ status: "error" });
+    expect(summarizeInboxSignals(session.getSnapshot()).genuineEmpty).toBe(false);
+
+    expect(session.retry("sources")).toBe(true);
+    await settle();
+    expect(session.getSnapshot().sources).toEqual({ status: "ready", count: 2 });
+    expect(sourceRead).toHaveBeenCalledTimes(2);
+    expect(proposalRead).toHaveBeenCalledTimes(1);
   });
 
   test("counts only responded accepted or declined owner invites", () => {
@@ -242,7 +292,7 @@ describe("owner and lifecycle stale guards", () => {
 });
 
 describe("route and privacy contract", () => {
-  test.each(["/digest", "/peer-invites"] as const)("pushes %s exactly once per action", (route) => {
+  test.each(["/digest", "/peer-invites", "/sources"] as const)("pushes %s exactly once per action", (route) => {
     const push = jest.fn();
     openInboxRoute(route, push);
     expect(push).toHaveBeenCalledTimes(1);
@@ -262,6 +312,10 @@ describe("route and privacy contract", () => {
     expect(screen).not.toContain("MdButton");
     expect(screen).toContain('onRetry={() => retry("proposals")}');
     expect(screen).toContain('onRetry={() => retry("peers")}');
+    // 자료 신호: 위키가 아직 안 된 것만 읽고, 한 줄 카드로 /sources 에 넘긴다.
+    expect(screen).toContain("listSources(ownerId, { ingested: false, limit: 100 })");
+    expect(screen).toContain('onRetry={() => retry("sources")}');
+    expect(screen).toContain('route="/sources"');
     expect(screen).toContain("onRetry={() => void retryProfile()}");
     expect(screen).toContain('<InboxReady key={auth.userId} userId={auth.userId} />');
   });
