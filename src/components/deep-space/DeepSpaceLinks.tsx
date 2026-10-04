@@ -3,10 +3,9 @@
  *
  * A small, deep-space-tokened list of router links injected into each primary
  * screen (graph / capture / profile / settings) so EVERY app route is reachable
- * from inside its parent primary screen when EXPO_PUBLIC_UI=deep-space.
+ * from inside its parent primary screen.
  *
- * The caller gates rendering on isDeepSpaceUI() so the legacy (gameboy) path is
- * byte-identical — this component never renders in legacy mode. It only routes
+ * It only routes
  * (router.push("/<route>")); Back returns to the parent / the shell via the
  * router's own back stack (nav-contract §4). Re-theming the destination screens
  * is OUT OF SCOPE (nav-contract §6) — this is reachability + working nav only.

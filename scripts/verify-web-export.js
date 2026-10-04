@@ -183,7 +183,6 @@ function run() {
     env: {
       ...process.env,
       EXPO_NO_DOTENV: "1",
-      EXPO_PUBLIC_UI: "deep-space",
       EXPO_USE_STATIC: "true",
     },
   });
