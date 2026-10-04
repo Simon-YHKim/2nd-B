@@ -59,6 +59,10 @@
 // 보이는 자리에서 묻는다. 지금 칸 자신의 가드는 예전처럼 동작한다 - 포커스된
 // 화면이라 보인다. 가드를 단 화면이 이 훅을 같이 부르는지는 go-home.test.ts 가
 // 지킨다.
+//
+// 가드가 없어도 걷히면 잃는 것이 있는 화면도 이름을 올린다(게이트 NAV-S7-01).
+// /esm 은 저장 요청이 나가 있거나 고른 값이 남아 있는 동안 멈춘다 - 실패 안내를
+// 띄울 자리와 고른 값이 그 화면에만 있다. 부르는 자리 전부는 같은 테스트의 명단이다.
 import { useCallback, useEffect, useRef } from "react";
 import { router, useFocusEffect, useNavigationContainerRef, useRoute } from "expo-router";
 

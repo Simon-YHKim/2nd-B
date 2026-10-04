@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -7,6 +7,7 @@ import { PremiumAppShell, PremiumButton, PremiumCard, SceneHero, PremiumToast } 
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppRouter } from "@/lib/nav/phone-embed";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { m3 } from "@/lib/theme/m3";
 import { cosmic, deepSpace, flattenAlpha, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -33,6 +34,9 @@ function EsmCheckInScreen() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
+  // Set before the insert's await and cleared in its finally, so a home jump
+  // reads it at once (the state above only lands on the next render).
+  const savingRef = useRef(false);
 
   const canSubmit = kind === "energy" ? scaleValue !== null : selectedTags.length > 0;
   const activePrompt = useMemo(() => PROMPT_OPTIONS.find((p) => p.id === kind)!, [kind]);
@@ -43,6 +47,13 @@ function EsmCheckInScreen() {
     const h = setTimeout(() => setToast(null), 3000);
     return () => clearTimeout(h);
   }, [toast]);
+
+  // A redirect or tab-root Back from a route opened above this one (a warm deep
+  // link) pops every route down to home (lib/nav/go-home.ts). Stop here instead
+  // while the insert is out or picks are unsaved, so the failure notice and the
+  // picks stay on screen. Before PR #2044 the replace left this route buried
+  // under a new home rather than removing it (gate NAV-S7-01).
+  useGoHomeStop(() => savingRef.current || scaleValue !== null || selectedTags.length > 0);
 
   if (authLoading) {
     return (
@@ -68,15 +79,25 @@ function EsmCheckInScreen() {
   }
 
   async function handleSubmit() {
-    if (!userId || !canSubmit || saving) return;
+    if (!userId || !canSubmit || saving || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
-    const supabase = getSupabaseClient();
-    const { error } = await supabase.from("esm_responses").insert({
-      user_id: userId,
-      prompt_kind: kind,
-      scale_value: kind === "energy" ? scaleValue : null,
-      context_tags: kind === "context" ? selectedTags : [],
-    });
+    let error: unknown = null;
+    try {
+      const supabase = getSupabaseClient();
+      ({ error } = await supabase.from("esm_responses").insert({
+        user_id: userId,
+        prompt_kind: kind,
+        scale_value: kind === "energy" ? scaleValue : null,
+        context_tags: kind === "context" ? selectedTags : [],
+      }));
+    } catch (thrown) {
+      // A thrown insert is a failed save too: show the same notice instead of
+      // leaving the screen stuck on "saving" with the hold set.
+      error = thrown;
+    } finally {
+      savingRef.current = false;
+    }
     setSaving(false);
 
     if (error) {

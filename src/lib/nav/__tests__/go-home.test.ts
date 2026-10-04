@@ -15,7 +15,8 @@
 //      (칸 하나뿐인 자리 · 사람이 누르는 홈 동작) 밖으로 늘지 않고, 저절로 넘기는
 //      `<Redirect href="/">` 는 0 이며, goHome · RedirectHome 을 쓰는 자리는
 //      저절로 넘기는 곳과 탭 루트 하드웨어 뒤로뿐이고(PR #2044 8회차), 칸을 막는
-//      가드는 전부 goHome 에 이름을 올린다.
+//      가드는 전부 goHome 에 이름을 올린다. 가드 없이 이름을 올리는 /esm(저장 중 ·
+//      고른 값)까지 부르는 자리 전부를 명단으로 고정한다(게이트 NAV-S7-01).
 //
 // 렌더 테스트는 이 저장소에서 막혀 있어(RN 0.85) 소스는 TypeScript AST 로 읽는다.
 // 주석은 AST 에 없으므로 설명문이 증거로 읽히지 않는다.
@@ -1319,6 +1320,151 @@ describe("칸을 막는 가드는 goHome 에 이름을 올린다 (게이트 NS-0
       "src/screens/deepspace/dds-auth-screens.tsx",
     ]);
     expect(guards.filter((g) => !g.registersStop).map(({ file, line, owner }) => `${file}:${line} ${owner}`)).toEqual([]);
+  });
+});
+
+// ── 가드 없이 이름을 올리는 화면: /esm (게이트 NAV-S7-01) ─────────────────────
+//
+// 위 검사는 가드(beforeRemove · usePreventRemove)가 있는 화면만 본다. /esm 에는 가드가
+// 없는데도 걷히면 잃는 것이 있다: 저장 요청이 돌아왔을 때 실패 안내를 띄울 자리가 그
+// 화면뿐이고, 고른 값은 그 화면의 상태다. 그 위에 딥링크로 열린 라우트의 RedirectHome
+// 이나 탭 루트의 하드웨어 뒤로가 POP_TO 로 /esm 까지 걷어냈다 - PR 이전의 replace 는
+// 새 홈 아래에 묻어 둘 뿐이었다. 그래서 /esm 은 가드 없이 이름을 올리고, 부르는 자리
+// 전부를 정확한 명단으로 고정한다. 등록이 빠지거나 판정이 저장 중 ref 를 놓치면 빨개진다.
+
+interface GoHomeStopUse {
+  file: string;
+  owner: string;
+  /** useGoHomeStop 에 넘긴 판정(공백 정규화). */
+  probe: string;
+}
+
+/** useGoHomeStop(별칭 포함)을 부르는 자리. */
+function goHomeStopUses(source: string, file: string): GoHomeStopUse[] {
+  const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const names = new Set<string>();
+  for (const statement of sf.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    if (!/(^|\/)go-home$/.test(statement.moduleSpecifier.text)) continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (!bindings || !ts.isNamedImports(bindings)) continue;
+    for (const element of bindings.elements) {
+      if ((element.propertyName ?? element.name).text === "useGoHomeStop") names.add(element.name.text);
+    }
+  }
+  const uses: GoHomeStopUse[] = [];
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && names.has(node.expression.text)) {
+      uses.push({ file, owner: outermostOwner(node, sf), probe: squash(node.arguments[0]?.getText(sf) ?? "") });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return uses;
+}
+
+/** 이 노드 아래의 모든 노드(자신 포함). */
+function descendants(root: ts.Node): ts.Node[] {
+  const out: ts.Node[] = [];
+  const visit = (node: ts.Node) => {
+    out.push(node);
+    ts.forEachChild(node, visit);
+  };
+  visit(root);
+  return out;
+}
+
+/**
+ * /esm 의 handleSubmit 에서 저장 중 ref 의 규율: 올리는 문장(`savingRef.current = true`)이
+ * 첫 await 보다 앞이고, 내리는 문장(`= false`)이 그 await 를 감싼 try 의 finally 안이다.
+ * 앞이 아니면 요청이 나간 사이에 판정이 거짓이고, finally 가 아니면 던진 요청이 ref 를
+ * 올린 채로 남긴다.
+ */
+function esmSaveHold(source: string): { raisedBeforeAwait: boolean; clearedInFinally: boolean } {
+  const sf = ts.createSourceFile("esm.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const submit = descendants(sf).find(
+    (node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === "handleSubmit",
+  );
+  if (!submit?.body) return { raisedBeforeAwait: false, clearedInFinally: false };
+  const isSet = (node: ts.Node, value: ts.SyntaxKind) =>
+    ts.isBinaryExpression(node) &&
+    node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+    node.left.getText(sf) === "savingRef.current" &&
+    node.right.kind === value;
+  const body = descendants(submit.body);
+  const firstAwait = body.find(ts.isAwaitExpression);
+  const raise = body.find((node) => isSet(node, ts.SyntaxKind.TrueKeyword));
+  if (!firstAwait) return { raisedBeforeAwait: false, clearedInFinally: false };
+  const inside = (outer: ts.Node, inner: ts.Node) => inner.getStart(sf) >= outer.getStart(sf) && inner.getEnd() <= outer.getEnd();
+  return {
+    raisedBeforeAwait: !!raise && raise.getEnd() <= firstAwait.getStart(sf),
+    clearedInFinally: body.some(
+      (node) =>
+        ts.isTryStatement(node) &&
+        !!node.finallyBlock &&
+        inside(node.tryBlock, firstAwait) &&
+        descendants(node.finallyBlock).some((inner) => isSet(inner, ts.SyntaxKind.FalseKeyword)),
+    ),
+  };
+}
+
+/** useGoHomeStop 을 부르는 자리 전부. 가드가 있는 넷과 가드 없는 /esm 하나. */
+const GO_HOME_STOP_USES: readonly { file: string; owner: string; why: string }[] = [
+  { file: "src/app/audit.tsx", owner: "AuditLegacy", why: "저장 안 한 감사 답 - beforeRemove 확인창." },
+  { file: "src/app/avatar-palette.tsx", owner: "AvatarPaletteScreen", why: "고친 아바타 - 나가기 확인창." },
+  { file: "src/app/esm.tsx", owner: "EsmCheckInScreen", why: "가드 없음 - 저장 요청 중 · 저장 안 한 고른 값(NAV-S7-01)." },
+  { file: "src/screens/deepspace/DeepSpaceDesignScreens.tsx", owner: "DeepSpacePrivacyDesignScreen", why: "계정 삭제 요청 중." },
+  { file: "src/screens/deepspace/dds-auth-screens.tsx", owner: "DeepSpaceResetPasswordDesignScreen", why: "비밀번호 재설정 잠금." },
+];
+
+describe("가드 없이 이름을 올리는 화면 /esm (게이트 NAV-S7-01)", () => {
+  const ESM: StackRoute = { key: "esm-k1", name: "esm" };
+
+  it.each([
+    ["dev 전용 라우트의 RedirectHome", { key: "canon-k2", name: "canon" }],
+    ["탭 루트(설정)의 하드웨어 뒤로", { key: "settings-k3", name: "settings" }],
+  ])("[홈, /esm(저장 중), 위 칸] · %s: /esm 앞에서 멈춘다 - 대조군: 이름이 없으면 POP_TO 가 /esm 까지 걷는다", (_label, top) => {
+    const state = stack(HOME, ESM, top);
+    expect(keysOf(router.getStateForAction(state, POP_TO_HOME, OPTIONS))).toEqual(["index-k0"]); // 대조군
+
+    mockRootState.current = { key: "container", index: 0, routeNames: ["__root"], routes: [{ key: "__root-0", name: "__root", state }] };
+    mockRoute.key = "esm-k1";
+    useGoHomeStop(() => true);
+    goHome();
+    expect(mockDismissTo).not.toHaveBeenCalled();
+    expect(keysOf(router.getStateForAction(state, mockDispatch.mock.calls[0][0], OPTIONS))).toEqual(["index-k0", "esm-k1"]);
+  });
+
+  it("판정기: useGoHomeStop(별칭 포함)을 부르는 자리를 적고, 저장 중 ref 의 앞 · finally 를 가린다", () => {
+    const head = 'import { useGoHomeStop as hold } from "@/lib/nav/go-home";\n';
+    expect(goHomeStopUses(`${head}function S() { hold(() => a ||\n b); other(() => c); }`, "f.tsx")).toEqual([
+      { file: "f.tsx", owner: "S", probe: "() => a || b" },
+    ]);
+    const good = "async function handleSubmit() { savingRef.current = true; try { await save(); } finally { savingRef.current = false; } }";
+    const late = "async function handleSubmit() { try { await save(); savingRef.current = true; } finally { savingRef.current = false; } }";
+    const noFinally = "async function handleSubmit() { savingRef.current = true; try { await save(); } catch {} savingRef.current = false; }";
+    const outsideTry = "async function handleSubmit() { savingRef.current = true; await save(); try { x(); } finally { savingRef.current = false; } }";
+    expect(esmSaveHold(good)).toEqual({ raisedBeforeAwait: true, clearedInFinally: true });
+    expect(esmSaveHold(late)).toEqual({ raisedBeforeAwait: false, clearedInFinally: true });
+    expect(esmSaveHold(noFinally)).toEqual({ raisedBeforeAwait: true, clearedInFinally: false });
+    expect(esmSaveHold(outsideTry)).toEqual({ raisedBeforeAwait: true, clearedInFinally: false });
+  });
+
+  it("배송 코드에서 useGoHomeStop 을 부르는 자리는 명단과 정확히 같다", () => {
+    const found = sourceFiles(join(ROOT, "src"))
+      .filter((file) => file !== "src/lib/nav/go-home.ts")
+      .flatMap((file) => goHomeStopUses(readFileSync(join(ROOT, file), "utf8"), file))
+      .map(({ file, owner }) => `${file} | ${owner}`)
+      .sort();
+    expect(found).toEqual(GO_HOME_STOP_USES.map(({ file, owner }) => `${file} | ${owner}`).sort());
+  });
+
+  it("/esm 의 판정은 저장 중 ref 와 고른 값을 읽고, ref 는 첫 await 앞에서 올라가 finally 에서 내려온다", () => {
+    const source = readFileSync(join(ROOT, "src/app/esm.tsx"), "utf8");
+    expect(goHomeStopUses(source, "src/app/esm.tsx").map((use) => use.probe)).toEqual([
+      "() => savingRef.current || scaleValue !== null || selectedTags.length > 0",
+    ]);
+    expect(esmSaveHold(source)).toEqual({ raisedBeforeAwait: true, clearedInFinally: true });
   });
 });
 
