@@ -1,22 +1,9 @@
-import { cosmic, flattenAlpha, withAlpha } from "./tokens";
-import { UI_MODE } from "../ui-mode";
+import { flattenAlpha } from "./tokens";
 
-// Pixel geometry differs by build: sharp corners + hard offset shadow (legacy)
-// vs rounded + flat (deep-space). The cyan pivot moved colors; this moves SHAPE
-// too, so the deep-space build reads as the smooth design, not retro pixel chrome.
-const geometryCosmic = {
-  borderWidth: 2,
-  radius: 0,
-  pixelShadow: {
-    offsetX: 4,
-    offsetY: 4,
-    blur: 0,
-  },
-  scanlineOpacity: 0.07,
-  grid: 8,
-  elevation: 4, // Android material depth for the raised pixel chrome
-} as const;
-
+// Pixel geometry: flat (no hard offset shadow, no scanlines). The sharp-corner +
+// hard-shadow geometry and the cosmic colors of the old `EXPO_PUBLIC_UI=legacy`
+// build (geometryCosmic · gameboyCosmic) left with that lever on 2026-10-05
+// (Simon decision Q-261004-11).
 const geometryDeepSpace = {
   borderWidth: 1,
   // PIXEL-CLAY 규칙 2 (Simon 결정 2026-08-21). 아래 주석이 "deep-space 는 매끄러운
@@ -33,18 +20,6 @@ const geometryDeepSpace = {
   scanlineOpacity: 0,
   grid: 8,
   elevation: 0, // flat on Android too — the deep-space design has no drop shadow
-} as const;
-
-// Legacy cosmic mapping (EXPO_PUBLIC_UI=legacy). Kept exported for the token test
-// + the legacy track.
-export const gameboyCosmic = {
-  ...geometryCosmic,
-  screen: cosmic.space950,
-  ink: cosmic.moonWhite,
-  accent: cosmic.signalBlue,
-  power: cosmic.signalMint,
-  amber: cosmic.pixelLamp,
-  border: withAlpha(cosmic.signalBlue, 0.68),
 } as const;
 
 // Deep-space build (2026-06-18, Phase 2): the Game-Boy chrome reads as the smooth
@@ -75,13 +50,13 @@ const gameboyDeepSpace = {
   border: "rgba(70,182,255,0.68)", // alpha matches cosmic; clears the 3:1 edge floor on dark
 } as const;
 
-export const gameboy = UI_MODE === "deep-space" ? gameboyDeepSpace : gameboyCosmic;
+export const gameboy = gameboyDeepSpace;
 
 /**
- * 테두리의 알파. **두 팔레트 모두 `border` 는 `accent` 를 이 알파로 깐 것**이다
- * (`gameboyCosmic.border = withAlpha(cosmic.signalBlue, 0.68)`,
- *  `gameboyDeepSpace.border = "rgba(70,182,255,0.68)"` = accent `#46B6FF` 의 0.68).
+ * 테두리의 알파. **`border` 는 `accent` 를 이 알파로 깐 것**이다
+ * (`gameboyDeepSpace.border = "rgba(70,182,255,0.68)"` = accent `#46B6FF` 의 0.68).
  * ⚠ 한쪽만 바꾸면 이 관계가 조용히 깨진다 — 아래 검사가 둘을 묶는다.
+ * (옛 레거시 팔레트 `gameboyCosmic` 도 같은 알파였다. 2026-10-05 레버와 함께 빠졌다.)
  */
 const GAMEBOY_BORDER_ALPHA = 0.68;
 
