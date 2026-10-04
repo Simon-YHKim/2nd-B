@@ -1047,10 +1047,10 @@ export function DeepSpacePrivacyDesignScreen() {
 
   // Signed out, this screen used to draw the settings and wait forever on a
   // birth date that never arrives; the redirect lived only in the legacy half.
-  // Account deletion is the one sign-out this screen causes on purpose:
-  // runDeleteAccount hands the receipt over across the owner -> null change and
-  // replaces the route itself, so while it runs (`deleting`) neither branch
-  // below may cut in.
+  // Every owner change, the deletion's own A -> null included, remounts this
+  // scene (AccountScope in _layout.tsx keys it by account epoch), so no state
+  // or ref reaches the next owner. `deleting` fences this instance only: a
+  // loading flip mid-deletion must not swap the flow out for the loader.
   if (authLoading && !deleting) {
     return <Shell title={t("privacy.title")}><GraphLoading /></Shell>;
   }
