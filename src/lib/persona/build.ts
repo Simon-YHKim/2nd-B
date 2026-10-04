@@ -691,9 +691,18 @@ export async function buildPersona(
   userId: string,
   locale: "en" | "ko",
   // C10: forwarded to callLlm so a minor's crisis output-swap routes to the
-  // youth hotline (KO 1388 + 109), not adult-only. Defaults to adult routing.
-  minor = false,
+  // youth hotline (KO 1388 + 109), not adult-only. Required, with no adult
+  // default: it was `minor = false`, so a caller that dropped it compiled and
+  // routed a minor as an adult (QA 261004 L1-07, gate r2 C10-001). The caller
+  // resolves the age first (the /review pattern); nothing here can guess it.
+  minor: boolean,
 ): Promise<PersonaCard> {
+  // The type is not enough on its own: a JS caller or an `as` cast can still
+  // hand over undefined. Refuse before the first read, so no LLM call is made
+  // on a guessed age. persona-build-minor-callsites.test.ts holds the callers.
+  if (typeof minor !== "boolean") {
+    throw new TypeError("buildPersona: minor must be the resolved age (a boolean)");
+  }
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("records")
