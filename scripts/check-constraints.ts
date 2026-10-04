@@ -8,6 +8,7 @@ import { join } from "node:path";
 
 import { FORBIDDEN_TERMS, CRISIS_TERMS } from "../src/lib/safety/lexicon";
 import { describeOwners, findMainVerifyOwners } from "./main-verify-owner";
+import { manualRouteRendersScannedGuide } from "./manual-route-contract";
 import { openingA11yContract } from "./opening-a11y-contract";
 
 const ROOT = process.cwd();
@@ -491,19 +492,23 @@ results.push(
     const manualJargonGone =
       manualForbiddenUserTerms.every((term) => !manualSurface.includes(term)) &&
       !/\bAI\b/.test(manualSurface);
+    // 위 목록은 손으로 적었다. /manual 이 그 화면을 실제로 그릴 때만 금지가 뜻을 갖는다.
+    // 라우트가 없으면 read 가 던져 FAIL 이다. 이유: scripts/manual-route-contract.ts.
+    const manualRouteShipsScannedGuide = manualRouteRendersScannedGuide(read("src/app/manual.tsx"));
     const ok =
       exists("locales/en/common.json") &&
       exists("locales/ko/common.json") &&
       exists("scripts/check-i18n-keys.ts") &&
       captureBundleOk &&
       jarvisCitationCopyOk &&
-      manualJargonGone;
+      manualJargonGone &&
+      manualRouteShipsScannedGuide;
     return {
       id: "C7",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "i18n locales + key-parity check script present; capture copy uses locale bundle without user-facing jargon; Jarvis citations render friendly labels; manual copy avoids covered jargon"
-        : "i18n setup incomplete or capture/Jarvis/manual copy contract failed",
+        ? "i18n locales + key-parity check script present; capture copy uses locale bundle without user-facing jargon; Jarvis citations render friendly labels; manual copy avoids covered jargon on the guide /manual renders"
+        : "i18n setup incomplete or capture/Jarvis/manual copy contract failed (or /manual no longer renders the scanned guide)",
     };
   }),
 );
