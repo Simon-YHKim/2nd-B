@@ -10,11 +10,14 @@ import { parse, stringify } from "yaml";
 // 하므로(scripts/app-parity.cjs) OTA 를 받아서도 안 된다. 그래서 확인을 성공시키지 않고 없앤다:
 // DIAGNOSTIC_APK=1 이면 app.config.js 가 updates.checkAutomatically 를 "NEVER" 로 둔다.
 //
-// 지키는 것 셋.
+// 지키는 것 넷.
 //   1. 변수가 있을 때만 확인이 꺼지고, 업데이트 기능 자체(ENABLED)는 켜진 채다. enabled:false 는
 //      src/lib/build-info.ts 의 표시를 "dev" 로 바꾼다.
 //   2. 그 변수는 진단 APK 워크플로의 job env 에만 있고, 설정 digest(app-env-digest)를 바꾸지 않는다.
 //   3. EAS 빌드 프로필은 전부 채널이 있고 이 변수를 켜지 않는다. 그래서 EAS 빌드는 계속 확인한다.
+//   4. 그 워크플로 밖(GITHUB_WORKFLOW_REF 가 android-release.yml 이 아님)에서 "1" 이면 설정 생성이
+//      실패한다. 3 은 저장소 파일만 보므로 Expo 서버 env · 로컬 셸 · 다른 워크플로에 남은 값은 못 막는다
+//      (게이트 S-01, 2026-10-05). 그런 값이 실사용 빌드를 조용히 NEVER 로 만들지 않게 한다.
 //
 // 매니페스트 값은 짐작하지 않고 expo-updates 설정 플러그인이 쓰는 함수 그대로 계산한다
 // (@expo/config-plugins 의 setUpdatesConfigAsync 가 ENABLED · CHECK_ON_LAUNCH 를 이 함수로 쓴다).
@@ -45,17 +48,29 @@ const { appEnv, envDigest } = require("../app-parity.cjs") as {
   envDigest(env: Record<string, string>): string;
 };
 
-/** app.config.js 를 그 값의 DIAGNOSTIC_APK 로 푼다(undefined = 변수 없음). 끝나면 환경을 되돌린다. */
-function resolveWith(value: string | undefined): ExpoConfig {
-  const saved = process.env.DIAGNOSTIC_APK;
-  if (value === undefined) delete process.env.DIAGNOSTIC_APK;
-  else process.env.DIAGNOSTIC_APK = value;
+/** GitHub 러너가 android-release.yml 의 단계마다 거는 값의 모양. */
+const RELEASE_REF = "Simon-YHKim/2nd-B/.github/workflows/android-release.yml@refs/heads/main";
+
+/** env 를 잠시 그 값으로 두고 fn 을 부른다(undefined = 변수 없음). 끝나면 되돌린다. CI 의 실제 값도 덮는다. */
+function withEnv<T>(vars: Record<string, string | undefined>, fn: () => T): T {
+  const saved = Object.fromEntries(Object.keys(vars).map((k) => [k, process.env[k]]));
+  const put = (k: string, v: string | undefined) => {
+    if (v === undefined) delete process.env[k];
+    else process.env[k] = v;
+  };
+  for (const [k, v] of Object.entries(vars)) put(k, v);
   try {
-    return appConfig({ config: JSON.parse(JSON.stringify(appJson)) });
+    return fn();
   } finally {
-    if (saved === undefined) delete process.env.DIAGNOSTIC_APK;
-    else process.env.DIAGNOSTIC_APK = saved;
+    for (const [k, v] of Object.entries(saved)) put(k, v);
   }
+}
+
+/** app.config.js 를 그 DIAGNOSTIC_APK · GITHUB_WORKFLOW_REF 로 푼다(undefined = 변수 없음). */
+function resolveWith(value: string | undefined, workflowRef?: string): ExpoConfig {
+  return withEnv({ DIAGNOSTIC_APK: value, GITHUB_WORKFLOW_REF: workflowRef }, () =>
+    appConfig({ config: JSON.parse(JSON.stringify(appJson)) }),
+  );
 }
 
 /** 설정 플러그인이 AndroidManifest 에 쓰는 expo.modules.updates.* 값. */
@@ -73,19 +88,23 @@ function withoutUpdates(config: ExpoConfig): ExpoConfig {
 }
 
 describe("app.config.js: 진단 APK 만 실행 때 OTA 를 확인하지 않는다", () => {
-  it("변수가 없으면(EAS 빌드 · localhost) updates 는 app.json 그대로이고 실행할 때마다 확인한다", () => {
-    const config = resolveWith(undefined);
-    expect(appJson.updates?.url).toMatch(/^https:\/\/u\.expo\.dev\//);
-    expect(config.updates).toEqual(appJson.updates);
-    expect(manifestOf(config)).toEqual({
-      ENABLED: "true",
-      EXPO_UPDATES_CHECK_ON_LAUNCH: "ALWAYS",
-      EXPO_UPDATE_URL: appJson.updates?.url,
-    });
-  });
+  it.each([undefined, RELEASE_REF])(
+    "변수가 없으면(EAS 빌드 · localhost) updates 는 app.json 그대로이고 실행할 때마다 확인한다 (GITHUB_WORKFLOW_REF=%j)",
+    (workflowRef) => {
+      // 워크플로 ref 만으로는 켜지지 않는다 - 변수가 있어야 한다
+      const config = resolveWith(undefined, workflowRef);
+      expect(appJson.updates?.url).toMatch(/^https:\/\/u\.expo\.dev\//);
+      expect(config.updates).toEqual(appJson.updates);
+      expect(manifestOf(config)).toEqual({
+        ENABLED: "true",
+        EXPO_UPDATES_CHECK_ON_LAUNCH: "ALWAYS",
+        EXPO_UPDATE_URL: appJson.updates?.url,
+      });
+    },
+  );
 
-  it("DIAGNOSTIC_APK=1 이면 확인만 끈다 - 업데이트 기능 · URL · 나머지 설정은 그대로", () => {
-    const config = resolveWith("1");
+  it("android-release.yml 안에서 DIAGNOSTIC_APK=1 이면 확인만 끈다 - 업데이트 기능 · URL · 나머지 설정은 그대로", () => {
+    const config = resolveWith("1", RELEASE_REF);
     expect(config.updates?.checkAutomatically).toBe("NEVER");
     // enabled:false 로 끄면 Updates.isEnabled 가 거짓이 되어 build-info 가 "dev" 를 낸다 - 그래서 쓰지 않는다
     expect(config.updates?.enabled).toBeUndefined();
@@ -100,9 +119,27 @@ describe("app.config.js: 진단 APK 만 실행 때 OTA 를 확인하지 않는�
   });
 
   it.each(["0", "", "false"])("DIAGNOSTIC_APK=%j 는 켜지 않는다 - 정확히 \"1\" 일 때만", (value) => {
-    const config = resolveWith(value);
-    expect(config.updates).toEqual(appJson.updates);
-    expect(manifestOf(config).EXPO_UPDATES_CHECK_ON_LAUNCH).toBe("ALWAYS");
+    // 워크플로 밖에서도 실패하지 않는다: "1" 이 아니면 아무 일도 하지 않는다
+    for (const workflowRef of [undefined, RELEASE_REF]) {
+      const config = resolveWith(value, workflowRef);
+      expect(config.updates).toEqual(appJson.updates);
+      expect(manifestOf(config).EXPO_UPDATES_CHECK_ON_LAUNCH).toBe("ALWAYS");
+    }
+  });
+
+  // 게이트 S-01 (2026-10-05): 저장소 파일 검사(아래 eas.json · 워크플로 절)는 Expo 서버 env · 로컬 셸에
+  // 남은 값을 못 본다. 그런 곳의 "1" 은 실사용 빌드를 NEVER 로 만들지 않고 설정 생성을 멈춰야 한다.
+  it.each([
+    ["변수 없음 (EAS 서버 빌드 · 로컬 셸 · eas build --local)", undefined],
+    ["빈 값", ""],
+    ["다른 워크플로 (jest 를 돌리는 CI)", "Simon-YHKim/2nd-B/.github/workflows/ci.yml@refs/heads/main"],
+    ["다른 워크플로 (OTA 게시)", "Simon-YHKim/2nd-B/.github/workflows/eas-update.yml@refs/heads/main"],
+    ["다른 워크플로 (EAS 미리보기 빌드)", "Simon-YHKim/2nd-B/.github/workflows/eas-preview-build.yml@refs/heads/main"],
+    ["이름 끝만 같은 워크플로", "Simon-YHKim/2nd-B/.github/workflows/not-android-release.yml@refs/heads/main"],
+    ["확장자 뒤에 더 붙은 이름", "Simon-YHKim/2nd-B/.github/workflows/android-release.yml.bak@refs/heads/main"],
+    ["워크플로 디렉터리 밖의 같은 이름", "Simon-YHKim/2nd-B/docs/.github/workflows/android-release.yml@refs/heads/main"],
+  ])("android-release.yml 밖에서 DIAGNOSTIC_APK=1 이면 설정 생성이 실패한다: %s", (_label, workflowRef) => {
+    expect(() => resolveWith("1", workflowRef)).toThrow(/DIAGNOSTIC_APK=1 .*android-release\.yml/);
   });
 });
 

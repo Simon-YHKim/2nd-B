@@ -23,9 +23,35 @@
 // a job-level env in that workflow so prebuild and the gradle step that writes
 // the runtime fingerprint both see it. EAS builds never set it and keep checking
 // their channel; scripts/__tests__/diagnostic-apk-ota.test.ts guards both sides.
+//
+// The switch is honoured only inside that workflow. A DIAGNOSTIC_APK=1 left in
+// an EAS server env, an `eas build --local` shell or another workflow would
+// otherwise ship a user build that never checks for an update (fixes included)
+// and carries the diagnostic fingerprint. So "1" anywhere else stops config
+// generation instead of applying quietly. The GitHub runner sets
+// GITHUB_WORKFLOW_REF for every step, e.g.
+// "Simon-YHKim/2nd-B/.github/workflows/android-release.yml@refs/heads/main".
+// That workflow has no workflow_call trigger; if it gains one, the caller's ref
+// shows up here and the build stops, which is the safe side.
+const DIAGNOSTIC_WORKFLOW_REF = /^[^/]+\/[^/]+\/\.github\/workflows\/android-release\.yml@/;
+
+function diagnosticApk() {
+  if (process.env.DIAGNOSTIC_APK !== "1") return false;
+  const ref = process.env.GITHUB_WORKFLOW_REF ?? "";
+  if (!DIAGNOSTIC_WORKFLOW_REF.test(ref)) {
+    throw new Error(
+      "DIAGNOSTIC_APK=1 turns off OTA update checks and is allowed only in " +
+        ".github/workflows/android-release.yml, but GITHUB_WORKFLOW_REF is " +
+        (ref ? `"${ref}"` : "unset") +
+        ". Unset DIAGNOSTIC_APK for EAS, local and other workflow builds.",
+    );
+  }
+  return true;
+}
+
 module.exports = ({ config }) => ({
   ...config,
-  ...(process.env.DIAGNOSTIC_APK === "1" ? { updates: { ...config.updates, checkAutomatically: "NEVER" } } : {}),
+  ...(diagnosticApk() ? { updates: { ...config.updates, checkAutomatically: "NEVER" } } : {}),
   android: {
     ...config.android,
     googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? config.android?.googleServicesFile,
