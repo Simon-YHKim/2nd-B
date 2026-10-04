@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -20,12 +20,13 @@ import { join, resolve } from "node:path";
 // EMDASH_GUARD_SCAN_ROOT. **Nothing here writes inside the repo.**
 const ROOT = resolve(__dirname, "../..");
 const SCRIPT = "scripts/check-no-emdash.ts";
+const TSX_CLI = require.resolve("tsx/cli");
 const EM = String.fromCharCode(0x2014);
 
 function run(scanRoot?: string): { code: number; output: string } {
   const env = scanRoot ? { ...process.env, EMDASH_GUARD_SCAN_ROOT: scanRoot } : process.env;
   try {
-    const output = execFileSync("npx", ["tsx", SCRIPT], { cwd: ROOT, encoding: "utf8", shell: true, env });
+    const output = execFileSync(process.execPath, [TSX_CLI, SCRIPT], { cwd: ROOT, encoding: "utf8", env });
     return { code: 0, output };
   } catch (error) {
     const failure = error as { status?: number; stdout?: string; stderr?: string };
@@ -96,5 +97,16 @@ describe("check-no-emdash", () => {
     const { code, output } = run(tree);
     expect(code).toBe(0);
     expect(output).not.toContain("Stale entries");
+  });
+});
+
+describe("how the guard is launched", () => {
+  test("straight through node, with no shell in between", () => {
+    // An argument array plus the shell option is Node's DEP0190: it printed a
+    // deprecation warning on every verify run, and a shell joins the arguments
+    // without escaping them. process.execPath + tsx/cli needs no shell
+    // (scripts/__tests__/definer-grants.test.ts launches its checker the same way).
+    const self = readFileSync(__filename, "utf8");
+    expect(self).not.toMatch(/\bshell\s*:/);
   });
 });
