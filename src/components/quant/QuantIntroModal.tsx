@@ -14,7 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
-import { cosmic, flattenAlpha, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, flattenAlpha, semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useTranslation } from "react-i18next";
 

@@ -20,7 +20,7 @@ import { Link, Redirect, router } from "expo-router";
 import { PremiumAppShell, PremiumLoadingState, PremiumModal, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
+import { semantic, spacing, typography } from "@/lib/theme/tokens";
 import { colors, spacing as dsSpacing } from "@/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { m3 } from "@/lib/theme/m3";

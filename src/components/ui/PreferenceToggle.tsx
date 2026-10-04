@@ -1,7 +1,7 @@
 import { Pressable, TouchableOpacity, StyleSheet, Switch, View } from "react-native";
 
 import { Text } from "@/components/ui/Text";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 
 export function PreferenceSwitch({

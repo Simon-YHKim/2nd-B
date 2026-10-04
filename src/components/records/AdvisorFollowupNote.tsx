@@ -4,7 +4,7 @@ import { Linking, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } 
 import { Text } from "@/components/ui/Text";
 import { safeDoiReferenceHref } from "@/lib/knowledge/source-link";
 import { advisorFollowupViewModel } from "@/lib/records/followup";
-import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 
 interface AdvisorFollowupLabels {

@@ -19,7 +19,6 @@ import {
   parseRefundStatus,
   refundDaysLeft,
   refundReasonKey,
-  REFUND_POLICY_EFFECTIVE_AT,
   revisedPolicyInForce,
   verdictFor,
   type RefundEligibility,
@@ -29,7 +28,6 @@ import {
 // moment after its effective date. The pre-revision rule has its own block at the
 // bottom of this file.
 const AFTER = Date.parse("2026-09-08T00:00:00+09:00") + 1000;
-const BEFORE = Date.parse("2026-09-08T00:00:00+09:00") - 1000;
 
 const runs = (daysSincePayment: number, reasoningRuns: number) =>
   verdictFor({ daysSincePayment, reasoningRuns, reasoningCalls: 0, now: AFTER });

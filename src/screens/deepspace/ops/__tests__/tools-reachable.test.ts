@@ -413,7 +413,11 @@ describe("비서 허브 PIXEL·legacy 회귀", () => {
       "0ae10b95e13affbf453974a11e420f73792a352895ec4fee4e9d310c81ed5902",
     );
     expect(sha256(sourceSlice(GIANT, "// Calendar hand-off needs", "export { DeepSpaceRecordsScreen"))).toBe(
-      "7a451802f2b3ca545760fffdc9e71998d50a63cba7c74d3cbea1c676c31e0159",
+      // 2026-10-05 (QA 261004 S-01, PR #2045): one line left this slice, the unused
+      // `const HERO_C = 2 * Math.PI * HERO_R;` in the shadow DeepSpaceOpsScreen copy,
+      // because `npm run lint` now fails on any warning. Nothing else in the slice
+      // moved, and this change leaves the other digests as they were.
+      "35125838cf2bfd91c896b3650d4b55910b4f88b3b80d164adb54132d6e236646",
     );
     expect(sha256(sourceSlice(GIANT, "export function DeepSpaceDomainsScreen()", "export function DeepSpaceFocusScreen()"))).toBe(
       "c8c263bb1bef6540299578c0e20b69b7bdc4549fdad8f464540e34dc96891a24",

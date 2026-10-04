@@ -115,7 +115,6 @@ describe("④ 간극과 프롬프트 재료", () => {
 describe("⑤ observable-self 는 손대지 않았다 (SOKA 전제 보존)", () => {
   it("OBSERVABLE_TRAITS 는 여전히 3특질", () => {
     // (a)안으로 되돌아가면 이 단언이 깨진다 — 그때 이 파일의 헤더를 다시 읽을 것.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { OBSERVABLE_TRAITS } = require("../observable-self") as {
       OBSERVABLE_TRAITS: readonly string[];
     };

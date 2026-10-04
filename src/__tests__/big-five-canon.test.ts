@@ -428,14 +428,18 @@ describe("big-five PIXEL-CLAY route discipline", () => {
     const legacy = APP.match(/function BigFiveLegacy\(\)[\s\S]*?(?=\n\nexport default function)/)?.[0];
     expect(legacy).toBeDefined();
     expect(normalizedHash(legacy!)).toBe("857985b204144f7c4fc7fc7f52af128bed4ab6da0becc018f8f1cf1357e115e9");
-    expect(normalizedHash(read("components/quant/QuantIntroModal.tsx"))).toBe("7e11ed07fa6c463d2359005f3c6b5a0ef700874a6bee12148e72253c07792ba3");
+    // 2026-10-04 (QA 261004 S-02/S-03): the three quant digests below were re-pinned
+    // because one unused import name left each file (`radii` from QuantIntroModal and
+    // QuantPager, `semantic` from QuantSaveCelebration) so `npm run lint` can refuse
+    // warnings. Nothing else in those files changed.
+    expect(normalizedHash(read("components/quant/QuantIntroModal.tsx"))).toBe("fc7872cd6e7bb11d17dcad74b52c9706f555024a31c26d0de1d5fd4bd505912b");
     expect(normalizedHash(read("components/quant/LikertChoiceGroup.tsx"))).toBe("ba5250e529357bf9f23e90491ebb1666b27e7dfa781dbc5d085b156ec6d51a66");
     // 이 래칫은 "바뀌면 누군가 알아채라"는 것이지 "절대 손대지 말라"가 아니다.
     // 이번에 QuantPager 의 accessibilityValue 를 a11yValue() 로 옮겼다 - 객체
     // 형태는 React Native Web 이 읽지 않아 진행바가 웹에서 값 없이 announce
     // 됐다. 그래서 해시를 의도적으로 갱신한다.
-    expect(normalizedHash(read("components/quant/QuantPager.tsx"))).toBe("23a3c65719daae5c9faf5f296ec13a97724a02e208cedaf3b091f608760c8b59");
-    expect(normalizedHash(read("components/quant/QuantSaveCelebration.tsx"))).toBe("a4cde70d67b7e77e343909ebd81355b4a1d6cf3c5289a7a96785fc4559a8a634");
+    expect(normalizedHash(read("components/quant/QuantPager.tsx"))).toBe("9aacc8d5cd23b24fc11ee8aed4a267b8a02f823eac83af7b3c80e860e3c7ed37");
+    expect(normalizedHash(read("components/quant/QuantSaveCelebration.tsx"))).toBe("006c0c3956d186be2bfbc7c89f4f6e08e9c7641fa1b1e99b6d60a0248ca43789");
   });
 
   test("the exact pixel ratchet covers the isolated renderer", () => {
