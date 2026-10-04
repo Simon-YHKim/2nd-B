@@ -719,7 +719,7 @@
     "opening": "Membuka…",
     "share": "Bagikan",
     "introPrivacy": "Catatan asli dan angka tidak pernah masuk ke kartu. Hanya kalimat yang kamu pilih.",
-    "starsFallback": "Tidak bisa membaca bintangmu; jadi kami gambar versi bawaannya."
+    "fallbackInsight": "Memahami diriku secara mendalam, hidup lebih seperti diriku."
   },
   "coachmarks": {
     "homeStep": "Ketuk SecondB untuk mulai menyimpan catatan.",

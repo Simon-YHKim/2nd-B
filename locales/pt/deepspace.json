@@ -719,7 +719,7 @@
     "opening": "Abrindo…",
     "share": "Compartilhar",
     "introPrivacy": "Os registros originais e os números nunca vão no cartão. Só a frase que você escolher.",
-    "starsFallback": "Não conseguimos ler suas estrelas; desenhamos o padrão."
+    "fallbackInsight": "Me entender a fundo, viver mais do meu jeito."
   },
   "coachmarks": {
     "homeStep": "Toque no SecondB para começar a salvar um registro.",

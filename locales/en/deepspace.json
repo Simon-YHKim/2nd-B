@@ -719,7 +719,7 @@
     "opening": "Opening…",
     "share": "Share",
     "introPrivacy": "Raw records and numbers never go on the card. Only the sentence you pick.",
-    "starsFallback": "Couldn't load the star count. Using the default count."
+    "fallbackInsight": "Understand myself deeply, live more like myself."
   },
   "coachmarks": {
     "homeStep": "Tap SecondB to start saving a record.",

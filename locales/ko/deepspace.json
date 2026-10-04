@@ -719,7 +719,7 @@
     "opening": "여는 중…",
     "share": "공유",
     "introPrivacy": "기록 원문·수치는 카드에 포함되지 않습니다. 보여줄 문장만 골라 담습니다.",
-    "starsFallback": "별 개수를 불러오지 못해 기본 개수로 표시했습니다."
+    "fallbackInsight": "깊이 이해하고, 더 나답게 산다."
   },
   "coachmarks": {
     "homeStep": "세컨비를 눌러 기록 담기를 시작합니다.",
