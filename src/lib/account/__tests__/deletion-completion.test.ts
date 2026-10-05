@@ -177,6 +177,57 @@ describe("an A -> null before the receipt arrives", () => {
   });
 });
 
+// QA 261004 gate DEL-N1-01 (2026-10-05). A login holds B before publishing it;
+// in between the published owner is still null, which is exactly what this
+// operation accepts after A -> null. Every case here raises the hold and never
+// calls noteResolvedOwner(B).
+describe("a login that is held but not yet published ends the operation", () => {
+  test("after A -> null: the receipt is not published and nothing can finish", () => {
+    const operation = createAccountDeletionCompletion(OWNER, currentAccountEpoch());
+    signOutLikeAuthContext();
+    beginAccountOwnerTransition("owner-b");
+    expect(operation.isCurrent()).toBe(false);
+    expect(operation.beginSignOut(receipt, "complete")).toBe(false);
+    expect(operation.finishSignOut(true)).toBe(false);
+    expect(getAccountDeletionNotice()).toBeNull();
+    operation.dispose();
+  });
+
+  test("during the sign-out after publication: finishing is refused", () => {
+    const operation = createAccountDeletionCompletion(OWNER, currentAccountEpoch());
+    expect(operation.beginSignOut(receipt, "complete")).toBe(true);
+    signOutLikeAuthContext();
+    beginAccountOwnerTransition("owner-b");
+    expect(operation.isCurrent()).toBe(false);
+    expect(operation.finishSignOut(false)).toBe(false);
+    operation.dispose();
+  });
+
+  test("A -> B held while A is still published ends it too", () => {
+    const operation = createAccountDeletionCompletion(OWNER, currentAccountEpoch());
+    beginAccountOwnerTransition("owner-b");
+    expect(operation.beginSignOut(receipt, "complete")).toBe(false);
+    operation.dispose();
+  });
+
+  test("dropping the held login does not bring the operation back", () => {
+    const operation = createAccountDeletionCompletion(OWNER, currentAccountEpoch());
+    signOutLikeAuthContext();
+    beginAccountOwnerTransition("owner-b");
+    beginAccountOwnerTransition(null); // the login never published
+    expect(operation.isCurrent()).toBe(false);
+    expect(operation.beginSignOut(receipt, "complete")).toBe(false);
+    operation.dispose();
+  });
+
+  test("an operation created while a login is held is dead on arrival", () => {
+    beginAccountOwnerTransition("owner-b");
+    const operation = createAccountDeletionCompletion(OWNER, currentAccountEpoch());
+    expect(operation.beginSignOut(receipt, "complete")).toBe(false);
+    operation.dispose();
+  });
+});
+
 test("subscriber failure cannot retain an invalid receipt or prevent another subscriber", () => {
   const stopBroken = subscribeAccountDeletionNotice(() => { throw new Error("subscriber fixture"); });
   const listener = jest.fn(); const stop = subscribeAccountDeletionNotice(listener);

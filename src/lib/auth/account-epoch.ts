@@ -251,3 +251,16 @@ export function __resetAccountEpochForTests(): void {
 export function currentResolvedAccountOwner(): AccountOwner {
   return publishedOwner;
 }
+
+/**
+ * The signed-in owner AuthContext has observed but not yet published, or null.
+ *
+ * Non-null only while a pre-publication hold for an account is up
+ * (beginAccountOwnerTransition(B) without its noteResolvedOwner(B) yet). A
+ * sign-out hold (target null) and "no hold" both read null: neither puts another
+ * account in front of this device. Subscribe with subscribeAccountTransition();
+ * every hold change emits there. Read-only: it changes no state.
+ */
+export function currentPendingAccountOwner(): string | null {
+  return publicationHold ? pendingPublicationOwner : null;
+}

@@ -6,9 +6,11 @@
 // confirmed deletion and /sign-in renders the notice. (The header used to say
 // "not wired yet"; that stopped being true when the receipt reached /sign-in.)
 import {
+  currentPendingAccountOwner,
   currentResolvedAccountOwner,
   isCurrentAccountEpoch,
   onAccountOwnerChange,
+  subscribeAccountTransition,
 } from "../auth/account-epoch";
 import type { AccountDeletionReceipt, DeletionSweep } from "../records/delete-bulk";
 
@@ -131,15 +133,34 @@ function publish(owner: string, receipt: AccountDeletionReceipt, localPurge: Loc
  * A -> null (the deletion's sign-out, or another tab's, or a session that the
  * server already revoked) keeps it alive even when it unmounts that screen, and
  * every other published change invalidates it.
+ *
+ * ⚠ So does an account that is only ON ITS WAY (QA 261004 gate DEL-N1-01,
+ * 2026-10-05). A login after A -> null raises beginAccountOwnerTransition(B)
+ * and publishes B later, after its cleanup and profile probe. In between the
+ * published owner is still null, so a rule that waited for B's owner event let
+ * this operation publish A's receipt onto /sign-in (an (auth) scene that
+ * AccountScope does not hide) while B was signing in, and on a failed sign-out
+ * empty B's pending stack. The completion therefore ends as soon as a hold for a
+ * signed-in owner is up, and does not come back if that hold is later dropped:
+ * losing A's receipt is the safe side of that race. A sign-out hold (target
+ * null) is the deletion's own sign-out and does not count.
  * Already-running SDK signOut/login races remain a separate Auth concern. */
 export function createAccountDeletionCompletion(owner: string, epoch: number) {
-  let invalidated = !isCurrentAccountEpoch(epoch) || currentResolvedAccountOwner() !== owner;
+  let invalidated = !isCurrentAccountEpoch(epoch) || currentResolvedAccountOwner() !== owner
+    || currentPendingAccountOwner() !== null;
   let pending: AccountDeletionNotice | null = null;
-  const watch = followOwnerToSignOut(owner, () => { invalidated = true; });
-  // The listener already ends the operation on any other published change; the
-  // owner read is a second, independent check against this module and
-  // account-epoch ever disagreeing.
+  const invalidate = () => { invalidated = true; };
+  const watch = followOwnerToSignOut(owner, invalidate);
+  // Holds raise no owner event, only a transition; listen there for the one
+  // that puts another account (or A again, after A -> null) in front of us.
+  const stopHoldWatch = subscribeAccountTransition(() => {
+    if (currentPendingAccountOwner() !== null) invalidate();
+  });
+  // The listeners already end the operation on any other published change or
+  // pending login; the owner reads are a second, independent check against this
+  // module and account-epoch ever disagreeing.
   const isCurrent = () => !invalidated
+    && currentPendingAccountOwner() === null
     && currentResolvedAccountOwner() === (watch.isSignedOut() ? null : owner);
 
   return {
@@ -159,6 +180,7 @@ export function createAccountDeletionCompletion(owner: string, epoch: number) {
     },
     dispose(): void {
       watch.stop();
+      stopHoldWatch();
       // The notice retains its own owner listener until dismissal or transition.
     },
   };

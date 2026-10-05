@@ -396,3 +396,63 @@ describe("로그아웃을 기다리는 사이 B 가 게시되면 B 의 화면을
     expect(inFlight.current).toBe(false);
   });
 });
+
+// 게이트 지적 DEL-N1-01 (QA 261004, 2026-10-05).
+//
+// 위 DEL-BL-01 은 B 가 **게시된** 경우만 막았다. 로그인은 먼저 hold
+// (beginAccountOwnerTransition(B), owner 이벤트 없음)를 세우고 정리·프로필 확인 뒤에
+// 게시한다. 그 사이 게시된 owner 는 여전히 null 이라, 요청 중 A -> null 뒤의 B 로그인은
+// "A 의 로그아웃 뒤" 와 구별되지 않았다. 그래서 A 영수증이 B 가 로그인하는 /sign-in 에
+// 게시되고, 로그아웃이 일반 오류로 끝나면 B 의 스택까지 비웠다. 여기서는 모두
+// noteResolvedOwner(B) 를 부르지 않는다.
+describe("게시 전 hold 로만 B 가 보여도 A 의 영수증 · 로그아웃 · 이동을 하지 않는다", () => {
+  const B = "22222222-2222-4222-8222-222222222222";
+
+  test.each([
+    ["정상 반환", false],
+    ["일반 오류", true],
+  ] as const)("요청 중 A -> null 다음 B 로그인 hold: 영수증 게시 · 로그아웃 · 이동이 없다(로그아웃이 %s 이어도)", async (
+    _label,
+    signOutFails,
+  ) => {
+    const { run, calls, inFlight, state } = harness({
+      signOutFails,
+      duringRequest: (h) => {
+        publishOwner(h, null);
+        h.epoch.beginAccountOwnerTransition(B);
+      },
+    });
+    await run();
+    expect(getAccountDeletionNotice()).toBeNull();
+    expect(calls.signOut).toBe(0);
+    expect(calls.dismissAll).toBe(0);
+    expect(calls.replace).toEqual([]);
+    // 지워진 A 의 기기 자료는 그래도 정리한다.
+    expect(calls.purge).toBe(1);
+    expect(inFlight.current).toBe(false);
+    expect(state.delErrorShown).toBe(0);
+  });
+
+  test.each([
+    ["A 게시 상태 · 정상 반환", false, false],
+    ["A 게시 상태 · 일반 오류", false, true],
+    ["요청 중 A -> null · 정상 반환", true, false],
+    ["요청 중 A -> null · 일반 오류", true, true],
+  ] as const)("로그아웃 중 B 로그인 hold(%s): 영수증을 거두고 B 의 스택을 건드리지 않는다", async (
+    _label,
+    signedOutDuringRequest,
+    signOutFails,
+  ) => {
+    const { run, calls, inFlight } = harness({
+      signOutFails,
+      duringRequest: signedOutDuringRequest ? (h) => publishOwner(h, null) : undefined,
+      duringSignOut: (h) => { h.epoch.beginAccountOwnerTransition(B); },
+    });
+    await run();
+    expect(calls.signOut).toBe(1);
+    expect(calls.dismissAll).toBe(0);
+    expect(calls.replace).toEqual([]);
+    expect(getAccountDeletionNotice()).toBeNull();
+    expect(inFlight.current).toBe(false);
+  });
+});

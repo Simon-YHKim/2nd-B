@@ -7,6 +7,7 @@ import {
   captureAccountOwnerLease,
   clearAccountTransition,
   currentAccountEpoch,
+  currentPendingAccountOwner,
   isAccountTransitionPending,
   isCurrentAccountEpoch,
   currentResolvedAccountOwner,
@@ -140,6 +141,28 @@ describe("account epoch ownership boundary", () => {
 
     expect(clearAccountTransition(currentAccountEpoch())).toBe(true);
     expect(isAccountTransitionPending()).toBe(false);
+  });
+
+  // QA 261004 gate DEL-N1-01: a module that must stop before another account is
+  // in front of this device needs to see a held login, not only its publication.
+  test("the pending owner is readable only while a login hold is up", () => {
+    noteResolvedOwner("owner-a");
+    expect(currentPendingAccountOwner()).toBeNull();
+
+    beginAccountOwnerTransition(null); // a sign-out hold puts nobody in front
+    expect(currentPendingAccountOwner()).toBeNull();
+    noteResolvedOwner(null);
+
+    beginAccountOwnerTransition("owner-b");
+    expect(currentPendingAccountOwner()).toBe("owner-b");
+    expect(currentResolvedAccountOwner()).toBeNull();
+    beginAccountOwnerTransition(null); // the login was dropped before publication
+    expect(currentPendingAccountOwner()).toBeNull();
+
+    beginAccountOwnerTransition("owner-b");
+    noteResolvedOwner("owner-b");
+    expect(currentPendingAccountOwner()).toBeNull();
+    expect(currentResolvedAccountOwner()).toBe("owner-b");
   });
 });
 
