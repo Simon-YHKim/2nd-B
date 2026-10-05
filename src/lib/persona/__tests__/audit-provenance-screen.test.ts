@@ -187,13 +187,18 @@ describe("deep-space /audit screen contract", () => {
       .update(app.slice(legacyStart, legacyEnd))
       .digest("hex");
     expect(legacyHash).toBe(
-      // 롤백 레버 제거에서 재고정(2026-10-05, Simon 결정 Q-261004-11 C). 옛 값 13b50e3b 는
-      // 바로 앞 본문이다. 이 슬라이스는 레거시 렌더러라는 이름과 달리 배송된다
-      // (`/audit?screener=1`). 바뀐 것은 둘뿐이다: AuditScreenerShell 의 스킨 분기를 접어
-      // DeepSpaceScreen 을 무조건 그리게 했고(레거시 셸 PremiumAppShell 팔 삭제 - 어느
-      // 빌드도 그 팔을 타지 않았다), Round 61 주석이 옛 분기 줄을 인용하던 문장을 고쳤다.
-      // 설문 · 저장 · 위기 인계 코드는 한 줄도 안 바뀌었다(e0b274d0 과 줄 단위 대조).
-      "7ad9ed7e8a1fc8feaaa1140cd1ca7aa0f7bb20bab59948da9ea9f34bd0d68bdd");
+      // 옛 캐릭터 정리에서 재고정(2026-10-05, Simon 결정 Q-261004-15 A). 옛 값 7ad9ed7e 는
+      // 바로 앞 본문이다. 바뀐 것은 주석 두 줄뿐이다(:279 · :368) - 저장 순간에 옛
+      // 캐릭터 '모모' 가 나온다고 적혀 있었는데 그 몸 그림이 CompanionSprite 에서 빠져
+      // 신호만 남았다. 코드는 한 글자도 안 바뀌었다.
+      "f3369603ca2d68ff07d36e5a42569fe27e1e872dfcc9ca0128026e02b55191e6");
+    // 이전 값 7ad9ed7e8a1fc8feaaa1140cd1ca7aa0f7bb20bab59948da9ea9f34bd0d68bdd:
+    //   롤백 레버 제거에서 재고정(2026-10-05, Simon 결정 Q-261004-11 C). 옛 값 13b50e3b 는
+    //   바로 앞 본문이다. 이 슬라이스는 레거시 렌더러라는 이름과 달리 배송된다
+    //   (`/audit?screener=1`). 바뀐 것은 둘뿐이다: AuditScreenerShell 의 스킨 분기를 접어
+    //   DeepSpaceScreen 을 무조건 그리게 했고(레거시 셸 PremiumAppShell 팔 삭제 - 어느
+    //   빌드도 그 팔을 타지 않았다), Round 61 주석이 옛 분기 줄을 인용하던 문장을 고쳤다.
+    //   설문 · 저장 · 위기 인계 코드는 한 줄도 안 바뀌었다(e0b274d0 과 줄 단위 대조).
     // 이전 값 13b50e3b094749d614ebf295d6b2162357c8ce2697e229029ef6d06c4b063f76:
     //   대시보드 폰 이식에서 재고정(2026-10-02). 옛 값 e131c71f 는 이 이식 직전
     //   본문이고, 이번 편집만 되돌리면 그 값이 그대로 다시 나온다. 바뀐 것은

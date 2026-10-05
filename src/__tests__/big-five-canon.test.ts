@@ -437,7 +437,11 @@ describe("big-five PIXEL-CLAY route discipline", () => {
     // 형태는 React Native Web 이 읽지 않아 진행바가 웹에서 값 없이 announce
     // 됐다. 그래서 해시를 의도적으로 갱신한다.
     expect(normalizedHash(read("components/quant/QuantPager.tsx"))).toBe("9aacc8d5cd23b24fc11ee8aed4a267b8a02f823eac83af7b3c80e860e3c7ed37");
-    expect(normalizedHash(read("components/quant/QuantSaveCelebration.tsx"))).toBe("006c0c3956d186be2bfbc7c89f4f6e08e9c7641fa1b1e99b6d60a0248ca43789");
+    // 2026-10-05 (Simon 결정 Q-261004-15 A): QuantSaveCelebration 재고정. 옛 값 006c0c39 는
+    // 바로 앞 본문이다. 바뀐 것은 저장 순간의 옛 캐릭터 '모모' 몸 그림을 뺀 것뿐이다 -
+    // MOMENT 가 { companion, state, cue } 에서 { cue } 로 줄었고 머리 주석 두 곳이 그에
+    // 맞춰 고쳐졌다. 모달 · 문구 · 타이머 · 표정은 그대로다.
+    expect(normalizedHash(read("components/quant/QuantSaveCelebration.tsx"))).toBe("8ca3205cc9c97bb53ec19939131fe4cc0f3fdf897b5e4c46cfbacbbfb30c53de");
   });
 
   test("the exact pixel ratchet covers the isolated renderer", () => {

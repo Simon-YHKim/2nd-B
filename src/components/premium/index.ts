@@ -26,7 +26,6 @@ export {
 export {
   ReferenceShardCard,
   GraphNodeChip,
-  CharacterBadge,
   ContextPill,
   StatTile,
 } from "./graph-bits";

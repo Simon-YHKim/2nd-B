@@ -276,7 +276,7 @@ function AuditLegacy() {
       setAnswer("");
       if (index + 1 >= questions.length) {
         setDone(true);
-        // 모모 reads back the finished interview before it's filed (companion pack §3).
+        // The saved cue plays as the finished interview is filed (companion pack §3).
         companion.fire("auditCompleted");
       } else {
         setIndex(index + 1);
@@ -365,7 +365,7 @@ function AuditLegacy() {
             />
           </View>
         </View>
-        {/* 모모 appears briefly to file the finished interview (companion pack §3) */}
+        {/* The saved cue appears briefly as the finished interview is filed (companion pack §3) */}
         {companion.moment ? (
           <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
         ) : null}
