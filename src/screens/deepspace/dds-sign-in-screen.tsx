@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Platform, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
-import { Redirect, router } from "expo-router";
+import { router } from "expo-router";
 import Svg, { Rect } from "react-native-svg";
 import {
   AccountDeletionNoticePanel,
@@ -17,6 +17,7 @@ import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { type OAuthProvider } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useSignInForm } from "@/lib/auth/useSignInForm";
+import { RedirectHome } from "@/lib/nav/go-home";
 import {
   resetPasswordHref,
   runAuthActionOnce,
@@ -178,7 +179,9 @@ export function DeepSpaceSignInDesignScreen() {
       </PixelGateShell>
     );
   }
-  if (userId) return <Redirect href="/" />;
+  // Signed in: pop back to the home under this route, never stack a second
+  // one (QA 261004 D-01).
+  if (userId) return <RedirectHome />;
 
   const authBusy = submitting || oauthSubmitting;
   const submitDisabled = !canSubmit || oauthSubmitting;
@@ -380,6 +383,9 @@ export function DeepSpaceSignInDesignScreen() {
           accessibilityLabel={t("auth:signIn.resetLabel")}
           accessibilityHint={t("auth:resetPassword.requestSubtitle")}
           fullWidth
+          // Primary-blue link text needs the panel ground for AA: 5.30:1 here, 4.16:1 on
+          // the default bevel fill (surfaceContainerHigh). QA R2B-08.
+          background={LINK_GROUND}
           contentStyle={styles.linkContent}
         >
           <Text style={styles.linkText}>{t("deepspace:auth.forgotPassword")}</Text>
@@ -423,6 +429,7 @@ export function DeepSpaceSignInDesignScreen() {
           accessibilityLabel={t("auth:signIn.signUpLink")}
           accessibilityHint={t("auth:signIn.signUpHint")}
           fullWidth
+          background={LINK_GROUND}
           contentStyle={styles.signUpContent}
         >
           <View style={styles.signUpCopy}>
@@ -507,6 +514,14 @@ function LegalLink({ label, onPress }: { label: string; onPress: () => void }) {
     </PixelPressable>
   );
 }
+
+/**
+ * The ground for the two text links (forgot password, create account). Their text is
+ * m3.color.primary at labelLarge (12px), which WCAG counts as normal text (4.5:1). On the
+ * bevel's default fill (surfaceContainerHigh) that is 4.16:1; on the panel it is 5.30:1,
+ * and the helper line above the sign-up link rises from 4.54 to 5.78:1 (QA R2B-08).
+ */
+const LINK_GROUND = m3.color.surfaceContainer;
 
 const styles = StyleSheet.create({
   shell: {

@@ -240,17 +240,15 @@
     "discoverLead": "Mira qué intereses aparecen en tus registros recientes."
   },
   "theme": {
-    "title": "Tema · Fuente",
-    "status": "Elige un tema y una fuente cómodos.",
+    "title": "Fuente · Movimiento",
+    "status": "Elige una fuente cómoda.",
     "tip": "Reduce el movimiento si prefieres menos animaciones.",
-    "sectionTheme": "Tema",
-    "themeDeepspace": "Espacio profundo",
-    "themeMidnight": "Medianoche",
-    "midnightNote": "Midnight se aplica por ahora solo a algunas pantallas. Las pantallas deep-space siguen en adaptación.",
     "sectionFont": "Fuente",
     "fontPixel": "Píxel · Galmuri",
     "fontReadable": "Legible · Pretendard",
-    "reduceMotion": "Reducir movimiento"
+    "reduceMotion": "Reducir movimiento",
+    "soundEffects": "Efectos de sonido",
+    "soundEffectsNote": "Sonidos del telescopio, la foto de estrella y la apertura. No suenan si el teléfono está en silencio o en vibración."
   },
   "manual": {
     "askDirect": "Preguntar directamente a SecondB",

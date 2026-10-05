@@ -1222,7 +1222,8 @@ results.push(
       settings.includes('sub={t("nav.accountHint")}') &&
       settings.includes('sub={t("nav.dataHint")}') &&
       // (theme quick-toggle hints removed with the duplicate disclosure —
-      // /theme owns theme switching; see O-R1 settings restructure.)
+      // see O-R1 settings restructure. Theme switching itself is gone since
+      // 2026-10-05, Q-261005-02: /theme now holds font + motion only.)
       // (crew-density hints removed with the control itself. CrewLayer only
       //  rendered inside NavGraph, which no production surface mounted; both
       //  moved to E:/Legacy on 2026-10-04 with lib/settings/crew-density.ts.)
@@ -1837,12 +1838,16 @@ results.push(
       const en = read("locales/en/deepspace.json");
       const ko = read("locales/ko/deepspace.json");
       const forbiddenScreenCopy = ["village light", "마을 불빛"];
+      // 2026-10-05 Simon 결정 Q-261005-02: 다크/라이트 고르기(theme.sectionTheme ·
+      // themeDeepspace · themeMidnight · midnightNote)가 화면에서 빠졌다. 이 검사는
+      // 남은 글꼴 · 움직임 문구를 보고, 빠진 테마 절이 슬그머니 돌아오지 않는지도 본다.
+      const retiredThemeSection = ['t("theme.sectionTheme")', 't("theme.themeMidnight")', 'setMode("light")'];
       const ok =
         screen.includes('t("theme.title")') &&
-        screen.includes('t("theme.sectionTheme")') &&
-        screen.includes('t("theme.themeDeepspace")') &&
+        screen.includes('t("theme.status")') &&
         screen.includes('t("theme.sectionFont")') &&
         screen.includes('t("theme.reduceMotion")') &&
+        retiredThemeSection.every((snippet) => !screen.includes(snippet)) &&
         en.includes('"theme"') &&
         ko.includes('"theme"') &&
         forbiddenScreenCopy.every((term) => !screen.includes(term) && !en.includes(term) && !ko.includes(term));
@@ -1850,8 +1855,8 @@ results.push(
         id: "ThemeI18nCopy",
         status: ok ? "PASS" : "FAIL",
         note: ok
-          ? "theme screen copy lives in the deepspace bundle and avoids the old village-light metaphor"
-          : "theme screen should source display-tone copy from the deepspace bundle and avoid old village-light metaphor copy",
+          ? "theme screen (font + motion) copy lives in the deepspace bundle, the retired dark/light section stays out, and the old village-light metaphor is absent"
+          : "theme screen should source font and motion copy from the deepspace bundle, keep the retired dark/light section out (Q-261005-02), and avoid old village-light metaphor copy",
       };
     }),
   );
@@ -3037,13 +3042,18 @@ results.push(
 
 results.push(
   check("ArtA11ySemantics", () => {
-    const secondbSprite = read("src/components/art/SecondBSprite.tsx");
+    // 2026-10-05 (QA R2E-11): SecondBSprite(세컨비의 걷는 몸) · WorkerSprite 와 그 PNG 두 장이
+    //   그리는 곳 0 이 되어 E:/Legacy/2ndB 로 갔다(batch qa261005-secondb-sprite). 여기서 그 둘을
+    //   읽던 핀(스프라이트의 image 역할 · 워커 그림 숨김)은 지킬 대상이 사라졌다. 세컨비 그림의
+    //   이름 계약은 배송 마스코트(떠 있는 머리 SecondbHead)로 옮겨 아래 liveHome 두 줄이 지키고,
+    //   걷는 몸 스프라이트는 돌아오지 않는 은퇴 상태를 본다.
+    const spritesRetired =
+      !exists("src/components/art/SecondBSprite.tsx") && !exists("src/components/art/WorkerSprite.tsx");
     const islandArt = read("src/components/art/IslandArt.tsx");
     // IslandArt now only routes to FinalCoreArt (2026-10-04, L4-10), so the island
     // pixels and their a11y hiding live in SoulcoreFinalArt. Pin both files: the
     // IslandArt strings alone would be satisfied by ShardArt.
     const soulcoreFinalArt = read("src/components/art/SoulcoreFinalArt.tsx");
-    const workerSprite = read("src/components/art/WorkerSprite.tsx");
     const graphBits = read("src/components/premium/graph-bits.tsx");
     // 주석을 걷은 코드만 본다 - 이 파일 머리 주석이 걷어낸 배지 이름을 적고 있다.
     const graphBitsCode = graphBits.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
@@ -3053,12 +3063,12 @@ results.push(
     // does. Pin that shape, not the legacy `mascotLabel` local.
     const liveHome = read("src/components/deep-space/ConstellationHome.tsx");
     const ok =
-      secondbSprite.includes('accessibilityRole: "image"') &&
+      spritesRetired &&
       liveHome.includes("<SecondbHead") &&
       liveHome.includes('accessibilityLabel={t("ds.home.headA11y")}') &&
       // 2026-10-05: 대화 화면의 SecondBSprite(label=readyToChat) 핀을 걷었다. 그
       // 스프라이트는 대화 화면의 레거시 셸에서만 그려졌고 롤백 레버와 함께 빠졌다
-      // (Q-261004-11 C). 스프라이트 자체의 image 역할은 위 secondbSprite 핀이 본다.
+      // (Q-261004-11 C). 스프라이트 자체도 그 뒤 나갔다(위 spritesRetired).
       // 2026-10-05: graph-bits 의 CharacterBadge 라벨 핀(meta.name[locale])도 걷었다.
       // 그 옛 캐릭터 배지가 명부와 함께 나갔다(QA L4-08 · Q-261004-14 A). 대신 그
       // 파일이 옛 캐릭터 그림을 다시 그리지 않는지를 본다(아래 graphBits 두 줄).
@@ -3066,15 +3076,13 @@ results.push(
       islandArt.includes("accessibilityElementsHidden") &&
       islandArt.includes('importantForAccessibility="no-hide-descendants"') &&
       soulcoreFinalArt.includes("accessibilityElementsHidden") &&
-      soulcoreFinalArt.includes('importantForAccessibility="no-hide-descendants"') &&
-      workerSprite.includes("accessibilityElementsHidden") &&
-      workerSprite.includes('importantForAccessibility="no-hide-descendants"');
+      soulcoreFinalArt.includes('importantForAccessibility="no-hide-descendants"');
     return {
       id: "ArtA11ySemantics",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "meaningful SecondB/character sprites expose image labels while decorative island/worker art stays hidden"
-        : "art components should label meaningful sprites and hide decorative image layers from assistive tech",
+        ? "the live home names its SecondB head through the wrapping Pressable, decorative island art stays hidden, and the retired SecondB walking sprite stays out"
+        : "the live home should name its SecondB head (headA11y on the Pressable), decorative island art should stay hidden from assistive tech, and the retired SecondBSprite/WorkerSprite must not come back (QA R2E-11)",
     };
   }),
 );

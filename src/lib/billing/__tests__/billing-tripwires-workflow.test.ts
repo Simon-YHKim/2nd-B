@@ -55,6 +55,51 @@ describe("every tripwire the schema sets is actually read", () => {
   });
 });
 
+describe("the 88-day reward purge is watched too (0211)", () => {
+  test("it is read in its own psql call, only after asking whether it exists", () => {
+    // Inside the one-row SQL, the function missing (before 0211 reaches
+    // production) would fail the whole query and silence every money tripwire.
+    const m = /\n\s+SQL="([\s\S]*?)"\n/.exec(wf);
+    expect(m).not.toBeNull();
+    expect(m![1]).not.toContain("reward_retention_health");
+    expect(wf).toContain("to_regprocedure('public.reward_retention_health()') is not null");
+    expect(wf).toMatch(/if \[ "\$HAS_FN" = "t" \]; then/);
+  });
+
+  test("a failed read fires the tripwire instead of looking quiet", () => {
+    expect(wf).toContain('RROW="f|-1|query_failed|query_failed"');
+    expect(wf).toMatch(/if \[ "\$RET_OK" != "t" \]; then RETENTION=1; fi/);
+  });
+
+  test("a failed existence check fires too; only 'no function and no 0211' means not applied yet", () => {
+    // Security gate r1 (DB-04 / BL-05): `|| echo f` turned a connection or
+    // permission failure into "the function is missing", which skips the read
+    // and leaves RETENTION at 0. r2 (DB2-02): a clean "missing" also hid a
+    // function lost after 0211 was applied, so the ledger row is read with it.
+    const check = wf.split("\n").find((line) => line.includes("to_regprocedure('public.reward_retention_health()')"));
+    expect(check).toBeDefined();
+    expect(check).not.toContain("echo f");
+    expect(check).toContain(
+      "from supabase_migrations.schema_migrations where version = '0211' and name = 'reward_records_90d_purge'",
+    );
+    expect(check).toMatch(/\|\| FN_STATE="query_failed\|query_failed"$/);
+    expect(wf).toMatch(/IFS='\|' read -r HAS_FN HAS_0211 <<< "\$FN_STATE"/);
+    expect(wf).toMatch(/elif \[ "\$HAS_FN" != "f" \] \|\| \[ "\$HAS_0211" != "f" \]; then\s*\n\s*RETENTION=1;/);
+  });
+
+  test("it has a row and counts into the total", () => {
+    expect(wf).toContain('row "reward_retention" "$RETENTION"');
+    expect(wf).toMatch(/TOTAL=\$\(\([^)]*\+ RETENTION \)\)/);
+  });
+
+  test("it keeps counts and flags only", () => {
+    // reward_retention_health() returns counts and times. The step keeps the
+    // boolean, one summed count and two slash-joined summaries (hold counts;
+    // cron present/stale/failures), nothing else.
+    expect(wf).toMatch(/IFS='\|' read -r RET_OK RET_OVERDUE RET_HOLDS RET_CRON <<< "\$RROW"/);
+  });
+});
+
 describe("it cannot leak what it is counting", () => {
   test("the query selects counts only, never a user id or a payload", () => {
     // Anchored to a line that STARTS with SQL=, so it cannot match PSQL= above it.

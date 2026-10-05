@@ -343,27 +343,21 @@
     "title": "Foco diário",
     "pause": "Pausar",
     "alarmFocusTitle": "Bloco de foco concluído",
-    "alarmFocusBodyStar": "Bom trabalho. Uma sessão de foco salva para {{star}}.",
+    "alarmFocusBodyArea": "Sessão de foco de {{area}} concluída.",
     "ringReady": "Pronto",
     "ringFocusing": "Concentrando",
     "ringPaused": "Pausado",
-    "leadPre": "Concentre-se em uma tarefa. Ao terminar, a sessão será registrada na ",
-    "leadStar": "estrela {{star}}",
+    "leadPre": "Concentre-se em uma tarefa. Ao terminar, conta como uma sessão de ",
+    "leadArea": "{{area}}",
     "leadPost": ".",
     "preset": "{{min}} min",
     "startFocus": "Iniciar foco",
     "resetBtn": "Reiniciar",
-    "forWhichStar": "Para qual estrela?",
+    "forWhichArea": "Para qual área é este foco?",
     "todayCount": "{{sessions}} sessões de foco hoje",
     "todaySub": "Cerca de {{min}} min · meta {{goal}}",
-    "todayStarCount": "Estrela {{star}} · {{n}} hoje",
-    "stars": {
-      "s0": "Crescimento",
-      "s1": "Carreira",
-      "s2": "Aprendizado",
-      "s3": "Relações",
-      "s4": "Saúde"
-    }
+    "todaySubGoalOnly": "Meta {{goal}}",
+    "todayAreaCount": "{{area}} · {{n}} hoje"
   },
   "srs": {
     "title": "Revisão de idioma",

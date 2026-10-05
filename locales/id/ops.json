@@ -343,27 +343,21 @@
     "title": "Fokus harian",
     "pause": "Jeda",
     "alarmFocusTitle": "Blok fokus selesai",
-    "alarmFocusBodyStar": "Satu sesi fokus tersimpan untuk {{star}}.",
+    "alarmFocusBodyArea": "Satu sesi fokus {{area}} selesai.",
     "ringReady": "Siap",
     "ringFocusing": "Sedang fokus",
     "ringPaused": "Dijeda",
-    "leadPre": "Fokus pada satu hal. Sesi yang selesai akan tercatat untuk ",
-    "leadStar": "bintang {{star}}",
+    "leadPre": "Fokus pada satu hal. Setelah selesai, sesi ini dihitung untuk ",
+    "leadArea": "{{area}}",
     "leadPost": ".",
     "preset": "{{min}} mnt",
     "startFocus": "Mulai fokus",
     "resetBtn": "Atur ulang",
-    "forWhichStar": "Untuk bintang apa?",
+    "forWhichArea": "Fokus ini untuk area apa?",
     "todayCount": "{{sessions}} sesi fokus hari ini",
     "todaySub": "Sekitar {{min}} mnt · target {{goal}}",
-    "todayStarCount": "Bintang {{star}} · {{n}} hari ini",
-    "stars": {
-      "s0": "Pertumbuhan",
-      "s1": "Karier",
-      "s2": "Belajar",
-      "s3": "Relasi",
-      "s4": "Kesehatan"
-    }
+    "todaySubGoalOnly": "Target {{goal}}",
+    "todayAreaCount": "{{area}} · {{n}} hari ini"
   },
   "srs": {
     "title": "Tinjau bahasa",

@@ -9,6 +9,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 
 import { colors, spacing } from "@/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
@@ -41,7 +42,7 @@ export function DeepSpaceLegalDocScreen({
   const embed = usePhoneEmbed();
   const { t, i18n } = useTranslation(["common"]);
   const [documentLanguage, setDocumentLanguage] = useState<LegalDocumentLanguage>(() =>
-    systemLocaleFor(i18n.resolvedLanguage ?? i18n.language),
+    systemLocaleFor(renderedUiLanguage(i18n)),
   );
   const { blocks, meta } = useMemo(
     () => stripLegalDocumentIntro(parseLegalMarkdown(doc.body), doc.title),

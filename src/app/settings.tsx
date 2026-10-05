@@ -41,7 +41,6 @@ import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useTheme } from "@/lib/theme/ThemeContext";
 import { signOut } from "@/lib/supabase/auth";
 // Direct module import (NOT the components/deepspace barrel) — the barrel has a
 // known require cycle that crashed the /settings path once already (PR 711).
@@ -416,8 +415,6 @@ export default function Settings() {
   const displayLocale = AVAILABLE_UI_LOCALES.includes(i18n.language as AvailableUiLocale)
     ? (i18n.language as AvailableUiLocale)
     : "en";
-  const { mode, setMode } = useTheme();
-  const dark = mode === "dark";
   const noticeCenter = useNoticeCenter(userId);
 
   // Wiki auto-promotion. Server-persisted (users.reasoning_prefs.wikiAuto) so the
@@ -670,18 +667,11 @@ export default function Settings() {
           />
         </M3Group>
 
-        {/* ── rev2 M3 toggle-card clone (모양 / 기능 / 데이터 연동) ── */}
-        {/* 모양 */}
-        <M3SectionLabel>{t("appearance")}</M3SectionLabel>
-        <M3Group>
-          <M3ToggleRow
-            icon="bedtime"
-            label={t("darkMode")}
-            sub={t("deepSpaceTone")}
-            checked={dark}
-            onChange={(v) => setMode(v ? "dark" : "light")}
-          />
-        </M3Group>
+        {/* ── rev2 M3 toggle-card clone (기능 / 데이터 연동) ── */}
+        {/* The 모양 group held one row, the 다크 모드 switch. Simon removed the
+            dark/light choice (Q-261005-02, 2026-10-05: "그냥 없애버려") - the app
+            is always dark, so the row and its group are gone, not hidden. Font
+            and motion stay on /theme (app group below). */}
 
         {/* 소식 */}
         <M3SectionLabel>{newSurfaceCopy.news}</M3SectionLabel>

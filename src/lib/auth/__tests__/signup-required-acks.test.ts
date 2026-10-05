@@ -283,9 +283,12 @@ describe("sign-up authority and preservation boundaries", () => {
   // 공용 KeyboardAvoidingArea(src/lib/ui/keyboard.tsx)로 바꾼 것(react-native import 1줄 수정 ·
   // import 1줄 추가 · 여는/닫는 태그 · 주석 4줄)뿐이다. Android 에서 키보드가 가입 폼을 가리지 않게 하는 수정이고, 동의 ·
   // 가입 경계와 재설정 화면 tail(sign-in-screen-contract.test.ts)은 그대로다.
+  // 2026-10-05(PR #2044 main 병합): dds-auth-screens digest 만 다시 재고정했다(옛 값
+  // 23480d40 = 위 main 판). main 판과 대조한 차이는 go-home import 한 줄(빈 줄 자리)과
+  // 재설정 화면의 재설정 잠금 등록 useGoHomeStop 한 줄뿐이다. 동의 · 가입 경계는 그대로다.
   test("preserves shared form boundaries while pinning the auth renderer", () => {
     expect(sha256(read("src/screens/deepspace/dds-auth-screens.tsx"))).toBe(
-      "23480d4049fd63907016ab6c8576cbb31f285f98e3f6b45a0a51bce6c6bd6803",
+      "713bb9c4843dfe0eaa31c70a5c291069bad9a4a987a53d4abed6fc437c440491",
     );
     expect(sha256(read("src/components/consent/ConsentNotice.tsx"))).toBe(
       "60a019c22ceec84ad550f06568763225b82839bc0e743f382aabea233e4ae170",
