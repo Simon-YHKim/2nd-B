@@ -719,7 +719,10 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 // DeepSpaceDesignScreens(그림자 사본 manual · ops) 2 · settings 1 · wiki 1 · tab-bar 1 = 31건.
 // 실측은 e0b274d0 과 이 브랜치를 PIXEL_RULES_LIST=1 로 파일별 대조했다. 같은 이유, 같은 단서 —
 // **고친 것이 아니다.** 되살리기 원본(legacy/screens/)으로 간 반쪽의 위반은 되살릴 때 다시 만난다.
-const RATCHET_BASELINE = 95;
+// 95 → 94 (2026-10-05, 옛 캐릭터 정리 · Simon 결정 Q-261004-14 A · 15 A): graph-bits 의 옛 캐릭터
+// 배지(CharacterBadge, 그리는 곳 0)가 나가면서 그 링 바탕의 알파 1건이 빠졌다(PIXEL_RULES_LIST=1
+// 파일별 대조: graph-bits 1 -> 0, 나머지 파일 변화 없음). 같은 단서 — **고친 것이 아니라 빠진 것**이다.
+const RATCHET_BASELINE = 94;
 
 // 래칫이 통과해도 **남은 빚이 어디 있는지** 볼 수 있어야 한다. 수만 보면 고칠 곳을
 // 모른다(채점기 D·E·B 축도 이름을 붙이고 나서야 고칠 것이 드러났다).

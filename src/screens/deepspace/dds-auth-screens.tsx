@@ -9,7 +9,8 @@
 // renders dds-sign-up-screen.tsx; the copy is in E:/Legacy/2ndB (MANIFEST batch
 // qa261004-lever) and git history.
 import { useCallback, useEffect, useRef, type ReactNode, type Ref } from "react";
-import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
+import { BackHandler, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { router, useFocusEffect, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { useTranslation } from "react-i18next";
@@ -78,26 +79,25 @@ function AuthBackdrop() {
 
 // Keyboard-aware shell for the auth screens (sign-in / sign-up / reset). The
 // generic Shell above is for in-app graph screens and has no keyboard handling;
-// auth forms need KeyboardAvoidingView + scroll padding (ANDROID_QA_GUIDELINES).
+// auth forms need KeyboardAvoidingArea + scroll padding (ANDROID_QA_GUIDELINES).
 export function AuthShell({ children, scrollRef }: { children: ReactNode; scrollRef?: Ref<ScrollView> }) {
   // Reserve the Android bottom inset: under edge-to-edge (Expo SDK 56 default)
   // the shared scroll's fixed paddingBottom:40 lets the last CTA on a tall
   // sign-up/reset form draw under the 3-button nav bar. insets.bottom clears it.
   //
-  // The TOP inset lives on the KeyboardAvoidingView (a plain View on Android;
-  // on iOS behavior="padding" only manages its own bottom padding), NOT on the
+  // The TOP inset lives on the KeyboardAvoidingArea (it only ever manages its
+  // own bottom padding, on iOS and Android alike), NOT on the
   // ScrollView or its content container: content-container padding scrolls away
   // — /consent-notice auto-scrolls to its ?item= target on mount, which would
   // put the arrival card right back under the status bar — and ScrollView
   // frame padding is the documented RN clipping footgun. Padding the non-scroll
   // frame starts the viewport below the status bar at EVERY scroll position,
-  // while AuthBackdrop (outside the KAV) keeps painting full-bleed behind it.
+  // while AuthBackdrop (outside the area) keeps painting full-bleed behind it.
   const insets = useSafeAreaInsets();
   return (
     <View style={styles.root}>
       <AuthBackdrop />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      <KeyboardAvoidingArea
         style={{ flex: 1, paddingTop: insets.top }}
       >
         <ScrollView
@@ -107,7 +107,7 @@ export function AuthShell({ children, scrollRef }: { children: ReactNode; scroll
         >
           {children}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
     </View>
   );
 }

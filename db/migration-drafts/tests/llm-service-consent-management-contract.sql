@@ -163,3 +163,5 @@ DO $$ DECLARE coverage jsonb; BEGIN
 END $$;
 ROLLBACK;
 SELECT 'PASS: service consent writer, ACL, exact ACKs, owner CAS/ABA, optional history, age and read-only full-cohort coverage';
+\ir polascope-consent-forward-contract.sql
+\ir consent-email-v9-forward-contract.sql

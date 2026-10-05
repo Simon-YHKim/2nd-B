@@ -10,7 +10,8 @@
 // medical assessment. Confidence is shown and capped well under 100%; the
 // populated layout only ever shows the user's real answers (strengths-survey.ts).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 
@@ -334,7 +335,7 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
       ) : null}
 
       {started ? (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingArea style={{ flex: 1 }}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
               {copy.title}
@@ -383,7 +384,7 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
               );
             }}
           />
-        </KeyboardAvoidingView>
+        </KeyboardAvoidingArea>
       ) : null}
 
       {saved ? (

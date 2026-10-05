@@ -4,8 +4,8 @@
 // engine mode (트위비 owns the existing Divergent mode). The C9 -> C3 ->
 // gemini path, grounding, citations, and safety behavior are untouched.
 //
-// This is SEPARATE from src/lib/chat/personas.ts — that file is the legacy
-// per-character roster reached via ?character= (deprecated skin, preserved).
+// The legacy per-character roster (src/lib/chat/personas.ts, reached via ?character=)
+// was switched off and moved to E:/Legacy/2ndB on 2026-10-05 (Q-261004-14 A).
 
 import { tLocale } from "@/lib/i18n/text";
 import type { SystemLocale } from "@/lib/i18n/locales";
@@ -61,13 +61,13 @@ export function rev2PersonaGlow(id: Rev2PersonaId): string {
 
 /**
  * Display name shown on the lens toggle (reference ChatScreen: KO 세컨비/메타비/
- * 트위비). Distinct from rev2PersonaName (the brand tag "2nd-B" used elsewhere).
+ * 트위비). Distinct from rev2PersonaName (the character tag "2nd-B" used elsewhere).
  */
 export function rev2PersonaLensName(id: Rev2PersonaId, locale: SystemLocale): string {
   return tLocale(locale, "secondb", `rev2.${id}.lensName`);
 }
 
-/** Monospace brand tag under the lens name (2nd-B / Meta-B / Twi-B). */
+/** Monospace character tag under the lens name (2nd-B / Meta-B / Twi-B). */
 export function rev2PersonaTag(id: Rev2PersonaId, locale: SystemLocale): string {
   return tLocale(locale, "secondb", `rev2.${id}.tag`);
 }

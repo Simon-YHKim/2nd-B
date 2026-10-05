@@ -28,7 +28,7 @@ import {
   sendMessage,
   type CommunityMessage,
 } from "@/lib/community/chat";
-import { communityRoomView, isCommunityRoomId, type RoomLookup } from "@/lib/community/room-view";
+import { canonicalCommunityRoomId, communityRoomView, isCommunityRoomId, type RoomLookup } from "@/lib/community/room-view";
 
 export interface CommunityRoomContentProps {
   roomId: string;
@@ -37,7 +37,11 @@ export interface CommunityRoomContentProps {
 }
 
 /** Owns the message FlatList; the host must give it a plain View, not another list. */
-export function CommunityRoomContent({ roomId, onReturnToList, onTitleChange }: CommunityRoomContentProps) {
+export function CommunityRoomContent({ roomId: routeRoomId, onReturnToList, onTitleChange }: CommunityRoomContentProps) {
+  // A valid id is read, sent and compared in lower case from here on (G-04, QA 261004):
+  // an upper-case link names the same room. A malformed one stays as is and reads
+  // "unavailable" below.
+  const roomId = canonicalCommunityRoomId(routeRoomId) ?? routeRoomId;
   const { t } = useTranslation("community");
   const { userId, loading, isMinor } = useAuth();
 

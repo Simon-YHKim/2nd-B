@@ -53,6 +53,12 @@ const PINNED_WITHOUT_A_RENDERER: Readonly<Record<string, string>> = {
     "tools-reachable 의 바이트 핀이 이 슬라이스를 못박는다. docs/FIDELITY_AUDIT.md(2026-06-21 " +
     "스냅샷)가 /trinity 구현으로 적었지만 trinity.tsx 는 이 이름을 import 하지 않는다 - " +
     "참조는 06-22 에 사라졌다(리다이렉트가 아니라 import 제거가 원인).",
+  SecondBSprite:
+    "세컨비 자신의 픽셀 스프라이트(옛 캐릭터 다섯이 아니다). 유일한 렌더러였던 graph-bits 의 " +
+    "CharacterBadge 가 2026-10-05 옛 캐릭터 정리(Simon 결정 Q-261004-14 A · 15 A)로 나가면서 " +
+    "그리는 곳이 0 이 됐다. 그 정리의 범위는 옛 캐릭터라 세컨비 스프라이트는 옮기지 않았다 - " +
+    "처분(이동 또는 배송 머리 SecondbHead 로 대체)은 따로 정한다. 그때 ArtA11ySemantics 의 " +
+    "image 역할 핀과 pixel-rules 이식 목록 줄을 함께 정리한다.",
   // RleCell은 승인 PNG 렌더러로 교체됨. 바이트·픽셀·표시 계약은
   // src/lib/opening/__tests__/hustlek-approved.test.ts와 src/lib/__tests__/hustlek-opening-runtime.test.ts가 지킨다.
 };

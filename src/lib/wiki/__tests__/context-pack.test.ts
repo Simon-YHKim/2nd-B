@@ -40,6 +40,7 @@ const SOURCES = [source("A morning routine", ["habits", "psychology"]), source("
 describe("composeContextPack — §6 two-layer structure", () => {
   it("puts the rules in the header, above the detail and the task", () => {
     const pack = composeContextPack(PAGES, SOURCES, { asOf: "2026-06-16", identity: { displayName: "Simon" } });
+    expect(pack.header).toContain("spec: PolaScope Personal Context Layer");
     expect(pack.header).toContain("## How to use this (rules)");
     // Rules sit before the detail in the full document.
     expect(pack.full.indexOf("## How to use this (rules)")).toBeLessThan(pack.full.indexOf("## Wiki pages"));

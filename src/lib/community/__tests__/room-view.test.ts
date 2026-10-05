@@ -1,4 +1,4 @@
-import { communityRoomView, isCommunityRoomId, type RoomLookup } from "../room-view";
+import { canonicalCommunityRoomId, communityRoomView, isCommunityRoomId, type RoomLookup } from "../room-view";
 import type { CommunityRoom } from "../chat";
 
 // Room ids are uuids (community_rooms.id). Since W-07 any other shape is "unavailable".
@@ -38,5 +38,24 @@ describe("community room deep-link view", () => {
     }
     expect(communityRoomView("sample", null)).toEqual({ state: "unavailable", room: null });
     expect(communityRoomView("sample", { roomId: "sample", state: "error" })).toEqual({ state: "unavailable", room: null });
+  });
+
+  // G-04 (QA 261004): the check above accepts an upper-case uuid, and that uuid names the
+  // same room, but the compare at the end was case-sensitive against the lower-case id the
+  // server prints, so an upper-case link read "unavailable".
+  it("an upper-case room link names the same room", () => {
+    const upper = ROOM_A.toUpperCase();
+    expect(isCommunityRoomId(upper)).toBe(true);
+    expect(canonicalCommunityRoomId(upper)).toBe(ROOM_A);
+    expect(canonicalCommunityRoomId(ROOM_A)).toBe(ROOM_A);
+    expect(canonicalCommunityRoomId("sample")).toBeNull();
+    expect(canonicalCommunityRoomId(null)).toBeNull();
+
+    const lookup: RoomLookup = { roomId: ROOM_A, state: "ready", room };
+    expect(communityRoomView(upper, lookup)).toEqual({ state: "ready", room });
+    expect(communityRoomView(upper, { ...lookup, roomId: upper })).toEqual({ state: "ready", room });
+    // Case is the only thing forgiven: another room is still another room.
+    expect(communityRoomView(upper, { ...lookup, room: { ...room, id: ROOM_B } })).toEqual({ state: "unavailable", room: null });
+    expect(communityRoomView(ROOM_B.toUpperCase(), lookup)).toEqual({ state: "loading", room: null });
   });
 });

@@ -144,3 +144,20 @@ test("a malformed room id is never sent to the server and starts no poll", () =>
     interval.mockRestore();
   }
 });
+
+// G-04 (QA 261004): an upper-case link is the same room. The screen reads it in the lower
+// case the server prints, so the membership lookup can match the row it gets back.
+test("an upper-case room link is read in lower case", () => {
+  setAuth(false);
+  const interval = jest.spyOn(global, "setInterval");
+  mockRunFocus = true;
+  try {
+    renderToStaticMarkup(React.createElement(CommunityRoomContent, { ...roomProps, roomId: "ABCDEF01-2345-4ABC-8DEF-0123456789AB" }));
+    expect(mockListRooms).toHaveBeenCalledWith("abcdef01-2345-4abc-8def-0123456789ab");
+    expect(mockListMessages).toHaveBeenCalledWith("abcdef01-2345-4abc-8def-0123456789ab");
+  } finally {
+    mockRunFocus = false;
+    for (const call of interval.mock.results) clearInterval(call.value as ReturnType<typeof setInterval>);
+    interval.mockRestore();
+  }
+});

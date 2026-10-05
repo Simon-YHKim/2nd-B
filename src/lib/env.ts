@@ -85,6 +85,8 @@ const schema = z.object({
   // Render the Soul Core v3 SVG art pack (assets/legacy-art/cosmic-pixel-v3-soulcore/)
   // instead of the legacy PNG art. Default true (Simon concept: the worldview
   // Soul/Pattern Core tesseract art + Foreman-Momo crew are the intended visuals).
+  // ⚠ 2026-10-05: no reader left - WorkerSprite's v3 branch went with the legacy
+  // characters (Q-261004-15 A). The key stays until a cleanup decides its fate.
   // Set "false" to fall back to the legacy PNG art.
   EXPO_PUBLIC_USE_V3_ART: z
     .union([z.literal("true"), z.literal("false")])
