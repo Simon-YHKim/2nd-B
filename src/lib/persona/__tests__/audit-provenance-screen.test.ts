@@ -187,13 +187,20 @@ describe("deep-space /audit screen contract", () => {
       .update(app.slice(legacyStart, legacyEnd))
       .digest("hex");
     expect(legacyHash).toBe(
-      // 롤백 레버 제거에서 재고정(2026-10-05, Simon 결정 Q-261004-11 C). 옛 값 13b50e3b 는
-      // 바로 앞 본문이다. 이 슬라이스는 레거시 렌더러라는 이름과 달리 배송된다
-      // (`/audit?screener=1`). 바뀐 것은 둘뿐이다: AuditScreenerShell 의 스킨 분기를 접어
-      // DeepSpaceScreen 을 무조건 그리게 했고(레거시 셸 PremiumAppShell 팔 삭제 - 어느
-      // 빌드도 그 팔을 타지 않았다), Round 61 주석이 옛 분기 줄을 인용하던 문장을 고쳤다.
-      // 설문 · 저장 · 위기 인계 코드는 한 줄도 안 바뀌었다(e0b274d0 과 줄 단위 대조).
-      "7ad9ed7e8a1fc8feaaa1140cd1ca7aa0f7bb20bab59948da9ea9f34bd0d68bdd");
+      // 키보드 영역 이전에서 재고정(2026-10-05). 옛 값 7ad9ed7e 는 바로 앞 본문이고, 이
+      // 편집만 되돌리면 그 값이 그대로 다시 나온다(재고정 전 HEAD 대조). 바뀐 것은 설문
+      // 두 화면의 `<KeyboardAvoidingView … behavior={Platform.OS === "ios" ? …}>` 여는 ·
+      // 닫는 태그를 공용 `<KeyboardAvoidingArea>`(src/lib/ui/keyboard.tsx)로 바꾼 네 줄뿐이다.
+      // Android 에서 키보드가 입력을 가리던 것을 고친 것이고, 설문 · 저장 · 위기 인계 코드는
+      // 한 줄도 안 바뀌었다.
+      "ab05e582560942c6ec2762ff6e501e514426506cf65a28ee619b496c478c47b3");
+    // 이전 값 7ad9ed7e8a1fc8feaaa1140cd1ca7aa0f7bb20bab59948da9ea9f34bd0d68bdd:
+    //   롤백 레버 제거에서 재고정(2026-10-05, Simon 결정 Q-261004-11 C). 옛 값 13b50e3b 는
+    //   바로 앞 본문이다. 이 슬라이스는 레거시 렌더러라는 이름과 달리 배송된다
+    //   (`/audit?screener=1`). 바뀐 것은 둘뿐이다: AuditScreenerShell 의 스킨 분기를 접어
+    //   DeepSpaceScreen 을 무조건 그리게 했고(레거시 셸 PremiumAppShell 팔 삭제 - 어느
+    //   빌드도 그 팔을 타지 않았다), Round 61 주석이 옛 분기 줄을 인용하던 문장을 고쳤다.
+    //   설문 · 저장 · 위기 인계 코드는 한 줄도 안 바뀌었다(e0b274d0 과 줄 단위 대조).
     // 이전 값 13b50e3b094749d614ebf295d6b2162357c8ce2697e229029ef6d06c4b063f76:
     //   대시보드 폰 이식에서 재고정(2026-10-02). 옛 값 e131c71f 는 이 이식 직전
     //   본문이고, 이번 편집만 되돌리면 그 값이 그대로 다시 나온다. 바뀐 것은

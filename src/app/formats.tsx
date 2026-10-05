@@ -12,10 +12,10 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  KeyboardAvoidingView,
   Platform,
   useWindowDimensions,
 } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
@@ -350,7 +350,7 @@ function FormatsLegacy() {
 
   return (
     <PremiumAppShell>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingArea style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 24) }]} keyboardShouldPersistTaps="handled">
           {editing ? (
             <TemplateEditor
@@ -574,7 +574,7 @@ function FormatsLegacy() {
             </>
           )}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
 
       {/* Delete confirm — themed modal (RN Alert two-button dialogs don't render
           on the web export). The irreversibility lives in its own sentence. */}
