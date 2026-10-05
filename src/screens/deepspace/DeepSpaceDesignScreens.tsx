@@ -6,7 +6,6 @@ import { Redirect, router, useNavigation } from "expo-router";
 import { useAppRouter } from "@/lib/nav/phone-embed";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect, SvgXml } from "react-native-svg";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { colors, spacing } from "@/theme/tokens";
 import { GLYPH_ALIAS, glyphMarkup, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
@@ -114,16 +113,14 @@ import {
 import {
   EMPTY_FOCUS_DAY,
   FOCUS_AREAS,
-  FOCUS_AREA_KEY,
   completeFocusSession,
-  focusCountKey,
-  focusLogKey,
+  focusTallyToSave,
   focusedMinutesToday,
-  readFocusArea,
-  readFocusDay,
-  serializeFocusLog,
-  type FocusDay,
+  freshFocusTally,
+  restoreFocusTally,
+  type FocusTally,
 } from "@/lib/ops/focus-tally";
+import { loadFocusArea, loadFocusDay, saveFocusArea, saveFocusDay } from "@/lib/ops/focus-store";
 import type { LifeArea } from "@/lib/dashboard/model";
 import {
   listAllWikiLinks,
@@ -2774,9 +2771,11 @@ export function DeepSpaceFocusScreen() {
 
   const [timer, setTimer] = useState<PomodoroState>(() => createPomodoro());
   // Today's tally: sessions, minutes actually focused, sessions per life area.
-  // Survives reset (not the in-cycle session count). Device-local: the only
-  // server effect of a finished session is the daily_focus routine tick below.
-  const [day, setDay] = useState<FocusDay>(EMPTY_FOCUS_DAY);
+  // Survives reset (not the in-cycle session count). Device-local and per account
+  // (lib/ops/focus-store): the only server effect of a finished session is the
+  // daily_focus routine tick below. The tally carries its owner and whether the
+  // stored record was read back (lib/ops/focus-tally FocusTally, gate FC-01 · FC-03).
+  const [tally, setTally] = useState<FocusTally>(() => freshFocusTally(null));
   const [area, setArea] = useState<LifeArea>(FOCUS_AREAS[0]);
 
   // ANDROID_QA §4: a single 1s interval drives tick(); cleared on unmount AND
@@ -2801,7 +2800,7 @@ export function DeepSpaceFocusScreen() {
         // The finished session's OWN length goes into today's minutes, so picking
         // another preset later cannot rewrite what was done (R2C-13).
         const doneArea = areaRef.current;
-        setDay((d) => completeFocusSession(d, doneArea, prev.config.focusMinutes));
+        setTally((cur) => ({ ...cur, day: completeFocusSession(cur.day, doneArea, prev.config.focusMinutes) }));
         if (userId) void applyFocusSessionComplete(userId).catch(() => {});
         void notifyNow(
           t("focus.alarmFocusTitle"),
@@ -2814,39 +2813,51 @@ export function DeepSpaceFocusScreen() {
     return () => clearInterval(id);
   }, [timer.running, userId, t]);
 
-  // Today's tally and the area pick persist across app restarts (keyed by today's
-  // KST date), so the summary covers all of today's sessions, not just this
-  // mount's. Parsing is tolerant (readFocusDay): a corrupt value reads as nothing.
+  // Today's tally and the area pick persist across app restarts, per account, so
+  // the summary covers all of today's sessions, not just this mount's. A read that
+  // fails leaves the tally unrestored: what was counted meanwhile stays in memory,
+  // nothing is written over the record that could not be read, and the next
+  // finished session reads again (restoreFocusTally adds the two, gate FC-03).
+  const restoreTally = useCallback((owner: string) => {
+    void loadFocusDay(owner, kstDateToday()).then(
+      (stored) => setTally((cur) => restoreFocusTally(cur, owner, stored)),
+      () => {},
+    );
+  }, []);
+  // Another account starts from its own empty tally and its own pick (gate FC-01).
   useEffect(() => {
+    setTally(freshFocusTally(userId));
+    setArea(FOCUS_AREAS[0]);
+    if (!userId) return;
     let alive = true;
-    const today = kstDateToday();
-    void Promise.all([AsyncStorage.getItem(focusCountKey(today)), AsyncStorage.getItem(focusLogKey(today))])
-      .then(([countRaw, logRaw]) => {
-        if (alive) setDay(readFocusDay(countRaw, logRaw));
-      })
-      .catch(() => {});
-    void AsyncStorage.getItem(FOCUS_AREA_KEY)
-      .then((v) => {
-        if (alive) setArea(readFocusArea(v));
-      })
-      .catch(() => {});
+    restoreTally(userId);
+    void loadFocusArea(userId).then(
+      (stored) => {
+        if (alive) setArea(stored);
+      },
+      () => {},
+    );
     return () => {
       alive = false;
     };
-  }, []);
+  }, [userId, restoreTally]);
   useEffect(() => {
-    if (day.count <= 0) return;
-    const today = kstDateToday();
-    void AsyncStorage.setItem(focusCountKey(today), String(day.count)).catch(() => {});
-    void AsyncStorage.setItem(focusLogKey(today), serializeFocusLog(day)).catch(() => {});
-  }, [day]);
+    if (tally.owner && !tally.restored && tally.day.count > 0) restoreTally(tally.owner);
+  }, [tally, restoreTally]);
+  useEffect(() => {
+    const save = focusTallyToSave(tally);
+    if (save) void saveFocusDay(save.owner, kstDateToday(), save.day);
+  }, [tally]);
   // The pick is written when the person picks, not from an effect: an effect would
   // also fire on mount with the default and could overwrite the stored pick
   // before it is read back.
   const pickArea = (next: LifeArea) => {
     setArea(next);
-    void AsyncStorage.setItem(FOCUS_AREA_KEY, next).catch(() => {});
+    if (userId) void saveFocusArea(userId, next);
   };
+  // Never show a tally counted for another account, even for the one render
+  // before the effect above swaps it.
+  const day = tally.owner === userId ? tally.day : EMPTY_FOCUS_DAY;
 
   if (authLoading) {
     return <DockShell title={t("focus.title")}><GraphLoading /></DockShell>;
