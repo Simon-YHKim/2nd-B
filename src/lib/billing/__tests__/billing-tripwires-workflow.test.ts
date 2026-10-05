@@ -55,7 +55,7 @@ describe("every tripwire the schema sets is actually read", () => {
   });
 });
 
-describe("the 89-day reward purge is watched too (0211)", () => {
+describe("the 88-day reward purge is watched too (0211)", () => {
   test("it is read in its own psql call, only after asking whether it exists", () => {
     // Inside the one-row SQL, the function missing (before 0211 reaches
     // production) would fail the whole query and silence every money tripwire.

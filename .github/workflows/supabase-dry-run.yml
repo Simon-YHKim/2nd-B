@@ -1364,7 +1364,7 @@ jobs:
       # removes a held transaction, dispute audit rows go three years after the
       # dispute ended, reviews push the deadline out by 90 days, and client
       # roles cannot reach any of it. Rolled back.
-      - name: Exercise 89-day reward purge
+      - name: Exercise 88-day reward purge
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/reward_records_90d_purge_regression.sql
@@ -1376,7 +1376,7 @@ jobs:
       # the hold leaves audit rows that the 0211 rollback round trip below refuses.
       # txn-race-2 is the same age with no hold and must go, so the held one
       # surviving proves the lock, not an ineligible fixture.
-      - name: Race a dispute hold against the 89-day purge
+      - name: Race a dispute hold against the 88-day purge
         env:
           PGPASSWORD: postgres
         run: |
@@ -1476,7 +1476,7 @@ jobs:
       # other step here runs it. On a throw-away clone it must remove the eight
       # functions, two tables and seven indexes 0211 made (the cron job too, when
       # pg_cron exists), and 0211 must then apply twice in a row to the same set.
-      - name: Round-trip the 89-day reward purge rollback
+      - name: Round-trip the 88-day reward purge rollback
         env:
           PGPASSWORD: postgres
         run: |
