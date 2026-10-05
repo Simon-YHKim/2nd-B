@@ -94,14 +94,16 @@ BEGIN
   ) THEN RAISE EXCEPTION 'email-v7 confirmation/provenance changed'; END IF;
 END $$;
 
+-- The fixed dual-client user differs from 0210's regression (aaaaaaaa-...): both files
+-- commit their fixtures on the same CI database, so sharing the id broke users_pkey.
 INSERT INTO auth.users(id,email,email_confirmed_at)
-VALUES('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','polascope-dual-client@example.invalid',now());
+VALUES('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','polascope-v9-dual-client@example.invalid',now());
 INSERT INTO public.users(id,email,birth_date,minor_tier,privacy_prefs)
-VALUES('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','polascope-dual-client@example.invalid','2000-01-01','adult','{}');
+VALUES('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','polascope-v9-dual-client@example.invalid','2000-01-01','adult','{}');
 
 DO $$
 DECLARE
-  u uuid := 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  u uuid := 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
   v1 jsonb; v2 jsonb; v4 jsonb; saved jsonb; receipt public.consent_records%ROWTYPE;
   acks jsonb := '{"service":true,"llmProcessing":true,"overseasTransfer":true,"sensitiveData":true,"safetyNotice":true}';
 BEGIN
@@ -151,7 +153,7 @@ END $$;
 
 SET ROLE authenticated;
 DO $$ BEGIN
-  BEGIN PERFORM public.llm_service_consent_status_v4('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+  BEGIN PERFORM public.llm_service_consent_status_v4('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
     RAISE EXCEPTION 'authenticated v4 status allowed';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
