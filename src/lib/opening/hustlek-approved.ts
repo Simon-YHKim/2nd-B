@@ -186,12 +186,20 @@ export function getApprovedOpeningScene(elapsedMs: number, width: number, height
   };
 }
 
+// Walking plays grass-a on every step (Simon Q-261005-05 = A, 2026-10-05). The approval note
+// asked for "탁-탁-탁-탁" and heard "타닥-타닥": grass-b is brighter (spectral centroid 3,821 vs
+// 3,401 Hz over the first 80 ms) and holds its energy longer (90% by 18 vs 6 ms), so the a/b
+// alternation paired into long-short. The manifest keeps the approved a/b record unchanged; only
+// playback picks a. One voice is enough: at the next step (312.5 ms) grass-a is 55 dB below its peak.
+const WALK_VARIANT = { variantId: "grass-a", variantIndex: 0 } as const;
+const forPlayback = (cue: ApprovedOpeningCue): ApprovedOpeningCue => cue.sourceId === "grass" ? { ...cue, ...WALK_VARIANT } : cue;
+
 /** Latest event per family on delayed ticks; seeking backwards is silent. */
 export function getApprovedOpeningCues(fromMs: number, toMs: number): ApprovedOpeningCue[] {
   if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs <= fromMs) return [];
   const latest: Partial<Record<ApprovedSoundSource, ApprovedOpeningCue>> = {};
   for (const cue of APPROVED_OPENING_CONFIG.cues) if (cue.enabled && cue.atMs > fromMs && cue.atMs <= toMs + 1e-8) latest[cue.sourceId] = cue;
-  return Object.values(latest).sort((a, b) => a.atMs - b.atMs);
+  return Object.values(latest).sort((a, b) => a.atMs - b.atMs).map(forPlayback);
 }
 
 // Loading in use order (Simon localhost QA 2026-10-03: no loading screen before
