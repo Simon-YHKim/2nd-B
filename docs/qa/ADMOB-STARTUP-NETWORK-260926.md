@@ -20,11 +20,11 @@ Simon의 2026-09-26 결정은 Q5를 **처리위탁(안 A)**으로 채택했다. 
 
 관련 근거: [채택 결정과 남은 게이트](REMAINING-WORK-260926.html), [Q5 독립 검토 이견](../drafts/admob-q5-third-party-review-260926.md), [Google Android 광고 SDK 데이터 공개](https://developers.google.com/admob/android/privacy/play-data-disclosure).
 
-## 2026-09-27 소스 차단 보완
+## 2026-10-06 네이티브 SDK 복원 (#1876 legal hold lift)
 
-- 광고 법률 게이트가 닫힌 동안 AdMob Expo 플러그인을 앱 설정에서 제거하고, `package.json`의 Expo autolinking 제외 목록에 SDK를 넣었다. 기존 `react-native.config.js`의 Android·iOS `null` 설정만으로는 설치된 Expo 56 도구가 이 라이브러리를 계속 연결했다. 라이브러리 자체가 플랫폼 설정을 제공하므로 실제 자동 연결 결과를 확인해야 한다.
-- 변경 후 `expo-modules-autolinking react-native-config --platform android --json`과 `--platform ios --json`의 의존성 목록 모두에서 SDK가 빠졌다. `react-native.config.js`의 양 플랫폼 `null`은 커뮤니티 CLI 경로의 보조 설정으로 남겼다. 패키지는 타입 및 차단된 JS 경로 검증을 위해 설치된 상태다.
-- 자동 연결 제외는 **출고 바이너리의 매니페스트·클래스 목록 또는 전체 초기 네트워크 무송신 증거가 아니다.** 정확한 릴리스 빌드에서 AdMob Provider·앱 ID·SDK 클래스 부재를 확인하고, 다른 Google SDK를 포함한 동의 전 트래픽은 별도로 검증한다. 광고 ON과 SDK 포함 바이너리 공개는 위 출고 조건을 충족할 때까지 보류한다.
+- Simon GO(2026-10-06): AdMob 포함 빌드 허용. `#1876`이 넣었던 Expo 플러그인 제거·`expo.autolinking.exclude`·`react-native.config.js` platforms null을 되돌렸다. `expo-asset`은 main에 그대로 있어 플러그인 블록만 복원했다.
+- JS `adNetworkPublicationReady()`는 기존과 같이 닫혀 있다. 네이티브 SDK 포함과 광고 ON(동의·출고 게이트)은 별개다. 아래 출고 조건과 과거 strip 바이너리 검사 기록은 역사적 근거로 유지한다.
+
 
 ## 2026-09-27 로컬 릴리스 APK 검사
 
