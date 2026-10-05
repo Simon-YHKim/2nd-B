@@ -1,6 +1,6 @@
 // Wiki export — bundle the user's wiki pages + sources into a single markdown
 // blob suitable for pasting into another LLM (Claude / ChatGPT / etc.) as
-// context. Delivers on the landing-page "your second brain travels" promise.
+// context. Keeps the user's knowledge portable across services.
 //
 // Two layers:
 //   - composeWikiExport(pages, sources, opts)  — pure, testable, no DB

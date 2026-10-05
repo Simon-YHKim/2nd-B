@@ -4,7 +4,7 @@
       "id": "2nd",
       "name": "세컨비",
       "tag": "2nd-B",
-      "desc": "나를 가장 잘 아는 두 번째 뇌",
+      "desc": "내 기록을 바탕으로 답하는 세컨비",
       "face": "assets/deepspace/secondb-head-front.png",
       "blank": "assets/deepspace/secondb-head-blank.png",
       "accent": "#A78BFA",

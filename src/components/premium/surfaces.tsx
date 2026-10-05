@@ -28,9 +28,9 @@ import { PixelCorner } from "./PixelCorner";
 /** Legacy brand chip that draws the old "2B" · "Brain" letters; no callers since the PolaScope rename. */
 export function BrandChip({ size = 44 }: { size?: number }) {
   return (
-    <View style={[styles.brandChip, { width: size, height: size }]}>
-      <Text style={styles.brandChipMain}>2B</Text>
-      <Text style={styles.brandChipSub}>Brain</Text>
+    <View accessible accessibilityLabel="PolaScope" style={[styles.brandChip, { width: size, height: size }]}>
+      <Text style={styles.brandChipMain}>Pola</Text>
+      <Text style={styles.brandChipSub}>Scope</Text>
     </View>
   );
 }
@@ -424,14 +424,14 @@ const styles = StyleSheet.create({
     color: semantic.brand,
     fontFamily: fontFamilies.pixelKo,
     fontWeight: "800",
-    fontSize: 16,
-    lineHeight: 18,
+    fontSize: 10,
+    lineHeight: 12,
   },
   brandChipSub: {
     color: cosmic.mistGray,
     fontFamily: fontFamilies.pixelKo,
-    fontSize: typography.sizes.xs,
-    lineHeight: 14,
+    fontSize: 9,
+    lineHeight: 11,
     letterSpacing: 0,
   },
   topBar: {
