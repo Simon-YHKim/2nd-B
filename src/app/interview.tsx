@@ -16,9 +16,8 @@
 //   nextMove(coverage, period, 이번 대화의 답변들, now)
 //     ├─ loopCheck : 같은 자리를 돌고 있다 -> LLM 을 부르지 않고 되묻는다
 //     ├─ scaffold  : 고정 발판을 즉시 표시한다. LLM·audit·network 없음
-//     └─ drill     : nextProbe(...) -> LLM 이 다음 질문 한 줄 + 직전 답의 판정
-//                    인정되면 그 층의 coverage 를 올린다. 안 닿았으면 막힘으로 세지
-//                    않고 같은 층을 다시 묻는다(lib/interview/drill-flow.ts)
+//     └─ drill     : nextProbe(...) -> LLM 이 다음 질문 한 줄
+//                    실제 답변을 받으면 그 층의 coverage 를 올린다
 //
 // 되묻기 판정의 재료는 **이번 대화의 사용자 답변들**이다. DB 를 읽지 않는다 --
 // "매번 같은 결론으로 돌아온다"는 바로 이 대화 안에서 관측되는 것이고, 그게
@@ -56,9 +55,8 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { livedPeriods, resolveInterviewRoutePeriod } from "@/lib/interview/periods";
 import { DrillProgress } from "@/components/ui/DrillProgress";
-import { isNonAnswer, scaffoldQuestion } from "@/lib/interview/stuck";
-import { answerDisposition, answerOutcome, confirmedAnswer, currentScene, layerTally } from "@/lib/interview/continuity";
-import { planProbe, settleFailedCall, settleLatest, settleUnjudged, stepAfterJudgement } from "@/lib/interview/drill-flow";
+import { isNonAnswer, scaffoldQuestion, shouldScaffold, MAX_SCAFFOLDS_PER_LAYER } from "@/lib/interview/stuck";
+import { answerDisposition, canCreditAnswer, confirmedAnswer, currentScene } from "@/lib/interview/continuity";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { createRecord } from "@/lib/records/create";
 import { addCoverage, loadCoverage } from "@/lib/interview/coverage-store";
@@ -260,10 +258,14 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   /** 이 세션을 시작할 때 이미 저장돼 있던 행렬. 저장할 때 **이번에 판 만큼만**
    *  더하기 위해 남겨둔다(0143). ref 인 이유는 렌더를 유발할 값이 아니라서다. */
   const baseCoverage = useRef<Coverage>(emptyCoverage());
-  // 못 답한 횟수와 "더 묻지 않을 층"은 화면 상태로 따로 들고 있지 않는다 (QA 261005).
-  // 둘 다 **이번 장면의 판정이 붙은 답**에서 센다(`layerTally` · `nextMove` 장면 경로).
-  // 예전에는 로컬 막힘(stuckStreak)과 모델 거부(장면 턴 셈)를 따로 세서, "모르겠어요" 뒤
-  // 모델 거부가 오면 같은 발판 문장이 두 번 나갈 수 있었다.
+  /** 현재 층에서 연속으로 못 답한 횟수. 답하면 0 으로 돌아간다. */
+  const [stuckStreak, setStuckStreak] = useState(0);
+  /** 발판을 두 번 줘도 막혀서 이번 대화에서는 더 묻지 않기로 한 층들.
+   *
+   *  칸을 안 채우는 것만으로는 부족했다(실측) -- "가장 먼저 비어 있는 칸" 규칙이
+   *  바로 그 칸을 다시 집어서 같은 질문이 계속 나갔다. 밝기는 정직하게 비워두고,
+   *  묻기만 멈춘다. */
+  const [abandoned, setAbandoned] = useState<DrillLayer[]>([]);
   /** 이 사용자에게 해당되는 시기. 진행 행렬의 열이 된다. */
   const coveredPeriods = useMemo(() => livedPeriods(age), [age]);
   const [draft, setDraft] = useState("");
@@ -322,16 +324,10 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   // 모델에 보내지 않고 화면이 발판으로 받는 답인가. `send()` 가 이걸로 막힘을 정하고,
   // 건너뛰기 가드도 **같은 판정**으로 그런 답을 답으로 세지 않는다(session-end.ts).
   // 둘이 갈라지면 "모르겠어요 → 건너뛰기" 교대가 다시 끝없이 길어진다(F2049-02).
-  //
-  // ⚠ **명시적 비답만** 여기서 받는다 (QA 261005 R2F-04). 예전에는 `canCreditAnswer` 를
-  // 못 넘는 짧은 답("시험 망쳤어요" · "나는 혼자다")도 여기로 와서 "모르겠어요"와 같은 발판을
-  // 받았고, 모델은 한 번도 안 불린 채 대화가 끝났다. 이제 짧은 답은 모델이 판정한다 --
-  // 칸은 여전히 로컬 문턱과 모델 판정이 둘 다 인정할 때만 오른다(`confirmedAnswer`).
-  // 모델로 가는 답은 부를 때마다 서버의 하루 몫을 쓰므로 교대 반복은 서버가 끊는다.
   const isLocalNonAnswer = useCallback(
     (text: string, layer: DrillLayer | null | undefined): boolean =>
-      layer != null && isBlockedAnswer(text),
-    [isBlockedAnswer],
+      layer != null && (isBlockedAnswer(text) || !canCreditAnswer(text, layer, locale)),
+    [isBlockedAnswer, locale],
   );
 
   // 이번 대화의 사용자 답변 -> 되묻기 판정의 재료. theme 를 시기로 두면
@@ -360,17 +356,17 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     async (
       history: InterviewTurn[],
       cov: Coverage,
-      /** 직전 턴에서 못 답한 층과 이번 장면에서 그 층을 못 답한 횟수. */
+      /** 직전 턴에서 못 답한 층과 그 층에서의 연속 횟수. */
       stuck: { layer: DrillLayer; streak: number } | null = null,
-      /** 마지막 답이 겨냥한 층. 모델의 판정을 기다린다. 화면이 받은 비답이면 null. */
+      giveUp: DrillLayer[] = [],
+      /** Local sufficiency passed; credit still waits for the model's confirmation. */
       credited: DrillLayer | null = null,
     ) => {
       if (!userId || ended.current) return;
       setBusy(true);
       setNotice(null);
       try {
-        // 더 묻지 않을 층은 장면의 판정에서 나온다(`nextMove` 장면 경로) -- 화면이 따로 들지 않는다.
-        const move = nextMove(cov, period, entriesOf(history), new Date(), stuck, [], {
+        const move = nextMove(cov, period, entriesOf(history), new Date(), stuck, giveUp, {
           history, locale, concreteOnly,
         });
         if (move.kind === "finish" && !credited) {
@@ -402,7 +398,6 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               text: scaffoldQuestion(move.layer, locale, stuck?.streak ?? 1),
               layer: move.layer,
               period,
-              detour: true,
             },
           ]);
           setPendingLayer(move.layer);
@@ -410,30 +405,16 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           setNotice(t("drill.scaffoldNote"));
           return;
         }
-        // 마지막 답이 인정되면 어디로, 안 되면 어디로 갈지를 **부르기 전에** 정한다
-        // (`planProbe`, drill-flow.ts). 둘 다 `nextMove` 장면 경로가 고른 층이다 -- 후속 질문
-        // 경계가 층을 다시 고르면 방금 비워 둔 칸으로 되돌아갈 수 있다. 모델은 자기 판정으로
-        // 둘 중 하나를 겨냥한다. 갈 곳이 없으면(장면이 끝났다) 부르지 않는다.
-        const plan = planProbe({ history, period, locale, concreteOnly, credited, move });
-        if (!plan) {
-          setTurns(credited ? settleLatest(history, "unlanded") : history);
-          finish();
-          return;
-        }
+        // ⚠ 층은 **언제나** `move.layer` 를 넘긴다. `nextMove` 가 포기 목록까지 보고
+        // 고른 층을 후속 질문 경계가 다시 고르면 방금 포기한 칸으로 되돌아갈 수 있다.
         const probe = await nextProbe(
           userId, locale, period, history, cov, isMinor === true,
-          0, plan.target, plan.fallback,
+          0, move.kind === "finish" ? credited : move.layer,
         );
         // Stop/save can be selected while this request is in flight.
         if (ended.current) return;
         if (probe.zone === "red") {
-          // C9: 텍스트가 아니라 핫라인. 모델의 질문은 보이지 않는다.
-          // 마지막 답은 판정을 못 받은 것으로 정착시키고 그 층의 시도 하나로 센다(`settleUnjudged`)
-          // -- 겨냥 층을 비워 두면 안내를 닫은 뒤의 답이 층 없이 나가 호출 상한 밖에서 돈다.
-          const unjudged = settleUnjudged(history, credited);
-          setTurns(unjudged.turns);
-          if (unjudged.retry) setPendingLayer(unjudged.retry);
-          else finish();
+          // C9: 텍스트가 아니라 핫라인. 대화는 여기서 멈춘다.
           setCrisis({ visible: true, hotline: hotlineFor() });
           return;
         }
@@ -441,33 +422,32 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         const confirmed = credited && lastAnswer
           ? confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer)
           : false;
-        // 판정은 셋이다(continuity.ts `answerOutcome`): 인정 · "답을 안 했다"(none) · 답했지만
-        // 안 닿음. 마지막 것은 **막힘으로 세지 않는다** (QA 261005 R2F-05) -- 다른 층의 사실 ·
-        // 행동으로 정직하게 답한 사람을 세 번 만에 끝내지 않는다. `none` 은 우회 질문 뒤에도
-        // 막힘이다(게이트 W4-R1-02).
-        const outcome = credited && lastAnswer
-          ? answerOutcome(Boolean(confirmed), probe.answeredLayer)
-          : null;
-        const assessed = outcome ? settleLatest(history, outcome) : history;
+        const assessed = history.map((turn, index) => index === history.length - 1 && turn.role === "user"
+          ? { ...turn, answered: Boolean(confirmed) }
+          : turn);
         // Nothing is added on a sparse answer, missing judgement, failure, or stop.
         // The model cannot award another layer or override the local gate.
         if (credited && confirmed) setCoverage(incrementCoverage(cov, period, credited));
-        const step = credited && outcome
-          ? stepAfterJudgement(outcome, credited, currentScene(assessed), plan)
-          : { kind: "ask" as const, layer: plan.target, detour: false };
-        if (step.kind === "finish") {
+        if (move.kind === "finish") {
           setTurns(assessed);
           finish();
           return;
         }
-        if (step.kind === "scaffold") {
-          // "답을 안 했다"는 판정 -- 모델 질문을 버리고 같은 층의 고정 발판을 낸다(모르겠어요와 같은 셈).
-          setTurns([
-            ...assessed,
-            { role: "interviewer", text: scaffoldQuestion(step.layer, locale, step.streak), layer: step.layer, period, detour: true },
-          ]);
-          setPendingLayer(step.layer);
-          setNotice(t("drill.scaffoldNote"));
+        if (credited && !confirmed) {
+          const streak = currentScene(history).filter((turn) => turn.role === "user"
+            && turn.layer === credited && turn.answered === false).length + 1;
+          setStuckStreak(streak);
+          if (shouldScaffold(streak)) {
+            setTurns([
+              ...assessed,
+              { role: "interviewer", text: scaffoldQuestion(credited, locale, streak), layer: credited, period },
+            ]);
+            setPendingLayer(credited);
+            setNotice(t("drill.scaffoldNote"));
+            return;
+          }
+          setTurns(assessed);
+          finish();
           return;
         }
         if (!probe.question) {
@@ -475,8 +455,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           finish();
           return;
         }
-        setTurns([...assessed, { role: "interviewer", text: probe.question, layer: step.layer, period, detour: step.detour }]);
-        setPendingLayer(step.layer);
+        setTurns([...assessed, { role: "interviewer", text: probe.question, layer: probe.layer, period }]);
+        setPendingLayer(probe.layer);
         setOpeners(probe.openers);
       } catch (error) {
         // 오늘 몫이 찼다는 서버 거절은 오류가 아니라 끝맺음이다(session-end.ts).
@@ -489,14 +469,6 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           }
           return;
         }
-        // 그 밖의 실패: 마지막 답은 판정을 못 받았다. 요청이 실패한 것은 답이 부족한 것이 아니라
-        // 그 층의 시도로 세지 않고, **대화를 끝내지 않는다** (게이트 W4-R2-01, `settleFailedCall`).
-        // 칸은 더하지 않고, 겨냥 층을 되돌려 오류 안내와 함께 같은 질문에 다시 보내게 한다.
-        // 겨냥 층을 비운 채 두면 다음 답이 층 없이 나가 층마다의 상한을 빠져나갔다(W4R1-01).
-        if (ended.current) return;
-        const failed = settleFailedCall(history, credited);
-        setTurns(failed.turns);
-        setPendingLayer(failed.retry);
         setNotice(t("drill.failed"));
       } finally {
         setBusy(false);
@@ -582,6 +554,9 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     }
     // 답변이 붙는 층은 **직전 질문이 겨냥한 층**이다. 되묻기였다면 층이 없다 --
     // 그건 깊이를 판 것이 아니라 방향을 바꾼 것이므로 coverage 를 올리지 않는다.
+    const answered: InterviewTurn = { role: "user", text, layer: pendingLayer ?? undefined, period };
+    const nextTurns = [...turns, answered];
+
     // ⚠ **"모르겠다"는 칸을 채우지 않는다** (Simon 실측, 2026-08-24).
     //
     // 예전에는 비어 있지 않은 답이면 무조건 `incrementCoverage` 를 불렀다. 그래서
@@ -589,27 +564,28 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     // **못 판 것을 판 것으로 셌다.** 그 칸 수가 그대로 `narrativeStarLevel` 의
     // 입력이라 등급까지 오염됐다 -- 7렌즈 감사에서 걸린 바로 그 병이다.
     //
-    // 화면이 직접 받는 것은 **사용자가 스스로 포기를 말한 답**뿐이다(`isLocalNonAnswer`,
-    // 결정론). 짧은 답은 여기서 막지 않고 모델의 판정을 받는다(QA 261005 R2F-04). 칸은
-    // 그 판정과 로컬 문턱이 둘 다 인정할 때만 오르므로 밝기가 모델 혼자의 판단에 달리지 않는다.
+    // 판정은 결정론적이고(`stuck.ts`) 보수적이다 -- 사용자가 스스로 포기를
+    // 말했을 때만 안 셌다. 밝기가 LLM 의 기분에 달려서는 안 되기 때문이다.
     const blocked = isLocalNonAnswer(text, pendingLayer);
-    const answered: InterviewTurn = blocked
-      ? { role: "user", text, layer: pendingLayer ?? undefined, period, answered: false, outcome: "blocked" }
-      : { role: "user", text, layer: pendingLayer ?? undefined, period };
-    const nextTurns = [...turns, answered];
     const nextCoverage = coverage;
-    // 못 답한 횟수는 이번 장면에서 그 층의 비답(모르겠어요 · 모델의 none)을 센다.
-    // 모델 판정 길(drill-flow.ts)과 같은 셈이라 발판 문장이 겹치지 않는다.
-    const stuck = blocked && pendingLayer
-      ? { layer: pendingLayer, streak: layerTally(currentScene(nextTurns), pendingLayer).failures }
-      : null;
+    const nextStreak = blocked ? stuckStreak + 1 : 0;
+    const stuck = blocked && pendingLayer ? { layer: pendingLayer, streak: nextStreak } : null;
+    // 발판을 두 번 줘도 막혔다. 이 층은 이번 대화에서 더 묻지 않는다 -- 칸은
+    // 비운 채로. 안 그러면 비어 있다는 이유로 같은 층이 계속 다시 골라진다.
+    const nextAbandoned =
+      pendingLayer && nextStreak > MAX_SCAFFOLDS_PER_LAYER && !abandoned.includes(pendingLayer)
+        ? [...abandoned, pendingLayer]
+        : abandoned;
 
     setTurns(nextTurns);
     setCoverage(nextCoverage);
+    // 포기했으면 연속 카운터도 초기화한다 -- 다음 층은 새로 시작하는 것이 맞다.
+    setStuckStreak(nextAbandoned !== abandoned ? 0 : nextStreak);
+    setAbandoned(nextAbandoned);
     setDraft("");
     setOpeners([]);
     setPendingLayer(null);
-    await ask(nextTurns, nextCoverage, stuck, blocked ? null : pendingLayer);
+    await ask(nextTurns, nextCoverage, stuck, nextAbandoned, blocked ? null : pendingLayer);
   }
 
   function changeAngle(choice: "skip" | "concrete") {
@@ -626,6 +602,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     setTurns([...turns, { role: "interviewer", text, layer: "fact", period, sceneStart: choice === "skip" }]);
     setConcreteOnly(choice === "concrete");
     setPendingLayer("fact");
+    setStuckStreak(0);
+    setAbandoned([]);
     setDraft("");
     setOpeners([]);
     setNotice(null);

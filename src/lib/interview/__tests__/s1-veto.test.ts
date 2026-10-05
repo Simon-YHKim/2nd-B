@@ -53,11 +53,8 @@ describe("엔진이 분류를 실어 돌려준다", () => {
   });
 
   it("모델이 판단을 안 하면 undefined 다 (null 과 다르다)", () => {
-    // undefined = 판단 없음 · null = "답을 아예 안 했다"(none).
-    // ⚠ 2026-10-05 정정(QA 261005 R2F-05): 여기 "undefined = 크레딧 유지"라고 적혀 있었는데
-    // 동작은 그렇지 않았다 -- 둘 다 칸을 올리지 못한다(`confirmedAnswer`). 갈리는 곳은 막힘 셈이다:
-    // null 은 막힘(`missed`)으로 세고, undefined(응답이 깨짐)는 막힘으로 세지 않는다(`unlanded`).
-    // 이 둘을 뭉개면 모델 출력이 세 번 깨지는 것만으로 대화가 끝난다.
+    // undefined = 판단 없음(크레딧 유지) · null = 안 닿았다(크레딧 회수).
+    // 이 둘을 뭉개면 모델이 조용할 때마다 밝기가 깎인다.
     expect(SRC).toContain("if (typeof v !== \"string\") return undefined;");
     expect(SRC).toContain('if (v === "none") return null;');
   });
@@ -81,10 +78,7 @@ describe("확인 전에는 가산하지 않고 모델 혼자 층을 올리지 �
     expect(incs).toHaveLength(1);
     expect(SCREEN).toContain("const nextCoverage = coverage;");
     // 로컬 관문은 `isLocalNonAnswer` 하나에 있고 send() 가 직전 질문의 층으로 부른다(F2049-02).
-    // 2026-10-05 재조준(QA 261005 R2F-04): 그 관문은 이제 **명시적 비답만** 받는다. 짧은 답은
-    // 모델이 판정하고, 칸은 여전히 `confirmedAnswer`(로컬 문턱 && 모델 판정)로만 오른다 -- 위 단언.
-    expect(SCREEN).toContain("layer != null && isBlockedAnswer(text)");
-    expect(SCREEN).not.toContain("!canCreditAnswer(text, layer, locale)");
+    expect(SCREEN).toContain("layer != null && (isBlockedAnswer(text) || !canCreditAnswer(text, layer, locale))");
     expect(SCREEN).toContain("const blocked = isLocalNonAnswer(text, pendingLayer);");
     // answeredLayer 로 칸을 올리는 코드가 있으면 비대칭이 깨진다.
     expect(SCREEN).not.toMatch(/incrementCoverage\([^)]*answeredLayer/);

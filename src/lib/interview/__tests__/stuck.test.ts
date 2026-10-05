@@ -185,11 +185,7 @@ describe("⚠ 층을 정하는 곳은 하나다 (실행해서 잡은 두 번째 
   const SCREEN = readFileSync(join(__dirname, "..", "..", "..", "app", "interview.tsx"), "utf8");
 
   it("화면이 nextProbe 에 move.layer 를 항상 넘긴다", () => {
-    // 2026-10-05 (QA 261005 R2F-05) 재조준: 화면은 이제 `planProbe` 가 정한 두 갈래(인정되면 ·
-    // 안 되면)를 넘긴다. 둘 다 `nextMove` 장면 경로가 고른 층이다 -- 인정 갈래는 `move.layer`
-    // 그대로이고(drill-flow.test.ts 가 값으로 지킨다), 경계가 층을 다시 고르지 않는다는 성질은 같다.
-    expect(SCREEN).toContain("0, plan.target, plan.fallback,");
-    expect(SCREEN).toContain("const plan = planProbe({ history, period, locale, concreteOnly, credited, move });");
+    expect(SCREEN).toContain('0, move.kind === "finish" ? credited : move.layer,');
     // 발판은 nextProbe 앞에서 반환하고, 평상시에도 nextMove가 고른 층을 넘긴다.
     expect(SCREEN).not.toContain("isScaffold ? move.layer : null");
   });

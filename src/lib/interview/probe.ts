@@ -25,10 +25,8 @@ import {
   type ReflectionEntry,
 } from "./loop-check";
 import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
-import { findAnthroViolations } from "../safety/anthro";
-import { containsAnalysisForbidden, containsForbiddenLexicon } from "../safety/classifier";
-import { MAX_TRIES_PER_LAYER, scaffoldQuestion, shouldScaffold } from "./stuck";
-import { answerDisposition, canCreditAnswer, currentScene, layerTally } from "./continuity";
+import { scaffoldQuestion, shouldScaffold } from "./stuck";
+import { answerDisposition, canCreditAnswer, currentScene } from "./continuity";
 
 /**
  * 인터뷰가 다루는 자리. **북두칠성 일곱 중 인터뷰가 있는 여섯과 1:1** 이다
@@ -82,26 +80,7 @@ export interface InterviewTurn {
   sceneStart?: boolean;
   /** Session-only: true = this answer earned its layer's cell, false = it did not. */
   answered?: boolean;
-  /** Session-only: why a user answer did or did not earn the cell (`continuity.ts`). */
-  outcome?: AnswerOutcome;
-  /** Session-only, interviewer turns: a re-ask of the same layer from an easier angle
-   *  (a fixed scaffold, or the model asking the layer again after an answer that did not
-   *  land). The judge prompt says so (rule 9), so an honest answer to it is named by the
-   *  layer it landed in and is not a failure. A `none` after it still is (`answerOutcome`). */
-  detour?: boolean;
 }
-
-/**
- * 사용자 답 하나의 판정 결과 (세션 안에서만 쓴다).
- *
- * - `blocked`  : 화면이 받은 명시적 비답("모르겠어요"). 모델을 부르지 않는다.
- * - `missed`   : 모델이 "답을 아예 안 했다"(`none`)고 판정했다.
- * - `unlanded` : 답은 했지만 그 층에 안 닿았다(다른 층 · 판정 없음 · 성긴 답).
- * - `credited` : 그 층의 칸을 채웠다.
- * - `errored`  : 판정을 받으러 간 호출이 실패했다(하루 한도 밖의 오류). 답이 부족하다는 판정이
- *                아니므로 그 층의 시도로도, 막힘으로도 세지 않는다(게이트 W4-R2-01).
- */
-export type AnswerOutcome = "credited" | "unlanded" | "missed" | "blocked" | "errored";
 
 /** A user's coverage across 25 cells (5 periods × 5 layers). Each cell is the
  *  number of user answers that landed in that (period, layer) combination. */
@@ -259,6 +238,11 @@ export function nextMove(
     // A refusal and exhausted scaffolds end questioning; empty cells are not a reason
     // to revisit a declined topic. No obligation to reach all five layers.
     if (last && answerDisposition(last.text, thread.locale) === "stop") return { kind: "finish" };
+    // 장면은 **답의 개수로 끝나지 않는다** (QA 261005 R2F-09). 여기 있던 `answers.length >= 8`
+    // 은 인정 여부와 상관없이 답을 세서, 두 층에서 막혔다 회복한 사람의 장면을 울림(L5)을
+    // 묻기도 전에 끊었다. 장면을 끝내는 것은 인정된 진전(아래 `isPeriodComplete`: 다섯 층이 모두
+    // 인정됨)과 원래 있던 규칙들이다 -- 거절(위), 막힘(아래 `stuck`), 화면의 판정 경로에서 한
+    // 층을 세 번 인정받지 못함(interview.tsx). 그래서 장면 안의 판정 호출은 층마다 세 번이 넘지 않는다.
     if (abandoned.length === DRILL_LAYERS.length) return { kind: "finish" };
     if (stuck) return shouldScaffold(stuck.streak)
       ? { kind: "scaffold", layer: stuck.layer }
@@ -268,26 +252,14 @@ export function nextMove(
       : { kind: "drill", layer: "fact" };
     // Past sessions may have every cell filled. A new event still starts with its own
     // scene, and follows its own answers. No cumulative coverage drives this path.
-    // The latest answer is not judged yet (`answered` unset): it counts here when it
-    // passes the local gate, so the move below is "where to go if it is credited".
     const sceneCoverage = emptyCoverage();
     for (const turn of answers) {
       if (turn.layer && turn.answered !== false && canCreditAnswer(turn.text, turn.layer, thread.locale)) {
         sceneCoverage[period][turn.layer] += 1;
       }
     }
-    // 장면은 **답의 개수로 끝나지 않는다** (QA 261005 R2F-09). 여기 있던 `answers.length >= 8`
-    // 은 인정 여부와 상관없이 답을 세서, 두 층에서 막혔다 회복한 사람의 장면을 울림(L5)을
-    // 묻기도 전에 끊었다. 대신 **층마다** 인정 없이 물을 수 있는 횟수를 둔다: 다 쓴 층은 칸을
-    // 비운 채 놓고 다음 층으로 간다. 층이 다섯이라 장면은 저절로 유한하다(층당 최대 세 번).
-    const settled = [
-      ...abandoned,
-      ...DRILL_LAYERS.filter((l) => layerTally(scene, l).tries >= MAX_TRIES_PER_LAYER),
-    ];
-    if (DRILL_LAYERS.every((l) => sceneCoverage[period][l] > 0 || settled.includes(l))) {
-      return { kind: "finish" };
-    }
-    return { kind: "drill", layer: nextLayerSuggestion(sceneCoverage, period, settled) };
+    if (isPeriodComplete(sceneCoverage, period)) return { kind: "finish" };
+    return { kind: "drill", layer: nextLayerSuggestion(sceneCoverage, period, abandoned) };
   }
   const loops = detectLoops(recentEntries, now);
   if (loops.length > 0) {
@@ -315,8 +287,8 @@ export function nextLayerSuggestion(
   const open = DRILL_LAYERS.filter((l) => !abandoned.includes(l));
   // 전부 포기했으면 포기 목록을 무시한다 -- 달리 돌려줄 것이 없다.
   // 대화를 끝내는 것은 이 함수가 아니다. 화면은 `nextMove` 에 thread 를 넘기고,
-  // 그 분기가 다섯 층이 모두 인정됐거나 비워 둔 채 넘어갔을 때 `finish` 를 돌려준다
-  // (위 `settled`). 여기 적혀 있던 "턴 상한(MAX_TURNS)이 어차피 끝낸다"는
+  // 그 분기가 다섯 층을 모두 포기했을 때 `finish` 를 돌려준다(위 `abandoned.length
+  // === DRILL_LAYERS.length`). 여기 적혀 있던 "턴 상한(MAX_TURNS)이 어차피 끝낸다"는
   // 그 상한과 함께 없어졌다(Simon 결정 2026-10-05, 12턴 상한 해제).
   const pool = open.length > 0 ? open : DRILL_LAYERS;
 
@@ -348,19 +320,9 @@ function buildSystemPrompt(
   /** 직전 질문이 겨냥했던 층. 모델은 직전 답이 **거기 닿았는지**를 같이 판정한다.
    *  null 이면 아직 답이 없다(첫 질문) -- 판정할 것이 없다. */
   askedLayer: DrillLayer | null = null,
-  /** 직전 답이 `askedLayer` 에 **안 닿았을 때** 겨냥할 층(QA 261005 R2F-05). null 이면
-   *  판정과 상관없이 `nextLayer` 하나다. 같은 층이면 다른 각도로 다시 묻는 것이다. */
-  fallbackLayer: DrillLayer | null = null,
-  /** 직전 질문이 같은 층을 쉬운 각도로 다시 물은 것(발판 · 다시 묻기)이었다. */
-  afterDetour = false,
 ): string {
   const periodLabel = PERIOD_LABEL[locale][period];
   const layerLabel = LAYER_LABEL[locale][nextLayer];
-  // 겨냥이 판정에 달려 있는가. 화면은 부르기 전에 두 갈래를 다 정해 넘긴다(drill-flow.ts):
-  // 인정되면 `nextLayer`, 아니면 `fallbackLayer`. 모델은 자기 판정(9번)으로 하나를 고른다.
-  const branch = askedLayer !== null && fallbackLayer !== null && fallbackLayer !== nextLayer
-    ? { asked: askedLayer, fallback: fallbackLayer }
-    : null;
   if (locale === "ko") {
     const layerGuide: Record<DrillLayer, string> = {
       fact: "사실(L1) — 사건의 시간/장소/등장인물을 한 장면으로 떠올리게 하는 질문",
@@ -387,14 +349,7 @@ function buildSystemPrompt(
       // "방금 말한 것 중에서 가장 살아 있는 느낌은?" 을 L2 와 L3 에 똑같이 냈다.
       // 층을 내려가는 것이 이 기능의 전부인데 그러면 남는 것이 없다.
       "6) **이미 물어본 질문을 다시 하지 않습니다.** 위 기록에 있는 질문과 같은 뜻이면 다른 각도로 묻습니다.",
-      branch
-        ? `7) 이번 질문은 반드시 9번 판정에 따라 겨냥합니다. 직전 답이 ${LAYER_LABEL[locale][branch.asked]} 에 닿았으면 **${layerLabel}** — ${layerGuide[nextLayer]}. `
-          + `닿지 않았으면 대신 **${LAYER_LABEL[locale][branch.fallback]}** — ${layerGuide[branch.fallback]}. `
-          + (branch.fallback === branch.asked
-            ? "같은 단계를 다시 묻는 것이니 앞 질문과 다른 각도(그때 한 행동, 비교, 구체적인 예)로 묻고, 답이 부족했다고 말하지 않습니다. "
-            : "")
-          + "어느 쪽이든 의미나 믿음을 앞서 단정하지 않습니다."
-        : `7) 이번 질문은 반드시 **${layerLabel}** 을 겨냥합니다 — ${layerGuide[nextLayer]}. 단, 답이 부족하면 같은 장면의 한 가지 구체적 내용만 확인하고 의미나 믿음을 앞서 단정하지 않습니다.`,
+      `7) 이번 질문은 반드시 **${layerLabel}** 을 겨냥합니다 — ${layerGuide[nextLayer]}. 단, 답이 부족하면 같은 장면의 한 가지 구체적 내용만 확인하고 의미나 믿음을 앞서 단정하지 않습니다.`,
       ...(scaffold
         ? [
             // 8 은 실측 후 추가(2026-08-24). 사용자가 "잘 모르겠는데" 라고 했는데
@@ -407,17 +362,10 @@ function buildSystemPrompt(
         : []),
       ...(askedLayer !== null
         ? [
-            // QA 261005 R2F-04 · 05: `none` 은 "답을 안 했다"는 뜻이라 화면이 막힘으로 센다.
-            // 정직하게 답했는데 다른 층의 이야기(그때 한 사실 · 행동)였으면 그 층 이름을 받아야
-            // 막힘으로 세지 않는다. 길이도 기준이 아니다 -- 짧고 구체적인 답은 닿은 것이다.
             `9) 함께 판정합니다 — **사용자의 마지막 답이 ${LAYER_LABEL[locale][askedLayer]} 에 실제로 닿았습니까?**`
-              + " 닿았으면 그 층 이름을 `answeredLayer` 에 넣습니다. 길이로 판정하지 않습니다 -- 짧아도 그 단계의 내용이면 닿은 것입니다."
-              + " 닿지 않았지만 같은 이야기 안에서 다른 단계(그때 있었던 일이나 한 행동 같은)로 답했으면 그 단계의 층 이름을,"
-              + " 답을 아예 안 한 것이면(거부·되묻기·인터뷰 자체에 대한 항의·딴 이야기) `none` 을 넣습니다."
-              + (afterDetour
-                ? " 직전 질문은 같은 단계를 쉬운 각도로 다시 물은 것입니다. 그 질문에 답했으면 `none` 이 아니라 그 답이 닿은 층을 넣습니다."
-                : "")
-              + " 이 판정은 **덜 후하게** 하십시오 — 애매하면 닿았다고 하지 말고, 그 답이 실제로 닿은 다른 층을 넣으십시오.",
+              + " 닿았으면 그 층 이름을, 답을 아예 안 한 것이면(거부·되묻기·인터뷰 자체에 대한 항의·딴 이야기)"
+              + " `none` 을 `answeredLayer` 에 넣습니다. 이 판정은 **덜 후하게** 하십시오 —"
+              + " 애매하면 닿았다고 하지 말고 `none` 으로 두십시오.",
           ]
         : []),
       // 말문 후보. **답을 대신 써 주는 것이 아니다** — 사용자가 고쳐 쓸 첫머리다.
@@ -451,14 +399,7 @@ function buildSystemPrompt(
     "4) If the user signals 'stop' or 'enough', close warmly: 'It's okay to pause here.'",
     "5) If you detect crisis signals (self-harm, suicide, abuse), pivot immediately to US 988 hotline guidance.",
     "6) **Never repeat a question you already asked.** If the transcript above already covers it, come at it from a different angle.",
-    branch
-      ? `7) This question MUST target according to judgement 9. If the last answer landed in ${LAYER_LABEL[locale][branch.asked]}, target **${layerLabel}** -- ${layerGuide[nextLayer]}. `
-        + `If it did not, target **${LAYER_LABEL[locale][branch.fallback]}** instead -- ${layerGuide[branch.fallback]}. `
-        + (branch.fallback === branch.asked
-          ? "You are asking the same layer again, so come at it from a different angle (something they did then, a comparison, a concrete example) and never say the answer fell short. "
-          : "")
-        + "Either way, do not assume a meaning or belief."
-      : `7) This question MUST target **${layerLabel}** -- ${layerGuide[nextLayer]}. If the scene is still unclear, ask for one concrete detail; do not assume a meaning or belief.`,
+    `7) This question MUST target **${layerLabel}** -- ${layerGuide[nextLayer]}. If the scene is still unclear, ask for one concrete detail; do not assume a meaning or belief.`,
     ...(scaffold
       ? [
           "8) **The user just said they don't know.** Ask the SAME layer again from an easier angle. "
@@ -470,14 +411,9 @@ function buildSystemPrompt(
     ...(askedLayer !== null
       ? [
           `9) Also judge: **did the user's last answer actually land in ${LAYER_LABEL[locale][askedLayer]}?**`
-            + " Put that layer's name in `answeredLayer` if it did. Length is not the test - a short answer with that layer's content lands."
-            + " If it did not, but they answered within the same story at another layer (what happened then, something they did),"
-            + " put that layer's name; put `none` only if they did not answer at all"
+            + " Put that layer's name in `answeredLayer` if it did, or `none` if they did not answer at all"
             + " (refusal, a question back, a complaint about the interview itself, off-topic)."
-            + (afterDetour
-              ? " The last question asked the same layer again from an easier angle; if they answered it, that is not `none` - name the layer the answer landed in."
-              : "")
-            + " Be STINGY here - when in doubt, do not credit it; name the layer the answer actually landed in instead.",
+            + " Be STINGY here - when in doubt, say `none` rather than crediting it.",
         ]
       : []),
     "Output: one JSON object. `question` = the next question, one line. `answeredLayer` = the judgement above.",
@@ -536,20 +472,16 @@ export async function nextProbe(
   scaffoldStreak = 0,
   /** 발판일 때 머물 층. 주어지면 `nextLayerSuggestion` 을 건너뛴다. */
   forceLayer: DrillLayer | null = null,
-  /** 직전 답이 물은 층에 **안 닿았다고** 판정될 때 대신 물을 층(QA 261005 R2F-05).
-   *  null 이면 판정과 상관없이 `forceLayer` 하나다. 화면이 `planProbe` 로 정한다. */
-  fallbackLayer: DrillLayer | null = null,
 ): Promise<ProbeResult> {
   // 어느 층을 물을지를 **부르는 쪽이 정할 수도 있다.** 발판이 그렇다 --
   // 막힌 층에 그대로 머무른다. 안 주면 예전처럼 빈 칸을 찾아 내려간다.
   const layer = forceLayer ?? nextLayerSuggestion(coverage, period);
   const askedLayer = lastAskedLayer(history);
-  const fallback = askedLayer !== null && fallbackLayer !== null && fallbackLayer !== layer ? fallbackLayer : null;
   const res = await callLlm<ProbeReply>({
     userId,
     locale,
     purpose: "interview_probe",
-    system: buildSystemPrompt(period, locale, layer, scaffoldStreak > 0, askedLayer, fallback, lastWasDetour(history)),
+    system: buildSystemPrompt(period, locale, layer, scaffoldStreak > 0, askedLayer),
     user: buildUserPrompt(currentScene(history)),
     minor,
     responseSchema: PROBE_SCHEMA,
@@ -563,113 +495,13 @@ export async function nextProbe(
   const parsed = parseProbeReply(typeof res.text === "string" ? res.text : "");
   const raw = typeof parsed?.question === "string" ? parsed.question : typeof res.text === "string" ? res.text : "";
   const cleaned = raw.trim().split("\n")[0]?.trim() ?? "";
-  // 모델이 쓴 질문 · 말문 후보는 화면에 그대로 나간다. 형식(`usableQuestion`)만 보던 것에
-  // 말의 규율을 더한다 (게이트 W4R1-03 · W4R2-03, `modelMaySay`): 그 규율을 못 지킨 질문은
-  // 그 층의 고정 질문으로 바꾸고, 그 질문에 딸린 말문 후보는 비운다. 인정 갈래든 다시 묻기
-  // 갈래든 같은 게이트다. 판정(`answeredLayer`)은 그대로 쓴다 -- 보여 줄 말을 고르는 것이지
-  // 판정을 버리는 것이 아니다.
-  const speakable = modelMaySay(cleaned, "question");
-  const result: ProbeResult = {
-    question: "",
-    openers: speakable ? readOpeners(parsed) : [],
+  return {
+    question: usableQuestion(cleaned, history, layer, locale, scaffoldStreak),
+    openers: readOpeners(parsed),
     zone: res.safety.zone,
     layer,
     answeredLayer: askedLayer === null ? undefined : readAnsweredLayer(parsed),
   };
-  // 규칙 7: 갈래가 있으면 모델은 **자기 판정으로** 겨냥을 골랐다. 닿았다고 본 경우만
-  // `layer`, 아니면(다른 층 · none · 판정 없음) `fallback`. 반복 대체 문장도 그 층으로 고른다.
-  if (fallback !== null && result.answeredLayer !== askedLayer) result.layer = fallback;
-  result.question = usableQuestion(speakable ? cleaned : "", history, result.layer, locale, scaffoldStreak);
-  return result;
-}
-
-/** 금지 어휘(임상 용어) · 분석 금지어가 없는가. 두 언어를 다 본다 -- 모델은 섞어 쓸 수 있다.
- *  다른 모델 출력 표면(북극성 · 제안 · 위키)과 같은 런타임 거름망이다. */
-function withoutForbiddenTerms(text: string): boolean {
-  return (["en", "ko"] as const).every((l) =>
-    containsForbiddenLexicon(text, l).length === 0 && containsAnalysisForbidden(text, l).length === 0);
-}
-
-/**
- * 조언 · 권유 (프롬프트 규칙 3 "진단 · 조언 · 해석은 하지 않는다"). 두 언어를 다 본다.
- *
- * 질문에서는 묻는 꼴의 조언("Why don't you …?" · "~해 보는 건 어때요?")을 겨냥한다 -- 서술 ·
- * 명령의 조언은 질문 꼴 검사(`isOneQuestion`)가 먼저 떨어뜨린다. 서술 꼴의 권유("~하셔야 해요" ·
- * "추천해요")는 그 검사가 없는 말문 후보 때문에 함께 둔다. 일부러 좁다: 사용자가 그때 한 생각을
- * 묻는 질문("Did you feel you should apologize?" · "무엇을 해야 했나요?")은 통과한다.
- */
-const ADVICE: readonly RegExp[] = [
-  /\bwhy don['’]?t you\b/i,
-  /\bhave you (?:ever )?tried\b/i,
-  /\bhow about (?:you|trying)\b/i,
-  /\b(?:maybe|perhaps) you (?:could|should|might)\b/i,
-  /\byou (?:could|might|may want to) (?:try|consider)\b/i,
-  /\b(?:i|we) (?:would )?(?:suggest|recommend|advise)\b/i,
-  /\bmy advice\b|\bif i were you\b/i,
-  /보(?:는|시는)\s?(?:게|건|것은?)\s?어(?:때|떨|떠세)/,
-  /야\s?하지\s?않을까/,
-  /셔야\s?(?:해요|합니다|돼요|됩니다)/,
-  /(?:권해|권합니다|추천(?:해요|합니다|드려요|드립니다))/,
-];
-
-/**
- * 말문 후보가 **시키는 말**인가. 명령은 주어("you")를 흔히 생략하므로 2인칭 검사만으로는
- * 못 잡는다 -- "그 사람을 잊으세요" · "Please call them". 좁게 둔다: 영어는 지시로만 쓰이는
- * 첫머리, 한국어는 명령 어미(-세요 · -십시오 · -어라/-아라 · -거라)로 끝나는 말. 높임 서술
- * ("할머니가 바쁘세요")도 걸리지만 그 값은 칩 하나를 버리는 것이다.
- */
-function isDirective(text: string): boolean {
-  return /^(?:please\b|make sure\b|remember to\b|try to\b|go ahead\b|don['’]?t (?:worry|forget|be|let|blame|give up)\b|stop (?:blaming|worrying|being)\b)/i.test(text.trim())
-    || /(?:세요|십시오|[해하거어아]라)[.!~\s]*$/u.test(text);
-}
-
-/** "you should …"류. 앞에 "you felt / told you (that)" 같은 전달 꼴이 붙으면 사용자의
- *  생각을 묻는 것이라 조언이 아니다. */
-const YOU_MODAL = /\byou (?:should|must|need to|have to|ought to|had better|['’]d better)\b/gi;
-const REPORTED_BEFORE = /(?:\byou(?: \w+)? (?:feel|felt|think|thought|believe|believed|know|knew|sense|sensed|decide|decided|realize|realized|wish|wished|worry|worried|fear|feared|say|said)|\b(?:told|tell|telling|said|say|saying|taught|teach) you)(?: (?:that|like))? $/i;
-
-function givesAdvice(text: string): boolean {
-  const flat = text.replace(/\s+/g, " ");
-  if (ADVICE.some((re) => re.test(flat))) return true;
-  for (const match of flat.matchAll(YOU_MODAL)) {
-    if (!REPORTED_BEFORE.test(flat.slice(0, match.index))) return true;
-  }
-  return false;
-}
-
-/** 질문 하나로 끝나는가: 물음표가 정확히 하나이고 그 뒤에는 닫는 따옴표 · 괄호뿐이다.
- *  "You should stop speaking to them." 같은 서술 · 명령은 질문이 아니다(규칙 1 · 3). */
-function isOneQuestion(text: string): boolean {
-  return (text.match(/\?/g)?.length ?? 0) === 1 && /\?["'”’」』)\]\s]*$/u.test(text);
-}
-
-/** 듣는 사람을 부르는가(2인칭). 말문 후보는 사용자 자신의 말 첫머리라 사용자를 부르면 안 된다. */
-function addressesListener(text: string): boolean {
-  return /\b(?:you|your|yours|yourself|yourselves)\b/i.test(text)
-    || /(?:^|[^\p{L}])(?:너희|너|당신|네가|니가|그대)(?:들)?(?:는|은|가|이|의|를|을|도|한테|에게|랑|와|과)?(?=$|[^\p{L}])/u.test(text);
-}
-
-/**
- * 모델이 쓴 말 한 줄을 화면에 내도 되는가 -- 질문과 말문 후보가 **같은 게이트**를 지난다
- * (게이트 W4R1-03 · W4R2-03).
- *
- * 먼저 NFKC 로 접는다: 전각 · 호환 문자("Ｉ’ｍ ａｌｗａｙｓ ｈｅｒｅ ｆｏｒ ｙｏｕ")가 의인화 검사
- * (`findAnthroViolations` 는 NFC 만 본다)와 조언 검사를 빠져나가지 않게. 그다음 공통으로
- * 금지 어휘 · 분석 금지어 · 의인화 · 조언이 없어야 한다.
- *
- * - 질문: 질문 하나로 끝나야 한다(`isOneQuestion`). 실패하면 부르는 쪽이 그 층의 고정 질문을 쓴다.
- * - 말문 후보: 사용자 자신의 말(1인칭) 첫머리여야 한다 -- 사용자를 부르는 2인칭이거나 시키는
- *   말(`isDirective`)이면 안 된다. 실패한 후보는 버린다. 의인화 검사도 받는다: 칩은 앱이 내미는 모델의 문장이라,
- *   "I'm always here for you" 같은 동반자 말투가 사용자의 첫머리로 위장해 들어오면 안 된다.
- *   1인칭 표지("I" · "나는")가 **있어야** 한다고는 보지 않는다 -- 한국어 첫머리는 주어를
- *   흔히 생략하고("그때 기억나는 건"), 이 화면의 "en" 은 es/pt/id 사용자도 받는다.
- *
- * 걸리면 버리는 것이 전부다(대체 문장 · 빈 칩). 판정은 건드리지 않는다.
- */
-export function modelMaySay(text: string, kind: "question" | "opener"): boolean {
-  const folded = text.normalize("NFKC");
-  if (!withoutForbiddenTerms(folded) || findAnthroViolations(folded).length > 0 || givesAdvice(folded)) return false;
-  return kind === "question" ? isOneQuestion(folded) : !addressesListener(folded) && !isDirective(folded);
 }
 
 interface ProbeReply {
@@ -718,7 +550,6 @@ function parseProbeReply(text: string): ProbeReply | null {
  *
  * 최대 2개 · 각 24자 이내 · 줄바꿈 없음 · 빈 것 제거. 넘치면 버린다.
  * 길이를 안 자르면 칩이 화면을 밀어내고, 줄바꿈이 들어오면 한 줄 칩이 두 줄이 된다.
- * 질문과 같은 말의 게이트(`modelMaySay`)를 못 지난 후보도 하나씩 버린다(게이트 W4R1-03 · W4R2-03).
  */
 function readOpeners(reply: ProbeReply | null): string[] {
   if (!reply || !Array.isArray(reply.openers)) return [];
@@ -726,7 +557,7 @@ function readOpeners(reply: ProbeReply | null): string[] {
   for (const raw of reply.openers) {
     if (typeof raw !== "string") continue;
     const one = raw.replace(/\s+/g, " ").trim();
-    if (!one || one.length > 24 || !modelMaySay(one, "opener")) continue;
+    if (!one || one.length > 24) continue;
     if (out.includes(one)) continue;
     out.push(one);
     if (out.length === 2) break;
@@ -741,15 +572,6 @@ function lastAskedLayer(history: readonly InterviewTurn[]): DrillLayer | null {
     if (turn?.role === "user") return turn.layer ?? null;
   }
   return null;
-}
-
-/** 직전 사용자 답이 받은 질문이 **같은 층 다시 묻기**(발판 · 우회)였는가. */
-export function lastWasDetour(history: readonly InterviewTurn[]): boolean {
-  for (let i = history.length - 1; i >= 0; i -= 1) {
-    if (history[i]?.role !== "interviewer") continue;
-    return history[i]?.detour === true;
-  }
-  return false;
 }
 
 /** Missing and negative judgements stay distinct; neither can confirm coverage. */
