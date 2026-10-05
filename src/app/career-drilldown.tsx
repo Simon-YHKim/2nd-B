@@ -595,6 +595,12 @@ export default function CareerDrilldown() {
           body: bodyLines.join("\n"),
           topic: head,
           tags: ["career_drilldown"],
+          // This screen is the career star's drill-down (/star/career, /career), so the
+          // record files there in every locale. Left to the detector (KO + EN keywords
+          // only), the same pick filed by the language the type line was painted in:
+          // "Part-time work" -> career, "Trabajo a tiempo parcial" -> collect
+          // (BL-I18NRT-01). Same typed-intent shape as interview.tsx's growth origin.
+          domainIntent: "career",
           structured: composeStructured("career_3c4p", { summary: summary, exp_type: expType ?? "", ...values }) ?? undefined,
         });
         if (res.followup?.zone === "red") {
