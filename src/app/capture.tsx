@@ -460,7 +460,8 @@ function CaptureLegacySession({
   // J4: onboarding hands off with entry=firstRun; until now the param was
   // accepted and never read. First-run framing lowers the blank-page bar
   // ("one sentence is enough") for the journey's very first save.
-  // url/text/title arrive from the Web Share Target (manifest.webmanifest):
+  // url/text/title arrive from the Web Share Target (manifest.webmanifest) and,
+  // in the Android app, from the share sheet (src/app/+native-intent.ts):
   // sharing a page from another app opens /capture with the payload here.
   const { entry, url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam, mode: modeParam, tag: tagParam } =
     useLocalSearchParams<{ entry?: string; url?: string; text?: string; title?: string; mode?: string; tag?: string }>();

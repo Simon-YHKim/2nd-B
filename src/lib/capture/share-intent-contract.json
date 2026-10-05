@@ -1,0 +1,8 @@
+{
+  "host": "share-intent",
+  "textParam": "text",
+  "titleParam": "title",
+  "maxTextChars": 60000,
+  "maxTitleChars": 1000,
+  "truncationMarker": "\n[…]"
+}
