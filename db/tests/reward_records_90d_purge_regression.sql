@@ -23,12 +23,18 @@
 --   P10 0213: 1일 넘은/미래/티켓 발급 전 timestamp 는 v3 에서 지급되지 않는다.
 --   P11 cron.job 에 purge-reward-records-90d '37 19 * * *' 가 active (pg_cron 있을 때만).
 --   P12 reward_retention_health(): 정리 뒤 overdue 건수가 모두 0(보류 거래는 세지 않음).
+--       91일 넘은 티켓도 센다(BL-07). pg_cron 이 없는 서버에서는 ok = false(DB-03 · BL-06).
 --   P13 89일 경계: 89일 + 1시간 전 거래는 지워지고 88일 23시간 전 거래는 남는다.
 --   P14 S4 재검토: 걸 때 next_review_at = 90일 뒤, review 가 다시 90일 뒤로 미루고 'reviewed' 를 남긴다.
 --       자기 승인은 거부. 기한이 지나면 health 의 overdue_hold_reviews 가 센다.
---   P15 S1 감사 기록 3년: 분쟁이 끝난 날부터 3년(− 1일) 지난 사건의 감사 행만 정리가 지운다.
---       보류 행이 지워지면 'source_deleted' 가 남는다(해제 뒤 정리, 계정 삭제).
+--   P15 S1 감사 기록 3년: 분쟁이 끝난 날부터 정확히 3년 지난 사건의 감사 행만 정리가 지운다
+--       (3년 + 1시간은 지우고 3년 − 1시간은 남긴다, DB-02). 활성 보류 행이 해제 없이 지워질 때만
+--       'source_deleted' 가 남는다(계정 삭제). 한 사건에 보류가 여럿이면 가장 늦게 끝난 것이
+--       종료일이다(BL-04).
 -- v3(20:43 KST): S1~S4 확정 반영(P14·P15 추가, P7 감사 행 수 4).
+-- r1 게이트(2026-10-05): P7 감사 행 수 3(해제 뒤 정리는 source_deleted 를 남기지 않는다), P15 경계 ·
+--   여러 보류 사건 추가, P12 티켓 · cron 없는 ok. 보류와 정리의 경합(DB-01)은 두 세션이 필요해
+--   이 파일이 아니라 supabase-dry-run.yml 의 "Race a dispute hold against the 89-day purge" 단계가 본다.
 BEGIN;
 
 SET LOCAL session_replication_role = replica;
@@ -176,10 +182,31 @@ BEGIN
     RAISE EXCEPTION 'P13: 89-day boundary wrong'; END IF;
   -- P12: 정리 뒤 감시 건수 0 (보류 거래는 세지 않는다)
   IF (public.reward_retention_health() ->> 'overdue_rewarded_ssv_txns')::int <> 0
-     OR (public.reward_retention_health() ->> 'overdue_ad_reward_lots')::int <> 0 THEN
+     OR (public.reward_retention_health() ->> 'overdue_ad_reward_lots')::int <> 0
+     OR (public.reward_retention_health() ->> 'overdue_reward_ssv_tickets')::int <> 0 THEN
     RAISE EXCEPTION 'P12: health still reports overdue records: %', public.reward_retention_health(); END IF;
+  -- pg_cron 이 없으면 정리가 아예 돌지 않는다. 그 상태를 ok 로 보고하면 안 된다(DB-03 · BL-06).
+  IF NOT (public.reward_retention_health() ->> 'cron_available')::boolean
+     AND (public.reward_retention_health() ->> 'ok')::boolean THEN
+    RAISE EXCEPTION 'P12: ok without pg_cron: %', public.reward_retention_health(); END IF;
 END
 $p1_p6$;
+
+-- P12 티켓(BL-07): 티켓은 0196 의 정리 작업이 지운다. 그 작업이 멈춰 91일 넘은 티켓이 남으면
+-- 감시가 세야 한다. 정리 함수는 티켓을 지우지 않으므로 직접 넣고 센 뒤 치운다.
+DO $p12_tickets$
+BEGIN
+  INSERT INTO public.reward_ssv_tickets
+    (token_hash, user_id, reward_kind, expected_ad_unit_id, expected_reward_amount, expected_reward_item,
+     issued_at, expires_at)
+  VALUES (repeat('ab', 32), '30000000-0000-0000-0000-000000000211', 'reasoning', 'ca-app-pub-test/1', 1, 'credit',
+          now() - interval '92 days', now() - interval '92 days' + interval '20 minutes');
+  IF (public.reward_retention_health() ->> 'overdue_reward_ssv_tickets')::int <> 1
+     OR (public.reward_retention_health() ->> 'ok')::boolean THEN
+    RAISE EXCEPTION 'P12: a 92-day-old ticket is not reported: %', public.reward_retention_health(); END IF;
+  DELETE FROM public.reward_ssv_tickets WHERE token_hash = repeat('ab', 32);
+END
+$p12_tickets$;
 
 SELECT public.release_reward_dispute_hold('txn-p90-old-held', 'ci', 'ci-approver') AS released;
 SELECT public.purge_reward_records() AS run2;
@@ -196,9 +223,12 @@ BEGIN
     RAISE EXCEPTION 'P3: usage_counters reward columns not zeroed or paid usage touched'; END IF;
   IF NOT EXISTS (SELECT 1 FROM public.chat_usage WHERE user_id = v_one AND count = 3 AND ad_bonus = 0) THEN
     RAISE EXCEPTION 'P4: chat_usage bonus not zeroed or count touched'; END IF;
-  -- placed · reviewed · released · source_deleted
+  -- placed · reviewed · released. 해제된 보류 행이 정리로 지워질 때는 source_deleted 를 남기지
+  -- 않는다(그 사건은 released 에서 끝났다, BL-04).
   IF (SELECT count(*) FROM public.reward_dispute_hold_events
-       WHERE case_ref = 'CASE-T-001' AND transaction_id IS NULL) <> 4 THEN
+       WHERE case_ref = 'CASE-T-001' AND transaction_id IS NULL) <> 3
+     OR EXISTS (SELECT 1 FROM public.reward_dispute_hold_events
+                 WHERE case_ref = 'CASE-T-001' AND action = 'source_deleted') THEN
     RAISE EXCEPTION 'P7: audit rows missing or still carry the transaction id'; END IF;
 END
 $p3_p4$;
@@ -224,6 +254,18 @@ $p7$;
 SET LOCAL session_replication_role = replica;
 UPDATE public.reward_dispute_hold_events SET at = at - interval '3 years 2 days' WHERE case_ref = 'CASE-T-001';
 UPDATE public.reward_dispute_hold_events SET at = at - interval '3 years' + interval '2 days' WHERE case_ref = 'CASE-T-002';
+-- 경계(DB-02): CASE-T-003 은 3년 + 1시간 전에 끝나 지워지고, CASE-T-004 는 3년 − 1시간 전에 끝나
+-- 남는다. 여러 보류(BL-04): CASE-T-005 는 보류 A 를 3년 8일 전에 풀었지만 보류 B 가 3년 − 5일 전에
+-- 해제 없이 지워졌다. 종료일은 B 쪽이므로 남는다(옛 식은 A 의 해제일을 골라 지웠다).
+INSERT INTO public.reward_dispute_hold_events (case_ref, action, reason_code, actor, approved_by, actor_role, at) VALUES
+  ('CASE-T-003', 'placed',         'user_dispute', 'ci',     'ci-approver', 'operator', now() - interval '3 years 10 days'),
+  ('CASE-T-003', 'released',       'user_dispute', 'ci',     'ci-approver', 'operator', now() - interval '3 years 1 hour'),
+  ('CASE-T-004', 'placed',         'user_dispute', 'ci',     'ci-approver', 'operator', now() - interval '3 years 10 days'),
+  ('CASE-T-004', 'released',       'user_dispute', 'ci',     'ci-approver', 'operator', now() - interval '3 years' + interval '1 hour'),
+  ('CASE-T-005', 'placed',         'user_dispute', 'ci',     'ci-approver', 'operator', now() - interval '3 years 10 days'),
+  ('CASE-T-005', 'placed',         'user_dispute', 'ci',     'ci-approver', 'operator', now() - interval '3 years 9 days'),
+  ('CASE-T-005', 'released',       'user_dispute', 'ci',     'ci-approver', 'operator', now() - interval '3 years 8 days'),
+  ('CASE-T-005', 'source_deleted', 'user_dispute', 'system', NULL,          'system',   now() - interval '3 years' + interval '5 days');
 SET LOCAL session_replication_role = origin;
 SET LOCAL request.jwt.claim.role = 'service_role';
 DO $p15$
@@ -232,10 +274,15 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.reward_dispute_hold_events WHERE case_ref = 'CASE-T-002' AND action = 'source_deleted') THEN
     RAISE EXCEPTION 'P15: account deletion end not logged'; END IF;
   r := public.purge_reward_records();
-  IF (r ->> 'hold_audit_rows')::int <> 4
-     OR EXISTS (SELECT 1 FROM public.reward_dispute_hold_events WHERE case_ref = 'CASE-T-001')
-     OR NOT EXISTS (SELECT 1 FROM public.reward_dispute_hold_events WHERE case_ref = 'CASE-T-002') THEN
+  -- CASE-T-001 세 행 + CASE-T-003 두 행.
+  IF (r ->> 'hold_audit_rows')::int <> 5
+     OR EXISTS (SELECT 1 FROM public.reward_dispute_hold_events WHERE case_ref IN ('CASE-T-001', 'CASE-T-003'))
+     OR NOT EXISTS (SELECT 1 FROM public.reward_dispute_hold_events WHERE case_ref = 'CASE-T-002')
+     OR NOT EXISTS (SELECT 1 FROM public.reward_dispute_hold_events WHERE case_ref = 'CASE-T-004')
+     OR (SELECT count(*) FROM public.reward_dispute_hold_events WHERE case_ref = 'CASE-T-005') <> 4 THEN
     RAISE EXCEPTION 'P15: 3-year audit purge wrong: %', r; END IF;
+  IF (public.reward_retention_health() ->> 'overdue_hold_audit_cases')::int <> 0 THEN
+    RAISE EXCEPTION 'P15: health counts a case the purge keeps: %', public.reward_retention_health(); END IF;
 END
 $p15$;
 RESET request.jwt.claim.role;

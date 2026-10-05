@@ -17,6 +17,12 @@
 --   S4 보류는 자동 상한 없이 90일마다 재검토: next_review_at 칸, review_reward_dispute_hold(),
 --   재검토 지연은 reward_retention_health() 가 알린다. 담당은 D4(Simon 승인, Hadrianus 실행).
 -- 파일 이름과 cron 이름의 "90d" 는 방침 기간(최대 90일)을 가리킨다. 실제 기준은 89일.
+-- 보안 게이트 r1(2026-10-05, daybreak · astra) 반영:
+--   보류 설정과 정리를 같은 advisory lock 으로 줄 세운다(보류가 성공했는데 로트가 지워지는 경합).
+--   감사 기록은 정확히 3년(S1 은 '3년 보관 뒤 파기' 라 하루 당기면 보관 약속을 어긴다).
+--   source_deleted 는 활성 보류가 지워질 때만 남기고, 사건 종료일은 마지막 해제와 그것 중
+--   늦은 쪽으로 잡는다(한 사건에 보류가 여럿일 때 일찍 지우던 것). 감시는 pg_cron 이 없으면
+--   ok = false 이고, 91일 넘은 티켓(0196 정리 작업이 멈춘 경우)도 센다.
 --
 -- 방침 문장(Gaius v4 수정안 6 · v5 §1-3-2):
 --   "보상 거래 기록(광고 거래 ID, 계정 ID, 적립 시각)과 계정별 발급 제한 정보는 ...
@@ -131,7 +137,8 @@ CREATE TABLE IF NOT EXISTS public.reward_dispute_hold_events (
   id             bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   transaction_id text REFERENCES public.reward_dispute_holds (transaction_id) ON DELETE SET NULL,
   case_ref       text NOT NULL CHECK (case_ref ~ '^[A-Za-z0-9_-]{1,64}$'),
-  -- source_deleted: 보류 행이 지워짐(해제 뒤 89일 정리, 또는 계정 삭제 CASCADE). 시스템이 쓴다.
+  -- source_deleted: 활성 보류 행이 지워짐(계정 삭제 CASCADE). 시스템이 쓴다. 해제된 보류 행이
+  -- 89일 정리로 지워질 때는 남기지 않는다(사건 종료일은 이미 released 가 말한다).
   action         text NOT NULL CHECK (action IN ('placed', 'reopened', 'reviewed', 'released', 'source_deleted')),
   reason_code    text NOT NULL CHECK (reason_code IN ('user_dispute', 'store_dispute')),
   actor          text NOT NULL CHECK (actor ~ '^[a-z0-9_.-]{1,64}$'),
@@ -185,8 +192,10 @@ CREATE TRIGGER trg_reward_dispute_hold_events_append_only
   BEFORE UPDATE OR DELETE ON public.reward_dispute_hold_events
   FOR EACH ROW EXECUTE FUNCTION public.reward_dispute_hold_events_append_only();
 
--- 보류 행이 지워지면(해제 뒤 89일 정리, 또는 계정 삭제 CASCADE) 그 시각을 남긴다. 해제 없이
--- 지워진 사건(활성 보류 중 계정 삭제)의 "분쟁이 끝난 날" 을 3년 정리가 알 수 있게 하려는 것이다.
+-- 활성 보류 행이 해제 없이 지워지면(계정 삭제 CASCADE) 그 시각을 남긴다. 그 사건의 "분쟁이 끝난
+-- 날" 을 3년 정리가 알 수 있게 하려는 것이다. 해제된 보류 행이 89일 정리로 지워질 때는 남기지
+-- 않는다: 그 사건은 released 에서 이미 끝났고, 여기서 남기면 3년 정리가 정리 시각을 종료일로
+-- 읽어 보관을 늘린다(보안 게이트 r1 BL-04).
 -- transaction_id 는 비운다(지워지는 중인 행을 FK 로 물 수 없고, 거래 ID 를 남기지 않으려고).
 CREATE OR REPLACE FUNCTION public.reward_dispute_holds_log_delete()
 RETURNS trigger
@@ -195,9 +204,11 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
-  INSERT INTO public.reward_dispute_hold_events
-    (transaction_id, case_ref, action, reason_code, actor, approved_by, actor_role)
-  VALUES (NULL, OLD.case_ref, 'source_deleted', OLD.reason_code, 'system', NULL, 'system');
+  IF OLD.released_at IS NULL THEN
+    INSERT INTO public.reward_dispute_hold_events
+      (transaction_id, case_ref, action, reason_code, actor, approved_by, actor_role)
+    VALUES (NULL, OLD.case_ref, 'source_deleted', OLD.reason_code, 'system', NULL, 'system');
+  END IF;
   RETURN OLD;
 END;
 $$;
@@ -261,6 +272,12 @@ BEGIN
   IF p_transaction_id IS NULL OR length(p_transaction_id) NOT BETWEEN 1 AND 256 THEN
     RAISE EXCEPTION 'invalid transaction_id' USING ERRCODE = '22023';
   END IF;
+
+  -- purge_reward_records() 와 줄을 선다(같은 키). 정리 3-1 단계는 원장만 잠그므로, 이 잠금이
+  -- 없으면 아직 커밋되지 않은 보류를 못 본 정리가 로트를 지우고, 거래 행만 SKIP LOCKED 로 남아
+  -- "활성 보류 + 지워진 원장" 이 된다(보안 게이트 r1 DB-01 · BL-01). 정리가 먼저 잡으면 여기서
+  -- 기다렸다가 아래에서 거래 행이 없음을 보고 false 를 돌려준다.
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('public.purge_reward_records', 0));
 
   -- 거래 행이 없으면(이미 89일 정리됐거나 계정 삭제) 보류할 대상이 없다.
   PERFORM 1 FROM public.rewarded_ssv_txns AS t
@@ -414,8 +431,9 @@ AS $$
 DECLARE
   -- 방침 최대 90일 − 실행 주기 1일. 바꾸지 말 것(사후 조건과 회귀 테스트 P9 가 막는다).
   c_retention constant interval := make_interval(days => 89);
-  -- S1: 감사 기록은 분쟁이 끝난 날부터 3년. 매일 한 번 돌므로 하루 당긴다(④ 와 같은 이유).
-  c_audit_retention constant interval := make_interval(years => 3) - make_interval(days => 1);
+  -- S1: 감사 기록은 분쟁이 끝난 날부터 3년 "보관 뒤 파기". 89일과 달리 이것은 최소 보관 약속이라
+  -- 당기지 않는다. 매일 돌므로 실제 삭제는 3년을 채운 뒤 첫 실행(최대 하루 늦게)이다.
+  c_audit_retention constant interval := make_interval(years => 3);
   v_role   text := public.billing_request_role();
   v_now    timestamptz := clock_timestamp();
   v_cutoff timestamptz := v_now - c_retention;
@@ -436,6 +454,10 @@ BEGIN
   IF v_role IS NOT NULL AND v_role <> 'service_role' THEN
     RAISE EXCEPTION 'service_role only' USING ERRCODE = '42501';
   END IF;
+
+  -- place_reward_dispute_hold() 와 같은 키로 줄을 선다. 진행 중인 보류 설정이 커밋된 뒤에
+  -- 시작하므로 아래 모든 단계가 그 보류를 본다(보안 게이트 r1 DB-01 · BL-01).
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('public.purge_reward_records', 0));
 
   -- 3-1. ad_reward 로트 전체 (v_n = 지운 로트 수, v_m = 지운 원장 행 수)
   FOR v_i IN 1..v_rounds LOOP
@@ -575,8 +597,9 @@ BEGIN
   END LOOP;
 
   -- 3-6. 분쟁 보류 감사 기록 3년 정리(S1). 사건(case_ref) 단위로 본다.
-  --   분쟁이 끝난 날 = 그 사건의 마지막 placed/reopened 뒤의 마지막 released 시각,
-  --   해제 없이 보류 행이 지워졌으면(활성 보류 중 계정 삭제) 그 source_deleted 시각.
+  --   분쟁이 끝난 날 = 그 사건의 마지막 released 와 마지막 source_deleted(활성 보류가 해제 없이
+  --   지워진 시각) 중 늦은 쪽. 한 사건에 보류가 여럿이면 가장 늦게 끝난 것이 종료일이다.
+  --   마지막 placed/reopened 보다 이르면(다시 열린 사건) 끝나지 않은 것이다.
   --   같은 사건 번호에 활성 보류가 하나라도 있으면 지우지 않는다.
   PERFORM pg_catalog.set_config('app.reward_hold_audit_purge', '1', true);
   WITH cases AS (
@@ -588,8 +611,8 @@ BEGIN
      GROUP BY e.case_ref
   ), ended AS (
     SELECT c.case_ref,
-           CASE WHEN c.last_release >= c.last_open THEN c.last_release
-                WHEN c.last_gone >= c.last_open THEN c.last_gone
+           CASE WHEN GREATEST(c.last_release, c.last_gone) >= c.last_open
+                THEN GREATEST(c.last_release, c.last_gone)
            END AS ended_at
       FROM cases AS c
   ), gone AS (
@@ -624,7 +647,7 @@ REVOKE ALL ON FUNCTION public.purge_reward_records(integer, integer)
 GRANT EXECUTE ON FUNCTION public.purge_reward_records(integer, integer) TO service_role;
 
 COMMENT ON FUNCTION public.purge_reward_records(integer, integer) IS
-  '0211: 광고 보상 기록 89일 정리(상수 89일 = 방침 최대 90일 − 실행 주기 1일). ad_reward 로트 전체(만료·합계 0), rewarded_ssv_txns, usage_counters 보상 칸(KST 달 시작 기준), chat_usage.ad_bonus(KST 날 시작 기준), reward_ssv_issue_rate_limits. reward_dispute_holds 의 활성 보류 거래는 건너뛴다. 불변식: 89일 > 티켓 재시도 창 1일(0196). credit_balance.lifetime_* 는 건드리지 않음. 분쟁 보류 감사 기록은 분쟁 종료 3년(− 1일) 뒤 사건 단위로 지운다(S1). 매일 04:37 KST pg_cron purge-reward-records-90d.';
+  '0211: 광고 보상 기록 89일 정리(상수 89일 = 방침 최대 90일 − 실행 주기 1일). ad_reward 로트 전체(만료·합계 0), rewarded_ssv_txns, usage_counters 보상 칸(KST 달 시작 기준), chat_usage.ad_bonus(KST 날 시작 기준), reward_ssv_issue_rate_limits. reward_dispute_holds 의 활성 보류 거래는 건너뛴다. 불변식: 89일 > 티켓 재시도 창 1일(0196). credit_balance.lifetime_* 는 건드리지 않음. 분쟁 보류 감사 기록은 분쟁 종료 3년 뒤 사건 단위로 지운다(S1). 보류 설정과 같은 advisory lock 으로 줄을 선다. 매일 04:37 KST pg_cron purge-reward-records-90d.';
 
 ----------------------------------------------------------------------
 -- 4. 예약 (0196 과 같은 모양: 있으면 지우고 다시 건다)
@@ -677,6 +700,7 @@ DECLARE
   v_uc       bigint;
   v_chat     bigint;
   v_rl       bigint;
+  v_tickets  bigint;
   v_reviews  bigint;
   v_audit    bigint;
   v_active   boolean := NULL;
@@ -723,11 +747,18 @@ BEGIN
   SELECT count(*) INTO v_rl FROM public.reward_ssv_issue_rate_limits AS r
    WHERE r.updated_at < v_overdue;
 
+  -- 티켓은 0211 이 아니라 0196 의 purge-reward-ssv-tickets(와 발급 때 정리 트리거)가 지운다.
+  -- 소비 1일 · 만료 뒤 곧 지워지므로 91일 넘게 남은 티켓은 그 정리가 멈췄다는 뜻이다. 티켓에도
+  -- 거래 ID 와 계정 ID 가 있어 같은 90일 약속에 든다(보안 게이트 r1 BL-07).
+  SELECT count(*) INTO v_tickets FROM public.reward_ssv_tickets AS k
+   WHERE k.issued_at < v_overdue;
+
   -- S4: 재검토 기한이 지난 활성 보류(Gaius ② "재검토가 밀리면 알림").
   SELECT count(*) INTO v_reviews FROM public.reward_dispute_holds AS h
    WHERE h.released_at IS NULL AND h.next_review_at < v_now;
 
-  -- S1: 분쟁 종료 3년 + 하루 넘게 남은 감사 사건 수(정리가 돌면 늘 0).
+  -- S1: 분쟁 종료 3년 + 하루 넘게 남은 감사 사건 수(정리가 돌면 늘 0). 종료일은 정리 3-6 단계와
+  -- 같은 식이다(마지막 released 와 마지막 source_deleted 중 늦은 쪽).
   SELECT count(*) INTO v_audit FROM (
     SELECT e.case_ref,
            max(e.at) FILTER (WHERE e.action IN ('placed', 'reopened')) AS last_open,
@@ -736,8 +767,8 @@ BEGIN
       FROM public.reward_dispute_hold_events AS e
      GROUP BY e.case_ref
   ) AS c
-   WHERE CASE WHEN c.last_release >= c.last_open THEN c.last_release
-              WHEN c.last_gone >= c.last_open THEN c.last_gone END
+   WHERE CASE WHEN GREATEST(c.last_release, c.last_gone) >= c.last_open
+              THEN GREATEST(c.last_release, c.last_gone) END
          < v_now - make_interval(years => 3) - make_interval(days => 1)
      AND NOT EXISTS (SELECT 1 FROM public.reward_dispute_holds AS h
                       WHERE h.case_ref = c.case_ref AND h.released_at IS NULL);
@@ -763,6 +794,7 @@ BEGIN
     'overdue_usage_counters', v_uc,
     'overdue_chat_usage', v_chat,
     'overdue_issue_rate_limits', v_rl,
+    'overdue_reward_ssv_tickets', v_tickets,
     'overdue_hold_reviews', v_reviews,
     'overdue_hold_audit_cases', v_audit,
     'cron_available', v_cron,
@@ -770,8 +802,10 @@ BEGIN
     'cron_last_success', v_last_ok,
     'cron_failures_7d', v_fail_7d,
     'cron_stale', v_stale,
-    'ok', (v_txns + v_lots + v_uc + v_chat + v_rl + v_reviews + v_audit) = 0
-          AND (NOT v_cron OR (COALESCE(v_active, false) AND NOT v_stale AND COALESCE(v_fail_7d, 0) = 0))
+    -- pg_cron 이 없으면 정리가 아예 돌지 않으므로 ok 일 수 없다(보안 게이트 r1 DB-03 · BL-06).
+    -- 예약 없는 CI 서버에서는 ok = false 가 맞고, CI 는 ok 가 아니라 건수를 본다.
+    'ok', (v_txns + v_lots + v_uc + v_chat + v_rl + v_tickets + v_reviews + v_audit) = 0
+          AND v_cron AND COALESCE(v_active, false) AND NOT v_stale AND COALESCE(v_fail_7d, 0) = 0
   );
 END;
 $$;
@@ -780,7 +814,7 @@ REVOKE ALL ON FUNCTION public.reward_retention_health() FROM PUBLIC, anon, authe
 GRANT EXECUTE ON FUNCTION public.reward_retention_health() TO service_role;
 
 COMMENT ON FUNCTION public.reward_retention_health() IS
-  '0211: 89일 정리 감시. 91일 넘은 비보류 보상 기록 수, 재검토 기한(90일)이 지난 활성 보류 수(S4), 분쟁 종료 3년 넘게 남은 감사 사건 수(S1), purge-reward-records-90d 의 마지막 성공 시각·7일 실패 수·26시간 미실행 여부. 건수와 시각만. billing-tripwires.yml 이 ok=false 면 이슈를 연다.';
+  '0211: 89일 정리 감시. 91일 넘은 비보류 보상 기록 수, 재검토 기한(90일)이 지난 활성 보류 수(S4), 분쟁 종료 3년 넘게 남은 감사 사건 수(S1), 91일 넘은 티켓 수(0196 정리 작업), purge-reward-records-90d 의 마지막 성공 시각·7일 실패 수·26시간 미실행 여부. pg_cron 이 없으면 ok=false. 건수와 시각만. billing-tripwires.yml 이 ok=false 면 이슈를 연다.';
 
 ----------------------------------------------------------------------
 -- 5. 끝 상태 확인 (0172~0205 와 같은 모양)

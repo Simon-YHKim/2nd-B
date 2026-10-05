@@ -71,6 +71,17 @@ describe("the 89-day reward purge is watched too (0211)", () => {
     expect(wf).toMatch(/if \[ "\$RET_OK" != "t" \]; then RETENTION=1; fi/);
   });
 
+  test("a failed existence check fires too; only a clean 'f' means not applied yet", () => {
+    // Security gate r1 (DB-04 / BL-05): `|| echo f` turned a connection or
+    // permission failure into "the function is missing", which skips the read
+    // and leaves RETENTION at 0.
+    const check = wf.split("\n").find((line) => line.includes("to_regprocedure('public.reward_retention_health()')"));
+    expect(check).toBeDefined();
+    expect(check).not.toContain("echo f");
+    expect(check).toMatch(/\|\| HAS_FN="query_failed"$/);
+    expect(wf).toMatch(/elif \[ "\$HAS_FN" != "f" \]; then\s*\n\s*RETENTION=1;/);
+  });
+
   test("it has a row and counts into the total", () => {
     expect(wf).toContain('row "reward_retention" "$RETENTION"');
     expect(wf).toMatch(/TOTAL=\$\(\([^)]*\+ RETENTION \)\)/);
@@ -78,7 +89,8 @@ describe("the 89-day reward purge is watched too (0211)", () => {
 
   test("it keeps counts and flags only", () => {
     // reward_retention_health() returns counts and times. The step keeps the
-    // boolean, one summed count and two slash-joined counters, nothing else.
+    // boolean, one summed count and two slash-joined summaries (hold counts;
+    // cron present/stale/failures), nothing else.
     expect(wf).toMatch(/IFS='\|' read -r RET_OK RET_OVERDUE RET_HOLDS RET_CRON <<< "\$RROW"/);
   });
 });

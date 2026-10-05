@@ -1362,6 +1362,110 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/reward_records_90d_purge_regression.sql
+      # Security gate r1 (DB-01 / BL-01): placing a dispute hold and the purge
+      # queue on one advisory lock. Without it, a purge that started while a hold
+      # was still uncommitted deleted the ad lot (step 3-1 locks only the ledger)
+      # and left the transaction behind under SKIP LOCKED: an active hold over a
+      # record whose ledger was gone. Two sessions on a throw-away clone, because
+      # the hold leaves audit rows that the 0211 rollback round trip below refuses.
+      # txn-race-2 is the same age with no hold and must go, so the held one
+      # surviving proves the lock, not an ineligible fixture.
+      - name: Race a dispute hold against the 89-day purge
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          clone_db="race_0211_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ || ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0211 hold race refuses an unsafe database name" >&2
+            exit 1
+          fi
+          sql() { # <db> <one statement>
+            psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
+          }
+          sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+          trap 'sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true' EXIT
+          psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('30000000-0000-0000-0000-000000000299', 'purge90-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('30000000-0000-0000-0000-000000000299', 'purge90-race@example.com', DATE '1990-01-01', 'en');
+          UPDATE public.users SET privacy_prefs = privacy_prefs || '{"ads": "true"}'::jsonb
+           WHERE id = '30000000-0000-0000-0000-000000000299';
+          SET request.jwt.claim.role = 'service_role';
+          DO $seed$
+          DECLARE
+            v_user constant uuid := '30000000-0000-0000-0000-000000000299';
+            v_month constant text := pg_catalog.to_char(pg_catalog.now() AT TIME ZONE 'Asia/Seoul', 'YYYY-MM');
+            v_shift constant interval := make_interval(days => 130);
+          BEGIN
+            PERFORM public.grant_reward_credits_ssv(v_user, v_month, 2, 'txn-race-1');
+            PERFORM public.grant_reward_credits_ssv(v_user, v_month, 2, 'txn-race-2');
+            UPDATE public.credit_ledger
+               SET created_at = created_at - v_shift,
+                   lot_opened_at = lot_opened_at - v_shift,
+                   lot_expires_at = lot_expires_at - v_shift
+             WHERE user_id = v_user AND kind = 'ad_reward';
+            UPDATE public.rewarded_ssv_txns SET granted_at = granted_at - v_shift WHERE user_id = v_user;
+            PERFORM public.expire_credit_lots(pg_catalog.now(), 500);
+          END
+          $seed$;
+          RESET request.jwt.claim.role;
+          SQL
+          state() { # lot present / txn rows / active holds for one transaction id
+            sql "$clone_db" "SELECT (SELECT (count(*) > 0)::int FROM public.credit_ledger WHERE memo = 'rewarded SSV $1')
+                                || '/' || (SELECT count(*) FROM public.rewarded_ssv_txns WHERE transaction_id = '$1')
+                                || '/' || (SELECT count(*) FROM public.reward_dispute_holds
+                                            WHERE transaction_id = '$1' AND released_at IS NULL)"
+          }
+          echo "before: txn-race-1 $(state txn-race-1), txn-race-2 $(state txn-race-2) (lot/txn/active hold)"
+          if [[ "$(state txn-race-1)" != "1/1/0" || "$(state txn-race-2)" != "1/1/0" ]]; then
+            echo "0211 hold race fixture is not in the expected state" >&2
+            exit 1
+          fi
+          # Session A places the hold and keeps its transaction open for three seconds.
+          psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+            -c "BEGIN" \
+            -c "SELECT public.place_reward_dispute_hold('txn-race-1', 'user_dispute', 'CASE-RACE-1', 'ci', 'ci-approver')" \
+            -c "SELECT pg_sleep(3)" \
+            -c "COMMIT" > hold.out &
+          hold_pid=$!
+          waited=0
+          until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                        WHERE datname = current_database() AND state = 'active'
+                                          AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+            waited=$((waited + 1))
+            if (( waited > 50 )); then echo "the hold session never reached its pause" >&2; exit 1; fi
+            sleep 0.2
+          done
+          # The hold is placed and uncommitted. It must hold the purge's advisory lock.
+          if [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_locks
+                                  WHERE locktype = 'advisory' AND granted
+                                    AND database = (SELECT oid FROM pg_catalog.pg_database WHERE datname = current_database())")" != "1" ]]; then
+            echo "place_reward_dispute_hold() did not take the purge advisory lock" >&2
+            exit 1
+          fi
+          # Session B: the purge must wait for A, then see its hold.
+          started="$(date +%s%N)"
+          sql "$clone_db" "SELECT public.purge_reward_records()" > purge.out
+          waited_ms=$(( ($(date +%s%N) - started) / 1000000 ))
+          wait "$hold_pid"
+          echo "purge waited ${waited_ms} ms: $(cat purge.out)"
+          echo "after: txn-race-1 $(state txn-race-1), txn-race-2 $(state txn-race-2)"
+          if [[ "$(state txn-race-1)" != "1/1/1" ]]; then
+            echo "the purge removed records of a transaction whose hold was being placed" >&2
+            exit 1
+          fi
+          if [[ "$(state txn-race-2)" != "0/0/0" ]]; then
+            echo "the unheld control was not purged, so the race proves nothing" >&2
+            exit 1
+          fi
+          if (( waited_ms < 500 )); then
+            echo "the purge did not wait for the hold session (${waited_ms} ms)" >&2
+            exit 1
+          fi
       # rollback/0211_down.sql is run by hand mid-incident, like 0189's, and no
       # other step here runs it. On a throw-away clone it must remove the eight
       # functions, two tables and seven indexes 0211 made (the cron job too, when
