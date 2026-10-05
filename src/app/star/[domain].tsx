@@ -26,6 +26,7 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PremiumLoadingState } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { RedirectHome } from "@/lib/nav/go-home";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { DOMAIN_STARS, getDomainStar, isDomainId, domainTagFor, type DomainId } from "@/lib/persona/domain-stars";
@@ -270,7 +271,8 @@ export default function DomainStarScreen() {
 
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
-  if (!domainId) return <Redirect href="/" />;
+  // 모르는 영역 이름이면 아래에 있는 홈으로 돌아간다(QA 261004 D-01).
+  if (!domainId) return <RedirectHome />;
 
   const name = ko ? getDomainStar(domainId).nameKo : getDomainStar(domainId).nameEn;
   const headerMeta = DOMAIN_HEADER_META[domainId][locale];

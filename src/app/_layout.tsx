@@ -53,6 +53,8 @@ import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRet
 import { AvatarSetupGate, AvatarSetupSceneGuard } from "@/components/avatar/AvatarSetupGate";
 import { EncryptedStorageRecoveryGate } from "@/screens/deepspace/storage-recovery-gate";
 import { BackArrow } from "@/components/ui/BackArrow";
+import { IntroExitShield } from "@/components/ui/IntroExitShield";
+import { startIntroExitShield } from "@/lib/nav/intro-exit-shield";
 import { BackgroundTaskDock, CompletionToast, SecondbHeadTrackProvider } from "@/components/deepspace";
 import { pixelStackTransition } from "@/lib/motion/pixel-physical";
 import { useAppFonts } from "@/lib/fonts/use-app-fonts";
@@ -284,6 +286,9 @@ export default function RootLayout() {
               <CompletionToast />
               </AvatarSetupGate>
             </IntroGate>
+            {/* W-05: for a moment after the opening ends, a tap that was aimed
+                at its skip button must not land on the dock tab underneath. */}
+            <IntroExitShield />
             </SecondbHeadTrackProvider>
           </AuthProvider>
         </ThemeProvider>
@@ -525,6 +530,7 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
         ready={fontsReady && !loading && recoveryReady && profileHold !== "loading"}
         onContinue={() => {
           markIntroPlayed();
+          startIntroExitShield();
           setIntroDone(true);
         }}
       />
