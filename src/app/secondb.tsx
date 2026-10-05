@@ -14,7 +14,7 @@
 //     reappear every session.
 
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Modal, View, StyleSheet, ScrollView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
+import { AccessibilityInfo, View, StyleSheet, ScrollView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";
@@ -27,6 +27,7 @@ import {
 } from "expo-audio";
 
 import { Text } from "@/components/ui/Text";
+import { ScreenModal } from "@/components/ui/ScreenModal";
 import { gameboy } from "@/lib/theme/gameboy-tokens";
 import { deepSpace, deepSpaceSpacing, flattenAlpha, semantic, spacing } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
@@ -1399,8 +1400,10 @@ function SecondBChatBody() {
         />
       </KeyboardAvoidingArea>
 
-      {/* 첫 진입 인사 모달 */}
-      <Modal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
+      {/* 첫 진입 인사 모달. ScreenModal: 다른 화면이 이 화면을 덮으면 안내도 내려간다(R2A-03).
+          덮인 채 남은 대화상자는 Android 액티비티 재생성 때 지금 화면 위로 다시 뜨고,
+          두 번째 재생성에서 네이티브 크래시가 난다. introOpen 은 그대로라 돌아오면 다시 뜬다. */}
+      <ScreenModal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
         {/* Scrim: NOT a button — on web an accessibilityRole="button" backdrop
             renders as <button> and nests the modal's real <button>s inside it
             (hydration error, parity finding S1). Tap-to-dismiss stays; the
@@ -1445,10 +1448,10 @@ function SecondBChatBody() {
             </View>
           </Pressable>
         </Pressable>
-      </Modal>
+      </ScreenModal>
 
-      {/* reference drawer — pieces the answer drew on */}
-      <Modal
+      {/* reference drawer — pieces the answer drew on (ScreenModal: same R2A-03 rule) */}
+      <ScreenModal
         visible={refDrawer !== null}
         transparent
         animationType="slide"
@@ -1503,7 +1506,7 @@ function SecondBChatBody() {
             </Pressable>
           </Pressable>
         </Pressable>
-      </Modal>
+      </ScreenModal>
 
       {/* 0090: chat daily-cap top-up (+2 sends today, monthly earn cap). The
           grant RPC enforces day/month/ceiling server-side.
