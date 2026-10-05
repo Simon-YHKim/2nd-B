@@ -51,7 +51,7 @@ BEGIN
   END IF;
 END
 $before_draft$;
-\ir ../migration-drafts/UNNUMBERED_signup_consent_admob_20260925.sql
+\ir ../migrations/0191_signup_consent_admob_20260925.sql
 COMMIT;
 
 \ir signup_consent_admob_regression.sql

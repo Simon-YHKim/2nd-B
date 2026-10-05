@@ -3,7 +3,7 @@ import path from "node:path";
 
 const root = path.resolve(__dirname, "../../../..");
 const sql = readFileSync(
-  path.join(root, "db", "migration-drafts", "UNNUMBERED_reward_ssv_hardening.sql"),
+  path.join(root, "db", "migrations", "0196_reward_ssv_hardening.sql"),
   "utf8",
 );
 const edge = readFileSync(
@@ -38,7 +38,7 @@ describe("rewarded SSV hardening migration", () => {
     const rollout = section.slice(section.indexOf("1. **server OFF:**"));
     const orderedMarkers = [
       "REWARD_SSV_ENABLED=0",
-      "UNNUMBERED_reward_ssv_hardening.sql",
+      "0196_reward_ssv_hardening.sql",
       "rewarded-ssv Edge",
       "client capability OFF",
       "제한 canary",

@@ -103,7 +103,7 @@ migration과 현재 Edge 함수가 모두 정상인 상태를 만든 뒤에만 �
 
 #### Reward SSV: 서버 선행 전환
 
-`db/migration-drafts/UNNUMBERED_reward_ssv_hardening.sql`은 기존 consume RPC를 제거하고
+`db/migrations/0196_reward_ssv_hardening.sql`(초안은 2026-10-05 삭제)은 기존 consume RPC를 제거하고
 `rewarded-ssv`의 atomic settle RPC를 도입하므로 DB와 Edge를 온라인 상태에서 한쪽씩
 교체할 수 없다. 공개 앱이 새 서버 계약보다 먼저 광고를 열지 않도록 아래 순서를 지킨다.
 
@@ -113,8 +113,8 @@ migration과 현재 Edge 함수가 모두 정상인 상태를 만든 뒤에만 �
 2. **DB:** 운영 이력·함수 본문·ACL로 `0172_reward_authorization_hardening.sql`의
    서버 전용 지급 권한과 현재 사용자 자격 검사를 확인한다. 미적용이면 기존 기반 함수·원장을
    확인한 뒤 선행 적용한다. 이어 `0177_reward_ssv_tickets.sql` 또는 동등한 티켓 계약을
-   적용한다. 당시의 다음 번호를 원격 재조회·예약·push한 뒤
-   `UNNUMBERED_reward_ssv_hardening.sql`을 번호가 붙은 migration으로 적용하고 DB 회귀를 확인한다.
+   적용한다. 번호를 받은 판
+   `0196_reward_ssv_hardening.sql`(초안은 2026-10-05 삭제)을 적용하고 DB 회귀를 확인한다.
    **0177 단독 상태에서 활성화하지 않는다.** 0177의 티켓은 10분이고 hardening과 새 Edge는
    20분 계약이다. 아래 네 RPC의 정확한 시그니처와 `service_role` 전용 실행 권한을 확인한다.
    - `claim_reward_ssv_issue_rate_limit(uuid)`
@@ -167,14 +167,14 @@ migration과 현재 Edge 함수가 모두 정상인 상태를 만든 뒤에만 �
 `fix/qa-harness-integrated-260925`는 아래 계약을 포함한다. 코드 검증과 운영 적용을
 구분하며, 새 클라이언트의 활성화 전에 콘솔 증거를 확인한다.
 
-- **가입:** `UNNUMBERED_signup_consent_admob_20260925.sql`을 0148/0149/0150의
-  후속으로 번호 예약·적용한다. `signup_consent_contract_status()`의 email-v4 및
+- **가입:** `0191_signup_consent_admob_20260925.sql`(초안은 2026-10-05 삭제)을 0148/0149/0150의
+  후속으로 적용한다. `signup_consent_contract_status()`의 email-v4 및
   consent/policy/terms 판본과 confirmation ready를 확인하고 실제 이메일 확인을 검증한다.
   과거 v2/v3 튜플과 기존 원장은 유지한다. Web publish·production EAS build·OTA는
   공개 상태 RPC가 현재 클라이언트와 일치하지 않으면 실패한다. 코딩 세션의 2026-09-25
   조회에서는 해당 RPC가 아직 없었으며, 로컬 build-only는 이 상태에서도 가능하다.
 - **Polaris:** 0189·0190 및 번호를 예약한 account-deletion completion fence가 선행한다.
-  `UNNUMBERED_polaris_generation_allowance.sql`을 번호로 승격할 때 canonical erasure
+  `0195_polaris_generation_allowance.sql`로 승격할 때(초안은 2026-10-05 삭제) canonical erasure
   registry·forward gate·rollback coverage도 함께 갱신한다. 기존 0189를 수정하지 않는다.
   콘텐츠 삭제 후에도 lifetime 사용 원장은 보존하고 근거·역할 카드를 제거하며,
   계정 삭제는 원장을 CASCADE로 지운다. DB `enabled=false`와 `ratify_polaris_role_card`

@@ -21,9 +21,9 @@ const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8").split(CR).jo
 
 const SQL = read("db/migrations/0140_users_table_acl.sql");
 const EXEC = SQL.replace(/^\s*--.*$/gm, "");
-const AVATAR_DRAFT = read("db/migration-drafts/UNNUMBERED_users_avatar_spec.sql");
+const AVATAR_DRAFT = read("db/migrations/0206_users_avatar_spec.sql");
 const AVATAR_EXEC = AVATAR_DRAFT.replace(/^\s*--.*$/gm, "");
-const DISPLAY_NAME_DRAFT = read("db/migration-drafts/UNNUMBERED_users_display_name_update.sql");
+const DISPLAY_NAME_DRAFT = read("db/migrations/0207_users_display_name_update.sql");
 const DISPLAY_NAME_EXEC = DISPLAY_NAME_DRAFT.replace(/^\s*--.*$/gm, "");
 
 /** Columns named inside a GRANT <verb> (...) on public.users. */
