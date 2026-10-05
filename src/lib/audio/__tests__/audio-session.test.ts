@@ -11,10 +11,12 @@
 //      Android call overwrites the whole mode and an omitted field resets to
 //      null, which is GAIN_TRANSIENT again;
 //   4. the installed SDK still behaves the way 1 and 3 assume;
-//   5. the boot call changes focus only, not silent-mode playback: Android keeps
-//      the SDK default playsInSilentMode true (play() returns early when it is
-//      false and the ringer is not normal), iOS keeps obeying the silent switch
-//      (.ambient, as the system default .soloAmbient did). Gate r1, PR #2036.
+//   5. effects stay silent in silent or vibrate mode on both platforms: Simon
+//      decision Q-261004-37 = A, reconfirmed as Q-261005-01 = A. The boot mode
+//      sends playsInSilentMode false. Android play() returns early while it is
+//      false and the ringer is not normal; iOS maps it to .ambient, which obeys
+//      the silent switch. (Gate r1, PR #2036, had kept Android at the SDK
+//      default true without knowing the decision.)
 // Modules are transpiled and run with a fake require, as opening-sound-player.test
 // does, so react-native and expo-audio never load in the node environment.
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -31,12 +33,11 @@ const ANDROID_SDK_PLAYS_IN_SILENT_MODE = (() => {
   return match[1] === "true";
 })();
 
-const expectedEffectsMode = (platform: string) => ({
+// Q-261005-01 = A: no effects in silent or vibrate mode, the same on both platforms.
+const expectedEffectsMode = (_platform: string) => ({
   interruptionMode: "mixWithOthers",
   shouldPlayInBackground: false,
-  // Android: the SDK default, so vibrate/silent ringer playback is unchanged.
-  // iOS: false is .ambient, which obeys the silent switch like the default .soloAmbient.
-  playsInSilentMode: platform === "android" ? ANDROID_SDK_PLAYS_IN_SILENT_MODE : false,
+  playsInSilentMode: false,
 });
 
 type SessionModule = { configureEffectsAudioSession: () => Promise<void>; EFFECTS_AUDIO_MODE?: unknown };
@@ -252,8 +253,9 @@ describe("installed expo-audio still matches what this fix assumes", () => {
   });
 
   test("Android play() is skipped off the normal ringer unless playsInSilentMode is true", () => {
-    // Why the Android boot value must stay the SDK default: false would mute every
-    // effect in vibrate or silent ringer mode, which the app never did before.
+    // This SDK guard is what carries out Q-261005-01 on Android: with the boot value
+    // false, every effect, the opening included, stays silent in vibrate or silent
+    // ringer mode. If the SDK drops the guard, the decision silently stops holding.
     const playStart = android.indexOf('Function("play") { player: AudioPlayer ->');
     expect(playStart).toBeGreaterThan(-1);
     const play = android.slice(playStart, android.indexOf('Function("pause")', playStart));

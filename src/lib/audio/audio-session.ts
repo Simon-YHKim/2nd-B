@@ -16,12 +16,17 @@ import { setAudioModeAsync, type AudioMode } from "expo-audio";
  * null 로, 곧 GAIN_TRANSIENT 로 되돌아간다. 그래서 녹음 경로(capture.tsx, secondb.tsx)도
  * interruptionMode 를 명시한다. audio-session.test.ts 가 src 의 모든 호출을 읽어 지킨다.
  *
- * playsInSilentMode 는 이 호출 이전의 동작을 플랫폼마다 그대로 둔다 (게이트 r1, PR #2036).
- * Android 는 SDK 기본값 true 다. false 면 벨소리 모드가 일반이 아닐 때 play() 가 그냥 돌아가서
- * (AudioModule.kt `Function("play")` 의 shouldPlayInSilentMode 검사) 진동·무음에서 효과음이 전부
- * 사라진다. 이 앱은 그런 적이 없다. iOS 는 false 다. 이 조합이 `.ambient` 가 되고, 모드를 정하기
- * 전의 시스템 기본 `.soloAmbient` 처럼 무음 스위치를 따른다. 무음·진동에서 효과음을 낼지는
- * Simon 확인 대기다. 바꾸려면 이 값 한 칸만 고치면 된다.
+ * playsInSilentMode 는 두 플랫폼 모두 false 다. Simon 결정 Q-261004-37 = A(10-04 20:47,
+ * "효과음은 무음 모드에서 나지 않는다 · 뒤집는 조건: 없음")를 Q-261005-01 = A(10-05)가 다시
+ * 확인했다. 게이트 r1(PR #2036)은 그 결정을 모른 채 Android 를 SDK 기본값 true 로 두었었다.
+ * Android 는 false 면 벨소리 모드가 일반이 아닐 때 play() 가 그냥 돌아간다(AudioModule.kt
+ * `Function("play")` 의 shouldPlayInSilentMode 검사). 그래서 진동 · 무음에서는 오프닝을 포함한
+ * 모든 효과음이 나지 않는다. 그것이 결정의 내용이다. iOS 는 이 조합이 `.ambient` 가 되어 무음
+ * 스위치를 따른다.
+ *
+ * ⚠ 녹음 경로(capture.tsx · secondb.tsx)는 녹음 전에 playsInSilentMode true 로 모드를 덮어쓰고
+ * 되돌리지 않는다. 그래서 음성 녹음을 한 번 하면 앱을 다시 켤 때까지 무음에서도 효과음이 난다.
+ * 녹음 뒤 이 모드로 되돌리는 일은 2차 작업으로 남겼다(Q-261005-01 후속).
  *
  * 미디어 버튼 세션(ExpoAudioBasicMediaSession)은 여기서 끌 수 없다. expo-audio 56 은 플레이어마다
  * MediaSession 을 무조건 만들고(AudioPlayer.kt buildBasicMediaSession) JS 옵션이 없다.
@@ -31,7 +36,7 @@ export const EFFECTS_AUDIO_MODE: Readonly<
 > = Object.freeze({
   interruptionMode: "mixWithOthers",
   shouldPlayInBackground: false,
-  playsInSilentMode: Platform.OS === "android",
+  playsInSilentMode: false,
 });
 
 let configured: Promise<void> | null = null;
