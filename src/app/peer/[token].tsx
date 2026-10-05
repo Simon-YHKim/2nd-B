@@ -11,7 +11,7 @@ import { MdButton, MdCard, SegBtn } from "@/components/m3";
 import { m3 } from "@/lib/theme/m3";
 import { deepSpace, semantic, spacing } from "@/lib/theme/tokens";
 import { callPeerRespond } from "@/lib/peer/peer-respond";
-import { informantAgeGate } from "@/lib/peer/informant-age";
+import { informantAgeGate, informantCurrentYear } from "@/lib/peer/informant-age";
 
 type Phase = "loading" | "form" | "done" | "withdrawn" | "expired" | "invalid" | "already";
 
@@ -23,8 +23,9 @@ type Trait = (typeof TRAITS)[number];
 // C10: the same floor sign-up enforces. Birth YEAR only — the coarsest signal
 // that answers the question, so an informant never hands over a full birth date
 // to a product they have no account with. The comparisons live in
-// lib/peer/informant-age.ts so they match peer-respond's conservative boundary.
-const CURRENT_YEAR = new Date().getFullYear();
+// lib/peer/informant-age.ts so they match peer-respond's conservative boundary,
+// and the year is the server's UTC year read on each render (not a local year
+// frozen at load), so the screen and the server subtract from the same number.
 
 export default function PeerInformant() {
   const { token } = useLocalSearchParams<{ token?: string }>();
@@ -46,7 +47,7 @@ export default function PeerInformant() {
   // It must not be looser than the server, or the informant fills the form and
   // gets a generic send error: a year difference of 14 is refused there, and up
   // to 18 needs a guardian there whatever the minor row says.
-  const { year, yearLooksReal, tooYoung, yearMinor } = informantAgeGate(birthYear, CURRENT_YEAR);
+  const { year, yearLooksReal, tooYoung, yearMinor } = informantAgeGate(birthYear, informantCurrentYear());
   const needsGuardian = minor || yearMinor;
 
   useEffect(() => {

@@ -20,6 +20,21 @@ export const INFORMANT_ADULT_AGE = 18;
 
 const OLDEST_BIRTH_YEAR = 1900;
 
+/**
+ * The year peer-respond subtracts from: `new Date().getUTCFullYear()`, read on
+ * every request. The screen used the device's local year, read once when the
+ * module loaded. Around New Year those differ by one: at 2027-01-01 01:00 UTC a
+ * device at UTC-8 is still on 2026-12-31, so with the `<= 14` floor it refused
+ * a 2012 birth year the server accepts (2027 - 2012 = 15), and a device east of
+ * UTC let through a year the server refuses. Read the UTC year on every render,
+ * never once at load. A form left open across New Year keeps the older year
+ * only until its next render, and an older year can only be stricter than the
+ * server (the year difference only grows), never looser.
+ */
+export function informantCurrentYear(now: Date = new Date()): number {
+  return now.getUTCFullYear();
+}
+
 export interface InformantAgeGate {
   /** Parsed birth year, or NaN when the field is not a number. */
   year: number;
