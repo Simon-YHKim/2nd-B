@@ -19,8 +19,42 @@ export function answerDisposition(text: string, locale: "en" | "ko"): AnswerDisp
   return isNonAnswer(text, locale) ? "uncertain" : "answer";
 }
 
-/** 맞장구 · 예/아니오만으로 된 답. 무엇을 열었는지 담고 있지 않다. */
-const CONTENT_FREE = /^(네|예|응|아니|아니요|음|어|yes|no|ok|okay|yeah|hmm|sure)$/;
+/** 맞장구 · 예/아니오 **하나의 되풀이**로만 된 답("네" · "네네" · "아니아니" · "okok").
+ *  무엇을 열었는지 담고 있지 않다. 같은 말의 되풀이만 잡는다 -- 서로 다른 말끼리 붙은
+ *  낱말("어음")은 여기 걸리지 않는다. */
+const CONTENT_FREE = /^(네|예|응|아니요|아니|음|어|yes|no|okay|ok|yeah|hmm|sure)\1*$/u;
+
+/** 자모만으로 된 답("ㅋㅋ" · "ㅇㅇ" · "ㅠㅠ"). 호환 자모 · 첫가끝 자모 · 확장 · 반각 전부.
+ *  NFKC 는 호환 자모(U+3131…)를 첫가끝 자모(U+1100…)로 바꾸므로 두 범위를 다 본다. */
+const JAMO_ONLY = /^[\u1100-\u11FF\u3130-\u318F\uA960-\uA97F\uD7B0-\uD7FF\uFFA0-\uFFDC]+$/u;
+
+/**
+ * 판정에 쓰는 꼴: NFKC 로 맞추고 공백 · 문장부호 · 기호 · 제어/서식 문자를 뺀 소문자.
+ *
+ * NFKC 가 먼저다 (게이트 W4R1-02). 자모로 풀린(NFD) 한글은 음절마다 코드 단위가 2~3개라,
+ * 정규화 없이 세면 "운동장이요"(5자)가 13자가 되어 술어 없는 언급 판정을 빠져나갔다.
+ */
+function compactOf(text: string): string {
+  return text.normalize("NFKC").replace(/[\s\p{P}\p{S}\p{C}]+/gu, "").toLowerCase();
+}
+
+/**
+ * 답이 **비었는가** -- 글자는 있어도 무엇을 열었는지 담고 있지 않다 (게이트 W4R1-02).
+ *
+ * 글자 수 문턱(ko 8 · en 14)을 걷어낸 뒤(R2F-04) 로컬 문턱이 지키는 것은 이것뿐이라,
+ * 모델이 "닿았다"고 해도 여기 걸리는 답은 칸을 올리지 않는다:
+ *   - 글자(문자 · 숫자)가 둘 미만 -- 한 글자 · 이모지만 · 키캡 같은 결합 기호
+ *   - 맞장구 하나의 되풀이 -- "네" · "네네" · "yes yes"
+ *   - 자모만 -- "ㅋㅋ" · "ㅇㅇ" · "ㅠㅠ"
+ *   - 같은 글자 하나의 되풀이 -- "하하하" · "zzz"
+ */
+export function isContentFree(text: string): boolean {
+  const compact = compactOf(text);
+  if ((compact.match(/[\p{L}\p{N}]/gu)?.length ?? 0) < 2) return true;
+  if (CONTENT_FREE.test(compact) || JAMO_ONLY.test(compact)) return true;
+  const chars = Array.from(compact);
+  return chars.every((c) => c === chars[0]);
+}
 
 /** 영어 사실 답에서 떼고 보는 앞말. "the office" · "my dad" 도 이름 하나다. */
 const EN_LEAD = new Set(["the", "a", "an", "my", "our", "his", "her", "their", "your", "at", "in", "on", "to"]);
@@ -43,15 +77,18 @@ function hasSsangSiotFinal(syllable: string): boolean {
  * - ko: 8자 미만이고, ㅆ 받침(과거 · 있다)도 활용 어미(-어/-아/-다 …)도 없으면 언급이다.
  *   "-이요 · -예요"처럼 이름 뒤에 붙는 말끝은 떼고 본다. 명사형("넘어짐")은 언급으로
  *   잡힐 수 있다 -- 그 답은 칸만 못 채우고, 대화는 모델의 다음 질문으로 이어진다.
+ *   글자 수는 NFKC 로 맞춘 뒤 **코드 포인트**로 센다 -- 자모로 풀린 한글이 길게 세어져
+ *   이 판정을 빠져나가지 않게(게이트 W4R1-02).
  */
 export function isBareMention(text: string, locale: "en" | "ko"): boolean {
   if (locale === "en") {
-    const words = text.toLowerCase().replace(/[’]/g, "'").split(/[^\p{L}\p{N}']+/u).filter(Boolean);
+    const words = text.normalize("NFKC").toLowerCase().replace(/[’]/g, "'").split(/[^\p{L}\p{N}']+/u).filter(Boolean);
     while (words.length > 1 && EN_LEAD.has(words[0]!)) words.shift();
     return words.length === 1;
   }
-  const compact = text.replace(/[\s\p{P}\p{S}]+/gu, "");
-  if (compact.length === 0 || compact.length >= 8) return false;
+  const compact = compactOf(text);
+  const length = Array.from(compact).length;
+  if (length === 0 || length >= 8) return false;
   if (Array.from(compact).some(hasSsangSiotFinal)) return false;
   const stem = compact.replace(/(?:이에요|예요|이요|입니다|이야|요|야|임)$/u, "");
   if (stem.length === 0) return false;
@@ -66,13 +103,15 @@ export function isBareMention(text: string, locale: "en" | "ko"): boolean {
  * 모델의 판정을 받는다. 모델은 거부권만 갖는다(`confirmedAnswer`) -- 이 함수가 false 면
  * 모델이 닿았다고 해도 칸은 오르지 않는다. 그래서 이 함수와 화면의 로컬 비답 판정이
  * 갈라지면 "모델이 인정했는데 칸이 안 오르는" 답이 생긴다(R2F-04 가 본 모순).
+ *
+ * 판정 전에 NFKC 로 맞춘다 -- 같은 글자를 다른 코드 단위로 보낸 답(NFD 한글)이 같은 판정을
+ * 받아야 한다. "비었는가"는 `isContentFree` 가 정한다(게이트 W4R1-02).
  */
 export function canCreditAnswer(text: string, layer: DrillLayer, locale: "en" | "ko"): boolean {
-  if (answerDisposition(text, locale) !== "answer") return false;
-  const compact = text.replace(/[\s\p{P}\p{S}]+/gu, "").toLowerCase();
-  if (CONTENT_FREE.test(compact)) return false;
-  if (compact.length < 2) return false;
-  if (layer === "fact") return !isBareMention(text, locale);
+  const normalized = text.normalize("NFKC");
+  if (answerDisposition(normalized, locale) !== "answer") return false;
+  if (isContentFree(normalized)) return false;
+  if (layer === "fact") return !isBareMention(normalized, locale);
   return true;
 }
 
@@ -98,17 +137,19 @@ export function confirmedAnswer(
  * - `unlanded` : 답은 했는데 그 층에 안 닿았다 -- 다른 층으로 판정됐거나, 판정이 없거나
  *                (응답이 깨짐), 로컬 문턱이 너무 성기다고 봤다. **막힘으로 세지 않는다.**
  *
- * ⚠ 직전 질문이 **우회 질문**(발판 · 같은 층 다시 묻기)이었으면 `none` 도 막힘으로 세지
- * 않는다. 그 질문은 행동 · 비교 · 예로 돌아가 묻는 것이라, 정직한 사실 · 행동 답이 겨냥한
- * 층 기준으로 `none` 을 받기 쉽다. 그 답은 칸을 못 채울 뿐 실패가 아니다.
+ * `none` 은 직전 질문이 우회 질문(발판 · 같은 층 다시 묻기)이었어도 **막힘이다** (게이트
+ * W4-R1-02). 처음에는 우회 질문 뒤의 `none` 을 막힘에서 뺐는데, 그러면 되묻기 · 항의 같은
+ * 실제 비답도 빠져서 "왜 물으시는 건가요?" 세 번이 대화를 끝내지 않고 다음 층으로 밀었다
+ * -- 못 답하겠다는 사람을 더 깊이 미는 셈이다. 우회 질문에 정직하게 답한 사람은 다른 길로
+ * 지킨다: 프롬프트가 모델에게 "우회 질문에 답했으면 `none` 이 아니라 그 답이 닿은 층"을
+ * 넣으라고 알리고(probe.ts 규칙 9), 그 판정은 `unlanded` 다.
  */
 export function answerOutcome(
   confirmed: boolean,
   judgedLayer: DrillLayer | null | undefined,
-  afterDetour: boolean,
 ): Exclude<AnswerOutcome, "blocked"> {
   if (confirmed) return "credited";
-  return judgedLayer === null && !afterDetour ? "missed" : "unlanded";
+  return judgedLayer === null ? "missed" : "unlanded";
 }
 
 /**

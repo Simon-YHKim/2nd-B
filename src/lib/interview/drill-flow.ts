@@ -27,10 +27,12 @@
 //
 // ── 비용 ────────────────────────────────────────────────────────────────────
 // 모델을 부르는 답은 한 번에 한 번이다(그대로). 한 장면의 최대 호출 수는 층마다 세 번 x
-// 다섯 층 = 15 다(예전 8: 장면 답 8개 상한). 짧은 답도 이제 모델로 가므로 호출이 늘 수 있다.
+// 다섯 층 = 15 다(예전 8: 장면 답 8개 상한). 실패한 호출 · 위험 신호로 질문을 못 보인 호출도
+// 그 답을 "안 닿음"으로 정착시켜 같은 층의 시도로 센다(`settleUnjudged`). 짧은 답도 이제 모델로
+// 가므로 호출이 늘 수 있다.
 // 좌석(interview_probe) · effort 는 바꾸지 않았고, 하루 몫은 서버가 막는다(session-end.ts).
 
-import { canCreditAnswer, layerTally } from "./continuity";
+import { canCreditAnswer, currentScene, layerTally } from "./continuity";
 import {
   emptyCoverage,
   nextMove,
@@ -75,6 +77,30 @@ export function settleLatest(history: readonly InterviewTurn[], outcome: AnswerO
   return history.map((turn, index) => (index === last && turn.role === "user"
     ? { ...turn, answered: outcome === "credited", outcome }
     : turn));
+}
+
+/**
+ * 모델의 판정을 못 받은 답을 정리한다 (게이트 W4R1-01 · W4-R1-01).
+ *
+ * 호출이 실패했거나(하루 한도 밖의 오류) 응답이 위험 신호(red)라 질문을 못 보여 준 때다.
+ * 예전에는 그 답을 판정 전 상태로 두고 겨냥 층도 비웠다. 그러면 다음 답은 층 없이 나가
+ * 층마다의 시도 셈(`layerTally`)에 안 잡혔고, 판정 전 답은 장면 셈에서 인정된 것처럼
+ * 보였다 -- 실패를 되풀이하면 "장면당 호출 최대 15회"가 성립하지 않았다.
+ *
+ * 이제 그 답은 **안 닿음**(`unlanded`)으로 정착한다: 칸은 오르지 않고 그 층의 시도 하나를
+ * 쓴다. 그 층에 시도가 남았으면 같은 질문에 다시 답하게 하고(`retry` = 그 층), 남지 않았으면
+ * `retry` = null -- 다음 층을 물을 질문이 없으므로 화면은 대화를 끝낸다(모델을 다시 부르지
+ * 않는다). 겨냥한 층이 없던 답(`credited` = null)도 다시 물을 층이 없으니 끝낸다.
+ * 그래서 성공이든 실패든 모든 호출이 어느 한 층의 시도 하나를 쓴다.
+ */
+export function settleUnjudged(
+  history: readonly InterviewTurn[],
+  credited: DrillLayer | null,
+): { turns: InterviewTurn[]; retry: DrillLayer | null } {
+  if (credited === null) return { turns: [...history], retry: null };
+  const turns = settleLatest(history, "unlanded");
+  const { tries } = layerTally(currentScene(turns), credited);
+  return { turns, retry: tries < MAX_TRIES_PER_LAYER ? credited : null };
 }
 
 /**

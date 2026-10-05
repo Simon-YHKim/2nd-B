@@ -25,6 +25,8 @@ import {
   type ReflectionEntry,
 } from "./loop-check";
 import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
+import { findAnthroViolations } from "../safety/anthro";
+import { containsAnalysisForbidden, containsForbiddenLexicon } from "../safety/classifier";
 import { MAX_TRIES_PER_LAYER, scaffoldQuestion, shouldScaffold } from "./stuck";
 import { answerDisposition, canCreditAnswer, currentScene, layerTally } from "./continuity";
 
@@ -84,7 +86,8 @@ export interface InterviewTurn {
   outcome?: AnswerOutcome;
   /** Session-only, interviewer turns: a re-ask of the same layer from an easier angle
    *  (a fixed scaffold, or the model asking the layer again after an answer that did not
-   *  land). An honest answer to it is never counted as a failure (`answerOutcome`). */
+   *  land). The judge prompt says so (rule 9), so an honest answer to it is named by the
+   *  layer it landed in and is not a failure. A `none` after it still is (`answerOutcome`). */
   detour?: boolean;
 }
 
@@ -558,9 +561,14 @@ export async function nextProbe(
   const parsed = parseProbeReply(typeof res.text === "string" ? res.text : "");
   const raw = typeof parsed?.question === "string" ? parsed.question : typeof res.text === "string" ? res.text : "";
   const cleaned = raw.trim().split("\n")[0]?.trim() ?? "";
+  // 모델이 쓴 질문 · 말문 후보는 화면에 그대로 나간다. 형식(`usableQuestion`)만 보던 것에
+  // 말의 규율을 더한다 (게이트 W4R1-03): 금지 어휘 · 분석 금지어 · 의인화 문구가 있는 질문은
+  // 그 층의 고정 질문으로 바꾸고, 그 질문에 딸린 말문 후보는 비운다. 판정(`answeredLayer`)은
+  // 그대로 쓴다 -- 보여 줄 말을 고르는 것이지 판정을 버리는 것이 아니다.
+  const speakable = interviewerMaySay(cleaned);
   const result: ProbeResult = {
     question: "",
-    openers: readOpeners(parsed),
+    openers: speakable ? readOpeners(parsed) : [],
     zone: res.safety.zone,
     layer,
     answeredLayer: askedLayer === null ? undefined : readAnsweredLayer(parsed),
@@ -568,8 +576,21 @@ export async function nextProbe(
   // 규칙 7: 갈래가 있으면 모델은 **자기 판정으로** 겨냥을 골랐다. 닿았다고 본 경우만
   // `layer`, 아니면(다른 층 · none · 판정 없음) `fallback`. 반복 대체 문장도 그 층으로 고른다.
   if (fallback !== null && result.answeredLayer !== askedLayer) result.layer = fallback;
-  result.question = usableQuestion(cleaned, history, result.layer, locale, scaffoldStreak);
+  result.question = usableQuestion(speakable ? cleaned : "", history, result.layer, locale, scaffoldStreak);
   return result;
+}
+
+/** 금지 어휘(임상 용어) · 분석 금지어가 없는가. 두 언어를 다 본다 -- 모델은 섞어 쓸 수 있다.
+ *  다른 모델 출력 표면(북극성 · 제안 · 위키)과 같은 런타임 거름망이다. */
+function withoutForbiddenTerms(text: string): boolean {
+  return (["en", "ko"] as const).every((l) =>
+    containsForbiddenLexicon(text, l).length === 0 && containsAnalysisForbidden(text, l).length === 0);
+}
+
+/** 인터뷰어의 말로 화면에 내도 되는가. 위에 더해 의인화(동반자 애착 · 마음 읽기) 문구가 없어야
+ *  한다. 말문 후보는 사용자 자신의 1인칭이라 의인화 규칙은 질문에만 건다. */
+function interviewerMaySay(text: string): boolean {
+  return withoutForbiddenTerms(text) && findAnthroViolations(text).length === 0;
 }
 
 interface ProbeReply {
@@ -618,6 +639,7 @@ function parseProbeReply(text: string): ProbeReply | null {
  *
  * 최대 2개 · 각 24자 이내 · 줄바꿈 없음 · 빈 것 제거. 넘치면 버린다.
  * 길이를 안 자르면 칩이 화면을 밀어내고, 줄바꿈이 들어오면 한 줄 칩이 두 줄이 된다.
+ * 금지 어휘 · 분석 금지어가 든 후보도 버린다(게이트 W4R1-03).
  */
 function readOpeners(reply: ProbeReply | null): string[] {
   if (!reply || !Array.isArray(reply.openers)) return [];
@@ -625,7 +647,7 @@ function readOpeners(reply: ProbeReply | null): string[] {
   for (const raw of reply.openers) {
     if (typeof raw !== "string") continue;
     const one = raw.replace(/\s+/g, " ").trim();
-    if (!one || one.length > 24) continue;
+    if (!one || one.length > 24 || !withoutForbiddenTerms(one)) continue;
     if (out.includes(one)) continue;
     out.push(one);
     if (out.length === 2) break;

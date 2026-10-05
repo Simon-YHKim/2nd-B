@@ -58,7 +58,7 @@ import { livedPeriods, resolveInterviewRoutePeriod } from "@/lib/interview/perio
 import { DrillProgress } from "@/components/ui/DrillProgress";
 import { isNonAnswer, scaffoldQuestion } from "@/lib/interview/stuck";
 import { answerDisposition, answerOutcome, confirmedAnswer, currentScene, layerTally } from "@/lib/interview/continuity";
-import { planProbe, settleLatest, stepAfterJudgement } from "@/lib/interview/drill-flow";
+import { planProbe, settleLatest, settleUnjudged, stepAfterJudgement } from "@/lib/interview/drill-flow";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { createRecord } from "@/lib/records/create";
 import { addCoverage, loadCoverage } from "@/lib/interview/coverage-store";
@@ -73,7 +73,6 @@ import {
   DRILL_LAYERS,
   LIFE_PERIODS,
   incrementCoverage,
-  lastWasDetour,
   nextMove,
   nextProbe,
   type Coverage,
@@ -428,7 +427,13 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         // Stop/save can be selected while this request is in flight.
         if (ended.current) return;
         if (probe.zone === "red") {
-          // C9: 텍스트가 아니라 핫라인. 대화는 여기서 멈춘다.
+          // C9: 텍스트가 아니라 핫라인. 모델의 질문은 보이지 않는다.
+          // 마지막 답은 판정을 못 받은 것으로 정착시키고 그 층의 시도 하나로 센다(`settleUnjudged`)
+          // -- 겨냥 층을 비워 두면 안내를 닫은 뒤의 답이 층 없이 나가 호출 상한 밖에서 돈다.
+          const unjudged = settleUnjudged(history, credited);
+          setTurns(unjudged.turns);
+          if (unjudged.retry) setPendingLayer(unjudged.retry);
+          else finish();
           setCrisis({ visible: true, hotline: hotlineFor() });
           return;
         }
@@ -438,9 +443,10 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           : false;
         // 판정은 셋이다(continuity.ts `answerOutcome`): 인정 · "답을 안 했다"(none) · 답했지만
         // 안 닿음. 마지막 것은 **막힘으로 세지 않는다** (QA 261005 R2F-05) -- 다른 층의 사실 ·
-        // 행동으로 정직하게 답한 사람을 세 번 만에 끝내지 않는다.
+        // 행동으로 정직하게 답한 사람을 세 번 만에 끝내지 않는다. `none` 은 우회 질문 뒤에도
+        // 막힘이다(게이트 W4-R1-02).
         const outcome = credited && lastAnswer
-          ? answerOutcome(Boolean(confirmed), probe.answeredLayer, lastWasDetour(history))
+          ? answerOutcome(Boolean(confirmed), probe.answeredLayer)
           : null;
         const assessed = outcome ? settleLatest(history, outcome) : history;
         // Nothing is added on a sparse answer, missing judgement, failure, or stop.
@@ -483,7 +489,18 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           }
           return;
         }
-        setNotice(t("drill.failed"));
+        // 그 밖의 실패: 마지막 답은 판정을 못 받았다. 칸은 더하지 않고 그 층의 시도 하나로
+        // 센 뒤 같은 질문에 다시 답하게 한다 -- 시도를 다 썼으면 끝낸다(`settleUnjudged`).
+        // 겨냥 층을 비운 채 두면 다음 답이 층 없이 나가 층마다의 호출 상한을 빠져나갔다(W4R1-01).
+        if (ended.current) return;
+        const unjudged = settleUnjudged(history, credited);
+        setTurns(unjudged.turns);
+        if (unjudged.retry) {
+          setPendingLayer(unjudged.retry);
+          setNotice(t("drill.failed"));
+        } else {
+          finish();
+        }
       } finally {
         setBusy(false);
       }
