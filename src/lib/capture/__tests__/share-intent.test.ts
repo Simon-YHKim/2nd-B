@@ -148,6 +148,20 @@ describe("parseSharedIntentUrl reads crafted links defensively", () => {
   test("the fragment is not part of the query", () => {
     expect(parseSharedIntentUrl("secondbrain://share-intent?text=a#title=b")).toEqual({ text: "a", title: "" });
   });
+
+  test("a ? inside the fragment does not start a query (gate ST-R1-04 / W5-R2-01)", () => {
+    // URL order is query, then fragment: everything after the first # is the
+    // fragment, so text/title written there are not shared fields.
+    expect(parseSharedIntentUrl("secondbrain://share-intent#note?text=x&title=y")).toEqual({ text: "", title: "" });
+    expect(redirectSharedIntentPath("secondbrain://share-intent#note?text=x")).toBe("/capture");
+    expect(parseSharedIntentUrl("secondbrain://share-intent/#?text=x")).toEqual({ text: "", title: "" });
+    // A real query before the fragment still counts, and a second ? in the
+    // fragment does not override it.
+    expect(parseSharedIntentUrl("secondbrain://share-intent?text=a#frag?text=b&title=c")).toEqual({
+      text: "a",
+      title: "",
+    });
+  });
 });
 
 describe("length caps (shared text is untrusted input)", () => {

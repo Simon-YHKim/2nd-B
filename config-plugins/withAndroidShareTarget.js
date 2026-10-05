@@ -11,8 +11,9 @@
 //
 // src/app/+native-intent.ts maps that link to /capture?text=&title=, the query the
 // capture screen already reads (src/lib/capture/share-intent.ts explains why the
-// link is not a plain capture link). The capture screen only fills its input;
-// nothing is saved until the person presses save.
+// link is not a plain capture link). The capture screen fills its input and
+// keeps it in its on-device draft, as it does typed text; no record is created
+// until the person presses save.
 //
 // Three edits, all during expo prebuild:
 //   1. AndroidManifest: <intent-filter> SEND + DEFAULT + mimeType text/plain on
@@ -29,6 +30,12 @@
 //      For the same reason a newer link (VIEW with data) replaces a share link
 //      that getIntent() still holds, so getInitialURL() never returns a share
 //      older than the last link the app was opened with.
+//      getIntent() is one slot, though. A share whose Linking event was dropped
+//      (React Native not ready yet) waits there until JS reads it through
+//      getInitialURL(), and a share or link that arrives before that replaces
+//      it: of two shares in that window only the later one reaches /capture.
+//      Keeping both needs a native queue that JS acknowledges, which this
+//      plugin does not have (gate W5-R3-01, left open).
 //
 // The filter and the handler ship together on purpose. A SEND filter without
 // the handler would list the app in the share sheet and then drop what was

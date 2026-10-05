@@ -22,10 +22,13 @@
 // (__tests__/share-intent.test.ts runs the real expo-router functions.)
 //
 // Shared text is untrusted input from another app, and any app or web page can
-// open the deep link directly. It only fills the capture input: nothing is saved
-// until the person presses save, and the save path runs the safety classifier
-// (C9) as before. Lengths are capped here as well as natively; the numbers live
-// in ./share-intent-contract.json, which the config plugin also reads.
+// open the deep link directly. It fills the capture input, and the capture
+// screen keeps it in its on-device draft as it does typed text (per account:
+// encrypted storage on native, localStorage on the web). No record is created
+// and the text goes to no model until the person presses save, and the save
+// path runs the safety classifier (C9) as before. Lengths are capped here as
+// well as natively; the numbers live in ./share-intent-contract.json, which the
+// config plugin also reads.
 
 import contract from "./share-intent-contract.json";
 
@@ -87,10 +90,12 @@ function decodeQueryComponent(raw: string): string | null {
  */
 export function parseSharedIntentUrl(url: string): SharedIntentFields | null {
   if (!isSharedIntentUrl(url)) return null;
-  const queryStart = url.indexOf("?");
-  let query = queryStart < 0 ? "" : url.slice(queryStart + 1);
-  const hashStart = query.indexOf("#");
-  if (hashStart >= 0) query = query.slice(0, hashStart);
+  // The fragment starts at the first "#", so a "?" after it belongs to the
+  // fragment: only a "?" before it starts the query.
+  const hashStart = url.indexOf("#");
+  const beforeFragment = hashStart < 0 ? url : url.slice(0, hashStart);
+  const queryStart = beforeFragment.indexOf("?");
+  const query = queryStart < 0 ? "" : beforeFragment.slice(queryStart + 1);
   let text: string | null = null;
   let title: string | null = null;
   for (const pair of query.split("&")) {
