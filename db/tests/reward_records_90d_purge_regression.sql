@@ -252,6 +252,11 @@ BEGIN
      OR EXISTS (SELECT 1 FROM public.rewarded_ssv_txns WHERE transaction_id = 'txn-p90-new')
      OR EXISTS (SELECT 1 FROM public.reward_dispute_hold_events WHERE transaction_id IS NOT NULL) THEN
     RAISE EXCEPTION 'P7: hold blocked or outlived account deletion'; END IF;
+  -- r2 BL2-01: 감사 시각은 실제로 일어난 시각이다. 이 파일은 한 트랜잭션이라 now() 였다면 두 시각이
+  -- 같다. 계정 삭제의 source_deleted 가 placed 보다 늦어야 사건 종료일이 거꾸로 되지 않는다.
+  IF NOT (SELECT max(at) FILTER (WHERE action = 'source_deleted') > max(at) FILTER (WHERE action = 'placed')
+            FROM public.reward_dispute_hold_events WHERE case_ref = 'CASE-T-002') THEN
+    RAISE EXCEPTION 'P7: audit time is the transaction start, not the event time'; END IF;
 END
 $p7$;
 
