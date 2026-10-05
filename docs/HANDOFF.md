@@ -31,7 +31,21 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-05 12:00 / 앱 실구동 전수 디버깅 · 레거시 정리(QA-LEGACY-261004): 머지 19 · Simon 질문 4 · 2차 점검 진행 중
+## Latest — 2026-10-05 19:05 / SSV GO-1(#2057·#2058) · 보안 게이트 3회 · #1902 충돌 해소 · #2060 CI 수정 · 공용 node_modules 사고·복구
+
+- **SSV GO-1**(Simon "go" 10:49): PR-7a [#2057](https://github.com/Simon-YHKim/2nd-B/pull/2057)(0211 89일 정리 · 분쟁 보류 · 감시, 0212 등록부) · PR-7b [#2058](https://github.com/Simon-YHKim/2nd-B/pull/2058)(0213 오래된 콜백 거부 · Edge v3) 를 draft 로 열었다. 머지 · 운영 적용 0. 최신 main(0210 · 0215 포함) merge 뒤 head `168a7a45` · `081dcd45`, CI 4개 초록(17:0x).
+- **보안 게이트 3회**(`codex exec` read-only, daybreak · astra @xhigh, 11:12~12:58): 세 번 모두 BLOCK, 고유 지적 18건 → 16 고침(7a `1160a6d6` · `a08291d7` · `061399b5` · `e6547d4e` · `05555a05`, 7b `be7bac88`) · 1 한계 수용(BL-02 승인자 문자열) · **1 Simon 결정 대기(DB3-01)**. 고친 것마다 되돌리면 실패하는 테스트(변이 M1~M8 + Edge 7), 로컬 sql 재생 · `npm run verify` 통과. 프롬프트 · 답 · 도구: `E:/Coding Infra/reports/ssv-261005/gates/`. 보고서 <https://claude.ai/artifact/WJYmtT9DfiD5NKu6Rc1byC>
+- **DB3-01(결정 필요)**: 89일 기준 + 매일 04:37 실행이면 실패를 흡수할 여유가 0 이라 한 번 실패하면 일부 기록이 90일을 넘는다. A) 88일로 당김(추천) · B) 89일 유지 · 매시간 실행 · C) 유지하고 실패를 사건으로. 0212 등록부 문구 · Gaius 방침 문장이 함께 바뀐다. 런북은 지금 사실대로(C) 적혀 있다.
+- **#1902 충돌 해소**(Relay 요청, Simon GO 15:40): main 의 레거시 안내서 제거(#2050)와 겹친 두 파일은 main 쪽, 조용히 깨진 `visible-trust-copy` 기대 문구는 main 값으로. `1c71011f` → Hadrianus 가 16:05 머지(`c3daa0a5`).
+- **#2060 CI 수정**(Simon GO 16:05): base → main, v9 회귀의 고정 사용자가 0210 회귀와 겹쳐 `users_pkey` 중복(→ 자기 id), 법무 인용 줄 밀림 11곳(`consent.ts:135-137`→`140-142`, service-consent `36-37`→`46-47`). `0d1e5120` → Hadrianus 가 16:42 머지(`0a7702d0`).
+- **봇 버스**: App Review D4 노트 정정 2회(없는 화면 이름 · 꺼진 Sentry · 내부 메모) → Malcolm v3 반영. 백업 GO-B3 진단 중 내 "사용자 이름 ref 누락" 추정은 **틀렸다**(정정 메모; 실제는 비밀번호, 16:34 통과). 다른 세션의 고아 `grep`(8.8GB, 커밋 99%)을 끄고 알렸다.
+- ⚠ **공용 `node_modules` 사고(18:37~18:5x)**: 다 쓴 워크트리 둘을 지우다 정션 확인 스크립트가 경로를 잘못 다뤄 "정션 아님" 이 나왔는데 멈추지 않고 `git worktree remove`(force 없음) → 정션을 따라 공용 설치가 비었다(724→0, 8081 HTTP 500). 복구: `npm ci --legacy-peer-deps` + origin/main 의 `expo-updates` 패치만 patch-dir 로 적용 → 패치 7개, verify 11,674 그대로, 2ndb-74 확인 8081 HTTP 200 · `app:parity` 같음. 메모리 [[reference_2ndb_worktree_junction_hazard]] 갱신.
+- ⚠ **정본 체크아웃 `E:/2ndB` 는 `a029cac0`(09-26)에 그대로다.** ff 는 미추적 봇 문서 19개가 막는데 7개는 main 과 내용이 달라 손대지 않았다. 다음에 거기서 그냥 `npm ci` 하면 `expo-updates` 패치가 다시 빠진다.
+- **다음 1개**: Simon 이 DB3-01 을 정하면 반영 → 게이트 4회차(띄우기 전 커밋 85% 미만 확인, 2ndb-74 에 "시작") → GO-2(#2057 머지).
+- **남은 것**: 결제 6~13단계 일정 · App Review 데모 계정 · 백업 사고 대장 서명(10-07 21:03) · #2061 테스트 패치 승인 · R3V-2 복호화 시험 · 런북의 `db-backup.yml` 문장은 백업 이전이 끝나면 고친다.
+- **앱/localhost**: 이 세션은 앱 코드를 직접 main 에 넣지 않았다(#1902 · #2060 머지는 Hadrianus). 8081 = origin/main `0a7702d0`, `app:parity` 같음(2ndb-74 확인 18:5x).
+
+## 2026-10-05 12:00 / 앱 실구동 전수 디버깅 · 레거시 정리(QA-LEGACY-261004): 머지 19 · Simon 질문 4 · 2차 점검 진행 중
 
 - **무엇을**: Simon /vibe(10-04): "프로젝트와 localhost, 에뮬레이터를 돌렸을때의 앱의 실제 구동들을 확인하여 전수 디버깅을 실시하고, legacy 코드, legacy 파일 전수 검사 하여 발굴 및 정리. legacy 같은 경우는 'E:\Legacy'폴더로 옮겨놓을 것." 울트라코드 · 워크플로 · Codex 게이트 둘(gpt-daybreak-blue-latest · gpt-6-astra @xhigh, 읽기 전용).
 - **1단계(10-04)**: 웹 8081 전 라우트 · 자체 에뮬레이터 · 정적 검사 · 레거시 전수 → 결함 · 레거시 후보마다 반박 검증. Simon 결정 Q-261004-11~38(10-04 20:47, DECISIONS 30줄). 증거 `E:/Coding Infra/reports/qa-legacy-261004/`.
