@@ -7,6 +7,7 @@
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import { Redirect, router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
@@ -536,8 +537,8 @@ function careerLocale(language: string | undefined): CareerCopyLocale {
 
 export default function CareerDrilldown() {
   const { t, i18n } = useTranslation("deepspace");
-  const copy = CAREER_COPY[careerLocale(i18n.resolvedLanguage ?? i18n.language)];
-  const isKo = careerLocale(i18n.resolvedLanguage ?? i18n.language) === "ko";
+  const copy = CAREER_COPY[careerLocale(renderedUiLanguage(i18n))];
+  const isKo = careerLocale(renderedUiLanguage(i18n)) === "ko";
   const { userId, loading, isMinor } = useAuth();
 
   const [summary, setSummary] = useState("");

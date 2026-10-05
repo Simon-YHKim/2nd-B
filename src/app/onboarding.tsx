@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { BackHandler, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import { Redirect, router } from "expo-router";
 
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
@@ -64,7 +65,7 @@ type HandoffDestination = "/" | "/sign-up" | "/sign-in";
 
 export default function Onboarding() {
   const { t, i18n } = useTranslation(["deepspace", "auth", "common"]);
-  const locale = i18n.resolvedLanguage?.split("-")[0] === "ko" ? "ko" : "en";
+  const locale = renderedUiLanguage(i18n) === "ko" ? "ko" : "en";
   // check:constraints pins the literal Korean skip label in this file.
   const skipLabel = locale === "ko" ? "건너뛰기" : "Skip";
   const { userId, loading } = useAuth();
