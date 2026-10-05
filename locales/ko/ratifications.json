@@ -9,7 +9,6 @@
   "held": "보류",
   "declined": "거절",
   "cited": "근거 {{n}}개",
-  "undo": "되돌리기",
   "hideUnchanged": "다시 계산해도 같았던 결과 접기",
   "showUnchanged": "다시 계산해도 같았던 결과 {{n}}건 보기",
   "originRatify": "내가 승인함",

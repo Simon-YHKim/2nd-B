@@ -1,44 +1,6 @@
 {
-  "soulCore": {
-    "a11y": "Kecerahan Bintang Utara"
-  },
   "character": {
     "a11y": "Karakter SecondB"
-  },
-  "bubble": {
-    "fresh": "Apa yang mau kamu catat?"
-  },
-  "progress": {
-    "lit": "{{lit}}/{{total}} bintang menyala",
-    "next": "berikutnya: {{step}} ({{min}})"
-  },
-  "nextStep": {
-    "bigFive": {
-      "label": "Big Five",
-      "min": "5 mnt",
-      "cta": "Nyalakan satu bintang dengan Big Five"
-    },
-    "attachment": {
-      "label": "Kelekatan",
-      "min": "3 mnt",
-      "cta": "Nyalakan satu bintang dengan cek relasi"
-    },
-    "esm": {
-      "label": "Check-in hari ini",
-      "min": "1 mnt",
-      "cta": "Nyalakan satu bintang dengan check-in singkat"
-    },
-    "values": {
-      "label": "Nilai",
-      "min": "4 mnt",
-      "cta": "Nyalakan satu bintang dengan tinjauan nilai"
-    }
-  },
-  "menu": {
-    "graph": "Graf",
-    "capture": "Klip",
-    "secondb": "SecondB",
-    "profile": "Aku"
   },
   "ds": {
     "dock": {
@@ -88,7 +50,6 @@
     },
     "home": {
       "polaris": "Bintang Utara",
-      "profileName": "Profil",
       "domainName": {
         "career": "Karier",
         "finance": "Keuangan",
@@ -122,8 +83,6 @@
         "tip1": "Ketuk bintang untuk melihat catatan dari bagian hidup itu.",
         "tip2": "Gunakan Tambah di bilah bawah untuk menyimpan catatan baru.",
         "tip3": "Bintang Utaramu merangkum catatan menjadi satu kalimat yang bisa kamu ubah.",
-        "next": "Berikutnya",
-        "openMenu": "Menu fitur",
         "menuTag": "Menu",
         "menu": "Apa yang ingin kamu lakukan?",
         "travel": "Jelajahi",
@@ -173,9 +132,7 @@
         "now": {
           "line": "Catat minat, pilihan, dan hari-harimu saat ini."
         }
-      },
-      "museumEntry": "Museum AI",
-      "communityEntry": "Komunitas"
+      }
     },
     "capture": {
       "title": "Simpan",
@@ -249,9 +206,6 @@
       "suggestImagine": "Mode berandai"
     },
     "lens": {
-      "toggleFilled": "Terisi",
-      "toggleEmpty": "Kosong",
-      "toggleError": "Galat",
       "emptyTitle": "Bintang ini masih gelap",
       "emptyBody": "Selesaikan cek kepribadian sekali dan bintang Kepribadianmu menyala.",
       "emptyCta": "Mulai cek",
@@ -302,24 +256,6 @@
       "title": "Kenangan",
       "tag": "NARASI",
       "eyebrow": "Masa mana yang membentuk aku yang sekarang",
-      "hint": "Ketuk satu periode untuk memulai pertanyaan mendalam",
-      "footer": "Pertanyaan lanjutan membantu mencatat kenanganmu lebih lengkap.",
-      "p1Name": "Balita",
-      "p1Age": "0–6",
-      "p2Name": "Masa kecil",
-      "p2Age": "7–12",
-      "p3Name": "Remaja awal",
-      "p3Age": "13–15",
-      "p4Name": "Remaja tengah",
-      "p4Age": "16–17",
-      "p5Name": "Remaja akhir",
-      "p5Age": "18–19",
-      "p6Name": "Awal 20-an",
-      "p6Age": "20–23",
-      "p7Name": "Awal masa kerja",
-      "p7Age": "24–27",
-      "p8Name": "Sekarang",
-      "p8Age": "28–",
       "emptyTitle": "Belum ada masa yang diingat",
       "emptyBody": "Pilih satu masa untuk mulai mencatat kenanganmu. Catatannya akan muncul di sini."
     },
@@ -329,13 +265,6 @@
       "eyebrow": "Seberapa mirip aku yang dilihat orang dengan aku yang kulihat",
       "legendSelf": "Aku yang kulihat",
       "legendOther": "Aku yang dilihat orang",
-      "traitExtraversion": "Ekstraversi",
-      "traitConscientiousness": "Kehati-hatian",
-      "traitAgreeableness": "Keramahan",
-      "diffExtraversion": "selisih +18",
-      "diffConscientiousness": "selisih +4",
-      "diffAgreeableness": "selisih −7",
-      "conclusion": "Orang lain melihatmu lebih ceria. Mungkin kamu lebih ekstrover dari yang kamu kira.",
       "survey": "Lihat survei",
       "share": "Bagikan",
       "obsTitleGap": "Aku yang kulihat, aku yang mereka lihat",
@@ -356,15 +285,6 @@
       "title": "Ritme",
       "tag": "ESM",
       "eyebrow": "Kapan aku paling menjadi diriku",
-      "subhead": "7 hari terakhir · ritme suasana hati",
-      "mon": "Sen",
-      "tue": "Sel",
-      "wed": "Rab",
-      "thu": "Kam",
-      "fri": "Jum",
-      "sat": "Sab",
-      "sun": "Min",
-      "caption": "Paling menjadi dirimu: Sabtu pagi. Kamu merasa paling baik saat tenggelam membuat sesuatu.",
       "logNow": "+ Catat suasana hati sekarang",
       "emptyTitle": "Belum ada ritme untuk digambarkan",
       "emptyBody": "Catat suasana hati selama beberapa hari untuk melihat perubahannya di sini."
@@ -389,16 +309,6 @@
       "title": "Relasi",
       "tag": "RELASI",
       "eyebrow": "Aku di dalam relasi dan pengetahuan",
-      "peopleHead": "Orang yang sering muncul",
-      "person1": "Minjun · 24",
-      "person2": "Ibu · 18",
-      "person3": "Jiwoo · 12",
-      "personMore": "+9",
-      "knowledgeHead": "Minat",
-      "topic1": "Desain·perkakas",
-      "topic2": "Psikologi·pemahaman diri",
-      "topic3": "AI·produktivitas",
-      "conclusion": "Dalam relasimu, kedalaman lebih menonjol daripada keluasan. Sedikit, sering, dan lama.",
       "addData": "+ Tambah data",
       "emptyTitle": "Belum ada orang atau pengetahuan yang terhubung",
       "emptyBody": "Orang dan minat yang muncul dalam catatanmu akan terkumpul di sini."
@@ -431,34 +341,12 @@
     "audit": {
       "title": "Diriku di masa lalu",
       "subtitle": "Pilih satu masa dan kenang lagi dirimu saat itu.",
-      "vividness": "Kejelasan L{{level}}",
-      "eraInfancy": "Masa balita",
-      "eraChild": "Masa kanak-kanak",
-      "eraTeen": "Masa remaja",
-      "eraYoung": "Masa muda",
-      "eraNow": "Sekarang",
-      "rangeInfancy": "0–6 tahun",
-      "rangeChild": "7–12 tahun",
-      "rangeTeen": "13–18 tahun",
-      "rangeYoung": "19–28 tahun",
-      "period": {
-        "childhood": "Masa kecil",
-        "teens": "Masa remaja",
-        "twenties": "Usia 20-an",
-        "thirties": "Usia 30-an",
-        "forties": "Usia 40-an",
-        "fifties": "Usia 50-an",
-        "sixties": "Usia 60-an",
-        "seventies": "Usia 70-an",
-        "current": "Sekarang"
-      },
       "rangeSpan": "{{from}}–{{to}} tahun",
       "rangeUnder": "Sebelum {{to}}",
       "rangeFrom": "{{from}} ke atas",
       "notYet": "Belum sampai ke sana"
     },
     "me": {
-      "title": "Bintang Utara",
       "eyebrow": "Bintang Utara · ringkasan 7 bintang",
       "headline": "Memahami diri lebih dalam agar hidup lebih menjadi diri sendiri.",
       "synthMeta": "Ringkasan 7 bintang · tingkat keyakinan",
