@@ -7,7 +7,6 @@ const CREDENTIAL_CONTRACT_PATH = "docs/GITHUB-ACTIONS-CREDENTIAL-BOUNDARIES.md";
 const WORKFLOW_PATHS = [
   ".github/workflows/android-release.yml",
   ".github/workflows/ci.yml",
-  ".github/workflows/db-backup.yml",
   ".github/workflows/issue-sla.yml",
   ".github/workflows/model-refresh.yml",
   ".github/workflows/pr-title.yml",
@@ -15,7 +14,7 @@ const WORKFLOW_PATHS = [
 ] as const;
 
 const APPROVED_ACTIONS = {
-  "actions/checkout": { sha: "11d5960a326750d5838078e36cf38b85af677262", tag: "v4", count: 8 },
+  "actions/checkout": { sha: "11d5960a326750d5838078e36cf38b85af677262", tag: "v4", count: 7 },
   "actions/setup-node": { sha: "49933ea5288caeca8642d1e84afbd3f7d6820020", tag: "v4", count: 5 },
   "actions/setup-java": { sha: "cf277c60eb25467037889841efdb72551f06f6c3", tag: "v4", count: 1 },
   "android-actions/setup-android": {
@@ -26,7 +25,7 @@ const APPROVED_ACTIONS = {
   "actions/upload-artifact": {
     sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
     tag: "v4",
-    count: 2,
+    count: 1,
   },
   "actions/github-script": {
     sha: "f28e40c7f34bde8b3046d885e986cb6290c5673b",
@@ -160,7 +159,7 @@ describe("security-sensitive GitHub Actions workflows", () => {
     const observed = new Map<string, number>();
     let actionCount = 0;
 
-    expect(WORKFLOW_PATHS).toHaveLength(7);
+    expect(WORKFLOW_PATHS).toHaveLength(6);
 
     for (const path of WORKFLOW_PATHS) {
       const { raw } = readWorkflow(path);
@@ -222,7 +221,6 @@ describe("security-sensitive GitHub Actions workflows", () => {
   test.each([
     [".github/workflows/model-refresh.yml", "report", "ModelRefreshReadOnly"],
     [".github/workflows/model-refresh.yml", "apply", "Production"],
-    [".github/workflows/db-backup.yml", "dump", "Backup"],
   ] as const)(
     "%s credential job %s is bound to trusted current main",
     (path, jobName, environment) => {
@@ -309,25 +307,8 @@ describe("security-sensitive GitHub Actions workflows", () => {
     );
   });
 
-  test("DB backup uses the fail-closed Backup environment credential contract", () => {
-    const { raw, workflow } = readWorkflow(".github/workflows/db-backup.yml");
-    const dump = namedStep(".github/workflows/db-backup.yml", "Dump and encrypt");
-
-    expect(workflow.on?.schedule).toBeDefined();
-    expect(workflow.jobs?.dump.environment).toBe("Backup");
-    expect(dump.env).toMatchObject({
-      DB_URL: "${{ secrets.BACKUP_PGDUMP_DATABASE_URL }}",
-      AGE_PUBLIC_KEY: "${{ secrets.BACKUP_PGDUMP_AGE_PUBLIC_KEY }}",
-    });
-    expect(raw).not.toContain("environment: Production");
-    expect(raw).not.toMatch(/secrets\.(?:SUPABASE_DB_URL|BACKUP_AGE_PUBLIC_KEY)\b/);
-    expect(dump.run).toContain('if [ -z "${DB_URL:-}" ] || [ -z "${AGE_PUBLIC_KEY:-}" ]; then');
-    expect(dump.run).toContain("BACKUP_PGDUMP_DATABASE_URL or BACKUP_PGDUMP_AGE_PUBLIC_KEY");
-    expectImmediateFreshMainGate(
-      jobSteps(".github/workflows/db-backup.yml", "dump"),
-      "Dump and encrypt",
-      "Recheck current main before backup credentials",
-    );
+  test("public DB backup workflow stays removed (GO-B4)", () => {
+    expect(readdirSync(join(ROOT, ".github", "workflows"))).not.toContain("db-backup.yml");
   });
 
   test("environment credential ownership stays an audited external contract", () => {
