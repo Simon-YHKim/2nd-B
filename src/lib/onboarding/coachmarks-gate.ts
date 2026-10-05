@@ -3,6 +3,10 @@
 // record. Manual replay is a separate, explicit override of the data check.
 import { useEffect, useState } from "react";
 
+import {
+  isAccountLocalDeletionFencedInMemory,
+  runAccountLocalMutation,
+} from "../account/local-deletion-fence";
 import { withTimeout } from "../async/with-timeout";
 import { getSupabaseClient } from "../supabase/client";
 
@@ -20,7 +24,7 @@ type Flags = { seen: boolean; replay: boolean };
 const memoryFlags = new Map<string, Flags>();
 const versions = new Map<string, number>();
 const listeners = new Set<(ownerId: string, due: boolean) => void>();
-const nativeWrites = new Map<string, Promise<void>>();
+const pendingWrites = new Map<string, Promise<void>>();
 
 function ls(): Storage | null {
   try {
@@ -48,51 +52,63 @@ function publishCoachmarksDue(ownerId: string, due: boolean): void {
   for (const listener of listeners) listener(ownerId, due);
 }
 
-function persistNative(ownerId: string, operation: string, write: (storage: AsyncStorageLike) => Promise<void>): void {
-  const storage = nativeStorage();
-  if (!storage) return;
-  // A replay followed quickly by Save must not finish its async setItem after
-  // Save's removeItem and resurrect the replay on the next app launch.
-  const pending = (nativeWrites.get(ownerId) ?? Promise.resolve())
-    .then(() => write(storage))
-    .catch((error) => warn(operation, error));
-  nativeWrites.set(ownerId, pending);
+/** Every device write goes through the account's deletion fence, the same
+ * guard the other owner-scoped stores use: a write queued before the fence
+ * finishes before the purge reads the keys back, and a write after it (this
+ * runtime, or another tab that reads the durable marker) is dropped, so a purge
+ * that reported both keys empty stays empty. The fence's per-owner queue (or
+ * Web Lock) also keeps the writes in order: a replay followed quickly by Save
+ * must not finish its async setItem after Save's removeItem and resurrect the
+ * replay on the next app launch. */
+function persist(
+  ownerId: string,
+  operation: string,
+  web: (storage: Storage) => void,
+  native: (storage: AsyncStorageLike) => Promise<unknown>,
+): void {
+  const pending = runAccountLocalMutation(ownerId, async () => {
+    const local = ls();
+    if (local) {
+      web(local);
+      return;
+    }
+    const storage = nativeStorage();
+    if (storage) await native(storage);
+  }).then(() => undefined, (error: unknown) => warn(operation, error));
+  pendingWrites.set(ownerId, pending);
   void pending.then(() => {
-    if (nativeWrites.get(ownerId) === pending) nativeWrites.delete(ownerId);
+    if (pendingWrites.get(ownerId) === pending) pendingWrites.delete(ownerId);
   });
 }
 
 /** Completion and replay are deliberately owner-scoped. The old v1 key cannot
  * safely be assigned to an owner after an account switch, so it is not read. */
 export function markCoachmarksSeen(ownerId: string): void {
-  if (!ownerId) return;
+  if (!ownerId || isAccountLocalDeletionFencedInMemory(ownerId)) return;
   memoryFlags.set(ownerId, { seen: true, replay: false });
   publishCoachmarksDue(ownerId, false);
   const at = new Date().toISOString();
-  try {
-    ls()?.setItem(COACHMARKS_SEEN_KEY(ownerId), at);
-    ls()?.removeItem(COACHMARKS_REPLAY_KEY(ownerId));
-  } catch (error) {
-    warn("persist", error);
-  }
-  persistNative(ownerId, "persist", (storage) => Promise.all([
+  persist(ownerId, "persist", (local) => {
+    local.setItem(COACHMARKS_SEEN_KEY(ownerId), at);
+    local.removeItem(COACHMARKS_REPLAY_KEY(ownerId));
+  }, (storage) => Promise.all([
     storage.setItem(COACHMARKS_SEEN_KEY(ownerId), at),
     storage.removeItem(COACHMARKS_REPLAY_KEY(ownerId)),
-  ]).then(() => undefined));
+  ]));
 }
 
 /** Replay is an explicit request, including when the owner already has data. */
 export function resetCoachmarks(ownerId: string): void {
-  if (!ownerId) return;
+  if (!ownerId || isAccountLocalDeletionFencedInMemory(ownerId)) return;
   memoryFlags.set(ownerId, { seen: false, replay: true });
   publishCoachmarksDue(ownerId, true);
   const at = new Date().toISOString();
-  try {
-    ls()?.setItem(COACHMARKS_REPLAY_KEY(ownerId), at);
-  } catch (error) {
-    warn("replay", error);
-  }
-  persistNative(ownerId, "replay", (storage) => storage.setItem(COACHMARKS_REPLAY_KEY(ownerId), at));
+  persist(
+    ownerId,
+    "replay",
+    (local) => local.setItem(COACHMARKS_REPLAY_KEY(ownerId), at),
+    (storage) => storage.setItem(COACHMARKS_REPLAY_KEY(ownerId), at),
+  );
 }
 
 async function readFlags(ownerId: string): Promise<Flags> {
@@ -167,16 +183,21 @@ export function useCoachmarksGate(ownerId: string | null, ready: boolean, retryT
   return ready && ownerId && decision?.ownerId === ownerId ? decision.due : null;
 }
 
-/** Local purge after terminal account deletion (lib/account/local-purge.ts).
- * Both flags are owner-scoped device data, so they go with the account. A
- * native write still queued for this owner runs first; removing ahead of it
- * would let that write land afterwards and bring a flag back. True only when
- * both keys read back empty. */
+/** Local purge after terminal account deletion (lib/account/local-purge.ts),
+ * which installs the deletion fence first, so no flag write can start after
+ * this one (see persist). Both flags are owner-scoped device data, so they go
+ * with the account. A write still queued for this owner runs first; removing
+ * ahead of it would let that write land afterwards and bring a flag back. The
+ * owner's version moves too, so a gate read that started before the purge
+ * cannot settle on the removed flags. True only when both keys read back
+ * empty. */
 export async function purgeCoachmarksForDeletedAccount(userId: string): Promise<boolean> {
   const owner = userId.trim();
   if (!owner) return false;
   const keys = [COACHMARKS_SEEN_KEY(owner), COACHMARKS_REPLAY_KEY(owner)];
+  await (pendingWrites.get(owner) ?? Promise.resolve());
   memoryFlags.delete(owner);
+  versions.set(owner, (versions.get(owner) ?? 0) + 1);
   try {
     const web = ls();
     if (web) {
@@ -185,7 +206,6 @@ export async function purgeCoachmarksForDeletedAccount(userId: string): Promise<
     }
     const native = nativeStorage();
     if (!native) return false;
-    await (nativeWrites.get(owner) ?? Promise.resolve());
     for (const key of keys) await native.removeItem(key);
     const remaining = await Promise.all(keys.map((key) => native.getItem(key)));
     return remaining.every((value) => value === null);
@@ -198,5 +218,5 @@ export function __resetCoachmarksGateForTests(): void {
   memoryFlags.clear();
   versions.clear();
   listeners.clear();
-  nativeWrites.clear();
+  pendingWrites.clear();
 }

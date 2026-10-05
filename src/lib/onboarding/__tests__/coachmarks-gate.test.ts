@@ -15,6 +15,10 @@ jest.mock("react", () => ({
 
 import { useEffect, useState } from "react";
 import {
+  __resetAccountLocalDeletionFencesForTests,
+  installAccountLocalDeletionFence,
+} from "../../account/local-deletion-fence";
+import {
   COACHMARKS_REPLAY_KEY,
   COACHMARKS_SEEN_KEY,
   __resetCoachmarksGateForTests,
@@ -306,6 +310,10 @@ describe("account deletion purges the owner's guide flags", () => {
       removeItem: (key: string) => { store.delete(key); },
     };
     Object.defineProperty(globalThis, "localStorage", { value: local, configurable: true, writable: true });
+    // A browser, not React Native: the deletion fence guards writes with the
+    // same localStorage the flags live in.
+    const nativeNavigator = globalThis.navigator;
+    Object.defineProperty(globalThis, "navigator", { value: { product: "Gecko" }, configurable: true, writable: true });
     try {
       markCoachmarksSeen("owner-A");
       resetCoachmarks("owner-A");
@@ -318,7 +326,135 @@ describe("account deletion purges the owner's guide flags", () => {
       expect(store.has(COACHMARKS_REPLAY_KEY("owner-A"))).toBe(false);
       expect(store.has(COACHMARKS_SEEN_KEY("owner-B"))).toBe(true);
     } finally {
+      Object.defineProperty(globalThis, "navigator", { value: nativeNavigator, configurable: true, writable: true });
       delete (globalThis as { localStorage?: unknown }).localStorage;
     }
+  });
+});
+
+// QA 261004 BL-02-RACE: the purge's "both keys read back empty" must still be
+// true afterwards. A flag write made during or after the deletion (this
+// runtime, or another tab reading the durable marker) used to land later and
+// bring a flag back, so the local purge could report "complete" falsely.
+describe("the deletion fence keeps purged guide flags purged", () => {
+  const store = new Map<string, string>();
+
+  function storeBackedNative(): void {
+    store.clear();
+    mockGetItem.mockImplementation((key: string) => Promise.resolve(store.get(key) ?? null));
+    mockSetItem.mockImplementation((key: string, value: string) => {
+      store.set(key, value);
+      return Promise.resolve();
+    });
+    mockRemoveItem.mockImplementation((key: string) => {
+      store.delete(key);
+      return Promise.resolve();
+    });
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    __resetCoachmarksGateForTests();
+    __resetAccountLocalDeletionFencesForTests();
+    storeBackedNative();
+    (useState as jest.Mock).mockReset();
+    (useEffect as jest.Mock).mockReset();
+  });
+  afterEach(() => {
+    __resetAccountLocalDeletionFencesForTests();
+  });
+
+  test("native: a write during or after the deletion neither lands nor revives the memory flag", async () => {
+    const queries = fakeClient(() => empty());
+    // A replay write is still out when the deletion starts.
+    let finishReplay!: () => void;
+    mockSetItem.mockImplementationOnce((key: string, value: string) => new Promise<void>((resolve) => {
+      finishReplay = () => {
+        store.set(key, value);
+        resolve();
+      };
+    }));
+    resetCoachmarks("owner-A");
+    await flush();
+    const fence = installAccountLocalDeletionFence("owner-A");
+    // Same order as purgeDeletedAccountLocalData: fence first, then the purge.
+    markCoachmarksSeen("owner-A");
+    resetCoachmarks("owner-A");
+    finishReplay();
+    await expect(fence).resolves.toBe(true);
+    await expect(purgeCoachmarksForDeletedAccount("owner-A")).resolves.toBe(true);
+
+    // After the readback: nothing may come back.
+    resetCoachmarks("owner-A");
+    markCoachmarksSeen("owner-A");
+    await flush();
+    expect(store.has(COACHMARKS_SEEN_KEY("owner-A"))).toBe(false);
+    expect(store.has(COACHMARKS_REPLAY_KEY("owner-A"))).toBe(false);
+
+    // The in-memory "seen" did not come back either: the gate reads storage
+    // and asks the server instead of answering from memory.
+    const hook = hookHarness();
+    hook.render("owner-A");
+    await flush();
+    expect(queries).toHaveLength(2);
+    expect(hook.due("owner-A")).toBe(true);
+    hook.stop();
+
+    // Another owner on the device is untouched by the fence.
+    markCoachmarksSeen("owner-B");
+    await flush();
+    expect(store.has(COACHMARKS_SEEN_KEY("owner-B"))).toBe(true);
+  });
+
+  test("web: another tab's write after the purge reads the durable marker and is dropped", async () => {
+    const local = {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => { store.set(key, value); },
+      removeItem: (key: string) => { store.delete(key); },
+    };
+    Object.defineProperty(globalThis, "localStorage", { value: local, configurable: true, writable: true });
+    const nativeNavigator = globalThis.navigator;
+    Object.defineProperty(globalThis, "navigator", { value: { product: "Gecko" }, configurable: true, writable: true });
+    try {
+      markCoachmarksSeen("owner-A");
+      expect(store.has(COACHMARKS_SEEN_KEY("owner-A"))).toBe(true);
+      // No Web Locks in this browser: the marker is still written, the fence
+      // just cannot confirm another tab's running write (it reports false).
+      await installAccountLocalDeletionFence("owner-A");
+      await expect(purgeCoachmarksForDeletedAccount("owner-A")).resolves.toBe(true);
+
+      // The other tab has its own module state, so its in-memory fence is empty.
+      let otherTab!: { markCoachmarksSeen: typeof markCoachmarksSeen; resetCoachmarks: typeof resetCoachmarks };
+      jest.isolateModules(() => {
+        otherTab = jest.requireActual("../coachmarks-gate");
+      });
+      otherTab.markCoachmarksSeen("owner-A");
+      otherTab.resetCoachmarks("owner-A");
+      await flush();
+      expect(store.has(COACHMARKS_SEEN_KEY("owner-A"))).toBe(false);
+      expect(store.has(COACHMARKS_REPLAY_KEY("owner-A"))).toBe(false);
+    } finally {
+      Object.defineProperty(globalThis, "navigator", { value: nativeNavigator, configurable: true, writable: true });
+      delete (globalThis as { localStorage?: unknown }).localStorage;
+    }
+  });
+
+  test("a gate read that started before the purge does not settle on the removed flag", async () => {
+    // Completion saved on an earlier launch: only storage knows it.
+    store.set(COACHMARKS_SEEN_KEY("owner-A"), "2026-10-05T00:00:00.000Z");
+    let releaseRead!: () => void;
+    mockGetItem.mockImplementationOnce((key: string) => {
+      const stale = store.get(key) ?? null;
+      return new Promise<string | null>((resolve) => { releaseRead = () => resolve(stale); });
+    });
+    fakeClient(() => empty());
+    const hook = hookHarness();
+    expect(hook.render("owner-A")).toBeNull();
+    await flush();
+    await expect(purgeCoachmarksForDeletedAccount("owner-A")).resolves.toBe(true);
+    releaseRead();
+    await flush();
+    expect(hook.due("owner-A")).toBeNull();
+    hook.stop();
   });
 });
