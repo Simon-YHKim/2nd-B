@@ -25,6 +25,7 @@ import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { Text } from "@/components/ui/Text";
 import { canShowRewardedAds } from "@/lib/ads/policy";
 import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
+import { showsMinorPurchaseNotice } from "@/lib/billing/minor-purchase-notice";
 import {
   openPaddleCheckout,
   paddleCheckoutAvailable,
@@ -322,7 +323,7 @@ export function DeepSpacePlansScreen() {
   const auth = useAuth();
   const progression = useProgression();
   const pathname = usePathname();
-  const { userId, hasProfile, isMinor, profileProbeFailed, loading: authLoading } = auth;
+  const { userId, hasProfile, isMinor, age, profileProbeFailed, loading: authLoading } = auth;
   const {
     tier: currentTier,
     loading: tierLoading,
@@ -797,7 +798,8 @@ export function DeepSpacePlansScreen() {
         </View>
       </PixelSurface>
 
-      {isMinor === true ? (
+      {/* 문구가 말하는 "만 19세 미만" 에게 보인다. isMinor(만 18세 미만)만 보면 만 18세가 빠진다. */}
+      {showsMinorPurchaseNotice({ isMinor, age }) ? (
         <PixelSurface variant="frame" contentStyle={s.noticeContent}>
           <View style={s.honestyRow}>
             <PixelGlyph name="info" color={m3.color.onSurfaceVariant} size={18} />
