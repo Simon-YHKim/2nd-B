@@ -12,12 +12,19 @@ export type AccountLocalMutationResult<T> =
   | { executed: true; value: T }
   | { executed: false };
 
+// The terminal key. Builds before the intent stage read ANY value here as a
+// fence and cache it in memory for the rest of their runtime, so only the
+// irreversible terminal marker is ever written to it.
 const FENCE_KEY_PREFIX = "account.deletionFence.v1:";
 const FENCE_MARKER = "terminal";
-// Same key, same blocking effect on writes (any value fences). Unlike the
-// terminal marker it may be lifted: it only ever stands for a deletion that has
-// not reached the server yet. Older builds read any value as a fence, so they
-// stay fail-closed against it.
+// The liftable stage lives under its own key (QA 261004 gate DEL-SAFE-02,
+// 2026-10-05). It first shared the terminal key, and an older tab still open in
+// the same browser cached that intent as terminal: once this build lifted it,
+// the older tab kept rejecting the live account's drafts, settings and audit
+// writes until a reload, with no event to tell it otherwise. Older builds do
+// not read this key; they are fenced by the terminal marker, which is written
+// under the same cross-tab lock right before the first Edge invocation.
+const INTENT_KEY_PREFIX = "account.deletionIntent.v1:";
 const INTENT_MARKER = "intent";
 const LOCK_PREFIX = "2ndb.account-local-write.v1:";
 
@@ -45,6 +52,10 @@ export function isAccountLocalDeletionFencedInMemory(userId: string): boolean {
 
 function fenceKey(owner: string): string {
   return `${FENCE_KEY_PREFIX}${owner}`;
+}
+
+function intentKey(owner: string): string {
+  return `${INTENT_KEY_PREFIX}${owner}`;
 }
 
 function webStorage(): Storage | null {
@@ -96,20 +107,22 @@ function runOwnerTail<T>(owner: string, operation: () => Promise<T>): Promise<T>
   return result;
 }
 
-/** false = no marker; true = a marker this runtime may cache in memory;
- *  "intent" = fences this write but is never cached, because the tab that
- *  raised it may lift it and no event would reach this runtime; null =
- *  storage could not be read. */
+/** false = no marker; true = any value on the terminal key (unknown ones too,
+ *  fail-closed), which this runtime caches in memory for good; "intent" = a
+ *  value on the intent key, which fences this write but is never cached,
+ *  because the tab that raised it may lift it and no event would reach this
+ *  runtime; null = storage could not be read. */
 type FenceRead = boolean | typeof INTENT_MARKER | null;
 
-function classifyFence(value: string | null): FenceRead {
-  if (value === null) return false;
-  return value === INTENT_MARKER ? INTENT_MARKER : true;
+function classifyFence(terminal: string | null, intent: string | null): FenceRead {
+  if (terminal !== null) return true;
+  return intent === null ? false : INTENT_MARKER;
 }
 
 function readWebFence(storage: Storage, owner: string): FenceRead {
   try {
-    return classifyFence(storage.getItem(fenceKey(owner)));
+    const terminal = storage.getItem(fenceKey(owner));
+    return classifyFence(terminal, terminal === null ? storage.getItem(intentKey(owner)) : null);
   } catch {
     return null;
   }
@@ -117,10 +130,18 @@ function readWebFence(storage: Storage, owner: string): FenceRead {
 
 async function readAsyncFence(storage: AsyncStorageLike, owner: string): Promise<FenceRead> {
   try {
-    return classifyFence(await storage.getItem(fenceKey(owner)));
+    const terminal = await storage.getItem(fenceKey(owner));
+    return classifyFence(terminal, terminal === null ? await storage.getItem(intentKey(owner)) : null);
   } catch {
     return null;
   }
+}
+
+/** A terminal marker seen on any path pins the memory fence: a later intent
+ *  release must not lift it even if storage loses the key (gate DEL-SAFE-03). */
+function observeTerminal(owner: string): void {
+  memoryFences.add(owner);
+  terminalOwners.add(owner);
 }
 
 /**
@@ -140,7 +161,7 @@ export function runAccountLocalMutation<T>(
     const execute = async (): Promise<AccountLocalMutationResult<T>> => {
       const fenced = readWebFence(local, owner);
       if (fenced !== false) {
-        if (fenced === true) memoryFences.add(owner);
+        if (fenced === true) observeTerminal(owner);
         return { executed: false };
       }
       return { executed: true, value: await mutation() };
@@ -168,7 +189,7 @@ export function runAccountLocalMutation<T>(
       return { executed: true, value: await mutation() } as const;
     }
     if (fenced !== false) {
-      if (fenced === true) memoryFences.add(owner);
+      if (fenced === true) observeTerminal(owner);
       return { executed: false } as const;
     }
     return { executed: true, value: await mutation() } as const;
@@ -182,11 +203,12 @@ export function runAccountLocalMutation<T>(
  * cleared for a terminal UUID. Write it only once a destructive call may have
  * started, or after one succeeded.
  *
- * `intent` fences writes exactly the same way but stays reversible through
+ * `intent` fences this build's writes the same way but stays reversible through
  * releaseAccountLocalDeletionIntent(). A deletion raises it before its
  * preconditions (session refresh, cross-tab join) and promotes it to terminal
  * right before the first Edge invocation. It never downgrades a terminal
- * marker that is already there.
+ * marker that is already there (any value on the terminal key counts). It is
+ * stored under its own key, so an older build's tab never caches it.
  *
  * ⚠ Why the split (QA 261004 gates R3-05 / BL-07, 2026-10-05): the deletion
  * used to write `terminal` first and then refresh the session. Any failure in
@@ -206,26 +228,10 @@ export function installAccountLocalDeletionFence(
   const owner = normalizeOwner(userId);
   if (!owner) return Promise.resolve(false);
   memoryFences.add(owner);
-  const marker = stage === "intent" ? INTENT_MARKER : FENCE_MARKER;
-  // An intent over an existing terminal marker keeps the terminal one: the
-  // account may already be gone on the server.
-  const acknowledge = (written: string | null): boolean => {
-    if (written === FENCE_MARKER) terminalOwners.add(owner);
-    return written === marker || (stage === "intent" && written === FENCE_MARKER);
-  };
 
   const local = webStorage();
   if (local) {
-    const persist = async (): Promise<boolean> => {
-      try {
-        if (stage !== "intent" || local.getItem(fenceKey(owner)) !== FENCE_MARKER) {
-          local.setItem(fenceKey(owner), marker);
-        }
-        return acknowledge(local.getItem(fenceKey(owner)));
-      } catch {
-        return false;
-      }
-    };
+    const persist = () => persistFence(webAsAsync(local), owner, stage);
     const locks = webLocks();
     if (!locks) {
       return persist().then(() => false, () => false);
@@ -235,16 +241,47 @@ export function installAccountLocalDeletionFence(
 
   const storage = asyncStorage();
   if (!storage) return Promise.resolve(false);
-  return runOwnerTail(owner, async () => {
-    try {
-      if (stage !== "intent" || await storage.getItem(fenceKey(owner)) !== FENCE_MARKER) {
-        await storage.setItem(fenceKey(owner), marker);
+  return runOwnerTail(owner, () => persistFence(storage, owner, stage));
+}
+
+/** Web Storage is synchronous; one awaited code path serves both runtimes. */
+function webAsAsync(local: Storage): AsyncStorageLike {
+  return {
+    getItem: async (key) => local.getItem(key),
+    setItem: async (key, value) => { local.setItem(key, value); },
+    removeItem: async (key) => { local.removeItem(key); },
+  };
+}
+
+async function persistFence(
+  store: AsyncStorageLike,
+  owner: string,
+  stage: AccountLocalDeletionFenceStage,
+): Promise<boolean> {
+  try {
+    if (stage === "intent") {
+      // An intent over an existing terminal marker keeps the terminal one: the
+      // account may already be gone on the server.
+      if (await store.getItem(fenceKey(owner)) !== null) {
+        terminalOwners.add(owner);
+        return true;
       }
-      return acknowledge(await storage.getItem(fenceKey(owner)));
-    } catch {
-      return false;
+      await store.setItem(intentKey(owner), INTENT_MARKER);
+      return await store.getItem(intentKey(owner)) === INTENT_MARKER;
     }
-  });
+    await store.setItem(fenceKey(owner), FENCE_MARKER);
+    if (await store.getItem(fenceKey(owner)) !== FENCE_MARKER) return false;
+    terminalOwners.add(owner);
+  } catch {
+    return false;
+  }
+  // The terminal marker wins every read, so a leftover intent is only clutter.
+  try {
+    if (await store.getItem(intentKey(owner)) !== null) await store.removeItem(intentKey(owner));
+  } catch {
+    // Best effort: the terminal marker is already acknowledged.
+  }
+  return true;
 }
 
 /**
@@ -252,33 +289,20 @@ export function installAccountLocalDeletionFence(
  *
  * Only the caller that raised the intent may call this, and only when it knows
  * no destructive call was attempted. A terminal marker is never touched: when
- * one is found (another attempt got further, or a promotion half-landed) the
- * owner stays fenced and false comes back. An unknown marker value is left in
- * place too. The memory fence is lifted only once storage reads back empty;
- * if storage cannot be read or cleared, the owner stays fenced, fail-closed.
+ * any value is found on the terminal key (another attempt got further, a
+ * promotion half-landed, or a value this build does not know) the owner stays
+ * fenced for good and false comes back. An unknown value on the intent key is
+ * left in place too. The memory fence is lifted only once both keys read back
+ * empty and this runtime never saw a terminal marker; if storage cannot be
+ * read or cleared, the owner stays fenced, fail-closed.
  */
 export function releaseAccountLocalDeletionIntent(userId: string): Promise<boolean> {
   const owner = normalizeOwner(userId);
   if (!owner) return Promise.resolve(false);
-  const lift = (durableCleared: boolean): boolean => {
-    if (!durableCleared || terminalOwners.has(owner)) return false;
-    memoryFences.delete(owner);
-    return true;
-  };
 
   const local = webStorage();
   if (local) {
-    const clear = async (): Promise<boolean> => {
-      try {
-        const current = local.getItem(fenceKey(owner));
-        if (current === FENCE_MARKER) terminalOwners.add(owner);
-        if (current !== null && current !== INTENT_MARKER) return false;
-        if (current === INTENT_MARKER) local.removeItem(fenceKey(owner));
-        return lift(local.getItem(fenceKey(owner)) === null);
-      } catch {
-        return false;
-      }
-    };
+    const clear = () => clearIntent(webAsAsync(local), owner);
     const locks = webLocks();
     // Without Web Locks the intent was written without a lock as well.
     return locks ? locks.request(`${LOCK_PREFIX}${owner}`, clear).catch(() => false) : clear();
@@ -286,18 +310,34 @@ export function releaseAccountLocalDeletionIntent(userId: string): Promise<boole
 
   const storage = asyncStorage();
   // No durable store: the intent only ever lived in memory.
-  if (!storage) return Promise.resolve(lift(true));
-  return runOwnerTail(owner, async () => {
-    try {
-      const current = await storage.getItem(fenceKey(owner));
-      if (current === FENCE_MARKER) terminalOwners.add(owner);
-      if (current !== null && current !== INTENT_MARKER) return false;
-      if (current === INTENT_MARKER) await storage.removeItem(fenceKey(owner));
-      return lift(await storage.getItem(fenceKey(owner)) === null);
-    } catch {
-      return false;
-    }
-  });
+  if (!storage) return Promise.resolve(liftMemoryFence(owner));
+  return runOwnerTail(owner, () => clearIntent(storage, owner));
+}
+
+function liftMemoryFence(owner: string): boolean {
+  if (terminalOwners.has(owner)) return false;
+  memoryFences.delete(owner);
+  return true;
+}
+
+async function clearIntent(store: AsyncStorageLike, owner: string): Promise<boolean> {
+  const terminalSeen = async (): Promise<boolean> => {
+    if (await store.getItem(fenceKey(owner)) === null) return false;
+    terminalOwners.add(owner);
+    return true;
+  };
+  try {
+    if (await terminalSeen()) return false;
+    const current = await store.getItem(intentKey(owner));
+    if (current !== null && current !== INTENT_MARKER) return false;
+    if (current === INTENT_MARKER) await store.removeItem(intentKey(owner));
+    // Read both back: a terminal that landed meanwhile is never lifted.
+    if (await terminalSeen()) return false;
+    if (await store.getItem(intentKey(owner)) !== null) return false;
+    return liftMemoryFence(owner);
+  } catch {
+    return false;
+  }
 }
 
 export function __resetAccountLocalDeletionFencesForTests(): void {

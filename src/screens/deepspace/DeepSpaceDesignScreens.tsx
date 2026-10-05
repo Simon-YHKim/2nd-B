@@ -673,6 +673,15 @@ export function DeepSpacePrivacyDesignScreen() {
         console.warn("[privacy] local sign-out after deletion failed; phase=account-deletion");
       }
     }
+    // A B published while the sign-out was pending owns the stack now, whether
+    // the sign-out returned or failed: never empty B's screens for A's receipt.
+    if (!completion.isCurrent()) {
+      completion.dispose();
+      dismissAccountDeletionNotice();
+      deleteInFlightRef.current = false;
+      if (privacyMountedRef.current) setDeleting(false);
+      return;
+    }
     completion.dispose();
     // Even from an unmounted scene: a signed-out device is sent to the receipt.
     router.dismissAll();

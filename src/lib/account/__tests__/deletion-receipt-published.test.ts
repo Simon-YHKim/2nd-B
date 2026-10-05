@@ -365,3 +365,34 @@ describe("영수증은 화면이 아니라 계정을 따라간다", () => {
     expect(calls.replace).toEqual([]);
   });
 });
+
+// 게이트 지적 DEL-BL-01 (QA 261004, 2026-10-05).
+//
+// 요청 중 A -> null 로 화면이 내려가도 흐름이 끝까지 가게 되면서(위 ②), 로그아웃을
+// 기다리는 사이 B 가 게시되는 길이 새로 열렸다. completion 은 무효가 되고
+// finishSignOut 은 false 를 돌려주지만, 마지막 이동은 그 반환값을 안 봐서 B 의
+// 화면 스택을 비우고 /sign-in 으로 보냈다. 로그아웃이 정상 반환하든 일반 오류로
+// 끝나든 같다(AuthSessionOwnerChangedError 길은 원래 막혀 있었다).
+describe("로그아웃을 기다리는 사이 B 가 게시되면 B 의 화면을 건드리지 않는다", () => {
+  const B = "22222222-2222-4222-8222-222222222222";
+
+  test.each([
+    ["정상 반환", false],
+    ["일반 오류", true],
+  ] as const)("요청 중 A -> null, 로그아웃 중 B 게시, 로그아웃이 %s 해도 이동하지 않는다", async (
+    _label,
+    signOutFails,
+  ) => {
+    const { run, calls, inFlight } = harness({
+      signOutFails,
+      duringRequest: (h) => publishOwner(h, null),
+      duringSignOut: (h) => publishOwner(h, B),
+    });
+    await run();
+    expect(calls.signOut).toBe(1);
+    expect(calls.dismissAll).toBe(0);
+    expect(calls.replace).toEqual([]);
+    expect(getAccountDeletionNotice()).toBeNull();
+    expect(inFlight.current).toBe(false);
+  });
+});

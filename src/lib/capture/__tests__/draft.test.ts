@@ -883,10 +883,12 @@ describe("native encrypted-storage queue and durable acknowledgement", () => {
         "capture.drafts.v2.encrypted-route",
         expect.any(String),
       );
-      expect(mockRawAsyncStorage.getItem).toHaveBeenCalledTimes(1);
-      expect(mockRawAsyncStorage.getItem).toHaveBeenCalledWith(
+      // Raw AsyncStorage is read only for the deletion markers: the terminal
+      // key, then the intent key (split out by gate DEL-SAFE-02).
+      expect(mockRawAsyncStorage.getItem.mock.calls.map(([key]) => key)).toEqual([
         "account.deletionFence.v1:encrypted-route",
-      );
+        "account.deletionIntent.v1:encrypted-route",
+      ]);
       expect(mockRawAsyncStorage.setItem).not.toHaveBeenCalled();
       expect(mockRawAsyncStorage.removeItem).not.toHaveBeenCalled();
       expect(mockMigrateLegacyNativePlaintextAtStartup).not.toHaveBeenCalled();
@@ -1104,10 +1106,11 @@ describe("native encrypted-storage queue and durable acknowledgement", () => {
         mode: "memo",
         expected: { body: "submitted A", topic: "" },
       });
-      expect(mockRawAsyncStorage.getItem).toHaveBeenCalledTimes(1);
-      expect(mockRawAsyncStorage.getItem).toHaveBeenCalledWith(
+      // One guarded write in flight: its terminal-key read, then its intent-key read.
+      expect(mockRawAsyncStorage.getItem.mock.calls.map(([key]) => key)).toEqual([
         `account.deletionFence.v1:${userId}`,
-      );
+        `account.deletionIntent.v1:${userId}`,
+      ]);
       releaseA();
 
       await expect(staleFullSnapshot).resolves.toBe(true);
