@@ -195,11 +195,19 @@ export default function RootLayout() {
   // On the web the opening plays while the fonts download (use-app-fonts.web.ts):
   // they are not on its critical path, and IntroGate holds only the hand-over
   // until they are in. Native keeps waiting here, under the splash screen.
+  //
+  // R2A-04: no caption while the fonts are out. Android caches a text measurement
+  // under the font family NAME ("Galmuri11"), not under the face that answered, so
+  // a caption laid out here, before Galmuri is registered, is measured in the
+  // fallback face, and every later loader with the same words reuses that width.
+  // Galmuri is wider, the last word wrapped onto a second line the box had no room
+  // for, and the loader read "불러오는" (ko) or "Loadin" (en, D-08). Drawing no
+  // text until the face is in leaves nothing stale to reuse, in any language.
   if ((!fontsReady && !OPENING_LOADS_FONTS) || !i18nReady) {
     return (
       <>
         {SITE_HEAD}
-        <InlineLoader />
+        <InlineLoader bare={!fontsReady} />
       </>
     );
   }
@@ -538,7 +546,8 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   // from every route and no authenticated screen remains mounted underneath.
   // The opening already waited for the fonts before handing over; this only
   // matters when the intro was played earlier in this tab and the fonts are not.
-  if (!fontsReady) return <InlineLoader />;
+  // Bare for the same reason as RootLayout's font wait (R2A-04).
+  if (!fontsReady) return <InlineLoader bare />;
   if (storageRecoveryRequired) return <EncryptedStorageRecoveryGate />;
   if (!recoveryReady) return <InlineLoader />;
 
