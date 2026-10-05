@@ -566,6 +566,7 @@ function CareerLens({ records, locale }: { records: DomainLensRecord[]; locale: 
               onPress={() => setTrack(key)}
               accessibilityRole="tab"
               accessibilityState={{ selected }}
+              aria-selected={selected}
               style={[styles.segment, selected && styles.segmentOn]}
             >
               <RNText style={[m3TextStyle("labelLarge"), selected ? styles.segmentTextOn : styles.segmentText]}>

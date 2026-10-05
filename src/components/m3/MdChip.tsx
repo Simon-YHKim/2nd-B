@@ -73,6 +73,10 @@ export function MdChip({
         accessibilityState={
           isFilter ? { selected, checked: selected, disabled } : { disabled }
         }
+        // react-native-web drops accessibilityState, so a filter chip (role checkbox)
+        // read as unchecked on the web even when it showed a check (QA R2C-14).
+        // Native merges this with accessibilityState; the values are the same.
+        aria-checked={isFilter ? selected : undefined}
         accessibilityLabel={accessibilityLabel ?? label}
         style={styles.hit}
       >
