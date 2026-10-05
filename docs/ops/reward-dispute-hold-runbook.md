@@ -118,7 +118,10 @@ SELECT e.at, e.action, e.reason_code, e.actor, e.approved_by, e.actor_role,
 순서가 중요하다(보안 게이트 r1 BL-03). 보류를 먼저 되살리고 정리를 나중에 돌린다. 반대로 하면 복원 시점 이후에 건 보류의 거래가 이미 89일을 넘었을 때 정리가 그 거래를 먼저 지우고, 보류는 대상이 없어 다시 걸 수 없다.
 
 1. **복원 시점 기록**: 쓴 백업의 생성 시각(KST)을 적는다. 그 뒤에 일어난 삭제는 복원된 DB에 반영돼 있지 않다.
-2. **정리 예약 잠시 끄기**: 복원된 DB에서 04:37 KST 정리가 아래 단계 사이에 돌지 않게 한다. `SELECT cron.unschedule('purge-reward-records-90d');` (§8 의 "응급 정지"에 해당한다. Simon 승인 뒤 Hadrianus 실행.)
+2. **정리 예약 잠시 끄기**: 복원된 DB의 pg_cron은 복원이 끝나는 순간부터 예약을 실행할 수 있다(서비스를 닫아 두어도 돈다). 그래서 복원은 04:37 KST(19:37 GMT) 앞뒤 30분을 피해 끝내고, 끝나면 **다른 어떤 SQL보다 먼저** 아래 세 줄을 차례로 실행한다(보안 게이트 r2 DB2-01). §8 의 "응급 정지"에 해당하므로 Simon 승인 뒤 Hadrianus가 실행한다.
+   1. `SELECT jobid FROM cron.job WHERE jobname = 'purge-reward-records-90d';` 값을 적어 둔다(예약을 지우면 이름으로는 찾을 수 없다).
+   2. `SELECT cron.unschedule('purge-reward-records-90d');`
+   3. `SELECT count(*) FROM cron.job_run_details WHERE jobid = <1의 값> AND start_time >= '<복원 완료 시각>';` 이 0 이어야 한다. 1 이상이면 복원 시점 이후에 건 보류의 거래가 이미 지워졌을 수 있으므로 **같은 백업에서 다시 복원**하고 이 단계를 처음부터 다시 한다.
 3. **계정 삭제 다시 적용**: 복원 시점 이후에 삭제된 계정 목록을 구한다. 우선 출처는 장애 난 DB의 `account_deletion_tombstones`(읽을 수 있으면)이고, 그다음은 Supabase Auth 감사 로그와 운영 기록이다. 그 계정들을 평소의 계정 삭제 경로로 다시 지운다(tombstone 행도 다시 쓴다).
    - **삭제 원장 출처(S3-LEDGER 확정, 2026-10-04 21:04 KST)**:
      1. 장애 난 DB(원래 Supabase 프로젝트)의 `account_deletion_tombstones`에서 복원 시점(1번) 이후 행을 읽는다. 읽기 전용 SQL 세션으로 계정 ID와 삭제 시각만 가져오고, 목록은 worklog에 건수만 남긴다.

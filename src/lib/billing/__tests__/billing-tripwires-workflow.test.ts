@@ -71,15 +71,20 @@ describe("the 89-day reward purge is watched too (0211)", () => {
     expect(wf).toMatch(/if \[ "\$RET_OK" != "t" \]; then RETENTION=1; fi/);
   });
 
-  test("a failed existence check fires too; only a clean 'f' means not applied yet", () => {
+  test("a failed existence check fires too; only 'no function and no 0211' means not applied yet", () => {
     // Security gate r1 (DB-04 / BL-05): `|| echo f` turned a connection or
     // permission failure into "the function is missing", which skips the read
-    // and leaves RETENTION at 0.
+    // and leaves RETENTION at 0. r2 (DB2-02): a clean "missing" also hid a
+    // function lost after 0211 was applied, so the ledger row is read with it.
     const check = wf.split("\n").find((line) => line.includes("to_regprocedure('public.reward_retention_health()')"));
     expect(check).toBeDefined();
     expect(check).not.toContain("echo f");
-    expect(check).toMatch(/\|\| HAS_FN="query_failed"$/);
-    expect(wf).toMatch(/elif \[ "\$HAS_FN" != "f" \]; then\s*\n\s*RETENTION=1;/);
+    expect(check).toContain(
+      "from supabase_migrations.schema_migrations where version = '0211' and name = 'reward_records_90d_purge'",
+    );
+    expect(check).toMatch(/\|\| FN_STATE="query_failed\|query_failed"$/);
+    expect(wf).toMatch(/IFS='\|' read -r HAS_FN HAS_0211 <<< "\$FN_STATE"/);
+    expect(wf).toMatch(/elif \[ "\$HAS_FN" != "f" \] \|\| \[ "\$HAS_0211" != "f" \]; then\s*\n\s*RETENTION=1;/);
   });
 
   test("it has a row and counts into the total", () => {

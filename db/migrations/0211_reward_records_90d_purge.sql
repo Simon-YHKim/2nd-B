@@ -22,7 +22,7 @@
 --   감사 기록은 정확히 3년(S1 은 '3년 보관 뒤 파기' 라 하루 당기면 보관 약속을 어긴다).
 --   source_deleted 는 활성 보류가 지워질 때만 남기고, 사건 종료일은 마지막 해제와 그것 중
 --   늦은 쪽으로 잡는다(한 사건에 보류가 여럿일 때 일찍 지우던 것). 감시는 pg_cron 이 없으면
---   ok = false 이고, 91일 넘은 티켓(0196 정리 작업이 멈춘 경우)도 센다.
+--   ok = false 이고, 0196 계약(소비 1일 · 만료 즉시)보다 하루 넘게 남은 티켓도 센다.
 --
 -- 방침 문장(Gaius v4 수정안 6 · v5 §1-3-2):
 --   "보상 거래 기록(광고 거래 ID, 계정 ID, 적립 시각)과 계정별 발급 제한 정보는 ...
@@ -747,11 +747,13 @@ BEGIN
   SELECT count(*) INTO v_rl FROM public.reward_ssv_issue_rate_limits AS r
    WHERE r.updated_at < v_overdue;
 
-  -- 티켓은 0211 이 아니라 0196 의 purge-reward-ssv-tickets(와 발급 때 정리 트리거)가 지운다.
-  -- 소비 1일 · 만료 뒤 곧 지워지므로 91일 넘게 남은 티켓은 그 정리가 멈췄다는 뜻이다. 티켓에도
-  -- 거래 ID 와 계정 ID 가 있어 같은 90일 약속에 든다(보안 게이트 r1 BL-07).
+  -- 티켓은 0211 이 아니라 0196 의 purge-reward-ssv-tickets(5분마다)와 발급 때 정리 트리거가
+  -- 지운다. 그 계약은 소비 1일 뒤, 미소비는 만료(발급 20분 뒤) 즉시다. 하루 여유를 두고 그보다
+  -- 오래 남은 티켓을 센다: 소비 2일 초과, 또는 미소비로 만료 1일 초과. 91일 기준이면 정리가 멈춘
+  -- 뒤 거의 석 달을 놓친다(보안 게이트 r1 BL-07, r2 DB2-03). 티켓에도 거래 ID 와 계정 ID 가 있다.
   SELECT count(*) INTO v_tickets FROM public.reward_ssv_tickets AS k
-   WHERE k.issued_at < v_overdue;
+   WHERE k.consumed_at < v_now - make_interval(days => 2)
+      OR (k.consumed_at IS NULL AND k.expires_at < v_now - make_interval(days => 1));
 
   -- S4: 재검토 기한이 지난 활성 보류(Gaius ② "재검토가 밀리면 알림").
   SELECT count(*) INTO v_reviews FROM public.reward_dispute_holds AS h
@@ -814,7 +816,7 @@ REVOKE ALL ON FUNCTION public.reward_retention_health() FROM PUBLIC, anon, authe
 GRANT EXECUTE ON FUNCTION public.reward_retention_health() TO service_role;
 
 COMMENT ON FUNCTION public.reward_retention_health() IS
-  '0211: 89일 정리 감시. 91일 넘은 비보류 보상 기록 수, 재검토 기한(90일)이 지난 활성 보류 수(S4), 분쟁 종료 3년 넘게 남은 감사 사건 수(S1), 91일 넘은 티켓 수(0196 정리 작업), purge-reward-records-90d 의 마지막 성공 시각·7일 실패 수·26시간 미실행 여부. pg_cron 이 없으면 ok=false. 건수와 시각만. billing-tripwires.yml 이 ok=false 면 이슈를 연다.';
+  '0211: 89일 정리 감시. 91일 넘은 비보류 보상 기록 수, 재검토 기한(90일)이 지난 활성 보류 수(S4), 분쟁 종료 3년 넘게 남은 감사 사건 수(S1), 0196 계약보다 하루 넘게 남은 티켓 수(소비 2일 · 만료 1일 초과), purge-reward-records-90d 의 마지막 성공 시각·7일 실패 수·26시간 미실행 여부. pg_cron 이 없으면 ok=false. 건수와 시각만. billing-tripwires.yml 이 ok=false 면 이슈를 연다.';
 
 ----------------------------------------------------------------------
 -- 5. 끝 상태 확인 (0172~0205 와 같은 모양)

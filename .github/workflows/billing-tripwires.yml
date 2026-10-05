@@ -106,10 +106,11 @@ jobs:
           # 별도 psql 호출인 이유: 위 한 줄 SQL 에 넣으면 0211 적용 전(GO-3 전)에 함수가 없어
           # 그 줄 전체가 실패하고 결제 트립와이어까지 같이 죽는다.
           RETENTION=0; RET_OVERDUE=0; RET_HOLDS="n/a"; RET_CRON="n/a"
-          # 존재 확인 자체가 실패하면(접속·권한·SQL) "함수 없음"(f)과 갈라 경보로 센다. 함수 없음은
-          # 0211 적용 전(GO-3 전)의 정상 상태라 건너뛰지만, 조회 실패는 그렇게 볼 근거가 없다
-          # (보안 게이트 r1 DB-04 · BL-05).
-          HAS_FN="$("$PSQL" "$DB" -Atq -v ON_ERROR_STOP=1 -c "select to_regprocedure('public.reward_retention_health()') is not null" 2>>err.txt)" || HAS_FN="query_failed"
+          # 함수가 있는지와 0211 이 운영 원장에 적용으로 남았는지를 함께 본다. 건너뛰는 것은 둘 다
+          # 없을 때(0211 적용 전, GO-3 전)뿐이다. 조회 실패(접속·권한·SQL)와, 원장에는 0211 이 있는데
+          # 함수가 사라진 경우는 경보로 센다(보안 게이트 r1 DB-04 · BL-05, r2 DB2-02).
+          FN_STATE="$("$PSQL" "$DB" -Atq -F'|' -v ON_ERROR_STOP=1 -c "select to_regprocedure('public.reward_retention_health()') is not null, exists (select 1 from supabase_migrations.schema_migrations where version = '0211' and name = 'reward_records_90d_purge')" 2>>err.txt)" || FN_STATE="query_failed|query_failed"
+          IFS='|' read -r HAS_FN HAS_0211 <<< "$FN_STATE"
           if [ "$HAS_FN" = "t" ]; then
             RROW="$("$PSQL" "$DB" -Atq -F'|' -v ON_ERROR_STOP=1 -c "select (h->>'ok')::boolean,
                      (h->>'overdue_rewarded_ssv_txns')::int + (h->>'overdue_ad_reward_lots')::int
@@ -121,8 +122,9 @@ jobs:
                      from (select public.reward_retention_health() as h) s" 2>>err.txt)" || RROW="f|-1|query_failed|query_failed"
             IFS='|' read -r RET_OK RET_OVERDUE RET_HOLDS RET_CRON <<< "$RROW"
             if [ "$RET_OK" != "t" ]; then RETENTION=1; fi
-          elif [ "$HAS_FN" != "f" ]; then
+          elif [ "$HAS_FN" != "f" ] || [ "$HAS_0211" != "f" ]; then
             RETENTION=1; RET_OVERDUE=-1; RET_HOLDS="query_failed"; RET_CRON="query_failed"
+            if [ "$HAS_FN" = "f" ] && [ "$HAS_0211" = "t" ]; then RET_HOLDS="function_missing"; RET_CRON="function_missing"; fi
           fi
 
           : > report.md
