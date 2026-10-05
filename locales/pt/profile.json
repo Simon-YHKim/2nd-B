@@ -12,10 +12,6 @@
     "subtitle": "Seu perfil, seus registros e sua conta",
     "speech": "Veja seu resumo, faça um teste ou ajuste sua conta."
   },
-  "account": {
-    "eyebrow": "Conta",
-    "emailUnavailable": "E-mail indisponível."
-  },
   "sections": {
     "center": {
       "label": "Centro pessoal",

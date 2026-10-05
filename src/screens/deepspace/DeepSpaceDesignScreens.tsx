@@ -7,7 +7,6 @@ import { useAppRouter } from "@/lib/nav/phone-embed";
 import { useGoHomeStop } from "@/lib/nav/go-home";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect, SvgXml } from "react-native-svg";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors, spacing } from "@/theme/tokens";
 import { GLYPH_ALIAS, glyphMarkup, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
 import { ringCells, stepLine } from "@/components/pixel/pixel-line";
@@ -112,6 +111,18 @@ import {
   tick,
   type PomodoroState,
 } from "@/lib/ops/pomodoro";
+import {
+  EMPTY_FOCUS_DAY,
+  FOCUS_AREAS,
+  completeFocusSession,
+  focusTallyToSave,
+  focusedMinutesToday,
+  freshFocusTally,
+  restoreFocusTally,
+  type FocusTally,
+} from "@/lib/ops/focus-tally";
+import { loadFocusArea, loadFocusDay, saveFocusArea, saveFocusDay } from "@/lib/ops/focus-store";
+import type { LifeArea } from "@/lib/dashboard/model";
 import {
   listAllWikiLinks,
   listInferredLinkDetails,
@@ -2741,35 +2752,36 @@ const RING_R = 120;
 const RING_C = 2 * Math.PI * RING_R; // circumference for the dasharray
 // KO copy sourced from the design canon (src/lib/canon → public/proto/data)
 const FOCUS_PRESETS = canonMore.focusPresets;
-const FOCUS_STARS = canonMore.focusStars;
+// The picker is NOT the canon's focusStars any more: those five (성장 · 커리어 · 학습 ·
+// 관계 · 건강) were neither the seven stars nor the six life areas, and "별에 기록"
+// was never true. It offers the dashboard's six areas (lib/ops/focus-tally, R2C-12).
 
 // rev2 clone (25-focus / reference FocusScreen): windowed 일일 집중 timer. The
 // proven pomodoro engine + ANDROID_QA single-interval handling are preserved; the
-// UI adopts the reference layout (presets, star picker, today summary). A focus
+// UI adopts the reference layout (presets, area picker, today summary). A focus
 // block auto-completes to a fresh idle block (no break phase in the reference)
 // while still ticking daily_focus (applyFocusSessionComplete) + a local notify.
 export function DeepSpaceFocusScreen() {
-  const { t, i18n } = useTranslation("ops");
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  const { t } = useTranslation("ops");
   const { userId, loading: authLoading, hasProfile } = useAuth();
 
   const [timer, setTimer] = useState<PomodoroState>(() => createPomodoro());
-  // Per-day tally; survives reset (not the in-cycle session count).
-  const [doneToday, setDoneToday] = useState(0);
-  const [starIdx, setStarIdx] = useState(0);
-  // Per-star per-day tally (device-local): the "어떤 별을 위해?" pick counts for
-  // real now. Before, the selection lived and died in this mount's state while
-  // the copy promised "그 별에 한 걸음" — decoration posing as data.
-  const [doneByStar, setDoneByStar] = useState<Record<string, number>>({});
+  // Today's tally: sessions, minutes actually focused, sessions per life area.
+  // Survives reset (not the in-cycle session count). Device-local and per account
+  // (lib/ops/focus-store): the only server effect of a finished session is the
+  // daily_focus routine tick below. The tally carries its owner and whether the
+  // stored record was read back (lib/ops/focus-tally FocusTally, gate FC-01 · FC-03).
+  const [tally, setTally] = useState<FocusTally>(() => freshFocusTally(null));
+  const [area, setArea] = useState<LifeArea>(FOCUS_AREAS[0]);
 
   // ANDROID_QA §4: a single 1s interval drives tick(); cleared on unmount AND
   // whenever `running` flips off, so a paused/idle timer holds no live interval.
   const timerRef = useRef(timer);
   timerRef.current = timer;
-  // The completion branch runs inside the interval closure — read the star via
+  // The completion branch runs inside the interval closure — read the area via
   // a ref (same pattern as timerRef) so a mid-session pick isn't stale.
-  const starIdxRef = useRef(starIdx);
-  starIdxRef.current = starIdx;
+  const areaRef = useRef(area);
+  areaRef.current = area;
 
   useEffect(() => {
     if (!timer.running) return;
@@ -2781,68 +2793,67 @@ export function DeepSpaceFocusScreen() {
         // Sensor auto-complete: tick daily_focus + notify, then return to a fresh
         // idle focus block (the reference timer has no break phase).
         setTimer(createPomodoro(prev.config));
-        setDoneToday((n) => n + 1);
-        const starAt = starIdxRef.current;
-        setDoneByStar((m) => ({ ...m, [String(starAt)]: (m[String(starAt)] ?? 0) + 1 }));
+        // The finished session's OWN length goes into today's minutes, so picking
+        // another preset later cannot rewrite what was done (R2C-13).
+        const doneArea = areaRef.current;
+        setTally((cur) => ({ ...cur, day: completeFocusSession(cur.day, doneArea, prev.config.focusMinutes) }));
         if (userId) void applyFocusSessionComplete(userId).catch(() => {});
-        const starLabel = ko ? FOCUS_STARS[starAt] : t(`focus.stars.s${starAt}`);
-        void notifyNow(t("focus.alarmFocusTitle"), t("focus.alarmFocusBodyStar", { star: starLabel })).catch(() => {});
+        void notifyNow(
+          t("focus.alarmFocusTitle"),
+          t("focus.alarmFocusBodyArea", { area: t(`phone.areas.${doneArea}`) }),
+        ).catch(() => {});
       } else {
         setTimer(next);
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [timer.running, userId, t, ko]);
+  }, [timer.running, userId, t]);
 
-  // Per-day tally persists across app restarts (keyed by today's date), so the
-  // count reflects all of today's focus sessions, not just this mount's — the
-  // previous useState(0) reset the tally to zero every time the screen remounted.
+  // Today's tally and the area pick persist across app restarts, per account, so
+  // the summary covers all of today's sessions, not just this mount's. A read that
+  // fails leaves the tally unrestored: what was counted meanwhile stays in memory,
+  // nothing is written over the record that could not be read, and the next
+  // finished session reads again (restoreFocusTally adds the two, gate FC-03).
+  const restoreTally = useCallback((owner: string) => {
+    void loadFocusDay(owner, kstDateToday()).then(
+      (stored) => setTally((cur) => restoreFocusTally(cur, owner, stored)),
+      () => {},
+    );
+  }, []);
+  // Another account starts from its own empty tally and its own pick (gate FC-01).
   useEffect(() => {
+    setTally(freshFocusTally(userId));
+    setArea(FOCUS_AREAS[0]);
+    if (!userId) return;
     let alive = true;
-    void AsyncStorage.getItem(`focus_done_${kstDateToday()}`)
-      .then((v) => {
-        if (alive && v) setDoneToday(Number(v) || 0);
-      })
-      .catch(() => {});
+    restoreTally(userId);
+    void loadFocusArea(userId).then(
+      (stored) => {
+        if (alive) setArea(stored);
+      },
+      () => {},
+    );
     return () => {
       alive = false;
     };
-  }, []);
+  }, [userId, restoreTally]);
   useEffect(() => {
-    if (doneToday <= 0) return;
-    void AsyncStorage.setItem(`focus_done_${kstDateToday()}`, String(doneToday)).catch(() => {});
-  }, [doneToday]);
-
-  // Star pick + per-star tally survive remounts the same way doneToday does.
+    if (tally.owner && !tally.restored && tally.day.count > 0) restoreTally(tally.owner);
+  }, [tally, restoreTally]);
   useEffect(() => {
-    let alive = true;
-    void AsyncStorage.getItem("focus_star_idx")
-      .then((v) => {
-        const n = v == null ? NaN : Number(v);
-        if (alive && Number.isInteger(n) && n >= 0 && n < FOCUS_STARS.length) setStarIdx(n);
-      })
-      .catch(() => {});
-    void AsyncStorage.getItem(`focus_star_done_${kstDateToday()}`)
-      .then((v) => {
-        if (!alive || !v) return;
-        try {
-          setDoneByStar(JSON.parse(v) as Record<string, number>);
-        } catch {
-          // corrupted tally: start fresh rather than crash the screen
-        }
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
-  useEffect(() => {
-    void AsyncStorage.setItem("focus_star_idx", String(starIdx)).catch(() => {});
-  }, [starIdx]);
-  useEffect(() => {
-    if (Object.keys(doneByStar).length === 0) return;
-    void AsyncStorage.setItem(`focus_star_done_${kstDateToday()}`, JSON.stringify(doneByStar)).catch(() => {});
-  }, [doneByStar]);
+    const save = focusTallyToSave(tally);
+    if (save) void saveFocusDay(save.owner, kstDateToday(), save.day);
+  }, [tally]);
+  // The pick is written when the person picks, not from an effect: an effect would
+  // also fire on mount with the default and could overwrite the stored pick
+  // before it is read back.
+  const pickArea = (next: LifeArea) => {
+    setArea(next);
+    if (userId) void saveFocusArea(userId, next);
+  };
+  // Never show a tally counted for another account, even for the one render
+  // before the effect above swaps it.
+  const day = tally.owner === userId ? tally.day : EMPTY_FOCUS_DAY;
 
   if (authLoading) {
     return <DockShell title={t("focus.title")}><GraphLoading /></DockShell>;
@@ -2859,11 +2870,14 @@ export function DeepSpaceFocusScreen() {
   const dashoffset = RING_C * remainingFrac;
   const clock = formatClock(shownMs);
   const ringSub = idle ? t("focus.ringReady") : timer.running ? t("focus.ringFocusing") : t("focus.ringPaused");
-  // ko stays on the canon array; other locales resolve focus.stars.s{i} keys.
-  const focusStarLabel = (i: number) => (ko ? FOCUS_STARS[i] : t(`focus.stars.s${i}`));
-  const starName = focusStarLabel(starIdx);
+  // The dashboard's own area labels (ops phone.areas.*), one source for both screens.
+  const areaLabel = (a: LifeArea) => t(`phone.areas.${a}`);
+  const areaName = areaLabel(area);
   const target = 4;
-  const filled = Math.min(doneToday, target);
+  const filled = Math.min(day.count, target);
+  // null = part of today was counted before lengths were stored: no honest total.
+  const minutesToday = focusedMinutesToday(day);
+  const areaToday = day.byArea[area] ?? 0;
   const setPreset = (m: number) => {
     // Idle-only: mid-session this used to createPomodoro() with no guard and
     // silently destroy the running session (audit: /focus bug-open).
@@ -2875,7 +2889,7 @@ export function DeepSpaceFocusScreen() {
     <DockShell title={t("focus.title")}>
       <RNText style={[m3TextStyle("bodyMedium"), cx.focusLead]}>
         {t("focus.leadPre")}
-        <RNText style={cx.leadStrong}>{t("focus.leadStar", { star: starName })}</RNText>
+        <RNText style={cx.leadStrong}>{t("focus.leadArea", { area: areaName })}</RNText>
         {t("focus.leadPost")}
       </RNText>
 
@@ -2940,17 +2954,17 @@ export function DeepSpaceFocusScreen() {
         />
       </View>
 
-      {/* linked star */}
-      <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{t("focus.forWhichStar")}</RNText>
+      {/* life area this focus counts toward (device-local, see lib/ops/focus-tally) */}
+      <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{t("focus.forWhichArea")}</RNText>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={cx.chipScroll}>
-        {FOCUS_STARS.map((_, i) => (
+        {FOCUS_AREAS.map((a) => (
           <MdChip
-            key={i}
+            key={a}
             kind="filter"
-            selected={starIdx === i}
-            label={focusStarLabel(i)}
-            icon={<CloneIcon name={starIdx === i ? "check" : "star_shine"} color={starIdx === i ? m3.color.onSecondaryContainer : m3.color.onSurfaceVariant} size={15} />}
-            onPress={() => setStarIdx(i)}
+            selected={area === a}
+            label={areaLabel(a)}
+            icon={area === a ? <CloneIcon name="check" color={m3.color.onSecondaryContainer} size={15} /> : undefined}
+            onPress={() => pickArea(a)}
           />
         ))}
       </ScrollView>
@@ -2963,11 +2977,15 @@ export function DeepSpaceFocusScreen() {
           ))}
         </View>
         <View style={cx.flex1}>
-          <RNText style={[m3TextStyle("bodyLarge"), cx.summaryTitle]}>{t("focus.todayCount", { sessions: doneToday })}</RNText>
-          <RNText style={[m3TextStyle("bodySmall"), cx.summarySub]}>{t("focus.todaySub", { min: doneToday * focusMin, goal: target })}</RNText>
-          {(doneByStar[String(starIdx)] ?? 0) > 0 ? (
+          <RNText style={[m3TextStyle("bodyLarge"), cx.summaryTitle]}>{t("focus.todayCount", { sessions: day.count })}</RNText>
+          <RNText style={[m3TextStyle("bodySmall"), cx.summarySub]}>
+            {minutesToday === null
+              ? t("focus.todaySubGoalOnly", { goal: target })
+              : t("focus.todaySub", { min: minutesToday, goal: target })}
+          </RNText>
+          {areaToday > 0 ? (
             <RNText style={[m3TextStyle("bodySmall"), cx.summarySub]}>
-              {t("focus.todayStarCount", { star: starName, n: doneByStar[String(starIdx)] })}
+              {t("focus.todayAreaCount", { area: areaName, n: areaToday })}
             </RNText>
           ) : null}
         </View>

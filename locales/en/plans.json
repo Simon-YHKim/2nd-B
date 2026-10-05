@@ -7,8 +7,6 @@
     "speech": "Core recording features stay free. Paid plans include more AI chats."
   },
   "current": "Current plan",
-  "comingSoon": "Paid plans are coming soon",
-  "comingSoonBody": "Checkout is not open yet. Prices are final, and nothing is charged until you choose a plan here.",
   "tiers": {
     "free": {
       "name": "Stargazer",

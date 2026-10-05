@@ -106,8 +106,7 @@
   },
   "recent": {
     "title": "최근 별가루",
-    "openHint": "이 기록을 자세히 봅니다.",
-    "empty": "아직 저장한 별가루가 없습니다."
+    "openHint": "이 기록을 자세히 봅니다."
   },
   "formatSaved": {
     "personal": "내 형식에 저장했습니다.",
@@ -324,46 +323,21 @@
     "note": "적은 내용만 모아 별가루 하나로 저장하고 #fourw 태그를 붙입니다."
   },
   "callReflection": {
-    "title": "통화 녹음",
     "blockedTitle": "지금은 이용할 수 없습니다",
     "blockedBody": "통화 녹음은 녹음 관련 법규가 지역마다 달라, 현재 한국 지역의 성인 이용자에게만 제공됩니다.",
     "goBack": "돌아가기",
-    "webUnreliable": "웹에서는 녹음이 원활하지 않을 수 있습니다. 앱에서 이용해 주세요.",
-    "micPermission": "마이크 권한이 필요합니다.",
-    "startFailed": "녹음을 시작하지 못했습니다.",
-    "noRecording": "녹음 파일을 찾지 못했습니다.",
-    "nothingToTranscribe": "글로 옮길 말소리가 없었습니다.",
-    "transcribeFailed": "녹음을 글로 바꾸지 못했습니다.",
     "recordTopic": "통화 기록",
-    "transcribing": "통화를 글로 바꾸는 중",
     "transcribed": "통화를 글로 바꿨습니다",
     "transcriptLabel": "글로 옮긴 통화 내용",
     "discard": "버리기",
     "approve": "확인하고 위키에 저장",
-    "recordingDesc": "녹음 중입니다. 끝나면 자동으로 글로 바꿉니다.",
-    "idleDesc": "통화 내용을 글로 바꾸고 관련된 별에 연결합니다. 원본 음성은 저장하지 않습니다.",
     "howBadge": "방법",
-    "howText": "스피커폰으로 통화하며 녹음을 시작하면 양쪽 목소리를 함께 녹음할 수 있습니다.",
     "fairBadge": "녹음 전 확인",
-    "stopAnalyse": "녹음 끝내고 분석하기",
-    "cancelNoSave": "취소 · 저장 안 함",
-    "startRecording": "녹음 시작",
     "maybeLater": "나중에"
   },
   "captureTab": "스크랩",
   "formatsTab": "형식",
   "importTab": "가져오기",
   "inboxTab": "받은 항목",
-  "manualTab": "사용 안내서",
-  "jot": {
-    "title": "한 줄 적어보기",
-    "deviceNote": "이 기기에 임시로 저장합니다. 계정을 만들면 PolaScope로 옮길 수 있습니다.",
-    "placeholder": "지금 떠오르는 한 줄",
-    "inputA11y": "한 줄 입력",
-    "save": "저장",
-    "saving": "저장 중…",
-    "nearFull": "이 기기의 임시 저장 공간이 거의 찼습니다. 계정을 만들면 기록을 옮길 수 있습니다.",
-    "savedOnDevice": "이 기기에 저장됨 ({{n}})",
-    "createAccount": "계정 만들기"
-  }
+  "manualTab": "사용 안내서"
 }

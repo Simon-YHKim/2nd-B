@@ -1,8 +1,5 @@
 {
-  "title": "Kotak Masuk",
-  "subtitle": "Semua bahan yang kamu simpan. Ketuk untuk melihat isinya.",
   "captureMore": "Tambah bahan",
-  "back": "Kembali ke jurnal",
   "empty": "Belum ada bahan tersimpan. Ketuk Simpan untuk menambahkan yang pertama.",
   "error": "Tidak bisa memuat bahan yang kamu simpan:",
   "ingested": "Telah diproses",

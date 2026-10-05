@@ -12,10 +12,6 @@
     "subtitle": "Your summary, records, and account in one place",
     "speech": "View your summary or change your profile and settings."
   },
-  "account": {
-    "eyebrow": "Account",
-    "emailUnavailable": "Email unavailable."
-  },
   "sections": {
     "center": {
       "label": "My summary",
