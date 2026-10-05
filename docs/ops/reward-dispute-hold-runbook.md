@@ -4,7 +4,7 @@
 - 근거: Simon D1~D5 (2026-10-04 19:26~19:29 KST), S1~S4 (20:30~20:31 KST), S5 (21:03 KST), S3-LEDGER (21:04 KST), `/workspace/relay-inbox/simon-go-attested-20261004-1926-ssv-d1.md`. Gaius 답변서 `vb-ssv-90d-purge-legal-answers.result.md` (③ 사유 코드, ④ 88일·감시, ⑦ 백업 문장 B 대비, W5 추가 항목).
 - 대상 객체(0211): `reward_dispute_holds`, `reward_dispute_hold_events`, `place_reward_dispute_hold`, `review_reward_dispute_hold`, `release_reward_dispute_hold`, `purge_reward_records`, `reward_retention_health`, pg_cron `purge-reward-records-90d`.
 - 확정 사항: **S1** 보류·해제 감사 기록은 분쟁이 끝난 날부터 3년 보관(방침 문장 A). **S2** 사유 코드 2종. **S3** 백업 문장 B 채택(그래서 §7 절차는 필수). **S4** 보류는 자동 상한 없이 90일마다 재검토, 담당은 D4(Simon 승인, Hadrianus 실행).
-- **S5**(21:03 KST): DB 백업 아티팩트를 private 저장소로 옮긴다(실제 이동은 별도 GO, 계획서 `E:\2ndB\.bots\dev-infra\outbox\backup-private-move-plan.md`). 방침에 GitHub(국외) 보관을 적는다. 이동이 끝나면 §7의 `db-backup.yml`·아티팩트 위치를 새 저장소로 고친다.
+- **S5**(21:03 KST): DB 백업 아티팩트를 private 저장소로 옮긴다(실제 이동은 별도 GO, 계획서 `E:\2ndB\.bots\dev-infra\outbox\backup-private-move-plan.md`). 방침에 GitHub(국외) 보관을 적는다. 이동이 끝나면 §7의 `db-backup.yml`·아티팩트 위치를 새 저장소로 고친다. **2026-10-05 완료**: private `Simon-YHKim/2nd-B-backups` 첫 백업 16:34 KST 성공(새 age 키, R3), public 워크플로는 #2061 로 삭제, public `Backup` 환경 시크릿은 GO-B6 으로 삭제.
 - **S3-LEDGER**(21:04 KST): 복원 시점 이후 삭제 원장은 장애 난 DB의 `account_deletion_tombstones`를 쓰고, 얻지 못하면 서비스를 다시 열기 전에 Simon이 정한다(§7 2번).
 
 ## 1. 무엇이 언제 지워지나
@@ -113,7 +113,7 @@ SELECT e.at, e.action, e.reason_code, e.actor, e.approved_by, e.actor_role,
 
 방침 문장 B(S3 채택): Gaius 답변서 ⑦의 초안 문장을 그대로 쓴다(지운 정보가 암호화 백업에 최대 14일 남을 수 있고, 백업은 장애 복구에만 쓰며, 복원하면 이미 지운 정보를 다시 지운다). 문장 원문은 방침 개정안(GO-7)에 들어간다. 그래서 아래 절차는 복원할 때마다 **반드시** 한다.
 
-원칙: 백업은 **장애 복구에만** 쓴다. 지운 기록을 되살리려고 복원하지 않는다. `db-backup.yml` 아티팩트는 14일 뒤 만료된다(`expires_at`). 복원은 `docs/DB-RESTORE-RUNBOOK.md`를 따르고, 운영에 되돌려 놓는 경우에는 그 문서 §7 검증 뒤, 서비스를 다시 열기 **전에** 아래를 한다.
+원칙: 백업은 **장애 복구에만** 쓴다. 지운 기록을 되살리려고 복원하지 않는다. private `Simon-YHKim/2nd-B-backups` 저장소의 `db-backup.yml` 아티팩트(매일 03:30 KST)는 14일 뒤 만료된다(`expires_at`). 복원은 `docs/DB-RESTORE-RUNBOOK.md`를 따르고, 운영에 되돌려 놓는 경우에는 그 문서 §7 검증 뒤, 서비스를 다시 열기 **전에** 아래를 한다.
 
 순서가 중요하다(보안 게이트 r1 BL-03). 보류를 먼저 되살리고 정리를 나중에 돌린다. 반대로 하면 복원 시점 이후에 건 보류의 거래가 이미 88일을 넘었을 때 정리가 그 거래를 먼저 지우고, 보류는 대상이 없어 다시 걸 수 없다.
 

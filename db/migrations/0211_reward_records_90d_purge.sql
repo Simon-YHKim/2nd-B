@@ -80,7 +80,7 @@
 --
 -- 예약: pg_cron 'purge-reward-records-90d' '37 19 * * *' (운영 cron.timezone = GMT 이므로
 --   매일 04:37 KST). 기존 작업과 분이 겹치지 않는다: */5 · */10 (5 의 배수 분),
---   23 * * * *, 0~17 4 * * * 묶음(=13:00~13:17 KST). GitHub Actions db-backup 03:30 KST,
+--   23 * * * *, 0~17 4 * * * 묶음(=13:00~13:17 KST). GitHub Actions db-backup(private 2nd-B-backups) 03:30 KST,
 --   model-refresh 04:00 KST, billing-tripwires 05:20 KST 와도 떨어져 있다.
 --
 -- 최상위 BEGIN/COMMIT 을 두지 않는다. Supabase CLI 가 이 파일을 자기 트랜잭션으로
