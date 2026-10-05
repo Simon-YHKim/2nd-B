@@ -8,8 +8,17 @@ import {
   readLlmProxyJsonObject, userIdFromJwt,
 } from '../_shared/llm-proxy-common.ts';
 
-const CURRENT_REVISION = 'service-v2';
+const CURRENT_REVISION = 'service-v4';
 const LEGACY_REVISION = 'service-v1';
+// service-v2 is the PolaScope (email-v7) client; service-v4 maps the email-v9
+// notice revision (0215). Installed clients keep their own reviewed tuple.
+// service-v3 is reserved for the unmerged #2024 re-consent draft.
+const REVISIONS = new Set([LEGACY_REVISION,'service-v2',CURRENT_REVISION]);
+const STATUS_RPC: Record<string, string> = {
+  'service-v1':'llm_service_consent_status',
+  'service-v2':'llm_service_consent_status_v2',
+  'service-v4':'llm_service_consent_status_v4',
+};
 const ACK_KEYS = ['service','llmProcessing','overseasTransfer','sensitiveData','safetyNotice'];
 const STATUS_KEYS = ['contract_revision','consent_version','policy_version','terms_version','state','change_token','can_grant'];
 const TOKEN = /^[a-f0-9]{64}$/;
@@ -44,16 +53,17 @@ Deno.serve(async (req: Request) => {
   }
   const writing = body.action === 'grant' || body.action === 'revoke';
   // Old clients send only {action:'status'} and keep the reviewed v1 tuple.
-  // Current clients explicitly request v2. Both use the same owner-bound API.
-  const revision = body.contractRevision === CURRENT_REVISION ? CURRENT_REVISION : LEGACY_REVISION;
+  // Newer clients name their revision. All use the same owner-bound API.
+  const revision = typeof body.contractRevision === 'string' && REVISIONS.has(body.contractRevision)
+    ? body.contractRevision : LEGACY_REVISION;
   const acks = body.requiredAcks;
   if (body.action === 'status') {
     if (!(exactKeys(body,['action']) ||
-      (exactKeys(body,['action','contractRevision']) && body.contractRevision === CURRENT_REVISION))) {
+      (exactKeys(body,['action','contractRevision']) && revision !== LEGACY_REVISION && body.contractRevision === revision))) {
       return jsonResponse(req,{error:'invalid_request'},400);
     }
   } else if (!writing || !exactKeys(body,['action','contractRevision','expectedChangeToken','requiredAcks','locale']) ||
-    (body.contractRevision !== CURRENT_REVISION && body.contractRevision !== LEGACY_REVISION) ||
+    body.contractRevision !== revision ||
     typeof body.expectedChangeToken !== 'string' || !TOKEN.test(body.expectedChangeToken) ||
     typeof body.locale !== 'string' || !LOCALES.has(body.locale) || !isLlmJsonObject(acks) ||
     (body.action === 'grant'
@@ -74,7 +84,7 @@ Deno.serve(async (req: Request) => {
         p_user_id:userId,p_contract_revision:revision,p_expected_change_token:body.expectedChangeToken,
         p_action:body.action,p_required_acks:body.requiredAcks,p_locale:body.locale,
       })
-      : await admin.rpc(revision === CURRENT_REVISION ? 'llm_service_consent_status_v2' : 'llm_service_consent_status',{p_user_id:userId});
+      : await admin.rpc(STATUS_RPC[revision],{p_user_id:userId});
     if (error) {
       if (error.code === '40001' && error.message === 'llm_service_consent_changed') {
         return jsonResponse(req,{error:'service_consent_changed'},409);

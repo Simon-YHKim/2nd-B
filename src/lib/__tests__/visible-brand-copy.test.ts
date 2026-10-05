@@ -42,7 +42,7 @@ describe("visible brand copy", () => {
   // 2026-09-27: the app is called PolaScope (Simon, DECISIONS 26.09.27). App
   // surfaces carry the new name and none of the old app-name family. The
   // The 10-05 notice names PolaScope. Its new consent and terms versions use
-  // email-v7 while the published 09-29 privacy policy v5 remains unchanged.
+  // email-v9 with the provisional 2026-10-06 privacy policy (P1·P2).
   test("10-05 consent copy names PolaScope without changing the character tag", () => {
     const root = path.resolve(__dirname, "../../..");
     for (const file of ["locales/en/consent.json", "locales/ko/consent.json"]) {

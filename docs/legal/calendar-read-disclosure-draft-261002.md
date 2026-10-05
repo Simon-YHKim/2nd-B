@@ -188,7 +188,7 @@ Q-261002-01 을 썼으니 보고서 이름으로 구분한다.
 
 - **F1 (확인 10-03 21:5x)** 운영 비밀값 45개 가운데 `LLM_CONSENT_MODE` 와 `LLM_REQUIRE_VERIFIED_CONSENT` 가 **없다**
   (Supabase CLI 목록의 이름만 대조, 값은 읽지 않음). 없으면 `supabase/functions/_shared/llm-consent.ts` 가 off 로 본다. 그래서
-  service-consent 의 503 은 결함이 아니라 off 게이트(`supabase/functions/service-consent/index.ts:36-37`)다. 배포 이후 POST 는 401 2건 · 503 9건 · 200 0건이고,
+  service-consent 의 503 은 결함이 아니라 off 게이트(`supabase/functions/service-consent/index.ts:46-47`)다. 배포 이후 POST 는 401 2건 · 503 9건 · 200 0건이고,
   `llm_consent_receipts` 는 0행이다. **off 인 동안에는 재동의 확인을 저장할 길이 없다.**
 - **L1(법률, 미확인)** 일정 제목에 섞인 건강 · 종교 내용이 §23 민감정보 처리인지, 캘린더 일정에
   §28-8①3(계약 이행 국외 이전)을 쓸 수 있는지. 안전하게 가면 캘린더 동의 화면에 §28-8② 다섯 항목을 적는다.

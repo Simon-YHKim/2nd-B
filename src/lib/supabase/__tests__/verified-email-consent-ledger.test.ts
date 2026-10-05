@@ -65,6 +65,13 @@ const FROZEN_SIGNUP_REVISION_TUPLES = {
     termsVersion: "2026-10-05",
     confirmationEligible: true,
   },
+  // 2026-10-06 (잠정): D3 동의 화면 + 방침 P1·P2 공지형. 약관은 #1902의 2026-10-05.
+  "email-v9": {
+    consentVersion: "2026-10-06",
+    policyVersion: "2026-10-06",
+    termsVersion: "2026-10-05",
+    confirmationEligible: true,
+  },
 } as const;
 
 const migrations = readdirSync(migrationDir)
@@ -77,7 +84,7 @@ const migrations = readdirSync(migrationDir)
 
 // Validate the release candidate overlay without rewriting a shipped migration.
 // Production publication separately requires the live status RPC to match it.
-const policyDraftName = "UNNUMBERED_polascope_consent_20260928.sql";
+const policyDraftName = "UNNUMBERED_consent_email_v9_20261006.sql";
 migrations.push({
   name: policyDraftName,
   exec: readFileSync(join(process.cwd(), "db", "migration-drafts", policyDraftName), "utf8")
@@ -185,8 +192,9 @@ describe("verified-email consent ledger", () => {
   });
 
   test("keeps current and historical email revisions confirmation-eligible", () => {
-    expect(authSignupRevision()).toBe("email-v7");
-    expect(contractTuple(authSignupRevision() as "email-v7").confirmationEligible).toBe(true);
+    expect(authSignupRevision()).toBe("email-v9");
+    expect(contractTuple(authSignupRevision() as "email-v9").confirmationEligible).toBe(true);
+    expect(contractTuple("email-v7").confirmationEligible).toBe(true);
     expect(contractTuple("email-v6").confirmationEligible).toBe(true);
     expect(contractTuple("email-v5").confirmationEligible).toBe(true);
     expect(contractTuple("email-v4").confirmationEligible).toBe(true);

@@ -62,7 +62,7 @@ import { getSupabaseClient } from "./client";
 
 // 판본 상수 셋은 한 벌로 움직인다. 하나만 올리면 원장이 가리키는 판과 화면에
 // 뜨는 판이 어긋나고, 그 어긋남은 예외도 안 나고 검사도 안 걸리며 그냥 거짓 기록이
-// 된다. 아래 세 값과 현재 email-v7 서버 튜플, 그리고
+// 된다. 아래 세 값과 현재 email-v9 서버 튜플, 그리고
 // verified-email-consent-ledger.test.ts 의 FROZEN_SIGNUP_REVISION_TUPLES 가
 // 같은 문서 판을 가리켜야 한다. 0150의 email-v3는 과거 판으로 보존한다.
 //
@@ -86,8 +86,13 @@ import { getSupabaseClient } from "./client";
 // 2026-10-05: PolaScope appears in the required notice and terms. The privacy
 // policy remains the published 2026-09-29 v5. email-v7 maps this exact tuple;
 // historical receipts retain their own documents and no optional ad consent.
-export const CONSENT_VERSION = "2026-10-05" as const;
-export const PRIVACY_POLICY_VERSION = "2026-09-29" as const;
+// 2026-10-06 (잠정, 게시 GO에서 확정): D3 동의 화면(E2·E3·E4·speech·Y6
+// minorBanner)과 방침 P1·P2(제4조 법령에 따른 제공, 제5조 AI 제공자의
+// 검토·보존·제공)를 한 판으로 묶은 공지형 개정이다. email-v9 가 이 튜플을
+// 매핑하고, 0215 가 email-v4~v7 을 LLM 동의 '현재'로 계속 인정하므로 재동의는
+// 없다. 약관은 #1902 의 2026-10-05 판 그대로다.
+export const CONSENT_VERSION = "2026-10-06" as const;
+export const PRIVACY_POLICY_VERSION = "2026-10-06" as const;
 export const TERMS_VERSION = "2026-10-05" as const;
 
 export type ConsentAgeBand = "minor_self" | "adult";

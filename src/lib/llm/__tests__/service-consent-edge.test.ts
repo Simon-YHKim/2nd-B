@@ -10,8 +10,8 @@ const status = {
   state: "uncovered", change_token: changeToken, can_grant: true,
 };
 const statusV2 = {
-  ...status, contract_revision: "service-v2", consent_version: "2026-10-05",
-  policy_version: "2026-09-29", terms_version: "2026-10-05",
+  ...status, contract_revision: "service-v4", consent_version: "2026-10-06",
+  policy_version: "2026-10-06", terms_version: "2026-10-05",
 };
 const compiled = new Map<string, string>();
 
@@ -23,8 +23,9 @@ function host(mode: string | null = "collect", oldRequired = false) {
     if (throws) throw new Error("private database token/body");
     if (rpcResult) return rpcResult;
     if (name === "llm_service_consent_status") return { data: status };
-    if (name === "llm_service_consent_status_v2") return { data: statusV2 };
-    if (name === "write_llm_service_consent") return { data: { ...(args.p_contract_revision === "service-v2" ? statusV2 : status), state: args.p_action === "grant" ? "granted" : "revoked", created: true } };
+    if (name === "llm_service_consent_status_v2") return { data: { ...status, contract_revision: "service-v2", consent_version: "2026-10-05", policy_version: "2026-09-29", terms_version: "2026-10-05" } };
+    if (name === "llm_service_consent_status_v4") return { data: statusV2 };
+    if (name === "write_llm_service_consent") return { data: { ...(args.p_contract_revision === "service-v4" ? statusV2 : status), state: args.p_action === "grant" ? "granted" : "revoked", created: true } };
     throw new Error(`Unexpected local RPC ${name}`);
   });
   const createClient = jest.fn(() => ({ rpc }));
@@ -78,21 +79,21 @@ describe("service consent management Edge", () => {
     expect(fixture.rpc).toHaveBeenCalledWith("llm_service_consent_status", { p_user_id: userId });
     expect(fixture.fetch).not.toHaveBeenCalled();
   });
-  it("routes the current client's explicit v2 status and grant while preserving v1 clients", async () => {
+  it("routes the current client's explicit v4 status and grant while preserving v1 clients", async () => {
     const fixture = host();
-    const response = await fixture.run({ action: "status", contractRevision: "service-v2" });
+    const response = await fixture.run({ action: "status", contractRevision: "service-v4" });
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ mode: "collect", ...statusV2 });
-    expect(fixture.rpc).toHaveBeenCalledWith("llm_service_consent_status_v2", { p_user_id: userId });
-    const grantV2 = { ...grant, contractRevision: "service-v2" };
+    expect(fixture.rpc).toHaveBeenCalledWith("llm_service_consent_status_v4", { p_user_id: userId });
+    const grantV2 = { ...grant, contractRevision: "service-v4" };
     const saved = await fixture.run(grantV2);
     expect(saved.status).toBe(200);
     expect(await saved.json()).toEqual({ mode: "collect", ...statusV2, state: "granted", created: true });
-    expect(fixture.rpc).toHaveBeenCalledWith("write_llm_service_consent", expect.objectContaining({ p_contract_revision: "service-v2" }));
+    expect(fixture.rpc).toHaveBeenCalledWith("write_llm_service_consent", expect.objectContaining({ p_contract_revision: "service-v4" }));
   });
-  it("fails closed when the v2 database status returns a legacy tuple", async () => {
+  it("fails closed when the v4 database status returns a legacy tuple", async () => {
     const fixture = host(); fixture.result(status);
-    const response = await fixture.run({ action: "status", contractRevision: "service-v2" });
+    const response = await fixture.run({ action: "status", contractRevision: "service-v4" });
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ error: "service_consent_unavailable" });
   });

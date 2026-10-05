@@ -9,7 +9,7 @@
   },
   "notice": {
     "title": "A quick heads-up before you start",
-    "intro": "PolaScope keeps your entries private and stores them encrypted. When you use an AI feature, content needed for that feature may be sent to OpenAI or Anthropic; older app versions, or builds or runtimes without the dedicated vendor settings may route it to Google Gemini. Please review the required processing below before continuing.",
+    "intro": "Your entries are stored encrypted and are not shown to other users. When you use an AI feature, content needed for that feature may be sent to an external AI provider; older app versions, or builds or runtimes without the dedicated vendor settings may route it to a different external AI provider. Please review the required processing below before continuing.",
     "trustTitle": "Your records are not for sale",
     "trustBody": "Your entries are not sold or used for advertising. Automatic safety checks and service audit records do not, by themselves, trigger an additional transfer of entry text to an AI provider.",
     "purposesTitle": "What we collect and why",
@@ -23,10 +23,10 @@
     "ackService": "I agree to the collection and use above so the service can run.",
     "ackLlm": "I understand that when I use an AI feature, text requests and related entries needed for that feature may be sent to the configured provider: OpenAI or Anthropic, or Google Gemini for older app versions, or builds or runtimes without the dedicated vendor settings. The provider may process them for responses, analysis, or generation. Images and audio may be processed for image analysis or voice transcription, and, if server-side record-search indexing is enabled, entry content may be processed to generate embeddings. Automatic safety checks and service audit records do not, by themselves, trigger an additional transfer of entry text to an AI provider.",
     "ackOverseas": "I understand that essential processing uses encrypted service data (account and entry data) in Supabase's primary Seoul storage and its Edge Functions in South Korea or abroad, and that content needed when I use an AI feature may be sent abroad to OpenAI, Anthropic, or, from an older or unconfigured build or runtime, Google Gemini. I cannot complete sign-up without acknowledging this essential processing.",
-    "ackSensitive": "I understand my entries may include sensitive details, and PolaScope treats them as private account data.",
+    "ackSensitive": "I understand my entries may include sensitive details, and that when I use an AI feature, those details may also be sent to and processed by an external AI provider.",
     "ackSafety": "I agree that if crisis wording appears, PolaScope shows help lines and logs that it did. It is not an emergency service and does not report on my behalf.",
     "optMarketing": "Send me occasional product updates (optional).",
-    "minorBanner": "You are signing up as a teen (14 to 17). Sharing, ads, and external usage analytics are off. However, when you use an AI feature, the content needed for it may be sent to an overseas AI provider within the scope described at sign-up.",
+    "minorBanner": "You are signing up as a teen (14 to 17). Sharing, ads, and external usage analytics are off. When you use an AI feature, you are talking with AI, and the content that feature needs may be sent to an external AI provider.",
     "detailLink": "View details"
   },
   "detail": {
@@ -46,7 +46,7 @@
     },
     "sensitiveData": {
       "title": "How sensitive entries are handled",
-      "body": "What this covers: journals and notes may naturally include sensitive details, such as health or beliefs.\nHow we handle it: we do not collect or sort it separately; everything stays encrypted, private account data. It is never made public, sold, or used for ads.\nYour choice: what you write is entirely up to you, and you can delete any entry at any time.\nIf you decline: we cannot store your entries without this acknowledgement, so sign-up cannot continue."
+      "body": "What this covers: journals and notes may naturally include sensitive details, such as health or beliefs.\nHow we handle it: we do not collect or sort it separately; it is stored encrypted as account data that other users cannot see. When you use an AI feature, the content that feature needs (including any sensitive details) is sent to and processed by an external AI provider. Under its own policies, the provider automatically screens content to prevent abuse, and its staff may review content that appears to violate those policies (Privacy Policy, Section 5). We never make your entries public, sell them, or use them for ads.\nYour choice: what you write is entirely up to you, and you can delete any entry at any time. We recommend not using AI features for anything you would not want anyone else to see.\nIf you decline: we cannot store your entries without this acknowledgement, so sign-up cannot continue."
     },
     "safetyNotice": {
       "title": "How safety routing works",
@@ -62,7 +62,7 @@
     "eyebrow": "Privacy",
     "title": "You decide what leaves your account",
     "subtitle": "Sharing, profiling, analytics, and model training all start off.",
-    "speech": "Your records stay private unless you turn on a control. Teens stay locked to high-privacy.",
+    "speech": "Your records are not shown to other users. When you use an AI feature, the content it needs is sent to an external AI provider. Teens stay locked to high-privacy.",
     "trustTitle": "Default: private and off",
     "trustBody": "Your entries are stored encrypted. Ads are currently disabled, and your entries are not used for ads. PolaScope does not sell your data.",
     "sectionLabel": "Privacy controls",
