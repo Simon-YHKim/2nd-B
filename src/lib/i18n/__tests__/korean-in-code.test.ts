@@ -230,7 +230,10 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/iden/render-html.ts": 8,
   "src/lib/import/proposals.ts": 17,
   // 2026-09-25: two KO/EN paired scene-continuity and voluntary-disclosure prompt rules.
-  "src/lib/interview/probe.ts": 58,
+  // 2026-10-05 (QA 261005 R2F-04 · 05): +7 -- rule 7 gained a KO/EN paired branch (target if the
+  // last answer landed, fallback if not) and rule 9 a paired "length is not the test / name the
+  // other layer / answers to a re-ask are not none" clause. LLM prompt text, not UI copy.
+  "src/lib/interview/probe.ts": 65,
   // Offline-only layer fixtures; all five questions have an explicit English branch.
   "src/lib/interview/mock-probe.ts": 5,
   "src/lib/interview/stuck.ts": 10,

@@ -54,7 +54,7 @@ import {
 } from "../session-end";
 import { emptyCoverage, nextMove, nextProbe, seedQuestion, type DrillLayer, type InterviewTurn } from "../probe";
 import { isNonAnswer, scaffoldQuestion } from "../stuck";
-import { answerDisposition, canCreditAnswer } from "../continuity";
+import { answerDisposition, currentScene, layerTally } from "../continuity";
 
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8").replace(/\r\n/g, "\n");
@@ -165,7 +165,10 @@ describe("2. 로컬 안전장치 (모델을 안 부르는 건너뛰기)", () => 
   it("send() 의 막힘 판정과 건너뛰기 가드가 같은 함수다 (갈라지면 교대 반복이 다시 열린다)", () => {
     const code = codeOnly("src/app/interview.tsx");
     const def = between(code, "const isLocalNonAnswer = useCallback(", "const entriesOf = useCallback(");
-    expect(def).toContain("layer != null && (isBlockedAnswer(text) || !canCreditAnswer(text, layer, locale))");
+    // 2026-10-05 재조준(QA 261005 R2F-04): 판정 내용은 "명시적 비답만"으로 좁아졌다. 지키는 성질은
+    // 그대로 -- send() 와 건너뛰기 가드가 **같은 한 함수**를 쓴다.
+    expect(def).toContain("layer != null && isBlockedAnswer(text)");
+    expect(def).not.toMatch(/canCreditAnswer\(/);
     const send = between(code, "async function send(", "function changeAngle(");
     expect(send).toContain("const blocked = isLocalNonAnswer(text, pendingLayer);");
     // 막힘을 따로 다시 계산하는 사본이 없어야 한다.
@@ -183,11 +186,12 @@ describe("2-1. 모르겠어요 -> 건너뛰기 교대 (게이트 F2049-02)", () 
   const drillOf = (loc: Locale) =>
     JSON.parse(read(`locales/${loc}/interview.json`)).drill as Record<string, string>;
 
-  /** 화면의 `isLocalNonAnswer` 와 같은 판정(정의는 위 배선 검사가 고정한다). */
+  /** 화면의 `isLocalNonAnswer` 와 같은 판정(정의는 위 배선 검사가 고정한다).
+   *  `isBlockedAnswer` = 화면이 내보낸 "모르겠어요" 칩 문구이거나 `isNonAnswer`. */
   const screenJudge = (loc: Locale) => {
     const dontKnow = drillOf(loc).dontKnow;
     return (text: string, layer: DrillLayer | null | undefined): boolean =>
-      layer != null && (text === dontKnow || isNonAnswer(text, loc) || !canCreditAnswer(text, layer, loc));
+      layer != null && (text === dontKnow || isNonAnswer(text, loc));
   };
 
   const realJudge = (loc: Locale) => {
@@ -204,32 +208,28 @@ describe("2-1. 모르겠어요 -> 건너뛰기 교대 (게이트 F2049-02)", () 
       { role: "interviewer", text: seedQuestion(period, loc), layer: "fact", period, sceneStart: true },
     ];
     let pending: DrillLayer = "fact";
-    let streak = 0;
-    let abandoned: DrillLayer[] = [];
     for (let cycle = 1; cycle <= cycles; cycle += 1) {
-      // 모르겠어요 (또는 너무 짧은 답) -- 거절 · 건너뛰기로 읽히지 않고 send() 의 막힘 길로 간다.
+      // 모르겠어요 -- 거절 · 건너뛰기로 읽히지 않고 send() 의 막힘 길로 간다.
       expect(["stop", "skip"]).not.toContain(answerDisposition(reply, loc));
-      const user: InterviewTurn = { role: "user", text: reply, layer: pending, period };
+      // 화면 send() 와 같다: 비답은 판정(blocked)까지 붙여 장면에 넣고, 막힘 횟수는 장면에서 센다.
+      const user: InterviewTurn = { role: "user", text: reply, layer: pending, period, answered: false, outcome: "blocked" };
       expect(isLocal(user.text, user.layer)).toBe(true);
       const history = [...turns, user];
-      const nextStreak = streak + 1;
-      const move = nextMove(emptyCoverage(), period, [], new Date(), { layer: pending, streak: nextStreak },
-        abandoned, { history, locale: loc });
+      const streak = layerTally(currentScene(history), pending).failures;
+      const move = nextMove(emptyCoverage(), period, [], new Date(), { layer: pending, streak },
+        [], { history, locale: loc });
       // 발판이다 -- 모델을 부르지 않으니 서버의 하루 몫이 이 반복을 끊지 못한다.
       expect(move.kind).toBe("scaffold");
       if (move.kind !== "scaffold") return null;
       turns = [
         ...history,
-        { role: "interviewer", text: scaffoldQuestion(move.layer, loc, nextStreak), layer: move.layer, period },
+        { role: "interviewer", text: scaffoldQuestion(move.layer, loc, streak), layer: move.layer, period, detour: true },
       ];
       pending = move.layer;
-      streak = nextStreak;
-      // 건너뛰기
+      // 건너뛰기 -- 새 장면이 열리면 막힘 셈도 새로 시작한다(장면 기준이라 따로 지울 상태가 없다).
       if (localPromptsExhausted(turns, judge)) return { cycle, turns: turns.length };
       turns = [...turns, { role: "interviewer", text: anotherScene, layer: "fact", period, sceneStart: true }];
       pending = "fact";
-      streak = 0;
-      abandoned = [];
     }
     return null;
   }
@@ -239,11 +239,23 @@ describe("2-1. 모르겠어요 -> 건너뛰기 교대 (게이트 F2049-02)", () 
     expect(alternate(loc, drillOf(loc).dontKnow, realJudge(loc))).toEqual({ cycle: 6, turns: 18 });
   });
 
+  // 2026-10-05 은퇴(QA 261005 R2F-04): 여기 "너무 짧은 답(응 · ok)도 같은 길이라 같이 막힌다"가
+  // 있었다. 그 답들은 이제 이 길(모델 없이 발판)을 타지 않는다 -- 모델이 판정하고, 부를 때마다
+  // 서버의 하루 몫을 쓰므로 교대 반복은 이 가드가 아니라 서버가 끊는다(session-end.ts 머리 주석).
+  // 대신 그 사실을 고정한다: 짧은 답은 로컬 비답이 아니고, 가드의 셈을 0 으로 돌린다(= 모델 길).
   it.each([
     ["ko", "응"],
     ["en", "ok"],
-  ] as const)("%s 너무 짧은 답 %p 도 같은 길이라 같이 막힌다", (loc, reply) => {
-    expect(alternate(loc, reply, realJudge(loc))).toEqual({ cycle: 6, turns: 18 });
+    ["ko", "시험 망쳤어요"],
+    ["en", "My dad left."],
+  ] as const)("%s 짧은 답 %p 는 로컬 비답이 아니라 모델로 간다", (loc, reply) => {
+    expect(screenJudge(loc)(reply, "fact")).toBe(false);
+    const turns: InterviewTurn[] = [
+      { role: "interviewer", text: "q", layer: "fact" },
+      { role: "user", text: reply, layer: "fact" },
+      { role: "interviewer", text: "another" },
+    ];
+    expect(unansweredPromptRun(turns, realJudge(loc))).toBe(1);
   });
 
   it("사용자 턴을 무엇이든 답으로 세면 쉰 번을 돌아도 안 끝난다 (고친 결함의 재현)", () => {
