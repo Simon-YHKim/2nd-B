@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
@@ -26,24 +27,51 @@ const sameBytes = (draft: string, numbered: string) =>
 // §0-2 "one source"). A draft is deleted in the same change that gives it a
 // number. Until then the two copies had to be byte-identical, which also kept
 // "INACTIVE DRAFT" headers on migrations production had already applied.
+//
+// The third column replaces the second copy as a witness. While each draft sat
+// beside its numbered file, the dry-run workflow's `cmp` loop failed when only
+// one side changed, so a quiet edit to an already-numbered migration (say the
+// 0192 deletion fence) could not land alone. With one copy nothing compared the
+// numbered file to anything, so the digest of the promoted bytes is pinned here
+// instead (CRLF -> LF, trimmed: the same normalisation as check-definer-grants,
+// whose pins for 0191/0208/0210/0215 match these). For 0191-0215 they are the
+// digests of the blobs the deleted drafts shared at 5104a686. A migration
+// production has applied must not change at all; write a new one. One that is
+// not applied yet may be revised before its GO, and its digest moves in the same
+// commit with the reason.
 const promoted = [
-  ["0191", "signup_consent_admob_20260925"],
-  ["0192", "account_deletion_completion_fence"],
-  ["0193", "effective_llm_consent_current_contract"],
-  ["0194", "llm_service_consent_management"],
-  ["0195", "polaris_generation_allowance"],
-  ["0196", "reward_ssv_hardening"],
-  ["0197", "paddle_refund_consequence_integrity"],
-  ["0198", "service_contract_erasure_registry"],
-  ["0199", "oauth_naver_rate_limit_completion"],
-  ["0200", "rss_proxy_quota"],
-  ["0206", "users_avatar_spec"],
-  ["0207", "users_display_name_update"],
-  ["0208", "signup_consent_privacy_20260929"],
-  ["0210", "polascope_consent_20260928"],
-  ["0215", "consent_email_v9_20261006"],
-  ["0216", "peer_response_rate_limit"],
+  ["0191", "signup_consent_admob_20260925", "6ba82c9ec8a796e99f1398398c58560b58513147119928d3ad004b31b0781648"],
+  ["0192", "account_deletion_completion_fence", "d42dbfc8a3d53ada60beb589918eaa4ac78e72d49b91af2e16d2f6457187b229"],
+  ["0193", "effective_llm_consent_current_contract", "579b8ca0729c337fb1cfae9a76ccb99144bc7ad12d9b078d95e3d4a286bd0e19"],
+  ["0194", "llm_service_consent_management", "9d600758069d7e9f20204e90034dfaed0ff492e4f7f0aa83547df550488c63a8"],
+  ["0195", "polaris_generation_allowance", "c83eb94c8e73d6cbc4ff03b1cf531564115133a0e37e9618cdb70ca47feaf67a"],
+  ["0196", "reward_ssv_hardening", "7ecfba419bdf2173b78106cf51e6a7e174d9ff24226d8a8eb5c975719f4d26f1"],
+  ["0197", "paddle_refund_consequence_integrity", "2df1dd033fbfff20e399ad6e82ac64c48a0726bc1661fda2587ade8c44bf4af3"],
+  ["0198", "service_contract_erasure_registry", "de57a5154bcf0f4fb31a4a9f58b86079981cfa6e44968af542c5dc7099fb7b7f"],
+  ["0199", "oauth_naver_rate_limit_completion", "8772906589a4732f1830ec62e130c0d2b616a96dd102ed1c0000000d5967a961"],
+  ["0200", "rss_proxy_quota", "f600cf43cffd2d6f219ecd6e1f5379ea4914b7dfd395201b6a03c0f0f285dbab"],
+  ["0206", "users_avatar_spec", "746474a137798ef99ab890cf9be65bf99978b7f8c9413c4010c3564dbfb3b24e"],
+  ["0207", "users_display_name_update", "30b31c05acffe5ecfd840c920d10c72f3d67f550b79818ab78b4b14150b61b8f"],
+  ["0208", "signup_consent_privacy_20260929", "8c7e758936650a982c60fe1f0d828db683c4252ff45124f4766ca016a495e64a"],
+  ["0210", "polascope_consent_20260928", "12a40e2208601f237cbccac5a3b49043f004719e916f828078eccf388f407b9f"],
+  ["0215", "consent_email_v9_20261006", "e5f38f6a6fa856729d24caf811dd2d300405a403b4129a842c6f27f2c30670e6"],
+  ["0216", "peer_response_rate_limit", "7b7abc8d550ff17cc4f13457d8eec8904d4c821884dcaa892b5dbd8feb685946"],
 ] as const;
+
+const normalizedSqlSha256 = (sql: string) =>
+  createHash("sha256").update(sql.replace(/\r\n/g, "\n").trim()).digest("hex");
+
+/** Numbered files whose bytes moved since promotion. Pure, so the check can be mutated below. */
+function promotedDigestDrift(
+  pins: readonly (readonly [string, string, string])[],
+  readNumbered: (file: string) => string,
+): string[] {
+  return pins
+    .map(([version, stem, digest]) => [`${version}_${stem}.sql`, digest] as const)
+    .filter(([file, digest]) => normalizedSqlSha256(readNumbered(file)) !== digest)
+    .map(([file]) => file);
+}
+const readNumberedMigration = (file: string) => read(`${MIGRATION_DIR}/${file}`);
 
 // The only drafts allowed beside a numbered twin, as `version:stem`. 0197 keeps
 // its reviewed draft until production applies it (the Q-261005-07 exception),
@@ -159,6 +187,29 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
   test("accounts for every unnumbered draft exactly once", () => {
     const retainedDrafts = RETAINED_UNTIL_APPLIED.map((key) => `UNNUMBERED_${key.slice(5)}.sql`);
     expect(listDrafts()).toEqual([...retainedDrafts, ...Object.keys(pendingDrafts)].sort());
+  });
+
+  test("numbered migrations keep the bytes they were promoted with", () => {
+    expect(promotedDigestDrift(promoted, readNumberedMigration)).toEqual([]);
+  });
+
+  test("the digest pin fails when a numbered migration changes alone", () => {
+    // The gate's case: a security edit to 0192 with no draft left to disagree.
+    const edited = (file: string) => {
+      const sql = readNumberedMigration(file);
+      return file.startsWith("0192_")
+        ? sql.replace("storage.objects RLS must be enabled", "storage.objects RLS may be disabled")
+        : sql;
+    };
+    expect(readNumberedMigration("0192_account_deletion_completion_fence.sql"))
+      .toContain("storage.objects RLS must be enabled");
+    expect(promotedDigestDrift(promoted, edited)).toEqual(["0192_account_deletion_completion_fence.sql"]);
+    // A one-line append to 0216 is caught too; line endings alone are not drift.
+    expect(promotedDigestDrift(promoted, (file) =>
+      file.startsWith("0216_") ? `${readNumberedMigration(file)}\nSELECT 1;` : readNumberedMigration(file),
+    )).toEqual(["0216_peer_response_rate_limit.sql"]);
+    expect(promotedDigestDrift(promoted, (file) => readNumberedMigration(file).replace(/\n/g, "\r\n")))
+      .toEqual([]);
   });
 
   test("every promoted migration is numbered, and only the retained exception keeps a draft", () => {
