@@ -29,12 +29,17 @@ function EsmCheckInScreen() {
   const [scaleValue, setScaleValue] = useState<number | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
 
   const canSubmit = kind === "energy" ? scaleValue !== null : selectedTags.length > 0;
   const activePrompt = useMemo(() => PROMPT_OPTIONS.find((p) => p.id === kind)!, [kind]);
   const activePromptSaveHint = t(`prompts.${activePrompt.id}.saveHint`);
+  // Each pick or prompt change is a new edit, and a save covers the edit it
+  // was pressed on. A save that answers after a later edit did not save what
+  // is on screen now, so the saved note stays off (QA 261004).
+  const [edit, setEdit] = useState(0);
+  const [savedEdit, setSavedEdit] = useState<number | null>(null);
+  const saved = savedEdit === edit;
 
   useEffect(() => {
     if (!toast) return;
@@ -59,7 +64,7 @@ function EsmCheckInScreen() {
   }
 
   function toggleTag(tag: string) {
-    setSaved(false);
+    setEdit((n) => n + 1);
     setSelectedTags((current) =>
       current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag],
     );
@@ -85,7 +90,7 @@ function EsmCheckInScreen() {
       return;
     }
 
-    setSaved(true);
+    setSavedEdit(edit);
     // Clear only what this save sent. `scaleValue` and `selectedTags` here are
     // the values at the press; a pick changed while the insert was out is not
     // saved yet, so it stays on screen for the next save (QA 261004).
@@ -115,7 +120,7 @@ function EsmCheckInScreen() {
                   key={option.id}
                   onPress={() => {
                     setKind(option.id);
-                    setSaved(false);
+                    setEdit((n) => n + 1);
                   }}
                   style={[styles.promptTab, active && styles.promptTabActive]}
                   accessibilityRole="tab"
@@ -144,7 +149,7 @@ function EsmCheckInScreen() {
                       key={value}
                       onPress={() => {
                         setScaleValue(value);
-                        setSaved(false);
+                        setEdit((n) => n + 1);
                       }}
                       style={[styles.scaleDot, active && styles.scaleDotActive]}
                       accessibilityRole="radio"
