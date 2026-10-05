@@ -1357,7 +1357,7 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/promo_lot_account_erasure_regression.sql
-      # 0211: rewarded-ad records go 89 days after they were granted (policy max
+      # 0211: rewarded-ad records go 88 days after they were granted (policy max
       # 90). Old ad lots go whole with no orphan rows or balance drift, purchase
       # lots and recent records stay, a held transaction (and its month and day
       # counters) stays until the hold is released, an account deletion still
