@@ -7,8 +7,6 @@
     "speech": "Fitur utama tetap gratis. Pilih paket berbayar jika kamu perlu lebih banyak percakapan dengan AI."
   },
   "current": "Paket saat ini",
-  "comingSoon": "Paket berbayar segera hadir",
-  "comingSoonBody": "Pembayaran belum dibuka. Harga sudah final, dan tidak ada yang ditagih sampai kamu memilih paket di sini.",
   "tiers": {
     "free": {
       "name": "Stargazer",

@@ -5,52 +5,5 @@
     "title": "Elige el aspecto de la pantalla",
     "subtitle": "Modo oscuro por defecto · modo claro opcional",
     "speech": "El grafo principal siempre mantiene el cielo oscuro para que las estrellas y los enlaces se vean nítidos."
-  },
-  "options": {
-    "dark": {
-      "label": "Oscuro",
-      "sub": "El tono nocturno predeterminado"
-    },
-    "light": {
-      "label": "Claro",
-      "sub": "Fondo claro"
-    }
-  },
-  "font": {
-    "title": "Fuente",
-    "options": {
-      "pixel": {
-        "label": "Fuente pixel",
-        "sub": "Letras nítidas para la vista de constelación"
-      },
-      "readable": {
-        "label": "Fuente legible",
-        "sub": "Letras más fáciles de leer"
-      }
-    },
-    "useFontLabel": "Usar {{label}}",
-    "useFontHint": "Aplica la fuente seleccionada a los títulos y textos en este dispositivo."
-  },
-  "performance": {
-    "title": "Rendimiento",
-    "options": {
-      "full": {
-        "label": "Efectos completos",
-        "sub": "Todos los movimientos, brillos y caracteres de fondo"
-      },
-      "lite": {
-        "label": "Modo ligero",
-        "sub": "Menos efectos para teléfonos más antiguos"
-      }
-    },
-    "usePerformanceLabel": "Usar {{label}}",
-    "usePerformanceHint": "Aplica el ajuste de rendimiento seleccionado en este dispositivo."
-  },
-  "actions": {
-    "inUse": "En uso",
-    "use": "Usar",
-    "useThemeLabel": "Usar tema {{label}}",
-    "useThemeHint": "Aplica el tema seleccionado en este dispositivo."
-  },
-  "note": "El grafo principal se mantiene oscuro incluso en modo claro. Es el fondo donde las estrellas y conexiones se ven mejor."
+  }
 }

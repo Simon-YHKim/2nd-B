@@ -124,23 +124,6 @@
     "noActivity": "Sem registros",
     "topicsLabel": "{{tag}} · tópicos principais"
   },
-  "inbox": {
-    "title": "Organizar recebidos",
-    "headerPending": "{{count}} itens para organizar.",
-    "headerEmpty": "Nada para organizar. Tudo arrumado.",
-    "tip": "Revise os itens e escolha onde salvar cada um.",
-    "emptyDone": "Tudo organizado. Os próximos itens recebidos aparecerão aqui.",
-    "remaining": "{{count}} itens para organizar",
-    "archive": "Arquivar",
-    "archiving": "Arquivando…",
-    "nextUp": "Próximo",
-    "a11yDiscard": "Descartar este item",
-    "a11yArchive": "Arquivar este item",
-    "untitled": "Item sem título",
-    "suggestedLabel": "Etiquetas sugeridas",
-    "getSuggestions": "Obter etiquetas sugeridas por IA",
-    "gettingSuggestions": "Obtendo sugestões…"
-  },
   "recordDetail": {
     "title": "Detalhe do registro",
     "headerLinked": "Este registro se conecta a {{count}} outros.",
@@ -182,7 +165,6 @@
     "resend": "Reenviar {{time}}",
     "confirm": "Confirmar",
     "noAccount": "Primeira vez? Crie uma conta",
-    "haveAccount": "Já tem uma conta? Entrar",
     "forgotPassword": "Esqueceu a senha?",
     "or": "ou",
     "ageNotice": "Você pode criar uma conta se tiver {{minAge}} anos ou mais.",
@@ -212,14 +194,6 @@
     "title": "Conta",
     "status": "Gerencie suas informações e escolha quais contas conectar.",
     "tip": "Você pode exportar seus dados ou iniciar a exclusão quando quiser.",
-    "joined": "Entrou em {{date}} · Plano gratuito",
-    "labelName": "Nome",
-    "labelEmail": "E-mail",
-    "labelPassword": "Senha",
-    "valueChange": "Alterar",
-    "labelLinked": "Conta vinculada",
-    "labelLanguage": "Idioma",
-    "valueLanguage": "Português",
     "delete": "Excluir conta",
     "navProfile": "Perfil",
     "navSettings": "Configurações",
@@ -365,20 +339,8 @@
     "reduceMotion": "Reduzir movimento"
   },
   "manual": {
-    "title": "Guia de uso",
-    "status": "Seus registros são seus; o resumo é o que você aprova. Veja aqui como isso funciona.",
-    "tip": "Se não encontrar, é só perguntar ao SecondB.",
-    "search": "O que te dá curiosidade?",
-    "sectionStart": "Primeiros passos",
-    "q1": "Quais são as 7 estrelas do Carro Maior?",
-    "q2": "Como a Estrela Polar se ilumina?",
-    "q3": "Como leio os resultados?",
-    "sectionData": "Dados · Privacidade",
-    "q4": "O que é um arquivo IDEN?",
-    "q5": "Onde meus dados são armazenados?",
     "askDirect": "Perguntar diretamente ao SecondB",
-    "replayCoachmarks": "Rever o guia inicial",
-    "conceptsTitle": "Conceitos principais"
+    "replayCoachmarks": "Rever o guia inicial"
   },
   "plans": {
     "title": "Planos",

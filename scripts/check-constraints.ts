@@ -1642,6 +1642,14 @@ results.push(
     //
     // 없는 키를 계속 요구하면 검사는 **은퇴한 화면**을 지키게 된다. 있는 것을
     // 요구하고, 인라인으로 남은 빚은 korean-in-code 래칫이 센다.
+    //
+    // 2026-10-05 (R2E-07): 로케일 쪽 값 핀 셋(account.feedback.label ·
+    // account.delete.inputLabel · account.delete.confirmCtaHint)을 뺐다. 세 키 모두
+    // 배송 화면이 부르지 않는다(위 표: 알림은 인라인 메시지, 삭제 모달은 인라인
+    // ko/en 삼항). 화면을 잃은 키라 다섯 로케일에서 지우고 원문은 E:/Legacy/2ndB 의
+    // locales/*/consent.json 사본(MANIFEST batch qa261005-legkeys)에 남겼다. 그 i18n 빚을
+    // 갚을 때 그 원문을 쓴다. 남은 계약은 그대로다 — 배송 화면이 부르는 다섯 키, 화면에
+    // 인라인으로 되돌아오면 안 되는 문구, 그리고 로딩 문구가 로케일에 사는 것.
     const account = read("src/screens/deepspace/dds-account-screen.tsx");
     const en = read("locales/en/consent.json");
     const ko = read("locales/ko/consent.json");
@@ -1676,13 +1684,7 @@ results.push(
     const ok =
       requiredCode.every((snippet) => account.includes(snippet)) &&
       en.includes('"loading": "Loading account…"') &&
-      en.includes('"label": "Account feedback notice"') &&
-      en.includes('"inputLabel": "Account deletion confirmation phrase"') &&
-      en.includes('"confirmCtaHint": "Starts account and data deletion."') &&
       ko.includes('"loading": "계정을 불러오고 있습니다…"') &&
-      ko.includes('"label": "계정 안내"') &&
-      ko.includes('"inputLabel": "계정 삭제 확인 문구"') &&
-      ko.includes('"confirmCtaHint": "계정과 데이터 삭제를 시작합니다."') &&
       forbiddenInlineCopy.every((term) => !account.includes(term));
     return {
       id: "AccountFeedbackI18nCopy",

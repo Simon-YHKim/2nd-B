@@ -124,23 +124,6 @@
     "noActivity": "No records",
     "topicsLabel": "{{tag}} · key topics"
   },
-  "inbox": {
-    "title": "Sorting tray",
-    "headerPending": "{{count}} items still need sorting.",
-    "headerEmpty": "Nothing to sort.",
-    "tip": "Check the tags, then archive each item.",
-    "emptyDone": "All sorted. New pieces will arrive here.",
-    "remaining": "{{count}} left to sort",
-    "archive": "Archive",
-    "archiving": "Archiving…",
-    "nextUp": "Next up",
-    "a11yDiscard": "Discard this piece",
-    "a11yArchive": "Archive this piece",
-    "untitled": "Untitled piece",
-    "suggestedLabel": "Suggested tags",
-    "getSuggestions": "Get AI tag suggestions",
-    "gettingSuggestions": "Getting suggestions…"
-  },
   "recordDetail": {
     "title": "Record details",
     "headerLinked": "This piece is connected to {{count}} records.",
@@ -182,7 +165,6 @@
     "resend": "Resend {{time}}",
     "confirm": "Confirm",
     "noAccount": "New here? Create an account",
-    "haveAccount": "Already have an account? Sign in",
     "forgotPassword": "Forgot password?",
     "or": "or",
     "ageNotice": "You can create an account if you are {{minAge}} or older.",
@@ -212,14 +194,6 @@
     "title": "Account",
     "status": "Manage your account details and connected accounts.",
     "tip": "You can also export data or delete your account here.",
-    "joined": "Joined {{date}} · Free plan",
-    "labelName": "Name",
-    "labelEmail": "Email",
-    "labelPassword": "Password",
-    "valueChange": "Change",
-    "labelLinked": "Linked account",
-    "labelLanguage": "Language",
-    "valueLanguage": "English",
     "delete": "Delete account",
     "navProfile": "Profile",
     "navSettings": "Settings",
@@ -365,20 +339,8 @@
     "reduceMotion": "Reduce motion"
   },
   "manual": {
-    "title": "User Guide",
-    "status": "Learn how to save records, review summaries and manage your data.",
-    "tip": "If you can't find it, just ask SecondB.",
-    "search": "What are you curious about?",
-    "sectionStart": "Getting started",
-    "q1": "What are the 7 stars of the Big Dipper?",
-    "q2": "How does the North Star brighten?",
-    "q3": "How should I read my check results?",
-    "sectionData": "Data · Privacy",
-    "q4": "What is an IDEN file?",
-    "q5": "Where is my data stored?",
     "askDirect": "Ask SecondB directly",
-    "replayCoachmarks": "Replay the home guide",
-    "conceptsTitle": "Core concepts"
+    "replayCoachmarks": "Replay the home guide"
   },
   "plans": {
     "title": "Plans",

@@ -124,23 +124,6 @@
     "noActivity": "기록 없음",
     "topicsLabel": "{{tag}} · 핵심 주제"
   },
-  "inbox": {
-    "title": "정리함",
-    "headerPending": "아직 정리하지 않은 자료가 {{count}}개 있습니다.",
-    "headerEmpty": "정리할 자료가 없습니다.",
-    "tip": "태그를 확인한 뒤 보관해 주세요.",
-    "emptyDone": "모두 정리했습니다. 새 자료를 담으면 여기에 보입니다.",
-    "remaining": "{{count}}개 남았습니다",
-    "archive": "보관하기",
-    "archiving": "보관 중…",
-    "nextUp": "다음 차례",
-    "a11yDiscard": "이 별가루 버리기",
-    "a11yArchive": "이 별가루 보관하기",
-    "untitled": "제목 없는 별가루",
-    "suggestedLabel": "추천 태그",
-    "getSuggestions": "AI 태그 제안 받기",
-    "gettingSuggestions": "제안 받는 중…"
-  },
   "recordDetail": {
     "title": "기록 상세",
     "headerLinked": "이 기록은 다른 기록 {{count}}개와 연결돼 있습니다.",
@@ -182,7 +165,6 @@
     "resend": "재전송 {{time}}",
     "confirm": "확인",
     "noAccount": "처음이신가요? 계정 만들기",
-    "haveAccount": "이미 계정이 있으신가요? 로그인",
     "forgotPassword": "비밀번호를 잊으셨나요?",
     "or": "또는",
     "ageNotice": "만 {{minAge}}세 이상부터 가입할 수 있습니다.",
@@ -212,14 +194,6 @@
     "title": "계정",
     "status": "{{who}}의 계정 정보와 연결된 계정을 관리합니다.",
     "tip": "데이터 내보내기와 계정 삭제도 여기서 시작할 수 있습니다.",
-    "joined": "{{date}} 가입 · 무료 요금제",
-    "labelName": "이름",
-    "labelEmail": "이메일",
-    "labelPassword": "비밀번호",
-    "valueChange": "변경",
-    "labelLinked": "연결 계정",
-    "labelLanguage": "언어",
-    "valueLanguage": "한국어",
     "delete": "계정 삭제",
     "navProfile": "프로필",
     "navSettings": "설정",
@@ -365,20 +339,8 @@
     "reduceMotion": "화면 움직임 줄이기"
   },
   "manual": {
-    "title": "사용 안내서",
-    "status": "기록을 남기고, 요약을 확인하고, 데이터를 관리하는 방법을 알아보세요.",
-    "tip": "찾는 게 없으면 세컨비에게 바로 물어보세요.",
-    "search": "무엇이 궁금하신가요?",
-    "sectionStart": "시작하기",
-    "q1": "북두칠성 7별은 무엇인가요?",
-    "q2": "북극성은 어떻게 밝아지나요?",
-    "q3": "검사 결과는 어떻게 읽어야 하나요?",
-    "sectionData": "데이터 · 개인정보",
-    "q4": "IDEN 파일은 무엇인가요?",
-    "q5": "내 데이터는 어디에 저장되나요?",
     "askDirect": "세컨비에게 직접 물어보기",
-    "replayCoachmarks": "홈 화면 사용 안내 다시 보기",
-    "conceptsTitle": "핵심 개념"
+    "replayCoachmarks": "홈 화면 사용 안내 다시 보기"
   },
   "plans": {
     "title": "요금제",

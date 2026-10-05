@@ -124,23 +124,6 @@
     "noActivity": "Sin registros",
     "topicsLabel": "{{tag}} · temas clave"
   },
-  "inbox": {
-    "title": "Por organizar",
-    "headerPending": "Hay {{count}} fragmentos por organizar.",
-    "headerEmpty": "Nada que ordenar. Todo en orden.",
-    "tip": "Revisa cada fragmento para guardarlo o descartarlo.",
-    "emptyDone": "Todo ordenado. Las piezas nuevas llegarán aquí.",
-    "remaining": "Quedan {{count}} por revisar",
-    "archive": "Archivar",
-    "archiving": "Archivando…",
-    "nextUp": "Siguiente",
-    "a11yDiscard": "Descartar esta pieza",
-    "a11yArchive": "Archivar esta pieza",
-    "untitled": "Pieza sin título",
-    "suggestedLabel": "Etiquetas sugeridas",
-    "getSuggestions": "Obtener etiquetas sugeridas por IA",
-    "gettingSuggestions": "Obteniendo sugerencias…"
-  },
   "recordDetail": {
     "title": "Detalle del registro",
     "headerLinked": "Esta pieza está conectada con {{count}} registros.",
@@ -182,7 +165,6 @@
     "resend": "Reenviar {{time}}",
     "confirm": "Confirmar",
     "noAccount": "¿Primera vez? Crea una cuenta",
-    "haveAccount": "¿Ya tienes una cuenta? Inicia sesión",
     "forgotPassword": "¿Olvidaste tu contraseña?",
     "or": "o",
     "ageNotice": "Puedes crear una cuenta si tienes {{minAge}} años o más.",
@@ -212,14 +194,6 @@
     "title": "Cuenta",
     "status": "Revisa tus datos y las cuentas que has conectado.",
     "tip": "Puedes exportar tus datos o eliminar tu cuenta cuando quieras.",
-    "joined": "Te uniste en {{date}} · Plan gratis",
-    "labelName": "Nombre",
-    "labelEmail": "Correo",
-    "labelPassword": "Contraseña",
-    "valueChange": "Cambiar",
-    "labelLinked": "Cuenta vinculada",
-    "labelLanguage": "Idioma",
-    "valueLanguage": "Español",
     "delete": "Eliminar cuenta",
     "navProfile": "Perfil",
     "navSettings": "Ajustes",
@@ -365,20 +339,8 @@
     "reduceMotion": "Reducir movimiento"
   },
   "manual": {
-    "title": "Guía de uso",
-    "status": "Consulta cómo guardar registros y aprobar cambios en tu resumen.",
-    "tip": "Si no lo encuentras, pregunta a SecondB.",
-    "search": "¿Qué te da curiosidad?",
-    "sectionStart": "Primeros pasos",
-    "q1": "¿Cuáles son las 7 estrellas de la Osa Mayor?",
-    "q2": "¿Cómo se ilumina la Estrella Polar?",
-    "q3": "¿Cómo interpreto los resultados?",
-    "sectionData": "Datos · Privacidad",
-    "q4": "¿Qué es un archivo IDEN?",
-    "q5": "¿Dónde se almacenan mis datos?",
     "askDirect": "Preguntar directamente a SecondB",
-    "replayCoachmarks": "Volver a ver la guía de inicio",
-    "conceptsTitle": "Conceptos clave"
+    "replayCoachmarks": "Volver a ver la guía de inicio"
   },
   "plans": {
     "title": "Planes",

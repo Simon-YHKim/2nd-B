@@ -5,52 +5,5 @@
     "title": "Pilih tampilan aplikasi",
     "subtitle": "Gelap sebagai bawaan · terang sebagai pilihan",
     "speech": "Graf utama tetap gelap agar bintang dan tautannya terlihat jelas."
-  },
-  "options": {
-    "dark": {
-      "label": "Gelap",
-      "sub": "Tampilan bawaan"
-    },
-    "light": {
-      "label": "Terang",
-      "sub": "Latar seperti kertas terang"
-    }
-  },
-  "font": {
-    "title": "Jenis huruf",
-    "options": {
-      "pixel": {
-        "label": "Font pixel",
-        "sub": "Huruf tampilan yang tajam untuk tampilan konstelasi"
-      },
-      "readable": {
-        "label": "Font mudah dibaca",
-        "sub": "Huruf biasa untuk teks yang lebih mudah dibaca"
-      }
-    },
-    "useFontLabel": "Gunakan {{label}}",
-    "useFontHint": "Menerapkan font yang dipilih pada judul dan teks di perangkat ini."
-  },
-  "performance": {
-    "title": "Performa",
-    "options": {
-      "full": {
-        "label": "Efek penuh",
-        "sub": "Semua gerak, cahaya, dan karakter latar"
-      },
-      "lite": {
-        "label": "Mode ringan",
-        "sub": "Kurangi efek untuk ponsel lama"
-      }
-    },
-    "usePerformanceLabel": "Gunakan {{label}}",
-    "usePerformanceHint": "Menerapkan pengaturan performa yang dipilih di perangkat ini."
-  },
-  "actions": {
-    "inUse": "Digunakan",
-    "use": "Gunakan",
-    "useThemeLabel": "Gunakan tema {{label}}",
-    "useThemeHint": "Menerapkan tema yang dipilih di perangkat ini."
-  },
-  "note": "Graf utama tetap gelap bahkan dalam mode terang. Ini adalah latar di mana bintang dan koneksi paling jelas terbaca."
+  }
 }

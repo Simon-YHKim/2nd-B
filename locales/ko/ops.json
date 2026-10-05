@@ -220,13 +220,6 @@
     "news_digest": "빠른 뉴스 요약",
     "side_project": "사이드 프로젝트 아이디어"
   },
-  "picker": {
-    "groupHint": "이 묶음에 있는 분야를 보여줍니다.",
-    "domainHint": "이 분야에서 해볼 만한 일을 추천합니다.",
-    "optionA11yLabel": "{{label}}, {{total}}개 중 {{index}}번째, {{state}}.",
-    "stateSelected": "선택됨",
-    "stateAvailable": "선택 가능"
-  },
   "recommend": {
     "off": "이 계정은 루틴 추천이 꺼져 있습니다. 저장한 기록은 비공개로 유지됩니다.",
     "cta": "할 일 추천받기",
@@ -241,32 +234,20 @@
     "durationLabel": "{{minutes}}분",
     "daily": "매일",
     "weekly": "매주",
-    "share": "공유하기",
-    "shareA11y": "이 추천 공유하기",
-    "addCalendar": "캘린더에 추가",
-    "addCalendarA11y": "캘린더에 추가",
     "saveRoutine": "루틴으로 저장",
-    "saveRoutineA11y": "이 추천을 루틴으로 저장하기",
     "saving": "저장하는 중…",
     "saved": "저장됨",
     "addDevice": "내 캘린더",
-    "addDeviceHint": "이 일정이 입력된 기기 캘린더를 엽니다.",
     "addGoogle": "Google 캘린더",
-    "addGoogleHint": "이 일정이 입력된 Google 캘린더를 엽니다.",
     "downloadIcs": "캘린더 파일",
-    "downloadIcsHint": "캘린더 앱에서 열 수 있는 .ics 파일을 내려받습니다.",
     "shareList": "체크리스트 보내기",
-    "shareListHint": "공유 메뉴를 열어 체크리스트를 텍스트로 보냅니다.",
-    "remind": "알림 설정",
-    "remindHint": "이 항목의 시간에 맞춰 기기 알림을 예약합니다."
+    "remind": "알림 설정"
   },
   "consent": {
     "title": "다른 앱으로 보낼까요?",
     "body": "승인한 항목을 캘린더나 공유 메뉴로 보냅니다. 한 번 허용하면 다음부터는 묻지 않습니다. 개인정보 보호 설정에서 언제든 끌 수 있습니다.",
     "agree": "허용하고 보내기",
-    "agreeHint": "허용 여부를 저장하고 선택한 항목을 보냅니다.",
-    "later": "다음에",
-    "laterHint": "보내지 않고 닫습니다. 항목은 화면에 남습니다."
+    "later": "다음에"
   },
   "today": {
     "heading": "오늘의 루틴",
@@ -296,10 +277,8 @@
   },
   "home": {
     "ringCount": "{{done}} / {{total}} 완료",
-    "streakLabel": "일 연속",
     "patternsTitle": "이번 주 패턴 분석",
     "patternsSub": "분석하는 동안에도 앱을 계속 쓸 수 있습니다.",
-    "patternsRun": "분석하기",
     "takeEyebrow": "오늘의 요약",
     "toolsLabel": "비서 도구"
   },

@@ -124,23 +124,6 @@
     "noActivity": "Tidak ada catatan",
     "topicsLabel": "{{tag}} · topik utama"
   },
-  "inbox": {
-    "title": "Kotak masuk",
-    "headerPending": "Ada {{count}} catatan yang belum ditata.",
-    "headerEmpty": "Tidak ada yang perlu dirapikan. Semua rapi.",
-    "tip": "Tinjau dan arsipkan catatan satu per satu.",
-    "emptyDone": "Semua sudah ditata. Catatan baru akan muncul di sini.",
-    "remaining": "Tersisa {{count}} catatan untuk ditata",
-    "archive": "Arsipkan",
-    "archiving": "Mengarsipkan…",
-    "nextUp": "Berikutnya",
-    "a11yDiscard": "Buang catatan ini",
-    "a11yArchive": "Arsipkan catatan ini",
-    "untitled": "Catatan tanpa judul",
-    "suggestedLabel": "Tag yang disarankan",
-    "getSuggestions": "Dapatkan saran tag AI",
-    "gettingSuggestions": "Mengambil saran…"
-  },
   "recordDetail": {
     "title": "Detail catatan",
     "headerLinked": "Catatan ini terhubung dengan {{count}} catatan lain.",
@@ -182,7 +165,6 @@
     "resend": "Kirim ulang {{time}}",
     "confirm": "Konfirmasi",
     "noAccount": "Baru di sini? Buat akun",
-    "haveAccount": "Sudah punya akun? Masuk",
     "forgotPassword": "Lupa kata sandi?",
     "or": "atau",
     "ageNotice": "Kamu bisa membuat akun jika berusia {{minAge}} tahun atau lebih.",
@@ -212,14 +194,6 @@
     "title": "Akun",
     "status": "Kelola informasi akun dan akun lain yang kamu hubungkan.",
     "tip": "Kamu bisa memulai penghapusan atau ekspor sendiri kapan saja.",
-    "joined": "Bergabung {{date}} · Paket gratis",
-    "labelName": "Nama",
-    "labelEmail": "Alamat email",
-    "labelPassword": "Kata sandi",
-    "valueChange": "Ubah",
-    "labelLinked": "Akun tertaut",
-    "labelLanguage": "Bahasa",
-    "valueLanguage": "Indonesia",
     "delete": "Hapus akun",
     "navProfile": "Profil",
     "navSettings": "Pengaturan",
@@ -365,20 +339,8 @@
     "reduceMotion": "Kurangi gerakan"
   },
   "manual": {
-    "title": "Panduan penggunaan",
-    "status": "Catatanmu milikmu; ringkasannya yang kamu setujui. Temukan cara kerjanya di sini.",
-    "tip": "Kalau tidak ketemu, langsung tanya SecondB.",
-    "search": "Apa yang ingin kamu ketahui?",
-    "sectionStart": "Memulai",
-    "q1": "Apa itu 7 bintang Biduk?",
-    "q2": "Bagaimana Bintang Utara menyala?",
-    "q3": "Bagaimana cara membaca hasil penilaian?",
-    "sectionData": "Data · Privasi",
-    "q4": "Apa itu berkas IDEN?",
-    "q5": "Di mana dataku disimpan?",
     "askDirect": "Tanya SecondB langsung",
-    "replayCoachmarks": "Putar ulang panduan beranda",
-    "conceptsTitle": "Konsep inti"
+    "replayCoachmarks": "Putar ulang panduan beranda"
   },
   "plans": {
     "title": "Paket",

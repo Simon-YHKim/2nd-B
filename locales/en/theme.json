@@ -5,52 +5,5 @@
     "title": "Choose a light or dark theme",
     "subtitle": "Dark background · light background",
     "speech": "The main graph always has a dark background so stars and links are easy to see."
-  },
-  "options": {
-    "dark": {
-      "label": "Dark",
-      "sub": "Dark background"
-    },
-    "light": {
-      "label": "Light",
-      "sub": "Light background"
-    }
-  },
-  "font": {
-    "title": "Font",
-    "options": {
-      "pixel": {
-        "label": "Pixel font",
-        "sub": "Crisp display letters for the constellation view"
-      },
-      "readable": {
-        "label": "Readable font",
-        "sub": "Easier to read at small sizes"
-      }
-    },
-    "useFontLabel": "Use the {{label}}",
-    "useFontHint": "Applies the selected font to titles and text on this device."
-  },
-  "performance": {
-    "title": "Performance",
-    "options": {
-      "full": {
-        "label": "Full effects",
-        "sub": "Every motion, glow, and background character"
-      },
-      "lite": {
-        "label": "Lite mode",
-        "sub": "Fewer effects to reduce the load on your device"
-      }
-    },
-    "usePerformanceLabel": "Use {{label}}",
-    "usePerformanceHint": "Applies the selected performance setting on this device."
-  },
-  "actions": {
-    "inUse": "In use",
-    "use": "Use",
-    "useThemeLabel": "Use {{label}} theme",
-    "useThemeHint": "Applies the selected theme on this device."
-  },
-  "note": "The main graph keeps a dark background in light mode so stars and links stay easy to see."
+  }
 }

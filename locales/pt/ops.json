@@ -220,13 +220,6 @@
     "news_digest": "Resumo rápido de notícias",
     "side_project": "Projeto criativo paralelo"
   },
-  "picker": {
-    "groupHint": "Mostra as áreas deste grupo.",
-    "domainHint": "Cria sugestões para esta área.",
-    "optionA11yLabel": "{{label}}, opção {{index}} de {{total}}, {{state}}.",
-    "stateSelected": "selecionada",
-    "stateAvailable": "disponível"
-  },
   "recommend": {
     "off": "As sugestões de rotina estão desativadas nesta conta, então suas anotações ficam privadas.",
     "cta": "Sugerir próximos passos",
@@ -241,32 +234,20 @@
     "durationLabel": "{{minutes}} min",
     "daily": "Todo dia",
     "weekly": "Toda semana",
-    "share": "Compartilhar",
-    "shareA11y": "Compartilhar este passo",
-    "addCalendar": "Adicionar ao calendário",
-    "addCalendarA11y": "Adicionar ao calendário",
     "saveRoutine": "Salvar como rotina",
-    "saveRoutineA11y": "Salvar este passo como uma rotina gerenciada",
     "saving": "Salvando…",
     "saved": "Salvo",
     "addDevice": "Meu calendário",
-    "addDeviceHint": "Abre o formulário de calendário do dispositivo com este item preenchido.",
     "addGoogle": "Google Calendar",
-    "addGoogleHint": "Abre o Google Calendar com este evento preenchido.",
     "downloadIcs": "Arquivo de calendário",
-    "downloadIcsHint": "Baixa um arquivo .ics que abre no seu app de calendário.",
     "shareList": "Enviar checklist",
-    "shareListHint": "Abre o compartilhamento com este checklist como texto.",
-    "remind": "Me lembrar",
-    "remindHint": "Agenda um lembrete no dispositivo no horário deste item."
+    "remind": "Me lembrar"
   },
   "consent": {
     "title": "Enviar itens para seus apps?",
     "body": "Os itens aprovados vão para seu calendário ou compartilhamento. Perguntado uma vez: continue permitindo a partir de agora e desative quando quiser em Privacidade.",
     "agree": "Permitir e continuar",
-    "agreeHint": "Salva a escolha e realiza este envio.",
-    "later": "Agora não",
-    "laterHint": "Fecha sem enviar. O item permanece nesta tela."
+    "later": "Agora não"
   },
   "today": {
     "heading": "Rotinas de hoje",
@@ -296,10 +277,8 @@
   },
   "home": {
     "ringCount": "{{done}} / {{total}} feitas",
-    "streakLabel": "dias seguidos",
     "patternsTitle": "Padrões desta semana",
     "patternsSub": "A análise roda em segundo plano. Continue usando o app.",
-    "patternsRun": "Analisar registros",
     "takeEyebrow": "RESUMO DE HOJE",
     "toolsLabel": "Ferramentas do assistente"
   },
