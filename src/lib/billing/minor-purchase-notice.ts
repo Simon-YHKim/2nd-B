@@ -12,35 +12,48 @@
 // 고지 대상만 문구의 기준에 맞춘다. 결제를 막거나 동의를 요구하는 강도는 Simon 미결(F5)
 // 이라 여기서 다루지 않는다.
 //
-// 나라마다 성년 나이가 다르다(대부분 18, 태국 20 등). 그래도 나라별로 가르지 않는 이유:
-//   - 문구가 스스로 "만 19세" 를 말한다. 그 문장이 가리키는 사람에게 닿는 것이 문구와
-//     맞는 조건이다.
+// ── 만 18세는 한국 법역일 때만 새로 받는다 (GS-2069-01, 2026-10-05) ──────────
+// 처음 고칠 때는 나라를 가르지 않고 나이를 아는 만 18세 전원에게 고지를 넓혔다. 게이트가
+// 그 확장을 짚었다: 문구는 관할 한정 없이 "취소할 수 있습니다" 라고 단정하는데, 대부분의
+// 나라에서 만 18세는 이미 성년이다. 한국 밖의 만 18세에게 이 문장을 보이면 법정대리인
+// 동의와 취소권이 있는 것처럼 읽힌다(추론. 정확한 법률 효과는 법무 확인이 필요하다).
+// 그래서 새로 넓히는 몫은 `resolveJurisdiction()` 이 한국(KR)이라고 답할 때로 좁힌다.
+//   - 문구의 19 는 한국 민법의 숫자다. 그 숫자가 맞는 곳에서만 대상을 넓힌다.
+//   - 지역을 못 읽거나(웹에서 흔하다) 다른 나라면 만 18세는 예전처럼 고지를 안 본다.
+//     예전 동작으로 돌아가는 것이지 새 주장을 하지 않는다. 가입 때 고른 거주 국가는
+//     저장하지 않으므로 여기서 쓸 수 없다.
 //   - 저장소에는 나라별 성년 나이 자료가 없다. 63개국 표는 디지털 동의 나이라 다른
-//     개념이고(한국 14), 그걸 쓰면 한국 18세가 다시 빠진다.
-//   - 웹에서는 기기 지역을 못 읽는 일이 흔하고, 가입 때 고른 거주 국가는 저장하지 않는다.
-//     나라로 가르면 바로 그 사용자들이 조용히 기본값으로 떨어진다.
-// 그래서 이 조건은 예전 조건의 상위 집합이다. 예전에 고지를 보던 사람은 그대로 보고,
-// 새로 보는 사람은 나이를 아는 만 18세뿐이다.
+//     개념이고(한국 14), 그 표로는 한국 18세를 고를 수 없다.
+//   - `isMinor === true`(만 18세 미만 · birth_date 없음)는 나라와 무관하게 예전처럼 보인다.
+//     만 18세 미만 해외 사용자에게 같은 문구가 가는 것은 이 변경 전부터 있던 일이고,
+//     문구 자체를 관할 중립으로 바꾸는 것은 법무 승인이 필요한 별도 작업이다.
+// 그래서 이 조건은 여전히 예전 조건의 상위 집합이다. 예전에 고지를 보던 사람은 그대로 보고,
+// 새로 보는 사람은 법역이 한국이고 나이를 아는 만 18세뿐이다.
 
 /** 민법 제4조의 성년 나이. 고지 문구가 말하는 "만 19세 미만" 의 19 다. */
 export const KR_CIVIL_MAJORITY_AGE = 19;
+
+/** 문구의 19 가 성년 나이인 법역. `resolveJurisdiction().country` 와 비교한다. */
+export const KR_JURISDICTION = "KR";
 
 export interface MinorPurchaseNoticeInput {
   /** AuthContext 의 isMinor. 만 18세 미만, 또는 birth_date 가 없어 보호 쪽으로 둔 경우 true. */
   isMinor: boolean | null;
   /** AuthContext 의 만 나이. 아직 모르면 null. */
   age: number | null;
+  /** `resolveJurisdiction().country`. 대문자 ISO 3166-1 alpha-2, 지역을 못 읽었으면 null. */
+  country: string | null;
 }
 
 /**
  * 고지를 보일지 정한다.
  *
  * - `isMinor === true` 는 그대로 보인다. birth_date 가 없어 나이를 모르는데 보호 쪽으로
- *   둔 경우(isMinor true · age null)도 여기 들어간다.
- * - 나이를 알고 만 19세 미만이면 보인다. 새로 들어오는 것은 만 18세다.
- * - 나이를 아직 모르면(로딩 · 세션 없음 · 프로브 실패) 보이지 않는다. 예전과 같다.
+ *   둔 경우(isMinor true · age null)도 여기 들어간다. 나라는 보지 않는다(예전과 같다).
+ * - 법역이 한국이고 나이를 알며 만 19세 미만이면 보인다. 새로 들어오는 것은 한국 만 18세다.
+ * - 그 밖(다른 나라 · 지역 판독 불가 · 나이를 아직 모름)은 보이지 않는다. 예전과 같다.
  */
-export function showsMinorPurchaseNotice({ isMinor, age }: MinorPurchaseNoticeInput): boolean {
+export function showsMinorPurchaseNotice({ isMinor, age, country }: MinorPurchaseNoticeInput): boolean {
   if (isMinor === true) return true;
-  return age !== null && age < KR_CIVIL_MAJORITY_AGE;
+  return country === KR_JURISDICTION && age !== null && age < KR_CIVIL_MAJORITY_AGE;
 }

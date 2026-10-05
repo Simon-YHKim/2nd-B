@@ -51,6 +51,7 @@ import {
 } from "@/lib/payments/purchases";
 import { resolvePrivacyPrefs } from "@/lib/privacy/prefs";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { resolveJurisdiction } from "@/lib/auth/consent-age";
 import {
   createOwnerActionGate,
   rewardCapAllowsWatch,
@@ -324,6 +325,8 @@ export function DeepSpacePlansScreen() {
   const progression = useProgression();
   const pathname = usePathname();
   const { userId, hasProfile, isMinor, age, profileProbeFailed, loading: authLoading } = auth;
+  // 미성년 결제 고지의 만 18세 확장은 한국 법역에서만 쓴다(GS-2069-01). 다른 가입 화면처럼 한 번만 읽는다.
+  const jurisdictionCountry = useMemo(() => resolveJurisdiction().country, []);
   const {
     tier: currentTier,
     loading: tierLoading,
@@ -798,8 +801,8 @@ export function DeepSpacePlansScreen() {
         </View>
       </PixelSurface>
 
-      {/* 문구가 말하는 "만 19세 미만" 에게 보인다. isMinor(만 18세 미만)만 보면 만 18세가 빠진다. */}
-      {showsMinorPurchaseNotice({ isMinor, age }) ? (
+      {/* 문구의 "만 19세 미만" 은 한국 민법 숫자다. 만 18세는 법역이 한국일 때만 더한다(GS-2069-01). */}
+      {showsMinorPurchaseNotice({ isMinor, age, country: jurisdictionCountry }) ? (
         <PixelSurface variant="frame" contentStyle={s.noticeContent}>
           <View style={s.honestyRow}>
             <PixelGlyph name="info" color={m3.color.onSurfaceVariant} size={18} />
