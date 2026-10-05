@@ -362,7 +362,9 @@
     "sectionSize": "Tamaño del texto",
     "small": "Pequeño",
     "large": "Grande",
-    "reduceMotion": "Reducir movimiento"
+    "reduceMotion": "Reducir movimiento",
+    "soundEffects": "Efectos de sonido",
+    "soundEffectsNote": "Sonidos del telescopio, la foto de estrella y la apertura. No suenan si el teléfono está en silencio o en vibración."
   },
   "manual": {
     "title": "Guía de uso",

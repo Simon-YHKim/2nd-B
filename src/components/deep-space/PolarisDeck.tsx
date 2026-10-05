@@ -66,7 +66,7 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
           <Text style={styles.deckTitle} numberOfLines={1}>
             {pages[index]?.title}
           </Text>
-          <Text style={styles.deckHint} numberOfLines={1}>
+          <Text style={styles.deckHint} numberOfLines={2}>
             {t("core-brain:swipeCards")}
           </Text>
         </View>
@@ -148,9 +148,16 @@ const makeStyles = () => StyleSheet.create({
     paddingHorizontal: 8,
     paddingBottom: 8,
   },
-  deckHeadCopy: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
+  // Title above the swipe hint, not beside it (R2B-05, 2026-10-05). Side by
+  // side, both on one line, the title shrank with the hint on web (RN-web Text
+  // gets CSS flex-shrink:1) and lost its noun: "minha Es…" (pt), "mi Estrella
+  // Pol…" (es), and "North Star" clipped in en as well. Stacked, the title has
+  // the full row and the hint gets two lines.
+  deckHeadCopy: { flex: 1, minWidth: 0, flexDirection: "column", alignItems: "flex-start", gap: 2 },
   deckTitle: {
     ...m3TextStyle("labelLarge"),
+    flexShrink: 0,
+    maxWidth: "100%",
     color: m3.color.tertiary,
     letterSpacing: 2,
   },
