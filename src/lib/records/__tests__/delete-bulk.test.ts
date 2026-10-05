@@ -84,14 +84,18 @@ jest.mock("../../supabase/client", () => {
 jest.mock("../../account/local-deletion-fence", () => {
   const installFence = jest.fn().mockResolvedValue(true);
   const releaseIntent = jest.fn().mockResolvedValue(true);
+  const discardIntent = jest.fn().mockResolvedValue(undefined);
   return {
     installAccountLocalDeletionFence: installFence,
     releaseAccountLocalDeletionIntent: releaseIntent,
+    discardAccountLocalDeletionIntent: discardIntent,
     __installFence: installFence,
     __releaseIntent: releaseIntent,
+    __discardIntent: discardIntent,
     __reset: () => {
       installFence.mockReset().mockResolvedValue(true);
       releaseIntent.mockReset().mockResolvedValue(true);
+      discardIntent.mockReset().mockResolvedValue(undefined);
     },
   };
 });
@@ -122,6 +126,7 @@ const clientMock = require("../../supabase/client") as {
 const fenceMock = require("../../account/local-deletion-fence") as {
   __installFence: jest.Mock;
   __releaseIntent: jest.Mock;
+  __discardIntent: jest.Mock;
   __reset: () => void;
 };
 
@@ -333,6 +338,61 @@ describe("requestAccountDeletion (terminal erasure)", () => {
       // Promoted once, before the first invoke only.
       expect(fenceMock.__installFence.mock.calls).toEqual([["u1", "intent"], ["u1"]]);
       expect(fenceMock.__releaseIntent).not.toHaveBeenCalled();
+    });
+  });
+
+  // QA 261004 gate DEL-BL-02 (2026-10-05): the promotion used to clear the
+  // leftover intent between the terminal marker and the first invoke, so on
+  // native up to two more storage calls could use up the deadline after the
+  // fence had turned terminal: no Edge call, and a fence nothing can lift. The
+  // intent is now cleared after the Edge attempts, on every path that made one.
+  describe("the leftover intent is cleared after the Edge attempts, never before the first invoke", () => {
+    function lastOrder(mock: jest.Mock): number {
+      return mock.mock.invocationCallOrder[mock.mock.invocationCallOrder.length - 1];
+    }
+
+    test("a completed deletion clears it once, after the invoke", async () => {
+      await requestAccountDeletion(EXPECTED);
+      expect(fenceMock.__discardIntent.mock.calls).toEqual([["u1"]]);
+      const terminalAt = fenceMock.__installFence.mock.invocationCallOrder[1];
+      expect(terminalAt).toBeLessThan(clientMock.__invoke.mock.invocationCallOrder[0]);
+      expect(clientMock.__invoke.mock.invocationCallOrder[0])
+        .toBeLessThan(fenceMock.__discardIntent.mock.invocationCallOrder[0]);
+    });
+
+    test.each([
+      ["the function reports failure", () => {
+        clientMock.__invoke.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
+      }],
+      ["the transport rejects", () => {
+        clientMock.__invoke.mockRejectedValueOnce(new Error("network"));
+      }],
+    ])("a failed Edge attempt still clears it afterwards (%s)", async (_label, arrange) => {
+      arrange();
+      await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
+      expect(fenceMock.__discardIntent.mock.calls).toEqual([["u1"]]);
+      expect(clientMock.__invoke.mock.invocationCallOrder[0])
+        .toBeLessThan(fenceMock.__discardIntent.mock.invocationCallOrder[0]);
+      expect(fenceMock.__releaseIntent).not.toHaveBeenCalled();
+    });
+
+    test("409 retries clear it once, after the last invoke", async () => {
+      clientMock.__invoke
+        .mockResolvedValueOnce({ data: null, error: cleanupInProgress(1_000) })
+        .mockResolvedValueOnce({ data: { deleted: true }, error: null });
+      await requestAccountDeletion(EXPECTED);
+      expect(clientMock.__invoke).toHaveBeenCalledTimes(2);
+      expect(fenceMock.__discardIntent).toHaveBeenCalledTimes(1);
+      expect(lastOrder(clientMock.__invoke))
+        .toBeLessThan(fenceMock.__discardIntent.mock.invocationCallOrder[0]);
+    });
+
+    test("a deletion that never invoked releases the intent instead", async () => {
+      clientMock.__refreshSession.mockResolvedValueOnce({ data: { session: null }, error: new Error("offline") });
+      await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
+      expect(clientMock.__invoke).not.toHaveBeenCalled();
+      expect(fenceMock.__discardIntent).not.toHaveBeenCalled();
+      expect(fenceMock.__releaseIntent).toHaveBeenCalledWith("u1");
     });
   });
 

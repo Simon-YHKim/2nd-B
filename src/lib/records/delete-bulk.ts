@@ -11,7 +11,7 @@ import {
   refreshExpectedSessionInsideMutation,
   type AuthSessionExpectation,
 } from "../auth/session-mutation";
-import { installAccountLocalDeletionFence, releaseAccountLocalDeletionIntent } from "../account/local-deletion-fence";
+import { discardAccountLocalDeletionIntent, installAccountLocalDeletionFence, releaseAccountLocalDeletionIntent } from "../account/local-deletion-fence";
 import { recordPhotoPathsOf, removeRecordPhotoObjects } from "../capture/record-photos";
 /** Delete every record belonging to the user. Returns affected count. */
 export async function deleteAllRecords(userId: string): Promise<number> {
@@ -440,6 +440,11 @@ export async function requestAccountDeletion(
     } catch (error) {
       if (!edgeInvoked) await releaseAccountLocalDeletionIntent(owner);
       throw error;
+    } finally {
+      // The intent left under the terminal marker is only clutter. Clearing it
+      // waits until the Edge attempts are over, so its storage calls never spend
+      // the deadline between the terminal marker and the first invoke (DEL-BL-02).
+      if (edgeInvoked) await discardAccountLocalDeletionIntent(owner);
     }
   }, { requireCrossTab: true });
 }

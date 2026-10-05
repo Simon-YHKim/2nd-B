@@ -272,16 +272,51 @@ async function persistFence(
     await store.setItem(fenceKey(owner), FENCE_MARKER);
     if (await store.getItem(fenceKey(owner)) !== FENCE_MARKER) return false;
     terminalOwners.add(owner);
+    // Nothing else runs here: the deletion's first Edge invocation follows this
+    // acknowledgement under the same deadline. The leftover intent is cleared
+    // afterwards by discardAccountLocalDeletionIntent() (gate DEL-BL-02).
+    return true;
   } catch {
     return false;
   }
-  // The terminal marker wins every read, so a leftover intent is only clutter.
+}
+
+/**
+ * Clear the intent key a promotion left behind (best effort, never rejects).
+ *
+ * The terminal marker wins every read, so a leftover intent is only clutter.
+ * This first ran inside the promotion, between the terminal read-back and the
+ * first Edge invocation, where up to two more native storage calls could use up
+ * the deletion deadline after the marker had already turned terminal: the
+ * deletion then failed with no Edge call and a fence nothing can lift (QA 261004
+ * gate DEL-BL-02, 2026-10-05). The deletion now calls this after its Edge
+ * attempts. The intent is removed only while a terminal marker reads back, so
+ * this never lifts a fence.
+ */
+export function discardAccountLocalDeletionIntent(userId: string): Promise<void> {
+  const owner = normalizeOwner(userId);
+  if (!owner) return Promise.resolve();
+
+  const local = webStorage();
+  if (local) {
+    const discard = () => discardIntent(webAsAsync(local), owner);
+    const locks = webLocks();
+    return (locks ? locks.request(`${LOCK_PREFIX}${owner}`, discard) : discard())
+      .catch(() => undefined);
+  }
+
+  const storage = asyncStorage();
+  if (!storage) return Promise.resolve();
+  return runOwnerTail(owner, () => discardIntent(storage, owner));
+}
+
+async function discardIntent(store: AsyncStorageLike, owner: string): Promise<void> {
   try {
+    if (await store.getItem(fenceKey(owner)) === null) return;
     if (await store.getItem(intentKey(owner)) !== null) await store.removeItem(intentKey(owner));
   } catch {
     // Best effort: the terminal marker is already acknowledged.
   }
-  return true;
 }
 
 /**

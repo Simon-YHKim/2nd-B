@@ -49,6 +49,7 @@ jest.mock("../../supabase/client", () => {
 
 jest.mock("../../account/local-deletion-fence", () => ({
   installAccountLocalDeletionFence: jest.fn().mockResolvedValue(true),
+  discardAccountLocalDeletionIntent: jest.fn().mockResolvedValue(undefined),
 }));
 
 import { requestAccountDeletion } from "../delete-bulk";

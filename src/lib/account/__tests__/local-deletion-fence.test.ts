@@ -16,6 +16,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 
 import {
   __resetAccountLocalDeletionFencesForTests,
+  discardAccountLocalDeletionIntent,
   installAccountLocalDeletionFence,
   isAccountLocalDeletionFencedInMemory,
   releaseAccountLocalDeletionIntent,
@@ -218,7 +219,9 @@ describe("reversible intent, irreversible terminal", () => {
     await expect(installAccountLocalDeletionFence("owner-a")).resolves.toBe(true);
     await expect(releaseAccountLocalDeletionIntent("owner-a")).resolves.toBe(false);
     expect(webStore.get(KEY)).toBe("terminal");
-    // The promotion clears the intent key; the terminal one wins every read anyway.
+    // The deletion clears the leftover intent after its Edge attempts (gate
+    // DEL-BL-02); the terminal key wins every read anyway.
+    await discardAccountLocalDeletionIntent("owner-a");
     expect(webStore.has(INTENT_KEY)).toBe(false);
     expect(isAccountLocalDeletionFencedInMemory("owner-a")).toBe(true);
 
@@ -407,5 +410,86 @@ describe("a terminal marker observed by a guarded write is pinned", () => {
     const late = write();
     await expect(runAccountLocalMutation("owner-a", late)).resolves.toEqual({ executed: false });
     expect(late).not.toHaveBeenCalled();
+  });
+});
+
+// QA 261004 gate DEL-BL-02 (2026-10-05): the promotion also read and removed the
+// intent key after acknowledging the terminal marker. On native that is up to
+// two more storage calls between the terminal marker and the first Edge
+// invocation; when they used up the deadline, the deletion failed with no Edge
+// call and a fence nothing can lift. The promotion now stops at the terminal
+// read-back, and the deletion clears the intent after its Edge attempts.
+describe("the promotion stops at the terminal read-back", () => {
+  const KEY = "account.deletionFence.v1:owner-a";
+  const INTENT_KEY = "account.deletionIntent.v1:owner-a";
+  const write = () => jest.fn(async () => "saved");
+
+  /** The storage a runtime writes to; the test switches the runtime itself. */
+  function storageOf(runtime: "web" | "native") {
+    return runtime === "native"
+      ? { store: asyncStore, api: mockAsyncStorage }
+      : { store: webStore, api: webStorage };
+  }
+
+  test.each(["web", "native"] as const)(
+    "%s: promoting an intent is the terminal write and its read-back, nothing more",
+    async (runtime) => {
+      const { store, api } = storageOf(runtime);
+      if (runtime === "native") useNativeRuntime();
+      await installAccountLocalDeletionFence("owner-a", "intent");
+      jest.clearAllMocks();
+
+      await expect(installAccountLocalDeletionFence("owner-a")).resolves.toBe(true);
+      expect(api.setItem.mock.calls).toEqual([[KEY, "terminal"]]);
+      expect(api.getItem.mock.calls).toEqual([[KEY]]);
+      expect(api.removeItem).not.toHaveBeenCalled();
+      // Left for the deletion to clear; the terminal key fences every read.
+      expect(store.get(INTENT_KEY)).toBe("intent");
+      const blocked = write();
+      __resetAccountLocalDeletionFencesForTests();
+      await expect(runAccountLocalMutation("owner-a", blocked)).resolves.toEqual({ executed: false });
+      expect(blocked).not.toHaveBeenCalled();
+    },
+  );
+
+  test.each(["web", "native"] as const)(
+    "%s: the discard after the Edge attempts clears the intent and keeps the terminal marker",
+    async (runtime) => {
+      const { store } = storageOf(runtime);
+      if (runtime === "native") useNativeRuntime();
+      await installAccountLocalDeletionFence("owner-a", "intent");
+      await installAccountLocalDeletionFence("owner-a");
+
+      await expect(discardAccountLocalDeletionIntent("owner-a")).resolves.toBeUndefined();
+      expect(store.has(INTENT_KEY)).toBe(false);
+      expect(store.get(KEY)).toBe("terminal");
+      expect(isAccountLocalDeletionFencedInMemory("owner-a")).toBe(true);
+      await expect(releaseAccountLocalDeletionIntent("owner-a")).resolves.toBe(false);
+    },
+  );
+
+  test.each(["web", "native"] as const)(
+    "%s: without a terminal marker the discard leaves the intent fencing",
+    async (runtime) => {
+      const { store, api } = storageOf(runtime);
+      if (runtime === "native") useNativeRuntime();
+      await installAccountLocalDeletionFence("owner-a", "intent");
+      __resetAccountLocalDeletionFencesForTests(); // another runtime, same storage
+
+      await discardAccountLocalDeletionIntent("owner-a");
+      expect(api.removeItem).not.toHaveBeenCalled();
+      expect(store.get(INTENT_KEY)).toBe("intent");
+      const blocked = write();
+      await expect(runAccountLocalMutation("owner-a", blocked)).resolves.toEqual({ executed: false });
+      expect(blocked).not.toHaveBeenCalled();
+    },
+  );
+
+  test("the discard never rejects when storage throws", async () => {
+    await installAccountLocalDeletionFence("owner-a", "intent");
+    await installAccountLocalDeletionFence("owner-a");
+    webStorage.getItem.mockImplementationOnce(() => { throw new Error("storage gone"); });
+    await expect(discardAccountLocalDeletionIntent("owner-a")).resolves.toBeUndefined();
+    expect(webStore.get(KEY)).toBe("terminal");
   });
 });
