@@ -377,7 +377,7 @@
     "doneToday": "Focus sessions done today: {{count}}",
     "alarmFocusTitle": "Focus session complete",
     "alarmFocusBody": "Your focus session is over. Take a short break.",
-    "alarmFocusBodyStar": "One focus session saved for {{star}}.",
+    "alarmFocusBodyArea": "One {{area}} focus session done.",
     "alarmBreakTitle": "Break over",
     "alarmBreakBody": "Time for your next focus session.",
     "subIdle": "Ready when you are",
@@ -404,23 +404,17 @@
     "ringReady": "Ready",
     "ringFocusing": "Focusing",
     "ringPaused": "Paused",
-    "leadPre": "Focus on one thing, then save the session to your ",
-    "leadStar": "{{star}} star",
-    "leadPost": ".",
+    "leadPre": "Focus on one thing. When it ends, it counts as one ",
+    "leadArea": "{{area}}",
+    "leadPost": " session.",
     "preset": "{{min}} min",
     "startFocus": "Start focus",
     "resetBtn": "Reset",
-    "forWhichStar": "Which star should this count toward?",
+    "forWhichArea": "Which area is this focus for?",
     "todayCount": "{{sessions}} focus sessions today",
     "todaySub": "About {{min}} min · goal {{goal}}",
-    "todayStarCount": "{{star}} star · {{n}} today",
-    "stars": {
-      "s0": "Growth",
-      "s1": "Career",
-      "s2": "Learning",
-      "s3": "Relations",
-      "s4": "Health"
-    }
+    "todaySubGoalOnly": "Goal {{goal}}",
+    "todayAreaCount": "{{area}} · {{n}} today"
   },
   "srs": {
     "title": "Language review",
