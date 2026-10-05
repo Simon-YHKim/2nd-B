@@ -23,6 +23,7 @@
 --   source_deleted 는 활성 보류가 지워질 때만 남기고, 사건 종료일은 마지막 해제와 그것 중
 --   늦은 쪽으로 잡는다(한 사건에 보류가 여럿일 때 일찍 지우던 것). 감시는 pg_cron 이 없으면
 --   ok = false 이고, 0196 계약(소비 1일 · 만료 즉시)보다 하루 넘게 남은 티켓도 센다.
+--   감사 시각은 clock_timestamp() 다(트랜잭션 시작 시각이면 종료일 계산이 거꾸로 될 수 있다).
 --
 -- 방침 문장(Gaius v4 수정안 6 · v5 §1-3-2):
 --   "보상 거래 기록(광고 거래 ID, 계정 ID, 적립 시각)과 계정별 발급 제한 정보는 ...
@@ -145,7 +146,10 @@ CREATE TABLE IF NOT EXISTS public.reward_dispute_hold_events (
   -- D4: 승인자(지금 규칙으로는 'simon'). 실행자와 달라야 한다. 시스템 기록(source_deleted)만 비운다.
   approved_by    text CHECK (approved_by IS NULL OR approved_by ~ '^[a-z0-9_.-]{1,64}$'),
   actor_role     text NOT NULL CHECK (actor_role IN ('service_role', 'operator', 'system')),
-  at             timestamptz NOT NULL DEFAULT now(),
+  -- 실제로 일어난 시각. now() 는 트랜잭션 시작 시각이라, 먼저 시작한 계정 삭제가 나중에 걸린
+  -- 보류를 지우면 source_deleted 가 placed 보다 이르게 찍혀 사건이 영영 안 끝난 것으로 보였다
+  -- (보안 게이트 r2 BL2-01).
+  at             timestamptz NOT NULL DEFAULT clock_timestamp(),
   CONSTRAINT reward_dispute_hold_events_four_eyes CHECK (
     (action = 'source_deleted' AND approved_by IS NULL AND actor = 'system' AND actor_role = 'system')
     OR (action <> 'source_deleted' AND approved_by IS NOT NULL AND approved_by <> actor AND actor_role <> 'system')
