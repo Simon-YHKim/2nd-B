@@ -31,7 +31,7 @@ import { MdButton, MdCard, MdChip, m3TextStyle } from "@/components/m3";
 import { PremiumModal } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { HelpDirectory } from "@/components/safety/HelpDirectory";
-import { useTheme } from "@/lib/theme/ThemeContext";
+// (No theme-mode hook: the dark/light choice was removed on 2026-10-05, Q-261005-02.)
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { useLiteMode } from "@/lib/settings/lite-mode";
 import { useSoundEffects } from "@/lib/settings/sound-effects";
@@ -1618,25 +1618,16 @@ function SelectRow({ selected, label, onPress }: { selected: boolean; label: str
 
 export function DeepSpaceThemeScreen() {
   const { t } = useTranslation("deepspace");
-  // Same hooks the legacy ThemeScreenLegacy (src/app/theme.tsx) drives, so the
-  // deep-space rows read and write the real settings. Theme labels map to the
-  // ThemeContext modes: 딥스페이스 = dark (default), 미드나잇 = light.
-  const { mode, setMode } = useTheme();
+  // The rows read and write the real settings. The dark/light section (딥스페이스
+  // / 미드나잇 and its "applies to some screens only" note) is gone: Simon removed
+  // the choice (Q-261005-02, 2026-10-05) and the app is always dark, so this
+  // screen is font + motion (and, since #2082, sound effects). The route stays /theme.
   const { fontStyle, setFontStyle } = useFontStyle();
   const { liteMode, setLiteMode } = useLiteMode();
   const { soundEffects, setSoundEffects } = useSoundEffects();
   return (
     <Shell title={t("theme.title")}>
       <SecondbStatusHeader text={t("theme.status")} tip={t("theme.tip")} />
-      <Card>
-        <Text variant="heading" style={styles.section}>{t("theme.sectionTheme")}</Text>
-        <SelectRow selected={mode === "dark"} label={t("theme.themeDeepspace")} onPress={() => setMode("dark")} />
-        <SelectRow selected={mode === "light"} label={t("theme.themeMidnight")} onPress={() => setMode("light")} />
-        {/* audit med#19: the pick persists (ThemeContext) but deep-space
-            surfaces read the static m3 palette at module scope, so 미드나잇
-            visibly changes little today — say so instead of looking broken. */}
-        <Text variant="subtle" style={styles.footer}>{t("theme.midnightNote")}</Text>
-      </Card>
       <Card>
         <Text variant="heading" style={styles.section}>{t("theme.sectionFont")}</Text>
         <SelectRow selected={fontStyle === "pixel"} label={t("theme.fontPixel")} onPress={() => setFontStyle("pixel")} />
