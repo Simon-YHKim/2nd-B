@@ -24,9 +24,11 @@ import { setAudioModeAsync, type AudioMode } from "expo-audio";
  * 모든 효과음이 나지 않는다. 그것이 결정의 내용이다. iOS 는 이 조합이 `.ambient` 가 되어 무음
  * 스위치를 따른다.
  *
- * ⚠ 녹음 경로(capture.tsx · secondb.tsx)는 녹음 전에 playsInSilentMode true 로 모드를 덮어쓰고
- * 되돌리지 않는다. 그래서 음성 녹음을 한 번 하면 앱을 다시 켤 때까지 무음에서도 효과음이 난다.
- * 녹음 뒤 이 모드로 되돌리는 일은 2차 작업으로 남겼다(Q-261005-01 후속).
+ * 녹음은 이 모드를 잠시 바꾼다(allowsRecording 에는 iOS 가 playsInSilentMode true 를 요구한다).
+ * 그래서 모드를 바꾸는 곳은 이 파일 하나다. 녹음 화면은 beginRecordingAudioMode 로 들어가고,
+ * 녹음 세션이 어떻게 끝나든(멈춤 · 취소 · 계정 변경 · 화면 이탈 · 시작 실패) 이 효과음 모드로
+ * 돌아온다(Q-261005-01 후속, 10-05). 전에는 되돌리지 않아서 음성 녹음을 한 번 하면 앱을 다시
+ * 켤 때까지 무음에서도 효과음이 났다.
  *
  * 미디어 버튼 세션(ExpoAudioBasicMediaSession)은 여기서 끌 수 없다. expo-audio 56 은 플레이어마다
  * MediaSession 을 무조건 만들고(AudioPlayer.kt buildBasicMediaSession) JS 옵션이 없다.
@@ -50,4 +52,31 @@ export function configureEffectsAudioSession(): Promise<void> {
     });
   }
   return configured;
+}
+
+let recordingMode = false;
+
+/** 녹음 직전에 부른다. 실패하면 던진다(녹음 화면의 catch 가 시작 실패로 처리한다). */
+export function beginRecordingAudioMode(): Promise<void> {
+  recordingMode = true;
+  return setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, interruptionMode: "mixWithOthers" });
+}
+
+/** 녹음이 끝나면 효과음 모드로 돌아온다. 녹음 모드가 아닐 때는 아무것도 보내지 않는다. 실패해도 던지지 않는다. */
+export function endRecordingAudioMode(): Promise<void> {
+  if (!recordingMode) return Promise.resolve();
+  recordingMode = false;
+  return setAudioModeAsync({ ...EFFECTS_AUDIO_MODE }).catch((error: unknown) => {
+    console.warn("[audio-session] setAudioModeAsync failed", error);
+  });
+}
+
+/** 녹음 수명 관리(createRecorderLifecycle)의 onIdle 에 그대로 넘기는 형태. */
+export function restoreEffectsAfterRecording(): void {
+  void endRecordingAudioMode();
+}
+
+/** 지금 녹음 모드인가. 효과음이 녹음 중에 울리지 않게 할 때 쓴다. */
+export function isRecordingAudioMode(): boolean {
+  return recordingMode;
 }
