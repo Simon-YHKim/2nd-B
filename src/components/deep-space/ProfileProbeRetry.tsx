@@ -89,7 +89,9 @@ function ProfileProbeRetryPanel() {
 
   // 다시 물어도 답이 오지 않을 때 이 계정에서 나가는 길. 성공하면 AuthContext 가 로그아웃을
   // 게시하고, 라우트 게이트가 붙들기를 풀어 로그인으로 보낸다. 여기서 따로 이동하지 않는다.
-  // 전역 게이트 안에서는 이동을 받을 네비게이터가 마운트돼 있지 않다.
+  // 이동은 붙들기를 푼 쪽이 정한다. (2026-10-05 R2A-01 부터 전역 게이트 IntroGate 는 라우트를
+  // 내리지 않고 덮개로 덮는다(components/ui/GateCover.tsx). 그래서 "전역 게이트 안에는 네비게이터가
+  // 없다" 는 더는 사실이 아니지만, 여기서 이동하지 않는 이유는 그대로다.)
   const onSignOut = useCallback(() => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
