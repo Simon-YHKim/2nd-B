@@ -160,7 +160,7 @@ export function DeepSpaceSignInDesignScreen() {
   // 서버 기록이고 /account-deleted 가 번호로 읽는다 - 앱 메모리의 알림을 여기서
   // 보여 주던 때는 계정 전환 중 A 의 영수증이 B 의 로그인 화면에 보였다.
   // 이 화면이 하는 일은 하나다: 로그아웃 상태가 확정되면, 답을 못 받은 삭제 요청이
-  // 이 기기에 남았는지 서버 영수증으로 확인하고, 끝난 삭제의 로컬 데이터를 지운다.
+  // 이 기기에 남았는지 서버 영수증으로 확인하고, 끝난 삭제가 남긴 앱 데이터를 지운다.
   const signedOutSettled = !loading && !userId;
   useEffect(() => {
     if (signedOutSettled) void resolvePendingAccountDeletionsInBackground();
