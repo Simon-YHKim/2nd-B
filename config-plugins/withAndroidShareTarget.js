@@ -26,6 +26,9 @@
 //      onNewIntent it also calls setIntent: React Native drops the Linking event
 //      while its context is not ready, and Linking.getInitialURL() then reads
 //      getIntent(), which would otherwise still be the older launch intent.
+//      For the same reason a newer link (VIEW with data) replaces a share link
+//      that getIntent() still holds, so getInitialURL() never returns a share
+//      older than the last link the app was opened with.
 //
 // The filter and the handler ship together on purpose. A SEND filter without
 // the handler would list the app in the share sheet and then drop what was
@@ -179,6 +182,27 @@ internal object ${HELPER_CLASS} {
     return true
   }
 
+  /**
+   * True when [incoming] is a link (VIEW with data) and [held], the activity's
+   * getIntent(), is still a share link this helper wrote. MainActivity then
+   * calls setIntent([incoming]): React Native drops a Linking event that comes
+   * before its context is ready and reads its initial link from getIntent(),
+   * so without this an older share would win over a newer link (a sign-in or
+   * password reset link, say). Any other getIntent() is left as it was.
+   */
+  @JvmStatic
+  fun supersedesHeldShare(held: Intent?, incoming: Intent?): Boolean {
+    if (held == null || incoming == null) return false
+    if (!isShareLink(held)) return false
+    return incoming.action == Intent.ACTION_VIEW && incoming.data != null
+  }
+
+  private fun isShareLink(intent: Intent): Boolean {
+    if (intent.action != Intent.ACTION_VIEW) return false
+    val data = intent.data ?: return false
+    return SCHEME.equals(data.scheme, ignoreCase = true) && HOST.equals(data.host, ignoreCase = true)
+  }
+
   // Trims, then caps at [max] UTF-16 units without splitting a surrogate pair.
   // A cut ends with the marker so the person can see the share was shortened.
   // Mirrors clipSharedField in src/lib/capture/share-intent.ts.
@@ -207,7 +231,8 @@ function applyShareTargetToMainActivity(contents, language) {
     throw new Error(
       "withAndroidShareTarget: MainActivity already overrides onNewIntent. " +
         `Call ${HELPER_CLASS}.routeToCapture(intent, false) before super.onNewIntent there, ` +
-        "call setIntent(intent) when it returns true, and drop this check.",
+        `call setIntent(intent) when it or ${HELPER_CLASS}.supersedesHeldShare(getIntent(), intent) ` +
+        "returns true, and drop this check.",
     );
   }
   src = AndroidConfig.CodeMod.addImports(src, ["android.content.Intent"], false);
@@ -232,7 +257,12 @@ function applyShareTargetToMainActivity(contents, language) {
       "    // React Native drops the Linking event while its context is not ready",
       "    // (right after a process death, for one), and Linking.getInitialURL()",
       "    // reads getIntent(), which would otherwise be the older launch intent.",
-      `    if (${HELPER_CLASS}.routeToCapture(intent, false)) setIntent(intent)`,
+      "    // A newer link likewise replaces a share link getIntent() still holds.",
+      "    // getIntent() is read before setIntent, so it is the held intent.",
+      `    if (${HELPER_CLASS}.routeToCapture(intent, false) ||`,
+      `      ${HELPER_CLASS}.supersedesHeldShare(getIntent(), intent)) {`,
+      "      setIntent(intent)",
+      "    }",
       "    super.onNewIntent(intent)",
       "  }",
     ].join("\n"),

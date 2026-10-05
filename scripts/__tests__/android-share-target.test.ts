@@ -7,7 +7,8 @@
 // three and the pieces that join them to the JS side:
 //   1. the manifest gets exactly one SEND + DEFAULT + text/plain filter;
 //   2. MainActivity calls the helper before super.onCreate and in onNewIntent,
-//      and there calls setIntent after a rewrite so getIntent() is the share;
+//      and there calls setIntent after a rewrite so getIntent() is the share,
+//      or when a newer link arrives over a share getIntent() still holds;
 //   3. the helper Kotlin reads EXTRA_TEXT/EXTRA_SUBJECT into text/title, caps
 //      them with the shared contract numbers and builds <scheme>://share-intent;
 //   4. app.json loads the plugin, and declares no SEND filter of its own.
@@ -211,12 +212,32 @@ describe("2. MainActivity: the helper runs before React Native reads the intent"
   test("a running-app share becomes getIntent() before React Native sees it", () => {
     const out = plugin.applyShareTargetToMainActivity(SPLASH_MAIN_ACTIVITY, "kt");
     const onNewIntent = functionBody(out, "override fun onNewIntent(intent: Intent)");
-    const set = onNewIntent.indexOf("if (ShareTargetIntent.routeToCapture(intent, false)) setIntent(intent)");
-    expect(set).toBeGreaterThanOrEqual(0);
+    const guard = onNewIntent.indexOf("if (ShareTargetIntent.routeToCapture(intent, false) ||");
+    const set = onNewIntent.indexOf("setIntent(intent)");
+    expect(guard).toBeGreaterThanOrEqual(0);
+    expect(set).toBeGreaterThan(guard);
     expect(set).toBeLessThan(onNewIntent.indexOf("super.onNewIntent(intent)"));
     expect(count(onNewIntent, "setIntent(")).toBe(1);
     // onCreate's intent is getIntent() itself, rewritten in place: no setIntent there.
     expect(count(functionBody(out, "override fun onCreate(savedInstanceState: Bundle?)"), "setIntent(")).toBe(0);
+  });
+
+  // Gate W5-R2-02: setIntent(share) made getIntent() a share. A link that comes
+  // after it while React Native is not ready (its event is dropped) must still
+  // win, so the newer link replaces the held share. Only a held share is
+  // replaced: any other getIntent() keeps its current behavior.
+  test("a newer link replaces a share that getIntent() still holds", () => {
+    const out = plugin.applyShareTargetToMainActivity(SPLASH_MAIN_ACTIVITY, "kt");
+    const onNewIntent = functionBody(out, "override fun onNewIntent(intent: Intent)");
+    // One condition: a rewritten share OR a newer link over a held share. The
+    // held intent is getIntent() read before setIntent, and the newer one is
+    // the incoming intent (argument order matters).
+    expect(onNewIntent).toMatch(
+      /if \(ShareTargetIntent\.routeToCapture\(intent, false\) \|\|\s+ShareTargetIntent\.supersedesHeldShare\(getIntent\(\), intent\)\) \{\s+setIntent\(intent\)\s+\}/,
+    );
+    expect(count(onNewIntent, "supersedesHeldShare(")).toBe(1);
+    expect(onNewIntent.indexOf("supersedesHeldShare(")).toBeLessThan(onNewIntent.indexOf("setIntent(intent)"));
+    expect(onNewIntent.indexOf("supersedesHeldShare(")).toBeLessThan(onNewIntent.indexOf("super.onNewIntent(intent)"));
   });
 
   test("running the mod again changes nothing (prebuild without --clean)", () => {
@@ -292,6 +313,28 @@ describe("3. ShareTargetIntent.kt", () => {
     expect(count(body, "return true")).toBe(1);
     expect(after.trimEnd().endsWith("return true")).toBe(true);
     expect(after.indexOf("return true")).toBeGreaterThan(after.indexOf("intent.data = link.build()"));
+  });
+
+  // MainActivity sets a non-share intent only when this says true, so it must
+  // say true only for a link (VIEW with data) over a held share link of ours
+  // (<scheme>://share-intent, VIEW), and false for everything else.
+  test("supersedesHeldShare: a newer link over a held share link of ours, nothing else", () => {
+    expect(kt).toContain("fun supersedesHeldShare(held: Intent?, incoming: Intent?): Boolean {");
+    const supersede = functionBody(kt, "fun supersedesHeldShare(held: Intent?, incoming: Intent?): Boolean");
+    expect(supersede).toContain("if (held == null || incoming == null) return false");
+    expect(supersede).toContain("if (!isShareLink(held)) return false");
+    expect(supersede).toContain("return incoming.action == Intent.ACTION_VIEW && incoming.data != null");
+    expect(supersede).not.toMatch(/return true/);
+    expect(supersede).not.toContain("isShareLink(incoming)");
+
+    const isShare = functionBody(kt, "private fun isShareLink(intent: Intent): Boolean");
+    expect(isShare).toContain("if (intent.action != Intent.ACTION_VIEW) return false");
+    expect(isShare).toContain("val data = intent.data ?: return false");
+    expect(isShare).toContain(
+      "return SCHEME.equals(data.scheme, ignoreCase = true) && HOST.equals(data.host, ignoreCase = true)",
+    );
+    // It only reads: no rewrite, no extras.
+    expect(`${supersede}${isShare}`).not.toMatch(/intent\.(action|data) =|removeExtra|setData|setAction/);
   });
 
   test("the cap keeps surrogate pairs whole", () => {
