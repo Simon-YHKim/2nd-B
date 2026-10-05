@@ -22,7 +22,10 @@
 //      percent-encoding) and rewrites the intent in place to ACTION_VIEW + data.
 //   3. MainActivity: calls it before super.onCreate (cold start) and in an
 //      onNewIntent override before super.onNewIntent (app already running), so
-//      React Native's Linking sees a VIEW link in both cases.
+//      React Native's Linking sees a VIEW link in both cases. After a rewrite in
+//      onNewIntent it also calls setIntent: React Native drops the Linking event
+//      while its context is not ready, and Linking.getInitialURL() then reads
+//      getIntent(), which would otherwise still be the older launch intent.
 //
 // The filter and the handler ship together on purpose. A SEND filter without
 // the handler would list the app in the share sheet and then drop what was
@@ -132,20 +135,27 @@ internal object ${HELPER_CLASS} {
   private const val TRUNCATION_MARKER = ${literal(contract.truncationMarker)}
 
   /**
-   * Rewrites [intent] in place when it is a text share. Anything else is left
-   * alone, and the app opens as it would without a share.
+   * Rewrites [intent] in place when it is a text share and returns true.
+   * Anything else is left alone and returns false, and the app opens as it
+   * would without a share.
    *
    * [restoring] is true when the activity is being recreated from saved state.
    * A share is a one-time event: recreating the activity, or reopening the task
    * from Recents (FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY), must not apply it again.
+   * After a process death the system recreates the activity with its own copy
+   * of the intent that first started it, so a share that started the app comes
+   * back here as a SEND (the in-place rewrite only changed the app's copy).
+   * A new share never reaches onCreate with saved state: it starts a new
+   * activity (no saved state), or reaches an existing one, even one whose
+   * process died, through onNewIntent, which passes false.
    */
   @JvmStatic
-  fun routeToCapture(intent: Intent?, restoring: Boolean) {
-    if (intent == null || restoring) return
-    if (intent.action != Intent.ACTION_SEND) return
-    if ((intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0) return
-    val type = intent.type?.lowercase(Locale.ROOT) ?: return
-    if (!type.startsWith(${literal(MIME_TYPE)})) return
+  fun routeToCapture(intent: Intent?, restoring: Boolean): Boolean {
+    if (intent == null || restoring) return false
+    if (intent.action != Intent.ACTION_SEND) return false
+    if ((intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0) return false
+    val type = intent.type?.lowercase(Locale.ROOT) ?: return false
+    if (!type.startsWith(${literal(MIME_TYPE)})) return false
     val text: String
     val title: String
     try {
@@ -154,9 +164,9 @@ internal object ${HELPER_CLASS} {
     } catch (e: RuntimeException) {
       // Extras the sending app packed badly (BadParcelableException and the
       // like): open the app without the share instead of crashing.
-      return
+      return false
     }
-    if (text.isEmpty() && title.isEmpty()) return
+    if (text.isEmpty() && title.isEmpty()) return false
     val link = Uri.Builder().scheme(SCHEME).authority(HOST)
     if (text.isNotEmpty()) link.appendQueryParameter(TEXT_PARAM, text)
     if (title.isNotEmpty()) link.appendQueryParameter(TITLE_PARAM, title)
@@ -166,6 +176,7 @@ internal object ${HELPER_CLASS} {
     intent.data = link.build()
     intent.removeExtra(Intent.EXTRA_TEXT)
     intent.removeExtra(Intent.EXTRA_SUBJECT)
+    return true
   }
 
   // Trims, then caps at [max] UTF-16 units without splitting a surrogate pair.
@@ -195,7 +206,8 @@ function applyShareTargetToMainActivity(contents, language) {
   if (/\bfun\s+onNewIntent\s*\(/.test(src)) {
     throw new Error(
       "withAndroidShareTarget: MainActivity already overrides onNewIntent. " +
-        `Call ${HELPER_CLASS}.routeToCapture(intent, false) before super.onNewIntent there and drop this check.`,
+        `Call ${HELPER_CLASS}.routeToCapture(intent, false) before super.onNewIntent there, ` +
+        "call setIntent(intent) when it returns true, and drop this check.",
     );
   }
   src = AndroidConfig.CodeMod.addImports(src, ["android.content.Intent"], false);
@@ -216,7 +228,11 @@ function applyShareTargetToMainActivity(contents, language) {
     newSrc: [
       "  override fun onNewIntent(intent: Intent) {",
       "    // A share while the app is already running arrives here, not in onCreate.",
-      `    ${HELPER_CLASS}.routeToCapture(intent, false)`,
+      "    // After a rewrite, setIntent makes getIntent() the share link as well:",
+      "    // React Native drops the Linking event while its context is not ready",
+      "    // (right after a process death, for one), and Linking.getInitialURL()",
+      "    // reads getIntent(), which would otherwise be the older launch intent.",
+      `    if (${HELPER_CLASS}.routeToCapture(intent, false)) setIntent(intent)`,
       "    super.onNewIntent(intent)",
       "  }",
     ].join("\n"),

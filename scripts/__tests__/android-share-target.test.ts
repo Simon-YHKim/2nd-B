@@ -6,7 +6,8 @@
 // shared text, which is worse than not being listed, so these tests pin all
 // three and the pieces that join them to the JS side:
 //   1. the manifest gets exactly one SEND + DEFAULT + text/plain filter;
-//   2. MainActivity calls the helper before super.onCreate and in onNewIntent;
+//   2. MainActivity calls the helper before super.onCreate and in onNewIntent,
+//      and there calls setIntent after a rewrite so getIntent() is the share;
 //   3. the helper Kotlin reads EXTRA_TEXT/EXTRA_SUBJECT into text/title, caps
 //      them with the shared contract numbers and builds <scheme>://share-intent;
 //   4. app.json loads the plugin, and declares no SEND filter of its own.
@@ -200,6 +201,24 @@ describe("2. MainActivity: the helper runs before React Native reads the intent"
     expect(count(out, "SplashScreenManager.registerOnActivity(this)")).toBe(count(source, "SplashScreenManager.registerOnActivity(this)"));
   });
 
+  // React Native drops the Linking event when onNewIntent comes before its
+  // context is ready (ReactHostImpl.onNewIntent; Expo's delegate wrapper returns
+  // false before loadApp finishes), and Linking.getInitialURL() reads
+  // currentActivity.intent (IntentModule). expo-router uses that on Android. So
+  // a running-app share has to become getIntent() too, or it is lost or an
+  // older link is read. Only a rewritten intent is set, so other links keep
+  // their current behavior.
+  test("a running-app share becomes getIntent() before React Native sees it", () => {
+    const out = plugin.applyShareTargetToMainActivity(SPLASH_MAIN_ACTIVITY, "kt");
+    const onNewIntent = functionBody(out, "override fun onNewIntent(intent: Intent)");
+    const set = onNewIntent.indexOf("if (ShareTargetIntent.routeToCapture(intent, false)) setIntent(intent)");
+    expect(set).toBeGreaterThanOrEqual(0);
+    expect(set).toBeLessThan(onNewIntent.indexOf("super.onNewIntent(intent)"));
+    expect(count(onNewIntent, "setIntent(")).toBe(1);
+    // onCreate's intent is getIntent() itself, rewritten in place: no setIntent there.
+    expect(count(functionBody(out, "override fun onCreate(savedInstanceState: Bundle?)"), "setIntent(")).toBe(0);
+  });
+
   test("running the mod again changes nothing (prebuild without --clean)", () => {
     const once = plugin.applyShareTargetToMainActivity(SPLASH_MAIN_ACTIVITY, "kt");
     expect(plugin.applyShareTargetToMainActivity(once, "kt")).toBe(once);
@@ -252,12 +271,27 @@ describe("3. ShareTargetIntent.kt", () => {
     expect(body).toContain("if (intent.action != Intent.ACTION_SEND) return");
     expect(body).toContain("Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0) return");
     expect(body).toContain('if (!type.startsWith("text/plain")) return');
-    expect(body).toMatch(/catch \(e: RuntimeException\) \{[\s\S]*?return\s*\}/);
+    expect(body).toMatch(/catch \(e: RuntimeException\) \{[\s\S]*?return false\s*\}/);
     expect(body).toContain("intent.action = Intent.ACTION_VIEW");
     expect(body).toContain("intent.data = link.build()");
     // The helper hands the text over and nothing else: no saving, no network,
     // no other screen.
     expect(kt).not.toMatch(/startActivity|SharedPreferences|openFileOutput|HttpURLConnection|URL\(/);
+  });
+
+  // MainActivity calls setIntent only when this says true, so a true on any
+  // other path would make getIntent() an intent that was never rewritten.
+  test("says true only after the rewrite, and false on every way out before it", () => {
+    expect(kt).toContain("fun routeToCapture(intent: Intent?, restoring: Boolean): Boolean {");
+    const rewrite = body.indexOf("intent.action = Intent.ACTION_VIEW");
+    expect(rewrite).toBeGreaterThan(0);
+    const before = body.slice(0, rewrite);
+    const after = body.slice(rewrite);
+    expect(before).not.toMatch(/\breturn\b(?!\s+false\b)/);
+    expect(count(before, "return false")).toBe(7);
+    expect(count(body, "return true")).toBe(1);
+    expect(after.trimEnd().endsWith("return true")).toBe(true);
+    expect(after.indexOf("return true")).toBeGreaterThan(after.indexOf("intent.data = link.build()"));
   });
 
   test("the cap keeps surrogate pairs whole", () => {
