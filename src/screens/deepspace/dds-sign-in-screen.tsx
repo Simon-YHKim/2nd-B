@@ -513,7 +513,7 @@ function LegalLink({ label, onPress }: { label: string; onPress: () => void }) {
 }
 
 /**
- * The ground for the two text links ("비밀번호를 잊으셨나요?" · "계정 만들기"). Their text is
+ * The ground for the two text links (forgot password, create account). Their text is
  * m3.color.primary at labelLarge (12px), which WCAG counts as normal text (4.5:1). On the
  * bevel's default fill (surfaceContainerHigh) that is 4.16:1; on the panel it is 5.30:1,
  * and the helper line above the sign-up link rises from 4.54 to 5.78:1 (QA R2B-08).
