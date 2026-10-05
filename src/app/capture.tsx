@@ -35,6 +35,7 @@ import {
 } from "expo-audio";
 import { beginRecordingAudioMode, endRecordingAudioMode, restoreEffectsAfterRecording } from "@/lib/audio/audio-session";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from "expo-router";
 
 import { PremiumAppShell, PremiumModal } from "@/components/premium";
@@ -445,7 +446,7 @@ function CaptureLegacySession({
   const { t, i18n } = useTranslation("capture");
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const lifeAreaCopy = LIFE_AREA_INTENT_COPY[resolveLifeAreaLocale(i18n.resolvedLanguage ?? i18n.language)];
+  const lifeAreaCopy = LIFE_AREA_INTENT_COPY[resolveLifeAreaLocale(renderedUiLanguage(i18n))];
   const insets = useSafeAreaInsets();
   const kbHeight = useKeyboard();
   // iOS keeps its old top offset; Android measures (src/lib/ui/keyboard.tsx).

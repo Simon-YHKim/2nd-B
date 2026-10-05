@@ -354,7 +354,7 @@ function IntegrationEntryRow({ source, t }: { source: IntegrationEntrypoint; t: 
             <CloneIcon name={source.icon} color={m3.color.onSurfaceVariant} size={22} />
           </PixelSurface>
           <View style={cx.flex1}>
-            <RNText numberOfLines={1} style={[m3TextStyle("titleSmall"), cx.integrationName]}>{name}</RNText>
+            <RNText numberOfLines={2} style={[m3TextStyle("titleSmall"), cx.integrationName]}>{name}</RNText>
             <RNText numberOfLines={2} style={[m3TextStyle("bodySmall"), cx.integrationDetail]}>{detail}</RNText>
           </View>
           <PixelSurface
@@ -364,7 +364,7 @@ function IntegrationEntryRow({ source, t }: { source: IntegrationEntrypoint; t: 
             style={cx.integrationActionFrame}
             contentStyle={cx.integrationAction}
           >
-            <RNText numberOfLines={2} style={[m3TextStyle("labelSmall"), cx.integrationActionText]}>{action}</RNText>
+            <RNText numberOfLines={3} style={[m3TextStyle("labelSmall"), cx.integrationActionText]}>{action}</RNText>
           </PixelSurface>
         </PixelSurface>
       </View>
