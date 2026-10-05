@@ -48,7 +48,9 @@ describe("PIXEL-CLAY settings screen contract", () => {
       ]),
     );
     expect(source).toContain("isDevSurfaceEnabled() ?");
-    expect(source.match(/<M3ToggleRow\b/g)).toHaveLength(2);
+    // One switch left (wiki auto-promote). The 다크 모드 switch went with the
+    // dark/light choice on 2026-10-05 (Simon Q-261005-02).
+    expect(source.match(/<M3ToggleRow\b/g)).toHaveLength(1);
   });
 
   // "keeps the legacy rollback navigation explicitly secondary" 는 2026-10-05 에 은퇴했다.

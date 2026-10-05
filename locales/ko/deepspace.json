@@ -349,20 +349,18 @@
     "indexed": "{{count}}개 검색 준비 완료"
   },
   "theme": {
-    "title": "테마 · 글꼴",
-    "status": "보기 편한 테마와 글꼴을 골라 주세요.",
+    "title": "글꼴 · 움직임",
+    "status": "보기 편한 글꼴을 골라 주세요.",
     "tip": "화면 움직임을 줄일 수 있습니다.",
-    "sectionTheme": "테마",
-    "themeDeepspace": "딥스페이스",
-    "themeMidnight": "미드나잇",
-    "midnightNote": "미드나잇은 아직 일부 화면에만 적용됩니다. 딥스페이스 화면 적용은 준비 중입니다.",
     "sectionFont": "글꼴",
     "fontPixel": "픽셀 · Galmuri",
     "fontReadable": "읽기 편한 · Pretendard",
     "sectionSize": "글자 크기",
     "small": "작게",
     "large": "크게",
-    "reduceMotion": "화면 움직임 줄이기"
+    "reduceMotion": "화면 움직임 줄이기",
+    "soundEffects": "효과음",
+    "soundEffectsNote": "망원경 · 별 사진 · 오프닝 소리입니다. 폰이 무음이나 진동이면 켜져 있어도 나지 않습니다."
   },
   "manual": {
     "title": "사용 안내서",
@@ -702,7 +700,7 @@
     "summaryFallback": "커리어 경험",
     "intro": "왜 시작했고, 무엇을 어떻게 했는지 3C·4P 항목에 나눠 적어 주세요. 답을 바탕으로 세컨비가 더 자세히 물어봅니다.",
     "summaryLabel": "경험 한 줄 요약",
-    "summaryPlaceholder": "무엇을 했고 결과는 어땠나요? 한 줄로 적어 주세요",
+    "summaryPlaceholder": "한 일과 결과를 한 줄로",
     "expTypeA11y": "경험 유형",
     "expTypePlaceholder": "경험 유형 선택",
     "submit": "세컨비와 더 자세히 이야기하기",

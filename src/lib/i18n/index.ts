@@ -84,6 +84,7 @@ import koRatifications from "../../../locales/ko/ratifications.json";
 import koRlss from "../../../locales/ko/rlss.json";
 import { detectLanguage, loadNativeLanguagePreference, saveLanguagePreference } from "./languageDetector";
 import { isAvailableUiLocale, type AvailableUiLocale } from "./locales";
+import { renderedUiLanguage } from "./ui-language";
 import {
   ADDRESS_VARIABLES_CHANGED_EVENT,
   seedAddressDefault,
@@ -134,6 +135,20 @@ export function isLazyLocale(lng: AvailableUiLocale): lng is LazyLocale {
   return !(EAGER_LOCALES as readonly string[]).includes(lng);
 }
 
+/**
+ * Web: set <html lang> to the language the UI is painted in. A lazy locale
+ * whose pack is not attached (yet, or ever) paints EN, so it stamps "en".
+ * No-op on native.
+ */
+function syncDocumentLang(): void {
+  try {
+    if (typeof document === "undefined") return;
+    document.documentElement.lang = renderedUiLanguage(i18next);
+  } catch {
+    // native: no document
+  }
+}
+
 // One in-flight/settled promise per lazy locale: repeat callers share it, and
 // a rejected chunk (offline, stale deploy) clears the slot so the next
 // changeLanguage retries instead of being stuck on the failure forever.
@@ -154,6 +169,10 @@ export function ensureLocalePack(lng: AvailableUiLocale): Promise<void> {
       for (const ns of NAMESPACES) {
         i18next.addResourceBundle(lng, ns, pack[ns], true, true);
       }
+      // The active locale's copy just went from EN fallback to its own
+      // language (first launch in pt/es/id, or a chunk that landed late), so
+      // <html lang> follows it. No languageChanged fires on this path.
+      if (i18next.language === lng) syncDocumentLang();
     })
     .catch((error: unknown) => {
       packLoads.delete(lng);
@@ -291,18 +310,23 @@ export function initI18n(): typeof i18next {
   seedAddressDefault(i18next.language);
   // Persist whenever the user (or any code path) flips the active language,
   // and keep the web document language in sync (screen readers pick their
-  // voice from <html lang>; the static export defaults to "ko"). Both stay
-  // inside the available-guard: stamping lang for a locale whose content
-  // falls back to EN would point screen readers at the wrong voice.
+  // voice from <html lang>; the static export defaults to "ko"). Saving stays
+  // inside the available-guard. The lang stamp is the PAINTED language
+  // (renderedUiLanguage): stamping a locale whose content falls back to EN
+  // would point screen readers at the wrong voice.
   i18next.on("languageChanged", (lng) => {
+    syncDocumentLang();
     if (!isAvailableUiLocale(lng)) return;
     saveLanguagePreference(lng);
-    try {
-      if (typeof document !== "undefined") document.documentElement.lang = lng;
-    } catch {
-      // native: no document
-    }
   });
+  // ⚠ The listener above never sees the STARTUP language (R2B-01, 2026-10-05).
+  // With `resources` passed, i18next.init runs changeLanguage synchronously and
+  // emits languageChanged before this line attaches the listener, and the lazy
+  // pack path deliberately never calls changeLanguage. So every web launch kept
+  // the static "ko" from +html.tsx for en/es/pt/id users until they re-picked a
+  // language in settings. Stamp it once here; this does not persist anything,
+  // so a detected locale is still not saved as a choice.
+  syncDocumentLang();
   // Native: the persisted manual choice lives in AsyncStorage (async), so it
   // can't make the synchronous first paint - apply it once it resolves.
   // No-op on web and when it matches what detection already picked. Goes

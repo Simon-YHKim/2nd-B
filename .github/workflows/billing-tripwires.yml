@@ -101,6 +101,32 @@ jobs:
 
           IFS='|' read -r CONFLICT STUCK REVIEW STALE UNHANDLED REVERSAL CDRIFT BDRIFT VENDORFAIL <<< "$ROW"
 
+          # 광고 보상 88일 정리 감시(0211 reward_retention_health, Gaius 답변 ④).
+          # 0211 적용 전에는 함수가 없으므로 건너뛰고 0 으로 둔다. 건수와 참/거짓만 읽는다.
+          # 별도 psql 호출인 이유: 위 한 줄 SQL 에 넣으면 0211 적용 전(GO-3 전)에 함수가 없어
+          # 그 줄 전체가 실패하고 결제 트립와이어까지 같이 죽는다.
+          RETENTION=0; RET_OVERDUE=0; RET_HOLDS="n/a"; RET_CRON="n/a"
+          # 함수가 있는지와 0211 이 운영 원장에 적용으로 남았는지를 함께 본다. 건너뛰는 것은 둘 다
+          # 없을 때(0211 적용 전, GO-3 전)뿐이다. 조회 실패(접속·권한·SQL)와, 원장에는 0211 이 있는데
+          # 함수가 사라진 경우는 경보로 센다(보안 게이트 r1 DB-04 · BL-05, r2 DB2-02).
+          FN_STATE="$("$PSQL" "$DB" -Atq -F'|' -v ON_ERROR_STOP=1 -c "select to_regprocedure('public.reward_retention_health()') is not null, exists (select 1 from supabase_migrations.schema_migrations where version = '0211' and name = 'reward_records_90d_purge')" 2>>err.txt)" || FN_STATE="query_failed|query_failed"
+          IFS='|' read -r HAS_FN HAS_0211 <<< "$FN_STATE"
+          if [ "$HAS_FN" = "t" ]; then
+            RROW="$("$PSQL" "$DB" -Atq -F'|' -v ON_ERROR_STOP=1 -c "select (h->>'ok')::boolean,
+                     (h->>'overdue_rewarded_ssv_txns')::int + (h->>'overdue_ad_reward_lots')::int
+                       + (h->>'overdue_usage_counters')::int + (h->>'overdue_chat_usage')::int
+                       + (h->>'overdue_issue_rate_limits')::int
+                       + coalesce((h->>'overdue_reward_ssv_tickets')::int, 0),
+                     coalesce((h->>'overdue_hold_reviews')::int, 0) || '/' || coalesce((h->>'overdue_hold_audit_cases')::int, 0),
+                     coalesce(h->>'cron_available', 'null') || '/' || coalesce(h->>'cron_stale', 'null') || '/' || coalesce(h->>'cron_failures_7d', 'null')
+                     from (select public.reward_retention_health() as h) s" 2>>err.txt)" || RROW="f|-1|query_failed|query_failed"
+            IFS='|' read -r RET_OK RET_OVERDUE RET_HOLDS RET_CRON <<< "$RROW"
+            if [ "$RET_OK" != "t" ]; then RETENTION=1; fi
+          elif [ "$HAS_FN" != "f" ] || [ "$HAS_0211" != "f" ]; then
+            RETENTION=1; RET_OVERDUE=-1; RET_HOLDS="query_failed"; RET_CRON="query_failed"
+            if [ "$HAS_FN" = "f" ] && [ "$HAS_0211" = "t" ]; then RET_HOLDS="function_missing"; RET_CRON="function_missing"; fi
+          fi
+
           : > report.md
           row () { # label, count, meaning
             if [ "$2" = "0" ]; then
@@ -125,8 +151,12 @@ jobs:
           # returned before their audit insert and a broken vendor looked
           # exactly like a quiet day.
           row "vendor_seat_failing" "$VENDORFAIL" "24시간 내 3회 이상 실패한 (벤더, purpose) 조합. 좌석이 죽었거나 키가 거절당하는 중"
+          # 0 이 아니면: 90일 넘은 비보류 광고 보상 기록이 있거나, purge-reward-records-90d 가
+          # 26시간 넘게 성공하지 않았거나, 7일 안에 실패했거나, 비활성이다. 또는 재검토 기한(90일)이 지난
+          # 분쟁 보류(S4)나 분쟁 종료 3년 넘게 남은 감사 사건(S1)이 있다. 방침 위반 위험.
+          row "reward_retention" "$RETENTION" "광고 보상 정리 이상(90일 초과 ${RET_OVERDUE}건, 재검토 지연/감사 3년 초과 ${RET_HOLDS}, pg_cron 있음/stale/7일 실패 ${RET_CRON})"
 
-          TOTAL=$(( CONFLICT + STUCK + REVIEW + STALE + UNHANDLED + CDRIFT + BDRIFT + VENDORFAIL ))
+          TOTAL=$(( CONFLICT + STUCK + REVIEW + STALE + UNHANDLED + CDRIFT + BDRIFT + VENDORFAIL + RETENTION ))
           echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
           # REVERSAL is already a subset of REVIEW, so TOTAL must not add it a
           # second time. It is money-shaped and does make the issue title loud.
@@ -161,6 +191,7 @@ jobs:
             echo ""
             echo "select * from public.credit_counter_drift;"
             echo "select * from public.credit_balance_drift;"
+            echo "select public.reward_retention_health();  -- 광고 보상 88일 정리 감시(건수·시각만)"
             echo '```'
           } | tee summary.md | tee -a "$GITHUB_STEP_SUMMARY"
 

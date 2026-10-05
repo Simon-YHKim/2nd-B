@@ -349,20 +349,18 @@
     "indexed": "{{count}} items ready to search"
   },
   "theme": {
-    "title": "Theme · Font",
-    "status": "Pick a comfortable theme and font.",
+    "title": "Font · Motion",
+    "status": "Pick a comfortable font.",
     "tip": "You can reduce screen animations.",
-    "sectionTheme": "Theme",
-    "themeDeepspace": "Deep space",
-    "themeMidnight": "Midnight",
-    "midnightNote": "Midnight currently applies to some screens only. Deep-space screens are still being adapted.",
     "sectionFont": "Font",
     "fontPixel": "Pixel · Galmuri",
     "fontReadable": "Readable · Pretendard",
     "sectionSize": "Text size",
     "small": "Small",
     "large": "Large",
-    "reduceMotion": "Reduce motion"
+    "reduceMotion": "Reduce motion",
+    "soundEffects": "Sound effects",
+    "soundEffectsNote": "Telescope, star photo and opening sounds. They stay off while your phone is on silent or vibrate."
   },
   "manual": {
     "title": "User Guide",

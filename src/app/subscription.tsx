@@ -24,6 +24,7 @@ import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
 import { useAppRouter } from "@/lib/nav/phone-embed";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { MdButton, MdCard } from "@/components/m3";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PremiumModal } from "@/components/premium";
@@ -92,6 +93,13 @@ export default function SubscriptionScreen() {
       mounted.current = false;
     };
   }, []);
+
+  // A home jump from a route above (RedirectHome, tab-root Back) stops here
+  // while this screen holds something it would lose (gate NAV-S7-01): the
+  // cancel or refund choice being made in the sheet, a request still out, and
+  // the notice that says what the server did with it. Only this screen shows
+  // that notice; a reload cannot bring it back.
+  useGoHomeStop(() => busy || sheet !== null || notice !== null);
 
   const load = useCallback(async () => {
     if (!userId) return;

@@ -178,6 +178,7 @@ export function QuantIntroModal({
             accessibilityRole="checkbox"
             accessibilityLabel={t("quantSkipIntro")}
             accessibilityState={{ checked: dontShow }}
+            aria-checked={dontShow}
           >
             <View style={[styles.checkbox, dontShow && styles.checkboxOn]} />
             <Text variant="subtle" color="textMuted">

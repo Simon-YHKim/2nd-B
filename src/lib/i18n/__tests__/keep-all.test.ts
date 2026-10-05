@@ -1,4 +1,13 @@
-import { keepAllChildren, keepAllKo, keepMiddleDotOffLineStart, keepWebPunctuationTogether } from "../keep-all";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import {
+  keepAllChildren,
+  keepAllKo,
+  keepAllPlaceholder,
+  keepMiddleDotOffLineStart,
+  keepWebPunctuationTogether,
+} from "../keep-all";
 
 const WJ = "⁠";
 
@@ -137,5 +146,37 @@ describe("keepAllChildren", () => {
   test("walks nested arrays and leaves numbers, null and Latin text untouched", () => {
     expect(keepAllChildren([["가나"], 3, null, "abc"])).toEqual([[keepAllKo("가나")], 3, null, "abc"]);
     expect(keepAllChildren("Refund policy")).toBe("Refund policy");
+  });
+});
+
+// QA R2A-05 · R2A-06 (2026-10-05): PlainText only rewrites Text children, so TextInput
+// hints kept Android's default breaking and split Korean words ("좋습니 / 다." on
+// /capture-full, "찾 / 고" on /northstar). The two input wrappers and the /northstar
+// hero input route the hint through keepAllPlaceholder.
+describe("keepAllPlaceholder", () => {
+  const capFull = "오늘 있었던 일을 적어 보세요. 한 문장도 좋습니다.";
+
+  test("native hints get keepAllKo; web and non-strings are left as typed", () => {
+    expect(keepAllPlaceholder(capFull, "android")).toBe(keepAllKo(capFull));
+    expect(keepAllPlaceholder(capFull, "ios")).toBe(keepAllKo(capFull));
+    expect(keepAllPlaceholder(capFull, "android")).toContain(["좋", "습", "니", "다", "."].join(WJ));
+    expect(keepAllPlaceholder(capFull, "web")).toBe(capFull);
+    expect(keepAllPlaceholder(undefined, "android")).toBeUndefined();
+    expect(keepAllPlaceholder("What you did", "android")).toBe("What you did");
+  });
+
+  test("the input wrappers and /northstar send the hint through it", () => {
+    const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
+    // Mutation check: the pre-fix lines (raw placeholder) are what these reject.
+    const input = read("src/components/ui/Input.tsx");
+    expect(input).toContain("placeholder={keepAllPlaceholder(placeholder, Platform.OS)}");
+    expect(input).not.toMatch(/^\s*placeholder=\{placeholder\}$/m);
+    const field = read("src/components/m3/Field.tsx");
+    expect(field).toContain("placeholder={keepAllPlaceholder(placeholder, Platform.OS)}");
+    // Field must take placeholder out of rest, or {...rest} would be the only (raw) hint.
+    expect(field).toMatch(/accessibilityLabel,\s*placeholder,\s*\.\.\.rest/);
+    expect(read("src/app/northstar.tsx")).toContain(
+      'placeholder={keepAllPlaceholder(t("ds.northstar.placeholder"), Platform.OS)}',
+    );
   });
 });

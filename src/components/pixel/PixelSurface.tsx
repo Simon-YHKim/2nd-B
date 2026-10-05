@@ -49,6 +49,18 @@ export interface PixelSurfaceProps {
   style?: StyleProp<ViewStyle>;
   /** 안쪽 여백. 기본 `--pad-y`/`--pad-x` (s2/s4). */
   contentStyle?: StyleProp<ViewStyle>;
+  /**
+   * 바깥(`style`)에 건 높이 상한을 면과 안쪽까지 넘긴다. 켜면 둘이 줄어들 수 있어서,
+   * 안에 둔 FlatList · ScrollView 가 남은 높이만 차지하고 스크롤된다.
+   *
+   * 기본은 끔이다(이전 동작 그대로). 면은 바깥과 안쪽 사이의 View 한 층이고, RN-web 의
+   * View 기본값이 `flex: 0 0 auto`, Yoga 의 기본 flexShrink 도 0 이라 이 층은 늘 내용
+   * 높이로 자란다. 그러면 바깥이 765px 로 묶여도 면은 3273px 로 넘치고, 안쪽의
+   * `maxHeight: "100%"` 는 높이가 auto 인 면을 기준으로 풀려 아무것도 막지 못한다.
+   * 2026-10-05 웹 거주 국가 시트가 그렇게 스크롤되지 않아 63개국 중 49개국을 고를 수
+   * 없었다(R2C-03). 사용처가 많아 기본값을 바꾸지 않고 필요한 시트만 켠다.
+   */
+  shrink?: boolean;
 }
 
 // midnight 시맨틱 (`_ds/tokens/semantic.css` `.theme-dark`). 역할 이름으로 읽는다 -
@@ -84,6 +96,7 @@ export function PixelSurface({
   children,
   style,
   contentStyle,
+  shrink = false,
 }: PixelSurfaceProps) {
   const bevel = bevelOf(variant, pressed);
   const edged = variant !== "flat";
@@ -98,7 +111,7 @@ export function PixelSurface({
           <View pointerEvents="none" style={styles.edgeRight} />
         </>
       ) : null}
-      <View style={[styles.face, { backgroundColor: background ?? BACKGROUND[variant] }]}>
+      <View style={[styles.face, shrink && styles.shrink, { backgroundColor: background ?? BACKGROUND[variant] }]}>
         {bevel ? (
           // lo 를 먼저, hi 를 나중에 - CSS 는 앞선 그림자가 위에 그려지고 번들은
           // hi 를 먼저 선언하므로, 겹치는 모서리에서 hi 가 이긴다.
@@ -109,7 +122,7 @@ export function PixelSurface({
             <View pointerEvents="none" style={[styles.innerLeft, { backgroundColor: bevel.hi }]} />
           </>
         ) : null}
-        <View style={[styles.content, contentStyle]}>{children}</View>
+        <View style={[styles.content, shrink && styles.shrink, contentStyle]}>{children}</View>
       </View>
     </View>
   );
@@ -133,4 +146,7 @@ const styles = StyleSheet.create({
 
   // `--pad-y: var(--s2)` / `--pad-x: var(--s4)` (tokens/space.css).
   content: { paddingVertical: m3.spacing.s2, paddingHorizontal: m3.spacing.s4 },
+  // `shrink` 를 켰을 때만 면과 안쪽에 붙는다. minHeight 0 은 내용 높이 아래로 줄어들 수
+  // 있다는 것을 엔진 기본값에 기대지 않고 적어 둔 것이다.
+  shrink: { flexShrink: 1, minHeight: 0 },
 });
