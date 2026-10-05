@@ -7,8 +7,8 @@
     "proposed": "Borrador para revisar",
     "filled": "Conectado a una tarjeta aprobada"
   },
-  "rewardFirstGoal": "Primera aprobación: recompensa de XP de persona, una sola vez.",
-  "rewardFirstReached": "Primera aprobación completada. El XP se concede una vez por cuenta.",
+  "rewardFirstGoal": "Primer objetivo: aprueba una tarjeta para completar tu primera etapa.",
+  "rewardFirstReached": "Primer objetivo cumplido. Tu primera etapa está completa.",
   "rewardAllGoal": "Completa las seis etapas para completar tu colección Polaris.",
   "rewardAllReached": "Colección Polaris completa",
   "generationAllowance": "Quedan {{n}} de 2 generaciones iniciales por cuenta. Las adicionales usan el cupo semanal de razonamiento de tu plan.",

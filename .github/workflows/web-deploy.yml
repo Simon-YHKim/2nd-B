@@ -354,12 +354,12 @@ jobs:
           EXPO_PUBLIC_PADDLE_PRICE_CORTEX_YEARLY: ${{ vars.EXPO_PUBLIC_PADDLE_PRICE_CORTEX_YEARLY }}
           EXPO_PUBLIC_PADDLE_PRICE_BRAIN_MONTHLY: ${{ vars.EXPO_PUBLIC_PADDLE_PRICE_BRAIN_MONTHLY }}
           EXPO_PUBLIC_PADDLE_PRICE_BRAIN_YEARLY: ${{ vars.EXPO_PUBLIC_PADDLE_PRICE_BRAIN_YEARLY }}
-          # Ads (web AdSense), OFF until the Variables are set AND the
-          # in-app policy passes (free adult + explicit ads consent + neutral
-          # route — src/lib/ads/policy.ts). See docs/ADS.md for go-live steps.
+          # Ads flag, OFF until the Variable is set AND the in-app policy passes
+          # (free adult + explicit ads consent + listed route - src/lib/ads/policy.ts).
+          # The web AdSense injection (EXPO_PUBLIC_ADSENSE_CLIENT / _SLOT_RECORDS)
+          # was cut on 2026-10-05 with the banner; read
+          # docs/ADSENSE-WEB-RETIREMENT.md before adding it back.
           EXPO_PUBLIC_ENABLE_ADS: ${{ vars.EXPO_PUBLIC_ENABLE_ADS || 'false' }}
-          EXPO_PUBLIC_ADSENSE_CLIENT: ${{ vars.EXPO_PUBLIC_ADSENSE_CLIENT }}
-          EXPO_PUBLIC_ADSENSE_SLOT_RECORDS: ${{ vars.EXPO_PUBLIC_ADSENSE_SLOT_RECORDS }}
           # Prevent Expo from loading an un-attested .env file after the digest
           # has been computed. CI supplies the complete public build contract.
           EXPO_NO_DOTENV: "1"

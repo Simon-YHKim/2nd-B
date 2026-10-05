@@ -45,7 +45,7 @@
 | C2 | Env validation + wrapper branching | `src/lib/env.ts`, `src/lib/llm/boundary.ts`, `db/migrations/0004_ai_audit_log.sql` (vertex_backend col) |
 | C3 | Wrapper auto-insert + import boundary | `src/lib/llm/boundary.ts`, `src/lib/supabase/audit.ts`, `db/migrations/0004_ai_audit_log.sql` |
 | C4 | DB schema + column presence script | `db/migrations/0005_revenue_events.sql`, `scripts/check-constraints.ts` |
-| C5 | DB NOT NULL + UI consent | `db/migrations/0006_testimonials.sql`, `src/components/consent/ConsentDialog.tsx` |
+| C5 | DB NOT NULL (UI 동의 창은 2026-10-05 E:/Legacy, Q-261004-17) | `db/migrations/0006_testimonials.sql` |
 | C6 | Client whitelist + DB trigger | `src/lib/judge/domains.ts`, `db/migrations/0010_triggers.sql`, `src/components/auth/JudgeBadge.tsx` |
 | C7 | i18n setup + CI script | `src/lib/i18n/*`, `locales/{en,ko}/*`, `scripts/check-i18n-keys.ts` |
 | C8 | DB CHECK constraints | `db/migrations/0007_knowledge_sources.sql` |
