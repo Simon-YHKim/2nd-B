@@ -2,9 +2,10 @@
 // TextInput; the outline + label recolour on focus / error. Consumes m3.*
 // tokens only. Input text uses Pretendard (KR body); the label uses M3 chrome.
 import { forwardRef, useState } from "react";
-import { StyleSheet, type StyleProp, TextInput, type TextInputProps, View, type ViewStyle } from "react-native";
+import { Platform, StyleSheet, type StyleProp, TextInput, type TextInputProps, View, type ViewStyle } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
 
+import { keepAllPlaceholder } from "@/lib/i18n/keep-all";
 import { m3 } from "@/lib/theme/m3";
 
 import { m3TextStyle } from "./typeface";
@@ -25,6 +26,7 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field(
     onFocus,
     onBlur,
     accessibilityLabel,
+    placeholder,
     ...rest
   },
   ref,
@@ -44,6 +46,8 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field(
         <TextInput
           ref={ref}
           {...rest}
+          // Native hints keep Korean words whole (QA R2A-05); web inherits keep-all.
+          placeholder={keepAllPlaceholder(placeholder, Platform.OS)}
           onFocus={(e) => {
             setFocused(true);
             onFocus?.(e);

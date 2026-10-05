@@ -160,13 +160,33 @@ describe("approved HustleK opening", () => {
     expect(getApprovedOpeningCues(-1e-8, 0)).toMatchObject([{ sourceId: "grass", variantId: "grass-a", volume: 0.2 }]);
     expect(getApprovedOpeningCues(0, 0)).toEqual([]);
     expect(getApprovedOpeningCues(100, 0)).toEqual([]);
-    expect(getApprovedOpeningCues(0, 312.5)).toMatchObject([{ sourceId: "grass", variantId: "grass-b" }]);
+    expect(getApprovedOpeningCues(0, 312.5)).toMatchObject([{ sourceId: "grass", variantId: "grass-a", variantIndex: 0, atMs: 312.5 }]);
     expect(getApprovedOpeningCues(0, 2400)).toHaveLength(1);
     const delayed = getApprovedOpeningCues(-1e-8, APPROVED_OPENING_DURATION_MS);
     expect(delayed.map(cue => cue.sourceId)).toEqual(["grass", "ratchet", "ping"]);
     expect(delayed.find(cue => cue.sourceId === "ping")).toMatchObject({ atMs: pingStart, volume: 0.1 });
     expect(APPROVED_OPENING_CONFIG.cues.filter(cue => cue.sourceId === "ratchet")).toHaveLength(6);
     expect(getApprovedOpeningCues(pingStart, pingStart + 1)).toEqual([]);
+  });
+
+  // Simon Q-261005-05 = A (2026-10-05): every walking step plays grass-a. The approved manifest
+  // keeps its a/b record (checked above); only the cues handed to playback change.
+  test("plays grass-a on every walking step while the approved manifest keeps a/b", () => {
+    const steps: { variantId: string; variantIndex: number; atMs: number; key: string }[] = [];
+    let from = -1e-8;
+    for (const cue of APPROVED_OPENING_CONFIG.cues.filter(c => c.sourceId === "grass")) {
+      steps.push(...getApprovedOpeningCues(from, cue.atMs).filter(c => c.sourceId === "grass"));
+      from = cue.atMs;
+    }
+    expect(steps).toHaveLength(8);
+    expect(steps.map(step => [step.variantId, step.variantIndex])).toEqual(Array.from({ length: 8 }, () => ["grass-a", 0]));
+    expect(new Set(steps.map(step => step.key)).size).toBe(8);
+    expect(APPROVED_OPENING_CONFIG.cues.filter(c => c.sourceId === "grass").map(c => c.variantId)).toContain("grass-b");
+    // Ratchet and ping pass through untouched.
+    const others = getApprovedOpeningCues(-1e-8, APPROVED_OPENING_DURATION_MS).filter(c => c.sourceId !== "grass");
+    const lastRatchet = APPROVED_OPENING_CONFIG.cues.filter(c => c.sourceId === "ratchet").slice(-1)[0];
+    const ping = APPROVED_OPENING_CONFIG.cues.filter(c => c.sourceId === "ping")[0];
+    expect(others).toEqual([lastRatchet, ping]);
   });
 
   test("rejects invalid screen sizes", () => {

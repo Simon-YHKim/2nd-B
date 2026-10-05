@@ -1186,7 +1186,10 @@ const styles = StyleSheet.create({
   heroContent: { minHeight: 92, flexDirection: "row", alignItems: "center", gap: m3.spacing.s4, paddingVertical: m3.spacing.s4 },
   heroCopy: { flex: 1, gap: m3.spacing.s2 },
   heroCount: { color: m3.color.onPrimaryContainer, fontFamily: m3.font.mono },
-  heroStreak: { color: m3.color.onSurfaceVariant },
+  // On the primaryContainer hero: onSurfaceVariant was 2.01:1 there (QA R2B-08); the
+  // container's own "on" token, like heroCount above, is 5.13:1. The caption size keeps
+  // it secondary.
+  heroStreak: { color: m3.color.onPrimaryContainer },
   routineContent: { minHeight: m3.minTouch, flexDirection: "row", alignItems: "center", gap: m3.spacing.s3 },
   routineTitle: { flex: 1, minWidth: 0, color: m3.color.onSurface, lineHeight: m3.type.bodyMedium.line },
   routineDone: { flex: 1, minWidth: 0, color: m3.color.onSurfaceVariant, lineHeight: m3.type.bodyMedium.line, textDecorationLine: "line-through" },
