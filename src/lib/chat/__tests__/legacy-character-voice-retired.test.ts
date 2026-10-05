@@ -99,6 +99,15 @@ describe("옛 캐릭터 그림은 배송 화면에 없다 (가디 영역 전부)
     expect(code("src/components/art/WorkerSprite.tsx")).toMatch(/export type WorkerId = "secondb";/);
   });
 
+  test("토큰이 옛 캐릭터 색 키와 Brain Stack 마스코트 팔레트를 내보내지 않는다", () => {
+    // 2026-10-05 QA R2E-12: tokens.characters(secondb · momo · lulu · archi · gadi · lumi 키)와
+    // mascot 9색은 읽는 곳이 자기 테스트뿐이라 E:/Legacy/2ndB 로 갔다. 키 이름이 곧 옛 캐릭터
+    // 명부라, 이것이 돌아오면 명부가 색 이름으로 되살아난다.
+    const tokens = code("src/lib/theme/tokens.ts");
+    expect(tokens).not.toMatch(/export\s+const\s+(?:characters|mascot)\b/);
+    expect(tokens).not.toMatch(/export\s+type\s+(?:CharacterName|MascotName)\b/);
+  });
+
   test("위기 안내 모달과 대화 안전 멈춤이 캐릭터를 그리지 않는다", () => {
     // 위기 모달: 글과 번호만. 그림 모듈을 아예 들이지 않는다.
     const crisis = code("src/components/safety/CrisisRouter.tsx");
