@@ -345,7 +345,6 @@ describe("0117 - refund_eligibility counts every real run and only real runs", (
 // ── 0118: the refund actually lands, and nothing stays stuck ─────────────────
 describe("0118 - an approved refund moves the money AND the entitlement", () => {
   const sql0118 = readFileSync(join(MIGRATIONS, "0118_billing_refund_reconciliation.sql"), "utf8");
-  const body0118 = sql0118.replace(/--[^\n]*/g, " ");
 
   test("the webhook handles adjustment.* instead of dropping it", () => {
     // ONE branch (0119): #1203 and #1205 each added a handler concurrently and

@@ -297,7 +297,13 @@ describe("PIXEL-CLAY reset-password presenter", () => {
     expect(rootLayoutSource).toContain(
       'if ((recoveryUserId || recoveryPendingGlobal) && pathname !== "/reset-password")',
     );
-    expect(resetRouteSource).toContain("recoverySafetyPinsPixelClay");
+    // 2026-10-05: 라우트는 `recoverySafetyPinsPixelClay` 상수로 옛 표시자를 런타임에서
+    // 배제하고 있었다. 롤백 레버 제거(Simon 결정 Q-261004-11 C)로 그 표시자가 빠져 라우트는
+    // 복구 단계 · 나가기 잠금을 가진 화면 하나만 그리는 래퍼다 - 같은 보장의 더 강한 모양이다.
+    expect(resetRouteSource).toMatch(
+      /export default function ResetPassword\(\) \{\s*return <DeepSpaceResetPasswordDesignScreen \/>;\s*\}/,
+    );
+    expect(resetRouteSource).not.toContain("ResetPasswordLegacy");
 
     expect(resetPixelClaySource).toContain(
       "editable={!sendSubmitting && !recoveryPending}",

@@ -13,17 +13,14 @@
 //
 // ⚠ Where it actually lands (corrected 2026-08-19). The old comment said
 // "/persona, where the assessment results used to surface" — true only in the
-// legacy skin. In the DEFAULT (deep-space) skin `/persona` itself redirects
-// again, so the real chain is two hops:
+// legacy skin. `/persona` itself redirects again, so the real chain is two hops:
 //
-//     /mbti → /persona → /core-brain      (deep-space, the default)
-//     /mbti → /persona                    (EXPO_PUBLIC_UI=legacy)
+//     /mbti → /persona → /core-brain
 //
-// The second hop is deliberate, not an oversight. Pointing straight at
-// /core-brain would mean duplicating persona.tsx's skin branch here, and then
-// this file drifts the day that branch changes. `/persona` owns the decision;
-// this route just defers to it. One extra render frame is the price of not
-// having two places that must agree.
+// (The `EXPO_PUBLIC_UI=legacy` one-hop chain left with that lever on 2026-10-05.)
+// The second hop is deliberate, not an oversight. `/persona` owns the decision
+// of where "seeing yourself" lives; this route just defers to it. One extra
+// render frame is the price of not having two places that must agree.
 
 import { Redirect } from "expo-router";
 

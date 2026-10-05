@@ -3,13 +3,16 @@
  * 2026-09-06 nothing checked that it did.
  *
  * `locales/<lc>/index.json` shipped in all five locales, `src/app/index.tsx:245`
- * called `useTranslation("index")` for 28 keys, and `NAMESPACES` never listed
- * `index` (git log -S '"index"' on src/lib/i18n/index.ts finds no commit that
- * ever added it, so it was missed when c2634882 routed the home chrome through
- * t()). i18next therefore had no such bundle and every one of those calls
+ * asked useTranslation for the `index` namespace for 28 keys, and `NAMESPACES`
+ * never listed `index` (git log -S '"index"' on src/lib/i18n/index.ts finds no
+ * commit that ever added it, so it was missed when c2634882 routed the home chrome
+ * through t()). i18next therefore had no such bundle and every one of those calls
  * rendered the raw key name. Nothing failed: no exception, no CI signal, just
  * "villageQuiet" where a sentence belonged, on the EXPO_PUBLIC_UI=legacy home
- * that CLAUDE.md keeps as the rollback path.
+ * that CLAUDE.md then kept as the rollback path. (That home, the lever and the
+ * `index` bundles all left on 2026-10-05, Simon decision Q-261004-11 C. The call
+ * is written in prose above because the third assertion below reads comments too:
+ * the literal call shape here would count as an unregistered call.)
  *
  * The `satisfies Record<AvailableUiLocale, Record<Namespace, unknown>>` in
  * index.ts already catches a namespace that is registered but missing from a

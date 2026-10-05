@@ -228,14 +228,6 @@ jobs:
           BUILD_MODE: ${{ steps.gate.outputs.mode }}
           # EXPO_PUBLIC_* values are client-bundle-public and may be rendered by
           # Actions logs. Never map confidential secrets into this environment.
-          # UI track: the LIVE web build now ships the deep-space character shell
-          # (cutover 2026-06-17, design handoff). The integrated shell — status
-          # header + 5-tab dock + constellation home + 담기/세컨비/나/IDEN views —
-          # is in place; remaining deep-space sub-screens (graph/clipper/account/
-          # settings re-theme) are follow-ups, reachable via the existing routes.
-          # EAS native production stays pinned to legacy (eas.json) until parity.
-          # To roll the web build back to legacy: set this to "legacy".
-          EXPO_PUBLIC_UI: "deep-space"
           # QA ONLY, and only via a manual workflow_dispatch that opts in: lets
           # ?tier=all|free|plus|pro URL links force a tier. This workflow's push
           # trigger IS the public site (the "preview" in the name is historical),
@@ -362,12 +354,12 @@ jobs:
           EXPO_PUBLIC_PADDLE_PRICE_CORTEX_YEARLY: ${{ vars.EXPO_PUBLIC_PADDLE_PRICE_CORTEX_YEARLY }}
           EXPO_PUBLIC_PADDLE_PRICE_BRAIN_MONTHLY: ${{ vars.EXPO_PUBLIC_PADDLE_PRICE_BRAIN_MONTHLY }}
           EXPO_PUBLIC_PADDLE_PRICE_BRAIN_YEARLY: ${{ vars.EXPO_PUBLIC_PADDLE_PRICE_BRAIN_YEARLY }}
-          # Ads (web AdSense), OFF until the Variables are set AND the
-          # in-app policy passes (free adult + explicit ads consent + neutral
-          # route — src/lib/ads/policy.ts). See docs/ADS.md for go-live steps.
+          # Ads flag, OFF until the Variable is set AND the in-app policy passes
+          # (free adult + explicit ads consent + listed route - src/lib/ads/policy.ts).
+          # The web AdSense injection (EXPO_PUBLIC_ADSENSE_CLIENT / _SLOT_RECORDS)
+          # was cut on 2026-10-05 with the banner; read
+          # docs/ADSENSE-WEB-RETIREMENT.md before adding it back.
           EXPO_PUBLIC_ENABLE_ADS: ${{ vars.EXPO_PUBLIC_ENABLE_ADS || 'false' }}
-          EXPO_PUBLIC_ADSENSE_CLIENT: ${{ vars.EXPO_PUBLIC_ADSENSE_CLIENT }}
-          EXPO_PUBLIC_ADSENSE_SLOT_RECORDS: ${{ vars.EXPO_PUBLIC_ADSENSE_SLOT_RECORDS }}
           # Prevent Expo from loading an un-attested .env file after the digest
           # has been computed. CI supplies the complete public build contract.
           EXPO_NO_DOTENV: "1"

@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
+import { AppState, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
 import { Redirect, router, useNavigation } from "expo-router";
 import { useAppRouter } from "@/lib/nav/phone-embed";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect, SvgXml } from "react-native-svg";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { colors, spacing } from "@/theme/tokens";
@@ -26,13 +25,10 @@ import { ddsStyles as styles } from "./dds-styles";
 import { canonGaps, canonMore } from "@/lib/canon";
 import { reactExpression } from "@/lib/companion/expression";
 import { kstDateToday } from "@/lib/chat/limits";
-import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
-import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
+import { MdButton, MdCard, MdChip, m3TextStyle } from "@/components/m3";
 import { PremiumModal } from "@/components/premium";
-import { TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
-import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
-import { getReasoningUsage } from "@/lib/entitlements/usage";
 import { Text } from "@/components/ui/Text";
 import { HelpDirectory } from "@/components/safety/HelpDirectory";
 import { useTheme } from "@/lib/theme/ThemeContext";
@@ -45,16 +41,10 @@ import { buildInfoLine } from "@/lib/build-info";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { gatherRisingInterests } from "@/lib/trends/gather";
 import type { RisingInterest } from "@/lib/trends/rising";
-import { useSignInForm } from "@/lib/auth/useSignInForm";
-import { useSignUpForm } from "@/lib/auth/useSignUpForm";
-import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
 import {
   AuthSessionOwnerChangedError,
-  ageInYears,
   captureSignOutExpectation,
-  MIN_SELF_CONSENT_AGE,
   signOutExpected,
-  type OAuthProvider,
 } from "@/lib/supabase/auth";
 import { requestAccountDeletion } from "@/lib/records/delete-bulk";
 import {
@@ -91,23 +81,6 @@ import type { StarId } from "@/lib/persona/stars";
 import { loadEvidenceShards } from "@/lib/persona/load-evidence-shards";
 import { type EvidenceShard } from "@/lib/persona/evidence";
 import { RatifySheet, runRatifyDecisionOnce } from "@/components/persona/RatifySheet";
-import {
-  allRequiredAcksChecked,
-  setAllRequiredAcks,
-  type ConsentSelections,
-} from "@/lib/auth/consent-selections";
-import { formatBirthDateInput } from "@/lib/account/dob";
-import { useProgression } from "@/lib/progression/useProgression";
-import {
-  arePurchasesAvailable,
-  configurePurchases,
-  getOfferings,
-  getProStatus,
-  purchasePackage,
-  restorePurchases,
-} from "@/lib/payments/purchases";
-import type { PurchasesPackage } from "react-native-purchases";
-import { systemLocaleFor } from "@/lib/i18n/locales";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { captureEvent, proposalDecided, setAnalyticsConsent } from "@/lib/analytics";
 import type { PrivacyPrefKey, PrivacyPrefs } from "@/lib/privacy/prefs";
@@ -116,34 +89,16 @@ import {
   clearRecordEmbeddings,
   embedVendorLabel,
 } from "@/lib/records/records-embeddings";
-import { recordHealthImportConsent, recordRecommendationsConsent } from "@/lib/supabase/consent";
-import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
+import { recordRecommendationsConsent } from "@/lib/supabase/consent";
 import { HealthWithdrawCard } from "./dds-health-withdraw-card";
-import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
-import { opsRouteForDomain } from "@/lib/ops/nav";
-import { loadPickCandidates } from "@/lib/ops/load-picks";
-import { pickToday, type PickId, type TodayPicks } from "@/lib/ops/today-picks";
-import { gatherAdherenceStats } from "@/lib/ops/signals";
-import { adherenceChip } from "@/lib/ops/grounding";
-import { recommendForDomain, recommendationVendorLabel, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
-import { buildGoogleCalendarUrl } from "@/lib/ops/push";
+import { recommendationVendorLabel } from "@/lib/ops/recommend";
 import {
   notifyNow,
-  scheduleRoutineReminder,
-  type ReminderResult,
 } from "@/lib/ops/reminders";
 import { loadNotifications } from "@/lib/ops/notifications-sdk";
 import {
   applyFocusSessionComplete,
   applyLanguageReviewComplete,
-  createRoutineFromRecommendation,
-  deriveReminder,
-  listCompletionsSince,
-  listTodayRoutines,
-  localDayKey,
-  logRoutineCompletion,
-  weekStreak,
-  type OpsRoutine,
 } from "@/lib/ops/routines";
 import { createCard, listDueCards, recordReview, type SrsCardRow } from "@/lib/srs/queries";
 import type { SrsRating } from "@/lib/srs/scheduler";
@@ -156,7 +111,6 @@ import {
   tick,
   type PomodoroState,
 } from "@/lib/ops/pomodoro";
-import { OPS_DAILY_LIMIT, bumpOpsUsage, readOpsUsage } from "@/lib/ops/usage";
 import {
   listAllWikiLinks,
   listInferredLinkDetails,
@@ -175,9 +129,7 @@ import { recordsToResearchGraph } from "@/lib/records/records-research";
 import type { GraphRecord } from "@/lib/records/records-graph";
 import { listSourcePieces } from "@/lib/records/source-pieces";
 import { summarizeWeeklyInsights, weeklyDomainFocus } from "@/lib/insights/weekly";
-import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
-import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
-import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
+import type { WikiPageRow } from "@/lib/wiki/types";
 import {
   buildDeepResearchView,
   buildDomainsView,
@@ -186,25 +138,12 @@ import {
   type WikiEdge,
 } from "./wiki-graph-view";
 import {
-  type TimelineLabels,
-} from "./records-timeline";
-import {
   INTEGRATION_ENTRYPOINTS,
   type IntegrationEntrypoint,
 } from "./integrations/sources";
 
 // i18n label builders for the pure date helpers (which stay i18n-free).
 type Tx = (key: string, options?: Record<string, unknown>) => string;
-function dsTimeLabels(t: Tx): TimelineLabels {
-  return {
-    today: t("time.today"),
-    yesterday: t("time.yesterday"),
-    monthDay: (m, d) => t("time.monthDay", { month: m, day: d }),
-    now: t("time.now"),
-    hoursAgo: (h) => t("time.hoursAgo", { count: h }),
-    fallbackTitle: t("time.recordFallback"),
-  };
-}
 function dsRecencyLabels(t: Tx): RecencyLabels {
   return {
     today: t("time.today"),
@@ -488,14 +427,6 @@ const GAPS_FACT_EN: { label: string; v: string }[] = [
   { label: "Retention", v: "While your account is active; fully removed within 30 days of leaving." },
   { label: "Right to delete", v: "You can remove individual items or everything, anytime." },
 ];
-const GAPS_CONCEPT_EN: { title: string; body: string }[] = [
-  { title: "Stars = areas of life", body: "The six visible home stars are career, finances, growth, relationships, health, and rest. Capturing is an invisible intake area that feeds those six stars." },
-  { title: "North Star = your whole self", body: "It brings together data from all seven areas into one sentence about who you are. Its brightness becomes clearer as the six visible stars brighten evenly." },
-  { title: "Starlight is not confidence", body: "Starlight is how much you've captured; confidence is how well it's verified. If it doesn't know, it says so." },
-  { title: "Ratify (propose then ratify)", body: "SecondB's estimates are only proposals. Only what you ratify with \"that's right\" is reflected in you." },
-  { title: "Capturing", body: "Capture notes, links, photos, voice, and to-dos instead of letting them slip by. SecondB helps sort them." },
-  { title: "SecondB three modes", body: "SecondB (knows you), MetaB (objective), TwB (creative). Switch between them as the moment needs." },
-];
 
 // Map a canon Material-symbol icon name to a local CLONE_ICON glyph, falling
 // back to a sensible sparkle when a name has no glyph yet.
@@ -515,8 +446,6 @@ const gap = StyleSheet.create({
   tagText: { color: colors.cyanSoft, fontSize: 11 },
   factRow: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start", paddingVertical: spacing.sm },
   factText: { flex: 1, gap: 2 },
-  conceptRow: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start" },
-  conceptText: { flex: 1, gap: 3 },
 });
 
 export function DeepSpaceSupportDesignScreen() {
@@ -619,7 +548,7 @@ export function DeepSpacePrivacyDesignScreen() {
   const { t: consentT } = useTranslation("consent");
   const navigation = useNavigation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
-  const { userId, isMinor } = useAuth();
+  const { userId, isMinor, loading: authLoading } = useAuth();
   // AuthContext derives this from users.birth_date. Unknown age fails closed,
   // so Clarity/GA4 and ads cannot be enabled while the profile is resolving.
   const minor = isMinor !== false;
@@ -691,10 +620,10 @@ export function DeepSpacePrivacyDesignScreen() {
       receipt = await requestAccountDeletion(authExpectation);
     } catch {
       deleteInFlightRef.current = false;
-      if (privacyMountedRef.current && activeUserRef.current === targetUserId) {
-        setDelError(true);
-        setDeleting(false);
-      }
+      // Lift the fence whoever owns the screen now: a stuck `deleting` exempts a signed-out visitor from the guard below.
+      if (privacyMountedRef.current) setDeleting(false);
+      // Only the account that asked sees its failure.
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setDelError(true);
       return;
     }
 
@@ -1045,6 +974,17 @@ export function DeepSpacePrivacyDesignScreen() {
     }
   }
 
+  // Signed out, this screen used to draw the settings and wait forever on a
+  // birth date that never arrives; the redirect lived only in the legacy half.
+  // Every owner change, the deletion's own A -> null included, remounts this
+  // scene (AccountScope in _layout.tsx keys it by account epoch), so no state
+  // or ref reaches the next owner. `deleting` fences this instance only: a
+  // loading flip mid-deletion must not swap the flow out for the loader.
+  if (authLoading && !deleting) {
+    return <Shell title={t("privacy.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId && !deleting) return <Redirect href="/sign-in" />;
+
   return (
     <Shell title={t("privacy.title")}>
       <SecondbStatusHeader text={t("privacy.status")} tip={t("privacy.tip")} />
@@ -1372,8 +1312,7 @@ export function DeepSpacePrivacyDesignScreen() {
 export function DeepSpaceInsightsScreen() {
   // Phone-aware: inside the dashboard phone, the cards open in the phone.
   const router = useAppRouter();
-  const { t, i18n } = useTranslation("deepspace");
-  const ko = i18n.language === "ko";
+  const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
 
   // Real week-over-week data. We reuse listRecentRecords (the same client other
@@ -1708,62 +1647,6 @@ export function DeepSpaceThemeScreen() {
       <Card>
         <Toggle label={t("theme.reduceMotion")} on={liteMode} onPress={() => setLiteMode(!liteMode)} />
       </Card>
-    </Shell>
-  );
-}
-
-export function DeepSpaceManualScreen() {
-  const { t, i18n } = useTranslation("deepspace");
-  const { userId } = useAuth();
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
-  return (
-    <Shell title={t("manual.title")}>
-      <SecondbStatusHeader text={t("manual.status")} tip={t("manual.tip")} />
-      <View style={styles.searchBox}><Text variant="body" style={styles.searchText}>{t("manual.search")}</Text></View>
-      <Card>
-        <Text variant="heading" style={styles.section}>{t("manual.sectionStart")}</Text>
-        <Action label={t("manual.q1")} onPress={() => router.push("/support")} />
-        <Action label={t("manual.q2")} onPress={() => router.push("/support")} />
-        <Action label={t("manual.q3")} onPress={() => router.push("/support")} />
-      </Card>
-      <Card>
-        <Text variant="heading" style={styles.section}>{t("manual.sectionData")}</Text>
-        <Action label={t("manual.q4")} onPress={() => router.push("/support")} />
-        <Action label={t("manual.q5")} onPress={() => router.push("/support")} />
-        <Action label={t("manual.askDirect")} onPress={() => router.push('/secondb')} />
-        {/* 홈 코치마크 다시 보기 — 레퍼런스가 안내서에 두는 줄이다.
-            같은 기능이 `/settings` 에도 있고 **거기 것을 없애지 않았다**. 설정에서
-            "리셋"을 찾는 것과 안내서에서 "다시 보기"를 찾는 것은 다른 행동이라
-            문이 둘인 편이 맞다. 동작은 하나다 — 이 계정의 다시 보기를 켜고 홈으로 돌아가면
-            다음 홈 방문에서 4단계 가이드가 다시 재생된다. */}
-        <Action
-          label={t("manual.replayCoachmarks")}
-          onPress={() => {
-            if (userId) {
-              resetCoachmarks(userId);
-              router.replace("/");
-            }
-          }}
-        />
-      </Card>
-
-      {/* 핵심 개념 / Core concepts (canonGaps.manualConcepts) — icon + title + body. */}
-      <Text variant="heading" style={styles.section}>{t("manual.conceptsTitle")}</Text>
-      {canonGaps.manualConcepts.map((c, i) => {
-        const title = ko ? c.title : GAPS_CONCEPT_EN[i]?.title ?? c.title;
-        const body = ko ? c.body : GAPS_CONCEPT_EN[i]?.body ?? c.body;
-        return (
-          <Card key={c.title}>
-            <View style={gap.conceptRow}>
-              <CloneIcon name={gapGlyph(c.icon)} color={colors.cyanSoft} size={20} />
-              <View style={gap.conceptText}>
-                <Text variant="body" style={styles.actionLabel}>{title}</Text>
-                <Text variant="body" style={styles.planFeatDim}>{body}</Text>
-              </View>
-            </View>
-          </Card>
-        );
-      })}
     </Shell>
   );
 }
@@ -2274,7 +2157,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
   );
 }
 
-export { DeepSpaceInboxScreen, DeepSpaceImportScreen } from "./dds-import-inbox-screens";
+export { DeepSpaceImportScreen } from "./dds-import-inbox-screens";
 
 // Fixed satellite slots around the central god-node; we light up as many as
 // there are real hubs (capped at 4). STEP 3 will replace this with true
@@ -2298,21 +2181,27 @@ export function DeepSpaceResearchScreen() {
   // orphans / islands all keep working, now over real data. $0: pure tag
   // overlap, no LLM and no embeddings (the kNN layer stays consent-gated).
   const { userId, loading: authLoading } = useAuth();
-  const [records, setRecords] = useState<GraphRecord[] | null>(null);
+  // Every load below is held WITH the account it was loaded for, and read back
+  // only while that account is still the one signed in. The route can stay
+  // mounted across an account change (A out, B in); a bare value kept A's
+  // records, tag chips and link proposals on B's screen until B's own loads
+  // answered (QA 261004 SG-02). A different owner reads as "not loaded yet".
+  const [heldRecords, setHeldRecords] = useState<{ ownerId: string; rows: GraphRecord[] } | null>(null);
   useEffect(() => {
     if (!userId) return;
     let alive = true;
     void listRecentRecords(userId)
       .then((rows) => {
-        if (alive) setRecords(rows as GraphRecord[]);
+        if (alive) setHeldRecords({ ownerId: userId, rows: rows as GraphRecord[] });
       })
       .catch(() => {
-        if (alive) setRecords([]);
+        if (alive) setHeldRecords({ ownerId: userId, rows: [] });
       });
     return () => {
       alive = false;
     };
   }, [userId]);
+  const records = heldRecords !== null && userId !== null && heldRecords.ownerId === userId ? heldRecords.rows : null;
   const loading = userId != null && records === null;
   const view = useMemo(() => {
     const graph = recordsToResearchGraph(records ?? [], {
@@ -2323,10 +2212,14 @@ export function DeepSpaceResearchScreen() {
   // Cluster chip selection. The research view derives from graph-stats (no
   // server-side re-cluster), so selecting a chip drives the highlight + the
   // graph's focused tag label rather than refetching.
-  const [activeCluster, setActiveCluster] = useState<string | null>(null);
+  // The picked chip is one of the owner's own tag names, and the graph caption
+  // prints it, so it is held with its owner like the records it came from.
+  const [clusterPick, setClusterPick] = useState<{ ownerId: string; tag: string } | null>(null);
+  const activeCluster = clusterPick !== null && userId !== null && clusterPick.ownerId === userId ? clusterPick.tag : null;
 
   // propose->ratify: AI-proposed (inferred) links awaiting the user's verdict.
-  const [proposals, setProposals] = useState<InferredLinkDetail[]>([]);
+  const [heldProposals, setHeldProposals] = useState<{ ownerId: string; rows: InferredLinkDetail[] } | null>(null);
+  const proposals = heldProposals !== null && userId !== null && heldProposals.ownerId === userId ? heldProposals.rows : [];
   const [proposing, setProposing] = useState(false);
   const [actingKey, setActingKey] = useState<string | null>(null);
   // Screen-reader feedback for ratify/reject: the row removal alone is silent,
@@ -2334,16 +2227,21 @@ export function DeepSpaceResearchScreen() {
   const [announce, setAnnounce] = useState("");
 
   const loadProposals = useMemo(
-    () => async (uid: string) => {
+    () => async (uid: string, current: () => boolean = () => true) => {
       const rows = await listInferredLinkDetails(uid).catch(() => [] as InferredLinkDetail[]);
-      setProposals(rows);
+      if (current()) setHeldProposals({ ownerId: uid, rows });
     },
     [],
   );
 
   useEffect(() => {
     if (!userId) return;
-    void loadProposals(userId);
+    // A slow answer for the previous owner must not land after this owner's.
+    let alive = true;
+    void loadProposals(userId, () => alive);
+    return () => {
+      alive = false;
+    };
   }, [userId, loadProposals]);
 
   async function findProposals() {
@@ -2453,7 +2351,7 @@ export function DeepSpaceResearchScreen() {
                   label={`${c.tag} · ${c.count}`}
                   active={activeCluster === c.tag}
                   violet={activeCluster === null ? i === 0 : false}
-                  onPress={() => setActiveCluster((prev) => (prev === c.tag ? null : c.tag))}
+                  onPress={() => setClusterPick(activeCluster === c.tag ? null : { ownerId: userId, tag: c.tag })}
                 />
               ))}
             </View>
@@ -2600,7 +2498,7 @@ const FORMAT_CARDS: { id: ExportFormat; name: string; descKey: string }[] = [
 
 export function DeepSpaceFormatsScreen() {
   const { t, i18n } = useTranslation("deepspace");
-  const { userId, loading: authLoading } = useAuth();
+  const { userId, loading: authLoading, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [format, setFormat] = useState<ExportFormat>("iden");
@@ -2610,22 +2508,27 @@ export function DeepSpaceFormatsScreen() {
   const [note, setNote] = useState<"copied" | "copyFailed" | "error" | null>(null);
 
   async function runExport() {
-    if (!userId || exporting) return;
+    // C10 / DPIA 5A-R7: .iden, HTML and JSON all build the persona (exportIden /
+    // buildIdenDoc -> buildPersona -> callLlm persona_narrative), and its crisis output
+    // picks the hotline from `minor`. These calls used to pass no age, so buildIdenDoc
+    // fell back to adult routing for a minor (QA 261004 L1-07). Same contract as /review:
+    // nothing builds while the age is unresolved, then the resolved age goes along.
+    if (!userId || isMinor === null || exporting) return;
     setExporting(true);
     setResult(null);
     setNote(null);
     try {
       if (format === "iden") {
-        const r = await exportIden(userId, { locale });
+        const r = await exportIden(userId, { locale, minor: isMinor === true });
         setResult({ text: r.iden, name: r.idenFilename });
       } else if (format === "html") {
-        const r = await exportIden(userId, { locale });
+        const r = await exportIden(userId, { locale, minor: isMinor === true });
         setResult({ text: r.html, name: r.htmlFilename });
       } else if (format === "markdown") {
         const r = await exportUserWiki(userId, { locale, includeRecords });
         setResult({ text: r.prompt, name: "polascope-wiki.md" });
       } else {
-        const doc = await buildIdenDoc(userId, { locale });
+        const doc = await buildIdenDoc(userId, { locale, minor: isMinor === true });
         setResult({ text: JSON.stringify(doc, null, 2), name: "polascope-iden.json" });
       }
     } catch {
@@ -2712,7 +2615,13 @@ export function DeepSpaceFormatsScreen() {
           <Text variant="subtle" style={styles.footer}>{t("formats.scope3MarkdownOnly")}</Text>
         )}
       </Card>
-      <Pressable style={[styles.soulPrimary, exporting && { opacity: 0.6 }]} onPress={() => void runExport()} disabled={exporting}>
+      <Pressable
+        style={[styles.soulPrimary, (exporting || isMinor === null) && { opacity: 0.6 }]}
+        onPress={() => void runExport()}
+        disabled={exporting || isMinor === null}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: exporting || isMinor === null }}
+      >
         <Text variant="caption" style={styles.primaryText}>{exporting ? t("formats.exporting") : t("formats.export")}</Text>
       </Pressable>
       {note === "error" ? <Text variant="body" style={styles.opsReason}>{t("formats.exportError")}</Text> : null}
@@ -2743,501 +2652,6 @@ export function DeepSpaceFormatsScreen() {
         </View>
       ) : null}
     </Shell>
-  );
-}
-
-// Calendar hand-off needs a start time even for untimed ideas; "tomorrow 9am"
-// is an honest, editable default (the calendar app shows the form before save).
-function opsNextMorningIso(now: Date = new Date()): string {
-  const next = new Date(now);
-  next.setDate(next.getDate() + 1);
-  next.setHours(9, 0, 0, 0);
-  return next.toISOString();
-}
-
-type OpsRunState = "idle" | "working" | "empty" | "error" | "limit" | "off";
-
-/** 오늘의 두 가지가 카드마다 여는 자리. 후보 여섯 개 전부 갈 곳이 있어야 한다. */
-const TODAY_ROUTE: Readonly<Record<PickId, string>> = {
-  routine: "/reminders",
-  milestone: "/milestones",
-  reading: "/reading",
-  meals: "/meals",
-  records: "/records",
-  esm: "/esm",
-};
-
-export function DeepSpaceOpsScreen() {
-  const { t, i18n } = useTranslation("ops");
-  const { userId, loading: authLoading, isMinor, hasProfile } = useAuth();
-  const progression = useProgression();
-  const locale = systemLocaleFor(i18n.language);
-  // The model anchors on the EN canonical domain label regardless of UI language.
-  const tEn = useMemo(() => i18n.getFixedT("en", "ops"), [i18n]);
-
-  const [group, setGroup] = useState<OpsGroupId | null>(null);
-  // 오늘의 두 가지: 여섯 소스의 존재·최신성만 훑어 두 개를 고른다(LLM 없음).
-  // null 인 동안에는 아무것도 그리지 않는다 - 카드 모양의 자리표시자는 잠깐이라도
-  // "무언가 있다" 로 읽히는데 실제로 없을 수 있다.
-  const [todayPicks, setTodayPicks] = useState<TodayPicks | null>(null);
-  useEffect(() => {
-    if (!userId) return;
-    let alive = true;
-    void loadPickCandidates(userId)
-      .then((c) => {
-        if (alive) setTodayPicks(pickToday(c, Date.now()));
-      })
-      .catch(() => {
-        // 실패는 카드를 감추는 방향으로 - 없는 것을 지어내지 않는다.
-        if (alive) setTodayPicks({ picks: [], suggestions: [] });
-      });
-    return () => {
-      alive = false;
-    };
-  }, [userId]);
-  const [domain, setDomain] = useState<OpsDomainId | null>(null);
-  const [recs, setRecs] = useState<OpsRecommendation[]>([]);
-  // A grounding: adherence chip shown with the recommendations.
-  const [adherence, setAdherence] = useState<string | null>(null);
-  const [runState, setRunState] = useState<OpsRunState>("idle");
-  const [usedToday, setUsedToday] = useState(0);
-  const [recommendations, setRecommendations] = useState<boolean | null>(null);
-  const [todayRoutines, setTodayRoutines] = useState<OpsRoutine[]>([]);
-  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
-  const [streak, setStreak] = useState(0);
-  const [savingKey, setSavingKey] = useState<string | null>(null);
-  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
-  const [reminderToast, setReminderToast] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    void fetchPrivacyPrefs(userId).then((v) => {
-      if (!cancelled) setRecommendations(v?.recommendations ?? false);
-    });
-    void readOpsUsage(userId).then((c) => {
-      if (!cancelled) setUsedToday(c);
-    });
-    void loadToday();
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
-
-  async function loadToday() {
-    if (!userId) return;
-    try {
-      const now = new Date();
-      const due = await listTodayRoutines(userId, now);
-      setTodayRoutines(due);
-      const today = localDayKey(now);
-      const logs = await listCompletionsSince(userId, today);
-      setCompletedIds(new Set(logs.map((l) => l.routine_id)));
-      // 7-day window is enough for the capped weekStreak helper.
-      const weekAgo = new Date(now);
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const weekLogs = await listCompletionsSince(userId, localDayKey(weekAgo));
-      setStreak(weekStreak(weekLogs, now));
-    } catch {
-      // best-effort: the today section just stays as-is
-    }
-  }
-
-  if (authLoading) {
-    return (
-      <DeepSpaceScreen
-        active="ops"
-        header="none"
-        variant="windowed"
-        title={t("todaysAssistant")}
-        onBack={() => router.back()}
-      >
-        <DockBody title={t("hero.title")}><GraphLoading /></DockBody>
-      </DeepSpaceScreen>
-    );
-  }
-  if (!userId) return <Redirect href="/sign-in" />;
-  if (hasProfile === false) return <Redirect href="/complete-profile" />;
-
-  const dailyLimit = OPS_DAILY_LIMIT[progression.tier];
-  const limitReached = usedToday >= dailyLimit;
-  const domains = group ? domainsForGroup(group) : [];
-
-  async function runRecommend() {
-    if (!userId || !domain || runState === "working") return;
-    // D-20 / PROTOCOL §36: honor the minor recommendations lock at the gate
-    // (mirrors OpsLegacy). Adults are unaffected; a server-locked minor never
-    // reaches the LLM snapshot.
-    if (!recommendationsAllowed(isMinor, recommendations)) {
-      setRunState("off");
-      return;
-    }
-    if (limitReached) {
-      setRunState("limit");
-      return;
-    }
-    setRunState("working");
-    setRecs([]);
-    setAdherence(null);
-    try {
-      const out = await recommendForDomain({
-        userId,
-        locale,
-        domainId: domain,
-        domainLabel: tEn(`domains.${domain}`),
-        minor: isMinor === true,
-        recommendationsPref: recommendations,
-        // Explicit user run (and a quota bump below) - never serve the cache.
-        forceFresh: true,
-      });
-      const used = await bumpOpsUsage(userId);
-      setUsedToday(used);
-      setRecs(out);
-      setRunState(out.length === 0 ? "empty" : "idle");
-      if (out.length > 0) {
-        const stats = await gatherAdherenceStats(userId, domain);
-        setAdherence(stats ? adherenceChip(stats, i18n.language?.toLowerCase().startsWith("ko") ?? false) : null);
-      }
-    } catch {
-      setRunState("error");
-    }
-  }
-
-  function addToCalendar(rec: OpsRecommendation) {
-    const url = buildGoogleCalendarUrl({
-      title: rec.title,
-      description: rec.reason,
-      startsAtIso: rec.startsAtIso ?? opsNextMorningIso(),
-      durationMinutes: rec.durationMinutes,
-      recurrence: rec.recurrence,
-    });
-    if (url) void Linking.openURL(url).catch(() => {});
-  }
-
-  function shareStep(rec: OpsRecommendation) {
-    void Share.share({ message: `${rec.title}\n${rec.reason}` }).catch(() => {});
-  }
-
-  function reminderNote(result: ReminderResult): string {
-    if (result === "scheduled") return t("push.reminderSetNote");
-    if (result === "denied") return t("push.reminderDeniedNote");
-    if (result === "unavailable") return t("push.reminderUnavailableNote");
-    return t("push.reminderFailedNote");
-  }
-
-  async function saveRoutine(rec: OpsRecommendation, key: string) {
-    if (!userId || !domain || savingKey) return;
-    setSavingKey(key);
-    try {
-      await createRoutineFromRecommendation(userId, domain, rec);
-      // The reminder fires from the SAME existing scheduler used by the
-      // recommendation cards; a non-recurring rec becomes a one-shot at its
-      // start (or next morning if it had none).
-      const { reminder_time } = deriveReminder(rec);
-      const startsAtIso = rec.startsAtIso ?? opsNextMorningIso();
-      const result = await scheduleRoutineReminder({
-        title: rec.title,
-        description: rec.reason,
-        startsAtIso,
-        durationMinutes: rec.durationMinutes,
-        recurrence: rec.recurrence,
-      });
-      // reminder_time only informs the persisted row; the toast reflects the
-      // scheduler outcome regardless.
-      void reminder_time;
-      setSavedKeys((prev) => new Set(prev).add(key));
-      setRunState("idle");
-      // Surface the scheduler outcome and refresh the today list.
-      setReminderToast(reminderNote(result));
-      await loadToday();
-    } catch {
-      setReminderToast(t("recommend.error"));
-    } finally {
-      setSavingKey(null);
-    }
-  }
-
-  async function completeRoutine(routine: OpsRoutine) {
-    if (!userId || completedIds.has(routine.id)) return;
-    // Optimistic check — the unique-key upsert is idempotent so a failed write
-    // is harmless to retry, and the today list reload reconciles either way.
-    setCompletedIds((prev) => new Set(prev).add(routine.id));
-    try {
-      await logRoutineCompletion(userId, routine.id, localDayKey());
-      await loadToday();
-    } catch {
-      setCompletedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(routine.id);
-        return next;
-      });
-    }
-  }
-
-  // Hero ring is driven by the REAL today list (not the reference mock counts).
-  const totalR = todayRoutines.length;
-  const doneR = todayRoutines.filter((r) => completedIds.has(r.id)).length;
-  const pct = totalR > 0 ? doneR / totalR : 0;
-  const HERO_R = 22;
-  const HERO_C = 2 * Math.PI * HERO_R;
-  const opsTools: { icon: CloneIconName; label: string; sub: string; route: string }[] = [
-    { icon: "timer", label: t("tools.focus.label"), sub: t("tools.focus.sub"), route: "/focus" },
-    { icon: "schedule", label: t("tools.reminders.label"), sub: t("tools.reminders.sub"), route: "/reminders" },
-    { icon: "lightbulb", label: t("tools.imagine.label"), sub: t("tools.imagine.sub"), route: "/imagine" },
-    { icon: "share", label: t("tools.shareCard.label"), sub: t("tools.shareCard.sub"), route: "/share-card" },
-    // Doors for two screens that were fully built but unreachable in the
-    // canonical nav (audit pattern B): SRS review's only link lived on the
-    // legacy home graph, and call reflection had no entry point at all.
-    { icon: "book", label: t("tools.srs.label"), sub: t("tools.srs.sub"), route: "/srs" },
-    { icon: "bubble", label: t("tools.callReflection.label"), sub: t("tools.callReflection.sub"), route: "/call-reflection" },
-    // 2026-08-18 (Simon D7): 같은 패턴의 두 번째 라운드. 아래 다섯은 전부
-    // 만들어져 있고 각자 라우트도 있는데 이 격자에 없어서 딥링크로만 닿았다
-    // (파일 주석에 ops domain 태그까지 붙어 있는 것들이다). 위 두 줄이 말하는
-    // "built but unreachable" 이 다섯 개 더 남아 있었다.
-    { icon: "book", label: t("tools.reading.label"), sub: t("tools.reading.sub"), route: "/reading" },
-    { icon: "badge", label: t("tools.milestones.label"), sub: t("tools.milestones.sub"), route: "/milestones" },
-    { icon: "box", label: t("tools.ledger.label"), sub: t("tools.ledger.sub"), route: "/ledger" },
-    { icon: "sparkle", label: t("tools.sideProject.label"), sub: t("tools.sideProject.sub"), route: "/side-project" },
-    { icon: "fire", label: t("tools.meals.label"), sub: t("tools.meals.sub"), route: "/meals" },
-  ];
-
-  return (
-    // Primary "비서" hub: render inside the persistent deep-space chrome so the
-    // rev2 windowed sub-screen: the M3 top app bar carries TITLES verbatim
-    // (오늘의 비서). The reference OpsScreen leads with the routine ring hero.
-    <DeepSpaceScreen
-      active="ops"
-      header="none"
-      variant="windowed"
-      title={t("todaysAssistant")}
-      onBack={() => router.back()}
-    >
-      <DockBody>
-      {/* hero — today's routine ring (real counts + streak) */}
-      <MdCard variant="elevated" style={cx.opsHero}>
-        <View style={cx.heroRow}>
-          {/* 진행 링 — 테두리를 도는 칸 중 앞에서부터 n칸(규칙 1). */}
-          <Svg width={58} height={58} viewBox="0 0 58 58">
-            {(() => {
-              const cells = ringCells(29, 29, HERO_R, 6);
-              const lit = Math.round(cells.length * Math.max(0, Math.min(1, pct)));
-              return cells.map((p, i) => (
-                <Rect key={i} x={p.x} y={p.y} width={6} height={6} fill={i < lit ? m3.color.primary : m3.color.surfaceVariant} />
-              ));
-            })()}
-          </Svg>
-          <View style={cx.flex1}>
-            <RNText style={[m3TextStyle("labelMedium"), cx.heroLabel]}>{t("today.heading")}</RNText>
-            <RNText style={[m3TextStyle("headlineSmall"), cx.heroCount]}>{t("home.ringCount", { done: doneR, total: totalR })}</RNText>
-          </View>
-          {streak > 0 ? (
-            <View style={cx.heroStreak}>
-              <View style={cx.heroStreakRow}>
-                <CloneIcon name="fire" color={m3.accent.alertDot} size={22} fill />
-                <RNText style={cx.heroStreakNum}>{streak}</RNText>
-              </View>
-              <RNText style={[m3TextStyle("labelSmall"), cx.heroStreakCap]}>{t("home.streakLabel")}</RNText>
-            </View>
-          ) : null}
-        </View>
-        <ProgressLinear value={pct} color={m3.color.primary} style={cx.heroBar} />
-      </MdCard>
-
-      {/* routines */}
-      {todayRoutines.length === 0 ? (
-        <RNText style={[m3TextStyle("bodyMedium"), cx.lead]}>{t("today.empty")}</RNText>
-      ) : (
-        <View style={cx.stack8}>
-          {todayRoutines.map((routine) => {
-            const done = completedIds.has(routine.id);
-            return (
-              <Pressable
-                key={routine.id}
-                style={cx.routineRow}
-                onPress={() => void completeRoutine(routine)}
-                disabled={done}
-                {...checkboxSpaceKeyProps(() => void completeRoutine(routine), !done)}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: done }}
-                accessibilityLabel={done ? t("today.doneA11y", { title: routine.title }) : t("today.completeA11y", { title: routine.title })}
-              >
-                <View style={[cx.routineDot, done && cx.routineDotOn]} />
-                <RNText style={[m3TextStyle("bodyLarge"), cx.routineLabel, done && cx.routineLabelDone]}>{routine.title}</RNText>
-                <RNText style={[m3TextStyle("labelSmall"), cx.routineStar]}>{routine.recurrence === "daily" ? t("card.daily") : t("card.weekly")}</RNText>
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
-      {reminderToast ? <Text variant="subtle" style={styles.footerLeft}>{reminderToast}</Text> : null}
-
-      {/* 이번 주 패턴 분석 — hands off to the real weekly insights screen */}
-      <MdCard variant="filled" style={cx.analysisCard}>
-        <View style={cx.rowCenter}>
-          <CloneIcon name="sparkle" color={m3.color.tertiary} size={20} />
-          <View style={cx.flex1}>
-            <RNText style={[m3TextStyle("bodyLarge"), cx.analysisTitle]}>{t("home.patternsTitle")}</RNText>
-            <RNText style={[m3TextStyle("bodySmall"), cx.analysisSub]}>{t("home.patternsSub")}</RNText>
-          </View>
-          <MdButton label={t("home.patternsRun")} variant="tonal" onPress={() => router.push("/insights")} style={cx.smallBtnCompact} />
-        </View>
-      </MdCard>
-
-      {/* 오늘의 종합 의견 — the real recommendation engine (C9 classifier + the
-          C1/C3 LLM gateway inside recommendForDomain). Reference-app leads this
-          section with a 세컨비 head + the "one important thing" framing. */}
-      <RNText style={[m3TextStyle("labelSmall"), cx.eyebrow]}>{t("home.takeEyebrow")}</RNText>
-      <Text variant="body" style={styles.lead}>{t("hero.subtitle")}</Text>
-      {/* IA (ops-ia §4): single entry from the /ops hub into the scheduled
-          reminders surface. */}
-      <Pressable style={styles.secondary} onPress={() => router.push("/reminders")}>
-        <Text variant="caption" style={styles.secondaryText}>{t("card.remind")}</Text>
-      </Pressable>
-      <View style={styles.filterRow}>
-        {OPS_GROUP_IDS.map((id) => (
-          <FilterChip
-            key={id}
-            label={t(`groups.${id}`)}
-            active={group === id}
-            onPress={() => {
-              setGroup(id);
-              setDomain(null);
-              setRecs([]);
-              setAdherence(null);
-              setRunState("idle");
-            }}
-          />
-        ))}
-      </View>
-      {group ? (
-        <View style={styles.filterRow}>
-          {domains.map((id) => (
-            <FilterChip
-              key={id}
-              label={t(`domains.${id}`)}
-              active={domain === id}
-              violet
-              onPress={() => {
-                // IA (ops-ia §2): the picker is a router. Domains with a
-                // dedicated screen push to it (depth 2, Back → /ops); the rest
-                // stay in the /ops recommendation flow.
-                const route = opsRouteForDomain(id);
-                if (route) router.push(route);
-                else setDomain(id);
-              }}
-            />
-          ))}
-        </View>
-      ) : null}
-      {domain ? (
-        <Pressable
-          style={[styles.primary, (runState === "working" || limitReached) && { opacity: 0.6 }]}
-          disabled={runState === "working" || limitReached}
-          onPress={() => void runRecommend()}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: runState === "working" || limitReached, busy: runState === "working" }}
-        >
-          <Text variant="caption" style={styles.primaryText}>{runState === "working" ? t("recommend.working") : t("recommend.cta")}</Text>
-        </Pressable>
-      ) : null}
-      {runState === "limit" || (domain && limitReached) ? <Text variant="body" style={styles.opsReason}>{t("recommend.limit")}</Text> : null}
-      {runState === "empty" ? <Text variant="body" style={styles.opsReason}>{t("recommend.empty")}</Text> : null}
-      {runState === "error" ? <Text variant="body" style={styles.opsReason}>{t("recommend.error")}</Text> : null}
-      {runState === "off" ? <Text variant="body" style={styles.opsReason}>{t("recommend.off")}</Text> : null}
-      {adherence && recs.length > 0 ? (
-        <View style={styles.recMetaRow}>
-          <Text variant="subtle" style={styles.timeChipMint}>{adherence}</Text>
-        </View>
-      ) : null}
-      {recs.map((rec, i) => (
-        <View key={`${i}-${rec.title}`} style={styles.opsStep}>
-          <View style={styles.opsStepHead}>
-            <Text variant="heading" style={styles.opsStepTitle}>{rec.title}</Text>
-            {rec.recurrence ? (
-              <Text variant="subtle" style={styles.timeChipMint}>{rec.recurrence === "daily" ? t("card.daily") : t("card.weekly")}</Text>
-            ) : null}
-          </View>
-          <Text variant="body" style={styles.opsReason}>{rec.reason}</Text>
-          <View style={styles.opsStepFoot}>
-            <Pressable style={styles.smallBtnGhost} onPress={() => shareStep(rec)} accessibilityRole="button" accessibilityLabel={t("card.shareA11y")}>
-              <Text variant="caption" style={styles.smallBtnGhostText}>{t("card.share")}</Text>
-            </Pressable>
-            <Pressable style={styles.smallBtnGhost} onPress={() => addToCalendar(rec)} accessibilityRole="button" accessibilityLabel={t("card.addCalendarA11y")}>
-              <Text variant="caption" style={styles.smallBtnGhostText}>{t("card.addCalendar")}</Text>
-            </Pressable>
-            {(() => {
-              const key = `${i}-${rec.title}`;
-              const saved = savedKeys.has(key);
-              const saving = savingKey === key;
-              return (
-                <Pressable
-                  style={[styles.smallBtn, (saving || saved) && { opacity: 0.6 }]}
-                  disabled={saving || saved}
-                  onPress={() => void saveRoutine(rec, key)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("card.saveRoutineA11y")}
-                  accessibilityState={{ disabled: saving || saved, busy: saving }}
-                >
-                  <Text variant="caption" style={styles.smallBtnText}>
-                    {saving ? t("card.saving") : saved ? t("card.saved") : t("card.saveRoutine")}
-                  </Text>
-                </Pressable>
-              );
-            })()}
-          </View>
-        </View>
-      ))}
-      {recs.length > 0 ? <Text variant="subtle" style={styles.footerLeft}>{t("recommend.disclaimerBody")}</Text> : null}
-
-      {/* 오늘의 두 가지 (Simon D6) — 접근 가능한 것 중 실제로 쌓인 것만 고른다.
-          비어 있으면 예시로 채우지 않고 "다음 걸음" 만 말한다. 근거는
-          lib/ops/today-picks.ts 헤더. */}
-      {todayPicks ? (
-        <>
-          <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{t("today.title")}</RNText>
-          <RNText style={[m3TextStyle("labelSmall"), cx.toolSub]}>
-            {todayPicks.picks.length > 0 ? t("today.hint") : t("today.nothingHint")}
-          </RNText>
-          {todayPicks.picks.map((id: PickId) => (
-            <MdCard
-              key={id}
-              variant="filled"
-              onPress={() => router.push(TODAY_ROUTE[id] as never)}
-              accessibilityLabel={t(`today.pick.${id}`)}
-            >
-              <RNText style={[m3TextStyle("titleSmall"), cx.toolTitle]}>{t(`today.pick.${id}`)}</RNText>
-            </MdCard>
-          ))}
-          {todayPicks.suggestions.map((id: PickId) => (
-            <MdCard
-              key={`next-${id}`}
-              variant="outlined"
-              onPress={() => router.push(TODAY_ROUTE[id] as never)}
-              accessibilityLabel={t(`today.next.${id}`)}
-            >
-              <RNText style={[m3TextStyle("labelSmall"), cx.toolSub]}>{t(`today.next.${id}`)}</RNText>
-            </MdCard>
-          ))}
-        </>
-      ) : null}
-
-      {/* 비서 도구 — 2×2 tool grid (real routes) */}
-      <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{t("home.toolsLabel")}</RNText>
-      <View style={cx.toolGrid}>
-        {opsTools.map((tool) => (
-          <MdCard key={tool.route} variant="filled" onPress={() => router.push(tool.route as never)} style={cx.toolCard} accessibilityLabel={tool.label}>
-            <View style={cx.rowCenter}>
-              <CloneIcon name={tool.icon} color={m3.color.tertiary} size={20} />
-              <View style={cx.flex1}>
-                <RNText style={[m3TextStyle("titleSmall"), cx.toolTitle]}>{tool.label}</RNText>
-                <RNText style={[m3TextStyle("labelSmall"), cx.toolSub]}>{tool.sub}</RNText>
-              </View>
-            </View>
-          </MdCard>
-        ))}
-      </View>
-      </DockBody>
-    </DeepSpaceScreen>
   );
 }
 
@@ -3744,7 +3158,6 @@ export function DeepSpaceSrsScreen() {
 // re-exported here so existing route imports keep working unchanged.
 export {
   DeepSpaceSignInDesignScreen,
-  DeepSpaceSignUpDesignScreen,
   DeepSpaceResetPasswordDesignScreen,
 } from "./dds-auth-screens";
 
@@ -3797,34 +3210,13 @@ const cx = StyleSheet.create({
   lead: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 4, marginBottom: 14 },
   leadStrong: { color: m3.color.onSurface, fontFamily: m3.font.brand, fontWeight: "700" },
   sectionLabel: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 22, marginBottom: 10 },
-  eyebrow: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 1.4, color: m3.color.primary, marginTop: 22, marginBottom: 8, marginHorizontal: 2 },
 
   // ── ops hero ──
-  opsHero: { padding: 16, marginTop: 4, backgroundColor: m3.color.primaryContainer },
-  heroRow: { flexDirection: "row", alignItems: "center", gap: 16 },
-  heroLabel: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
-  heroCount: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 2 },
-  heroStreak: { alignItems: "center" },
-  heroStreakRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  heroStreakNum: { fontFamily: m3.font.mono, fontSize: 24, fontWeight: "800", color: m3.accent.alertDot },
-  heroStreakCap: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2 },
-  heroBar: { marginTop: 12 },
 
   // ── routine rows ──
-  routineRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, borderRadius: m3.shape.none, backgroundColor: m3.color.surfaceContainerHighest },
-  routineDot: { width: 20, height: 20, borderRadius: m3.shape.none, borderWidth: 2, borderColor: m3.color.outline },
-  routineDotOn: { backgroundColor: m3.color.primary, borderColor: m3.color.primary },
-  routineLabel: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand },
-  routineLabelDone: { color: m3.color.onSurfaceVariant, textDecorationLine: "line-through" },
-  routineStar: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
-  stack8: { gap: 8, marginTop: 12 },
 
   // ── analysis card ──
-  analysisCard: { padding: 14, marginTop: 12 },
-  rowCenter: { flexDirection: "row", alignItems: "center", gap: 12 },
   flex1: { flex: 1, minWidth: 0 },
-  analysisTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand },
-  analysisSub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
 
   // ── 종합 의견 (세컨비 advice) ──
   adviceCard: { padding: 16, backgroundColor: m3.color.surfaceContainerHigh },
@@ -3841,10 +3233,6 @@ const cx = StyleSheet.create({
   adviceRefreshRow: { flexDirection: "row", justifyContent: "center", marginTop: 4 },
 
   // ── 비서 도구 grid ──
-  toolGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  toolCard: { width: "48%", padding: 13 },
-  toolTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand },
-  toolSub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
 
   // ── focus ──
   focusLead: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, textAlign: "center", marginTop: 4, marginBottom: 18, lineHeight: 20 },
@@ -3884,7 +3272,6 @@ const cx = StyleSheet.create({
 
   // ── datareview ──
   sourceCard: { padding: 14 },
-  smallBtnCompact: { paddingHorizontal: 12, minHeight: 36 },
   statGrid: { flexDirection: "row", gap: 8 },
   statCard: { flex: 1, padding: 12, alignItems: "center" },
   statNum: { fontFamily: m3.font.mono, fontSize: 15, fontWeight: "700", color: m3.color.onSurface, marginTop: 6 },

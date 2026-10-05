@@ -17,15 +17,16 @@ describe("visible trust copy", () => {
       "README.md",
       "locales/en/common.json",
       "locales/ko/common.json",
-      "src/app/manual.tsx",
+      // 2026-10-05: /manual 라우트는 래퍼가 됐다(롤백 레버 제거, Q-261004-11 C).
+      // 사용자가 읽는 안내서 글은 배송 화면의 내용 모듈에 있다.
+      "src/screens/deepspace/dds-manual-content.ts",
     ].map((file) => readFileSync(path.join(root, file), "utf8"));
     const text = files.join("\n");
 
     expect(text).not.toMatch(/built only from what you write/i);
     expect(text).not.toMatch(/쓴 것들로만/);
     expect(text).toMatch(/what you write and save/i);
-    expect(text).toMatch(/쓰고 저장한 기록/);
-    expect(text).toMatch(/저장한 자료/);
+    expect(text).toMatch(/쓰고 저장한 것들/);
   });
 
   test("SecondB limit and composer actions are locale-backed", () => {
@@ -112,7 +113,7 @@ describe("visible trust copy", () => {
       "locales/en/secondb.json",
       "locales/ko/secondb.json",
       "src/app/index.tsx",
-      "src/app/manual.tsx",
+      "src/screens/deepspace/dds-manual-content.ts",
     ];
     const text = files.map((file) => readFileSync(path.join(root, file), "utf8")).join("\n");
 
@@ -210,7 +211,14 @@ describe("visible trust copy", () => {
     const es = JSON.parse(readFileSync(path.join(root, "locales/es/capture.json"), "utf8")) as CaptureLocale;
     const pt = JSON.parse(readFileSync(path.join(root, "locales/pt/capture.json"), "utf8")) as CaptureLocale;
     const id = JSON.parse(readFileSync(path.join(root, "locales/id/capture.json"), "utf8")) as CaptureLocale;
-    const manual = readFileSync(path.join(root, "src/app/manual.tsx"), "utf8");
+    // 2026-10-05: 레거시 안내서(ManualLegacy)의 "gentle record-day counter" 양성 핀 둘은
+    // 그 안내서가 롤백 레버와 함께 빠지며 은퇴했다(Q-261004-11 C). 배송 안내서에는 기록일
+    // 카운터 설명이 없다 - 그래서 지키는 것은 "압박 문구가 없다" 는 부정 단언이다.
+    const manual = [
+      readFileSync(path.join(root, "src/screens/deepspace/dds-manual-content.ts"), "utf8"),
+      readFileSync(path.join(root, "locales/en/manual.json"), "utf8"),
+      readFileSync(path.join(root, "locales/ko/manual.json"), "utf8"),
+    ].join("\n");
     const visible = [
       en.journal.streak.label,
       en.journal.streak.missingToday,
@@ -229,8 +237,6 @@ describe("visible trust copy", () => {
     expect(ko.journal.streak.label).toBe("기록한 날: {{count}}일{{suffix}}");
     expect(en.journal.streak.missingToday).toContain("optional");
     expect(ko.journal.streak.missingToday).toContain("건너뛰어도");
-    expect(manual).toContain("gentle record-day counter");
-    expect(manual).toContain("부담 없는 기록일 카운터");
     expect(visible).not.toMatch(/streak|don't break|none today yet|missing today|racha|sequ[eê]ncia/i);
     expect(visible).not.toMatch(/스트릭|연속 기록|오늘은 아직|압박/);
   });
@@ -252,7 +258,8 @@ describe("visible trust copy", () => {
     const bundles = readdirSync(localeRoot, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .flatMap((entry) =>
-        ["home.json", "index.json", "deepspace.json"]
+        // (index.json 은 2026-10-05 에 다섯 로케일째 나갔다 - 옛 홈 GraphScreen 만 쓰던 번들.)
+        ["home.json", "deepspace.json"]
           .map((name) => path.join(localeRoot, entry.name, name))
           .filter((file) => existsSync(file))
           .map((file) => readFileSync(file, "utf8")),

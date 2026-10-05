@@ -22,11 +22,11 @@ describe("legal auth-shell frame", () => {
   );
 
   test("puts the top safe inset on the non-scroll frame, not the scroll surface", () => {
-    // KAV (a plain View on Android; iOS behavior="padding" only manages its own
-    // bottom padding) owns the top inset, so the viewport starts below the
+    // The keyboard area (it only ever manages its own bottom padding, on iOS
+    // and Android alike) owns the top inset, so the viewport starts below the
     // status bar at EVERY scroll position — including /consent-notice's mount
     // auto-scroll to ?item=, which a contentContainer paddingTop scrolls past.
-    expect(authShell).toMatch(/KeyboardAvoidingView[\s\S]{0,160}paddingTop: insets\.top/);
+    expect(authShell).toMatch(/KeyboardAvoidingArea[\s\S]{0,160}paddingTop: insets\.top/);
     expect(authShell).not.toMatch(/ScrollView[\s\S]{0,200}paddingTop/);
     expect(authShell).not.toContain("paddingTop: insets.top + spacing.lg");
   });
@@ -82,5 +82,17 @@ describe.each(LEGAL_SCREENS)("%s back contract (phone-aware)", (screenPath) => {
     expect(screen).toContain("minWidth: m3.minTouch");
     expect(screen).toContain("minHeight: m3.minTouch");
     expect(screen).toContain("style={local.backTarget}");
+  });
+});
+
+// D-08 (QA 261004): /terms, /refund and /privacy-policy put the title in a row
+// next to the chevron. Native Text does not shrink by default, so "Refund
+// Policy" ran past the right edge on Android. The title must shrink and wrap.
+describe("legal document title row", () => {
+  const screen = read("screens/deepspace/dds-legal-doc-screen.tsx");
+
+  test("the title wraps inside the row instead of running off the edge", () => {
+    expect(screen).toContain('style={[styles.title, local.title]} accessibilityRole="header"');
+    expect(screen).toContain("title: { flexShrink: 1 },");
   });
 });

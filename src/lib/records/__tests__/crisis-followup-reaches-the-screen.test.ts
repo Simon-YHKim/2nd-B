@@ -81,8 +81,9 @@ const NOT_USER_PROSE: Readonly<Record<string, string>> = {
  *  `<AuditDeepSpace />` when `isDeepSpaceUI()`, that path renders
  *  `DdsAuditScreen`, and `dds-audit-screen.tsx` contains no `createRecord` at
  *  all - the shipped /audit is a provenance hub, not a questionnaire. UI_MODE
- *  defaults to deep-space (`src/lib/ui-mode.ts:31`) and all three delivery
- *  paths set it explicitly, so the questionnaire is unreachable.
+ *  defaulted to deep-space (e0b274d0:src/lib/ui-mode.ts:31; the lever was removed
+ *  on 2026-10-05) and all three delivery paths set it explicitly, so the
+ *  questionnaire was thought unreachable.
  *
  *  This is the same shape as the DPIA's Q-H1 citation (round 60): a real-looking
  *  surface that no deployment draws. Fixing it would have been effort spent on

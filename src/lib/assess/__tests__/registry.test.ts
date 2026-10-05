@@ -53,12 +53,16 @@ describe("레지스트리가 실재하는 화면을 가리킨다", () => {
     // screen the dashboard phone can also host: there it reads the phone route's query.
     expect(screen).toMatch(/useLocalSearchParams|useScreenParams/);
     expect(screen).toMatch(/screener\s*===\s*["']1["']/);
-    expect(screen).toMatch(/function AuditScreenerShell[\s\S]*isDeepSpaceUI\(\)[\s\S]*<DeepSpaceScreen/);
-    expect(screen).toMatch(/<DeepSpaceScreen[\s\S]*active="lens"[\s\S]*onBack=\{onBack\}/);
     const shell = screen.slice(
       screen.indexOf("function AuditScreenerShell"),
       screen.indexOf("function AuditLegacy"),
     );
+    // 2026-10-05: 셸은 이제 DeepSpaceScreen 을 **무조건** 그린다. 그 전에는 스킨 분기
+    // (isDeepSpaceUI) 뒤에 PremiumAppShell 레거시 셸이 있었고, 롤백 레버와 함께 빠졌다
+    // (Simon 결정 Q-261004-11 C). 지키는 것은 같다 - 스크리너가 딥스페이스 셸 안에서 열린다.
+    expect(shell).toMatch(/^function AuditScreenerShell[\s\S]*?return \(\s*<DeepSpaceScreen/);
+    expect(shell).not.toContain("PremiumAppShell");
+    expect(screen).toMatch(/<DeepSpaceScreen[\s\S]*active="lens"[\s\S]*onBack=\{onBack\}/);
     expect(shell).not.toContain("onBack={() => router.back()}");
     // Android Back through useHardwareBack (the same focused BackHandler listener
     // standalone, the phone's claim stack inside the dashboard phone), only mid-session.
@@ -81,12 +85,20 @@ describe("레지스트리가 실재하는 화면을 가리킨다", () => {
   });
 
   it("직접 만든 Life Audit 진입점도 PastMe 기본 경로로 새지 않는다", () => {
-    const explicitRoute = 'route: "/audit?screener=1"';
-    const persona = read("src/app/persona.tsx");
-    expect(persona).not.toContain('route: "/audit"');
-    expect(persona.split(explicitRoute).length - 1).toBeGreaterThanOrEqual(5);
-    expect(persona.split("5–15").length - 1).toBeGreaterThanOrEqual(5);
-    expect(persona).not.toMatch(/25 (?:items|ítems|itens|item)|25문항/);
+    // 2026-10-05 재조준: 여기서 레거시 /persona 의 PERSONA_COPY(다섯 로케일 × 진입 카드)를
+    // 읽었다. /persona 는 /core-brain 리다이렉트만 남았고(Simon 결정 Q-261004-11 C), 그
+    // 카드의 "5–15" · "25문항 금지" 문구 단언도 함께 은퇴했다. 같은 성질 - 손으로 적은
+    // Life Audit 진입점은 `?screener=1` 을 명시한다 - 을 지금 그 진입점을 가진 배송 코드에서 본다.
+    const explicitRoute = '"/audit?screener=1"';
+    // 북극성 덱의 자화상 '나를 움직이는 것' 칸
+    const portrait = read("src/lib/persona/self-portrait.ts");
+    expect(portrait).toContain(`fuel: ${explicitRoute}`);
+    expect(portrait).not.toContain('fuel: "/audit"');
+    // 북극성 '다음 한 걸음' 가치 칸
+    const nextStep = read("src/lib/persona/next-step.ts");
+    expect(nextStep).toContain(`values: { route: ${explicitRoute}`);
+    expect(nextStep).not.toContain('route: "/audit" ');
+    // 담기 화면의 직접 버튼
     expect(read("src/app/capture.tsx")).toContain('router.push("/audit?screener=1")');
   });
 });

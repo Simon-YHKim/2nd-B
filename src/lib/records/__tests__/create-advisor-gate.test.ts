@@ -654,7 +654,11 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     expect(wrapper).toContain('captureParams.entry === "firstRun"');
     expect(wrapper).toContain("useState(hasFullCaptureParams)");
     expect(wrapper).toContain("hasFullCaptureParams || fullCaptureActive");
-    expect(wrapper).toContain("<CaptureLegacy />");
+    // 2026-10-05: 맨 `<CaptureLegacy />` 는 롤백 레버의 legacy 반환이었고 레버와 함께
+    // 빠졌다(Simon 결정 Q-261004-11 C). 공유 진입이 실제로 닿는 full intake 는 dock 안의
+    // 이 반환 하나다.
+    expect(wrapper).toContain("<CaptureLegacy embeddedInDock />");
+    expect(wrapper).not.toMatch(/<CaptureLegacy \/>/);
     expect(wrapper).toContain("<CaptureView firstRecordCoach={firstRecordCoach} />");
     expect(wrapper).not.toContain("sharedEverRef.current =");
   });

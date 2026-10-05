@@ -56,15 +56,15 @@ function reactNativeImageImporters(): string[] {
 }
 
 describe("§3 images: expo-image, and the one place it cannot go", () => {
-  test("the react-native <Image> roster is exactly these three files", () => {
+  test("the react-native <Image> roster is exactly these two files", () => {
     // Not a ban: a roster. Each entry below has a reason recorded next to it,
     // and a NEW entry should have to be argued for rather than appear.
+    //
+    // 2026-10-05: src/app/(auth)/reset-password.tsx left the roster. Its <Image>
+    // sat in the old presenter that no build selected; that presenter left with
+    // the EXPO_PUBLIC_UI lever (Simon decision Q-261004-11 C) and the route is a
+    // wrapper around the deep-space screen now.
     expect(reactNativeImageImporters()).toEqual([
-      // Pinned off at runtime: reset-password.tsx's own component picks the
-      // deep-space screen unconditionally ("never select it at runtime"), so
-      // this <Image> is not on any user's path. Porting it would change no
-      // pixel anyone sees.
-      "src/app/(auth)/reset-password.tsx",
       // Live (/share-card). One static bundled PNG, at most two mounts sharing
       // the same source. Held, not exempt - see the hold recorded in the R48
       // report: the view is a react-native-view-shot capture target and the

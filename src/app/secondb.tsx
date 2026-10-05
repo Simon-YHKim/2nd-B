@@ -14,7 +14,8 @@
 //     reappear every session.
 
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
+import { AccessibilityInfo, Modal, View, StyleSheet, ScrollView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";
 import { Redirect, usePathname } from "expo-router";
@@ -26,12 +27,9 @@ import {
 } from "expo-audio";
 
 import { Text } from "@/components/ui/Text";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { cosmic, deepSpace, deepSpaceSpacing, flattenAlpha, semantic, spacing } from "@/lib/theme/tokens";
+import { gameboy } from "@/lib/theme/gameboy-tokens";
+import { deepSpace, deepSpaceSpacing, flattenAlpha, semantic, spacing } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelScrim } from "@/components/pixel/PixelDither";
 import { canShowRewardedAds } from "@/lib/ads/policy";
@@ -77,7 +75,6 @@ import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { DomainDashboard } from "@/components/secondb/DomainDashboard";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { holdExpression, reactExpression } from "@/lib/companion/expression";
-import { getPersona, PERSONAS } from "@/lib/chat/personas";
 import {
   REV2_PERSONA_IDS,
   rev2PersonaAccent,
@@ -91,9 +88,6 @@ import {
 import { m3 } from "@/lib/theme/m3";
 import { formatSourceCitationLabel, parseSourceCitations } from "@/lib/chat/sources";
 import { parseTwiBranches } from "@/lib/chat/twi-branches";
-import { SecondBSprite } from "@/components/art/SecondBSprite";
-import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
-import { PremiumAppShell, ContextPill, ReferenceShardCard, SceneHero } from "@/components/premium";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { ChatRewardCapReachedError, grantChatAdBonus, readChatUsageDetail } from "@/lib/chat/usage";
@@ -101,7 +95,6 @@ import { CHAT_DAILY_LIMIT, chatAllowance, kstDateToday } from "@/lib/chat/limits
 import { RewardedSheet, type RewardedEarnOutcome } from "@/components/deepspace/RewardedSheet";
 import { personaAllowed } from "@/lib/entitlements/tiers";
 import { PUBLIC_TIER_BY_DB } from "@/lib/entitlements/tier-map";
-import { CORE_VILLAGE_UI, VILLAGE_UI } from "@/lib/village-ui";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
@@ -219,13 +212,12 @@ function writeIntroDismissed(kind: "today" | "permanent"): void {
   }
 }
 
-// One chat ENGINE, two chromes (Frame pattern — the same port the interview
-// screen used). isDeepSpaceUI() only swaps the VISUAL shell (deep-space frame +
-// deepSpace.* tokens vs the legacy PremiumAppShell village skin). The send
-// handler, RAG/citation parsing, C9 -> C3 -> crisis path (callLlm via
-// sendChatMessage), modes, auth gates, analytics, and daily-limit logic are
-// byte-identical for both variants — there is NO logic fork.
-type ChatVariant = "deep-space" | "legacy";
+// One chat ENGINE, one chrome (deep-space frame + deepSpace.* tokens). The
+// legacy PremiumAppShell village skin that once shared this engine left with
+// the `EXPO_PUBLIC_UI=legacy` lever on 2026-10-05 (Simon decision Q-261004-11).
+// The send handler, RAG/citation parsing, C9 -> C3 -> crisis path (callLlm via
+// sendChatMessage), modes, auth gates, analytics, and daily-limit logic did not
+// fork between the two, so nothing in them changed.
 
 interface ChatComposerHandle {
   /** Push text into the composer (quick-action / branch / node-entry prefill). */
@@ -233,7 +225,6 @@ interface ChatComposerHandle {
 }
 
 interface ChatComposerProps {
-  variant: ChatVariant;
   /** A send is in flight — drives the send-button spinner and blocks re-send. */
   sending: boolean;
   /** The non-draft half of canSend: not sending and under the daily cap. */
@@ -243,7 +234,7 @@ interface ChatComposerProps {
   onSend: (text: string) => boolean;
   /** Node-entry seed (?fromNode=): pre-fills the draft once on first mount. */
   fromNode?: string | null;
-  /** deep-space lens tint + placeholder subject (unused by the legacy chrome). */
+  /** deep-space lens tint + placeholder subject. */
   lensAccent?: string;
   lensName?: string;
   inkOnAccent?: string;
@@ -258,13 +249,11 @@ interface ChatComposerProps {
 const ChatComposer = memo(
   forwardRef<ChatComposerHandle, ChatComposerProps>(function ChatComposer(
     {
-      variant,
       sending,
       sendEnabled,
       onSend,
       fromNode,
-      // Deep-space always passes these; the defaults only satisfy the type for
-      // the legacy chrome (which never reads them).
+      // The chat body always passes these; the defaults only satisfy the type.
       lensAccent = deepSpace.accent,
       lensName = "",
       inkOnAccent = m3.accent.onAccentInk,
@@ -349,7 +338,7 @@ const ChatComposer = memo(
           setVoiceNotice(t("voice.permissionDenied"));
           return;
         }
-        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, interruptionMode: "mixWithOthers" });
         ownerGuard.assertCurrent();
         await audioRecorder.prepareToRecordAsync();
         prepared = true;
@@ -440,139 +429,118 @@ const ChatComposer = memo(
       }
     }
 
-    if (variant === "deep-space") {
-      return (
-        <View>
-          {voiceNotice ? (
-            <Text variant="caption" style={ds.voiceNotice} accessibilityLiveRegion="polite">
-              {voiceNotice}
-            </Text>
-          ) : null}
-          <View style={ds.composer}>
-          <View style={ds.inputPill}>
-            <TextInput
-              value={draft}
-              onChangeText={setDraft}
-              placeholder={t("askLens", { lens: lensName })}
-              placeholderTextColor={sbAlpha(deepSpace.text, 0.45)}
-              style={ds.pillInput}
-              accessibilityLabel={t("inputA11y")}
-              onSubmitEditing={submit}
-              returnKeyType="send"
-              onKeyPress={(e) => {
-                // Web: Enter sends, Shift+Enter inserts a newline.
-                if (Platform.OS !== "web") return;
-                const we = e as unknown as {
-                  key?: string;
-                  shiftKey?: boolean;
-                  nativeEvent: { key: string; shiftKey?: boolean };
-                  preventDefault?: () => void;
-                };
-                const key = we.nativeEvent?.key ?? we.key;
-                const shift = we.shiftKey ?? we.nativeEvent?.shiftKey ?? false;
-                if (key === "Enter" && !shift) {
-                  we.preventDefault?.();
-                  submit();
-                }
-              }}
-            />
-            {/* med#22 follow-through: the mic is BACK, and this time it does
-                something — the live /capture-full dictation chain, proposing
-                the transcript into the draft. */}
-            <Pressable
-              onPress={() => void handleMicPress()}
-              disabled={voicePhase === "transcribing"}
-              style={[ds.micBtn, voicePhase === "recording" && { backgroundColor: sbAlpha(lensAccent, 0.18) }]}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel={voicePhase === "recording" ? t("voice.stop") : t("voiceInput")}
-              accessibilityState={{ disabled: voicePhase === "transcribing", busy: voicePhase === "transcribing" }}
-            >
-              {voicePhase === "transcribing" ? (
-                <ActivityIndicator size="small" color={lensAccent} />
-              ) : (
-                <IconMic color={voicePhase === "recording" ? lensAccent : sbAlpha(deepSpace.text, 0.6)} size={22} />
-              )}
-            </Pressable>
-          </View>
+    return (
+      <View>
+        {voiceNotice ? (
+          <Text variant="caption" style={ds.voiceNotice} accessibilityLiveRegion="polite">
+            {voiceNotice}
+          </Text>
+        ) : null}
+        <View style={ds.composer}>
+        <View style={ds.inputPill}>
+          <TextInput
+            value={draft}
+            onChangeText={setDraft}
+            placeholder={t("askLens", { lens: lensName })}
+            placeholderTextColor={sbAlpha(deepSpace.text, 0.45)}
+            style={ds.pillInput}
+            accessibilityLabel={t("inputA11y")}
+            onSubmitEditing={submit}
+            returnKeyType="send"
+            onKeyPress={(e) => {
+              // Web: Enter sends, Shift+Enter inserts a newline.
+              if (Platform.OS !== "web") return;
+              const we = e as unknown as {
+                key?: string;
+                shiftKey?: boolean;
+                nativeEvent: { key: string; shiftKey?: boolean };
+                preventDefault?: () => void;
+              };
+              const key = we.nativeEvent?.key ?? we.key;
+              const shift = we.shiftKey ?? we.nativeEvent?.shiftKey ?? false;
+              if (key === "Enter" && !shift) {
+                we.preventDefault?.();
+                submit();
+              }
+            }}
+          />
+          {/* med#22 follow-through: the mic is BACK, and this time it does
+              something — the live /capture-full dictation chain, proposing
+              the transcript into the draft. */}
           <Pressable
-            onPress={submit}
-            disabled={!canSend}
-            style={[
-              ds.sendBtn,
-              { borderColor: lensAccent, backgroundColor: canSend ? lensAccent : "transparent" },
-            ]}
+            onPress={() => void handleMicPress()}
+            disabled={voicePhase === "transcribing"}
+            style={[ds.micBtn, voicePhase === "recording" && { backgroundColor: sbAlpha(lensAccent, 0.18) }]}
+            hitSlop={6}
             accessibilityRole="button"
-            accessibilityLabel={t("send")}
-            accessibilityState={{ disabled: !canSend }}
+            accessibilityLabel={voicePhase === "recording" ? t("voice.stop") : t("voiceInput")}
+            accessibilityState={{ disabled: voicePhase === "transcribing", busy: voicePhase === "transcribing" }}
           >
-            {sending ? (
-              <ActivityIndicator color={inkOnAccent} />
+            {voicePhase === "transcribing" ? (
+              <ActivityIndicator size="small" color={lensAccent} />
             ) : (
-              <IconSend color={canSend ? inkOnAccent : lensAccent} size={22} />
+              <IconMic color={voicePhase === "recording" ? lensAccent : sbAlpha(deepSpace.text, 0.6)} size={22} />
             )}
           </Pressable>
-          </View>
-          <CrisisRouter
-            visible={crisis.visible}
-            hotline={crisis.hotline}
-            onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
-          />
         </View>
-      );
-    }
-
-    return (
-      <View style={styles.composerPrimary}>
-        <Input
-          value={draft}
-          onChangeText={setDraft}
-          placeholder={t("placeholder")}
-          multiline
-          style={styles.composerInput}
-          accessibilityLabel={t("inputA11y")}
+        <Pressable
+          onPress={submit}
+          disabled={!canSend}
+          style={[
+            ds.sendBtn,
+            { borderColor: lensAccent, backgroundColor: canSend ? lensAccent : "transparent" },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={t("send")}
+          accessibilityState={{ disabled: !canSend }}
+        >
+          {sending ? (
+            <ActivityIndicator color={inkOnAccent} />
+          ) : (
+            <IconSend color={canSend ? inkOnAccent : lensAccent} size={22} />
+          )}
+        </Pressable>
+        </View>
+        <CrisisRouter
+          visible={crisis.visible}
+          hotline={crisis.hotline}
+          onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
         />
-        <Button label={t("send")} variant="primary" onPress={submit} disabled={!canSend} loading={sending} />
       </View>
     );
   }),
 );
 
 export default function SecondBChat() {
-  return <SecondBChatBody variant={isDeepSpaceUI() ? "deep-space" : "legacy"} />;
+  return <SecondBChatBody />;
 }
 
-function SecondBChatBody({ variant }: { variant: ChatVariant }) {
+function SecondBChatBody() {
   // Phone-aware: inside the dashboard phone, links open in the phone and the
   // query (?fromNode= / ?mode= / ?panel=) comes from the phone route.
   const router = useAppRouter();
-  const isDeepSpace = variant === "deep-space";
   const { t, i18n } = useTranslation("secondb");
   const { t: consentT } = useTranslation("consent");
   const { userId, loading: authLoading, isMinor, hasProfile, profileProbeFailed, refresh } = useAuth();
   const progression = useProgression();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const insets = useSafeAreaInsets();
-  // iOS uses "padding"; Android relies on native adjustResize (app.json
-  // softwareKeyboardLayoutMode="resize"), so the KAV must stay inert — layering
-  // behavior="height" on top of adjustResize double-shrinks the composer and
-  // opens a dead gap above the keyboard. Matches jot/settings/dds-auth.
-  const keyboardBehavior = Platform.OS === "ios" ? "padding" : undefined;
-  const keyboardVerticalOffset = Platform.OS === "ios" ? insets.top : 0;
+  // Keyboard: <KeyboardAvoidingArea> below (src/lib/ui/keyboard.tsx) is the one
+  // rule every screen shares. iOS keeps behavior="padding" with this top offset.
+  // Android used to stay inert and wait for adjustResize, but the edge-to-edge
+  // window (RN 0.85 + Expo 56, targetSdk 36) never shrinks for the IME, so the
+  // composer sat under the keyboard (vc59 API 36 emulator, 2026-10-05). The area
+  // now pads by the measured overlap instead.
   const messageListBottomPadding = Math.max(styles.scroll.paddingBottom, insets.bottom + spacing.md);
 
   // nodeContext entry (chat pack §3/§7): a graph node passed its label.
-  // character (2026-05-31): tapping a village companion opens chat in that
-  // character's voice (src/lib/chat/personas.ts).
-  const params = useScreenParams<{ fromNode?: string; character?: string; mode?: string; panel?: string }>();
+  // ?character= 는 읽지 않는다(2026-10-05, Simon 결정 Q-261004-14 A · 15 A). 옛 캐릭터
+  // 다섯(아치·가디·루루·모모·루미)의 목소리로 여는 길이었고, 링크 하나로 유료 LLM
+  // 프롬프트에 그 캐릭터 지시가 들어갔다. 명부는 E:/Legacy/2ndB 로 갔다.
+  const params = useScreenParams<{ fromNode?: string; mode?: string; panel?: string }>();
   const fromNode = typeof params.fromNode === "string" && params.fromNode.length > 0 ? params.fromNode : null;
-  const characterParam = typeof params.character === "string" && params.character.length > 0 ? params.character : null;
-  const persona = useMemo(() => getPersona(characterParam), [characterParam]);
-  // 머리 탭으로 들어오면(?panel=dashboard) 대시보드를 펴고 시작한다. 캐릭터
-  // 대화에는 안 뜬다 -- 그쪽은 세컨비가 아니라 다른 화자의 자리다.
-  const [showDashboard, setShowDashboard] = useState(params.panel === "dashboard" && !characterParam);
-  // Only treat it as a character chat when a real worker was passed.
-  const isCharacterChat = characterParam != null && characterParam in PERSONAS;
+  // 머리 탭으로 들어오면(?panel=dashboard) 대시보드를 펴고 시작한다.
+  const [showDashboard, setShowDashboard] = useState(params.panel === "dashboard");
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
 
@@ -632,7 +600,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     setKeepNotice((prev) => (prev?.i === index ? null : prev));
     try {
       const prompt = findPrompt(turns, index);
-      const speaker = isCharacterChat ? persona.name[locale] : t("title");
+      const speaker = t("title");
       const topic = exchangeTopic(prompt, reply.text);
       const body = composeExchangeBody({ prompt, reply: reply.text, speaker }, locale);
       // 위키 클립으로 저장한다(records 가 아니라). 그래야 exportUserWiki 를 타고
@@ -745,10 +713,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const divergentPulse = useRef(new Animated.Value(0.6)).current;
   // Reference drawer (chat pack §6): the cited pieces of a tapped answer.
   const [refDrawer, setRefDrawer] = useState<string[] | null>(null);
-  const companion = useCompanionMoment();
-  // Tracks whether the last turn was safety-blocked, so 가디 can give the
-  // "clear" beat the first time the conversation flows freely again.
-  const wasBlockedRef = useRef(false);
   // Funnel: fire ai_limit_hit at most once per mount when the daily cap is hit.
   const limitHitFiredRef = useRef(false);
   // The tier the server says to upgrade to (from a blocked turn). Falls back to
@@ -836,20 +800,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const rewardedAllowedRef = useRef(rewardedAllowed);
   rewardedAllowedRef.current = rewardedAllowed;
 
-  // Seed once on entry: a character chat opens with that companion's greeting
-  // as the first turn; a node entry pre-fills the composer with the context.
-  const seededRef = useRef(false);
-
-  useEffect(() => {
-    if (seededRef.current) return;
-    seededRef.current = true;
-    if (isCharacterChat) {
-      setTurns([{ role: "secondb", text: persona.greeting[locale], synthetic: true }]);
-    }
-    // The fromNode draft seed is now the ChatComposer's initial state (it reads
-    // the fromNode prop), so it survives the composer mounting after the auth
-    // gates resolve.
-  }, [fromNode, locale, isCharacterChat, persona]);
+  // 대화는 빈 채로 열린다. 옛 캐릭터 인사말을 첫 턴으로 심던 자리는 ?character= 와
+  // 함께 걷었다(2026-10-05, Q-261004-14 A). fromNode 초안은 ChatComposer 의 초기
+  // 상태가 맡는다(fromNode prop 을 읽어 인증 관문 뒤에 마운트돼도 살아남는다).
 
   // `limit` stays the TIER CAP -- it is what the paywall copy and the funnel
   // event mean by "your limit". `allowance` is the wall the user actually hits
@@ -976,9 +929,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             tier: progression.tier,
             // 이름으로 부르게 한다. 화면은 이미 "허슬케이님" 이라 부른다.
             displayName: currentDisplayName(userId),
-            personaHint: isCharacterChat ? persona.systemHint[locale] : rev2PersonaHint(rev2Persona, locale),
+            personaHint: rev2PersonaHint(rev2Persona, locale),
             // D-26 A1: last turns for thread continuity (engine clips to 6 + drops
-            // red-zone turns). Synthetic lines (greeting/limit/error) are not model
+            // red-zone turns). Synthetic lines (limit/error) are not model
             // replies, so they're excluded here.
             history: turns
               .filter((t) => !t.synthetic)
@@ -1007,15 +960,14 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                 tier: progression.tier,
               }),
             );
-            // 가디 steps in with a soft stop (companion pack §3 / C9).
-            companion.fire("safetySoftStop");
-            wasBlockedRef.current = true;
+            // 멈춤은 글로만 알린다(위 result.hint). 옛 가디 그림 순간은 2026-10-05 에
+            // 걷었다(Simon 결정 Q-261004-15 A).
           } else {
             const { display, chips } = parseSourceCitations(result.reply.text);
             // 트위비 3-branch (P5f): Divergent replies on the main chat end with up
             // to three '→ ' next-step lines — lift them into tappable chips.
             const twi =
-              !isCharacterChat && chatMode === "divergent"
+              chatMode === "divergent"
                 ? parseTwiBranches(display)
                 : { display, branches: [] as string[] };
             setTurns((prev) => [
@@ -1034,11 +986,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                 tier: progression.tier,
               }),
             );
-            // 가디 gives the all-clear the first time we flow freely after a stop.
-            if (wasBlockedRef.current) {
-              companion.fire("safetyClear");
-              wasBlockedRef.current = false;
-            }
           }
         } catch (e) {
           const consentError = e instanceof LlmConsentError ? e.code : undefined;
@@ -1060,11 +1007,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       locale,
       chatMode,
       rev2Persona,
-      isCharacterChat,
-      persona,
       turns,
       limit,
-      companion,
       t,
       consentT,
     ],
@@ -1092,32 +1036,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // still loading, so allow until we know. ChatComposer ANDs this with a
   // non-empty draft.
   const sendEnabled = !sending && (usedToday === null || usedToday < allowance);
-  const usedDisplay = usedToday === null ? "..." : String(usedToday);
-  const chatUiByWorker = {
-    secondb: CORE_VILLAGE_UI,
-    archi: VILLAGE_UI.work,
-    gadi: VILLAGE_UI.relation,
-    lulu: VILLAGE_UI.knowledge,
-    momo: VILLAGE_UI.records,
-    lumi: VILLAGE_UI.taste,
-  } as const;
-  // vela is dormant (imagine → Divergent mode); fall back to the Soul Core UI for
-  // any worker without a Pattern Core mapping.
-  const chatWorker = (
-    isCharacterChat && persona.id in chatUiByWorker ? persona.id : "secondb"
-  ) as keyof typeof chatUiByWorker;
-  const chatUi = chatUiByWorker[chatWorker];
   const hasTurns = turns.length > 0;
-  // Near-limit warning threshold scales down with small caps so the free
-  // tier (limit 2, monetization v2) still has a reachable neutral state.
-  const warnAt = Math.min(2, limit - 1);
-  const usageColor: keyof typeof semantic =
-    usedToday !== null && usedToday >= allowance
-      ? "danger"
-      : usedToday !== null && allowance - usedToday <= warnAt
-        ? "warning"
-        : "textMuted";
-  const compactModeLabel = chatMode === "divergent" ? "New angle" : "Analysis";
 
   // -- One citation tap, one implementation ---------------------------------
   // Citations are wiki-page slugs (lib/chat/sources.ts). Resolve the slug to a
@@ -1162,696 +1081,139 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
 
 
   // ── Deep-space chrome (real composer + real answers + citations + states) ──
-  // Same engine (turns / handleSend / sendChatMessage / parseSourceCitations /
-  // canSend) as the legacy branch; only the visual shell differs. Crisis/C9/C3
-  // live entirely inside sendChatMessage -> callLlm, untouched here.
-  if (isDeepSpace) {
-    const dsUsage = usedToday === null ? "..." : String(usedToday);
-    const atLimit = usedToday !== null && usedToday >= allowance;
-    // Per-lens recolor (reference CHAT_MODES): the whole chat surface tints to
-    // the selected persona's accent / soft fill / on-soft ink / glow. Character
-    // chat (legacy roster) keeps the canonical cyan.
-    const lensAccent = isCharacterChat ? deepSpace.accent : rev2PersonaAccent(rev2Persona);
-    const lensSoftBg = isCharacterChat ? sbAlpha(deepSpace.accent, 0.16) : rev2PersonaSoftBg(rev2Persona);
-    const lensOnSoft = isCharacterChat ? deepSpace.accentBright : rev2PersonaOnSoft(rev2Persona);
-    const lensGlow = isCharacterChat ? sbAlpha(deepSpace.accent, 0.5) : rev2PersonaGlow(rev2Persona);
-    const lensName = isCharacterChat ? persona.name[locale] : t(`rev2.${rev2Persona}.lensName`);
-    const inkOnAccent = m3.accent.onAccentInk; // reference send/mic glyph ink on the accent fill
-    return (
-      <DeepSpaceScreen active="chat" variant="windowed" header="none">
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={keyboardBehavior}
-          keyboardVerticalOffset={keyboardVerticalOffset}
-        >
-          {/* The lens selector is the first thing in the chat window; the
-              companion greeting previously occupying this space is gone. */}
-          {!isCharacterChat ? (
-            <View style={ds.toggleRow} accessibilityLabel={t("rev2.selectorA11y")}>
-              {REV2_PERSONA_IDS.map((id) => {
-                const on = rev2Persona === id;
-                const accent = rev2PersonaAccent(id);
-                const locked = id !== "secondb" && !personaAllowed(effectiveTier, id as "meta" | "twi");
-                const lockPlan = id === "meta" ? t("rev2.lockVoyager") : t("rev2.lockNorthstar");
-                return (
-                  <Pressable
-                    key={id}
-                    onPress={() => (locked ? router.push(`/plans?from=persona_${id}`) : selectRev2Persona(id))}
-                    style={[
-                      ds.lensBtn,
-                      { borderColor: on ? accent : m3.color.outlineVariant },
-                      on ? { backgroundColor: rev2PersonaSoftBg(id) } : null,
-                      locked ? { borderColor: LOCKED_CHIP_BORDER } : null,
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: on, disabled: locked }}
-                    aria-pressed={on}
-                    accessibilityLabel={
-                      locked
-                        ? `${t(`rev2.${id}.lensName`)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
-                        : `${t(`rev2.${id}.lensName`)} · ${t(`rev2.${id}.role`)}`
-                    }
-                  >
-                    <Text style={[ds.lensName, { color: locked ? LOCKED_CHIP_INK : on ? rev2PersonaOnSoft(id) : m3.color.onSurfaceVariant }]}>
-                      {t(`rev2.${id}.lensName`)}
-                    </Text>
-                    <Text style={[ds.lensTag, { color: locked ? LOCKED_CHIP_INK : on ? accent : m3.color.onSurfaceVariant }]}>
-                      {locked ? lockPlan : t(`rev2.${id}.tag`)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : (
-            <View style={ds.toggleRow}>
-              <Pressable
-                onPress={() => setChatMode("analytic")}
-                style={[
-                  ds.lensBtn,
-                  { borderColor: chatMode === "analytic" ? lensAccent : m3.color.outlineVariant },
-                  chatMode === "analytic" ? { backgroundColor: lensSoftBg } : null,
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: chatMode === "analytic" }}
-                aria-pressed={chatMode === "analytic"}
-                accessibilityLabel={t("analysisMode")}
-              >
-                <Text style={[ds.lensName, { color: chatMode === "analytic" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
-                  {t("analysisChip")}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setChatMode("divergent")}
-                style={[
-                  ds.lensBtn,
-                  { borderColor: chatMode === "divergent" ? lensAccent : m3.color.outlineVariant },
-                  chatMode === "divergent" ? { backgroundColor: lensSoftBg } : null,
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: chatMode === "divergent" }}
-                aria-pressed={chatMode === "divergent"}
-                accessibilityLabel={t("newAngleMode")}
-              >
-                <Text style={[ds.lensName, { color: chatMode === "divergent" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
-                  {t("newAngleChip")}
-                </Text>
-              </Pressable>
-            </View>
-          )}
-
-          {/* persona banner (reference ChatScreen header): status dot + mono tag +
-              wrapping lens description, tinted by the selected lens. Usage counter
-              and clear affordance ride the right edge. */}
-          <View style={[ds.banner, { backgroundColor: lensSoftBg }]}>
-            <View style={[ds.bannerDot, { backgroundColor: lensAccent, shadowColor: lensGlow }]} />
-            <Text style={[ds.bannerTag, { color: lensOnSoft }]} numberOfLines={1}>
-              {isCharacterChat ? t("title") : t(`rev2.${rev2Persona}.tag`)}
-            </Text>
-            <Text style={ds.bannerDesc}>
-              {isCharacterChat ? persona.role[locale] : t(`rev2.${rev2Persona}.desc`)}
-            </Text>
-            <Text style={[ds.bannerUsage, atLimit ? ds.headerMetaDanger : null]} numberOfLines={1}>
-              {dsUsage}/{limit}
-            </Text>
-            {hasTurns ? (
-              <Pressable
-                onPress={() => setTurns([])}
-                hitSlop={14}
-                style={ds.clearLink}
-                accessibilityRole="button"
-                accessibilityLabel={t("clearChatA11y")}
-                accessibilityHint={t("clearChatHint")}
-              >
-                <Text style={ds.clearLinkText}>{t("clearChat")}</Text>
-              </Pressable>
-            ) : null}
-          </View>
-
-          {/* nodeContext pill */}
-          {fromNode ? (
-            <View style={ds.contextPillWrap}>
-              <View style={ds.contextPill}>
-                <Text style={ds.contextPillText} numberOfLines={1}>{fromNode}</Text>
-              </View>
-            </View>
-          ) : null}
-
-          <ScrollView
-            ref={scrollRef}
-            style={{ flex: 1 }}
-            contentContainerStyle={[ds.scroll, { paddingBottom: messageListBottomPadding }]}
-            keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            {/* [Simon 결정 6 = B] 세컨비 머리를 터치해서 들어오면 생활 여섯
-                영역의 지금 상태가 대화 위에 펴진다. 세컨비가 말을 걸기 전에
-                자기가 뭘 알고 있는지 보이는 자리다. 접으면 그 세션 동안 안 뜬다. */}
-            {showDashboard && userId ? (
-              <DomainDashboard userId={userId} onDismiss={() => setShowDashboard(false)} />
-            ) : null}
-
-            {turns.length === 0 ? (
-              <View style={ds.empty}>
-                <Text style={ds.emptyTitle}>
-                  {isCharacterChat ? persona.name[locale] : t("title")}
-                </Text>
-                <Text style={ds.emptyBody}>{t("empty")}</Text>
-              </View>
-            ) : (
-              turns.map((turn, i) => (
-                <View
-                  key={i}
-                  style={[ds.bubbleRow, turn.role === "user" ? ds.userRow : ds.aiRow]}
-                >
-                  <View style={ds.bubbleCol}>
-                    <Pressable
-                      onLongPress={() => copyTurn(i, turn.text)}
-                      style={turn.role === "user" ? ds.userBubble : [ds.aiBubble, { borderLeftColor: lensAccent }]}
-                      accessibilityRole="button"
-                      accessibilityLabel={
-                        turn.role === "user"
-                          ? t("yourMessage")
-                          : t("secondbAnswer")
-                      }
-                      accessibilityHint={t("longPressCopy")}
-                    >
-                      <Text style={turn.role === "user" ? ds.userText : ds.aiText} selectable>
-                        {turn.text}
-                      </Text>
-                    </Pressable>
-                    {turn.consentError ? <ServiceConsentLink /> : null}
-                    {copyNotice?.i === i ? (
-                      <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
-                        {t(copyNotice.ok ? "copied" : "copyFailed")}
-                      </Text>
-                    ) : null}
-                    {/* 근거(citation) chip -> reference drawer -> /records. One
-                        summary chip (reference "근거 · 기록 N건") tinted by the lens. */}
-                    {turn.role === "secondb" && turn.chips && turn.chips.length > 0 ? (
-                      <Pressable
-                        style={ds.chipRow}
-                        onPress={() => setRefDrawer(turn.chips ?? [])}
-                        accessibilityRole="button"
-                        accessibilityLabel={
-                          t("drewOnPieces", { n: turn.chips.length })
-                        }
-                      >
-                        <View style={[ds.citeChip, { backgroundColor: lensSoftBg }]}>
-                          <IconCite color={lensOnSoft} size={13} />
-                          <Text style={[ds.citeChipText, { color: lensOnSoft }]}>
-                            {t("nSources", { n: turn.chips.length })}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    ) : null}
-                    {/* 대화를 위키로. 답변 하나를 직전 질문과 짝지어 기록으로
-                        남긴다. 화면을 떠나지 않고, LLM 도 다시 부르지 않는다.
-                        인사말·오류 문구(synthetic)에는 붙지 않는다. */}
-                    {isKeepable(turn) ? (
-                      <Pressable
-                        style={ds.keepChip}
-                        onPress={() => void keepExchange(i)}
-                        disabled={keeping !== null || keptIdx.has(i)}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel={keptIdx.has(i) ? t("keptToWiki") : t("keepToWiki")}
-                      >
-                        <Text style={ds.keepChipText}>
-                          {keptIdx.has(i) ? t("keptToWiki") : keeping === i ? t("keeping") : t("keepToWiki")}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                    {keepNotice?.i === i && !keepNotice.ok ? (
-                      <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
-                        {t("keepFailed")}
-                      </Text>
-                    ) : null}
-                    {/* 트위비 3-branch (P5f): next-step candidates. Tap = prefill
-                        the composer; 담기 = hand the branch to /capture (?text=,
-                        the share-consume path). */}
-                    {turn.role === "secondb" && turn.branches && turn.branches.length > 0 ? (
-                      <View style={ds.branchCol}>
-                        {turn.branches.map((branch) => (
-                          <View key={branch} style={ds.branchRow}>
-                            <Pressable
-                              style={ds.branchChip}
-                              onPress={() => composerRef.current?.prefill(branch)}
-                              accessibilityRole="button"
-                              accessibilityLabel={branch}
-                              accessibilityHint={t("fillsComposer")}
-                            >
-                              <Text style={ds.branchChipText} numberOfLines={2}>
-                                {branch}
-                              </Text>
-                            </Pressable>
-                            <Pressable
-                              style={ds.branchSave}
-                              onPress={() => router.push({ pathname: "/capture", params: { text: branch } })}
-                              hitSlop={10}
-                              accessibilityRole="button"
-                              accessibilityLabel={t("captureBranch", { branch })}
-                            >
-                              <Text style={ds.branchSaveText}>{t("keep")}</Text>
-                            </Pressable>
-                          </View>
-                        ))}
-                      </View>
-                    ) : null}
-                  </View>
-                </View>
-              ))
-            )}
-            {sending ? (
-              <View style={ds.thinking}>
-                <ActivityIndicator color={lensAccent} />
-              </View>
-            ) : null}
-          </ScrollView>
-
-          {/* 대화가 남지 않는다는 안내. 자동 저장이 꺼져 있고, 아직 닫지 않았고,
-              오간 말이 있을 때만 한 번 뜬다. 기본값을 뒤집지 않고 선택지가
-              있다는 사실만 알린다 — 매번 띄우면 안내가 아니라 압박이다. */}
-          {shouldShowChatSaveNotice({
-            autosaveConsent,
-            dismissed: saveNoticeDismissed,
-            turnCount: turns.length,
-          }) ? (
-            <View style={ds.saveNotice} accessibilityRole="alert">
-              <Text style={ds.saveNoticeTitle}>{t("chatSaveNotice")}</Text>
-              <Text style={ds.saveNoticeBody}>{t("chatSaveNoticeBody")}</Text>
-              <View style={ds.saveNoticeRow}>
-                <Pressable
-                  onPress={() => {
-                    dismissSaveNotice();
-                    router.push("/privacy");
-                  }}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("chatSaveNoticeOpen")}
-                  style={ds.saveNoticeBtn}
-                >
-                  <Text style={ds.saveNoticeBtnText}>{t("chatSaveNoticeOpen")}</Text>
-                </Pressable>
-                <Pressable
-                  onPress={dismissSaveNotice}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("chatSaveNoticeDismiss")}
-                  style={ds.saveNoticeBtn}
-                >
-                  <Text style={ds.saveNoticeDismissText}>{t("chatSaveNoticeDismiss")}</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-
-          {/* quick-action chips after an answer */}
-          {turns.length > 0 && turns[turns.length - 1].role === "secondb" && !sending ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={ds.quickRow}
-              keyboardShouldPersistTaps="handled"
-            >
-              {QUICK_ACTIONS.map((qa) => (
-                <Pressable
-                  key={qa.en}
-                  style={ds.quickChip}
-                  onPress={() => {
-                    if (qa.mode === "divergent" && !isCharacterChat) selectRev2Persona("twi");
-                    else if (qa.mode) setChatMode(qa.mode);
-                    composerRef.current?.prefill(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={locale === "ko" ? qa.ko : qa.en}
-                >
-                  <Text style={ds.quickChipText}>{locale === "ko" ? qa.ko : qa.en}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          ) : null}
-
-          {atLimit ? (
-            <Pressable
-              onPress={() => router.push("/plans?from=ai_limit")}
-              hitSlop={14}
-              style={ds.limitLink}
-              accessibilityRole="button"
-              accessibilityLabel={t("viewPlans")}
-              accessibilityHint={t("viewPlansHint")}
-            >
-              <Text style={ds.limitLinkText}>{t("viewPlans")}</Text>
-            </Pressable>
-          ) : null}
-
-          {/* input bar (reference ChatScreen): a rounded pill holding the text
-              field + inline mic, then a separate 48px round send button that
-              fills with the lens accent when there is something to send. Draft
-              state lives inside ChatComposer so a keystroke re-renders only the
-              composer, not this whole DeepSpaceScreen (starfield/header/dock). */}
-          <ChatComposer
-            ref={composerRef}
-            variant="deep-space"
-            sending={sending}
-            sendEnabled={sendEnabled}
-            onSend={handleSend}
-            fromNode={fromNode}
-            lensAccent={lensAccent}
-            lensName={lensName}
-            inkOnAccent={inkOnAccent}
-          />
-        </KeyboardAvoidingView>
-
-        {/* 첫 진입 인사 모달 */}
-        <Modal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
-          {/* Scrim: NOT a button — on web an accessibilityRole="button" backdrop
-              renders as <button> and nests the modal's real <button>s inside it
-              (hydration error, parity finding S1). Tap-to-dismiss stays; the
-              labeled close affordances are the modal's own buttons. */}
-          <Pressable
-            style={ds.modalBackdrop}
-            onPress={() => setIntroOpen(false)}
-            accessibilityLabel={t("closeIntro")}
-            accessibilityHint={t("closeIntroHint")}
-          >
-            <Pressable style={ds.modalCard} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
-              <Text style={ds.modalEyebrow}>{t("intro_title")}</Text>
-              {/* keepAllKo joins Hangul words with U+2060 so they wrap at spaces; the
-                  screen reader gets the untouched string (joiners disorient braille and
-                  character-by-character review). */}
-              <Text style={ds.modalBody} accessibilityLabel={t("intro_body")}>{keepAllKo(t("intro_body"))}</Text>
-              <View style={ds.modalActions}>
-                <Pressable
-                  onPress={() => { writeIntroDismissed("today"); setIntroOpen(false); }}
-                  style={ds.modalBtnGhost}
-                  hitSlop={14}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("intro_mute")}
-                >
-                  <Text style={ds.modalBtnGhostText}>{t("intro_mute")}</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => { setIntroOpen(false); }}
-                  style={ds.modalBtnPrimary}
-                  hitSlop={14}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("intro_ok")}
-                >
-                  <Text style={ds.modalBtnPrimaryText}>{t("intro_ok")}</Text>
-                </Pressable>
-              </View>
-            </Pressable>
-          </Pressable>
-        </Modal>
-
-        {/* reference drawer — pieces the answer drew on */}
-        <Modal
-          visible={refDrawer !== null}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setRefDrawer(null)}
-        >
-          {/* Scrim: not a button (same web nesting rationale as the intro modal). */}
-          <Pressable
-            style={ds.modalBackdrop}
-            onPress={() => setRefDrawer(null)}
-            accessibilityLabel={t("closeReferenced")}
-            accessibilityHint={t("closeReferencedHint")}
-          >
-            <Pressable
-              style={ds.drawer}
-              onPress={(e) => e.stopPropagation()}
-              accessibilityViewIsModal
-              accessibilityLabel={t("piecesReferenced")}
-            >
-              <View style={ds.drawerHandle} />
-              <Text style={ds.drawerTitle}>{t("piecesReferenced")}</Text>
-              <Text style={ds.drawerSubtle}>
-                {t("piecesReferencedBody")}
-              </Text>
-              <ScrollView
-                style={{ flexShrink: 1 }}
-                contentContainerStyle={ds.drawerList}
-                showsVerticalScrollIndicator={false}
-              >
-                {(refDrawer ?? []).map((slug) => (
-                  <Pressable
-                    key={slug}
-                    style={ds.drawerCard}
-                    onPress={() => openCitedPage(slug)}
-                    accessibilityRole="button"
-                    accessibilityLabel={formatSourceCitationLabel(slug)}
-                  >
-                    <Text style={ds.drawerCardTitle}>{formatSourceCitationLabel(slug)}</Text>
-                    <Text style={ds.drawerCardMeta}>{t("reference_piece_meta")}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-              <Pressable
-                onPress={() => setRefDrawer(null)}
-                style={ds.drawerClose}
-                accessibilityRole="button"
-                accessibilityLabel={t("closeChip")}
-              >
-                <Text style={ds.drawerCloseText}>{t("closeChip")}</Text>
-              </Pressable>
-            </Pressable>
-          </Pressable>
-        </Modal>
-        {/* 가디 safety beat (companion pack §3) — same crisis-clear signal as legacy */}
-        {companion.moment ? (
-          <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
-        ) : null}
-
-        {/* 0090: chat daily-cap top-up (+2 sends today, monthly earn cap). The
-            grant RPC enforces day/month/ceiling server-side.
-
-            (This used to say "on success the user just sends again". They
-            could not: the composer was gated on the bare tier cap, so after
-            earning the bonus there was nothing to send WITH. The grant now
-            re-reads usage, so the wall moves right away.) */}
-        <RewardedSheet
-          kind="chat"
-          visible={chatRewardVisible && rewardedAllowed}
-          onClose={() => setChatRewardVisible(false)}
-          remaining={Math.max(0, allowance - (usedToday ?? 0))}
-          onEarned={async () => {
-            // 광고를 끝까지 본 사용자에게 결과를 알려 주기 위해 실패를 분류해서
-            // 시트에 돌려준다. 여기서 "적립되지 않았다"고 단정하지는 않는다 -
-            // SSV 모드에서는 서버가 적립의 유일한 주체라 클라이언트 실패가 곧
-            // 미적립은 아니다. Round22 담기 실패 문구와 같은 규율이다.
-            let outcome: RewardedEarnOutcome = process.env.EXPO_PUBLIC_REWARD_SSV === "true" ? "processing" : "granted";
-            if (userId) {
-              try {
-                await grantChatAdBonus(userId);
-              } catch (e) {
-                outcome = e instanceof ChatRewardCapReachedError ? "capped" : "unconfirmed";
-                if (typeof console !== "undefined") {
-                  console.warn("[secondb] grantChatAdBonus", outcome === "capped" ? "monthly cap reached" : (e as Error).message);
-                }
-              }
-              // Re-read even when the grant threw: a monthly-cap rejection
-              // still means the server number is the truth, and a stale
-              // allowance is exactly what this change exists to remove.
-              await refreshChatUsage();
-            }
-            // 닫는 일은 이제 시트가 한다 - 적립됐을 때만 닫히도록.
-            return outcome;
-          }}
-          locale={locale}
-        />
-        {/* 저장 경로의 위기 안내. 전송 경로(callLlm)는 서버가 응답을 바꿔
-            치지만, 저장은 createRecord 가 로컬 분류를 돌리고 followup 으로
-            알려준다. 다른 저장 화면과 같은 자세를 여기서도 취한다. */}
-        <CrisisRouter
-          visible={keepCrisis.visible}
-          hotline={keepCrisis.hotline}
-          onClose={() => setKeepCrisis((c) => ({ ...c, visible: false }))}
-        />
-      </DeepSpaceScreen>
-    );
-  }
-
+  // Crisis/C9/C3 live entirely inside sendChatMessage -> callLlm, untouched here.
+  const dsUsage = usedToday === null ? "..." : String(usedToday);
+  const atLimit = usedToday !== null && usedToday >= allowance;
+  // Per-lens recolor (reference CHAT_MODES): the whole chat surface tints to
+  // the selected persona's accent / soft fill / on-soft ink / glow.
+  const lensAccent = rev2PersonaAccent(rev2Persona);
+  const lensSoftBg = rev2PersonaSoftBg(rev2Persona);
+  const lensOnSoft = rev2PersonaOnSoft(rev2Persona);
+  const lensGlow = rev2PersonaGlow(rev2Persona);
+  const lensName = t(`rev2.${rev2Persona}.lensName`);
+  const inkOnAccent = m3.accent.onAccentInk; // reference send/mic glyph ink on the accent fill
   return (
-    <PremiumAppShell>
-      <KeyboardAvoidingView
+    <DeepSpaceScreen active="chat" variant="windowed" header="none">
+      <KeyboardAvoidingArea
         style={{ flex: 1 }}
-        behavior={keyboardBehavior}
-        keyboardVerticalOffset={keyboardVerticalOffset}
+        iosKeyboardVerticalOffset={insets.top}
       >
-        <View style={styles.compactHeader}>
-          {hasTurns ? (
-            <SecondBSprite
-              state="chat"
-              size={28}
-              label={isCharacterChat ? persona.name[locale] : t("title")}
-            />
-          ) : null}
-          <Text variant="caption" color="brand" numberOfLines={1} style={styles.compactTitle}>
-            {isCharacterChat ? persona.name[locale] : t("title")}
+        {/* The lens selector is the first thing in the chat window. 옛 캐릭터 대화의
+            분석/새 관점 토글은 ?character= 와 함께 걷었다(2026-10-05, Q-261004-14 A). */}
+        <View style={ds.toggleRow} accessibilityLabel={t("rev2.selectorA11y")}>
+          {REV2_PERSONA_IDS.map((id) => {
+            const on = rev2Persona === id;
+            const accent = rev2PersonaAccent(id);
+            const locked = id !== "secondb" && !personaAllowed(effectiveTier, id as "meta" | "twi");
+            const lockPlan = id === "meta" ? t("rev2.lockVoyager") : t("rev2.lockNorthstar");
+            return (
+              <Pressable
+                key={id}
+                onPress={() => (locked ? router.push(`/plans?from=persona_${id}`) : selectRev2Persona(id))}
+                style={[
+                  ds.lensBtn,
+                  { borderColor: on ? accent : m3.color.outlineVariant },
+                  on ? { backgroundColor: rev2PersonaSoftBg(id) } : null,
+                  locked ? { borderColor: LOCKED_CHIP_BORDER } : null,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on, disabled: locked }}
+                aria-pressed={on}
+                accessibilityLabel={
+                  locked
+                    ? `${t(`rev2.${id}.lensName`)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
+                    : `${t(`rev2.${id}.lensName`)} · ${t(`rev2.${id}.role`)}`
+                }
+              >
+                <Text style={[ds.lensName, { color: locked ? LOCKED_CHIP_INK : on ? rev2PersonaOnSoft(id) : m3.color.onSurfaceVariant }]}>
+                  {t(`rev2.${id}.lensName`)}
+                </Text>
+                <Text style={[ds.lensTag, { color: locked ? LOCKED_CHIP_INK : on ? accent : m3.color.onSurfaceVariant }]}>
+                  {locked ? lockPlan : t(`rev2.${id}.tag`)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* persona banner (reference ChatScreen header): status dot + mono tag +
+            wrapping lens description, tinted by the selected lens. Usage counter
+            and clear affordance ride the right edge. */}
+        <View style={[ds.banner, { backgroundColor: lensSoftBg }]}>
+          <View style={[ds.bannerDot, { backgroundColor: lensAccent, shadowColor: lensGlow }]} />
+          <Text style={[ds.bannerTag, { color: lensOnSoft }]} numberOfLines={1}>
+            {t(`rev2.${rev2Persona}.tag`)}
           </Text>
-          <Text variant="caption" color={usageColor} numberOfLines={1} style={{ flexShrink: 0 }}>
-            {usedDisplay}/{limit}
+          <Text style={ds.bannerDesc}>
+            {t(`rev2.${rev2Persona}.desc`)}
           </Text>
-          <Text variant="caption" color="textMuted" numberOfLines={1} style={{ flexShrink: 0 }}>
-            {compactModeLabel}
+          <Text style={[ds.bannerUsage, atLimit ? ds.headerMetaDanger : null]} numberOfLines={1}>
+            {dsUsage}/{limit}
           </Text>
           {hasTurns ? (
             <Pressable
               onPress={() => setTurns([])}
-              style={styles.clearChatLink}
               hitSlop={14}
+              style={ds.clearLink}
               accessibilityRole="button"
               accessibilityLabel={t("clearChatA11y")}
               accessibilityHint={t("clearChatHint")}
             >
-              <Text variant="caption" color="brand">
-                {t("clearChat")}
-              </Text>
+              <Text style={ds.clearLinkText}>{t("clearChat")}</Text>
             </Pressable>
           ) : null}
         </View>
 
-        <ChatComposer
-          ref={composerRef}
-          variant="legacy"
-          sending={sending}
-          sendEnabled={sendEnabled}
-          onSend={handleSend}
-          fromNode={fromNode}
-        />
-
-        {usedToday !== null && usedToday >= allowance ? (
-          <Pressable
-            onPress={() => router.push("/plans?from=ai_limit")}
-            hitSlop={14}
-            style={styles.limitLink}
-            accessibilityRole="button"
-            accessibilityLabel={t("viewPlans")}
-            accessibilityHint={t("viewPlansHint")}
-          >
-            <Text variant="caption" color="brand">
-              {t("viewPlans")}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        {!hasTurns ? (
-        <SceneHero
-          eyebrow={t("eyebrow")}
-          title={isCharacterChat ? persona.name[locale] : t("title")}
-          subtitle={isCharacterChat ? persona.role[locale] : t("subtitle")}
-          island={chatUi.island}
-          worker={chatUi.worker}
-          accent={chatUi.accent}
-          speech={
-            sending
-              ? t("heroSpeech.sending")
-              : chatMode === "divergent"
-                ? t("heroSpeech.divergent")
-                : t("heroSpeech.default")
-          }
-        />
-        ) : null}
-
-        {/* SecondB mode toggle (worldview v-final): Analytic / Divergent. Both
-            run the same C9 -> C3 -> gemini.ts path; only the prompt shifts. */}
-        <View style={styles.modeRow}>
-            <Pressable
-              onPress={() => setChatMode("analytic")}
-              style={[styles.modeChip, chatMode === "analytic" ? styles.modeChipAnalytic : null]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: chatMode === "analytic" }}
-            aria-pressed={chatMode === "analytic"}
-            accessibilityLabel={t("analysisMode")}
-          >
-            <Text variant="caption" color={chatMode === "analytic" ? "background" : "textMuted"}>
-              {t("analysisChip")}
-            </Text>
-          </Pressable>
-            <Pressable
-              onPress={() => setChatMode("divergent")}
-              style={[styles.modeChip, chatMode === "divergent" ? styles.modeChipDivergent : null]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: chatMode === "divergent" }}
-            aria-pressed={chatMode === "divergent"}
-            accessibilityLabel={t("newAngleMode")}
-          >
-            <Text variant="caption" color={chatMode === "divergent" ? "text" : "textMuted"}>
-              {t("newAngleChip")}
-            </Text>
-          </Pressable>
-          {chatMode === "divergent" ? (
-            <>
-              <Animated.View style={[styles.divergentPulseDot, { opacity: divergentPulse as never }]} />
-              <Text variant="caption" color="textSubtle" style={styles.modeHint} numberOfLines={1}>
-                {t("newPerspectives")}
-              </Text>
-            </>
-          ) : null}
-        </View>
-
-        {/* nodeContext pill — entered from a graph node (chat pack §7) */}
+        {/* nodeContext pill */}
         {fromNode ? (
-          <View style={styles.contextPillWrap}>
-            <ContextPill label={fromNode} />
+          <View style={ds.contextPillWrap}>
+            <View style={ds.contextPill}>
+              <Text style={ds.contextPillText} numberOfLines={1}>{fromNode}</Text>
+            </View>
           </View>
         ) : null}
 
         <ScrollView
           ref={scrollRef}
           style={{ flex: 1 }}
-          contentContainerStyle={[styles.scroll, { paddingBottom: messageListBottomPadding }]}
+          contentContainerStyle={[ds.scroll, { paddingBottom: messageListBottomPadding }]}
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* [Simon 결정 6 = B] 세컨비 머리를 터치해서 들어오면 생활 여섯
+              영역의 지금 상태가 대화 위에 펴진다. 세컨비가 말을 걸기 전에
+              자기가 뭘 알고 있는지 보이는 자리다. 접으면 그 세션 동안 안 뜬다. */}
+          {showDashboard && userId ? (
+            <DomainDashboard userId={userId} onDismiss={() => setShowDashboard(false)} />
+          ) : null}
+
           {turns.length === 0 ? (
-            <View style={styles.empty}>
-              <View style={styles.emptySecondB}>
-                {/* O-12 Phase C P1-2: SceneHero already carries the hero graphic,
-                    so the empty-state mascot is smaller (one dominant graphic per
-                    screen). Kept labeled for a11y. */}
-                <SecondBSprite
-                  state="chat"
-                  size={56}
-                  float
-                  label={t("readyToChat")}
-                />
-              </View>
-              <Text variant="body" color="textMuted" style={{ textAlign: "center", marginTop: spacing.md }}>
-                {t("empty")}
+            <View style={ds.empty}>
+              <Text style={ds.emptyTitle}>
+                {t("title")}
               </Text>
+              <Text style={ds.emptyBody}>{t("empty")}</Text>
             </View>
           ) : (
             turns.map((turn, i) => (
               <View
                 key={i}
-                style={[styles.bubbleRow, turn.role === "user" ? styles.userRow : styles.secondbRow]}
+                style={[ds.bubbleRow, turn.role === "user" ? ds.userRow : ds.aiRow]}
               >
-                <View style={styles.bubbleCol}>
+                <View style={ds.bubbleCol}>
                   <Pressable
                     onLongPress={() => copyTurn(i, turn.text)}
-                    style={[
-                      styles.bubble,
-                      turn.role === "user" ? styles.userBubble : styles.secondbBubble,
-                    ]}
+                    style={turn.role === "user" ? ds.userBubble : [ds.aiBubble, { borderLeftColor: lensAccent }]}
                     accessibilityRole="button"
                     accessibilityLabel={
                       turn.role === "user"
                         ? t("yourMessage")
                         : t("secondbAnswer")
                     }
-                    accessibilityHint={
-                      t("longPressCopyThis")
-                    }
+                    accessibilityHint={t("longPressCopy")}
                   >
-                    <Text
-                      variant="body"
-                      color={turn.role === "user" ? "background" : "text"}
-                      selectable
-                    >
+                    <Text style={turn.role === "user" ? ds.userText : ds.aiText} selectable>
                       {turn.text}
                     </Text>
                   </Pressable>
@@ -1861,193 +1223,305 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                       {t(copyNotice.ok ? "copied" : "copyFailed")}
                     </Text>
                   ) : null}
-                  {/* Grounding strip — "이 답변은 참고한 별가루 N개를 봤어요"; tap to
-                      open the reference drawer (chat pack §5/§6). */}
+                  {/* 근거(citation) chip -> reference drawer -> /records. One
+                      summary chip (reference "근거 · 기록 N건") tinted by the lens. */}
                   {turn.role === "secondb" && turn.chips && turn.chips.length > 0 ? (
                     <Pressable
-                      style={styles.chipRow}
+                      style={ds.chipRow}
                       onPress={() => setRefDrawer(turn.chips ?? [])}
                       accessibilityRole="button"
                       accessibilityLabel={
                         t("drewOnPieces", { n: turn.chips.length })
                       }
                     >
-                      <Text variant="caption" color="textSubtle">
-                        {t("nPieces", { n: turn.chips.length })}
+                      <View style={[ds.citeChip, { backgroundColor: lensSoftBg }]}>
+                        <IconCite color={lensOnSoft} size={13} />
+                        <Text style={[ds.citeChipText, { color: lensOnSoft }]}>
+                          {t("nSources", { n: turn.chips.length })}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ) : null}
+                  {/* 대화를 위키로. 답변 하나를 직전 질문과 짝지어 기록으로
+                      남긴다. 화면을 떠나지 않고, LLM 도 다시 부르지 않는다.
+                      인사말·오류 문구(synthetic)에는 붙지 않는다. */}
+                  {isKeepable(turn) ? (
+                    <Pressable
+                      style={ds.keepChip}
+                      onPress={() => void keepExchange(i)}
+                      disabled={keeping !== null || keptIdx.has(i)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={keptIdx.has(i) ? t("keptToWiki") : t("keepToWiki")}
+                    >
+                      <Text style={ds.keepChipText}>
+                        {keptIdx.has(i) ? t("keptToWiki") : keeping === i ? t("keeping") : t("keepToWiki")}
                       </Text>
-                      {turn.chips.slice(0, 3).map((slug) => (
-                        <View key={slug} style={styles.chip}>
-                          <Text variant="caption" color="brand">{formatSourceCitationLabel(slug)}</Text>
+                    </Pressable>
+                  ) : null}
+                  {keepNotice?.i === i && !keepNotice.ok ? (
+                    <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
+                      {t("keepFailed")}
+                    </Text>
+                  ) : null}
+                  {/* 트위비 3-branch (P5f): next-step candidates. Tap = prefill
+                      the composer; 담기 = hand the branch to /capture (?text=,
+                      the share-consume path). */}
+                  {turn.role === "secondb" && turn.branches && turn.branches.length > 0 ? (
+                    <View style={ds.branchCol}>
+                      {turn.branches.map((branch) => (
+                        <View key={branch} style={ds.branchRow}>
+                          <Pressable
+                            style={ds.branchChip}
+                            onPress={() => composerRef.current?.prefill(branch)}
+                            accessibilityRole="button"
+                            accessibilityLabel={branch}
+                            accessibilityHint={t("fillsComposer")}
+                          >
+                            <Text style={ds.branchChipText} numberOfLines={2}>
+                              {branch}
+                            </Text>
+                          </Pressable>
+                          <Pressable
+                            style={ds.branchSave}
+                            onPress={() => router.push({ pathname: "/capture", params: { text: branch } })}
+                            hitSlop={10}
+                            accessibilityRole="button"
+                            accessibilityLabel={t("captureBranch", { branch })}
+                          >
+                            <Text style={ds.branchSaveText}>{t("keep")}</Text>
+                          </Pressable>
                         </View>
                       ))}
-                      {turn.chips.length > 3 ? (
-                        <Text variant="caption" color="textSubtle">
-                          {locale === "ko" ? `+${turn.chips.length - 3}` : `+${turn.chips.length - 3}`}
-                        </Text>
-                      ) : null}
-                    </Pressable>
+                    </View>
                   ) : null}
                 </View>
               </View>
             ))
           )}
           {sending ? (
-            <View style={styles.thinking}>
-              <ActivityIndicator color={semantic.brand} />
+            <View style={ds.thinking}>
+              <ActivityIndicator color={lensAccent} />
             </View>
           ) : null}
         </ScrollView>
 
-        {/* Quick-action chips (chat pack §8) — appear once SecondB has
-            answered; each prefills the composer with a short follow-up. */}
+        {/* 대화가 남지 않는다는 안내. 자동 저장이 꺼져 있고, 아직 닫지 않았고,
+            오간 말이 있을 때만 한 번 뜬다. 기본값을 뒤집지 않고 선택지가
+            있다는 사실만 알린다 — 매번 띄우면 안내가 아니라 압박이다. */}
+        {shouldShowChatSaveNotice({
+          autosaveConsent,
+          dismissed: saveNoticeDismissed,
+          turnCount: turns.length,
+        }) ? (
+          <View style={ds.saveNotice} accessibilityRole="alert">
+            <Text style={ds.saveNoticeTitle}>{t("chatSaveNotice")}</Text>
+            <Text style={ds.saveNoticeBody}>{t("chatSaveNoticeBody")}</Text>
+            <View style={ds.saveNoticeRow}>
+              <Pressable
+                onPress={() => {
+                  dismissSaveNotice();
+                  router.push("/privacy");
+                }}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t("chatSaveNoticeOpen")}
+                style={ds.saveNoticeBtn}
+              >
+                <Text style={ds.saveNoticeBtnText}>{t("chatSaveNoticeOpen")}</Text>
+              </Pressable>
+              <Pressable
+                onPress={dismissSaveNotice}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t("chatSaveNoticeDismiss")}
+                style={ds.saveNoticeBtn}
+              >
+                <Text style={ds.saveNoticeDismissText}>{t("chatSaveNoticeDismiss")}</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
+        {/* quick-action chips after an answer */}
         {turns.length > 0 && turns[turns.length - 1].role === "secondb" && !sending ? (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.quickRow}
+            contentContainerStyle={ds.quickRow}
             keyboardShouldPersistTaps="handled"
           >
             {QUICK_ACTIONS.map((qa) => (
               <Pressable
                 key={qa.en}
-                style={styles.quickChip}
+                style={ds.quickChip}
                 onPress={() => {
-                  if (qa.mode) setChatMode(qa.mode);
+                  if (qa.mode === "divergent") selectRev2Persona("twi");
+                  else if (qa.mode) setChatMode(qa.mode);
                   composerRef.current?.prefill(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={locale === "ko" ? qa.ko : qa.en}
               >
-                <Text variant="caption" color="brand">{locale === "ko" ? qa.ko : qa.en}</Text>
+                <Text style={ds.quickChipText}>{locale === "ko" ? qa.ko : qa.en}</Text>
               </Pressable>
             ))}
           </ScrollView>
         ) : null}
 
-      </KeyboardAvoidingView>
+        {atLimit ? (
+          <Pressable
+            onPress={() => router.push("/plans?from=ai_limit")}
+            hitSlop={14}
+            style={ds.limitLink}
+            accessibilityRole="button"
+            accessibilityLabel={t("viewPlans")}
+            accessibilityHint={t("viewPlansHint")}
+          >
+            <Text style={ds.limitLinkText}>{t("viewPlans")}</Text>
+          </Pressable>
+        ) : null}
 
-      {/* 첫 진입 인사 모달 — 알았어요 / 오늘은 그만 볼래요 */}
+        {/* input bar (reference ChatScreen): a rounded pill holding the text
+            field + inline mic, then a separate 48px round send button that
+            fills with the lens accent when there is something to send. Draft
+            state lives inside ChatComposer so a keystroke re-renders only the
+            composer, not this whole DeepSpaceScreen (starfield/header/dock). */}
+        <ChatComposer
+          ref={composerRef}
+          sending={sending}
+          sendEnabled={sendEnabled}
+          onSend={handleSend}
+          fromNode={fromNode}
+          lensAccent={lensAccent}
+          lensName={lensName}
+          inkOnAccent={inkOnAccent}
+        />
+      </KeyboardAvoidingArea>
+
+      {/* 첫 진입 인사 모달 */}
       <Modal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
+        {/* Scrim: NOT a button — on web an accessibilityRole="button" backdrop
+            renders as <button> and nests the modal's real <button>s inside it
+            (hydration error, parity finding S1). Tap-to-dismiss stays; the
+            labeled close affordances are the modal's own buttons. */}
         <Pressable
-          style={styles.modalBackdrop}
+          style={ds.modalBackdrop}
           onPress={() => setIntroOpen(false)}
-          accessibilityRole="button"
           accessibilityLabel={t("closeIntro")}
           accessibilityHint={t("closeIntroHint")}
         >
-          {/* 모달 스크림은 디더다 — 바탕을 모르는 자리라 평탄화가 아니라 격자로
-              가린다(PIXEL-CLAY 규칙 4). 반투명이 한 픽셀도 없다. */}
+          {/* 스크림은 디더다(PIXEL-CLAY 규칙 4). 바탕을 모르는 층이라 sbAlpha 로
+              미리 합성하면 불투명 단색이 돼 대화 화면이 사라진다(W-09). 이미지는
+              width/height 100% 로 준다. absoluteFill 만 주면 웹에서 4×4 한 칸만 그린다. */}
           <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-            <PixelScrim />
+            <PixelScrim style={ds.modalScrimImage} />
           </View>
-          <Pressable
-            style={styles.modalCard}
-            onPress={(e) => e.stopPropagation()}
-            accessible={false}
-            accessibilityViewIsModal
-          >
-            <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
-              {t("intro_title")}
-            </Text>
-            <Text variant="body" color="text" style={{ marginTop: spacing.sm, lineHeight: 20 }} accessibilityLabel={t("intro_body")}>
-              {keepAllKo(t("intro_body"))}
-            </Text>
-            <View style={styles.modalActions}>
+          <Pressable style={ds.modalCard} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
+            <Text style={ds.modalEyebrow}>{t("intro_title")}</Text>
+            {/* keepAllKo joins Hangul words with U+2060 so they wrap at spaces; the
+                screen reader gets the untouched string (joiners disorient braille and
+                character-by-character review). */}
+            <Text style={ds.modalBody} accessibilityLabel={t("intro_body")}>{keepAllKo(t("intro_body"))}</Text>
+            <View style={ds.modalActions}>
               <Pressable
                 onPress={() => { writeIntroDismissed("today"); setIntroOpen(false); }}
-                style={[styles.modalBtn, styles.modalBtnSecondary]}
+                style={ds.modalBtnGhost}
                 hitSlop={14}
                 accessibilityRole="button"
                 accessibilityLabel={t("intro_mute")}
               >
-                <Text variant="body" color="textMuted">{t("intro_mute")}</Text>
+                <Text style={ds.modalBtnGhostText}>{t("intro_mute")}</Text>
               </Pressable>
               <Pressable
                 onPress={() => { setIntroOpen(false); }}
-                style={[styles.modalBtn, styles.modalBtnPrimary]}
+                style={ds.modalBtnPrimary}
                 hitSlop={14}
                 accessibilityRole="button"
                 accessibilityLabel={t("intro_ok")}
               >
-                <Text variant="body" color="background" style={{ fontWeight: "700" }}>
-                  {t("intro_ok")}
-                </Text>
+                <Text style={ds.modalBtnPrimaryText}>{t("intro_ok")}</Text>
               </Pressable>
             </View>
           </Pressable>
         </Pressable>
       </Modal>
 
-      {/* Reference drawer (chat pack §6) — the pieces an answer drew on. */}
+      {/* reference drawer — pieces the answer drew on */}
       <Modal
         visible={refDrawer !== null}
         transparent
         animationType="slide"
         onRequestClose={() => setRefDrawer(null)}
       >
+        {/* Scrim: not a button (same web nesting rationale as the intro modal). */}
         <Pressable
-          style={styles.modalBackdrop}
+          style={ds.modalBackdrop}
           onPress={() => setRefDrawer(null)}
-          accessibilityRole="button"
           accessibilityLabel={t("closeReferenced")}
           accessibilityHint={t("closeReferencedHint")}
         >
-          {/* 모달 스크림은 디더다 — 바탕을 모르는 자리라 평탄화가 아니라 격자로
-              가린다(PIXEL-CLAY 규칙 4). 반투명이 한 픽셀도 없다. */}
           <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-            <PixelScrim />
+            <PixelScrim style={ds.modalScrimImage} />
           </View>
           <Pressable
-            style={styles.drawer}
+            style={ds.drawer}
             onPress={(e) => e.stopPropagation()}
             accessibilityViewIsModal
             accessibilityLabel={t("piecesReferenced")}
           >
-            <View style={styles.drawerHandle} />
-            <Text variant="heading">{t("piecesReferenced")}</Text>
-            <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
+            <View style={ds.drawerHandle} />
+            <Text style={ds.drawerTitle}>{t("piecesReferenced")}</Text>
+            <Text style={ds.drawerSubtle}>
               {t("piecesReferencedBody")}
             </Text>
-            {/* List scrolls within the capped (62%) drawer so the Close button
-                below stays reachable even with many referenced pieces or on a
-                short / landscape screen (was a plain View: long lists pushed
-                Close off-screen). */}
             <ScrollView
               style={{ flexShrink: 1 }}
-              contentContainerStyle={{ marginTop: spacing.md, gap: spacing.sm, paddingBottom: spacing.sm }}
+              contentContainerStyle={ds.drawerList}
               showsVerticalScrollIndicator={false}
             >
               {(refDrawer ?? []).map((slug) => (
-                <ReferenceShardCard
+                <Pressable
                   key={slug}
-                  title={formatSourceCitationLabel(slug)}
-                  meta={t("reference_piece_meta")}
+                  style={ds.drawerCard}
                   onPress={() => openCitedPage(slug)}
-                />
+                  accessibilityRole="button"
+                  accessibilityLabel={formatSourceCitationLabel(slug)}
+                >
+                  <Text style={ds.drawerCardTitle}>{formatSourceCitationLabel(slug)}</Text>
+                  <Text style={ds.drawerCardMeta}>{t("reference_piece_meta")}</Text>
+                </Pressable>
               ))}
             </ScrollView>
-            <Button
-              label={t("closeChip")}
-              variant="secondary"
+            <Pressable
               onPress={() => setRefDrawer(null)}
-            />
+              style={ds.drawerClose}
+              accessibilityRole="button"
+              accessibilityLabel={t("closeChip")}
+            >
+              <Text style={ds.drawerCloseText}>{t("closeChip")}</Text>
+            </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
-      {/* 가디 appears briefly on a safety soft-stop / all-clear (companion pack §3) */}
-      {companion.moment ? (
-        <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
-      ) : null}
 
-      {/* 0090: chat daily-cap top-up — same wiring as deep-space. */}
+      {/* 0090: chat daily-cap top-up (+2 sends today, monthly earn cap). The
+          grant RPC enforces day/month/ceiling server-side.
+
+          (This used to say "on success the user just sends again". They
+          could not: the composer was gated on the bare tier cap, so after
+          earning the bonus there was nothing to send WITH. The grant now
+          re-reads usage, so the wall moves right away.) */}
       <RewardedSheet
         kind="chat"
         visible={chatRewardVisible && rewardedAllowed}
         onClose={() => setChatRewardVisible(false)}
         remaining={Math.max(0, allowance - (usedToday ?? 0))}
         onEarned={async () => {
-          // deep-space 셸과 같은 배선. 실패를 분류해 시트에 돌려주고, 닫는
-          // 일은 시트에 맡긴다.
+          // 광고를 끝까지 본 사용자에게 결과를 알려 주기 위해 실패를 분류해서
+          // 시트에 돌려준다. 여기서 "적립되지 않았다"고 단정하지는 않는다 -
+          // SSV 모드에서는 서버가 적립의 유일한 주체라 클라이언트 실패가 곧
+          // 미적립은 아니다. Round22 담기 실패 문구와 같은 규율이다.
           let outcome: RewardedEarnOutcome = process.env.EXPO_PUBLIC_REWARD_SSV === "true" ? "processing" : "granted";
           if (userId) {
             try {
@@ -2058,49 +1532,29 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                 console.warn("[secondb] grantChatAdBonus", outcome === "capped" ? "monthly cap reached" : (e as Error).message);
               }
             }
-            // Same as above: the server number wins, even on a rejected grant.
+            // Re-read even when the grant threw: a monthly-cap rejection
+            // still means the server number is the truth, and a stale
+            // allowance is exactly what this change exists to remove.
             await refreshChatUsage();
           }
+          // 닫는 일은 이제 시트가 한다 - 적립됐을 때만 닫히도록.
           return outcome;
         }}
         locale={locale}
       />
-    </PremiumAppShell>
+      {/* 저장 경로의 위기 안내. 전송 경로(callLlm)는 서버가 응답을 바꿔
+          치지만, 저장은 createRecord 가 로컬 분류를 돌리고 followup 으로
+          알려준다. 다른 저장 화면과 같은 자세를 여기서도 취한다. */}
+      <CrisisRouter
+        visible={keepCrisis.visible}
+        hotline={keepCrisis.hotline}
+        onClose={() => setKeepCrisis((c) => ({ ...c, visible: false }))}
+      />
+    </DeepSpaceScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  companionFlash: { position: "absolute", bottom: 90, right: 20 },
-  compactHeader: {
-    minHeight: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderBottomColor: gameboy.border,
-    borderBottomWidth: gameboy.borderWidth,
-  },
-  compactTitle: { flex: 1, minWidth: 0 },
-  composerPrimary: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-    marginHorizontal: spacing.md,
-    padding: spacing.sm,
-    backgroundColor: semantic.surface,
-    borderColor: gameboy.border,
-    borderWidth: gameboy.borderWidth,
-    borderRadius: 0,
-    ...pixelShadowStyle(),
-  },
-  limitLink: {
-    alignSelf: "flex-end",
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: spacing.md,
-  },
   header: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -2120,148 +1574,7 @@ const styles = StyleSheet.create({
     borderBottomColor: gameboy.border,
     borderBottomWidth: gameboy.borderWidth,
   },
-  modeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderBottomColor: gameboy.border,
-    borderBottomWidth: gameboy.borderWidth,
-  },
-  modeChip: {
-    borderRadius: 0,
-    borderWidth: gameboy.borderWidth,
-    borderColor: gameboy.border,
-    backgroundColor: semantic.surfaceAlt,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    minHeight: 44,
-    justifyContent: "center",
-    ...pixelShadowStyle(),
-  },
-  modeChipAnalytic: { backgroundColor: semantic.brand, borderColor: semantic.brand },
-  modeChipDivergent: { backgroundColor: cosmic.soulViolet2, borderColor: cosmic.soulViolet2 },
-  modeHint: { flex: 1, minWidth: 0, marginStart: spacing.xs },
-  clearChatLink: { minHeight: 44, minWidth: 44, justifyContent: "center", paddingHorizontal: spacing.xs },
-  divergentPulseDot: { width: 8, height: 8, borderRadius: 0, backgroundColor: cosmic.soulViolet2 },
   scroll: { paddingTop: spacing.md, paddingBottom: spacing.md, gap: spacing.sm },
-  empty: { paddingVertical: spacing.xl, alignItems: "center", gap: spacing.md },
-  emptySecondB: {
-    width: 140,
-    height: 140,
-    borderRadius: 0,
-    borderWidth: gameboy.borderWidth,
-    borderColor: gameboy.border,
-    backgroundColor: sbAlpha(cosmic.soulViolet, 0.14),
-    alignItems: "center",
-    justifyContent: "center",
-    ...pixelShadowStyle(cosmic.signalMint),
-  },
-  modalBackdrop: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-  modalCard: {
-    backgroundColor: semantic.surface,
-    borderColor: gameboy.border,
-    borderWidth: gameboy.borderWidth,
-    borderRadius: 0,
-    padding: spacing.lg,
-    maxWidth: 420,
-    width: "100%",
-    ...pixelShadowStyle(),
-  },
-  modalActions: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    justifyContent: "flex-end",
-  },
-  modalBtn: {
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 0,
-  },
-  modalBtnPrimary: { backgroundColor: semantic.brand },
-  modalBtnSecondary: { backgroundColor: "transparent" },
-  bubbleRow: { flexDirection: "row" },
-  userRow: { justifyContent: "flex-end" },
-  secondbRow: { justifyContent: "flex-start" },
-  bubbleCol: { maxWidth: "85%", gap: spacing.xs, alignItems: "flex-start" },
-  chipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.xs,
-  },
-  chip: {
-    backgroundColor: semantic.surfaceAlt,
-    borderColor: gameboy.border,
-    borderWidth: gameboy.borderWidth,
-    borderRadius: 0,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    ...pixelShadowStyle(),
-  },
-  contextPillWrap: { marginTop: spacing.sm },
-  quickRow: { gap: spacing.sm, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
-  quickChip: {
-    minHeight: 44,
-    justifyContent: "center",
-    backgroundColor: semantic.surfaceAlt,
-    borderColor: gameboy.border,
-    borderWidth: gameboy.borderWidth,
-    borderRadius: 0,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    ...pixelShadowStyle(),
-  },
-  drawer: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    maxHeight: "62%",
-    backgroundColor: semantic.surface,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    borderColor: gameboy.border,
-    borderWidth: gameboy.borderWidth,
-    padding: spacing.lg,
-    gap: spacing.sm,
-    ...pixelShadowStyle(),
-  },
-  drawerHandle: {
-    alignSelf: "center",
-    width: 36,
-    height: 4,
-    borderRadius: 0,
-    backgroundColor: semantic.border,
-    marginBottom: spacing.sm,
-  },
-  bubble: {
-    maxWidth: "100%",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 0,
-    borderWidth: gameboy.borderWidth,
-    ...pixelShadowStyle(),
-  },
-  userBubble: {
-    backgroundColor: semantic.brand,
-    borderColor: semantic.brand,
-  },
-  secondbBubble: {
-    backgroundColor: semantic.surface,
-    borderColor: semantic.border,
-  },
-  thinking: { paddingVertical: spacing.md, alignItems: "center" },
   composer: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -2270,7 +1583,6 @@ const styles = StyleSheet.create({
     borderTopColor: gameboy.border,
     borderTopWidth: gameboy.borderWidth,
   },
-  composerInput: { flex: 1, maxHeight: 120 },
 });
 
 // Deep-space chat chrome. deepSpace.* tokens only (no hex literals, no
@@ -2584,13 +1896,16 @@ const ds = StyleSheet.create({
     flexShrink: 0,
   },
 
+  // 배경색 없음: 가리는 것은 자식 PixelScrim 디더다. 여기에 sbAlpha(…) 를 두면
+  // 미리 합성된 불투명 단색이 돼 대화 화면이 통째로 사라진다(W-09, f8bd9336 회귀).
   modalBackdrop: {
     flex: 1,
-    backgroundColor: sbAlpha(deepSpace.bgEdge, 0.8),
     alignItems: "center",
     justifyContent: "center",
     padding: deepSpaceSpacing.lg,
   },
+  // RN Web 은 디더 타일을 고유 크기(4×4)로만 반복한다. 전면을 덮으려면 크기를 명시한다.
+  modalScrimImage: { width: "100%", height: "100%" },
   modalCard: {
     width: "100%",
     maxWidth: 420,

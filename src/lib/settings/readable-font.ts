@@ -8,7 +8,7 @@
 // buttons, tabs, card titles) keeps the pixel face: Simon 2026-08-21 Q2 = "본문만".
 // Body legibility is the target, not a re-theme.
 //
-// Persisted like crew-density (web localStorage / native AsyncStorage /
+// Persisted per device (web localStorage / native AsyncStorage /
 // memory fallback). On web it also flips `data-font` on <html> so the base
 // CSS rule in +html.tsx follows the preference for raw DOM text.
 
@@ -19,7 +19,7 @@ export const FONT_STYLE_ORDER: readonly FontStyle[] = ["pixel", "readable"];
 export const DEFAULT_FONT_STYLE: FontStyle = "pixel";
 export const FONT_STYLE_KEY = "appearance.fontStyle.v1";
 
-// ─── Persistence (mirrors src/lib/settings/crew-density.ts) ─────────────────
+// ─── Persistence (app-features.ts and lite-mode.ts copy this shape) ─────────
 interface AsyncStorageLike {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;

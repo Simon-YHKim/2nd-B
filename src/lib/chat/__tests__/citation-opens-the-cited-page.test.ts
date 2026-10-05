@@ -46,10 +46,10 @@ const QUERIES = "src/lib/wiki/queries.ts";
 describe("a cited piece opens the piece", () => {
   test("the scanner is reading the real chat screen", () => {
     const src = read(CHAT);
+    // 2026-10-05: the file lost its legacy chrome with the EXPO_PUBLIC_UI lever
+    // (Simon decision Q-261004-11 C), so it holds one drawer. It used
+    // to assert `variant === "deep-space"` here to prove both chromes lived in it.
     expect(src.length).toBeGreaterThan(50_000);
-    // Both chromes really do live in this one file, so "two drawers" is a fact
-    // about the file rather than an assumption this test is making.
-    expect(src).toContain('const isDeepSpace = variant === "deep-space";');
     expect(src).toContain("setRefDrawer(");
   });
 
@@ -61,12 +61,13 @@ describe("a cited piece opens the piece", () => {
     expect(hits).toEqual([]);
   });
 
-  test("the slug is resolved in exactly one place, so the two chromes cannot drift", () => {
+  test("the slug is resolved in exactly one place, and the drawer reaches it", () => {
     const src = read(CHAT);
     // One lookup...
     expect([...src.matchAll(/getWikiPage\(/g)]).toHaveLength(1);
-    // ...reached from both drawers, and from nothing else.
-    expect([...src.matchAll(/onPress=\{\(\) => openCitedPage\(slug\)\}/g)]).toHaveLength(2);
+    // ...reached from the drawer, and from nothing else. This counted 2 until
+    // 2026-10-05: the legacy chrome had a second drawer, which left with the lever.
+    expect([...src.matchAll(/onPress=\{\(\) => openCitedPage\(slug\)\}/g)]).toHaveLength(1);
     // The miss still lands on the list: the old behaviour kept as a fallback,
     // not deleted.
     expect(src).toMatch(/else router\.push\("\/wiki"\);/);

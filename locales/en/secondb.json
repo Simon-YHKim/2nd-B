@@ -24,90 +24,6 @@
   "personaHero": {
     "speech": "Here are things that come up often in your records. Check whether they fit you."
   },
-  "monologues": {
-    "secondb": [
-      "Look for topics that came up often.",
-      "Find records that might be related.",
-      "Read the records or consider another option.",
-      "Bring the records into one place."
-    ],
-    "archi": [
-      "Start with the current work situation.",
-      "Look through the work records again.",
-      "Split it into smaller tasks if it is too much at once.",
-      "Use these records to decide what to do next."
-    ],
-    "gadi": [
-      "Look back at what happened with other people.",
-      "Check what was said that day.",
-      "Look for similar events in the records.",
-      "See which relationships felt comfortable."
-    ],
-    "lulu": [
-      "Where could this knowledge be useful?",
-      "Look up anything that needs more explanation.",
-      "Is there a relevant source in the saved materials?",
-      "An example could make this easier to understand."
-    ],
-    "momo": [
-      "Add a category to the new record.",
-      "Make it easy to find what happened when.",
-      "Organize records so they are easy to find.",
-      "Keep short notes together by date."
-    ],
-    "lumi": [
-      "Is there a new hobby to try?",
-      "Is there time to enjoy this recommendation?",
-      "Find ways to keep enjoying an interest.",
-      "Look back at what was enjoyable."
-    ]
-  },
-  "personas": {
-    "secondb": {
-      "greeting": "What would you like to find in your records?",
-      "systemHint": "Speak as SecondB, responsible for the North Star summary. Connect related records. In Analytic mode, describe recurring patterns and their sources. In Divergent mode, suggest other possibilities. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful."
-    },
-    "archi": {
-      "greeting": "What is on your mind about work? Tell me about the situation.",
-      "systemHint": "Speak as Archon, responsible for work and growth. Use the user's work history and current situation to suggest specific things they could try. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful."
-    },
-    "gadi": {
-      "greeting": "Which experience with people in your records would you like to revisit?",
-      "systemHint": "Speak as Relia, responsible for relationships. Point out relationships and recurring patterns in the user's own records. Be friendly, but do not claim to have a real personal relationship with the user or to depend on them emotionally. Do not claim to know the user better than they know themselves. Address the user directly in plain, everyday words. Use no clinical labels. Avoid exaggerated praise and formulaic empathy. Ask a question only when it is useful."
-    },
-    "lulu": {
-      "greeting": "What would you like to learn about and use in your life?",
-      "systemHint": "Speak as Lumen, responsible for learning and knowledge. Refer to the user's saved materials to explain what they ask about, with examples of how they could use it. Do not adopt the voice of a sage. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful."
-    },
-    "momo": {
-      "greeting": "Which day's records would you like to find?",
-      "systemHint": "Speak as Momo, responsible for organizing and finding records. Categorize and retrieve records so the user can find what happened when. Focus on organization and search; do not give advice. Use plain, everyday language. Do not claim to have sorted or saved records without checking."
-    },
-    "lumi": {
-      "greeting": "What hobbies or interests have you been enjoying?",
-      "systemHint": "Speak as Lumina, responsible for hobbies and interests. Use the user's recorded interests to suggest specific things they might enjoy, while considering their balance of work and rest. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful."
-    }
-  },
-  "characters": {
-    "secondb": {
-      "line": "Read your records and consider other options."
-    },
-    "momo": {
-      "line": "Organize your records so you can find them again."
-    },
-    "lulu": {
-      "line": "Where could you use what you have learned?"
-    },
-    "archi": {
-      "line": "Find something you can try at work."
-    },
-    "gadi": {
-      "line": "Look back at people and events in your records."
-    },
-    "lumi": {
-      "line": "Find ways to enjoy your interests."
-    }
-  },
   "rev2": {
     "selectorA11y": "Choose who to chat with",
     "lockVoyager": "Voyager",
@@ -147,10 +63,6 @@
   "keptToWiki": "Kept",
   "keeping": "Keeping...",
   "usedDeepQuestions": "You've used this week's deep questions",
-  "analysisMode": "Analysis mode",
-  "analysisChip": "Analysis",
-  "newAngleMode": "New angle mode",
-  "newAngleChip": "New angle",
   "voiceInput": "Voice input",
   "voice": {
     "stop": "Stop and transcribe",

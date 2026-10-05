@@ -1,5 +1,4 @@
-import { cosmic, withAlpha } from "../tokens";
-import { androidElevation, androidElevationStyle, gameboy, gameboyCosmic, pixelShadowStyle } from "../gameboy-tokens";
+import { androidElevation, androidElevationStyle, gameboy, pixelShadowStyle } from "../gameboy-tokens";
 
 describe("PIXEL-CLAY 절대 규칙 2 — 게임보이 토큰의 반경도 0", () => {
   // ⚠ 이 세트는 **세 번째가 아니라 네 번째** 반경 토큰이다
@@ -10,35 +9,14 @@ describe("PIXEL-CLAY 절대 규칙 2 — 게임보이 토큰의 반경도 0", ()
   //
   //   `check-pixel-rules.ts` 의 `radiusAllowed` 가 이 이름을 허용하는 근거가
   //   이 검사다. **여기가 빨개지면 그 허용도 같이 무효가 된다.**
-  test("두 스킨 모두 radius 0", () => {
-    // `gameboyDeepSpace` 는 export 되지 않는다 — `gameboy` 가 UI_MODE 로 고른 결과다.
-    expect({ skin: "cosmic", radius: gameboyCosmic.radius }).toEqual({ skin: "cosmic", radius: 0 });
+  test("radius 0", () => {
+    // 옛 레거시 팔레트(gameboyCosmic)는 2026-10-05 EXPO_PUBLIC_UI 레버와 함께 빠졌다
+    // (Simon 결정 Q-261004-11). 남은 팔레트는 `gameboy` 하나다.
     expect({ skin: "active", radius: gameboy.radius }).toEqual({ skin: "active", radius: 0 });
   });
 });
 
 describe("gameboy tokens", () => {
-  it("locks the legacy pixel geometry tokens", () => {
-    // gameboyCosmic is the sharp pixel geometry (legacy build); the active
-    // `gameboy` flips to rounded/flat in the deep-space build.
-    expect(gameboyCosmic.borderWidth).toBe(2);
-    expect(gameboyCosmic.radius).toBe(0);
-    expect(gameboyCosmic.pixelShadow).toEqual({ offsetX: 4, offsetY: 4, blur: 0 });
-    expect(gameboyCosmic.scanlineOpacity).toBe(0.07);
-    expect(gameboyCosmic.grid).toBe(8);
-  });
-
-  it("maps the legacy Game Boy palette to the existing cosmic tokens", () => {
-    // gameboyCosmic is the legacy (EXPO_PUBLIC_UI=legacy) mapping; the active
-    // `gameboy` export flips to the cyan identity in the deep-space build.
-    expect(gameboyCosmic.screen).toBe(cosmic.space950);
-    expect(gameboyCosmic.ink).toBe(cosmic.moonWhite);
-    expect(gameboyCosmic.accent).toBe(cosmic.signalBlue);
-    expect(gameboyCosmic.power).toBe(cosmic.signalMint);
-    expect(gameboyCosmic.amber).toBe(cosmic.pixelLamp);
-    expect(gameboyCosmic.border).toBe(withAlpha(cosmic.signalBlue, 0.68));
-  });
-
   it("builds the shadow style from the active pixel-shadow geometry", () => {
     expect(pixelShadowStyle()).toEqual({
       shadowColor: gameboy.border,

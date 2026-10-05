@@ -92,9 +92,14 @@ describe("capture-full life-area screen wiring", () => {
   const captureSource = read("src/app/capture.tsx");
 
   test("enables the embedded selector only from capture-full", () => {
-    expect(routeSource).toContain("<CaptureLegacy enableLifeAreaIntents />");
+    // 2026-10-05: capture-full 의 legacy 반환(`<CaptureLegacy enableLifeAreaIntents />`)과
+    // capture 의 legacy 반환(`return <CaptureLegacy />`)이 롤백 레버와 함께 빠졌다
+    // (Simon 결정 Q-261004-11 C). 남은 반환은 dock 안 하나씩이고, 선택기를 켜는 것은
+    // 여전히 capture-full 뿐이다.
+    expect(routeSource).toContain("<CaptureLegacy embeddedInDock enableLifeAreaIntents />");
     expect(captureSource).toContain("enableLifeAreaIntents = false");
-    expect(captureSource).toContain("return <CaptureLegacy />");
+    expect(captureSource).toContain("<CaptureLegacy embeddedInDock />");
+    expect(captureSource).not.toMatch(/<CaptureLegacy\b[^>]*\benableLifeAreaIntents\b/);
   });
 
   test("starts collapsed, exposes selected state, and closes first on Android Back", () => {

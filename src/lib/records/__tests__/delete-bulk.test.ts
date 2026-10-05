@@ -461,30 +461,26 @@ describe("requestAccountDeletion (terminal erasure)", () => {
 
 describe("account deletion UI routing", () => {
   // 삭제 표면이 둘이었다(레거시 /account · deep-space). 레거시는 2026-09-08 에
-  // 아카이브로 나갔고, **배송되는 표면은 deep-space 하나**다. 보관본은 byte-pinned라
-  // 새 인자를 주입하지 않는다. 되살릴 때 컴파일 경계에서 함께 갱신해야 한다.
-  const account = readFileSync(join(process.cwd(), "legacy/screens/account.tsx"), "utf8");
+  // 아카이브로 나갔고, **배송되는 표면은 deep-space 하나**다. 그 보관본은 2026-10-05 롤백
+  // 레버 제거와 함께 E:/Legacy/2ndB 로 나갔고(Simon 결정 Q-261004-11 C), 검사는 보관본을
+  // 읽지 않으므로(legacy-archive-integrity.test.ts) 아래 단언에서 보관본 쪽 절반을 걷었다.
+  // 배송 표면에 대한 단언은 하나도 빼지 않았다.
   const deepSpace = readFileSync(
     join(process.cwd(), "src/screens/deepspace/DeepSpaceDesignScreens.tsx"),
     "utf8",
   );
 
   test("full account deletion never runs the non-atomic client content wipe first", () => {
-    expect(account).not.toContain("deleteAllUserData");
     expect(deepSpace).not.toContain("deleteAllUserData");
-    expect(account).toContain("await requestAccountDeletion()");
     expect(deepSpace).toContain("await requestAccountDeletion(authExpectation)");
   });
 
-  test("both deletion surfaces synchronously fence duplicate terminal calls", () => {
-    expect(account).toContain("deleteConfirmUserRef.current !== userId");
-    expect(account).toContain("deleteInFlightRef.current = true");
+  test("the deletion surface synchronously fences duplicate terminal calls", () => {
     expect(deepSpace).toContain("deleteConfirmUserRef.current !== userId");
     expect(deepSpace).toContain("deleteInFlightRef.current = true");
   });
 
   test("deep-space confirms twice and blocks route removal while erasure is in flight", () => {
-    expect(account).toContain('navigation.addListener("beforeRemove"');
     expect(deepSpace).toContain('navigation.addListener("beforeRemove"');
     expect(deepSpace).toContain("event.preventDefault()");
     expect(deepSpace).toContain("setDeleteConfirmOpen(true)");
@@ -493,12 +489,11 @@ describe("account deletion UI routing", () => {
   });
 
   test("a late deletion result cannot sign out a newly active user", () => {
-    expect(account).toContain("activeUserRef.current !== targetUserId");
     expect(deepSpace).toContain("activeUserRef.current !== targetUserId");
   });
 
   test("a final confirmation is bound to the user who opened it", () => {
-    for (const source of [account, deepSpace]) {
+    for (const source of [deepSpace]) {
       expect(source).toContain("deleteConfirmUserRef.current = userId");
       expect(source).toContain("deleteConfirmUserRef.current !== userId");
       expect(source).toContain("deleteConfirmUserRef.current = null");
@@ -506,10 +501,7 @@ describe("account deletion UI routing", () => {
   });
 
   test("local sign-out failure is not treated as a retryable deletion failure", () => {
-    const surfaces = [
-      [account, "await requestAccountDeletion()"],
-      [deepSpace, "await requestAccountDeletion(authExpectation)"],
-    ] as const;
+    const surfaces = [[deepSpace, "await requestAccountDeletion(authExpectation)"]] as const;
     for (const [source, call] of surfaces) {
       const terminalCall = source.indexOf(call);
       const localSignOutWarning = source.indexOf("local sign-out after deletion failed");

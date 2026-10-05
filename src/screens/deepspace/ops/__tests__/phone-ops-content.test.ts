@@ -108,7 +108,10 @@ test("standalone routes still mount the same screens", () => {
   const reading = readFileSync(join(process.cwd(), "src/app/reading.tsx"), "utf8");
   const sideProject = readFileSync(join(process.cwd(), "src/app/side-project.tsx"), "utf8");
 
-  expect(reading).toContain("return <ReadingScreen />;");
+  // The standalone route takes the same gate as the phone (W-13, 2026-10-04):
+  // before it, /reading opened signed out and its saves did nothing.
+  expect(reading).toContain("if (!userId) return <Redirect href=\"/sign-in\" />;");
+  expect(reading).toContain("return <ReadingScreen key={userId} />;");
   expect(sideProject).toContain("if (!userId) return <Redirect href=\"/sign-in\" />;");
   expect(sideProject).toContain("<SideProjectScreen key={userId} userId={userId} />");
 });

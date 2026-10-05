@@ -85,6 +85,8 @@ const schema = z.object({
   // Render the Soul Core v3 SVG art pack (assets/legacy-art/cosmic-pixel-v3-soulcore/)
   // instead of the legacy PNG art. Default true (Simon concept: the worldview
   // Soul/Pattern Core tesseract art + Foreman-Momo crew are the intended visuals).
+  // ⚠ 2026-10-05: no reader left - WorkerSprite's v3 branch went with the legacy
+  // characters (Q-261004-15 A). The key stays until a cleanup decides its fate.
   // Set "false" to fall back to the legacy PNG art.
   EXPO_PUBLIC_USE_V3_ART: z
     .union([z.literal("true"), z.literal("false")])
@@ -154,17 +156,16 @@ const schema = z.object({
   // clarity.microsoft.com. Set as repo/EAS Variables to activate.
   EXPO_PUBLIC_GA4_MEASUREMENT_ID: z.string().optional(),
   EXPO_PUBLIC_CLARITY_PROJECT_ID: z.string().optional(),
-  // Ads (Simon directive 2026-06-11): web AdSense, OFF by default. These env
-  // values only make ad surfaces POSSIBLE, never sufficient — the policy
-  // layer (src/lib/ads/policy.ts) additionally suppresses ads for paying
-  // tiers, minors, missing ads consent, and sensitive routes. AdMob (native)
-  // ships with the native build track; see docs/ADS.md.
+  // Ads (Simon directive 2026-06-11), OFF by default. The flag only makes the
+  // rewarded (AdMob) entry POSSIBLE, never sufficient — the policy layer
+  // (src/lib/ads/policy.ts) additionally suppresses ads for paying tiers,
+  // minors, missing ads consent, and unlisted routes; see docs/ADS.md. The web
+  // AdSense keys (EXPO_PUBLIC_ADSENSE_CLIENT / _SLOT_RECORDS) left on
+  // 2026-10-05 with the banner (docs/ADSENSE-WEB-RETIREMENT.md).
   EXPO_PUBLIC_ENABLE_ADS: z
     .union([z.literal("true"), z.literal("false")])
     .default("false")
     .transform((v) => v === "true"),
-  EXPO_PUBLIC_ADSENSE_CLIENT: z.string().optional(),
-  EXPO_PUBLIC_ADSENSE_SLOT_RECORDS: z.string().optional(),
 });
 
 // C2: when Vertex is enabled, GOOGLE_CLOUD_PROJECT must be set.
@@ -220,8 +221,6 @@ function readRaw(): Record<string, string | undefined> {
   const ga4Id = process.env.EXPO_PUBLIC_GA4_MEASUREMENT_ID;
   const clarityId = process.env.EXPO_PUBLIC_CLARITY_PROJECT_ID;
   const enableAds = process.env.EXPO_PUBLIC_ENABLE_ADS;
-  const adsenseClient = process.env.EXPO_PUBLIC_ADSENSE_CLIENT;
-  const adsenseSlotRecords = process.env.EXPO_PUBLIC_ADSENSE_SLOT_RECORDS;
   // Non-public vars (no EXPO_PUBLIC_ prefix) are never inlined into the client
   // bundle by design; they resolve from the real process.env on native / node
   // and are simply undefined on web. Aliasing is safe for these.
@@ -261,8 +260,6 @@ function readRaw(): Record<string, string | undefined> {
     EXPO_PUBLIC_GA4_MEASUREMENT_ID: presentOrUndefined(ga4Id),
     EXPO_PUBLIC_CLARITY_PROJECT_ID: presentOrUndefined(clarityId),
     EXPO_PUBLIC_ENABLE_ADS: presentOrUndefined(enableAds),
-    EXPO_PUBLIC_ADSENSE_CLIENT: presentOrUndefined(adsenseClient),
-    EXPO_PUBLIC_ADSENSE_SLOT_RECORDS: presentOrUndefined(adsenseSlotRecords),
   };
 }
 

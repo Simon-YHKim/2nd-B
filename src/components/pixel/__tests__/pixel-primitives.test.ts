@@ -230,14 +230,16 @@ describe("gate 셸 - dock 없는 seeded sky + 키보드 안전 스크롤", () =>
   const src = read("PixelGateShell.tsx");
   const index = read("index.ts");
 
-  test("safe area 안에서 seeded sky, iOS KAV, ScrollView 를 한 번씩 소유한다", () => {
-    for (const tag of ["SafeAreaView", "SbStarfield", "KeyboardAvoidingView", "ScrollView"]) {
+  test("safe area 안에서 seeded sky, 키보드 영역, ScrollView 를 한 번씩 소유한다", () => {
+    for (const tag of ["SafeAreaView", "SbStarfield", "KeyboardAvoidingArea", "ScrollView"]) {
       const count = src.match(new RegExp(`^\\s*<${tag}\\b`, "gm"))?.length ?? 0;
       expect({ tag, count }).toEqual({ tag, count: 1 });
     }
     expect(src).toContain("<SbStarfield cosmic />");
     expect(src).toContain('edges={["top", "bottom"]}');
-    expect(src).toContain('behavior={Platform.OS === "ios" ? "padding" : undefined}');
+    // 2026-10-05: 플랫폼별 키보드 규칙은 공용 영역(src/lib/ui/keyboard.tsx)이 갖는다.
+    expect(src).not.toContain("KeyboardAvoidingView");
+    expect(src).toContain("iosKeyboardVerticalOffset={iosKeyboardVerticalOffset}");
     expect(src).toContain('keyboardShouldPersistTaps="handled"');
   });
 

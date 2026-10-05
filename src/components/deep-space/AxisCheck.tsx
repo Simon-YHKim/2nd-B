@@ -31,7 +31,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { m3 } from "@/lib/theme/m3";
-import { flattenAlpha, withAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha } from "@/lib/theme/tokens";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import type { AxisCheckId } from "@/lib/audit/axis-checks";
 import type { LoadedValues, LoadedStrengths, LoadedMotivation } from "@/lib/persona/build";

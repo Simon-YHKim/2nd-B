@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   countPendingProposals,
   countRespondedPeerInvites,
+  countUnreadSources,
   inboxAuthGate,
   InboxSignalSession,
   loadInboxCount,
@@ -18,6 +19,7 @@ import {
 
 type Proposal = { key: string };
 type Peer = { responded_at: string | null; status: string };
+type Source = { id: string };
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -38,10 +40,14 @@ async function settle(): Promise<void> {
 function readers(
   proposalRead: (ownerId: string) => Promise<readonly Proposal[]>,
   peerRead: (ownerId: string) => Promise<readonly Peer[]>,
-): InboxReaders<Proposal, Peer> {
+  // 2026-10-04: 세 번째 신호(아직 위키가 안 된 자료, qa261004 L1-20). 기존 경우들은
+  // 이 신호가 비어 있다고 두고, 아래 전용 경우들이 이 신호를 직접 다룬다.
+  sourceRead: (ownerId: string) => Promise<readonly Source[]> = async () => [],
+): InboxReaders<Proposal, Peer, Source> {
   return {
     proposals: { read: proposalRead, count: countPendingProposals },
     peers: { read: peerRead, count: countRespondedPeerInvites },
+    sources: { read: sourceRead, count: countUnreadSources },
   };
 }
 
@@ -64,10 +70,11 @@ describe("inbox auth boundary", () => {
     expect(inboxAuthGate(auth)).toBe(gate);
   });
 
-  test("runs neither owner query until the profile probe is confirmed", async () => {
+  test("runs no owner query until the profile probe is confirmed", async () => {
     const proposalRead = jest.fn(async () => [] as Proposal[]);
     const peerRead = jest.fn(async () => [] as Peer[]);
-    const session = new InboxSignalSession(readers(proposalRead, peerRead), () => {});
+    const sourceRead = jest.fn(async () => [] as Source[]);
+    const session = new InboxSignalSession(readers(proposalRead, peerRead, sourceRead), () => {});
 
     for (const auth of [
       { ...base, loading: true },
@@ -80,12 +87,15 @@ describe("inbox auth boundary", () => {
     }
     expect(proposalRead).not.toHaveBeenCalled();
     expect(peerRead).not.toHaveBeenCalled();
+    expect(sourceRead).not.toHaveBeenCalled();
 
     expect(syncInboxSessionWithAuth(session, base)).toBe("ready");
     expect(proposalRead).toHaveBeenCalledTimes(1);
     expect(proposalRead).toHaveBeenCalledWith("owner-a");
     expect(peerRead).toHaveBeenCalledTimes(1);
     expect(peerRead).toHaveBeenCalledWith("owner-a");
+    expect(sourceRead).toHaveBeenCalledTimes(1);
+    expect(sourceRead).toHaveBeenCalledWith("owner-a");
     await settle();
   });
 });
@@ -132,6 +142,7 @@ describe("independent inbox reads", () => {
     expect(session.getSnapshot()).toEqual({
       proposals: { status: "ready", count: 1 },
       peers: { status: "error" },
+      sources: { status: "empty", count: 0 },
     });
     expect(summarizeInboxSignals(session.getSnapshot()).genuineEmpty).toBe(false);
 
@@ -139,11 +150,13 @@ describe("independent inbox reads", () => {
     expect(session.getSnapshot()).toEqual({
       proposals: { status: "ready", count: 1 },
       peers: { status: "loading" },
+      sources: { status: "empty", count: 0 },
     });
     await settle();
     expect(session.getSnapshot()).toEqual({
       proposals: { status: "ready", count: 1 },
       peers: { status: "ready", count: 1 },
+      sources: { status: "empty", count: 0 },
     });
     expect(proposalRead).toHaveBeenCalledTimes(1);
     expect(peerRead).toHaveBeenCalledTimes(2);
@@ -151,10 +164,11 @@ describe("independent inbox reads", () => {
     expect(proposalRead).toHaveBeenCalledTimes(1);
   });
 
-  test("shows the shared empty state only when both sources genuinely resolve empty", () => {
+  test("shows the shared empty state only when every source genuinely resolves empty", () => {
     const empty: InboxSignalSnapshot = {
       proposals: { status: "empty", count: 0 },
       peers: { status: "empty", count: 0 },
+      sources: { status: "empty", count: 0 },
     };
     expect(summarizeInboxSignals(empty).genuineEmpty).toBe(true);
     expect(
@@ -163,6 +177,42 @@ describe("independent inbox reads", () => {
     expect(
       summarizeInboxSignals({ ...empty, proposals: { status: "loading" } }).genuineEmpty,
     ).toBe(false);
+    // 자료 신호가 실패하면 "새 알림이 없습니다" 라고 말하지 않는다 - 모르는 것이다.
+    expect(
+      summarizeInboxSignals({ ...empty, sources: { status: "timeout" } }),
+    ).toMatchObject({ genuineEmpty: false, failedSources: ["sources"] });
+    expect(
+      summarizeInboxSignals({ ...empty, sources: { status: "loading" } }),
+    ).toMatchObject({ genuineEmpty: false, hasPendingRead: true });
+    expect(
+      summarizeInboxSignals({ ...empty, sources: { status: "ready", count: 3 } }),
+    ).toMatchObject({ genuineEmpty: false, sourceCount: 3 });
+  });
+
+  test("the unread-material signal counts what it was given and retries on its own", async () => {
+    // 허브는 목록을 열지 않는다. 읽기 쪽이 ingested=false 로 걸러 온 행의 수만 센다.
+    expect(countUnreadSources([])).toBe(0);
+    expect(countUnreadSources([{ id: "a" }, { id: "b" }])).toBe(2);
+
+    const sourceRead = jest
+      .fn<Promise<Source[]>, [string]>()
+      .mockRejectedValueOnce(new Error("read failed"))
+      .mockResolvedValueOnce([{ id: "a" }, { id: "b" }]);
+    const proposalRead = jest.fn(async () => [] as Proposal[]);
+    const session = new InboxSignalSession(
+      readers(proposalRead, async () => [], sourceRead),
+      () => {},
+    );
+    session.activate("owner-a");
+    await settle();
+    expect(session.getSnapshot().sources).toEqual({ status: "error" });
+    expect(summarizeInboxSignals(session.getSnapshot()).genuineEmpty).toBe(false);
+
+    expect(session.retry("sources")).toBe(true);
+    await settle();
+    expect(session.getSnapshot().sources).toEqual({ status: "ready", count: 2 });
+    expect(sourceRead).toHaveBeenCalledTimes(2);
+    expect(proposalRead).toHaveBeenCalledTimes(1);
   });
 
   test("counts only responded accepted or declined owner invites", () => {
@@ -242,7 +292,7 @@ describe("owner and lifecycle stale guards", () => {
 });
 
 describe("route and privacy contract", () => {
-  test.each(["/digest", "/peer-invites"] as const)("pushes %s exactly once per action", (route) => {
+  test.each(["/digest", "/peer-invites", "/sources"] as const)("pushes %s exactly once per action", (route) => {
     const push = jest.fn();
     openInboxRoute(route, push);
     expect(push).toHaveBeenCalledTimes(1);
@@ -262,6 +312,10 @@ describe("route and privacy contract", () => {
     expect(screen).not.toContain("MdButton");
     expect(screen).toContain('onRetry={() => retry("proposals")}');
     expect(screen).toContain('onRetry={() => retry("peers")}');
+    // 자료 신호: 위키가 아직 안 된 것만 읽고, 한 줄 카드로 /sources 에 넘긴다.
+    expect(screen).toContain("listSources(ownerId, { ingested: false, limit: 100 })");
+    expect(screen).toContain('onRetry={() => retry("sources")}');
+    expect(screen).toContain('route="/sources"');
     expect(screen).toContain("onRetry={() => void retryProfile()}");
     expect(screen).toContain('<InboxReady key={auth.userId} userId={auth.userId} />');
   });
@@ -320,24 +374,22 @@ describe("legacy preservation and pixel registration", () => {
     // 2026-10-02 재고정 - 대시보드 폰 통합: 세 화면 함수(DeepSpaceInboxScreen · DeepSpaceInboxBody · DeepSpaceImportScreen)가 expo-router 의 `router` 대신 `useAppRouter()` 를, 가져오기 `mode` 가 `useLocalSearchParams` 대신 `useScreenParams` 를 쓴다(lib/nav/phone-embed.tsx). 폰 밖 동작은 같다 · **inbox 도 건드렸다**(라우터 훅 한 줄씩).
     // 2026-10-03 재고정 - 건강 카드 아래 '끄고 건강 기록 지우기' 버튼과 결과 줄(handleHealthWithdraw: 동의한 자리에서 한 번 탭으로 철회, lib/health/withdraw.ts 흐름) · inbox 와 무관.
     // 2026-10-04 재고정 - 통합 머지(#2005 폰 통합 + main): 위 두 변경이 함께 들어간 파일 · inbox 는 라우터 훅 한 줄씩만.
-    expect(sha(source)).toBe("05da0cd8cf7e3621d0cebb8981597a0a90b1bdb0e5024189e71cbef67fb58f29");
+    // 2026-10-04 재고정 - qa261004 D-16 · /import 파일 패널의 확장자 힌트 한 줄을 고르기 MIME 목록(pickImportFiles)과 맞췄다(.zip·.csv 빼고 .html 넣음, 줄 중립) · inbox 와 무관. 동작은 import-file-copy.test.ts 가 지킨다.
+    // 2026-10-05 재고정 - 롤백 레버 제거 PR(Simon 결정 Q-261004-11 C) · 라우트가 import 하지 않던 DeepSpaceInboxScreen 그림자 사본과 그것만 쓰던 InboxItem · DeepSpaceInboxBody · 스타일 열 키 · import 넷을 걷었다(바이트 사본 E:/Legacy/2ndB, batch qa261004-lever) · **inbox 를 건드렸다**(그림자 제거). 배송 /inbox 는 dds-inbox-screen.tsx 다. 남은 DeepSpaceImportScreen 은 손대지 않았다.
+    expect(sha(source)).toBe("710e95c8d02b1d34ffd6ea05b24bf364c006e4c53f05d79fb055ba23fbfaea39");
   });
 
-  test("keeps InboxLegacy and its styles byte-stable while routing deep-space directly", () => {
-    // Normalize before locating the blank-line slice boundary. Looking for
-    // `\n\n` in raw CRLF text returned -1 on Windows and made the preservation
-    // hash platform-dependent even though sha() normalized afterward.
+  test("routes /inbox directly to the shipped hub", () => {
+    // 2026-10-05: 여기 있던 InboxLegacy · styles 바이트 핀 둘(f6fcdafa… · 153b02a4…)을
+    // 걷었다. 롤백 레버 제거(Simon 결정 Q-261004-11 C)로 그 반쪽은 라우트에서 빠져
+    // 되살리기 원본 legacy/screens/inbox.tsx 가 됐고, 그 파일의 바이트는 이제
+    // legacy-archive-integrity.test.ts 의 digest 가 지킨다(검사가 보관본을 읽는 유일한 자리).
     const source = normalize(
       readFileSync(join(process.cwd(), "src", "app", "inbox.tsx"), "utf8"),
     );
-    const legacy = source.slice(source.indexOf("function InboxLegacy()"), source.indexOf("// The old list used"));
-    const styles = source.slice(
-      source.indexOf("const styles = StyleSheet.create({"),
-      source.indexOf("\n\nexport default function Inbox()"),
-    );
-    expect(sha(legacy)).toBe("f6fcdafa440555cc23c5db4313ab700d3515b6ab2d27cc575e1df5cd5fbed48a");
-    expect(sha(styles)).toBe("153b02a4df53b3223350e66cad98251e76bfbcab2bcffd5f1a6a1f93782d431b");
     expect(source).toContain('from "@/screens/deepspace/dds-inbox-screen"');
+    expect(source).toContain("return <DeepSpaceInboxScreen />;");
+    expect(source).not.toContain("InboxLegacy()");
   });
 
   test("registers the new renderer in the exact pixel rule list", () => {

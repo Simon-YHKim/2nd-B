@@ -11,9 +11,12 @@
 // The generation here runs on the direct @google/genai branch (mocked
 // generateContent). Since T1 stage A (2026-08-31) an unset vendor switch
 // resolves "openai", which would send these purposes to openai-proxy instead,
-// so the suite pins EXPO_PUBLIC_BACKBONE_VENDOR=gemini — interview_probe and
-// import_ingest are backbone purposes (not Phase-2 seats, not multimodal, and
-// both flash tier so the pro-tier REASONING_PROVIDER seam is never consulted).
+// so the suite pins EXPO_PUBLIC_BACKBONE_VENDOR=gemini — import_ingest is a
+// backbone purpose (not a Phase-2 seat, not multimodal, and flash tier so the
+// pro-tier REASONING_PROVIDER seam is never consulted). interview_probe used to
+// be the first case here; since F2049-04 a live interview_probe never takes the
+// direct branch (boundary.ts mustReachServerCap), so its swap on the proxy path
+// is covered in interview/__tests__/server-cap-egress.test.ts.
 
 const mockGenerateContent = jest.fn();
 const mockClassifySafety = jest.fn();
@@ -115,7 +118,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     const r = await callLlm({
       userId: "u1",
       locale: "en",
-      purpose: "interview_probe",
+      purpose: "import_ingest",
       user: "Today I planned my week and it felt productive.",
     });
 
