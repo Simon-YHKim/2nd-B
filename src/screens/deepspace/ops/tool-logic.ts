@@ -8,6 +8,9 @@
 //   tapDelete        R2C-16 / R2C-07  a delete takes two taps on the same row
 //   milestoneChip    R2C-09           the status chip shows the status, never "overdue"
 //   mealSaveAction   R2C-07           an emptied meal cell is cleared, not kept
+//   mealClearArmKey  BL-02 (gate)     "clear this meal" takes two taps in one sheet opening
+//   runExclusive     BL-03 (gate)     one meal write at a time; a clear cannot race a save
+//   sheetAfterWrite  BL-03 (gate)     a late write closes only the sheet it started from
 //   bookSearch*      R2C-02           a failed book search says so
 //   shelfView        R2C-08           finished books and every book being read are shown
 
@@ -83,6 +86,65 @@ export function mealSaveAction(draft: string, current: string | null): MealSaveA
   const had = (current ?? "").trim();
   if (next.length === 0) return had.length > 0 ? "clear" : "close";
   return next === had ? "close" : "set";
+}
+
+// --- meal sheet writes (gate findings BL-02 / BL-03, 2026-10-05) ----------------
+
+/** One opening of the meal sheet. `session` is new on every open, so nothing left over
+ *  from an earlier opening (an armed clear, a late write) can act on a later one. */
+export interface MealSheetRef {
+  session: number;
+  date: string;
+  slot: string;
+}
+
+/**
+ * The two-tap key for "clear this meal": the cell AND the sheet opening it was armed in.
+ *
+ * BL-02: "clear this meal" deleted the cell on one tap, while the shelf, goals and ledger
+ * already took two. Keying the arm by the opening means opening another cell, or closing
+ * the sheet and reopening the same one, starts unarmed: the next tap arms, never deletes.
+ */
+export function mealClearArmKey(sheet: MealSheetRef): string {
+  return `${sheet.session}|${sheet.date}|${sheet.slot}`;
+}
+
+/**
+ * The sheet to show once a meal write settles: closed if it is still the opening the write
+ * started from, otherwise left as it is. BL-03: a late completion used to close whatever
+ * sheet was open by then, including one the user had just opened on another cell.
+ */
+export function sheetAfterWrite<T extends { session: number }>(open: T | null, startedIn: number): T | null {
+  return open !== null && open.session === startedIn ? null : open;
+}
+
+/** Held while a meal write is in flight. A plain object so a React ref can carry it. */
+export interface WriteLock {
+  held: boolean;
+}
+
+export type ExclusiveOutcome = "done" | "failed" | "busy";
+
+/**
+ * Run one write while no other is in flight; a write asked for meanwhile is refused
+ * ("busy"), not queued and not raced.
+ *
+ * BL-03: save and clear had no shared lock. Save B over A, then clear before the save
+ * answered: the DELETE could land first and the earlier UPSERT after it, so the cell the
+ * user had just cleared came back as B. The lock is taken synchronously, before the first
+ * await, so a second tap in the same frame is refused too.
+ */
+export async function runExclusive(lock: WriteLock, write: () => Promise<unknown>): Promise<ExclusiveOutcome> {
+  if (lock.held) return "busy";
+  lock.held = true;
+  try {
+    await write();
+    return "done";
+  } catch {
+    return "failed";
+  } finally {
+    lock.held = false;
+  }
 }
 
 // --- book search --------------------------------------------------------------

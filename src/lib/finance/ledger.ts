@@ -60,7 +60,15 @@ export function localDayKey(now: Date = new Date()): string {
  * the same ceiling the bank-CSV import already applies (import/finance-csv.ts AMOUNT_MAX).
  */
 export const MAX_LEDGER_KRW = 1_000_000_000_000;
-/** Digits in MAX_LEDGER_KRW; the amount input's maxLength. */
+/**
+ * Digits in MAX_LEDGER_KRW: the parser's digit gate.
+ *
+ * It is NOT the input's maxLength. A TextInput maxLength counts raw characters, separators
+ * included, so maxLength 13 cut a pasted "1,000,000,000,000" (17 characters, an allowed
+ * amount) to "1,000,000,000", which this parser then accepted as 1,000x less (gate
+ * finding S-01 / BL-01, 2026-10-05). The field takes the whole string and this parser is
+ * the only ceiling: an amount is stored as typed or refused, never shortened.
+ */
 export const LEDGER_AMOUNT_MAX_DIGITS = String(MAX_LEDGER_KRW).length;
 
 export type LedgerAmount = { kind: "empty" } | { kind: "ok"; value: number } | { kind: "tooLarge" };

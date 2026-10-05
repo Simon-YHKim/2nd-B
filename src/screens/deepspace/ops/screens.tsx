@@ -65,7 +65,7 @@ import {
   updateMilestone,
   type Milestone,
 } from "@/lib/ops/milestones";
-import { createLedgerEntry, deleteLedgerEntry, LEDGER_AMOUNT_MAX_DIGITS, listEntriesForMonth, localDayKey, MAX_LEDGER_KRW, monthBucket, parseLedgerAmount, summarizeMonth } from "@/lib/finance/ledger";
+import { createLedgerEntry, deleteLedgerEntry, listEntriesForMonth, localDayKey, MAX_LEDGER_KRW, monthBucket, parseLedgerAmount, summarizeMonth } from "@/lib/finance/ledger";
 import { fetchPushActivity, summarizeGithubActivity, type PushActivity } from "@/lib/projects/github";
 import { searchFoods, type FoodNutrition } from "@/lib/nutrition/foods";
 import {
@@ -94,13 +94,17 @@ import {
   bookSearchFailed,
   bookSearchSettled,
   DELETE_ARM_MS,
+  mealClearArmKey,
   mealSaveAction,
   MILESTONE_NEXT,
   milestoneChip,
+  runExclusive,
+  sheetAfterWrite,
   shelfView,
   tapDelete,
   type BookSearchView,
   type MilestoneChipKey,
+  type WriteLock,
 } from "./tool-logic";
 
 // ── 이 화면들의 바탕 (PIXEL-CLAY 절대 규칙 4) ────────────────────────
@@ -1094,6 +1098,9 @@ export function LedgerScreen() {
           maxDate={localDayKey()}
         />
         <View style={styles.searchRow}>
+          {/* No maxLength here: it counts separators too, so 13 cut a pasted
+              "1,000,000,000,000" to "1,000,000,000" and saved 1,000x less (gate S-01 /
+              BL-01). parseLedgerAmount reads the whole string and is the only ceiling. */}
           <TextInput
             value={amount}
             onChangeText={setAmount}
@@ -1102,7 +1109,6 @@ export function LedgerScreen() {
             style={[styles.searchInput, styles.amountInput]}
             keyboardType="number-pad"
             returnKeyType="next"
-            maxLength={LEDGER_AMOUNT_MAX_DIGITS}
             accessibilityLabel={c.amountPlaceholder}
           />
           <TextInput
@@ -1364,7 +1370,14 @@ export function MealsScreen() {
   const [weekStart, setWeekStart] = useState(thisWeek);
   // `day` and `current` ride along so the sheet can say which cell it is editing
   // (R2C-15) and so emptying a filled cell clears it instead of keeping it (R2C-07).
-  const [pending, setPending] = useState<{ date: string; slot: MealSlot; day: string; current: string | null } | null>(null);
+  // `session` is new on every open (gate BL-02 / BL-03): an armed clear and a late write
+  // belong to the opening they started in, never to a later one.
+  const [pending, setPending] = useState<{ session: number; date: string; slot: MealSlot; day: string; current: string | null } | null>(null);
+  const sheetSeq = useRef(0);
+  // One meal write at a time (gate BL-03): save and clear share this lock, so a clear can
+  // no longer race an earlier save whose UPSERT lands after the DELETE.
+  const mealLock = useRef<WriteLock>({ held: false });
+  const [mealWriting, setMealWriting] = useState(false);
   const [draft, setDraft] = useState("");
   const [lookup, setLookup] = useState<FoodLookup>({ kind: "idle" });
 
@@ -1385,7 +1398,8 @@ export function MealsScreen() {
   // Opening a cell now makes no request; the chips are a fixed idea list, and the food
   // DB is asked only when the user taps "look up" for what they typed.
   const openCell = (date: string, slot: MealSlot, current: MealEntry | null, day: string) => {
-    setPending({ date, slot, day, current: current?.title ?? null });
+    sheetSeq.current += 1;
+    setPending({ session: sheetSeq.current, date, slot, day, current: current?.title ?? null });
     setDraft(current?.title ?? "");
     setLookup({ kind: "idle" });
   };
@@ -1414,6 +1428,26 @@ export function MealsScreen() {
     }
   };
 
+  // Save and clear both go through here (gate BL-03): one write at a time under mealLock,
+  // and the buttons are off while it runs. A write asked for meanwhile is refused, not
+  // raced. When it settles, only the sheet it started from closes.
+  const writeMeal = async (sheet: NonNullable<typeof pending>, write: () => Promise<unknown>) => {
+    const outcome = await runExclusive(mealLock.current, async () => {
+      setMealWriting(true);
+      setSaveErr(false);
+      try {
+        await write();
+      } finally {
+        setMealWriting(false);
+      }
+    });
+    if (outcome === "busy") return;
+    // A failed write says so (it used to be swallowed, with reload() never reached).
+    if (outcome === "done") week.reload();
+    else setSaveErr(true);
+    setPending((open) => sheetAfterWrite(open, sheet.session));
+  };
+
   const saveCell = async () => {
     if (!userId || !pending) {
       setPending(null);
@@ -1425,30 +1459,21 @@ export function MealsScreen() {
       setPending(null);
       return;
     }
-    setSaveErr(false);
-    try {
-      if (action === "clear") await clearMeal(userId, pending.date, pending.slot);
-      else await setMeal(userId, pending.date, pending.slot, draft.trim());
-      week.reload();
-    } catch {
-      // The write failed. Say so: reload() lives inside the try above, so on this path
-      // it never ran and nothing surfaced anywhere.
-      setSaveErr(true);
-    }
-    setPending(null);
+    const sheet = pending;
+    const title = draft.trim();
+    await writeMeal(sheet, () =>
+      action === "clear" ? clearMeal(userId, sheet.date, sheet.slot) : setMeal(userId, sheet.date, sheet.slot, title),
+    );
   };
 
-  const clearCell = async () => {
-    if (!userId || !pending) return;
-    setSaveErr(false);
-    try {
-      await clearMeal(userId, pending.date, pending.slot);
-      week.reload();
-    } catch {
-      setSaveErr(true);
-    }
-    setPending(null);
-  };
+  // Gate BL-02: "clear this meal" took one tap. It now takes two in the same sheet opening
+  // (mealClearArmKey); the arm never carries over to another cell or a reopened sheet.
+  const clearArm = useTwoTapDelete((key) => {
+    if (!userId || !pending || mealClearArmKey(pending) !== key) return;
+    const sheet = pending;
+    void writeMeal(sheet, () => clearMeal(userId, sheet.date, sheet.slot));
+  });
+  const clearArmed = pending !== null && clearArm.armedId === mealClearArmKey(pending);
 
   // Food names can repeat in the DB answer; a chip list keyed by name must not.
   const ideaChips: string[] =
@@ -1551,12 +1576,28 @@ export function MealsScreen() {
             </Text>
           ) : null}
           {pending?.current ? (
-            <Pressable accessibilityRole="button" onPress={() => void clearCell()} hitSlop={6} style={styles.mealClear}>
-              <Text variant="caption" style={styles.mealClearText}>{t("toolScreens.meals.clear")}</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: mealWriting }}
+              disabled={mealWriting}
+              onPress={() => clearArm.press(mealClearArmKey(pending))}
+              hitSlop={6}
+              style={[styles.mealClear, clearArmed && styles.mealClearArmed]}
+            >
+              <Text variant="caption" style={[styles.mealClearText, clearArmed && styles.mealClearTextArmed]}>
+                {clearArmed ? t("toolScreens.delete.confirm") : t("toolScreens.meals.clear")}
+              </Text>
             </Pressable>
           ) : null}
-          <Pressable accessibilityRole="button" onPress={() => void saveCell()} hitSlop={6} style={styles.mealSave}>
-            <Text variant="caption" style={styles.mealSaveText}>{c.save}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: mealWriting }}
+            disabled={mealWriting}
+            onPress={() => void saveCell()}
+            hitSlop={6}
+            style={[styles.mealSave, mealWriting && styles.addBtnOff]}
+          >
+            <Text variant="caption" style={[styles.mealSaveText, mealWriting && styles.addBtnTxtOff]}>{c.save}</Text>
           </Pressable>
         </View>
       </Modal>
@@ -2093,6 +2134,9 @@ const styles = StyleSheet.create({
     borderColor: deepSpace.cardLineStrong,
   },
   mealClearText: { fontSize: 14, color: deepSpace.textMid },
+  // Armed: the next tap clears (gate BL-02). Same danger tone the delete chip uses.
+  mealClearArmed: { borderColor: deepSpace.danger },
+  mealClearTextArmed: { color: deepSpace.danger },
   ideaChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   ideaChip: {
     minHeight: 36,

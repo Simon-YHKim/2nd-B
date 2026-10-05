@@ -5,11 +5,15 @@
 import {
   bookSearchFailed,
   bookSearchSettled,
+  mealClearArmKey,
   mealSaveAction,
   MILESTONE_NEXT,
   milestoneChip,
+  runExclusive,
+  sheetAfterWrite,
   shelfView,
   tapDelete,
+  type WriteLock,
 } from "../tool-logic";
 import { milestoneOverdue, type MilestoneStatus } from "@/lib/ops/milestones";
 import { groupShelf, type ShelfEntry } from "@/lib/reading/shelf";
@@ -63,6 +67,90 @@ describe("mealSaveAction (R2C-07): an emptied cell is cleared", () => {
   test("a new or changed meal is saved", () => {
     expect(mealSaveAction("Kimchi stew", null)).toBe("set");
     expect(mealSaveAction("Kimchi stew", "Bibimbap")).toBe("set");
+  });
+});
+
+describe("mealClearArmKey (gate BL-02): clearing a meal takes two taps in one opening", () => {
+  const mon = { session: 1, date: "2026-10-12", slot: "breakfast" };
+  test("two taps in the same opening clear the cell", () => {
+    const first = tapDelete(null, mealClearArmKey(mon));
+    expect(first.commit).toBe(false);
+    expect(tapDelete(first.armedId, mealClearArmKey(mon)).commit).toBe(true);
+  });
+  test("an arm left on another cell does not clear this one", () => {
+    const armed = tapDelete(null, mealClearArmKey({ ...mon, session: 1, slot: "lunch" })).armedId;
+    expect(tapDelete(armed, mealClearArmKey({ ...mon, session: 2 })).commit).toBe(false);
+  });
+  test("closing and reopening the same cell starts unarmed", () => {
+    const armed = tapDelete(null, mealClearArmKey(mon)).armedId;
+    const reopened = { ...mon, session: 2 };
+    expect(mealClearArmKey(reopened)).not.toBe(mealClearArmKey(mon));
+    expect(tapDelete(armed, mealClearArmKey(reopened)).commit).toBe(false);
+  });
+});
+
+describe("sheetAfterWrite (gate BL-03): a late write closes only its own sheet", () => {
+  test("the sheet the write started from closes", () => {
+    expect(sheetAfterWrite({ session: 3 }, 3)).toBeNull();
+  });
+  test("a sheet opened since stays open", () => {
+    const newer = { session: 4 };
+    expect(sheetAfterWrite(newer, 3)).toBe(newer);
+  });
+  test("an already closed sheet stays closed", () => {
+    expect(sheetAfterWrite(null, 3)).toBeNull();
+  });
+});
+
+describe("runExclusive (gate BL-03): a clear cannot race a save", () => {
+  const deferred = () => {
+    let resolve!: () => void;
+    let reject!: (e: unknown) => void;
+    const promise = new Promise<void>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  };
+
+  test("a clear asked for while a save is in flight is refused, not sent", async () => {
+    const lock: WriteLock = { held: false };
+    const order: string[] = [];
+    const save = deferred();
+    const saving = runExclusive(lock, async () => {
+      order.push("upsert:start");
+      await save.promise;
+      order.push("upsert:end");
+    });
+    // The lock is taken before the first await: a tap in the same frame is already refused.
+    expect(lock.held).toBe(true);
+    const clearWrite = jest.fn(async () => {
+      order.push("delete");
+    });
+    await expect(runExclusive(lock, clearWrite)).resolves.toBe("busy");
+    expect(clearWrite).not.toHaveBeenCalled();
+    save.resolve();
+    await expect(saving).resolves.toBe("done");
+    // No DELETE ran in between, so no late UPSERT can bring a cleared cell back.
+    expect(order).toEqual(["upsert:start", "upsert:end"]);
+    expect(lock.held).toBe(false);
+  });
+
+  test("after the save settles, the clear goes through", async () => {
+    const lock: WriteLock = { held: false };
+    await runExclusive(lock, async () => undefined);
+    const clearWrite = jest.fn(async () => undefined);
+    await expect(runExclusive(lock, clearWrite)).resolves.toBe("done");
+    expect(clearWrite).toHaveBeenCalledTimes(1);
+  });
+
+  test("a failed write reports failure and lets go of the lock", async () => {
+    const lock: WriteLock = { held: false };
+    const w = deferred();
+    const running = runExclusive(lock, () => w.promise);
+    w.reject(new Error("400"));
+    await expect(running).resolves.toBe("failed");
+    expect(lock.held).toBe(false);
   });
 });
 

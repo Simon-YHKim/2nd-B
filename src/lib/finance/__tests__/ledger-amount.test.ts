@@ -58,8 +58,27 @@ describe("parseLedgerAmount", () => {
     expect(parseLedgerAmount("0000000000000000012")).toEqual({ kind: "ok", value: 12 });
   });
 
-  test("the input's maxLength matches the ceiling's digits", () => {
+  // Re-aimed 2026-10-05 (gate S-01 / BL-01): this used to say "the input's maxLength
+  // matches the ceiling's digits". The input had maxLength 13, which counts raw
+  // characters, separators included, so a pasted allowed amount was cut short BEFORE this
+  // parser saw it. The digit gate stays here; the input has no maxLength any more
+  // (tool-screens-contract.test.ts pins that).
+  test("the parser's digit gate is the ceiling's digit count", () => {
     expect(LEDGER_AMOUNT_MAX_DIGITS).toBe(13);
+  });
+
+  test("a formatted amount at the ceiling is read whole, not 1,000x smaller", () => {
+    const pasted = "1,000,000,000,000";
+    // Longer than the digit count: a raw maxLength of 13 would have kept "1,000,000,000".
+    expect(pasted.length).toBeGreaterThan(LEDGER_AMOUNT_MAX_DIGITS);
+    expect(pasted.slice(0, LEDGER_AMOUNT_MAX_DIGITS)).toBe("1,000,000,000");
+    expect(parseLedgerAmount(pasted)).toEqual({ kind: "ok", value: MAX_LEDGER_KRW });
+    expect(parseLedgerAmount("₩ 999,999,999,999")).toEqual({ kind: "ok", value: 999_999_999_999 });
+  });
+
+  test("a formatted amount above the ceiling is refused, not shortened into range", () => {
+    expect(parseLedgerAmount("10,000,000,000,000")).toEqual({ kind: "tooLarge" });
+    expect(parseLedgerAmount("1,000,000,000,001")).toEqual({ kind: "tooLarge" });
   });
 });
 

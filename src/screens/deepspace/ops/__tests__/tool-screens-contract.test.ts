@@ -106,8 +106,20 @@ describe("R2C-16 / R2C-11: ledger", () => {
   test("✕ never deletes on its own", () => {
     expect(ledger).not.toMatch(/onPress=\{\(\) => void onDeleteEntry\(/);
   });
+  // Re-aimed 2026-10-05 (gate S-01 / BL-01). This used to REQUIRE
+  // maxLength={LEDGER_AMOUNT_MAX_DIGITS} on the amount input, and that was the bug: maxLength
+  // counts separators, so a pasted "1,000,000,000,000" (an allowed amount) was cut to
+  // "1,000,000,000" before the parser saw it and saved 1,000x less. The ceiling is the same;
+  // it now lives only in parseLedgerAmount (ledger-amount.test.ts), which sees the whole string.
   test("the amount field has a ceiling, and the reason is shown", () => {
-    expect(ledger).toContain("maxLength={LEDGER_AMOUNT_MAX_DIGITS}");
+    const start = ledger.indexOf("value={amount}");
+    const amountInput = ledger.slice(start, ledger.indexOf("/>", start));
+    expect(amountInput).toContain("onChangeText={setAmount}");
+    expect(amountInput).toContain('keyboardType="number-pad"');
+    // Nothing shortens the typed string before parseLedgerAmount reads it.
+    expect(amountInput).not.toMatch(/maxLength/);
+    expect(ledger).not.toMatch(/LEDGER_AMOUNT_MAX_DIGITS/);
+    expect(ledger).toContain("const amountParsed = parseLedgerAmount(amount);");
     expect(ledger).toContain("{amountTooLarge ? (");
     expect(ledger).toContain('t("toolScreens.ledger.amountTooLarge", { max: MAX_LEDGER_KRW.toLocaleString() })');
   });
@@ -139,8 +151,46 @@ describe("R2C-07 / R2C-15: meals", () => {
   });
   test("an emptied cell is cleared, and a filled cell has a clear button", () => {
     expect(meals).toContain("const action = mealSaveAction(draft, pending.current);");
-    expect(meals).toContain('if (action === "clear") await clearMeal(userId, pending.date, pending.slot);');
+    // Re-aimed 2026-10-05 (gate BL-03): the clear still happens, now through writeMeal's lock.
+    expect(meals).toContain('action === "clear" ? clearMeal(userId, sheet.date, sheet.slot) : setMeal(userId, sheet.date, sheet.slot, title)');
     expect(meals).toContain("{pending?.current ? (");
+  });
+});
+
+describe("gate BL-02 / BL-03: the meal sheet's clear and save", () => {
+  const clearButton = meals.slice(meals.indexOf("{pending?.current ? ("), meals.indexOf("{c.save}"));
+
+  test("BL-02: 'clear this meal' takes two taps in the same sheet opening", () => {
+    expect(clearButton.length).toBeGreaterThan(200);
+    expect(clearButton).toContain("onPress={() => clearArm.press(mealClearArmKey(pending))}");
+    expect(clearButton).not.toMatch(/clearMeal\(/);
+    expect(meals).toMatch(/const clearArm = useTwoTapDelete\(\(key\) => \{\n\s*if \(!userId \|\| !pending \|\| mealClearArmKey\(pending\) !== key\) return;/);
+    // The armed state is visible: the label says the next tap clears.
+    expect(clearButton).toContain('{clearArmed ? t("toolScreens.delete.confirm") : t("toolScreens.meals.clear")}');
+  });
+
+  test("BL-02: every opening is a new session, so an arm never carries over", () => {
+    const openCell = meals.slice(meals.indexOf("const openCell"), meals.indexOf("const onLookUp"));
+    expect(openCell).toContain("sheetSeq.current += 1;");
+    expect(openCell).toContain("setPending({ session: sheetSeq.current,");
+  });
+
+  test("BL-03: save and clear write only through the shared lock", () => {
+    expect(meals).toContain("const outcome = await runExclusive(mealLock.current, async () => {");
+    // The lock-holding writer is the only place a meal write is awaited.
+    expect(meals.match(/await (setMeal|clearMeal)\(/g) ?? []).toEqual([]);
+    expect(meals.match(/writeMeal\(sheet, /g)?.length).toBe(2);
+  });
+
+  test("BL-03: both buttons are off while a write runs", () => {
+    const saveButton = meals.slice(meals.indexOf("{pending?.current ? ("), meals.indexOf("</Modal>"));
+    expect(saveButton.match(/disabled=\{mealWriting\}/g)?.length).toBe(2);
+  });
+
+  test("BL-03: a late write closes only the sheet it started from", () => {
+    expect(meals).toContain("setPending((open) => sheetAfterWrite(open, sheet.session));");
+    const writer = meals.slice(meals.indexOf("const writeMeal"), meals.indexOf("const saveCell"));
+    expect(writer).not.toContain("setPending(null)");
   });
 });
 
