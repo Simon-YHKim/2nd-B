@@ -380,6 +380,9 @@ export function DeepSpaceSignInDesignScreen() {
           accessibilityLabel={t("auth:signIn.resetLabel")}
           accessibilityHint={t("auth:resetPassword.requestSubtitle")}
           fullWidth
+          // Primary-blue link text needs the panel ground for AA: 5.30:1 here, 4.16:1 on
+          // the default bevel fill (surfaceContainerHigh). QA R2B-08.
+          background={LINK_GROUND}
           contentStyle={styles.linkContent}
         >
           <Text style={styles.linkText}>{t("deepspace:auth.forgotPassword")}</Text>
@@ -423,6 +426,7 @@ export function DeepSpaceSignInDesignScreen() {
           accessibilityLabel={t("auth:signIn.signUpLink")}
           accessibilityHint={t("auth:signIn.signUpHint")}
           fullWidth
+          background={LINK_GROUND}
           contentStyle={styles.signUpContent}
         >
           <View style={styles.signUpCopy}>
@@ -507,6 +511,14 @@ function LegalLink({ label, onPress }: { label: string; onPress: () => void }) {
     </PixelPressable>
   );
 }
+
+/**
+ * The ground for the two text links ("비밀번호를 잊으셨나요?" · "계정 만들기"). Their text is
+ * m3.color.primary at labelLarge (12px), which WCAG counts as normal text (4.5:1). On the
+ * bevel's default fill (surfaceContainerHigh) that is 4.16:1; on the panel it is 5.30:1,
+ * and the helper line above the sign-up link rises from 4.54 to 5.78:1 (QA R2B-08).
+ */
+const LINK_GROUND = m3.color.surfaceContainer;
 
 const styles = StyleSheet.create({
   shell: {

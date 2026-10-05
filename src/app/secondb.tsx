@@ -110,6 +110,12 @@ import { keepAllKo } from "@/lib/i18n/keep-all";
  *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
  */
 const sbAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.surfaceContainerLow);
+/**
+ * 입력 알약(`ds.inputPill`) 안의 반투명 색. 그 바닥은 `surfaceContainerHigh` 다.
+ * sbAlpha 로 합성하면 바닥이 틀려 색이 어긋난다(QA R2B-08, 2026-10-05: 자리표시자가
+ * 그렇게 2.41:1 이었다).
+ */
+const pillAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.surfaceContainerHigh);
 
 // Quick-action chips offered under an answer (chat pack §8). Each prefills
 // the composer with a short follow-up in the village voice; the user sends.
@@ -442,7 +448,8 @@ const ChatComposer = memo(
             value={draft}
             onChangeText={setDraft}
             placeholder={t("askLens", { lens: lensName })}
-            placeholderTextColor={sbAlpha(deepSpace.text, 0.45)}
+            // AA on the pill (4.54:1), the same token as the other placeholders (QA R2B-08).
+            placeholderTextColor={m3.color.onSurfaceVariant}
             style={ds.pillInput}
             accessibilityLabel={t("inputA11y")}
             onSubmitEditing={submit}
@@ -470,7 +477,7 @@ const ChatComposer = memo(
           <Pressable
             onPress={() => void handleMicPress()}
             disabled={voicePhase === "transcribing"}
-            style={[ds.micBtn, voicePhase === "recording" && { backgroundColor: sbAlpha(lensAccent, 0.18) }]}
+            style={[ds.micBtn, voicePhase === "recording" && { backgroundColor: pillAlpha(lensAccent, 0.18) }]}
             hitSlop={6}
             accessibilityRole="button"
             accessibilityLabel={voicePhase === "recording" ? t("voice.stop") : t("voiceInput")}
@@ -479,7 +486,7 @@ const ChatComposer = memo(
             {voicePhase === "transcribing" ? (
               <ActivityIndicator size="small" color={lensAccent} />
             ) : (
-              <IconMic color={voicePhase === "recording" ? lensAccent : sbAlpha(deepSpace.text, 0.6)} size={22} />
+              <IconMic color={voicePhase === "recording" ? lensAccent : pillAlpha(deepSpace.text, 0.6)} size={22} />
             )}
           </Pressable>
         </View>
