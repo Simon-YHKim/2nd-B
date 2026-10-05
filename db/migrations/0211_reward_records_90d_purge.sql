@@ -2,7 +2,7 @@
 -- 초안(Hadrianus, 2026-10-04). 통합 후보일 뿐이다: push 직전에 원격·로컬 번호를
 -- 다시 확인하고, 0211 이 이미 쓰였으면 번호를 바꾼다(0210 은 #1902 몫, 0197 은 보류).
 --
--- 광고 보상 기록을 적립 시각부터 89일이 지나면 지운다(방침 "최대 90일" − 실행 주기 1일).
+-- 광고 보상 기록을 적립 시각부터 88일이 지나면 지운다(방침 "최대 90일" − 실행 주기 1일 − 실패 복구 여유 1일).
 -- (Simon 결정 2026-10-04 18:32 KST, 결정 4/4 "가": 광고 ON 전에 90일 정리 작업을 넣고
 --  방침에 90일을 명시. 마이그레이션·운영 DB 쓰기·머지는 별도 GO).
 -- v2(2026-10-04 19:32 KST): Gaius 답변 ④ 에 따라 기준을 90일 → 89일로 당겼다. 매일 한 번
@@ -16,7 +16,7 @@
 --   S2 사유 코드 2종 확정('잠정' 표시 삭제). S3 백업 문장 B 채택(복원 뒤 다시 적용은 운영 문서).
 --   S4 보류는 자동 상한 없이 90일마다 재검토: next_review_at 칸, review_reward_dispute_hold(),
 --   재검토 지연은 reward_retention_health() 가 알린다. 담당은 D4(Simon 승인, Hadrianus 실행).
--- 파일 이름과 cron 이름의 "90d" 는 방침 기간(최대 90일)을 가리킨다. 실제 기준은 89일.
+-- 파일 이름과 cron 이름의 "90d" 는 방침 기간(최대 90일)을 가리킨다. 실제 기준은 88일.
 -- 보안 게이트 r1(2026-10-05, daybreak · astra) 반영:
 --   보류 설정과 정리를 같은 advisory lock 으로 줄 세운다(보류가 성공했는데 로트가 지워지는 경합).
 --   감사 기록은 정확히 3년(S1 은 '3년 보관 뒤 파기' 라 하루 당기면 보관 약속을 어긴다).
@@ -34,15 +34,15 @@
 -- 무엇을 지우나 (대상 목록은 Gaius v5 §1-3-2 의 1번과 같다):
 --   1. credit_ledger 의 ad_reward 로트 전체 (여는 행 + lot_id 로 그 행을 가리키는
 --      spend · spend_refund · expire · adjust 행). 0202 와 같은 모양이다. 여는 행만 지우면
---      짝 잃은 소비 행이 남는다. 조건: 여는 행이 89일보다 오래됨, 로트가 만료됨(KST 월말),
+--      짝 잃은 소비 행이 남는다. 조건: 여는 행이 88일보다 오래됨, 로트가 만료됨(KST 월말),
 --      로트 합계가 0 (expire-credit-lots 가 만료 행을 이미 씀). 합계가 0 인 로트를 통째로
 --      지우면 credit_balance.balance_available 과 원장 합계의 차이가 그대로라
 --      credit_balance_drift 가 비어 있는 상태가 유지된다. user_id 가 NULL 인 옛 로트는
 --      잔액 캐시가 없으므로 합계와 상관없이 지운다(운영 0행).
---   2. rewarded_ssv_txns: granted_at 이 89일보다 오래된 행.
+--   2. rewarded_ssv_txns: granted_at 이 88일보다 오래된 행.
 --   3. usage_counters 의 보상 칸(reward_credits · reward_consumed · chat_ad_credits):
 --      행은 지우지 않는다(같은 행에 유료 사용량 reasoning_used 가 있다). 그 달의 KST 첫날이
---      89일보다 오래되면 0 으로 만든다. 달 단위 합계라 개별 적립 시각이 없으므로, 그 달의
+--      88일보다 오래되면 0 으로 만든다. 달 단위 합계라 개별 적립 시각이 없으므로, 그 달의
 --      가장 이른 적립도 90일을 넘지 않게 달 시작 기준으로 잡는다("최대 90일").
 --      지난 달 칸만 바뀐다(이번 KST 달의 첫날은 길어야 31일 전). 이 칸을 읽는 곳은 모두
 --      이번 달 행만 고른다: 앱 usage.ts:107-122 · dds-plans-screen.tsx:142-159 의 monthRow,
@@ -50,15 +50,15 @@
 --      미러(0135:336), credit_ad_earned_this_month(0135:299, 원장 이번 달). 그래서 영향 없음.
 --      0135 의 trg_usage_counters_freeze_credits 는 app.credit_mirror = '1' 일 때만 이 칸의
 --      변경을 허락하므로, 이 단계에서만 트랜잭션 지역으로 켜고 바로 끈다.
---   4. chat_usage.ad_bonus: 그 날의 KST 0시가 89일보다 오래되면 0 으로 만든다(행은 남김).
---   5. reward_ssv_issue_rate_limits: updated_at 이 89일보다 오래된 행.
+--   4. chat_usage.ad_bonus: 그 날의 KST 0시가 88일보다 오래되면 0 으로 만든다(행은 남김).
+--   5. reward_ssv_issue_rate_limits: updated_at 이 88일보다 오래된 행.
 --   (reward_ssv_tickets 는 0196 의 purge-reward-ssv-tickets 가 1일 뒤에 이미 지운다.)
 --
 -- 분쟁 보류: reward_dispute_holds 에 released_at IS NULL 로 올라간 거래는 건너뛴다.
 --   - 그 거래의 rewarded_ssv_txns 행, memo = 'rewarded SSV ' || transaction_id 인
 --     ad_reward 로트(0172 grant_reward_credits_ssv 가 쓰는 모양), 그리고 그 거래가 속한
 --     사용자·KST 달의 usage_counters 보상 칸, 사용자·KST 날의 chat_usage.ad_bonus.
---   - "해당 기록만": 같은 사용자의 다른 거래는 89일에 지운다.
+--   - "해당 기록만": 같은 사용자의 다른 거래는 88일에 지운다.
 --   - 보류는 계정 삭제를 막지 않는다(v4 540행 판단). 보류 행은 rewarded_ssv_txns 를
 --     ON DELETE CASCADE 로 물어서, 계정 삭제 → rewarded_ssv_txns CASCADE → 보류 행 삭제.
 --   - 감사 기록 reward_dispute_hold_events 는 보류 행을 ON DELETE SET NULL 로 문다.
@@ -67,12 +67,13 @@
 --     남기지 않으려고). check:erasure-registry 는 소유자 칸 이름으로 범위를 정하므로 G1
 --     대상이 아닐 것으로 보지만 CI 에서 확인할 것.
 --
--- 재전송(replay) 불변식: 정리 기간(89일) > 티켓 재시도 창(1일). 89일 정리 뒤 같은 콜백은
+-- 재전송(replay) 불변식: 정리 기간(88일) > 티켓 재시도 창(1일). 88일 정리 뒤 같은 콜백은
 --   티켓이 이미 없어서 막힌다(Hadrianus 2026-09-27 점검). 콜백 시각 신선도 검사는 0213.
 --
--- 왜 상수 89일인가. 기간을 인수로 받으면 누군가 짧게/길게 부를 수 있다. 방침이
+-- 왜 상수 88일인가. 기간을 인수로 받으면 누군가 짧게/길게 부를 수 있다. 방침이
 --   "최대 90일" 이고 분쟁 예외는 보류 표로만 표현하므로 기간은 상수로 둔다.
---   89 = 방침 최대 90일 − 실행 주기 1일(Gaius 답변 ④).
+--   88 = 방침 최대 90일 − 실행 주기 1일(Gaius 답변 ④) − 실패 복구 여유 1일(보안 게이트 r3 DB3-01,
+--   Simon 2026-10-05 19:4x KST "A"). 89일이면 정기 실행이 한 번만 실패해도 일부 기록이 90일을 넘었다.
 --
 -- credit_balance.lifetime_* 는 이 정리에서 건드리지 않는다(Gaius 답변 ⑧: 계정 삭제 때만
 --   지운다). 로트 합계가 0 일 때만 지우므로 balance_available 도 바뀌지 않는다.
@@ -132,14 +133,14 @@ CREATE TABLE IF NOT EXISTS public.reward_dispute_holds (
 );
 
 COMMENT ON TABLE public.reward_dispute_holds IS
-  '0211: 보상 지급 분쟁 보류. released_at IS NULL 인 거래는 purge_reward_records() 가 89일 정리에서 건너뛴다(그 거래의 rewarded_ssv_txns 행, memo 로 연결된 ad_reward 로트, 그 사용자·KST 달/날의 보상 카운터). 계정 삭제는 막지 않는다: rewarded_ssv_txns 를 ON DELETE CASCADE 로 문다. user_id 칸을 두지 않는다. 자동 해제 상한 없이 next_review_at(90일마다)에 재검토한다(S4). 쓰기는 place/review/release 함수로만.';
+  '0211: 보상 지급 분쟁 보류. released_at IS NULL 인 거래는 purge_reward_records() 가 88일 정리에서 건너뛴다(그 거래의 rewarded_ssv_txns 행, memo 로 연결된 ad_reward 로트, 그 사용자·KST 달/날의 보상 카운터). 계정 삭제는 막지 않는다: rewarded_ssv_txns 를 ON DELETE CASCADE 로 문다. user_id 칸을 두지 않는다. 자동 해제 상한 없이 next_review_at(90일마다)에 재검토한다(S4). 쓰기는 place/review/release 함수로만.';
 
 CREATE TABLE IF NOT EXISTS public.reward_dispute_hold_events (
   id             bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   transaction_id text REFERENCES public.reward_dispute_holds (transaction_id) ON DELETE SET NULL,
   case_ref       text NOT NULL CHECK (case_ref ~ '^[A-Za-z0-9_-]{1,64}$'),
   -- source_deleted: 활성 보류 행이 지워짐(계정 삭제 CASCADE). 시스템이 쓴다. 해제된 보류 행이
-  -- 89일 정리로 지워질 때는 남기지 않는다(사건 종료일은 이미 released 가 말한다).
+  -- 88일 정리로 지워질 때는 남기지 않는다(사건 종료일은 이미 released 가 말한다).
   action         text NOT NULL CHECK (action IN ('placed', 'reopened', 'reviewed', 'released', 'source_deleted')),
   reason_code    text NOT NULL CHECK (reason_code IN ('user_dispute', 'store_dispute')),
   actor          text NOT NULL CHECK (actor ~ '^[a-z0-9_.-]{1,64}$'),
@@ -197,7 +198,7 @@ CREATE TRIGGER trg_reward_dispute_hold_events_append_only
   FOR EACH ROW EXECUTE FUNCTION public.reward_dispute_hold_events_append_only();
 
 -- 활성 보류 행이 해제 없이 지워지면(계정 삭제 CASCADE) 그 시각을 남긴다. 그 사건의 "분쟁이 끝난
--- 날" 을 3년 정리가 알 수 있게 하려는 것이다. 해제된 보류 행이 89일 정리로 지워질 때는 남기지
+-- 날" 을 3년 정리가 알 수 있게 하려는 것이다. 해제된 보류 행이 88일 정리로 지워질 때는 남기지
 -- 않는다: 그 사건은 released 에서 이미 끝났고, 여기서 남기면 3년 정리가 정리 시각을 종료일로
 -- 읽어 보관을 늘린다(보안 게이트 r1 BL-04).
 -- transaction_id 는 비운다(지워지는 중인 행을 FK 로 물 수 없고, 거래 ID 를 남기지 않으려고).
@@ -283,7 +284,7 @@ BEGIN
   -- 기다렸다가 아래에서 거래 행이 없음을 보고 false 를 돌려준다.
   PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('public.purge_reward_records', 0));
 
-  -- 거래 행이 없으면(이미 89일 정리됐거나 계정 삭제) 보류할 대상이 없다.
+  -- 거래 행이 없으면(이미 88일 정리됐거나 계정 삭제) 보류할 대상이 없다.
   PERFORM 1 FROM public.rewarded_ssv_txns AS t
     WHERE t.transaction_id = p_transaction_id
     FOR KEY SHARE;
@@ -434,8 +435,8 @@ SET statement_timeout = '120s'
 AS $$
 DECLARE
   -- 방침 최대 90일 − 실행 주기 1일. 바꾸지 말 것(사후 조건과 회귀 테스트 P9 가 막는다).
-  c_retention constant interval := make_interval(days => 89);
-  -- S1: 감사 기록은 분쟁이 끝난 날부터 3년 "보관 뒤 파기". 89일과 달리 이것은 최소 보관 약속이라
+  c_retention constant interval := make_interval(days => 88);
+  -- S1: 감사 기록은 분쟁이 끝난 날부터 3년 "보관 뒤 파기". 88일과 달리 이것은 최소 보관 약속이라
   -- 당기지 않는다. 매일 돌므로 실제 삭제는 3년을 채운 뒤 첫 실행(최대 하루 늦게)이다.
   c_audit_retention constant interval := make_interval(years => 3);
   v_role   text := public.billing_request_role();
@@ -651,7 +652,7 @@ REVOKE ALL ON FUNCTION public.purge_reward_records(integer, integer)
 GRANT EXECUTE ON FUNCTION public.purge_reward_records(integer, integer) TO service_role;
 
 COMMENT ON FUNCTION public.purge_reward_records(integer, integer) IS
-  '0211: 광고 보상 기록 89일 정리(상수 89일 = 방침 최대 90일 − 실행 주기 1일). ad_reward 로트 전체(만료·합계 0), rewarded_ssv_txns, usage_counters 보상 칸(KST 달 시작 기준), chat_usage.ad_bonus(KST 날 시작 기준), reward_ssv_issue_rate_limits. reward_dispute_holds 의 활성 보류 거래는 건너뛴다. 불변식: 89일 > 티켓 재시도 창 1일(0196). credit_balance.lifetime_* 는 건드리지 않음. 분쟁 보류 감사 기록은 분쟁 종료 3년 뒤 사건 단위로 지운다(S1). 보류 설정과 같은 advisory lock 으로 줄을 선다. 매일 04:37 KST pg_cron purge-reward-records-90d.';
+  '0211: 광고 보상 기록 88일 정리(상수 88일 = 방침 최대 90일 − 실행 주기 1일). ad_reward 로트 전체(만료·합계 0), rewarded_ssv_txns, usage_counters 보상 칸(KST 달 시작 기준), chat_usage.ad_bonus(KST 날 시작 기준), reward_ssv_issue_rate_limits. reward_dispute_holds 의 활성 보류 거래는 건너뛴다. 불변식: 88일 > 티켓 재시도 창 1일(0196). credit_balance.lifetime_* 는 건드리지 않음. 분쟁 보류 감사 기록은 분쟁 종료 3년 뒤 사건 단위로 지운다(S1). 보류 설정과 같은 advisory lock 으로 줄을 선다. 매일 04:37 KST pg_cron purge-reward-records-90d.';
 
 ----------------------------------------------------------------------
 -- 4. 예약 (0196 과 같은 모양: 있으면 지우고 다시 건다)
@@ -681,11 +682,12 @@ END
 $schedule$;
 
 ----------------------------------------------------------------------
--- 6. 감시 (Gaius 답변 ④: 실행 실패·하루 넘게 미실행, 91일 넘은 비보류 기록)
+-- 6. 감시 (Gaius 답변 ④: 실행 실패·하루 넘게 미실행, 90일 넘은 비보류 기록)
 ----------------------------------------------------------------------
 -- 건수와 시각만 돌려준다(개인 식별 정보 없음). billing-tripwires.yml(매일 05:20 KST, psql 로
 -- SUPABASE_DB_URL 접속 = JWT 없는 운영자 세션)가 이 함수를 읽어 ok = false 면 ops 이슈를 연다.
--- 91일 = 방침 최대 90일 + 하루 여유. 89일 기준으로 매일 돌면 이 값은 늘 0 이어야 한다.
+-- 90일 = 방침 상한. 88일 기준으로 매일 돌면 가장 오래된 기록이 88일 남짓이고, 한 번 실패해도
+-- 24시간 안에 다시 돌면 90일을 넘지 않는다. 그래서 이 값이 0 이 아니면 방침을 이미 넘긴 것이다.
 -- 26시간 = 하루 + 실행 시간·cron 지연 여유 2시간.
 
 CREATE OR REPLACE FUNCTION public.reward_retention_health()
@@ -698,7 +700,7 @@ AS $$
 DECLARE
   v_role     text := public.billing_request_role();
   v_now      timestamptz := now();
-  v_overdue  timestamptz := now() - make_interval(days => 91);
+  v_overdue  timestamptz := now() - make_interval(days => 90);
   v_txns     bigint;
   v_lots     bigint;
   v_uc       bigint;
@@ -723,7 +725,7 @@ BEGIN
      AND NOT EXISTS (SELECT 1 FROM public.reward_dispute_holds AS h
                       WHERE h.transaction_id = t.transaction_id AND h.released_at IS NULL);
 
-  -- 합계와 상관없이 센다: 91일 넘게 남은 로트는 정리가 못 지웠거나 만료가 안 된 것이다.
+  -- 합계와 상관없이 센다: 90일 넘게 남은 로트는 정리가 못 지웠거나 만료가 안 된 것이다.
   SELECT count(*) INTO v_lots FROM public.credit_ledger AS o
    WHERE o.kind = 'ad_reward' AND o.id = o.lot_id AND o.created_at < v_overdue
      AND NOT EXISTS (SELECT 1 FROM public.reward_dispute_holds AS h
@@ -820,7 +822,7 @@ REVOKE ALL ON FUNCTION public.reward_retention_health() FROM PUBLIC, anon, authe
 GRANT EXECUTE ON FUNCTION public.reward_retention_health() TO service_role;
 
 COMMENT ON FUNCTION public.reward_retention_health() IS
-  '0211: 89일 정리 감시. 91일 넘은 비보류 보상 기록 수, 재검토 기한(90일)이 지난 활성 보류 수(S4), 분쟁 종료 3년 넘게 남은 감사 사건 수(S1), 0196 계약보다 하루 넘게 남은 티켓 수(소비 2일 · 만료 1일 초과), purge-reward-records-90d 의 마지막 성공 시각·7일 실패 수·26시간 미실행 여부. pg_cron 이 없으면 ok=false. 건수와 시각만. billing-tripwires.yml 이 ok=false 면 이슈를 연다.';
+  '0211: 88일 정리 감시. 90일 넘은 비보류 보상 기록 수, 재검토 기한(90일)이 지난 활성 보류 수(S4), 분쟁 종료 3년 넘게 남은 감사 사건 수(S1), 0196 계약보다 하루 넘게 남은 티켓 수(소비 2일 · 만료 1일 초과), purge-reward-records-90d 의 마지막 성공 시각·7일 실패 수·26시간 미실행 여부. pg_cron 이 없으면 ok=false. 건수와 시각만. billing-tripwires.yml 이 ok=false 면 이슈를 연다.';
 
 ----------------------------------------------------------------------
 -- 5. 끝 상태 확인 (0172~0205 와 같은 모양)
@@ -830,10 +832,10 @@ DO $postcondition$
 DECLARE
   v_ok boolean;
 BEGIN
-  -- R2: 정리 기간 89일 > 티켓 재시도 창 1일. 둘 중 하나가 바뀌면 여기서 멈춘다.
+  -- R2: 정리 기간 88일 > 티켓 재시도 창 1일. 둘 중 하나가 바뀌면 여기서 멈춘다.
   IF (SELECT p.prosrc FROM pg_catalog.pg_proc AS p
        WHERE p.oid = 'public.purge_reward_records(integer,integer)'::regprocedure)
-       !~ 'make_interval\(days => 89\)'
+       !~ 'make_interval\(days => 88\)'
      OR (SELECT p.prosrc FROM pg_catalog.pg_proc AS p
           WHERE p.oid = 'public.purge_reward_records(integer,integer)'::regprocedure)
        !~ 'make_interval\(years => 3\)'
@@ -858,7 +860,7 @@ BEGIN
      OR NOT has_function_privilege('service_role', 'public.review_reward_dispute_hold(text,text,text)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'public.reward_dispute_holds_log_delete()', 'EXECUTE')
      OR has_table_privilege('service_role', 'public.reward_dispute_hold_events', 'SELECT,INSERT,UPDATE,DELETE') THEN
-    RAISE EXCEPTION '0211: reward 89-day purge postcondition failed';
+    RAISE EXCEPTION '0211: reward 88-day purge postcondition failed';
   END IF;
   -- cron.job 은 pg_cron 이 있을 때만 존재한다. 정적 참조는 계획 단계에서 실패하므로 동적으로 묻는다.
   IF to_regclass('cron.job') IS NOT NULL THEN

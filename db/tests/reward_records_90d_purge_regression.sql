@@ -9,8 +9,8 @@
 -- 같은 계약을 고정한다. 코딩 LLM 이 CI 에서 다듬을 것(TODO 표시).
 --
 -- 고정하는 계약
---   P1 89일 지난 ad_reward 로트는 로트 전체가 지워지고, 고아 행·잔액 드리프트가 없다.
---   P2 89일 지난 rewarded_ssv_txns · reward_ssv_issue_rate_limits 는 지워진다.
+--   P1 88일 지난 ad_reward 로트는 로트 전체가 지워지고, 고아 행·잔액 드리프트가 없다.
+--   P2 88일 지난 rewarded_ssv_txns · reward_ssv_issue_rate_limits 는 지워진다.
 --   P3 usage_counters 는 행이 남고 보상 칸만 0. reasoning_used 는 그대로.
 --   P4 chat_usage 는 행이 남고 ad_bonus 만 0. count 는 그대로.
 --   P5 최근 기록·구매 로트는 건드리지 않는다.
@@ -19,13 +19,13 @@
 --      감사 기록은 transaction_id 만 NULL 로 남는다.
 --   P8 authenticated 는 purge · place · release · health 를 부를 수 없다. 'other' 사유와
 --      자기 승인(approved_by = actor)은 거부된다.
---   P9 R2 불변식: 정리 89일 > 티켓 재시도 창 1일 > 0 (prosrc 확인).
+--   P9 R2 불변식: 정리 88일 > 티켓 재시도 창 1일 > 0 (prosrc 확인).
 --   P10 0213: 1일 넘은/미래/티켓 발급 전 timestamp 는 v3 에서 지급되지 않는다.
 --   P11 cron.job 에 purge-reward-records-90d '37 19 * * *' 가 active (pg_cron 있을 때만).
 --   P12 reward_retention_health(): 정리 뒤 overdue 건수가 모두 0(보류 거래는 세지 않음).
 --       0196 계약보다 하루 넘게 남은 티켓도 센다(BL-07 · DB2-03). pg_cron 이 없는 서버에서는
 --       ok = false(DB-03 · BL-06).
---   P13 89일 경계: 89일 + 1시간 전 거래는 지워지고 88일 23시간 전 거래는 남는다.
+--   P13 88일 경계: 88일 + 1시간 전 거래는 지워지고 87일 23시간 전 거래는 남는다.
 --   P14 S4 재검토: 걸 때 next_review_at = 90일 뒤, review 가 다시 90일 뒤로 미루고 'reviewed' 를 남긴다.
 --       자기 승인은 거부. 기한이 지나면 health 의 overdue_hold_reviews 가 센다.
 --   P15 S1 감사 기록 3년: 분쟁이 끝난 날부터 정확히 3년 지난 사건의 감사 행만 정리가 지운다
@@ -35,7 +35,7 @@
 -- v3(20:43 KST): S1~S4 확정 반영(P14·P15 추가, P7 감사 행 수 4).
 -- r1 게이트(2026-10-05): P7 감사 행 수 3(해제 뒤 정리는 source_deleted 를 남기지 않는다), P15 경계 ·
 --   여러 보류 사건 추가, P12 티켓 · cron 없는 ok. 보류와 정리의 경합(DB-01)은 두 세션이 필요해
---   이 파일이 아니라 supabase-dry-run.yml 의 "Race a dispute hold against the 89-day purge" 단계가 본다.
+--   이 파일이 아니라 supabase-dry-run.yml 의 "Race a dispute hold against the 88-day purge" 단계가 본다.
 BEGIN;
 
 SET LOCAL session_replication_role = replica;
@@ -82,9 +82,9 @@ BEGIN
    WHERE id = '30000000-0000-0000-0000-0000000002f5';
   UPDATE public.rewarded_ssv_txns SET granted_at = granted_at - v_shift WHERE user_id = v_one;
   -- P13 경계: 거래 행만 민다(로트는 이번 달 것이라 만료 전이므로 남는 것이 맞다).
-  UPDATE public.rewarded_ssv_txns SET granted_at = pg_catalog.now() - interval '89 days 1 hour'
+  UPDATE public.rewarded_ssv_txns SET granted_at = pg_catalog.now() - interval '88 days 1 hour'
    WHERE transaction_id = 'txn-p90-edge-plus';
-  UPDATE public.rewarded_ssv_txns SET granted_at = pg_catalog.now() - interval '88 days 23 hours'
+  UPDATE public.rewarded_ssv_txns SET granted_at = pg_catalog.now() - interval '87 days 23 hours'
    WHERE transaction_id = 'txn-p90-edge-minus';
   -- 만료 행 기록(합계 0 으로 만든다).
   PERFORM public.expire_credit_lots(pg_catalog.now(), 500);
@@ -180,7 +180,7 @@ BEGIN
     RAISE EXCEPTION 'P2: stale issue rate limit kept'; END IF;
   IF EXISTS (SELECT 1 FROM public.rewarded_ssv_txns WHERE transaction_id = 'txn-p90-edge-plus')
      OR NOT EXISTS (SELECT 1 FROM public.rewarded_ssv_txns WHERE transaction_id = 'txn-p90-edge-minus') THEN
-    RAISE EXCEPTION 'P13: 89-day boundary wrong'; END IF;
+    RAISE EXCEPTION 'P13: 88-day boundary wrong'; END IF;
   -- P12: 정리 뒤 감시 건수 0 (보류 거래는 세지 않는다)
   IF (public.reward_retention_health() ->> 'overdue_rewarded_ssv_txns')::int <> 0
      OR (public.reward_retention_health() ->> 'overdue_ad_reward_lots')::int <> 0
@@ -303,7 +303,7 @@ RESET request.jwt.claim.role;
 DO $p9$
 DECLARE v_ok boolean;
 BEGIN
-  IF (SELECT prosrc FROM pg_proc WHERE oid = 'public.purge_reward_records(integer,integer)'::regprocedure) !~ 'make_interval\(days => 89\)'
+  IF (SELECT prosrc FROM pg_proc WHERE oid = 'public.purge_reward_records(integer,integer)'::regprocedure) !~ 'make_interval\(days => 88\)'
      OR (SELECT prosrc FROM pg_proc WHERE oid = 'public.purge_reward_records(integer,integer)'::regprocedure) !~ 'make_interval\(years => 3\)'
      OR (SELECT prosrc FROM pg_proc WHERE oid = 'public.prune_reward_ssv_tickets()'::regprocedure) !~ 'make_interval\(days => 1\)'
      -- 0213(PR-7b) 뒤에만. '…'::regprocedure 는 짧게 끊겨도 계획 단계에서 평가돼 함수가 없으면

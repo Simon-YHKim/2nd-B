@@ -388,7 +388,7 @@ test("the shipped credit_ledger revision keeps 0189 historical and the JSON curr
   expect(json.tables.credit_ledger.class).toBe("retained");
   expect(json.tables.credit_ledger.reason).not.toBe(previous);
   expect(json.tables.credit_ledger.reason).toMatch(/promo/);
-  // 0212 revised credit_ledger again (89-day reward purge, 0211). The reason 0205
+  // 0212 revised credit_ledger again (88-day reward purge, 0211). The reason 0205
   // wrote is therefore the one 0212 records as its previous reason, not the row
   // the JSON holds now.
   const after0205: string =
