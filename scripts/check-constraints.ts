@@ -1222,7 +1222,8 @@ results.push(
       settings.includes('sub={t("nav.accountHint")}') &&
       settings.includes('sub={t("nav.dataHint")}') &&
       // (theme quick-toggle hints removed with the duplicate disclosure —
-      // /theme owns theme switching; see O-R1 settings restructure.)
+      // see O-R1 settings restructure. Theme switching itself is gone since
+      // 2026-10-05, Q-261005-02: /theme now holds font + motion only.)
       // (crew-density hints removed with the control itself. CrewLayer only
       //  rendered inside NavGraph, which no production surface mounted; both
       //  moved to E:/Legacy on 2026-10-04 with lib/settings/crew-density.ts.)
@@ -1835,12 +1836,16 @@ results.push(
       const en = read("locales/en/deepspace.json");
       const ko = read("locales/ko/deepspace.json");
       const forbiddenScreenCopy = ["village light", "마을 불빛"];
+      // 2026-10-05 Simon 결정 Q-261005-02: 다크/라이트 고르기(theme.sectionTheme ·
+      // themeDeepspace · themeMidnight · midnightNote)가 화면에서 빠졌다. 이 검사는
+      // 남은 글꼴 · 움직임 문구를 보고, 빠진 테마 절이 슬그머니 돌아오지 않는지도 본다.
+      const retiredThemeSection = ['t("theme.sectionTheme")', 't("theme.themeMidnight")', 'setMode("light")'];
       const ok =
         screen.includes('t("theme.title")') &&
-        screen.includes('t("theme.sectionTheme")') &&
-        screen.includes('t("theme.themeDeepspace")') &&
+        screen.includes('t("theme.status")') &&
         screen.includes('t("theme.sectionFont")') &&
         screen.includes('t("theme.reduceMotion")') &&
+        retiredThemeSection.every((snippet) => !screen.includes(snippet)) &&
         en.includes('"theme"') &&
         ko.includes('"theme"') &&
         forbiddenScreenCopy.every((term) => !screen.includes(term) && !en.includes(term) && !ko.includes(term));
@@ -1848,8 +1853,8 @@ results.push(
         id: "ThemeI18nCopy",
         status: ok ? "PASS" : "FAIL",
         note: ok
-          ? "theme screen copy lives in the deepspace bundle and avoids the old village-light metaphor"
-          : "theme screen should source display-tone copy from the deepspace bundle and avoid old village-light metaphor copy",
+          ? "theme screen (font + motion) copy lives in the deepspace bundle, the retired dark/light section stays out, and the old village-light metaphor is absent"
+          : "theme screen should source font and motion copy from the deepspace bundle, keep the retired dark/light section out (Q-261005-02), and avoid old village-light metaphor copy",
       };
     }),
   );

@@ -349,13 +349,9 @@
     "indexed": "{{count}} items ready to search"
   },
   "theme": {
-    "title": "Theme · Font",
-    "status": "Pick a comfortable theme and font.",
+    "title": "Font · Motion",
+    "status": "Pick a comfortable font.",
     "tip": "You can reduce screen animations.",
-    "sectionTheme": "Theme",
-    "themeDeepspace": "Deep space",
-    "themeMidnight": "Midnight",
-    "midnightNote": "Midnight currently applies to some screens only. Deep-space screens are still being adapted.",
     "sectionFont": "Font",
     "fontPixel": "Pixel · Galmuri",
     "fontReadable": "Readable · Pretendard",

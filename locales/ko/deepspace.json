@@ -349,13 +349,9 @@
     "indexed": "{{count}}개 검색 준비 완료"
   },
   "theme": {
-    "title": "테마 · 글꼴",
-    "status": "보기 편한 테마와 글꼴을 골라 주세요.",
+    "title": "글꼴 · 움직임",
+    "status": "보기 편한 글꼴을 골라 주세요.",
     "tip": "화면 움직임을 줄일 수 있습니다.",
-    "sectionTheme": "테마",
-    "themeDeepspace": "딥스페이스",
-    "themeMidnight": "미드나잇",
-    "midnightNote": "미드나잇은 아직 일부 화면에만 적용됩니다. 딥스페이스 화면 적용은 준비 중입니다.",
     "sectionFont": "글꼴",
     "fontPixel": "픽셀 · Galmuri",
     "fontReadable": "읽기 편한 · Pretendard",
