@@ -132,7 +132,8 @@ const MIGRATED: readonly string[] = [
   "src/screens/deepspace/ops/screens.tsx",
   "src/screens/deepspace/trends/TrendsScreen.tsx",
   "src/components/art/CompanionSprite.tsx",
-  "src/components/art/SecondBSprite.tsx",
+  // components/art/SecondBSprite.tsx 줄은 2026-10-05 에 뺐다. 그리는 곳 0 이 된 세컨비의 걷는 몸
+  // 스프라이트가 WorkerSprite 와 함께 E:/Legacy 로 갔다(QA R2E-11).
   "src/components/art/SoulcoreFinalArt.tsx",
   "src/components/deep-space/ConstellationHome.tsx",
   "src/components/deep-space/RecordsGraph.tsx",
@@ -722,7 +723,10 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 // 95 → 94 (2026-10-05, 옛 캐릭터 정리 · Simon 결정 Q-261004-14 A · 15 A): graph-bits 의 옛 캐릭터
 // 배지(CharacterBadge, 그리는 곳 0)가 나가면서 그 링 바탕의 알파 1건이 빠졌다(PIXEL_RULES_LIST=1
 // 파일별 대조: graph-bits 1 -> 0, 나머지 파일 변화 없음). 같은 단서 — **고친 것이 아니라 빠진 것**이다.
-const RATCHET_BASELINE = 94;
+// 94 → 89 (2026-10-05, QA R2E-11): 그리는 곳 0 이던 세컨비의 걷는 몸 스프라이트 SecondBSprite 1 ·
+// WorkerSprite 4 가 E:/Legacy 로 나갔다(PIXEL_RULES_LIST=1 파일별 대조: 그 두 파일만 빠지고 나머지
+// 43개 파일 변화 없음). 같은 단서 — **고친 것이 아니라 빠진 것**이다.
+const RATCHET_BASELINE = 89;
 
 // 래칫이 통과해도 **남은 빚이 어디 있는지** 볼 수 있어야 한다. 수만 보면 고칠 곳을
 // 모른다(채점기 D·E·B 축도 이름을 붙이고 나서야 고칠 것이 드러났다).

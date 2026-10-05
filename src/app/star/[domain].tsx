@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
 import {
@@ -164,7 +165,7 @@ export default function DomainStarScreen() {
   const { domain, pieceId } = useLocalSearchParams<{ domain: string; pieceId?: string | string[] }>();
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
-  const locale = shippedLocale(i18n.resolvedLanguage ?? i18n.language);
+  const locale = shippedLocale(renderedUiLanguage(i18n));
   const { userId, loading } = useAuth();
 
   const [rows, setRows] = useState<DomainLensRecord[] | null>(null);

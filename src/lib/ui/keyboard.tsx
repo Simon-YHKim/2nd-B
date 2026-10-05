@@ -44,11 +44,23 @@ export interface KeyboardAvoidingAreaProps extends ViewProps {
    * (화면 위 끝에서 이 뷰의 부모까지의 거리). Android 는 재서 정하므로 쓰지 않는다.
    */
   iosKeyboardVerticalOffset?: number;
+  /**
+   * iOS 전용. true 면 iOS 에서는 평범한 View 다. 안쪽 ScrollView 가 iOS 전용 prop
+   * `automaticallyAdjustKeyboardInsets` 로 키보드를 이미 피할 때 쓴다. 둘 다 띄우면
+   * 스크롤 끝에 키보드 높이만큼 빈칸이 한 번 더 생긴다. Android · 웹은 이 값과 무관하게
+   * 위 규칙 그대로다(그 prop 은 Android 에서 아무것도 하지 않는다. /capture 2026-10-05 QA).
+   */
+  iosHandledByScrollView?: boolean;
 }
 
-export function KeyboardAvoidingArea({ iosKeyboardVerticalOffset = 0, ...props }: KeyboardAvoidingAreaProps) {
+export function KeyboardAvoidingArea({
+  iosKeyboardVerticalOffset = 0,
+  iosHandledByScrollView = false,
+  ...props
+}: KeyboardAvoidingAreaProps) {
   const mode = keyboardAvoidanceMode(Platform.OS);
   if (mode === "ios-padding") {
+    if (iosHandledByScrollView) return <View {...props} />;
     return (
       <KeyboardAvoidingView
         {...props}

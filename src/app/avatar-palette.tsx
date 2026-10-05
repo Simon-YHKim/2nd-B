@@ -13,6 +13,7 @@ import { PlainText as Text } from "@/components/ui/PlainText";
 import { Redirect, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import Svg, { Rect, SvgXml } from "react-native-svg";
 
 import { AvatarPreview } from "@/components/avatar/AvatarPreview";
@@ -475,7 +476,7 @@ export default function AvatarPaletteScreen() {
         <View style={styles.galleryCardText}>
           <Text style={styles.body} numberOfLines={2}>{item.title || t("avatarPalette:untitled")}</Text>
           <Text style={styles.muted}>{t(`avatarPalette:slots.${item.slot}`)}</Text>
-          <Text style={styles.muted}>{t("avatarPalette:editedOn", { date: new Date(item.updatedAt).toLocaleDateString(i18n.resolvedLanguage ?? i18n.language) })}</Text>
+          <Text style={styles.muted}>{t("avatarPalette:editedOn", { date: new Date(item.updatedAt).toLocaleDateString(renderedUiLanguage(i18n)) })}</Text>
           <View style={styles.row}>
             <ActionButton label={t("avatarPalette:openDrawing")} disabled={busy} onPress={() => requestTransition({ kind: "open", id: item.id })} />
             <ActionButton label={t("avatarPalette:deleteItem")} disabled={busy} onPress={() => setDeleteCandidate(item)} />

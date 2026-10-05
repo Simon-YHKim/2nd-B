@@ -60,12 +60,10 @@ const PINNED_WITHOUT_A_RENDERER: Readonly<Record<string, string>> = {
     "아니라 '목록 밖 홈 이동이 새로 생기지 않는다' 는 전수 계약의 한 줄이라 옮길 배송 등가물이 " +
     "없다. rev2 클론(#745)에서 온 컴포넌트로 배송 코드가 렌더하지 않는다. 처분 미정 - " +
     "컴포넌트를 걷어내면 그 목록 행도 함께 빠진다.",
-  SecondBSprite:
-    "세컨비 자신의 픽셀 스프라이트(옛 캐릭터 다섯이 아니다). 유일한 렌더러였던 graph-bits 의 " +
-    "CharacterBadge 가 2026-10-05 옛 캐릭터 정리(Simon 결정 Q-261004-14 A · 15 A)로 나가면서 " +
-    "그리는 곳이 0 이 됐다. 그 정리의 범위는 옛 캐릭터라 세컨비 스프라이트는 옮기지 않았다 - " +
-    "처분(이동 또는 배송 머리 SecondbHead 로 대체)은 따로 정한다. 그때 ArtA11ySemantics 의 " +
-    "image 역할 핀과 pixel-rules 이식 목록 줄을 함께 정리한다.",
+  // SecondBSprite 줄도 2026-10-05 에 걷었다. 여기 미뤄 둔 처분을 QA R2E-11 이 끝냈다: 그리는 곳
+  // 0 인 세컨비의 걷는 몸 스프라이트와 WorkerSprite · PNG 두 장을 E:/Legacy/2ndB 로 옮겼고
+  // (batch qa261005-secondb-sprite), ArtA11ySemantics 의 이름 계약은 배송 머리 SecondbHead 로,
+  // pixel-rules 이식 목록 줄은 은퇴 주석으로 정리했다.
   // RleCell은 승인 PNG 렌더러로 교체됨. 바이트·픽셀·표시 계약은
   // src/lib/opening/__tests__/hustlek-approved.test.ts와 src/lib/__tests__/hustlek-opening-runtime.test.ts가 지킨다.
 };

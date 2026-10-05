@@ -362,7 +362,9 @@
     "sectionSize": "Ukuran teks",
     "small": "Kecil",
     "large": "Besar",
-    "reduceMotion": "Kurangi gerakan"
+    "reduceMotion": "Kurangi gerakan",
+    "soundEffects": "Efek suara",
+    "soundEffectsNote": "Suara teleskop, foto bintang, dan pembukaan. Tetap mati saat ponsel dalam mode senyap atau getar."
   },
   "manual": {
     "title": "Panduan penggunaan",
