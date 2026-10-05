@@ -227,17 +227,10 @@ describe("Supabase auth session mutation boundary", () => {
     );
     expect(requestSource).toContain("refreshExpectedSessionInsideMutation");
     expect(requestSource).toContain("{ requireCrossTab: true }");
-    // The local fence on captured A is raised as a liftable intent first and turns
-    // terminal right before the Edge call (QA 261004 gate R3-05). Both stages stay
-    // bound to expected.userId, and the invoke still follows an acknowledged fence.
-    const ownerBinding = requestSource.indexOf("const owner = expected.userId;");
-    const intentFence = requestSource.indexOf('await installAccountLocalDeletionFence(owner, "intent")');
-    const terminalFence = requestSource.indexOf("await installAccountLocalDeletionFence(owner))");
+    const localFence = requestSource.indexOf("await installAccountLocalDeletionFence(expected.userId)");
     const remoteInvoke = requestSource.indexOf('supabase.functions.invoke("delete-account"');
-    expect(ownerBinding).toBeGreaterThan(-1);
-    expect(intentFence).toBeGreaterThan(ownerBinding);
-    expect(terminalFence).toBeGreaterThan(intentFence);
-    expect(remoteInvoke).toBeGreaterThan(terminalFence);
+    expect(localFence).toBeGreaterThan(-1);
+    expect(remoteInvoke).toBeGreaterThan(localFence);
     const capture = screenSource.indexOf("await captureSignOutExpectation()");
     const request = screenSource.indexOf("await requestAccountDeletion(authExpectation)");
     const localPurge = screenSource.indexOf("await purgeDeletedAccountLocalData(targetUserId)");

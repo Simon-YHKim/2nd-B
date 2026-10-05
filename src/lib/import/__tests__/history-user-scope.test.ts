@@ -233,14 +233,10 @@ describe("native import history uses encrypted storage", () => {
         "import.history:native-user",
         expect.any(String),
       );
-      // Raw AsyncStorage is read only for the deletion markers, once per guarded
-      // write: the terminal key, then the intent key (split out by gate DEL-SAFE-02).
-      expect(mockAsyncStorage.getItem.mock.calls.map(([key]) => key)).toEqual([
+      expect(mockAsyncStorage.getItem).toHaveBeenCalledTimes(2);
+      expect(mockAsyncStorage.getItem).toHaveBeenCalledWith(
         "account.deletionFence.v1:native-user",
-        "account.deletionIntent.v1:native-user",
-        "account.deletionFence.v1:native-user",
-        "account.deletionIntent.v1:native-user",
-      ]);
+      );
       expect(mockAsyncStorage.setItem).not.toHaveBeenCalled();
       expect(mockAsyncStorage.removeItem).not.toHaveBeenCalled();
       expect(visibleLocalStorage.getItem).not.toHaveBeenCalled();

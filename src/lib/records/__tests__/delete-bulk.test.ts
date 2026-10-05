@@ -83,20 +83,10 @@ jest.mock("../../supabase/client", () => {
 
 jest.mock("../../account/local-deletion-fence", () => {
   const installFence = jest.fn().mockResolvedValue(true);
-  const releaseIntent = jest.fn().mockResolvedValue(true);
-  const discardIntent = jest.fn().mockResolvedValue(undefined);
   return {
     installAccountLocalDeletionFence: installFence,
-    releaseAccountLocalDeletionIntent: releaseIntent,
-    discardAccountLocalDeletionIntent: discardIntent,
     __installFence: installFence,
-    __releaseIntent: releaseIntent,
-    __discardIntent: discardIntent,
-    __reset: () => {
-      installFence.mockReset().mockResolvedValue(true);
-      releaseIntent.mockReset().mockResolvedValue(true);
-      discardIntent.mockReset().mockResolvedValue(undefined);
-    },
+    __reset: () => installFence.mockReset().mockResolvedValue(true),
   };
 });
 
@@ -125,8 +115,6 @@ const clientMock = require("../../supabase/client") as {
 };
 const fenceMock = require("../../account/local-deletion-fence") as {
   __installFence: jest.Mock;
-  __releaseIntent: jest.Mock;
-  __discardIntent: jest.Mock;
   __reset: () => void;
 };
 
@@ -218,27 +206,13 @@ describe("requestAccountDeletion (terminal erasure)", () => {
   });
 
   test("never invokes the remote function unless the durable local fence acknowledges", async () => {
-    // The first fence is the reversible intent, raised before anything else.
     fenceMock.__installFence.mockResolvedValueOnce(false);
 
     await expect(requestAccountDeletion(EXPECTED)).rejects.toThrow("local deletion fence");
-    expect(fenceMock.__installFence).toHaveBeenCalledWith("u1", "intent");
+    expect(fenceMock.__installFence).toHaveBeenCalledWith("u1");
     expect(clientMock.__getSession).not.toHaveBeenCalled();
     expect(clientMock.__refreshSession).not.toHaveBeenCalled();
     expect(clientMock.__invoke).not.toHaveBeenCalled();
-    // A browser without Web Locks writes the marker and still answers false.
-    expect(fenceMock.__releaseIntent).toHaveBeenCalledWith("u1");
-  });
-
-  test("never invokes the remote function unless the terminal fence acknowledges", async () => {
-    fenceMock.__installFence
-      .mockResolvedValueOnce(true) // intent
-      .mockResolvedValueOnce(false); // terminal
-
-    await expect(requestAccountDeletion(EXPECTED)).rejects.toThrow("local deletion fence");
-    expect(fenceMock.__installFence.mock.calls).toEqual([["u1", "intent"], ["u1"]]);
-    expect(clientMock.__invoke).not.toHaveBeenCalled();
-    expect(fenceMock.__releaseIntent).toHaveBeenCalledWith("u1");
   });
 
   test("does not permanently fence a session that lacks a stable session id", async () => {
@@ -246,154 +220,7 @@ describe("requestAccountDeletion (terminal erasure)", () => {
       name: "AuthSessionOwnerChangedError",
     });
     expect(fenceMock.__installFence).not.toHaveBeenCalled();
-    expect(fenceMock.__releaseIntent).not.toHaveBeenCalled();
     expect(clientMock.__invoke).not.toHaveBeenCalled();
-  });
-
-  // QA 261004 gate R3-05 (2026-10-05): the terminal fence used to go up before
-  // the session refresh, so an offline refresh or an account switch left a live
-  // account fenced on this device for good. The fence is an intent until the
-  // first Edge call and is lifted on any failure before it.
-  describe("a deletion that never reached the server does not leave a live account fenced", () => {
-    test("the fence turns terminal after the refresh and before the first invoke", async () => {
-      await requestAccountDeletion(EXPECTED);
-      expect(fenceMock.__installFence.mock.calls).toEqual([["u1", "intent"], ["u1"]]);
-      const [intentAt, terminalAt] = fenceMock.__installFence.mock.invocationCallOrder;
-      expect(intentAt).toBeLessThan(clientMock.__getSession.mock.invocationCallOrder[0]);
-      expect(clientMock.__refreshSession.mock.invocationCallOrder[0]).toBeLessThan(terminalAt);
-      expect(terminalAt).toBeLessThan(clientMock.__invoke.mock.invocationCallOrder[0]);
-      expect(fenceMock.__releaseIntent).not.toHaveBeenCalled();
-    });
-
-    test.each([
-      ["the refresh is offline", () => {
-        clientMock.__refreshSession.mockResolvedValueOnce({ data: { session: null }, error: new Error("offline") });
-      }],
-      ["the session switched to another user", () => {
-        clientMock.__getSession.mockResolvedValueOnce({
-          data: { session: { access_token: mockAccessToken("u2", "session-b"), user: { id: "u2" } } },
-          error: null,
-        });
-      }],
-    ])("lifts the intent when %s, with no Edge call and no terminal marker", async (_label, arrange) => {
-      arrange();
-      await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
-      expect(clientMock.__invoke).not.toHaveBeenCalled();
-      expect(fenceMock.__installFence.mock.calls).toEqual([["u1", "intent"]]);
-      expect(fenceMock.__releaseIntent).toHaveBeenCalledWith("u1");
-    });
-
-    test("lifts the intent when the refresh uses up the deadline before any invoke", async () => {
-      let now = 3_000;
-      const nowSpy = jest.spyOn(Date, "now").mockImplementation(() => now);
-      clientMock.__refreshSession.mockImplementationOnce(async () => {
-        now += ACCOUNT_DELETION_DEADLINE_MS;
-        return {
-          data: { session: { access_token: mockAccessToken("u1", "session-a", "late"), user: { id: "u1" } } },
-          error: null,
-        };
-      });
-      try {
-        await expect(requestAccountDeletion(EXPECTED)).rejects.toThrow("deadline exhausted");
-        expect(fenceMock.__installFence.mock.calls).toEqual([["u1", "intent"]]);
-        expect(fenceMock.__releaseIntent).toHaveBeenCalledWith("u1");
-      } finally {
-        nowSpy.mockRestore();
-      }
-    });
-
-    test.each([
-      ["the function reports failure", () => {
-        clientMock.__invoke.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
-      }],
-      ["the transport rejects", () => {
-        clientMock.__invoke.mockRejectedValueOnce(new Error("network"));
-      }],
-    ])("keeps the terminal fence once an Edge call was attempted (%s)", async (_label, arrange) => {
-      arrange();
-      await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
-      expect(clientMock.__invoke).toHaveBeenCalledTimes(1);
-      expect(fenceMock.__releaseIntent).not.toHaveBeenCalled();
-    });
-
-    test("an account switch between 409 retries keeps the fence: the server may have started", async () => {
-      clientMock.__invoke.mockResolvedValueOnce({ data: null, error: cleanupInProgress(1_000) });
-      clientMock.__getSession
-        .mockResolvedValueOnce({
-          data: { session: { access_token: mockAccessToken("u1", "session-a"), user: { id: "u1" } } },
-          error: null,
-        })
-        .mockResolvedValueOnce({
-          data: { session: { access_token: mockAccessToken("u1", "session-a", "2"), user: { id: "u1" } } },
-          error: null,
-        })
-        .mockResolvedValueOnce({
-          data: { session: { access_token: mockAccessToken("u2", "session-b"), user: { id: "u2" } } },
-          error: null,
-        });
-
-      await expect(requestAccountDeletion(EXPECTED)).rejects.toMatchObject({
-        name: "AuthSessionOwnerChangedError",
-      });
-      // Promoted once, before the first invoke only.
-      expect(fenceMock.__installFence.mock.calls).toEqual([["u1", "intent"], ["u1"]]);
-      expect(fenceMock.__releaseIntent).not.toHaveBeenCalled();
-    });
-  });
-
-  // QA 261004 gate DEL-BL-02 (2026-10-05): the promotion used to clear the
-  // leftover intent between the terminal marker and the first invoke, so on
-  // native up to two more storage calls could use up the deadline after the
-  // fence had turned terminal: no Edge call, and a fence nothing can lift. The
-  // intent is now cleared after the Edge attempts, on every path that made one.
-  describe("the leftover intent is cleared after the Edge attempts, never before the first invoke", () => {
-    function lastOrder(mock: jest.Mock): number {
-      return mock.mock.invocationCallOrder[mock.mock.invocationCallOrder.length - 1];
-    }
-
-    test("a completed deletion clears it once, after the invoke", async () => {
-      await requestAccountDeletion(EXPECTED);
-      expect(fenceMock.__discardIntent.mock.calls).toEqual([["u1"]]);
-      const terminalAt = fenceMock.__installFence.mock.invocationCallOrder[1];
-      expect(terminalAt).toBeLessThan(clientMock.__invoke.mock.invocationCallOrder[0]);
-      expect(clientMock.__invoke.mock.invocationCallOrder[0])
-        .toBeLessThan(fenceMock.__discardIntent.mock.invocationCallOrder[0]);
-    });
-
-    test.each([
-      ["the function reports failure", () => {
-        clientMock.__invoke.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
-      }],
-      ["the transport rejects", () => {
-        clientMock.__invoke.mockRejectedValueOnce(new Error("network"));
-      }],
-    ])("a failed Edge attempt still clears it afterwards (%s)", async (_label, arrange) => {
-      arrange();
-      await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
-      expect(fenceMock.__discardIntent.mock.calls).toEqual([["u1"]]);
-      expect(clientMock.__invoke.mock.invocationCallOrder[0])
-        .toBeLessThan(fenceMock.__discardIntent.mock.invocationCallOrder[0]);
-      expect(fenceMock.__releaseIntent).not.toHaveBeenCalled();
-    });
-
-    test("409 retries clear it once, after the last invoke", async () => {
-      clientMock.__invoke
-        .mockResolvedValueOnce({ data: null, error: cleanupInProgress(1_000) })
-        .mockResolvedValueOnce({ data: { deleted: true }, error: null });
-      await requestAccountDeletion(EXPECTED);
-      expect(clientMock.__invoke).toHaveBeenCalledTimes(2);
-      expect(fenceMock.__discardIntent).toHaveBeenCalledTimes(1);
-      expect(lastOrder(clientMock.__invoke))
-        .toBeLessThan(fenceMock.__discardIntent.mock.invocationCallOrder[0]);
-    });
-
-    test("a deletion that never invoked releases the intent instead", async () => {
-      clientMock.__refreshSession.mockResolvedValueOnce({ data: { session: null }, error: new Error("offline") });
-      await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
-      expect(clientMock.__invoke).not.toHaveBeenCalled();
-      expect(fenceMock.__discardIntent).not.toHaveBeenCalled();
-      expect(fenceMock.__releaseIntent).toHaveBeenCalledWith("u1");
-    });
   });
 
   test("fails closed when the active user already changed after confirmation", async () => {
@@ -472,8 +299,6 @@ describe("requestAccountDeletion (terminal erasure)", () => {
     });
     expect(clientMock.__getSession).toHaveBeenCalledTimes(6);
     expect(clientMock.__refreshSession).toHaveBeenCalledTimes(3);
-    // Intent once, terminal once before the first invoke; retries do not rewrite it.
-    expect(fenceMock.__installFence.mock.calls).toEqual([["u1", "intent"], ["u1"]]);
     expect(clientMock.__invoke.mock.calls.map(([, options]) => options.headers.Authorization))
       .toEqual([
         `Bearer ${mockAccessToken("u1", "session-a", "3")}`,

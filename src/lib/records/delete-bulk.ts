@@ -11,7 +11,7 @@ import {
   refreshExpectedSessionInsideMutation,
   type AuthSessionExpectation,
 } from "../auth/session-mutation";
-import { discardAccountLocalDeletionIntent, installAccountLocalDeletionFence, releaseAccountLocalDeletionIntent } from "../account/local-deletion-fence";
+import { installAccountLocalDeletionFence } from "../account/local-deletion-fence";
 import { recordPhotoPathsOf, removeRecordPhotoObjects } from "../capture/record-photos";
 /** Delete every record belonging to the user. Returns affected count. */
 export async function deleteAllRecords(userId: string): Promise<number> {
@@ -322,129 +322,102 @@ export async function requestAccountDeletion(
     if (expected.userId === null || expected.sessionId === null) {
       throw new AuthSessionOwnerChangedError();
     }
-    const owner = expected.userId;
-    // Publish and durably read back the local owner fence before anything else,
-    // as a reversible INTENT. False means another tab could not be joined or
-    // persistence failed, so deletion stays on hold and the network sees 0
-    // delete-account calls. The fence turns terminal (irreversible) right
-    // before the first Edge invocation; a failure before that lifts the intent
-    // again, so a live account is never left fenced on this device (QA 261004
-    // gate R3-05: refresh offline or no Web Locks used to fence it forever).
-    let edgeInvoked = false;
-    try {
-      if (!(await installAccountLocalDeletionFence(owner, "intent"))) {
-        throw new Error("account local deletion fence was not acknowledged");
-      }
-      let removedBeforeSuccess = 0;
-
-      for (let attempt = 0; attempt < ACCOUNT_DELETION_MAX_ATTEMPTS; attempt += 1) {
-        if (Date.now() >= deadlineAt) throw new Error("account deletion retry deadline exhausted");
-        // Keep every retry inside the same cross-tab mutation owner. Refresh may
-        // rotate the token, but the captured user/session identity must not move.
-        const accessToken = await refreshExpectedSessionInsideMutation(supabase.auth, expected);
-
-        // Refresh can consume most of the same absolute budget. Recompute here so
-        // the Edge signal expires at the original deadline, never one refresh later.
-        let remainingMs = deadlineAt - Date.now();
-        if (remainingMs <= 0) throw new Error("account deletion retry deadline exhausted");
-        if (!edgeInvoked) {
-          // The next step is destructive, so the fence turns terminal first:
-          // durably acknowledged before the first Edge invocation, as before.
-          // A terminal marker is never lifted, so only the invoke follows it
-          // (and the deadline, should this one write have used it all up).
-          if (!(await installAccountLocalDeletionFence(owner))) {
-            throw new Error("account local deletion fence was not acknowledged");
-          }
-          remainingMs = deadlineAt - Date.now();
-          if (remainingMs <= 0) throw new Error("account deletion retry deadline exhausted");
-        }
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), remainingMs);
-        let invocation: Awaited<ReturnType<typeof supabase.functions.invoke>>;
-        try {
-          // Whether the server started cannot be known once this is sent.
-          edgeInvoked = true;
-          invocation = await supabase.functions.invoke("delete-account", {
-            body: {},
-            headers: { Authorization: `Bearer ${accessToken}` },
-            signal: controller.signal,
-          });
-        } finally {
-          clearTimeout(timeout);
-        }
-        const { data, error } = invocation;
-        if (error) {
-          const removed = await readCleanupProgress(error);
-          if (removed === null || !Number.isSafeInteger(removedBeforeSuccess + removed)) throw error;
-          removedBeforeSuccess += removed;
-          if (
-            attempt + 1 < ACCOUNT_DELETION_MAX_ATTEMPTS
-            && Date.now() < deadlineAt
-          ) continue;
-          throw error;
-        }
-
-        const body = data as
-          | {
-              deleted?: unknown;
-              profile_erased?: unknown;
-              deletion_fenced?: unknown;
-              raw_clippings_erased?: unknown;
-              raw_clippings_empty_at_check?: unknown;
-              raw_clippings_removed?: unknown;
-            }
-          | null;
-        if (body?.deleted !== true) {
-          throw new Error("account deletion did not complete");
-        }
-        const profileErased = readFlag(body.profile_erased);
-        const deletionFenced = readFlag(body.deletion_fenced);
-        const rawClippingsEmptyAtCheck = readFlag(body.raw_clippings_empty_at_check);
-        const reportedRawClippingsErased = readFlag(body.raw_clippings_erased);
-        // Permanent-erasure=true is a conclusion backed by all three server
-        // observations, not a single legacy flag. A reported false remains false;
-        // any contradictory or missing proof remains honestly unknown.
-        const rawClippingsErased = reportedRawClippingsErased === false
-          ? false
-          : reportedRawClippingsErased === true
-            && deletionFenced === true
-            && rawClippingsEmptyAtCheck === true
-            ? true
-            : null;
-        const finalRemoved = readRemovedCount(body.raw_clippings_removed);
-        const rawClippingsRemoved = finalRemoved !== null
-          && Number.isSafeInteger(removedBeforeSuccess + finalRemoved)
-          ? removedBeforeSuccess + finalRemoved
-          : null;
-        const sweeps: [DeletionSweep, boolean | null][] = [
-          ["profile", profileErased],
-          ["rawClippings", rawClippingsErased],
-        ];
-        const incomplete = sweeps.filter(([, v]) => v === false).map(([k]) => k);
-        const unconfirmed = sweeps.filter(([, v]) => v === null).map(([k]) => k);
-        return {
-          deleted: true,
-          profileErased,
-          deletionFenced,
-          rawClippingsErased,
-          rawClippingsEmptyAtCheck,
-          rawClippingsRemoved,
-          incomplete,
-          unconfirmed,
-          complete: incomplete.length === 0 && unconfirmed.length === 0,
-          observedAtIso: new Date().toISOString(),
-        };
-      }
-
-      throw new Error("account deletion retry bound exhausted");
-    } catch (error) {
-      if (!edgeInvoked) await releaseAccountLocalDeletionIntent(owner);
-      throw error;
-    } finally {
-      // The intent left under the terminal marker is only clutter. Clearing it
-      // waits until the Edge attempts are over, so its storage calls never spend
-      // the deadline between the terminal marker and the first invoke (DEL-BL-02).
-      if (edgeInvoked) await discardAccountLocalDeletionIntent(owner);
+    // Publish and durably read back the local owner tombstone before the first
+    // destructive Edge invocation. False means another tab could not be joined
+    // or persistence failed, so deletion stays on hold and the network sees 0
+    // delete-account calls.
+    const localFenceAcknowledged = await installAccountLocalDeletionFence(expected.userId);
+    if (!localFenceAcknowledged) {
+      throw new Error("account local deletion fence was not acknowledged");
     }
+    let removedBeforeSuccess = 0;
+
+    for (let attempt = 0; attempt < ACCOUNT_DELETION_MAX_ATTEMPTS; attempt += 1) {
+      if (Date.now() >= deadlineAt) throw new Error("account deletion retry deadline exhausted");
+      // Keep every retry inside the same cross-tab mutation owner. Refresh may
+      // rotate the token, but the captured user/session identity must not move.
+      const accessToken = await refreshExpectedSessionInsideMutation(supabase.auth, expected);
+
+      // Refresh can consume most of the same absolute budget. Recompute here so
+      // the Edge signal expires at the original deadline, never one refresh later.
+      const remainingMs = deadlineAt - Date.now();
+      if (remainingMs <= 0) throw new Error("account deletion retry deadline exhausted");
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), remainingMs);
+      let invocation: Awaited<ReturnType<typeof supabase.functions.invoke>>;
+      try {
+        invocation = await supabase.functions.invoke("delete-account", {
+          body: {},
+          headers: { Authorization: `Bearer ${accessToken}` },
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+      const { data, error } = invocation;
+      if (error) {
+        const removed = await readCleanupProgress(error);
+        if (removed === null || !Number.isSafeInteger(removedBeforeSuccess + removed)) throw error;
+        removedBeforeSuccess += removed;
+        if (
+          attempt + 1 < ACCOUNT_DELETION_MAX_ATTEMPTS
+          && Date.now() < deadlineAt
+        ) continue;
+        throw error;
+      }
+
+      const body = data as
+        | {
+            deleted?: unknown;
+            profile_erased?: unknown;
+            deletion_fenced?: unknown;
+            raw_clippings_erased?: unknown;
+            raw_clippings_empty_at_check?: unknown;
+            raw_clippings_removed?: unknown;
+          }
+        | null;
+      if (body?.deleted !== true) {
+        throw new Error("account deletion did not complete");
+      }
+      const profileErased = readFlag(body.profile_erased);
+      const deletionFenced = readFlag(body.deletion_fenced);
+      const rawClippingsEmptyAtCheck = readFlag(body.raw_clippings_empty_at_check);
+      const reportedRawClippingsErased = readFlag(body.raw_clippings_erased);
+      // Permanent-erasure=true is a conclusion backed by all three server
+      // observations, not a single legacy flag. A reported false remains false;
+      // any contradictory or missing proof remains honestly unknown.
+      const rawClippingsErased = reportedRawClippingsErased === false
+        ? false
+        : reportedRawClippingsErased === true
+          && deletionFenced === true
+          && rawClippingsEmptyAtCheck === true
+          ? true
+          : null;
+      const finalRemoved = readRemovedCount(body.raw_clippings_removed);
+      const rawClippingsRemoved = finalRemoved !== null
+        && Number.isSafeInteger(removedBeforeSuccess + finalRemoved)
+        ? removedBeforeSuccess + finalRemoved
+        : null;
+      const sweeps: [DeletionSweep, boolean | null][] = [
+        ["profile", profileErased],
+        ["rawClippings", rawClippingsErased],
+      ];
+      const incomplete = sweeps.filter(([, v]) => v === false).map(([k]) => k);
+      const unconfirmed = sweeps.filter(([, v]) => v === null).map(([k]) => k);
+      return {
+        deleted: true,
+        profileErased,
+        deletionFenced,
+        rawClippingsErased,
+        rawClippingsEmptyAtCheck,
+        rawClippingsRemoved,
+        incomplete,
+        unconfirmed,
+        complete: incomplete.length === 0 && unconfirmed.length === 0,
+        observedAtIso: new Date().toISOString(),
+      };
+    }
+
+    throw new Error("account deletion retry bound exhausted");
   }, { requireCrossTab: true });
 }
