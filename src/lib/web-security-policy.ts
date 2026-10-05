@@ -14,6 +14,9 @@ type Directive = readonly [name: string, ...sources: string[]];
 
 // Origins here must correspond to a browser request made by production code.
 // In particular, do not replace the fixed Supabase project with a wildcard.
+// 2026-10-05: the web AdSense origins (pagead2.googlesyndication.com and the
+// two doubleclick.net hosts) left with AdSlot, the only code that requested
+// them (Q-261004-16, docs/ADSENSE-WEB-RETIREMENT.md).
 // `style-src 'unsafe-inline'` is currently required by React Native Web's SSR
 // output (style tags and attributes); script execution remains hash/host-bound.
 export const WEB_CSP_DIRECTIVES: readonly Directive[] = [
@@ -24,9 +27,6 @@ export const WEB_CSP_DIRECTIVES: readonly Directive[] = [
     EXPO_ROUTER_HYDRATE_CSP_SOURCE,
     "https://accounts.google.com/gsi/client",
     "https://www.googletagmanager.com",
-    "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js",
-    "https://googleads.g.doubleclick.net",
-    "https://securepubads.g.doubleclick.net",
     "https://cdn.paddle.com/paddle/v2/paddle.js",
   ],
   ["script-src-attr", "'none'"],
@@ -46,9 +46,6 @@ export const WEB_CSP_DIRECTIVES: readonly Directive[] = [
     "https://upload.wikimedia.org",
     "https://www.googletagmanager.com",
     "https://www.google-analytics.com",
-    "https://pagead2.googlesyndication.com",
-    "https://googleads.g.doubleclick.net",
-    "https://securepubads.g.doubleclick.net",
     "https://cdn.paddle.com",
     "https://vendors.paddle.com",
     // 글 photos (record-photos, 0209) are shown through short-lived signed URLs.
@@ -74,9 +71,6 @@ export const WEB_CSP_DIRECTIVES: readonly Directive[] = [
     "https://www.google-analytics.com",
     "https://region1.google-analytics.com",
     "https://analytics.google.com",
-    "https://pagead2.googlesyndication.com",
-    "https://googleads.g.doubleclick.net",
-    "https://securepubads.g.doubleclick.net",
     "https://www.google.com",
     "https://services.google.com",
     "https://api.paddle.com",
@@ -89,9 +83,6 @@ export const WEB_CSP_DIRECTIVES: readonly Directive[] = [
     "'self'",
     "https://accounts.google.com/gsi/",
     "https://buy.paddle.com",
-    "https://pagead2.googlesyndication.com",
-    "https://googleads.g.doubleclick.net",
-    "https://securepubads.g.doubleclick.net",
     "https://www.google.com",
   ],
   ["media-src", "'self'", "data:", "blob:"],

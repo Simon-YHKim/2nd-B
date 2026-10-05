@@ -17,7 +17,6 @@ const REQUIRED_SCRIPT_SOURCES = [
   HYDRATE_CSP_SOURCE,
   "https://accounts.google.com/gsi/client",
   "https://www.googletagmanager.com",
-  "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js",
   "https://cdn.paddle.com/paddle/v2/paddle.js",
 ];
 

@@ -43,9 +43,17 @@ Toss / Stripe normalize into this table.
 
 ## C5 — Testimonial consent
 
-`testimonials.consent_given_at` is NOT NULL.
-`share_with_judges_flag` defaults to false. UI consent dialog returns
-both fields before insert.
+`testimonials.consent_given_at` is NOT NULL (DB constraint,
+`db/migrations/0006_testimonials.sql`). That is the whole rule.
+
+**Changed 2026-10-05 (Simon decision Q-261004-17).** C5 used to also say
+"`share_with_judges_flag` defaults to false. UI consent dialog returns both
+fields before insert." The dialog (`src/components/consent/ConsentDialog.tsx`)
+was never rendered by any screen and the app never inserts a testimonial, so it
+moved to E:/Legacy. The DB constraint, the `testimonials` table and its
+migration are unchanged. Building testimonial collection again means a new
+consent UI, not this one: it defaulted the judges flag to ON, against the
+column default.
 
 ## C6 — Comp access is never derived from an email domain (retired auto-flag)
 

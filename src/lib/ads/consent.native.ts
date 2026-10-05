@@ -1,7 +1,7 @@
 // UMP (User Messaging Platform) seam, NATIVE side of the platform split --
 // Google's regulatory consent form (EU GDPR / US state messages, both
 // published in the AdMob console), DISTINCT from the app's own ads consent:
-// policy.ts (canShowAds/canShowRewardedAds) decides whether we may enter an
+// policy.ts (canShowRewardedAds) decides whether we may enter an
 // ad flow AT ALL; UMP decides whether Google may serve ads to this user in
 // regulated regions. Both gates must pass, in that order.
 //
