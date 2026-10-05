@@ -11,7 +11,7 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-10-01 01:07 ~ 2026-10-01 02:43 | [handoff/HANDOFF-2026-10.md](handoff/HANDOFF-2026-10.md) | 4 | 14KB |
+| 2026-10-01 01:07 ~ 2026-10-01 02:57 | [handoff/HANDOFF-2026-10.md](handoff/HANDOFF-2026-10.md) | 5 | 15KB |
 | 2026-09-28 01:2x ~ 2026-09-30 23:57 | [handoff/HANDOFF-2026-09-p4.md](handoff/HANDOFF-2026-09-p4.md) | 24 | 66KB |
 | 2026-09-25 ~ 2026-09-28 00:4x | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 37 | 86KB |
 | 2026-09-08 ~ 2026-09-21 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 16 | 94KB |
@@ -31,7 +31,18 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-05 23:03 / 효과음 검토 · Simon 답 Q-261005-01~05 · 1차 머지(#2079) · 2 · 3차 발주
+## Latest — 2026-10-06 00:04 / 효과음 2차 머지: 녹음 뒤 효과음 모드 복귀(#2081) · 설정 '효과음' 켜기 · 끄기(#2082) · 3차는 메모리 대기
+
+- **무엇을**: Simon "그래 작업해줘."(10-05 23시경, Stability 등록 비용 문답 뒤). 등록은 Simon 계정의 약관 동의라 대신 하지 않았다. 등록과 무관한 2차를 마쳤다.
+- **2a #2081 `c7639518`**: 녹음 화면이 모드를 `playsInSilentMode: true` 로 바꾸고 되돌리지 않던 구멍(Q-261005-01 의 남은 부분)을 막았다. 모드 변경은 `audio-session.ts` 한 곳(`beginRecordingAudioMode` · `endRecordingAudioMode` · `isRecordingAudioMode`)만 하고, `createRecorderLifecycle(audioRecorder, { onIdle: restoreEffectsAfterRecording })` 의 `clear()` 가 멈춤 · 취소 · 계정 변경 · 모드 이탈 · 화면 이탈 모두에서 복귀시킨다. 시작 실패는 화면 `catch` 가 복귀. 남는 경우: 멈춤 실패 + 쓰기 종료 증거 없음으로 격리된 세션. 변이 3건 잡힘, verify 886 / 11,636.
+- **2b #2082 `2b6b267d`**: 테마 화면 '화면 움직임 줄이기' 아래 '효과음' 토글(기본 켜짐, Q-261005-02). 스위치 한 칸은 `ui-sound-player.ts`(`areSoundEffectsOn` · `setSoundEffectsOn` · `onSoundEffectsChange`)에 두고 UI 효과음 · 라쳇 반복 · 오프닝이 재생 직전에 본다. 끄면 도는 라쳇과 오프닝도 멈춘다. 햅틱은 그대로. 저장은 `src/lib/settings/sound-effects.ts`(lite-mode 방식, 키 `audio.soundEffects.v1`), `_layout.tsx` 가 모듈 범위에서 `ensureSoundEffectsHydration()`. 5개 언어. DPIA 의 `DeepSpaceDesignScreens.tsx` 줄 인용 4곳을 같은 커밋에서 내용 대조로 옮겼다(608-615→609-616 · 772-776→773-777 · 1913-1918→1918-1923 · 2792→2797). 변이 4건 잡힘, verify 889 / 11,650.
+- **3차 상태**: 시작 못 함. 생성 1회 피크 커밋 약 6.4 GiB 인데 23:56 실측 커밋 86.6%(우리 규칙: 80% 미만에서만). Stability 상업 등록도 Simon 확인 전. 발주서는 아래 10-05 23:03 블록 그대로 유효하다. 2차로 생긴 도구: `isRecordingAudioMode()` 로 녹음 중 무음을 걸 수 있다.
+- **이 세션 함정**: 녹음 수명 관리의 호출 문자열을 두 테스트(`recording-uri.test.ts` · `chat-voice-input.test.ts`)가 고정하고 있었다 · 줄바꿈이 CRLF 인 파일에 여러 줄 패턴으로 변이를 걸면 적용되지 않아 '통과'가 나온다(한 줄 패턴으로 다시 해서 잡힘) · 맨 위에 import 한 줄만 넣어도 DPIA 줄 인용이 전부 밀린다.
+- **정리**: 2차 워크트리 둘은 정션을 먼저 끊고 지웠다(공용 설치 723 유지). 빈 폴더 `.worktrees/sfx-r2b` 하나는 안전 검사가 rmdir 을 막아 남았다(비어 있음, 지워도 됨).
+- **앱/localhost**: 00:04 `npm run app:parity` = 같음(8081 = `2b6b267d`, APK 런 37329439365 진행 중).
+- **다음 1개**: 메모리 커밋 80% 아래(에뮬레이터 · 놀고 있는 세션 정리)가 되면 3차 후보 생성 → 미리듣기 보고서. Simon 쪽은 Stability 상업 등록 여부.
+
+## 2026-10-05 23:03 / 효과음 검토 · Simon 답 Q-261005-01~05 · 1차 머지(#2079) · 2 · 3차 발주
 
 - **무엇을**: Simon "지금 우리 앱에 추가되면 효과음들을 검토해봐." → 검토 보고서 <https://claude.ai/artifact/6tkJdbsFuzcsyMFaTSaQiD>(지금 소리 전수 · 후보 6곳 · 무음 자리 · 미리듣기) → 답 "Q-261005-01 A · 02 A · 03 C · 04 C · 05 A". 결정 원문은 `DECISIONS.md` 22:52 다섯 줄.
 - **같은 날 앞선 일**: agent-audio 설치(#2076, 코드 `E:/agent-audio/src` · 데이터 `E:/agent-audio/data`, Claude Code + Codex 등록, 약관 Simon 수락, 생성 테스트는 아직).
@@ -551,14 +562,5 @@
 - **작업 경계**: 원래 `TTL-Work_rev2` 워크트리의 다른 세션 미커밋 변경은 건드리지 않았다. Android QA 기록은 별도 브랜치 `docs/android-native-photo-qa-261001`에서 작성했다. `npm run app:parity`는 `b81faefc` 시점에 같음이었으며 새 main에서도 다시 확인한다.
 - **검증**: main `36623cc1` 통합 뒤 `npm run verify` 870묶음/11,279건 통과. `npm run app:parity`는 앱 경로·설정·의존성 일치와 같은 코드·설정의 APK 빌드 성공으로 **같음**(03:33 KST). PR #1970의 lint·verify·web-export-smoke 3종도 통과했다.
 
----
-
-## 2026-10-01 02:57 / #1968 머지 뒤 확인: 앱 = localhost 같음 · 8081 브라우저 검사 14/14 · 따옴표 뒤 조사 줄바꿈
-
-- **#1968 머지**: 02:48 KST, main `b81faefc`. CI lint · verify · web-export-smoke 통과. `npm run app:parity` **같음**(02:50:07). 8081 이 `b81faefc` 로 다시 떴고(02:49) 앱 경로 차이 0 · 설정 digest `e90c4cb7453f` 일치. 폰 APK 빌드 [36754062889](https://github.com/Simon-YHKim/2nd-B/actions/runs/36754062889)는 확인 시점에 진행 중이었다. QA APK 게시는 하지 않았다(Simon 이 폰에서 볼 때만).
-- **8081 에서 `docs/qa/data-connections-260930/check.cjs` 14/14**, 막힌 쓰기 0. 새 문구가 보이는 것까지 화면으로 확인했다.
-- **발견 · 고침(이 PR)**: 웹 8081 에서 건강 카드의 `‘오늘 반영’을` 이 `’` 뒤에서 끊겨 "을"이 줄 머리에 혼자 섰다. CSS `word-break: keep-all` 은 닫는 따옴표와 뒤 한글 사이 줄바꿈을 허용한다(UAX #14 LB19a). 네이티브는 `keepAllKo` 가 단어를 붙여 안 끊긴다. 이 화면의 두 문구를 `‘오늘 반영’ 버튼을/버튼으로` 로 바꾸고, `data-connections-contract.test.ts` 가 이 화면 한국어 문구에 `/[’”][가-힣]/` 가 없음을 지킨다(되돌리면 실패 확인).
-- **넘김 · 줄바꿈 담당(#1933 계열)**: 같은 모양(닫는 따옴표 바로 뒤 한글)이 한국어 로케일에 **16개** 남아 있다. 이 PR 의 둘을 빼면 14개이고, `deepspace` 4 · `consent` 3 · `ops` · `settings` · `attachment` · `home` · `profile` · `ratifications` 에 있다. 웹에서만 같은 증상이 난다. 근본 수정은 웹 경로(`keepMiddleDotOffLineStart`)가 한글에 붙은 따옴표 양옆에 WORD JOINER 를 넣는 것인데, 공용 줄바꿈 코드라 건드리지 않았다.
-- **다음 세션**: 폰(Health Connect)에서 자동 읽기 확인(#1968 HANDOFF 블록의 ①②③) · 결정 대기 Q-261001-01 · Q-261001-02.
 ---
 
