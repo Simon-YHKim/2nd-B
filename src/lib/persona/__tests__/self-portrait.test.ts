@@ -24,7 +24,9 @@ describe("buildSelfPortrait — data contract", () => {
     expect(screen).not.toContain("buildSelfPortrait({ persona: hasUnrecordedProvenance ? null : persona }, locale)");
     expect(screen.match(/loadSelfPortraitSignals\(userId\)/g)).toHaveLength(1);
     expect(screen).toContain("[loading, userId, hasProfile, isMinor, reloadKey, evidenceReloadKey]");
-    expect(screen.match(/accessibilityLabel=\{field\.value \? `\$\{field\.label\}: \$\{field\.value\}` : field\.label\}/g)).toHaveLength(2);
+    // 2 -> 1 (2026-10-05): 같은 자화상 칸을 그리던 곳이 둘(덱 · 레거시 꼬리)이었다. 꼬리는
+    // 롤백 레버와 함께 빠졌다(Simon 결정 Q-261004-11 C). 남은 덱의 칸이 같은 이름을 진다.
+    expect(screen.match(/accessibilityLabel=\{field\.value \? `\$\{field\.label\}: \$\{field\.value\}` : field\.label\}/g)).toHaveLength(1);
   });
 
   it("returns all five fields in mission order", () => {

@@ -148,8 +148,6 @@ jobs:
       # Server-side crisis classifier vendor. Dormant unless
       # EXPO_PUBLIC_SERVER_SAFETY is also on.
       EXPO_PUBLIC_SAFETY_VENDOR: ${{ vars.EXPO_PUBLIC_SAFETY_VENDOR || '' }}
-      EXPO_PUBLIC_UI: "deep-space"
-      EXPO_PUBLIC_CHARACTER: "fallback"
       EXPO_PUBLIC_FORCE_TIER: "off"
       # Ads GO (Simon 2026-07-21, #1116) -- mirror eas.json production so this
       # diagnostic APK is the SAME app EAS builds (dbl FAIL 1: without it the
@@ -170,6 +168,15 @@ jobs:
       EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
       EXPO_PUBLIC_GA4_MEASUREMENT_ID: ${{ vars.EXPO_PUBLIC_GA4_MEASUREMENT_ID }}
       EXPO_PUBLIC_CLARITY_PROJECT_ID: ${{ vars.EXPO_PUBLIC_CLARITY_PROJECT_ID }}
+      # Q-261004-36: this APK never checks for an OTA. app.config.js reads this and sets
+      # updates.checkAutomatically="NEVER" (manifest EXPO_UPDATES_CHECK_ON_LAUNCH=NEVER).
+      # No eas.json profile runs here, so the build has no update channel, and every
+      # launch used to get HTTP 400 from u.expo.dev (QA 261004 D-13). It must not take an
+      # update anyway: it is origin/main at this commit (scripts/app-parity.cjs).
+      # Job-level so both expo prebuild and gradle's fingerprint/manifest step see it.
+      # Not EXPO_PUBLIC_*: it is never inlined into the bundle and leaves the
+      # app-env-digest unchanged. Never set it in eas.json; EAS builds keep their channel.
+      DIAGNOSTIC_APK: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

@@ -110,8 +110,6 @@
       },
       "env": {
         "EXPO_PUBLIC_FORCE_TIER": "off",
-        "EXPO_PUBLIC_UI": "deep-space",
-        "EXPO_PUBLIC_CHARACTER": "fallback",
         "EXPO_PUBLIC_MODEL_LITE": "gemini-3.5-flash",
         "EXPO_PUBLIC_MODEL_FLASH": "gemini-3.5-flash",
         "EXPO_PUBLIC_MODEL_PRO": "gemini-3.5-flash",

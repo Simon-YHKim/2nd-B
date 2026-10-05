@@ -45,22 +45,17 @@ describe("자동 저장이 전제한 '되돌릴 길'", () => {
     expect(files.length).toBeGreaterThan(200);
   });
 
-  test("페이지 단위 삭제를 부르는 곳은 위키의 죽은 반쪽 하나뿐이다", () => {
+  test("페이지 단위 삭제를 부르는 배송 코드는 0곳이다", () => {
+    // 2026-10-04 까지 이 자리는 ["src/app/wiki.tsx"] 를 기대하고, 그 호출이 WikiLegacy
+    // (어느 빌드도 그리지 않던 반쪽) 안에 있는지까지 쟀다. 롤백 레버 제거(Simon 결정
+    // Q-261004-11 C)로 그 반쪽은 라우트에서 빠져 빌드 밖 되살리기 원본
+    // (legacy/screens/wiki.tsx)이 됐다. 그래서 src 의 호출부는 0 이다 - 같은 사실("배송
+    // 앱에는 페이지 단위로 되돌릴 길이 없다")의 더 정직한 모양이다. 위키 되살리기가
+    // 삭제를 배송 화면에 옮겨 심으면 이 검사가 실패하고, 그때 autosave.ts 의 정정문도 고친다.
     const callers = files
       .filter(rel => rel !== "src/lib/wiki/queries.ts") // 정의부
       .filter(rel => /\bdeleteWikiPage\s*\(/.test(read(rel)));
-    // 호출부가 하나이고, 그것이 어느 빌드도 그리지 않는 반쪽에 있다.
-    expect(callers).toEqual(["src/app/wiki.tsx"]);
-
-    const wiki = read("src/app/wiki.tsx").split("\n");
-    const callLine = wiki.findIndex(l => /await deleteWikiPage\(/.test(l)) + 1;
-    const legacyStart = wiki.findIndex(l => l.startsWith("function WikiLegacy(")) + 1;
-    const nextTopLevel = wiki.findIndex(
-      (l, i) => i > legacyStart && /^(?:export )?function \w+\(/.test(l),
-    ) + 1;
-    expect(legacyStart).toBeGreaterThan(0);
-    expect(callLine).toBeGreaterThan(legacyStart);
-    expect(callLine).toBeLessThan(nextTopLevel);
+    expect(callers).toEqual([]);
   });
 
   test("배송되는 위키 화면에는 삭제 어포던스가 없다", () => {

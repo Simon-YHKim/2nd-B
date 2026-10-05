@@ -14,13 +14,12 @@ import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { semantic, semanticLight, darkSky, lightSky } from "./tokens";
+import { semantic, semanticLight } from "./tokens";
 
 // Same-shape, looser-value mirror of `semantic` so the runtime palette
 // can swap between the two `as const` objects without TS clashing on
 // their literal types.
 export type Palette = { [K in keyof typeof semantic]: string };
-export type SkyPalette = { [K in keyof typeof darkSky]: string };
 
 export type ThemeMode = "light" | "dark";
 
@@ -153,14 +152,4 @@ export function useThemePalette(): Palette {
   const override = useContext(PaletteOverrideContext);
   if (override) return override;
   return mode === "dark" || forceDark ? semantic : semanticLight;
-}
-
-/**
- * Returns the active sky-palette (loader / navigator raw colors). Used
- * by screens that import `darkSky` directly (LoadingScreen, sign-in,
- * NavGraph) so they too track the toggle.
- */
-export function useSkyPalette(): SkyPalette {
-  const { mode } = useTheme();
-  return mode === "dark" ? darkSky : lightSky;
 }

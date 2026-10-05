@@ -1,5 +1,7 @@
 # Soul Core v3 Asset Mapping
 
+> 2026-10-04: files named below that are no longer in this pack were moved to `E:/Legacy/2ndB` (same relative path; `MANIFEST.jsonl`, batch `qa261004-art`).
+
 | Entity | Asset file | Token color | Frame list |
 |---|---|---|---|
 | Archon | `companions/sprites/archon/archon_*.svg`, `companions/sprite_sheets/archon_sprite_sheet.svg` | signalBlue | idle, thinking, linking, measure, highlight, build |

@@ -45,22 +45,11 @@ interface CommentCite {
 }
 
 const CITES: CommentCite[] = [
-  // /sources 화면 머리말이 "Phase 1 의 배송 호출부가 0건이었다" 를 주장하면서
-  // 그 근거로 **죽은 반쪽 안의 두 호출부**를 가리킨다. 그 두 줄이 움직이거나
-  // 사라지면 주장의 근거가 사라지므로 여기서 잡는다. (둘이 배송되기 시작하면
-  // 그때는 머리말 자체가 틀린 것이 되고, 그것도 이 표가 알려 준다.)
-  {
-    from: "src/screens/deepspace/dds-sources-screen.tsx",
-    cite: "src/app/inbox.tsx:452",
-    symbol: "await runPhase1({ userId, sourceId: row.id",
-    why: "주장이 '요약+질문 넷을 부르는 곳이 배송 안 되는 반쪽 안에만 있다' 라서, 근거는 그 호출 자체다.",
-  },
-  {
-    from: "src/screens/deepspace/dds-sources-screen.tsx",
-    cite: "src/app/wiki.tsx:318",
-    symbol: "await runPhase1({ userId, sourceId: page.source_id",
-    why: "같은 주장의 두 번째 호출부. 하나만 잡으면 나머지 하나가 조용히 움직인다.",
-  },
+  // (2026-10-05: /sources 화면 머리말의 두 인용 inbox.tsx:452 · wiki.tsx:318 과
+  //  autosave.ts 의 wiki.tsx:292 를 이 표에서 뺐다. 그 줄들은 라우트 파일의 레거시
+  //  반쪽 안이었고, 롤백 레버 제거(Simon 결정 Q-261004-11 C)로 반쪽이 라우트에서
+  //  빠졌다. 주석은 이제 커밋을 박은 인용(`e0b274d0:경로:줄`)이라 줄이 밀릴 수 없고,
+  //  아래 CITE_RE 는 그 모양을 지킬 대상으로 세지 않는다.)
   {
     from: "src/app/(auth)/complete-profile.tsx",
     cite: "src/lib/persona/northstar.ts:66-68",
@@ -122,21 +111,16 @@ const CITES: CommentCite[] = [
     symbol: "REQUIRED_LOCALES",
     why: "'로케일 번들에 넣으면 다섯 로케일 전부에 요구된다' 는 결정 근거. 요구하는 목록 자체를 잡는다.",
   },
-  {
-    from: "src/lib/chat/autosave.ts",
-    cite: "src/app/wiki.tsx:292",
-    symbol: "await deleteWikiPage(",
-    why:
-      "자동 저장의 전제('되돌릴 길이 먼저 있다')가 가리키는 **유일한 호출부**다. " +
-      "그 줄이 WikiLegacy 안에 있다는 것이 정정의 근거이므로, 그 줄이 움직이면 " +
-      "정정문도 다시 재야 한다. 심볼을 호출 형태로 잡아 이름만 남고 호출이 사라지는 " +
-      "경우에도 운다.",
-  },
 ];
 
-/** 주석 줄에서만 찾는다. 코드 안의 문자열은 인용이 아니다. */
+/** 주석 줄에서만 찾는다. 코드 안의 문자열은 인용이 아니다.
+ *
+ *  커밋을 박은 인용(`e0b274d0:src/app/wiki.tsx:292`)은 세지 않는다. 그 줄은 그 커밋에
+ *  영원히 그대로 있어서 밀릴 수가 없다 - 이 검사가 잡는 "줄이 밀린 인용" 의 부류가
+ *  아니다. 2026-10-05 롤백 레버 제거로 라우트에서 빠진 반쪽을 가리키던 인용이 이
+ *  모양으로 바뀌었다. 앞에 붙은 것이 7~40자 16진수 + `:` 일 때만 건너뛴다. */
 const CITE_RE =
-  /((?:src|db|docs|supabase|scripts|design|public)\/[A-Za-z0-9_./()-]+\.(?:ts|tsx|sql|md|json|yml)):(\d+)(?:-(\d+))?/g;
+  /(?<![0-9a-f]{7,40}:)((?:src|db|docs|supabase|scripts|design|public)\/[A-Za-z0-9_./()-]+\.(?:ts|tsx|sql|md|json|yml)):(\d+)(?:-(\d+))?/g;
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -219,6 +203,14 @@ describe("주석이 단 인용은 여전히 그 줄을 가리킨다", () => {
       if (!text.includes(a.symbol)) wrong.push(`${key(a)} :: ${a.symbol}`);
     }
     expect(wrong).toEqual([]);
+  });
+
+  it("커밋을 박은 인용은 건너뛰고 맨 인용은 잡는다 - 판정기 대조군", () => {
+    const hits = (line: string) => [...line.matchAll(CITE_RE)].map(m => `${m[1]}:${m[2]}`);
+    expect(hits("// (`e0b274d0:src/app/wiki.tsx:292`)")).toEqual([]);
+    expect(hits("// (`src/app/wiki.tsx:292`)")).toEqual(["src/app/wiki.tsx:292"]);
+    // 16진수가 아닌 접두사(`see:`)는 커밋이 아니다 - 그대로 잡는다.
+    expect(hits("// see:src/app/wiki.tsx:292")).toEqual(["src/app/wiki.tsx:292"]);
   });
 
   it("표의 모든 줄이 근거를 적었다", () => {

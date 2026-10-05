@@ -1,10 +1,9 @@
 /**
  * Deep-space home (index `/`) — the constellation inside the shared DeepSpaceScreen
- * chrome (status header + 5-tab dock), a 1:1 clone of legacy/design/prototype.dc.html's
+ * chrome (status header + 5-tab dock), a 1:1 clone of E:/Legacy/2ndB/legacy/design/prototype.dc.html's
  * home. The dock maps to real routes; the 7 stars + 북극성 map to their engine
  * routes, so home navigation is real.
  *
- * Rendered only when EXPO_PUBLIC_UI=deep-space; the legacy track is untouched.
  * Keeps the post-auth gate.
  */
 import { useCallback, useEffect, useRef, useState } from "react";

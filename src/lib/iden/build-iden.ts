@@ -243,8 +243,14 @@ async function countRows(table: string, userId: string, eq?: { col: string; val:
 
 export interface BuildIdenOpts {
   locale?: Locale;
-  /** C10: forwarded to buildPersona so a minor's crisis output routes correctly. */
-  minor?: boolean;
+  /**
+   * C10: forwarded to buildPersona so a minor's crisis output routes to the youth line.
+   * Required, with no adult default. It was `minor?:` with `?? false` below, and the
+   * /formats?view=export screen left it out, so a minor's persona was built on adult
+   * crisis routing (QA 261004 L1-07). The caller resolves the age first; there is
+   * nothing safe to guess here. persona-build-minor-callsites.test.ts holds this.
+   */
+  minor: boolean;
   name?: string | null;
   /** Override the derived one-liner. */
   oneLiner?: string | null;
@@ -254,10 +260,10 @@ export interface BuildIdenOpts {
 }
 
 /** Fetch the user's persona + vault counts and compose their IdenDoc. */
-export async function buildIdenDoc(userId: string, opts: BuildIdenOpts = {}): Promise<IdenDoc> {
+export async function buildIdenDoc(userId: string, opts: BuildIdenOpts): Promise<IdenDoc> {
   const locale: Locale = opts.locale ?? "en";
   const [persona, sources, concepts, records] = await Promise.all([
-    buildPersona(userId, locale, opts.minor ?? false),
+    buildPersona(userId, locale, opts.minor),
     countRows("sources", userId),
     countRows("wiki_pages", userId, { col: "kind", val: "concept" }),
     countRows("records", userId),

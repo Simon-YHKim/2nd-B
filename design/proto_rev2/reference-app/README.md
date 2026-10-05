@@ -82,5 +82,5 @@ PRD says 커뮤니티 포탈). Resolve that, then add `check:canon-data` to `ver
 ## Not the canon
 
 `legacy/design/*.dc.html` and `legacy/docs/ui-audit/*` are a pre-M3 snapshot
-(2026-06-24) kept for history. `SCREEN_TREE_SPEC.md`'s route table in particular
-is badly out of date.
+(2026-06-24), moved out of the repo to `E:/Legacy/2ndB/` on 2026-10-04 (see its
+`MANIFEST.jsonl`). `SCREEN_TREE_SPEC.md`'s route table is badly out of date.

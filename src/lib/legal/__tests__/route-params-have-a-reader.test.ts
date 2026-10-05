@@ -3,7 +3,8 @@
 // This is the fourth shape in the family. The first three:
 //
 //   dead renderer span     a citation lands inside the half no build draws
-//                          (legal-citations-not-in-dead-renderers)
+//                          (legal-citations-not-in-dead-renderers - retired
+//                          2026-10-05 with the EXPO_PUBLIC_UI lever, see below)
 //   shadow screen          two files export the same screen name and the route
 //                          takes only one (shadow-screens)
 //   pinned, unrendered     only the checks ever name a component
@@ -31,9 +32,12 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { deadRendererSpans } from "../dead-renderer-spans";
-
 const ROOT = process.cwd();
+
+// ⚠ 2026-10-05: 여기서 dead-renderer-spans 판정기로 "어느 빌드도 안 그리는 반쪽"을
+// 잘라내고 읽었다. 롤백 레버 EXPO_PUBLIC_UI 가 없어지며(Simon 결정 Q-261004-11 C)
+// 라우트 파일에 그런 반쪽이 더는 없고(되살리기 원본은 빌드 밖 legacy/screens/), 판정기는
+// 빈 결과만 내게 되어 E:/Legacy/2ndB 로 은퇴했다. 이제 src 의 배송 파일을 통째로 읽는다.
 
 /**
  * Parameters a shipped screen sends that no shipped screen reads, with why each
@@ -44,9 +48,9 @@ const ROOT = process.cwd();
  * the copy that promises it — and picking one of those alone is not a test's job.
  */
 const SENT_TO_NOBODY: Readonly<Record<string, string>> = {
-  focusSourceId:
-    "/inbox 의 '위키에서 보기'가 보낸다. 배송 위키는 focusPageId(페이지 id)를 읽는다 — 뜻이 다른 값이라 " +
-    "이름만 바꿔서는 안 된다. 화면 자신의 주석이 그렇게 적고 있다(dds-wiki-records-screens.tsx). Simon 결정 대기.",
+  // (focusSourceId 줄은 2026-10-05 에 지웠다 - 보내던 /inbox 의 '위키에서 보기'는 레거시
+  //  분류 화면에만 있었고 레버와 함께 빠졌다. 보내는 곳이 사라져 설명할 대상이 없다.
+  //  되살리기 원본 legacy/screens/inbox.tsx 를 다시 들이면 이 줄도 다시 생긴다.)
   draft:
     "/imagine 의 '+ 추가'(ds.possible.add)가 고른 가능성 카드 이름을 /ops 로 들려 보낸다. " +
     "보내는 쪽 **코드 주석이 계약을 적고 있다** — 'The selected draft rides along as a param " +
@@ -58,7 +62,7 @@ const SENT_TO_NOBODY: Readonly<Record<string, string>> = {
 /** Files that draw the app. Not tests, not mocks, not the modules that analyse code.
  *
  *  The exclusion is load-bearing: a checker that reads its own corpus finds its own
- *  prose as evidence. dead-renderer-spans.ts learned that twice in one day. */
+ *  prose as evidence. The retired dead-renderer-spans.ts learned that twice in one day. */
 function shippingSources(dir: string = path.join(ROOT, "src"), out: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
@@ -75,13 +79,8 @@ function shippingSources(dir: string = path.join(ROOT, "src"), out: string[] = [
   return out;
 }
 
-/** The file with the half no build draws cut out. */
-function liveText(rel: string, spans: ReadonlyMap<string, { from: number; to: number }>): string {
-  const src = fs.readFileSync(path.join(ROOT, rel), "utf8").replace(/\r\n?/g, "\n");
-  const span = spans.get(rel);
-  if (!span) return src;
-  const lines = src.split("\n");
-  return [...lines.slice(0, span.from - 1), ...lines.slice(span.to)].join("\n");
+function liveText(rel: string): string {
+  return fs.readFileSync(path.join(ROOT, rel), "utf8").replace(/\r\n?/g, "\n");
 }
 
 interface Scan {
@@ -91,13 +90,12 @@ interface Scan {
 }
 
 function scan(): Scan {
-  const spans = new Map(deadRendererSpans(ROOT).map(s => [s.file, { from: s.from, to: s.to }]));
   const files = shippingSources();
   const senders = new Map<string, Set<string>>();
   const readers = new Set<string>();
 
   for (const rel of files) {
-    const live = liveText(rel, spans);
+    const live = liveText(rel);
 
     for (const m of live.matchAll(/params:\s*\{([^}]*)\}/g)) {
       // ⚠ 키는 **여는 중괄호나 쉼표 바로 뒤**에만 온다. 처음엔 앞을 안 고정하고 훑었는데
@@ -134,8 +132,6 @@ describe("배송 화면이 보내는 파라미터를 배송 화면이 읽는가"
     expect(scanned).toBeGreaterThan(200);
     expect(senders.size).toBeGreaterThanOrEqual(8);
     expect(readers.size).toBeGreaterThanOrEqual(20);
-    // 죽은 반쪽을 실제로 잘라내고 있는지 - 이게 0이면 이 검사는 옛 검사와 같은 것을 본다.
-    expect(deadRendererSpans(ROOT).length).toBeGreaterThanOrEqual(5);
   });
 
   test("받는 곳 없는 파라미터는 전부 명단에 있다", () => {

@@ -3,21 +3,20 @@
 //     estimate, the pixel target cloned from the reference AttachmentScreen; and
 //   • the ECR SURVEY (AttachmentSurvey) — 12 items, two subscales, 4 styles —
 //     which is the sole writer of the ecr-tagged record the lens reads.
-// Canon (deep-space) shows the lens first and launches the survey from its
-// empty-state / retake CTA (mirrors BigFive). Legacy renders the survey directly
-// in the premium shell.
+// The route shows the lens first and launches the survey from its empty-state /
+// retake CTA (mirrors BigFive).
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
+import { PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { AttachmentLensM3, type AttachmentLensResult } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -295,7 +294,7 @@ function AttachmentSurvey({
       ) : null}
 
       {started ? (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingArea style={{ flex: 1 }}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
               {t("survey.counter")}
@@ -354,7 +353,7 @@ function AttachmentSurvey({
               );
             }}
           />
-        </KeyboardAvoidingView>
+        </KeyboardAvoidingArea>
       ) : null}
 
       {saved ? (
@@ -451,11 +450,42 @@ const styles = StyleSheet.create({
 // ecr-tagged record; empty -> dark-star state whose CTA launches the survey;
 // filled -> the 회피×불안 map + propose→ratify estimate. `taking` flips to the
 // survey inside the same dock (the BigFive pattern).
+//
+// This is only the gate. The shipped lens needs its own: the survey's redirect
+// only ran after "start", so a signed-out visitor got the empty lens first.
+// Everything that belongs to one account (the loaded result, an answer in
+// progress) lives in the session below, keyed by its owner, so an A -> B change
+// remounts it. Cancelling A's late load was not enough: A's result stayed on
+// screen until B's load came back, and A's answers stayed in a survey B could save.
 function AttachmentDeepSpace() {
   // Phone-aware: inside the dashboard phone Back and the lens links stay in the phone.
   const router = useAppRouter();
   const { t } = useTranslation("home");
   const { userId, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <DeepSpaceScreen
+        active="lens"
+        variant="windowed"
+        header="none"
+        title={t("ds.attachment.headline")}
+        onBack={() => router.back()}
+      >
+        <View style={styles.center}>
+          <PremiumLoadingState />
+        </View>
+      </DeepSpaceScreen>
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  return <AttachmentDeepSpaceSession key={userId} userId={userId} />;
+}
+
+function AttachmentDeepSpaceSession({ userId }: { userId: string }) {
+  const router = useAppRouter();
+  const { t } = useTranslation("home");
   const [result, setResult] = useState<AttachmentLensResult | null>(null);
   const [hasError, setHasError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -463,12 +493,6 @@ function AttachmentDeepSpace() {
   const surveyBackRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (loading) return;
-    if (!userId) {
-      setResult(null);
-      setHasError(false);
-      return;
-    }
     let cancelled = false;
     loadLatestAttachment(getSupabaseClient(), userId)
       .then((r) => {
@@ -485,7 +509,7 @@ function AttachmentDeepSpace() {
     return () => {
       cancelled = true;
     };
-  }, [userId, loading, reloadKey]);
+  }, [userId, reloadKey]);
 
   if (taking) {
     // onBack is drawn only by the dashboard phone's compact shell (the fullbleed
@@ -527,16 +551,6 @@ function AttachmentDeepSpace() {
   );
 }
 
-// Legacy rollback skin: the survey directly, in the premium shell.
-function AttachmentLegacy() {
-  return (
-    <PremiumAppShell>
-      <AttachmentSurvey onComplete={() => router.replace("/persona")} onCancel={() => router.back()} />
-    </PremiumAppShell>
-  );
-}
-
 export default function Attachment() {
-  if (isDeepSpaceUI()) return <AttachmentDeepSpace />;
-  return <AttachmentLegacy />;
+  return <AttachmentDeepSpace />;
 }

@@ -88,7 +88,7 @@ export function DeepSpaceLegalDocScreen({
         >
           <RNText style={styles.back}>‹</RNText>
         </Pressable>
-        <Text variant="heading" style={styles.title} accessibilityRole="header">
+        <Text variant="heading" style={[styles.title, local.title]} accessibilityRole="header">
           {doc.title}
         </Text>
       </View>
@@ -167,6 +167,10 @@ const local = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  // D-08: the title sits in a row next to the back chevron. Native Text does not
+  // shrink by default, so a long title ("Refund Policy" at 18) ran past the right
+  // edge on Android. Let it shrink and wrap inside the row instead.
+  title: { flexShrink: 1 },
   draftBadge: {
     alignSelf: "flex-start",
     borderWidth: 1,

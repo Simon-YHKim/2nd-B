@@ -7,8 +7,8 @@
     "proposed": "확인할 초안이 있습니다",
     "filled": "승인한 카드와 연결됐습니다"
   },
-  "rewardFirstGoal": "첫 승인 목표: 기존 페르소나 XP 보상을 한 번 받습니다.",
-  "rewardFirstReached": "첫 승인 목표 달성. XP 보상은 계정당 한 번 지급됩니다.",
+  "rewardFirstGoal": "첫 승인 목표: 카드 한 장을 승인하면 첫 시기가 채워집니다.",
+  "rewardFirstReached": "첫 승인 목표 달성. 첫 시기가 채워졌습니다.",
   "rewardAllGoal": "여섯 시기를 채우면 북극성 모음이 완성됩니다.",
   "rewardAllReached": "북극성 모음 완성",
   "generationAllowance": "계정당 최초 무료 2회 중 {{n}}회 남았습니다. 추가 분석은 플랜의 주간 심층 분석 횟수를 사용합니다.",

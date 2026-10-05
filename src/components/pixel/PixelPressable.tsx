@@ -34,6 +34,18 @@
 // 그래서 래퍼에 `collapsable={false}` 를 둔다. 늘 네이티브 뷰라 누름·뗌은 속성만 바꾸고
 // 자식을 옮기지 않는다. 눌린 모습은 그대로다 - 래퍼에는 색도 테두리도 없고, 눌린 동안은
 // 원래도 네이티브 뷰였다. `__tests__/pixel-pressable-native-view.test.ts` 가 지킨다.
+//
+// ## 왜 체크박스·스위치에만 Space 를 붙이는가 - #1677 이 배송 화면에 닿지 않았다
+//
+// RNWeb 의 PressResponder 는 Space 를 `button` 역할에만 받는다. 그래서 웹에서
+// role=checkbox · switch 는 Enter 와 마우스에는 답하고 Space 에는 답하지 않는다.
+// #1677(2026-09-07)이 `checkboxSpaceKeyProps` 를 만들어 그 자리들을 이었는데, 가입
+// 동의 행과 /ops 루틴 행은 라우트가 그리지 않는 그림자 사본에만 들어갔다. 배송
+// 화면은 그 두 행을 이 파일로 그리고, 이 파일은 키 핸들러를 넘기지 않았다.
+// 호스트 Pressable 을 이 파일이 쥐고 있으니 빈자리도 여기서 메운다 - 호출부마다
+// 한 줄씩 얹게 두면 다음 체크박스가 또 빠진다(MdChip 과 같은 모양). button · link
+// 는 RNWeb 이 이미 Space 를 처리하므로 건드리지 않는다. 웹 밖에서는 빈 객체다.
+// `src/lib/__tests__/checkbox-space-key.test.ts` 가 배송 행을 이 본문까지 태워 본다.
 import { useCallback, useState, type ReactNode } from "react";
 import {
   Pressable,
@@ -46,6 +58,7 @@ import {
 } from "react-native";
 
 import { m3 } from "@/lib/theme/m3";
+import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 
 import { PixelSurface, type PixelSurfaceVariant } from "./PixelSurface";
 
@@ -97,6 +110,8 @@ export function PixelPressable({
   const press = useCallback(() => setHeld(true), []);
   const release = useCallback(() => setHeld(false), []);
   const sunken = held && !disabled;
+  // RNWeb 이 Space 를 버리는 토글 역할만. button · link 는 RNWeb 이 직접 처리한다.
+  const spaceToggles = (accessibilityRole === "checkbox" || accessibilityRole === "switch") && !disabled;
 
   return (
     <Pressable
@@ -104,6 +119,7 @@ export function PixelPressable({
       onPressIn={press}
       onPressOut={release}
       disabled={disabled}
+      {...(spaceToggles ? checkboxSpaceKeyProps(onPress) : undefined)}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}

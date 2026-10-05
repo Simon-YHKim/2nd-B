@@ -92,7 +92,6 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - name: Expo web static export (smoke)
         env:
-          EXPO_PUBLIC_UI: "deep-space"
           EXPO_USE_STATIC: "true"
         run: |
           npx expo export --platform web --output-dir dist-smoke

@@ -45,16 +45,20 @@ const ROOT = process.cwd();
  * left to explain" are different states and both are worth hearing about.
  */
 const PINNED_WITHOUT_A_RENDERER: Readonly<Record<string, string>> = {
-  ConsentDialog:
-    "C5 후기(testimonial) 동의 UI. 앱에 testimonials INSERT 가 0건이라 띄운 적 없는 기능이고, " +
-    "share_with_judges_flag 가 대회 잔재다. CLAUDE.md 가 대회 잔재의 임의 제거를 금지하고 " +
-    "C5 는 아직 하드 제약이므로, 기능이 켜질 때 필요한 a11y 핀을 그대로 둔다.",
-  XpBar: "docs/handoff/master-handoff.html 이 아는 컴포넌트. 처분 미정.",
+  // ConsentDialog 줄은 2026-10-05 에 걷었다. 위 순서의 2단계(등가물 없음 → 사람에게)를
+  // 거쳐 Simon 이 Q-261004-17 로 결론 냈다: 후기 동의 창은 E:/Legacy 로, C5 는 DB 제약만.
+  // XpBar 줄도 같은 날 같은 길로 걷었다(Q-261004-18): XP 는 내부 수치, 막대는 E:/Legacy.
   TraitRadar: "handoff 브리프 2건이 아는 컴포넌트. 처분 미정.",
   DeepSpaceDomainsScreen:
     "tools-reachable 의 바이트 핀이 이 슬라이스를 못박는다. docs/FIDELITY_AUDIT.md(2026-06-21 " +
     "스냅샷)가 /trinity 구현으로 적었지만 trinity.tsx 는 이 이름을 import 하지 않는다 - " +
     "참조는 06-22 에 사라졌다(리다이렉트가 아니라 import 제거가 원인).",
+  SecondBSprite:
+    "세컨비 자신의 픽셀 스프라이트(옛 캐릭터 다섯이 아니다). 유일한 렌더러였던 graph-bits 의 " +
+    "CharacterBadge 가 2026-10-05 옛 캐릭터 정리(Simon 결정 Q-261004-14 A · 15 A)로 나가면서 " +
+    "그리는 곳이 0 이 됐다. 그 정리의 범위는 옛 캐릭터라 세컨비 스프라이트는 옮기지 않았다 - " +
+    "처분(이동 또는 배송 머리 SecondbHead 로 대체)은 따로 정한다. 그때 ArtA11ySemantics 의 " +
+    "image 역할 핀과 pixel-rules 이식 목록 줄을 함께 정리한다.",
   // RleCell은 승인 PNG 렌더러로 교체됨. 바이트·픽셀·표시 계약은
   // src/lib/opening/__tests__/hustlek-approved.test.ts와 src/lib/__tests__/hustlek-opening-runtime.test.ts가 지킨다.
 };

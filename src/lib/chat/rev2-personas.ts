@@ -4,8 +4,8 @@
 // engine mode (트위비 owns the existing Divergent mode). The C9 -> C3 ->
 // gemini path, grounding, citations, and safety behavior are untouched.
 //
-// This is SEPARATE from src/lib/chat/personas.ts — that file is the legacy
-// per-character roster reached via ?character= (deprecated skin, preserved).
+// The legacy per-character roster (src/lib/chat/personas.ts, reached via ?character=)
+// was switched off and moved to E:/Legacy/2ndB on 2026-10-05 (Q-261004-14 A).
 
 import { tLocale } from "@/lib/i18n/text";
 import type { SystemLocale } from "@/lib/i18n/locales";

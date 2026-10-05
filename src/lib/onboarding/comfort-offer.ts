@@ -4,8 +4,8 @@
 // after pushing through the pixel-dark first impression ("진작 첫 화면에서
 // 물어봐 주지"). The offer asks ONCE, right where they land, and applying
 // it changes the screen instantly. Declining or accepting dismisses forever.
-// Mirrors onboarding/core-hint.ts (third copy of this little store - if a
-// fourth appears, factor a createDismissalStore(key) instead).
+// Same little store as chat/save-notice.ts (the first copy, core-hint.ts, left
+// for E:/Legacy on 2026-10-04; if more appear, factor a createDismissalStore(key)).
 
 import { useCallback, useEffect, useState } from "react";
 

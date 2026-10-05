@@ -12,13 +12,13 @@
 // `lib/persona/profile-details.ts` 헤더와 0132 마이그레이션 주석에 있다.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
@@ -351,10 +351,7 @@ export default function ProfileDetailsScreen() {
       title={title}
       onBack={onCancel}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.fill}
-      >
+      <KeyboardAvoidingArea style={styles.fill}>
         <ScrollView
           contentContainerStyle={[
             styles.content,
@@ -520,7 +517,7 @@ export default function ProfileDetailsScreen() {
             style={styles.saveButton}
           />
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
       {toast ? <PremiumToast message={toast.message} tone={toast.tone} /> : null}
     </DeepSpaceScreen>
   );

@@ -21,12 +21,12 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   AppState,
   BackHandler,
 } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { Image } from "expo-image";
 import {
   useAudioRecorder,
@@ -144,7 +144,6 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { checkGate } from "@/lib/progression/gates";
 import { canUsePremium, checkUsage } from "@/lib/progression/entitlements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable, PixelSurface } from "@/components/pixel";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
@@ -172,13 +171,9 @@ import { FIRST_RECORD_COACH_PARAM } from "@/lib/onboarding/first-record-coach";
 // (Galmuri11 = 12px, Galmuri14 = 15px). 그래서 크기도 같이 스냅한다
 // (sm 14 -> 12, md 16 -> 15) 그리고 굵기는 보내지 않는다 - 비트맵 얼굴에
 // fontWeight 를 주면 RN 이 가짜 굵기를 합성해 격자가 깨진다. 굵기는 얼굴
-// 이름 안에 있다(Galmuri11Bold). 레거시 트랙은 손대지 않는다.
-const CAPTURE_DS = isDeepSpaceUI();
-const capSize = (legacy: number, grid: number): number => (CAPTURE_DS ? grid : legacy);
-const capFont = (grid: number, weight: "500" | "700"): string =>
-  CAPTURE_DS ? galmuriFor(grid, weight) : fontFamilies.pixelKo;
-const capWeight = (legacy: "600" | "700"): "600" | "700" | undefined =>
-  (CAPTURE_DS ? undefined : legacy);
+// 이름 안에 있다(Galmuri11Bold). 옛 레거시 트랙(크기 · 굵기를 그대로 두던 쪽)은
+// 2026-10-05 레버와 함께 빠졌다(Simon 결정 Q-261004-11).
+const capFont = (grid: number, weight: "500" | "700"): string => galmuriFor(grid, weight);
 
 // Unified 담기 (menu restructure Phase 2): the journal (오늘의 조각) and the
 // capture modes live on one screen. "일기" writes to `records` (createRecord —
@@ -351,9 +346,9 @@ function TrackGlyph({ id, color }: { id: WikiTrack; color: string }) {
 export default function Capture() {
   const { t } = useTranslation("capture");
   const { userId, loading, hasProfile } = useAuth();
-  // Deep-space build renders the design body inside the shared chrome; the legacy
-  // capture screen stays for the legacy track. isDeepSpaceUI() is build-constant,
-  // and the two hooks below run identically on every path so hook order is stable.
+  // The route renders the design body inside the shared deep-space chrome. The
+  // full multi-mode intake (CaptureLegacy, named for its history; it ships) opens
+  // inside the same chrome when share/mode/tag/first-run params ask for it.
   // Web Share Target(manifest.webmanifest share_target.action=/capture)은
   // 딥스페이스에서도 이 라우트로 들어오는데 CaptureView 는 share 파라미터를
   // 소비하지 않는다 — share/mode(ocr·voice 는 글로, 09-30)/tag/first-run 이 있으면 소비
@@ -395,21 +390,18 @@ export default function Capture() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
-  if (isDeepSpaceUI()) {
-    if (hasFullCaptureParams || fullCaptureActive) {
-      return (
-        <DeepSpaceScreen active="capture" variant="windowed">
-          <CaptureLegacy embeddedInDock />
-        </DeepSpaceScreen>
-      );
-    }
+  if (hasFullCaptureParams || fullCaptureActive) {
     return (
-      <DeepSpaceScreen active="capture" header="none" variant="windowed">
-        <CaptureView firstRecordCoach={firstRecordCoach} />
+      <DeepSpaceScreen active="capture" variant="windowed">
+        <CaptureLegacy embeddedInDock />
       </DeepSpaceScreen>
     );
   }
-  return <CaptureLegacy />;
+  return (
+    <DeepSpaceScreen active="capture" header="none" variant="windowed">
+      <CaptureView firstRecordCoach={firstRecordCoach} />
+    </DeepSpaceScreen>
+  );
 }
 
 // Exported for /capture-full: the deep-space track reaches this full multi-mode
@@ -456,8 +448,8 @@ function CaptureLegacySession({
   const lifeAreaCopy = LIFE_AREA_INTENT_COPY[resolveLifeAreaLocale(i18n.resolvedLanguage ?? i18n.language)];
   const insets = useSafeAreaInsets();
   const kbHeight = useKeyboard();
-  const keyboardBehavior = Platform.OS === "ios" ? "padding" : undefined;
-  const keyboardVerticalOffset = Platform.OS === "ios" ? insets.top : 0;
+  // iOS keeps its old top offset; Android measures (src/lib/ui/keyboard.tsx).
+  const iosKeyboardVerticalOffset = insets.top;
   // KO eyebrows drop tracking to 0 (Hangul reads worse when tracked); EN keeps
   // the light caption tracking.
   const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.3 };
@@ -642,7 +634,7 @@ function CaptureLegacySession({
   // probe; the one-line empty note covers the probe-then-cleared race.
   const [clipboardAvailable, setClipboardAvailable] = useState(false);
   const [clipboardEmptyNote, setClipboardEmptyNote] = useState(false);
-  // 루루 brief event moment on capture (companion pack §3: captureSaved → lulu).
+  // Brief saved-cue moment on capture (companion pack §3: captureSaved).
   const companion = useCompanionMoment();
   // Title of the just-saved piece — drives the inline success panel.
   const [savedTitle, setSavedTitle] = useState<string | null>(null);
@@ -2786,7 +2778,7 @@ ${transcript}`;
         setVoiceNotice(t("voice.permissionDenied"));
         return;
       }
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, interruptionMode: "mixWithOthers" });
       ownerGuard.assertCurrent();
       await audioRecorder.prepareToRecordAsync();
       prepared = true;
@@ -3115,7 +3107,7 @@ ${transcript}`;
         ) {
           if (submitted !== null) requestDurableSubmittedDraftAck(submitted, startModeEpoch);
           reset();
-          // 루루 carries the shard home; an imported link gets the "success" beat.
+          // The shard cue on save; an imported link gets the delight face instead.
           companion.fire(isBareLink ? "linkImported" : "captureSaved");
           // Inline success panel (journal-capture pack §3/§7) replaces the alert.
           setSavedTitle(result.source.title);
@@ -3267,9 +3259,8 @@ ${transcript}`;
 
   return (
     <PremiumAppShell bottomClearanceOwner={embeddedInDock ? "parent" : "shell"}>
-      <KeyboardAvoidingView
-        behavior={keyboardBehavior}
-        keyboardVerticalOffset={keyboardVerticalOffset}
+      <KeyboardAvoidingArea
+        iosKeyboardVerticalOffset={iosKeyboardVerticalOffset}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -3327,28 +3318,24 @@ ${transcript}`;
             </View>
           </View>
 
-          {/* O-31 Stage③ (nav-contract §3): in deep-space mode, surface the
-              담기 second-tier so 형식 /formats, 가져오기 /import, 받은항목 /inbox
-              and 수동입력 /manual are reachable directly from 담기 (누락 0).
-              Legacy mode renders nothing here — its 형식 entry is the inline
-              manage-formats link below. */}
-          {isDeepSpaceUI() ? (
-            <DeepSpaceLinks
-              groups={[
-                {
-                  title: t("captureTab"),
-                  items: [
-                    // med#11: this entry means the clipper FORMAT MANAGER, not
-                    // the export screen the bare route renders in deep-space.
-                    { key: "formats", label: t("formatsTab"), route: "/formats?view=manager" },
-                    { key: "import", label: t("importTab"), route: "/import" },
-                    { key: "inbox", label: t("inboxTab"), route: "/inbox" },
-                    { key: "manual", label: t("manualTab"), route: "/manual" },
-                  ],
-                },
-              ]}
-            />
-          ) : null}
+          {/* O-31 Stage③ (nav-contract §3): surface the 담기 second-tier so
+              형식 /formats, 가져오기 /import, 받은항목 /inbox and 수동입력 /manual
+              are reachable directly from 담기 (누락 0). */}
+          <DeepSpaceLinks
+            groups={[
+              {
+                title: t("captureTab"),
+                items: [
+                  // med#11: this entry means the clipper FORMAT MANAGER, not
+                  // the export screen the bare route renders in deep-space.
+                  { key: "formats", label: t("formatsTab"), route: "/formats?view=manager" },
+                  { key: "import", label: t("importTab"), route: "/import" },
+                  { key: "inbox", label: t("inboxTab"), route: "/inbox" },
+                  { key: "manual", label: t("manualTab"), route: "/manual" },
+                ],
+              },
+            ]}
+          />
 
           {enableLifeAreaIntents && !savedTitle ? (
             <View style={styles.lifeAreaSection}>
@@ -4281,8 +4268,9 @@ ${transcript}`;
             </Pressable>
           ) : null}
         </ScrollView>
-      </KeyboardAvoidingView>
-      {/* 루루 appears briefly to carry the new shard (companion pack §3) */}
+      </KeyboardAvoidingArea>
+      {/* The new shard's cue appears briefly (companion pack §3) */}
+
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.captureFlash} />
       ) : null}
@@ -4670,8 +4658,8 @@ const styles = StyleSheet.create({
   },
   trackChipActive: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   trackGlyph: { width: 16, height: 16 },
-  trackChipText: { color: semantic.textMuted, fontSize: capSize(typography.sizes.sm, 12), fontWeight: capWeight("600"), fontFamily: capFont(12, "500") },
-  trackChipTextActive: { color: semantic.background, fontWeight: capWeight("700"), fontFamily: capFont(12, "700") },
+  trackChipText: { color: semantic.textMuted, fontSize: 12, fontFamily: capFont(12, "500") },
+  trackChipTextActive: { color: semantic.background, fontFamily: capFont(12, "700") },
   modeRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -4708,9 +4696,9 @@ const styles = StyleSheet.create({
   },
   modeMoreTabExpanded: { borderColor: semantic.brand },
   modeGlyph: { width: 24, height: 24 },
-  modeLabel: { color: semantic.textMuted, fontSize: capSize(typography.sizes.xs, 12), fontWeight: capWeight("600"), fontFamily: capFont(12, "500") },
-  modeLabelActive: { color: semantic.background, fontWeight: capWeight("700"), fontFamily: capFont(12, "700") },
-  modeMoreLabel: { color: semantic.brand, fontSize: capSize(typography.sizes.sm, 12), fontWeight: capWeight("700"), fontFamily: capFont(12, "700") },
+  modeLabel: { color: semantic.textMuted, fontSize: 12, fontFamily: capFont(12, "500") },
+  modeLabelActive: { color: semantic.background, fontFamily: capFont(12, "700") },
+  modeMoreLabel: { color: semantic.brand, fontSize: 12, fontFamily: capFont(12, "700") },
   modeHelp: { lineHeight: 18, marginTop: spacing.xs },
   fieldGroup: {
     gap: spacing.xs,
@@ -4867,6 +4855,6 @@ const styles = StyleSheet.create({
   },
   // 15px = Galmuri14 x1. 이 얼굴에는 굵은 변형이 없어서(galmuri 패키지는 Galmuri11-Bold
   // 하나만 판다) 딥스페이스에서는 크기가 강조를 지고, 굵기는 합성하지 않는다.
-  tossBtnText: { color: semantic.background, fontSize: capSize(typography.sizes.md, 15), fontWeight: capWeight("700"), fontFamily: capFont(15, "700") },
+  tossBtnText: { color: semantic.background, fontSize: 15, fontFamily: capFont(15, "700") },
   tossBtnTextDisabled: { color: CAPTURE_BTN_DISABLED_INK },
 });

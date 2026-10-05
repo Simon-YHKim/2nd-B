@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -147,6 +146,35 @@ describe("PIXEL-CLAY /manual renderer contract", () => {
     expect(source).toContain('router.push("/secondb")');
   });
 
+  test("every literal t() key on the screen resolves in its namespace (no raw keys)", () => {
+    // QA 261004 W-01/D-03: #1789 moved the default namespace to `manual` but left
+    // the two footer buttons on unprefixed `t("manual.askDirect")`. That key does
+    // not exist in manual.json, and i18n has no fallbackNS, so the buttons showed
+    // the raw key (screen text and screen reader label). Resolve every literal key
+    // the way react-i18next does: an explicit `ns:` prefix wins, otherwise the
+    // first namespace in useTranslation([...]).
+    const code = read(SCREEN).replace(/^\s*\/\/.*$/gm, "");
+    const nsList = /useTranslation\(\[([^\]]+)\]\)/.exec(code)?.[1];
+    expect(nsList).toBeDefined();
+    const defaultNs = /"([^"]+)"/.exec(nsList ?? "")?.[1];
+    expect(defaultNs).toBe("manual");
+    const keys = [...code.matchAll(/\bt\("([^"]+)"/g)].map((m) => m[1]);
+    expect(keys.length).toBeGreaterThanOrEqual(4);
+    for (const locale of LOCALES) {
+      const unresolved = keys.filter((key) => {
+        const [ns, path] = key.includes(":") ? key.split(":", 2) : [defaultNs, key];
+        const bundle: unknown = JSON.parse(
+          readFileSync(join(ROOT, "locales", locale, `${ns}.json`), "utf8"),
+        );
+        const value = path
+          .split(".")
+          .reduce<unknown>((node, part) => (node as Record<string, unknown>)?.[part], bundle);
+        return typeof value !== "string";
+      });
+      expect({ locale, unresolved }).toEqual({ locale, unresolved: [] });
+    }
+  });
+
   test("uses shared PIXEL-CLAY primitives with full-width accessible tap roots", () => {
     const source = read(SCREEN);
     expect(source).toContain("PixelSurface");
@@ -165,23 +193,15 @@ describe("PIXEL-CLAY /manual renderer contract", () => {
     expect(source).not.toMatch(/border(?:Top|Bottom)?(?:Left|Right|Start|End)?Radius\s*:\s*(?!m3\.shape\.none)/);
   });
 
-  test("routes only the gated renderer to the new small screen", () => {
+  test("routes only to the new small screen", () => {
     const route = read(ROUTE);
     expect(route).toContain('from "@/screens/deepspace/dds-manual-screen"');
     expect(route).not.toContain('from "@/screens/deepspace/DeepSpaceDesignScreens"');
-    expect(route).toContain("if (isDeepSpaceUI()) return <DeepSpaceManualScreen />");
-  });
-
-  test("keeps the reviewed PolaScope legacy renderer and styles byte-for-byte stable", () => {
-    const route = read(ROUTE);
-    const start = route.indexOf("interface ManualSection");
-    const end = route.indexOf("\nexport default function Manual()");
-    expect(start).toBeGreaterThan(-1);
-    expect(end).toBeGreaterThan(start);
-    // 2026-09-27: the app name became PolaScope (DECISIONS 26.09.27), so the
-    // legacy renderer's copy strings changed. Structure and styles did not.
-    expect(createHash("sha256").update(route.slice(start, end)).digest("hex")).toBe(
-      "fa1c92bdcb73b93acc0efffba1ef9b50d22a4502498794329210d195a03cc4f3",
-    );
+    // 2026-10-05: 스킨 분기 뒤의 레거시 안내서(ManualLegacy)가 롤백 레버와 함께 빠져
+    // (Simon 결정 Q-261004-11 C) 라우트는 래퍼다. 그 반쪽의 바이트 핀(3fcd88a1…)도 은퇴했다 -
+    // 사본은 E:/Legacy/2ndB (MANIFEST batch qa261004-lever). C7 의 모양 검사는
+    // scripts/manual-route-contract.ts 가 진다.
+    expect(route).toMatch(/export default function Manual\(\) \{\s*return <DeepSpaceManualScreen \/>;\s*\}/);
+    expect(route).not.toContain("ManualLegacy");
   });
 });

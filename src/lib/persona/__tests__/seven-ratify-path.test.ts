@@ -59,10 +59,6 @@ const ROOT = join(__dirname, "..", "..", "..", "..");
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8").replace(/\r\n/g, "\n");
 
 const SCREEN = read("src/screens/deepspace/DeepSpaceDesignScreens.tsx");
-// 이 스위트의 이름이 "legacy /review 비준 결과" 다 — 대상이 처음부터 롤백 스킨이다.
-// 그 렌더러가 2026-09-08 에 legacy/screens/review.tsx 로 나갔으므로 검사도 따라간다.
-// 지우면 보관본이 조용히 달라져도 아무도 모른다.
-const LEGACY_SCREEN = read("legacy/screens/review.tsx");
 const SHEET = read("src/components/persona/RatifySheet.tsx");
 
 describe("프롬프트가 시기 별을 시기 별이라고 부른다", () => {
@@ -207,45 +203,12 @@ describe("동시 비준 gate", () => {
   });
 });
 
-describe("legacy /review 비준 결과", () => {
-  it("writer가 실제 저장한 뒤에만 성공 처리하고 실패하면 제안을 보존한다", () => {
-    expect(LEGACY_SCREEN).toContain("await runRatifyDecisionOnce(ratifyPendingRef");
-    expect(LEGACY_SCREEN).toContain("persisted = await recordStarTiers");
-    expect(LEGACY_SCREEN).toMatch(
-      /if \(persisted\) \{[\s\S]{0,240}?setProposal\(null\)[\s\S]{0,240}?reactExpression\("wink"\)/,
-    );
-    expect(LEGACY_SCREEN).toMatch(
-      /setResult\(\s*persisted\s*\?\s*copy\.ratified\(r\.resultingLevel\)\s*:\s*copy\.saveFailed/,
-    );
-  });
-
-  it("pending 동안 중복 생성·재열기·sheet 닫기를 막는다", () => {
-    expect(LEGACY_SCREEN).toContain("const ratifyPendingRef = useRef(false)");
-    expect(LEGACY_SCREEN).toContain(
-      "if (!userId || isMinor === null || loading || proposal !== null || ratifyPendingRef.current) return;",
-    );
-    expect(LEGACY_SCREEN).toContain("disabled={loading || ratifyPending || proposal !== null || isMinor === null}");
-    expect(LEGACY_SCREEN).toContain("proposal !== null && !sheetOpen && !loading && !ratifyPending");
-    expect(LEGACY_SCREEN).toContain("pending={ratifyPending}");
-    expect(LEGACY_SCREEN).toContain("pendingLabel={copy.saving}");
-    expect(LEGACY_SCREEN).toContain("if (!ratifyPendingRef.current) setSheetOpen(false)");
-  });
-
-  it("보존된 제안을 새 생성으로 덮지 않고 새 근거도 제안 성공 뒤에만 묶는다", () => {
-    expect(LEGACY_SCREEN).toMatch(
-      /const nextEvidenceRefs = ctx\.evidenceRefs;[\s\S]{0,520}?if \(p\) \{\s+setEvidenceRefs\(nextEvidenceRefs\);\s+setProposal\(p\)/,
-    );
-  });
-
-  it("사용자나 연령 안전 프로필이 바뀌면 legacy 제안 session을 새로 연다", () => {
-    expect(LEGACY_SCREEN).toContain(
-      'const sessionKey = `${userId ?? "signed-out"}:${isMinor === null ? "pending" : isMinor ? "minor" : "adult"}`;',
-    );
-    expect(LEGACY_SCREEN).toContain(
-      "<ReviewScreenLegacySession key={sessionKey} userId={userId} isMinor={isMinor} />",
-    );
-  });
-});
+// "legacy /review 비준 결과" 스위트는 2026-10-05 에 은퇴했다. 대상이 처음부터 롤백
+// 스킨의 /review 렌더러였고, 2026-09-08 에 legacy/screens/review.tsx 로 나갔다가
+// 2026-10-05 롤백 레버 제거와 함께 E:/Legacy/2ndB 로 나갔다(Simon 결정 Q-261004-11 C,
+// 같은 바이트). 검사는 보관본을 읽지 않는다(legacy-archive-integrity.test.ts). 같은 계약
+// - 저장된 뒤에만 성공 · pending 동안 막기 · 근거는 제안 성공 뒤에만 묶기 - 은 배송
+// 화면(DeepSpaceReviewSession)에 대해 위 "화면 분기" 스위트가 진다.
 
 describe("원장 writer 결과 계약", () => {
   beforeEach(() => {

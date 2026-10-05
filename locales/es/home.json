@@ -606,13 +606,21 @@
       "editAvatar": "Personalizar mi avatar",
       "loading": "Cargando…",
       "emptyBody": "Aún no hay historias aquí. Inicia una conversación para añadir una.",
-      "dug": "{{n}} de {{total}} temas tratados",
-      "records": "{{n}} registros",
+      "dug": "{{n}} de {{total}} capas tratadas",
+      "records": "{{count}} registro",
+      "records_plural": "{{count}} registros",
       "start": "Empezar",
       "continue": "Seguir",
       "pageLabel": "Resumen de la estrella",
-      "meter": "Más brillo al contar más · {{n}}/{{total}} temas",
-      "recordsLabel": "Lo que has guardado hasta ahora"
+      "meter": "Más brillo al contar más · {{n}}/{{total}} capas",
+      "recordsLabel": "Lo que has guardado hasta ahora",
+      "layer": {
+        "fact": "Hecho",
+        "feeling": "Sentimiento",
+        "meaning": "Significado",
+        "belief": "Creencia",
+        "echo": "Eco"
+      }
     },
     "dashboard": {
       "title": "Tu vida en tus registros",

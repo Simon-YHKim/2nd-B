@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 // satisfy C10 (age gate) before letting them into the app.
 
 import { useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet, ScrollView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useNavigationContainerRef } from "expo-router";
 import { PremiumToast } from "@/components/premium";
@@ -38,7 +38,7 @@ import {
 } from "@/lib/auth/consent-selections";
 import { submitCompleteProfile, signOutAndSettle } from "@/lib/auth/complete-profile-flow";
 import { recordConsentBestEffort } from "@/lib/supabase/consent";
-import { useKeyboard } from "@/lib/ui/useKeyboard";
+import { KeyboardAvoidingArea, useKeyboard } from "@/lib/ui/keyboard";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 const ADULT_AGE = 18;
@@ -309,8 +309,8 @@ function CompleteProfileBody() {
         <View style={[styles.star, styles.starB]} />
         <View style={[styles.star, styles.starC]} />
       </View>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      <KeyboardAvoidingArea
+        // iOS padding / Android measured overlap: src/lib/ui/keyboard.tsx
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -415,7 +415,7 @@ function CompleteProfileBody() {
           />
         </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
       {toast ? (
         <View style={styles.toastWrap} pointerEvents="none">
           <PremiumToast message={toast.message} tone={toast.tone} />

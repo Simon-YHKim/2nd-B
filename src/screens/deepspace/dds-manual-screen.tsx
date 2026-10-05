@@ -151,14 +151,14 @@ export function DeepSpaceManualScreen() {
             <PixelPressable
               variant="bevel"
               onPress={() => router.push("/secondb")}
-              accessibilityLabel={t("manual.askDirect")}
+              accessibilityLabel={t("deepspace:manual.askDirect")}
               accessibilityRole="link"
               fullWidth
               contentStyle={styles.footerContent}
             >
               <PixelGlyph name="bubble" color={m3.color.primary} size={24} />
               <RNText style={[m3TextStyle("labelLarge"), styles.footerText]}>
-                {t("manual.askDirect")}
+                {t("deepspace:manual.askDirect")}
               </RNText>
             </PixelPressable>
             <PixelPressable
@@ -167,13 +167,13 @@ export function DeepSpaceManualScreen() {
                 if (userId) resetCoachmarks(userId);
                 router.replace("/");
               }}
-              accessibilityLabel={t("manual.replayCoachmarks")}
+              accessibilityLabel={t("deepspace:manual.replayCoachmarks")}
               fullWidth
               contentStyle={styles.footerContent}
             >
               <PixelGlyph name="replay" color={m3.color.onSurfaceVariant} size={24} />
               <RNText style={[m3TextStyle("labelLarge"), styles.footerText]}>
-                {t("manual.replayCoachmarks")}
+                {t("deepspace:manual.replayCoachmarks")}
               </RNText>
             </PixelPressable>
           </View>

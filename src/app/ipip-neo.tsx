@@ -7,7 +7,8 @@
 // in the intro).
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 
@@ -186,7 +187,7 @@ function IpipNeoSurvey({
       ) : null}
 
       {started ? (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingArea style={{ flex: 1 }}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
               {t("counter")}
@@ -234,7 +235,7 @@ function IpipNeoSurvey({
               );
             }}
           />
-        </KeyboardAvoidingView>
+        </KeyboardAvoidingArea>
       ) : null}
 
       {saved ? (
@@ -321,10 +322,32 @@ const styles = StyleSheet.create({
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
 
+// The gate only. The shipped lens needs its own: the survey's redirect only ran
+// after "start", so a signed-out visitor got the empty lens first. Everything
+// that belongs to one account (the loaded facets, an answer in progress) lives in
+// the session below, keyed by its owner, so an A -> B change remounts it.
+// Cancelling A's late load was not enough: A's facets stayed on screen until B's
+// load came back, and A's answers stayed in a survey B could save.
 function IpipNeoDeepSpace() {
+  const { userId, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <DeepSpaceScreen active="lens" header="none">
+        <View style={styles.center}>
+          <PremiumLoadingState />
+        </View>
+      </DeepSpaceScreen>
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  return <IpipNeoDeepSpaceSession key={userId} userId={userId} />;
+}
+
+function IpipNeoDeepSpaceSession({ userId }: { userId: string }) {
   const { i18n } = useTranslation();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const { userId, loading } = useAuth();
   const [result, setResult] = useState<Awaited<ReturnType<typeof loadLatestIpip>>>(null);
   const [hasError, setHasError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -332,12 +355,6 @@ function IpipNeoDeepSpace() {
   const surveyBackRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (loading) return;
-    if (!userId) {
-      setResult(null);
-      setHasError(false);
-      return;
-    }
     let cancelled = false;
     setHasError(false);
     loadLatestIpip(getSupabaseClient(), userId)
@@ -353,7 +370,7 @@ function IpipNeoDeepSpace() {
     return () => {
       cancelled = true;
     };
-  }, [userId, loading, reloadKey]);
+  }, [userId, reloadKey]);
 
   if (taking) {
     // onBack is drawn only by the dashboard phone's compact shell (the fullbleed

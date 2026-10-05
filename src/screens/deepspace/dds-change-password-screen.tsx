@@ -1,12 +1,12 @@
 import { useRef, type ReactNode } from "react";
 import {
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -94,10 +94,7 @@ export function DeepSpaceChangePasswordScreen() {
   // shell adds no second one. The loading state above has none and keeps it.
   return (
     <DeepSpaceScreen active="settings" header="none" ownBack>
-      <KeyboardAvoidingView
-        style={styles.screen}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <KeyboardAvoidingArea style={styles.screen}>
         <View style={styles.topBar}>
           <PixelPressable
             onPress={() => router.back()}
@@ -263,7 +260,7 @@ export function DeepSpaceChangePasswordScreen() {
             </View>
           ) : null}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
     </DeepSpaceScreen>
   );
 }

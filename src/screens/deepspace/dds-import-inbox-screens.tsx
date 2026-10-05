@@ -1,10 +1,12 @@
-// rev2 M3 clones of 27-inbox (알림) + 29-import (외부 가져오기). Both render as
-// windowed sub-screens (radius-24 card over the shared sky) with an MdTopAppBar,
-// transcribed 1:1 from the reference-app screens (sb-flows.jsx InboxScreen /
-// sb-more.jsx ImportScreen). Inbox KO copy is sourced from the canon flows pack
-// (canonFlows.inboxItems) with app-side EN mirrors; import copy stays inline
-// ko/en ternary — either way no new i18n keys are added (C7 parity stays
-// safe). All colors route through m3.* tokens (no hex literals). The real
+// rev2 M3 clone of 29-import (외부 가져오기), a windowed sub-screen (radius-24
+// card over the shared sky) with an MdTopAppBar, transcribed 1:1 from the
+// reference-app screen (sb-more.jsx ImportScreen). Import copy stays inline
+// ko/en ternary — no new i18n keys are added (C7 parity stays safe).
+//
+// 2026-10-05: the unrouted 27-inbox copy that lived here (DeepSpaceInboxScreen +
+// DeepSpaceInboxBody) left the repo with the `EXPO_PUBLIC_UI=legacy` lever (Simon
+// decision Q-261004-11). The /inbox route renders dds-inbox-screen.tsx; the copy
+// is in E:/Legacy/2ndB (MANIFEST batch qa261004-lever) and git history. All colors route through m3.* tokens (no hex literals). The real
 // file-import pipeline (pickImportFiles → captureFromMarkdown) and the health
 // opt-in/ingest wiring are preserved behind the reference layout.
 
@@ -22,10 +24,7 @@ import { DeepSpaceLoader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
-import { reactExpression } from "@/lib/companion/expression";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
-import { listInferredLinkDetails, listSources } from "@/lib/wiki/queries";
-import { listPeerInvites } from "@/lib/peer/invite";
 import { armHealthAutoRead } from "@/lib/health/auto-read";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { healthWithdrawDeps, withdrawHealthImport } from "@/lib/health/withdraw";
@@ -58,164 +57,6 @@ function Loading() {
     <View style={s.loading}>
       <DeepSpaceLoader variant="dots" />
     </View>
-  );
-}
-
-// ── 27-inbox / reference InboxScreen (sb-flows.jsx) ─────────────────────────
-// A windowed 알림 list: filled cards with a tinted icon box, title + timestamp,
-// body, and a text CTA. Each card routes to the real surface behind it.
-// The inbox shows real notifications once a signal source is wired. Until then it
-// renders an honest empty state instead of the reference's 5 canned pixel-contract
-// cards (those were placeholders presented as real state to zero-data users).
-
-export function DeepSpaceInboxScreen() {
-  // Phone-aware: inside the dashboard phone, back and links stay in the phone.
-  const router = useAppRouter();
-  const { t } = useTranslation("deepspace");
-  const { userId, loading: authLoading } = useAuth();
-
-  const title = t("ds.inbox.title");
-  if (authLoading) {
-    return (
-      <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
-        <Loading />
-      </DeepSpaceScreen>
-    );
-  }
-  if (!userId) return <Redirect href="/sign-in" />;
-
-  return <DeepSpaceInboxBody userId={userId} title={title} />;
-}
-
-type InboxItem = {
-  icon: AnyGlyphName;
-  accent: string;
-  title: string;
-  body: string;
-  time: string;
-  route: string;
-  cta: string;
-};
-
-// The notification list is REAL now: it aggregates the two in-app event
-// sources that already exist — pending link proposals (propose→ratify, the
-// /digest queue) and responded peer invites. Before this, `items` was a
-// hardcoded empty array: honest-looking, but the pipeline behind the bell was
-// simply not wired (audit: /inbox stub).
-function DeepSpaceInboxBody({ userId, title }: { userId: string; title: string }) {
-  const router = useAppRouter();
-  const { t } = useTranslation("deepspace");
-  const [items, setItems] = useState<InboxItem[] | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    void Promise.all([
-      listInferredLinkDetails(userId).catch(() => []),
-      listPeerInvites(userId).catch(() => []),
-      // 아직 위키 페이지가 안 된 소스. 이 줄이 생기기 전까지 가져온 자료는
-      // 저장은 되는데 **그것을 띄우는 화면이 없어서** 사용자에게 보이지
-      // 않았다. 허브는 목록을 열지 않는다 - 한 줄로 알리고 /sources 로 넘긴다
-      // (화면 하나에 메시지 하나 · O-7).
-      listSources(userId, { ingested: false, limit: 100 }).catch(() => []),
-    ]).then(([links, invites, pending]) => {
-      if (!alive) return;
-      const next: InboxItem[] = [];
-      if (pending.length > 0) {
-        next.push({
-          icon: "inbox",
-          accent: m3.color.primary,
-          title: t("ds.inbox.sourcesTitle"),
-          body: t("ds.inbox.sourcesBody", { n: pending.length }),
-          time: "",
-          route: "/sources",
-          cta: t("ds.inbox.sourcesCta"),
-        });
-      }
-      if (links.length > 0) {
-        next.push({
-          icon: "link",
-          accent: m3.color.primary,
-          title: t("ds.inbox.proposalsTitle"),
-          body: t("ds.inbox.proposalsBody", { n: links.length }),
-          time: "",
-          route: "/digest",
-          cta: t("ds.inbox.proposalsCta"),
-        });
-      }
-      const responded = invites.filter(
-        (i) => i.responded_at != null && (i.status === "accepted" || i.status === "declined"),
-      );
-      if (responded.length > 0) {
-        next.push({
-          icon: "forum",
-          accent: m3.color.tertiary,
-          title: t("ds.inbox.peerTitle"),
-          body: t("ds.inbox.peerBody", { n: responded.length }),
-          time: "",
-          route: "/peer-invites",
-          cta: t("ds.inbox.peerCta"),
-        });
-      }
-      // 새 소식이 실제로 있다 — the head lights up as the cards land.
-      if (next.length > 0) reactExpression("delight", 1200);
-      setItems(next);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [userId, t]);
-
-  if (items === null) {
-    return (
-      <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
-        <Loading />
-      </DeepSpaceScreen>
-    );
-  }
-
-  return (
-    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
-      <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
-        <RNText style={[m3TextStyle("headlineSmall"), s.pageTitle]}>{title}</RNText>
-        <View style={s.stack10}>
-          {items.map((it, i) => (
-            <MdCard
-              key={i}
-              variant="filled"
-              onPress={() => router.push(it.route as never)}
-              accessibilityLabel={it.title}
-              style={s.notifCard}
-            >
-              <View style={s.notifRow}>
-                <View style={s.notifIcon}>
-                  <Glyph name={it.icon} color={it.accent} size={22} />
-                </View>
-                <View style={s.flex1}>
-                  <View style={s.notifHead}>
-                    <RNText style={[m3TextStyle("titleSmall"), s.notifTitle]}>{it.title}</RNText>
-                    <RNText style={[m3TextStyle("labelSmall"), s.notifTime]}>{it.time}</RNText>
-                  </View>
-                  <RNText style={[m3TextStyle("bodySmall"), s.notifBody]}>{it.body}</RNText>
-                  <MdButton
-                    label={it.cta}
-                    variant="text"
-                    icon={<Glyph name="arrow_forward" color={m3.color.primary} size={16} />}
-                    onPress={() => router.push(it.route as never)}
-                    style={s.notifCta}
-                    accessibilityLabel={it.cta}
-                  />
-                </View>
-              </View>
-            </MdCard>
-          ))}
-          {items.length === 0 ? (
-            <RNText style={[m3TextStyle("bodyMedium"), s.notifBody]}>
-              {t("ds.inbox.empty")}
-            </RNText>
-          ) : null}
-        </View>
-      </ScrollView>
-    </DeepSpaceScreen>
   );
 }
 
@@ -598,7 +439,7 @@ export function DeepSpaceImportScreen() {
             <View style={s.dropZone}>
               <Glyph name="cloud_upload" color={m3.color.onSurfaceVariant} size={40} />
               <RNText style={[m3TextStyle("bodyLarge"), s.dropTitle]}>{t("ds.import.dropTitle")}</RNText>
-              <RNText style={[m3TextStyle("bodySmall"), s.dropExt]}>.json · .zip · .txt · .md · .csv</RNText>
+              <RNText style={[m3TextStyle("bodySmall"), s.dropExt]}>.json · .txt · .md · .html</RNText>
               <MdButton
                 label={picking ? t("ds.import.btnOpening") : importing ? t("ds.import.btnImporting") : t("ds.import.btnChooseFile")}
                 variant="tonal"
@@ -752,19 +593,9 @@ const s = StyleSheet.create({
   loading: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   flex1: { flex: 1, minWidth: 0 },
   stack8: { gap: 8, marginTop: 4 },
-  stack10: { gap: 10 },
   divider: { borderTopWidth: 1, borderTopColor: m3.color.outlineVariant },
 
   // ── inbox ──
-  pageTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 8, marginBottom: 12 },
-  notifCard: { padding: 14 },
-  notifRow: { flexDirection: "row", gap: 12 },
-  notifIcon: { width: 40, height: 40, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center", backgroundColor: m3.color.surfaceContainer },
-  notifHead: { flexDirection: "row", alignItems: "baseline", gap: 8 },
-  notifTitle: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand },
-  notifTime: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
-  notifBody: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 4 },
-  notifCta: { alignSelf: "flex-start", minHeight: 40, paddingHorizontal: 0, marginTop: 4 },
 
   // ── import ──
   lead: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 4, marginBottom: 14 },

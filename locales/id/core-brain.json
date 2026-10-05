@@ -7,8 +7,8 @@
     "proposed": "Draf siap ditinjau",
     "filled": "Terhubung ke kartu yang disetujui"
   },
-  "rewardFirstGoal": "Persetujuan pertama: hadiah XP persona satu kali.",
-  "rewardFirstReached": "Persetujuan pertama tercapai. XP diberikan satu kali per akun.",
+  "rewardFirstGoal": "Target pertama: setujui satu kartu untuk mengisi tahap pertamamu.",
+  "rewardFirstReached": "Target pertama tercapai. Tahap pertamamu sudah terisi.",
   "rewardAllGoal": "Isi keenam tahap untuk melengkapi koleksi Polaris.",
   "rewardAllReached": "Koleksi Polaris lengkap",
   "generationAllowance": "Tersisa {{n}} dari 2 pembuatan awal per akun. Pembuatan tambahan menggunakan kuota penalaran mingguan paketmu.",

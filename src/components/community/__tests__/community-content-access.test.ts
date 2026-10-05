@@ -26,9 +26,11 @@ jest.mock("react-native", () => {
     View: Block,
   };
 });
+// Focus callbacks run only when a test asks (W-07 poll check); otherwise they are inert.
+let mockRunFocus = false;
 jest.mock("expo-router", () => ({
   Redirect: () => "redirect",
-  useFocusEffect: () => undefined,
+  useFocusEffect: (cb: () => void) => { if (mockRunFocus) cb(); },
 }));
 jest.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 jest.mock("@/components/ui/Text", () => {
@@ -59,11 +61,16 @@ jest.mock("@/lib/community/chat", () => ({
   COMMUNITY_MESSAGE_MAX: 2000,
   COMMUNITY_ROOM_POLL_MS: 4000,
   roomDisplayTitle: () => "room",
+  listRooms: (...args: unknown[]) => mockListRooms(...args),
+  listMessages: (...args: unknown[]) => mockListMessages(...args),
 }));
+const mockListRooms = jest.fn(async (..._args: unknown[]) => []);
+const mockListMessages = jest.fn(async (..._args: unknown[]) => []);
 
 const auth = jest.mocked(useAuth);
 const listProps = { onOpenRoom: jest.fn(), onOpenJoin: jest.fn() };
-const roomProps = { roomId: "room-1", onReturnToList: jest.fn() };
+// Room ids are uuids (community_rooms.id); since W-07 any other shape renders "unavailable".
+const roomProps = { roomId: "11111111-1111-4111-8111-111111111111", onReturnToList: jest.fn() };
 
 function setAuth(isMinor: boolean | null, userId: string | null = "adult-id") {
   auth.mockReturnValue({ loading: false, userId, isMinor } as ReturnType<typeof useAuth>);
@@ -101,4 +108,56 @@ test("signed-out community content redirects before showing controls", () => {
   const room = renderToStaticMarkup(React.createElement(CommunityRoomContent, roomProps));
   expect(list).toBe("redirect");
   expect(room).toBe("redirect");
+});
+
+// W-07 (QA 261004): /community/sample showed "genericError" with a retry that could never
+// work (every poll got the same 400). A malformed id is "this room is not available",
+// with the way back to the list and no retry.
+test("a malformed room id shows the unavailable state with the list button and no retry", () => {
+  setAuth(false);
+  const html = renderToStaticMarkup(React.createElement(CommunityRoomContent, { ...roomProps, roomId: "sample" }));
+  expect(html).toContain("roomUnavailable");
+  expect(html).toContain("backToList");
+  expect(html).not.toContain("retryCta");
+  expect(html).not.toContain("genericError");
+  expect(html).not.toContain("sendCta");
+});
+
+test("a malformed room id is never sent to the server and starts no poll", () => {
+  setAuth(false);
+  const interval = jest.spyOn(global, "setInterval");
+  mockRunFocus = true;
+  try {
+    renderToStaticMarkup(React.createElement(CommunityRoomContent, { ...roomProps, roomId: "sample" }));
+    expect(mockListRooms).not.toHaveBeenCalled();
+    expect(mockListMessages).not.toHaveBeenCalled();
+    expect(interval).not.toHaveBeenCalled();
+
+    // Control: a well-formed id does read and poll, so the check above can fail.
+    renderToStaticMarkup(React.createElement(CommunityRoomContent, roomProps));
+    expect(mockListRooms).toHaveBeenCalledWith(roomProps.roomId);
+    expect(mockListMessages).toHaveBeenCalledWith(roomProps.roomId);
+    expect(interval).toHaveBeenCalledTimes(1);
+  } finally {
+    mockRunFocus = false;
+    for (const call of interval.mock.results) clearInterval(call.value as ReturnType<typeof setInterval>);
+    interval.mockRestore();
+  }
+});
+
+// G-04 (QA 261004): an upper-case link is the same room. The screen reads it in the lower
+// case the server prints, so the membership lookup can match the row it gets back.
+test("an upper-case room link is read in lower case", () => {
+  setAuth(false);
+  const interval = jest.spyOn(global, "setInterval");
+  mockRunFocus = true;
+  try {
+    renderToStaticMarkup(React.createElement(CommunityRoomContent, { ...roomProps, roomId: "ABCDEF01-2345-4ABC-8DEF-0123456789AB" }));
+    expect(mockListRooms).toHaveBeenCalledWith("abcdef01-2345-4abc-8def-0123456789ab");
+    expect(mockListMessages).toHaveBeenCalledWith("abcdef01-2345-4abc-8def-0123456789ab");
+  } finally {
+    mockRunFocus = false;
+    for (const call of interval.mock.results) clearInterval(call.value as ReturnType<typeof setInterval>);
+    interval.mockRestore();
+  }
 });
