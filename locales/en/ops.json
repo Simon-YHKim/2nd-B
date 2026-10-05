@@ -444,5 +444,63 @@
     "save": "Save",
     "cancel": "Cancel"
   },
-  "todaysAssistant": "Today's assistant"
+  "todaysAssistant": "Today's assistant",
+  "toolScreens": {
+    "loading": "Loading…",
+    "delete": {
+      "arm": "Delete",
+      "confirm": "Tap again to delete",
+      "a11y": "Delete {{name}}",
+      "confirmA11y": "Tap again to delete {{name}}"
+    },
+    "reading": {
+      "emptyTitle": "Your shelf is empty",
+      "emptyBody": "Search for a book above, or add one by its title.",
+      "searching": "Searching…",
+      "noResults": "No books matched {{q}}.",
+      "failedTitle": "Book search isn't working right now",
+      "failedBody": "Your shelf is fine. Try again, or add the book by its title.",
+      "rateTitle": "Book search has reached its limit",
+      "rateBody": "The search service is not taking requests right now. Add the book by its title, or try again later.",
+      "addByTitle": "Add by title: {{title}}",
+      "onShelf": "On shelf",
+      "alsoReading": "Also reading",
+      "finished": "Finished",
+      "readAgain": "Read again",
+      "editPages": "Update pages",
+      "currentPage": "Page",
+      "totalPages": "Total pages",
+      "savePages": "Save",
+      "pagesInvalid": "Enter whole page numbers."
+    },
+    "goals": {
+      "emptyTitle": "No goals yet",
+      "emptyBody": "Name a goal above to add it.",
+      "chipA11y": "{{state}}. Tap to change it to {{next}}."
+    },
+    "ledger": {
+      "emptyTitle": "No spending logged this month",
+      "emptyBody": "Enter an amount above and it is grouped by category here.",
+      "currencyNote": "Amounts are recorded in won (KRW).",
+      "amountTooLarge": "That amount is too large. One entry can hold up to {{max}} won."
+    },
+    "meals": {
+      "sheetSubtitle": "{{day}} {{date}} · {{slot}}",
+      "placeholder": "e.g. Bibimbap",
+      "clear": "Clear this meal",
+      "lookUp": "Look up foods",
+      "lookUpNone": "No foods matched.",
+      "lookUpFailed": "Couldn't look that up. Try again.",
+      "ideas": {
+        "i1": "Bibimbap",
+        "i2": "Soybean paste stew",
+        "i3": "Salad bowl",
+        "i4": "Kimchi stew",
+        "i5": "Salmon steak",
+        "i6": "Tofu rice bowl",
+        "i7": "Chicken breast salad",
+        "i8": "Seaweed soup"
+      }
+    }
+  }
 }

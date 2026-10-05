@@ -444,5 +444,63 @@
     "save": "저장",
     "cancel": "취소"
   },
-  "todaysAssistant": "오늘의 비서"
+  "todaysAssistant": "오늘의 비서",
+  "toolScreens": {
+    "loading": "불러오는 중…",
+    "delete": {
+      "arm": "삭제",
+      "confirm": "한 번 더 누르면 삭제",
+      "a11y": "{{name}} 삭제",
+      "confirmA11y": "한 번 더 누르면 {{name}} 삭제"
+    },
+    "reading": {
+      "emptyTitle": "책장이 비어 있습니다",
+      "emptyBody": "위에서 책을 찾거나 제목으로 담을 수 있습니다.",
+      "searching": "찾는 중…",
+      "noResults": "{{q}}에 맞는 책이 없습니다.",
+      "failedTitle": "지금은 책 검색이 되지 않습니다",
+      "failedBody": "책장에는 문제가 없습니다. 다시 시도하거나 제목으로 담을 수 있습니다.",
+      "rateTitle": "책 검색 한도에 걸렸습니다",
+      "rateBody": "검색 서비스가 지금 요청을 받지 않습니다. 제목으로 담거나 나중에 다시 시도해 주세요.",
+      "addByTitle": "제목으로 담기: {{title}}",
+      "onShelf": "담김",
+      "alsoReading": "함께 읽는 중",
+      "finished": "다 읽은 책",
+      "readAgain": "다시 읽기",
+      "editPages": "쪽수 고치기",
+      "currentPage": "읽은 쪽",
+      "totalPages": "전체 쪽",
+      "savePages": "저장",
+      "pagesInvalid": "쪽수는 숫자로 적어 주세요."
+    },
+    "goals": {
+      "emptyTitle": "아직 목표가 없습니다",
+      "emptyBody": "위에 목표 이름을 적으면 추가할 수 있습니다.",
+      "chipA11y": "지금 {{state}}. 누르면 {{next}} 상태가 됩니다."
+    },
+    "ledger": {
+      "emptyTitle": "이번 달 지출 기록이 아직 없습니다",
+      "emptyBody": "위에 금액을 적으면 여기에 분류별로 모입니다.",
+      "currencyNote": "금액은 원(KRW)으로 기록합니다.",
+      "amountTooLarge": "금액이 너무 큽니다. 한 번에 {{max}}원까지 적을 수 있습니다."
+    },
+    "meals": {
+      "sheetSubtitle": "{{date}} ({{day}}) · {{slot}}",
+      "placeholder": "예: 비빔밥",
+      "clear": "이 끼니 비우기",
+      "lookUp": "식품 찾기",
+      "lookUpNone": "맞는 식품이 없습니다.",
+      "lookUpFailed": "식품을 찾지 못했습니다. 다시 시도해 주세요.",
+      "ideas": {
+        "i1": "비빔밥",
+        "i2": "된장찌개",
+        "i3": "샐러드 볼",
+        "i4": "김치찌개",
+        "i5": "연어 스테이크",
+        "i6": "두부 덮밥",
+        "i7": "닭가슴살 샐러드",
+        "i8": "미역국"
+      }
+    }
+  }
 }

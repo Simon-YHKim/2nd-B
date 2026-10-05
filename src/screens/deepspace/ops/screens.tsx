@@ -3,7 +3,7 @@
 // the already-built backing data libs. deepSpace.* tokens only, no auto-execution
 // (every write is behind a user tap). Strings come from the bilingual ops copy.
 
-import { useEffect, useMemo, useState, type DependencyList } from "react";
+import { useEffect, useMemo, useRef, useState, type DependencyList } from "react";
 import { Linking, Modal, Pressable, Share, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 
@@ -11,6 +11,7 @@ import { router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { DateField, MdButton, MdCard } from "@/components/m3";
+import { DeepSpaceLoader } from "@/components/deepspace/DeepSpaceLoader";
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, flattenAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { m3 } from "@/lib/theme/m3";
@@ -43,21 +44,33 @@ import { recommendForDomain, type OpsRecommendation } from "@/lib/ops/recommend"
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { buildChecklistShareText, buildGoogleCalendarUrl, type OpsEventInput } from "@/lib/ops/push";
 import { searchBooks, type BookResult } from "@/lib/reading/books";
-import { addToShelf, listShelf, readingProgress, setShelfStatus, type Shelf } from "@/lib/reading/shelf";
+import {
+  addToShelf,
+  listShelf,
+  manualBook,
+  parsePageDraft,
+  readingProgress,
+  removeFromShelf,
+  setShelfStatus,
+  shelfVolumeIds,
+  updateShelfEntry,
+  type Shelf,
+} from "@/lib/reading/shelf";
 import {
   createMilestone,
+  deleteMilestone,
   domainProgress,
   listMilestones,
   milestoneOverdue,
   updateMilestone,
   type Milestone,
-  type MilestoneStatus,
 } from "@/lib/ops/milestones";
-import { createLedgerEntry, deleteLedgerEntry, listEntriesForMonth, localDayKey, monthBucket, summarizeMonth } from "@/lib/finance/ledger";
+import { createLedgerEntry, deleteLedgerEntry, LEDGER_AMOUNT_MAX_DIGITS, listEntriesForMonth, localDayKey, MAX_LEDGER_KRW, monthBucket, parseLedgerAmount, summarizeMonth } from "@/lib/finance/ledger";
 import { fetchPushActivity, summarizeGithubActivity, type PushActivity } from "@/lib/projects/github";
 import { searchFoods, type FoodNutrition } from "@/lib/nutrition/foods";
 import {
   buildWeekGrid,
+  clearMeal,
   listWeek,
   MEAL_SLOTS,
   setMeal,
@@ -77,6 +90,18 @@ import {
 import { getGithubUsername, setGithubUsername } from "@/lib/projects/github-link";
 import { monthDelta, prevMonthKey } from "@/lib/finance/trend";
 import { trendChip } from "@/lib/ops/grounding";
+import {
+  bookSearchFailed,
+  bookSearchSettled,
+  DELETE_ARM_MS,
+  mealSaveAction,
+  MILESTONE_NEXT,
+  milestoneChip,
+  shelfView,
+  tapDelete,
+  type BookSearchView,
+  type MilestoneChipKey,
+} from "./tool-logic";
 
 // ── 이 화면들의 바탕 (PIXEL-CLAY 절대 규칙 4) ────────────────────────
 //
@@ -190,6 +215,50 @@ function SaveErrorBanner({ text }: { text: string }) {
         {text}
       </Text>
     </View>
+  );
+}
+
+// --- hand-entry tool helpers (QA round 2, 2026-10-05) ---------------------------
+
+/** R2C-10: the tool screens showed the assistant's "NEW / No suggestions yet" card
+ *  while loading, with the suggestion screen's body text. A wait is the shared loader. */
+function ToolLoading() {
+  const { t } = useTranslation("ops");
+  return <DeepSpaceLoader variant="dots" caption={t("toolScreens.loading")} />;
+}
+
+/**
+ * R2C-16 / R2C-07: a delete takes two taps on the same row (tapDelete), and an armed
+ * row lets go on its own after DELETE_ARM_MS. The ledger's ✕ used to delete on the
+ * first tap, and the shelf, goals and meals had no delete at all.
+ */
+function useTwoTapDelete(onCommit: (id: string) => void): { armedId: string | null; press: (id: string) => void } {
+  const [armedId, setArmedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (armedId === null) return undefined;
+    const timer = setTimeout(() => setArmedId(null), DELETE_ARM_MS);
+    return () => clearTimeout(timer);
+  }, [armedId]);
+  const press = (id: string) => {
+    const tap = tapDelete(armedId, id);
+    setArmedId(tap.armedId);
+    if (tap.commit) onCommit(id);
+  };
+  return { armedId, press };
+}
+
+function DeleteChip({ armed, name, onPress, disabled }: { armed: boolean; name: string; onPress: () => void; disabled?: boolean }) {
+  const { t } = useTranslation("ops");
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={armed ? t("toolScreens.delete.confirmA11y", { name }) : t("toolScreens.delete.a11y", { name })}
+      onPress={onPress}
+      disabled={disabled}
+      hitSlop={8}
+    >
+      <OpsStatusChip tone={armed ? "danger" : "muted"} label={armed ? t("toolScreens.delete.confirm") : t("toolScreens.delete.arm")} />
+    </Pressable>
   );
 }
 
@@ -327,28 +396,46 @@ export function OpsHomeScreen() {
 
 export function ReadingScreen() {
   const c = useOpsCopy();
+  const { t } = useTranslation("ops");
   const { userId } = useAuth();
   // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
   // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
   // just silently did nothing.
   const [saveErr, setSaveErr] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [q, setQ] = useState("");
-  const [results, setResults] = useState<BookResult[]>([]);
+  // R2C-02: "not searched yet", "nothing matched" and "the search failed" are three
+  // different answers. The old catch set the results to [] and the screen fell onto
+  // the assistant's "No suggestions yet" card, so a refused search looked like nothing.
+  const [search, setSearch] = useState<BookSearchView>({ kind: "idle" });
+  const searchSeq = useRef(0);
+  // R2C-08: the "0 / 200" under NOW READING could not be changed.
+  const [pageEdit, setPageEdit] = useState<{ id: string; cur: string; total: string } | null>(null);
+  const [pageErr, setPageErr] = useState(false);
   const shelf = useAsync<Shelf>(
     () => (userId ? listShelf(userId) : Promise.resolve({ want: [], reading: [], done: [] })),
     [userId],
   );
-  const reading = shelf.data?.reading[0];
+  const view = shelfView(shelf.data);
+  const reading = view.hero;
+  const onShelf = shelfVolumeIds(shelf.data);
 
-  const onSearch = async () => {
+  const onSearch = async (query: string = q) => {
+    const trimmed = query.trim();
+    if (trimmed.length === 0) return;
+    const seq = ++searchSeq.current;
+    setSearch({ kind: "searching", q: trimmed });
     try {
-      setResults(await searchBooks(q));
-    } catch {
-      setResults([]);
+      const items = await searchBooks(trimmed);
+      if (seq === searchSeq.current) setSearch(bookSearchSettled(trimmed, items));
+    } catch (e) {
+      if (seq === searchSeq.current) setSearch(bookSearchFailed(trimmed, e));
     }
   };
   const onAdd = async (b: BookResult) => {
-    if (!userId) return;
+    if (!userId || busy) return;
+    setBusy(true);
+    setSaveErr(false);
     try {
       await addToShelf(userId, b, "want");
       shelf.reload();
@@ -356,6 +443,8 @@ export function ReadingScreen() {
       // The write failed. Say so: reload() lives inside the try above, so on this path
       // it never ran and nothing surfaced anywhere.
       setSaveErr(true);
+    } finally {
+      setBusy(false);
     }
   };
   // med#21: the shelf had no way to MOVE a book between statuses, so the
@@ -370,6 +459,38 @@ export function ReadingScreen() {
       setSaveErr(true);
     }
   };
+  // R2C-07: a book put on the shelf by mistake could never be taken off.
+  const onRemove = async (entryId: string) => {
+    if (!userId) return;
+    setSaveErr(false);
+    try {
+      await removeFromShelf(userId, entryId);
+      if (pageEdit?.id === entryId) setPageEdit(null);
+      shelf.reload();
+    } catch {
+      setSaveErr(true);
+    }
+  };
+  const del = useTwoTapDelete((id) => void onRemove(id));
+  const onSavePages = async () => {
+    if (!userId || !pageEdit) return;
+    const pages = parsePageDraft(pageEdit.cur, pageEdit.total);
+    if (!pages) {
+      setPageErr(true);
+      return;
+    }
+    setPageErr(false);
+    setSaveErr(false);
+    try {
+      await updateShelfEntry(userId, pageEdit.id, pages);
+      setPageEdit(null);
+      shelf.reload();
+    } catch {
+      setSaveErr(true);
+    }
+  };
+
+  const manual = search.kind === "none" || search.kind === "failed" ? manualBook(search.q) : null;
 
   return (
     <OpsFrame title={c.myShelf} bubble={c.whatReading} tip={c.add}>
@@ -378,13 +499,66 @@ export function ReadingScreen() {
         <TextInput
           value={q}
           onChangeText={setQ}
-          onSubmitEditing={onSearch}
+          onSubmitEditing={() => void onSearch()}
           placeholder={c.searchBooks}
           placeholderTextColor={deepSpace.textLo}
           style={styles.searchInput}
           returnKeyType="search"
+          accessibilityLabel={c.searchBooks}
         />
       </View>
+
+      {search.kind === "searching" ? (
+        <Text variant="subtle" style={styles.toolNote}>{t("toolScreens.reading.searching")}</Text>
+      ) : search.kind === "results" ? (
+        <View style={styles.section}>
+          <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.searchBooks}</Text>
+          {search.items.map((b) =>
+            onShelf.has(b.id) ? (
+              <View key={b.id} style={styles.bookRow}>
+                <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
+                <Text variant="caption" style={styles.bookOnShelf}>{t("toolScreens.reading.onShelf")}</Text>
+              </View>
+            ) : (
+              <Pressable key={b.id} accessibilityRole="button" onPress={() => void onAdd(b)} disabled={busy} hitSlop={6} style={styles.bookRow}>
+                <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
+                <Text variant="caption" style={styles.bookAdd}>＋ {c.add}</Text>
+              </Pressable>
+            ),
+          )}
+        </View>
+      ) : search.kind === "none" || search.kind === "failed" ? (
+        <View style={styles.section}>
+          {search.kind === "none" ? (
+            <Text variant="subtle" style={styles.toolNote}>{t("toolScreens.reading.noResults", { q: search.q })}</Text>
+          ) : (
+            <OpsState
+              variant={search.rate ? "rate" : "error"}
+              title={search.rate ? t("toolScreens.reading.rateTitle") : t("toolScreens.reading.failedTitle")}
+              body={search.rate ? t("toolScreens.reading.rateBody") : t("toolScreens.reading.failedBody")}
+              ctaLabel={c.retry}
+              onCta={() => void onSearch(search.q)}
+            />
+          )}
+          {/* The search is a third-party API that can refuse every request, and it was the
+              only way onto the shelf. Adding by the typed title keeps the shelf usable. */}
+          {manual ? (
+            onShelf.has(manual.id) ? (
+              <View style={styles.bookRow}>
+                <Text variant="body" style={styles.bookTitle}>{manual.title}</Text>
+                <Text variant="caption" style={styles.bookOnShelf}>{t("toolScreens.reading.onShelf")}</Text>
+              </View>
+            ) : (
+              <Pressable accessibilityRole="button" onPress={() => void onAdd(manual)} disabled={busy} hitSlop={6} style={styles.bookRow}>
+                <Text variant="body" style={styles.bookTitle}>
+                  {t("toolScreens.reading.addByTitle", { title: manual.title })}
+                </Text>
+                <Text variant="caption" style={styles.bookAdd}>＋ {c.add}</Text>
+              </Pressable>
+            )
+          ) : null}
+        </View>
+      ) : null}
 
       {reading ? (
         <View style={styles.hero}>
@@ -398,47 +572,139 @@ export function ReadingScreen() {
             <View style={{ marginTop: 10 }}>
               <ProgressBar value={readingProgress(reading.current_page, reading.total_pages)} />
             </View>
-            <Text variant="subtle" style={styles.heroMeta}>
-              {reading.current_page} / {reading.total_pages ?? "?"}
-            </Text>
-            <Pressable accessibilityRole="button" onPress={() => void onMove(reading.id, "done")} hitSlop={8}>
-              <OpsStatusChip tone="muted" label={c.finishedReading} />
-            </Pressable>
+            {pageEdit?.id === reading.id ? (
+              <>
+                <View style={styles.pageEdit}>
+                  <TextInput
+                    value={pageEdit.cur}
+                    onChangeText={(v) => setPageEdit((p) => (p ? { ...p, cur: v } : p))}
+                    placeholder={t("toolScreens.reading.currentPage")}
+                    placeholderTextColor={deepSpace.textLo}
+                    style={styles.searchInput}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    returnKeyType="done"
+                    onSubmitEditing={() => void onSavePages()}
+                    accessibilityLabel={t("toolScreens.reading.currentPage")}
+                  />
+                  <Text variant="subtle" style={styles.heroMeta}>/</Text>
+                  <TextInput
+                    value={pageEdit.total}
+                    onChangeText={(v) => setPageEdit((p) => (p ? { ...p, total: v } : p))}
+                    placeholder={t("toolScreens.reading.totalPages")}
+                    placeholderTextColor={deepSpace.textLo}
+                    style={styles.searchInput}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    returnKeyType="done"
+                    onSubmitEditing={() => void onSavePages()}
+                    accessibilityLabel={t("toolScreens.reading.totalPages")}
+                  />
+                </View>
+                {pageErr ? (
+                  <Text variant="caption" style={styles.fieldErr} accessibilityLiveRegion="polite">
+                    {t("toolScreens.reading.pagesInvalid")}
+                  </Text>
+                ) : null}
+                <View style={styles.chipRow}>
+                  <Pressable accessibilityRole="button" onPress={() => void onSavePages()} hitSlop={8}>
+                    <OpsStatusChip tone="positive" label={t("toolScreens.reading.savePages")} />
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setPageEdit(null);
+                      setPageErr(false);
+                    }}
+                    hitSlop={8}
+                  >
+                    <OpsStatusChip tone="muted" label={c.cancel} />
+                  </Pressable>
+                </View>
+              </>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("toolScreens.reading.editPages")}
+                onPress={() =>
+                  setPageEdit({
+                    id: reading.id,
+                    cur: String(reading.current_page),
+                    total: reading.total_pages ? String(reading.total_pages) : "",
+                  })
+                }
+                hitSlop={6}
+              >
+                <Text variant="subtle" style={styles.heroMeta}>
+                  {reading.current_page} / {reading.total_pages ?? "?"} · {t("toolScreens.reading.editPages")}
+                </Text>
+              </Pressable>
+            )}
+            <View style={styles.chipRow}>
+              <Pressable accessibilityRole="button" onPress={() => void onMove(reading.id, "done")} hitSlop={8}>
+                <OpsStatusChip tone="muted" label={c.finishedReading} />
+              </Pressable>
+              <DeleteChip armed={del.armedId === reading.id} name={reading.title} onPress={() => del.press(reading.id)} />
+            </View>
           </View>
         </View>
       ) : null}
 
-      {results.length > 0 ? (
-        <View style={styles.section}>
-          <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.searchBooks}</Text>
-          {results.map((b) => (
-            <Pressable key={b.id} onPress={() => onAdd(b)} hitSlop={6} style={styles.bookRow}>
-              <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
-              <Text variant="caption" style={styles.bookAdd}>＋ {c.add}</Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-
-      {shelf.status === "loading" && !reading && results.length === 0 ? (
-        <OpsState variant="empty" title="…" body={c.emptyBody} />
+      {shelf.status === "loading" && shelf.data === null ? (
+        <ToolLoading />
       ) : shelf.status === "error" ? (
         <OpsState variant="error" title={c.errorTitle} body={c.errorBody} ctaLabel={c.retry} onCta={shelf.reload} />
-      ) : !reading && (shelf.data?.want.length ?? 0) === 0 && results.length === 0 ? (
-        <OpsState variant="empty" title={c.emptyTitle} body={c.whatReading} />
-      ) : (shelf.data?.want.length ?? 0) > 0 ? (
-        <View style={styles.section}>
-          <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.wantToRead}</Text>
-          {shelf.data?.want.map((b) => (
-            <View key={b.id} style={styles.bookRow}>
-              <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
-              <Pressable accessibilityRole="button" onPress={() => void onMove(b.id, "reading")} hitSlop={8}>
-                <OpsStatusChip tone="positive" label={c.startReading} />
-              </Pressable>
+      ) : view.empty ? (
+        search.kind === "idle" ? (
+          <OpsState variant="empty" title={t("toolScreens.reading.emptyTitle")} body={t("toolScreens.reading.emptyBody")} />
+        ) : null
+      ) : (
+        <>
+          {view.alsoReading.length > 0 ? (
+            <View style={styles.section}>
+              <Text variant="caption" pixelEn style={styles.pixelLabel}>{t("toolScreens.reading.alsoReading")}</Text>
+              {view.alsoReading.map((b) => (
+                <View key={b.id} style={styles.bookRow}>
+                  <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
+                  <Pressable accessibilityRole="button" onPress={() => void onMove(b.id, "done")} hitSlop={8}>
+                    <OpsStatusChip tone="muted" label={c.finishedReading} />
+                  </Pressable>
+                  <DeleteChip armed={del.armedId === b.id} name={b.title} onPress={() => del.press(b.id)} />
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
-      ) : null}
+          ) : null}
+          {view.want.length > 0 ? (
+            <View style={styles.section}>
+              <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.wantToRead}</Text>
+              {view.want.map((b) => (
+                <View key={b.id} style={styles.bookRow}>
+                  <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
+                  <Pressable accessibilityRole="button" onPress={() => void onMove(b.id, "reading")} hitSlop={8}>
+                    <OpsStatusChip tone="positive" label={c.startReading} />
+                  </Pressable>
+                  <DeleteChip armed={del.armedId === b.id} name={b.title} onPress={() => del.press(b.id)} />
+                </View>
+              ))}
+            </View>
+          ) : null}
+          {/* R2C-08: "Finished" used to make a book vanish (done was never drawn). */}
+          {view.done.length > 0 ? (
+            <View style={styles.section}>
+              <Text variant="caption" pixelEn style={styles.pixelLabel}>{t("toolScreens.reading.finished")}</Text>
+              {view.done.map((b) => (
+                <View key={b.id} style={styles.bookRow}>
+                  <Text variant="body" style={styles.bookDone}>{b.title}</Text>
+                  <Pressable accessibilityRole="button" onPress={() => void onMove(b.id, "reading")} hitSlop={8}>
+                    <OpsStatusChip tone="info" label={t("toolScreens.reading.readAgain")} />
+                  </Pressable>
+                  <DeleteChip armed={del.armedId === b.id} name={b.title} onPress={() => del.press(b.id)} />
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </>
+      )}
     </OpsFrame>
   );
 }
@@ -446,13 +712,6 @@ export function ReadingScreen() {
 // --- (3) Milestones · career / learning --------------------------------
 
 const MILESTONE_DOMAINS: OpsDomainId[] = ["learning_goals", "career_check"];
-
-// status advances todo → doing → done → todo (one tap cycles the chip).
-const NEXT_STATUS: Record<MilestoneStatus, MilestoneStatus> = {
-  todo: "doing",
-  doing: "done",
-  done: "todo",
-};
 
 export function MilestonesScreen() {
   const c = useOpsCopy();
@@ -477,11 +736,13 @@ export function MilestonesScreen() {
   const list = ms.data ?? [];
   const prog = domainProgress(list);
 
-  const chipFor = (m: Milestone): { tone: OpsChipTone; label: string } => {
-    if (milestoneOverdue(m)) return { tone: "danger", label: c.overdue };
-    if (m.status === "doing") return { tone: "positive", label: c.inProgress };
-    if (m.status === "done") return { tone: "muted", label: c.done };
-    return { tone: "info", label: c.planning };
+  // R2C-09: the chip shows the status and only the status. It used to answer "overdue"
+  // first, so on an overdue goal the todo → doing tap was saved but nothing changed on
+  // screen. Overdue now lives on the due-date line below.
+  const chipLabel: Record<MilestoneChipKey, string> = { planning: c.planning, inProgress: c.inProgress, done: c.done };
+  const chipFor = (m: Milestone): { tone: OpsChipTone; label: string; nextLabel: string } => {
+    const chip = milestoneChip(m.status);
+    return { tone: chip.tone, label: chipLabel[chip.key], nextLabel: chipLabel[milestoneChip(MILESTONE_NEXT[m.status]).key] };
   };
 
   // [데이터 추가]: the user NAMES the goal. The old handler hardcoded
@@ -533,7 +794,7 @@ export function MilestonesScreen() {
     setBusy(true);
     setSaveErr(false);
     try {
-      await updateMilestone(userId, m.id, { status: NEXT_STATUS[m.status] });
+      await updateMilestone(userId, m.id, { status: MILESTONE_NEXT[m.status] });
       ms.reload();
     } catch {
       // The write failed. Say so: reload() lives inside the try above, so on this path
@@ -543,6 +804,23 @@ export function MilestonesScreen() {
       setBusy(false);
     }
   };
+
+  // R2C-07: a goal made by mistake could never be removed (deleteMilestone had no caller).
+  const onDelete = async (id: string) => {
+    if (!userId || busy) return;
+    setBusy(true);
+    setSaveErr(false);
+    try {
+      await deleteMilestone(userId, id);
+      setEditing(null);
+      ms.reload();
+    } catch {
+      setSaveErr(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const delGoal = useTwoTapDelete((id) => void onDelete(id));
 
   const tabs: DomainTab[] = MILESTONE_DOMAINS.map((d) => ({
     id: d,
@@ -581,14 +859,15 @@ export function MilestonesScreen() {
         <Text variant="caption" style={styles.addRowText}>＋ {c.emptyCta}</Text>
       </Pressable>
       {ms.status === "loading" ? (
-        <OpsState variant="empty" title="…" body={c.emptyBody} />
+        <ToolLoading />
       ) : ms.status === "error" ? (
         <OpsState variant="error" title={c.errorTitle} body={c.errorBody} ctaLabel={c.retry} onCta={ms.reload} />
       ) : list.length === 0 ? (
-        <OpsState variant="empty" title={c.emptyTitle} body={c.goals} />
+        <OpsState variant="empty" title={t("toolScreens.goals.emptyTitle")} body={t("toolScreens.goals.emptyBody")} />
       ) : (
         list.map((m) => {
           const chip = chipFor(m);
+          const overdue = milestoneOverdue(m);
           return (
             <View key={m.id} style={styles.msRow}>
               <View style={styles.msTop}>
@@ -621,7 +900,13 @@ export function MilestonesScreen() {
                     >
                       <Text variant="heading" style={styles.msTitle}>{m.title}</Text>
                     </Pressable>
-                    <Pressable accessibilityRole="button" onPress={() => onAdvance(m)} hitSlop={8} disabled={busy}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t("toolScreens.goals.chipA11y", { state: chip.label, next: chip.nextLabel })}
+                      onPress={() => onAdvance(m)}
+                      hitSlop={8}
+                      disabled={busy}
+                    >
                       <OpsStatusChip tone={chip.tone} label={chip.label} />
                     </Pressable>
                   </>
@@ -646,10 +931,12 @@ export function MilestonesScreen() {
                       <OpsStatusChip tone="muted" label={c.dueClear} />
                     </Pressable>
                   ) : null}
+                  <DeleteChip armed={delGoal.armedId === m.id} name={m.title} onPress={() => delGoal.press(m.id)} disabled={busy} />
                 </View>
               ) : m.target_date ? (
-                <Text variant="caption" style={styles.msDue}>
+                <Text variant="caption" style={[styles.msDue, overdue && styles.msDueOver]}>
                   {c.dueDate} · {m.target_date}
+                  {overdue ? ` · ${c.overdue}` : ""}
                 </Text>
               ) : null}
               {m.note ? <Text variant="body" style={styles.msNote}>{m.note}</Text> : null}
@@ -670,7 +957,7 @@ export function LedgerScreen() {
   // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
   // just silently did nothing.
   const [saveErr, setSaveErr] = useState(false);
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("ops");
   const ko = i18n.language?.toLowerCase().startsWith("ko");
   const month = monthBucket(new Date());
   const prevMonth = prevMonthKey(month);
@@ -706,8 +993,14 @@ export function LedgerScreen() {
   // (see the picker below): the list/summary are strictly `month`, so a date
   // outside it would insert a row the user can never see.
   const [occurredOn, setOccurredOn] = useState(localDayKey());
-  const amountNum = Math.floor(Number(amount.replace(/[^0-9]/g, "")));
-  const canAdd = !busy && amountNum > 0;
+  // R2C-16: the amount had no ceiling. 25 digits went out as `1e+25` (HTTP 400, and the
+  // retry sent the same 400); 16-18 digits were stored rounded. parseLedgerAmount keeps
+  // digits only and refuses anything above MAX_LEDGER_KRW, so the add button stays off
+  // and the reason is shown under the field instead of a generic "try again".
+  const amountParsed = parseLedgerAmount(amount);
+  const amountNum = amountParsed.kind === "ok" ? amountParsed.value : 0;
+  const amountTooLarge = amountParsed.kind === "tooLarge";
+  const canAdd = !busy && amountParsed.kind === "ok";
 
   const onAddEntry = async () => {
     if (!userId || !canAdd) return;
@@ -744,6 +1037,9 @@ export function LedgerScreen() {
       setBusy(false);
     }
   };
+  // R2C-16: ✕ deleted the row on the first tap, with no confirm and no undo. The first
+  // tap now only arms the row; the second tap on the same row deletes it.
+  const delEntry = useTwoTapDelete((id) => void onDeleteEntry(id));
 
   return (
     <OpsFrame title={c.monthCheck} bubble={`${c.left} ${summary.net.toLocaleString()}`} tip={c.record}>
@@ -806,6 +1102,7 @@ export function LedgerScreen() {
             style={[styles.searchInput, styles.amountInput]}
             keyboardType="number-pad"
             returnKeyType="next"
+            maxLength={LEDGER_AMOUNT_MAX_DIGITS}
             accessibilityLabel={c.amountPlaceholder}
           />
           <TextInput
@@ -827,14 +1124,19 @@ export function LedgerScreen() {
             <Text variant="caption" style={[styles.addBtnTxt, !canAdd && styles.addBtnTxtOff]}>{c.addEntry}</Text>
           </Pressable>
         </View>
+        {amountTooLarge ? (
+          <Text variant="caption" style={styles.fieldErr} accessibilityLiveRegion="polite">
+            {t("toolScreens.ledger.amountTooLarge", { max: MAX_LEDGER_KRW.toLocaleString() })}
+          </Text>
+        ) : null}
       </View>
 
       {entries.status === "loading" ? (
-        <OpsState variant="empty" title="…" body={c.emptyBody} />
+        <ToolLoading />
       ) : entries.status === "error" ? (
         <OpsState variant="error" title={c.errorTitle} body={c.errorBody} ctaLabel={c.retry} onCta={entries.reload} />
       ) : summary.byCategory.length === 0 ? (
-        <OpsState variant="empty" title={c.emptyTitle} body={c.record} />
+        <OpsState variant="empty" title={t("toolScreens.ledger.emptyTitle")} body={t("toolScreens.ledger.emptyBody")} />
       ) : (
         <View style={styles.section}>
           <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.byCategory}</Text>
@@ -867,22 +1169,37 @@ export function LedgerScreen() {
               <Text variant="body" style={[styles.entryAmt, e.kind === "income" && { color: deepSpace.mint }]}>
                 {e.kind === "expense" ? "-" : "+"}{e.amount_krw.toLocaleString()}
               </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${e.category} ${c.deleteEntry}`}
-                onPress={() => void onDeleteEntry(e.id)}
-                disabled={busy}
-                hitSlop={8}
-                style={styles.entryDel}
-              >
-                <RNText style={styles.entryDelTxt}>✕</RNText>
-              </Pressable>
+              {delEntry.armedId === e.id ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("toolScreens.delete.confirmA11y", { name: e.category })}
+                  onPress={() => delEntry.press(e.id)}
+                  disabled={busy}
+                  hitSlop={8}
+                >
+                  <OpsStatusChip tone="danger" label={t("toolScreens.delete.confirm")} />
+                </Pressable>
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${e.category} ${c.deleteEntry}`}
+                  onPress={() => delEntry.press(e.id)}
+                  disabled={busy}
+                  hitSlop={8}
+                  style={styles.entryDel}
+                >
+                  <RNText style={styles.entryDelTxt}>✕</RNText>
+                </Pressable>
+              )}
             </View>
           ))}
         </View>
       ) : null}
 
-      <Text variant="subtle" style={styles.fxNote}>{c.fxNote}</Text>
+      {/* R2C-11: this note used to claim other currencies were converted for you. The form
+          takes won only, ops_ledger has no currency column and nothing calls
+          lib/finance/fx.ts, so the note now states what the screen actually does. */}
+      <Text variant="subtle" style={styles.footNote}>{t("toolScreens.ledger.currencyNote")}</Text>
     </OpsFrame>
   );
 }
@@ -1024,6 +1341,14 @@ export function SideProjectScreen({ userId }: { userId: string }) {
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
 const DAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+/** Fixed meal ideas (ops bundle toolScreens.meals.ideas.*), after the PIXEL-CLAY sheet's list. */
+const MEAL_IDEA_KEYS = ["i1", "i2", "i3", "i4", "i5", "i6"] as const;
+
+type FoodLookup = { kind: "idle" } | { kind: "busy" } | { kind: "done"; items: FoodNutrition[] } | { kind: "failed" };
+/** Session cache for food lookups, so reopening a cell never spends quota twice. */
+const FOOD_LOOKUP_CACHE = new Map<string, FoodNutrition[]>();
+const FOOD_LOOKUP_CACHE_MAX = 30;
+
 export function MealsScreen() {
   const c = useOpsCopy();
   const { userId } = useAuth();
@@ -1031,15 +1356,17 @@ export function MealsScreen() {
   // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
   // just silently did nothing.
   const [saveErr, setSaveErr] = useState(false);
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("ops");
   const ko = i18n.language?.toLowerCase().startsWith("ko");
   const dayLabels = ko ? DAYS : DAYS_EN;
   const thisWeek = weekStartKey();
 
   const [weekStart, setWeekStart] = useState(thisWeek);
-  const [pending, setPending] = useState<{ date: string; slot: MealSlot } | null>(null);
+  // `day` and `current` ride along so the sheet can say which cell it is editing
+  // (R2C-15) and so emptying a filled cell clears it instead of keeping it (R2C-07).
+  const [pending, setPending] = useState<{ date: string; slot: MealSlot; day: string; current: string | null } | null>(null);
   const [draft, setDraft] = useState("");
-  const [ideas, setIdeas] = useState<FoodNutrition[]>([]);
+  const [lookup, setLookup] = useState<FoodLookup>({ kind: "idle" });
 
   const week = useAsync<MealEntry[]>(
     () => (userId ? listWeek(userId, weekStart) : Promise.resolve([])),
@@ -1053,23 +1380,55 @@ export function MealsScreen() {
     setWeekStart(weekStartKey(next));
   };
 
-  const openCell = async (date: string, slot: MealSlot, current: MealEntry | null) => {
-    setPending({ date, slot });
+  // R2C-15: opening a cell used to search the food DB for a hardcoded "닭"/"chicken"
+  // every time, spending the user's daily public-data quota for the same four chips.
+  // Opening a cell now makes no request; the chips are a fixed idea list, and the food
+  // DB is asked only when the user taps "look up" for what they typed.
+  const openCell = (date: string, slot: MealSlot, current: MealEntry | null, day: string) => {
+    setPending({ date, slot, day, current: current?.title ?? null });
     setDraft(current?.title ?? "");
+    setLookup({ kind: "idle" });
+  };
+
+  // The food DB (MFDS) is searched by its Korean food name (FOOD_NM_KR), so the lookup
+  // is offered on the Korean screen only. Answers are kept for the session.
+  const onLookUp = async () => {
+    const query = draft.trim();
+    if (!ko || query.length === 0) return;
+    const cached = FOOD_LOOKUP_CACHE.get(query);
+    if (cached) {
+      setLookup({ kind: "done", items: cached });
+      return;
+    }
+    setLookup({ kind: "busy" });
     try {
-      setIdeas(await searchFoods(ko ? "닭" : "chicken"));
+      const items = await searchFoods(query);
+      if (FOOD_LOOKUP_CACHE.size >= FOOD_LOOKUP_CACHE_MAX) {
+        const oldest = FOOD_LOOKUP_CACHE.keys().next().value;
+        if (oldest !== undefined) FOOD_LOOKUP_CACHE.delete(oldest);
+      }
+      FOOD_LOOKUP_CACHE.set(query, items);
+      setLookup({ kind: "done", items });
     } catch {
-      setIdeas([]);
+      setLookup({ kind: "failed" });
     }
   };
 
   const saveCell = async () => {
-    if (!userId || !pending || draft.trim().length === 0) {
+    if (!userId || !pending) {
       setPending(null);
       return;
     }
+    // R2C-07: an emptied draft used to just close the sheet, so the old meal stayed.
+    const action = mealSaveAction(draft, pending.current);
+    if (action === "close") {
+      setPending(null);
+      return;
+    }
+    setSaveErr(false);
     try {
-      await setMeal(userId, pending.date, pending.slot, draft.trim());
+      if (action === "clear") await clearMeal(userId, pending.date, pending.slot);
+      else await setMeal(userId, pending.date, pending.slot, draft.trim());
       week.reload();
     } catch {
       // The write failed. Say so: reload() lives inside the try above, so on this path
@@ -1078,6 +1437,24 @@ export function MealsScreen() {
     }
     setPending(null);
   };
+
+  const clearCell = async () => {
+    if (!userId || !pending) return;
+    setSaveErr(false);
+    try {
+      await clearMeal(userId, pending.date, pending.slot);
+      week.reload();
+    } catch {
+      setSaveErr(true);
+    }
+    setPending(null);
+  };
+
+  // Food names can repeat in the DB answer; a chip list keyed by name must not.
+  const ideaChips: string[] =
+    lookup.kind === "done" && lookup.items.length > 0
+      ? [...new Set(lookup.items.map((f) => f.name))].slice(0, 4)
+      : MEAL_IDEA_KEYS.map((k) => t(`toolScreens.meals.ideas.${k}`));
 
   return (
     <OpsFrame title={c.weeklyMeals} bubble={c.weeklyMeals} tip={c.whatToEatNow}>
@@ -1107,11 +1484,15 @@ export function MealsScreen() {
               return (
                 <Pressable
                   key={slot}
-                  onPress={() => openCell(day.date, slot, cell)}
+                  onPress={() => openCell(day.date, slot, cell, dayLabels[i] ?? "")}
                   accessibilityRole="button"
                   accessibilityLabel={`${day.date} ${dayLabels[i]} ${c[slot]}: ${cell?.title ?? c.planMeal}`}
                   hitSlop={4}
-                  style={[styles.gridCell, cell ? styles.gridCellFilled : null]}
+                  style={[
+                    styles.gridCell,
+                    cell ? styles.gridCellFilled : null,
+                    pending?.date === day.date && pending.slot === slot ? styles.gridCellOpen : null,
+                  ]}
                 >
                   <Text variant="subtle" style={cell ? styles.gridCellText : styles.gridPlus} numberOfLines={1}>
                     {cell ? cell.title : "＋"}
@@ -1122,32 +1503,59 @@ export function MealsScreen() {
           </View>
         ))}
       </View>
-      <Text variant="subtle" style={styles.fxNote}>{c.nutritionNote}</Text>
+      <Text variant="subtle" style={styles.footNote}>{c.nutritionNote}</Text>
 
       <Modal visible={pending !== null} transparent animationType="slide" onRequestClose={() => setPending(null)}>
         <Pressable style={styles.mealBackdrop} onPress={() => setPending(null)} />
         <View style={styles.mealSheet}>
           <View style={styles.sheetGrip} />
           <Text variant="heading" style={styles.mealSheetTitle}>{c.planMeal}</Text>
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder={c.mealIdeas}
-            placeholderTextColor={deepSpace.textLo}
-            style={styles.searchInput}
-            returnKeyType="done"
-            onSubmitEditing={saveCell}
-          />
-          {ideas.length > 0 ? (
-            <View style={styles.ideaChips}>
-              {ideas.slice(0, 4).map((f) => (
-                <Pressable key={f.name} onPress={() => setDraft(f.name)} hitSlop={4} style={styles.ideaChip}>
-                  <Text variant="body" style={styles.ideaChipText}>{f.name}</Text>
-                </Pressable>
-              ))}
-            </View>
+          {/* R2C-15: the sheet never said which day and meal it was editing. */}
+          {pending ? (
+            <Text variant="subtle" style={styles.mealSheetSub}>
+              {t("toolScreens.meals.sheetSubtitle", { day: pending.day, date: pending.date, slot: c[pending.slot] })}
+            </Text>
           ) : null}
-          <Pressable onPress={saveCell} hitSlop={6} style={styles.mealSave}>
+          <View style={styles.searchRow}>
+            <TextInput
+              value={draft}
+              onChangeText={(v) => {
+                setDraft(v);
+                if (lookup.kind !== "idle") setLookup({ kind: "idle" });
+              }}
+              placeholder={t("toolScreens.meals.placeholder")}
+              placeholderTextColor={deepSpace.textLo}
+              style={styles.searchInput}
+              returnKeyType="done"
+              onSubmitEditing={() => void saveCell()}
+              accessibilityLabel={c.whatToEatNow}
+            />
+            {ko && draft.trim().length > 0 ? (
+              <Pressable accessibilityRole="button" onPress={() => void onLookUp()} disabled={lookup.kind === "busy"} hitSlop={6} style={styles.ideaChip}>
+                <Text variant="body" style={styles.ideaChipText}>{t("toolScreens.meals.lookUp")}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+          <Text variant="caption" style={styles.mealIdeasLabel}>{c.mealIdeas}</Text>
+          <View style={styles.ideaChips}>
+            {ideaChips.map((name) => (
+              <Pressable key={name} accessibilityRole="button" onPress={() => setDraft(name)} hitSlop={4} style={styles.ideaChip}>
+                <Text variant="body" style={styles.ideaChipText}>{name}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {lookup.kind === "busy" ? <Text variant="caption" style={styles.toolNote}>{t("toolScreens.loading")}</Text> : null}
+          {lookup.kind === "failed" || (lookup.kind === "done" && lookup.items.length === 0) ? (
+            <Text variant="caption" style={styles.toolNote} accessibilityLiveRegion="polite">
+              {lookup.kind === "failed" ? t("toolScreens.meals.lookUpFailed") : t("toolScreens.meals.lookUpNone")}
+            </Text>
+          ) : null}
+          {pending?.current ? (
+            <Pressable accessibilityRole="button" onPress={() => void clearCell()} hitSlop={6} style={styles.mealClear}>
+              <Text variant="caption" style={styles.mealClearText}>{t("toolScreens.meals.clear")}</Text>
+            </Pressable>
+          ) : null}
+          <Pressable accessibilityRole="button" onPress={() => void saveCell()} hitSlop={6} style={styles.mealSave}>
             <Text variant="caption" style={styles.mealSaveText}>{c.save}</Text>
           </Pressable>
         </View>
@@ -1506,7 +1914,13 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
   },
   bookTitle: { flex: 1, fontSize: 14, color: deepSpace.textHi },
+  bookDone: { flex: 1, fontSize: 14, color: deepSpace.textMid },
   bookAdd: { fontSize: 12, color: deepSpace.mint },
+  bookOnShelf: { fontSize: 12, color: deepSpace.textLo },
+  toolNote: { fontSize: 13, color: deepSpace.textMid },
+  fieldErr: { fontSize: 12, color: deepSpace.danger },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: 8 },
+  pageEdit: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
 
   progressHeader: { gap: 6 },
   progressLabel: { fontSize: 12, color: deepSpace.textMuted },
@@ -1543,6 +1957,7 @@ const styles = StyleSheet.create({
   msTitleInput: { flex: 1, minHeight: 40 },
   msNote: { fontSize: 12, color: deepSpace.textLo },
   msDue: { fontSize: 12, color: deepSpace.textLo },
+  msDueOver: { color: deepSpace.danger },
   msDueEdit: { flexDirection: "row", alignItems: "center", gap: 8 },
   msDueField: { flex: 1 },
   dueField: { marginTop: deepSpaceSpacing.sm },
@@ -1559,7 +1974,7 @@ const styles = StyleSheet.create({
   ledgerStat: { fontSize: 12, color: deepSpace.textMid, flexShrink: 1 },
   catRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
   catName: { fontSize: 13, color: deepSpace.textMid },
-  fxNote: { fontSize: 12, color: deepSpace.textLo },
+  footNote: { fontSize: 12, color: deepSpace.textLo },
   ledgerForm: { gap: deepSpaceSpacing.sm, marginBottom: deepSpaceSpacing.sm },
   kindToggle: { flexDirection: "row", gap: deepSpaceSpacing.xs },
   kindBtn: {
@@ -1645,6 +2060,7 @@ const styles = StyleSheet.create({
   },
   gridPlus: { fontSize: 14, color: deepSpace.textLo },
   gridCellFilled: { borderColor: deepSpace.cardLineStrong, backgroundColor: deepSpace.cardPressed },
+  gridCellOpen: { borderColor: deepSpace.accent },
   gridCellText: { fontSize: 9, color: deepSpace.accentSoft, paddingHorizontal: 3 },
 
   weekNav: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: deepSpaceSpacing.md },
@@ -1666,6 +2082,17 @@ const styles = StyleSheet.create({
   },
   sheetGrip: { width: 40, height: 4, borderRadius: m3.shape.none, backgroundColor: deepSpace.cardLineStrong, alignSelf: "center" },
   mealSheetTitle: { fontSize: 15, color: deepSpace.textHi },
+  mealSheetSub: { fontSize: 12, color: deepSpace.textMid },
+  mealIdeasLabel: { fontSize: 12, color: deepSpace.textLo, marginTop: 4 },
+  mealClear: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: m3.shape.medium,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLineStrong,
+  },
+  mealClearText: { fontSize: 14, color: deepSpace.textMid },
   ideaChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   ideaChip: {
     minHeight: 36,

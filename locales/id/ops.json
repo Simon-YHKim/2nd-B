@@ -444,5 +444,63 @@
     "save": "Simpan",
     "cancel": "Batal"
   },
-  "todaysAssistant": "Asisten hari ini"
+  "todaysAssistant": "Asisten hari ini",
+  "toolScreens": {
+    "loading": "Memuat…",
+    "delete": {
+      "arm": "Hapus",
+      "confirm": "Ketuk lagi untuk menghapus",
+      "a11y": "Hapus {{name}}",
+      "confirmA11y": "Ketuk lagi untuk menghapus {{name}}"
+    },
+    "reading": {
+      "emptyTitle": "Rak bukumu kosong",
+      "emptyBody": "Cari buku di atas, atau tambahkan lewat judulnya.",
+      "searching": "Mencari…",
+      "noResults": "Tidak ada buku yang cocok dengan {{q}}.",
+      "failedTitle": "Pencarian buku sedang tidak berfungsi",
+      "failedBody": "Rak bukumu aman. Coba lagi, atau tambahkan buku lewat judulnya.",
+      "rateTitle": "Pencarian buku mencapai batasnya",
+      "rateBody": "Layanan pencarian sedang tidak menerima permintaan. Tambahkan buku lewat judulnya, atau coba lagi nanti.",
+      "addByTitle": "Tambah lewat judul: {{title}}",
+      "onShelf": "Di rak",
+      "alsoReading": "Juga sedang dibaca",
+      "finished": "Selesai dibaca",
+      "readAgain": "Baca lagi",
+      "editPages": "Perbarui halaman",
+      "currentPage": "Halaman",
+      "totalPages": "Total halaman",
+      "savePages": "Simpan",
+      "pagesInvalid": "Tulis nomor halaman dengan angka bulat."
+    },
+    "goals": {
+      "emptyTitle": "Belum ada tujuan",
+      "emptyBody": "Tulis nama tujuan di atas untuk menambahkannya.",
+      "chipA11y": "{{state}}. Ketuk untuk mengubahnya menjadi {{next}}."
+    },
+    "ledger": {
+      "emptyTitle": "Belum ada pengeluaran bulan ini",
+      "emptyBody": "Tulis jumlah di atas dan akan dikelompokkan per kategori di sini.",
+      "currencyNote": "Jumlah dicatat dalam won (KRW).",
+      "amountTooLarge": "Jumlah itu terlalu besar. Satu catatan bisa memuat hingga {{max}} won."
+    },
+    "meals": {
+      "sheetSubtitle": "{{day}} {{date}} · {{slot}}",
+      "placeholder": "mis. nasi bibimbap",
+      "clear": "Kosongkan makanan ini",
+      "lookUp": "Cari makanan",
+      "lookUpNone": "Tidak ada makanan yang cocok.",
+      "lookUpFailed": "Tidak bisa mencari. Coba lagi.",
+      "ideas": {
+        "i1": "Nasi bibimbap",
+        "i2": "Sup pasta kedelai",
+        "i3": "Mangkuk salad",
+        "i4": "Sup kimchi",
+        "i5": "Steik salmon",
+        "i6": "Nasi mangkuk tahu",
+        "i7": "Salad dada ayam",
+        "i8": "Sup rumput laut"
+      }
+    }
+  }
 }

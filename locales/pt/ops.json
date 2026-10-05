@@ -444,5 +444,63 @@
     "save": "Salvar",
     "cancel": "Cancelar"
   },
-  "todaysAssistant": "Assistente de hoje"
+  "todaysAssistant": "Assistente de hoje",
+  "toolScreens": {
+    "loading": "Carregando…",
+    "delete": {
+      "arm": "Excluir",
+      "confirm": "Toque de novo para excluir",
+      "a11y": "Excluir {{name}}",
+      "confirmA11y": "Toque de novo para excluir {{name}}"
+    },
+    "reading": {
+      "emptyTitle": "Sua estante está vazia",
+      "emptyBody": "Busque um livro acima ou adicione-o pelo título.",
+      "searching": "Buscando…",
+      "noResults": "Nenhum livro corresponde a {{q}}.",
+      "failedTitle": "A busca de livros não está funcionando agora",
+      "failedBody": "Sua estante está bem. Tente de novo ou adicione o livro pelo título.",
+      "rateTitle": "A busca de livros atingiu o limite",
+      "rateBody": "O serviço de busca não está aceitando pedidos agora. Adicione o livro pelo título ou tente mais tarde.",
+      "addByTitle": "Adicionar pelo título: {{title}}",
+      "onShelf": "Na estante",
+      "alsoReading": "Também lendo",
+      "finished": "Lidos",
+      "readAgain": "Ler de novo",
+      "editPages": "Atualizar páginas",
+      "currentPage": "Página",
+      "totalPages": "Total de páginas",
+      "savePages": "Salvar",
+      "pagesInvalid": "Digite números de página inteiros."
+    },
+    "goals": {
+      "emptyTitle": "Ainda não há metas",
+      "emptyBody": "Escreva o nome de uma meta acima para adicioná-la.",
+      "chipA11y": "{{state}}. Toque para mudar para {{next}}."
+    },
+    "ledger": {
+      "emptyTitle": "Nenhum gasto registrado neste mês",
+      "emptyBody": "Digite um valor acima e ele será agrupado aqui por categoria.",
+      "currencyNote": "Os valores são registrados em wons (KRW).",
+      "amountTooLarge": "Esse valor é grande demais. Um registro aceita até {{max}} wons."
+    },
+    "meals": {
+      "sheetSubtitle": "{{day}} {{date}} · {{slot}}",
+      "placeholder": "ex.: arroz bibimbap",
+      "clear": "Limpar esta refeição",
+      "lookUp": "Buscar alimentos",
+      "lookUpNone": "Nenhum alimento corresponde.",
+      "lookUpFailed": "Não foi possível buscar. Tente de novo.",
+      "ideas": {
+        "i1": "Arroz bibimbap",
+        "i2": "Ensopado de pasta de soja",
+        "i3": "Tigela de salada",
+        "i4": "Ensopado de kimchi",
+        "i5": "Filé de salmão",
+        "i6": "Tigela de arroz com tofu",
+        "i7": "Salada de peito de frango",
+        "i8": "Sopa de algas"
+      }
+    }
+  }
 }
