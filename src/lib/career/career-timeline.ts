@@ -1,5 +1,6 @@
 // Career CV timeline (rev2 P4d) — pure grouping for the 커리어 lens.
-// Records tagged domain:career group by YEAR, newest first. An explicit
+// Records tagged domain:career (or career_achievement, see CAREER_TIMELINE_TAGS)
+// group by YEAR, newest first. An explicit
 // `year:YYYY` tag (written by the 성과 입력 form) wins over created_at, so past
 // accomplishments land on their real year, not the capture date.
 //
@@ -8,6 +9,30 @@
 // entry now. 3C4P drilldown stays deferred to the rev2 prototype spec.
 
 import { kstDayKey } from "@/lib/journal/streak";
+import { domainTagFor } from "@/lib/persona/domain-stars";
+
+import { CAREER_ACHIEVEMENT_TAG } from "./achievement-form";
+
+/**
+ * A record is on the timeline when it carries ANY of these tags (Postgres `&&`,
+ * supabase `.overlaps`): the career area tag, or the 성과 입력 form's own tag.
+ *
+ * Why the second one. Until 2026-10-05 the form put `domain:career` in `tags`,
+ * where createRecord strips it and re-detects the area from keywords, so a
+ * one-line achievement was stored as ["domain:collect", "career_achievement"]
+ * (QA R2C-01). The form now files through `domainIntent`, but an installed app
+ * that has not updated keeps writing the old shape, and rows already written stay
+ * as they are (no data is rewritten). The form tag is only ever written by that
+ * form, so matching it shows the user's own achievement where they wrote it
+ * without guessing at anything else. It does not move the row to the career star:
+ * area counts and brightness still read the stored domain tag.
+ */
+export const CAREER_TIMELINE_TAGS: readonly string[] = [domainTagFor("career"), CAREER_ACHIEVEMENT_TAG];
+
+/** The same rule as the query, for a row already in hand. */
+export function isCareerTimelineRow(row: Pick<CareerRecordRow, "tags">): boolean {
+  return (row.tags ?? []).some((t) => CAREER_TIMELINE_TAGS.includes(t));
+}
 
 export interface CareerRecordRow {
   id: string;
