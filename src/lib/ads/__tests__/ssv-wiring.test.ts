@@ -44,12 +44,13 @@ describe("SSV callback wiring", () => {
     const edge = read("supabase/functions/rewarded-ssv/index.ts");
     const handlerAt = edge.indexOf("Deno.serve");
     const signatureAt = edge.indexOf("await signatureValid", handlerAt);
-    const freshAt = edge.indexOf("isCallbackFresh(callback.callbackTimestampMs", handlerAt);
+    const freshAt = edge.indexOf("parseCallbackTimestamp(callback.callbackTimestampText)", handlerAt);
     const settleAt = edge.indexOf("settle_reward_ssv_ticket_v3", handlerAt);
     expect(signatureAt).toBeGreaterThan(0);
     expect(freshAt).toBeGreaterThan(signatureAt);
     expect(settleAt).toBeGreaterThan(freshAt);
-    expect(edge.slice(freshAt, settleAt)).toContain("if (!fresh) return json({ error: 'invalid_or_expired_ticket' }, 403);");
+    expect(edge.slice(freshAt, settleAt)).toContain("isCallbackFresh(ts.ms, Date.now())");
+    expect(edge.slice(freshAt, settleAt)).toContain("if (!ts || !fresh) return json({ error: 'invalid_or_expired_ticket' }, 403);");
     // The one log line carries the digit count and the verdict, nothing else.
     const log = /console\.log\(JSON\.stringify\(\{([\s\S]*?)\}\)\);/.exec(edge.slice(freshAt, settleAt));
     expect(log).not.toBeNull();
@@ -118,7 +119,7 @@ describe("SSV callback wiring", () => {
     expect(edge).not.toContain("settle_reward_ssv_ticket_v2");
     for (const arg of [
       "p_token_hash", "p_txn_id", "p_ad_unit_id",
-      "p_reward_amount", "p_reward_item", "p_callback_ts: callback.callbackTimestampRaw",
+      "p_reward_amount", "p_reward_item", "p_callback_ts: ts.raw",
     ]) expect(settleArgs).toContain(arg);
     expect(settleArgs).not.toContain("p_callback_user_id");
     expect(edge).not.toContain("consume_reward_ssv_ticket_v2");

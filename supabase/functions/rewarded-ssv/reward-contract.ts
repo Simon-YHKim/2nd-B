@@ -23,10 +23,12 @@ export type RewardCallback = {
   adUnitId: string;
   rewardAmount: number;
   rewardItem: string;
-  /** The signed timestamp as received. 0213 reads its unit from the same digits. */
-  callbackTimestampRaw: number;
-  callbackTimestampDigits: number;
-  callbackTimestampMs: number;
+  /** The signed timestamp exactly as received: digits only, at most 19. Its unit
+   * and freshness are judged after the signature check (index.ts), so a length
+   * the contract does not allow still reaches the GO-5b digit log instead of
+   * being refused unseen (security gate r2 DB2-04). 0213 reads the unit from the
+   * same digits. */
+  callbackTimestampText: string;
 };
 
 /** ADMOB-TS (2), Simon 2026-10-04 21:06 KST. AdMob documents the callback
@@ -39,6 +41,11 @@ export const ALLOWED_TS_DIGITS: readonly number[] = [10, 13, 16];
 export const CALLBACK_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 /** 0213 c_skew. */
 export const CALLBACK_MAX_SKEW_MS = 5 * 60 * 1000;
+
+/** The shape parseRewardCallback accepts before the signature: digits only,
+ * bounded so the length log stays a small number. Unit and range are
+ * parseCallbackTimestamp's job, after the signature. */
+export const CALLBACK_TS_SHAPE = /^[0-9]{1,19}$/;
 
 /** A leading zero is refused: Postgres counts the digits of the bigint, so
  * "0001790251200" would be seconds there and milliseconds here. */
@@ -181,7 +188,6 @@ export function parseRewardCallback(
   const rewardItem = params.get('reward_item');
   const timestamp = params.get('timestamp');
   const transactionId = params.get('transaction_id');
-  const callbackTs = timestamp ? parseCallbackTimestamp(timestamp) : null;
 
   if (
     !adNetwork || !/^(?:0|[1-9][0-9]{0,19})$/.test(adNetwork) ||
@@ -189,7 +195,7 @@ export function parseRewardCallback(
     !ticket || !TICKET_PATTERN.test(ticket) ||
     rewardAmountRaw !== String(config.rewardAmount) ||
     rewardItem !== config.rewardItem ||
-    !callbackTs ||
+    !timestamp || !CALLBACK_TS_SHAPE.test(timestamp) ||
     !transactionId || !TRANSACTION_PATTERN.test(transactionId) ||
     transactionId.length % 2 !== 0 ||
     params.has('user_id')
@@ -201,9 +207,7 @@ export function parseRewardCallback(
     adUnitId,
     rewardAmount: config.rewardAmount,
     rewardItem,
-    callbackTimestampRaw: callbackTs.raw,
-    callbackTimestampDigits: callbackTs.digits,
-    callbackTimestampMs: callbackTs.ms,
+    callbackTimestampText: timestamp,
   };
 }
 

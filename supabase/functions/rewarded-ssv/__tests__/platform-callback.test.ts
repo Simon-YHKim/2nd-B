@@ -149,13 +149,19 @@ describe("signed callback timestamp (0213, ADMOB-TS (2))", () => {
     expect(JSON.parse(tsLines()[0])).toEqual(expect.objectContaining({ event: "ssv_callback_ts", accepted: false }));
   });
 
-  test("refuses any other digit count as a contract mismatch, before the signature or a log line", async () => {
+  test.each([
+    ["12 digits", () => String(Math.floor(Date.now() / 10)), 12],
+    ["a leading zero", () => `000${Math.floor(Date.now() / 1000)}`, 13],
+    ["17 digits", () => `${Date.now()}1234`, 17],
+  ])("refuses %s after the signature and still logs the digit count (r2 DB2-04)", async (_label, make, digits) => {
     const app = load();
-    const response = await app.handler(new Request(callback({ timestamp: String(Math.floor(Date.now() / 10)) })));
+    const response = await app.handler(new Request(callback({ timestamp: make() })));
     expect(response.status).toBe(403);
-    expect(await response.json()).toEqual({ error: "reward_contract_mismatch" });
-    expect(app.fetchMock).not.toHaveBeenCalled();
-    expect(tsLines()).toEqual([]);
+    expect(await response.json()).toEqual({ error: "invalid_or_expired_ticket" });
+    // The signature was checked (verifier keys fetched) before the unit was judged.
+    expect(app.fetchMock).toHaveBeenCalled();
+    expect(app.rpc).not.toHaveBeenCalledWith("settle_reward_ssv_ticket_v3", expect.anything());
+    expect(tsLines()).toEqual([JSON.stringify({ event: "ssv_callback_ts", digits, accepted: false })]);
   });
 
   test("the log line names the digit count and verdict only", async () => {

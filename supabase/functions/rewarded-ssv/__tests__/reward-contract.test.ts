@@ -260,12 +260,20 @@ describe("signed reward callback values", () => {
       adUnitId: CONFIG.adUnitIds[0],
       rewardAmount: CONFIG.rewardAmount,
       rewardItem: CONFIG.rewardItem,
-      // Google's own example value is 16 digits: microseconds under ADMOB-TS (2).
-      callbackTimestampRaw: 1507770365237823,
-      callbackTimestampDigits: 16,
-      callbackTimestampMs: 1507770365237,
+      // Google's own example value is 16 digits. Its unit is read after the
+      // signature (parseCallbackTimestamp in index.ts), so it travels as text.
+      callbackTimestampText: "1507770365237823",
     });
   });
+
+  test.each(["179025120000", "0001790251200", "17902512000000000", "1"])(
+    "passes the digits-only timestamp %p through for the post-signature check (r2 DB2-04)",
+    (value) => {
+      const parsed = parseSignedSsvQuery(validSignedQuery())!;
+      parsed.params.set("timestamp", value);
+      expect(parseRewardCallback(parsed.params, CONFIG)?.callbackTimestampText).toBe(value);
+    },
+  );
 
   test.each([
     ["ad_unit", "999"],
@@ -275,10 +283,11 @@ describe("signed reward callback values", () => {
     ["user_id", USER_ID],
     ["transaction_id", "not-hex"],
     ["timestamp", "yesterday"],
-    ["timestamp", "179025120000"],        // 12 digits
-    ["timestamp", "17902512000000"],      // 14 digits
-    ["timestamp", "0001790251200"],       // 13 characters, 10 digits to Postgres
-    ["timestamp", "17902512000000000"],   // 17 digits
+    ["timestamp", ""],
+    ["timestamp", "1790251200.5"],
+    ["timestamp", "-1790251200"],
+    ["timestamp", "1e12"],
+    ["timestamp", "12345678901234567890"], // 20 digits: past the logged shape
   ])("rejects a bad %s even after signature verification", (name, value) => {
     const parsed = parseSignedSsvQuery(validSignedQuery())!;
     parsed.params.set(name, value);

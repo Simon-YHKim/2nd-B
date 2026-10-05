@@ -11,6 +11,7 @@ import {
   derToRawEcdsa,
   isCallbackFresh,
   normalizeAdUnitId,
+  parseCallbackTimestamp,
   parseRewardCallback,
   parseSignedSsvQuery,
   parseVerifierKeyDocument,
@@ -302,18 +303,22 @@ Deno.serve(async (req: Request) => {
     if (signature.status === 'unavailable') return json({ error: 'verifier_keys_unavailable' }, 503);
     if (signature.status !== 'valid') return json({ error: 'bad_signature' }, 403);
 
-    // The signed timestamp must be at most one day old and five minutes ahead.
+    // The signed timestamp's unit comes from its digit count (10/13/16) and it
+    // must be at most one day old and five minutes ahead. Both are judged here,
+    // after the signature, so a length outside the contract is still logged for
+    // GO-5b rather than refused unseen before it (security gate r2 DB2-04).
     // 0213 repeats the check with the ticket's issue time, so a transaction id
     // the 89-day purge (0211) deleted cannot be paid again from a replay. Only
-    // the digit count is logged, for GO-5b: never the value, the transaction,
-    // the user, the signature or the ticket.
-    const fresh = isCallbackFresh(callback.callbackTimestampMs, Date.now());
+    // the digit count is logged: never the value, the transaction, the user,
+    // the signature or the ticket.
+    const ts = parseCallbackTimestamp(callback.callbackTimestampText);
+    const fresh = ts !== null && isCallbackFresh(ts.ms, Date.now());
     console.log(JSON.stringify({
       event: 'ssv_callback_ts',
-      digits: callback.callbackTimestampDigits,
+      digits: callback.callbackTimestampText.length,
       accepted: fresh,
     }));
-    if (!fresh) return json({ error: 'invalid_or_expired_ticket' }, 403);
+    if (!ts || !fresh) return json({ error: 'invalid_or_expired_ticket' }, 403);
 
     const { data: settled, error: settleError } = await admin.rpc('settle_reward_ssv_ticket_v3', {
       p_token_hash: tokenHash,
@@ -321,7 +326,7 @@ Deno.serve(async (req: Request) => {
       p_ad_unit_id: callback.adUnitId,
       p_reward_amount: callback.rewardAmount,
       p_reward_item: callback.rewardItem,
-      p_callback_ts: callback.callbackTimestampRaw,
+      p_callback_ts: ts.raw,
     });
     if (settleError) return json({ error: 'settlement_service_unavailable' }, 503);
     const row = Array.isArray(settled) && settled.length === 1 ? settled[0] : null;
