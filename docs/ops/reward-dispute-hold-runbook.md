@@ -19,7 +19,7 @@
 | `reward_ssv_tickets` | 소비 1일 뒤, 미사용 20분 만료 뒤 | 5분마다(0196) |
 | `reward_dispute_hold_events`(감사 기록) | 그 사건의 분쟁이 끝난 날부터 3년(3년을 채운 뒤 첫 실행) | 매일 04:37 KST, 사건 단위(S1) |
 
-- 89일 = 방침의 "최대 90일" − 실행 주기 1일. 이 하루는 **정상적인 매일 실행 간격**을 위한 여유다. 한 번 실패하면 그날 89일 23시간이던 기록이 다음 정기 실행 때는 90일을 넘는다. 그래서 실패하면 24시간 안에 다시 돌린다(§6, 보안 게이트 r2 BL2-02).
+- 89일 = 방침의 "최대 90일" − 실행 주기 1일. 이 하루는 **정상적인 매일 실행 간격에 다 쓰인다.** 그래서 정기 실행이 한 번이라도 실패하면, 다음 성공까지 일부 기록(직전 성공 직후에 89일을 넘긴 것)은 90일을 넘는다. 지금 기준에는 실패를 흡수할 여유가 없다(보안 게이트 r3 DB3-01). 기준을 당길지(예: 88일), 더 자주 돌릴지는 Simon · Gaius 결정 대기다. 정해지기 전까지는 §6 의 대응으로 초과 구간을 줄이고 기록한다.
 - `credit_balance.lifetime_*`(누적 합계 숫자)는 이 정리에서 건드리지 않는다. 계정 삭제 때만 지워진다(Gaius ⑧).
 - 계정을 지우면 위 기록은 보류 여부와 상관없이 함께 지워진다. 보류는 계정 삭제를 막지 않는다.
 
@@ -104,7 +104,7 @@ SELECT e.at, e.action, e.reason_code, e.actor, e.approved_by, e.actor_role,
 - 배포 직후 첫 04:37 KST 실행 전에는 `cron_stale = true`가 맞다(아직 한 번도 돌지 않았다). 첫 실행 뒤에도 `true`면 조사한다.
 - 이상이 보이면:
   1. `verify/prod-readonly-checks.sql`의 F·G·H로 실행 기록과 잔량을 본다(읽기만).
-  2. 정리 실행이 실패했으면(잠금 시간 초과 포함) 다음 날을 기다리지 않는다. 실패한 04:37 KST 실행 뒤 **24시간이 되기 전에** 승인된 수동 실행(3번)을 마친다. 89일 기준의 하루 여유는 정상 간격용이라, 실패한 날 89일 23시간이던 기록은 다음 정기 실행 때 이미 90일을 넘는다(보안 게이트 r2 BL2-02). 수동 실행도 실패하면 바로 Simon에게 알린다.
+  2. 정리 실행이 실패했으면(잠금 시간 초과 포함) 그 순간부터 일부 기록이 90일을 넘을 수 있다(§1). 다음 날을 기다리지 않고 **가능한 한 빨리** 승인된 수동 실행(3번)을 마친다. 실패한 실행 시각과 수동 실행이 성공한 시각을 Gaius에게 알린다(방침 초과 가능 구간). 수동 실행도 실패하면 바로 Simon에게 알린다(보안 게이트 r2 BL2-02 · r3 DB3-01).
   3. 수동 실행 `SELECT public.purge_reward_records();`는 운영 쓰기다. Simon 승인 뒤 Hadrianus가 실행한다.
   4. 91일 넘은 비보류 기록이 실제로 있으면 방침 위반 가능성이 있으므로 같은 날 Gaius에게 알린다.
   5. `overdue_hold_reviews`가 0이 아니면 §2의 4번(재검토)을 바로 한다. `overdue_hold_audit_cases`가 0이 아니면 정리 작업이 3-6 단계에서 실패하는지 본다(1번과 같음).
@@ -122,17 +122,30 @@ SELECT e.at, e.action, e.reason_code, e.actor, e.approved_by, e.actor_role,
    1. `SELECT jobid FROM cron.job WHERE jobname = 'purge-reward-records-90d';` 값을 적어 둔다(예약을 지우면 이름으로는 찾을 수 없다).
    2. `SELECT cron.unschedule('purge-reward-records-90d');`
    3. `SELECT count(*) FROM cron.job_run_details WHERE jobid = <1의 값> AND start_time >= '<복원 완료 시각>';` 이 0 이어야 한다. 1 이상이면 복원 시점 이후에 건 보류의 거래가 이미 지워졌을 수 있으므로 **같은 백업에서 다시 복원**하고 이 단계를 처음부터 다시 한다.
+   4. `SELECT coalesce(max(id), 0) FROM public.reward_dispute_hold_events;` 값을 적어 둔다. 복원본에 원래 있던 감사 행의 끝이다. 6번이 이 값보다 큰 id(복원 작업이 만든 행)만 정확히 고른다.
 3. **계정 삭제 다시 적용**: 복원 시점 이후에 삭제된 계정 목록을 구한다. 우선 출처는 장애 난 DB의 `account_deletion_tombstones`(읽을 수 있으면)이고, 그다음은 Supabase Auth 감사 로그와 운영 기록이다. 그 계정들을 평소의 계정 삭제 경로로 다시 지운다(tombstone 행도 다시 쓴다).
    - **삭제 원장 출처(S3-LEDGER 확정, 2026-10-04 21:04 KST)**:
      1. 장애 난 DB(원래 Supabase 프로젝트)의 `account_deletion_tombstones`에서 복원 시점(1번) 이후 행을 읽는다. 읽기 전용 SQL 세션으로 계정 ID와 삭제 시각만 가져오고, 목록은 worklog에 건수만 남긴다.
      2. 이 표를 얻지 못하면(프로젝트째 잃었거나 읽을 수 없음) **서비스를 다시 열지 않는다**. Hadrianus가 상황(복원 시점, 잃은 구간, 알 수 있는 다른 단서)을 Simon에게 올리고, Simon이 진행 방법을 정한 뒤에만 다시 연다. Supabase Auth 감사 로그 같은 다른 출처는 Simon이 그때 고를 수 있는 단서로만 적는다.
 4. **보류와 감사 기록 맞추기**: 복원 시점 이후에 풀린 보류는 복원된 DB에서 다시 활성으로 보인다. 사건 파일과 대조해 풀린 것은 다시 푼다(Simon 승인 기록은 원래 것을 쓴다). 복원 시점 이후에 새로 건 보류는 다시 건다(대상 거래가 복원돼 있을 때만. 정리를 아직 돌리지 않았으므로 89일이 지난 거래도 여기서는 남아 있다). 복원 시점 이후의 재검토도 사건 파일대로 `review`를 다시 실행한다.
 5. **89일 정리 다시 적용**: `SELECT public.purge_reward_records();`를 실행한다. 복원된 행 가운데 이미 89일이 지난 비보류 기록이 지워진다. 3년이 지나 이미 지운 감사 기록이 복원됐으면 이때 다시 지워진다.
-6. **감사 기록을 원본으로 맞추기**(보안 게이트 r2 BL2-03): 백업 뒤에 생긴 감사 행은 복원본에 없고, 3·4번이 함수로 다시 한 일은 복원 작업 시각으로 새 감사 행을 만든다. 그대로 두면 사건 이력이 빠지거나(예: 백업 뒤 걸었다가 계정 삭제로 끝난 사건은 `placed`·`source_deleted`가 모두 없다) 종료일이 복원 시각으로 밀려 3년 보관이 길어진다. 장애 난 DB를 읽을 수 있으면 아래를 한다.
-   1. 장애 난 DB에서 `at >= '<복원 시점>'`인 `reward_dispute_hold_events` 행을 읽는다(`case_ref`, `action`, `reason_code`, `actor`, `approved_by`, `actor_role`, `at`만. 거래 ID는 읽지 않는다).
-   2. 복원된 DB의 운영자 세션에서 복원 작업이 만든 행을 지운다: `BEGIN; SET LOCAL app.reward_hold_audit_purge = '1'; DELETE FROM public.reward_dispute_hold_events WHERE at >= '<복원 작업 시작 시각>'; COMMIT;`
-   3. 1번의 행을 원래 값 그대로 넣는다(`transaction_id`는 NULL).
-   - 이 두 쓰기가 §8 "감사 표에 직접 쓰지 않는다"의 유일한 예외다. 복원 창 안에서 Simon 승인 뒤 Hadrianus가 한다. 건수만 worklog에 남긴다.
+6. **감사 기록을 원본으로 맞추기**(보안 게이트 r2 BL2-03 · r3 DB3-02): 백업 뒤에 생긴 감사 행은 복원본에 없고, 3·4번이 함수로 다시 한 일은 복원 작업 시각으로 새 감사 행을 만든다. 그대로 두면 사건 이력이 빠지거나(예: 백업 뒤 걸었다가 계정 삭제로 끝난 사건은 `placed`·`source_deleted`가 모두 없다) 종료일이 복원 시각으로 밀려 3년 보관이 길어진다. 장애 난 DB를 읽을 수 있으면 아래를 한다. 지우기와 넣기는 **한 트랜잭션**이라 중간에 끊기거나 건수가 어긋나면 아무것도 바뀌지 않는다.
+   1. 장애 난 DB에서 `at >= '<복원 시점>'`인 `reward_dispute_hold_events` 행을 CSV로 내보낸다(`case_ref`, `action`, `reason_code`, `actor`, `approved_by`, `actor_role`, `at`만. 거래 ID는 내보내지 않는다). 건수를 적는다.
+   2. 복원된 DB의 운영자 세션(psql)에서:
+      ```sql
+      BEGIN;
+      CREATE TEMP TABLE audit_src (case_ref text, action text, reason_code text, actor text,
+                                   approved_by text, actor_role text, at timestamptz) ON COMMIT DROP;
+      \copy audit_src FROM '<1의 CSV>' WITH (FORMAT csv, HEADER true)
+      SELECT count(*) FROM audit_src;                                                   -- 1의 건수와 같아야 한다
+      SELECT count(*) FROM public.reward_dispute_hold_events WHERE id > <2번 4에서 적은 값>;  -- 3·4번이 만든 행 수
+      SET LOCAL app.reward_hold_audit_purge = '1';
+      DELETE FROM public.reward_dispute_hold_events WHERE id > <2번 4에서 적은 값>;
+      INSERT INTO public.reward_dispute_hold_events (case_ref, action, reason_code, actor, approved_by, actor_role, at)
+      SELECT case_ref, action, reason_code, actor, approved_by, actor_role, at FROM audit_src;
+      -- DELETE 와 INSERT 가 돌려준 건수가 위 두 count 와 같으면 COMMIT, 하나라도 다르면 ROLLBACK
+      ```
+   - 시각 범위가 아니라 id로 고르므로, 복원본에 원래 있던 행은 지우지 않는다. 이 트랜잭션이 §8 "감사 표에 직접 쓰지 않는다"의 유일한 예외다. 복원 창 안에서 Simon 승인 뒤 Hadrianus가 하고, 건수만 worklog에 남긴다.
    - 장애 난 DB를 읽을 수 없으면 서비스를 다시 열지 않는다. S3-LEDGER와 같이 Hadrianus가 상황을 올리고, 사건 파일로 다시 쓸지 Simon이 정한다.
 7. **정리 예약 다시 켜기**: `SELECT cron.schedule('purge-reward-records-90d', '37 19 * * *', 'SELECT public.purge_reward_records();');` (0211 의 예약과 같은 이름 · 시각 · 명령.)
 8. **확인**: `SELECT public.reward_retention_health();`가 `ok = true`인지(첫 cron 실행 전이면 `cron_stale`만 true), `verify` E가 0인지 본다.
