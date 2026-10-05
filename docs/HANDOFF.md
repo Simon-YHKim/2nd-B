@@ -31,7 +31,28 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-05 19:05 / SSV GO-1(#2057·#2058) · 보안 게이트 3회 · #1902 충돌 해소 · #2060 CI 수정 · 공용 node_modules 사고·복구
+## Latest — 2026-10-05 23:03 / 효과음 검토 · Simon 답 Q-261005-01~05 · 1차 머지(#2079) · 2 · 3차 발주
+
+- **무엇을**: Simon "지금 우리 앱에 추가되면 효과음들을 검토해봐." → 검토 보고서 <https://claude.ai/artifact/6tkJdbsFuzcsyMFaTSaQiD>(지금 소리 전수 · 후보 6곳 · 무음 자리 · 미리듣기) → 답 "Q-261005-01 A · 02 A · 03 C · 04 C · 05 A". 결정 원문은 `DECISIONS.md` 22:52 다섯 줄.
+- **같은 날 앞선 일**: agent-audio 설치(#2076, 코드 `E:/agent-audio/src` · 데이터 `E:/agent-audio/data`, Claude Code + Codex 등록, 약관 Simon 수락, 생성 테스트는 아직).
+- **1차 #2079 `a19c1d85`**: ① 효과음 모드 `playsInSilentMode` 를 두 플랫폼 모두 false(10-04 Q-261004-37 을 #2036 게이트 `c4b202d2` 가 모른 채 Android true 로 두었던 것을 바로잡음) ② 오프닝 걷기는 재생 단계에서 grass-a 만(승인 매니페스트는 그대로, b 가 더 밝고 길게 끌어 '타닥'으로 짝지어 들림) ③ DECISIONS 5줄. 변이 검증 1 · 2 실패, verify 886 / 11,631.
+- **2차 발주 (다음 세션)**
+  - 왜: Q-01 의 남은 구멍과 Q-02. 녹음 경로(`capture.tsx:2781` · `secondb.tsx:341`)가 모드를 `playsInSilentMode: true` 로 바꾸고 되돌리지 않아, 음성 녹음 한 번 뒤에는 앱을 다시 켤 때까지 무음에서도 효과음이 난다.
+  - 완료조건: (a) 녹음이 끝나거나 실패 · 취소 · 화면 이탈로 멈춘 뒤 마지막 `setAudioModeAsync` 가 `EFFECTS_AUDIO_MODE` 와 같다는 테스트, 녹음 중에는 바꾸지 않는다는 테스트. (b) 설정 화면 '효과음' 켜기 · 끄기, 기본 켜짐, 저장은 `lite-mode.ts` 와 같은 방식, 5개 언어 문구. 끄면 `use-ui-sound` · `use-motion-sound` · `use-loop-media` · `use-opening-sounds` 가 0회 재생한다는 테스트. (c) `opening-a11y-contract`(오프닝 위 소리 토글 금지) 그대로 green. (d) verify green, 안드로이드 에뮬레이터 진동 모드에서 소리 없음을 녹화로 확인.
+  - 컨텍스트: `src/lib/audio/audio-session.ts` · `src/lib/audio/recording-uri.ts:358 createRecorderLifecycle`(두 화면 공용, `clear()` 가 세션 끝) · `use-reduced-motion.ts` · `DeepSpaceDesignScreens.tsx:1625`(움직임 줄이기 토글 자리).
+  - 하지 말 것: 오프닝 화면 위에 소리 버튼(10-03 결정) · 녹음 중 모드 변경 · 새 의존성.
+  - 위 방법은 출발점일 뿐이다. 더 효율적인 경로가 보이면 그쪽을 택하고, 왜 바꿨는지 함께 보고할 것.
+- **3차 발주 (2차 뒤)**
+  - 전제: Simon 의 Stability AI 상업 이용 등록(stability.ai/community-license) **확인 전에는 머지하지 않는다**(후보 생성 · 청취는 약관상 평가 · 시험이라 먼저 해도 된다). 생성은 메모리 커밋 80% 미만에서만(생성 1회 피크 Working Set 약 11.6 GiB).
+  - 생성: agent-audio MCP `generate_audio` 로 6곳(L5 비준 · 별이 밝아짐 · 기록 저장 · 세컨비 답장 · 주머니 폰 · 온보딩 끝) × 후보 2~3개 → ffmpeg 로 22.05kHz mono WAV(짧은 페이드 · 노멀라이즈) → 미리듣기 보고서로 Simon 이 고른다. 크기는 기존 0.08~0.2.
+  - 기록: 생성 출처 파일을 새로(프롬프트 · 모델 리비전 `da6edc54` · 런타임 `779434a9` · sha256 · 가공법). `RECORDED-SOURCES.json` 은 '합성 없음' 원칙이고 `recorded-camera-assets.test.ts:10` 이 출처를 정확히 2개로 고정하므로 섞지 않는다. `docs/ASSETS.md` 고지(소리는 CI 라이선스 검사 대상이 아니다).
+  - 연결과 무음 자리: 위기 red(`DeepSpaceViews.tsx:668-671` 은 위기 안내가 뜨는 메모에도 '저장됨'을 켠다) · 녹음 중 · 하루 한도 · 오류 · 인터뷰 대화 중(`interview.tsx:687-694`)에서 무음 테스트. 별이 밝아짐은 시각 연출(06-15 O-27 레벨업, cyan)과 함께 설계한다.
+  - 확인: x86_64 디스패치 빌드로 에뮬레이터에서 실제로 들리는지 녹화.
+- **이 세션 함정(메모리에 남김)**: Git Bash 에 jq 가 없어 jq 대기 루프가 영원히 돈다(gh 내장 `--jq` 를 쓴다) · Bash heredoc 안 파이썬 문자열의 `\a` 가 벨 문자로 바뀌어 경로가 깨졌다(DECISIONS 한 줄, 고쳐서 머지) · 안드로이드 에뮬 수치를 한 프레임 밀려 읽었다(#2033 에서 정정).
+- **앱/localhost**: 23:0x `npm run app:parity` = 같음(8081 = `a19c1d85`, 같은 코드 APK 런 37321556117 진행 중).
+- **다음 1개**: 새 세션에서 2차 발주 착수. Simon 쪽은 Stability 상업 등록 여부를 알려 주시면 3차의 전제가 풀린다.
+
+## 2026-10-05 19:05 / SSV GO-1(#2057·#2058) · 보안 게이트 3회 · #1902 충돌 해소 · #2060 CI 수정 · 공용 node_modules 사고·복구
 
 - **SSV GO-1**(Simon "go" 10:49): PR-7a [#2057](https://github.com/Simon-YHKim/2nd-B/pull/2057)(0211 89일 정리 · 분쟁 보류 · 감시, 0212 등록부) · PR-7b [#2058](https://github.com/Simon-YHKim/2nd-B/pull/2058)(0213 오래된 콜백 거부 · Edge v3) 를 draft 로 열었다. 머지 · 운영 적용 0. 최신 main(0210 · 0215 포함) merge 뒤 head `168a7a45` · `081dcd45`, CI 4개 초록(17:0x).
 - **보안 게이트 3회**(`codex exec` read-only, daybreak · astra @xhigh, 11:12~12:58): 세 번 모두 BLOCK, 고유 지적 18건 → 16 고침(7a `1160a6d6` · `a08291d7` · `061399b5` · `e6547d4e` · `05555a05`, 7b `be7bac88`) · 1 한계 수용(BL-02 승인자 문자열) · **1 Simon 결정 대기(DB3-01)**. 고친 것마다 되돌리면 실패하는 테스트(변이 M1~M8 + Edge 7), 로컬 sql 재생 · `npm run verify` 통과. 프롬프트 · 답 · 도구: `E:/Coding Infra/reports/ssv-261005/gates/`. 보고서 <https://claude.ai/artifact/WJYmtT9DfiD5NKu6Rc1byC>
