@@ -181,6 +181,10 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
 // KeyboardAvoidingArea(src/lib/ui/keyboard.tsx)를 쓰게 됐다(import 1줄 · 태그 · 주석).
 // tail(재설정 화면)은 b72fc5f6 그대로다(재고정 전 대조).
 // 아래 "legacy sign-in renderer" 핀은 은퇴했다(그 테스트 안 주석).
+// 2026-10-05(PR #2044 main 병합): prefix · tail 을 다시 재고정했다. 위 main 판(ad3d5aff ·
+// b72fc5f6)과 대조하면 prefix 는 go-home import 한 줄(빈 줄 자리)뿐이고, tail 은 재설정
+// 화면의 재설정 잠금 등록 useGoHomeStop 한 줄뿐이다(재고정 전 대조). 홈 출구 셋은 사람이
+// 누르는 동작이라 PR 이전의 router.replace 그대로다.
 describe("sign-in extraction boundaries", () => {
   test("preserves the shared auth prefix and reset tail byte-for-byte", () => {
     const source = read("src/screens/deepspace/dds-auth-screens.tsx");
@@ -192,10 +196,10 @@ describe("sign-in extraction boundaries", () => {
     expect(split).toBeGreaterThan(0);
     expect(tail).toBeGreaterThan(split);
     expect(sha256(source.slice(0, split))).toBe(
-      "ad3d5aff72c6e857114d2493ad53665acd13fc2f3f649a05cf43238d72ef730c",
+      "4c878269951c09c82f85ddc96907a7d878f28e4b3f464fa43cebfc4594a7a0ea",
     );
     expect(sha256(source.slice(tail))).toBe(
-      "b72fc5f6f9c95fa703d70895db4630b10b233452d526703bf5f3426e60c8fb0c",
+      "1a8d317cc0c9b17755a9e05dc0fe297ac83e5f601df71228206beb72e571b662",
     );
   });
 

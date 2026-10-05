@@ -209,6 +209,19 @@ describe("edge schema dependency gate on the real repository", () => {
     );
   });
 
+  it("holds the rewarded-ssv deploy until 0213's v3 settlement exists, with the callback timestamp argument", () => {
+    // GO-4 (0213) must reach production before GO-5 (this Edge). The gate reads
+    // the RPC from the source, so the deploy stops while the function is missing.
+    const deps = JSON.parse(run(["list", "rewarded-ssv"]).stdout);
+    expect(deps.functions).toContain("settle_reward_ssv_ticket_v3");
+    expect(deps.functions).not.toContain("settle_reward_ssv_ticket_v2");
+    const v3 = deps.functionContracts.find((c: { name: string }) => c.name === "settle_reward_ssv_ticket_v3");
+    expect(v3).toEqual(expect.objectContaining({
+      signature: "text,text,text,integer,text,bigint",
+      argNames: ["p_token_hash", "p_txn_id", "p_ad_unit_id", "p_reward_amount", "p_reward_item", "p_callback_ts"],
+    }));
+  });
+
   it("can derive exact contracts for every deployable Edge function", () => {
     const slugs = ["claude-proxy", "delete-account", "export-account", "gemini-proxy", "oauth-naver", "openai-proxy", "paddle-webhook", "peer-respond", "public-data-proxy", "rewarded-ssv", "rss-proxy", "service-consent", "subscription-manage", "xai-proxy"];
     for (const slug of slugs) {

@@ -11,6 +11,7 @@ import { m3 } from "@/lib/theme/m3";
 import { facetRows } from "@/lib/persona/facet-rows";
 import { type BigFiveTrait } from "@/lib/persona/bfi";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 
 const NOTE_COPY: Record<string, string> = {
   en: "Each of the 5 domains, broken into its facets. Bars are from your own self-report.",
@@ -40,7 +41,7 @@ export function FacetBreakdown({
   onRetake?: () => void;
 }) {
   const { t, i18n } = useTranslation("common");
-  const language = (i18n.resolvedLanguage ?? i18n.language ?? locale).split("-")[0];
+  const language = renderedUiLanguage(i18n);
   const noteCopy = NOTE_COPY[language] ?? NOTE_COPY[locale] ?? NOTE_COPY.en;
   const groups = facetRows(facets, domains, locale);
   return (

@@ -75,6 +75,7 @@ export function SegBtn({
               disabled={disabled}
               accessibilityRole={multiSelect ? "checkbox" : "radio"}
               accessibilityState={{ selected: on, checked: on, disabled }}
+              aria-checked={on}
               accessibilityLabel={seg.label}
               style={styles.hit}
             >
