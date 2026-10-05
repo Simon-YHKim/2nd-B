@@ -61,7 +61,9 @@ import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
 import { applyRatify, type RatifyDecision, type SelfModelProposal } from "@/lib/persona/proposal";
 import type { LadderLevel } from "@/lib/persona/brightness";
 import { recordStarTiers } from "@/lib/persona/record-star-tiers";
-import { recordSevenTiers } from "@/lib/persona/seven-tier-history";
+import { loadSevenRatified, recordSevenTiers } from "@/lib/persona/seven-tier-history";
+import { RATIFY_L5_CUE, ratifyL5CueAllowed } from "@/lib/audio/app-cues";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
 import {
   buildSevenProposalContext,
   sevenRatifiableTargets,
@@ -1837,6 +1839,8 @@ interface DeepSpaceReviewSessionProps {
   isMinor: boolean | null;
 }
 
+const RATIFY_L5_CUE_DELAY_MS = 400;
+
 export function DeepSpaceReviewScreen() {
   const { userId, isMinor } = useAuth();
   // A keyed ownership boundary prevents an in-flight proposal for user A from
@@ -1849,6 +1853,7 @@ export function DeepSpaceReviewScreen() {
 function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps) {
   const router = useAppRouter(); // Phone-aware: inside the dashboard phone, a cited record opens in the phone.
   const { t, i18n } = useTranslation("deepspace");
+  const playRatifyCue = useUiSound(RATIFY_L5_CUE.source, RATIFY_L5_CUE);
   // 시기 별 버튼의 이름은 홈 별자리와 **같은 키**에서 온다 -- 화면마다 다른
   // 이름을 배우면 사용자는 같은 별을 두 개로 안다.
   const { t: tHome } = useTranslation("home");
@@ -2009,13 +2014,21 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
             citations: evidenceRefs,
           });
         }
+        let l5Cue = false;
         if (userId && proposal?.target.kind === "sevenStar") {
+          // L5 소리(Q-261006-01)는 처음 L5 가 될 때만 난다. 이미 비준한 별을 다시 비준하면
+          // 무음이라, 쓰기 전에 지금 비준 원장을 먼저 읽는다(쓴 뒤에 읽으면 새 행이 보인다).
+          const wasL5Before = (await loadSevenRatified(userId))[proposal.target.star] === 5;
           // ⚠ recordStarTiers 재사용 금지 -- 그쪽 마일스톤이 옛 일곱 기준이라 새 키를
           // 넘기면 조용히 틀린 숫자가 나간다(seven-tier-history.ts 헤더). 새 별 비준은
           // seven: 접두사를 다는 자기 경로로만 원장에 남는다. 인용 규율(0060)은 동일.
           persisted = await recordSevenTiers(userId, { [proposal.target.star]: r.resultingLevel }, "ratify", evidenceRefs);
+          l5Cue = ratifyL5CueAllowed({ decision, targetKind: "sevenStar", persisted, wasL5Before });
         }
         setSheetOpen(false);
+        // 비준 시트는 네이티브 Modal 이라 안드로이드에서 닫히는 동안 창 포커스가 돌아오지 않아
+        // 소리 관문이 막힐 수 있다. 시트가 닫힌 뒤에 울린다.
+        if (l5Cue) setTimeout(playRatifyCue, RATIFY_L5_CUE_DELAY_MS);
         if (persisted) setProposal(null);
         setResult(
           persisted

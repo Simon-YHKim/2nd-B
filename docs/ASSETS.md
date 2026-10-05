@@ -126,6 +126,30 @@ Rebuild: `python scripts/build-dither-tiles.py`.
   The shipped file is 1,010 bytes at 22.05kHz; SHA-256
   `e3bf89d81485cc20014ca8396d0fcc5a152e608d625a57ee65ef947a0499ee57`.
 
+### Generated sound effects (agent-audio, 2026-10-06)
+
+Six cues generated locally with [agent-audio](https://github.com/AIEGOBOT/agent-audio)
+from **Stable Audio 3 small-sfx** (`stabilityai/stable-audio-3-optimized`, revision
+`da6edc54`), then picked by Simon from a listening report (Q-261006-01..06). These are
+**generated, not recorded**, so they are not in `RECORDED-SOURCES.json`; their prompts,
+seeds, model file hashes, raw-output hashes and edit recipe are in
+`assets/audio/GENERATED-SOURCES.json`, and a test checks every file against it.
+
+- **License**: Stability AI Community License. Commercial use is registered (2026-10-06
+  00:35 KST) and free under US$1M annual revenue. Section 3(c)(iii) gives the licensee
+  ownership of outputs, and outputs are excluded from "Derivative Works", so the app ships
+  sounds, not the model. We still record the attribution here: **Powered by Stability AI**.
+- **Format**: mono 22.05 kHz 16-bit PCM WAV, peak -3.1 dBFS (the opening ping's peak).
+
+| File | Use | Decision | Length | Bytes | SHA-256 |
+|---|---|---|---|---:|---|
+| `star-ratify-l5.wav` | A ratify that first takes a life-period star to L5 | Q-261006-01 | 2200 ms | 97,064 | `be5b9aee3669daef…` |
+| `star-brighten.wav` | A star brightening L1-L4 (wired in a later change) | Q-261006-02 | 1000 ms | 44,144 | `f09f222542ec73ff…` |
+| `record-save.wav` | A record the user saved (memo, capture, interview keep, manual SecondB keep) | Q-261006-03 | 68 ms | 3,038 | `2803ca096ce510b7…` |
+| `secondb-reply.wav` | A normal SecondB reply | Q-261006-04 | 300 ms | 13,274 | `08b8b50bbe0550fd…` |
+| `pocket-phone.wav` | Raising or lowering the pocket phone by hand | Q-261006-05 | 59 ms | 2,660 | `1fb5b1d1a8547d86…` |
+| `onboarding-welcome.wav` | Finishing onboarding (wired in a later change) | Q-261006-06 | 2200 ms | 97,064 | `ff3ca5b113b958b3…` |
+
 ### Retired camera audio (moved out of the repo on 2026-10-04)
 
 These four files were superseded by the recorded `observatory-*.wav` cues on

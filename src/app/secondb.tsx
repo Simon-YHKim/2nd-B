@@ -24,7 +24,9 @@ import {
   RecordingPresets,
   requestRecordingPermissionsAsync,
 } from "expo-audio";
-import { beginRecordingAudioMode, endRecordingAudioMode, restoreEffectsAfterRecording } from "@/lib/audio/audio-session";
+import { beginRecordingAudioMode, endRecordingAudioMode, isRecordingAudioMode, restoreEffectsAfterRecording } from "@/lib/audio/audio-session";
+import { RECORD_SAVE_CUE, SECONDB_REPLY_CUE, replyCueAllowed, saveCueAllowed } from "@/lib/audio/app-cues";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
 
 import { Text } from "@/components/ui/Text";
 import { ScreenModal } from "@/components/ui/ScreenModal";
@@ -590,6 +592,7 @@ function SecondBChatBody() {
     visible: false,
     hotline: "GLOBAL_988",
   });
+  const playSaveCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
 
   // 담겼는지를 호출자에게 돌려준다. 자동 담기가 실패를 알아야 표시를 되돌릴 수
   // 있고, 그래야 한 번의 일시적 실패로 그 턴이 영구히 빠지지 않는다.
@@ -631,7 +634,11 @@ function SecondBChatBody() {
       // C9: 이 경로는 LLM 을 안 타므로 서버 분류가 걸리지 않는다. 로컬 렉시콘
       // 분류기를 직접 돌린다(비용 0). 다른 저장 화면과 같은 자세를 유지한다 -
       // 안내 없는 저장 경로를 하나 만들지 않기 위해서다.
-      if (classifyInput(body, locale, { minor: isMinor === true }).zone === "red") {
+      const crisis = classifyInput(body, locale, { minor: isMinor === true }).zone === "red";
+      // 저장 소리(Q-261006-03)는 사람이 '담기'를 눌렀을 때만. 자동 담기(signal 이 있는 호출)는
+      // 답장 소리 바로 뒤에 겹치므로 무음이다.
+      if (saveCueAllowed({ crisis, recording: isRecordingAudioMode(), automatic: signal !== undefined })) playSaveCue();
+      if (crisis) {
         setKeepCrisis({
           visible: true,
           hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988",
@@ -919,6 +926,7 @@ function SecondBChatBody() {
   // false when the message is empty or there is no signed-in user.
   // Stable across renders (useCallback) so the memoized ChatComposer holds.
   // Kept ABOVE the early returns so this hook always runs (rules-of-hooks).
+  const playReplyCue = useUiSound(SECONDB_REPLY_CUE.source, SECONDB_REPLY_CUE);
   const handleSend = useCallback(
     (message: string): boolean => {
       if (!userId) return false;
@@ -984,6 +992,8 @@ function SecondBChatBody() {
               ...prev,
               { role: "secondb", text: twi.display, chips, branches: twi.branches },
             ]);
+            // 답장 소리(Q-261006-04): 위기 응답도 status "ok" 로 오므로 구역을 따로 본다.
+            if (replyCueAllowed({ zone: result.reply.safety?.zone, recording: isRecordingAudioMode() })) playReplyCue();
             setUsedToday(result.used);
             captureEvent(
               secondBSession({
@@ -1021,6 +1031,7 @@ function SecondBChatBody() {
       limit,
       t,
       consentT,
+      playReplyCue,
     ],
   );
 
