@@ -702,7 +702,7 @@
     "summaryFallback": "커리어 경험",
     "intro": "왜 시작했고, 무엇을 어떻게 했는지 3C·4P 항목에 나눠 적어 주세요. 답을 바탕으로 세컨비가 더 자세히 물어봅니다.",
     "summaryLabel": "경험 한 줄 요약",
-    "summaryPlaceholder": "무엇을 했고 결과는 어땠나요? 한 줄로 적어 주세요",
+    "summaryPlaceholder": "한 일과 결과를 한 줄로",
     "expTypeA11y": "경험 유형",
     "expTypePlaceholder": "경험 유형 선택",
     "submit": "세컨비와 더 자세히 이야기하기",
