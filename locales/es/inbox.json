@@ -1,8 +1,5 @@
 {
-  "title": "Bandeja de entrada",
-  "subtitle": "Todo lo que capturaste. Toca para ver una vista previa.",
   "captureMore": "Capturar más",
-  "back": "Volver al diario",
   "empty": "Aún no capturaste nada. Toca Capturar para añadir el primero.",
   "error": "No se pudieron cargar tus capturas:",
   "ingested": "Procesado",

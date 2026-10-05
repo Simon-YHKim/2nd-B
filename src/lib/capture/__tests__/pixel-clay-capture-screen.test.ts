@@ -48,7 +48,10 @@ describe("PIXEL-CLAY /capture screen contract", () => {
     expect(renderer).toContain("await createRecord({");
     expect(renderer).toContain('res.followup?.zone === "red"');
     expect(renderer).toContain("setError(true)");
+    // automaticallyAdjustKeyboardInsets is iOS-only; Android is the shared keyboard area
+    // around the ScrollView (QA R2A-02 2026-10-05: the 4W1H "how" field sat under the keyboard).
     expect(renderer).toContain("automaticallyAdjustKeyboardInsets");
+    expect(renderer).toContain("<KeyboardAvoidingArea style={styles.capCoachRoot} iosHandledByScrollView>");
     expect(renderer).toContain("onSubmitEditing={() => whatRef.current?.focus()}");
     expect(renderer).toContain("minHeight: 44");
   });

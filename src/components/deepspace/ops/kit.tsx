@@ -179,6 +179,7 @@ export function OpsReminderRow(props: OpsReminderRowProps) {
           <Pressable
             accessibilityRole="switch"
             accessibilityState={{ checked: !!props.on }}
+            aria-checked={!!props.on}
             onPress={props.onToggle}
             hitSlop={10}
             style={[styles.toggle, props.on ? styles.toggleOn : styles.toggleOff]}
@@ -360,6 +361,7 @@ export function OpsDomainPicker({
             key={tab.id}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
+            aria-selected={on}
             onPress={() => onSelect(tab.id)}
             hitSlop={6}
             style={[styles.pickerChip, on ? styles.pickerChipOn : null]}

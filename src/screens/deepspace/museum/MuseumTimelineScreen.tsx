@@ -82,6 +82,7 @@ import {
 // is the whole point.
 import {
   museumContentLanguage,
+  readsMuseumCanon,
   resolveMuseumDetail,
   resolveMuseumEvent,
   resolveMuseumRefKindLabel,
@@ -533,7 +534,7 @@ export function MuseumTimelineScreen({ phone }: { phone?: MuseumPhonePresentatio
                 >
                   <View style={[styles.laneSquare, { backgroundColor: tone.accent }]} />
                   <Text style={[styles.laneLegendText, { color: tone.ink }]}>
-                    {locale.toLowerCase().startsWith("ko") ? lane.label : lane.en}
+                    {readsMuseumCanon(locale) ? lane.label : lane.en}
                   </Text>
                 </PixelSurface>
               );
@@ -850,7 +851,9 @@ export function MuseumTimelineScreen({ phone }: { phone?: MuseumPhonePresentatio
                           { color: LANE_TONE[selected.lane].ink },
                         ]}
                       >
-                        {MZ_LANES[selected.lane].label}
+                        {selectedLanguage === "ko"
+                          ? MZ_LANES[selected.lane].label
+                          : MZ_LANES[selected.lane].en}
                       </Text>
                     </View>
                     {selected.here ? (

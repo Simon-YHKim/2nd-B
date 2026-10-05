@@ -1,10 +1,6 @@
 {
   "loading": "Loading the user guide…",
-  "eyebrow": "User Guide",
   "title": "How to use PolaScope",
-  "subtitle": "Routines · notes · wiki · safety",
-  "glossary": "What the terms mean",
-  "recentlyAdded": "Recently added",
   "leavePiece": "Leave today's piece",
   "leavePieceHint": "Opens capture to save today's piece.",
   "getStarted": "Get started",

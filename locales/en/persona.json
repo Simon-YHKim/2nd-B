@@ -1,27 +1,5 @@
 {
   "loading": "Gathering your records…",
-  "errorTitle": "Couldn't create your summary",
   "tryAgain": "Try again",
-  "backToCapture": "Back to capture",
-  "eyebrow": "07. My summary",
-  "notEnough": "Not enough records to create your summary yet",
-  "startRelCheck": "Start relationship check · 3 min",
-  "start": "Start",
-  "gathered": "Your summary is ready",
-  "openCenter": "Open North Star",
-  "export": "Export",
-  "soulCore": "North Star",
-  "above": "above",
-  "below": "below",
-  "aiSummary": "AI summary",
-  "observedPatterns": "What comes up often in recent records",
-  "countTimes": "{{n}}×",
-  "mbtiRef": "MBTI reference",
-  "attachmentStyle": "Attachment style (ECR-S)",
-  "anxiety": "Anxiety",
-  "avoidance": "Avoidance",
-  "relevantFrameworks": "Related theories and tests",
-  "exportMd": "Export as Markdown",
-  "retakeBigFive": "Retake Big Five",
-  "attachmentTest": "Attachment style test"
+  "export": "Export"
 }

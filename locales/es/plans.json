@@ -7,8 +7,6 @@
     "speech": "Puedes guardar registros gratis. Los planes de pago aumentan el uso de la IA."
   },
   "current": "Plan actual",
-  "comingSoon": "Los planes de pago llegan pronto",
-  "comingSoonBody": "El pago aún no está disponible. Los precios son definitivos y no se te cobrará nada hasta que elijas un plan aquí.",
   "tiers": {
     "free": {
       "name": "Stargazer",

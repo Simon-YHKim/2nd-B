@@ -67,8 +67,10 @@ describe("visible trust copy", () => {
     expect(emailIdx).toBeGreaterThan(-1);
     expect(manualIdx).toBeGreaterThan(emailIdx);
     expect(screen).toContain('router.push("/manual")');
-    expect(en).toContain('"browseBeforeCommit": "Browse first, then decide"');
-    expect(ko).toContain('"browseBeforeCommit": "먼저 둘러보고 결정하기"');
+    // browseBeforeCommit 값 핀 둘을 뺐다(2026-10-05, R2E-08). 그 키는 #381(06-14)의
+    // "먼저 둘러보기" 문 이름이었고, 지금 가입 화면은 같은 문을 manualLink(아래)로 연다 —
+    // 화면이 부르는 곳이 0건이라 이 줄은 아무 화면도 지키지 않았다. 키는 다섯 로케일에서
+    // 지우고 원문은 E:/Legacy/2ndB 의 locales/*/auth.json 사본(batch qa261005-legkeys)에 있다.
     // 2026-08-26 Simon 결정 — 문 이름을 "사용 안내서"(EN User Guide)로 통일.
     // 이 검사가 지키는 것은 **가입 화면 첫 화면에 안내서 링크가 있고 그 카피가
     // 로케일에 산다**는 것이지 특정 문구가 아니다.

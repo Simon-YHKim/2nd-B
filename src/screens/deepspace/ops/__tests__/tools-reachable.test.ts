@@ -406,11 +406,17 @@ describe("비서 허브 PIXEL·legacy 회귀", () => {
     // persona-building calls, the button disabled meanwhile). That property is held by
     // src/lib/persona/__tests__/persona-build-minor-callsites.test.ts; this digest only
     // moved with it. The other two digests did not change.
+    // 2026-10-05 (QA R2C-12): the Domains slice ends at the Focus export, so it also
+    // holds the focus constants just above that export. Only those moved: the
+    // `const FOCUS_STARS = canonMore.focusStars;` line became a three-line comment and
+    // "star picker" became "area picker" in the next comment. The Domains screen
+    // itself is byte-identical (slice diff checked, 2 hunks, both in the focus header);
+    // the focus rules are held by src/lib/ops/__tests__/focus-tally.test.ts.
     expect(sha256(sourceSlice(GIANT, "export function DeepSpaceFormatsScreen()", "export { DeepSpaceRecordsScreen"))).toBe(
       "0ae10b95e13affbf453974a11e420f73792a352895ec4fee4e9d310c81ed5902",
     );
     expect(sha256(sourceSlice(GIANT, "export function DeepSpaceDomainsScreen()", "export function DeepSpaceFocusScreen()"))).toBe(
-      "c8c263bb1bef6540299578c0e20b69b7bdc4549fdad8f464540e34dc96891a24",
+      "07f1e37cb47a85bd6b4b277bfead83688d793a1c64e71fa9633ce5cf99703c6d",
     );
   });
 

@@ -1,44 +1,6 @@
 {
-  "soulCore": {
-    "a11y": "North Star brightness"
-  },
   "character": {
     "a11y": "SecondB character"
-  },
-  "bubble": {
-    "fresh": "What would you like to note?"
-  },
-  "progress": {
-    "lit": "{{lit}}/{{total}} stars lit",
-    "next": "next: {{step}} ({{min}})"
-  },
-  "nextStep": {
-    "bigFive": {
-      "label": "Big Five",
-      "min": "5 min",
-      "cta": "Light a star with Big Five"
-    },
-    "attachment": {
-      "label": "Attachment",
-      "min": "3 min",
-      "cta": "Light a star with the relationship check"
-    },
-    "esm": {
-      "label": "Record your mood",
-      "min": "1 min",
-      "cta": "Record your mood to light a star"
-    },
-    "values": {
-      "label": "Values",
-      "min": "4 min",
-      "cta": "Light a star with the values audit"
-    }
-  },
-  "menu": {
-    "graph": "Graph",
-    "capture": "Scrap",
-    "secondb": "SecondB",
-    "profile": "Me"
   },
   "ds": {
     "dock": {
@@ -88,7 +50,6 @@
     },
     "home": {
       "polaris": "North Star",
-      "profileName": "Profile",
       "domainName": {
         "career": "Career",
         "finance": "Finance",
@@ -122,8 +83,6 @@
         "tip1": "Tap a star to review the records from that part of your life.",
         "tip2": "Use Add in the bottom bar to save a new record right away.",
         "tip3": "Your North Star brings your records into one sentence you can revise.",
-        "next": "Next",
-        "openMenu": "Feature menu",
         "menuTag": "Menu",
         "menu": "What would you like to do?",
         "travel": "Travel",
@@ -173,9 +132,7 @@
         "now": {
           "line": "Record what interests you, your choices, and your days right now."
         }
-      },
-      "museumEntry": "AI museum",
-      "communityEntry": "Community"
+      }
     },
     "capture": {
       "title": "Capture",
@@ -249,9 +206,6 @@
       "suggestImagine": "Imagine mode"
     },
     "lens": {
-      "toggleFilled": "Filled",
-      "toggleEmpty": "Empty",
-      "toggleError": "Error",
       "emptyTitle": "This star is still dark",
       "emptyBody": "Finish the personality check to light your Me now star.",
       "emptyCta": "Start the check",
@@ -302,24 +256,6 @@
       "title": "Recall",
       "tag": "MY STORY",
       "eyebrow": "Which era made the person I am now",
-      "hint": "Choose a period to answer questions about it.",
-      "footer": "Some questions may repeat to help you recall the details.",
-      "p1Name": "Infancy",
-      "p1Age": "0–6",
-      "p2Name": "Childhood",
-      "p2Age": "7–12",
-      "p3Name": "Early teens",
-      "p3Age": "13–15",
-      "p4Name": "Mid teens",
-      "p4Age": "16–17",
-      "p5Name": "Late teens",
-      "p5Age": "18–19",
-      "p6Name": "Early 20s",
-      "p6Age": "20–23",
-      "p7Name": "First job years",
-      "p7Age": "24–27",
-      "p8Name": "Now",
-      "p8Age": "28–",
       "emptyTitle": "No memories saved yet",
       "emptyBody": "Choose a time in your life and write what you remember. You can read those stories here."
     },
@@ -329,13 +265,6 @@
       "eyebrow": "How close is the me others see to the me I see",
       "legendSelf": "My view",
       "legendOther": "Others' views",
-      "traitExtraversion": "Extraversion",
-      "traitConscientiousness": "Conscientiousness",
-      "traitAgreeableness": "Agreeableness",
-      "diffExtraversion": "diff +18",
-      "diffConscientiousness": "diff +4",
-      "diffAgreeableness": "diff −7",
-      "conclusion": "Others see you as a more lively person. You may be more extraverted than you think.",
       "survey": "View survey",
       "share": "Share",
       "obsTitleGap": "My view and others' views",
@@ -356,15 +285,6 @@
       "title": "Rhythm",
       "tag": "ESM",
       "eyebrow": "When am I most myself",
-      "subhead": "Last 7 days · mood rhythm",
-      "mon": "Mon",
-      "tue": "Tue",
-      "wed": "Wed",
-      "thu": "Thu",
-      "fri": "Fri",
-      "sat": "Sat",
-      "sun": "Sun",
-      "caption": "Most yourself: Saturday morning. You feel best when absorbed in making something.",
       "logNow": "+ Log mood now",
       "emptyTitle": "Not enough mood entries yet",
       "emptyBody": "Record your mood for a few days to see when you felt better or worse."
@@ -389,16 +309,6 @@
       "title": "Relations",
       "tag": "RELATIONS",
       "eyebrow": "Me inside relationships and knowledge",
-      "peopleHead": "People who show up often",
-      "person1": "Minjun · 24",
-      "person2": "Mom · 18",
-      "person3": "Jiwoo · 12",
-      "personMore": "+9",
-      "knowledgeHead": "Interests",
-      "topic1": "Design·tools",
-      "topic2": "Psychology·self-understanding",
-      "topic3": "AI·productivity",
-      "conclusion": "Your records show frequent, lasting contact with a few people.",
       "addData": "+ Add a record",
       "emptyTitle": "No records about people or interests yet",
       "emptyBody": "Write about people and interests to see them here."
@@ -431,34 +341,12 @@
     "audit": {
       "title": "Past me",
       "subtitle": "Pick a period and bring that version of you back to mind.",
-      "vividness": "Vividness L{{level}}",
-      "eraInfancy": "Early childhood",
-      "eraChild": "Childhood",
-      "eraTeen": "Adolescence",
-      "eraYoung": "Young adulthood",
-      "eraNow": "Now",
-      "rangeInfancy": "Ages 0–6",
-      "rangeChild": "Ages 7–12",
-      "rangeTeen": "Ages 13–18",
-      "rangeYoung": "Ages 19–28",
-      "period": {
-        "childhood": "Childhood",
-        "teens": "Teens",
-        "twenties": "Twenties",
-        "thirties": "Thirties",
-        "forties": "Forties",
-        "fifties": "Fifties",
-        "sixties": "Sixties",
-        "seventies": "Seventies",
-        "current": "Right now"
-      },
       "rangeSpan": "{{from}}–{{to}}",
       "rangeUnder": "Before {{to}}",
       "rangeFrom": "{{from}} and up",
       "notYet": "Not there yet"
     },
     "me": {
-      "title": "North Star",
       "eyebrow": "North Star · seven-star summary",
       "headline": "Understand myself deeply, live more like myself.",
       "synthMeta": "Seven-star summary · confidence",

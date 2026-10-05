@@ -30,12 +30,24 @@ import * as Updates from "expo-updates";
  * this string is rendered in the settings and account footers, and DESIGN.md bans
  * U+2014 in UI strings. The channel fallback used to be one, hidden by an exclusion
  * for this file in scripts/check-no-emdash.ts; both are gone (PR #1810 gate F3).
+ *
+ * "Unknown" includes the empty string, not only null. expo-updates 56 documents
+ * `channel` as "`null` otherwise", but the native side hands an unset value over as
+ * "": Android IUpdatesController.kt:112,114 (`runtimeVersion ?: ""`,
+ * `requestHeaders["expo-channel-name"] ?: ""`), iOS AppController.swift:77,79, and
+ * the JS wrapper's `?? null` lets "" through. The CI gradle APK carries no channel
+ * header, so its footer read "v… ·  · embedded …" with the channel slot empty
+ * (QA R2A-08, 2026-10-05). `?? "?"` only caught null.
  */
+function known(value: string | null | undefined): string {
+  return value ? value : "?";
+}
+
 export function buildInfoLine(): string {
-  const rt = Updates.runtimeVersion ?? "?";
+  const rt = known(Updates.runtimeVersion);
   if (!Updates.isEnabled) return `v${rt} · dev`;
-  const channel = Updates.channel ?? "?";
-  const id = Updates.updateId?.slice(0, 8);
+  const channel = known(Updates.channel);
+  const id = Updates.updateId?.slice(0, 8) || undefined;
   if (Updates.isEmbeddedLaunch) {
     return id ? `v${rt} · ${channel} · embedded ${id}` : `v${rt} · ${channel} · embedded`;
   }

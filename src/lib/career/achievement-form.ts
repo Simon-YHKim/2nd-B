@@ -97,6 +97,32 @@ export function achievementYear(form: AchievementForm): string | null {
   return m ? m[1] : null;
 }
 
+/** The tag that marks a record as written by the 성과 입력 form. /career reads it too. */
+export const CAREER_ACHIEVEMENT_TAG = "career_achievement";
+
+/**
+ * How a saved achievement is filed: the area and the tags createRecord gets.
+ *
+ * The area goes through `domainIntent`, NOT a `domain:career` string in `tags`.
+ * createRecord strips every raw `domain:*` tag and re-detects the area from the
+ * body's keywords (detect-domain.ts withDomainTag); the typed field is the only
+ * way past the detector. The form's labels (일터 · 역할 · KPI · 성과 분해 ...) are not
+ * career keywords, so the one-line minimum the screen invites ("핵심 성과 한 줄만")
+ * used to land in domain:collect and never reached the /career timeline or the
+ * career star (QA R2C-01, 2026-10-05). The screen exists to put an entry there,
+ * so the filing is decided here, not guessed from the words.
+ */
+export function achievementFiling(form: AchievementForm): {
+  domainIntent: "career";
+  tags: string[];
+} {
+  const year = achievementYear(form);
+  return {
+    domainIntent: "career",
+    tags: [CAREER_ACHIEVEMENT_TAG, ...(year ? [`year:${year}`] : [])],
+  };
+}
+
 /** ISO-ish date range for the header line, or null when no start was picked. */
 function periodLine(form: AchievementForm, ongoingLabel: string): string | null {
   const start = form.start.trim();

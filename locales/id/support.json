@@ -6,31 +6,6 @@
     "subtitle": "Waktu respons - kontak - bantuan",
     "speech": "Ceritakan kendalanya dan apa yang kamu lakukan saat itu."
   },
-  "response": {
-    "eyebrow": "Waktu respons",
-    "body": "Kami membalas pesan dalam 2 hari kerja (KST)."
-  },
-  "contact": {
-    "eyebrow": "Hubungi kami",
-    "button": "Kirim email",
-    "accessibilityLabel": "Email dukungan",
-    "accessibilityHint": "Membuka aplikasi email dengan alamat dukungan."
-  },
-  "faqLabel": "Pertanyaan umum",
-  "faq": [
-    {
-      "question": "Bagaimana cara mulai menangkap?",
-      "answer": "Tulis catatan di halaman Simpan. PolaScope akan menyusunnya setelah disimpan."
-    },
-    {
-      "question": "Bagaimana data saya disimpan, dan bisakah saya mengekspornya?",
-      "answer": "Catatanmu hanya terhubung ke akunmu. Gunakan Ekspor di Pengaturan untuk mengunduh datamu sebagai file kapan saja."
-    },
-    {
-      "question": "Apakah AI-nya aman?",
-      "answer": "AI membantu mengorganisir dan menghubungkan catatanmu. Keputusan penting tetap ada di tanganmu."
-    }
-  ],
   "help": {
     "title": "Tempat kamu bisa mendapat bantuan",
     "lead": "Kamu bisa menghubungi layanan berikut untuk mendapat bantuan.",

@@ -430,8 +430,12 @@ describe("big-five PIXEL-CLAY route discipline", () => {
     // because one unused import name left each file (`radii` from QuantIntroModal and
     // QuantPager, `semantic` from QuantSaveCelebration) so `npm run lint` can refuse
     // warnings. Nothing else in those files changed.
-    expect(normalizedHash(read("components/quant/QuantIntroModal.tsx"))).toBe("fc7872cd6e7bb11d17dcad74b52c9706f555024a31c26d0de1d5fd4bd505912b");
-    expect(normalizedHash(read("components/quant/LikertChoiceGroup.tsx"))).toBe("ba5250e529357bf9f23e90491ebb1666b27e7dfa781dbc5d085b156ec6d51a66");
+    // 2026-10-05 (QA R2C-14): QuantIntroModal · LikertChoiceGroup 재고정. 옛 값 fc7872cd · ba5250e5
+    // 는 바로 앞 본문이다. 바뀐 것은 각 파일 한 줄뿐이다 - 체크박스 · 라디오 Pressable 에
+    // accessibilityState 와 같은 값의 aria-checked 를 더했다(react-native-web 은 accessibilityState 를
+    // DOM 으로 옮기지 않아 웹 스크린리더가 선택 상태를 못 읽었다. web-aria-state.test.ts).
+    expect(normalizedHash(read("components/quant/QuantIntroModal.tsx"))).toBe("62b64dfbab604ac298049d921b0a24eb07192afc5b67ea0dba79e41cee3c1cf3");
+    expect(normalizedHash(read("components/quant/LikertChoiceGroup.tsx"))).toBe("1aefd87336e184f430887fdfbef947e9bba507b0745e8a858931f8b85d3c55bd");
     // 이 래칫은 "바뀌면 누군가 알아채라"는 것이지 "절대 손대지 말라"가 아니다.
     // 이번에 QuantPager 의 accessibilityValue 를 a11yValue() 로 옮겼다 - 객체
     // 형태는 React Native Web 이 읽지 않아 진행바가 웹에서 값 없이 announce
