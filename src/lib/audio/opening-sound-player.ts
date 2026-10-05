@@ -1,4 +1,4 @@
-import { reportUiSoundError } from "./ui-sound-player";
+import { areSoundEffectsOn, onSoundEffectsChange, reportUiSoundError } from "./ui-sound-player";
 
 export interface OpeningAudioSources {
   grassA: number | string;
@@ -33,6 +33,8 @@ export function createOpeningSoundPlayer(bank: OpeningSoundBank, initiallyEnable
   const tickets = new Map<OpeningSoundVoice, number>();
   const played = new Set<string>();
   const voices = Object.values(bank).flat();
+  // The sound effects switch (Q-261005-02) silences the opening too and stops it mid-play.
+  const unsubscribeEffects = onSoundEffectsChange(on => { if (!on && !disposed) stop(); });
 
   function stop() {
     generation += 1;
@@ -55,7 +57,7 @@ export function createOpeningSoundPlayer(bank: OpeningSoundBank, initiallyEnable
       if (!value) stop();
     },
     play(cue: OpeningSoundCue) {
-      if (disposed || !active || !enabled || !Number.isFinite(cue.volume) || cue.volume <= 0 || cue.volume > 1 || played.has(cue.key)) return;
+      if (disposed || !active || !enabled || !areSoundEffectsOn() || !Number.isFinite(cue.volume) || cue.volume <= 0 || cue.volume > 1 || played.has(cue.key)) return;
       const source = cue.sourceId === "grass" ? (cue.variantIndex === 1 ? "grassB" : "grassA") : cue.sourceId;
       const pool = bank[source];
       if (!pool?.length) return;
@@ -75,6 +77,7 @@ export function createOpeningSoundPlayer(bank: OpeningSoundBank, initiallyEnable
     dispose() {
       if (disposed) return;
       disposed = true;
+      unsubscribeEffects();
       stop();
     },
   };

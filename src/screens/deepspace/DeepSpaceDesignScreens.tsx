@@ -34,6 +34,7 @@ import { HelpDirectory } from "@/components/safety/HelpDirectory";
 import { useTheme } from "@/lib/theme/ThemeContext";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { useLiteMode } from "@/lib/settings/lite-mode";
+import { useSoundEffects } from "@/lib/settings/sound-effects";
 import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { FilterChip } from "./dds-wiki-records-screens";
@@ -1623,6 +1624,7 @@ export function DeepSpaceThemeScreen() {
   const { mode, setMode } = useTheme();
   const { fontStyle, setFontStyle } = useFontStyle();
   const { liteMode, setLiteMode } = useLiteMode();
+  const { soundEffects, setSoundEffects } = useSoundEffects();
   return (
     <Shell title={t("theme.title")}>
       <SecondbStatusHeader text={t("theme.status")} tip={t("theme.tip")} />
@@ -1646,6 +1648,9 @@ export function DeepSpaceThemeScreen() {
           the one real control here, wired to lite mode (motion chokepoint). */}
       <Card>
         <Toggle label={t("theme.reduceMotion")} on={liteMode} onPress={() => setLiteMode(!liteMode)} />
+        {/* Q-261005-02 (2026-10-05): sound effects on by default; off silences every effect player. */}
+        <Toggle label={t("theme.soundEffects")} on={soundEffects} onPress={() => setSoundEffects(!soundEffects)} />
+        <Text variant="subtle" style={styles.footer}>{t("theme.soundEffectsNote")}</Text>
       </Card>
     </Shell>
   );

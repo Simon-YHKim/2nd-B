@@ -11,7 +11,7 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-10-01 01:07 ~ 2026-10-01 02:43 | [handoff/HANDOFF-2026-10.md](handoff/HANDOFF-2026-10.md) | 4 | 14KB |
+| 2026-10-01 01:07 ~ 2026-10-01 02:57 | [handoff/HANDOFF-2026-10.md](handoff/HANDOFF-2026-10.md) | 5 | 15KB |
 | 2026-09-28 01:2x ~ 2026-09-30 23:57 | [handoff/HANDOFF-2026-09-p4.md](handoff/HANDOFF-2026-09-p4.md) | 24 | 66KB |
 | 2026-09-25 ~ 2026-09-28 00:4x | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 37 | 86KB |
 | 2026-09-08 ~ 2026-09-21 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 16 | 94KB |
@@ -31,7 +31,53 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-05 12:00 / 앱 실구동 전수 디버깅 · 레거시 정리(QA-LEGACY-261004): 머지 19 · Simon 질문 4 · 2차 점검 진행 중
+## Latest — 2026-10-06 00:04 / 효과음 2차 머지: 녹음 뒤 효과음 모드 복귀(#2081) · 설정 '효과음' 켜기 · 끄기(#2082) · 3차는 메모리 대기
+
+- **무엇을**: Simon "그래 작업해줘."(10-05 23시경, Stability 등록 비용 문답 뒤). 등록은 Simon 계정의 약관 동의라 대신 하지 않았다. 등록과 무관한 2차를 마쳤다.
+- **2a #2081 `c7639518`**: 녹음 화면이 모드를 `playsInSilentMode: true` 로 바꾸고 되돌리지 않던 구멍(Q-261005-01 의 남은 부분)을 막았다. 모드 변경은 `audio-session.ts` 한 곳(`beginRecordingAudioMode` · `endRecordingAudioMode` · `isRecordingAudioMode`)만 하고, `createRecorderLifecycle(audioRecorder, { onIdle: restoreEffectsAfterRecording })` 의 `clear()` 가 멈춤 · 취소 · 계정 변경 · 모드 이탈 · 화면 이탈 모두에서 복귀시킨다. 시작 실패는 화면 `catch` 가 복귀. 남는 경우: 멈춤 실패 + 쓰기 종료 증거 없음으로 격리된 세션. 변이 3건 잡힘, verify 886 / 11,636.
+- **2b #2082 `2b6b267d`**: 테마 화면 '화면 움직임 줄이기' 아래 '효과음' 토글(기본 켜짐, Q-261005-02). 스위치 한 칸은 `ui-sound-player.ts`(`areSoundEffectsOn` · `setSoundEffectsOn` · `onSoundEffectsChange`)에 두고 UI 효과음 · 라쳇 반복 · 오프닝이 재생 직전에 본다. 끄면 도는 라쳇과 오프닝도 멈춘다. 햅틱은 그대로. 저장은 `src/lib/settings/sound-effects.ts`(lite-mode 방식, 키 `audio.soundEffects.v1`), `_layout.tsx` 가 모듈 범위에서 `ensureSoundEffectsHydration()`. 5개 언어. DPIA 의 `DeepSpaceDesignScreens.tsx` 줄 인용 4곳을 같은 커밋에서 내용 대조로 옮겼다(608-615→609-616 · 772-776→773-777 · 1913-1918→1918-1923 · 2792→2797). 변이 4건 잡힘, verify 889 / 11,650.
+- **3차 상태**: 시작 못 함. 생성 1회 피크 커밋 약 6.4 GiB 인데 23:56 실측 커밋 86.6%(우리 규칙: 80% 미만에서만). Stability 상업 등록도 Simon 확인 전. 발주서는 아래 10-05 23:03 블록 그대로 유효하다. 2차로 생긴 도구: `isRecordingAudioMode()` 로 녹음 중 무음을 걸 수 있다.
+- **이 세션 함정**: 녹음 수명 관리의 호출 문자열을 두 테스트(`recording-uri.test.ts` · `chat-voice-input.test.ts`)가 고정하고 있었다 · 줄바꿈이 CRLF 인 파일에 여러 줄 패턴으로 변이를 걸면 적용되지 않아 '통과'가 나온다(한 줄 패턴으로 다시 해서 잡힘) · 맨 위에 import 한 줄만 넣어도 DPIA 줄 인용이 전부 밀린다.
+- **정리**: 2차 워크트리 둘은 정션을 먼저 끊고 지웠다(공용 설치 723 유지). 빈 폴더 `.worktrees/sfx-r2b` 하나는 안전 검사가 rmdir 을 막아 남았다(비어 있음, 지워도 됨).
+- **앱/localhost**: 00:04 `npm run app:parity` = 같음(8081 = `2b6b267d`, APK 런 37329439365 진행 중).
+- **다음 1개**: 메모리 커밋 80% 아래(에뮬레이터 · 놀고 있는 세션 정리)가 되면 3차 후보 생성 → 미리듣기 보고서. Simon 쪽은 Stability 상업 등록 여부.
+
+## 2026-10-05 23:03 / 효과음 검토 · Simon 답 Q-261005-01~05 · 1차 머지(#2079) · 2 · 3차 발주
+
+- **무엇을**: Simon "지금 우리 앱에 추가되면 효과음들을 검토해봐." → 검토 보고서 <https://claude.ai/artifact/6tkJdbsFuzcsyMFaTSaQiD>(지금 소리 전수 · 후보 6곳 · 무음 자리 · 미리듣기) → 답 "Q-261005-01 A · 02 A · 03 C · 04 C · 05 A". 결정 원문은 `DECISIONS.md` 22:52 다섯 줄.
+- **같은 날 앞선 일**: agent-audio 설치(#2076, 코드 `E:/agent-audio/src` · 데이터 `E:/agent-audio/data`, Claude Code + Codex 등록, 약관 Simon 수락, 생성 테스트는 아직).
+- **1차 #2079 `a19c1d85`**: ① 효과음 모드 `playsInSilentMode` 를 두 플랫폼 모두 false(10-04 Q-261004-37 을 #2036 게이트 `c4b202d2` 가 모른 채 Android true 로 두었던 것을 바로잡음) ② 오프닝 걷기는 재생 단계에서 grass-a 만(승인 매니페스트는 그대로, b 가 더 밝고 길게 끌어 '타닥'으로 짝지어 들림) ③ DECISIONS 5줄. 변이 검증 1 · 2 실패, verify 886 / 11,631.
+- **2차 발주 (다음 세션)**
+  - 왜: Q-01 의 남은 구멍과 Q-02. 녹음 경로(`capture.tsx:2781` · `secondb.tsx:341`)가 모드를 `playsInSilentMode: true` 로 바꾸고 되돌리지 않아, 음성 녹음 한 번 뒤에는 앱을 다시 켤 때까지 무음에서도 효과음이 난다.
+  - 완료조건: (a) 녹음이 끝나거나 실패 · 취소 · 화면 이탈로 멈춘 뒤 마지막 `setAudioModeAsync` 가 `EFFECTS_AUDIO_MODE` 와 같다는 테스트, 녹음 중에는 바꾸지 않는다는 테스트. (b) 설정 화면 '효과음' 켜기 · 끄기, 기본 켜짐, 저장은 `lite-mode.ts` 와 같은 방식, 5개 언어 문구. 끄면 `use-ui-sound` · `use-motion-sound` · `use-loop-media` · `use-opening-sounds` 가 0회 재생한다는 테스트. (c) `opening-a11y-contract`(오프닝 위 소리 토글 금지) 그대로 green. (d) verify green, 안드로이드 에뮬레이터 진동 모드에서 소리 없음을 녹화로 확인.
+  - 컨텍스트: `src/lib/audio/audio-session.ts` · `src/lib/audio/recording-uri.ts:358 createRecorderLifecycle`(두 화면 공용, `clear()` 가 세션 끝) · `use-reduced-motion.ts` · `DeepSpaceDesignScreens.tsx:1625`(움직임 줄이기 토글 자리).
+  - 하지 말 것: 오프닝 화면 위에 소리 버튼(10-03 결정) · 녹음 중 모드 변경 · 새 의존성.
+  - 위 방법은 출발점일 뿐이다. 더 효율적인 경로가 보이면 그쪽을 택하고, 왜 바꿨는지 함께 보고할 것.
+- **3차 발주 (2차 뒤)**
+  - 전제: Simon 의 Stability AI 상업 이용 등록(stability.ai/community-license) **확인 전에는 머지하지 않는다**(후보 생성 · 청취는 약관상 평가 · 시험이라 먼저 해도 된다). 생성은 메모리 커밋 80% 미만에서만(생성 1회 피크 Working Set 약 11.6 GiB).
+  - 생성: agent-audio MCP `generate_audio` 로 6곳(L5 비준 · 별이 밝아짐 · 기록 저장 · 세컨비 답장 · 주머니 폰 · 온보딩 끝) × 후보 2~3개 → ffmpeg 로 22.05kHz mono WAV(짧은 페이드 · 노멀라이즈) → 미리듣기 보고서로 Simon 이 고른다. 크기는 기존 0.08~0.2.
+  - 기록: 생성 출처 파일을 새로(프롬프트 · 모델 리비전 `da6edc54` · 런타임 `779434a9` · sha256 · 가공법). `RECORDED-SOURCES.json` 은 '합성 없음' 원칙이고 `recorded-camera-assets.test.ts:10` 이 출처를 정확히 2개로 고정하므로 섞지 않는다. `docs/ASSETS.md` 고지(소리는 CI 라이선스 검사 대상이 아니다).
+  - 연결과 무음 자리: 위기 red(`DeepSpaceViews.tsx:668-671` 은 위기 안내가 뜨는 메모에도 '저장됨'을 켠다) · 녹음 중 · 하루 한도 · 오류 · 인터뷰 대화 중(`interview.tsx:687-694`)에서 무음 테스트. 별이 밝아짐은 시각 연출(06-15 O-27 레벨업, cyan)과 함께 설계한다.
+  - 확인: x86_64 디스패치 빌드로 에뮬레이터에서 실제로 들리는지 녹화.
+- **이 세션 함정(메모리에 남김)**: Git Bash 에 jq 가 없어 jq 대기 루프가 영원히 돈다(gh 내장 `--jq` 를 쓴다) · Bash heredoc 안 파이썬 문자열의 `\a` 가 벨 문자로 바뀌어 경로가 깨졌다(DECISIONS 한 줄, 고쳐서 머지) · 안드로이드 에뮬 수치를 한 프레임 밀려 읽었다(#2033 에서 정정).
+- **앱/localhost**: 23:0x `npm run app:parity` = 같음(8081 = `a19c1d85`, 같은 코드 APK 런 37321556117 진행 중).
+- **다음 1개**: 새 세션에서 2차 발주 착수. Simon 쪽은 Stability 상업 등록 여부를 알려 주시면 3차의 전제가 풀린다.
+
+## 2026-10-05 19:05 / SSV GO-1(#2057·#2058) · 보안 게이트 3회 · #1902 충돌 해소 · #2060 CI 수정 · 공용 node_modules 사고·복구
+
+- **SSV GO-1**(Simon "go" 10:49): PR-7a [#2057](https://github.com/Simon-YHKim/2nd-B/pull/2057)(0211 89일 정리 · 분쟁 보류 · 감시, 0212 등록부) · PR-7b [#2058](https://github.com/Simon-YHKim/2nd-B/pull/2058)(0213 오래된 콜백 거부 · Edge v3) 를 draft 로 열었다. 머지 · 운영 적용 0. 최신 main(0210 · 0215 포함) merge 뒤 head `168a7a45` · `081dcd45`, CI 4개 초록(17:0x).
+- **보안 게이트 3회**(`codex exec` read-only, daybreak · astra @xhigh, 11:12~12:58): 세 번 모두 BLOCK, 고유 지적 18건 → 16 고침(7a `1160a6d6` · `a08291d7` · `061399b5` · `e6547d4e` · `05555a05`, 7b `be7bac88`) · 1 한계 수용(BL-02 승인자 문자열) · **1 Simon 결정 대기(DB3-01)**. 고친 것마다 되돌리면 실패하는 테스트(변이 M1~M8 + Edge 7), 로컬 sql 재생 · `npm run verify` 통과. 프롬프트 · 답 · 도구: `E:/Coding Infra/reports/ssv-261005/gates/`. 보고서 <https://claude.ai/artifact/WJYmtT9DfiD5NKu6Rc1byC>
+- **DB3-01(결정 필요)**: 89일 기준 + 매일 04:37 실행이면 실패를 흡수할 여유가 0 이라 한 번 실패하면 일부 기록이 90일을 넘는다. A) 88일로 당김(추천) · B) 89일 유지 · 매시간 실행 · C) 유지하고 실패를 사건으로. 0212 등록부 문구 · Gaius 방침 문장이 함께 바뀐다. 런북은 지금 사실대로(C) 적혀 있다.
+- **#1902 충돌 해소**(Relay 요청, Simon GO 15:40): main 의 레거시 안내서 제거(#2050)와 겹친 두 파일은 main 쪽, 조용히 깨진 `visible-trust-copy` 기대 문구는 main 값으로. `1c71011f` → Hadrianus 가 16:05 머지(`c3daa0a5`).
+- **#2060 CI 수정**(Simon GO 16:05): base → main, v9 회귀의 고정 사용자가 0210 회귀와 겹쳐 `users_pkey` 중복(→ 자기 id), 법무 인용 줄 밀림 11곳(`consent.ts:135-137`→`140-142`, service-consent `36-37`→`46-47`). `0d1e5120` → Hadrianus 가 16:42 머지(`0a7702d0`).
+- **봇 버스**: App Review D4 노트 정정 2회(없는 화면 이름 · 꺼진 Sentry · 내부 메모) → Malcolm v3 반영. 백업 GO-B3 진단 중 내 "사용자 이름 ref 누락" 추정은 **틀렸다**(정정 메모; 실제는 비밀번호, 16:34 통과). 다른 세션의 고아 `grep`(8.8GB, 커밋 99%)을 끄고 알렸다.
+- ⚠ **공용 `node_modules` 사고(18:37~18:5x)**: 다 쓴 워크트리 둘을 지우다 정션 확인 스크립트가 경로를 잘못 다뤄 "정션 아님" 이 나왔는데 멈추지 않고 `git worktree remove`(force 없음) → 정션을 따라 공용 설치가 비었다(724→0, 8081 HTTP 500). 복구: `npm ci --legacy-peer-deps` + origin/main 의 `expo-updates` 패치만 patch-dir 로 적용 → 패치 7개, verify 11,674 그대로, 2ndb-74 확인 8081 HTTP 200 · `app:parity` 같음. 메모리 [[reference_2ndb_worktree_junction_hazard]] 갱신.
+- ⚠ **정본 체크아웃 `E:/2ndB` 는 `a029cac0`(09-26)에 그대로다.** ff 는 미추적 봇 문서 19개가 막는데 7개는 main 과 내용이 달라 손대지 않았다. 다음에 거기서 그냥 `npm ci` 하면 `expo-updates` 패치가 다시 빠진다.
+- **다음 1개**: Simon 이 DB3-01 을 정하면 반영 → 게이트 4회차(띄우기 전 커밋 85% 미만 확인, 2ndb-74 에 "시작") → GO-2(#2057 머지).
+- **남은 것**: 결제 6~13단계 일정 · App Review 데모 계정 · 백업 사고 대장 서명(10-07 21:03) · #2061 테스트 패치 승인 · R3V-2 복호화 시험 · 런북의 `db-backup.yml` 문장은 백업 이전이 끝나면 고친다.
+- **앱/localhost**: 이 세션은 앱 코드를 직접 main 에 넣지 않았다(#1902 · #2060 머지는 Hadrianus). 8081 = origin/main `0a7702d0`, `app:parity` 같음(2ndb-74 확인 18:5x).
+
+## 2026-10-05 12:00 / 앱 실구동 전수 디버깅 · 레거시 정리(QA-LEGACY-261004): 머지 19 · Simon 질문 4 · 2차 점검 진행 중
 
 - **무엇을**: Simon /vibe(10-04): "프로젝트와 localhost, 에뮬레이터를 돌렸을때의 앱의 실제 구동들을 확인하여 전수 디버깅을 실시하고, legacy 코드, legacy 파일 전수 검사 하여 발굴 및 정리. legacy 같은 경우는 'E:\Legacy'폴더로 옮겨놓을 것." 울트라코드 · 워크플로 · Codex 게이트 둘(gpt-daybreak-blue-latest · gpt-6-astra @xhigh, 읽기 전용).
 - **1단계(10-04)**: 웹 8081 전 라우트 · 자체 에뮬레이터 · 정적 검사 · 레거시 전수 → 결함 · 레거시 후보마다 반박 검증. Simon 결정 Q-261004-11~38(10-04 20:47, DECISIONS 30줄). 증거 `E:/Coding Infra/reports/qa-legacy-261004/`.
@@ -516,14 +562,5 @@
 - **작업 경계**: 원래 `TTL-Work_rev2` 워크트리의 다른 세션 미커밋 변경은 건드리지 않았다. Android QA 기록은 별도 브랜치 `docs/android-native-photo-qa-261001`에서 작성했다. `npm run app:parity`는 `b81faefc` 시점에 같음이었으며 새 main에서도 다시 확인한다.
 - **검증**: main `36623cc1` 통합 뒤 `npm run verify` 870묶음/11,279건 통과. `npm run app:parity`는 앱 경로·설정·의존성 일치와 같은 코드·설정의 APK 빌드 성공으로 **같음**(03:33 KST). PR #1970의 lint·verify·web-export-smoke 3종도 통과했다.
 
----
-
-## 2026-10-01 02:57 / #1968 머지 뒤 확인: 앱 = localhost 같음 · 8081 브라우저 검사 14/14 · 따옴표 뒤 조사 줄바꿈
-
-- **#1968 머지**: 02:48 KST, main `b81faefc`. CI lint · verify · web-export-smoke 통과. `npm run app:parity` **같음**(02:50:07). 8081 이 `b81faefc` 로 다시 떴고(02:49) 앱 경로 차이 0 · 설정 digest `e90c4cb7453f` 일치. 폰 APK 빌드 [36754062889](https://github.com/Simon-YHKim/2nd-B/actions/runs/36754062889)는 확인 시점에 진행 중이었다. QA APK 게시는 하지 않았다(Simon 이 폰에서 볼 때만).
-- **8081 에서 `docs/qa/data-connections-260930/check.cjs` 14/14**, 막힌 쓰기 0. 새 문구가 보이는 것까지 화면으로 확인했다.
-- **발견 · 고침(이 PR)**: 웹 8081 에서 건강 카드의 `‘오늘 반영’을` 이 `’` 뒤에서 끊겨 "을"이 줄 머리에 혼자 섰다. CSS `word-break: keep-all` 은 닫는 따옴표와 뒤 한글 사이 줄바꿈을 허용한다(UAX #14 LB19a). 네이티브는 `keepAllKo` 가 단어를 붙여 안 끊긴다. 이 화면의 두 문구를 `‘오늘 반영’ 버튼을/버튼으로` 로 바꾸고, `data-connections-contract.test.ts` 가 이 화면 한국어 문구에 `/[’”][가-힣]/` 가 없음을 지킨다(되돌리면 실패 확인).
-- **넘김 · 줄바꿈 담당(#1933 계열)**: 같은 모양(닫는 따옴표 바로 뒤 한글)이 한국어 로케일에 **16개** 남아 있다. 이 PR 의 둘을 빼면 14개이고, `deepspace` 4 · `consent` 3 · `ops` · `settings` · `attachment` · `home` · `profile` · `ratifications` 에 있다. 웹에서만 같은 증상이 난다. 근본 수정은 웹 경로(`keepMiddleDotOffLineStart`)가 한글에 붙은 따옴표 양옆에 WORD JOINER 를 넣는 것인데, 공용 줄바꿈 코드라 건드리지 않았다.
-- **다음 세션**: 폰(Health Connect)에서 자동 읽기 확인(#1968 HANDOFF 블록의 ①②③) · 결정 대기 Q-261001-01 · Q-261001-02.
 ---
 
