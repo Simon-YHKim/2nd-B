@@ -1,7 +1,10 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { createHash } from 'crypto';
-import { pocketPhoneCueAllowed, ratifyL5CueAllowed, replyCueAllowed, saveCueAllowed } from '../app-cue-gates';
+import {
+  brightenCue, pocketPhoneCueAllowed, ratifyL5CueAllowed, replyCueAllowed, saveCueAllowed, welcomeCueAllowed,
+} from '../app-cue-gates';
+import { onGlobalCue, requestGlobalCue } from '../global-cues';
 
 // 효과음 3차 (Simon Q-261006-01~06). 소리마다 '울리면 안 되는 순간'을 순수 함수로 고정하고,
 // 화면이 그 함수를 실제로 거쳐 소리를 내는지를 소스로 확인한다(렌더 테스트는 RN 0.85 에서 막혀 있다).
@@ -111,4 +114,59 @@ test('each screen reaches its sound only through the gate', () => {
   // The dashboard tap lowers the phone without settle(), so it stays silent.
   const activate = phone.slice(phone.indexOf('const activate = useCallback'), phone.indexOf('useEffect(() => {\n    if (active) return;'));
   expect(activate).not.toContain('playPhoneCue');
+});
+
+describe('star brighten cue', () => {
+  test('a rise within L1-L4 plays once, however many stars rose', () => {
+    const r = brightenCue({ school: 2, work: 1 }, { school: 3, work: 2 }, false);
+    expect(r.play).toBe(true);
+    expect(r.next).toEqual({ school: 3, work: 2 });
+  });
+  test('the first visit and a star seen for the first time only record', () => {
+    expect(brightenCue(null, { school: 3 }, false)).toEqual({ play: false, next: { school: 3 } });
+    expect(brightenCue({ school: 3 }, { school: 3, work: 2 }, false)).toEqual({ play: false, next: { school: 3, work: 2 } });
+  });
+  test('a failed read (everything L1) never lowers the record, so the next good read is not a rise', () => {
+    const afterFailure = brightenCue({ school: 3 }, { school: 1 }, false);
+    expect(afterFailure).toEqual({ play: false, next: { school: 3 } });
+    expect(brightenCue(afterFailure.next, { school: 3 }, false).play).toBe(false);
+  });
+  test('L5 belongs to the ratify cue, and reduced motion silences but still records', () => {
+    expect(brightenCue({ school: 3 }, { school: 5 }, false)).toEqual({ play: false, next: { school: 5 } });
+    expect(brightenCue({ school: 2 }, { school: 3 }, true)).toEqual({ play: false, next: { school: 3 } });
+  });
+});
+
+describe('onboarding welcome cue', () => {
+  test('only entering the app without skipping plays', () => {
+    expect(welcomeCueAllowed({ destination: '/', skipped: false })).toBe(true);
+    expect(welcomeCueAllowed({ destination: '/', skipped: true })).toBe(false);
+    expect(welcomeCueAllowed({ destination: '/sign-in', skipped: false })).toBe(false);
+    expect(welcomeCueAllowed({ destination: '/sign-up', skipped: false })).toBe(false);
+  });
+  test('a global request reaches every host and stops after unsubscribe', () => {
+    const heard: string[] = [];
+    const off = onGlobalCue((id) => heard.push(id));
+    requestGlobalCue('onboardingWelcome');
+    off();
+    requestGlobalCue('onboardingWelcome');
+    expect(heard).toEqual(['onboardingWelcome']);
+  });
+});
+
+test('brighten and welcome reach their sounds through the gate', () => {
+  const shell = read('src/components/deep-space/DeepSpaceShell.tsx');
+  expect(shell).toContain('const cue = brightenCue(seen, b.starLevels, brighten.current.reducedMotion);');
+  expect(shell).toContain('if (cue.play) brighten.current.play();');
+  expect(shell).toContain('await writeStarLastSeen(userId, cue.next);');
+  const onboarding = read('src/app/onboarding.tsx');
+  expect(onboarding).toContain('if (welcomeCueAllowed({ destination, skipped })) requestGlobalCue("onboardingWelcome");');
+  expect(onboarding).toContain('onPress={() => { setSkipped(true); setStep(AUTH_STEP); }}');
+  // The welcome cue must outlive router.replace, so it is played by the root host, never by the screen.
+  expect(onboarding).not.toContain('useUiSound');
+  expect(read('src/app/_layout.tsx')).toContain('<GlobalCueHost />');
+  for (const host of ['src/components/audio/GlobalCueHost.tsx', 'src/components/audio/GlobalCueHost.web.tsx']) {
+    expect(read(host)).toContain('onGlobalCue((id) => {');
+  }
+  expect(read('src/lib/account/local-purge.ts')).toContain('observe(() => purgeStarLastSeenForDeletedAccount(owner)),');
 });

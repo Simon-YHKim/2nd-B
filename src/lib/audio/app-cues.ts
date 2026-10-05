@@ -40,4 +40,26 @@ export const POCKET_PHONE_CUE: AppCue = {
   minIntervalMs: 150,
 };
 
-export { pocketPhoneCueAllowed, ratifyL5CueAllowed, replyCueAllowed, saveCueAllowed } from "./app-cue-gates";
+/** 홈에 돌아왔을 때 별이 밝아져 있으면 (Q-261006-02 = B, 1.0초). */
+export const STAR_BRIGHTEN_CUE: AppCue = {
+  source: require("../../../assets/audio/star-brighten.wav"),
+  volume: 0.12,
+  minIntervalMs: 1000,
+};
+
+/** 온보딩을 마치고 앱으로 들어갈 때 (Q-261006-06 = B, 2.2초). 화면이 바로 바뀌므로 루트의
+ * GlobalCueHost 가 낸다. */
+export const ONBOARDING_WELCOME_CUE: AppCue = {
+  source: require("../../../assets/audio/onboarding-welcome.wav"),
+  volume: 0.12,
+  minIntervalMs: 2200,
+};
+
+export {
+  brightenCue,
+  pocketPhoneCueAllowed,
+  ratifyL5CueAllowed,
+  replyCueAllowed,
+  saveCueAllowed,
+  welcomeCueAllowed,
+} from "./app-cue-gates";

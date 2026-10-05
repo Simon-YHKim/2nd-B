@@ -37,3 +37,33 @@ export function pocketPhoneCueAllowed(input: {
 }): boolean {
   return input.byUser && input.wasRaised !== input.raised && !input.reducedMotion;
 }
+
+/** 온보딩을 끝까지 넘겨 앱으로 들어갈 때만(Q-261006-06). 건너뛰기를 눌렀거나 로그인 · 가입
+ * 화면으로 넘어가는 출구는 무음이다(아직 아무것도 시작하지 않았다). */
+export function welcomeCueAllowed(input: { destination: string; skipped: boolean }): boolean {
+  return input.destination === "/" && !input.skipped;
+}
+
+/** 별이 밝아졌는지(Q-261006-02). 마지막으로 본 밝기와 비교해 L1~L4 안에서 오른 별이 있으면 한 번
+ * 울린다. 여러 별이 한꺼번에 올라도 한 번이다.
+ *
+ * - 기록은 **내리지 않는다.** 커버리지 읽기는 실패해도 0 을 돌려줘서 실패한 읽기가 전부 L1 로
+ *   보인다. 그때 낮춰 적으면 다음 정상 읽기가 거짓 상승이 된다.
+ * - L5 는 비준 소리(Q-261006-01)의 몫이라 울리지 않고 기록만 올린다.
+ * - 처음 보는 사용자(기록 없음)와 처음 보는 별은 기록만 한다.
+ * - 움직임에 붙은 소리라 움직임 줄이기면 무음이다. 기록은 그래도 올린다. */
+export function brightenCue(
+  seen: Readonly<Record<string, number>> | null,
+  now: Readonly<Record<string, number>>,
+  reducedMotion: boolean,
+): { play: boolean; next: Record<string, number> } {
+  const next: Record<string, number> = { ...(seen ?? {}) };
+  let rose = false;
+  for (const [id, level] of Object.entries(now)) {
+    const before = next[id];
+    if (before !== undefined && level <= before) continue;
+    if (seen !== null && before !== undefined && level <= 4) rose = true;
+    next[id] = level;
+  }
+  return { play: rose && !reducedMotion, next };
+}
