@@ -106,17 +106,23 @@ jobs:
           # 별도 psql 호출인 이유: 위 한 줄 SQL 에 넣으면 0211 적용 전(GO-3 전)에 함수가 없어
           # 그 줄 전체가 실패하고 결제 트립와이어까지 같이 죽는다.
           RETENTION=0; RET_OVERDUE=0; RET_HOLDS="n/a"; RET_CRON="n/a"
-          HAS_FN="$("$PSQL" "$DB" -Atq -v ON_ERROR_STOP=1 -c "select to_regprocedure('public.reward_retention_health()') is not null" 2>>err.txt || echo f)"
+          # 존재 확인 자체가 실패하면(접속·권한·SQL) "함수 없음"(f)과 갈라 경보로 센다. 함수 없음은
+          # 0211 적용 전(GO-3 전)의 정상 상태라 건너뛰지만, 조회 실패는 그렇게 볼 근거가 없다
+          # (보안 게이트 r1 DB-04 · BL-05).
+          HAS_FN="$("$PSQL" "$DB" -Atq -v ON_ERROR_STOP=1 -c "select to_regprocedure('public.reward_retention_health()') is not null" 2>>err.txt)" || HAS_FN="query_failed"
           if [ "$HAS_FN" = "t" ]; then
             RROW="$("$PSQL" "$DB" -Atq -F'|' -v ON_ERROR_STOP=1 -c "select (h->>'ok')::boolean,
                      (h->>'overdue_rewarded_ssv_txns')::int + (h->>'overdue_ad_reward_lots')::int
                        + (h->>'overdue_usage_counters')::int + (h->>'overdue_chat_usage')::int
-                       + (h->>'overdue_issue_rate_limits')::int,
+                       + (h->>'overdue_issue_rate_limits')::int
+                       + coalesce((h->>'overdue_reward_ssv_tickets')::int, 0),
                      coalesce((h->>'overdue_hold_reviews')::int, 0) || '/' || coalesce((h->>'overdue_hold_audit_cases')::int, 0),
-                     coalesce(h->>'cron_stale', 'null') || '/' || coalesce(h->>'cron_failures_7d', 'null')
+                     coalesce(h->>'cron_available', 'null') || '/' || coalesce(h->>'cron_stale', 'null') || '/' || coalesce(h->>'cron_failures_7d', 'null')
                      from (select public.reward_retention_health() as h) s" 2>>err.txt)" || RROW="f|-1|query_failed|query_failed"
             IFS='|' read -r RET_OK RET_OVERDUE RET_HOLDS RET_CRON <<< "$RROW"
             if [ "$RET_OK" != "t" ]; then RETENTION=1; fi
+          elif [ "$HAS_FN" != "f" ]; then
+            RETENTION=1; RET_OVERDUE=-1; RET_HOLDS="query_failed"; RET_CRON="query_failed"
           fi
 
           : > report.md
@@ -146,7 +152,7 @@ jobs:
           # 0 이 아니면: 91일 넘은 비보류 광고 보상 기록이 있거나, purge-reward-records-90d 가
           # 26시간 넘게 성공하지 않았거나, 7일 안에 실패했거나, 비활성이다. 또는 재검토 기한(90일)이 지난
           # 분쟁 보류(S4)나 분쟁 종료 3년 넘게 남은 감사 사건(S1)이 있다. 방침 위반 위험.
-          row "reward_retention" "$RETENTION" "광고 보상 정리 이상(91일 초과 ${RET_OVERDUE}건, 재검토 지연/감사 3년 초과 ${RET_HOLDS}, cron stale/7일 실패 ${RET_CRON})"
+          row "reward_retention" "$RETENTION" "광고 보상 정리 이상(91일 초과 ${RET_OVERDUE}건, 재검토 지연/감사 3년 초과 ${RET_HOLDS}, pg_cron 있음/stale/7일 실패 ${RET_CRON})"
 
           TOTAL=$(( CONFLICT + STUCK + REVIEW + STALE + UNHANDLED + CDRIFT + BDRIFT + VENDORFAIL + RETENTION ))
           echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
