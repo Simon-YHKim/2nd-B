@@ -30,12 +30,15 @@
 //      For the same reason a newer link (VIEW with data) replaces a share link
 //      that getIntent() still holds, so getInitialURL() never returns a share
 //      older than the last link the app was opened with.
-//      getIntent() is one slot, though. A share whose Linking event was dropped
-//      (React Native not ready yet) waits there until JS reads it through
-//      getInitialURL(), and a share or link that arrives before that replaces
-//      it: of two shares in that window only the later one reaches /capture.
-//      Keeping both needs a native queue that JS acknowledges, which this
-//      plugin does not have (gate W5-R3-01, left open).
+//      getIntent() is one slot, though. A share whose Linking event reached no
+//      listener (React Native not ready, or its JS not listening yet) waits
+//      there until JS reads it through getInitialURL(), and a share or link
+//      that arrives before that replaces it: of two shares in that window
+//      only the later one reaches /capture. MainActivity cannot tell whether
+//      JS has read it yet (React Native creates its context before it loads
+//      the JS bundle, so a ready context says nothing about that), so keeping
+//      both needs a native queue that JS acknowledges, which this plugin does
+//      not have (gate W5-R3-01, left open).
 //
 // The filter and the handler ship together on purpose. A SEND filter without
 // the handler would list the app in the share sheet and then drop what was
