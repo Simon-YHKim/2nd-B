@@ -4,7 +4,6 @@
  * home. The dock maps to real routes; the 7 stars + 북극성 map to their engine
  * routes, so home navigation is real.
  *
- * Rendered only when EXPO_PUBLIC_UI=deep-space; the legacy track is untouched.
  * Keeps the post-auth gate.
  */
 import { useCallback, useEffect, useRef, useState } from "react";

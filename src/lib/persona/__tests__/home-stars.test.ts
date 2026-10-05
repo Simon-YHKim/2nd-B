@@ -71,7 +71,10 @@ describe("별자리 그림이 목록과 어긋나지 않는다", () => {
   it("별 이름을 공용 키에서 읽는다 (화면마다 다른 이름 금지)", () => {
     expect(home).toContain("t(`ds.star.${id}`)");
     const core = read("src/app/core-brain.tsx");
-    expect(core).toContain("tHome(`ds.star.${id}`)");
+    // 2026-10-05: 북극성 화면이 별 이름을 부르던 자리 `ds.star.${id}` 는 레거시 꼬리에
+    // 있었고 롤백 레버와 함께 빠졌다(Simon 결정 Q-261004-11 C). 배송 덱은 같은 공용 키를
+    // 일곱 별 정본(SEVEN_STARS)의 key 로 부른다 - 화면마다 다른 이름 금지는 그대로다.
+    expect(core).toContain("tHome(`ds.star.${star.key}`)");
   });
 });
 

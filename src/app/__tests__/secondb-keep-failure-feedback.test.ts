@@ -115,8 +115,6 @@ function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<number
     },
     setKeepCrisis: (value: unknown) => state.crisis.push(value),
     findPrompt: () => PROMPT,
-    isCharacterChat: false,
-    persona: { name: { ko: "세컨비", en: "SecondB" } },
     locale: "ko",
     t: (key: string) => key,
     exchangeTopic: () => "산책",

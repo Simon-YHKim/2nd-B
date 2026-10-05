@@ -160,7 +160,7 @@ deep-space 배포본은 routine 코어를 그리지 않는다. 덮어쓰면 바�
 
 | 파일 | 용도 |
 |---|---|
-| `assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/rhythm_core_256.png` | `EXPO_PUBLIC_UI=legacy` 스킨의 routine 코어(`SoulcoreFinalArt` 의 `PATTERN_CORE_ART.routine`) |
+| `assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/rhythm_core_256.png` | `EXPO_PUBLIC_UI=legacy` 스킨의 routine 코어(`SoulcoreFinalArt` 의 `PATTERN_CORE_ART.routine`). ⚠ 2026-10-05: 레버와 함께 저장소에서 나갔다 — E:/Legacy/2ndB 의 같은 경로(MANIFEST batch qa261004-lever) |
 | ~~`assets/legacy-art/tesseract-v10/rhythm_core.png`~~ | 2026-10-04 `E:/Legacy/2ndB` 로 이동(어느 배포 화면도 그리지 않는데 번들에 실려 있었다) |
 | ~~`public/assets/cosmic-pixel-v4-tesseract-v49/...`~~ · ~~`rhythm_core_128.png`~~ | 이미 없음(#583 v49 정리) · 128 은 2026-10-04 이동 |
 | ~~`assets/legacy-art/2ndb-production-premium-v1/graph/islands/domain_routine_premium_hq.png`~~ | 2026-10-04 이동(09-05 부터 require 되지 않아 덮어써도 출력되지 않았다) |

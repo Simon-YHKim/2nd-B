@@ -82,17 +82,22 @@ describe("탭바를 그리는 조건과 자리를 비우는 조건은 같아야 
   const readRepo = (path: string): string => readFileSync(join(process.cwd(), path), "utf8");
   const read = (path: string): string => readRepo(join("src", "components", "premium", path));
 
-  test("PremiumTabBar 는 deep-space 에서 아무것도 그리지 않는다", () => {
-    expect(read("tab-bar.tsx")).toContain("if (isDeepSpaceUI()) return null;");
+  // 2026-10-05: PremiumTabBar(tab-bar.tsx)는 deep-space 에서 무조건 null 이었고, 롤백 레버가
+  // 없어지며(Simon 결정 Q-261004-11 C) 파일째 나갔다. "탭바가 그려지는 조건 = 자리를 비우는
+  // 조건" 이라는 이 절의 약속은 이제 **둘 다 없다** 로 성립한다 - 그려지는 탭바가 없으니
+  // 셸도 탭 높이를 비워 두지 않는다. 아래가 그 모양을 지킨다.
+  test("탭바 컴포넌트가 없고, 다시 마운트되지도 않는다", () => {
+    const premiumIndex = read("index.ts");
+    expect(premiumIndex).not.toContain("tab-bar");
+    expect(readRepo(join("src", "app", "_layout.tsx"))).not.toMatch(/<(?:Premium|App)TabBar\b/);
   });
 
-  test("PremiumAppShell 의 하단 예약도 같은 조건을 본다", () => {
+  test("PremiumAppShell 은 탭 높이를 비워 두지 않고 safe-area 만 맡는다", () => {
     const shell = read("background.tsx");
     expect(shell).toContain("const ownsBottomClearance = bottomClearanceOwner === \"shell\";");
-    expect(shell).toContain("ownsBottomClearance && isTabPath(pathname) && !isDeepSpaceUI()");
-    expect(shell).toMatch(
-      /const bottomClearance = !ownsBottomClearance\s*\? 0\s*: onTabBar\s*\? TAB_BAR_HEIGHT \+ spacing\.lg \+ insets\.bottom\s*: insets\.bottom;/,
-    );
+    expect(shell).toContain("const bottomClearance = ownsBottomClearance ? insets.bottom : 0;");
+    expect(shell).not.toContain("TAB_BAR_HEIGHT");
+    expect(shell).not.toContain("onTabBar");
   });
 
   test("full intake 는 dock 부모에게 하단 여백을 맡기고 자체 tab 높이를 더하지 않는다", () => {
@@ -103,10 +108,12 @@ describe("탭바를 그리는 조건과 자리를 비우는 조건은 같아야 
     expect(capture).not.toContain("scrollBottomPadding");
     expect(capture).toContain('import { useKeyboard } from "@/lib/ui/useKeyboard";');
     expect(capture).toContain("const kbHeight = useKeyboard();");
-    expect(capture).toContain(
-      'const keyboardBehavior = Platform.OS === "ios" ? "padding" : undefined;',
-    );
-    expect(capture).not.toMatch(/keyboardBehavior\s*=.*:\s*"height"/);
+    // 2026-10-05: 키보드 규칙은 공용 영역(src/lib/ui/keyboard.tsx) 하나가 갖는다. capture 는
+    // 그 영역 안에 있고 behavior 를 직접 고르지 않는다 - "height" 이중 축소 금지도 그대로다.
+    expect(capture).toContain("<KeyboardAvoidingArea");
+    expect(capture).toContain("iosKeyboardVerticalOffset={iosKeyboardVerticalOffset}");
+    expect(capture).not.toContain("KeyboardAvoidingView");
+    expect(capture).not.toMatch(/behavior=\{[^}]*"height"/);
     expect(capture).toContain('Platform.OS === "android" && {');
     expect(capture).toContain(
       "paddingBottom: Math.max(styles.scroll.paddingBottom, kbHeight + spacing.xl)",
@@ -124,9 +131,9 @@ describe("탭바를 그리는 조건과 자리를 비우는 조건은 같아야 
     expect(captureFull).toMatch(
       /<DeepSpaceScreen active="capture">\s*<CaptureLegacy\b(?=[^>]*\bembeddedInDock\b)[^>]*\/>/,
     );
-    // Legacy UI has no DeepSpaceScreen parent, so its shell still owns safe area.
-    expect(captureFull).toMatch(
-      /return\s+<CaptureLegacy\b(?![^>]*\bembeddedInDock\b)[^>]*\/>;/,
-    );
+    // 2026-10-05: DeepSpaceScreen 부모 없이 셸이 safe-area 를 맡던 legacy UI 반환
+    // (`return <CaptureLegacy … />;`)은 롤백 레버와 함께 빠졌다(Q-261004-11 C). 이제
+    // capture-full 의 full intake 는 dock 안 하나뿐이다.
+    expect(captureFull).not.toMatch(/return\s+<CaptureLegacy\b/);
   });
 });

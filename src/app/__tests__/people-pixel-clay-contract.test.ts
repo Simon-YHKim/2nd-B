@@ -260,7 +260,7 @@ describe("/people PIXEL-CLAY contract", () => {
 
   test("replaces the map with a fully locked, Android keyboard-safe create form", () => {
     expect(SOURCE).toMatch(/\{adding \? \(\s+formSurface\s+\) : people === null/);
-    expect(SOURCE).toContain("<KeyboardAvoidingView");
+    expect(SOURCE).toContain("<KeyboardAvoidingArea");
     expect(SOURCE).toContain("const keyboardHeight = useKeyboard()");
     expect(SOURCE).toContain('Platform.OS === "android"');
     expect(SOURCE).toContain("keyboardHeight + deepSpaceSpacing.lg");

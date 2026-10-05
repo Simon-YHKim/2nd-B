@@ -200,7 +200,6 @@ export function previewPublicEnv(previewEnv) {
   if (env.EXPO_PUBLIC_LLM_MODE !== 'live') {
     throw new Error('invalid preview env: EXPO_PUBLIC_LLM_MODE must be live');
   }
-  if (typeof env.EXPO_PUBLIC_UI !== 'string') env.EXPO_PUBLIC_UI = 'deep-space';
   if (typeof env.EXPO_PUBLIC_ALLOW_DEV_TIER !== 'string') {
     env.EXPO_PUBLIC_ALLOW_DEV_TIER = 'true';
   }

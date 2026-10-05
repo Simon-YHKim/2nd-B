@@ -24,7 +24,6 @@ const mockAuth: { current: AuthState } = {
   current: { userId: null, loading: true, hasProfile: null, isMinor: null },
 };
 const mockLanguage: { current: "en" | "ko" } = { current: "en" };
-const mockDeepSpaceUI: { current: boolean } = { current: false };
 const mockLoadPersonaSnapshot = jest.fn();
 let mockRealLoadPersonaSnapshot: (userId: string) => Promise<PersonaCard | null>;
 let mockRealBuildCenterCards: (persona: PersonaCard, locale: "en" | "ko") => CenterCard[];
@@ -32,11 +31,9 @@ const mockBuildCenterCards = jest.fn();
 const mockLoadLatestStrengths = jest.fn<Promise<LoadedStrengths | null>, unknown[]>(
   (..._args: unknown[]) => Promise.resolve(null),
 );
-const mockLoadDomainLevels = jest.fn((..._args: unknown[]) => Promise.resolve(null));
 const mockLoadSevenLevels = jest.fn((..._args: unknown[]) =>
   Promise.resolve({ northStarBrightness: 0.6 }),
 );
-const mockLoadProfileStarLevel = jest.fn((..._args: unknown[]) => Promise.resolve(null));
 const mockFireCompanion = jest.fn();
 const mockForbiddenBuildPersona = jest.fn((..._args: unknown[]) => {
   throw new Error("buildPersona must not run during Core Brain lifecycle");
@@ -285,7 +282,11 @@ jest.mock("@/lib/theme/tokens", () => ({
   flattenAlpha: (color: string) => color,
 }));
 jest.mock("@/components/pixel/PixelDither", () => ({ PixelScrim: "PixelScrim" }));
-jest.mock("@/lib/ui-mode", () => ({ isDeepSpaceUI: () => mockDeepSpaceUI.current }));
+// (2026-10-05: 여기 있던 jest.mock("@/lib/ui-mode") 를 걷었다. 레거시 꼬리만 import 하던
+//  load-domain-levels · load-profile-star · home-stars · brightness-visual · village-ui 의
+//  목도 같이 걷었다 - /core-brain 이 더는 그 모듈을 부르지 않는다. 롤백 레버가 없어져
+//  /core-brain 은 북극성 덱 하나만 그리고(Simon 결정 Q-261004-11 C), 옛 레거시 꼬리를
+//  고르던 스위치도 그 꼬리도 없다. 꼬리는 되살리기 원본 legacy/screens/core-brain.tsx 다.)
 jest.mock("@/components/deep-space/DeepSpaceScreen", () => ({ DeepSpaceScreen: "DeepSpaceScreen" }));
 // 2026-09-30: on deep-space the screen's shell is the Polaris card overlay (a
 // transparent modal over the sky), not a DeepSpaceScreen page.
@@ -343,20 +344,9 @@ jest.mock("@/lib/persona/strengths-survey", () => ({
   STRENGTH_LABEL_KO: { curiosity: "호기심", grit: "끈기" },
 }));
 jest.mock("@/lib/persona/domain-stars", () => ({ DOMAIN_STARS: [], getDomainStar: () => null }));
-jest.mock("@/lib/persona/load-domain-levels", () => ({
-  loadDomainLevels: (...args: unknown[]) => mockLoadDomainLevels(...args),
-}));
-jest.mock("@/lib/persona/home-stars", () => ({ HOME_STAR_IDS: [] }));
 jest.mock("@/lib/assess/registry", () => ({ OFFERABLE: [] }));
-jest.mock("@/lib/persona/load-profile-star", () => ({
-  loadProfileStarLevel: (...args: unknown[]) => mockLoadProfileStarLevel(...args),
-}));
 jest.mock("@/lib/persona/load-seven-levels", () => ({
   loadSevenLevels: (...args: unknown[]) => mockLoadSevenLevels(...args),
-}));
-jest.mock("@/lib/persona/brightness-visual", () => ({
-  brightnessVisual: () => ({ opacity: 0.2 }),
-  brightnessBand: () => "dim",
 }));
 jest.mock("@/lib/persona/center", () => {
   const actual = jest.requireActual<typeof import("../persona/center")>("@/lib/persona/center");
@@ -376,9 +366,6 @@ jest.mock("@/components/art/CompanionSprite", () => ({
   useCompanionMoment: () => ({ moment: null, fire: mockFireCompanion }),
 }));
 jest.mock("@/components/art/IslandArt", () => ({ IslandArt: "IslandArt" }));
-jest.mock("@/lib/village-ui", () => ({
-  CORE_VILLAGE_UI: { island: "core", worker: "worker", accent: "accent", speech: { en: "", ko: "" } },
-}));
 jest.mock("@/lib/settings/readable-font", () => ({ subscribeFontStyle: () => jest.fn() }));
 jest.mock("@/lib/nav/use-focus-refetch", () => ({
   useFocusRefetch: (callback: () => void, enabled: boolean) => {
@@ -429,6 +416,20 @@ function renderedText(node: unknown): string {
   return renderedText(node.props.children);
 }
 
+/**
+ * 화면 전체의 글자 — 트리 + 북극성 덱의 페이지 본문.
+ *
+ * 2026-10-05 까지 이 파일의 글자 단언은 대부분 레거시 꼬리(레버를 끄면 그리던 긴
+ * 목록)에서 읽혔다. 레버가 없어지며 /core-brain 은 덱 하나만 그리고, 덱의 페이지 본문은
+ * children 이 아니라 `pages` prop 으로 들어간다. 그래서 같은 성질("다음 사용자의 첫
+ * 렌더에 이전 사용자의 것이 안 보인다")을 덱까지 포함한 글자로 본다.
+ */
+function screenText(tree: unknown): string {
+  const deck = findElement(tree, (element) => element.type === "PolarisDeck");
+  const pages = (deck?.props.pages as { title?: string; body: ReactElement }[] | undefined) ?? [];
+  return [renderedText(tree), ...pages.map((page) => `${page.title ?? ""} ${renderedText(page.body)}`)].join(" ");
+}
+
 function assertNoMutationEgress() {
   expect(mockForbiddenBuildPersona).not.toHaveBeenCalled();
   expect(mockForbiddenLlm).not.toHaveBeenCalled();
@@ -470,7 +471,6 @@ afterAll(() => restoreReactHooks?.());
 beforeEach(() => {
   mockAuth.current = { userId: null, loading: true, hasProfile: null, isMinor: null };
   mockLanguage.current = "en";
-  mockDeepSpaceUI.current = false;
   mockReadError = null;
   mockFocus.current = null;
   mockSelectCalls.length = 0;
@@ -484,9 +484,7 @@ beforeEach(() => {
     ),
   );
   mockLoadLatestStrengths.mockReset().mockResolvedValue(null);
-  mockLoadDomainLevels.mockClear();
   mockLoadSevenLevels.mockClear();
-  mockLoadProfileStarLevel.mockClear();
   mockFireCompanion.mockClear();
   mockForbiddenBuildPersona.mockClear();
   mockForbiddenLlm.mockClear();
@@ -536,6 +534,8 @@ describe("Core Brain rendered read-only lifecycle", () => {
   });
 
   test("renders a legacy snapshot as an unprovenanced saved result, not a current direction", async () => {
+    // 2026-10-05: 이 글자를 읽던 곳이 레거시 꼬리에서 북극성 덱으로 옮겨졌다(screenText).
+    // 꼬리만 그리던 "요즘 가장 밝게" 문구 단언은 그 꼬리와 함께 은퇴했다.
     const harness = new HookHarness();
     mockAuth.current = { userId: "legacy", loading: false, hasProfile: true, isMinor: false };
 
@@ -543,7 +543,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
     harness.flushEffects();
     await flushAsync();
     const tree = renderCoreBrainScreen(harness);
-    const text = renderedText(tree);
+    const text = screenText(tree);
 
     expect(mockLoadPersonaSnapshot).toHaveBeenCalledWith("legacy");
     expect(harness.states[0]).toMatchObject({
@@ -552,20 +552,17 @@ describe("Core Brain rendered read-only lifecycle", () => {
     expect(text).toContain("Previously saved result");
     expect(text).toContain("source was not recorded");
     expect(text).not.toContain("journal-based estimate");
-    expect(text).not.toContain("What's lit brightest");
 
     mockLanguage.current = "ko";
-    const koreanText = renderedText(renderCoreBrainScreen(harness));
+    const koreanText = screenText(renderCoreBrainScreen(harness));
     expect(koreanText).toContain("기존 저장 결과");
     expect(koreanText).toContain("출처가 기록되지 않아");
     expect(koreanText).not.toContain("일기 기반 추정");
-    expect(koreanText).not.toContain("요즘 가장 밝게");
     assertNoMutationEgress();
   });
 
   test("keeps unprovenanced persona derivations out of the deep-space Polaris deck", async () => {
     const harness = new HookHarness();
-    mockDeepSpaceUI.current = true;
     mockAuth.current = { userId: "legacy", loading: false, hasProfile: true, isMinor: false };
     mockPersonaRowForUser = () => persistedPersonaRow("values:achievement");
 
@@ -589,7 +586,6 @@ describe("Core Brain rendered read-only lifecycle", () => {
 
   test("renders the first Polaris page as one message and one seven-to-one graphic", async () => {
     const harness = new HookHarness();
-    mockDeepSpaceUI.current = true;
     mockAuth.current = { userId: "u1", loading: false, hasProfile: true, isMinor: false };
 
     renderCoreBrainScreen(harness);
@@ -616,7 +612,6 @@ describe("Core Brain rendered read-only lifecycle", () => {
 
   test("shows the pending setup message and disables persona generation when the status RPC is absent", async () => {
     const harness = new HookHarness();
-    mockDeepSpaceUI.current = true;
     mockLanguage.current = "ko";
     mockAuth.current = { userId: "ordinary-user", loading: false, hasProfile: true, isMinor: false };
     mockPolarisStatusRpc.mockResolvedValue({
@@ -644,7 +639,6 @@ describe("Core Brain rendered read-only lifecycle", () => {
 
   test("focus refresh reloads the progressive strengths summary without rebuilding the snapshot", async () => {
     const harness = new HookHarness();
-    mockDeepSpaceUI.current = true;
     mockAuth.current = { userId: "u1", loading: false, hasProfile: true, isMinor: false };
     mockLoadLatestStrengths
       .mockResolvedValueOnce({ scores: [{ strength: "curiosity", score: 91 }], confidence: 0.8 })
@@ -688,7 +682,9 @@ describe("Core Brain rendered read-only lifecycle", () => {
     harness.flushEffects();
     await flushAsync();
 
-    expect(harness.states[7]).toBe(true);
+    // loadError 는 다섯 번째 상태다(0 부터). 2026-10-05 에 레거시 꼬리만 읽던 상태 셋
+    // (domainBrightness · profileLevel · pendingLinkCount)이 빠져 7 -> 5 로 당겨졌다.
+    expect(harness.states[5]).toBe(true);
     mockReadError = null;
     const errorTree = renderCoreBrainScreen(harness);
     harness.flushEffects();
@@ -701,7 +697,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
     await flushAsync();
 
     expect(mockLoadPersonaSnapshot).toHaveBeenCalledTimes(1);
-    expect(harness.states[7]).toBe(false);
+    expect(harness.states[5]).toBe(false);
     expect(mockExpectedWarn).toHaveBeenCalledWith("[core-brain] load failed", "offline");
     assertNoMutationEgress();
   });
@@ -735,18 +731,21 @@ describe("Core Brain rendered read-only lifecycle", () => {
     harness.flushEffects();
     await flushAsync();
 
+    // 2026-10-05: 표지가 "persona:<id>" (방향 카드 본문)에서 "<id>-record" (근거 서랍의
+    // 그 사용자 기록)로 바뀌었다. 방향 카드는 레거시 꼬리만 그렸고 그 꼬리는 롤백 레버와
+    // 함께 빠졌다(Q-261004-11 C). 덱이 그리는 사용자별 글자 중 소유자가 분명한 것이 기록이다.
     const u1Tree = renderCoreBrainScreen(harness);
-    expect(renderedText(u1Tree)).toContain("persona:u1-marker");
+    expect(screenText(u1Tree)).toContain("u1-record");
 
     mockAuth.current = { userId: "u2", loading: false, hasProfile: true, isMinor: false };
     const preEffectTree = renderCoreBrainScreen(harness);
-    expect(renderedText(preEffectTree)).not.toContain("persona:u1-marker");
+    expect(screenText(preEffectTree)).not.toContain("u1-record");
 
     harness.flushEffects();
     await flushAsync();
     const u2Tree = renderCoreBrainScreen(harness);
-    expect(renderedText(u2Tree)).toContain("persona:u2-marker");
-    expect(renderedText(u2Tree)).not.toContain("persona:u1-marker");
+    expect(screenText(u2Tree)).toContain("u2-record");
+    expect(screenText(u2Tree)).not.toContain("u1-record");
     assertNoMutationEgress();
   });
 
@@ -764,15 +763,16 @@ describe("Core Brain rendered read-only lifecycle", () => {
     renderCoreBrainScreen(harness);
     harness.flushEffects();
     await flushAsync();
-    expect(renderedText(renderCoreBrainScreen(harness))).toContain("persona:u1-marker");
+    // 표지는 위 "never paints" 와 같은 이유로 그 사용자의 기록이다(2026-10-05).
+    expect(screenText(renderCoreBrainScreen(harness))).toContain("u1-record");
 
     mockAuth.current = { userId: "u2", loading: false, hasProfile: true, isMinor: false };
     renderCoreBrainScreen(harness);
     harness.flushEffects();
     await flushAsync();
     const errorTree = renderCoreBrainScreen(harness);
-    expect(renderedText(errorTree)).toContain("loadError");
-    expect(renderedText(errorTree)).not.toContain("persona:u1-marker");
+    expect(screenText(errorTree)).toContain("loadError");
+    expect(screenText(errorTree)).not.toContain("u1-record");
 
     rejectU2Snapshot = false;
     const u2SnapshotCallsBeforeFocus = mockLoadPersonaSnapshot.mock.calls.filter(
@@ -787,8 +787,8 @@ describe("Core Brain rendered read-only lifecycle", () => {
     expect(mockLoadPersonaSnapshot.mock.calls.filter(([userId]) => userId === "u2")).toHaveLength(
       u2SnapshotCallsBeforeFocus,
     );
-    expect(renderedText(afterFocusTree)).not.toContain("persona:u1-marker");
-    expect(renderedText(afterFocusTree)).toContain("loadError");
+    expect(screenText(afterFocusTree)).not.toContain("u1-record");
+    expect(screenText(afterFocusTree)).toContain("loadError");
     assertNoMutationEgress();
   });
 

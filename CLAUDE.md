@@ -66,7 +66,7 @@ npm run app:qa-release          # Simon 이 폰에서 볼 때만
 
 ## Project context
 
-- **What**: 2nd-Brain — *AI 시대 가장 가치있는 자산 = 나 자신* 을 데이터로 축적하고 개인 비서로 키우는 플랫폼. 세 축: (1) 알아가기 · (2) 개인 비서 기반 · (3) 공상 → 구체화.
+- **What**: PolaScope(앱 표시 이름; 저장소 식별자는 2nd-B 유지) — *AI 시대 가장 가치있는 자산 = 나 자신* 을 데이터로 축적하고 개인 비서로 키우는 플랫폼. 세 축: (1) 알아가기 · (2) 개인 비서 기반 · (3) 공상 → 구체화.
 - **Deadline**: 없음. 외부 마감에 맞춘 스코프 압축을 하지 말 것.
 
 > ### XPRIZE 는 종료됐다 (Simon 결정, 2026-08-15)
@@ -537,7 +537,7 @@ Simon 이 결정 콘솔로 항목별 판단을 냈고, 외부 법률·시장 조
 
 ### 2026-08-16 F그룹 재결정 결과 (확정)
 
-- **F1 미성년 개인화 광고 → 18세 미만 차단 유지.** `src/lib/ads/policy.ts:58,95` 그대로.
+- **F1 미성년 개인화 광고 → 18세 미만 차단 유지.** `src/lib/ads/policy.ts` 의 `canShowRewardedAds` 미성년 fail-closed(`isMinor !== false`) 그대로. (2026-10-05: 웹 배너 갈래 `canShowAds` 는 AdSlot 과 함께 접혀 E:/Legacy 로 갔다(Q-261004-16). 남은 광고 경로는 보상형 하나다.)
   광고 런치 시 TFAT 마이그레이션만 추가.
 - **F2 상시 녹음 → 반려.** 로드맵에서 제외. 재론 금지.
 - **F3 통화녹음 → 파일 업로드 경로로 전환.** Simon: "현재 통화녹음 파일 업로드 할 수 있는
@@ -564,7 +564,7 @@ Simon 이 결정 콘솔로 항목별 판단을 냈고, 외부 법률·시장 조
 
 - **미성년 개인화 광고**: 한국 *법률*로는 위법이 아니지만 **Google Ads 정책이 18세 미만
   개인 맞춤 광고를 계약으로 금지**한다(2022-08-15 시행). 위반 결과는 과징금이 아니라
-  계정 정지·수익 몰수. `src/lib/ads/policy.ts:58,95` 의 fail-closed 미성년 차단을
+  계정 정지·수익 몰수. `src/lib/ads/policy.ts` `canShowRewardedAds` 의 fail-closed 미성년 차단을
   **되돌리지 말 것.** 광고 런치 시 deprecated 된 TFUA/TFCD 대신 **TFAT** 을 쓴다.
 - **상시 녹음(화면 꺼도 지속)**: 통비법 제3조 위반 시 제16조 제1항 **1년 이상 10년 이하 징역,
   벌금형 없음.** 대법원 2020도1538(2024-01-11)이 정확히 같은 구조를 유죄로 봤다.
@@ -629,12 +629,13 @@ NOT drawn on home, so the home constellation shows 6 domains + 뮤지엄), B) th
 = the aggregate output / persona synthesis (drop the "Soul Core" name; **the ROUTE is `/core-brain` and it is LIVE** — the file's own header says "user-facing name is 북극성", home's Polaris tap and the deep-space `lens` dock slot both point at it. Only the *name* Core Brain / Soul Core is legacy, never the screen) + the L1~L5 brightness
 ladder + propose->ratify.
 
-**LEGACY (rollback skin only, never the reference for new work):** the gameboy track, the
+**LEGACY (never the reference for new work):** the gameboy track, the
 *Cosmic Pixel Graph Village* system, *phytoncide* tokens, *Brain Trinity* naming, **the "Soul
 Core" name, the 5 Pattern Core layer + Pattern Tesseract, the v3 tesseract art, the character
 voices (아치/가디/루루/모모/루미), and the old 4-tier Visual Tier node-names** (Soul Core 128px /
-Pattern Core x5 / snowflake / crystal). Preserved behind `EXPO_PUBLIC_UI=legacy`; superseded
-concept docs remain in git history.
+Pattern Core x5 / snowflake / crystal). ~~Preserved behind `EXPO_PUBLIC_UI=legacy`~~ — the rollback
+lever was removed on 2026-10-05 (Simon decision Q-261004-11 C); these now live only in git history and
+E:/Legacy/2ndB, and superseded concept docs remain in git history.
 
 > ### ⚠ `/graph` 와 `/trinity` 는 이 목록에서 뺐다 (2026-09-07 실측)
 >
@@ -645,15 +646,18 @@ concept docs remain in git history.
 > | 라우트 | 실제 게이트 | 실제로 그리는 것 |
 > |---|---|---|
 > | `/graph` | **`DevOnlyRoute`** (dev 전용) | `DeepSpaceGraphDesignScreen` — **deep-space** 화면이지 마을 그래프가 아니다. 파일 헤더가 스스로 밝힌다: 중심별·군집별 좌표가 **고정 목업**이고 노드/링크 개수만 실제라, 실데이터로 레이아웃을 그리기 전까지 dev 참조로 둔다. 프로덕션 내비게이션은 여기로 링크하지 않는다(그래프 탭은 `/`) |
-> | `/trinity` | **없음 — 일반 라우트다** | 기록 태그(건강/앱/뇌/재정) 위의 파생 대시보드. 새 스키마 없음. `__DEV__` 는 M3 리메이크 변형을 끼워 넣을 뿐이고 라우트 자체를 막지 않는다 |
+> | `/trinity` | ~~없음 — 일반 라우트다~~ **2026-10-05: 리다이렉트 전용** | ~~기록 태그(건강/앱/뇌/재정) 위의 파생 대시보드~~ 아무것도 그리지 않고 `/core-brain` 으로 넘긴다. TrinityLegacy 와 개발 빌드의 M3 리메이크가 둘 다 E:/Legacy/2ndB 로 나갔다(Simon 결정 Q-261004-33 B) |
 >
 > **legacy 인 것은 *이름*이지 화면이 아니다** — 바로 위 `/core-brain` 항목과 같은 구분이다.
-> "Brain Trinity" 라는 **명명**은 legacy 로 남기되, `/trinity` **화면은 살아 있다.**
-> `src/lib/dev/screen-index.ts` 도 그렇게 잡고 있다(`/trinity` 는 `dev` 플래그 없음,
+> "Brain Trinity" 라는 **명명**은 legacy 로 남기되, ~~`/trinity` **화면은 살아 있다.**~~
+> **⚠ 2026-10-05 정정 — Simon 결정 Q-261004-33 B 가 이 문장과 08-18 D1 "감추기≠지우기"를
+> `/trinity` 에 한해 대체한다.** 그 라우트는 이제 화면이 아니라 `/core-brain` 리다이렉트다.
+> `src/lib/dev/screen-index.ts` 도 그렇게 잡고 있다(`/trinity` 는 은퇴 리다이렉트,
 > `/graph` 만 `dev: true`). `src/app/index.tsx:235` 주석이 이미 "`/graph` … is a DEV-ONLY
 > mock design" 이라고 **코드에서 정정**하고 있었는데 이 파일이 안 따라왔다.
 >
-> **인용 금지**: "`/graph` 는 legacy 스킨이니 손대지 않는다" · "`/trinity` 는 롤백 전용이다".
+> **인용 금지**: "`/graph` 는 legacy 스킨이니 손대지 않는다" · "`/trinity` 는 롤백 전용이다" ·
+> "`/trinity` 화면은 살아 있다"(2026-10-05 부터 사실이 아니다).
 
 ## The 12 hard constraints
 
@@ -703,7 +707,7 @@ The single source of truth for both runtime classification and CI scan is `src/l
 > 도형 자유 → **정수 `rect`** · 깊이 그림자/블러 → **4방향 베벨 + z-index**.
 >
 > ⚠ **이름 세 개를 갈라 부른다 (V5). "픽셀" 단독 사용 금지:**
-> **cosmic-pixel** = 폐기된 원래 스킨 (`EXPO_PUBLIC_UI=legacy` 롤백으로만 생존) ·
+> **cosmic-pixel** = 폐기된 원래 스킨 (git 이력 · E:/Legacy/2ndB 에만 있다. 롤백 레버 `EXPO_PUBLIC_UI` 는 2026-10-05 제거 · Q-261004-11) ·
 > **M3-deepspace** = 지금 배포돼 있는 것, 이주의 **출발점** ·
 > **PIXEL-CLAY v4** = 이주의 **목적지**.
 > cosmic-pixel 과 PIXEL-CLAY v4 는 둘 다 픽셀아트지만 **같은 물건이 아니다.**

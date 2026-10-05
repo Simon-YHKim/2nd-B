@@ -26,8 +26,8 @@ const push = jest.fn();
 function status(patch: Partial<ServiceConsentStatus> = {}): ServiceConsentStatus {
   return {
     ownerId: "owner-a", ownerEpoch: account.currentAccountEpoch(), mode: "collect",
-    contract_revision: "service-v1", consent_version: "2026-09-07",
-    policy_version: "2026-09-29", terms_version: "2026-08-16",
+    contract_revision: "service-v4", consent_version: "2026-10-06",
+    policy_version: "2026-10-06", terms_version: "2026-10-05",
     state: "uncovered", change_token: "a".repeat(64), can_grant: true, ...patch,
   };
 }

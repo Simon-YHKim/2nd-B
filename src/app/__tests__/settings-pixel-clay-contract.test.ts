@@ -51,25 +51,23 @@ describe("PIXEL-CLAY settings screen contract", () => {
     expect(source.match(/<M3ToggleRow\b/g)).toHaveLength(2);
   });
 
-  test("keeps the legacy rollback navigation explicitly secondary", () => {
-    const legacyBranch = source.slice(
-      source.indexOf("legacy retains its original two button clusters"),
-      source.indexOf("<DisclosureSection", source.indexOf("legacy retains its original two button clusters")),
-    );
-    expect(legacyBranch.match(/<Button\b/g)).toHaveLength(9);
-    expect(legacyBranch.match(/variant="secondary"/g)).toHaveLength(9);
-  });
+  // "keeps the legacy rollback navigation explicitly secondary" 는 2026-10-05 에 은퇴했다.
+  // 그 레거시 버튼 묶음(아홉 개)은 롤백 레버와 함께 빠졌다(Simon 결정 Q-261004-11 C). 배송
+  // 목적지 전부는 위 "keeps every production destination" 이 계속 본다.
 
-  test("keeps legacy typography and spacing isolated from PIXEL-CLAY overrides", () => {
+  test("applies the PIXEL-CLAY overrides over the base type and spacing", () => {
+    // 2026-10-05: 전에는 덮어쓰기가 스킨에 따라 갈렸다(`pixel ? … : null` ·
+    // `isDeepSpaceUI() ? m3Styles.pixelHeadline : null`). 레버가 없어져 덮어쓰기는 언제나
+    // 붙고, 기본 스타일은 그 아래 층으로 남는다.
     expect(source).toContain('headline: { ...koType(24, 32, 0, "600")');
     expect(source).toContain('sectionLabel: { ...koType(14, 20, 0.1, "500")');
     expect(source).toContain('divider: { height: 1, backgroundColor: m3.color.outlineVariant');
     expect(source).toContain('row: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s3');
     expect(source).toContain('pixelRow: { minHeight: 56');
-    expect(source).toContain('pixel ? m3Styles.pixelRow : null');
-    expect(source).toContain('isDeepSpaceUI() ? m3Styles.pixelHeadline : null');
-    expect(source).toContain('styles.pixelDisclosureHeaderPressed');
-    expect(source).toContain('styles.disclosureHeaderPressed');
+    expect(source).toContain("[m3Styles.row, m3Styles.pixelRow");
+    expect(source).toContain("[m3Styles.headline, m3Styles.pixelHeadline]");
+    expect(source).toContain("styles.pixelDisclosureHeaderPressed");
+    expect(source).not.toMatch(/\bpixel \? m3Styles\./);
   });
 
   test("language and data deletion disclosures use the same raised icon-row pattern as settings links", () => {

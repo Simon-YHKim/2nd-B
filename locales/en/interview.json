@@ -30,6 +30,7 @@
     "thinking": "Preparing the next question…",
     "enough": "Stop here",
     "closing": "Would you like to save what you have shared so far?",
+    "dayLimit": "This conversation stops here. The daily usage limit has been reached. Save what you have shared so far and pick it up again later.",
     "turnLabel": "Turn {{n}}",
     "loopNote": "Let me change direction for a moment.",
     "failed": "Could not fetch the next question. Please try again.",

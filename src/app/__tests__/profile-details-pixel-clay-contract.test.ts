@@ -64,7 +64,7 @@ describe("/profile-details PIXEL-CLAY contract", () => {
 
   test("keeps the form above the Android keyboard and gives Korean text a bottom-safe line box", () => {
     expect(source).toContain("const kbHeight = useKeyboard()");
-    expect(source).toContain("<KeyboardAvoidingView");
+    expect(source).toContain("<KeyboardAvoidingArea");
     expect(source).toContain('Platform.OS === "android"');
     expect(source).toContain("kbHeight + deepSpaceSpacing.lg");
     expect(source).toContain("lineHeight: m3.type.bodyLarge.line");

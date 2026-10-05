@@ -41,15 +41,16 @@ describe("visible brand copy", () => {
 
   // 2026-09-27: the app is called PolaScope (Simon, DECISIONS 26.09.27). App
   // surfaces carry the new name and none of the old app-name family. The
-  // consent copy is the exception until the terms/consent amendment ships: it is
-  // tied to CONSENT_VERSION and the server tuple, so it still says 2nd-Brain and
-  // only keeps the older rule (no informal 2nd-B / 2ndB).
-  test("consent copy keeps 2nd-Brain until the consent amendment, never 2nd-B or 2ndB", () => {
+  // The 10-05 notice names PolaScope. Its new consent and terms versions use
+  // email-v9 with the provisional 2026-10-06 privacy policy (P1·P2).
+  test("10-05 consent copy names PolaScope without changing the character tag", () => {
     const root = path.resolve(__dirname, "../../..");
     for (const file of ["locales/en/consent.json", "locales/ko/consent.json"]) {
       const source = readFileSync(path.join(root, file), "utf8");
-      expect(source).not.toMatch(/2nd-B(?!rain)|2ndB/);
+      expect(source).not.toMatch(/2nd-Brain|2nd-B|2ndB/);
     }
+    expect(readFileSync(path.join(root, "locales/en/consent.json"), "utf8")).toContain("PolaScope");
+    expect(readFileSync(path.join(root, "locales/ko/consent.json"), "utf8")).toContain("폴라스코프");
   });
 
   test("app surfaces use PolaScope instead of 2nd-Brain, 2nd-B or 2ndB", () => {
@@ -57,11 +58,14 @@ describe("visible brand copy", () => {
     const files = [
       "locales/en/import.json",
       "locales/ko/import.json",
-      "locales/en/permissions.json",
-      "locales/ko/permissions.json",
+      // (locales/*/permissions.json 은 2026-10-05 에 나갔다 - 그 번들을 쓰던 화면은 레거시
+      //  보관본뿐이었고, 롤백 레버 제거와 함께 E:/Legacy/2ndB 로 갔다. Q-261004-11 C.)
       "locales/en/support.json",
       "locales/ko/support.json",
-      "src/app/manual.tsx",
+      // /manual 라우트는 래퍼가 됐다. 사용자가 읽는 안내서 글은 이 둘에 있다.
+      "src/screens/deepspace/dds-manual-content.ts",
+      "locales/en/manual.json",
+      "locales/ko/manual.json",
       "src/components/premium/surfaces.tsx",
       // Added after the rename review: these carried the old name past the
       // first sweep (Korean particle glued to 2nd-B, the canon onboarding tag
@@ -82,7 +86,7 @@ describe("visible brand copy", () => {
     expect(commonEn).toContain('"name": "PolaScope"');
   });
 
-  test("Korean locale copy uses 세컨비 for the AI companion", () => {
+  test("Korean lens copy says 세컨비 while preserving the 2nd-B persona name and tag", () => {
     const root = path.resolve(__dirname, "../../..");
     const localeDir = path.join(root, "locales/ko");
 
@@ -90,13 +94,17 @@ describe("visible brand copy", () => {
       const source = readFileSync(path.join(localeDir, file), "utf8");
       expect(source).not.toMatch(/\bSecondB\b/);
     }
+    const secondb = JSON.parse(readFileSync(path.join(localeDir, "secondb.json"), "utf8"));
+    expect(secondb.rev2.secondb.lensName).toBe("세컨비");
+    expect(secondb.rev2.secondb.name).toBe("2nd-B");
+    expect(secondb.rev2.secondb.tag).toBe("2nd-B");
 
     const appFiles = [
       "src/app/core-brain.tsx",
       "src/app/secondb.tsx",
       "src/app/settings.tsx",
       "src/app/wiki.tsx",
-      "src/components/premium/tab-bar.tsx",
+      // (premium/tab-bar.tsx 는 2026-10-05 에 파일째 나갔다 - 롤백 레버와 함께.)
       "src/components/ui/BackArrow.tsx",
     ];
 
@@ -106,12 +114,14 @@ describe("visible brand copy", () => {
     }
   });
 
-  test("floating back arrow labels the core-brain route as North Star", () => {
+  // "floating back arrow labels the core-brain route as North Star" 는 2026-10-05 에
+  // 은퇴했다. 돌아가기 화살표의 제목 칩(ROUTE_LABELS)은 레거시 셸에서만 그려졌고 롤백
+  // 레버와 함께 빠졌다(Simon 결정 Q-261004-11 C) - 배송 화살표는 제목 없이 아이콘만
+  // 그린다. 옛 이름(Soul Core)이 화살표에 돌아오지 않는지만 남겨 둔다.
+  test("the back arrow does not bring back the old Soul Core name", () => {
     const root = path.resolve(__dirname, "../../..");
     const backArrow = readFileSync(path.join(root, "src/components/ui/BackArrow.tsx"), "utf8");
-
-    expect(backArrow).toContain('"/core-brain": { en: "North Star", ko: "북극성" }');
-    expect(backArrow).not.toContain('"/core-brain": { en: "Soul Core"');
-    expect(backArrow).not.toContain('ko: "소울 코어"');
+    expect(backArrow).not.toContain("Soul Core");
+    expect(backArrow).not.toContain("소울 코어");
   });
 });

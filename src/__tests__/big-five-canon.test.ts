@@ -331,9 +331,12 @@ describe("exact BFI-44 and createRecord contract", () => {
 });
 
 describe("big-five PIXEL-CLAY route discipline", () => {
-  test("deep-space routes directly to the isolated DDS renderer and has no dead deep renderer", () => {
+  test("the route renders only the isolated DDS renderer and has no dead deep renderer", () => {
     expect(APP).toContain('import { DeepSpaceBigFiveScreen } from "@/screens/deepspace/dds-big-five-screen";');
-    expect(APP).toMatch(/if \(isDeepSpaceUI\(\)\) return <DeepSpaceBigFiveScreen \/>/);
+    // 2026-10-05: 스킨 분기(`if (isDeepSpaceUI()) return …`) 뒤에 레거시 설문이 있었다.
+    // 롤백 레버 제거(Simon 결정 Q-261004-11 C)로 라우트는 래퍼가 됐다.
+    expect(APP).toMatch(/export default function BigFive\(\) \{\s*return <DeepSpaceBigFiveScreen \/>;\s*\}/);
+    expect(APP).not.toContain("BigFiveLegacy");
     expect(APP).not.toContain("function BigFiveDeepSpace");
     expect(SCREEN.match(/loadLatestBfi\(getSupabaseClient\(\), ownerId\)/g)).toHaveLength(1);
   });
@@ -354,22 +357,19 @@ describe("big-five PIXEL-CLAY route discipline", () => {
     );
   });
 
-  test("legacy and DDS draft state remount by auth owner and read the parent active-owner ref", () => {
-    const legacyWrapper = APP.match(/function BigFiveSurvey\([\s\S]*?(?=\nfunction BigFiveSurveyOwner)/)?.[0];
-    const legacyOwner = APP.match(/function BigFiveSurveyOwner\([\s\S]*?(?=\nconst styles)/)?.[0];
-    expect(legacyWrapper).toMatch(/<BigFiveSurveyOwner\s+key=\{userId\}/);
-    expect(legacyWrapper).not.toContain("useState<BfiResponses>");
-    expect(legacyOwner).toContain("useState<BfiResponses>({})");
-    expect(legacyOwner).toContain("activeOwnerIdRef.current");
+  test("DDS draft state remounts by auth owner and reads the parent active-owner ref", () => {
+    // 2026-10-05: 레거시 설문(BigFiveSurvey · BigFiveSurveyOwner)의 같은 단언 다섯은 그
+    // 설문이 롤백 레버와 함께 빠지며(Q-261004-11 C) 은퇴했다. 배송 설문의 단언은 그대로다.
     expect(SCREEN).toMatch(/<PixelBigFiveSurvey\s+key=\{userId\}[\s\S]*?activeOwnerIdRef=\{activeOwnerIdRef\}/);
     expect(SCREEN).toContain("getActiveOwnerId: () => (mountedRef.current ? activeOwnerIdRef.current : null)");
     expect(SCREEN).toContain("setSurveyOwnerId(null)");
   });
 
-  test("both submit handlers use the shared controller and publish success only from its saved outcome", () => {
-    expect(APP.match(/saveBfiForOwner\(/g)).toHaveLength(1);
+  test("the submit handler uses the shared controller and publishes success only from its saved outcome", () => {
+    // 2026-10-05: 제출 핸들러가 둘(레거시 · DDS)이던 때의 레거시 쪽 단언 둘은 은퇴했다.
+    // 대신 라우트가 저장을 직접 부르지 않는다는 것을 본다 - 저장 경로는 배송 화면 하나다.
+    expect(APP).not.toContain("saveBfiForOwner(");
     expect(SCREEN.match(/saveBfiForOwner\(/g)).toHaveLength(1);
-    expect(APP).toMatch(/const outcome = await saveBfiForOwner\([\s\S]*?if \(outcome === "saved"\)[\s\S]*?setSaved\(true\)/);
     expect(SCREEN).toMatch(/const outcome = await saveBfiForOwner\([\s\S]*?if \(outcome === "saved"\)[\s\S]*?setPhase\("saved"\)/);
     const controller = HELPER.match(/export async function saveBfiForOwner\([\s\S]*?(?=\nexport type BfiOwnerCompletionOutcome)/)?.[0];
     expect(controller).toBeDefined();
@@ -402,10 +402,8 @@ describe("big-five PIXEL-CLAY route discipline", () => {
 
   test("raw responses, IDs and errors never enter logs or snapshots", () => {
     const logs = `${APP}\n${SCREEN}`.match(/console\.(?:warn|error|log)\([^\n]+/g) ?? [];
-    expect(logs).toEqual([
-      'console.warn("[big-five] save failed");',
-      'console.warn("[big-five] save failed");',
-    ]);
+    // 2026-10-05: 2 -> 1. 두 번째 줄은 레거시 설문의 같은 로그였다(롤백 레버와 함께 빠짐).
+    expect(logs).toEqual(['console.warn("[big-five] save failed");']);
     expect(logs.join("\n")).not.toMatch(/response|userId|ownerId|recordId|\.message|Error/);
     expect(`${APP}\n${SCREEN}`).not.toMatch(/toMatchSnapshot|toThrowErrorMatchingSnapshot|JSON\.stringify\(responses\).*console/);
   });
@@ -424,10 +422,10 @@ describe("big-five PIXEL-CLAY route discipline", () => {
     expect(SCREEN).not.toMatch(/DUMMY|fixture|heuristic|sample trait/i);
   });
 
-  test("legacy JSX and shared quant defaults remain byte-stable", () => {
-    const legacy = APP.match(/function BigFiveLegacy\(\)[\s\S]*?(?=\n\nexport default function)/)?.[0];
-    expect(legacy).toBeDefined();
-    expect(normalizedHash(legacy!)).toBe("857985b204144f7c4fc7fc7f52af128bed4ab6da0becc018f8f1cf1357e115e9");
+  test("shared quant defaults remain byte-stable", () => {
+    // 2026-10-05: BigFiveLegacy 바이트 핀(857985b2…)은 은퇴했다. 그 레거시 렌더러가 롤백
+    // 레버와 함께 E:/Legacy/2ndB 로 나갔다(Simon 결정 Q-261004-11 C, MANIFEST batch
+    // qa261004-lever). 공용 quant 기본값 핀은 그대로다.
     // 2026-10-04 (QA 261004 S-02/S-03): the three quant digests below were re-pinned
     // because one unused import name left each file (`radii` from QuantIntroModal and
     // QuantPager, `semantic` from QuantSaveCelebration) so `npm run lint` can refuse
@@ -439,7 +437,11 @@ describe("big-five PIXEL-CLAY route discipline", () => {
     // 형태는 React Native Web 이 읽지 않아 진행바가 웹에서 값 없이 announce
     // 됐다. 그래서 해시를 의도적으로 갱신한다.
     expect(normalizedHash(read("components/quant/QuantPager.tsx"))).toBe("9aacc8d5cd23b24fc11ee8aed4a267b8a02f823eac83af7b3c80e860e3c7ed37");
-    expect(normalizedHash(read("components/quant/QuantSaveCelebration.tsx"))).toBe("006c0c3956d186be2bfbc7c89f4f6e08e9c7641fa1b1e99b6d60a0248ca43789");
+    // 2026-10-05 (Simon 결정 Q-261004-15 A): QuantSaveCelebration 재고정. 옛 값 006c0c39 는
+    // 바로 앞 본문이다. 바뀐 것은 저장 순간의 옛 캐릭터 '모모' 몸 그림을 뺀 것뿐이다 -
+    // MOMENT 가 { companion, state, cue } 에서 { cue } 로 줄었고 머리 주석 두 곳이 그에
+    // 맞춰 고쳐졌다. 모달 · 문구 · 타이머 · 표정은 그대로다.
+    expect(normalizedHash(read("components/quant/QuantSaveCelebration.tsx"))).toBe("8ca3205cc9c97bb53ec19939131fe4cc0f3fdf897b5e4c46cfbacbbfb30c53de");
   });
 
   test("the exact pixel ratchet covers the isolated renderer", () => {

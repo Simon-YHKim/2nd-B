@@ -1,12 +1,7 @@
 {
-  "ads": {
-    "label": "Bersponsor",
-    "removeUpsell": "Berlangganan untuk menghapus iklan."
-  },
   "app": {
     "name": "PolaScope",
-    "tagline": "Otak kedua yang dibangun dari apa yang kamu tulis dan simpan.",
-    "renameNote": "PolaScope adalah nama baru 2nd-Brain. Sampai Ketentuan berubah pada 5 Oktober 2026, 2nd-Brain dalam teks persetujuan dan Ketentuan berarti PolaScope."
+    "tagline": "Otak kedua yang dibangun dari apa yang kamu tulis dan simpan."
   },
   "actions": {
     "continue": "Lanjutkan",
@@ -37,12 +32,6 @@
   },
   "states": {
     "loading": "Memuat…"
-  },
-  "progression": {
-    "maxLevelTrailing": "{{xp}} XP · level maksimum",
-    "nextLevelTrailing": "{{xp}} XP menuju level berikutnya",
-    "progressLabel": "Level {{level}}, progres XP {{pct}}%",
-    "maxLevelHint": "Sudah di level maksimum."
   },
   "journal": {
     "privacyFootnote": "Entri jurnalmu dienkripsi dan tidak pernah melatih model apa pun.",

@@ -169,12 +169,12 @@ describe("deep-space records source detail routing", () => {
     expect(DETAIL_SRC).not.toMatch(/style=\{\([^)]*\)\s*=>/);
   });
 
-  test("legacy route and neighboring records/wiki renderers remain byte-stable", () => {
-    const legacy = sliceBetween(
-      ROUTE_SRC,
-      "function RecordDetailLegacy()",
-      "\nexport default function RecordDetail()",
-    );
+  test("neighboring records/wiki renderers remain byte-stable", () => {
+    // 2026-10-05: 여기 있던 RecordDetailLegacy 바이트 핀(bb2b2256…)을 걷었다. 롤백 레버
+    // 제거(Simon 결정 Q-261004-11 C)로 그 반쪽은 라우트에서 빠져 되살리기 원본
+    // legacy/screens/record-detail.tsx 가 됐고, 그 바이트는 legacy-archive-integrity.test.ts
+    // 의 digest 가 지킨다. 아래 이웃 렌더러 두 핀은 그대로다.
+    expect(ROUTE_SRC).not.toContain("RecordDetailLegacy");
     const records = sliceBetween(
       RECORDS_SRC,
       "export function DeepSpaceRecordsScreen()",
@@ -193,7 +193,6 @@ describe("deep-space records source detail routing", () => {
     // The line computing its area and the comment above it are the only changes in this
     // slice (8,001 -> 8,049 chars). Verified before re-pinning: the old digest recomputes
     // from the parent commit, so only the intended lines moved.
-    expect(sha256(legacy)).toBe("bb2b22568ffc222d8da8059bd6f13c68a1f481cb58d1990bb3b1a212112b3ee5");
     expect(sha256(records)).toBe(
       // Re-pinned in the integration merge. This PR computed the digest against a
       // records screen that predates #1521 (bounded graph rendering, its own

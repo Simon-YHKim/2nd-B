@@ -63,9 +63,11 @@ const sha256 = (value: string): string =>
 const screen = read("src/screens/deepspace/dds-sign-up-screen.tsx");
 const hook = read("src/lib/auth/useSignUpForm.ts");
 const route = read("src/app/(auth)/sign-up.tsx");
-// 레거시 렌더러는 2026-09-08 에 아카이브로 나갔다. 아래 바이트 핀은 지우지 않고
-// 대상만 옮긴다 — 같은 마커·같은 해시·다른 파일이면 옮기면서 안 고쳤다는 증거다.
-const legacyArchive = read("legacy/screens/sign-up.tsx");
+// 레거시 렌더러는 2026-09-08 에 아카이브(legacy/screens/sign-up.tsx)로 나갔고, 그
+// 보관본은 2026-10-05 롤백 레버 제거와 함께 E:/Legacy/2ndB 로 나갔다(Simon 결정
+// Q-261004-11 C, 같은 바이트). 검사는 보관본을 읽지 않으므로(legacy-archive-integrity.test.ts)
+// 그 바이트 핀 둘(630043be… · 5df5b8ca…)도 함께 은퇴했다 - 이제 바이트를 지키는 것은
+// E:/Legacy MANIFEST 의 sha256 기록이다.
 
 describe("sign-up action ownership", () => {
   test("one synchronous lock blocks same-frame and cross-action races", () => {
@@ -132,10 +134,9 @@ describe("PIXEL-CLAY sign-up renderer", () => {
       'import { DeepSpaceSignUpDesignScreen } from "@/screens/deepspace/dds-sign-up-screen";',
     );
     expect(route).toContain("return <DeepSpaceSignUpDesignScreen />;");
-    // 폴백은 사라졌다 — 레거시 렌더러가 legacy/screens/sign-up.tsx 로 나갔다.
+    // 폴백은 사라졌다 — 레거시 렌더러는 저장소 밖(E:/Legacy/2ndB)에 있다.
     expect(route).not.toContain("SignUpLegacy");
-    expect(route).not.toContain("isDeepSpaceUI");
-    expect(legacyArchive).toContain("function SignUpLegacy()");
+    expect(route).not.toContain("isDeepSpace" + "UI");
   });
 
   test("uses the gate shell and only square Pixel interaction primitives", () => {
@@ -272,35 +273,25 @@ describe("sign-up authority and preservation boundaries", () => {
   // 추가해 그 digest 만 재고정했다. 나머지 네 경계는 그대로다.
   // 2026-09-30: dds-auth-screens digest 만 재고정했다. Text 를 react-native 대신
   // @/components/ui/PlainText 에서 가져오는 import 두 줄뿐이다(앱 전체 한국어 줄바꿈).
-  // 2026-10-04: dds-auth-screens digest 만 재고정했다(QA 261004 게이트 NS-02 · NS-04).
-  // go-home import 한 줄(import 블록의 빈 줄 자리)과 reset-password 화면 안의 네 곳뿐이다:
-  // 재설정 잠금을 useGoHomeStop 에 올린 한 줄, 홈 출구 셋을 goHome / replaceOrGoHome
-  // 으로. 가입 렌더러 · 공용 폼 경계는 그대로다.
-  // 2026-10-05: dds-auth-screens digest 만 다시 재고정했다(PR #2044 8회차). 홈 출구 셋
-  // (하드웨어 뒤로 · 나가기 링크 · 완료 버튼)은 사람이 누르는 동작이라 PR 이전의
-  // router.replace 로 되돌렸다. main 과 남은 차이는 go-home import 한 줄(빈 줄 자리)과
-  // useGoHomeStop 한 줄뿐이다(값 60c4074d 는 7회차 본문).
-  test("preserves legacy renderer and shared form boundaries while pinning the auth renderer", () => {
-    // 대상만 아카이브로 옮겼다. **digest 는 한 글자도 안 바꿨다** — 같은 마커,
-    // 같은 해시, 다른 파일이면 옮기면서 고치지 않았다는 증거가 된다.
-    const legacy = legacyArchive.slice(
-      legacyArchive.indexOf("function SignUpLegacy()"),
-      legacyArchive.indexOf("function ChecklistItem"),
-    );
-    const styles = legacyArchive.slice(
-      legacyArchive.indexOf("const styles = StyleSheet.create"),
-      legacyArchive.indexOf("export default function SignUp()"),
-    );
-    expect(sha256(legacy)).toBe("630043be84f94b1b90bfa3a932c98cd4f3886f9e92a44a35fb5487298f782904");
-    expect(sha256(styles)).toBe("5df5b8ca23806eb75662a694220d7b48f31351aacfb8d8bf476d66b98a83508e");
+  // 2026-10-05: dds-auth-screens digest 를 재고정했다. 그 파일의 가입 화면 그림자 사본
+  // (라우트가 import 하지 않던 DeepSpaceSignUpDesignScreen 과 그 동의 블록)이 롤백 레버
+  // 제거 PR 에서 나갔다(Q-261004-11 C). 남은 재설정 화면 구간은 e0b274d0 과 바이트
+  // 동일이다(sign-in-screen-contract.test.ts 의 tail 핀). 레거시 보관본 핀 둘은 위
+  // legacyArchive 주석대로 은퇴했다.
+  // 2026-10-05(키보드): dds-auth-screens digest 만 다시 재고정했다(옛 값 64e12090 = 바로 앞
+  // HEAD). AuthShell 의 RN KeyboardAvoidingView + `Platform.OS === "ios"` behavior 분기를
+  // 공용 KeyboardAvoidingArea(src/lib/ui/keyboard.tsx)로 바꾼 것(react-native import 1줄 수정 ·
+  // import 1줄 추가 · 여는/닫는 태그 · 주석 4줄)뿐이다. Android 에서 키보드가 가입 폼을 가리지 않게 하는 수정이고, 동의 ·
+  // 가입 경계와 재설정 화면 tail(sign-in-screen-contract.test.ts)은 그대로다.
+  // 2026-10-05(PR #2044 main 병합): dds-auth-screens digest 만 다시 재고정했다(옛 값
+  // 23480d40 = 위 main 판). main 판과 대조한 차이는 go-home import 한 줄(빈 줄 자리)과
+  // 재설정 화면의 재설정 잠금 등록 useGoHomeStop 한 줄뿐이다. 동의 · 가입 경계는 그대로다.
+  test("preserves shared form boundaries while pinning the auth renderer", () => {
     expect(sha256(read("src/screens/deepspace/dds-auth-screens.tsx"))).toBe(
-      "1731bf61a178cbc13f89cab2513633e28bbf27a7b69b8ede97858553e10779b3",
+      "713bb9c4843dfe0eaa31c70a5c291069bad9a4a987a53d4abed6fc437c440491",
     );
-    // 2026-09-28: ConsentNotice gained the "PolaScope, formerly 2nd-Brain" note
-    // (common:app.renameNote) until the 2026-10-05 Terms amendment, which removes
-    // it again. Nothing else in the file changed.
     expect(sha256(read("src/components/consent/ConsentNotice.tsx"))).toBe(
-      "14d8274524ec20abc8b9ad4c664ed6681e8c40524d9571b5955df2d8d5dec5b3",
+      "60a019c22ceec84ad550f06568763225b82839bc0e743f382aabea233e4ae170",
     );
     expect(sha256(read("src/components/auth/BirthDateField.tsx"))).toBe(
       "7f995e7a8031b7761aa44fdc1dc373ff6397b4071d80df22a112534c29cc0848",

@@ -12,10 +12,10 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  KeyboardAvoidingView,
   Platform,
   useWindowDimensions,
 } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
@@ -57,7 +57,6 @@ import { CLIPPER_TEMPLATE_LIST, type ClipperTemplate } from "@/lib/wiki/clipper-
 import { TemplateEditor } from "@/components/wiki/TemplateEditor";
 import { AddFormatFlow } from "@/components/wiki/AddFormatFlow";
 import { FormatSchemaView, type FormatSchemaInput } from "@/components/wiki/FormatSchemaView";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceFormatsScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 type Locale = "en" | "ko";
@@ -369,7 +368,7 @@ function FormatsLegacy() {
 
   return (
     <PremiumAppShell>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingArea style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 24) }]} keyboardShouldPersistTaps="handled">
           {editing ? (
             <TemplateEditor
@@ -396,9 +395,6 @@ function FormatsLegacy() {
                 eyebrow={tf("hero.eyebrow")}
                 title={tf("hero.title")}
                 subtitle={tf("hero.subtitle")}
-                island={VILLAGE_UI.knowledge.island}
-                worker={VILLAGE_UI.knowledge.worker}
-                accent={VILLAGE_UI.knowledge.accent}
                 speech={tf("hero.speech")}
               />
 
@@ -596,7 +592,7 @@ function FormatsLegacy() {
             </>
           )}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
 
       {/* Delete confirm — themed modal (RN Alert two-button dialogs don't render
           on the web export). The irreversibility lives in its own sentence. */}
@@ -795,6 +791,6 @@ export default function Formats() {
   // 의 export-account 옆인지 /data 인지)는 아직 열린 결정이고, 지금 지우면 그 결정을
   // 대신 내려버린다. ?view=manager 는 무동작 별칭으로 남아 저장된 링크가 계속 통한다.
   const { view } = useLocalSearchParams<{ view?: string }>();
-  if (view === "export" && isDeepSpaceUI()) return <DeepSpaceFormatsScreen />;
+  if (view === "export") return <DeepSpaceFormatsScreen />;
   return <FormatsLegacy />;
 }

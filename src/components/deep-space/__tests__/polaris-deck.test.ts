@@ -32,7 +32,10 @@ describe("북극성 persona deck (P3a)", () => {
     expect(screen).toContain('key: "portrait"');
     expect(screen).toContain('key: "evidence"');
     expect(screen).not.toMatch(/<TraitRadar/);
-    expect(screen).toContain("loadDomainLevels");
+    // 2026-10-05: 여기서 `loadDomainLevels` 를 단언했다. 그 로더는 레거시 꼬리의 도메인
+    // 밝기만 읽었고 꼬리와 함께 빠졌다(Simon 결정 Q-261004-11 C). 덱의 실데이터 밝기는
+    // 일곱 별 로더가 진다.
+    expect(screen).toContain("loadSevenLevels(");
     // The tool list used to be four hardcoded `route: "/…"` literals here, and
     // this test pinned that literal form. Both moved: the list is now built from
     // `src/lib/assess/registry.ts`, which fixed two things the hardcoding hid —
@@ -55,9 +58,12 @@ describe("북극성 persona deck (P3a)", () => {
     expect(screen).toContain('router.push("/ratifications")');
   });
 
+  // 2026-10-05: 덱 블록의 경계가 바뀌었다. 전에는 `if (isDeepSpaceUI())` 분기부터 레거시
+  // 꼬리의 `<SceneHero` 앞까지였다. 롤백 레버가 없어져(Simon 결정 Q-261004-11 C) 화면
+  // 함수 전체가 덱이다 - CoreBrainScreen 부터 다음 최상단 함수 앞까지.
   test("first page is one canonical synthesis message with one seven-to-one graphic", () => {
-    const start = screen.indexOf("if (isDeepSpaceUI())");
-    const end = screen.indexOf("<SceneHero", start);
+    const start = screen.indexOf("function CoreBrainScreen()");
+    const end = screen.indexOf("\nfunction evidenceLabel", start);
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     const deepSpaceBlock = screen.slice(start, end);
@@ -105,12 +111,12 @@ describe("북극성 persona deck (P3a)", () => {
     expect(emptyBlock).not.toContain('router.push("/attachment")');
   });
 
-  test("the deep-space branch does not reintroduce the Soul Core name", () => {
-    // The legacy premium-shell branch may keep 소울 코어; the deep-space deck
-    // block (from the isDeepSpaceUI() branch to the legacy return) must
-    // use 북극성 only.
-    const start = screen.indexOf("if (isDeepSpaceUI())");
-    const end = screen.indexOf("<SceneHero", start);
+  test("the screen does not reintroduce the Soul Core name", () => {
+    // Until 2026-10-05 the legacy premium-shell branch could keep 소울 코어 and only
+    // the deck block was checked. That branch left with the rollback lever, so the
+    // whole screen function is the deck and must use 북극성 only.
+    const start = screen.indexOf("function CoreBrainScreen()");
+    const end = screen.indexOf("\nfunction evidenceLabel", start);
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     const deepSpaceBlock = screen.slice(start, end);

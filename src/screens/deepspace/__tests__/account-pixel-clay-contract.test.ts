@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -15,10 +14,9 @@ import {
 
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const SCREEN = join(ROOT, "src", "screens", "deepspace", "dds-account-screen.tsx");
-// AccountLegacy 는 2026-09-08 에 아카이브로 나갔다. 바이트 핀은 **지우지 않고
-// 따라간다** — 같은 마커, 같은 해시, 다른 파일이면 그 핀이 "옮기면서 안 고쳤다"를
-// 증명한다. /ops 와 같은 처리다.
-const LEGACY = join(ROOT, "legacy", "screens", "account.tsx");
+// AccountLegacy 는 2026-09-08 에 아카이브(legacy/screens/account.tsx)로 나갔고, 그
+// 보관본은 2026-10-05 롤백 레버 제거와 함께 E:/Legacy/2ndB 로 나갔다(Simon 결정
+// Q-261004-11 C, 같은 바이트). 바이트 핀(4bf7c841…)은 아래 그 테스트 자리의 주석대로 은퇴했다.
 
 function read(path: string): string {
   return readFileSync(path, "utf8").replace(/\r\n/g, "\n");
@@ -84,38 +82,12 @@ describe("PIXEL-CLAY /account contract", () => {
     expect(source).toContain("accessibilityState={{ busy: exporting }}");
   });
 
-  // Digest re-pinned during the #1522 integration merge: the old value was the
-  // 5b6bbe71 fork-base body, and main has since landed #1554 (terminal,
-  // race-safe deletion), #1583 (sign-out history) and the deep-space route
-  // guards. The merged slice is byte-identical to main's, so this still proves
-  // the extraction touched nothing in the legacy path -- only the baseline moved.
-  //
-  // Re-pinned for the legacy export session fix, and THE PROPOSITION CHANGED
-  // WITH IT. This pin no longer says "the PIXEL-CLAY extraction left the
-  // rollback skin alone". It says: the extraction left it alone, AND exactly
-  // one recorded change has gone in since - the one below. Read it as the
-  // former and you will conclude the migration touched the shell, which it did
-  // not. Anyone re-pinning after this adds their line here, or the pin stops
-  // asserting anything a reader can check.
-  //
-  // The one change: the legacy export delivered user A's whole account bundle
-  // after the session had changed, had no owner check, and had no time bound,
-  // while the deletion path forty lines above already did all three. A rollback
-  // skin exists to be turned on; handing someone else's export to whoever is
-  // signed in is worse than a stale skin. onExportData sits inside the slice
-  // this pin covers, so fixing it and moving the pin are the same act.
-  test("leaves AccountLegacy and its styles byte-for-byte unchanged", () => {
-    // 대상만 아카이브로 바꿨다. **digest 는 한 글자도 안 바꿨다** — 그게 증거다:
-    // 같은 마커, 같은 해시, 다른 파일이면 옮기면서 고치지 않았다는 뜻이다.
-    const route = read(LEGACY);
-    const start = route.indexOf("function AccountLegacy()");
-    const end = route.indexOf("\nexport default function Account()");
-    expect(start).toBeGreaterThan(-1);
-    expect(end).toBeGreaterThan(start);
-    expect(createHash("sha256").update(route.slice(start, end)).digest("hex")).toBe(
-      "4bf7c841c65aa9ae3fc3a12333f7e1d7580905a6efb3d0fad0301f564f6ed038",
-    );
-  });
+  // "leaves AccountLegacy and its styles byte-for-byte unchanged" 는 2026-10-05 에
+  // 은퇴했다. 그 핀은 레거시 /account 렌더러(롤백 스킨)의 바이트를 지켰고, 그 기록의
+  // 마지막 줄은 "옛 내보내기가 세션이 바뀐 뒤 A 의 묶음을 넘기던 결함을 고쳤다"였다.
+  // 롤백 레버가 없어져(Simon 결정 Q-261004-11 C) 그 렌더러를 켤 길이 없고, 보관본은
+  // E:/Legacy/2ndB 로 나갔으며(sha256 기록), 검사는 보관본을 읽지 않는다
+  // (legacy-archive-integrity.test.ts). 배송 /account 의 내보내기 계약은 바로 아래가 진다.
 
   test("delivers the same complete export through web download and native share", () => {
     const source = read(SCREEN);

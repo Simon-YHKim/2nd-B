@@ -169,43 +169,45 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
 // 2026-09-30: prefix digest 만 재고정했다. Text 를 react-native 대신
 // @/components/ui/PlainText 에서 가져오는 import 두 줄뿐이다(앱 전체 한국어
 // 줄바꿈, plain-text-guard.test.ts). tail 은 그대로다.
-// 2026-10-04: prefix · tail 두 digest 를 재고정했다(QA 261004 게이트 NS-02 · NS-04).
-// prefix 는 go-home import 한 줄(빈 줄 자리)뿐이고, tail 은 reset-password 화면의
-// 재설정 잠금 등록 한 줄과 홈 출구 셋(goHome / replaceOrGoHome)뿐이다.
-// 2026-10-05: prefix · tail 두 digest 를 다시 재고정했다(PR #2044 8회차). 홈 출구 셋은
-// 사람이 누르는 동작이라 PR 이전의 router.replace 로 되돌렸고, import 는 useGoHomeStop
-// 하나만 남았다. main 과 남은 차이는 prefix 의 import 한 줄(빈 줄 자리)과 tail 의
-// 재설정 잠금 등록 한 줄뿐이다(값 112f807f · 171a1d37 은 7회차 본문).
-// 아래 "legacy sign-in renderer/styles" 검사의 digest 는 그대로다.
+// 2026-10-05: prefix 를 재고정하고 tail 의 표지를 바꿨다. 라우트가 그리지 않던 가입
+// 화면 그림자 사본(DeepSpaceSignUpDesignScreen + 그 동의 블록 · 공급자 줄 · 토스트)이
+// 롤백 레버 제거 PR(Simon 결정 Q-261004-11 C)에서 나가면서, prefix 는 머리 주석과
+// 그 사본만 쓰던 import 가 줄었고 tail 의 옛 표지 "// Deep-space consent block:" 은
+// 사본과 함께 사라졌다. 이제 tail 은 재설정 화면(function ResetAction 부터 끝까지)이고,
+// 그 바이트는 e0b274d0 의 같은 구간과 **동일**하다(재고정 전 대조) — 재설정 화면은
+// 이 PR 에서 한 바이트도 안 바뀌었다.
+// 2026-10-05(키보드): prefix 만 다시 재고정했다(옛 값 f37c03e2 = 바로 앞 HEAD). prefix 안의
+// AuthShell 이 RN KeyboardAvoidingView + `Platform.OS === "ios"` behavior 분기 대신 공용
+// KeyboardAvoidingArea(src/lib/ui/keyboard.tsx)를 쓰게 됐다(import 1줄 · 태그 · 주석).
+// tail(재설정 화면)은 b72fc5f6 그대로다(재고정 전 대조).
+// 아래 "legacy sign-in renderer" 핀은 은퇴했다(그 테스트 안 주석).
+// 2026-10-05(PR #2044 main 병합): prefix · tail 을 다시 재고정했다. 위 main 판(ad3d5aff ·
+// b72fc5f6)과 대조하면 prefix 는 go-home import 한 줄(빈 줄 자리)뿐이고, tail 은 재설정
+// 화면의 재설정 잠금 등록 useGoHomeStop 한 줄뿐이다(재고정 전 대조). 홈 출구 셋은 사람이
+// 누르는 동작이라 PR 이전의 router.replace 그대로다.
 describe("sign-in extraction boundaries", () => {
-  test("preserves the shared auth prefix and signup/consent/reset tail byte-for-byte", () => {
+  test("preserves the shared auth prefix and reset tail byte-for-byte", () => {
     const source = read("src/screens/deepspace/dds-auth-screens.tsx");
     const split = source.indexOf(
       'export { DeepSpaceSignInDesignScreen } from "./dds-sign-in-screen";',
     );
-    const tail = source.indexOf("// Deep-space consent block:");
+    const tail = source.indexOf("function ResetAction({");
 
     expect(split).toBeGreaterThan(0);
     expect(tail).toBeGreaterThan(split);
     expect(sha256(source.slice(0, split))).toBe(
-      "77c527d66f24032978901794cd937fe4548bfc6e0d8a9f129d0fd5236aa45f29",
+      "4c878269951c09c82f85ddc96907a7d878f28e4b3f464fa43cebfc4594a7a0ea",
     );
     expect(sha256(source.slice(tail))).toBe(
-      "0eac9cf42d925caa397f9a858697744f38b79f4aea5269dd80172ce02f60b97e",
+      "1a8d317cc0c9b17755a9e05dc0fe297ac83e5f601df71228206beb72e571b662",
     );
   });
 
-  test("preserves the legacy sign-in renderer/styles and shared DDS styles", () => {
-    // 2026-09-08: 레거시 렌더러가 legacy/screens/sign-in.tsx 로 나갔다. 핀은
-    // 지우지 않고 대상만 옮긴다 — **digest 가 그대로**라는 것이 "옮기면서 한 바이트도
-    // 안 고쳤다"의 증거다. 아카이브 = 출처 헤더 + 원본 그대로이므로, 원본 첫 줄부터
-    // 잘라내면 은퇴 전 파일과 바이트가 같다.
-    const archive = read("legacy/screens/sign-in.tsx");
-    const bodyAt = archive.indexOf("// Sign-in screen — Cosmic Pixel entry gate");
-    expect(bodyAt).toBeGreaterThan(0);
-    expect(sha256(archive.slice(bodyAt))).toBe(
-      "2cca972a8464dd1e7bca7dc6cbae00c89581786ac80e2eea87817f73a0b2e5da",
-    );
+  test("preserves the shared DDS styles", () => {
+    // 2026-10-05: 여기 있던 레거시 로그인 렌더러 digest(2cca972a…)를 걷었다. 그 보관본
+    // legacy/screens/sign-in.tsx 가 E:/Legacy/2ndB 로 나갔고(같은 바이트, MANIFEST batch
+    // qa261004-lever), 검사는 보관본을 읽지 않는다(legacy-archive-integrity.test.ts).
+    // 이제 바이트를 지키는 것은 E:/Legacy 의 sha256 기록이다.
     expect(sha256(read("src/screens/deepspace/dds-styles.ts"))).toBe(
       "f34f82ac9976c8f69eec5827501707a912514b17ed9ff4dc180ce6511edafbbe",
     );

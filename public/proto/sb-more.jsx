@@ -435,7 +435,7 @@ function ShareCardScreen({ t, go, env }) {
         border: '1px solid rgba(127,208,255,.18)' }} data-om-raster>
         {variant === 'insight' ? (
           <div style={{ position: 'absolute', inset: 0, padding: 30, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 11, letterSpacing: '.18em', color: '#7FD0FF' }}>2ND-BRAIN · 이번 주</div>
+            <div style={{ fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 11, letterSpacing: '.18em', color: '#7FD0FF' }}>PolaScope · 이번 주</div>
             <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
               <div style={{ fontSize: 27, fontWeight: 700, color: '#EAF2FF', lineHeight: 1.4, wordBreak: 'keep-all' }}>
                 나는 <span style={{ color: '#82D8F6' }}>먼저 다가가는</span> 사람.<br />이번 주, 관계 별이 가장 밝았어요.
@@ -468,7 +468,7 @@ function ShareCardScreen({ t, go, env }) {
             </div>
             <div style={{ textAlign: 'center', marginTop: 6 }}>
               <div style={{ fontSize: 19, fontWeight: 700, color: '#EAF2FF' }}>5개 별이 빛나는 중</div>
-              <div style={{ fontSize: 13, color: 'rgba(220,230,255,.65)', marginTop: 2 }}>2nd-Brain · 124개 별가루</div>
+              <div style={{ fontSize: 13, color: 'rgba(220,230,255,.65)', marginTop: 2 }}>PolaScope · 124개 별가루</div>
             </div>
             </div>
           </div>

@@ -3,21 +3,20 @@
 //     estimate, the pixel target cloned from the reference AttachmentScreen; and
 //   • the ECR SURVEY (AttachmentSurvey) — 12 items, two subscales, 4 styles —
 //     which is the sole writer of the ecr-tagged record the lens reads.
-// Canon (deep-space) shows the lens first and launches the survey from its
-// empty-state / retake CTA (mirrors BigFive). Legacy renders the survey directly
-// in the premium shell.
+// The route shows the lens first and launches the survey from its empty-state /
+// retake CTA (mirrors BigFive).
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
+import { PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { AttachmentLensM3, type AttachmentLensResult } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -295,7 +294,7 @@ function AttachmentSurvey({
       ) : null}
 
       {started ? (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingArea style={{ flex: 1 }}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
               {t("survey.counter")}
@@ -354,7 +353,7 @@ function AttachmentSurvey({
               );
             }}
           />
-        </KeyboardAvoidingView>
+        </KeyboardAvoidingArea>
       ) : null}
 
       {saved ? (
@@ -552,16 +551,6 @@ function AttachmentDeepSpaceSession({ userId }: { userId: string }) {
   );
 }
 
-// Legacy rollback skin: the survey directly, in the premium shell.
-function AttachmentLegacy() {
-  return (
-    <PremiumAppShell>
-      <AttachmentSurvey onComplete={() => router.replace("/persona")} onCancel={() => router.back()} />
-    </PremiumAppShell>
-  );
-}
-
 export default function Attachment() {
-  if (isDeepSpaceUI()) return <AttachmentDeepSpace />;
-  return <AttachmentLegacy />;
+  return <AttachmentDeepSpace />;
 }

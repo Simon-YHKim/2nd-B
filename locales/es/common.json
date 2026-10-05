@@ -1,12 +1,7 @@
 {
-  "ads": {
-    "label": "Patrocinado",
-    "removeUpsell": "¿Prefieres sin anuncios? Las suscripciones los eliminan."
-  },
   "app": {
     "name": "PolaScope",
-    "tagline": "Un segundo cerebro construido a partir de lo que escribes y guardas.",
-    "renameNote": "PolaScope es el nuevo nombre de 2nd-Brain. Hasta que cambien los Términos el 5 de octubre de 2026, 2nd-Brain en el texto de consentimiento y en los Términos se refiere a PolaScope."
+    "tagline": "Un segundo cerebro construido a partir de lo que escribes y guardas."
   },
   "actions": {
     "continue": "Continuar",
@@ -37,12 +32,6 @@
   },
   "states": {
     "loading": "Cargando…"
-  },
-  "progression": {
-    "maxLevelTrailing": "{{xp}} XP · nivel máximo",
-    "nextLevelTrailing": "{{xp}} XP para el siguiente nivel",
-    "progressLabel": "Nivel {{level}}, progreso de XP {{pct}}%",
-    "maxLevelHint": "Ya estás en el nivel máximo."
   },
   "journal": {
     "privacyFootnote": "Tus entradas se mantienen cifradas y nunca entrenan ningún modelo.",

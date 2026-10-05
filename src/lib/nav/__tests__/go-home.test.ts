@@ -36,7 +36,6 @@ import {
   noteResolvedOwner,
   shouldReleaseAccountTransition,
 } from "@/lib/auth/account-epoch";
-import { deadRendererSpans } from "@/lib/legal/dead-renderer-spans";
 import { shadowedScreens } from "@/lib/legal/shadow-screens";
 
 import {
@@ -451,10 +450,16 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
 
 let unrenderedSpans: { file: string; from: number; to: number }[] | null = null;
 
-/** 이 줄이 아무 빌드도 그리지 않는 반쪽(레거시 위임 스팬 · 그림자 사본) 안인가. */
+/**
+ * 이 줄이 아무 빌드도 그리지 않는 반쪽(그림자 사본) 안인가.
+ *
+ * 레거시 위임 스팬(dead-renderer-spans.ts)은 롤백 레버 제거(#2050, Simon 결정
+ * Q-261004-11 C)와 함께 모듈째 나갔다 - 그 레버를 타는 반쪽이 더는 없다. 그림자
+ * 사본 판정(shadow-screens.ts)은 남아 있지만 지금은 0 이고, 아래 시야 대조가 그 0 을
+ * 직접 본다.
+ */
 function unrenderedLine(): (file: string, line: number) => boolean {
   unrenderedSpans ??= [
-    ...deadRendererSpans(ROOT),
     ...shadowedScreens(ROOT).flatMap((s) => (s.span ? [{ file: s.shadow, ...s.span }] : [])),
   ];
   const spans = unrenderedSpans;
@@ -674,8 +679,9 @@ const CAN_GO_BACK_ELSE = "else:router.canGoBack()";
  * 두 명단으로 나눈다.
  * - KNOWN_HOME_NAVIGATIONS: 칸이 하나뿐일 때만 도는 자리. 뒤로 갈 곳이 없을 때만
  *   부르는 `canGoBack() ? back() : replace("/")` 꼴, 스택에 칸이 하나뿐인 것이
- *   구조로 정해진 자리(계정 전환 해소 · 웹 전용 외부 리디렉트 착지), 런타임에
- *   고르지 않는 레거시 반쪽.
+ *   구조로 정해진 자리(계정 전환 해소 · 웹 전용 외부 리디렉트 착지). 런타임에
+ *   고르지 않던 레거시 반쪽(ResetPasswordLegacy)은 롤백 레버 제거(#2050)로 파일에서
+ *   나가 행도 함께 뺐다.
  * - USER_HOME_NAVIGATIONS: 사람이 누르는 홈 동작(PR #2044 8회차, 2026-10-05).
  *   4~7회차에 이것들까지 goHome(POP_TO)으로 바꿨다가 저장 중인 화면 · 요청을
  *   기다리는 로그인 화면을 걷어내는 새 경로가 회차마다 나와서, PR 이전의
@@ -696,14 +702,6 @@ const KNOWN_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] =
     guard: "then:!cancelled",
     before: "",
     why: "네이버 OAuth 착지. 파일 머리가 밝히듯 웹 전용이고, 외부 리디렉트로 앱을 새로 띄운 자리라 칸이 하나다.",
-  },
-  {
-    file: "src/app/(auth)/reset-password.tsx",
-    kind: "replace",
-    owner: "ResetPasswordLegacy",
-    guard: "then:complete",
-    before: "",
-    why: "ResetPasswordLegacy 안. 기본 export 가 recoverySafetyPinsPixelClay=true 로 런타임에 고르지 않는다(판정기 밖의 꼴).",
   },
   {
     file: "src/app/_layout.tsx",
@@ -833,17 +831,9 @@ const USER_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] = 
     file: "src/app/settings.tsx",
     kind: "replace",
     owner: "Settings",
-    guard: "else:isDeepSpaceUI()",
+    guard: "",
     before: "resetCoachmarks(userId);",
-    why: "설정의 '안내 다시 보기'(사람이 누른다).",
-  },
-  {
-    file: "src/app/settings.tsx",
-    kind: "replace",
-    owner: "Settings",
-    guard: "then:isDeepSpaceUI()",
-    before: "resetCoachmarks(userId);",
-    why: "설정의 '안내 다시 보기'(사람이 누른다).",
+    why: "설정의 '안내 다시 보기'(사람이 누른다). 롤백 레버 제거(#2050)가 isDeepSpaceUI() 두 가지를 하나로 접었다.",
   },
   {
     file: "src/components/dashboard/DashboardPhone.tsx",
@@ -1021,13 +1011,17 @@ describe("배송 코드에서 홈으로 가는 길", () => {
     ]);
   });
 
-  it("시야 대조: 그림자 사본의 홈 리다이렉트는 날것의 스캔에 보이고, 안 그려지는 줄이라 빠진다", () => {
-    // 이 대조가 없으면 '0건'이 스캔이 파일을 못 읽어서인지 진짜 0인지 모른다.
-    const shadow = "src/screens/deepspace/dds-auth-screens.tsx";
-    const raw = homeNavigations(readFileSync(join(ROOT, shadow), "utf8"), shadow).filter((h) => h.kind === "Redirect");
-    expect(raw.length).toBeGreaterThan(0);
-    const hidden = unrenderedLine();
-    expect(raw.every((hit) => hidden(shadow, hit.line))).toBe(true);
+  it("시야 대조: 안 그려지는 반쪽은 0 이라 명단 검사에서 빠지는 줄이 없다", () => {
+    // 예전 대조는 dds-auth-screens.tsx 의 가입 화면 그림자 사본(DeepSpaceSignUpDesignScreen)
+    // 안의 <Redirect href="/"> 를 날것의 스캔이 보고, 안 그려지는 줄이라 빠지는지 봤다.
+    // 그 사본과 레거시 위임 스팬은 롤백 레버 제거(#2050, Simon 결정 Q-261004-11 C)로
+    // 저장소를 나갔고, src 어디에도 실제 홈 Redirect 가 남지 않았다. 그래서 대조를 바꾼다:
+    // 제외가 아무 줄도 가리지 않는다는 것을 직접 본다. 새 그림자 사본이 생기면 여기서
+    // 빨개지고, 그 사본의 홈 이동을 명단에서 뺄지 먼저 본다. Redirect 를 알아보는 것은
+    // 위 판정기 고정 입력(줄 4 · 10)이, 스캔이 실제 파일을 읽는 것은 아래 명단 검사(실제
+    // 파일의 replace · push 를 자리까지 맞춘다)가 보인다.
+    // unrenderedLine() 이 빼는 줄은 정확히 이 목록의 스팬이다.
+    expect(shadowedScreens(ROOT).filter((s) => s.span)).toEqual([]);
   });
 
   it("홈을 쌓을 수 있는 이동은 자리까지 고정한 두 명단 밖으로 늘지 않는다", () => {

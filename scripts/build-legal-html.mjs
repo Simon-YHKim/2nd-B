@@ -279,7 +279,7 @@ for (const page of PAGES) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>2nd-Brain ${escapeHtml(title)}</title>
+<title>PolaScope ${escapeHtml(title)}</title>
 <meta name="robots" content="index,follow">
 <style>${STYLE}</style>
 </head>

@@ -13,15 +13,14 @@
 
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
 
@@ -79,10 +78,7 @@ export function CaptureOcrSheet({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        style={styles.root}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <KeyboardAvoidingArea style={styles.root}>
         <Pressable
           style={styles.backdrop}
           onPress={onClose}
@@ -191,7 +187,7 @@ export function CaptureOcrSheet({
             </View>
           </PixelSurface>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
     </Modal>
   );
 }

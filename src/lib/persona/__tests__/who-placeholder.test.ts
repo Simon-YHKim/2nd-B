@@ -92,7 +92,14 @@ function installLocalStorageSpy(): {
 describe("{{who}} placeholder", () => {
   it("한국어에서 실제로 쓰이고 있다", () => {
     const used = localeValues("ko").filter((v) => v.includes("{{who}}"));
-    expect(used.length).toBeGreaterThanOrEqual(30);
+    // 30 -> 29 (2026-10-05): 그 하나는 locales/ko/trinity.json 의 값이었다. /trinity 가
+    // 리다이렉트 전용이 되며(Simon 결정 Q-261004-33 B) 그 번들이 다섯 로케일째 나갔다.
+    // 고친 것도 줄인 것도 아니고 쓰던 화면이 빠진 것이다. 이 하한은 0건 통과를 막는 자다.
+    // 29 -> 28 (2026-10-05): 그 하나는 locales/ko/secondb.json 의 personas.lulu.greeting
+    // ("궁금한 내용을 알려 주세요. {{who}}의 생활에 …")이었다. 옛 캐릭터 목소리 명부가
+    // 배송 대화에서 빠지며(Simon 결정 Q-261004-14 A) personas.* 블록이 다섯 로케일째
+    // E:/Legacy/2ndB 로 갔다. 같은 경우다 - 쓰던 문구가 화면과 함께 나갔다.
+    expect(used.length).toBeGreaterThanOrEqual(28);
   });
 
   it("한국어가 아닌 로케일에는 새지 않는다", () => {

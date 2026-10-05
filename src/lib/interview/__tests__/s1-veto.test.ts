@@ -77,7 +77,9 @@ describe("확인 전에는 가산하지 않고 모델 혼자 층을 올리지 �
     const incs = SCREEN.match(/incrementCoverage\(/g) ?? [];
     expect(incs).toHaveLength(1);
     expect(SCREEN).toContain("const nextCoverage = coverage;");
-    expect(SCREEN).toContain("!canCreditAnswer(text, pendingLayer, locale)");
+    // 로컬 관문은 `isLocalNonAnswer` 하나에 있고 send() 가 직전 질문의 층으로 부른다(F2049-02).
+    expect(SCREEN).toContain("layer != null && (isBlockedAnswer(text) || !canCreditAnswer(text, layer, locale))");
+    expect(SCREEN).toContain("const blocked = isLocalNonAnswer(text, pendingLayer);");
     // answeredLayer 로 칸을 올리는 코드가 있으면 비대칭이 깨진다.
     expect(SCREEN).not.toMatch(/incrementCoverage\([^)]*answeredLayer/);
   });

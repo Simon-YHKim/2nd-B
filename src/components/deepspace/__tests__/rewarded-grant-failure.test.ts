@@ -216,11 +216,13 @@ describe("대화 화면이 적립 실패를 분류해서 시트에 돌려준다"
     return { outcome: await handler(2), ...state };
   }
 
-  test("두 셸(deep-space·legacy) 모두 같은 핸들러 모양을 쓴다", () => {
-    expect(handlers()).toHaveLength(2);
+  // 2026-10-05: 셸이 둘(deep-space · legacy)이던 때는 핸들러도 둘이었다. legacy 셸이
+  // 롤백 레버와 함께 빠져(Simon 결정 Q-261004-11 C) 대화 화면의 핸들러는 하나다.
+  test("대화 화면의 보상 핸들러는 하나다", () => {
+    expect(handlers()).toHaveLength(1);
   });
 
-  for (const index of [0, 1]) {
+  for (const index of [0]) {
     test(`핸들러 ${index}: 적립되면 결과를 보고하지 않고 사용량만 다시 읽는다`, async () => {
       const state = await earn({ index });
       expect(state.grants).toBe(1);
