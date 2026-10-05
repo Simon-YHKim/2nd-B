@@ -362,7 +362,9 @@
     "sectionSize": "글자 크기",
     "small": "작게",
     "large": "크게",
-    "reduceMotion": "화면 움직임 줄이기"
+    "reduceMotion": "화면 움직임 줄이기",
+    "soundEffects": "효과음",
+    "soundEffectsNote": "망원경 · 별 사진 · 오프닝 소리입니다. 폰이 무음이나 진동이면 켜져 있어도 나지 않습니다."
   },
   "manual": {
     "title": "사용 안내서",

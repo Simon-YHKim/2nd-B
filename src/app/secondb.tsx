@@ -23,8 +23,8 @@ import {
   useAudioRecorder,
   RecordingPresets,
   requestRecordingPermissionsAsync,
-  setAudioModeAsync,
 } from "expo-audio";
+import { beginRecordingAudioMode, endRecordingAudioMode, restoreEffectsAfterRecording } from "@/lib/audio/audio-session";
 
 import { Text } from "@/components/ui/Text";
 import { ScreenModal } from "@/components/ui/ScreenModal";
@@ -283,7 +283,7 @@ const ChatComposer = memo(
     const voiceLocale = i18n.language === "ko" ? ("ko" as const) : ("en" as const);
     const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
     const recorderLifecycle = useMemo(
-      () => createRecorderLifecycle(audioRecorder),
+      () => createRecorderLifecycle(audioRecorder, { onIdle: restoreEffectsAfterRecording }),
       [audioRecorder],
     );
     const [voicePhase, setVoicePhase] = useState<"idle" | "recording" | "transcribing">("idle");
@@ -339,7 +339,7 @@ const ChatComposer = memo(
           setVoiceNotice(t("voice.permissionDenied"));
           return;
         }
-        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, interruptionMode: "mixWithOthers" });
+        await beginRecordingAudioMode();
         ownerGuard.assertCurrent();
         await audioRecorder.prepareToRecordAsync();
         prepared = true;
@@ -353,6 +353,8 @@ const ChatComposer = memo(
           recorderLifecycle.begin(userId);
           await recorderLifecycle.cancel();
         }
+        // A start that failed before any session began still left the recording mode on.
+        void endRecordingAudioMode();
         if (isAbortError(error) || ownerGuard.signal.aborted) return;
         try {
           ownerGuard.assertCurrent();
