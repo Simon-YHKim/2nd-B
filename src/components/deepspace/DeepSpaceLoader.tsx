@@ -40,6 +40,14 @@ export interface DeepSpaceLoaderProps {
   /** Analysis: "백그라운드에서 계속" handler. */
   onSendToBackground?: () => void;
   bgLabel?: string;
+  /**
+   * Dots only: draw the star without the caption. For waits that run before the
+   * pixel font is registered (app/_layout.tsx font gates, R2A-04): Android caches
+   * a text measurement under the family name, so a caption measured in the
+   * fallback face is reused at the fallback width once Galmuri draws it, and the
+   * last word is clipped in every language.
+   */
+  bare?: boolean;
 }
 
 type LoaderLocale = "en" | "ko" | "es" | "pt" | "id";
@@ -187,6 +195,7 @@ export function DeepSpaceLoader({
   etaSec = 30,
   onSendToBackground,
   bgLabel,
+  bare = false,
 }: DeepSpaceLoaderProps) {
   const { i18n } = useTranslation();
   // Match the server on the first paint, then swap to the real locale.
@@ -235,7 +244,7 @@ export function DeepSpaceLoader({
   return (
     <View style={styles.wrap}>
       <LoadingPolaris size={72} accessibilityLabel={cap} />
-      <Text variant="caption" style={styles.caption}>{cap}</Text>
+      {bare ? null : <Text variant="caption" style={styles.caption}>{cap}</Text>}
     </View>
   );
 }
