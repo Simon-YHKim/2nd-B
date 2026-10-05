@@ -26,10 +26,14 @@
 // 장면 전체의 답 개수가 아니라 층마다의 시도라는 것이다.
 //
 // ── 비용 ────────────────────────────────────────────────────────────────────
-// 모델을 부르는 답은 한 번에 한 번이다(그대로). 한 장면의 최대 호출 수는 층마다 세 번 x
-// 다섯 층 = 15 다(예전 8: 장면 답 8개 상한). 실패한 호출 · 위험 신호로 질문을 못 보인 호출도
-// 그 답을 "안 닿음"으로 정착시켜 같은 층의 시도로 센다(`settleUnjudged`). 짧은 답도 이제 모델로
-// 가므로 호출이 늘 수 있다.
+// 모델을 부르는 답은 한 번에 한 번이다(그대로). 한 장면에서 **판정을 받은** 호출은 층마다 세 번
+// x 다섯 층 = 15 가 최대다(예전 8: 장면 답 8개 상한). 위험 신호로 질문을 못 보인 호출도 그 답을
+// "안 닿음"으로 정착시켜 같은 층의 시도로 센다(`settleUnjudged`).
+// 실패한 호출(하루 한도 밖의 오류)은 시도로 세지 않는다 (게이트 W4-R2-01): 요청이 실패한 것은
+// 답이 부족한 것이 아니다. 그 답은 `errored` 로 남기고 같은 층에서 다시 보내게 한다
+// (`settleFailedCall`) -- 오류가 대화를 끝내지 않는다. 다시 보내는 것은 사용자가 누를 때만이라
+// 저절로 도는 호출은 없고, 모델까지 간 호출은 서버의 하루 몫이 센다.
+// 짧은 답도 이제 모델로 가므로 호출이 늘 수 있다.
 // 좌석(interview_probe) · effort 는 바꾸지 않았고, 하루 몫은 서버가 막는다(session-end.ts).
 
 import { canCreditAnswer, currentScene, layerTally } from "./continuity";
@@ -80,18 +84,18 @@ export function settleLatest(history: readonly InterviewTurn[], outcome: AnswerO
 }
 
 /**
- * 모델의 판정을 못 받은 답을 정리한다 (게이트 W4R1-01 · W4-R1-01).
+ * 위험 신호(red) 응답으로 질문을 못 보여 준 답을 정리한다 (게이트 W4R1-01 · W4-R1-01).
  *
- * 호출이 실패했거나(하루 한도 밖의 오류) 응답이 위험 신호(red)라 질문을 못 보여 준 때다.
  * 예전에는 그 답을 판정 전 상태로 두고 겨냥 층도 비웠다. 그러면 다음 답은 층 없이 나가
  * 층마다의 시도 셈(`layerTally`)에 안 잡혔고, 판정 전 답은 장면 셈에서 인정된 것처럼
- * 보였다 -- 실패를 되풀이하면 "장면당 호출 최대 15회"가 성립하지 않았다.
+ * 보였다 -- 되풀이하면 "장면당 판정 호출 최대 15회"가 성립하지 않았다.
  *
  * 이제 그 답은 **안 닿음**(`unlanded`)으로 정착한다: 칸은 오르지 않고 그 층의 시도 하나를
  * 쓴다. 그 층에 시도가 남았으면 같은 질문에 다시 답하게 하고(`retry` = 그 층), 남지 않았으면
  * `retry` = null -- 다음 층을 물을 질문이 없으므로 화면은 대화를 끝낸다(모델을 다시 부르지
  * 않는다). 겨냥한 층이 없던 답(`credited` = null)도 다시 물을 층이 없으니 끝낸다.
- * 그래서 성공이든 실패든 모든 호출이 어느 한 층의 시도 하나를 쓴다.
+ *
+ * 호출 **실패**(하루 한도 밖의 오류)에는 쓰지 않는다 -- `settleFailedCall` (게이트 W4-R2-01).
  */
 export function settleUnjudged(
   history: readonly InterviewTurn[],
@@ -101,6 +105,27 @@ export function settleUnjudged(
   const turns = settleLatest(history, "unlanded");
   const { tries } = layerTally(currentScene(turns), credited);
   return { turns, retry: tries < MAX_TRIES_PER_LAYER ? credited : null };
+}
+
+/**
+ * 판정을 받으러 간 호출이 **실패한** 답을 정리한다 (게이트 W4-R2-01).
+ *
+ * 요청이 실패한 것은 답이 부족하다는 판정이 아니다. 예전(`settleUnjudged` 를 같이 썼을 때)에는
+ * 그 답을 "안 닿음"으로 세서, 같은 층에서 오류가 세 번(또는 안 닿음 두 번 뒤 오류 한 번)이면
+ * 오류 안내 없이 정상 종료 화면("여기까지 이야기한 내용을 정리해 둘까요?")으로 갔다 -- 네트워크
+ * 장애가 답의 충분성과 상관없이 대화를 끝냈다.
+ *
+ * 이제 그 답은 `errored` 로 남는다: 칸을 올리지 않고(`answered: false`), 그 층의 시도로도
+ * 막힘으로도 세지 않는다(`layerTally`). 저장 원문에는 사용자가 한 말 그대로 남는다.
+ * `retry` 는 그 답이 겨냥했던 층 그대로다 -- 화면은 오류 안내를 띄우고 같은 질문에 다시
+ * 보내게 한다. **대화를 끝내지 않는다.** 겨냥 층이 없던 답(되묻기에 한 답, `credited` = null)은
+ * `retry` = null -- 보내기 전 상태 그대로다.
+ */
+export function settleFailedCall(
+  history: readonly InterviewTurn[],
+  credited: DrillLayer | null,
+): { turns: InterviewTurn[]; retry: DrillLayer | null } {
+  return { turns: settleLatest(history, "errored"), retry: credited };
 }
 
 /**
@@ -147,7 +172,7 @@ export function planProbe(args: {
  *      썼으면 다음 층.
  */
 export function stepAfterJudgement(
-  outcome: Exclude<AnswerOutcome, "blocked">,
+  outcome: Exclude<AnswerOutcome, "blocked" | "errored">,
   layer: DrillLayer,
   scene: readonly InterviewTurn[],
   plan: Pick<ProbePlan, "onCredit" | "onMiss">,

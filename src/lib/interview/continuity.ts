@@ -20,13 +20,35 @@ export function answerDisposition(text: string, locale: "en" | "ko"): AnswerDisp
 }
 
 /** 맞장구 · 예/아니오 **하나의 되풀이**로만 된 답("네" · "네네" · "아니아니" · "okok").
- *  무엇을 열었는지 담고 있지 않다. 같은 말의 되풀이만 잡는다 -- 서로 다른 말끼리 붙은
- *  낱말("어음")은 여기 걸리지 않는다. */
+ *  무엇을 열었는지 담고 있지 않다. 띄어 쓰거나 섞은 조합("yes no" · "네예")은 아래 낱말 판정이 잡는다. */
 const CONTENT_FREE = /^(네|예|응|아니요|아니|음|어|yes|no|okay|ok|yeah|hmm|sure)\1*$/u;
 
 /** 자모만으로 된 답("ㅋㅋ" · "ㅇㅇ" · "ㅠㅠ"). 호환 자모 · 첫가끝 자모 · 확장 · 반각 전부.
  *  NFKC 는 호환 자모(U+3131…)를 첫가끝 자모(U+1100…)로 바꾸므로 두 범위를 다 본다. */
 const JAMO_ONLY = /^[\u1100-\u11FF\u3130-\u318F\uA960-\uA97F\uD7B0-\uD7FF\uFFA0-\uFFDC]+$/u;
+const JAMO = /[\u1100-\u11FF\u3130-\u318F\uA960-\uA97F\uD7B0-\uD7FF\uFFA0-\uFFDC]/gu;
+
+/**
+ * 낱말 하나가 **비었는가** (게이트 W4R2-02): 숫자만 · 맞장구 · 예/아니오.
+ *
+ * - 숫자만("12" · "1-2" 의 1 과 2 · 전각 "１２")은 무엇을 열었는지 담고 있지 않다.
+ * - 예/아니오 맞장구는 한 낱말 안에서 섞여도 비었다("네예" · "응네").
+ * - 망설임 소리(음 · 어)는 같은 소리의 되풀이만 -- "어음"은 낱말이다.
+ * - 영어 맞장구도 같은 말의 되풀이만("okok") -- 붙여 쓴 서로 다른 말("nook")은 낱말일 수 있다.
+ *
+ * 자모는 떼고 본다("ㅋㅋ네").
+ */
+const FILLER_WORD = /^(?:(?:네|예|응|아니요|아니)+|(음|어)\1*|(yes|no|okay|ok|yeah|hmm|sure)\2*|\p{N}+)$/u;
+
+function isFillerWord(word: string): boolean {
+  const stripped = word.replace(JAMO, "");
+  return stripped.length === 0 || FILLER_WORD.test(stripped);
+}
+
+/** 공백 · 문장부호 · 기호 · 제어/서식 문자로 가른 낱말들(NFKC · 소문자). */
+function wordsOf(text: string): string[] {
+  return text.normalize("NFKC").toLowerCase().split(/[\s\p{P}\p{S}\p{C}]+/u).filter(Boolean);
+}
 
 /**
  * 판정에 쓰는 꼴: NFKC 로 맞추고 공백 · 문장부호 · 기호 · 제어/서식 문자를 뺀 소문자.
@@ -46,12 +68,15 @@ function compactOf(text: string): string {
  *   - 글자(문자 · 숫자)가 둘 미만 -- 한 글자 · 이모지만 · 키캡 같은 결합 기호
  *   - 맞장구 하나의 되풀이 -- "네" · "네네" · "yes yes"
  *   - 자모만 -- "ㅋㅋ" · "ㅇㅇ" · "ㅠㅠ"
+ *   - 낱말이 전부 빈 낱말(`isFillerWord`) -- 숫자만 "12" · "1-2" · "１２", 섞인 맞장구
+ *     "네예" · "yes no" · "음 네" · "ㅋㅋ 네" (게이트 W4R2-02)
  *   - 같은 글자 하나의 되풀이 -- "하하하" · "zzz"
  */
 export function isContentFree(text: string): boolean {
   const compact = compactOf(text);
   if ((compact.match(/[\p{L}\p{N}]/gu)?.length ?? 0) < 2) return true;
   if (CONTENT_FREE.test(compact) || JAMO_ONLY.test(compact)) return true;
+  if (wordsOf(text).every(isFillerWord)) return true;
   const chars = Array.from(compact);
   return chars.every((c) => c === chars[0]);
 }
@@ -147,7 +172,7 @@ export function confirmedAnswer(
 export function answerOutcome(
   confirmed: boolean,
   judgedLayer: DrillLayer | null | undefined,
-): Exclude<AnswerOutcome, "blocked"> {
+): Exclude<AnswerOutcome, "blocked" | "errored"> {
   if (confirmed) return "credited";
   return judgedLayer === null ? "missed" : "unlanded";
 }
@@ -160,7 +185,8 @@ export function answerOutcome(
  * - `failures` : 그중 "답을 못 했다"(화면의 비답 · 모델 none). 발판 번호이고, 상한을 넘으면
  *                대화를 끝낸다 -- 못 답하겠다는 사람을 더 깊이 밀지 않는다.
  *
- * 판정 전인 답(`answered` 없음)은 세지 않는다.
+ * 판정 전인 답(`answered` 없음)은 세지 않는다. 호출이 실패해 판정을 못 받은 답(`errored`)도
+ * 세지 않는다 -- 요청이 실패한 것은 답이 부족한 것이 아니다(게이트 W4-R2-01).
  */
 export function layerTally(
   scene: readonly InterviewTurn[], layer: DrillLayer,
@@ -169,6 +195,7 @@ export function layerTally(
   let failures = 0;
   for (const turn of scene) {
     if (turn.role !== "user" || turn.layer !== layer || turn.answered !== false) continue;
+    if (turn.outcome === "errored") continue;
     tries += 1;
     if (turn.outcome === "blocked" || turn.outcome === "missed") failures += 1;
   }

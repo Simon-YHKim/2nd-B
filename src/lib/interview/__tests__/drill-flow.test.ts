@@ -25,11 +25,12 @@ import {
   isContentFree,
   layerTally,
 } from "../continuity";
-import { planProbe, settleLatest, settleUnjudged, stepAfterJudgement } from "../drill-flow";
+import { planProbe, settleFailedCall, settleLatest, settleUnjudged, stepAfterJudgement } from "../drill-flow";
 import {
   DRILL_LAYERS,
   emptyCoverage,
   incrementCoverage,
+  modelMaySay,
   nextMove,
   nextProbe,
   seedQuestion,
@@ -94,6 +95,8 @@ interface Sim {
   why: string;
   calls: number;
   openers: string[];
+  /** 화면의 안내 한 줄. "failed" = drill.failed (호출 실패 뒤 다시 보내라는 안내). */
+  notice: string | null;
 }
 
 function newSim(): Sim {
@@ -106,6 +109,7 @@ function newSim(): Sim {
     why: "",
     calls: 0,
     openers: [],
+    notice: null,
   };
 }
 
@@ -121,6 +125,7 @@ function finish(s: Sim, why: string) {
 async function ask(
   s: Sim, history: InterviewTurn[], stuck: { layer: DrillLayer; streak: number } | null, credited: DrillLayer | null,
 ) {
+  s.notice = null;
   const move = nextMove(s.coverage, PERIOD, [], NOW, stuck, [], { history, locale: LOCALE, concreteOnly: s.concreteOnly });
   if (move.kind === "finish" && !credited) return finish(s, "scene");
   if (move.kind === "loopCheck") throw new Error("the scene path never loop-checks");
@@ -137,22 +142,27 @@ async function ask(
     return finish(s, "scene");
   }
   const before = llm.mock.calls.length;
-  // 판정을 못 받은 답(실패 · 위험 신호)은 화면과 같은 함수로 정리한다(interview.tsx catch · red 갈래).
-  const unjudged = (why: string) => {
-    const r = settleUnjudged(history, credited);
-    s.turns = r.turns;
-    if (r.retry) s.pending = r.retry;
-    else finish(s, why);
-  };
   let probe: Awaited<ReturnType<typeof nextProbe>>;
   try {
     probe = await nextProbe("qa", LOCALE, PERIOD, history, s.coverage, false, 0, plan.target, plan.fallback);
   } catch {
+    // 호출 실패는 화면의 catch 갈래와 같은 함수로 정리한다: 시도로 세지 않고, 끝내지 않는다(W4-R2-01).
     s.calls += llm.mock.calls.length - before;
-    return unjudged("failed");
+    const r = settleFailedCall(history, credited);
+    s.turns = r.turns;
+    s.pending = r.retry;
+    s.notice = "failed";
+    return;
   }
   s.calls += llm.mock.calls.length - before;
-  if (probe.zone === "red") return unjudged("red");
+  if (probe.zone === "red") {
+    // 위험 신호는 화면의 red 갈래와 같은 함수로 정리한다(그 층의 시도 하나).
+    const r = settleUnjudged(history, credited);
+    s.turns = r.turns;
+    if (r.retry) s.pending = r.retry;
+    else finish(s, "red");
+    return;
+  }
   const lastAnswer = history[history.length - 1];
   const confirmed = credited && lastAnswer ? confirmedAnswer(lastAnswer.text, credited, LOCALE, probe.answeredLayer) : false;
   const outcome = credited && lastAnswer
@@ -219,7 +229,9 @@ async function run(policy: Policy, answers: readonly string[]) {
   const users = s.turns.filter((t) => t.role === "user").length;
   /** 층 없이 나간 답(겨냥 층이 비어 있을 때 보낸 답). 층마다의 시도 셈에 안 잡힌다. */
   const unlayered = s.turns.filter((t) => t.role === "user" && !t.layer).length;
-  return { s, open, users, unlayered };
+  /** 호출이 실패해 판정을 못 받은 답. 판정을 받은 호출 수 = calls - errored. */
+  const errored = s.turns.filter((t) => t.role === "user" && t.outcome === "errored").length;
+  return { s, open, users, unlayered, errored };
 }
 
 // 하네스와 같은 답들 (round2/R2F-drilldown/harness/sim.ts).
@@ -296,9 +308,30 @@ describe("R2F-04 짧지만 구체적인 답은 모델의 판정을 받는다", (
       for (const layer of DRILL_LAYERS) expect({ layer, credit: canCreditAnswer(text, layer, locale) }).toEqual({ layer, credit: false });
     });
 
-    it("맞장구의 되풀이만 잡는다 -- 서로 다른 말이 붙은 낱말 · 실제 짧은 답은 아니다", () => {
-      for (const t of ["어음", "나는 혼자다", "책임감이요", "서운했어요", "하하 웃었어요"]) expect({ t, empty: isContentFree(t) }).toEqual({ t, empty: false });
-      for (const t of ["Sad", "People leave.", "Responsibility"]) expect({ t, empty: isContentFree(t) }).toEqual({ t, empty: false });
+    it.each([
+      // 숫자만 -- 구두점을 끼우거나 전각으로 써도 (게이트 W4R2-02)
+      ["12", "ko"], ["12", "en"], ["1998", "en"], ["1-2", "ko"], ["1.2.3", "en"], ["１２", "ko"], ["１２３", "en"], ["12 34", "ko"],
+      // 서로 다른 맞장구의 조합 -- 붙여 쓰든 띄어 쓰든
+      ["네예", "ko"], ["응네", "ko"], ["예 아니요", "ko"], ["네, 예", "ko"], ["음 네", "ko"], ["어 응", "ko"],
+      ["ㅋㅋ 네", "ko"], ["ㅋㅋ네", "ko"], ["ㅇㅇ 응", "ko"], ["네 12", "ko"],
+      ["yes no", "en"], ["Yes. No.", "en"], ["ok, sure", "en"], ["yeah ok", "en"], ["hmm yes", "en"], ["no 1", "en"],
+    ] as const)("숫자만 · 섞인 맞장구 %p (%s) 도 어느 층에서도 칸을 못 올린다 (게이트 W4R2-02)", (text, locale) => {
+      expect(isContentFree(text)).toBe(true);
+      expect(isContentFree(text.normalize("NFD"))).toBe(true);
+      for (const layer of DRILL_LAYERS) {
+        expect({ layer, credit: canCreditAnswer(text, layer, locale) }).toEqual({ layer, credit: false });
+        // 모델이 그 층에 닿았다고 해도 칸은 오르지 않는다.
+        expect({ layer, confirmed: confirmedAnswer(text, layer, locale, layer) }).toEqual({ layer, confirmed: false });
+      }
+    });
+
+    it("빈 말의 조합만 잡는다 -- 서로 다른 말이 붙은 낱말 · 숫자가 든 실제 답 · 실제 짧은 답은 아니다", () => {
+      for (const t of ["어음", "나는 혼자다", "책임감이요", "서운했어요", "하하 웃었어요", "네 그랬어요", "12살", "2010년 여름", "１２살 때 이사했어요"]) {
+        expect({ t, empty: isContentFree(t) }).toEqual({ t, empty: false });
+      }
+      for (const t of ["Sad", "People leave.", "Responsibility", "No, I left.", "Age 12", "12 friends came", "nook"]) {
+        expect({ t, empty: isContentFree(t) }).toEqual({ t, empty: false });
+      }
     });
 
     it.each([
@@ -474,17 +507,36 @@ describe("R2F-09 장면은 답의 개수로 끝나지 않는다", () => {
     expect({ done: s.done, calls: s.calls, why: s.why }).toEqual({ done: true, calls: MAX_TRIES_PER_LAYER, why: "stuck" });
   });
 
-  describe("판정을 못 받은 답 -- 호출 실패 · 위험 신호 (게이트 W4R1-01 · W4-R1-01)", () => {
-    it("일반 오류 뒤 다시 보낸 답은 같은 층의 시도로 센다 -- 실패한 답은 칸을 안 올리고 층 없는 답도 없다", async () => {
+  describe("판정을 못 받은 답 -- 호출 실패 · 위험 신호 (게이트 W4R1-01 · W4-R1-01 · W4-R2-01)", () => {
+    it("일반 오류 뒤 다시 보낸 답은 같은 층으로 나간다 -- 실패한 답은 칸을 안 올리고 시도로도 안 세며 층 없는 답도 없다", async () => {
       // 두 번째 호출(감정 답의 판정)만 실패한다.
       const flaky: Policy = (asked, _last, _detour, call) => (call === 2 ? "throw" : asked);
       const { s, open, unlayered } = await run(flaky, [RICH[0], RICH[1], RICH[1], RICH[2]]);
       expect(unlayered).toBe(0);
       expect(s.done).toBe(false);
       const feeling = s.turns.filter((t) => t.role === "user" && t.layer === "feeling").map((t) => t.outcome);
-      expect(feeling).toEqual(["unlanded", "credited"]);
+      expect(feeling).toEqual(["errored", "credited"]);
+      expect(layerTally(currentScene(s.turns), "feeling").tries).toBe(0);
       expect(open).toEqual(["fact", "feeling", "meaning"]);
       expect(s.pending).toBe("belief");
+    });
+
+    // 감정층에서만 일이 생긴다: 늘 실패 / 다른 층(fact) 판정 두 번 뒤 네 번째 호출이 실패.
+    const failFeeling: Policy = (asked) => (asked === "feeling" ? "throw" : asked);
+    const missTwiceThenFail: Policy = (asked, _last, _detour, call) => (asked !== "feeling" ? asked : call === 4 ? "throw" : "fact");
+
+    it.each([
+      ["같은 층에서 일반 오류 3회", failFeeling, [RICH[0], RICH[1], RICH[1], RICH[1]]],
+      ["안 닿음 2회 뒤 오류 1회", missTwiceThenFail, [RICH[0], "a1 그때 얘기를 더 하면", "a2 그 상황을 말하자면", RICH[1]]],
+    ] as const)("%s 는 정상 종료 화면으로 가지 않는다 -- 오류 안내와 함께 같은 층에서 다시 보내게 한다 (게이트 W4-R2-01)", async (_name, policy, answers) => {
+      const { s, open, unlayered } = await run(policy, answers);
+      expect({ done: s.done, why: s.why, notice: s.notice, pending: s.pending, unlayered })
+        .toEqual({ done: false, why: "", notice: "failed", pending: "feeling", unlayered: 0 });
+      expect(open).toEqual(["fact"]);
+      // 다시 보낸 답이 인정되면 그대로 이어진다 -- 실패는 감정층의 시도를 쓰지 않았다.
+      installJudge(confirmAll);
+      await send(s, RICH[1]);
+      expect({ done: s.done, pending: s.pending, notice: s.notice }).toEqual({ done: false, pending: "meaning", notice: null });
     });
 
     it("위험 신호 응답은 판정이 '닿음'이어도 칸을 올리지 않고, 그 답을 그 층의 시도로 센다", async () => {
@@ -495,20 +547,37 @@ describe("R2F-09 장면은 답의 개수로 끝나지 않는다", () => {
       expect(open).toEqual(["fact"]);
     });
 
-    it.each(["throw", "red"] as const)("늘 %s 여도 한 층에서 세 번이면 끝난다 -- 다시 부르지 않는다", async (verdict) => {
-      const { s, users, unlayered } = await run(() => verdict, LONG_ANSWERS);
+    it("늘 위험 신호여도 한 층에서 세 번이면 끝난다 -- 다시 부르지 않는다", async () => {
+      const { s, users, unlayered } = await run(() => "red", LONG_ANSWERS);
       expect({ done: s.done, calls: s.calls, users, unlayered, why: s.why })
-        .toEqual({ done: true, calls: MAX_TRIES_PER_LAYER, users: MAX_TRIES_PER_LAYER, unlayered: 0, why: verdict === "throw" ? "failed" : "red" });
+        .toEqual({ done: true, calls: MAX_TRIES_PER_LAYER, users: MAX_TRIES_PER_LAYER, unlayered: 0, why: "red" });
       expect(layerTally(currentScene(s.turns), "fact").tries).toBe(MAX_TRIES_PER_LAYER);
     });
 
-    it("실패가 섞여도 한 장면의 호출(실패 포함)은 15 를 넘지 않는다", async () => {
+    it("늘 실패해도 대화를 끝내지 않는다 -- 보낼 때마다 한 번 부르고, 시도는 안 쓰고, 같은 층에서 다시 보내게 한다 (게이트 W4-R2-01)", async () => {
+      const sends = 7;
+      const { s, users, unlayered, errored } = await run(() => "throw", LONG_ANSWERS.slice(0, sends));
+      // 저절로 다시 부르지 않는다: 호출 수 = 사용자가 보낸 수.
+      expect({ done: s.done, calls: s.calls, users, errored, unlayered, notice: s.notice, pending: s.pending })
+        .toEqual({ done: false, calls: sends, users: sends, errored: sends, unlayered: 0, notice: "failed", pending: "fact" });
+      expect(layerTally(currentScene(s.turns), "fact")).toEqual({ tries: 0, failures: 0 });
+      expect(DRILL_LAYERS.filter((l) => s.coverage[PERIOD][l] > 0)).toEqual([]);
+    });
+
+    it("실패가 섞여도 한 장면의 **판정 받은** 호출은 15 를 넘지 않고, 실패는 보낸 답 하나에 한 번뿐이다", async () => {
       // 짝수 번째 호출은 실패 · 위험 신호, 홀수 번째는 다른 층 판정.
       for (const bad of ["throw", "red"] as const) {
         const mixed: Policy = (asked, _last, _detour, call) => (call % 2 === 0 ? bad : asked === "echo" ? "fact" : "echo");
-        const { s, unlayered } = await run(mixed, LONG_ANSWERS);
+        const { s, unlayered, errored, users } = await run(mixed, LONG_ANSWERS);
         expect({ bad, done: s.done, unlayered }).toEqual({ bad, done: true, unlayered: 0 });
-        expect(s.calls).toBeLessThanOrEqual(DRILL_LAYERS.length * MAX_TRIES_PER_LAYER);
+        expect(s.calls).toBe(users);
+        expect(s.calls - errored).toBeLessThanOrEqual(DRILL_LAYERS.length * MAX_TRIES_PER_LAYER);
+        if (bad === "red") expect(s.calls).toBeLessThanOrEqual(DRILL_LAYERS.length * MAX_TRIES_PER_LAYER);
+        // 실패가 끝낸 것이 아니다 -- 다섯 층 모두 판정 받은 시도를 다 써서 끝났다.
+        if (bad === "throw") {
+          expect(s.calls - errored).toBe(DRILL_LAYERS.length * MAX_TRIES_PER_LAYER);
+          for (const l of DRILL_LAYERS) expect({ l, tries: layerTally(currentScene(s.turns), l).tries }).toEqual({ l, tries: MAX_TRIES_PER_LAYER });
+        }
       }
     });
 
@@ -531,6 +600,26 @@ describe("R2F-09 장면은 답의 개수로 끝나지 않는다", () => {
         turns: [...base.slice(0, 1), { role: "user", text: "z" }], retry: null,
       });
     });
+
+    it("settleFailedCall: 시도를 다 쓴 층이어도 같은 층으로 돌려보내고, 실패한 답은 errored 로 남아 셈에 안 들어간다", () => {
+      const exhausted: InterviewTurn[] = [
+        { role: "interviewer", text: "seed", layer: "fact", sceneStart: true },
+        { role: "user", text: "x", layer: "fact", answered: false, outcome: "unlanded" },
+        { role: "user", text: "y", layer: "fact", answered: false, outcome: "unlanded" },
+        { role: "user", text: RICH[0], layer: "fact" },
+      ];
+      const failed = settleFailedCall(exhausted, "fact");
+      expect(failed.retry).toBe("fact");
+      expect(failed.turns[3]).toMatchObject({ text: RICH[0], answered: false, outcome: "errored" });
+      expect(layerTally(currentScene(failed.turns), "fact")).toEqual({ tries: 2, failures: 0 });
+      // 장면 셈에서 인정된 것처럼 보이지 않는다(판정 전 답과 다르다).
+      expect(nextMove(emptyCoverage(), PERIOD, [], NOW, null, [], { history: failed.turns, locale: LOCALE }))
+        .toEqual({ kind: "drill", layer: "fact" });
+      const choice: InterviewTurn[] = [exhausted[0]!, { role: "user", text: "z" }];
+      expect(settleFailedCall(choice, null)).toEqual({
+        turns: [exhausted[0]!, { role: "user", text: "z", answered: false, outcome: "errored" }], retry: null,
+      });
+    });
   });
 
   it("사실만 길은 그대로 넷에서 끝난다", async () => {
@@ -548,32 +637,137 @@ describe("R2F-09 장면은 답의 개수로 끝나지 않는다", () => {
 
 describe("모델이 쓴 질문 · 말문 후보의 말 규율 (게이트 W4R1-03)", () => {
   // 금지 어휘는 이 파일에 글자로 적지 않는다(check:lexicon 이 테스트 파일도 읽는다) -- 정본 목록에서 꺼낸다.
+  const FULLWIDTH = (t: string) => t.replace(/[!-~]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0xfee0)).replace(/ /g, "\u3000");
+
   const BAD_QUESTIONS = [
     `그때 ${FORBIDDEN_TERMS.ko[1]} 받아 본 적이 있나요?`,
     `그날 ${ANALYSIS_UNIVERSAL_FORBIDDEN.ko[11]} 이야기를 들었나요?`,
     `Did anyone mention ${FORBIDDEN_TERMS.en[1]} back then?`,
     "I'm here for you, so what happened next?",
     "당신을 기억해요. 그날 어땠어요?",
+    // 게이트 W4R2-03: 조언 · 명령 · 질문 아닌 말 · 전각 · NFD
+    "You should stop speaking to them.",
+    "그 사람과 연락을 끊으세요.",
+    "Why don't you call her now?",
+    "그 친구에게 다시 연락해 보는 건 어때요?",
+    "먼저 사과하셔야 해요. 그때 어땠나요?",
+    "What happened next? Take your time.",
+    FULLWIDTH("I'm always here for you, what happened next?"),
+    "사랑해요. 그날 어땠어요?".normalize("NFD"),
   ];
 
-  it.each(BAD_QUESTIONS)("다른 층으로 판정된 뒤 같은 층을 다시 묻는 질문(unlanded 갈래)이 %p 면 고정 질문으로 바꾸고 말문 후보를 비운다", async (bad) => {
-    // 형식만 보면 통과하는 질문이다 -- 거르는 것은 말의 규율이다.
-    expect(usableQuestion(bad, [], "feeling", LOCALE)).toBe(bad);
-    installJudge(
-      (asked) => (asked === "feeling" ? "fact" : asked),
-      (n) => (n === 2 ? { question: bad, openers: ["그때 나는"] } : { question: `Q${n}?`, openers: ["그때 나는"] }),
-    );
-    const s = newSim();
-    await send(s, RICH[0]);
-    expect(s.openers).toEqual(["그때 나는"]);
-    await send(s, RICH[1]);
-    const shown = s.turns[s.turns.length - 1]!;
-    expect(shown).toMatchObject({ role: "interviewer", layer: "feeling", detour: true });
-    expect(shown.text).not.toBe(bad);
-    expect(shown.text).toBe(usableQuestion("", s.turns.slice(0, -1), "feeling", LOCALE));
-    expect(s.openers).toEqual([]);
-    // 판정은 그대로 쓴다 -- 보여 줄 말만 바꿨다.
-    expect(s.turns.filter((t) => t.role === "user").map((t) => t.outcome)).toEqual(["credited", "unlanded"]);
+  it.each(BAD_QUESTIONS.flatMap((bad) => [["unlanded", bad], ["credited", bad]] as const))(
+    "%s 갈래의 모델 질문이 %p 면 그 층의 고정 질문으로 바꾸고 말문 후보를 비운다 (게이트 W4R1-03 · W4R2-03)",
+    async (branch, bad) => {
+      installJudge(
+        branch === "unlanded" ? (asked) => (asked === "feeling" ? "fact" : asked) : confirmAll,
+        (n) => (n === 2 ? { question: bad, openers: ["그때 나는"] } : { question: `Q${n}?`, openers: ["그때 나는"] }),
+      );
+      const s = newSim();
+      await send(s, RICH[0]);
+      expect(s.openers).toEqual(["그때 나는"]);
+      await send(s, RICH[1]);
+      const layer = branch === "unlanded" ? "feeling" : "meaning";
+      const shown = s.turns[s.turns.length - 1]!;
+      expect(shown).toMatchObject({ role: "interviewer", layer, detour: branch === "unlanded" });
+      expect(shown.text).not.toBe(bad);
+      expect(shown.text).toBe(usableQuestion("", s.turns.slice(0, -1), layer, LOCALE));
+      expect(s.openers).toEqual([]);
+      // 판정은 그대로 쓴다 -- 보여 줄 말만 바꿨다.
+      expect(s.turns.filter((t) => t.role === "user").map((t) => t.outcome)).toEqual(["credited", branch]);
+    },
+  );
+
+  it.each([
+    // 질문 하나로 끝나고 조언이 아닌 말 -- 사용자가 그때 한 생각을 묻는 꼴은 조언이 아니다.
+    "What happened next?",
+    "Did you feel you should apologize?",
+    "Do you think you had to stay quiet back then?",
+    "Did someone tell you that you must be strong?",
+    "그때 무엇을 해야 했나요?",
+    "떠올려 보는 건 어땠나요?",
+    "그날 누가 먼저 말을 걸었나요?",
+    "그때 무엇을 했나요？",
+    "“I felt ignored” · What part of that experience mattered to you?",
+    "그때 기분이 어땠나요?".normalize("NFD"),
+  ])("질문 게이트를 지나는 말: %p", (good) => {
+    expect(modelMaySay(good, "question")).toBe(true);
+  });
+
+  it.each([
+    "You should stop speaking to them.",
+    "You should stop speaking to them?",
+    "I think you should leave them, what do you say?",
+    "Have you tried talking to him again?",
+    "Maybe you could write to her?",
+    "I suggest you take a break, okay?",
+    "그 친구에게 다시 연락해 보는 건 어때요?",
+    "그냥 잊어버려야 하지 않을까요?",
+    "What happened next? Take your time.",
+    "What happened? What next?",
+    FULLWIDTH("I'm always here for you, what happened next?"),
+    FULLWIDTH("You should stop speaking to them?"),
+    "사랑해요. 그날 어땠어요?".normalize("NFD"),
+  ])("질문 게이트에 걸리는 말: %p", (bad) => {
+    expect(modelMaySay(bad, "question")).toBe(false);
+  });
+
+  it.each([
+    "그때 나는", "기억나는 건", "솔직히 말하면", "너무 무서웠어", "I remember", "At first I", "Honestly,",
+    "Don't know why, but", "나는 강해야 해요", "그때 나는".normalize("NFD"),
+  ])("말문 후보 게이트를 지나는 말: %p", (good) => {
+    expect(modelMaySay(good, "opener")).toBe(true);
+  });
+
+  it.each([
+    "I'm always here for you",
+    FULLWIDTH("I'm always here for you"),
+    "You should talk to them",
+    "Call them, you'll see",
+    "너는 잘못 없어",
+    "당신은 충분해요",
+    "다시 연락해 보는 건 어때",
+    // 주어 없는 명령 -- 2인칭 검사만으로는 못 잡는다
+    "그 사람을 잊으세요",
+    "이제 그만 잊어라",
+    "Please call them",
+    "Don't worry about it",
+    FULLWIDTH("Please call them"),
+    "엄마 사랑해".normalize("NFD"),
+    `나는 ${FORBIDDEN_TERMS.ko[3]}`,
+  ])("말문 후보 게이트에 걸리는 말: %p", (bad) => {
+    expect(modelMaySay(bad, "opener")).toBe(false);
+  });
+
+  it("의인화 · 2인칭 · 조언 말문 후보는 하나씩 버린다 -- 두 로케일 모두 (게이트 W4R2-03)", async () => {
+    installJudge(() => "fact", () => ({
+      question: "그날 누가 먼저 말을 걸었나요?",
+      openers: ["I'm always here for you", "너는 잘못 없어", "그때 나는"],
+    }));
+    const history: InterviewTurn[] = [
+      { role: "interviewer", text: "seed", layer: "fact", sceneStart: true },
+      { role: "user", text: RICH[0], layer: "fact" },
+    ];
+    const ko = await nextProbe("qa", "ko", PERIOD, history, emptyCoverage(), false, 0, "feeling");
+    expect(ko.openers).toEqual(["그때 나는"]);
+    installJudge(() => "fact", () => ({
+      question: "Who spoke first that day?",
+      openers: [FULLWIDTH("I'm always here for you"), "You should call them", "I remember"],
+    }));
+    const en = await nextProbe("qa", "en", PERIOD, history, emptyCoverage(), false, 0, "feeling");
+    expect(en.question).toBe("Who spoke first that day?");
+    expect(en.openers).toEqual(["I remember"]);
+  });
+
+  it("영어 로케일에서도 걸린 질문은 그 층의 영어 고정 질문으로 바뀐다", async () => {
+    installJudge(() => "fact", () => ({ question: FULLWIDTH("I'm always here for you, what happened next?"), openers: ["I remember"] }));
+    const history: InterviewTurn[] = [
+      { role: "interviewer", text: "seed", layer: "fact", sceneStart: true },
+      { role: "user", text: "I fought with my friend at the stands", layer: "fact" },
+    ];
+    const probe = await nextProbe("qa", "en", PERIOD, history, emptyCoverage(), false, 0, "feeling");
+    expect(probe.question).toBe(usableQuestion("", history, "feeling", "en"));
+    expect(probe.openers).toEqual([]);
   });
 
   it("금지 어휘가 든 말문 후보는 하나씩 버린다", async () => {
@@ -695,7 +889,7 @@ describe("화면이 같은 함수를 같은 인자로 부른다 (주석을 뺀 �
     expect(code.replace(/\s+/g, " ")).toContain(fragment.replace(/\s+/g, " "));
   });
 
-  it("판정을 못 받은 답(위험 신호 · 일반 오류)은 두 갈래 모두 settleUnjudged 로 정리하고 겨냥 층을 비운 채 두지 않는다 (W4R1-01)", () => {
+  it("판정을 못 받은 답은 겨냥 층을 비운 채 두지 않는다 -- 위험 신호는 그 층의 시도, 일반 오류는 시도가 아니고 대화를 끝내지 않는다 (W4R1-01 · W4-R2-01)", () => {
     const flat = code.replace(/\s+/g, " ");
     const between = (from: string, to: string) => {
       const start = flat.indexOf(from);
@@ -704,12 +898,18 @@ describe("화면이 같은 함수를 같은 인자로 부른다 (주석을 뺀 �
       return flat.slice(start, end);
     };
     const red = between("if (probe.zone === \"red\")", "const lastAnswer = history");
-    const fail = between("readDayLimitRefusal(error, INTERVIEW_PURPOSE)", "finally");
-    for (const branch of [red, fail]) {
-      expect(branch).toContain("const unjudged = settleUnjudged(history, credited); setTurns(unjudged.turns);");
-      expect(branch).toMatch(/if \(unjudged\.retry\) \{? ?setPendingLayer\(unjudged\.retry\)/);
-      expect(branch).toContain("finish();");
-    }
+    expect(red).toContain("const unjudged = settleUnjudged(history, credited); setTurns(unjudged.turns);");
+    expect(red).toMatch(/if \(unjudged\.retry\) \{? ?setPendingLayer\(unjudged\.retry\)/);
+    expect(red).toContain("finish();");
+    // 일반 오류: 오늘 몫 거절(끝맺음) 갈래 **다음**부터 finally 까지.
+    const dayLimit = flat.indexOf("setDayLimited(true); finish();");
+    const start = flat.indexOf("if (ended.current) return;", dayLimit);
+    const end = flat.indexOf("finally", start);
+    expect({ dayLimit: dayLimit >= 0, start: start > dayLimit, end: end > start }).toEqual({ dayLimit: true, start: true, end: true });
+    const fail = flat.slice(start, end);
+    expect(fail).toContain("const failed = settleFailedCall(history, credited); setTurns(failed.turns); setPendingLayer(failed.retry); setNotice(t(\"drill.failed\"));");
+    expect(fail).not.toContain("finish()");
+    expect(fail).not.toContain("settleUnjudged");
   });
 
   it("장면당 답 개수 상한이 코드에 없다", () => {

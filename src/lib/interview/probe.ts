@@ -98,8 +98,10 @@ export interface InterviewTurn {
  * - `missed`   : 모델이 "답을 아예 안 했다"(`none`)고 판정했다.
  * - `unlanded` : 답은 했지만 그 층에 안 닿았다(다른 층 · 판정 없음 · 성긴 답).
  * - `credited` : 그 층의 칸을 채웠다.
+ * - `errored`  : 판정을 받으러 간 호출이 실패했다(하루 한도 밖의 오류). 답이 부족하다는 판정이
+ *                아니므로 그 층의 시도로도, 막힘으로도 세지 않는다(게이트 W4-R2-01).
  */
-export type AnswerOutcome = "credited" | "unlanded" | "missed" | "blocked";
+export type AnswerOutcome = "credited" | "unlanded" | "missed" | "blocked" | "errored";
 
 /** A user's coverage across 25 cells (5 periods × 5 layers). Each cell is the
  *  number of user answers that landed in that (period, layer) combination. */
@@ -562,10 +564,11 @@ export async function nextProbe(
   const raw = typeof parsed?.question === "string" ? parsed.question : typeof res.text === "string" ? res.text : "";
   const cleaned = raw.trim().split("\n")[0]?.trim() ?? "";
   // 모델이 쓴 질문 · 말문 후보는 화면에 그대로 나간다. 형식(`usableQuestion`)만 보던 것에
-  // 말의 규율을 더한다 (게이트 W4R1-03): 금지 어휘 · 분석 금지어 · 의인화 문구가 있는 질문은
-  // 그 층의 고정 질문으로 바꾸고, 그 질문에 딸린 말문 후보는 비운다. 판정(`answeredLayer`)은
-  // 그대로 쓴다 -- 보여 줄 말을 고르는 것이지 판정을 버리는 것이 아니다.
-  const speakable = interviewerMaySay(cleaned);
+  // 말의 규율을 더한다 (게이트 W4R1-03 · W4R2-03, `modelMaySay`): 그 규율을 못 지킨 질문은
+  // 그 층의 고정 질문으로 바꾸고, 그 질문에 딸린 말문 후보는 비운다. 인정 갈래든 다시 묻기
+  // 갈래든 같은 게이트다. 판정(`answeredLayer`)은 그대로 쓴다 -- 보여 줄 말을 고르는 것이지
+  // 판정을 버리는 것이 아니다.
+  const speakable = modelMaySay(cleaned, "question");
   const result: ProbeResult = {
     question: "",
     openers: speakable ? readOpeners(parsed) : [],
@@ -587,10 +590,86 @@ function withoutForbiddenTerms(text: string): boolean {
     containsForbiddenLexicon(text, l).length === 0 && containsAnalysisForbidden(text, l).length === 0);
 }
 
-/** 인터뷰어의 말로 화면에 내도 되는가. 위에 더해 의인화(동반자 애착 · 마음 읽기) 문구가 없어야
- *  한다. 말문 후보는 사용자 자신의 1인칭이라 의인화 규칙은 질문에만 건다. */
-function interviewerMaySay(text: string): boolean {
-  return withoutForbiddenTerms(text) && findAnthroViolations(text).length === 0;
+/**
+ * 조언 · 권유 (프롬프트 규칙 3 "진단 · 조언 · 해석은 하지 않는다"). 두 언어를 다 본다.
+ *
+ * 질문에서는 묻는 꼴의 조언("Why don't you …?" · "~해 보는 건 어때요?")을 겨냥한다 -- 서술 ·
+ * 명령의 조언은 질문 꼴 검사(`isOneQuestion`)가 먼저 떨어뜨린다. 서술 꼴의 권유("~하셔야 해요" ·
+ * "추천해요")는 그 검사가 없는 말문 후보 때문에 함께 둔다. 일부러 좁다: 사용자가 그때 한 생각을
+ * 묻는 질문("Did you feel you should apologize?" · "무엇을 해야 했나요?")은 통과한다.
+ */
+const ADVICE: readonly RegExp[] = [
+  /\bwhy don['’]?t you\b/i,
+  /\bhave you (?:ever )?tried\b/i,
+  /\bhow about (?:you|trying)\b/i,
+  /\b(?:maybe|perhaps) you (?:could|should|might)\b/i,
+  /\byou (?:could|might|may want to) (?:try|consider)\b/i,
+  /\b(?:i|we) (?:would )?(?:suggest|recommend|advise)\b/i,
+  /\bmy advice\b|\bif i were you\b/i,
+  /보(?:는|시는)\s?(?:게|건|것은?)\s?어(?:때|떨|떠세)/,
+  /야\s?하지\s?않을까/,
+  /셔야\s?(?:해요|합니다|돼요|됩니다)/,
+  /(?:권해|권합니다|추천(?:해요|합니다|드려요|드립니다))/,
+];
+
+/**
+ * 말문 후보가 **시키는 말**인가. 명령은 주어("you")를 흔히 생략하므로 2인칭 검사만으로는
+ * 못 잡는다 -- "그 사람을 잊으세요" · "Please call them". 좁게 둔다: 영어는 지시로만 쓰이는
+ * 첫머리, 한국어는 명령 어미(-세요 · -십시오 · -어라/-아라 · -거라)로 끝나는 말. 높임 서술
+ * ("할머니가 바쁘세요")도 걸리지만 그 값은 칩 하나를 버리는 것이다.
+ */
+function isDirective(text: string): boolean {
+  return /^(?:please\b|make sure\b|remember to\b|try to\b|go ahead\b|don['’]?t (?:worry|forget|be|let|blame|give up)\b|stop (?:blaming|worrying|being)\b)/i.test(text.trim())
+    || /(?:세요|십시오|[해하거어아]라)[.!~\s]*$/u.test(text);
+}
+
+/** "you should …"류. 앞에 "you felt / told you (that)" 같은 전달 꼴이 붙으면 사용자의
+ *  생각을 묻는 것이라 조언이 아니다. */
+const YOU_MODAL = /\byou (?:should|must|need to|have to|ought to|had better|['’]d better)\b/gi;
+const REPORTED_BEFORE = /(?:\byou(?: \w+)? (?:feel|felt|think|thought|believe|believed|know|knew|sense|sensed|decide|decided|realize|realized|wish|wished|worry|worried|fear|feared|say|said)|\b(?:told|tell|telling|said|say|saying|taught|teach) you)(?: (?:that|like))? $/i;
+
+function givesAdvice(text: string): boolean {
+  const flat = text.replace(/\s+/g, " ");
+  if (ADVICE.some((re) => re.test(flat))) return true;
+  for (const match of flat.matchAll(YOU_MODAL)) {
+    if (!REPORTED_BEFORE.test(flat.slice(0, match.index))) return true;
+  }
+  return false;
+}
+
+/** 질문 하나로 끝나는가: 물음표가 정확히 하나이고 그 뒤에는 닫는 따옴표 · 괄호뿐이다.
+ *  "You should stop speaking to them." 같은 서술 · 명령은 질문이 아니다(규칙 1 · 3). */
+function isOneQuestion(text: string): boolean {
+  return (text.match(/\?/g)?.length ?? 0) === 1 && /\?["'”’」』)\]\s]*$/u.test(text);
+}
+
+/** 듣는 사람을 부르는가(2인칭). 말문 후보는 사용자 자신의 말 첫머리라 사용자를 부르면 안 된다. */
+function addressesListener(text: string): boolean {
+  return /\b(?:you|your|yours|yourself|yourselves)\b/i.test(text)
+    || /(?:^|[^\p{L}])(?:너희|너|당신|네가|니가|그대)(?:들)?(?:는|은|가|이|의|를|을|도|한테|에게|랑|와|과)?(?=$|[^\p{L}])/u.test(text);
+}
+
+/**
+ * 모델이 쓴 말 한 줄을 화면에 내도 되는가 -- 질문과 말문 후보가 **같은 게이트**를 지난다
+ * (게이트 W4R1-03 · W4R2-03).
+ *
+ * 먼저 NFKC 로 접는다: 전각 · 호환 문자("Ｉ’ｍ ａｌｗａｙｓ ｈｅｒｅ ｆｏｒ ｙｏｕ")가 의인화 검사
+ * (`findAnthroViolations` 는 NFC 만 본다)와 조언 검사를 빠져나가지 않게. 그다음 공통으로
+ * 금지 어휘 · 분석 금지어 · 의인화 · 조언이 없어야 한다.
+ *
+ * - 질문: 질문 하나로 끝나야 한다(`isOneQuestion`). 실패하면 부르는 쪽이 그 층의 고정 질문을 쓴다.
+ * - 말문 후보: 사용자 자신의 말(1인칭) 첫머리여야 한다 -- 사용자를 부르는 2인칭이거나 시키는
+ *   말(`isDirective`)이면 안 된다. 실패한 후보는 버린다. 의인화 검사도 받는다: 칩은 앱이 내미는 모델의 문장이라,
+ *   "I'm always here for you" 같은 동반자 말투가 사용자의 첫머리로 위장해 들어오면 안 된다.
+ *   1인칭 표지("I" · "나는")가 **있어야** 한다고는 보지 않는다 -- 한국어 첫머리는 주어를
+ *   흔히 생략하고("그때 기억나는 건"), 이 화면의 "en" 은 es/pt/id 사용자도 받는다.
+ *
+ * 걸리면 버리는 것이 전부다(대체 문장 · 빈 칩). 판정은 건드리지 않는다.
+ */
+export function modelMaySay(text: string, kind: "question" | "opener"): boolean {
+  const folded = text.normalize("NFKC");
+  if (!withoutForbiddenTerms(folded) || findAnthroViolations(folded).length > 0 || givesAdvice(folded)) return false;
+  return kind === "question" ? isOneQuestion(folded) : !addressesListener(folded) && !isDirective(folded);
 }
 
 interface ProbeReply {
@@ -639,7 +718,7 @@ function parseProbeReply(text: string): ProbeReply | null {
  *
  * 최대 2개 · 각 24자 이내 · 줄바꿈 없음 · 빈 것 제거. 넘치면 버린다.
  * 길이를 안 자르면 칩이 화면을 밀어내고, 줄바꿈이 들어오면 한 줄 칩이 두 줄이 된다.
- * 금지 어휘 · 분석 금지어가 든 후보도 버린다(게이트 W4R1-03).
+ * 질문과 같은 말의 게이트(`modelMaySay`)를 못 지난 후보도 하나씩 버린다(게이트 W4R1-03 · W4R2-03).
  */
 function readOpeners(reply: ProbeReply | null): string[] {
   if (!reply || !Array.isArray(reply.openers)) return [];
@@ -647,7 +726,7 @@ function readOpeners(reply: ProbeReply | null): string[] {
   for (const raw of reply.openers) {
     if (typeof raw !== "string") continue;
     const one = raw.replace(/\s+/g, " ").trim();
-    if (!one || one.length > 24 || !withoutForbiddenTerms(one)) continue;
+    if (!one || one.length > 24 || !modelMaySay(one, "opener")) continue;
     if (out.includes(one)) continue;
     out.push(one);
     if (out.length === 2) break;

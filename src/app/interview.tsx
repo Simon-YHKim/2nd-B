@@ -58,7 +58,7 @@ import { livedPeriods, resolveInterviewRoutePeriod } from "@/lib/interview/perio
 import { DrillProgress } from "@/components/ui/DrillProgress";
 import { isNonAnswer, scaffoldQuestion } from "@/lib/interview/stuck";
 import { answerDisposition, answerOutcome, confirmedAnswer, currentScene, layerTally } from "@/lib/interview/continuity";
-import { planProbe, settleLatest, settleUnjudged, stepAfterJudgement } from "@/lib/interview/drill-flow";
+import { planProbe, settleFailedCall, settleLatest, settleUnjudged, stepAfterJudgement } from "@/lib/interview/drill-flow";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { createRecord } from "@/lib/records/create";
 import { addCoverage, loadCoverage } from "@/lib/interview/coverage-store";
@@ -489,18 +489,15 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           }
           return;
         }
-        // 그 밖의 실패: 마지막 답은 판정을 못 받았다. 칸은 더하지 않고 그 층의 시도 하나로
-        // 센 뒤 같은 질문에 다시 답하게 한다 -- 시도를 다 썼으면 끝낸다(`settleUnjudged`).
-        // 겨냥 층을 비운 채 두면 다음 답이 층 없이 나가 층마다의 호출 상한을 빠져나갔다(W4R1-01).
+        // 그 밖의 실패: 마지막 답은 판정을 못 받았다. 요청이 실패한 것은 답이 부족한 것이 아니라
+        // 그 층의 시도로 세지 않고, **대화를 끝내지 않는다** (게이트 W4-R2-01, `settleFailedCall`).
+        // 칸은 더하지 않고, 겨냥 층을 되돌려 오류 안내와 함께 같은 질문에 다시 보내게 한다.
+        // 겨냥 층을 비운 채 두면 다음 답이 층 없이 나가 층마다의 상한을 빠져나갔다(W4R1-01).
         if (ended.current) return;
-        const unjudged = settleUnjudged(history, credited);
-        setTurns(unjudged.turns);
-        if (unjudged.retry) {
-          setPendingLayer(unjudged.retry);
-          setNotice(t("drill.failed"));
-        } else {
-          finish();
-        }
+        const failed = settleFailedCall(history, credited);
+        setTurns(failed.turns);
+        setPendingLayer(failed.retry);
+        setNotice(t("drill.failed"));
       } finally {
         setBusy(false);
       }
