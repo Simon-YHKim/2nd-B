@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Platform, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
-import { Redirect, router } from "expo-router";
+import { router } from "expo-router";
 import Svg, { Rect } from "react-native-svg";
 import {
   AccountDeletionNoticePanel,
@@ -17,6 +17,7 @@ import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { type OAuthProvider } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useSignInForm } from "@/lib/auth/useSignInForm";
+import { RedirectHome } from "@/lib/nav/go-home";
 import {
   resetPasswordHref,
   runAuthActionOnce,
@@ -178,7 +179,9 @@ export function DeepSpaceSignInDesignScreen() {
       </PixelGateShell>
     );
   }
-  if (userId) return <Redirect href="/" />;
+  // Signed in: pop back to the home under this route, never stack a second
+  // one (QA 261004 D-01).
+  if (userId) return <RedirectHome />;
 
   const authBusy = submitting || oauthSubmitting;
   const submitDisabled = !canSubmit || oauthSubmitting;

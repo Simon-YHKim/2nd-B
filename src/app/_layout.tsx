@@ -53,10 +53,12 @@ import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRet
 import { AvatarSetupGate, AvatarSetupSceneGuard } from "@/components/avatar/AvatarSetupGate";
 import { EncryptedStorageRecoveryGate } from "@/screens/deepspace/storage-recovery-gate";
 import { BackArrow } from "@/components/ui/BackArrow";
+import { IntroExitShield } from "@/components/ui/IntroExitShield";
+import { startIntroExitShield } from "@/lib/nav/intro-exit-shield";
 import { BackgroundTaskDock, CompletionToast, SecondbHeadTrackProvider } from "@/components/deepspace";
 import { pixelStackTransition } from "@/lib/motion/pixel-physical";
 import { useAppFonts } from "@/lib/fonts/use-app-fonts";
-import { ThemeProvider, useThemePalette } from "@/lib/theme/ThemeContext";
+import { clearRetiredThemeMode, useThemePalette } from "@/lib/theme/ThemeContext";
 import { hydrateFirstStarChatNudge } from "@/lib/onboarding/state";
 import { Helmet } from "expo-router/vendor/react-helmet-async/lib";
 
@@ -159,6 +161,8 @@ export default function RootLayout() {
   // one extra nudge.
   useEffect(() => {
     void hydrateFirstStarChatNudge();
+    // Q-261005-02: the dark/light choice is gone. Drop its stale key once (nothing reads it).
+    void clearRetiredThemeMode();
   }, []);
 
   // The served page has two <title> tags and the FIRST one wins: Expo Router's
@@ -211,7 +215,6 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       {SITE_HEAD}
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-        <ThemeProvider>
           <AuthProvider>
             <ThemedStatusBar />
             <PendingAccountTransitionResolver />
@@ -284,16 +287,18 @@ export default function RootLayout() {
               <CompletionToast />
               </AvatarSetupGate>
             </IntroGate>
+            {/* W-05: for a moment after the opening ends, a tap that was aimed
+                at its skip button must not land on the dock tab underneath. */}
+            <IntroExitShield />
             </SecondbHeadTrackProvider>
           </AuthProvider>
-        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
 
-/** Wraps <Stack> so its contentStyle.backgroundColor tracks the theme
- *  toggle without forcing every screen to set its own bg. */
+/** Wraps <Stack> so every scene sits on the app's dark ground without each
+ *  screen setting its own bg. There is no theme toggle (Q-261005-02). */
 function ThemedStack({ children }: { children: React.ReactNode }) {
   const palette = useThemePalette();
   const transition = pixelStackTransition();
@@ -308,7 +313,7 @@ function ThemedStack({ children }: { children: React.ReactNode }) {
   // 셸 탓임이 드러났다. 눈으로는 잘 안 보인다 — 앱이 그 위를 거의 다 덮기 때문에
   // 로딩 순간·전환 틈·오버스크롤에서만 새어 나온다.
   //
-  // 팔레트는 항상 어두운 값이다(아래 ForceDark 주석). `card` 도 같이 맞춰야
+  // 팔레트는 항상 어두운 값이다(라이트 팔레트를 고르는 길이 없다, Q-261005-02). `card` 도 같이 맞춰야
   // 헤더·카드 기본값이 흰색으로 남지 않는다.
   const navTheme = useMemo(
     () => ({
@@ -463,10 +468,10 @@ function PendingAccountTransitionResolver(): null {
 
 
 /**
- * App content is always dark — every screen is wrapped in PremiumAppShell's
- * ForceDark and useThemePalette returns the dark palette even in Light mode
- * (the "village stays dark" design rule). So status-bar icons must always be
- * light to stay visible; tying them to `mode` rendered dark-on-dark in Light.
+ * App content is always dark: there is no light mode (Simon Q-261005-02 removed
+ * the toggle), and useThemePalette has no input that could return a light
+ * palette. So status-bar icons are always light; the old tie to `mode` once
+ * rendered dark-on-dark.
  */
 function ThemedStatusBar() {
   return <StatusBar style="light" />;
@@ -525,6 +530,7 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
         ready={fontsReady && !loading && recoveryReady && profileHold !== "loading"}
         onContinue={() => {
           markIntroPlayed();
+          startIntroExitShield();
           setIntroDone(true);
         }}
       />

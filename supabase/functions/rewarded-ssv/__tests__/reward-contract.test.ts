@@ -1,6 +1,11 @@
 import {
+  ALLOWED_TS_DIGITS,
+  CALLBACK_MAX_AGE_MS,
+  CALLBACK_MAX_SKEW_MS,
   MAX_SSV_QUERY_BYTES,
   derToRawEcdsa,
+  isCallbackFresh,
+  parseCallbackTimestamp,
   parseRewardCallback,
   parseSignedSsvQuery,
   parseVerifierKeyDocument,
@@ -255,8 +260,20 @@ describe("signed reward callback values", () => {
       adUnitId: CONFIG.adUnitIds[0],
       rewardAmount: CONFIG.rewardAmount,
       rewardItem: CONFIG.rewardItem,
+      // Google's own example value is 16 digits. Its unit is read after the
+      // signature (parseCallbackTimestamp in index.ts), so it travels as text.
+      callbackTimestampText: "1507770365237823",
     });
   });
+
+  test.each(["179025120000", "0001790251200", "17902512000000000", "1"])(
+    "passes the digits-only timestamp %p through for the post-signature check (r2 DB2-04)",
+    (value) => {
+      const parsed = parseSignedSsvQuery(validSignedQuery())!;
+      parsed.params.set("timestamp", value);
+      expect(parseRewardCallback(parsed.params, CONFIG)?.callbackTimestampText).toBe(value);
+    },
+  );
 
   test.each([
     ["ad_unit", "999"],
@@ -266,10 +283,50 @@ describe("signed reward callback values", () => {
     ["user_id", USER_ID],
     ["transaction_id", "not-hex"],
     ["timestamp", "yesterday"],
+    ["timestamp", ""],
+    ["timestamp", "1790251200.5"],
+    ["timestamp", "-1790251200"],
+    ["timestamp", "1e12"],
+    ["timestamp", "12345678901234567890"], // 20 digits: past the logged shape
   ])("rejects a bad %s even after signature verification", (name, value) => {
     const parsed = parseSignedSsvQuery(validSignedQuery())!;
     parsed.params.set(name, value);
     expect(parseRewardCallback(parsed.params, CONFIG)).toBeNull();
+  });
+});
+
+describe("callback timestamp unit and window (0213, ADMOB-TS (2))", () => {
+  const MS = 1790251200123;
+
+  test("reads 10, 13 and 16 digits as seconds, milliseconds and microseconds", () => {
+    expect(ALLOWED_TS_DIGITS).toEqual([10, 13, 16]);
+    expect(parseCallbackTimestamp("1790251200")).toEqual({ raw: 1790251200, digits: 10, ms: 1790251200000 });
+    expect(parseCallbackTimestamp(String(MS))).toEqual({ raw: MS, digits: 13, ms: MS });
+    expect(parseCallbackTimestamp(`${MS}456`)).toEqual({ raw: MS * 1000 + 456, digits: 16, ms: MS });
+  });
+
+  test.each(["", "0", "-1790251200", "179025120", "17902512000", "179025120000", "17902512000000",
+    "179025120000000", "17902512000000000", "0001790251200", "1790251200.5", "1e12", " 1790251200"])(
+    "refuses %p", (raw) => {
+      expect(parseCallbackTimestamp(raw)).toBeNull();
+    },
+  );
+
+  test("refuses a 16-digit value past the safe-integer range", () => {
+    expect(parseCallbackTimestamp("9999999999999999")).toBeNull();
+  });
+
+  test("accepts at most one day old and five minutes ahead, inclusive", () => {
+    const now = 1790251200000;
+    expect(CALLBACK_MAX_AGE_MS).toBe(86_400_000);
+    expect(CALLBACK_MAX_SKEW_MS).toBe(300_000);
+    expect(isCallbackFresh(now, now)).toBe(true);
+    expect(isCallbackFresh(now - CALLBACK_MAX_AGE_MS, now)).toBe(true);
+    expect(isCallbackFresh(now - CALLBACK_MAX_AGE_MS - 1, now)).toBe(false);
+    expect(isCallbackFresh(now + CALLBACK_MAX_SKEW_MS, now)).toBe(true);
+    expect(isCallbackFresh(now + CALLBACK_MAX_SKEW_MS + 1, now)).toBe(false);
+    expect(isCallbackFresh(now - 2 * CALLBACK_MAX_AGE_MS, now)).toBe(false);
+    expect(isCallbackFresh(now - 91 * CALLBACK_MAX_AGE_MS, now)).toBe(false);
   });
 });
 

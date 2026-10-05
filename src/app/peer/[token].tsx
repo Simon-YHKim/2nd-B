@@ -8,6 +8,7 @@ import { useLocalSearchParams } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { MdButton, MdCard, SegBtn } from "@/components/m3";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { m3 } from "@/lib/theme/m3";
 import { deepSpace, semantic, spacing } from "@/lib/theme/tokens";
 import { callPeerRespond } from "@/lib/peer/peer-respond";
@@ -69,6 +70,18 @@ export default function PeerInformant() {
       alive = false;
     };
   }, [token]);
+
+  // A home jump from a route above (RedirectHome, tab-root Back) stops here
+  // while this screen holds something it would lose (gate NAV-S7-01): the
+  // ratings, birth year and acknowledgements typed into the form, a submit or
+  // withdraw still out, and the failure line that answers it.
+  useGoHomeStop(
+    () =>
+      busy ||
+      error !== null ||
+      (phase === "form" &&
+        (Object.keys(ratings).length > 0 || ackLlm || ackOverseas || minor || guardian || birthYear !== "")),
+  );
 
   const complete =
     TRAITS.every((k) => ratings[k] != null) &&

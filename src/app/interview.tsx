@@ -53,6 +53,7 @@ import { classifyInputAnyLocale } from "@/lib/safety/classifier";
 import { startInterviewCrisisRouting } from "@/lib/llm/boundary";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { livedPeriods, resolveInterviewRoutePeriod } from "@/lib/interview/periods";
 import { DrillProgress } from "@/components/ui/DrillProgress";
 import { isNonAnswer, scaffoldQuestion, shouldScaffold, MAX_SCAFFOLDS_PER_LAYER } from "@/lib/interview/stuck";
@@ -293,6 +294,14 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   });
   const crisisRouting = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
+
+  // 위 칸의 홈 이동(RedirectHome · 탭 루트 하드웨어 뒤로)은 걷히면 잃는 것이 있는
+  // 동안 여기서 멈춘다(게이트 NAV-S7-01). 대화(turns)와 쓰던 답(draft)은 이 화면의
+  // 상태이고 '담기'를 눌러야 저장된다. 나가 있는 질문 요청 · 저장 요청, 그리고
+  // 안전 안내 창도 이 화면에만 있다.
+  useGoHomeStop(
+    () => busy || saving || crisis.visible || draft.trim() !== "" || turns.some((turn) => turn.role === "user"),
+  );
 
   const finish = useCallback(() => {
     ended.current = true;
