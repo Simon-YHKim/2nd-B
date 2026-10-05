@@ -23,7 +23,8 @@
 --   P10 0213: 1일 넘은/미래/티켓 발급 전 timestamp 는 v3 에서 지급되지 않는다.
 --   P11 cron.job 에 purge-reward-records-90d '37 19 * * *' 가 active (pg_cron 있을 때만).
 --   P12 reward_retention_health(): 정리 뒤 overdue 건수가 모두 0(보류 거래는 세지 않음).
---       91일 넘은 티켓도 센다(BL-07). pg_cron 이 없는 서버에서는 ok = false(DB-03 · BL-06).
+--       0196 계약보다 하루 넘게 남은 티켓도 센다(BL-07 · DB2-03). pg_cron 이 없는 서버에서는
+--       ok = false(DB-03 · BL-06).
 --   P13 89일 경계: 89일 + 1시간 전 거래는 지워지고 88일 23시간 전 거래는 남는다.
 --   P14 S4 재검토: 걸 때 next_review_at = 90일 뒤, review 가 다시 90일 뒤로 미루고 'reviewed' 를 남긴다.
 --       자기 승인은 거부. 기한이 지나면 health 의 overdue_hold_reviews 가 센다.
@@ -192,19 +193,25 @@ BEGIN
 END
 $p1_p6$;
 
--- P12 티켓(BL-07): 티켓은 0196 의 정리 작업이 지운다. 그 작업이 멈춰 91일 넘은 티켓이 남으면
--- 감시가 세야 한다. 정리 함수는 티켓을 지우지 않으므로 직접 넣고 센 뒤 치운다.
+-- P12 티켓(BL-07 · DB2-03): 티켓은 0196 의 정리 작업이 소비 1일 뒤 · 만료 즉시 지운다. 그 작업이
+-- 멈춰 하루 넘게 더 남은 티켓을 감시가 세야 한다(소비 3일 · 만료 92일 지난 것은 세고, 소비 12시간은
+-- 세지 않는다). 정리 함수는 티켓을 지우지 않으므로 직접 넣고 센 뒤 치운다.
 DO $p12_tickets$
 BEGIN
   INSERT INTO public.reward_ssv_tickets
     (token_hash, user_id, reward_kind, expected_ad_unit_id, expected_reward_amount, expected_reward_item,
-     issued_at, expires_at)
-  VALUES (repeat('ab', 32), '30000000-0000-0000-0000-000000000211', 'reasoning', 'ca-app-pub-test/1', 1, 'credit',
-          now() - interval '92 days', now() - interval '92 days' + interval '20 minutes');
-  IF (public.reward_retention_health() ->> 'overdue_reward_ssv_tickets')::int <> 1
+     issued_at, expires_at, consumed_transaction_id, consumed_at)
+  VALUES
+    (repeat('ab', 32), '30000000-0000-0000-0000-000000000211', 'reasoning', 'ca-app-pub-test/1', 1, 'credit',
+     now() - interval '92 days', now() - interval '92 days' + interval '20 minutes', NULL, NULL),
+    (repeat('ac', 32), '30000000-0000-0000-0000-000000000211', 'reasoning', 'ca-app-pub-test/1', 1, 'credit',
+     now() - interval '3 days 1 hour', now() - interval '3 days 40 minutes', 'txn-p12-consumed-3d', now() - interval '3 days'),
+    (repeat('ad', 32), '30000000-0000-0000-0000-000000000211', 'reasoning', 'ca-app-pub-test/1', 1, 'credit',
+     now() - interval '13 hours', now() - interval '12 hours 40 minutes', 'txn-p12-consumed-12h', now() - interval '12 hours');
+  IF (public.reward_retention_health() ->> 'overdue_reward_ssv_tickets')::int <> 2
      OR (public.reward_retention_health() ->> 'ok')::boolean THEN
-    RAISE EXCEPTION 'P12: a 92-day-old ticket is not reported: %', public.reward_retention_health(); END IF;
-  DELETE FROM public.reward_ssv_tickets WHERE token_hash = repeat('ab', 32);
+    RAISE EXCEPTION 'P12: overdue tickets not reported as the 0196 contract says: %', public.reward_retention_health(); END IF;
+  DELETE FROM public.reward_ssv_tickets WHERE token_hash IN (repeat('ab', 32), repeat('ac', 32), repeat('ad', 32));
 END
 $p12_tickets$;
 
