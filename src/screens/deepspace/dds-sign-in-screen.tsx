@@ -1,9 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Platform, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { Redirect, router } from "expo-router";
 import Svg, { Rect } from "react-native-svg";
+import { knownSignedOut } from "@/lib/account/deletion-receipt";
 import { resolvePendingAccountDeletionsInBackground } from "@/lib/account/resolve-pending-deletions";
+import {
+  accountTransitionPendingFromSnapshot,
+  accountTransitionSnapshot,
+  subscribeAccountTransition,
+} from "@/lib/auth/account-epoch";
 import { useTranslation } from "react-i18next";
 
 import { BusinessFooter } from "@/components/deepspace/BusinessFooter";
@@ -161,7 +167,19 @@ export function DeepSpaceSignInDesignScreen() {
   // 보여 주던 때는 계정 전환 중 A 의 영수증이 B 의 로그인 화면에 보였다.
   // 이 화면이 하는 일은 하나다: 로그아웃 상태가 확정되면, 답을 못 받은 삭제 요청이
   // 이 기기에 남았는지 서버 영수증으로 확인하고, 끝난 삭제가 남긴 앱 데이터를 지운다.
-  const signedOutSettled = !loading && !userId;
+  // "확정" 은 로그인 상태를 모르는 경우(sessionUnavailable)와 계정 전환 보류를 뺀다 -
+  // 모르는 상태는 로그아웃이 아니다 (게이트 DEL2-R1-01 · D2A-05).
+  const transitionSnapshot = useSyncExternalStore(
+    subscribeAccountTransition,
+    accountTransitionSnapshot,
+    accountTransitionSnapshot,
+  );
+  const signedOutSettled = knownSignedOut({
+    loading,
+    userId,
+    sessionUnavailable,
+    transitionPending: accountTransitionPendingFromSnapshot(transitionSnapshot),
+  });
   useEffect(() => {
     if (signedOutSettled) void resolvePendingAccountDeletionsInBackground();
   }, [signedOutSettled]);

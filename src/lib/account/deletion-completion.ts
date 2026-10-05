@@ -22,7 +22,17 @@
 //
 // None of it depends on the privacy screen staying mounted: a screen that
 // unmounts mid-way no longer drops the sign-out or the receipt.
+//
+// How the two local results reach the route: through deletion-local-outcome.ts,
+// bound to a one-time token in the route, never as URL claims (gates
+// DEL2-R1-05 / D2A-06).
 import type { AccountDeletionReceipt } from "../records/delete-bulk";
+import {
+  beginLocalDeletionOutcome,
+  discardLocalDeletionOutcome,
+  reportLocalDeletionSignOut,
+  type LocalDeletionOutcome,
+} from "./deletion-local-outcome";
 import {
   buildAccountDeletedHref,
   type LocalPurgeOutcome,
@@ -62,10 +72,10 @@ export interface FinishAccountDeletionDeps {
   readOwner: () => AccountOwnerSnapshot;
   /** Dismiss the owned stack and open the receipt route. */
   openReceipt: (href: string) => void;
-  /** Tell the already-open receipt route how local sign-out ended. */
-  reportSignOut: (outcome: LocalSignOutOutcome) => void;
   /** Leave A's receipt route for the app root (another account took over). */
   leaveReceipt: () => void;
+  /** Test seam for the route token; defaults to a random UUID. */
+  newToken?: () => string;
 }
 
 /** Bookkeeping must never hold up the result (gate DEL-BL-05). */
@@ -125,8 +135,21 @@ export async function finishAccountDeletion(deps: FinishAccountDeletionDeps): Pr
   // Another account already visible: never open A's receipt. Still try to end
   // A's own session; signOutExpected refuses any session that is not A's.
   const opened = !otherOwnerVisible(deps.readOwner(), deps.owner);
-  const href = buildAccountDeletedHref({ receiptId: deps.receipt.receiptId, localPurge });
-  if (opened) quietly(() => deps.openReceipt(href));
+  let token: string | null = null;
+  let href = buildAccountDeletedHref({ receiptId: deps.receipt.receiptId, op: null });
+  if (opened) {
+    try {
+      token = beginLocalDeletionOutcome(
+        { owner: deps.owner, receiptId: deps.receipt.receiptId, localPurge },
+        deps.newToken,
+      );
+    } catch {
+      // Without a token the route still shows the server receipt, just no local result.
+      token = null;
+    }
+    href = buildAccountDeletedHref({ receiptId: deps.receipt.receiptId, op: token });
+    quietly(() => deps.openReceipt(href));
+  }
 
   let localSignOut: LocalSignOutOutcome = "complete";
   let ownerChanged = !opened;
@@ -141,15 +164,43 @@ export async function finishAccountDeletion(deps: FinishAccountDeletionDeps): Pr
   if (!ownerChanged && otherOwnerVisible(deps.readOwner(), deps.owner)) ownerChanged = true;
 
   if (ownerChanged) {
+    if (token !== null) discardLocalDeletionOutcome(token);
     if (opened) quietly(() => deps.leaveReceipt());
     return { kind: "owner-changed", localPurge };
   }
 
-  quietly(() => deps.reportSignOut(localSignOut));
+  if (token !== null) reportLocalDeletionSignOut(token, localSignOut);
   return {
     kind: "show-receipt",
-    href: buildAccountDeletedHref({ receiptId: deps.receipt.receiptId, localPurge, localSignOut }),
+    href,
     localPurge,
     localSignOut,
   };
+}
+
+/**
+ * Retry, from the receipt route, the sign-out of the account this device just
+ * deleted (gate D2A-07: a failed sign-out used to leave that route waiting
+ * forever). Only that exact owner is ever signed out: if the session now
+ * belongs to anyone else, nothing is touched.
+ */
+export async function retryDeletedOwnerSignOut<E extends { userId: string | null }>(deps: {
+  outcome: LocalDeletionOutcome;
+  captureExpectation: () => Promise<E>;
+  signOut: (expected: E) => Promise<void>;
+}): Promise<LocalSignOutOutcome | "owner-changed"> {
+  let expected: E;
+  try {
+    expected = await deps.captureExpectation();
+  } catch {
+    return "unconfirmed";
+  }
+  if (expected.userId !== deps.outcome.owner) return "owner-changed";
+  try {
+    await deps.signOut(expected);
+  } catch {
+    return "unconfirmed";
+  }
+  reportLocalDeletionSignOut(deps.outcome.token, "complete");
+  return "complete";
 }

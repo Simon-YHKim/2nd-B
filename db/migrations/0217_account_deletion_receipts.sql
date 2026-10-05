@@ -28,6 +28,11 @@
 -- 남고, Auth 삭제가 롤백되면 영수증도 같이 없다. 표식에 번호가 남는 시간은 Auth 삭제
 -- 요청 한 번이다(실패하면 다음 시도가 덮어쓴다).
 --
+-- 트리거는 번호를 먼저 비우고, 비우기가 성공했을 때만 영수증을 만든다(게이트 DEL2-R1-07).
+-- 둘을 한 EXCEPTION 블록에 두면 발급이 실패할 때 비우기까지 롤백돼, 보존되는 표식에
+-- user_id 와 번호가 함께 남았다. 이제 "영수증이 있으면 표식의 번호는 비어 있다" 가 늘 참이다
+-- - 비우기가 실패하면 영수증을 만들지 않는다(연결이 남는 영수증보다 영수증 없음이 낫다).
+--
 -- 트리거는 영수증을 못 만들어도 계정 삭제를 막지 않는다(EXCEPTION 으로 삼키고 WARNING).
 -- 삭제권이 영수증보다 우선이다. 그 경우 Edge 는 영수증 번호 없이 deleted:true 를 돌려준다.
 --
@@ -37,6 +42,9 @@
 --
 -- 보관. 365일 뒤 만료된다. 만료된 행은 조회에서 즉시 빠지고, pg_cron 이 있으면 매일
 -- 지운다(0067 과 같은 모양 - CI 의 순정 PostgreSQL 에는 pg_cron 이 없어 NOTICE 로 건너뛴다).
+-- pg_cron 이 설치돼 있으면 적용 끝에 그 작업이 실제로 있는지 확인한다. pg_cron 이 없는
+-- 곳을 위해 두 번째 정리 길도 둔다: 번호를 걸 때마다(attach) 만료 행을 조금씩 지운다
+-- (0180 과 같은 모양). 법무 문서의 "1년 뒤 자동으로 지운다" 는 이 둘이 받친다(게이트 DEL2-R1-09).
 --
 -- 의존. 0192(account_deletion_tombstones · begin_account_deletion)가 먼저 있어야 한다.
 -- 운영 적용 순서: 0192 -> 0217 -> delete-account 배포 -> account-deletion-receipt 배포 ->
@@ -127,6 +135,21 @@ BEGIN
     RETURN NULL;
   END IF;
 
+  -- pg_cron 이 없는 곳의 두 번째 정리 길. 실패해도 번호 걸기는 계속된다.
+  BEGIN
+    DELETE FROM public.account_deletion_receipts AS r
+     WHERE r.id IN (
+       SELECT e.id
+         FROM public.account_deletion_receipts AS e
+        WHERE e.expires_at <= pg_catalog.now()
+        ORDER BY e.expires_at
+        LIMIT 100
+        FOR UPDATE SKIP LOCKED
+     );
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'account_deletion_receipt_prune_skipped';
+  END;
+
   IF v_receipt IS NULL
      OR EXISTS (
        SELECT 1 FROM public.account_deletion_receipts AS r WHERE r.id = v_receipt
@@ -159,7 +182,7 @@ GRANT EXECUTE ON FUNCTION public.attach_account_deletion_receipt(uuid, uuid)
 
 ----------------------------------------------------------------------
 -- 2. 프로필 행이 지워지는 트랜잭션 안에서 영수증을 만든다 (트리거 전용).
---    실패해도 삭제를 막지 않는다.
+--    번호를 먼저 비우고, 비우기가 성공했을 때만 발급한다. 실패해도 삭제를 막지 않는다.
 ----------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.issue_account_deletion_receipt()
@@ -173,26 +196,37 @@ DECLARE
   v_receipt uuid;
   v_erased_at timestamptz;
 BEGIN
+  -- (1) 번호를 읽고 비운다. 이 블록이 실패하면 번호가 표식에 남을 수 있으므로
+  --     영수증을 만들지 않는다 (PL/pgSQL 변수는 롤백되지 않아 직접 NULL 로 되돌린다).
   BEGIN
     SELECT t.pending_receipt_id
       INTO v_receipt
       FROM public.account_deletion_tombstones AS t
-     WHERE t.user_id = OLD.id;
+     WHERE t.user_id = OLD.id
+       FOR UPDATE;
 
     IF v_receipt IS NOT NULL THEN
-      v_erased_at := pg_catalog.date_trunc('second', pg_catalog.clock_timestamp());
-      INSERT INTO public.account_deletion_receipts (id, erased_at, expires_at)
-      VALUES (v_receipt, v_erased_at, v_erased_at + interval '365 days')
-      ON CONFLICT (id) DO NOTHING;
-
       UPDATE public.account_deletion_tombstones AS t
          SET pending_receipt_id = NULL
        WHERE t.user_id = OLD.id;
     END IF;
   EXCEPTION WHEN OTHERS THEN
-    -- 삭제권이 영수증보다 우선이다. 영수증을 못 만들어도 계정 삭제는 계속된다.
-    RAISE WARNING 'account_deletion_receipt_not_issued';
+    v_receipt := NULL;
+    RAISE WARNING 'account_deletion_receipt_not_cleared';
   END;
+
+  -- (2) 비우기가 끝난 번호로만 영수증을 만든다. 실패해도 번호는 이미 비어 있다.
+  IF v_receipt IS NOT NULL THEN
+    BEGIN
+      v_erased_at := pg_catalog.date_trunc('second', pg_catalog.clock_timestamp());
+      INSERT INTO public.account_deletion_receipts (id, erased_at, expires_at)
+      VALUES (v_receipt, v_erased_at, v_erased_at + interval '365 days')
+      ON CONFLICT (id) DO NOTHING;
+    EXCEPTION WHEN OTHERS THEN
+      -- 삭제권이 영수증보다 우선이다. 영수증을 못 만들어도 계정 삭제는 계속된다.
+      RAISE WARNING 'account_deletion_receipt_not_issued';
+    END;
+  END IF;
   RETURN OLD;
 END;
 $$;
@@ -379,7 +413,20 @@ $schedule_receipt_purge$;
 DO $account_deletion_receipts_check$
 DECLARE
   v_fn text;
+  v_jobs bigint;
 BEGIN
+  -- pg_cron 이 설치된 곳에서는 매일 정리 작업이 정확히 하나 있어야 한다 (게이트 DEL2-R1-09).
+  -- 동적 SQL 이라 cron 스키마가 없는 순정 PostgreSQL 에서도 이 블록이 해석된다.
+  IF pg_catalog.to_regclass('cron.job') IS NOT NULL THEN
+    EXECUTE 'SELECT count(*) FROM cron.job WHERE jobname = $1 AND command = $2'
+      INTO v_jobs
+      USING 'purge-expired-account-deletion-receipts',
+            'SELECT public.purge_expired_account_deletion_receipts();';
+    IF v_jobs IS DISTINCT FROM 1 THEN
+      RAISE EXCEPTION '0217: receipt purge cron job missing (found %)', v_jobs;
+    END IF;
+  END IF;
+
   IF NOT EXISTS (
        SELECT 1
          FROM pg_catalog.pg_trigger AS t

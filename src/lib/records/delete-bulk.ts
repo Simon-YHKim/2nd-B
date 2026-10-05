@@ -421,7 +421,7 @@ async function classifyInvokeFailure(error: unknown): Promise<InvokeFailure> {
 }
 
 type DeletionAttempt =
-  | { kind: "deleted"; receipt: AccountDeletionReceipt }
+  | { kind: "deleted"; receipt: AccountDeletionReceipt; requestIdSent: boolean }
   | { kind: "ambiguous"; requestId: string };
 
 /** Terminal account erasure. Compares both live session reads with the user id
@@ -458,6 +458,13 @@ export async function requestAccountDeletion(
   // have finished. Its server receipt is proof; never erase twice.
   const prior = await resolvePendingAccountDeletion(owner, { lookup });
   if (prior.kind === "deleted") return accountDeletionReceiptFromServer(prior.receipt);
+  // ...or it may still be running on the server. A second request beside it
+  // would race it for the tombstone's receipt number, and a lost answer could
+  // then never be resolved (gate DEL2-R1-03). Wait out its lease instead; a
+  // request past its lease cannot be running any more.
+  if (prior.kind === "pending" && prior.inFlightRequestId !== null) {
+    throw new AccountDeletionUnconfirmedError(prior.inFlightRequestId);
+  }
 
   const supabase = getSupabaseClient();
   const runtime = getAuthStorageRuntime();
@@ -542,6 +549,7 @@ export async function requestAccountDeletion(
             removedBeforeSuccess,
             observedAtIso: new Date().toISOString(),
           }),
+          requestIdSent: "request_id" in requestBody,
         };
       }
       throw new Error("account deletion retry bound exhausted");
@@ -554,7 +562,22 @@ export async function requestAccountDeletion(
     }
   }, { requireCrossTab: true });
 
-  if (attempt.kind === "deleted") return attempt.receipt;
+  if (attempt.kind === "deleted") {
+    if (attempt.receipt.receiptId !== null || !attempt.requestIdSent) return attempt.receipt;
+    // The erasure is confirmed but the answer carried no receipt number. The
+    // row may still exist: delete-account returns a number only after it could
+    // prove the row, and that proof can fail on its own (gate DEL2-R1-08). Ask
+    // once by the number this request proposed; anything but "found" keeps null.
+    try {
+      const recorded = await lookup(requestId);
+      if (recorded.status === "found" && recorded.receipt.id === requestId) {
+        return { ...attempt.receipt, receiptId: requestId };
+      }
+    } catch {
+      // A failed lookup only means the number stays unknown.
+    }
+    return attempt.receipt;
+  }
 
   // The answer was lost. The server records the receipt in the same transaction
   // that erases the profile row, so its presence is the proof we did not hear.

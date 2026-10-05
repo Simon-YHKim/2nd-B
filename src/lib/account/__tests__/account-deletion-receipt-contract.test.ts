@@ -49,6 +49,23 @@ describe("0217 receipt table holds no account identifier", () => {
     expect(sql).toMatch(/cron\.schedule\(\s*'purge-expired-account-deletion-receipts'/);
     expect(sql).toMatch(/pg_available_extensions WHERE name = 'pg_cron'/);
   });
+
+  test("the yearly deletion the legal page promises does not rest on an unchecked scheduler (DEL2-R1-09)", () => {
+    // Where pg_cron exists, the apply fails unless exactly one purge job is there.
+    const check = sql.slice(sql.indexOf("DO $account_deletion_receipts_check$"));
+    expect(check).toMatch(/to_regclass\('cron\.job'\) IS NOT NULL/);
+    expect(check).toMatch(/FROM cron\.job WHERE jobname = \$1 AND command = \$2/);
+    expect(check).toMatch(/IF v_jobs IS DISTINCT FROM 1 THEN\s+RAISE EXCEPTION/);
+    // Where it does not, every attach drains expired receipts (0180's shape),
+    // and that cleanup can never stop the number from being attached.
+    const attach = sql.slice(
+      sql.indexOf("FUNCTION public.attach_account_deletion_receipt("),
+      sql.indexOf("REVOKE ALL ON FUNCTION public.attach_account_deletion_receipt"),
+    );
+    expect(attach).toMatch(/WHERE e\.expires_at <= pg_catalog\.now\(\)[\s\S]*LIMIT 100\s+FOR UPDATE SKIP LOCKED/);
+    expect(attach).toMatch(/EXCEPTION WHEN OTHERS THEN\s+RAISE WARNING 'account_deletion_receipt_prune_skipped';/);
+    expect(attach.indexOf("account_deletion_receipt_prune_skipped")).toBeLessThan(attach.indexOf("UPDATE public.account_deletion_tombstones"));
+  });
 });
 
 describe("0217 issues the receipt atomically with the profile erasure", () => {
@@ -59,8 +76,26 @@ describe("0217 issues the receipt atomically with the profile erasure", () => {
     const insert = trigger.indexOf("INSERT INTO public.account_deletion_receipts");
     const clear = trigger.indexOf("SET pending_receipt_id = NULL");
     expect(read).toBeGreaterThan(-1);
-    expect(insert).toBeGreaterThan(read);
-    expect(clear).toBeGreaterThan(insert);
+    // Cleared FIRST, issued only after (gate DEL2-R1-07): a receipt can never
+    // exist while the retained tombstone still links it to the user id.
+    expect(clear).toBeGreaterThan(read);
+    expect(insert).toBeGreaterThan(clear);
+  });
+
+  test("a failed clear issues no receipt; a failed issue still leaves the number cleared (DEL2-R1-07)", () => {
+    const trigger = sql.slice(
+      sql.indexOf("FUNCTION public.issue_account_deletion_receipt()"),
+      sql.indexOf("REVOKE ALL ON FUNCTION public.issue_account_deletion_receipt()"),
+    );
+    const clearBlock = trigger.slice(trigger.indexOf("SELECT t.pending_receipt_id"), trigger.indexOf("INSERT INTO public.account_deletion_receipts"));
+    // The clear has its own handler, which forgets the number (PL/pgSQL
+    // variables survive a subtransaction rollback, so it must be reset by hand).
+    expect(clearBlock).toMatch(/EXCEPTION WHEN OTHERS THEN\s+v_receipt := NULL;\s+RAISE WARNING 'account_deletion_receipt_not_cleared';/);
+    // The insert runs in a second block, entered only with a cleared number.
+    const issueBlock = trigger.slice(trigger.indexOf("account_deletion_receipt_not_cleared"));
+    expect(issueBlock).toMatch(/IF v_receipt IS NOT NULL THEN\s+BEGIN\s+v_erased_at :=/);
+    expect(issueBlock).toMatch(/EXCEPTION WHEN OTHERS THEN\s+RAISE WARNING 'account_deletion_receipt_not_issued';/);
+    expect(issueBlock).not.toContain("SET pending_receipt_id");
   });
 
   test("a receipt failure never blocks the erasure", () => {
@@ -175,6 +210,18 @@ describe("delete-account records the receipt without letting it block erasure", 
   test("a receipt number is returned only when the receipt row was proven to exist", () => {
     expect(deleteAccount).toMatch(/if \(!recordError && recorded === true\) receiptId = pendingReceiptId;/);
     expect(deleteAccount).toMatch(/let receiptId: string \| null = null;/);
+  });
+
+  test("a failed sweeps record re-checks the row before answering 'no receipt' (DEL2-R1-08)", () => {
+    const record = deleteAccount.indexOf("'record_account_deletion_receipt_sweeps'");
+    const recheck = deleteAccount.indexOf("'get_account_deletion_receipt'", record);
+    const respond = deleteAccount.indexOf("receipt_id: receiptId");
+    expect(recheck).toBeGreaterThan(record);
+    expect(respond).toBeGreaterThan(recheck);
+    const block = deleteAccount.slice(recheck - 200, respond);
+    expect(block).toMatch(/if \(receiptId === null\) \{/);
+    expect(block).toMatch(/if \(!existingError && existingId === pendingReceiptId\) receiptId = pendingReceiptId;/);
+    expect(block).toMatch(/catch \{\s+safeLog\('receipt_recheck_failed'\);\s+\}/);
   });
 
   test("receipt RPC failures are logged and swallowed, never turned into a failed deletion", () => {

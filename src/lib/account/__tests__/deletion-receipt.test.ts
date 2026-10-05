@@ -14,6 +14,7 @@ jest.mock("../../env", () => ({
 import {
   buildAccountDeletedHref,
   fetchAccountDeletionReceipt,
+  knownSignedOut,
   normalizeReceiptId,
   parseAccountDeletedParams,
   parseReceiptLookupBody,
@@ -100,11 +101,24 @@ test("receipt numbers are normalized and validated", () => {
   expect(parseReceiptLookupBody({ receipt: null }, ID)).toEqual({ status: "not-found" });
 });
 
-test("the route carries the number and two local observations, nothing else", () => {
-  const href = buildAccountDeletedHref({ receiptId: ID, localPurge: "complete", localSignOut: "unconfirmed" });
-  expect(href).toBe(`/account-deleted?receipt=${ID}&local=complete&signout=unconfirmed&done=1`);
-  expect(buildAccountDeletedHref({ receiptId: "nope" })).toBe("/account-deleted?done=1");
-  expect(parseAccountDeletedParams({ receipt: [ID, "x"], local: "unconfirmed", done: "1" })).toEqual({
-    receiptId: ID, localPurge: "unconfirmed", localSignOut: null, fromDeletion: true,
-  });
+const OP = "11111111-2222-4333-8444-555555555555";
+
+test("the route carries the number and an opaque token, never a local claim (DEL2-R1-05 / D2A-06)", () => {
+  expect(buildAccountDeletedHref({ receiptId: ID, op: OP.toUpperCase() })).toBe(`/account-deleted?receipt=${ID}&op=${OP}`);
+  expect(buildAccountDeletedHref({ receiptId: "nope", op: null })).toBe("/account-deleted");
+  expect(buildAccountDeletedHref({ receiptId: null, op: OP })).toBe(`/account-deleted?op=${OP}`);
+  // done / local / signout are no longer read: a URL cannot say "this device was cleaned".
+  expect(parseAccountDeletedParams({
+    receipt: [ID, "x"], op: OP, local: "complete", signout: "complete", done: "1",
+  })).toEqual({ receiptId: ID, op: OP });
+  expect(parseAccountDeletedParams({ op: "not-a-token", done: "1" })).toEqual({ receiptId: null, op: null });
+});
+
+test("an unknown session or a held transition is never 'signed out' (DEL2-R1-01 / D2A-05)", () => {
+  const base = { loading: false, userId: null as string | null, sessionUnavailable: false, transitionPending: false };
+  expect(knownSignedOut(base)).toBe(true);
+  expect(knownSignedOut({ ...base, sessionUnavailable: true })).toBe(false);
+  expect(knownSignedOut({ ...base, transitionPending: true })).toBe(false);
+  expect(knownSignedOut({ ...base, loading: true })).toBe(false);
+  expect(knownSignedOut({ ...base, userId: ID })).toBe(false);
 });

@@ -16,12 +16,17 @@
 // What remains for the client is remembering which requests are unanswered,
 // so that a lost response can be resolved later by receipt number:
 //
-//   - a separate key (`account.deletionPending.v1:`) that no older build reads,
-//     so nothing here can be mistaken for a terminal marker;
-//   - one entry per request id (the receipt number the server will use), so
-//     resolving or dropping one request never touches another;
+//   - a separate key prefix (`account.deletionPending.v2:`) that no older build
+//     reads, so nothing here can be mistaken for a terminal marker;
+//   - one storage KEY per request id (the receipt number the server will use),
+//     so adding, resolving or dropping one request is a single-key write that
+//     can never overwrite another. A shared per-owner list was a
+//     read-modify-write: a background sweep dropping an expired R1 could write
+//     back a stale list and erase R2, added meanwhile by another tab (gate D2A-08);
 //   - a lease: an entry whose receipt is definitely absent after the lease is
-//     dropped, because no Edge invocation outlives it;
+//     dropped, because no Edge invocation outlives it. Until then the request
+//     may still be running, so no second request is sent beside it (gate
+//     DEL2-R1-03, delete-bulk.ts);
 //   - every storage call bounded, so bookkeeping can never hold up a result.
 //
 // Nothing here blocks writes, so a note that outlives its purpose costs only
@@ -35,7 +40,7 @@ interface AsyncStorageLike {
   getAllKeys(): Promise<readonly string[]>;
 }
 
-const PENDING_KEY_PREFIX = "account.deletionPending.v1:";
+const PENDING_KEY_PREFIX = "account.deletionPending.v2:";
 /** Far beyond the 90 s client deadline and any Edge wall-clock limit. */
 export const PENDING_DELETION_LEASE_MS = 15 * 60_000;
 /** Newest requests kept per owner; older ones are dropped first. */
@@ -50,8 +55,13 @@ export interface PendingDeletionRequest {
 
 export type PendingDeletionResolution =
   | { kind: "deleted"; receipt: Extract<ReceiptLookup, { status: "found" }>["receipt"] }
-  /** Some request may still be running or could not be checked; keep waiting. */
-  | { kind: "pending" }
+  /**
+   * Some request may still be running or could not be checked; keep waiting.
+   * `inFlightRequestId` names the newest request still inside its lease (it
+   * may be running on the server right now), or null when every remaining
+   * request is past its lease and only its answer is unknown.
+   */
+  | { kind: "pending"; inFlightRequestId: string | null }
   /** No unanswered request is left for this owner. */
   | { kind: "none" };
 
@@ -82,11 +92,16 @@ function asyncStorage(): AsyncStorageLike | null {
 
 function normalizeOwner(userId: string): string | null {
   const owner = typeof userId === "string" ? userId.trim() : "";
-  return owner.length > 0 ? owner : null;
+  // ":" separates the owner from the request id in the key.
+  return owner.length > 0 && !owner.includes(":") ? owner : null;
 }
 
-function pendingKey(owner: string): string {
-  return `${PENDING_KEY_PREFIX}${owner}`;
+function ownerPrefix(owner: string): string {
+  return `${PENDING_KEY_PREFIX}${owner}:`;
+}
+
+function pendingKey(owner: string, requestId: string): string {
+  return `${ownerPrefix(owner)}${requestId}`;
 }
 
 /** Resolve to `fallback` if `operation` does not settle in time; never rejects. */
@@ -131,35 +146,58 @@ async function writeRaw(key: string, value: string | null): Promise<boolean> {
   }, false);
 }
 
-/** Unreadable or foreign values read as "no requests" - this note never fences. */
-export function parsePendingDeletionRequests(raw: string | null | undefined): PendingDeletionRequest[] {
-  if (typeof raw !== "string") return [];
-  try {
-    const parsed = JSON.parse(raw) as { v?: unknown; requests?: unknown };
-    if (parsed?.v !== 1 || !Array.isArray(parsed.requests)) return [];
-    const out: PendingDeletionRequest[] = [];
-    for (const entry of parsed.requests) {
-      const id = normalizeReceiptId((entry as { id?: unknown })?.id);
-      const at = (entry as { at?: unknown })?.at;
-      if (id !== null && typeof at === "number" && Number.isSafeInteger(at) && at > 0) {
-        if (!out.some((existing) => existing.id === id)) out.push({ id, at });
+/** Every pending-note key on this device; null when the key list is unreadable. */
+async function listPendingKeys(): Promise<string[] | null> {
+  const local = webStorage();
+  let keys: readonly string[] | null = null;
+  if (local) {
+    keys = await bounded(async (): Promise<string[] | null> => {
+      const found: string[] = [];
+      for (let index = 0; index < local.length; index += 1) {
+        const key = local.key(index);
+        if (key !== null) found.push(key);
       }
-    }
-    return out;
+      return found;
+    }, null);
+  } else {
+    const storage = asyncStorage();
+    if (storage) keys = await bounded(async (): Promise<string[] | null> => [...await storage.getAllKeys()], null);
+  }
+  return keys === null ? null : keys.filter((key) => key.startsWith(PENDING_KEY_PREFIX));
+}
+
+/** The request id a key names for this owner, or null for a foreign key. */
+function requestIdFromKey(key: string, owner: string): string | null {
+  const prefix = ownerPrefix(owner);
+  return key.startsWith(prefix) ? normalizeReceiptId(key.slice(prefix.length)) : null;
+}
+
+/** Unreadable or foreign values read as "no request" - this note never fences. */
+export function parsePendingDeletionEntry(raw: string | null | undefined): number | null {
+  if (typeof raw !== "string") return null;
+  try {
+    const parsed = JSON.parse(raw) as { v?: unknown; at?: unknown } | null;
+    const at = parsed?.at;
+    return parsed?.v === 2 && typeof at === "number" && Number.isSafeInteger(at) && at > 0 ? at : null;
   } catch {
-    return [];
+    return null;
   }
 }
 
-function serialize(requests: readonly PendingDeletionRequest[]): string | null {
-  if (requests.length === 0) return null;
-  return JSON.stringify({ v: 1, requests });
-}
-
+/** Oldest first. Unreadable entries are skipped (and never fence anything). */
 export async function readPendingAccountDeletion(userId: string): Promise<PendingDeletionRequest[]> {
   const owner = normalizeOwner(userId);
   if (!owner) return [];
-  return parsePendingDeletionRequests(await readRaw(pendingKey(owner)));
+  const keys = await listPendingKeys();
+  if (keys === null) return [];
+  const out: PendingDeletionRequest[] = [];
+  for (const key of keys) {
+    const id = requestIdFromKey(key, owner);
+    if (id === null || out.some((entry) => entry.id === id)) continue;
+    const at = parsePendingDeletionEntry(await readRaw(key));
+    if (at !== null) out.push({ id, at });
+  }
+  return out.sort((left, right) => left.at - right.at);
 }
 
 /**
@@ -174,12 +212,17 @@ export async function addPendingAccountDeletion(
 ): Promise<boolean> {
   const owner = normalizeOwner(userId);
   const id = normalizeReceiptId(requestId);
-  if (!owner || id === null) return false;
-  const current = await readRaw(pendingKey(owner));
-  if (current === undefined) return false;
-  const kept = parsePendingDeletionRequests(current).filter((entry) => entry.id !== id);
-  const next = [...kept, { id, at: now }].slice(-MAX_PENDING_DELETION_REQUESTS);
-  return writeRaw(pendingKey(owner), serialize(next));
+  if (!owner || id === null || !Number.isSafeInteger(now) || now <= 0) return false;
+  const written = await writeRaw(pendingKey(owner, id), JSON.stringify({ v: 2, at: now }));
+  if (!written) return false;
+  // Keep the newest few. Each drop is its own single-key delete, so it can
+  // only ever remove an older request, never the one just written.
+  const others = (await readPendingAccountDeletion(owner)).filter((entry) => entry.id !== id);
+  const excess = others.length + 1 - MAX_PENDING_DELETION_REQUESTS;
+  for (const entry of others.slice(0, Math.max(0, excess))) {
+    await writeRaw(pendingKey(owner, entry.id), null);
+  }
+  return true;
 }
 
 /** Drop one request (it definitely did not delete the account). Never throws. */
@@ -187,40 +230,41 @@ export async function removePendingAccountDeletion(userId: string, requestId: st
   const owner = normalizeOwner(userId);
   const id = normalizeReceiptId(requestId);
   if (!owner || id === null) return false;
-  const current = await readRaw(pendingKey(owner));
-  if (current === undefined) return false;
-  const next = parsePendingDeletionRequests(current).filter((entry) => entry.id !== id);
-  return writeRaw(pendingKey(owner), serialize(next));
+  return writeRaw(pendingKey(owner, id), null);
 }
 
 /** Drop every note for the owner once its local data has been purged. Never throws. */
 export async function clearPendingAccountDeletion(userId: string): Promise<boolean> {
   const owner = normalizeOwner(userId);
   if (!owner) return false;
-  return writeRaw(pendingKey(owner), null);
+  const keys = await listPendingKeys();
+  if (keys === null) return false;
+  let cleared = true;
+  for (const key of keys) {
+    if (requestIdFromKey(key, owner) === null) continue;
+    if (!(await writeRaw(key, null))) cleared = false;
+  }
+  return cleared;
 }
 
 /** Owners that still have a note on this device. */
 export async function listPendingAccountDeletionOwners(): Promise<string[]> {
-  const local = webStorage();
-  let keys: readonly string[] = [];
-  if (local) {
-    keys = await bounded(async () => {
-      const found: string[] = [];
-      for (let index = 0; index < local.length; index += 1) {
-        const key = local.key(index);
-        if (key !== null) found.push(key);
-      }
-      return found;
-    }, []);
-  } else {
-    const storage = asyncStorage();
-    if (storage) keys = await bounded(() => storage.getAllKeys(), []);
+  const keys = (await listPendingKeys()) ?? [];
+  const owners: string[] = [];
+  for (const key of keys) {
+    const rest = key.slice(PENDING_KEY_PREFIX.length);
+    const split = rest.lastIndexOf(":");
+    if (split <= 0) continue;
+    const owner = rest.slice(0, split);
+    if (normalizeReceiptId(rest.slice(split + 1)) === null || normalizeOwner(owner) === null) continue;
+    if (!owners.includes(owner)) owners.push(owner);
   }
-  return keys
-    .filter((key) => key.startsWith(PENDING_KEY_PREFIX))
-    .map((key) => key.slice(PENDING_KEY_PREFIX.length))
-    .filter((owner) => owner.trim().length > 0);
+  return owners;
+}
+
+/** Inside the lease on either side of `now` (a clock moved far back counts as outside). */
+function withinLease(at: number, now: number): boolean {
+  return Math.abs(now - at) < PENDING_DELETION_LEASE_MS;
 }
 
 /**
@@ -232,6 +276,10 @@ export async function listPendingAccountDeletionOwners(): Promise<string[]> {
  *   not-found    -> dropped once its lease has passed; kept until then, because
  *                   the request may still be running.
  *   unavailable  -> kept. An unreachable lookup is never read as "not deleted".
+ *
+ * A request still inside its lease is reported as `inFlightRequestId`: it may
+ * be running on the server right now, so the caller must not send another
+ * request beside it (gate DEL2-R1-03).
  */
 export async function resolvePendingAccountDeletion(
   userId: string,
@@ -257,21 +305,26 @@ export async function resolvePendingAccountDeletion(
 
   const now = (deps.now ?? Date.now)();
   let remaining = 0;
+  let inFlight: PendingDeletionRequest | null = null;
   for (const { request, answer } of answers) {
-    if (answer.status === "not-found" && now - request.at >= PENDING_DELETION_LEASE_MS) {
+    if (withinLease(request.at, now)) {
+      remaining += 1;
+      if (inFlight === null || request.at >= inFlight.at) inFlight = request;
+    } else if (answer.status === "not-found") {
       await removePendingAccountDeletion(owner, request.id);
     } else {
       remaining += 1;
     }
   }
-  return remaining > 0 ? { kind: "pending" } : { kind: "none" };
+  return remaining > 0 ? { kind: "pending", inFlightRequestId: inFlight?.id ?? null } : { kind: "none" };
 }
 
 /**
  * Sweep every owner's notes. For a confirmed erasure the local data is purged
  * (installing the terminal fence first) and the note is cleared only when the
  * purge completed - otherwise it stays so the next run retries the purge.
- * Never throws; safe to call on any signed-out screen.
+ * Never throws; call it only where the device is KNOWN to be signed out
+ * (deletion-receipt.ts knownSignedOut).
  */
 export async function resolveAllPendingAccountDeletions(deps: {
   lookup: (receiptId: string) => Promise<ReceiptLookup>;
@@ -302,6 +355,6 @@ export async function resolveAllPendingAccountDeletions(deps: {
   return result;
 }
 
-export function __pendingKeyForTests(owner: string): string {
-  return pendingKey(owner);
+export function __pendingKeyForTests(owner: string, requestId: string): string {
+  return pendingKey(owner, requestId);
 }

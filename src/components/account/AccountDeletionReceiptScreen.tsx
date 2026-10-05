@@ -8,7 +8,9 @@
 //
 // Visibility is decided on every render, synchronously:
 //   - while auth is still resolving or an owner transition is held -> wait;
-//   - while ANY account is signed in -> no receipt, only a way back into the app;
+//   - while the session state is UNKNOWN (sessionUnavailable) -> a retry, no lookup;
+//   - while ANY account is signed in -> no receipt, only a way back into the app
+//     (the account this device just deleted is told when its sign-out failed);
 //   - signed out -> the receipt for the number in the URL, or a form to enter one.
 // A receipt carries no account identifier, so "signed out" is the only
 // condition a viewer has to meet: whoever holds the number may read it.
@@ -21,9 +23,17 @@ import { AccountDeletionNoticePanel } from "@/components/account/AccountDeletion
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { PixelGateShell } from "@/components/pixel";
 import { Text } from "@/components/ui/Text";
+import { retryDeletedOwnerSignOut } from "@/lib/account/deletion-completion";
+import {
+  discardLocalDeletionOutcome,
+  localDeletionOutcomeFor,
+  localDeletionOutcomeSnapshot,
+  subscribeLocalDeletionOutcome,
+} from "@/lib/account/deletion-local-outcome";
 import {
   ACCOUNT_DELETED_ROUTE,
   fetchAccountDeletionReceipt,
+  knownSignedOut,
   normalizeReceiptId,
   parseAccountDeletedParams,
   type ReceiptLookup,
@@ -35,6 +45,7 @@ import {
   subscribeAccountTransition,
 } from "@/lib/auth/account-epoch";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { captureSignOutExpectation, signOutExpected } from "@/lib/supabase/auth";
 import { m3 } from "@/lib/theme/m3";
 import { ForceDark } from "@/lib/theme/ThemeContext";
 
@@ -77,19 +88,27 @@ function ReceiptLookupForm({ initialInvalid }: { initialInvalid: boolean }) {
 }
 
 export function AccountDeletionReceiptScreen() {
-  const { t } = useTranslation("consent");
-  const { userId, loading } = useAuth();
+  const { t } = useTranslation(["consent", "auth"]);
+  const { userId, loading, sessionUnavailable, refresh } = useAuth();
   const transitionSnapshot = useSyncExternalStore(
     subscribeAccountTransition,
     accountTransitionSnapshot,
     accountTransitionSnapshot,
   );
+  const outcomeSnapshot = useSyncExternalStore(
+    subscribeLocalDeletionOutcome,
+    localDeletionOutcomeSnapshot,
+    localDeletionOutcomeSnapshot,
+  );
   const rawParams = useLocalSearchParams();
   const params = parseAccountDeletedParams(rawParams as Record<string, unknown>);
+  // This device's own result, only for the exact token + number in this route.
+  const local = localDeletionOutcomeFor(outcomeSnapshot, params);
   const [lookup, setLookup] = useState<{ id: string; result: ReceiptLookup } | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [signOutBusy, setSignOutBusy] = useState(false);
   const transitionPending = accountTransitionPendingFromSnapshot(transitionSnapshot);
-  const signedOut = !loading && !transitionPending && userId === null;
+  const signedOut = knownSignedOut({ loading, userId, sessionUnavailable, transitionPending });
   const receiptId = params.receiptId;
 
   useEffect(() => {
@@ -106,12 +125,27 @@ export function AccountDeletionReceiptScreen() {
   const view = receiptScreenView({
     authLoading: loading,
     userId,
+    sessionUnavailable,
     transitionPending,
     params,
+    local,
     lookup: lookup !== null && lookup.id === receiptId ? lookup.result : null,
   });
 
-  const goSignIn = () => router.replace("/sign-in");
+  // Closing the result ends this device's one-time outcome.
+  const goSignIn = () => {
+    if (local !== null) discardLocalDeletionOutcome(local.token);
+    router.replace("/sign-in");
+  };
+  const retrySignOut = () => {
+    if (local === null || signOutBusy) return;
+    setSignOutBusy(true);
+    void retryDeletedOwnerSignOut({
+      outcome: local,
+      captureExpectation: captureSignOutExpectation,
+      signOut: signOutExpected,
+    }).finally(() => setSignOutBusy(false));
+  };
   let body: ReactElement;
   switch (view.kind) {
     case "receipt":
@@ -120,6 +154,23 @@ export function AccountDeletionReceiptScreen() {
           <AccountDeletionNoticePanel notice={view.notice} onClose={goSignIn} />
         </PixelGateShell>
       );
+    case "session-unknown":
+      body = (
+        <>
+          <Text accessibilityLiveRegion="polite" style={m3TextStyle("bodyMedium")}>{t("auth:common.sessionUnavailable")}</Text>
+          <MdButton label={t("account.deletionReceipt.retry")} onPress={() => void refresh()} />
+        </>
+      );
+      break;
+    case "signout-unconfirmed":
+      body = (
+        <>
+          <Text accessibilityLiveRegion="polite" style={m3TextStyle("bodyMedium")}>{t("account.deletionReceipt.localSignOut.unconfirmed")}</Text>
+          <MdButton label={t("account.deletionReceipt.retry")} disabled={signOutBusy} onPress={retrySignOut} />
+          <MdButton variant="text" label={t("account.deletionReceipt.goHome")} onPress={() => router.replace("/")} />
+        </>
+      );
+      break;
     case "signed-in":
       body = (
         <>
@@ -158,7 +209,7 @@ export function AccountDeletionReceiptScreen() {
       <ForceDark>
         <MdCard variant="outlined" style={styles.card}>
           {body}
-          {view.kind !== "signed-in" ? (
+          {view.kind !== "signed-in" && view.kind !== "signout-unconfirmed" ? (
             <MdButton variant="text" label={t("account.deletionReceipt.dismiss")} onPress={goSignIn} />
           ) : null}
         </MdCard>

@@ -156,27 +156,28 @@ export async function fetchAccountDeletionReceipt(
   }
 }
 
-const LOCAL_PURGE_VALUES: readonly LocalPurgeOutcome[] = ["complete", "retry-scheduled", "unconfirmed"];
-const LOCAL_SIGN_OUT_VALUES: readonly LocalSignOutOutcome[] = ["complete", "unconfirmed"];
-
 /**
- * The route the deletion flow opens. Only the receipt NUMBER and two local
- * observations go into the URL - no account id, email, token or receipt body.
- * `done=1` marks "opened by a finished deletion" so the screen can say that a
- * server receipt could not be recorded when the number is absent.
+ * The route the deletion flow opens. Only the receipt NUMBER and an opaque
+ * one-time token go into the URL - no account id, email, token or receipt body.
+ *
+ * The token (`op`) is the ONLY thing that ties this route to the deletion this
+ * device just finished. The local observations themselves (purge and sign-out
+ * results) stay in memory (deletion-local-outcome.ts), bound to that token and
+ * to the receipt number. They used to travel as `done`, `local` and `signout`
+ * query values, and anyone could open
+ * `/account-deleted?done=1&local=complete&signout=complete` and be told that an
+ * account deletion was confirmed and this device was cleaned (gates
+ * DEL2-R1-05 / D2A-06). A copied, forged or reloaded link now carries no claim:
+ * it shows only what the server says for the number, or the lookup form.
  */
-export function buildAccountDeletedHref(input: {
-  receiptId: string | null;
-  localPurge?: LocalPurgeOutcome;
-  localSignOut?: LocalSignOutOutcome;
-}): string {
+export function buildAccountDeletedHref(input: { receiptId: string | null; op: string | null }): string {
   const params = new URLSearchParams();
   const id = normalizeReceiptId(input.receiptId);
   if (id !== null) params.set("receipt", id);
-  if (input.localPurge) params.set("local", input.localPurge);
-  if (input.localSignOut) params.set("signout", input.localSignOut);
-  params.set("done", "1");
-  return `${ACCOUNT_DELETED_ROUTE}?${params.toString()}`;
+  const op = normalizeReceiptId(input.op);
+  if (op !== null) params.set("op", op);
+  const query = params.toString();
+  return query ? `${ACCOUNT_DELETED_ROUTE}?${query}` : ACCOUNT_DELETED_ROUTE;
 }
 
 function firstParam(value: unknown): string | undefined {
@@ -186,19 +187,32 @@ function firstParam(value: unknown): string | undefined {
 
 export interface AccountDeletedParams {
   receiptId: string | null;
-  localPurge: LocalPurgeOutcome | null;
-  localSignOut: LocalSignOutOutcome | null;
-  fromDeletion: boolean;
+  /** The one-time token of a deletion finished on this device; proves nothing by itself. */
+  op: string | null;
 }
 
 /** Route params are untrusted text: unknown values become null, never a claim. */
 export function parseAccountDeletedParams(params: Record<string, unknown>): AccountDeletedParams {
-  const local = firstParam(params.local);
-  const signOut = firstParam(params.signout);
   return {
     receiptId: normalizeReceiptId(firstParam(params.receipt)),
-    localPurge: LOCAL_PURGE_VALUES.find((value) => value === local) ?? null,
-    localSignOut: LOCAL_SIGN_OUT_VALUES.find((value) => value === signOut) ?? null,
-    fromDeletion: firstParam(params.done) === "1",
+    op: normalizeReceiptId(firstParam(params.op)),
   };
+}
+
+/**
+ * Whether this device is KNOWN to be signed out. `sessionUnavailable` means the
+ * session state is UNKNOWN (AuthContext AUTH-01), not "signed out", and a held
+ * owner transition means an account is about to be published. Neither may read
+ * a receipt or start the pending-deletion sweep (gates DEL2-R1-01 / D2A-05).
+ */
+export function knownSignedOut(input: {
+  loading: boolean;
+  userId: string | null;
+  sessionUnavailable: boolean;
+  transitionPending: boolean;
+}): boolean {
+  return !input.loading
+    && !input.transitionPending
+    && !input.sessionUnavailable
+    && input.userId === null;
 }

@@ -664,7 +664,7 @@ export function DeepSpacePrivacyDesignScreen() {
         rootRouter.dismissAll();
         rootRouter.replace(href);
       },
-      reportSignOut: (signout) => rootRouter.setParams({ signout }),
+      // (The sign-out outcome reaches the route via deletion-local-outcome.ts, not URL params.)
       leaveReceipt: () => rootRouter.replace("/"),
     });
     if (finished.kind === "owner-changed") {

@@ -346,6 +346,21 @@ Deno.serve(async (req: Request) => {
       } catch {
         safeLog('receipt_record_failed');
       }
+      // Recording the observations can fail (or lose its answer) while the
+      // receipt row itself exists. Ask for the row before saying "no receipt"
+      // (gate DEL2-R1-08); the client also asks by number if this fails too.
+      if (receiptId === null) {
+        try {
+          const { data: existing, error: existingError } = await admin.rpc(
+            'get_account_deletion_receipt',
+            { p_receipt_id: pendingReceiptId },
+          );
+          const existingId = existing && typeof existing === 'object' ? (existing as { id?: unknown }).id : null;
+          if (!existingError && existingId === pendingReceiptId) receiptId = pendingReceiptId;
+        } catch {
+          safeLog('receipt_recheck_failed');
+        }
+      }
     }
 
     return jsonResponse(req, {

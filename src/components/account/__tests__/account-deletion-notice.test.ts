@@ -4,6 +4,7 @@ import ts from "typescript";
 
 import { receiptScreenView } from "@/lib/account/deletion-receipt-view";
 import { parseAccountDeletedParams, type ReceiptLookup } from "@/lib/account/deletion-receipt";
+import { localDeletionOutcomeFor, type LocalDeletionOutcome } from "@/lib/account/deletion-local-outcome";
 
 // Actual TSX/functions with a small synchronous hook host only.
 // This is not a React scheduler, RN/browser renderer, or accessibility-tree test.
@@ -203,9 +204,25 @@ describe("/account-deleted shows a receipt only while nobody is signed in", () =
       sweepsReported: true,
     },
   };
-  const fromDeletion = parseAccountDeletedParams({ receipt: RECEIPT_ID, local: "complete", signout: "complete", done: "1" });
+  const OWNER = "11111111-1111-4111-8111-111111111111";
+  const OTHER = "22222222-2222-4222-8222-222222222222";
+  const OP = "33333333-3333-4333-8333-333333333333";
+  // This device's one-time outcome for the deletion it just finished
+  // (deletion-local-outcome.ts). URL values never stand in for it.
+  const outcome = (overrides: Partial<LocalDeletionOutcome> = {}): LocalDeletionOutcome => ({
+    token: OP, owner: OWNER, receiptId: RECEIPT_ID, localPurge: "complete", localSignOut: "complete", ...overrides,
+  });
+  const fromDeletion = parseAccountDeletedParams({ receipt: RECEIPT_ID, op: OP });
   const byNumber = parseAccountDeletedParams({ receipt: RECEIPT_ID });
-  const base = { authLoading: false, userId: null as string | null, transitionPending: false, params: fromDeletion, lookup: found };
+  const base = {
+    authLoading: false,
+    userId: null as string | null,
+    sessionUnavailable: false,
+    transitionPending: false,
+    params: fromDeletion,
+    local: outcome() as LocalDeletionOutcome | null,
+    lookup: found as ReceiptLookup | null,
+  };
 
   test("signed out with a found receipt renders it", () => {
     const view = receiptScreenView(base);
@@ -219,21 +236,33 @@ describe("/account-deleted shows a receipt only while nobody is signed in", () =
   });
 
   test.each([
-    // The flow opens this route before its sign-out lands, so a fresh deletion
-    // waits; a number opened by hand while signed in says why nothing shows.
-    ["any signed-in account (B after a switch), fresh deletion", { userId: "22222222-2222-4222-8222-222222222222" }, "waiting"],
-    ["the deleted account before its sign-out lands", { userId: "11111111-1111-4111-8111-111111111111" }, "waiting"],
-    ["any signed-in account opening a number by hand", { userId: "22222222-2222-4222-8222-222222222222", params: byNumber }, "signed-in"],
+    // The flow opens this route before its sign-out lands, so the deleted
+    // account waits; anyone else signed in only gets a way back into the app.
+    ["the deleted account before its sign-out lands", { userId: OWNER, local: outcome({ localSignOut: null }) }, "waiting"],
+    ["any other signed-in account (B after a switch), fresh deletion", { userId: OTHER }, "signed-in"],
+    ["any signed-in account opening a number by hand", { userId: OTHER, params: byNumber, local: null }, "signed-in"],
     ["a held owner transition (DEL-N2-01)", { transitionPending: true }, "waiting"],
     ["auth still resolving", { authLoading: true }, "waiting"],
+    // UNKNOWN is not signed out (DEL2-R1-01 / D2A-05): AuthContext publishes
+    // userId null with sessionUnavailable true when it never learned the session.
+    ["an unknown session state", { sessionUnavailable: true }, "session-unknown"],
+    ["an unknown session state, number opened by hand", { sessionUnavailable: true, params: byNumber, local: null }, "session-unknown"],
   ] as const)("%s never sees the receipt", (_label, overrides, kind) => {
     const view = receiptScreenView({ ...base, ...overrides });
     expect(view.kind).toBe(kind);
     expect(view.kind).not.toBe("receipt");
   });
 
+  test("a failed sign-out of the deleted account is said plainly, not waited on forever (D2A-07)", () => {
+    expect(receiptScreenView({ ...base, userId: OWNER, local: outcome({ localSignOut: "unconfirmed" }) }).kind)
+      .toBe("signout-unconfirmed");
+    // The same outcome never speaks to another account.
+    expect(receiptScreenView({ ...base, userId: OTHER, local: outcome({ localSignOut: "unconfirmed" }) }).kind)
+      .toBe("signed-in");
+  });
+
   test("a number opened later shows the server receipt without local claims", () => {
-    const view = receiptScreenView({ ...base, params: byNumber });
+    const view = receiptScreenView({ ...base, params: byNumber, local: null });
     expect(view.kind === "receipt" && view.notice.localPurge).toBeNull();
     expect(view.kind === "receipt" && view.notice.localSignOut).toBeNull();
   });
@@ -246,16 +275,39 @@ describe("/account-deleted shows a receipt only while nobody is signed in", () =
     expect(receiptScreenView({ ...base, lookup }).kind).toBe(kind);
   });
 
-  test("no number: a finished deletion says no receipt was recorded, a bare visit gets the form", () => {
-    const noNumber = receiptScreenView({ ...base, params: parseAccountDeletedParams({ done: "1", local: "unconfirmed" }), lookup: null });
+  test("no number: only this device's finished deletion says no receipt was recorded", () => {
+    const noNumber = receiptScreenView({
+      ...base,
+      params: parseAccountDeletedParams({ op: OP }),
+      local: outcome({ receiptId: null, localPurge: "unconfirmed" }),
+      lookup: null,
+    });
     expect(noNumber.kind === "receipt" && noNumber.notice.receiptId).toBeNull();
     expect(noNumber.kind === "receipt" && noNumber.notice.receipt).toBeNull();
-    expect(receiptScreenView({ ...base, params: parseAccountDeletedParams({}), lookup: null }).kind).toBe("lookup");
+    expect(noNumber.kind === "receipt" && noNumber.notice.localPurge).toBe("unconfirmed");
+    expect(receiptScreenView({ ...base, params: parseAccountDeletedParams({}), local: null, lookup: null }).kind).toBe("lookup");
+  });
+
+  test("a forged or copied link carries no claim (DEL2-R1-05 / D2A-06)", () => {
+    // The exact URL the gate used: no number, done/local/signout all "complete".
+    const forged = parseAccountDeletedParams({ done: "1", local: "complete", signout: "complete" });
+    expect(receiptScreenView({ ...base, params: forged, local: null, lookup: null }).kind).toBe("lookup");
+    // A token that is not this device's outcome, or a token moved to another
+    // receipt number, never borrows the local results.
+    expect(localDeletionOutcomeFor(outcome(), parseAccountDeletedParams({ receipt: RECEIPT_ID, op: OTHER }))).toBeNull();
+    expect(localDeletionOutcomeFor(outcome(), parseAccountDeletedParams({ receipt: OTHER, op: OP }))).toBeNull();
+    expect(localDeletionOutcomeFor(outcome(), parseAccountDeletedParams({ receipt: RECEIPT_ID }))).toBeNull();
+    expect(localDeletionOutcomeFor(null, fromDeletion)).toBeNull();
+    expect(localDeletionOutcomeFor(outcome(), fromDeletion)).toEqual(outcome());
+    // Another device's receipt number with a valid token from this device shows
+    // the server receipt only.
+    const elsewhere = receiptScreenView({ ...base, params: parseAccountDeletedParams({ receipt: RECEIPT_ID, op: OTHER }), local: null });
+    expect(elsewhere.kind === "receipt" && elsewhere.notice.localPurge).toBeNull();
   });
 
   test("untrusted route params never become claims", () => {
-    expect(parseAccountDeletedParams({ receipt: "not-a-number", local: "everything", signout: "yes", done: "true" })).toEqual({
-      receiptId: null, localPurge: null, localSignOut: null, fromDeletion: false,
+    expect(parseAccountDeletedParams({ receipt: "not-a-number", op: "x", local: "everything", signout: "yes", done: "true" })).toEqual({
+      receiptId: null, op: null,
     });
   });
 });

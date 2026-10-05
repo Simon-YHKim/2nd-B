@@ -341,6 +341,8 @@ describe("requestAccountDeletion (terminal erasure)", () => {
     expect(receipt.receiptId).toBeNull();
     expect(clientMock.__invoke.mock.calls.map(([, options]) => options.body))
       .toEqual([{ request_id: REQUEST_ID }, {}]);
+    // `{}` proposed no number, so there is nothing to look up.
+    expect(lookupReceipt).not.toHaveBeenCalled();
 
     // `{}` itself rejected is a real failure, not another fallback.
     clientMock.__invoke.mockReset()
@@ -393,6 +395,63 @@ describe("requestAccountDeletion (terminal erasure)", () => {
     expect(clientMock.__refreshSession).not.toHaveBeenCalled();
     expect(clientMock.__invoke).not.toHaveBeenCalled();
     expect(pendingMock.__add).not.toHaveBeenCalled();
+  });
+
+  test("an earlier request still inside its lease blocks a second request beside it (DEL2-R1-03)", async () => {
+    const earlier = "99999999-8888-4777-8666-555555555555";
+    pendingMock.__resolve.mockResolvedValueOnce({ kind: "pending", inFlightRequestId: earlier });
+
+    const failure = await requestAccountDeletion(EXPECTED).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(AccountDeletionUnconfirmedError);
+    expect((failure as AccountDeletionUnconfirmedError).requestId).toBe(earlier);
+    // Nothing new is remembered or sent: the earlier request may still be running.
+    expect(pendingMock.__add).not.toHaveBeenCalled();
+    expect(clientMock.__refreshSession).not.toHaveBeenCalled();
+    expect(clientMock.__invoke).not.toHaveBeenCalled();
+  });
+
+  test("an earlier request past its lease (answer unknown) no longer blocks a new one", async () => {
+    pendingMock.__resolve.mockResolvedValueOnce({ kind: "pending", inFlightRequestId: null });
+
+    const receipt = await requestAccountDeletion(EXPECTED);
+    expect(receipt.deleted).toBe(true);
+    expect(pendingMock.__add).toHaveBeenCalledWith("u1", REQUEST_ID);
+    expect(clientMock.__invoke).toHaveBeenCalledTimes(1);
+  });
+
+  test("a confirmed erasure without a number asks once by its own number (DEL2-R1-08)", async () => {
+    clientMock.__invoke.mockResolvedValueOnce({
+      data: { deleted: true, receipt_id: null, profile_erased: true },
+      error: null,
+    });
+    lookupReceipt.mockResolvedValueOnce(serverReceipt());
+
+    const receipt = await requestAccountDeletion(EXPECTED);
+    expect(lookupReceipt).toHaveBeenCalledTimes(1);
+    expect(lookupReceipt).toHaveBeenCalledWith(REQUEST_ID);
+    expect(receipt.receiptId).toBe(REQUEST_ID);
+    // The live answer's own observations stay; only the number is filled in.
+    expect(receipt.profileErased).toBe(true);
+  });
+
+  test.each([
+    ["not found", { status: "not-found" } as ReceiptLookup],
+    ["unavailable", { status: "unavailable" } as ReceiptLookup],
+    ["another number", serverReceipt("aaaaaaaa-1111-4222-8333-444444444444")],
+  ])("that lookup answering %s keeps the number unknown", async (_label, answer) => {
+    clientMock.__invoke.mockResolvedValueOnce({ data: { deleted: true }, error: null });
+    lookupReceipt.mockResolvedValueOnce(answer);
+
+    const receipt = await requestAccountDeletion(EXPECTED);
+    expect(receipt.deleted).toBe(true);
+    expect(receipt.receiptId).toBeNull();
+  });
+
+  test("a throwing lookup never turns the confirmed erasure into a failure", async () => {
+    clientMock.__invoke.mockResolvedValueOnce({ data: { deleted: true }, error: null });
+    lookupReceipt.mockRejectedValueOnce(new Error("boom"));
+
+    await expect(requestAccountDeletion(EXPECTED)).resolves.toMatchObject({ deleted: true, receiptId: null });
   });
 
   test("fails closed when the active user already changed after confirmation", async () => {
@@ -680,16 +739,19 @@ describe("account deletion UI routing", () => {
     // the server's record by number, even when local sign-out was unconfirmed.
     // finishAccountDeletion opens the receipt route itself and reports the
     // sign-out outcome to it; an unconfirmed sign-out is only logged here.
+    // The sign-out outcome reaches the route through deletion-local-outcome.ts,
+    // never as a URL value (gates DEL2-R1-05 / D2A-06).
     const terminalCall = deepSpace.indexOf("await requestAccountDeletion(authExpectation)");
     const finish = deepSpace.indexOf("await finishAccountDeletion({", terminalCall);
     const openReceipt = deepSpace.indexOf("openReceipt: (href) => {", finish);
-    const reportSignOut = deepSpace.indexOf("reportSignOut: (signout) => rootRouter.setParams({ signout })", finish);
+    const leaveReceipt = deepSpace.indexOf('leaveReceipt: () => rootRouter.replace("/")', finish);
     const localSignOutWarning = deepSpace.indexOf("local sign-out after deletion failed", finish);
     expect(terminalCall).toBeGreaterThan(-1);
     expect(finish).toBeGreaterThan(terminalCall);
     expect(openReceipt).toBeGreaterThan(finish);
-    expect(reportSignOut).toBeGreaterThan(finish);
-    expect(localSignOutWarning).toBeGreaterThan(reportSignOut);
+    expect(leaveReceipt).toBeGreaterThan(openReceipt);
+    expect(localSignOutWarning).toBeGreaterThan(leaveReceipt);
+    expect(deepSpace).not.toContain("setParams({ signout })");
     expect(deepSpace).not.toContain('router.replace("/sign-in")');
   });
 

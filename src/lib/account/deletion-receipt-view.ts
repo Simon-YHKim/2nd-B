@@ -8,7 +8,15 @@
 // "signed out" is the only condition a viewer has to meet; "signed in" - any
 // account, including the one being deleted before its sign-out lands - never
 // sees one.
+//
+// Two more rules (gates on PR "deletion2", 2026-10-05):
+//   - an UNKNOWN session (AuthContext `sessionUnavailable`) is not "signed out"
+//     and reads nothing (DEL2-R1-01 / D2A-05);
+//   - this device's local results come only from the one-time outcome bound to
+//     the route token and receipt number, never from URL values (DEL2-R1-05 /
+//     D2A-06). Without that outcome the route makes no deletion claim of its own.
 import { accountDeletionReceiptFromServer } from "../records/delete-bulk";
+import type { LocalDeletionOutcome } from "./deletion-local-outcome";
 import type {
   AccountDeletedParams,
   LocalPurgeOutcome,
@@ -16,7 +24,7 @@ import type {
   ReceiptLookup,
 } from "./deletion-receipt";
 
-/** What the receipt panel renders. Built from the server receipt plus URL observations. */
+/** What the receipt panel renders. Built from the server receipt plus this device's outcome. */
 export interface AccountDeletionNotice {
   /** Null when the server confirmed the erasure but recorded no receipt. */
   receiptId: string | null;
@@ -36,7 +44,11 @@ export interface AccountDeletionNotice {
 
 export type ReceiptScreenView =
   | { kind: "waiting" }
+  /** The session state is unknown: neither a receipt nor the lookup form. */
+  | { kind: "session-unknown" }
   | { kind: "signed-in" }
+  /** The account this device just deleted is still signed in here: its sign-out failed. */
+  | { kind: "signout-unconfirmed" }
   | { kind: "lookup" }
   | { kind: "loading" }
   | { kind: "receipt"; notice: AccountDeletionNotice }
@@ -46,20 +58,32 @@ export type ReceiptScreenView =
 export function receiptScreenView(input: {
   authLoading: boolean;
   userId: string | null;
+  /** AuthContext AUTH-01: startup never learned whether a session exists. */
+  sessionUnavailable: boolean;
   transitionPending: boolean;
   params: AccountDeletedParams;
+  /** This device's outcome for exactly this route (localDeletionOutcomeFor), or null. */
+  local: LocalDeletionOutcome | null;
   lookup: ReceiptLookup | null;
 }): ReceiptScreenView {
   if (input.authLoading || input.transitionPending) return { kind: "waiting" };
+  if (input.sessionUnavailable) return { kind: "session-unknown" };
+  const { local } = input;
   if (input.userId !== null) {
     // The deletion flow opens this route BEFORE it signs the deleted account
-    // out (deletion-completion.ts), so a fresh deletion waits for that sign-out
-    // instead of telling the person who just deleted to sign out first.
-    return input.params.fromDeletion ? { kind: "waiting" } : { kind: "signed-in" };
+    // out (deletion-completion.ts), so that same account waits here for its
+    // sign-out, and is told plainly when the sign-out failed. Any other
+    // account only gets a way back into the app.
+    if (local !== null && local.owner === input.userId) {
+      return local.localSignOut === "unconfirmed" ? { kind: "signout-unconfirmed" } : { kind: "waiting" };
+    }
+    return { kind: "signed-in" };
   }
   const { params } = input;
   if (params.receiptId === null) {
-    if (!params.fromDeletion) return { kind: "lookup" };
+    // Only a deletion this device just finished may say "confirmed, but no
+    // receipt was recorded". A bare link is a request to look one up.
+    if (local === null) return { kind: "lookup" };
     return {
       kind: "receipt",
       notice: {
@@ -67,8 +91,8 @@ export function receiptScreenView(input: {
         erasedAtIso: null,
         expiresAtIso: null,
         receipt: null,
-        localPurge: params.localPurge,
-        localSignOut: params.localSignOut,
+        localPurge: local.localPurge,
+        localSignOut: local.localSignOut,
       },
     };
   }
@@ -89,9 +113,9 @@ export function receiptScreenView(input: {
         rawClippingsErased: observed.rawClippingsErased,
         rawClippingsEmptyAtCheck: observed.rawClippingsEmptyAtCheck,
       },
-      // Local observations belong only to the device that just deleted.
-      localPurge: params.fromDeletion ? params.localPurge : null,
-      localSignOut: params.fromDeletion ? params.localSignOut : null,
+      // Local results belong only to the device that just deleted.
+      localPurge: local?.localPurge ?? null,
+      localSignOut: local?.localSignOut ?? null,
     },
   };
 }

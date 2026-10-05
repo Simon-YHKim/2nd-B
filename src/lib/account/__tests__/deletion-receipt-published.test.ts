@@ -3,7 +3,12 @@ import path from "node:path";
 import ts from "typescript";
 
 import { finishAccountDeletion } from "../deletion-completion";
-import { parseAccountDeletedParams } from "../deletion-receipt";
+import {
+  __resetLocalDeletionOutcomeForTests,
+  localDeletionOutcomeFor,
+  localDeletionOutcomeSnapshot,
+} from "../deletion-local-outcome";
+import { normalizeReceiptId, parseAccountDeletedParams } from "../deletion-receipt";
 
 // 계정을 지운 사람이 서버가 무엇을 지웠는지 듣게 되는가 - 이제는 서버 영수증으로.
 //
@@ -154,6 +159,9 @@ function harness(
 }
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+beforeEach(() => __resetLocalDeletionOutcomeForTests());
+// This device's local results, as the receipt route reads them (token + number).
+const localFor = (href: string) => localDeletionOutcomeFor(localDeletionOutcomeSnapshot(), routed(href).params);
 function routed(href: string) {
   const [pathname, query = ""] = href.split("?");
   return { pathname, params: parseAccountDeletedParams(Object.fromEntries(new URLSearchParams(query))) };
@@ -169,18 +177,20 @@ describe("삭제한 사람이 서버가 남긴 영수증으로 간다", () => {
     const target = routed(calls.replace[0]);
     expect(target.pathname).toBe("/account-deleted");
     // 영수증 route 는 로그아웃 **전에** 연다(로그아웃 보류 중 루트 레이아웃이
-    // (auth) 밖 route 를 "/" 로 되돌리기 때문). 로그아웃 결과는 그 뒤에 알린다.
-    expect(target.params).toEqual({
-      receiptId: RECEIPT_ID, localPurge: "complete", localSignOut: null, fromDeletion: true,
-    });
-    expect(calls.setParams).toEqual([{ signout: "complete" }]);
+    // (auth) 밖 route 를 "/" 로 되돌리기 때문). 로그아웃 결과는 그 뒤에 알린다 -
+    // URL 값이 아니라 이 기기의 일회성 결과로 (게이트 DEL2-R1-05 · D2A-06).
+    expect(target.params.receiptId).toBe(RECEIPT_ID);
+    expect(normalizeReceiptId(target.params.op)).not.toBeNull();
+    expect(calls.setParams).toEqual([]);
+    expect(localFor(calls.replace[0])).toMatchObject({ localPurge: "complete", localSignOut: "complete" });
     expect(calls.replace[0]).not.toContain(OWNER);
+    expect(calls.replace[0]).not.toMatch(/[?&](done|local|signout)=/);
   });
 
-  test("로컬 정리 -> 영수증 route 열기 -> 로그아웃 -> 결과 알림 순서로 한 번씩 돈다", async () => {
+  test("로컬 정리 -> 영수증 route 열기 -> 로그아웃 순서로 한 번씩 돈다", async () => {
     const { run, calls } = harness();
     await run();
-    expect(calls.order).toEqual(["purge", "dismissAll", "replace", "signOut", "setParams"]);
+    expect(calls.order).toEqual(["purge", "dismissAll", "replace", "signOut"]);
   });
 
   test("로컬 정리 예외도 삭제·로그아웃·영수증 이동을 되돌리지 않는다", async () => {
@@ -188,14 +198,15 @@ describe("삭제한 사람이 서버가 남긴 영수증으로 간다", () => {
     await run();
     expect(calls.signOut).toBe(1);
     expect(calls.notePending).toEqual([RECEIPT_ID]);
-    expect(routed(calls.replace[0]).params.localPurge).toBe("retry-scheduled");
+    expect(localFor(calls.replace[0])?.localPurge).toBe("retry-scheduled");
   });
 
   test("로그아웃이 실패해도 영수증에 남고, 그 사실을 알린다", async () => {
     const { run, calls } = harness({ signOutFails: true });
     await run();
     expect(routed(calls.replace[0]).pathname).toBe("/account-deleted");
-    expect(calls.setParams).toEqual([{ signout: "unconfirmed" }]);
+    expect(localFor(calls.replace[0])?.localSignOut).toBe("unconfirmed");
+    expect(calls.setParams).toEqual([]);
   });
 
   test("서버가 영수증을 못 남겼으면 번호 없이 간다 - 화면이 그 사실을 말한다", async () => {
@@ -203,7 +214,7 @@ describe("삭제한 사람이 서버가 남긴 영수증으로 간다", () => {
     await run();
     const target = routed(calls.replace[0]);
     expect(target.params.receiptId).toBeNull();
-    expect(target.params.fromDeletion).toBe(true);
+    expect(localFor(calls.replace[0])).toMatchObject({ receiptId: null, localPurge: "complete" });
   });
 
   test("종단 삭제가 실패하면 아무 데도 가지 않는다", async () => {
@@ -220,6 +231,7 @@ describe("삭제한 사람이 서버가 남긴 영수증으로 간다", () => {
     expect(calls.signOut).toBe(1);
     expect(calls.replace.at(-1)).toBe("/");
     expect(calls.setParams).toEqual([]);
+    expect(localDeletionOutcomeSnapshot()).toBeNull();
     expect(inFlight.current).toBe(false);
     expect(state.deleting).toBe(false);
   });
@@ -323,4 +335,8 @@ test("로그인 화면은 삭제 영수증을 그리지 않는다 - 영수증은
   expect(code).not.toContain("useAccountDeletionNotice");
   // 대신 로그아웃이 확정되면 답을 못 받은 삭제 요청을 서버 영수증으로 정리한다.
   expect(code).toContain("resolvePendingAccountDeletionsInBackground()");
+  // "확정" 은 로그인 상태를 모르는 경우와 계정 전환 보류를 뺀다 (DEL2-R1-01 · D2A-05).
+  const gate = /const signedOutSettled = knownSignedOut\(\{([\s\S]*?)\}\);/.exec(code)?.[1] ?? "";
+  for (const field of ["loading", "userId", "sessionUnavailable", "transitionPending"]) expect(gate).toContain(field);
+  expect(code).toMatch(/if \(signedOutSettled\) void resolvePendingAccountDeletionsInBackground\(\);/);
 });
