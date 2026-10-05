@@ -13,7 +13,9 @@
 // The one sanctioned bounce in the whole product is the "뽁" overshoot
 // (cap 1.25x, settle ~400ms). Everything else is ease-out, no spring.
 
-import type { CharacterId } from "../characters";
+// accent 는 tokens.characters 색 키다. 옛 캐릭터 명부(characters.ts)는 2026-10-05 에
+// E:/Legacy/2ndB 로 갔다(Q-261004-14 A) - 색 키는 토큰이 갖고 있어 그쪽을 가리킨다.
+import type { CharacterName } from "../theme/tokens";
 import { isLiteModeEnabled } from "../settings/lite-mode";
 
 export interface SaveMotionSpec {
@@ -25,7 +27,7 @@ export interface SaveMotionSpec {
   attackMs: number;
   /** Settle from peak back to 1.0, ms. attack + settle ≈ 400ms total. */
   settleMs: number;
-  accent: CharacterId;
+  accent: CharacterName;
 }
 
 export interface ConnectionMotionSpec {
@@ -33,7 +35,7 @@ export interface ConnectionMotionSpec {
   toOpacity: number;
   /** Dim → bright illumination, ms. */
   durationMs: number;
-  accent: CharacterId;
+  accent: CharacterName;
 }
 
 export interface ImagineMotionSpec {
@@ -47,7 +49,7 @@ export interface ImagineMotionSpec {
   maxScale: number;
   /** One full pulse, ms. */
   durationMs: number;
-  accent: CharacterId;
+  accent: CharacterName;
 }
 
 export const SAVE_MOTION: SaveMotionSpec = {

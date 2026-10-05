@@ -1,43 +1,35 @@
 import { Image } from "expo-image";
-// Worker sprite (production-premium-v1, redrawn readability pass). Six pixel
-// companions plus Lumi, each a 6-frame walk strip (768x128 = 6 x 128). The
+// Worker sprite (production-premium-v1, redrawn readability pass). SecondB's
+// 6-frame walk strip (768x128 = 6 x 128) plus its idle pose. The
 // walk cycle is driven by a GLOBAL
 // monotonic clock + stable worker id, NOT component mount time, so a worker's
 // animation phase is continuous across remounts and never resets when a
 // village is tapped/focused. Under prefers-reduced-motion it swaps the strip
 // for the dedicated idle pose (a standing frame, not a frozen mid-stride).
+//
+// 옛 캐릭터 다섯(아치·가디·루루·모모·루미)의 띠 · 서 있는 자세와 v3 정지 자세 분기
+// (EXPO_PUBLIC_USE_V3_ART)는 2026-10-05 에 뺐다(Simon 결정 Q-261004-15 A). 그 그림
+// 열 장은 E:/Legacy/2ndB 에 있다(MANIFEST batch qa261004-chars). 세컨비만 남는다.
 
 import { useEffect, useState } from "react";
 import { StyleSheet, View, type ViewStyle, type ImageStyle, type StyleProp, AppState } from "react-native";
 
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { semantic } from "@/lib/theme/tokens";
-import { getEnv } from "@/lib/env";
-import { V3_WORKER_ART } from "@/lib/assets/soulcore-v3";
 
 // imageRendering pixelated keeps the strip crisp; web-only, ignored native.
 const PIXELATED = { imageRendering: "pixelated" } as unknown as ImageStyle;
 
-export type WorkerId = "secondb" | "momo" | "lulu" | "archi" | "gadi" | "lumi";
+export type WorkerId = "secondb";
 
 const STRIPS: Record<WorkerId, number> = {
   secondb: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/secondb_premium_walk_strip_6f.png"),
-  momo: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/momo_premium_walk_strip_6f.png"),
-  lulu: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/lulu_premium_walk_strip_6f.png"),
-  archi: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/archi_premium_walk_strip_6f.png"),
-  gadi: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/gadi_premium_walk_strip_6f.png"),
-  lumi: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/lumi_premium_walk_strip_6f.png"),
 };
 
 // Single-frame standing poses (128x128), shown instead of the walk strip when
 // motion is reduced so a held worker reads as "idle" rather than mid-step.
 const IDLES: Record<WorkerId, number> = {
   secondb: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/secondb_premium_idle.png"),
-  momo: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/momo_premium_idle.png"),
-  lulu: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/lulu_premium_idle.png"),
-  archi: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/archi_premium_idle.png"),
-  gadi: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/gadi_premium_idle.png"),
-  lumi: require("../../../assets/legacy-art/2ndb-production-premium-v1/workers-redraw-v1/lumi_premium_idle.png"),
 };
 
 const FRAMES = 6;
@@ -90,7 +82,7 @@ function subscribe(fn: (t: number) => void): () => void {
 
 // Per-worker phase offset so they don't all step in lockstep.
 const PHASE_OFFSET: Record<WorkerId, number> = {
-  secondb: 0, momo: 1, lulu: 2, archi: 3, gadi: 5, lumi: 2,
+  secondb: 0,
 };
 
 function ContactShadow({ size }: { size: number }) {
@@ -147,20 +139,6 @@ export function WorkerSprite({
   // scaleX flip mirrors the whole clipped frame (including the strip's
   // translateX), so flipping the outer box is correct.
   const flip: ViewStyle["transform"] = facing === -1 ? [{ scaleX: -1 }] : [];
-
-  // v3 art (EXPO_PUBLIC_USE_V3_ART): the v3 pack ships per-state SVGs, not a
-  // frame strip, so render the static idle pose (keeping the contact shadow +
-  // facing flip; position is owned by CharacterPathLayer). Default off → the
-  // PNG walk-cycle / idle below is unchanged. secondb has no v3 sprite → PNG.
-  const V3Sprite = getEnv().EXPO_PUBLIC_USE_V3_ART ? V3_WORKER_ART[id] : undefined;
-  if (V3Sprite) {
-    return (
-      <View style={[{ width: size, height: size, transform: flip }, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <ContactShadow size={size} />
-        <V3Sprite width={size} height={size} />
-      </View>
-    );
-  }
 
   // Reduced motion OR parked: render the dedicated idle pose instead of
   // freezing on a mid-stride walk frame.

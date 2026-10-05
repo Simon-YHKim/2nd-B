@@ -53,9 +53,9 @@ export interface SendMessageInput {
    */
   displayName?: string | null;
   /**
-   * Optional character voice instruction (from src/lib/chat/personas.ts).
-   * When the user opens chat by tapping a village companion, this keeps the
-   * reply in that character's voice while still grounding on the wiki.
+   * Optional persona voice instruction (rev2PersonaHint: 메타비 / 트위비; 세컨비는 null).
+   * The legacy per-character roster (personas.ts, ?character=) that also fed this
+   * left for E:/Legacy/2ndB on 2026-10-05 (Simon decision Q-261004-14 A).
    */
   personaHint?: string | null;
   /**
@@ -123,7 +123,7 @@ export type SendMessageResult = SendMessageBlocked | SendMessageOk;
 //   3. 임상·진단 어휘를 쓰지 않는다 (src/lib/safety/lexicon.ts)
 //   4. 그 사람이 스스로를 아는 것보다 더 잘 안다고 주장하지 않는다
 //
-// check-mascot-voice / check-anti-anthro 는 **로케일 문자열과 personas.ts** 만
+// check-mascot-voice / check-anti-anthro 는 **로케일 문자열** 만(personas.ts 는 10-05 퇴장)
 // 스캔한다. 이 파일은 범위 밖이라 그 아동보호 가드는 건드리지 않았다. 런타임
 // 출력을 붙잡는 것은 저 넷뿐이므로, 이 문장을 고칠 때 넷을 같이 지우지 말 것.
 const SYSTEM_PROMPT_HEADER = {
@@ -149,8 +149,8 @@ const SYSTEM_PROMPT_HEADER = {
     "그 사람이 스스로를 아는 것보다 더 잘 안다고 주장하지 마세요.",
     "무엇을 이야기할지는 사용자가 정합니다. 비밀을 말해 달라고 하거나, 말하지 않겠다는 내용을 거듭 캐묻지 마세요.",
     // 말투 규칙은 화면과 맞춘다(Simon 결정 2026-10-02, B안): 사실·안내는 ~습니다,
-    // 질문·제안은 해요체(~나요? · ~까요?). 화면 문구(locales/ko)와 캐릭터
-    // 지시문(personas.*.systemHint)도 같은 규칙이라, 한 지시문 안에서 말투가
+    // 질문·제안은 해요체(~나요? · ~까요?). 화면 문구(locales/ko)와 페르소나
+    // 지시문(rev2.*.systemHint)도 같은 규칙이라, 한 지시문 안에서 말투가
     // 갈리지 않는다. identity-prompt.test.ts 가 이 줄을 지킨다.
     "말투는 평서문 '~습니다', 질문은 '~나요?' 를 씁니다.",
     "짧고 쉬운 일상어로 편안하게, 질문에 바로 답하세요. '당신'이라는 호칭은 번역투로 들리니 쓰지 마세요.",

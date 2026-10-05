@@ -634,7 +634,7 @@ function CaptureLegacySession({
   // probe; the one-line empty note covers the probe-then-cleared race.
   const [clipboardAvailable, setClipboardAvailable] = useState(false);
   const [clipboardEmptyNote, setClipboardEmptyNote] = useState(false);
-  // 루루 brief event moment on capture (companion pack §3: captureSaved → lulu).
+  // Brief saved-cue moment on capture (companion pack §3: captureSaved).
   const companion = useCompanionMoment();
   // Title of the just-saved piece — drives the inline success panel.
   const [savedTitle, setSavedTitle] = useState<string | null>(null);
@@ -3107,7 +3107,7 @@ ${transcript}`;
         ) {
           if (submitted !== null) requestDurableSubmittedDraftAck(submitted, startModeEpoch);
           reset();
-          // 루루 carries the shard home; an imported link gets the "success" beat.
+          // The shard cue on save; an imported link gets the delight face instead.
           companion.fire(isBareLink ? "linkImported" : "captureSaved");
           // Inline success panel (journal-capture pack §3/§7) replaces the alert.
           setSavedTitle(result.source.title);
@@ -4269,7 +4269,8 @@ ${transcript}`;
           ) : null}
         </ScrollView>
       </KeyboardAvoidingArea>
-      {/* 루루 appears briefly to carry the new shard (companion pack §3) */}
+      {/* The new shard's cue appears briefly (companion pack §3) */}
+
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.captureFlash} />
       ) : null}

@@ -217,10 +217,10 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/capture/life-area-intent.ts": 22,
   "src/lib/capture/structured.ts": 4,
   "src/lib/career/achievement-form.ts": 12,
-  "src/lib/characters.ts": 12,
+  // characters.ts(12) · chat/personas.ts(12) 는 2026-10-05 에 파일째 E:/Legacy 로 갔다
+  // (Simon 결정 Q-261004-14 A). **고친 것이 아니라 빠진 것**이다.
   "src/lib/chat/conversation.ts": 24,
   "src/lib/chat/keep-exchange.ts": 3,
-  "src/lib/chat/personas.ts": 12,
   "src/lib/chat/rag.ts": 1,
   "src/lib/entitlements/reasoning-cap.ts": 4,
   "src/lib/graph/relatedness.ts": 72,
