@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import {
   FlatList,
   Modal,
-  Pressable,
   StyleSheet,
   View,
   type ListRenderItemInfo,
@@ -48,9 +47,13 @@ export function ResidenceCountryField({
         ? residenceCountryName(value, i18n.language)
         : null;
 
+  function close(): void {
+    setOpen(false);
+  }
+
   function select(next: ResidenceCountrySelection): void {
     onChange(next);
-    setOpen(false);
+    close();
   }
 
   function renderOption({ item }: ListRenderItemInfo<ResidenceCountryOption>) {
@@ -105,22 +108,33 @@ export function ResidenceCountryField({
         transparent
         animationType="none"
         statusBarTranslucent
-        onRequestClose={() => setOpen(false)}
+        onRequestClose={close}
       >
-        <Pressable
-          accessible={false}
-          style={styles.backdrop}
-          onPress={() => setOpen(false)}
-        >
-          <PixelScrim />
-          <Pressable
+        <View style={styles.backdrop}>
+          {/* 스크림은 Pressable 이 아니라 응답자 View 다(PixelTimeSheet 와 같은 이유). RN-web 은
+              Pressable 에 늘 tabIndex 0 을 주고 Modal 의 포커스 트랩이 첫 요소에 포커스를
+              넣는다. 같은 구조였던 PixelTimeSheet 에서 이름 없는 전체 화면 칸이 첫 포커스를
+              받고 Enter 한 번에 닫혔다(리뷰 실측). 이 View 는 탭 정지가 아니다.
+              시트는 스크림의 자식이 아니라 형제라서 시트 안을 눌러도 닫히지 않는다. */}
+          <View
             accessible={false}
-            accessibilityViewIsModal
-            style={styles.dialogPressable}
-            onPress={(event) => event.stopPropagation()}
+            style={StyleSheet.absoluteFill}
+            onStartShouldSetResponder={() => true}
+            onResponderRelease={close}
           >
+            <PixelScrim style={styles.scrimImage} />
+          </View>
+          <View
+            accessibilityViewIsModal
+            onAccessibilityEscape={close}
+            style={styles.dialog}
+          >
+            {/* 높이 상한은 dialog 의 maxHeight 하나다. shrink 가 그 상한을 PixelSurface 의
+                면과 안쪽까지 넘겨서 목록만 줄어들고 스크롤된다. 머리줄과 '목록에 없어요'는
+                줄지 않아 늘 보인다(R2C-03: 웹에서 면이 내용 높이로 자라 49개국이 화면 밖). */}
             <PixelSurface
               variant="bevel"
+              shrink
               style={styles.dialogSurface}
               contentStyle={styles.dialogContent}
             >
@@ -133,7 +147,7 @@ export function ResidenceCountryField({
                 </View>
                 <PixelPressable
                   variant="frame"
-                  onPress={() => setOpen(false)}
+                  onPress={close}
                   accessibilityLabel={t("residenceCountry.close")}
                   rootStyle={styles.closeRoot}
                   contentStyle={styles.closeContent}
@@ -142,13 +156,13 @@ export function ResidenceCountryField({
                 </PixelPressable>
               </View>
 
+              {/* 63행으로 닫힌 목록이라 처음부터 전부 그린다. initialNumToRender 안의 행은
+                  창 밖으로 나가도 내려지지 않으므로 Tab 과 스크린 리더가 어느 나라에든 닿는다. */}
               <FlatList
                 data={options}
                 renderItem={renderOption}
                 keyExtractor={(item) => item.code}
-                initialNumToRender={14}
-                maxToRenderPerBatch={14}
-                windowSize={7}
+                initialNumToRender={options.length}
                 keyboardShouldPersistTaps="handled"
                 style={styles.list}
                 contentContainerStyle={styles.listContent}
@@ -174,8 +188,8 @@ export function ResidenceCountryField({
                 </Text>
               </PixelPressable>
             </PixelSurface>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -218,9 +232,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: m3.spacing.s3,
   },
-  dialogPressable: { width: "100%", maxWidth: 520, maxHeight: "92%" },
-  dialogSurface: { alignSelf: "stretch", maxHeight: "100%" },
-  dialogContent: { gap: m3.spacing.s3, padding: m3.spacing.s3, maxHeight: "100%" },
+  // PixelTimeSheet 와 같은 크기 지정. 디더는 absoluteFill 만 주면 웹에서
+  // 4x4 타일에 머물러 뒤 화면이 어두워지지 않는다.
+  scrimImage: { width: "100%", height: "100%" },
+  // 상한은 여기 하나다. 아래 층은 퍼센트를 잇지 않고 flexShrink 로 이 상한 안에 들어간다.
+  dialog: { width: "100%", maxWidth: 520, maxHeight: "92%", zIndex: 301 },
+  dialogSurface: { alignSelf: "stretch", flexShrink: 1, minHeight: 0 },
+  dialogContent: { gap: m3.spacing.s3, padding: m3.spacing.s3 },
   dialogHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -241,7 +259,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: m3.spacing.s2,
   },
-  list: { flexGrow: 0, flexShrink: 1 },
+  list: { flexGrow: 0, flexShrink: 1, minHeight: 0 },
   listContent: { gap: m3.spacing.s1, paddingBottom: m3.spacing.s1 },
   optionRoot: { alignSelf: "stretch" },
   optionContent: {
