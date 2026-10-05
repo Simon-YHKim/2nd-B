@@ -119,6 +119,7 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
             onPress={() => goTo(i)}
             accessibilityRole="tab"
             accessibilityState={{ selected: i === index }}
+            aria-selected={i === index}
             accessibilityLabel={page.title}
             style={styles.dotHit}
           >

@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { subscribeFontStyle } from "@/lib/settings/readable-font";
 
 import { reactExpression } from "@/lib/companion/expression";
-import { ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
@@ -34,7 +34,7 @@ import {
 import { useProgression } from "@/lib/progression/useProgression";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage, incrementReasoningUsage } from "@/lib/entitlements/usage";
-import { keepAllKo } from "@/lib/i18n/keep-all";
+import { keepAllKo, keepAllPlaceholder } from "@/lib/i18n/keep-all";
 
 
 // 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
@@ -201,7 +201,8 @@ export default function NorthstarSentence() {
           value={draft}
           onChangeText={setDraft}
           multiline
-          placeholder={t("ds.northstar.placeholder")}
+          // Native hint keeps Korean words whole ("찾 / 고" at font scale 1.3, QA R2A-06).
+          placeholder={keepAllPlaceholder(t("ds.northstar.placeholder"), Platform.OS)}
           placeholderTextColor={flattenAlpha(m3.color.onSurface, 0.4, NORTHSTAR_GROUND)}
           style={styles.heroInput}
         />
@@ -325,14 +326,17 @@ const makeStyles = () => StyleSheet.create({
   // D-08: Android draws the placeholder with the font's own spacing, not
   // lineHeight, and adds font padding from Galmuri11's yMax/yMin (1700/-400 of
   // 1200 upem = +10dp top, +4dp bottom at 24). The box was measured as 2x28 = 56dp
-  // and the second placeholder line lost its lower ~6dp. Drop the font padding and
-  // give each line the face's full advance (hhea 1200+200+200 = 1600 -> 32 at 24),
-  // so placeholder and typed text both fit the measured box.
+  // and the second placeholder line lost its lower ~6dp. Drop the font padding.
+  // R2A-06 (QA 2026-10-05): no fixed lineHeight either. Fabric measures an empty
+  // input from the placeholder WITH lineHeight (a sp value Android 14+ scales
+  // non-linearly: 32sp stays ~32dp at font scale 1.3), while the EditText draws
+  // the hint WITHOUT it, at the face's own spacing, which grows with the font.
+  // A fixed 32 held the box at 64dp and cut the second hint line at 1.3. With no
+  // lineHeight, measuring and drawing use the same spacing at every scale.
   heroInput: {
     fontFamily: m3.font.plain,
     fontSize: 24,
     fontWeight: "600",
-    lineHeight: 32,
     includeFontPadding: false,
     textAlignVertical: "top",
     color: m3.color.onSurface,
