@@ -260,16 +260,16 @@ const CAREER_COPY: Record<
     bands: [
       {
         code: "3C",
-        label: "Por que lo hiciste",
-        why: "Por que",
+        label: "Por qué lo hiciste",
+        why: "Por qué",
         groups: [
           {
             id: "customer",
             name: "Customer",
             kr: "Beneficiario",
             fields: [
-              { key: "c_target", label: "Quien recibio el beneficio", hint: "Ejemplo: personas de 20 a 39 anos que abandonaban justo despues de registrarse" },
-              { key: "c_need", label: "Que necesitaban", hint: "Ejemplo: entender rapido que hacer despues del registro" },
+              { key: "c_target", label: "Quién recibió el beneficio", hint: "Ejemplo: personas de 20 a 39 años que abandonaban justo después de registrarse" },
+              { key: "c_need", label: "Qué necesitaban", hint: "Ejemplo: entender rápido qué hacer después del registro" },
             ],
           },
           {
@@ -277,10 +277,10 @@ const CAREER_COPY: Record<
             name: "Company",
             kr: "Equipo",
             fields: [
-              { key: "o_org", label: "Donde estabas", hint: "Ejemplo: Nova Tech Company, equipo de plataforma de diseno" },
-              { key: "o_goal", label: "Objetivo tuyo o del equipo", hint: "Ejemplo: aumentar la finalizacion del onboarding" },
-              { key: "o_problem", label: "Problema, causa u oportunidad", hint: "Ejemplo: 40% abandonaba en el paso 1 porque la primera pantalla tenia demasiada informacion", multiline: true },
-              { key: "o_role", label: "Tu rol en el equipo", hint: "Ejemplo: diseno del flujo y liderazgo del experimento" },
+              { key: "o_org", label: "Dónde estabas", hint: "Ejemplo: Nova Tech Company, equipo de plataforma de diseño" },
+              { key: "o_goal", label: "Objetivo tuyo o del equipo", hint: "Ejemplo: aumentar la finalización del onboarding" },
+              { key: "o_problem", label: "Problema, causa u oportunidad", hint: "Ejemplo: 40% abandonaba en el paso 1 porque la primera pantalla tenía demasiada información", multiline: true },
+              { key: "o_role", label: "Tu rol en el equipo", hint: "Ejemplo: diseño del flujo y liderazgo del experimento" },
             ],
           },
           {
@@ -288,24 +288,24 @@ const CAREER_COPY: Record<
             name: "Competitor",
             kr: "Referencia",
             fields: [
-              { key: "x_subject", label: "Que investigaste", hint: "Ejemplo: flujos de onboarding de tres apps similares" },
-              { key: "x_applied", label: "Que aplicaste despues", hint: "Ejemplo: comprimiste tres pasos en uno y agregaste feedback de progreso", multiline: true },
+              { key: "x_subject", label: "Qué investigaste", hint: "Ejemplo: flujos de onboarding de tres apps similares" },
+              { key: "x_applied", label: "Qué aplicaste después", hint: "Ejemplo: comprimiste tres pasos en uno y agregaste feedback de progreso", multiline: true },
             ],
           },
         ],
       },
       {
         code: "4P",
-        label: "Que y como",
-        why: "Que + como",
+        label: "Qué y cómo",
+        why: "Qué + cómo",
         groups: [
           {
             id: "product",
             name: "Product",
             kr: "Resultado",
             fields: [
-              { key: "p_result", label: "Resultado", hint: "Ejemplo: la finalizacion del onboarding subio de 52% a 71%" },
-              { key: "p_meaning", label: "Que significo el resultado", hint: "Ejemplo: tambien subio la retencion a 30 dias, asi que la primera experiencia importaba", multiline: true },
+              { key: "p_result", label: "Resultado", hint: "Ejemplo: la finalización del onboarding subió de 52% a 71%" },
+              { key: "p_meaning", label: "Qué significó el resultado", hint: "Ejemplo: también subió la retención a 30 días, así que la primera experiencia importaba", multiline: true },
             ],
           },
           {
@@ -313,7 +313,7 @@ const CAREER_COPY: Record<
             name: "Place",
             kr: "Canal",
             fields: [
-              { key: "l_where", label: "Donde funciono la solucion", hint: "Ejemplo: onboarding del primer inicio y recordatorios push" },
+              { key: "l_where", label: "Dónde funcionó la solución", hint: "Ejemplo: onboarding del primer inicio y recordatorios push" },
             ],
           },
           {
@@ -321,15 +321,15 @@ const CAREER_COPY: Record<
             name: "Price",
             kr: "Eficiencia",
             fields: [
-              { key: "r_productivity", label: "Angulo de productividad", hint: "Ejemplo: las consultas de soporte sobre onboarding bajaron 30%" },
+              { key: "r_productivity", label: "Ángulo de productividad", hint: "Ejemplo: las consultas de soporte sobre onboarding bajaron 30%" },
             ],
           },
           {
             id: "promotion",
             name: "Promotion",
-            kr: "Difusion",
+            kr: "Difusión",
             fields: [
-              { key: "m_share", label: "Como se compartio", hint: "Ejemplo: compartiste la mejora en la reunion semanal y el blog del equipo" },
+              { key: "m_share", label: "Cómo se compartió", hint: "Ejemplo: compartiste la mejora en la reunión semanal y el blog del equipo" },
             ],
           },
         ],
@@ -356,15 +356,15 @@ const CAREER_COPY: Record<
     bands: [
       {
         code: "3C",
-        label: "Por que voce fez",
+        label: "Por que você fez",
         why: "Por que",
         groups: [
           {
             id: "customer",
             name: "Customer",
-            kr: "Beneficiario",
+            kr: "Beneficiário",
             fields: [
-              { key: "c_target", label: "Quem recebeu o beneficio", hint: "Exemplo: pessoas de 20 a 39 anos que abandonavam logo apos o cadastro" },
+              { key: "c_target", label: "Quem recebeu o benefício", hint: "Exemplo: pessoas de 20 a 39 anos que abandonavam logo após o cadastro" },
               { key: "c_need", label: "O que elas precisavam", hint: "Exemplo: entender rapidamente o que fazer depois do cadastro" },
             ],
           },
@@ -373,19 +373,19 @@ const CAREER_COPY: Record<
             name: "Company",
             kr: "Equipe",
             fields: [
-              { key: "o_org", label: "Onde voce estava", hint: "Exemplo: Nova Tech Company, equipe de plataforma de design" },
-              { key: "o_goal", label: "Meta sua ou da equipe", hint: "Exemplo: aumentar a conclusao do onboarding" },
-              { key: "o_problem", label: "Problema, causa ou oportunidade", hint: "Exemplo: 40% desistiam na etapa 1 porque a primeira tela tinha informacao demais", multiline: true },
-              { key: "o_role", label: "Seu papel na equipe", hint: "Exemplo: desenho do fluxo e lideranca do experimento" },
+              { key: "o_org", label: "Onde você estava", hint: "Exemplo: Nova Tech Company, equipe de plataforma de design" },
+              { key: "o_goal", label: "Meta sua ou da equipe", hint: "Exemplo: aumentar a conclusão do onboarding" },
+              { key: "o_problem", label: "Problema, causa ou oportunidade", hint: "Exemplo: 40% desistiam na etapa 1 porque a primeira tela tinha informação demais", multiline: true },
+              { key: "o_role", label: "Seu papel na equipe", hint: "Exemplo: desenho do fluxo e liderança do experimento" },
             ],
           },
           {
             id: "competitor",
             name: "Competitor",
-            kr: "Referencia",
+            kr: "Referência",
             fields: [
-              { key: "x_subject", label: "O que voce pesquisou", hint: "Exemplo: fluxos de onboarding de tres apps parecidos" },
-              { key: "x_applied", label: "O que voce aplicou depois", hint: "Exemplo: comprimiu tres etapas em uma e adicionou feedback de progresso", multiline: true },
+              { key: "x_subject", label: "O que você pesquisou", hint: "Exemplo: fluxos de onboarding de três apps parecidos" },
+              { key: "x_applied", label: "O que você aplicou depois", hint: "Exemplo: comprimiu três etapas em uma e adicionou feedback de progresso", multiline: true },
             ],
           },
         ],
@@ -400,8 +400,8 @@ const CAREER_COPY: Record<
             name: "Product",
             kr: "Resultado",
             fields: [
-              { key: "p_result", label: "Resultado", hint: "Exemplo: a conclusao do onboarding subiu de 52% para 71%" },
-              { key: "p_meaning", label: "O que o resultado significou", hint: "Exemplo: a retencao de 30 dias tambem subiu, mostrando que a primeira experiencia importava", multiline: true },
+              { key: "p_result", label: "Resultado", hint: "Exemplo: a conclusão do onboarding subiu de 52% para 71%" },
+              { key: "p_meaning", label: "O que o resultado significou", hint: "Exemplo: a retenção de 30 dias também subiu, mostrando que a primeira experiência importava", multiline: true },
             ],
           },
           {
@@ -409,23 +409,23 @@ const CAREER_COPY: Record<
             name: "Place",
             kr: "Canal",
             fields: [
-              { key: "l_where", label: "Onde a solucao funcionou", hint: "Exemplo: onboarding do primeiro uso e lembretes push" },
+              { key: "l_where", label: "Onde a solução funcionou", hint: "Exemplo: onboarding do primeiro uso e lembretes push" },
             ],
           },
           {
             id: "price",
             name: "Price",
-            kr: "Eficiencia",
+            kr: "Eficiência",
             fields: [
-              { key: "r_productivity", label: "Angulo de produtividade", hint: "Exemplo: chamados de suporte sobre onboarding cairam 30%" },
+              { key: "r_productivity", label: "Ângulo de produtividade", hint: "Exemplo: chamados de suporte sobre onboarding caíram 30%" },
             ],
           },
           {
             id: "promotion",
             name: "Promotion",
-            kr: "Divulgacao",
+            kr: "Divulgação",
             fields: [
-              { key: "m_share", label: "Como foi compartilhado", hint: "Exemplo: compartilhou a melhoria na reuniao semanal e no blog da equipe" },
+              { key: "m_share", label: "Como foi compartilhado", hint: "Exemplo: compartilhou a melhoria na reunião semanal e no blog da equipe" },
             ],
           },
         ],
