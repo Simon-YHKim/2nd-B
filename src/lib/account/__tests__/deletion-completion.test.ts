@@ -147,6 +147,31 @@ test("without a server receipt an unfinished purge is reported as unconfirmed, n
   expect(opened[0]).not.toContain("receipt=");
 });
 
+test("a number whose receipt could not be checked goes to the route as unconfirmed (D2A-03)", async () => {
+  // The erasure is confirmed; only the receipt lookup failed. The route asks the
+  // server again instead of being told no receipt was recorded.
+  const unconfirmed = { ...receipt(null), unconfirmedReceiptId: RECEIPT_ID };
+  const { deps: d, opened } = deps({ receipt: unconfirmed });
+  const result = await finishAccountDeletion(d);
+  expect(params(opened[0])).toEqual({ receiptId: RECEIPT_ID, op: OP });
+  expect(localDeletionOutcomeSnapshot()).toMatchObject({ receiptId: RECEIPT_ID, receiptUnconfirmed: true });
+  expect(result.kind === "show-receipt" && params(result.href).receiptId).toBe(RECEIPT_ID);
+
+  // An unproven number never backs a "retry recorded" claim for an unfinished purge.
+  __resetLocalDeletionOutcomeForTests();
+  const { deps: d2 } = deps({ receipt: unconfirmed, purgeLocal: jest.fn(async () => "unconfirmed" as const) });
+  await finishAccountDeletion(d2);
+  expect(d2.notePending).not.toHaveBeenCalled();
+  expect(localDeletionOutcomeSnapshot()?.localPurge).toBe("unconfirmed");
+
+  // A proven number is never marked unconfirmed, even if both fields arrive.
+  __resetLocalDeletionOutcomeForTests();
+  const { deps: d3 } = deps({ receipt: { ...receipt(), unconfirmedReceiptId: OTHER } });
+  await finishAccountDeletion(d3);
+  expect(localDeletionOutcomeSnapshot()?.receiptId).toBe(RECEIPT_ID);
+  expect(localDeletionOutcomeSnapshot()?.receiptUnconfirmed).toBeUndefined();
+});
+
 test("a sign-out failure is reported, not retried, and the receipt stays open", async () => {
   const { deps: d, calls } = deps({
     signOut: jest.fn(async () => {

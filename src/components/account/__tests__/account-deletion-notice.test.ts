@@ -275,6 +275,24 @@ describe("/account-deleted shows a receipt only while nobody is signed in", () =
     expect(receiptScreenView({ ...base, lookup }).kind).toBe(kind);
   });
 
+  test("an unconfirmed number says 'no receipt recorded' only after the server definitely says none (D2A-03)", () => {
+    const unconfirmed = outcome({ receiptUnconfirmed: true, localPurge: "complete" });
+    const none = receiptScreenView({ ...base, local: unconfirmed, lookup: { status: "not-found" } });
+    expect(none.kind).toBe("receipt");
+    expect(none.kind === "receipt" && none.notice.receiptId).toBeNull();
+    expect(none.kind === "receipt" && none.notice.receipt).toBeNull();
+    expect(none.kind === "receipt" && none.notice.localPurge).toBe("complete");
+    // Still unknown: the route keeps asking, never claims "not recorded".
+    expect(receiptScreenView({ ...base, local: unconfirmed, lookup: { status: "unavailable" } }).kind).toBe("unavailable");
+    expect(receiptScreenView({ ...base, local: unconfirmed, lookup: null }).kind).toBe("loading");
+    // Found after all: the server receipt, with this device's results.
+    const found2 = receiptScreenView({ ...base, local: unconfirmed });
+    expect(found2.kind === "receipt" && found2.notice.receiptId).toBe(RECEIPT_ID);
+    // A proven number, or a number opened by hand, that the server does not know stays "not found".
+    expect(receiptScreenView({ ...base, lookup: { status: "not-found" } }).kind).toBe("not-found");
+    expect(receiptScreenView({ ...base, params: byNumber, local: null, lookup: { status: "not-found" } }).kind).toBe("not-found");
+  });
+
   test("no number: only this device's finished deletion says no receipt was recorded", () => {
     const noNumber = receiptScreenView({
       ...base,

@@ -97,7 +97,26 @@ export function receiptScreenView(input: {
     };
   }
   if (input.lookup === null) return { kind: "loading" };
-  if (input.lookup.status === "not-found") return { kind: "not-found" };
+  if (input.lookup.status === "not-found") {
+    // This device's own request number, whose receipt could not be checked
+    // when the erasure was confirmed (gate D2A-03): a definite "not found" from
+    // the server now means none was recorded, and the confirmed erasure still
+    // stands. Any other number simply has no receipt.
+    if (local !== null && local.receiptUnconfirmed === true) {
+      return {
+        kind: "receipt",
+        notice: {
+          receiptId: null,
+          erasedAtIso: null,
+          expiresAtIso: null,
+          receipt: null,
+          localPurge: local.localPurge,
+          localSignOut: local.localSignOut,
+        },
+      };
+    }
+    return { kind: "not-found" };
+  }
   if (input.lookup.status === "unavailable") return { kind: "unavailable" };
   const server = input.lookup.receipt;
   const observed = accountDeletionReceiptFromServer(server);

@@ -132,22 +132,36 @@ export async function finishAccountDeletion(deps: FinishAccountDeletionDeps): Pr
     if (noted) localPurge = "retry-scheduled";
   }
 
+  // A number whose receipt could not be checked still goes to the route, which
+  // asks the server itself; it is never told "no receipt was recorded" while
+  // that is unknown (gate D2A-03). It is not used for the purge-retry note
+  // above: only a proven receipt may say a retry was recorded.
+  const unconfirmedReceiptId = deps.receipt.receiptId === null
+    ? deps.receipt.unconfirmedReceiptId ?? null
+    : null;
+  const routeReceiptId = deps.receipt.receiptId ?? unconfirmedReceiptId;
+
   // Another account already visible: never open A's receipt. Still try to end
   // A's own session; signOutExpected refuses any session that is not A's.
   const opened = !otherOwnerVisible(deps.readOwner(), deps.owner);
   let token: string | null = null;
-  let href = buildAccountDeletedHref({ receiptId: deps.receipt.receiptId, op: null });
+  let href = buildAccountDeletedHref({ receiptId: routeReceiptId, op: null });
   if (opened) {
     try {
       token = beginLocalDeletionOutcome(
-        { owner: deps.owner, receiptId: deps.receipt.receiptId, localPurge },
+        {
+          owner: deps.owner,
+          receiptId: routeReceiptId,
+          receiptUnconfirmed: unconfirmedReceiptId !== null,
+          localPurge,
+        },
         deps.newToken,
       );
     } catch {
       // Without a token the route still shows the server receipt, just no local result.
       token = null;
     }
-    href = buildAccountDeletedHref({ receiptId: deps.receipt.receiptId, op: token });
+    href = buildAccountDeletedHref({ receiptId: routeReceiptId, op: token });
     quietly(() => deps.openReceipt(href));
   }
 

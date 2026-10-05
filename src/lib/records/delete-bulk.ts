@@ -259,6 +259,13 @@ export type AccountDeletionReceipt = {
   deleted: true;
   /** The server-recorded receipt number (0217), or null when none was recorded. */
   receiptId: string | null;
+  /**
+   * Set only while `receiptId` is null: this request's own number, when the
+   * erasure was confirmed but whether the server recorded a receipt under it
+   * could not be checked. Unknown is not "none" (gate D2A-03); the receipt
+   * route asks the server about it again.
+   */
+  unconfirmedReceiptId?: string | null;
   profileErased: boolean | null;
   /** Whether the server committed its durable deletion tombstone. */
   deletionFenced: boolean | null;
@@ -424,7 +431,9 @@ async function classifyInvokeFailure(error: unknown): Promise<InvokeFailure> {
 
 type DeletionAttempt =
   | { kind: "deleted"; receipt: AccountDeletionReceipt; requestIdSent: boolean }
-  | { kind: "ambiguous"; requestId: string };
+  | { kind: "ambiguous"; requestId: string }
+  /** An earlier request on this device already finished; nothing was sent. */
+  | { kind: "already-deleted"; receipt: AccountDeletionReceipt };
 
 /** Terminal account erasure. Compares both live session reads with the user id
  *  captured at confirmation, then binds that exact refreshed token to the Edge
@@ -456,24 +465,30 @@ export async function requestAccountDeletion(
   const owner = expected.userId;
   const lookup = options.lookupReceipt ?? ((receiptId: string) => fetchAccountDeletionReceipt(receiptId));
 
-  // An earlier attempt on this device whose answer never arrived may already
-  // have finished. Its server receipt is proof; never erase twice.
-  const prior = await resolvePendingAccountDeletion(owner, { lookup });
-  if (prior.kind === "deleted") return accountDeletionReceiptFromServer(prior.receipt);
-  // ...or it may still be running on the server. A second request beside it
-  // would race it for the tombstone's receipt number, and a lost answer could
-  // then never be resolved (gate DEL2-R1-03). Wait out its lease instead; a
-  // request past its lease cannot be running any more.
-  if (prior.kind === "pending" && prior.inFlightRequestId !== null) {
-    throw new AccountDeletionUnconfirmedError(prior.inFlightRequestId);
-  }
-
   const supabase = getSupabaseClient();
   const runtime = getAuthStorageRuntime();
   const deadlineAt = Date.now() + ACCOUNT_DELETION_DEADLINE_MS;
   const requestId = (options.newRequestId ?? randomUUID)().toLowerCase();
 
   const attempt = await runtime.runMutation(async (): Promise<DeletionAttempt> => {
+    // Checked under the cross-tab mutation lock, not before it: two tabs that
+    // both read "nothing pending" before either took the lock would otherwise
+    // both send (gate DEL2-R1-03). The second tab now waits for the first and
+    // then sees its note.
+    //
+    // An earlier attempt on this device whose answer never arrived may already
+    // have finished. Its server receipt is proof; never erase twice.
+    const prior = await resolvePendingAccountDeletion(owner, { lookup });
+    if (prior.kind === "deleted") {
+      return { kind: "already-deleted", receipt: accountDeletionReceiptFromServer(prior.receipt) };
+    }
+    // ...or it may still be running on the server. Wait out its lease instead
+    // of sending a second request beside it; a request past its lease cannot
+    // be running any more.
+    if (prior.kind === "pending" && prior.inFlightRequestId !== null) {
+      throw new AccountDeletionUnconfirmedError(prior.inFlightRequestId);
+    }
+
     // Remember the request before it leaves, so a lost answer stays resolvable.
     // False means the note was not written; the network then sees 0 calls.
     if (!(await addPendingAccountDeletion(owner, requestId))) {
@@ -564,21 +579,31 @@ export async function requestAccountDeletion(
     }
   }, { requireCrossTab: true });
 
+  if (attempt.kind === "already-deleted") return attempt.receipt;
   if (attempt.kind === "deleted") {
     if (attempt.receipt.receiptId !== null || !attempt.requestIdSent) return attempt.receipt;
     // The erasure is confirmed but the answer carried no receipt number. The
     // row may still exist: delete-account returns a number only after it could
     // prove the row, and that proof can fail on its own (gate DEL2-R1-08). Ask
-    // once by the number this request proposed; anything but "found" keeps null.
+    // once by the number this request proposed.
+    //   found     -> that is the receipt;
+    //   not-found -> definitely none: 0217 turns every number still attached at
+    //                the erasure into a receipt in the same transaction and never
+    //                swaps a proposed number for another one;
+    //   otherwise -> UNKNOWN, which is not "none" (gate D2A-03). The number goes
+    //                on as unconfirmed, so the receipt route asks the server
+    //                itself instead of being told no receipt was recorded.
+    let recorded: ReceiptLookup = { status: "unavailable" };
     try {
-      const recorded = await lookup(requestId);
-      if (recorded.status === "found" && recorded.receipt.id === requestId) {
-        return { ...attempt.receipt, receiptId: requestId };
-      }
+      recorded = await lookup(requestId);
     } catch {
-      // A failed lookup only means the number stays unknown.
+      recorded = { status: "unavailable" };
     }
-    return attempt.receipt;
+    if (recorded.status === "found" && recorded.receipt.id === requestId) {
+      return { ...attempt.receipt, receiptId: requestId };
+    }
+    if (recorded.status === "not-found") return attempt.receipt;
+    return { ...attempt.receipt, unconfirmedReceiptId: requestId };
   }
 
   // The answer was lost. The server records the receipt in the same transaction

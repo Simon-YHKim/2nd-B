@@ -34,6 +34,13 @@ export interface LocalDeletionOutcome {
   owner: string;
   /** The server receipt number the route carries; null when none was recorded. */
   receiptId: string | null;
+  /**
+   * True when `receiptId` is this device's own request number and the server
+   * confirmed the erasure, but whether it recorded a receipt under that number
+   * could not be checked (gate D2A-03). The route asks the server; only a
+   * definite "not found" then means no receipt was recorded.
+   */
+  receiptUnconfirmed?: boolean;
   localPurge: LocalPurgeOutcome;
   /** Null until the sign-out finished. */
   localSignOut: LocalSignOutOutcome | null;
@@ -54,15 +61,18 @@ function emit(): void {
 
 /** Start recording one deletion's local outcome. Returns the route token. */
 export function beginLocalDeletionOutcome(
-  input: { owner: string; receiptId: string | null; localPurge: LocalPurgeOutcome },
+  input: { owner: string; receiptId: string | null; receiptUnconfirmed?: boolean; localPurge: LocalPurgeOutcome },
   newToken: () => string = randomUUID,
 ): string {
   const token = normalizeReceiptId(newToken());
   if (token === null) throw new Error("local deletion outcome token is not a UUID");
+  const receiptId = normalizeReceiptId(input.receiptId);
   current = Object.freeze({
     token,
     owner: input.owner,
-    receiptId: normalizeReceiptId(input.receiptId),
+    receiptId,
+    // Present only when true, so a proven or absent number reads exactly as before.
+    ...(receiptId !== null && input.receiptUnconfirmed === true ? { receiptUnconfirmed: true } : {}),
     localPurge: input.localPurge,
     localSignOut: null,
   });

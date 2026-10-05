@@ -120,7 +120,7 @@ import {
   requestAccountDeletion as requestAccountDeletionWithDefaults,
 } from "../delete-bulk";
 import type { ReceiptLookup } from "../../account/deletion-receipt";
-import type { AuthSessionExpectation } from "../../auth/session-mutation";
+import { getAuthStorageRuntime, type AuthSessionExpectation } from "../../auth/session-mutation";
 
 const EXPECTED: AuthSessionExpectation = {
   userId: "u1",
@@ -410,6 +410,36 @@ describe("requestAccountDeletion (terminal erasure)", () => {
     expect(clientMock.__invoke).not.toHaveBeenCalled();
   });
 
+  test("the earlier-request check runs under the cross-tab mutation lock (DEL2-R1-03)", async () => {
+    // Two tabs that both checked BEFORE taking the lock could both send. The
+    // check now runs inside runMutation, after the lock is held.
+    const runtime = getAuthStorageRuntime();
+    const original = runtime.runMutation.bind(runtime);
+    let insideLock = false;
+    const spy = jest.spyOn(runtime, "runMutation").mockImplementation(((fn: () => Promise<unknown>, options?: { requireCrossTab?: boolean }) =>
+      original(async () => {
+        insideLock = true;
+        try {
+          return await fn();
+        } finally {
+          insideLock = false;
+        }
+      }, options)) as typeof runtime.runMutation);
+    const seen: boolean[] = [];
+    pendingMock.__resolve.mockImplementation(async () => {
+      seen.push(insideLock);
+      return { kind: "pending", inFlightRequestId: "99999999-8888-4777-8666-555555555555" };
+    });
+    try {
+      await expect(requestAccountDeletion(EXPECTED)).rejects.toBeInstanceOf(AccountDeletionUnconfirmedError);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(seen).toEqual([true]);
+    expect(pendingMock.__add).not.toHaveBeenCalled();
+    expect(clientMock.__invoke).not.toHaveBeenCalled();
+  });
+
   test("an earlier request past its lease (answer unknown) no longer blocks a new one", async () => {
     pendingMock.__resolve.mockResolvedValueOnce({ kind: "pending", inFlightRequestId: null });
 
@@ -434,24 +464,38 @@ describe("requestAccountDeletion (terminal erasure)", () => {
     expect(receipt.profileErased).toBe(true);
   });
 
+  test("that lookup answering not found means no receipt was recorded", async () => {
+    clientMock.__invoke.mockResolvedValueOnce({ data: { deleted: true }, error: null });
+    lookupReceipt.mockResolvedValueOnce({ status: "not-found" });
+
+    const receipt = await requestAccountDeletion(EXPECTED);
+    expect(receipt.deleted).toBe(true);
+    expect(receipt.receiptId).toBeNull();
+    expect(receipt.unconfirmedReceiptId).toBeUndefined();
+  });
+
   test.each([
-    ["not found", { status: "not-found" } as ReceiptLookup],
     ["unavailable", { status: "unavailable" } as ReceiptLookup],
     ["another number", serverReceipt("aaaaaaaa-1111-4222-8333-444444444444")],
-  ])("that lookup answering %s keeps the number unknown", async (_label, answer) => {
+  ])("that lookup answering %s leaves the number unconfirmed, not absent (D2A-03)", async (_label, answer) => {
     clientMock.__invoke.mockResolvedValueOnce({ data: { deleted: true }, error: null });
     lookupReceipt.mockResolvedValueOnce(answer);
 
     const receipt = await requestAccountDeletion(EXPECTED);
     expect(receipt.deleted).toBe(true);
     expect(receipt.receiptId).toBeNull();
+    expect(receipt.unconfirmedReceiptId).toBe(REQUEST_ID);
   });
 
   test("a throwing lookup never turns the confirmed erasure into a failure", async () => {
     clientMock.__invoke.mockResolvedValueOnce({ data: { deleted: true }, error: null });
     lookupReceipt.mockRejectedValueOnce(new Error("boom"));
 
-    await expect(requestAccountDeletion(EXPECTED)).resolves.toMatchObject({ deleted: true, receiptId: null });
+    await expect(requestAccountDeletion(EXPECTED)).resolves.toMatchObject({
+      deleted: true,
+      receiptId: null,
+      unconfirmedReceiptId: REQUEST_ID,
+    });
   });
 
   test("a refused (taken) receipt number proves nothing was erased and drops the note (D2A-01)", async () => {
