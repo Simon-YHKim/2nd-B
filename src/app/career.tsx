@@ -1,6 +1,6 @@
 // 커리어 CV 타임라인 (rev2 P4d): the career domain lens. Every domain:career
-// record grouped by year (an explicit year: tag from the 성과 입력 form wins over
-// the capture date), newest first.
+// record, and every 성과 입력 entry (CAREER_TIMELINE_TAGS), grouped by year (an
+// explicit year: tag from the 성과 입력 form wins over the capture date), newest first.
 //
 // The form itself lives on /career-input, not inline here. This screen carried a
 // three-box version (성과 / 역할 / 임팩트 + 연도) that was a reduction of the spec in
@@ -17,10 +17,14 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { domainTagFor } from "@/lib/persona/domain-stars";
 import { deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
-import { careerRecordOrigin, groupCareerTimeline, type CareerRecordRow } from "@/lib/career/career-timeline";
+import {
+  CAREER_TIMELINE_TAGS,
+  careerRecordOrigin,
+  groupCareerTimeline,
+  type CareerRecordRow,
+} from "@/lib/career/career-timeline";
 
 /**
  * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
@@ -32,14 +36,14 @@ import { careerRecordOrigin, groupCareerTimeline, type CareerRecordRow } from "@
  */
 const carAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.surfaceContainerLow);
 
-const CAREER_TAG = domainTagFor("career");
-
 async function listCareerRecords(userId: string): Promise<CareerRecordRow[]> {
   const { data, error } = await getSupabaseClient()
     .from("records")
     .select("id, kind, topic, body, tags, created_at")
     .eq("user_id", userId)
-    .contains("tags", [CAREER_TAG])
+    // ANY of the tags, not all: an achievement an older build filed under
+    // domain:collect still carries career_achievement (QA R2C-01).
+    .overlaps("tags", [...CAREER_TIMELINE_TAGS])
     .order("created_at", { ascending: false })
     .limit(500);
   if (error) throw error;
