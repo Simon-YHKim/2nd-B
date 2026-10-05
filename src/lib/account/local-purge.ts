@@ -6,6 +6,7 @@ import { purgeAuditWriteOutboxForOwner } from "../llm/audit-write-outbox";
 import { purgeNoticeLastSeenForDeletedAccount } from "../notices/last-seen";
 import { purgeStarLastSeenForDeletedAccount } from "../persona/star-last-seen";
 import { purgeNoticeReadStateForDeletedAccount } from "../notices/read-store";
+import { purgeFocusForDeletedAccount } from "../ops/focus-store";
 import { clearAccountScopedLocalNotifications } from "../ops/reminders";
 import { purgeOpsUsageForDeletedAccount } from "../ops/usage";
 import { purgeGithubUsernameForDeletedAccount } from "../projects/github-link";
@@ -42,6 +43,7 @@ export async function purgeDeletedAccountLocalData(userId: string): Promise<Loca
       observe(() => purgeGithubUsernameForDeletedAccount(owner)),
       observe(() => purgeAuditWriteOutboxForOwner(owner)),
       observe(() => purgeOpsUsageForDeletedAccount(owner)),
+      observe(() => purgeFocusForDeletedAccount(owner)),
       observe(() => purgeAutoReasoningForDeletedAccount(owner)),
       observe(() => purgeWikiAutoPromoteForDeletedAccount(owner)),
       observe(() => purgeHealthAutoReadForDeletedAccount(owner)),

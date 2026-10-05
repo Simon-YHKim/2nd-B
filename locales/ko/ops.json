@@ -377,7 +377,7 @@
     "doneToday": "오늘 집중한 횟수: {{count}}",
     "alarmFocusTitle": "집중 시간 끝",
     "alarmFocusBody": "집중 시간이 끝났습니다. 잠깐 쉬세요.",
-    "alarmFocusBodyStar": "{{star}} 별에 집중 1회를 기록했습니다.",
+    "alarmFocusBodyArea": "{{area}} 집중 1회를 마쳤습니다.",
     "alarmBreakTitle": "휴식 끝",
     "alarmBreakBody": "다시 집중할 시간입니다.",
     "subIdle": "준비되면 시작하세요",
@@ -405,22 +405,16 @@
     "ringFocusing": "집중 중",
     "ringPaused": "일시정지",
     "leadPre": "한 가지에 집중하고, 끝나면 ",
-    "leadStar": "{{star}} 별",
-    "leadPost": "에 기록합니다.",
+    "leadArea": "{{area}}",
+    "leadPost": " 집중 1회로 셉니다.",
     "preset": "{{min}}분",
     "startFocus": "집중 시작",
     "resetBtn": "초기화",
-    "forWhichStar": "어느 별에 기록할까요?",
+    "forWhichArea": "어느 영역을 위한 집중인가요?",
     "todayCount": "오늘 {{sessions}}회 집중",
     "todaySub": "약 {{min}}분 · 목표 {{goal}}회",
-    "todayStarCount": "{{star}} 별 · 오늘 {{n}}회",
-    "stars": {
-      "s0": "성장",
-      "s1": "커리어",
-      "s2": "학습",
-      "s3": "관계",
-      "s4": "건강"
-    }
+    "todaySubGoalOnly": "목표 {{goal}}회",
+    "todayAreaCount": "{{area}} · 오늘 {{n}}회"
   },
   "srs": {
     "title": "언어 복습",

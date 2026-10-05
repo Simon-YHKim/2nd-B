@@ -7,6 +7,52 @@
 
 ---
 
+## 2026-10-01 05:52 / Play 데이터 보안 양식 확인과 기기 ID 초안 정정
+
+- **Play GUI**: 로그인된 PolaScope(`com.simonk.secondbrain`) Play Console에서 비공개 테스트 0.9.0(vc56) alpha와 앱 콘텐츠의 데이터 보안 양식을 읽었다. 대략적 위치·진단은 모두 수집·공유 및 **필수**, 기기 또는 기타 ID는 수집·공유 및 **선택**으로 남아 있었다. 위치·진단의 적합성은 미판정이다. [실측 보고](qa/play-data-safety-live-261001.html).
+- **기기 ID 초안**: vc56 동의 전 Firebase Installations 연결, Firebase의 FID 자동 수집 안내, 현행 방침의 ‘앱 설정으로 끌 수 없음’을 근거로 기기 ID를 **필수**로 바꿔 Play 양식의 임시저장을 실행했다. 새로고침 뒤에도 필수 선택이 유지된다. 마지막 미리보기의 ‘저장’·검토 제출·프로덕션 신청은 누르지 않았으므로 공개 신고는 바뀌었다고 판정하지 않는다.
+- **앱·빌드**: 제목 접근성 [#1975](https://github.com/Simon-YHKim/2nd-B/pull/1975)가 main `438d42a0`에 병합됐다. `npm run verify` 870묶음/11,286건과 PR CI 3종 통과. [Android 진단 빌드 36772298937](https://github.com/Simon-YHKim/2nd-B/actions/runs/36772298937)은 성공했고 arm64 ABI 검사·44,140,850바이트 artifact 업로드가 통과했다. [웹 빌드 36772298874](https://github.com/Simon-YHKim/2nd-B/actions/runs/36772298874) 성공/deploy skipped, OTA 36772298918 gate/report 성공/update skipped. 05:49 KST `npm run app:parity` **같음**.
+- **다음**: 위치·진단 신고의 실제 SDK/네트워크 근거를 확정하고 기기 ID 초안의 Play 최종 제출 경계를 검토한다. ARM 실기기 사진→OCR·최대 글꼴·TalkBack, 10월 5일 서버 `email-v7` 뒤 Draft #1902·#1917 검토가 남는다. Grok 후속은 보류한다. 원래 `TTL-Work_rev2`의 다른 세션 미커밋 변경은 건드리지 않았다.
+
+---
+
+## 2026-10-01 04:55 / PolaScope 계약·메일 제목 Draft 선행 검증
+
+- **Draft 통합 검사**: main `8918e0db`와 [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902) 원격 head `4c81c0ce`를 별도 워크트리에서 커밋 없이 합쳤다. 충돌 0, `npm run verify` 869묶음/11,289건 통과, `git diff --check` 통과. #1902 브랜치는 push하지 않았다. [상세 기록](qa/polascope-contract-readiness-261001.md).
+- **운영 계약 현황**: 운영 프로젝트 `zoacryukmdeivmolvyhj`의 공개 `signup_consent_contract_status` RPC는 HTTP 200과 6행을 반환했다. `email-v6`까지 있고 #1902가 요구하는 `email-v7`은 0행이다. 클라이언트 요구는 `email-v7` · 동의/약관 `2026-10-05` · 방침 `2026-09-29`이며 출시 게이트는 exit 1로 게시를 차단했다. 이전 “RPC 404” 기록은 더 이상 현재 상태가 아니다. 키 값은 출력하지 않았다.
+- **메일 제목 Draft 검증**: [#1917](https://github.com/Simon-YHKim/2nd-B/pull/1917) 원격 head `6a61ca66`과 최신 main `6354bca0`을 별도 워크트리에서 커밋 없이 합쳤다. 충돌 0, main 대비 변경은 `supabase/config.toml`의 제목 두 줄, `check:supabase-auth-config` 통과, `npm run verify` 870묶음/11,286건 통과. PR 브랜치는 push하지 않았고 메일 발송·대시보드 설정 변경도 하지 않았다. [상세 기록](qa/polascope-contract-readiness-261001.md).
+- **출시 순서**: 서버 계약·원장 선행 적용과 게이트 재검증 뒤, 10월 5일 #1902·#1917 Draft를 재검토한다. 대시보드 메일 제목과 저장소 설정을 같은 날 맞춘다. 두 Draft·운영 DB/Edge·Play 양식·웹 게시를 이번에 바꾸지 않았다. Grok 후속 보류를 유지한다.
+
+---
+
+## 2026-10-01 04:14 / 한국어 따옴표·조사 수정의 병합 뒤 화면 검증
+
+- **반영**: Android 사진 QA [PR #1970](https://github.com/Simon-YHKim/2nd-B/pull/1970)은 main `cefa48fe`, 웹 한국어 조사 줄바꿈 [PR #1971](https://github.com/Simon-YHKim/2nd-B/pull/1971)은 main `f0559166`에 병합됐다. 이 브랜치에는 새 앱 코드 변경이 없다.
+- **실제 GUI 확인**: main `f0559166`을 따르는 8081 `/ratifications`에 공용 QA 계정으로 로그인해 `보류`·`거절`의 `‘승인’에서` 문구를 확인했다. 320·375·425px에서 닫는 따옴표/조사 윗좌표는 각각 440/440, 392/392, 374/374px이고 가로 넘침은 모두 0px이다. 인증 외 쓰기 요청 차단 상태에서 차단 건수 0, 페이지 오류 0이다. [상세 결과](qa/web-quote-josa-261001.md). 스크린 리더 음성·초점 순서와 다른 보간 화면은 미검증이다.
+- **CI·게시**: [웹 빌드 36761343755](https://github.com/Simon-YHKim/2nd-B/actions/runs/36761343755)는 성공했고 deploy는 건너뛰었다. [OTA 36761343914](https://github.com/Simon-YHKim/2nd-B/actions/runs/36761343914)도 gate/report 성공, update 건너뜀이다. [Android 진단 빌드 36761343696](https://github.com/Simon-YHKim/2nd-B/actions/runs/36761343696)는 main `f0559166`에서 성공했고 APK artifact 1개(44,140,830바이트)가 있다. 이 문서 브랜치의 `npm run verify`는 870묶음/11,286건 통과했고 빌드 완료 뒤 04:14 KST의 `npm run app:parity`는 **같음**이다.
+- **다음 확인**: 최신 ARM 실기기에서 사진 선택→OCR·최대 글꼴·TalkBack을 확인한다. 10월 5일 계약 Draft #1902·메일 제목 #1917은 날짜 전 병합하지 않는다. Grok 후속 보류를 유지한다. 원래 `TTL-Work_rev2`의 다른 세션 미커밋 변경은 건드리지 않았다.
+
+---
+
+## 2026-10-01 03:41 / 웹 한국어 닫는 따옴표 뒤 조사 줄바꿈 수정
+
+- **원인·수정**: 웹의 `word-break: keep-all`은 `‘오늘 반영’을`에서 닫는 따옴표 뒤 조사를 다음 줄로 보낼 수 있다. [PR #1971](https://github.com/Simon-YHKim/2nd-B/pull/1971)은 공통 `PlainText` 웹 경로에서 닫는 `’`/`”`의 양쪽에 U+2060을 넣어 붙인다. 네이티브 `keepAllKo`, 선택 가능한 텍스트, 기존 가운데점 규칙은 유지한다. [재현·QA](qa/web-quote-josa-261001.md).
+- **검증**: main `cefa48fe` 통합 후 `npm run verify` 870묶음/11,286건 통과. Chrome 114px 상자에서 원문 따옴표/조사 윗좌표 11/42px → 수정 107/107px, 가로 넘침 0px. 관련 단위 테스트 2묶음/33건 및 타입 검사 통과. PR CI 최종 상태는 병합 전에 확인한다.
+- **반영 순서**: Android 사진 QA [#1970](https://github.com/Simon-YHKim/2nd-B/pull/1970)은 main `cefa48fe`에 병합됐다. 같은 SHA의 [웹 빌드 36759942816](https://github.com/Simon-YHKim/2nd-B/actions/runs/36759942816)은 성공했고 게시 단계는 건너뛰어 공개 웹 변경은 없다. 이제 #1971을 병합한 뒤 새 main의 앱 동등성·Android 진단 빌드를 확인한다. OTA는 워크플로상 `[ota]`/`[release]` 표시 없는 main push에서 gate-only다.
+- **남은 확인**: 병합 후 8081 실제 한국어 화면의 좁은 폭, 화면 읽기 순서, 최신 ARM 기기의 사진 선택→OCR·최대 글꼴·TalkBack. 10월 5일 PolaScope 계약 Draft #1902·메일 제목 #1917은 날짜 전 병합하지 않는다. Grok 후속 보류도 유지한다.
+
+---
+
+## 2026-10-01 03:00 / Android 사진 선택·권한 거부·글꼴 130% 네이티브 QA
+
+- **기록**: [Android 사진 입력 QA 보고](qa/android-native-photo-261001.html)와 [증거·절차](qa/android-native-photo-261001/README.md)에 Pixel 7 Android 16 x86_64 에뮬레이터의 시스템 Photo Picker, 카메라 권한 거부 후 안내·복귀, 글꼴 130%에서 사진 입력 하단 버튼 접근 결과와 화면 3장을 남겼다. 검사 뒤 에뮬레이터 글꼴 배율을 1.0으로 복원했다. 사진 선택·메모 저장은 하지 않았다.
+- **빌드 한계**: 실행한 x86_64 APK는 `4ee03669`의 [기존 수동 진단 빌드](https://github.com/Simon-YHKim/2nd-B/actions/runs/36687352385)다. `0e2bb32e`의 [최근 성공 APK](https://github.com/Simon-YHKim/2nd-B/actions/runs/36745473207)는 arm64-v8a 전용이라 x86_64 에뮬레이터에서 네이티브 라이브러리를 찾지 못했다. 이 오류는 ABI 불일치로 분류했다. 따라서 이번 결과는 **네이티브 플랫폼 경로**만 증명한다. 구 main `b81faefc`의 진단 빌드 36754062889는 새 main이 올라온 뒤 취소했다. 현 main `36623cc1`의 [진단 빌드 36755588373](https://github.com/Simon-YHKim/2nd-B/actions/runs/36755588373)은 성공했고 APK artifact가 있다.
+- **남은 QA**: 최신 main의 ARM 실기기에서 실제 사진 선택→OCR, 최대 글꼴, TalkBack, 뒤로가기, 10월 5일 PolaScope 시스템 앱 이름을 확인한다. 실제 유효한 커뮤니티 초대·Play Console 신고 양식·운영 서버 적용은 별개다. [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)와 [#1917](https://github.com/Simon-YHKim/2nd-B/pull/1917)은 10월 5일 전 Draft를 유지한다. Grok 후속 보류도 유지한다.
+- **작업 경계**: 원래 `TTL-Work_rev2` 워크트리의 다른 세션 미커밋 변경은 건드리지 않았다. Android QA 기록은 별도 브랜치 `docs/android-native-photo-qa-261001`에서 작성했다. `npm run app:parity`는 `b81faefc` 시점에 같음이었으며 새 main에서도 다시 확인한다.
+- **검증**: main `36623cc1` 통합 뒤 `npm run verify` 870묶음/11,279건 통과. `npm run app:parity`는 앱 경로·설정·의존성 일치와 같은 코드·설정의 APK 빌드 성공으로 **같음**(03:33 KST). PR #1970의 lint·verify·web-export-smoke 3종도 통과했다.
+
+---
+
 ## 2026-10-01 02:57 / #1968 머지 뒤 확인: 앱 = localhost 같음 · 8081 브라우저 검사 14/14 · 따옴표 뒤 조사 줄바꿈
 
 - **#1968 머지**: 02:48 KST, main `b81faefc`. CI lint · verify · web-export-smoke 통과. `npm run app:parity` **같음**(02:50:07). 8081 이 `b81faefc` 로 다시 떴고(02:49) 앱 경로 차이 0 · 설정 digest `e90c4cb7453f` 일치. 폰 APK 빌드 [36754062889](https://github.com/Simon-YHKim/2nd-B/actions/runs/36754062889)는 확인 시점에 진행 중이었다. QA APK 게시는 하지 않았다(Simon 이 폰에서 볼 때만).

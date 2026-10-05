@@ -55,7 +55,9 @@ describe("root layout", () => {
     expect(layout).toContain('ready={fontsReady && !loading && recoveryReady && profileHold !== "loading"}');
     expect(layout).toMatch(/function IntroGate\(\{ children, fontsReady = true \}/);
     const afterIntro = layout.slice(layout.indexOf("if (!introDone) {"));
-    expect(afterIntro.indexOf("if (!fontsReady) return <InlineLoader />;")).toBeGreaterThan(0);
-    expect(afterIntro.indexOf("if (!fontsReady) return <InlineLoader />;")).toBeLessThan(afterIntro.indexOf("if (storageRecoveryRequired)"));
+    // Bare (no caption) since R2A-04: text laid out before the face is registered is
+    // cached at the fallback width (android-text-clip-d08.test.ts).
+    expect(afterIntro.indexOf("if (!fontsReady) return <InlineLoader bare />;")).toBeGreaterThan(0);
+    expect(afterIntro.indexOf("if (!fontsReady) return <InlineLoader bare />;")).toBeLessThan(afterIntro.indexOf("if (storageRecoveryRequired)"));
   });
 });

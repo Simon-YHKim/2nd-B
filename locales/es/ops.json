@@ -377,7 +377,7 @@
     "doneToday": "Sesiones de enfoque hechas hoy: {{count}}",
     "alarmFocusTitle": "Bloque de enfoque terminado",
     "alarmFocusBody": "Sesión terminada. Es hora de descansar.",
-    "alarmFocusBodyStar": "Sesión de concentración guardada para {{star}}.",
+    "alarmFocusBodyArea": "Sesión de concentración de {{area}} terminada.",
     "alarmBreakTitle": "Descanso terminado",
     "alarmBreakBody": "De vuelta a tu próximo bloque de enfoque.",
     "subIdle": "Listo cuando quieras",
@@ -404,23 +404,17 @@
     "ringReady": "Listo",
     "ringFocusing": "Concentrándote",
     "ringPaused": "En pausa",
-    "leadPre": "Concéntrate en una tarea. La sesión se guardará en tu ",
-    "leadStar": "estrella {{star}}",
+    "leadPre": "Concéntrate en una tarea. Al terminar, cuenta como una sesión de ",
+    "leadArea": "{{area}}",
     "leadPost": ".",
     "preset": "{{min}} min",
     "startFocus": "Iniciar enfoque",
     "resetBtn": "Reiniciar",
-    "forWhichStar": "¿Para qué estrella?",
+    "forWhichArea": "¿Para qué área es esta sesión?",
     "todayCount": "{{sessions}} sesiones de enfoque hoy",
     "todaySub": "Unos {{min}} min · meta {{goal}}",
-    "todayStarCount": "Estrella {{star}} · {{n}} hoy",
-    "stars": {
-      "s0": "Crecimiento",
-      "s1": "Carrera",
-      "s2": "Aprendizaje",
-      "s3": "Relaciones",
-      "s4": "Salud"
-    }
+    "todaySubGoalOnly": "Meta {{goal}}",
+    "todayAreaCount": "{{area}} · {{n}} hoy"
   },
   "srs": {
     "title": "Repaso de idioma",

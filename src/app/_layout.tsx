@@ -49,6 +49,7 @@ import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { configureEffectsAudioSession } from "@/lib/audio/audio-session";
 import { ensureSoundEffectsHydration } from "@/lib/settings/sound-effects";
+import { GateCover } from "@/components/ui/GateCover";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { AvatarSetupGate, AvatarSetupSceneGuard } from "@/components/avatar/AvatarSetupGate";
@@ -203,11 +204,19 @@ export default function RootLayout() {
   // On the web the opening plays while the fonts download (use-app-fonts.web.ts):
   // they are not on its critical path, and IntroGate holds only the hand-over
   // until they are in. Native keeps waiting here, under the splash screen.
+  //
+  // R2A-04: no caption while the fonts are out. Android caches a text measurement
+  // under the font family NAME ("Galmuri11"), not under the face that answered, so
+  // a caption laid out here, before Galmuri is registered, is measured in the
+  // fallback face, and every later loader with the same words reuses that width.
+  // Galmuri is wider, the last word wrapped onto a second line the box had no room
+  // for, and the loader read "불러오는" (ko) or "Loadin" (en, D-08). Drawing no
+  // text until the face is in leaves nothing stale to reuse, in any language.
   if ((!fontsReady && !OPENING_LOADS_FONTS) || !i18nReady) {
     return (
       <>
         {SITE_HEAD}
-        <InlineLoader />
+        <InlineLoader bare={!fontsReady} />
       </>
     );
   }
@@ -550,7 +559,8 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   // from every route and no authenticated screen remains mounted underneath.
   // The opening already waited for the fonts before handing over; this only
   // matters when the intro was played earlier in this tab and the fonts are not.
-  if (!fontsReady) return <InlineLoader />;
+  // Bare for the same reason as RootLayout's font wait (R2A-04).
+  if (!fontsReady) return <InlineLoader bare />;
   if (storageRecoveryRequired) return <EncryptedStorageRecoveryGate />;
   if (!recoveryReady) return <InlineLoader />;
 
@@ -570,7 +580,17 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   // C10 ones, (auth) and read-only onboarding; ProfileProbeScope (ThemedStack)
   // holds every scene the same way, so leaving an exemption cannot mount a
   // feature route either.
-  if (profileHold === "retry") return <ProfileProbeRetryScreen />;
+  //
+  // R2A-01: "hold" here means COVER, not unmount (components/ui/GateCover.tsx).
+  // Returning the retry screen or the loader in place of the children unmounted the
+  // root Stack, and with no Stack state useSegments() reads the last deep link left
+  // in the root slot's params. AvatarSetupGate froze the app that way on device. This
+  // gate had the same shape: after a signed-out deep link to /sign-in, a failed first
+  // profile probe on "/" would read "(auth)" there, release, remount the Stack at "/",
+  // hold again, and loop (modelled in gate-cover-loop.test.ts, not reproduced on a
+  // device). Under the cover the Stack stays mounted, the segments stay live, and
+  // ProfileProbeScope still holds every scene, so nothing behind it renders.
+  if (profileHold === "retry") return <GateCover cover={<ProfileProbeRetryScreen />}>{children}</GateCover>;
 
   // A signed-in user whose profile has not been answered yet is not known either.
   // The first resolve publishes userId with loading=true before the probe, and the
@@ -580,7 +600,7 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   // is not failing (profileGate in profile-probe.ts). The boot opening already
   // waited for this state on cold start; this loader handles later profile
   // re-probes without replaying the opening.
-  if (profileHold === "loading") return <InlineLoader />;
+  if (profileHold === "loading") return <GateCover cover={<InlineLoader />}>{children}</GateCover>;
 
   // Global C10 + PIPA-consent gate (re-audit 2026-06-03: per-screen gating was
   // leaky — inbox/wiki kept slipping through). An authenticated session with NO
@@ -612,8 +632,9 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   }
 
   // The opening is complete for this runtime, so auth events and navigation
-  // render in place without replacing a form or replaying the animation.
-  return <>{children}</>;
+  // render in place without replacing a form or replaying the animation. Same
+  // GateCover as the holds above, so lifting a hold does not remount the routes.
+  return <GateCover cover={null}>{children}</GateCover>;
 }
 
 // M1 (round-4): gate product analytics on the SERVER decision, not the
