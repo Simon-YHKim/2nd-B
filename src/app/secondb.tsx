@@ -14,7 +14,8 @@
 //     reappear every session.
 
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
+import { AccessibilityInfo, Modal, View, StyleSheet, ScrollView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";
 import { Redirect, usePathname } from "expo-router";
@@ -74,7 +75,6 @@ import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { DomainDashboard } from "@/components/secondb/DomainDashboard";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { holdExpression, reactExpression } from "@/lib/companion/expression";
-import { getPersona, PERSONAS } from "@/lib/chat/personas";
 import {
   REV2_PERSONA_IDS,
   rev2PersonaAccent,
@@ -88,7 +88,6 @@ import {
 import { m3 } from "@/lib/theme/m3";
 import { formatSourceCitationLabel, parseSourceCitations } from "@/lib/chat/sources";
 import { parseTwiBranches } from "@/lib/chat/twi-branches";
-import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { ChatRewardCapReachedError, grantChatAdBonus, readChatUsageDetail } from "@/lib/chat/usage";
@@ -526,26 +525,22 @@ function SecondBChatBody() {
   const progression = useProgression();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const insets = useSafeAreaInsets();
-  // iOS uses "padding"; Android relies on native adjustResize (app.json
-  // softwareKeyboardLayoutMode="resize"), so the KAV must stay inert — layering
-  // behavior="height" on top of adjustResize double-shrinks the composer and
-  // opens a dead gap above the keyboard. Matches jot/settings/dds-auth.
-  const keyboardBehavior = Platform.OS === "ios" ? "padding" : undefined;
-  const keyboardVerticalOffset = Platform.OS === "ios" ? insets.top : 0;
+  // Keyboard: <KeyboardAvoidingArea> below (src/lib/ui/keyboard.tsx) is the one
+  // rule every screen shares. iOS keeps behavior="padding" with this top offset.
+  // Android used to stay inert and wait for adjustResize, but the edge-to-edge
+  // window (RN 0.85 + Expo 56, targetSdk 36) never shrinks for the IME, so the
+  // composer sat under the keyboard (vc59 API 36 emulator, 2026-10-05). The area
+  // now pads by the measured overlap instead.
   const messageListBottomPadding = Math.max(styles.scroll.paddingBottom, insets.bottom + spacing.md);
 
   // nodeContext entry (chat pack §3/§7): a graph node passed its label.
-  // character (2026-05-31): tapping a village companion opens chat in that
-  // character's voice (src/lib/chat/personas.ts).
-  const params = useScreenParams<{ fromNode?: string; character?: string; mode?: string; panel?: string }>();
+  // ?character= 는 읽지 않는다(2026-10-05, Simon 결정 Q-261004-14 A · 15 A). 옛 캐릭터
+  // 다섯(아치·가디·루루·모모·루미)의 목소리로 여는 길이었고, 링크 하나로 유료 LLM
+  // 프롬프트에 그 캐릭터 지시가 들어갔다. 명부는 E:/Legacy/2ndB 로 갔다.
+  const params = useScreenParams<{ fromNode?: string; mode?: string; panel?: string }>();
   const fromNode = typeof params.fromNode === "string" && params.fromNode.length > 0 ? params.fromNode : null;
-  const characterParam = typeof params.character === "string" && params.character.length > 0 ? params.character : null;
-  const persona = useMemo(() => getPersona(characterParam), [characterParam]);
-  // 머리 탭으로 들어오면(?panel=dashboard) 대시보드를 펴고 시작한다. 캐릭터
-  // 대화에는 안 뜬다 -- 그쪽은 세컨비가 아니라 다른 화자의 자리다.
-  const [showDashboard, setShowDashboard] = useState(params.panel === "dashboard" && !characterParam);
-  // Only treat it as a character chat when a real worker was passed.
-  const isCharacterChat = characterParam != null && characterParam in PERSONAS;
+  // 머리 탭으로 들어오면(?panel=dashboard) 대시보드를 펴고 시작한다.
+  const [showDashboard, setShowDashboard] = useState(params.panel === "dashboard");
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
 
@@ -605,7 +600,7 @@ function SecondBChatBody() {
     setKeepNotice((prev) => (prev?.i === index ? null : prev));
     try {
       const prompt = findPrompt(turns, index);
-      const speaker = isCharacterChat ? persona.name[locale] : t("title");
+      const speaker = t("title");
       const topic = exchangeTopic(prompt, reply.text);
       const body = composeExchangeBody({ prompt, reply: reply.text, speaker }, locale);
       // 위키 클립으로 저장한다(records 가 아니라). 그래야 exportUserWiki 를 타고
@@ -718,10 +713,6 @@ function SecondBChatBody() {
   const divergentPulse = useRef(new Animated.Value(0.6)).current;
   // Reference drawer (chat pack §6): the cited pieces of a tapped answer.
   const [refDrawer, setRefDrawer] = useState<string[] | null>(null);
-  const companion = useCompanionMoment();
-  // Tracks whether the last turn was safety-blocked, so 가디 can give the
-  // "clear" beat the first time the conversation flows freely again.
-  const wasBlockedRef = useRef(false);
   // Funnel: fire ai_limit_hit at most once per mount when the daily cap is hit.
   const limitHitFiredRef = useRef(false);
   // The tier the server says to upgrade to (from a blocked turn). Falls back to
@@ -809,20 +800,9 @@ function SecondBChatBody() {
   const rewardedAllowedRef = useRef(rewardedAllowed);
   rewardedAllowedRef.current = rewardedAllowed;
 
-  // Seed once on entry: a character chat opens with that companion's greeting
-  // as the first turn; a node entry pre-fills the composer with the context.
-  const seededRef = useRef(false);
-
-  useEffect(() => {
-    if (seededRef.current) return;
-    seededRef.current = true;
-    if (isCharacterChat) {
-      setTurns([{ role: "secondb", text: persona.greeting[locale], synthetic: true }]);
-    }
-    // The fromNode draft seed is now the ChatComposer's initial state (it reads
-    // the fromNode prop), so it survives the composer mounting after the auth
-    // gates resolve.
-  }, [fromNode, locale, isCharacterChat, persona]);
+  // 대화는 빈 채로 열린다. 옛 캐릭터 인사말을 첫 턴으로 심던 자리는 ?character= 와
+  // 함께 걷었다(2026-10-05, Q-261004-14 A). fromNode 초안은 ChatComposer 의 초기
+  // 상태가 맡는다(fromNode prop 을 읽어 인증 관문 뒤에 마운트돼도 살아남는다).
 
   // `limit` stays the TIER CAP -- it is what the paywall copy and the funnel
   // event mean by "your limit". `allowance` is the wall the user actually hits
@@ -949,9 +929,9 @@ function SecondBChatBody() {
             tier: progression.tier,
             // 이름으로 부르게 한다. 화면은 이미 "허슬케이님" 이라 부른다.
             displayName: currentDisplayName(userId),
-            personaHint: isCharacterChat ? persona.systemHint[locale] : rev2PersonaHint(rev2Persona, locale),
+            personaHint: rev2PersonaHint(rev2Persona, locale),
             // D-26 A1: last turns for thread continuity (engine clips to 6 + drops
-            // red-zone turns). Synthetic lines (greeting/limit/error) are not model
+            // red-zone turns). Synthetic lines (limit/error) are not model
             // replies, so they're excluded here.
             history: turns
               .filter((t) => !t.synthetic)
@@ -980,15 +960,14 @@ function SecondBChatBody() {
                 tier: progression.tier,
               }),
             );
-            // 가디 steps in with a soft stop (companion pack §3 / C9).
-            companion.fire("safetySoftStop");
-            wasBlockedRef.current = true;
+            // 멈춤은 글로만 알린다(위 result.hint). 옛 가디 그림 순간은 2026-10-05 에
+            // 걷었다(Simon 결정 Q-261004-15 A).
           } else {
             const { display, chips } = parseSourceCitations(result.reply.text);
             // 트위비 3-branch (P5f): Divergent replies on the main chat end with up
             // to three '→ ' next-step lines — lift them into tappable chips.
             const twi =
-              !isCharacterChat && chatMode === "divergent"
+              chatMode === "divergent"
                 ? parseTwiBranches(display)
                 : { display, branches: [] as string[] };
             setTurns((prev) => [
@@ -1007,11 +986,6 @@ function SecondBChatBody() {
                 tier: progression.tier,
               }),
             );
-            // 가디 gives the all-clear the first time we flow freely after a stop.
-            if (wasBlockedRef.current) {
-              companion.fire("safetyClear");
-              wasBlockedRef.current = false;
-            }
           }
         } catch (e) {
           const consentError = e instanceof LlmConsentError ? e.code : undefined;
@@ -1033,11 +1007,8 @@ function SecondBChatBody() {
       locale,
       chatMode,
       rev2Persona,
-      isCharacterChat,
-      persona,
       turns,
       limit,
-      companion,
       t,
       consentT,
     ],
@@ -1114,95 +1085,56 @@ function SecondBChatBody() {
   const dsUsage = usedToday === null ? "..." : String(usedToday);
   const atLimit = usedToday !== null && usedToday >= allowance;
   // Per-lens recolor (reference CHAT_MODES): the whole chat surface tints to
-  // the selected persona's accent / soft fill / on-soft ink / glow. Character
-  // chat (legacy roster) keeps the canonical cyan.
-  const lensAccent = isCharacterChat ? deepSpace.accent : rev2PersonaAccent(rev2Persona);
-  const lensSoftBg = isCharacterChat ? sbAlpha(deepSpace.accent, 0.16) : rev2PersonaSoftBg(rev2Persona);
-  const lensOnSoft = isCharacterChat ? deepSpace.accentBright : rev2PersonaOnSoft(rev2Persona);
-  const lensGlow = isCharacterChat ? sbAlpha(deepSpace.accent, 0.5) : rev2PersonaGlow(rev2Persona);
-  const lensName = isCharacterChat ? persona.name[locale] : t(`rev2.${rev2Persona}.lensName`);
+  // the selected persona's accent / soft fill / on-soft ink / glow.
+  const lensAccent = rev2PersonaAccent(rev2Persona);
+  const lensSoftBg = rev2PersonaSoftBg(rev2Persona);
+  const lensOnSoft = rev2PersonaOnSoft(rev2Persona);
+  const lensGlow = rev2PersonaGlow(rev2Persona);
+  const lensName = t(`rev2.${rev2Persona}.lensName`);
   const inkOnAccent = m3.accent.onAccentInk; // reference send/mic glyph ink on the accent fill
   return (
     <DeepSpaceScreen active="chat" variant="windowed" header="none">
-      <KeyboardAvoidingView
+      <KeyboardAvoidingArea
         style={{ flex: 1 }}
-        behavior={keyboardBehavior}
-        keyboardVerticalOffset={keyboardVerticalOffset}
+        iosKeyboardVerticalOffset={insets.top}
       >
-        {/* The lens selector is the first thing in the chat window; the
-            companion greeting previously occupying this space is gone. */}
-        {!isCharacterChat ? (
-          <View style={ds.toggleRow} accessibilityLabel={t("rev2.selectorA11y")}>
-            {REV2_PERSONA_IDS.map((id) => {
-              const on = rev2Persona === id;
-              const accent = rev2PersonaAccent(id);
-              const locked = id !== "secondb" && !personaAllowed(effectiveTier, id as "meta" | "twi");
-              const lockPlan = id === "meta" ? t("rev2.lockVoyager") : t("rev2.lockNorthstar");
-              return (
-                <Pressable
-                  key={id}
-                  onPress={() => (locked ? router.push(`/plans?from=persona_${id}`) : selectRev2Persona(id))}
-                  style={[
-                    ds.lensBtn,
-                    { borderColor: on ? accent : m3.color.outlineVariant },
-                    on ? { backgroundColor: rev2PersonaSoftBg(id) } : null,
-                    locked ? { borderColor: LOCKED_CHIP_BORDER } : null,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on, disabled: locked }}
-                  aria-pressed={on}
-                  accessibilityLabel={
-                    locked
-                      ? `${t(`rev2.${id}.lensName`)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
-                      : `${t(`rev2.${id}.lensName`)} · ${t(`rev2.${id}.role`)}`
-                  }
-                >
-                  <Text style={[ds.lensName, { color: locked ? LOCKED_CHIP_INK : on ? rev2PersonaOnSoft(id) : m3.color.onSurfaceVariant }]}>
-                    {t(`rev2.${id}.lensName`)}
-                  </Text>
-                  <Text style={[ds.lensTag, { color: locked ? LOCKED_CHIP_INK : on ? accent : m3.color.onSurfaceVariant }]}>
-                    {locked ? lockPlan : t(`rev2.${id}.tag`)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        ) : (
-          <View style={ds.toggleRow}>
-            <Pressable
-              onPress={() => setChatMode("analytic")}
-              style={[
-                ds.lensBtn,
-                { borderColor: chatMode === "analytic" ? lensAccent : m3.color.outlineVariant },
-                chatMode === "analytic" ? { backgroundColor: lensSoftBg } : null,
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: chatMode === "analytic" }}
-              aria-pressed={chatMode === "analytic"}
-              accessibilityLabel={t("analysisMode")}
-            >
-              <Text style={[ds.lensName, { color: chatMode === "analytic" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
-                {t("analysisChip")}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setChatMode("divergent")}
-              style={[
-                ds.lensBtn,
-                { borderColor: chatMode === "divergent" ? lensAccent : m3.color.outlineVariant },
-                chatMode === "divergent" ? { backgroundColor: lensSoftBg } : null,
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: chatMode === "divergent" }}
-              aria-pressed={chatMode === "divergent"}
-              accessibilityLabel={t("newAngleMode")}
-            >
-              <Text style={[ds.lensName, { color: chatMode === "divergent" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
-                {t("newAngleChip")}
-              </Text>
-            </Pressable>
-          </View>
-        )}
+        {/* The lens selector is the first thing in the chat window. 옛 캐릭터 대화의
+            분석/새 관점 토글은 ?character= 와 함께 걷었다(2026-10-05, Q-261004-14 A). */}
+        <View style={ds.toggleRow} accessibilityLabel={t("rev2.selectorA11y")}>
+          {REV2_PERSONA_IDS.map((id) => {
+            const on = rev2Persona === id;
+            const accent = rev2PersonaAccent(id);
+            const locked = id !== "secondb" && !personaAllowed(effectiveTier, id as "meta" | "twi");
+            const lockPlan = id === "meta" ? t("rev2.lockVoyager") : t("rev2.lockNorthstar");
+            return (
+              <Pressable
+                key={id}
+                onPress={() => (locked ? router.push(`/plans?from=persona_${id}`) : selectRev2Persona(id))}
+                style={[
+                  ds.lensBtn,
+                  { borderColor: on ? accent : m3.color.outlineVariant },
+                  on ? { backgroundColor: rev2PersonaSoftBg(id) } : null,
+                  locked ? { borderColor: LOCKED_CHIP_BORDER } : null,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on, disabled: locked }}
+                aria-pressed={on}
+                accessibilityLabel={
+                  locked
+                    ? `${t(`rev2.${id}.lensName`)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
+                    : `${t(`rev2.${id}.lensName`)} · ${t(`rev2.${id}.role`)}`
+                }
+              >
+                <Text style={[ds.lensName, { color: locked ? LOCKED_CHIP_INK : on ? rev2PersonaOnSoft(id) : m3.color.onSurfaceVariant }]}>
+                  {t(`rev2.${id}.lensName`)}
+                </Text>
+                <Text style={[ds.lensTag, { color: locked ? LOCKED_CHIP_INK : on ? accent : m3.color.onSurfaceVariant }]}>
+                  {locked ? lockPlan : t(`rev2.${id}.tag`)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
         {/* persona banner (reference ChatScreen header): status dot + mono tag +
             wrapping lens description, tinted by the selected lens. Usage counter
@@ -1210,10 +1142,10 @@ function SecondBChatBody() {
         <View style={[ds.banner, { backgroundColor: lensSoftBg }]}>
           <View style={[ds.bannerDot, { backgroundColor: lensAccent, shadowColor: lensGlow }]} />
           <Text style={[ds.bannerTag, { color: lensOnSoft }]} numberOfLines={1}>
-            {isCharacterChat ? t("title") : t(`rev2.${rev2Persona}.tag`)}
+            {t(`rev2.${rev2Persona}.tag`)}
           </Text>
           <Text style={ds.bannerDesc}>
-            {isCharacterChat ? persona.role[locale] : t(`rev2.${rev2Persona}.desc`)}
+            {t(`rev2.${rev2Persona}.desc`)}
           </Text>
           <Text style={[ds.bannerUsage, atLimit ? ds.headerMetaDanger : null]} numberOfLines={1}>
             {dsUsage}/{limit}
@@ -1259,7 +1191,7 @@ function SecondBChatBody() {
           {turns.length === 0 ? (
             <View style={ds.empty}>
               <Text style={ds.emptyTitle}>
-                {isCharacterChat ? persona.name[locale] : t("title")}
+                {t("title")}
               </Text>
               <Text style={ds.emptyBody}>{t("empty")}</Text>
             </View>
@@ -1424,7 +1356,7 @@ function SecondBChatBody() {
                 key={qa.en}
                 style={ds.quickChip}
                 onPress={() => {
-                  if (qa.mode === "divergent" && !isCharacterChat) selectRev2Persona("twi");
+                  if (qa.mode === "divergent") selectRev2Persona("twi");
                   else if (qa.mode) setChatMode(qa.mode);
                   composerRef.current?.prefill(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
                 }}
@@ -1465,7 +1397,7 @@ function SecondBChatBody() {
           lensName={lensName}
           inkOnAccent={inkOnAccent}
         />
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
 
       {/* 첫 진입 인사 모달 */}
       <Modal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
@@ -1572,10 +1504,6 @@ function SecondBChatBody() {
           </Pressable>
         </Pressable>
       </Modal>
-      {/* 가디 safety beat (companion pack §3) — same crisis-clear signal as legacy */}
-      {companion.moment ? (
-        <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
-      ) : null}
 
       {/* 0090: chat daily-cap top-up (+2 sends today, monthly earn cap). The
           grant RPC enforces day/month/ceiling server-side.
@@ -1627,7 +1555,6 @@ function SecondBChatBody() {
 }
 
 const styles = StyleSheet.create({
-  companionFlash: { position: "absolute", bottom: 90, right: 20 },
   header: {
     flexDirection: "row",
     alignItems: "flex-start",

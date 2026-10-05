@@ -7,7 +7,8 @@
 // retake CTA (mirrors BigFive).
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 
@@ -293,7 +294,7 @@ function AttachmentSurvey({
       ) : null}
 
       {started ? (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingArea style={{ flex: 1 }}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
               {t("survey.counter")}
@@ -352,7 +353,7 @@ function AttachmentSurvey({
               );
             }}
           />
-        </KeyboardAvoidingView>
+        </KeyboardAvoidingArea>
       ) : null}
 
       {saved ? (

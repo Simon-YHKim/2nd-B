@@ -75,10 +75,9 @@ describe("legacy-art bundle", () => {
       /^cosmic-pixel-v3-soulcore\/final-candidate-v45\/tier2_pattern_cores\/(growth|bond|wisdom|narrative|muse|rhythm)_core_256\.png$/,
     ],
     "src/lib/assets/soulcore-v3.ts": [
-      // V3_WORKER_ART (WorkerSprite).
-      /^cosmic-pixel-v3-soulcore\/companions\/sprites\/[a-z_]+\/[a-z_]+_idle\.svg$/,
-      // V3_CREW_ART (NavGraph CrewLayer).
-      /^cosmic-pixel-v3-soulcore\/momo-crew\/sprites\/momo_crew_[a-z_]+\.svg$/,
+      // V3_WORKER_ART (옛 캐릭터 다섯의 정지 자세) · V3_CREW_ART (모모 크루) 두 줄은
+      // 2026-10-05 에 뺐다(Simon 결정 Q-261004-15 A, batch qa261004-chars). 다시
+      // 들어오면 이 상한이 잡는다.
       // V3_DATA_ART / V3_LOG_ART (premium feedback empty/error glyph).
       /^cosmic-pixel-v3-soulcore\/mobile-graph\/graph\/(pattern_data_node|log_chip)\.svg$/,
     ],

@@ -176,6 +176,10 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
 // 사본과 함께 사라졌다. 이제 tail 은 재설정 화면(function ResetAction 부터 끝까지)이고,
 // 그 바이트는 e0b274d0 의 같은 구간과 **동일**하다(재고정 전 대조) — 재설정 화면은
 // 이 PR 에서 한 바이트도 안 바뀌었다.
+// 2026-10-05(키보드): prefix 만 다시 재고정했다(옛 값 f37c03e2 = 바로 앞 HEAD). prefix 안의
+// AuthShell 이 RN KeyboardAvoidingView + `Platform.OS === "ios"` behavior 분기 대신 공용
+// KeyboardAvoidingArea(src/lib/ui/keyboard.tsx)를 쓰게 됐다(import 1줄 · 태그 · 주석).
+// tail(재설정 화면)은 b72fc5f6 그대로다(재고정 전 대조).
 // 아래 "legacy sign-in renderer" 핀은 은퇴했다(그 테스트 안 주석).
 describe("sign-in extraction boundaries", () => {
   test("preserves the shared auth prefix and reset tail byte-for-byte", () => {
@@ -188,7 +192,7 @@ describe("sign-in extraction boundaries", () => {
     expect(split).toBeGreaterThan(0);
     expect(tail).toBeGreaterThan(split);
     expect(sha256(source.slice(0, split))).toBe(
-      "f37c03e2ac773fca003c7075ac5c173e87e4eff755a8c7f257874c420622e735",
+      "ad3d5aff72c6e857114d2493ad53665acd13fc2f3f649a05cf43238d72ef730c",
     );
     expect(sha256(source.slice(tail))).toBe(
       "b72fc5f6f9c95fa703d70895db4630b10b233452d526703bf5f3426e60c8fb0c",

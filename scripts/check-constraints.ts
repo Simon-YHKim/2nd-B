@@ -887,7 +887,6 @@ results.push(
     const esm = read("src/app/esm.tsx");
     const profile = read("src/screens/deepspace/dds-profile-screen.tsx");
     const consentNotice = read("src/components/consent/ConsentNotice.tsx");
-    const consentDialog = read("src/components/consent/ConsentDialog.tsx");
     const premiumFeedback = read("src/components/premium/feedback.tsx");
     const formats = read("src/app/formats.tsx");
     // 공용 토글 컴포넌트의 계약은 그대로 본다(다른 화면들이 쓴다). /privacy 는
@@ -933,7 +932,6 @@ results.push(
     const input = read("src/components/ui/Input.tsx");
     const backArrow = read("src/components/ui/BackArrow.tsx");
     const drillProgress = read("src/components/ui/DrillProgress.tsx");
-    const xpBar = read("src/components/progression/XpBar.tsx");
     const quantPager = read("src/components/quant/QuantPager.tsx");
     const interview = read("src/app/interview.tsx");
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
@@ -1121,9 +1119,12 @@ results.push(
       // 다른 방식으로 쓴다 — 위 liveHomeRoles/liveHomeLabels 가 그쪽을 본다.
       jarvisButtons >= 8 &&
       jarvis.includes('accessibilityHint={t("clearChatHint")}') &&
-      jarvis.includes('t("analysisMode")') &&
-      jarvis.includes('t("newAngleMode")') &&
-      jarvis.includes("selected: chatMode") &&
+      // 2026-10-05: 분석/새 관점 토글(analysisMode · newAngleMode · selected: chatMode)은
+      // 옛 캐릭터 대화(?character=)에서만 그려졌고 그 길과 함께 걷었다(Q-261004-14 A).
+      // 같은 자리(대화창 첫 줄의 렌즈 토글)의 배송 판이 같은 성질 - 묶음 이름과 각
+      // 버튼의 선택 상태 - 을 갖고 있어 그쪽으로 옮겼다.
+      jarvis.includes('accessibilityLabel={t("rev2.selectorA11y")}') &&
+      jarvis.includes("accessibilityState={{ selected: on, disabled: locked }}") &&
       // 길게 눌러 복사: 레거시 말풍선의 longPressCopyThis 는 레버와 함께 빠졌고,
       // 배송 대화 말풍선이 같은 동작을 longPressCopy 힌트로 알린다.
       jarvis.includes('accessibilityHint={t("longPressCopy")}') &&
@@ -1155,9 +1156,10 @@ results.push(
       preferenceCheckboxes >= 1 &&
       preferenceToggle.includes("accessibilityLabel={label}") &&
       consentNotice.includes("PreferenceCheckRow") &&
-      consentDialog.includes("accessibilityViewIsModal") &&
-      consentDialog.includes('accessibilityLabel={t("testimonial.title")}') &&
-      consentDialog.includes('accessibilityHint={t("testimonial.body")}') &&
+      // 2026-10-05: 후기(testimonial) 동의 창 ConsentDialog 의 핀 3줄을 걷었다. 어느
+      // 화면도 그리지 않았고 testimonials INSERT 도 0건이라 같은 계약을 질 배송
+      // 등가물이 없다. Simon 결정 Q-261004-17 로 E:/Legacy 에 갔다. C5 는 DB 제약
+      // (consent_given_at NOT NULL)만 남았고 그 검사는 위 C5 블록이 SQL 로 본다.
       premiumFeedback.includes("accessibilityLabel={accessibilityLabel}") &&
       tierIconContract.includes("export const TIER_ICON_IDS") &&
       tierIconAssetsMapped &&
@@ -1244,15 +1246,10 @@ results.push(
       drillProgress.includes("Interview progress matrix. ${totalAnswers} total answers.") &&
       drillProgress.includes("Next question target: ${activeTarget}") &&
       drillProgress.includes("Cell numbers show answer counts by life period and question layer.") &&
-      xpBar.includes('accessibilityRole="progressbar"') &&
-      xpBar.includes("accessibilityLabel={accessibilityLabel}") &&
-      // The pinned literal was the OBJECT form, which React Native Web drops
-      // on the floor - the bar announced as a progressbar with no value at all
-      // on web. The guard's intent is "this bar announces its value", so it now
-      // pins the form that actually reaches both platforms.
-      xpBar.includes("{...a11yValue({ min: 0, max: 100, now: pct, text: trailing })}") &&
-      xpBar.includes("accessibilityHint={accessibilityHint}") &&
-      xpBar.includes('t("progression.maxLevelHint"') &&
+      // 2026-10-05: XP 진행 막대 XpBar 의 핀 5줄을 걷었다. 05-31(#79) 뒤로 어느 화면도
+      // 그리지 않았고 레벨 · XP 를 보여 주는 배송 화면이 없어 재조준할 곳이 없다.
+      // Simon 결정 Q-261004-18 로 XP 는 내부 수치다(서버 award_xp 적립은 그대로).
+      // progressbar 값 낭독 계약은 quantPager 핀(아래)이 같은 a11yValue 형태로 계속 진다.
       interview.includes("const kbHeight = useKeyboard()") &&
       interview.includes("paddingBottom: kbHeight + spacing.sm") &&
       interview.includes("minHeight: 48") &&
@@ -1265,8 +1262,8 @@ results.push(
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research insight cards, assessment choices, inbox/capture/manual/records/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/drillprogress/xpbar/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
-        : "visual-selected controls, research insight cards, inbox/capture/manual/records/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/drillprogress/xpbar/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research insight cards, assessment choices, inbox/capture/manual/records/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/drillprogress/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
+        : "visual-selected controls, research insight cards, inbox/capture/manual/records/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/drillprogress/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
     };
   }),
 );
@@ -2998,7 +2995,8 @@ results.push(
       !feedback.includes('message ?? "불러오는 중입니다') &&
       !feedback.includes('retryLabel = "다시 시도"') &&
       graphBits.includes("function useCurrentLocale()") &&
-      graphBits.includes("meta.name[locale]") &&
+      // 2026-10-05: 배지 라벨 핀(meta.name[locale])은 옛 캐릭터 배지와 함께 은퇴했다
+      // (QA L4-08 · Q-261004-14 A). 한국어 고정 라벨 금지(아래 meta.name.ko)는 남긴다.
       graphBits.includes("Question from ${label}") &&
       graphBits.includes('t("clearContext")') &&
       graphBits.includes('accessibilityLabel={countLabel}') &&
@@ -3009,7 +3007,7 @@ results.push(
       id: "PremiumA11yLocaleCopy",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "premium close, graph chip, badge, and context labels are locale-aware"
+        ? "premium close, graph chip, and context labels are locale-aware"
         : "premium shared components should avoid hardcoded Korean accessibility labels on EN screens",
     };
   }),
@@ -3045,6 +3043,8 @@ results.push(
     const soulcoreFinalArt = read("src/components/art/SoulcoreFinalArt.tsx");
     const workerSprite = read("src/components/art/WorkerSprite.tsx");
     const graphBits = read("src/components/premium/graph-bits.tsx");
+    // 주석을 걷은 코드만 본다 - 이 파일 머리 주석이 걷어낸 배지 이름을 적고 있다.
+    const graphBitsCode = graphBits.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
     // The live home labels its mascot the other way round, and better: the art
     // stays unlabelled and the Pressable that wraps it carries the role and the
     // name. One announcement instead of two, and the name says what tapping it
@@ -3057,7 +3057,10 @@ results.push(
       // 2026-10-05: 대화 화면의 SecondBSprite(label=readyToChat) 핀을 걷었다. 그
       // 스프라이트는 대화 화면의 레거시 셸에서만 그려졌고 롤백 레버와 함께 빠졌다
       // (Q-261004-11 C). 스프라이트 자체의 image 역할은 위 secondbSprite 핀이 본다.
-      graphBits.includes('accessible accessibilityRole="image" accessibilityLabel={meta.name[locale]}') &&
+      // 2026-10-05: graph-bits 의 CharacterBadge 라벨 핀(meta.name[locale])도 걷었다.
+      // 그 옛 캐릭터 배지가 명부와 함께 나갔다(QA L4-08 · Q-261004-14 A). 대신 그
+      // 파일이 옛 캐릭터 그림을 다시 그리지 않는지를 본다(아래 graphBits 두 줄).
+      !/\bCharacterBadge\b|<CompanionSprite\b|<SecondBSprite\b|@\/lib\/characters/.test(graphBitsCode) &&
       islandArt.includes("accessibilityElementsHidden") &&
       islandArt.includes('importantForAccessibility="no-hide-descendants"') &&
       soulcoreFinalArt.includes("accessibilityElementsHidden") &&
@@ -3080,8 +3083,7 @@ results.push(
       "CONTEXT.md",
       "DESIGN.md",
       "docs/VISION.md",
-      "src/lib/characters.ts",
-      "src/lib/chat/personas.ts",
+      // characters.ts · chat/personas.ts 는 2026-10-05 E:/Legacy 로 갔다(Q-261004-14 A).
       // monologues.ts · NavGraph.tsx 는 2026-10-04 E:/Legacy 로 갔다(QA L2-01).
       // 남은 파일이 아래 단언의 용어를 전부 가진다(실측).
       "src/components/art/SoulcoreFinalArt.tsx",
@@ -3091,10 +3093,20 @@ results.push(
       "src/lib/village-ui.ts",
     ];
     const conceptText = conceptFiles.map((file) => read(file)).join("\n");
-    const characters = read("src/lib/characters.ts");
-    const personas = read("src/lib/chat/personas.ts");
-    const personaLocale = read("locales/en/secondb.json");
-    const personaText = `${personas}\n${personaLocale}`;
+    // ⚠ 2026-10-05 (Simon 결정 Q-261004-14 A · 15 A): 여기 있던 캐릭터 역할 핀 여섯
+    //   (characters.ts 의 en 역할)과 지시문 핀 여섯(personas.ts + en/secondb.json 의
+    //   personas.*.systemHint)은 대상이 사라져 은퇴했다. 옛 캐릭터 다섯의 목소리 경로
+    //   (?character=)를 끄고 명부와 로케일 personas.* · characters.* 를 E:/Legacy/2ndB 로
+    //   옮겼다. 지키던 성질이 "등록이 캐논과 맞는다" 에서 "등록이 돌아오지 않는다" 로
+    //   바뀌었으므로 그 은퇴 상태를 여기서 본다. 화면 쪽(secondb · jarvis 가 ?character=
+    //   를 읽지 않는다)은 src/lib/chat/__tests__/legacy-character-voice-retired.test.ts.
+    const rosterRetired =
+      !exists("src/lib/characters.ts") &&
+      !exists("src/lib/chat/personas.ts") &&
+      ["en", "ko", "es", "id", "pt"].every((lang) => {
+        const bundle = JSON.parse(read(`locales/${lang}/secondb.json`)) as Record<string, unknown>;
+        return !("personas" in bundle) && !("characters" in bundle);
+      });
     const ok =
       !/\bIris\b/.test(conceptText) &&
       conceptText.includes("Lumina") &&
@@ -3103,29 +3115,13 @@ results.push(
       conceptText.includes("Pattern Data") &&
       conceptText.includes("Log") &&
       conceptText.includes("Pattern Link") &&
-      characters.includes('en: "North Star navigator"') &&
-      characters.includes('en: "Career consultant"') &&
-      characters.includes('en: "Warm relationship guide"') &&
-      characters.includes('en: "Life-applied wisdom sage"') &&
-      characters.includes('en: "Narrative Core crew foreman"') &&
-      characters.includes('en: "Trainer and curator"') &&
-      personaText.includes("responsible for the North Star summary") &&
-      personaText.includes("responsible for work and growth") &&
-      // 2026-09-06 plain-language round: Relia's systemHint dropped the
-      // "inner-world patterns" phrasing for "relationships and recurring
-      // patterns in the user's own records". Same responsibility, plainer
-      // words — the pin follows the copy so the guard keeps checking Relia's
-      // registration rather than one retired sentence.
-      personaText.includes("relationships and recurring patterns in the user's own records") &&
-      personaText.includes("examples of how they could use it") &&
-      personaText.includes("do not give advice") &&
-      personaText.includes("balance of work and rest");
+      rosterRetired;
     return {
       id: "WorldviewConceptCoherence",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "worldview docs/code keep Lumina and canonical Soul/Pattern/Narrative responsibilities aligned"
-        : "worldview docs/code should not regress to Iris or drift from Simon's canonical character responsibilities",
+        ? "worldview docs/code keep Lumina and canonical Soul/Pattern naming aligned; the legacy character roster stays retired"
+        : "worldview docs/code should not regress to Iris, and the legacy character roster (characters.ts · chat/personas.ts · locale personas.*/characters.*) must not come back (Q-261004-14 A)",
     };
   }),
   // Q-260906-25 (Simon, 2026-09-06). D7-02 left main with a single verifier and

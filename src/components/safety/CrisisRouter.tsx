@@ -16,7 +16,6 @@ import { radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { PixelScrim } from "@/components/pixel/PixelDither";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { WorkerSprite } from "@/components/art/WorkerSprite";
 import { HOTLINES, type HotlineId } from "@/lib/safety/lexicon";
 
 export interface CrisisRouterProps {
@@ -77,11 +76,9 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
               {t("red.badge")}
             </Text>
           </View>
-          <View style={styles.titleRow}>
-            {/* 가디 — safety guard, calm and protective (§9) */}
-            <WorkerSprite id="gadi" size={40} />
-            <Text variant="heading" style={{ flexShrink: 1 }}>{t("red.title")}</Text>
-          </View>
+          {/* 제목은 글만 둔다. 옆에 있던 옛 캐릭터 '가디' 그림은 2026-10-05 에 뺐다
+              (Simon 결정 Q-261004-15 A). 안내 문구 · 번호 · 라우팅은 그대로다. */}
+          <Text variant="heading">{t("red.title")}</Text>
           <Text variant="body" color="textMuted">{t("red.body")}</Text>
           {/* Safety-critical: visuals live on the wrapper View, NOT the
               Pressable — Fabric Android drops function-form Pressable styles
@@ -141,7 +138,6 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 440,
   },
-  titleRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   hotlineBadge: {
     alignSelf: "flex-start",
     backgroundColor: semantic.danger,

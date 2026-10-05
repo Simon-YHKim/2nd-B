@@ -29,8 +29,12 @@ describe("입구는 세컨비 머리다 (Simon 결정 6 = B)", () => {
     expect(CHAT).toContain("<DomainDashboard");
   });
 
-  it("캐릭터 대화에는 안 뜬다 (그쪽은 세컨비의 자리가 아니다)", () => {
-    expect(CHAT).toContain('params.panel === "dashboard" && !characterParam');
+  // 2026-10-05: "캐릭터 대화에는 안 뜬다" 핀은 대상이 사라져 은퇴했다. 옛 캐릭터
+  // 대화(?character=)를 껐으므로(Simon 결정 Q-261004-14 A) 갈라 둘 다른 화자가 없다.
+  // 남은 성질은 "대시보드는 머리 탭 표시 하나로 열린다" 이다.
+  it("대시보드는 머리 탭 표시 하나로 열린다 (옛 캐릭터 대화 예외는 없다)", () => {
+    expect(CHAT).toContain('useState(params.panel === "dashboard")');
+    expect(CHAT).not.toMatch(/\bcharacterParam\b/);
   });
 
   it("접을 수 있다 -- 매번 같은 판을 보고 시작하게 만들지 않는다", () => {

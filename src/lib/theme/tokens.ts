@@ -345,8 +345,8 @@ export const semanticLight = {
 // ─── Characters — 6 pixel residents of the Graph Village ────────────
 // Source: handoff §5 "Character System". Each is anchored to one
 // cosmic accent so the village reads as a small consistent cast across
-// the graph, popovers, and chat avatars. Routes the character is tied
-// to live in src/lib/characters.ts.
+// the graph, popovers, and chat avatars. The roster that used these
+// (src/lib/characters.ts) left for E:/Legacy/2ndB on 2026-10-05 (Q-261004-14 A).
 // Worldview v-final (2026-06): accents map to the 5 Pattern Cores + Soul Core.
 // Safety is now system-only (guardRose), separated from any mascot. Internal
 // keys stay (asset filenames / personas key off them); only color + meaning move.

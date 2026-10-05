@@ -278,9 +278,14 @@ describe("sign-up authority and preservation boundaries", () => {
   // 제거 PR 에서 나갔다(Q-261004-11 C). 남은 재설정 화면 구간은 e0b274d0 과 바이트
   // 동일이다(sign-in-screen-contract.test.ts 의 tail 핀). 레거시 보관본 핀 둘은 위
   // legacyArchive 주석대로 은퇴했다.
+  // 2026-10-05(키보드): dds-auth-screens digest 만 다시 재고정했다(옛 값 64e12090 = 바로 앞
+  // HEAD). AuthShell 의 RN KeyboardAvoidingView + `Platform.OS === "ios"` behavior 분기를
+  // 공용 KeyboardAvoidingArea(src/lib/ui/keyboard.tsx)로 바꾼 것(react-native import 1줄 수정 ·
+  // import 1줄 추가 · 여는/닫는 태그 · 주석 4줄)뿐이다. Android 에서 키보드가 가입 폼을 가리지 않게 하는 수정이고, 동의 ·
+  // 가입 경계와 재설정 화면 tail(sign-in-screen-contract.test.ts)은 그대로다.
   test("preserves shared form boundaries while pinning the auth renderer", () => {
     expect(sha256(read("src/screens/deepspace/dds-auth-screens.tsx"))).toBe(
-      "64e12090705155cbfa5edd9f4bc180d40f09cc2be7d24ec9d13970638db3124d",
+      "23480d4049fd63907016ab6c8576cbb31f285f98e3f6b45a0a51bce6c6bd6803",
     );
     // 2026-09-28: ConsentNotice gained the "PolaScope, formerly 2nd-Brain" note
     // (common:app.renameNote) until the 2026-10-05 Terms amendment, which removes

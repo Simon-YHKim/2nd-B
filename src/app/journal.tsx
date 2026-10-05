@@ -4,8 +4,8 @@
 // "일기" mode (/capture), which carries the Lv3 gate + free-tier limit + crisis
 // routing ported from here. This route is intentionally KEPT (not deleted) as a
 // deep-link compatibility redirect. Normal in-app CTAs were migrated to point
-// directly to /capture (2026-06-05); the character map
-// (characterForRoute("/journal") → momo) and the _layout Stack.Screen still
+// directly to /capture (2026-06-05); the old character map (characters.ts,
+// E:/Legacy since 2026-10-05) pointed here, and the _layout Stack.Screen still
 // reference it, and external/saved deep links to "/journal" must not 404.
 // It simply forwards to /capture, and the whole restructure stays reversible:
 // revert this file to restore the old standalone journal screen.

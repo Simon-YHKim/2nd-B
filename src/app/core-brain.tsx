@@ -225,7 +225,7 @@ function CoreBrainScreen() {
           setSevenLevels(nextStars);
           setStrengths(nextStrengths);
           setResolvedUserId(userId);
-          // 아치 lights up when the center surfaces a fresh connection (companion pack §3).
+          // The SecondB head reacts when the center surfaces a fresh connection (companion pack §3).
           if (p) fireCompanion("connectionFound");
         }
       } catch (e) {

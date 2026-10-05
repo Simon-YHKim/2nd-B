@@ -79,7 +79,9 @@
 
 > **내부 키 잔존(표면 금지)**: 옛 도메인 키(work / relation / knowledge / records / taste)는 회귀
 > 위험 때문에 데이터 태그로만 유지 — 새 7 도메인과 1:1 아님. 캐릭터 보이스(아치/가디/루루/모모/루미,
-> `src/lib/chat/personas.ts`)는 폐기/축소(PRD §17-j).
+> 옛 src/lib/chat/personas.ts)는 **폐기됐다**(PRD §17-j, Simon 결정 Q-261004-14 A · 15 A, 2026-10-05):
+> `/secondb` 가 `?character=` 를 더는 읽지 않고, 명부 · 로케일 문구 · 다섯 캐릭터 그림은 E:/Legacy/2ndB 로 갔다.
+> 위기 안내 모달과 대화 안전 멈춤의 '가디' 그림도 빠졌다(글만 남는다).
 
 ### 공상 = 장소가 아니라 SecondB 대화 모드
 

@@ -5,7 +5,7 @@
 // 나머지 넷은 오히려 더 명시적으로 적었고, 여기서 그걸 못박는다.
 //
 // 이 파일은 check-mascot-voice / check-anti-anthro 의 스캔 범위 밖이다
-// (그 둘은 로케일 문자열과 personas.ts 만 본다). 즉 런타임 출력을 붙잡는 것은
+// (그 둘은 로케일 문자열만 본다 - personas.ts 는 2026-10-05 에 나갔다). 즉 런타임 출력을 붙잡는 것은
 // 이 프롬프트의 문장들뿐이라, 여기가 무너지면 잡아줄 다른 그물이 없다.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

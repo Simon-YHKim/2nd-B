@@ -7,8 +7,8 @@
     "proposed": "Draft ready to review",
     "filled": "Connected to an approved card"
   },
-  "rewardFirstGoal": "First approval: the existing one-time persona XP reward.",
-  "rewardFirstReached": "First approval milestone reached. XP is awarded once per account.",
+  "rewardFirstGoal": "First goal: approve one card to fill your first chapter.",
+  "rewardFirstReached": "First goal reached. Your first chapter is filled.",
   "rewardAllGoal": "Fill all six chapters to complete your Polaris collection.",
   "rewardAllReached": "Polaris collection complete",
   "generationAllowance": "{{n}} of 2 lifetime introductory generations remain. Additional generations use your plan’s weekly reasoning allowance.",

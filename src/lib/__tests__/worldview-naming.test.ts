@@ -1,23 +1,26 @@
-// Regression guard for worldview v-final naming. Locks in mascot display names,
-// the five Pattern Cores, and Simon's canonical character responsibilities.
+// Regression guard for worldview v-final naming. Locks in the five Pattern Cores
+// naming in the concept docs, the village labels, and the north-star canon.
+//
+// ⚠ 2026-10-05 (Simon 결정 Q-261004-14 A · 15 A): 옛 캐릭터 명부(personas.ts ·
+//   characters.ts)가 E:/Legacy/2ndB 로 가면서 여기 있던 명부 단언 넷(Vela 은퇴 ·
+//   옛 이름 금지 · 새 이름 고정 · 캐릭터 역할/지시문)은 대상이 사라져 은퇴했다.
+//   명부가 배송 코드로 돌아오지 않는 것은
+//   src/lib/chat/__tests__/legacy-character-voice-retired.test.ts 가 지킨다.
+//   아래(문서 · 마을 이름 · 북극성 캐논)는 명부와 무관한 배송 캐논이라 그대로 둔다.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { PERSONAS, personaIds } from "@/lib/chat/personas";
-import { CHARACTERS, CHARACTER_ORDER } from "@/lib/characters";
 import { VILLAGE_LABEL, VILLAGE_IDS } from "@/lib/graph/relatedness";
 import { containsForbiddenLexicon } from "@/lib/safety/classifier";
 
-const OLD_NAMES = ["Gadi", "Lulu", "Lumi", "Archi", "Vela", "가디", "루루", "루미", "아치", "벨라"];
 const RETIRED_IMAGINE_PLACES = ["공상 작업실", "공상 작업장"];
 
 const WORLDVIEW_CONCEPT_FILES = [
   "CONTEXT.md",
   "DESIGN.md",
   "docs/VISION.md",
-  "src/lib/characters.ts",
-  "src/lib/chat/personas.ts",
+  // characters.ts · chat/personas.ts 는 2026-10-05 에 E:/Legacy 로 갔다(Q-261004-14 A).
   // lib/graph/monologues.ts · components/graph/NavGraph.tsx 는 2026-10-04 에
   // E:/Legacy 로 갔다(QA L2-01 · L4-06).
   "src/components/art/SoulcoreFinalArt.tsx",
@@ -32,64 +35,6 @@ function readProjectFile(path: string): string {
 }
 
 describe("worldview v-final naming", () => {
-  test("Vela is fully retired from personas + characters", () => {
-    expect(personaIds()).not.toContain("vela");
-    expect(CHARACTER_ORDER).not.toContain("vela");
-    expect(Object.keys(CHARACTERS)).not.toContain("vela");
-  });
-
-  test("no persona display name is an old mascot name", () => {
-    for (const id of personaIds()) {
-      const p = PERSONAS[id];
-      for (const old of OLD_NAMES) {
-        expect(p.name.en).not.toBe(old);
-        expect(p.name.ko).not.toBe(old);
-      }
-    }
-  });
-
-  test("renamed mascots use their worldview-v-final names", () => {
-    expect(PERSONAS.gadi.name.en).toBe("Relia");
-    expect(PERSONAS.lulu.name.en).toBe("Lumen");
-    expect(PERSONAS.momo.name.en).toBe("Foreman Momo");
-    expect(PERSONAS.lumi.name.en).toBe("Lumina");
-    expect(PERSONAS.archi.name.en).toBe("Archon");
-    expect(PERSONAS.secondb.name.en).toBe("SecondB");
-  });
-
-  test("persona roles and hints follow Simon's canonical responsibilities", () => {
-    expect(PERSONAS.secondb.role.en).toBe("North Star navigator");
-    expect(PERSONAS.secondb.systemHint.en).toContain("responsible for the North Star summary");
-    expect(PERSONAS.secondb.systemHint.en).toContain("Analytic mode");
-    expect(PERSONAS.secondb.systemHint.en).toContain("Divergent mode");
-
-    expect(PERSONAS.archi.role.en).toBe("Career consultant");
-    expect(PERSONAS.archi.systemHint.en).toContain("responsible for work and growth");
-
-    // Relia can speak warmly while grounding observations in the user's records.
-    // Current policy allows a friendly tone and prohibits invented personal
-    // relationships or emotional dependence (STYLE.md, 2026-09-06).
-    expect(PERSONAS.gadi.role.en).toBe("relationship-pattern reflector");
-    // Same responsibility, plainer words: the 2026-09-06 round replaced
-    // "relationship and inner-world patterns" with the phrasing below.
-    expect(PERSONAS.gadi.systemHint.en).toContain("relationships and recurring patterns");
-    expect(PERSONAS.gadi.systemHint.en).toContain("the user's own records");
-    expect(PERSONAS.gadi.systemHint.en).toContain("Be friendly");
-    expect(PERSONAS.gadi.systemHint.en).toContain(
-      "do not claim to have a real personal relationship with the user or to depend on them emotionally",
-    );
-
-    expect(PERSONAS.lulu.role.en).toBe("Life-applied wisdom sage");
-    expect(PERSONAS.lulu.systemHint.en).toContain("examples of how they could use it");
-    expect(PERSONAS.lulu.systemHint.en).toContain("examples of how they could use it");
-
-    expect(PERSONAS.momo.role.en).toBe("Narrative Core crew foreman");
-    expect(PERSONAS.momo.systemHint.en).toContain("do not give advice");
-
-    expect(PERSONAS.lumi.role.en).toBe("Trainer & curator");
-    expect(PERSONAS.lumi.systemHint.en).toContain("balance of work and rest");
-  });
-
   test("concept docs and code use Lumina instead of Iris", () => {
     for (const file of WORLDVIEW_CONCEPT_FILES) {
       expect(readProjectFile(file)).not.toMatch(/\bIris\b/);
@@ -168,7 +113,10 @@ describe("worldview canon: brain model + value ladder + north-star terminology",
     expect(ctx).toMatch(/Roles \/ Action \/ Knowledge are NOT stars/i);
   });
 
-  test("localized SecondB system hints use North Star naming, not legacy soul-core names", () => {
+  // 2026-10-05: 이 단언이 처음 지키던 personas.secondb.systemHint 는 옛 캐릭터 명부와 함께
+  // 로케일에서 나갔다(Q-261004-14 A). 같은 이름 규칙이 배송 대화 묶음 안에 남은 자리
+  // (rev2.lockNorthstar 의 Northstar 요금제 이름)로 그대로 걸린다.
+  test("localized SecondB chat copy uses North Star naming, not legacy soul-core names", () => {
     const localeHints = [
       readProjectFile("locales/es/secondb.json"),
       readProjectFile("locales/pt/secondb.json"),
