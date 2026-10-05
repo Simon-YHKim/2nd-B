@@ -508,7 +508,7 @@ END
 SQL
 
 # 0213: settle_reward_ssv_ticket_v3 puts a callback-timestamp freshness check in
-# front of v2, so a transaction id the 89-day purge (0211) deleted cannot be
+# front of v2, so a transaction id the 88-day purge (0211) deleted cannot be
 # paid again from a replayed callback. ADMOB-TS (2): the unit comes from the
 # digit count, 10 = seconds, 13 = milliseconds, 16 = microseconds, anything else
 # is refused; the callback must be at most one day old, at most five minutes in

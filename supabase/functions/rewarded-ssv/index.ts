@@ -308,7 +308,7 @@ Deno.serve(async (req: Request) => {
     // after the signature, so a length outside the contract is still logged for
     // GO-5b rather than refused unseen before it (security gate r2 DB2-04).
     // 0213 repeats the check with the ticket's issue time, so a transaction id
-    // the 89-day purge (0211) deleted cannot be paid again from a replay. Only
+    // the 88-day purge (0211) deleted cannot be paid again from a replay. Only
     // the digit count is logged: never the value, the transaction, the user,
     // the signature or the ticket.
     const ts = parseCallbackTimestamp(callback.callbackTimestampText);

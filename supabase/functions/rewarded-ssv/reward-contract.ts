@@ -37,7 +37,7 @@ export type RewardCallback = {
  * Anything else is refused. 0213 (reward_ssv_callback_is_fresh) applies the same
  * rule; GO-5b narrows this to the one length production actually sends. */
 export const ALLOWED_TS_DIGITS: readonly number[] = [10, 13, 16];
-/** 0213 c_max_age (D3: one day), kept well below the 89-day purge (0211). */
+/** 0213 c_max_age (D3: one day), kept well below the 88-day purge (0211). */
 export const CALLBACK_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 /** 0213 c_skew. */
 export const CALLBACK_MAX_SKEW_MS = 5 * 60 * 1000;

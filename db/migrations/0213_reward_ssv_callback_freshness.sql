@@ -12,7 +12,7 @@
 --
 -- 지금(0196)의 막는 장치는 서버 발급 티켓 하나다: 티켓은 20분 뒤 만료되고, 소비된 티켓은
 -- 1일 뒤 지워지므로 90일 뒤 같은 콜백은 claim 단계에서 403 이 난다. rewarded_ssv_txns
--- (거래 ID 중복 제거)는 1일 창 안의 재시도만 막는다. 0211 이 89일 뒤 rewarded_ssv_txns 를
+-- (거래 ID 중복 제거)는 1일 창 안의 재시도만 막는다. 0211 이 88일 뒤 rewarded_ssv_txns 를
 -- 지우면, 티켓 장치 하나가 깨졌을 때(예: 티켓 보관을 늘리거나 티켓 없는 옛 경로를 되살림)
 -- 지워진 거래 ID 를 다시 쓸 수 있게 된다. 그래서 두 번째 장치를 둔다:
 --
@@ -22,7 +22,7 @@
 --     - 그 티켓의 issued_at 보다 5분 넘게 이르면
 --   지급하지 않는다(행 0개를 돌려준다. Edge 는 지금처럼 403 invalid_or_expired_ticket).
 --
--- 1일은 89일보다 훨씬 짧다. 따라서 "정리된(89일 지난) 거래 ID 로 다시 지급" 은 서명된
+-- 1일은 88일보다 훨씬 짧다. 따라서 "정리된(88일 지난) 거래 ID 로 다시 지급" 은 서명된
 -- 신선한 timestamp 가 필요하고, 서명은 Google 키로만 만들 수 있으므로 불가능하다.
 -- 거래 ID 자체를 해시로 오래 남기는 묘비 표(tombstone)는 두지 않는다(방침의 90일 파기와
 -- 부딪힌다. 필요하면 Legal 확인 뒤 별도 마이그레이션).
@@ -55,7 +55,7 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  c_max_age  constant interval := make_interval(days => 1);    -- 0211 의 89일보다 반드시 짧게(D3: 1일 확정)
+  c_max_age  constant interval := make_interval(days => 1);    -- 0211 의 88일보다 반드시 짧게(D3: 1일 확정)
   c_skew     constant interval := make_interval(mins => 5);
   -- ADMOB-TS ②: 허용 자릿수. GO-5 실측 뒤 후속 마이그레이션(GO-5b)에서 하나만 남긴다.
   c_allowed_digits constant integer[] := ARRAY[10, 13, 16];
@@ -131,7 +131,7 @@ GRANT EXECUTE ON FUNCTION public.settle_reward_ssv_ticket_v3(text, text, text, i
   TO service_role;
 
 COMMENT ON FUNCTION public.settle_reward_ssv_ticket_v3(text, text, text, integer, text, bigint) IS
-  '0213: v2 앞에 콜백 timestamp 신선도 검사(자릿수로 단위 판단: 10=초, 13=밀리초, 16=마이크로초, 그 밖은 거부. 1일 이내, 미래 5분 이내, 티켓 발급 5분 전 이후)를 둔다. 0211 이 89일 뒤 rewarded_ssv_txns 를 지워도 지워진 거래 ID 로 다시 지급할 수 없게 하는 두 번째 장치. 불변식: c_max_age(1일) < 89일 정리 기간(D3 1일 확정).';
+  '0213: v2 앞에 콜백 timestamp 신선도 검사(자릿수로 단위 판단: 10=초, 13=밀리초, 16=마이크로초, 그 밖은 거부. 1일 이내, 미래 5분 이내, 티켓 발급 5분 전 이후)를 둔다. 0211 이 88일 뒤 rewarded_ssv_txns 를 지워도 지워진 거래 ID 로 다시 지급할 수 없게 하는 두 번째 장치. 불변식: c_max_age(1일) < 88일 정리 기간(D3 1일 확정).';
 
 DO $postcondition$
 BEGIN
