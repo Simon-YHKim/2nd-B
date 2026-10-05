@@ -388,7 +388,40 @@ test("the shipped credit_ledger revision keeps 0189 historical and the JSON curr
   expect(json.tables.credit_ledger.class).toBe("retained");
   expect(json.tables.credit_ledger.reason).not.toBe(previous);
   expect(json.tables.credit_ledger.reason).toMatch(/promo/);
+  // 0212 revised credit_ledger again (88-day reward purge, 0211). The reason 0205
+  // wrote is therefore the one 0212 records as its previous reason, not the row
+  // the JSON holds now.
+  const after0205: string =
+    json.forwardRevisions["0212_reward_records_erasure_registry_reason.sql"].credit_ledger.previousReason;
+  expect(after0205).toMatch(/promo/);
+  expect(after0205).not.toBe(json.tables.credit_ledger.reason);
   const sql = readFileSync(join(repo, "db/migrations", file), "utf8").replace(/\r\n/g, "\n");
   expect(sql.slice(sql.indexOf(REVISIONS_BEGIN), sql.indexOf(REVISIONS_END) + REVISIONS_END.length))
-    .toBe(renderRegistryRevisionsSql({ credit_ledger: { entry: json.tables.credit_ledger, previousReason: previous } }));
+    .toBe(renderRegistryRevisionsSql({
+      credit_ledger: { entry: { ...json.tables.credit_ledger, reason: after0205 }, previousReason: previous },
+    }));
+});
+
+test("the shipped reward-records revision renders the four current reasons from their recorded predecessors", () => {
+  const repo = resolve(__dirname, "../..");
+  const json = JSON.parse(readFileSync(join(repo, "db/erasure-registry.json"), "utf8"));
+  const file = "0212_reward_records_erasure_registry_reason.sql";
+  const revision: Record<string, { previousReason: string }> = json.forwardRevisions[file];
+  expect(Object.keys(revision).sort()).toEqual(
+    ["credit_ledger", "reward_ssv_issue_rate_limits", "reward_ssv_tickets", "rewarded_ssv_txns"],
+  );
+  for (const table of Object.keys(revision)) {
+    expect(json.tables[table].class).toBe("retained");
+    expect(json.tables[table].reason).not.toBe(revision[table].previousReason);
+  }
+  // The purge (0211) deletes three of these; the tickets row only gains the
+  // one-day cleanup 0196 already performs.
+  for (const table of ["credit_ledger", "reward_ssv_issue_rate_limits", "rewarded_ssv_txns"]) {
+    expect(json.tables[table].reason).toMatch(/0211/);
+  }
+  const sql = readFileSync(join(repo, "db/migrations", file), "utf8").replace(/\r\n/g, "\n");
+  expect(sql.slice(sql.indexOf(REVISIONS_BEGIN), sql.indexOf(REVISIONS_END) + REVISIONS_END.length))
+    .toBe(renderRegistryRevisionsSql(Object.fromEntries(Object.keys(revision).map((table) => [
+      table, { entry: json.tables[table], previousReason: revision[table].previousReason },
+    ]))));
 });

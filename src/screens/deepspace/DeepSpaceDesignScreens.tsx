@@ -4,10 +4,10 @@ import { PlainText as RNText } from "@/components/ui/PlainText";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
 import { Redirect, router, useNavigation } from "expo-router";
 import { useAppRouter } from "@/lib/nav/phone-embed";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect, SvgXml } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
 import { colors, spacing } from "@/theme/tokens";
 import { GLYPH_ALIAS, glyphMarkup, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
 import { ringCells, stepLine } from "@/components/pixel/pixel-line";
@@ -34,6 +34,7 @@ import { HelpDirectory } from "@/components/safety/HelpDirectory";
 // (No theme-mode hook: the dark/light choice was removed on 2026-10-05, Q-261005-02.)
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { useLiteMode } from "@/lib/settings/lite-mode";
+import { useSoundEffects } from "@/lib/settings/sound-effects";
 import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { FilterChip } from "./dds-wiki-records-screens";
@@ -353,7 +354,7 @@ function IntegrationEntryRow({ source, t }: { source: IntegrationEntrypoint; t: 
             <CloneIcon name={source.icon} color={m3.color.onSurfaceVariant} size={22} />
           </PixelSurface>
           <View style={cx.flex1}>
-            <RNText numberOfLines={1} style={[m3TextStyle("titleSmall"), cx.integrationName]}>{name}</RNText>
+            <RNText numberOfLines={2} style={[m3TextStyle("titleSmall"), cx.integrationName]}>{name}</RNText>
             <RNText numberOfLines={2} style={[m3TextStyle("bodySmall"), cx.integrationDetail]}>{detail}</RNText>
           </View>
           <PixelSurface
@@ -363,7 +364,7 @@ function IntegrationEntryRow({ source, t }: { source: IntegrationEntrypoint; t: 
             style={cx.integrationActionFrame}
             contentStyle={cx.integrationAction}
           >
-            <RNText numberOfLines={2} style={[m3TextStyle("labelSmall"), cx.integrationActionText]}>{action}</RNText>
+            <RNText numberOfLines={3} style={[m3TextStyle("labelSmall"), cx.integrationActionText]}>{action}</RNText>
           </PixelSurface>
         </PixelSurface>
       </View>
@@ -685,9 +686,8 @@ export function DeepSpacePrivacyDesignScreen() {
     setDeleteConfirmOpen(true);
   }
 
-  // Shell's top back action and persistent dock both remove this route. Once
-  // the user confirms terminal erasure, keep the screen mounted until the Edge
-  // Function reports success/failure so navigation cannot strand a half-flow.
+  // Shell's top back action and persistent dock both remove this route. Once the user confirms terminal
+  // erasure, keep the screen mounted until the Edge Function reports success/failure so navigation cannot strand a half-flow.
   useEffect(() => {
     // Register once instead of waiting for the deleting-state render. The ref
     // flips synchronously inside runDeleteAccount, so even a same-frame dock tap
@@ -697,6 +697,7 @@ export function DeepSpacePrivacyDesignScreen() {
       event.preventDefault();
     });
   }, [navigation]);
+  useGoHomeStop(() => deleteInFlightRef.current && !allowDeletionNavigationRef.current); // gate NS-02
 
   useEffect(() => {
     prefsRef.current = null;
@@ -1620,9 +1621,10 @@ export function DeepSpaceThemeScreen() {
   // The rows read and write the real settings. The dark/light section (딥스페이스
   // / 미드나잇 and its "applies to some screens only" note) is gone: Simon removed
   // the choice (Q-261005-02, 2026-10-05) and the app is always dark, so this
-  // screen is font + motion only. The route stays /theme.
+  // screen is font + motion (and, since #2082, sound effects). The route stays /theme.
   const { fontStyle, setFontStyle } = useFontStyle();
   const { liteMode, setLiteMode } = useLiteMode();
+  const { soundEffects, setSoundEffects } = useSoundEffects();
   return (
     <Shell title={t("theme.title")}>
       <SecondbStatusHeader text={t("theme.status")} tip={t("theme.tip")} />
@@ -1637,6 +1639,9 @@ export function DeepSpaceThemeScreen() {
           the one real control here, wired to lite mode (motion chokepoint). */}
       <Card>
         <Toggle label={t("theme.reduceMotion")} on={liteMode} onPress={() => setLiteMode(!liteMode)} />
+        {/* Q-261005-02 (2026-10-05): sound effects on by default; off silences every effect player. */}
+        <Toggle label={t("theme.soundEffects")} on={soundEffects} onPress={() => setSoundEffects(!soundEffects)} />
+        <Text variant="subtle" style={styles.footer}>{t("theme.soundEffectsNote")}</Text>
       </Card>
     </Shell>
   );

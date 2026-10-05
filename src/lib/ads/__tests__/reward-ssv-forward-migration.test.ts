@@ -97,7 +97,15 @@ describe("rewarded SSV hardening migration", () => {
     expect(sql).not.toMatch(
       /GRANT EXECUTE ON FUNCTION public\.consume_reward_ssv_ticket(?:_v2)?[\s\S]*?TO service_role/,
     );
-    expect(edge).toContain("settle_reward_ssv_ticket_v2");
+    // The Edge calls 0213's v3, which checks the callback timestamp and then
+    // returns v2's result, so v2 stays the one place a ticket is consumed.
+    expect(edge).toContain("settle_reward_ssv_ticket_v3");
+    expect(edge).not.toContain("settle_reward_ssv_ticket_v2");
+    const v3 = readFileSync(
+      path.join(root, "db", "migrations", "0213_reward_ssv_callback_freshness.sql"),
+      "utf8",
+    );
+    expect(v3).toMatch(/RETURN QUERY\s+SELECT s\.reward_kind, s\.reward_total\s+FROM public\.settle_reward_ssv_ticket_v2\(/);
     expect(edge).not.toContain("consume_reward_ssv_ticket_v2");
     expect(edge).not.toContain("grant_chat_ad_bonus_ssv");
     expect(edge).not.toContain("grant_reward_credits_ssv");

@@ -14,7 +14,7 @@
 //     reappear every session.
 
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Modal, View, StyleSheet, ScrollView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
+import { AccessibilityInfo, View, StyleSheet, ScrollView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";
@@ -23,10 +23,11 @@ import {
   useAudioRecorder,
   RecordingPresets,
   requestRecordingPermissionsAsync,
-  setAudioModeAsync,
 } from "expo-audio";
+import { beginRecordingAudioMode, endRecordingAudioMode, restoreEffectsAfterRecording } from "@/lib/audio/audio-session";
 
 import { Text } from "@/components/ui/Text";
+import { ScreenModal } from "@/components/ui/ScreenModal";
 import { gameboy } from "@/lib/theme/gameboy-tokens";
 import { deepSpace, deepSpaceSpacing, flattenAlpha, semantic, spacing } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
@@ -110,6 +111,12 @@ import { keepAllKo } from "@/lib/i18n/keep-all";
  *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
  */
 const sbAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.surfaceContainerLow);
+/**
+ * 입력 알약(`ds.inputPill`) 안의 반투명 색. 그 바닥은 `surfaceContainerHigh` 다.
+ * sbAlpha 로 합성하면 바닥이 틀려 색이 어긋난다(QA R2B-08, 2026-10-05: 자리표시자가
+ * 그렇게 2.41:1 이었다).
+ */
+const pillAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.surfaceContainerHigh);
 
 // Quick-action chips offered under an answer (chat pack §8). Each prefills
 // the composer with a short follow-up in the village voice; the user sends.
@@ -282,7 +289,7 @@ const ChatComposer = memo(
     const voiceLocale = i18n.language === "ko" ? ("ko" as const) : ("en" as const);
     const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
     const recorderLifecycle = useMemo(
-      () => createRecorderLifecycle(audioRecorder),
+      () => createRecorderLifecycle(audioRecorder, { onIdle: restoreEffectsAfterRecording }),
       [audioRecorder],
     );
     const [voicePhase, setVoicePhase] = useState<"idle" | "recording" | "transcribing">("idle");
@@ -338,7 +345,7 @@ const ChatComposer = memo(
           setVoiceNotice(t("voice.permissionDenied"));
           return;
         }
-        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, interruptionMode: "mixWithOthers" });
+        await beginRecordingAudioMode();
         ownerGuard.assertCurrent();
         await audioRecorder.prepareToRecordAsync();
         prepared = true;
@@ -352,6 +359,8 @@ const ChatComposer = memo(
           recorderLifecycle.begin(userId);
           await recorderLifecycle.cancel();
         }
+        // A start that failed before any session began still left the recording mode on.
+        void endRecordingAudioMode();
         if (isAbortError(error) || ownerGuard.signal.aborted) return;
         try {
           ownerGuard.assertCurrent();
@@ -442,7 +451,8 @@ const ChatComposer = memo(
             value={draft}
             onChangeText={setDraft}
             placeholder={t("askLens", { lens: lensName })}
-            placeholderTextColor={sbAlpha(deepSpace.text, 0.45)}
+            // AA on the pill (4.54:1), the same token as the other placeholders (QA R2B-08).
+            placeholderTextColor={m3.color.onSurfaceVariant}
             style={ds.pillInput}
             accessibilityLabel={t("inputA11y")}
             onSubmitEditing={submit}
@@ -470,7 +480,7 @@ const ChatComposer = memo(
           <Pressable
             onPress={() => void handleMicPress()}
             disabled={voicePhase === "transcribing"}
-            style={[ds.micBtn, voicePhase === "recording" && { backgroundColor: sbAlpha(lensAccent, 0.18) }]}
+            style={[ds.micBtn, voicePhase === "recording" && { backgroundColor: pillAlpha(lensAccent, 0.18) }]}
             hitSlop={6}
             accessibilityRole="button"
             accessibilityLabel={voicePhase === "recording" ? t("voice.stop") : t("voiceInput")}
@@ -479,7 +489,7 @@ const ChatComposer = memo(
             {voicePhase === "transcribing" ? (
               <ActivityIndicator size="small" color={lensAccent} />
             ) : (
-              <IconMic color={voicePhase === "recording" ? lensAccent : sbAlpha(deepSpace.text, 0.6)} size={22} />
+              <IconMic color={voicePhase === "recording" ? lensAccent : pillAlpha(deepSpace.text, 0.6)} size={22} />
             )}
           </Pressable>
         </View>
@@ -707,7 +717,7 @@ function SecondBChatBody() {
       selectRev2Persona("secondb");
     }
   }, [progression.loading, effectiveTier, rev2Persona]);
-  // Divergent signature motion (DESIGN.md): a soft soulViolet2 pulse while a
+  // Divergent pulse: a soft soulViolet2 pulse while a
   // Divergent turn is in flight. Holds at rest otherwise; static under reduced
   // motion. (Replaces the old dreamPink "벨라 신호" now that Divergent is a mode.)
   const divergentPulse = useRef(new Animated.Value(0.6)).current;
@@ -1399,8 +1409,10 @@ function SecondBChatBody() {
         />
       </KeyboardAvoidingArea>
 
-      {/* 첫 진입 인사 모달 */}
-      <Modal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
+      {/* 첫 진입 인사 모달. ScreenModal: 다른 화면이 이 화면을 덮으면 안내도 내려간다(R2A-03).
+          덮인 채 남은 대화상자는 Android 액티비티 재생성 때 지금 화면 위로 다시 뜨고,
+          두 번째 재생성에서 네이티브 크래시가 난다. introOpen 은 그대로라 돌아오면 다시 뜬다. */}
+      <ScreenModal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
         {/* Scrim: NOT a button — on web an accessibilityRole="button" backdrop
             renders as <button> and nests the modal's real <button>s inside it
             (hydration error, parity finding S1). Tap-to-dismiss stays; the
@@ -1445,10 +1457,10 @@ function SecondBChatBody() {
             </View>
           </Pressable>
         </Pressable>
-      </Modal>
+      </ScreenModal>
 
-      {/* reference drawer — pieces the answer drew on */}
-      <Modal
+      {/* reference drawer — pieces the answer drew on (ScreenModal: same R2A-03 rule) */}
+      <ScreenModal
         visible={refDrawer !== null}
         transparent
         animationType="slide"
@@ -1503,7 +1515,7 @@ function SecondBChatBody() {
             </Pressable>
           </Pressable>
         </Pressable>
-      </Modal>
+      </ScreenModal>
 
       {/* 0090: chat daily-cap top-up (+2 sends today, monthly earn cap). The
           grant RPC enforces day/month/ceiling server-side.

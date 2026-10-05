@@ -47,11 +47,14 @@ import { profileRouteHold } from "@/lib/auth/profile-probe";
 import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { configureEffectsAudioSession } from "@/lib/audio/audio-session";
+import { ensureSoundEffectsHydration } from "@/lib/settings/sound-effects";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { AvatarSetupGate, AvatarSetupSceneGuard } from "@/components/avatar/AvatarSetupGate";
 import { EncryptedStorageRecoveryGate } from "@/screens/deepspace/storage-recovery-gate";
 import { BackArrow } from "@/components/ui/BackArrow";
+import { IntroExitShield } from "@/components/ui/IntroExitShield";
+import { startIntroExitShield } from "@/lib/nav/intro-exit-shield";
 import { BackgroundTaskDock, CompletionToast, SecondbHeadTrackProvider } from "@/components/deepspace";
 import { pixelStackTransition } from "@/lib/motion/pixel-physical";
 import { useAppFonts } from "@/lib/fonts/use-app-fonts";
@@ -109,6 +112,8 @@ void initAnalytics();
 // module scope so the mode is sent before RootLayout mounts LoadingScreen and its opening players.
 // Native only: the .web module is an empty function. audio-session.test.ts holds the placement.
 void configureEffectsAudioSession();
+// The sound effects switch (Q-261005-02): load the stored value before the opening's first cue.
+ensureSoundEffectsHydration();
 
 // ⚠ #1517 은 여기서 네이티브 크래시 리포팅 SDK 초기화를 켰다. 되살리지 않는다 —
 // main 이 `964db854 fix(analytics): hard-disable Sentry runtimes (#1586)` 로 껐다.
@@ -282,6 +287,9 @@ export default function RootLayout() {
               <CompletionToast />
               </AvatarSetupGate>
             </IntroGate>
+            {/* W-05: for a moment after the opening ends, a tap that was aimed
+                at its skip button must not land on the dock tab underneath. */}
+            <IntroExitShield />
             </SecondbHeadTrackProvider>
           </AuthProvider>
       </SafeAreaProvider>
@@ -522,6 +530,7 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
         ready={fontsReady && !loading && recoveryReady && profileHold !== "loading"}
         onContinue={() => {
           markIntroPlayed();
+          startIntroExitShield();
           setIntroDone(true);
         }}
       />

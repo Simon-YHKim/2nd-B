@@ -39,6 +39,7 @@ export function LikertChoiceGroup({ choices, locale, onSelect, question, value }
             hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
             accessibilityRole="radio"
             accessibilityState={{ checked: active }}
+            aria-checked={active}
             accessibilityLabel={optionLabel}
             accessibilityHint={active ? selectedHint : selectHint}
           >

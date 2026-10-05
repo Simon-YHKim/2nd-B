@@ -14,6 +14,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { DdsAuditScreen } from "@/screens/deepspace/dds-audit-screen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppRouter, useHardwareBack, useScreenParams } from "@/lib/nav/phone-embed";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { questionsForPeriod, type AuditPeriod } from "@/lib/audit/questions";
 import { isUnlived, type SevenStarId } from "@/lib/persona/seven-stars";
 import { createRecord } from "@/lib/records/create";
@@ -77,29 +78,29 @@ const DISPLAY_COPY: Record<
   },
   es: {
     periodDescription:
-      "Un conjunto fijo de preguntas basado en marcos como Big Five, apego y SDT. Para explorar con mas libertad, usa /interview.",
-    saveError: "No pudimos guardar tu respuesta. Tu texto sigue aqui; intenta de nuevo.",
-    completeBody: (count) => `${count} respuestas estan listas para sintetizar tu modelo personal.`,
+      "Un conjunto fijo de preguntas basado en marcos como Big Five, apego y SDT. Para explorar con más libertad, usa /interview.",
+    saveError: "No pudimos guardar tu respuesta. Tu texto sigue aquí; intenta de nuevo.",
+    completeBody: (count) => `${count} respuestas están listas para sintetizar tu modelo personal.`,
     interviewDescription:
-      "Preguntas basadas en Big Five, teoria del apego y teoria de la autodeterminacion. No hay una respuesta correcta; mientras mas respondas, mas claros se vuelven los patrones de tu modelo personal.",
-    tooShort: "Un poco mas de detalle ayuda",
+      "Preguntas basadas en Big Five, teoría del apego y teoría de la autodeterminación. No hay una respuesta correcta; mientras más respondas, más claros se vuelven los patrones de tu modelo personal.",
+    tooShort: "Un poco más de detalle ayuda",
     enough: "Se ve bien",
     finish: "Finalizar",
     next: "Siguiente pregunta",
-    exitBody: "¿Seguro que quieres salir? Tu progreso no se guardara.",
+    exitBody: "¿Seguro que quieres salir? Tu progreso no se guardará.",
   },
   pt: {
     periodDescription:
       "Um conjunto fixo de perguntas baseado em Big Five, apego e SDT. Para explorar com mais liberdade, use /interview.",
-    saveError: "Nao foi possivel salvar sua resposta. Seu texto continua aqui; tente de novo.",
-    completeBody: (count) => `${count} respostas estao prontas para sintetizar seu modelo pessoal.`,
+    saveError: "Não foi possível salvar sua resposta. Seu texto continua aqui; tente de novo.",
+    completeBody: (count) => `${count} respostas estão prontas para sintetizar seu modelo pessoal.`,
     interviewDescription:
-      "Perguntas baseadas em Big Five, teoria do apego e teoria da autodeterminacao. Nao existe resposta certa; quanto mais voce responde, mais claros ficam os padroes do seu modelo pessoal.",
+      "Perguntas baseadas em Big Five, teoria do apego e teoria da autodeterminação. Não existe resposta certa; quanto mais você responde, mais claros ficam os padrões do seu modelo pessoal.",
     tooShort: "Um pouco mais de detalhe ajuda",
-    enough: "Esta bom",
+    enough: "Está bom",
     finish: "Finalizar",
-    next: "Proxima pergunta",
-    exitBody: "Tem certeza de que quer sair? Seu progresso nao sera salvo.",
+    next: "Próxima pergunta",
+    exitBody: "Tem certeza de que quer sair? Seu progresso não será salvo.",
   },
   id: {
     periodDescription:
@@ -224,6 +225,9 @@ function AuditLegacy() {
       setExitConfirmOpen(true);
     });
   }, [hasUnsavedProgress, navigation]);
+  // A home jump from a screen above this one stops here instead of meeting
+  // the guard out of sight (gate NS-02, lib/nav/go-home.ts).
+  useGoHomeStop(() => hasUnsavedProgress && !allowNavigationRef.current);
 
   if (loading) {
     return (

@@ -82,16 +82,10 @@ const schema = z.object({
     .union([z.literal("true"), z.literal("false")])
     .default("false")
     .transform((v) => v === "true"),
-  // Render the Soul Core v3 SVG art pack (assets/legacy-art/cosmic-pixel-v3-soulcore/)
-  // instead of the legacy PNG art. Default true (Simon concept: the worldview
-  // Soul/Pattern Core tesseract art + Foreman-Momo crew are the intended visuals).
-  // ⚠ 2026-10-05: no reader left - WorkerSprite's v3 branch went with the legacy
-  // characters (Q-261004-15 A). The key stays until a cleanup decides its fate.
-  // Set "false" to fall back to the legacy PNG art.
-  EXPO_PUBLIC_USE_V3_ART: z
-    .union([z.literal("true"), z.literal("false")])
-    .default("true")
-    .transform((v) => v === "true"),
+  // EXPO_PUBLIC_USE_V3_ART left on 2026-10-05 (QA R2E-11): its only reader, the
+  // v3 branch of WorkerSprite, went with the legacy characters (Q-261004-15 A) and
+  // WorkerSprite itself then went to E:/Legacy/2ndB. No workflow, eas.json or repo
+  // Variable ever set it.
   // Naver social login (custom OAuth via the oauth-naver edge function). The
   // REST client id is public (it appears in the authorize URL); the secret stays
   // in the edge function. EXPO_PUBLIC_ENABLE_NAVER gates the button + flow off by
@@ -208,7 +202,6 @@ function readRaw(): Record<string, string | undefined> {
   const viaEdge = process.env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION;
   const forceTier = process.env.EXPO_PUBLIC_FORCE_TIER;
   const allowDevTier = process.env.EXPO_PUBLIC_ALLOW_DEV_TIER;
-  const useV3Art = process.env.EXPO_PUBLIC_USE_V3_ART;
   const naverClientId = process.env.EXPO_PUBLIC_NAVER_CLIENT_ID;
   const enableNaver = process.env.EXPO_PUBLIC_ENABLE_NAVER;
   const enableGoogle = process.env.EXPO_PUBLIC_ENABLE_GOOGLE;
@@ -243,7 +236,6 @@ function readRaw(): Record<string, string | undefined> {
     EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: presentOrUndefined(viaEdge),
     EXPO_PUBLIC_FORCE_TIER: presentOrUndefined(forceTier),
     EXPO_PUBLIC_ALLOW_DEV_TIER: presentOrUndefined(allowDevTier),
-    EXPO_PUBLIC_USE_V3_ART: presentOrUndefined(useV3Art),
     EXPO_PUBLIC_NAVER_CLIENT_ID: presentOrUndefined(naverClientId),
     EXPO_PUBLIC_ENABLE_NAVER: presentOrUndefined(enableNaver),
     EXPO_PUBLIC_ENABLE_GOOGLE: presentOrUndefined(enableGoogle),

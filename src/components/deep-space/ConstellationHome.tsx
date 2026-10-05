@@ -250,30 +250,30 @@ const HOME_REASONING_COPY: Record<
     notices: "Avisos",
     running: "Estoy leyendo tus elementos seleccionados y conectando sus estrellas.",
     depleted: "Ya usaste las ejecuciones base de esta semana. Se recargan el lunes.",
-    automatic: "El razonamiento automatico esta activo. Los nuevos elementos se conectan al instante.",
+    automatic: "El razonamiento automático está activo. Los nuevos elementos se conectan al instante.",
     choose: "Elige los elementos cuyas estrellas quieres conectar.",
-    baseLeft: (count) => `Te quedan ${count} ejecuciones esta semana. ¿Que conectamos?`,
+    baseLeft: (count) => `Te quedan ${count} ejecuciones esta semana. ¿Qué conectamos?`,
     rewardLeft: (count) => `La base semanal se uso. Hay ${count} ejecuciones de recompensa disponibles.`,
     adReward: (count) => `Ver un anuncio por ${count} ejecuciones`,
     viewPlans: "Ver planes",
     viewProgress: "Ver progreso",
     chooseItems: "Elegir elementos",
-    automaticButton: "Automatico",
+    automaticButton: "Automático",
   },
   pt: {
-    reasoningTag: "RACIOCINIO",
+    reasoningTag: "RACIOCÍNIO",
     notices: "Avisos",
     running: "Estou lendo os itens selecionados e conectando suas estrelas.",
-    depleted: "Voce usou as execucoes base desta semana. Elas voltam na segunda.",
-    automatic: "O raciocinio automatico esta ativo. Novos itens se conectam na hora.",
-    choose: "Escolha os itens cujas estrelas voce quer conectar.",
-    baseLeft: (count) => `Voce tem ${count} execucoes nesta semana. O que vamos conectar?`,
-    rewardLeft: (count) => `A base semanal acabou. ${count} execucoes de recompensa estao disponiveis.`,
-    adReward: (count) => `Ver um anuncio por ${count} execucoes`,
+    depleted: "Você usou as execuções base desta semana. Elas voltam na segunda.",
+    automatic: "O raciocínio automático está ativo. Novos itens se conectam na hora.",
+    choose: "Escolha os itens cujas estrelas você quer conectar.",
+    baseLeft: (count) => `Você tem ${count} execuções nesta semana. O que vamos conectar?`,
+    rewardLeft: (count) => `A base semanal acabou. ${count} execuções de recompensa estão disponíveis.`,
+    adReward: (count) => `Ver um anúncio por ${count} execuções`,
     viewPlans: "Ver planos",
     viewProgress: "Ver progresso",
     chooseItems: "Escolher itens",
-    automaticButton: "Automatico",
+    automaticButton: "Automático",
   },
   id: {
     reasoningTag: "PENALARAN",
@@ -746,6 +746,14 @@ export function ConstellationHome({
   const worldX = visualFocusId ? destinationProgress.interpolate({ inputRange: STAR_CAMERA_STOPS, outputRange: flight.x }) : -camera.x * camera.zoom;
   const worldY = visualFocusId ? destinationProgress.interpolate({ inputRange: STAR_CAMERA_STOPS, outputRange: flight.y }) : -camera.y * camera.zoom;
   const worldZoom = visualFocusId ? destinationProgress.interpolate({ inputRange: STAR_CAMERA_STOPS, outputRange: flight.zoom }) : camera.zoom;
+  // QA R2A-07 (2026-10-05): once a star is in focus its name label (scaled back to 1x
+  // inside the zoomed world) settles in the same band as the camera status line
+  // ("초점 고정 · 여행 준비 완료"), and the destination header already names the star.
+  // The labels step off when the camera has aimed (0.4, the end of the approach) and
+  // step back on as the return flight passes it: pixel steps, no fade.
+  const skyLabelOpacity = visualFocusId
+    ? destinationProgress.interpolate({ inputRange: [0, 0.39, 0.4, 1], outputRange: [1, 1, 0, 0] })
+    : 1;
   const selectedEntry = focusedId ? starEntryStatus(focusedId, starLevels, age) : null;
   const playDialogueBlip = useUiSound(DIALOGUE_BLIP, {
     volume: 0.08,
@@ -1027,7 +1035,7 @@ export function ConstellationHome({
                 importantForAccessibility="no-hide-descendants"
                 numberOfLines={label.maxLines}
                 pointerEvents="none"
-                style={[styles.starLabel, label.frame, on && { color: m3.accent.starFocus }, { transform: [{ scale: Animated.divide(1, worldZoom) }] }]}
+                style={[styles.starLabel, label.frame, on && { color: m3.accent.starFocus }, { opacity: skyLabelOpacity, transform: [{ scale: Animated.divide(1, worldZoom) }] }]}
               >
                 {starName(s.id)}
               </Animated.Text>
@@ -1038,7 +1046,7 @@ export function ConstellationHome({
             accessible={false}
             importantForAccessibility="no-hide-descendants"
             numberOfLines={1}
-            style={[styles.polarisLabel, starLabels.polaris, { transform: [{ scale: Animated.divide(1, worldZoom) }] }]}
+            style={[styles.polarisLabel, starLabels.polaris, { opacity: skyLabelOpacity, transform: [{ scale: Animated.divide(1, worldZoom) }] }]}
           >
             {t("ds.home.polaris")}
           </Animated.Text>

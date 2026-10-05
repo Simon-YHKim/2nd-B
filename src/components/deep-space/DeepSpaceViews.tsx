@@ -79,6 +79,7 @@ import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
 import { callLlm } from "@/lib/llm/boundary";
 import { IMAGINE_SEEDS, type ImagineSeedIcon } from "./imagine-seeds";
 import { FirstRecordCoachmark } from "./FirstRecordCoachmark";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { markCoachmarksSeen } from "@/lib/onboarding/coachmarks-gate";
 import {
   advanceFirstRecordCoach,
@@ -802,7 +803,13 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
   );
 
   return (
-    <View style={styles.capCoachRoot}>
+    // Keyboard (QA 2026-10-05 R2A-02): on Android's edge-to-edge window nothing
+    // shrinks for the keyboard and automaticallyAdjustKeyboardInsets is iOS-only,
+    // so the 4W1H "how" field and the save tile sat under the keyboard with no
+    // way to scroll to them. The area pads the bottom by the measured overlap,
+    // the ScrollView shrinks, and Android scrolls the focused field back into
+    // view. iOS keeps the ScrollView's own inset handling (no double inset).
+    <KeyboardAvoidingArea style={styles.capCoachRoot} iosHandledByScrollView>
       <ScrollView
         ref={scrollRef}
         style={styles.capScroll}
@@ -1068,7 +1075,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
           refreshKey={`${coachStep}:${fourwOn}:${canSave}`}
         />
       ) : null}
-    </View>
+    </KeyboardAvoidingArea>
   );
 }
 
