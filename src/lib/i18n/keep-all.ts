@@ -136,3 +136,16 @@ export function mapStringChildren(children: ReactNode, rewrite: (text: string) =
 export function keepAllChildren(children: ReactNode): ReactNode {
   return mapStringChildren(children, keepAllKo);
 }
+
+/**
+ * A TextInput placeholder on native (QA R2A-05 · R2A-06, 2026-10-05). PlainText only
+ * rewrites Text children, so an input hint kept Android's default line breaking and
+ * split Korean words between syllables ("좋습니 / 다." on /capture-full, "찾 / 고" on
+ * /northstar at font scale 1.3). Native gets keepAllKo; web is left as typed because
+ * the textarea inherits word-break: keep-all from <html> (src/app/+html.tsx). Only the
+ * drawn hint changes: accessibility labels are whatever the caller passed.
+ */
+export function keepAllPlaceholder<T extends string | undefined>(placeholder: T, os: string): T {
+  if (os === "web" || typeof placeholder !== "string") return placeholder;
+  return keepAllKo(placeholder) as T;
+}

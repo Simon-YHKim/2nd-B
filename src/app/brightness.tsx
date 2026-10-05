@@ -108,7 +108,7 @@ export default function BrightnessTimelineScreen() {
             {/* Heatmap: 북극성 row (violet, tier-1) then observed stars (cyan). */}
             <MdCard variant="outlined" style={styles.cardPad}>
               <View style={styles.gridRow}>
-                <Text variant="caption" color="textMuted" style={styles.rowLabel} numberOfLines={1}>
+                <Text variant="caption" color="textMuted" style={styles.rowLabel} numberOfLines={2}>
                   {t("polaris")}
                 </Text>
                 {timeline.polaris.map((v, i) => (
@@ -126,7 +126,7 @@ export default function BrightnessTimelineScreen() {
               </View>
               {timeline.stars.map((star) => (
                 <View key={star.starId} style={styles.gridRow}>
-                  <Text variant="caption" color="textMuted" style={styles.rowLabel} numberOfLines={1}>
+                  <Text variant="caption" color="textMuted" style={styles.rowLabel} numberOfLines={2}>
                     {starName(star.starId, locale)}
                   </Text>
                   {star.levels.map((level, i) => (
@@ -202,16 +202,23 @@ export default function BrightnessTimelineScreen() {
   );
 }
 
+// One width for the label column and for the axis inset under it (R2B-05).
+// Labels wrap to two lines instead of clipping: the 2026-10-05 web measure
+// clipped 3 labels in pt, 2 in es, 1 in id and 2 in en (e.g. "Dos 30 em
+// diante", "Thirties and after").
+const ROW_LABEL_WIDTH = 92;
+const GRID_GAP = 3;
+
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl },
   cardPad: { padding: spacing.md, gap: spacing.sm },
-  gridRow: { flexDirection: "row", alignItems: "center", gap: 3, marginBottom: 3 },
-  rowLabel: { width: 92 },
+  gridRow: { flexDirection: "row", alignItems: "center", gap: GRID_GAP, marginBottom: GRID_GAP },
+  rowLabel: { width: ROW_LABEL_WIDTH },
   cell: { flex: 1, height: 18, borderRadius: m3.shape.none },
   cellPolaris: { height: 22, borderRadius: m3.shape.none },
   cellEmpty: { borderWidth: 1, borderColor: withAlpha(deepSpace.accentDim, 0.18), backgroundColor: "transparent" },
-  axisRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4, paddingLeft: 74 + 3 },
+  axisRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4, paddingLeft: ROW_LABEL_WIDTH + GRID_GAP },
   honestyLine: { marginBottom: 4 },
   honestyCaption: { marginTop: 4 },
 });

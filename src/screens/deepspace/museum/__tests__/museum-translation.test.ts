@@ -149,6 +149,27 @@ describe("번역 층이 캐논과 짝이 맞는다", () => {
     expect(resolveMuseumRefKindLabel("paper", "논문", "ko")).toBe("논문");
     // 모르는 종류는 한국어 라벨로 떨어진다 - 빈 문자열이 아니다.
     expect(resolveMuseumRefKindLabel("unknown", "기타", "en")).toBe("기타");
+    // R2B-04: 사건 본문과 같은 규칙이다 - 한국어 로케일만 캐논을 읽는다.
+    for (const locale of ["es", "pt", "id"]) {
+      expect(resolveMuseumRefKindLabel("paper", "논문", locale)).toBe("Paper");
+    }
+  });
+
+  test("es · pt · id 에서 사건과 상세가 영어 번역으로 풀린다 (R2B-04)", () => {
+    const event = MUSEUM[0];
+    for (const locale of ["es", "pt", "id"]) {
+      const resolved = resolveMuseumEvent(event, locale);
+      expect(resolved).not.toBe(event);
+      expect(resolved.title).toBe(resolveMuseumEvent(event, "en").title);
+      expect(hasMuseumTranslation(event.id, locale)).toBe(true);
+    }
+  });
+
+  test("lane 범례와 상세 배지도 같은 술어를 쓴다", () => {
+    // 범례가 en 이고 카드 lane 라벨이 ko 이던 엇갈림(R2B-04 검증)이 다시 생기지 않게.
+    expect(SOURCE).toContain("{readsMuseumCanon(locale) ? lane.label : lane.en}");
+    expect(SOURCE).not.toMatch(/locale(\.toLowerCase\(\))?\.startsWith\(/);
+    expect(SOURCE).toMatch(/selectedLanguage === "ko"\s*\?\s*MZ_LANES\[selected\.lane\]\.label\s*:\s*MZ_LANES\[selected\.lane\]\.en/);
   });
 });
 

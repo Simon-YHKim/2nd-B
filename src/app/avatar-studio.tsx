@@ -6,6 +6,7 @@ import { PlainText as Text } from "@/components/ui/PlainText";
 import { Image } from "expo-image";
 import { Redirect, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 
 import { AvatarPreview } from "@/components/avatar/AvatarPreview";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -172,7 +173,7 @@ export default function AvatarStudioScreen() {
     () => choicesFor(activeCategory, activeColorField, spec.species),
     [activeCategory, activeColorField, spec.species],
   );
-  const koreanNames = i18n.resolvedLanguage?.startsWith("ko") || i18n.language.startsWith("ko");
+  const koreanNames = renderedUiLanguage(i18n) === "ko";
 
   const patch = useCallback((change: Partial<AvatarSpec>) => {
     if (!readyForUser || saving) return;
