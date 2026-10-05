@@ -51,24 +51,26 @@ const flush = async () => {
   for (let i = 0; i < 30; i += 1) await Promise.resolve();
 };
 
-function hookHarness() {
+type ReactHooks = { useState: typeof useState; useEffect: typeof useEffect };
+
+// `gate` and `hooks` default to this module instance; another tab is a
+// separate instance (jest.isolateModules) with its own mocked React hooks.
+function hookHarness(gate = useCoachmarksGate, hooks: ReactHooks = { useState, useEffect }) {
   let state: { ownerId: string; due: boolean | null } | null = null;
   let effect: (() => void | (() => void)) | null = null;
   let cleanup: (() => void) | undefined;
-  (useState as jest.Mock).mockImplementation(() => [state, (next: typeof state) => { state = next; }]);
-  (useEffect as jest.Mock).mockImplementation((next: typeof effect) => { effect = next; });
+  (hooks.useState as jest.Mock).mockImplementation(() => [state, (next: typeof state) => { state = next; }]);
+  (hooks.useEffect as jest.Mock).mockImplementation((next: typeof effect) => { effect = next; });
   return {
     render(ownerId: string | null, ready = true, retryTick = 0) {
       // This harness replaces React's hooks with deterministic test state.
-      // eslint-disable-next-line react-hooks/rules-of-hooks
-      const due = useCoachmarksGate(ownerId, ready, retryTick);
+      const due = gate(ownerId, ready, retryTick);
       cleanup?.();
       cleanup = effect?.() || undefined;
       return due;
     },
     due(ownerId: string | null, ready = true) {
-      // eslint-disable-next-line react-hooks/rules-of-hooks
-      return useCoachmarksGate(ownerId, ready);
+      return gate(ownerId, ready);
     },
     stop() { cleanup?.(); },
   };
@@ -424,19 +426,75 @@ describe("the deletion fence keeps purged guide flags purged", () => {
       await expect(purgeCoachmarksForDeletedAccount("owner-A")).resolves.toBe(true);
 
       // The other tab has its own module state, so its in-memory fence is empty.
-      let otherTab!: { markCoachmarksSeen: typeof markCoachmarksSeen; resetCoachmarks: typeof resetCoachmarks };
+      let otherTab!: {
+        markCoachmarksSeen: typeof markCoachmarksSeen;
+        resetCoachmarks: typeof resetCoachmarks;
+        useCoachmarksGate: typeof useCoachmarksGate;
+      };
+      let otherReact!: ReactHooks;
       jest.isolateModules(() => {
         otherTab = jest.requireActual("../coachmarks-gate");
+        otherReact = jest.requireMock("react");
       });
+      const queries = fakeClient(() => empty());
+      const other = hookHarness(otherTab.useCoachmarksGate, otherReact);
+      other.render("owner-A");
+      await flush();
+      expect(queries).toHaveLength(2);
       otherTab.markCoachmarksSeen("owner-A");
       otherTab.resetCoachmarks("owner-A");
       await flush();
       expect(store.has(COACHMARKS_SEEN_KEY("owner-A"))).toBe(false);
       expect(store.has(COACHMARKS_REPLAY_KEY("owner-A"))).toBe(false);
+
+      // Nor in that tab's memory (QA 261004 BL-02-RACE-R2): its guide stays
+      // closed, and a refocus reads storage and asks the server again instead
+      // of answering from a remembered "seen" of the deleted owner.
+      expect(other.due("owner-A")).toBe(false);
+      other.render("owner-A", true, 1);
+      await flush();
+      expect(queries).toHaveLength(4);
+      other.stop();
     } finally {
       Object.defineProperty(globalThis, "navigator", { value: nativeNavigator, configurable: true, writable: true });
       delete (globalThis as { localStorage?: unknown }).localStorage;
     }
+  });
+
+  // QA 261004 F2052-04: "다시 보기" can be this runtime's first write after
+  // another runtime put up the durable marker. The replay used to stay in
+  // memory (the gate kept answering true) and the fence then turned every
+  // skip and Android back into a no-op, so the guide could not be closed.
+  test("native: a replay another runtime's fence refuses is closed, not remembered, and the guide still closes", async () => {
+    const queries = fakeClient(() => empty());
+    let otherRuntime!: { installAccountLocalDeletionFence: typeof installAccountLocalDeletionFence };
+    jest.isolateModules(() => {
+      otherRuntime = jest.requireActual("../../account/local-deletion-fence");
+    });
+    await expect(otherRuntime.installAccountLocalDeletionFence("owner-A")).resolves.toBe(true);
+
+    const hook = hookHarness();
+    hook.render("owner-A");
+    await flush();
+    expect(hook.due("owner-A")).toBe(true);
+
+    resetCoachmarks("owner-A");
+    await flush();
+    expect(store.has(COACHMARKS_REPLAY_KEY("owner-A"))).toBe(false);
+    expect(hook.due("owner-A")).toBe(false);
+
+    // No replay in memory: a refocus reads storage and asks the server.
+    hook.render("owner-A", true, 1);
+    await flush();
+    expect(queries).toHaveLength(4);
+    expect(hook.due("owner-A")).toBe(true);
+
+    // Skip and Android back still close it, and store nothing.
+    markCoachmarksSeen("owner-A");
+    expect(hook.due("owner-A")).toBe(false);
+    await flush();
+    expect(store.has(COACHMARKS_SEEN_KEY("owner-A"))).toBe(false);
+    hook.stop();
   });
 
   test("a gate read that started before the purge does not settle on the removed flag", async () => {

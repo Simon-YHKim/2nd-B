@@ -56,17 +56,25 @@ function publishCoachmarksDue(ownerId: string, due: boolean): void {
  * guard the other owner-scoped stores use: a write queued before the fence
  * finishes before the purge reads the keys back, and a write after it (this
  * runtime, or another tab that reads the durable marker) is dropped, so a purge
- * that reported both keys empty stays empty. The fence's per-owner queue (or
- * Web Lock) also keeps the writes in order: a replay followed quickly by Save
- * must not finish its async setItem after Save's removeItem and resurrect the
- * replay on the next app launch. */
+ * that reported both keys empty stays empty. The in-memory flag is set inside
+ * the same allowed write, like the other stores' mirrors: a tab that only
+ * learns of the deletion from the durable marker never holds the deleted
+ * owner's flag in memory. A replay the fence refuses is closed again on
+ * screen. The fence's per-owner queue (or Web Lock) also keeps the writes in
+ * order: a replay followed quickly by Save must not finish its async setItem
+ * after Save's removeItem and resurrect the replay on the next app launch. */
 function persist(
   ownerId: string,
   operation: string,
+  flags: Flags,
   web: (storage: Storage) => void,
   native: (storage: AsyncStorageLike) => Promise<unknown>,
 ): void {
   const pending = runAccountLocalMutation(ownerId, async () => {
+    memoryFlags.set(ownerId, flags);
+    // Moves the owner's version again, so a gate read that started before
+    // this write cannot settle on the flags it replaces.
+    publishCoachmarksDue(ownerId, flags.replay);
     const local = ls();
     if (local) {
       web(local);
@@ -74,7 +82,11 @@ function persist(
     }
     const storage = nativeStorage();
     if (storage) await native(storage);
-  }).then(() => undefined, (error: unknown) => warn(operation, error));
+  }).then((result) => {
+    if (!result.executed && isAccountLocalDeletionFencedInMemory(ownerId)) {
+      publishCoachmarksDue(ownerId, false);
+    }
+  }, (error: unknown) => warn(operation, error));
   pendingWrites.set(ownerId, pending);
   void pending.then(() => {
     if (pendingWrites.get(ownerId) === pending) pendingWrites.delete(ownerId);
@@ -84,11 +96,14 @@ function persist(
 /** Completion and replay are deliberately owner-scoped. The old v1 key cannot
  * safely be assigned to an owner after an account switch, so it is not read. */
 export function markCoachmarksSeen(ownerId: string): void {
-  if (!ownerId || isAccountLocalDeletionFencedInMemory(ownerId)) return;
-  memoryFlags.set(ownerId, { seen: true, replay: false });
+  if (!ownerId) return;
+  // Closing the guide on screen stores nothing about the account, so it
+  // happens at once and also after the deletion fence is up: skip and Android
+  // back (HomeCoachmarks) must still close it.
   publishCoachmarksDue(ownerId, false);
+  if (isAccountLocalDeletionFencedInMemory(ownerId)) return;
   const at = new Date().toISOString();
-  persist(ownerId, "persist", (local) => {
+  persist(ownerId, "persist", { seen: true, replay: false }, (local) => {
     local.setItem(COACHMARKS_SEEN_KEY(ownerId), at);
     local.removeItem(COACHMARKS_REPLAY_KEY(ownerId));
   }, (storage) => Promise.all([
@@ -100,18 +115,22 @@ export function markCoachmarksSeen(ownerId: string): void {
 /** Replay is an explicit request, including when the owner already has data. */
 export function resetCoachmarks(ownerId: string): void {
   if (!ownerId || isAccountLocalDeletionFencedInMemory(ownerId)) return;
-  memoryFlags.set(ownerId, { seen: false, replay: true });
   publishCoachmarksDue(ownerId, true);
   const at = new Date().toISOString();
   persist(
     ownerId,
     "replay",
+    { seen: false, replay: true },
     (local) => local.setItem(COACHMARKS_REPLAY_KEY(ownerId), at),
     (storage) => storage.setItem(COACHMARKS_REPLAY_KEY(ownerId), at),
   );
 }
 
 async function readFlags(ownerId: string): Promise<Flags> {
+  // This runtime's own flag write sets the memory flag only once the deletion
+  // fence lets it run (see persist); wait for it instead of answering from the
+  // storage it is about to replace and asking the server for nothing.
+  await pendingWrites.get(ownerId);
   const memory = memoryFlags.get(ownerId);
   if (memory) return memory;
   const local = ls();
