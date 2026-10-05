@@ -717,7 +717,7 @@ function SecondBChatBody() {
       selectRev2Persona("secondb");
     }
   }, [progression.loading, effectiveTier, rev2Persona]);
-  // Divergent signature motion (DESIGN.md): a soft soulViolet2 pulse while a
+  // Divergent pulse: a soft soulViolet2 pulse while a
   // Divergent turn is in flight. Holds at rest otherwise; static under reduced
   // motion. (Replaces the old dreamPink "벨라 신호" now that Divergent is a mode.)
   const divergentPulse = useRef(new Animated.Value(0.6)).current;
