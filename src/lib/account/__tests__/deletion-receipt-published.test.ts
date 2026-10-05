@@ -78,6 +78,7 @@ function harness(
   const calls = {
     purge: 0, signOut: 0, dismissAll: 0, replace: [] as string[],
     notePending: [] as string[], clearPending: 0, order: [] as string[],
+    setParams: [] as Record<string, string>[],
   };
   const mounted = { current: true };
   const owner = { current: OWNER as string | null };
@@ -145,6 +146,7 @@ function harness(
     rootRouter: {
       dismissAll: () => { calls.dismissAll += 1; calls.order.push("dismissAll"); },
       replace: (to: string) => { calls.replace.push(to); calls.order.push("replace"); },
+      setParams: (params: Record<string, string>) => { calls.setParams.push(params); calls.order.push("setParams"); },
     },
     console: { warn: () => undefined },
   };
@@ -166,16 +168,19 @@ describe("삭제한 사람이 서버가 남긴 영수증으로 간다", () => {
     expect(calls.replace).toHaveLength(1);
     const target = routed(calls.replace[0]);
     expect(target.pathname).toBe("/account-deleted");
+    // 영수증 route 는 로그아웃 **전에** 연다(로그아웃 보류 중 루트 레이아웃이
+    // (auth) 밖 route 를 "/" 로 되돌리기 때문). 로그아웃 결과는 그 뒤에 알린다.
     expect(target.params).toEqual({
-      receiptId: RECEIPT_ID, localPurge: "complete", localSignOut: "complete", fromDeletion: true,
+      receiptId: RECEIPT_ID, localPurge: "complete", localSignOut: null, fromDeletion: true,
     });
+    expect(calls.setParams).toEqual([{ signout: "complete" }]);
     expect(calls.replace[0]).not.toContain(OWNER);
   });
 
-  test("로컬 정리 -> 로그아웃 -> 영수증 이동 순서로 한 번씩 돈다", async () => {
+  test("로컬 정리 -> 영수증 route 열기 -> 로그아웃 -> 결과 알림 순서로 한 번씩 돈다", async () => {
     const { run, calls } = harness();
     await run();
-    expect(calls.order).toEqual(["purge", "signOut", "dismissAll", "replace"]);
+    expect(calls.order).toEqual(["purge", "dismissAll", "replace", "signOut", "setParams"]);
   });
 
   test("로컬 정리 예외도 삭제·로그아웃·영수증 이동을 되돌리지 않는다", async () => {
@@ -186,10 +191,11 @@ describe("삭제한 사람이 서버가 남긴 영수증으로 간다", () => {
     expect(routed(calls.replace[0]).params.localPurge).toBe("retry-scheduled");
   });
 
-  test("로그아웃이 실패해도 영수증으로 가고, 그 사실을 함께 넘긴다", async () => {
+  test("로그아웃이 실패해도 영수증에 남고, 그 사실을 알린다", async () => {
     const { run, calls } = harness({ signOutFails: true });
     await run();
-    expect(routed(calls.replace[0]).params.localSignOut).toBe("unconfirmed");
+    expect(routed(calls.replace[0]).pathname).toBe("/account-deleted");
+    expect(calls.setParams).toEqual([{ signout: "unconfirmed" }]);
   });
 
   test("서버가 영수증을 못 남겼으면 번호 없이 간다 - 화면이 그 사실을 말한다", async () => {
@@ -208,12 +214,12 @@ describe("삭제한 사람이 서버가 남긴 영수증으로 간다", () => {
     expect(calls.replace).toEqual([]);
   });
 
-  test("A 삭제 뒤 B가 로그인했으면 B를 보존하고 A 영수증으로 이동하지 않는다", async () => {
+  test("로그아웃 중에 B가 로컬 인증을 가졌으면 B를 보존하고 A 영수증에서 내린다", async () => {
     const { run, calls, inFlight, state } = harness({ ownerChangedDuringFinalizer: true });
     await run();
     expect(calls.signOut).toBe(1);
-    expect(calls.dismissAll).toBe(0);
-    expect(calls.replace).toEqual([]);
+    expect(calls.replace.at(-1)).toBe("/");
+    expect(calls.setParams).toEqual([]);
     expect(inFlight.current).toBe(false);
     expect(state.deleting).toBe(false);
   });
@@ -221,10 +227,11 @@ describe("삭제한 사람이 서버가 남긴 영수증으로 간다", () => {
   test.each([
     ["게시된 B", { published: OTHER }],
     ["게시 전 보류 중인 B (DEL-N2-01)", { pending: OTHER }],
-  ])("끝에서 %s 가 보이면 A 영수증으로 이동하지 않는다", async (_label, owner) => {
+  ])("%s 가 이미 보이면 A 영수증 route 를 열지 않는다", async (_label, owner) => {
     const { run, calls } = harness(owner);
     await run();
     expect(calls.replace).toEqual([]);
+    expect(calls.dismissAll).toBe(0);
   });
 
   test("화면이 요청 중에 내려가도 정리·로그아웃·영수증 이동을 끝까지 한다 (/privacy 언마운트)", async () => {

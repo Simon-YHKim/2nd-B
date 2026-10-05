@@ -51,7 +51,12 @@ export function receiptScreenView(input: {
   lookup: ReceiptLookup | null;
 }): ReceiptScreenView {
   if (input.authLoading || input.transitionPending) return { kind: "waiting" };
-  if (input.userId !== null) return { kind: "signed-in" };
+  if (input.userId !== null) {
+    // The deletion flow opens this route BEFORE it signs the deleted account
+    // out (deletion-completion.ts), so a fresh deletion waits for that sign-out
+    // instead of telling the person who just deleted to sign out first.
+    return input.params.fromDeletion ? { kind: "waiting" } : { kind: "signed-in" };
+  }
   const { params } = input;
   if (params.receiptId === null) {
     if (!params.fromDeletion) return { kind: "lookup" };

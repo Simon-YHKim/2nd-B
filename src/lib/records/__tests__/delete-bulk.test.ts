@@ -678,14 +678,18 @@ describe("account deletion UI routing", () => {
     // 2026-10-05 (Q-261004-42 = A): a confirmed erasure no longer lands on
     // /sign-in with an in-memory notice. It opens the receipt route that reads
     // the server's record by number, even when local sign-out was unconfirmed.
+    // finishAccountDeletion opens the receipt route itself and reports the
+    // sign-out outcome to it; an unconfirmed sign-out is only logged here.
     const terminalCall = deepSpace.indexOf("await requestAccountDeletion(authExpectation)");
     const finish = deepSpace.indexOf("await finishAccountDeletion({", terminalCall);
+    const openReceipt = deepSpace.indexOf("openReceipt: (href) => {", finish);
+    const reportSignOut = deepSpace.indexOf("reportSignOut: (signout) => rootRouter.setParams({ signout })", finish);
     const localSignOutWarning = deepSpace.indexOf("local sign-out after deletion failed", finish);
-    const redirect = deepSpace.indexOf("rootRouter.replace(finished.href)", localSignOutWarning);
     expect(terminalCall).toBeGreaterThan(-1);
     expect(finish).toBeGreaterThan(terminalCall);
-    expect(localSignOutWarning).toBeGreaterThan(finish);
-    expect(redirect).toBeGreaterThan(localSignOutWarning);
+    expect(openReceipt).toBeGreaterThan(finish);
+    expect(reportSignOut).toBeGreaterThan(finish);
+    expect(localSignOutWarning).toBeGreaterThan(reportSignOut);
     expect(deepSpace).not.toContain('router.replace("/sign-in")');
   });
 

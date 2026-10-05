@@ -16,8 +16,9 @@
 //   1. purge the deleted owner's local data. purgeDeletedAccountLocalData
 //      installs the irreversible terminal fence first - now only AFTER the
 //      server confirmed, never before the request (deletion-pending.ts says why);
-//   2. sign out exactly that owner's session (signOutExpected refuses any other);
-//   3. decide whether to open the receipt route.
+//   2. open the receipt route, unless another account is already visible;
+//   3. sign out exactly that owner's session (signOutExpected refuses any other)
+//      and leave the receipt route if another account took over meanwhile.
 //
 // None of it depends on the privacy screen staying mounted: a screen that
 // unmounts mid-way no longer drops the sign-out or the receipt.
@@ -45,7 +46,7 @@ export type FinishAccountDeletionResult =
       localPurge: LocalPurgeOutcome;
       localSignOut: LocalSignOutOutcome;
     }
-  /** Another account owns (or is about to own) the app: do not show A's receipt. */
+  /** Another account owns (or is about to own) the app: A's receipt route is not (or no longer) open. */
   | { kind: "owner-changed"; localPurge: LocalPurgeOutcome };
 
 export interface FinishAccountDeletionDeps {
@@ -59,6 +60,12 @@ export interface FinishAccountDeletionDeps {
   /** Remember the server receipt so a later run can retry an unfinished purge. */
   notePending: (owner: string, receiptId: string) => Promise<boolean>;
   readOwner: () => AccountOwnerSnapshot;
+  /** Dismiss the owned stack and open the receipt route. */
+  openReceipt: (href: string) => void;
+  /** Tell the already-open receipt route how local sign-out ended. */
+  reportSignOut: (outcome: LocalSignOutOutcome) => void;
+  /** Leave A's receipt route for the app root (another account took over). */
+  leaveReceipt: () => void;
 }
 
 /** Bookkeeping must never hold up the result (gate DEL-BL-05). */
@@ -66,10 +73,31 @@ function detached(task: () => Promise<unknown>): void {
   void Promise.resolve().then(task).catch(() => undefined);
 }
 
+function otherOwnerVisible(owner: AccountOwnerSnapshot, deleted: string): boolean {
+  const otherPublished = owner.published !== null && owner.published !== deleted;
+  const otherPending = owner.pending !== undefined && owner.pending !== null && owner.pending !== deleted;
+  return otherPublished || otherPending;
+}
+
+function quietly(step: () => void): void {
+  try {
+    step();
+  } catch {
+    // Navigation is best-effort here; the server erasure is already final.
+  }
+}
+
 /**
- * Run the local half of a confirmed erasure and say where to go next.
+ * Run the local half of a confirmed erasure and say where it ended.
  * Never throws for a local failure: the server erasure is already final, so a
  * local problem is reported as data, never turned into a retryable failure.
+ *
+ * The receipt route opens BEFORE the sign-out, on purpose. A sign-out raises an
+ * owner-transition hold, and while it is held the root layout resets every
+ * route outside the (auth) group to "/", whose signed-out redirect then lands
+ * on /sign-in. Opening /account-deleted (an (auth) route) first means that
+ * reset never runs, and the route itself shows nothing until no account is
+ * signed in (deletion-receipt-view.ts).
  */
 export async function finishAccountDeletion(deps: FinishAccountDeletionDeps): Promise<FinishAccountDeletionResult> {
   let localPurge: LocalPurgeOutcome = "unconfirmed";
@@ -94,21 +122,30 @@ export async function finishAccountDeletion(deps: FinishAccountDeletionDeps): Pr
     if (noted) localPurge = "retry-scheduled";
   }
 
+  // Another account already visible: never open A's receipt. Still try to end
+  // A's own session; signOutExpected refuses any session that is not A's.
+  const opened = !otherOwnerVisible(deps.readOwner(), deps.owner);
+  const href = buildAccountDeletedHref({ receiptId: deps.receipt.receiptId, localPurge });
+  if (opened) quietly(() => deps.openReceipt(href));
+
   let localSignOut: LocalSignOutOutcome = "complete";
+  let ownerChanged = !opened;
   try {
     await deps.signOut();
   } catch (error) {
     // A's server deletion succeeded, but B now owns local auth. Keep B signed
-    // in and never route B to A's receipt.
-    if (deps.isOwnerChangedError(error)) return { kind: "owner-changed", localPurge };
-    localSignOut = "unconfirmed";
+    // in and never leave B on A's receipt.
+    if (deps.isOwnerChangedError(error)) ownerChanged = true;
+    else localSignOut = "unconfirmed";
+  }
+  if (!ownerChanged && otherOwnerVisible(deps.readOwner(), deps.owner)) ownerChanged = true;
+
+  if (ownerChanged) {
+    if (opened) quietly(() => deps.leaveReceipt());
+    return { kind: "owner-changed", localPurge };
   }
 
-  const owner = deps.readOwner();
-  const otherPublished = owner.published !== null && owner.published !== deps.owner;
-  const otherPending = owner.pending !== undefined && owner.pending !== null && owner.pending !== deps.owner;
-  if (otherPublished || otherPending) return { kind: "owner-changed", localPurge };
-
+  quietly(() => deps.reportSignOut(localSignOut));
   return {
     kind: "show-receipt",
     href: buildAccountDeletedHref({ receiptId: deps.receipt.receiptId, localPurge, localSignOut }),

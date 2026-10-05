@@ -219,13 +219,17 @@ describe("/account-deleted shows a receipt only while nobody is signed in", () =
   });
 
   test.each([
-    ["any signed-in account (B after a switch)", { userId: "22222222-2222-4222-8222-222222222222" }, "signed-in"],
-    ["the deleted account before its sign-out lands", { userId: "11111111-1111-4111-8111-111111111111" }, "signed-in"],
+    // The flow opens this route before its sign-out lands, so a fresh deletion
+    // waits; a number opened by hand while signed in says why nothing shows.
+    ["any signed-in account (B after a switch), fresh deletion", { userId: "22222222-2222-4222-8222-222222222222" }, "waiting"],
+    ["the deleted account before its sign-out lands", { userId: "11111111-1111-4111-8111-111111111111" }, "waiting"],
+    ["any signed-in account opening a number by hand", { userId: "22222222-2222-4222-8222-222222222222", params: byNumber }, "signed-in"],
     ["a held owner transition (DEL-N2-01)", { transitionPending: true }, "waiting"],
     ["auth still resolving", { authLoading: true }, "waiting"],
   ] as const)("%s never sees the receipt", (_label, overrides, kind) => {
     const view = receiptScreenView({ ...base, ...overrides });
     expect(view.kind).toBe(kind);
+    expect(view.kind).not.toBe("receipt");
   });
 
   test("a number opened later shows the server receipt without local claims", () => {

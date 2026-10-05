@@ -70,19 +70,26 @@ describe("account sign-out navigation dismissal", () => {
       resolve(ROOT, "src/screens/deepspace/DeepSpaceDesignScreens.tsx"),
       "utf8",
     ).replace(/\r\n/g, "\n");
+    // finishAccountDeletion opens the route through this callback BEFORE it
+    // signs A out (deletion-completion.ts says why), and takes it back down
+    // through leaveReceipt when another account took over.
     const finishAt = source.indexOf("await finishAccountDeletion({");
-    const ownerChanged = source.indexOf('if (finished.kind === "owner-changed") {', finishAt);
-    const dismissAt = source.indexOf("rootRouter.dismissAll();", finishAt);
-    const replaceAt = source.indexOf("rootRouter.replace(finished.href);", finishAt);
+    const openAt = source.indexOf("openReceipt: (href) => {", finishAt);
+    const dismissAt = source.indexOf("rootRouter.dismissAll();", openAt);
+    const replaceAt = source.indexOf("rootRouter.replace(href);", dismissAt);
+    const callEnd = source.indexOf("});", finishAt);
 
     expect(finishAt).toBeGreaterThan(-1);
+    expect(openAt).toBeGreaterThan(finishAt);
     expect(source.match(/rootRouter\.dismissAll\(\);/g)).toHaveLength(1);
-    expect(source.match(/rootRouter\.replace\(finished\.href\);/g)).toHaveLength(1);
-    // Another account owning the device returns before any navigation.
-    expect(ownerChanged).toBeGreaterThan(finishAt);
-    expect(source.slice(ownerChanged, dismissAt)).toContain("return;");
-    expect(dismissAt).toBeGreaterThan(ownerChanged);
+    expect(source.match(/rootRouter\.replace\(href\);/g)).toHaveLength(1);
     expect(source.slice(dismissAt, replaceAt)).toMatch(/^rootRouter\.dismissAll\(\);\n\s*$/);
+    expect(replaceAt).toBeLessThan(callEnd);
+    expect(source.slice(finishAt, callEnd)).toContain('leaveReceipt: () => rootRouter.replace("/")');
+    // Nothing navigates after the call returns: the owner-changed branch only
+    // lifts the screen's own fence.
+    const afterCall = source.slice(callEnd, source.indexOf("function requestDeleteAccountConfirm", callEnd));
+    expect(afterCall).not.toMatch(/router\.(replace|push|dismissAll)/);
   });
 
   test("complete-profile resets the root and nested auth stacks after every successful sign-out", () => {

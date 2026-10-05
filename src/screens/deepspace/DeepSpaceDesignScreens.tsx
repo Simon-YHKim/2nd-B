@@ -641,17 +641,13 @@ export function DeepSpacePrivacyDesignScreen() {
     //
     // Why the receipt is not handed over in memory any more (Simon decision
     // Q-261004-42 = A, 2026-10-05): the notice this flow used to publish for the
-    // sign-in screen needed owner/epoch fences that five review rounds could
-    // not close, and the last round showed A's receipt on B's sign-in screen
-    // during an account switch (PR #2054 gates DEL-N1-01 / DEL-N2-01). The
-    // server now records the receipt in the transaction that erases the
-    // profile row (0217), and /account-deleted reads it back by number, only
-    // while nobody is signed in. A request whose answer was lost is resolved
-    // the same way later (deletion-pending.ts), and the irreversible local
-    // fence is installed only after this point, never before the request -
-    // so a deletion that never reached the server leaves no fence behind
-    // (gates R3-05 / BL-07 / DEL-BL-02). The receipt route opens through the
-    // root router below, which works even after this screen has unmounted.
+    // sign-in screen showed A's receipt on B's sign-in screen during an account
+    // switch (PR #2054 gates DEL-N1-01 / DEL-N2-01). The server now records the
+    // receipt with the profile erasure (0217) and /account-deleted reads it back
+    // by number, only while nobody is signed in. The irreversible local fence
+    // is installed only after this point, never before the request, so a
+    // deletion that never reached the server leaves no fence behind (gates
+    // R3-05 / BL-07 / DEL-BL-02).
     allowDeletionNavigationRef.current = true;
     const finished = await finishAccountDeletion({
       owner: targetUserId,
@@ -662,9 +658,17 @@ export function DeepSpacePrivacyDesignScreen() {
       clearPending: clearPendingAccountDeletion,
       notePending: (owner, receiptId) => addPendingAccountDeletion(owner, receiptId),
       readOwner: () => ({ published: currentAccountOwner(), pending: currentPendingAccountOwner() }),
+      // The root router, not the phone-embedded one: it leaves the dashboard
+      // phone and still works after this screen unmounted.
+      openReceipt: (href) => {
+        rootRouter.dismissAll();
+        rootRouter.replace(href);
+      },
+      reportSignOut: (signout) => rootRouter.setParams({ signout }),
+      leaveReceipt: () => rootRouter.replace("/"),
     });
     if (finished.kind === "owner-changed") {
-      // B owns local auth now. Keep B and never route B to A's receipt.
+      // B owns local auth now. Keep B and never leave B on A's receipt.
       deleteInFlightRef.current = false;
       if (privacyMountedRef.current) setDeleting(false);
       return;
@@ -672,10 +676,6 @@ export function DeepSpacePrivacyDesignScreen() {
     if (finished.localSignOut === "unconfirmed" && typeof console !== "undefined") {
       console.warn("[privacy] local sign-out after deletion failed; phase=account-deletion");
     }
-    // The root router, not the phone-embedded one: this leaves the dashboard
-    // phone and still works after this screen unmounted.
-    rootRouter.dismissAll();
-    rootRouter.replace(finished.href);
   }
 
   function requestDeleteAccountConfirm() {
