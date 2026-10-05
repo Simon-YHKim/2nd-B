@@ -11,7 +11,7 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-10-01 01:07 ~ 2026-10-01 05:52 | [handoff/HANDOFF-2026-10.md](handoff/HANDOFF-2026-10.md) | 10 | 25KB |
+| 2026-10-01 01:07 ~ 2026-10-01 06:34 | [handoff/HANDOFF-2026-10.md](handoff/HANDOFF-2026-10.md) | 11 | 26KB |
 | 2026-09-28 01:2x ~ 2026-09-30 23:57 | [handoff/HANDOFF-2026-09-p4.md](handoff/HANDOFF-2026-09-p4.md) | 24 | 66KB |
 | 2026-09-25 ~ 2026-09-28 00:4x | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 37 | 86KB |
 | 2026-09-08 ~ 2026-09-21 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 16 | 94KB |
@@ -31,7 +31,24 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-06 01:35 / SSV PR-7a·7b 머지 · 운영 0210~0213 적용(01:25) 대조 일치 · 88일 반영 · 게이트 4회차 미실행 · worktree 대량 삭제 2차
+## Latest — 2026-10-06 03:20 / 효과음 3차: Stability 등록 · 후보 12개 · Simon 선택 6개 · PR #2086(초안, CI 초록) · 오프닝 배경음 샘플은 메모리 대기
+
+- **무엇을**: Simon "좀 느리더라도 지금 시도하는것은 무리일까? 그리고, 등록하는것은 /vibe-bot 스킬 활용해서 그록 봇 이용해서 진행하겠어."(10-06 00:1x). 이어서 "오프닝 배경음악? 소리 같은것도 넣을수 있을까? 또 다른곳에 소리를 챙길만한건 없어?" → "그럼 아까처럼 샘플 들려줘."
+- **Stability 등록**: Relay 과제 `vb-a4d6eca9` → `simon-go-attested-vb-a4d6eca9`(00:35), 등록 완료 · 결제 없음 · 키 없음. 결과에 화면 캡처가 없어 **환영 메일 도착(Simon 확인)이 #2086 머지 전 조건**이다.
+- **생성**: 설치 기본 medium 은 1회 작업 메모리 11.6GiB 라 00:39 첫 시도가 감시에 걸려 멈췄다 → 같은 저장소 · 리비전 · 라이선스의 **small-sfx** 로 12개(6자리 × 2, 소리당 6~11초). 미리듣기 https://claude.ai/artifact/QbFw8ELDRLuQBnS2Jg3Dco. Simon 선택(00:57) A · B · A · B · B · B = `l5-a` · `bright-b` · `save-a` · `reply-b` · `phone-b` · `welcome-b`. DECISIONS 8줄(00:35 · 00:54 · 00:57 ×6).
+- **PR #2086** (`claude/sfx-r3-261006`, 초안, verify 초록 `60f82c42`): 6곳 모두 연결. 화면은 `src/lib/audio/app-cue-gates.ts` 의 순수 관문을 거친다. 무음: 위기 판정 · 위기 응답(status ok + zone red) · 녹음 중(`isRecordingAudioMode`) · 하루 한도 · 오류 · 세컨비 자동 담기 · 이미 L5 인 별 재비준 · 대시보드로 가며 폰이 내려감 · 건너뛴 온보딩 · 로그인/가입 출구. 움직임 줄이기는 움직임에 붙은 소리(폰 · 밝아짐)만 끈다(🎯 01:12).
+  - 새 장치 ①: `src/lib/persona/star-last-seen.ts` — 홈이 마지막으로 본 밝기(기기 · 계정별, 계정 삭제 때 지움). **기록을 내리지 않는다**: `loadCoverage` 는 읽기 실패에도 0 을 돌려줘서 실패한 읽기가 전부 L1 로 보인다.
+  - 새 장치 ②: `GlobalCueHost`(루트) + `src/lib/audio/global-cues.ts` + `use-global-cue-host.ts`/`.web.ts` — 온보딩은 누르는 순간 `router.replace` 로 화면이 바뀌어 화면 안 소리가 잘린다.
+  - L5 소리는 비준 시트(네이티브 Modal)가 닫힌 뒤 400ms 에 낸다(안드로이드 Modal 의 blur 가 소리 관문을 닫을 수 있음 — **에뮬레이터 미확인**).
+  - 출처 `assets/audio/GENERATED-SOURCES.json` + `docs/ASSETS.md` 새 절('Powered by Stability AI' 보수적 표기). 변이 15건 전부 잡힘.
+- **머지 전 남은 것**: Simon 환영 메일 확인 · x86_64 에뮬레이터에서 소리 확인(특히 L5 · 온보딩 전환 중 환영음) · 초안 해제.
+- **오프닝 배경음 · 새 자리 8곳(Q-261006-07~15 예정)**: 준비만 했고 미생성. 오프닝은 10.1초 · 앱을 켤 때마다 · 3.1~8.5초가 무음. **승인 묶음(`hustlek-approved-261002`)에 넣지 말 것** — 해시 · 파일 수 · 생성기 출력 바이트 대조 검사 10여 개가 깨진다. 별도 재생기 · 1.5초 로딩 게이트 밖 · 폰 앱만. 후보 = 분위기음 2(small-sfx) + 음악 3(small-music, `sa3-sm-music/dit_fp32.tflite` sha256 `d388700a…` Hub LFS 일치 확인 후 받음). 생성은 **가용 9GB 이상에서만**(1회 −4.5~5GB; 8비트 `w8a32` 는 모델 로드에서 이미 −2.6GB 라 이득 작음). 01:40 부터 ComfyUI(`E:\AI\ComfyUI-Qwen21`, 이 세션 아님)가 13GB 를 잡았다가 02:51 에 4.2GB 로 줄었다.
+- **사고**: 00:58~01:03 바깥 프로세스가 `.worktrees` 대부분 · 로컬 브랜치 · 공용 `node_modules` 를 지웠다(2ndb-74 세션이 01:1x 재설치, 8081 복구). 이 세션 · 하위 에이전트의 셸 명령 98건에 삭제 0건. 브랜치까지 지워진 모양은 `orca worktree rm` 과 일치. 이 작업은 원본에서 복구해 원격에 체크포인트로 올렸다.
+- **이 세션 함정**: ① 함수 본문을 떼어 실행하는 하네스(`secondb-keep-failure-feedback` · `first-record-coach-save`)는 새 식별자를 바인딩해야 한다(안 하면 담기가 전부 false) ② 같은 컴포넌트를 `.tsx`/`.web.tsx` 둘로 두면 shadow-screens · routes-render 검사에 걸린다 → 훅으로 나눈다 ③ 초안 PR 이 CONFLICTING 이면 CI 가 아예 안 돈다(검사 0개) ④ main 이 `DeepSpaceDesignScreens.tsx` 를 움직이면 DPIA 줄 인용이 충돌한다 → main 의 DPIA 를 받고 인용을 내용 대조로 다시 옮긴다 ⑤ Python 으로 덧붙인 파일은 CRLF/LF 가 섞여 변이가 안 걸린다(검사 무효).
+- **앱/localhost**: 03:1x `app:parity` = 다름(코드 · 설정 같음, #2085 머지로 APK 빌드가 게이트에서 끊김) → `gh workflow run android-release.yml --ref main` 디스패치(런 37354310499, `172888cf`).
+- **다음 1개**: Simon 이 Stability 환영 메일을 확인하면 → 에뮬레이터 확인 → #2086 초안 해제 · 머지. 메모리 여유(가용 9GB)가 생기면 '소리 후보 2' 보고서(배경음 5 + 새 자리 8).
+
+## 2026-10-06 01:35 / SSV PR-7a·7b 머지 · 운영 0210~0213 적용(01:25) 대조 일치 · 88일 반영 · 게이트 4회차 미실행 · worktree 대량 삭제 2차
 
 - **DB3-01 = A**(Simon "권장 방법으로 진행" 10-05 19:4x): 보상 기록 정리 기준 89 → **88일**, 감시는 **90일**(방침 상한) 넘은 기록을 센다. 7a `7b0fd2dc` · `2da3f92b`, 7b `ccf60c2c`. 0212 · `db/erasure-registry.json` 사유 "88일(방침 최대 90일)". #2061 테스트 패치는 Hadrianus 가 19:46 머지(`5104a686`).
 - **백업 문구**: S5 끝(private `Simon-YHKim/2nd-B-backups` 첫 백업 10-05 16:34 · #2061 public 워크플로 삭제 · GO-B6 시크릿 삭제) → 런북 · 0211 주석 · 0211_down 이 private 저장소를 가리키게 `d23b2b97`. 일정(03:30 KST) · 보관(14일)은 같다.
@@ -524,14 +541,6 @@
 - **파일 범위 정정**: vc56은 TXT·MD 등 지원 텍스트만 추출한다. PDF·DOCX 본문은 읽지 않고 파일명·유형·크기 대체문을 클리퍼에 보낸다. 이전 보고서의 과도한 PDF 본문 설명을 [실측 보고](qa/play-data-safety-live-261001.html)에서 바로잡았다. vc56 EAS의 OpenAI backbone·장애 전환 없음과 OpenAI DPA/Play 서비스 제공자 예외는 파일·문서 ‘공유 아님’ 초안을 지지하지만, 계정 계약과 활성 버전 전체는 미검증이다.
 - **Play 출시 상태**: GUI에는 비공개 alpha vc56만 표시된다. 프로덕션 신청 형식 조건 3개는 완료됐지만 8/24 검토 결과 ‘추가 테스트 필요’가 남아 있고 Play ‘테스트 의견’ 화면은 비어 있다. 외부 채널 의견 유무는 알 수 없다. 새 프로덕션 신청·데이터 보안 최종 제출은 하지 않았다. 화면 증거는 Git 밖 `E:\2ndB\.git\app-parity\play-data-safety-live-261001`에 있다.
 - **다음**: 위치·진단·앱 상호작용의 vc56 SDK 전송 근거, 테스터 사용·의견과 반영한 개선 증거를 확정한다. Grok 후속은 보류한다.
-
----
-
-## 2026-10-01 06:34 / Play 데이터 보안 4항목 초안 정정과 CSV 재검증
-
-- **GUI 초안**: Play Console 원본 CSV 782행을 vc56 코드·현행 방침·Google Play 분류와 대조했다. 누락된 운동 정보·파일/문서 유형을 수집·선택·비임시·앱 기능으로 추가하고, 구매 내역을 필수→선택으로 바꾸고, 기기 ID 수집에 앱 기능 목적을 추가했다. 직전 세션의 기기 ID 필수 정정은 유지했다. 원본 대비 응답값 변경은 정확히 13셀이고, 현재 초안은 16개 유형이다. [실측 보고](qa/play-data-safety-live-261001.html).
-- **지속 확인**: CSV 가져오기·임시저장 뒤 재내보낸 파일과 페이지 새로고침 뒤 재내보낸 파일의 SHA-256이 일치한다(`A424DAC7059A1140FB1CCB5E26AE4FBBDD6827FBF46C7550276CB441EEAE87B0`). 마지막 5/5 저장·Play 검토 제출·공개는 실행하지 않았다. 원본·수정 CSV와 화면 증거는 Git 밖 `E:\2ndB\.git\app-parity\play-data-safety-live-261001`에 있다.
-- **남은 검증**: 위치·진단·앱 상호작용의 vc56 SDK/네트워크 근거와 파일/문서 AI 처리 경로의 Play 공유 예외를 확정해야 한다. Grok 후속은 보류하고, 원래 `TTL-Work_rev2`의 다른 세션 미커밋 변경은 건드리지 않는다.
 
 ---
 
