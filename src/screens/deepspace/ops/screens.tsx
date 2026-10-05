@@ -96,6 +96,7 @@ import {
   DELETE_ARM_MS,
   mealClearArmKey,
   mealSaveAction,
+  mealWriteLock,
   MILESTONE_NEXT,
   milestoneChip,
   runExclusive,
@@ -104,7 +105,6 @@ import {
   tapDelete,
   type BookSearchView,
   type MilestoneChipKey,
-  type WriteLock,
 } from "./tool-logic";
 
 // ── 이 화면들의 바탕 (PIXEL-CLAY 절대 규칙 4) ────────────────────────
@@ -1374,10 +1374,13 @@ export function MealsScreen() {
   // belong to the opening they started in, never to a later one.
   const [pending, setPending] = useState<{ session: number; date: string; slot: MealSlot; day: string; current: string | null } | null>(null);
   const sheetSeq = useRef(0);
-  // One meal write at a time (gate BL-03): save and clear share this lock, so a clear can
-  // no longer race an earlier save whose UPSERT lands after the DELETE.
-  const mealLock = useRef<WriteLock>({ held: false });
-  const [mealWriting, setMealWriting] = useState(false);
+  // One meal write per cell at a time (gate BL-03): save and clear take the cell's lock
+  // (mealWriteLock), so a clear can no longer race an earlier save whose UPSERT lands after
+  // the DELETE. The lock lives outside this component (gate r3), so the route and the
+  // phone hub, or this screen remounted mid-write, share it. `mealWrites` counts this
+  // screen's own writes in flight; while any runs, the sheet takes no input (gate BL-07).
+  const [mealWrites, setMealWrites] = useState(0);
+  const mealWriting = mealWrites > 0;
   const [draft, setDraft] = useState("");
   const [lookup, setLookup] = useState<FoodLookup>({ kind: "idle" });
 
@@ -1428,17 +1431,18 @@ export function MealsScreen() {
     }
   };
 
-  // Save and clear both go through here (gate BL-03): one write at a time under mealLock,
-  // and the buttons are off while it runs. A write asked for meanwhile is refused, not
-  // raced. When it settles, only the sheet it started from closes.
+  // Save and clear both go through here (gate BL-03): one write per cell at a time under
+  // the cell's shared lock, and the sheet is off while it runs. A write asked for meanwhile
+  // is refused, not raced. When it settles, only the sheet it started from closes.
   const writeMeal = async (sheet: NonNullable<typeof pending>, write: () => Promise<unknown>) => {
-    const outcome = await runExclusive(mealLock.current, async () => {
-      setMealWriting(true);
+    if (!userId) return;
+    const outcome = await runExclusive(mealWriteLock(userId, sheet.date, sheet.slot), async () => {
+      setMealWrites((n) => n + 1);
       setSaveErr(false);
       try {
         await write();
       } finally {
-        setMealWriting(false);
+        setMealWrites((n) => n - 1);
       }
     });
     if (outcome === "busy") return;
@@ -1541,10 +1545,15 @@ export function MealsScreen() {
               {t("toolScreens.meals.sheetSubtitle", { day: pending.day, date: pending.date, slot: c[pending.slot] })}
             </Text>
           ) : null}
+          {/* Gate BL-07: while a meal write runs, the input, the idea chips and the keyboard's
+              done take nothing. A second draft typed then used to be refused as busy, and the
+              first write's completion closed the sheet over it, so it was lost unsaved. */}
           <View style={styles.searchRow}>
             <TextInput
               value={draft}
+              editable={!mealWriting}
               onChangeText={(v) => {
+                if (mealWriting) return;
                 setDraft(v);
                 if (lookup.kind !== "idle") setLookup({ kind: "idle" });
               }}
@@ -1552,8 +1561,11 @@ export function MealsScreen() {
               placeholderTextColor={deepSpace.textLo}
               style={styles.searchInput}
               returnKeyType="done"
-              onSubmitEditing={() => void saveCell()}
+              onSubmitEditing={() => {
+                if (!mealWriting) void saveCell();
+              }}
               accessibilityLabel={c.whatToEatNow}
+              accessibilityState={{ disabled: mealWriting }}
             />
             {ko && draft.trim().length > 0 ? (
               <Pressable accessibilityRole="button" onPress={() => void onLookUp()} disabled={lookup.kind === "busy"} hitSlop={6} style={styles.ideaChip}>
@@ -1564,7 +1576,17 @@ export function MealsScreen() {
           <Text variant="caption" style={styles.mealIdeasLabel}>{c.mealIdeas}</Text>
           <View style={styles.ideaChips}>
             {ideaChips.map((name) => (
-              <Pressable key={name} accessibilityRole="button" onPress={() => setDraft(name)} hitSlop={4} style={styles.ideaChip}>
+              <Pressable
+                key={name}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: mealWriting }}
+                disabled={mealWriting}
+                onPress={() => {
+                  if (!mealWriting) setDraft(name);
+                }}
+                hitSlop={4}
+                style={styles.ideaChip}
+              >
                 <Text variant="body" style={styles.ideaChipText}>{name}</Text>
               </Pressable>
             ))}

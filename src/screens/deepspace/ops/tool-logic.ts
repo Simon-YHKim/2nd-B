@@ -10,6 +10,7 @@
 //   mealSaveAction   R2C-07           an emptied meal cell is cleared, not kept
 //   mealClearArmKey  BL-02 (gate)     "clear this meal" takes two taps in one sheet opening
 //   runExclusive     BL-03 (gate)     one meal write at a time; a clear cannot race a save
+//   mealWriteLock    BL-03 (gate r3)  that lock is per cell and module-wide, not per screen
 //   sheetAfterWrite  BL-03 (gate)     a late write closes only the sheet it started from
 //   bookSearch*      R2C-02           a failed book search says so
 //   shelfView        R2C-08           finished books and every book being read are shown
@@ -145,6 +146,30 @@ export async function runExclusive(lock: WriteLock, write: () => Promise<unknown
   } finally {
     lock.held = false;
   }
+}
+
+/** Meal cell locks by `user|date|slot`. One small entry per cell written this session. */
+const MEAL_WRITE_LOCKS = new Map<string, WriteLock>();
+
+/**
+ * The write lock for one meal cell, shared by every MealsScreen in this JS runtime.
+ *
+ * BL-03 (gate r3): the lock used to be a useRef inside MealsScreen, so it covered one
+ * mounted screen only. The /meals route and the phone ops hub each mount their own
+ * MealsScreen, and a screen that unmounts mid-write and mounts again starts with a new
+ * ref: a clear from the second screen could still land before the first one's UPSERT
+ * and bring the cleared meal back. The lock now lives here, at module scope, keyed by
+ * user, date and slot. A write that outlives its screen still holds it, so any screen
+ * asking to write the same cell meanwhile is refused ("busy") until that write settles.
+ */
+export function mealWriteLock(userId: string, date: string, slot: string): WriteLock {
+  const key = `${userId}|${date}|${slot}`;
+  let lock = MEAL_WRITE_LOCKS.get(key);
+  if (lock === undefined) {
+    lock = { held: false };
+    MEAL_WRITE_LOCKS.set(key, lock);
+  }
+  return lock;
 }
 
 // --- book search --------------------------------------------------------------

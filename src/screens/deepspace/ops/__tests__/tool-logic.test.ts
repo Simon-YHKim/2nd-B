@@ -7,6 +7,7 @@ import {
   bookSearchSettled,
   mealClearArmKey,
   mealSaveAction,
+  mealWriteLock,
   MILESTONE_NEXT,
   milestoneChip,
   runExclusive,
@@ -151,6 +152,59 @@ describe("runExclusive (gate BL-03): a clear cannot race a save", () => {
     w.reject(new Error("400"));
     await expect(running).resolves.toBe("failed");
     expect(lock.held).toBe(false);
+  });
+});
+
+describe("mealWriteLock (gate BL-03 r3): the lock outlives the screen that took it", () => {
+  const deferred = () => {
+    let resolve!: () => void;
+    const promise = new Promise<void>((res) => {
+      resolve = res;
+    });
+    return { promise, resolve };
+  };
+  // Each screen looks the lock up for itself, the way MealsScreen does on every write.
+  // Distinct ids per test, because the locks are module-wide by design.
+  const screenWrite = (user: string, date: string, slot: string, write: () => Promise<unknown>) =>
+    runExclusive(mealWriteLock(user, date, slot), write);
+
+  test("a clear from a second screen is refused while the first screen's save is in flight", async () => {
+    const order: string[] = [];
+    const save = deferred();
+    // Screen A (say the /meals route) saves B over A ...
+    const saving = screenWrite("u-two-screens", "2026-10-12", "lunch", async () => {
+      order.push("upsert:start");
+      await save.promise;
+      order.push("upsert:end");
+    });
+    // ... and screen B (the phone hub, or A remounted) clears the same cell meanwhile.
+    const clearWrite = jest.fn(async () => {
+      order.push("delete");
+    });
+    await expect(screenWrite("u-two-screens", "2026-10-12", "lunch", clearWrite)).resolves.toBe("busy");
+    expect(clearWrite).not.toHaveBeenCalled();
+    save.resolve();
+    await expect(saving).resolves.toBe("done");
+    expect(order).toEqual(["upsert:start", "upsert:end"]);
+    // Once the save has landed, the clear goes through, after it.
+    await expect(screenWrite("u-two-screens", "2026-10-12", "lunch", clearWrite)).resolves.toBe("done");
+    expect(order).toEqual(["upsert:start", "upsert:end", "delete"]);
+  });
+
+  test("every lookup of one cell returns the same lock", () => {
+    expect(mealWriteLock("u-same", "2026-10-12", "dinner")).toBe(mealWriteLock("u-same", "2026-10-12", "dinner"));
+  });
+
+  test("another cell, day or user is not held up", async () => {
+    const save = deferred();
+    const saving = screenWrite("u-other", "2026-10-12", "breakfast", () => save.promise);
+    const other = jest.fn(async () => undefined);
+    await expect(screenWrite("u-other", "2026-10-12", "lunch", other)).resolves.toBe("done");
+    await expect(screenWrite("u-other", "2026-10-13", "breakfast", other)).resolves.toBe("done");
+    await expect(screenWrite("u-someone-else", "2026-10-12", "breakfast", other)).resolves.toBe("done");
+    expect(other).toHaveBeenCalledTimes(3);
+    save.resolve();
+    await expect(saving).resolves.toBe("done");
   });
 });
 

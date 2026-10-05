@@ -176,10 +176,34 @@ describe("gate BL-02 / BL-03: the meal sheet's clear and save", () => {
   });
 
   test("BL-03: save and clear write only through the shared lock", () => {
-    expect(meals).toContain("const outcome = await runExclusive(mealLock.current, async () => {");
+    // Re-aimed 2026-10-06 (gate r3): the lock is the cell's module-wide lock, not a ref
+    // owned by one mounted screen (the route and the phone hub each mount their own).
+    expect(meals).toContain("const outcome = await runExclusive(mealWriteLock(userId, sheet.date, sheet.slot), async () => {");
+    expect(meals).not.toMatch(/useRef<WriteLock>/);
+    expect(meals).not.toContain("mealLock");
     // The lock-holding writer is the only place a meal write is awaited.
     expect(meals.match(/await (setMeal|clearMeal)\(/g) ?? []).toEqual([]);
     expect(meals.match(/writeMeal\(sheet, /g)?.length).toBe(2);
+  });
+
+  test("BL-07: while a write runs, the sheet takes no new draft and no second submit", () => {
+    const input = meals.slice(meals.indexOf("<TextInput"), meals.indexOf("/>", meals.indexOf("<TextInput")));
+    expect(input.length).toBeGreaterThan(200);
+    expect(input).toContain("editable={!mealWriting}");
+    expect(input).toMatch(/onChangeText=\{\(v\) => \{\n\s*if \(mealWriting\) return;\n\s*setDraft\(v\);/);
+    expect(input).toMatch(/onSubmitEditing=\{\(\) => \{\n\s*if \(!mealWriting\) void saveCell\(\);/);
+    expect(input).not.toContain("onSubmitEditing={() => void saveCell()}");
+    const chipsAt = meals.indexOf("{ideaChips.map(");
+    const chips = meals.slice(chipsAt, meals.indexOf("</View>", chipsAt));
+    expect(chips.length).toBeGreaterThan(100);
+    expect(chips).toContain("disabled={mealWriting}");
+    expect(chips).toContain("if (!mealWriting) setDraft(name);");
+    // The busy state counts this screen's writes, so one settling cannot re-open the sheet
+    // while another is still in flight.
+    expect(meals).toContain("const mealWriting = mealWrites > 0;");
+    const writer = meals.slice(meals.indexOf("const writeMeal"), meals.indexOf("const saveCell"));
+    expect(writer).toContain("setMealWrites((n) => n + 1);");
+    expect(writer).toContain("setMealWrites((n) => n - 1);");
   });
 
   test("BL-03: both buttons are off while a write runs", () => {
