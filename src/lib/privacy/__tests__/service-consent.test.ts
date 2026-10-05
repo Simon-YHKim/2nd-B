@@ -11,8 +11,8 @@ import { loadServiceConsent, saveServiceConsent, matchesServiceConsentContract }
 
 const originalFetch = globalThis.fetch;
 const status = {
-  mode: "collect", contract_revision: "service-v2", consent_version: "2026-10-05",
-  policy_version: "2026-09-29", terms_version: "2026-10-05", state: "uncovered",
+  mode: "collect", contract_revision: "service-v4", consent_version: "2026-10-06",
+  policy_version: "2026-10-06", terms_version: "2026-10-05", state: "uncovered",
   change_token: "a".repeat(64), can_grant: true,
 };
 const acks = setAllRequiredAcks(emptyConsentSelections(), true);
@@ -31,7 +31,7 @@ test("loads authenticated v2 status without a caller-controlled subject in the b
   const result = await loadServiceConsent("owner-a");
   expect(result).toEqual({ ...status, ownerId: "owner-a", ownerEpoch: currentAccountEpoch() });
   expect(network).toHaveBeenCalledWith("https://fixture.invalid/functions/v1/service-consent", expect.objectContaining({
-    headers: expect.objectContaining({ Authorization: "Bearer fixture-a" }), body: JSON.stringify({ action: "status", contractRevision: "service-v2" }),
+    headers: expect.objectContaining({ Authorization: "Bearer fixture-a" }), body: JSON.stringify({ action: "status", contractRevision: "service-v4" }),
   }));
 });
 
@@ -41,7 +41,7 @@ test("grant carries five explicit acknowledgements and the displayed revision, w
   await expect(saveServiceConsent({ userId: "owner-a", status: before, action: "grant", selections: { ...acks, marketing: true }, locale: "ko" }))
     .resolves.toMatchObject({ state: "granted" });
   expect(JSON.parse(network.mock.calls[1][1].body)).toEqual({
-    action: "grant", contractRevision: "service-v2", expectedChangeToken: status.change_token, locale: "ko",
+    action: "grant", contractRevision: "service-v4", expectedChangeToken: status.change_token, locale: "ko",
     requiredAcks: { service: true, llmProcessing: true, overseasTransfer: true, sensitiveData: true, safetyNotice: true },
   });
 });

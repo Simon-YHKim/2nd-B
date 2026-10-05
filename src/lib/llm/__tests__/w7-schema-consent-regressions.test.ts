@@ -20,7 +20,7 @@ const CONSENT_CONTRACT_PATH = resolve(
 );
 const POLASCOPE_CONTRACT_PATH = resolve(
   ROOT,
-  "db/migration-drafts/UNNUMBERED_polascope_consent_20260928.sql",
+  "db/migration-drafts/UNNUMBERED_consent_email_v9_20261006.sql",
 );
 const CONSENT_WRITER_PATH = resolve(ROOT, "src/lib/supabase/consent.ts");
 
@@ -182,9 +182,9 @@ describe("W7 current consent and xAI activation contract", () => {
     expect(consentDraft).not.toMatch(/^\s*(?:BEGIN|COMMIT)\s*;/im);
   });
 
-  test("the server-owned email-v7 tuple matches the current client ledger constants", () => {
+  test("the server-owned email-v9 tuple matches the current client ledger constants", () => {
     const tuple = polascopeContract.match(
-      /\('email-v7'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*true\)/,
+      /\('email-v9'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*true\)/,
     );
     expect(tuple).not.toBeNull();
     expect(tuple?.slice(1)).toEqual([
@@ -196,6 +196,8 @@ describe("W7 current consent and xAI activation contract", () => {
     expect(consentContract).toContain("('email-v6'::text, '2026-09-07'::text, '2026-09-29'::text, '2026-08-16'::text, true)");
     expect(polascopeContract).toContain("('email-v5'::text, '2026-09-07'::text, '2026-09-28'::text, '2026-08-16'::text, true)");
     expect(polascopeContract).toContain("('email-v6'::text, '2026-09-07'::text, '2026-09-29'::text, '2026-08-16'::text, true)");
+    expect(polascopeContract).toContain("('email-v7'::text, '2026-10-05'::text, '2026-09-29'::text, '2026-10-05'::text, true)");
+    expect(polascopeContract).toContain("('email-v9'::text, '2026-10-06'::text, '2026-10-06'::text, '2026-10-05'::text, true)");
   });
 
   test("keeps xAI off by default before secrets, body parsing, or provider egress", () => {

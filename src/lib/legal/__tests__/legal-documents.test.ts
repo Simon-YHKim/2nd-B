@@ -182,11 +182,15 @@ describe("legal document snapshots", () => {
   test("2026-09-29 policy keeps the required notice and prior technical disclosures", () => {
     const md = readFileSync(resolve(ROOT, "docs/legal/privacy-policy.md"), "utf8");
     // The published policy remains v5 while the 10-05 notice and terms change.
-    expect(md).toContain("_시행일: 2026-09-29 · 최종 개정: 2026-09-29_");
-    expect(PRIVACY_DOC.body).toContain("시행일: 2026-09-29");
-    expect(PRIVACY_POLICY_VERSION).toBe("2026-09-29");
-    expect(CONSENT_VERSION).toBe("2026-10-05");
+    expect(md).toContain("_시행일: 2026-10-06 · 최종 개정: 2026-10-06_");
+    expect(PRIVACY_DOC.body).toContain("시행일: 2026-10-06");
+    expect(PRIVACY_POLICY_VERSION).toBe("2026-10-06");
+    expect(CONSENT_VERSION).toBe("2026-10-06");
     expect(TERMS_VERSION).toBe("2026-10-05");
+    expect(PRIVACY_DOC.body).toContain("AI 제공자는 자체 이용 정책에 따라 남용과 안전 위반을 막기 위해");
+    expect(PRIVACY_DOC.body).toContain("회사는 이 방침에 적은 경우 외에는 이용자의 개인정보를 제3자에게 제공하지 않습니다");
+    expect(PRIVACY_DOC.body).toContain("| 2026-10-06 | 제4조:");
+    expect(PRIVACY_DOC.body).not.toContain("사전 공지를 한 경우");
     // Anthropic is a configured-active AI processor (perPurpose seat map) and
     // must be disclosed in both section 4 and section 5, in both languages.
     expect(PRIVACY_DOC.body.match(/Anthropic PBC/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
