@@ -21,12 +21,12 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   AppState,
   BackHandler,
 } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { Image } from "expo-image";
 import {
   useAudioRecorder,
@@ -448,8 +448,8 @@ function CaptureLegacySession({
   const lifeAreaCopy = LIFE_AREA_INTENT_COPY[resolveLifeAreaLocale(i18n.resolvedLanguage ?? i18n.language)];
   const insets = useSafeAreaInsets();
   const kbHeight = useKeyboard();
-  const keyboardBehavior = Platform.OS === "ios" ? "padding" : undefined;
-  const keyboardVerticalOffset = Platform.OS === "ios" ? insets.top : 0;
+  // iOS keeps its old top offset; Android measures (src/lib/ui/keyboard.tsx).
+  const iosKeyboardVerticalOffset = insets.top;
   // KO eyebrows drop tracking to 0 (Hangul reads worse when tracked); EN keeps
   // the light caption tracking.
   const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.3 };
@@ -3259,9 +3259,8 @@ ${transcript}`;
 
   return (
     <PremiumAppShell bottomClearanceOwner={embeddedInDock ? "parent" : "shell"}>
-      <KeyboardAvoidingView
-        behavior={keyboardBehavior}
-        keyboardVerticalOffset={keyboardVerticalOffset}
+      <KeyboardAvoidingArea
+        iosKeyboardVerticalOffset={iosKeyboardVerticalOffset}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -4269,8 +4268,9 @@ ${transcript}`;
             </Pressable>
           ) : null}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
       {/* The new shard's cue appears briefly (companion pack §3) */}
+
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.captureFlash} />
       ) : null}

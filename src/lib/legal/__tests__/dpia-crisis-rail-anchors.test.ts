@@ -140,8 +140,8 @@ const ANCHORS: Anchor[] = [
     why: "Sentry 가 **일부러** 닫혀 있다는 주장의 근거. 문서가 '설정됐으나 안 쓴다'가 아니라 '울타리가 있고 조건이 적혀 있다'고 말하려면 그 울타리를 지키는 검사가 실재해야 한다." },
   { cite: `${AC}:154`, symbol: "MINOR_AGE_CEILING",
     why: "미성년 여부가 실제로 정해지는 비교. 이 문서 전체가 이 한 줄 위에 서 있다." },
-  { cite: `${AD}:60`, symbol: "input.isMinor !== false",
-    why: "미성년에게 광고가 안 나간다는 주장의 fail-closed 지점 - null 도 막는다는 것이 주장의 내용이다." },
+  { cite: `${AD}:79`, symbol: "input.isMinor !== false",
+    why: "미성년에게 광고가 안 나간다는 주장의 fail-closed 지점 - null 도 막는다는 것이 주장의 내용이다. 2026-10-05 웹 배너 갈래(canShowAds)가 접혀 남은 하나인 보상형(canShowRewardedAds)의 줄로 옮겼다(Q-261004-16)." },
   { cite: `${AD}:11-13`, symbol: "NEVER see ads", evidence: "comment",
     why: "그 규칙을 코드가 스스로 적어 둔 자리 - 주장 자체가 '코드가 이렇게 적어 두었다'라서 주석이 근거다." },
   { cite: `${CV}:345`, symbol: "SYSTEM_PROMPT_HEADER",
@@ -177,6 +177,31 @@ const ANCHORS: Anchor[] = [
     why: "의인화 가드가 **바로 그 키를 이름으로 지켜본다**는 근거. 문서는 '유일한 가드는 어휘 렉시콘'이라고 적어 이 게이트를 부정하고 있었다 - 회차 50 의 부류(있는 통제를 없다고 적기). ⚠ 2026-10-05: 심볼이 personas.secondb.greeting 이었는데 옛 캐릭터 명부가 로케일에서 나가며(Q-261004-14 A) 그 키가 감시 목록에서 빠졌다. 감시 목록 첫 키로 옮겼다." },
   { cite: "src/lib/persona/center.ts:92", symbol: "우리가 자주 머문",
     why: "1인칭 복수 화법 주장의 **실제 문자열**. 문서는 그것을 서술하는 주석(:4, :23)을 인용하고 있었다 - 주장은 참인데 근거가 '코드가 그렇다고 적어 둔 말'이었다." },
+  // ── 5A-R4 마스코트 존재감 (2026-10-05, Simon 결정 Q-261004-13 A) ──────────────
+  //
+  // 문서는 '홈 마스코트가 쉬면 졸고 상호작용하면 깬다' 를 fab-state.ts 로 인용하고
+  // 있었다. 그 모듈의 유일한 소비자는 롤백 레버와 함께 빌드 밖으로 나간 옛 홈이었고,
+  // 배송 홈에서는 세컨비 머리가 같은 동작을 다른 규칙으로 한다. 주장은 그대로 두고
+  // 인용만 옮겼다. ⚠ 앞선 한 회차는 "배송 홈에 졸기가 없다" 고 판정했다 - fab-state 의
+  // 소비자만 세고 같은 동작의 다른 구현을 찾지 않은 결과다. 인용이 은퇴한 파일을
+  // 가리킬 때 물을 것은 "그 파일이 살아 있나" 가 아니라 "그 주장이 지금 어디서 참인가" 다.
+  //
+  // ⚠ 같은 날 게이트 둘(LC-01 · F2051-01)이 "주장은 그대로" 가 틀렸다고 잡았다. '졸기' 는
+  // 참이지만 '상호작용하면 깬다' 는 배송 코드보다 넓었다 - 유휴 표정을 지우는 것은 앱 전역
+  // 반응·홀드 이벤트뿐이고 홈 머리 누르기는 대사만 넘긴다. 감속 동작을 켜면 졸기 자체가
+  // 없다. 이것이 Q-13 의 뒤집는 조건이라 문장을 좁히고 [RE-READ 2026-10-05] 로 남겼다.
+  // 이번 회차의 실수는 앞 회차의 거울상이다: 그쪽은 다른 구현을 안 찾았고, 이쪽은 구현을
+  // 찾은 뒤 **그 구현이 주장의 입력(홈 상호작용)에 연결돼 있는지**를 안 봤다.
+  { cite: "src/lib/companion/faces.ts:213,219-223", symbol: "quietMs >= SLEEPY_AFTER_MS",
+    why: "'조는' 동작의 실제 술어. 90초 넘게 조용하면 유휴 굴림이 sleepy 표정을 낸다. 어긋나면 읽는 사람이 다른 표정 규칙을 보고 졸기가 없다고 판단한다." },
+  { cite: "src/components/deepspace/SecondbHead.tsx:224-228", symbol: "setIdleExpr(null)",
+    why: "유휴 표정을 지우는 첫째 길. 앱 전역 반응 이벤트(저장·삭제 등)가 오면 떠 있는 유휴 표정을 바로 지우고 조용함 타이머를 다시 잰다. 홈 머리 누르기는 이 이벤트를 보내지 않는다(아래 '홈 머리 누르기' 검사)." },
+  { cite: "src/components/deepspace/SecondbHead.tsx:235-239", symbol: "if (expr) setIdleExpr(null)",
+    why: "유휴 표정을 지우는 둘째 길 - AI 응답 대기 홀드. 문서가 '반응 또는 홀드 이벤트' 라고 둘을 함께 적으므로 홀드 쪽도 실제 줄이 있어야 한다." },
+  { cite: "src/components/deepspace/SecondbHead.tsx:251-255", symbol: "if (reduce)",
+    why: "감속 동작을 켜면 유휴 층 전체가 꺼진다는 근거. 이 줄이 없으면 '졸기' 가 모든 사용자에게 온다고 읽힌다." },
+  { cite: "src/components/deepspace/SecondbHead.tsx:262-266", symbol: "pickIdleAction(Math.random, quietMs)",
+    why: "배송되는 머리가 그 술어를 실제로 부르는 자리. faces.ts 만 인용하면 '규칙은 있는데 아무도 안 부른다' 와 구분되지 않는다 - fab-state 가 정확히 그 상태로 인용되고 있었다." },
   { cite: "db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:87", symbol: "'external_analytics', false",
     why: "미성년에게 외부 분석이 서버에서 잠긴다는 주장의 실제 줄. ⚠ 문서가 `:88` 을 인용했는데 그 줄은 `'llm_training', false` 다 - **클라이언트 키 집합에서 가지쳐진 키**(회차 57·58)를 두 다른 설정의 근거로 가리키고 있었다." },
   { cite: "db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:86", symbol: "'recommendations', false",
@@ -430,6 +455,29 @@ test("문서가 이름 부르는 개인정보 설정이 실제로 설정이다",
   // 그리고 잘린 셋이 정말 키 집합 밖인지도 확인한다 - 되살아나면 위 규칙이
   // 거꾸로 거짓양성이 된다.
   expect(PRUNED.filter(k => keys.includes(k))).toEqual([]);
+});
+
+test("홈 머리 누르기는 유휴 표정을 지우는 이벤트를 보내지 않는다 (5A-R4 정정의 근거)", () => {
+  // 문서 5A-R4 는 2026-10-05 에 '상호작용하면 깬다' 를 좁히며 "홈에서 머리를 누르면
+  // 대사만 넘어가고 반응·홀드 이벤트는 가지 않는다" 고 적었다. 없음을 담는 줄은 없으니
+  // 줄 번호 앵커로는 지킬 수 없다. 그래서 파일 단위로 본다: 누르기가 실행되는 두 파일이
+  // 표정 버스의 발행 함수를 **코드로** 부르지 않는다. 누가 홈 누르기에 깨우기를 붙이면
+  // 여기서 빨개지고, 그때는 문서 문장을 다시 넓혀야 한다.
+  //
+  // 시야(넓혀 말하지 않는다): 머리의 onPress 가 사는 홈 파일과 reveal 이 사는 대사
+  // 타자기 파일뿐이다. 코치 단계의 onCoachHeadPress 는 DeepSpaceShell 이 넘기는
+  // `/capture` 이동이고, 그 화면에서 저장하면 반응이 간다 - 그건 문서가 말하는 '저장' 이다.
+  const HOME = "src/components/deep-space/ConstellationHome.tsx";
+  const PRESS_PATH = [HOME, "src/components/deep-space/JrpgDialogueBox.tsx"];
+  const WAKE = /\b(?:reactExpression|holdExpression)\s*\(/;
+  // 전제: 머리가 정말 이 파일에서 그 처리기로 눌린다. 아니면 아래 단언이 엉뚱한 파일에
+  // 대해 초록이다.
+  const home = codeWithoutComments(HOME);
+  expect(home).toMatch(/<SecondbHead\b/);
+  expect(home).toMatch(/onPress=\{advanceDialogue\}/);
+  expect(PRESS_PATH.filter(rel => WAKE.test(codeWithoutComments(rel)))).toEqual([]);
+  // 양성 대조: 같은 패턴이 실제 발행처에서는 잡힌다 - 정규식이 아무것도 못 보는 상태를 막는다.
+  expect(codeWithoutComments("src/app/secondb.tsx")).toMatch(WAKE);
 });
 
 describe("검사기 자신의 대조군", () => {

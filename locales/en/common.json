@@ -1,8 +1,4 @@
 {
-  "ads": {
-    "label": "Sponsored",
-    "removeUpsell": "Prefer no ads? Subscriptions remove them."
-  },
   "app": {
     "name": "PolaScope",
     "tagline": "A second brain built from what you write and save.",
@@ -37,12 +33,6 @@
   },
   "states": {
     "loading": "Loading…"
-  },
-  "progression": {
-    "maxLevelTrailing": "{{xp}} XP · max level",
-    "nextLevelTrailing": "{{xp}} XP to next level",
-    "progressLabel": "Level {{level}}, XP progress {{pct}}%",
-    "maxLevelHint": "Already at the max level."
   },
   "journal": {
     "privacyFootnote": "Your entries stay encrypted and never train any model.",

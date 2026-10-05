@@ -19,9 +19,9 @@ import {
   type StyleProp,
   type TextStyle,
   type ViewStyle,
-  KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
@@ -643,7 +643,7 @@ export default function Settings() {
 
   return (
     <SettingsChrome>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingArea style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={[styles.scroll, styles.pixelScroll]}
           keyboardShouldPersistTaps="handled"
@@ -1135,7 +1135,7 @@ export default function Settings() {
           {buildInfoLine()}
         </Text>
       </ScrollView>
-</KeyboardAvoidingView>
+</KeyboardAvoidingArea>
       {toast ? (
         <View style={styles.toastWrap} pointerEvents="none">
           <PremiumToast message={toast.message} tone={toast.tone} />

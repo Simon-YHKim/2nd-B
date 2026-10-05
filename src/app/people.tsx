@@ -6,13 +6,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BackHandler,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -573,10 +573,7 @@ function PeopleMapBody({ userId }: { userId: string }) {
       title={t("deepspace:people.title")}
       onBack={handleBack}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.fill}
-      >
+      <KeyboardAvoidingArea style={styles.fill}>
         <ScrollView
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
@@ -647,7 +644,7 @@ function PeopleMapBody({ userId }: { userId: string }) {
             </PixelSurface>
           ) : null}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
     </DeepSpaceScreen>
   );
 }
