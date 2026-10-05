@@ -62,7 +62,7 @@ import { getSupabaseClient } from "./client";
 
 // 판본 상수 셋은 한 벌로 움직인다. 하나만 올리면 원장이 가리키는 판과 화면에
 // 뜨는 판이 어긋나고, 그 어긋남은 예외도 안 나고 검사도 안 걸리며 그냥 거짓 기록이
-// 된다. 아래 세 값과 현재 email-v6 서버 튜플, 그리고
+// 된다. 아래 세 값과 현재 email-v7 서버 튜플, 그리고
 // verified-email-consent-ledger.test.ts 의 FROZEN_SIGNUP_REVISION_TUPLES 가
 // 같은 문서 판을 가리켜야 한다. 0150의 email-v3는 과거 판으로 보존한다.
 //
@@ -83,12 +83,12 @@ import { getSupabaseClient } from "./client";
 //
 // ⚠ 이 값들을 올려도 **기존 계정에는 닿지 않는다.** 재동의 흐름은 별도 작업이고,
 // 알려진 공백이다: 기존 계정은 새 판을 다시 안내받지 않는다.
-export const CONSENT_VERSION = "2026-09-07" as const;
-// 2026-09-29 (policy v5, avatar setting): a NOTICE revision like v4. email-v6
-// maps this tuple for new signups; 0208 keeps email-v4 and email-v5 current
-// for LLM consent too, so existing consent stays valid and is never re-asked.
+// 2026-10-05: PolaScope appears in the required notice and terms. The privacy
+// policy remains the published 2026-09-29 v5. email-v7 maps this exact tuple;
+// historical receipts retain their own documents and no optional ad consent.
+export const CONSENT_VERSION = "2026-10-05" as const;
 export const PRIVACY_POLICY_VERSION = "2026-09-29" as const;
-export const TERMS_VERSION = "2026-08-16" as const;
+export const TERMS_VERSION = "2026-10-05" as const;
 
 export type ConsentAgeBand = "minor_self" | "adult";
 export type MinorTier = "adult" | "minor_self" | "minor_guardian";

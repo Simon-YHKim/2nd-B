@@ -8,7 +8,8 @@ import {
   readLlmProxyJsonObject, userIdFromJwt,
 } from '../_shared/llm-proxy-common.ts';
 
-const REVISION = 'service-v1';
+const CURRENT_REVISION = 'service-v2';
+const LEGACY_REVISION = 'service-v1';
 const ACK_KEYS = ['service','llmProcessing','overseasTransfer','sensitiveData','safetyNotice'];
 const STATUS_KEYS = ['contract_revision','consent_version','policy_version','terms_version','state','change_token','can_grant'];
 const TOKEN = /^[a-f0-9]{64}$/;
@@ -16,9 +17,9 @@ const LOCALES = new Set(['en','ko','es','pt','id']);
 function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
   return Object.keys(value).length === keys.length && keys.every((key) => Object.prototype.hasOwnProperty.call(value,key));
 }
-function validStatus(value: unknown, writing: boolean): value is Record<string, unknown> {
+function validStatus(value: unknown, writing: boolean, revision: string): value is Record<string, unknown> {
   if (!isLlmJsonObject(value) || !exactKeys(value,writing ? [...STATUS_KEYS,'created'] : STATUS_KEYS)) return false;
-  return value.contract_revision === REVISION &&
+  return value.contract_revision === revision &&
     ['consent_version','policy_version','terms_version'].every((key) => typeof value[key] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value[key])) &&
     ['uncovered','granted','revoked','blocked'].includes(value.state as string) &&
     typeof value.change_token === 'string' && TOKEN.test(value.change_token) &&
@@ -42,11 +43,18 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req,{error:'invalid_request'},error instanceof LlmBodyError && error.code === 'request_body_too_large' ? 413 : 400);
   }
   const writing = body.action === 'grant' || body.action === 'revoke';
+  // Old clients send only {action:'status'} and keep the reviewed v1 tuple.
+  // Current clients explicitly request v2. Both use the same owner-bound API.
+  const revision = body.contractRevision === CURRENT_REVISION ? CURRENT_REVISION : LEGACY_REVISION;
   const acks = body.requiredAcks;
   if (body.action === 'status') {
-    if (!exactKeys(body,['action'])) return jsonResponse(req,{error:'invalid_request'},400);
+    if (!(exactKeys(body,['action']) ||
+      (exactKeys(body,['action','contractRevision']) && body.contractRevision === CURRENT_REVISION))) {
+      return jsonResponse(req,{error:'invalid_request'},400);
+    }
   } else if (!writing || !exactKeys(body,['action','contractRevision','expectedChangeToken','requiredAcks','locale']) ||
-    body.contractRevision !== REVISION || typeof body.expectedChangeToken !== 'string' || !TOKEN.test(body.expectedChangeToken) ||
+    (body.contractRevision !== CURRENT_REVISION && body.contractRevision !== LEGACY_REVISION) ||
+    typeof body.expectedChangeToken !== 'string' || !TOKEN.test(body.expectedChangeToken) ||
     typeof body.locale !== 'string' || !LOCALES.has(body.locale) || !isLlmJsonObject(acks) ||
     (body.action === 'grant'
       ? !exactKeys(acks,ACK_KEYS) || ACK_KEYS.some((key) => acks[key] !== true)
@@ -63,10 +71,10 @@ Deno.serve(async (req: Request) => {
     // returns the committed state. No direct client table insert is accepted.
     const {data,error} = writing
       ? await admin.rpc('write_llm_service_consent',{
-        p_user_id:userId,p_contract_revision:REVISION,p_expected_change_token:body.expectedChangeToken,
+        p_user_id:userId,p_contract_revision:revision,p_expected_change_token:body.expectedChangeToken,
         p_action:body.action,p_required_acks:body.requiredAcks,p_locale:body.locale,
       })
-      : await admin.rpc('llm_service_consent_status',{p_user_id:userId});
+      : await admin.rpc(revision === CURRENT_REVISION ? 'llm_service_consent_status_v2' : 'llm_service_consent_status',{p_user_id:userId});
     if (error) {
       if (error.code === '40001' && error.message === 'llm_service_consent_changed') {
         return jsonResponse(req,{error:'service_consent_changed'},409);
@@ -78,7 +86,7 @@ Deno.serve(async (req: Request) => {
       if (error.code === '42501') return jsonResponse(req,{error:'service_consent_ineligible'},403);
       return jsonResponse(req,{error:'service_consent_unavailable'},503);
     }
-    if (!validStatus(data,writing)) return jsonResponse(req,{error:'service_consent_unavailable'},503);
+    if (!validStatus(data,writing,revision)) return jsonResponse(req,{error:'service_consent_unavailable'},503);
     return jsonResponse(req,{mode,...data});
   } catch {
     // Never expose database exceptions, tokens, request bodies or credentials.

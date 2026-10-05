@@ -8,7 +8,7 @@ import { resolve } from "node:path";
 import { PRIVACY_DOC, REFUND_DOC, TERMS_DOC, isDraft } from "../legal-documents";
 import { expectShape } from "@/lib/testing/expect-shape";
 import { PROFILE_DETAIL_KEYS, type ProfileDetailKey } from "@/lib/persona/profile-details";
-import { CONSENT_VERSION, PRIVACY_POLICY_VERSION } from "../../supabase/consent";
+import { CONSENT_VERSION, PRIVACY_POLICY_VERSION, TERMS_VERSION } from "../../supabase/consent";
 import {
   parseLegalMarkdown,
   splitLegalLanguageSections,
@@ -89,7 +89,7 @@ describe("legal document snapshots", () => {
   // document therefore must NOT claim a 30-day notice it did not give. Pinning
   // the ABSENCE is the point: a claim we cannot support is worse than none.
   test("the effective date is stated and no notice period is claimed", () => {
-    expect(REFUND_DOC.body).toContain("개정 시행일: 2026-08-11");
+    expect(REFUND_DOC.body).toContain("개정 시행일: 2026-10-05");
     expect(REFUND_DOC.body).not.toContain("30일 사전공지");
     expect(REFUND_DOC.body).not.toContain("2026-09-08");
   });
@@ -181,14 +181,12 @@ describe("legal document snapshots", () => {
 
   test("2026-09-29 policy keeps the required notice and prior technical disclosures", () => {
     const md = readFileSync(resolve(ROOT, "docs/legal/privacy-policy.md"), "utf8");
-    // md, app snapshot, and the consent writer all carry the same date.
+    // The published policy remains v5 while the 10-05 notice and terms change.
     expect(md).toContain("_시행일: 2026-09-29 · 최종 개정: 2026-09-29_");
     expect(PRIVACY_DOC.body).toContain("시행일: 2026-09-29");
     expect(PRIVACY_POLICY_VERSION).toBe("2026-09-29");
-    // #1589 revises the sign-up consent notice itself (ackOverseas and
-    // overseasTransfer.body), so the notice version moves with the policy:
-    // final tuple = consent 09-02 / policy 09-02 / terms 08-16.
-    expect(CONSENT_VERSION).toBe("2026-09-07");
+    expect(CONSENT_VERSION).toBe("2026-10-05");
+    expect(TERMS_VERSION).toBe("2026-10-05");
     // Anthropic is a configured-active AI processor (perPurpose seat map) and
     // must be disclosed in both section 4 and section 5, in both languages.
     expect(PRIVACY_DOC.body.match(/Anthropic PBC/g)?.length ?? 0).toBeGreaterThanOrEqual(4);

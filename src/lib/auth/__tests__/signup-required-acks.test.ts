@@ -287,11 +287,8 @@ describe("sign-up authority and preservation boundaries", () => {
     expect(sha256(read("src/screens/deepspace/dds-auth-screens.tsx"))).toBe(
       "23480d4049fd63907016ab6c8576cbb31f285f98e3f6b45a0a51bce6c6bd6803",
     );
-    // 2026-09-28: ConsentNotice gained the "PolaScope, formerly 2nd-Brain" note
-    // (common:app.renameNote) until the 2026-10-05 Terms amendment, which removes
-    // it again. Nothing else in the file changed.
     expect(sha256(read("src/components/consent/ConsentNotice.tsx"))).toBe(
-      "14d8274524ec20abc8b9ad4c664ed6681e8c40524d9571b5955df2d8d5dec5b3",
+      "60a019c22ceec84ad550f06568763225b82839bc0e743f382aabea233e4ae170",
     );
     expect(sha256(read("src/components/auth/BirthDateField.tsx"))).toBe(
       "7f995e7a8031b7761aa44fdc1dc373ff6397b4071d80df22a112534c29cc0848",

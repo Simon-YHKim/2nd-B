@@ -360,7 +360,8 @@ jobs:
             0200:rss_proxy_quota \
             0206:users_avatar_spec \
             0207:users_display_name_update \
-            0208:signup_consent_privacy_20260929; do
+            0208:signup_consent_privacy_20260929 \
+            0210:polascope_consent_20260928; do
             version="${mapping%%:*}"
             stem="${mapping#*:}"
             if ! cmp -s "db/migration-drafts/UNNUMBERED_${stem}.sql" "db/migrations/${version}_${stem}.sql"; then
@@ -399,6 +400,8 @@ jobs:
                OR (SELECT count(*) FROM public.erasure_registry
                    WHERE table_name = 'rss_proxy_quota_daily' AND class = 'retained') <> 1
                OR to_regprocedure('public.signup_consent_contract_status()') IS NULL
+               OR to_regprocedure('public.llm_service_consent_status_v2(uuid)') IS NULL
+               OR has_function_privilege('authenticated','public.llm_service_consent_status_v2(uuid)','EXECUTE')
                OR to_regprocedure('public.llm_service_consent_status(uuid)') IS NULL
                OR to_regprocedure('public.settle_reward_ssv_ticket_v2(text,text,text,integer,text)') IS NULL
                OR NOT EXISTS (SELECT 1 FROM information_schema.columns
@@ -2631,6 +2634,14 @@ jobs:
             END IF;
           END $$;
           SQL
+      # 0210: the 2026-10-05 PolaScope contract (email-v7 / service-v2) is now a
+      # numbered migration that the CLI replay above already applied once. Run
+      # its regression after all other numbered-migration regressions without
+      # replaying the draft, preserving v4/v5/v6 and service-v1.
+      - name: Exercise the numbered 2026-10-05 PolaScope consent contract
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/polascope_consent_20261005_regression.sql
       - name: Exercise inactive avatar column draft on scratch PostgreSQL
         env:
           PGPASSWORD: postgres

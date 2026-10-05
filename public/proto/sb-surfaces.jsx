@@ -264,7 +264,7 @@ function WidgetScreen({ t, go }) {
           background: 'rgba(255,255,255,.08)', backdropFilter: 'blur(8px)' }}>
           <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ width: 34, height: 34, flex: '0 0 auto' }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#EAF7FF' }}>2nd-Brain</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#EAF7FF' }}>PolaScope</div>
             <div style={{ fontSize: 13, color: 'rgba(220,235,255,.85)', wordBreak: 'keep-all' }}>오늘 '관계' 별이 밝아졌어요. 한 줄 남겨볼까요?</div>
           </div>
         </div>
@@ -300,7 +300,7 @@ function AuthScreen({ t, go }) {
         {/* brand */}
         <div style={{ textAlign: 'center', marginBottom: 26 }}>
           <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ width: 72, height: 72, animation: 'sb-bob 4s ease-in-out infinite' }} />
-          <div style={{ fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 11, letterSpacing: '.16em', color: '#7FD0FF', marginTop: 12 }}>2ND-BRAIN</div>
+          <div style={{ fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 11, letterSpacing: '.16em', color: '#7FD0FF', marginTop: 12 }}>PolaScope</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#EAF7FF', marginTop: 8, wordBreak: 'keep-all' }}>
             다시 만나 반가워요
           </div>

@@ -1,8 +1,11 @@
-# 2nd-Brain
+# PolaScope
 
-> **Not a note vault — a second brain built from what you write and save.** Journal daily to build
-> your self-knowledge base, get personalized guidance grounded in
-> validated psychology, and carry your data anywhere.
+> **Understand yourself through what you write and save.** Keep a journal,
+> organize your records, explore grounded reflections with SecondB, and export
+> your data when you need it.
+
+The repository, package identifiers, and existing `/2nd-B` web path retain
+their established names. PolaScope is the app's public display name.
 
 A personalized learning platform for self-understanding. Solo build,
 shipping to Google Play and the App Store. There is no external

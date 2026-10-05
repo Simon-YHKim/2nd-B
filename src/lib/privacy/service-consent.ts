@@ -45,7 +45,7 @@ function decodeStatus(value: unknown, ownerId: string, ownerEpoch: number, mutat
 
 /** A grant only records the exact document tuple that this app can display. */
 export function matchesServiceConsentContract(status: ServiceConsentStatus): boolean {
-  return status.contract_revision === "service-v1" && status.consent_version === CONSENT_VERSION &&
+  return status.contract_revision === "service-v2" && status.consent_version === CONSENT_VERSION &&
     status.policy_version === PRIVACY_POLICY_VERSION && status.terms_version === TERMS_VERSION;
 }
 
@@ -78,7 +78,7 @@ async function requestConsent(userId: string, body: Record<string, unknown>, sig
 }
 
 export function loadServiceConsent(userId: string, signal?: AbortSignal): Promise<ServiceConsentStatus> {
-  return requestConsent(userId, { action: "status" }, signal);
+  return requestConsent(userId, { action: "status", contractRevision: "service-v2" }, signal);
 }
 
 export async function saveServiceConsent(input: {
