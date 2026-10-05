@@ -11,7 +11,7 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-10-01 01:07 ~ 2026-10-01 02:57 | [handoff/HANDOFF-2026-10.md](handoff/HANDOFF-2026-10.md) | 5 | 15KB |
+| 2026-10-01 01:07 ~ 2026-10-01 05:52 | [handoff/HANDOFF-2026-10.md](handoff/HANDOFF-2026-10.md) | 10 | 25KB |
 | 2026-09-28 01:2x ~ 2026-09-30 23:57 | [handoff/HANDOFF-2026-09-p4.md](handoff/HANDOFF-2026-09-p4.md) | 24 | 66KB |
 | 2026-09-25 ~ 2026-09-28 00:4x | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 37 | 86KB |
 | 2026-09-08 ~ 2026-09-21 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 16 | 94KB |
@@ -31,7 +31,23 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-06 00:04 / 효과음 2차 머지: 녹음 뒤 효과음 모드 복귀(#2081) · 설정 '효과음' 켜기 · 끄기(#2082) · 3차는 메모리 대기
+## Latest — 2026-10-06 01:40 / SSV PR-7a·7b 머지 · 운영 0210~0213 적용(01:25) 대조 일치 · 88일 반영 · 게이트 4회차 미실행 · worktree 대량 삭제 2차
+
+- **DB3-01 = A**(Simon "권장 방법으로 진행" 10-05 19:4x): 보상 기록 정리 기준 89 → **88일**, 감시는 **90일**(방침 상한) 넘은 기록을 센다. 7a `7b0fd2dc` · `2da3f92b`, 7b `ccf60c2c`. 0212 · `db/erasure-registry.json` 사유 "88일(방침 최대 90일)". #2061 테스트 패치는 Hadrianus 가 19:46 머지(`5104a686`).
+- **백업 문구**: S5 끝(private `Simon-YHKim/2nd-B-backups` 첫 백업 10-05 16:34 · #2061 public 워크플로 삭제 · GO-B6 시크릿 삭제) → 런북 · 0211 주석 · 0211_down 이 private 저장소를 가리키게 `d23b2b97`. 일정(03:30 KST) · 보관(14일)은 같다.
+- ⚠ **보안 게이트 4회차는 돌지 않았다.** daybreak r4(10-05 20:10)를 Claude Code 가 메모리 부족(커밋 89%)으로 끊었고, 규칙상 재시작은 Simon 지시 때만이다. Simon 이 00:58 GO-2 를 줬으므로 r4 없이 머지됐다. r1~r3 지적 18건은 16 고침 · 1 한계 수용 · 1 결정(A)으로 닫혔다. 도구 · 머리말(`header-r4-prior.md`)은 `E:/Coding Infra/reports/ssv-261005/gates/` 에 그대로 있다.
+- **#2057 머지 10-06 01:09:14 `eaca9f5f`** · **#2058 머지 01:15:31 `5a8b791f`** — 둘 다 merge 커밋, 머지 트리 = CI 통과 head(`06eb7296` · `5a2de6e0`)와 동일(14 · 12 파일). 두 머지 모두 **Hadrianus** 가 했다(결과 `dev-infra/outbox/simon-go-0058-infra-2057-2058-20261006.md` A · B절). 이 세션은 같은 시각 CI 대기 중이었다.
+- **운영 적용**: Relay 원문 GO(박스 사본)는 "#2058 머지 · **0213 apply** · Edge · 동의 게시" — 0210~0212 는 번호로 적혀 있지 않다. Hadrianus 는 0211(46KB)을 도구로 못 실어 "막힘" 으로 마감했는데, **01:25:20~01:25:46 에 0210 · 0211 · 0212 · 0213 이 운영에 들어갔다**(원장 190행, 실행 주체는 버스에 확인 요청). 이 세션은 0213 만 하려고 claim 했다가 적용 직전 원장을 다시 읽고 철회했다(쓰기 0). ⚠ 01:17 "0194 가 운영에 없을 수 있다" 며 0210 을 멈춰 달라 했다가 01:19 정정 — 낡은 메모가 근거였고 0191 · 0193 · 0194 · 0208 전부 적용돼 있었다(메모 갱신).
+- **운영 대조(읽기)**: 함수 본문 10개(주석 · 공백 뺀 md5) **10/10 일치**, 0212 등록부 사유 **3/3 일치**, 권한(definer · `search_path=""` · anon/authenticated 없음), v2 · v3 공존, cron `purge-reward-records-90d` = 04:37 KST. 감시 overdue 9항목 전부 0, `ok=false` 는 아직 한 번도 안 돌아 `cron_stale` 이라서다 — **04:37 첫 실행이 성공하면 05:20 billing-tripwires 는 조용하다. 05:20 알림이 뜨면 `cron.job_run_details` 부터.** 운영 보상 행 0 이라 첫 정리는 아무것도 지우지 않는다. 버스 `relay/inbox/coding-verify-prod-0211-0213-0135.result.md`.
+- **남은 SSV**: Edge rewarded-ssv v3 배포(GO 원문 "Edge", 스키마 검사는 이제 통과) → 스모크에서 timestamp 자릿수 측정 → GO-5b(≥0221) · PR-7c(0214, v2 권한 회수).
+- ⚠ **worktree 대량 삭제 2차(01:03)**: `.worktrees` 아래 대부분이 지워지고 공용 `node_modules` 가 0 → 8081 HTTP 500. 이 세션 아님 · 2ndb-74 아님 · 주체 미상(그 뒤 삭제 프로세스 0). 단서: 이 세션의 `ssv-90d-purge-261004` 가 **반쯤 지워진 채**(`.git` 파일 · app.json · db/ · docs/ 없음) node_modules 정션만 남아 있었다 → 재귀 삭제가 정션을 따라 들어갔다. 그 정션만 `[IO.Directory]::Delete(path,$false)` 로 끊었고 폴더는 남겼다(브랜치는 전부 push 돼 잃은 것 없음). 2ndb-74 가 01:1x 재설치(723 항목 + main 의 expo-updates 패치) → 8081 200 · `app:parity` 같음(4474c196). 지금 정션이 남은 곳은 `localhost-main` 하나.
+- **Play 프로덕션 재신청**(Ludovic 01:06 제출) 답변 대조: 신고 · 차단 맞음 / "한국어 · 영어" 는 과소(로케일 5개) / "1차 출시 한국" 은 global 결정과 어긋날 수 있음 / "GitHub 이슈로 수집" 은 근거 없음(이슈 5건 전부 Simon · 봇). 버스 `relay/inbox/coding-check-prod-access-reapply-0115.note.md`. 다음 답변 때 고칠 것.
+- **다음 1개**: 04:37 KST 첫 정리 실행 결과 확인(`cron.job_run_details` 성공 · health ok=true) → Edge v3 배포 전에 게이트 4회차를 돌릴지 Simon 에게 묻는다.
+- **같은 GO 의 다른 줄(이 세션 아님)**: AdMob 네이티브 SDK 복원 #2084(Hadrianus, 01:24 squash `ad2ff7a9`) — 앱 변경이라 APK · `app:parity` 를 다시 볼 것. Paddle 라이브 키 교체는 Clavius 가 막힘(PAT 에 Edge 시크릿 쓰기 권한 없음) — **Clavius 가 "추출 중 도구 로그에 값이 한 줄 노출됐을 수 있다" 고 적었다**: Edge 반영 뒤 재발급 여부는 Simon 판단.
+- **남은 것**: 결제 6~13단계 일정 · App Review(ASC 노트 · 제출은 Simon HOLD) · R3V-2 복호화 시험 · 정본 체크아웃 `E:/2ndB` 는 여전히 `a029cac0`(ff 는 미추적 봇 문서가 막음).
+- **앱/localhost**: SSV 두 PR 은 앱 코드 변경 없음(DB · Edge · CI · 테스트 · 문서). main `5a8b791f` APK 빌드 대기 중 — 끝나면 `app:parity` 확인.
+
+## 2026-10-06 00:04 / 효과음 2차 머지: 녹음 뒤 효과음 모드 복귀(#2081) · 설정 '효과음' 켜기 · 끄기(#2082) · 3차는 메모리 대기
 
 - **무엇을**: Simon "그래 작업해줘."(10-05 23시경, Stability 등록 비용 문답 뒤). 등록은 Simon 계정의 약관 동의라 대신 하지 않았다. 등록과 무관한 2차를 마쳤다.
 - **2a #2081 `c7639518`**: 녹음 화면이 모드를 `playsInSilentMode: true` 로 바꾸고 되돌리지 않던 구멍(Q-261005-01 의 남은 부분)을 막았다. 모드 변경은 `audio-session.ts` 한 곳(`beginRecordingAudioMode` · `endRecordingAudioMode` · `isRecordingAudioMode`)만 하고, `createRecorderLifecycle(audioRecorder, { onIdle: restoreEffectsAfterRecording })` 의 `clear()` 가 멈춤 · 취소 · 계정 변경 · 모드 이탈 · 화면 이탈 모두에서 복귀시킨다. 시작 실패는 화면 `catch` 가 복귀. 남는 경우: 멈춤 실패 + 쓰기 종료 증거 없음으로 격리된 세션. 변이 3건 잡힘, verify 886 / 11,636.
@@ -515,52 +531,6 @@
 - **GUI 초안**: Play Console 원본 CSV 782행을 vc56 코드·현행 방침·Google Play 분류와 대조했다. 누락된 운동 정보·파일/문서 유형을 수집·선택·비임시·앱 기능으로 추가하고, 구매 내역을 필수→선택으로 바꾸고, 기기 ID 수집에 앱 기능 목적을 추가했다. 직전 세션의 기기 ID 필수 정정은 유지했다. 원본 대비 응답값 변경은 정확히 13셀이고, 현재 초안은 16개 유형이다. [실측 보고](qa/play-data-safety-live-261001.html).
 - **지속 확인**: CSV 가져오기·임시저장 뒤 재내보낸 파일과 페이지 새로고침 뒤 재내보낸 파일의 SHA-256이 일치한다(`A424DAC7059A1140FB1CCB5E26AE4FBBDD6827FBF46C7550276CB441EEAE87B0`). 마지막 5/5 저장·Play 검토 제출·공개는 실행하지 않았다. 원본·수정 CSV와 화면 증거는 Git 밖 `E:\2ndB\.git\app-parity\play-data-safety-live-261001`에 있다.
 - **남은 검증**: 위치·진단·앱 상호작용의 vc56 SDK/네트워크 근거와 파일/문서 AI 처리 경로의 Play 공유 예외를 확정해야 한다. Grok 후속은 보류하고, 원래 `TTL-Work_rev2`의 다른 세션 미커밋 변경은 건드리지 않는다.
-
----
-
-## 2026-10-01 05:52 / Play 데이터 보안 양식 확인과 기기 ID 초안 정정
-
-- **Play GUI**: 로그인된 PolaScope(`com.simonk.secondbrain`) Play Console에서 비공개 테스트 0.9.0(vc56) alpha와 앱 콘텐츠의 데이터 보안 양식을 읽었다. 대략적 위치·진단은 모두 수집·공유 및 **필수**, 기기 또는 기타 ID는 수집·공유 및 **선택**으로 남아 있었다. 위치·진단의 적합성은 미판정이다. [실측 보고](qa/play-data-safety-live-261001.html).
-- **기기 ID 초안**: vc56 동의 전 Firebase Installations 연결, Firebase의 FID 자동 수집 안내, 현행 방침의 ‘앱 설정으로 끌 수 없음’을 근거로 기기 ID를 **필수**로 바꿔 Play 양식의 임시저장을 실행했다. 새로고침 뒤에도 필수 선택이 유지된다. 마지막 미리보기의 ‘저장’·검토 제출·프로덕션 신청은 누르지 않았으므로 공개 신고는 바뀌었다고 판정하지 않는다.
-- **앱·빌드**: 제목 접근성 [#1975](https://github.com/Simon-YHKim/2nd-B/pull/1975)가 main `438d42a0`에 병합됐다. `npm run verify` 870묶음/11,286건과 PR CI 3종 통과. [Android 진단 빌드 36772298937](https://github.com/Simon-YHKim/2nd-B/actions/runs/36772298937)은 성공했고 arm64 ABI 검사·44,140,850바이트 artifact 업로드가 통과했다. [웹 빌드 36772298874](https://github.com/Simon-YHKim/2nd-B/actions/runs/36772298874) 성공/deploy skipped, OTA 36772298918 gate/report 성공/update skipped. 05:49 KST `npm run app:parity` **같음**.
-- **다음**: 위치·진단 신고의 실제 SDK/네트워크 근거를 확정하고 기기 ID 초안의 Play 최종 제출 경계를 검토한다. ARM 실기기 사진→OCR·최대 글꼴·TalkBack, 10월 5일 서버 `email-v7` 뒤 Draft #1902·#1917 검토가 남는다. Grok 후속은 보류한다. 원래 `TTL-Work_rev2`의 다른 세션 미커밋 변경은 건드리지 않았다.
-
----
-
-## 2026-10-01 04:55 / PolaScope 계약·메일 제목 Draft 선행 검증
-
-- **Draft 통합 검사**: main `8918e0db`와 [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902) 원격 head `4c81c0ce`를 별도 워크트리에서 커밋 없이 합쳤다. 충돌 0, `npm run verify` 869묶음/11,289건 통과, `git diff --check` 통과. #1902 브랜치는 push하지 않았다. [상세 기록](qa/polascope-contract-readiness-261001.md).
-- **운영 계약 현황**: 운영 프로젝트 `zoacryukmdeivmolvyhj`의 공개 `signup_consent_contract_status` RPC는 HTTP 200과 6행을 반환했다. `email-v6`까지 있고 #1902가 요구하는 `email-v7`은 0행이다. 클라이언트 요구는 `email-v7` · 동의/약관 `2026-10-05` · 방침 `2026-09-29`이며 출시 게이트는 exit 1로 게시를 차단했다. 이전 “RPC 404” 기록은 더 이상 현재 상태가 아니다. 키 값은 출력하지 않았다.
-- **메일 제목 Draft 검증**: [#1917](https://github.com/Simon-YHKim/2nd-B/pull/1917) 원격 head `6a61ca66`과 최신 main `6354bca0`을 별도 워크트리에서 커밋 없이 합쳤다. 충돌 0, main 대비 변경은 `supabase/config.toml`의 제목 두 줄, `check:supabase-auth-config` 통과, `npm run verify` 870묶음/11,286건 통과. PR 브랜치는 push하지 않았고 메일 발송·대시보드 설정 변경도 하지 않았다. [상세 기록](qa/polascope-contract-readiness-261001.md).
-- **출시 순서**: 서버 계약·원장 선행 적용과 게이트 재검증 뒤, 10월 5일 #1902·#1917 Draft를 재검토한다. 대시보드 메일 제목과 저장소 설정을 같은 날 맞춘다. 두 Draft·운영 DB/Edge·Play 양식·웹 게시를 이번에 바꾸지 않았다. Grok 후속 보류를 유지한다.
-
----
-
-## 2026-10-01 04:14 / 한국어 따옴표·조사 수정의 병합 뒤 화면 검증
-
-- **반영**: Android 사진 QA [PR #1970](https://github.com/Simon-YHKim/2nd-B/pull/1970)은 main `cefa48fe`, 웹 한국어 조사 줄바꿈 [PR #1971](https://github.com/Simon-YHKim/2nd-B/pull/1971)은 main `f0559166`에 병합됐다. 이 브랜치에는 새 앱 코드 변경이 없다.
-- **실제 GUI 확인**: main `f0559166`을 따르는 8081 `/ratifications`에 공용 QA 계정으로 로그인해 `보류`·`거절`의 `‘승인’에서` 문구를 확인했다. 320·375·425px에서 닫는 따옴표/조사 윗좌표는 각각 440/440, 392/392, 374/374px이고 가로 넘침은 모두 0px이다. 인증 외 쓰기 요청 차단 상태에서 차단 건수 0, 페이지 오류 0이다. [상세 결과](qa/web-quote-josa-261001.md). 스크린 리더 음성·초점 순서와 다른 보간 화면은 미검증이다.
-- **CI·게시**: [웹 빌드 36761343755](https://github.com/Simon-YHKim/2nd-B/actions/runs/36761343755)는 성공했고 deploy는 건너뛰었다. [OTA 36761343914](https://github.com/Simon-YHKim/2nd-B/actions/runs/36761343914)도 gate/report 성공, update 건너뜀이다. [Android 진단 빌드 36761343696](https://github.com/Simon-YHKim/2nd-B/actions/runs/36761343696)는 main `f0559166`에서 성공했고 APK artifact 1개(44,140,830바이트)가 있다. 이 문서 브랜치의 `npm run verify`는 870묶음/11,286건 통과했고 빌드 완료 뒤 04:14 KST의 `npm run app:parity`는 **같음**이다.
-- **다음 확인**: 최신 ARM 실기기에서 사진 선택→OCR·최대 글꼴·TalkBack을 확인한다. 10월 5일 계약 Draft #1902·메일 제목 #1917은 날짜 전 병합하지 않는다. Grok 후속 보류를 유지한다. 원래 `TTL-Work_rev2`의 다른 세션 미커밋 변경은 건드리지 않았다.
-
----
-
-## 2026-10-01 03:41 / 웹 한국어 닫는 따옴표 뒤 조사 줄바꿈 수정
-
-- **원인·수정**: 웹의 `word-break: keep-all`은 `‘오늘 반영’을`에서 닫는 따옴표 뒤 조사를 다음 줄로 보낼 수 있다. [PR #1971](https://github.com/Simon-YHKim/2nd-B/pull/1971)은 공통 `PlainText` 웹 경로에서 닫는 `’`/`”`의 양쪽에 U+2060을 넣어 붙인다. 네이티브 `keepAllKo`, 선택 가능한 텍스트, 기존 가운데점 규칙은 유지한다. [재현·QA](qa/web-quote-josa-261001.md).
-- **검증**: main `cefa48fe` 통합 후 `npm run verify` 870묶음/11,286건 통과. Chrome 114px 상자에서 원문 따옴표/조사 윗좌표 11/42px → 수정 107/107px, 가로 넘침 0px. 관련 단위 테스트 2묶음/33건 및 타입 검사 통과. PR CI 최종 상태는 병합 전에 확인한다.
-- **반영 순서**: Android 사진 QA [#1970](https://github.com/Simon-YHKim/2nd-B/pull/1970)은 main `cefa48fe`에 병합됐다. 같은 SHA의 [웹 빌드 36759942816](https://github.com/Simon-YHKim/2nd-B/actions/runs/36759942816)은 성공했고 게시 단계는 건너뛰어 공개 웹 변경은 없다. 이제 #1971을 병합한 뒤 새 main의 앱 동등성·Android 진단 빌드를 확인한다. OTA는 워크플로상 `[ota]`/`[release]` 표시 없는 main push에서 gate-only다.
-- **남은 확인**: 병합 후 8081 실제 한국어 화면의 좁은 폭, 화면 읽기 순서, 최신 ARM 기기의 사진 선택→OCR·최대 글꼴·TalkBack. 10월 5일 PolaScope 계약 Draft #1902·메일 제목 #1917은 날짜 전 병합하지 않는다. Grok 후속 보류도 유지한다.
-
----
-
-## 2026-10-01 03:00 / Android 사진 선택·권한 거부·글꼴 130% 네이티브 QA
-
-- **기록**: [Android 사진 입력 QA 보고](qa/android-native-photo-261001.html)와 [증거·절차](qa/android-native-photo-261001/README.md)에 Pixel 7 Android 16 x86_64 에뮬레이터의 시스템 Photo Picker, 카메라 권한 거부 후 안내·복귀, 글꼴 130%에서 사진 입력 하단 버튼 접근 결과와 화면 3장을 남겼다. 검사 뒤 에뮬레이터 글꼴 배율을 1.0으로 복원했다. 사진 선택·메모 저장은 하지 않았다.
-- **빌드 한계**: 실행한 x86_64 APK는 `4ee03669`의 [기존 수동 진단 빌드](https://github.com/Simon-YHKim/2nd-B/actions/runs/36687352385)다. `0e2bb32e`의 [최근 성공 APK](https://github.com/Simon-YHKim/2nd-B/actions/runs/36745473207)는 arm64-v8a 전용이라 x86_64 에뮬레이터에서 네이티브 라이브러리를 찾지 못했다. 이 오류는 ABI 불일치로 분류했다. 따라서 이번 결과는 **네이티브 플랫폼 경로**만 증명한다. 구 main `b81faefc`의 진단 빌드 36754062889는 새 main이 올라온 뒤 취소했다. 현 main `36623cc1`의 [진단 빌드 36755588373](https://github.com/Simon-YHKim/2nd-B/actions/runs/36755588373)은 성공했고 APK artifact가 있다.
-- **남은 QA**: 최신 main의 ARM 실기기에서 실제 사진 선택→OCR, 최대 글꼴, TalkBack, 뒤로가기, 10월 5일 PolaScope 시스템 앱 이름을 확인한다. 실제 유효한 커뮤니티 초대·Play Console 신고 양식·운영 서버 적용은 별개다. [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)와 [#1917](https://github.com/Simon-YHKim/2nd-B/pull/1917)은 10월 5일 전 Draft를 유지한다. Grok 후속 보류도 유지한다.
-- **작업 경계**: 원래 `TTL-Work_rev2` 워크트리의 다른 세션 미커밋 변경은 건드리지 않았다. Android QA 기록은 별도 브랜치 `docs/android-native-photo-qa-261001`에서 작성했다. `npm run app:parity`는 `b81faefc` 시점에 같음이었으며 새 main에서도 다시 확인한다.
-- **검증**: main `36623cc1` 통합 뒤 `npm run verify` 870묶음/11,279건 통과. `npm run app:parity`는 앱 경로·설정·의존성 일치와 같은 코드·설정의 APK 빌드 성공으로 **같음**(03:33 KST). PR #1970의 lint·verify·web-export-smoke 3종도 통과했다.
 
 ---
 
