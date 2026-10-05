@@ -1,12 +1,12 @@
 import { useEffect, useRef } from "react";
 import { Asset } from "expo-asset";
-import { ONBOARDING_WELCOME_CUE } from "@/lib/audio/app-cues";
-import { onGlobalCue } from "@/lib/audio/global-cues";
-import { createUiSoundPlayer } from "@/lib/audio/ui-sound-player";
+import { ONBOARDING_WELCOME_CUE } from "./app-cues";
+import { onGlobalCue } from "./global-cues";
+import { createUiSoundPlayer } from "./ui-sound-player";
 
 /** 웹: 페이지가 보일 때만 내고, 탭이 가려지면 멈춘다. 온보딩 끝은 버튼을 누른 순간이라 브라우저의
  * 자동 재생 제한에 걸리지 않는다. */
-export function GlobalCueHost() {
+export function useGlobalCueHost(): void {
   const sound = useRef<ReturnType<typeof createUiSoundPlayer> | null>(null);
   useEffect(() => {
     if (typeof Audio === "undefined") return;
@@ -26,5 +26,4 @@ export function GlobalCueHost() {
       sound.current = null; player.dispose();
     };
   }, []);
-  return null;
 }

@@ -165,7 +165,8 @@ test('brighten and welcome reach their sounds through the gate', () => {
   // The welcome cue must outlive router.replace, so it is played by the root host, never by the screen.
   expect(onboarding).not.toContain('useUiSound');
   expect(read('src/app/_layout.tsx')).toContain('<GlobalCueHost />');
-  for (const host of ['src/components/audio/GlobalCueHost.tsx', 'src/components/audio/GlobalCueHost.web.tsx']) {
+  expect(read('src/components/audio/GlobalCueHost.tsx')).toContain('useGlobalCueHost();')
+  for (const host of ['src/lib/audio/use-global-cue-host.ts', 'src/lib/audio/use-global-cue-host.web.ts']) {
     expect(read(host)).toContain('onGlobalCue((id) => {');
   }
   expect(read('src/lib/account/local-purge.ts')).toContain('observe(() => purgeStarLastSeenForDeletedAccount(owner)),');
