@@ -454,6 +454,18 @@ describe("requestAccountDeletion (terminal erasure)", () => {
     await expect(requestAccountDeletion(EXPECTED)).resolves.toMatchObject({ deleted: true, receiptId: null });
   });
 
+  test("a refused (taken) receipt number proves nothing was erased and drops the note (D2A-01)", async () => {
+    clientMock.__invoke.mockResolvedValueOnce({
+      data: null,
+      error: conflict({ error: "receipt_id_taken", deletion_fenced: true }),
+    });
+
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeInstanceOf(FunctionsHttpError);
+    expect(clientMock.__invoke).toHaveBeenCalledTimes(1);
+    expect(pendingMock.__remove).toHaveBeenCalledWith("u1", REQUEST_ID);
+    expect(lookupReceipt).not.toHaveBeenCalled();
+  });
+
   test("fails closed when the active user already changed after confirmation", async () => {
     clientMock.__getSession.mockResolvedValueOnce({
       data: { session: { access_token: mockAccessToken("u2", "session-b"), user: { id: "u2" } } },

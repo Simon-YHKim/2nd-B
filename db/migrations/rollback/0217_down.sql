@@ -37,8 +37,8 @@ DROP FUNCTION IF EXISTS public.record_account_deletion_receipt_sweeps(uuid, json
 DROP FUNCTION IF EXISTS public.issue_account_deletion_receipt();
 DROP FUNCTION IF EXISTS public.attach_account_deletion_receipt(uuid, uuid);
 
-DROP INDEX IF EXISTS public.account_deletion_tombstones_pending_receipt_key;
+DROP INDEX IF EXISTS public.account_deletion_tombstones_pending_receipts_idx;
 ALTER TABLE IF EXISTS public.account_deletion_tombstones
-  DROP COLUMN IF EXISTS pending_receipt_id;
+  DROP COLUMN IF EXISTS pending_receipt_ids;
 
 DROP TABLE IF EXISTS public.account_deletion_receipts;

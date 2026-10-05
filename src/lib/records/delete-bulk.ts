@@ -374,6 +374,8 @@ const INTACT_ERROR_CODES = new Set([
   "deletion_precondition_failed",
   "deletion_cleanup_in_progress",
   "account_delete_failed",
+  // 0217 refused the proposed receipt number before Auth was deleted (D2A-01).
+  "receipt_id_taken",
 ]);
 
 type InvokeFailure =

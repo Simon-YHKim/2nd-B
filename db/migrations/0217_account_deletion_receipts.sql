@@ -21,12 +21,25 @@
 -- 마이그레이션이 함께 필요하다 - 그래서 소유자 열을 더하지 말 것.
 --
 -- 어떻게 원자적으로 남기나. delete-account Edge 가 Auth 삭제 직전에 영수증 번호를 0192 의
--- 삭제 표식(account_deletion_tombstones.pending_receipt_id)에 걸어 둔다. Auth 삭제가
--- public.users 로 연쇄되는 바로 그 트랜잭션 안에서 BEFORE DELETE 트리거가 그 번호로
+-- 삭제 표식(account_deletion_tombstones.pending_receipt_ids)에 걸어 둔다. Auth 삭제가
+-- public.users 로 연쇄되는 바로 그 트랜잭션 안에서 BEFORE DELETE 트리거가 그 번호들로
 -- 영수증 행을 만들고, 표식의 번호를 비운다. 그래서 영수증은 "프로필 행이 실제로 지워진
 -- 트랜잭션이 커밋됐다" 와 정확히 같은 사실이다 - Edge 가 Auth 삭제 뒤에 죽어도 영수증은
--- 남고, Auth 삭제가 롤백되면 영수증도 같이 없다. 표식에 번호가 남는 시간은 Auth 삭제
--- 요청 한 번이다(실패하면 다음 시도가 덮어쓴다).
+-- 남고, Auth 삭제가 롤백되면 영수증도 같이 없다.
+--
+-- 번호는 요청마다 하나씩, 덮어쓰지 않고 쌓는다(최근 8개, 게이트 D2A-02). 두 기기가 같은
+-- 계정을 동시에 지우거나, 답을 잃은 요청 뒤에 다시 요청하면 표식에 번호가 둘 이상 걸린다.
+-- 한 칸을 덮어쓰면 먼저 건 요청의 번호는 영영 영수증이 되지 못해 그 기기가 결과를
+-- 찾을 길이 없었다. 이제 삭제가 커밋될 때 걸려 있던 번호 하나하나가 같은 삭제의 영수증이 된다.
+--
+-- 요청한 번호가 이미 영수증이거나 다른 계정의 표식에 걸려 있으면 조용히 다른 번호로 바꾸지
+-- 않고 거절한다(account_deletion_receipt_id_taken, 게이트 D2A-01). 바꿔 주면 서버가 쓴 번호와
+-- 앱이 나중에 조회하는 번호가 달라져, 앱이 남의 영수증을 자기 삭제의 증거로 읽을 수 있었다.
+-- Edge 는 이 거절을 받으면 Auth 를 지우기 전에 멈춘다.
+--
+-- 번호를 거는 함수는 프로필 행을 먼저 잠근다(begin_account_deletion 과 같은 순서, 게이트
+-- D2A-R2-04). 다른 요청의 삭제 트랜잭션이 그 행을 지우는 중이면 끝날 때까지 기다리고, 이미
+-- 지워졌으면 아무것도 걸지 않는다 - 삭제 뒤 보존되는 표식에 번호를 다시 쓰지 않는다.
 --
 -- 트리거는 번호를 먼저 비우고, 비우기가 성공했을 때만 영수증을 만든다(게이트 DEL2-R1-07).
 -- 둘을 한 EXCEPTION 블록에 두면 발급이 실패할 때 비우기까지 롤백돼, 보존되는 표식에
@@ -42,9 +55,12 @@
 --
 -- 보관. 365일 뒤 만료된다. 만료된 행은 조회에서 즉시 빠지고, pg_cron 이 있으면 매일
 -- 지운다(0067 과 같은 모양 - CI 의 순정 PostgreSQL 에는 pg_cron 이 없어 NOTICE 로 건너뛴다).
--- pg_cron 이 설치돼 있으면 적용 끝에 그 작업이 실제로 있는지 확인한다. pg_cron 이 없는
--- 곳을 위해 두 번째 정리 길도 둔다: 번호를 걸 때마다(attach) 만료 행을 조금씩 지운다
--- (0180 과 같은 모양). 법무 문서의 "1년 뒤 자동으로 지운다" 는 이 둘이 받친다(게이트 DEL2-R1-09).
+-- pg_cron 이 설치돼 있으면 적용 끝에 그 작업이 실제로 있는지 확인한다. 호스팅된 Supabase
+-- (supabase_admin 역할이 있는 곳)에서 pg_cron 을 쓸 수 없으면 적용 자체를 실패시킨다 -
+-- 운영에서는 매일 정리가 선택이 아니라 사후조건이다(게이트 DEL2-R1-09 · D2A-R2-02).
+-- pg_cron 이 없는 곳(CI · 로컬 재생)을 위해 두 번째 정리 길도 둔다: 번호를 걸 때마다(attach)
+-- 만료 행을 조금씩 지운다(0180 과 같은 모양). 법무 문서의 "1년 뒤 자동으로 지운다" 는 운영의
+-- 매일 작업이 받친다.
 --
 -- 의존. 0192(account_deletion_tombstones · begin_account_deletion)가 먼저 있어야 한다.
 -- 운영 적용 순서: 0192 -> 0217 -> delete-account 배포 -> account-deletion-receipt 배포 ->
@@ -90,23 +106,25 @@ COMMENT ON TABLE public.account_deletion_receipts IS
   '계정 삭제 영수증 (0217). 계정 식별자 없음: 번호 · 삭제 시각 · 만료 · 서버가 관측한 정리 플래그만. 프로필 행 삭제 트랜잭션 안에서 트리거가 만든다. 365일 보관.';
 
 ----------------------------------------------------------------------
--- 삭제 표식에 걸어 두는 영수증 번호. Auth 삭제 한 번 동안만 쓰이고 트리거가 비운다.
+-- 삭제 표식에 걸어 두는 영수증 번호들. 요청마다 하나씩 쌓이고(최근 8개) 트리거가 비운다.
 ----------------------------------------------------------------------
 
 ALTER TABLE public.account_deletion_tombstones
-  ADD COLUMN IF NOT EXISTS pending_receipt_id uuid;
+  ADD COLUMN IF NOT EXISTS pending_receipt_ids uuid[];
 
-CREATE UNIQUE INDEX IF NOT EXISTS account_deletion_tombstones_pending_receipt_key
-  ON public.account_deletion_tombstones (pending_receipt_id)
-  WHERE pending_receipt_id IS NOT NULL;
+-- 다른 계정의 표식에 이미 걸린 번호인지 찾는 색인. 트리거가 비우면(NULL) 색인에서도 빠진다.
+CREATE INDEX IF NOT EXISTS account_deletion_tombstones_pending_receipts_idx
+  ON public.account_deletion_tombstones USING gin (pending_receipt_ids)
+  WHERE pending_receipt_ids IS NOT NULL;
 
-COMMENT ON COLUMN public.account_deletion_tombstones.pending_receipt_id IS
-  '0217: delete-account 가 Auth 삭제 직전에 거는 영수증 번호. public.users 삭제 트리거가 영수증을 만들고 이 칸을 비운다.';
+COMMENT ON COLUMN public.account_deletion_tombstones.pending_receipt_ids IS
+  '0217: delete-account 가 Auth 삭제 직전에 거는 영수증 번호들(요청마다 하나, 최근 8개). public.users 삭제 트리거가 번호마다 영수증을 만들고 이 칸을 비운다.';
 
 ----------------------------------------------------------------------
 -- 1. Auth 삭제 직전에 영수증 번호를 건다 (service_role 전용).
---    요청 번호가 이미 영수증으로 쓰였거나 다른 계정의 표식에 걸려 있으면 새 번호를 쓴다.
---    표식 행이 없으면(begin_account_deletion 을 거치지 않았으면) NULL.
+--    프로필 행을 먼저 잠근다. 이미 지워졌거나 표식 행이 없으면 NULL.
+--    요청 번호가 이미 영수증으로 쓰였거나 다른 계정의 표식에 걸려 있으면 바꿔 주지 않고
+--    account_deletion_receipt_id_taken (SQLSTATE X0217) 으로 거절한다 (Edge 가 Auth 삭제 전에 멈춘다).
 ----------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.attach_account_deletion_receipt(
@@ -129,7 +147,8 @@ DECLARE
     nullif(pg_catalog.current_setting('request.jwt.claim.role', true), ''),
     v_claims ->> 'role'
   );
-  v_receipt uuid := p_receipt_id;
+  v_receipt uuid := COALESCE(p_receipt_id, pg_catalog.gen_random_uuid());
+  v_locked_user uuid;
 BEGIN
   IF v_role IS DISTINCT FROM 'service_role' OR p_user_id IS NULL THEN
     RETURN NULL;
@@ -150,21 +169,40 @@ BEGIN
     RAISE WARNING 'account_deletion_receipt_prune_skipped';
   END;
 
-  IF v_receipt IS NULL
-     OR EXISTS (
+  -- 프로필 행을 begin_account_deletion 과 같은 순서로 잠근다 (게이트 D2A-R2-04).
+  -- 다른 요청의 삭제가 이 행을 지우는 중이면 그 커밋까지 기다리고, 지워졌으면 행이 없다.
+  -- 그때 번호를 걸면 삭제 뒤 보존되는 표식에 user_id 와 번호가 다시 이어진다.
+  SELECT u.id
+    INTO v_locked_user
+    FROM public.users AS u
+   WHERE u.id = p_user_id
+     FOR UPDATE;
+
+  IF v_locked_user IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  -- 남의 영수증이거나 다른 계정에 걸린 번호는 바꿔 주지 않고 거절한다 (게이트 D2A-01).
+  IF EXISTS (
        SELECT 1 FROM public.account_deletion_receipts AS r WHERE r.id = v_receipt
      )
      OR EXISTS (
        SELECT 1
        FROM public.account_deletion_tombstones AS t
-       WHERE t.pending_receipt_id = v_receipt
+       WHERE t.pending_receipt_ids @> ARRAY[v_receipt]
          AND t.user_id <> p_user_id
      ) THEN
-    v_receipt := pg_catalog.gen_random_uuid();
+    RAISE EXCEPTION 'account_deletion_receipt_id_taken' USING ERRCODE = 'X0217';
   END IF;
 
+  -- 덮어쓰지 않고 쌓는다 (게이트 D2A-02). 같은 번호는 한 번만, 최근 8개만 남긴다.
   UPDATE public.account_deletion_tombstones AS t
-     SET pending_receipt_id = v_receipt
+     SET pending_receipt_ids = CASE
+           WHEN v_receipt = ANY (COALESCE(t.pending_receipt_ids, '{}'::uuid[]))
+             THEN t.pending_receipt_ids
+           ELSE (COALESCE(t.pending_receipt_ids, '{}'::uuid[]) || v_receipt)[
+                  GREATEST(1, pg_catalog.cardinality(COALESCE(t.pending_receipt_ids, '{}'::uuid[])) - 6):]
+         END
    WHERE t.user_id = p_user_id;
 
   IF NOT FOUND THEN
@@ -182,7 +220,7 @@ GRANT EXECUTE ON FUNCTION public.attach_account_deletion_receipt(uuid, uuid)
 
 ----------------------------------------------------------------------
 -- 2. 프로필 행이 지워지는 트랜잭션 안에서 영수증을 만든다 (트리거 전용).
---    번호를 먼저 비우고, 비우기가 성공했을 때만 발급한다. 실패해도 삭제를 막지 않는다.
+--    번호들을 먼저 비우고, 비우기가 성공했을 때만 번호마다 발급한다. 실패해도 삭제를 막지 않는다.
 ----------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.issue_account_deletion_receipt()
@@ -193,34 +231,37 @@ SET search_path = ''
 SET row_security = off
 AS $$
 DECLARE
-  v_receipt uuid;
+  v_receipts uuid[];
   v_erased_at timestamptz;
 BEGIN
-  -- (1) 번호를 읽고 비운다. 이 블록이 실패하면 번호가 표식에 남을 수 있으므로
+  -- (1) 번호들을 읽고 비운다. 이 블록이 실패하면 번호가 표식에 남을 수 있으므로
   --     영수증을 만들지 않는다 (PL/pgSQL 변수는 롤백되지 않아 직접 NULL 로 되돌린다).
   BEGIN
-    SELECT t.pending_receipt_id
-      INTO v_receipt
+    SELECT t.pending_receipt_ids
+      INTO v_receipts
       FROM public.account_deletion_tombstones AS t
      WHERE t.user_id = OLD.id
        FOR UPDATE;
 
-    IF v_receipt IS NOT NULL THEN
+    IF v_receipts IS NOT NULL THEN
       UPDATE public.account_deletion_tombstones AS t
-         SET pending_receipt_id = NULL
+         SET pending_receipt_ids = NULL
        WHERE t.user_id = OLD.id;
     END IF;
   EXCEPTION WHEN OTHERS THEN
-    v_receipt := NULL;
+    v_receipts := NULL;
     RAISE WARNING 'account_deletion_receipt_not_cleared';
   END;
 
-  -- (2) 비우기가 끝난 번호로만 영수증을 만든다. 실패해도 번호는 이미 비어 있다.
-  IF v_receipt IS NOT NULL THEN
+  -- (2) 비우기가 끝난 번호로만 영수증을 만든다. 걸려 있던 요청마다 하나씩, 같은 삭제
+  --     시각으로 (게이트 D2A-02). 실패해도 번호는 이미 비어 있다.
+  IF v_receipts IS NOT NULL THEN
     BEGIN
       v_erased_at := pg_catalog.date_trunc('second', pg_catalog.clock_timestamp());
       INSERT INTO public.account_deletion_receipts (id, erased_at, expires_at)
-      VALUES (v_receipt, v_erased_at, v_erased_at + interval '365 days')
+      SELECT DISTINCT pending.id, v_erased_at, v_erased_at + interval '365 days'
+        FROM pg_catalog.unnest(v_receipts) AS pending(id)
+       WHERE pending.id IS NOT NULL
       ON CONFLICT (id) DO NOTHING;
     EXCEPTION WHEN OTHERS THEN
       -- 삭제권이 영수증보다 우선이다. 영수증을 못 만들어도 계정 삭제는 계속된다.
@@ -388,6 +429,11 @@ DECLARE
   j record;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_available_extensions WHERE name = 'pg_cron') THEN
+    -- 호스팅된 Supabase 에서는 매일 정리가 사후조건이다 (게이트 DEL2-R1-09 · D2A-R2-02).
+    -- 법무 문서의 "1년 뒤 자동으로 지운다" 를 attach 때의 기회적 정리에 맡기지 않는다.
+    IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'supabase_admin') THEN
+      RAISE EXCEPTION '0217: pg_cron is required on a hosted Supabase project for the yearly receipt purge';
+    END IF;
     RAISE NOTICE '0217: pg_cron not available (CI dry-run); skipping receipt purge schedule';
     RETURN;
   END IF;

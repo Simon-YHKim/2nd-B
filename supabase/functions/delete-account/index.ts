@@ -281,12 +281,26 @@ Deno.serve(async (req: Request) => {
     // the same transaction that erases the profile row, so the receipt exists
     // exactly when that erasure committed. A missing RPC or any error leaves
     // deletion running without a receipt: the right to erasure comes first.
+    // The one exception is a number 0217 refuses as already taken (or any
+    // answer naming a different number): the client later looks up exactly the
+    // number it proposed, so going on would let another erasure's receipt stand
+    // as the proof of this one (gate D2A-01). Stop before Auth goes instead;
+    // a retry proposes a fresh number. (0217 raises SQLSTATE X0217 for it.)
+    const RECEIPT_ID_TAKEN_SQLSTATE = 'X0217';
     let pendingReceiptId: string | null = null;
+    const proposedReceiptId = requestId ?? crypto.randomUUID();
     try {
       const { data: attached, error: attachError } = await admin.rpc(
         'attach_account_deletion_receipt',
-        { p_user_id: authUser.id, p_receipt_id: requestId ?? crypto.randomUUID() },
+        { p_user_id: authUser.id, p_receipt_id: proposedReceiptId },
       );
+      if (
+        attachError?.code === RECEIPT_ID_TAKEN_SQLSTATE
+        || (!attachError && typeof attached === 'string' && attached !== proposedReceiptId)
+      ) {
+        safeLog('receipt_id_taken');
+        return jsonResponse(req, { error: 'receipt_id_taken', deletion_fenced: true }, 409);
+      }
       if (!attachError && typeof attached === 'string' && RECEIPT_ID_RE.test(attached)) {
         pendingReceiptId = attached;
       } else {

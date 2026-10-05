@@ -56,6 +56,11 @@ describe("0217 receipt table holds no account identifier", () => {
     expect(check).toMatch(/to_regclass\('cron\.job'\) IS NOT NULL/);
     expect(check).toMatch(/FROM cron\.job WHERE jobname = \$1 AND command = \$2/);
     expect(check).toMatch(/IF v_jobs IS DISTINCT FROM 1 THEN\s+RAISE EXCEPTION/);
+    // On a hosted Supabase project a missing pg_cron fails the apply instead of
+    // leaving the purge to the opportunistic attach-time drain (D2A-R2-02).
+    const schedule = sql.slice(sql.indexOf("DO $schedule_receipt_purge$"), sql.indexOf("DO $account_deletion_receipts_check$"));
+    expect(schedule).toMatch(/WHERE name = 'pg_cron'\) THEN\s+IF EXISTS \(SELECT 1 FROM pg_catalog\.pg_roles WHERE rolname = 'supabase_admin'\) THEN\s+RAISE EXCEPTION/);
+    expect(schedule.indexOf("supabase_admin")).toBeLessThan(schedule.indexOf("RAISE NOTICE '0217: pg_cron not available"));
     // Where it does not, every attach drains expired receipts (0180's shape),
     // and that cleanup can never stop the number from being attached.
     const attach = sql.slice(
@@ -72,9 +77,9 @@ describe("0217 issues the receipt atomically with the profile erasure", () => {
   test("a BEFORE DELETE trigger on public.users turns the pending number into the receipt", () => {
     expect(sql).toMatch(/CREATE TRIGGER trg_users_issue_account_deletion_receipt\s+BEFORE DELETE ON public\.users\s+FOR EACH ROW EXECUTE FUNCTION public\.issue_account_deletion_receipt\(\)/);
     const trigger = sql.slice(sql.indexOf("FUNCTION public.issue_account_deletion_receipt()"));
-    const read = trigger.indexOf("SELECT t.pending_receipt_id");
+    const read = trigger.indexOf("SELECT t.pending_receipt_ids");
     const insert = trigger.indexOf("INSERT INTO public.account_deletion_receipts");
-    const clear = trigger.indexOf("SET pending_receipt_id = NULL");
+    const clear = trigger.indexOf("SET pending_receipt_ids = NULL");
     expect(read).toBeGreaterThan(-1);
     // Cleared FIRST, issued only after (gate DEL2-R1-07): a receipt can never
     // exist while the retained tombstone still links it to the user id.
@@ -87,15 +92,15 @@ describe("0217 issues the receipt atomically with the profile erasure", () => {
       sql.indexOf("FUNCTION public.issue_account_deletion_receipt()"),
       sql.indexOf("REVOKE ALL ON FUNCTION public.issue_account_deletion_receipt()"),
     );
-    const clearBlock = trigger.slice(trigger.indexOf("SELECT t.pending_receipt_id"), trigger.indexOf("INSERT INTO public.account_deletion_receipts"));
-    // The clear has its own handler, which forgets the number (PL/pgSQL
+    const clearBlock = trigger.slice(trigger.indexOf("SELECT t.pending_receipt_ids"), trigger.indexOf("INSERT INTO public.account_deletion_receipts"));
+    // The clear has its own handler, which forgets the numbers (PL/pgSQL
     // variables survive a subtransaction rollback, so it must be reset by hand).
-    expect(clearBlock).toMatch(/EXCEPTION WHEN OTHERS THEN\s+v_receipt := NULL;\s+RAISE WARNING 'account_deletion_receipt_not_cleared';/);
-    // The insert runs in a second block, entered only with a cleared number.
+    expect(clearBlock).toMatch(/EXCEPTION WHEN OTHERS THEN\s+v_receipts := NULL;\s+RAISE WARNING 'account_deletion_receipt_not_cleared';/);
+    // The insert runs in a second block, entered only with cleared numbers.
     const issueBlock = trigger.slice(trigger.indexOf("account_deletion_receipt_not_cleared"));
-    expect(issueBlock).toMatch(/IF v_receipt IS NOT NULL THEN\s+BEGIN\s+v_erased_at :=/);
+    expect(issueBlock).toMatch(/IF v_receipts IS NOT NULL THEN\s+BEGIN\s+v_erased_at :=/);
     expect(issueBlock).toMatch(/EXCEPTION WHEN OTHERS THEN\s+RAISE WARNING 'account_deletion_receipt_not_issued';/);
-    expect(issueBlock).not.toContain("SET pending_receipt_id");
+    expect(issueBlock).not.toContain("SET pending_receipt_ids");
   });
 
   test("a receipt failure never blocks the erasure", () => {
@@ -108,20 +113,47 @@ describe("0217 issues the receipt atomically with the profile erasure", () => {
     expect(trigger).not.toMatch(/RAISE EXCEPTION/);
   });
 
-  test("the pending number lives on the 0192 tombstone, unique while set", () => {
+  const attachBody = () => sql.slice(
+    sql.indexOf("FUNCTION public.attach_account_deletion_receipt("),
+    sql.indexOf("REVOKE ALL ON FUNCTION public.attach_account_deletion_receipt"),
+  );
+
+  test("the pending numbers live on the 0192 tombstone, one per request", () => {
     expect(sql).toMatch(/to_regclass\('public\.account_deletion_tombstones'\) IS NULL/);
-    expect(sql).toMatch(/ADD COLUMN IF NOT EXISTS pending_receipt_id uuid/);
-    expect(sql).toMatch(/CREATE UNIQUE INDEX IF NOT EXISTS account_deletion_tombstones_pending_receipt_key[\s\S]*WHERE pending_receipt_id IS NOT NULL/);
+    expect(sql).toMatch(/ADD COLUMN IF NOT EXISTS pending_receipt_ids uuid\[\]/);
+    expect(sql).toMatch(/CREATE INDEX IF NOT EXISTS account_deletion_tombstones_pending_receipts_idx\s+ON public\.account_deletion_tombstones USING gin \(pending_receipt_ids\)\s+WHERE pending_receipt_ids IS NOT NULL/);
+    expect(sql).not.toMatch(/\bpending_receipt_id\b/);
   });
 
-  test("a requested number already used, or hung on another account, is replaced", () => {
-    const attach = sql.slice(
-      sql.indexOf("FUNCTION public.attach_account_deletion_receipt("),
-      sql.indexOf("REVOKE ALL ON FUNCTION public.attach_account_deletion_receipt"),
-    );
+  test("a second request adds its number instead of overwriting the first (D2A-02)", () => {
+    const attach = attachBody();
+    expect(attach).toMatch(/SET pending_receipt_ids = CASE\s+WHEN v_receipt = ANY \(COALESCE\(t\.pending_receipt_ids, '\{\}'::uuid\[\]\)\)\s+THEN t\.pending_receipt_ids\s+ELSE \(COALESCE\(t\.pending_receipt_ids, '\{\}'::uuid\[\]\) \|\| v_receipt\)\[/);
+    expect(attach).toMatch(/GREATEST\(1, pg_catalog\.cardinality\(COALESCE\(t\.pending_receipt_ids, '\{\}'::uuid\[\]\)\) - 6\):\]/);
+    // Every number still attached when the profile row goes becomes a receipt.
+    const trigger = sql.slice(sql.indexOf("FUNCTION public.issue_account_deletion_receipt()"));
+    expect(trigger).toMatch(/SELECT DISTINCT pending\.id, v_erased_at, v_erased_at \+ interval '365 days'\s+FROM pg_catalog\.unnest\(v_receipts\) AS pending\(id\)/);
+  });
+
+  test("a requested number already used, or hung on another account, is refused, never replaced (D2A-01)", () => {
+    const attach = attachBody();
     expect(attach).toMatch(/FROM public\.account_deletion_receipts AS r WHERE r\.id = v_receipt/);
-    expect(attach).toMatch(/t\.pending_receipt_id = v_receipt\s+AND t\.user_id <> p_user_id/);
-    expect(attach).toMatch(/v_receipt := pg_catalog\.gen_random_uuid\(\)/);
+    expect(attach).toMatch(/t\.pending_receipt_ids @> ARRAY\[v_receipt\]\s+AND t\.user_id <> p_user_id/);
+    expect(attach).toMatch(/THEN\s+RAISE EXCEPTION 'account_deletion_receipt_id_taken' USING ERRCODE = 'X0217';/);
+    // A fresh number is drawn only when none was proposed, never over a taken one.
+    expect(attach.match(/gen_random_uuid\(\)/g)).toHaveLength(1);
+    expect(attach).toMatch(/v_receipt uuid := COALESCE\(p_receipt_id, pg_catalog\.gen_random_uuid\(\)\);/);
+  });
+
+  test("attach locks the profile row first and writes nothing once it is gone (D2A-R2-04)", () => {
+    const attach = attachBody();
+    const lock = attach.search(/FROM public\.users AS u\s+WHERE u\.id = p_user_id\s+FOR UPDATE;/);
+    const gone = attach.search(/IF v_locked_user IS NULL THEN\s+RETURN NULL;/);
+    const taken = attach.indexOf("account_deletion_receipt_id_taken");
+    const write = attach.indexOf("UPDATE public.account_deletion_tombstones");
+    expect(lock).toBeGreaterThan(-1);
+    expect(gone).toBeGreaterThan(lock);
+    expect(taken).toBeGreaterThan(gone);
+    expect(write).toBeGreaterThan(taken);
   });
 });
 
@@ -181,8 +213,8 @@ describe("0217 functions are service-only, search_path-pinned definers", () => {
       "DROP FUNCTION IF EXISTS public.record_account_deletion_receipt_sweeps(uuid, jsonb)",
       "DROP FUNCTION IF EXISTS public.issue_account_deletion_receipt()",
       "DROP FUNCTION IF EXISTS public.attach_account_deletion_receipt(uuid, uuid)",
-      "DROP INDEX IF EXISTS public.account_deletion_tombstones_pending_receipt_key",
-      "DROP COLUMN IF EXISTS pending_receipt_id",
+      "DROP INDEX IF EXISTS public.account_deletion_tombstones_pending_receipts_idx",
+      "DROP COLUMN IF EXISTS pending_receipt_ids",
       "DROP TABLE IF EXISTS public.account_deletion_receipts",
     ]) expect(rollback).toContain(fragment);
   });
@@ -203,7 +235,8 @@ describe("delete-account records the receipt without letting it block erasure", 
   });
 
   test("the deletion target still comes only from the verified JWT", () => {
-    expect(deleteAccount).toMatch(/p_user_id: authUser\.id, p_receipt_id: requestId \?\? crypto\.randomUUID\(\)/);
+    expect(deleteAccount).toMatch(/const proposedReceiptId = requestId \?\? crypto\.randomUUID\(\);/);
+    expect(deleteAccount).toMatch(/p_user_id: authUser\.id, p_receipt_id: proposedReceiptId/);
     expect(deleteAccount).toMatch(/deleteAuthUserWithReconciliation\(admin\.auth\.admin, authUser\.id\)/);
   });
 
@@ -230,7 +263,24 @@ describe("delete-account records the receipt without letting it block erasure", 
       deleteAccount.indexOf("await deleteAuthUserWithReconciliation("),
     );
     expect(attachBlock).toMatch(/catch \{\s+safeLog\('receipt_attach_failed'\);\s+\}/);
-    expect(attachBlock).not.toMatch(/return jsonResponse/);
+    // The only early answer is the refusal of a taken number below.
+    expect(attachBlock.match(/return jsonResponse/g)).toHaveLength(1);
+  });
+
+  test("a taken number stops the request before Auth goes, never a swapped one (D2A-01)", () => {
+    const attachBlock = deleteAccount.slice(
+      deleteAccount.indexOf("let pendingReceiptId"),
+      deleteAccount.indexOf("await deleteAuthUserWithReconciliation("),
+    );
+    expect(deleteAccount).toMatch(/const RECEIPT_ID_TAKEN_SQLSTATE = 'X0217';/);
+    expect(sql).toMatch(/USING ERRCODE = 'X0217';/);
+    expect(attachBlock).toMatch(/attachError\?\.code === RECEIPT_ID_TAKEN_SQLSTATE\s+\|\| \(!attachError && typeof attached === 'string' && attached !== proposedReceiptId\)/);
+    expect(attachBlock).toMatch(/return jsonResponse\(req, \{ error: 'receipt_id_taken', deletion_fenced: true \}, 409\);/);
+    // The refusal is checked before the number is accepted as this erasure's.
+    expect(attachBlock.indexOf("'receipt_id_taken'")).toBeLessThan(attachBlock.indexOf("pendingReceiptId = attached;"));
+    // The client reads it as "this request did not erase the account".
+    const client = stripTsComments(read("src", "lib", "records", "delete-bulk.ts"));
+    expect(client).toMatch(/const INTACT_ERROR_CODES = new Set\(\[[\s\S]*"receipt_id_taken",\s*\]\);/);
   });
 
   test("only `{}` or exactly one lowercase request id is accepted", () => {
