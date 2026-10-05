@@ -6,9 +6,6 @@
     "subtitle": "File untuk asisten AI dan profil satu halaman untuk dibaca",
     "speech": "Gunakan ringkasan ini untuk memberi asisten lain konteks tentang dirimu."
   },
-  "generate": {
-    "button": "Buat IDEN saya"
-  },
   "error": "Tidak dapat membuat IDEN kamu. Segarkan dan coba lagi.",
   "entry": {
     "eyebrow": "Ekspor identitas",
@@ -23,7 +20,6 @@
     "retry": "Coba lagi",
     "empty": "Belum ada informasi untuk diekspor. Tambahkan catatan tentang dirimu dulu.",
     "startGathering": "Mulai mengumpulkan",
-    "signed": "Ditandatangani",
     "whatGoesIn": "Apa yang disertakan",
     "format": "Format",
     "sendToAi": "Kirim ke AI",

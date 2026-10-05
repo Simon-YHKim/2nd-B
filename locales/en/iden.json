@@ -6,9 +6,6 @@
     "subtitle": "A file to share with another AI and a one-page profile",
     "speech": "Share what you've recorded about yourself with another AI."
   },
-  "generate": {
-    "button": "Create my IDEN"
-  },
   "error": "Couldn't build your IDEN. Refresh and try again.",
   "entry": {
     "eyebrow": "Export your profile",
@@ -23,7 +20,6 @@
     "retry": "Retry",
     "empty": "There's nothing to export yet. Add a record about yourself to get started.",
     "startGathering": "Add a record",
-    "signed": "Signed",
     "whatGoesIn": "What goes in",
     "format": "Format",
     "sendToAi": "Send to an AI",

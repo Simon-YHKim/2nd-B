@@ -1,44 +1,6 @@
 {
-  "soulCore": {
-    "a11y": "Brilho da Estrela do Norte"
-  },
   "character": {
     "a11y": "Personagem SecondB"
-  },
-  "bubble": {
-    "fresh": "O que você quer anotar?"
-  },
-  "progress": {
-    "lit": "{{lit}}/{{total}} estrelas acesas",
-    "next": "próximo: {{step}} ({{min}})"
-  },
-  "nextStep": {
-    "bigFive": {
-      "label": "Big Five",
-      "min": "5 min",
-      "cta": "Fazer o teste Big Five"
-    },
-    "attachment": {
-      "label": "Apego",
-      "min": "3 min",
-      "cta": "Fazer o teste de relacionamentos"
-    },
-    "esm": {
-      "label": "Check-in de hoje",
-      "min": "1 min",
-      "cta": "Fazer um registro rápido"
-    },
-    "values": {
-      "label": "Valores",
-      "min": "4 min",
-      "cta": "Revisar meus valores"
-    }
-  },
-  "menu": {
-    "graph": "Mapa",
-    "capture": "Recortes",
-    "secondb": "SecondB",
-    "profile": "Eu"
   },
   "ds": {
     "dock": {
@@ -88,7 +50,6 @@
     },
     "home": {
       "polaris": "Estrela Polar",
-      "profileName": "Perfil",
       "domainName": {
         "career": "Carreira",
         "finance": "Finanças",
@@ -122,8 +83,6 @@
         "tip1": "Toque em uma estrela para rever os registros dessa fase da sua vida.",
         "tip2": "Use Adicionar na barra inferior para salvar um novo registro.",
         "tip3": "Sua Estrela do Norte reúne seus registros em uma frase que você pode revisar.",
-        "next": "Próxima",
-        "openMenu": "Menu de recursos",
         "menuTag": "Menu",
         "menu": "Como posso ajudar?",
         "travel": "Viajar",
@@ -173,9 +132,7 @@
         "now": {
           "line": "Registre seus interesses, escolhas e dias de agora."
         }
-      },
-      "museumEntry": "Museu da IA",
-      "communityEntry": "Comunidade"
+      }
     },
     "capture": {
       "title": "Capturar",
@@ -249,9 +206,6 @@
       "suggestImagine": "Modo imaginar"
     },
     "lens": {
-      "toggleFilled": "Cheio",
-      "toggleEmpty": "Vazio",
-      "toggleError": "Erro",
       "emptyTitle": "Ainda não há resultados",
       "emptyBody": "Conclua um teste de personalidade para ver seus resultados aqui.",
       "emptyCta": "Começar o check",
@@ -302,24 +256,6 @@
       "title": "Lembrança",
       "tag": "NARRATIVA",
       "eyebrow": "Qual época fez a pessoa que eu sou agora",
-      "hint": "Toque em um período para responder às perguntas",
-      "footer": "Voltar ao mesmo assunto pode ajudar a lembrar de outros detalhes.",
-      "p1Name": "Primeira infância",
-      "p1Age": "0–6",
-      "p2Name": "Infância",
-      "p2Age": "7–12",
-      "p3Name": "Início da adolescência",
-      "p3Age": "13–15",
-      "p4Name": "Meio da adolescência",
-      "p4Age": "16–17",
-      "p5Name": "Fim da adolescência",
-      "p5Age": "18–19",
-      "p6Name": "Início dos 20",
-      "p6Age": "20–23",
-      "p7Name": "Primeiros anos de trabalho",
-      "p7Age": "24–27",
-      "p8Name": "Agora",
-      "p8Age": "28–",
       "emptyTitle": "Nenhuma época recordada ainda",
       "emptyBody": "Escolha um período da sua vida para registrar suas lembranças."
     },
@@ -329,13 +265,6 @@
       "eyebrow": "Compare suas respostas com as de outras pessoas",
       "legendSelf": "O eu que eu vejo",
       "legendOther": "O eu que os outros veem",
-      "traitExtraversion": "Extroversão",
-      "traitConscientiousness": "Conscienciosidade",
-      "traitAgreeableness": "Amabilidade",
-      "diffExtraversion": "dif +18",
-      "diffConscientiousness": "dif +4",
-      "diffAgreeableness": "dif −7",
-      "conclusion": "Exemplo: outras pessoas descrevem você como mais animado do que você se descreve. As respostas podem variar conforme o contexto.",
       "survey": "Ver questionário",
       "share": "Compartilhar",
       "obsTitleGap": "O eu que vejo, o eu que veem",
@@ -356,15 +285,6 @@
       "title": "Ritmo",
       "tag": "ESM",
       "eyebrow": "Quando eu sou mais eu",
-      "subhead": "Últimos 7 dias · ritmo de humor",
-      "mon": "Seg",
-      "tue": "Ter",
-      "wed": "Qua",
-      "thu": "Qui",
-      "fri": "Sex",
-      "sat": "Sáb",
-      "sun": "Dom",
-      "caption": "Exemplo: os registros de sábado de manhã mostram melhor disposição ao fazer atividades criativas.",
       "logNow": "+ Registrar humor agora",
       "emptyTitle": "Ainda há poucos registros",
       "emptyBody": "Registre como você se sente por alguns dias para comparar os dias e horários."
@@ -389,16 +309,6 @@
       "title": "Relações",
       "tag": "RELACOES",
       "eyebrow": "Pessoas e assuntos presentes nos seus registros",
-      "peopleHead": "Pessoas que aparecem com frequência",
-      "person1": "Minjun · 24",
-      "person2": "Mãe · 18",
-      "person3": "Jiwoo · 12",
-      "personMore": "+9",
-      "knowledgeHead": "Interesses",
-      "topic1": "Design·ferramentas",
-      "topic2": "Psicologia·autoconhecimento",
-      "topic3": "IA·produtividade",
-      "conclusion": "Exemplo: os registros mostram contato frequente com poucas pessoas ao longo do tempo.",
       "addData": "+ Adicionar dados",
       "emptyTitle": "Nenhuma pessoa ou conhecimento vinculado ainda",
       "emptyBody": "Registre pessoas e assuntos do seu dia a dia para ver as conexões entre eles."
@@ -431,34 +341,12 @@
     "audit": {
       "title": "O eu do passado",
       "subtitle": "Escolha uma época e relembre quem você era naquela fase.",
-      "vividness": "Nitidez L{{level}}",
-      "eraInfancy": "Primeira infância",
-      "eraChild": "Infância",
-      "eraTeen": "Adolescência",
-      "eraYoung": "Juventude",
-      "eraNow": "Agora",
-      "rangeInfancy": "0–6 anos",
-      "rangeChild": "7–12 anos",
-      "rangeTeen": "13–18 anos",
-      "rangeYoung": "19–28 anos",
-      "period": {
-        "childhood": "Infância",
-        "teens": "Adolescência",
-        "twenties": "Os 20 anos",
-        "thirties": "Os 30 anos",
-        "forties": "Os 40 anos",
-        "fifties": "Os 50 anos",
-        "sixties": "Os 60 anos",
-        "seventies": "Os 70 anos",
-        "current": "Agora"
-      },
       "rangeSpan": "{{from}}–{{to}} anos",
       "rangeUnder": "Antes dos {{to}}",
       "rangeFrom": "a partir dos {{from}}",
       "notYet": "Ainda não chegou"
     },
     "me": {
-      "title": "Estrela Polar",
       "eyebrow": "Estrela Polar · síntese de 7",
       "headline": "Veja o resumo dos seus registros.",
       "synthMeta": "Síntese de 7 estrelas · confiança",

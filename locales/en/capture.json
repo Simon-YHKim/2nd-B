@@ -106,8 +106,7 @@
   },
   "recent": {
     "title": "Recent pieces",
-    "openHint": "Opens this entry in full.",
-    "empty": "No saved pieces yet."
+    "openHint": "Opens this entry in full."
   },
   "formatSaved": {
     "personal": "Saved as your personal format.",
@@ -324,46 +323,21 @@
     "note": "Only filled boxes are saved, as one piece with a #fourw tag."
   },
   "callReflection": {
-    "title": "Call recording",
     "blockedTitle": "Not available",
     "blockedBody": "Call recording laws differ by region, so this feature is currently available only to adult users in Korea.",
     "goBack": "Go back",
-    "webUnreliable": "Recording is unreliable on web; please use the app.",
-    "micPermission": "Microphone permission is needed.",
-    "startFailed": "Couldn't start recording.",
-    "noRecording": "Couldn't find the recording.",
-    "nothingToTranscribe": "No words could be read from the recording.",
-    "transcribeFailed": "Couldn't turn the recording into text.",
     "recordTopic": "Call record",
-    "transcribing": "Transcribing the call",
     "transcribed": "Transcribed",
     "transcriptLabel": "Transcript",
     "discard": "Discard",
     "approve": "Approve and save",
-    "recordingDesc": "Recording. It transcribes automatically when you stop.",
-    "idleDesc": "Turn your call into text and link it to related stars. The original audio is never saved.",
     "howBadge": "How",
-    "howText": "Put the call on speakerphone, then start recording - both voices reach the mic.",
     "fairBadge": "Before recording",
-    "stopAnalyse": "Stop and analyse",
-    "cancelNoSave": "Cancel · don't save",
-    "startRecording": "Start recording",
     "maybeLater": "Later"
   },
   "captureTab": "Scrap",
   "formatsTab": "Formats",
   "importTab": "Import",
   "inboxTab": "Inbox",
-  "manualTab": "User Guide",
-  "jot": {
-    "title": "Jot a line",
-    "deviceNote": "Saved on this device for now. Make an account to bring it into PolaScope.",
-    "placeholder": "A line on your mind",
-    "inputA11y": "Jot input",
-    "save": "Save",
-    "saving": "Saving…",
-    "nearFull": "This device's temporary storage is almost full. Create an account to move your notes.",
-    "savedOnDevice": "Saved on this device ({{n}})",
-    "createAccount": "Create account"
-  }
+  "manualTab": "User Guide"
 }

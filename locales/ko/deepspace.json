@@ -41,9 +41,6 @@
   },
   "wiki": {
     "title": "지식",
-    "headerGrowing": "지식 {{count}}개를 저장했습니다.",
-    "headerEmpty": "아직 저장한 지식이 없습니다. 기록이나 자료를 담아보세요.",
-    "tip": "태그를 누르면 관련 항목만 볼 수 있습니다.",
     "statPages": "페이지",
     "statLinks": "연결",
     "filterAll": "전체",
@@ -82,20 +79,9 @@
     "gettingProposals": "연결을 찾는 중…"
   },
   "records": {
-    "title": "기록 보관소",
-    "headerCount": "기록과 자료 {{count}}개를 담았습니다.",
-    "headerCount_plural": "기록과 자료 {{count}}개를 담았습니다.",
-    "headerEmpty": "아직 저장한 기록이 없습니다.",
-    "tip": "아직 분류하지 않은 자료가 {{count}}개 있습니다.",
-    "tip_plural": "아직 분류하지 않은 자료가 {{count}}개 있습니다.",
-    "lead": "기록과 자료를 날짜순으로",
     "filterAll": "전체",
-    "filterJournal": "일기",
-    "filterNote": "메모",
-    "filterAudit": "점검",
     "emptyAll": "아직 저장한 기록이 없습니다. 오늘 있었던 일을 한 줄 남겨보세요.",
     "emptyKind": "이 종류의 기록이 없습니다.",
-    "tipClear": "분류하지 않은 자료를 모두 정리했습니다.",
     "wikiTitle": "위키",
     "viewList": "목록",
     "viewGraph": "그래프",
@@ -128,12 +114,6 @@
     "title": "기록 상세",
     "headerLinked": "이 기록은 다른 기록 {{count}}개와 연결돼 있습니다.",
     "headerAlone": "저장한 기록을 다시 읽어보세요.",
-    "tip": "같은 태그의 기록으로 이어집니다.",
-    "author": "직접 작성",
-    "notFound": "기록을 찾을 수 없습니다. 보관소로 돌아가 다시 열어보세요.",
-    "toArchive": "기록 보관소로",
-    "linkedRecords": "연결된 기록",
-    "newRecord": "새 기록",
     "a11yDelete": "이 기록 삭제",
     "deleteConfirmTitle": "이 기록을 삭제할까요?",
     "deleteConfirmBody": "삭제하면 되돌릴 수 없습니다.",
@@ -149,37 +129,17 @@
     "kindFallback": "기록"
   },
   "auth": {
-    "appName": "PolaScope",
     "signInLead": "AI 시대의 자산은 나 자신. 기록이 쌓여 나의 북극성이 됩니다.",
     "signIn": "로그인",
-    "createAccount": "계정 만들기",
     "signUpTitle": "시작하기",
     "signUpLead": "나에 대한 기록을 하나씩 남겨보세요.",
-    "fieldEmail": "이메일",
-    "fieldPassword": "비밀번호",
-    "fieldBirthYear": "출생연도",
-    "signUp": "가입하기",
     "resetTitle": "비밀번호 재설정",
-    "resetPrompt": "메일을 확인해 주세요",
-    "resetBody": "6자리 인증 코드를 입력하면 다시 설정할 수 있습니다.",
-    "resend": "재전송 {{time}}",
-    "confirm": "확인",
-    "noAccount": "처음이신가요? 계정 만들기",
     "forgotPassword": "비밀번호를 잊으셨나요?",
     "or": "또는",
     "ageNotice": "만 {{minAge}}세 이상부터 가입할 수 있습니다.",
     "brandLabel": "POLASCOPE",
     "signInTitle": "다시 만나 반갑습니다",
-    "emailContinue": "이메일로 계속하기",
-    "signUpPrompt": "처음이신가요?",
     "legalConsent": "계속하면 서비스 약관과 개인정보 처리방침에 동의하게 됩니다.",
-    "continueShort": {
-      "google": "Google로 계속",
-      "apple": "Apple로 계속",
-      "kakao": "Kakao로 계속",
-      "facebook": "Facebook으로 계속",
-      "github": "GitHub으로 계속"
-    },
     "business": {
       "company": "상호",
       "ceo": "대표",
@@ -206,9 +166,6 @@
     "status": "기록은 자기 이해를 돕기 위해서만 사용됩니다.",
     "tip": "어떤 데이터를 쓸지 직접 정할 수 있습니다.",
     "lead": "내 데이터 사용 범위를 직접 조정하세요.",
-    "toggleAnalysis": "자기 이해 분석에 기록 사용",
-    "toggleStats": "제품 개선 익명 통계",
-    "toggleLock": "앱 잠금 (생체인증)",
     "on": "켜짐",
     "off": "꺼짐",
     "policy": "개인정보 처리방침",
@@ -232,28 +189,11 @@
     "faqTitle": "자주 묻는 질문",
     "noticesTitle": "공지사항"
   },
-  "integrations": {
-    "title": "다른 앱 연동",
-    "status": "외부 앱에서 가져올 내용은 {{who}}에게 먼저 보여줍니다.",
-    "tip": "가져올 내용을 확인한 뒤 저장해 주세요.",
-    "sectionAssistant": "AI 비서 연결",
-    "pending": "연결 대기",
-    "sectionSources": "자료 가져올 곳",
-    "notionValue": "페이지와 데이터베이스",
-    "obsidianValue": "기기에 저장된 Markdown 파일",
-    "healthLabel": "건강 · 캘린더",
-    "permissionNeeded": "권한 필요",
-    "footer": "연동 데이터는 가져오기 전에 검토하고, 언제든 끊을 수 있습니다."
-  },
   "connect": {
     "title": "데이터 연동",
     "lead": "다른 앱의 기록을 가져와 별에 반영합니다. 모든 처리는 기기에서 먼저 시작합니다.",
     "consent": "원문은 저장하지 않습니다. 원문에서 정리한 정보만 암호화해 저장합니다. 언제든 연결을 끊고 지울 수 있습니다.",
-    "connected": "연결됨",
     "connect": "연결",
-    "a11yStatus": "{{name}} {{status}}",
-    "a11yConnected": "연결됨",
-    "a11yConnect": "연결",
     "openImport": "파일로 가져오기",
     "openCapture": "담기로 가져오기",
     "a11yGo": "{{name}} 가져오기 열기",
@@ -262,16 +202,11 @@
         "name": "Google 캘린더",
         "sub": "일정 파일에서 약속 정보 가져오기"
       },
-      "health": {
-        "name": "Apple 건강",
-        "sub": "건강 앱에서 내보낸 파일 가져오기"
-      },
       "notion": {
         "sub": "메모·문서 가져오기"
       },
       "photos": {
-        "name": "사진 앨범",
-        "sub": "사진 속 글자를 읽어 기록으로 담기"
+        "name": "사진 앨범"
       },
       "gpt": {
         "name": "ChatGPT 내보내기",
@@ -304,24 +239,6 @@
     "sectionDiscover": "무엇을 담아볼까",
     "discoverLead": "최근 기록에서 자주 나온 관심사를 보여줍니다."
   },
-  "data": {
-    "title": "내 데이터",
-    "subtitle": "무엇이 쌓였고, 어디에 쓰이는지",
-    "status": "{{who}}의 데이터를 어디에 저장하고 어떻게 쓰는지 확인합니다.",
-    "tip": "민감한 데이터는 기기 안에만 둘 수 있습니다.",
-    "statPieces": "담은 별가루",
-    "statChecks": "완료한 검사",
-    "sectionStorage": "저장 위치",
-    "onDevice": "이 기기 (민감한 데이터)",
-    "encrypted": "암호화",
-    "cloudSync": "클라우드 동기화",
-    "on": "켜짐",
-    "exportAll": "전체 데이터 내보내기",
-    "deleteAll": "모든 데이터 삭제",
-    "buildIndex": "의미 검색 준비하기",
-    "indexing": "검색 준비 중…",
-    "indexed": "{{count}}개 검색 준비 완료"
-  },
   "theme": {
     "title": "테마 · 글꼴",
     "status": "보기 편한 테마와 글꼴을 골라 주세요.",
@@ -333,9 +250,6 @@
     "sectionFont": "글꼴",
     "fontPixel": "픽셀 · Galmuri",
     "fontReadable": "읽기 편한 · Pretendard",
-    "sectionSize": "글자 크기",
-    "small": "작게",
-    "large": "크게",
     "reduceMotion": "화면 움직임 줄이기"
   },
   "manual": {
@@ -410,16 +324,6 @@
   "review": {
     "title": "점검",
     "status": "최근 기록을 바탕으로 별의 상태를 다시 확인합니다.",
-    "tip": "승인해야만 반영됩니다.",
-    "lead": "별에 반영할 변화 확인",
-    "section": "세컨비의 제안",
-    "body": "최근 기록에서는 이전보다 사람들과 어울리는 모습이 보입니다. 별 밝기에 반영할까요?",
-    "now": "지금",
-    "suggest": "제안",
-    "evidence": "근거 기록 {{count}}건",
-    "footer": "승인해야만 반영됩니다 · 모든 제안은 기록에 남습니다",
-    "hold": "보류",
-    "approve": "승인",
     "rule": "확인해야만 반영됩니다 · L5는 여기서만 열립니다",
     "groupSeven": "시기별 후보 · 두 단계 이상 이야기한 별",
     "groupTest": "검사 기반 후보",
@@ -452,52 +356,12 @@
     "htmlDesc": "인쇄할 수 있는 페이지입니다. 브라우저에서 열어 인쇄하거나 PDF로 저장할 수 있습니다."
   },
   "import": {
-    "title": "다른 앱에서 가져오기",
-    "status": "다른 앱의 기록도 불러올 수 있습니다.",
-    "tip": "가져올 내용은 {{who}}에게 먼저 보여줍니다.",
-    "lead": "다른 곳의 기록도 한 곳으로",
-    "notionDesc": "페이지 · 데이터베이스",
-    "obsidianDesc": "보관함의 .md·텍스트 파일 가져오기",
     "healthName": "건강",
-    "healthDesc": "수면 · 활동",
-    "healthConnect": "활동 동기화 켜기",
-    "healthConnectHint": "운동 기록에 맞춰 활동 루틴을 자동으로 완료 표시합니다.",
-    "healthConsentNeeded": "활동 가져오기에 동의하기",
-    "healthIngest": "오늘 활동 추가",
-    "healthIngestHint": "오늘 활동을 저장하고 관련 루틴에 반영합니다.",
-    "healthIngested": "오늘 활동을 추가했습니다.",
-    "healthMinorLocked": "이 계정에서는 활동 동기화가 꺼져 있습니다.",
-    "connect": "연결",
-    "soon": "준비 중",
-    "reviewLabel": "가져오기 전 검토",
-    "mapFrom1": "Notion 제목",
-    "mapTo1": "기록 제목",
-    "mapFrom2": "태그",
-    "mapTo2": "자동 태그",
-    "mapFrom3": "생성일",
-    "mapTo3": "담은 시점",
-    "footer": "{{count}}개 항목을 가져옵니다. {{who}}에게 확인받기 전에는 반영하지 않습니다.",
-    "cancel": "취소",
-    "importCount": "{{count}}개 가져오기",
-    "pasteLabel": "붙여넣기",
-    "placeholder": "마크다운 노트를 붙여넣으세요. --- 줄로 구분하면 여러 개로 나뉩니다.",
-    "detected": "가져올 노트 {{count}}개",
-    "untitled": "제목 없는 노트",
-    "andMore": "외 {{count}}개",
-    "empty": "위에 붙여넣으면 여기에 미리보기가 나타납니다.",
-    "resultDone": "{{count}}개를 정리함에 담았습니다.",
-    "resultDuplicate": "중복 {{count}}개 건너뜀",
-    "resultFailed": "{{count}}개 실패",
-    "importing": "가져오는 중…",
-    "clear": "지우기",
-    "connectorsLabel": "연결할 앱",
-    "pickFiles": "파일 선택",
-    "picking": "여는 중…"
+    "healthMinorLocked": "이 계정에서는 활동 동기화가 꺼져 있습니다."
   },
   "reviewNoChange": "지금은 제안할 변화가 없습니다.",
   "reviewLoadError": "제안을 불러오지 못했습니다. 다시 시도해 주세요.",
   "reviewLeftAsIs": "제안을 닫았습니다. 반영하거나 기록에 남기지 않았습니다.",
-  "reviewGetProposal": "제안 받기",
   "reviewReopenProposal": "받은 제안 다시 보기",
   "reviewLoading": "불러오는 중…",
   "reviewRecordsBehind": "이 제안이 참고한 기록",
@@ -617,7 +481,6 @@
     "save": "담기",
     "privacyNote": "다른 사람의 정보는 기억에 필요한 만큼만 적어 주세요. 내 계정에만 저장됩니다.",
     "openingMap": "지도를 펴는 중…",
-    "empty": "아직 저장한 사람이 없습니다. 가까운 사람부터 추가해 보세요.",
     "me": "나",
     "kind": {
       "family": "가족",
@@ -626,9 +489,7 @@
       "colleague": "동료",
       "mentor": "멘토",
       "other": "그 밖에"
-    },
-    "contactSuffix": " · 연락 {{cadence}}",
-    "lastSuffix": " · 마지막 {{date}}"
+    }
   },
   "rest": {
     "title": "휴식",
@@ -695,7 +556,6 @@
     "inputReady": "담기로 가기",
     "goHome": "별자리로 가기",
     "doneCount": "완료",
-    "secondbName": "세컨비",
     "dontShowAgain": "다시 보지 않기"
   },
   "museum": {
@@ -719,16 +579,10 @@
     "a11yGraph": "기록 연결 그래프",
     "a11yZoomOut": "축소",
     "a11yZoomIn": "확대",
-    "hintSelected": "{{label}} · 한 번 더 누르면 열립니다",
-    "openRecord": "기록 열기",
-    "hintDefault": "점선 = 태그로 이어진 기록. 누르면 선택, 한 번 더 누르면 열립니다",
-    "untitled": "(제목 없음)",
-    "tagLinks": "태그 연결선 표시"
+    "openRecord": "기록 열기"
   },
   "wikiGraph": {
     "a11yGraph": "위키 연결 그래프",
-    "a11yZoomOut": "축소",
-    "a11yZoomIn": "확대",
     "hintSelected": "{{title}} · 한 번 더 누르면 열립니다",
     "hintDefault": "점을 누르면 선택하고, 한 번 더 누르면 엽니다",
     "kindConcept": "개념",
@@ -841,9 +695,6 @@
       }
     },
     "wikiRecords": {
-      "relationships": "관계",
-      "justNow": "방금",
-      "seeEvidence": "근거 기록 보기 ↗",
       "tags": "태그",
       "addTag": "태그 추가",
       "linkedRecords": "연결된 기록",
@@ -853,7 +704,6 @@
       "fillStar": "이 별에 정보 추가",
       "fillStarBody": "이 영역의 정보를 직접 추가합니다.",
       "secondbLinked": "이 기록은 '{{star}}' 별과 연결돼 있습니다. 비슷한 시기에 남긴 관련 기록이 {{n}}건 있습니다.",
-      "secondbUnlinked": "이 기록은 아직 연결된 별이 없습니다.",
       "makeWikiPage": "위키 페이지로 만들기",
       "wikiPageMade": "위키 페이지를 만들었습니다"
     },
@@ -925,36 +775,6 @@
       "resultFailed": "실패 {{count}}개",
       "a11yImportExportFile": "{{name}} 내보내기 파일 가져오기",
       "a11yRevokeImport": "{{name}} 가져오기 철회"
-    },
-    "ttfv": {
-      "pageTitle": "첫 이야기를 남겨볼까요",
-      "stageA11y": "북극성과 이야기 주제를 나타낸 그림이며, 실제 별 밝기를 측정한 결과가 아닙니다",
-      "defaultInsight": {
-        "star": "관계 이야기",
-        "phrase": "먼저 다가가는"
-      },
-      "secondbName": "세컨비",
-      "insightLead": "혹시 ",
-      "insightTail": " 사람인가요?",
-      "sub": "기록을 분석한 결과가 아니라, 첫 이야기를 시작하기 위한 질문입니다.",
-      "grounds": "이 질문에 대해",
-      "affirm": "맞아요",
-      "differ": "조금 달라요",
-      "consent": "답을 고르면 메모로 저장합니다. 답하지 않고 넘어가도 괜찮습니다.",
-      "ratifySoft": "다르게 느낀다는 답을 저장했습니다.",
-      "ratifyTitle": "답변을 저장했습니다.",
-      "ratifySub": "저장한 답변은 기록에서 다시 볼 수 있습니다.",
-      "enter": "별자리로 들어가기",
-      "evidence1": {
-        "q": "지금은",
-        "a": "이야기를 시작하기 위한 예시이며, 나에 대해 알아낸 사실은 아닙니다."
-      },
-      "evidence2": {
-        "q": "앞으로",
-        "a": "고른 답을 메모로 남깁니다. 이 답 하나로 별 밝기가 달라졌다고 판단하지 않습니다."
-      },
-      "whyFootnote": "이 설명이 나와 맞는지 골라 주세요.",
-      "eyebrow": "첫 빛"
     },
     "northstar": {
       "title": "북극성 문장",
@@ -1043,11 +863,9 @@
   "beyond": {
     "preview": "미리보기",
     "title": "앱 밖에서",
-    "lead": "{{who}}의 위젯과 알림을 미리 볼 수 있습니다.",
     "widgetsSection": "홈 화면 위젯",
     "todaysStar": "오늘의 별",
     "brightestStar": "가장 밝은 별",
-    "tapToOpen": "탭하면 오늘의 별로 이동합니다",
     "captureTitle": "지금 떠오른 거 담기",
     "capture": "담기",
     "captureByVoice": "음성으로 담기",
@@ -1059,35 +877,21 @@
     "notifSettings": "알림 설정"
   },
   "star": {
-    "capture": "담기",
-    "seeRecords": "기록 보기",
     "loading": "불러오는 중…",
     "loadError": "잠깐 못 불러왔습니다. 다시 시도해 주세요.",
     "retry": "다시 시도",
-    "empty": "첫 기록을 담아 이 별을 밝혀보세요.",
-    "recordFallback": "기록",
     "untitled": "(제목 없음)",
     "pieceHere": "여기 담겼습니다",
     "pieceOpenHint": "이 기록을 엽니다.",
     "briefingOpening": "이 별의 기록을 불러오는 중…",
     "briefingEmpty": "이 별에는 아직 기록이 없습니다. 기록을 담으면 세컨비가 내용을 정리합니다.",
     "briefingCountOne": "이 별에 {{n}}개의 기록이 담겼습니다. 최근 기록부터 정리했습니다.",
-    "briefingCount": "이 별에 {{n}}개의 기록이 담겼습니다. 최근 기록부터 정리했습니다.",
-    "drillCareer": "지금까지 해온 일",
-    "drillGrowth": "지난 경험 더 알아보기",
-    "drillRelation": "관계 인터뷰",
-    "drillRecreation": "아이디어 얻기",
-    "relToday": "오늘",
-    "relYesterday": "어제",
-    "relDays": "{{n}}일 전",
-    "relWeeks": "{{n}}주 전",
-    "relMonths": "{{n}}달 전"
+    "briefingCount": "이 별에 {{n}}개의 기록이 담겼습니다. 최근 기록부터 정리했습니다."
   },
   "onboarding": {
     "nextHint": "다음 소개로 넘어갑니다.",
     "skipHint": "소개를 건너뜁니다.",
     "authHint": "홈으로 이동합니다.",
-    "authLabel": "시작하기",
     "secondbName": "세컨비",
     "authTitle": "시작할까요?",
     "authBody": "기록은 내 것이고, 요약은 직접 확인한 뒤 반영됩니다. 첫 기록을 남겨보세요.",

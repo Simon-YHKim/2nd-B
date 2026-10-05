@@ -1,22 +1,12 @@
 {
   "title": "Preguntas para recordar",
   "loading": "Cargando la entrevista…",
-  "reflected": "Guardado. Abriendo los resultados.",
   "retryHint": "Vuelve a intentar guardar tus respuestas.",
-  "ratifyTitle": "¿Aplicar esta propuesta?",
-  "ratifyBody1": "Un cambio propuesto a partir de tus respuestas. ",
-  "ratifyBodyStrong": "Solo lo que apruebes",
-  "ratifyBody2": " se aplica a las estrellas.",
-  "again": "De nuevo",
   "approve": "Aprobar y aplicar",
-  "question": "Pregunta {{n}} de {{total}}",
   "notice": "Guardar las respuestas",
   "reflectError": "No se pudo guardar",
   "dismiss": "Cerrar",
   "tryAgain": "Reintentar",
-  "ratifyDeltaNote": "Tus respuestas se guardan tal como las escribiste. Todavía no se estima un resultado. El brillo cambiará a medida que añadas registros.",
-  "progressLabel": "Pregunta {{n}} / {{total}} · Entrevista de recuerdos",
-  "screenerSubtitle": "Algunas preguntas vuelven sobre el mismo tema de otra forma para ayudarte a recordar los detalles.",
   "reflectErrorBody": "Tus respuestas siguen aquí. Vuelve a intentarlo en un momento.",
   "loopCheck": {
     "stuckLoop": "Eso a lo que vuelves una y otra vez: ¿te está diciendo algo nuevo, o llegas siempre a la misma conclusión?",
@@ -46,12 +36,5 @@
     "anotherScene": "¿Hay otro momento del que prefieras hablar?",
     "concreteQuestion": "¿Qué recuerdas haber hecho en ese momento?",
     "openerHint": "Tócalo para empezar y edítalo"
-  },
-  "period": {
-    "childhood": "Infancia",
-    "teens": "Adolescencia",
-    "twenties": "Veintes",
-    "thirties": "Treintas",
-    "current": "Ahora"
   }
 }

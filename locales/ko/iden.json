@@ -6,9 +6,6 @@
     "subtitle": "다른 AI에 전할 파일과 한 장짜리 프로필",
     "speech": "나에 대한 정보를 다른 AI에도 전달할 수 있습니다."
   },
-  "generate": {
-    "button": "내 IDEN 만들기"
-  },
   "error": "IDEN을 만들지 못했습니다. 새로고침한 뒤 다시 시도해 주세요.",
   "entry": {
     "eyebrow": "나의 정보 내보내기",
@@ -23,7 +20,6 @@
     "retry": "다시 시도",
     "empty": "아직 내보낼 정보가 없습니다. 나에 대한 기록부터 남겨보세요.",
     "startGathering": "기록 담기",
-    "signed": "서명됨",
     "whatGoesIn": "무엇을 담을까요",
     "format": "형식",
     "sendToAi": "AI에 전달",

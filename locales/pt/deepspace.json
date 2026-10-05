@@ -41,9 +41,6 @@
   },
   "wiki": {
     "title": "Conhecimento",
-    "headerGrowing": "{{count}} registros de conhecimento salvos.",
-    "headerEmpty": "Ainda não há registros de conhecimento. Adicione o primeiro.",
-    "tip": "Filtre por etiqueta.",
     "statPages": "Páginas",
     "statLinks": "Conexões",
     "filterAll": "Tudo",
@@ -82,20 +79,9 @@
     "gettingProposals": "Procurando conexões…"
   },
   "records": {
-    "title": "Arquivo",
-    "headerCount": "{{count}} registros salvos.",
-    "headerCount_plural": "{{count}} registros salvos.",
-    "headerEmpty": "Você ainda não salvou nenhum registro.",
-    "tip": "{{count}} itens para organizar na caixa de entrada.",
-    "tip_plural": "{{count}} itens para organizar na caixa de entrada.",
-    "lead": "Tudo o que você salvou, em uma única linha do tempo",
     "filterAll": "Tudo",
-    "filterJournal": "Diário",
-    "filterNote": "Nota",
-    "filterAudit": "Revisão",
     "emptyAll": "Nenhum registro salvo. Adicione o primeiro para vê-lo nesta linha do tempo.",
     "emptyKind": "Ainda não há registros deste tipo.",
-    "tipClear": "Tudo classificado.",
     "wikiTitle": "Wiki",
     "viewList": "Lista",
     "viewGraph": "Mapa",
@@ -128,12 +114,6 @@
     "title": "Detalhe do registro",
     "headerLinked": "Este registro se conecta a {{count}} outros.",
     "headerAlone": "Confira o texto deste registro.",
-    "tip": "Este registro se conecta a outros com a mesma etiqueta.",
-    "author": "Escrito por você",
-    "notFound": "Não foi possível encontrar este registro. Volte ao arquivo e abra-o de novo.",
-    "toArchive": "Para o arquivo",
-    "linkedRecords": "Registros vinculados",
-    "newRecord": "Novo registro",
     "a11yDelete": "Excluir este registro",
     "deleteConfirmTitle": "Excluir este registro?",
     "deleteConfirmBody": "Isso não pode ser desfeito.",
@@ -149,37 +129,17 @@
     "kindFallback": "Registro"
   },
   "auth": {
-    "appName": "PolaScope",
     "signInLead": "Na era da IA, o ativo é você. Seus registros formam sua Estrela Polar.",
     "signIn": "Entrar",
-    "createAccount": "Criar conta",
     "signUpTitle": "Começar",
     "signUpLead": "Salve seu primeiro registro para começar.",
-    "fieldEmail": "E-mail",
-    "fieldPassword": "Senha",
-    "fieldBirthYear": "Ano de nascimento",
-    "signUp": "Cadastrar",
     "resetTitle": "Redefinir senha",
-    "resetPrompt": "Verifique seu e-mail, por favor",
-    "resetBody": "Digite o código de 6 dígitos para defini-la de novo.",
-    "resend": "Reenviar {{time}}",
-    "confirm": "Confirmar",
-    "noAccount": "Primeira vez? Crie uma conta",
     "forgotPassword": "Esqueceu a senha?",
     "or": "ou",
     "ageNotice": "Você pode criar uma conta se tiver {{minAge}} anos ou mais.",
     "brandLabel": "POLASCOPE",
     "signInTitle": "Que bom te ver de novo",
-    "emailContinue": "Continuar com e-mail",
-    "signUpPrompt": "Primeira vez?",
     "legalConsent": "Ao continuar, você concorda com os Termos de Serviço e a Política de Privacidade.",
-    "continueShort": {
-      "google": "Continuar com o Google",
-      "apple": "Continuar com a Apple",
-      "kakao": "Continuar com o Kakao",
-      "facebook": "Continuar com o Facebook",
-      "github": "Continuar com o GitHub"
-    },
     "business": {
       "company": "Empresa",
       "ceo": "Diretor",
@@ -206,9 +166,6 @@
     "status": "Os registros são usados apenas para apoiar seu autoconhecimento.",
     "tip": "Escolhas sensíveis são sempre mostradas e confirmadas primeiro.",
     "lead": "Ajuste você mesmo como seus dados são usados.",
-    "toggleAnalysis": "Usar registros para a análise de autoconhecimento",
-    "toggleStats": "Estatísticas anônimas de melhoria do produto",
-    "toggleLock": "Bloqueio do app (biometria)",
     "on": "Ligado",
     "off": "Desligado",
     "policy": "Política de privacidade",
@@ -232,28 +189,11 @@
     "faqTitle": "Perguntas frequentes",
     "noticesTitle": "Avisos"
   },
-  "integrations": {
-    "title": "Integrações de apps",
-    "status": "Você sempre confirma apps externos antes de importar.",
-    "tip": "Confira os dados antes de salvar.",
-    "sectionAssistant": "Conectar assistente de IA",
-    "pending": "Pendente",
-    "sectionSources": "Fontes de captura",
-    "notionValue": "Páginas e bancos de dados",
-    "obsidianValue": "Markdown local",
-    "healthLabel": "Saúde · Calendário",
-    "permissionNeeded": "Permissão necessária",
-    "footer": "Você revisa os dados de integração antes de importar e pode desconectar quando quiser."
-  },
   "connect": {
     "title": "Sincronização de dados",
     "lead": "Importe seus registros para as estrelas relacionadas. O processamento começa no seu dispositivo.",
     "consent": "O conteúdo original nunca é guardado; apenas os sinais derivados ficam salvos, criptografados, e você pode desconectar e apagar quando quiser.",
-    "connected": "Conectado",
     "connect": "Conectar",
-    "a11yStatus": "{{name}} {{status}}",
-    "a11yConnected": "conectado",
-    "a11yConnect": "conectar",
     "openImport": "Importar de arquivo",
     "openCapture": "Trazer pela captura",
     "a11yGo": "Abrir importação de {{name}}",
@@ -262,16 +202,11 @@
         "name": "Google Calendar",
         "sub": "Importe compromissos de um arquivo de calendário"
       },
-      "health": {
-        "name": "Apple Health",
-        "sub": "Importe um arquivo exportado do app de saúde"
-      },
       "notion": {
         "sub": "Importe notas e documentos"
       },
       "photos": {
-        "name": "Álbum de fotos",
-        "sub": "Leia o texto de uma foto e salve como nota"
+        "name": "Álbum de fotos"
       },
       "gpt": {
         "name": "Exportação do ChatGPT",
@@ -304,24 +239,6 @@
     "sectionDiscover": "O que capturar agora",
     "discoverLead": "Veja os assuntos mais frequentes nos seus registros recentes."
   },
-  "data": {
-    "title": "Meus dados",
-    "subtitle": "Seus dados salvos e como são usados",
-    "status": "Veja onde seus dados ficam salvos e para que são usados.",
-    "tip": "Dados sensíveis podem ficar só no seu dispositivo.",
-    "statPieces": "Registros salvos",
-    "statChecks": "Testes feitos",
-    "sectionStorage": "Local de armazenamento",
-    "onDevice": "No dispositivo (dados sensíveis)",
-    "encrypted": "Criptografado",
-    "cloudSync": "Sincronização na nuvem",
-    "on": "Ligado",
-    "exportAll": "Exportar todos os dados",
-    "deleteAll": "Excluir todos os dados",
-    "buildIndex": "Preparar busca por significado",
-    "indexing": "Preparando a busca…",
-    "indexed": "{{count}} preparados para busca"
-  },
   "theme": {
     "title": "Tema · Fonte",
     "status": "Escolha um tema e uma fonte confortáveis.",
@@ -333,9 +250,6 @@
     "sectionFont": "Fonte",
     "fontPixel": "Pixel · Galmuri",
     "fontReadable": "Legível · Pretendard",
-    "sectionSize": "Tamanho do texto",
-    "small": "Pequeno",
-    "large": "Grande",
     "reduceMotion": "Reduzir movimento"
   },
   "manual": {
@@ -410,16 +324,6 @@
   "review": {
     "title": "Revisão",
     "status": "Revise as mudanças sugeridas para suas estrelas.",
-    "tip": "Nada se aplica até você aprovar.",
-    "lead": "Confira as mudanças sugeridas para suas estrelas",
-    "section": "Sugestão do SecondB",
-    "body": "Veja o que mudou nos registros recentes antes de aprovar a proposta.",
-    "now": "Agora",
-    "suggest": "Sugerido",
-    "evidence": "{{count}} registros de apoio",
-    "footer": "Nada se aplica até você aprovar · cada sugestão fica nos seus registros",
-    "hold": "Aguardar",
-    "approve": "Aprovar",
     "rule": "Nada é aplicado até você confirmar · L5 abre só aqui",
     "groupSeven": "Estrelas de período · com duas etapas de conversa ou mais",
     "groupTest": "A partir dos seus testes",
@@ -452,52 +356,12 @@
     "htmlDesc": "Página pronta para impressão. Abra e imprima, ou salve como PDF, pelo navegador."
   },
   "import": {
-    "title": "Importar",
-    "status": "Você também pode trazer registros de outros apps.",
-    "tip": "Você sempre confirma antes de importar.",
-    "lead": "Registros de outros lugares, em um só lugar",
-    "notionDesc": "Páginas · bancos de dados",
-    "obsidianDesc": "Importe arquivos .md / texto do seu vault",
     "healthName": "Saúde",
-    "healthDesc": "Sono · atividade",
-    "healthConnect": "Ativar a sincronização de atividade",
-    "healthConnectHint": "Usa treinos registrados para acompanhar sua rotina de atividade.",
-    "healthConsentNeeded": "Aceitar para trazer sua atividade",
-    "healthIngest": "Adicionar a atividade de hoje",
-    "healthIngestHint": "Salva a atividade de hoje e atualiza as rotinas correspondentes.",
-    "healthIngested": "Atividade de hoje adicionada.",
-    "healthMinorLocked": "A sincronização de atividade está desativada nesta conta.",
-    "connect": "Conectar",
-    "soon": "Em breve",
-    "reviewLabel": "Revisar antes de importar",
-    "mapFrom1": "Título do Notion",
-    "mapTo1": "Título do registro",
-    "mapFrom2": "Etiquetas",
-    "mapTo2": "Etiquetas automáticas",
-    "mapFrom3": "Data de criação",
-    "mapTo3": "Momento salvo",
-    "footer": "Importando {{count}} itens. Nada se aplica sem sua aprovação.",
-    "cancel": "Cancelar",
-    "importCount": "Importar {{count}}",
-    "pasteLabel": "Colar markdown",
-    "placeholder": "Cole suas notas em markdown aqui. Separe várias notas com uma linha ---.",
-    "detected": "{{count}} notas para importar",
-    "untitled": "Nota sem título",
-    "andMore": "e mais {{count}}",
-    "empty": "Cole notas acima e uma prévia aparece aqui.",
-    "resultDone": "Adicionadas {{count}} à sua bandeja.",
-    "resultDuplicate": "{{count}} duplicada(s) ignorada(s)",
-    "resultFailed": "{{count}} com falha",
-    "importing": "Importando…",
-    "clear": "Limpar",
-    "connectorsLabel": "Conectores de apps",
-    "pickFiles": "Escolher arquivos",
-    "picking": "Abrindo…"
+    "healthMinorLocked": "A sincronização de atividade está desativada nesta conta."
   },
   "reviewNoChange": "Nenhuma mudança a propor agora.",
   "reviewLoadError": "Não conseguimos carregar uma proposta. Tente de novo.",
   "reviewLeftAsIs": "Proposta fechada. Ela não foi aplicada e não deixa registro.",
-  "reviewGetProposal": "Receber uma proposta",
   "reviewReopenProposal": "Reabrir a proposta",
   "reviewLoading": "Carregando…",
   "reviewRecordsBehind": "Os registros por trás disso",
@@ -617,7 +481,6 @@
     "save": "Salvar",
     "privacyNote": "Apenas o mínimo sobre outras pessoas, para a sua própria memória. Fica salvo somente na sua conta.",
     "openingMap": "Abrindo o mapa…",
-    "empty": "Ainda não há pessoas cadastradas. Adicione alguém que faz parte da sua vida.",
     "me": "eu",
     "kind": {
       "family": "Família",
@@ -626,9 +489,7 @@
       "colleague": "Colega",
       "mentor": "Mentor",
       "other": "Outro"
-    },
-    "contactSuffix": " · contato {{cadence}}",
-    "lastSuffix": " · última vez {{date}}"
+    }
   },
   "rest": {
     "title": "Descanso",
@@ -695,7 +556,6 @@
     "inputReady": "Ir para Salvar",
     "goHome": "Ir para a constelação",
     "doneCount": "Concluído",
-    "secondbName": "SecondB",
     "dontShowAgain": "Não mostrar novamente"
   },
   "museum": {
@@ -719,16 +579,10 @@
     "a11yGraph": "Mapa de conexão de registros",
     "a11yZoomOut": "Diminuir zoom",
     "a11yZoomIn": "Aumentar zoom",
-    "hintSelected": "{{label}} · toque novamente para abrir",
-    "openRecord": "Abrir registro",
-    "hintDefault": "Tracejada = registros ligados por uma tag em comum. Toque para selecionar, toque novamente para abrir",
-    "untitled": "(sem título)",
-    "tagLinks": "Vínculos de tags"
+    "openRecord": "Abrir registro"
   },
   "wikiGraph": {
     "a11yGraph": "Mapa de páginas da wiki",
-    "a11yZoomOut": "Diminuir zoom",
-    "a11yZoomIn": "Aumentar zoom",
     "hintSelected": "{{title}} · toque novamente para abrir",
     "hintDefault": "Toque para selecionar uma página e novamente para abri-la",
     "kindConcept": "Conceito",
@@ -841,9 +695,6 @@
       }
     },
     "wikiRecords": {
-      "relationships": "Relacionamentos",
-      "justNow": "Agora mesmo",
-      "seeEvidence": "Ver evidências ↗",
       "tags": "Etiquetas",
       "addTag": "Adicionar tag",
       "linkedRecords": "Registros vinculados",
@@ -853,7 +704,6 @@
       "fillStar": "Preencher esta estrela",
       "fillStarBody": "Adicione informações deste domínio.",
       "secondbLinked": "Este registro se conecta à estrela '{{star}}'. Há {{n}} registros semelhantes no mesmo período.",
-      "secondbUnlinked": "Este registro ainda não está conectado a uma estrela.",
       "makeWikiPage": "Criar página wiki",
       "wikiPageMade": "Página wiki criada"
     },
@@ -925,36 +775,6 @@
       "resultFailed": "{{count}} com falha",
       "a11yImportExportFile": "Importar arquivo de exportação de {{name}}",
       "a11yRevokeImport": "Revogar importação de {{name}}"
-    },
-    "ttfv": {
-      "pageTitle": "Comece seu primeiro registro",
-      "stageA11y": "Ilustração da Estrela Polar e de um tema, não uma medição de brilho",
-      "defaultInsight": {
-        "star": "Relações",
-        "phrase": "dá o primeiro passo"
-      },
-      "secondbName": "SecondB",
-      "insightLead": "Você costuma ser quem ",
-      "insightTail": "?",
-      "sub": "É uma pergunta para começar, não uma conclusão baseada nos seus registros.",
-      "grounds": "Sobre esta pergunta",
-      "affirm": "É isso mesmo",
-      "differ": "Um pouco diferente",
-      "consent": "Ao escolher uma resposta, você a salva como nota. Também pode sair sem responder.",
-      "ratifySoft": "Seu ponto de vista diferente foi salvo.",
-      "ratifyTitle": "Sua resposta foi salva.",
-      "ratifySub": "Você pode encontrar esta resposta nos seus registros.",
-      "enter": "Entrar na sua constelação",
-      "evidence1": {
-        "q": "Agora",
-        "a": "Este exemplo inicia uma conversa. Não é uma descoberta sobre você."
-      },
-      "evidence2": {
-        "q": "Daqui em diante",
-        "a": "Sua escolha vira uma nota, não uma mudança confirmada no brilho das estrelas."
-      },
-      "whyFootnote": "Escolha se esta descrição combina com você.",
-      "eyebrow": "PRIMEIRA LUZ"
     },
     "northstar": {
       "title": "Frase da Estrela Polar",
@@ -1043,11 +863,9 @@
   "beyond": {
     "preview": "Prévia",
     "title": "Fora do app",
-    "lead": "Veja prévias de widgets e notificações do SecondB.",
     "widgetsSection": "Widgets da tela inicial",
     "todaysStar": "Estrela de hoje",
     "brightestStar": "Sua estrela mais brilhante",
-    "tapToOpen": "Toque para abrir a estrela de hoje",
     "captureTitle": "Guarde o que está na sua cabeça",
     "capture": "Guardar",
     "captureByVoice": "Guardar por voz",
@@ -1059,35 +877,21 @@
     "notifSettings": "Configurações de notificação"
   },
   "star": {
-    "capture": "Guardar",
-    "seeRecords": "Ver registros",
     "loading": "Carregando…",
     "loadError": "Não deu para carregar agora. Tente de novo.",
     "retry": "Tentar de novo",
-    "empty": "Guarde seu primeiro registro para acender esta estrela.",
-    "recordFallback": "registro",
     "untitled": "(sem título)",
     "pieceHere": "Guardado aqui",
     "pieceOpenHint": "Abre este registro.",
     "briefingOpening": "Abrindo esta estrela…",
     "briefingEmpty": "Ainda não há registros nesta estrela. Adicione um para começar o resumo.",
     "briefingCountOne": "{{n}} registro nesta estrela, primeiro o mais recente.",
-    "briefingCount": "{{n}} registros nesta estrela, primeiro os mais recentes.",
-    "drillCareer": "Seu caminho",
-    "drillGrowth": "Relembrar mais",
-    "drillRelation": "Entrevista de relacionamento",
-    "drillRecreation": "Buscar ideias",
-    "relToday": "hoje",
-    "relYesterday": "ontem",
-    "relDays": "há {{n}} d",
-    "relWeeks": "há {{n}} sem",
-    "relMonths": "há {{n}} mês"
+    "briefingCount": "{{n}} registros nesta estrela, primeiro os mais recentes."
   },
   "onboarding": {
     "nextHint": "Vai para o próximo slide.",
     "skipHint": "Pula a introdução e abre a tela de login.",
     "authHint": "Abre a tela de login.",
-    "authLabel": "Entre para começar",
     "secondbName": "SecondB",
     "authTitle": "Vamos começar?",
     "authBody": "Salve seus registros e revise as sugestões para sua Estrela Polar.",

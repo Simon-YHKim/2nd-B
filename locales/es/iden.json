@@ -6,9 +6,6 @@
     "subtitle": "Un archivo para compartir con una IA y un perfil de una página para leer",
     "speech": "Puedes compartir información sobre ti con otro asistente."
   },
-  "generate": {
-    "button": "Crear mi IDEN"
-  },
   "error": "No se pudo crear tu IDEN. Actualiza e intenta de nuevo.",
   "entry": {
     "eyebrow": "Exportar identidad",
@@ -23,7 +20,6 @@
     "retry": "Reintentar",
     "empty": "Aún no hay información para incluir. Añade algunos registros primero.",
     "startGathering": "Añadir registros",
-    "signed": "Firmado",
     "whatGoesIn": "Qué se incluye",
     "format": "Formato",
     "sendToAi": "Enviar a una IA",

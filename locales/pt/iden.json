@@ -6,9 +6,6 @@
     "subtitle": "Seu perfil em um arquivo para IA e em uma página para leitura",
     "speech": "Escolha as informações que quer incluir no arquivo."
   },
-  "generate": {
-    "button": "Criar meu IDEN"
-  },
   "error": "Não foi possível criar seu IDEN. Atualize e tente novamente.",
   "entry": {
     "eyebrow": "Exportar seu perfil",
@@ -23,7 +20,6 @@
     "retry": "Tentar de novo",
     "empty": "Ainda não há informações para exportar. Adicione alguns registros primeiro.",
     "startGathering": "Adicionar registros",
-    "signed": "Assinado",
     "whatGoesIn": "O que entra",
     "format": "Formato",
     "sendToAi": "Enviar para uma IA",
