@@ -746,6 +746,14 @@ export function ConstellationHome({
   const worldX = visualFocusId ? destinationProgress.interpolate({ inputRange: STAR_CAMERA_STOPS, outputRange: flight.x }) : -camera.x * camera.zoom;
   const worldY = visualFocusId ? destinationProgress.interpolate({ inputRange: STAR_CAMERA_STOPS, outputRange: flight.y }) : -camera.y * camera.zoom;
   const worldZoom = visualFocusId ? destinationProgress.interpolate({ inputRange: STAR_CAMERA_STOPS, outputRange: flight.zoom }) : camera.zoom;
+  // QA R2A-07 (2026-10-05): once a star is in focus its name label (scaled back to 1x
+  // inside the zoomed world) settles in the same band as the camera status line
+  // ("초점 고정 · 여행 준비 완료"), and the destination header already names the star.
+  // The labels step off when the camera has aimed (0.4, the end of the approach) and
+  // step back on as the return flight passes it: pixel steps, no fade.
+  const skyLabelOpacity = visualFocusId
+    ? destinationProgress.interpolate({ inputRange: [0, 0.39, 0.4, 1], outputRange: [1, 1, 0, 0] })
+    : 1;
   const selectedEntry = focusedId ? starEntryStatus(focusedId, starLevels, age) : null;
   const playDialogueBlip = useUiSound(DIALOGUE_BLIP, {
     volume: 0.08,
@@ -1027,7 +1035,7 @@ export function ConstellationHome({
                 importantForAccessibility="no-hide-descendants"
                 numberOfLines={label.maxLines}
                 pointerEvents="none"
-                style={[styles.starLabel, label.frame, on && { color: m3.accent.starFocus }, { transform: [{ scale: Animated.divide(1, worldZoom) }] }]}
+                style={[styles.starLabel, label.frame, on && { color: m3.accent.starFocus }, { opacity: skyLabelOpacity, transform: [{ scale: Animated.divide(1, worldZoom) }] }]}
               >
                 {starName(s.id)}
               </Animated.Text>
@@ -1038,7 +1046,7 @@ export function ConstellationHome({
             accessible={false}
             importantForAccessibility="no-hide-descendants"
             numberOfLines={1}
-            style={[styles.polarisLabel, starLabels.polaris, { transform: [{ scale: Animated.divide(1, worldZoom) }] }]}
+            style={[styles.polarisLabel, starLabels.polaris, { opacity: skyLabelOpacity, transform: [{ scale: Animated.divide(1, worldZoom) }] }]}
           >
             {t("ds.home.polaris")}
           </Animated.Text>
