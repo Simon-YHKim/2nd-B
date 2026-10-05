@@ -1,83 +1,155 @@
-import {
-  createAccountDeletionCompletion, dismissAccountDeletionNotice,
-  getAccountDeletionNotice, subscribeAccountDeletionNotice,
-} from "../deletion-completion";
-import { __resetAccountEpochForTests, currentAccountEpoch, noteResolvedOwner } from "../../auth/account-epoch";
+// finishAccountDeletion: the local half of a CONFIRMED account erasure.
+//
+// This file used to pin an in-memory notice store (createAccountDeletionCompletion
+// and friends). Simon decided on 2026-10-05 (Q-261004-42 = A) that the app must
+// not be the one delivering the deletion receipt: the server records it (0217)
+// and the app only opens /account-deleted with the receipt NUMBER. What is left
+// to pin is the order of the local steps and the rule that another account
+// never gets routed to A's receipt (PR #2054 gates DEL-N1-01 / DEL-N2-01).
+import { finishAccountDeletion, type FinishAccountDeletionDeps } from "../deletion-completion";
+import { parseAccountDeletedParams } from "../deletion-receipt";
 
-const OWNER = "owner-a";
-// main 의 AccountDeletionReceipt 는 이 테스트가 쓰이던 시점보다 넓다 - 서버가
-// 끝내지 못했다고 보고한 sweep(incomplete), 아무 말도 안 한 sweep(unconfirmed),
-// 그리고 전부 확인됐을 때만 참인 complete 가 더 있다. 좁은 옛 모양으로 두면
-// 타입 체커가 막고, 억지로 맞추면 이 모듈이 실제로 받는 것과 달라진다.
-const receipt = {
+const OWNER = "11111111-1111-4111-8111-111111111111";
+const OTHER = "22222222-2222-4222-8222-222222222222";
+const RECEIPT_ID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+
+const receipt = (receiptId: string | null = RECEIPT_ID) => ({
   deleted: true as const,
-  profileErased: null,
+  receiptId,
+  profileErased: true,
   deletionFenced: true,
-  rawClippingsErased: false,
-  rawClippingsEmptyAtCheck: false,
-  rawClippingsRemoved: 12,
+  rawClippingsErased: true,
+  rawClippingsEmptyAtCheck: true,
+  rawClippingsRemoved: 0,
   incomplete: [],
   unconfirmed: [],
-  complete: false,
-  observedAtIso: "2026-09-07T00:00:00.000Z",
-};
-beforeEach(() => {
-  dismissAccountDeletionNotice(); __resetAccountEpochForTests(); noteResolvedOwner(OWNER);
-});
-afterEach(() => { dismissAccountDeletionNotice(); });
-
-test("public notice copies only receipt fields, never additional account metadata", () => {
-  const operation = createAccountDeletionCompletion(OWNER, currentAccountEpoch());
-  operation.beginSignOut({ ...receipt, privateOwner: OWNER } as typeof receipt, "complete");
-  expect(getAccountDeletionNotice()?.receipt).toEqual(receipt);
-  expect(Object.isFrozen(getAccountDeletionNotice())).toBe(true);
-  expect(Object.isFrozen(getAccountDeletionNotice()?.receipt)).toBe(true);
-  operation.dispose();
+  complete: true,
+  observedAtIso: "2026-10-05T12:00:00.000Z",
 });
 
-test("a completed notice survives exactly A -> null and clears synchronously on another login", () => {
-  const operation = createAccountDeletionCompletion(OWNER, currentAccountEpoch());
-  expect(operation.beginSignOut(receipt, "retry-scheduled")).toBe(true);
-  expect(operation.beginSignOut(receipt, "complete")).toBe(false);
-  const pending = getAccountDeletionNotice();
-  expect(getAccountDeletionNotice()).toBe(pending);
-  noteResolvedOwner(null);
-  expect(operation.finishSignOut(true)).toBe(true);
-  operation.dispose();
-  expect(getAccountDeletionNotice()?.localSignOut).toBe("complete");
-  noteResolvedOwner(OWNER);
-  expect(getAccountDeletionNotice()).toBeNull();
+class OwnerChanged extends Error {}
+
+function deps(overrides: Partial<FinishAccountDeletionDeps> = {}) {
+  const calls: string[] = [];
+  const base: FinishAccountDeletionDeps = {
+    owner: OWNER,
+    receipt: receipt(),
+    purgeLocal: jest.fn(async () => {
+      calls.push("purge");
+      return "complete" as const;
+    }),
+    signOut: jest.fn(async () => {
+      calls.push("signOut");
+    }),
+    isOwnerChangedError: (error) => error instanceof OwnerChanged,
+    clearPending: jest.fn(async () => {
+      calls.push("clearPending");
+      return true;
+    }),
+    notePending: jest.fn(async () => {
+      calls.push("notePending");
+      return true;
+    }),
+    readOwner: () => ({ published: null, pending: undefined }),
+  };
+  return { deps: { ...base, ...overrides }, calls };
+}
+
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+test("purges first, then signs out exactly once, then opens the receipt route", async () => {
+  const { deps: d, calls } = deps();
+  const result = await finishAccountDeletion(d);
+  await flush();
+  expect(calls.slice(0, 2)).toEqual(["purge", "signOut"]);
+  expect(calls).toContain("clearPending");
+  expect(d.purgeLocal).toHaveBeenCalledWith(OWNER);
+  expect(result.kind).toBe("show-receipt");
+  if (result.kind !== "show-receipt") return;
+  const query = Object.fromEntries(new URLSearchParams(result.href.split("?")[1]));
+  expect(result.href.startsWith("/account-deleted?")).toBe(true);
+  expect(parseAccountDeletedParams(query)).toEqual({
+    receiptId: RECEIPT_ID,
+    localPurge: "complete",
+    localSignOut: "complete",
+    fromDeletion: true,
+  });
 });
 
-test("a stale completion cannot overwrite a newer owner's notice", () => {
-  const first = createAccountDeletionCompletion(OWNER, currentAccountEpoch());
-  first.beginSignOut(receipt, "complete");
-  noteResolvedOwner("owner-b");
-  const second = createAccountDeletionCompletion("owner-b", currentAccountEpoch());
-  second.beginSignOut(receipt, "unconfirmed");
-  expect(first.finishSignOut(true)).toBe(false);
-  expect(getAccountDeletionNotice()?.localPurge).toBe("unconfirmed");
-  expect(getAccountDeletionNotice()?.localSignOut).toBe("pending");
-  first.dispose(); second.dispose();
+test("the route carries only the receipt number and two local observations, never the owner", async () => {
+  const { deps: d } = deps();
+  const result = await finishAccountDeletion(d);
+  if (result.kind !== "show-receipt") throw new Error("expected the receipt route");
+  expect(result.href).not.toContain(OWNER);
+  expect([...new URLSearchParams(result.href.split("?")[1]).keys()].sort())
+    .toEqual(["done", "local", "receipt", "signout"]);
 });
 
-test("an invalidated epoch cannot publish even when the original user returns", () => {
-  const operation = createAccountDeletionCompletion(OWNER, currentAccountEpoch());
-  noteResolvedOwner("owner-b"); noteResolvedOwner(OWNER);
-  expect(operation.isCurrent()).toBe(false);
-  expect(operation.beginSignOut(receipt, "complete")).toBe(false);
-  expect(operation.finishSignOut(true)).toBe(false);
-  expect(getAccountDeletionNotice()).toBeNull();
-  operation.dispose();
+test("a local purge failure never turns a confirmed erasure into a failure", async () => {
+  const { deps: d } = deps({
+    purgeLocal: jest.fn(async () => {
+      throw new Error("storage");
+    }),
+  });
+  const result = await finishAccountDeletion(d);
+  expect(d.signOut).toHaveBeenCalledTimes(1);
+  expect(result.kind).toBe("show-receipt");
+  // A server receipt exists, so the note keeps it for the next signed-out screen.
+  expect(d.notePending).toHaveBeenCalledWith(OWNER, RECEIPT_ID);
+  expect(result.kind === "show-receipt" && result.localPurge).toBe("retry-scheduled");
+  expect(d.clearPending).not.toHaveBeenCalled();
 });
 
-test("subscriber failure cannot retain an invalid receipt or prevent another subscriber", () => {
-  const stopBroken = subscribeAccountDeletionNotice(() => { throw new Error("subscriber fixture"); });
-  const listener = jest.fn(); const stop = subscribeAccountDeletionNotice(listener);
-  const operation = createAccountDeletionCompletion(OWNER, currentAccountEpoch());
-  operation.beginSignOut(receipt, "complete");
-  noteResolvedOwner("owner-b");
-  expect(getAccountDeletionNotice()).toBeNull();
-  expect(listener).toHaveBeenCalledTimes(2);
-  stopBroken(); stop(); operation.dispose();
+test("without a server receipt an unfinished purge is reported as unconfirmed, not scheduled", async () => {
+  const { deps: d } = deps({ receipt: receipt(null), purgeLocal: jest.fn(async () => "unconfirmed" as const) });
+  const result = await finishAccountDeletion(d);
+  expect(d.notePending).not.toHaveBeenCalled();
+  expect(result.kind === "show-receipt" && result.localPurge).toBe("unconfirmed");
+  if (result.kind === "show-receipt") expect(result.href).not.toContain("receipt=");
+});
+
+test("a sign-out failure is reported, not retried, and the receipt still opens", async () => {
+  const { deps: d } = deps({
+    signOut: jest.fn(async () => {
+      throw new Error("lock timeout");
+    }),
+  });
+  const result = await finishAccountDeletion(d);
+  expect(result).toMatchObject({ kind: "show-receipt", localSignOut: "unconfirmed" });
+});
+
+test("B owning local auth keeps B signed in and never routes B to A's receipt", async () => {
+  const { deps: d } = deps({
+    signOut: jest.fn(async () => {
+      throw new OwnerChanged();
+    }),
+  });
+  const result = await finishAccountDeletion(d);
+  expect(result.kind).toBe("owner-changed");
+  // A's local data is still purged: it is owner-scoped and A is gone.
+  expect(d.purgeLocal).toHaveBeenCalledWith(OWNER);
+});
+
+test.each([
+  ["published B", { published: OTHER, pending: undefined }],
+  ["a held login for B (DEL-N2-01)", { published: null, pending: OTHER }],
+])("%s at the end suppresses the receipt route", async (_label, owner) => {
+  const { deps: d } = deps({ readOwner: () => owner });
+  const result = await finishAccountDeletion(d);
+  expect(result.kind).toBe("owner-changed");
+});
+
+test.each([
+  ["signed out", { published: null, pending: undefined }],
+  ["a sign-out hold", { published: OWNER, pending: null }],
+  ["A still published (sign-out not landed yet)", { published: OWNER, pending: undefined }],
+])("%s still opens the receipt route", async (_label, owner) => {
+  const { deps: d } = deps({ readOwner: () => owner });
+  const result = await finishAccountDeletion(d);
+  expect(result.kind).toBe("show-receipt");
+});
+
+test("a hanging pending-note cleanup cannot hold the result (DEL-BL-05)", async () => {
+  const { deps: d } = deps({ clearPending: () => new Promise(() => undefined) });
+  await expect(finishAccountDeletion(d)).resolves.toMatchObject({ kind: "show-receipt" });
 });

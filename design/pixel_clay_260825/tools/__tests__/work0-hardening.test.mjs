@@ -6077,7 +6077,11 @@ test('salvage plan classifies every non-direct frame and production route exactl
   // 27 -> 28 (2026-09-28): /avatar-palette adds a local in-phone pixel editor.
   // 28 -> 29 (2026-09-28): /data-connections moves data-source management
   // out of the phone dashboard and into settings.
-  assert.equal(expectedActualHrefs.length, 29);
+  // 29 -> 30 (2026-10-05): /account-deleted shows the server-recorded account
+  // deletion receipt by number (Simon decision Q-261004-42 = A); no prototype
+  // frame has it, and salvage-plan derives it from the account pattern.
+  assert.equal(expectedActualHrefs.length, 30);
+  assert.equal(salvage.actualRoutes['/account-deleted'].strategy, 'derive-pattern');
   assert.equal(salvage.actualRoutes['/dashboard'].strategy, 'redesign');
   assert.equal(salvage.actualRoutes['/data-connections'].strategy, 'adapt-reference');
   assert.deepEqual(Object.keys(salvage.actualRoutes).sort(), expectedActualHrefs);

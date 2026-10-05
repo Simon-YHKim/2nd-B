@@ -32,12 +32,16 @@ describe("delete-account Edge boundary", () => {
     expect(code).not.toMatch(/return ALLOWED_ORIGINS\.has\(origin\) \? origin : 'null'/);
   });
 
-  test("reads at most 1 KiB and accepts the exact empty object only", () => {
+  test("reads at most 1 KiB and accepts the exact empty object or one request id only", () => {
     expect(code).toMatch(/MAX_BODY_BYTES = 1024/);
     expect(code).toMatch(/content-length/);
     expect(code).toMatch(/reader\.read\(\)/);
     expect(code).toMatch(/totalBytes > MAX_BODY_BYTES/);
-    expect(code).toMatch(/rawBody !== '\{\}'/);
+    // 0217: `{}` (older clients) or exactly `{"request_id":"<uuid>"}`. The id
+    // only names the receipt; it never selects or widens the deletion target.
+    expect(code).toMatch(/rawBody === '\{\}'/);
+    expect(code).toMatch(/REQUEST_ID_BODY_RE\.exec\(rawBody\)/);
+    expect(code).toMatch(/throw new RequestError\('invalid_body', 400\)/);
   });
 
   test("revalidates the bearer with Auth and binds every verified claim", () => {

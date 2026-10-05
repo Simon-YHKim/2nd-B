@@ -1,5 +1,11 @@
 // Terminal account erasure. The target is always the freshly authenticated
 // caller; request data can neither select a user nor weaken deletion checks.
+//
+// The only request field is an optional client-chosen `request_id` (a UUID).
+// It never selects or widens anything: it becomes the deletion receipt number
+// when that number is still free (0217), so a client whose response was lost
+// can ask account-deletion-receipt whether this exact request finished. The
+// receipt holds no account identifier. Receipt failures never block deletion.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.106.1';
@@ -15,6 +21,11 @@ const MAX_BODY_BYTES = 1024;
 const BODY_TIMEOUT_MS = 2_000;
 const UPSTREAM_TIMEOUT_MS = 10_000;
 const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Exactly the two bodies supabase-js produces for `{}` and `{ request_id }`:
+// no whitespace, no other key, lowercase UUID. Anything else stays 400.
+const REQUEST_ID_BODY_RE =
+  /^\{"request_id":"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"\}$/;
+const RECEIPT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 class RequestError extends Error {
   constructor(readonly code: string, readonly status: number) {
@@ -48,7 +59,7 @@ function corsPreflight(req: Request): Response {
   return new Response(null, { status: 204, headers });
 }
 
-async function readExactEmptyObject(req: Request): Promise<void> {
+async function readDeletionRequestBody(req: Request): Promise<string | null> {
   const mediaType = (req.headers.get('content-type') ?? '').split(';', 1)[0].trim().toLowerCase();
   if (mediaType !== 'application/json') throw new RequestError('unsupported_media_type', 415);
 
@@ -109,7 +120,10 @@ async function readExactEmptyObject(req: Request): Promise<void> {
   } catch {
     throw new RequestError('invalid_body', 400);
   }
-  if (rawBody !== '{}') throw new RequestError('invalid_body', 400);
+  if (rawBody === '{}') return null;
+  const requestId = REQUEST_ID_BODY_RE.exec(rawBody);
+  if (!requestId) throw new RequestError('invalid_body', 400);
+  return requestId[1];
 }
 
 interface VerifiedClaims {
@@ -148,8 +162,9 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return corsPreflight(req);
   if (req.method !== 'POST') return jsonResponse(req, { error: 'method_not_allowed' }, 405);
 
+  let requestId: string | null;
   try {
-    await readExactEmptyObject(req);
+    requestId = await readDeletionRequestBody(req);
   } catch (error) {
     if (error instanceof RequestError) return jsonResponse(req, { error: error.code }, error.status);
     return jsonResponse(req, { error: 'invalid_body' }, 400);
@@ -261,6 +276,26 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Hang the receipt number on the durable tombstone right before Auth goes.
+    // 0217's BEFORE DELETE trigger on public.users turns it into the receipt in
+    // the same transaction that erases the profile row, so the receipt exists
+    // exactly when that erasure committed. A missing RPC or any error leaves
+    // deletion running without a receipt: the right to erasure comes first.
+    let pendingReceiptId: string | null = null;
+    try {
+      const { data: attached, error: attachError } = await admin.rpc(
+        'attach_account_deletion_receipt',
+        { p_user_id: authUser.id, p_receipt_id: requestId ?? crypto.randomUUID() },
+      );
+      if (!attachError && typeof attached === 'string' && RECEIPT_ID_RE.test(attached)) {
+        pendingReceiptId = attached;
+      } else {
+        safeLog('receipt_attach_failed');
+      }
+    } catch {
+      safeLog('receipt_attach_failed');
+    }
+
     const authDeletion = await deleteAuthUserWithReconciliation(admin.auth.admin, authUser.id);
     if (!authDeletion.ok) {
       safeLog(authDeletion.code);
@@ -287,8 +322,35 @@ Deno.serve(async (req: Request) => {
       safeLog('profile_check_failed');
     }
 
+    // The receipt number is returned only when the row is proven to exist:
+    // recording the observed sweeps succeeds only against a live receipt.
+    let receiptId: string | null = null;
+    if (pendingReceiptId !== null) {
+      try {
+        const { data: recorded, error: recordError } = await admin.rpc(
+          'record_account_deletion_receipt_sweeps',
+          {
+            p_receipt_id: pendingReceiptId,
+            p_sweeps: {
+              profile_erased: profileErased,
+              deletion_fenced: true,
+              raw_clippings_erased: true,
+              raw_clippings_empty_at_check: true,
+              record_photos_erased: true,
+              record_photos_empty_at_check: true,
+            },
+          },
+        );
+        if (!recordError && recorded === true) receiptId = pendingReceiptId;
+        else safeLog('receipt_record_failed');
+      } catch {
+        safeLog('receipt_record_failed');
+      }
+    }
+
     return jsonResponse(req, {
       deleted: true,
+      receipt_id: receiptId,
       profile_erased: profileErased,
       deletion_fenced: true,
       // begin_account_deletion commits the durable write fence before this

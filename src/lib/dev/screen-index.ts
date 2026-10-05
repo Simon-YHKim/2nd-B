@@ -636,6 +636,12 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "(auth)/sign-in", href: "/sign-in", label: "로그인" },
       { file: "(auth)/sign-up", href: "/sign-up", label: "회원가입" },
       { file: "(auth)/reset-password", href: "/reset-password", label: "비밀번호 재설정" },
+      {
+        file: "(auth)/account-deleted",
+        href: "/account-deleted",
+        label: "계정 삭제 영수증",
+        note: "계정 삭제가 끝나면 이 화면이 영수증 번호로 서버 기록을 읽는다. 번호 없이 열면 번호 입력 칸이 나온다. 로그인 중에는 영수증을 보이지 않는다",
+      },
       { file: "(auth)/complete-profile", href: "/complete-profile", label: "프로필 완성", auth: true },
       {
         file: "(auth)/oauth-callback",

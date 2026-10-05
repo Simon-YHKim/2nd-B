@@ -251,3 +251,12 @@ export function __resetAccountEpochForTests(): void {
 export function currentResolvedAccountOwner(): AccountOwner {
   return publishedOwner;
 }
+
+/**
+ * The owner a pre-publication hold is waiting to publish, or `undefined` when
+ * no hold is raised. A sign-out hold reads `null`; a login hold reads the new
+ * owner before AuthContext exposes it. Read-only: it changes no state.
+ */
+export function currentPendingAccountOwner(): AccountOwner | undefined {
+  return publicationHold ? pendingPublicationOwner : undefined;
+}

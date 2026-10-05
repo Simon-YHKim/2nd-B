@@ -85,44 +85,47 @@ describe("purgeCaptureDraftsForDeletedAccount", () => {
 });
 
 describe("the deletion path includes draft purge in the managed local sweep", () => {
+  // 2026-10-05 (Simon decision Q-261004-42 = A): the screen hands the confirmed
+  // erasure to finishAccountDeletion, which purges, then signs out, then opens
+  // the receipt route. The ordering moved into that function, so each claim is
+  // checked on both halves: the screen wires the right pieces, the function
+  // runs them in the right order.
+  const FINISH = "src/lib/account/deletion-completion.ts";
+  const finish = read(FINISH);
   for (const f of CALLERS) {
+    const finishCall = (caller: string) => {
+      const at = caller.indexOf("await finishAccountDeletion({");
+      return at < 0 ? "" : caller.slice(at, caller.indexOf("});", at));
+    };
+
     test(`${f} purges after erasure and before sign-out`, () => {
       const caller = read(f);
-      expect(caller).toContain("purgeDeletedAccountLocalData");
-
-      const erase = caller.indexOf(
-        caller.includes("await requestAccountDeletion(authExpectation)")
-          ? "await requestAccountDeletion(authExpectation)"
-          : "await requestAccountDeletion()",
-      );
-      const purge = caller.indexOf("purgeDeletedAccountLocalData(targetUserId)");
-      const signout = caller.indexOf(
-        caller.includes("await signOutExpected(authExpectation)")
-          ? "await signOutExpected(authExpectation)"
-          : "await signOut()",
-      );
+      const erase = caller.indexOf("await requestAccountDeletion(authExpectation)");
+      const handOff = caller.indexOf("await finishAccountDeletion({");
       expect(erase).toBeGreaterThan(-1);
-      expect(purge).toBeGreaterThan(-1);
-      expect(signout).toBeGreaterThan(-1);
+      // Purging before the server call would delete a draft the user still
+      // owns if the deletion then fails.
+      expect(handOff).toBeGreaterThan(erase);
+      expect(finishCall(caller)).toContain("purgeLocal: purgeDeletedAccountLocalData");
+      expect(finishCall(caller)).toContain("signOut: () => signOutExpected(authExpectation)");
 
-      // Order matters. Purging before the server call would delete a draft the
-      // user still owns if the deletion then fails; purging after sign-out risks
-      // running once the screen has already been torn down.
-      expect(purge).toBeGreaterThan(erase);
-      expect(purge).toBeLessThan(signout);
+      const purge = finish.indexOf("await deps.purgeLocal(deps.owner)");
+      const signout = finish.indexOf("await deps.signOut()");
+      expect(purge).toBeGreaterThan(-1);
+      expect(signout).toBeGreaterThan(purge);
     });
 
     test(`${f} passes the erased id, not the currently active one`, () => {
       // `targetUserId` is the id captured when the confirmation was accepted.
       // Using a live "current user" ref here would purge the wrong account's
       // drafts when a second session signs in while the request is in flight.
-      expect(read(f)).toContain("purgeDeletedAccountLocalData(targetUserId)");
+      expect(finishCall(read(f))).toContain("owner: targetUserId");
+      expect(finish).toContain("deps.purgeLocal(deps.owner)");
     });
 
     test(`${f} keeps the purge best-effort`, () => {
-      const caller = read(f);
-      const at = caller.indexOf("purgeDeletedAccountLocalData(targetUserId)");
-      const around = caller.slice(Math.max(0, at - 300), at + 300);
+      const at = finish.indexOf("await deps.purgeLocal(deps.owner)");
+      const around = finish.slice(Math.max(0, at - 120), at + 200);
       expect(around).toMatch(/try\s*\{/);
       expect(around).toMatch(/catch/);
     });

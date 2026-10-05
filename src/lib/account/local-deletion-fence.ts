@@ -156,9 +156,16 @@ export function runAccountLocalMutation<T>(
  * Publish the irreversible per-owner marker and wait for all earlier guarded
  * writes. The marker is intentionally never cleared for a terminal UUID.
  *
+ * Call it only AFTER the server confirmed the erasure (Simon decision
+ * Q-261004-42 = A): purgeDeletedAccountLocalData does, right before it purges.
+ * Installing it before the delete-account request left a permanent fence on a
+ * live account whenever that request never reached the server (gates R3-05 /
+ * BL-07 / DEL-BL-02); an unanswered request is now only a reversible note
+ * (deletion-pending.ts) that never fences anything.
+ *
  * A browser without Web Locks still receives the durable marker, but false is
  * returned because a write already running in another tab could not be joined;
- * callers must keep account deletion on hold in that case.
+ * the purge then reports its outcome as unconfirmed rather than complete.
  */
 export function installAccountLocalDeletionFence(userId: string): Promise<boolean> {
   const owner = normalizeOwner(userId);

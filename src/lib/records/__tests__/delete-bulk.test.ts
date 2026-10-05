@@ -6,7 +6,7 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { FunctionsHttpError } from "@supabase/functions-js";
+import { FunctionsFetchError, FunctionsHttpError } from "@supabase/functions-js";
 
 function mockAccessToken(userId: string, sessionId: string, version = "1"): string {
   const payload = Buffer.from(JSON.stringify({ sub: userId, session_id: sessionId }))
@@ -81,6 +81,9 @@ jest.mock("../../supabase/client", () => {
   };
 });
 
+// The terminal local fence is no longer delete-bulk's to install (Q-261004-42 =
+// A): purgeDeletedAccountLocalData installs it after the server confirms. This
+// mock only proves delete-bulk never reaches for it.
 jest.mock("../../account/local-deletion-fence", () => {
   const installFence = jest.fn().mockResolvedValue(true);
   return {
@@ -90,12 +93,33 @@ jest.mock("../../account/local-deletion-fence", () => {
   };
 });
 
+jest.mock("../../account/deletion-pending", () => {
+  const add = jest.fn().mockResolvedValue(true);
+  const remove = jest.fn().mockResolvedValue(true);
+  const resolve = jest.fn().mockResolvedValue({ kind: "none" });
+  return {
+    addPendingAccountDeletion: add,
+    removePendingAccountDeletion: remove,
+    resolvePendingAccountDeletion: resolve,
+    __add: add,
+    __remove: remove,
+    __resolve: resolve,
+    __reset: () => {
+      add.mockReset().mockResolvedValue(true);
+      remove.mockReset().mockResolvedValue(true);
+      resolve.mockReset().mockResolvedValue({ kind: "none" });
+    },
+  };
+});
+
 import {
   ACCOUNT_DELETION_DEADLINE_MS,
   ACCOUNT_DELETION_MAX_ATTEMPTS,
+  AccountDeletionUnconfirmedError,
   deleteAllUserData,
-  requestAccountDeletion,
+  requestAccountDeletion as requestAccountDeletionWithDefaults,
 } from "../delete-bulk";
+import type { ReceiptLookup } from "../../account/deletion-receipt";
 import type { AuthSessionExpectation } from "../../auth/session-mutation";
 
 const EXPECTED: AuthSessionExpectation = {
@@ -117,6 +141,42 @@ const fenceMock = require("../../account/local-deletion-fence") as {
   __installFence: jest.Mock;
   __reset: () => void;
 };
+const pendingMock = require("../../account/deletion-pending") as {
+  __add: jest.Mock;
+  __remove: jest.Mock;
+  __resolve: jest.Mock;
+  __reset: () => void;
+};
+
+const REQUEST_ID = "11111111-2222-4333-8444-555555555555";
+const lookupReceipt = jest.fn<Promise<ReceiptLookup>, [string]>();
+// Every call injects a lookup and a fixed request id, so no test reaches the
+// network and the receipt number is predictable.
+function requestAccountDeletion(expected: AuthSessionExpectation) {
+  return requestAccountDeletionWithDefaults(expected, {
+    lookupReceipt,
+    newRequestId: () => REQUEST_ID.toUpperCase(),
+  });
+}
+function serverReceipt(id = REQUEST_ID) {
+  return {
+    status: "found" as const,
+    receipt: {
+      id,
+      erasedAtIso: "2026-10-05T12:00:00.000Z",
+      expiresAtIso: "2027-10-05T12:00:00.000Z",
+      sweeps: {
+        profile_erased: true,
+        deletion_fenced: true,
+        raw_clippings_erased: true,
+        raw_clippings_empty_at_check: true,
+        record_photos_erased: true,
+        record_photos_empty_at_check: true,
+      },
+      sweepsReported: true,
+    },
+  };
+}
 
 describe("deleteAllUserData (content wipe)", () => {
   beforeEach(() => clientMock.__reset());
@@ -163,6 +223,8 @@ describe("requestAccountDeletion (terminal erasure)", () => {
   beforeEach(() => {
     clientMock.__reset();
     fenceMock.__reset();
+    pendingMock.__reset();
+    lookupReceipt.mockReset().mockResolvedValue({ status: "not-found" });
   });
 
   function conflict(body: Record<string, unknown>) {
@@ -192,35 +254,145 @@ describe("requestAccountDeletion (terminal erasure)", () => {
     // delete-bulk-receipt.test.ts.
     const receipt = await requestAccountDeletion(EXPECTED);
     expect(receipt.deleted).toBe(true);
+    expect(receipt.receiptId).toBeNull();
     expect(receipt.incomplete).toEqual([]);
     expect(receipt.unconfirmed).toEqual(["profile", "rawClippings"]);
     expect(clientMock.__getSession).toHaveBeenCalledTimes(2);
     expect(clientMock.__refreshSession).toHaveBeenCalledTimes(1);
-    expect(fenceMock.__installFence).toHaveBeenCalledWith("u1");
-    expect(fenceMock.__installFence.mock.invocationCallOrder[0])
-      .toBeLessThan(clientMock.__invoke.mock.invocationCallOrder[0]);
     expect(clientMock.__invoke).toHaveBeenCalledWith("delete-account", expect.objectContaining({
-      body: {},
+      body: { request_id: REQUEST_ID },
       headers: { Authorization: `Bearer ${mockAccessToken("u1", "session-a", "2")}` },
     }));
   });
 
-  test("never invokes the remote function unless the durable local fence acknowledges", async () => {
-    fenceMock.__installFence.mockResolvedValueOnce(false);
-
-    await expect(requestAccountDeletion(EXPECTED)).rejects.toThrow("local deletion fence");
-    expect(fenceMock.__installFence).toHaveBeenCalledWith("u1");
-    expect(clientMock.__getSession).not.toHaveBeenCalled();
-    expect(clientMock.__refreshSession).not.toHaveBeenCalled();
-    expect(clientMock.__invoke).not.toHaveBeenCalled();
+  test("remembers the request before it leaves and never installs the terminal fence itself", async () => {
+    await requestAccountDeletion(EXPECTED);
+    expect(pendingMock.__add).toHaveBeenCalledWith("u1", REQUEST_ID);
+    expect(pendingMock.__add.mock.invocationCallOrder[0])
+      .toBeLessThan(clientMock.__invoke.mock.invocationCallOrder[0]);
+    // The note stays until the caller purged local data (finishAccountDeletion).
+    expect(pendingMock.__remove).not.toHaveBeenCalled();
+    expect(fenceMock.__installFence).not.toHaveBeenCalled();
   });
 
-  test("does not permanently fence a session that lacks a stable session id", async () => {
+  test("carries the receipt number the server recorded", async () => {
+    clientMock.__invoke.mockResolvedValueOnce({
+      data: { deleted: true, receipt_id: REQUEST_ID, profile_erased: true },
+      error: null,
+    });
+    const receipt = await requestAccountDeletion(EXPECTED);
+    expect(receipt.receiptId).toBe(REQUEST_ID);
+    expect(lookupReceipt).not.toHaveBeenCalled();
+  });
+
+  test("never invokes the remote function unless the pending note is acknowledged", async () => {
+    pendingMock.__add.mockResolvedValueOnce(false);
+
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toThrow("pending note");
+    expect(clientMock.__refreshSession).not.toHaveBeenCalled();
+    expect(clientMock.__invoke).not.toHaveBeenCalled();
+    expect(fenceMock.__installFence).not.toHaveBeenCalled();
+  });
+
+  test("does not touch any note or fence for a session that lacks a stable session id", async () => {
     await expect(requestAccountDeletion({ ...EXPECTED, sessionId: null })).rejects.toMatchObject({
       name: "AuthSessionOwnerChangedError",
     });
+    expect(pendingMock.__add).not.toHaveBeenCalled();
     expect(fenceMock.__installFence).not.toHaveBeenCalled();
     expect(clientMock.__invoke).not.toHaveBeenCalled();
+  });
+
+  test("a request that never reached the server leaves no note and no fence (R3-05 / BL-07)", async () => {
+    clientMock.__refreshSession.mockResolvedValueOnce({ data: { session: null }, error: new Error("offline") });
+
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toThrow("offline");
+    expect(clientMock.__invoke).not.toHaveBeenCalled();
+    expect(pendingMock.__remove).toHaveBeenCalledWith("u1", REQUEST_ID);
+    expect(fenceMock.__installFence).not.toHaveBeenCalled();
+    expect(lookupReceipt).not.toHaveBeenCalled();
+  });
+
+  test("an answer that proves nothing was erased drops the note", async () => {
+    clientMock.__invoke.mockResolvedValueOnce({
+      data: null,
+      error: new FunctionsHttpError(new Response(JSON.stringify({ error: "fresh_session_required" }), {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      })),
+    });
+
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeInstanceOf(FunctionsHttpError);
+    expect(pendingMock.__remove).toHaveBeenCalledWith("u1", REQUEST_ID);
+    expect(lookupReceipt).not.toHaveBeenCalled();
+  });
+
+  test("an older delete-account that rejects the request id is retried once with {} (deploy order)", async () => {
+    const invalidBody = () => new FunctionsHttpError(new Response(JSON.stringify({ error: "invalid_body" }), {
+      status: 400,
+      headers: { "content-type": "application/json" },
+    }));
+    clientMock.__invoke
+      .mockResolvedValueOnce({ data: null, error: invalidBody() })
+      .mockResolvedValueOnce({ data: { deleted: true }, error: null });
+
+    const receipt = await requestAccountDeletion(EXPECTED);
+    expect(receipt.deleted).toBe(true);
+    expect(receipt.receiptId).toBeNull();
+    expect(clientMock.__invoke.mock.calls.map(([, options]) => options.body))
+      .toEqual([{ request_id: REQUEST_ID }, {}]);
+
+    // `{}` itself rejected is a real failure, not another fallback.
+    clientMock.__invoke.mockReset()
+      .mockResolvedValueOnce({ data: null, error: invalidBody() })
+      .mockResolvedValueOnce({ data: null, error: invalidBody() });
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeInstanceOf(FunctionsHttpError);
+    expect(clientMock.__invoke).toHaveBeenCalledTimes(2);
+    expect(pendingMock.__remove).toHaveBeenCalledWith("u1", REQUEST_ID);
+  });
+
+  test("a lost answer is resolved by the receipt the server recorded", async () => {
+    clientMock.__invoke.mockResolvedValueOnce({ data: null, error: new FunctionsFetchError(new TypeError("network")) });
+    lookupReceipt.mockResolvedValueOnce(serverReceipt());
+
+    const receipt = await requestAccountDeletion(EXPECTED);
+    expect(lookupReceipt).toHaveBeenCalledWith(REQUEST_ID);
+    expect(receipt.deleted).toBe(true);
+    expect(receipt.receiptId).toBe(REQUEST_ID);
+    expect(receipt.complete).toBe(true);
+    expect(pendingMock.__remove).not.toHaveBeenCalled();
+    expect(fenceMock.__installFence).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["a transport error", { data: null, error: new FunctionsFetchError(new TypeError("network")) }],
+    ["an unreadable 5xx", { data: null, error: { context: { status: 503, json: async () => ({ error: "server_unavailable" }) } } }],
+    ["a 200 without deleted:true", { data: { deleted: false }, error: null }],
+  ])("%s without a receipt stays unconfirmed and keeps the note", async (_label, answer) => {
+    clientMock.__invoke.mockResolvedValueOnce(answer);
+    lookupReceipt.mockResolvedValueOnce({ status: "not-found" });
+
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeInstanceOf(AccountDeletionUnconfirmedError);
+    expect(pendingMock.__remove).not.toHaveBeenCalled();
+    expect(fenceMock.__installFence).not.toHaveBeenCalled();
+  });
+
+  test("an unreachable lookup is never read as not deleted", async () => {
+    clientMock.__invoke.mockResolvedValueOnce({ data: null, error: new FunctionsFetchError(new TypeError("network")) });
+    lookupReceipt.mockResolvedValueOnce({ status: "unavailable" });
+
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeInstanceOf(AccountDeletionUnconfirmedError);
+    expect(pendingMock.__remove).not.toHaveBeenCalled();
+  });
+
+  test("an earlier unanswered request that finished is returned without erasing twice", async () => {
+    pendingMock.__resolve.mockResolvedValueOnce({ kind: "deleted", receipt: serverReceipt().receipt });
+
+    const receipt = await requestAccountDeletion(EXPECTED);
+    expect(receipt.receiptId).toBe(REQUEST_ID);
+    expect(clientMock.__refreshSession).not.toHaveBeenCalled();
+    expect(clientMock.__invoke).not.toHaveBeenCalled();
+    expect(pendingMock.__add).not.toHaveBeenCalled();
   });
 
   test("fails closed when the active user already changed after confirmation", async () => {
@@ -262,6 +434,8 @@ describe("requestAccountDeletion (terminal erasure)", () => {
   test("throws when the function reports failure", async () => {
     clientMock.__invoke.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
     await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
+    // An error without a server answer proves nothing: it is checked by receipt.
+    expect(lookupReceipt).toHaveBeenCalledWith(REQUEST_ID);
   });
 
   test("recovers 409 cleanup progress and retries with a newly bound token", async () => {
@@ -501,14 +675,22 @@ describe("account deletion UI routing", () => {
   });
 
   test("local sign-out failure is not treated as a retryable deletion failure", () => {
-    const surfaces = [[deepSpace, "await requestAccountDeletion(authExpectation)"]] as const;
-    for (const [source, call] of surfaces) {
-      const terminalCall = source.indexOf(call);
-      const localSignOutWarning = source.indexOf("local sign-out after deletion failed");
-      const redirect = source.indexOf('router.replace("/sign-in")', localSignOutWarning);
-      expect(terminalCall).toBeGreaterThan(-1);
-      expect(localSignOutWarning).toBeGreaterThan(terminalCall);
-      expect(redirect).toBeGreaterThan(localSignOutWarning);
-    }
+    // 2026-10-05 (Q-261004-42 = A): a confirmed erasure no longer lands on
+    // /sign-in with an in-memory notice. It opens the receipt route that reads
+    // the server's record by number, even when local sign-out was unconfirmed.
+    const terminalCall = deepSpace.indexOf("await requestAccountDeletion(authExpectation)");
+    const finish = deepSpace.indexOf("await finishAccountDeletion({", terminalCall);
+    const localSignOutWarning = deepSpace.indexOf("local sign-out after deletion failed", finish);
+    const redirect = deepSpace.indexOf("rootRouter.replace(finished.href)", localSignOutWarning);
+    expect(terminalCall).toBeGreaterThan(-1);
+    expect(finish).toBeGreaterThan(terminalCall);
+    expect(localSignOutWarning).toBeGreaterThan(finish);
+    expect(redirect).toBeGreaterThan(localSignOutWarning);
+    expect(deepSpace).not.toContain('router.replace("/sign-in")');
+  });
+
+  test("an unconfirmed outcome is not shown as a failure", () => {
+    expect(deepSpace).toContain("e instanceof AccountDeletionUnconfirmedError");
+    expect(deepSpace).toContain('consentT("account.delete.unconfirmed")');
   });
 });

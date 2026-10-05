@@ -97,6 +97,14 @@ verify_jwt = true
 # (user_id derived from the JWT, never from the request body).
 verify_jwt = true
 
+[functions.account-deletion-receipt]
+# Read-only deletion receipt lookup (0217). The person who deleted an account
+# has no account, so the app posts `authorization: Bearer <anon key>` like
+# peer-respond; the publishable key is a valid token and the gateway check
+# stays on. The function trusts no identity at all: its only input is the
+# receipt number, and a receipt holds no account identifier.
+verify_jwt = true
+
 [functions.service-consent]
 # The signed-in subject is derived from gateway-verified JWT claims, never a body ID.
 verify_jwt = true

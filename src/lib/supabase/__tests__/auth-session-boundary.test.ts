@@ -227,19 +227,34 @@ describe("Supabase auth session mutation boundary", () => {
     );
     expect(requestSource).toContain("refreshExpectedSessionInsideMutation");
     expect(requestSource).toContain("{ requireCrossTab: true }");
-    const localFence = requestSource.indexOf("await installAccountLocalDeletionFence(expected.userId)");
+    // 2026-10-05 (Q-261004-42 = A): the request is remembered (a reversible,
+    // non-fencing note) before the remote call; the irreversible terminal
+    // fence moved behind the server's confirmation (purgeDeletedAccountLocalData).
+    const pendingNote = requestSource.indexOf("await addPendingAccountDeletion(owner, requestId)");
     const remoteInvoke = requestSource.indexOf('supabase.functions.invoke("delete-account"');
-    expect(localFence).toBeGreaterThan(-1);
-    expect(remoteInvoke).toBeGreaterThan(localFence);
+    expect(pendingNote).toBeGreaterThan(-1);
+    expect(remoteInvoke).toBeGreaterThan(pendingNote);
+    expect(requestSource).not.toContain("installAccountLocalDeletionFence");
     const capture = screenSource.indexOf("await captureSignOutExpectation()");
     const request = screenSource.indexOf("await requestAccountDeletion(authExpectation)");
-    const localPurge = screenSource.indexOf("await purgeDeletedAccountLocalData(targetUserId)");
-    const finalizer = screenSource.indexOf("await signOutExpected(authExpectation)");
+    const finish = screenSource.indexOf("await finishAccountDeletion({", request);
     expect(capture).toBeGreaterThan(-1);
     expect(request).toBeGreaterThan(capture);
-    expect(localPurge).toBeGreaterThan(request);
-    expect(finalizer).toBeGreaterThan(localPurge);
-    expect(screenSource).toContain("e instanceof AuthSessionOwnerChangedError");
+    expect(finish).toBeGreaterThan(request);
+    const finishCall = screenSource.slice(finish, screenSource.indexOf("});", finish));
+    expect(finishCall).toContain("owner: targetUserId");
+    expect(finishCall).toContain("purgeLocal: purgeDeletedAccountLocalData");
+    expect(finishCall).toContain("signOut: () => signOutExpected(authExpectation)");
+    // finishAccountDeletion purges before it signs out (deletion-completion.test.ts).
+    const finishSource = fs.readFileSync(
+      path.join(ROOT, "src/lib/account/deletion-completion.ts"),
+      "utf8",
+    );
+    const purgeAt = finishSource.indexOf("await deps.purgeLocal(deps.owner)");
+    const signOutAt = finishSource.indexOf("await deps.signOut()");
+    expect(purgeAt).toBeGreaterThan(-1);
+    expect(signOutAt).toBeGreaterThan(purgeAt);
+    expect(screenSource).toContain("error instanceof AuthSessionOwnerChangedError");
   });
 
   test("sign-up rollback is owner-bound and never clears without a cross-tab lock", () => {

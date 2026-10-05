@@ -1,12 +1,9 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { Redirect, router } from "expo-router";
 import Svg, { Rect } from "react-native-svg";
-import {
-  AccountDeletionNoticePanel,
-  useAccountDeletionNotice,
-} from "@/components/account/AccountDeletionNotice";
+import { resolvePendingAccountDeletionsInBackground } from "@/lib/account/resolve-pending-deletions";
 import { useTranslation } from "react-i18next";
 
 import { BusinessFooter } from "@/components/deepspace/BusinessFooter";
@@ -159,11 +156,15 @@ export function DeepSpaceSignInDesignScreen() {
   const actionLock = useRef(false);
   const [focusedField, setFocusedField] = useState<FocusedField>(null);
 
-  // 확인된 삭제 영수증은 두 게스트 가드보다 앞선다. 방금 계정을 지운 사람에게
-  // 서버가 무엇을 지웠고 무엇을 확인하지 못했는지 말해 줄 자리가 여기뿐이다.
-  // 세션 로딩 중에도, 늦게 도착한 userId 로도 이 결과를 밀어내면 안 된다.
-  const deletionNotice = useAccountDeletionNotice();
-  if (deletionNotice) return <AccountDeletionNoticePanel notice={deletionNotice} />;
+  // 삭제 영수증은 이 화면에 그리지 않는다 (Simon 결정 Q-261004-42 = A). 영수증은
+  // 서버 기록이고 /account-deleted 가 번호로 읽는다 - 앱 메모리의 알림을 여기서
+  // 보여 주던 때는 계정 전환 중 A 의 영수증이 B 의 로그인 화면에 보였다.
+  // 이 화면이 하는 일은 하나다: 로그아웃 상태가 확정되면, 답을 못 받은 삭제 요청이
+  // 이 기기에 남았는지 서버 영수증으로 확인하고, 끝난 삭제의 로컬 데이터를 지운다.
+  const signedOutSettled = !loading && !userId;
+  useEffect(() => {
+    if (signedOutSettled) void resolvePendingAccountDeletionsInBackground();
+  }, [signedOutSettled]);
 
   if (loading) {
     return (

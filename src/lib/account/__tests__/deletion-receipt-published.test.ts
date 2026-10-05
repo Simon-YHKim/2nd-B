@@ -2,29 +2,25 @@ import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 
-import {
-  dismissAccountDeletionNotice,
-  getAccountDeletionNotice,
-} from "../deletion-completion";
-import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+import { finishAccountDeletion } from "../deletion-completion";
+import { parseAccountDeletedParams } from "../deletion-receipt";
 
-// 계정을 지운 사람이 서버가 무엇을 지웠는지 듣게 되는가.
+// 계정을 지운 사람이 서버가 무엇을 지웠는지 듣게 되는가 - 이제는 서버 영수증으로.
 //
-// 삭제 흐름은 예전부터 영수증을 받아서 버렸다. 사용자는 종단 작업을 마친 뒤
-// 로그아웃되어 로그인 폼 앞에 서고, 프로필이 지워졌는지·원문 클립이 지워졌는지·
-// 무엇이 확인되지 않았는지 아무것도 듣지 못했다.
-//
-// ⚠ 이 검사가 있는 이유: 배선을 지우는 변이가 아무 테스트도 깨뜨리지 않았다.
-// 발행 쪽을 보는 검사가 하나도 없었다는 뜻이다. 원본 하네스에 그 자리를 덮는
-// 것이 있지만 그것은 로컬 삭제 모듈(purge-local-data)까지 요구해서 이 회차에
-// 들어올 수 없다. 그래서 이 회차가 배선한 것만 좁게 본다.
+// 삭제 흐름은 예전부터 영수증을 받아서 버렸고, 그다음에는 앱 메모리 알림으로
+// 로그인 화면까지 건넸다. 그 인계가 다섯 회차 동안 수렴하지 않고 계정 전환 때
+// A 의 영수증을 B 의 로그인 화면에 띄웠다(PR #2054). Simon 결정 Q-261004-42 = A:
+// 영수증은 서버가 남기고(0217), 이 흐름은 그 **번호**만 /account-deleted 로 넘긴다.
 //
 // 화면 전체를 렌더하지 않고 실제 콜백 선언만 AST 로 떼어 inert 컨텍스트에서
-// 돌린다. 재구현이 아니라 실제 본문이다.
+// 돌린다. 재구현이 아니라 실제 본문이다. finishAccountDeletion 도 진짜를 쓴다.
 const FILE = "src/screens/deepspace/DeepSpaceDesignScreens.tsx";
 const OWNER = "11111111-1111-4111-8111-111111111111";
+const OTHER = "22222222-2222-4222-8222-222222222222";
+const RECEIPT_ID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 const RECEIPT = {
   deleted: true as const,
+  receiptId: RECEIPT_ID as string | null,
   profileErased: true,
   deletionFenced: true,
   rawClippingsErased: null,
@@ -33,7 +29,7 @@ const RECEIPT = {
   incomplete: [],
   unconfirmed: ["rawClippings" as const],
   complete: false,
-  observedAtIso: "2026-09-07T00:00:00.000Z",
+  observedAtIso: "2026-10-05T00:00:00.000Z",
 };
 
 function deleteCallback(context: Record<string, unknown>) {
@@ -56,39 +52,51 @@ function deleteCallback(context: Record<string, unknown>) {
   return new Function(...Object.keys(context), `${js}\nreturn run;`)(...Object.values(context)) as () => Promise<unknown>;
 }
 
+class TestAuthSessionOwnerChangedError extends Error {}
+class TestAccountDeletionUnconfirmedError extends Error {}
+
 function harness(
   options: {
     signOutFails?: boolean;
     ownerChangedDuringFinalizer?: boolean;
     deletionFails?: boolean;
+    deletionUnconfirmed?: boolean;
     localPurgeFails?: boolean;
     localPurgeUnconfirmed?: boolean;
+    receiptId?: string | null;
     /** 삭제 요청이 실패하기 직전에 이 화면의 소유자가 바뀐다(다른 탭 로그아웃 = null, 다른 계정 = B). */
     ownerBeforeFailure?: string | null;
     /** 로그아웃 기대값을 잡는 순간 이미 다른 계정이다 → AuthSessionOwnerChangedError. */
     expectationOwner?: string;
+    /** 끝에서 본 소유자(account-epoch). */
+    published?: string | null;
+    pending?: string | null;
+    /** 요청이 날아가는 동안 화면이 내려간다. */
+    unmountDuringRequest?: boolean;
   } = {},
 ) {
-  const calls = { purge: 0, signOut: 0, dismissAll: 0, replace: [] as string[] };
+  const calls = {
+    purge: 0, signOut: 0, dismissAll: 0, replace: [] as string[],
+    notePending: [] as string[], clearPending: 0, order: [] as string[],
+  };
   const mounted = { current: true };
   const owner = { current: OWNER as string | null };
   // 화면 상태를 실제 setter 처럼 마지막 값으로 들고 있는다.
-  const state = { deleting: false, delError: false, delErrorShown: 0 };
+  const state = { deleting: false, delError: false, delErrorShown: 0, delUnconfirmed: false };
   const inFlight = { current: false };
-  class TestAuthSessionOwnerChangedError extends Error {}
-  const completion = require("../deletion-completion") as typeof import("../deletion-completion");
-  const epoch = require("../../auth/account-epoch") as typeof import("../../auth/account-epoch");
+  const allowNavigation = { current: false };
   const context: Record<string, unknown> = {
     userId: OWNER, delConfirm: "DELETE",
     deleteConfirmUserRef: { current: OWNER },
     deleteInFlightRef: inFlight,
-    allowDeletionNavigationRef: { current: false },
+    allowDeletionNavigationRef: allowNavigation,
     privacyMountedRef: mounted, activeUserRef: owner,
     setDeleting: (value: boolean) => { state.deleting = value; },
     setDelError: (value: boolean) => {
       state.delError = value;
       if (value) state.delErrorShown += 1;
     },
+    setDelUnconfirmed: (value: boolean) => { state.delUnconfirmed = value; },
     captureSignOutExpectation: async () => {
       if (options.expectationOwner !== undefined) owner.current = options.expectationOwner;
       return {
@@ -98,117 +106,153 @@ function harness(
       };
     },
     requestAccountDeletion: async () => {
+      if (options.unmountDuringRequest) mounted.current = false;
       if (options.ownerBeforeFailure !== undefined) {
         owner.current = options.ownerBeforeFailure;
         throw new Error("terminal deletion failed");
       }
+      if (options.deletionUnconfirmed) throw new TestAccountDeletionUnconfirmedError();
       if (options.deletionFails) throw new Error("terminal deletion failed");
-      return RECEIPT;
+      return { ...RECEIPT, receiptId: options.receiptId === undefined ? RECEIPT_ID : options.receiptId };
     },
     purgeDeletedAccountLocalData: async () => {
       calls.purge += 1;
+      calls.order.push("purge");
       if (options.localPurgeFails) throw new Error("local purge failed");
       return options.localPurgeUnconfirmed ? "unconfirmed" : "complete";
     },
     signOutExpected: async () => {
       calls.signOut += 1;
+      calls.order.push("signOut");
       if (options.ownerChangedDuringFinalizer) {
         throw new TestAuthSessionOwnerChangedError();
       }
       if (options.signOutFails) throw new Error("local sign-out failed");
     },
+    finishAccountDeletion,
+    addPendingAccountDeletion: async (_owner: string, receiptId: string) => {
+      calls.notePending.push(receiptId);
+      return true;
+    },
+    clearPendingAccountDeletion: async () => {
+      calls.clearPending += 1;
+      return true;
+    },
+    currentAccountOwner: () => options.published === undefined ? null : options.published,
+    currentPendingAccountOwner: () => options.pending,
     AuthSessionOwnerChangedError: TestAuthSessionOwnerChangedError,
-    dismissAccountDeletionNotice: completion.dismissAccountDeletionNotice,
-    router: { dismissAll: () => { calls.dismissAll += 1; }, replace: (to: string) => { calls.replace.push(to); } },
-    createAccountDeletionCompletion: completion.createAccountDeletionCompletion,
-    currentAccountEpoch: epoch.currentAccountEpoch,
+    AccountDeletionUnconfirmedError: TestAccountDeletionUnconfirmedError,
+    rootRouter: {
+      dismissAll: () => { calls.dismissAll += 1; calls.order.push("dismissAll"); },
+      replace: (to: string) => { calls.replace.push(to); calls.order.push("replace"); },
+    },
     console: { warn: () => undefined },
   };
-  return { run: deleteCallback(context), calls, owner, state, inFlight, mounted };
+  return { run: deleteCallback(context), calls, owner, state, inFlight, mounted, allowNavigation };
 }
 
-beforeEach(() => {
-  dismissAccountDeletionNotice();
-  __resetAccountEpochForTests();
-  noteResolvedOwner(OWNER);
-});
-afterEach(() => { dismissAccountDeletionNotice(); });
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+function routed(href: string) {
+  const [pathname, query = ""] = href.split("?");
+  return { pathname, params: parseAccountDeletedParams(Object.fromEntries(new URLSearchParams(query))) };
+}
 
-describe("삭제한 사람이 서버가 말한 것을 듣는다", () => {
-  test("영수증이 알림으로 발행된다 - 버려지지 않는다", async () => {
+describe("삭제한 사람이 서버가 남긴 영수증으로 간다", () => {
+  test("확인된 삭제는 영수증 번호를 들고 /account-deleted 로 간다 - 로그인 화면이 아니다", async () => {
     const { run, calls } = harness();
     await run();
-    const notice = getAccountDeletionNotice();
-    expect(notice).not.toBeNull();
-    expect(notice?.receipt.profileErased).toBe(true);
-    expect(notice?.receipt.deletionFenced).toBe(true);
-    expect(notice?.receipt.rawClippingsErased).toBeNull();
-    expect(notice?.receipt.rawClippingsEmptyAtCheck).toBe(true);
-    expect(notice?.receipt.unconfirmed).toEqual(["rawClippings"]);
     expect(calls.signOut).toBe(1);
-    expect(calls.replace).toEqual(["/sign-in"]);
+    expect(calls.dismissAll).toBe(1);
+    expect(calls.replace).toHaveLength(1);
+    const target = routed(calls.replace[0]);
+    expect(target.pathname).toBe("/account-deleted");
+    expect(target.params).toEqual({
+      receiptId: RECEIPT_ID, localPurge: "complete", localSignOut: "complete", fromDeletion: true,
+    });
+    expect(calls.replace[0]).not.toContain(OWNER);
   });
 
-  test("검사된 owner-scoped 로컬 정리 결과를 영수증에 그대로 연결한다", async () => {
-    const clean = harness();
-    await clean.run();
-    expect(clean.calls.purge).toBe(1);
-    expect(getAccountDeletionNotice()?.localPurge).toBe("complete");
-
-    dismissAccountDeletionNotice();
-    __resetAccountEpochForTests();
-    noteResolvedOwner(OWNER);
-    const incomplete = harness({ localPurgeUnconfirmed: true });
-    await incomplete.run();
-    expect(getAccountDeletionNotice()?.localPurge).toBe("unconfirmed");
+  test("로컬 정리 -> 로그아웃 -> 영수증 이동 순서로 한 번씩 돈다", async () => {
+    const { run, calls } = harness();
+    await run();
+    expect(calls.order).toEqual(["purge", "signOut", "dismissAll", "replace"]);
   });
 
-  test("로컬 정리 예외도 삭제·로그아웃·영수증 발행을 되돌리지 않는다", async () => {
+  test("로컬 정리 예외도 삭제·로그아웃·영수증 이동을 되돌리지 않는다", async () => {
     const { run, calls } = harness({ localPurgeFails: true });
     await run();
     expect(calls.signOut).toBe(1);
-    expect(getAccountDeletionNotice()?.localPurge).toBe("unconfirmed");
-    expect(getAccountDeletionNotice()?.localSignOut).toBe("complete");
+    expect(calls.notePending).toEqual([RECEIPT_ID]);
+    expect(routed(calls.replace[0]).params.localPurge).toBe("retry-scheduled");
   });
 
-  test("로그아웃이 성공하면 complete, 실패하면 unconfirmed 로 남는다", async () => {
-    const ok = harness();
-    await ok.run();
-    expect(getAccountDeletionNotice()?.localSignOut).toBe("complete");
-
-    dismissAccountDeletionNotice();
-    __resetAccountEpochForTests();
-    noteResolvedOwner(OWNER);
-    const bad = harness({ signOutFails: true });
-    await bad.run();
-    expect(getAccountDeletionNotice()?.localSignOut).toBe("unconfirmed");
+  test("로그아웃이 실패해도 영수증으로 가고, 그 사실을 함께 넘긴다", async () => {
+    const { run, calls } = harness({ signOutFails: true });
+    await run();
+    expect(routed(calls.replace[0]).params.localSignOut).toBe("unconfirmed");
   });
 
-  test("종단 삭제가 실패하면 아무것도 발행하지 않는다", async () => {
+  test("서버가 영수증을 못 남겼으면 번호 없이 간다 - 화면이 그 사실을 말한다", async () => {
+    const { run, calls } = harness({ receiptId: null });
+    await run();
+    const target = routed(calls.replace[0]);
+    expect(target.params.receiptId).toBeNull();
+    expect(target.params.fromDeletion).toBe(true);
+  });
+
+  test("종단 삭제가 실패하면 아무 데도 가지 않는다", async () => {
     const { run, calls } = harness({ deletionFails: true });
     await run();
-    expect(getAccountDeletionNotice()).toBeNull();
+    expect(calls.purge).toBe(0);
     expect(calls.signOut).toBe(0);
     expect(calls.replace).toEqual([]);
   });
 
   test("A 삭제 뒤 B가 로그인했으면 B를 보존하고 A 영수증으로 이동하지 않는다", async () => {
-    const { run, calls } = harness({ ownerChangedDuringFinalizer: true });
+    const { run, calls, inFlight, state } = harness({ ownerChangedDuringFinalizer: true });
     await run();
-
     expect(calls.signOut).toBe(1);
     expect(calls.dismissAll).toBe(0);
     expect(calls.replace).toEqual([]);
-    expect(getAccountDeletionNotice()).toBeNull();
+    expect(inFlight.current).toBe(false);
+    expect(state.deleting).toBe(false);
   });
 
-  test("알림이 그 화면에서 실제로 그려진다", () => {
-    const signIn = fs.readFileSync(
-      path.join(process.cwd(), "src/screens/deepspace/dds-sign-in-screen.tsx"), "utf8",
-    );
-    expect(signIn).toContain("AccountDeletionNoticePanel");
-    // 게스트 가드보다 앞에 있어야 한다. 뒤에 있으면 로딩·리다이렉트가 결과를 밀어낸다.
-    expect(signIn.indexOf("AccountDeletionNoticePanel")).toBeLessThan(signIn.indexOf("if (loading)"));
+  test.each([
+    ["게시된 B", { published: OTHER }],
+    ["게시 전 보류 중인 B (DEL-N2-01)", { pending: OTHER }],
+  ])("끝에서 %s 가 보이면 A 영수증으로 이동하지 않는다", async (_label, owner) => {
+    const { run, calls } = harness(owner);
+    await run();
+    expect(calls.replace).toEqual([]);
+  });
+
+  test("화면이 요청 중에 내려가도 정리·로그아웃·영수증 이동을 끝까지 한다 (/privacy 언마운트)", async () => {
+    const { run, calls, mounted } = harness({ unmountDuringRequest: true });
+    await run();
+    await flush();
+    expect(mounted.current).toBe(false);
+    expect(calls.purge).toBe(1);
+    expect(calls.signOut).toBe(1);
+    expect(routed(calls.replace[0]).params.receiptId).toBe(RECEIPT_ID);
+  });
+
+  test("영수증으로 가기 전에 route 제거 울타리를 연다", async () => {
+    const { run, allowNavigation } = harness();
+    await run();
+    expect(allowNavigation.current).toBe(true);
+  });
+});
+
+describe("확인되지 않은 결과는 실패로 말하지 않는다", () => {
+  test("요청이 나갔고 답을 잃었으면 오류가 아니라 '확인 중' 을 띄운다", async () => {
+    const { run, state, calls, inFlight } = harness({ deletionUnconfirmed: true });
+    await run();
+    expect(state.delUnconfirmed).toBe(true);
+    expect(state.delErrorShown).toBe(0);
+    expect(state.deleting).toBe(false);
+    expect(inFlight.current).toBe(false);
+    expect(calls.replace).toEqual([]);
   });
 });
 
@@ -232,20 +276,20 @@ describe("삭제가 실패하면 울타리는 소유자와 무관하게 풀린�
 
   test.each([
     ["다른 탭에서 로그아웃(null)", null],
-    ["다른 계정 B", "22222222-2222-4222-8222-222222222222"],
+    ["다른 계정 B", OTHER],
   ])("요청 중 소유자가 %s 로 바뀐 뒤 실패해도 울타리를 풀고, 오류는 띄우지 않는다", async (_label, next) => {
     const { run, state, inFlight, calls } = harness({ ownerBeforeFailure: next });
     await run();
     expect(state.deleting).toBe(false);
     expect(state.delErrorShown).toBe(0);
+    expect(state.delUnconfirmed).toBe(false);
     expect(inFlight.current).toBe(false);
     expect(calls.signOut).toBe(0);
     expect(calls.replace).toEqual([]);
-    expect(getAccountDeletionNotice()).toBeNull();
   });
 
   test("로그아웃 기대값을 잡을 때 이미 B 였으면(AuthSessionOwnerChangedError) 울타리를 푼다", async () => {
-    const { run, state, inFlight } = harness({ expectationOwner: "22222222-2222-4222-8222-222222222222" });
+    const { run, state, inFlight } = harness({ expectationOwner: OTHER });
     await run();
     expect(state.deleting).toBe(false);
     expect(state.delErrorShown).toBe(0);
@@ -263,4 +307,13 @@ describe("삭제가 실패하면 울타리는 소유자와 무관하게 풀린�
     expect(h.state.delErrorShown).toBe(0);
     expect(h.inFlight.current).toBe(false);
   });
+});
+
+test("로그인 화면은 삭제 영수증을 그리지 않는다 - 영수증은 번호를 가진 route 에만 있다", () => {
+  const signIn = fs.readFileSync(path.join(process.cwd(), "src/screens/deepspace/dds-sign-in-screen.tsx"), "utf8");
+  const code = signIn.replace(/\/\/[^\n]*/g, "");
+  expect(code).not.toContain("AccountDeletionNoticePanel");
+  expect(code).not.toContain("useAccountDeletionNotice");
+  // 대신 로그아웃이 확정되면 답을 못 받은 삭제 요청을 서버 영수증으로 정리한다.
+  expect(code).toContain("resolvePendingAccountDeletionsInBackground()");
 });

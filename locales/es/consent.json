@@ -168,7 +168,8 @@
       "inputLabel": "Account deletion confirmation phrase",
       "inputHint": "Type DELETE to enable the account deletion button.",
       "buttonHint": "Opens a final confirmation before deleting your account and data.",
-      "confirmCtaHint": "Starts account and data deletion."
+      "confirmCtaHint": "Starts account and data deletion.",
+      "unconfirmed": "We could not confirm yet whether the account deletion finished. If you try again, the app first checks the result of the earlier request."
     },
     "deletionReceipt": {
       "title": "Account deletion confirmed",
@@ -192,7 +193,6 @@
         "unconfirmed": "Local cleanup could not be confirmed. This does not undo the confirmed account deletion."
       },
       "localSignOut": {
-        "pending": "Finishing local sign-out…",
         "complete": "Local sign-out completed. Previously issued access tokens may remain valid until expiry.",
         "unconfirmed": "Local sign-out could not be confirmed. This does not undo the confirmed account deletion."
       },
@@ -200,7 +200,20 @@
       "support": "For cleanup that remains unconfirmed, contact kim0405@hayangzip.com. Do not send passwords, access tokens or private records.",
       "dismiss": "Close result",
       "dismissHint": "Closes this result without requesting account deletion again.",
-      "dismissPendingHint": "Available after the local sign-out attempt ends."
+      "receiptNumber": "Receipt number",
+      "receiptNumberHint": "Keep this number. Until {{date}} you can open this receipt with it, without signing in. The receipt holds no account details.",
+      "erasedAt": "Deleted on",
+      "notRecorded": "The server confirmed the account deletion but could not record a receipt for it.",
+      "loading": "Loading the receipt…",
+      "notFound": "No receipt matches this number. Receipts are kept for one year, or the number may be mistyped.",
+      "unavailable": "The receipt could not be loaded right now. Please try again shortly.",
+      "retry": "Try again",
+      "signedIn": "Deletion receipts open only while no account is signed in on this device.",
+      "goHome": "Go to the app",
+      "lookupTitle": "Find a deletion receipt",
+      "lookupBody": "Enter the receipt number you received when you deleted your account.",
+      "lookupCta": "Open receipt",
+      "lookupInvalid": "Check the number. It has 36 characters, including four hyphens."
     }
   },
   "serviceControl": {

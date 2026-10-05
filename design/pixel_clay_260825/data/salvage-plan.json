@@ -194,6 +194,14 @@
    "implementation": "직접 방문용 화면을 만들지 않고 OAuth 반환의 진행·오류 상태만 명확히 표시한다.",
    "doneWhen": "실제 provider 반환과 오류 시 안전한 목적지 이동이 검증된다."
   },
+  "/account-deleted": {
+   "strategy": "derive-pattern",
+   "references": [
+    "account"
+   ],
+   "implementation": "계정 삭제 뒤 서버가 남긴 영수증을 번호로 읽어 보여 주는 화면이다. 로그인 게이트 셸과 account 카드 패턴으로 영수증·번호 입력·불러오는 중·없음·불러오기 실패 상태를 정리한다.",
+   "doneWhen": "로그아웃 상태에서만 영수증이 보이고, 계정 전환 보류·다른 계정 로그인 중에는 영수증이 보이지 않으며, 번호 입력·없음·실패 후 다시 시도와 한글 clipping이 검증된다."
+  },
   "/integrations": {
    "strategy": "adapt-reference",
    "references": [

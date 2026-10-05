@@ -51,6 +51,18 @@ jest.mock("../../account/local-deletion-fence", () => ({
   installAccountLocalDeletionFence: jest.fn().mockResolvedValue(true),
 }));
 
+// The pending-request note and the receipt lookup are storage and network; the
+// receipt READING is what this file pins, so both are stubbed to "nothing known".
+jest.mock("../../account/deletion-pending", () => ({
+  addPendingAccountDeletion: jest.fn().mockResolvedValue(true),
+  removePendingAccountDeletion: jest.fn().mockResolvedValue(true),
+  resolvePendingAccountDeletion: jest.fn().mockResolvedValue({ kind: "none" }),
+}));
+jest.mock("../../account/deletion-receipt", () => ({
+  ...jest.requireActual("../../account/deletion-receipt"),
+  fetchAccountDeletionReceipt: jest.fn().mockResolvedValue({ status: "not-found" }),
+}));
+
 import { requestAccountDeletion } from "../delete-bulk";
 import type { AuthSessionExpectation } from "../../auth/session-mutation";
 
@@ -198,5 +210,29 @@ describe("requestAccountDeletion returns a deletion receipt", () => {
   test("still throws on a transport error", async () => {
     clientMock.__invoke.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
     await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
+  });
+
+  test("a receipt read back from the server says exactly what the live answer said", async () => {
+    const { accountDeletionReceiptFromServer } = jest.requireActual("../delete-bulk") as typeof import("../delete-bulk");
+    const sweeps = {
+      profile_erased: true,
+      deletion_fenced: true,
+      raw_clippings_erased: true,
+      raw_clippings_empty_at_check: false,
+      record_photos_erased: true,
+      record_photos_empty_at_check: true,
+    };
+    serverSays({ deleted: true, receipt_id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", ...sweeps });
+    const live = await requestAccountDeletion(EXPECTED);
+    const stored = accountDeletionReceiptFromServer({
+      id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+      erasedAtIso: "2026-10-05T12:00:00.000Z",
+      expiresAtIso: "2027-10-05T12:00:00.000Z",
+      sweeps,
+      sweepsReported: true,
+    });
+    for (const key of ["receiptId", "profileErased", "deletionFenced", "rawClippingsErased", "rawClippingsEmptyAtCheck", "incomplete", "unconfirmed", "complete"] as const) {
+      expect(stored[key]).toEqual(live[key]);
+    }
   });
 });

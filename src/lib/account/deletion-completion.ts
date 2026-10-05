@@ -1,135 +1,118 @@
-// ⚠ NOT WIRED YET, and that is deliberate - "dormant is a decision".
+// What happens on this device after the server confirms an account erasure.
 //
-// This module was written but never committed to any ref; it lived only in a
-// shared worktree, where it would have been lost. It lands here on its own so
-// the work is not lost twice, ahead of the screen wiring that will use it.
-// Landing it and its tests separately keeps the diff readable and lets the
-// wiring be reviewed against main's current pixel-clay account screen rather
-// than against the worktree's pre-migration copy of it.
+// ⚠ This file used to be an in-memory NOTICE STORE: it held the deletion
+// receipt between the privacy screen and the sign-in screen and dropped it on
+// owner/epoch changes. Five review rounds of fences around that hand-off did
+// not converge (PR #2054), and the last one opened a path where A's receipt
+// showed on B's sign-in screen during an account switch. Simon decided
+// (Q-261004-42 = A, 2026-10-05) that the app must not be responsible for
+// delivering the receipt. The server now records it (0217) and the app only
+// opens a route carrying the receipt NUMBER (deletion-receipt.ts). The store,
+// its epoch fences and its global notice are gone; git history keeps them.
 //
-// Do not delete it for having no callers. Its caller is the next change.
+// What is left is the order of three local steps, written as a plain function
+// so it can be tested without rendering the screen:
 //
-// Holds the post-deletion receipt between the terminal server call and whatever
-// screen shows it, and drops it the moment the account owner changes. It is a
-// store, not an actor: it deletes nothing.
-import { isCurrentAccountEpoch, onAccountOwnerChange } from "../auth/account-epoch";
-import type { AccountDeletionReceipt, DeletionSweep } from "../records/delete-bulk";
+//   1. purge the deleted owner's local data. purgeDeletedAccountLocalData
+//      installs the irreversible terminal fence first - now only AFTER the
+//      server confirmed, never before the request (deletion-pending.ts says why);
+//   2. sign out exactly that owner's session (signOutExpected refuses any other);
+//   3. decide whether to open the receipt route.
+//
+// None of it depends on the privacy screen staying mounted: a screen that
+// unmounts mid-way no longer drops the sign-out or the receipt.
+import type { AccountDeletionReceipt } from "../records/delete-bulk";
+import {
+  buildAccountDeletedHref,
+  type LocalPurgeOutcome,
+  type LocalSignOutOutcome,
+} from "./deletion-receipt";
 
-export type LocalPurgeOutcome = "complete" | "retry-scheduled" | "unconfirmed";
+export type { LocalPurgeOutcome, LocalSignOutOutcome } from "./deletion-receipt";
+
+/** Who owns the app right now, as account-epoch reports it. */
+export interface AccountOwnerSnapshot {
+  /** The owner AuthContext has published. */
+  published: string | null;
+  /** The owner a raised publication hold is about to publish; undefined = no hold. */
+  pending: string | null | undefined;
+}
+
+export type FinishAccountDeletionResult =
+  | {
+      kind: "show-receipt";
+      href: string;
+      localPurge: LocalPurgeOutcome;
+      localSignOut: LocalSignOutOutcome;
+    }
+  /** Another account owns (or is about to own) the app: do not show A's receipt. */
+  | { kind: "owner-changed"; localPurge: LocalPurgeOutcome };
+
+export interface FinishAccountDeletionDeps {
+  owner: string;
+  receipt: AccountDeletionReceipt;
+  purgeLocal: (owner: string) => Promise<LocalPurgeOutcome>;
+  signOut: () => Promise<void>;
+  isOwnerChangedError: (error: unknown) => boolean;
+  /** Forget the owner's pending requests once nothing is left to resolve. */
+  clearPending: (owner: string) => Promise<unknown>;
+  /** Remember the server receipt so a later run can retry an unfinished purge. */
+  notePending: (owner: string, receiptId: string) => Promise<boolean>;
+  readOwner: () => AccountOwnerSnapshot;
+}
+
+/** Bookkeeping must never hold up the result (gate DEL-BL-05). */
+function detached(task: () => Promise<unknown>): void {
+  void Promise.resolve().then(task).catch(() => undefined);
+}
+
 /**
- * The notice holds a frozen VIEW of the receipt, not the receipt object. The
- * sweep lists are frozen too - a frozen object holding mutable arrays is half a
- * guarantee - so they are readonly here. Anything the caller attached that is
- * not a receipt field never reaches this type, which is the point.
+ * Run the local half of a confirmed erasure and say where to go next.
+ * Never throws for a local failure: the server erasure is already final, so a
+ * local problem is reported as data, never turned into a retryable failure.
  */
-export interface AccountDeletionNotice {
-  receipt: Omit<AccountDeletionReceipt, "incomplete" | "unconfirmed"> & {
-    readonly incomplete: readonly DeletionSweep[];
-    readonly unconfirmed: readonly DeletionSweep[];
-  };
-  localPurge: LocalPurgeOutcome;
-  localSignOut: "pending" | "complete" | "unconfirmed";
-}
-
-let snapshot: AccountDeletionNotice | null = null;
-let stopNoticeOwner: (() => void) | null = null;
-const listeners = new Set<() => void>();
-
-function emit() {
-  for (const listener of listeners) {
-    try { listener(); } catch { /* A subscriber cannot prevent owner invalidation. */ }
+export async function finishAccountDeletion(deps: FinishAccountDeletionDeps): Promise<FinishAccountDeletionResult> {
+  let localPurge: LocalPurgeOutcome = "unconfirmed";
+  try {
+    localPurge = await deps.purgeLocal(deps.owner);
+  } catch {
+    localPurge = "unconfirmed";
   }
-}
 
-export function getAccountDeletionNotice(): AccountDeletionNotice | null { return snapshot; }
-export function subscribeAccountDeletionNotice(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => { listeners.delete(listener); };
-}
-export function dismissAccountDeletionNotice(): void {
-  stopNoticeOwner?.();
-  stopNoticeOwner = null;
-  if (snapshot === null) return;
-  snapshot = null;
-  emit();
-}
+  if (localPurge === "complete") {
+    detached(() => deps.clearPending(deps.owner));
+  } else if (deps.receipt.receiptId !== null) {
+    // The server receipt lets the next signed-out screen find this erasure and
+    // retry the purge (resolveAllPendingAccountDeletions). Only then is it true
+    // to tell the user a retry was recorded.
+    let noted = false;
+    try {
+      noted = await deps.notePending(deps.owner, deps.receipt.receiptId);
+    } catch {
+      noted = false;
+    }
+    if (noted) localPurge = "retry-scheduled";
+  }
 
-/** Memory-only handoff: never put account IDs, credentials or receipts in URLs
- * or device storage. It survives just this operation's A -> null transition. */
-function publish(owner: string, epoch: number, receipt: AccountDeletionReceipt, localPurge: LocalPurgeOutcome) {
-  dismissAccountDeletionNotice();
-  const pending: AccountDeletionNotice = Object.freeze({
-    // ⚠ 필드를 하나씩 적는 것은 장황해서가 아니라 그것이 이 자리의 방어다.
-    // 호출자가 넘긴 객체를 펼치면(spread) 영수증에 없는 계정 메타데이터까지
-    // 공개 알림으로 새어 나간다. 이 모듈의 테스트가 정확히 그것을 지킨다 -
-    // privateOwner 를 얹은 영수증을 넣고 알림에 그것이 없어야 통과한다.
-    // 실제로 내가 한 번 {...receipt} 로 바꿨다가 그 테스트에 걸렸다.
-    //
-    // 다만 목록은 main 의 영수증에 맞춰 넓혔다. 서버가 못 끝냈다고 한 sweep,
-    // 아무 말도 안 한 sweep, 전부 확인됐는지, 관측 시각까지 - 그건 삭제 영수증
-    // 화면이 말해야 할 내용이고, 옛 세 필드만 옮기면 화면이 서버보다 덜
-    // 정직해진다. 배열도 함께 얼린다: 얼린 객체가 안 얼린 배열을 들고 있으면
-    // 그 보장은 절반이다.
-    receipt: Object.freeze({
-      deleted: receipt.deleted,
-      profileErased: receipt.profileErased,
-      deletionFenced: receipt.deletionFenced,
-      rawClippingsErased: receipt.rawClippingsErased,
-      rawClippingsEmptyAtCheck: receipt.rawClippingsEmptyAtCheck,
-      rawClippingsRemoved: receipt.rawClippingsRemoved,
-      incomplete: Object.freeze([...receipt.incomplete]),
-      unconfirmed: Object.freeze([...receipt.unconfirmed]),
-      complete: receipt.complete,
-      observedAtIso: receipt.observedAtIso,
-    }), localPurge, localSignOut: "pending",
-  });
-  snapshot = pending;
-  stopNoticeOwner = onAccountOwnerChange((change) => {
-    if (change.previousOwner === owner && change.owner === null && change.epoch === epoch + 1) return;
-    dismissAccountDeletionNotice();
-  });
-  emit();
-  return pending;
-}
+  let localSignOut: LocalSignOutOutcome = "complete";
+  try {
+    await deps.signOut();
+  } catch (error) {
+    // A's server deletion succeeded, but B now owns local auth. Keep B signed
+    // in and never route B to A's receipt.
+    if (deps.isOwnerChangedError(error)) return { kind: "owner-changed", localPurge };
+    localSignOut = "unconfirmed";
+  }
 
-/** UI continuation guard, not an SDK lock or a remote deletion retry worker.
- * Before sign-out every epoch change invalidates the operation. During sign-out
- * exactly the original A -> null is allowed, even when it unmounts the screen.
- * Already-running SDK signOut/login races remain a separate Auth concern. */
-export function createAccountDeletionCompletion(owner: string, epoch: number) {
-  let continuationEpoch = epoch;
-  let invalidated = false;
-  let stopOperationOwner: (() => void) | null = null;
-  let pending: AccountDeletionNotice | null = null;
-  const isCurrent = () => !invalidated && isCurrentAccountEpoch(epoch);
+  const owner = deps.readOwner();
+  const otherPublished = owner.published !== null && owner.published !== deps.owner;
+  const otherPending = owner.pending !== undefined && owner.pending !== null && owner.pending !== deps.owner;
+  if (otherPublished || otherPending) return { kind: "owner-changed", localPurge };
 
   return {
-    isCurrent,
-    beginSignOut(receipt: AccountDeletionReceipt, localPurge: LocalPurgeOutcome): boolean {
-      if (!isCurrent() || pending !== null) return false;
-      stopOperationOwner = onAccountOwnerChange((change) => {
-        if (change.previousOwner === owner && change.owner === null
-          && change.epoch === epoch + 1 && continuationEpoch === epoch) {
-          continuationEpoch = change.epoch;
-        } else {
-          invalidated = true;
-        }
-      });
-      pending = publish(owner, epoch, receipt, localPurge);
-      return true;
-    },
-    finishSignOut(confirmed: boolean): boolean {
-      if (!pending || invalidated || !isCurrentAccountEpoch(continuationEpoch)) return false;
-      if (snapshot === pending) {
-        snapshot = Object.freeze({ ...pending, localSignOut: confirmed ? "complete" : "unconfirmed" });
-        emit();
-      }
-      return true;
-    },
-    dispose(): void {
-      stopOperationOwner?.();
-      stopOperationOwner = null;
-      // The notice retains its own owner listener until dismissal or transition.
-    },
+    kind: "show-receipt",
+    href: buildAccountDeletedHref({ receiptId: deps.receipt.receiptId, localPurge, localSignOut }),
+    localPurge,
+    localSignOut,
   };
 }

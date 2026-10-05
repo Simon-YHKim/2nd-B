@@ -1,0 +1,437 @@
+-- 0217_account_deletion_receipts.sql
+--
+-- 계정 삭제 영수증을 서버에 남긴다 (Simon 결정 Q-261004-42 = A, DECISIONS.md 26.10.05 19:53).
+--
+-- 왜. 지금까지 삭제 영수증은 앱 화면이 메모리에 들고 다음 화면까지 건네줬다
+-- (src/lib/account/deletion-completion.ts 의 알림 저장소). 그 인계를 지키려는 수정이
+-- 다섯 회차 동안 수렴하지 않았고, 마지막에는 계정 전환 때 A 의 영수증이 B 의 로그인
+-- 화면에 보이는 경로를 만들었다(PR #2054 게이트 DEL-N1-01 · DEL-N2-01). 결정은 "앱 화면이
+-- 영수증 전달을 책임지지 않게" 다. 그래서 영수증을 서버가 기록하고, 앱은 그 번호만 받는다.
+--
+-- 무엇을 남기나. 영수증 번호(무작위 uuid) · 삭제 시각(초 단위) · 보관 만료 시각 ·
+-- 서버가 관측한 정리 결과(참/거짓/무응답 플래그 여섯 개). **계정을 가리키는 값은 없다** -
+-- user_id · 세션 · 이메일 · 해시 모두 넣지 않는다. 해시도 넣지 않은 이유: uuid 를 아는
+-- 사람(0192 의 account_deletion_tombstones 가 user_id 를 그대로 보존한다)은 해시를 다시
+-- 계산해 이을 수 있으므로 해시는 "되돌릴 수 없는 식별자" 가 아니라 가명이다. 영수증이
+-- 사용자에게 주는 쓸모(내 삭제가 끝났는지 확인)에 계정 식별자는 필요 없다.
+--
+-- 소유자 열이 없으므로 삭제 등록부(db/erasure-registry.json, check:erasure-registry)의
+-- 범위 밖이다. 등록부 G1 은 "소유자 열을 가진 public 표" 만 다룬다. 이 표에 user_id ·
+-- owner_id 같은 열을 더하는 순간 G1 이 이 표를 요구하고, 그때는 등록부 행과 forward
+-- 마이그레이션이 함께 필요하다 - 그래서 소유자 열을 더하지 말 것.
+--
+-- 어떻게 원자적으로 남기나. delete-account Edge 가 Auth 삭제 직전에 영수증 번호를 0192 의
+-- 삭제 표식(account_deletion_tombstones.pending_receipt_id)에 걸어 둔다. Auth 삭제가
+-- public.users 로 연쇄되는 바로 그 트랜잭션 안에서 BEFORE DELETE 트리거가 그 번호로
+-- 영수증 행을 만들고, 표식의 번호를 비운다. 그래서 영수증은 "프로필 행이 실제로 지워진
+-- 트랜잭션이 커밋됐다" 와 정확히 같은 사실이다 - Edge 가 Auth 삭제 뒤에 죽어도 영수증은
+-- 남고, Auth 삭제가 롤백되면 영수증도 같이 없다. 표식에 번호가 남는 시간은 Auth 삭제
+-- 요청 한 번이다(실패하면 다음 시도가 덮어쓴다).
+--
+-- 트리거는 영수증을 못 만들어도 계정 삭제를 막지 않는다(EXCEPTION 으로 삼키고 WARNING).
+-- 삭제권이 영수증보다 우선이다. 그 경우 Edge 는 영수증 번호 없이 deleted:true 를 돌려준다.
+--
+-- 앱이 영수증을 다시 보는 길. 이 파일의 get_account_deletion_receipt 는 service_role 전용이고
+-- (scripts/check-definer-grants.ts 규칙 A: anon 에게 함수를 열지 않는다), 로그인 없이 보는
+-- 길은 account-deletion-receipt Edge 함수가 번호로 이 RPC 를 대신 부른다.
+--
+-- 보관. 365일 뒤 만료된다. 만료된 행은 조회에서 즉시 빠지고, pg_cron 이 있으면 매일
+-- 지운다(0067 과 같은 모양 - CI 의 순정 PostgreSQL 에는 pg_cron 이 없어 NOTICE 로 건너뛴다).
+--
+-- 의존. 0192(account_deletion_tombstones · begin_account_deletion)가 먼저 있어야 한다.
+-- 운영 적용 순서: 0192 -> 0217 -> delete-account 배포 -> account-deletion-receipt 배포 ->
+-- 웹 게시. ⚠ 운영 적용과 배포는 Simon GO 뒤에만 한다.
+--
+-- 최상위 BEGIN/COMMIT 을 두지 않는다. Supabase CLI 가 이 파일을 자기 트랜잭션으로 감싼다.
+
+SET LOCAL lock_timeout = '10s';
+
+DO $require_0192$
+BEGIN
+  IF pg_catalog.to_regclass('public.account_deletion_tombstones') IS NULL
+     OR pg_catalog.to_regprocedure('public.begin_account_deletion(uuid,uuid,timestamptz)') IS NULL THEN
+    RAISE EXCEPTION '0217 requires 0192 (account_deletion_tombstones, begin_account_deletion)';
+  END IF;
+END;
+$require_0192$;
+
+----------------------------------------------------------------------
+-- 영수증 표. 계정 식별자 없음. 클라이언트 역할은 아무 권한도 없다.
+----------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.account_deletion_receipts (
+  id uuid PRIMARY KEY,
+  erased_at timestamptz NOT NULL,
+  expires_at timestamptz NOT NULL,
+  sweeps jsonb NOT NULL DEFAULT '{}'::jsonb,
+  sweeps_reported_at timestamptz,
+  CONSTRAINT account_deletion_receipts_expiry_after_erasure CHECK (expires_at > erased_at),
+  CONSTRAINT account_deletion_receipts_sweeps_object CHECK (pg_catalog.jsonb_typeof(sweeps) = 'object')
+);
+
+ALTER TABLE public.account_deletion_receipts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.account_deletion_receipts FORCE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE public.account_deletion_receipts
+  FROM PUBLIC, anon, authenticated, service_role;
+
+CREATE INDEX IF NOT EXISTS account_deletion_receipts_expires_at_idx
+  ON public.account_deletion_receipts (expires_at);
+
+COMMENT ON TABLE public.account_deletion_receipts IS
+  '계정 삭제 영수증 (0217). 계정 식별자 없음: 번호 · 삭제 시각 · 만료 · 서버가 관측한 정리 플래그만. 프로필 행 삭제 트랜잭션 안에서 트리거가 만든다. 365일 보관.';
+
+----------------------------------------------------------------------
+-- 삭제 표식에 걸어 두는 영수증 번호. Auth 삭제 한 번 동안만 쓰이고 트리거가 비운다.
+----------------------------------------------------------------------
+
+ALTER TABLE public.account_deletion_tombstones
+  ADD COLUMN IF NOT EXISTS pending_receipt_id uuid;
+
+CREATE UNIQUE INDEX IF NOT EXISTS account_deletion_tombstones_pending_receipt_key
+  ON public.account_deletion_tombstones (pending_receipt_id)
+  WHERE pending_receipt_id IS NOT NULL;
+
+COMMENT ON COLUMN public.account_deletion_tombstones.pending_receipt_id IS
+  '0217: delete-account 가 Auth 삭제 직전에 거는 영수증 번호. public.users 삭제 트리거가 영수증을 만들고 이 칸을 비운다.';
+
+----------------------------------------------------------------------
+-- 1. Auth 삭제 직전에 영수증 번호를 건다 (service_role 전용).
+--    요청 번호가 이미 영수증으로 쓰였거나 다른 계정의 표식에 걸려 있으면 새 번호를 쓴다.
+--    표식 행이 없으면(begin_account_deletion 을 거치지 않았으면) NULL.
+----------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.attach_account_deletion_receipt(
+  p_user_id uuid,
+  p_receipt_id uuid
+)
+RETURNS uuid
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+SET row_security = off
+AS $$
+DECLARE
+  v_claims jsonb := nullif(
+    pg_catalog.current_setting('request.jwt.claims', true),
+    ''
+  )::jsonb;
+  v_role text := COALESCE(
+    nullif(pg_catalog.current_setting('request.jwt.claim.role', true), ''),
+    v_claims ->> 'role'
+  );
+  v_receipt uuid := p_receipt_id;
+BEGIN
+  IF v_role IS DISTINCT FROM 'service_role' OR p_user_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  IF v_receipt IS NULL
+     OR EXISTS (
+       SELECT 1 FROM public.account_deletion_receipts AS r WHERE r.id = v_receipt
+     )
+     OR EXISTS (
+       SELECT 1
+       FROM public.account_deletion_tombstones AS t
+       WHERE t.pending_receipt_id = v_receipt
+         AND t.user_id <> p_user_id
+     ) THEN
+    v_receipt := pg_catalog.gen_random_uuid();
+  END IF;
+
+  UPDATE public.account_deletion_tombstones AS t
+     SET pending_receipt_id = v_receipt
+   WHERE t.user_id = p_user_id;
+
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+
+  RETURN v_receipt;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.attach_account_deletion_receipt(uuid, uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.attach_account_deletion_receipt(uuid, uuid)
+  TO service_role;
+
+----------------------------------------------------------------------
+-- 2. 프로필 행이 지워지는 트랜잭션 안에서 영수증을 만든다 (트리거 전용).
+--    실패해도 삭제를 막지 않는다.
+----------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.issue_account_deletion_receipt()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+SET row_security = off
+AS $$
+DECLARE
+  v_receipt uuid;
+  v_erased_at timestamptz;
+BEGIN
+  BEGIN
+    SELECT t.pending_receipt_id
+      INTO v_receipt
+      FROM public.account_deletion_tombstones AS t
+     WHERE t.user_id = OLD.id;
+
+    IF v_receipt IS NOT NULL THEN
+      v_erased_at := pg_catalog.date_trunc('second', pg_catalog.clock_timestamp());
+      INSERT INTO public.account_deletion_receipts (id, erased_at, expires_at)
+      VALUES (v_receipt, v_erased_at, v_erased_at + interval '365 days')
+      ON CONFLICT (id) DO NOTHING;
+
+      UPDATE public.account_deletion_tombstones AS t
+         SET pending_receipt_id = NULL
+       WHERE t.user_id = OLD.id;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    -- 삭제권이 영수증보다 우선이다. 영수증을 못 만들어도 계정 삭제는 계속된다.
+    RAISE WARNING 'account_deletion_receipt_not_issued';
+  END;
+  RETURN OLD;
+END;
+$$;
+
+-- 트리거 함수다. 누가 직접 부를 일이 없다 (0202 와 같은 이유로 넷 다 걷는다).
+REVOKE ALL ON FUNCTION public.issue_account_deletion_receipt()
+  FROM PUBLIC, anon, authenticated, service_role;
+
+DROP TRIGGER IF EXISTS trg_users_issue_account_deletion_receipt ON public.users;
+CREATE TRIGGER trg_users_issue_account_deletion_receipt
+  BEFORE DELETE ON public.users
+  FOR EACH ROW EXECUTE FUNCTION public.issue_account_deletion_receipt();
+
+----------------------------------------------------------------------
+-- 3. Auth 삭제 뒤 Edge 가 관측한 정리 결과를 한 번만 적는다 (service_role 전용).
+--    허용 키 여섯 개 · 값은 참/거짓/null 만. 영수증이 실제로 있으면 true.
+----------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.record_account_deletion_receipt_sweeps(
+  p_receipt_id uuid,
+  p_sweeps jsonb
+)
+RETURNS boolean
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+SET row_security = off
+AS $$
+DECLARE
+  v_claims jsonb := nullif(
+    pg_catalog.current_setting('request.jwt.claims', true),
+    ''
+  )::jsonb;
+  v_role text := COALESCE(
+    nullif(pg_catalog.current_setting('request.jwt.claim.role', true), ''),
+    v_claims ->> 'role'
+  );
+BEGIN
+  IF v_role IS DISTINCT FROM 'service_role'
+     OR p_receipt_id IS NULL
+     OR p_sweeps IS NULL
+     OR pg_catalog.jsonb_typeof(p_sweeps) IS DISTINCT FROM 'object' THEN
+    RETURN false;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_catalog.jsonb_each(p_sweeps) AS entry(key, value)
+    WHERE entry.key NOT IN (
+        'profile_erased',
+        'deletion_fenced',
+        'raw_clippings_erased',
+        'raw_clippings_empty_at_check',
+        'record_photos_erased',
+        'record_photos_empty_at_check'
+      )
+      OR pg_catalog.jsonb_typeof(entry.value) NOT IN ('boolean', 'null')
+  ) THEN
+    RETURN false;
+  END IF;
+
+  UPDATE public.account_deletion_receipts AS r
+     SET sweeps = p_sweeps,
+         sweeps_reported_at = pg_catalog.date_trunc('second', pg_catalog.clock_timestamp())
+   WHERE r.id = p_receipt_id
+     AND r.sweeps_reported_at IS NULL
+     AND r.expires_at > pg_catalog.now();
+
+  RETURN FOUND;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.record_account_deletion_receipt_sweeps(uuid, jsonb)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.record_account_deletion_receipt_sweeps(uuid, jsonb)
+  TO service_role;
+
+----------------------------------------------------------------------
+-- 4. 번호로 영수증을 읽는다 (service_role 전용 - account-deletion-receipt Edge 가 부른다).
+--    만료됐거나 없으면 NULL. 계정 식별자는 애초에 없으므로 돌려줄 수도 없다.
+----------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.get_account_deletion_receipt(
+  p_receipt_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+SET row_security = off
+AS $$
+DECLARE
+  v_claims jsonb := nullif(
+    pg_catalog.current_setting('request.jwt.claims', true),
+    ''
+  )::jsonb;
+  v_role text := COALESCE(
+    nullif(pg_catalog.current_setting('request.jwt.claim.role', true), ''),
+    v_claims ->> 'role'
+  );
+  v_receipt jsonb;
+BEGIN
+  IF v_role IS DISTINCT FROM 'service_role' OR p_receipt_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT pg_catalog.jsonb_build_object(
+           'id', r.id,
+           'erased_at', r.erased_at,
+           'expires_at', r.expires_at,
+           'sweeps', r.sweeps,
+           'sweeps_reported', r.sweeps_reported_at IS NOT NULL
+         )
+    INTO v_receipt
+    FROM public.account_deletion_receipts AS r
+   WHERE r.id = p_receipt_id
+     AND r.expires_at > pg_catalog.now();
+
+  RETURN v_receipt;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_account_deletion_receipt(uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.get_account_deletion_receipt(uuid)
+  TO service_role;
+
+----------------------------------------------------------------------
+-- 5. 만료된 영수증을 지운다 (service_role 전용 · pg_cron 이 매일 부른다).
+----------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.purge_expired_account_deletion_receipts()
+RETURNS integer
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+SET row_security = off
+AS $$
+DECLARE
+  v_deleted integer;
+BEGIN
+  DELETE FROM public.account_deletion_receipts AS r
+   WHERE r.expires_at <= pg_catalog.now();
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  RETURN v_deleted;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.purge_expired_account_deletion_receipts()
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.purge_expired_account_deletion_receipts()
+  TO service_role;
+
+DO $schedule_receipt_purge$
+DECLARE
+  j record;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_available_extensions WHERE name = 'pg_cron') THEN
+    RAISE NOTICE '0217: pg_cron not available (CI dry-run); skipping receipt purge schedule';
+    RETURN;
+  END IF;
+
+  EXECUTE 'CREATE EXTENSION IF NOT EXISTS pg_cron';
+
+  FOR j IN SELECT jobid FROM cron.job WHERE jobname = 'purge-expired-account-deletion-receipts' LOOP
+    PERFORM cron.unschedule(j.jobid);
+  END LOOP;
+
+  PERFORM cron.schedule(
+    'purge-expired-account-deletion-receipts',
+    '7 4 * * *',
+    'SELECT public.purge_expired_account_deletion_receipts();'
+  );
+END;
+$schedule_receipt_purge$;
+
+----------------------------------------------------------------------
+-- 끝 상태를 적용 시점에 확인한다 (0202 와 같은 모양).
+----------------------------------------------------------------------
+
+DO $account_deletion_receipts_check$
+DECLARE
+  v_fn text;
+BEGIN
+  IF NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_trigger AS t
+        WHERE t.tgrelid = 'public.users'::regclass
+          AND t.tgname = 'trg_users_issue_account_deletion_receipt'
+          AND t.tgenabled = 'O'
+          AND t.tgfoid = 'public.issue_account_deletion_receipt()'::regprocedure
+     )
+     OR NOT (
+       SELECT c.relrowsecurity AND c.relforcerowsecurity
+         FROM pg_catalog.pg_class AS c
+        WHERE c.oid = 'public.account_deletion_receipts'::regclass
+     )
+     OR EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_attribute AS a
+        WHERE a.attrelid = 'public.account_deletion_receipts'::regclass
+          AND a.attnum > 0
+          AND NOT a.attisdropped
+          AND a.attname NOT IN ('id', 'erased_at', 'expires_at', 'sweeps', 'sweeps_reported_at')
+     ) THEN
+    RAISE EXCEPTION '0217: account deletion receipt table/trigger postcondition failed';
+  END IF;
+
+  FOREACH v_fn IN ARRAY ARRAY[
+    'public.attach_account_deletion_receipt(uuid,uuid)',
+    'public.issue_account_deletion_receipt()',
+    'public.record_account_deletion_receipt_sweeps(uuid,jsonb)',
+    'public.get_account_deletion_receipt(uuid)',
+    'public.purge_expired_account_deletion_receipts()'
+  ] LOOP
+    IF NOT (
+         SELECT p.prosecdef
+                AND COALESCE(p.proconfig @> ARRAY['search_path=""']::text[], false)
+           FROM pg_catalog.pg_proc AS p
+          WHERE p.oid = v_fn::regprocedure
+       )
+       OR pg_catalog.has_function_privilege('public', v_fn, 'EXECUTE')
+       OR pg_catalog.has_function_privilege('anon', v_fn, 'EXECUTE')
+       OR pg_catalog.has_function_privilege('authenticated', v_fn, 'EXECUTE') THEN
+      RAISE EXCEPTION '0217: % must be a search_path-pinned definer closed to client roles', v_fn;
+    END IF;
+  END LOOP;
+
+  IF pg_catalog.has_function_privilege('service_role', 'public.issue_account_deletion_receipt()', 'EXECUTE')
+     OR NOT pg_catalog.has_function_privilege('service_role', 'public.attach_account_deletion_receipt(uuid,uuid)', 'EXECUTE')
+     OR NOT pg_catalog.has_function_privilege('service_role', 'public.record_account_deletion_receipt_sweeps(uuid,jsonb)', 'EXECUTE')
+     OR NOT pg_catalog.has_function_privilege('service_role', 'public.get_account_deletion_receipt(uuid)', 'EXECUTE')
+     OR pg_catalog.has_table_privilege('anon', 'public.account_deletion_receipts', 'SELECT')
+     OR pg_catalog.has_table_privilege('authenticated', 'public.account_deletion_receipts', 'SELECT')
+     OR pg_catalog.has_table_privilege('service_role', 'public.account_deletion_receipts', 'SELECT') THEN
+    RAISE EXCEPTION '0217: account deletion receipt grant postcondition failed';
+  END IF;
+END;
+$account_deletion_receipts_check$;

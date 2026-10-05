@@ -1,28 +1,23 @@
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { Text } from "@/components/ui/Text";
-import {
-  dismissAccountDeletionNotice,
-  getAccountDeletionNotice,
-  subscribeAccountDeletionNotice,
-  type AccountDeletionNotice,
-} from "@/lib/account/deletion-completion";
+import type { AccountDeletionNotice } from "@/lib/account/deletion-receipt-view";
 import { m3 } from "@/lib/theme/m3";
 import { ForceDark } from "@/lib/theme/ThemeContext";
 
-/** The store owns account/epoch validity. Reading a notice never consumes it. */
-export function useAccountDeletionNotice(): AccountDeletionNotice | null {
-  return useSyncExternalStore(
-    subscribeAccountDeletionNotice,
-    getAccountDeletionNotice,
-    getAccountDeletionNotice,
-  );
-}
+/**
+ * What the receipt route shows (type in lib/account/deletion-receipt-view.ts):
+ * the SERVER receipt (0217), read back by number, plus two local observations
+ * the deletion flow put in the URL. There is no global store any more: this
+ * panel renders only where a route holds the receipt number (Simon decision
+ * Q-261004-42 = A).
+ */
+export type { AccountDeletionNotice };
 
-// 세 값은 세 가지 다른 사실이다 (delete-bulk.ts:227-248):
+// 세 값은 세 가지 다른 사실이다 (delete-bulk.ts 의 AccountDeletionReceipt):
 //   true  = 확인됨
 //   false = 서버가 그 정리를 끝내지 못했다고 **보고**함
 //   null  = 서버가 아무 말도 안 함 (옛 배포는 필드 자체가 없다)
@@ -40,23 +35,56 @@ const observationKey = (value: boolean | null) =>
 const proofKey = (value: boolean | null) =>
   value === true ? "proofConfirmed" : value === false ? "proofReportedFalse" : "notReported";
 
+/** Calendar date only: the receipt is about a day, not a device clock. */
+export function receiptDate(iso: string | null, locale: string): string | null {
+  if (!iso) return null;
+  const time = Date.parse(iso);
+  if (!Number.isFinite(time)) return null;
+  try {
+    return new Date(time).toLocaleDateString(locale, { year: "numeric", month: "long", day: "numeric" });
+  } catch {
+    return new Date(time).toISOString().slice(0, 10);
+  }
+}
+
 /** Display-only completion receipt. No deletion, remote retry, or persistent data. */
-export function AccountDeletionNoticePanel({ notice }: { notice: AccountDeletionNotice }) {
-  const { t } = useTranslation("consent");
+export function AccountDeletionNoticePanel({ notice, onClose }: {
+  notice: AccountDeletionNotice;
+  onClose: () => void;
+}) {
+  const { t, i18n } = useTranslation("consent");
   const [expanded, setExpanded] = useState(false);
-  const pending = notice.localSignOut === "pending";
-  const dismiss = () => {
-    // A callback retained from an older render must not dismiss a later notice.
-    if (!pending && getAccountDeletionNotice() === notice) dismissAccountDeletionNotice();
-  };
+  const locale = i18n?.language || "en";
+  const receipt = notice.receipt;
+  const expires = receiptDate(notice.expiresAtIso, locale);
+  const erased = receiptDate(notice.erasedAtIso, locale);
   return (
     <ForceDark>
     <MdCard variant="outlined" style={styles.card}>
       <Text accessibilityRole="header" style={m3TextStyle("titleLarge")}>{t("account.deletionReceipt.title")}</Text>
-      <Text style={m3TextStyle("bodyMedium")}>{t("account.deletionReceipt.body")}</Text>
-      <View accessibilityLiveRegion="polite">
-        <Text style={m3TextStyle("bodyMedium")}>{t(`account.deletionReceipt.localSignOut.${notice.localSignOut}`)}</Text>
-      </View>
+      <Text style={m3TextStyle("bodyMedium")}>
+        {t(notice.receiptId === null ? "account.deletionReceipt.notRecorded" : "account.deletionReceipt.body")}
+      </Text>
+      {notice.receiptId !== null ? (
+        <View style={styles.row} testID="account-deletion-receipt-id">
+          <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.receiptNumber")}</Text>
+          <Text selectable style={m3TextStyle("bodyMedium")}>{notice.receiptId}</Text>
+          {expires ? (
+            <Text style={m3TextStyle("bodySmall")}>{t("account.deletionReceipt.receiptNumberHint", { date: expires })}</Text>
+          ) : null}
+        </View>
+      ) : null}
+      {erased ? (
+        <View style={styles.row}>
+          <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.erasedAt")}</Text>
+          <Text style={m3TextStyle("bodyMedium")}>{erased}</Text>
+        </View>
+      ) : null}
+      {notice.localSignOut ? (
+        <View accessibilityLiveRegion="polite">
+          <Text style={m3TextStyle("bodyMedium")}>{t(`account.deletionReceipt.localSignOut.${notice.localSignOut}`)}</Text>
+        </View>
+      ) : null}
       <Pressable
         testID="account-deletion-details"
         accessibilityRole="button"
@@ -70,35 +98,38 @@ export function AccountDeletionNoticePanel({ notice }: { notice: AccountDeletion
       </Pressable>
       {expanded ? <View style={styles.details}>
         <Text style={m3TextStyle("bodySmall")}>{t("account.deletionReceipt.scope")}</Text>
-        <View style={styles.row}>
-          <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.profile")}</Text>
-          <Text style={m3TextStyle("bodyMedium")}>{t(`account.deletionReceipt.${observationKey(notice.receipt.profileErased)}`)}</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.deletionFence")}</Text>
-          <Text style={m3TextStyle("bodyMedium")}>{t(`account.deletionReceipt.${proofKey(notice.receipt.deletionFenced)}`)}</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.rawClippingsEmptyAtCheck")}</Text>
-          <Text style={m3TextStyle("bodyMedium")}>{t(`account.deletionReceipt.${proofKey(notice.receipt.rawClippingsEmptyAtCheck)}`)}</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.rawClippings")}</Text>
-          <Text style={m3TextStyle("bodyMedium")}>{t(`account.deletionReceipt.${observationKey(notice.receipt.rawClippingsErased)}`)}</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.localTitle")}</Text>
-          <Text style={m3TextStyle("bodyMedium")}>{t(`account.deletionReceipt.localPurge.${notice.localPurge}`)}</Text>
-        </View>
+        {receipt ? <>
+          <View style={styles.row}>
+            <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.profile")}</Text>
+            <Text style={m3TextStyle("bodyMedium")}>{t(`account.deletionReceipt.${observationKey(receipt.profileErased)}`)}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.deletionFence")}</Text>
+            <Text style={m3TextStyle("bodyMedium")}>{t(`account.deletionReceipt.${proofKey(receipt.deletionFenced)}`)}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.rawClippingsEmptyAtCheck")}</Text>
+            <Text style={m3TextStyle("bodyMedium")}>{t(`account.deletionReceipt.${proofKey(receipt.rawClippingsEmptyAtCheck)}`)}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.rawClippings")}</Text>
+            <Text style={m3TextStyle("bodyMedium")}>{t(`account.deletionReceipt.${observationKey(receipt.rawClippingsErased)}`)}</Text>
+          </View>
+        </> : null}
+        {notice.localPurge ? (
+          <View style={styles.row}>
+            <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.localTitle")}</Text>
+            <Text style={m3TextStyle("bodyMedium")}>{t(`account.deletionReceipt.localPurge.${notice.localPurge}`)}</Text>
+          </View>
+        ) : null}
         <Text style={m3TextStyle("bodySmall")}>{t("account.deletionReceipt.subscription")}</Text>
         <Text selectable style={m3TextStyle("bodySmall")}>{t("account.deletionReceipt.support")}</Text>
       </View> : null}
       <MdButton
         testID="account-deletion-dismiss"
         label={t("account.deletionReceipt.dismiss")}
-        accessibilityHint={t(pending ? "account.deletionReceipt.dismissPendingHint" : "account.deletionReceipt.dismissHint")}
-        disabled={pending}
-        onPress={dismiss}
+        accessibilityHint={t("account.deletionReceipt.dismissHint")}
+        onPress={onClose}
       />
     </MdCard>
     </ForceDark>
