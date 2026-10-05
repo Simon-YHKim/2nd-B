@@ -90,7 +90,7 @@
     "hint": "Mulai dengan satu kalimat. Kamu bisa membacanya lagi di Catatan."
   },
   "saved": {
-    "title": "Lumen menyimpan catatan baru",
+    "title": "Catatan tersimpan",
     "ocrTitle": "Catatan foto kamu tersimpan",
     "ocrBody": "Kini menjadi catatan pribadimu.",
     "seeArea": "Lihat di {{area}}",

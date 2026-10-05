@@ -1,8 +1,7 @@
 {
   "app": {
     "name": "PolaScope",
-    "tagline": "내가 쓰고 저장한 것들로 만드는 두번째 뇌.",
-    "renameNote": "PolaScope는 2nd-Brain의 새 이름입니다. 2026년 10월 5일 약관이 바뀌기 전까지 동의 문구와 약관에 적힌 2nd-Brain은 PolaScope를 말합니다."
+    "tagline": "내가 쓰고 저장한 것들로 만드는 두번째 뇌."
   },
   "actions": {
     "continue": "계속",

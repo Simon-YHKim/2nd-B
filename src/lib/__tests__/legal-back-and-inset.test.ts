@@ -22,11 +22,11 @@ describe("legal auth-shell frame", () => {
   );
 
   test("puts the top safe inset on the non-scroll frame, not the scroll surface", () => {
-    // KAV (a plain View on Android; iOS behavior="padding" only manages its own
-    // bottom padding) owns the top inset, so the viewport starts below the
+    // The keyboard area (it only ever manages its own bottom padding, on iOS
+    // and Android alike) owns the top inset, so the viewport starts below the
     // status bar at EVERY scroll position — including /consent-notice's mount
     // auto-scroll to ?item=, which a contentContainer paddingTop scrolls past.
-    expect(authShell).toMatch(/KeyboardAvoidingView[\s\S]{0,160}paddingTop: insets\.top/);
+    expect(authShell).toMatch(/KeyboardAvoidingArea[\s\S]{0,160}paddingTop: insets\.top/);
     expect(authShell).not.toMatch(/ScrollView[\s\S]{0,200}paddingTop/);
     expect(authShell).not.toContain("paddingTop: insets.top + spacing.lg");
   });

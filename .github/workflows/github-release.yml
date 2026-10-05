@@ -401,9 +401,16 @@ jobs:
           IOS_CHANNEL="$(node -p "require('$RUNNER_TEMP/validated-builds.json').ios.channel")"
           IOS_BUNDLE_ID="$(node -p "require('$RUNNER_TEMP/validated-builds.json').ios.appIdentifier")"
           SHORT_SHA="${EXPECTED_COMMIT:0:12}"
-          PREVIEW_FILE="2nd-Brain-v$VERSION-preview-vc$PREVIEW_CODE-$SHORT_SHA.apk"
-          PRODUCTION_FILE="2nd-Brain-v$VERSION-production-vc$PRODUCTION_CODE-$SHORT_SHA.aab"
-          IOS_FILE="2nd-Brain-v$VERSION-production-build$IOS_BUILD_NUMBER-$SHORT_SHA.ipa"
+          # Keep old release asset names stable while giving renamed builds
+          # the name recorded in their immutable release commit.
+          RELEASE_APP_NAME="$(node -p "JSON.parse(require('node:fs').readFileSync(process.env.RELEASE_APP_JSON, 'utf8')).expo.name")"
+          if [ "$RELEASE_APP_NAME" != "2nd-Brain" ] && [ "$RELEASE_APP_NAME" != "PolaScope" ]; then
+            echo "::error::Release app name is not an approved display name."
+            exit 1
+          fi
+          PREVIEW_FILE="$RELEASE_APP_NAME-v$VERSION-preview-vc$PREVIEW_CODE-$SHORT_SHA.apk"
+          PRODUCTION_FILE="$RELEASE_APP_NAME-v$VERSION-production-vc$PRODUCTION_CODE-$SHORT_SHA.aab"
+          IOS_FILE="$RELEASE_APP_NAME-v$VERSION-production-build$IOS_BUILD_NUMBER-$SHORT_SHA.ipa"
 
           curl --proto '=https' --proto-redir '=https' --fail --silent --show-error --location --retry 3 "$PREVIEW_URL" --output "$PREVIEW_FILE"
           curl --proto '=https' --proto-redir '=https' --fail --silent --show-error --location --retry 3 "$PRODUCTION_URL" --output "$PRODUCTION_FILE"
@@ -784,6 +791,14 @@ jobs:
           fi
           VERSION="$RESOLVED_VERSION"
           TAG="v$VERSION"
+          # Use the release commit's display name. Historical 2nd-Brain drafts
+          # remain exactly verifiable; new PolaScope releases get the new title.
+          RELEASE_APP_NAME="$(node -p "JSON.parse(require('node:fs').readFileSync(process.env.RELEASE_APP_JSON, 'utf8')).expo.name")"
+          if [ "$RELEASE_APP_NAME" != "2nd-Brain" ] && [ "$RELEASE_APP_NAME" != "PolaScope" ]; then
+            echo "::error::Release app name is not an approved display name."
+            exit 1
+          fi
+          export RELEASE_NAME="$RELEASE_APP_NAME $VERSION"
           grep -Fq "installs directly on Android" RELEASE_NOTES.md
           grep -Fq "cannot be installed directly" RELEASE_NOTES.md
           TAG_LINE="$(git ls-remote --tags origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')"
@@ -924,7 +939,7 @@ jobs:
             # RELEASE_NOTES.md is authoritative; --generate-notes is deliberately
             # not executed because generated text would make an exact rerun mutable.
             ARGS=(release create "$TAG" "$PREVIEW_FILE" "$PRODUCTION_FILE" "$IOS_FILE" SHA256SUMS.txt
-                  --title "2nd-Brain $VERSION" --target "$RELEASE_COMMIT" --draft
+                  --title "$RELEASE_NAME" --target "$RELEASE_COMMIT" --draft
                   --notes-file RELEASE_NOTES.md)
             if [ "${{ inputs.prerelease }}" = "true" ]; then ARGS+=(--prerelease); fi
             # One create invocation receives every asset. A failed partial create

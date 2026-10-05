@@ -108,10 +108,12 @@ describe("탭바를 그리는 조건과 자리를 비우는 조건은 같아야 
     expect(capture).not.toContain("scrollBottomPadding");
     expect(capture).toContain('import { useKeyboard } from "@/lib/ui/useKeyboard";');
     expect(capture).toContain("const kbHeight = useKeyboard();");
-    expect(capture).toContain(
-      'const keyboardBehavior = Platform.OS === "ios" ? "padding" : undefined;',
-    );
-    expect(capture).not.toMatch(/keyboardBehavior\s*=.*:\s*"height"/);
+    // 2026-10-05: 키보드 규칙은 공용 영역(src/lib/ui/keyboard.tsx) 하나가 갖는다. capture 는
+    // 그 영역 안에 있고 behavior 를 직접 고르지 않는다 - "height" 이중 축소 금지도 그대로다.
+    expect(capture).toContain("<KeyboardAvoidingArea");
+    expect(capture).toContain("iosKeyboardVerticalOffset={iosKeyboardVerticalOffset}");
+    expect(capture).not.toContain("KeyboardAvoidingView");
+    expect(capture).not.toMatch(/behavior=\{[^}]*"height"/);
     expect(capture).toContain('Platform.OS === "android" && {');
     expect(capture).toContain(
       "paddingBottom: Math.max(styles.scroll.paddingBottom, kbHeight + spacing.xl)",

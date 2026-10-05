@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet, ScrollView } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
 import { Redirect, useNavigation } from "expo-router";
 
@@ -276,7 +277,7 @@ function AuditLegacy() {
       setAnswer("");
       if (index + 1 >= questions.length) {
         setDone(true);
-        // 모모 reads back the finished interview before it's filed (companion pack §3).
+        // The saved cue plays as the finished interview is filed (companion pack §3).
         companion.fire("auditCompleted");
       } else {
         setIndex(index + 1);
@@ -296,7 +297,7 @@ function AuditLegacy() {
   if (period === null) {
     return (
       <AuditScreenerShell onBack={requestBack}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingArea style={{ flex: 1 }}>
 <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.introCard}>
             <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
@@ -332,7 +333,7 @@ function AuditLegacy() {
             />
           </View>
         </ScrollView>
-</KeyboardAvoidingView>
+</KeyboardAvoidingArea>
       </AuditScreenerShell>
     );
   }
@@ -365,7 +366,7 @@ function AuditLegacy() {
             />
           </View>
         </View>
-        {/* 모모 appears briefly to file the finished interview (companion pack §3) */}
+        {/* The saved cue appears briefly as the finished interview is filed (companion pack §3) */}
         {companion.moment ? (
           <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
         ) : null}
@@ -375,7 +376,7 @@ function AuditLegacy() {
 
   return (
     <AuditScreenerShell onBack={requestBack}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingArea style={{ flex: 1 }}>
 <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {index === 0 ? (
           <View style={styles.introCard}>
@@ -446,7 +447,7 @@ function AuditLegacy() {
           onPress={() => router.replace("/capture")}
         />
       </ScrollView>
-</KeyboardAvoidingView>
+</KeyboardAvoidingArea>
       {toast ? (
         <View style={styles.toastWrap} pointerEvents="none">
           <PremiumToast message={toast.message} tone={toast.tone} />

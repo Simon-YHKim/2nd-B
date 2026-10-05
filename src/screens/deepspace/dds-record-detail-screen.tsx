@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { Redirect, router, useLocalSearchParams, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -862,10 +861,7 @@ export function DeepSpaceRecordDetailScreen() {
 
   return (
     <DeepSpaceScreen active="wiki" variant="windowed" header="none" title={title} onBack={goBack}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <KeyboardAvoidingArea style={styles.flex}>
         <ScrollView
           style={styles.flex}
           contentContainerStyle={styles.scroll}
@@ -1234,7 +1230,7 @@ export function DeepSpaceRecordDetailScreen() {
             </View>
           )}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
 
       {source ? null : (
         <>

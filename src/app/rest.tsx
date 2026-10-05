@@ -5,12 +5,12 @@
 // PIXEL-CLAY 표면과 가상 목록으로만 표현을 바꾼다.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  KeyboardAvoidingView,
   Platform,
   SectionList,
   StyleSheet,
   View,
 } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -214,10 +214,7 @@ function RestContent({ userId }: { userId: string }) {
       title={t("deepspace:rest.title")}
       onBack={() => router.back()}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.fill}
-      >
+      <KeyboardAvoidingArea style={styles.fill}>
         <SectionList
           sections={sections}
           keyExtractor={(item) => item.id}
@@ -404,7 +401,7 @@ function RestContent({ userId }: { userId: string }) {
             </PixelSurface>
           )}
         />
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
     </DeepSpaceScreen>
   );
 }

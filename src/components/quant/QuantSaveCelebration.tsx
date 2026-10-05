@@ -1,5 +1,5 @@
 // Premium save flourish for the quant assessments (MBTI / BFI / ECR-S). On a
-// successful save we play a brief momo moment over a dim scrim instead of a
+// successful save we play a brief saved-cue moment over a dim scrim instead of a
 // bare system alert, then hand off to /persona. Rendered in a transparent
 // Modal so it reliably covers the screen regardless of the host layout.
 // Honours reduced motion (shorter hold) and announces the message to readers.
@@ -14,8 +14,9 @@ import { reactExpression } from "@/lib/companion/expression";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { spacing } from "@/lib/theme/tokens";
 
-// Momo filing the freshly-saved record + the journal-saved premium cue burst.
-const MOMENT = { companion: "momo", state: "store", cue: "journal_saved" } as const;
+// The journal-saved cue burst. 그 옆에 서류를 정리하던 옛 캐릭터 '모모' 그림은
+// 2026-10-05 에 뺐다(Simon 결정 Q-261004-15 A).
+const MOMENT = { cue: "journal_saved" } as const;
 
 export function QuantSaveCelebration({ message, onDone }: { message: string; onDone: () => void }) {
   // Callers pass a fresh inline arrow for onDone each render, so keep the latest
