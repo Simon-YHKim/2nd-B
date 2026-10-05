@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { accountTransitionPendingFromSnapshot, accountTransitionSnapshot, subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { allRequiredAcksChecked, emptyConsentSelections, REQUIRED_ACK_KEYS } from "@/lib/auth/consent-selections";
 import { isAvailableUiLocale, type AvailableUiLocale } from "@/lib/i18n/locales";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { useAppRouter } from "@/lib/nav/phone-embed";
 import { loadServiceConsent, matchesServiceConsentContract, saveServiceConsent, ServiceConsentError, type ServiceConsentStatus } from "@/lib/privacy/service-consent";
 import { m3 } from "@/lib/theme/m3";
@@ -49,6 +50,13 @@ function ConsentForm({ userId, locale }: { userId: string; locale: AvailableUiLo
   const [reload, setReload] = useState(0);
   const lifecycle = useRef<AbortController | null>(null);
   const inFlight = useRef(false);
+
+  // A home jump from a route above (RedirectHome, tab-root Back) stops here
+  // while this form holds something it would lose (gate NAV-S7-01): unmounting
+  // aborts a save that is out, the acknowledgements under review live only
+  // here, and so does the notice that says whether the save or withdrawal
+  // landed. A load error is not kept; the reload button recovers it.
+  useGoHomeStop(() => inFlight.current || busy || reviewing || (notice !== null && notice !== "loadError"));
 
   useEffect(() => {
     const controller = new AbortController();

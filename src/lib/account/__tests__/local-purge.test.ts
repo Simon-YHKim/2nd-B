@@ -5,6 +5,7 @@ const mockGithubPurge = jest.fn<Promise<boolean>, [string]>();
 const mockAuditPurge = jest.fn<Promise<boolean>, [string]>();
 const mockNotificationPurge = jest.fn<Promise<void>, [string]>();
 const mockOpsUsagePurge = jest.fn<Promise<boolean>, [string]>();
+const mockFocusPurge = jest.fn<Promise<boolean>, [string]>();
 const mockReasoningPurge = jest.fn<Promise<boolean>, [string]>();
 const mockWikiPurge = jest.fn<Promise<boolean>, [string]>();
 const mockNoticeReadPurge = jest.fn<Promise<boolean>, [string]>();
@@ -32,6 +33,9 @@ jest.mock("../../ops/reminders", () => ({
 }));
 jest.mock("../../ops/usage", () => ({
   purgeOpsUsageForDeletedAccount: (owner: string) => mockOpsUsagePurge(owner),
+}));
+jest.mock("../../ops/focus-store", () => ({
+  purgeFocusForDeletedAccount: (owner: string) => mockFocusPurge(owner),
 }));
 jest.mock("../../reasoning/auto-pref", () => ({
   purgeAutoReasoningForDeletedAccount: (owner: string) => mockReasoningPurge(owner),
@@ -67,6 +71,7 @@ beforeEach(() => {
     mockGithubPurge,
     mockAuditPurge,
     mockOpsUsagePurge,
+    mockFocusPurge,
     mockReasoningPurge,
     mockWikiPurge,
     mockNoticeReadPurge,
@@ -88,6 +93,7 @@ describe("purgeDeletedAccountLocalData", () => {
       mockGithubPurge,
       mockAuditPurge,
       mockOpsUsagePurge,
+      mockFocusPurge,
       mockReasoningPurge,
       mockWikiPurge,
       mockNoticeReadPurge,
@@ -118,6 +124,7 @@ describe("purgeDeletedAccountLocalData", () => {
     expect(mockGithubPurge).not.toHaveBeenCalled();
     expect(mockAuditPurge).not.toHaveBeenCalled();
     expect(mockOpsUsagePurge).not.toHaveBeenCalled();
+    expect(mockFocusPurge).not.toHaveBeenCalled();
     expect(mockReasoningPurge).not.toHaveBeenCalled();
     expect(mockWikiPurge).not.toHaveBeenCalled();
     expect(mockNoticeReadPurge).not.toHaveBeenCalled();
@@ -139,6 +146,12 @@ describe("purgeDeletedAccountLocalData", () => {
     expect(mockNoticeReadPurge).toHaveBeenCalledTimes(1);
     expect(mockNoticeLastSeenPurge).toHaveBeenCalledTimes(1);
     expect(mockNotificationPurge).toHaveBeenCalledTimes(1);
+  });
+
+  test("never claims local completion when the /focus tally remains", async () => {
+    mockFocusPurge.mockResolvedValueOnce(false);
+    await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("unconfirmed");
+    expect(mockFocusPurge).toHaveBeenCalledWith("owner-a");
   });
 
   test("never claims completion when any owner-scoped namespace remains", async () => {

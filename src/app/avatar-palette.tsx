@@ -22,6 +22,7 @@ import { PremiumLoadingState } from "@/components/premium";
 import { PixelPressable, PixelSurface } from "@/components/pixel";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppRouter, useHardwareBack, usePhoneEmbed } from "@/lib/nav/phone-embed";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { DEFAULT_AVATAR_SPEC, renderAvatarSvg } from "@/lib/avatar";
 import {
@@ -157,6 +158,9 @@ export default function AvatarPaletteScreen() {
     pendingActionRef.current = () => navigation.dispatch(data.action);
     setPendingTransition({ kind: "exit" });
   }, [navigation]));
+  // Its exit prompt is drawn in this screen, so a home jump from above must
+  // stop here rather than prompt out of sight (gate NS-02).
+  useGoHomeStop(() => dirty && !allowExit);
 
   // The editor's back action returns to the personal gallery. Native swipe-back
   // would remove the route instead, so keep the visible Back control authoritative.

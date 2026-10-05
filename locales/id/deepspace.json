@@ -349,13 +349,9 @@
     "indexed": "{{count}} catatan siap dicari"
   },
   "theme": {
-    "title": "Tema · Font",
-    "status": "Pilih tema dan font yang nyaman.",
+    "title": "Jenis huruf · Gerakan",
+    "status": "Pilih jenis huruf yang nyaman.",
     "tip": "Mengurangi gerakan membuat layar lebih tenang.",
-    "sectionTheme": "Tema",
-    "themeDeepspace": "Ruang dalam",
-    "themeMidnight": "Tengah malam",
-    "midnightNote": "Midnight saat ini hanya berlaku di sebagian layar. Layar deep-space masih disesuaikan.",
     "sectionFont": "Jenis huruf",
     "fontPixel": "Piksel · Galmuri",
     "fontReadable": "Mudah dibaca · Pretendard",

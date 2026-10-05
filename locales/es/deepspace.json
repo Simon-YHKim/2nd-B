@@ -349,13 +349,9 @@
     "indexed": "{{count}} preparados para la búsqueda"
   },
   "theme": {
-    "title": "Tema · Fuente",
-    "status": "Elige un tema y una fuente cómodos.",
+    "title": "Fuente · Movimiento",
+    "status": "Elige una fuente cómoda.",
     "tip": "Reduce el movimiento si prefieres menos animaciones.",
-    "sectionTheme": "Tema",
-    "themeDeepspace": "Espacio profundo",
-    "themeMidnight": "Medianoche",
-    "midnightNote": "Midnight se aplica por ahora solo a algunas pantallas. Las pantallas deep-space siguen en adaptación.",
     "sectionFont": "Fuente",
     "fontPixel": "Píxel · Galmuri",
     "fontReadable": "Legible · Pretendard",
