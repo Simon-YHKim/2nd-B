@@ -18,6 +18,11 @@
 //       no outbox.
 //   P5  A granted first-day review that could not show anything hands the grant
 //       back (finish_first_run outcome not_shown, with the grant's receipt).
+//       The receipt belongs to the ONE screen visit the home opened (it takes it
+//       once, gate BA-02), and that visit hands it back only when it ends without
+//       having shown anything (TTFVScreen, gate FR-01). A hand-back the server
+//       applied lets a later home visit of the same sign-in ask again (gate
+//       BA-01), up to FIRST_RUN_MAX_GRANTS times.
 //
 // Each request is sent once and never overlaps itself: a step that times out
 // (8 seconds) stops the WAIT, not the request, and the next caller waits on the
@@ -57,6 +62,13 @@ export const FIRST_RUN_TIMEOUT_MS = 8_000;
 export const FIRST_RUN_MAX_READS = 3;
 /** The first-day window: the review opens by itself only within 24h of the welcome. */
 export const FIRST_DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * First-day grants per sign-in. A grant its own visit handed back may be asked
+ * for again on a later home visit (P5), but a review that keeps failing to load
+ * must not keep pulling the home back to it: after this many grants the home
+ * stays home for the rest of the sign-in (the same three tries as the reads).
+ */
+export const FIRST_RUN_MAX_GRANTS = 3;
 
 const MARK_COLUMNS = "onboarding_claimed_at, onboarding_completed_at, ttfv_claimed_at, ttfv_seen_at";
 
@@ -137,15 +149,19 @@ export function mergeFirstRunMarks(
 
 /**
  * granted: the server granted it and the screen has not opened yet; entered: the
- * home opened the screen with it; denied: no grant (or no usable answer);
- * lapsed: no answer in time, and a late answer is not followed.
+ * home opened the screen with it; visiting: the first-day screen visit the home
+ * opened took the grant's receipt, so no other visit can have it; denied: no
+ * grant (or no usable answer); lapsed: no answer in time, and a late answer is
+ * not followed. A first-day grant its own visit handed back goes back to idle.
  */
-type ClaimState = "idle" | "pending" | "granted" | "entered" | "denied" | "lapsed";
+type ClaimState = "idle" | "pending" | "granted" | "entered" | "visiting" | "denied" | "lapsed";
 
 interface ClaimSlot {
   state: ClaimState;
   /** The request itself, until it settles (not until its wait times out). */
   inflight: Promise<boolean> | null;
+  /** Grants this sign-in received for this kind (FIRST_RUN_MAX_GRANTS). */
+  grants: number;
 }
 
 /** A slot's state read through a function, so an await in between is not narrowed away. */
@@ -241,8 +257,8 @@ function sessionFor(key: FirstRunSessionKey): FirstRunSession {
     reads: 0,
     reading: null,
     claims: {
-      onboarding: { state: "idle", inflight: null },
-      ttfv: { state: "idle", inflight: null },
+      onboarding: { state: "idle", inflight: null, grants: 0 },
+      ttfv: { state: "idle", inflight: null, grants: 0 },
     },
     ttfvToken: null,
     finishing: new Map(),
@@ -313,6 +329,8 @@ export function parseClaimAnswer(data: unknown): ClaimAnswer {
 }
 
 interface FinishAnswer {
+  /** The server changed the row: for a hand-back, the receipt matched the grant it held. */
+  applied: boolean;
   sessionId: string | null;
   marks: FirstRunMarks;
 }
@@ -322,7 +340,7 @@ export function parseFinishAnswer(data: unknown): FinishAnswer {
   const record = data as Record<string, unknown>;
   if (typeof record.applied !== "boolean") throw new Error("First-run finish answer has no result");
   const sessionId = typeof record.session_id === "string" ? record.session_id : null;
-  return { sessionId, marks: parseFirstRunMarks(record.marks) };
+  return { applied: record.applied, sessionId, marks: parseFirstRunMarks(record.marks) };
 }
 
 async function requestClaim(s: FirstRunSession, kind: FirstRunKind): Promise<boolean> {
@@ -341,6 +359,7 @@ async function requestClaim(s: FirstRunSession, kind: FirstRunKind): Promise<boo
   const slot = s.claims[kind];
   if (slot.state === "pending") {
     slot.state = answer.granted ? "granted" : "denied";
+    if (answer.granted) slot.grants += 1;
     if (answer.granted && kind === "ttfv") s.ttfvToken = answer.token;
   }
   return slot.state === "granted";
@@ -460,12 +479,35 @@ export function startFirstRunHomeVisit(ownerId: string): void {
 }
 
 /**
- * The home was entered again (focus, or the app came to the front). Only a visit
- * that stayed home because nothing could be read is decided again, and only up
- * to FIRST_RUN_MAX_READS reads per sign-in. Returns whether a new visit started.
+ * Could a home visit of this sign-in open a first-run screen now, going by what
+ * it already knows? Synchronous and without a request: the cached marks and the
+ * claim slots only. A denied or lapsed slot never asks again (P2).
  */
-export function retryFirstRunHomeVisit(ownerId: string | null): boolean {
-  if (!ownerId || !home || home.ownerId !== ownerId || home.gate !== "home" || !home.retryable) return false;
+function firstRunMayOpen(ownerId: string, nowMs: number): boolean {
+  const s = session;
+  if (!s || s.key.ownerId !== ownerId || !s.marks) return false;
+  if (onboardingNeeded(s.marks) && s.claims.onboarding.state === "idle") return true;
+  return ttfvOpen(s.marks, nowMs) && s.claims.ttfv.state === "idle";
+}
+
+/**
+ * The home came back into view while it stayed mounted (focus, or the app came
+ * to the front while the home is the screen). That is a new home visit (gate
+ * BA-03): what an earlier visit decided ("held": another tab had the welcome;
+ * a first-day grant since handed back) does not hold it home for good. It is
+ * decided again when:
+ *   - the last decision stayed home because nothing could be read (up to
+ *     FIRST_RUN_MAX_READS reads a sign-in), or
+ *   - what this sign-in already knows says a screen may open now, or
+ *   - the last decision opened a screen (that grant is spent; a new decision
+ *     must not open it again).
+ * Otherwise nothing changes on screen (no loader). The rule that one visit does
+ * not go from a held welcome straight on to the first-day review stays in
+ * decideHomeVisit. Returns whether a new visit started.
+ */
+export function refocusFirstRunHomeVisit(ownerId: string | null): boolean {
+  if (!ownerId || !home || home.ownerId !== ownerId || home.gate === "wait") return false;
+  if (home.gate === "home" && !home.retryable && !firstRunMayOpen(ownerId, Date.now())) return false;
   startFirstRunHomeVisit(ownerId);
   return true;
 }
@@ -578,6 +620,7 @@ export async function finishFirstRun(
         throw new Error("First-run finish answered for another sign-in");
       }
       adopt(s, answer.marks, outcome === "not_shown");
+      if (kind === "ttfv" && outcome === "not_shown" && answer.applied) reopenFirstDay(s, token);
       return answer.marks;
     })();
     s.finishing.set(flight, inflight);
@@ -597,13 +640,33 @@ export async function finishFirstRun(
 }
 
 /**
- * The receipt of the first-day grant the home just opened /ttfv with, for this
- * owner's sign-in. Null for a /ttfv opened any other way (its address typed in,
- * a reload): that visit has no grant to hand back.
+ * The server applied a hand-back of the first-day grant this sign-in holds, with
+ * that grant's own receipt (gate BA-01, FR-01): the slot may ask again on a later
+ * home visit, and the receipt is gone. A hand-back of any other grant (an older
+ * receipt, another sign-in's) changes nothing here. After FIRST_RUN_MAX_GRANTS
+ * grants the slot stays used for the rest of the sign-in.
  */
-export function firstRunTTFVToken(ownerId: string | null): string | null {
+function reopenFirstDay(s: FirstRunSession, token: string | null): void {
+  const slot = s.claims.ttfv;
+  if (!token || s.ttfvToken !== token || slot.state !== "visiting") return;
+  s.ttfvToken = null;
+  slot.state = slot.grants < FIRST_RUN_MAX_GRANTS ? "idle" : "denied";
+}
+
+/**
+ * The receipt of the first-day grant the home just opened /ttfv with, handed to
+ * the ONE screen visit that takes it first: the visit the home opened (gate
+ * BA-02). Every later take gets null, so a /ttfv opened any other way (its
+ * address typed in, a reload, the screen opened again in the same app) has no
+ * grant to hand back, even when the first visit showed content and its report
+ * never reached the server.
+ */
+export function takeFirstRunTTFVToken(ownerId: string | null): string | null {
   if (!ownerId || !session || session.key.ownerId !== ownerId) return null;
-  return session.claims.ttfv.state === "entered" ? session.ttfvToken : null;
+  const slot = session.claims.ttfv;
+  if (slot.state !== "entered" || !session.ttfvToken) return null;
+  slot.state = "visiting";
+  return session.ttfvToken;
 }
 
 export function __resetFirstRunForTests(): void {

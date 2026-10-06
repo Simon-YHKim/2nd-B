@@ -193,17 +193,26 @@ describe("the rest of the design", () => {
     expect(hook).not.toMatch(/useFirstRunHomeGate\([^)]*true\)/);
   });
 
-  test("a failed read is decided again on the next home entry, while the home is the screen in view", () => {
+  test("every return of the mounted home is a new visit: a failed read, or a screen now possible (BA-03)", () => {
     const shell = code(SHELL);
-    expect(shell).toContain("retryFirstRunHomeVisit(userId);");
-    expect(shell).toContain('if (next === "active" && homeFocusedRef.current) retryFirstRunHomeVisit(userId);');
+    expect(shell).toContain("refocusFirstRunHomeVisit(userId);");
+    expect(shell).toContain('if (next === "active" && homeFocusedRef.current) refocusFirstRunHomeVisit(userId);');
+    expect(shell).not.toContain("retryFirstRunHomeVisit");
+    const store = code(STORE);
+    expect(store).toContain('if (home.gate === "home" && !home.retryable && !firstRunMayOpen(ownerId, Date.now())) return false;');
   });
 
-  test("/ttfv reports with the home's receipt; the welcome waits for its stored finish", () => {
+  test("/ttfv reports with the receipt its own visit took (BA-02), and hands it back only when the visit ends (FR-01)", () => {
     const ttfv = code(TTFV);
-    expect(ttfv).toContain("const token = ttfvClaimToken(userId);");
-    expect(ttfv).toContain("onContentReady={() => markTTFVSeen(userId, token)}");
-    expect(ttfv).toContain("onContentUnavailable={() => releaseTTFVClaim(userId, token)}");
+    expect(ttfv).toContain("takeReceipt={takeTTFVClaimToken}");
+    expect(ttfv).toContain("onContentReady={(receipt) => markTTFVSeen(userId, receipt)}");
+    expect(ttfv).toContain("onContentUnavailable={(receipt) => releaseTTFVClaim(userId, receipt)}");
+    const store = code(STORE);
+    // Taken once: the take moves the slot on, so a second visit gets null.
+    expect(store).toMatch(/if \(slot\.state !== "entered" \|\| !session\.ttfvToken\) return null;\s*slot\.state = "visiting";/);
+    // A hand-back the server applied, with this sign-in's current receipt, reopens the slot (BA-01).
+    expect(store).toContain('if (kind === "ttfv" && outcome === "not_shown" && answer.applied) reopenFirstDay(s, token);');
+    expect(store).toContain('if (!token || s.ttfvToken !== token || slot.state !== "visiting") return;');
   });
 
   test("0219 keeps the #2092 backfill rule and bounds row_security to it", () => {

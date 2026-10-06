@@ -1,8 +1,9 @@
 // First-day TTFV gate. The first-day review opens by itself at most ONCE PER
 // ACCOUNT, by a server grant the home asks for (account-first-run.ts, 0219).
-// What /ttfv itself reports is pinned here: content on screen uses the chance
-// (shown), a review that could not load hands the home's grant back with its
-// receipt (not_shown), and the device is never written any more. The pure
+// What /ttfv itself reports is pinned here: the visit takes the home's receipt
+// once (BA-02), content on screen uses the chance (shown), a visit that ended
+// without showing anything after a load error hands the home's grant back with
+// its receipt (not_shown), and the device is never written any more. The pure
 // first-day window math stays here too.
 
 const mockSetItem = jest.fn();
@@ -19,7 +20,7 @@ jest.mock("../../auth/account-epoch", () => ({ currentAccountOwner: () => null }
 jest.mock("../account-first-run", () => ({
   ...jest.requireActual("../account-first-run"),
   finishFirstRun: (...args: unknown[]) => mockFinishFirstRun(...args),
-  firstRunTTFVToken: (...args: unknown[]) => mockToken(...args),
+  takeFirstRunTTFVToken: (...args: unknown[]) => mockToken(...args),
 }));
 
 import {
@@ -27,7 +28,7 @@ import {
   isWithinFirstDay,
   markTTFVSeen,
   releaseTTFVClaim,
-  ttfvClaimToken,
+  takeTTFVClaimToken,
 } from "../ttfv-gate";
 
 function flushMicrotasks(): Promise<void> {
@@ -87,9 +88,10 @@ describe("what /ttfv reports to the server", () => {
     await flushMicrotasks();
   });
 
-  test("the receipt is the one the home's grant carried", () => {
-    mockToken.mockReturnValue("token-9");
-    expect(ttfvClaimToken("owner-1")).toBe("token-9");
+  test("the receipt is the one the home's grant carried, taken from the store's take-once", () => {
+    mockToken.mockReturnValueOnce("token-9").mockReturnValue(null);
+    expect(takeTTFVClaimToken("owner-1")).toBe("token-9");
+    expect(takeTTFVClaimToken("owner-1")).toBeNull();
     expect(mockToken).toHaveBeenCalledWith("owner-1");
   });
 });

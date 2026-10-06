@@ -337,6 +337,28 @@ export function shouldReleaseTTFVClaim(state: TTFVContentState): boolean {
   return state.kind === "error";
 }
 
+/**
+ * One visit of this screen for one owner: the receipt of the first-day grant it
+ * took when it started (null when the home did not open it), whether it showed
+ * content, and whether a load failed on it.
+ */
+export interface TTFVVisit {
+  userId: string;
+  receipt: string | null;
+  shown: boolean;
+  failed: boolean;
+}
+
+/**
+ * Hand the grant back when the visit ends? Only a visit that holds a receipt,
+ * hit a load error and never showed content (#1530). Never at the error itself:
+ * the visit can still load again and show, and a grant handed back while it can
+ * would let a newer grant open a second screen beside it (gate FR-01).
+ */
+export function shouldReleaseTTFVVisit(visit: TTFVVisit): visit is TTFVVisit & { receipt: string } {
+  return visit.receipt !== null && visit.failed && !visit.shown;
+}
+
 export const IDLE_TTFV_SAVE: TTFVSaveState = { choice: null, status: "idle" };
 
 export function beginTTFVSave(choice: TTFVChoice): TTFVSaveState {
@@ -376,9 +398,18 @@ type TTFVScreenProps =
       mode: "authenticated";
       userId: string;
       minor: boolean;
-      onContentReady: () => void;
-      /** Called once per owner when the review could not load (kind "error"). */
-      onContentUnavailable?: () => void;
+      /**
+       * Takes the receipt of the first-day grant this visit was opened with, once,
+       * when the visit starts. Null for a visit the home did not open.
+       */
+      takeReceipt?: (userId: string) => string | null;
+      /** Called once per visit, when content is first on screen, with the visit's receipt. */
+      onContentReady: (receipt: string | null) => void;
+      /**
+       * Called once, when a visit that holds a receipt ends (the screen leaves, or
+       * the owner changes) after a load error, without ever having shown content.
+       */
+      onContentUnavailable?: (receipt: string) => void;
     };
 
 const EMPTY_LOADING_STATE: TTFVContentState = { userId: "", kind: "loading" };
@@ -390,6 +421,7 @@ export function TTFVScreen(props: TTFVScreenProps) {
   const userId = props.mode === "authenticated" ? props.userId : null;
   const minor = props.mode === "authenticated" ? props.minor : true;
   const onContentReady = props.mode === "authenticated" ? props.onContentReady : null;
+  const takeReceipt = props.mode === "authenticated" ? props.takeReceipt ?? null : null;
   const onContentUnavailable = props.mode === "authenticated" ? props.onContentUnavailable ?? null : null;
 
   const [content, setContent] = useState<TTFVContentState>(EMPTY_LOADING_STATE);
@@ -399,9 +431,11 @@ export function TTFVScreen(props: TTFVScreenProps) {
   const saveRequestRef = useRef(0);
   const saveInFlightRef = useRef(false);
   const currentUserRef = useRef<string | null>(userId);
-  const seenUserRef = useRef<string | null>(null);
-  const releasedUserRef = useRef<string | null>(null);
+  const visitRef = useRef<TTFVVisit | null>(null);
+  // Read when a visit starts (its effect is keyed by the owner alone).
+  const visitCallbacksRef = useRef({ takeReceipt, onContentUnavailable });
   currentUserRef.current = userId;
+  visitCallbacksRef.current = { takeReceipt, onContentUnavailable };
 
   useEffect(() => {
     const requestId = ++loadRequestRef.current;
@@ -436,19 +470,33 @@ export function TTFVScreen(props: TTFVScreenProps) {
 
   const visibleContent = userId ? visibleTTFVContent(content, userId) : EMPTY_LOADING_STATE;
 
+  // One visit per owner on this screen. It takes the first-day grant's receipt
+  // when it starts, so no other visit can hand that grant back (gate BA-02), and
+  // hands the grant back only when it ends: after a load error, without having
+  // shown anything. Until then the grant stays held, so the load retry can still
+  // show content and no newer grant can open a second screen beside it (FR-01).
   useEffect(() => {
-    if (!userId || !onContentReady || !shouldMarkTTFVSeen(visibleContent)) return;
-    if (seenUserRef.current === userId) return;
-    seenUserRef.current = userId;
-    onContentReady();
-  }, [onContentReady, userId, visibleContent]);
+    if (!userId) return;
+    const { takeReceipt: take, onContentUnavailable: handBack } = visitCallbacksRef.current;
+    const visit: TTFVVisit = { userId, receipt: take ? take(userId) : null, shown: false, failed: false };
+    visitRef.current = visit;
+    return () => {
+      if (visitRef.current === visit) visitRef.current = null;
+      if (handBack && shouldReleaseTTFVVisit(visit)) handBack(visit.receipt);
+    };
+  }, [userId]);
 
   useEffect(() => {
-    if (!userId || !onContentUnavailable || !shouldReleaseTTFVClaim(visibleContent)) return;
-    if (seenUserRef.current === userId || releasedUserRef.current === userId) return;
-    releasedUserRef.current = userId;
-    onContentUnavailable();
-  }, [onContentUnavailable, userId, visibleContent]);
+    const visit = visitRef.current;
+    if (!userId || !visit || visit.userId !== userId || visit.shown) return;
+    if (shouldReleaseTTFVClaim(visibleContent)) {
+      visit.failed = true;
+      return;
+    }
+    if (!onContentReady || !shouldMarkTTFVSeen(visibleContent)) return;
+    visit.shown = true;
+    onContentReady(visit.receipt);
+  }, [onContentReady, userId, visibleContent]);
 
   async function saveChoice(choice: TTFVChoice) {
     if (!userId || visibleContent.kind !== "review" || saveInFlightRef.current) return;

@@ -19,7 +19,7 @@ import { STAR_BRIGHTEN_CUE, brightenCue } from "@/lib/audio/app-cues";
 import { useUiSound } from "@/lib/audio/use-ui-sound";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { InlineLoader } from "@/components/ui/InlineLoader";
-import { retryFirstRunHomeVisit, useFirstRunHomeGate } from "@/lib/onboarding/account-first-run";
+import { refocusFirstRunHomeVisit, useFirstRunHomeGate } from "@/lib/onboarding/account-first-run";
 import { useCoachmarksGate } from "@/lib/onboarding/coachmarks-gate";
 import { FIRST_RECORD_COACH_PARAM } from "@/lib/onboarding/first-record-coach";
 import { DeepSpaceScreen } from "./DeepSpaceScreen";
@@ -102,14 +102,18 @@ export function DeepSpaceShell() {
     }, []),
   );
 
-  // A home visit that could not read the first-run marks decides again on the
-  // next entry: coming back to this screen, or the app coming to the front while
-  // it is the screen in view (design 5.2 step 2, at most three reads a sign-in).
+  // The home stays mounted while other screens open over it (see the refresh
+  // above), so its mount is not the only home visit. Coming back to this screen,
+  // or the app coming to the front while it is the screen in view, is a new
+  // visit: a read that failed is tried again (design 5.2 step 2, at most three
+  // reads a sign-in), and a first-run screen that has since become possible (a
+  // welcome another tab held, a first-day grant handed back) is decided again
+  // instead of staying held home for the rest of the mount (gate BA-03).
   const homeFocusedRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
       homeFocusedRef.current = true;
-      retryFirstRunHomeVisit(userId);
+      refocusFirstRunHomeVisit(userId);
       return () => {
         homeFocusedRef.current = false;
       };
@@ -118,7 +122,7 @@ export function DeepSpaceShell() {
   useEffect(() => {
     if (!userId) return;
     const subscription = AppState.addEventListener("change", (next) => {
-      if (next === "active" && homeFocusedRef.current) retryFirstRunHomeVisit(userId);
+      if (next === "active" && homeFocusedRef.current) refocusFirstRunHomeVisit(userId);
     });
     return () => subscription.remove();
   }, [userId]);

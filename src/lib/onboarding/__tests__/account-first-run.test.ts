@@ -167,6 +167,7 @@ jest.mock("../../supabase/client", () => ({
 }));
 
 import {
+  FIRST_RUN_MAX_GRANTS,
   FIRST_RUN_MAX_READS,
   FIRST_RUN_TIMEOUT_MS,
   __resetFirstRunForTests,
@@ -174,14 +175,14 @@ import {
   finishFirstRun,
   firstRunHomeGateFor,
   firstRunSnapshot,
-  firstRunTTFVToken,
   loadFirstRunMarks,
   mergeFirstRunMarks,
   onboardingNeeded,
   parseClaimAnswer,
   parseFirstRunMarks,
-  retryFirstRunHomeVisit,
+  refocusFirstRunHomeVisit,
   startFirstRunHomeVisit,
+  takeFirstRunTTFVToken,
   ttfvOpen,
   type FirstRunGate,
   type FirstRunMarks,
@@ -256,7 +257,7 @@ describe("the first run of a new account", () => {
     endFirstRunHomeVisit(A);
 
     expect(await visit()).toBe("/ttfv");
-    expect(firstRunTTFVToken(A)).toBe("token-1");
+    expect(takeFirstRunTTFVToken(A)).toBe("token-1");
     expect(mockServer.calls).toEqual({ read: 1, claim: 2, finish: 1 });
 
     endFirstRunHomeVisit(A);
@@ -330,12 +331,12 @@ describe("bundle 2 (CD2-02): a failed read is never taken for an answer", () => 
     mockServer.failRead = new Error("503");
     expect(await visit()).toBe("home");
     for (let attempt = 2; attempt <= FIRST_RUN_MAX_READS; attempt += 1) {
-      expect(retryFirstRunHomeVisit(A)).toBe(true);
+      expect(refocusFirstRunHomeVisit(A)).toBe(true);
       await settle();
       expect(gate()).toBe("home");
       expect(mockServer.calls.read).toBe(attempt);
     }
-    expect(retryFirstRunHomeVisit(A)).toBe(false);
+    expect(refocusFirstRunHomeVisit(A)).toBe(false);
     expect(mockServer.calls.read).toBe(FIRST_RUN_MAX_READS);
   });
 
@@ -343,7 +344,7 @@ describe("bundle 2 (CD2-02): a failed read is never taken for an answer", () => 
     mockServer.failRead = new Error("503");
     expect(await visit()).toBe("home");
     mockServer.failRead = null;
-    expect(retryFirstRunHomeVisit(A)).toBe(true);
+    expect(refocusFirstRunHomeVisit(A)).toBe(true);
     await settle();
     expect(gate()).toBe("/onboarding");
   });
@@ -351,7 +352,7 @@ describe("bundle 2 (CD2-02): a failed read is never taken for an answer", () => 
   test("a visit that decided 'home' with an answer is not decided again on focus", async () => {
     mockServer.rows.set(A, newRow({ onboarding_claimed_at: longAgo, onboarding_completed_at: longAgo }));
     expect(await visit()).toBe("home");
-    expect(retryFirstRunHomeVisit(A)).toBe(false);
+    expect(refocusFirstRunHomeVisit(A)).toBe(false);
   });
 });
 
@@ -367,7 +368,7 @@ describe("bundle 3 (CD2-01): a new sign-in of the same account is a new answer",
     mockAuth.sessionId = "s2";
     expect(await visit()).toBe("home");
     expect(mockServer.calls.read).toBe(2);
-    expect(firstRunTTFVToken(A)).toBeNull();
+    expect(takeFirstRunTTFVToken(A)).toBeNull();
   });
 });
 
@@ -483,7 +484,7 @@ describe("bundle 6 (CDA2-02, CD2-03): a timeout ends the wait, not the request, 
     startFirstRunHomeVisit(A);
     await jest.advanceTimersByTimeAsync(FIRST_RUN_TIMEOUT_MS + 1);
     expect(gate()).toBe("home");
-    expect(retryFirstRunHomeVisit(A)).toBe(true);
+    expect(refocusFirstRunHomeVisit(A)).toBe(true);
     await jest.advanceTimersByTimeAsync(0);
     expect(mockServer.calls.read).toBe(1);
     releaseHeld();
@@ -554,12 +555,12 @@ describe("P2: without a sign-in to bind the answer to, nothing opens", () => {
 
 describe("P5: the first-day grant goes back only with its receipt", () => {
   test("the home's grant has a receipt; a /ttfv the home did not open has none", async () => {
-    expect(firstRunTTFVToken(A)).toBeNull();
+    expect(takeFirstRunTTFVToken(A)).toBeNull();
     mockServer.rows.set(A, newRow({ onboarding_claimed_at: new Date().toISOString() }));
     expect(await visit()).toBe("/ttfv");
-    const token = firstRunTTFVToken(A);
+    expect(takeFirstRunTTFVToken(B)).toBeNull();
+    const token = takeFirstRunTTFVToken(A);
     expect(token).toBe("token-1");
-    expect(firstRunTTFVToken(B)).toBeNull();
 
     expect(await finishFirstRun(A, "ttfv", "not_shown", "someone-else")).toBe(true);
     expect(mockServer.rows.get(A)!.ttfv_claimed_at).not.toBeNull();
@@ -569,6 +570,141 @@ describe("P5: the first-day grant goes back only with its receipt", () => {
     // Handed back: a later launch may open it again.
     __resetFirstRunForTests();
     expect(await visit()).toBe("/ttfv");
+  });
+
+  test("BA-02: the receipt goes to the one visit that takes it, never to a later visit", async () => {
+    mockServer.rows.set(A, newRow({ onboarding_claimed_at: new Date().toISOString() }));
+    expect(await visit()).toBe("/ttfv");
+    const token = takeFirstRunTTFVToken(A);
+    expect(token).toBe("token-1");
+    // The same screen opened again in this app (a direct visit) gets nothing.
+    expect(takeFirstRunTTFVToken(A)).toBeNull();
+
+    // The first visit showed content, but its report never reached the server.
+    mockServer.failRpc = { message: "network" };
+    expect(await finishFirstRun(A, "ttfv", "shown", token)).toBe(false);
+    mockServer.failRpc = null;
+    expect(mockServer.rows.get(A)!.ttfv_seen_at).toBeNull();
+
+    // A later visit still has no receipt, so it has nothing to hand back, and the
+    // grant keeps the review from opening by itself again: here, and on the next launch.
+    expect(takeFirstRunTTFVToken(A)).toBeNull();
+    endFirstRunHomeVisit(A);
+    expect(await visit()).toBe("home");
+    __resetFirstRunForTests();
+    expect(await visit()).toBe("home");
+    expect(mockServer.claimed.filter((kind) => kind === "ttfv")).toHaveLength(1);
+  });
+
+  test("BA-01 / FR-01: a grant its own visit handed back is asked for again in the same sign-in, with no reset", async () => {
+    mockServer.rows.set(A, newRow({ onboarding_claimed_at: new Date().toISOString() }));
+    expect(await visit()).toBe("/ttfv");
+    const first = takeFirstRunTTFVToken(A);
+    expect(first).toBe("token-1");
+    expect(await finishFirstRun(A, "ttfv", "not_shown", first)).toBe(true);
+    expect(mockServer.rows.get(A)!.ttfv_claimed_at).toBeNull();
+
+    // No __resetFirstRunForTests(): the same app, the same sign-in, the next home visit.
+    endFirstRunHomeVisit(A);
+    expect(await visit()).toBe("/ttfv");
+    expect(takeFirstRunTTFVToken(A)).toBe("token-2");
+    expect(mockServer.calls.read).toBe(1);
+  });
+
+  test("a hand-back the server did not apply leaves the grant used, here and on the next visit", async () => {
+    mockServer.rows.set(A, newRow({ onboarding_claimed_at: new Date().toISOString() }));
+    expect(await visit()).toBe("/ttfv");
+    const token = takeFirstRunTTFVToken(A);
+    // Another device already showed it: the server refuses to hand this grant back.
+    mockServer.rows.get(A)!.ttfv_seen_at = new Date().toISOString();
+    expect(await finishFirstRun(A, "ttfv", "not_shown", token)).toBe(true);
+    endFirstRunHomeVisit(A);
+    expect(await visit()).toBe("home");
+    expect(mockServer.claimed.filter((kind) => kind === "ttfv")).toHaveLength(1);
+  });
+
+  test("FR-01: while the visit that holds the grant can still show, a second tab is held home", async () => {
+    mockServer.rows.set(A, newRow({ onboarding_claimed_at: new Date().toISOString() }));
+    let other: typeof import("../account-first-run") | null = null;
+    jest.isolateModules(() => {
+      other = jest.requireActual("../account-first-run") as typeof import("../account-first-run");
+    });
+    const tabB = other!;
+    // Tab A opens the review; its read fails, but the visit is still on screen
+    // (it may retry), so it has not handed the grant back.
+    expect(await visit()).toBe("/ttfv");
+    const first = takeFirstRunTTFVToken(A);
+    tabB.startFirstRunHomeVisit(A);
+    await settle();
+    expect(tabB.firstRunHomeGateFor(tabB.firstRunSnapshot(), A, true)).toBe("home");
+    // A's retry shows content: one screen showed it, once.
+    expect(await finishFirstRun(A, "ttfv", "shown", first)).toBe(true);
+    expect(mockServer.rows.get(A)!.ttfv_seen_at).not.toBeNull();
+    expect(mockServer.tokens).toBe(1);
+  });
+
+  test("a review that keeps failing pulls the home back at most FIRST_RUN_MAX_GRANTS times a sign-in", async () => {
+    mockServer.rows.set(A, newRow({ onboarding_claimed_at: new Date().toISOString() }));
+    for (let grant = 1; grant <= FIRST_RUN_MAX_GRANTS; grant += 1) {
+      expect(await visit()).toBe("/ttfv");
+      const token = takeFirstRunTTFVToken(A);
+      expect(token).toBe(`token-${grant}`);
+      expect(await finishFirstRun(A, "ttfv", "not_shown", token)).toBe(true);
+      endFirstRunHomeVisit(A);
+    }
+    expect(await visit()).toBe("home");
+    expect(mockServer.calls.claim).toBe(FIRST_RUN_MAX_GRANTS);
+    // The server holds no grant: a later sign-in (or another tab) may still ask.
+    expect(mockServer.rows.get(A)!.ttfv_claimed_at).toBeNull();
+  });
+});
+
+describe("BA-03: a home that stays mounted decides again when it comes back into view", () => {
+  test("a welcome held by another tab does not keep the next visit from the first-day review", async () => {
+    mockServer.hold = true;
+    startFirstRunHomeVisit(A);
+    await settle();
+    mockServer.rows.get(A)!.onboarding_claimed_at = new Date().toISOString();
+    releaseHeld(); // the stale read: "needed"
+    await settle();
+    releaseHeld(); // our welcome claim: held by the other tab
+    await settle();
+    mockServer.hold = false;
+    // This visit stays home and does not go straight on to the review...
+    expect(gate()).toBe("home");
+    expect(mockServer.claimed).toEqual(["onboarding"]);
+    // ...but the next one (the home focused again, still mounted) does.
+    expect(refocusFirstRunHomeVisit(A)).toBe(true);
+    expect(gate()).toBe("wait");
+    await settle();
+    expect(gate()).toBe("/ttfv");
+    expect(mockServer.claimed).toEqual(["onboarding", "ttfv"]);
+  });
+
+  test("a grant handed back is asked for again on the next focus of the same mounted home", async () => {
+    mockServer.rows.set(A, newRow({ onboarding_claimed_at: new Date().toISOString() }));
+    expect(await visit()).toBe("/ttfv");
+    const token = takeFirstRunTTFVToken(A);
+    // The home stayed mounted; the gate it holds is the route it opened.
+    expect(await finishFirstRun(A, "ttfv", "not_shown", token)).toBe(true);
+    expect(refocusFirstRunHomeVisit(A)).toBe(true);
+    await settle();
+    expect(gate()).toBe("/ttfv");
+    expect(takeFirstRunTTFVToken(A)).toBe("token-2");
+  });
+
+  test("a focus that can open nothing changes nothing on screen and sends nothing", async () => {
+    mockServer.rows.set(A, newRow({ onboarding_claimed_at: new Date().toISOString() }));
+    expect(await visit()).toBe("/ttfv");
+    takeFirstRunTTFVToken(A);
+    // Back from the review that showed content: the home decides again, once, and stays.
+    expect(refocusFirstRunHomeVisit(A)).toBe(true);
+    await settle();
+    expect(gate()).toBe("home");
+    const calls = { ...mockServer.calls };
+    expect(refocusFirstRunHomeVisit(A)).toBe(false);
+    expect(gate()).toBe("home");
+    expect(mockServer.calls).toEqual(calls);
   });
 });
 

@@ -10,29 +10,36 @@
 //
 // What stays here is what /ttfv tells the server about the visit it was opened
 // for (design 5.3):
+//   - the visit takes the grant's receipt once, when it starts, so only the
+//     visit the home opened can ever hand that grant back (gate BA-02);
 //   - content was on screen (a record, or the honest empty state): shown;
-//   - the review could not load anything: the grant goes back (#1530: a screen
-//     that showed nothing does not use the one chance), only with the grant's
-//     receipt, so a visit the home did not open has nothing to hand back.
+//   - the visit ended without showing anything after a load error: the grant
+//     goes back (#1530: a screen that showed nothing does not use the one
+//     chance), only with the grant's receipt, and only once the visit is over,
+//     so it cannot still show content beside a newer grant (gate FR-01).
 
 import {
   FIRST_DAY_MS,
   finishFirstRun,
-  firstRunTTFVToken,
   isWithinFirstDay,
+  takeFirstRunTTFVToken,
 } from "./account-first-run";
 
 export { FIRST_DAY_MS, isWithinFirstDay };
 
-/** The receipt of the grant the home opened /ttfv with, or null for any other visit. */
-export function ttfvClaimToken(ownerId: string | null): string | null {
-  return firstRunTTFVToken(ownerId);
+/**
+ * Takes the receipt of the grant the home opened /ttfv with. Only the first
+ * visit after the home opened it gets it; every other visit gets null.
+ */
+export function takeTTFVClaimToken(ownerId: string | null): string | null {
+  return takeFirstRunTTFVToken(ownerId);
 }
 
 /**
  * The review showed content to this owner. Uses up the first-day chance on the
  * server (first value wins). Fire and forget: if it never arrives, the grant the
- * screen opened with already keeps it from opening again (design 5.4). Never throws.
+ * screen opened with already keeps it from opening again (design 5.4), and no
+ * other visit holds its receipt. Never throws.
  */
 export function markTTFVSeen(ownerId: string | null, token: string | null): void {
   if (!ownerId) return;
@@ -40,9 +47,9 @@ export function markTTFVSeen(ownerId: string | null, token: string | null): void
 }
 
 /**
- * The review the home opened could not show anything: hand the grant back so a
- * later visit can open it. Without a receipt (a visit the home did not open)
- * there is nothing to hand back. Never throws.
+ * The visit the home opened ended without showing anything after a load error:
+ * hand the grant back so a later home visit can open it. Without a receipt (a
+ * visit the home did not open) there is nothing to hand back. Never throws.
  */
 export function releaseTTFVClaim(ownerId: string | null, token: string | null): void {
   if (!ownerId || !token) return;
