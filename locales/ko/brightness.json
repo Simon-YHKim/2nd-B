@@ -16,6 +16,6 @@
   "reviewCta": "제안 확인하러 가기",
   "subtitle": "8주 · 별 일곱",
   "rule": "새 밝기 기록이 없으면 마지막 밝기를 이어서 보여줍니다. 첫 기록 이전은 빈칸입니다.",
-  "shiftNudge": "최근 변화 감지: {{stars}} - 점검해볼까요?",
-  "shiftNudgeCited": "최근 변화 감지: {{stars}} · 근거 {{n}}개 - 점검해볼까요?"
+  "shiftNudge": "최근 변화: {{stars}} - 점검해볼까요?",
+  "shiftNudgeCited": "최근 변화: {{stars}} · 근거 {{n}}개 - 점검해볼까요?"
 }

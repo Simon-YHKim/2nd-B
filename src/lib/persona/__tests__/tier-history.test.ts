@@ -126,7 +126,7 @@ describe("tierShiftNudge", () => {
 
   test("lists shifted stars with direction arrows, no evidence clause when uncited", () => {
     const shifts: TierShift[] = [{ starId: "now", from: 3, to: 4, direction: "up" }];
-    expect(tierShiftNudge(shifts, "ko", nameOf, tIn("ko"))).toBe("최근 변화 감지: 별-now ↑ - 점검해볼까요?");
+    expect(tierShiftNudge(shifts, "ko", nameOf, tIn("ko"))).toBe("최근 변화: 별-now ↑ - 점검해볼까요?");
     expect(tierShiftNudge(shifts, "en", nameOf, tIn("en"))).toBe("Recent shift: star-now ↑ - want to re-check?");
   });
 
@@ -136,7 +136,7 @@ describe("tierShiftNudge", () => {
       { starId: "values", from: 4, to: 2, direction: "down", citations: ["record:c"] },
     ];
     expect(tierShiftNudge(shifts, "ko", nameOf, tIn("ko"))).toBe(
-      "최근 변화 감지: 별-now ↑, 별-values ↓ · 근거 3개 - 점검해볼까요?",
+      "최근 변화: 별-now ↑, 별-values ↓ · 근거 3개 - 점검해볼까요?",
     );
     expect(tierShiftNudge(shifts, "en", nameOf, tIn("en"))).toBe(
       "Recent shift: star-now ↑, star-values ↓ · 3 cited - want to re-check?",
