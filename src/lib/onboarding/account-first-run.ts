@@ -22,7 +22,11 @@
 //       once, gate BA-02), and that visit hands it back only when it ends without
 //       having shown anything (TTFVScreen, gate FR-01). A hand-back the server
 //       applied lets a later home visit of the same sign-in ask again (gate
-//       BA-01), up to FIRST_RUN_MAX_GRANTS times.
+//       BA-01), as often as it is handed back (no cap, gate BA-08), but never
+//       the home visit that is the return from that review: the person just
+//       left it, and asking again there would pull them straight back in.
+//       A hand-back made elsewhere (another tab) is learned by a fresh read on
+//       a later focus (gate D7-01).
 //
 // Each request is sent once and never overlaps itself: a step that times out
 // (8 seconds) stops the WAIT, not the request, and the next caller waits on the
@@ -62,14 +66,8 @@ export const FIRST_RUN_TIMEOUT_MS = 8_000;
 export const FIRST_RUN_MAX_READS = 3;
 /** The first-day window: the review opens by itself only within 24h of the welcome. */
 export const FIRST_DAY_MS = 24 * 60 * 60 * 1000;
-/**
- * First-day grants per sign-in. A grant its own visit handed back may be asked
- * for again on a later home visit (P5), but a review that keeps failing to load
- * must not keep pulling the home back to it: after this many grants the home
- * stays home for the rest of the sign-in (the same three tries as the reads).
- */
-export const FIRST_RUN_MAX_GRANTS = 3;
 
+const FIRST_RUN_KINDS: readonly FirstRunKind[] = ["onboarding", "ttfv"];
 const MARK_COLUMNS = "onboarding_claimed_at, onboarding_completed_at, ttfv_claimed_at, ttfv_seen_at";
 
 /**
@@ -102,6 +100,16 @@ export function ttfvOpen(marks: FirstRunMarks, nowMs: number): boolean {
     marks.ttfvClaimedAt === null &&
     isWithinFirstDay(firstDayAnchor(marks), nowMs)
   );
+}
+
+/**
+ * The account already went through this first-run screen: the welcome was
+ * finished (or skipped), or the review was on screen. A grant for it opens
+ * nothing (gate BA-07).
+ */
+export function firstRunDone(marks: FirstRunMarks | null, kind: FirstRunKind): boolean {
+  if (!marks) return false;
+  return kind === "onboarding" ? marks.onboardingCompletedAt !== null : marks.ttfvSeenAt !== null;
 }
 
 function timestampOrNull(value: unknown, field: string): string | null {
@@ -160,8 +168,6 @@ interface ClaimSlot {
   state: ClaimState;
   /** The request itself, until it settles (not until its wait times out). */
   inflight: Promise<boolean> | null;
-  /** Grants this sign-in received for this kind (FIRST_RUN_MAX_GRANTS). */
-  grants: number;
 }
 
 /** A slot's state read through a function, so an await in between is not narrowed away. */
@@ -177,6 +183,11 @@ interface FirstRunSession {
   claims: Record<FirstRunKind, ClaimSlot>;
   ttfvToken: string | null;
   finishing: Map<string, Promise<FirstRunMarks>>;
+  /**
+   * The review visit the home opened took its receipt, and no home visit has
+   * been decided since: the next one is the return from that review (BA-08).
+   */
+  reviewReturnPending: boolean;
 }
 
 interface HomeVisit {
@@ -185,6 +196,16 @@ interface HomeVisit {
   gate: FirstRunGate;
   /** The visit stayed home because nothing could be read, so a later entry may try again. */
   retryable: boolean;
+  /** The sign-in (JWT session_id) the decision was made for; null while waiting or when none resolved. */
+  sessionId: string | null;
+}
+
+interface VisitDecision {
+  gate: FirstRunGate;
+  retryable: boolean;
+  sessionId: string | null;
+  /** This visit was the return from the review the home opened (BA-08). */
+  returning: boolean;
 }
 
 export interface FirstRunSnapshot {
@@ -257,20 +278,33 @@ function sessionFor(key: FirstRunSessionKey): FirstRunSession {
     reads: 0,
     reading: null,
     claims: {
-      onboarding: { state: "idle", inflight: null, grants: 0 },
-      ttfv: { state: "idle", inflight: null, grants: 0 },
+      onboarding: { state: "idle", inflight: null },
+      ttfv: { state: "idle", inflight: null },
     },
     ttfvToken: null,
     finishing: new Map(),
+    reviewReturnPending: false,
   };
   return session;
 }
 
+/**
+ * `release`: this answer may clear the first-day grant (a hand-back, or a fresh
+ * read the home asked for to learn one). Whatever the answer, a grant whose
+ * screen has not opened yet is closed once this sign-in learns the screen was
+ * already gone through another way (a direct visit, another tab; gate BA-07).
+ */
 function adopt(s: FirstRunSession, marks: FirstRunMarks, release = false): void {
   s.marks = mergeFirstRunMarks(s.marks, marks, release);
+  for (const kind of FIRST_RUN_KINDS) {
+    if (s.claims[kind].state === "granted" && firstRunDone(s.marks, kind)) {
+      s.claims[kind].state = "denied";
+      if (kind === "ttfv") s.ttfvToken = null;
+    }
+  }
 }
 
-async function requestMarks(s: FirstRunSession): Promise<FirstRunMarks> {
+async function requestMarks(s: FirstRunSession, release: boolean): Promise<FirstRunMarks> {
   const { data, error } = await getSupabaseClient()
     .from("users")
     .select(MARK_COLUMNS)
@@ -282,18 +316,23 @@ async function requestMarks(s: FirstRunSession): Promise<FirstRunMarks> {
   // A read carries no session of its own, so bracket it: the same sign-in
   // before (sessionFor) and after (here) means it was asked for this one.
   if (!(await stillCurrent(s))) throw new Error("First-run sign-in changed during the read");
-  adopt(s, marks);
+  adopt(s, marks, release);
   return marks;
 }
 
-/** Read once per sign-in (up to FIRST_RUN_MAX_READS on failure). Never overlaps itself. Never rejects. */
-async function ensureMarks(s: FirstRunSession): Promise<boolean> {
-  if (s.marks) return true;
+/**
+ * Read once per sign-in (up to FIRST_RUN_MAX_READS on failure). `refresh` reads
+ * again although the marks are known, to learn a first-day hand-back made
+ * elsewhere (gate D7-01); it counts against the same FIRST_RUN_MAX_READS. Never
+ * overlaps itself. Never rejects.
+ */
+async function ensureMarks(s: FirstRunSession, refresh = false): Promise<boolean> {
+  if (s.marks && !refresh) return true;
   let inflight = s.reading;
   if (!inflight) {
     if (s.reads >= FIRST_RUN_MAX_READS) return false;
     s.reads += 1;
-    inflight = requestMarks(s);
+    inflight = requestMarks(s, refresh);
     s.reading = inflight;
     inflight.then(
       () => undefined,
@@ -358,9 +397,11 @@ async function requestClaim(s: FirstRunSession, kind: FirstRunKind): Promise<boo
   adopt(s, answer.marks);
   const slot = s.claims[kind];
   if (slot.state === "pending") {
-    slot.state = answer.granted ? "granted" : "denied";
-    if (answer.granted) slot.grants += 1;
-    if (answer.granted && kind === "ttfv") s.ttfvToken = answer.token;
+    // BA-07: a grant for a screen this sign-in learned, while the claim was out,
+    // was already gone through (a direct /ttfv showed the review) opens nothing.
+    const usable = answer.granted && !firstRunDone(s.marks, kind);
+    slot.state = usable ? "granted" : "denied";
+    if (usable && kind === "ttfv") s.ttfvToken = answer.token;
   }
   return slot.state === "granted";
 }
@@ -407,7 +448,7 @@ async function claim(s: FirstRunSession, kind: FirstRunKind): Promise<boolean> {
  * read), then the welcome's grant if it is needed, then the first-day review's
  * grant if it is open. Any failure ends at "home" with nothing opened.
  */
-async function decideHomeVisit(ownerId: string): Promise<{ gate: FirstRunGate; retryable: boolean }> {
+async function decideHomeVisit(ownerId: string): Promise<VisitDecision> {
   let key: FirstRunSessionKey | null = null;
   try {
     key = await resolveFirstRunSession(ownerId);
@@ -417,49 +458,67 @@ async function decideHomeVisit(ownerId: string): Promise<{ gate: FirstRunGate; r
   if (!key) {
     const failures = (unresolvedFailures.get(ownerId) ?? 0) + 1;
     unresolvedFailures.set(ownerId, failures);
-    return { gate: "home", retryable: failures < FIRST_RUN_MAX_READS };
+    return { gate: "home", retryable: failures < FIRST_RUN_MAX_READS, sessionId: null, returning: false };
   }
   const s = sessionFor(key);
+  const sessionId = key.sessionId;
+  // BA-08: the first home visit after the review visit the home opened is the
+  // return from that review. It does not ask for the review again, even when the
+  // review handed its grant back (any later visit may). Cleared once this
+  // decision is applied (applyVisit), so a visit replaced before it lands keeps it.
+  const returning = s.reviewReturnPending;
+  const decided = (gate: FirstRunGate, retryable = false): VisitDecision => ({
+    gate,
+    retryable,
+    sessionId,
+    returning,
+  });
   // A grant this sign-in already has but whose screen has not opened yet.
-  if (s.claims.onboarding.state === "granted") return { gate: "/onboarding", retryable: false };
-  if (s.claims.ttfv.state === "granted") return { gate: "/ttfv", retryable: false };
+  if (s.claims.onboarding.state === "granted") return decided("/onboarding");
+  if (s.claims.ttfv.state === "granted") return decided("/ttfv");
 
   if (!(await ensureMarks(s))) {
-    return { gate: "home", retryable: session === s && !s.marks && s.reads < FIRST_RUN_MAX_READS };
+    return decided("home", session === s && !s.marks && s.reads < FIRST_RUN_MAX_READS);
   }
-  if (session !== s || !s.marks) return { gate: "home", retryable: false };
+  if (session !== s || !s.marks) return decided("home");
 
   const welcome = s.claims.onboarding.state;
   if (onboardingNeeded(s.marks) && (welcome === "idle" || welcome === "pending")) {
-    if (await claim(s, "onboarding")) return { gate: "/onboarding", retryable: false };
+    if (await claim(s, "onboarding")) return decided("/onboarding");
     // Not granted on this visit: another tab holds the welcome right now, or the
     // answer came too late. Do not chain into the first-day review on the same
     // visit (it would open beside, or before, a welcome still on screen); only a
     // welcome that is already finished lets this visit go on to it.
     if (session !== s || !s.marks || s.marks.onboardingCompletedAt === null) {
-      return { gate: "home", retryable: false };
+      return decided("home");
     }
   }
 
   const review = s.claims.ttfv.state;
-  if (ttfvOpen(s.marks, Date.now()) && (review === "idle" || review === "pending")) {
-    if (await claim(s, "ttfv")) return { gate: "/ttfv", retryable: false };
+  if (!returning && ttfvOpen(s.marks, Date.now()) && (review === "idle" || review === "pending")) {
+    if (await claim(s, "ttfv")) return decided("/ttfv");
   }
-  return { gate: "home", retryable: false };
+  return decided("home");
 }
 
-function applyVisit(id: number, ownerId: string, result: { gate: FirstRunGate; retryable: boolean }): void {
+function applyVisit(id: number, ownerId: string, result: VisitDecision): void {
   if (!home || home.id !== id || home.ownerId !== ownerId) return;
+  // Only the sign-in the decision was made for (D7-02): after a new sign-in of
+  // the same account, an older decision opens nothing.
+  const s =
+    session && session.key.ownerId === ownerId && session.key.sessionId === result.sessionId ? session : null;
   let { gate } = result;
   if (gate === "/onboarding" || gate === "/ttfv") {
     // The home is about to open this screen: the grant is spent on it now, so
-    // the next home visit (after the screen) does not open it again.
+    // the next home visit (after the screen) does not open it again. (A grant
+    // for a screen already gone through never stays granted: adopt, BA-07.)
     const kind: FirstRunKind = gate === "/onboarding" ? "onboarding" : "ttfv";
-    const slot = session && session.key.ownerId === ownerId ? session.claims[kind] : null;
+    const slot = s ? s.claims[kind] : null;
     if (slot && slot.state === "granted") slot.state = "entered";
     else gate = "home";
   }
-  home = { ...home, gate, retryable: gate === "home" && result.retryable };
+  if (s && result.returning) s.reviewReturnPending = false;
+  home = { ...home, gate, retryable: gate === "home" && result.retryable, sessionId: result.sessionId };
   publish();
 }
 
@@ -467,13 +526,13 @@ function applyVisit(id: number, ownerId: string, result: { gate: FirstRunGate; r
 export function startFirstRunHomeVisit(ownerId: string): void {
   if (!ownerId) return;
   const id = ++visitSeq;
-  home = { ownerId, id, gate: "wait", retryable: false };
+  home = { ownerId, id, gate: "wait", retryable: false, sessionId: null };
   publish();
   void decideHomeVisit(ownerId).then(
     (result) => applyVisit(id, ownerId, result),
     (error) => {
       warn("home visit", error);
-      applyVisit(id, ownerId, { gate: "home", retryable: false });
+      applyVisit(id, ownerId, { gate: "home", retryable: false, sessionId: null, returning: false });
     },
   );
 }
@@ -491,6 +550,52 @@ function firstRunMayOpen(ownerId: string, nowMs: number): boolean {
 }
 
 /**
+ * The first-day review is held by a grant this sign-in does not hold (another
+ * tab or device has it) and is still in its window. That grant may since have
+ * been handed back, which the cached marks never show (a stored grant goes back
+ * to NULL here only through this sign-in's own hand-back or a fresh read, gate
+ * D7-01). The fresh read is bounded by ensureMarks (FIRST_RUN_MAX_READS).
+ */
+function reviewHeldElsewhere(s: FirstRunSession, nowMs: number): boolean {
+  const marks = s.marks;
+  return (
+    !!marks &&
+    s.claims.ttfv.state === "idle" &&
+    marks.ttfvSeenAt === null &&
+    marks.ttfvClaimedAt !== null &&
+    isWithinFirstDay(firstDayAnchor(marks), nowMs)
+  );
+}
+
+/**
+ * A focus that, going by what this sign-in knows, can open nothing still checks
+ * two things it can only learn by asking. Off screen: no loader unless a new
+ * visit starts.
+ *   - The sign-in. The same account signed in again (a new session_id, the
+ *     owner unchanged) does not change the owner the home is keyed by, so the
+ *     older sign-in's decision is decided again for the new one (D7-02).
+ *   - A first-day review held elsewhere. One fresh read (counted against
+ *     FIRST_RUN_MAX_READS) adopts a hand-back as the server has it; when the
+ *     review is open now, the visit is decided again (D7-01).
+ */
+function recheckHomeVisit(ownerId: string, id: number): void {
+  const stillHome = (): boolean => !!home && home.id === id && home.ownerId === ownerId && home.gate === "home";
+  void (async () => {
+    const key = await resolveFirstRunSession(ownerId);
+    const visit = home;
+    if (!key || !visit || !stillHome()) return;
+    if (visit.sessionId !== key.sessionId) {
+      startFirstRunHomeVisit(ownerId);
+      return;
+    }
+    const s = session;
+    if (!s || !sameKey(key, s.key) || !reviewHeldElsewhere(s, Date.now())) return;
+    if (!(await ensureMarks(s, true)) || !stillHome()) return;
+    if (firstRunMayOpen(ownerId, Date.now())) startFirstRunHomeVisit(ownerId);
+  })().catch((error) => warn("recheck", error));
+}
+
+/**
  * The home came back into view while it stayed mounted (focus, or the app came
  * to the front while the home is the screen). That is a new home visit (gate
  * BA-03): what an earlier visit decided ("held": another tab had the welcome;
@@ -501,13 +606,18 @@ function firstRunMayOpen(ownerId: string, nowMs: number): boolean {
  *   - what this sign-in already knows says a screen may open now, or
  *   - the last decision opened a screen (that grant is spent; a new decision
  *     must not open it again).
- * Otherwise nothing changes on screen (no loader). The rule that one visit does
- * not go from a held welcome straight on to the first-day review stays in
- * decideHomeVisit. Returns whether a new visit started.
+ * Otherwise nothing changes on screen (no loader), and recheckHomeVisit asks
+ * off screen whether the sign-in changed or a review held elsewhere was handed
+ * back. The rule that one visit does not go from a held welcome straight on to
+ * the first-day review stays in decideHomeVisit. Returns whether a new visit
+ * started now.
  */
 export function refocusFirstRunHomeVisit(ownerId: string | null): boolean {
   if (!ownerId || !home || home.ownerId !== ownerId || home.gate === "wait") return false;
-  if (home.gate === "home" && !home.retryable && !firstRunMayOpen(ownerId, Date.now())) return false;
+  if (home.gate === "home" && !home.retryable && !firstRunMayOpen(ownerId, Date.now())) {
+    recheckHomeVisit(ownerId, home.id);
+    return false;
+  }
   startFirstRunHomeVisit(ownerId);
   return true;
 }
@@ -642,15 +752,16 @@ export async function finishFirstRun(
 /**
  * The server applied a hand-back of the first-day grant this sign-in holds, with
  * that grant's own receipt (gate BA-01, FR-01): the slot may ask again on a later
- * home visit, and the receipt is gone. A hand-back of any other grant (an older
- * receipt, another sign-in's) changes nothing here. After FIRST_RUN_MAX_GRANTS
- * grants the slot stays used for the rest of the sign-in.
+ * home visit, every time it is handed back (gate BA-08), and the receipt is gone.
+ * The home visit that is the return from that review does not ask (BA-08,
+ * decideHomeVisit). A hand-back of any other grant (an older receipt, another
+ * sign-in's) changes nothing here.
  */
 function reopenFirstDay(s: FirstRunSession, token: string | null): void {
   const slot = s.claims.ttfv;
   if (!token || s.ttfvToken !== token || slot.state !== "visiting") return;
   s.ttfvToken = null;
-  slot.state = slot.grants < FIRST_RUN_MAX_GRANTS ? "idle" : "denied";
+  slot.state = "idle";
 }
 
 /**
@@ -666,6 +777,8 @@ export function takeFirstRunTTFVToken(ownerId: string | null): string | null {
   const slot = session.claims.ttfv;
   if (slot.state !== "entered" || !session.ttfvToken) return null;
   slot.state = "visiting";
+  // The next home visit decided is the return from this review (BA-08).
+  session.reviewReturnPending = true;
   return session.ttfvToken;
 }
 

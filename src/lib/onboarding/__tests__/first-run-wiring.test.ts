@@ -48,8 +48,8 @@ describe("bundle 1 (CDA-01): only a server grant opens a first-run screen", () =
     expect(shell).not.toMatch(/useOnboardingComplete|useAutoTriggerTTFV|ttfvSeenAt|onboardingCompletedAt/);
     const store = code(STORE);
     // A route is decided only right after a claim came back granted.
-    expect(store).toContain('if (await claim(s, "onboarding")) return { gate: "/onboarding", retryable: false };');
-    expect(store).toContain('if (await claim(s, "ttfv")) return { gate: "/ttfv", retryable: false };');
+    expect(store).toContain('if (await claim(s, "onboarding")) return decided("/onboarding");');
+    expect(store).toContain('if (await claim(s, "ttfv")) return decided("/ttfv");');
   });
 
   test("the grant is one conditional UPDATE per kind (the race step proves one of two tabs wins)", () => {
@@ -199,7 +199,12 @@ describe("the rest of the design", () => {
     expect(shell).toContain('if (next === "active" && homeFocusedRef.current) refocusFirstRunHomeVisit(userId);');
     expect(shell).not.toContain("retryFirstRunHomeVisit");
     const store = code(STORE);
-    expect(store).toContain('if (home.gate === "home" && !home.retryable && !firstRunMayOpen(ownerId, Date.now())) return false;');
+    // A focus that can open nothing changes nothing on screen, and asks off
+    // screen whether the sign-in changed (D7-02) or a review held elsewhere was
+    // handed back (D7-01).
+    expect(store).toMatch(
+      /if \(home\.gate === "home" && !home\.retryable && !firstRunMayOpen\(ownerId, Date\.now\(\)\)\) \{\s*recheckHomeVisit\(ownerId, home\.id\);\s*return false;\s*\}/,
+    );
   });
 
   test("/ttfv reports with the receipt its own visit took (BA-02), and hands it back only when the visit ends (FR-01)", () => {
