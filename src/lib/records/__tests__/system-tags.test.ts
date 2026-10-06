@@ -17,6 +17,7 @@ import {
   rowHasSystemTagsColumn,
   systemTagsOf,
   withSystemTagsColumn,
+  writeWithSystemTagsColumn,
 } from "../system-tags";
 
 describe("writer shapes", () => {
@@ -154,5 +155,48 @@ describe("withSystemTagsColumn", () => {
     });
     await expect(withSystemTagsColumn(run)).rejects.toBe(boom);
     expect(run).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Gate ST-01 (2026-10-07): PGRST204 comes from PostgREST's schema cache, not the
+// table. A write with markers falls back to the pre-0218 layout only when the
+// table itself has no column.
+describe("writeWithSystemTagsColumn", () => {
+  const cacheMiss = {
+    data: null,
+    error: { code: "PGRST204", message: "Could not find the 'system_tags' column of 'records' in the schema cache" },
+  };
+  const noColumn = { error: { code: "42703", message: "column records.system_tags does not exist" } };
+
+  it("falls back only after the table itself says there is no column", async () => {
+    const run = jest.fn(async (present: boolean) => (present ? cacheMiss : { data: "legacy", error: null }));
+    const probe = jest.fn(async () => noColumn);
+    await expect(writeWithSystemTagsColumn(run, probe)).resolves.toEqual({ data: "legacy", error: null });
+    expect(run.mock.calls).toEqual([[true], [false]]);
+    expect(probe).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks once more with the column when the table has it, and never writes the pre-0218 layout", async () => {
+    const run = jest.fn(async () => cacheMiss);
+    const probe = jest.fn(async () => ({ error: null }));
+    await expect(writeWithSystemTagsColumn(run, probe)).resolves.toBe(cacheMiss);
+    expect(run.mock.calls).toEqual([[true], [true]]);
+  });
+
+  it("returns the first error when the check itself fails", async () => {
+    const run = jest.fn(async () => cacheMiss);
+    const probe = jest.fn(async () => ({ error: { code: "PGRST000", message: "connection" } }));
+    await expect(writeWithSystemTagsColumn(run, probe)).resolves.toBe(cacheMiss);
+    expect(run.mock.calls).toEqual([[true]]);
+  });
+
+  it("takes a 42703 from the write itself as no column, without a check", async () => {
+    const run = jest.fn(async (present: boolean) =>
+      present ? { data: null, ...noColumn } : { data: "legacy", error: null },
+    );
+    const probe = jest.fn(async () => ({ error: null }));
+    await expect(writeWithSystemTagsColumn(run, probe)).resolves.toEqual({ data: "legacy", error: null });
+    expect(run.mock.calls).toEqual([[true], [false]]);
+    expect(probe).not.toHaveBeenCalled();
   });
 });

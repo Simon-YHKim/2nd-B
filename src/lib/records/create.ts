@@ -25,7 +25,7 @@ import { domainTagFor, isDomainId, stripDomainTags, type DomainId } from "../per
 import { withDomainTag } from "./detect-domain";
 import { embedAndStoreRecord, recordsEmbeddingAllowed } from "./records-embeddings";
 import type { RecordFollowup } from "./followup";
-import { legacyTagLayout, normalizeSystemTags, withSystemTagsColumn } from "./system-tags";
+import { legacyTagLayout, normalizeSystemTags, withSystemTagsColumn, writeWithSystemTagsColumn } from "./system-tags";
 
 export type RecordKind = "journal" | "note" | "audit_response";
 
@@ -336,6 +336,9 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
   // database without it answers PGRST204 before writing anything, and the second call
   // writes the pre-0218 layout (markers in `tags`), which every pre-0218 reader
   // recognizes. 0218 never moves such a row by itself (no trigger, no backfill).
+  // PGRST204 only says PostgREST's schema cache lacks the column, so before that
+  // fallback a select naming the column asks Postgres itself (gate ST-01): a table
+  // that has the column never gets the pre-0218 layout (writeWithSystemTagsColumn).
   const insertRecord = (columnPresent: boolean) => {
     storedTags = columnPresent ? tags : legacyTagLayout(tags, systemTags);
     return withTimeout(
@@ -370,8 +373,17 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
       "record insert",
     );
   };
+  // Reads no row (LIMIT 0), but Postgres still resolves the column name.
+  const probeSystemTagsColumn = () =>
+    withTimeout(
+      supabase.from("records").select("system_tags").limit(0),
+      RECORD_INSERT_TIMEOUT_MS,
+      "records system_tags check",
+    );
   const { data, error } =
-    systemTags.length > 0 ? await withSystemTagsColumn(insertRecord) : await insertRecord(true);
+    systemTags.length > 0
+      ? await writeWithSystemTagsColumn(insertRecord, probeSystemTagsColumn)
+      : await insertRecord(true);
   if (error) {
     if (args.clientRequestId !== undefined && error.code === "23505") {
       return replayKeyedRecord(args, args.clientRequestId, error, aiFollowup);

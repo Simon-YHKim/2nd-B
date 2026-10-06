@@ -37,7 +37,9 @@
 // per query on a database without the column. Rows read that way carry no
 // `system_tags` key, and systemTagsOf reads their markers from `tags`, which is
 // where a database without the column keeps them. The app then behaves exactly
-// as it did before 0218.
+// as it did before 0218. A write with markers goes through
+// writeWithSystemTagsColumn instead, which first checks that a PGRST204 means a
+// missing column and not a schema cache that has not caught up (gate ST-01).
 
 /** The recall interview marker. Completion, Polaris evidence and the career
  *  timeline's interview origin key off it. */
@@ -156,4 +158,46 @@ export async function withSystemTagsColumn<R extends { error: unknown }>(
   const first = await run(true);
   if (!isMissingSystemTagsColumnError(first.error)) return first;
   return run(false);
+}
+
+function isSchemaCacheMiss(error: unknown): boolean {
+  return isMissingSystemTagsColumnError(error) && (error as PostgrestLikeError).code === "PGRST204";
+}
+
+/**
+ * The write-side twin of withSystemTagsColumn, for an insert that carries
+ * markers. The difference is what the fallback costs: a read without the column
+ * loses nothing, but a write without it stores the markers in `tags` for good.
+ *
+ * PGRST204 does not say the table lacks the column. It says PostgREST's schema
+ * cache does not list it, and right after 0218 is applied (or re-applied after
+ * a rollback) the table has the column while the cache has not reloaded yet. A
+ * pre-0218 write in that window would put the markers in `tags` of a table that
+ * has `system_tags`, where every reader with the column misses them and
+ * /discover shows them as the user's topics (gate ST-01, 2026-10-07). So a
+ * PGRST204 is checked with `probe`, a select naming the column, which Postgres
+ * resolves itself rather than the cache:
+ *   - 42703 naming the column: the table really has none, so run(false) writes
+ *     the pre-0218 layout (design 6.1, unchanged).
+ *   - no error: the table has the column and the cache is behind. Ask once more
+ *     with the column (the cache may have reloaded) and return what that says.
+ *     A second PGRST204 reaches the caller as a failed save it can retry; it is
+ *     never turned into a pre-0218 write.
+ *   - any other error: we cannot tell, so the first error comes back as it came.
+ * PostgREST answers PGRST204 before it runs anything, so asking again cannot
+ * write the row twice. A 42703 from the insert itself comes from Postgres (the
+ * column is gone even if the cache still lists it) and takes the pre-0218 write
+ * directly. Nothing is remembered between calls (design P6).
+ */
+export async function writeWithSystemTagsColumn<R extends { error: unknown }>(
+  run: (columnPresent: boolean) => PromiseLike<R>,
+  probe: () => PromiseLike<{ error: unknown }>,
+): Promise<R> {
+  const first = await run(true);
+  if (!isMissingSystemTagsColumnError(first.error)) return first;
+  if (!isSchemaCacheMiss(first.error)) return run(false);
+  const { error } = await probe();
+  if (isMissingSystemTagsColumnError(error) && !isSchemaCacheMiss(error)) return run(false);
+  if (error) return first;
+  return run(true);
 }
