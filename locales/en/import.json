@@ -113,7 +113,7 @@
     "ledgerWarnTitle": "Couldn't book the transactions",
     "ledgerWarnBody": "The import itself was saved, but the chosen transactions were not booked. Re-import the same file to book them.",
     "ledgerWarnPartTitle": "Some transactions were not booked",
-    "ledgerWarnPartBody": "{failed} of the chosen transactions could not be booked; {inserted} were. Re-importing the same file would duplicate the booked rows, so please add the missing ones by hand.",
+    "ledgerWarnPartBody": "{failed} of the chosen transactions could not be booked; {inserted} were. Re-import the same file to book the missing ones; rows already booked are not booked again.",
     "done": "Done",
     "appts": "Plans",
     "places": "Places",
@@ -182,6 +182,7 @@
         "sub": "Schedule · file",
         "what": "Brings your calendar events in."
       }
-    }
+    },
+    "ledgerSkippedNote": "{skipped} transactions were already booked and were not booked again."
   }
 }
