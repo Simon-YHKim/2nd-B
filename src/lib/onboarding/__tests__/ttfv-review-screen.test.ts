@@ -139,6 +139,26 @@ describe("TTFV latest owner record adapter", () => {
     expect(reader).toHaveBeenCalledWith("owner-1", TTFV_REVIEW_LIMIT);
   });
 
+  it("skips TTFV's own note by the app's marker (0218), not by a user tag with the same word", async () => {
+    const review = await loadTTFVReview("owner-1", async () => [
+      {
+        id: "generated",
+        body: "First record review: This record still feels like me.",
+        created_at: "2026-10-06T03:00:00.000Z",
+        tags: ["domain:collect"],
+        system_tags: ["first_light", "first_light:affirm"],
+      },
+      {
+        id: "user-tagged",
+        body: "I tagged this first_light myself.",
+        created_at: "2026-10-06T02:00:00.000Z",
+        tags: ["domain:collect", "first_light"],
+        system_tags: [],
+      },
+    ]);
+    expect(review?.id).toBe("user-tagged");
+  });
+
   it("caps long text before it enters UI state", async () => {
     const raw = `private-start ${"가".repeat(400)} private-end`;
     const review = await loadTTFVReview("owner-1", async () => [
@@ -201,8 +221,10 @@ describe("TTFV review save", () => {
       locale: "en",
       kind: "note",
       withFollowup: false,
-      tags: ["first_light", `first_light:${choice}`],
+      // 0218: the marker is the app's, in its own column, never the user's tags.
+      systemTags: ["first_light", `first_light:${choice}`],
     });
+    expect(input).not.toHaveProperty("tags");
     expect(JSON.stringify(input)).not.toContain("first_light:source:");
     expect(input.body.length).toBeGreaterThan(0);
   });

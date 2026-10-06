@@ -3,6 +3,7 @@
 // Keep this versioned cache with the existing persona row so the live app does
 // not require a remote schema change to recover the missing wiring.
 import { getSupabaseClient } from "../supabase/client";
+import { hasSystemTag, RECALL_INTERVIEW_TAG, withSystemTagsColumn } from "../records/system-tags";
 import { baseLevelFor, type LadderLevel } from "./brightness";
 import { loadPersonaSnapshot, type PersonaCard } from "./build";
 import { loadSevenLevels } from "./load-seven-levels";
@@ -26,6 +27,16 @@ interface InterviewRow {
   audit_period: string | null;
   body: string | null;
   tags: string[] | null;
+  /** The app's markers (0218). Absent when the database has no such column. */
+  system_tags?: string[] | null;
+}
+
+// A recall-interview transcript: the app's `interview` marker (0218
+// records.system_tags), never a user tag that happens to say `interview`.
+// The server's Polaris evidence query (reserve_polaris_generation, redefined in
+// 0218) reads the same column, so client and server pick the same rows.
+function isInterviewRow(row: InterviewRow): boolean {
+  return hasSystemTag(row, RECALL_INTERVIEW_TAG);
 }
 
 type PatternRow = { patterns: Record<string, unknown> | null };
@@ -131,7 +142,7 @@ export function roleInputFromInterviews(
   const byStar = new Map<SevenStarId, InterviewRow[]>();
   for (const row of rows) {
     if (!isSevenStarId(row.audit_period ?? "") || row.audit_period === "profile" ||
-        !row.tags?.includes("interview") || !row.body?.trim()) continue;
+        !isInterviewRow(row) || !row.body?.trim()) continue;
     const id = row.audit_period as SevenStarId;
     const group = byStar.get(id) ?? [];
     group.push(row);
@@ -163,13 +174,15 @@ export async function proposeRoleCards(
   const quota = await loadPolarisQuota(userId);
   if (!quota.available) throw new Error("polaris_unavailable");
   const previous = await loadRoleCards(userId);
-  const { data, error } = await getSupabaseClient().from("records")
-    .select("id, audit_period, body, tags")
-    .eq("user_id", userId).eq("kind", "audit_response")
-    .order("created_at", { ascending: false }).limit(120);
+  const { data, error } = await withSystemTagsColumn((columnPresent) =>
+    getSupabaseClient().from("records")
+      .select(columnPresent ? "id, audit_period, body, tags, system_tags" : "id, audit_period, body, tags")
+      .eq("user_id", userId).eq("kind", "audit_response")
+      .order("created_at", { ascending: false }).limit(120),
+  );
   if (error) throw error;
-  const rows = (data ?? []) as InterviewRow[];
-  if (!rows.some((row) => isSevenStarId(row.audit_period ?? "") && row.tags?.includes("interview") && row.body?.trim())) {
+  const rows = (data ?? []) as unknown as InterviewRow[];
+  if (!rows.some((row) => isSevenStarId(row.audit_period ?? "") && isInterviewRow(row) && row.body?.trim())) {
     throw new Error("polaris_no_evidence");
   }
   const [levels, persona] = await Promise.all([
@@ -200,7 +213,7 @@ export async function proposeRoleCards(
   if (generationId) return loadRoleCards(userId);
   const byStar = new Map<SevenStarId, string[]>();
   for (const row of rows) {
-    if (!isSevenStarId(row.audit_period ?? "") || !row.tags?.includes("interview")) continue;
+    if (!isSevenStarId(row.audit_period ?? "") || !isInterviewRow(row)) continue;
     const star = row.audit_period as SevenStarId;
     const refs = byStar.get(star) ?? [];
     refs.push(`record:${row.id}`);
