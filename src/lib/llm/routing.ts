@@ -124,11 +124,11 @@ export function chatVendorOverride(): LlmVendor | null {
 // EXPO_PUBLIC_BACKBONE_VENDOR - the LAST Gemini surface.
 //
 // The three switches above move the reasoning seats, chat, and the multimodal
-// pair. Nine purposes are in none of those groups and reached the vendor
+// pair. Six purposes are in none of those groups and reached the vendor
 // through a hardcoded `return "gemini"` below, with no variable able to move
-// them: audit_qa, capture_classify, clipper_classify, clipper_template_propose,
-// imagine, import_ingest, interview_probe, reasoning_connect, source_ingest.
-// Eight of the nine have live call sites.
+// them: audit_qa, clipper_classify, clipper_template_propose, interview_probe,
+// reasoning_connect, source_ingest. (Three more had no caller and left in S0.5.)
+// All six have live call sites.
 //
 // That was correct while Gemini was the backbone by design. It stopped being
 // correct when Simon retired Gemini as a vendor (2026-08-21) against a hard
@@ -144,7 +144,7 @@ export function chatVendorOverride(): LlmVendor | null {
 // 400 purpose_not_seated for anything outside its allowlist BEFORE doing
 // anything else, so this is the same deploy-then-flip ordering as chat.
 // ⚠ "xai" is accepted here and WILL be refused by the proxy. That is the
-// intended behaviour, not an oversight: the nine backbone purposes are the
+// intended behaviour, not an oversight: the six backbone purposes are the
 // app's highest-volume surfaces, xai-proxy has no cheap Grok tier confirmed
 // against the account, and seating them on the frontier model to make this
 // setting "work" would be the most expensive mistake available. Unseated, the
@@ -234,7 +234,8 @@ export function embedVendor(): LlmVendor {
   return RETIRED_DEFAULT;
 }
 
-// OCR and voice memos are the two purposes that carry BINARY payloads, so they
+// OCR is the routed purpose that carries a BINARY payload (voice memos carry one
+// too but go out as voice_transcribe through multimodalVendor() directly), so it
 // can only run on a vendor whose proxy forwards them.
 //
 // History, because the name of this set used to be the reason: Simon's
@@ -247,7 +248,6 @@ export function embedVendor(): LlmVendor {
 // multimodalVendor() says who serves them.
 export const MULTIMODAL_PURPOSES: ReadonlySet<PromptPurpose> = new Set([
   "capture_ocr",
-  "capture_voice",
 ]);
 
 /** @deprecated Kept as an alias so nothing silently loses the pin while the
@@ -277,7 +277,7 @@ export function multimodalVendor(): LlmVendor {
 
 // D-26 Phase 2 vendor seats. Anthropic carries the two seats whose output is
 // the sentence a user reads (persona_narrative, persona_synthesis — V-4,
-// 2026-08-23) and the cross-check defender; every other seat is openai.
+// 2026-08-23); every other seat is openai.
 // Purposes ABSENT from this map are not "gemini": chat takes its own knob, the
 // binary-carrying purposes take multimodalVendor(), and everything else takes
 // backboneVendor() (gemini unless EXPO_PUBLIC_BACKBONE_VENDOR moves it) — see
@@ -330,28 +330,15 @@ export const PHASE2_VENDOR: Readonly<Partial<Record<PromptPurpose, LlmVendor>>> 
   //
   //     EXPO_PUBLIC_LLM_VENDOR=perPurpose
   //
-  // which then sends these two to claude-proxy and the other ten to
+  // which then sends these two to claude-proxy and the other six to
   // openai-proxy, exactly as spelled out below.
   persona_narrative: "claude",
   gap_synthesize: "openai",
   self_model_propose: "openai",
   northstar_propose: "openai",
-  axis_estimate: "openai",
   persona_synthesis: "claude",
   ops_recommend: "openai",
   ops_daily_brief: "openai",
-  // Proto rev2 seats — digest_weekly, ttfv_first_insight, cluster_infer have no
-  // client call site yet (defined in types.ts, never invoked), so these are
-  // inert until wired; they share the OpenAI seat for consistency.
-  digest_weekly: "openai",
-  ttfv_first_insight: "openai",
-  cluster_infer: "openai",
-  // The two sides of the cross-check, deliberately on different vendors. This
-  // pairing is the feature: crosscheck.ts refuses to run when they resolve to
-  // the same one, because an adversary that shares a model with its subject is
-  // not an adversary.
-  crosscheck_challenge: "openai",
-  crosscheck_defend: "claude",
 };
 
 // D-26 Phase 2 per-purpose reasoning effort. Abstract ladder; each proxy maps
@@ -364,22 +351,11 @@ export const PHASE2_EFFORT: Readonly<Partial<Record<PromptPurpose, ReasoningEffo
   gap_synthesize: "low",
   self_model_propose: "high",
   northstar_propose: "high",
-  axis_estimate: "high",
   // max is Anthropic-only in practice: openai-proxy folds max into xhigh, so
   // asking for it costs nothing on the seats that stayed with OpenAI.
   persona_synthesis: "max",
   ops_recommend: "medium",
   ops_daily_brief: "medium",
-  // Proto rev2 seats: digest_weekly + ttfv_first_insight are high-stakes ->
-  // xhigh; cluster_infer's rationale is lighter -> medium.
-  digest_weekly: "max",
-  // The challenger reads a whole-corpus draft and looks for what is wrong with
-  // it; the defender rewrites under that pressure and its output is what the
-  // user reads, so it gets the top rung the same way persona_synthesis does.
-  crosscheck_challenge: "high",
-  crosscheck_defend: "max",
-  ttfv_first_insight: "xhigh",
-  cluster_infer: "medium",
   // secondb_chat is not a PHASE2_VENDOR seat (it routes via
   // EXPO_PUBLIC_CHAT_VENDOR), but it still needs an effort when that knob puts
   // it on a non-Gemini vendor: boundary.ts falls back to DEFAULT_EFFORT ("high")
@@ -404,11 +380,9 @@ export const PHASE2_EFFORT: Readonly<Partial<Record<PromptPurpose, ReasoningEffo
   //   pro   -> medium  (reasoning; medium rather than high because these are
   //                     the two cheapest pro rows and nothing measured yet says
   //                     the extra depth changes the output - raise it on evidence)
-  capture_classify: "low",
   clipper_classify: "low",
   audit_qa: "low",
   source_ingest: "low",
-  import_ingest: "low",
   clipper_template_propose: "low",
   interview_probe: "low",
   // V-5 (Simon, 2026-08-23): "아니오 - high 유지." The proposal in
@@ -420,7 +394,6 @@ export const PHASE2_EFFORT: Readonly<Partial<Record<PromptPurpose, ReasoningEffo
   // medium would clamp it straight back down - the answer would look applied
   // and change nothing. Both moved.
   reasoning_connect: "high",
-  imagine: "high",
 };
 
 // Legacy reasoning seam (EXPO_PUBLIC_REASONING_PROVIDER), folded in from
@@ -444,7 +417,7 @@ export function legacyReasoningProvider(): LlmVendor {
 // "gemini" it could only ever confirm a gemini axis, so reading the default
 // there was harmless. Once the unset value became RETIRED_DEFAULT, reading it
 // would turn an explicit EXPO_PUBLIC_LLM_VENDOR=gemini into openai on every
-// pro-tier seat (advisor, reasoning_connect, imagine) — the rollback broken
+// pro-tier seat (advisor, reasoning_connect) — the rollback broken
 // exactly where it is dearest. An unset legacy variable has no opinion.
 export function legacyReasoningProviderOverride(): LlmVendor | null {
   const raw = (process.env.EXPO_PUBLIC_REASONING_PROVIDER ?? "").trim().toLowerCase();

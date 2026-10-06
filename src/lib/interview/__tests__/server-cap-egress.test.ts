@@ -167,9 +167,11 @@ describe("live interview_probe 는 Vertex 구성에서도 서버 한도를 지�
 });
 
 describe("대조군: 같은 구성에서 다른 목적은 여전히 직접 길이다", () => {
-  it("import_ingest 는 generateContent 를 부르고 프록시를 안 부른다", async () => {
+  // source_ingest 가 대조군이다. 예전 대조군 import_ingest 는 S0.5(2026-10-07)에 호출부와 함께
+  // 지워졌다. 둘 다 백본 스위치를 따르는 flash 목적이고 서버 한도 강제 목록 밖이라 성질이 같다.
+  it("source_ingest 는 generateContent 를 부르고 프록시를 안 부른다", async () => {
     mockGenerateContent.mockResolvedValueOnce({ text: "ok" });
-    await callLlm({ userId: "u1", locale: "en", purpose: "import_ingest", user: "A note about my week." });
+    await callLlm({ userId: "u1", locale: "en", purpose: "source_ingest", user: "A note about my week." });
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
     expect(mockInvoke).not.toHaveBeenCalled();
   });

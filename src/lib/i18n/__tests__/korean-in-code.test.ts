@@ -241,7 +241,9 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/interview/stuck.ts": 10,
   "src/lib/journal/daily-prompts.ts": 15,
   "src/lib/knowledge/retrieve.ts": 30,
-  "src/lib/llm/boundary.ts": 49,
+  // 2026-10-07 S0.5: 49 -> 29. MOCK_RESPONSES 에서 호출부 없는 좌석 imagine(ko 11줄) 과
+  // import_ingest(ko 9줄) 의 미리보기 견본이 빠졌다. **고친 것이 아니라 빠진 것**이다.
+  "src/lib/llm/boundary.ts": 29,
   "src/lib/llm/safety.ts": 4,
   "src/lib/llm/untrusted.ts": 1,
   "src/lib/notices/adapt.ts": 2,

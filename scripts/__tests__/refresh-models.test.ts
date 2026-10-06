@@ -207,10 +207,9 @@ describe("secretsFor — 승격이 좌석 밖으로 새지 않는다", () => {
     expect(Object.values(map)).not.toContain("claude-sonnet-6");
     expect(map.advisor).toBeUndefined();
     expect(map.secondb_chat).toBeUndefined();
-    // 그리고 opus 목적 넷은 전부 실려야 한다 (조용히 비는 맵이 더 나쁘다).
-    expect(Object.keys(map).sort()).toEqual(
-      ["axis_estimate", "crosscheck_defend", "digest_weekly", "persona_narrative", "persona_synthesis"].sort(),
-    );
+    // 그리고 opus 목적은 전부 실려야 한다 (조용히 비는 맵이 더 나쁘다).
+    // axis_estimate · crosscheck_defend · digest_weekly 는 S0.5(2026-10-07)에 호출부와 함께 빠졌다.
+    expect(Object.keys(map).sort()).toEqual(["persona_narrative", "persona_synthesis"].sort());
   });
 
   it("xai 좌석은 좌석당 시크릿 하나다", () => {
@@ -244,16 +243,15 @@ describe("좌석 목록 표류 가드 — 엣지 프록시 원본과 대조", ()
     // 싼 축은 이름에 티어 접미사가 붙는다 (gpt-5.4-nano / -mini).
     const cheap = Object.keys(seats).filter((p) => /-(nano|mini)$/.test(seats[p]));
     const frontier = Object.keys(seats).filter((p) => !cheap.includes(p));
-    // The cheap axis is now eight seats: the safety classifier plus the seven
+    // The cheap axis is now six seats: the safety classifier plus the five
     // backbone purposes that PURPOSE_TIER already called lite or flash. Listed
     // rather than counted, so adding a seat here is a deliberate edit.
+    // (Eight until S0.5, 2026-10-07, removed capture_classify and import_ingest.)
     expect(cheap.sort()).toEqual(
       [
         "audit_qa",
-        "capture_classify",
         "clipper_classify",
         "clipper_template_propose",
-        "import_ingest",
         "interview_probe",
         "safety_classify",
         "source_ingest",
@@ -261,6 +259,17 @@ describe("좌석 목록 표류 가드 — 엣지 프록시 원본과 대조", ()
     );
     expect([...OPENAI_FRONTIER_PURPOSES].sort()).toEqual(frontier.sort());
     for (const c of cheap) expect(OPENAI_FRONTIER_PURPOSES).not.toContain(c);
+  });
+
+  it("S0.5 에 지운 좌석은 어느 승격 목록에도 없다", () => {
+    // 프록시 좌석표와의 대조(위·아래)가 이미 막지만, 지운 이름을 직접 적어 두면
+    // 프록시와 목록이 **같이** 되살아나는 경우도 잡는다.
+    const removed = [
+      "imagine", "import_ingest", "capture_classify", "capture_voice", "axis_estimate",
+      "cluster_infer", "ttfv_first_insight", "digest_weekly", "crosscheck_challenge", "crosscheck_defend",
+    ];
+    const lists: readonly string[] = [...OPENAI_FRONTIER_PURPOSES, ...ANTHROPIC_OPUS_PURPOSES, ...ANTHROPIC_SONNET_PURPOSES];
+    expect(lists.filter((p) => removed.includes(p))).toEqual([]);
   });
 
   it("anthropic: sonnet·opus 목록이 프록시 좌석표와 같다", () => {
