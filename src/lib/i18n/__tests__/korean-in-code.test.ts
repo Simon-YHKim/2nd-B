@@ -202,7 +202,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/components/deepspace/BackgroundTaskDock.tsx": 4,
   "src/components/deepspace/CompletionToast.tsx": 4,
   "src/components/deepspace/DeepSpaceLoader.tsx": 7,
-  "src/components/deepspace/ops/copy.ts": 105,
+  "src/components/deepspace/ops/copy.ts": 104, // 105 -> 104: R2C-11 (QA 261005) fxNote 를 ops 번들로
   "src/components/m3/date-picker/DatePicker.tsx": 38,
   "src/components/persona/FacetBreakdown.tsx": 1,
   "src/components/persona/TraitRadar.tsx": 3,
@@ -282,7 +282,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/screens/deepspace/import/ImportHubScreen.tsx": 86,
   "src/screens/deepspace/museum/AiMuseumScreen.tsx": 86,
   "src/screens/deepspace/onboarding/TTFVScreen.tsx": 29,
-  "src/screens/deepspace/ops/screens.tsx": 14,
+  "src/screens/deepspace/ops/screens.tsx": 13, // 14 -> 13: R2C-15 (QA 261005) 고정 검색어 "닭" 제거
 };
 
 describe("코드에 박힌 한국어", () => {

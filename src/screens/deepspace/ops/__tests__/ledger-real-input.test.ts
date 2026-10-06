@@ -38,10 +38,13 @@ describe("the ledger records a real amount, not a placeholder", () => {
 
   test("the add path passes the amount the user typed", () => {
     expect(ledger).toMatch(/amount_krw:\s*amountNum/);
-    // amountNum is derived from the input, digits only.
-    expect(ledger).toMatch(/const amountNum = Math\.floor\(Number\(amount\.replace/);
-    // and the button is gated on a positive amount, not always-on.
-    expect(ledger).toMatch(/const canAdd = !busy && amountNum > 0/);
+    // amountNum is derived from the input, digits only. Re-aimed 2026-10-05 (R2C-16): the
+    // digits-only read moved into parseLedgerAmount (lib/finance/ledger.ts, unit-tested in
+    // ledger-amount.test.ts), which also refuses amounts above MAX_LEDGER_KRW.
+    expect(ledger).toMatch(/const amountParsed = parseLedgerAmount\(amount\);/);
+    expect(ledger).toMatch(/const amountNum = amountParsed\.kind === "ok" \? amountParsed\.value : 0;/);
+    // and the button is gated on a valid positive amount, not always-on.
+    expect(ledger).toMatch(/const canAdd = !busy && amountParsed\.kind === "ok"/);
   });
 
   test("there is an amount input", () => {
@@ -58,6 +61,9 @@ describe("the ledger records a real amount, not a placeholder", () => {
   test("a wrong row can be deleted", () => {
     expect(src).toMatch(/import \{ createLedgerEntry, deleteLedgerEntry,/);
     expect(ledger).toMatch(/deleteLedgerEntry\(userId, id\)/);
-    expect(ledger).toMatch(/onPress=\{\(\) => void onDeleteEntry\(e\.id\)\}/);
+    // Re-aimed 2026-10-05 (R2C-16): the row is still deletable, but through the two-tap
+    // guard (first tap arms, second tap deletes), not straight from ✕.
+    expect(ledger).toMatch(/const delEntry = useTwoTapDelete\(\(id\) => void onDeleteEntry\(id\)\);/);
+    expect(ledger).toMatch(/onPress=\{\(\) => delEntry\.press\(e\.id\)\}/);
   });
 });
