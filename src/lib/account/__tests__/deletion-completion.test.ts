@@ -82,15 +82,19 @@ describe("settleDeletedAccountLocally: the wipe runs only after the server confi
     expect(JSON.parse(memory.get(deletionOpMemoKey(OWNER, OP))!)).toMatchObject({ phase: "terminal", owner: OWNER, opId: OP });
   });
 
-  test("a cleanup that can never be confirmed (no Web Locks) stops after a bounded number of tries", async () => {
+  test("an unconfirmed cleanup stays an open obligation however many passes it takes (gate SAFE-03)", async () => {
     const purge = jest.fn(async (): Promise<LocalPurgeOutcome> => "unconfirmed");
     await expect(settleDeletedAccountLocally({ owner: OWNER, opId: OP, purgeLocal: purge })).resolves.toBe("retry-scheduled");
-    put({ phase: "terminal", owner: OWNER, opId: OP, at: 1, tries: 1 });
-    await resolvePendingAccountDeletionOps({ stillSignedOut: () => true, purgeLocal: purge });
-    expect(JSON.parse(memory.get(deletionOpMemoKey(OWNER, OP))!).tries).toBe(2);
+    for (let pass = 2; pass <= 5; pass += 1) {
+      await resolvePendingAccountDeletionOps({ stillSignedOut: () => true, purgeLocal: purge });
+      // One wipe per pass, and the memo is never dropped by a count.
+      expect(purge).toHaveBeenCalledTimes(pass);
+      expect(JSON.parse(memory.get(deletionOpMemoKey(OWNER, OP))!)).toMatchObject({ phase: "terminal", tries: pass });
+    }
+    // The first pass that confirms the wipe removes it.
+    purge.mockResolvedValueOnce("complete");
     await resolvePendingAccountDeletionOps({ stillSignedOut: () => true, purgeLocal: purge });
     expect(memory.size).toBe(0);
-    expect(purge).toHaveBeenCalledTimes(3);
   });
 
   test("without durable storage an unconfirmed wipe is reported as unconfirmed, not scheduled", async () => {
@@ -102,6 +106,24 @@ describe("settleDeletedAccountLocally: the wipe runs only after the server confi
     });
     await expect(settleDeletedAccountLocally({ owner: OWNER, opId: OP, purgeLocal: async () => "unconfirmed" }))
       .resolves.toBe("unconfirmed");
+  });
+
+  test("memo storage that never settles cannot hold the result (gate DLR-A1-09)", async () => {
+    jest.useFakeTimers();
+    try {
+      __setDeletionOpMemoStorageForTests({
+        getItem: () => new Promise<string | null>(() => {}),
+        setItem: () => new Promise<void>(() => {}),
+        removeItem: () => new Promise<void>(() => {}),
+        keys: () => new Promise<string[]>(() => {}),
+      });
+      const settled = settleDeletedAccountLocally({ owner: OWNER, opId: OP, purgeLocal: async () => "complete" });
+      await jest.advanceTimersByTimeAsync(3_000); // the terminal write gives up
+      await jest.advanceTimersByTimeAsync(3_000); // the clear gives up
+      await expect(settled).resolves.toBe("complete");
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 

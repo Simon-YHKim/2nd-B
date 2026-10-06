@@ -12,14 +12,20 @@ import {
   type AuthSessionExpectation,
 } from "../auth/session-mutation";
 import {
+  DELETION_OP_CLOSED_RETENTION_MS,
   PENDING_DELETION_OP_STALE_MS,
   clearDeletionOpMemo,
   isDeletionOpId,
-  listDeletionOpMemos,
   newDeletionOpId,
+  readDeletionOpMemos,
   writeDeletionOpMemo,
 } from "../account/deletion-op-memo";
-import { fetchAccountDeletionOpStatus, type ServerDeletionReceipt } from "../account/deletion-receipt";
+import {
+  ACCOUNT_DELETION_LOOKUP_MS,
+  fetchAccountDeletionOpStatus,
+  type OpStatusLookup,
+  type ServerDeletionReceipt,
+} from "../account/deletion-receipt";
 import { recordPhotoPathsOf, removeRecordPhotoObjects } from "../capture/record-photos";
 /** Delete every record belonging to the user. Returns affected count. */
 export async function deleteAllRecords(userId: string): Promise<number> {
@@ -405,26 +411,57 @@ type Invoke = (
   signal: AbortSignal,
 ) => Promise<{ data: unknown; error: unknown }>;
 
+type EarlierRequests =
+  | { kind: "none" }
+  | { kind: "completed"; receipt: AccountDeletionReceipt }
+  /** An earlier request is still open, or its state is unknown. */
+  | { kind: "unresolved" }
+  /** The memo storage itself could not be listed. */
+  | { kind: "unreadable" };
+
 /**
- * An earlier request of this owner whose answer was lost. Only a definite
- * server answer changes anything: completed returns its receipt (no second
- * deletion), failed / abandoned forget the request, anything else is left for
- * the server to settle. A completed request found here is finished by the
- * caller exactly like a live answer.
+ * Earlier requests of this owner whose answer was lost. Only a definite server
+ * answer settles one: completed returns its receipt (no second deletion), and
+ * failed / abandoned forget it. Anything else - accepted, executing, an
+ * unreachable server, or a "no such request" the server could not yet have
+ * purged - keeps it open, and then NO new request number is begun: the device
+ * waits for the server to settle that request (I2 "재시도는 같은 번호로", I5,
+ * gate SAFE-01 / DLR-A1-05). Each question is bounded by what is left of the
+ * deletion deadline, so earlier requests cannot spend it all.
  */
-async function resolveEarlierRequests(owner: string): Promise<AccountDeletionReceipt | null> {
-  for (const memo of await listDeletionOpMemos(owner)) {
+async function resolveEarlierRequests(owner: string, deadlineAt: number): Promise<EarlierRequests> {
+  const memos = await readDeletionOpMemos(owner);
+  if (memos === null) return { kind: "unreadable" };
+  for (const memo of memos) {
     if (memo.phase === "pending") {
       if (Date.now() - memo.at >= PENDING_DELETION_OP_STALE_MS) await clearDeletionOpMemo(owner, memo.opId);
       continue;
     }
     if (memo.phase === "terminal") continue;
-    const answer = await fetchAccountDeletionOpStatus({ opId: memo.opId, token: memo.token, owner });
-    if (answer.status !== "known") continue;
-    if (answer.op === "completed" && answer.receipt) return accountDeletionReceiptFromServer(answer.receipt);
-    if (answer.op === "failed" || answer.op === "abandoned") await clearDeletionOpMemo(owner, memo.opId);
+    const timeoutMs = Math.min(ACCOUNT_DELETION_LOOKUP_MS, deadlineAt - Date.now());
+    const answer: OpStatusLookup = timeoutMs > 0
+      ? await fetchAccountDeletionOpStatus({ opId: memo.opId, token: memo.token, owner }, { timeoutMs })
+      : { status: "unavailable" };
+    if (answer.status === "known") {
+      if (answer.op === "completed" && answer.receipt) {
+        return { kind: "completed", receipt: accountDeletionReceiptFromServer(answer.receipt) };
+      }
+      if (answer.op === "failed" || answer.op === "abandoned") {
+        await clearDeletionOpMemo(owner, memo.opId);
+        continue;
+      }
+      return { kind: "unresolved" };
+    }
+    // The server keeps a failed or abandoned request 30 days and a completed one
+    // 365. For this signed-in (live) account, a request it no longer knows and
+    // that is older than 30 days was failed or abandoned and then purged.
+    if (answer.status === "not-found" && Date.now() - memo.at >= DELETION_OP_CLOSED_RETENTION_MS) {
+      await clearDeletionOpMemo(owner, memo.opId);
+      continue;
+    }
+    return { kind: "unresolved" };
   }
-  return null;
+  return { kind: "none" };
 }
 
 /** The old flow: body `{}`, one bounded progress loop. Used only when the server has no 0217. */
@@ -472,6 +509,8 @@ async function requestLegacyAccountDeletion(
  *       the request and signs a token. Nothing is destroyed yet.
  *    2. remember the token and read it back (armed). Only then `execute`.
  *    3. a lost or unreadable answer asks the server about THIS request (I5).
+ *  An earlier request of this owner that is still open or unknown stops the
+ *  call before step 1: no second request number while one is unresolved.
  *  No local write is blocked on the way: the irreversible local fence goes up
  *  only after the server confirmed the deletion (deletion-completion.ts, I7).
  *  The cross-tab auth lock is used when the browser has Web Locks and is not
@@ -504,8 +543,10 @@ export async function requestAccountDeletion(
       signal,
     });
 
-    const earlier = await resolveEarlierRequests(owner);
-    if (earlier) return earlier;
+    const earlier = await resolveEarlierRequests(owner, deadlineAt);
+    if (earlier.kind === "completed") return earlier.receipt;
+    if (earlier.kind === "unreadable") throw new Error("account deletion requests on this device could not be read");
+    if (earlier.kind === "unresolved") throw new AccountDeletionUnconfirmedError();
 
     // 1. begin. Nothing is destroyed on this request; every failure here is definite.
     const opId = newDeletionOpId();

@@ -6,6 +6,7 @@ import {
   listDeletionOpMemos,
   newDeletionOpId,
   readDeletionOpMemo,
+  readDeletionOpMemos,
   writeDeletionOpMemo,
   type DeletionOpMemoStorage,
 } from "../deletion-op-memo";
@@ -86,6 +87,26 @@ test("a write that does not read back is reported, so execute is never sent", as
   await expect(writeDeletionOpMemo({ v: 1, phase: "armed", owner: A, opId: OP1, token: TOKEN, at: 1 })).resolves.toBe(false);
   await expect(listDeletionOpMemos()).resolves.toEqual([]);
   await expect(clearDeletionOpMemo(A, OP1)).resolves.toBeUndefined();
+});
+
+test("the in-memory fallback is never reported as remembered (gate DLR-A1-04)", async () => {
+  // No override: Node has no localStorage and no native storage, exactly like a
+  // browser whose localStorage access throws. The memo still lives for this
+  // runtime, but an armed write must not count as durable.
+  __setDeletionOpMemoStorageForTests(null);
+  await expect(writeDeletionOpMemo({ v: 1, phase: "armed", owner: A, opId: OP1, token: TOKEN, at: 1 })).resolves.toBe(false);
+  expect(await readDeletionOpMemo(A, OP1)).toMatchObject({ phase: "armed", opId: OP1 });
+});
+
+test("a listing that cannot be read is null, not an empty list", async () => {
+  __setDeletionOpMemoStorageForTests({
+    getItem: async () => null,
+    setItem: async () => undefined,
+    removeItem: async () => undefined,
+    keys: async () => { throw new Error("blocked"); },
+  });
+  await expect(readDeletionOpMemos(A)).resolves.toBeNull();
+  await expect(listDeletionOpMemos(A)).resolves.toEqual([]);
 });
 
 test("new request numbers are lowercase UUIDs the server accepts", () => {

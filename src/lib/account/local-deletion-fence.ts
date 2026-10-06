@@ -194,6 +194,23 @@ export function installAccountLocalDeletionFence(userId: string): Promise<boolea
   });
 }
 
+/**
+ * Whether this owner's durable terminal marker is already in device storage
+ * (not the in-process mirror). Null when it cannot be read. local-purge.ts reads
+ * it BEFORE a pass lays the marker: a browser without Web Locks cannot join a
+ * write already running in another tab, so only a pass that finds the marker
+ * laid by an EARLIER pass can confirm its wipe (설계서 5.1 W2).
+ */
+export async function readAccountLocalDeletionFence(userId: string): Promise<boolean | null> {
+  const owner = normalizeOwner(userId);
+  if (!owner) return null;
+  const local = webStorage();
+  if (local) return readWebFence(local, owner);
+  const storage = asyncStorage();
+  if (!storage) return null;
+  return readAsyncFence(storage, owner);
+}
+
 export function __resetAccountLocalDeletionFencesForTests(): void {
   memoryFences.clear();
   ownerTails.clear();

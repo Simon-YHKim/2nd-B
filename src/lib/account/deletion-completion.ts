@@ -35,9 +35,6 @@ import {
 
 export type LocalPurgeOutcome = "complete" | "retry-scheduled" | "unconfirmed";
 
-/** Local cleanups started for one deleted account before the device stops retrying. */
-export const MAX_LOCAL_CLEANUP_TRIES = 3;
-
 function observedOf(receipt: AccountDeletionReceipt): ReceiptSweeps {
   return {
     profileErased: receipt.profileErased,
@@ -50,8 +47,13 @@ function observedOf(receipt: AccountDeletionReceipt): ReceiptSweeps {
 /**
  * Wipe this owner's local data and settle the memo. The terminal memo is written
  * FIRST so a crash in the middle leaves an instruction to run the cleanup again;
- * it is removed only when the cleanup is confirmed. "retry-scheduled" means the
- * cleanup was not confirmed but the next pass will run it again.
+ * it is removed only when the cleanup is confirmed - never after a number of
+ * tries, because an unconfirmed wipe is still an open obligation (gate SAFE-03 /
+ * DLR-A1-08). Each pass runs the wipe once; the next pass (the sign-in screen)
+ * runs it again. A browser without Web Locks confirms on the pass that finds the
+ * fence already laid by an earlier one (local-purge.ts, 설계서 5.1 W2).
+ * "retry-scheduled" means the cleanup was not confirmed but the next pass will
+ * run it again.
  */
 export async function settleDeletedAccountLocally(input: {
   owner: string;
@@ -74,11 +76,6 @@ export async function settleDeletedAccountLocally(input: {
   if (outcome === "complete") {
     await clearDeletionOpMemo(input.owner, input.opId);
     return "complete";
-  }
-  if (tries >= MAX_LOCAL_CLEANUP_TRIES) {
-    // Bounded: the fence is up and the wipe ran this many times; stop asking.
-    await clearDeletionOpMemo(input.owner, input.opId);
-    return "unconfirmed";
   }
   return remembered ? "retry-scheduled" : "unconfirmed";
 }

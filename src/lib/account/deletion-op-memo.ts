@@ -17,10 +17,18 @@
 //             cleared only on a definite server answer (failed / abandoned), or
 //             turned into `terminal` when the server says completed.
 //   terminal  the server completed the deletion; this device's local cleanup has
-//             not been confirmed yet and runs again on the next chance.
+//             not been confirmed yet and runs again on the next chance. It is
+//             removed only when a cleanup is confirmed, never after a count of
+//             tries (gate SAFE-03 / DLR-A1-08).
 //
 // The memo is an instruction to ASK the server, never evidence on its own: the
 // receipt screen reads only the server (I6).
+//
+// Every storage call here is bounded (MEMO_IO_TIMEOUT_MS): after the server
+// confirmed a deletion, a storage promise that never settles must not hold the
+// receipt route or the sign-out (설계서 5절 "Edge 뒤 부가 정리는 결과를 붙잡지
+// 않습니다", gate DLR-A1-09). A late write that lands after a clear can only
+// bring a memo back, which asks the server (or re-runs the wipe) once more.
 import { randomUUID } from "expo-crypto";
 
 export const DELETION_OP_KEY_PREFIX = "account.deletionOp.v1:";
@@ -31,15 +39,24 @@ const LEGACY_OP = "legacy";
 /** A pending memo older than this had its begin answer lost; with no token, nothing ran. */
 export const PENDING_DELETION_OP_STALE_MS = 2 * 60_000;
 
+/**
+ * How long the server keeps a failed or abandoned request (0217
+ * purge_account_deletion_ops: 30 days). A completed one is kept 365 days. So a
+ * request of a LIVE account that the server no longer knows is older than this
+ * and was failed or abandoned; a younger one it does not know is an anomaly and
+ * stays unresolved.
+ */
+export const DELETION_OP_CLOSED_RETENTION_MS = 30 * 24 * 60 * 60_000;
+
+/** Upper bound for one storage call of this module. */
+export const MEMO_IO_TIMEOUT_MS = 3_000;
+
 export type DeletionOpMemo =
   | { v: 1; phase: "pending"; owner: string; opId: string; at: number }
   | { v: 1; phase: "armed"; owner: string; opId: string; token: string; at: number }
   /**
    * opId null: a deletion through the old `{}` flow, which has no number.
-   * `tries`: local cleanups already started for it. A browser without Web Locks
-   * can never confirm a cleanup (another tab's write cannot be joined), so the
-   * cleanup runs again on the next pass and stops after a bounded number of
-   * tries instead of forever (설계서 5.1 W2 "다음 실행에서 한 번 더").
+   * `tries`: local cleanups already started for it (a record, not a limit).
    */
   | { v: 1; phase: "terminal"; owner: string; opId: string | null; at: number; tries?: number };
 
@@ -129,18 +146,41 @@ function memoryStorage(): DeletionOpMemoStorage {
 let override: DeletionOpMemoStorage | null = null;
 let fallback: DeletionOpMemoStorage | null = null;
 
-function storage(): DeletionOpMemoStorage {
-  if (override) return override;
+/**
+ * `durable: false` is the in-memory map used when no device storage can be
+ * reached: Node/SSR, and also a browser whose localStorage access throws
+ * (blocked site data). It keeps reads working, but a write to it is never
+ * reported as remembered - a memo that dies with the page cannot carry an op
+ * token across a lost answer (설계서 5절 armed 불변식, gate DLR-A1-04).
+ */
+function storage(): { store: DeletionOpMemoStorage; durable: boolean } {
+  if (override) return { store: override, durable: true };
   const real = webStorage() ?? nativeStorage();
-  if (real) return real;
-  // Node/SSR: nothing durable exists, so a memory map keeps the flow working there.
+  if (real) return { store: real, durable: true };
   fallback ??= memoryStorage();
-  return fallback;
+  return { store: fallback, durable: false };
 }
 
 export function __setDeletionOpMemoStorageForTests(next: DeletionOpMemoStorage | null): void {
   override = next;
   fallback = null;
+}
+
+/** `work`, or `fallback` when it fails or does not settle within MEMO_IO_TIMEOUT_MS. */
+function bounded<T>(work: () => Promise<T>, fallbackValue: T): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<T>((resolve) => {
+    timer = setTimeout(() => resolve(fallbackValue), MEMO_IO_TIMEOUT_MS);
+  });
+  let running: Promise<T>;
+  try {
+    running = work().catch(() => fallbackValue);
+  } catch {
+    running = Promise.resolve(fallbackValue);
+  }
+  return Promise.race([running, deadline]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  });
 }
 
 function parseMemo(raw: string | null): DeletionOpMemo | null {
@@ -168,56 +208,60 @@ function parseMemo(raw: string | null): DeletionOpMemo | null {
   return null;
 }
 
-/** Write one memo and read it back. False when it is not durably there. */
+/**
+ * Write one memo and read it back. False when it is not durably there: the
+ * write or the read-back failed or timed out, or only the in-memory fallback
+ * exists (the memo is still written there for this runtime).
+ */
 export async function writeDeletionOpMemo(memo: DeletionOpMemo): Promise<boolean> {
   const key = deletionOpMemoKey(memo.owner, memo.opId);
   const raw = JSON.stringify(memo);
-  try {
-    const store = storage();
+  const { store, durable } = storage();
+  const readBack = await bounded(async () => {
     await store.setItem(key, raw);
     return (await store.getItem(key)) === raw;
-  } catch {
-    return false;
-  }
+  }, false);
+  return readBack && durable;
 }
 
 export async function readDeletionOpMemo(owner: string, opId: string | null): Promise<DeletionOpMemo | null> {
-  try {
-    return parseMemo(await storage().getItem(deletionOpMemoKey(owner, opId)));
-  } catch {
-    return null;
-  }
+  const { store } = storage();
+  return bounded(async () => parseMemo(await store.getItem(deletionOpMemoKey(owner, opId))), null);
 }
 
 /** Best effort: a memo that cannot be removed is asked about again later, which is safe. */
 export async function clearDeletionOpMemo(owner: string, opId: string | null): Promise<void> {
-  try {
-    await storage().removeItem(deletionOpMemoKey(owner, opId));
-  } catch {
-    // Left for the next resolve pass.
-  }
+  const { store } = storage();
+  await bounded(async () => {
+    await store.removeItem(deletionOpMemoKey(owner, opId));
+  }, undefined);
 }
 
-/** Every readable memo on this device, oldest first. Unreadable entries are skipped. */
-export async function listDeletionOpMemos(owner?: string): Promise<DeletionOpMemo[]> {
-  let keys: string[];
-  try {
-    keys = (await storage().keys()).filter((key) => key.startsWith(DELETION_OP_KEY_PREFIX));
-  } catch {
-    return [];
-  }
+/**
+ * Every readable memo on this device, oldest first, or null when the memo
+ * storage itself could not be listed (failed or timed out). Unreadable entries
+ * are skipped. A caller that must not act on "no earlier request" when it simply
+ * could not look uses this form (gate SAFE-01).
+ */
+export async function readDeletionOpMemos(owner?: string): Promise<DeletionOpMemo[] | null> {
+  const { store } = storage();
+  const keys = await bounded<string[] | null>(
+    async () => (await store.keys()).filter((key) => key.startsWith(DELETION_OP_KEY_PREFIX)),
+    null,
+  );
+  if (keys === null) return null;
   const memos: DeletionOpMemo[] = [];
   for (const key of keys) {
-    let memo: DeletionOpMemo | null = null;
-    try {
-      memo = parseMemo(await storage().getItem(key));
-    } catch {
-      memo = null;
-    }
+    const memo = await bounded(async () => parseMemo(await store.getItem(key)), null);
     // A memo must sit under its own key; anything else is ignored rather than trusted.
     if (memo && deletionOpMemoKey(memo.owner, memo.opId) === key && (owner === undefined || memo.owner === owner)) {
       memos.push(memo);
     }
   }
   return memos.sort((a, b) => a.at - b.at);
+}
+
+/** Every readable memo on this device, oldest first. Nothing readable is an empty list. */
+export async function listDeletionOpMemos(owner?: string): Promise<DeletionOpMemo[]> {
+  return (await readDeletionOpMemos(owner)) ?? [];
 }

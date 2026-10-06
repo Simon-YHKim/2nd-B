@@ -13,7 +13,7 @@ import { purgeGithubUsernameForDeletedAccount } from "../projects/github-link";
 import { purgeAutoReasoningForDeletedAccount } from "../reasoning/auto-pref";
 import { purgeWikiAutoPromoteForDeletedAccount } from "../wiki/auto-promote";
 import type { LocalPurgeOutcome } from "./deletion-completion";
-import { installAccountLocalDeletionFence } from "./local-deletion-fence";
+import { installAccountLocalDeletionFence, readAccountLocalDeletionFence } from "./local-deletion-fence";
 
 export const LOCAL_PURGE_TIMEOUT_MS = 5_000;
 
@@ -35,7 +35,13 @@ export async function purgeDeletedAccountLocalData(userId: string): Promise<Loca
     timeoutId = setTimeout(() => resolve("unconfirmed"), LOCAL_PURGE_TIMEOUT_MS);
   });
   const purge = (async (): Promise<LocalPurgeOutcome> => {
-    const fenceAcknowledged = await installAccountLocalDeletionFence(owner);
+    // A browser without Web Locks persists the marker but cannot join a write
+    // already running in another tab, so the pass that lays it reports
+    // unconfirmed. A later pass that finds the marker already laid wipes again
+    // after any such write has landed, and that pass may confirm
+    // (설계서 5.1 W2 "다음 실행에서 한 번 더", gate SAFE-03).
+    const laidByEarlierPass = (await readAccountLocalDeletionFence(owner)) === true;
+    const fenceAcknowledged = (await installAccountLocalDeletionFence(owner)) || laidByEarlierPass;
     const results = await Promise.all([
       observe(() => purgeAvatarPaletteItemsForDeletedAccount(owner)),
       observe(() => purgeCaptureDraftsForDeletedAccount(owner)),

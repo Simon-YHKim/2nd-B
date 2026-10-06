@@ -402,6 +402,70 @@ describe("requestAccountDeletion (terminal erasure, 0217 begin -> execute)", () 
     expect(memos().map((memo) => memo.opId)).toEqual([receipt.opId]);
   });
 
+  // Gate SAFE-01 / DLR-A1-05: an earlier request that is still open or unknown
+  // must not be followed by a second request number (I2, I5).
+  test.each([
+    ["accepted", { status: "known", op: "accepted", receipt: null }],
+    ["executing", { status: "known", op: "executing", receipt: null }],
+    ["unreachable", { status: "unavailable" }],
+    ["unknown to the server within its retention", { status: "not-found" }],
+  ])("an earlier request that is %s stops the call before a new begin", async (_label, answer) => {
+    const earlier = "0b7c2a7e-1d1f-4d3a-9a51-6f2f0c4d9e11";
+    memory.set(`account.deletionOp.v1:u1:${earlier}`, JSON.stringify({
+      v: 1, phase: "armed", owner: "u1", opId: earlier, token: TOKEN, at: Date.now() - 60_000,
+    }));
+    receiptMock.__opStatus.mockResolvedValueOnce(answer);
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeInstanceOf(AccountDeletionUnconfirmedError);
+    expect(clientMock.__invoke).not.toHaveBeenCalled();
+    expect(memos()).toEqual([expect.objectContaining({ phase: "armed", opId: earlier, token: TOKEN })]);
+  });
+
+  test("a request the server no longer knows after its 30-day retention is forgotten", async () => {
+    const earlier = "0b7c2a7e-1d1f-4d3a-9a51-6f2f0c4d9e11";
+    memory.set(`account.deletionOp.v1:u1:${earlier}`, JSON.stringify({
+      v: 1, phase: "armed", owner: "u1", opId: earlier, token: TOKEN, at: Date.now() - 31 * 24 * 60 * 60_000,
+    }));
+    receiptMock.__opStatus.mockResolvedValueOnce({ status: "not-found" });
+    const receipt = await requestAccountDeletion(EXPECTED);
+    expect(receipt.opId).not.toBe(earlier);
+    expect(memos().map((memo) => memo.opId)).toEqual([receipt.opId]);
+  });
+
+  test("questions about earlier requests are bounded by what is left of the deadline", async () => {
+    let now = 1_000;
+    const nowSpy = jest.spyOn(Date, "now").mockImplementation(() => now);
+    try {
+      const ids = ["0b7c2a7e-1d1f-4d3a-9a51-6f2f0c4d9e11", "0b7c2a7e-1d1f-4d3a-9a51-6f2f0c4d9e12"];
+      ids.forEach((id, index) => memory.set(`account.deletionOp.v1:u1:${id}`, JSON.stringify({
+        v: 1, phase: "armed", owner: "u1", opId: id, token: TOKEN, at: index + 1,
+      })));
+      receiptMock.__opStatus.mockImplementationOnce(async () => {
+        now += ACCOUNT_DELETION_DEADLINE_MS; // the first answer arrives only at the deadline
+        return { status: "known", op: "failed", receipt: null };
+      });
+      await expect(requestAccountDeletion(EXPECTED)).rejects.toBeInstanceOf(AccountDeletionUnconfirmedError);
+      // The first question had at most the per-call bound; the second was never asked.
+      expect(receiptMock.__opStatus).toHaveBeenCalledTimes(1);
+      expect(receiptMock.__opStatus.mock.calls[0][1]).toEqual({ timeoutMs: expect.any(Number) });
+      expect(receiptMock.__opStatus.mock.calls[0][1].timeoutMs).toBeLessThanOrEqual(8_000);
+      expect(clientMock.__invoke).not.toHaveBeenCalled();
+      expect(memos().map((memo) => memo.opId)).toEqual([ids[1]]);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  test("a memo store that cannot be listed sends nothing", async () => {
+    __setDeletionOpMemoStorageForTests({
+      getItem: async () => null,
+      setItem: async () => undefined,
+      removeItem: async () => undefined,
+      keys: async () => { throw new Error("storage blocked"); },
+    });
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toThrow("could not be read");
+    expect(clientMock.__invoke).not.toHaveBeenCalled();
+  });
+
   test("recovers 409 cleanup progress and retries the same op with a newly bound token", async () => {
     clientMock.__refreshSession
       .mockResolvedValueOnce({
