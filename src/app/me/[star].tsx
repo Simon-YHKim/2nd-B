@@ -11,11 +11,12 @@
 // 아직 살지 않은 시기(스물다섯 살의 "30대 이후")는 **잠긴다.** 살지 않은 때를
 // 물어보는 것은 지어내라는 말이다.
 import { useCallback, useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, useFocusEffect } from "expo-router";
 import Svg from "react-native-svg";
 
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { AvatarPreview } from "@/components/avatar/AvatarPreview";
 import { Text } from "@/components/ui/Text";
@@ -163,13 +164,14 @@ export default function StarSummaryRoute() {
     : "";
   const profileName = profile.status === "ready" ? profile.name?.trim() : "";
   const profileParts = profile.status === "ready" ? profileSummaryParts(profile.details) : [];
-  const profileLine = profile.status === "loading"
-    ? t("ds.star.loading")
+  // 요약은 한 줄에 한 조각, 최대 세 줄. 읽기 실패면 아무것도 쓰지 않는다.
+  const profileLines = profile.status === "loading"
+    ? [t("ds.star.loading")]
     : profile.status === "error"
-      ? ""
+      ? []
       : profileParts.length > 0
-        ? profileParts.map((part) => "text" in part ? part.text : t(`deepspace:profileDetails.${part.labelKey}`)).join(" · ")
-        : t("ds.star.profileEmpty");
+        ? profileParts.map((part) => "text" in part ? part.text : t(`deepspace:profileDetails.${part.labelKey}`))
+        : [t("ds.star.profileEmpty")];
   const profileCta = profile.status === "ready"
     ? t(countFilledDetails(profile.details) > 0 ? "ds.star.editProfile" : "ds.star.setupProfile")
     : t("ds.star.openProfile");
@@ -180,25 +182,51 @@ export default function StarSummaryRoute() {
         {/* 레퍼런스는 별 이름 위에 화면 이름을 둔다 — 어느 별에 있든 "여기가 요약
             자리"라는 것이 먼저 읽혀야 하기 때문이다(design/pixel_clay_260825
             captures/me-star.png). */}
-        <Text style={[m3TextStyle("labelMedium"), styles.pageLabel]}>{t("ds.star.pageLabel")}</Text>
-        <View style={styles.hero}>
-          {isProfileStar ? (
-            <AvatarPreview spec={profile.status === "ready" ? profile.avatar ?? DEFAULT_AVATAR_SPEC : DEFAULT_AVATAR_SPEC} size={80} crop />
-          ) : (
-            <Svg width={52} height={52} viewBox="0 0 52 52">
-              <PixelStarSvg cx={26} cy={26} r={12} fill={m3.color.primary} />
-            </Svg>
-          )}
-          <View style={styles.heroCopy}>
-            <Text style={[m3TextStyle("headlineSmall"), styles.title]}>{isProfileStar && profileName ? profileName : name}</Text>
-            {range.length > 0 ? (
-              <Text style={[m3TextStyle("bodyMedium"), styles.range]}>{range}</Text>
+        {isProfileStar ? (
+          // 프로필 별(Simon 2026-10-07): 왼쪽 위 제목, 오른쪽 위 연필(설정/수정),
+          // 첫째 줄 큰 아바타, 둘째 줄 요약 세 줄.
+          <>
+            <View style={styles.profileHeader}>
+              <Text style={[m3TextStyle("headlineSmall"), styles.title, styles.profileTitle]}>{name}</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={profileCta}
+                onPress={() => router.push("/profile-details")}
+                style={styles.editButton}
+              >
+                <PixelGlyph name="edit" size={24} color={m3.color.primary} />
+              </Pressable>
+            </View>
+            <View style={styles.profileAvatarRow}>
+              <AvatarPreview spec={profile.status === "ready" ? profile.avatar ?? DEFAULT_AVATAR_SPEC : DEFAULT_AVATAR_SPEC} size={192} />
+              {profileName ? <Text style={[m3TextStyle("titleMedium"), styles.title]}>{profileName}</Text> : null}
+            </View>
+            {profileLines.length > 0 ? (
+              <MdCard variant="outlined" style={styles.card}>
+                {profileLines.map((line, index) => (
+                  <Text key={index} numberOfLines={1} style={[m3TextStyle("bodyMedium"), profileParts.length > 0 ? styles.line : styles.muted]}>
+                    {line}
+                  </Text>
+                ))}
+              </MdCard>
             ) : null}
-            {isProfileStar && profileLine.length > 0 ? (
-              <Text style={[m3TextStyle("bodyMedium"), styles.range]}>{profileLine}</Text>
-            ) : null}
-          </View>
-        </View>
+          </>
+        ) : (
+          <>
+            <Text style={[m3TextStyle("labelMedium"), styles.pageLabel]}>{t("ds.star.pageLabel")}</Text>
+            <View style={styles.hero}>
+              <Svg width={52} height={52} viewBox="0 0 52 52">
+                <PixelStarSvg cx={26} cy={26} r={12} fill={m3.color.primary} />
+              </Svg>
+              <View style={styles.heroCopy}>
+                <Text style={[m3TextStyle("headlineSmall"), styles.title]}>{name}</Text>
+                {range.length > 0 ? (
+                  <Text style={[m3TextStyle("bodyMedium"), styles.range]}>{range}</Text>
+                ) : null}
+              </View>
+            </View>
+          </>
+        )}
 
         {locked ? (
           // 아직 오지 않은 시기. 들어가지 못하게 하고 이유를 말한다.
@@ -206,13 +234,16 @@ export default function StarSummaryRoute() {
             <Text style={[m3TextStyle("bodyMedium"), styles.muted]}>{t("ds.star.lockedBody")}</Text>
           </MdCard>
         ) : meta.period === null ? (
-          // 프로필 — 인터뷰가 아니라 항목을 채우는 자리다. 아바타 꾸미기는 /profile 에 있다.
-          <MdButton
-            label={profileCta}
-            variant="filled"
-            onPress={() => router.push("/profile-details")}
-            style={styles.cta}
-          />
+          // 프로필 — 인터뷰가 아니라 항목을 채우는 자리다. 수정은 위 연필이 한다. 아직 아무것도
+          // 채우지 않았으면 설정 버튼을 한 번 더 크게 둔다(Simon 2026-10-06 "없으면 설정").
+          profile.status === "ready" && countFilledDetails(profile.details) === 0 ? (
+            <MdButton
+              label={t("ds.star.setupProfile")}
+              variant="filled"
+              onPress={() => router.push("/profile-details")}
+              style={styles.cta}
+            />
+          ) : null
         ) : (
           <>
             {entry?.kind === "previous" ? (
@@ -315,6 +346,10 @@ const styles = StyleSheet.create({
   pageLabel: { color: m3.color.onSurfaceVariant, marginBottom: spacing.xs },
   sectionLabel: { color: m3.color.onSurfaceVariant, marginTop: spacing.sm },
   hero: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  profileHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  profileTitle: { flex: 1 },
+  editButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  profileAvatarRow: { alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
   heroCopy: { flex: 1 },
   title: { color: m3.color.onSurface },
   range: { color: m3.color.onSurfaceVariant, marginBottom: spacing.sm },

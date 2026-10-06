@@ -19,6 +19,9 @@ describe("/profile-details PIXEL-CLAY contract", () => {
 
     // profilesetup의 목업 계정·아바타·고정 3/4를 이 편집 화면에 복제하지 않는다.
     expect(source).not.toContain("SecondbHead");
+    // 실제 저장된 아바타 초상화와 스튜디오 진입은 있다(Simon 2026-10-07).
+    expect(source).toContain("<AvatarPreview spec={avatar.spec} size={128} />");
+    expect(source).toContain('onPress={() => router.push("/avatar-studio")}');
     expect(source).not.toContain("localStorage");
     expect(source).not.toContain("3 / 4");
   });
