@@ -248,6 +248,10 @@ export default function AvatarStudioScreen() {
     return t(`avatar:items.${choice.category}.${choice.item.id}`);
   }, [spec.job, spec.type, t]);
 
+  // 미리보기 칸 폭을 재서 아바타를 칸의 절반으로 그린다(Simon 2026-10-07).
+  const [previewWidth, setPreviewWidth] = useState(0);
+  const avatarSize = previewWidth > 0 ? Math.floor(previewWidth / 2) : 0;
+
   const renderChoice = useCallback(({ item }: { item: Choice }) => {
     const selected = isSelected(item);
     const label = choiceLabel(item);
@@ -271,7 +275,6 @@ export default function AvatarStudioScreen() {
         ) : (
           <View style={styles.thumbnail} />
         )}
-        {item.kind === "catalog" ? <Text style={styles.sampleBadge}>{t("avatar:sample")}</Text> : null}
         <Text numberOfLines={2} style={[styles.choiceLabel, selected && styles.selectedText]}>{label}</Text>
       </PixelPressable>
     );
@@ -311,42 +314,50 @@ export default function AvatarStudioScreen() {
   return frame(
     <View style={styles.screen}>
       {setupMode ? <Text style={styles.setupHint}>{t("avatar:setupRequiredHint")}</Text> : null}
+      {/* 미리보기 칸(Simon 2026-10-07): 왼쪽 절반 = 아바타와 그 아래 '현재 아바타', 오른쪽 절반 = 종류 버튼. */}
       <PixelSurface variant="inset" style={styles.previewFrame} contentStyle={styles.previewContent}>
-        <AvatarPreview spec={spec} size={128} />
-        <View style={styles.previewCopy}>
-          <Text style={styles.previewTitle}>{t("avatar:preview")}</Text>
-          <Text style={styles.previewHint}>{t("avatar:previewHint")}</Text>
+        <View
+          style={styles.previewRow}
+          onLayout={({ nativeEvent }) => {
+            const next = Math.floor(nativeEvent.layout.width);
+            setPreviewWidth((current) => (current === next ? current : next));
+          }}
+        >
+          <View style={[styles.previewAvatar, { width: avatarSize }]}>
+            {avatarSize > 0 ? <AvatarPreview spec={spec} size={avatarSize} /> : null}
+            <Text style={styles.previewTitle}>{t("avatar:preview")}</Text>
+          </View>
+          <View style={styles.typeColumn}>
+            <Text style={styles.sectionLabel}>{t("avatar:selectType")}</Text>
+            {(["human", "animal"] as const).map((type) => (
+              <PixelPressable
+                key={type}
+                variant={spec.type === type ? "inset" : "bevel"}
+                onPress={() => {
+                  if (type === "animal") {
+                    // The selected outfit belongs to both forms. A human job
+                    // uniform becomes dormant while the animal form is shown.
+                    patch({ type });
+                    setCategory("animal");
+                    setColorField("fur");
+                  } else {
+                    patch({ type });
+                    setCategory("hair");
+                    setColorField("skin");
+                  }
+                }}
+                disabled={saving}
+                accessibilityLabel={t(`avatar:${type}`)}
+                accessibilityState={{ selected: spec.type === type }}
+                fullWidth
+                contentStyle={styles.typeContent}
+              >
+                <Text style={[styles.typeText, spec.type === type && styles.selectedText]}>{t(`avatar:${type}`)}</Text>
+              </PixelPressable>
+            ))}
+          </View>
         </View>
       </PixelSurface>
-
-      <View style={styles.typeRow}>
-        <Text style={styles.sectionLabel}>{t("avatar:selectType")}</Text>
-        {(["human", "animal"] as const).map((type) => (
-          <PixelPressable
-            key={type}
-            variant={spec.type === type ? "inset" : "bevel"}
-            onPress={() => {
-              if (type === "animal") {
-                // The selected outfit belongs to both forms. A human job
-                // uniform becomes dormant while the animal form is shown.
-                patch({ type });
-                setCategory("animal");
-                setColorField("fur");
-              } else {
-                patch({ type });
-                setCategory("hair");
-                setColorField("skin");
-              }
-            }}
-            disabled={saving}
-            accessibilityLabel={t(`avatar:${type}`)}
-            accessibilityState={{ selected: spec.type === type }}
-            contentStyle={styles.typeContent}
-          >
-            <Text style={[styles.tabText, spec.type === type && styles.selectedText]}>{t(`avatar:${type}`)}</Text>
-          </PixelPressable>
-        ))}
-      </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabStrip} contentContainerStyle={styles.categoryRow}>
         {visibleCategories.map((entry) => (
@@ -388,13 +399,14 @@ export default function AvatarStudioScreen() {
         </ScrollView>
       ) : null}
 
-      <Text style={styles.categoryHint}>
-        {activeCategory === "job" ? t("avatar:jobHint") :
-          spec.type === "animal" ? t("avatar:animalHint") :
-            activeCategory === "garment" ? t("avatar:garmentHint") :
-              t("avatar:choiceCount", { count: choices.length })}
-      </Text>
-      <Text style={styles.sampleHint}>{t("avatar:sampleHint")}</Text>
+      {/* 선택지 수 · 예시 안내 줄은 Simon 이 걷었다(2026-10-07). 칸에 따라 꼭 필요한 안내만 남긴다. */}
+      {activeCategory === "job" || spec.type === "animal" || activeCategory === "garment" ? (
+        <Text style={styles.categoryHint}>
+          {activeCategory === "job" ? t("avatar:jobHint") :
+            spec.type === "animal" ? t("avatar:animalHint") :
+              t("avatar:garmentHint")}
+        </Text>
+      ) : null}
       {isAvatarAccessoryOccluded(spec) ? (
         <Text accessibilityRole="alert" style={styles.occludedHint}>{t("avatar:occludedHint")}</Text>
       ) : null}
@@ -449,13 +461,14 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: m3.spacing.s4, padding: m3.spacing.s6 },
   previewFrame: { alignSelf: "stretch" },
   setupHint: { color: m3.color.onSurface, fontSize: m3.type.bodyMedium.size, lineHeight: m3.type.bodyMedium.line, paddingBottom: m3.spacing.s1 },
-  previewContent: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s4, padding: m3.spacing.s2 },
-  previewCopy: { flex: 1, gap: m3.spacing.s2 },
-  previewTitle: { color: m3.color.onSurface, fontSize: m3.type.titleMedium.size, lineHeight: m3.type.titleMedium.line, paddingBottom: m3.spacing.s1 },
-  previewHint: { color: m3.color.onSurfaceVariant, fontSize: m3.type.bodySmall.size, lineHeight: m3.type.bodySmall.line, paddingBottom: m3.spacing.s1 },
-  typeRow: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s2 },
-  sectionLabel: { color: m3.color.onSurfaceVariant, fontSize: m3.type.labelMedium.size, lineHeight: m3.type.labelMedium.line, paddingBottom: m3.spacing.s1, marginRight: m3.spacing.s2 },
-  typeContent: { minHeight: m3.minTouch, minWidth: m3.minTouch + m3.spacing.s8, alignItems: "center", paddingHorizontal: m3.spacing.s3 },
+  previewContent: { padding: m3.spacing.s3 },
+  previewRow: { flexDirection: "row", alignItems: "center" },
+  previewAvatar: { alignItems: "center", gap: m3.spacing.s1 },
+  previewTitle: { color: m3.color.onSurface, fontSize: m3.type.titleSmall.size, lineHeight: m3.type.titleSmall.line, paddingBottom: m3.spacing.s1, textAlign: "center" },
+  typeColumn: { flex: 1, gap: m3.spacing.s2, paddingLeft: m3.spacing.s3 },
+  sectionLabel: { color: m3.color.onSurfaceVariant, fontSize: m3.type.labelLarge.size, lineHeight: m3.type.labelLarge.line, paddingBottom: m3.spacing.s1 },
+  typeContent: { minHeight: m3.minTouch + m3.spacing.s2, alignItems: "center", justifyContent: "center", paddingHorizontal: m3.spacing.s3 },
+  typeText: { color: m3.color.onSurface, fontSize: m3.type.titleSmall.size, lineHeight: m3.type.titleSmall.line, paddingBottom: m3.spacing.s1 },
   // D-08: a horizontal ScrollView inside a height-bounded column shrinks when the
   // FlatList below overflows (Android measured 28.6dp of the 64dp row). Hold its
   // own height so the tabs and their touch targets stay whole.
@@ -463,20 +476,19 @@ const styles = StyleSheet.create({
   categoryRow: { flexDirection: "row", gap: m3.spacing.s2, paddingVertical: m3.spacing.s2 },
   colorFieldRow: { flexDirection: "row", gap: m3.spacing.s2, paddingVertical: m3.spacing.s1 },
   tabContent: { minHeight: m3.minTouch, alignItems: "center", paddingHorizontal: m3.spacing.s3 },
-  tabText: { color: m3.color.onSurface, fontSize: m3.type.labelMedium.size, lineHeight: m3.type.labelMedium.line, paddingBottom: m3.spacing.s1 },
+  tabText: { color: m3.color.onSurface, fontSize: m3.type.labelLarge.size, lineHeight: m3.type.labelLarge.line, paddingBottom: m3.spacing.s1 },
   selectedText: { color: m3.color.primary },
   categoryHint: { color: m3.color.onSurfaceVariant, fontSize: m3.type.bodySmall.size, lineHeight: m3.type.bodySmall.line, paddingBottom: m3.spacing.s1 },
   listContent: { paddingBottom: m3.spacing.s4, gap: m3.spacing.s3 },
   choiceRow: { justifyContent: "space-between", gap: m3.spacing.s2 },
   choiceSlot: { width: "32%" },
   choiceCard: { flex: 1 },
-  choiceContent: { minHeight: 120, alignItems: "center", justifyContent: "center", gap: m3.spacing.s1, padding: m3.spacing.s2 },
-  thumbnail: { width: 64, height: 64 },
-  swatch: { width: 48, height: 48 },
-  sampleBadge: { color: m3.color.onSurfaceVariant, fontSize: m3.type.bodySmall.size, lineHeight: m3.type.bodySmall.line, paddingBottom: m3.spacing.s1 },
-  sampleHint: { color: m3.color.onSurfaceVariant, fontSize: m3.type.bodySmall.size, lineHeight: m3.type.bodySmall.line, paddingBottom: m3.spacing.s1 },
+  // '예시' 줄이 빠진 자리를 그림이 쓴다: 썸네일 64 -> 80, 색 견본 48 -> 56(원본 PNG 는 512px).
+  choiceContent: { minHeight: 124, alignItems: "center", justifyContent: "center", gap: m3.spacing.s1, padding: m3.spacing.s2 },
+  thumbnail: { width: 80, height: 80 },
+  swatch: { width: 56, height: 56 },
   occludedHint: { color: m3.color.tertiary, fontSize: m3.type.bodySmall.size, lineHeight: m3.type.bodySmall.line, paddingBottom: m3.spacing.s1 },
-  choiceLabel: { color: m3.color.onSurface, textAlign: "center", fontSize: m3.type.bodySmall.size, lineHeight: m3.type.bodySmall.line, paddingBottom: m3.spacing.s1 },
+  choiceLabel: { color: m3.color.onSurface, textAlign: "center", fontSize: m3.type.bodyMedium.size, lineHeight: m3.type.bodyMedium.line, paddingBottom: m3.spacing.s1 },
   footer: { gap: m3.spacing.s2 },
   saveContent: { minHeight: m3.minTouch, alignItems: "center", paddingVertical: m3.spacing.s2 },
   saveText: { color: m3.color.onSurface, fontSize: m3.type.labelLarge.size, lineHeight: m3.type.labelLarge.line, paddingBottom: m3.spacing.s1 },
