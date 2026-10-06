@@ -10,6 +10,8 @@
 //      explicitly assigns its seat. Since T1 stage A (2026-08-31) an unset
 //      backbone resolves "openai", not "gemini"; explicit "gemini" is still
 //      accepted (one-variable rollback), and this file proves both.
+//      S0.5 (2026-10-07) deleted cluster_infer itself (no call site ever
+//      existed); the trap is now shown with advisor, the pro-tier seat.
 //   2. sub-brain pro->flash pin: reasoning_connect is pro-for-EVERY-tier by
 //      design (weekly-ledger-bounded); the gemini-proxy tier pin must exempt
 //      it or the SERVED model becomes tier-keyed (SAME-QUALITY violation,
@@ -85,14 +87,24 @@ describe("reasoning_connect follows the backbone switch, never the seat switch",
     });
   });
 
-  test("the trap is real: cluster_infer IS a Phase-2 seat that leaves Gemini", () => {
-    withEnv("EXPO_PUBLIC_LLM_VENDOR", undefined, () => {
-      withEnv("EXPO_PUBLIC_LLM_PHASE", "2", () => {
-        const seat = resolveVendorForPurpose("cluster_infer", false);
-        expect(seat).toBe(PHASE2_VENDOR.cluster_infer);
-        expect(seat).not.toBe("gemini");
+  test("the trap is real: a pro-tier Phase-2 seat (advisor) leaves the backbone", () => {
+    // advisor replaces cluster_infer (removed in S0.5) as the seat a "convenient"
+    // reuse would hand the deep run to: same pro tier as reasoning_connect, but
+    // it reads the seat map. Backbone pinned to gemini so the two can only agree
+    // if the deep run had started following the seat switch.
+    expect(PURPOSE_TIER.advisor).toBe(PURPOSE_TIER.reasoning_connect);
+    withEnv("EXPO_PUBLIC_BACKBONE_VENDOR", "gemini", () => {
+      withEnv("EXPO_PUBLIC_LLM_VENDOR", undefined, () => {
+        withEnv("EXPO_PUBLIC_LLM_PHASE", "2", () => {
+          const seat = resolveVendorForPurpose("advisor", false);
+          expect(seat).toBe(PHASE2_VENDOR.advisor);
+          expect(seat).not.toBe("gemini");
+          expect(resolveVendorForPurpose("reasoning_connect", false)).toBe("gemini");
+        });
       });
     });
+    // and the seat this file used to name is gone, not merely unused
+    expect(Object.prototype.hasOwnProperty.call(PHASE2_VENDOR, "cluster_infer")).toBe(false);
   });
 
   test("PURPOSE_TIER keeps the deep run on the pro tier", () => {

@@ -1,5 +1,5 @@
 // OpenAI proxy Edge Function -- the OpenAI backend for D-26 Phase 2
-// purpose-keyed vendor routing (seat: cluster_infer on gpt-5.4, plus the
+// purpose-keyed vendor routing (the reasoning seats routed here, plus the
 // safety_classify outage-fallback seat on gpt-5.4-nano).
 //
 // Fork of claude-proxy -- the security boundary mirrors gemini-proxy 1:1: same
@@ -146,7 +146,7 @@ function base64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
-// D-26 default seat: gpt-5.4 (value frontier -- the cluster_infer seat).
+// D-26 default seat: gpt-5.4 (value frontier).
 const DEFAULT_OPENAI_MODEL = 'gpt-5.4';
 
 // D-26 Phase 2 OpenAI seats (server-owned routing). This is ALSO the purpose
@@ -154,14 +154,10 @@ const DEFAULT_OPENAI_MODEL = 'gpt-5.4';
 // reasoning seam), openai-proxy has exactly these seats; any other purpose is
 // rejected 400 before any paid call, so the function never becomes an
 // arbitrary-purpose gpt-5.4 spend surface for tampered clients.
-//   cluster_infer   -- record clustering / edge inference with why-sentences
-//                     (batchable; kNN pre-filter upstream). NOT YET WIRED in
-//                     the client (gap purpose -- lands with the cluster lane).
 //   safety_classify -- OUTAGE-ONLY cross-vendor fallback for the Gemini safety
 //                     chain (cheap nano, reasoning_effort none). NOT YET WIRED
 //                     in the client (D-26 backlog #1).
 const PURPOSE_MODEL: Record<string, string> = {
-  cluster_infer: 'gpt-5.4',
   safety_classify: 'gpt-5.4-nano',
   // Backbone seats (EXPO_PUBLIC_BACKBONE_VENDOR, REQ-260821-01). These nine
   // purposes had no proxy seat anywhere but gemini-proxy, so the Gemini exit
@@ -175,33 +171,26 @@ const PURPOSE_MODEL: Record<string, string> = {
   // "to be safe" would be the single most expensive mistake available in this
   // file, which is why the tier is copied from an existing decision rather
   // than chosen fresh here.
-  capture_classify: 'gpt-5.4-nano',
   clipper_classify: 'gpt-5.4-nano',
   audit_qa: 'gpt-5.4-mini',
   source_ingest: 'gpt-5.4-mini',
-  import_ingest: 'gpt-5.4-mini',
   clipper_template_propose: 'gpt-5.4-mini',
   interview_probe: 'gpt-5.4-mini',
   // pro tier in PURPOSE_TIER: the deep-run connection rationale and the
   // 공상 -> 구체화 surface. Both are user-visible reasoning, both are rare.
   reasoning_connect: 'gpt-5.4',
-  imagine: 'gpt-5.4',
   // Phase-2 reasoning seats re-routed from Claude on 2026-07-06 (Anthropic
   // credit balance exhausted; Simon chose the OpenAI backend). The nine live
-  // client reasoning purposes, all on the gpt-5.4 frontier; the inert proto-rev2
-  // seats (digest_weekly/ttfv_first_insight) share it. The shared policy holds
+  // client reasoning purposes, all on the gpt-5.4 frontier. The shared policy holds
   // Advisor to the brain tier regardless of vendor.
   advisor: 'gpt-5.4',
   persona_narrative: 'gpt-5.4',
   gap_synthesize: 'gpt-5.4',
   self_model_propose: 'gpt-5.4',
   northstar_propose: 'gpt-5.4',
-  axis_estimate: 'gpt-5.4',
   persona_synthesis: 'gpt-5.4',
   ops_recommend: 'gpt-5.4',
   ops_daily_brief: 'gpt-5.4',
-  digest_weekly: 'gpt-5.4',
-  ttfv_first_insight: 'gpt-5.4',
   // secondb_chat (Simon, 2026-08-18): chat moves off the Gemini backbone to
   // OpenAI. Unlike the seats above this is NOT a reasoning seat -- it is the
   // app's highest-volume conversational surface, so cost is controlled by the
@@ -225,17 +214,7 @@ const PURPOSE_MODEL: Record<string, string> = {
 // seat whose model id is never sent would be promoted forever to no effect.
 // The model that actually serves it is transcribeModel().
 //
-// The label is the WIRE one. transcribeAudio sends 'voice_transcribe'; the
-// routing module calls the same feature 'capture_voice'. Matching the routing
-// name here would 400 every voice memo with purpose_not_seated.
-// The adversarial challenger (REQ-260823-03). Seated for the allowlist but kept
-// OUT of PURPOSE_MODEL on purpose, the same way voice_transcribe is: that table
-// doubles as the nightly refresher's frontier seat list, so a row there would
-// be overwritten with the terra model on the next promotion and the challenger
-// would quietly stop being sol. Its model comes from OPENAI_CROSSCHECK_MODEL,
-// which refresh-models writes from the openai-sol seat.
-const CROSSCHECK_PURPOSES = new Set(['crosscheck_challenge']);
-const DEFAULT_CROSSCHECK_MODEL = 'gpt-5.4';
+// The label is the WIRE one: transcribeAudio sends 'voice_transcribe'.
 
 function defaultModelForTier(tier: LlmPolicyModelTier): string {
   if (tier === 'lite') return 'gpt-5.4-nano';
@@ -263,10 +242,6 @@ function resolveModel(purpose: string, modelTier: LlmPolicyModelTier): string {
     }
   }
   if (candidate.length === 0) candidate = (Deno.env.get('OPENAI_MODEL') ?? '').trim();
-  if (candidate.length === 0 && CROSSCHECK_PURPOSES.has(purpose)) {
-    const sol = (Deno.env.get('OPENAI_CROSSCHECK_MODEL') ?? '').trim();
-    candidate = sol.length > 0 ? sol : DEFAULT_CROSSCHECK_MODEL;
-  }
   if (candidate.length === 0) candidate = PURPOSE_MODEL[purpose] ?? defaultModelForTier(modelTier);
   // Server overrides may refresh a generation within a cost family, but they
   // cannot silently promote a purpose across the canonical lite/flash/pro axis.
@@ -278,7 +253,6 @@ function resolveModel(purpose: string, modelTier: LlmPolicyModelTier): string {
 // applies the canonical purpose ceiling and this vendor's hard cap at high;
 // safety_classify pins to none (verdict: nano @ none).
 const PURPOSE_EFFORT_MAX: Record<string, string> = {
-  cluster_infer: 'medium',
   safety_classify: 'none',
   // Re-routed reasoning seats cap at high (gpt-5.4) so a client-reported effort
   // isn't silently downgraded; the shared daily spend cap still bounds cost.
@@ -287,12 +261,9 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   gap_synthesize: 'low',
   self_model_propose: 'high',
   northstar_propose: 'high',
-  axis_estimate: 'high',
   persona_synthesis: 'high',
   ops_recommend: 'medium',
   ops_daily_brief: 'medium',
-  digest_weekly: 'high',
-  ttfv_first_insight: 'high',
   // Chat is conversational, not deliberative, and it is the highest-volume
   // surface in the app. 'low' is the real cost lever here: the client already
   // asks for low (PHASE2_EFFORT), and this ceiling makes it a guarantee that a
@@ -305,16 +276,13 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   voice_transcribe: 'none',
   // The challenger reads a whole-corpus draft looking for what is wrong with
   // it. That is the one job here where reasoning is the product.
-  crosscheck_challenge: 'high',
   // Backbone ceilings (REQ-260821-01), mirroring PURPOSE_TIER's cost intent.
   // The two classifiers get 'none' for the same reason safety_classify does:
   // they run once per capture and once per clip, so they are the only rows
   // here where a wrong ceiling shows up as a bill rather than as latency.
-  capture_classify: 'none',
   clipper_classify: 'none',
   audit_qa: 'low',
   source_ingest: 'low',
-  import_ingest: 'low',
   clipper_template_propose: 'low',
   interview_probe: 'low',
   // V-5 (Simon, 2026-08-23): refused the reduction to medium, so these keep
@@ -322,7 +290,6 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   // client-side PHASE2_EFFORT must move together - a ceiling below the request
   // silently clamps and makes the decision a no-op.
   reasoning_connect: 'high',
-  imagine: 'high',
 };
 
 // Hard output ceilings per (clamped) effort -- max_completion_tokens includes

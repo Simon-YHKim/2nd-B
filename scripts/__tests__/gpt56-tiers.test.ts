@@ -13,6 +13,11 @@
 //   sol   = highest difficulty and cross-validation only
 //   luna  = never
 //
+// S0.5 (2026-10-07) deleted the cross-validation pipeline with its only,
+// unreachable caller, and the openai-sol seat with it. sol therefore has no
+// seat at all now: the "sol" describe below pins that it stays unreachable
+// (and out of the general seat) instead of pinning a seat that no longer exists.
+//
 // The luna ban is the assertion that matters most here, because it is the one
 // that cannot be walked back cheaply: a banned model reaching a general seat
 // is a cost and a policy event at once, and it would look like a normal
@@ -56,11 +61,12 @@ describe("luna is unreachable", () => {
     // ban is enforced by the allowlist naming one tier; the exclude is a
     // second layer, not the layer.
     expect(seat("openai-frontier").match.test("gpt-5.6-luna")).toBe(false);
-    expect(seat("openai-sol").match.test("gpt-5.6-luna")).toBe(false);
-    // And the name is still written into both excludes, so the ban does not
-    // rest on one regex character.
+    // And the name is still written into the exclude, so the ban does not
+    // rest on one regex character. (openai-sol carried the same pair until S0.5.)
     expect(seat("openai-frontier").exclude?.source).toContain("luna");
-    expect(seat("openai-sol").exclude?.source).toContain("luna");
+    for (const s of SEATS) {
+      if (s.vendor === "openai") expect(s.match.test("gpt-5.6-luna")).toBe(false);
+    }
   });
 });
 
@@ -96,34 +102,33 @@ describe("terra is the general default", () => {
   });
 });
 
-describe("sol is reachable, and only on its own seat", () => {
-  test("the sol seat selects the sol tier", () => {
-    expect(pickNewest(LISTING, seat("openai-sol"))).toBe("gpt-5.6-sol");
+describe("sol has no seat since S0.5, and stays out of general routing", () => {
+  test("the openai-sol seat is gone, from the seat list and the cost axes", () => {
+    expect(SEATS.find((x) => x.id === "openai-sol")).toBeUndefined();
+    expect(Object.values(COST_AXIS).flat()).not.toContain("openai-sol");
   });
 
-  test("it rejects the other tiers and the bare slug", () => {
-    const s = seat("openai-sol");
-    for (const other of ["gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.6", "gpt-5.5"]) {
-      expect(pickNewest([other], s)).toBeNull();
+  test("no seat selects the sol tier", () => {
+    for (const s of SEATS) {
+      expect(pickNewest(LISTING, s)).not.toBe("gpt-5.6-sol");
+      expect(pickNewest(["gpt-5.6-sol"], s)).toBeNull();
     }
   });
 
-  test("its model goes to a dedicated secret, NOT the purpose map", () => {
-    // This is what keeps sol out of general routing. The moment it lands in
-    // OPENAI_PURPOSE_MODELS it becomes reachable by purpose, which is exactly
-    // the placement Simon ruled out.
+  test("a stray sol decision writes no secret, and never the purpose map", () => {
+    // OPENAI_CROSSCHECK_MODEL was the dedicated name that kept sol out of
+    // OPENAI_PURPOSE_MODELS. With the seat gone nothing may write either: the
+    // moment sol lands in the purpose map it becomes reachable by purpose,
+    // which is exactly the placement Simon ruled out.
     const out = secretsFor([
       { seat: { id: "openai-sol" }, chosen: "gpt-5.6-sol" },
       { seat: { id: "openai-frontier" }, chosen: "gpt-5.6-terra" },
     ]);
-    expect(out).toContainEqual({ name: "OPENAI_CROSSCHECK_MODEL", value: "gpt-5.6-sol" });
+    expect(out.map((s) => s.name)).not.toContain("OPENAI_CROSSCHECK_MODEL");
+    expect(out.map((s) => s.value)).not.toContain("gpt-5.6-sol");
 
     const purposeMap = JSON.parse(out.find((s) => s.name === "OPENAI_PURPOSE_MODELS")!.value);
     expect(Object.values(purposeMap)).not.toContain("gpt-5.6-sol");
     for (const model of Object.values(purposeMap)) expect(model).toBe("gpt-5.6-terra");
-  });
-
-  test("it is on a cost axis, so it is not silently skipped", () => {
-    expect(COST_AXIS.deep).toContain("openai-sol");
   });
 });
