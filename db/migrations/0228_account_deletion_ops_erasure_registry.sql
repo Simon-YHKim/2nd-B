@@ -3,7 +3,7 @@
 -- owner_id 는 진행 중에만 계정 id 를 갖는 소유자 열이라 check:erasure-registry G1 이 분류를
 -- 요구한다. 분류는 retained: 콘텐츠 삭제(erase_my_data)는 이 표를 건드리지 않는다.
 -- 번호: 0217 은 코디네이터가 예약했다. 등록부 forward 파일은 생성 블록만 담아야 해서(G7)
--- 0217 안에 넣을 수 없고, 0218~0224 · 0230 은 다른 작업이 쓰고 있어 0228 을 썼다.
+-- 0217 안에 넣을 수 없고, 0218~0224 · 0229 · 0230 · 0231 은 다른 작업이 쓰고 있어 0228 을 썼다(사유 개정은 0227).
 -- 이 파일은 rollback/0189_down.sql 의 c_names 와 CI 왕복 단계의 목록에도 들어 있다.
 -- 아래 블록은 scripts/erasure-registry-forward.ts 의 renderRegistryAdditionsSql 출력 그대로다.
 -- <<< erasure-registry:additions from db/erasure-registry.json >>>

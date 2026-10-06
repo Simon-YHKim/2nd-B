@@ -1,10 +1,11 @@
--- 0229_account_deletion_tombstones_erasure_registry_reason.sql
+-- 0227_account_deletion_tombstones_erasure_registry_reason.sql
 -- 등록부 사유 한 칸만 바꾼다(Simon 채택 Q6, DECISIONS.md 26.10.06 22:33 ①).
 -- 0217 이 Auth 삭제 전에 실패가 확정된 삭제의 tombstone 을 같은 계정 advisory lock 아래에서
 -- 풀게 되면서, 0198 이 적은 "의도적으로 영구히 남는다" 가 더는 전부 사실이 아니다.
 -- class 는 retained 그대로다(콘텐츠 삭제는 여전히 이 표를 건드리지 않는다). 0198 은 배포된
 -- 역사라 고치지 않고 db/erasure-registry.json 의 forwardRevisions 가 옛 사유를 기록한다.
 -- 0228 과 따로 둔 이유: G7 은 한 파일이 additions 와 revisions 를 함께 갖는 것을 막는다.
+-- 번호: 0229 는 다른 작업(인터뷰 판정)이 잡아 두어 비어 있던 0227 을 썼다.
 -- 이 파일은 rollback/0189_down.sql 의 c_names 와 CI 왕복 단계의 목록에도 들어 있다.
 -- 아래 블록은 scripts/erasure-registry-forward.ts 의 renderRegistryRevisionsSql 출력 그대로다.
 -- <<< erasure-registry:revisions from db/erasure-registry.json >>>

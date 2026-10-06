@@ -11,9 +11,9 @@
 --   3. delete-account 를 0217 이전 판으로 되돌려 배포한다. 새 판은 begin_account_deletion_op 이
 --      없으면 400 op_unsupported 로 앱을 옛 흐름으로 보내지만, 옛 본문({})은 start_legacy_account_
 --      deletion_op 이 없으면 503 으로 닫힌다. 그래서 이 파일보다 먼저 되돌린다.
---   4. 그다음에 이 파일을 돌린다. 0228 · 0229 의 등록부 변경도 여기서 함께 되돌린다
---      (0228 이 더한 account_deletion_ops 행을 지우고, 0229 가 바꾼 tombstone 사유를 0198 문장으로).
---   5. 다시 올리려면 supabase_migrations.schema_migrations 에서 0217 · 0228 · 0229 행을 지운 뒤
+--   4. 그다음에 이 파일을 돌린다. 0227 · 0228 의 등록부 변경도 여기서 함께 되돌린다
+--      (0228 이 더한 account_deletion_ops 행을 지우고, 0227 이 바꾼 tombstone 사유를 0198 문장으로).
+--   5. 다시 올리려면 supabase_migrations.schema_migrations 에서 0217 · 0227 · 0228 행을 지운 뒤
 --      push 한다(이 파일은 원장을 건드리지 않는다 - 손으로 돌리는 파일이 원장을 몰래 고치지 않게).
 --
 -- ⚠ 영수증 행이 모두 사라진다. 완료 행에는 계정 식별자가 없어서 개인정보 손실은 아니지만,
@@ -53,7 +53,7 @@ DROP FUNCTION IF EXISTS public.account_deletion_ops_settle_live_owner(uuid);
 DROP TABLE IF EXISTS public.account_deletion_receipt_lookup_limits;
 DROP TABLE IF EXISTS public.account_deletion_ops;
 
--- 0228 · 0229 의 등록부 변경을 되돌린다. 등록부(0189)가 없으면 할 일이 없다.
+-- 0227 · 0228 의 등록부 변경을 되돌린다. 등록부(0189)가 없으면 할 일이 없다.
 DO $registry_revert$
 BEGIN
   IF pg_catalog.to_regclass('public.erasure_registry') IS NULL THEN

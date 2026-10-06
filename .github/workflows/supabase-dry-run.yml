@@ -598,7 +598,7 @@ jobs:
           port="${PGPORT:-5432}"
           source_db="${PGDATABASE:-postgres}"
           down="db/migrations/rollback/0189_down.sql"
-          pair="erasure_registry lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason reward_records_erasure_registry_reason account_deletion_ops_erasure_registry account_deletion_tombstones_erasure_registry_reason"
+          pair="erasure_registry lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason reward_records_erasure_registry_reason account_deletion_tombstones_erasure_registry_reason account_deletion_ops_erasure_registry"
           run_token="${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$_${RANDOM}"
           control_db="rollback_control_${run_token}"
           fixed_db="rollback_fixed_${run_token}"
@@ -952,7 +952,7 @@ jobs:
             fi
           done
 
-          # The registry forwards (0198, 0201, 0228) and the reason revisions (0205, 0212, 0229) are kept
+          # The registry forwards (0198, 0201, 0228) and the reason revisions (0205, 0212, 0227) are kept
           # with 0190: each one's guard refuses to run while erase_my_data is open, so
           # re-applying them here would stop the push before the control can look.
           echo "== control: retain 0190 and every registry forward, then replay only 0189"
@@ -978,7 +978,7 @@ jobs:
           push_again "$control_db"
           control_open="$(can_execute "$control_db" authenticated)"
           echo "control: ledger before the re-push [$control_ledger] -> authenticated EXECUTE after it = $control_open"
-          if [[ "$control_ledger" != "lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason reward_records_erasure_registry_reason account_deletion_ops_erasure_registry account_deletion_tombstones_erasure_registry_reason" ]]; then
+          if [[ "$control_ledger" != "lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason reward_records_erasure_registry_reason account_deletion_tombstones_erasure_registry_reason account_deletion_ops_erasure_registry" ]]; then
             fail "the control did not reach the pre-fix state: ledger held [$control_ledger], expected 0190 and every registry forward"
           fi
           if [[ "$control_open" != "t" ]]; then

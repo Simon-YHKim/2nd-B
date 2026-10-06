@@ -30,7 +30,7 @@
 -- 확정되면 0192 와 같은 advisory lock(hashtextextended(user_id, 260913), 배타)과 users 행 잠금
 -- 아래에서, (a) 그 계정에 실행 중 작업이 하나도 없고 (b) tombstone 을 마지막으로 건드린 요청 뒤에
 -- 끝난 실패 작업이 있을 때만 tombstone 을 지운다. begin_account_deletion 도 같은 잠금을 잡으므로
--- 해제와 새 삭제는 줄을 선다. 0192 의 표 · 함수는 고치지 않는다. 등록부 사유 문장은 0229 가 바꾼다.
+-- 해제와 새 삭제는 줄을 선다. 0192 의 표 · 함수는 고치지 않는다. 등록부 사유 문장은 0227 이 바꾼다.
 -- ⚠ 남는 틈(받아들인 것): 0217 적용 뒤 · 새 delete-account 배포 전, 옛 Edge 가 처리하던 요청이
 -- 배포 순간에 걸쳐 진행 중이면 그 요청은 행이 없어 (a) 가 보지 못한다. 같은 계정의 다른 기기
 -- 삭제가 그 몇 초 안에 실패해야 생기는 경우다.
@@ -47,7 +47,7 @@
 -- 전체 하루 3000회.
 --
 -- 의존. 0192(account_deletion_tombstones · begin_account_deletion)가 먼저 있어야 한다. 운영에는
--- 0192 가 적용돼 있다(원장 20260929143410). 운영 적용 순서: 0217 → 0228 · 0229 → 비밀값 두 개
+-- 0192 가 적용돼 있다(원장 20260929143410). 운영 적용 순서: 0217 → 0227 · 0228 → 비밀값 두 개
 -- (ACCOUNT_DELETION_OP_TOKEN_PEPPER_V1 · ACCOUNT_DELETION_LOOKUP_PEPPER_V1) → delete-account 배포
 -- → account-deletion-receipt 배포 → 웹 게시. ⚠ 운영 적용과 배포는 Simon GO 뒤에만 한다.
 --

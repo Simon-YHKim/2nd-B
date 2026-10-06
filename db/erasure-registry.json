@@ -458,7 +458,7 @@
         "previousReason": "광고 transaction_id 기준 재생 방지 원장. 지우면 한 번의 시청을 월 상한까지 반복 적립할 수 있다(0079)."
       }
     },
-    "0229_account_deletion_tombstones_erasure_registry_reason.sql": {
+    "0227_account_deletion_tombstones_erasure_registry_reason.sql": {
       "account_deletion_tombstones": {
         "previousReason": "Durable account-deletion fence. Content deletion leaves it unchanged; it intentionally survives account deletion without an auth FK so late requests cannot recreate deleted account data."
       }
