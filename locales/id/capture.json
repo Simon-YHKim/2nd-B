@@ -303,8 +303,7 @@
   },
   "recent": {
     "title": "Catatan terbaru",
-    "openHint": "Membuka entri ini secara lengkap.",
-    "empty": "Belum ada catatan tersimpan."
+    "openHint": "Membuka entri ini secara lengkap."
   },
   "fourw": {
     "fields": {
@@ -324,46 +323,21 @@
     "note": "Kolom yang terisi disimpan sebagai satu catatan dengan tagar #fourw."
   },
   "callReflection": {
-    "title": "Rekaman panggilan",
     "blockedTitle": "Belum tersedia",
     "blockedBody": "Aturan perekaman panggilan berbeda di tiap wilayah, jadi fitur ini untuk saat ini hanya tersedia bagi pengguna dewasa di Korea.",
     "goBack": "Kembali",
-    "webUnreliable": "Perekaman kurang stabil di web; silakan gunakan aplikasi.",
-    "micPermission": "Perlu izin mikrofon.",
-    "startFailed": "Tidak bisa memulai perekaman.",
-    "noRecording": "Rekaman tidak ditemukan.",
-    "nothingToTranscribe": "Tidak ada yang bisa ditranskripsikan.",
-    "transcribeFailed": "Transkripsi gagal.",
     "recordTopic": "Refleksi panggilan",
-    "transcribing": "Mentranskripsikan panggilan",
     "transcribed": "Selesai ditranskripsikan",
     "transcriptLabel": "Transkrip",
     "discard": "Buang",
     "approve": "Setujui dan simpan",
-    "recordingDesc": "Sedang merekam. Otomatis ditranskripsikan saat kamu berhenti.",
-    "idleDesc": "Transkripsikan panggilanmu sendiri agar SecondB bisa menautkannya ke bintang yang tepat. Audio asli tidak pernah disimpan.",
     "howBadge": "Cara",
-    "howText": "Nyalakan mode speaker lalu mulai merekam; kedua suara akan tertangkap mikrofon.",
     "fairBadge": "Etika",
-    "stopAnalyse": "Berhenti dan analisis",
-    "cancelNoSave": "Batal · jangan simpan",
-    "startRecording": "Mulai merekam",
     "maybeLater": "Nanti saja"
   },
   "captureTab": "Klip",
   "formatsTab": "Format",
   "importTab": "Impor",
   "inboxTab": "Kotak masuk",
-  "manualTab": "Panduan penggunaan",
-  "jot": {
-    "title": "Tulis satu baris",
-    "deviceNote": "Catatan ini tersimpan di perangkat ini. Buat akun untuk menyimpannya ke PolaScope.",
-    "placeholder": "Satu baris yang ada di pikiranmu",
-    "inputA11y": "Kolom tulisan",
-    "save": "Simpan",
-    "saving": "Menyimpan…",
-    "nearFull": "Ruang sementara di perangkat ini hampir penuh. Buat akun untuk memindahkannya dengan aman.",
-    "savedOnDevice": "Tersimpan di perangkat ini ({{n}})",
-    "createAccount": "Buat akun"
-  }
+  "manualTab": "Panduan penggunaan"
 }

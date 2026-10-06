@@ -33,7 +33,8 @@ describe("/onboarding PIXEL-CLAY handoff contract", () => {
   test("keeps the signed-out pre-auth carousel and redirects only after completion", () => {
     expect(SRC).toContain("useOnboardingComplete()");
     expect(SRC).not.toMatch(/if\s*\(\s*!userId\s*\)[^\n]*Redirect/);
-    expect(SRC).toMatch(/onboardingComplete === true[\s\S]{0,60}<Redirect href="\/"/);
+    // QA 261004 D-01: back to the home underneath, never a second home.
+    expect(SRC).toMatch(/onboardingComplete === true[\s\S]{0,60}<RedirectHome \/>/);
     expect(SRC).toMatch(/loading \|\| onboardingComplete === null/);
   });
 

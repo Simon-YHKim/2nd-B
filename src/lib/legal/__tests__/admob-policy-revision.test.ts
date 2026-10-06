@@ -1,12 +1,12 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { CONSENT_VERSION, PRIVACY_POLICY_VERSION, TERMS_VERSION } from "../../supabase/consent";
 import { PRIVACY_DOC } from "../legal-documents";
 
 const root = resolve(__dirname, "../../../..");
-const draftPath = resolve(root, "db/migration-drafts/UNNUMBERED_signup_consent_admob_20260925.sql");
-const draft = existsSync(draftPath) ? readFileSync(draftPath, "utf8") : "";
+// 0191 is the only copy: its draft was deleted when it was numbered (Q-261005-07).
+const draft = readFileSync(resolve(root, "db/migrations/0191_signup_consent_admob_20260925.sql"), "utf8");
 
 describe("AdMob disclosure and append-only signup contract", () => {
   test("keeps the AdMob notice without treating it as optional-ad consent", () => {
@@ -27,7 +27,6 @@ describe("AdMob disclosure and append-only signup contract", () => {
     const tuple = /\('(?:email-v2|email-v3|complete-profile-v1)'::text,[^\n]+\)/g;
     for (const row of historical.match(tuple) ?? []) expect(draft).toContain(row);
     expect(draft).toContain("('email-v4'::text, '2026-09-07'::text, '2026-09-26'::text, '2026-08-16'::text, true)");
-    expect(draft).toContain("INACTIVE DRAFT");
     expect(draft).toContain("signup_consent_contract_not_ready");
     expect(draft).not.toMatch(/\b(?:UPDATE|INSERT INTO|DELETE FROM)\s+(?:public\.)?consent_records/i);
     expect(draft).not.toMatch(/\bUPDATE\s+auth\.users/i);

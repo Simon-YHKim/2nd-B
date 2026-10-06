@@ -16,7 +16,7 @@
 // SVG, WorkerSprite 의 EXPO_PUBLIC_USE_V3_ART 분기)와 V3_CREW_ART(모모 크루 7종,
 // 소비자이던 NavGraph CrewLayer 는 2026-10-04 에 나갔다)를 뺐다. 이 모듈을
 // feedback.tsx 가 import 하므로 그 SVG 열둘이 배송 번들에 실려 있었다. 파일은
-// E:/Legacy/2ndB 에 있다(MANIFEST batch qa261004-chars).
+// E:/Legacy/2ndB 에 있다(MANIFEST batch qa261004-chars). WorkerSprite 와 그 환경 키도 같은 날 뒤따라 나갔다(QA R2E-11).
 
 import type { FC } from "react";
 import type { SvgProps } from "react-native-svg";

@@ -39,9 +39,9 @@ const enabledClientEnv = {
 
 const edgePath = join(process.cwd(), "supabase/functions/oauth-naver/index.ts");
 const migrationPath = join(process.cwd(), "db/migrations/0183_oauth_naver_rate_limit.sql");
-const limiterCompletionDraftPath = join(
+const limiterCompletionPath = join(
   process.cwd(),
-  "db/migration-drafts/UNNUMBERED_oauth_naver_rate_limit_completion.sql",
+  "db/migrations/0199_oauth_naver_rate_limit_completion.sql",
 );
 const callbackPath = join(process.cwd(), "src/app/(auth)/oauth-callback.tsx");
 const webDeployPath = join(process.cwd(), ".github/workflows/web-deploy.yml");
@@ -244,7 +244,7 @@ describe("oauth-naver durable server boundary", () => {
   });
 
   test("forward draft removes attacker-cardinality state rows and adds a service-only subject quota", () => {
-    const sql = readFileSync(limiterCompletionDraftPath, "utf8");
+    const sql = readFileSync(limiterCompletionPath, "utf8");
     const peerLimiter = sql.match(
       /CREATE OR REPLACE FUNCTION public\.consume_oauth_naver_rate_limit[\s\S]*?\n\$\$;/,
     )?.[0] ?? "";

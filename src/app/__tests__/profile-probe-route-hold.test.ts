@@ -190,6 +190,13 @@ function createElement(type: unknown, props: Record<string, unknown> | null, ...
   return { type, props: next };
 }
 
+// R2A-01: IntroGate 의 붙들기는 트리를 내리지 않고 덮는다(components/ui/GateCover.tsx).
+// 대역은 GateCover 의 계약 그대로다: 자식은 늘 그리고, 덮개가 있으면 그 뒤(위)에 그린다.
+// 덮개 자리는 "GateCover" 대역으로 남겨, 무엇이 맨 위인지 names() 로 읽게 한다.
+// GateCover 자체의 계약(자식을 늘 마운트 · 덮였을 때 터치와 낭독을 막음)은 gate-cover-loop.test.ts.
+const gateCoverStub = ({ cover, children }: Props) =>
+  cover === null || cover === undefined ? children : [children, createElement(host("GateCover"), null, cover)];
+
 interface AuthView extends ProfileGateSnapshot {
   recoveryReady: boolean;
   recoveryUserId: string | null;
@@ -223,6 +230,7 @@ const layout = vm.createContext({
   ProfileProbeRetryScreen: host("ProfileProbeRetryScreen"),
   EncryptedStorageRecoveryGate: host("EncryptedStorageRecoveryGate"),
   Redirect: host("Redirect"),
+  GateCover: gateCoverStub,
   AvatarSetupSceneGuard: avatarSceneGuardStub,
   ...profileProbe,
   useAuth: () => world.auth,
@@ -328,7 +336,7 @@ function render(node: unknown, out: Mounted): void {
   }
   if (typeof element.type === "function") {
     const component = element.type as (props: Props) => unknown;
-    if (component !== avatarSceneGuardStub) out.components.push(component.name);
+    if (component !== avatarSceneGuardStub && component !== gateCoverStub) out.components.push(component.name);
     render(component(element.props), out);
     return;
   }
@@ -435,11 +443,13 @@ describe("로그인된 사용자의 답을 기다리는 동안 /records 는 마�
     { label: "profile-loading", auth: PROFILE_LOADING },
   ];
 
-  test.each(WAITING)("$label, 인트로를 본 탭: 트리 전체가 로더이고 Records 조회는 0회다", async ({ auth }) => {
+  test.each(WAITING)("$label, 인트로를 본 탭: 트리 전체를 로더가 덮고 Records 조회는 0회다", async ({ auth }) => {
     const mounted = await mount({ auth, route: RECORDS_ROUTE });
     expect(mounted.reads).toEqual({ records: [], sources: [] });
-    expect(mounted.components).toEqual(["IntroGate"]);
-    expect(names(mounted)).toEqual(["InlineLoader"]);
+    // R2A-01: 라우트 트리는 내려가지 않는다(내리면 useSegments 가 마지막 딥링크를 읽어 붙들기가
+    // 풀렸다 걸렸다를 되풀이했다). 장면은 ProfileProbeScope 가 로더로 붙들고, 맨 위는 덮개 로더다.
+    expect(mounted.components).toEqual(["IntroGate", "ProfileProbeScope"]);
+    expect(names(mounted)).toEqual(["InlineLoader", "AppTabBar", "GateCover", "InlineLoader"]);
   });
 
   test.each(WAITING)("$label, 인트로 전: 인트로가 로더 자리를 맡고 자식은 없다", async ({ auth }) => {
@@ -467,7 +477,9 @@ describe("로그인된 사용자의 답을 기다리는 동안 /records 는 마�
 
   test("실패(모름)는 로더가 아니라 다시 시도다: 트리 전체와 장면 모두 (#1811)", async () => {
     const whole = await mount({ auth: FAILED, route: RECORDS_ROUTE });
-    expect(names(whole)).toEqual(["ProfileProbeRetryScreen"]);
+    // 트리 전체 = 맨 위 덮개(R2A-01). 그 아래 장면도 스스로 다시 시도를 그린다.
+    expect(names(whole)).toEqual(["ProfileProbeRetryScreen", "AppTabBar", "GateCover", "ProfileProbeRetryScreen"]);
+    expect(whole.components).toEqual(["IntroGate", "ProfileProbeScope"]);
     const scene = await mount({ auth: FAILED, route: LEAVING_SIGN_IN_FOR_RECORDS });
     expect(names(scene)).toEqual(["ProfileProbeRetryScreen", "AppTabBar"]);
     expect([...whole.reads.records, ...scene.reads.records]).toEqual([]);

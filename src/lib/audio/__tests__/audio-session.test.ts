@@ -11,10 +11,12 @@
 //      Android call overwrites the whole mode and an omitted field resets to
 //      null, which is GAIN_TRANSIENT again;
 //   4. the installed SDK still behaves the way 1 and 3 assume;
-//   5. the boot call changes focus only, not silent-mode playback: Android keeps
-//      the SDK default playsInSilentMode true (play() returns early when it is
-//      false and the ringer is not normal), iOS keeps obeying the silent switch
-//      (.ambient, as the system default .soloAmbient did). Gate r1, PR #2036.
+//   5. effects stay silent in silent or vibrate mode on both platforms: Simon
+//      decision Q-261004-37 = A, reconfirmed as Q-261005-01 = A. The boot mode
+//      sends playsInSilentMode false. Android play() returns early while it is
+//      false and the ringer is not normal; iOS maps it to .ambient, which obeys
+//      the silent switch. (Gate r1, PR #2036, had kept Android at the SDK
+//      default true without knowing the decision.)
 // Modules are transpiled and run with a fake require, as opening-sound-player.test
 // does, so react-native and expo-audio never load in the node environment.
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -31,15 +33,22 @@ const ANDROID_SDK_PLAYS_IN_SILENT_MODE = (() => {
   return match[1] === "true";
 })();
 
-const expectedEffectsMode = (platform: string) => ({
+// Q-261005-01 = A: no effects in silent or vibrate mode, the same on both platforms.
+const expectedEffectsMode = (_platform: string) => ({
   interruptionMode: "mixWithOthers",
   shouldPlayInBackground: false,
-  // Android: the SDK default, so vibrate/silent ringer playback is unchanged.
-  // iOS: false is .ambient, which obeys the silent switch like the default .soloAmbient.
-  playsInSilentMode: platform === "android" ? ANDROID_SDK_PLAYS_IN_SILENT_MODE : false,
+  playsInSilentMode: false,
 });
 
-type SessionModule = { configureEffectsAudioSession: () => Promise<void>; EFFECTS_AUDIO_MODE?: unknown };
+type SessionModule = {
+  configureEffectsAudioSession: () => Promise<void>;
+  EFFECTS_AUDIO_MODE?: unknown;
+  beginRecordingAudioMode: () => Promise<void>;
+  endRecordingAudioMode: () => Promise<void>;
+  restoreEffectsAfterRecording: () => void;
+  isRecordingAudioMode: () => boolean;
+};
+const RECORDING_MODE = { allowsRecording: true, playsInSilentMode: true, interruptionMode: "mixWithOthers" };
 
 function loadSession(file: string, platform: string, setAudioModeAsync: jest.Mock) {
   const output = ts.transpileModule(read(file), {
@@ -91,11 +100,63 @@ describe("boot audio session (native)", () => {
   });
 });
 
+// Q-261005-01 follow-up (2026-10-05): recording switches the mode to playsInSilentMode
+// true, and nothing switched it back, so after one voice recording effects played in
+// silent mode until the app restarted. The session module now owns both directions.
+describe("recording mode round trip (native)", () => {
+  test.each(["android", "ios"])("%s enters recording and returns to the effects mode once", async platform => {
+    const setAudioModeAsync = jest.fn().mockResolvedValue(undefined);
+    const { session } = loadSession("src/lib/audio/audio-session.ts", platform, setAudioModeAsync);
+
+    await session.endRecordingAudioMode();
+    expect(setAudioModeAsync).not.toHaveBeenCalled();
+    expect(session.isRecordingAudioMode()).toBe(false);
+
+    await session.beginRecordingAudioMode();
+    expect(session.isRecordingAudioMode()).toBe(true);
+    expect(setAudioModeAsync).toHaveBeenLastCalledWith(RECORDING_MODE);
+
+    await session.endRecordingAudioMode();
+    await session.endRecordingAudioMode();
+    expect(session.isRecordingAudioMode()).toBe(false);
+    expect(setAudioModeAsync).toHaveBeenCalledTimes(2);
+    expect(setAudioModeAsync).toHaveBeenLastCalledWith(expectedEffectsMode(platform));
+  });
+
+  test("the lifecycle hook restores, and a failed restore warns instead of throwing", async () => {
+    const setAudioModeAsync = jest.fn()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("native module busy"));
+    const { session, warn } = loadSession("src/lib/audio/audio-session.ts", "android", setAudioModeAsync);
+    await session.beginRecordingAudioMode();
+    expect(() => session.restoreEffectsAfterRecording()).not.toThrow();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(setAudioModeAsync).toHaveBeenCalledTimes(2);
+    expect(setAudioModeAsync).toHaveBeenLastCalledWith(expectedEffectsMode("android"));
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(session.isRecordingAudioMode()).toBe(false);
+  });
+
+  test("a failed switch into recording still lets the start-failure path restore", async () => {
+    const setAudioModeAsync = jest.fn()
+      .mockRejectedValueOnce(new Error("permission revoked"))
+      .mockResolvedValueOnce(undefined);
+    const { session } = loadSession("src/lib/audio/audio-session.ts", "ios", setAudioModeAsync);
+    await expect(session.beginRecordingAudioMode()).rejects.toThrow("permission revoked");
+    await session.endRecordingAudioMode();
+    expect(setAudioModeAsync).toHaveBeenLastCalledWith(expectedEffectsMode("ios"));
+  });
+});
+
 describe("boot audio session (web)", () => {
   test("the web module loads no dependency and sends nothing", async () => {
     const setAudioModeAsync = jest.fn().mockResolvedValue(undefined);
     const { session, required } = loadSession("src/lib/audio/audio-session.web.ts", "web", setAudioModeAsync);
     await expect(session.configureEffectsAudioSession()).resolves.toBeUndefined();
+    await expect(session.beginRecordingAudioMode()).resolves.toBeUndefined();
+    await expect(session.endRecordingAudioMode()).resolves.toBeUndefined();
+    expect(() => session.restoreEffectsAfterRecording()).not.toThrow();
+    expect(session.isRecordingAudioMode()).toBe(false);
     expect(required).toEqual([]);
     expect(setAudioModeAsync).not.toHaveBeenCalled();
   });
@@ -192,13 +253,13 @@ describe("every setAudioModeAsync call keeps effects off audio focus", () => {
     return "<not a literal>";
   };
 
-  test("the scan sees the boot call and both recording calls", () => {
-    // Sight control: an empty scan would pass the next test vacuously.
+  test("only the session module changes the mode: boot, recording and restore", () => {
+    // Sight control: an empty scan would pass the next test vacuously. Since
+    // 2026-10-05 the recording screens go through beginRecordingAudioMode, so a
+    // call anywhere else would be a mode change the restore cannot see.
     const files = new Set(calls.map(call => call.file));
     expect(calls.length).toBeGreaterThanOrEqual(3);
-    for (const expected of ["src/lib/audio/audio-session.ts", "src/app/capture.tsx", "src/app/secondb.tsx"]) {
-      expect(files.has(expected)).toBe(true);
-    }
+    expect([...files]).toEqual(["src/lib/audio/audio-session.ts"]);
     expect(aliases).toEqual([]);
   });
 
@@ -252,8 +313,9 @@ describe("installed expo-audio still matches what this fix assumes", () => {
   });
 
   test("Android play() is skipped off the normal ringer unless playsInSilentMode is true", () => {
-    // Why the Android boot value must stay the SDK default: false would mute every
-    // effect in vibrate or silent ringer mode, which the app never did before.
+    // This SDK guard is what carries out Q-261005-01 on Android: with the boot value
+    // false, every effect, the opening included, stays silent in vibrate or silent
+    // ringer mode. If the SDK drops the guard, the decision silently stops holding.
     const playStart = android.indexOf('Function("play") { player: AudioPlayer ->');
     expect(playStart).toBeGreaterThan(-1);
     const play = android.slice(playStart, android.indexOf('Function("pause")', playStart));

@@ -1,144 +1,59 @@
-// Light / dark theme toggle.
+// The app palette. The app is always dark.
 //
-// 2026-05-27 — every screen now uses `semantic.*` which defaults to the
-// dark-sky palette. When the user flips to "light" we want to swap that
-// SAME shape for the lightSky palette without forcing every screen to
-// be rewritten. useThemePalette() returns a same-shape object the
-// caller can spread over their styles.
+// 2026-10-05 — Simon 결정 Q-261005-02 (A + 메모 "다크모드 없어도 괜찮아. 그냥 없애버려."):
+// 다크/라이트 선택을 숨기지 않고 없앴다. 설정의 '다크 모드' 토글, /theme 의 '미드나잇'(라이트)
+// 고르기, 그 값을 기억하던 저장 키 읽기, mode 상태가 전부 빠졌다. 전에는 라이트를 고르면
+// 글자만 밝은 팔레트로 바뀌고 딥스페이스 화면 바탕은 정적 어두운 색 그대로라
+// /settings 머리 설명이 2.11:1 로 묻혔다(QA R2B-07). 이제 라이트 팔레트를 고르는 길이 코드에
+// 없으므로 그 결함은 구조로 닫힌다. 예전에 저장된 값은 읽지 않고, 남은 키는
+// retired-theme-mode.ts 가 한 번 지운다. 시스템 prefers-color-scheme 은 전과 같이 따르지 않는다.
+// 지운 원본: origin/main 5104a686 의 이 파일(git -C E:/2ndB show 5104a686:src/lib/theme/ThemeContext.tsx).
 //
-// Persistence: localStorage on Web (synchronous, no first-paint flash; matches
-// our i18n detector pattern) + AsyncStorage on native (hydrated once on mount,
-// since native has no synchronous storage). setMode writes both.
+// useThemePalette() is still the one read site for `<Text>` and friends: it returns the
+// same-shape `semantic` palette, or a PaletteOverride when a surface draws on its own ground.
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext } from "react";
 import type { ReactNode } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { semantic, semanticLight } from "./tokens";
+import { semantic } from "./tokens";
 
-// Same-shape, looser-value mirror of `semantic` so the runtime palette
-// can swap between the two `as const` objects without TS clashing on
-// their literal types.
+// The root layout drops the retired dark/light key once at boot; it imports the helper
+// from here so the theme module stays the one place the root reads theme things from.
+export { clearRetiredThemeMode } from "./retired-theme-mode";
+
+// Same-shape, looser-value mirror of `semantic` so an override palette can stand in for
+// the `as const` object without TS clashing on its literal types.
 export type Palette = { [K in keyof typeof semantic]: string };
 
-export type ThemeMode = "light" | "dark";
-
-interface ThemeContextValue {
-  mode: ThemeMode;
-  setMode: (m: ThemeMode) => void;
-  toggle: () => void;
-}
-
-const ThemeContext = createContext<ThemeContextValue>({
-  mode: "dark",
-  setMode: () => {},
-  toggle: () => {},
-});
-
-const STORAGE_KEY = "2nd-brain:theme-mode";
-
-function readStored(): ThemeMode | null {
-  try {
-    if (typeof globalThis !== "undefined" && typeof (globalThis as { localStorage?: Storage }).localStorage !== "undefined") {
-      const v = (globalThis as { localStorage: Storage }).localStorage.getItem(STORAGE_KEY);
-      if (v === "light" || v === "dark") return v;
-    }
-  } catch {
-    // localStorage unavailable (private mode, native build) — fall through
-  }
-  return null;
-}
-
-function writeStored(m: ThemeMode): void {
-  try {
-    if (typeof globalThis !== "undefined" && typeof (globalThis as { localStorage?: Storage }).localStorage !== "undefined") {
-      (globalThis as { localStorage: Storage }).localStorage.setItem(STORAGE_KEY, m);
-    }
-  } catch {
-    // silently skip — next session will fall back to default dark
-  }
-  // Native persistence (and a web backstop): AsyncStorage. Fire-and-forget; a
-  // write failure just means the next session falls back to the default.
-  void AsyncStorage.setItem(STORAGE_KEY, m).catch(() => {});
-}
-
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  // Initial mode: stored preference if available, else default to dark
-  // (the loader + main navigator are dark, so first-visit users land on
-  // an already-coherent dark experience).
-  const [mode, setModeState] = useState<ThemeMode>(() => readStored() ?? "dark");
-
-  // Hydrate once on mount. On web, readStored() (localStorage) is synchronous
-  // and authoritative. On native there is no synchronous storage, so fall back
-  // to the async AsyncStorage read to recover the user's persisted choice
-  // (a brief default first paint before hydration is acceptable). We read fresh
-  // here rather than comparing the initial `mode` so user toggles aren't undone.
-  useEffect(() => {
-    const sync = readStored();
-    if (sync) {
-      setModeState((current) => (sync !== current ? sync : current));
-      return;
-    }
-    let cancelled = false;
-    void AsyncStorage.getItem(STORAGE_KEY)
-      .then((v) => {
-        if (cancelled) return;
-        if (v === "light" || v === "dark") {
-          setModeState((current) => (v !== current ? v : current));
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  function setMode(m: ThemeMode): void {
-    setModeState(m);
-    writeStored(m);
-  }
-
-  function toggle(): void {
-    setMode(mode === "dark" ? "light" : "dark");
-  }
-
-  return (
-    <ThemeContext.Provider value={{ mode, setMode, toggle }}>{children}</ThemeContext.Provider>
-  );
-}
-
-export function useTheme(): ThemeContextValue {
-  return useContext(ThemeContext);
-}
-
-// ── Force-dark subtree (graph-ux-overhaul #4) ───────────────────────────
-// The cosmic PremiumAppShell background is ALWAYS dark (constraint #4: the
-// village stays dark even in light mode). So any text/surfaces rendered on
-// it must use the dark palette regardless of the user's theme toggle —
-// otherwise light mode paints dark navy text on the dark cosmic bg and it's
-// invisible. PremiumAppShell wraps its children in <ForceDark> and
-// useThemePalette() honours it. The real `mode` (via useTheme) is untouched,
-// so the Theme screen's selection UI still reflects the user's choice.
-const ForceDarkContext = createContext(false);
-
+/**
+ * @deprecated The app has no light palette to force away from (Q-261005-02), so this
+ * renders its children unchanged. It stays exported only because two call sites still
+ * wrap with it (PremiumAppShell in premium/background.tsx and AccountDeletionNotice,
+ * whose test pins it); remove it with them once the account-deletion lane that owns
+ * that screen has merged.
+ */
 export function ForceDark({ children }: { children: ReactNode }) {
-  return <ForceDarkContext.Provider value={true}>{children}</ForceDarkContext.Provider>;
-}
-
-export function useForceDark(): boolean {
-  return useContext(ForceDarkContext);
+  return <>{children}</>;
 }
 
 // ── Palette override subtree (Polaris card, 2026-09-30) ────────────────
 // A surface with its own ground (the Polaris card is deep violet, not the
 // sky navy) hands its children a palette tuned for that ground, so every
 // <Text color="textMuted"> inside it stays readable without each call site
-// knowing where it is drawn. Wins over the theme mode and ForceDark: the
-// ground under the text is the override's, whatever the app theme is.
+// knowing where it is drawn.
 const PaletteOverrideContext = createContext<Palette | null>(null);
 
 export function PaletteOverride({ palette, children }: { palette: Palette; children: ReactNode }) {
   return <PaletteOverrideContext.Provider value={palette}>{children}</PaletteOverrideContext.Provider>;
+}
+
+/**
+ * The palette a subtree draws with: its PaletteOverride if one is set, otherwise the
+ * app's one (dark) `semantic` palette. There is no other input, which is the guarantee:
+ * nothing the user stored and nothing the OS reports can hand a screen a light palette.
+ */
+export function resolvePalette(override: Palette | null): Palette {
+  return override ?? semantic;
 }
 
 /**
@@ -147,9 +62,5 @@ export function PaletteOverride({ palette, children }: { palette: Palette; child
  * `semantic` import so call sites can swap one for the other.
  */
 export function useThemePalette(): Palette {
-  const { mode } = useTheme();
-  const forceDark = useForceDark();
-  const override = useContext(PaletteOverrideContext);
-  if (override) return override;
-  return mode === "dark" || forceDark ? semantic : semanticLight;
+  return resolvePalette(useContext(PaletteOverrideContext));
 }

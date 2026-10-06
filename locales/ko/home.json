@@ -1,44 +1,6 @@
 {
-  "soulCore": {
-    "a11y": "북극성 밝기"
-  },
   "character": {
     "a11y": "세컨비 캐릭터"
-  },
-  "bubble": {
-    "fresh": "오늘은 무엇을 기록할까요?"
-  },
-  "progress": {
-    "lit": "별 {{lit}}/{{total}}개 켜짐",
-    "next": "다음: {{step}} ({{min}})"
-  },
-  "nextStep": {
-    "bigFive": {
-      "label": "빅파이브",
-      "min": "5분",
-      "cta": "빅파이브로 별 하나 켜기"
-    },
-    "attachment": {
-      "label": "관계의 나",
-      "min": "3분",
-      "cta": "관계 체크로 별 하나 켜기"
-    },
-    "esm": {
-      "label": "지금 기분 기록",
-      "min": "1분",
-      "cta": "지금 기분을 기록하고 별 켜기"
-    },
-    "values": {
-      "label": "가치",
-      "min": "4분",
-      "cta": "가치 점검으로 별 하나 켜기"
-    }
-  },
-  "menu": {
-    "graph": "그래프",
-    "capture": "스크랩",
-    "secondb": "세컨비",
-    "profile": "나"
   },
   "ds": {
     "dock": {
@@ -88,7 +50,6 @@
     },
     "home": {
       "polaris": "북극성",
-      "profileName": "프로필",
       "domainName": {
         "career": "커리어",
         "finance": "재정",
@@ -122,8 +83,6 @@
         "tip1": "별을 누르면 그 시기에 쌓인 기록을 살펴볼 수 있습니다.",
         "tip2": "하단의 스크랩을 누르면 새 기록을 바로 남길 수 있습니다.",
         "tip3": "북극성에서는 쌓인 기록을 한 문장으로 정리하고 직접 고칠 수 있습니다.",
-        "next": "다음",
-        "openMenu": "기능 메뉴",
         "menuTag": "메뉴",
         "menu": "무엇을 할까요?",
         "travel": "여행하기",
@@ -173,9 +132,7 @@
         "now": {
           "line": "요즘의 관심·선택·하루를 기록합니다."
         }
-      },
-      "museumEntry": "AI 뮤지엄",
-      "communityEntry": "커뮤니티"
+      }
     },
     "capture": {
       "title": "담기",
@@ -249,9 +206,6 @@
       "suggestImagine": "트위비 모드"
     },
     "lens": {
-      "toggleFilled": "채움",
-      "toggleEmpty": "비어 있음",
-      "toggleError": "오류",
       "emptyTitle": "아직 이 별이 켜지지 않았습니다",
       "emptyBody": "성격 검사를 한 번 마치면 지금의 나 별이 켜집니다.",
       "emptyCta": "검사 시작",
@@ -302,24 +256,6 @@
       "title": "회상",
       "tag": "나의 이야기",
       "eyebrow": "어느 시기가 지금의 나를 만들었나",
-      "hint": "시기를 고르면 그때의 기억을 묻는 질문이 나옵니다",
-      "footer": "기억이 분명해지도록 같은 내용을 다시 물을 수 있습니다",
-      "p1Name": "유아기",
-      "p1Age": "0–6세",
-      "p2Name": "유년기",
-      "p2Age": "7–12세",
-      "p3Name": "10대 초반",
-      "p3Age": "13–15세",
-      "p4Name": "10대 중반",
-      "p4Age": "16–17세",
-      "p5Name": "10대 후반",
-      "p5Age": "18–19세",
-      "p6Name": "20대 초반",
-      "p6Age": "20–23세",
-      "p7Name": "사회초년",
-      "p7Age": "24–27세",
-      "p8Name": "지금",
-      "p8Age": "28세–",
       "emptyTitle": "아직 남긴 옛이야기가 없습니다",
       "emptyBody": "지나온 시기를 골라 기억나는 일을 적어 보세요. 그때의 이야기를 여기서 다시 볼 수 있습니다."
     },
@@ -329,13 +265,6 @@
       "eyebrow": "남이 보는 나는 내가 보는 나와 얼마나 같은가",
       "legendSelf": "내가 본 나",
       "legendOther": "남이 본 나",
-      "traitExtraversion": "외향성",
-      "traitConscientiousness": "성실성",
-      "traitAgreeableness": "우호성",
-      "diffExtraversion": "차이 +18",
-      "diffConscientiousness": "차이 +4",
-      "diffAgreeableness": "차이 −7",
-      "conclusion": "남들은 {{who}}을 더 활발한 사람으로 봅니다. 스스로 생각하는 것보다 외향적일 수 있습니다.",
       "survey": "설문지 보기",
       "share": "공유하기",
       "obsTitleGap": "내가 보는 나 · 남이 보는 나",
@@ -356,15 +285,6 @@
       "title": "리듬",
       "tag": "ESM",
       "eyebrow": "나는 언제 가장 나다운가",
-      "subhead": "지난 7일 · 기분 리듬",
-      "mon": "월",
-      "tue": "화",
-      "wed": "수",
-      "thu": "목",
-      "fri": "금",
-      "sat": "토",
-      "sun": "일",
-      "caption": "토요일 오전, 무언가를 만드는 일에 집중할 때 기분이 가장 좋았어요.",
       "logNow": "+ 지금 기분 기록",
       "emptyTitle": "아직 기분을 기록한 날이 부족합니다",
       "emptyBody": "며칠 동안 기분을 기록하면 언제 기분이 좋거나 나빴는지 볼 수 있습니다."
@@ -389,16 +309,6 @@
       "title": "관계·지식",
       "tag": "관계",
       "eyebrow": "관계와 지식 속의 나",
-      "peopleHead": "자주 등장하는 사람",
-      "person1": "민준 · 24",
-      "person2": "엄마 · 18",
-      "person3": "지우 · 12",
-      "personMore": "+9",
-      "knowledgeHead": "관심 지식",
-      "topic1": "디자인·도구",
-      "topic2": "심리·자기이해",
-      "topic3": "AI·생산성",
-      "conclusion": "기록에는 많은 사람보다 가까운 몇 명과 자주, 오래 지내는 모습이 보입니다.",
       "addData": "+ 기록 추가",
       "emptyTitle": "아직 사람과 관심사에 관한 기록이 없습니다",
       "emptyBody": "사람과 관심사에 관한 기록을 남기면 여기에 모아 보여줍니다."
@@ -431,34 +341,12 @@
     "audit": {
       "title": "과거의 나",
       "subtitle": "시기를 골라 그때의 나를 다시 떠올려 보세요.",
-      "vividness": "또렷함 L{{level}}",
-      "eraInfancy": "유아기",
-      "eraChild": "아동기",
-      "eraTeen": "청소년기",
-      "eraYoung": "청년기",
-      "eraNow": "현재",
-      "rangeInfancy": "0–6세",
-      "rangeChild": "7–12세",
-      "rangeTeen": "13–18세",
-      "rangeYoung": "19–28세",
-      "period": {
-        "childhood": "어린 시절",
-        "teens": "10대",
-        "twenties": "20대",
-        "thirties": "30대",
-        "forties": "40대",
-        "fifties": "50대",
-        "sixties": "60대",
-        "seventies": "70대",
-        "current": "지금"
-      },
       "rangeSpan": "{{from}}–{{to}}세",
       "rangeUnder": "{{to}}세 이전",
       "rangeFrom": "{{from}}세 이후",
       "notYet": "아직 오지 않은 시기"
     },
     "me": {
-      "title": "북극성",
       "eyebrow": "북극성 · 7별 종합",
       "headline": "나를 깊이 이해해 더 나답게 산다.",
       "synthMeta": "일곱 별 요약 · 신뢰도",
