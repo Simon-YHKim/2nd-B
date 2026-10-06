@@ -58,11 +58,15 @@ import { TemplateEditor } from "@/components/wiki/TemplateEditor";
 import { AddFormatFlow } from "@/components/wiki/AddFormatFlow";
 import { FormatSchemaView, type FormatSchemaInput } from "@/components/wiki/FormatSchemaView";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";
-import type { AvailableUiLocale } from "@/lib/i18n/locales";
 import { DeepSpaceFormatsScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 type Locale = "en" | "ko";
 type Toast = { message: string; tone: "info" | "success" | "danger" };
+// Which format the read-only guide is open for. It holds the format, not its
+// translated text: the guide translates at render time, so its values and labels
+// follow the painted language with the modal title and Close button even when
+// the language changes or the es/pt/id pack lands while it is open (QA 261006).
+type Viewing = { builtIn: ClipperTemplate } | { custom: CustomClipperTemplate };
 
 function FormatsLegacy() {
   const { i18n, t: tf } = useTranslation("formats");
@@ -84,8 +88,7 @@ function FormatsLegacy() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [pendingShareIds, setPendingShareIds] = useState<ReadonlySet<string>>(new Set());
   const [adding, setAdding] = useState(false);
-  // `lng` is the language the guide's values are in, so its labels match them.
-  const [viewing, setViewing] = useState<{ schema: FormatSchemaInput; lng: AvailableUiLocale } | null>(null);
+  const [viewing, setViewing] = useState<Viewing | null>(null);
   // Play UGC moderation (migration 0097). `moderating` is the community row the
   // sheet is open for; `blockedIds` only drives the unblock control and the
   // optimistic hide, since the clipper_templates read policy already filters.
@@ -433,7 +436,7 @@ function FormatsLegacy() {
               {CLIPPER_TEMPLATE_LIST.map((t) => (
                 <Pressable
                   key={t.id}
-                  onPress={() => setViewing({ schema: schemaOfBundled(t), lng: uiLng })}
+                  onPress={() => setViewing({ builtIn: t })}
                   accessibilityRole="button"
                   accessibilityLabel={`${builtInName(t)} ${tf("labels.viewGuide")}`}
                 >
@@ -507,7 +510,7 @@ function FormatsLegacy() {
                         </Text>
                         <View style={styles.cardActions}>
                           <Pressable
-                            onPress={() => setViewing({ schema: schemaOfCustom(t), lng: locale })}
+                            onPress={() => setViewing({ custom: t })}
                             style={styles.deleteLink}
                             hitSlop={14}
                             accessibilityRole="button"
@@ -583,7 +586,7 @@ function FormatsLegacy() {
                         {whatOf(t) ? <Text variant="subtle" color="textMuted">{whatOf(t)}</Text> : null}
                         <View style={styles.cardActions}>
                           <Pressable
-                            onPress={() => setViewing({ schema: schemaOfCustom(t), lng: locale })}
+                            onPress={() => setViewing({ custom: t })}
                             style={styles.deleteLink}
                             hitSlop={14}
                             accessibilityRole="button"
@@ -654,7 +657,16 @@ function FormatsLegacy() {
         <Text variant="caption" color="brand" style={styles.sectionEyebrow}>
           {tf("guideModal.eyebrow")}
         </Text>
-        {viewing ? <FormatSchemaView schema={viewing.schema} locale={viewing.lng} /> : null}
+        {/* Built-ins carry the formats bundle in the painted language (es/pt/id
+            included); custom formats are the user's own ko/en text, so their labels
+            follow `locale` to match. */}
+        {viewing ? (
+          "builtIn" in viewing ? (
+            <FormatSchemaView schema={schemaOfBundled(viewing.builtIn)} locale={uiLng} />
+          ) : (
+            <FormatSchemaView schema={schemaOfCustom(viewing.custom)} locale={locale} />
+          )
+        ) : null}
         <View style={styles.modalActions}>
           <PremiumButton
             label={tf("actions.close")}

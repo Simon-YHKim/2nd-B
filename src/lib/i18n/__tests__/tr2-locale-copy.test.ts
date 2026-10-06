@@ -232,8 +232,8 @@ describe("tr2 /formats built-ins read builtIn.kinds.* and mirror the classifier 
     expect(FORMATS).toContain("return tf(`builtIn.kinds.${t.kind}.name`);");
     expect(FORMATS).toContain("return tf(`builtIn.kinds.${t.kind}.what`);");
     expect(FORMATS).toContain("describe: tf(`builtIn.kinds.${t.kind}.props.${p.name}`)");
-    expect(FORMATS).toContain("setViewing({ schema: schemaOfBundled(t), lng: uiLng })");
-    expect(FORMATS).toContain("<FormatSchemaView schema={viewing.schema} locale={viewing.lng} />");
+    expect(FORMATS).toContain("setViewing({ builtIn: t })");
+    expect(FORMATS).toContain("<FormatSchemaView schema={schemaOfBundled(viewing.builtIn)} locale={uiLng} />");
     expect(SCHEMA_VIEW).toContain("locale: AvailableUiLocale");
     const bundled = slice(FORMATS, "function schemaOfBundled(", "function schemaOfCustom(");
     const list = slice(FORMATS, "{CLIPPER_TEMPLATE_LIST.map((t) => (", "))}");
@@ -242,6 +242,23 @@ describe("tr2 /formats built-ins read builtIn.kinds.* and mirror the classifier 
     }
     expect(list).toContain("title={builtInName(t)}");
     expect(list).toContain("{builtInWhat(t)}");
+  });
+
+  // QA 261006, review of #2100 (F1). The guide state held the translated schema and
+  // the language at open time, so a language change, or the es/pt/id pack landing
+  // while the guide was open, left its values and labels in the old language under
+  // a title and Close button already in the new one. The state now holds the format
+  // itself and the guide translates it at render time.
+  it("the guide holds the open format, not its translated text, and translates at render", () => {
+    expect(FORMATS).toContain("type Viewing = { builtIn: ClipperTemplate } | { custom: CustomClipperTemplate };");
+    expect(FORMATS).toContain("useState<Viewing | null>(null)");
+    const opens = [...FORMATS.matchAll(/setViewing\(([^)]*)\)/g)].map((m) => m[1]);
+    expect(opens.length).toBeGreaterThanOrEqual(4);
+    for (const arg of opens) expect(["{ builtIn: t }", "{ custom: t }", "null"]).toContain(arg);
+    expect(FORMATS).not.toMatch(/setViewing\(\{\s*schema:|viewing\.(schema|lng)\b/);
+    const guide = slice(FORMATS, '"builtIn" in viewing ? (', ") : null}");
+    expect(guide).toContain("<FormatSchemaView schema={schemaOfBundled(viewing.builtIn)} locale={uiLng} />");
+    expect(guide).toContain("<FormatSchemaView schema={schemaOfCustom(viewing.custom)} locale={locale} />");
   });
 
   it("en and ko bundle values equal clipper-templates.ts (the classifier prompt's text)", () => {

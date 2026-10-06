@@ -189,7 +189,7 @@
       },
       "retention": {
         "label": "Período de retenção",
-        "v": "Enquanto sua conta estiver ativa; se você sair, tudo é removido em até 30 dias."
+        "v": "Enquanto sua conta estiver ativa; se você excluir a conta, tudo é removido em até 30 dias."
       },
       "delete": {
         "label": "Direito de exclusão",
