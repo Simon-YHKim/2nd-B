@@ -1148,8 +1148,8 @@ const GO_HOME_USES: readonly { file: string; use: Omit<GoHomeUse, "line">; why: 
   },
   {
     file: "src/app/onboarding.tsx",
-    use: { kind: "RedirectHome", owner: "Onboarding", guard: "then:onboardingComplete === true", handler: "" },
-    why: "이미 끝낸 온보딩 - 마운트 즉시 홈으로.",
+    use: { kind: "RedirectHome", owner: "Onboarding", guard: "then:onboardingComplete === true && !carouselShown", handler: "" },
+    why: "이미 끝낸 온보딩 - 마운트 즉시 홈으로. 캐러셀을 보여 준 뒤 끝내기로 표식이 켜진 경우는 제외(0219, 나가는 장면을 비우지 않는다).",
   },
   {
     file: "src/app/star/[domain].tsx",
