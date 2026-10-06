@@ -83,8 +83,8 @@ describe("parseAccountFirstRunMarks", () => {
   });
 
   test("a response without the fields or with a non-timestamp is not an answer", () => {
-    expect(() => parseAccountFirstRunMarks({ onboarding_completed_at: null })).toThrow("ttfv_seen_at");
-    expect(() => parseAccountFirstRunMarks({ ttfv_seen_at: null })).toThrow("onboarding_completed_at");
+    expect(() => parseAccountFirstRunMarks({ onboarding_completed_at: null })).toThrow("ttfv_seen_at was not returned");
+    expect(() => parseAccountFirstRunMarks({ ttfv_seen_at: null })).toThrow("onboarding_completed_at was not returned");
     expect(() => parseAccountFirstRunMarks(row("yesterday"))).toThrow("not a timestamp");
     expect(() => parseAccountFirstRunMarks(null)).toThrow();
   });
