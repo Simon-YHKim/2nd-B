@@ -17,6 +17,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { withSystemTagsColumn } from "@/lib/records/system-tags";
 import { deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import {
@@ -37,17 +38,24 @@ import {
 const carAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.surfaceContainerLow);
 
 async function listCareerRecords(userId: string): Promise<CareerRecordRow[]> {
-  const { data, error } = await getSupabaseClient()
-    .from("records")
-    .select("id, kind, topic, body, tags, created_at")
-    .eq("user_id", userId)
-    // ANY of the tags, not all: an achievement an older build filed under
-    // domain:collect still carries career_achievement (QA R2C-01).
-    .overlaps("tags", [...CAREER_TIMELINE_TAGS])
-    .order("created_at", { ascending: false })
-    .limit(500);
+  // system_tags (0218) carries the recall interview's markers, which
+  // careerRecordOrigin reads to label an entry as an interview. Without the
+  // column the rows come back the pre-0218 way (markers in `tags`).
+  const { data, error } = await withSystemTagsColumn((columnPresent) =>
+    getSupabaseClient()
+      .from("records")
+      .select(columnPresent ? "id, kind, topic, body, tags, system_tags, created_at" : "id, kind, topic, body, tags, created_at")
+      .eq("user_id", userId)
+      // ANY of the tags, not all: an achievement an older build filed under
+      // domain:collect still carries career_achievement (QA R2C-01).
+      .overlaps("tags", [...CAREER_TIMELINE_TAGS])
+      .order("created_at", { ascending: false })
+      .limit(500),
+  );
   if (error) throw error;
-  return (data ?? []) as CareerRecordRow[];
+  // The select string is chosen at run time, so supabase-js cannot type the row
+  // from it; name the row type here.
+  return (data ?? []) as unknown as CareerRecordRow[];
 }
 
 export default function CareerTimelineScreen() {

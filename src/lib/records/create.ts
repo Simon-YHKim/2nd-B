@@ -25,6 +25,7 @@ import { domainTagFor, isDomainId, stripDomainTags, type DomainId } from "../per
 import { withDomainTag } from "./detect-domain";
 import { embedAndStoreRecord, recordsEmbeddingAllowed } from "./records-embeddings";
 import type { RecordFollowup } from "./followup";
+import { legacyTagLayout, normalizeSystemTags, withSystemTagsColumn } from "./system-tags";
 
 export type RecordKind = "journal" | "note" | "audit_response";
 
@@ -53,7 +54,18 @@ export interface CreateRecordArgs {
   topic?: string;
   summary?: string;
   conclusion?: string;
+  /** The user's own tags (and the caller's content tags). The app's own
+   *  markers go in `systemTags`, never here (0218, records/system-tags.ts). */
   tags?: string[];
+  /**
+   * Markers the app attaches to say how the record was produced (0218
+   * records.system_tags): TTFV's `first_light` pair, the recall interview's
+   * `interview` set. Stored apart from `tags` so /discover and /research never
+   * show them as the user's topics and a user tag with the same word is never
+   * read as the app's marker. On a database without the column the insert is
+   * retried once in the pre-0218 layout (markers in `tags`).
+   */
+  systemTags?: readonly string[];
   /**
    * Domain the capture files under (별 담기: /star/<id> → capture), so the
    * piece lands on the star it was captured from. A permitted UX override —
@@ -123,7 +135,9 @@ export interface CreatedRecord {
    * The tags the row was inserted with: exactly one `domain:` tag first (a valid typed
    * domainIntent, else the detector, else collect), then the caller's tags. Returned so a
    * caller knows where the record was filed without reading it back (P1: the /capture
-   * saved card opens that area with this record at the top).
+   * saved card opens that area with this record at the top). The app's markers are in
+   * `records.system_tags`, not here, unless the database had no such column (then the
+   * row was written in the pre-0218 layout and these tags include them).
    */
   tags: string[];
   followup?: RecordFollowup;
@@ -302,6 +316,10 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
     args.domainIntent !== undefined && isDomainId(args.domainIntent)
       ? [domainTagFor(args.domainIntent), ...stripDomainTags(args.tags ?? [])]
       : withDomainTag(args.tags, [args.body, args.topic].filter(Boolean).join("\n"));
+  // 0218: the app's markers, kept out of `tags`. Empty for every ordinary save, and
+  // then the insert never names the column (so a database without it is untouched).
+  const systemTags = normalizeSystemTags(args.systemTags);
+  let storedTags = tags;
 
   // Classification can await two audit writes. A device queue import must not
   // insert after its authenticated account changed during those awaits.
@@ -313,34 +331,47 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
   // a spinner that never stopped and an error toast that never appeared, and the user's
   // only move was to kill the app and lose the lot. A rejection they can retry beats a
   // hang they cannot.
-  const { data, error } = await withTimeout(
-    supabase
-      .from("records")
-      .insert({
-        user_id: args.userId,
-        kind: args.kind,
-        audit_period: args.auditPeriod ?? null,
-        prompt: args.prompt ?? null,
-        body: args.body,
-        ai_followup: aiFollowup,
-        topic: args.topic ?? null,
-        summary: args.summary ?? null,
-        conclusion: args.conclusion ?? null,
-        // Constellation layer A: exactly one domain tag first (see `tags` above).
-        tags,
-        // 0066: machine-readable form payload for form-shaped captures.
-        structured: args.structured ?? null,
-        // 0178 retry key. NULL for every unkeyed insert: the unique key is
-        // (user_id, client_request_id) and Postgres never treats NULLs as equal,
-        // so ordinary saves stay unconstrained. A plain property on purpose -
-        // records-sources-data-shape.test.ts reads this literal's keys.
-        client_request_id: args.clientRequestId ?? null,
-      })
-      .select("id")
-      .single(),
-    RECORD_INSERT_TIMEOUT_MS,
-    "record insert",
-  );
+  //
+  // One insert literal, two layouts. With the column, markers go to system_tags. A
+  // database without it answers PGRST204 before writing anything, and the second call
+  // writes the pre-0218 layout (markers in `tags`), which 0218 recognizes and moves if
+  // it is applied later.
+  const insertRecord = (columnPresent: boolean) => {
+    storedTags = columnPresent ? tags : legacyTagLayout(tags, systemTags);
+    return withTimeout(
+      supabase
+        .from("records")
+        .insert({
+          user_id: args.userId,
+          kind: args.kind,
+          audit_period: args.auditPeriod ?? null,
+          prompt: args.prompt ?? null,
+          body: args.body,
+          ai_followup: aiFollowup,
+          topic: args.topic ?? null,
+          summary: args.summary ?? null,
+          conclusion: args.conclusion ?? null,
+          // Constellation layer A: exactly one domain tag first (see `tags` above).
+          tags: storedTags,
+          // 0218 app markers. `undefined` is dropped from the JSON body, so a save with
+          // no markers never names the column and the database default ('{}') applies.
+          system_tags: columnPresent && systemTags.length > 0 ? systemTags : undefined,
+          // 0066: machine-readable form payload for form-shaped captures.
+          structured: args.structured ?? null,
+          // 0178 retry key. NULL for every unkeyed insert: the unique key is
+          // (user_id, client_request_id) and Postgres never treats NULLs as equal,
+          // so ordinary saves stay unconstrained. A plain property on purpose -
+          // records-sources-data-shape.test.ts reads this literal's keys.
+          client_request_id: args.clientRequestId ?? null,
+        })
+        .select("id")
+        .single(),
+      RECORD_INSERT_TIMEOUT_MS,
+      "record insert",
+    );
+  };
+  const { data, error } =
+    systemTags.length > 0 ? await withSystemTagsColumn(insertRecord) : await insertRecord(true);
   if (error) {
     if (args.clientRequestId !== undefined && error.code === "23505") {
       return replayKeyedRecord(args, args.clientRequestId, error, aiFollowup);
@@ -378,7 +409,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
     });
   }
 
-  return { id: data.id, tags, followup: aiFollowup ?? undefined };
+  return { id: data.id, tags: storedTags, followup: aiFollowup ?? undefined };
 }
 
 // D5 (J2 auto-embed): when the ADULT user has opted in (records_embedding pref,
@@ -491,15 +522,30 @@ export async function listRecentRecords(userId: string, limit = 500) {
   // day in the result. Any record kind counts (streak.ts: "at least one record
   // was created"); computeStreak de-dupes by KST day-key.
   const sinceIso = new Date(Date.now() - STREAK_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await supabase
-    .from("records")
-    .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at, structured")
-    .eq("user_id", userId)
-    .gte("created_at", sinceIso)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  // system_tags (0218) rides along for the readers that ask "did the app write this?"
+  // (TTFV skips its own first-record-review note). Without the column the rows come
+  // back the pre-0218 way and system-tags.ts reads the markers from `tags`.
+  // Two literal selects, not one computed string: supabase-js types a row from the
+  // literal it is given, and a computed string types every row as a parse error.
+  const { data, error } = await withSystemTagsColumn((columnPresent) =>
+    columnPresent
+      ? supabase
+          .from("records")
+          .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, system_tags, created_at, structured")
+          .eq("user_id", userId)
+          .gte("created_at", sinceIso)
+          .order("created_at", { ascending: false })
+          .limit(limit)
+      : supabase
+          .from("records")
+          .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at, structured")
+          .eq("user_id", userId)
+          .gte("created_at", sinceIso)
+          .order("created_at", { ascending: false })
+          .limit(limit),
+  );
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as NonNullable<typeof data>[number][];
 }
 
 /** Fetch Polaris-cited records by id, including evidence older than the

@@ -46,7 +46,8 @@ import { OFFERABLE } from "@/lib/assess/registry";
 import { loadSevenLevels, type SevenLevels } from "@/lib/persona/load-seven-levels";
 import { SEVEN_STARS, type SevenStarId } from "@/lib/persona/seven-stars";
 import { buildCenterCards, type CenterCard } from "@/lib/persona/center";
-import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type OriginShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
+import { mergeEvidence, evidenceTypeLabel, rawRecordColumns, type EvidenceShard, type OriginShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
+import { withSystemTagsColumn } from "@/lib/records/system-tags";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
 import { claimQaPolarisAuto, loadRoleCards, proposeRoleCards, ratifyRoleCard, type RoleCard } from "@/lib/persona/role-cards";
 import { loadPolarisQuota, type PolarisQuota } from "@/lib/persona/polaris-quota";
@@ -87,12 +88,15 @@ async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promi
   // only records gives source-only users a false "center is still small"
   // empty state (data-truth gate). Mirrors /records' merged read.
   const [recRes, srcRes] = await Promise.all([
-    supabase
-      .from("records")
-      .select("id, kind, topic, created_at, tags")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(24),
+    // system_tags (0218) tells an interview piece from a life-audit one.
+    withSystemTagsColumn((columnPresent) =>
+      supabase
+        .from("records")
+        .select(rawRecordColumns(columnPresent))
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(24),
+    ),
     supabase
       .from("sources")
       .select("id, kind, title, captured_at, tags")
@@ -106,7 +110,8 @@ async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promi
     if (typeof console !== "undefined") console.warn("[core-brain] records query failed", recRes.error);
     throw recRes.error;
   }
-  const recRows = (recRes.data ?? []) as RawRecordRow[];
+  // The select string is chosen at run time (system_tags or not), so name the row type.
+  const recRows = (recRes.data ?? []) as unknown as RawRecordRow[];
   // Sources are best-effort: a sources failure degrades to records-only, never blanks Core.
   let srcRows: RawSourceRow[] = [];
   if (srcRes.error) {
