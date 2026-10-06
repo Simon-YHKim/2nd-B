@@ -39,6 +39,7 @@ import {
   countFilledDetails,
   type ProfileDetailKey,
   type ProfileDetails,
+  profileChoiceLabelKey,
 } from "@/lib/persona/profile-details";
 import { fetchProfileDetails, saveProfileDetails } from "@/lib/supabase/profile-details";
 import {
@@ -47,50 +48,6 @@ import {
   saveDisplayName,
 } from "@/lib/supabase/display-name";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
-
-/** 선택지 값 -> 로케일 키. 값 자체를 화면에 보여주면 안 되므로 표로 잇는다. */
-const CHOICE_LABEL: Readonly<Record<string, string>> = {
-  morning: "rhythmMorning",
-  evening: "rhythmEvening",
-  flexible: "rhythmFlexible",
-  irregular: "rhythmIrregular",
-  dawn: "hoursDawn",
-  afternoon: "hoursAfternoon",
-  night: "hoursNight",
-  varies: "hoursVaries",
-  weekdays: "daysWeekdays",
-  weekends: "daysWeekends",
-  shift: "daysShift",
-};
-
-/**
- * `morning` 이 하루 리듬과 근무 시간대 양쪽에 있어서 키가 겹친다. 필드별로
- * 접두사를 붙여 각자의 라벨을 찾는다 - 표 하나로 뭉개면 "오전" 과 "아침형" 이
- * 같은 말이 된다.
- */
-function choiceLabelKey(field: ProfileDetailKey, value: string): string {
-  if (field === "workHours") {
-    const map: Record<string, string> = {
-      dawn: "hoursDawn",
-      morning: "hoursMorning",
-      afternoon: "hoursAfternoon",
-      evening: "hoursEvening",
-      night: "hoursNight",
-      varies: "hoursVaries",
-    };
-    return map[value] ?? value;
-  }
-  if (field === "workDays") {
-    const map: Record<string, string> = {
-      weekdays: "daysWeekdays",
-      weekends: "daysWeekends",
-      shift: "daysShift",
-      varies: "daysVaries",
-    };
-    return map[value] ?? value;
-  }
-  return CHOICE_LABEL[value] ?? value;
-}
 
 export default function ProfileDetailsScreen() {
   // Phone-aware: inside the dashboard phone, cancel steps the phone's stack.
@@ -492,7 +449,7 @@ export default function ProfileDetailsScreen() {
                         key={choice}
                         kind="filter"
                         style={styles.choiceChip}
-                        label={t(`deepspace:profileDetails.${choiceLabelKey(field.key, choice)}`)}
+                        label={t(`deepspace:profileDetails.${profileChoiceLabelKey(field.key, choice)}`)}
                         selected={value === choice}
                         // 같은 칩을 다시 누르면 해제된다. 한 번 고르면 못 무르는
                         // 선택지는 "선택 입력" 이 아니다. 저장 중에는 핸들러 자체를
