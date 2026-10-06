@@ -128,11 +128,14 @@ export function ImportHubScreen() {
   const [importErr, setImportErr] = useState(false);
   // Ledger booking runs best-effort AFTER the import lands, but rows the user
   // explicitly chose must not vanish silently (logic audit P1, dbl round 3):
-  // ratifyLedgerEntries RESOLVES with {inserted, failed} counts (per-row
+  // ratifyLedgerEntries RESOLVES with {inserted, failed, skipped} counts (per-row
   // fail-soft, never rejects on row failures), so the warning derives from the
-  // resolved counts. null = no warning; inserted===0 = total failure (safe to
-  // advise re-import); inserted>0 = partial (re-import would double-book).
+  // resolved counts. null = no warning; inserted===0 = total failure; inserted>0 =
+  // partial. Since 0224 the ledger dedups a re-imported statement, so re-importing
+  // is the safe advice in both cases (rows already booked come back as skipped).
   const [ledgerWarn, setLedgerWarn] = useState<LedgerRatifyResult | null>(null);
+  // Rows the last ratify found already booked by an earlier import (0224). Not a failure.
+  const [ledgerSkipped, setLedgerSkipped] = useState(0);
   // How many chosen items the last ratify found already imported, with nothing new
   // to log (0 = it logged). Without it that ratify ended like a success that left no
   // history line behind.
@@ -274,6 +277,7 @@ export function ImportHubScreen() {
     }
     setBusy(true);
     setLedgerWarn(null);
+    setLedgerSkipped(0);
     try {
       const result = await captureFromMarkdown({ userId, rawMd: proposalsToMarkdown(name(active), chosen), kindOverride: "self_knowledge" });
       // propose→ratify quality signal AFTER the import actually landed (a
@@ -304,14 +308,14 @@ export function ImportHubScreen() {
         bookedTxns = booked?.inserted ?? 0;
         // #1117 intent, completed for the resolve contract (dbl round 3):
         // ratifyLedgerEntries never rejects on row failures -- it resolves
-        // with {inserted, failed} -- so the warning must read those counts,
-        // not a .catch(). PARTIAL failure warns too: the user chose those
-        // rows, and it needs its OWN copy because ops_ledger has no dedup
-        // (ledger-ratify.ts documented limitation) -- advising "re-import
-        // the file" is only safe when NOTHING booked; after a partial
-        // booking it would double-book the inserted rows.
+        // with {inserted, failed, skipped} -- so the warning must read those
+        // counts, not a .catch(). PARTIAL failure warns too: the user chose
+        // those rows. Since 0224 (RD-261007-01) the ledger dedups a statement
+        // imported again, so "re-import the file" is safe after a partial
+        // booking as well - the booked rows come back as skipped, not doubled.
         const failedTxns = booked ? booked.failed : attempted;
         if (failedTxns > 0) setLedgerWarn({ inserted: bookedTxns, failed: failedTxns });
+        setLedgerSkipped(booked?.skipped ?? 0);
       }
       // An exact duplicate hands back the row an EARLIER import created and writes
       // nothing, so the entry logs only rows this import created - as the file import
@@ -519,6 +523,14 @@ export function ImportHubScreen() {
                     .replace("{inserted}", String(ledgerWarn.inserted))
             }
           />
+        ) : null}
+        {ledgerSkipped > 0 ? (
+          // 0224: a statement imported again books only what is new; say how many were already there.
+          <View style={styles.noteCard}>
+            <Text variant="body" style={styles.noteText}>
+              {t("ledgerSkippedNote").replace("{skipped}", String(ledgerSkipped))}
+            </Text>
+          </View>
         ) : null}
         {alreadyImported > 0 ? (
           // The file import's result line for the same outcome: nothing added, N

@@ -113,7 +113,7 @@
     "ledgerWarnTitle": "No se pudieron anotar las transacciones",
     "ledgerWarnBody": "La importación se guardó, pero las transacciones elegidas no se anotaron. Vuelve a importar el mismo archivo para anotarlas.",
     "ledgerWarnPartTitle": "Algunas transacciones no se anotaron",
-    "ledgerWarnPartBody": "No se pudieron anotar {failed} de las transacciones elegidas; {inserted} sí se anotaron. Si vuelves a importar el mismo archivo, se duplicarían las ya anotadas, así que añade a mano las que faltan.",
+    "ledgerWarnPartBody": "No se pudieron anotar {failed} de las transacciones elegidas; {inserted} sí se anotaron. Vuelve a importar el mismo archivo para anotar las que faltan; las ya anotadas no se vuelven a anotar.",
     "done": "Listo",
     "appts": "Planes",
     "places": "Lugares",
@@ -182,6 +182,7 @@
         "sub": "Agenda · archivo",
         "what": "Trae los eventos de tu calendario."
       }
-    }
+    },
+    "ledgerSkippedNote": "{skipped} transacciones ya estaban anotadas y no se volvieron a anotar."
   }
 }
