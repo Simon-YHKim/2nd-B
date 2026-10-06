@@ -69,6 +69,15 @@ describe("R2C-07 / R2C-08: the shelf", () => {
     expect(reading).toContain("const del = useTwoTapDelete((id) => void onRemove(id));");
     expect(reading.match(/<DeleteChip armed=\{del\.armedId === /g)?.length).toBe(4);
   });
+  test("gate CD-R2-01: a settled delete closes only the deleted book's page editor", () => {
+    const remover = reading.slice(reading.indexOf("const onRemove"), reading.indexOf("const del = useTwoTapDelete"));
+    expect(remover.length).toBeGreaterThan(200);
+    expect(remover).toMatch(/await removeFromShelf\(userId, entryId\);\n(\s*\/\/.*\n)*\s*setPageEdit\(\(open\) => editorAfterDelete\(open, entryId\)\);\n\s*shelf\.reload\(\);/);
+    // The old close read the editor captured when the delete started, then closed whatever
+    // was open by the time it settled, another book's draft included.
+    expect(remover).not.toContain("setPageEdit(null)");
+    expect(remover).not.toContain("pageEdit?.id");
+  });
   test("finished books and every book being read are drawn", () => {
     expect(reading).toContain("const view = shelfView(shelf.data);");
     expect(reading).toContain("view.done.map(");

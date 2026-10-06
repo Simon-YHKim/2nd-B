@@ -131,6 +131,10 @@ export function sheetAfterWrite<T extends { session: number }>(open: T | null, s
  * Gate CD-R1-01: the delete used to close whatever editor was open by then. While a delete
  * is in flight the list is still drawn and another goal's title still opens its editor, so
  * a draft typed into goal B during goal A's delete was thrown away when A's delete landed.
+ *
+ * The shelf's page-count editor uses it the same way (gate CD-R2-01): while book A's delete
+ * is in flight, book B can become the book being read and its page editor can open, and
+ * that draft must survive A's delete.
  */
 export function editorAfterDelete<T extends { id: string }>(open: T | null, deletedId: string): T | null {
   return open !== null && open.id === deletedId ? null : open;

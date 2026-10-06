@@ -118,6 +118,17 @@ describe("editorAfterDelete (gate CD-R1-01): a goal's delete closes only that go
   });
 });
 
+describe("editorAfterDelete (gate CD-R2-01): a book's delete closes only that book's page editor", () => {
+  test("book B's page draft, opened while book A's delete ran, survives A's delete", () => {
+    const draftB = { session: 2, id: "book-b", cur: "120", total: "300" };
+    expect(editorAfterDelete(draftB, "book-a")).toBe(draftB);
+  });
+  test("the page editor open on the deleted book closes, whichever opening it is", () => {
+    expect(editorAfterDelete({ session: 1, id: "book-a", cur: "20", total: "" }, "book-a")).toBeNull();
+    expect(editorAfterDelete({ session: 3, id: "book-a", cur: "40", total: "" }, "book-a")).toBeNull();
+  });
+});
+
 describe("runExclusive (gate BL-03): a clear cannot race a save", () => {
   const deferred = () => {
     let resolve!: () => void;

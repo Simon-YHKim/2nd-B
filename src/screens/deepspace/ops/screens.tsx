@@ -481,7 +481,9 @@ export function ReadingScreen() {
     setSaveErr(false);
     try {
       await removeFromShelf(userId, entryId);
-      if (pageEdit?.id === entryId) setPageEdit(null);
+      // Gate CD-R2-01: read the editor as it is now. Another book's page editor can open while
+      // this delete is in flight, and its draft must survive this.
+      setPageEdit((open) => editorAfterDelete(open, entryId));
       shelf.reload();
     } catch {
       setSaveErr(true);
