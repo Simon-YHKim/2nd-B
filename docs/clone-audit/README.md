@@ -2,11 +2,11 @@
 
 Fidelity loop for cloning the finalized design handoff (`2ndB_proto_rev2`) screen-by-screen.
 
-- `reference-handoff/` — the design handoff bundle (reference-app JSX prototype + PRD + screen spec).
+- `reference-handoff/` — moved out of the repo on 2026-10-05 to `E:/Legacy/2ndB/docs/clone-audit/reference-handoff/` (MANIFEST batch `qa261005-clone-handoff`, QA R2E-09; the July handoff bundle, older than the canon). The canonical reference app is `design/proto_rev2/reference-app/`.
 - `reference-captures/` — 37 target screen captures (390px). The pixel-diff ground truth.
 - `current/` — current app renders at 390x844 (regenerate with the tooling below).
 - `capture-report.json` — route → screenshot map + console errors.
-- `gap-backlog.json` — per-screen fidelity gaps (from wf-gap-analysis; that generator left the repo on 2026-10-04 for `E:/Legacy/2ndB/scripts/wf-gap-analysis.mjs`).
+- `gap-backlog.json` — per-screen fidelity gaps (from wf-gap-analysis; that generator left the repo on 2026-10-04 for `E:/Legacy/2ndB/scripts/wf-gap-analysis.mjs`). Its `refSourceFile` paths and line numbers point at the moved `reference-handoff/` copy above; the file is a frozen snapshot and is not rewritten.
 
 ## Loop
 1. `npx expo export --platform web`
@@ -37,7 +37,7 @@ on every full page load, and resolves a real QA record id for `/record/:id` (the
 
 ## Repeatable loop (per screen / batch)
 1. Pick screen(s) from `gap-backlog.json` (verdict + topGaps + realScreenModule).
-2. Clone agent reads: `reference-captures/NN.png` (target) + reference source jsx in `reference-handoff/reference-app/` + the real RN module; rebuilds it on the shared shell using tokens; verbatim Korean copy; tsc/eslint/i18n clean; NO commit.
+2. Clone agent reads: `reference-captures/NN.png` (target) + reference source jsx in `design/proto_rev2/reference-app/` (the canon the code and canon tests read) + the real RN module; rebuilds it on the shared shell using tokens; verbatim Korean copy; tsc/eslint/i18n clean; NO commit.
 3. `npx expo export --platform web`
 4. `PW_PATH=/opt/node22/lib/node_modules/playwright PW_CHROME=/opt/pw-browsers/chromium-1194/chrome-linux/chrome node scripts/clone-fidelity.mjs NN-name`
 5. Read `current/NN.png` vs `reference-captures/NN.png`; send diffs back to the agent; repeat to ~0.

@@ -12,10 +12,6 @@
     "subtitle": "Tu resumen, registros y cuenta en un solo lugar",
     "speech": "Consulta tu resumen o cambia tu perfil y ajustes."
   },
-  "account": {
-    "eyebrow": "Cuenta",
-    "emailUnavailable": "Correo electrónico no disponible."
-  },
   "sections": {
     "center": {
       "label": "Mi resumen",

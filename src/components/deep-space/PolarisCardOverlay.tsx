@@ -27,7 +27,8 @@ import { PixelScrim } from "@/components/pixel/PixelDither";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { cardDismissDirection, shouldCompleteCardDismiss, type CardEdges } from "@/lib/polaris/card-dismiss";
-import { useAppRouter, usePhoneEmbed } from "@/lib/nav/phone-embed";
+import { isOverHome } from "@/lib/nav/over-home";
+import { useAppRouter, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { m3 } from "@/lib/theme/m3";
 import { PaletteOverride, type Palette } from "@/lib/theme/ThemeContext";
@@ -87,7 +88,13 @@ export function PolarisCardOverlay({ children }: { children: ReactNode }) {
   const { height } = useWindowDimensions();
   // Opened from the sky, the home stays visible under the scrim; opened from a
   // link with nothing underneath, DeepSpaceScreen paints the shared sky instead.
-  const [overSky] = useState(() => router.canGoBack());
+  // "Something to go back to" is not "the home is underneath": /records,
+  // /profile, the empty-state replaces and the /persona redirect all open this
+  // card over another screen, which then showed through the dither (QA 261004
+  // D-05). Only the home's own entry says overlay=home, the /dashboard rule
+  // (DashboardPhone.tsx).
+  const { overlay } = useScreenParams<{ overlay?: string }>();
+  const [overSky] = useState(() => isOverHome(overlay, router.canGoBack()));
   const reducedMotion = useReducedMotionPref();
   const edges = useRef<CardEdges>({ top: true, bottom: true });
   const offsetY = useRef(new Animated.Value(0)).current;

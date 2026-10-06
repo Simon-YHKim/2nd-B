@@ -8,24 +8,5 @@
   "actions": {
     "home": "Ir al inicio",
     "homeHint": "Abre la pantalla de inicio."
-  },
-  "destinations": {
-    "title": "Otras pantallas",
-    "capture": {
-      "label": "Captura",
-      "hint": "Abre la captura desde la página no encontrada."
-    },
-    "audit": {
-      "label": "Yo del pasado",
-      "hint": "Abre la línea de tiempo del yo pasado."
-    },
-    "persona": {
-      "label": "Mi resumen",
-      "hint": "Abre tu resumen."
-    },
-    "manual": {
-      "label": "Guía de uso",
-      "hint": "Abre la guía de uso desde la pantalla 404."
-    }
   }
 }

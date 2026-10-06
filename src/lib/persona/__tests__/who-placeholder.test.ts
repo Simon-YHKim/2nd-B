@@ -99,7 +99,13 @@ describe("{{who}} placeholder", () => {
     // ("궁금한 내용을 알려 주세요. {{who}}의 생활에 …")이었다. 옛 캐릭터 목소리 명부가
     // 배송 대화에서 빠지며(Simon 결정 Q-261004-14 A) personas.* 블록이 다섯 로케일째
     // E:/Legacy/2ndB 로 갔다. 같은 경우다 - 쓰던 문구가 화면과 함께 나갔다.
-    expect(used.length).toBeGreaterThanOrEqual(28);
+    // 28 -> 22 (2026-10-05, R2E-08): 여섯 값이 소비자 0 키였다 - deepspace 의
+    // beyond.lead · data.status · import.footer · import.tip · integrations.status 와
+    // home 의 ds.seen.conclusion. 어느 화면도 부르지 않아 화면에 뜬 적이 없는 문구다
+    // (부르던 화면은 이번 회차 전에 이미 그 키를 놓았다). 다섯 로케일에서 지우고
+    // 원문은 E:/Legacy/2ndB 의 locales/*/{deepspace,home}.json 사본(batch
+    // qa261005-legkeys)에 있다. 쓰이는 {{who}} 는 하나도 줄지 않았다.
+    expect(used.length).toBeGreaterThanOrEqual(22);
   });
 
   it("한국어가 아닌 로케일에는 새지 않는다", () => {

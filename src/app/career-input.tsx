@@ -6,9 +6,12 @@
 // 역할 place the work, 성과 분해 turns a claim into the actions behind it, 기술 정리
 // names what was used.
 //
-// Everything saves as ONE record (tags: career_achievement + domain:career +
-// year:YYYY), the same shape the timeline already groups and the retrieval layer
+// Everything saves as ONE record (tags: career_achievement + year:YYYY, area
+// career), the same shape the timeline already groups and the retrieval layer
 // already indexes. No new table: this is a richer body, not a new kind of thing.
+// The area goes in as the typed domainIntent (achievementFiling), never as a raw
+// domain:career tag: createRecord strips those and re-detects from keywords, which
+// filed a one-line entry under domain:collect until 2026-10-05 (QA R2C-01).
 //
 // The composer lives in lib/career/achievement-form.ts, pure and tested. The
 // KPI suggestion chips come from the canon (data/screens/careerinput.json), not
@@ -27,10 +30,9 @@ import { canonCareerInput } from "@/lib/canon";
 import { createRecord } from "@/lib/records/create";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
-import { domainTagFor } from "@/lib/persona/domain-stars";
 import {
   EMPTY_ACHIEVEMENT_FORM,
-  achievementYear,
+  achievementFiling,
   canSaveAchievement,
   composeFullAchievementBody,
   type AchievementForm,
@@ -38,8 +40,6 @@ import {
 } from "@/lib/career/achievement-form";
 import { m3 } from "@/lib/theme/m3";
 import { spacing } from "@/lib/theme/tokens";
-
-const CAREER_TAG = domainTagFor("career");
 
 type Section = { key: string; title: string; hint: string };
 
@@ -109,7 +109,6 @@ export default function CareerInputScreen() {
     setSaving(true);
     setSaveFailed(false);
     try {
-      const year = achievementYear(form);
       // C9: a note save runs the local crisis classifier and returns a red zone
       // as a fixed-template followup rather than throwing. This handler used to
       // drop it and replace straight to /career - saved to the safety ledger,
@@ -121,7 +120,7 @@ export default function CareerInputScreen() {
         kind: "note",
         body: composeFullAchievementBody(form, locale),
         topic: form.summary.trim().slice(0, 80),
-        tags: ["career_achievement", CAREER_TAG, ...(year ? [`year:${year}`] : [])],
+        ...achievementFiling(form),
       });
       if (res.followup?.zone === "red") {
         setCrisis({

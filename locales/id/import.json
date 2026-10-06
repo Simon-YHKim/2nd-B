@@ -53,10 +53,7 @@
     "sub": "Jumlah sebutan rencana → catatan"
   },
   "health": {
-    "connect": "Nyalakan sinkronisasi aktivitas",
-    "ingest": "Tambahkan aktivitas hari ini",
-    "consentNeeded": "Setujui untuk membawa aktivitas masuk",
-    "minorLocked": "Sinkronisasi aktivitas nonaktif untuk akun ini."
+    "connect": "Nyalakan sinkronisasi aktivitas"
   },
   "markdownRetention": {
     "consent": "File dianalisis di perangkat ini. Judul dan isi catatan yang Anda pilih disimpan sebagai entri terenkripsi. Isi setiap catatan dibatasi hingga 4.000 karakter.",

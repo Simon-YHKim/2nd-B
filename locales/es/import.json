@@ -53,10 +53,7 @@
     "sub": "Recuento de planes → registro"
   },
   "health": {
-    "connect": "Activar la sincronización de actividad",
-    "ingest": "Añadir la actividad de hoy",
-    "consentNeeded": "Aceptar para traer tu actividad",
-    "minorLocked": "La sincronización de actividad está desactivada en esta cuenta."
+    "connect": "Activar la sincronización de actividad"
   },
   "markdownRetention": {
     "consent": "El archivo se analiza en este dispositivo. Los títulos y el texto de las notas que elijas se guardan como registros cifrados. El texto de cada nota se limita a 4.000 caracteres.",

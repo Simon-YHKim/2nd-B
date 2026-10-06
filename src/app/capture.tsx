@@ -32,9 +32,10 @@ import {
   useAudioRecorder,
   RecordingPresets,
   requestRecordingPermissionsAsync,
-  setAudioModeAsync,
 } from "expo-audio";
+import { beginRecordingAudioMode, endRecordingAudioMode, restoreEffectsAfterRecording } from "@/lib/audio/audio-session";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from "expo-router";
 
 import { PremiumAppShell, PremiumModal } from "@/components/premium";
@@ -445,7 +446,7 @@ function CaptureLegacySession({
   const { t, i18n } = useTranslation("capture");
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const lifeAreaCopy = LIFE_AREA_INTENT_COPY[resolveLifeAreaLocale(i18n.resolvedLanguage ?? i18n.language)];
+  const lifeAreaCopy = LIFE_AREA_INTENT_COPY[resolveLifeAreaLocale(renderedUiLanguage(i18n))];
   const insets = useSafeAreaInsets();
   const kbHeight = useKeyboard();
   // iOS keeps its old top offset; Android measures (src/lib/ui/keyboard.tsx).
@@ -711,7 +712,7 @@ function CaptureLegacySession({
   // (transcribeAudio) is wired so the flow and tests work offline.
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderLifecycle = useMemo(
-    () => createRecorderLifecycle(audioRecorder),
+    () => createRecorderLifecycle(audioRecorder, { onIdle: restoreEffectsAfterRecording }),
     [audioRecorder],
   );
   const [voicePhase, setVoicePhase] = useState<VoicePhase>("idle");
@@ -2778,7 +2779,7 @@ ${transcript}`;
         setVoiceNotice(t("voice.permissionDenied"));
         return;
       }
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, interruptionMode: "mixWithOthers" });
+      await beginRecordingAudioMode();
       ownerGuard.assertCurrent();
       await audioRecorder.prepareToRecordAsync();
       prepared = true;
@@ -2801,6 +2802,8 @@ ${transcript}`;
         recorderLifecycle.begin(userId);
         await recorderLifecycle.cancel();
       }
+      // A start that failed before any session began still left the recording mode on.
+      void endRecordingAudioMode();
       if (isAbortError(error) || ownerGuard.signal.aborted) return;
       try {
         ownerGuard.assertCurrent();

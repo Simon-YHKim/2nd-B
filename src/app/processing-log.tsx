@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, StyleSheet, View, type ListRenderItem } from "react-native";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { DeepSpaceLoader } from "@/components/deepspace";
@@ -232,7 +233,7 @@ export default function ProcessingLogScreen() {
   // Phone-aware: inside the dashboard phone, back steps the phone back.
   const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
-  const locale = uiLocaleFor(i18n.resolvedLanguage ?? i18n.language);
+  const locale = uiLocaleFor(renderedUiLanguage(i18n));
   const copy = COPY[locale];
   const { userId, loading: authLoading, hasProfile, profileProbeFailed, refresh } = useAuth();
   const [state, setState] = useState<ProcessingLogState>(emptyState);

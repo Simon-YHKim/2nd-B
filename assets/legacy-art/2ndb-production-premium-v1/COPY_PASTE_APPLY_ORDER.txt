@@ -27,18 +27,18 @@ imagine -> domain_imagine_premium.png  [moved 2026-10-04 to E:/Legacy/2ndB, batc
 inspiration -> domain_inspiration_premium.png  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
 
 4. Characters/workers
-SecondB -> secondb_premium_idle.png + secondb_premium_walk_strip_6f.png
-Archi -> archi_premium_idle.png + archi_premium_walk_strip_6f.png
-Gadi -> gadi_premium_idle.png + gadi_premium_walk_strip_6f.png
-Lulu -> lulu_premium_idle.png + lulu_premium_walk_strip_6f.png
-Momo -> momo_premium_idle.png + momo_premium_walk_strip_6f.png
+SecondB -> secondb_premium_idle.png + secondb_premium_walk_strip_6f.png  [moved 2026-10-05 to E:/Legacy/2ndB, batch qa261005-secondb-sprite]
+Archi -> archi_premium_idle.png + archi_premium_walk_strip_6f.png  [moved 2026-10-05 to E:/Legacy/2ndB, batch qa261004-chars]
+Gadi -> gadi_premium_idle.png + gadi_premium_walk_strip_6f.png  [moved 2026-10-05 to E:/Legacy/2ndB, batch qa261004-chars]
+Lulu -> lulu_premium_idle.png + lulu_premium_walk_strip_6f.png  [moved 2026-10-05 to E:/Legacy/2ndB, batch qa261004-chars]
+Momo -> momo_premium_idle.png + momo_premium_walk_strip_6f.png  [moved 2026-10-05 to E:/Legacy/2ndB, batch qa261004-chars]
 Vela -> vela_premium_idle.png + vela_premium_walk_strip_6f.png  [moved 2026-10-04 to E:/Legacy/2ndB, batch qa261004-art]
-Lumi -> lumi_premium_idle.png + lumi_premium_walk_strip_6f.png
+Lumi -> lumi_premium_idle.png + lumi_premium_walk_strip_6f.png  [moved 2026-10-05 to E:/Legacy/2ndB, batch qa261004-chars]
 
 5. Optional wiki thumbnails
-wiki_card_thumb_core_brain_premium.png
-wiki_card_thumb_library_premium.png
-wiki_card_thumb_imagine_premium.png
+wiki_card_thumb_core_brain_premium.png  [moved 2026-10-05 to E:/Legacy/2ndB, batch qa261004-lever]
+wiki_card_thumb_library_premium.png  [moved 2026-10-05 to E:/Legacy/2ndB, batch qa261004-lever]
+wiki_card_thumb_imagine_premium.png  [moved 2026-10-05 to E:/Legacy/2ndB, batch qa261004-lever]
 
 Implementation notes:
 - All sprites are transparent PNG; render with image-rendering: pixelated.
