@@ -1,8 +1,29 @@
 // Terminal account erasure. The target is always the freshly authenticated
 // caller; request data can neither select a user nor weaken deletion checks.
+//
+// Two steps since 0217 (docs/design/deletion-receipt-server-261006.md 3.3):
+//   begin   {op:"begin", op_id}            -> the server records the request
+//           before anything is destroyed and returns a signed op token.
+//   execute {op:"execute", op_id, op_token} -> the op moves to executing, and
+//           only then: tombstone (0192) -> Storage -> Auth deletion. The profile
+//           row's BEFORE DELETE trigger turns the op into the receipt.
+// The old app's body `{}` still works and gets a server-made op row with no
+// token, so the Q6 fence release always sees every deletion in flight.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.106.1';
+import {
+  MIN_PEPPER_LENGTH,
+  OP_ID_RE,
+  OP_TOKEN_PEPPER_ENV,
+  issueOpToken,
+  opTokenHashHex,
+  parseDeleteAccountBody,
+  publicReceipt,
+  sweepsForRecord,
+  verifyOpToken,
+  type DeleteAccountRequest,
+} from '../_shared/account-deletion-op.ts';
 import { deleteAuthUserWithReconciliation } from './delete-auth-user.ts';
 import { eraseRawClippings } from './storage-erasure.ts';
 
@@ -48,7 +69,8 @@ function corsPreflight(req: Request): Response {
   return new Response(null, { status: 204, headers });
 }
 
-async function readExactEmptyObject(req: Request): Promise<void> {
+/** Read the whole body (at most 1 KiB, 2 s) as strict UTF-8 text. */
+async function readBoundedBody(req: Request): Promise<string> {
   const mediaType = (req.headers.get('content-type') ?? '').split(';', 1)[0].trim().toLowerCase();
   if (mediaType !== 'application/json') throw new RequestError('unsupported_media_type', 415);
 
@@ -103,13 +125,11 @@ async function readExactEmptyObject(req: Request): Promise<void> {
     bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  let rawBody: string;
   try {
-    rawBody = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   } catch {
     throw new RequestError('invalid_body', 400);
   }
-  if (rawBody !== '{}') throw new RequestError('invalid_body', 400);
 }
 
 interface VerifiedClaims {
@@ -140,6 +160,15 @@ function safeLog(code: string): void {
   console.warn(`[delete-account] ${code}`);
 }
 
+/** PostgREST answers a function the schema cache does not hold with PGRST202. */
+function rpcMissing(error: { code?: string } | null): boolean {
+  return error?.code === 'PGRST202' || error?.code === '42883';
+}
+
+function rpcResult(data: unknown): Record<string, unknown> | null {
+  return data && typeof data === 'object' && !Array.isArray(data) ? data as Record<string, unknown> : null;
+}
+
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get('origin');
   if (origin && !ALLOWED_ORIGINS.has(origin)) {
@@ -148,8 +177,12 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return corsPreflight(req);
   if (req.method !== 'POST') return jsonResponse(req, { error: 'method_not_allowed' }, 405);
 
+  let request: DeleteAccountRequest;
   try {
-    await readExactEmptyObject(req);
+    const rawBody = await readBoundedBody(req);
+    const parsed = parseDeleteAccountBody(rawBody);
+    if (parsed === null) throw new RequestError('invalid_body', 400);
+    request = parsed;
   } catch (error) {
     if (error instanceof RequestError) return jsonResponse(req, { error: error.code }, error.status);
     return jsonResponse(req, { error: 'invalid_body' }, 400);
@@ -199,6 +232,150 @@ Deno.serve(async (req: Request) => {
       return jsonResponse(req, { error: 'invalid_authorization' }, 401);
     }
 
+    // ---- begin: remember the request; nothing is destroyed on this path. ----
+    if (request.kind === 'begin') {
+      const pepper = Deno.env.get(OP_TOKEN_PEPPER_ENV) ?? '';
+      if (pepper.length < MIN_PEPPER_LENGTH) {
+        // No token can be signed here, so this Edge cannot offer the receipt
+        // flow: answer exactly like an Edge without 0217, and the app uses the
+        // old `{}` flow, which needs no token (gate DLR-A1-06). Nothing was written.
+        safeLog('op_token_pepper_missing');
+        return jsonResponse(req, { error: 'op_unsupported' }, 400);
+      }
+      const issuedMs = Date.now();
+      const opToken = await issueOpToken(pepper, request.opId, authUser.id, issuedMs);
+      const { data: beginData, error: beginError } = await admin.rpc('begin_account_deletion_op', {
+        p_op_id: request.opId,
+        p_user_id: authUser.id,
+        p_token_issued_ms: issuedMs,
+        p_token_hash: await opTokenHashHex(opToken),
+      });
+      if (beginError) {
+        // 0217 is not applied here: tell the app to use the old flow (`{}`).
+        if (rpcMissing(beginError)) return jsonResponse(req, { error: 'op_unsupported' }, 400);
+        safeLog('op_begin_failed');
+        return jsonResponse(req, { error: 'server_unavailable' }, 503);
+      }
+      const begun = rpcResult(beginData);
+      switch (begun?.result) {
+        case 'accepted':
+          return jsonResponse(req, { op_id: request.opId, op_token: opToken });
+        case 'replayed': {
+          // Same op, same owner, still accepted: the stored issue time gives back the same token.
+          const storedMs = begun.token_issued_ms;
+          if (typeof storedMs !== 'number' || !Number.isSafeInteger(storedMs)) {
+            safeLog('op_begin_shape_invalid');
+            return jsonResponse(req, { error: 'server_unavailable' }, 503);
+          }
+          return jsonResponse(req, {
+            op_id: request.opId,
+            op_token: await issueOpToken(pepper, request.opId, authUser.id, storedMs),
+          });
+        }
+        case 'op_taken':
+          return jsonResponse(req, { error: 'op_id_taken' }, 409);
+        case 'account_gone':
+          return jsonResponse(req, { error: 'account_profile_missing' }, 409);
+        case 'too_many':
+          return jsonResponse(req, { error: 'too_many_requests' }, 429);
+        case 'invalid':
+          return jsonResponse(req, { error: 'invalid_body' }, 400);
+        default:
+          safeLog('op_begin_shape_invalid');
+          return jsonResponse(req, { error: 'server_unavailable' }, 503);
+      }
+    }
+
+    // ---- execute (or the old `{}`): the op must be executing before anything is destroyed. ----
+    let opId: string | null = null;
+    if (request.kind === 'execute') {
+      const { data: startData, error: startError } = await admin.rpc('start_account_deletion_op', {
+        p_op_id: request.opId,
+        p_user_id: authUser.id,
+        p_token_hash: await opTokenHashHex(request.opToken),
+      });
+      if (startError) {
+        safeLog('op_start_failed');
+        return jsonResponse(req, { error: 'server_unavailable' }, 503);
+      }
+      const started = rpcResult(startData);
+      switch (started?.result) {
+        case 'started':
+        case 'continued':
+          opId = request.opId;
+          break;
+        case 'completed': {
+          // The account is already gone and this op is its receipt: nothing to destroy.
+          // The row no longer holds an owner, so a matching token hash alone does
+          // not prove this op was the caller's: recompute the token HMAC for THIS
+          // caller with the stored issue time (gate DLR-A1-02, 설계서 I4).
+          const pepper = Deno.env.get(OP_TOKEN_PEPPER_ENV) ?? '';
+          if (pepper.length < MIN_PEPPER_LENGTH) {
+            safeLog('op_token_pepper_missing');
+            return jsonResponse(req, { error: 'server_unavailable' }, 503);
+          }
+          const storedMs = started.token_issued_ms;
+          if (
+            typeof storedMs !== 'number'
+            || !Number.isSafeInteger(storedMs)
+            || !(await verifyOpToken(pepper, request.opToken, request.opId, authUser.id, storedMs))
+          ) {
+            return jsonResponse(req, { error: 'op_rejected' }, 403);
+          }
+          const receipt = publicReceipt({ ...started, op_id: request.opId, status: 'completed' }, request.opId);
+          return jsonResponse(req, {
+            deleted: true,
+            replayed: true,
+            op_id: request.opId,
+            ...(receipt ? receipt.sweeps : {}),
+          });
+        }
+        case 'failed':
+        case 'abandoned':
+          return jsonResponse(req, { error: 'op_closed', op_status: started.result }, 409);
+        case 'rejected':
+          return jsonResponse(req, { error: 'op_rejected' }, 403);
+        default:
+          safeLog('op_start_shape_invalid');
+          return jsonResponse(req, { error: 'server_unavailable' }, 503);
+      }
+    } else {
+      const { data: legacyData, error: legacyError } = await admin.rpc('start_legacy_account_deletion_op', {
+        p_user_id: authUser.id,
+      });
+      if (legacyError && !rpcMissing(legacyError)) {
+        safeLog('op_legacy_start_failed');
+        return jsonResponse(req, { error: 'server_unavailable' }, 503);
+      }
+      const legacy = rpcResult(legacyData);
+      if (legacy?.result === 'account_gone') {
+        return jsonResponse(req, { error: 'fresh_session_required' }, 401);
+      }
+      if (typeof legacy?.op_id === 'string' && OP_ID_RE.test(legacy.op_id)) opId = legacy.op_id;
+      // 0217 missing: the old flow without an op row, exactly as before.
+    }
+
+    // Auth deletion has not happened yet on every path that calls this.
+    const failOp = async (code: string): Promise<string | null> => {
+      if (opId === null) return null;
+      try {
+        const { data, error } = await admin.rpc('fail_account_deletion_op', {
+          p_op_id: opId,
+          p_user_id: authUser.id,
+          p_code: code,
+        });
+        if (error) {
+          safeLog('op_fail_record_failed');
+          return null;
+        }
+        const status = rpcResult(data)?.status;
+        return typeof status === 'string' ? status : null;
+      } catch {
+        safeLog('op_fail_record_failed');
+        return null;
+      }
+    };
+
     const issuedAtMs = claims.iat * 1000;
     if (!Number.isSafeInteger(issuedAtMs)) {
       return jsonResponse(req, { error: 'invalid_authorization' }, 401);
@@ -217,6 +394,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse(req, { error: 'server_unavailable' }, 503);
     }
     if (deletionFenced !== true) {
+      // The op stays executing: a retry with a refreshed session continues it.
       return jsonResponse(req, { error: 'fresh_session_required' }, 401);
     }
 
@@ -224,6 +402,12 @@ Deno.serve(async (req: Request) => {
     const preDeletionStorage = await eraseRawClippings(storageBucket, authUser.id);
     if (!preDeletionStorage.ok) {
       safeLog(preDeletionStorage.code);
+      // Progress (409) keeps the op executing for the retry; a precondition
+      // failure ends it, and Q6 may release its fence once no attempt of this
+      // op can still be running (0217, ten minutes after its last attempt).
+      const opStatus = preDeletionStorage.code === 'storage_cleanup_in_progress'
+        ? null
+        : await failOp('storage_precondition');
       return jsonResponse(
         req,
         {
@@ -233,6 +417,8 @@ Deno.serve(async (req: Request) => {
           deletion_fenced: true,
           raw_clippings_erased: false,
           raw_clippings_removed: preDeletionStorage.removed,
+          ...(opId === null ? {} : { op_id: opId }),
+          ...(opStatus === null ? {} : { op_status: opStatus }),
         },
         preDeletionStorage.code === 'storage_cleanup_in_progress' ? 409 : 503,
       );
@@ -245,6 +431,9 @@ Deno.serve(async (req: Request) => {
     const preDeletionPhotos = await eraseRawClippings(photoBucket, authUser.id);
     if (!preDeletionPhotos.ok) {
       safeLog(`record_photos_${preDeletionPhotos.code}`);
+      const opStatus = preDeletionPhotos.code === 'storage_cleanup_in_progress'
+        ? null
+        : await failOp('record_photos_precondition');
       return jsonResponse(
         req,
         {
@@ -256,6 +445,8 @@ Deno.serve(async (req: Request) => {
           raw_clippings_removed: preDeletionStorage.removed,
           record_photos_erased: false,
           record_photos_removed: preDeletionPhotos.removed,
+          ...(opId === null ? {} : { op_id: opId }),
+          ...(opStatus === null ? {} : { op_status: opStatus }),
         },
         preDeletionPhotos.code === 'storage_cleanup_in_progress' ? 409 : 503,
       );
@@ -264,11 +455,22 @@ Deno.serve(async (req: Request) => {
     const authDeletion = await deleteAuthUserWithReconciliation(admin.auth.admin, authUser.id);
     if (!authDeletion.ok) {
       safeLog(authDeletion.code);
-      return jsonResponse(
-        req,
-        { error: authDeletion.code === 'auth_delete_failed' ? 'account_delete_failed' : 'server_unavailable' },
-        authDeletion.code === 'auth_delete_failed' ? 500 : 503,
-      );
+      if (authDeletion.code === 'auth_delete_failed') {
+        // fail_account_deletion_op only marks the op failed while the profile
+        // row still exists; if Auth did delete, the trigger already completed it.
+        const opStatus = await failOp('auth_delete_failed');
+        return jsonResponse(
+          req,
+          {
+            error: 'account_delete_failed',
+            ...(opId === null ? {} : { op_id: opId }),
+            ...(opStatus === null ? {} : { op_status: opStatus }),
+          },
+          500,
+        );
+      }
+      // Unknown outcome: the op stays executing and the device asks for its receipt.
+      return jsonResponse(req, { error: 'server_unavailable', ...(opId === null ? {} : { op_id: opId }) }, 503);
     }
 
     let profileErased: boolean | null = null;
@@ -287,8 +489,7 @@ Deno.serve(async (req: Request) => {
       safeLog('profile_check_failed');
     }
 
-    return jsonResponse(req, {
-      deleted: true,
+    const observed = {
       profile_erased: profileErased,
       deletion_fenced: true,
       // begin_account_deletion commits the durable write fence before this
@@ -296,9 +497,33 @@ Deno.serve(async (req: Request) => {
       // recreate the owner's raw objects while Auth deletion is in flight.
       raw_clippings_erased: true,
       raw_clippings_empty_at_check: true,
-      raw_clippings_removed: preDeletionStorage.removed,
       record_photos_erased: true,
       record_photos_empty_at_check: true,
+    };
+
+    // The receipt already exists (the profile row's trigger completed the op).
+    // Its sweep flags are a separate, best-effort write: losing it never turns
+    // a finished erasure into a failure, and the receipt then says "not reported".
+    // The RPC also completes an op the profile trigger left open (gate SAFE-06);
+    // false means nothing was recorded, which the receipt then shows as not reported.
+    if (opId !== null) {
+      try {
+        const { data: recorded, error: sweepError } = await admin.rpc('record_account_deletion_op_sweeps', {
+          p_op_id: opId,
+          p_sweeps: sweepsForRecord(observed),
+        });
+        if (sweepError) safeLog('op_sweeps_record_failed');
+        else if (recorded !== true) safeLog('op_sweeps_not_recorded');
+      } catch {
+        safeLog('op_sweeps_record_failed');
+      }
+    }
+
+    return jsonResponse(req, {
+      deleted: true,
+      ...(opId === null ? {} : { op_id: opId }),
+      ...observed,
+      raw_clippings_removed: preDeletionStorage.removed,
       record_photos_removed: preDeletionPhotos.removed,
     });
   } catch {

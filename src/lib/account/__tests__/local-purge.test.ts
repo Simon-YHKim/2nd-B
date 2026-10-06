@@ -13,6 +13,7 @@ const mockNoticeLastSeenPurge = jest.fn<Promise<boolean>, [string]>();
 const mockStarLastSeenPurge = jest.fn<Promise<boolean>, [string]>();
 const mockHealthAutoReadPurge = jest.fn<Promise<boolean>, [string]>();
 const mockInstallFence = jest.fn<Promise<boolean>, [string]>();
+const mockReadFence = jest.fn<Promise<boolean | null>, [string]>();
 
 jest.mock("../../capture/draft", () => ({
   purgeCaptureDraftsForDeletedAccount: (owner: string) => mockCapturePurge(owner),
@@ -58,6 +59,7 @@ jest.mock("../../health/auto-read", () => ({
 }));
 jest.mock("../local-deletion-fence", () => ({
   installAccountLocalDeletionFence: (owner: string) => mockInstallFence(owner),
+  readAccountLocalDeletionFence: (owner: string) => mockReadFence(owner),
 }));
 
 import {
@@ -67,6 +69,7 @@ import {
 
 beforeEach(() => {
   mockInstallFence.mockReset().mockResolvedValue(true);
+  mockReadFence.mockReset().mockResolvedValue(false);
   mockNotificationPurge.mockReset().mockResolvedValue(undefined);
   for (const purge of [
     mockAvatarPalettePurge,
@@ -154,6 +157,26 @@ describe("purgeDeletedAccountLocalData", () => {
     expect(mockNotificationPurge).toHaveBeenCalledTimes(1);
   });
 
+  test("W2: a later pass that finds the marker already laid confirms the wipe (no Web Locks)", async () => {
+    // The pass that lays the marker cannot join another tab's write in flight.
+    mockInstallFence.mockResolvedValue(false);
+    await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("unconfirmed");
+    // The next pass reads the marker BEFORE it lays it again: an earlier pass laid it.
+    mockReadFence.mockResolvedValueOnce(true);
+    await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("complete");
+    expect(mockReadFence.mock.invocationCallOrder[1]).toBeLessThan(mockInstallFence.mock.invocationCallOrder[1]);
+    // Mutation check: an unreadable marker (null) is not "laid".
+    mockReadFence.mockResolvedValueOnce(null);
+    await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("unconfirmed");
+  });
+
+  test("W2: a laid marker does not excuse a namespace that was not wiped", async () => {
+    mockInstallFence.mockResolvedValue(false);
+    mockReadFence.mockResolvedValueOnce(true);
+    mockCapturePurge.mockResolvedValueOnce(false);
+    await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("unconfirmed");
+  });
+
   test("never claims local completion when the /focus tally remains", async () => {
     mockFocusPurge.mockResolvedValueOnce(false);
     await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("unconfirmed");
@@ -189,8 +212,8 @@ describe("purgeDeletedAccountLocalData", () => {
     try {
       mockCapturePurge.mockImplementationOnce(() => new Promise<boolean>(() => {}));
       const result = purgeDeletedAccountLocalData("owner-a");
-      await Promise.resolve();
-      await Promise.resolve();
+      // The marker read and the fence install are awaited before the purges start.
+      for (let tick = 0; tick < 10; tick += 1) await Promise.resolve();
 
       expect(mockCapturePurge).toHaveBeenCalledTimes(1);
       expect(mockImportPurge).toHaveBeenCalledTimes(1);

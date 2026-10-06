@@ -11,7 +11,21 @@ import {
   refreshExpectedSessionInsideMutation,
   type AuthSessionExpectation,
 } from "../auth/session-mutation";
-import { installAccountLocalDeletionFence } from "../account/local-deletion-fence";
+import {
+  DELETION_OP_CLOSED_RETENTION_MS,
+  PENDING_DELETION_OP_STALE_MS,
+  clearDeletionOpMemo,
+  isDeletionOpId,
+  newDeletionOpId,
+  readDeletionOpMemos,
+  writeDeletionOpMemo,
+} from "../account/deletion-op-memo";
+import {
+  ACCOUNT_DELETION_LOOKUP_MS,
+  fetchAccountDeletionOpStatus,
+  type OpStatusLookup,
+  type ServerDeletionReceipt,
+} from "../account/deletion-receipt";
 import { recordPhotoPathsOf, removeRecordPhotoObjects } from "../capture/record-photos";
 /** Delete every record belonging to the user. Returns affected count. */
 export async function deleteAllRecords(userId: string): Promise<number> {
@@ -245,6 +259,8 @@ export const ACCOUNT_DELETION_DEADLINE_MS = 90_000;
  *  into `true` would hide one. Neither is honest, so both stay visible. */
 export type AccountDeletionReceipt = {
   deleted: true;
+  /** The request number = the server's receipt number (0217). Null only for the old `{}` flow. */
+  opId: string | null;
   profileErased: boolean | null;
   /** Whether the server committed its durable deletion tombstone. */
   deletionFenced: boolean | null;
@@ -262,6 +278,19 @@ export type AccountDeletionReceipt = {
   observedAtIso: string;
 };
 
+/**
+ * The request left this device but no answer proves its outcome (I5). Not a
+ * failure: the server may have deleted the account. The request is remembered
+ * (deletion-op-memo.ts), and the next attempt or the sign-in screen asks the
+ * server for that request's result before anything else.
+ */
+export class AccountDeletionUnconfirmedError extends Error {
+  constructor() {
+    super("account deletion outcome is not confirmed yet");
+    this.name = "AccountDeletionUnconfirmedError";
+  }
+}
+
 function readFlag(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
 }
@@ -271,7 +300,10 @@ function readRemovedCount(value: unknown): number | null {
   return Number.isSafeInteger(value) && value >= 0 ? value : null;
 }
 
-async function readCleanupProgress(error: unknown): Promise<number | null> {
+type EdgeBody = Record<string, unknown>;
+
+/** Status and JSON body of a functions.invoke error; both null when no HTTP answer came back. */
+async function readEdgeError(error: unknown): Promise<{ status: number | null; body: EdgeBody | null }> {
   const context = (error as {
     context?: {
       status?: unknown;
@@ -279,36 +311,215 @@ async function readCleanupProgress(error: unknown): Promise<number | null> {
       json?: () => Promise<unknown>;
     };
   } | null)?.context;
-  if (context?.status !== 409) return null;
+  const status = typeof context?.status === "number" ? context.status : null;
+  if (status === null || !context) return { status: null, body: null };
   try {
     const readable = typeof context.clone === "function" ? context.clone() : context;
-    if (typeof readable.json !== "function") return null;
-    const body = await readable.json() as {
-      error?: unknown;
-      deletion_fenced?: unknown;
-      raw_clippings_erased?: unknown; record_photos_erased?: unknown;
-      raw_clippings_removed?: unknown;
-    } | null;
-    if (
-      body?.error !== "deletion_cleanup_in_progress"
-      || body.deletion_fenced !== true
-      || (body.raw_clippings_erased !== false && body.record_photos_erased !== false)
-    ) return null;
-    return readRemovedCount(body.raw_clippings_removed);
+    if (typeof readable.json !== "function") return { status, body: null };
+    const body = await readable.json();
+    return { status, body: body && typeof body === "object" && !Array.isArray(body) ? body as EdgeBody : null };
   } catch {
-    return null;
+    return { status, body: null };
   }
 }
 
-/** Terminal account erasure. Compares both live session reads with the user id
- *  captured at confirmation, then binds that exact refreshed token to the Edge
- *  request. An account switch cannot retarget an already-open confirmation;
- *  throws unless terminal deletion is confirmed so the caller can proceed.
+/** Removed-object count of a bounded Storage progress answer (409), or null when it is not one. */
+function cleanupProgress(status: number | null, body: EdgeBody | null): number | null {
+  if (
+    status !== 409
+    || body?.error !== "deletion_cleanup_in_progress"
+    || body.deletion_fenced !== true
+    || (body.raw_clippings_erased !== false && body.record_photos_erased !== false)
+  ) return null;
+  return readRemovedCount(body.raw_clippings_removed);
+}
+
+/** The server ended this request without deleting the account (I5 "실행 안 됨"). */
+function definitelyNotExecuted(status: number | null, body: EdgeBody | null): boolean {
+  if (status === 409 && body?.error === "op_closed") return true;
+  if (status === 403 && body?.error === "op_rejected") return true;
+  return (status === 500 || status === 503) && body?.op_status === "failed";
+}
+
+function receiptFrom(body: EdgeBody, opId: string | null, removedBeforeSuccess: number): AccountDeletionReceipt {
+  const profileErased = readFlag(body.profile_erased);
+  const deletionFenced = readFlag(body.deletion_fenced);
+  const rawClippingsEmptyAtCheck = readFlag(body.raw_clippings_empty_at_check);
+  const reportedRawClippingsErased = readFlag(body.raw_clippings_erased);
+  // Permanent-erasure=true is a conclusion backed by all three server
+  // observations, not a single legacy flag. A reported false remains false;
+  // any contradictory or missing proof remains honestly unknown.
+  const rawClippingsErased = reportedRawClippingsErased === false
+    ? false
+    : reportedRawClippingsErased === true
+      && deletionFenced === true
+      && rawClippingsEmptyAtCheck === true
+      ? true
+      : null;
+  const finalRemoved = readRemovedCount(body.raw_clippings_removed);
+  const rawClippingsRemoved = finalRemoved !== null
+    && Number.isSafeInteger(removedBeforeSuccess + finalRemoved)
+    ? removedBeforeSuccess + finalRemoved
+    : null;
+  const sweeps: [DeletionSweep, boolean | null][] = [
+    ["profile", profileErased],
+    ["rawClippings", rawClippingsErased],
+  ];
+  const incomplete = sweeps.filter(([, v]) => v === false).map(([k]) => k);
+  const unconfirmed = sweeps.filter(([, v]) => v === null).map(([k]) => k);
+  return {
+    deleted: true,
+    opId,
+    profileErased,
+    deletionFenced,
+    rawClippingsErased,
+    rawClippingsEmptyAtCheck,
+    rawClippingsRemoved,
+    incomplete,
+    unconfirmed,
+    complete: incomplete.length === 0 && unconfirmed.length === 0,
+    observedAtIso: new Date().toISOString(),
+  };
+}
+
+/** The receipt the SERVER recorded, for an answer this device did not receive live. */
+export function accountDeletionReceiptFromServer(server: ServerDeletionReceipt): AccountDeletionReceipt {
+  const sweeps: [DeletionSweep, boolean | null][] = [
+    ["profile", server.sweeps.profileErased],
+    ["rawClippings", server.sweeps.rawClippingsErased],
+  ];
+  const incomplete = sweeps.filter(([, v]) => v === false).map(([k]) => k);
+  const unconfirmed = sweeps.filter(([, v]) => v === null).map(([k]) => k);
+  return {
+    deleted: true,
+    opId: server.opId,
+    profileErased: server.sweeps.profileErased,
+    deletionFenced: server.sweeps.deletionFenced,
+    rawClippingsErased: server.sweeps.rawClippingsErased,
+    rawClippingsEmptyAtCheck: server.sweeps.rawClippingsEmptyAtCheck,
+    rawClippingsRemoved: null,
+    incomplete,
+    unconfirmed,
+    complete: incomplete.length === 0 && unconfirmed.length === 0,
+    observedAtIso: new Date().toISOString(),
+  };
+}
+
+type Invoke = (
+  body: Record<string, string>,
+  accessToken: string,
+  signal: AbortSignal,
+) => Promise<{ data: unknown; error: unknown }>;
+
+type EarlierRequests =
+  | { kind: "none" }
+  | { kind: "completed"; receipt: AccountDeletionReceipt }
+  /** An earlier request is still open, or its state is unknown. */
+  | { kind: "unresolved" }
+  /** The memo storage itself could not be listed. */
+  | { kind: "unreadable" };
+
+/**
+ * Earlier requests of this owner whose answer was lost. Only a definite server
+ * answer settles one: completed returns its receipt (no second deletion), and
+ * failed / abandoned forget it. Anything else - accepted, executing, an
+ * unreachable server, or a "no such request" the server could not yet have
+ * purged - keeps it open, and then NO new request number is begun: the device
+ * waits for the server to settle that request (I2 "재시도는 같은 번호로", I5,
+ * gate SAFE-01 / DLR-A1-05). Each question is bounded by what is left of the
+ * deletion deadline, so earlier requests cannot spend it all.
+ */
+async function resolveEarlierRequests(owner: string, deadlineAt: number): Promise<EarlierRequests> {
+  const memos = await readDeletionOpMemos(owner);
+  if (memos === null) return { kind: "unreadable" };
+  for (const memo of memos) {
+    if (memo.phase === "pending") {
+      if (Date.now() - memo.at >= PENDING_DELETION_OP_STALE_MS) await clearDeletionOpMemo(owner, memo.opId);
+      continue;
+    }
+    if (memo.phase === "terminal") continue;
+    const timeoutMs = Math.min(ACCOUNT_DELETION_LOOKUP_MS, deadlineAt - Date.now());
+    const answer: OpStatusLookup = timeoutMs > 0
+      ? await fetchAccountDeletionOpStatus({ opId: memo.opId, token: memo.token, owner }, { timeoutMs })
+      : { status: "unavailable" };
+    if (answer.status === "known") {
+      if (answer.op === "completed" && answer.receipt) {
+        return { kind: "completed", receipt: accountDeletionReceiptFromServer(answer.receipt) };
+      }
+      if (answer.op === "failed" || answer.op === "abandoned") {
+        await clearDeletionOpMemo(owner, memo.opId);
+        continue;
+      }
+      return { kind: "unresolved" };
+    }
+    // The server keeps a failed or abandoned request 30 days and a completed one
+    // 365. For this signed-in (live) account, a request it no longer knows and
+    // that is older than 30 days was failed or abandoned and then purged.
+    if (answer.status === "not-found" && Date.now() - memo.at >= DELETION_OP_CLOSED_RETENTION_MS) {
+      await clearDeletionOpMemo(owner, memo.opId);
+      continue;
+    }
+    return { kind: "unresolved" };
+  }
+  return { kind: "none" };
+}
+
+/** The old flow: body `{}`, one bounded progress loop. Used only when the server has no 0217. */
+async function requestLegacyAccountDeletion(
+  invoke: Invoke,
+  refresh: () => Promise<string>,
+  deadlineAt: number,
+): Promise<AccountDeletionReceipt> {
+  let removedBeforeSuccess = 0;
+  for (let attempt = 0; attempt < ACCOUNT_DELETION_MAX_ATTEMPTS; attempt += 1) {
+    if (Date.now() >= deadlineAt) throw new Error("account deletion retry deadline exhausted");
+    const accessToken = await refresh();
+    const remainingMs = deadlineAt - Date.now();
+    if (remainingMs <= 0) throw new Error("account deletion retry deadline exhausted");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), remainingMs);
+    let invocation: { data: unknown; error: unknown };
+    try {
+      invocation = await invoke({}, accessToken, controller.signal);
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (invocation.error) {
+      const { status, body } = await readEdgeError(invocation.error);
+      const removed = cleanupProgress(status, body);
+      if (removed === null || !Number.isSafeInteger(removedBeforeSuccess + removed)) throw invocation.error;
+      removedBeforeSuccess += removed;
+      continue;
+    }
+    const body = invocation.data as EdgeBody | null;
+    if (body?.deleted !== true) throw new Error("account deletion did not complete");
+    const opId = typeof body.op_id === "string" && isDeletionOpId(body.op_id) ? body.op_id : null;
+    return receiptFrom(body, opId, removedBeforeSuccess);
+  }
+  throw new Error("account deletion retry bound exhausted");
+}
+
+/** Terminal account erasure (0217 begin -> execute). Compares both live session
+ *  reads with the user id captured at confirmation, then binds that exact
+ *  refreshed token to every Edge request. An account switch cannot retarget an
+ *  already-open confirmation.
+ *
+ *  Order (docs/design/deletion-receipt-server-261006.md 5절):
+ *    1. remember the request number (pending), then `begin`: the server records
+ *       the request and signs a token. Nothing is destroyed yet.
+ *    2. remember the token and read it back (armed). Only then `execute`.
+ *    3. a lost or unreadable answer asks the server about THIS request (I5).
+ *  An earlier request of this owner that is still open or unknown stops the
+ *  call before step 1: no second request number while one is unresolved.
+ *  No local write is blocked on the way: the irreversible local fence goes up
+ *  only after the server confirmed the deletion (deletion-completion.ts, I7).
+ *  The cross-tab auth lock is used when the browser has Web Locks and is not
+ *  required when it does not (W2): the server serializes the account's
+ *  deletions itself, so the lock only orders this tab's own auth writes.
  *
  *  Returns the receipt instead of discarding it. The function reports the two
- *  observed post-deletion checks separately (index.ts:244-283), and a failed
- *  check is NOT a failed deletion — auth.users is already gone and the cascade
- *  already ran.
+ *  observed post-deletion checks separately, and a failed check is NOT a failed
+ *  deletion — auth.users is already gone and the cascade already ran.
  *  Throwing on a partial would tell the user deletion failed when it did not,
  *  and would offer a destructive retry against a dead account. So the partial
  *  travels back as data and the screen decides what to say. */
@@ -322,102 +533,121 @@ export async function requestAccountDeletion(
     if (expected.userId === null || expected.sessionId === null) {
       throw new AuthSessionOwnerChangedError();
     }
-    // Publish and durably read back the local owner tombstone before the first
-    // destructive Edge invocation. False means another tab could not be joined
-    // or persistence failed, so deletion stays on hold and the network sees 0
-    // delete-account calls.
-    const localFenceAcknowledged = await installAccountLocalDeletionFence(expected.userId);
-    if (!localFenceAcknowledged) {
-      throw new Error("account local deletion fence was not acknowledged");
-    }
-    let removedBeforeSuccess = 0;
+    const owner = expected.userId;
+    // Keep every request inside the same mutation owner. Refresh may rotate the
+    // token, but the captured user/session identity must not move.
+    const refresh = () => refreshExpectedSessionInsideMutation(supabase.auth, expected);
+    const invoke: Invoke = (body, accessToken, signal) => supabase.functions.invoke("delete-account", {
+      body,
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal,
+    });
 
-    for (let attempt = 0; attempt < ACCOUNT_DELETION_MAX_ATTEMPTS; attempt += 1) {
-      if (Date.now() >= deadlineAt) throw new Error("account deletion retry deadline exhausted");
-      // Keep every retry inside the same cross-tab mutation owner. Refresh may
-      // rotate the token, but the captured user/session identity must not move.
-      const accessToken = await refreshExpectedSessionInsideMutation(supabase.auth, expected);
+    const earlier = await resolveEarlierRequests(owner, deadlineAt);
+    if (earlier.kind === "completed") return earlier.receipt;
+    if (earlier.kind === "unreadable") throw new Error("account deletion requests on this device could not be read");
+    if (earlier.kind === "unresolved") throw new AccountDeletionUnconfirmedError();
 
-      // Refresh can consume most of the same absolute budget. Recompute here so
-      // the Edge signal expires at the original deadline, never one refresh later.
+    // 1. begin. Nothing is destroyed on this request; every failure here is definite.
+    const opId = newDeletionOpId();
+    await writeDeletionOpMemo({ v: 1, phase: "pending", owner, opId, at: Date.now() });
+    let opToken: string;
+    try {
+      const accessToken = await refresh();
       const remainingMs = deadlineAt - Date.now();
       if (remainingMs <= 0) throw new Error("account deletion retry deadline exhausted");
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), remainingMs);
-      let invocation: Awaited<ReturnType<typeof supabase.functions.invoke>>;
+      let begun: { data: unknown; error: unknown };
       try {
-        invocation = await supabase.functions.invoke("delete-account", {
-          body: {},
-          headers: { Authorization: `Bearer ${accessToken}` },
-          signal: controller.signal,
-        });
+        begun = await invoke({ op: "begin", op_id: opId }, accessToken, controller.signal);
       } finally {
         clearTimeout(timeout);
       }
-      const { data, error } = invocation;
-      if (error) {
-        const removed = await readCleanupProgress(error);
-        if (removed === null || !Number.isSafeInteger(removedBeforeSuccess + removed)) throw error;
-        removedBeforeSuccess += removed;
-        if (
-          attempt + 1 < ACCOUNT_DELETION_MAX_ATTEMPTS
-          && Date.now() < deadlineAt
-        ) continue;
-        throw error;
+      if (begun.error) {
+        const { status } = await readEdgeError(begun.error);
+        if (status === 400) {
+          // An Edge without 0217 (`{}` only) or with 0217 not applied: the old
+          // flow, which keeps no server record and so gives no receipt number.
+          await clearDeletionOpMemo(owner, opId);
+          return await requestLegacyAccountDeletion(invoke, refresh, deadlineAt);
+        }
+        throw begun.error;
       }
-
-      const body = data as
-        | {
-            deleted?: unknown;
-            profile_erased?: unknown;
-            deletion_fenced?: unknown;
-            raw_clippings_erased?: unknown;
-            raw_clippings_empty_at_check?: unknown;
-            raw_clippings_removed?: unknown;
-          }
-        | null;
-      if (body?.deleted !== true) {
-        throw new Error("account deletion did not complete");
+      const body = begun.data as EdgeBody | null;
+      if (body?.op_id !== opId || typeof body.op_token !== "string" || !/^v1\.[A-Za-z0-9_-]{43}$/.test(body.op_token)) {
+        throw new Error("account deletion request was not recorded");
       }
-      const profileErased = readFlag(body.profile_erased);
-      const deletionFenced = readFlag(body.deletion_fenced);
-      const rawClippingsEmptyAtCheck = readFlag(body.raw_clippings_empty_at_check);
-      const reportedRawClippingsErased = readFlag(body.raw_clippings_erased);
-      // Permanent-erasure=true is a conclusion backed by all three server
-      // observations, not a single legacy flag. A reported false remains false;
-      // any contradictory or missing proof remains honestly unknown.
-      const rawClippingsErased = reportedRawClippingsErased === false
-        ? false
-        : reportedRawClippingsErased === true
-          && deletionFenced === true
-          && rawClippingsEmptyAtCheck === true
-          ? true
-          : null;
-      const finalRemoved = readRemovedCount(body.raw_clippings_removed);
-      const rawClippingsRemoved = finalRemoved !== null
-        && Number.isSafeInteger(removedBeforeSuccess + finalRemoved)
-        ? removedBeforeSuccess + finalRemoved
-        : null;
-      const sweeps: [DeletionSweep, boolean | null][] = [
-        ["profile", profileErased],
-        ["rawClippings", rawClippingsErased],
-      ];
-      const incomplete = sweeps.filter(([, v]) => v === false).map(([k]) => k);
-      const unconfirmed = sweeps.filter(([, v]) => v === null).map(([k]) => k);
-      return {
-        deleted: true,
-        profileErased,
-        deletionFenced,
-        rawClippingsErased,
-        rawClippingsEmptyAtCheck,
-        rawClippingsRemoved,
-        incomplete,
-        unconfirmed,
-        complete: incomplete.length === 0 && unconfirmed.length === 0,
-        observedAtIso: new Date().toISOString(),
-      };
+      opToken = body.op_token;
+    } catch (error) {
+      await clearDeletionOpMemo(owner, opId);
+      throw error;
     }
 
-    throw new Error("account deletion retry bound exhausted");
-  }, { requireCrossTab: true });
+    // 2. arm. The execute request leaves only after the token is durably remembered.
+    const armed = await writeDeletionOpMemo({ v: 1, phase: "armed", owner, opId, token: opToken, at: Date.now() });
+    if (!armed) {
+      await clearDeletionOpMemo(owner, opId);
+      throw new Error("account deletion request could not be remembered on this device");
+    }
+
+    // 3. execute, with bounded Storage progress retries.
+    let removedBeforeSuccess = 0;
+    let executeSent = false;
+    for (let attempt = 0; attempt < ACCOUNT_DELETION_MAX_ATTEMPTS; attempt += 1) {
+      if (Date.now() >= deadlineAt) break;
+      let invocation: { data: unknown; error: unknown };
+      try {
+        const accessToken = await refresh();
+        const remainingMs = deadlineAt - Date.now();
+        if (remainingMs <= 0) break;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), remainingMs);
+        try {
+          executeSent = true;
+          invocation = await invoke({ op: "execute", op_id: opId, op_token: opToken }, accessToken, controller.signal);
+        } finally {
+          clearTimeout(timeout);
+        }
+      } catch {
+        // A refresh that fails here may mean the account is already gone.
+        break;
+      }
+      if (!invocation.error) {
+        const body = invocation.data as EdgeBody | null;
+        if (body?.deleted === true) return receiptFrom(body, opId, removedBeforeSuccess);
+        break;
+      }
+      const { status, body } = await readEdgeError(invocation.error);
+      const removed = cleanupProgress(status, body);
+      if (removed !== null && Number.isSafeInteger(removedBeforeSuccess + removed)) {
+        removedBeforeSuccess += removed;
+        continue;
+      }
+      if (status === 401 && body?.error === "fresh_session_required") continue;
+      if (definitelyNotExecuted(status, body)) {
+        await clearDeletionOpMemo(owner, opId);
+        throw invocation.error;
+      }
+      break;
+    }
+
+    // Nothing left this device: the server holds only an accepted request, which
+    // it abandons on its own after ten minutes. That is a definite "not executed".
+    if (!executeSent) {
+      await clearDeletionOpMemo(owner, opId);
+      throw new Error("account deletion request was not sent");
+    }
+
+    // 4. The answer is lost or unreadable: ask the server about this request.
+    const answer = await fetchAccountDeletionOpStatus({ opId, token: opToken, owner });
+    if (answer.status === "known") {
+      if (answer.op === "completed" && answer.receipt) return accountDeletionReceiptFromServer(answer.receipt);
+      if (answer.op === "failed" || answer.op === "abandoned") {
+        await clearDeletionOpMemo(owner, opId);
+        throw new Error("account deletion did not complete");
+      }
+    }
+    throw new AccountDeletionUnconfirmedError();
+  });
 }

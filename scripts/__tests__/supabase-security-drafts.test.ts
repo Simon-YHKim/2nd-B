@@ -247,7 +247,8 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(step).toContain("promoted draft still present beside");
     expect(step).toContain("cmp -s");
     expect(step).toContain("drop the retained_until_applied exception");
-    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 71");
+    // 71 -> 72 (2026-10-07): 0228 registers the 0217 account deletion ops ledger.
+    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 72");
     expect(step).toContain("('0201', 'rss_proxy_erasure_registry')");
     expect(step).not.toMatch(/\\i db\/migration-drafts\/UNNUMBERED_/);
   });

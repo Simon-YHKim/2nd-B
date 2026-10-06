@@ -222,8 +222,25 @@ describe("edge schema dependency gate on the real repository", () => {
     }));
   });
 
+  it("holds delete-account and the receipt lookup until 0217 is in production", () => {
+    const deleteAccount = JSON.parse(run(["list", "delete-account"]).stdout);
+    expect(deleteAccount.functions).toEqual(expect.arrayContaining([
+      "begin_account_deletion",
+      "begin_account_deletion_op",
+      "start_account_deletion_op",
+      "start_legacy_account_deletion_op",
+      "fail_account_deletion_op",
+      "record_account_deletion_op_sweeps",
+    ]));
+    const receipt = JSON.parse(run(["list", "account-deletion-receipt"]).stdout);
+    expect(receipt.functions).toEqual(expect.arrayContaining([
+      "consume_account_deletion_receipt_lookup",
+      "get_account_deletion_op",
+    ]));
+  });
+
   it("can derive exact contracts for every deployable Edge function", () => {
-    const slugs = ["claude-proxy", "delete-account", "export-account", "gemini-proxy", "oauth-naver", "openai-proxy", "paddle-webhook", "peer-respond", "public-data-proxy", "rewarded-ssv", "rss-proxy", "service-consent", "subscription-manage", "xai-proxy"];
+    const slugs = ["account-deletion-receipt", "claude-proxy", "delete-account", "export-account", "gemini-proxy", "oauth-naver", "openai-proxy", "paddle-webhook", "peer-respond", "public-data-proxy", "rewarded-ssv", "rss-proxy", "service-consent", "subscription-manage", "xai-proxy"];
     for (const slug of slugs) {
       const out = run(["list", slug]);
       expect(out.status).toBe(0);

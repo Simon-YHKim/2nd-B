@@ -38,12 +38,68 @@ describe("delete-account Edge boundary", () => {
     expect(code).not.toMatch(/return ALLOWED_ORIGINS\.has\(origin\) \? origin : 'null'/);
   });
 
-  test("reads at most 1 KiB and accepts the exact empty object only", () => {
+  test("reads at most 1 KiB and accepts only the three op bodies (0217)", () => {
     expect(code).toMatch(/MAX_BODY_BYTES = 1024/);
     expect(code).toMatch(/content-length/);
     expect(code).toMatch(/reader\.read\(\)/);
     expect(code).toMatch(/totalBytes > MAX_BODY_BYTES/);
-    expect(code).toMatch(/rawBody !== '\{\}'/);
+    // `{}` (old app), begin and execute; anything else is 400 before Auth is asked.
+    // The parser itself is pinned in supabase/functions/_shared/__tests__/account-deletion-op.test.ts.
+    expect(code).toMatch(/const parsed = parseDeleteAccountBody\(rawBody\);\s*if \(parsed === null\) throw new RequestError\('invalid_body', 400\);/);
+    const parseAt = code.indexOf("parseDeleteAccountBody(rawBody)");
+    const getUserAt = code.indexOf("auth.getUser(token)");
+    expect(parseAt).toBeGreaterThan(-1);
+    expect(getUserAt).toBeGreaterThan(parseAt);
+  });
+
+  test("records the op before anything is destroyed, and begin destroys nothing (0217 I1)", () => {
+    const beginOpAt = code.indexOf("'begin_account_deletion_op'");
+    const beginReturnsAt = code.indexOf("return jsonResponse(req, { op_id: request.opId, op_token: opToken });");
+    const startAt = code.indexOf("'start_account_deletion_op'");
+    const legacyAt = code.indexOf("'start_legacy_account_deletion_op'");
+    const fenceAt = code.indexOf("'begin_account_deletion'");
+    const sweepAt = code.indexOf("preDeletionStorage = await eraseRawClippings");
+    const deleteAt = code.indexOf("await deleteAuthUserWithReconciliation(");
+    for (const at of [beginOpAt, beginReturnsAt, startAt, legacyAt, fenceAt, sweepAt, deleteAt]) {
+      expect(at).toBeGreaterThan(-1);
+    }
+    // The begin branch returns before the first destructive call.
+    expect(beginReturnsAt).toBeGreaterThan(beginOpAt);
+    expect(fenceAt).toBeGreaterThan(beginReturnsAt);
+    // execute and the old body both have an executing op before the 0192 fence.
+    expect(fenceAt).toBeGreaterThan(startAt);
+    expect(fenceAt).toBeGreaterThan(legacyAt);
+    expect(sweepAt).toBeGreaterThan(fenceAt);
+    expect(deleteAt).toBeGreaterThan(sweepAt);
+    // Only a confirmed precondition or Auth failure ends the op; progress (409) does not.
+    expect(code).toMatch(/const opStatus = preDeletionStorage\.code === 'storage_cleanup_in_progress'\s*\?\s*null\s*:\s*await failOp\('storage_precondition'\);/);
+    expect(code).toMatch(/const opStatus = await failOp\('auth_delete_failed'\);/);
+    // The token hash, never the token, reaches the database.
+    expect(code).toMatch(/p_token_hash: await opTokenHashHex\(request\.opToken\)/);
+    expect(code).not.toMatch(/p_token_hash: request\.opToken/);
+  });
+
+  test("a missing op token secret sends the app to the old flow instead of blocking it (gate DLR-A1-06)", () => {
+    const pepperAt = code.indexOf("safeLog('op_token_pepper_missing');");
+    const beginRpcAt = code.indexOf("'begin_account_deletion_op'");
+    expect(pepperAt).toBeGreaterThan(-1);
+    expect(pepperAt).toBeLessThan(beginRpcAt);
+    // The app falls back to `{}` on a 400 from begin, exactly as for an Edge without 0217.
+    expect(code.slice(pepperAt, beginRpcAt)).toMatch(/return jsonResponse\(req, \{ error: 'op_unsupported' \}, 400\);/);
+  });
+
+  test("a completed replay is answered only to the caller its token was signed for (gate DLR-A1-02)", () => {
+    const completedAt = code.indexOf("case 'completed': {");
+    const receiptAt = code.indexOf("const receipt = publicReceipt({ ...started", completedAt);
+    expect(completedAt).toBeGreaterThan(-1);
+    const branch = code.slice(completedAt, receiptAt);
+    expect(branch).toMatch(/verifyOpToken\(pepper, request\.opToken, request\.opId, authUser\.id, storedMs\)/);
+    expect(branch).toMatch(/return jsonResponse\(req, \{ error: 'op_rejected' \}, 403\);/);
+  });
+
+  test("a sweep record that recorded nothing is logged, not mistaken for success (gate SAFE-06)", () => {
+    expect(code).toMatch(/const \{ data: recorded, error: sweepError \} = await admin\.rpc\('record_account_deletion_op_sweeps'/);
+    expect(code).toMatch(/else if \(recorded !== true\) safeLog\('op_sweeps_not_recorded'\);/);
   });
 
   test("revalidates the bearer with Auth and binds every verified claim", () => {

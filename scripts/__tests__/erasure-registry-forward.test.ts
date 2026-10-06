@@ -430,3 +430,31 @@ test("the shipped reward-records revision renders the four current reasons from 
       table, { entry: json.tables[table], previousReason: revision[table].previousReason },
     ]))));
 });
+
+test("the 0217 deletion ops ledger is added by 0228 and the tombstone reason is restated by 0227", () => {
+  const repo = resolve(__dirname, "../..");
+  const json = JSON.parse(readFileSync(join(repo, "db/erasure-registry.json"), "utf8"));
+  expect(json.forwardAdditions["0228_account_deletion_ops_erasure_registry.sql"]).toEqual(["account_deletion_ops"]);
+  expect(json.tables.account_deletion_ops).toMatchObject({ owner: "owner_id", class: "retained" });
+  expect(json.tables.account_deletion_ops.reason).toMatch(/0217/);
+  const revision = json.forwardRevisions["0227_account_deletion_tombstones_erasure_registry_reason.sql"];
+  expect(Object.keys(revision)).toEqual(["account_deletion_tombstones"]);
+  // The reason it replaces is the one 0198 wrote, and the new one names the Q6 release.
+  expect(revision.account_deletion_tombstones.previousReason).toMatch(/^Durable account-deletion fence\./);
+  expect(json.tables.account_deletion_tombstones.class).toBe("retained");
+  expect(json.tables.account_deletion_tombstones.reason).toMatch(/Q6/);
+
+  const additions = readFileSync(join(repo, "db/migrations/0228_account_deletion_ops_erasure_registry.sql"), "utf8")
+    .replace(/\r\n/g, "\n");
+  expect(additions.slice(additions.indexOf(ADDITIONS_BEGIN), additions.indexOf(ADDITIONS_END) + ADDITIONS_END.length))
+    .toBe(renderRegistryAdditionsSql({ version: json.version, tables: { account_deletion_ops: json.tables.account_deletion_ops } }));
+  const revisions = readFileSync(join(repo, "db/migrations/0227_account_deletion_tombstones_erasure_registry_reason.sql"), "utf8")
+    .replace(/\r\n/g, "\n");
+  expect(revisions.slice(revisions.indexOf(REVISIONS_BEGIN), revisions.indexOf(REVISIONS_END) + REVISIONS_END.length))
+    .toBe(renderRegistryRevisionsSql({
+      account_deletion_tombstones: {
+        entry: json.tables.account_deletion_tombstones,
+        previousReason: revision.account_deletion_tombstones.previousReason,
+      },
+    }));
+});

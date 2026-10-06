@@ -85,44 +85,48 @@ describe("purgeCaptureDraftsForDeletedAccount", () => {
 });
 
 describe("the deletion path includes draft purge in the managed local sweep", () => {
+  // 0217: the screen hands the confirmed owner to finishAccountDeletion
+  // (src/lib/account/deletion-completion.ts), which wipes before it signs out.
+  const COMPLETION = "src/lib/account/deletion-completion.ts";
   for (const f of CALLERS) {
     test(`${f} purges after erasure and before sign-out`, () => {
       const caller = read(f);
       expect(caller).toContain("purgeDeletedAccountLocalData");
 
-      const erase = caller.indexOf(
-        caller.includes("await requestAccountDeletion(authExpectation)")
-          ? "await requestAccountDeletion(authExpectation)"
-          : "await requestAccountDeletion()",
-      );
-      const purge = caller.indexOf("purgeDeletedAccountLocalData(targetUserId)");
-      const signout = caller.indexOf(
-        caller.includes("await signOutExpected(authExpectation)")
-          ? "await signOutExpected(authExpectation)"
-          : "await signOut()",
-      );
+      const erase = caller.indexOf("await requestAccountDeletion(authExpectation)");
+      const finish = caller.indexOf("await finishAccountDeletion({", erase);
+      const purge = caller.indexOf("purgeLocal: purgeDeletedAccountLocalData", finish);
+      const signout = caller.indexOf("signOut: () => signOutDeletedAccount(authExpectation)", finish);
       expect(erase).toBeGreaterThan(-1);
-      expect(purge).toBeGreaterThan(-1);
-      expect(signout).toBeGreaterThan(-1);
+      expect(finish).toBeGreaterThan(erase);
+      expect(purge).toBeGreaterThan(finish);
+      expect(signout).toBeGreaterThan(purge);
 
       // Order matters. Purging before the server call would delete a draft the
       // user still owns if the deletion then fails; purging after sign-out risks
       // running once the screen has already been torn down.
-      expect(purge).toBeGreaterThan(erase);
-      expect(purge).toBeLessThan(signout);
+      const completion = read(COMPLETION);
+      const body = completion.slice(completion.indexOf("export async function finishAccountDeletion("));
+      const wipe = body.indexOf("await settleDeletedAccountLocally(");
+      const signOut = body.indexOf("await input.signOut()");
+      expect(wipe).toBeGreaterThan(-1);
+      expect(signOut).toBeGreaterThan(wipe);
     });
 
     test(`${f} passes the erased id, not the currently active one`, () => {
       // `targetUserId` is the id captured when the confirmation was accepted.
       // Using a live "current user" ref here would purge the wrong account's
       // drafts when a second session signs in while the request is in flight.
-      expect(read(f)).toContain("purgeDeletedAccountLocalData(targetUserId)");
+      const caller = read(f);
+      const finish = caller.indexOf("await finishAccountDeletion({");
+      expect(caller.slice(finish, finish + 200)).toContain("owner: targetUserId,");
+      expect(read(COMPLETION)).toContain("outcome = await input.purgeLocal(input.owner);");
     });
 
     test(`${f} keeps the purge best-effort`, () => {
-      const caller = read(f);
-      const at = caller.indexOf("purgeDeletedAccountLocalData(targetUserId)");
-      const around = caller.slice(Math.max(0, at - 300), at + 300);
+      const completion = read(COMPLETION);
+      const at = completion.indexOf("outcome = await input.purgeLocal(input.owner);");
+      const around = completion.slice(Math.max(0, at - 200), at + 200);
       expect(around).toMatch(/try\s*\{/);
       expect(around).toMatch(/catch/);
     });

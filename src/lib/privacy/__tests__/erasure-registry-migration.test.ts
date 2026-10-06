@@ -601,6 +601,11 @@ describe(`${FILE} -- structure`, () => {
     // 0212 revises the four reward reasons the same way (88-day purge, 0211).
     // Without it the re-pushed seed writes the 0189/0198/0205 wording back.
     expected.push("reward_records_erasure_registry_reason");
+    // 0228 adds the 0217 account deletion ops row; 0227 restates the tombstone
+    // reason for the Q6 release. A re-pushed seed would lose the first and write
+    // the 0198 wording back over the second.
+    expected.push("account_deletion_ops_erasure_registry");
+    expected.push("account_deletion_tombstones_erasure_registry_reason");
     // The list grows with every later migration that leans on these objects.
     const names = rollbackLedgerNames();
     expect(names).toEqual(expect.arrayContaining(expected));

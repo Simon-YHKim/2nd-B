@@ -161,7 +161,7 @@ const ANCHORS: Anchor[] = [
     why: "C-SENS 가 서는 스키마. 세 ack 중 PIPA §23 별도 동의를 잡는다 - 법적 무게가 가장 큰 것." },
   { cite: "db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:103-136", symbol: "auth.uid()",
     why: "C-AUDIT 의 '위조 불가 RPC' 주장이 서는 **한 줄**. user_id 를 클라이언트가 못 보내고 서버가 찍는다는 것이 위조 불가의 전부다. 함수 이름이 아니라 이 호출을 잡는 이유다." },
-  { cite: "src/lib/records/delete-bulk.ts:315", symbol: "requestAccountDeletion",
+  { cite: "src/lib/records/delete-bulk.ts:526", symbol: "requestAccountDeletion",
     why: "C-DEL 의 종국적 삭제 진입점. ⚠ 문서는 `:178-185` 를 가리켰는데 그것은 이 함수를 **언급하는 주석**이다 - 통제 전체의 무게를 그 인용이 지고 있었다. 회차 68 의 '내용 있는 줄' 검사로는 안 잡힌다(주석도 내용이다). 심볼 앵커만이 본다." },
   // ⚠ 회차 68 이 여기에 `DeepSpaceDesignScreens.tsx:2792` 앵커를 넣었다 - 빈 줄을
   //   가리키던 인용을 실제 호출 줄로 옮긴 것이고, 그 자체는 맞았다.
@@ -169,7 +169,7 @@ const ANCHORS: Anchor[] = [
   //   라우트는 `dds-ops-screen.tsx` 쪽을 import 한다. 회차 68 은 "줄이 비었나" 를
   //   물었고, "이 파일이 배송되나" 는 물지 않았다. 앞 질문은 답을 얻었고 뒤 질문은
   //   던져진 적이 없다 - `shadow-screens.test.ts` 가 그 질문을 맡는다.
-  { cite: `${D}:188-198`, symbol: "claims.sub !== authUser.id",
+  { cite: `${D}:221-231`, symbol: "claims.sub !== authUser.id",
     why: "지울 계정을 클라이언트가 못 고른다는 IDOR 주장의 근거." },
   { cite: "src/lib/analytics/index.ts:254-261", symbol: "isMinor === false",
     why: "미성년에게 제품 분석이 안 붙는다는 주장의 **실제 게이트**. 문서는 세 자리에서 `:74`(AnalyticsEvent 타입 유니온)를 가리키고 있었다 - 타입 선언은 아무도 막지 않는다. ⚠ 심볼로 함수 이름 `canLoadProductAnalytics` 를 쓰려다 바꿨다: 회차 51·53 의 교훈대로 **이름은 그 이름이 가리키는 것이 바뀌어도 살아남는다.** 주장의 내용은 술어다." },

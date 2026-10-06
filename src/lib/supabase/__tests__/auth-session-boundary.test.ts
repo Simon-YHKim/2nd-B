@@ -226,20 +226,26 @@ describe("Supabase auth session mutation boundary", () => {
       "utf8",
     );
     expect(requestSource).toContain("refreshExpectedSessionInsideMutation");
-    expect(requestSource).toContain("{ requireCrossTab: true }");
-    const localFence = requestSource.indexOf("await installAccountLocalDeletionFence(expected.userId)");
-    const remoteInvoke = requestSource.indexOf('supabase.functions.invoke("delete-account"');
-    expect(localFence).toBeGreaterThan(-1);
-    expect(remoteInvoke).toBeGreaterThan(localFence);
+    // 0217 (설계서 5.1 W2): the server serializes an account's deletions, so the
+    // cross-tab auth lock is used when present and no longer required, and no
+    // local write fence goes up before the server confirmed (I7).
+    expect(requestSource).not.toMatch(/requireCrossTab:\s*true/);
+    expect(requestSource).not.toContain("installAccountLocalDeletionFence");
+    const remember = requestSource.indexOf('phase: "armed"');
+    const execute = requestSource.indexOf('{ op: "execute", op_id: opId, op_token: opToken }');
+    expect(remember).toBeGreaterThan(-1);
+    expect(execute).toBeGreaterThan(remember);
     const capture = screenSource.indexOf("await captureSignOutExpectation()");
     const request = screenSource.indexOf("await requestAccountDeletion(authExpectation)");
-    const localPurge = screenSource.indexOf("await purgeDeletedAccountLocalData(targetUserId)");
-    const finalizer = screenSource.indexOf("await signOutExpected(authExpectation)");
+    const finish = screenSource.indexOf("await finishAccountDeletion({");
+    const localPurge = screenSource.indexOf("purgeLocal: purgeDeletedAccountLocalData", finish);
+    const finalizer = screenSource.indexOf("signOut: () => signOutDeletedAccount(authExpectation)", finish);
     expect(capture).toBeGreaterThan(-1);
     expect(request).toBeGreaterThan(capture);
-    expect(localPurge).toBeGreaterThan(request);
+    expect(finish).toBeGreaterThan(request);
+    expect(localPurge).toBeGreaterThan(finish);
     expect(finalizer).toBeGreaterThan(localPurge);
-    expect(screenSource).toContain("e instanceof AuthSessionOwnerChangedError");
+    expect(screenSource).toContain("isOwnerChangedError: (error) => error instanceof AuthSessionOwnerChangedError");
   });
 
   test("sign-up rollback is owner-bound and never clears without a cross-tab lock", () => {

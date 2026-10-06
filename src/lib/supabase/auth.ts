@@ -42,6 +42,7 @@ import {
   captureAuthSessionExpectation,
   getAuthStorageRuntime,
   runAuthSessionMutation,
+  signOutDeletedAccountSession,
   signOutExpectedSession,
   signOutExpectedSessionInsideMutation,
   type AuthSessionExpectation,
@@ -1238,6 +1239,15 @@ export async function signOutExpected(
 ): Promise<void> {
   const supabase = getSupabaseClient();
   await signOutExpectedSession(supabase.auth, getAuthStorageRuntime(), expected, scope);
+}
+
+/** Sign-out after the server confirmed this account's deletion (session-mutation.ts signOutDeletedAccountSession). */
+export async function signOutDeletedAccount(
+  expected: AuthSessionExpectation,
+  scope: "global" | "local" = "global",
+): Promise<void> {
+  const supabase = getSupabaseClient();
+  await signOutDeletedAccountSession(supabase.auth, getAuthStorageRuntime(), expected, scope);
 }
 
 export async function signOutRecoverySession(

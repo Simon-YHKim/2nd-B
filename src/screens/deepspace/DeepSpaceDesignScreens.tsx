@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { AppState, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
-import { Redirect, router, useNavigation } from "expo-router";
+import { Redirect, router, router as rootRouter, useNavigation } from "expo-router";
 import { useAppRouter } from "@/lib/nav/phone-embed";
 import { useGoHomeStop } from "@/lib/nav/go-home";
 import { useTranslation } from "react-i18next";
@@ -45,16 +45,12 @@ import type { RisingInterest } from "@/lib/trends/rising";
 import {
   AuthSessionOwnerChangedError,
   captureSignOutExpectation,
-  signOutExpected,
+  signOutDeletedAccount,
 } from "@/lib/supabase/auth";
-import { requestAccountDeletion } from "@/lib/records/delete-bulk";
-import {
-  createAccountDeletionCompletion,
-  dismissAccountDeletionNotice,
-  type LocalPurgeOutcome,
-} from "@/lib/account/deletion-completion";
+import { AccountDeletionUnconfirmedError, requestAccountDeletion } from "@/lib/records/delete-bulk";
+import { finishAccountDeletion } from "@/lib/account/deletion-completion";
+import { ACCOUNT_DELETED_ROUTE } from "@/lib/account/deletion-receipt";
 import { purgeDeletedAccountLocalData } from "@/lib/account/local-purge";
-import { currentAccountEpoch } from "@/lib/auth/account-epoch";
 import { buildPersona, loadPersonaRatifiableSignals } from "@/lib/persona/build";
 import { proposalContextForStar } from "@/lib/persona/proposal-context";
 import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
@@ -593,6 +589,9 @@ export function DeepSpacePrivacyDesignScreen() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [delError, setDelError] = useState(false);
+  // The request left but no answer proves the outcome. Not an error: the
+  // server may have erased the account, and a retry first asks for that result.
+  const [delUnconfirmed, setDelUnconfirmed] = useState(false);
   // State alone cannot fence two events in the same render frame (keyboard
   // submit + tap, or a rapid modal double-tap). Keep the destructive call
   // single-flight synchronously.
@@ -619,9 +618,10 @@ export function DeepSpacePrivacyDesignScreen() {
     deleteInFlightRef.current = true;
     setDeleting(true);
     setDelError(false);
-    // The receipt says what the server erased and what it could not confirm.
-    // It used to be discarded here, so a user who deleted their account was
-    // signed out and shown a sign-in form, and never learned any of it.
+    setDelUnconfirmed(false);
+    // The server records the request before anything is destroyed and turns it
+    // into the receipt (0217). This flow only carries the request NUMBER to
+    // /account-deleted (Simon decision Q-261004-42 = A).
     let receipt: Awaited<ReturnType<typeof requestAccountDeletion>>;
     let authExpectation: Awaited<ReturnType<typeof captureSignOutExpectation>>;
     try {
@@ -629,69 +629,53 @@ export function DeepSpacePrivacyDesignScreen() {
       if (authExpectation.userId !== targetUserId) {
         throw new AuthSessionOwnerChangedError();
       }
-      // The helper acknowledges the owner-scoped local fence before its first
-      // Edge invoke. The server then commits its database fence, proves Storage
+      // The helper records the request (begin) before its first destructive
+      // call (execute). The server commits its database fence, proves Storage
       // empty, and only then deletes Auth so the database cascade runs last.
       receipt = await requestAccountDeletion(authExpectation);
-    } catch {
+    } catch (e) {
       deleteInFlightRef.current = false;
       // Lift the fence whoever owns the screen now: a stuck `deleting` exempts a signed-out visitor from the guard below.
       if (privacyMountedRef.current) setDeleting(false);
-      // Only the account that asked sees its failure.
-      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setDelError(true);
+      // Only the account that asked sees its result.
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) {
+        if (e instanceof AccountDeletionUnconfirmedError) setDelUnconfirmed(true);
+        else setDelError(true);
+      }
       return;
     }
 
-    // The server side is gone. Drop every managed owner-scoped local value,
-    // including unsent drafts, import/GitHub pointers, and this owner's queued
-    // audit writes. Another account's entries are never touched, and local I/O
-    // cannot turn a completed remote deletion back into a failure.
-    let localPurge: LocalPurgeOutcome = "unconfirmed";
-    try {
-      localPurge = await purgeDeletedAccountLocalData(targetUserId);
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[privacy] local purge after deletion failed", (e as Error).message);
-    }
-
-    // Terminal erasure already succeeded. Do not let a local sign-out failure
-    // expose a destructive Retry, and never sign out a newly active B session
-    // after an A request resolves late.
-    if (!privacyMountedRef.current) return;
-    if (activeUserRef.current !== targetUserId) {
-      deleteInFlightRef.current = false;
-      setDeleting(false);
-      return;
-    }
-    // Successful erasure may itself trigger an auth-driven route removal.
-    // Let that navigation, sign-out, and the explicit replacement proceed.
+    // The server side is gone. From here nothing depends on this screen
+    // staying mounted: wipe every managed owner-scoped local value (the wipe
+    // installs the irreversible local fence first, and only now - after the
+    // server confirmed), open the receipt route, then sign out exactly A's
+    // session. Another account's entries are never touched, a late A result
+    // never signs out a newly active B, and local I/O cannot turn a completed
+    // remote deletion back into a retryable failure.
     allowDeletionNavigationRef.current = true;
-    // Hand the receipt to the store that survives exactly this owner -> null
-    // transition, so the destination screen can show it with the observed
-    // local-cleanup result.
-    const completion = createAccountDeletionCompletion(targetUserId, currentAccountEpoch());
-    completion.beginSignOut(receipt, localPurge);
-    try {
-      await signOutExpected(authExpectation);
-      completion.finishSignOut(true);
-    } catch (e) {
-      if (e instanceof AuthSessionOwnerChangedError) {
-        // A's server deletion succeeded, but B now owns local auth. Preserve B
-        // and suppress A's receipt/navigation rather than treating it as a
-        // local-clear failure against the wrong owner.
-        completion.dispose();
-        dismissAccountDeletionNotice();
-        deleteInFlightRef.current = false;
-        if (privacyMountedRef.current) setDeleting(false);
-        return;
-      }
-      completion.finishSignOut(false);
-      if (typeof console !== "undefined") {
-        console.warn("[privacy] local sign-out after deletion failed; phase=account-deletion");
-      }
+    const finished = await finishAccountDeletion({
+      owner: targetUserId,
+      receipt,
+      purgeLocal: purgeDeletedAccountLocalData,
+      signOut: () => signOutDeletedAccount(authExpectation),
+      isOwnerChangedError: (error) => error instanceof AuthSessionOwnerChangedError,
+      // The root router, not the phone-embedded one: it leaves the dashboard
+      // phone and still works after this screen unmounted.
+      openReceipt: () => {
+        rootRouter.dismissAll();
+        rootRouter.replace(ACCOUNT_DELETED_ROUTE);
+      },
+      leaveReceipt: () => rootRouter.replace("/"),
+    });
+    if (finished.kind === "owner-changed") {
+      // B owns local auth now. Keep B and never leave B on A's receipt.
+      deleteInFlightRef.current = false;
+      if (privacyMountedRef.current) setDeleting(false);
+      return;
     }
-    completion.dispose();
-    router.dismissAll();
-    router.replace("/sign-in");
+    if (finished.localSignOut === "unconfirmed" && typeof console !== "undefined") {
+      console.warn("[privacy] local sign-out after deletion failed; phase=account-deletion");
+    }
   }
 
   function requestDeleteAccountConfirm() {
@@ -735,6 +719,7 @@ export function DeepSpacePrivacyDesignScreen() {
     if (!deleteInFlightRef.current) {
       setDeleting(false);
       setDelError(false);
+      setDelUnconfirmed(false);
       allowDeletionNavigationRef.current = false;
     }
     if (!userId) return;
@@ -1269,9 +1254,9 @@ export function DeepSpacePrivacyDesignScreen() {
             {deleting ? t("privacy.deleteAccount.deleting") : t("privacy.deleteAccount.button")}
           </Text>
         </Pressable>
-        {delError ? (
-          <Text variant="subtle" style={styles.footer}>
-            {t("privacy.deleteAccount.failed")}
+        {delError || delUnconfirmed ? (
+          <Text variant="subtle" style={styles.footer} accessibilityLiveRegion="polite">
+            {delUnconfirmed ? consentT("account.delete.unconfirmed") : t("privacy.deleteAccount.failed")}
           </Text>
         ) : null}
       </Card>
