@@ -73,6 +73,12 @@ export default function Onboarding() {
   // Signed in: this account's server mark (0219). Signed out: the device value.
   const onboardingComplete = useOnboardingComplete(userId, !loading);
   const [step, setStep] = useState(0);
+  // Finishing records the account mark at once (0219), which flips the gate to
+  // true while the navigator is still taking this screen away. Once the
+  // carousel has been shown, keep it: a flip to the redirect here would blank
+  // the closing slide mid-transition.
+  const [carouselShown, setCarouselShown] = useState(false);
+  if (onboardingComplete === false && !carouselShown) setCarouselShown(true);
 
   // Android hardware Back reverses one slide, including the final handoff frame.
   useEffect(() => {
@@ -87,7 +93,7 @@ export default function Onboarding() {
   }, [step]);
 
   if (loading || onboardingComplete === null) return <InlineLoader />;
-  if (onboardingComplete === true) return <RedirectHome />;
+  if (onboardingComplete === true && !carouselShown) return <RedirectHome />;
 
   // Completion is deliberately written only when a real destination is chosen.
   // Merely mounting the route, paging, or skipping to the handoff does not write.

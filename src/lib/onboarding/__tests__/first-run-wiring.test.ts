@@ -101,6 +101,12 @@ describe("screens pass the owner and wait for the restored session", () => {
     }
   });
 
+  test("finishing the welcome does not swap the closing slide for a redirect", () => {
+    const src = read("src/app/onboarding.tsx");
+    expect(src).toContain("if (onboardingComplete === false && !carouselShown) setCarouselShown(true);");
+    expect(src).toContain("if (onboardingComplete === true && !carouselShown) return <RedirectHome />;");
+  });
+
   test("the welcome and the first-day review write the account mark", () => {
     expect(read("src/app/onboarding.tsx")).toContain("markOnboardingComplete(userId);");
     expect(read("src/app/ttfv.tsx")).toContain("onContentReady={() => markTTFVSeen(userId)}");
