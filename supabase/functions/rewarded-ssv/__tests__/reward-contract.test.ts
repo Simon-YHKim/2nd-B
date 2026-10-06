@@ -135,7 +135,7 @@ describe("rewarded SSV ticket timing", () => {
 
   test("pins a 20-minute ticket across DB, Edge, and native timing", () => {
     const forwardMigration = readRepo(
-      "db/migration-drafts/UNNUMBERED_reward_ssv_hardening.sql",
+      "db/migrations/0196_reward_ssv_hardening.sql",
     );
     const edge = readRepo("supabase/functions/rewarded-ssv/index.ts");
     const native = readRepo("src/lib/ads/rewarded.native.ts");
@@ -152,7 +152,7 @@ describe("rewarded SSV ticket timing", () => {
 
   test("keeps a consumed ticket through the exact-retry window when a later issue cleans up", () => {
     const forwardMigration = readRepo(
-      "db/migration-drafts/UNNUMBERED_reward_ssv_hardening.sql",
+      "db/migrations/0196_reward_ssv_hardening.sql",
     );
     const cleanupStart = forwardMigration.indexOf("DELETE FROM public.reward_ssv_tickets AS tickets");
     const cleanupEnd = forwardMigration.indexOf("IF NOT EXISTS (", cleanupStart);

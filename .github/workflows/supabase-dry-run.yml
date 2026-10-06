@@ -344,32 +344,47 @@ jobs:
         run: |
           set -euo pipefail
           # The staged CLI push above already executed 0191-0201 once in order.
-          # Keep the retained draft fixtures byte-identical to those numbered
-          # files, then inspect the resulting scratch schema without replaying
-          # provisioning or rewriting the ledger.
-          for mapping in \
-            0191:signup_consent_admob_20260925 \
-            0192:account_deletion_completion_fence \
-            0193:effective_llm_consent_current_contract \
-            0194:llm_service_consent_management \
-            0195:polaris_generation_allowance \
-            0196:reward_ssv_hardening \
-            0197:paddle_refund_consequence_integrity \
-            0198:service_contract_erasure_registry \
-            0199:oauth_naver_rate_limit_completion \
-            0200:rss_proxy_quota \
-            0206:users_avatar_spec \
-            0207:users_display_name_update \
-            0208:signup_consent_privacy_20260929 \
-            0210:polascope_consent_20260928 \
-            0215:consent_email_v9_20261006; do
-            version="${mapping%%:*}"
-            stem="${mapping#*:}"
-            if ! cmp -s "db/migration-drafts/UNNUMBERED_${stem}.sql" "db/migrations/${version}_${stem}.sql"; then
-              echo "promoted migration differs from its reviewed draft: ${version}_${stem}.sql" >&2
+          # One copy per migration (Simon decision Q-261005-07, 2026-10-05): a
+          # draft is deleted in the same change that gives it a number, so the
+          # numbered file is the only source. A draft still sitting beside its
+          # numbered twin fails here. The single exception is 0197, whose
+          # reviewed draft stays until production applies it, and it must stay
+          # byte-identical to its numbered file. With no second copy left, an
+          # edit to a numbered file alone is caught by the promoted-bytes digest
+          # pins in scripts/__tests__/supabase-security-drafts.test.ts (run by
+          # npm run verify on every PR). Then inspect the resulting scratch
+          # schema without replaying provisioning or rewriting the ledger.
+          retained_until_applied="0197:paddle_refund_consequence_integrity"
+          retained_seen=0
+          shopt -s nullglob
+          for draft in db/migration-drafts/UNNUMBERED_*.sql; do
+            stem="${draft##*/UNNUMBERED_}"
+            stem="${stem%.sql}"
+            numbered=(db/migrations/[0-9][0-9][0-9][0-9]_"${stem}".sql)
+            if (( ${#numbered[@]} == 0 )); then
+              continue
+            fi
+            if (( ${#numbered[@]} > 1 )); then
+              echo "more than one numbered migration shares the draft stem ${stem}" >&2
               exit 1
             fi
+            base="${numbered[0]##*/}"
+            version="${base%%_*}"
+            if [[ "${version}:${stem}" != "$retained_until_applied" ]]; then
+              echo "promoted draft still present beside ${numbered[0]}: delete ${draft}; the numbered file is the only copy" >&2
+              exit 1
+            fi
+            if ! cmp -s "$draft" "${numbered[0]}"; then
+              echo "retained draft differs from its numbered migration: ${numbered[0]}" >&2
+              exit 1
+            fi
+            retained_seen=1
           done
+          shopt -u nullglob
+          if (( retained_seen == 0 )); then
+            echo "the 0197 draft is gone: drop the retained_until_applied exception" >&2
+            exit 1
+          fi
           psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
           BEGIN;
           DO $verify$
@@ -1292,12 +1307,12 @@ jobs:
           if psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 >"$rls_log" 2>&1 <<'SQL'
           BEGIN;
           ALTER TABLE storage.objects DISABLE ROW LEVEL SECURITY;
-          \i db/migration-drafts/UNNUMBERED_account_deletion_completion_fence.sql
+          \i db/migrations/0192_account_deletion_completion_fence.sql
           ROLLBACK;
           SQL
           then
             cat "$rls_log"
-            echo "account-deletion draft accepted Storage with RLS disabled" >&2
+            echo "account-deletion migration accepted Storage with RLS disabled" >&2
             exit 1
           fi
           if ! grep -Fq "storage.objects RLS must be enabled before account-deletion policies" "$rls_log"; then
@@ -2856,7 +2871,7 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/consent_email_v9_20261006_regression.sql
-      - name: Exercise inactive avatar column draft on scratch PostgreSQL
+      - name: Exercise numbered 0206 avatar column contract on scratch PostgreSQL
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/users-avatar-spec-contract.sql
