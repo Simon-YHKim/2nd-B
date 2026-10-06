@@ -173,12 +173,14 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/app/call-reflection.tsx": 9,
   "src/app/capture.tsx": 14,
   "src/app/career-drilldown.tsx": 47,
-  "src/app/career.tsx": 9,
+  // career.tsx 는 2026-10-06 에 9 -> 0 으로 **갚아서** 줄을 지웠다(Q-261005-01 = A, QA 261006 tr3:
+  // 쌓아온 길 제목 · 메인/사이드 · 공식 이력 칩 다섯 · 안내 문장을 deepspace career.* 로).
   // 2026-10-05 롤백 레버 제거(Simon 결정 Q-261004-11 C): 레거시 반쪽과 함께 빚이 빠졌다.
   // **고친 것이 아니라 빠진 것**이다 - core-brain 9 -> 6, inbox 30 · manual 42 · persona 32 ·
   // wiki 9 · BackArrow 31 은 0 이 되어 줄을 지웠고, premium/tab-bar.tsx(4)는 파일째 나갔다.
   // 되살리기 원본(legacy/screens/)으로 간 반쪽의 한국어는 되살릴 때 다시 만난다.
-  "src/app/core-brain.tsx": 6,
+  // core-brain 은 2026-10-06 에 6 -> 0 으로 **갚아서** 줄을 지웠다(Q-261005-01 = A,
+  // 저장 결과 카드 · 덱 제목 · 그래픽 라벨 · 내보내기를 core-brain/persona 키로).
   "src/app/iden.tsx": 7,
   "src/app/interview.tsx": 4,
   "src/app/ipip-neo.tsx": 16,
@@ -187,7 +189,9 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/app/onboarding.tsx": 1,
   "src/app/peer-invites.tsx": 1,
   "src/app/processing-log.tsx": 24,
-  "src/app/reasoning.tsx": 56,
+  // 56 -> 2: Q-261005-01 = A (QA 261006 tr3) 화면 문구 54 를 deepspace ds.reasoningScreen.* 로. 남은 2 =
+  // 연결 프롬프트(reasoning_connect) 의 한국어 시스템 지시문 두 벌 - UI 가 아니라 모델 지시문이다
+  "src/app/reasoning.tsx": 2,
   "src/app/rlss.tsx": 10,
   "src/app/secondb.tsx": 10,
   "src/app/settings.tsx": 11,
@@ -202,7 +206,8 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/components/deepspace/BackgroundTaskDock.tsx": 4,
   "src/components/deepspace/CompletionToast.tsx": 4,
   "src/components/deepspace/DeepSpaceLoader.tsx": 7,
-  "src/components/deepspace/ops/copy.ts": 105,
+  // ops/copy.ts 는 2026-10-06 에 104 -> 0 으로 **갚아서** 줄을 지웠다(Q-261005-01 = A, QA 261006 tr2:
+  // en/ko 두 사전을 ops 번들 copy.* 로, es/pt/id 번역).
   "src/components/m3/date-picker/DatePicker.tsx": 38,
   "src/components/persona/FacetBreakdown.tsx": 1,
   "src/components/persona/TraitRadar.tsx": 3,
@@ -256,10 +261,8 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   // reflection-scaffold.ts(4) 는 2026-10-06 에 파일째 E:/Legacy 로 갔다
   // (Simon 결정 Q-261005-08 B). **고친 것이 아니라 빠진 것**이다.
   "src/lib/persona/rlss.ts": 15,
-  "src/lib/persona/self-portrait.ts": 11,
   "src/lib/persona/seven-proposal-context.ts": 3,
   "src/lib/persona/strengths-survey.ts": 25,
-  "src/lib/persona/tier-history.ts": 4,
   "src/lib/persona/trait-radar-geometry.ts": 5,
   "src/lib/persona/values-survey.ts": 30,
   "src/lib/records/create.ts": 6,
@@ -275,14 +278,19 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/wiki/phase1.ts": 7,
   "src/lib/wiki/propose-template.ts": 15,
   "src/lib/wiki/template-validate.ts": 2,
-  "src/screens/deepspace/DeepSpaceDesignScreens.tsx": 66,
+  // 66 -> 15: Q-261005-01 = A (QA 261006 tr1) /privacy 문구를 deepspace 키로. 남은 15 = 국외 이전 고지 두 문단(F2,
+  // 템플릿 조각 4) + 다른 화면 11
+  "src/screens/deepspace/DeepSpaceDesignScreens.tsx": 15,
   "src/screens/deepspace/dds-record-detail-screen.tsx": 4,
   "src/screens/deepspace/dds-wiki-records-screens.tsx": 4,
-  "src/screens/deepspace/growth/WeeklyGrowthScreen.tsx": 14,
-  "src/screens/deepspace/import/ImportHubScreen.tsx": 86,
+  // WeeklyGrowthScreen(14) · ImportHubScreen(86) 은 2026-10-06 에 0 으로 **갚아서** 줄을 지웠다
+  // (Q-261005-01 = A, QA 261006 tr3: 별마다의 관찰 · 다음 걸음은 deepspace ds.growth.steps.* 로,
+  // 가져오기 허브의 COPY(ko) 표와 소스 열 개의 이름 · 부제 · 설명은 import hub.* 로).
   "src/screens/deepspace/museum/AiMuseumScreen.tsx": 86,
   "src/screens/deepspace/onboarding/TTFVScreen.tsx": 29,
-  "src/screens/deepspace/ops/screens.tsx": 14,
+  // 14 -> 13: R2C-15 (QA 261005) 고정 검색어 "닭" 제거. 13 -> 6: Q-261005-01 = A (QA 261006 tr2) /meals 요일
+  // 일곱 글자를 ops 번들 toolScreens.meals.days 로. 남은 6 = 그룹 탭 이름 5(OPS_GROUP_LABEL) + 가계 분류 기본값 "기타"
+  "src/screens/deepspace/ops/screens.tsx": 6,
 };
 
 describe("코드에 박힌 한국어", () => {

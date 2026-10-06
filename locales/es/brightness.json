@@ -15,5 +15,7 @@
   "honestyCaption": "El brillo refleja cuánto has explorado una etapa o tema de tu vida. No mide la exactitud del resultado. Revisa también las fuentes.",
   "reviewCta": "Ir a revisar una propuesta",
   "subtitle": "8 semanas · siete estrellas",
-  "rule": "Cada semana muestra el último brillo registrado. Las semanas anteriores al primer registro quedan vacías."
+  "rule": "Cada semana muestra el último brillo registrado. Las semanas anteriores al primer registro quedan vacías.",
+  "shiftNudge": "Cambio reciente: {{stars}} - ¿quieres revisarlo?",
+  "shiftNudgeCited": "Cambio reciente: {{stars}} · fuentes: {{n}} - ¿quieres revisarlo?"
 }

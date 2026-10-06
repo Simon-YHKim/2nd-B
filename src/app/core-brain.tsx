@@ -146,17 +146,20 @@ function hasUnrecordedPersonaProvenance(persona: PersonaCard): boolean {
   );
 }
 
-function buildCoreCenterCards(persona: PersonaCard, locale: "en" | "ko"): CenterCard[] {
+function buildCoreCenterCards(
+  persona: PersonaCard,
+  locale: "en" | "ko",
+  t: (key: string) => string,
+): CenterCard[] {
   if (!hasUnrecordedPersonaProvenance(persona)) return buildCenterCards(persona, locale);
 
+  // Screen copy, so it reads core-brain keys in the language on screen
+  // (Q-261005-01 = A); `locale` above still picks the en/ko persona data.
   return [
     {
       id: "pieces",
-      title: locale === "ko" ? "기존 저장 결과" : "Previously saved result",
-      body:
-        locale === "ko"
-          ? "기존 저장 결과입니다. 출처가 기록되지 않아 지금의 방향으로 단정하지 않습니다."
-          : "Previously saved result. Its source was not recorded, so we do not present it as your current direction.",
+      title: t("savedResult.title"),
+      body: t("savedResult.body"),
       accent: cosmic.pixelLamp,
     },
   ];
@@ -491,7 +494,7 @@ function CoreBrainScreen() {
   }
 
   const visibleRoleCards = roleCardsUserId === userId ? roleCards : [];
-  const cards = persona ? buildCoreCenterCards(persona, locale) : [];
+  const cards = persona ? buildCoreCenterCards(persona, locale, t) : [];
   const pieces = cards.find((c) => c.id === "pieces");
 
   // 나의 모습 — the 5-field self-portrait (who / forWhom / goal / do / fuel).
@@ -500,7 +503,7 @@ function CoreBrainScreen() {
   // The remaining three fields disclose that automatic summary is not wired yet.
   // Trait provenance gates generated role/direction copy, not these independent
   // measurement reads. They refresh on focus and can predate persona synthesis.
-  const portrait = buildSelfPortrait({ persona: portraitSignals }, locale);
+  const portrait = buildSelfPortrait({ persona: portraitSignals }, locale, t);
 
   const starBrightness = sevenLevels?.northStarBrightness ?? null;
 
@@ -596,11 +599,7 @@ function CoreBrainScreen() {
               viewBox="0 0 190 132"
               {...(Platform.OS === "web" ? {} : { accessible: true })}
               accessibilityRole="image"
-              accessibilityLabel={
-                locale === "ko"
-                  ? "일곱 별자리와 북극성. 북극성 밝기는 프로필을 제외한 여섯 별에서 옵니다."
-                  : "Seven-star constellation and Polaris. Polaris brightness comes from the six stars excluding profile."
-              }
+              accessibilityLabel={t("polarisGraphicA11y")}
               testID="polaris-synthesis-graphic"
             >
               {POLARIS_DIPPER_CELLS.map((cell, index) => (
@@ -686,7 +685,7 @@ function CoreBrainScreen() {
     },
     {
       key: "portrait",
-      title: locale === "ko" ? "나의 모습" : "SELF PORTRAIT",
+      title: t("deck.portrait"),
       accent: cosmic.soulViolet,
       body: (
         <View style={dsDeck.pageBody}>
@@ -743,7 +742,7 @@ function CoreBrainScreen() {
     },
     {
       key: "evidence",
-      title: locale === "ko" ? "근거와 검증" : "EVIDENCE",
+      title: t("deck.evidence"),
       accent: cosmic.signalMint,
       body: (
         <View style={dsDeck.pageBody}>
@@ -792,7 +791,7 @@ function CoreBrainScreen() {
           />
           <MdButton
             variant="text"
-            label={locale === "ko" ? "내보내기" : "Export"}
+            label={t("persona:export")}
             onPress={() => router.push("/share-card")}
           />
         </View>

@@ -57,15 +57,25 @@ import { CLIPPER_TEMPLATE_LIST, type ClipperTemplate } from "@/lib/wiki/clipper-
 import { TemplateEditor } from "@/components/wiki/TemplateEditor";
 import { AddFormatFlow } from "@/components/wiki/AddFormatFlow";
 import { FormatSchemaView, type FormatSchemaInput } from "@/components/wiki/FormatSchemaView";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import { DeepSpaceFormatsScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 type Locale = "en" | "ko";
 type Toast = { message: string; tone: "info" | "success" | "danger" };
+// Which format the read-only guide is open for. It holds the format, not its
+// translated text: the guide translates at render time, so its values and labels
+// follow the painted language with the modal title and Close button even when
+// the language changes or the es/pt/id pack lands while it is open (QA 261006).
+type Viewing = { builtIn: ClipperTemplate } | { custom: CustomClipperTemplate };
 
 function FormatsLegacy() {
   const { i18n, t: tf } = useTranslation("formats");
   const { userId, loading } = useAuth();
-  const locale: Locale = i18n.language === "ko" ? "ko" : "en";
+  // The language the screen is painted in. The bundled eight read the formats
+  // bundle in it; custom formats are the user's own ko/en text, so they keep
+  // the ko/en `locale` (as do the editor and the AI add flow that write them).
+  const uiLng = renderedUiLanguage(i18n);
+  const locale: Locale = uiLng === "ko" ? "ko" : "en";
   const kbHeight = useKeyboard();
   const { height: windowHeight } = useWindowDimensions();
 
@@ -78,7 +88,7 @@ function FormatsLegacy() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [pendingShareIds, setPendingShareIds] = useState<ReadonlySet<string>>(new Set());
   const [adding, setAdding] = useState(false);
-  const [viewing, setViewing] = useState<FormatSchemaInput | null>(null);
+  const [viewing, setViewing] = useState<Viewing | null>(null);
   // Play UGC moderation (migration 0097). `moderating` is the community row the
   // sheet is open for; `blockedIds` only drives the unblock control and the
   // optimistic hide, since the clipper_templates read policy already filters.
@@ -342,16 +352,26 @@ function FormatsLegacy() {
   function metaOf(t: CustomClipperTemplate): string {
     return t.targetCategory ? `${t.baseKind} · ${t.targetCategory}` : t.baseKind;
   }
+  // The bundled eight read the formats bundle (builtIn.kinds.<kind>.*) in the painted
+  // language. They used to show t.name / t.what as ko or en, so es/pt/id read the
+  // eight formats in English (R2B-03). The bundle's en/ko values mirror
+  // clipper-templates.ts, which the classifier prompt still reads (tr2-locale-copy.test.ts).
+  function builtInName(t: ClipperTemplate): string {
+    return tf(`builtIn.kinds.${t.kind}.name`);
+  }
+  function builtInWhat(t: ClipperTemplate): string {
+    return tf(`builtIn.kinds.${t.kind}.what`);
+  }
   // Normalize a format (bundled or custom) into the locale-resolved guide view.
   function schemaOfBundled(t: ClipperTemplate): FormatSchemaInput {
     return {
-      name: (locale === "ko" ? t.name.ko : t.name.en) || t.name.en,
+      name: builtInName(t),
       baseKind: t.kind,
-      what: (locale === "ko" ? t.what.ko : t.what.en) || t.what.en,
+      what: builtInWhat(t),
       targetCategory: t.targetCategoryDefault,
       defaultTags: t.defaultTags,
       triggers: t.triggers,
-      aiProperties: t.aiProperties.map((p) => ({ name: p.name, type: p.type, describe: locale === "ko" ? p.describe.ko : p.describe.en })),
+      aiProperties: t.aiProperties.map((p) => ({ name: p.name, type: p.type, describe: tf(`builtIn.kinds.${t.kind}.props.${p.name}`) })),
     };
   }
   function schemaOfCustom(t: CustomClipperTemplate): FormatSchemaInput {
@@ -416,17 +436,17 @@ function FormatsLegacy() {
               {CLIPPER_TEMPLATE_LIST.map((t) => (
                 <Pressable
                   key={t.id}
-                  onPress={() => setViewing(schemaOfBundled(t))}
+                  onPress={() => setViewing({ builtIn: t })}
                   accessibilityRole="button"
-                  accessibilityLabel={`${(locale === "ko" ? t.name.ko : t.name.en) || t.name.en} ${tf("labels.viewGuide")}`}
+                  accessibilityLabel={`${builtInName(t)} ${tf("labels.viewGuide")}`}
                 >
                   <PremiumCard
                     accent={semantic.brand}
                     eyebrow={t.targetCategoryDefault ? `${t.kind} · ${t.targetCategoryDefault}` : t.kind}
-                    title={(locale === "ko" ? t.name.ko : t.name.en) || t.name.en}
+                    title={builtInName(t)}
                   >
                     <Text variant="subtle" color="textMuted">
-                      {locale === "ko" ? t.what.ko : t.what.en}
+                      {builtInWhat(t)}
                     </Text>
                     <Text variant="subtle" color="brand" style={styles.shareNote}>
                       {tf("labels.tapViewGuide")}
@@ -490,7 +510,7 @@ function FormatsLegacy() {
                         </Text>
                         <View style={styles.cardActions}>
                           <Pressable
-                            onPress={() => setViewing(schemaOfCustom(t))}
+                            onPress={() => setViewing({ custom: t })}
                             style={styles.deleteLink}
                             hitSlop={14}
                             accessibilityRole="button"
@@ -566,7 +586,7 @@ function FormatsLegacy() {
                         {whatOf(t) ? <Text variant="subtle" color="textMuted">{whatOf(t)}</Text> : null}
                         <View style={styles.cardActions}>
                           <Pressable
-                            onPress={() => setViewing(schemaOfCustom(t))}
+                            onPress={() => setViewing({ custom: t })}
                             style={styles.deleteLink}
                             hitSlop={14}
                             accessibilityRole="button"
@@ -637,7 +657,16 @@ function FormatsLegacy() {
         <Text variant="caption" color="brand" style={styles.sectionEyebrow}>
           {tf("guideModal.eyebrow")}
         </Text>
-        {viewing ? <FormatSchemaView schema={viewing} locale={locale} /> : null}
+        {/* Built-ins carry the formats bundle in the painted language (es/pt/id
+            included); custom formats are the user's own ko/en text, so their labels
+            follow `locale` to match. */}
+        {viewing ? (
+          "builtIn" in viewing ? (
+            <FormatSchemaView schema={schemaOfBundled(viewing.builtIn)} locale={uiLng} />
+          ) : (
+            <FormatSchemaView schema={schemaOfCustom(viewing.custom)} locale={locale} />
+          )
+        ) : null}
         <View style={styles.modalActions}>
           <PremiumButton
             label={tf("actions.close")}

@@ -25,31 +25,25 @@ import { welcomeCueAllowed } from "@/lib/audio/app-cues";
 import { requestGlobalCue } from "@/lib/audio/global-cues";
 import { m3 } from "@/lib/theme/m3";
 
+type SlideCopy = { tag: string; title: string; body: string };
+
 interface Slide {
   icon: AnyGlyphName;
-  tag: { ko: string; en: string };
-  title: { ko: string; en: string };
-  body: { ko: string; en: string };
+  /** Verbatim canon copy, painted when the UI is Korean. */
+  ko: SlideCopy;
+  /** deepspace keys painted in every other language; null past the key list. */
+  keys: SlideCopy | null;
 }
 
-// KO is verbatim canon copy. The existing approved EN mirror remains index-
-// aligned; the final handoff uses the five-locale onboarding/auth resources.
-const SLIDE_EN: { tag: string; title: string; body: string }[] = [
-  {
-    tag: "POLASCOPE",
-    title: "An AI that gets\nto know you",
-    body: "SecondB uses your notes\nto help organize your thoughts\nand plan your day.",
-  },
-  {
-    tag: "Getting to know you",
-    title: "Tell your story\nacross seven stars",
-    body: "School years, work, or now:\nchoose a star to start with.",
-  },
-  {
-    tag: "Your choice",
-    title: "AI summaries need\nyour approval",
-    body: "A summary about you is a proposal.\nIt is applied only if you approve it.",
-  },
+// KO is verbatim canon copy. Every other language reads these deepspace keys,
+// index-aligned with the canon slides (Q-261005-01 = A, R2B-03). Until
+// 2026-10-06 this was an EN mirror, so es/pt/id saw English slides under a
+// translated "Next" button. The first tag is the brand label every locale
+// already shares.
+const SLIDE_KEYS: SlideCopy[] = [
+  { tag: "auth.brandLabel", title: "onboarding.slides.intro.title", body: "onboarding.slides.intro.body" },
+  { tag: "onboarding.slides.stars.tag", title: "onboarding.slides.stars.title", body: "onboarding.slides.stars.body" },
+  { tag: "onboarding.slides.approve.tag", title: "onboarding.slides.approve.title", body: "onboarding.slides.approve.body" },
 ];
 
 const SLIDES: Slide[] = canonFlows.onboardingSlides.map((slide, index) => ({
@@ -58,9 +52,8 @@ const SLIDES: Slide[] = canonFlows.onboardingSlides.map((slide, index) => ({
   // 넣으면 그대로 렌더까지 흘러갔다. `canonGlyph` 는 그려진 이름으로 좁히고,
   // 없으면 `sparkle` 로 떨어뜨린다.
   icon: canonGlyph(slide.icon),
-  tag: { ko: slide.tag, en: SLIDE_EN[index]?.tag ?? slide.tag },
-  title: { ko: slide.title, en: SLIDE_EN[index]?.title ?? slide.title },
-  body: { ko: slide.body, en: SLIDE_EN[index]?.body ?? slide.body },
+  ko: { tag: slide.tag, title: slide.title, body: slide.body },
+  keys: SLIDE_KEYS[index] ?? null,
 }));
 
 const AUTH_STEP = SLIDES.length;
@@ -68,9 +61,10 @@ type HandoffDestination = "/" | "/sign-up" | "/sign-in";
 
 export default function Onboarding() {
   const { t, i18n } = useTranslation(["deepspace", "auth", "common"]);
-  const locale = renderedUiLanguage(i18n) === "ko" ? "ko" : "en";
-  // check:constraints pins the literal Korean skip label in this file.
-  const skipLabel = locale === "ko" ? "건너뛰기" : "Skip";
+  const ko = renderedUiLanguage(i18n) === "ko";
+  // check:constraints pins the literal Korean skip label in this file; every
+  // other language reads onboarding.skip.
+  const skipLabel = ko ? "건너뛰기" : t("onboarding.skip");
   const { userId, loading } = useAuth();
   const onboardingComplete = useOnboardingComplete();
   const [step, setStep] = useState(0);
@@ -112,6 +106,8 @@ export default function Onboarding() {
 
   const isAuth = step >= AUTH_STEP;
   const slide = SLIDES[Math.min(step, AUTH_STEP - 1)];
+  const slideCopy = (field: keyof SlideCopy): string =>
+    ko || !slide.keys ? slide.ko[field] : t(slide.keys[field]);
   const nextHint = t("onboarding.nextHint");
   const skipHint = t("onboarding.skipHint");
   const authHint = t("onboarding.authHint");
@@ -174,9 +170,9 @@ export default function Onboarding() {
           >
             <PixelGlyph name={slide.icon} size={48} color={m3.accent.entryTag} />
           </PixelSurface>
-          <Text variant="caption" style={styles.tag}>{slide.tag[locale]}</Text>
-          <Text variant="heading" style={styles.title}>{slide.title[locale]}</Text>
-          <Text variant="body" style={styles.body}>{slide.body[locale]}</Text>
+          <Text variant="caption" style={styles.tag}>{slideCopy("tag")}</Text>
+          <Text variant="heading" style={styles.title}>{slideCopy("title")}</Text>
+          <Text variant="body" style={styles.body}>{slideCopy("body")}</Text>
         </View>
       )}
 

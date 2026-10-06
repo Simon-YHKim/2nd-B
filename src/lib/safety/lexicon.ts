@@ -363,7 +363,7 @@ export const LEXICON_NON_CLINICAL_CONTEXTS: Record<Locale, readonly RegExp[]> = 
     /회귀가 없어야 정상이/g,
     /거절되는 것이 정상이/g,
     /예외 결함이 있/g,
-    /대처방(?:안|법)/g,
+    /대처방(?:안|법)/g, /유료가 더 똑똑한가요\?/g, // ← /support FAQ (canon gaps.json, deepspace support.faqs.plan.q): asks about the app, answer "아니요"; only this question is masked (lexicon-copy.test.ts). Same line on purpose: docs/legal cites lines below by number.
   ],
 };
 

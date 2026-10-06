@@ -12,6 +12,15 @@ const FLOWS = JSON.parse(
 ) as {
   onboardingSlides: { tag: string; title: string; icon: string; body: string }[];
 };
+// The non-Korean slide copy moved from an EN mirror in onboarding.tsx to the
+// deepspace bundles (Q-261005-01 = A, 2026-10-06). The EN assertions below read
+// the canonical en bundle, which the other locales translate.
+type SlideCopy = { tag?: string; title: string; body: string };
+const EN_SLIDES = (
+  JSON.parse(
+    fs.readFileSync(path.resolve(__dirname, "..", "..", "..", "locales", "en", "deepspace.json"), "utf8"),
+  ) as { onboarding: { slides: { intro: SlideCopy; stars: SlideCopy; approve: SlideCopy } } }
+).onboarding.slides;
 
 function functionBody(name: string): string {
   const start = SRC.indexOf(`function ${name}(`);
@@ -48,14 +57,15 @@ describe("/onboarding PIXEL-CLAY handoff contract", () => {
 
   test("introduces the current seven-star model with concrete starting examples", () => {
     const koBody = FLOWS.onboardingSlides[1]?.body ?? "";
-    const enBody =
-      SRC.match(/tag: "Getting to know you",[\s\S]*?body: "([^"]+)"/)?.[1] ?? "";
+    const enBody = EN_SLIDES.stars.body;
 
     expect(FLOWS.onboardingSlides[1]?.title).toContain("일곱 별");
     for (const star of ["학창시절", "직장", "지금"]) {
       expect(koBody).toContain(star);
     }
-    expect(SRC).toContain("across seven stars");
+    expect(SRC).toContain('"onboarding.slides.stars.body"');
+    expect(EN_SLIDES.stars.tag).toBe("Getting to know you");
+    expect(EN_SLIDES.stars.title).toContain("across seven stars");
     for (const star of ["School years", "work", "now"]) {
       expect(enBody).toContain(star);
     }
@@ -73,13 +83,18 @@ describe("/onboarding PIXEL-CLAY handoff contract", () => {
       icon: "check_circle",
       body: "나에 대한 요약은 제안입니다.\n내가 승인해야 반영됩니다.",
     });
-    expect(SRC).toContain('tag: "Your choice"');
-    expect(SRC).toContain('title: "AI summaries need\\nyour approval"');
-    expect(SRC).toContain('body: "A summary about you is a proposal.\\nIt is applied only if you approve it."');
+    expect(SRC).toContain('"onboarding.slides.approve.tag"');
+    expect(EN_SLIDES.approve).toEqual({
+      tag: "Your choice",
+      title: "AI summaries need\nyour approval",
+      body: "A summary about you is a proposal.\nIt is applied only if you approve it.",
+    });
 
+    const enSlideCopy = JSON.stringify(EN_SLIDES);
     for (const removed of ["AI의 원리", "AI 뮤지엄", "함께 배우기", "Learning together", "AI Museum"]) {
       expect(canonCopy).not.toContain(removed);
       expect(SRC).not.toContain(removed);
+      expect(enSlideCopy).not.toContain(removed);
     }
   });
 

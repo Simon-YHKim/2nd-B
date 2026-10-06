@@ -42,8 +42,17 @@ export function useUiSoundControl(source: number | string, options: UiSoundOptio
   // player's readiness; the status object only signals a native update.
   useEffect(() => { control.current?.setReady(player.isLoaded); }, [player, status]);
 
+  const warned = useRef(false);
   const play = useCallback(() => {
-    if (allowed() && owner.current === player) control.current?.play();
+    if (!allowed()) return;
+    if (owner.current !== player || !control.current) {
+      if (!warned.current) { warned.current = true; console.warn("[ui-sound] cue skipped: player not attached"); }
+      return;
+    }
+    // 아직 안 불러졌으면 재생기가 줄을 세워 두고 불러지는 순간 낸다. 그 대기가 끝나지 않는 경우를 찾으려고
+    // 한 번만 남긴다(2026-10-06 에뮬레이터 진단).
+    if (!player.isLoaded && !warned.current) { warned.current = true; console.warn("[ui-sound] cue queued before its player loaded"); }
+    control.current.play();
   }, [allowed, player]);
   return useMemo(() => ({ play, stop }), [play, stop]);
 }

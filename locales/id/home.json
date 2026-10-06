@@ -336,7 +336,33 @@
       "sectionAngles": "Ide dari SecondB",
       "sectionSteps": "Pilihan langkah berikutnya",
       "toCapture": "Pindahkan ke Simpan",
-      "more": "Lainnya bersama SecondB"
+      "more": "Lainnya bersama SecondB",
+      "seeds": {
+        "expand": {
+          "angle": "Perluas",
+          "title": "Jika kamu cuti setahun",
+          "body": "Lupakan sejenak uang, pekerjaan, dan ikatan. Apa yang akan kamu lakukan pertama kali?",
+          "step1": "Tulis 3 hal yang ingin kamu lakukan",
+          "step2": "Coba satu di antaranya dengan satu jam saja bulan ini",
+          "step3": "Bayangkan siapa yang menemanimu di bintang Hubungan"
+        },
+        "reverse": {
+          "angle": "Balik",
+          "title": "Jika kamu hidup dengan cara yang sepenuhnya berlawanan",
+          "body": "Berimprovisasi alih-alih merencanakan, bersama alih-alih sendirian. Apa yang menarikmu dari sisi seberang?",
+          "step1": "Coba satu hal yang tidak pernah kamu lakukan minggu ini",
+          "step2": "Catat bersama SecondB apa yang terasa canggung",
+          "step3": "Simpan ke bintang Istirahat dan amati polanya"
+        },
+        "connect": {
+          "angle": "Hubungkan",
+          "title": "Karier × istirahat, digabungkan",
+          "body": "Paksa dua bintang itu bersatu. Ide aneh apa yang muncul?",
+          "step1": "Tulis proyek satu kalimat dari dua kata kunci itu",
+          "step2": "Buat prototipenya dalam dua jam di akhir pekan",
+          "step3": "Catat di bintang Pertumbuhan sebagai eksperimen"
+        }
+      }
     },
     "audit": {
       "title": "Diriku di masa lalu",

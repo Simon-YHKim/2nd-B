@@ -38,7 +38,56 @@
     "block": "Bloquear autor"
   },
   "builtIn": {
-    "headingWithCount": "Formatos padrão ({{count}})"
+    "headingWithCount": "Formatos padrão ({{count}})",
+    "kinds": {
+      "inbox": {
+        "name": "Caixa de entrada padrão",
+        "what": "O que não se encaixa em um tipo específico. Precisa ser classificado depois."
+      },
+      "article": {
+        "name": "Artigo geral",
+        "what": "Um artigo da web, ensaio ou post de blog. Texto feito para ser lido."
+      },
+      "video": {
+        "name": "Vídeo do YouTube",
+        "what": "Uma página de vídeo do YouTube (ou similar)."
+      },
+      "paper": {
+        "name": "Artigo acadêmico",
+        "what": "Um artigo de pesquisa, preprint ou artigo de periódico."
+      },
+      "reddit": {
+        "name": "Post do Reddit",
+        "what": "Uma thread ou post do Reddit, geralmente com discussão da comunidade.",
+        "props": {
+          "post-type": "Um de: question, discussion, showcase, news, guide."
+        }
+      },
+      "code": {
+        "name": "Repositório do GitHub",
+        "what": "Um repositório do GitHub, gist ou projeto de código.",
+        "props": {
+          "language": "Linguagem de programação principal, se for evidente."
+        }
+      },
+      "ai_tool": {
+        "name": "Documento de ferramenta de IA",
+        "what": "Documentação, notas de versão ou post de blog de uma ferramenta ou produto de IA.",
+        "props": {
+          "doc-type": "Um de: guide, reference, changelog, blog.",
+          "stack-impact": "Uma linha: como isso pode afetar ou se aplicar ao que Simon está construindo."
+        }
+      },
+      "self_knowledge": {
+        "name": "Autoconhecimento",
+        "what": "Material sobre entender a si mesmo: modelos, reflexões, crescimento.",
+        "props": {
+          "topic-area": "O tema de autoconhecimento (ex.: hábitos, foco, relacionamentos).",
+          "framework": "Um modelo ou estrutura com nome em que se baseia, se houver.",
+          "applicable-circuit": "A quais áreas da vida se refere."
+        }
+      }
+    }
   },
   "labels": {
     "untitled": "(sem título)",

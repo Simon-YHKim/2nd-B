@@ -176,7 +176,72 @@
     "none": "0 itens",
     "footer": "O tratamento e armazenamento dos dados depende de cada função. Consulte o aviso de uso de dados.",
     "dataReview": "Revisão dos meus dados",
-    "open": "Abrir"
+    "open": "Abrir",
+    "atGlance": "Visão geral",
+    "facts": {
+      "onDevice": {
+        "label": "Primeiro no dispositivo",
+        "v": "O conteúdo original que você importa é analisado no seu dispositivo; só os sinais derivados ficam guardados, criptografados."
+      },
+      "collect": {
+        "label": "O que coletamos",
+        "v": "As fagulhas de estrela que você guarda, as pontuações de lentes e os padrões de uso. Localização e comunicações, só com o seu consentimento."
+      },
+      "retention": {
+        "label": "Período de retenção",
+        "v": "Enquanto sua conta estiver ativa; se você excluir a conta, tudo é removido em até 30 dias."
+      },
+      "delete": {
+        "label": "Direito de exclusão",
+        "v": "Você pode excluir itens específicos ou tudo, quando quiser."
+      }
+    },
+    "analytics": {
+      "title": "Estatísticas de uso e anúncios",
+      "pendingAge": "As configurações de estatísticas de uso e anúncios aparecem depois que sua data de nascimento é confirmada.",
+      "minorLocked": "As estatísticas de uso e os anúncios ficam bloqueados quando a data de nascimento indica menos de 18 anos.",
+      "adultLead": "Opcional. Sua escolha fica salva e vale para o Google Analytics na web. O Firebase Analytics e o Microsoft Clarity estão desativados no Android por enquanto.",
+      "checkingAge": "Verificando sua data de nascimento…",
+      "loadingSettings": "Carregando configurações…",
+      "allow": "Permitir estatísticas de uso",
+      "lockedUnder18": "Bloqueado para menores de 18",
+      "applied": "GA4 ativo na web · Firebase e Clarity desativados no Android",
+      "enableFailed": "Não foi possível ativar as estatísticas. Tente novamente.",
+      "withdrawSaveFailed": "Não foi possível salvar. A retirada das estatísticas já vale neste dispositivo; tente salvar de novo.",
+      "adsSaveFailed": "Não foi possível salvar a configuração de anúncios. Tente novamente."
+    },
+    "recommend": {
+      "title": "Recomendações",
+      "minorLocked": "As recomendações estão desligadas e bloqueadas para sua proteção.",
+      "onBody": "Ligadas. Seus registros são analisados para sugerir conexões.",
+      "turnOffA11y": "Desligar recomendações",
+      "turnOff": "Desligar",
+      "offBody": "Desligadas. Ligue para receber sugestões de conexões a partir dos seus registros.",
+      "turnOnA11y": "Ligar recomendações",
+      "turnOn": "Ligar"
+    },
+    "semantic": {
+      "title": "Conexões de registros por significado",
+      "minorLocked": "As conexões por significado estão desligadas e bloqueadas para sua proteção.",
+      "onBody": "Ligadas. Os registros são indexados por significado para mostrar os parecidos.",
+      "turnOffA11y": "Desligar as conexões por significado",
+      "turnOff": "Desligar e excluir vetores",
+      "offBody": "Desligadas. Ligue para conectar registros com significado parecido, mesmo sem etiquetas em comum.",
+      "turnOnA11y": "Ligar as conexões por significado",
+      "turnOn": "Ligar"
+    },
+    "understandA11y": "Entendi e quero ligar",
+    "understand": "Entendi, ligar",
+    "saveFailed": "Não foi possível salvar. Tente novamente daqui a pouco.",
+    "deleteAccount": {
+      "body": "Seus registros, capturas, wiki, uso e conta são apagados para sempre. Não dá para desfazer. Exporte antes o que precisar.",
+      "typePrompt": "Digite \"DELETE\" para continuar.",
+      "inputA11y": "Confirmação de exclusão",
+      "buttonA11y": "Excluir a conta permanentemente",
+      "button": "Excluir conta",
+      "deleting": "Excluindo…",
+      "failed": "Não foi possível concluir a exclusão. Alguns dados podem ter ficado. Tente novamente daqui a pouco."
+    }
   },
   "support": {
     "title": "Suporte",
@@ -187,7 +252,35 @@
     "reportBug": "Relatar um erro",
     "footer": "PolaScope v1.0.0 · 2 dias úteis KST",
     "faqTitle": "Perguntas frequentes",
-    "noticesTitle": "Avisos"
+    "noticesTitle": "Avisos",
+    "faqs": {
+      "brightness": {
+        "q": "Qual é a diferença entre o brilho (a luz das estrelas) e a confiança?",
+        "a": "A luz das estrelas mostra quanto você guardou nessa área; a confiança, quanto a estimativa do SecondB foi confirmada. As duas mudam de forma independente."
+      },
+      "plan": {
+        "q": "Um plano pago deixa o app mais inteligente?",
+        "a": "Não. A qualidade das respostas é a mesma em todos os planos. Só mudam os limites de quantidade, retenção e exportação."
+      },
+      "call": {
+        "q": "A gravação de chamadas é segura?",
+        "a": "As gravações são transcritas no servidor de IA por uma conexão criptografada, e o áudio original é apagado do seu dispositivo logo depois. Só o texto e os sinais ficam guardados, criptografados."
+      }
+    },
+    "notices": {
+      "modes": {
+        "t": "Chegaram os três modos do SecondB",
+        "tag": "Novo"
+      },
+      "museum": {
+        "t": "Museu da IA: 8 coleções já abertas",
+        "tag": "Conteúdo"
+      },
+      "voice": {
+        "t": "Transcrição de voz aprimorada",
+        "tag": "Melhoria"
+      }
+    }
   },
   "connect": {
     "title": "Sincronização de dados",
@@ -399,7 +492,18 @@
     "sourceRecord": "Registro de carreira salvo",
     "entryUiKorean": "Tela ao salvar: coreano",
     "entryUiEnglish": "Tela ao salvar: inglês",
-    "untitled": "(sem título)"
+    "untitled": "(sem título)",
+    "pathTitle": "Caminho construído",
+    "trackMain": "Principal",
+    "trackSide": "Secundária",
+    "credentials": {
+      "education": "Formação",
+      "military": "Serviço militar",
+      "awards": "Prêmios",
+      "licenses": "Certificações",
+      "experience": "Experiência"
+    },
+    "sideNote": "Registros oficiais como formação, serviço militar, prêmios, certificações e experiência ficam organizados aqui quando você conecta uma fonte. Por enquanto, suas próprias conquistas se acumulam em Principal."
   },
   "careerInput": {
     "screenTitle": "Registrar conquista",
@@ -629,7 +733,37 @@
       "startRoutine": "Começar uma rotina",
       "reanalyze": "Reler minhas estrelas",
       "reanalyzing": "Relendo suas estrelas",
-      "reanalyzingTip": "Avisaremos quando terminar."
+      "reanalyzingTip": "Avisaremos quando terminar.",
+      "steps": {
+        "profile": {
+          "obs": "Nesta semana você preencheu mais das suas informações básicas.",
+          "step": "Preencha um campo do perfil"
+        },
+        "infancy": {
+          "obs": "Você explorou suas memórias mais antigas.",
+          "step": "Anote uma cena que veio à memória"
+        },
+        "school": {
+          "obs": "Você revisitou seus anos de escola.",
+          "step": "Explore mais uma cena daquela época"
+        },
+        "twenties": {
+          "obs": "Você mergulhou fundo nos seus vinte anos.",
+          "step": "Escreva uma escolha daquela época"
+        },
+        "later": {
+          "obs": "Você olhou como mudou depois dos trinta.",
+          "step": "Escreva uma linha sobre o que mudou"
+        },
+        "work": {
+          "obs": "Você se observou no trabalho.",
+          "step": "Anote uma cena do trabalho desta semana"
+        },
+        "now": {
+          "obs": "Você parou para se observar com frequência.",
+          "step": "Uma linha de reflexão hoje"
+        }
+      }
     },
     "plans": {
       "title": "Planos",
@@ -827,7 +961,55 @@
       "autoTitle": "Conexões automáticas",
       "autoPaused": "Limite atingido · volta na segunda",
       "autoBody": "O SecondB busca conexões para cada item que você salva.",
-      "autoNote": "Cada busca automática usa uma das buscas semanais. Uma fica sempre reservada para você iniciar manualmente."
+      "autoNote": "Cada busca automática usa uma das buscas semanais. Uma fica sempre reservada para você iniciar manualmente.",
+      "queuedRecord": "Novo registro · na fila",
+      "queuedSource": "Nova fonte · na fila",
+      "justNow": "Agora mesmo",
+      "hoursAgo": "Há {{n}} h",
+      "yesterday": "Ontem",
+      "daysAgo": "Há {{n}} d",
+      "untitledRecord": "Registro sem título",
+      "untitledSource": "Fonte sem título",
+      "kindJournal": "Diário",
+      "kindNote": "Nota",
+      "kindLink": "Link",
+      "backgroundFailed": "O raciocínio em segundo plano não terminou. Tente novamente.",
+      "loadFailed": "Não foi possível carregar seus itens.",
+      "busyOther": "Aguarde a tarefa atual terminar.",
+      "taskTitle": "Conectando os itens selecionados",
+      "taskTip": "Revise as novas conexões.",
+      "runFailed": "Não foi possível conectar estes itens. Tente novamente.",
+      "applyFailed": "Não foi possível aplicar as propostas selecionadas. Tente novamente.",
+      "title": "Raciocínio",
+      "reviewTitle": "Revisar resultados",
+      "selectedTitle": "{{n}} selecionados",
+      "progressDone": "Todos os itens estão conectados",
+      "progressRunning": "Conectando suas estrelas",
+      "unlimited": "Conexões ilimitadas",
+      "weeklyLeft": "Buscas disponíveis nesta semana: {{left}} de {{cap}} · renovam na segunda",
+      "cancel": "Cancelar",
+      "applySelected": "Aplicar {{n}} selecionados",
+      "keepAll": "Manter tudo como está",
+      "weeklyLimitReached": "Limite semanal atingido",
+      "reasonN": "Raciocinar sobre {{n}} itens",
+      "reasonSelected": "Raciocinar sobre os itens selecionados",
+      "depletedTitle": "Você usou o raciocínio básico desta semana",
+      "viewPlans": "Ver planos",
+      "doneSummary": "{{n}} conexões foram propostas. Selecione só o que quiser aplicar.",
+      "runningSummary": "Lendo {{total}} itens · {{done}} / {{total}}",
+      "doneNote": "Só as propostas selecionadas são aplicadas. Os itens não selecionados continuam iguais.",
+      "runningNote": "Você pode sair desta tela. O SecondB vai avisar quando estiver pronto.",
+      "weekLabel": "Raciocínio desta semana",
+      "capturedItems": "Itens salvos",
+      "selectProposals": "Selecionar propostas",
+      "processing": "Processando",
+      "selectionCount": "{{n}} / {{max}} selecionados",
+      "loadingItems": "Carregando seus itens",
+      "emptyItems": "Nenhum item salvo ainda",
+      "captureFirst": "Salve seu primeiro item",
+      "readingItem": "Lendo…",
+      "proposedFor": "Proposto para {{domain}}",
+      "runHint": "Selecione itens para ativar o raciocínio."
     },
     "sources": {
       "title": "Material recebido",
@@ -893,7 +1075,24 @@
     "secondbName": "SecondB",
     "authTitle": "Vamos começar?",
     "authBody": "Salve seus registros e revise as sugestões para sua Estrela Polar.",
-    "next": "Próximo"
+    "next": "Próximo",
+    "skip": "Pular",
+    "slides": {
+      "intro": {
+        "title": "Uma IA que passa\na te conhecer",
+        "body": "O SecondB usa suas anotações\npara ajudar a organizar seus pensamentos\ne planejar seu dia."
+      },
+      "stars": {
+        "tag": "Conhecer você",
+        "title": "Conte sua história\nem sete estrelas",
+        "body": "Anos escolares, trabalho ou agora:\nescolha uma estrela para começar."
+      },
+      "approve": {
+        "tag": "Você decide",
+        "title": "Os resumos da IA\nprecisam da sua aprovação",
+        "body": "Um resumo sobre você é uma proposta.\nEle só é aplicado se você aprovar."
+      }
+    }
   },
   "trends": {
     "title": "Tendência de brilho",

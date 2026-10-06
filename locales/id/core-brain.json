@@ -98,5 +98,31 @@
   "ipipCheck": "Kepribadian mendalam (120 butir)",
   "rlssCheck": "Kepuasan hidup",
   "auditCheck": "Audit hidup",
-  "interviewCheck": "Bicarakan"
+  "interviewCheck": "Bicarakan",
+  "portrait": {
+    "label": {
+      "who": "Siapa aku",
+      "forWhom": "Untuk siapa",
+      "goal": "Yang kutuju",
+      "do": "Yang kulakukan",
+      "fuel": "Yang menggerakkanku"
+    },
+    "hint": {
+      "who": "Cek pola relasi bisa menambah satu petunjuk lagi tentang dirimu.",
+      "forWhom": "Kamu bisa menceritakan seseorang dalam wawancara · ringkasan otomatis untuk kolom ini masih disiapkan.",
+      "goal": "Kamu bisa menjajaki langkah berikutnya di mode sudut baru SecondB · ringkasan otomatis masih disiapkan.",
+      "do": "Kamu bisa mencatat apa yang kamu lakukan di catatan hari ini · ringkasan otomatis masih disiapkan.",
+      "fuel": "Tinjauan hidup bisa memperlihatkan nilai yang paling sering kamu kembali pegang."
+    },
+    "evidenceHint": "Membuka catatan yang menjadi dasar nilai ini."
+  },
+  "savedResult": {
+    "title": "Hasil yang tersimpan sebelumnya",
+    "body": "Hasil yang tersimpan sebelumnya. Sumbernya tidak tercatat, jadi kami tidak menampilkannya sebagai arahmu saat ini."
+  },
+  "polarisGraphicA11y": "Rasi tujuh bintang dan Bintang Utara. Kecerahan Bintang Utara berasal dari enam bintang, tanpa profil.",
+  "deck": {
+    "portrait": "POTRET DIRI",
+    "evidence": "BUKTI"
+  }
 }

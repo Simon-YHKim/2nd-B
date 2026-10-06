@@ -15,5 +15,7 @@
   "honestyCaption": "Brightness reflects how deeply you have explored a life period or topic. It does not measure accuracy. Check the supporting sources too.",
   "reviewCta": "Go review a proposal",
   "subtitle": "8 weeks · seven stars",
-  "rule": "Each week shows the last recorded brightness. Weeks before the first update stay empty."
+  "rule": "Each week shows the last recorded brightness. Weeks before the first update stay empty.",
+  "shiftNudge": "Recent shift: {{stars}} - want to re-check?",
+  "shiftNudgeCited": "Recent shift: {{stars}} · {{n}} cited - want to re-check?"
 }

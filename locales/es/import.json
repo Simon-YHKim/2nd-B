@@ -73,5 +73,115 @@
   },
   "retention": {
     "chip": "Se borra al eliminar la cuenta"
+  },
+  "hub": {
+    "back": "Atrás",
+    "import": "Importar",
+    "imported": "Datos importados",
+    "hubBubble": "¿Qué quieres traer?",
+    "hubTip": "Solo se guarda lo que apruebes.",
+    "tier_critical": "Muy sensible · requiere consentimiento",
+    "tier_sensitive": "Sensible",
+    "tier_normal": "Común",
+    "needsConsent": "Requiere consentimiento",
+    "notLinked": "Sin conectar",
+    "locked": "Bloqueado",
+    "what": "QUÉ",
+    "where": "DÓNDE",
+    "whereBody": "Se analiza en este dispositivo. Solo se guardan, cifrados, los resultados que elijas en la pantalla de revisión.",
+    "deleteAnytime": "Elimínalo cuando quieras",
+    "localAnalysis": "Archivo analizado en el dispositivo",
+    "connectorNote": "La siguiente pantalla pide la ubicación solo \"mientras se usa la app\". (requiere la app instalada)",
+    "googleConnectorNote": "Conecta tu cuenta de Google de forma segura en el navegador. Solo lectura (ver eventos).",
+    "googleConnect": "Conectar Google",
+    "connecting": "Conectando…",
+    "gErrNoEvents": "No hay eventos próximos.",
+    "gErrDenied": "Se canceló la conexión. Inténtalo de nuevo.",
+    "gErrNative": "Por ahora, conéctalo en la web. La app instalada lo admitirá más adelante.",
+    "gErrGeneric": "No se pudo conectar. Inténtalo de nuevo en un momento.",
+    "consentPick": "Aceptar y elegir archivo",
+    "orImportFile": "Importar un archivo en su lugar",
+    "consentFine": "Aceptas qué se recopila, dónde se guarda, durante cuánto tiempo y tu derecho a eliminarlo. La importación de comunicaciones y ubicación está bloqueada para menores.",
+    "chooseFile": "Elegir archivo",
+    "orPaste": "o pégalo abajo",
+    "pasteHint": "Pega el contenido del archivo exportado.",
+    "pastePlaceholder": "Pega aquí",
+    "analyze": "Analizar",
+    "errTitle": "No se pudo leer el archivo",
+    "errBody": "Comprueba que el formato exportado sea el correcto",
+    "importFailed": "No se pudo importar. No se registró nada. Inténtalo de nuevo.",
+    "ledgerWarnTitle": "No se pudieron anotar las transacciones",
+    "ledgerWarnBody": "La importación se guardó, pero las transacciones elegidas no se anotaron. Vuelve a importar el mismo archivo para anotarlas.",
+    "ledgerWarnPartTitle": "Algunas transacciones no se anotaron",
+    "ledgerWarnPartBody": "No se pudieron anotar {failed} de las transacciones elegidas; {inserted} sí se anotaron. Si vuelves a importar el mismo archivo, se duplicarían las ya anotadas, así que añade a mano las que faltan.",
+    "done": "Listo",
+    "appts": "Planes",
+    "places": "Lugares",
+    "notes": "Notas",
+    "watches": "Vídeos vistos",
+    "txns": "Movimientos",
+    "raw": "Original",
+    "pickToApply": "Elige qué aplicar",
+    "sensitiveExcluded": "sensible · excluido por defecto",
+    "applyN": "Aplicar {n} a los registros",
+    "emptyTitle": "Aún no has importado nada",
+    "emptyBody": "Elige una fuente para empezar",
+    "pickSource": "Elegir una fuente",
+    "delete": "Eliminar",
+    "historyFine": "Eliminar quita la fuente que creó esta importación. Si no se puede confirmar que la creó esta importación, se conserva y te explicamos por qué. Las personas y los movimientos financieros creados en una importación se pueden quitar en las pantallas de Relaciones y Revisión de gastos. La importación de comunicaciones y ubicación está bloqueada en el servidor para cuentas de menores.",
+    "revokeFailed": "No se pudo revocar. Inténtalo de nuevo en un momento.",
+    "revokeNeedsSignIn": "Inicia sesión para revocar: también hay que eliminar los datos guardados en el servidor.",
+    "sources": {
+      "kakao": {
+        "name": "KakaoTalk",
+        "sub": "Comunicaciones · archivo exportado",
+        "what": "Solo el número de menciones de planes y la frecuencia de cada relación. No guardamos el texto de los mensajes."
+      },
+      "takeout": {
+        "name": "Google Timeline",
+        "sub": "Ubicación · archivo de Takeout",
+        "what": "Solo patrones de lugares y tiempo de estancia. No se guardan las coordenadas exactas."
+      },
+      "sms": {
+        "name": "SMS",
+        "sub": "Comunicaciones · copia de seguridad",
+        "what": "Solo el número de menciones de planes. No guardamos el texto de los mensajes."
+      },
+      "live-location": {
+        "name": "Ubicación en tiempo real",
+        "sub": "Ubicación · permiso del dispositivo",
+        "what": "Solo patrones de lugares y tiempo de estancia. No se guardan las coordenadas exactas."
+      },
+      "health": {
+        "name": "Salud",
+        "sub": "Salud · archivo exportado",
+        "what": "Solo totales (pasos, etc.). No se guardan los registros detallados."
+      },
+      "email": {
+        "name": "Correo",
+        "sub": "Correo · archivo .eml",
+        "what": "Solo señales de planes y agenda, no el texto completo."
+      },
+      "notion": {
+        "name": "Notion · Obsidian",
+        "sub": "Notas · archivo exportado",
+        "what": "Trae tus notas como registros."
+      },
+      "google": {
+        "name": "Google Calendar",
+        "sub": "Agenda · cuenta conectada",
+        "what": "Solo trae los títulos y las horas de los próximos eventos. Sin descripción ni asistentes."
+      },
+      "google-tasks": {
+        "name": "Google Tasks",
+        "sub": "Tareas · cuenta conectada",
+        "what": "Trae los títulos de tus tareas como registros."
+      },
+      "calendar": {
+        "name": "Calendario (.ics)",
+        "sub": "Agenda · archivo",
+        "what": "Trae los eventos de tu calendario."
+      }
+    }
   }
 }

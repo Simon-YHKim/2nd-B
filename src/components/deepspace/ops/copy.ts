@@ -1,22 +1,21 @@
-// Ops/assistant surface copy (EN canonical + KO), matching the Claude Design
-// canonical (ops-assistant.dc.html EN/KO table). Kept as a typed bilingual map
-// so EN↔KO parity is enforced at compile time (ko is typed as the en shape).
-// Framing policy: plans / routines / ideas only — no outcome claims, no blame,
-// no medical advice (vocabulary policy). Selected by the active locale.
+// Ops/assistant surface copy (/meals · /ledger · /reading · /milestones ·
+// /side-project · /reminders and the phone hub). The text lives in the ops bundle
+// under `copy.*`, in all five locales; this module only names the fields.
+//
+// Q-261005-01 = A (QA 261006, R2B-03): these strings used to be two in-code maps,
+// `en` and `ko`, picked with "KO for Korean, EN otherwise", so es/pt/id users saw
+// English under translated chrome. The en and ko bundle values are the old map
+// values byte for byte; es/pt/id are translated with the ops pack's own terms.
+// `demoReminders` (the canon's four sample reminders) went with the maps: no
+// screen read it.
+//
+// Framing policy: plans / routines / ideas only - no outcome claims, no blame,
+// no medical advice (vocabulary policy).
 
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { canonMore } from "@/lib/canon";
-
-/** A demo/fallback reminder shown when the account has no scheduled routines
- *  yet (sb-more RemindersScreen static data, verbatim). */
-export interface OpsDemoReminder {
-  title: string;
-  when: string;
-  repeat: string;
-  src: string;
-  star: string;
-}
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 
 export interface OpsCopy {
   // shared
@@ -64,7 +63,6 @@ export interface OpsCopy {
   addFromAssistant: string;
   assistantSource: string;
   starWord: string;
-  demoReminders: OpsDemoReminder[];
   // states (E)
   emptyTitle: string;
   emptyBody: string;
@@ -102,7 +100,10 @@ export interface OpsCopy {
   left: string;
   record: string;
   byCategory: string;
-  fxNote: string;
+  // `fxNote` (a ledger line claiming other currencies were converted for you) was removed
+  // 2026-10-05 (R2C-11): the form takes won only, ops_ledger has no currency column, and nothing
+  // calls lib/finance/fx.ts. The true sentence lives in the ops bundle as
+  // toolScreens.ledger.currencyNote, in all five locales. fx.ts itself stays (Q-261004-20 B).
   amountPlaceholder: string;
   categoryPlaceholder: string;
   addEntry: string;
@@ -153,238 +154,135 @@ export interface OpsCopy {
   finishedReading: string;
 }
 
-const en: OpsCopy = {
-  todaysRoutine: "Today's routine",
-  send: "Send",
-  share: "Share",
-  sendToApps: "Send to my apps",
-  receivedOnly: "Only the steps you accept go to your apps.",
-  notMedical: "Not medical advice - ideas from your records.",
-  toolsTitle: "Your tools",
-  toolsHint: "Open one directly, without waiting for a suggestion.",
-  toolReading: "Reading",
-  toolMilestones: "Goals",
-  toolLedger: "Money check",
-  toolSideProject: "Side project",
-  toolMeals: "Meals",
-  toolFocus: "Focus timer",
-  toolSrs: "Language review",
-  toolReminders: "Reminders",
-  retry: "Try again",
-  whereToSend: "Where should this routine go?",
-  consentOnce: "Just once. Allow calendar access.",
-  deviceCalendar: "Device calendar",
-  deviceCalendarSub: "Apple · Samsung · Outlook auto",
-  googleCalendar: "Google Calendar",
-  googleCalendarSub: "Open on the web",
-  icsFile: "Calendar file (.ics)",
-  icsFileSub: "Export via share",
-  shareChecklist: "Share checklist",
-  shareChecklistSub: "To notes / to-do apps",
-  recommended: "Recommended",
-  allowAndContinue: "Allow and continue",
-  scheduledReminders: "Scheduled reminders",
-  active: "Active",
-  needsPermission: "Needs permission",
-  notOnThisDevice: "Not on this device",
-  enableNotifications: "Turn on notifications",
-  reminderUnavailableNote: "You can schedule this in the full app.",
-  remindersDeviceNote: "Sent as device notifications only. Nothing leaves your device.",
-  remindersCountTemplate: "{n} scheduled reminders",
-  addFromAssistant: "Add from today's assistant",
-  assistantSource: "Today's assistant",
-  starWord: "star",
-  demoReminders: [
-    { title: "Reach out to someone close", when: "Today 8:00 PM", repeat: "Once", src: "Today's assistant", star: "Relationships" },
-    { title: "Screen off before midnight", when: "Every day 23:30", repeat: "Daily", src: "Routine", star: "Health" },
-    { title: "Finish the saved read", when: "Tomorrow 9:00 AM", repeat: "Once", src: "SecondB suggestion", star: "Growth" },
-    { title: "Check this month's subscriptions", when: "Jun 28, 10:00", repeat: "Monthly", src: "Today's assistant", star: "Finance" },
-  ],
-  emptyTitle: "No suggestions yet",
-  emptyBody: "As your records grow I'll pick steps for you",
-  emptyCta: "Add a record",
-  errorTitle: "Couldn't load just now",
-  errorBody: "Please check your connection",
-  saveFailed: "Couldn't save that. Nothing was recorded. Try again.",
-  unlinkedTitle: "Not connected yet",
-  unlinkedBody: "Connect for automatic, or just write it yourself",
-  unlinkedCta: "Connect",
-  rateTitle: "One moment",
-  rateBody: "Lots of requests - resting briefly, back soon",
-  myShelf: "My shelf",
-  searchBooks: "Search title or author",
-  nowReading: "NOW READING",
-  wantToRead: "Want to read",
-  add: "Add",
-  whatReading: "What are you reading?",
-  goals: "Goals",
-  inProgress: "In progress",
-  planning: "Planning",
-  done: "Done",
-  overdue: "Overdue",
-  nextStep: "Next step",
-  monthCheck: "This month",
-  income: "Income",
-  expense: "Spent",
-  left: "Left",
-  record: "Record",
-  byCategory: "By category",
-  fxNote: "Other currencies convert automatically (FX).",
-  amountPlaceholder: "Amount",
-  categoryPlaceholder: "Category (e.g. Food)",
-  addEntry: "Add",
-  entriesLabel: "This month's entries",
-  entryDate: "Date",
-  deleteEntry: "Delete entry",
-  sideProject: "Side project",
-  thisWeek: "THIS WEEK",
-  commits: "commits",
-  githubLinked: "GitHub linked",
-  manage: "Manage",
-  repos: "repos",
-  githubHandle: "GitHub @username",
-  weeklyMeals: "This week's meals",
-  prevWeek: "Previous week",
-  nextWeek: "Next week",
-  whatToEatNow: "What should I eat now?",
-  quickMode: "Quick mode",
-  breakfast: "Breakfast",
-  lunch: "Lunch",
-  dinner: "Dinner",
-  mealIdeas: "Meal ideas",
-  nutritionNote: "Nutrition values are a reference - not dietary or medical advice.",
-  planMeal: "Plan a meal",
-  save: "Save",
-  daily: "Daily",
-  weekly: "Weekly",
-  once: "Once",
-  remindersTip: "Turn any of them off anytime.",
-  remindersEntry: "Scheduled reminders",
-  goalTitlePlaceholder: "Name the goal",
-  goalRename: "Rename this goal",
-  cancel: "Cancel",
-  dueDate: "Due date",
-  dueClear: "Clear",
-  startReading: "Start reading",
-  finishedReading: "Finished",
+/** Every OpsCopy field. A Record over the interface, so adding a field without
+ *  listing it here (or listing one the interface lacks) fails the type check. */
+const OPS_COPY_FIELD_SET: Record<keyof OpsCopy, true> = {
+  todaysRoutine: true,
+  send: true,
+  share: true,
+  sendToApps: true,
+  receivedOnly: true,
+  notMedical: true,
+  toolsTitle: true,
+  toolsHint: true,
+  toolReading: true,
+  toolMilestones: true,
+  toolLedger: true,
+  toolSideProject: true,
+  toolMeals: true,
+  toolFocus: true,
+  toolSrs: true,
+  toolReminders: true,
+  retry: true,
+  whereToSend: true,
+  consentOnce: true,
+  deviceCalendar: true,
+  deviceCalendarSub: true,
+  googleCalendar: true,
+  googleCalendarSub: true,
+  icsFile: true,
+  icsFileSub: true,
+  shareChecklist: true,
+  shareChecklistSub: true,
+  recommended: true,
+  allowAndContinue: true,
+  scheduledReminders: true,
+  active: true,
+  needsPermission: true,
+  notOnThisDevice: true,
+  enableNotifications: true,
+  reminderUnavailableNote: true,
+  remindersDeviceNote: true,
+  remindersCountTemplate: true,
+  addFromAssistant: true,
+  assistantSource: true,
+  starWord: true,
+  emptyTitle: true,
+  emptyBody: true,
+  emptyCta: true,
+  errorTitle: true,
+  errorBody: true,
+  saveFailed: true,
+  unlinkedTitle: true,
+  unlinkedBody: true,
+  unlinkedCta: true,
+  rateTitle: true,
+  rateBody: true,
+  myShelf: true,
+  searchBooks: true,
+  nowReading: true,
+  wantToRead: true,
+  add: true,
+  whatReading: true,
+  goals: true,
+  inProgress: true,
+  planning: true,
+  done: true,
+  overdue: true,
+  nextStep: true,
+  monthCheck: true,
+  income: true,
+  expense: true,
+  left: true,
+  record: true,
+  byCategory: true,
+  amountPlaceholder: true,
+  categoryPlaceholder: true,
+  addEntry: true,
+  entriesLabel: true,
+  entryDate: true,
+  deleteEntry: true,
+  sideProject: true,
+  thisWeek: true,
+  commits: true,
+  githubLinked: true,
+  manage: true,
+  repos: true,
+  githubHandle: true,
+  weeklyMeals: true,
+  prevWeek: true,
+  nextWeek: true,
+  whatToEatNow: true,
+  quickMode: true,
+  breakfast: true,
+  lunch: true,
+  dinner: true,
+  mealIdeas: true,
+  nutritionNote: true,
+  planMeal: true,
+  save: true,
+  daily: true,
+  weekly: true,
+  once: true,
+  remindersTip: true,
+  remindersEntry: true,
+  goalTitlePlaceholder: true,
+  goalRename: true,
+  cancel: true,
+  dueDate: true,
+  dueClear: true,
+  startReading: true,
+  finishedReading: true,
 };
 
-const ko: OpsCopy = {
-  todaysRoutine: "오늘의 루틴",
-  send: "보내기",
-  share: "공유",
-  sendToApps: "내 앱으로 보내기",
-  receivedOnly: "받은 걸음만 네 앱으로 나갑니다.",
-  notMedical: "의료·진단 조언이 아니라 기록에서 뽑은 아이디어입니다.",
-  toolsTitle: "내 도구",
-  toolsHint: "추천을 기다리지 않고 바로 열 수 있습니다.",
-  toolReading: "독서",
-  toolMilestones: "목표",
-  toolLedger: "가계 점검",
-  toolSideProject: "사이드 프로젝트",
-  toolMeals: "식단",
-  toolFocus: "집중 타이머",
-  toolSrs: "어학 복습",
-  toolReminders: "리마인더",
-  retry: "다시 시도",
-  whereToSend: "이 루틴을 어디로 보낼까요?",
-  consentOnce: "처음 한 번만. 캘린더 접근을 허용할게요.",
-  deviceCalendar: "기기 캘린더",
-  deviceCalendarSub: "애플 · 삼성 · Outlook 자동",
-  googleCalendar: "Google 캘린더",
-  googleCalendarSub: "웹으로 열기",
-  icsFile: "캘린더 파일 (.ics)",
-  icsFileSub: "공유로 내보내기",
-  shareChecklist: "체크리스트 공유",
-  shareChecklistSub: "메모 · 투두 앱으로",
-  recommended: "추천",
-  allowAndContinue: "허용하고 계속",
-  scheduledReminders: "예약 리마인더",
-  active: "활성",
-  needsPermission: "권한 필요",
-  notOnThisDevice: "이 기기 불가",
-  enableNotifications: "알림 권한 켜기",
-  reminderUnavailableNote: "정식 앱에서 예약할 수 있습니다.",
-  remindersDeviceNote: "기기 알림으로만 보냅니다. 내용은 기기를 떠나지 않습니다.",
-  remindersCountTemplate: "예약된 리마인더 {n}개",
-  addFromAssistant: "오늘의 비서에서 추가",
-  assistantSource: "오늘의 비서",
-  starWord: "별",
-  // KO copy sourced from the design canon (src/lib/canon → public/proto/data)
-  demoReminders: canonMore.reminders.map(({ title, when, repeat, src, star }) => ({ title, when, repeat, src, star })),
-  emptyTitle: "아직 추천이 없습니다",
-  emptyBody: "기록이 쌓이면 걸음을 골라주겠습니다",
-  emptyCta: "기록 담기",
-  errorTitle: "잠시 불러오지 못했습니다",
-  saveFailed: "저장하지 못했습니다. 아무것도 기록되지 않았습니다. 다시 시도해 주세요.",
-  errorBody: "네트워크를 확인해 주세요",
-  unlinkedTitle: "아직 연결 안 됐습니다",
-  unlinkedBody: "연결하면 자동으로, 아니면 직접 적습니다",
-  unlinkedCta: "연결하기",
-  rateTitle: "잠시만요",
-  rateBody: "요청이 많아 잠깐 쉬어갑니다 · 곧 다시",
-  myShelf: "내 책장",
-  searchBooks: "제목 · 저자 검색",
-  nowReading: "NOW READING",
-  wantToRead: "읽고 싶은 책",
-  add: "담기",
-  whatReading: "무슨 책을 읽고 있나요?",
-  goals: "목표",
-  inProgress: "진행 중",
-  planning: "계획",
-  done: "완료",
-  overdue: "마감 지남",
-  nextStep: "다음 한 걸음",
-  monthCheck: "이번 달 점검",
-  income: "수입",
-  expense: "지출",
-  left: "잔여",
-  record: "기록",
-  byCategory: "분류별 지출",
-  fxNote: "다통화는 자동 환산돼요 (FX).",
-  amountPlaceholder: "금액",
-  categoryPlaceholder: "분류 (예: 식비)",
-  addEntry: "추가",
-  entriesLabel: "이번 달 내역",
-  entryDate: "날짜",
-  deleteEntry: "내역 삭제",
-  sideProject: "사이드 프로젝트",
-  thisWeek: "THIS WEEK",
-  commits: "커밋",
-  githubLinked: "GitHub 연결됨",
-  manage: "관리",
-  repos: "저장소",
-  githubHandle: "GitHub @사용자명",
-  weeklyMeals: "이번 주 식단",
-  prevWeek: "지난 주",
-  nextWeek: "다음 주",
-  whatToEatNow: "지금 뭐 먹지?",
-  quickMode: "간단 모드",
-  breakfast: "아침",
-  lunch: "점심",
-  dinner: "저녁",
-  mealIdeas: "아이디어",
-  nutritionNote: "영양 수치는 참고용입니다 · 식이·의료 조언이 아닙니다.",
-  planMeal: "끼니 입력",
-  save: "저장",
-  daily: "매일",
-  weekly: "매주",
-  once: "한 번",
-  remindersTip: "언제든 항목별로 끌 수 있습니다.",
-  remindersEntry: "예약 리마인더",
-  goalTitlePlaceholder: "목표 이름을 적어 주세요",
-  goalRename: "목표 이름 바꾸기",
-  cancel: "취소",
-  dueDate: "마감일",
-  dueClear: "지우기",
-  startReading: "읽는 중으로",
-  finishedReading: "다 읽었습니다",
-};
+export const OPS_COPY_FIELDS = Object.keys(OPS_COPY_FIELD_SET) as (keyof OpsCopy)[];
 
-export const OPS_COPY = { en, ko } as const;
+/** The ops bundle key a field is read from. */
+export const opsCopyKey = (field: keyof OpsCopy): string => `copy.${field}`;
 
-/** Returns the Ops copy for the active locale (KO for Korean, EN otherwise). */
+/** Builds the copy from an ops-namespace translator (pure, so tests can feed a real i18next). */
+export function opsCopyFrom(t: (key: string) => string): OpsCopy {
+  const out = {} as OpsCopy;
+  for (const field of OPS_COPY_FIELDS) out[field] = t(opsCopyKey(field));
+  return out;
+}
+
+/** Returns the Ops copy in the language the UI is painted in (ops bundle `copy.*`). */
 export function useOpsCopy(): OpsCopy {
-  const { i18n } = useTranslation();
-  return i18n.language?.toLowerCase().startsWith("ko") ? ko : en;
+  const { t, i18n } = useTranslation("ops");
+  // Read in the painted language (a lazy es/pt/id pack attaching flips it from
+  // the "en" fallback), and keep one object per language so the screens' memo
+  // and effect dependencies stay stable.
+  const lng = renderedUiLanguage(i18n);
+  return useMemo(() => opsCopyFrom((key) => t(key, { lng })), [t, lng]);
 }

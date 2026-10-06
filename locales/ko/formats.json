@@ -38,7 +38,56 @@
     "block": "작성자 차단"
   },
   "builtIn": {
-    "headingWithCount": "기본 형식 ({{count}})"
+    "headingWithCount": "기본 형식 ({{count}})",
+    "kinds": {
+      "inbox": {
+        "name": "기본 받은함",
+        "what": "특정 종류에 안 맞는 자료. 나중에 분류가 필요한 임시함."
+      },
+      "article": {
+        "name": "일반 아티클",
+        "what": "웹 아티클·에세이·블로그 글. 읽기 위한 산문."
+      },
+      "video": {
+        "name": "유튜브 영상",
+        "what": "유튜브 등 영상 페이지."
+      },
+      "paper": {
+        "name": "학술 논문",
+        "what": "연구 논문·프리프린트·저널 아티클."
+      },
+      "reddit": {
+        "name": "레딧 글",
+        "what": "레딧 스레드·글. 보통 커뮤니티 토론 포함.",
+        "props": {
+          "post-type": "다음 중 하나: question, discussion, showcase, news, guide."
+        }
+      },
+      "code": {
+        "name": "깃허브 저장소",
+        "what": "깃허브 저장소·gist·코드 프로젝트.",
+        "props": {
+          "language": "주 프로그래밍 언어(드러나면)."
+        }
+      },
+      "ai_tool": {
+        "name": "AI 도구 문서",
+        "what": "AI 도구·제품의 문서·릴리스 노트·블로그.",
+        "props": {
+          "doc-type": "다음 중: guide, reference, changelog, blog.",
+          "stack-impact": "한 줄: Simon의 작업/스택에 어떤 영향·적용 가능성이 있는지."
+        }
+      },
+      "self_knowledge": {
+        "name": "자기 이해",
+        "what": "자기 이해에 관한 자료: 프레임워크·성찰·성장.",
+        "props": {
+          "topic-area": "자기 이해 주제(예: 습관, 집중, 관계).",
+          "framework": "근거로 삼는 프레임워크·모델(있으면).",
+          "applicable-circuit": "삶의 어떤 영역에 닿는지."
+        }
+      }
+    }
   },
   "labels": {
     "untitled": "(이름 없음)",

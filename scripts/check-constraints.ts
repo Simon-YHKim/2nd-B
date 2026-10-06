@@ -1193,11 +1193,11 @@ results.push(
       account.includes('accessibilityHint={t("consent:account.privacy.buttonHint")}') &&
       account.includes('accessibilityLabel={t("consent:account.export.label")}') &&
       // 터미널 삭제: 타이핑 확인 입력과 위험 버튼이 둘 다 스크린리더에 잡혀야 한다.
-      // ⚠ 라이브는 이 라벨을 로케일 키가 아니라 **인라인 ko/en 삼항**으로 낸다.
-      // a11y 는 갖췄고 i18n 은 빚이다 — 그 빚은 korean-in-code 래칫이 따로 센다.
-      // 여기서는 "스크린리더가 이 자리를 읽을 수 있나"만 단언한다.
-      accountDelete.includes("accessibilityLabel={ko ? \"삭제 확인 입력\" : \"Deletion confirmation\"}") &&
-      accountDelete.includes("accessibilityLabel={ko ? \"계정 영구 삭제\" : \"Delete account permanently\"}") &&
+      // 2026-10-06 (Q-261005-01 = A): 이 라벨은 인라인 ko/en 삼항이었고 es/pt/id 는
+      // 영어로 읽혔다. 지금은 deepspace 키라 다섯 언어가 각자 읽는다. 여기서는
+      // "스크린리더가 이 자리를 읽을 수 있나"만 단언한다.
+      accountDelete.includes('accessibilityLabel={t("privacy.deleteAccount.inputA11y")}') &&
+      accountDelete.includes('accessibilityLabel={t("privacy.deleteAccount.buttonA11y")}') &&
       // /data: 액션마다 라벨·힌트·역할을 데이터에서 키로 건다(리터럴 셋보다 넓다)
       // 힌트가 JSX 속성에서 데이터 필드로 옮겨갔다. 화면은 그 필드를 t() 에 넣는다.
       dataContent.includes('actionHintKey: "data:import.accessibilityHint"') &&
@@ -1742,10 +1742,11 @@ results.push(
     // 지원 화면의 민감한 도움 안내는 HelpDirectory 가 지고 가고, 그것은 지금도
     // support 번들에서 읽는다. 화면 자체의 문구는 deepspace 번들이다.
     //
-    // ⚠ FAQ 는 아직 아니다. canonGaps.faqs(한국어) + 코드 안의 GAPS_FAQ_EN 을
-    // i18n.language 로 골라 쓰고 있어서 es/pt/id 는 영어로 떨어진다. 그 빚은
-    // korean-in-code 의 MIXED_FILE_DEBT 가 세고 있으므로 여기서 통과시키되
-    // 숨기지는 않는다 — 갚으면 이 주석과 함께 단언을 올린다.
+    // FAQ · 소식은 2026-10-06 (Q-261005-01 = A) 에 갚았다. 한국어는 여전히
+    // canonGaps 원문을 그대로 그리고, 그 밖의 언어는 캐논 배열과 순서를 맞춘
+    // deepspace 키(support.faqs.* · support.notices.*)를 읽는다. 전에는 코드 안의
+    // GAPS_FAQ_EN 영어 사본이라 es/pt/id 가 영어로 떨어졌다 — 그 사본이 돌아오면
+    // 여기서 걸린다.
     const screen = read("src/screens/deepspace/DeepSpaceDesignScreens.tsx");
     const helpDirectory = read("src/components/safety/HelpDirectory.tsx");
     const enSupportBundle = read("locales/en/support.json");
@@ -1756,6 +1757,11 @@ results.push(
       screen.includes('t("support.askSecondb")') &&
       screen.includes('t("support.emailUs")') &&
       screen.includes('t("support.faqTitle")') &&
+      screen.includes("t(`support.faqs.${key}.q`)") &&
+      screen.includes("t(`support.faqs.${key}.a`)") &&
+      screen.includes("t(`support.notices.${key}.t`)") &&
+      !screen.includes("GAPS_FAQ_EN") &&
+      !screen.includes("GAPS_NOTICE_EN") &&
       helpDirectory.includes('useTranslation("support")') &&
       helpDirectory.includes('t("help.title")') &&
       helpDirectory.includes('t("help.lead")') &&
@@ -1768,7 +1774,7 @@ results.push(
       id: "SupportI18nCopy",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "support help copy stays in the support bundle and screen copy in the deepspace bundle (FAQ locale branch still owed, tracked by MIXED_FILE_DEBT)"
+        ? "support help copy stays in the support bundle and screen copy in the deepspace bundle (FAQ and notices read deepspace keys outside Korean)"
         : "support screen should source sensitive help copy from the support bundle and screen copy from the deepspace bundle",
     };
   }),

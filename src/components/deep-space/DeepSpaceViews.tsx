@@ -77,7 +77,8 @@ import { buildSeenRows, seenGapLines, type SeenRow } from "@/lib/persona/seen-ro
 import { SEVEN_STARS, isUnlived } from "@/lib/persona/seven-stars";
 import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
 import { callLlm } from "@/lib/llm/boundary";
-import { IMAGINE_SEEDS, type ImagineSeedIcon } from "./imagine-seeds";
+import { IMAGINE_SEEDS, imagineSeedCopy, type ImagineSeedIcon } from "./imagine-seeds";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import { FirstRecordCoachmark } from "./FirstRecordCoachmark";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { markCoachmarksSeen } from "@/lib/onboarding/coachmarks-gate";
@@ -1973,14 +1974,18 @@ function ImagineGlyph({ kind, color, size = 19 }: { kind: ImagineSeedIcon; color
   return <PixelGlyph name={glyph[kind]} color={color} size={size} />;
 }
 
-export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
+export function ImagineDivergentView() {
   // Phone-aware: /imagine draws this. Inside the dashboard phone its 담기 and
   // chat links open in the phone.
   const router = useAppRouter();
-  const { t } = useTranslation("home");
+  const { t, i18n } = useTranslation("home");
   const [picked, setPicked] = useState<string | null>(null);
-  const lang = isKo ? "ko" : "en";
+  // The canon on the Korean screen, the home bundle in every other language
+  // (es/pt/id used to fall back to an English mirror here, R2B-03).
+  const ko = renderedUiLanguage(i18n) === "ko";
+  const copyOf = (s: (typeof IMAGINE_SEEDS)[number]) => imagineSeedCopy(s, ko, (key) => t(key));
   const seed = IMAGINE_SEEDS.find((s) => s.ko.angle === picked) ?? null;
+  const seedCopy = seed ? copyOf(seed) : null;
   return (
     <ScrollView contentContainerStyle={styles.body}>
       {/* intro card — ref: linear-gradient(135deg, tertiary-container → surface-container-low). */}
@@ -1998,7 +2003,7 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
       <Text style={styles.imgSection}>{t("ds.imagine.sectionAngles")}</Text>
       <View style={styles.imgSeedList}>
         {IMAGINE_SEEDS.map((s) => {
-          const c = s[lang];
+          const c = copyOf(s);
           const on = picked === s.ko.angle;
           return (
             // Fabric guard (MdChip LAYOUT NOTE): the outer View owns the
@@ -2028,11 +2033,11 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
         })}
       </View>
 
-      {seed ? (
+      {seedCopy ? (
         <>
           <Text style={styles.imgSection}>{t("ds.imagine.sectionSteps")}</Text>
           <View style={styles.imgStepList}>
-            {seed[lang].steps.map((step, i) => (
+            {seedCopy.steps.map((step, i) => (
               <Pressable
                 key={step}
                 accessibilityRole="button"
@@ -2055,7 +2060,7 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
               style={styles.imgBtnFlex}
               onPress={() =>
                 // secondb.tsx twiby-branch precedent: /capture reads `text` as a draft prefill.
-                router.push({ pathname: "/capture", params: { text: `${seed[lang].title} · ${seed[lang].body}` } })
+                router.push({ pathname: "/capture", params: { text: `${seedCopy.title} · ${seedCopy.body}` } })
               }
             />
             <MdButton

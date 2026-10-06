@@ -57,6 +57,7 @@ describe("copy lexicon context", () => {
     ["ko", "네트워크에 장애가 있어요."],
     ["ko", "코드에 결함이 있어요."],
     ["ko", "문제 대처방안을 정리해요."],
+    ["ko", '"q": "유료가 더 똑똑한가요?", "a": "아니요. 답의 질은 모든 요금제가 같습니다."'],
   ] as const)("precise technical or lexical context passes (%s): %s", (locale, text) => {
     expect(findCopyLexiconHits(text, locale)).toEqual({ forbidden: [], analysis: [] });
   });
@@ -69,6 +70,8 @@ describe("copy lexicon context", () => {
     ["ko", "네트워크에 장애가 있어요. 당신에게 장애가 있어요."],
     ["ko", "코드에 결함이 있어요. 당신에게 결함이 있어요."],
     ["ko", "대처방안을 적고 처방을 제공합니다."],
+    ["ko", "유료가 더 똑똑한가요? 네, 유료는 더 똑똑한 AI예요."],
+    ["ko", "유료가 더 똑똑한가요"],
   ] as const)("technical wording cannot exempt another occurrence (%s): %s", (locale, text) => {
     const hits = findCopyLexiconHits(text, locale);
     expect(hits.forbidden.length + hits.analysis.length).toBeGreaterThan(0);

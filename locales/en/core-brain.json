@@ -98,5 +98,31 @@
   "ipipCheck": "Personality in depth (120 items)",
   "rlssCheck": "Life satisfaction check",
   "auditCheck": "Look back on your life",
-  "interviewCheck": "Talk it through"
+  "interviewCheck": "Talk it through",
+  "portrait": {
+    "label": {
+      "who": "Who I am",
+      "forWhom": "Who it's for",
+      "goal": "What I'm reaching for",
+      "do": "What I do",
+      "fuel": "What fuels me"
+    },
+    "hint": {
+      "who": "A relationship-pattern check can add one more clue about you.",
+      "forWhom": "You can leave a story about someone in an interview · automatic summary for this field is still in progress.",
+      "goal": "You can unfold a next step in SecondB's new-angle mode · automatic summary is still in progress.",
+      "do": "You can record what you did in today's piece · automatic summary is still in progress.",
+      "fuel": "A life audit can surface the values you return to most."
+    },
+    "evidenceHint": "Opens the records behind this value."
+  },
+  "savedResult": {
+    "title": "Previously saved result",
+    "body": "Previously saved result. Its source was not recorded, so we do not present it as your current direction."
+  },
+  "polarisGraphicA11y": "Seven-star constellation and Polaris. Polaris brightness comes from the six stars excluding profile.",
+  "deck": {
+    "portrait": "SELF PORTRAIT",
+    "evidence": "EVIDENCE"
+  }
 }
