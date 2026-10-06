@@ -11,6 +11,7 @@ import { PixelScrim } from "@/components/pixel/PixelDither";
 import { Text } from "@/components/ui/Text";
 import { CompanionMoment } from "@/components/art/CompanionSprite";
 import { reactExpression } from "@/lib/companion/expression";
+import { requestGlobalCue } from "@/lib/audio/global-cues";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { spacing } from "@/lib/theme/tokens";
 
@@ -29,6 +30,9 @@ export function QuantSaveCelebration({ message, onDone }: { message: string; onD
     // A saved self-report is a happy beat on every mounted head — one line here
     // covers all six quant instruments at once.
     reactExpression("happy");
+    // 저장 소리 재사용(Q-261006-10). 이 축하는 저장이 성공했을 때만 뜨고, 모달 위에서 1.6초 뒤
+    // 다른 화면으로 넘어가므로 루트의 GlobalCueHost 가 낸다. 여섯 검사가 모두 여기를 지난다.
+    requestGlobalCue("quantSaved");
     // CompanionMoment plays for ~1.5s; navigate just after it settles, or after
     // a short beat when motion is reduced (the moment then holds, doesn't fade).
     const t = setTimeout(() => onDoneRef.current(), prefersReducedMotion() ? 900 : 1600);

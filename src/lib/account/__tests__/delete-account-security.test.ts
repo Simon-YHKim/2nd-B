@@ -7,7 +7,13 @@ const authDeletePath = join(root, "supabase", "functions", "delete-account", "de
 const storagePath = join(root, "supabase", "functions", "delete-account", "storage-erasure.ts");
 const migrationPath = join(root, "db", "migrations", "0186_account_deletion_hardening.sql");
 const fenceMigrationPath = join(root, "db", "migrations", "0188_raw_clippings_deleted_account_fence.sql");
-const completionDraftPath = join(
+const completionMigrationPath = join(
+  root,
+  "db",
+  "migrations",
+  "0192_account_deletion_completion_fence.sql",
+);
+const retiredCompletionDraftPath = join(
   root,
   "db",
   "migration-drafts",
@@ -19,9 +25,9 @@ const edge = `${readFileSync(storagePath, "utf8")}\n${readFileSync(authDeletePat
 const code = edge.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
 const migration = existsSync(migrationPath) ? readFileSync(migrationPath, "utf8") : "";
 const fenceMigration = existsSync(fenceMigrationPath) ? readFileSync(fenceMigrationPath, "utf8") : "";
-const completionDraft = existsSync(completionDraftPath)
-  ? readFileSync(completionDraftPath, "utf8")
-  : "";
+// Read unconditionally: a missing 0192 must fail, not turn every assertion below
+// into a check against "".
+const completionMigration = readFileSync(completionMigrationPath, "utf8");
 const dpia = readFileSync(dpiaPath, "utf8");
 
 describe("delete-account Edge boundary", () => {
@@ -161,50 +167,50 @@ describe("0186 account deletion database contract", () => {
   });
 });
 
-describe("unnumbered account deletion completion forward draft", () => {
-  test("stays outside the active migration directory until a number is reserved", () => {
-    expect(existsSync(completionDraftPath)).toBe(true);
-    expect(completionDraft).toMatch(/UNNUMBERED/);
-    expect(completionDraft).not.toMatch(/^\s*(?:BEGIN|COMMIT)\s*;/im);
+describe("numbered 0192 account deletion completion fence", () => {
+  test("is the only copy once numbered (Q-261005-07) and leaves the transaction to the runner", () => {
+    expect(existsSync(completionMigrationPath)).toBe(true);
+    expect(existsSync(retiredCompletionDraftPath)).toBe(false);
+    expect(completionMigration).not.toMatch(/^\s*(?:BEGIN|COMMIT)\s*;/im);
   });
 
   test("creates a durable service-only tombstone and begin RPC", () => {
-    expect(completionDraft).toMatch(/CREATE TABLE[^;]+public\.account_deletion_tombstones/i);
-    expect(completionDraft).toMatch(/ALTER TABLE public\.account_deletion_tombstones ENABLE ROW LEVEL SECURITY/);
-    expect(completionDraft).toMatch(/ALTER TABLE public\.account_deletion_tombstones FORCE ROW LEVEL SECURITY/);
-    expect(completionDraft).toMatch(/REVOKE ALL ON TABLE public\.account_deletion_tombstones[\s\S]*?service_role/);
-    expect(completionDraft).not.toMatch(/GRANT [^;]* ON TABLE public\.account_deletion_tombstones/);
-    expect(completionDraft).toMatch(/FUNCTION public\.begin_account_deletion\([\s\S]*?VOLATILE[\s\S]*?SECURITY DEFINER[\s\S]*?SET row_security = off/);
-    expect(completionDraft).toMatch(/SET search_path = ''/);
-    expect(completionDraft).toMatch(/pg_advisory_xact_lock\(/);
-    expect(completionDraft).toMatch(/FROM public\.users AS u[\s\S]*FOR UPDATE/);
-    expect(completionDraft).toMatch(/INSERT INTO public\.account_deletion_tombstones/);
-    expect(completionDraft).toMatch(/REVOKE ALL ON FUNCTION public\.begin_account_deletion[^;]+FROM PUBLIC, anon, authenticated, service_role/);
-    expect(completionDraft).toMatch(/GRANT EXECUTE ON FUNCTION public\.begin_account_deletion[^;]+TO service_role/);
+    expect(completionMigration).toMatch(/CREATE TABLE[^;]+public\.account_deletion_tombstones/i);
+    expect(completionMigration).toMatch(/ALTER TABLE public\.account_deletion_tombstones ENABLE ROW LEVEL SECURITY/);
+    expect(completionMigration).toMatch(/ALTER TABLE public\.account_deletion_tombstones FORCE ROW LEVEL SECURITY/);
+    expect(completionMigration).toMatch(/REVOKE ALL ON TABLE public\.account_deletion_tombstones[\s\S]*?service_role/);
+    expect(completionMigration).not.toMatch(/GRANT [^;]* ON TABLE public\.account_deletion_tombstones/);
+    expect(completionMigration).toMatch(/FUNCTION public\.begin_account_deletion\([\s\S]*?VOLATILE[\s\S]*?SECURITY DEFINER[\s\S]*?SET row_security = off/);
+    expect(completionMigration).toMatch(/SET search_path = ''/);
+    expect(completionMigration).toMatch(/pg_advisory_xact_lock\(/);
+    expect(completionMigration).toMatch(/FROM public\.users AS u[\s\S]*FOR UPDATE/);
+    expect(completionMigration).toMatch(/INSERT INTO public\.account_deletion_tombstones/);
+    expect(completionMigration).toMatch(/REVOKE ALL ON FUNCTION public\.begin_account_deletion[^;]+FROM PUBLIC, anon, authenticated, service_role/);
+    expect(completionMigration).toMatch(/GRANT EXECUTE ON FUNCTION public\.begin_account_deletion[^;]+TO service_role/);
   });
 
   test("keeps the old RPC name as a fencing compatibility wrapper", () => {
-    expect(completionDraft).toMatch(/FUNCTION public\.verify_account_deletion_session\([\s\S]*?VOLATILE/);
-    expect(completionDraft).toMatch(/public\.begin_account_deletion\(p_user_id, p_session_id, p_issued_at\)/);
+    expect(completionMigration).toMatch(/FUNCTION public\.verify_account_deletion_session\([\s\S]*?VOLATILE/);
+    expect(completionMigration).toMatch(/public\.begin_account_deletion\(p_user_id, p_session_id, p_issued_at\)/);
   });
 
   test("serializes raw Storage writes before checking the committed fence", () => {
-    expect(completionDraft).toMatch(/FUNCTION public\.guard_raw_clipping_account_deletion\(\)[\s\S]*?VOLATILE[\s\S]*?SECURITY DEFINER[\s\S]*?SET row_security = off/);
-    expect(completionDraft).toMatch(/pg_advisory_xact_lock_shared\(/);
-    expect(completionDraft).toMatch(/FROM public\.users AS u[\s\S]*FOR KEY SHARE/);
-    expect(completionDraft).toMatch(/BEFORE INSERT OR UPDATE ON storage\.objects/);
-    const rowLockAt = completionDraft.indexOf("FOR KEY SHARE");
-    const fenceCheckAt = completionDraft.indexOf("FROM public.account_deletion_tombstones", rowLockAt);
+    expect(completionMigration).toMatch(/FUNCTION public\.guard_raw_clipping_account_deletion\(\)[\s\S]*?VOLATILE[\s\S]*?SECURITY DEFINER[\s\S]*?SET row_security = off/);
+    expect(completionMigration).toMatch(/pg_advisory_xact_lock_shared\(/);
+    expect(completionMigration).toMatch(/FROM public\.users AS u[\s\S]*FOR KEY SHARE/);
+    expect(completionMigration).toMatch(/BEFORE INSERT OR UPDATE ON storage\.objects/);
+    const rowLockAt = completionMigration.indexOf("FOR KEY SHARE");
+    const fenceCheckAt = completionMigration.indexOf("FROM public.account_deletion_tombstones", rowLockAt);
     expect(rowLockAt).toBeGreaterThan(-1);
     expect(fenceCheckAt).toBeGreaterThan(rowLockAt);
   });
 
   test("restores 0186's flat non-empty markdown write policies", () => {
-    expect(completionDraft).toMatch(/file_size_limit\s*=\s*1048576/);
-    expect(completionDraft).toMatch(/allowed_mime_types\s*=\s*ARRAY\['text\/markdown'\]::text\[\]/);
-    expect((completionDraft.match(/array_length\(storage\.foldername\(name\), 1\) = 1/g) || []).length)
+    expect(completionMigration).toMatch(/file_size_limit\s*=\s*1048576/);
+    expect(completionMigration).toMatch(/allowed_mime_types\s*=\s*ARRAY\['text\/markdown'\]::text\[\]/);
+    expect((completionMigration.match(/array_length\(storage\.foldername\(name\), 1\) = 1/g) || []).length)
       .toBeGreaterThanOrEqual(3);
-    expect((completionDraft.match(/name LIKE \(SELECT auth\.uid\(\)\)::text \|\| '\/%\.md'/g) || []).length)
+    expect((completionMigration.match(/name LIKE \(SELECT auth\.uid\(\)\)::text \|\| '\/%\.md'/g) || []).length)
       .toBeGreaterThanOrEqual(3);
   });
 });

@@ -1,6 +1,11 @@
--- UNNUMBERED_peer_response_rate_limit.sql
--- LOCAL DRAFT ONLY: reserve the next migration number with a fresh remote scan
--- and push the reservation before this can enter a release candidate.
+-- 0216_peer_response_rate_limit.sql
+-- Promoted 2026-10-05 from db/migration-drafts/UNNUMBERED_peer_response_rate_limit.sql
+-- (Simon decision Q-261005-04 = A). The draft was deleted in the same change, so
+-- this numbered file is the only copy (Q-261005-07). Production apply waits for
+-- a GO from Simon. Order: apply this file first, then dispatch the main peer-respond
+-- Edge. That Edge fails closed (503 rate_limit_unavailable) until
+-- consume_peer_response_rate_limit exists, and the deploy schema gate refuses it.
+--
 -- Durable pre-capability limiter for the no-account peer responder. The Edge
 -- function sends only a secret-keyed network fingerprint; raw network hints
 -- and invitation capabilities never enter this ledger.

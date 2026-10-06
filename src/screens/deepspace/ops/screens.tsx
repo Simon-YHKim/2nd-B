@@ -77,6 +77,8 @@ import {
 import { getGithubUsername, setGithubUsername } from "@/lib/projects/github-link";
 import { monthDelta, prevMonthKey } from "@/lib/finance/trend";
 import { trendChip } from "@/lib/ops/grounding";
+import { RECORD_SAVE_CUE, milestoneDoneCueAllowed } from "@/lib/audio/app-cues";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
 
 // ── 이 화면들의 바탕 (PIXEL-CLAY 절대 규칙 4) ────────────────────────
 //
@@ -458,6 +460,7 @@ export function MilestonesScreen() {
   const c = useOpsCopy();
   const { t } = useTranslation("ops");
   const { userId } = useAuth();
+  const playDoneCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
   // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
   // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
   // just silently did nothing.
@@ -534,6 +537,8 @@ export function MilestonesScreen() {
     setSaveErr(false);
     try {
       await updateMilestone(userId, m.id, { status: NEXT_STATUS[m.status] });
+      // 완료 소리(Q-261006-15, 저장 소리 재사용)는 쓰기가 성공한 뒤, '완료'로 바뀔 때만.
+      if (milestoneDoneCueAllowed({ from: m.status, to: NEXT_STATUS[m.status] })) playDoneCue();
       ms.reload();
     } catch {
       // The write failed. Say so: reload() lives inside the try above, so on this path

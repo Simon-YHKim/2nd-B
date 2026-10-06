@@ -63,6 +63,12 @@ import {
   readNoticeSeenId,
   writeNoticeSeenId,
 } from "../../notices/last-seen";
+import {
+  purgeStarLastSeenForDeletedAccount,
+  readStarLastSeen,
+  starLastSeenKey,
+  writeStarLastSeen,
+} from "../../persona/star-last-seen";
 
 const OWNER = "owner-a";
 const OTHER = "owner-b";
@@ -73,6 +79,7 @@ const KEYS = {
   wiki: (owner: string) => `wiki.autoPromote.v1.${owner}`,
   noticeRead: (owner: string) => `notices.read.v1.${owner}`,
   noticeSeen: (owner: string) => `notices.lastSeen.v1.${owner}`,
+  starSeen: (owner: string) => `stars.lastSeenLevels.v1.${owner}`,
 };
 
 class MemoryStorage {
@@ -128,6 +135,7 @@ function seed(storage: { setItem(key: string, value: string): unknown }, owner: 
   storage.setItem(KEYS.wiki(owner), "1");
   storage.setItem(KEYS.noticeRead(owner), JSON.stringify([`read-${owner}`]));
   storage.setItem(KEYS.noticeSeen(owner), `seen-${owner}`);
+  storage.setItem(KEYS.starSeen(owner), JSON.stringify({ school: 3 }));
 }
 
 beforeEach(() => {
@@ -150,6 +158,7 @@ async function purgeEveryNamespace(owner: string): Promise<boolean[]> {
     purgeWikiAutoPromoteForDeletedAccount(owner),
     purgeNoticeReadStateForDeletedAccount(owner),
     purgeNoticeLastSeenForDeletedAccount(owner),
+    purgeStarLastSeenForDeletedAccount(owner),
   ]);
 }
 
@@ -173,6 +182,7 @@ describe.each(["web", "native"] as const)("%s owner-scoped purge", (runtime) => 
       true,
       true,
       true,
+      true,
     ]);
 
     const values = runtime === "web" ? webValues.values : nativeValues;
@@ -184,6 +194,8 @@ describe.each(["web", "native"] as const)("%s owner-scoped purge", (runtime) => 
     expect(getReadIds(OTHER).has("memory-other")).toBe(true);
     await expect(readNoticeSeenId(OWNER)).resolves.toBeNull();
     await expect(readNoticeSeenId(OTHER)).resolves.toBe("memory-other");
+    await expect(readStarLastSeen(OWNER)).resolves.toBeNull();
+    await expect(readStarLastSeen(OTHER)).resolves.toEqual({ school: 3 });
   });
 });
 
@@ -206,6 +218,7 @@ test("the terminal fence rejects late writes for every owner-scoped producer", a
   expect(addReadId(OWNER, "late-read")).toBe(false);
   await persistReadIds(OWNER);
   await writeNoticeSeenId(OWNER, "late-seen");
+  await writeStarLastSeen(OWNER, { school: 4 });
 
   expect([...nativeValues.keys()]).toEqual([`account.deletionFence.v1:${OWNER}`]);
   await expect(readOpsUsage(OWNER)).resolves.toBe(0);
@@ -215,5 +228,6 @@ test("the terminal fence rejects late writes for every owner-scoped producer", a
   expect(getReadIds(OWNER).size).toBe(0);
   expect(nativeValues.has(localReadKey(OWNER))).toBe(false);
   expect(nativeValues.has(noticeSeenKey(OWNER))).toBe(false);
+  expect(nativeValues.has(starLastSeenKey(OWNER))).toBe(false);
   await expect(readNoticeSeenId(OWNER)).resolves.toBeNull();
 });

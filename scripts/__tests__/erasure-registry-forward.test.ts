@@ -19,10 +19,15 @@ const addition: Registry = { version: 1, tables: { usage: entry } };
 type WithHistory = Registry & { forwardAdditions?: unknown; forwardRevisions?: unknown };
 let root = "";
 
-test("the inactive service-contract forward is generated from its four-row sidecar", () => {
-  const drafts = resolve(__dirname, "../../db/migration-drafts");
-  const registry = JSON.parse(readFileSync(join(drafts, "service-contract-erasure-entries.json"), "utf8"));
-  const sql = readFileSync(join(drafts, registry.forwardMigration), "utf8").replace(/\r\n/g, "\n");
+test("the numbered 0198 service-contract forward is generated from its four-row sidecar", () => {
+  const repo = resolve(__dirname, "../..");
+  const registry = JSON.parse(
+    readFileSync(join(repo, "db/migration-drafts/service-contract-erasure-entries.json"), "utf8"),
+  );
+  // The draft was deleted when 0198 got its number (Q-261005-07); the sidecar
+  // names the one remaining copy by its repository path.
+  expect(registry.forwardMigration).toBe("db/migrations/0198_service_contract_erasure_registry.sql");
+  const sql = readFileSync(join(repo, registry.forwardMigration), "utf8").replace(/\r\n/g, "\n");
   expect(Object.keys(registry.tables).sort()).toEqual([
     "account_deletion_tombstones", "llm_consent_receipts", "polaris_generations", "reward_ssv_issue_rate_limits",
   ]);

@@ -14,6 +14,10 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { profileGate } from "@/lib/auth/profile-probe";
 import { type LadderLevel } from "@/lib/persona/brightness";
 import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
+import { readStarLastSeen, writeStarLastSeen } from "@/lib/persona/star-last-seen";
+import { STAR_BRIGHTEN_CUE, brightenCue } from "@/lib/audio/app-cues";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
+import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
 import { useAutoTriggerTTFV } from "@/lib/onboarding/ttfv-gate";
@@ -53,6 +57,12 @@ export function DeepSpaceShell() {
     refreshTick,
   );
   const coachHeadTargetRef = useRef<View>(null);
+  // 별이 밝아지는 소리(Q-261006-02). 읽은 밝기를 이 기기의 '마지막으로 본 밝기'와 비교한다.
+  // 효과는 아래 읽기 effect 안에서 쓰므로 ref 로 넘긴다(소리 · 설정이 바뀌어도 다시 읽지 않게).
+  const playBrighten = useUiSound(STAR_BRIGHTEN_CUE.source, STAR_BRIGHTEN_CUE);
+  const reducedMotion = useReducedMotionPref();
+  const brighten = useRef({ play: playBrighten, reducedMotion });
+  brighten.current = { play: playBrighten, reducedMotion };
   useEffect(() => {
     // Wait for the auth session restore (`loading`) as well as the userId:
     // firing on userId alone raced the token attach at boot, so the Supabase
@@ -65,10 +75,15 @@ export function DeepSpaceShell() {
     // 별 밝기와 북극성은 이제 **인터뷰가 판 칸**에서 온다(2026-08-24).
     // 도메인 등급은 대시보드가 계속 쓰므로 따로 읽는다 -- 둘은 다른 것이 됐다.
     loadSevenLevels(userId)
-      .then((b) => {
+      .then(async (b) => {
         if (!alive) return;
         setStarLevels(b.starLevels);
         setNorthStarBrightness(b.northStarBrightness);
+        const seen = await readStarLastSeen(userId);
+        if (!alive) return;
+        const cue = brightenCue(seen, b.starLevels, brighten.current.reducedMotion);
+        if (cue.play) brighten.current.play();
+        await writeStarLastSeen(userId, cue.next);
       })
       .catch(() => {});
     return () => {
