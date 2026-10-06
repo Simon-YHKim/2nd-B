@@ -268,6 +268,38 @@
         "capMs": 600,
         "fadeOutMs": 100
       }
+    },
+    {
+      "file": "assets/audio/opening-ambience.wav",
+      "bytes": 446336,
+      "sha256": "f06d5e48f840c073f4011debf53e0496bbd17b2b33a6cb9ef96ba392f7d01df6",
+      "format": {
+        "container": "wav",
+        "codec": "pcm_s16le",
+        "channels": 1,
+        "sampleRate": 22050,
+        "durationMs": 10120
+      },
+      "use": "Opening ambience bed under the approved opening (native app only, separate player)",
+      "decision": "Q-261006-07",
+      "candidate": "amb-a",
+      "generation": {
+        "prompt": "Quiet night meadow ambience, soft crickets, a gentle breeze through tall grass, distant and calm, peaceful outdoor night atmosphere, no music, no voice",
+        "seconds": 10,
+        "seed": 20261006
+      },
+      "rawOutput": {
+        "sha256": "b997f77953d764cc359f0abeac73d6daf02a816cf0e5cb43045b043a69593b3d",
+        "sampleRate": 44100,
+        "durationMs": 10000
+      },
+      "edit": {
+        "trimStartMs": 0,
+        "lengthMs": 10120,
+        "fadeInMs": 1000,
+        "fadeOutMs": 1500,
+        "note": "Cut or padded to the approved opening's length (10,119.5 ms rounded up), linear fades, same downmix, 2:1 resample and -3.1 dBFS peak as the other cues. Played at volume 0.15 from the opening clock's position."
+      }
     }
   ]
 }

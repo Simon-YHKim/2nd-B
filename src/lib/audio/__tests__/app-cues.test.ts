@@ -70,7 +70,7 @@ test('generated cues match their provenance record byte for byte', () => {
   expect(manifest.generator.settings.dit).toBe('sm-sfx');
   expect(manifest.assets.map((a: { decision: string }) => a.decision)).toEqual([
     'Q-261006-01', 'Q-261006-02', 'Q-261006-03', 'Q-261006-04', 'Q-261006-05', 'Q-261006-06',
-    'Q-261006-12', 'Q-261006-13',
+    'Q-261006-12', 'Q-261006-13', 'Q-261006-07',
   ]);
   for (const asset of manifest.assets) {
     const wav = readFileSync(resolve(root, asset.file));

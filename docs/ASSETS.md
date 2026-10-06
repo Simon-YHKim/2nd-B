@@ -130,7 +130,7 @@ Rebuild: `python scripts/build-dither-tiles.py`.
 
 Sound effects generated locally with [agent-audio](https://github.com/AIEGOBOT/agent-audio)
 from **Stable Audio 3 small-sfx** (`stabilityai/stable-audio-3-optimized`, revision
-`da6edc54`), then picked by Simon from two listening reports (Q-261006-01..06, 12, 13; other picks reuse these files). These are
+`da6edc54`), then picked by Simon from two listening reports (Q-261006-01..07, 12, 13; other picks reuse these files). The opening ambience bed (Q-261006-07) plays beside the approved opening, never inside its package. These are
 **generated, not recorded**, so they are not in `RECORDED-SOURCES.json`; their prompts,
 seeds, model file hashes, raw-output hashes and edit recipe are in
 `assets/audio/GENERATED-SOURCES.json`, and a test checks every file against it.
@@ -151,6 +151,7 @@ seeds, model file hashes, raw-output hashes and edit recipe are in
 | `onboarding-welcome.wav` | Finishing onboarding (wired in a later change) | Q-261006-06 | 2200 ms | 97,064 | `ff3ca5b113b958b3…` |
 | `plan-purchase.wav` | A paid plan the store confirmed | Q-261006-12 | 1464 ms | 64,604 | `0c421a8991417ff6…` |
 | `reward-credit.wav` | A rewarded-ad credit the client actually granted | Q-261006-13 | 200 ms | 8,866 | `948c2b1852df263c…` |
+| `opening-ambience.wav` | Opening ambience bed under the approved opening (native app only, separate player) | Q-261006-07 | 10120 ms | 446,336 | `f06d5e48f840c073…` |
 
 ### Retired camera audio (moved out of the repo on 2026-10-04)
 

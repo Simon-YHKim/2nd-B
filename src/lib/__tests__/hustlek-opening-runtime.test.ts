@@ -59,6 +59,7 @@ function loadScreen(platform: "ios" | "web" = "ios"): Module {
     if (id === "react-i18next") return { useTranslation: () => ({ t: (key: string) => key }) };
     if (id === "@/components/ui/PlainText") return { PlainText: host("span") };
     if (id === "@/lib/motion/use-reduced-motion") return { useReducedMotionPref: () => false };
+    if (id === "@/lib/audio/use-opening-ambience") return { useOpeningAmbience: () => ({ start: jest.fn(), stop: jest.fn() }) };
     if (id === "@/lib/audio/use-opening-sounds") return { useOpeningSounds: () => ({ enabled: platform !== "web", ready: true, setEnabled: jest.fn(), play: jest.fn(), stop: jest.fn(), unlock: jest.fn().mockResolvedValue(true) }) };
     if (id === "@/lib/opening/hustlek-approved") return engine;
     if (id === "@/components/deepspace/DeepSpaceLoader") return { DeepSpaceLoader: host("app-loader") };

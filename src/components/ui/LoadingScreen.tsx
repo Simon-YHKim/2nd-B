@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { useOpeningSounds } from "@/lib/audio/use-opening-sounds";
+import { useOpeningAmbience } from "@/lib/audio/use-opening-ambience";
 import { APPROVED_OPENING_ASSETS, APPROVED_OPENING_DURATION_MS, APPROVED_OPENING_IMAGES_IN_USE_ORDER, approvedOpeningSourcesNeeded, getApprovedOpeningCues, getApprovedOpeningScene } from "@/lib/opening/hustlek-approved";
 import { DeepSpaceLoader } from "@/components/deepspace/DeepSpaceLoader";
 import { OpeningFade } from "@/components/ui/OpeningFade";
@@ -86,7 +87,11 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   const [elapsedMs, setElapsedMs] = useState(0), [tapAtMs, setTapAtMs] = useState<number | null>(null);
   const clock = useRef(createOpeningClock()), continued = useRef(false), cueFrom = useRef(-Number.EPSILON);
   const sounds = useOpeningSounds(APPROVED_OPENING_ASSETS.audio), soundRef = useRef(sounds);
-  soundRef.current = sounds;
+  // 오프닝 배경음(Q-261006-07)은 승인 묶음 밖의 별도 재생기다. 효과음이 멈추는 모든 자리에서
+  // 같이 멈추도록 stop 을 하나로 묶고, 시작은 아래 시계 effect 가 그 시각 위치로 한다.
+  const ambience = useOpeningAmbience(), ambienceRef = useRef(ambience);
+  ambienceRef.current = ambience;
+  soundRef.current = { ...sounds, stop: () => { sounds.stop(); ambience.stop(); } };
   const displayMs = reducedMotion ? APPROVED_OPENING_DURATION_MS : Math.min(elapsedMs, APPROVED_OPENING_DURATION_MS);
   // No loading screen before the opening (Simon 2026-10-03). The scene appears
   // as soon as its own images are in memory, and the clock runs only while the
@@ -137,6 +142,7 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   useEffect(() => {
     if (!playbackReady || assetError || !foreground || plan.shouldContinue || plan.phase === "waiting-ready") { clock.current.pause(); soundRef.current.stop(); return; }
     clock.current.start();
+    if (!reducedMotion && soundRef.current.enabled) ambienceRef.current.start(clock.current.elapsed());
     const tick = (value: number) => {
       if (!reducedMotion) for (const cue of getApprovedOpeningCues(cueFrom.current, value)) soundRef.current.play(cue);
       cueFrom.current = value;
