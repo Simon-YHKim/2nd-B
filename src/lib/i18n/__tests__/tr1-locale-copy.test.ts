@@ -223,6 +223,18 @@ describe("tr1: es/pt/id carry their own text", () => {
     expect(b.shiftNudgeCited).toContain("{{stars}}");
     expect(b.shiftNudgeCited).toContain("{{n}}");
   });
+
+  // QA 261006, review of #2099 (F1). The retention fact counts the 30 days from
+  // closing the account (ko "탈퇴 시"). pt "se você sair" and id "jika kamu keluar"
+  // used the very verb of the Sign out button (common actions.signOut: "Sair",
+  // "Keluar"), so the line read as "removed 30 days after you sign out".
+  it.each(["es", "pt", "id"])("%s retention line does not use the Sign out verb", (lng) => {
+    const retention = String(at(pack(lng, "deepspace"), "privacy.facts.retention.v")).toLocaleLowerCase(lng);
+    const signOut = String(at(pack(lng, "common"), "actions.signOut")).toLocaleLowerCase(lng);
+    expect(signOut.length).toBeGreaterThan(0);
+    const word = new RegExp(`(^|[^\\p{L}])${signOut.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^\\p{L}])`, "u");
+    expect({ lng, retention, usesSignOut: word.test(retention) }).toEqual({ lng, retention, usesSignOut: false });
+  });
 });
 
 describe("tr1: what stays KO/EN on purpose", () => {

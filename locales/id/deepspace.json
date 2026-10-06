@@ -189,7 +189,7 @@
       },
       "retention": {
         "label": "Masa penyimpanan",
-        "v": "Selama akunmu aktif; jika kamu keluar, semuanya dihapus dalam 30 hari."
+        "v": "Selama akunmu aktif; jika kamu menghapus akun, semuanya terhapus dalam 30 hari."
       },
       "delete": {
         "label": "Hak menghapus",
