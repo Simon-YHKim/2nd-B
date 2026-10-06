@@ -94,13 +94,8 @@ const REASONING_RUN_ID_RE =
 // explicitly seated purposes here; missing seats fail closed rather than
 // turning this key into a generic Sonnet/Opus completion endpoint.
 const PURPOSE_MODEL: Record<string, string> = {
-  // The defender in the adversarial cross-check (REQ-260823-03). Opus at max,
-  // because its rewrite is what the user actually reads.
-  crosscheck_defend: 'claude-opus-4-8',
   persona_narrative: 'claude-opus-4-8',
-  axis_estimate: 'claude-opus-4-8',
   persona_synthesis: 'claude-opus-4-8',
-  digest_weekly: 'claude-opus-4-8',
 };
 
 function resolveModel(purpose: string): string | null {
@@ -129,7 +124,7 @@ function resolveModel(purpose: string): string | null {
 // and price = model x effort x max_tokens, so without this clamp a tampered
 // client could run the opus seats at the top rung).
 //
-// "max" IS now approved, for two seats and no others (Simon, 2026-08-23). The
+// "max" IS now approved, for one seat and no other (Simon, 2026-08-23; the second, digest_weekly, left in S0.5). The
 // comment here used to say no seat was approved for it, and the rank table
 // below did not carry the rung at all - which is why effortToAnthropic folded
 // max into xhigh and ANTHROPIC_API_KEY__MAX, already registered in production,
@@ -142,20 +137,12 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   northstar_propose: 'high',
   ops_recommend: 'medium',
   ops_daily_brief: 'medium',
-  ttfv_first_insight: 'xhigh',
   // Frequency x unit cost, which is the rule Simon gave: max is for the
   // low-frequency reads of the WHOLE corpus, nothing else.
   //   persona_synthesis  whole corpus, rare, and the output is 북극성 itself -> max
-  //   digest_weekly      the other whole-corpus read, weekly at most      -> max
-  //                      (still has no call site; the rung costs nothing until
-  //                       it is wired, and having it wrong later costs more)
   //   persona_narrative  2-3 sentences, cached but mounted on three screens -> high
-  //   axis_estimate      structured estimate, not a corpus read            -> high
   persona_narrative: 'high',
-  axis_estimate: 'high',
   persona_synthesis: 'max',
-  digest_weekly: 'max',
-  crosscheck_defend: 'max',
 };
 
 // Hard output ceilings per (clamped) effort. With adaptive thinking ON,

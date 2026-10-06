@@ -71,7 +71,7 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
   });
 
   test("map sanity: classify->lite, chat->flash, advisor->pro", () => {
-    expect(PURPOSE_TIER.capture_classify).toBe("lite");
+    // capture_classify was the other lite row until S0.5 (2026-10-07).
     expect(PURPOSE_TIER.clipper_classify).toBe("lite");
     expect(PURPOSE_TIER.secondb_chat).toBe("flash");
     // D-26 taxonomy split of the old persona_chat catch-all.
@@ -82,17 +82,27 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
     expect(PURPOSE_TIER.reasoning_connect).toBe("pro");
     // Routing decisions (docs/LLM-ROUTING.md): interview_probe demoted to
     // flash (deterministic layer choice; LLM only drafts one question), and
-    // the two previously-unmapped estimate purposes pinned explicitly.
+    // the previously-unmapped estimate purpose pinned explicitly (its sibling
+    // axis_estimate left with S0.5).
     expect(PURPOSE_TIER.interview_probe).toBe("flash");
     expect(PURPOSE_TIER.northstar_propose).toBe("flash");
-    expect(PURPOSE_TIER.axis_estimate).toBe("flash");
+  });
+
+  test("none of the ten S0.5 seats keeps a tier row", () => {
+    const removed = [
+      "imagine", "import_ingest", "capture_classify", "capture_voice", "axis_estimate",
+      "cluster_infer", "ttfv_first_insight", "digest_weekly", "crosscheck_challenge", "crosscheck_defend",
+    ];
+    expect(Object.keys(PURPOSE_TIER).filter((p) => removed.includes(p))).toEqual([]);
   });
 
   test("classify purpose routes to the lite model id", async () => {
+    // clipper_classify replaces capture_classify (removed in S0.5): the
+    // remaining lite row.
     const r = await callLlm({
       userId: "u1",
       locale: "en",
-      purpose: "capture_classify",
+      purpose: "clipper_classify",
       user: "tag this",
     });
     expect(r.audit.modelUsed).toBe(`mock:${MODELS.lite}`);
@@ -119,11 +129,11 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
   });
 
   test("explicit model arg wins over the purpose default", async () => {
-    // capture_classify defaults to lite; force pro explicitly.
+    // clipper_classify defaults to lite; force pro explicitly.
     const r = await callLlm({
       userId: "u1",
       locale: "en",
-      purpose: "capture_classify",
+      purpose: "clipper_classify",
       user: "tag this",
       model: "pro",
     });

@@ -87,10 +87,10 @@ const REASONING_RUN_ID_RE =
 // siblings), and refresh-models.ts writes it nightly from the live model list.
 const DEFAULT_XAI_MODEL = 'grok-4';
 
-// Seats. The twelve reasoning purposes plus chat -- exactly the set a vendor
+// Seats. The eight reasoning purposes plus chat -- exactly the set a vendor
 // switch can point here (EXPO_PUBLIC_LLM_VENDOR, EXPO_PUBLIC_CHAT_VENDOR).
 //
-// ⚠ THE NINE BACKBONE PURPOSES ARE ABSENT ON PURPOSE. They are the app's
+// ⚠ THE SIX BACKBONE PURPOSES ARE ABSENT ON PURPOSE. They are the app's
 // highest-volume surfaces (one classify per capture, one per clip), and this
 // file has no cheap tier confirmed against the account. Seating them on the
 // frontier model to make EXPO_PUBLIC_BACKBONE_VENDOR=xai "work" would be the
@@ -103,13 +103,9 @@ const PURPOSE_MODEL: Record<string, string> = {
   gap_synthesize: DEFAULT_XAI_MODEL,
   self_model_propose: DEFAULT_XAI_MODEL,
   northstar_propose: DEFAULT_XAI_MODEL,
-  axis_estimate: DEFAULT_XAI_MODEL,
   persona_synthesis: DEFAULT_XAI_MODEL,
   ops_recommend: DEFAULT_XAI_MODEL,
   ops_daily_brief: DEFAULT_XAI_MODEL,
-  digest_weekly: DEFAULT_XAI_MODEL,
-  ttfv_first_insight: DEFAULT_XAI_MODEL,
-  cluster_infer: DEFAULT_XAI_MODEL,
   secondb_chat: DEFAULT_XAI_MODEL,
 };
 
@@ -120,13 +116,9 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   gap_synthesize: 'high',
   self_model_propose: 'high',
   northstar_propose: 'high',
-  axis_estimate: 'high',
   persona_synthesis: 'high',
   ops_recommend: 'high',
   ops_daily_brief: 'high',
-  digest_weekly: 'high',
-  ttfv_first_insight: 'high',
-  cluster_infer: 'medium',
   // Chat is conversational, not deliberative, and it is the highest-volume
   // surface that can reach this proxy at all. 'low' is the real cost lever
   // here, and a ceiling rather than a request so a stale client cannot raise it.

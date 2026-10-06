@@ -37,41 +37,16 @@ export type PromptPurpose =
   | "secondb_chat"
   | "interview_probe"
   | "capture_ocr"
-  | "capture_voice"
-  | "capture_classify"
   | "clipper_classify"
   | "clipper_template_propose"
-  | "import_ingest"
-  | "imagine"
   | "ops_recommend"
   | "ops_daily_brief" // D-26 A17: all-domain ops recommendations in ONE daily call
   | "persona_synthesis"
-  | "northstar_propose"
-  | "axis_estimate"
-  // Proto rev2 (docs/LLM-ROUTING.md §2) AI surfaces declared in the routing
-  // matrix so a Phase-2 flip delivers the FULL proto matrix instead of a partial
-  // one. Call-site wiring (LLM digest narrative, semantic cluster rationale, TTFV
-  // first-insight precompute) is a separate feature per purpose; these are the
-  // routing seats they will use.
-  // ⚠ UNUSED SEAT (Simon 결정 B2, 2026-08-20). 부르는 코드가 0건이다 -
-  // `digest_weekly` 로 grep 하면 이 파일 · routing.ts · 프록시 좌석 · DB enum 만
-  // 나온다. 주간 다이제스트 화면이 앱에 없기 때문이다(프로토타입에만 있다).
-  //
-  // 그런데 지우지 않는다: DB enum 여러 개(0115·0117·0119·0120·0122·0124)에 들어
-  // 있어 제거에 마이그레이션이 들고, 주간 요약은 나중에 만들 가능성이 있다.
-  // 지웠다 되살리는 비용이 그냥 두는 비용보다 크다.
-  //
-  // **이 좌석이 비용을 만들지 않는 이유**: 호출이 없으면 모델도 안 불린다.
-  // 좌석 선언은 값이 아니라 표다.
-  | "digest_weekly" // weekly two-signal causal pattern (highest-stakes claim) - UNUSED
-  | "cluster_infer" // semantic wiki connection rationale (activates the OpenAI seat)
-  | "ttfv_first_insight" // first-day self-understanding, evidence-backed
-  // Adversarial cross-validation (REQ-260823-03). Two purposes rather than one
-  // because purpose IS how a call picks its vendor - one purpose could only
-  // ever reach one side, and a "debate" both halves of which run on the same
-  // model is that model agreeing with itself at double the price.
-  | "crosscheck_challenge" // gpt-5.6-sol tries to break the draft
-  | "crosscheck_defend"; // claude opus answers it and rewrites
+  | "northstar_propose";
+// 2026-10-07 S0.5 (재설계 좌석 정리): ten seats with no reachable caller left this union -
+// imagine · import_ingest · capture_classify · capture_voice · axis_estimate · cluster_infer ·
+// ttfv_first_insight · digest_weekly · crosscheck_challenge · crosscheck_defend. Old audit rows keep
+// their labels (text column); src/lib/supabase/audit-reader.ts still names them for display.
 
 export interface AdvisorInput {
   userId: string;
@@ -202,7 +177,6 @@ export const MODELS: Record<GeminiModel, string> = {
 //   pro   — reasoning surfaces
 export const PURPOSE_TIER: Partial<Record<PromptPurpose, GeminiModel>> = {
   // lite: classification-shaped, high volume, no nuance needed
-  capture_classify: "lite",
   clipper_classify: "lite",
   // flash: interactive / structured-but-not-deep
   secondb_chat: "flash",
@@ -210,12 +184,10 @@ export const PURPOSE_TIER: Partial<Record<PromptPurpose, GeminiModel>> = {
   gap_synthesize: "flash",
   self_model_propose: "flash",
   capture_ocr: "flash",
-  capture_voice: "flash",
   ops_recommend: "flash",
   ops_daily_brief: "flash",
   audit_qa: "flash",
   source_ingest: "flash",
-  import_ingest: "flash",
   clipper_template_propose: "flash",
   // 북극성 persona synthesis (layer C). v1 flash (CONSTELLATION-DESIGN §17-f);
   // promote to "pro" if persona quality needs deeper reasoning.
@@ -228,27 +200,16 @@ export const PURPOSE_TIER: Partial<Record<PromptPurpose, GeminiModel>> = {
   // Previously unmapped (fell through to the flash fallback in purposeToTier).
   // Made explicit so a future default change cannot silently re-route them.
   //
-  // Spend policy (Simon decision 2026-07-06): both northstar_propose and
-  // axis_estimate stay INTENTIONALLY un-metered at the per-feature level — no
+  // Spend policy (Simon decision 2026-07-06): northstar_propose stays
+  // INTENTIONALLY un-metered at the per-feature level — no
   // per-user usage cap, open to every tier. They are self-understanding
   // proposals the user must ratify, run at most a few times, and cost is already
   // bounded by the global proxy spend cap (bump_gemini_spend / reasoning-cap
   // RPC). Add a per-feature gate here only if abuse telemetry shows a need.
   northstar_propose: "flash",
-  axis_estimate: "flash",
   // pro: reasoning / nuance
   advisor: "pro",
   // The /reasoning deep-run batches (call sites also pass model:"pro"
   // explicitly since #1063; this row makes the table agree with them).
   reasoning_connect: "pro",
-  imagine: "pro",
-  // Proto rev2 routing seats, all still call-site-less (verified 2026-07-26):
-  // the /reasoning domain-link batches ship under purpose reasoning_connect
-  // above, NOT cluster_infer — do not reuse cluster_infer for them (its Phase-2
-  // routing seat re-routes to OpenAI). digest_weekly is the highest-stakes
-  // causal claim -> pro; cluster_infer and ttfv_first_insight are
-  // structured/precompute -> flash.
-  digest_weekly: "pro",
-  cluster_infer: "flash",
-  ttfv_first_insight: "flash",
 };
