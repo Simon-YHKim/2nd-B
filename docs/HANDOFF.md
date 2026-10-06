@@ -31,7 +31,17 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-06 12:44 / 효과음 3차 전체: Simon 선택 15개 연결(PR #2086 초안) · 오프닝 배경음 · Stability 환영 메일 확인(12:43) → 머지
+## Latest — 2026-10-06 18:37 / SSV 감시 수정 머지(#2087 · #2088) · 운영 0221 적용 · 대조 일치
+
+- **근거**: Simon 18:2x "이어서 진행해" — 대기 중이던 A안("#2087 #2088 머지, 0221 적용")을 진행했다.
+- **머지**: #2087 squash `b5cff385`(18:30, `billing-tripwires` 가 운영 원장 모양 `0211_reward_records_90d_purge` 도 읽고 요약에 `cron_active`) · #2088 squash `4de713ba`(18:35, 0221 · 회귀 P16 · 런북 §7-6 감사 복원). 둘 다 CI 초록 뒤 head 고정.
+- **운영 0221**(이 세션, 버스 claim `claim-coding-prod-0221-1826` 먼저): MCP apply_migration → 원장 `20261006093612`(18:36:12 KST, 193행). main 파일과 바이트 동일, 파일 안 사후 조건 통과.
+- **대조(읽기)**: 함수 본문 2/2 일치(`reward_retention_health` b231c3b2… · `reward_purge_last_due` d07950ea…), health 는 service_role 만 · 도우미는 직접 실행 불가. `reward_retention_health()` ok=true · `cron_due` 10-06 04:37 KST · 마지막 성공 04:37:00 · 초과 0.
+- 이제 감시는 **89일**(방침 하루 전) · 미실행은 **그날 04:37 + 30분** 기준. 10-07 05:20 billing-tripwires 가 고친 워크플로로 처음 돈다(10-06 05:20 분은 GitHub Actions 장애 04:11~06:59 로 안 돌았다).
+- 되돌리기 = `db/migrations/rollback/0221_down.sql`(0211 판 복귀, 원장 행은 남김).
+- **다음 1개**: Alpha(vc61, 10-06 08:20 게시)에서 실제 보상형 광고 콜백이 오면 Edge 로그 `ssv_callback_ts.digits` 로 자릿수 측정 → GO-5b(0222 이후) · PR-7c(0214, v2 권한 회수 — 광고를 Alpha 밖으로 넓히기 전 필수).
+
+## 2026-10-06 12:44 / 효과음 3차 전체: Simon 선택 15개 연결(PR #2086 초안) · 오프닝 배경음 · Stability 환영 메일 확인(12:43) → 머지
 
 - **무엇을**: Simon "좀 느리더라도 지금 시도하는것은 무리일까? 그리고, 등록하는것은 /vibe-bot 스킬 활용해서 그록 봇 이용해서 진행하겠어."(10-06 00:1x) → "오프닝 배경음악? 소리 같은것도 넣을수 있을까? 또 다른곳에 소리를 챙길만한건 없어?" → "그럼 아까처럼 샘플 들려줘." 미리듣기 보고서 두 장: https://claude.ai/artifact/QbFw8ELDRLuQBnS2Jg3Dco (6자리) · https://claude.ai/artifact/QdXz1vbyZbP8KfBdYe96sE (배경음 5 + 새 자리 8).
 - **Stability 등록**: Relay `vb-a4d6eca9` → `simon-go-attested-vb-a4d6eca9`(00:35) 등록 완료 · 결제 없음. 결과에 화면 캡처가 없어 **환영 메일 도착(Simon 확인)이 #2086 머지 전 조건**이었고, 12:43 Simon 이 확인했다("왔어. 진행해.").
