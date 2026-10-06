@@ -19,7 +19,14 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { backboneVendor, chatVendorOverride, llmVendorOverride, multimodalVendor, proxyFnForVendor } from "../routing";
+import {
+  PHASE2_VENDOR,
+  backboneVendor,
+  chatVendorOverride,
+  llmVendorOverride,
+  multimodalVendor,
+  proxyFnForVendor,
+} from "../routing";
 import type { LlmVendor } from "../routing";
 
 const CR = String.fromCharCode(13);
@@ -234,19 +241,19 @@ describe("gemini is still reachable by name (one-variable rollback)", () => {
 });
 
 describe("the xai proxy seats what the switches can point at", () => {
-  function seats(): string[] {
-    const block = XAI_PROXY.match(/const PURPOSE_MODEL: Record<string, string> = \{([\s\S]*?)\n\};/);
-    if (!block) throw new Error("xai-proxy 의 PURPOSE_MODEL 을 못 찾았다");
+  function tableKeys(name: string): string[] {
+    const block = XAI_PROXY.match(new RegExp(`const ${name}: Record<string, string> = \\{([\\s\\S]*?)\\n\\};`));
+    if (!block) throw new Error(`xai-proxy 의 ${name} 을 못 찾았다`);
     return [...block[1].matchAll(/^\s*([a-z_]+):/gm)].map((m) => m[1]);
   }
+  const seats = () => tableKeys("PURPOSE_MODEL");
 
-  test("the twelve reasoning seats plus chat", () => {
+  test("the eight reasoning seats plus chat", () => {
+    // Twelve plus chat until S0.5 (2026-10-07) removed axis_estimate,
+    // cluster_infer, digest_weekly and ttfv_first_insight with their callers.
     expect(seats().sort()).toEqual(
       [
         "advisor",
-        "axis_estimate",
-        "cluster_infer",
-        "digest_weekly",
         "gap_synthesize",
         "northstar_propose",
         "ops_daily_brief",
@@ -255,24 +262,43 @@ describe("the xai proxy seats what the switches can point at", () => {
         "persona_synthesis",
         "secondb_chat",
         "self_model_propose",
-        "ttfv_first_insight",
       ].sort(),
     );
   });
 
-  test("the nine backbone purposes are deliberately absent", () => {
+  test("which is exactly what a switch can point here: the seat map plus chat", () => {
+    expect(seats().sort()).toEqual([...Object.keys(PHASE2_VENDOR), "secondb_chat"].sort());
+    expect(tableKeys("PURPOSE_EFFORT_MAX").sort()).toEqual(seats().sort());
+  });
+
+  test("none of the ten S0.5 seats is left in either xai-proxy table", () => {
+    const removed = [
+      "imagine",
+      "import_ingest",
+      "capture_classify",
+      "capture_voice",
+      "axis_estimate",
+      "cluster_infer",
+      "ttfv_first_insight",
+      "digest_weekly",
+      "crosscheck_challenge",
+      "crosscheck_defend",
+    ];
+    const tables = [...seats(), ...tableKeys("PURPOSE_EFFORT_MAX")];
+    expect(tables.filter((p) => removed.includes(p))).toEqual([]);
+  });
+
+  test("the six backbone purposes are deliberately absent", () => {
     // They are the highest-volume surfaces in the app (one classify per
     // capture, one per clip) and no cheap Grok tier is confirmed. Seating them
     // on the frontier model to make BACKBONE_VENDOR=xai "work" would be the
     // most expensive mistake available in that file. Unseated, the call answers
     // purpose_not_seated: loud, and free.
+    // Nine until S0.5 removed capture_classify, imagine and import_ingest.
     const backbone = [
       "audit_qa",
-      "capture_classify",
       "clipper_classify",
       "clipper_template_propose",
-      "imagine",
-      "import_ingest",
       "interview_probe",
       "reasoning_connect",
       "source_ingest",

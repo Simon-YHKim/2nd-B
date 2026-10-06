@@ -56,15 +56,14 @@ function setEnv(key: string, value: string | undefined): void {
   else process.env[key] = value;
 }
 
-// The nine that had no switch. Written out because the point of the change is
+// The ones that had no switch. Written out because the point of the change is
 // exactly this set; the sweep at the bottom is what keeps it honest over time.
+// Nine until S0.5 (2026-10-07) removed capture_classify, imagine and
+// import_ingest, which had no reachable caller.
 const BACKBONE: PromptPurpose[] = [
   "audit_qa",
-  "capture_classify",
   "clipper_classify",
   "clipper_template_propose",
-  "imagine",
-  "import_ingest",
   "interview_probe",
   "reasoning_connect",
   "source_ingest",
@@ -122,7 +121,7 @@ describe("the default is the retired-vendor landing (T1 stage A)", () => {
 });
 
 describe("the switch moves exactly the backbone", () => {
-  test("set explicitly, all nine move together", () => {
+  test("set explicitly, all six move together", () => {
     setEnv(ENV.backbone, "openai");
     for (const p of BACKBONE) expect(resolveVendorForPurpose(p, false)).toBe("openai");
     // openai is the default since T1 stage A, so the loop above no longer
@@ -143,15 +142,16 @@ describe("the switch moves exactly the backbone", () => {
     }
   });
 
-  test("it does not touch chat or the multimodal pair", () => {
+  test("it does not touch chat or the multimodal purpose", () => {
     setEnv(ENV.backbone, "claude");
     setEnv(ENV.chat, undefined);
     setEnv(ENV.multimodal, undefined);
     // Each of these groups has its own knob, and each knob's unset landing is
     // openai since T1 stage A. The backbone value must not be what shows up.
+    // (capture_voice was the second multimodal purpose until S0.5 removed the
+    // alias; voice follows multimodalVendor() directly.)
     expect(resolveVendorForPurpose("secondb_chat", false)).toBe("openai");
     expect(resolveVendorForPurpose("capture_ocr", false)).toBe("openai");
-    expect(resolveVendorForPurpose("capture_voice", false)).toBe("openai");
   });
 
   test("the seat switch still does not reach the backbone", () => {
@@ -170,16 +170,19 @@ describe("the switch moves exactly the backbone", () => {
     // A text-only proxy cannot serve a binary at all, so this is a capability
     // constraint before it is a preference. The multimodal knob's unset
     // landing is openai since T1 stage A; the backbone value must not win.
-    expect(resolveVendorForPurpose("imagine", true)).toBe("openai");
+    // source_ingest stands in for imagine (removed in S0.5): a backbone purpose
+    // that, without the image, would follow the backbone switch to claude.
+    expect(resolveVendorForPurpose("source_ingest", false)).toBe("claude");
+    expect(resolveVendorForPurpose("source_ingest", true)).toBe("openai");
     // And it is the multimodal KNOB that wins, not a hardcoded openai: an
     // explicit gemini there still carries the image (rollback property).
     setEnv(ENV.multimodal, "gemini");
-    expect(resolveVendorForPurpose("imagine", true)).toBe("gemini");
+    expect(resolveVendorForPurpose("source_ingest", true)).toBe("gemini");
   });
 });
 
 describe("the flip has somewhere to land", () => {
-  test("openai-proxy seats all nine", () => {
+  test("openai-proxy seats all six", () => {
     // Without this the switch is a way to break the app: the function answers
     // 400 purpose_not_seated before doing anything else.
     const seats = proxyMap("PURPOSE_MODEL");
@@ -188,9 +191,10 @@ describe("the flip has somewhere to land", () => {
 
   test("the high-volume classifiers are seated cheap, not on the frontier", () => {
     const seats = proxyMap("PURPOSE_MODEL");
-    expect(seats.capture_classify).toMatch(/-nano$/);
+    // capture_classify (nano) and import_ingest (mini) were seated here too
+    // until S0.5 removed them.
     expect(seats.clipper_classify).toMatch(/-nano$/);
-    for (const p of ["audit_qa", "source_ingest", "import_ingest", "clipper_template_propose", "interview_probe"]) {
+    for (const p of ["audit_qa", "source_ingest", "clipper_template_propose", "interview_probe"]) {
       expect(seats[p]).toMatch(/-mini$/);
     }
   });
@@ -203,7 +207,6 @@ describe("the flip has somewhere to land", () => {
       expect(phase2EffortFor(p)).toBeTruthy();
       expect(ceilings[p]).toBeTruthy();
     }
-    expect(ceilings.capture_classify).toBe("none");
     expect(ceilings.clipper_classify).toBe("none");
   });
 });
@@ -215,7 +218,9 @@ describe("no purpose is left without a way off Gemini", () => {
     if (!block) throw new Error("PromptPurpose 를 못 찾았다");
     // Only the union arms, so prose inside comments cannot invent a purpose.
     const purposes = [...block[1].matchAll(/^\s*\|\s*"([a-z_]+)"/gm)].map((m) => m[1] as PromptPurpose);
-    expect(purposes.length).toBeGreaterThan(20);
+    // 26 until S0.5 (2026-10-07) removed ten seats; an exact count, so a parse
+    // that silently stops early cannot pass for a sweep.
+    expect(purposes).toHaveLength(16);
 
     setEnv(ENV.backbone, "openai");
     setEnv(ENV.seats, "openai");
