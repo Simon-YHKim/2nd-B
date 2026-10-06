@@ -212,7 +212,7 @@
     },
     "recommend": {
       "title": "Recomendações",
-      "minorLocked": "As recomendações estão desligadas e bloqueadas para sua proteção.",
+      "minorLocked": "As recomendações estão desativadas e não podem ser ativadas.",
       "onBody": "Ligadas. Seus registros são analisados para sugerir conexões.",
       "turnOffA11y": "Desligar recomendações",
       "turnOff": "Desligar",
@@ -222,7 +222,7 @@
     },
     "semantic": {
       "title": "Conexões de registros por significado",
-      "minorLocked": "As conexões por significado estão desligadas e bloqueadas para sua proteção.",
+      "minorLocked": "As conexões por significado estão desativadas e não podem ser ativadas.",
       "onBody": "Ligadas. Os registros são indexados por significado para mostrar os parecidos.",
       "turnOffA11y": "Desligar as conexões por significado",
       "turnOff": "Desligar e excluir vetores",

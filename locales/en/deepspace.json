@@ -212,7 +212,7 @@
     },
     "recommend": {
       "title": "Recommendations",
-      "minorLocked": "Recommendations are off and locked for your protection.",
+      "minorLocked": "Recommendations are off and cannot be enabled.",
       "onBody": "On. Your records are analyzed to suggest connections.",
       "turnOffA11y": "Turn off recommendations",
       "turnOff": "Turn off",
@@ -222,7 +222,7 @@
     },
     "semantic": {
       "title": "Semantic record connections",
-      "minorLocked": "Semantic connections are off and locked for your protection.",
+      "minorLocked": "Semantic connections are off and cannot be enabled.",
       "onBody": "On. Records are indexed by meaning to surface similar ones.",
       "turnOffA11y": "Turn off semantic connections",
       "turnOff": "Turn off and delete vectors",

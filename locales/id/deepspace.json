@@ -212,7 +212,7 @@
     },
     "recommend": {
       "title": "Rekomendasi",
-      "minorLocked": "Rekomendasi dimatikan dan dikunci untuk melindungimu.",
+      "minorLocked": "Rekomendasi dinonaktifkan dan tidak dapat diaktifkan.",
       "onBody": "Aktif. Catatanmu dianalisis untuk menyarankan koneksi.",
       "turnOffA11y": "Matikan rekomendasi",
       "turnOff": "Matikan",
@@ -222,7 +222,7 @@
     },
     "semantic": {
       "title": "Koneksi catatan berdasarkan makna",
-      "minorLocked": "Koneksi berdasarkan makna dimatikan dan dikunci untuk melindungimu.",
+      "minorLocked": "Koneksi berdasarkan makna dinonaktifkan dan tidak dapat diaktifkan.",
       "onBody": "Aktif. Catatan diindeks berdasarkan makna untuk menampilkan yang mirip.",
       "turnOffA11y": "Matikan koneksi berdasarkan makna",
       "turnOff": "Matikan dan hapus vektor",
