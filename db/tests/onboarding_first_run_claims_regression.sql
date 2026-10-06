@@ -33,7 +33,8 @@ INSERT INTO auth.users (id, email) VALUES
   ('a0219c00-0000-4000-8000-00000000000c', 'claims-c@example.test'),
   ('a0219c00-0000-4000-8000-00000000000d', 'claims-d@example.test'),
   ('a0219c00-0000-4000-8000-00000000000e', 'claims-e@example.test'),
-  ('a0219c00-0000-4000-8000-00000000000f', 'claims-f@example.test');
+  ('a0219c00-0000-4000-8000-00000000000f', 'claims-f@example.test'),
+  ('a0219c00-0000-4000-8000-000000000010', 'claims-g@example.test');
 SET LOCAL session_replication_role = origin;
 
 -- A has a record, B a source, C nothing (a new account), D a completion from
@@ -45,7 +46,8 @@ INSERT INTO public.users (id, email, birth_date, locale, created_at) VALUES
   ('a0219c00-0000-4000-8000-00000000000c', 'claims-c@example.test', '1990-01-01', 'en', '2026-03-03 00:00:00+00'),
   ('a0219c00-0000-4000-8000-00000000000d', 'claims-d@example.test', '1990-01-01', 'en', '2026-04-04 00:00:00+00'),
   ('a0219c00-0000-4000-8000-00000000000e', 'claims-e@example.test', '1990-01-01', 'en', '2026-05-05 00:00:00+00'),
-  ('a0219c00-0000-4000-8000-00000000000f', 'claims-f@example.test', '1990-01-01', 'en', '2026-06-06 00:00:00+00');
+  ('a0219c00-0000-4000-8000-00000000000f', 'claims-f@example.test', '1990-01-01', 'en', '2026-06-06 00:00:00+00'),
+  ('a0219c00-0000-4000-8000-000000000010', 'claims-g@example.test', '1990-01-01', 'en', '2026-07-07 00:00:00+00');
 INSERT INTO public.records (user_id, kind, body) VALUES
   ('a0219c00-0000-4000-8000-00000000000a', 'note', 'first-run claims fixture a'),
   ('a0219c00-0000-4000-8000-00000000000d', 'note', 'first-run claims fixture d'),
@@ -165,6 +167,14 @@ $catalog$;
 -- This scratch database lacks Supabase's production table-wide SELECT grant.
 -- Supply the read floor needed to exercise the already-installed owner RLS.
 GRANT SELECT ON public.users TO authenticated;
+
+-- G: a seen mark with no grant beside it, inside the first-day window. No
+-- client path makes this row (shown always fills the grant too); it pins that a
+-- seen review stays closed on its own, not only through ttfv_claimed_at.
+UPDATE public.users
+   SET onboarding_completed_at = now() - interval '1 hour',
+       ttfv_seen_at = now() - interval '30 minutes'
+ WHERE id = 'a0219c00-0000-4000-8000-000000000010';
 
 -- Caller C, a brand-new account, signed in with session s-c-1.
 SET LOCAL request.jwt.claims = '{"sub": "a0219c00-0000-4000-8000-00000000000c", "role": "authenticated", "session_id": "s-c-1"}';
@@ -377,6 +387,20 @@ BEGIN
   END IF;
 END
 $direct$;
+
+-- Caller G: seen, never granted.
+SET LOCAL request.jwt.claims = '{"sub": "a0219c00-0000-4000-8000-000000000010", "role": "authenticated", "session_id": "s-g-1"}';
+
+DO $seen_only$
+DECLARE
+  answer jsonb;
+BEGIN
+  answer := public.claim_first_run('a0219c00-0000-4000-8000-000000000010', 'ttfv');
+  IF (answer ->> 'granted')::boolean OR answer ->> 'reason' <> 'done' THEN
+    RAISE EXCEPTION 'a seen first-day review was granted because no grant sat beside it: %', answer;
+  END IF;
+END
+$seen_only$;
 
 -- Caller F: the deletion fence. The tombstone is written by the owner of the
 -- table (begin_account_deletion's job), so drop to the session role for it.
