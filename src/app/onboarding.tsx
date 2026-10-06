@@ -21,6 +21,8 @@ import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { canonFlows } from "@/lib/canon";
 import { markOnboardingComplete, useOnboardingComplete } from "@/lib/onboarding/state";
+import { welcomeCueAllowed } from "@/lib/audio/app-cues";
+import { requestGlobalCue } from "@/lib/audio/global-cues";
 import { m3 } from "@/lib/theme/m3";
 
 interface Slide {
@@ -72,6 +74,9 @@ export default function Onboarding() {
   const { userId, loading } = useAuth();
   const onboardingComplete = useOnboardingComplete();
   const [step, setStep] = useState(0);
+  // 환영 소리(Q-261006-06)는 건너뛰기를 누른 사람에게는 내지 않는다. 건너뛰기도 같은 마지막
+  // 단계로 이어지므로, 눌렀다는 사실을 따로 기억한다.
+  const [skipped, setSkipped] = useState(false);
 
   // Android hardware Back reverses one slide, including the final handoff frame.
   useEffect(() => {
@@ -92,6 +97,8 @@ export default function Onboarding() {
   // Merely mounting the route, paging, or skipping to the handoff does not write.
   function finishOnboarding(destination: HandoffDestination) {
     markOnboardingComplete();
+    // 누르는 순간 화면이 바뀌어 이 화면의 소리는 잘린다. 루트의 GlobalCueHost 가 끝까지 낸다.
+    if (welcomeCueAllowed({ destination, skipped })) requestGlobalCue("onboardingWelcome");
     if (destination === "/") {
       router.replace("/");
       return;
@@ -118,7 +125,7 @@ export default function Onboarding() {
             background={m3.color.surfaceContainer}
             accessibilityLabel={skipLabel}
             accessibilityHint={skipHint}
-            onPress={() => setStep(AUTH_STEP)}
+            onPress={() => { setSkipped(true); setStep(AUTH_STEP); }}
             contentStyle={styles.skipContent}
           >
             <Text variant="caption" style={styles.skipText}>{skipLabel}</Text>

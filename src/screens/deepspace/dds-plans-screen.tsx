@@ -59,6 +59,7 @@ import {
   useProgression,
 } from "@/lib/progression/useProgression";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { requestGlobalCue } from "@/lib/audio/global-cues";
 import { m3 } from "@/lib/theme/m3";
 
 const PRO_COMING_SOON = true;
@@ -606,6 +607,10 @@ export function DeepSpacePlansScreen() {
       if (authOwnerRef.current !== owner) return;
       if (outcome.status === "purchased") {
         setPurchaseState("purchased");
+        // 구매 소리(Q-261006-12)는 스토어가 결제를 확정한 이 분기에서만. 취소 · 오류 · 복원 ·
+        // 웹 Paddle 넘김(등급은 웹훅이 나중에 연다)은 무음이다. 결제 시트가 막 닫힌 자리라
+        // 화면 소리 관문 대신 루트의 GlobalCueHost 가 낸다.
+        requestGlobalCue("planPurchased");
         await refreshTier();
       } else if (outcome.status === "cancelled") {
         setPurchaseState("cancelled");
@@ -735,6 +740,10 @@ export function DeepSpacePlansScreen() {
     // The grant used to swallow its own failure, so this screen had nothing to
     // say when a watched ad paid nothing. Now it reports, and the sheet says it.
     const grant = await addRewardCredits(owner, credits);
+    // 보상 소리(Q-261006-13)는 적립 호출이 실제로 성공했을 때만. 위의 '귀속 불가' 분기도 시트에는
+    // "granted" 로 돌아가지만 적립이 없으므로 여기까지 오지 않는다. SSV 모드에서는 서버가
+    // 적립하므로 "processing" 이 와서 무음이다.
+    if (grant === "granted") requestGlobalCue("rewardCredited");
     if (activeOwnerRef.current !== owner) return grant;
     const generation = ++usageGeneration.current;
     const settlement = await settleAsyncRead(readReasoningUsageStrict(owner), READ_TIMEOUT_MS);

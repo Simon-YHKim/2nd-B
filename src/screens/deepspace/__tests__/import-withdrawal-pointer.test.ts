@@ -431,6 +431,8 @@ function world(options: WorldOptions = {}) {
     deleteAsked: [] as string[],
     surviveQueries: 0,
     alreadyImported: [] as unknown[],
+    // 가져오기 완료 소리(Q-261006-11)가 몇 번 났는가.
+    importCues: 0,
   };
   let created = 0;
   const note = (value: unknown) => {
@@ -546,6 +548,7 @@ function world(options: WorldOptions = {}) {
       setOutcomeKind: () => undefined,
       setStep: () => undefined,
       setAlreadyImported: (value: unknown) => state.alreadyImported.push(value),
+      playImportCue: () => { state.importCues += 1; },
       createdSourceIds: tabs[tab].ownership.createdSourceIds,
     })(undefined);
   };
@@ -559,6 +562,7 @@ function world(options: WorldOptions = {}) {
       setPicking: () => undefined,
       setImporting: () => undefined,
       setResult: () => undefined,
+      playImportCue: () => { state.importCues += 1; },
       setHistory: () => undefined,
       t: (key: string) => key,
       pickImportFiles: async () => [{ name: "notes.md", text: notes.join(" --- ") }],
@@ -1234,6 +1238,8 @@ describe("가져오기 허브 - 같은 파일 · 같은 선택을 두 번 비준
     // 알림 값은 고른 건수다. 허브는 고른 것을 노트 하나로 묶어 담으므로, 1 이라고 하면
     // 고른 것 가운데 하나만 겹친 것처럼 읽힌다.
     expect(w.state.alreadyImported).toEqual([0, 2]);
+    // 새로 담은 첫 비준만 소리를 낸다. 같은 선택의 두 번째 비준은 무음이다.
+    expect(w.state.importCues).toBe(1);
   });
 
   test("비준이 적는 항목은 owned 표지를 단다 - 철회가 서버에 묻지 않고 지운다", async () => {

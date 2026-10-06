@@ -4,6 +4,7 @@ import { purgeHealthAutoReadForDeletedAccount } from "../health/auto-read";
 import { purgeImportHistoryForDeletedAccount } from "../import/history";
 import { purgeAuditWriteOutboxForOwner } from "../llm/audit-write-outbox";
 import { purgeNoticeLastSeenForDeletedAccount } from "../notices/last-seen";
+import { purgeStarLastSeenForDeletedAccount } from "../persona/star-last-seen";
 import { purgeNoticeReadStateForDeletedAccount } from "../notices/read-store";
 import { purgeFocusForDeletedAccount } from "../ops/focus-store";
 import { clearAccountScopedLocalNotifications } from "../ops/reminders";
@@ -48,6 +49,7 @@ export async function purgeDeletedAccountLocalData(userId: string): Promise<Loca
       observe(() => purgeHealthAutoReadForDeletedAccount(owner)),
       observe(() => purgeNoticeReadStateForDeletedAccount(owner)),
       observe(() => purgeNoticeLastSeenForDeletedAccount(owner)),
+      observe(() => purgeStarLastSeenForDeletedAccount(owner)),
       observe(async () => {
         await clearAccountScopedLocalNotifications(owner);
         return true;
