@@ -99,14 +99,14 @@ SELECT e.at, e.action, e.reason_code, e.actor, e.approved_by, e.actor_role,
 
 ## 6. 감시와 알림 (Gaius ④)
 
-- `public.reward_retention_health()`(service_role과 운영자 세션 전용)가 돌려주는 것: 90일 넘은 비보류 기록 수(표별), 재검토 기한이 지난 활성 보류 수(`overdue_hold_reviews`, S4), 분쟁 종료 3년 넘게 남은 감사 사건 수(`overdue_hold_audit_cases`, S1), `purge-reward-records-90d`의 활성 여부, 마지막 성공 시각, 7일 안 실패 수, 26시간 넘게 성공이 없는지(`cron_stale`), 그리고 종합 `ok`.
+- `public.reward_retention_health()`(service_role과 운영자 세션 전용)가 돌려주는 것: 89일 넘은 비보류 기록 수(표별, 방침 상한 90일 하루 전에 알리려는 기준, 0221 · 보안 게이트 r4 DB4-01), 재검토 기한이 지난 활성 보류 수(`overdue_hold_reviews`, S4), 분쟁 종료 3년 넘게 남은 감사 사건 수(`overdue_hold_audit_cases`, S1), `purge-reward-records-90d`의 활성 여부, 마지막 성공 시각, 7일 안 실패 수, 가장 최근 예정 실행(04:37 KST, 30분 유예. `cron_due`) 뒤에 성공이 없는지(`cron_stale`, 0221 · r4 BL4-01. 예약이 기록 없이 멈추면 그날 05:20 점검이 알린다), 그리고 종합 `ok`.
 - **알림**: `.github/workflows/billing-tripwires.yml`(매일 05:20 KST 예약, 실제 실행은 GitHub 사정으로 몇 시간 늦을 수 있음)가 이 함수를 읽어 `ok = false`면 `reward_retention` 칸을 1로 만들고 ops 이슈를 연다. 출력은 건수와 참/거짓뿐이다(리포가 public이라 이슈와 로그도 공개된다).
 - 배포 직후 첫 04:37 KST 실행 전에는 `cron_stale = true`가 맞다(아직 한 번도 돌지 않았다). 첫 실행 뒤에도 `true`면 조사한다.
 - 이상이 보이면:
   1. `verify/prod-readonly-checks.sql`의 F·G·H로 실행 기록과 잔량을 본다(읽기만).
   2. 정리 실행이 실패했으면(잠금 시간 초과 포함) 다음 날을 기다리지 않는다. 실패한 04:37 KST 실행 뒤 **24시간이 되기 전에** 승인된 수동 실행(3번)을 마친다. 88일 기준의 하루 여유가 이 복구 시간이다. 24시간을 넘기면 일부 기록이 90일을 넘으므로 그 구간을 Gaius에게 알린다. 수동 실행도 실패하면 바로 Simon에게 알린다(보안 게이트 r2 BL2-02 · r3 DB3-01).
   3. 수동 실행 `SELECT public.purge_reward_records();`는 운영 쓰기다. Simon 승인 뒤 Hadrianus가 실행한다.
-  4. 90일 넘은 비보류 기록이 실제로 있으면 방침 위반 가능성이 있으므로 같은 날 Gaius에게 알린다.
+  4. `overdue_*` 표별 건수(89일 넘은 비보류 기록)가 0이 아니면 정리가 놓친 것이다(한 번에 표당 최대 2만 건이라 그보다 큰 잔량, 또는 건너뛴 실행). 방침 상한까지 하루가 남았으므로 그날 안에 승인된 수동 실행(3번)을 잔량이 0이 될 때까지 되풀이한다. 그래도 남거나, 1번에서 이미 90일을 넘은 기록이 보이면 같은 날 Gaius에게 알린다.
   5. `overdue_hold_reviews`가 0이 아니면 §2의 4번(재검토)을 바로 한다. `overdue_hold_audit_cases`가 0이 아니면 정리 작업이 3-6 단계에서 실패하는지 본다(1번과 같음).
 
 ## 7. 백업 복원 뒤 삭제 다시 적용 (필수. S3 방침 문장 B 채택)
@@ -122,30 +122,78 @@ SELECT e.at, e.action, e.reason_code, e.actor, e.approved_by, e.actor_role,
    1. `SELECT jobid FROM cron.job WHERE jobname = 'purge-reward-records-90d';` 값을 적어 둔다(예약을 지우면 이름으로는 찾을 수 없다).
    2. `SELECT cron.unschedule('purge-reward-records-90d');`
    3. `SELECT count(*) FROM cron.job_run_details WHERE jobid = <1의 값> AND start_time >= '<복원 완료 시각>';` 이 0 이어야 한다. 1 이상이면 복원 시점 이후에 건 보류의 거래가 이미 지워졌을 수 있으므로 **같은 백업에서 다시 복원**하고 이 단계를 처음부터 다시 한다.
-   4. `SELECT coalesce(max(id), 0) FROM public.reward_dispute_hold_events;` 값을 적어 둔다. 복원본에 원래 있던 감사 행의 끝이다. 6번이 이 값보다 큰 id(복원 작업이 만든 행)만 정확히 고른다.
+   4. `SELECT coalesce(max(id), 0) FROM public.reward_dispute_hold_events;` 값을 적어 둔다. 복원본에 원래 있던 감사 행의 끝이다. 6번이 이 값보다 큰 id(복원 작업이 만든 행)만 정확히 고르고, 2번을 시작한 시각과 대조해 잘못 적힌 값을 거른다.
 3. **계정 삭제 다시 적용**: 복원 시점 이후에 삭제된 계정 목록을 구한다. 우선 출처는 장애 난 DB의 `account_deletion_tombstones`(읽을 수 있으면)이고, 그다음은 Supabase Auth 감사 로그와 운영 기록이다. 그 계정들을 평소의 계정 삭제 경로로 다시 지운다(tombstone 행도 다시 쓴다).
    - **삭제 원장 출처(S3-LEDGER 확정, 2026-10-04 21:04 KST)**:
      1. 장애 난 DB(원래 Supabase 프로젝트)의 `account_deletion_tombstones`에서 복원 시점(1번) 이후 행을 읽는다. 읽기 전용 SQL 세션으로 계정 ID와 삭제 시각만 가져오고, 목록은 worklog에 건수만 남긴다.
      2. 이 표를 얻지 못하면(프로젝트째 잃었거나 읽을 수 없음) **서비스를 다시 열지 않는다**. Hadrianus가 상황(복원 시점, 잃은 구간, 알 수 있는 다른 단서)을 Simon에게 올리고, Simon이 진행 방법을 정한 뒤에만 다시 연다. Supabase Auth 감사 로그 같은 다른 출처는 Simon이 그때 고를 수 있는 단서로만 적는다.
 4. **보류와 감사 기록 맞추기**: 복원 시점 이후에 풀린 보류는 복원된 DB에서 다시 활성으로 보인다. 사건 파일과 대조해 풀린 것은 다시 푼다(Simon 승인 기록은 원래 것을 쓴다). 복원 시점 이후에 새로 건 보류는 다시 건다(대상 거래가 복원돼 있을 때만. 정리를 아직 돌리지 않았으므로 88일이 지난 거래도 여기서는 남아 있다). 복원 시점 이후의 재검토도 사건 파일대로 `review`를 다시 실행한다. 이렇게 다시 건 보류와 다시 한 재검토는 `next_review_at`이 복원 시각 + 90일로 밀린다. 원래 기한(장애 난 DB의 `reward_dispute_holds.next_review_at`, 없으면 사건 파일의 마지막 재검토 + 90일)이 그보다 이르면, **원래 기한 안에 실제 재검토를 한다**(Simon의 새 승인 뒤 `review_reward_dispute_hold`). 복원 작업이 재검토 기한을 늘려 주지 않게 하려는 것이다(보안 게이트 r3 BL3-03).
 5. **88일 정리 다시 적용**: `SELECT public.purge_reward_records();`를 실행한다. 복원된 행 가운데 이미 88일이 지난 비보류 기록이 지워진다. 3년이 지나 이미 지운 감사 기록이 복원됐으면 이때 다시 지워진다.
-6. **감사 기록을 원본으로 맞추기**(보안 게이트 r2 BL2-03 · r3 DB3-02): 백업 뒤에 생긴 감사 행은 복원본에 없고, 3·4번이 함수로 다시 한 일은 복원 작업 시각으로 새 감사 행을 만든다. 그대로 두면 사건 이력이 빠지거나(예: 백업 뒤 걸었다가 계정 삭제로 끝난 사건은 `placed`·`source_deleted`가 모두 없다) 종료일이 복원 시각으로 밀려 3년 보관이 길어진다. 장애 난 DB를 읽을 수 있으면 아래를 한다. 지우기와 넣기는 **한 트랜잭션**이라 중간에 끊기거나 건수가 어긋나면 아무것도 바뀌지 않는다.
-   1. 장애 난 DB에서 `at >= '<복원 시점>'`인 `reward_dispute_hold_events` 행을 CSV로 내보낸다(`case_ref`, `action`, `reason_code`, `actor`, `approved_by`, `actor_role`, `at`만. 거래 ID는 내보내지 않는다). 건수를 적는다.
-   2. 복원된 DB의 운영자 세션(psql)에서:
+6. **감사 기록을 원본으로 맞추기**(보안 게이트 r2 BL2-03 · r3 DB3-02 · r4 DB4-02 · BL4-02): 백업 뒤에 생긴 감사 행은 복원본에 없고, 3·4번이 함수로 다시 한 일은 복원 작업 시각으로 새 감사 행을 만든다. 그대로 두면 사건 이력이 빠지거나(예: 백업 뒤 걸었다가 계정 삭제로 끝난 사건은 `placed`·`source_deleted`가 모두 없다) 종료일이 복원 시각으로 밀려 3년 보관이 길어진다. 장애 난 DB를 읽을 수 있으면 아래를 한다. 지우기와 넣기는 **한 트랜잭션**이라 중간에 끊기거나 검사가 하나라도 어긋나면 아무것도 바뀌지 않는다.
+   1. 장애 난 DB에서 `at >= '<복원 시점>'::timestamptz - interval '1 day'`인 `reward_dispute_hold_events` 행을 **`id`를 포함해** CSV로 내보낸다(`id`, `case_ref`, `action`, `reason_code`, `actor`, `approved_by`, `actor_role`, `at`만. 거래 ID는 내보내지 않는다). 건수를 적는다. 하루를 앞당기는 이유: 백업 스냅샷 직전에 쓰고 직후에 커밋한 행은 `at`이 복원 시점보다 이른데도 백업에 없다(r4 BL4-02). 그런 행까지 담고, 복원본에 이미 있는 행은 아래에서 `id`로 걸러 낸다.
+   2. 복원된 DB의 운영자 세션(psql) 하나에서 아래를 그대로 실행한다. 사람이 적는 값은 맨 위 세 줄뿐이고, 한 번만 적는다(r4 DB4-02). 경계(`audit_boundary`)를 잘못 적으면 시각과 대조하는 두 검사가 멈춘다: 경계보다 큰 `id`는 모두 복원 뒤에 만든 행이어야 하고, 경계 이하에는 복원 뒤에 만든 행이 없어야 한다.
       ```sql
+      \set audit_boundary <2번 4에서 적은 값>
+      \set restore_done '<2번을 시작한 시각, 예: 2026-10-06 03:10:00+09>'
+      \set src_rows <1의 건수>
       BEGIN;
-      CREATE TEMP TABLE audit_src (case_ref text, action text, reason_code text, actor text,
-                                   approved_by text, actor_role text, at timestamptz) ON COMMIT DROP;
+      CREATE TEMP TABLE audit_src (id bigint PRIMARY KEY, case_ref text, action text, reason_code text,
+                                   actor text, approved_by text, actor_role text, at timestamptz) ON COMMIT DROP;
       \copy audit_src FROM '<1의 CSV>' WITH (FORMAT csv, HEADER true)
-      SELECT count(*) FROM audit_src;                                                   -- 1의 건수와 같아야 한다
-      SELECT count(*) FROM public.reward_dispute_hold_events WHERE id > <2번 4에서 적은 값>;  -- 3·4번이 만든 행 수
-      SET LOCAL app.reward_hold_audit_purge = '1';
-      DELETE FROM public.reward_dispute_hold_events WHERE id > <2번 4에서 적은 값>;
-      INSERT INTO public.reward_dispute_hold_events (case_ref, action, reason_code, actor, approved_by, actor_role, at)
-      SELECT case_ref, action, reason_code, actor, approved_by, actor_role, at FROM audit_src;
-      -- DELETE 와 INSERT 가 돌려준 건수가 위 두 count 와 같으면 COMMIT, 하나라도 다르면 ROLLBACK
+      CREATE TEMP TABLE restore_params ON COMMIT DROP AS
+        SELECT :audit_boundary::bigint AS boundary, :'restore_done'::timestamptz AS restore_done,
+               :src_rows::bigint AS src_rows;
+      DO $restore_audit$
+      DECLARE
+        p     record;
+        v_bad bigint;
+        v_del bigint;
+        v_ins bigint;
+      BEGIN
+        SELECT * INTO p FROM restore_params;
+        IF (SELECT count(*) FROM audit_src) <> p.src_rows THEN
+          RAISE EXCEPTION 'CSV has % rows, the export had %', (SELECT count(*) FROM audit_src), p.src_rows;
+        END IF;
+        SELECT count(*) INTO v_bad FROM public.reward_dispute_hold_events
+         WHERE id > p.boundary AND at < p.restore_done;
+        IF v_bad > 0 THEN
+          RAISE EXCEPTION 'boundary % is too low: % rows from the backup would be deleted', p.boundary, v_bad;
+        END IF;
+        SELECT count(*) INTO v_bad FROM public.reward_dispute_hold_events
+         WHERE id <= p.boundary AND at >= p.restore_done;
+        IF v_bad > 0 THEN
+          RAISE EXCEPTION 'boundary % is too high: % rows made by the restore would stay', p.boundary, v_bad;
+        END IF;
+        PERFORM pg_catalog.set_config('app.reward_hold_audit_purge', '1', true);
+        DELETE FROM public.reward_dispute_hold_events WHERE id > p.boundary;
+        GET DIAGNOSTICS v_del = ROW_COUNT;
+        PERFORM pg_catalog.set_config('app.reward_hold_audit_purge', '', true);
+        -- 복원본에 같은 id 가 있는 원본 행은 내용까지 같아야 한다(백업에서 온 행이다).
+        SELECT count(*) INTO v_bad FROM audit_src AS s
+          JOIN public.reward_dispute_hold_events AS e ON e.id = s.id
+         WHERE (e.case_ref, e.action, e.reason_code, e.actor, e.approved_by, e.actor_role, e.at)
+               IS DISTINCT FROM (s.case_ref, s.action, s.reason_code, s.actor, s.approved_by, s.actor_role, s.at);
+        IF v_bad > 0 THEN
+          RAISE EXCEPTION '% source rows differ from the restored row with the same id', v_bad;
+        END IF;
+        -- 복원본에 없는 원본 행만, 원래 id 그대로 넣는다.
+        INSERT INTO public.reward_dispute_hold_events
+               (id, case_ref, action, reason_code, actor, approved_by, actor_role, at)
+        OVERRIDING SYSTEM VALUE
+        SELECT s.id, s.case_ref, s.action, s.reason_code, s.actor, s.approved_by, s.actor_role, s.at
+          FROM audit_src AS s
+         WHERE NOT EXISTS (SELECT 1 FROM public.reward_dispute_hold_events AS e WHERE e.id = s.id)
+         ORDER BY s.id;
+        GET DIAGNOSTICS v_ins = ROW_COUNT;
+        PERFORM pg_catalog.setval(pg_catalog.pg_get_serial_sequence('public.reward_dispute_hold_events', 'id'),
+                                  (SELECT max(id) FROM public.reward_dispute_hold_events));
+        RAISE NOTICE 'restore-made rows deleted: %, source rows inserted: %', v_del, v_ins;
+      END
+      $restore_audit$;
+      COMMIT;
       ```
-   - 시각 범위가 아니라 id로 고르므로, 복원본에 원래 있던 행은 지우지 않는다. 이 트랜잭션이 §8 "감사 표에 직접 쓰지 않는다"의 유일한 예외다. 복원 창 안에서 Simon 승인 뒤 Hadrianus가 하고, 건수만 worklog에 남긴다.
+   - `id`로 고르고 시각으로 검사하므로, 복원본에 원래 있던 행은 지우지 않고 백업에 빠진 원본 행은 원래 `id`로 돌아온다. 마지막에 `id` 순번을 가장 큰 값에 맞춘다. 이 트랜잭션이 §8 "감사 표에 직접 쓰지 않는다"의 유일한 예외다. 복원 창 안에서 Simon 승인 뒤 Hadrianus가 하고, 지운 건수와 넣은 건수만 worklog에 남긴다.
+   - `restore_done`은 2번(정리 예약 끄기)을 시작한 시각이다. 3·4번이 만든 감사 행은 모두 그 뒤에 쓰인다. 백업에서 온 행은 모두 그보다 이르다.
    - 장애 난 DB를 읽을 수 없으면 서비스를 다시 열지 않는다. S3-LEDGER와 같이 Hadrianus가 상황을 올리고, 사건 파일로 다시 쓸지 Simon이 정한다.
 7. **정리 예약 다시 켜기**: `SELECT cron.schedule('purge-reward-records-90d', '37 19 * * *', 'SELECT public.purge_reward_records();');` (0211 의 예약과 같은 이름 · 시각 · 명령.)
 8. **확인**: `SELECT public.reward_retention_health();`가 `ok = true`인지(첫 cron 실행 전이면 `cron_stale`만 true), `verify` E가 0인지 본다.

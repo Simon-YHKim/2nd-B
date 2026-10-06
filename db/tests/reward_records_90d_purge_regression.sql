@@ -36,6 +36,10 @@
 -- r1 게이트(2026-10-05): P7 감사 행 수 3(해제 뒤 정리는 source_deleted 를 남기지 않는다), P15 경계 ·
 --   여러 보류 사건 추가, P12 티켓 · cron 없는 ok. 보류와 정리의 경합(DB-01)은 두 세션이 필요해
 --   이 파일이 아니라 supabase-dry-run.yml 의 "Race a dispute hold against the 88-day purge" 단계가 본다.
+-- r4 게이트(2026-10-06, 0221): P16 감시 기준. 89일 + 1시간 전 거래는 "넘은 기록" 으로 세고 88일 23시간
+--   전 거래는 세지 않는다(DB4-01). 미실행 판단의 기준 시각은 가장 최근 04:37 KST 이고 30분 유예가
+--   지나야 그날 것이 된다(BL4-01). pg_cron 이 없는 CI 에서는 cron_stale 이 늘 false 라 시각 계산
+--   함수를 직접 시각 사례로 본다. 0221 이 없으면(그 전 판) 건너뛴다.
 BEGIN;
 
 SET LOCAL session_replication_role = replica;
@@ -376,6 +380,46 @@ BEGIN
   IF n <> 1 THEN RAISE EXCEPTION 'P10: v3 did not pay a fresh callback'; END IF;
 END
 $p10$;
+RESET request.jwt.claim.role;
+
+-- P16 (0221, 보안 게이트 r4 DB4-01 · BL4-01)
+SET LOCAL request.jwt.claim.role = 'service_role';
+DO $p16$
+DECLARE
+  v_src text;
+BEGIN
+  IF to_regprocedure('public.reward_purge_last_due(timestamptz)') IS NULL THEN
+    RAISE NOTICE 'P16 skipped: 0221 not applied';
+    RETURN;
+  END IF;
+  v_src := (SELECT prosrc FROM pg_proc WHERE oid = 'public.reward_retention_health()'::regprocedure);
+  IF v_src !~ 'make_interval\(days => 89\)' OR v_src !~ 'reward_purge_last_due' OR v_src ~ '26 hours' THEN
+    RAISE EXCEPTION 'P16: health is not on the 0221 thresholds'; END IF;
+
+  -- 예정 시각: 05:20 점검은 그날 04:37, 유예(05:07) 전에는 전날 04:37.
+  IF public.reward_purge_last_due('2026-10-06 05:20+09') <> '2026-10-06 04:37+09'::timestamptz
+     OR public.reward_purge_last_due('2026-10-06 05:07+09') <> '2026-10-06 04:37+09'::timestamptz
+     OR public.reward_purge_last_due('2026-10-06 05:06:59+09') <> '2026-10-05 04:37+09'::timestamptz
+     OR public.reward_purge_last_due('2026-10-06 03:00+09') <> '2026-10-05 04:37+09'::timestamptz
+     OR public.reward_purge_last_due('2026-10-06 23:59+09') <> '2026-10-06 04:37+09'::timestamptz
+     OR public.reward_purge_last_due('2026-01-01 00:10+09') <> '2025-12-31 04:37+09'::timestamptz THEN
+    RAISE EXCEPTION 'P16: purge due time is not the last 04:37 KST past its 30-minute grace'; END IF;
+
+  -- 89일 기준. P10 이 v3 로 지급한 거래(사용자 1, 보류 없음)를 옮겨 가며 센다. P13 의 거래는 사용자 2 의
+  -- 계정 삭제(P7)와 함께 사라졌다. 정리는 다시 돌리지 않는다.
+  UPDATE public.rewarded_ssv_txns SET granted_at = pg_catalog.now() - interval '89 days 1 hour'
+   WHERE transaction_id = 'txn-p90-v3';
+  IF NOT FOUND THEN RAISE EXCEPTION 'P16: P10 fixture txn-p90-v3 is missing'; END IF;
+  IF (public.reward_retention_health() ->> 'overdue_rewarded_ssv_txns')::int <> 1 THEN
+    RAISE EXCEPTION 'P16: an 89-day-1-hour record was not reported: %', public.reward_retention_health(); END IF;
+  UPDATE public.rewarded_ssv_txns SET granted_at = pg_catalog.now() - interval '88 days 23 hours'
+   WHERE transaction_id = 'txn-p90-v3';
+  IF (public.reward_retention_health() ->> 'overdue_rewarded_ssv_txns')::int <> 0 THEN
+    RAISE EXCEPTION 'P16: an 88-day-23-hour record was reported: %', public.reward_retention_health(); END IF;
+  IF (public.reward_retention_health() ->> 'cron_due') IS NULL THEN
+    RAISE EXCEPTION 'P16: health does not show the due time it judged against'; END IF;
+END
+$p16$;
 RESET request.jwt.claim.role;
 
 ROLLBACK;
