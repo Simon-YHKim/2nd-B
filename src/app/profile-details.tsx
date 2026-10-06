@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -49,7 +50,8 @@ import {
   saveDisplayName,
 } from "@/lib/supabase/display-name";
 import { loadProfileIdentity } from "@/screens/deepspace/dds-profile-identity";
-import { CHAT_NAME_MAX, chatNameAvailable, chatNameShapeOk, fetchChatName, saveChatName } from "@/lib/supabase/chat-name";
+import { STATUS_MESSAGE_MAX, fetchStatusMessage, saveStatusMessage } from "@/lib/supabase/status-message";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { fetchAccountBasics, type AccountBasics } from "@/lib/supabase/account-basics";
 
 export default function ProfileDetailsScreen() {
@@ -64,7 +66,7 @@ export default function ProfileDetailsScreen() {
     refresh: refreshAuth,
     isMinor,
   } = useAuth();
-  // 혼인 여부 · 대화명은 성인에게만(Simon Q-261007-02). 나이를 모르면(null) 묻지 않는다.
+  // 혼인 여부는 성인에게만(Simon Q-261007-02). 나이를 모르면(null) 묻지 않는다.
   const adult = isMinor === false;
   const [details, setDetails] = useState<ProfileDetails>({});
   const [loadState, setLoadState] = useState<{
@@ -86,10 +88,11 @@ export default function ProfileDetailsScreen() {
   const saveOperationRef = useRef(0);
   // 마지막으로 읽었거나 저장한 이름. 저장 버튼은 이름이 이것과 다를 때만 이름도 쓴다.
   const savedNameRef = useRef("");
-  // 대화명(0230). 닉네임처럼 읽은 값이 저장 기준값이고, 바뀐 경우에만 쓴다.
-  const [chatName, setChatName] = useState("");
-  const [chatLoad, setChatLoad] = useState<{ userId: string | null; status: "idle" | "loading" | "ready" | "error" }>({ userId: null, status: "idle" });
-  const savedChatNameRef = useRef("");
+  // 상태 메시지(0231, Simon 2026-10-07 정정: 카카오톡 상태 메시지). 닉네임처럼 읽은 값이 저장
+  // 기준값이고, 바뀐 경우에만 쓴다. 겹쳐도 되고 나이 제한도 없다.
+  const [statusMessage, setStatusMessage] = useState("");
+  const [statusLoad, setStatusLoad] = useState<{ userId: string | null; status: "idle" | "loading" | "ready" | "error" }>({ userId: null, status: "idle" });
+  const savedStatusRef = useRef("");
   const [account, setAccount] = useState<{ owner: string; value: AccountBasics } | null>(null);
   const kbHeight = useKeyboard();
   activeUserIdRef.current = userId;
@@ -167,17 +170,17 @@ export default function ProfileDetailsScreen() {
   useEffect(() => {
     if (!userId) return;
     let alive = true;
-    savedChatNameRef.current = "";
-    setChatName("");
-    setChatLoad({ userId, status: "loading" });
-    void fetchChatName(userId)
-      .then((name) => {
+    savedStatusRef.current = "";
+    setStatusMessage("");
+    setStatusLoad({ userId, status: "loading" });
+    void fetchStatusMessage(userId)
+      .then((text) => {
         if (!alive) return;
-        savedChatNameRef.current = name ?? "";
-        setChatName(name ?? "");
-        setChatLoad({ userId, status: "ready" });
+        savedStatusRef.current = text ?? "";
+        setStatusMessage(text ?? "");
+        setStatusLoad({ userId, status: "ready" });
       })
-      .catch(() => { if (alive) setChatLoad({ userId, status: "error" }); });
+      .catch(() => { if (alive) setStatusLoad({ userId, status: "error" }); });
     // 이메일 · 생년월일은 보여주기만 한다(Q-261007-04). 못 읽으면 그 줄을 비워 둔다.
     void fetchAccountBasics(userId).then(
       (value) => { if (alive) setAccount({ owner: userId, value }); },
@@ -189,6 +192,8 @@ export default function ProfileDetailsScreen() {
   // 아바타 초상화(Simon 2026-10-07). 저장된 것이 없거나 못 읽으면 기본 아바타를 그린다 -
   // 그림일 뿐이라 이 화면의 저장을 막지 않는다. 스튜디오에서 돌아오면 다시 읽는다.
   const [avatar, setAvatar] = useState<{ owner: string; spec: AvatarSpec } | null>(null);
+  // 아바타는 상자 폭을 채우는 정사각형으로 그린다(Simon 2026-10-07). 폭은 재야 안다.
+  const [avatarWidth, setAvatarWidth] = useState(0);
   useFocusEffect(useCallback(() => {
     if (!userId) return;
     let alive = true;
@@ -212,25 +217,15 @@ export default function ProfileDetailsScreen() {
     const operation = ++saveOperationRef.current;
     const isCurrentOperation = () =>
       saveOperationRef.current === operation && activeUserIdRef.current === saveUserId;
-    // 대화명은 아무것도 쓰기 전에 먼저 본다 - 겹치면 이번 저장 전체를 멈춘다(반쯤 저장되지 않게).
-    const chatReady = adult && chatLoad.userId === saveUserId && chatLoad.status === "ready";
-    const chatChanged = chatReady && chatName.trim() !== savedChatNameRef.current.trim();
-    if (chatChanged && !chatNameShapeOk(chatName)) {
-      setToast({ message: t("deepspace:profileDetails.chatNameInvalid"), tone: "danger" });
-      return;
-    }
+    // 상태 메시지는 읽은 값에서 바뀐 경우에만 쓴다. 못 읽었으면 쓰지 않는다(있던 한 줄을 지우지 않게).
+    const statusReady = statusLoad.userId === saveUserId && statusLoad.status === "ready";
+    const statusChanged = statusReady && statusMessage.trim() !== savedStatusRef.current.trim();
     setSaving(true);
     // 이름 저장 버튼은 없어졌다(Simon 2026-10-07). 이름도 이 저장이 함께 한다 - 확인된 주인의
     // 이름을 읽었고(nameReadyForUser) 그 뒤 바뀐 경우에만. 읽기에 실패한 이름은 쓰지 않는다
     // (빈 값으로 덮어쓰지 않기 위해).
-    let step: "details" | "name" | "chat" = "details";
+    let step: "details" | "name" | "status" = "details";
     try {
-      if (chatChanged && chatName.trim() && !(await chatNameAvailable(chatName.trim()))) {
-        if (!isCurrentOperation()) return;
-        setToast({ message: t("deepspace:profileDetails.chatNameTaken"), tone: "danger" });
-        return;
-      }
-      if (!isCurrentOperation()) return;
       await saveProfileDetails(saveUserId, details);
       if (!isCurrentOperation()) return;
       if (nameReadyForUser && displayName !== savedNameRef.current) {
@@ -240,18 +235,12 @@ export default function ProfileDetailsScreen() {
         savedNameRef.current = savedName ?? "";
         setDisplayName(savedName ?? "");
       }
-      if (chatChanged) {
-        step = "chat";
-        const result = await saveChatName(saveUserId, chatName);
+      if (statusChanged) {
+        step = "status";
+        await saveStatusMessage(saveUserId, statusMessage);
         if (!isCurrentOperation()) return;
-        if (result === "taken") {
-          // 확인과 저장 사이에 다른 사람이 먼저 가져간 경우(고유 색인이 막았다).
-          invalidateProfileStarLevel(saveUserId);
-          setToast({ message: t("deepspace:profileDetails.chatNameTaken"), tone: "danger" });
-          return;
-        }
-        savedChatNameRef.current = chatName.trim();
-        setChatName(chatName.trim());
+        savedStatusRef.current = statusMessage.trim();
+        setStatusMessage(statusMessage.trim());
       }
       invalidateProfileStarLevel(saveUserId);
       setToast({ message: t("deepspace:profileDetails.saved"), tone: "success" });
@@ -260,15 +249,15 @@ export default function ProfileDetailsScreen() {
       setToast({
         message: step === "name"
           ? t("deepspace:profileDetails.nameSaveError")
-          : step === "chat"
-            ? t("deepspace:profileDetails.chatNameSaveError")
+          : step === "status"
+            ? t("deepspace:profileDetails.statusMessageSaveError")
             : t("deepspace:profileDetails.saveError"),
         tone: "danger",
       });
     } finally {
       if (isCurrentOperation()) setSaving(false);
     }
-  }, [userId, readyForUser, nameReadyForUser, details, displayName, saving, t, adult, chatLoad, chatName]);
+  }, [userId, readyForUser, nameReadyForUser, details, displayName, saving, t, statusLoad, statusMessage]);
 
   const title = t("deepspace:profileDetails.screenTitle");
 
@@ -392,22 +381,33 @@ export default function ProfileDetailsScreen() {
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
         >
+          {/* 아바타(Simon 2026-10-07): 상자 폭을 채우는 정사각형, 오른쪽 위 연필로 꾸미기. */}
           <PixelSurface
             variant="frame"
             style={styles.fieldSurface}
-            contentStyle={[styles.fieldContent, styles.avatarContent]}
+            contentStyle={styles.fieldContent}
           >
-            {avatar?.owner === userId ? (
-              <AvatarPreview spec={avatar.spec} size={128} />
-            ) : (
-              <View style={styles.avatarPlaceholder} />
-            )}
-            <MdButton
-              variant="outlined"
-              label={t("profile:avatarStudio.label")}
-              onPress={() => router.push("/avatar-studio")}
-              style={styles.saveButton}
-            />
+            <View
+              style={styles.avatarBox}
+              onLayout={({ nativeEvent }) => {
+                const next = Math.floor(nativeEvent.layout.width);
+                setAvatarWidth((current) => (current === next ? current : next));
+              }}
+            >
+              {avatar?.owner === userId && avatarWidth > 0 ? (
+                <AvatarPreview spec={avatar.spec} size={avatarWidth} />
+              ) : (
+                <View style={[styles.avatarPlaceholder, { height: avatarWidth }]} />
+              )}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("profile:avatarStudio.label")}
+                onPress={() => router.push("/avatar-studio")}
+                style={styles.avatarEdit}
+              >
+                <PixelGlyph name="edit" size={24} color={m3.color.primary} />
+              </Pressable>
+            </View>
           </PixelSurface>
 
           {/* 이메일 · 생년월일은 보여주기만 한다(Simon Q-261007-04). */}
@@ -459,33 +459,29 @@ export default function ProfileDetailsScreen() {
             )}
           </PixelSurface>
 
-          {/* 대화명(성인만, 0230): 남에게 보일 이름이라 겹치면 저장하지 않는다. */}
-          {adult ? (
-            <PixelSurface
-              variant="frame"
-              style={styles.fieldSurface}
-              contentStyle={styles.fieldContent}
-            >
-              <Text style={styles.label}>{t("deepspace:profileDetails.chatNameLabel")}</Text>
-              <Text style={styles.hint}>{t("deepspace:profileDetails.chatNameHint")}</Text>
-              {chatLoad.userId === userId && chatLoad.status === "ready" ? (
-                <Field
-                  value={chatName}
-                  onChangeText={(value) => setChatName(value.slice(0, CHAT_NAME_MAX))}
-                  maxLength={CHAT_NAME_MAX}
-                  editable={!saving}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="done"
-                  accessibilityLabel={t("deepspace:profileDetails.chatNameLabel")}
-                />
-              ) : (
-                <Text style={styles.hint}>
-                  {chatLoad.status === "error" ? t("deepspace:profileDetails.chatNameLoadError") : t("deepspace:profileDetails.nameLoading")}
-                </Text>
-              )}
-            </PixelSurface>
-          ) : null}
+          {/* 상태 메시지(0231): 프로필에 보일 짧은 한 줄. 겹쳐도 되고 나이 제한이 없다. */}
+          <PixelSurface
+            variant="frame"
+            style={styles.fieldSurface}
+            contentStyle={styles.fieldContent}
+          >
+            <Text style={styles.label}>{t("deepspace:profileDetails.statusMessageLabel")}</Text>
+            <Text style={styles.hint}>{t("deepspace:profileDetails.statusMessageHint")}</Text>
+            {statusLoad.userId === userId && statusLoad.status === "ready" ? (
+              <Field
+                value={statusMessage}
+                onChangeText={setStatusMessage}
+                maxLength={STATUS_MESSAGE_MAX}
+                editable={!saving}
+                returnKeyType="done"
+                accessibilityLabel={t("deepspace:profileDetails.statusMessageLabel")}
+              />
+            ) : (
+              <Text style={styles.hint}>
+                {statusLoad.status === "error" ? t("deepspace:profileDetails.statusMessageLoadError") : t("deepspace:profileDetails.nameLoading")}
+              </Text>
+            )}
+          </PixelSurface>
 
           {/* 안내 · 진행 칸 · 민감정보 안내 상자는 Simon 이 걷어냈다(2026-10-07). 민감정보는 여전히
               묻지 않는다 - 항목 목록(PROFILE_DETAIL_FIELDS)에 없다. */}
@@ -597,8 +593,9 @@ const styles = StyleSheet.create({
     lineHeight: m3.type.bodyMedium.line,
     color: deepSpace.textLo,
   },
-  avatarContent: { alignItems: "center" },
-  avatarPlaceholder: { width: 128, height: 128 },
+  avatarBox: { alignSelf: "stretch" },
+  avatarPlaceholder: { alignSelf: "stretch" },
+  avatarEdit: { position: "absolute", top: 0, right: 0, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   nameError: { gap: m3.spacing.s2 },
   nameErrorText: { color: m3.color.error, lineHeight: m3.type.bodyMedium.line },
   label: {
