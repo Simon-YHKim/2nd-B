@@ -108,6 +108,18 @@ test("shows the receipt number with how long it can be looked up", () => {
   expect(textKeys(nodes)).not.toContain("account.deletionReceipt.noNumber");
 });
 
+test("a receipt the server cannot be read for right now still shows its number (gate DLR-A1-07)", () => {
+  const screen = readFileSync(resolve(__dirname, "../AccountDeletionReceiptScreen.tsx"), "utf8").replace(/\r\n/g, "\n");
+  const start = screen.indexOf('case "rate-limited":');
+  const branch = screen.slice(start, screen.indexOf("break;", start));
+  expect(branch).toContain('case "unavailable":');
+  expect(branch).toMatch(/\{opId !== null \? \(/);
+  expect(branch).toContain('t("account.deletionReceipt.receiptNumber")');
+  expect(branch).toMatch(/<Text selectable testID="account-deletion-receipt-pending-number"[^>]*>\{opId\}<\/Text>/);
+  // Shown only after the retry text and before the retry button, inside the same branch.
+  expect(branch.indexOf("{opId}")).toBeLessThan(branch.indexOf('t("account.deletionReceipt.retry")'));
+});
+
 test("an old-flow deletion says it has no number instead of inventing one", () => {
   const screen = mountPanel(notice({ opId: null, erasedAtIso: null, expiresAtIso: null }));
   expect(textKeys(screen.render())).toContain("account.deletionReceipt.noNumber");

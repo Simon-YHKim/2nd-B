@@ -544,6 +544,29 @@ export async function signOutExpectedSession(
   });
 }
 
+/**
+ * Sign out an account whose deletion the SERVER already confirmed (0217,
+ * 설계서 5.1 W2 "세션 정리는 서버 완료 + 현재 소유자 = A 일 때 항상"). Call it
+ * only from the deletion finish flow and the receipt screen's retry for that
+ * same owner.
+ *
+ * Unlike signOutExpectedSession it does not REQUIRE the cross-tab lock: the
+ * lock is still taken where the browser has Web Locks, but a browser without
+ * them would otherwise refuse this sign-out forever after a deletion it allowed
+ * (gate SAFE-04). What the lock guards against - another tab writing this
+ * account's refreshed session back after the clear - cannot mint a usable
+ * session once Auth deleted the user. The exact-session compare-and-set inside
+ * still keeps any OTHER account that owns local auth now.
+ */
+export async function signOutDeletedAccountSession(
+  client: AuthSessionClient,
+  runtime: AuthStorageRuntime,
+  expected: AuthSessionExpectation,
+  scope: "global" | "local" = "global",
+): Promise<void> {
+  await runtime.runMutation(() => signOutExpectedSessionInsideMutation(client, expected, scope));
+}
+
 export function __resetAuthStorageRuntimeForTests(): void {
   resetAuthStorageRuntime();
 }

@@ -43,7 +43,7 @@ import {
   subscribeAccountTransition,
 } from "@/lib/auth/account-epoch";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { captureSignOutExpectation, signOutExpected } from "@/lib/supabase/auth";
+import { captureSignOutExpectation, signOutDeletedAccount } from "@/lib/supabase/auth";
 import { m3 } from "@/lib/theme/m3";
 import { ForceDark } from "@/lib/theme/ThemeContext";
 
@@ -161,7 +161,7 @@ export function AccountDeletionReceiptScreen() {
       try {
         const expectation = await captureSignOutExpectation();
         if (expectation.userId !== owner) return;
-        await signOutExpected(expectation);
+        await signOutDeletedAccount(expectation);
         noteDeletionReceiptSignOut(owner, handoffOpId, "complete");
       } catch {
         noteDeletionReceiptSignOut(owner, handoffOpId, "unconfirmed");
@@ -217,11 +217,19 @@ export function AccountDeletionReceiptScreen() {
       break;
     case "rate-limited":
     case "unavailable":
+      // The number is shown even when the server cannot be read right now: it is
+      // the only way back to this receipt once the screen closes (gate DLR-A1-07).
       body = (
         <>
           <Text accessibilityLiveRegion="polite" style={m3TextStyle("bodyMedium")}>
             {t(view.kind === "rate-limited" ? "account.deletionReceipt.rateLimited" : "account.deletionReceipt.unavailable")}
           </Text>
+          {opId !== null ? (
+            <>
+              <Text style={m3TextStyle("titleSmall")}>{t("account.deletionReceipt.receiptNumber")}</Text>
+              <Text selectable testID="account-deletion-receipt-pending-number" style={m3TextStyle("bodyMedium")}>{opId}</Text>
+            </>
+          ) : null}
           <MdButton label={t("account.deletionReceipt.retry")} onPress={retry} />
         </>
       );

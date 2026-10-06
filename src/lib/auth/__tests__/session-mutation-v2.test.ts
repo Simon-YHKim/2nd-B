@@ -9,6 +9,7 @@ import {
   createAuthStorageRuntime,
   refreshExpectedSessionInsideMutation,
   resolveAuthStorage,
+  signOutDeletedAccountSession,
   signOutExpectedSession,
 } from "../session-mutation";
 import {
@@ -657,6 +658,43 @@ describe("auth v2 storage and mutation boundary", () => {
     await expect(
       signOutExpectedSession(client, runtime, expectedB, "global"),
     ).rejects.toBeInstanceOf(AuthLocalClearUnavailableError);
+    expect(JSON.parse(storage.getItem(runtime.storageKey) ?? "null").user.id).toBe("user-b");
+  });
+
+  test("a deleted account still signs out in a Web-Locks-less browser, and another account is kept (gate SAFE-04)", async () => {
+    const storage = new MemoryStorage();
+    const runtime = createAuthStorageRuntime({
+      url: "https://deleted-signout-test.supabase.co",
+      storage,
+      web: true,
+      navigatorLocksAvailable: false,
+    });
+    await runtime.ready();
+    storage.setItem(runtime.storageKey, JSON.stringify(session("user-a", "session-a")));
+    const requests: string[] = [];
+    const fetcher = jest.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      requests.push(url);
+      if (url.includes("/logout")) return new Response(null, { status: 204 });
+      throw new Error(`unexpected auth request: ${url}`);
+    }) as unknown as typeof fetch;
+    const client = makeClient(runtime.storage!, runtime.storageKey, runtime.sdkLock, fetcher);
+    const expectedA = await captureAuthSessionExpectation(client, runtime);
+
+    // The ordinary sign-out still refuses without the cross-tab lock...
+    await expect(signOutExpectedSession(client, runtime, expectedA, "global"))
+      .rejects.toBeInstanceOf(AuthLocalClearUnavailableError);
+    expect(JSON.parse(storage.getItem(runtime.storageKey) ?? "null").user.id).toBe("user-a");
+    // ...but the deleted account's sign-out does not need it.
+    await expect(signOutDeletedAccountSession(client, runtime, expectedA, "global")).resolves.toBeUndefined();
+    expect(storage.getItem(runtime.storageKey)).toBeNull();
+
+    // The compare-and-set still keeps another account that owns local auth now.
+    storage.setItem(runtime.storageKey, JSON.stringify(session("user-b", "session-b")));
+    const logoutsBefore = requests.filter((url) => url.includes("/logout")).length;
+    await expect(signOutDeletedAccountSession(client, runtime, expectedA, "global"))
+      .rejects.toBeInstanceOf(AuthSessionOwnerChangedError);
+    expect(requests.filter((url) => url.includes("/logout"))).toHaveLength(logoutsBefore);
     expect(JSON.parse(storage.getItem(runtime.storageKey) ?? "null").user.id).toBe("user-b");
   });
 

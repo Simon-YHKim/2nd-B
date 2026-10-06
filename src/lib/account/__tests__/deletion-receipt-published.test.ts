@@ -109,7 +109,7 @@ function harness(
       if (options.localPurgeFails) throw new Error("local purge failed");
       return options.localPurgeUnconfirmed ? "unconfirmed" : "complete";
     },
-    signOutExpected: async () => {
+    signOutDeletedAccount: async () => {
       calls.signOut += 1;
       if (options.ownerChangedDuringFinalizer) {
         throw new TestAuthSessionOwnerChangedError();

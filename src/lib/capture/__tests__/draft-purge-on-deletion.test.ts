@@ -96,7 +96,7 @@ describe("the deletion path includes draft purge in the managed local sweep", ()
       const erase = caller.indexOf("await requestAccountDeletion(authExpectation)");
       const finish = caller.indexOf("await finishAccountDeletion({", erase);
       const purge = caller.indexOf("purgeLocal: purgeDeletedAccountLocalData", finish);
-      const signout = caller.indexOf("signOut: () => signOutExpected(authExpectation)", finish);
+      const signout = caller.indexOf("signOut: () => signOutDeletedAccount(authExpectation)", finish);
       expect(erase).toBeGreaterThan(-1);
       expect(finish).toBeGreaterThan(erase);
       expect(purge).toBeGreaterThan(finish);

@@ -45,7 +45,7 @@ import type { RisingInterest } from "@/lib/trends/rising";
 import {
   AuthSessionOwnerChangedError,
   captureSignOutExpectation,
-  signOutExpected,
+  signOutDeletedAccount,
 } from "@/lib/supabase/auth";
 import { AccountDeletionUnconfirmedError, requestAccountDeletion } from "@/lib/records/delete-bulk";
 import { finishAccountDeletion } from "@/lib/account/deletion-completion";
@@ -657,7 +657,7 @@ export function DeepSpacePrivacyDesignScreen() {
       owner: targetUserId,
       receipt,
       purgeLocal: purgeDeletedAccountLocalData,
-      signOut: () => signOutExpected(authExpectation),
+      signOut: () => signOutDeletedAccount(authExpectation),
       isOwnerChangedError: (error) => error instanceof AuthSessionOwnerChangedError,
       // The root router, not the phone-embedded one: it leaves the dashboard
       // phone and still works after this screen unmounted.

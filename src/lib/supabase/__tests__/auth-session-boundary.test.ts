@@ -239,7 +239,7 @@ describe("Supabase auth session mutation boundary", () => {
     const request = screenSource.indexOf("await requestAccountDeletion(authExpectation)");
     const finish = screenSource.indexOf("await finishAccountDeletion({");
     const localPurge = screenSource.indexOf("purgeLocal: purgeDeletedAccountLocalData", finish);
-    const finalizer = screenSource.indexOf("signOut: () => signOutExpected(authExpectation)", finish);
+    const finalizer = screenSource.indexOf("signOut: () => signOutDeletedAccount(authExpectation)", finish);
     expect(capture).toBeGreaterThan(-1);
     expect(request).toBeGreaterThan(capture);
     expect(finish).toBeGreaterThan(request);
