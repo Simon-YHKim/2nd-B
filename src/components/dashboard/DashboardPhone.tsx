@@ -38,7 +38,6 @@ import { resolvePhoneScreen } from "./phone-screens";
 import type { ProductNotice } from "@/lib/notices/types";
 
 type Tab = "dashboard" | "tools";
-const TABS: Tab[] = ["dashboard", "tools"];
 const TOOLS: { id: PhoneAppId; route: string }[] = [
   { id: "assistant", route: "/ops" },
   { id: "focus", route: "/focus" },
@@ -746,21 +745,6 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         </View>
       </View> : null}
       {internalActive && !contentOwnsBack ? <PhoneAction label={selectedNoticeId ? t("phone.noticeListBack") : t("phone.internal.back")} glyph="arrow_back" onPress={backInside} /> : null}
-      {!internalActive ? <View style={styles.tabs}>{TABS.map((item, index) => <PixelPressable key={item} rootStyle={styles.tab} onPress={() => showPage(index)} accessibilityRole="tab" accessibilityState={{ selected: tab === item }} background={tab === item ? m3.color.primaryContainer : m3.color.surfaceContainer} contentStyle={styles.tabContent}>
-        <Image source={item === "dashboard" ? PHONE_UI_ART.dashboard : PHONE_UI_ART.apps} contentFit="contain" style={[styles.tabIcon, PIXEL_IMAGE]} accessible={false} />
-        <Text variant="caption" style={styles.tabLabel}>{t(`phone.tabs.${item}`)}</Text>
-      </PixelPressable>)}</View> : null}
-      {!internalActive ? <View style={styles.pageControls} accessibilityLabel={t("phone.pageControls")}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("phone.previousPage")} disabled={pageIndex === 0} onPress={() => showPage(pageIndex - 1)} style={styles.pageArrow}>
-          {pageIndex > 0 ? <Image source={PHONE_UI_ART.previous} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
-        </Pressable>
-        <View style={styles.pageDots}>{[0, 1, 2].map((index) => <Pressable key={index} accessibilityRole="button" accessibilityLabel={t("phone.pageNumber", { number: index + 1 })} accessibilityState={{ selected: pageIndex === index }} onPress={() => showPage(index)} style={styles.pageDotButton}>
-          <Image source={pageIndex === index ? PHONE_UI_ART.currentPage : PHONE_UI_ART.otherPage} contentFit="contain" style={[styles.pageDot, PIXEL_IMAGE]} accessible={false} />
-        </Pressable>)}</View>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("phone.nextPage")} disabled={pageIndex === 2} onPress={() => showPage(pageIndex + 1)} style={styles.pageArrow}>
-          {pageIndex < 2 ? <Image source={PHONE_UI_ART.next} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
-        </Pressable>
-      </View> : null}
       {!ownsDisplay && loading ? <Text accessibilityLiveRegion="polite" variant="caption" style={styles.readStatus}>{t("phone.loading")}</Text> : null}
       {!ownsDisplay && (failed || partial) ? <View style={styles.errorRow}><Text variant="caption" style={styles.flexText}>{t("phone.partialError")}</Text><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} /></View> : null}
       <View style={styles.pageBody} {...(ownsDisplay ? {} : pagePan.panHandlers)}>
@@ -788,8 +772,20 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         contentContainerStyle={styles.content}
       />}
       </View>
-      {/* Simon 2026-10-06: the bottom shortcut row (home · note · add · search · profile) is gone.
-          Home is the bezel button below; notes, wiki and add are on the app pages; profile is in Settings. */}
+      {/* Simon 2026-10-06: the bottom shortcut row (home · note · add · search · profile) and the
+          dashboard/apps tab row are gone. Home is the bezel button below; notes, wiki and add are on the
+          app pages; profile is in Settings. The page controls below replace the tabs, at the display's foot. */}
+      {!internalActive ? <View style={styles.pageControls} accessibilityLabel={t("phone.pageControls")}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("phone.previousPage")} disabled={pageIndex === 0} onPress={() => showPage(pageIndex - 1)} style={styles.pageArrow}>
+          {pageIndex > 0 ? <Image source={PHONE_UI_ART.previous} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
+        </Pressable>
+        <View style={styles.pageDots}>{[0, 1, 2].map((index) => <Pressable key={index} accessibilityRole="button" accessibilityLabel={t("phone.pageNumber", { number: index + 1 })} accessibilityState={{ selected: pageIndex === index }} onPress={() => showPage(index)} style={styles.pageDotButton}>
+          <Image source={pageIndex === index ? PHONE_UI_ART.currentPage : PHONE_UI_ART.otherPage} contentFit="contain" style={[styles.pageDot, PIXEL_IMAGE]} accessible={false} />
+        </Pressable>)}</View>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("phone.nextPage")} disabled={pageIndex === 2} onPress={() => showPage(pageIndex + 1)} style={styles.pageArrow}>
+          {pageIndex < 2 ? <Image source={PHONE_UI_ART.next} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
+        </Pressable>
+      </View> : null}
       </View>
       <Pressable
         accessibilityRole="button"
@@ -822,11 +818,6 @@ const styles = StyleSheet.create({
   heroCopy: { flex: 1, justifyContent: "center", alignItems: "flex-end", paddingRight: 11, paddingLeft: 92, gap: 3 },
   heroTitle: { color: m3.color.onSurface, fontFamily: "Galmuri11Bold", fontSize: 13 },
   heroSubtitle: { color: m3.color.onSurface, fontFamily: "Galmuri11", fontSize: 10 },
-  tabs: { flexDirection: "row", gap: 5, paddingHorizontal: 9 },
-  tab: { flex: 1, minWidth: 0 },
-  tabContent: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 4 },
-  tabIcon: { width: 17, height: 17 },
-  tabLabel: { color: m3.color.onSurface, fontFamily: "Galmuri11", fontSize: 11 },
   pageControls: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 9 },
   pageArrow: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   pageIcon: { width: 14, height: 14 },

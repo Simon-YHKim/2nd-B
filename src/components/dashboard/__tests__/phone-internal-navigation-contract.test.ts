@@ -47,6 +47,9 @@ test("hosted full screens get a bounded view, the phone's navigation, and no pho
   // The bottom shortcut row is gone (Simon 2026-10-06); home stays on the bezel button.
   expect(phone).not.toContain("styles.phoneDock");
   expect(phone).not.toContain('accessibilityLabel={t("phone.navLabel")}');
+  // No tab row; the page controls sit at the display's foot, after the page body.
+  expect(phone).not.toContain('accessibilityRole="tab"');
+  expect(phone.indexOf('accessibilityLabel={t("phone.pageControls")}')).toBeGreaterThan(phone.indexOf('<View style={styles.pageBody}'));
   // Pushes stay in the phone; only home and the auth screens leave it.
   expect(phone).toContain('if (path === "/") closePhone();');
   expect(phone).toContain("else if (AUTH_EXIT_PATHS.has(path)) router.replace(route as Href);");

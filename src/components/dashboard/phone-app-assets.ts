@@ -23,8 +23,6 @@ export const PHONE_UI_ART = {
   tile: require("../../../assets/images/phone-app/ui_icons/app_tile_frame.png"),
   brand: require("../../../assets/images/phone-app/ui_icons/brand_sparkle.png"),
   sun: require("../../../assets/images/phone-app/ui_icons/weather_sun.png"),
-  dashboard: require("../../../assets/images/phone-app/ui_icons/tab_dashboard.png"),
-  apps: require("../../../assets/images/phone-app/ui_icons/tab_apps.png"),
   previous: require("../../../assets/images/phone-app/ui_icons/chevron_left.png"),
   next: require("../../../assets/images/phone-app/ui_icons/chevron_right.png"),
   currentPage: require("../../../assets/images/phone-app/ui_icons/page_active.png"),
