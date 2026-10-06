@@ -109,7 +109,9 @@ describe("완료 태그가 화면이 실제로 쓰는 태그와 같다", () => {
   //
   // 대조 대상은 화면의 `createRecord({ tags: [...] })` 이거나, 화면이 태그를
   // 안 쓰는 경우 그 결과를 읽는 로더(`persona/build.ts` 의 `.contains`)다.
-  const SOURCES = ["src/lib/persona/build.ts"];
+  // 회상 인터뷰는 0218 부터 표식을 `systemTags` 로 쓰고, 그 값은
+  // `records/system-tags.ts` 의 recallInterviewSystemTags 가 만든다.
+  const SOURCES = ["src/lib/persona/build.ts", "src/lib/records/system-tags.ts"];
 
   it.each(
     ASSESSMENTS.filter((a) => a.provenance !== "dormant" && a.completionTags.length > 0).map(
