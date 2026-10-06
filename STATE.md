@@ -8,7 +8,7 @@
 09-21 판(0.9.0 컷 · 법역 표 · EAS 빌드 · 콘솔 과제서 등)은 `git show 6ee88993:STATE.md` 에 있다 — 이 세션이 다시 확인하지 않아 옮기지 않았다.
 
 📊 보고서 (최신 위)
-- 재설계 실행 1차(S0 · H1 · B1~B4): 발행 후 링크를 여기에 적는다
+- 재설계 실행 1차(S0 · H1 · B1~B4 · 결정 RD-261007-01~05): <https://claude.ai/artifact/C69eNbg6ZKPxLR2CsGrdxf>
 - 제품 흐름 대조: <https://claude.ai/artifact/WCZ2VNgTY8w3Sowvmb8ZHV>
 - 재설계 검토(D0~D11): <https://claude.ai/artifact/B4srsNGhtsKrTcXmofRFeC>
 
