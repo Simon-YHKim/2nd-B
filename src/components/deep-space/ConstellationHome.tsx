@@ -63,6 +63,7 @@ import { MdButton } from "@/components/m3";
 import { ReasoningLimitSheet } from "./ReasoningLimitSheet";
 import { SecondbHead } from "./SecondbHead";
 import { SbStarfield } from "./SbStarfield";
+import { SKY_DEPTH, SKY_PARALLAX_MARGIN, skyParallax } from "./sky-parallax";
 import { JrpgDialogueBox, useJrpgTypewriter } from "./JrpgDialogueBox";
 
 // 누가 일곱인지는 `lib/persona/home-stars.ts` 가 갖는다 (북극성 화면도 같은
@@ -743,6 +744,9 @@ export function ConstellationHome({
   [returnStart, returnProgress]);
   const cameraMotion = visualFocusId ? starMotion : returnMotion;
   const cameraAim = starCameraAim(flight.origin, skySize);
+  // 망원경 시차(Simon 2026-10-07): 카메라가 움직이면 뒷배경이 깊이만큼 덜 따라온다.
+  const nearSky = skyParallax(camera, SKY_DEPTH.neural, reducedMotion);
+  const farSky = skyParallax(camera, SKY_DEPTH.starfield, reducedMotion);
   const worldX = visualFocusId ? destinationProgress.interpolate({ inputRange: STAR_CAMERA_STOPS, outputRange: flight.x }) : -camera.x * camera.zoom;
   const worldY = visualFocusId ? destinationProgress.interpolate({ inputRange: STAR_CAMERA_STOPS, outputRange: flight.y }) : -camera.y * camera.zoom;
   const worldZoom = visualFocusId ? destinationProgress.interpolate({ inputRange: STAR_CAMERA_STOPS, outputRange: flight.zoom }) : camera.zoom;
@@ -862,14 +866,20 @@ export function ConstellationHome({
   return (
     <View ref={homeRootRef} style={styles.root} onLayout={(e) => setStage({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       {/* Opaque stage floor, shared starfield and static neural field. */}
-      <Animated.View testID="star-camera-sky" pointerEvents="none" style={[StyleSheet.absoluteFill, { transform: [
+      <Animated.View testID="star-camera-sky" pointerEvents="none" style={[StyleSheet.absoluteFill, styles.skyClip, { transform: [
         { translateX: destinationProgress.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, cameraAim.x, cameraAim.x] }) },
         { translateY: destinationProgress.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, cameraAim.y, cameraAim.y] }) },
         { rotate: destinationProgress.interpolate({ inputRange: [0, 0.4, 0.8, 1], outputRange: ['0deg', `${cameraAim.roll}deg`, '0deg', '0deg'] }) },
         { scale: destinationProgress.interpolate({ inputRange: [0, 0.4, 0.8, 1], outputRange: [1, 1.08, 1.28, 1.28] }) },
       ] }]}>
-        {stage ? <NeuralFieldBackdrop w={stage.w} h={stage.h} /> : null}
-        <SbStarfield />
+        {stage ? (
+          <View pointerEvents="none" style={[styles.skyLayer, { transform: [{ translateX: nearSky.x }, { translateY: nearSky.y }, { scale: nearSky.scale }] }]}>
+            <NeuralFieldBackdrop w={stage.w + 2 * SKY_PARALLAX_MARGIN} h={stage.h + 2 * SKY_PARALLAX_MARGIN} />
+          </View>
+        ) : null}
+        <View pointerEvents="none" style={[styles.skyLayer, { transform: [{ translateX: farSky.x }, { translateY: farSky.y }, { scale: farSky.scale }] }]}>
+          <SbStarfield />
+        </View>
       </Animated.View>
 
       {/* Home controls share one bar. Keep the chip visuals on Views:
@@ -1357,6 +1367,9 @@ export function ConstellationHome({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  // 시차용으로 사방 여백만큼 크게 그린 배경을 무대 밖으로 내보내지 않는다(웹 스크롤 · 겹침 방지).
+  skyClip: { overflow: "hidden" },
+  skyLayer: { position: "absolute", top: -SKY_PARALLAX_MARGIN, left: -SKY_PARALLAX_MARGIN, right: -SKY_PARALLAX_MARGIN, bottom: -SKY_PARALLAX_MARGIN },
   topBar: {
     position: "absolute",
     top: 0,
