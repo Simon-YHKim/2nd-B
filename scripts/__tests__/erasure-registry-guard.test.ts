@@ -891,11 +891,14 @@ describe("the real registry still classifies the same 66 rows (r40 M1/M2)", () =
     ]);
   });
 
-  test("the 13 account_delete_only tables still have no owner delete path", () => {
+  test("the 14 account_delete_only tables still have no owner delete path", () => {
     const replay = replayMigrations(migrationsDir(REPO_ROOT));
     const registry = loadRegistry(REPO_ROOT);
     const kept = Object.entries(registry.tables).filter(([, e]) => e.class === "account_delete_only");
-    expect(kept).toHaveLength(13);
+    // 13 until 0220/0229 added interview_sessions (the interview verdict ledger's
+    // session rows: no client privilege or policy, account deletion cascades).
+    expect(kept).toHaveLength(14);
+    expect(kept.map(([table]) => table)).toContain("interview_sessions");
     for (const [table] of kept) {
       const policies = [...(replay.policies.get(table) ?? new Map())].filter(
         ([, state]) =>
