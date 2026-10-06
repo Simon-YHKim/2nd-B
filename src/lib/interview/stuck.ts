@@ -29,36 +29,10 @@ import { type DrillLayer } from "./probe";
 /** 한 층에서 발판을 최대 몇 번까지 줄지. 넘으면 칸을 비운 채 다음 층으로 간다. */
 export const MAX_SCAFFOLDS_PER_LAYER = 2;
 
-/** "못 답하겠다"는 표시. 정규화된 답 **전체가** 사실상 이것뿐일 때만 걸린다. */
-const NON_ANSWER: Record<"en" | "ko", RegExp> = {
-  // 모르겠다 / 몰라 / 글쎄 / 딱히 / 생각 안 나 / 기억 안 나 / 없다 / 패스
-  ko: /(모르겠|모르갰|몰라|모름|글쎄|딱히|생각안|생각이안|기억안|기억이안|잘모|없는것같|없어|없음|패스|스킵)/,
-  en: /\b(i\s*(do\s*not|don'?t|dont)\s*know|no\s*idea|not\s*sure|dunno|idk|nothing|can'?t\s*think|skip|pass)\b/,
-};
-
-/** 이보다 길면 "그냥 모르겠다"가 아니라 무언가를 말한 것으로 본다.
- *
- *  "모르겠다는 게 아니라 사실 그때 진짜 무서웠어" 같은 답을 비-답변으로 세면
- *  진짜 재료를 버리게 된다. 길이는 **정규화 후 글자 수**로 잰다. */
-const NON_ANSWER_MAX_LEN = 24;
-
-function normalize(text: string): string {
-  return text.replace(/[\s\p{P}\p{S}]+/gu, "").toLowerCase();
-}
-
-/**
- * 이 답이 "못 답하겠다"인가.
- *
- * 보수적이다 — 짧고, 그 안에 포기 표시가 있을 때만 참이다. 빈 답은 화면이 먼저
- * 막으므로 여기서는 참으로 보지 않는다(칸을 세지 않는 것은 어차피 같다).
- */
-export function isNonAnswer(text: string, locale: "en" | "ko"): boolean {
-  const clean = normalize(text);
-  if (clean.length === 0) return false;
-  if (clean.length > NON_ANSWER_MAX_LEN) return false;
-  // English word boundaries need spaces; punctuation-only normalization erased them.
-  return NON_ANSWER[locale].test(locale === "en" ? text.toLowerCase().replace(/[’]/g, "'") : clean);
-}
+// "못 답하겠다" 판정(`isNonAnswer`)은 `answer-gate.ts` 로 옮겼다(2026-10-07, 0220).
+// 인터뷰 판정 원장이 같은 문턱을 서버에서 다시 계산해야 해서, import 없는 파일 하나에
+// 모았다. 여기서는 예전 이름 그대로 다시 내보낸다 -- 부르는 쪽은 바뀌지 않는다.
+export { isNonAnswer } from "./answer-gate";
 
 /**
  * 층마다 하나씩 준비한 **더 쉬운 각도**. 모델이 발판을 못 만들거나 같은 질문을
