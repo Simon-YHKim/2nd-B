@@ -16,9 +16,12 @@
 --   4. Polaris evidence (reserve_polaris_generation, polaris_evidence_snapshot)
 --      picks interview rows by system_tags only;
 --   5. db/ops/0218_system_tags_hand_move.sql moves exactly the listed rows'
---      listed markers, skips a row whose tags changed since the survey or that is
---      already split, keeps a user's duplicate tag, refuses a malformed list and
---      a role that cannot bypass row-level security without changing anything;
+--      listed markers, skips a row whose tags or system_tags changed since the
+--      survey, keeps a user's duplicate tag, refuses a malformed list (a marker
+--      set no writer ever wrote, gate ST-02; a mode that does not match
+--      expected_system_tags) and a role that cannot bypass row-level security
+--      without changing anything, and in cleanup mode takes back out of tags the
+--      markers an old screen wrote back into an already split row (gate ST-03);
 --   6. rollback/0218_down.sql puts every marker back into tags (after a leading
 --      domain: tag, overlapping a user tag of the same text), restores the 0195
 --      Polaris bodies and drops the column; re-applying 0218 changes no data.
@@ -196,22 +199,51 @@ ROLLBACK TO SAVEPOINT polaris;
 
 -- 5. Hand move. The list is what the survey showed and the owner confirmed.
 CREATE TEMP TABLE ops_0218_hand_move (
-  id            uuid PRIMARY KEY,
-  user_id       uuid NOT NULL,
-  expected_tags text[] NOT NULL,
-  markers       text[] NOT NULL
+  id                   uuid PRIMARY KEY,
+  user_id              uuid NOT NULL,
+  expected_tags        text[] NOT NULL,
+  markers              text[] NOT NULL,
+  mode                 text NOT NULL,
+  expected_system_tags text[] NOT NULL
 ) ON COMMIT DROP;
 
--- 5a. A malformed list (a user tag listed as a marker) changes nothing.
+-- 5a. A malformed list changes nothing. Every line below is malformed in one way,
+-- and the run must count all ten: a user tag listed as a marker; marker sets no
+-- writer ever wrote (gate ST-02: a lone first_light:soft, affirm and soft
+-- together, the TTFV pair out of order, entry-ui without the interview set, ko
+-- and en together, part of the interview set); and modes that do not match
+-- expected_system_tags (gate ST-03).
 INSERT INTO ops_0218_hand_move VALUES
   ('5a5a0218-0000-4000-8000-0000000000b1', '5a5a0218-0000-4000-8000-000000000001',
-   ARRAY['domain:collect', 'first_light', 'first_light:soft', 'mine'], ARRAY['first_light', 'first_light:soft', 'mine']);
+   ARRAY['domain:collect', 'first_light', 'first_light:soft', 'mine'], ARRAY['first_light', 'first_light:soft', 'mine'],
+   'move', ARRAY[]::text[]),
+  ('5a5a0218-0000-4000-8000-0000000000e1', '5a5a0218-0000-4000-8000-000000000001',
+   ARRAY['domain:collect', 'first_light:soft'], ARRAY['first_light:soft'], 'move', ARRAY[]::text[]),
+  ('5a5a0218-0000-4000-8000-0000000000e2', '5a5a0218-0000-4000-8000-000000000001',
+   ARRAY['first_light', 'first_light:affirm', 'first_light:soft'], ARRAY['first_light', 'first_light:affirm', 'first_light:soft'],
+   'move', ARRAY[]::text[]),
+  ('5a5a0218-0000-4000-8000-0000000000e3', '5a5a0218-0000-4000-8000-000000000001',
+   ARRAY['first_light:soft', 'first_light'], ARRAY['first_light:soft', 'first_light'], 'move', ARRAY[]::text[]),
+  ('5a5a0218-0000-4000-8000-0000000000e4', '5a5a0218-0000-4000-8000-000000000001',
+   ARRAY['domain:growth', 'entry-ui:ko'], ARRAY['entry-ui:ko'], 'move', ARRAY[]::text[]),
+  ('5a5a0218-0000-4000-8000-0000000000e5', '5a5a0218-0000-4000-8000-000000000001',
+   ARRAY['interview', 'recall', 'screener', 'entry-ui:ko', 'entry-ui:en'],
+   ARRAY['interview', 'recall', 'screener', 'entry-ui:ko', 'entry-ui:en'], 'move', ARRAY[]::text[]),
+  ('5a5a0218-0000-4000-8000-0000000000e6', '5a5a0218-0000-4000-8000-000000000001',
+   ARRAY['interview', 'recall'], ARRAY['interview', 'recall'], 'move', ARRAY[]::text[]),
+  ('5a5a0218-0000-4000-8000-0000000000e7', '5a5a0218-0000-4000-8000-000000000001',
+   ARRAY['first_light', 'first_light:affirm'], ARRAY['first_light', 'first_light:affirm'], 'cleanup', ARRAY[]::text[]),
+  ('5a5a0218-0000-4000-8000-0000000000e8', '5a5a0218-0000-4000-8000-000000000001',
+   ARRAY['first_light', 'first_light:affirm'], ARRAY['first_light', 'first_light:affirm'],
+   'move', ARRAY['first_light', 'first_light:affirm']),
+  ('5a5a0218-0000-4000-8000-0000000000e9', '5a5a0218-0000-4000-8000-000000000001',
+   ARRAY['first_light', 'first_light:affirm'], ARRAY['first_light', 'first_light:affirm'], 'split', ARRAY[]::text[]);
 SAVEPOINT malformed;
 \set ON_ERROR_STOP off
 \i db/ops/0218_system_tags_hand_move.sql
 \set ON_ERROR_STOP on
 ROLLBACK TO SAVEPOINT malformed;
-SELECT :'LAST_ERROR_MESSAGE' LIKE '0218 hand move: 1 list rows are malformed%' AS hand_move_refused_list \gset
+SELECT :'LAST_ERROR_MESSAGE' LIKE '0218 hand move: 10 list rows are malformed%' AS hand_move_refused_list \gset
 \if :hand_move_refused_list
 \else
   DO $$ BEGIN RAISE EXCEPTION 'the hand move did not refuse a malformed list'; END $$;
@@ -226,7 +258,8 @@ INSERT INTO public.records (id, user_id, kind, audit_period, body, tags) VALUES
    'an answer the user tagged with the TTFV words', ARRAY['domain:collect', 'first_light', 'first_light:affirm']);
 INSERT INTO ops_0218_hand_move VALUES
   ('5a5a0218-0000-4000-8000-0000000000d1', '5a5a0218-0000-4000-8000-000000000001',
-   ARRAY['domain:collect', 'first_light', 'first_light:affirm'], ARRAY['first_light', 'first_light:affirm']);
+   ARRAY['domain:collect', 'first_light', 'first_light:affirm'], ARRAY['first_light', 'first_light:affirm'],
+   'move', ARRAY[]::text[]);
 SAVEPOINT wrong_kind;
 \set ON_ERROR_STOP off
 \i db/ops/0218_system_tags_hand_move.sql
@@ -240,7 +273,8 @@ SELECT :'LAST_ERROR_MESSAGE' LIKE '0218 hand move: 5a5a0218-0000-4000-8000-00000
 DELETE FROM ops_0218_hand_move;
 INSERT INTO ops_0218_hand_move VALUES
   ('5a5a0218-0000-4000-8000-0000000000b1', '5a5a0218-0000-4000-8000-0000000000ee',
-   ARRAY['domain:collect', 'first_light', 'first_light:soft', 'mine'], ARRAY['first_light', 'first_light:soft']);
+   ARRAY['domain:collect', 'first_light', 'first_light:soft', 'mine'], ARRAY['first_light', 'first_light:soft'],
+   'move', ARRAY[]::text[]);
 SAVEPOINT wrong_owner;
 \set ON_ERROR_STOP off
 \i db/ops/0218_system_tags_hand_move.sql
@@ -260,19 +294,25 @@ UPDATE public.records SET tags = tags || ARRAY['interview', 'recall', 'screener'
  WHERE id = '5a5a0218-0000-4000-8000-0000000000a2';
 INSERT INTO ops_0218_hand_move VALUES
   ('5a5a0218-0000-4000-8000-0000000000b1', '5a5a0218-0000-4000-8000-000000000001',
-   ARRAY['domain:collect', 'first_light', 'first_light:soft', 'mine'], ARRAY['first_light', 'first_light:soft']),
+   ARRAY['domain:collect', 'first_light', 'first_light:soft', 'mine'], ARRAY['first_light', 'first_light:soft'],
+   'move', ARRAY[]::text[]),
   ('5a5a0218-0000-4000-8000-0000000000b2', '5a5a0218-0000-4000-8000-000000000001',
-   ARRAY['domain:growth', 'interview', 'recall', 'screener', 'entry-ui:ko'], ARRAY['interview', 'recall', 'screener', 'entry-ui:ko']),
+   ARRAY['domain:growth', 'interview', 'recall', 'screener', 'entry-ui:ko'], ARRAY['interview', 'recall', 'screener', 'entry-ui:ko'],
+   'move', ARRAY[]::text[]),
   ('5a5a0218-0000-4000-8000-0000000000b3', '5a5a0218-0000-4000-8000-000000000001',
-   ARRAY['domain:career', 'interview', 'recall', 'screener', 'interview'], ARRAY['interview', 'recall', 'screener']),
+   ARRAY['domain:career', 'interview', 'recall', 'screener', 'interview'], ARRAY['interview', 'recall', 'screener'],
+   'move', ARRAY[]::text[]),
   ('5a5a0218-0000-4000-8000-0000000000b4', '5a5a0218-0000-4000-8000-000000000001',
-   ARRAY['domain:growth', 'interview', 'recall', 'screener'], ARRAY['interview', 'recall', 'screener']),
-  -- already split by a new client: skipped, the user's words stay in tags
+   ARRAY['domain:growth', 'interview', 'recall', 'screener'], ARRAY['interview', 'recall', 'screener'],
+   'move', ARRAY[]::text[]),
+  -- already split by a new client, listed as a move: skipped, the user's words stay in tags
   ('5a5a0218-0000-4000-8000-0000000000a2', '5a5a0218-0000-4000-8000-000000000001',
-   ARRAY['domain:career', 'mine', 'interview', 'recall', 'screener', 'entry-ui:en'], ARRAY['interview', 'recall', 'screener', 'entry-ui:en']),
+   ARRAY['domain:career', 'mine', 'interview', 'recall', 'screener', 'entry-ui:en'], ARRAY['interview', 'recall', 'screener', 'entry-ui:en'],
+   'move', ARRAY[]::text[]),
   -- deleted since the survey: skipped
   ('5a5a0218-0000-4000-8000-0000000000ff', '5a5a0218-0000-4000-8000-000000000001',
-   ARRAY['domain:collect', 'first_light', 'first_light:affirm'], ARRAY['first_light', 'first_light:affirm']);
+   ARRAY['domain:collect', 'first_light', 'first_light:affirm'], ARRAY['first_light', 'first_light:affirm'],
+   'move', ARRAY[]::text[]);
 -- The user edits b4 after the survey.
 UPDATE public.records SET tags = tags || 'later'::text WHERE id = '5a5a0218-0000-4000-8000-0000000000b4';
 
@@ -304,7 +344,7 @@ CREATE TEMP TABLE system_tags_after_move ON COMMIT DROP AS
 \i db/ops/0218_system_tags_hand_move.sql
 DO $idempotent$
 BEGIN
-  -- (The run's NOTICE says: moved 0, 4 already split, 1 changed since the survey, 1 gone.)
+  -- (The run's NOTICE says: moved 0, 3 already done, 2 changed since the survey, 1 gone.)
   IF EXISTS (
     (SELECT id, tags, system_tags FROM system_tags_after_move
      EXCEPT
@@ -318,6 +358,33 @@ BEGIN
   END IF;
 END
 $idempotent$;
+
+-- 5d. Gate ST-03. An old screen read b2 before the move and, after it, saves the
+-- tags it still holds plus one new tag: the markers are back in tags while
+-- system_tags keeps them. A move line skips such a row (a2 above); a cleanup line
+-- whose two columns match what the owner confirmed takes one occurrence of each
+-- marker back out of tags and leaves system_tags alone. A cleanup line whose
+-- system_tags no longer match (a2, listed with the pre-#1941 set) is skipped.
+UPDATE public.records
+   SET tags = ARRAY['domain:growth', 'interview', 'recall', 'screener', 'entry-ui:ko', 'band']
+ WHERE id = '5a5a0218-0000-4000-8000-0000000000b2';
+DELETE FROM ops_0218_hand_move;
+INSERT INTO ops_0218_hand_move VALUES
+  ('5a5a0218-0000-4000-8000-0000000000b2', '5a5a0218-0000-4000-8000-000000000001',
+   ARRAY['domain:growth', 'interview', 'recall', 'screener', 'entry-ui:ko', 'band'],
+   ARRAY['interview', 'recall', 'screener', 'entry-ui:ko'],
+   'cleanup', ARRAY['interview', 'recall', 'screener', 'entry-ui:ko']),
+  ('5a5a0218-0000-4000-8000-0000000000a2', '5a5a0218-0000-4000-8000-000000000001',
+   ARRAY['domain:career', 'mine', 'interview', 'recall', 'screener', 'entry-ui:en'],
+   ARRAY['interview', 'recall', 'screener'],
+   'cleanup', ARRAY['interview', 'recall', 'screener']);
+\i db/ops/0218_system_tags_hand_move.sql
+SELECT pg_temp.expect_row('5a5a0218-0000-4000-8000-0000000000b2', ARRAY['domain:growth', 'band'], ARRAY['interview', 'recall', 'screener', 'entry-ui:ko'], 'cleanup takes the written-back markers out of tags');
+SELECT pg_temp.expect_row('5a5a0218-0000-4000-8000-0000000000a2', ARRAY['domain:career', 'mine', 'interview', 'recall', 'screener', 'entry-ui:en'], ARRAY['interview', 'recall', 'screener', 'entry-ui:en'], 'cleanup skips a row whose system_tags differ');
+-- Twice is once: b2 is already done, a2 is still skipped.
+\i db/ops/0218_system_tags_hand_move.sql
+SELECT pg_temp.expect_row('5a5a0218-0000-4000-8000-0000000000b2', ARRAY['domain:growth', 'band'], ARRAY['interview', 'recall', 'screener', 'entry-ui:ko'], 'a second cleanup changes nothing');
+SELECT pg_temp.expect_row('5a5a0218-0000-4000-8000-0000000000a2', ARRAY['domain:career', 'mine', 'interview', 'recall', 'screener', 'entry-ui:en'], ARRAY['interview', 'recall', 'screener', 'entry-ui:en'], 'a second cleanup still skips a2');
 
 -- 6. Rollback, then re-apply.
 \i db/migrations/rollback/0218_down.sql

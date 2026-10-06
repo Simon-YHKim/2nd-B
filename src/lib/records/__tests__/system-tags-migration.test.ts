@@ -154,6 +154,27 @@ describe("the hand move and the survey know exactly what the client writes", () 
     expect(interview).toContain("entry-ui:ko");
   });
 
+  // Gate ST-02 (2026-10-07): a subset of the marker words is not a writer's set.
+  // A lone `first_light:soft` the user typed, affirm and soft together, or both
+  // entry-ui values passed `markers <@ c_ttfv OR markers <@ c_interview` and the
+  // move took a user tag out of `tags`. The list now has to equal one set a
+  // writer actually wrote, in its order.
+  test("hand move: a list line must equal one writer's exact set, in order", () => {
+    expect(sqlArray(HAND_MOVE, "c_ttfv_affirm")).toEqual(firstLightSystemTags("affirm"));
+    expect(sqlArray(HAND_MOVE, "c_ttfv_soft")).toEqual(firstLightSystemTags("soft"));
+    expect(sqlArray(HAND_MOVE, "c_interview_ko")).toEqual(recallInterviewSystemTags("ko"));
+    expect(sqlArray(HAND_MOVE, "c_interview_en")).toEqual(recallInterviewSystemTags("en"));
+    // The interview before #1941 (2026-09-30) wrote the same set without entry-ui.
+    expect(sqlArray(HAND_MOVE, "c_interview_old")).toEqual(
+      recallInterviewSystemTags("ko").filter((tag) => !tag.startsWith("entry-ui:")),
+    );
+    const body = code(HAND_MOVE);
+    for (const name of ["c_ttfv_affirm", "c_ttfv_soft", "c_interview_old", "c_interview_ko", "c_interview_en"]) {
+      expect(body).toContain(`l.markers = ${name}`);
+    }
+    expect(body).not.toMatch(/l\.markers\s*<@\s*c_(ttfv|interview)\b/);
+  });
+
   test("survey: the same marker list, per record kind, in each of its queries", () => {
     const lists = [...SURVEY.matchAll(/WITH markers\(kind, marker\) AS \(\s*VALUES([\s\S]*?)\n\)/g)].map((m) =>
       [...m[1].matchAll(/\('(note|audit_response)', '([^']+)'\)/g)].map((pair) => `${pair[1]}:${pair[2]}`),
@@ -172,8 +193,13 @@ describe("the hand move and the survey know exactly what the client writes", () 
     expect(body).toContain("(rolsuper OR rolbypassrls)");
     expect(body).toContain("set_config('row_security', 'off', true)");
     expect(body).toContain("pg_temp.ops_0218_hand_move");
-    // A row whose tags moved since the survey is skipped, never rewritten.
-    expect(body).toContain("IF v_row.tags IS DISTINCT FROM v_item.expected_tags THEN");
+    // A row whose tags or system_tags moved since the survey is skipped, never
+    // rewritten. Both columns are compared, so a cleanup line (gate ST-03) acts
+    // only on a split row whose two columns are exactly what the owner confirmed.
+    expect(body).toContain("IF v_row.tags IS DISTINCT FROM v_item.expected_tags");
+    expect(body).toContain("OR v_row.system_tags IS DISTINCT FROM v_item.expected_system_tags THEN");
+    expect(body).toContain("OR (l.mode = 'move' AND cardinality(l.expected_system_tags) <> 0)");
+    expect(body).toContain("OR (l.mode = 'cleanup' AND l.expected_system_tags IS DISTINCT FROM l.markers)");
     expect(body).toContain("FOR UPDATE;");
   });
 

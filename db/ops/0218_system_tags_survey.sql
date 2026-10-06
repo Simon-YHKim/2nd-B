@@ -11,7 +11,10 @@
 --     목록에 넣지 않고 그대로 둔다(Q2). entry-ui:* 도 옮길 표식이다(Q3).
 --   6단계 (웹 게시 + QA APK 교체 뒤): 같은 집계를 다시 본다. 0218 적용 뒤에 만들어졌는데
 --     표식이 아직 tags 에 있는 행 = 옛 판이 쓴 행이다. 주인 확인 뒤 손 이행을 한 번 더 하거나
---     그대로 둔다.
+--     그대로 둔다. system_tags 가 이미 있는데 tags 에 표식 단어가 다시 있는 행
+--     (already_have_system_tags) 은 옛 판 화면이 이행 전에 읽어 둔 tags 전체를 되쓴 행이거나
+--     사용자가 그 단어를 단 행이다. 주인이 QA 행으로 확인하면 손 이행의 cleanup 모드로
+--     tags 에서만 뺀다(게이트 ST-03).
 --
 -- 읽기만 한다. 첫 문장이 이 트랜잭션을 읽기 전용으로 만든다. 실행:
 --   psql -X -v ON_ERROR_STOP=1 --single-transaction -f db/ops/0218_system_tags_survey.sql
@@ -61,7 +64,10 @@ SELECT c.user_id,
  ORDER BY c.user_id NULLS FIRST;
 
 -- 2. 행별. 확인된 계정의 행만 골라 손 이행 목록 파일(저장소 밖)에 옮긴다. 목록 한 줄 =
---    (id, user_id, 지금 tags, 옮길 표식). 옮길 표식은 proposed_markers 를 보고 사람이 정한다.
+--    (id, user_id, 지금 tags, 표식 묶음, 모드, 지금 system_tags). 표식 묶음은 proposed_markers
+--    를 보고 사람이 정한다(작성자가 쓴 묶음 그대로여야 한다. 손 이행 헤더의 "묶음").
+--    proposed_mode 는 system_tags 가 비었으면 move, 아니면 cleanup 이다. cleanup 이면 표식
+--    묶음은 지금 system_tags 그대로다.
 WITH markers(kind, marker) AS (
   VALUES
     ('note', 'first_light'), ('note', 'first_light:affirm'), ('note', 'first_light:soft'),
@@ -87,6 +93,7 @@ SELECT c.user_id, c.id, c.kind, c.created_at, c.tags, c.system_tags,
                   WHERE (c.kind, u.t) IN (SELECT m.kind, m.marker FROM markers AS m)
                   GROUP BY u.t) AS f
           ORDER BY f.o
-       ) AS proposed_markers
+       ) AS proposed_markers,
+       CASE WHEN cardinality(c.system_tags) = 0 THEN 'move' ELSE 'cleanup' END AS proposed_mode
   FROM candidates AS c
  ORDER BY c.user_id, c.created_at, c.id;
