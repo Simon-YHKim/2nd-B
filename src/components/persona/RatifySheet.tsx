@@ -5,6 +5,7 @@
 // check-constraints a11y + emulator QA like every screen here (no jest in node env).
 
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import { Text } from "@/components/ui/Text";
@@ -44,8 +45,14 @@ export function RatifySheet({
   onDecision: (decision: RatifyDecision) => void | Promise<void>;
   onClose: () => void;
 }) {
+  // 별 이름은 지금 언어로 찾는다(일곱 별 ds.star.* · 옛 축 ds.home.starName.*). 못 찾으면 id.
+  const { t: tHome } = useTranslation("home");
   if (!proposal) return null;
-  const d = formatProposalForDisplay(proposal, locale);
+  const d = formatProposalForDisplay(proposal, locale, (kind, id) => {
+    const key = kind === "sevenStar" ? `ds.star.${id}` : `ds.home.starName.${id}`;
+    const name = tHome(key);
+    return name && name !== key ? name : null;
+  });
   const closeIfIdle = () => {
     if (!pending) onClose();
   };

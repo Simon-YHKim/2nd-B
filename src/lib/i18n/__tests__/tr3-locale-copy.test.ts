@@ -121,7 +121,8 @@ describe("tr3 /import-hub: hub copy reads import hub.* in the painted language",
   it("every hub key is used by the screen, and every source tile has its copy", () => {
     const en = at(pack("en", "import"), "hub") as Record<string, unknown>;
     const copyKeys = Object.keys(en).filter((k) => k !== "sources");
-    expect(copyKeys).toHaveLength(56);
+    // 57: ledgerSkippedNote (0224, RD-261007-01 발주 2) joined the hub copy.
+    expect(copyKeys).toHaveLength(57);
     for (const k of copyKeys) {
       const used = HUB.includes(`"${k}"`) || (k.startsWith("tier_") && HUB.includes("t(`tier_${"));
       expect({ k, used }).toEqual({ k, used: true });
@@ -171,6 +172,8 @@ describe("tr3 /import-hub: hub copy reads import hub.* in the painted language",
     expect(hub.applyN).toContain("{n}");
     expect(hub.ledgerWarnPartBody).toContain("{failed}");
     expect(hub.ledgerWarnPartBody).toContain("{inserted}");
+    // 0224 (RD-261007-01): re-importing is safe now; the skipped note carries its own count.
+    expect(hub.ledgerSkippedNote).toContain("{skipped}");
   });
   it("the screen still replaces exactly those slots", () => {
     expect(HUB).toContain('t("applyN").replace("{n}", String(count))');
@@ -179,7 +182,7 @@ describe("tr3 /import-hub: hub copy reads import hub.* in the painted language",
   });
 
   it("es/pt/id translate every hub line (brand names named in the allowlist)", () => {
-    expectTranslated("import", "hub", 86);
+    expectTranslated("import", "hub", 87);
     for (const brand of ["kakao", "takeout", "notion", "google", "google-tasks"]) {
       expect(ALLOW.has(`import:hub.sources.${brand}.name`)).toBe(true);
     }

@@ -94,7 +94,7 @@ describe("가져오기 허브 - 통신 · 위치 잠금은 모름도 막는다",
       Set,
       Date,
     };
-    for (const setter of ["Active", "Paste", "Outcome", "OutcomeKind", "Errored", "GErr", "Step", "Selected", "Busy", "LedgerWarn", "ImportErr"]) {
+    for (const setter of ["Active", "Paste", "Outcome", "OutcomeKind", "Errored", "GErr", "Step", "Selected", "Busy", "LedgerWarn", "LedgerSkipped", "ImportErr"]) {
       const key = setter.charAt(0).toLowerCase() + setter.slice(1);
       s[`set${setter}`] = (value: unknown) => {
         s[key] = value;
