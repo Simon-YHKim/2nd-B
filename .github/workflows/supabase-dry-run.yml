@@ -1604,7 +1604,18 @@ jobs:
       - name: Exercise the records.system_tags split and its rollback (0218)
         env:
           PGPASSWORD: postgres
-        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/records_system_tags_regression.sql
+        run: |
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/records_system_tags_regression.sql
+          # The rollback guard must refuse (and change nothing) when a re-apply
+          # could not restore every row. That file is expected to fail.
+          set +e
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/records_system_tags_rollback_refusal.sql > "$RUNNER_TEMP/0218-refusal.log" 2>&1
+          refusal_rc=$?
+          set -e
+          cat "$RUNNER_TEMP/0218-refusal.log"
+          if [ "$refusal_rc" -eq 0 ]; then echo "0218 rollback did not refuse"; exit 1; fi
+          grep -q "0218_down: 2 rows would not come back" "$RUNNER_TEMP/0218-refusal.log"
+          if grep -q "UNEXPECTED" "$RUNNER_TEMP/0218-refusal.log"; then exit 1; fi
       - name: Dry-run Paddle refund consequence draft
         env:
           PGPASSWORD: postgres

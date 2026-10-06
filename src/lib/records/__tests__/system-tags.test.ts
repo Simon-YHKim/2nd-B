@@ -3,8 +3,9 @@
 // The two properties that matter: (1) with the column, only the app's column
 // says "the app wrote this", so a user tag with the same word is never read as
 // the marker; (2) without the column (0218 not applied / rolled back), every
-// reader behaves exactly as before 0218. The column fallback is asked once per
-// session and never swallows a real error.
+// reader behaves exactly as before 0218. A missing column is remembered for a
+// few minutes, not for the session (a column that appears is picked up), and
+// the fallback never swallows a real error.
 import {
   firstLightSystemTags,
   hasSystemTag,
@@ -13,12 +14,14 @@ import {
   normalizeSystemTags,
   recallInterviewSystemTags,
   resetSystemTagsColumnStateForTests,
+  SYSTEM_TAGS_ABSENT_RECHECK_MS,
   systemTagsColumnState,
   systemTagsOf,
   withSystemTagsColumn,
 } from "../system-tags";
 
 beforeEach(() => resetSystemTagsColumnStateForTests());
+afterEach(() => jest.restoreAllMocks());
 
 describe("writer shapes", () => {
   it("TTFV and the recall interview attach exactly what they wrote before 0218", () => {
@@ -110,12 +113,56 @@ describe("withSystemTagsColumn", () => {
     expect(systemTagsColumnState()).toBe("present");
   });
 
-  it("asks again without the column once, then stops asking for it this session", async () => {
+  it("asks again without the column once, then skips the column inside the recheck window", async () => {
+    const now = jest.spyOn(Date, "now").mockReturnValue(1_000_000);
     const run = jest.fn(async (present: boolean) => (present ? missing : { data: "legacy", error: null }));
     await expect(withSystemTagsColumn(run)).resolves.toEqual({ data: "legacy", error: null });
     expect(run.mock.calls).toEqual([[true], [false]]);
     expect(systemTagsColumnState()).toBe("absent");
 
+    run.mockClear();
+    now.mockReturnValue(1_000_000 + SYSTEM_TAGS_ABSENT_RECHECK_MS - 1);
+    await withSystemTagsColumn(run);
+    expect(run.mock.calls).toEqual([[false]]);
+  });
+
+  // Gate CD-04 / CDA-02 (2026-10-06): "absent" used to stick for the life of the
+  // process, so a 0218 applied (or re-applied) while the app was open was never
+  // seen: the database moved every marker into system_tags while the client kept
+  // reading tags. Without a module reset, the next query after the window asks
+  // with the column again and switches to it.
+  it("switches to the column once it appears, without a reload (absent -> present)", async () => {
+    const now = jest.spyOn(Date, "now").mockReturnValue(5_000_000);
+    let columnExists = false;
+    const run = jest.fn(async (present: boolean) =>
+      present && !columnExists ? missing : { data: present ? "with" : "legacy", error: null },
+    );
+    await expect(withSystemTagsColumn(run)).resolves.toEqual({ data: "legacy", error: null });
+    expect(systemTagsColumnState()).toBe("absent");
+
+    columnExists = true; // 0218 applied while the app is open
+    now.mockReturnValue(5_000_000 + SYSTEM_TAGS_ABSENT_RECHECK_MS);
+    run.mockClear();
+    await expect(withSystemTagsColumn(run)).resolves.toEqual({ data: "with", error: null });
+    expect(run.mock.calls).toEqual([[true]]);
+    expect(systemTagsColumnState()).toBe("present");
+
+    run.mockClear();
+    await withSystemTagsColumn(run);
+    expect(run.mock.calls).toEqual([[true]]);
+  });
+
+  it("a recheck that still finds no column falls back again and restarts the window", async () => {
+    const now = jest.spyOn(Date, "now").mockReturnValue(9_000_000);
+    const run = jest.fn(async (present: boolean) => (present ? missing : { data: "legacy", error: null }));
+    await withSystemTagsColumn(run);
+
+    now.mockReturnValue(9_000_000 + SYSTEM_TAGS_ABSENT_RECHECK_MS);
+    run.mockClear();
+    await expect(withSystemTagsColumn(run)).resolves.toEqual({ data: "legacy", error: null });
+    expect(run.mock.calls).toEqual([[true], [false]]);
+
+    now.mockReturnValue(9_000_000 + 2 * SYSTEM_TAGS_ABSENT_RECHECK_MS - 1);
     run.mockClear();
     await withSystemTagsColumn(run);
     expect(run.mock.calls).toEqual([[false]]);

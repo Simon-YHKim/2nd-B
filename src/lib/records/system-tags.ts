@@ -31,9 +31,15 @@
 // FALLBACK. The client can meet a database without the column (a rolled-back
 // 0218, a local database that has not run it). Then a select or filter naming
 // `system_tags` fails with 42703 and an insert with PGRST204. withSystemTagsColumn
-// retries once without the column and remembers that for this session, and
+// retries once without the column and remembers that for a few minutes, and
 // systemTagsOf reads a row without `system_tags` the pre-0218 way: the markers
 // are in `tags`. In that mode the app behaves exactly as it did before 0218.
+// "Absent" is not remembered for the whole session: when 0218 is (re-)applied
+// while the app is open, the database moves every marker into `system_tags` as
+// it is written, so a client still reading `tags` would miss the interview and
+// TTFV markers and could take a user tag of the same name for one (gate CD-04 /
+// CDA-02, 2026-10-06). After SYSTEM_TAGS_ABSENT_RECHECK_MS the next query asks
+// with the column again.
 
 /** The recall interview marker. Completion, Polaris evidence and the career
  *  timeline's interview origin key off it. */
@@ -131,10 +137,17 @@ export function isMissingSystemTagsColumnError(error: unknown): boolean {
 
 type ColumnState = "unknown" | "present" | "absent";
 let columnState: ColumnState = "unknown";
+let absentSince = 0;
+
+/** How long an "absent" answer is trusted before the next query asks with the
+ *  column again. One extra failing round trip per window while the column is
+ *  really missing; a column that appears is picked up within the window. */
+export const SYSTEM_TAGS_ABSENT_RECHECK_MS = 5 * 60 * 1000;
 
 /** Test seam: forget what this session learned about the column. */
 export function resetSystemTagsColumnStateForTests(): void {
   columnState = "unknown";
+  absentSince = 0;
 }
 
 /** What this session has learned about the column so far. */
@@ -146,19 +159,22 @@ export function systemTagsColumnState(): ColumnState {
  * Run a records query that names `system_tags`, and if this database does not
  * have the column, run it once more without it. `run(true)` must name the
  * column; `run(false)` must be the pre-0218 query. Once a database answered
- * "no such column" the session stops asking (a reload asks again). A thrown
- * error (a timeout) is not a missing column and propagates as is.
+ * "no such column", queries skip the column for SYSTEM_TAGS_ABSENT_RECHECK_MS and
+ * then ask with it again, so a column that appears mid-session is picked up
+ * without a reload. A thrown error (a timeout) is not a missing column and
+ * propagates as is.
  */
 export async function withSystemTagsColumn<R extends { error: unknown }>(
   run: (columnPresent: boolean) => PromiseLike<R>,
 ): Promise<R> {
-  if (columnState !== "absent") {
+  if (columnState !== "absent" || Date.now() - absentSince >= SYSTEM_TAGS_ABSENT_RECHECK_MS) {
     const first = await run(true);
     if (!isMissingSystemTagsColumnError(first.error)) {
       if (!first.error) columnState = "present";
       return first;
     }
     columnState = "absent";
+    absentSince = Date.now();
   }
   return run(false);
 }

@@ -70,33 +70,85 @@ describe("0218 re-defines Polaris evidence with one condition changed", () => {
 });
 
 describe("0218's split rule knows every marker the client writes", () => {
-  const trigger = M0218.slice(
-    M0218.indexOf("CREATE OR REPLACE FUNCTION public.records_move_app_system_tags()"),
-    M0218.indexOf("$move$;"),
-  );
+  const between = (from: string, to: string) => {
+    const start = M0218.indexOf(from);
+    const end = M0218.indexOf(to, start);
+    if (start < 0 || end < 0) throw new Error(`${from} .. ${to} not found`);
+    return M0218.slice(start, end);
+  };
+  const split = between("CREATE OR REPLACE FUNCTION public.records_app_system_tags_split(", "$split$;");
+  const trigger = between("CREATE OR REPLACE FUNCTION public.records_move_app_system_tags()", "$move$;");
 
   test("the TTFV pair", () => {
     for (const tag of [...firstLightSystemTags("affirm"), ...firstLightSystemTags("soft")]) {
-      expect(trigger).toContain(`'${tag}'`);
+      expect(split).toContain(`'${tag}'`);
     }
   });
 
   test("the recall interview set, both entry-ui locales", () => {
     for (const tag of [...recallInterviewSystemTags("ko"), ...recallInterviewSystemTags("en")]) {
-      expect(trigger).toContain(`'${tag}'`);
+      expect(split).toContain(`'${tag}'`);
     }
+  });
+
+  test("the split is one pure function the trigger, the backfill and the rollback all call", () => {
+    expect(split).toMatch(/LANGUAGE plpgsql\s+IMMUTABLE/);
+    expect(split).not.toMatch(/security\s+definer/i);
+    expect(split).not.toMatch(/\bpublic\.records\b/);
+    expect(trigger).toContain(
+      "public.records_app_system_tags_split(NEW.kind::text, NEW.body, NEW.tags, NEW.created_at)",
+    );
+    expect(between("DO $backfill$", "$backfill$;")).toContain("public.records_app_system_tags_split(");
+    expect(DOWN).toContain("LATERAL public.records_app_system_tags_split(");
+  });
+
+  // Gate CD-01 / CDA-01 (2026-10-06): a row that already has system_tags, or an
+  // UPDATE that changes tags, is never split again by string shape. The behavior
+  // runs in db/tests/records_system_tags_regression.sql; this pins the guard text.
+  test("only an INSERT or the backfill touch of a row without system_tags is split", () => {
+    expect(trigger).toContain("IF cardinality(NEW.system_tags) > 0 THEN");
+    expect(trigger).toMatch(
+      /TG_OP = 'UPDATE' AND \(\s+cardinality\(COALESCE\(OLD\.system_tags, ARRAY\[\]::text\[\]\)\) > 0\s+OR NEW\.tags IS DISTINCT FROM OLD\.tags/,
+    );
+    expect(trigger).toContain("IF NOT COALESCE(v_marker = ANY (NEW.system_tags), false) THEN");
+  });
+
+  test("the split runs for the roles that write records, not for anon", () => {
+    expect(M0218).toContain(
+      "REVOKE ALL ON FUNCTION public.records_app_system_tags_split(text, text, text[], timestamptz) FROM PUBLIC, anon;",
+    );
+    expect(M0218).toContain(
+      "GRANT EXECUTE ON FUNCTION public.records_app_system_tags_split(text, text, text[], timestamptz) TO authenticated, service_role;",
+    );
+  });
+
+  // Gate CD-02: the database, not only the client, keeps NULL, multi-dimensional
+  // and domain: values out of system_tags.
+  test("system_tags has a shape constraint", () => {
+    expect(M0218).toContain("ADD CONSTRAINT records_system_tags_shape CHECK (");
+    expect(M0218).toContain("WHEN array_position(system_tags, NULL) IS NOT NULL THEN false");
+    expect(M0218).toContain("WHEN array_ndims(system_tags) <> 1 OR array_lower(system_tags, 1) <> 1 THEN false");
+  });
+
+  // Gate CD-05: FORCE RLS would hide every row from a role that cannot bypass it.
+  test("the backfill refuses a role that cannot bypass row-level security and counts what is left", () => {
+    const backfill = between("DO $backfill$", "$backfill$;");
+    expect(backfill).toContain("(rolsuper OR rolbypassrls)");
+    expect(backfill).toContain("set_config('row_security', 'off', true)");
+    expect(backfill).toContain("still carry the app''s markers in tags");
   });
 
   test("it is a plain trigger, not SECURITY DEFINER, on INSERT and UPDATE OF tags", () => {
     expect(trigger).not.toMatch(/security\s+definer/i);
     expect(trigger).toContain("SET search_path = ''");
+    expect(split).toContain("SET search_path = ''");
     expect(M0218).toMatch(
       /CREATE TRIGGER records_move_app_system_tags\s+BEFORE INSERT OR UPDATE OF tags ON public\.records\s+FOR EACH ROW/,
     );
   });
 
   test("domain: is never a system tag (it stays in tags)", () => {
-    expect(trigger).toContain("NOT LIKE 'domain:%'");
+    expect(split).toContain("NOT LIKE 'domain:%'");
   });
 });
 
@@ -105,6 +157,16 @@ describe("migration hygiene", () => {
     for (const sql of [M0218, DOWN]) {
       expect(sql).not.toMatch(/^\s*(BEGIN|COMMIT)\s*;/im);
     }
+  });
+
+  // Gate CDA-03: a row whose system_tags a re-apply would not derive again (an
+  // edited TTFV body) stops the rollback before anything changes.
+  test("the rollback checks the round trip before it touches anything", () => {
+    const guard = DOWN.indexOf("DO $roundtrip_guard$");
+    const dropTrigger = DOWN.indexOf("DROP TRIGGER IF EXISTS records_move_app_system_tags");
+    expect(guard).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(dropTrigger);
+    expect(DOWN).toContain("app.rollback_0218_accept_unrecoverable");
   });
 
   test("the rollback drops the trigger before moving markers back, and the column last", () => {
