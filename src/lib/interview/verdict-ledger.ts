@@ -67,7 +67,8 @@ export type LedgerEndReason = (typeof LEDGER_END_REASONS)[number];
  * 서버가 그 값을 **믿을 수 없을 때** 적는다:
  *   mismatch   서버가 다시 계산한 값이 클라이언트가 보낸 값과 다르다
  *   unverified 보낸 답이 실제 프롬프트의 마지막 답과 같은지 확인하지 못해 다시 계산하지 않았다
- * 칸은 `pass` 일 때만 오른다(0220 `commit_interview_session`).
+ * 칸은 `pass` 일 때만 오른다(0220 의 담기 함수). 함수 이름을 따옴표로 적지 않는 이유: 이 파일은
+ * openai-proxy 가 읽어서, 배포 스키마 검사가 따옴표 속 이름을 그 함수의 의존으로 센다.
  */
 export const LEDGER_LOCAL_GATES = ["pass", "short", "non_answer", "mismatch", "unverified"] as const;
 export type LedgerLocalGate = (typeof LEDGER_LOCAL_GATES)[number];
