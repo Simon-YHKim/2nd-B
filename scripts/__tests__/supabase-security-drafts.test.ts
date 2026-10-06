@@ -247,7 +247,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(step).toContain("promoted draft still present beside");
     expect(step).toContain("cmp -s");
     expect(step).toContain("drop the retained_until_applied exception");
-    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 71");
+    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 72");
     expect(step).toContain("('0201', 'rss_proxy_erasure_registry')");
     expect(step).not.toMatch(/\\i db\/migration-drafts\/UNNUMBERED_/);
   });
@@ -277,6 +277,18 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(peerRegression).toContain("request beyond the accepted aggregate cap was admitted");
     expect(peerRegression).toContain("global denial allocated a new keyed row");
     expect(peerRegression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
+  });
+
+  test("exercises the numbered 0220 interview verdict ledger without replaying it", () => {
+    const regression = read("db/tests/interview_verdict_ledger_regression.sql");
+    expect(workflow).toContain("-f db/tests/interview_verdict_ledger_regression.sql");
+    expect(regression).not.toMatch(/^\\i(?:r)?\s/m);
+    expect(regression).toContain("an authenticated caller wrote a verdict row");
+    expect(regression).toContain("a second commit added again");
+    expect(regression).toContain("a coverage cell was lowered");
+    expect(regression).toContain("clean-up touched the wrong sessions");
+    expect(regression).toContain("account deletion left owned interview sessions behind");
+    expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
   });
 
   test("executes numbered RSS quota behavior without replaying its draft", () => {
