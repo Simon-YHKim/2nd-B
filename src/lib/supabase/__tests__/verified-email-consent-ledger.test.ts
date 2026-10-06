@@ -82,14 +82,9 @@ const migrations = readdirSync(migrationDir)
     return { name, exec: sql.replace(/^\s*--.*$/gm, "") };
   });
 
-// Validate the release candidate overlay without rewriting a shipped migration.
-// Production publication separately requires the live status RPC to match it.
-const policyDraftName = "UNNUMBERED_consent_email_v9_20261006.sql";
-migrations.push({
-  name: policyDraftName,
-  exec: readFileSync(join(process.cwd(), "db", "migration-drafts", policyDraftName), "utf8")
-    .split(CR).join("").replace(/^\s*--.*$/gm, ""),
-});
+// The email-v9 release candidate is the numbered 0215 in the list above; its
+// draft overlay was deleted when it got its number (Q-261005-07). Production
+// publication separately requires the live status RPC to match it.
 
 function lastPatternMatch(source: string, pattern: RegExp) {
   const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;

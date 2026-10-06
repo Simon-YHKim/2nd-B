@@ -126,6 +126,33 @@ Rebuild: `python scripts/build-dither-tiles.py`.
   The shipped file is 1,010 bytes at 22.05kHz; SHA-256
   `e3bf89d81485cc20014ca8396d0fcc5a152e608d625a57ee65ef947a0499ee57`.
 
+### Generated sound effects (agent-audio, 2026-10-06)
+
+Sound effects generated locally with [agent-audio](https://github.com/AIEGOBOT/agent-audio)
+from **Stable Audio 3 small-sfx** (`stabilityai/stable-audio-3-optimized`, revision
+`da6edc54`), then picked by Simon from two listening reports (Q-261006-01..07, 12, 13; other picks reuse these files). The opening ambience bed (Q-261006-07) plays beside the approved opening, never inside its package. These are
+**generated, not recorded**, so they are not in `RECORDED-SOURCES.json`; their prompts,
+seeds, model file hashes, raw-output hashes and edit recipe are in
+`assets/audio/GENERATED-SOURCES.json`, and a test checks every file against it.
+
+- **License**: Stability AI Community License. Commercial use is registered (2026-10-06
+  00:35 KST) and free under US$1M annual revenue. Section 3(c)(iii) gives the licensee
+  ownership of outputs, and outputs are excluded from "Derivative Works", so the app ships
+  sounds, not the model. We still record the attribution here: **Powered by Stability AI**.
+- **Format**: mono 22.05 kHz 16-bit PCM WAV, peak -3.1 dBFS (the opening ping's peak).
+
+| File | Use | Decision | Length | Bytes | SHA-256 |
+|---|---|---|---|---:|---|
+| `star-ratify-l5.wav` | A ratify that first takes a life-period star to L5 | Q-261006-01 | 2200 ms | 97,064 | `be5b9aee3669daef…` |
+| `star-brighten.wav` | A star brightening L1-L4 (wired in a later change) | Q-261006-02 | 1000 ms | 44,144 | `f09f222542ec73ff…` |
+| `record-save.wav` | A record the user saved (memo, capture, interview keep, manual SecondB keep) | Q-261006-03 | 68 ms | 3,038 | `2803ca096ce510b7…` |
+| `secondb-reply.wav` | A normal SecondB reply | Q-261006-04 | 300 ms | 13,274 | `08b8b50bbe0550fd…` |
+| `pocket-phone.wav` | Raising or lowering the pocket phone by hand | Q-261006-05 | 59 ms | 2,660 | `1fb5b1d1a8547d86…` |
+| `onboarding-welcome.wav` | Finishing onboarding (wired in a later change) | Q-261006-06 | 2200 ms | 97,064 | `ff3ca5b113b958b3…` |
+| `plan-purchase.wav` | A paid plan the store confirmed | Q-261006-12 | 1464 ms | 64,604 | `0c421a8991417ff6…` |
+| `reward-credit.wav` | A rewarded-ad credit the client actually granted | Q-261006-13 | 200 ms | 8,866 | `948c2b1852df263c…` |
+| `opening-ambience.wav` | Opening ambience bed under the approved opening (native app only, separate player) | Q-261006-07 | 10120 ms | 446,336 | `f06d5e48f840c073…` |
+
 ### Retired camera audio (moved out of the repo on 2026-10-04)
 
 These four files were superseded by the recorded `observatory-*.wav` cues on
@@ -185,7 +212,6 @@ only the path moved.
 | `assets/legacy-art/cosmic-pixel-v3-soulcore/` | 2 SVG | 2026-06-02 | Legacy "cosmic pixel" skin. Only the Pattern Data node and the Log chip remain (the premium feedback empty / error glyphs). The six 256px pattern cores left with the `EXPO_PUBLIC_UI=legacy` lever on 2026-10-05 (batch `qa261004-lever`), the five companion idle poses (`archon`, `iris`, `lumen`, `relia`, `foreman_momo`) and seven momo-crew moods with the legacy characters on 2026-10-05 (batch `qa261004-chars`), and the other 122 images (soul-core tiers, data / log / link PNGs, per-state companion poses, sprite sheets, mobile-graph cores, edges and overlays) on 2026-10-04 (batch `qa261004-art`), all to `E:/Legacy/2ndB` |
 | `assets/legacy-art/2ndb-production-premium-v1/` | 18 PNG | 2026-05-30 | 13 tier icons and 5 shards. The 15 graph-island PNGs, the clean auth hero and the two Vela worker PNGs moved to `E:/Legacy/2ndB` on 2026-10-04 (batch `qa261004-art`); the three wiki card thumbs on 2026-10-05 (batch `qa261004-lever`); the ten worker redraws of the five legacy characters on 2026-10-05 (batch `qa261004-chars`); and the last two worker redraws, SecondB's idle pose and walk strip, on 2026-10-05 (batch `qa261005-secondb-sprite`) once nothing drew them |
 | `assets/legacy-art/tesseract-v10/` | 1 PNG | 2026-06-04 | Tesseract worldview set generated from `docs/V3_GPT_IMAGE_PROMPT.md`. Only `soul_core.png` remains (the /core-brain empty and load-error art); the six pattern-core PNGs moved to `E:/Legacy/2ndB` on 2026-10-04 |
-| `public/landing/` | 1 PNG | 2026-06-15 | Standalone landing page head art (`assets/head-angle-v2/`, read by `main.js`). The 2026-06-15 background-concept board (`bg-concepts/`, 7 HTML pages and 6 screenshots) moved to `E:/Legacy/2ndB` on 2026-10-05 (batch `qa261004-batch2`) |
 | `public/proto/` | 7 PNG | 2026-07-04 | Deep-space prototype screens |
 | `public/icons/` | 2 PNG | 2026-06-11 | PWA icons (192 / 512), derived from the app icon. Since 2026-09-30 both are rasterised by `scripts/build-app-icons.ts` from the Polaris pixel star (first-party code, no third-party pixels) |
 | `assets/deepspace/` | 2 PNG | 2026-06-19 | SecondB canonical head pair (`secondb-head-front.png`, `secondb-head-blank.png`). The 11 Nebori style-comparison working images added while the deep-space look was being settled moved to `E:/Legacy/2ndB` on 2026-10-05 with their four `docs/nebori-*` reports (batch `qa261004-batch2`) |
@@ -193,7 +219,7 @@ only the path moved.
 | `assets/images/` | 9 PNG | 2026-05-25 | App icon, adaptive-icon layers, splash, favicon, and three SecondB phone assets. The home phone and the blank-screen dashboard frame are Simon-provided ChatGPT art (2026-09-26); the earlier silver phone is retained for rollback. Seeded from the Expo template at initialisation (MIT) and replaced in-window with generated art. Since 2026-09-30 the app icon, adaptive foreground and monochrome layers, and favicon are rasterised by `scripts/build-app-icons.ts` from the Polaris pixel star the sign-in screen draws (`pixel-star.ts` geometry, `m3.ts` colours; first-party code, no third-party pixels). The adaptive background and the splash are unchanged |
 | `assets/images/phone-app/` | 28 PNG | 2026-09-28 | Simon-supplied mini-app display pack: 12 app icons, 5 internal dock icons, 9 UI icons, and 1 night-village banner; plus 1 locally drawn avatar-palette app icon on a 4 px grid. Only pixels are bundled; labels, dates, unread counts, and state are rendered by the app. Release rights confirmed by Simon on 2026-09-28; the pack does not name its image generator. The three unused UI icons (`badge_3`, `sparkle_gold`, `calendar`) moved to `E:/Legacy/2ndB` on 2026-10-05 (batch `qa261004-batch2`). |
 
-Current checked inventory: **103 bundled image files** (2026-10-05, after the `qa261005-secondb-sprite` move; counted as tracked PNG / JPG / GIF / WebP / SVG files under `assets/` and `public/`, the same rule that gave 137 after `qa261004-batch2`). `scripts/check-constraints.ts` (`AssetLicenseDisclosure`)
+Current checked inventory: **102 bundled image files** (2026-10-06, after the `qa261006-landing` move; counted as tracked PNG / JPG / GIF / WebP / SVG files under `assets/` and `public/`, the same rule that gave 103 after `qa261005-secondb-sprite` and 137 after `qa261004-batch2`). That move took the whole `public/landing/` pack (the standalone landing structure study and its one head-art PNG, `assets/head-angle-v2/`, first in git 2026-06-15) to `E:/Legacy/2ndB` under Simon decision Q-261005-06 A; its background-concept board (`bg-concepts/`, 7 HTML pages and 6 screenshots) had already gone there on 2026-10-05 (batch `qa261004-batch2`). `scripts/check-constraints.ts` (`AssetLicenseDisclosure`)
 fails if any of these paths stops being mentioned in this file, so a new
 art pack cannot ship undisclosed.
 

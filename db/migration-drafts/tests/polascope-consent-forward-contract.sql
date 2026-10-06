@@ -3,7 +3,7 @@
 -- The assertions live in db/tests/polascope_consent_20261005_regression.sql, which
 -- the numbered CI step runs against the promoted 0210 without this draft replay.
 BEGIN;
-\ir ../UNNUMBERED_polascope_consent_20260928.sql
+\ir ../../migrations/0210_polascope_consent_20260928.sql
 COMMIT;
 
 \ir ../../tests/polascope_consent_20261005_regression.sql

@@ -81,6 +81,9 @@ import {
 } from "@/lib/interview/probe";
 import { LOOP_CHECK_KEYS, type ReflectionEntry } from "@/lib/interview/loop-check";
 import { INTERVIEW_PURPOSE, localPromptsExhausted, readDayLimitRefusal } from "@/lib/interview/session-end";
+import { RECORD_SAVE_CUE, saveCueAllowed } from "@/lib/audio/app-cues";
+import { isRecordingAudioMode } from "@/lib/audio/audio-session";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
 
 // 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
 // 원래 이 자리에 문자열 SVG 레지스트리가 있었다(저장소에서 열하나 번째).
@@ -281,6 +284,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   const [concreteOnly, setConcreteOnly] = useState(false);
   const [coverageReady, setCoverageReady] = useState(false);
   const [saving, setSaving] = useState(false);
+  const playSaveCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
   const [notice, setNotice] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "danger" } | null>(null);
   const [failModal, setFailModal] = useState(false);
@@ -437,7 +441,10 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         // Nothing is added on a sparse answer, missing judgement, failure, or stop.
         // The model cannot award another layer or override the local gate.
         if (credited && confirmed) setCoverage(incrementCoverage(cov, period, credited));
-        if (move.kind === "finish") {
+        // 장면 완료(`finish`)는 `nextMove` 가 판정을 기다리는 이 답을 인정된다고 보고 낸 수다.
+        // 그래서 판정이 인정일 때만 끝낸다(게이트 LAST-01). 인정 못 받았으면 아래 갈래가 같은 층에
+        // 발판을 놓거나, 그 층에서 세 번째면 대화를 끝낸다. 마지막 층도 다른 층과 같다.
+        if (move.kind === "finish" && confirmed) {
           setTurns(assessed);
           finish();
           return;
@@ -477,6 +484,14 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
             finish();
           }
           return;
+        }
+        // 판정을 못 받은 답이다(게이트 LAST-02). 진전으로도, 그 층의 실패로도 세지 않게 표시하고
+        // 겨냥하던 층을 되돌린다 -- "다시 시도해 주세요"로 다시 보낸 답이 같은 층에서 판정받게.
+        if (!ended.current) {
+          setTurns(history.map((turn, index) => index === history.length - 1 && turn.role === "user"
+            ? { ...turn, unsettled: true }
+            : turn));
+          setPendingLayer(credited);
         }
         setNotice(t("drill.failed"));
       } finally {
@@ -570,16 +585,16 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     //
     // 예전에는 비어 있지 않은 답이면 무조건 `incrementCoverage` 를 불렀다. 그래서
     // "잘 모르겠는데" 가 의미(L3) 칸을 채우고, 채워졌으니 믿음(L4)으로 내려갔다.
-    // **못 판 것을 판 것으로 셀다.** 그 칸 수가 그대로 `narrativeStarLevel` 의
+    // **못 판 것을 판 것으로 셌다.** 그 칸 수가 그대로 `narrativeStarLevel` 의
     // 입력이라 등급까지 오염됐다 -- 7렌즈 감사에서 걸린 바로 그 병이다.
     //
     // 판정은 결정론적이고(`stuck.ts`) 보수적이다 -- 사용자가 스스로 포기를
-    // 말했을 때만 안 셀다. 밝기가 LLM 의 기분에 달려서는 안 되기 때문이다.
+    // 말했을 때만 안 셌다. 밝기가 LLM 의 기분에 달려서는 안 되기 때문이다.
     const blocked = isLocalNonAnswer(text, pendingLayer);
     const nextCoverage = coverage;
     const nextStreak = blocked ? stuckStreak + 1 : 0;
     const stuck = blocked && pendingLayer ? { layer: pendingLayer, streak: nextStreak } : null;
-    // 발판을 두 번 줘도 막햘다. 이 층은 이번 대화에서 더 묻지 않는다 -- 칸은
+    // 발판을 두 번 줘도 막혔다. 이 층은 이번 대화에서 더 묻지 않는다 -- 칸은
     // 비운 채로. 안 그러면 비어 있다는 이유로 같은 층이 계속 다시 골라진다.
     const nextAbandoned =
       pendingLayer && nextStreak > MAX_SCAFFOLDS_PER_LAYER && !abandoned.includes(pendingLayer)
@@ -669,6 +684,9 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       // 기록 실패로 성공한 인터뷰를 실패로 보이게 할 이유가 없다.
       void loadSevenLevels(userId).then((s) => recordSevenTiers(userId, s.starLevels));
       setToast({ tone: "success", message: t("drill.saved") });
+      // 저장 소리(Q-261006-03). 위기 판정은 위에서 먼저 돌아가므로 여기까지 오면 위기가 아니다.
+      // 대화 도중 층이 채워지는 순간은 여전히 무음이다(채점처럼 들리지 않게).
+      if (saveCueAllowed({ crisis: false, recording: isRecordingAudioMode() })) playSaveCue();
       navigating = true;
       setTimeout(() => {
         if (growthOrigin) router.replace("/star/growth");

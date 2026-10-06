@@ -49,6 +49,7 @@ import { buildCenterCards, type CenterCard } from "@/lib/persona/center";
 import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type OriginShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
 import { claimQaPolarisAuto, loadRoleCards, proposeRoleCards, ratifyRoleCard, type RoleCard } from "@/lib/persona/role-cards";
+import { requestGlobalCue } from "@/lib/audio/global-cues";
 import { loadPolarisQuota, type PolarisQuota } from "@/lib/persona/polaris-quota";
 import { useCompanionMoment } from "@/components/art/CompanionSprite";
 import { IslandArt } from "@/components/art/IslandArt";
@@ -367,7 +368,12 @@ function CoreBrainScreen() {
     setRoleError(false);
     try {
       const next = await ratifyRoleCard(userId, card);
-      if (currentUser.current === userId) { setRoleCards(next); setRoleCardsUserId(userId); }
+      if (currentUser.current === userId) {
+        setRoleCards(next); setRoleCardsUserId(userId);
+        // L5 소리 재사용(Q-261006-09). 승인 버튼이 서랍(Modal) 안에 있을 수 있어 화면 소리 관문
+        // 대신 루트의 GlobalCueHost 가 낸다.
+        requestGlobalCue("polarisRatified");
+      }
     } catch {
       if (currentUser.current === userId) setRoleError(true);
     } finally {

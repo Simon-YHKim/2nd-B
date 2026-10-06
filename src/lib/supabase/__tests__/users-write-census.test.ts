@@ -107,10 +107,10 @@ function census(): Census {
 const C = census();
 const MIGRATION = readFileSync(join(ROOT, "db/migrations/0139_rbac_roles.sql"), "utf8").split(CR).join("");
 const AVATAR_DRAFT = readFileSync(
-  join(ROOT, "db/migration-drafts/UNNUMBERED_users_avatar_spec.sql"), "utf8",
+  join(ROOT, "db/migrations/0206_users_avatar_spec.sql"), "utf8",
 ).split(CR).join("");
 const DISPLAY_NAME_DRAFT = readFileSync(
-  join(ROOT, "db/migration-drafts/UNNUMBERED_users_display_name_update.sql"), "utf8",
+  join(ROOT, "db/migrations/0207_users_display_name_update.sql"), "utf8",
 ).split(CR).join("");
 
 describe("what the client writes to public.users", () => {
