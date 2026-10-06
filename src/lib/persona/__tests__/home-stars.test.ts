@@ -109,7 +109,7 @@ describe("별을 누르면 그 별의 요약이 열린다 (Simon 결정 4 = B)",
   it("프로필 별은 아바타와 요약 한 줄, 설정/수정 버튼 하나를 보여준다", () => {
     const page = read("src/app/me/[star].tsx");
     expect(page).toContain("<AvatarPreview spec=");
-    expect(page).toContain("profileSummaryParts(profile.details)");
+    expect(page).toContain("profileSummaryParts(profile.details, PROFILE_DETAIL_TOTAL)");
     expect(page).toContain('t(countFilledDetails(profile.details) > 0 ? "ds.star.editProfile" : "ds.star.setupProfile")');
     // 읽기 실패는 "프로필 없음"이 아니다 - 설정/수정을 고르지 않는다.
     expect(page).toContain(': t("ds.star.openProfile");');
@@ -122,8 +122,10 @@ describe("별을 누르면 그 별의 요약이 열린다 (Simon 결정 4 = B)",
     const page = read("src/app/me/[star].tsx");
     expect(page).toContain('<PixelGlyph name="edit"');
     expect(page).toContain("accessibilityLabel={profileCta}");
-    expect(page).toContain("size={192} />");
-    expect(page).toContain("numberOfLines={1}");
+    // 10-07 2차: 아바타 폭 = 요약 상자 폭, 요약은 말줄임 없이 다섯 줄 높이에서 스크롤.
+    expect(page).toContain("size={avatarWidth} />");
+    expect(page).not.toContain("numberOfLines={1}");
+    expect(page).toContain("profileSummary: { maxHeight: m3.type.bodyLarge.line * 5 }");
     expect(page.indexOf("styles.profileHeader")).toBeLessThan(page.indexOf("styles.profileAvatarRow"));
   });
 

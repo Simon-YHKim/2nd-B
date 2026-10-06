@@ -25,7 +25,7 @@ import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { PremiumLoadingState } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { DEFAULT_AVATAR_SPEC, type AvatarSpec } from "@/lib/avatar";
-import { countFilledDetails, profileSummaryParts, type ProfileDetails } from "@/lib/persona/profile-details";
+import { countFilledDetails, PROFILE_DETAIL_TOTAL, profileSummaryParts, type ProfileDetails } from "@/lib/persona/profile-details";
 import { fetchAvatarSpec } from "@/lib/supabase/avatar-spec";
 import { fetchDisplayName } from "@/lib/supabase/display-name";
 import { fetchProfileDetails } from "@/lib/supabase/profile-details";
@@ -119,6 +119,8 @@ export default function StarSummaryRoute() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [entry, setEntry] = useState<StarEntryStatus | null>(null);
   const [profile, setProfile] = useState<ProfileCard>({ status: "loading" });
+  // 아바타는 아래 요약 상자와 같은 폭으로 그린다(Simon 2026-10-07). 폭은 재야 안다.
+  const [avatarWidth, setAvatarWidth] = useState(0);
 
   const id: SevenStarId | null =
     typeof star === "string" && isSevenStarId(star) ? star : null;
@@ -163,7 +165,8 @@ export default function StarSummaryRoute() {
         : t("ds.audit.rangeSpan", { from: meta.ageBand.from, to: meta.ageBand.to })
     : "";
   const profileName = profile.status === "ready" ? profile.name?.trim() : "";
-  const profileParts = profile.status === "ready" ? profileSummaryParts(profile.details) : [];
+  // 채운 칸 전부. 상자는 다섯 줄 높이에서 멈추고 그 안에서 스크롤한다 - 말줄임으로 자르지 않는다.
+  const profileParts = profile.status === "ready" ? profileSummaryParts(profile.details, PROFILE_DETAIL_TOTAL) : [];
   // 요약은 한 줄에 한 조각, 최대 세 줄. 읽기 실패면 아무것도 쓰지 않는다.
   const profileLines = profile.status === "loading"
     ? [t("ds.star.loading")]
@@ -197,17 +200,27 @@ export default function StarSummaryRoute() {
                 <PixelGlyph name="edit" size={24} color={m3.color.primary} />
               </Pressable>
             </View>
-            <View style={styles.profileAvatarRow}>
-              <AvatarPreview spec={profile.status === "ready" ? profile.avatar ?? DEFAULT_AVATAR_SPEC : DEFAULT_AVATAR_SPEC} size={192} />
+            <View
+              style={styles.profileAvatarRow}
+              onLayout={({ nativeEvent }) => {
+                const next = Math.floor(nativeEvent.layout.width);
+                setAvatarWidth((current) => (current === next ? current : next));
+              }}
+            >
+              {avatarWidth > 0 ? (
+                <AvatarPreview spec={profile.status === "ready" ? profile.avatar ?? DEFAULT_AVATAR_SPEC : DEFAULT_AVATAR_SPEC} size={avatarWidth} />
+              ) : null}
               {profileName ? <Text style={[m3TextStyle("titleMedium"), styles.title]}>{profileName}</Text> : null}
             </View>
             {profileLines.length > 0 ? (
               <MdCard variant="outlined" style={styles.card}>
-                {profileLines.map((line, index) => (
-                  <Text key={index} numberOfLines={1} style={[m3TextStyle("bodyMedium"), profileParts.length > 0 ? styles.line : styles.muted]}>
-                    {line}
-                  </Text>
-                ))}
+                <ScrollView style={styles.profileSummary} nestedScrollEnabled showsVerticalScrollIndicator>
+                  {profileLines.map((line, index) => (
+                    <Text key={index} style={[m3TextStyle("bodyLarge"), profileParts.length > 0 ? styles.line : styles.muted]}>
+                      {line}
+                    </Text>
+                  ))}
+                </ScrollView>
               </MdCard>
             ) : null}
           </>
@@ -350,6 +363,8 @@ const styles = StyleSheet.create({
   profileTitle: { flex: 1 },
   editButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   profileAvatarRow: { alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
+  // 다섯 줄(bodyLarge 줄 높이 x 5)을 넘으면 상자 안에서 스크롤한다.
+  profileSummary: { maxHeight: m3.type.bodyLarge.line * 5 },
   heroCopy: { flex: 1 },
   title: { color: m3.color.onSurface },
   range: { color: m3.color.onSurfaceVariant, marginBottom: spacing.sm },
