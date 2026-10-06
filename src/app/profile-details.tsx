@@ -10,7 +10,7 @@
 //
 // ⚠ 민감정보는 여기서 묻지 않는다(PIPA 제23조). 근거는
 // `lib/persona/profile-details.ts` 헤더와 0132 마이그레이션 주석에 있다.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Platform,
   ScrollView,
@@ -38,8 +38,6 @@ import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { invalidateProfileStarLevel } from "@/lib/persona/load-profile-star";
 import {
   PROFILE_DETAIL_FIELDS,
-  PROFILE_DETAIL_TOTAL,
-  countFilledDetails,
   type ProfileDetailKey,
   type ProfileDetails,
   profileChoiceLabelKey,
@@ -50,7 +48,6 @@ import {
   fetchDisplayName,
   saveDisplayName,
 } from "@/lib/supabase/display-name";
-import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 export default function ProfileDetailsScreen() {
   // Phone-aware: inside the dashboard phone, cancel steps the phone's stack.
@@ -76,13 +73,13 @@ export default function ProfileDetailsScreen() {
     status: "idle" | "loading" | "ready" | "error";
   }>({ userId: null, status: "idle" });
   const [nameReloadKey, setNameReloadKey] = useState(0);
-  const [nameSaving, setNameSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "danger" } | null>(null);
   const regionRef = useRef<TextInput>(null);
   const householdRef = useRef<TextInput>(null);
   const activeUserIdRef = useRef(userId);
   const saveOperationRef = useRef(0);
-  const nameSaveOperationRef = useRef(0);
+  // 마지막으로 읽었거나 저장한 이름. 저장 버튼은 이름이 이것과 다를 때만 이름도 쓴다.
+  const savedNameRef = useRef("");
   const kbHeight = useKeyboard();
   activeUserIdRef.current = userId;
 
@@ -134,13 +131,13 @@ export default function ProfileDetailsScreen() {
   useEffect(() => {
     if (!userId) return;
     let alive = true;
-    nameSaveOperationRef.current += 1;
-    setNameSaving(false);
+    savedNameRef.current = "";
     setDisplayName("");
     setNameLoadState({ userId, status: "loading" });
     void fetchDisplayName(userId)
       .then((name) => {
         if (!alive) return;
+        savedNameRef.current = name ?? "";
         setDisplayName(name ?? "");
         setNameLoadState({ userId, status: "ready" });
       })
@@ -165,7 +162,6 @@ export default function ProfileDetailsScreen() {
     return () => { alive = false; };
   }, [userId]));
 
-  const filled = useMemo(() => countFilledDetails(details), [details]);
   const readyForUser = loadState.userId === userId && loadState.status === "ready";
   const nameReadyForUser = nameLoadState.userId === userId && nameLoadState.status === "ready";
 
@@ -180,38 +176,34 @@ export default function ProfileDetailsScreen() {
     const isCurrentOperation = () =>
       saveOperationRef.current === operation && activeUserIdRef.current === saveUserId;
     setSaving(true);
+    // 이름 저장 버튼은 없어졌다(Simon 2026-10-07). 이름도 이 저장이 함께 한다 - 확인된 주인의
+    // 이름을 읽었고(nameReadyForUser) 그 뒤 바뀐 경우에만. 읽기에 실패한 이름은 쓰지 않는다
+    // (빈 값으로 덮어쓰지 않기 위해).
+    let step: "details" | "name" = "details";
     try {
       await saveProfileDetails(saveUserId, details);
       if (!isCurrentOperation()) return;
+      if (nameReadyForUser && displayName !== savedNameRef.current) {
+        step = "name";
+        const savedName = await saveDisplayName(saveUserId, displayName);
+        if (!isCurrentOperation()) return;
+        savedNameRef.current = savedName ?? "";
+        setDisplayName(savedName ?? "");
+      }
+      invalidateProfileStarLevel(saveUserId);
       setToast({ message: t("deepspace:profileDetails.saved"), tone: "success" });
     } catch {
       if (!isCurrentOperation()) return;
-      setToast({ message: t("deepspace:profileDetails.saveError"), tone: "danger" });
+      setToast({
+        message: step === "name"
+          ? t("deepspace:profileDetails.nameSaveError")
+          : t("deepspace:profileDetails.saveError"),
+        tone: "danger",
+      });
     } finally {
       if (isCurrentOperation()) setSaving(false);
     }
-  }, [userId, readyForUser, details, saving, t]);
-
-  const onSaveName = useCallback(async () => {
-    if (!userId || !nameReadyForUser || nameSaving) return;
-    const saveUserId = userId;
-    const operation = ++nameSaveOperationRef.current;
-    const isCurrentOperation = () =>
-      nameSaveOperationRef.current === operation && activeUserIdRef.current === saveUserId;
-    setNameSaving(true);
-    try {
-      const savedName = await saveDisplayName(saveUserId, displayName);
-      if (!isCurrentOperation()) return;
-      setDisplayName(savedName ?? "");
-      invalidateProfileStarLevel(saveUserId);
-      setToast({ message: t("deepspace:profileDetails.nameSaved"), tone: "success" });
-    } catch {
-      if (!isCurrentOperation()) return;
-      setToast({ message: t("deepspace:profileDetails.nameSaveError"), tone: "danger" });
-    } finally {
-      if (isCurrentOperation()) setNameSaving(false);
-    }
-  }, [userId, nameReadyForUser, nameSaving, displayName, t]);
+  }, [userId, readyForUser, nameReadyForUser, details, displayName, saving, t]);
 
   const title = t("deepspace:profileDetails.screenTitle");
 
@@ -359,7 +351,6 @@ export default function ProfileDetailsScreen() {
             contentStyle={styles.fieldContent}
           >
             <Text style={styles.label}>{t("deepspace:profileDetails.nameLabel")}</Text>
-            <Text style={styles.hint}>{t("deepspace:profileDetails.nameHint")}</Text>
             {nameLoadState.userId === userId && nameLoadState.status === "error" ? (
               <View style={styles.nameError} accessibilityRole="alert">
                 <Text style={styles.nameErrorText}>
@@ -372,75 +363,23 @@ export default function ProfileDetailsScreen() {
                 />
               </View>
             ) : nameReadyForUser ? (
-              <>
-                <Field
-                  value={displayName}
-                  onChangeText={(value) => setDisplayName(value.slice(0, DISPLAY_NAME_MAX_LENGTH))}
-                  maxLength={DISPLAY_NAME_MAX_LENGTH}
-                  editable={!nameSaving}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="done"
-                  accessibilityLabel={t("deepspace:profileDetails.nameLabel")}
-                />
-                <MdButton
-                  variant="outlined"
-                  label={t("deepspace:profileDetails.nameSave")}
-                  loading={nameSaving}
-                  disabled={!nameReadyForUser || nameSaving}
-                  onPress={() => void onSaveName()}
-                  style={styles.saveButton}
-                />
-              </>
+              <Field
+                value={displayName}
+                onChangeText={(value) => setDisplayName(value.slice(0, DISPLAY_NAME_MAX_LENGTH))}
+                maxLength={DISPLAY_NAME_MAX_LENGTH}
+                editable={!saving}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                accessibilityLabel={t("deepspace:profileDetails.nameLabel")}
+              />
             ) : (
               <Text style={styles.hint}>{t("deepspace:profileDetails.nameLoading")}</Text>
             )}
           </PixelSurface>
 
-          {/* profilesetup의 inset+진행 레일 패턴만 파생한다. 핸들·목업 진행률은
-              만들지 않고 실제 생활정보 7칸만 센다. 아바타는 위 칸의 저장된 실물이다. */}
-          <PixelSurface
-            variant="inset"
-            style={styles.summarySurface}
-            contentStyle={styles.summaryContent}
-          >
-            <Text style={styles.intro}>{t("deepspace:profileDetails.intro")}</Text>
-            <View style={styles.progressRow}>
-                  <View
-                    accessible
-                    accessibilityRole="progressbar"
-                    accessibilityLabel={title}
-                    {...a11yValue({
-                      text: t("deepspace:profileDetails.progress", {
-                        filled,
-                        total: PROFILE_DETAIL_TOTAL,
-                      }),
-                    })}
-                style={styles.progressTrack}
-              >
-                {PROFILE_DETAIL_FIELDS.map((field) => (
-                  <View
-                    key={field.key}
-                    style={[
-                      styles.progressCell,
-                      details[field.key]?.trim() ? styles.progressCellDone : null,
-                    ]}
-                  />
-                ))}
-              </View>
-              <Text
-                accessible={false}
-                accessibilityElementsHidden
-                importantForAccessibility="no"
-                style={styles.progress}
-              >
-                {t("deepspace:profileDetails.progress", { filled, total: PROFILE_DETAIL_TOTAL })}
-              </Text>
-            </View>
-            {/* 무엇을 안 묻는지도 말해 준다. 안 묻는다는 사실은 물어보는 것만큼 중요하다. */}
-            <Text style={styles.notSensitive}>{t("deepspace:profileDetails.notSensitive")}</Text>
-          </PixelSurface>
-
+          {/* 안내 · 진행 칸 · 민감정보 안내 상자는 Simon 이 걷어냈다(2026-10-07). 민감정보는 여전히
+              묻지 않는다 - 항목 목록(PROFILE_DETAIL_FIELDS)에 없다. */}
           {PROFILE_DETAIL_FIELDS.map((field) => {
             const value = details[field.key] ?? "";
             return (
@@ -538,38 +477,6 @@ const styles = StyleSheet.create({
     ...(Platform.OS === "web"
       ? { width: "100%" as const, maxWidth: 520, alignSelf: "center" as const }
       : {}),
-  },
-  summarySurface: { alignSelf: "stretch" },
-  summaryContent: { gap: deepSpaceSpacing.sm, padding: deepSpaceSpacing.md },
-  intro: {
-    fontSize: m3.type.bodyLarge.size,
-    lineHeight: m3.type.bodyLarge.line,
-    paddingBottom: m3.spacing.s1,
-    color: deepSpace.textHi,
-  },
-  progressRow: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },
-  progressTrack: {
-    flex: 1,
-    height: m3.spacing.s4,
-    flexDirection: "row",
-    gap: m3.spacing.s1,
-    padding: m3.spacing.s1,
-    backgroundColor: m3.color.surface,
-  },
-  progressCell: { flex: 1, backgroundColor: deepSpace.cardLine },
-  progressCellDone: { backgroundColor: m3.color.primary },
-  progress: {
-    flexShrink: 0,
-    fontSize: m3.type.bodySmall.size,
-    lineHeight: m3.type.bodySmall.line,
-    paddingBottom: m3.spacing.s1,
-    color: deepSpace.accentSoft,
-  },
-  notSensitive: {
-    fontSize: m3.type.bodySmall.size,
-    lineHeight: m3.type.bodySmall.line,
-    paddingBottom: m3.spacing.s1,
-    color: deepSpace.textLo,
   },
   fieldSurface: { alignSelf: "stretch" },
   fieldContent: { gap: m3.spacing.s2, padding: deepSpaceSpacing.md },

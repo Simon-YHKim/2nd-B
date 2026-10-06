@@ -8,14 +8,15 @@ const fieldSource = readFileSync(join(root, "src/components/m3/Field.tsx"), "utf
 describe("/profile-details PIXEL-CLAY contract", () => {
   test("derives only the profilesetup surface pattern from real profile-detail state", () => {
     expect(source).toContain('import { PixelSurface } from "@/components/pixel"');
-    expect(source).toMatch(/<PixelSurface\s+variant="inset"/);
     expect(source).toContain('variant="frame"');
-    expect(source).toContain('accessibilityRole="progressbar"');
-    expect(source).toContain("accessibilityLabel={title}");
-    // 위와 같은 이유로 핀을 헬퍼 형태로 옮긴다.
-    expect(source).toMatch(/\{\.\.\.a11yValue\(\{\s*text: t\("deepspace:profileDetails\.progress"/);
     expect(source).toContain("PROFILE_DETAIL_FIELDS.map");
-    expect(source).toContain("details[field.key]?.trim()");
+    // Simon 2026-10-07: 안내 · 진행 칸 · 민감정보 안내 상자와 이름 설명 · 이름 저장 버튼을 걷어냈다.
+    expect(source).not.toMatch(/<PixelSurface\s+variant="inset"/);
+    expect(source).not.toContain('accessibilityRole="progressbar"');
+    expect(source).not.toContain('t("deepspace:profileDetails.intro")');
+    expect(source).not.toContain('t("deepspace:profileDetails.notSensitive")');
+    expect(source).not.toContain('t("deepspace:profileDetails.nameHint")');
+    expect(source).not.toContain('t("deepspace:profileDetails.nameSave")');
 
     // profilesetup의 목업 계정·아바타·고정 3/4를 이 편집 화면에 복제하지 않는다.
     expect(source).not.toContain("SecondbHead");
@@ -95,7 +96,8 @@ describe("/profile-details PIXEL-CLAY contract", () => {
     expect(source).toContain("fetchDisplayName(userId)");
     expect(source).toContain('setNameLoadState({ userId, status: "error" })');
     expect(source).toContain('nameLoadState.userId === userId && nameLoadState.status === "ready"');
-    expect(source).toContain("if (!userId || !nameReadyForUser || nameSaving) return");
+    // The one save button writes the name too, only for a name read from its owner and then changed.
+    expect(source).toContain("if (nameReadyForUser && displayName !== savedNameRef.current) {");
     expect(source).toContain("saveDisplayName(saveUserId, displayName)");
     expect(source).toContain("activeUserIdRef.current === saveUserId");
     expect(source).toContain("invalidateProfileStarLevel(saveUserId)");
@@ -126,10 +128,4 @@ describe("/profile-details PIXEL-CLAY contract", () => {
     expect(source).toContain("if (isCurrentOperation()) setSaving(false)");
   });
 
-  test("announces progress once through the progressbar semantics", () => {
-    expect(source).toContain("accessibilityRole=\"progressbar\"");
-    expect(source).toMatch(
-      /<Text\s+accessible=\{false\}\s+accessibilityElementsHidden\s+importantForAccessibility="no"\s+style=\{styles\.progress\}/,
-    );
-  });
 });
