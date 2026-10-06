@@ -150,7 +150,8 @@ describe("tr3 /import-hub: hub copy reads import hub.* in the painted language",
       "최민감 · 명시 동의 필요",
       "무엇을",
       "고른 {n}건 기록에 반영",
-      "다음 화면에서 위치 권한을 \"사용 중에만\"으로 요청합니다. (네이티브 빌드 필요)",
+      // 2026-10-07 재설계 발주 1: 이 타일은 위치 권한을 요청하지 않고 파일 입력으로 간다 - 문구를 동작에 맞췄다.
+      "앱은 지금 위치를 직접 읽지 않습니다. 구글 타임라인처럼 내보낸 위치 기록 파일을 올려 주세요.",
     ]);
     expect(at(en, "sources.kakao")).toEqual({
       name: "KakaoTalk",

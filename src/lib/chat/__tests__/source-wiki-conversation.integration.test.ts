@@ -73,6 +73,7 @@ jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => ({
   }) },
 }) }));
 jest.mock("../../env", () => ({ getEnv: () => ({ EXPO_PUBLIC_LLM_MODE: "mock" }) }));
+jest.mock("../../persona/profile-context", () => ({ loadProfileContext: jest.fn(async () => []) }));
 jest.mock("@google/genai", () => ({ GoogleGenAI: jest.fn(() => { throw new Error("Network forbidden in this fixture"); }) }));
 
 import { captureFromMarkdown } from "../../wiki/capture";

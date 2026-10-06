@@ -91,7 +91,7 @@
     "whereBody": "Se analiza en este dispositivo. Solo se guardan, cifrados, los resultados que elijas en la pantalla de revisión.",
     "deleteAnytime": "Elimínalo cuando quieras",
     "localAnalysis": "Archivo analizado en el dispositivo",
-    "connectorNote": "La siguiente pantalla pide la ubicación solo \"mientras se usa la app\". (requiere la app instalada)",
+    "connectorNote": "La app todavía no lee tu ubicación directamente. Sube un archivo de historial de ubicaciones que hayas exportado, por ejemplo de Google Timeline.",
     "googleConnectorNote": "Conecta tu cuenta de Google de forma segura en el navegador. Solo lectura (ver eventos).",
     "googleConnect": "Conectar Google",
     "connecting": "Conectando…",
@@ -148,8 +148,8 @@
         "what": "Solo el número de menciones de planes. No guardamos el texto de los mensajes."
       },
       "live-location": {
-        "name": "Ubicación en tiempo real",
-        "sub": "Ubicación · permiso del dispositivo",
+        "name": "Historial de ubicaciones",
+        "sub": "Ubicación · archivo exportado",
         "what": "Solo patrones de lugares y tiempo de estancia. No se guardan las coordenadas exactas."
       },
       "health": {

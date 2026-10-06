@@ -9,7 +9,14 @@ describe("/profile-details PIXEL-CLAY contract", () => {
   test("derives only the profilesetup surface pattern from real profile-detail state", () => {
     expect(source).toContain('import { PixelSurface } from "@/components/pixel"');
     expect(source).toContain('variant="frame"');
-    expect(source).toContain("PROFILE_DETAIL_FIELDS.map");
+    // 혼인 여부 같은 성인 전용 칸은 성인에게만 그린다(Simon Q-261007-02).
+    expect(source).toContain("PROFILE_DETAIL_FIELDS.filter((field) => !field.adultOnly || adult).map(");
+    expect(source).toContain("const adult = isMinor === false;");
+    // 이메일 · 생년월일은 보여주기만(Q-261007-04), 대화명은 성인만 · 쓰기 전에 중복 확인(Q-06).
+    expect(source).toContain('t("deepspace:profileDetails.emailLabel")');
+    expect(source).toContain('t("deepspace:profileDetails.birthDateLabel")');
+    expect(source).toContain("if (chatChanged && chatName.trim() && !(await chatNameAvailable(chatName.trim()))) {");
+    expect(source.indexOf("await chatNameAvailable(")).toBeLessThan(source.indexOf("await saveProfileDetails(saveUserId, details)"));
     // Simon 2026-10-07: 안내 · 진행 칸 · 민감정보 안내 상자와 이름 설명 · 이름 저장 버튼을 걷어냈다.
     expect(source).not.toMatch(/<PixelSurface\s+variant="inset"/);
     expect(source).not.toContain('accessibilityRole="progressbar"');
