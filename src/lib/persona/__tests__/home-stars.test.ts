@@ -117,6 +117,16 @@ describe("별을 누르면 그 별의 요약이 열린다 (Simon 결정 4 = B)",
     expect(page).not.toContain('t("ds.star.profileBody")');
   });
 
+  // Simon 2026-10-07: 두 줄 - 큰 아바타, 그다음 요약 세 줄. 제목은 왼쪽 위, 연필은 오른쪽 위.
+  it("프로필 별은 큰 아바타 · 요약 세 줄 · 오른쪽 위 연필로 그린다", () => {
+    const page = read("src/app/me/[star].tsx");
+    expect(page).toContain('<PixelGlyph name="edit"');
+    expect(page).toContain("accessibilityLabel={profileCta}");
+    expect(page).toContain("size={192} />");
+    expect(page).toContain("numberOfLines={1}");
+    expect(page.indexOf("styles.profileHeader")).toBeLessThan(page.indexOf("styles.profileAvatarRow"));
+  });
+
   it("정적 웹 export도 일곱 요약 경로를 전부 만든다", () => {
     const page = read("src/app/me/[star].tsx");
     expect(page).toContain("export function generateStaticParams");

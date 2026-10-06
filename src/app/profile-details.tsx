@@ -19,15 +19,18 @@ import {
   View,
 } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
-import { Redirect } from "expo-router";
+import { Redirect, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
+import { AvatarPreview } from "@/components/avatar/AvatarPreview";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { Field, MdButton, MdChip } from "@/components/m3";
 import { PixelSurface } from "@/components/pixel";
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState, PremiumToast } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { DEFAULT_AVATAR_SPEC, type AvatarSpec } from "@/lib/avatar";
+import { fetchAvatarSpec } from "@/lib/supabase/avatar-spec";
 import { useAppRouter, useHardwareBack } from "@/lib/nav/phone-embed";
 import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
@@ -52,7 +55,7 @@ import { a11yValue } from "@/lib/a11y/accessibility-value";
 export default function ProfileDetailsScreen() {
   // Phone-aware: inside the dashboard phone, cancel steps the phone's stack.
   const router = useAppRouter();
-  const { t } = useTranslation(["deepspace", "common"]);
+  const { t } = useTranslation(["deepspace", "common", "profile"]);
   const {
     userId,
     hasProfile,
@@ -148,6 +151,19 @@ export default function ProfileDetailsScreen() {
       });
     return () => { alive = false; };
   }, [userId, nameReloadKey]);
+
+  // 아바타 초상화(Simon 2026-10-07). 저장된 것이 없거나 못 읽으면 기본 아바타를 그린다 -
+  // 그림일 뿐이라 이 화면의 저장을 막지 않는다. 스튜디오에서 돌아오면 다시 읽는다.
+  const [avatar, setAvatar] = useState<{ owner: string; spec: AvatarSpec } | null>(null);
+  useFocusEffect(useCallback(() => {
+    if (!userId) return;
+    let alive = true;
+    void fetchAvatarSpec(userId).then(
+      (spec) => { if (alive) setAvatar({ owner: userId, spec: spec ?? DEFAULT_AVATAR_SPEC }); },
+      () => { if (alive) setAvatar({ owner: userId, spec: DEFAULT_AVATAR_SPEC }); },
+    );
+    return () => { alive = false; };
+  }, [userId]));
 
   const filled = useMemo(() => countFilledDetails(details), [details]);
   const readyForUser = loadState.userId === userId && loadState.status === "ready";
@@ -322,6 +338,24 @@ export default function ProfileDetailsScreen() {
           <PixelSurface
             variant="frame"
             style={styles.fieldSurface}
+            contentStyle={[styles.fieldContent, styles.avatarContent]}
+          >
+            {avatar?.owner === userId ? (
+              <AvatarPreview spec={avatar.spec} size={128} />
+            ) : (
+              <View style={styles.avatarPlaceholder} />
+            )}
+            <MdButton
+              variant="outlined"
+              label={t("profile:avatarStudio.label")}
+              onPress={() => router.push("/avatar-studio")}
+              style={styles.saveButton}
+            />
+          </PixelSurface>
+
+          <PixelSurface
+            variant="frame"
+            style={styles.fieldSurface}
             contentStyle={styles.fieldContent}
           >
             <Text style={styles.label}>{t("deepspace:profileDetails.nameLabel")}</Text>
@@ -363,8 +397,8 @@ export default function ProfileDetailsScreen() {
             )}
           </PixelSurface>
 
-          {/* profilesetup의 inset+진행 레일 패턴만 파생한다. 아바타·핸들·목업
-              진행률은 만들지 않고 실제 생활정보 7칸만 센다. */}
+          {/* profilesetup의 inset+진행 레일 패턴만 파생한다. 핸들·목업 진행률은
+              만들지 않고 실제 생활정보 7칸만 센다. 아바타는 위 칸의 저장된 실물이다. */}
           <PixelSurface
             variant="inset"
             style={styles.summarySurface}
@@ -539,6 +573,8 @@ const styles = StyleSheet.create({
   },
   fieldSurface: { alignSelf: "stretch" },
   fieldContent: { gap: m3.spacing.s2, padding: deepSpaceSpacing.md },
+  avatarContent: { alignItems: "center" },
+  avatarPlaceholder: { width: 128, height: 128 },
   nameError: { gap: m3.spacing.s2 },
   nameErrorText: { color: m3.color.error, lineHeight: m3.type.bodyMedium.line },
   label: {
