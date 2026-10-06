@@ -169,7 +169,7 @@ const ANCHORS: Anchor[] = [
   //   라우트는 `dds-ops-screen.tsx` 쪽을 import 한다. 회차 68 은 "줄이 비었나" 를
   //   물었고, "이 파일이 배송되나" 는 물지 않았다. 앞 질문은 답을 얻었고 뒤 질문은
   //   던져진 적이 없다 - `shadow-screens.test.ts` 가 그 질문을 맡는다.
-  { cite: `${D}:188-198`, symbol: "claims.sub !== authUser.id",
+  { cite: `${D}:220-230`, symbol: "claims.sub !== authUser.id",
     why: "지울 계정을 클라이언트가 못 고른다는 IDOR 주장의 근거." },
   { cite: "src/lib/analytics/index.ts:254-261", symbol: "isMinor === false",
     why: "미성년에게 제품 분석이 안 붙는다는 주장의 **실제 게이트**. 문서는 세 자리에서 `:74`(AnalyticsEvent 타입 유니온)를 가리키고 있었다 - 타입 선언은 아무도 막지 않는다. ⚠ 심볼로 함수 이름 `canLoadProductAnalytics` 를 쓰려다 바꿨다: 회차 51·53 의 교훈대로 **이름은 그 이름이 가리키는 것이 바뀌어도 살아남는다.** 주장의 내용은 술어다." },
