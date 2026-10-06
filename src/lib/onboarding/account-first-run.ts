@@ -17,10 +17,17 @@
 // mark_ttfv_seen). The server keeps the FIRST value, and each RPC returns both
 // stored marks, which this store adopts. A mark made in this session is also
 // kept in memory, so a late read that started before the write cannot undo it.
+// A mark the server has not stored yet is sent again when a screen asks for the
+// answer again (a re-entry, or a new sign-in), a bounded number of times.
+//
+// An answer belongs to one signed-in stretch of its owner: when the published
+// owner changes (sign-out included), the answer is dropped, so signing back in
+// reads the server again instead of trusting what it said before.
 
 import { useEffect, useSyncExternalStore } from "react";
 
 import { withTimeout } from "../async/with-timeout";
+import { onAccountOwnerChange } from "../auth/account-epoch";
 import { getSupabaseClient } from "../supabase/client";
 
 export type AccountFirstRunStatus = "idle" | "loading" | "server" | "device";
@@ -34,18 +41,42 @@ export interface AccountFirstRunSnapshot extends AccountFirstRunMarks {
   /** The account this snapshot describes. A different owner's snapshot is never used. */
   userId: string | null;
   status: AccountFirstRunStatus;
+  /**
+   * The server answer (a read, or a mark RPC's stored values) that last
+   * confirmed these marks, counted by accountFirstRunConfirmations(). 0 = not
+   * confirmed: not a server answer, or this session marked something since.
+   */
+  confirmedSeq: number;
 }
 
 export const ACCOUNT_FIRST_RUN_TIMEOUT_MS = 8_000;
+/** How many times one unstored mark is sent again in one app run. */
+export const ACCOUNT_FIRST_RUN_MAX_RESENDS = 3;
+
+type MarkRpc = "mark_onboarding_completed" | "mark_ttfv_seen";
+
+const MARK_FIELD: Record<MarkRpc, keyof AccountFirstRunMarks> = {
+  mark_onboarding_completed: "onboardingCompletedAt",
+  mark_ttfv_seen: "ttfvSeenAt",
+};
 
 const EMPTY: AccountFirstRunMarks = { onboardingCompletedAt: null, ttfvSeenAt: null };
-const INITIAL: AccountFirstRunSnapshot = { userId: null, status: "idle", ...EMPTY };
+const INITIAL: AccountFirstRunSnapshot = { userId: null, status: "idle", confirmedSeq: 0, ...EMPTY };
 
 let snapshot: AccountFirstRunSnapshot = INITIAL;
 let generation = 0;
+let confirmations = 0;
+/** The generation a revalidating read belongs to; -1 when none is in flight. */
+let revalidating = -1;
+let stopOwnerWatch: (() => void) | null = null;
 const listeners = new Set<() => void>();
 /** Marks this session wrote (or tried to write), per owner. */
 const sessionMarks = new Map<string, AccountFirstRunMarks>();
+/** Marks this session wrote that no server answer has shown stored yet, per owner. */
+const unconfirmed = new Map<string, Set<MarkRpc>>();
+/** `${owner}:${rpc}` sends in flight, and how often each was sent again. */
+const sending = new Set<string>();
+const resends = new Map<string, number>();
 
 function warn(operation: string, error: unknown): void {
   if (typeof console !== "undefined") console.warn(`[first-run] ${operation} failed`, error);
@@ -65,6 +96,34 @@ export function subscribeAccountFirstRun(listener: () => void): () => void {
   return () => {
     listeners.delete(listener);
   };
+}
+
+/** The count of server answers so far. A screen keeps the value it mounted with. */
+export function accountFirstRunConfirmations(): number {
+  return confirmations;
+}
+
+/** Has the server confirmed this owner's answer after `since` (an accountFirstRunConfirmations() value)? */
+export function accountFirstRunConfirmedSince(
+  ownerId: string,
+  current: AccountFirstRunSnapshot,
+  since: number,
+): boolean {
+  return current.userId === ownerId && current.status === "server" && current.confirmedSeq > since;
+}
+
+/**
+ * Drop the answer when the published owner changes away from it (A -> null on
+ * sign-out, A -> B on a switch). A read still in flight for A is fenced by the
+ * generation, so it cannot land after A signs back in.
+ */
+function watchOwner(): void {
+  if (stopOwnerWatch) return;
+  stopOwnerWatch = onAccountOwnerChange(({ owner }) => {
+    if (snapshot.userId === null || snapshot.userId === owner) return;
+    generation += 1;
+    publish(INITIAL);
+  });
 }
 
 function timestampOrNull(value: unknown, field: string): string | null {
@@ -111,19 +170,45 @@ function merge(...sources: (AccountFirstRunMarks | undefined)[]): AccountFirstRu
   return { onboardingCompletedAt: pick("onboardingCompletedAt"), ttfvSeenAt: pick("ttfvSeenAt") };
 }
 
-function publishServer(ownerId: string, marks: AccountFirstRunMarks): void {
+/** `confirmed`: `marks` is a server answer. false: only this session's own mark changed. */
+function publishServer(ownerId: string, marks: AccountFirstRunMarks, confirmed: boolean): void {
   const current = snapshot.userId === ownerId && snapshot.status === "server" ? snapshot : undefined;
   publish({
     userId: ownerId,
     status: "server",
+    confirmedSeq: confirmed ? ++confirmations : 0,
     ...merge(marks, current, sessionMarks.get(ownerId)),
   });
 }
 
+/** A server answer shows which of this session's marks are stored. */
+function noteStored(ownerId: string, marks: AccountFirstRunMarks): void {
+  const pending = unconfirmed.get(ownerId);
+  if (!pending) return;
+  for (const rpc of [...pending]) if (marks[MARK_FIELD[rpc]]) pending.delete(rpc);
+}
+
+function adoptServer(ownerId: string, marks: AccountFirstRunMarks): void {
+  noteStored(ownerId, marks);
+  publishServer(ownerId, marks, true);
+}
+
+/** Send again the marks this session made that the server has not shown stored. Bounded. */
+function resendUnconfirmed(ownerId: string): void {
+  for (const rpc of unconfirmed.get(ownerId) ?? []) {
+    const key = `${ownerId}:${rpc}`;
+    const count = resends.get(key) ?? 0;
+    if (sending.has(key) || count >= ACCOUNT_FIRST_RUN_MAX_RESENDS) continue;
+    resends.set(key, count + 1);
+    void sendAndAdopt(ownerId, rpc);
+  }
+}
+
 /**
- * Read the owner's marks once per owner and app launch. Skips while a read is in
- * flight or after the server answered; a "device" result is retried on the next
- * call, which the hooks make when they mount or their owner/readiness changes.
+ * Read the owner's marks once per owner and sign-in. Skips while a read is in
+ * flight or after the server answered (then only an unstored mark of this
+ * session is sent again); a "device" result is retried on the next call, which
+ * the hooks make when they mount or their owner/readiness changes.
  */
 export async function probeAccountFirstRun(
   ownerId: string,
@@ -131,28 +216,57 @@ export async function probeAccountFirstRun(
   timeoutMs = ACCOUNT_FIRST_RUN_TIMEOUT_MS,
 ): Promise<void> {
   if (!ownerId) return;
-  if (snapshot.userId === ownerId && (snapshot.status === "loading" || snapshot.status === "server")) return;
+  watchOwner();
+  if (snapshot.userId === ownerId && (snapshot.status === "loading" || snapshot.status === "server")) {
+    if (snapshot.status === "server") resendUnconfirmed(ownerId);
+    return;
+  }
   const request = ++generation;
-  publish({ userId: ownerId, status: "loading", ...EMPTY });
+  publish({ userId: ownerId, status: "loading", confirmedSeq: 0, ...EMPTY });
   try {
     const marks = await withTimeout(read(ownerId), timeoutMs, "First-run marks");
     if (generation !== request || snapshot.userId !== ownerId) return;
-    publishServer(ownerId, marks);
+    adoptServer(ownerId, marks);
     // A mark this session made that the server does not have yet (its write
     // failed, or the row did not exist then): send it again.
-    const pending = sessionMarks.get(ownerId);
-    if (pending?.onboardingCompletedAt && !marks.onboardingCompletedAt) {
-      void sendAndAdopt(ownerId, "mark_onboarding_completed");
-    }
-    if (pending?.ttfvSeenAt && !marks.ttfvSeenAt) void sendAndAdopt(ownerId, "mark_ttfv_seen");
+    resendUnconfirmed(ownerId);
   } catch (error) {
     if (generation !== request || snapshot.userId !== ownerId) return;
     warn("read", error);
-    publish({ userId: ownerId, status: "device", ...EMPTY });
+    publish({ userId: ownerId, status: "device", confirmedSeq: 0, ...EMPTY });
   }
 }
 
-type MarkRpc = "mark_onboarding_completed" | "mark_ttfv_seen";
+/**
+ * Read a server answer again WITHOUT leaving it (the welcome keeps its answer;
+ * no loader). The first-day review asks for this before it opens from an answer
+ * the server has not confirmed since that screen mounted, so another tab's or
+ * device's mark is seen. A failed read keeps the cached answer and counts as
+ * confirmed: an unreadable server must not hold the screen forever. Never rejects.
+ */
+export async function revalidateAccountFirstRun(
+  ownerId: string,
+  read: (ownerId: string) => Promise<AccountFirstRunMarks> = fetchAccountFirstRunMarks,
+  timeoutMs = ACCOUNT_FIRST_RUN_TIMEOUT_MS,
+): Promise<void> {
+  if (!ownerId || snapshot.userId !== ownerId || snapshot.status !== "server") return;
+  if (revalidating === generation) return;
+  const request = generation;
+  revalidating = request;
+  const current = () => generation === request && snapshot.userId === ownerId && snapshot.status === "server";
+  try {
+    const marks = await withTimeout(read(ownerId), timeoutMs, "First-run marks");
+    if (!current()) return;
+    adoptServer(ownerId, marks);
+    resendUnconfirmed(ownerId);
+  } catch (error) {
+    if (!current()) return;
+    warn("revalidate", error);
+    publish({ ...snapshot, confirmedSeq: ++confirmations });
+  } finally {
+    if (revalidating === request) revalidating = -1;
+  }
+}
 
 async function sendMark(ownerId: string, rpc: MarkRpc): Promise<AccountFirstRunMarks> {
   const { data, error } = await withTimeout(
@@ -168,12 +282,20 @@ async function sendMark(ownerId: string, rpc: MarkRpc): Promise<AccountFirstRunM
 
 /** Send one mark and adopt the stored values if this owner is still current. Never rejects. */
 function sendAndAdopt(ownerId: string, rpc: MarkRpc): Promise<void> {
-  return sendMark(ownerId, rpc).then(
-    (stored) => {
-      if (snapshot.userId === ownerId) publishServer(ownerId, stored);
-    },
-    (error) => warn(rpc, error),
-  );
+  const key = `${ownerId}:${rpc}`;
+  if (sending.has(key)) return Promise.resolve();
+  sending.add(key);
+  return sendMark(ownerId, rpc)
+    .then(
+      (stored) => {
+        noteStored(ownerId, stored);
+        if (snapshot.userId === ownerId) publishServer(ownerId, stored, true);
+      },
+      (error) => warn(rpc, error),
+    )
+    .finally(() => {
+      sending.delete(key);
+    });
 }
 
 function recordMark(ownerId: string, field: keyof AccountFirstRunMarks, rpc: MarkRpc): Promise<void> {
@@ -183,10 +305,14 @@ function recordMark(ownerId: string, field: keyof AccountFirstRunMarks, rpc: Mar
     marks[field] = new Date().toISOString();
     sessionMarks.set(ownerId, marks);
   }
+  const pending = unconfirmed.get(ownerId) ?? new Set<MarkRpc>();
+  pending.add(rpc);
+  unconfirmed.set(ownerId, pending);
   // Only a server snapshot changes here. "device" keeps answering from the
   // device value the caller just wrote, and a read in flight merges the session
-  // mark when it lands.
-  if (snapshot.userId === ownerId && snapshot.status === "server") publishServer(ownerId, snapshot);
+  // mark when it lands. The changed answer is not confirmed until the server
+  // answers again (the first-day review waits for that, CDA-01).
+  if (snapshot.userId === ownerId && snapshot.status === "server") publishServer(ownerId, snapshot, false);
   return sendAndAdopt(ownerId, rpc);
 }
 
@@ -239,8 +365,15 @@ export function useAccountFirstRun(
 }
 
 export function __resetAccountFirstRunForTests(): void {
+  stopOwnerWatch?.();
+  stopOwnerWatch = null;
   snapshot = INITIAL;
   generation = 0;
+  confirmations = 0;
+  revalidating = -1;
   listeners.clear();
   sessionMarks.clear();
+  unconfirmed.clear();
+  sending.clear();
+  resends.clear();
 }

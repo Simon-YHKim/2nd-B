@@ -11,9 +11,19 @@
 // AsyncStorage, in-memory fallback; mirrors comfort-offer.ts) are used only when
 // there is no owner or the server marks could not be read.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
-import { markAccountTTFVSeen, useAccountFirstRun, type AccountFirstRunMarks } from "./account-first-run";
+import {
+  accountFirstRunConfirmations,
+  accountFirstRunConfirmedSince,
+  accountFirstRunSnapshot,
+  markAccountTTFVSeen,
+  revalidateAccountFirstRun,
+  subscribeAccountFirstRun,
+  useAccountFirstRun,
+  type AccountFirstRunMarks,
+  type AccountFirstRunSnapshot,
+} from "./account-first-run";
 import { ONBOARDING_KEY } from "./state";
 
 export const TTFV_SEEN_KEY = "onboarding.ttfv.v1.seenAt";
@@ -116,10 +126,29 @@ export function ttfvDecision(
 }
 
 /**
+ * A "send to /ttfv" that came from the server marks waits until the server has
+ * confirmed them after `since` (when this screen mounted). An answer cached
+ * before this entry, or changed only by this session's own mark (finishing the
+ * welcome), may miss the first-day review another tab or device already
+ * recorded, and acting on it would open the review a second time (CDA-01).
+ */
+export function ttfvAwaitsConfirmation(
+  ownerId: string | null,
+  account: AccountFirstRunMarks | "device" | null,
+  decision: boolean | null,
+  current: AccountFirstRunSnapshot,
+  since: number,
+): boolean {
+  if (decision !== true || !ownerId || account === null || account === "device") return false;
+  return !accountFirstRunConfirmedSince(ownerId, current, since);
+}
+
+/**
  * Decides whether to auto-trigger the first-day TTFV screen on the graph home.
- *   null  = still reading (native device storage, or the owner's server marks);
- *           the caller shows a loader, matching the onboarding gate, rather than
- *           flashing the graph then redirecting
+ *   null  = still reading (native device storage, or the owner's server marks,
+ *           or a server confirmation before /ttfv opens); the caller shows a
+ *           loader, matching the onboarding gate, rather than flashing the graph
+ *           then redirecting
  *   false = already seen, or no onboarding timestamp, or past the first day
  *   true  = show /ttfv now
  *
@@ -128,7 +157,14 @@ export function ttfvDecision(
 export function useAutoTriggerTTFV(ownerId: string | null = null, ready = true): boolean | null {
   const device = useDeviceTTFVState();
   const account = useAccountFirstRun(ownerId, ready);
-  return ttfvDecision(ownerId, account, device, Date.now());
+  const [mountedAt] = useState(accountFirstRunConfirmations);
+  const current = useSyncExternalStore(subscribeAccountFirstRun, accountFirstRunSnapshot, accountFirstRunSnapshot);
+  const decision = ttfvDecision(ownerId, account, device, Date.now());
+  const awaiting = ttfvAwaitsConfirmation(ownerId, account, decision, current, mountedAt);
+  useEffect(() => {
+    if (awaiting && ownerId) void revalidateAccountFirstRun(ownerId);
+  }, [awaiting, ownerId]);
+  return awaiting ? null : decision;
 }
 
 /**

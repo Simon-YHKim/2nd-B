@@ -7,21 +7,25 @@
 const mockGetSupabaseClient = jest.fn();
 jest.mock("../../supabase/client", () => ({ getSupabaseClient: mockGetSupabaseClient }));
 
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
 import {
+  ACCOUNT_FIRST_RUN_MAX_RESENDS,
   ACCOUNT_FIRST_RUN_TIMEOUT_MS,
   __resetAccountFirstRunForTests,
   accountFirstRunAnswer,
+  accountFirstRunConfirmations,
   accountFirstRunSnapshot,
   fetchAccountFirstRunMarks,
   markAccountOnboardingComplete,
   markAccountTTFVSeen,
   parseAccountFirstRunMarks,
   probeAccountFirstRun,
+  revalidateAccountFirstRun,
   subscribeAccountFirstRun,
   type AccountFirstRunMarks,
 } from "../account-first-run";
 import { ONBOARDING_KEY, __resetOnboardingStateForTests, markOnboardingComplete, onboardingDecision } from "../state";
-import { FIRST_DAY_MS, TTFV_SEEN_KEY, markTTFVSeen, ttfvDecision } from "../ttfv-gate";
+import { FIRST_DAY_MS, TTFV_SEEN_KEY, markTTFVSeen, ttfvAwaitsConfirmation, ttfvDecision } from "../ttfv-gate";
 
 const A = "a0219000-0000-4000-8000-00000000000a";
 const B = "a0219000-0000-4000-8000-00000000000b";
@@ -70,6 +74,7 @@ const flush = async () => {
 
 let warn: jest.SpyInstance;
 beforeEach(() => {
+  __resetAccountEpochForTests();
   __resetAccountFirstRunForTests();
   mockGetSupabaseClient.mockReset();
   warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -113,7 +118,7 @@ describe("probeAccountFirstRun", () => {
     const seen: string[] = [];
     subscribeAccountFirstRun(() => seen.push(accountFirstRunSnapshot().status));
     await probeAccountFirstRun(A);
-    expect(accountFirstRunSnapshot()).toEqual({ userId: A, status: "server", onboardingCompletedAt: OLD, ttfvSeenAt: null });
+    expect(accountFirstRunSnapshot()).toEqual({ userId: A, status: "server", confirmedSeq: 1, onboardingCompletedAt: OLD, ttfvSeenAt: null });
     expect(seen).toEqual(["loading", "server"]);
   });
 
@@ -165,7 +170,7 @@ describe("probeAccountFirstRun", () => {
     await probeAccountFirstRun(B);
     releaseA({ data: row(OLD), error: null });
     await first;
-    expect(accountFirstRunSnapshot()).toEqual({ userId: B, status: "server", ...NONE });
+    expect(accountFirstRunSnapshot()).toEqual({ userId: B, status: "server", confirmedSeq: 1, ...NONE });
     expect(accountFirstRunAnswer(A, true, accountFirstRunSnapshot())).toBeNull();
   });
 });
@@ -224,7 +229,7 @@ describe("account marks", () => {
     expect(server.rpcs).toEqual([]);
     await probeAccountFirstRun(B);
     await markAccountOnboardingComplete(A);
-    expect(accountFirstRunSnapshot()).toEqual({ userId: B, status: "server", ...NONE });
+    expect(accountFirstRunSnapshot()).toEqual({ userId: B, status: "server", confirmedSeq: 1, ...NONE });
   });
 
   test("NULL from the RPC (no profile row yet) is a failed write, not a stored NULL", async () => {
@@ -232,6 +237,169 @@ describe("account marks", () => {
     await probeAccountFirstRun(A);
     await markAccountOnboardingComplete(A);
     expect(warn).toHaveBeenCalledWith("[first-run] mark_onboarding_completed failed", expect.any(Error));
+  });
+});
+
+describe("an answer belongs to one sign-in (CD-01)", () => {
+  test("signing out drops it, so the same account signing back in reads the server again", async () => {
+    let stored = row(OLD);
+    const server = fakeServer(() => ({ data: stored, error: null }));
+    noteResolvedOwner(A);
+    await probeAccountFirstRun(A);
+    expect(accountFirstRunAnswer(A, true, accountFirstRunSnapshot())).toEqual({ onboardingCompletedAt: OLD, ttfvSeenAt: null });
+
+    noteResolvedOwner(null);
+    expect(accountFirstRunSnapshot()).toMatchObject({ userId: null, status: "idle" });
+    // Meanwhile another device showed this account the first-day review.
+    stored = row(OLD, OLD);
+    noteResolvedOwner(A);
+    expect(accountFirstRunAnswer(A, true, accountFirstRunSnapshot())).toBeNull();
+    await probeAccountFirstRun(A);
+    expect(server.reads).toHaveLength(2);
+    expect(accountFirstRunAnswer(A, true, accountFirstRunSnapshot())).toEqual({ onboardingCompletedAt: OLD, ttfvSeenAt: OLD });
+  });
+
+  test("a read in flight at sign-out never lands after the account signs back in", async () => {
+    const releases: Array<(reply: Reply) => void> = [];
+    fakeServer(() => new Promise<Reply>((resolve) => { releases.push(resolve); }));
+    noteResolvedOwner(A);
+    const first = probeAccountFirstRun(A);
+    noteResolvedOwner(null);
+    noteResolvedOwner(A);
+    const second = probeAccountFirstRun(A);
+    expect(releases).toHaveLength(2);
+    releases[1]({ data: row(OLD, OLD), error: null });
+    await second;
+    releases[0]({ data: row(null), error: null });
+    await first;
+    expect(accountFirstRunSnapshot()).toMatchObject({ userId: A, status: "server", onboardingCompletedAt: OLD, ttfvSeenAt: OLD });
+  });
+});
+
+describe("a mark the server has not stored is sent again (CDA-02)", () => {
+  test("after a successful read, a failed write is resent when a screen asks again, a bounded number of times", async () => {
+    const server = fakeServer(() => ({ data: row(null), error: null }), () => ({ data: null, error: { code: "08006" } }));
+    await probeAccountFirstRun(A);
+    await markAccountOnboardingComplete(A);
+    for (let entry = 0; entry < ACCOUNT_FIRST_RUN_MAX_RESENDS + 2; entry += 1) {
+      await probeAccountFirstRun(A);
+      await flush();
+    }
+    expect(server.reads).toHaveLength(1);
+    expect(server.rpcs).toHaveLength(1 + ACCOUNT_FIRST_RUN_MAX_RESENDS);
+    expect(server.rpcs.every((call) => call.name === "mark_onboarding_completed")).toBe(true);
+  });
+
+  test("once a resend is stored, a re-entry sends nothing", async () => {
+    let rpcFails = true;
+    const server = fakeServer(
+      () => ({ data: row(null), error: null }),
+      () => (rpcFails ? { data: null, error: { code: "08006" } } : { data: row(OLD), error: null }),
+    );
+    await probeAccountFirstRun(A);
+    await markAccountOnboardingComplete(A);
+    rpcFails = false;
+    await probeAccountFirstRun(A);
+    await flush();
+    expect(accountFirstRunSnapshot()).toMatchObject({ status: "server", onboardingCompletedAt: OLD });
+    await probeAccountFirstRun(A);
+    await flush();
+    expect(server.rpcs).toHaveLength(2);
+  });
+
+  test("signing back in reads again and resends the mark the server still lacks", async () => {
+    let rpcFails = true;
+    const server = fakeServer(
+      () => ({ data: row(null), error: null }),
+      () => (rpcFails ? { data: null, error: { code: "08006" } } : { data: row(OLD, OLD), error: null }),
+    );
+    noteResolvedOwner(A);
+    await probeAccountFirstRun(A);
+    await markAccountTTFVSeen(A);
+    noteResolvedOwner(null);
+    noteResolvedOwner(A);
+    rpcFails = false;
+    await probeAccountFirstRun(A);
+    await flush();
+    expect(server.reads).toHaveLength(2);
+    expect(server.rpcs.map((call) => call.name)).toEqual(["mark_ttfv_seen", "mark_ttfv_seen"]);
+    expect(accountFirstRunSnapshot()).toMatchObject({ status: "server", ttfvSeenAt: OLD });
+  });
+});
+
+describe("the first-day review waits for a server confirmation (CDA-01)", () => {
+  const now = Date.parse("2026-10-06T03:00:00.000Z");
+  const hourAgo = new Date(now - 60 * 60 * 1000).toISOString();
+  // What the home gate does with the store: send to /ttfv, wait (null), or not.
+  const decide = (since: number) => {
+    const current = accountFirstRunSnapshot();
+    const account = accountFirstRunAnswer(A, true, current);
+    const decision = ttfvDecision(A, account, null, now);
+    return ttfvAwaitsConfirmation(A, account, decision, current, since) ? null : decision;
+  };
+
+  test("another tab already showed the review: finishing the welcome here does not open it again", async () => {
+    let releaseRpc: (reply: Reply) => void = () => undefined;
+    // This tab read both marks empty; the other tab then finished both.
+    fakeServer(
+      () => ({ data: row(null), error: null }),
+      () => new Promise<Reply>((resolve) => { releaseRpc = resolve; }),
+    );
+    await probeAccountFirstRun(A);
+    const homeBeforeFinish = accountFirstRunConfirmations();
+    const done = markAccountOnboardingComplete(A);
+    const homeAfterFinish = accountFirstRunConfirmations();
+    // The welcome mark is only local so far: neither home opens the review on it.
+    expect(decide(homeBeforeFinish)).toBeNull();
+    expect(decide(homeAfterFinish)).toBeNull();
+    releaseRpc({ data: row(hourAgo, hourAgo), error: null });
+    await done;
+    expect(decide(homeBeforeFinish)).toBe(false);
+    expect(decide(homeAfterFinish)).toBe(false);
+  });
+
+  test("a new entry does not reuse a cached 'not seen': it reads again and keeps the welcome's answer meanwhile", async () => {
+    let stored = row(hourAgo);
+    const server = fakeServer(() => ({ data: stored, error: null }));
+    const firstHome = accountFirstRunConfirmations();
+    await probeAccountFirstRun(A);
+    // A read newer than the screen is used as it is.
+    expect(decide(firstHome)).toBe(true);
+
+    // Another tab of this browser showed the review; home mounts again here.
+    stored = row(hourAgo, hourAgo);
+    const nextHome = accountFirstRunConfirmations();
+    expect(decide(nextHome)).toBeNull();
+    const statuses: string[] = [];
+    subscribeAccountFirstRun(() => statuses.push(accountFirstRunSnapshot().status));
+    await revalidateAccountFirstRun(A);
+    expect(server.reads).toHaveLength(2);
+    expect(statuses).toEqual(["server"]);
+    expect(decide(nextHome)).toBe(false);
+  });
+
+  test("an unreadable server keeps the cached answer instead of holding the review", async () => {
+    let fail = false;
+    fakeServer(() => (fail ? { data: null, error: { code: "08006" } } : { data: row(hourAgo), error: null }));
+    await probeAccountFirstRun(A);
+    fail = true;
+    const home = accountFirstRunConfirmations();
+    expect(decide(home)).toBeNull();
+    await revalidateAccountFirstRun(A);
+    expect(accountFirstRunSnapshot()).toMatchObject({ status: "server", onboardingCompletedAt: hourAgo });
+    expect(decide(home)).toBe(true);
+  });
+
+  test("only a 'send' that came from the server marks waits", () => {
+    const snap = { userId: A, status: "server" as const, confirmedSeq: 0, ...NONE };
+    expect(ttfvAwaitsConfirmation(A, NONE, false, snap, 0)).toBe(false);
+    expect(ttfvAwaitsConfirmation(A, NONE, null, snap, 0)).toBe(false);
+    expect(ttfvAwaitsConfirmation(A, "device", true, snap, 0)).toBe(false);
+    expect(ttfvAwaitsConfirmation(null, null, true, snap, 0)).toBe(false);
+    expect(ttfvAwaitsConfirmation(A, NONE, true, snap, 0)).toBe(true);
+    expect(ttfvAwaitsConfirmation(A, NONE, true, { ...snap, confirmedSeq: 2 }, 2)).toBe(true);
+    expect(ttfvAwaitsConfirmation(A, NONE, true, { ...snap, confirmedSeq: 3 }, 2)).toBe(false);
+    expect(ttfvAwaitsConfirmation(A, NONE, true, { ...snap, userId: B, confirmedSeq: 3 }, 2)).toBe(true);
   });
 });
 
@@ -275,7 +443,7 @@ describe("the screens' mark helpers", () => {
 
 describe("accountFirstRunAnswer", () => {
   test("waits while not ready, for another owner, or while loading", () => {
-    const server = { userId: A, status: "server" as const, ...NONE };
+    const server = { userId: A, status: "server" as const, confirmedSeq: 1, ...NONE };
     expect(accountFirstRunAnswer(A, false, server)).toBeNull();
     expect(accountFirstRunAnswer(B, true, server)).toBeNull();
     expect(accountFirstRunAnswer(A, true, { ...server, status: "loading" })).toBeNull();

@@ -29,7 +29,14 @@ const OLD = "2026-01-01T00:00:00+00:00";
 
 function harness(device: unknown, snapshot: AccountFirstRunSnapshot) {
   const effects: Array<() => void | (() => void)> = [];
-  (useState as jest.Mock).mockImplementation(() => [device, () => undefined]);
+  // The first useState of each hook is the device value; any later one starts
+  // from its initializer (the TTFV gate's mount-time confirmation count).
+  let states = 0;
+  (useState as jest.Mock).mockImplementation((initial: unknown) => {
+    states += 1;
+    if (states === 1) return [device, () => undefined];
+    return [typeof initial === "function" ? (initial as () => unknown)() : initial, () => undefined];
+  });
   (useEffect as jest.Mock).mockImplementation((effect: () => void | (() => void)) => { effects.push(effect); });
   (useSyncExternalStore as jest.Mock).mockImplementation(() => snapshot);
   return { runEffects: () => effects.forEach((effect) => effect()) };
@@ -58,7 +65,7 @@ beforeEach(() => {
 });
 
 describe("first-run hooks", () => {
-  const server: AccountFirstRunSnapshot = { userId: A, status: "server", onboardingCompletedAt: OLD, ttfvSeenAt: null };
+  const server: AccountFirstRunSnapshot = { userId: A, status: "server", confirmedSeq: 1, onboardingCompletedAt: OLD, ttfvSeenAt: null };
 
   test("before the session is ready nothing is read and the gate waits", () => {
     const reads = serverReads();
@@ -82,9 +89,18 @@ describe("first-run hooks", () => {
     expect(useAutoTriggerTTFV(A, true)).toBe(false);
   });
 
+  test("ready: a first-day send from the server waits for an answer newer than the screen (CDA-01)", () => {
+    serverReads();
+    const firstDay = { ...server, onboardingCompletedAt: new Date().toISOString() };
+    harness({ seen: false, completedAt: null }, { ...firstDay, confirmedSeq: 0 });
+    expect(useAutoTriggerTTFV(A, true)).toBeNull();
+    harness({ seen: false, completedAt: null }, { ...firstDay, confirmedSeq: 1 });
+    expect(useAutoTriggerTTFV(A, true)).toBe(true);
+  });
+
   test("signed out: the device value, and no server read", () => {
     const reads = serverReads();
-    const h = harness(true, { userId: null, status: "idle", onboardingCompletedAt: null, ttfvSeenAt: null });
+    const h = harness(true, { userId: null, status: "idle", confirmedSeq: 0, onboardingCompletedAt: null, ttfvSeenAt: null });
     expect(useOnboardingComplete(null, true)).toBe(true);
     h.runEffects();
     expect(reads).toEqual([]);
