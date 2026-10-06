@@ -336,7 +336,33 @@
       "sectionAngles": "Ideas to explore",
       "sectionSteps": "Things to try first",
       "toCapture": "Move to Capture",
-      "more": "Keep talking with SecondB"
+      "more": "Keep talking with SecondB",
+      "seeds": {
+        "expand": {
+          "angle": "Expand",
+          "title": "If you took a year off",
+          "body": "Erase money, work, and ties for a moment - what would you do first?",
+          "step1": "Write 3 things you want to do",
+          "step2": "Taste one with a single hour this month",
+          "step3": "Picture who joins you on the relations star"
+        },
+        "reverse": {
+          "angle": "Reverse",
+          "title": "If you lived the exact opposite",
+          "body": "Improvise instead of plan, together instead of alone. What pulls you from the far side?",
+          "step1": "Try one thing you never do this week",
+          "step2": "Note what felt awkward with SecondB",
+          "step3": "Capture it to the rest star and watch the pattern"
+        },
+        "connect": {
+          "angle": "Connect",
+          "title": "Career × rest, combined",
+          "body": "Force the two stars together - what odd idea falls out?",
+          "step1": "Write a one-line project from the two keywords",
+          "step2": "Prototype it in two weekend hours",
+          "step3": "Log it on the growth star as an experiment"
+        }
+      }
     },
     "audit": {
       "title": "Past me",

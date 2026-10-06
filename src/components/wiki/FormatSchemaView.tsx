@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { Text } from "@/components/ui/Text";
 import { semantic, spacing, typography } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
+import type { AvailableUiLocale } from "@/lib/i18n/locales";
 
 export interface FormatSchemaInput {
   name: string;
@@ -30,7 +31,10 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function FormatSchemaView({ schema, locale }: { schema: FormatSchemaInput; locale: "en" | "ko" }) {
+/** `locale` is the language the schema VALUES are in: the field labels follow it so each
+ *  label matches its value. A built-in format's values come from the formats bundle in the
+ *  painted language (es/pt/id included); custom and AI-proposed ones are ko or en. */
+export function FormatSchemaView({ schema, locale }: { schema: FormatSchemaInput; locale: AvailableUiLocale }) {
   const { t } = useTranslation("formats");
   const ts = (key: string) => t(`schemaView.${key}`, { lng: locale });
   const formatPropertyType = (type: string) => {

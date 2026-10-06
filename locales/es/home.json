@@ -336,7 +336,33 @@
       "sectionAngles": "Ideas para explorar",
       "sectionSteps": "Qué probar primero",
       "toCapture": "Llevar a Capturar",
-      "more": "Seguir hablando con SecondB"
+      "more": "Seguir hablando con SecondB",
+      "seeds": {
+        "expand": {
+          "angle": "Ampliar",
+          "title": "Si te tomaras un año libre",
+          "body": "Olvida por un momento el dinero, el trabajo y los compromisos. ¿Qué harías primero?",
+          "step1": "Escribe 3 cosas que quieras hacer",
+          "step2": "Prueba una con una sola hora este mes",
+          "step3": "Imagina quién te acompaña en la estrella de Relaciones"
+        },
+        "reverse": {
+          "angle": "Invertir",
+          "title": "Si vivieras justo al revés",
+          "body": "Improvisar en lugar de planear, en compañía en lugar de a solas. ¿Qué te atrae del otro lado?",
+          "step1": "Prueba esta semana algo que nunca haces",
+          "step2": "Anota con SecondB lo que te resultó incómodo",
+          "step3": "Captúralo en la estrella de Descanso y observa el patrón"
+        },
+        "connect": {
+          "angle": "Conectar",
+          "title": "Carrera × descanso, combinados",
+          "body": "Junta las dos estrellas a la fuerza. ¿Qué idea curiosa sale?",
+          "step1": "Escribe un proyecto de una línea con las dos palabras clave",
+          "step2": "Haz un prototipo en dos horas del fin de semana",
+          "step3": "Regístralo en la estrella de Crecimiento como un experimento"
+        }
+      }
     },
     "audit": {
       "title": "El yo del pasado",

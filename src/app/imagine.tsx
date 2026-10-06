@@ -15,7 +15,7 @@ import { useAppRouter } from "@/lib/nav/phone-embed";
 function ImagineDeepSpace() {
   // Phone-aware: inside the dashboard phone, back steps the phone's stack.
   const router = useAppRouter();
-  const { t, i18n } = useTranslation("imagine");
+  const { t } = useTranslation("imagine");
   return (
     <DeepSpaceScreen
       active="lens"
@@ -24,7 +24,8 @@ function ImagineDeepSpace() {
       title={t("title")}
       onBack={() => router.back()}
     >
-      <ImagineDivergentView isKo={i18n.language === "ko"} />
+      {/* The view reads the painted language itself (renderedUiLanguage). */}
+      <ImagineDivergentView />
     </DeepSpaceScreen>
   );
 }
