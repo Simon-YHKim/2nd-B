@@ -11,7 +11,8 @@
 //   mealClearArmKey  BL-02 (gate)     "clear this meal" takes two taps in one sheet opening
 //   runExclusive     BL-03 (gate)     one meal write at a time; a clear cannot race a save
 //   mealWriteLock    BL-03 (gate r3)  that lock is per cell and module-wide, not per screen
-//   sheetAfterWrite  BL-03 (gate)     a late write closes only the sheet it started from
+//   pageWriteLock    BL-09 (gate)     the same, for one book's page count
+//   sheetAfterWrite  BL-03 / BL-09    a late write closes only the sheet or editor it started from
 //   bookSearch*      R2C-02           a failed book search says so
 //   shelfView        R2C-08           finished books and every book being read are shown
 
@@ -114,6 +115,9 @@ export function mealClearArmKey(sheet: MealSheetRef): string {
  * The sheet to show once a meal write settles: closed if it is still the opening the write
  * started from, otherwise left as it is. BL-03: a late completion used to close whatever
  * sheet was open by then, including one the user had just opened on another cell.
+ *
+ * The shelf's page-count editor uses it the same way (gate BL-09): each opening of the
+ * editor carries its own `session`, and a save closes only the opening it started from.
  */
 export function sheetAfterWrite<T extends { session: number }>(open: T | null, startedIn: number): T | null {
   return open !== null && open.session === startedIn ? null : open;
@@ -148,6 +152,16 @@ export async function runExclusive(lock: WriteLock, write: () => Promise<unknown
   }
 }
 
+/** The lock stored under `key`, made on first use. Every lock family below goes through it. */
+function lockIn(locks: Map<string, WriteLock>, key: string): WriteLock {
+  let lock = locks.get(key);
+  if (lock === undefined) {
+    lock = { held: false };
+    locks.set(key, lock);
+  }
+  return lock;
+}
+
 /** Meal cell locks by `user|date|slot`. One small entry per cell written this session. */
 const MEAL_WRITE_LOCKS = new Map<string, WriteLock>();
 
@@ -163,13 +177,24 @@ const MEAL_WRITE_LOCKS = new Map<string, WriteLock>();
  * asking to write the same cell meanwhile is refused ("busy") until that write settles.
  */
 export function mealWriteLock(userId: string, date: string, slot: string): WriteLock {
-  const key = `${userId}|${date}|${slot}`;
-  let lock = MEAL_WRITE_LOCKS.get(key);
-  if (lock === undefined) {
-    lock = { held: false };
-    MEAL_WRITE_LOCKS.set(key, lock);
-  }
-  return lock;
+  return lockIn(MEAL_WRITE_LOCKS, `${userId}|${date}|${slot}`);
+}
+
+/** Page-count locks by `user|shelf entry`. One small entry per book saved this session. */
+const PAGE_WRITE_LOCKS = new Map<string, WriteLock>();
+
+/**
+ * The write lock for one book's page count, shared by every ReadingScreen in this JS runtime.
+ *
+ * BL-09 (gate, 2026-10-06): saving the page count had no in-flight guard. Save 20, then
+ * 30 while the first UPDATE was still out, and both went; the UPDATE has no version
+ * condition, so if 30 landed first and 20 after, the book read 20. The /reading route and
+ * the phone ops hub each mount their own ReadingScreen (the BL-03 r3 shape), so the lock
+ * lives here, keyed by user and shelf entry, and a save that outlives its screen still
+ * holds it: any screen asking to save the same book meanwhile is refused ("busy").
+ */
+export function pageWriteLock(userId: string, entryId: string): WriteLock {
+  return lockIn(PAGE_WRITE_LOCKS, `${userId}|${entryId}`);
 }
 
 // --- book search --------------------------------------------------------------

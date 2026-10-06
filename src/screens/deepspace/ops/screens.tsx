@@ -99,6 +99,7 @@ import {
   mealWriteLock,
   MILESTONE_NEXT,
   milestoneChip,
+  pageWriteLock,
   runExclusive,
   sheetAfterWrite,
   shelfView,
@@ -414,8 +415,16 @@ export function ReadingScreen() {
   const [search, setSearch] = useState<BookSearchView>({ kind: "idle" });
   const searchSeq = useRef(0);
   // R2C-08: the "0 / 200" under NOW READING could not be changed.
-  const [pageEdit, setPageEdit] = useState<{ id: string; cur: string; total: string } | null>(null);
+  // `session` is new on every opening of the editor (gate BL-09): a save closes only the
+  // opening it started from, never one opened after it.
+  const [pageEdit, setPageEdit] = useState<{ session: number; id: string; cur: string; total: string } | null>(null);
+  const pageEditSeq = useRef(0);
   const [pageErr, setPageErr] = useState(false);
+  // One page-count save per book at a time (gate BL-09), under the book's shared lock
+  // (pageWriteLock). `pageWrites` counts this screen's own saves in flight; while any
+  // runs, the editor takes no input and no second submit.
+  const [pageWrites, setPageWrites] = useState(0);
+  const pageSaving = pageWrites > 0;
   const shelf = useAsync<Shelf>(
     () => (userId ? listShelf(userId) : Promise.resolve({ want: [], reading: [], done: [] })),
     [userId],
@@ -476,22 +485,33 @@ export function ReadingScreen() {
     }
   };
   const del = useTwoTapDelete((id) => void onRemove(id));
+  // Gate BL-09: two saves used to go out side by side (20, then 30 before the first
+  // answered) and whichever UPDATE landed last won, so the book could end at 20. The save
+  // now runs under the book's lock, the editor is off while it runs, and when it settles
+  // only the opening it started from closes. A failed save keeps the editor and its draft.
   const onSavePages = async () => {
-    if (!userId || !pageEdit) return;
-    const pages = parsePageDraft(pageEdit.cur, pageEdit.total);
+    if (!userId || !pageEdit || pageSaving) return;
+    const edit = pageEdit;
+    const pages = parsePageDraft(edit.cur, edit.total);
     if (!pages) {
       setPageErr(true);
       return;
     }
     setPageErr(false);
-    setSaveErr(false);
-    try {
-      await updateShelfEntry(userId, pageEdit.id, pages);
-      setPageEdit(null);
+    const outcome = await runExclusive(pageWriteLock(userId, edit.id), async () => {
+      setPageWrites((n) => n + 1);
+      setSaveErr(false);
+      try {
+        await updateShelfEntry(userId, edit.id, pages);
+      } finally {
+        setPageWrites((n) => n - 1);
+      }
+    });
+    if (outcome === "busy") return;
+    if (outcome === "done") {
+      setPageEdit((open) => sheetAfterWrite(open, edit.session));
       shelf.reload();
-    } catch {
-      setSaveErr(true);
-    }
+    } else setSaveErr(true);
   };
 
   const manual = search.kind === "none" || search.kind === "failed" ? manualBook(search.q) : null;
@@ -578,31 +598,48 @@ export function ReadingScreen() {
             </View>
             {pageEdit?.id === reading.id ? (
               <>
+                {/* Gate BL-09: while a save runs, both fields, the keyboard's done and the
+                    save chip take nothing, so no newer draft can be typed and then lost
+                    under the save that is still out. */}
                 <View style={styles.pageEdit}>
                   <TextInput
                     value={pageEdit.cur}
-                    onChangeText={(v) => setPageEdit((p) => (p ? { ...p, cur: v } : p))}
+                    editable={!pageSaving}
+                    onChangeText={(v) => {
+                      if (pageSaving) return;
+                      setPageEdit((p) => (p ? { ...p, cur: v } : p));
+                    }}
                     placeholder={t("toolScreens.reading.currentPage")}
                     placeholderTextColor={deepSpace.textLo}
                     style={styles.searchInput}
                     keyboardType="number-pad"
                     maxLength={6}
                     returnKeyType="done"
-                    onSubmitEditing={() => void onSavePages()}
+                    onSubmitEditing={() => {
+                      if (!pageSaving) void onSavePages();
+                    }}
                     accessibilityLabel={t("toolScreens.reading.currentPage")}
+                    accessibilityState={{ disabled: pageSaving }}
                   />
                   <Text variant="subtle" style={styles.heroMeta}>/</Text>
                   <TextInput
                     value={pageEdit.total}
-                    onChangeText={(v) => setPageEdit((p) => (p ? { ...p, total: v } : p))}
+                    editable={!pageSaving}
+                    onChangeText={(v) => {
+                      if (pageSaving) return;
+                      setPageEdit((p) => (p ? { ...p, total: v } : p));
+                    }}
                     placeholder={t("toolScreens.reading.totalPages")}
                     placeholderTextColor={deepSpace.textLo}
                     style={styles.searchInput}
                     keyboardType="number-pad"
                     maxLength={6}
                     returnKeyType="done"
-                    onSubmitEditing={() => void onSavePages()}
+                    onSubmitEditing={() => {
+                      if (!pageSaving) void onSavePages();
+                    }}
                     accessibilityLabel={t("toolScreens.reading.totalPages")}
+                    accessibilityState={{ disabled: pageSaving }}
                   />
                 </View>
                 {pageErr ? (
@@ -611,8 +648,14 @@ export function ReadingScreen() {
                   </Text>
                 ) : null}
                 <View style={styles.chipRow}>
-                  <Pressable accessibilityRole="button" onPress={() => void onSavePages()} hitSlop={8}>
-                    <OpsStatusChip tone="positive" label={t("toolScreens.reading.savePages")} />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: pageSaving }}
+                    disabled={pageSaving}
+                    onPress={() => void onSavePages()}
+                    hitSlop={8}
+                  >
+                    <OpsStatusChip tone={pageSaving ? "muted" : "positive"} label={t("toolScreens.reading.savePages")} />
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
@@ -630,13 +673,19 @@ export function ReadingScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t("toolScreens.reading.editPages")}
-                onPress={() =>
+                // Gate BL-09: no new opening while a save is out. Its draft would start from
+                // the page count the save is about to replace.
+                accessibilityState={{ disabled: pageSaving }}
+                disabled={pageSaving}
+                onPress={() => {
+                  pageEditSeq.current += 1;
                   setPageEdit({
+                    session: pageEditSeq.current,
                     id: reading.id,
                     cur: String(reading.current_page),
                     total: reading.total_pages ? String(reading.total_pages) : "",
-                  })
-                }
+                  });
+                }}
                 hitSlop={6}
               >
                 <Text variant="subtle" style={styles.heroMeta}>

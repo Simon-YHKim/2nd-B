@@ -75,8 +75,11 @@ describe("R2C-07 / R2C-08: the shelf", () => {
     expect(reading).toContain("view.alsoReading.map(");
   });
   test("the page count can be saved", () => {
-    expect(reading).toContain("const pages = parsePageDraft(pageEdit.cur, pageEdit.total);");
-    expect(reading).toContain("await updateShelfEntry(userId, pageEdit.id, pages);");
+    // Re-aimed 2026-10-06 (gate BL-09): the save reads the editor opening it started from
+    // (`edit`), so its UPDATE and its close both belong to that one opening.
+    expect(reading).toContain("const edit = pageEdit;");
+    expect(reading).toContain("const pages = parsePageDraft(edit.cur, edit.total);");
+    expect(reading).toContain("await updateShelfEntry(userId, edit.id, pages);");
   });
   test("a result already on the shelf is not offered again", () => {
     expect(reading).toContain("const onShelf = shelfVolumeIds(shelf.data);");
@@ -215,6 +218,60 @@ describe("gate BL-02 / BL-03: the meal sheet's clear and save", () => {
     expect(meals).toContain("setPending((open) => sheetAfterWrite(open, sheet.session));");
     const writer = meals.slice(meals.indexOf("const writeMeal"), meals.indexOf("const saveCell"));
     expect(writer).not.toContain("setPending(null)");
+  });
+});
+
+describe("gate BL-09: the shelf's page-count save", () => {
+  const saver = reading.slice(reading.indexOf("const onSavePages"), reading.indexOf("const manual ="));
+  const editorAt = reading.indexOf("{pageEdit?.id === reading.id ? (");
+  const editor = reading.slice(editorAt, reading.indexOf("{c.finishedReading}", editorAt));
+  const fields = editor.slice(editor.indexOf("<TextInput"), editor.indexOf("{pageErr ? ("));
+  const saveChip = editor.slice(editor.indexOf('<View style={styles.chipRow}>'), editor.indexOf("{c.cancel}"));
+  const openerAt = editor.indexOf(") : (");
+  const opener = editor.slice(openerAt, editor.indexOf("</Pressable>", openerAt));
+
+  test("the scanner found the save, the editor and the opener", () => {
+    expect(saver.length).toBeGreaterThan(400);
+    expect(fields.length).toBeGreaterThan(600);
+    expect(saveChip.length).toBeGreaterThan(100);
+    expect(opener.length).toBeGreaterThan(200);
+  });
+
+  test("the save runs only under the book's shared lock", () => {
+    expect(saver).toContain("const outcome = await runExclusive(pageWriteLock(userId, edit.id), async () => {");
+    expect(saver).toContain('if (outcome === "busy") return;');
+    // The lock-holding writer is the only place a page count is written.
+    expect(reading.match(/updateShelfEntry\(/g)?.length).toBe(1);
+    expect(reading).not.toMatch(/useRef<WriteLock>/);
+  });
+
+  test("while a save runs, neither field takes a new draft or a second submit", () => {
+    expect(fields.match(/editable=\{!pageSaving\}/g)?.length).toBe(2);
+    expect(fields.match(/onChangeText=\{\(v\) => \{\n\s*if \(pageSaving\) return;\n\s*setPageEdit\(/g)?.length).toBe(2);
+    expect(fields.match(/onSubmitEditing=\{\(\) => \{\n\s*if \(!pageSaving\) void onSavePages\(\);/g)?.length).toBe(2);
+    expect(fields).not.toContain("onSubmitEditing={() => void onSavePages()}");
+    expect(saver).toContain("if (!userId || !pageEdit || pageSaving) return;");
+  });
+
+  test("the save chip and the opener are off while a save runs", () => {
+    expect(saveChip).toContain("disabled={pageSaving}");
+    expect(opener).toContain("disabled={pageSaving}");
+  });
+
+  test("the busy state counts this screen's saves, so one settling cannot free the editor early", () => {
+    expect(reading).toContain("const pageSaving = pageWrites > 0;");
+    expect(saver).toContain("setPageWrites((n) => n + 1);");
+    expect(saver).toContain("setPageWrites((n) => n - 1);");
+  });
+
+  test("every opening of the editor is a new session", () => {
+    expect(opener).toContain("pageEditSeq.current += 1;");
+    expect(opener).toContain("session: pageEditSeq.current,");
+  });
+
+  test("a settled save closes only the opening it started from, and a failed one keeps it", () => {
+    expect(saver).toMatch(/if \(outcome === "done"\) \{\n\s*setPageEdit\(\(open\) => sheetAfterWrite\(open, edit\.session\)\);\n\s*shelf\.reload\(\);\n\s*\} else setSaveErr\(true\);/);
+    expect(saver).not.toContain("setPageEdit(null)");
   });
 });
 

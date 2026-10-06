@@ -10,6 +10,7 @@ import {
   mealWriteLock,
   MILESTONE_NEXT,
   milestoneChip,
+  pageWriteLock,
   runExclusive,
   sheetAfterWrite,
   shelfView,
@@ -205,6 +206,68 @@ describe("mealWriteLock (gate BL-03 r3): the lock outlives the screen that took 
     expect(other).toHaveBeenCalledTimes(3);
     save.resolve();
     await expect(saving).resolves.toBe("done");
+  });
+});
+
+describe("pageWriteLock (gate BL-09): page-count saves for one book go one at a time", () => {
+  const deferred = () => {
+    let resolve!: () => void;
+    const promise = new Promise<void>((res) => {
+      resolve = res;
+    });
+    return { promise, resolve };
+  };
+  // Each save looks the lock up for itself, the way ReadingScreen does. Distinct ids per
+  // test, because the locks are module-wide by design.
+  const savePages = (user: string, entry: string, write: () => Promise<unknown>) =>
+    runExclusive(pageWriteLock(user, entry), write);
+
+  test("a second save while the first is out is refused, so the older value cannot land last", async () => {
+    // The row as the server holds it. The UPDATE has no version check: last write wins.
+    let stored = 0;
+    const slow = deferred();
+    // Save 20; its UPDATE is slow to land ...
+    const first = savePages("u-bl09", "book-a", async () => {
+      await slow.promise;
+      stored = 20;
+    });
+    // ... and 30 is asked for meanwhile, from this screen or the other one mounted.
+    const second = jest.fn(async () => {
+      stored = 30;
+    });
+    await expect(savePages("u-bl09", "book-a", second)).resolves.toBe("busy");
+    expect(second).not.toHaveBeenCalled();
+    slow.resolve();
+    await expect(first).resolves.toBe("done");
+    expect(stored).toBe(20);
+    // Once the first has landed, 30 goes through after it and stays.
+    await expect(savePages("u-bl09", "book-a", second)).resolves.toBe("done");
+    expect(stored).toBe(30);
+  });
+
+  test("every lookup of one book returns the same lock", () => {
+    expect(pageWriteLock("u-same-book", "book-b")).toBe(pageWriteLock("u-same-book", "book-b"));
+  });
+
+  test("another book or another user is not held up", async () => {
+    const slow = deferred();
+    const saving = savePages("u-books", "book-c", () => slow.promise);
+    const other = jest.fn(async () => undefined);
+    await expect(savePages("u-books", "book-d", other)).resolves.toBe("done");
+    await expect(savePages("u-books-else", "book-c", other)).resolves.toBe("done");
+    expect(other).toHaveBeenCalledTimes(2);
+    slow.resolve();
+    await expect(saving).resolves.toBe("done");
+  });
+
+  test("a page lock is never a meal cell's lock, even when the keys would spell the same", () => {
+    expect(pageWriteLock("u-fam", "2026-10-12|lunch")).not.toBe(mealWriteLock("u-fam", "2026-10-12", "lunch"));
+  });
+
+  test("a save closes only the editor opening it started from", () => {
+    const reopened = { session: 2, id: "book-a", cur: "30", total: "" };
+    expect(sheetAfterWrite(reopened, 1)).toBe(reopened);
+    expect(sheetAfterWrite({ session: 1, id: "book-a", cur: "20", total: "" }, 1)).toBeNull();
   });
 });
 
