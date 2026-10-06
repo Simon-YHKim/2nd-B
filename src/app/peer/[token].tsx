@@ -12,6 +12,7 @@ import { useGoHomeStop } from "@/lib/nav/go-home";
 import { m3 } from "@/lib/theme/m3";
 import { deepSpace, semantic, spacing } from "@/lib/theme/tokens";
 import { callPeerRespond } from "@/lib/peer/peer-respond";
+import { informantAgeGate, informantCurrentYear } from "@/lib/peer/informant-age";
 
 type Phase = "loading" | "form" | "done" | "withdrawn" | "expired" | "invalid" | "already";
 
@@ -22,10 +23,10 @@ type Trait = (typeof TRAITS)[number];
 
 // C10: the same floor sign-up enforces. Birth YEAR only — the coarsest signal
 // that answers the question, so an informant never hands over a full birth date
-// to a product they have no account with.
-const MIN_INFORMANT_AGE = 14;
-const CURRENT_YEAR = new Date().getFullYear();
-const MAX_BIRTH_YEAR = CURRENT_YEAR;
+// to a product they have no account with. The comparisons live in
+// lib/peer/informant-age.ts so they match peer-respond's conservative boundary,
+// and the year is the server's UTC year read on each render (not a local year
+// frozen at load), so the screen and the server subtract from the same number.
 
 export default function PeerInformant() {
   const { token } = useLocalSearchParams<{ token?: string }>();
@@ -44,10 +45,11 @@ export default function PeerInformant() {
   // under-14 never runs on the informant. Without a year here, a 13-year-old can
   // become a data subject in a product that publicly says it does not accept them.
   // The client check is a courtesy; peer-respond re-derives and rejects server-side.
-  const year = Number.parseInt(birthYear, 10);
-  const yearLooksReal = Number.isInteger(year) && year >= 1900 && year <= MAX_BIRTH_YEAR;
-  const approxAge = yearLooksReal ? CURRENT_YEAR - year : null;
-  const tooYoung = approxAge != null && approxAge < MIN_INFORMANT_AGE;
+  // It must not be looser than the server, or the informant fills the form and
+  // gets a generic send error: a year difference of 14 is refused there, and up
+  // to 18 needs a guardian there whatever the minor row says.
+  const { year, yearLooksReal, tooYoung, yearMinor } = informantAgeGate(birthYear, informantCurrentYear());
+  const needsGuardian = minor || yearMinor;
 
   useEffect(() => {
     let alive = true;
@@ -89,7 +91,7 @@ export default function PeerInformant() {
     ackOverseas &&
     yearLooksReal &&
     !tooYoung &&
-    (!minor || guardian);
+    (!needsGuardian || guardian);
 
   async function submit() {
     if (!token || !complete || busy) return;
@@ -101,7 +103,7 @@ export default function PeerInformant() {
         token,
         ratings,
         birthYear: year,
-        informantIsMinor: minor,
+        informantIsMinor: needsGuardian,
         guardianConsent: guardian,
         llmProcessingAck: ackLlm,
         overseasTransferAck: ackOverseas,
@@ -220,7 +222,7 @@ export default function PeerInformant() {
             <CheckRow label={t("ackLlm")} checked={ackLlm} onToggle={() => setAckLlm((v) => !v)} />
             <CheckRow label={t("ackOverseas")} checked={ackOverseas} onToggle={() => setAckOverseas((v) => !v)} />
             <CheckRow label={t("minorRow")} checked={minor} onToggle={() => setMinor((v) => !v)} />
-            {minor ? (
+            {needsGuardian ? (
               <CheckRow label={t("guardianRow")} checked={guardian} onToggle={() => setGuardian((v) => !v)} />
             ) : null}
           </MdCard>
