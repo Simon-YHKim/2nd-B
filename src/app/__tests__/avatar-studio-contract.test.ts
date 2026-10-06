@@ -33,6 +33,9 @@ describe("approved avatar studio screen", () => {
     expect(source).not.toContain('case "garment": patch({ garmentId: id, wearUniform: false, type: "human" });');
     expect(source).toContain("isAvatarAccessoryOccluded(spec)");
     expect(source).toContain('t("avatar:jobHint")');
+    // Simon 2026-10-07: the animal note is gone; tabs are never narrower than they are tall.
+    expect(source).not.toContain('t("avatar:animalHint")');
+    expect(source).toContain("tabContent: { minHeight: m3.minTouch, minWidth: 64,");
     expect(source).not.toContain("saveProfileDetails");
     expect(source).not.toContain("localStorage");
   });
