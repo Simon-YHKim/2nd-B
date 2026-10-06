@@ -11,14 +11,18 @@
 //
 // `useImportPendingCaptures()` stays here: it is not part of either skin, it
 // runs on every home mount, and moving it into the shell would change when it
-// fires relative to the redirects the shell performs.
+// fires relative to the redirects the shell performs. `usePendingShareResume()`
+// sits next to it for the same reason: a share that arrived before sign-in or
+// profile completion goes back to /capture from here (gate FIN-01).
 import { useImportPendingCaptures } from "@/lib/capture/use-import-pending";
+import { usePendingShareResume } from "@/lib/capture/use-pending-share";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { PendingImportPrompt } from "@/components/capture/PendingImportPrompt";
 import { DeepSpaceShell } from "@/components/deep-space/DeepSpaceShell";
 
 export default function Index() {
   const { prompt, confirmImport, deferImport, crisis, dismissCrisis } = useImportPendingCaptures();
+  usePendingShareResume();
   return (
     <>
       <DeepSpaceShell />

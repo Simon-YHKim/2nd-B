@@ -45,6 +45,7 @@ import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-sto
 import { hydrateAnalyticsConsent } from "@/lib/analytics/auth-conversions";
 import { profileRouteHold } from "@/lib/auth/profile-probe";
 import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
+import { usePendingShareHold } from "@/lib/capture/use-pending-share";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { configureEffectsAudioSession } from "@/lib/audio/audio-session";
 import { ensureSoundEffectsHydration } from "@/lib/settings/sound-effects";
@@ -230,6 +231,7 @@ export default function RootLayout() {
             <AnalyticsConsentSync />
             <AddressTermSync />
             <AuditWriteOutboxSync />
+            <PendingShareHoldSync />
             <HealthAutoReadSync />
             {/* Big SecondB head follows touch on every screen (auto by size >= 80);
                 bubbling onTouch* so it never steals taps. Dock + Toast are global
@@ -702,6 +704,15 @@ function AddressTermSync(): null {
   const { userId, recoveryUserId, recoveryPendingGlobal } = useAuth();
   const { i18n } = useTranslation();
   useAddressTerm(recoveryUserId || recoveryPendingGlobal ? null : userId, i18n.language);
+  return null;
+}
+
+// A share that opens /capture while signed out or before the profile exists
+// meets a redirect (Capture's /sign-in, IntroGate's /complete-profile) and the
+// screen that reads it never mounts. Outside IntroGate so that redirect cannot
+// unmount it; the home screen hands the share back (src/lib/capture/pending-share.ts).
+function PendingShareHoldSync(): null {
+  usePendingShareHold();
   return null;
 }
 
