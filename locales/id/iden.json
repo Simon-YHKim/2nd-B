@@ -6,22 +6,6 @@
     "subtitle": "File untuk asisten AI dan profil satu halaman untuk dibaca",
     "speech": "Gunakan ringkasan ini untuk memberi asisten lain konteks tentang dirimu."
   },
-  "intro": {
-    "body": "IDEN mengumpulkan hal yang kamu pelajari tentang dirimu dalam satu file. Tempel ke asisten AI sebagai konteks, atau baca profil satu halamannya."
-  },
-  "generate": {
-    "button": "Buat IDEN saya",
-    "accessibilityHint": "Membuat berkas identitas dari data kamu yang tersimpan."
-  },
-  "result": {
-    "title": "IDEN kamu siap",
-    "hint": "Tempel ke ChatGPT, Gemini, atau Claude untuk memberi konteks kamu. Permintaan kamu ada di paling bawah.",
-    "copy": "Salin .iden",
-    "copied": "Disalin ke papan klip",
-    "share": "Bagikan",
-    "openSheet": "Buka lembar satu halaman",
-    "close": "Tutup"
-  },
   "error": "Tidak dapat membuat IDEN kamu. Segarkan dan coba lagi.",
   "entry": {
     "eyebrow": "Ekspor identitas",
@@ -36,7 +20,6 @@
     "retry": "Coba lagi",
     "empty": "Belum ada informasi untuk diekspor. Tambahkan catatan tentang dirimu dulu.",
     "startGathering": "Mulai mengumpulkan",
-    "signed": "Ditandatangani",
     "whatGoesIn": "Apa yang disertakan",
     "format": "Format",
     "sendToAi": "Kirim ke AI",
