@@ -78,7 +78,12 @@ export interface InterviewTurn {
   period?: LifePeriod;
   /** Session-only metadata, no change to stored transcript/schema. */
   sceneStart?: boolean;
+  /** Session-only: true = this answer earned its layer's cell, false = it did not.
+   *  Unset = no verdict yet: the answer the screen is sending now, or one that never got one. */
   answered?: boolean;
+  /** Session-only: the request that carried this answer failed (network or server error), so it
+   *  has no verdict. It is neither progress nor a miss; the screen asks again at the same layer. */
+  unsettled?: boolean;
 }
 
 /** A user's coverage across 25 cells (5 periods × 5 layers). Each cell is the
@@ -237,21 +242,36 @@ export function nextMove(
     // A refusal and exhausted scaffolds end questioning; empty cells are not a reason
     // to revisit a declined topic. No obligation to reach all five layers.
     if (last && answerDisposition(last.text, thread.locale) === "stop") return { kind: "finish" };
-    if (answers.length >= 8 || abandoned.length === DRILL_LAYERS.length) return { kind: "finish" };
+    // 장면은 **답의 개수로 끝나지 않는다** (QA 261005 R2F-09). 여기 있던 `answers.length >= 8`
+    // 은 인정 여부와 상관없이 답을 세서, 두 층에서 막혔다 회복한 사람의 장면을 울림(L5)을
+    // 묻기도 전에 끊었다. 장면을 끝내는 것은 인정된 진전(아래 `isPeriodComplete`: 다섯 층이 모두
+    // 인정됨)과 원래 있던 규칙들이다 -- 거절(위), 막힘(아래 `stuck`), 화면의 판정 경로에서 한
+    // 층을 세 번 인정받지 못함(interview.tsx). 그래서 장면 안의 판정 호출은 층마다 세 번이 넘지 않는다.
+    // 마지막 층도 같다 -- 다섯 층 x 3 = 장면당 판정 호출 15회가 상한이다(게이트 LAST-01).
+    if (abandoned.length === DRILL_LAYERS.length) return { kind: "finish" };
     if (stuck) return shouldScaffold(stuck.streak)
       ? { kind: "scaffold", layer: stuck.layer }
       : { kind: "finish" };
-    if (thread.concreteOnly) return answers.length >= 4
+    // 판정을 기다리는 답은 장면의 맨 끝 턴 하나다(화면의 ask 가 방금 보낸 답). 판정과 다음 질문이
+    // 한 호출에서 오므로 다음 층은 이 답이 인정된다고 보고 고른다. 그 가정으로 나온 `finish` 는
+    // 화면이 판정이 인정일 때만 따른다(interview.tsx, 게이트 LAST-01). 앞에 남은 답 중 판정이 없는
+    // 것(오류로 `unsettled` 가 된 답 · 위험 신호로 멈춘 답)은 진전으로도 셈으로도 세지 않는다.
+    const awaiting = (turn: InterviewTurn, index: number): boolean =>
+      index === scene.length - 1 && turn.answered === undefined && !turn.unsettled;
+    const progress = scene.filter((turn, index): turn is InterviewTurn & { layer: DrillLayer } =>
+      turn.role === "user" && turn.layer !== undefined
+      && (turn.answered === true || awaiting(turn, index))
+      && canCreditAnswer(turn.text, turn.layer, thread.locale));
+    // "사실만"의 4답 상한도 이 진전만 센다(게이트 LAST-02): 모델이 인정한 답과 지금 판정을 기다리는
+    // 답이다. 예전에는 장면의 답을 전부 세서, 오류로 판정을 못 받은 답 셋 뒤 네 번째 입력이 모델
+    // 판정 없이 끝났다. 인정 못 받은 답은 화면이 같은 층에 발판을 놓고 세 번째면 끝내므로 유한하다.
+    if (thread.concreteOnly) return progress.length >= 4
       ? { kind: "finish" }
       : { kind: "drill", layer: "fact" };
     // Past sessions may have every cell filled. A new event still starts with its own
     // scene, and follows its own answers. No cumulative coverage drives this path.
     const sceneCoverage = emptyCoverage();
-    for (const turn of answers) {
-      if (turn.layer && turn.answered !== false && canCreditAnswer(turn.text, turn.layer, thread.locale)) {
-        sceneCoverage[period][turn.layer] += 1;
-      }
-    }
+    for (const turn of progress) sceneCoverage[period][turn.layer] += 1;
     if (isPeriodComplete(sceneCoverage, period)) return { kind: "finish" };
     return { kind: "drill", layer: nextLayerSuggestion(sceneCoverage, period, abandoned) };
   }

@@ -441,7 +441,10 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         // Nothing is added on a sparse answer, missing judgement, failure, or stop.
         // The model cannot award another layer or override the local gate.
         if (credited && confirmed) setCoverage(incrementCoverage(cov, period, credited));
-        if (move.kind === "finish") {
+        // 장면 완료(`finish`)는 `nextMove` 가 판정을 기다리는 이 답을 인정된다고 보고 낸 수다.
+        // 그래서 판정이 인정일 때만 끝낸다(게이트 LAST-01). 인정 못 받았으면 아래 갈래가 같은 층에
+        // 발판을 놓거나, 그 층에서 세 번째면 대화를 끝낸다. 마지막 층도 다른 층과 같다.
+        if (move.kind === "finish" && confirmed) {
           setTurns(assessed);
           finish();
           return;
@@ -481,6 +484,14 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
             finish();
           }
           return;
+        }
+        // 판정을 못 받은 답이다(게이트 LAST-02). 진전으로도, 그 층의 실패로도 세지 않게 표시하고
+        // 겨냥하던 층을 되돌린다 -- "다시 시도해 주세요"로 다시 보낸 답이 같은 층에서 판정받게.
+        if (!ended.current) {
+          setTurns(history.map((turn, index) => index === history.length - 1 && turn.role === "user"
+            ? { ...turn, unsettled: true }
+            : turn));
+          setPendingLayer(credited);
         }
         setNotice(t("drill.failed"));
       } finally {
@@ -574,16 +585,16 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     //
     // 예전에는 비어 있지 않은 답이면 무조건 `incrementCoverage` 를 불렀다. 그래서
     // "잘 모르겠는데" 가 의미(L3) 칸을 채우고, 채워졌으니 믿음(L4)으로 내려갔다.
-    // **못 판 것을 판 것으로 셀다.** 그 칸 수가 그대로 `narrativeStarLevel` 의
+    // **못 판 것을 판 것으로 셌다.** 그 칸 수가 그대로 `narrativeStarLevel` 의
     // 입력이라 등급까지 오염됐다 -- 7렌즈 감사에서 걸린 바로 그 병이다.
     //
     // 판정은 결정론적이고(`stuck.ts`) 보수적이다 -- 사용자가 스스로 포기를
-    // 말했을 때만 안 셀다. 밝기가 LLM 의 기분에 달려서는 안 되기 때문이다.
+    // 말했을 때만 안 셌다. 밝기가 LLM 의 기분에 달려서는 안 되기 때문이다.
     const blocked = isLocalNonAnswer(text, pendingLayer);
     const nextCoverage = coverage;
     const nextStreak = blocked ? stuckStreak + 1 : 0;
     const stuck = blocked && pendingLayer ? { layer: pendingLayer, streak: nextStreak } : null;
-    // 발판을 두 번 줘도 막햘다. 이 층은 이번 대화에서 더 묻지 않는다 -- 칸은
+    // 발판을 두 번 줘도 막혔다. 이 층은 이번 대화에서 더 묻지 않는다 -- 칸은
     // 비운 채로. 안 그러면 비어 있다는 이유로 같은 층이 계속 다시 골라진다.
     const nextAbandoned =
       pendingLayer && nextStreak > MAX_SCAFFOLDS_PER_LAYER && !abandoned.includes(pendingLayer)
