@@ -91,7 +91,7 @@
     "whereBody": "Dianalisis di perangkat ini. Hanya hasil yang kamu pilih di layar tinjauan yang disimpan, terenkripsi.",
     "deleteAnytime": "Hapus kapan saja",
     "localAnalysis": "File dianalisis di perangkat",
-    "connectorNote": "Layar berikutnya meminta lokasi hanya \"saat aplikasi digunakan\". (perlu aplikasi terpasang)",
+    "connectorNote": "Aplikasi belum membaca lokasimu secara langsung. Unggah file riwayat lokasi yang kamu ekspor, misalnya dari Google Timeline.",
     "googleConnectorNote": "Hubungkan akun Google-mu dengan aman di browser. Hanya baca (lihat acara).",
     "googleConnect": "Hubungkan Google",
     "connecting": "Menghubungkan…",
@@ -148,8 +148,8 @@
         "what": "Hanya jumlah sebutan rencana. Isi pesan tidak disimpan."
       },
       "live-location": {
-        "name": "Lokasi langsung",
-        "sub": "Lokasi · izin perangkat",
+        "name": "Riwayat lokasi",
+        "sub": "Lokasi · file ekspor",
         "what": "Hanya pola tempat dan lama singgah. Koordinat persis tidak disimpan."
       },
       "health": {

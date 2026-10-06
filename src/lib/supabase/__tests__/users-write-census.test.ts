@@ -112,6 +112,9 @@ const AVATAR_DRAFT = readFileSync(
 const DISPLAY_NAME_DRAFT = readFileSync(
   join(ROOT, "db/migrations/0207_users_display_name_update.sql"), "utf8",
 ).split(CR).join("");
+const CHAT_NAME_MIGRATION = readFileSync(
+  join(ROOT, "db/migrations/0230_profile_fields_chat_name.sql"), "utf8",
+).split(CR).join("");
 
 describe("what the client writes to public.users", () => {
   test("the scan found something (a silent zero would pass every other test)", () => {
@@ -124,7 +127,7 @@ describe("what the client writes to public.users", () => {
   });
 
   test("UPDATE touches exactly these columns", () => {
-    expect([...C.update].sort()).toEqual(["avatar_spec", "birth_date", "display_name", "privacy_prefs", "profile_details", "reasoning_prefs"]);
+    expect([...C.update].sort()).toEqual(["avatar_spec", "birth_date", "chat_name", "display_name", "privacy_prefs", "profile_details", "reasoning_prefs"]);
   });
 
   test("nothing deletes from users", () => {
@@ -148,7 +151,7 @@ describe("the migration plan quotes the same census", () => {
     // 0139 is historical. New writes need a forward migration, not an edit
     // to the old grant list.
     for (const col of [...C.insert, ...C.update]) {
-      expect(col === "avatar_spec" ? AVATAR_DRAFT : col === "display_name" ? DISPLAY_NAME_DRAFT : MIGRATION).toContain(col);
+      expect(col === "avatar_spec" ? AVATAR_DRAFT : col === "display_name" ? DISPLAY_NAME_DRAFT : col === "chat_name" ? CHAT_NAME_MIGRATION : MIGRATION).toContain(col);
     }
     expect(DISPLAY_NAME_DRAFT.replace(/^\s*--.*$/gm, "")).toMatch(
       /GRANT UPDATE \(display_name\) ON public\.users TO authenticated;/,
