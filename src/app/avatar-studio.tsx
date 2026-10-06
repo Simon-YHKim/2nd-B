@@ -6,7 +6,6 @@ import { PlainText as Text } from "@/components/ui/PlainText";
 import { Image } from "expo-image";
 import { Redirect, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 
 import { AvatarPreview } from "@/components/avatar/AvatarPreview";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -84,7 +83,7 @@ export default function AvatarStudioScreen() {
   // Phone-aware: inside the dashboard phone, leaving steps the phone's stack
   // and `setup` comes from the phone route (/avatar-studio?setup=1).
   const router = useAppRouter();
-  const { t, i18n } = useTranslation(["avatar", "common"]);
+  const { t } = useTranslation(["avatar", "common"]);
   const { setup } = useScreenParams<{ setup?: string }>();
   const setupMode = setup === "1";
   const {
@@ -173,8 +172,6 @@ export default function AvatarStudioScreen() {
     () => choicesFor(activeCategory, activeColorField, spec.species),
     [activeCategory, activeColorField, spec.species],
   );
-  const koreanNames = renderedUiLanguage(i18n) === "ko";
-
   const patch = useCallback((change: Partial<AvatarSpec>) => {
     if (!readyForUser || saving) return;
     setSpec((current) => resolveAvatarSpec({ ...current, ...change }));
@@ -244,8 +241,12 @@ export default function AvatarStudioScreen() {
     if (choice.kind === "clear") {
       return t(`avatar:${choice.category === "job" ? "noJob" : spec.type === "human" && spec.job ? "uniform" : "basicTee"}`);
     }
-    return koreanNames ? choice.item.ko : choice.item.en;
-  }, [koreanNames, spec.job, spec.type, t]);
+    // Catalog names live in avatar:items.<category>.<id> in all five locales
+    // (Q-261005-01 = A, QA 261006 tr3). The engine's ko/en pair stays the approved
+    // generator's copy (parity-tested against design/avatar-style-v2); the bundle's
+    // en/ko equal it, and es/pt/id no longer fall back to the English name.
+    return t(`avatar:items.${choice.category}.${choice.item.id}`);
+  }, [spec.job, spec.type, t]);
 
   const renderChoice = useCallback(({ item }: { item: Choice }) => {
     const selected = isSelected(item);

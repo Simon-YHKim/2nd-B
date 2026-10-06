@@ -50,12 +50,15 @@ async function listCareerRecords(userId: string): Promise<CareerRecordRow[]> {
   return (data ?? []) as CareerRecordRow[];
 }
 
+// 사이드 트랙의 공식 이력 칩. 문구는 deepspace career.credentials.* 에 다섯 언어로 있다
+// (Q-261005-01 = A, QA 261006 tr3). 예전에는 한국어 · 영어 두 배열이라 es/pt/id 가 영어였다.
+const CREDENTIAL_KEYS = ["education", "military", "awards", "licenses", "experience"] as const;
+
 export default function CareerTimelineScreen() {
-  const { t, i18n } = useTranslation("deepspace");
+  const { t } = useTranslation("deepspace");
   const { userId, loading } = useAuth();
   const { width } = useWindowDimensions();
   const narrow = width < 600;
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [rows, setRows] = useState<CareerRecordRow[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -119,12 +122,12 @@ export default function CareerTimelineScreen() {
             (학력/병역/수상/자격/경력). 공식 이력은 연동으로 채워지는 트랙이라, mock
             데이터 없이 중립 안내를 두어 레퍼런스 구성/의도를 정직하게 클론한다. */}
         <View style={styles.pathHead}>
-          <Text variant="heading">{locale === "ko" ? "쌓아온 길" : "The path you've built"}</Text>
+          <Text variant="heading">{t("deepspace:career.pathTitle")}</Text>
         </View>
         <View style={styles.trackRow}>
           {(["main", "side"] as const).map((tk) => {
             const on = track === tk;
-            const lbl = tk === "main" ? (locale === "ko" ? "메인" : "Main") : locale === "ko" ? "사이드" : "Side";
+            const lbl = t(tk === "main" ? "deepspace:career.trackMain" : "deepspace:career.trackSide");
             return (
               <Pressable
                 key={tk}
@@ -144,22 +147,17 @@ export default function CareerTimelineScreen() {
         {track === "side" ? (
           <View style={styles.sideBlock}>
             <View style={styles.chipRow}>
-              {(locale === "ko"
-                ? ["학력", "병역", "수상", "자격", "경력"]
-                : ["Education", "Military", "Awards", "Licenses", "Experience"]
-              ).map((c) => (
+              {CREDENTIAL_KEYS.map((c) => (
                 <View key={c} style={styles.credChip}>
                   <Text variant="caption" color="textMuted">
-                    {c}
+                    {t(`deepspace:career.credentials.${c}`)}
                   </Text>
                 </View>
               ))}
             </View>
             <MdCard variant="outlined" style={styles.cardPad}>
               <Text variant="body" color="textMuted">
-                {locale === "ko"
-                  ? "학력·병역·수상·자격·경력 같은 공식 이력은 연동하면 여기에 자동으로 정리됩니다. 지금은 메인에서 직접 담은 성과가 쌓입니다."
-                  : "Official records like education, military, awards, licenses, and experience organize here once you connect a source. For now, your own achievements build up under Main."}
+                {t("deepspace:career.sideNote")}
               </Text>
             </MdCard>
           </View>

@@ -492,7 +492,18 @@
     "sourceRecord": "Saved career record",
     "entryUiKorean": "Entry screen: Korean",
     "entryUiEnglish": "Entry screen: English",
-    "untitled": "(untitled)"
+    "untitled": "(untitled)",
+    "pathTitle": "The path you've built",
+    "trackMain": "Main",
+    "trackSide": "Side",
+    "credentials": {
+      "education": "Education",
+      "military": "Military",
+      "awards": "Awards",
+      "licenses": "Licenses",
+      "experience": "Experience"
+    },
+    "sideNote": "Official records like education, military, awards, licenses, and experience organize here once you connect a source. For now, your own achievements build up under Main."
   },
   "careerInput": {
     "screenTitle": "Add achievement",
@@ -722,7 +733,37 @@
       "startRoutine": "Start a routine",
       "reanalyze": "Review my stars",
       "reanalyzing": "Reviewing your stars",
-      "reanalyzingTip": "We'll let you know when it's done."
+      "reanalyzingTip": "We'll let you know when it's done.",
+      "steps": {
+        "profile": {
+          "obs": "You filled in more of your basics this week.",
+          "step": "Fill in one profile field"
+        },
+        "infancy": {
+          "obs": "You dug into your earliest memories.",
+          "step": "Note one scene that came up"
+        },
+        "school": {
+          "obs": "You revisited your school years.",
+          "step": "Dig into one more scene from then"
+        },
+        "twenties": {
+          "obs": "You went deep on your twenties.",
+          "step": "Write down one choice from then"
+        },
+        "later": {
+          "obs": "You looked at how you changed after thirty.",
+          "step": "Write one line about what changed"
+        },
+        "work": {
+          "obs": "You looked at yourself at work.",
+          "step": "Note one scene from work this week"
+        },
+        "now": {
+          "obs": "You checked in on yourself often.",
+          "step": "One line of reflection today"
+        }
+      }
     },
     "plans": {
       "title": "Plans",
@@ -920,7 +961,55 @@
       "autoTitle": "Automatic connections",
       "autoPaused": "Limit reached · automatic runs resume Monday",
       "autoBody": "SecondB suggests relevant life areas for each item you capture",
-      "autoNote": "Each automatic search uses one of your weekly runs. The last run is kept for you to use manually."
+      "autoNote": "Each automatic search uses one of your weekly runs. The last run is kept for you to use manually.",
+      "queuedRecord": "New record · queued",
+      "queuedSource": "New source · queued",
+      "justNow": "Just now",
+      "hoursAgo": "{{n}}h ago",
+      "yesterday": "Yesterday",
+      "daysAgo": "{{n}}d ago",
+      "untitledRecord": "Untitled record",
+      "untitledSource": "Untitled source",
+      "kindJournal": "Journal",
+      "kindNote": "Note",
+      "kindLink": "Link",
+      "backgroundFailed": "Background reasoning didn't finish. Try again.",
+      "loadFailed": "Couldn't load your items.",
+      "busyOther": "Wait for the current task to finish.",
+      "taskTitle": "Connecting selected items",
+      "taskTip": "Review the new connections.",
+      "runFailed": "Couldn't connect these items. Try again.",
+      "applyFailed": "Couldn't apply the selected proposals. Try again.",
+      "title": "Reasoning",
+      "reviewTitle": "Review results",
+      "selectedTitle": "{{n}} selected",
+      "progressDone": "All items are connected",
+      "progressRunning": "Connecting your stars",
+      "unlimited": "Unlimited connections",
+      "weeklyLeft": "{{left}} of {{cap}} runs left this week · resets Monday",
+      "cancel": "Cancel",
+      "applySelected": "Apply {{n}} selected",
+      "keepAll": "Keep all unchanged",
+      "weeklyLimitReached": "Weekly limit reached",
+      "reasonN": "Reason over {{n}} items",
+      "reasonSelected": "Reason over selected items",
+      "depletedTitle": "You've used this week's base reasoning runs",
+      "viewPlans": "View plans",
+      "doneSummary": "{{n}} connections are proposed. Select only what you want to apply.",
+      "runningSummary": "Reading {{total}} items · {{done}} / {{total}}",
+      "doneNote": "Only selected proposals are applied. Unselected items stay unchanged.",
+      "runningNote": "You can leave this screen. SecondB will let you know when it's ready.",
+      "weekLabel": "This week's reasoning",
+      "capturedItems": "Captured items",
+      "selectProposals": "Select proposals",
+      "processing": "Processing",
+      "selectionCount": "{{n}} / {{max}} selected",
+      "loadingItems": "Loading your items",
+      "emptyItems": "No captured items yet",
+      "captureFirst": "Capture your first item",
+      "readingItem": "Reading…",
+      "proposedFor": "Proposed for {{domain}}",
+      "runHint": "Select items to enable reasoning."
     },
     "sources": {
       "title": "Incoming material",

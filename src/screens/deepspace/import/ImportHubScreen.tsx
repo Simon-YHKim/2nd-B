@@ -15,6 +15,7 @@ import { PlainText as RNText } from "@/components/ui/PlainText";
 import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 import { useAppRouter, usePhoneEmbed } from "@/lib/nav/phone-embed";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 
 import { deepSpace, deepSpaceSpacing, flattenAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
@@ -61,34 +62,31 @@ const impAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.accent.
 type Tier = "critical" | "sensitive" | "normal";
 type Mode = "file" | "connector";
 
+// The tile copy (name · sub line · "what" block) lives in import:hub.sources.<key>.*
+// in all five locales (Q-261005-01 = A, QA 261006 tr3). It used to be nameKo/nameEn ·
+// subKo/subEn · whatKo/whatEn here, so es/pt/id painted the English pair.
 interface ImportSource {
   key: string;
   badge: string;
-  nameKo: string;
-  nameEn: string;
-  subKo: string;
-  subEn: string;
   tier: Tier;
   mode: Mode;
   minorLocked: boolean;
   kind: ImportKind;
-  whatKo: string;
-  whatEn: string;
   /** Set on the Google OAuth connectors; picks the scope + fetch path. */
   googleKind?: "calendar" | "tasks";
 }
 
 const SOURCES: ImportSource[] = [
-  { key: "kakao", badge: "KA", nameKo: "카카오톡 대화", nameEn: "KakaoTalk", subKo: "통신 · 파일 내보내기", subEn: "Comms · file export", tier: "critical", mode: "file", minorLocked: true, kind: "kakao", whatKo: "약속 언급 횟수와 관계 빈도만 뽑습니다. 메시지 본문은 저장하지 않습니다.", whatEn: "Only plan mention counts and relationship frequency. We don't store message text." },
-  { key: "takeout", badge: "LO", nameKo: "구글 타임라인", nameEn: "Google Timeline", subKo: "위치 · Takeout 파일", subEn: "Location · Takeout file", tier: "critical", mode: "file", minorLocked: true, kind: "takeout-location", whatKo: "자주 가는 장소·머문 시간 패턴만. 정확한 좌표 경로는 저장 안 함.", whatEn: "Only place/dwell patterns. Exact coordinates aren't stored." },
-  { key: "sms", badge: "SM", nameKo: "문자(SMS)", nameEn: "SMS", subKo: "통신 · 백업 파일", subEn: "Comms · backup file", tier: "critical", mode: "file", minorLocked: true, kind: "sms", whatKo: "약속 언급 횟수만 뽑습니다. 메시지 본문은 저장하지 않습니다.", whatEn: "Only plan mention counts. We don't store message text." },
-  { key: "live-location", badge: "LV", nameKo: "실시간 위치", nameEn: "Live location", subKo: "위치 · 기기 권한", subEn: "Location · device permission", tier: "critical", mode: "connector", minorLocked: true, kind: "unknown", whatKo: "자주 가는 장소·머문 시간 패턴만. 정확한 좌표 경로는 저장 안 함.", whatEn: "Only place/dwell patterns. Exact coordinates aren't stored." },
-  { key: "health", badge: "HE", nameKo: "건강", nameEn: "Health", subKo: "건강 · export 파일", subEn: "Health · export file", tier: "sensitive", mode: "file", minorLocked: false, kind: "apple-health", whatKo: "걸음·운동 등 합계만. 상세 기록 원문은 저장 안 함.", whatEn: "Only totals (steps, etc). Detailed records aren't stored." },
-  { key: "email", badge: "EM", nameKo: "이메일", nameEn: "Email", subKo: "이메일 · .eml 파일", subEn: "Email · .eml file", tier: "sensitive", mode: "file", minorLocked: false, kind: "email", whatKo: "약속·일정 신호만. 본문 전체는 저장 안 함.", whatEn: "Only plan/schedule signals, not the full body." },
-  { key: "notion", badge: "NO", nameKo: "Notion · Obsidian", nameEn: "Notion · Obsidian", subKo: "노트 · export 파일", subEn: "Notes · export file", tier: "normal", mode: "file", minorLocked: false, kind: "markdown", whatKo: "노트를 기록으로 들여옵니다.", whatEn: "Brings your notes in as records." },
-  { key: "google", badge: "GC", nameKo: "구글 캘린더", nameEn: "Google Calendar", subKo: "일정 · 계정 연결", subEn: "Schedule · account link", tier: "normal", mode: "connector", minorLocked: false, kind: "ics", googleKind: "calendar", whatKo: "다가오는 일정의 제목·시간만 가져옵니다. 본문·참석자는 저장 안 합니다.", whatEn: "Brings only upcoming event titles + times. No body/attendees." },
-  { key: "google-tasks", badge: "GT", nameKo: "구글 할 일", nameEn: "Google Tasks", subKo: "할 일 · 계정 연결", subEn: "To-dos · account link", tier: "normal", mode: "connector", minorLocked: false, kind: "markdown", googleKind: "tasks", whatKo: "할 일 목록의 제목만 기록으로 가져옵니다.", whatEn: "Brings your to-do titles in as records." },
-  { key: "calendar", badge: "IC", nameKo: "캘린더(.ics)", nameEn: "Calendar (.ics)", subKo: "일정 · 파일", subEn: "Schedule · file", tier: "normal", mode: "file", minorLocked: false, kind: "ics", whatKo: "일정 이벤트를 들여옵니다.", whatEn: "Brings your calendar events in." },
+  { key: "kakao", badge: "KA", tier: "critical", mode: "file", minorLocked: true, kind: "kakao" },
+  { key: "takeout", badge: "LO", tier: "critical", mode: "file", minorLocked: true, kind: "takeout-location" },
+  { key: "sms", badge: "SM", tier: "critical", mode: "file", minorLocked: true, kind: "sms" },
+  { key: "live-location", badge: "LV", tier: "critical", mode: "connector", minorLocked: true, kind: "unknown" },
+  { key: "health", badge: "HE", tier: "sensitive", mode: "file", minorLocked: false, kind: "apple-health" },
+  { key: "email", badge: "EM", tier: "sensitive", mode: "file", minorLocked: false, kind: "email" },
+  { key: "notion", badge: "NO", tier: "normal", mode: "file", minorLocked: false, kind: "markdown" },
+  { key: "google", badge: "GC", tier: "normal", mode: "connector", minorLocked: false, kind: "ics", googleKind: "calendar" },
+  { key: "google-tasks", badge: "GT", tier: "normal", mode: "connector", minorLocked: false, kind: "markdown", googleKind: "tasks" },
+  { key: "calendar", badge: "IC", tier: "normal", mode: "file", minorLocked: false, kind: "ics" },
 ];
 
 // F7 (C10): the parser kinds behind the minor-locked comms/location tiles. Derived
@@ -118,7 +116,9 @@ export function ImportHubScreen() {
   // ran off the title row; let that row wrap there.
   const inPhone = usePhoneEmbed() !== null;
   const { i18n, t: importT } = useTranslation("import");
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  // The language actually on screen (#2064): system locale for the consent ledger
+  // and the reasoning queue below. Copy goes through t(), which paints the same one.
+  const ko = renderedUiLanguage(i18n) === "ko";
   const { userId, isMinor } = useAuth();
   const progression = useProgression();
 
@@ -154,8 +154,11 @@ export function ImportHubScreen() {
   const [histKept, setHistKept] = useState<ImportWithdrawalKept | null>(null);
   const googleClientId = getEnv().EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
-  const t = (k: string) => COPY(ko)[k] ?? k;
-  const name = (s: ImportSource) => (ko ? s.nameKo : s.nameEn);
+  // Hub copy: import:hub.* (Q-261005-01 = A). The short keys stay so the steps below
+  // read the same; es/pt/id now paint their own words instead of the English map.
+  const t = (k: string) => importT(`hub.${k}`);
+  const name = (s: ImportSource) => importT(`hub.sources.${s.key}.name`);
+  const sourceCopy = (s: ImportSource, field: "sub" | "what") => importT(`hub.sources.${s.key}.${field}`);
 
   useEffect(() => {
     setHistErr(null);
@@ -554,7 +557,7 @@ export function ImportHubScreen() {
                   <RNText style={styles.sourceIcon}>{s.badge}</RNText>
                   <View style={{ flex: 1 }}>
                     <Text variant="heading" style={styles.sourceName}>{name(s)}</Text>
-                    <Text variant="subtle" style={styles.sourceSub}>{ko ? s.subKo : s.subEn}</Text>
+                    <Text variant="subtle" style={styles.sourceSub}>{sourceCopy(s, "sub")}</Text>
                   </View>
                   <OpsStatusChip tone={tone} label={chip} />
                 </Pressable>
@@ -577,7 +580,7 @@ export function ImportHubScreen() {
 
         <View style={styles.block}>
           <Text variant="caption" pixelEn style={styles.blockLabel}>{t("what")}</Text>
-          <Text variant="body" style={styles.blockText}>{ko ? s.whatKo : s.whatEn}</Text>
+          <Text variant="body" style={styles.blockText}>{sourceCopy(s, "what")}</Text>
         </View>
         <View style={styles.block}>
           <Text variant="caption" pixelEn style={styles.blockLabel}>{t("where")}</Text>
@@ -776,64 +779,6 @@ function Summary({ n, label, dim }: { n: number; label: string; dim?: boolean })
       <Text variant="subtle" style={styles.summaryLabel}>{label}</Text>
     </View>
   );
-}
-
-function COPY(ko: boolean): Record<string, string> {
-  return ko
-    ? {
-        back: "뒤로", import: "가져오기", imported: "가져온 데이터", hubBubble: "무엇을 들여올까요?", hubTip: "네가 승인한 것만 기록에 남습니다.",
-        tier_critical: "최민감 · 명시 동의 필요", tier_sensitive: "민감", tier_normal: "보통",
-        needsConsent: "동의 필요", notLinked: "미연결", locked: "잠김", linked: "연결됨",
-        what: "무엇을", where: "어디에", whereBody: "이 기기에서 분석합니다. 검토 화면에서 고른 결과만 암호화해 보관합니다.",
-        deleteAnytime: "언제든 삭제", localAnalysis: "파일 분석은 이 기기에서",
-        connectorNote: "다음 화면에서 위치 권한을 \"사용 중에만\"으로 요청합니다. (네이티브 빌드 필요)",
-        googleConnectorNote: "브라우저에서 구글 계정으로 안전하게 연결합니다. 읽기 전용(일정 보기)입니다.",
-        googleConnect: "구글 연결", connecting: "연결 중…",
-        gErrNoEvents: "다가오는 일정이 없습니다.", gErrDenied: "연결이 취소됐습니다. 다시 시도해 주세요.",
-        gErrNative: "지금은 웹에서만 연결됩니다. 앱(네이티브)은 추후 지원합니다.", gErrGeneric: "연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-        consentPick: "동의하고 파일 선택", orImportFile: "대신 파일로 가져오기",
-        consentFine: "수집 항목·보관 위치·기간·삭제권에 동의합니다. 미성년은 통신·위치 임포트가 잠겨 있습니다.",
-        chooseFile: "파일 선택", orPaste: "또는 아래에 직접 붙여넣기",
-        pasteHint: "내보낸 파일 내용을 붙여넣어 주세요.", pastePlaceholder: "여기에 붙여넣기", analyze: "분석",
-        errTitle: "파일 형식을 못 읽었습니다", errBody: "내보낸 형식이 맞는지 확인해 주세요",
-        importFailed: "가져오지 못했습니다. 아무것도 기록되지 않았습니다. 다시 시도해 주세요.",
-        ledgerWarnTitle: "거래 반영은 실패했습니다",
-        ledgerWarnBody: "가져오기는 저장됐습니다. 다만 고른 거래 내역을 적지 못했습니다. 같은 파일을 다시 가져오면 반영됩니다.",
-        ledgerWarnPartTitle: "거래 일부를 적지 못했습니다",
-        ledgerWarnPartBody: "고른 거래 중 {failed}건을 적지 못했습니다. {inserted}건은 반영됐습니다. 같은 파일을 다시 가져오면 이미 반영된 내역이 중복되니, 빠진 내역은 직접 추가해 주세요.",
-        done: "완료", appts: "약속", places: "장소", notes: "노트", watches: "시청", txns: "거래", raw: "원문", pickToApply: "반영할 항목 고르기",
-        sensitiveExcluded: "민감 · 기본 제외", applyN: "고른 {n}건 기록에 반영",
-        emptyTitle: "아직 가져온 게 없습니다", emptyBody: "소스를 골라 시작합니다", pickSource: "소스 고르기",
-        delete: "삭제", historyFine: "삭제는 이 임포트가 만든 원본을 제거합니다. 이 임포트가 만들었다고 확인되지 않은 원본은 남기고, 남긴 까닭을 알려 드립니다. 임포트로 만들어진 인물·가계부 항목은 관계·가계부 화면에서 지울 수 있습니다. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있습니다.",
-        revokeFailed: "철회하지 못했습니다. 잠시 후 다시 시도해 주세요.", revokeNeedsSignIn: "로그인 후 철회할 수 있습니다. 서버에 남은 데이터까지 함께 지워야 하기 때문입니다.",
-      }
-    : {
-        back: "Back", import: "Import", imported: "Imported data", hubBubble: "What should we bring in?", hubTip: "Only what you approve is kept.",
-        tier_critical: "Most sensitive · consent required", tier_sensitive: "Sensitive", tier_normal: "Normal",
-        needsConsent: "Needs consent", notLinked: "Not linked", locked: "Locked", linked: "Linked",
-        what: "WHAT", where: "WHERE", whereBody: "Analyzed on this device. Only the results you choose on the review screen are kept, encrypted.",
-        deleteAnytime: "Delete anytime", localAnalysis: "File analyzed on device",
-        connectorNote: "The next screen requests location \"while using\" only. (needs the native build)",
-        googleConnectorNote: "Securely link your Google account in the browser. Read-only (view events).",
-        googleConnect: "Connect Google", connecting: "Connecting…",
-        gErrNoEvents: "No upcoming events.", gErrDenied: "Connection cancelled. Try again.",
-        gErrNative: "Connect on web for now. App (native) support comes later.", gErrGeneric: "Couldn't connect. Try again shortly.",
-        consentPick: "Consent and pick file", orImportFile: "Import a file instead",
-        consentFine: "You consent to what's collected, where it's kept, for how long, and your right to delete. Comms/location import is locked for minors.",
-        chooseFile: "Choose file", orPaste: "or paste it below",
-        pasteHint: "Paste the exported file's contents.", pastePlaceholder: "Paste here", analyze: "Analyze",
-        errTitle: "Couldn't read the file", errBody: "Check that the exported format is right",
-        importFailed: "Couldn't import that. Nothing was recorded. Try again.",
-        ledgerWarnTitle: "Couldn't book the transactions",
-        ledgerWarnBody: "The import itself was saved, but the chosen transactions were not booked. Re-import the same file to book them.",
-        ledgerWarnPartTitle: "Some transactions were not booked",
-        ledgerWarnPartBody: "{failed} of the chosen transactions could not be booked; {inserted} were. Re-importing the same file would duplicate the booked rows, so please add the missing ones by hand.",
-        done: "Done", appts: "Plans", places: "Places", notes: "Notes", watches: "Watches", txns: "Entries", raw: "Raw", pickToApply: "Pick what to apply",
-        sensitiveExcluded: "sensitive · excluded by default", applyN: "Apply {n} to records",
-        emptyTitle: "Nothing imported yet", emptyBody: "Pick a source to start", pickSource: "Pick a source",
-        delete: "Delete", historyFine: "Delete removes the source this import created. A source it can't confirm this import created stays, and you're told why. People and ledger entries created from an import can be removed in the Relationships and Ledger screens. Comms/location import is server-locked for minor accounts.",
-        revokeFailed: "Couldn't withdraw. Try again shortly.", revokeNeedsSignIn: "Sign in to withdraw - the server-side rows must be deleted together.",
-      };
 }
 
 const styles = StyleSheet.create({

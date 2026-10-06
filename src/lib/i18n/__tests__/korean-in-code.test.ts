@@ -173,7 +173,8 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/app/call-reflection.tsx": 9,
   "src/app/capture.tsx": 14,
   "src/app/career-drilldown.tsx": 47,
-  "src/app/career.tsx": 9,
+  // career.tsx 는 2026-10-06 에 9 -> 0 으로 **갚아서** 줄을 지웠다(Q-261005-01 = A, QA 261006 tr3:
+  // 쌓아온 길 제목 · 메인/사이드 · 공식 이력 칩 다섯 · 안내 문장을 deepspace career.* 로).
   // 2026-10-05 롤백 레버 제거(Simon 결정 Q-261004-11 C): 레거시 반쪽과 함께 빚이 빠졌다.
   // **고친 것이 아니라 빠진 것**이다 - core-brain 9 -> 6, inbox 30 · manual 42 · persona 32 ·
   // wiki 9 · BackArrow 31 은 0 이 되어 줄을 지웠고, premium/tab-bar.tsx(4)는 파일째 나갔다.
@@ -188,7 +189,9 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/app/onboarding.tsx": 1,
   "src/app/peer-invites.tsx": 1,
   "src/app/processing-log.tsx": 24,
-  "src/app/reasoning.tsx": 56,
+  // 56 -> 2: Q-261005-01 = A (QA 261006 tr3) 화면 문구 54 를 deepspace ds.reasoningScreen.* 로. 남은 2 =
+  // 연결 프롬프트(reasoning_connect) 의 한국어 시스템 지시문 두 벌 - UI 가 아니라 모델 지시문이다
+  "src/app/reasoning.tsx": 2,
   "src/app/rlss.tsx": 10,
   "src/app/secondb.tsx": 10,
   "src/app/settings.tsx": 11,
@@ -280,8 +283,9 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/screens/deepspace/DeepSpaceDesignScreens.tsx": 15,
   "src/screens/deepspace/dds-record-detail-screen.tsx": 4,
   "src/screens/deepspace/dds-wiki-records-screens.tsx": 4,
-  "src/screens/deepspace/growth/WeeklyGrowthScreen.tsx": 14,
-  "src/screens/deepspace/import/ImportHubScreen.tsx": 86,
+  // WeeklyGrowthScreen(14) · ImportHubScreen(86) 은 2026-10-06 에 0 으로 **갚아서** 줄을 지웠다
+  // (Q-261005-01 = A, QA 261006 tr3: 별마다의 관찰 · 다음 걸음은 deepspace ds.growth.steps.* 로,
+  // 가져오기 허브의 COPY(ko) 표와 소스 열 개의 이름 · 부제 · 설명은 import hub.* 로).
   "src/screens/deepspace/museum/AiMuseumScreen.tsx": 86,
   "src/screens/deepspace/onboarding/TTFVScreen.tsx": 29,
   // 14 -> 13: R2C-15 (QA 261005) 고정 검색어 "닭" 제거. 13 -> 6: Q-261005-01 = A (QA 261006 tr2) /meals 요일

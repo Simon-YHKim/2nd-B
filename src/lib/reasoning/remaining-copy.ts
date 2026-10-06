@@ -7,6 +7,11 @@
  *   이번 주 2회 중 1회 남음 · 월요일 초기화        (weekly base)
  *   보상 6회 남음 · 7월 말까지                      (monthly reward, when > 0)
  *
+ * The two lines' words live in the deepspace bundle in all five locales:
+ * ds.reasoningScreen.weeklyLeft and ds.reasoningLimit.rewardLeft (Q-261005-01 = A,
+ * QA 261006 tr3). The ko/en-only formatWeeklyRemaining/formatRewardRemaining that
+ * used to sit here painted English in es/pt/id and left with that move.
+ *
  * Pure module: deterministic functions of their arguments, no I/O, no React.
  * The RUN gate stays remainingReasoning() (base + credits) — this module only
  * changes how the numbers are SHOWN, never how they are spent.
@@ -44,20 +49,4 @@ export function monthLabelFor(localeTag: string, monthBucketValue: string): stri
     // fall through to the numeric fallback
   }
   return localeTag.toLowerCase().startsWith("ko") ? `${safeMonth}월` : `month ${safeMonth}`;
-}
-
-/** "이번 주 2회 중 1회 남음 · 월요일 초기화" / "1 of 2 runs left this week · resets Monday" */
-export function formatWeeklyRemaining(ko: boolean, cap: number, usedThisWeek: number): string {
-  const left = Math.max(0, cap - Math.max(0, usedThisWeek));
-  return ko
-    ? `이번 주 ${cap}회 중 ${left}회 남음 · 월요일 초기화`
-    : `${left} of ${cap} runs left this week · resets Monday`;
-}
-
-/** "보상 6회 남음 · 7월 말까지" / "6 reward runs left · through the end of July" */
-export function formatRewardRemaining(ko: boolean, credits: number, monthBucketValue: string): string {
-  const month = monthLabelFor(ko ? "ko" : "en", monthBucketValue);
-  return ko
-    ? `보상 ${Math.max(0, credits)}회 남음 · ${month} 말까지`
-    : `${Math.max(0, credits)} reward runs left · through the end of ${month}`;
 }
