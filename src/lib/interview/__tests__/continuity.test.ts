@@ -47,9 +47,24 @@ describe("scene continuity and choice", () => {
     expect(nextMove(emptyCoverage(), "work", [], now, null, [], {
       history: scene, locale: "en", concreteOnly: true,
     })).toEqual({ kind: "drill", layer: "fact" });
+    // Three credited facts plus the answer awaiting its verdict reach the four-answer limit.
+    const credited = { ...scene[1]!, answered: true };
     expect(nextMove(emptyCoverage(), "work", [], now, null, [], {
-      history: [...scene, scene[1]!, scene[1]!, scene[1]!], locale: "en", concreteOnly: true,
+      history: [scene[0]!, credited, credited, credited, scene[1]!], locale: "en", concreteOnly: true,
     })).toEqual({ kind: "finish" });
+  });
+
+  it("counts only credited answers toward the factual path's limit (gate LAST-02)", () => {
+    // Answers whose request failed have no verdict; they were counted before, so the fourth
+    // input finished without the model ever judging it.
+    const failed = { ...scene[1]!, unsettled: true };
+    expect(nextMove(emptyCoverage(), "work", [], now, null, [], {
+      history: [scene[0]!, failed, failed, failed, scene[1]!], locale: "en", concreteOnly: true,
+    })).toEqual({ kind: "drill", layer: "fact" });
+    const missed = { ...scene[1]!, answered: false };
+    expect(nextMove(emptyCoverage(), "work", [], now, null, [], {
+      history: [scene[0]!, missed, missed, missed, scene[1]!], locale: "en", concreteOnly: true,
+    })).toEqual({ kind: "drill", layer: "fact" });
   });
 
   it("ends after the scaffold budget without reaching for a more intimate layer", () => {

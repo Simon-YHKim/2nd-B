@@ -437,7 +437,10 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         // Nothing is added on a sparse answer, missing judgement, failure, or stop.
         // The model cannot award another layer or override the local gate.
         if (credited && confirmed) setCoverage(incrementCoverage(cov, period, credited));
-        if (move.kind === "finish") {
+        // 장면 완료(`finish`)는 `nextMove` 가 판정을 기다리는 이 답을 인정된다고 보고 낸 수다.
+        // 그래서 판정이 인정일 때만 끝낸다(게이트 LAST-01). 인정 못 받았으면 아래 갈래가 같은 층에
+        // 발판을 놓거나, 그 층에서 세 번째면 대화를 끝낸다. 마지막 층도 다른 층과 같다.
+        if (move.kind === "finish" && confirmed) {
           setTurns(assessed);
           finish();
           return;
@@ -477,6 +480,14 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
             finish();
           }
           return;
+        }
+        // 판정을 못 받은 답이다(게이트 LAST-02). 진전으로도, 그 층의 실패로도 세지 않게 표시하고
+        // 겨냥하던 층을 되돌린다 -- "다시 시도해 주세요"로 다시 보낸 답이 같은 층에서 판정받게.
+        if (!ended.current) {
+          setTurns(history.map((turn, index) => index === history.length - 1 && turn.role === "user"
+            ? { ...turn, unsettled: true }
+            : turn));
+          setPendingLayer(credited);
         }
         setNotice(t("drill.failed"));
       } finally {
