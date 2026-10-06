@@ -48,6 +48,7 @@ import {
   fetchDisplayName,
   saveDisplayName,
 } from "@/lib/supabase/display-name";
+import { loadProfileIdentity } from "@/screens/deepspace/dds-profile-identity";
 
 export default function ProfileDetailsScreen() {
   // Phone-aware: inside the dashboard phone, cancel steps the phone's stack.
@@ -135,10 +136,14 @@ export default function ProfileDetailsScreen() {
     setDisplayName("");
     setNameLoadState({ userId, status: "loading" });
     void fetchDisplayName(userId)
-      .then((name) => {
+      .then(async (name) => {
+        // 저장된 이름이 없으면 앱이 지금 이름으로 보여 주는 값(/profile 과 같은 규칙: 로그인
+        // 이메일 앞부분)을 칸에 미리 채운다(Simon 2026-10-07). 기준값도 그 값이라 사용자가
+        // 고치지 않으면 저장하지 않는다 - 이메일 앞부분이 저절로 이름으로 굳지 않게.
+        const shown = name?.trim() ? name : await loadProfileIdentity(userId).catch(() => null);
         if (!alive) return;
-        savedNameRef.current = name ?? "";
-        setDisplayName(name ?? "");
+        savedNameRef.current = shown ?? "";
+        setDisplayName(shown ?? "");
         setNameLoadState({ userId, status: "ready" });
       })
       .catch(() => {

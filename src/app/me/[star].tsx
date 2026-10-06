@@ -28,6 +28,7 @@ import { DEFAULT_AVATAR_SPEC, type AvatarSpec } from "@/lib/avatar";
 import { countFilledDetails, PROFILE_DETAIL_TOTAL, profileSummaryParts, type ProfileDetails } from "@/lib/persona/profile-details";
 import { fetchAvatarSpec } from "@/lib/supabase/avatar-spec";
 import { fetchDisplayName } from "@/lib/supabase/display-name";
+import { loadProfileIdentity } from "@/screens/deepspace/dds-profile-identity";
 import { fetchProfileDetails } from "@/lib/supabase/profile-details";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { m3 } from "@/lib/theme/m3";
@@ -103,7 +104,9 @@ async function loadProfileCard(userId: string): Promise<ProfileCard> {
       fetchProfileDetails(userId),
       fetchAvatarSpec(userId).catch(() => null),
     ]);
-    return { status: "ready", name, details, avatar };
+    // 저장된 이름이 없으면 /profile 과 같은 이름(로그인 이메일 앞부분)을 보여 준다(2026-10-07).
+    const shown = name?.trim() ? name : await loadProfileIdentity(userId).catch(() => null);
+    return { status: "ready", name: shown, details, avatar };
   } catch {
     return { status: "error" };
   }

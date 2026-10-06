@@ -98,6 +98,10 @@ describe("/profile-details PIXEL-CLAY contract", () => {
     expect(source).toContain('nameLoadState.userId === userId && nameLoadState.status === "ready"');
     // The one save button writes the name too, only for a name read from its owner and then changed.
     expect(source).toContain("if (nameReadyForUser && displayName !== savedNameRef.current) {");
+    // The box starts with the name the app shows (Simon 2026-10-07); that shown name is also the baseline,
+    // so an untouched email-derived name is never written back as the display name.
+    expect(source).toContain("const shown = name?.trim() ? name : await loadProfileIdentity(userId).catch(() => null);");
+    expect(source).toContain('savedNameRef.current = shown ?? "";');
     expect(source).toContain("saveDisplayName(saveUserId, displayName)");
     expect(source).toContain("activeUserIdRef.current === saveUserId");
     expect(source).toContain("invalidateProfileStarLevel(saveUserId)");
