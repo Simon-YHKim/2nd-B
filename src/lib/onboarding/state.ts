@@ -1,8 +1,23 @@
-// First-run onboarding completion state. Web uses localStorage; native uses
-// AsyncStorage so Android/iOS do not bounce back to onboarding after the
-// final CTA.
+// First-run onboarding completion state.
+//
+// A signed-in account follows the SERVER mark (users.onboarding_completed_at,
+// migration 0219, Q-261004-40 = A): finishing the welcome once is enough for
+// every device, browser and reinstall (QA-LEGACY W-12). See
+// account-first-run.ts.
+//
+// The device value below is kept for two cases only: a signed-out visitor
+// (there is no account to ask), and a signed-in account whose server mark could
+// not be read (0219 not applied yet, network, missing row). Web uses
+// localStorage; native uses AsyncStorage so Android/iOS do not bounce back to
+// onboarding after the final CTA.
 
 import { useEffect, useState } from "react";
+
+import {
+  markAccountOnboardingComplete,
+  useAccountFirstRun,
+  type AccountFirstRunMarks,
+} from "./account-first-run";
 
 export const ONBOARDING_KEY = "onboarding.cosmicPixel.v2.completedAt";
 export const FIRST_STAR_CHAT_KEY = "onboarding.firstStarChat.v1.nudgedAt";
@@ -45,7 +60,14 @@ export function isOnboardingComplete(): boolean {
   return memoryHydrated ? memoryComplete : false;
 }
 
-export function markOnboardingComplete(): void {
+/**
+ * The welcome was finished. Writes the device value (the fallback) and, for a
+ * signed-in owner, the account mark on the server. The server write is
+ * fire-and-forget: navigation does not wait for it, and this session keeps the
+ * mark in memory even when the write fails.
+ */
+export function markOnboardingComplete(ownerId: string | null = null): void {
+  if (ownerId) void markAccountOnboardingComplete(ownerId);
   const completedAt = new Date().toISOString();
   memoryComplete = true;
   memoryHydrated = true;
@@ -127,7 +149,35 @@ export function markFirstStarChatNudged(): void {
     });
 }
 
-export function useOnboardingComplete(): boolean | null {
+/**
+ * Should the welcome be skipped?
+ *   no owner (signed out)    the device value
+ *   owner, read pending      null (the caller shows a loader)
+ *   owner, server answered   the server mark, never the device value
+ *   owner, server unreadable the device value
+ */
+export function onboardingDecision(
+  ownerId: string | null,
+  account: AccountFirstRunMarks | "device" | null,
+  device: boolean | null,
+): boolean | null {
+  if (!ownerId) return device;
+  if (account === null) return null;
+  if (account === "device") return device;
+  return account.onboardingCompletedAt !== null;
+}
+
+/**
+ * Pass the signed-in owner and `ready` once the auth session is restored. With
+ * no owner this is the device value, as before 0219.
+ */
+export function useOnboardingComplete(ownerId: string | null = null, ready = true): boolean | null {
+  const device = useDeviceOnboardingComplete();
+  const account = useAccountFirstRun(ownerId, ready);
+  return onboardingDecision(ownerId, account, device);
+}
+
+function useDeviceOnboardingComplete(): boolean | null {
   const [complete, setComplete] = useState<boolean | null>(() => {
     const local = ls();
     if (local) return !!local.getItem(ONBOARDING_KEY);

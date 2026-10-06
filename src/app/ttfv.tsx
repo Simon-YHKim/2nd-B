@@ -28,7 +28,7 @@ export default function Ttfv() {
       mode="authenticated"
       userId={userId}
       minor={isMinor !== false}
-      onContentReady={markTTFVSeen}
+      onContentReady={() => markTTFVSeen(userId)}
     />
   );
 }

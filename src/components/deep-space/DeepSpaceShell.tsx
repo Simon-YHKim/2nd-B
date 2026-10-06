@@ -26,10 +26,14 @@ import { ProfileProbeRetryScreen } from "./ProfileProbeRetry";
 
 export function DeepSpaceShell() {
   const { userId, hasProfile, loading, profileProbeFailed } = useAuth();
-  const onboardingComplete = useOnboardingComplete();
+  // Welcome and first-day review are once per ACCOUNT (Q-261004-40, 0219): both
+  // gates read this owner's server marks once the session and profile are known,
+  // and fall back to the device value only when those marks cannot be read.
+  const firstRunReady = !loading && hasProfile === true;
+  const onboardingComplete = useOnboardingComplete(userId, firstRunReady);
   // First-day activation: once onboarded + signed in, a first-launcher is sent
   // to the TTFV "첫 별 점등" once (the gate self-clears after the screen is seen).
-  const autoTriggerTTFV = useAutoTriggerTTFV();
+  const autoTriggerTTFV = useAutoTriggerTTFV(userId, firstRunReady);
 
   // Live brightness for the home constellation: the no-LLM loadDomainLevels path
   // derives per-domain L1-L5 levels + the 북극성 aggregate from the user's real

@@ -2875,3 +2875,7 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/users-avatar-spec-contract.sql
+      - name: Exercise numbered 0219 first-run marks (backfill, owner RPCs, first write wins)
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/onboarding_first_run_regression.sql

@@ -31,7 +31,9 @@ function functionBody(name: string): string {
 
 describe("/onboarding PIXEL-CLAY handoff contract", () => {
   test("keeps the signed-out pre-auth carousel and redirects only after completion", () => {
-    expect(SRC).toContain("useOnboardingComplete()");
+    // Q-261004-40 (0219): a signed-in account follows its server mark once the
+    // session is restored; signed out it is the device value.
+    expect(SRC).toContain("useOnboardingComplete(userId, !loading)");
     expect(SRC).not.toMatch(/if\s*\(\s*!userId\s*\)[^\n]*Redirect/);
     // QA 261004 D-01: back to the home underneath, never a second home.
     expect(SRC).toMatch(/onboardingComplete === true[\s\S]{0,60}<RedirectHome \/>/);
@@ -94,14 +96,14 @@ describe("/onboarding PIXEL-CLAY handoff contract", () => {
 
   test("completion is recorded only inside a final handoff action", () => {
     const handoff = functionBody("finishOnboarding");
-    expect(handoff).toContain("markOnboardingComplete();");
+    expect(handoff).toContain("markOnboardingComplete(userId);");
     expect(handoff).toContain('router.replace("/");');
     expect(handoff).toContain('router.replace("/sign-up");');
     expect(handoff).toContain('router.replace("/sign-in");');
-    expect(handoff.indexOf("markOnboardingComplete();")).toBeLessThan(
+    expect(handoff.indexOf("markOnboardingComplete(userId);")).toBeLessThan(
       handoff.indexOf('router.replace("/");'),
     );
-    expect(SRC.match(/markOnboardingComplete\(\)/g)).toHaveLength(1);
+    expect(SRC.match(/markOnboardingComplete\(/g)).toHaveLength(1);
     expect(SRC).toMatch(/onPress=\{\(\) => finishOnboarding\("\/sign-up"\)\}/);
     expect(SRC).toMatch(/onPress=\{\(\) => finishOnboarding\("\/sign-in"\)\}/);
   });

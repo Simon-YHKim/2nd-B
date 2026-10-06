@@ -46,8 +46,9 @@ export function useImportPendingCaptures(): {
   dismissCrisis: () => void;
 } {
   const { userId, hasProfile, isMinor, loading, profileProbeFailed } = useAuth();
-  const onboardingComplete = useOnboardingComplete();
-  const autoTriggerTTFV = useAutoTriggerTTFV();
+  const firstRunReady = !loading && hasProfile === true;
+  const onboardingComplete = useOnboardingComplete(userId, firstRunReady);
+  const autoTriggerTTFV = useAutoTriggerTTFV(userId, firstRunReady);
   const { i18n } = useTranslation();
   const [offer, setOffer] = useState<PendingImportOffer | null>(null);
   const [importing, setImporting] = useState(false);
