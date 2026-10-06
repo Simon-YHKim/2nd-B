@@ -81,6 +81,9 @@ import {
 } from "@/lib/interview/probe";
 import { LOOP_CHECK_KEYS, type ReflectionEntry } from "@/lib/interview/loop-check";
 import { INTERVIEW_PURPOSE, localPromptsExhausted, readDayLimitRefusal } from "@/lib/interview/session-end";
+import { RECORD_SAVE_CUE, saveCueAllowed } from "@/lib/audio/app-cues";
+import { isRecordingAudioMode } from "@/lib/audio/audio-session";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
 
 // 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
 // 원래 이 자리에 문자열 SVG 레지스트리가 있었다(저장소에서 열하나 번째).
@@ -281,6 +284,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   const [concreteOnly, setConcreteOnly] = useState(false);
   const [coverageReady, setCoverageReady] = useState(false);
   const [saving, setSaving] = useState(false);
+  const playSaveCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
   const [notice, setNotice] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "danger" } | null>(null);
   const [failModal, setFailModal] = useState(false);
@@ -680,6 +684,9 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       // 기록 실패로 성공한 인터뷰를 실패로 보이게 할 이유가 없다.
       void loadSevenLevels(userId).then((s) => recordSevenTiers(userId, s.starLevels));
       setToast({ tone: "success", message: t("drill.saved") });
+      // 저장 소리(Q-261006-03). 위기 판정은 위에서 먼저 돌아가므로 여기까지 오면 위기가 아니다.
+      // 대화 도중 층이 채워지는 순간은 여전히 무음이다(채점처럼 들리지 않게).
+      if (saveCueAllowed({ crisis: false, recording: isRecordingAudioMode() })) playSaveCue();
       navigating = true;
       setTimeout(() => {
         if (growthOrigin) router.replace("/star/growth");

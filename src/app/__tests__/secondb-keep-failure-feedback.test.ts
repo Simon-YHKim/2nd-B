@@ -10,6 +10,7 @@ import {
 } from "../../lib/auth/account-epoch";
 import { createChatAutosaveSession } from "../../lib/chat/autosave-session";
 import { findPromptIndex } from "../../lib/chat/keep-exchange";
+import { saveCueAllowed } from "../../lib/audio/app-cue-gates";
 import { resetPrivacyChangesForTests } from "../../lib/privacy/changes";
 
 jest.mock("../../lib/supabase/privacy", () => ({
@@ -81,7 +82,7 @@ const REPLY = { role: "secondb" as const, text: "이번 주에 걸었던 길에 
 const PROMPT = { role: "user" as const, text: "이번 주에 어디를 걸었더라?" };
 
 interface Host {
-  keep: (index: number) => Promise<unknown>;
+  keep: (index: number, signal?: AbortSignal) => Promise<unknown>;
   state: {
     kept: Set<number>;
     keeping: (number | null)[];
@@ -91,12 +92,13 @@ interface Host {
     captures: unknown[];
     warnings: string[];
     current: unknown;
+    cues: number;
   };
 }
 
 /** 실제 keepExchange 본문을 inert 호스트에 걸고 관측 가능한 상태를 돌려준다. */
 function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<number>; keeping?: number | null; notice?: unknown } = {}): Host {
-  const state: Host["state"] = { kept: new Set(options.kept ?? []), keeping: [], notice: [], announced: [], crisis: [], captures: [], warnings: [], current: options.notice ?? null };
+  const state: Host["state"] = { kept: new Set(options.kept ?? []), keeping: [], notice: [], announced: [], crisis: [], captures: [], warnings: [], current: options.notice ?? null, cues: 0 };
   const bindings = {
     userId: "local-owner",
     captureAccountOwnerLease,
@@ -130,12 +132,25 @@ function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<number
     },
     AccessibilityInfo: { announceForAccessibility: (msg: string) => state.announced.push(msg) },
     console: { warn: (...args: unknown[]) => state.warnings.push(args.join(" ")) },
+    // 저장 소리(Q-261006-03): 실제 관문 함수를 그대로 쓰고, 재생은 횟수만 센다.
+    saveCueAllowed,
+    isRecordingAudioMode: () => false,
+    playSaveCue: () => { state.cues += 1; },
   };
   const keep = run<Host["keep"]>(findFunction("keepExchange"), "return keepExchange;", bindings);
   return { keep, state };
 }
 
 describe("담기 실패를 화면이 말한다", () => {
+  test("직접 담으면 저장 소리를 한 번 내고, 자동 담기는 무음이다", async () => {
+    const manual = keepHost();
+    await expect(manual.keep(1)).resolves.toBe(true);
+    expect(manual.state.cues).toBe(1);
+    const automatic = keepHost();
+    await expect(automatic.keep(1, new AbortController().signal)).resolves.toBe(true);
+    expect(automatic.state.cues).toBe(0);
+  });
+
   test("성공하면 담긴 것으로 표시하고 실패 안내는 띄우지 않는다", async () => {
     const host = keepHost();
     await host.keep(1);

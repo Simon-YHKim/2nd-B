@@ -5,6 +5,7 @@ import ts from "typescript";
 
 import { advanceFirstRecordCoach, type FirstRecordCoachStep } from "../first-record-coach";
 import { recordPhotosPayload, type RecordPhotoRef } from "../../capture/record-photos";
+import { saveCueAllowed } from "../../audio/app-cue-gates";
 
 // Execute the actual save/skip handlers without loading the native renderer or
 // database. The guide transition is imported from production, not reproduced.
@@ -51,6 +52,7 @@ function harness(
   const markCoachmarksSeen = jest.fn();
   const setCrisis = jest.fn();
   const announceForAccessibility = jest.fn();
+  const playSaveCue = jest.fn();
   const setCoachStep = jest.fn((next: CoachStep | ((current: CoachStep) => CoachStep)) => {
     state.coachStep = typeof next === "function" ? next(state.coachStep) : next;
   });
@@ -89,9 +91,13 @@ function harness(
     AccessibilityInfo: { announceForAccessibility },
     t: (key: string) => key,
     console: { warn: jest.fn() },
+    // 저장 소리(Q-261006-03): 실제 관문 함수, 재생은 기록만 한다.
+    saveCueAllowed,
+    isRecordingAudioMode: () => false,
+    playSaveCue,
   };
   return {
-    state, createRecord, markCoachmarksSeen, setCoachStep, setCrisis, announceForAccessibility,
+    state, createRecord, markCoachmarksSeen, setCoachStep, setCrisis, announceForAccessibility, playSaveCue,
     uploadRecordPhotos, removeRecordPhotoObjects, clearPhotos, uploaded,
     save: runInNewContext(saveCode, scope) as () => Promise<void>,
     skip: runInNewContext(skipCode, scope) as () => void,
@@ -111,6 +117,7 @@ describe("first-record coach follows the real record save", () => {
       expect(run.state).toEqual({ coachStep: "done", saved: true, error: false, saving: false });
       expect(run.markCoachmarksSeen).toHaveBeenCalledTimes(1);
       expect(run.announceForAccessibility).toHaveBeenCalledWith("ds.capture.saved");
+      expect(run.playSaveCue).toHaveBeenCalledTimes(1);
     },
   );
 
@@ -123,6 +130,7 @@ describe("first-record coach follows the real record save", () => {
     expect(run.markCoachmarksSeen).not.toHaveBeenCalled();
     expect(run.setCoachStep).not.toHaveBeenCalled();
     expect(run.announceForAccessibility).toHaveBeenCalledWith("ds.capture.saveError");
+    expect(run.playSaveCue).not.toHaveBeenCalled();
   });
 
   test.each<FirstRecordCoachStep>(["input", "save"])(
@@ -164,6 +172,8 @@ describe("first-record coach follows the real record save", () => {
       expect(run.setCrisis).toHaveBeenCalledWith({ visible: true, hotline: "KR_109" });
       expect(run.state).toEqual({ coachStep: null, saved: true, error: false, saving: false });
       expect(run.markCoachmarksSeen).toHaveBeenCalledTimes(1);
+      // '저장됨' 은 켜지지만 위기 안내가 뜨는 메모라 저장 소리는 내지 않는다.
+      expect(run.playSaveCue).not.toHaveBeenCalled();
     },
   );
 });

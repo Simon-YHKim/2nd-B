@@ -19,6 +19,8 @@ import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppRouter } from "@/lib/nav/phone-embed";
 import { reactExpression } from "@/lib/companion/expression";
+import { WIKI_LINK_CUE } from "@/lib/audio/app-cues";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { planResurface } from "@/lib/resurface/plan";
 import { recordResurfaceDecision, recordResurfaceShown } from "@/lib/resurface/ledger";
@@ -55,6 +57,7 @@ export default function Digest() {
   const [items, setItems] = useState<InferredLinkDetail[] | null>(null);
   const [actingKey, setActingKey] = useState<string | null>(null);
   const [error, setError] = useState(false);
+  const playLinkCue = useUiSound(WIKI_LINK_CUE.source, WIKI_LINK_CUE);
 
   const refresh = useCallback(async () => {
     if (!userId) return;
@@ -110,7 +113,10 @@ export default function Digest() {
         // 유일한 흔적이다.
         void recordResurfaceDecision(userId, p.from_page, p.to_page, confirm ? "ratified" : "rejected");
         // 승인 = the app-wide ratify wink (rejections stay face-neutral).
-        if (confirm) reactExpression("wink");
+        if (confirm) {
+          reactExpression("wink");
+          playLinkCue(); // 위키 연결 확인 소리(Q-261006-14). 거절은 무음.
+        }
         await refresh();
       } catch {
         // best-effort; the row stays for a retry
@@ -118,7 +124,7 @@ export default function Digest() {
         setActingKey(null);
       }
     },
-    [userId, refresh],
+    [userId, refresh, playLinkCue],
   );
 
   // Opt-in daily-review reminder (native-only). OFF by default; the user turns
