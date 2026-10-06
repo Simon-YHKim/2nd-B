@@ -376,7 +376,9 @@ jest.mock("@/lib/nav/use-focus-refetch", () => ({
 let renderCoreBrainScreen: (harness: HookHarness) => ReactElement;
 let restoreReactHooks: () => void;
 
-async function flushAsync(rounds = 12) {
+// 24, not 12: the records read now goes through withSystemTagsColumn (0218), an
+// async wrapper that awaits the query thenable, so it settles a few microtasks later.
+async function flushAsync(rounds = 24) {
   for (let index = 0; index < rounds; index += 1) await Promise.resolve();
 }
 

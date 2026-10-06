@@ -46,7 +46,7 @@ import { OFFERABLE } from "@/lib/assess/registry";
 import { loadSevenLevels, type SevenLevels } from "@/lib/persona/load-seven-levels";
 import { SEVEN_STARS, type SevenStarId } from "@/lib/persona/seven-stars";
 import { buildCenterCards, type CenterCard } from "@/lib/persona/center";
-import { mergeEvidence, evidenceTypeLabel, rawRecordColumns, type EvidenceShard, type OriginShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
+import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type OriginShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
 import { withSystemTagsColumn } from "@/lib/records/system-tags";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
 import { claimQaPolarisAuto, loadRoleCards, proposeRoleCards, ratifyRoleCard, type RoleCard } from "@/lib/persona/role-cards";
@@ -92,7 +92,7 @@ async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promi
     withSystemTagsColumn((columnPresent) =>
       supabase
         .from("records")
-        .select(rawRecordColumns(columnPresent))
+        .select(columnPresent ? "id, kind, topic, created_at, tags, system_tags" : "id, kind, topic, created_at, tags")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(24),
