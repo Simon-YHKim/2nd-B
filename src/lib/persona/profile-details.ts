@@ -25,6 +25,15 @@
 //
 // 사는 곳을 **시/도 수준**으로만 받는 것도 같은 이유다. 번지수는 비서 제안에
 // 아무 쓸모가 없고 유출 시 피해만 크다.
+//
+// ## 2026-10-07 항목 정리 (Simon Q-261007-01 · 02 · 03 · 05)
+//
+// 하루 리듬 · 일하는 시간대 · 일하는 요일 · 가장 바쁜 시기를 뺐다. 위 "비서가 실제로 쓰는
+// 조건" 이라는 설명과 달리 그 넷을 읽는 기능이 한 곳도 없었고, 저장된 값은 0230 이 지웠다.
+// 대신 성별 · 국적 · 혼인 여부(성인만) · 좌우명을 받는다. 하는 일은 남겼다. 받는 칸은 모두
+// 세컨비 대화의 맥락으로 쓰인다(Q-05). 국적은 받되 인종 · 민족은 묻지 않는다(제23조 민감정보).
+// 좌우명은 자유 입력이라 신념 · 종교가 드러날 수 있어 화면이 적지 말라고 안내한다.
+// 닉네임(display_name)과 대화명(users.chat_name)은 이 jsonb 밖의 칸이다.
 
 /** 프로필 상세의 한 항목. 전부 선택 입력이다 - 비워도 앱은 동작한다. */
 export interface ProfileDetailField {
@@ -36,6 +45,8 @@ export interface ProfileDetailField {
   choices?: readonly string[];
   /** 자유 입력의 상한. 프로필은 서술하는 자리가 아니라 조건을 적는 자리다. */
   maxLen?: number;
+  /** 성인에게만 묻는 칸(혼인 여부). 나이를 모르면 묻지 않는다. */
+  adultOnly?: boolean;
 }
 
 export const PROFILE_DETAIL_KEYS = [
@@ -43,18 +54,18 @@ export const PROFILE_DETAIL_KEYS = [
   "occupation",
   "region",
   "household",
-  // --- 생활 맥락 ---
-  "dailyRhythm",
-  "workHours",
-  "workDays",
-  "busiestSeason",
+  // --- 나를 소개하는 칸 (2026-10-07) ---
+  "gender",
+  "nationality",
+  "marital",
+  "motto",
 ] as const;
 
 export type ProfileDetailKey = (typeof PROFILE_DETAIL_KEYS)[number];
 
-export const DAILY_RHYTHM_CHOICES = ["morning", "evening", "flexible", "irregular"] as const;
-export const WORK_HOURS_CHOICES = ["dawn", "morning", "afternoon", "evening", "night", "varies"] as const;
-export const WORK_DAYS_CHOICES = ["weekdays", "weekends", "shift", "varies"] as const;
+/** '답하지 않음' 도 고를 수 있다. 고른 것은 답이다 - 다만 요약에는 싣지 않는다. */
+export const GENDER_CHOICES = ["female", "male", "other", "undisclosed"] as const;
+export const MARITAL_CHOICES = ["single", "married", "other", "undisclosed"] as const;
 
 export const PROFILE_DETAIL_FIELDS: readonly ProfileDetailField[] = [
   {
@@ -74,31 +85,32 @@ export const PROFILE_DETAIL_FIELDS: readonly ProfileDetailField[] = [
     key: "household",
     kind: "text",
     maxLen: 40,
-    usedFor: "혼자 할 수 있는 일과 조율이 필요한 일의 구분.",
+    usedFor: "혼자 할 수 있는 일과 조율이 필요한 일의 구분. 가족 일정이 걸린 제안의 전제.",
   },
   {
-    key: "dailyRhythm",
+    key: "gender",
     kind: "choice",
-    choices: DAILY_RHYTHM_CHOICES,
-    usedFor: "'때'의 기본값. 이것이 없으면 제안 시각이 만인 공통이 된다.",
+    choices: GENDER_CHOICES,
+    usedFor: "세컨비가 이 사람을 부르고 이야기할 때의 맥락. 고르지 않거나 '답하지 않음' 을 골라도 된다.",
   },
   {
-    key: "workHours",
-    kind: "choice",
-    choices: WORK_HOURS_CHOICES,
-    usedFor: "비어 있는 시간을 찾는 근거. 제안을 넣을 수 있는 자리.",
-  },
-  {
-    key: "workDays",
-    kind: "choice",
-    choices: WORK_DAYS_CHOICES,
-    usedFor: "주간 루틴을 어느 요일에 걸지.",
-  },
-  {
-    key: "busiestSeason",
+    key: "nationality",
     kind: "text",
     maxLen: 30,
-    usedFor: "무리한 계획을 피할 시기. 큰 목표를 어디에 두지 말아야 하는지.",
+    usedFor: "언어·문화·공휴일 같은 대화의 맥락. 인종·민족은 묻지 않는다(제23조 민감정보).",
+  },
+  {
+    key: "marital",
+    kind: "choice",
+    choices: MARITAL_CHOICES,
+    adultOnly: true,
+    usedFor: "함께 정해야 하는 일과 가족 일정을 가늠하는 맥락. 성인에게만 묻는다.",
+  },
+  {
+    key: "motto",
+    kind: "text",
+    maxLen: 60,
+    usedFor: "이 사람이 중요하게 여기는 말을 알고 이야기하기 위해. 신념·종교 같은 민감한 내용은 적지 않게 안내한다.",
   },
 ];
 
@@ -147,48 +159,15 @@ export function countFilledDetails(details: ProfileDetails): number {
 /** 전체 항목 수. 화면이 "3/7" 같은 진행을 보여줄 때 쓴다. */
 export const PROFILE_DETAIL_TOTAL = PROFILE_DETAIL_KEYS.length;
 
-/** 선택지 값 -> 로케일 키(`deepspace:profileDetails.<키>`). 값 자체를 화면에 보여주면 안 되므로 표로 잇는다. */
-const CHOICE_LABEL: Readonly<Record<string, string>> = {
-  morning: "rhythmMorning",
-  evening: "rhythmEvening",
-  flexible: "rhythmFlexible",
-  irregular: "rhythmIrregular",
-  dawn: "hoursDawn",
-  afternoon: "hoursAfternoon",
-  night: "hoursNight",
-  varies: "hoursVaries",
-  weekdays: "daysWeekdays",
-  weekends: "daysWeekends",
-  shift: "daysShift",
+/** 선택지 값 -> 로케일 키(`deepspace:profileDetails.<키>`). 값 자체를 화면에 보여주면 안 되므로 표로 잇는다.
+ * 필드마다 표를 따로 둔다 - 'other' 처럼 같은 값이 두 칸에 있어도 각자의 라벨을 찾는다. */
+const CHOICE_LABEL: Readonly<Partial<Record<ProfileDetailKey, Readonly<Record<string, string>>>>> = {
+  gender: { female: "genderFemale", male: "genderMale", other: "genderOther", undisclosed: "genderUndisclosed" },
+  marital: { single: "maritalSingle", married: "maritalMarried", other: "maritalOther", undisclosed: "maritalUndisclosed" },
 };
 
-/**
- * `morning` 이 하루 리듬과 근무 시간대 양쪽에 있어서 키가 겹친다. 필드별로
- * 접두사를 붙여 각자의 라벨을 찾는다 - 표 하나로 뭉개면 "오전" 과 "아침형" 이
- * 같은 말이 된다.
- */
 export function profileChoiceLabelKey(field: ProfileDetailKey, value: string): string {
-  if (field === "workHours") {
-    const map: Record<string, string> = {
-      dawn: "hoursDawn",
-      morning: "hoursMorning",
-      afternoon: "hoursAfternoon",
-      evening: "hoursEvening",
-      night: "hoursNight",
-      varies: "hoursVaries",
-    };
-    return map[value] ?? value;
-  }
-  if (field === "workDays") {
-    const map: Record<string, string> = {
-      weekdays: "daysWeekdays",
-      weekends: "daysWeekends",
-      shift: "daysShift",
-      varies: "daysVaries",
-    };
-    return map[value] ?? value;
-  }
-  return CHOICE_LABEL[value] ?? value;
+  return CHOICE_LABEL[field]?.[value] ?? value;
 }
 
 /** 프로필 요약 한 줄의 조각 하나. 자유 입력은 그대로, 선택지는 화면 라벨 키로. */
@@ -203,7 +182,8 @@ export function profileSummaryParts(details: ProfileDetails, limit = 3): Profile
   for (const field of PROFILE_DETAIL_FIELDS) {
     if (parts.length >= limit) break;
     const value = details[field.key]?.trim();
-    if (!value) continue;
+    // '답하지 않음' 은 고른 답이지만 그 사람을 소개하는 말이 아니다.
+    if (!value || value === "undisclosed") continue;
     parts.push(field.kind === "choice" ? { labelKey: profileChoiceLabelKey(field.key, value) } : { text: value });
   }
   return parts;
