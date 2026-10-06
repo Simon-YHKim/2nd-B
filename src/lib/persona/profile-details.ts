@@ -146,3 +146,65 @@ export function countFilledDetails(details: ProfileDetails): number {
 
 /** 전체 항목 수. 화면이 "3/7" 같은 진행을 보여줄 때 쓴다. */
 export const PROFILE_DETAIL_TOTAL = PROFILE_DETAIL_KEYS.length;
+
+/** 선택지 값 -> 로케일 키(`deepspace:profileDetails.<키>`). 값 자체를 화면에 보여주면 안 되므로 표로 잇는다. */
+const CHOICE_LABEL: Readonly<Record<string, string>> = {
+  morning: "rhythmMorning",
+  evening: "rhythmEvening",
+  flexible: "rhythmFlexible",
+  irregular: "rhythmIrregular",
+  dawn: "hoursDawn",
+  afternoon: "hoursAfternoon",
+  night: "hoursNight",
+  varies: "hoursVaries",
+  weekdays: "daysWeekdays",
+  weekends: "daysWeekends",
+  shift: "daysShift",
+};
+
+/**
+ * `morning` 이 하루 리듬과 근무 시간대 양쪽에 있어서 키가 겹친다. 필드별로
+ * 접두사를 붙여 각자의 라벨을 찾는다 - 표 하나로 뭉개면 "오전" 과 "아침형" 이
+ * 같은 말이 된다.
+ */
+export function profileChoiceLabelKey(field: ProfileDetailKey, value: string): string {
+  if (field === "workHours") {
+    const map: Record<string, string> = {
+      dawn: "hoursDawn",
+      morning: "hoursMorning",
+      afternoon: "hoursAfternoon",
+      evening: "hoursEvening",
+      night: "hoursNight",
+      varies: "hoursVaries",
+    };
+    return map[value] ?? value;
+  }
+  if (field === "workDays") {
+    const map: Record<string, string> = {
+      weekdays: "daysWeekdays",
+      weekends: "daysWeekends",
+      shift: "daysShift",
+      varies: "daysVaries",
+    };
+    return map[value] ?? value;
+  }
+  return CHOICE_LABEL[value] ?? value;
+}
+
+/** 프로필 요약 한 줄의 조각 하나. 자유 입력은 그대로, 선택지는 화면 라벨 키로. */
+export type ProfileSummaryPart = { text: string } | { labelKey: string };
+
+/**
+ * 프로필 요약 한 줄(`/me/profile`, Simon 2026-10-06). 채운 칸만, 항목 순서대로,
+ * 최대 `limit` 개. 비어 있으면 빈 배열이다 - 채우지 않은 사람을 지어내지 않는다.
+ */
+export function profileSummaryParts(details: ProfileDetails, limit = 3): ProfileSummaryPart[] {
+  const parts: ProfileSummaryPart[] = [];
+  for (const field of PROFILE_DETAIL_FIELDS) {
+    if (parts.length >= limit) break;
+    const value = details[field.key]?.trim();
+    if (!value) continue;
+    parts.push(field.kind === "choice" ? { labelKey: profileChoiceLabelKey(field.key, value) } : { text: value });
+  }
+  return parts;
+}

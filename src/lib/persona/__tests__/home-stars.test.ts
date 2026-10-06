@@ -101,8 +101,20 @@ describe("별을 누르면 그 별의 요약이 열린다 (Simon 결정 4 = B)",
   it("프로필 별의 채우기 CTA가 실제 입력 화면으로 직행한다", () => {
     const page = read("src/app/me/[star].tsx");
     expect(page).toContain('router.push("/profile-details")');
-    expect(page).toContain('router.push("/avatar-studio")');
     expect(page).not.toContain('router.push("/profile")');
+  });
+
+  // Simon 2026-10-06: 프로필 별은 설명 카드 대신 프로필을 바로 보여준다 - 아바타,
+  // 요약 한 줄, 버튼 하나(채운 칸이 없으면 설정, 있으면 수정). 아바타 꾸미기는 /profile 에.
+  it("프로필 별은 아바타와 요약 한 줄, 설정/수정 버튼 하나를 보여준다", () => {
+    const page = read("src/app/me/[star].tsx");
+    expect(page).toContain("<AvatarPreview spec=");
+    expect(page).toContain("profileSummaryParts(profile.details)");
+    expect(page).toContain('t(countFilledDetails(profile.details) > 0 ? "ds.star.editProfile" : "ds.star.setupProfile")');
+    // 읽기 실패는 "프로필 없음"이 아니다 - 설정/수정을 고르지 않는다.
+    expect(page).toContain(': t("ds.star.openProfile");');
+    expect(page).not.toContain('router.push("/avatar-studio")');
+    expect(page).not.toContain('t("ds.star.profileBody")');
   });
 
   it("정적 웹 export도 일곱 요약 경로를 전부 만든다", () => {
@@ -130,6 +142,9 @@ describe("각 별에 이름이 있다 (다섯 로케일)", () => {
       expect((star[s.key] ?? "").length).toBeGreaterThan(0);
     }
     expect((star.editAvatar ?? "").length).toBeGreaterThan(0);
+    for (const key of ["setupProfile", "editProfile", "profileEmpty"]) {
+      expect((star[key] ?? "").length).toBeGreaterThan(0);
+    }
   });
 });
 

@@ -13,15 +13,21 @@
 import { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect } from "expo-router";
+import { Redirect, useFocusEffect } from "expo-router";
 import Svg from "react-native-svg";
 
 import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
+import { AvatarPreview } from "@/components/avatar/AvatarPreview";
 import { Text } from "@/components/ui/Text";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { PremiumLoadingState } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { DEFAULT_AVATAR_SPEC, type AvatarSpec } from "@/lib/avatar";
+import { countFilledDetails, profileSummaryParts, type ProfileDetails } from "@/lib/persona/profile-details";
+import { fetchAvatarSpec } from "@/lib/supabase/avatar-spec";
+import { fetchDisplayName } from "@/lib/supabase/display-name";
+import { fetchProfileDetails } from "@/lib/supabase/profile-details";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { m3 } from "@/lib/theme/m3";
 import { spacing } from "@/lib/theme/tokens";
@@ -79,15 +85,39 @@ async function loadSummary(userId: string, period: LifePeriod | null): Promise<S
   return { cells, records, covered };
 }
 
+// 프로필 별은 설명 대신 그 사람의 프로필을 바로 보여준다(Simon 2026-10-06):
+// 아바타 · 이름 · 요약 한 줄, 그리고 버튼 하나(채운 칸이 없으면 설정, 있으면 수정).
+// 이름과 생활 정보는 "있다/없다"를 가르는 근거라 읽기 실패를 빈 값으로 바꾸지 않는다
+// (실패면 설정/수정을 고르지 않고 중립 라벨로 연다). 아바타는 그림일 뿐이라 못 읽으면
+// 기본 아바타로 그린다.
+type ProfileCard =
+  | { status: "loading" }
+  | { status: "error" }
+  | { status: "ready"; name: string | null; details: ProfileDetails; avatar: AvatarSpec | null };
+
+async function loadProfileCard(userId: string): Promise<ProfileCard> {
+  try {
+    const [name, details, avatar] = await Promise.all([
+      fetchDisplayName(userId),
+      fetchProfileDetails(userId),
+      fetchAvatarSpec(userId).catch(() => null),
+    ]);
+    return { status: "ready", name, details, avatar };
+  } catch {
+    return { status: "error" };
+  }
+}
+
 export default function StarSummaryRoute() {
   // Phone-aware: inside the dashboard phone, the interview opens in the phone,
   // back steps the phone, and `star` comes from the phone route (/me/now).
   const router = useAppRouter();
-  const { t } = useTranslation("home");
+  const { t } = useTranslation(["home", "deepspace"]);
   const { star } = useScreenParams<{ star?: string }>();
   const { userId, loading, age } = useAuth();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [entry, setEntry] = useState<StarEntryStatus | null>(null);
+  const [profile, setProfile] = useState<ProfileCard>({ status: "loading" });
 
   const id: SevenStarId | null =
     typeof star === "string" && isSevenStarId(star) ? star : null;
@@ -108,6 +138,15 @@ export default function StarSummaryRoute() {
     void load();
   }, [load]);
 
+  // 프로필 별만. 수정 화면에서 돌아올 때도 다시 읽어 방금 고친 내용이 보이게 한다.
+  const isProfileStar = meta?.period === null;
+  useFocusEffect(useCallback(() => {
+    if (!userId || !isProfileStar) return;
+    let live = true;
+    void loadProfileCard(userId).then((next) => { if (live) setProfile(next); });
+    return () => { live = false; };
+  }, [userId, isProfileStar]));
+
   if (loading) return <PremiumLoadingState />;
   if (!userId) return <Redirect href="/sign-in" />;
   // 모르는 별 이름이면 홈으로. 옛 링크가 남아 있을 수 있다. 아래에 있는 홈으로
@@ -122,6 +161,18 @@ export default function StarSummaryRoute() {
         ? t("ds.audit.rangeUnder", { to: meta.ageBand.to + 1 })
         : t("ds.audit.rangeSpan", { from: meta.ageBand.from, to: meta.ageBand.to })
     : "";
+  const profileName = profile.status === "ready" ? profile.name?.trim() : "";
+  const profileParts = profile.status === "ready" ? profileSummaryParts(profile.details) : [];
+  const profileLine = profile.status === "loading"
+    ? t("ds.star.loading")
+    : profile.status === "error"
+      ? ""
+      : profileParts.length > 0
+        ? profileParts.map((part) => "text" in part ? part.text : t(`deepspace:profileDetails.${part.labelKey}`)).join(" · ")
+        : t("ds.star.profileEmpty");
+  const profileCta = profile.status === "ready"
+    ? t(countFilledDetails(profile.details) > 0 ? "ds.star.editProfile" : "ds.star.setupProfile")
+    : t("ds.star.openProfile");
 
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={name} onBack={() => router.back()}>
@@ -131,13 +182,20 @@ export default function StarSummaryRoute() {
             captures/me-star.png). */}
         <Text style={[m3TextStyle("labelMedium"), styles.pageLabel]}>{t("ds.star.pageLabel")}</Text>
         <View style={styles.hero}>
-          <Svg width={52} height={52} viewBox="0 0 52 52">
-            <PixelStarSvg cx={26} cy={26} r={12} fill={m3.color.primary} />
-          </Svg>
+          {isProfileStar ? (
+            <AvatarPreview spec={profile.status === "ready" ? profile.avatar ?? DEFAULT_AVATAR_SPEC : DEFAULT_AVATAR_SPEC} size={80} crop />
+          ) : (
+            <Svg width={52} height={52} viewBox="0 0 52 52">
+              <PixelStarSvg cx={26} cy={26} r={12} fill={m3.color.primary} />
+            </Svg>
+          )}
           <View style={styles.heroCopy}>
-            <Text style={[m3TextStyle("headlineSmall"), styles.title]}>{name}</Text>
+            <Text style={[m3TextStyle("headlineSmall"), styles.title]}>{isProfileStar && profileName ? profileName : name}</Text>
             {range.length > 0 ? (
               <Text style={[m3TextStyle("bodyMedium"), styles.range]}>{range}</Text>
+            ) : null}
+            {isProfileStar && profileLine.length > 0 ? (
+              <Text style={[m3TextStyle("bodyMedium"), styles.range]}>{profileLine}</Text>
             ) : null}
           </View>
         </View>
@@ -148,24 +206,13 @@ export default function StarSummaryRoute() {
             <Text style={[m3TextStyle("bodyMedium"), styles.muted]}>{t("ds.star.lockedBody")}</Text>
           </MdCard>
         ) : meta.period === null ? (
-          // 프로필 — 인터뷰가 아니라 항목을 채우는 자리다.
-          <>
-            <MdCard variant="outlined" style={styles.card}>
-              <Text style={[m3TextStyle("bodyMedium"), styles.muted]}>{t("ds.star.profileBody")}</Text>
-            </MdCard>
-            <MdButton
-              label={t("ds.star.openProfile")}
-              variant="filled"
-              onPress={() => router.push("/profile-details")}
-              style={styles.cta}
-            />
-            <MdButton
-              label={t("ds.star.editAvatar")}
-              variant="outlined"
-              onPress={() => router.push("/avatar-studio")}
-              style={styles.cta}
-            />
-          </>
+          // 프로필 — 인터뷰가 아니라 항목을 채우는 자리다. 아바타 꾸미기는 /profile 에 있다.
+          <MdButton
+            label={profileCta}
+            variant="filled"
+            onPress={() => router.push("/profile-details")}
+            style={styles.cta}
+          />
         ) : (
           <>
             {entry?.kind === "previous" ? (
