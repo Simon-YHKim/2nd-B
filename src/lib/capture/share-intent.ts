@@ -18,8 +18,14 @@
 // expo-router 56.2.12: "50% off" throws URIError, "C++" loses both plus signs,
 // "a&mode=ocr" injects a mode param, "#tag" cuts the text, newlines vanish.
 // A path that starts with "/" is returned as-is by that step and parsed once,
-// so this module returns one, built with encodeURIComponent.
-// (__tests__/share-intent.test.ts runs the real expo-router functions.)
+// so this module returns one. Parsing is not the last decode, though:
+// useLocalSearchParams (expo-router/build/hooks/useLocalSearchParams.js) runs
+// decodeURIComponent over every value the parse produced, so a value encoded
+// once lost its own escapes on the way to the screen ("100%41" arrived as
+// "100A", "https://ko.wikipedia.org/wiki/%EB%B6%81" arrived with the Korean
+// decoded). Each value is therefore encoded twice: the parse removes one
+// layer, the hook the other. (__tests__/share-intent.test.ts runs the real
+// expo-router functions and applies the hook's decode.)
 //
 // Shared text is untrusted input from another app, and any app or web page can
 // open the deep link directly. It fills the capture input, and the capture
@@ -113,11 +119,23 @@ export function parseSharedIntentUrl(url: string): SharedIntentFields | null {
   };
 }
 
-/** `/capture?text=&title=`, encoded once. Bare `/capture` when both are empty. */
+/**
+ * One query value for a `/capture` path: encoded twice, once for expo-router's
+ * query parse and once for useLocalSearchParams' own decode (header above).
+ * Throws URIError on a lone surrogate, as encodeURIComponent does.
+ */
+function captureQueryValue(value: string): string {
+  return encodeURIComponent(encodeURIComponent(value));
+}
+
+/**
+ * `/capture?text=&title=`, so the capture screen reads back exactly these
+ * strings. Bare `/capture` when both are empty.
+ */
 export function captureHrefForSharedIntent(fields: SharedIntentFields): string {
   const parts: string[] = [];
-  if (fields.text) parts.push(`${TEXT_PARAM}=${encodeURIComponent(fields.text)}`);
-  if (fields.title) parts.push(`${TITLE_PARAM}=${encodeURIComponent(fields.title)}`);
+  if (fields.text) parts.push(`${TEXT_PARAM}=${captureQueryValue(fields.text)}`);
+  if (fields.title) parts.push(`${TITLE_PARAM}=${captureQueryValue(fields.title)}`);
   return parts.length > 0 ? `/capture?${parts.join("&")}` : "/capture";
 }
 

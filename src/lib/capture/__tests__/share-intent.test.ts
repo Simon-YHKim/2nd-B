@@ -9,6 +9,8 @@
 // The round trips below run expo-router's own native deep-link functions (the
 // installed build), because that is where a share used to break.
 
+import { readFileSync } from "fs";
+
 import contract from "../share-intent-contract.json";
 import { normalizeSharedCaptureParams } from "../share-params";
 import {
@@ -36,12 +38,30 @@ const { parseQueryParams } = require("expo-router/build/fork/getStateFromPath-fo
   ) => Record<string, string | string[]> | undefined;
 };
 
-/** What the capture route receives for a system link, as expo-router does it on native. */
+// useLocalSearchParams then decodes every parsed value once more. Same code as
+// expo-router/build/hooks/useLocalSearchParams.js, which reads React context
+// and so cannot run here; the premise test below reads that file.
+function decodeLikeUseLocalSearchParams(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+/** What the capture screen reads for a system link, as expo-router does it on native. */
 function routeParams(systemUrl: string): { path: string; params: Record<string, string | string[]> } {
   const redirected = redirectSystemPath({ path: systemUrl, initial: true });
   let path = extractExpoPathFromURL([], redirected);
   if (!path.startsWith("/")) path = `/${path}`;
-  return { path: path.replace(/\?.*$/, ""), params: parseQueryParams(path, {}) ?? {} };
+  const parsed = parseQueryParams(path, {}) ?? {};
+  const params = Object.fromEntries(
+    Object.entries(parsed).map(([key, value]) => [
+      key,
+      Array.isArray(value) ? value.map(decodeLikeUseLocalSearchParams) : decodeLikeUseLocalSearchParams(value),
+    ]),
+  );
+  return { path: path.replace(/\?.*$/, ""), params };
 }
 
 /** The link MainActivity builds for EXTRA_TEXT / EXTRA_SUBJECT. */
@@ -58,6 +78,10 @@ const HARD_TEXTS = [
   "a=b&mode=ocr&tag=x&entry=firstRun&coach=1",
   "line one\nline two\n\nline four",
   "100%41 and %E0%A4%A",
+  // Escapes that are valid on their own: the screen's extra decode used to eat them.
+  "100%41",
+  "https://ko.wikipedia.org/wiki/%EB%B6%81%EA%B7%B9%EC%84%B1",
+  "https://example.com/search?q=a%26b&next=%2Fhome%3Fx%3D1",
   "한글 공유 😀 그리고 'quotes' (parens) *star* ~tilde!",
   "  padded  ",
 ];
@@ -100,6 +124,14 @@ describe("Android share hand-off through expo-router (round trip)", () => {
     expect(() => extractExpoPathFromURL([], plain("50% off"))).toThrow(URIError);
     const injected = parseQueryParams(`/${extractExpoPathFromURL([], plain("a&mode=ocr"))}`, {});
     expect(injected).toEqual({ text: "a", mode: "ocr" });
+  });
+
+  // Premise of the double encoding (captureHrefForSharedIntent). The routeParams
+  // helper copies this hook's decode; if an expo-router upgrade drops it, this
+  // fails so the encoding goes back to once.
+  test("premise: useLocalSearchParams decodes each parsed value once more", () => {
+    const hook = readFileSync(require.resolve("expo-router/build/hooks/useLocalSearchParams.js"), "utf8");
+    expect(hook).toContain("return [key, decodeURIComponent(value)];");
   });
 });
 
@@ -212,8 +244,8 @@ describe("contract", () => {
     expect(contract.titleParam).toBe("title");
   });
 
-  test("the capture href is a path, so expo-router parses its query once", () => {
-    expect(captureHrefForSharedIntent({ text: "a b", title: "" })).toBe("/capture?text=a%20b");
+  test("the capture href is a path whose values are encoded for the parse and the hook", () => {
+    expect(captureHrefForSharedIntent({ text: "a b", title: "" })).toBe("/capture?text=a%2520b");
     expect(captureHrefForSharedIntent({ text: "", title: "" })).toBe("/capture");
   });
 });
