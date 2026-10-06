@@ -113,7 +113,7 @@
     "ledgerWarnTitle": "Não foi possível lançar as transações",
     "ledgerWarnBody": "A importação foi salva, mas as transações escolhidas não foram lançadas. Importe o mesmo arquivo de novo para lançá-las.",
     "ledgerWarnPartTitle": "Algumas transações não foram lançadas",
-    "ledgerWarnPartBody": "{failed} das transações escolhidas não foram lançadas; {inserted} foram. Importar o mesmo arquivo de novo duplicaria as já lançadas, então adicione as que faltam manualmente.",
+    "ledgerWarnPartBody": "{failed} das transações escolhidas não foram lançadas; {inserted} foram. Importe o mesmo arquivo de novo para lançar as que faltam; as já lançadas não são lançadas outra vez.",
     "done": "Concluído",
     "appts": "Planos",
     "places": "Lugares",
@@ -182,6 +182,7 @@
         "sub": "Agenda · arquivo",
         "what": "Traz os eventos do seu calendário."
       }
-    }
+    },
+    "ledgerSkippedNote": "{skipped} transações já estavam lançadas e não foram lançadas outra vez."
   }
 }

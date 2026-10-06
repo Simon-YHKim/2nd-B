@@ -153,6 +153,9 @@ import {
   type IntegrationEntrypoint,
 } from "./integrations/sources";
 
+/** /review 끝의 '이력에 남는다' 문구. 이력 원장이 생기기 전까지 끈다(설계 대화 발주 a, 2026-10-07). */
+const REVIEW_LEDGER_NOTE = false;
+
 // i18n label builders for the pure date helpers (which stay i18n-free).
 type Tx = (key: string, options?: Record<string, unknown>) => string;
 function dsRecencyLabels(t: Tx): RecencyLabels {
@@ -2128,8 +2131,10 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
         </Card>
       ) : null}
       {/* 거절도 승인도 이력에 남는다는 것을 화면 끝에서 한 번 더 말한다 —
-          되돌릴 수 있다는 확신이 있어야 사람이 솔직하게 아니라고 한다. */}
-      <Text variant="subtle" style={styles.footer}>{t("review.ledgerNote")}</Text>
+          되돌릴 수 있다는 확신이 있어야 사람이 솔직하게 아니라고 한다.
+          설계 대화 발주 a(2026-10-07): 그 이력 원장이 아직 없어 사실과 다른 말이라 내린다.
+          키(review.ledgerNote)는 남겨 두고, 원장이 생기면 REVIEW_LEDGER_NOTE 를 true 로 되돌린다. */}
+      {REVIEW_LEDGER_NOTE ? <Text variant="subtle" style={styles.footer}>{t("review.ledgerNote")}</Text> : null}
       <RatifySheet
         proposal={proposal}
         locale={locale}
