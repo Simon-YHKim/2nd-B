@@ -406,11 +406,15 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
   const inputCoachTargetRef = useRef<View>(null);
   const saveCoachTargetRef = useRef<View>(null);
   // Memo keyboard (device QA 2026-10-07, R2A-02 follow-up): when the keyboard first
-  // opened on the memo field, only the top 15px (about 4dp) of the save tile showed above it and
-  // it took one push to see the rest. Focusing the memo field now scrolls the save
-  // tile above the keyboard (Android; the memo field's top never goes off screen).
-  // Paused while the first-record guide is up: it measured the field where it was.
-  const saveReveal = useKeyboardReveal(scrollRef, { active: coachStep == null });
+  // opened on the memo field, only the top 15px (about 4dp) of the save tile showed
+  // above it and it took one push to see the rest. Focusing the memo field now
+  // scrolls the save tile above the keyboard (Android; the memo field's top never
+  // goes off screen).
+  // Paused while the first-record guide is up (it measured the field where it was)
+  // and outside memo mode (the memo form it keeps on screen is not mounted there).
+  const saveReveal = useKeyboardReveal(scrollRef, {
+    active: coachStep == null && mode === "text" && !fourwOn,
+  });
   // Crisis safety net (parity with the journal path): createRecord runs the
   // local crisis lexicon on every note save; a red zone must surface the same
   // locale/minor-aware hotline here as everywhere else, not a silent "saved".

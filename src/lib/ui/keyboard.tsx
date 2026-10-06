@@ -149,7 +149,11 @@ function AndroidKeyboardArea({ style, onLayout, children, ...rest }: ViewProps) 
 }
 
 export interface KeyboardRevealOptions {
-  /** false 인 동안은 내리지 않는다(예: 첫 기록 안내가 입력칸 자리를 재어 가리키는 동안). */
+  /**
+   * false 인 동안은 내리지 않는다(예: 첫 기록 안내가 입력칸 자리를 재어 가리키는 동안, 또는
+   * 그 입력칸이 화면에서 빠진 동안). false 가 되면 포커스 기억도 지운다 - 빠진 입력칸은
+   * onBlur 를 못 보낼 수 있다.
+   */
   active?: boolean;
 }
 
@@ -195,6 +199,7 @@ export function useKeyboardReveal(
   const activeRef = useRef(active);
   useEffect(() => {
     activeRef.current = active;
+    if (!active) frameRef.current.focused = false;
   }, [active]);
 
   const reveal = useCallback(() => {

@@ -309,6 +309,8 @@ describe("배선 - /capture 메모 칸을 누르면 담기까지 보인다", () 
     expect(hook).toContain('keyboardAvoidanceMode(Platform.OS) === "android-measured"');
     expect(hook).toContain("if (!enabled) return { scrollProps: {}, keepTopProps: {}, targetProps: {}, inputProps: {} };");
     expect(hook).toContain("Keyboard.isVisible()");
+    // 멈추면 포커스 기억도 지운다 - 빠진 입력칸은 onBlur 를 못 보낼 수 있다.
+    expect(hook).toContain("if (!active) frameRef.current.focused = false;");
     expect(hook).toContain("frame.target.y + frame.target.height + KEYBOARD_REVEAL_MARGIN");
     expect(hook).toContain("keepTop: frame.keepTop");
     expect(hook).toContain("viewportHeight: frame.viewport");
@@ -320,7 +322,8 @@ describe("배선 - /capture 메모 칸을 누르면 담기까지 보인다", () 
   });
 
   test("CaptureView 는 ScrollView · 메모 칸 묶음 · 메모 칸 · 담기 칸에 하나씩 펼친다", () => {
-    expect(capture).toContain("const saveReveal = useKeyboardReveal(scrollRef, { active: coachStep == null });");
+    // 첫 기록 안내 동안과 메모 모드 밖(4W1H · 링크 · 할 일)에서는 멈춘다.
+    expect(capture).toContain("const saveReveal = useKeyboardReveal(scrollRef, {\n    active: coachStep == null && mode === \"text\" && !fourwOn,\n  });");
     const scroll = capture.slice(capture.indexOf("<ScrollView\n        ref={scrollRef}"), capture.indexOf("{/* Fixed square tiles"));
     expect(scroll).toContain("{...saveReveal.scrollProps}");
     // 메모(4W1H 꺼짐) 갈래의 묶음이 내용 컨테이너의 직계 자식이고, 그 첫 칸이 메모 입력칸이다.
