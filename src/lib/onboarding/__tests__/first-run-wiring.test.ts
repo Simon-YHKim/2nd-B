@@ -144,6 +144,11 @@ describe("migration 0219 travels with its rollback and scratch lane", () => {
     expect(down).toContain("DROP FUNCTION IF EXISTS public.mark_onboarding_completed(uuid);");
     expect(down).toContain("DROP FUNCTION IF EXISTS public.mark_ttfv_seen(uuid);");
     expect(down).toMatch(/DROP COLUMN IF EXISTS onboarding_completed_at,\s*DROP COLUMN IF EXISTS ttfv_seen_at;/);
+    // CD-04: one transaction, so a failed or timed-out ALTER keeps the RPCs too.
+    const downCode = down.replace(/--[^\n]*/g, "");
+    expect(downCode).toMatch(/^BEGIN;\s*SET LOCAL lock_timeout = '10s';/m);
+    expect(downCode.indexOf("BEGIN;")).toBeLessThan(downCode.indexOf("DROP FUNCTION"));
+    expect(downCode.trimEnd().endsWith("DROP COLUMN IF EXISTS ttfv_seen_at;\n\nCOMMIT;")).toBe(true);
     expect(read(".github/workflows/supabase-dry-run.yml"))
       .toContain("-f db/tests/onboarding_first_run_regression.sql");
     const regression = read("db/tests/onboarding_first_run_regression.sql");
