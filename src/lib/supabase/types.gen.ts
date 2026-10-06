@@ -2690,7 +2690,6 @@ export type Database = {
           account_status: string
           avatar_spec: Json | null
           birth_date: string
-          chat_name: string | null
           coachmarks_seen: Json
           consent_share_with_judges: boolean
           created_at: string
@@ -2704,6 +2703,7 @@ export type Database = {
           privacy_prefs: Json
           profile_details: Json
           reasoning_prefs: Json
+          status_message: string | null
           subscription_event_at: string | null
           subscription_expires_at: string | null
           subscription_provider: string | null
@@ -2715,7 +2715,6 @@ export type Database = {
           account_status?: string
           avatar_spec?: Json | null
           birth_date: string
-          chat_name?: string | null
           coachmarks_seen?: Json
           consent_share_with_judges?: boolean
           created_at?: string
@@ -2729,6 +2728,7 @@ export type Database = {
           privacy_prefs?: Json
           profile_details?: Json
           reasoning_prefs?: Json
+          status_message?: string | null
           subscription_event_at?: string | null
           subscription_expires_at?: string | null
           subscription_provider?: string | null
@@ -2740,7 +2740,6 @@ export type Database = {
           account_status?: string
           avatar_spec?: Json | null
           birth_date?: string
-          chat_name?: string | null
           coachmarks_seen?: Json
           consent_share_with_judges?: boolean
           created_at?: string
@@ -2754,6 +2753,7 @@ export type Database = {
           privacy_prefs?: Json
           profile_details?: Json
           reasoning_prefs?: Json
+          status_message?: string | null
           subscription_event_at?: string | null
           subscription_expires_at?: string | null
           subscription_provider?: string | null
@@ -3064,7 +3064,6 @@ export type Database = {
         }
         Returns: Json
       }
-      chat_name_available: { Args: { p_name: string }; Returns: boolean }
       claim_peer_invitation: {
         Args: { p_invitation_id: string }
         Returns: boolean
