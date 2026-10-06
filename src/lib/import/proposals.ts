@@ -46,7 +46,22 @@ export interface ImportProposal {
    * an AI provider (lib/wiki/ai-exclusion.ts). proposalsToMarkdown marks the source with it.
    */
   aiExcluded?: "health_measurements";
+  /**
+   * Comms/location imports (KakaoTalk, SMS, Google Takeout location) are locked for minor
+   * accounts. The hub screen checks the age before ratify; this mark rides into the source's
+   * frontmatter (`import_kind`) so the database can refuse the row too (0223). A tampered
+   * client can still drop the mark, so this backs up an honest client that loses its own
+   * check, the same posture as 0094 for relation_people.
+   */
+  lockedImport?: MinorLockedImportKind;
 }
+
+/** Import kinds whose results a minor account never holds (0094 relation_people, 0223 sources). */
+export type MinorLockedImportKind = "kakao" | "sms" | "takeout-location";
+export const MINOR_LOCKED_IMPORT_KINDS: ReadonlySet<ImportKind> = new Set<ImportKind>(["kakao", "sms", "takeout-location"]);
+
+/** The frontmatter key 0223 reads. Kept beside the kind list so the two cannot drift. */
+export const IMPORT_KIND_FRONTMATTER_KEY = "import_kind";
 
 /** The routing line of an Apple Health measurement; ai-exclusion.ts recognises older imports by it. */
 export const HEALTH_PROPOSAL_SUB = "건강 → 루틴 자동완료";
@@ -206,8 +221,9 @@ export function buildProposals(kind: ImportKind, content: string, localeTag: str
     }
   }
 
+  const lockedKind = MINOR_LOCKED_IMPORT_KINDS.has(kind) ? (kind as MinorLockedImportKind) : null;
   return {
-    proposals: proposals.slice(0, PROPOSAL_CAP),
+    proposals: proposals.slice(0, PROPOSAL_CAP).map((p) => (lockedKind ? { ...p, lockedImport: lockedKind } : p)),
     summary,
     ...(relationSignals && relationSignals.length > 0 ? { relationSignals } : {}),
   };
@@ -273,7 +289,11 @@ export function proposalsToMarkdown(
   locale: SystemLocale = systemLocaleFor(i18next.language),
 ): string {
   // ai_excluded is AI_EXCLUDED_KEY in lib/wiki/ai-exclusion.ts (not imported: that module imports this one).
-  const mark = chosen.some((p) => p.aiExcluded) ? ["---", "ai_excluded: health_measurements", "---"] : [];
+  const fields: string[] = [];
+  if (chosen.some((p) => p.aiExcluded)) fields.push("ai_excluded: health_measurements");
+  const locked = chosen.find((p) => p.lockedImport)?.lockedImport;
+  if (locked) fields.push(`${IMPORT_KIND_FRONTMATTER_KEY}: ${locked}`);
+  const mark = fields.length > 0 ? ["---", ...fields, "---"] : [];
   const lines = [...mark, locale === "ko" ? `# ${sourceName} 가져오기` : `# ${sourceName} import`, ""];
   for (const p of chosen) {
     if (p.body) {
