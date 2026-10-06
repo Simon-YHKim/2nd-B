@@ -13,6 +13,7 @@
 //   mealWriteLock    BL-03 (gate r3)  that lock is per cell and module-wide, not per screen
 //   pageWriteLock    BL-09 (gate)     the same, for one book's page count
 //   sheetAfterWrite  BL-03 / BL-09    a late write closes only the sheet or editor it started from
+//   editorAfterDelete CD-R1-01        a goal's delete closes only that goal's editor
 //   bookSearch*      R2C-02           a failed book search says so
 //   shelfView        R2C-08           finished books and every book being read are shown
 
@@ -121,6 +122,18 @@ export function mealClearArmKey(sheet: MealSheetRef): string {
  */
 export function sheetAfterWrite<T extends { session: number }>(open: T | null, startedIn: number): T | null {
   return open !== null && open.session === startedIn ? null : open;
+}
+
+/**
+ * The goal editor to show once a goal's delete settles: closed if it is open on the goal
+ * that was deleted (that goal is gone), otherwise left as it is.
+ *
+ * Gate CD-R1-01: the delete used to close whatever editor was open by then. While a delete
+ * is in flight the list is still drawn and another goal's title still opens its editor, so
+ * a draft typed into goal B during goal A's delete was thrown away when A's delete landed.
+ */
+export function editorAfterDelete<T extends { id: string }>(open: T | null, deletedId: string): T | null {
+  return open !== null && open.id === deletedId ? null : open;
 }
 
 /** Held while a meal write is in flight. A plain object so a React ref can carry it. */

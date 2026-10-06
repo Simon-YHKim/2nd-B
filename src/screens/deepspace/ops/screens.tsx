@@ -94,6 +94,7 @@ import {
   bookSearchFailed,
   bookSearchSettled,
   DELETE_ARM_MS,
+  editorAfterDelete,
   mealClearArmKey,
   mealSaveAction,
   mealWriteLock,
@@ -865,7 +866,9 @@ export function MilestonesScreen() {
     setSaveErr(false);
     try {
       await deleteMilestone(userId, id);
-      setEditing(null);
+      // Gate CD-R1-01: close only the deleted goal's editor. While the delete is in flight
+      // another goal's title can open its editor, and that draft must survive this.
+      setEditing((open) => editorAfterDelete(open, id));
       ms.reload();
     } catch {
       setSaveErr(true);

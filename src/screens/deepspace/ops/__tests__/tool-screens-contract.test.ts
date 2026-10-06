@@ -103,6 +103,12 @@ describe("R2C-09 / R2C-07: goals", () => {
     expect(goals).toContain("await deleteMilestone(userId, id);");
     expect(goals).toContain("const delGoal = useTwoTapDelete((id) => void onDelete(id));");
   });
+  test("gate CD-R1-01: a settled delete closes only the deleted goal's editor", () => {
+    const deleter = goals.slice(goals.indexOf("const onDelete"), goals.indexOf("const delGoal"));
+    expect(deleter.length).toBeGreaterThan(300);
+    expect(deleter).toMatch(/await deleteMilestone\(userId, id\);\n(\s*\/\/.*\n)*\s*setEditing\(\(open\) => editorAfterDelete\(open, id\)\);\n\s*ms\.reload\(\);/);
+    expect(deleter).not.toContain("setEditing(null)");
+  });
 });
 
 describe("R2C-16 / R2C-11: ledger", () => {

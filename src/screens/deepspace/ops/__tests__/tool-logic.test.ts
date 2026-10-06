@@ -5,6 +5,7 @@
 import {
   bookSearchFailed,
   bookSearchSettled,
+  editorAfterDelete,
   mealClearArmKey,
   mealSaveAction,
   mealWriteLock,
@@ -101,6 +102,19 @@ describe("sheetAfterWrite (gate BL-03): a late write closes only its own sheet",
   });
   test("an already closed sheet stays closed", () => {
     expect(sheetAfterWrite(null, 3)).toBeNull();
+  });
+});
+
+describe("editorAfterDelete (gate CD-R1-01): a goal's delete closes only that goal's editor", () => {
+  test("the editor open on the deleted goal closes", () => {
+    expect(editorAfterDelete({ id: "goal-a", title: "A", due: "" }, "goal-a")).toBeNull();
+  });
+  test("another goal's editor, opened while the delete ran, keeps its draft", () => {
+    const draftB = { id: "goal-b", title: "B renamed", due: "2026-11-01" };
+    expect(editorAfterDelete(draftB, "goal-a")).toBe(draftB);
+  });
+  test("an already closed editor stays closed", () => {
+    expect(editorAfterDelete(null, "goal-a")).toBeNull();
   });
 });
 
