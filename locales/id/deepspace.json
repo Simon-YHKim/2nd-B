@@ -176,7 +176,72 @@
     "none": "0 item",
     "footer": "Cara data diproses dan disimpan bergantung pada fiturnya. Baca penjelasan penggunaan data pada fitur tersebut.",
     "dataReview": "Tinjauan data saya",
-    "open": "Buka"
+    "open": "Buka",
+    "atGlance": "Sekilas",
+    "facts": {
+      "onDevice": {
+        "label": "Diproses di perangkat lebih dulu",
+        "v": "Konten asli yang kamu impor dianalisis di perangkatmu; hanya sinyal turunannya yang disimpan dalam bentuk terenkripsi."
+      },
+      "collect": {
+        "label": "Yang kami kumpulkan",
+        "v": "Serpihan bintang yang kamu simpan, skor lensa, dan pola penggunaan. Lokasi dan komunikasi hanya dengan persetujuanmu."
+      },
+      "retention": {
+        "label": "Masa penyimpanan",
+        "v": "Selama akunmu aktif; jika kamu keluar, semuanya dihapus dalam 30 hari."
+      },
+      "delete": {
+        "label": "Hak menghapus",
+        "v": "Kamu bisa menghapus item tertentu atau semuanya, kapan saja."
+      }
+    },
+    "analytics": {
+      "title": "Statistik penggunaan dan iklan",
+      "pendingAge": "Pengaturan statistik penggunaan dan iklan muncul setelah tanggal lahirmu dikonfirmasi.",
+      "minorLocked": "Statistik penggunaan dan iklan dikunci jika tanggal lahir menunjukkan usia di bawah 18 tahun.",
+      "adultLead": "Opsional. Pilihanmu disimpan dan berlaku untuk Google Analytics di web. Firebase Analytics dan Microsoft Clarity saat ini nonaktif di Android.",
+      "checkingAge": "Memeriksa tanggal lahirmu…",
+      "loadingSettings": "Memuat pengaturan…",
+      "allow": "Izinkan statistik penggunaan",
+      "lockedUnder18": "Terkunci untuk usia di bawah 18",
+      "applied": "GA4 aktif di web · Firebase dan Clarity nonaktif di Android",
+      "enableFailed": "Statistik tidak dapat diaktifkan. Coba lagi.",
+      "withdrawSaveFailed": "Gagal menyimpan. Penarikan statistik sudah berlaku di perangkat ini; coba simpan lagi.",
+      "adsSaveFailed": "Pengaturan iklan gagal disimpan. Coba lagi."
+    },
+    "recommend": {
+      "title": "Rekomendasi",
+      "minorLocked": "Rekomendasi dimatikan dan dikunci untuk melindungimu.",
+      "onBody": "Aktif. Catatanmu dianalisis untuk menyarankan koneksi.",
+      "turnOffA11y": "Matikan rekomendasi",
+      "turnOff": "Matikan",
+      "offBody": "Nonaktif. Aktifkan untuk mendapat saran koneksi dari catatanmu.",
+      "turnOnA11y": "Aktifkan rekomendasi",
+      "turnOn": "Aktifkan"
+    },
+    "semantic": {
+      "title": "Koneksi catatan berdasarkan makna",
+      "minorLocked": "Koneksi berdasarkan makna dimatikan dan dikunci untuk melindungimu.",
+      "onBody": "Aktif. Catatan diindeks berdasarkan makna untuk menampilkan yang mirip.",
+      "turnOffA11y": "Matikan koneksi berdasarkan makna",
+      "turnOff": "Matikan dan hapus vektor",
+      "offBody": "Nonaktif. Aktifkan untuk menghubungkan catatan yang maknanya mirip, meski tidak punya tag yang sama.",
+      "turnOnA11y": "Aktifkan koneksi berdasarkan makna",
+      "turnOn": "Aktifkan"
+    },
+    "understandA11y": "Saya mengerti dan ingin mengaktifkannya",
+    "understand": "Saya mengerti, aktifkan",
+    "saveFailed": "Gagal menyimpan. Coba lagi sebentar lagi.",
+    "deleteAccount": {
+      "body": "Catatan, tangkapan, wiki, data penggunaan, dan akunmu dihapus permanen. Ini tidak bisa dibatalkan. Ekspor dulu apa pun yang kamu perlukan.",
+      "typePrompt": "Ketik \"DELETE\" untuk melanjutkan.",
+      "inputA11y": "Konfirmasi penghapusan",
+      "buttonA11y": "Hapus akun secara permanen",
+      "button": "Hapus akun",
+      "deleting": "Menghapus…",
+      "failed": "Penghapusan belum selesai. Sebagian data mungkin masih tersisa. Coba lagi sebentar lagi."
+    }
   },
   "support": {
     "title": "Dukungan",
@@ -187,7 +252,35 @@
     "reportBug": "Laporkan bug",
     "footer": "PolaScope v1.0.0 · 2 hari kerja KST",
     "faqTitle": "Pertanyaan umum",
-    "noticesTitle": "Pengumuman"
+    "noticesTitle": "Pengumuman",
+    "faqs": {
+      "brightness": {
+        "q": "Apa beda kecerahan (cahaya bintang) dan tingkat keyakinan?",
+        "a": "Cahaya bintang menunjukkan seberapa banyak yang sudah kamu simpan di area itu; tingkat keyakinan menunjukkan seberapa jauh perkiraan SecondB sudah diverifikasi. Keduanya bergerak sendiri-sendiri."
+      },
+      "plan": {
+        "q": "Apakah paket berbayar membuatnya lebih pintar?",
+        "a": "Tidak. Kualitas jawaban sama di semua paket. Yang berbeda hanya batas jumlah, masa simpan, dan ekspor."
+      },
+      "call": {
+        "q": "Apakah rekaman panggilan aman?",
+        "a": "Rekaman ditranskripsikan di server AI melalui koneksi terenkripsi, lalu audio aslinya langsung dihapus dari perangkatmu. Hanya teks dan sinyalnya yang disimpan dalam bentuk terenkripsi."
+      }
+    },
+    "notices": {
+      "modes": {
+        "t": "Tiga mode SecondB telah hadir",
+        "tag": "Baru"
+      },
+      "museum": {
+        "t": "Museum AI: 8 koleksi kini dibuka",
+        "tag": "Konten"
+      },
+      "voice": {
+        "t": "Transkripsi suara ditingkatkan",
+        "tag": "Peningkatan"
+      }
+    }
   },
   "connect": {
     "title": "Sinkronisasi data",
@@ -893,7 +986,24 @@
     "secondbName": "SecondB",
     "authTitle": "Siap memulai?",
     "authBody": "Catatanmu tetap milikmu. Kamu meninjau dan menyetujui ringkasannya sebelum diterapkan.",
-    "next": "Berikutnya"
+    "next": "Berikutnya",
+    "skip": "Lewati",
+    "slides": {
+      "intro": {
+        "title": "AI yang mengenal\ndirimu",
+        "body": "SecondB memakai catatanmu\nuntuk membantu merapikan pikiran\ndan merencanakan harimu."
+      },
+      "stars": {
+        "tag": "Mengenal dirimu",
+        "title": "Ceritakan kisahmu\ndi tujuh bintang",
+        "body": "Masa sekolah, kerja, atau sekarang:\npilih bintang untuk memulai."
+      },
+      "approve": {
+        "tag": "Kamu yang memutuskan",
+        "title": "Ringkasan AI perlu\npersetujuanmu",
+        "body": "Ringkasan tentang dirimu adalah usulan.\nRingkasan itu hanya diterapkan jika kamu menyetujuinya."
+      }
+    }
   },
   "trends": {
     "title": "Tren kecerahan",

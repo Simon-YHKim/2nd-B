@@ -33,6 +33,18 @@ export interface TierShift {
   origin?: string;
 }
 
+/** The brightness-namespace keys the nudge sentence reads. */
+export type TierShiftNudgeKey = "shiftNudge" | "shiftNudgeCited";
+
+/**
+ * Resolves a brightness key with its variables in the language on screen.
+ * i18next's `t` from useTranslation("brightness") satisfies it.
+ */
+export type TierShiftNudgeTranslate = (
+  key: TierShiftNudgeKey,
+  vars: { stars: string; n: number },
+) => string;
+
 /**
  * Format the D9 re-check nudge sentence for shifted stars, surfacing the
  * evidence count (0060) when the shifts are backed by cited records — so the
@@ -41,23 +53,24 @@ export interface TierShift {
  * its localized display name, keeping this free of UI constants. One aggregate
  * evidence fact, not per-item clutter (information-density rule). Returns null
  * when there is nothing to nudge.
+ *
+ * The sentence itself is `brightness.shiftNudge` / `shiftNudgeCited`
+ * (Q-261005-01 = A, R2B-03). Until 2026-10-06 it was an en/ko pair in this
+ * file, so /brightness showed English to es/pt/id. `locale` is only what
+ * `nameOf` takes.
  */
 export function tierShiftNudge(
   shifts: readonly TierShift[],
   locale: "en" | "ko",
   nameOf: (starId: string, locale: "en" | "ko") => string,
+  t: TierShiftNudgeTranslate,
 ): string | null {
   if (shifts.length === 0) return null;
-  const segs = shifts
+  const stars = shifts
     .map((s) => `${nameOf(s.starId, locale)} ${s.direction === "up" ? "↑" : "↓"}`)
     .join(", ");
   const cited = shifts.reduce((n, s) => n + (s.citations?.length ?? 0), 0);
-  if (locale === "ko") {
-    const evid = cited > 0 ? ` · 근거 ${cited}개` : "";
-    return `최근 변화 감지: ${segs}${evid} - 점검해볼까요?`;
-  }
-  const evid = cited > 0 ? ` · ${cited} cited` : "";
-  return `Recent shift: ${segs}${evid} - want to re-check?`;
+  return t(cited > 0 ? "shiftNudgeCited" : "shiftNudge", { stars, n: cited });
 }
 
 export function detectTierShift(observations: readonly TierObservation[]): TierShift[] {

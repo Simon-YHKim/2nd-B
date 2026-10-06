@@ -47,34 +47,23 @@ export interface SelfPortraitInput {
 
 const FIELD_ORDER: SelfPortraitFieldId[] = ["who", "forWhom", "goal", "do", "fuel"];
 
-const LABELS: Record<"en" | "ko", Record<SelfPortraitFieldId, string>> = {
-  ko: { who: "나는 누구인가", forWhom: "누구를 위해", goal: "나의 목표", do: "무엇을 하는가", fuel: "나의 원동력" },
-  en: { who: "Who I am", forWhom: "Who it's for", goal: "What I'm reaching for", do: "What I do", fuel: "What fuels me" },
-};
+/**
+ * Resolves a core-brain key in the language on screen. i18next's `t` from
+ * useTranslation("core-brain") satisfies it.
+ *
+ * The field labels and hints live in locales/<lng>/core-brain.json under
+ * `portrait.*` (Q-261005-01 = A, R2B-03). Until 2026-10-06 they were an en/ko
+ * table in this file, so es/pt/id painted English here. The collecting hints
+ * keep their contract: only who/fuel promise a backing signal; the other three
+ * say plainly that their automatic portrait summary is not connected yet.
+ */
+export type PortraitTranslate = (key: string) => string;
 
-// Collecting nudges. Only who/fuel promise a backing signal; the other three
-// say plainly that their automatic portrait summary is not connected yet.
-const HINTS: Record<"en" | "ko", Record<SelfPortraitFieldId, string>> = {
-  ko: {
-    who: "관계 패턴 체크에서 나를 설명하는 단서를 하나 더할 수 있습니다.",
-    forWhom: "스무고개에 사람 이야기를 남길 수 있습니다 · 이 칸의 자동 요약은 준비 중입니다.",
-    goal: "세컨비 새 관점 모드에서 다음 한 걸음을 펼칠 수 있습니다 · 자동 요약은 준비 중입니다.",
-    do: "오늘의 별가루에 실제로 한 일을 남길 수 있습니다 · 자동 요약은 준비 중입니다.",
-    fuel: "라이프 오딧에서 자주 돌아오는 가치를 살펴볼 수 있습니다.",
-  },
-  en: {
-    who: "A relationship-pattern check can add one more clue about you.",
-    forWhom: "You can leave a story about someone in an interview · automatic summary for this field is still in progress.",
-    goal: "You can unfold a next step in SecondB's new-angle mode · automatic summary is still in progress.",
-    do: "You can record what you did in today's piece · automatic summary is still in progress.",
-    fuel: "A life audit can surface the values you return to most.",
-  },
-};
-
-const EVIDENCE_HINT: Record<"en" | "ko", string> = {
-  ko: "이 값을 만든 기록을 엽니다.",
-  en: "Opens the records behind this value.",
-};
+export const SELF_PORTRAIT_KEYS = {
+  label: (id: SelfPortraitFieldId) => `portrait.label.${id}`,
+  hint: (id: SelfPortraitFieldId) => `portrait.hint.${id}`,
+  evidenceHint: "portrait.evidenceHint",
+} as const;
 
 // Active collection/related destinations. `/persona` and bare `/audit` are not
 // valid here in the default UI: the former redirects back to this same screen,
@@ -123,16 +112,26 @@ function fieldValue(id: SelfPortraitFieldId, persona: SelfPortraitSignals | null
   }
 }
 
-export function buildSelfPortrait({ persona }: SelfPortraitInput, locale: "en" | "ko"): SelfPortraitField[] {
+/**
+ * `locale` picks the measured values (MBTI nickname, attachment style, value
+ * framework), which those modules still carry as en/ko only. `t` paints the
+ * field copy in whatever language is on screen.
+ */
+export function buildSelfPortrait(
+  { persona }: SelfPortraitInput,
+  locale: "en" | "ko",
+  t: PortraitTranslate,
+): SelfPortraitField[] {
   return FIELD_ORDER.map((id) => {
     const value = fieldValue(id, persona, locale);
+    const hint = t(SELF_PORTRAIT_KEYS.hint(id));
     return {
       id,
-      label: LABELS[locale][id],
+      label: t(SELF_PORTRAIT_KEYS.label(id)),
       value,
       status: value ? "filled" : "collecting",
-      hint: HINTS[locale][id],
-      actionHint: value ? EVIDENCE_HINT[locale] : HINTS[locale][id],
+      hint,
+      actionHint: value ? t(SELF_PORTRAIT_KEYS.evidenceHint) : hint,
       route: fieldRoute(id, persona, value),
     } satisfies SelfPortraitField;
   });

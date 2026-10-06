@@ -59,9 +59,14 @@ export default function BrightnessTimelineScreen() {
     () => (observations ? buildBrightnessTimeline(observations, new Date()) : null),
     [observations],
   );
+  // `t` is in the deps so a switch between two non-Korean languages (es -> pt,
+  // same `locale`) repaints the nudge in the new language.
   const nudge = useMemo(
-    () => (observations ? tierShiftNudge(detectTierShift(observations), locale, starName) : null),
-    [observations, locale],
+    () =>
+      observations
+        ? tierShiftNudge(detectTierShift(observations), locale, starName, (key, vars) => t(key, vars))
+        : null,
+    [observations, locale, t],
   );
 
   // rev2 TITLES verbatim: 밝기 변화 (the windowed top app bar carries it).

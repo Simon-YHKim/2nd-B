@@ -254,9 +254,23 @@ jest.mock("react-native", () => ({
 jest.mock("react-native-svg", () => ({ Svg: "Svg", Rect: "Rect", G: "G" }));
 jest.mock("react-i18next", () => ({
   useTranslation: (namespace: string) => ({
-    t: (key: string) => namespace === "core-brain" && mockLanguage.current === "ko" && key === "generationUnavailable"
-      ? (jest.requireActual("../../../locales/ko/core-brain.json") as Record<string, string>)[key]
-      : key,
+    // Keys echo back so most assertions can name them. Two exceptions read the
+    // shipped bundle: the ko generation notice, and the saved-result card that
+    // moved from an inline en/ko pair to core-brain keys (Q-261005-01 = A), so
+    // the assertions below still read its real sentence in both languages.
+    t: (key: string) => {
+      if (namespace !== "core-brain") return key;
+      const lng = mockLanguage.current === "ko" ? "ko" : "en";
+      if (key.startsWith("savedResult.")) {
+        const pack = jest.requireActual(`../../../locales/${lng}/core-brain.json`) as {
+          savedResult: Record<string, string>;
+        };
+        return pack.savedResult[key.slice("savedResult.".length)] ?? key;
+      }
+      return lng === "ko" && key === "generationUnavailable"
+        ? (jest.requireActual("../../../locales/ko/core-brain.json") as Record<string, string>)[key]
+        : key;
+    },
     i18n: { language: mockLanguage.current },
   }),
 }));
