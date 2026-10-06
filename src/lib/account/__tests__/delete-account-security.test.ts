@@ -79,6 +79,29 @@ describe("delete-account Edge boundary", () => {
     expect(code).not.toMatch(/p_token_hash: request\.opToken/);
   });
 
+  test("a missing op token secret sends the app to the old flow instead of blocking it (gate DLR-A1-06)", () => {
+    const pepperAt = code.indexOf("safeLog('op_token_pepper_missing');");
+    const beginRpcAt = code.indexOf("'begin_account_deletion_op'");
+    expect(pepperAt).toBeGreaterThan(-1);
+    expect(pepperAt).toBeLessThan(beginRpcAt);
+    // The app falls back to `{}` on a 400 from begin, exactly as for an Edge without 0217.
+    expect(code.slice(pepperAt, beginRpcAt)).toMatch(/return jsonResponse\(req, \{ error: 'op_unsupported' \}, 400\);/);
+  });
+
+  test("a completed replay is answered only to the caller its token was signed for (gate DLR-A1-02)", () => {
+    const completedAt = code.indexOf("case 'completed': {");
+    const receiptAt = code.indexOf("const receipt = publicReceipt({ ...started", completedAt);
+    expect(completedAt).toBeGreaterThan(-1);
+    const branch = code.slice(completedAt, receiptAt);
+    expect(branch).toMatch(/verifyOpToken\(pepper, request\.opToken, request\.opId, authUser\.id, storedMs\)/);
+    expect(branch).toMatch(/return jsonResponse\(req, \{ error: 'op_rejected' \}, 403\);/);
+  });
+
+  test("a sweep record that recorded nothing is logged, not mistaken for success (gate SAFE-06)", () => {
+    expect(code).toMatch(/const \{ data: recorded, error: sweepError \} = await admin\.rpc\('record_account_deletion_op_sweeps'/);
+    expect(code).toMatch(/else if \(recorded !== true\) safeLog\('op_sweeps_not_recorded'\);/);
+  });
+
   test("revalidates the bearer with Auth and binds every verified claim", () => {
     expect(code).toMatch(/auth\.getUser\(token\)/);
     expect(code).toMatch(/claims\.sub !== authUser\.id/);

@@ -156,11 +156,25 @@ SELECT pg_temp.assert_true(
 );
 -- A function's writes are invisible to a subquery of the statement that called it
 -- (one snapshot per statement), so each call lands in a temp table first.
+-- (c) gate SAFE-02 / DLR-A1-01: the attempt that just started may share its op
+-- with another Edge call still in Storage/Auth, so its failure keeps the fence.
 CREATE TEMP TABLE ci_fail_f2 AS
 SELECT public.fail_account_deletion_op('de1e7217-0000-4000-8000-0000000000f2', 'de1e7217-0000-4000-8000-00000000000a',
   'auth_delete_failed') AS r;
 SELECT pg_temp.assert_true(
-  (SELECT r FROM ci_fail_f2) = pg_catalog.jsonb_build_object('status', 'failed', 'fence_released', true)
+  (SELECT r FROM ci_fail_f2) = pg_catalog.jsonb_build_object('status', 'failed', 'fence_released', false)
+  AND EXISTS (SELECT 1 FROM public.account_deletion_tombstones WHERE user_id = 'de1e7217-0000-4000-8000-00000000000a'),
+  'a failure released the fence while another call of the same op could still be running'
+);
+-- Ten minutes after the last attempt started, no call of that op can be alive.
+UPDATE public.account_deletion_ops
+   SET last_attempt_at = last_attempt_at - interval '11 minutes'
+ WHERE id IN ('de1e7217-0000-4000-8000-0000000000f1', 'de1e7217-0000-4000-8000-0000000000f2');
+CREATE TEMP TABLE ci_release_f2 AS
+SELECT public.fail_account_deletion_op('de1e7217-0000-4000-8000-0000000000f2', 'de1e7217-0000-4000-8000-00000000000a',
+  'auth_delete_failed') AS r;
+SELECT pg_temp.assert_true(
+  (SELECT r FROM ci_release_f2) = pg_catalog.jsonb_build_object('status', 'failed', 'fence_released', true)
   AND NOT EXISTS (SELECT 1 FROM public.account_deletion_tombstones WHERE user_id = 'de1e7217-0000-4000-8000-00000000000a'),
   'the last failed op of a live account did not release its fence (Q6)'
 );
@@ -249,6 +263,13 @@ SELECT pg_temp.assert_true(
     pg_catalog.repeat('ff', 32)) ->> 'result' = 'rejected',
   'a finished op did not replay its receipt, or replayed it for a wrong token'
 );
+-- The replay carries the token issue time, so the Edge can bind the CALLER by
+-- recomputing the token HMAC; the row itself has no owner any more (gate DLR-A1-02).
+SELECT pg_temp.assert_true(
+  (public.start_account_deletion_op('de1e7217-0000-4000-8000-0000000000f5', 'de1e7217-0000-4000-8000-00000000000b',
+     pg_catalog.repeat('b5', 32)) ->> 'token_issued_ms')::bigint = (SELECT ms FROM ci_now),
+  'the completed replay did not carry the token issue time for the caller binding'
+);
 SELECT pg_temp.assert_true(
   public.record_account_deletion_op_sweeps('de1e7217-0000-4000-8000-0000000000f5',
     '{"profile_erased": true, "deletion_fenced": true, "raw_clippings_erased": null}'::jsonb)
@@ -335,6 +356,47 @@ SELECT pg_temp.assert_true(
          FROM public.account_deletion_ops WHERE id = 'de1e7217-0000-4000-8000-0000000000f6')
   AND NOT EXISTS (SELECT 1 FROM public.account_deletion_tombstones WHERE user_id = 'de1e7217-0000-4000-8000-00000000000a'),
   'maintenance did not settle a stale execution and release its fence'
+);
+
+-- Gate DLR-A1-10: a month-old failure that is still the release evidence of an
+-- unreleased fence (another op of the account is executing) survives the purge.
+UPDATE public.account_deletion_ops
+   SET finished_at = pg_catalog.now() - interval '31 days',
+       last_attempt_at = pg_catalog.now() - interval '32 days'
+ WHERE id = 'de1e7217-0000-4000-8000-0000000000f6';
+SELECT public.begin_account_deletion(
+  'de1e7217-0000-4000-8000-00000000000a', 'de1e7217-0000-4000-8000-0000000000a1', pg_catalog.now());
+UPDATE public.account_deletion_tombstones SET last_requested_at = pg_catalog.now() - interval '33 days'
+ WHERE user_id = 'de1e7217-0000-4000-8000-00000000000a';
+SELECT public.begin_account_deletion_op('de1e7217-0000-4000-8000-0000000000f7', 'de1e7217-0000-4000-8000-00000000000a',
+  (SELECT ms FROM ci_now), pg_catalog.repeat('a7', 32));
+SELECT public.start_account_deletion_op('de1e7217-0000-4000-8000-0000000000f7', 'de1e7217-0000-4000-8000-00000000000a',
+  pg_catalog.repeat('a7', 32));
+CREATE TEMP TABLE ci_purge_evidence AS SELECT public.purge_account_deletion_ops() AS r;
+SELECT pg_temp.assert_true(
+  ((SELECT r FROM ci_purge_evidence) ->> 'fences_released')::integer = 0
+  AND EXISTS (SELECT 1 FROM public.account_deletion_ops WHERE id = 'de1e7217-0000-4000-8000-0000000000f6')
+  AND EXISTS (SELECT 1 FROM public.account_deletion_tombstones WHERE user_id = 'de1e7217-0000-4000-8000-00000000000a'),
+  'maintenance purged the release evidence of a fence it could not release yet'
+);
+
+-- Gate SAFE-06: the profile trigger swallowed its failure (simulated by
+-- disabling it), so the op is still executing after the profile row went. The
+-- sweep record completes it and records the sweeps, so the receipt exists now.
+ALTER TABLE public.users DISABLE TRIGGER trg_users_complete_account_deletion_ops;
+DELETE FROM public.users WHERE id = 'de1e7217-0000-4000-8000-00000000000a';
+ALTER TABLE public.users ENABLE TRIGGER trg_users_complete_account_deletion_ops;
+CREATE TEMP TABLE ci_record_settle AS
+SELECT public.record_account_deletion_op_sweeps('de1e7217-0000-4000-8000-0000000000f7',
+  '{"profile_erased": true, "deletion_fenced": true}'::jsonb) AS r;
+SELECT pg_temp.assert_true(
+  (SELECT r FROM ci_record_settle)
+  AND (SELECT status = 'completed' AND owner_id IS NULL AND sweeps_reported_at IS NOT NULL
+              AND (sweeps ->> 'profile_erased')::boolean
+         FROM public.account_deletion_ops WHERE id = 'de1e7217-0000-4000-8000-0000000000f7')
+  AND public.get_account_deletion_op('de1e7217-0000-4000-8000-0000000000f7', NULL) ->> 'status' = 'completed'
+  AND NOT EXISTS (SELECT 1 FROM public.account_deletion_ops WHERE owner_id = 'de1e7217-0000-4000-8000-00000000000a'),
+  'the sweep record did not complete an op the trigger left open'
 );
 
 ROLLBACK;

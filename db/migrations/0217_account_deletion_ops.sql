@@ -29,8 +29,15 @@
 -- 업로드 · 동의 변경 · 북극성 생성이 영구히 거절됐다(설계서 1.4 F5). 이제 작업이 failed 로
 -- 확정되면 0192 와 같은 advisory lock(hashtextextended(user_id, 260913), 배타)과 users 행 잠금
 -- 아래에서, (a) 그 계정에 실행 중 작업이 하나도 없고 (b) tombstone 을 마지막으로 건드린 요청 뒤에
--- 끝난 실패 작업이 있을 때만 tombstone 을 지운다. begin_account_deletion 도 같은 잠금을 잡으므로
--- 해제와 새 삭제는 줄을 선다. 0192 의 표 · 함수는 고치지 않는다. 등록부 사유 문장은 0227 이 바꾼다.
+-- 끝난 실패 작업이 있고 (c) 그 작업의 마지막 실행 시도가 10분 넘게 지났을 때만 tombstone 을 지운다.
+-- (c) 는 게이트 SAFE-02 · DLR-A1-01 때문이다: advisory lock 은 RPC 트랜잭션이 끝나면 풀리므로
+-- 같은 작업의 다른 Edge 호출(옛 앱 두 기기의 {} 합류 등)이 Storage · Auth 단계에 있는 동안
+-- 한 호출의 실패가 울타리를 풀 수 있었다. 시도마다 last_attempt_at 이 그 시작 시각이 되고, 실패한
+-- 작업에는 새 시도가 붙지 않으며(start 가 failed 를 돌려준다), Edge 호출 하나는 플랫폼 벽시계
+-- 상한(무료 150초 · 유료 400초) 안에 끝난다 - 그래서 10분 뒤에는 그 작업의 어떤 시도도 살아 있지
+-- 않다. 해제는 그 뒤의 정리 작업(매시) 또는 기기 복구 조회가 한다.
+-- begin_account_deletion 도 같은 잠금을 잡으므로 해제와 새 삭제는 줄을 선다. 0192 의 표 · 함수는
+-- 고치지 않는다. 등록부 사유 문장은 0227 이 바꾼다.
 -- ⚠ 남는 틈(받아들인 것): 0217 적용 뒤 · 새 delete-account 배포 전, 옛 Edge 가 처리하던 요청이
 -- 배포 순간에 걸쳐 진행 중이면 그 요청은 행이 없어 (a) 가 보지 못한다. 같은 계정의 다른 기기
 -- 삭제가 그 몇 초 안에 실패해야 생기는 경우다.
@@ -210,10 +217,12 @@ $$;
 REVOKE ALL ON FUNCTION public.account_deletion_ops_settle_live_owner(uuid)
   FROM PUBLIC, anon, authenticated, service_role;
 
--- Q6: 실패가 확정된 계정의 tombstone 을 푼다. 두 조건이 모두 참일 때만:
+-- Q6: 실패가 확정된 계정의 tombstone 을 푼다. 세 조건이 모두 참일 때만:
 --   (a) 그 계정에 실행 중(executing) 작업이 없다 - 진행 중인 삭제가 그 울타리에 기대고 있지 않다.
 --   (b) tombstone 을 마지막으로 건드린 요청(last_requested_at) 뒤에 끝난 실패 작업이 있다 -
 --       마지막 요청이 실패로 끝났다. 0217 이전의 옛 tombstone 은 실패 작업이 없으니 그대로다.
+--   (c) 그 실패 작업의 마지막 시도(last_attempt_at)가 10분 넘게 지났다 - 같은 작업의 다른 Edge
+--       호출이 아직 Storage · Auth 단계에 있을 수 없다(머리말 Q6, 게이트 SAFE-02 · DLR-A1-01).
 CREATE OR REPLACE FUNCTION public.account_deletion_ops_release_failed_fence(p_user_id uuid)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -237,6 +246,7 @@ BEGIN
         WHERE o.owner_id = p_user_id
           AND o.status = 'failed'
           AND o.finished_at >= t.last_requested_at
+          AND o.last_attempt_at <= pg_catalog.clock_timestamp() - interval '10 minutes'
      );
   RETURN FOUND;
 END;
@@ -362,8 +372,11 @@ BEGIN
     SELECT * INTO v_op FROM public.account_deletion_ops AS o
      WHERE o.id = p_op_id AND o.token_hash = v_hash;
     IF FOUND AND v_op.status = 'completed' AND v_op.receipt_expires_at > pg_catalog.now() THEN
+      -- 완료 행에는 소유자가 없다. Edge 는 이 접수 시각과 호출자 id 로 증표 HMAC 을 다시 계산해
+      -- 맞을 때만 영수증을 돌려준다(게이트 DLR-A1-02 - 해시 일치만으로 호출자 결합을 대신하지 않는다).
       RETURN pg_catalog.jsonb_build_object(
         'result', 'completed',
+        'token_issued_ms', v_op.token_issued_ms,
         'finished_at', v_op.finished_at,
         'receipt_expires_at', v_op.receipt_expires_at,
         'sweeps', v_op.sweeps,
@@ -461,7 +474,8 @@ GRANT EXECUTE ON FUNCTION public.start_legacy_account_deletion_op(uuid)
 ----------------------------------------------------------------------
 -- 7. Auth 삭제 전에 실패한 작업을 failed 로 확정한다 (service_role 전용). 계정 행이 살아 있을
 --    때만 - 행이 없으면 삭제가 이미 커밋됐다는 뜻이고 트리거가 완료로 바꿨다. 확정 뒤 같은 잠금
---    아래에서 Q6 해제를 시도한다.
+--    아래에서 Q6 해제를 시도한다. 방금 시작한 시도의 실패는 (c) 때문에 여기서 풀리지 않고, 10분 뒤
+--    정리 작업이 푼다.
 --    결과: { status, fence_released }
 ----------------------------------------------------------------------
 
@@ -533,7 +547,12 @@ VOLATILE
 SECURITY DEFINER
 SET search_path = ''
 SET row_security = off
+SET lock_timeout = '5s'
 AS $$
+DECLARE
+  v_owner uuid;
+  v_locked uuid;
+  v_now timestamptz;
 BEGIN
   IF public.billing_request_role() IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'service_role only' USING ERRCODE = '42501';
@@ -556,6 +575,27 @@ BEGIN
         OR pg_catalog.jsonb_typeof(entry.value) NOT IN ('boolean', 'null')
   ) THEN
     RETURN false;
+  END IF;
+
+  -- 트리거가 실패를 삼켰으면 Auth 삭제 뒤에도 작업이 진행 중으로 남는다(게이트 SAFE-06). Edge 는
+  -- 자기 Auth 삭제가 성공한 뒤에만 이 함수를 부르므로, 그 계정의 프로필 행이 없으면 여기서
+  -- 트리거와 같은 확정을 하고 정리 결과를 적는다. 다음 정리 작업까지 영수증이 비지 않게 한다.
+  SELECT o.owner_id INTO v_owner
+    FROM public.account_deletion_ops AS o
+   WHERE o.id = p_op_id AND o.status IN ('accepted', 'executing');
+  IF v_owner IS NOT NULL THEN
+    PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_owner::text, 260913));
+    SELECT u.id INTO v_locked FROM public.users AS u WHERE u.id = v_owner FOR UPDATE;
+    IF v_locked IS NULL THEN
+      v_now := pg_catalog.date_trunc('second', pg_catalog.clock_timestamp());
+      UPDATE public.account_deletion_ops AS o
+         SET status = 'completed',
+             owner_id = NULL,
+             finished_at = v_now,
+             receipt_expires_at = v_now + interval '365 days'
+       WHERE o.owner_id = v_owner AND o.status IN ('accepted', 'executing');
+      UPDATE public.account_deletion_ops AS o SET owner_id = NULL WHERE o.owner_id = v_owner;
+    END IF;
   END IF;
 
   UPDATE public.account_deletion_ops AS o
@@ -817,7 +857,8 @@ CREATE TRIGGER trg_users_complete_account_deletion_ops
 ----------------------------------------------------------------------
 -- 12. 정리 (pg_cron 과 service_role 만). 매시 17분.
 --     ① 오래된 진행 중 행 확정 + Q6 해제 (계정마다 그 계정의 잠금 아래에서)
---     ② 만료 영수증 · 30일 지난 실패/포기 행 · 2시간 지난 조회 한도 창 삭제
+--     ② 만료 영수증 · 30일 지난 실패/포기 행(풀리지 않은 울타리의 해제 근거는 제외) · 2시간 지난
+--        조회 한도 창 삭제
 ----------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.purge_account_deletion_ops()
@@ -854,7 +895,8 @@ BEGIN
          (o.status = 'accepted' AND o.created_at <= pg_catalog.now() - interval '10 minutes')
          OR (o.status = 'executing' AND o.last_attempt_at <= pg_catalog.now() - interval '15 minutes')
          OR (o.status = 'failed' AND EXISTS (
-               SELECT 1 FROM public.account_deletion_tombstones AS t WHERE t.user_id = o.owner_id))
+               SELECT 1 FROM public.account_deletion_tombstones AS t
+                WHERE t.user_id = o.owner_id AND o.finished_at >= t.last_requested_at))
        )
      -- 저장소 업로드 트리거(0192)가 여러 소유자를 정렬된 순서로 잠그므로 같은 순서로 돈다.
      ORDER BY o.owner_id
@@ -887,8 +929,14 @@ BEGIN
    WHERE o.status = 'completed' AND o.receipt_expires_at <= pg_catalog.now();
   GET DIAGNOSTICS v_receipts = ROW_COUNT;
 
+  -- 아직 풀리지 않은 울타리의 해제 근거(그 계정 tombstone 의 마지막 요청 뒤에 끝난 실패)는 30일이
+  -- 지나도 남긴다. 위 반복은 한 번에 500계정까지라, 근거를 먼저 지우면 그 계정의 울타리는 영영 풀릴
+  -- 수 없다(게이트 DLR-A1-10). 해제되면 다음 실행에서 지워진다.
   DELETE FROM public.account_deletion_ops AS o
-   WHERE o.status IN ('failed', 'abandoned') AND o.finished_at <= pg_catalog.now() - interval '30 days';
+   WHERE o.status IN ('failed', 'abandoned') AND o.finished_at <= pg_catalog.now() - interval '30 days'
+     AND NOT (o.status = 'failed' AND o.owner_id IS NOT NULL AND EXISTS (
+           SELECT 1 FROM public.account_deletion_tombstones AS t
+            WHERE t.user_id = o.owner_id AND o.finished_at >= t.last_requested_at));
   GET DIAGNOSTICS v_closed = ROW_COUNT;
 
   DELETE FROM public.account_deletion_receipt_lookup_limits AS l

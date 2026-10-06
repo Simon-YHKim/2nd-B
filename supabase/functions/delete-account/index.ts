@@ -21,6 +21,7 @@ import {
   parseDeleteAccountBody,
   publicReceipt,
   sweepsForRecord,
+  verifyOpToken,
   type DeleteAccountRequest,
 } from '../_shared/account-deletion-op.ts';
 import { deleteAuthUserWithReconciliation } from './delete-auth-user.ts';
@@ -235,8 +236,11 @@ Deno.serve(async (req: Request) => {
     if (request.kind === 'begin') {
       const pepper = Deno.env.get(OP_TOKEN_PEPPER_ENV) ?? '';
       if (pepper.length < MIN_PEPPER_LENGTH) {
+        // No token can be signed here, so this Edge cannot offer the receipt
+        // flow: answer exactly like an Edge without 0217, and the app uses the
+        // old `{}` flow, which needs no token (gate DLR-A1-06). Nothing was written.
         safeLog('op_token_pepper_missing');
-        return jsonResponse(req, { error: 'server_unavailable' }, 503);
+        return jsonResponse(req, { error: 'op_unsupported' }, 400);
       }
       const issuedMs = Date.now();
       const opToken = await issueOpToken(pepper, request.opId, authUser.id, issuedMs);
@@ -302,6 +306,22 @@ Deno.serve(async (req: Request) => {
           break;
         case 'completed': {
           // The account is already gone and this op is its receipt: nothing to destroy.
+          // The row no longer holds an owner, so a matching token hash alone does
+          // not prove this op was the caller's: recompute the token HMAC for THIS
+          // caller with the stored issue time (gate DLR-A1-02, 설계서 I4).
+          const pepper = Deno.env.get(OP_TOKEN_PEPPER_ENV) ?? '';
+          if (pepper.length < MIN_PEPPER_LENGTH) {
+            safeLog('op_token_pepper_missing');
+            return jsonResponse(req, { error: 'server_unavailable' }, 503);
+          }
+          const storedMs = started.token_issued_ms;
+          if (
+            typeof storedMs !== 'number'
+            || !Number.isSafeInteger(storedMs)
+            || !(await verifyOpToken(pepper, request.opToken, request.opId, authUser.id, storedMs))
+          ) {
+            return jsonResponse(req, { error: 'op_rejected' }, 403);
+          }
           const receipt = publicReceipt({ ...started, op_id: request.opId, status: 'completed' }, request.opId);
           return jsonResponse(req, {
             deleted: true,
@@ -383,7 +403,8 @@ Deno.serve(async (req: Request) => {
     if (!preDeletionStorage.ok) {
       safeLog(preDeletionStorage.code);
       // Progress (409) keeps the op executing for the retry; a precondition
-      // failure ends it, and Q6 may then release its fence.
+      // failure ends it, and Q6 may release its fence once no attempt of this
+      // op can still be running (0217, ten minutes after its last attempt).
       const opStatus = preDeletionStorage.code === 'storage_cleanup_in_progress'
         ? null
         : await failOp('storage_precondition');
@@ -483,13 +504,16 @@ Deno.serve(async (req: Request) => {
     // The receipt already exists (the profile row's trigger completed the op).
     // Its sweep flags are a separate, best-effort write: losing it never turns
     // a finished erasure into a failure, and the receipt then says "not reported".
+    // The RPC also completes an op the profile trigger left open (gate SAFE-06);
+    // false means nothing was recorded, which the receipt then shows as not reported.
     if (opId !== null) {
       try {
-        const { error: sweepError } = await admin.rpc('record_account_deletion_op_sweeps', {
+        const { data: recorded, error: sweepError } = await admin.rpc('record_account_deletion_op_sweeps', {
           p_op_id: opId,
           p_sweeps: sweepsForRecord(observed),
         });
         if (sweepError) safeLog('op_sweeps_record_failed');
+        else if (recorded !== true) safeLog('op_sweeps_not_recorded');
       } catch {
         safeLog('op_sweeps_record_failed');
       }
