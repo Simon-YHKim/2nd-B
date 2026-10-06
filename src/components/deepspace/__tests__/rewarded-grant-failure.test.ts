@@ -189,8 +189,8 @@ describe("보상형 광고 적립이 실패하면 시트가 성공처럼 닫히�
 describe("대화 화면이 적립 실패를 분류해서 시트에 돌려준다", () => {
   const handlers = () => findRewardedSheetHandlers("onEarned");
 
-  async function earn(options: { throws?: unknown; index: number; ssv?: boolean }): Promise<{ outcome: unknown; refreshes: number; warnings: string[]; grants: number }> {
-    const state = { refreshes: 0, warnings: [] as string[], grants: 0 };
+  async function earn(options: { throws?: unknown; index: number; ssv?: boolean }): Promise<{ outcome: unknown; refreshes: number; warnings: string[]; grants: number; cues: string[] }> {
+    const state = { refreshes: 0, warnings: [] as string[], grants: 0, cues: [] as string[] };
     class ChatRewardCapReachedError extends Error {
       readonly code = "chat_reward_cap_reached";
       constructor() { super("chat_reward_cap_reached"); this.name = "ChatRewardCapReachedError"; }
@@ -208,6 +208,8 @@ describe("대화 화면이 적립 실패를 분류해서 시트에 돌려준다"
       setChatRewardVisible: () => { throw new Error("시트를 닫는 일은 이제 시트가 한다"); },
       console: { warn: (...args: unknown[]) => state.warnings.push(args.join(" ")) },
       process: { env: { EXPO_PUBLIC_REWARD_SSV: options.ssv ? "true" : undefined } },
+      // 보상 소리(Q-261006-13): 어느 소리를 요청했는지만 센다.
+      requestGlobalCue: (id: string) => { state.cues.push(id); },
     };
     const handler = run<(credits: number) => Promise<unknown>>(
       `const onEarned = ${handlers()[options.index]};\nreturn onEarned;`,
@@ -228,11 +230,15 @@ describe("대화 화면이 적립 실패를 분류해서 시트에 돌려준다"
       expect(state.grants).toBe(1);
       expect(state.refreshes).toBe(1);
       expect(state.outcome === undefined || state.outcome === "granted").toBe(true);
+      // 앱이 직접 적립에 성공했으니 동전 소리를 한 번 낸다.
+      expect(state.cues).toEqual(["rewardCredited"]);
     });
 
     test(`핸들러 ${index}: SSV 정상 경로는 실패가 아니라 processing 으로 돌려준다`, async () => {
       const state = await earn({ index, ssv: true });
       expect(state.outcome).toBe("processing");
+      // 서버가 나중에 적립하는 SSV 경로는 앱이 적립을 확인할 수 없어 무음이다.
+      expect(state.cues).toEqual([]);
       expect(state.grants).toBe(1);
       expect(state.refreshes).toBe(1);
     });

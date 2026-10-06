@@ -38,6 +38,12 @@ export function pocketPhoneCueAllowed(input: {
   return input.byUser && input.wasRaised !== input.raised && !input.reducedMotion;
 }
 
+/** 마일스톤 칩이 '완료'로 바뀌는 탭에서만(Q-261006-15). 칩은 할 일 → 진행 → 완료 → 할 일을 돌아서,
+ * 완료에서 다시 누르는 것(되돌리기)과 진행으로 가는 것은 무음이다. */
+export function milestoneDoneCueAllowed(input: { from: string; to: string }): boolean {
+  return input.to === "done" && input.from !== "done";
+}
+
 /** 온보딩을 끝까지 넘겨 앱으로 들어갈 때만(Q-261006-06). 건너뛰기를 눌렀거나 로그인 · 가입
  * 화면으로 넘어가는 출구는 무음이다(아직 아무것도 시작하지 않았다). */
 export function welcomeCueAllowed(input: { destination: string; skipped: boolean }): boolean {

@@ -26,6 +26,7 @@ import {
 } from "expo-audio";
 import { beginRecordingAudioMode, endRecordingAudioMode, isRecordingAudioMode, restoreEffectsAfterRecording } from "@/lib/audio/audio-session";
 import { RECORD_SAVE_CUE, SECONDB_REPLY_CUE, replyCueAllowed, saveCueAllowed } from "@/lib/audio/app-cues";
+import { requestGlobalCue } from "@/lib/audio/global-cues";
 import { useUiSound } from "@/lib/audio/use-ui-sound";
 
 import { Text } from "@/components/ui/Text";
@@ -1549,6 +1550,9 @@ function SecondBChatBody() {
           if (userId) {
             try {
               await grantChatAdBonus(userId);
+              // 보상 소리(Q-261006-13)는 앱이 직접 적립에 성공했을 때만. SSV 모드면 서버가 나중에
+              // 적립하므로("processing") 무음이다.
+              if (outcome === "granted") requestGlobalCue("rewardCredited");
             } catch (e) {
               outcome = e instanceof ChatRewardCapReachedError ? "capped" : "unconfirmed";
               if (typeof console !== "undefined") {

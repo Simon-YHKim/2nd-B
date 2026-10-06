@@ -208,6 +208,66 @@
         "capMs": 2200,
         "fadeOutMs": 400
       }
+    },
+    {
+      "file": "assets/audio/plan-purchase.wav",
+      "bytes": 64604,
+      "sha256": "0c421a8991417ff6b1d5879d57062514f7343051b0bb50ddff5fec8354053c04",
+      "format": {
+        "container": "wav",
+        "codec": "pcm_s16le",
+        "channels": 1,
+        "sampleRate": 22050,
+        "durationMs": 1464
+      },
+      "use": "A paid plan the store confirmed",
+      "decision": "Q-261006-12",
+      "candidate": "buy-a",
+      "generation": {
+        "prompt": "A bright warm celebratory sparkle chime, gentle and short, premium unlock sound, isolated user interface sound effect, no voice, no music",
+        "seconds": 2,
+        "seed": 20261006
+      },
+      "rawOutput": {
+        "sha256": "1404d68114414e96a621b1b6bc82a7584640ba90f6f2d8f77e8ac4d0b6a94d0e",
+        "sampleRate": 44100,
+        "durationMs": 2000
+      },
+      "edit": {
+        "trimStartMs": 22,
+        "capMs": 1500,
+        "fadeOutMs": 300
+      }
+    },
+    {
+      "file": "assets/audio/reward-credit.wav",
+      "bytes": 8866,
+      "sha256": "948c2b1852df263c8700c4ebc0633bf3f4a6b2d2335cdee4f3851ee80017fad2",
+      "format": {
+        "container": "wav",
+        "codec": "pcm_s16le",
+        "channels": 1,
+        "sampleRate": 22050,
+        "durationMs": 200
+      },
+      "use": "A rewarded-ad credit the client actually granted",
+      "decision": "Q-261006-13",
+      "candidate": "coin-a",
+      "generation": {
+        "prompt": "A soft retro game coin pickup sound, gentle and quiet, short bright blip, isolated sound effect, no voice, no music",
+        "seconds": 1,
+        "seed": 20261006
+      },
+      "rawOutput": {
+        "sha256": "f4b4eeeebb6c8f20c3f21da42dfb2fe11ba98b4ebaaf0177642a617025a5fd28",
+        "sampleRate": 44100,
+        "durationMs": 1000
+      },
+      "edit": {
+        "trimStartMs": 0,
+        "capMs": 600,
+        "fadeOutMs": 100
+      }
     }
   ]
 }

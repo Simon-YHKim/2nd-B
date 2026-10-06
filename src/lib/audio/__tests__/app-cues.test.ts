@@ -2,9 +2,10 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { createHash } from 'crypto';
 import {
-  brightenCue, pocketPhoneCueAllowed, ratifyL5CueAllowed, replyCueAllowed, saveCueAllowed, welcomeCueAllowed,
+  brightenCue, milestoneDoneCueAllowed, pocketPhoneCueAllowed, ratifyL5CueAllowed, replyCueAllowed, saveCueAllowed,
+  welcomeCueAllowed,
 } from '../app-cue-gates';
-import { onGlobalCue, requestGlobalCue } from '../global-cues';
+import { GLOBAL_CUE_IDS, onGlobalCue, requestGlobalCue } from '../global-cues';
 
 // 효과음 3차 (Simon Q-261006-01~06). 소리마다 '울리면 안 되는 순간'을 순수 함수로 고정하고,
 // 화면이 그 함수를 실제로 거쳐 소리를 내는지를 소스로 확인한다(렌더 테스트는 RN 0.85 에서 막혀 있다).
@@ -69,6 +70,7 @@ test('generated cues match their provenance record byte for byte', () => {
   expect(manifest.generator.settings.dit).toBe('sm-sfx');
   expect(manifest.assets.map((a: { decision: string }) => a.decision)).toEqual([
     'Q-261006-01', 'Q-261006-02', 'Q-261006-03', 'Q-261006-04', 'Q-261006-05', 'Q-261006-06',
+    'Q-261006-12', 'Q-261006-13',
   ]);
   for (const asset of manifest.assets) {
     const wav = readFileSync(resolve(root, asset.file));
@@ -170,4 +172,49 @@ test('brighten and welcome reach their sounds through the gate', () => {
     expect(read(host)).toContain('onGlobalCue((id) => {');
   }
   expect(read('src/lib/account/local-purge.ts')).toContain('observe(() => purgeStarLastSeenForDeletedAccount(owner)),');
+});
+
+describe('milestone done cue', () => {
+  test('only the tap that lands on done plays', () => {
+    expect(milestoneDoneCueAllowed({ from: 'doing', to: 'done' })).toBe(true);
+    expect(milestoneDoneCueAllowed({ from: 'todo', to: 'doing' })).toBe(false);
+    expect(milestoneDoneCueAllowed({ from: 'done', to: 'todo' })).toBe(false);
+    // A write that leaves it done (no change) is not a new completion.
+    expect(milestoneDoneCueAllowed({ from: 'done', to: 'done' })).toBe(false);
+  });
+});
+
+test('every global cue id has a sound file, and each request site is gated by success', () => {
+  const cues = read('src/lib/audio/app-cues.ts');
+  for (const id of GLOBAL_CUE_IDS) expect(cues).toMatch(new RegExp(`\\n  ${id}: [A-Z_0-9]+_CUE,`));
+  const native = read('src/lib/audio/use-global-cue-host.ts');
+  for (const id of GLOBAL_CUE_IDS) expect(native).toContain(`${id}: useCuePlayer(GLOBAL_CUE_SOUNDS.${id}),`);
+  // North Star sentence: after the crisis branch returned, right before leaving.
+  const northstar = read('src/app/northstar.tsx');
+  const nsCue = northstar.indexOf('requestGlobalCue("polarisRatified");');
+  expect(nsCue).toBeGreaterThan(northstar.indexOf('if (res.followup?.zone === "red") {'));
+  expect(nsCue).toBeLessThan(northstar.indexOf('router.back();\n    } catch {'));
+  // Role card: only after the ratify write resolved for the same owner.
+  const core = read('src/app/core-brain.tsx');
+  expect(core.indexOf('requestGlobalCue("polarisRatified");')).toBeGreaterThan(core.indexOf('const next = await ratifyRoleCard(userId, card);'));
+  expect(read('src/components/quant/QuantSaveCelebration.tsx')).toContain('requestGlobalCue("quantSaved");');
+  // Purchase: the store-confirmed branch only.
+  const plans = read('src/screens/deepspace/dds-plans-screen.tsx');
+  const purchased = plans.indexOf('if (outcome.status === "purchased") {');
+  const cancelled = plans.indexOf('} else if (outcome.status === "cancelled") {');
+  const buyCue = plans.indexOf('requestGlobalCue("planPurchased");');
+  expect(buyCue).toBeGreaterThan(purchased);
+  expect(buyCue).toBeLessThan(cancelled);
+  // Reward: only when the grant itself said granted (an unattributable watch returns before the grant).
+  expect(plans).toContain('if (grant === "granted") requestGlobalCue("rewardCredited");');
+  expect(read('src/app/secondb.tsx')).toContain('await grantChatAdBonus(userId);\n              // 보상 소리');
+  // Import: only when something new landed.
+  expect(read('src/screens/deepspace/import/ImportHubScreen.tsx')).toContain('if (landedNew) playImportCue();');
+  expect(read('src/screens/deepspace/dds-import-inbox-screens.tsx')).toContain('if (tally.imported > 0) playImportCue();');
+  // Wiki link: confirm only, throttled.
+  expect(read('src/app/digest.tsx')).toContain('playLinkCue(); // 위키 연결 확인 소리(Q-261006-14). 거절은 무음.');
+  expect(read('src/screens/deepspace/DeepSpaceDesignScreens.tsx')).toContain('playLinkCue(); // 위키 연결 확인 소리(Q-261006-14)');
+  expect(cues).toContain('export const WIKI_LINK_CUE: AppCue = {\n  source: SECONDB_REPLY_CUE.source,\n  volume: 0.08,\n  minIntervalMs: 1500,');
+  // Milestone: after the write, gated on landing on done.
+  expect(read('src/screens/deepspace/ops/screens.tsx')).toContain('if (milestoneDoneCueAllowed({ from: m.status, to: NEXT_STATUS[m.status] })) playDoneCue();');
 });

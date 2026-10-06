@@ -61,7 +61,7 @@ import { applyRatify, type RatifyDecision, type SelfModelProposal } from "@/lib/
 import type { LadderLevel } from "@/lib/persona/brightness";
 import { recordStarTiers } from "@/lib/persona/record-star-tiers";
 import { loadSevenRatified, recordSevenTiers } from "@/lib/persona/seven-tier-history";
-import { RATIFY_L5_CUE, ratifyL5CueAllowed } from "@/lib/audio/app-cues";
+import { RATIFY_L5_CUE, WIKI_LINK_CUE, ratifyL5CueAllowed } from "@/lib/audio/app-cues";
 import { useUiSound } from "@/lib/audio/use-ui-sound";
 import {
   buildSevenProposalContext,
@@ -2192,6 +2192,7 @@ const RESEARCH_SAT = [
 export function DeepSpaceResearchScreen() {
   const router = useAppRouter(); // Phone-aware: inside the dashboard phone, links and proposals open in the phone.
   const { t, i18n } = useTranslation("deepspace");
+  const playLinkCue = useUiSound(WIKI_LINK_CUE.source, WIKI_LINK_CUE);
   // D-27 Phase 1c: the research view runs on RECORDS, the ratified node-set.
   // It used to read useWikiGraphData(), and wiki_pages has never held a single
   // row in production — so this screen told users with hundreds of records
@@ -2306,6 +2307,7 @@ export function DeepSpaceResearchScreen() {
       await ratifyLink(userId, p.from_page, p.to_page);
       // 승인 = the app-wide ratify wink.
       reactExpression("wink");
+      playLinkCue(); // 위키 연결 확인 소리(Q-261006-14)
       setAnnounce(t("connectionConfirmed"));
       await loadProposals(userId);
     } catch {
