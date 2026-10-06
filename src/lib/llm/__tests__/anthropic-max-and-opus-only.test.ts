@@ -18,7 +18,7 @@ import { join } from "node:path";
 
 import * as ts from "typescript";
 
-import { phase2EffortFor, PHASE2_VENDOR } from "../routing";
+import { phase2EffortFor, PHASE2_EFFORT, PHASE2_VENDOR } from "../routing";
 import type { PromptPurpose, ReasoningEffort } from "../types";
 
 const CR = String.fromCharCode(13);
@@ -94,23 +94,17 @@ function loadOpenAiModelTierGuards(): {
   };
 }
 
+// 19 = the 16 PromptPurpose members plus the three proxy-only audit labels
+// (embed_index, safety_classify, voice_transcribe). It was 29 until S0.5
+// (2026-10-07) removed the ten seats in REMOVED_SEATS below.
 const KNOWN_PURPOSES = [
   "advisor",
   "audit_qa",
-  "axis_estimate",
-  "capture_classify",
   "capture_ocr",
-  "capture_voice",
   "clipper_classify",
   "clipper_template_propose",
-  "cluster_infer",
-  "crosscheck_challenge",
-  "crosscheck_defend",
-  "digest_weekly",
   "embed_index",
   "gap_synthesize",
-  "imagine",
-  "import_ingest",
   "interview_probe",
   "northstar_propose",
   "ops_daily_brief",
@@ -122,8 +116,22 @@ const KNOWN_PURPOSES = [
   "secondb_chat",
   "self_model_propose",
   "source_ingest",
-  "ttfv_first_insight",
   "voice_transcribe",
+] as const;
+
+// The ten seats S0.5 (2026-10-07) removed from the policy and every proxy.
+// Pinned so one coming back has to delete it from this list on purpose.
+const REMOVED_SEATS = [
+  "imagine",
+  "import_ingest",
+  "capture_classify",
+  "capture_voice",
+  "axis_estimate",
+  "cluster_infer",
+  "ttfv_first_insight",
+  "digest_weekly",
+  "crosscheck_challenge",
+  "crosscheck_defend",
 ] as const;
 
 function proxyMap(src: string, name: string): Record<string, string> {
@@ -134,6 +142,9 @@ function proxyMap(src: string, name: string): Record<string, string> {
   return out;
 }
 
+// Eight sonnet seats left on 2026-08-23. The eighth, ttfv_first_insight, then
+// left the purpose union altogether in S0.5 (2026-10-07), so only these seven
+// still have somewhere to route; REMOVED_SEATS covers the eighth.
 const SONNET_SEATS_REMOVED = [
   "advisor",
   "secondb_chat",
@@ -142,22 +153,18 @@ const SONNET_SEATS_REMOVED = [
   "northstar_propose",
   "ops_recommend",
   "ops_daily_brief",
-  "ttfv_first_insight",
 ] as const;
 
+// axis_estimate, digest_weekly and crosscheck_defend were opus seats until S0.5.
 const OPUS_SEATS = [
   "persona_narrative",
-  "axis_estimate",
   "persona_synthesis",
-  "digest_weekly",
-  "crosscheck_defend",
 ] as const;
 
+// axis_estimate, cluster_infer, digest_weekly and ttfv_first_insight were xAI
+// seats until S0.5: the eight live reasoning seats plus chat remain.
 const XAI_SEATS = [
   "advisor",
-  "axis_estimate",
-  "cluster_infer",
-  "digest_weekly",
   "gap_synthesize",
   "northstar_propose",
   "ops_daily_brief",
@@ -166,7 +173,6 @@ const XAI_SEATS = [
   "persona_synthesis",
   "secondb_chat",
   "self_model_propose",
-  "ttfv_first_insight",
 ] as const;
 
 describe("the seat map is opus only", () => {
@@ -176,9 +182,17 @@ describe("the seat map is opus only", () => {
     for (const model of Object.values(seats)) expect(model).toMatch(/opus/);
   });
 
-  test("the eight sonnet purposes are gone from the map", () => {
+  test("the sonnet purposes are gone from the map", () => {
     const seats = proxyMap(CLAUDE, "PURPOSE_MODEL");
     for (const p of SONNET_SEATS_REMOVED) expect(seats[p]).toBeUndefined();
+  });
+
+  test("none of the S0.5 seats is left in either claude-proxy table", () => {
+    const seats = proxyMap(CLAUDE, "PURPOSE_MODEL");
+    const ceilings = proxyMap(CLAUDE, "PURPOSE_EFFORT_MAX");
+    for (const p of REMOVED_SEATS) {
+      expect({ p, seat: seats[p], ceiling: ceilings[p] }).toEqual({ p, seat: undefined, ceiling: undefined });
+    }
   });
 
   test("refresh cannot write a sonnet model into any purpose", () => {
@@ -196,7 +210,7 @@ describe("the seat map is opus only", () => {
   });
 
   test("the removed purposes still route somewhere - to OpenAI", () => {
-    // Removing a seat must not strand a purpose. These eight are client-routed
+    // Removing a seat must not strand a purpose. These seven are client-routed
     // to OpenAI, which is the actual destination the order asked for.
     for (const p of SONNET_SEATS_REMOVED) {
       if (p === "secondb_chat") continue; // routed by EXPO_PUBLIC_CHAT_VENDOR, not the seat map
@@ -208,24 +222,37 @@ describe("the seat map is opus only", () => {
 describe("server-owned LLM purpose policy", () => {
   const policy = loadPurposePolicy();
 
-  test("covers the complete 29-label audit vocabulary and no dead planner label", () => {
+  test("covers the complete 19-label audit vocabulary and no dead planner label", () => {
     expect(Object.keys(policy.LLM_PURPOSE_POLICY).sort()).toEqual([...KNOWN_PURPOSES].sort());
+    expect(KNOWN_PURPOSES).toHaveLength(19);
     expect(policy.LLM_PURPOSE_POLICY).not.toHaveProperty("planner");
+  });
+
+  test("the ten S0.5 seats are unknown labels now, on every vendor", () => {
+    for (const p of REMOVED_SEATS) {
+      expect(policy.LLM_PURPOSE_POLICY).not.toHaveProperty(p);
+      for (const vendor of ["gemini", "openai", "claude", "xai"] as const) {
+        expect(policy.resolveLlmPurposePolicy(p, vendor)).toBeNull();
+      }
+    }
   });
 
   test("unknown, prototype, and known-but-unseated labels all fail closed", () => {
     for (const bad of [null, "", "planner", "toString", "constructor", "__proto__", "totally_new"]) {
       expect(policy.resolveLlmPurposePolicy(bad, "claude")).toBeNull();
     }
+    // Known-but-unseated. crosscheck_challenge/gemini and capture_voice/openai
+    // used to be the examples here; both labels left the table in S0.5, so they
+    // are covered as unknown labels above, and live rows stand in for them.
     expect(policy.resolveLlmPurposePolicy("gap_synthesize", "claude")).toBeNull();
-    expect(policy.resolveLlmPurposePolicy("crosscheck_challenge", "gemini")).toBeNull();
-    expect(policy.resolveLlmPurposePolicy("capture_voice", "openai")).toBeNull();
-    for (const bad of ["capture_classify", "capture_ocr", "crosscheck_challenge", "reasoning_connect"]) {
+    expect(policy.resolveLlmPurposePolicy("reasoning_connect", "claude")).toBeNull();
+    expect(policy.resolveLlmPurposePolicy("secondb_chat", "claude")).toBeNull();
+    for (const bad of ["clipper_classify", "capture_ocr", "audit_qa", "reasoning_connect"]) {
       expect(policy.resolveLlmPurposePolicy(bad, "xai")).toBeNull();
     }
   });
 
-  test("xAI exposes exactly its thirteen intentional seats", () => {
+  test("xAI exposes exactly its nine intentional seats", () => {
     const seated = KNOWN_PURPOSES.filter((purpose) =>
       policy.resolveLlmPurposePolicy(purpose, "xai") !== null
     );
@@ -244,7 +271,9 @@ describe("server-owned LLM purpose policy", () => {
   });
 
   test("high-volume and media labels have hard zero-thinking/modal contracts", () => {
-    const classify = policy.resolveLlmPurposePolicy("capture_classify", "gemini");
+    // clipper_classify stands in for capture_classify (removed in S0.5): the
+    // same lite / none / text row.
+    const classify = policy.resolveLlmPurposePolicy("clipper_classify", "gemini");
     const ocr = policy.resolveLlmPurposePolicy("capture_ocr", "openai");
     const voice = policy.resolveLlmPurposePolicy("voice_transcribe", "openai");
     expect(classify?.modelTier).toBe("lite");
@@ -339,13 +368,12 @@ describe("max is a real rung now", () => {
   test("only whole-corpus reads are approved for it", () => {
     const ceilings = proxyMap(CLAUDE, "PURPOSE_EFFORT_MAX");
     const atMax = Object.keys(ceilings).filter((p) => ceilings[p] === "max").sort();
-    // crosscheck_defend joined on the same rule: it rewrites a whole-corpus
-    // draft under criticism, and its rewrite is what the user reads.
-    expect(atMax).toEqual(["crosscheck_defend", "digest_weekly", "persona_synthesis"]);
-    // The short-prose opus seats stay at high: frequency x unit cost is the
-    // rule, and neither reads the corpus.
+    // digest_weekly and crosscheck_defend sat here too until S0.5 removed them
+    // (no reachable caller). persona_synthesis is the one whole-corpus read left.
+    expect(atMax).toEqual(["persona_synthesis"]);
+    // The short-prose opus seat stays at high: frequency x unit cost is the
+    // rule, and it does not read the corpus.
     expect(ceilings.persona_narrative).toBe("high");
-    expect(ceilings.axis_estimate).toBe("high");
   });
 
   test("the stale 'no seat is approved for max' comment is gone", () => {
@@ -361,18 +389,25 @@ describe("max is a real rung now", () => {
     expect(CLAUDE).toMatch(/case 'max':\s*\n\s*return 32000;/);
   });
 
-  test("the client asks for it on those two seats", () => {
+  test("the client asks for it on that seat, and on no other", () => {
     expect(phase2EffortFor("persona_synthesis" as PromptPurpose)).toBe("max" as ReasoningEffort);
-    expect(phase2EffortFor("digest_weekly" as PromptPurpose)).toBe("max" as ReasoningEffort);
+    // digest_weekly was the second max seat until S0.5.
+    const askingMax = Object.entries(PHASE2_EFFORT).filter(([, e]) => e === "max").map(([p]) => p);
+    expect(askingMax).toEqual(["persona_synthesis"]);
   });
 });
 
 describe("the other two vendors' axes are unchanged", () => {
   test("openai hard-caps max at its provisioned high rung", () => {
+    // persona_synthesis replaces digest_weekly (removed in S0.5) as the max
+    // row an operator can point at openai: the policy itself allows max, so a
+    // "high" result can only come from the vendor cap.
     const policy = loadPurposePolicy();
-    const digest = policy.resolveLlmPurposePolicy("digest_weekly", "openai");
-    expect(policy.clampLlmPurposeEffort(digest!, "max", "openai", "high")).toBe("high");
-    expect(PHASE2_VENDOR.digest_weekly).toBe("openai");
+    const synthesis = policy.resolveLlmPurposePolicy("persona_synthesis", "openai");
+    expect(synthesis).not.toBeNull();
+    expect(synthesis!.maxEffort).toBe("max");
+    expect(policy.clampLlmPurposeEffort(synthesis!, "max", "openai", "high")).toBe("high");
+    expect(policy.clampLlmPurposeEffort(synthesis!, "max", "openai")).toBe("high");
   });
 
   test("openai's ceilings did not gain a max", () => {

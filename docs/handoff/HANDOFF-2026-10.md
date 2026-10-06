@@ -7,6 +7,140 @@
 
 ---
 
+## 2026-10-03 21:18 / 재동의 확정(Q-261002-02~05) · 게이트 판정 규칙 코드화 · #2011 머지와 8081 복구
+
+- **결정(Simon, 재동의 보고서 결정 탭)**: Q-261002-02 = **A**(바뀐 점 확인 + 필수 항목 재체크, 캘린더는 켤 때 따로), 03 = **A**(막되 출구는 열어 둔다, AI 처리는 멈추지 않는다), 04 = **C**(머지하는 날 바로 시행), 05 = **A**(안내만, 잠금 그대로). DECISIONS 26.10.03 21:18 줄.
+- **상충과 해석**:
+  - 04 = C 의 시행일은 개정 PR **머지일**이다. 머지는 게시가 아니므로 같은 날 웹 게시까지 한다. 사전 공지 기간은 법령에도 우리 §11 에도 없다.
+  - 05 는 03(막기)의 예외다.
+  - AI 처리 동의를 철회한 사람에게는 llmProcessing 을 다시 묻지 않는다(재체크가 철회를 되돌리는 강요가 되므로).
+  - 질문 번호 Q-261002-01 은 말투 보고서와 겹친다.
+- **이 PR([#2012](https://github.com/Simon-YHKim/2nd-B/pull/2012))**:
+  - `docs/legal/calendar-read-disclosure-draft-261002.md` §7-2 를 확정안으로 고쳤다. 처리방침 §12 개정 이력 문장(한·영)도 넣었다.
+  - `src/lib/legal/reconsent-gate.ts` 에 게이트 판정을 넣었다(`RECONSENT_GATE_ENABLED = false`, 처리방침에 캘린더가 들어가기 전에는 켤 수 없다는 테스트 포함). 판정: 막기·안내·없음, 재체크 목록, 출구 5개.
+  - HANDOFF 의 09-30 블록 6개를 `handoff/HANDOFF-2026-09-p4.md` 맨 위로 원문 그대로 옮겼다(100KB 상한).
+- **#2011**: 21:09 머지(`796226d8`). 8081 감독자가 메모리 부족 정리 때 함께 죽어 있어 `npm run localhost` 로 다시 띄웠다. `npm run app:parity` = 같음(21:16), APK 는 CI 빌드 중이었다.
+- **다음 1개**: #1902 머지(10-05 예정, 아직 Draft) 뒤 처리방침 개정 PR. 내용은 email-v8 · service-v3(재동의 신호, 옛 리비전 grant 닫기, 철회자 행 모양 T1) · ReconsentGate 화면과 저장이고, 머지 당일 웹 게시까지 한다.
+
+---
+
+## 2026-10-03 21:06 / 재동의 결정(Q-261002-01 = B) 기록 · 건강 연동 끄기와 기록 삭제 · "보관 90일" 정정
+
+- **결정(Simon)**: Q-261002-01 = **B** "모든 이용자에게 새 처리방침 동의를 다시 받는다".
+  - 법령·지침 원문과 대조하니 세 군데에서 부딪힌다. 처리방침은 동의 대상이 아니고(작성지침 p.13, 질의응답 Q56), 선택 항목을 거부했다고 서비스를 막으면 안 되며(§16③·§22⑤), 09-29판 §12 와도 어긋난다.
+  - 그래서 "바뀐 점 확인 + 필수 항목 재체크, 캘린더는 켤 때 따로"를 제안했고 Simon 답(S1~S4 = 보고서 Q-261002-02~05)을 기다린다.
+  - 근거는 DECISIONS 26.10.02 03:28 과 `docs/legal/calendar-read-disclosure-draft-261002.md` §7([#2008](https://github.com/Simon-YHKim/2nd-B/pull/2008))에 있다.
+- **이 PR([#2011](https://github.com/Simon-YHKim/2nd-B/pull/2011))**: 결정 B 와 상관없이 법적 의무인 결함 둘(§38④ · §37③)을 고쳤다.
+  - 개인정보 화면 **건강 데이터 연동 카드**(`dds-health-withdraw-card.tsx`)
+    - 한 번 누르면 연동이 꺼지고 `health_samples` 가 지워진다. 켜기는 가져오기 화면에서만 한다. 지우기에 나이 조건은 없다.
+    - 순서는 `lib/health/withdraw.ts`: 엄격 읽기 → 끔 저장(엄격 읽기를 before 로 넘겨 원장에 철회 1행만 남김) → 이 폰 자동 읽기 표식 삭제 → 항목별 삭제(실패하면 1주 구간 삭제) → 남은 수 세기.
+    - 저장 응답이 끊기면 다시 읽어 판정하고, 판정이 안 되면 "확인하지 못했습니다"라고 쓴다.
+  - 카드가 읽거나 저장한 prefs 는 화면이 저장에 쓰는 사본으로 들어간다. 화면의 늦은 첫 읽기는 그 사본을 덮지 않는다.
+    - 이렇게 하지 않으면 통계 토글이 health_import 를 다시 true 로 쓰고, 하지 않은 별도 동의 기록까지 남긴다.
+  - 가져오기 동의 칩 "보관 90일" → "계정 삭제 시 함께 삭제"(5개 언어). 90일째 지워지는 것은 없었다.
+- **실측**:
+  - 운영 PostgREST 는 DELETE 의 limit 을 무시한다(QA 계정으로 5건 중 limit 2 → 5건 삭제, 계정 원상 복구). 그래서 큰 계정은 시간 구간으로 나눠 지운다.
+  - 8082 세션 서버에서 QA 계정으로 켜짐 2건 → 한 번 탭 → 0건 · 철회 원장 1행 · 다른 동의 그대로 · 페이지 오류 0(10-02 04:33, 1차 코드).
+- **넣지 않은 것**:
+  - 가져오기 철회 시 원문 파일 삭제는 Draft #1839 몫이다.
+  - 0128 잠금 없는 읽기는 마이그레이션이 필요하다.
+  - 가져오기 화면 건강 카드의 끄기 버튼은 #2005 뒤에 넣는다.
+  - 건강으로 자동 체크된 루틴 기록은 남긴다.
+- **주의**: `.worktrees/data-conn-260930` 에 다른 세션(HustleK 오프닝, 10-02 22시)의 미커밋 파일이 있다. `.gitattributes` · `locales/ko/common.json` · `check-constraints.ts` · 오프닝 테스트 1개가 main 과 다르다. 손대지 않았다.
+- **검증**: `npm run verify` 종료코드 0(883 묶음 · 11,451건). 변이 15곳 15/15 잡힘(도달 불가 코드 변이는 단언 실패 3/19로 재확인). 8082 세션 서버 실측은 1차 코드(10-02 04:33)만이고, 2차 수정 뒤에는 서버가 메모리 부족으로 정지돼 다시 돌리지 않았다. 실기기·에뮬레이터 확인 없음.
+- **보고서**: <https://claude.ai/artifact/FeDn6iae66jyhcGGFcGr9L> (결정 탭 Q-261002-02~05)
+- **다음 1개**: Simon 답(Q-261002-02 재동의 모양부터). 그다음 #1902 머지 뒤 처리방침 개정 PR.
+
+---
+
+## 2026-10-02 22:00 / 승인 HustleK 전체 오프닝 앱 통합
+
+- **사용자 요청**: 승인한 전체화면 오프닝을 앱 및 localhost 8081·8082·8083에 적용. 정식 변경은 최신 `origin/main` 기반 `codex/hustlek-app-opening-261002`에서 준비한다. 기존 아바타 실험 워크트리 전체를 합치지 않는다.
+- **승인 소스**: `hustlek-total-opening-261002/opening.html`의 asset set `a6c0043ad6c06cad85e0a17a`; 원본 사용자 JSON SHA-256 `9d66ce82c7e2e2842592ccabd6a9f07171d9763fed1294acd8a37d98bf968ced`. 이미지·음원 바이트와 10,119.52 ms 타임라인을 보존한다.
+- **앱 구현**: `LoadingScreen`에서 승인 PNG 22개를 `expo-image`로 재생. 로컬 WAV 4개는 grass A/B, 라쳇3개 겹침 풀, 고음 ping으로 구성한다. 웹은 사용자의 소리 켜기 터치 후 재생한다. foreground 시계, 준비 게이트, 재시도, 별 반짝임과 안전 영역 버튼을 포함한다. `IntroGate`의 인증·프로필·복구 계약은 유지한다.
+- **보존/범위**: v2 atlas 계보 파일과 검사는 남기되 런타임에서는 쓰지 않는다. 5언어 `loadingGate`에 소리·건너뛰기·재시도 키만 추가한다. 설치된 native APK의 실기기 재생은 별도 검증이 필요하다.
+- **포트**: 8082(`data-conn-260930`)·8083(`2ndB/TTL-Work_rev2`)의 기존 변경은 보존하면서 오프닝만 적용한다. 8081은 clean `origin/main` 전용이므로 PR/main 반영 전 새 오프닝을 넣지 않는다. 정상 parity 감독자로만 재시작한다.
+- **인수 안내**: [HUSTLEK-OPENING.md](HUSTLEK-OPENING.md), [에셋·라이선스](ASSETS.md). 에셋 검사: `node scripts/build-hustlek-approved-opening.cjs --verify-only`. 전체 게이트: `npm run verify`. 이번 실행 결과는 로컬 `Output/hustlek-app-integration-261002/`에 기록한다.
+
+## 2026-10-02 02:40 / 폰 캘린더 읽기(결정 B) 1단계: 읽기 모듈은 꺼진 채로 · 일정 시각 보존 · 고지 초안
+
+- **결정(Simon, 데이터 연동 보고서 결정 탭)**: Q-261001-01 = **B**(폰 캘린더에서 읽은 일정을 기록·위키에 저장), Q-261001-02 = **A**(카카오톡·SMS 카드는 '가져오기가 필요한 자료'에 그대로). DECISIONS 26.10.02 02:32 에 실행 순서와 함께 적었다.
+- **이 PR([#2007](https://github.com/Simon-YHKim/2nd-B/pull/2007))**:
+  - `src/lib/import/phone-calendar.ts`: 폰 캘린더 읽기 모듈. 권한 확인은 창 없이, 요청은 명시적 탭에서만 하고, 제목·시작·종료·종일만 남긴다. 메모·참석자·주최자·장소·알림은 버린다. 고른 캘린더만 읽고, 숨긴 캘린더와 취소된 일정은 건너뛰고, 500개에서 자른다.
+  - 모듈은 **`PHONE_CALENDAR_READ_ENABLED = false`**(`phone-calendar-gate.ts`)로 꺼져 있다. 호출하는 화면도, 동의 키도, 서버 변경도 없어서 앱과 localhost 에 보이는 변화가 없다.
+  - `phone-calendar-gate.test.ts`: 처리방침(한·영) · iOS 권한 문구 · `calendar_import` 동의 키 가운데 하나라도 없이 켜면 실패한다.
+  - 캘린더 가져오기(.ics · Google) 메모에 일정마다 날짜·시각을 붙인다(`src/lib/import/event-when.ts`). 예전에는 제목만 남겨 Google 타일의 "제목·시간" 약속과 어긋났다. 종일 일정은 UTC 로 읽고 뉴욕 시간대 자식 프로세스로 검사한다(`event-when-zone.test.ts`).
+  - 고지 초안: `docs/legal/calendar-read-disclosure-draft-261002.md`(처리방침 §1·§2·§3·§5·§12 한·영, 동의 화면, iOS 문구, Play 데이터 보안, 켜는 순서).
+- **상충과 우선순위**(자세한 것은 초안 §5·§6):
+  1. 처리방침 개정은 #1902(10-05) 머지 **뒤** 별도 판본으로 한다. #1902 가 `consent.ts` 판본 상수와 email-v7 묶음(처리방침 2026-09-29 고정)을 건드린다.
+  2. **기존 결함 먼저**: 배포 화면에 건강 동의를 끄는 스위치가 없고, 꺼도 `health_samples` 가 남는데 화면은 "언제든 지울 수 있어요"라고 한다. 가져오기 철회는 원문 파일(`raw-clippings`)과 `ingest_log` 를 남긴다. 보관 안내는 90일인데 실제는 365일이다. 가져오기 동의는 `llmProcessingAck: false` 인데 자동 추론이 LLM 에 보낸다.
+  3. Simon 이 할 일: 고지일과 재동의 여부(법률 판단), Play 데이터 보안 "캘린더 일정" 제출, iOS 새 빌드 시점.
+- **검증**: `npm run verify` 876 묶음 · 11,367건(종료코드 0). 일부러 망가뜨린 7곳(스위치 강제 켜기 · 요청이 스위치 무시 · 권한 없이 읽기 · 메모·장소 보관 · 숨긴 캘린더 읽기 · 종일을 현지 시각으로 · 시각 없는 제목) 모두 테스트가 잡았다. 실기기와 에뮬레이터 검증은 없다. 스위치가 꺼져 있어 확인할 동작도 없다.
+- **다음 1개**: 건강 동의 끄기 스위치 + 철회하면 지우기 + 보관 기간·AI 처리 문구 정정(기존 결함, 캘린더도 같은 틀을 쓴다). 그다음 10-05 이후 처리방침 개정 PR.
+
+---
+
+## 2026-10-02 01:59 / 폰 안 전체 화면 호스팅: 55개 경로와 커뮤니티·인터뷰, 네이티브 빌드는 메모리 부족으로 중단
+
+### 확인된 완료 상태
+
+- Simon 지시(10-01 저녁): **"남은작업 모두 진행해."** 통합 브랜치 `fix/gui-phone-integrate-261001` 을 push 하고 [Draft PR #2005](https://github.com/Simon-YHKim/2nd-B/pull/2005)를 열었다. HEAD `e65f989c`. **병합하지 않았다** — #2000 게이트의 Android Back 실기 확인이 남았다.
+- 근거가 된 Simon 의도: TTL-Work_rev2 의 `docs/qa/ui-audit-260930/phone-only-report.html` — "핸드폰에서 연 모든 기능은 프레임 안에서 진행", "기존 기능 전체를 단순 축소해 끼우지 않고 화면별로 조정", "연결 설정은 기존 설정 화면을 정본으로".
+- 구조(화면마다 어댑터를 따로 만들지 않는다):
+  - `src/lib/nav/phone-embed.tsx` — `PhoneEmbedProvider`, `useAppRouter()`(expo-router `router` 의 대체. 폰 밖에서는 그 자체), `useScreenParams()`, `useHardwareBack()`(폰의 Back claim 스택. 자식 effect 가 부모보다 먼저 돌아 화면 자체 BackHandler 가 폰 리스너에 지는 문제를 막는다), `displayWidth`.
+  - `DeepSpaceScreen` 이 폰 안에서는 하늘·창·safe area·앱 독 없이 뒤로 줄 하나만 그린다(`ownBack` 이면 안 그림).
+  - `DashboardPhone` 이 `phone-screens.tsx` 레지스트리의 화면을 목록 밖 bounded View 로 route key 를 달아 띄운다. push 는 폰 안에 머문다(못 그리는 경로는 "아직 연결되지 않았어요"), push/replace("/") 는 폰을 닫고, 인증 경로만 폰을 떠난다. `/persona`·`/mbti` → `/core-brain`, `/wiki?focusPageId=` → 폰 위키 페이지, `/records?tags=` → 폰 노트 필터, `/capture?text=`·`?tag=` → 폰 메모 채움.
+- 호스팅: 등록 55개 + 커뮤니티 목록·방·초대 참여 + `/me/<star>`. 설정과 그 하위 18곳, 프로필 허브 7곳, 북극성과 그 링크, 측정 도구(Big Five·IPIP-NEO·애착·RLSS·ESM·seen·audit·values·strengths·motivation), 확인 이력·검토, 약관·동의·처리 기록, 계정 하위(비밀번호·IDEN·앱 밖에서), discover·research·imagine·digest·peer-invites·northstar·share-card, 인터뷰(`/me/<star>`·`/interview`), 세컨비 대화, 아바타 팔레트·스튜디오, 위키 그래프·태그(`/wiki/graph`, 폰 자체 위키 검색 옆).
+- 커뮤니티 분리 작업(`community-phone-261001`, 미커밋이던 것)은 `npm run verify` 874묶음/11,339건 통과 후 `eac08696` 으로 커밋해 통합 브랜치에 병합했다. 인터뷰 진입은 `/me/now` 를 `/capture` 로 바꿔 보내던 것을 되돌렸다.
+- 좁은 화면 수정: 뮤지엄 타임라인 칸 49→97px(320), 독 '프로필' 잘림(main 에도 있던 것), 지출 금액 칸, 개인정보 Toggle 글 칸, 망원경 조작 224px 하한, 위키 88px 띠, 세컨비 머리말 compact, 가져오기 제목 줄.
+- 검증: 로컬 `npm run verify` 종료코드 0, **882묶음/11,391건**(마지막 README 커밋 전). 웹 GUI(세션 전용 8772, `--allow-diff`): 21개 진입점 + 설정 하위 18곳 × 320·375 = **78/78**, 프로필 허브 7/7 · 북극성 링크 7/7(375). 페이지 오류 0 · 쓰기 요청 0. 소스 핀·DPIA 줄 인용은 변환이 옮긴 곳만 다시 고정했다(다이제스트는 해당 편집만 되돌려 옛 값이 재현되는지 확인).
+
+### 막힌 것
+
+- **네이티브 미확인.** CI `android-release.yml` 은 `refs/heads/main` 전용이라 브랜치 APK 를 만들지 못한다(디스패치 `36879063165` 는 skipped). 로컬 `E:/Coding Infra/tools/qa_apk_build.py`(워크트리 `qa-apk-260920`, `e65f989c` 로 detached, prebuild 완료)가 gradle 단계에서, 세션 전용 8772 서버와 함께 **01:56 KST 호스트 메모리 부족으로 중단**됐다(남은 메모리 약 7.6 GB / 32 GB). 지시에 따라 다시 띄우지 않았다.
+- 미실행 웹 QA: 깊은 체인 15개(375) 와 320 깊은 체인 전부.
+
+### 남은 것
+
+- 폰 안 차이: RN `Modal`(프리미엄·한도 시트·설문 안내·저장 축하·채팅 첫 안내·위기 안내)은 창 전체를 덮는다. `usePathname()` 이 `/dashboard` 라 보상형 광고 제안은 폰 안에서 숨는다(닫힌 쪽으로 실패). `useNavigation()` 가드(개인정보 삭제 펜스·audit·팔레트 미저장)는 대시보드 경로에 붙는다.
+- 호스팅 안 함: 위키 내보내기(앱 안 진입 없음), `/integrations`, `/capture-full`, 전체 `/capture`·`/records`(폰 자체 페이지 유지), `/dev-screens`.
+- 213px 에서 좁음: strengths 결과 카드, beyond 180px 카드, share-card 칩 줄, brightness 히트맵, 세컨비 대화(저장 안내가 떠 있으면 목록이 거의 없다).
+
+### 재개할 때
+
+1. 다음 1개(Simon 지시가 있을 때): 메모리를 확인하고 `python "E:/Coding Infra/tools/qa_apk_build.py" --wt E:/2ndB/.worktrees/qa-apk-260920 --abi x86_64 --tag gui-phone --skip-prebuild` → 에뮬레이터에서 Android Back 확인(설정 하위 → 설정 → 앱 → 대시보드 → 종료 확인, 팔레트 미저장 확인, 설문 중 Back, 뮤지엄 시트). 빌드 중에는 에뮬레이터를 끈다.
+2. 남은 웹 QA 는 통합 워크트리에서 `node scripts/app-parity.cjs localhost --port=8772 --allow-diff` 로 띄워 진행한다(8081 은 쓰지 않는다).
+3. 작업 기록: `E:\2ndB\.git\2ndb-session-state\GUI-PHONE-PARITY-261001.json` · `QA-APK-WORKTREE-261002.json`(둘 다 blocked). 아래 블록의 #1902/#1917(10월 5일), #1814/#1839 게이트는 그대로다.
+
+---
+
+## 2026-10-01 19:11 / GUI 통합 후보 재개: 결함 3개 수정, 웹 GUI QA 42/42, 브랜치는 로컬 유지
+
+### 확인된 완료 상태
+
+- Simon이 새 세션 질문에서 **"통합 브랜치 재개"**를 골랐다(병합·push는 #2000 게이트 확인 뒤 별도 판단). 통합 브랜치 `fix/gui-phone-integrate-261001`(작업 트리 `E:\2ndB\.worktrees\gui-phone-integrate-261001`)는 **여전히 로컬 전용이다. push·PR·병합 없음.**
+- 커밋: `b15932e7` 직전 세션의 미커밋 3개(뮤지엄 런처 연결)를 내용 그대로 커밋 → `6dc1178d` main `91075889` 병합(충돌 0) → `69d3944e` fix(museum) → `5cffa5da` fix(dashboard). HEAD `5cffa5da`에서 전체 `npm run verify` 종료코드 0, **880묶음/11,379건**. 미커밋 3개 커밋 직후에도 879묶음/11,371건 통과.
+- 찾아서 고친 결함 3개(세션 전용 8772 서버 `node scripts/app-parity.cjs localhost --port=8772 --allow-diff`, 헤드리스 Chromium, 저장소 QA 계정):
+  1. 폰 안 뮤지엄 **사건 상세 본문 0px**. `[sheetScroll { flexGrow: 0 }, phoneSheetScroll { flex: 1 }]`는 Yoga·react-native-web 모두 명시 flexGrow가 이겨 grow 0·basis 0이 된다. 네이티브에서도 났을 가능성이 크다(앱으로는 미확인). 고친 뒤 320에서 221px·375에서 296px, 스크롤 동작.
+  2. 폰 안 **타임라인 캔버스 0px**. RN-web 0.21이 `flex: 0`을 CSS `0 1 0%`로 넘겨 `height: 400`을 덮었다. Yoga는 basis auto로 읽으니 네이티브는 안 났을 수 있다(미확인). 고친 뒤 400px, 2022 위치, AI 레인·가로 연도 이동 확인.
+  3. Ops 7개 화면(개인 비서·리마인더·지출·목표·식사·독서·사이드 프로젝트)에 **Back이 두 개**(핸드폰 Back 줄 + 화면 머리 화살표, 둘 다 `backInside`). `contentOwnsBack`일 때 핸드폰 줄을 숨긴다. 7개 화면 모두 최상위가 `OpsFrame`이고 앞선 return이 없음을 확인했다.
+- 옛 테스트 두 줄이 소스 문자열로 **고장 난 값 자체를 고정**하고 있어 초록이었다. 새 `src/screens/deepspace/museum/__tests__/museum-phone-flex.test.ts`는 실제 스타일 객체를 엔진별(Yoga·웹)로 해석해 높이를 본다. 각 수정을 옛 값으로 되돌리면 빨강을 확인했다. Back 소유 규칙은 `phone-internal-navigation-contract.test.ts`에 추가.
+- 웹 GUI: 진입점 21개(앱 11·더보기 6·아래 독 4) × 320×568·375×667 = **42/42 통과**(주소 `/dashboard` 유지, 핸드폰 이동·닫힘 없음, 가로 넘침 없음, 보이는 Back 정확히 1개, Back으로 복귀, 페이지 오류 0, 서버 쓰기 요청 0). 뮤지엄 흐름: Back 1회 시트 닫힘·2회 앱 복귀, 끌기에 핸드폰 안 닫힘.
+- 보고서: [Artifact](https://claude.ai/artifact/2bKWS5zHyo6TYxz9EA7J67) · 저장소 사본 [qa/gui-phone-integrate-qa-261001.html](qa/gui-phone-integrate-qa-261001.html)(전후 화면 포함). 8772 서버는 종료했다. `npm run app:parity`는 **같음**(8081 = main `91075889`, QA APK `qa-261001-6d648431-r36838147144` 앱 경로 차이 0). 작업 기록 `E:\2ndB\.git\2ndb-session-state\GUI-PHONE-INTEGRATE-QA-261001.json` = done.
+
+### 남은 것
+
+- **미확인**: 안드로이드 하드웨어 Back, 에뮬레이터·실기기 APK. 이번 확인은 웹 마우스·휠이며 터치 스와이프는 아니다.
+- 320×568에서 타임라인 세로 칸이 49px(닿지만 좁다, 디자인 판단 필요), 지출 입력 '분류' 칸 오른쪽 잘림, Ops 제목 말줄임. 아래 독 '프로필' 320 잘림은 main과 같은 스타일이라 기존 문제다.
+- 설정은 범위 안내만, 커뮤니티·아바타 팔레트·인터뷰는 "아직 연결되지 않았어요" 안내만. 폰 위키는 읽기 중심(태그·그래프·내보내기·삭제 없음). 커뮤니티 분리 작업 `E:\2ndB\.worktrees\community-phone-261001` 미커밋 4건은 **손대지 않았다**. 원본 TTL-Work_rev2 미커밋도 그대로다.
+
+### 재개할 때
+
+1. 다음 1개: Simon 확인 뒤 통합 브랜치를 Draft PR로 push → CI와 x86_64 진단 APK → 에뮬레이터에서 안드로이드 Back·뮤지엄 스와이프 확인. #2000 게이트를 닫기 전 병합하지 않는다.
+2. 아래 18:09 블록의 #1902/#1917(10월 5일 법률 판본·서버 선행), #1814/#1839(S3 삭제 fence·Storage 리허설) 게이트는 그대로다.
+
+---
+
 ## 2026-10-01 18:09 / Simon 중단 요청: QA APK 동등성 완료, GUI 후보 로컬 보존
 
 ### 확인된 완료 상태

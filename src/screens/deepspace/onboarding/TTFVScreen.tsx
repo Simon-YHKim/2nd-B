@@ -17,6 +17,7 @@ import {
   type SystemLocale,
 } from "@/lib/i18n/locales";
 import { createRecord, listRecentRecords } from "@/lib/records/create";
+import { FIRST_LIGHT_TAG, firstLightSystemTags, hasSystemTag } from "@/lib/records/system-tags";
 import { m3 } from "@/lib/theme/m3";
 import { deepSpace } from "@/lib/theme/tokens";
 
@@ -50,6 +51,8 @@ interface TTFVRecordRow {
   body?: unknown;
   created_at?: unknown;
   tags?: unknown;
+  // 0218: TTFV's own note carries its marker here, not in `tags`.
+  system_tags?: unknown;
 }
 
 export type TTFVRecordReader = (
@@ -295,8 +298,17 @@ function normalizedExcerpt(body: unknown): { excerpt: string; truncated: boolean
   };
 }
 
+// TTFV's own first-record-review note is not a record to review. The marker is the
+// app's (records.system_tags, 0218), so a user tag that also says `first_light`
+// no longer hides the user's own record from this screen.
 function isFirstLight(row: TTFVRecordRow): boolean {
-  return Array.isArray(row.tags) && row.tags.some((tag) => tag === "first_light");
+  return hasSystemTag(
+    {
+      tags: Array.isArray(row.tags) ? (row.tags as readonly string[]) : null,
+      system_tags: Array.isArray(row.system_tags) ? (row.system_tags as readonly string[]) : undefined,
+    },
+    FIRST_LIGHT_TAG,
+  );
 }
 
 export async function loadTTFVReview(
@@ -388,7 +400,7 @@ export function buildFirstLightRecordInput(args: {
     kind: "note" as const,
     body: `${copy.recordPrefix}: ${args.choice === "soft" ? copy.recordSoft : copy.recordAffirm}`,
     withFollowup: false,
-    tags: ["first_light", `first_light:${args.choice}`],
+    systemTags: firstLightSystemTags(args.choice),
   };
 }
 

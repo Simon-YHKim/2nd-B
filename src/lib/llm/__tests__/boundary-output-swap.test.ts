@@ -11,9 +11,11 @@
 // The generation here runs on the direct @google/genai branch (mocked
 // generateContent). Since T1 stage A (2026-08-31) an unset vendor switch
 // resolves "openai", which would send these purposes to openai-proxy instead,
-// so the suite pins EXPO_PUBLIC_BACKBONE_VENDOR=gemini — import_ingest is a
+// so the suite pins EXPO_PUBLIC_BACKBONE_VENDOR=gemini — source_ingest is a
 // backbone purpose (not a Phase-2 seat, not multimodal, and flash tier so the
-// pro-tier REASONING_PROVIDER seam is never consulted). interview_probe used to
+// pro-tier REASONING_PROVIDER seam is never consulted). It replaced import_ingest,
+// which had exactly those properties until S0.5 (2026-10-07) removed it with
+// its unreachable caller. interview_probe used to
 // be the first case here; since F2049-04 a live interview_probe never takes the
 // direct branch (boundary.ts mustReachServerCap), so its swap on the proxy path
 // is covered in interview/__tests__/server-cap-egress.test.ts.
@@ -118,7 +120,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     const r = await callLlm({
       userId: "u1",
       locale: "en",
-      purpose: "import_ingest",
+      purpose: "source_ingest",
       user: "Today I planned my week and it felt productive.",
     });
 
@@ -141,7 +143,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     const r = await callLlm({
       userId: "u1",
       locale: "en",
-      purpose: "import_ingest",
+      purpose: "source_ingest",
       user: "Today I planned my week and it felt productive.",
     });
 
@@ -155,7 +157,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     const r = await callLlm({
       userId: "u1",
       locale: "en",
-      purpose: "import_ingest",
+      purpose: "source_ingest",
       user: "I want to end my life tonight",
     });
 

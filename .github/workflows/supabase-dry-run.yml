@@ -6,6 +6,7 @@ on:
       - "db/migrations/**"
       - "db/migration-drafts/**"
       - "db/tests/**"
+      - "db/ops/**"
       - "scripts/check-reward-ssv-db.sh"
       - "scripts/test-polaris-sql.mjs"
       - "scripts/test-signup-consent-sql.mjs"
@@ -1601,6 +1602,24 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/peer_response_rate_limit_regression.sql
+      - name: Exercise records.system_tags, its hand move and its rollback (0218)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/records_system_tags_regression.sql
+          # The read-only survey the hand move starts from (operations step 2 and 6).
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 --single-transaction -f db/ops/0218_system_tags_survey.sql
+          # The rollback runs standalone only. Its first statement is a table lock,
+          # so outside one transaction it stops before it changes anything.
+          set +e
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/migrations/rollback/0218_down.sql > "$RUNNER_TEMP/0218-down-autocommit.log" 2>&1
+          down_rc=$?
+          set -e
+          cat "$RUNNER_TEMP/0218-down-autocommit.log"
+          if [ "$down_rc" -eq 0 ]; then echo "0218 rollback ran outside a transaction"; exit 1; fi
+          grep -q "LOCK TABLE can only be used in transaction blocks" "$RUNNER_TEMP/0218-down-autocommit.log"
+          column_count="$(psql -X -h localhost -U postgres -Atc "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'records' AND column_name = 'system_tags'")"
+          if [ "$column_count" != "1" ]; then echo "0218 rollback outside a transaction changed the schema"; exit 1; fi
       - name: Dry-run Paddle refund consequence draft
         env:
           PGPASSWORD: postgres

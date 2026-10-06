@@ -9,7 +9,9 @@
 // read failure never blocks the screen. Mirrors load-tier-observations.ts discipline.
 
 import { getSupabaseClient } from "../supabase/client";
+import { withSystemTagsColumn } from "../records/system-tags";
 import {
+  rawRecordColumns,
   recordIdsFromCitations,
   toEvidenceShard,
   type EvidenceShard,
@@ -23,11 +25,14 @@ export async function loadEvidenceShards(
   const ids = recordIdsFromCitations(citations);
   if (ids.length === 0) return [];
   try {
-    const { data } = await getSupabaseClient()
-      .from("records")
-      .select("id, kind, topic, created_at, tags")
-      .in("id", ids);
-    const rows = (data ?? []) as RawRecordRow[];
+    // system_tags (0218) tells an interview receipt from a life-audit one.
+    const { data } = await withSystemTagsColumn((columnPresent) =>
+      getSupabaseClient()
+        .from("records")
+        .select(rawRecordColumns(columnPresent))
+        .in("id", ids),
+    );
+    const rows = (data ?? []) as unknown as RawRecordRow[];
     // Preserve citation order (most-relevant first), not DB order; drop any id
     // that didn't resolve to a row (deleted record → no dangling receipt).
     const byId = new Map(rows.map((r) => [r.id, r]));

@@ -80,7 +80,7 @@ import { callLlm } from "@/lib/llm/boundary";
 import { IMAGINE_SEEDS, imagineSeedCopy, type ImagineSeedIcon } from "./imagine-seeds";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import { FirstRecordCoachmark } from "./FirstRecordCoachmark";
-import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
+import { KeyboardAvoidingArea, useKeyboardReveal } from "@/lib/ui/keyboard";
 import { markCoachmarksSeen } from "@/lib/onboarding/coachmarks-gate";
 import { RECORD_SAVE_CUE, saveCueAllowed } from "@/lib/audio/app-cues";
 import { isRecordingAudioMode } from "@/lib/audio/audio-session";
@@ -405,6 +405,16 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
   const memoCoachTargetRef = useRef<View>(null);
   const inputCoachTargetRef = useRef<View>(null);
   const saveCoachTargetRef = useRef<View>(null);
+  // Memo keyboard (device QA 2026-10-07, R2A-02 follow-up): when the keyboard first
+  // opened on the memo field, only the top 15px (about 4dp) of the save tile showed
+  // above it and it took one push to see the rest. Focusing the memo field now
+  // scrolls the save tile above the keyboard (Android; the memo field's top never
+  // goes off screen).
+  // Paused while the first-record guide is up (it measured the field where it was)
+  // and outside memo mode (the memo form it keeps on screen is not mounted there).
+  const saveReveal = useKeyboardReveal(scrollRef, {
+    active: coachStep == null && mode === "text" && !fourwOn,
+  });
   // Crisis safety net (parity with the journal path): createRecord runs the
   // local crisis lexicon on every note save; a red zone must surface the same
   // locale/minor-aware hotline here as everywhere else, not a silent "saved".
@@ -823,6 +833,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
         contentContainerStyle={styles.capBody}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
+        {...saveReveal.scrollProps}
       >
       {/* Fixed square tiles, not a scrolling chip row (three since 2026-09-30). */}
       <View style={styles.capModeRow} accessibilityRole="tablist">
@@ -888,7 +899,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
             </PixelSurface>
           </Pressable>
           {!fourwOn ? (
-            <View style={styles.capForm}>
+            <View style={styles.capForm} {...saveReveal.keepTopProps}>
               <View ref={inputCoachTargetRef} collapsable={false}>
                 <TextInput
                   value={text}
@@ -902,6 +913,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
                   textAlignVertical="top"
                   style={[styles.capFieldInput, styles.capFreeInput]}
                   accessibilityLabel={t("capture:modes.memo.label")}
+                  {...saveReveal.inputProps}
                 />
               </View>
               {attachStrip}
@@ -1009,7 +1021,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
         </View>
       )}
 
-      <View ref={saveCoachTargetRef} collapsable={false} style={styles.capSubmit}>
+      <View ref={saveCoachTargetRef} collapsable={false} style={styles.capSubmit} {...saveReveal.targetProps}>
         <CaptureTile
           role="button"
           selected={canSave || saving || saved}

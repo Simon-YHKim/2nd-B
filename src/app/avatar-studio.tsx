@@ -399,12 +399,11 @@ export default function AvatarStudioScreen() {
         </ScrollView>
       ) : null}
 
-      {/* 선택지 수 · 예시 안내 줄은 Simon 이 걷었다(2026-10-07). 칸에 따라 꼭 필요한 안내만 남긴다. */}
-      {activeCategory === "job" || spec.type === "animal" || activeCategory === "garment" ? (
+      {/* 선택지 수 · 예시 안내 · 동물 안내 줄은 Simon 이 걷었다(2026-10-07). 사람 아바타의 직업 · 옷 칸에서만
+          꼭 필요한 안내를 남긴다(동물은 직업 의상이 없어 옷 안내도 맞지 않는다). */}
+      {activeCategory === "job" || (spec.type === "human" && activeCategory === "garment") ? (
         <Text style={styles.categoryHint}>
-          {activeCategory === "job" ? t("avatar:jobHint") :
-            spec.type === "animal" ? t("avatar:animalHint") :
-              t("avatar:garmentHint")}
+          {activeCategory === "job" ? t("avatar:jobHint") : t("avatar:garmentHint")}
         </Text>
       ) : null}
       {isAvatarAccessoryOccluded(spec) ? (
@@ -475,7 +474,9 @@ const styles = StyleSheet.create({
   tabStrip: { flexGrow: 0, flexShrink: 0 },
   categoryRow: { flexDirection: "row", gap: m3.spacing.s2, paddingVertical: m3.spacing.s2 },
   colorFieldRow: { flexDirection: "row", gap: m3.spacing.s2, paddingVertical: m3.spacing.s1 },
-  tabContent: { minHeight: m3.minTouch, alignItems: "center", paddingHorizontal: m3.spacing.s3 },
+  // 분류 탭은 글자 길이대로 폭이 정해져 '색' 같은 한 글자 탭이 높이(44)보다 좁았다(세로로 긴 탭).
+  // 최소 폭 64 · 좌우 16 으로 모든 탭을 가로로 넉넉한 모양(폭 >= 높이 x 1.45)으로 맞춘다(Simon 2026-10-07).
+  tabContent: { minHeight: m3.minTouch, minWidth: 64, alignItems: "center", justifyContent: "center", paddingHorizontal: m3.spacing.s4 },
   tabText: { color: m3.color.onSurface, fontSize: m3.type.labelLarge.size, lineHeight: m3.type.labelLarge.line, paddingBottom: m3.spacing.s1 },
   selectedText: { color: m3.color.primary },
   categoryHint: { color: m3.color.onSurfaceVariant, fontSize: m3.type.bodySmall.size, lineHeight: m3.type.bodySmall.line, paddingBottom: m3.spacing.s1 },
