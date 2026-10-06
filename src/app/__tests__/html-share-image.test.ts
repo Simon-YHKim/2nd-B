@@ -41,16 +41,15 @@ describe("웹 셸의 공유 카드", () => {
     expect(web.expo.web.shortName).toBe(SITE_NAME);
   });
 
-  it("PWA와 공개 랜딩도 같은 이름을 표시한다", () => {
+  it("PWA도 같은 이름을 표시한다", () => {
+    // 공개 랜딩 습작(public/landing/)의 제목 · og:site_name 핀은 2026-10-06 에 그 페이지와
+    // 함께 빠졌다(Simon 결정 Q-261005-06 A, batch qa261006-landing, E:/Legacy/2ndB).
     const manifest = JSON.parse(
       readFileSync(path.join(root, "public/manifest.webmanifest"), "utf8"),
     ) as { name: string; short_name: string };
-    const landing = readFileSync(path.join(root, "public/landing/index.html"), "utf8");
 
     expect(manifest.name).toBe(SITE_NAME);
     expect(manifest.short_name).toBe(SITE_NAME);
-    expect(landing).toContain(`<title>${SITE_NAME} · landing structure study</title>`);
-    expect(landing).toContain(`<meta property="og:site_name" content="${SITE_NAME}" />`);
   });
 
   it("자산이 실재하고 선언한 크기와 같다", () => {

@@ -227,7 +227,8 @@ export const semantic = semanticDeepSpace;
 
 // O-23 (D-22/D-23): deep-space character UI track tokens. Eye-cyan monotone so the
 // whole UI reads as the character's body/screen — kept to <=3 core colors per D-22
-// (accent + text + bg), matching the live landing concept (public/landing). Used
+// (accent + text + bg), matching the landing concept of the time (public/landing,
+// moved to E:/Legacy/2ndB on 2026-10-06, Q-261005-06). Used
 // only by the deep-space shell (EXPO_PUBLIC_UI=deep-space); the legacy palette is
 // untouched. danger keeps a functional exception.
 export const deepSpace = {
