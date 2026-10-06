@@ -144,7 +144,7 @@ const ANCHORS: Anchor[] = [
     why: "미성년에게 광고가 안 나간다는 주장의 fail-closed 지점 - null 도 막는다는 것이 주장의 내용이다. 2026-10-05 웹 배너 갈래(canShowAds)가 접혀 남은 하나인 보상형(canShowRewardedAds)의 줄로 옮겼다(Q-261004-16)." },
   { cite: `${AD}:11-13`, symbol: "NEVER see ads", evidence: "comment",
     why: "그 규칙을 코드가 스스로 적어 둔 자리 - 주장 자체가 '코드가 이렇게 적어 두었다'라서 주석이 근거다." },
-  { cite: `${CV}:345`, symbol: "SYSTEM_PROMPT_HEADER",
+  { cite: `${CV}:352`, symbol: "SYSTEM_PROMPT_HEADER",
     why: "대화 프롬프트가 실제로 조립되는 자리 - 무엇이 모델에 들어가는지의 근거." },
   { cite: "src/lib/ops/recommend.ts:199-207", symbol: "recommendationsAllowed(input.minor",
     why: "엔진이 호출부와 **독립적으로** 게이트를 다시 본다는 주장의 근거. 493행이 '통제가 어느 한 화면에 기대지 않는다'고 말하는 근거가 이 한 줄이다 - 화면 잠금이 사라져도 스냅샷이 LLM 에 안 간다." },
@@ -233,7 +233,7 @@ const ANCHORS: Anchor[] = [
   // **맞는 함수 이름을 죽은 사본에 고정한 것**이라, 지키는 대상이 없었다.
   // 배송되는 위키 화면(`dds-wiki-records-screens.tsx`)에는 마크다운 내보내기 자체가
   // 없다 - 그 사실은 legal-citations-not-in-dead-renderers.test.ts 가 지킨다.
-  { cite: `${CV}:303`, symbol: "wiki_snapshot",
+  { cite: `${CV}:310`, symbol: "wiki_snapshot",
     why: "스냅샷이 실제로 신뢰하지 않는 데이터로 감싸지는 자리. 문서는 프롬프트 문자열 블록을 가리키고 있었다." },
   { cite: `${R}:54`, symbol: "SNAPSHOT_CHAR_LIMIT",
     why: "600자 캡의 실제 상수. 문서는 임베딩 벤더 라벨 주석을 가리키고 있었다." },

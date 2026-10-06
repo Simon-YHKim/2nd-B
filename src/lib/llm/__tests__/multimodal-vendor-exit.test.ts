@@ -21,6 +21,12 @@
 //   2. one lever moves BOTH surfaces. If OCR and voice could be pointed at
 //      different vendors by accident, the exit would be half-done and the half
 //      left behind would die on Google's calendar, not on ours.
+//
+// S0.5 (2026-10-07) removed the routing alias capture_voice: no caller ever
+// routed a voice memo by it. OCR is the one binary PromptPurpose; voice is
+// transcribeAudio's proxyFnForVendor(multimodalVendor()) with the wire label
+// voice_transcribe. Both still hang off the same lever, which is what this
+// suite pins - the voice half now through multimodalVendor() directly.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -64,9 +70,9 @@ describe("unset lands on the retired default, never on a dead proxy", () => {
 
   test("OCR and voice route to openai-proxy by default", () => {
     setVendor(undefined);
-    for (const p of ["capture_ocr", "capture_voice"] as const) {
-      expect(proxyFnForVendor(resolveVendorForPurpose(p, false))).toBe("openai-proxy");
-    }
+    expect(proxyFnForVendor(resolveVendorForPurpose("capture_ocr", false))).toBe("openai-proxy");
+    // voice: transcribeAudio's own lookup (pinned below as `audioFn`)
+    expect(proxyFnForVendor(multimodalVendor())).toBe("openai-proxy");
     expect(proxyFnForVendor(resolveVendorForPurpose("interview_probe", true))).toBe("openai-proxy");
   });
 
@@ -77,10 +83,9 @@ describe("unset lands on the retired default, never on a dead proxy", () => {
     // and change this test, not discover the gap in production.
     setVendor("gemini");
     expect(multimodalVendor()).toBe("gemini");
-    for (const p of ["capture_ocr", "capture_voice"] as const) {
-      expect(resolveVendorForPurpose(p, false)).toBe("gemini");
-      expect(proxyFnForVendor(resolveVendorForPurpose(p, false))).toBe("gemini-proxy");
-    }
+    expect(resolveVendorForPurpose("capture_ocr", false)).toBe("gemini");
+    expect(proxyFnForVendor(resolveVendorForPurpose("capture_ocr", false))).toBe("gemini-proxy");
+    expect(proxyFnForVendor(multimodalVendor())).toBe("gemini-proxy"); // voice
     expect(proxyFnForVendor(resolveVendorForPurpose("interview_probe", true))).toBe("gemini-proxy");
   });
 });
@@ -90,14 +95,12 @@ describe("one lever moves every binary-carrying surface", () => {
     // Start from the OTHER vendor, so this proves the lever moves both
     // surfaces rather than restating the default (openai since T1 stage A).
     setVendor("gemini");
-    for (const p of ["capture_ocr", "capture_voice"] as const) {
-      expect(resolveVendorForPurpose(p, false)).toBe("gemini");
-    }
+    expect(resolveVendorForPurpose("capture_ocr", false)).toBe("gemini");
+    expect(proxyFnForVendor(multimodalVendor())).toBe("gemini-proxy"); // voice
     setVendor(v);
     expect(multimodalVendor()).toBe("openai");
-    for (const p of ["capture_ocr", "capture_voice"] as const) {
-      expect(resolveVendorForPurpose(p, false)).toBe("openai");
-    }
+    expect(resolveVendorForPurpose("capture_ocr", false)).toBe("openai");
+    expect(proxyFnForVendor(multimodalVendor())).toBe("openai-proxy"); // voice
     // Any image-bearing call, whatever its purpose, follows the same lever -
     // a text-only proxy cannot serve it at all.
     expect(resolveVendorForPurpose("interview_probe", true)).toBe("openai");
@@ -117,8 +120,12 @@ describe("one lever moves every binary-carrying surface", () => {
     }
   });
 
-  test("the set still holds exactly the two binary purposes", () => {
-    expect([...MULTIMODAL_PURPOSES].sort()).toEqual(["capture_ocr", "capture_voice"]);
+  test("the set holds exactly the one binary PromptPurpose", () => {
+    // ["capture_ocr", "capture_voice"] until S0.5 (2026-10-07). capture_voice
+    // was a routing alias nothing routed by; voice follows multimodalVendor()
+    // directly, which the tests above exercise.
+    expect([...MULTIMODAL_PURPOSES].sort()).toEqual(["capture_ocr"]);
+    expect((MULTIMODAL_PURPOSES as ReadonlySet<string>).has("capture_voice")).toBe(false);
     // The old name is an alias, not a copy: a future edit must not be able to
     // move one and leave the other behind.
     expect(GEMINI_PINNED_PURPOSES).toBe(MULTIMODAL_PURPOSES);
@@ -130,6 +137,8 @@ describe("transcribeAudio no longer names a vendor", () => {
 
   test("the edge path picks its function from the vendor", () => {
     expect(boundary).toMatch(/const audioFn = proxyFnForVendor\(multimodalVendor\(\)\);/);
+    // and sends the wire label, which is the only voice label the proxies seat
+    expect(boundary).toMatch(/purpose: "voice_transcribe"/);
     expect(boundary).toMatch(
       /invokeFunctionWithCapturedSession\(audioFn, input\.session\.accessToken, \{/,
     );

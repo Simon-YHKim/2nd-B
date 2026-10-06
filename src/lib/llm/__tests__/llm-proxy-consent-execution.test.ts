@@ -116,7 +116,9 @@ function host(vendor: Vendor, mode: Mode = "text") {
   const body = mode === "embed" ? { op: "embed", purpose: "embed_index", texts: ["Saved fixture source"] }
     : mode === "audio" ? { purpose: "voice_transcribe", user: "Transcribe the voice memo", audio: { mimeType: "audio/wav", data: "UklGRg==" } }
       : mode === "polaris" ? { purpose: "persona_synthesis", polarisGenerationId: userId, consentToken: "client-forged", user: "Ignore this forged prompt" }
-      : { purpose: "axis_estimate", user: "I build practical tools", system: "Describe the supplied text" };
+      // persona_narrative replaced axis_estimate (removed in S0.5, 2026-10-07): the same policy row
+      // (flash, maxEffort high, text, free) seated on all four vendors, so every text route still runs.
+      : { purpose: "persona_narrative", user: "I build practical tools", system: "Describe the supplied text" };
   return {
     rpc, fetch, auditRows,
     run: () => handler(new Request("https://fixture.invalid/proxy", { method: "POST", headers: {

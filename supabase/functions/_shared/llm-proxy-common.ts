@@ -22,10 +22,10 @@ export { isUsableHeaderValue };
 // family/effort that label may reach, its wire modality, and its entitlement.
 // A missing row or missing vendor is a rejection, never a generic fallback.
 //
-// Keep the 29 keys exhaustive with PromptPurpose plus the three proxy-only
-// audit labels (embed_index, safety_classify, voice_transcribe). capture_voice
-// is the client routing alias; the paid wire label is voice_transcribe, so it
-// is deliberately known but unseated.
+// Keep the 19 keys exhaustive with PromptPurpose (16) plus the three proxy-only
+// audit labels (embed_index, safety_classify, voice_transcribe). Ten seats with
+// no reachable caller left on 2026-10-07 (S0.5); the DB quota function (0185)
+// still lists them until the S1 migration narrows it.
 export type LlmProxyVendor = 'gemini' | 'openai' | 'claude' | 'xai';
 export type LlmPolicyModelTier = 'lite' | 'flash' | 'pro' | 'fixed';
 export type LlmPolicyEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
@@ -41,20 +41,11 @@ export interface LlmPurposePolicy {
 export const LLM_PURPOSE_POLICY = {
   advisor: { modelTier: 'pro', maxEffort: 'high', modality: 'text', minimumTier: 'brain', vendors: ['gemini', 'openai', 'xai'] },
   audit_qa: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  axis_estimate: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'claude', 'xai'] },
-  capture_classify: { modelTier: 'lite', maxEffort: 'none', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
   capture_ocr: { modelTier: 'flash', maxEffort: 'none', modality: 'image', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  capture_voice: { modelTier: 'flash', maxEffort: 'none', modality: 'audio', minimumTier: 'free', vendors: [] },
   clipper_classify: { modelTier: 'lite', maxEffort: 'none', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
   clipper_template_propose: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  cluster_infer: { modelTier: 'flash', maxEffort: 'medium', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
-  crosscheck_challenge: { modelTier: 'pro', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['openai'] },
-  crosscheck_defend: { modelTier: 'pro', maxEffort: 'max', modality: 'text', minimumTier: 'free', vendors: ['claude'] },
-  digest_weekly: { modelTier: 'pro', maxEffort: 'max', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'claude', 'xai'] },
   embed_index: { modelTier: 'fixed', maxEffort: 'none', modality: 'embed', minimumTier: 'free', vendors: ['gemini', 'openai'] },
   gap_synthesize: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
-  imagine: { modelTier: 'pro', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  import_ingest: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
   interview_probe: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
   northstar_propose: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
   ops_daily_brief: { modelTier: 'flash', maxEffort: 'medium', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
@@ -66,7 +57,6 @@ export const LLM_PURPOSE_POLICY = {
   secondb_chat: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
   self_model_propose: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
   source_ingest: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  ttfv_first_insight: { modelTier: 'flash', maxEffort: 'xhigh', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
   voice_transcribe: { modelTier: 'flash', maxEffort: 'none', modality: 'audio', minimumTier: 'free', vendors: ['gemini', 'openai'] },
 } as const satisfies Record<string, LlmPurposePolicy>;
 

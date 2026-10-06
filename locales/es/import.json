@@ -91,7 +91,7 @@
     "whereBody": "Se analiza en este dispositivo. Solo se guardan, cifrados, los resultados que elijas en la pantalla de revisión.",
     "deleteAnytime": "Elimínalo cuando quieras",
     "localAnalysis": "Archivo analizado en el dispositivo",
-    "connectorNote": "La siguiente pantalla pide la ubicación solo \"mientras se usa la app\". (requiere la app instalada)",
+    "connectorNote": "La app todavía no lee tu ubicación directamente. Sube un archivo de historial de ubicaciones que hayas exportado, por ejemplo de Google Timeline.",
     "googleConnectorNote": "Conecta tu cuenta de Google de forma segura en el navegador. Solo lectura (ver eventos).",
     "googleConnect": "Conectar Google",
     "connecting": "Conectando…",
@@ -113,7 +113,7 @@
     "ledgerWarnTitle": "No se pudieron anotar las transacciones",
     "ledgerWarnBody": "La importación se guardó, pero las transacciones elegidas no se anotaron. Vuelve a importar el mismo archivo para anotarlas.",
     "ledgerWarnPartTitle": "Algunas transacciones no se anotaron",
-    "ledgerWarnPartBody": "No se pudieron anotar {failed} de las transacciones elegidas; {inserted} sí se anotaron. Si vuelves a importar el mismo archivo, se duplicarían las ya anotadas, así que añade a mano las que faltan.",
+    "ledgerWarnPartBody": "No se pudieron anotar {failed} de las transacciones elegidas; {inserted} sí se anotaron. Vuelve a importar el mismo archivo para anotar las que faltan; las ya anotadas no se vuelven a anotar.",
     "done": "Listo",
     "appts": "Planes",
     "places": "Lugares",
@@ -148,8 +148,8 @@
         "what": "Solo el número de menciones de planes. No guardamos el texto de los mensajes."
       },
       "live-location": {
-        "name": "Ubicación en tiempo real",
-        "sub": "Ubicación · permiso del dispositivo",
+        "name": "Historial de ubicaciones",
+        "sub": "Ubicación · archivo exportado",
         "what": "Solo patrones de lugares y tiempo de estancia. No se guardan las coordenadas exactas."
       },
       "health": {
@@ -182,6 +182,7 @@
         "sub": "Agenda · archivo",
         "what": "Trae los eventos de tu calendario."
       }
-    }
+    },
+    "ledgerSkippedNote": "{skipped} transacciones ya estaban anotadas y no se volvieron a anotar."
   }
 }

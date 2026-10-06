@@ -8,9 +8,12 @@
 //   - Phase 2: the reasoning seats move to their per-seat vendor (re-routed
 //     2026-07-06; two prose seats to Claude 2026-08-23). Non-seats never read
 //     the seat map: they take EXPO_PUBLIC_BACKBONE_VENDOR instead.
-//   - Anything carrying a binary (capture_ocr / capture_voice / any image on
-//     the call) goes to EXPO_PUBLIC_MULTIMODAL_VENDOR before any other switch
-//     is consulted. Simon 2026-08-23: "OCR = openai 유지 (gemini 예외 없음)".
+//   - Anything carrying a binary (capture_ocr / any image on the call) goes to
+//     EXPO_PUBLIC_MULTIMODAL_VENDOR before any other switch is consulted.
+//     Simon 2026-08-23: "OCR = openai 유지 (gemini 예외 없음)". Voice memos
+//     never took a routing purpose: transcribeAudio sends the wire label
+//     voice_transcribe to proxyFnForVendor(multimodalVendor()) directly, so the
+//     routing alias capture_voice left the union in S0.5 (2026-10-07).
 //   - secondb_chat ignores phase entirely: it routes by EXPO_PUBLIC_CHAT_VENDOR
 //     (unset -> openai), so moving chat never drags the seats with it.
 //   - Rollback property: "gemini" is still ACCEPTED as an explicit value on
@@ -34,14 +37,15 @@ import type { PromptPurpose } from "../types";
 
 // The two prose seats went to Claude on 2026-08-23 (V-4), so "the seats" are
 // no longer one vendor. Split rather than shortened: both halves are asserted.
-const CLAUDE_SEATS: PromptPurpose[] = ["persona_narrative", "persona_synthesis", "crosscheck_defend"];
+// crosscheck_defend was the third Claude seat until S0.5 (2026-10-07) removed
+// the cross-check with its only (unreachable) caller.
+const CLAUDE_SEATS: PromptPurpose[] = ["persona_narrative", "persona_synthesis"];
 
 const OPENAI_SEATS: PromptPurpose[] = [
   "advisor",
   "gap_synthesize",
   "self_model_propose",
   "northstar_propose",
-  "axis_estimate",
   "ops_recommend",
   "ops_daily_brief",
 ];
@@ -49,25 +53,41 @@ const OPENAI_SEATS: PromptPurpose[] = [
 // Purposes in no seat: they take EXPO_PUBLIC_BACKBONE_VENDOR and nothing else.
 // This list used to be called GEMINI_STAYERS — named for where they landed by
 // default, not for what they are. The default moved; the grouping did not.
+// S0.5 (2026-10-07) removed capture_classify, import_ingest and imagine from
+// this group with the rest of the call-site-less seats.
 const BACKBONE_PURPOSES: PromptPurpose[] = [
   "interview_probe",
   "audit_qa",
   "clipper_classify",
-  "capture_classify",
   "source_ingest",
-  "import_ingest",
   "clipper_template_propose",
-  "imagine",
   "reasoning_connect",
 ];
 
-// The binary-carrying pair: they take EXPO_PUBLIC_MULTIMODAL_VENDOR, not the
-// backbone switch, so a backbone rollback must NOT move them.
-const MULTIMODAL_PAIR: PromptPurpose[] = ["capture_ocr", "capture_voice"];
+// The binary-carrying purposes: they take EXPO_PUBLIC_MULTIMODAL_VENDOR, not
+// the backbone switch, so a backbone rollback must NOT move them. This was a
+// pair (capture_ocr + capture_voice) until S0.5; voice rides the wire label
+// voice_transcribe, which never passes through resolveVendorForPurpose.
+const MULTIMODAL_PAIR: PromptPurpose[] = ["capture_ocr"];
 
 const NON_SEATS: PromptPurpose[] = [...BACKBONE_PURPOSES, ...MULTIMODAL_PAIR];
 
 const EVERY_PURPOSE: PromptPurpose[] = [...OPENAI_SEATS, ...CLAUDE_SEATS, ...NON_SEATS];
+
+// The ten seats S0.5 (2026-10-07) deleted. Strings, not PromptPurpose: the
+// union no longer admits them, and that is half of what the guard below proves.
+const REMOVED_SEATS: readonly string[] = [
+  "imagine",
+  "import_ingest",
+  "capture_classify",
+  "capture_voice",
+  "axis_estimate",
+  "cluster_infer",
+  "ttfv_first_insight",
+  "digest_weekly",
+  "crosscheck_challenge",
+  "crosscheck_defend",
+];
 
 function withEnv<T>(key: string, value: string | undefined, fn: () => T): T {
   const prev = process.env[key];
@@ -161,25 +181,24 @@ describe("D-26 vendor routing", () => {
     }
   });
 
-  test("multimodal pin: OCR + voice follow EXPO_PUBLIC_MULTIMODAL_VENDOR regardless of phase (unset → openai)", () => {
+  test("multimodal pin: OCR follows EXPO_PUBLIC_MULTIMODAL_VENDOR regardless of phase (unset → openai)", () => {
     expect(GEMINI_PINNED_PURPOSES.has("capture_ocr")).toBe(true);
-    expect(GEMINI_PINNED_PURPOSES.has("capture_voice")).toBe(true);
+    // capture_voice left the set with the union (S0.5). The set is exactly OCR.
+    expect([...MULTIMODAL_PURPOSES]).toEqual(["capture_ocr"]);
     // The old name is an alias of the new set, not a stale copy.
     expect(GEMINI_PINNED_PURPOSES).toBe(MULTIMODAL_PURPOSES);
     withPhase("2", () => {
       expect(resolveVendorForPurpose("capture_ocr", false)).toBe("openai");
       expect(resolveVendorForPurpose("capture_ocr", true)).toBe("openai");
-      expect(resolveVendorForPurpose("capture_voice", false)).toBe("openai");
     });
   });
 
-  test("rollback: EXPO_PUBLIC_MULTIMODAL_VENDOR=gemini puts OCR + voice back on gemini, in either phase", () => {
+  test("rollback: EXPO_PUBLIC_MULTIMODAL_VENDOR=gemini puts OCR back on gemini, in either phase", () => {
     for (const phase of ["1", "2"]) {
       withPhase(phase, () =>
         withMultimodal("gemini", () => {
           expect(resolveVendorForPurpose("capture_ocr", false)).toBe("gemini");
           expect(resolveVendorForPurpose("capture_ocr", true)).toBe("gemini");
-          expect(resolveVendorForPurpose("capture_voice", false)).toBe("gemini");
           // and it moves ONLY the binary pair
           for (const p of BACKBONE_PURPOSES) {
             expect(resolveVendorForPurpose(p, false)).toBe("openai");
@@ -291,19 +310,17 @@ describe("D-26 vendor routing", () => {
       );
     });
 
-    test("the seat switch never reaches the multimodal pin (OCR/voice/image follow EXPO_PUBLIC_MULTIMODAL_VENDOR)", () => {
+    test("the seat switch never reaches the multimodal pin (OCR/image follow EXPO_PUBLIC_MULTIMODAL_VENDOR)", () => {
       for (const v of ["openai", "claude", "gemini", "perPurpose"]) {
         withVendor(v, () => {
           // unset multimodal → openai, whatever the seat switch says. With
           // v=claude or v=gemini this is a real discrimination: the seat
           // switch's vendor is NOT what the binary calls got.
           expect(resolveVendorForPurpose("capture_ocr", false)).toBe("openai");
-          expect(resolveVendorForPurpose("capture_voice", false)).toBe("openai");
           expect(resolveVendorForPurpose("advisor", true)).toBe("openai"); // image
           // explicit gemini on the multimodal switch wins over every seat value
           withMultimodal("gemini", () => {
             expect(resolveVendorForPurpose("capture_ocr", false)).toBe("gemini");
-            expect(resolveVendorForPurpose("capture_voice", false)).toBe("gemini");
             expect(resolveVendorForPurpose("advisor", true)).toBe("gemini"); // image
           });
         });
@@ -456,7 +473,6 @@ describe("D-26 vendor routing", () => {
     expect(phase2EffortFor("gap_synthesize")).toBe("low");
     expect(phase2EffortFor("self_model_propose")).toBe("high");
     expect(phase2EffortFor("northstar_propose")).toBe("high");
-    expect(phase2EffortFor("axis_estimate")).toBe("high");
     // max, not xhigh, since 2026-08-23 (REQ-260823-02). It is the whole-corpus
     // deep read that Simon reserved the top rung for, and it now routes to
     // Claude - the only vendor whose proxy carries that rung. The seats that
@@ -467,6 +483,23 @@ describe("D-26 vendor routing", () => {
     // chat knob puts it on a non-Gemini vendor -- without one boundary.ts falls
     // back to DEFAULT_EFFORT ("high") on the highest-volume surface in the app.
     expect(phase2EffortFor("secondb_chat")).toBe("low");
+  });
+
+  test("the seat map is exactly the eight live reasoning seats (S0.5 2026-10-07)", () => {
+    // Pinned as a set, so a removed seat coming back - or a live one silently
+    // dropping out - fails here rather than in a cost report.
+    expect(Object.keys(PHASE2_VENDOR).sort()).toEqual([...OPENAI_SEATS, ...CLAUDE_SEATS].sort());
+  });
+
+  test("none of the ten S0.5 seats survives in any routing table", () => {
+    const tables: Record<string, readonly string[]> = {
+      PHASE2_VENDOR: Object.keys(PHASE2_VENDOR),
+      PHASE2_EFFORT: Object.keys(PHASE2_EFFORT),
+      MULTIMODAL_PURPOSES: [...MULTIMODAL_PURPOSES],
+    };
+    for (const [name, keys] of Object.entries(tables)) {
+      expect({ name, revived: keys.filter((k) => REMOVED_SEATS.includes(k)) }).toEqual({ name, revived: [] });
+    }
   });
 
   test("invariant: every Phase 2 seat has an explicit effort entry", () => {
