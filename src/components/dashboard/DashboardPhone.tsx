@@ -16,7 +16,7 @@ import { countAreaRecords, LIFE_AREAS, localDate, realHealthSamples, routineActi
 import { DEFAULT_REFRESH_SETTINGS, getRefreshSettings, nextRefreshAt, shouldRefreshAfterResume } from "@/lib/dashboard/refresh-cadence";
 import { fitPhoneArtwork } from "@/lib/dashboard/phone-frame";
 import { PixelScrim } from "@/components/pixel/PixelDither";
-import { PHONE_APP_ICONS, PHONE_NAV_ICONS, PHONE_UI_ART, type PhoneAppId } from "./phone-app-assets";
+import { PHONE_APP_ICONS, PHONE_UI_ART, type PhoneAppId } from "./phone-app-assets";
 import { canBeginPhoneDismiss, shouldCompletePhoneDismiss } from "@/lib/dashboard/phone-dismiss";
 import rules from "@/lib/dashboard/dashboard-rules.json";
 import { recentRecordTrend, selectDashboardPriority, upcomingRoutineDays } from "@/lib/dashboard/summary";
@@ -55,7 +55,6 @@ const APP_ORDER: PhoneAppId[] = [
   "money", "growth", "meals", "museum",
   "community", "relationships", "settings", "more",
 ];
-const PHONE_NAV = ["home", "note", "add", "search", "profile"] as const;
 const OPS_PHONE_ROUTES: Record<string, OpsPhoneScreen> = {
   "/ops": "ops",
   "/reading": "reading",
@@ -711,10 +710,9 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     <Text variant="caption" style={styles.muted}>{t("wiki:savedAs", { name: page.slug })}</Text>
   </PixelPressable>;
   // The display shrinks with the bezel; the launcher must fit all three rows
-  // above its fixed internal dock on smaller phones, not hide the last labels.
+  // on smaller phones, not hide the last labels.
   const appTileHeight = Math.max(48, Math.min(67, Math.floor(((frame?.screen.height ?? 512) - 300) / 3)));
   const appIconSize = Math.max(25, Math.min(36, appTileHeight - 29));
-  const narrowDock = (frame?.screen.width ?? Infinity) < 240;
   return <DeepSpaceScreen active="ops" header="none" variant="fullbleed" showSharedSky transparentBackdrop={transparentBackdrop}>
     <View pointerEvents="none" style={styles.phoneBackdrop}><PixelScrim style={styles.phoneScrimImage} /></View>
     <Animated.View {...(ownsDisplay ? {} : phonePan.panHandlers)} testID="dashboard-phone" style={[styles.phone, { transform: [{ translateY: dismissY }] }]} onLayout={({ nativeEvent: { layout } }) => {
@@ -790,15 +788,8 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         contentContainerStyle={styles.content}
       />}
       </View>
-      {!ownsDisplay ? <View style={[styles.phoneDock, narrowDock && styles.phoneDockNarrow]} accessibilityLabel={t("phone.navLabel")}>
-        {PHONE_NAV.map((item) => <Pressable key={item} accessibilityRole="button" accessibilityLabel={t(`phone.nav.${item}`)} onPress={() => {
-          if (item === "home") { showPage(0); return; }
-          go(item === "note" ? "/records" : item === "add" ? "/capture" : item === "search" ? "/wiki" : "/profile");
-        }} style={[styles.navButton, narrowDock && styles.navButtonNarrow, item === "add" && styles.navAdd]}>
-          <Image source={PHONE_NAV_ICONS[item]} contentFit="contain" style={[item === "add" ? (narrowDock ? styles.navAddIconNarrow : styles.navAddIcon) : styles.navIcon, PIXEL_IMAGE]} accessible={false} />
-          {item !== "add" ? <Text variant="caption" style={[styles.navText, item === "home" && tab === "dashboard" && styles.navActive]}>{t(`phone.nav.${item}`)}</Text> : null}
-        </Pressable>)}
-      </View> : null}
+      {/* Simon 2026-10-06: the bottom shortcut row (home · note · add · search · profile) is gone.
+          Home is the bezel button below; notes, wiki and add are on the app pages; profile is in Settings. */}
       </View>
       <Pressable
         accessibilityRole="button"
@@ -845,19 +836,6 @@ const styles = StyleSheet.create({
   pageBody: { flex: 1, minHeight: 0 },
   hostedScreen: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0 },
   content: { paddingHorizontal: 9, paddingTop: 5, paddingBottom: 12, gap: 10 },
-  phoneDock: { height: 53, marginHorizontal: 8, marginBottom: 4, flexDirection: "row", alignItems: "center", justifyContent: "space-around", borderWidth: 1, borderColor: m3.color.outline, backgroundColor: m3.color.surfaceContainerLowest },
-  navButton: { minWidth: 44, minHeight: 48, flex: 1, alignItems: "center", justifyContent: "center", gap: 0 },
-  navIcon: { width: 27, height: 27 },
-  navAdd: { flex: 1.15 },
-  navAddIcon: { width: 49, height: 49 },
-  // A 320px window leaves ~195px for five buttons; 44px minimums pushed
-  // Profile off the right edge (2026-10-01 QA). Narrow docks share the width
-  // (each button still >= 39px wide, 48px tall) and shrink the center icon.
-  phoneDockNarrow: { marginHorizontal: 4 },
-  navButtonNarrow: { minWidth: 0 },
-  navAddIconNarrow: { width: 40, height: 40 },
-  navText: { color: m3.color.onSurfaceVariant, fontFamily: "Galmuri11", fontSize: 10, lineHeight: 14 },
-  navActive: { color: m3.color.primary },
   stack: { gap: 12 },
   launcherStack: { gap: 5 },
   hero: { padding: 16, gap: 12 },

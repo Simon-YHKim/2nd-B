@@ -23,11 +23,15 @@ test("artwork is bundled locally while dates, controls, and routes remain intera
     expect(existsSync(join(__dirname, "..", relativePath))).toBe(true);
   }
   expect(phone).toContain("source={PHONE_UI_ART.hero}");
-  expect(phone).toContain("source={PHONE_NAV_ICONS[item]}");
+  // Simon 2026-10-06 removed the bottom shortcut row; its destinations stay on the app pages.
+  expect(phone).not.toContain("PHONE_NAV_ICONS");
+  expect(assets).not.toContain("PHONE_NAV_ICONS");
   expect(phone).toContain('date(new Date().toISOString())');
   expect(phone).toContain('onPress={() => showPage(index)}');
   expect(phone).toContain('Math.abs(gesture.dx) > 55');
-  expect(phone).toContain('go(item === "note" ? "/records" : item === "add" ? "/capture" : item === "search" ? "/wiki" : "/profile")');
+  expect(phone).toContain('onPress={() => go("/records")}');
+  expect(phone).toContain('onPress={() => go("/wiki")}');
+  expect(phone).toContain('onPress={() => go("/capture")}');
 });
 
 test("avatar palette opens from the third phone page without changing the main app grid", () => {
