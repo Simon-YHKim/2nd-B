@@ -1,7 +1,12 @@
 // /ttfv - First-day TTFV "첫날 자기이해 한 컷" (first-day self-understanding)
 // onboarding (deep-space, propose -> ratify). Reachable directly at /ttfv, and
-// auto-triggered once on the user's first day post-signup by the graph-home gate
-// (src/app/index.tsx via useAutoTriggerTTFV).
+// opened by itself at most once per account, on its first day, by the home
+// (DeepSpaceShell) after the server granted it (Q-261004-40 strict, 0219).
+//
+// The visit tells the server how it went (design 5.3): content on screen uses up
+// the first-day chance; a review the home opened that could not load anything
+// hands its grant back with the grant's receipt. A visit the home did not open
+// (the address typed in, a reload) has no receipt and nothing to hand back.
 //
 // Seen-marking moved from "the moment a userId exists" to "the screen actually
 // had content to show" (#1530): marking on mount spent the one auto-trigger even
@@ -14,11 +19,14 @@ import React from "react";
 import { Redirect } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
-import { markTTFVSeen } from "@/lib/onboarding/ttfv-gate";
+import { markTTFVSeen, releaseTTFVClaim, ttfvClaimToken } from "@/lib/onboarding/ttfv-gate";
 import { TTFVScreen } from "@/screens/deepspace/onboarding/TTFVScreen";
 
 export default function Ttfv() {
   const { userId, loading, isMinor } = useAuth();
+  // A plain read of the receipt (no hook): this route is also called directly,
+  // outside React, by ttfv-review-screen.test.ts.
+  const token = ttfvClaimToken(userId);
 
   if (loading) return <TTFVScreen mode="auth-loading" />;
   if (!userId) return <Redirect href="/sign-in" />;
@@ -28,7 +36,8 @@ export default function Ttfv() {
       mode="authenticated"
       userId={userId}
       minor={isMinor !== false}
-      onContentReady={markTTFVSeen}
+      onContentReady={() => markTTFVSeen(userId, token)}
+      onContentUnavailable={() => releaseTTFVClaim(userId, token)}
     />
   );
 }

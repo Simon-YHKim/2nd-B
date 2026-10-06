@@ -332,6 +332,11 @@ export function shouldMarkTTFVSeen(state: TTFVContentState): boolean {
   return state.kind === "review" || state.kind === "empty";
 }
 
+/** The review could not load anything to show (#1530: such a visit does not use the one chance). */
+export function shouldReleaseTTFVClaim(state: TTFVContentState): boolean {
+  return state.kind === "error";
+}
+
 export const IDLE_TTFV_SAVE: TTFVSaveState = { choice: null, status: "idle" };
 
 export function beginTTFVSave(choice: TTFVChoice): TTFVSaveState {
@@ -372,6 +377,8 @@ type TTFVScreenProps =
       userId: string;
       minor: boolean;
       onContentReady: () => void;
+      /** Called once per owner when the review could not load (kind "error"). */
+      onContentUnavailable?: () => void;
     };
 
 const EMPTY_LOADING_STATE: TTFVContentState = { userId: "", kind: "loading" };
@@ -383,6 +390,7 @@ export function TTFVScreen(props: TTFVScreenProps) {
   const userId = props.mode === "authenticated" ? props.userId : null;
   const minor = props.mode === "authenticated" ? props.minor : true;
   const onContentReady = props.mode === "authenticated" ? props.onContentReady : null;
+  const onContentUnavailable = props.mode === "authenticated" ? props.onContentUnavailable ?? null : null;
 
   const [content, setContent] = useState<TTFVContentState>(EMPTY_LOADING_STATE);
   const [save, setSave] = useState<TTFVSaveState>(IDLE_TTFV_SAVE);
@@ -392,6 +400,7 @@ export function TTFVScreen(props: TTFVScreenProps) {
   const saveInFlightRef = useRef(false);
   const currentUserRef = useRef<string | null>(userId);
   const seenUserRef = useRef<string | null>(null);
+  const releasedUserRef = useRef<string | null>(null);
   currentUserRef.current = userId;
 
   useEffect(() => {
@@ -433,6 +442,13 @@ export function TTFVScreen(props: TTFVScreenProps) {
     seenUserRef.current = userId;
     onContentReady();
   }, [onContentReady, userId, visibleContent]);
+
+  useEffect(() => {
+    if (!userId || !onContentUnavailable || !shouldReleaseTTFVClaim(visibleContent)) return;
+    if (seenUserRef.current === userId || releasedUserRef.current === userId) return;
+    releasedUserRef.current = userId;
+    onContentUnavailable();
+  }, [onContentUnavailable, userId, visibleContent]);
 
   async function saveChoice(choice: TTFVChoice) {
     if (!userId || visibleContent.kind !== "review" || saveInFlightRef.current) return;

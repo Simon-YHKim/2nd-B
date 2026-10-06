@@ -1,29 +1,41 @@
-// First-day TTFV gate. The first-day screen must auto-trigger exactly ONCE,
-// only within the first day after onboarding. These pin the two pieces of that
-// contract that can break silently: the persisted "seen" write path, and the
-// pure first-day window math.
+// First-day TTFV gate. The first-day review opens by itself at most ONCE PER
+// ACCOUNT, by a server grant the home asks for (account-first-run.ts, 0219).
+// What /ttfv itself reports is pinned here: content on screen uses the chance
+// (shown), a review that could not load hands the home's grant back with its
+// receipt (not_shown), and the device is never written any more. The pure
+// first-day window math stays here too.
 
 const mockSetItem = jest.fn();
 const mockGetItem = jest.fn();
+const mockFinishFirstRun = jest.fn();
+const mockToken = jest.fn();
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
   default: { getItem: mockGetItem, setItem: mockSetItem },
 }));
+// Keep the real module light: its client and owner seams are not used here.
+jest.mock("../../supabase/client", () => ({ getSupabaseClient: jest.fn() }));
+jest.mock("../../auth/account-epoch", () => ({ currentAccountOwner: () => null }));
+jest.mock("../account-first-run", () => ({
+  ...jest.requireActual("../account-first-run"),
+  finishFirstRun: (...args: unknown[]) => mockFinishFirstRun(...args),
+  firstRunTTFVToken: (...args: unknown[]) => mockToken(...args),
+}));
 
 import {
-  TTFV_SEEN_KEY,
   FIRST_DAY_MS,
-  markTTFVSeen,
   isWithinFirstDay,
-  __resetTTFVGateForTests,
+  markTTFVSeen,
+  releaseTTFVClaim,
+  ttfvClaimToken,
 } from "../ttfv-gate";
 
 function flushMicrotasks(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-// nativeStorage() detects React Native via navigator.product — the node jest
-// env doesn't set it, so pin it for this suite (and restore after).
+// The old device write path ran only under React Native (navigator.product).
+// Pin it, so "never writes the device" is checked where it used to write.
 const originalNavigator = globalThis.navigator;
 beforeAll(() => {
   Object.defineProperty(globalThis, "navigator", {
@@ -40,32 +52,45 @@ afterAll(() => {
   });
 });
 
-describe("markTTFVSeen", () => {
+describe("what /ttfv reports to the server", () => {
   beforeEach(() => {
     mockSetItem.mockReset().mockResolvedValue(undefined);
     mockGetItem.mockReset().mockResolvedValue(null);
-    __resetTTFVGateForTests();
+    mockFinishFirstRun.mockReset().mockResolvedValue(true);
+    mockToken.mockReset().mockReturnValue(null);
   });
 
-  test("persists an ISO timestamp under the canonical key", async () => {
-    markTTFVSeen();
+  test("content on screen uses the first-day chance, with or without a grant", async () => {
+    markTTFVSeen("owner-1", "token-1");
+    markTTFVSeen("owner-1", null);
     await flushMicrotasks();
-
-    expect(mockSetItem).toHaveBeenCalledTimes(1);
-    const [key, value] = mockSetItem.mock.calls[0]!;
-    expect(key).toBe(TTFV_SEEN_KEY);
-    expect(Number.isNaN(Date.parse(value as string))).toBe(false);
+    expect(mockFinishFirstRun.mock.calls).toEqual([
+      ["owner-1", "ttfv", "shown", "token-1"],
+      ["owner-1", "ttfv", "shown", null],
+    ]);
+    expect(mockSetItem).not.toHaveBeenCalled();
   });
 
-  test("a failing native store neither throws nor rejects unhandled", async () => {
-    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
-    mockSetItem.mockRejectedValueOnce(new Error("disk full"));
-
-    expect(() => markTTFVSeen()).not.toThrow();
+  test("a review that could not load hands back only a grant it holds the receipt of", async () => {
+    releaseTTFVClaim("owner-1", "token-1");
+    releaseTTFVClaim("owner-1", null);
+    releaseTTFVClaim(null, "token-1");
     await flushMicrotasks();
+    expect(mockFinishFirstRun.mock.calls).toEqual([["owner-1", "ttfv", "not_shown", "token-1"]]);
+  });
 
-    expect(warn).toHaveBeenCalledWith("[ttfv-gate] persist failed", expect.any(Error));
-    warn.mockRestore();
+  test("signed out reports nothing, and a failing server neither throws nor rejects unhandled", async () => {
+    markTTFVSeen(null, null);
+    expect(mockFinishFirstRun).not.toHaveBeenCalled();
+    mockFinishFirstRun.mockResolvedValueOnce(false);
+    expect(() => markTTFVSeen("owner-1", null)).not.toThrow();
+    await flushMicrotasks();
+  });
+
+  test("the receipt is the one the home's grant carried", () => {
+    mockToken.mockReturnValue("token-9");
+    expect(ttfvClaimToken("owner-1")).toBe("token-9");
+    expect(mockToken).toHaveBeenCalledWith("owner-1");
   });
 });
 

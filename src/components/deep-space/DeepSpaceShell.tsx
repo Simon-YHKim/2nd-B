@@ -7,7 +7,7 @@
  * Keeps the post-auth gate.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View } from "react-native";
+import { AppState, View } from "react-native";
 import { Redirect, router, useFocusEffect } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -19,8 +19,7 @@ import { STAR_BRIGHTEN_CUE, brightenCue } from "@/lib/audio/app-cues";
 import { useUiSound } from "@/lib/audio/use-ui-sound";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { InlineLoader } from "@/components/ui/InlineLoader";
-import { useOnboardingComplete } from "@/lib/onboarding/state";
-import { useAutoTriggerTTFV } from "@/lib/onboarding/ttfv-gate";
+import { retryFirstRunHomeVisit, useFirstRunHomeGate } from "@/lib/onboarding/account-first-run";
 import { useCoachmarksGate } from "@/lib/onboarding/coachmarks-gate";
 import { FIRST_RECORD_COACH_PARAM } from "@/lib/onboarding/first-record-coach";
 import { DeepSpaceScreen } from "./DeepSpaceScreen";
@@ -30,10 +29,13 @@ import { ProfileProbeRetryScreen } from "./ProfileProbeRetry";
 
 export function DeepSpaceShell() {
   const { userId, hasProfile, loading, profileProbeFailed } = useAuth();
-  const onboardingComplete = useOnboardingComplete();
-  // First-day activation: once onboarded + signed in, a first-launcher is sent
-  // to the TTFV "첫 별 점등" once (the gate self-clears after the screen is seen).
-  const autoTriggerTTFV = useAutoTriggerTTFV();
+  const gate = profileGate({ loading, userId, hasProfile, profileProbeFailed });
+  // First run (Q-261004-40 strict, 0219): the welcome, then the first-day review
+  // ("첫 별 점등"), each open by themselves at most once per ACCOUNT. After the
+  // profile gate, this home asks the server for the one grant before opening
+  // either, and opens nothing when the server cannot answer
+  // (lib/onboarding/account-first-run.ts). "wait" = still asking (loader).
+  const firstRun = useFirstRunHomeGate(userId, gate === "ready", true);
 
   // Live brightness for the home constellation: the no-LLM loadDomainLevels path
   // derives per-domain L1-L5 levels + the 북극성 aggregate from the user's real
@@ -53,7 +55,7 @@ export function DeepSpaceShell() {
   // target is measured from the live SecondB head, then /capture owns steps 2-4.
   const coachmarksDue = useCoachmarksGate(
     userId,
-    !loading && hasProfile === true && onboardingComplete === true && autoTriggerTTFV === false,
+    !loading && hasProfile === true && firstRun === "home",
     refreshTick,
   );
   const coachHeadTargetRef = useRef<View>(null);
@@ -100,7 +102,26 @@ export function DeepSpaceShell() {
     }, []),
   );
 
-  const gate = profileGate({ loading, userId, hasProfile, profileProbeFailed });
+  // A home visit that could not read the first-run marks decides again on the
+  // next entry: coming back to this screen, or the app coming to the front while
+  // it is the screen in view (design 5.2 step 2, at most three reads a sign-in).
+  const homeFocusedRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      homeFocusedRef.current = true;
+      retryFirstRunHomeVisit(userId);
+      return () => {
+        homeFocusedRef.current = false;
+      };
+    }, [userId]),
+  );
+  useEffect(() => {
+    if (!userId) return;
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active" && homeFocusedRef.current) retryFirstRunHomeVisit(userId);
+    });
+    return () => subscription.remove();
+  }, [userId]);
   if (gate === "auth-loading") return <InlineLoader />;
   // Login wall first (Simon 2026-07-15): a signed-out visitor hits /sign-in
   // before anything else; onboarding is now a post-login welcome. This reverses
@@ -117,14 +138,12 @@ export function DeepSpaceShell() {
   if (gate === "profile-incomplete") return <Redirect href="/complete-profile" />;
   // "profile-loading" keeps the old fall-through: AuthContext only publishes a
   // signed-in user with hasProfile === null while `loading` is still true.
-  if (onboardingComplete === null) return <InlineLoader />;
-  if (!onboardingComplete) return <Redirect href="/onboarding" />;
-  // autoTriggerTTFV hydrates from AsyncStorage on native and is null until the
-  // read resolves. Without this guard, null is falsy so the shell renders
-  // ConstellationHome (and coachmarks) for one frame, then bounces to /ttfv once
-  // storage resolves — a home flash on the very first run. Mirrors index.tsx.
-  if (autoTriggerTTFV === null) return <InlineLoader />;
-  if (autoTriggerTTFV) return <Redirect href="/ttfv" />;
+  // Until the first-run decision is in, show the loader rather than the home:
+  // rendering ConstellationHome (and coachmarks) for a frame and then bouncing to
+  // a first-run screen is a home flash on the very first run.
+  if (firstRun === "wait") return <InlineLoader />;
+  if (firstRun === "/onboarding") return <Redirect href="/onboarding" />;
+  if (firstRun === "/ttfv") return <Redirect href="/ttfv" />;
 
 
 

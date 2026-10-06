@@ -6,10 +6,14 @@ const mockAuth = {
   current: { userId: null as string | null, loading: true, isMinor: null as boolean | null },
 };
 const mockMarkTTFVSeen = jest.fn();
+const mockReleaseTTFVClaim = jest.fn();
+const mockTTFVClaimToken = jest.fn();
 
 jest.mock("@/lib/auth/AuthContext", () => ({ useAuth: () => mockAuth.current }));
 jest.mock("@/lib/onboarding/ttfv-gate", () => ({
-  markTTFVSeen: () => mockMarkTTFVSeen(),
+  markTTFVSeen: (...args: unknown[]) => mockMarkTTFVSeen(...args),
+  releaseTTFVClaim: (...args: unknown[]) => mockReleaseTTFVClaim(...args),
+  ttfvClaimToken: (...args: unknown[]) => mockTTFVClaimToken(...args),
 }));
 jest.mock("react-native", () => ({
   ScrollView: "ScrollView",
@@ -39,6 +43,7 @@ import {
   failTTFVSave,
   loadTTFVReview,
   shouldMarkTTFVSeen,
+  shouldReleaseTTFVClaim,
   uiLocaleFor,
   visibleTTFVContent,
   type TTFVContentState,
@@ -61,6 +66,8 @@ describe("/ttfv auth and seen gate", () => {
   beforeEach(() => {
     mockAuth.current = { userId: null, loading: true, isMinor: null };
     mockMarkTTFVSeen.mockClear();
+    mockReleaseTTFVClaim.mockClear();
+    mockTTFVClaimToken.mockReset().mockReturnValue(null);
   });
 
   it("renders an explicit auth loading state without consuming first light", () => {
@@ -90,6 +97,28 @@ describe("/ttfv auth and seen gate", () => {
 
     (tree.props.onContentReady as () => void)();
     expect(mockMarkTTFVSeen).toHaveBeenCalledTimes(1);
+    expect(mockMarkTTFVSeen).toHaveBeenCalledWith("owner-1", null);
+  });
+
+  it("passes the home's grant receipt to both reports (0219): shown, and handed back when nothing loaded", () => {
+    mockAuth.current = { userId: "owner-1", loading: false, isMinor: false };
+    mockTTFVClaimToken.mockReturnValue("token-1");
+    const tree = routeElement();
+
+    expect(mockTTFVClaimToken).toHaveBeenCalledWith("owner-1");
+    expect(mockReleaseTTFVClaim).not.toHaveBeenCalled();
+    (tree.props.onContentUnavailable as () => void)();
+    expect(mockReleaseTTFVClaim).toHaveBeenCalledWith("owner-1", "token-1");
+    (tree.props.onContentReady as () => void)();
+    expect(mockMarkTTFVSeen).toHaveBeenCalledWith("owner-1", "token-1");
+  });
+
+  it("hands the grant back only for a load error (#1530), never for loading or shown content", () => {
+    const base = { userId: "owner-1" } as const;
+    expect(shouldReleaseTTFVClaim({ ...base, kind: "error" })).toBe(true);
+    expect(shouldReleaseTTFVClaim({ ...base, kind: "loading" })).toBe(false);
+    expect(shouldReleaseTTFVClaim({ ...base, kind: "empty" })).toBe(false);
+    expect(SCREEN).toContain("if (seenUserRef.current === userId || releasedUserRef.current === userId) return;");
   });
 
   it("marks only honest record or empty content, never loading or load error", () => {
