@@ -25,6 +25,8 @@ const AVATAR_DRAFT = read("db/migrations/0206_users_avatar_spec.sql");
 const AVATAR_EXEC = AVATAR_DRAFT.replace(/^\s*--.*$/gm, "");
 const DISPLAY_NAME_DRAFT = read("db/migrations/0207_users_display_name_update.sql");
 const DISPLAY_NAME_EXEC = DISPLAY_NAME_DRAFT.replace(/^\s*--.*$/gm, "");
+// 0231 (Simon 2026-10-07): the status message column (0230 chat_name, renamed) and its authenticated UPDATE grant.
+const CHAT_NAME_EXEC = read("db/migrations/0231_status_message.sql").replace(/^\s*--.*$/gm, "");
 
 /** Columns named inside a GRANT <verb> (...) on public.users. */
 function grantedColumns(verb: "INSERT" | "UPDATE"): string[] {
@@ -42,6 +44,9 @@ function effectiveGrantedColumns(verb: "INSERT" | "UPDATE"): string[] {
     const nameMatch = DISPLAY_NAME_EXEC.match(/GRANT UPDATE \(([^)]*)\) ON public\.users TO authenticated;/);
     if (!nameMatch) throw new Error("display name draft has no authenticated UPDATE grant");
     for (const column of nameMatch[1].split(",")) granted.add(column.trim());
+    const chatMatch = CHAT_NAME_EXEC.match(/GRANT UPDATE \(([^)]*)\) ON public\.users TO authenticated;/);
+    if (!chatMatch) throw new Error("0231 has no authenticated UPDATE grant");
+    for (const column of chatMatch[1].split(",")) granted.add(column.trim());
   }
   return [...granted].sort();
 }

@@ -91,7 +91,7 @@
     "whereBody": "A análise é feita neste dispositivo. Só os resultados que você escolher na tela de revisão são guardados, criptografados.",
     "deleteAnytime": "Exclua quando quiser",
     "localAnalysis": "Arquivo analisado no dispositivo",
-    "connectorNote": "A próxima tela pede a localização só \"durante o uso do app\". (requer o app instalado)",
+    "connectorNote": "O app ainda não lê sua localização diretamente. Envie um arquivo de histórico de localização que você exportou, por exemplo do Google Timeline.",
     "googleConnectorNote": "Conecte sua conta Google com segurança no navegador. Somente leitura (ver eventos).",
     "googleConnect": "Conectar ao Google",
     "connecting": "Conectando…",
@@ -113,7 +113,7 @@
     "ledgerWarnTitle": "Não foi possível lançar as transações",
     "ledgerWarnBody": "A importação foi salva, mas as transações escolhidas não foram lançadas. Importe o mesmo arquivo de novo para lançá-las.",
     "ledgerWarnPartTitle": "Algumas transações não foram lançadas",
-    "ledgerWarnPartBody": "{failed} das transações escolhidas não foram lançadas; {inserted} foram. Importar o mesmo arquivo de novo duplicaria as já lançadas, então adicione as que faltam manualmente.",
+    "ledgerWarnPartBody": "{failed} das transações escolhidas não foram lançadas; {inserted} foram. Importe o mesmo arquivo de novo para lançar as que faltam; as já lançadas não são lançadas outra vez.",
     "done": "Concluído",
     "appts": "Planos",
     "places": "Lugares",
@@ -148,8 +148,8 @@
         "what": "Só a contagem de menções a planos. Não guardamos o texto das mensagens."
       },
       "live-location": {
-        "name": "Localização em tempo real",
-        "sub": "Localização · permissão do dispositivo",
+        "name": "Histórico de localização",
+        "sub": "Localização · arquivo exportado",
         "what": "Só padrões de lugares e tempo de permanência. As coordenadas exatas não são guardadas."
       },
       "health": {
@@ -182,6 +182,7 @@
         "sub": "Agenda · arquivo",
         "what": "Traz os eventos do seu calendário."
       }
-    }
+    },
+    "ledgerSkippedNote": "{skipped} transações já estavam lançadas e não foram lançadas outra vez."
   }
 }

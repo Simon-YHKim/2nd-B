@@ -163,6 +163,42 @@ export async function createLedgerEntry(userId: string, entry: NewLedgerEntry): 
   return rowToEntry(data as Record<string, unknown>);
 }
 
+/**
+ * Book one imported statement row (0224). `importKey` identifies the row across imports, so a
+ * second import of the same statement is skipped instead of booked twice: the upsert ignores a
+ * conflict on (user_id, import_key) and returns no row. Resolves to the new entry, or null when
+ * the row was already booked. Same amount clamp as createLedgerEntry.
+ */
+export async function createImportedLedgerEntry(
+  userId: string,
+  entry: NewLedgerEntry,
+  importKey: string,
+): Promise<LedgerEntry | null> {
+  const amount = Math.max(0, Math.round(entry.amount_krw));
+  if (!Number.isSafeInteger(amount) || amount > MAX_LEDGER_KRW) {
+    throw new RangeError("ledger_amount_out_of_range");
+  }
+  const insert = {
+    user_id: userId,
+    occurred_on: entry.occurred_on ?? localDayKey(),
+    kind: entry.kind,
+    amount_krw: amount,
+    category: entry.category.trim() || "기타",
+    note: entry.note?.trim() ? entry.note.trim() : null,
+    import_key: importKey,
+  };
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("ops_ledger")
+    .upsert(insert, { onConflict: "user_id,import_key", ignoreDuplicates: true })
+    .select();
+  if (error) throw error;
+  const rows = Array.isArray(data) ? data : [];
+  if (rows.length === 0) return null;
+  invalidateDomainLevels(userId);
+  return rowToEntry(rows[0] as Record<string, unknown>);
+}
+
 /** All entries booked within the given YYYY-MM month, newest first. */
 export async function listEntriesForMonth(userId: string, month: string): Promise<LedgerEntry[]> {
   const supabase = getSupabaseClient();

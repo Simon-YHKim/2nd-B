@@ -9,7 +9,18 @@ describe("/profile-details PIXEL-CLAY contract", () => {
   test("derives only the profilesetup surface pattern from real profile-detail state", () => {
     expect(source).toContain('import { PixelSurface } from "@/components/pixel"');
     expect(source).toContain('variant="frame"');
-    expect(source).toContain("PROFILE_DETAIL_FIELDS.map");
+    // 혼인 여부 같은 성인 전용 칸은 성인에게만 그린다(Simon Q-261007-02).
+    expect(source).toContain("PROFILE_DETAIL_FIELDS.filter((field) => !field.adultOnly || adult).map(");
+    expect(source).toContain("const adult = isMinor === false;");
+    // 이메일 · 생년월일은 보여주기만(Q-261007-04). 상태 메시지(0231)는 나이 제한 · 중복 확인 없이, 바뀐 경우에만 쓴다.
+    expect(source).toContain('t("deepspace:profileDetails.emailLabel")');
+    expect(source).toContain('t("deepspace:profileDetails.birthDateLabel")');
+    expect(source).toContain("const statusChanged = statusReady && statusMessage.trim() !== savedStatusRef.current.trim();");
+    expect(source).not.toContain("chatNameAvailable");
+    // 아바타는 상자 폭을 채우는 정사각형, 수정은 오른쪽 위 연필(Simon 2026-10-07). 버튼은 없다.
+    expect(source).toContain("<AvatarPreview spec={avatar.spec} size={avatarWidth} />");
+    expect(source).toContain('<PixelGlyph name="edit"');
+    expect(source).not.toContain('label={t("profile:avatarStudio.label")}');
     // Simon 2026-10-07: 안내 · 진행 칸 · 민감정보 안내 상자와 이름 설명 · 이름 저장 버튼을 걷어냈다.
     expect(source).not.toMatch(/<PixelSurface\s+variant="inset"/);
     expect(source).not.toContain('accessibilityRole="progressbar"');
@@ -21,7 +32,7 @@ describe("/profile-details PIXEL-CLAY contract", () => {
     // profilesetup의 목업 계정·아바타·고정 3/4를 이 편집 화면에 복제하지 않는다.
     expect(source).not.toContain("SecondbHead");
     // 실제 저장된 아바타 초상화와 스튜디오 진입은 있다(Simon 2026-10-07).
-    expect(source).toContain("<AvatarPreview spec={avatar.spec} size={128} />");
+    expect(source).toContain("<AvatarPreview spec={avatar.spec} size={avatarWidth} />");
     expect(source).toContain('onPress={() => router.push("/avatar-studio")}');
     expect(source).not.toContain("localStorage");
     expect(source).not.toContain("3 / 4");
