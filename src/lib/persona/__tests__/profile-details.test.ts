@@ -153,8 +153,10 @@ describe("화면 배선", () => {
     expect(screen).toContain("PROFILE_DETAIL_FIELDS.map");
   });
 
-  it("무엇을 안 묻는지도 화면이 말한다", () => {
-    expect(screen).toContain("notSensitive");
+  // Simon 2026-10-07 걷어냄: 안내 문장은 화면에서 빠졌다. 민감정보를 묻지 않는다는 보장은
+  // 문장이 아니라 위 "민감정보 경계" 의 키 목록 검사가 지킨다.
+  it("민감정보 안내 문장은 화면에서 빠졌다(묻지 않는 것은 키 목록이 지킨다)", () => {
+    expect(screen).not.toContain('t("deepspace:profileDetails.notSensitive")');
   });
 
   it("저장이 좁힘을 지난다", () => {
