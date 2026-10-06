@@ -48,6 +48,41 @@ export function localDayKey(now: Date = new Date()): string {
   return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
 }
 
+/**
+ * The most one ledger row can hold: 1,000,000,000,000 won.
+ *
+ * R2C-16 (2026-10-05): the amount field had no ceiling. A 25-digit amount went out as
+ * `amount_krw: 1e+25` (JSON exponent form) and the server answered 400, which the
+ * screen showed as "try again", and trying again sent the same 400. Between 2^53 and
+ * the bigint limit it was worse: no error at all, and 9999999999999999 was stored as
+ * 10000000000000000. This ceiling sits far below Number.MAX_SAFE_INTEGER and the
+ * bigint column (0052), so a typed amount is either stored exactly or refused. It is
+ * the same ceiling the bank-CSV import already applies (import/finance-csv.ts AMOUNT_MAX).
+ */
+export const MAX_LEDGER_KRW = 1_000_000_000_000;
+/**
+ * Digits in MAX_LEDGER_KRW: the parser's digit gate.
+ *
+ * It is NOT the input's maxLength. A TextInput maxLength counts raw characters, separators
+ * included, so maxLength 13 cut a pasted "1,000,000,000,000" (17 characters, an allowed
+ * amount) to "1,000,000,000", which this parser then accepted as 1,000x less (gate
+ * finding S-01 / BL-01, 2026-10-05). The field takes the whole string and this parser is
+ * the only ceiling: an amount is stored as typed or refused, never shortened.
+ */
+export const LEDGER_AMOUNT_MAX_DIGITS = String(MAX_LEDGER_KRW).length;
+
+export type LedgerAmount = { kind: "empty" } | { kind: "ok"; value: number } | { kind: "tooLarge" };
+
+/** Read the amount field: digits only (separators dropped), zero counts as empty. */
+export function parseLedgerAmount(raw: string): LedgerAmount {
+  const digits = raw.replace(/[^0-9]/g, "").replace(/^0+/, "");
+  if (digits.length === 0) return { kind: "empty" };
+  if (digits.length > LEDGER_AMOUNT_MAX_DIGITS) return { kind: "tooLarge" };
+  const value = Number(digits);
+  if (!Number.isSafeInteger(value) || value > MAX_LEDGER_KRW) return { kind: "tooLarge" };
+  return { kind: "ok", value };
+}
+
 /** "YYYY-MM" bucket for a YYYY-MM-DD key (or a Date). */
 export function monthBucket(date: string | Date): string {
   if (date instanceof Date) return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
@@ -105,13 +140,18 @@ export interface NewLedgerEntry {
   note?: string | null;
 }
 
-/** Record a manual income/expense row. Amount is clamped to a positive integer. */
+/** Record a manual income/expense row. Amount is clamped to a positive integer and
+ *  refused above MAX_LEDGER_KRW (the screen checks first; this is the second lock). */
 export async function createLedgerEntry(userId: string, entry: NewLedgerEntry): Promise<LedgerEntry> {
+  const amount = Math.max(0, Math.round(entry.amount_krw));
+  if (!Number.isSafeInteger(amount) || amount > MAX_LEDGER_KRW) {
+    throw new RangeError("ledger_amount_out_of_range");
+  }
   const insert = {
     user_id: userId,
     occurred_on: entry.occurred_on ?? localDayKey(),
     kind: entry.kind,
-    amount_krw: Math.max(0, Math.round(entry.amount_krw)),
+    amount_krw: amount,
     category: entry.category.trim() || "기타",
     note: entry.note?.trim() ? entry.note.trim() : null,
   };

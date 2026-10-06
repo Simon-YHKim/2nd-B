@@ -68,7 +68,18 @@ describe("no silent save failures in the ops screens", () => {
     // (want→reading→done, med#21 — the move that finally lights the NOW-READING
     // hero). Deletes, renames and moves are writes too; all surface through their
     // screen's existing banner.
-    expect(src.match(/setSaveErr\(true\);/g)?.length).toBe(8);
+    // 2026-10-05 (QA round 2, R2C-07 / R2C-08): four more write sites, each surfacing
+    // through the same banner -- removing a book from the shelf, saving the page count,
+    // deleting a goal, and clearing a meal cell from the sheet. (Saving an emptied cell
+    // goes through the meal save's existing catch.) 8 -> 12.
+    // 2026-10-05 (gate BL-03): the meal save and the meal clear no longer each have a
+    // catch. Both now run through one writer (writeMeal) under a shared lock, and that
+    // writer surfaces a failure for either of them. Same writes, one surfacing site:
+    // 12 -> 11. tool-screens-contract.test.ts pins that writeMeal surfaces it and that
+    // no meal write bypasses writeMeal.
+    expect(src.match(/setSaveErr\(true\);/g)?.length).toBe(11);
+    const writeMeal = src.slice(src.indexOf("const writeMeal"), src.indexOf("const saveCell"));
+    expect(writeMeal).toContain("else setSaveErr(true);");
     // And the banner is actually rendered, not just stored in state.
     expect(src.match(/<SaveErrorBanner text=\{c\.saveFailed\} \/>/g)?.length).toBe(4);
   });

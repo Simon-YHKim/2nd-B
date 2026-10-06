@@ -1,4 +1,14 @@
-import { clampPage, groupShelf, readingProgress, type ShelfEntry } from "../shelf";
+import {
+  clampPage,
+  groupShelf,
+  manualBook,
+  MANUAL_VOLUME_PREFIX,
+  PAGE_INPUT_MAX,
+  parsePageDraft,
+  readingProgress,
+  shelfVolumeIds,
+  type ShelfEntry,
+} from "../shelf";
 
 function entry(over: Partial<ShelfEntry>): ShelfEntry {
   return {
@@ -48,5 +58,59 @@ describe("groupShelf", () => {
     expect(shelf.reading.map((e) => e.id)).toEqual(["1", "4"]);
     expect(shelf.want.map((e) => e.id)).toEqual(["2"]);
     expect(shelf.done.map((e) => e.id)).toEqual(["3"]);
+  });
+});
+
+describe("shelfVolumeIds (R2C-08: a book on the shelf is not offered again)", () => {
+  test("collects ids from every status", () => {
+    const ids = shelfVolumeIds(
+      groupShelf([
+        entry({ id: "1", volume_id: "a", status: "want" }),
+        entry({ id: "2", volume_id: "b", status: "reading" }),
+        entry({ id: "3", volume_id: "c", status: "done" }),
+      ]),
+    );
+    expect([...ids].sort()).toEqual(["a", "b", "c"]);
+  });
+  test("no shelf yet = nothing on it", () => {
+    expect(shelfVolumeIds(null).size).toBe(0);
+  });
+});
+
+describe("manualBook (R2C-02: the shelf still works when search is refused)", () => {
+  test("a typed title becomes a book with a stable manual id", () => {
+    expect(manualBook("  Demian  ")).toEqual({ id: `${MANUAL_VOLUME_PREFIX}demian`, title: "Demian", authors: [] });
+  });
+  test("case and spacing fold into the same id, so a second add finds the same row", () => {
+    expect(manualBook("The  Little   Prince")?.id).toBe(manualBook("the little prince")?.id);
+  });
+  test("an empty title makes no book", () => {
+    expect(manualBook("   ")).toBeNull();
+  });
+  test("a manual id can never collide with a Google volume id", () => {
+    expect(manualBook("abc")?.id.startsWith(MANUAL_VOLUME_PREFIX)).toBe(true);
+  });
+});
+
+describe("parsePageDraft (R2C-08: the page counter can be moved)", () => {
+  test("current and total", () => {
+    expect(parsePageDraft("120", "300")).toEqual({ current_page: 120, total_pages: 300 });
+  });
+  test("total left empty = unknown, current kept", () => {
+    expect(parsePageDraft("45", "")).toEqual({ current_page: 45, total_pages: null });
+  });
+  test("current is clamped to the total, like the progress bar", () => {
+    expect(parsePageDraft("500", "200")).toEqual({ current_page: 200, total_pages: 200 });
+  });
+  test("a total of 0 means unknown, not a zero-page book", () => {
+    expect(parsePageDraft("10", "0")).toEqual({ current_page: 10, total_pages: null });
+  });
+  test("typos and out-of-range numbers are refused, not saved as something else", () => {
+    expect(parsePageDraft("", "200")).toBeNull();
+    expect(parsePageDraft("12a", "200")).toBeNull();
+    expect(parsePageDraft("-3", "200")).toBeNull();
+    expect(parsePageDraft("10", "2x")).toBeNull();
+    expect(parsePageDraft(String(PAGE_INPUT_MAX + 1), "")).toBeNull();
+    expect(parsePageDraft("1e3", "")).toBeNull();
   });
 });

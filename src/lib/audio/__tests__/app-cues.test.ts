@@ -216,5 +216,5 @@ test('every global cue id has a sound file, and each request site is gated by su
   expect(read('src/screens/deepspace/DeepSpaceDesignScreens.tsx')).toContain('playLinkCue(); // 위키 연결 확인 소리(Q-261006-14)');
   expect(cues).toContain('export const WIKI_LINK_CUE: AppCue = {\n  source: SECONDB_REPLY_CUE.source,\n  volume: 0.08,\n  minIntervalMs: 1500,');
   // Milestone: after the write, gated on landing on done.
-  expect(read('src/screens/deepspace/ops/screens.tsx')).toContain('if (milestoneDoneCueAllowed({ from: m.status, to: NEXT_STATUS[m.status] })) playDoneCue();');
+  expect(read('src/screens/deepspace/ops/screens.tsx')).toContain('if (milestoneDoneCueAllowed({ from: m.status, to: MILESTONE_NEXT[m.status] })) playDoneCue();');
 });

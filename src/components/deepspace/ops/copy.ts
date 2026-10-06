@@ -102,7 +102,10 @@ export interface OpsCopy {
   left: string;
   record: string;
   byCategory: string;
-  fxNote: string;
+  // `fxNote` (a ledger line claiming other currencies were converted for you) was removed
+  // 2026-10-05 (R2C-11): the form takes won only, ops_ledger has no currency column, and nothing
+  // calls lib/finance/fx.ts. The true sentence lives in the ops bundle as
+  // toolScreens.ledger.currencyNote, in all five locales. fx.ts itself stays (Q-261004-20 B).
   amountPlaceholder: string;
   categoryPlaceholder: string;
   addEntry: string;
@@ -229,7 +232,6 @@ const en: OpsCopy = {
   left: "Left",
   record: "Record",
   byCategory: "By category",
-  fxNote: "Other currencies convert automatically (FX).",
   amountPlaceholder: "Amount",
   categoryPlaceholder: "Category (e.g. Food)",
   addEntry: "Add",
@@ -341,7 +343,6 @@ const ko: OpsCopy = {
   left: "잔여",
   record: "기록",
   byCategory: "분류별 지출",
-  fxNote: "다통화는 자동 환산돼요 (FX).",
   amountPlaceholder: "금액",
   categoryPlaceholder: "분류 (예: 식비)",
   addEntry: "추가",

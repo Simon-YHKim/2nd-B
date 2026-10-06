@@ -381,5 +381,63 @@
     "save": "Guardar",
     "cancel": "Cancelar"
   },
-  "todaysAssistant": "Asistente de hoy"
+  "todaysAssistant": "Asistente de hoy",
+  "toolScreens": {
+    "loading": "Cargando…",
+    "delete": {
+      "arm": "Eliminar",
+      "confirm": "Toca de nuevo para eliminar",
+      "a11y": "Eliminar {{name}}",
+      "confirmA11y": "Toca de nuevo para eliminar {{name}}"
+    },
+    "reading": {
+      "emptyTitle": "Tu estantería está vacía",
+      "emptyBody": "Busca un libro arriba o añádelo por su título.",
+      "searching": "Buscando…",
+      "noResults": "Ningún libro coincide con {{q}}.",
+      "failedTitle": "La búsqueda de libros no funciona ahora",
+      "failedBody": "Tu estantería está bien. Inténtalo de nuevo o añade el libro por su título.",
+      "rateTitle": "La búsqueda de libros llegó a su límite",
+      "rateBody": "El servicio de búsqueda no acepta solicitudes ahora. Añade el libro por su título o inténtalo más tarde.",
+      "addByTitle": "Añadir por título: {{title}}",
+      "onShelf": "En la estantería",
+      "alsoReading": "También leyendo",
+      "finished": "Terminados",
+      "readAgain": "Leer de nuevo",
+      "editPages": "Actualizar páginas",
+      "currentPage": "Página",
+      "totalPages": "Páginas totales",
+      "savePages": "Guardar",
+      "pagesInvalid": "Escribe números de página enteros."
+    },
+    "goals": {
+      "emptyTitle": "Aún no hay metas",
+      "emptyBody": "Escribe el nombre de una meta arriba para añadirla.",
+      "chipA11y": "{{state}}. Toca para cambiarlo a {{next}}."
+    },
+    "ledger": {
+      "emptyTitle": "No hay gastos registrados este mes",
+      "emptyBody": "Escribe un importe arriba y se agrupará aquí por categoría.",
+      "currencyNote": "Los importes se registran en wones (KRW).",
+      "amountTooLarge": "Ese importe es demasiado grande. Un registro admite hasta {{max}} wones."
+    },
+    "meals": {
+      "sheetSubtitle": "{{day}} {{date}} · {{slot}}",
+      "placeholder": "p. ej., arroz bibimbap",
+      "clear": "Vaciar esta comida",
+      "lookUp": "Buscar alimentos",
+      "lookUpNone": "Ningún alimento coincide.",
+      "lookUpFailed": "No se pudo buscar. Inténtalo de nuevo.",
+      "ideas": {
+        "i1": "Arroz bibimbap",
+        "i2": "Guiso de pasta de soja",
+        "i3": "Bol de ensalada",
+        "i4": "Guiso de kimchi",
+        "i5": "Filete de salmón",
+        "i6": "Bol de arroz con tofu",
+        "i7": "Ensalada de pechuga de pollo",
+        "i8": "Sopa de algas"
+      }
+    }
+  }
 }
