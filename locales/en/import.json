@@ -91,7 +91,7 @@
     "whereBody": "Analyzed on this device. Only the results you choose on the review screen are kept, encrypted.",
     "deleteAnytime": "Delete anytime",
     "localAnalysis": "File analyzed on device",
-    "connectorNote": "The next screen requests location \"while using\" only. (needs the native build)",
+    "connectorNote": "The app doesn't read your location directly yet. Upload a location history file you exported, such as from Google Timeline.",
     "googleConnectorNote": "Securely link your Google account in the browser. Read-only (view events).",
     "googleConnect": "Connect Google",
     "connecting": "Connecting…",
@@ -148,8 +148,8 @@
         "what": "Only plan mention counts. We don't store message text."
       },
       "live-location": {
-        "name": "Live location",
-        "sub": "Location · device permission",
+        "name": "Location history",
+        "sub": "Location · exported file",
         "what": "Only place/dwell patterns. Exact coordinates aren't stored."
       },
       "health": {

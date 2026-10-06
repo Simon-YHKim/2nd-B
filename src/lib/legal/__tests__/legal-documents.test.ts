@@ -150,22 +150,22 @@ describe("legal document snapshots", () => {
     // Bound to the code, not to a copy of the list: adding a key to
     // PROFILE_DETAIL_KEYS without naming it in the policy fails here.
     const KO: Record<ProfileDetailKey, string> = {
-      occupation: "직업",
-      region: "사는 지역(시/도 수준)",
-      household: "가구(함께 사는 사람)",
-      dailyRhythm: "생활 리듬",
-      workHours: "주로 일하거나 공부하는 시간대",
-      workDays: "주로 일하는 요일",
-      busiestSeason: "가장 바쁜 시기",
+      occupation: "하는 일(직업)",
+      region: "거주 지역(시/도 수준)",
+      household: "가족관계(함께 사는 사람)",
+      gender: "성별",
+      nationality: "국적",
+      marital: "혼인 여부(성인만)",
+      motto: "좌우명",
     };
     const EN: Record<ProfileDetailKey, string> = {
       occupation: "occupation",
-      region: "region (province or city level)",
-      household: "household (who you live with)",
-      dailyRhythm: "daily rhythm",
-      workHours: "the hours you usually work or study",
-      workDays: "the days you usually work",
-      busiestSeason: "your busiest time of year",
+      region: "city or region of residence (province or city level)",
+      household: "family (who you live with)",
+      gender: "gender",
+      nationality: "nationality",
+      marital: "marital status (adults only)",
+      motto: "a personal motto",
     };
     expect(Object.keys(KO).sort()).toEqual([...PROFILE_DETAIL_KEYS].sort());
     expect(Object.keys(EN).sort()).toEqual([...PROFILE_DETAIL_KEYS].sort());
@@ -182,8 +182,8 @@ describe("legal document snapshots", () => {
   test("2026-09-29 policy keeps the required notice and prior technical disclosures", () => {
     const md = readFileSync(resolve(ROOT, "docs/legal/privacy-policy.md"), "utf8");
     // The published policy remains v5 while the 10-05 notice and terms change.
-    expect(md).toContain("_시행일: 2026-10-06 · 최종 개정: 2026-10-06_");
-    expect(PRIVACY_DOC.body).toContain("시행일: 2026-10-06");
+    expect(md).toContain("_시행일: 2026-10-07 · 최종 개정: 2026-10-07_");
+    expect(PRIVACY_DOC.body).toContain("시행일: 2026-10-07");
     expect(PRIVACY_POLICY_VERSION).toBe("2026-10-06");
     expect(CONSENT_VERSION).toBe("2026-10-06");
     expect(TERMS_VERSION).toBe("2026-10-05");
