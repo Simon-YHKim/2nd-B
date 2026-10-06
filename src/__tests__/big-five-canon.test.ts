@@ -445,7 +445,10 @@ describe("big-five PIXEL-CLAY route discipline", () => {
     // 바로 앞 본문이다. 바뀐 것은 저장 순간의 옛 캐릭터 '모모' 몸 그림을 뺀 것뿐이다 -
     // MOMENT 가 { companion, state, cue } 에서 { cue } 로 줄었고 머리 주석 두 곳이 그에
     // 맞춰 고쳐졌다. 모달 · 문구 · 타이머 · 표정은 그대로다.
-    expect(normalizedHash(read("components/quant/QuantSaveCelebration.tsx"))).toBe("8ca3205cc9c97bb53ec19939131fe4cc0f3fdf897b5e4c46cfbacbbfb30c53de");
+    // 2026-10-06 (Simon 결정 Q-261006-10): QuantSaveCelebration 재고정. 옛 값 8ca3205c 는 바로 앞
+    // 본문이다. 바뀐 것은 저장 축하가 뜰 때 저장 소리를 루트 GlobalCueHost 에 요청하는 한 줄
+    // (requestGlobalCue("quantSaved"))과 그 import · 주석뿐이다. 모달 · 문구 · 타이머 · 표정은 그대로다.
+    expect(normalizedHash(read("components/quant/QuantSaveCelebration.tsx"))).toBe("7bb3443a7517e195a37e3974eed776e6ec335f4eefd32edbe9fe839f00e8f826");
   });
 
   test("the exact pixel ratchet covers the isolated renderer", () => {
