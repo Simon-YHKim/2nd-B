@@ -3,6 +3,7 @@ import { Animated, FlatList, Pressable, StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { Redirect } from "expo-router";
+import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { useAppRouter } from "@/lib/nav/phone-embed";
@@ -30,7 +31,8 @@ import {
   setAutoIntroSeen,
   setAutoReasoningEnabled,
 } from "@/lib/reasoning/auto-pref";
-import { formatRewardRemaining, formatWeeklyRemaining } from "@/lib/reasoning/remaining-copy";
+import { monthLabelFor } from "@/lib/reasoning/remaining-copy";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import {
   ReasoningAutoUnavailableError,
   ReasoningRunActiveError,
@@ -48,7 +50,7 @@ import {
   reserveRun,
   startRun as startRunJob,
 } from "@/lib/reasoning/runs";
-import { domainTagFor, getDomainStar, isDomainId, stripDomainTags, type DomainId } from "@/lib/persona/domain-stars";
+import { domainTagFor, isDomainId, stripDomainTags, type DomainId } from "@/lib/persona/domain-stars";
 import { invalidateDomainLevels } from "@/lib/persona/load-domain-levels";
 import { useProgression } from "@/lib/progression/useProgression";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
@@ -547,6 +549,19 @@ async function autoRunCanUseQuota(
   return Math.min(usage.used, cap) < cap - 1;
 }
 
+// The queued line an automatic run carries into the review list (it persists with the
+// run's proposals, 0092). These run outside React, so the line is read from the global
+// i18next in the language on screen (#2064) - the run's own `locale` stays the ko/en
+// system locale the connect prompt needs. Copy: deepspace ds.reasoningScreen.queuedRecord / queuedSource
+// in all five locales (Q-261005-01 = A, QA 261006 tr3).
+function queuedMeta(kind: "record" | "source"): string {
+  if (!i18next.isInitialized) return "";
+  return i18next.t(kind === "record" ? "ds.reasoningScreen.queuedRecord" : "ds.reasoningScreen.queuedSource", {
+    ns: "deepspace",
+    lng: renderedUiLanguage(i18next),
+  });
+}
+
 export function enqueueAutoReasoningRecord(args: {
   userId: string;
   locale: "ko" | "en";
@@ -578,7 +593,7 @@ export function enqueueAutoReasoningRecord(args: {
           body: args.body,
           tags: args.tags ?? [],
           createdAt: new Date().toISOString(),
-          meta: args.locale === "ko" ? "새 기록 · 자동 대기" : "New record · queued",
+          meta: queuedMeta("record"),
           icon: "notes",
         },
       ],
@@ -620,7 +635,7 @@ export function enqueueAutoReasoningSource(args: {
           title: args.title,
           tags: [],
           createdAt: new Date().toISOString(),
-          meta: args.locale === "ko" ? "새 자료 · 자동 대기" : "New source · queued",
+          meta: queuedMeta("source"),
           icon: "link",
         },
       ],
@@ -651,23 +666,30 @@ function Glyph({
   return <PixelGlyph name={canonGlyph(name)} color={color} size={size} />;
 }
 
-function relativeTime(iso: string, ko: boolean): string {
+// The screen's copy lives in deepspace ds.reasoningScreen.* in all five locales
+// (Q-261005-01 = A, QA 261006 tr3); it used to be "Korean, otherwise English" here.
+type RelativeTimeKey = "justNow" | "hoursAgo" | "yesterday" | "daysAgo";
+
+function relativeTime(iso: string, label: (key: RelativeTimeKey, n: number) => string): string {
   const diff = Math.max(0, Date.now() - new Date(iso).getTime());
   const hours = Math.floor(diff / 3_600_000);
-  if (hours < 1) return ko ? "방금" : "Just now";
-  if (hours < 24) return ko ? `${hours}시간 전` : `${hours}h ago`;
+  if (hours < 1) return label("justNow", 0);
+  if (hours < 24) return label("hoursAgo", hours);
   const days = Math.floor(hours / 24);
-  if (days === 1) return ko ? "어제" : "Yesterday";
-  return ko ? `${days}일 전` : `${days}d ago`;
+  if (days === 1) return label("yesterday", 1);
+  return label("daysAgo", days);
 }
 
-function recordTitle(row: {
-  body?: string | null;
-  topic?: string | null;
-  summary?: string | null;
-}): string {
+function recordTitle(
+  row: {
+    body?: string | null;
+    topic?: string | null;
+    summary?: string | null;
+  },
+  untitled: string,
+): string {
   const candidate = row.topic?.trim() || row.summary?.trim() || row.body?.trim().split(/\r?\n/)[0] || "";
-  return candidate.length > 0 ? candidate.slice(0, 88) : "제목 없는 기록";
+  return candidate.length > 0 ? candidate.slice(0, 88) : untitled;
 }
 
 type ItemRunState = { state: "waiting" | "running" | "done"; domain?: DomainId };
@@ -692,8 +714,11 @@ export default function ReasoningScreen() {
     refresh,
   } = useAuth();
   const { t, i18n } = useTranslation("deepspace");
+  // `ko` / `locale` are the ko/en system locale for the connect prompt and the crisis
+  // hotline. Copy goes through t(); the month name reads the painted language (#2064).
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
   const locale: "ko" | "en" = ko ? "ko" : "en";
+  const uiLng = renderedUiLanguage(i18n);
   const progression = useProgression();
   const auto = useAutoReasoning(userId);
   const task = useTaskStatus();
@@ -779,13 +804,9 @@ export default function ReasoningScreen() {
       setLimitSheetVisible(true);
     } else {
       setPhase("error");
-      setErrorText(
-        ko
-          ? "백그라운드 리즈닝을 마치지 못했습니다. 다시 시도해 주세요."
-          : "Background reasoning didn't finish. Try again.",
-      );
+      setErrorText(t("ds.reasoningScreen.backgroundFailed"));
     }
-  }, [ko, refreshUsage, userId]);
+  }, [refreshUsage, t, userId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -837,6 +858,10 @@ export default function ReasoningScreen() {
     void Promise.all([listRecentRecords(userId, 60), listSourcePieces(userId), getReasoningUsage(userId)])
       .then(([records, sources, usage]) => {
         if (cancelled) return;
+        // A fixed t for the painted language: the list re-reads when the language (or its
+        // lazy pack) changes, not on every i18n event the hook's t follows.
+        const tl = i18n.getFixedT(uiLng, "deepspace");
+        const ago = (key: RelativeTimeKey, n: number) => tl(`ds.reasoningScreen.${key}`, { n });
         const recordItems: ReasoningItem[] = records.map((row) => {
           const tags = Array.isArray(row.tags) ? (row.tags as string[]) : [];
           const icon =
@@ -845,8 +870,8 @@ export default function ReasoningScreen() {
             key: `record:${row.id}`,
             refKind: "record",
             refId: row.id,
-            title: recordTitle(row),
-            meta: `${row.kind === "journal" ? (ko ? "글" : "Journal") : ko ? "메모" : "Note"} · ${relativeTime(row.created_at, ko)}`,
+            title: recordTitle(row, tl("ds.reasoningScreen.untitledRecord")),
+            meta: `${tl(row.kind === "journal" ? "ds.reasoningScreen.kindJournal" : "ds.reasoningScreen.kindNote")} · ${relativeTime(row.created_at, ago)}`,
             createdAt: row.created_at,
             body: row.body,
             tags,
@@ -857,8 +882,8 @@ export default function ReasoningScreen() {
           key: `source:${source.id.slice(4)}`,
           refKind: "source",
           refId: source.id.slice(4),
-          title: source.title?.trim() || (ko ? "제목 없는 자료" : "Untitled source"),
-          meta: `${ko ? "링크" : "Link"} · ${relativeTime(source.created_at, ko)}`,
+          title: source.title?.trim() || tl("ds.reasoningScreen.untitledSource"),
+          meta: `${tl("ds.reasoningScreen.kindLink")} · ${relativeTime(source.created_at, ago)}`,
           createdAt: source.created_at,
           tags: source.tags ?? [],
           icon: "link",
@@ -873,7 +898,7 @@ export default function ReasoningScreen() {
         setRewardCredits(usage.rewardCredits);
       })
       .catch(() => {
-        if (!cancelled) setErrorText(ko ? "자료를 불러오지 못했습니다. 다시 열어 주세요." : "Couldn't load your items.");
+        if (!cancelled) setErrorText(i18n.t("ds.reasoningScreen.loadFailed", { ns: "deepspace", lng: uiLng }));
       })
       .finally(() => {
         if (!cancelled) setListLoading(false);
@@ -881,7 +906,7 @@ export default function ReasoningScreen() {
     return () => {
       cancelled = true;
     };
-  }, [loading, userId, ko]);
+  }, [i18n, loading, uiLng, userId]);
 
   const cap = reasoningCapForTier(progression.tier);
   const remaining = remainingReasoning(progression.tier, used, rewardCredits);
@@ -941,7 +966,7 @@ export default function ReasoningScreen() {
     if (!userId || isMinor == null || selectedItems.length === 0 || phase === "running") return;
     if (depleted) return;
     if (task.phase === "running") {
-      setErrorText(ko ? "다른 작업이 끝난 뒤 다시 실행해 주세요." : "Wait for the current task to finish.");
+      setErrorText(t("ds.reasoningScreen.busyOther"));
       return;
     }
 
@@ -980,8 +1005,8 @@ export default function ReasoningScreen() {
     );
 
     startTask({
-      title: ko ? "선택한 자료의 별을 잇는 중" : "Connecting selected items",
-      tip: ko ? "선택한 자료의 연결을 확인해 보세요." : "Review the new connections.",
+      title: t("ds.reasoningScreen.taskTitle"),
+      tip: t("ds.reasoningScreen.taskTip"),
       mode: "background",
       etaSec: Math.max(8, selectedItems.length * 4),
       resultHref: "/reasoning",
@@ -1028,7 +1053,7 @@ export default function ReasoningScreen() {
             setPhase("idle");
           } else {
             setPhase("error");
-            setErrorText(ko ? "별을 잇지 못했습니다. 잠시 뒤 다시 시도해 주세요." : "Couldn't connect these items. Try again.");
+            setErrorText(t("ds.reasoningScreen.runFailed"));
           }
         }
       },
@@ -1039,7 +1064,7 @@ export default function ReasoningScreen() {
     phase,
     depleted,
     task.phase,
-    ko,
+    t,
     locale,
     isMinor,
     progression.tier,
@@ -1106,11 +1131,7 @@ export default function ReasoningScreen() {
       if (typeof console !== "undefined") {
         console.warn("[reasoning] ratify failed", (error as Error).message);
       }
-      setErrorText(
-        ko
-          ? "선택한 제안을 반영하지 못했습니다. 잠시 뒤 다시 시도해 주세요."
-          : "Couldn't apply the selected proposals. Try again.",
-      );
+      setErrorText(t("ds.reasoningScreen.applyFailed"));
     } finally {
       // Ratifying writes domain tags (records AND sources), which shifts the
       // constellation — drop the cached levels so the star brightens on the
@@ -1120,9 +1141,9 @@ export default function ReasoningScreen() {
       if (accepted.length > 0) invalidateDomainLevels(userId);
       setApplying(false);
     }
-  }, [applying, ko, phase, proposals, selected, userId]);
+  }, [applying, phase, proposals, selected, t, userId]);
 
-  const reasoningTitle = ko ? "리즈닝" : "Reasoning";
+  const reasoningTitle = t("ds.reasoningScreen.title");
   if (loading) return <InlineLoader />;
   if (!userId) return <Redirect href="/sign-in" />;
   // Unknown profile: never this surface (C10), and never a loader nothing lifts. The
@@ -1134,13 +1155,9 @@ export default function ReasoningScreen() {
 
   const screenTitle =
     phase === "done"
-      ? ko
-        ? "결과 검토"
-        : "Review results"
+      ? t("ds.reasoningScreen.reviewTitle")
       : selected.size > 0 && phase !== "running"
-      ? ko
-        ? `${selected.size}개 선택됨`
-        : `${selected.size} selected`
+      ? t("ds.reasoningScreen.selectedTitle", { n: selected.size })
       : reasoningTitle;
   const progress =
     phase === "done"
@@ -1150,48 +1167,36 @@ export default function ReasoningScreen() {
         : completedCount / selectedItems.length;
   const progressTitle =
     phase === "done"
-      ? ko
-        ? "별을 모두 이었습니다"
-        : "All items are connected"
-      : ko
-        ? "별을 잇는 중입니다"
-        : "Connecting your stars";
+      ? t("ds.reasoningScreen.progressDone")
+      : t("ds.reasoningScreen.progressRunning");
 
   // Split display (spec 결정 5 + 계약 13): weekly base and monthly reward are
   // separate ledgers with separate reset instants — never merge them into one
   // "N회 남음 · 월요일 초기화" line. The RUN gate (depleted) still counts both.
   const quotaCopy = unlimited
-    ? ko
-      ? "무제한으로 별을 이을 수 있습니다"
-      : "Unlimited connections"
-    : formatWeeklyRemaining(ko, cap ?? 0, used);
+    ? t("ds.reasoningScreen.unlimited")
+    : t("ds.reasoningScreen.weeklyLeft", {
+        cap: cap ?? 0,
+        left: Math.max(0, (cap ?? 0) - Math.max(0, used)),
+      });
+  // Same words as THE limit sheet's reward line (ds.reasoningLimit.rewardLeft).
   const rewardCopy =
-    !unlimited && rewardCredits > 0 ? formatRewardRemaining(ko, rewardCredits, monthBucket()) : null;
+    !unlimited && rewardCredits > 0
+      ? t("ds.reasoningLimit.rewardLeft", { n: rewardCredits, month: monthLabelFor(uiLng, monthBucket()) })
+      : null;
 
   const ctaLabel =
     phase === "running"
-      ? ko
-        ? "실행 취소"
-        : "Cancel"
+      ? t("ds.reasoningScreen.cancel")
       : phase === "done"
-        ? ko
-          ? selected.size > 0
-            ? `선택한 ${selected.size}건 반영`
-            : "모두 기존대로 두기"
-          : selected.size > 0
-            ? `Apply ${selected.size} selected`
-            : "Keep all unchanged"
+        ? selected.size > 0
+          ? t("ds.reasoningScreen.applySelected", { n: selected.size })
+          : t("ds.reasoningScreen.keepAll")
         : depleted
-          ? ko
-            ? "이번 주 한도 소진"
-            : "Weekly limit reached"
+          ? t("ds.reasoningScreen.weeklyLimitReached")
           : selected.size > 0
-            ? ko
-              ? `선택한 ${selected.size}건 리즈닝`
-              : `Reason over ${selected.size} items`
-            : ko
-              ? "선택한 자료 리즈닝"
-              : "Reason over selected items";
+            ? t("ds.reasoningScreen.reasonN", { n: selected.size })
+            : t("ds.reasoningScreen.reasonSelected");
 
   return (
     <>
@@ -1226,13 +1231,11 @@ export default function ReasoningScreen() {
                   <View style={styles.depletedTitleRow}>
                     <Glyph name="bolt" color={m3.color.error} size={22} />
                     <RNText style={styles.depletedTitle}>
-                      {ko ? "이번 주 기본 리즈닝을 다 썼습니다" : "You've used this week's base reasoning runs"}
+                      {t("ds.reasoningScreen.depletedTitle")}
                     </RNText>
                   </View>
                   <RNText style={styles.depletedBody}>
-                    {ko
-                      ? `월요일 00:00에 다시 ${cap ?? 0}회가 채워집니다.`
-                      : `${cap ?? 0} runs refill Monday at 00:00 KST.`}
+                    {t("ds.reasoningLimit.resetLine", { cap: cap ?? 0 })}
                   </RNText>
                   <View style={styles.depletedActions}>
                     {/* The ad path lives in THE limit sheet (spec F, 계약 14),
@@ -1241,14 +1244,14 @@ export default function ReasoningScreen() {
                         subset: adult + free + rewarded build flag. */}
                     {isMinor === false && progression.tier === "free" && rewardedAdsConfigured() ? (
                       <MdButton
-                        label={ko ? `광고 보고 ${REWARD_PER_WATCH}회 받기` : `Watch an ad for ${REWARD_PER_WATCH} runs`}
+                        label={t("ds.reasoningLimit.adCta", { n: REWARD_PER_WATCH })}
                         variant="filled"
                         onPress={() => setLimitSheetVisible(true)}
                         style={styles.flexButton}
                       />
                     ) : null}
                     <MdButton
-                      label={ko ? "플랜 보기" : "View plans"}
+                      label={t("ds.reasoningScreen.viewPlans")}
                       variant="tonal"
                       onPress={() => router.push("/plans?from=reasoning_limit")}
                       style={styles.flexButton}
@@ -1332,12 +1335,8 @@ export default function ReasoningScreen() {
                       </RNText>
                       <RNText style={styles.rowSub}>
                         {phase === "done"
-                          ? ko
-                            ? `${proposals.length}건의 연결을 제안했습니다. 반영할 항목만 선택해 주세요.`
-                            : `${proposals.length} connections are proposed. Select only what you want to apply.`
-                          : ko
-                            ? `선택한 ${selectedItems.length}건을 읽고 있습니다 · ${completedCount} / ${selectedItems.length}`
-                            : `Reading ${selectedItems.length} items · ${completedCount} / ${selectedItems.length}`}
+                          ? t("ds.reasoningScreen.doneSummary", { n: proposals.length })
+                          : t("ds.reasoningScreen.runningSummary", { total: selectedItems.length, done: completedCount })}
                       </RNText>
                     </View>
                   </View>
@@ -1350,19 +1349,15 @@ export default function ReasoningScreen() {
                   ) : null}
                   <RNText style={styles.autoNote}>
                     {phase === "done"
-                      ? ko
-                        ? "선택한 제안만 반영됩니다. 선택하지 않은 항목은 기존대로 남습니다."
-                        : "Only selected proposals are applied. Unselected items stay unchanged."
-                      : ko
-                        ? "지금 다른 화면을 봐도 됩니다. 다 되면 위에서 알려드리겠습니다."
-                        : "You can leave this screen. SecondB will let you know when it's ready."}
+                      ? t("ds.reasoningScreen.doneNote")
+                      : t("ds.reasoningScreen.runningNote")}
                   </RNText>
                 </View>
               ) : (
                 <View style={styles.quota}>
                   <Glyph name="bolt" color={depleted ? m3.color.error : m3.color.primary} />
                   <View style={styles.rowCopy}>
-                    <RNText style={styles.rowLabel}>{ko ? "이번 주 리즈닝" : "This week's reasoning"}</RNText>
+                    <RNText style={styles.rowLabel}>{t("ds.reasoningScreen.weekLabel")}</RNText>
                     <RNText style={styles.rowSub}>{quotaCopy}</RNText>
                     {rewardCopy ? <RNText style={styles.rowSubReward}>{rewardCopy}</RNText> : null}
                   </View>
@@ -1380,17 +1375,16 @@ export default function ReasoningScreen() {
               )}
 
               <View style={styles.sectionLabelRow}>
-                <RNText style={styles.sectionLabel}>{ko ? "담은 자료" : "Captured items"}</RNText>
+                <RNText style={styles.sectionLabel}>{t("ds.reasoningScreen.capturedItems")}</RNText>
                 <RNText style={styles.sectionCount}>
                   {phase === "running" || phase === "done"
                     ? phase === "done"
-                      ? ko
-                        ? "반영할 제안 선택"
-                        : "Select proposals"
-                      : ko
-                        ? "분석 중"
-                        : "Processing"
-                    : `${selected.size} / ${Math.min(MAX_SELECTION, items.length)} ${ko ? "선택" : "selected"}`}
+                      ? t("ds.reasoningScreen.selectProposals")
+                      : t("ds.reasoningScreen.processing")
+                    : t("ds.reasoningScreen.selectionCount", {
+                        n: selected.size,
+                        max: Math.min(MAX_SELECTION, items.length),
+                      })}
                 </RNText>
               </View>
               {errorText ? (
@@ -1404,16 +1398,12 @@ export default function ReasoningScreen() {
             <View style={styles.empty}>
               <RNText style={styles.emptyTitle}>
                 {listLoading
-                  ? ko
-                    ? "자료를 불러오는 중입니다"
-                    : "Loading your items"
-                  : ko
-                    ? "아직 담은 자료가 없습니다"
-                    : "No captured items yet"}
+                  ? t("ds.reasoningScreen.loadingItems")
+                  : t("ds.reasoningScreen.emptyItems")}
               </RNText>
               {!listLoading ? (
                 <MdButton
-                  label={ko ? "첫 자료 담기" : "Capture your first item"}
+                  label={t("ds.reasoningScreen.captureFirst")}
                   variant="tonal"
                   onPress={() => router.push("/capture")}
                 />
@@ -1423,12 +1413,9 @@ export default function ReasoningScreen() {
           renderItem={({ item }) => {
             const chosen = selected.has(item.key);
             const status = runState[item.key];
+            // Domain names: the home constellation's own keys (same words in every locale).
             const domainName =
-              status?.domain == null
-                ? null
-                : ko
-                  ? getDomainStar(status.domain).nameKo
-                  : getDomainStar(status.domain).nameEn;
+              status?.domain == null ? null : t(`home:ds.home.domainName.${status.domain}`);
             return (
               <Pressable
                 onPress={() => toggleItem(item.key)}
@@ -1462,13 +1449,9 @@ export default function ReasoningScreen() {
                     ]}
                   >
                     {status?.state === "running"
-                      ? ko
-                        ? "읽는 중…"
-                        : "Reading…"
+                      ? t("ds.reasoningScreen.readingItem")
                       : status?.state === "done" && domainName
-                        ? ko
-                          ? `${domainName} 별 연결 제안`
-                          : `Proposed for ${domainName}`
+                        ? t("ds.reasoningScreen.proposedFor", { domain: domainName })
                         : item.meta}
                   </RNText>
                 </View>
@@ -1498,7 +1481,7 @@ export default function ReasoningScreen() {
           />
           {selected.size === 0 && phase === "idle" ? (
             <RNText style={styles.runHint}>
-              {ko ? "자료를 선택하면 실행 버튼이 켜집니다." : "Select items to enable reasoning."}
+              {t("ds.reasoningScreen.runHint")}
             </RNText>
           ) : null}
         </View>

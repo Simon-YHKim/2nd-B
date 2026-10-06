@@ -73,5 +73,115 @@
   },
   "retention": {
     "chip": "Erased on account deletion"
+  },
+  "hub": {
+    "back": "Back",
+    "import": "Import",
+    "imported": "Imported data",
+    "hubBubble": "What should we bring in?",
+    "hubTip": "Only what you approve is kept.",
+    "tier_critical": "Most sensitive · consent required",
+    "tier_sensitive": "Sensitive",
+    "tier_normal": "Normal",
+    "needsConsent": "Needs consent",
+    "notLinked": "Not linked",
+    "locked": "Locked",
+    "what": "WHAT",
+    "where": "WHERE",
+    "whereBody": "Analyzed on this device. Only the results you choose on the review screen are kept, encrypted.",
+    "deleteAnytime": "Delete anytime",
+    "localAnalysis": "File analyzed on device",
+    "connectorNote": "The next screen requests location \"while using\" only. (needs the native build)",
+    "googleConnectorNote": "Securely link your Google account in the browser. Read-only (view events).",
+    "googleConnect": "Connect Google",
+    "connecting": "Connecting…",
+    "gErrNoEvents": "No upcoming events.",
+    "gErrDenied": "Connection cancelled. Try again.",
+    "gErrNative": "Connect on web for now. App (native) support comes later.",
+    "gErrGeneric": "Couldn't connect. Try again shortly.",
+    "consentPick": "Consent and pick file",
+    "orImportFile": "Import a file instead",
+    "consentFine": "You consent to what's collected, where it's kept, for how long, and your right to delete. Comms/location import is locked for minors.",
+    "chooseFile": "Choose file",
+    "orPaste": "or paste it below",
+    "pasteHint": "Paste the exported file's contents.",
+    "pastePlaceholder": "Paste here",
+    "analyze": "Analyze",
+    "errTitle": "Couldn't read the file",
+    "errBody": "Check that the exported format is right",
+    "importFailed": "Couldn't import that. Nothing was recorded. Try again.",
+    "ledgerWarnTitle": "Couldn't book the transactions",
+    "ledgerWarnBody": "The import itself was saved, but the chosen transactions were not booked. Re-import the same file to book them.",
+    "ledgerWarnPartTitle": "Some transactions were not booked",
+    "ledgerWarnPartBody": "{failed} of the chosen transactions could not be booked; {inserted} were. Re-importing the same file would duplicate the booked rows, so please add the missing ones by hand.",
+    "done": "Done",
+    "appts": "Plans",
+    "places": "Places",
+    "notes": "Notes",
+    "watches": "Watches",
+    "txns": "Entries",
+    "raw": "Raw",
+    "pickToApply": "Pick what to apply",
+    "sensitiveExcluded": "sensitive · excluded by default",
+    "applyN": "Apply {n} to records",
+    "emptyTitle": "Nothing imported yet",
+    "emptyBody": "Pick a source to start",
+    "pickSource": "Pick a source",
+    "delete": "Delete",
+    "historyFine": "Delete removes the source this import created. A source it can't confirm this import created stays, and you're told why. People and ledger entries created from an import can be removed in the Relationships and Ledger screens. Comms/location import is server-locked for minor accounts.",
+    "revokeFailed": "Couldn't withdraw. Try again shortly.",
+    "revokeNeedsSignIn": "Sign in to withdraw - the server-side rows must be deleted together.",
+    "sources": {
+      "kakao": {
+        "name": "KakaoTalk",
+        "sub": "Comms · file export",
+        "what": "Only plan mention counts and relationship frequency. We don't store message text."
+      },
+      "takeout": {
+        "name": "Google Timeline",
+        "sub": "Location · Takeout file",
+        "what": "Only place/dwell patterns. Exact coordinates aren't stored."
+      },
+      "sms": {
+        "name": "SMS",
+        "sub": "Comms · backup file",
+        "what": "Only plan mention counts. We don't store message text."
+      },
+      "live-location": {
+        "name": "Live location",
+        "sub": "Location · device permission",
+        "what": "Only place/dwell patterns. Exact coordinates aren't stored."
+      },
+      "health": {
+        "name": "Health",
+        "sub": "Health · export file",
+        "what": "Only totals (steps, etc). Detailed records aren't stored."
+      },
+      "email": {
+        "name": "Email",
+        "sub": "Email · .eml file",
+        "what": "Only plan/schedule signals, not the full body."
+      },
+      "notion": {
+        "name": "Notion · Obsidian",
+        "sub": "Notes · export file",
+        "what": "Brings your notes in as records."
+      },
+      "google": {
+        "name": "Google Calendar",
+        "sub": "Schedule · account link",
+        "what": "Brings only upcoming event titles + times. No body/attendees."
+      },
+      "google-tasks": {
+        "name": "Google Tasks",
+        "sub": "To-dos · account link",
+        "what": "Brings your to-do titles in as records."
+      },
+      "calendar": {
+        "name": "Calendar (.ics)",
+        "sub": "Schedule · file",
+        "what": "Brings your calendar events in."
+      }
+    }
   }
 }

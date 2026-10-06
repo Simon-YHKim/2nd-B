@@ -492,7 +492,18 @@
     "sourceRecord": "저장된 커리어 기록",
     "entryUiKorean": "저장 당시 화면: 한국어",
     "entryUiEnglish": "저장 당시 화면: 영어",
-    "untitled": "(제목 없음)"
+    "untitled": "(제목 없음)",
+    "pathTitle": "쌓아온 길",
+    "trackMain": "메인",
+    "trackSide": "사이드",
+    "credentials": {
+      "education": "학력",
+      "military": "병역",
+      "awards": "수상",
+      "licenses": "자격",
+      "experience": "경력"
+    },
+    "sideNote": "학력·병역·수상·자격·경력 같은 공식 이력은 연동하면 여기에 자동으로 정리됩니다. 지금은 메인에서 직접 담은 성과가 쌓입니다."
   },
   "careerInput": {
     "screenTitle": "성과 입력",
@@ -722,7 +733,37 @@
       "startRoutine": "루틴 하나 시작하기",
       "reanalyze": "별 다시 살펴보기",
       "reanalyzing": "별을 다시 살펴보는 중",
-      "reanalyzingTip": "끝나면 알려 드리겠습니다. 그동안 앱을 계속 써도 됩니다."
+      "reanalyzingTip": "끝나면 알려 드리겠습니다. 그동안 앱을 계속 써도 됩니다.",
+      "steps": {
+        "profile": {
+          "obs": "내 기본 정보를 채워간 한 주였습니다.",
+          "step": "프로필 항목 하나 채우기"
+        },
+        "infancy": {
+          "obs": "가장 이른 기억을 파본 한 주였습니다.",
+          "step": "떠오른 장면 한 조각 적어두기"
+        },
+        "school": {
+          "obs": "학창시절을 되짚은 한 주였습니다.",
+          "step": "그 시절 한 장면 더 파보기"
+        },
+        "twenties": {
+          "obs": "20대의 나를 깊게 판 한 주였습니다.",
+          "step": "그때의 선택 하나 적어보기"
+        },
+        "later": {
+          "obs": "서른 이후의 변화를 돌아본 한 주였습니다.",
+          "step": "달라진 것 한 줄 적기"
+        },
+        "work": {
+          "obs": "일하는 나를 들여다본 한 주였습니다.",
+          "step": "이번 주 일의 한 장면 적기"
+        },
+        "now": {
+          "obs": "지금의 나를 자주 들여다봤습니다.",
+          "step": "오늘 한 줄 돌아보기"
+        }
+      }
     },
     "plans": {
       "title": "요금제",
@@ -920,7 +961,55 @@
       "autoTitle": "자동 연결",
       "autoPaused": "다 썼습니다 · 월요일에 자동으로 다시 시작합니다",
       "autoBody": "자료를 담을 때마다 세컨비가 관련 생활 영역을 제안합니다",
-      "autoNote": "자동 연결도 주간 한도를 1회씩 사용합니다. 직접 연결할 수 있도록 마지막 1회는 남겨 둡니다."
+      "autoNote": "자동 연결도 주간 한도를 1회씩 사용합니다. 직접 연결할 수 있도록 마지막 1회는 남겨 둡니다.",
+      "queuedRecord": "새 기록 · 자동 대기",
+      "queuedSource": "새 자료 · 자동 대기",
+      "justNow": "방금",
+      "hoursAgo": "{{n}}시간 전",
+      "yesterday": "어제",
+      "daysAgo": "{{n}}일 전",
+      "untitledRecord": "제목 없는 기록",
+      "untitledSource": "제목 없는 자료",
+      "kindJournal": "글",
+      "kindNote": "메모",
+      "kindLink": "링크",
+      "backgroundFailed": "백그라운드 리즈닝을 마치지 못했습니다. 다시 시도해 주세요.",
+      "loadFailed": "자료를 불러오지 못했습니다. 다시 열어 주세요.",
+      "busyOther": "다른 작업이 끝난 뒤 다시 실행해 주세요.",
+      "taskTitle": "선택한 자료의 별을 잇는 중",
+      "taskTip": "선택한 자료의 연결을 확인해 보세요.",
+      "runFailed": "별을 잇지 못했습니다. 잠시 뒤 다시 시도해 주세요.",
+      "applyFailed": "선택한 제안을 반영하지 못했습니다. 잠시 뒤 다시 시도해 주세요.",
+      "title": "리즈닝",
+      "reviewTitle": "결과 검토",
+      "selectedTitle": "{{n}}개 선택됨",
+      "progressDone": "별을 모두 이었습니다",
+      "progressRunning": "별을 잇는 중입니다",
+      "unlimited": "무제한으로 별을 이을 수 있습니다",
+      "weeklyLeft": "이번 주 {{cap}}회 중 {{left}}회 남음 · 월요일 초기화",
+      "cancel": "실행 취소",
+      "applySelected": "선택한 {{n}}건 반영",
+      "keepAll": "모두 기존대로 두기",
+      "weeklyLimitReached": "이번 주 한도 소진",
+      "reasonN": "선택한 {{n}}건 리즈닝",
+      "reasonSelected": "선택한 자료 리즈닝",
+      "depletedTitle": "이번 주 기본 리즈닝을 다 썼습니다",
+      "viewPlans": "플랜 보기",
+      "doneSummary": "{{n}}건의 연결을 제안했습니다. 반영할 항목만 선택해 주세요.",
+      "runningSummary": "선택한 {{total}}건을 읽고 있습니다 · {{done}} / {{total}}",
+      "doneNote": "선택한 제안만 반영됩니다. 선택하지 않은 항목은 기존대로 남습니다.",
+      "runningNote": "지금 다른 화면을 봐도 됩니다. 다 되면 위에서 알려드리겠습니다.",
+      "weekLabel": "이번 주 리즈닝",
+      "capturedItems": "담은 자료",
+      "selectProposals": "반영할 제안 선택",
+      "processing": "분석 중",
+      "selectionCount": "{{n}} / {{max}} 선택",
+      "loadingItems": "자료를 불러오는 중입니다",
+      "emptyItems": "아직 담은 자료가 없습니다",
+      "captureFirst": "첫 자료 담기",
+      "readingItem": "읽는 중…",
+      "proposedFor": "{{domain}} 별 연결 제안",
+      "runHint": "자료를 선택하면 실행 버튼이 켜집니다."
     },
     "sources": {
       "title": "들어온 자료",

@@ -73,5 +73,115 @@
   },
   "retention": {
     "chip": "계정 삭제 시 함께 삭제"
+  },
+  "hub": {
+    "back": "뒤로",
+    "import": "가져오기",
+    "imported": "가져온 데이터",
+    "hubBubble": "무엇을 들여올까요?",
+    "hubTip": "네가 승인한 것만 기록에 남습니다.",
+    "tier_critical": "최민감 · 명시 동의 필요",
+    "tier_sensitive": "민감",
+    "tier_normal": "보통",
+    "needsConsent": "동의 필요",
+    "notLinked": "미연결",
+    "locked": "잠김",
+    "what": "무엇을",
+    "where": "어디에",
+    "whereBody": "이 기기에서 분석합니다. 검토 화면에서 고른 결과만 암호화해 보관합니다.",
+    "deleteAnytime": "언제든 삭제",
+    "localAnalysis": "파일 분석은 이 기기에서",
+    "connectorNote": "다음 화면에서 위치 권한을 \"사용 중에만\"으로 요청합니다. (네이티브 빌드 필요)",
+    "googleConnectorNote": "브라우저에서 구글 계정으로 안전하게 연결합니다. 읽기 전용(일정 보기)입니다.",
+    "googleConnect": "구글 연결",
+    "connecting": "연결 중…",
+    "gErrNoEvents": "다가오는 일정이 없습니다.",
+    "gErrDenied": "연결이 취소됐습니다. 다시 시도해 주세요.",
+    "gErrNative": "지금은 웹에서만 연결됩니다. 앱(네이티브)은 추후 지원합니다.",
+    "gErrGeneric": "연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    "consentPick": "동의하고 파일 선택",
+    "orImportFile": "대신 파일로 가져오기",
+    "consentFine": "수집 항목·보관 위치·기간·삭제권에 동의합니다. 미성년은 통신·위치 임포트가 잠겨 있습니다.",
+    "chooseFile": "파일 선택",
+    "orPaste": "또는 아래에 직접 붙여넣기",
+    "pasteHint": "내보낸 파일 내용을 붙여넣어 주세요.",
+    "pastePlaceholder": "여기에 붙여넣기",
+    "analyze": "분석",
+    "errTitle": "파일 형식을 못 읽었습니다",
+    "errBody": "내보낸 형식이 맞는지 확인해 주세요",
+    "importFailed": "가져오지 못했습니다. 아무것도 기록되지 않았습니다. 다시 시도해 주세요.",
+    "ledgerWarnTitle": "거래 반영은 실패했습니다",
+    "ledgerWarnBody": "가져오기는 저장됐습니다. 다만 고른 거래 내역을 적지 못했습니다. 같은 파일을 다시 가져오면 반영됩니다.",
+    "ledgerWarnPartTitle": "거래 일부를 적지 못했습니다",
+    "ledgerWarnPartBody": "고른 거래 중 {failed}건을 적지 못했습니다. {inserted}건은 반영됐습니다. 같은 파일을 다시 가져오면 이미 반영된 내역이 중복되니, 빠진 내역은 직접 추가해 주세요.",
+    "done": "완료",
+    "appts": "약속",
+    "places": "장소",
+    "notes": "노트",
+    "watches": "시청",
+    "txns": "거래",
+    "raw": "원문",
+    "pickToApply": "반영할 항목 고르기",
+    "sensitiveExcluded": "민감 · 기본 제외",
+    "applyN": "고른 {n}건 기록에 반영",
+    "emptyTitle": "아직 가져온 게 없습니다",
+    "emptyBody": "소스를 골라 시작합니다",
+    "pickSource": "소스 고르기",
+    "delete": "삭제",
+    "historyFine": "삭제는 이 임포트가 만든 원본을 제거합니다. 이 임포트가 만들었다고 확인되지 않은 원본은 남기고, 남긴 까닭을 알려 드립니다. 임포트로 만들어진 인물·가계부 항목은 관계·가계부 화면에서 지울 수 있습니다. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있습니다.",
+    "revokeFailed": "철회하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    "revokeNeedsSignIn": "로그인 후 철회할 수 있습니다. 서버에 남은 데이터까지 함께 지워야 하기 때문입니다.",
+    "sources": {
+      "kakao": {
+        "name": "카카오톡 대화",
+        "sub": "통신 · 파일 내보내기",
+        "what": "약속 언급 횟수와 관계 빈도만 뽑습니다. 메시지 본문은 저장하지 않습니다."
+      },
+      "takeout": {
+        "name": "구글 타임라인",
+        "sub": "위치 · Takeout 파일",
+        "what": "자주 가는 장소·머문 시간 패턴만. 정확한 좌표 경로는 저장 안 함."
+      },
+      "sms": {
+        "name": "문자(SMS)",
+        "sub": "통신 · 백업 파일",
+        "what": "약속 언급 횟수만 뽑습니다. 메시지 본문은 저장하지 않습니다."
+      },
+      "live-location": {
+        "name": "실시간 위치",
+        "sub": "위치 · 기기 권한",
+        "what": "자주 가는 장소·머문 시간 패턴만. 정확한 좌표 경로는 저장 안 함."
+      },
+      "health": {
+        "name": "건강",
+        "sub": "건강 · export 파일",
+        "what": "걸음·운동 등 합계만. 상세 기록 원문은 저장 안 함."
+      },
+      "email": {
+        "name": "이메일",
+        "sub": "이메일 · .eml 파일",
+        "what": "약속·일정 신호만. 본문 전체는 저장 안 함."
+      },
+      "notion": {
+        "name": "Notion · Obsidian",
+        "sub": "노트 · export 파일",
+        "what": "노트를 기록으로 들여옵니다."
+      },
+      "google": {
+        "name": "구글 캘린더",
+        "sub": "일정 · 계정 연결",
+        "what": "다가오는 일정의 제목·시간만 가져옵니다. 본문·참석자는 저장 안 합니다."
+      },
+      "google-tasks": {
+        "name": "구글 할 일",
+        "sub": "할 일 · 계정 연결",
+        "what": "할 일 목록의 제목만 기록으로 가져옵니다."
+      },
+      "calendar": {
+        "name": "캘린더(.ics)",
+        "sub": "일정 · 파일",
+        "what": "일정 이벤트를 들여옵니다."
+      }
+    }
   }
 }

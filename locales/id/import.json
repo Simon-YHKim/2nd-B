@@ -73,5 +73,115 @@
   },
   "retention": {
     "chip": "Dihapus saat akun dihapus"
+  },
+  "hub": {
+    "back": "Kembali",
+    "import": "Impor",
+    "imported": "Data yang diimpor",
+    "hubBubble": "Apa yang ingin kamu bawa masuk?",
+    "hubTip": "Hanya yang kamu setujui yang disimpan.",
+    "tier_critical": "Paling sensitif · perlu persetujuan",
+    "tier_sensitive": "Sensitif",
+    "tier_normal": "Biasa",
+    "needsConsent": "Perlu persetujuan",
+    "notLinked": "Belum terhubung",
+    "locked": "Terkunci",
+    "what": "APA",
+    "where": "DI MANA",
+    "whereBody": "Dianalisis di perangkat ini. Hanya hasil yang kamu pilih di layar tinjauan yang disimpan, terenkripsi.",
+    "deleteAnytime": "Hapus kapan saja",
+    "localAnalysis": "File dianalisis di perangkat",
+    "connectorNote": "Layar berikutnya meminta lokasi hanya \"saat aplikasi digunakan\". (perlu aplikasi terpasang)",
+    "googleConnectorNote": "Hubungkan akun Google-mu dengan aman di browser. Hanya baca (lihat acara).",
+    "googleConnect": "Hubungkan Google",
+    "connecting": "Menghubungkan…",
+    "gErrNoEvents": "Tidak ada acara mendatang.",
+    "gErrDenied": "Koneksi dibatalkan. Coba lagi.",
+    "gErrNative": "Untuk saat ini, hubungkan lewat web. Dukungan aplikasi terpasang menyusul.",
+    "gErrGeneric": "Tidak dapat terhubung. Coba lagi sebentar lagi.",
+    "consentPick": "Setujui dan pilih file",
+    "orImportFile": "Impor file saja",
+    "consentFine": "Kamu menyetujui apa yang dikumpulkan, di mana disimpan, berapa lama, dan hakmu untuk menghapus. Impor komunikasi/lokasi dikunci untuk pengguna di bawah umur.",
+    "chooseFile": "Pilih file",
+    "orPaste": "atau tempel di bawah",
+    "pasteHint": "Tempel isi file yang diekspor.",
+    "pastePlaceholder": "Tempel di sini",
+    "analyze": "Analisis",
+    "errTitle": "File tidak dapat dibaca",
+    "errBody": "Periksa apakah format ekspornya sudah benar",
+    "importFailed": "Tidak dapat mengimpor. Tidak ada yang dicatat. Coba lagi.",
+    "ledgerWarnTitle": "Transaksi tidak dapat dicatat",
+    "ledgerWarnBody": "Impor sudah tersimpan, tetapi transaksi yang dipilih belum dicatat. Impor ulang file yang sama untuk mencatatnya.",
+    "ledgerWarnPartTitle": "Sebagian transaksi tidak tercatat",
+    "ledgerWarnPartBody": "{failed} transaksi yang dipilih tidak dapat dicatat; {inserted} berhasil. Mengimpor ulang file yang sama akan menggandakan yang sudah tercatat, jadi tambahkan yang kurang secara manual.",
+    "done": "Selesai",
+    "appts": "Rencana",
+    "places": "Tempat",
+    "notes": "Catatan",
+    "watches": "Tontonan",
+    "txns": "Transaksi",
+    "raw": "Asli",
+    "pickToApply": "Pilih yang akan diterapkan",
+    "sensitiveExcluded": "sensitif · dikecualikan secara bawaan",
+    "applyN": "Terapkan {n} ke catatan",
+    "emptyTitle": "Belum ada yang diimpor",
+    "emptyBody": "Pilih sumber untuk memulai",
+    "pickSource": "Pilih sumber",
+    "delete": "Hapus",
+    "historyFine": "Hapus menghapus sumber yang dibuat oleh impor ini. Sumber yang tidak dapat dipastikan dibuat oleh impor ini tetap disimpan, dan kami jelaskan alasannya. Orang dan entri pengeluaran yang dibuat dari impor dapat dihapus di layar Hubungan dan Cek keuangan. Impor komunikasi/lokasi dikunci di server untuk akun pengguna di bawah umur.",
+    "revokeFailed": "Tidak bisa mencabut. Coba lagi sebentar lagi.",
+    "revokeNeedsSignIn": "Masuk untuk mencabut: data yang tersimpan di server juga harus dihapus.",
+    "sources": {
+      "kakao": {
+        "name": "KakaoTalk",
+        "sub": "Komunikasi · file ekspor",
+        "what": "Hanya jumlah sebutan rencana dan frekuensi hubungan. Isi pesan tidak disimpan."
+      },
+      "takeout": {
+        "name": "Google Timeline",
+        "sub": "Lokasi · file Takeout",
+        "what": "Hanya pola tempat dan lama singgah. Koordinat persis tidak disimpan."
+      },
+      "sms": {
+        "name": "SMS",
+        "sub": "Komunikasi · file cadangan",
+        "what": "Hanya jumlah sebutan rencana. Isi pesan tidak disimpan."
+      },
+      "live-location": {
+        "name": "Lokasi langsung",
+        "sub": "Lokasi · izin perangkat",
+        "what": "Hanya pola tempat dan lama singgah. Koordinat persis tidak disimpan."
+      },
+      "health": {
+        "name": "Kesehatan",
+        "sub": "Kesehatan · file ekspor",
+        "what": "Hanya total (langkah, dll.). Catatan rinci tidak disimpan."
+      },
+      "email": {
+        "name": "Email",
+        "sub": "Email · file .eml",
+        "what": "Hanya sinyal rencana/jadwal, bukan isi lengkapnya."
+      },
+      "notion": {
+        "name": "Notion · Obsidian",
+        "sub": "Catatan · file ekspor",
+        "what": "Memasukkan catatanmu sebagai entri."
+      },
+      "google": {
+        "name": "Google Calendar",
+        "sub": "Jadwal · tautan akun",
+        "what": "Hanya membawa judul dan waktu acara mendatang. Tanpa isi/peserta."
+      },
+      "google-tasks": {
+        "name": "Google Tasks",
+        "sub": "Tugas · tautan akun",
+        "what": "Memasukkan judul tugasmu sebagai entri."
+      },
+      "calendar": {
+        "name": "Kalender (.ics)",
+        "sub": "Jadwal · file",
+        "what": "Memasukkan acara kalendermu."
+      }
+    }
   }
 }

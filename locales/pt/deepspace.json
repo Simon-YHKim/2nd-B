@@ -492,7 +492,18 @@
     "sourceRecord": "Registro de carreira salvo",
     "entryUiKorean": "Tela ao salvar: coreano",
     "entryUiEnglish": "Tela ao salvar: inglês",
-    "untitled": "(sem título)"
+    "untitled": "(sem título)",
+    "pathTitle": "Caminho construído",
+    "trackMain": "Principal",
+    "trackSide": "Secundária",
+    "credentials": {
+      "education": "Formação",
+      "military": "Serviço militar",
+      "awards": "Prêmios",
+      "licenses": "Certificações",
+      "experience": "Experiência"
+    },
+    "sideNote": "Registros oficiais como formação, serviço militar, prêmios, certificações e experiência ficam organizados aqui quando você conecta uma fonte. Por enquanto, suas próprias conquistas se acumulam em Principal."
   },
   "careerInput": {
     "screenTitle": "Registrar conquista",
@@ -722,7 +733,37 @@
       "startRoutine": "Começar uma rotina",
       "reanalyze": "Reler minhas estrelas",
       "reanalyzing": "Relendo suas estrelas",
-      "reanalyzingTip": "Avisaremos quando terminar."
+      "reanalyzingTip": "Avisaremos quando terminar.",
+      "steps": {
+        "profile": {
+          "obs": "Nesta semana você preencheu mais das suas informações básicas.",
+          "step": "Preencha um campo do perfil"
+        },
+        "infancy": {
+          "obs": "Você explorou suas memórias mais antigas.",
+          "step": "Anote uma cena que veio à memória"
+        },
+        "school": {
+          "obs": "Você revisitou seus anos de escola.",
+          "step": "Explore mais uma cena daquela época"
+        },
+        "twenties": {
+          "obs": "Você mergulhou fundo nos seus vinte anos.",
+          "step": "Escreva uma escolha daquela época"
+        },
+        "later": {
+          "obs": "Você olhou como mudou depois dos trinta.",
+          "step": "Escreva uma linha sobre o que mudou"
+        },
+        "work": {
+          "obs": "Você se observou no trabalho.",
+          "step": "Anote uma cena do trabalho desta semana"
+        },
+        "now": {
+          "obs": "Você parou para se observar com frequência.",
+          "step": "Uma linha de reflexão hoje"
+        }
+      }
     },
     "plans": {
       "title": "Planos",
@@ -920,7 +961,55 @@
       "autoTitle": "Conexões automáticas",
       "autoPaused": "Limite atingido · volta na segunda",
       "autoBody": "O SecondB busca conexões para cada item que você salva.",
-      "autoNote": "Cada busca automática usa uma das buscas semanais. Uma fica sempre reservada para você iniciar manualmente."
+      "autoNote": "Cada busca automática usa uma das buscas semanais. Uma fica sempre reservada para você iniciar manualmente.",
+      "queuedRecord": "Novo registro · na fila",
+      "queuedSource": "Nova fonte · na fila",
+      "justNow": "Agora mesmo",
+      "hoursAgo": "Há {{n}} h",
+      "yesterday": "Ontem",
+      "daysAgo": "Há {{n}} d",
+      "untitledRecord": "Registro sem título",
+      "untitledSource": "Fonte sem título",
+      "kindJournal": "Diário",
+      "kindNote": "Nota",
+      "kindLink": "Link",
+      "backgroundFailed": "O raciocínio em segundo plano não terminou. Tente novamente.",
+      "loadFailed": "Não foi possível carregar seus itens.",
+      "busyOther": "Aguarde a tarefa atual terminar.",
+      "taskTitle": "Conectando os itens selecionados",
+      "taskTip": "Revise as novas conexões.",
+      "runFailed": "Não foi possível conectar estes itens. Tente novamente.",
+      "applyFailed": "Não foi possível aplicar as propostas selecionadas. Tente novamente.",
+      "title": "Raciocínio",
+      "reviewTitle": "Revisar resultados",
+      "selectedTitle": "{{n}} selecionados",
+      "progressDone": "Todos os itens estão conectados",
+      "progressRunning": "Conectando suas estrelas",
+      "unlimited": "Conexões ilimitadas",
+      "weeklyLeft": "Buscas disponíveis nesta semana: {{left}} de {{cap}} · renovam na segunda",
+      "cancel": "Cancelar",
+      "applySelected": "Aplicar {{n}} selecionados",
+      "keepAll": "Manter tudo como está",
+      "weeklyLimitReached": "Limite semanal atingido",
+      "reasonN": "Raciocinar sobre {{n}} itens",
+      "reasonSelected": "Raciocinar sobre os itens selecionados",
+      "depletedTitle": "Você usou o raciocínio básico desta semana",
+      "viewPlans": "Ver planos",
+      "doneSummary": "{{n}} conexões foram propostas. Selecione só o que quiser aplicar.",
+      "runningSummary": "Lendo {{total}} itens · {{done}} / {{total}}",
+      "doneNote": "Só as propostas selecionadas são aplicadas. Os itens não selecionados continuam iguais.",
+      "runningNote": "Você pode sair desta tela. O SecondB vai avisar quando estiver pronto.",
+      "weekLabel": "Raciocínio desta semana",
+      "capturedItems": "Itens salvos",
+      "selectProposals": "Selecionar propostas",
+      "processing": "Processando",
+      "selectionCount": "{{n}} / {{max}} selecionados",
+      "loadingItems": "Carregando seus itens",
+      "emptyItems": "Nenhum item salvo ainda",
+      "captureFirst": "Salve seu primeiro item",
+      "readingItem": "Lendo…",
+      "proposedFor": "Proposto para {{domain}}",
+      "runHint": "Selecione itens para ativar o raciocínio."
     },
     "sources": {
       "title": "Material recebido",

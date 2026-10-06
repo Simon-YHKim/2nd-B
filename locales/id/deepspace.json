@@ -492,7 +492,18 @@
     "sourceRecord": "Catatan karier tersimpan",
     "entryUiKorean": "Layar saat menyimpan: Korea",
     "entryUiEnglish": "Layar saat menyimpan: Inggris",
-    "untitled": "(tanpa judul)"
+    "untitled": "(tanpa judul)",
+    "pathTitle": "Jalur yang dibangun",
+    "trackMain": "Utama",
+    "trackSide": "Sampingan",
+    "credentials": {
+      "education": "Pendidikan",
+      "military": "Wajib militer",
+      "awards": "Penghargaan",
+      "licenses": "Sertifikasi",
+      "experience": "Pengalaman"
+    },
+    "sideNote": "Catatan resmi seperti pendidikan, wajib militer, penghargaan, sertifikasi, dan pengalaman akan tertata di sini setelah kamu menghubungkan sumber. Untuk sekarang, pencapaianmu sendiri terkumpul di Utama."
   },
   "careerInput": {
     "screenTitle": "Catat pencapaian",
@@ -722,7 +733,37 @@
       "startRoutine": "Mulai satu rutinitas",
       "reanalyze": "Baca ulang bintangku",
       "reanalyzing": "Membaca ulang bintangmu",
-      "reanalyzingTip": "Kami akan memberi tahu saat selesai."
+      "reanalyzingTip": "Kami akan memberi tahu saat selesai.",
+      "steps": {
+        "profile": {
+          "obs": "Minggu ini kamu melengkapi lebih banyak info dasarmu.",
+          "step": "Isi satu kolom profil"
+        },
+        "infancy": {
+          "obs": "Kamu menggali kenangan paling awalmu.",
+          "step": "Catat satu adegan yang muncul"
+        },
+        "school": {
+          "obs": "Kamu menengok kembali masa sekolahmu.",
+          "step": "Gali satu adegan lagi dari masa itu"
+        },
+        "twenties": {
+          "obs": "Kamu mendalami usia dua puluhanmu.",
+          "step": "Tulis satu pilihan dari masa itu"
+        },
+        "later": {
+          "obs": "Kamu melihat bagaimana dirimu berubah setelah usia tiga puluh.",
+          "step": "Tulis satu baris tentang apa yang berubah"
+        },
+        "work": {
+          "obs": "Kamu mengamati dirimu saat bekerja.",
+          "step": "Catat satu adegan kerja minggu ini"
+        },
+        "now": {
+          "obs": "Kamu sering menengok dirimu sendiri.",
+          "step": "Satu baris refleksi hari ini"
+        }
+      }
     },
     "plans": {
       "title": "Paket",
@@ -920,7 +961,55 @@
       "autoTitle": "Keterkaitan otomatis",
       "autoPaused": "Batas tercapai · otomatis lanjut Senin",
       "autoBody": "SecondB menghubungkan setiap item saat kamu menyimpannya",
-      "autoNote": "Jalankan otomatis memakai satu jatah mingguan dan selalu menyisakan satu untuk manual."
+      "autoNote": "Jalankan otomatis memakai satu jatah mingguan dan selalu menyisakan satu untuk manual.",
+      "queuedRecord": "Catatan baru · dalam antrean",
+      "queuedSource": "Sumber baru · dalam antrean",
+      "justNow": "Baru saja",
+      "hoursAgo": "{{n}} jam lalu",
+      "yesterday": "Kemarin",
+      "daysAgo": "{{n}} hari lalu",
+      "untitledRecord": "Catatan tanpa judul",
+      "untitledSource": "Sumber tanpa judul",
+      "kindJournal": "Jurnal",
+      "kindNote": "Catatan",
+      "kindLink": "Tautan",
+      "backgroundFailed": "Penalaran di latar belakang tidak selesai. Coba lagi.",
+      "loadFailed": "Item-mu tidak dapat dimuat.",
+      "busyOther": "Tunggu hingga tugas saat ini selesai.",
+      "taskTitle": "Menghubungkan item yang dipilih",
+      "taskTip": "Tinjau keterkaitan yang baru.",
+      "runFailed": "Item ini tidak dapat dihubungkan. Coba lagi.",
+      "applyFailed": "Usulan yang dipilih tidak dapat diterapkan. Coba lagi.",
+      "title": "Penalaran",
+      "reviewTitle": "Tinjau hasil",
+      "selectedTitle": "{{n}} dipilih",
+      "progressDone": "Semua item sudah terhubung",
+      "progressRunning": "Menghubungkan bintangmu",
+      "unlimited": "Keterkaitan tanpa batas",
+      "weeklyLeft": "Sisa {{left}} dari {{cap}} jatah minggu ini · reset hari Senin",
+      "cancel": "Batal",
+      "applySelected": "Terapkan {{n}} yang dipilih",
+      "keepAll": "Biarkan semua seperti semula",
+      "weeklyLimitReached": "Batas mingguan tercapai",
+      "reasonN": "Jalankan penalaran untuk {{n}} item",
+      "reasonSelected": "Jalankan penalaran untuk item yang dipilih",
+      "depletedTitle": "Jatah penalaran dasar minggu ini sudah habis",
+      "viewPlans": "Lihat paket",
+      "doneSummary": "{{n}} keterkaitan diusulkan. Pilih hanya yang ingin kamu terapkan.",
+      "runningSummary": "Membaca {{total}} item · {{done}} / {{total}}",
+      "doneNote": "Hanya usulan yang dipilih yang diterapkan. Item yang tidak dipilih tetap seperti semula.",
+      "runningNote": "Kamu boleh meninggalkan layar ini. SecondB akan memberi tahu saat sudah siap.",
+      "weekLabel": "Penalaran minggu ini",
+      "capturedItems": "Item yang disimpan",
+      "selectProposals": "Pilih usulan",
+      "processing": "Memproses",
+      "selectionCount": "{{n}} / {{max}} dipilih",
+      "loadingItems": "Memuat item-mu",
+      "emptyItems": "Belum ada item yang disimpan",
+      "captureFirst": "Simpan item pertamamu",
+      "readingItem": "Membaca…",
+      "proposedFor": "Diusulkan untuk {{domain}}",
+      "runHint": "Pilih item untuk mengaktifkan penalaran."
     },
     "sources": {
       "title": "Materi yang masuk",
