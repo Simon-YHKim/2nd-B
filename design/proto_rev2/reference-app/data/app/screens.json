@@ -471,6 +471,13 @@
       "route": "(auth)/terms"
     },
     {
+      "id": "account-deleted",
+      "component": null,
+      "appOnly": true,
+      "title": "계정 삭제 영수증",
+      "route": "(auth)/account-deleted"
+    },
+    {
       "id": "account",
       "component": null,
       "appOnly": true,

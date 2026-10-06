@@ -696,6 +696,14 @@ const CAN_GO_BACK_ELSE = "else:router.canGoBack()";
  */
 const KNOWN_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] = [
   {
+    file: "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
+    kind: "replace",
+    owner: "DeepSpacePrivacyDesignScreen",
+    guard: "",
+    before: "",
+    why: "계정 삭제 뒤 로그아웃 중에 다른 계정이 주인이 됐을 때 영수증 화면에서 비키는 자리(leaveReceipt, 0217). 바로 앞 openReceipt 가 dismissAll() 로 영수증 화면 하나만 남긴 스택이라 칸이 하나다.",
+  },
+  {
     file: "src/app/(auth)/oauth-callback.tsx",
     kind: "replace",
     owner: "OAuthCallback",
@@ -763,6 +771,22 @@ const KNOWN_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] =
 
 /** 사람이 누르는 홈 동작 - PR 이전의 push/replace 그대로(8회차). 위 설명 참고. */
 const USER_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] = [
+  {
+    file: "src/components/account/AccountDeletionReceiptScreen.tsx",
+    kind: "replace",
+    owner: "AccountDeletionReceiptScreen",
+    guard: "",
+    before: "",
+    why: "영수증 화면에서 로그인한 계정에게 보이는 '앱으로 가기' 버튼(사람이 누른다, 0217). replace 라 영수증 화면 자리를 홈으로 바꾼다.",
+  },
+  {
+    file: "src/components/account/AccountDeletionReceiptScreen.tsx",
+    kind: "replace",
+    owner: "AccountDeletionReceiptScreen",
+    guard: "",
+    before: "",
+    why: "로그아웃을 확인하지 못한 삭제 계정에게 보이는 '앱으로 가기' 버튼(사람이 누른다, 0217).",
+  },
   {
     file: "src/app/(auth)/complete-profile.tsx",
     kind: "replace",

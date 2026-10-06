@@ -1,7 +1,7 @@
 // R4 (기술 흐름 정합성) — 계정 삭제 응답 유실.
 //
 // `delete-account` 는 삭제 결과와 Storage 관측/진척을 돌려준다
-// (supabase/functions/delete-account/index.ts:279-288):
+// (supabase/functions/delete-account/index.ts, 마지막 응답):
 //     { deleted, profile_erased, raw_clippings_erased,
 //       raw_clippings_empty_at_check, raw_clippings_removed }
 // profile 플래그와 empty-at-check는 서버가 그 순간 **관측한 것**을 말한다.
@@ -26,7 +26,16 @@ function mockAccessToken(userId: string, sessionId: string, version = "1"): stri
 }
 
 jest.mock("../../supabase/client", () => {
-  const invoke = jest.fn().mockResolvedValue({ data: { deleted: true }, error: null });
+  // 0217: the first request is `begin` (records the request, signs a token);
+  // the answers the tests queue are the `execute` answers.
+  const next: { data: unknown; error: unknown }[] = [];
+  const route = async (_name: string, options: { body: Record<string, unknown> }) => {
+    if (options.body.op === "begin") {
+      return { data: { op_id: options.body.op_id, op_token: `v1.${"A".repeat(43)}` }, error: null };
+    }
+    return next.shift() ?? { data: { deleted: true }, error: null };
+  };
+  const invoke = jest.fn(route);
   const getSession = jest.fn().mockResolvedValue({
     data: { session: { access_token: mockAccessToken("u1", "session-a"), user: { id: "u1" } } },
     error: null,
@@ -39,19 +48,23 @@ jest.mock("../../supabase/client", () => {
   return {
     getSupabaseClient: () => mock,
     __invoke: invoke,
+    __next: next,
     __reset: () => {
-      invoke.mockReset().mockResolvedValue({ data: { deleted: true }, error: null });
+      next.length = 0;
+      invoke.mockReset().mockImplementation(route);
       getSession.mockClear();
       refreshSession.mockClear();
     },
   };
 });
 
-jest.mock("../../account/local-deletion-fence", () => ({
-  installAccountLocalDeletionFence: jest.fn().mockResolvedValue(true),
+jest.mock("../../account/deletion-receipt", () => ({
+  ...jest.requireActual("../../account/deletion-receipt"),
+  fetchAccountDeletionOpStatus: jest.fn().mockResolvedValue({ status: "unavailable" }),
 }));
 
 import { requestAccountDeletion } from "../delete-bulk";
+import { __setDeletionOpMemoStorageForTests } from "../../account/deletion-op-memo";
 import type { AuthSessionExpectation } from "../../auth/session-mutation";
 
 const EXPECTED: AuthSessionExpectation = {
@@ -62,12 +75,24 @@ const EXPECTED: AuthSessionExpectation = {
 
 const clientMock = require("../../supabase/client") as {
   __invoke: jest.Mock;
+  __next: { data: unknown; error: unknown }[];
   __reset: () => void;
 };
 
 function serverSays(data: unknown) {
-  clientMock.__invoke.mockResolvedValueOnce({ data, error: null });
+  clientMock.__next.push({ data, error: null });
 }
+
+beforeEach(() => {
+  const memory = new Map<string, string>();
+  __setDeletionOpMemoStorageForTests({
+    getItem: async (key) => memory.get(key) ?? null,
+    setItem: async (key, value) => { memory.set(key, value); },
+    removeItem: async (key) => { memory.delete(key); },
+    keys: async () => [...memory.keys()],
+  });
+});
+afterEach(() => __setDeletionOpMemoStorageForTests(null));
 
 describe("requestAccountDeletion returns a deletion receipt", () => {
   beforeEach(() => clientMock.__reset());
@@ -196,7 +221,7 @@ describe("requestAccountDeletion returns a deletion receipt", () => {
   });
 
   test("still throws on a transport error", async () => {
-    clientMock.__invoke.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
+    clientMock.__next.push({ data: null, error: { message: "boom" } });
     await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
   });
 });

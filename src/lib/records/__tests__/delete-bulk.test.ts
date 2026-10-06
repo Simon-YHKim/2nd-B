@@ -81,21 +81,26 @@ jest.mock("../../supabase/client", () => {
   };
 });
 
-jest.mock("../../account/local-deletion-fence", () => {
-  const installFence = jest.fn().mockResolvedValue(true);
+// Lookup (2) is network; each test says what the server answers about its request.
+jest.mock("../../account/deletion-receipt", () => {
+  const actual = jest.requireActual("../../account/deletion-receipt");
+  const opStatus = jest.fn().mockResolvedValue({ status: "unavailable" });
   return {
-    installAccountLocalDeletionFence: installFence,
-    __installFence: installFence,
-    __reset: () => installFence.mockReset().mockResolvedValue(true),
+    ...actual,
+    fetchAccountDeletionOpStatus: opStatus,
+    __opStatus: opStatus,
+    __reset: () => opStatus.mockReset().mockResolvedValue({ status: "unavailable" }),
   };
 });
 
 import {
   ACCOUNT_DELETION_DEADLINE_MS,
   ACCOUNT_DELETION_MAX_ATTEMPTS,
+  AccountDeletionUnconfirmedError,
   deleteAllUserData,
   requestAccountDeletion,
 } from "../delete-bulk";
+import { __setDeletionOpMemoStorageForTests } from "../../account/deletion-op-memo";
 import type { AuthSessionExpectation } from "../../auth/session-mutation";
 
 const EXPECTED: AuthSessionExpectation = {
@@ -113,8 +118,8 @@ const clientMock = require("../../supabase/client") as {
   __removedObjects: string[][];
   __reset: () => void;
 };
-const fenceMock = require("../../account/local-deletion-fence") as {
-  __installFence: jest.Mock;
+const receiptMock = require("../../account/deletion-receipt") as {
+  __opStatus: jest.Mock;
   __reset: () => void;
 };
 
@@ -159,22 +164,58 @@ describe("deleteAllUserData (content wipe)", () => {
   });
 });
 
-describe("requestAccountDeletion (terminal erasure)", () => {
+describe("requestAccountDeletion (terminal erasure, 0217 begin -> execute)", () => {
+  const TOKEN = `v1.${"A".repeat(43)}`;
+  type InvokeResult = { data: unknown; error: unknown };
+  let executeQueue: InvokeResult[] = [];
+  let executeDefault: (() => InvokeResult) | null = null;
+  let beginResult: ((body: Record<string, unknown>) => InvokeResult) | null = null;
+  let memory: Map<string, string>;
+
   beforeEach(() => {
     clientMock.__reset();
-    fenceMock.__reset();
+    receiptMock.__reset();
+    executeQueue = [];
+    executeDefault = null;
+    beginResult = null;
+    memory = new Map();
+    __setDeletionOpMemoStorageForTests({
+      getItem: async (key) => memory.get(key) ?? null,
+      setItem: async (key, value) => { memory.set(key, value); },
+      removeItem: async (key) => { memory.delete(key); },
+      keys: async () => [...memory.keys()],
+    });
+    clientMock.__invoke.mockImplementation(async (_name: string, options: { body: Record<string, unknown> }) => {
+      const body = options.body;
+      if (body.op === "begin") {
+        return beginResult ? beginResult(body) : { data: { op_id: body.op_id, op_token: TOKEN }, error: null };
+      }
+      if (body.op === "execute") {
+        const queued = executeQueue.shift();
+        if (queued) return queued;
+        if (executeDefault) return executeDefault();
+        return { data: { deleted: true, op_id: body.op_id }, error: null };
+      }
+      return { data: { deleted: true }, error: null };
+    });
   });
+  afterEach(() => __setDeletionOpMemoStorageForTests(null));
 
-  function conflict(body: Record<string, unknown>) {
+  const bodies = () => clientMock.__invoke.mock.calls.map(([, options]) => options.body as Record<string, unknown>);
+  const executeCalls = () => bodies().filter((body) => body.op === "execute");
+  const memos = () => [...memory.values()].map((raw) => JSON.parse(raw) as Record<string, unknown>);
+
+  function httpError(status: number, body: Record<string, unknown>) {
     // Exercise the exact @supabase/functions-js 2.106.1 producer: rejected
     // responses are preserved on FunctionsHttpError.context.
     return new FunctionsHttpError(
       new Response(JSON.stringify(body), {
-        status: 409,
+        status,
         headers: { "content-type": "application/json" },
       }),
     );
   }
+  const conflict = (body: Record<string, unknown>) => httpError(409, body);
 
   function cleanupInProgress(removed: number) {
     return conflict({
@@ -185,7 +226,7 @@ describe("requestAccountDeletion (terminal erasure)", () => {
     });
   }
 
-  test("refreshes and binds the same user's token while preserving the receipt", async () => {
+  test("records the request (begin) before the destructive execute, both with a freshly bound token", async () => {
     // Returns the receipt rather than void. This mock answers with { deleted:
     // true } alone, so both post-cascade sweeps come back unconfirmed — which
     // is not the same as failed. Sweep-level behaviour lives in
@@ -194,33 +235,56 @@ describe("requestAccountDeletion (terminal erasure)", () => {
     expect(receipt.deleted).toBe(true);
     expect(receipt.incomplete).toEqual([]);
     expect(receipt.unconfirmed).toEqual(["profile", "rawClippings"]);
-    expect(clientMock.__getSession).toHaveBeenCalledTimes(2);
-    expect(clientMock.__refreshSession).toHaveBeenCalledTimes(1);
-    expect(fenceMock.__installFence).toHaveBeenCalledWith("u1");
-    expect(fenceMock.__installFence.mock.invocationCallOrder[0])
-      .toBeLessThan(clientMock.__invoke.mock.invocationCallOrder[0]);
+    const [begin, execute] = bodies();
+    expect(begin).toEqual({ op: "begin", op_id: expect.stringMatching(/^[0-9a-f-]{36}$/) });
+    expect(execute).toEqual({ op: "execute", op_id: begin.op_id, op_token: TOKEN });
+    expect(receipt.opId).toBe(begin.op_id);
+    expect(clientMock.__refreshSession).toHaveBeenCalledTimes(2);
     expect(clientMock.__invoke).toHaveBeenCalledWith("delete-account", expect.objectContaining({
-      body: {},
       headers: { Authorization: `Bearer ${mockAccessToken("u1", "session-a", "2")}` },
     }));
+    // The armed memo (with the token) stays until the finish flow settles it.
+    expect(memos()).toEqual([expect.objectContaining({ phase: "armed", owner: "u1", opId: begin.op_id, token: TOKEN })]);
   });
 
-  test("never invokes the remote function unless the durable local fence acknowledges", async () => {
-    fenceMock.__installFence.mockResolvedValueOnce(false);
-
-    await expect(requestAccountDeletion(EXPECTED)).rejects.toThrow("local deletion fence");
-    expect(fenceMock.__installFence).toHaveBeenCalledWith("u1");
-    expect(clientMock.__getSession).not.toHaveBeenCalled();
-    expect(clientMock.__refreshSession).not.toHaveBeenCalled();
-    expect(clientMock.__invoke).not.toHaveBeenCalled();
+  test("never sends execute unless the token is durably remembered first (5절 불변식)", async () => {
+    __setDeletionOpMemoStorageForTests({
+      getItem: async () => null,
+      setItem: async () => undefined,
+      removeItem: async () => undefined,
+      keys: async () => [],
+    });
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toThrow("could not be remembered");
+    expect(executeCalls()).toHaveLength(0);
   });
 
-  test("does not permanently fence a session that lacks a stable session id", async () => {
+  test("no local write fence is installed on the way: only the server-confirmed finish flow fences (I7)", () => {
+    const source = readFileSync(join(process.cwd(), "src/lib/records/delete-bulk.ts"), "utf8");
+    expect(source).not.toContain("installAccountLocalDeletionFence");
+    expect(source).not.toMatch(/requireCrossTab:\s*true/);
+  });
+
+  test("an old Edge (400 on begin) falls back to the {} flow without a receipt number", async () => {
+    beginResult = () => ({ data: null, error: httpError(400, { error: "invalid_body" }) });
+    const receipt = await requestAccountDeletion(EXPECTED);
+    expect(bodies().map((body) => body.op ?? "{}")).toEqual(["begin", "{}"]);
+    expect(receipt.opId).toBeNull();
+    expect(memos()).toEqual([]);
+  });
+
+  test("a begin failure is definite: nothing executed, the pending memo is cleared", async () => {
+    beginResult = () => ({ data: null, error: httpError(503, { error: "server_unavailable" }) });
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
+    expect(executeCalls()).toHaveLength(0);
+    expect(memos()).toEqual([]);
+  });
+
+  test("does not start anything for a session that lacks a stable session id", async () => {
     await expect(requestAccountDeletion({ ...EXPECTED, sessionId: null })).rejects.toMatchObject({
       name: "AuthSessionOwnerChangedError",
     });
-    expect(fenceMock.__installFence).not.toHaveBeenCalled();
     expect(clientMock.__invoke).not.toHaveBeenCalled();
+    expect(memos()).toEqual([]);
   });
 
   test("fails closed when the active user already changed after confirmation", async () => {
@@ -238,6 +302,7 @@ describe("requestAccountDeletion (terminal erasure)", () => {
     });
     expect(clientMock.__refreshSession).not.toHaveBeenCalled();
     expect(clientMock.__invoke).not.toHaveBeenCalled();
+    expect(memos()).toEqual([]);
   });
 
   test("fails closed when refresh switches to a different user", async () => {
@@ -259,13 +324,90 @@ describe("requestAccountDeletion (terminal erasure)", () => {
     expect(clientMock.__invoke).not.toHaveBeenCalled();
   });
 
-  test("throws when the function reports failure", async () => {
-    clientMock.__invoke.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
-    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
+  test.each([
+    ["op_closed", 409, { error: "op_closed", op_status: "failed" }],
+    ["op_rejected", 403, { error: "op_rejected" }],
+    ["a failed precondition", 503, { error: "deletion_precondition_failed", op_status: "failed" }],
+    ["a failed Auth deletion", 500, { error: "account_delete_failed", op_status: "failed" }],
+  ])("a server-confirmed %s is a definite failure and forgets the request", async (_label, status, body) => {
+    executeQueue.push({ data: null, error: httpError(status, body) });
+    await expect(requestAccountDeletion(EXPECTED)).rejects.not.toBeInstanceOf(AccountDeletionUnconfirmedError);
+    expect(executeCalls()).toHaveLength(1);
+    expect(receiptMock.__opStatus).not.toHaveBeenCalled();
+    expect(memos()).toEqual([]);
   });
 
-  test("recovers 409 cleanup progress and retries with a newly bound token", async () => {
+  test("a lost answer is unconfirmed, keeps the armed memo, and asks the server first (I5)", async () => {
+    executeQueue.push({ data: null, error: new Error("network down") });
+    receiptMock.__opStatus.mockResolvedValueOnce({ status: "unavailable" });
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeInstanceOf(AccountDeletionUnconfirmedError);
+    const [begin] = bodies();
+    expect(receiptMock.__opStatus).toHaveBeenCalledWith({ opId: begin.op_id, token: TOKEN, owner: "u1" });
+    expect(memos()).toEqual([expect.objectContaining({ phase: "armed", opId: begin.op_id })]);
+  });
+
+  test("a lost answer the server reports completed returns the server's receipt", async () => {
+    executeQueue.push({ data: null, error: httpError(503, { error: "server_unavailable" }) });
+    receiptMock.__opStatus.mockImplementationOnce(async ({ opId }: { opId: string }) => ({
+      status: "known",
+      op: "completed",
+      receipt: {
+        opId,
+        erasedAtIso: "2026-10-07T00:00:00.000Z",
+        expiresAtIso: "2027-10-07T00:00:00.000Z",
+        sweeps: { profileErased: true, deletionFenced: true, rawClippingsErased: true, rawClippingsEmptyAtCheck: true },
+        sweepsReported: true,
+        unrecorded: false,
+      },
+    }));
+    const receipt = await requestAccountDeletion(EXPECTED);
+    expect(receipt).toMatchObject({ deleted: true, opId: bodies()[0].op_id, complete: true });
+  });
+
+  test("a lost answer the server reports failed is definite and forgets the request", async () => {
+    executeQueue.push({ data: null, error: new Error("timeout") });
+    receiptMock.__opStatus.mockResolvedValueOnce({ status: "known", op: "failed", receipt: null });
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toThrow("did not complete");
+    expect(memos()).toEqual([]);
+  });
+
+  test("an earlier request the server reports completed is finished instead of deleting again", async () => {
+    memory.set("account.deletionOp.v1:u1:0b7c2a7e-1d1f-4d3a-9a51-6f2f0c4d9e11", JSON.stringify({
+      v: 1, phase: "armed", owner: "u1", opId: "0b7c2a7e-1d1f-4d3a-9a51-6f2f0c4d9e11", token: TOKEN, at: 1,
+    }));
+    receiptMock.__opStatus.mockResolvedValueOnce({
+      status: "known",
+      op: "completed",
+      receipt: {
+        opId: "0b7c2a7e-1d1f-4d3a-9a51-6f2f0c4d9e11",
+        erasedAtIso: "2026-10-07T00:00:00.000Z",
+        expiresAtIso: "2027-10-07T00:00:00.000Z",
+        sweeps: { profileErased: true, deletionFenced: true, rawClippingsErased: null, rawClippingsEmptyAtCheck: true },
+        sweepsReported: true,
+        unrecorded: false,
+      },
+    });
+    const receipt = await requestAccountDeletion(EXPECTED);
+    expect(receipt.opId).toBe("0b7c2a7e-1d1f-4d3a-9a51-6f2f0c4d9e11");
+    expect(clientMock.__invoke).not.toHaveBeenCalled();
+  });
+
+  test("an earlier request the server reports abandoned is forgotten and a new one starts", async () => {
+    memory.set("account.deletionOp.v1:u1:0b7c2a7e-1d1f-4d3a-9a51-6f2f0c4d9e11", JSON.stringify({
+      v: 1, phase: "armed", owner: "u1", opId: "0b7c2a7e-1d1f-4d3a-9a51-6f2f0c4d9e11", token: TOKEN, at: 1,
+    }));
+    receiptMock.__opStatus.mockResolvedValueOnce({ status: "known", op: "abandoned", receipt: null });
+    const receipt = await requestAccountDeletion(EXPECTED);
+    expect(receipt.opId).not.toBe("0b7c2a7e-1d1f-4d3a-9a51-6f2f0c4d9e11");
+    expect(memos().map((memo) => memo.opId)).toEqual([receipt.opId]);
+  });
+
+  test("recovers 409 cleanup progress and retries the same op with a newly bound token", async () => {
     clientMock.__refreshSession
+      .mockResolvedValueOnce({
+        data: { session: { access_token: mockAccessToken("u1", "session-a", "begin"), user: { id: "u1" } } },
+        error: null,
+      })
       .mockResolvedValueOnce({
         data: { session: { access_token: mockAccessToken("u1", "session-a", "3"), user: { id: "u1" } } },
         error: null,
@@ -278,10 +420,10 @@ describe("requestAccountDeletion (terminal erasure)", () => {
         data: { session: { access_token: mockAccessToken("u1", "session-a", "5"), user: { id: "u1" } } },
         error: null,
       });
-    clientMock.__invoke
-      .mockResolvedValueOnce({ data: null, error: cleanupInProgress(1_000) })
-      .mockResolvedValueOnce({ data: null, error: cleanupInProgress(1_000) })
-      .mockResolvedValueOnce({
+    executeQueue.push(
+      { data: null, error: cleanupInProgress(1_000) },
+      { data: null, error: cleanupInProgress(1_000) },
+      {
         data: {
           deleted: true,
           profile_erased: true,
@@ -291,48 +433,49 @@ describe("requestAccountDeletion (terminal erasure)", () => {
           raw_clippings_removed: 3,
         },
         error: null,
-      });
+      },
+    );
 
     await expect(requestAccountDeletion(EXPECTED)).resolves.toMatchObject({
       deleted: true,
       rawClippingsRemoved: 2_003,
     });
-    expect(clientMock.__getSession).toHaveBeenCalledTimes(6);
-    expect(clientMock.__refreshSession).toHaveBeenCalledTimes(3);
-    expect(clientMock.__invoke.mock.calls.map(([, options]) => options.headers.Authorization))
-      .toEqual([
-        `Bearer ${mockAccessToken("u1", "session-a", "3")}`,
-        `Bearer ${mockAccessToken("u1", "session-a", "4")}`,
-        `Bearer ${mockAccessToken("u1", "session-a", "5")}`,
-      ]);
+    expect(clientMock.__refreshSession).toHaveBeenCalledTimes(4);
+    const executes = clientMock.__invoke.mock.calls.filter(([, options]) => options.body.op === "execute");
+    expect(new Set(executes.map(([, options]) => options.body.op_id)).size).toBe(1);
+    expect(executes.map(([, options]) => options.headers.Authorization)).toEqual([
+      `Bearer ${mockAccessToken("u1", "session-a", "3")}`,
+      `Bearer ${mockAccessToken("u1", "session-a", "4")}`,
+      `Bearer ${mockAccessToken("u1", "session-a", "5")}`,
+    ]);
   });
 
-  test("bounds automatic cleanup retries", async () => {
-    clientMock.__invoke.mockResolvedValue({ data: null, error: cleanupInProgress(1_000) });
+  test("bounds automatic cleanup retries, then asks the server instead of guessing", async () => {
+    executeDefault = () => ({ data: null, error: cleanupInProgress(1_000) });
 
-    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
-    expect(clientMock.__invoke).toHaveBeenCalledTimes(ACCOUNT_DELETION_MAX_ATTEMPTS);
-    expect(clientMock.__refreshSession).toHaveBeenCalledTimes(ACCOUNT_DELETION_MAX_ATTEMPTS);
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeInstanceOf(AccountDeletionUnconfirmedError);
+    expect(executeCalls()).toHaveLength(ACCOUNT_DELETION_MAX_ATTEMPTS);
+    expect(clientMock.__refreshSession).toHaveBeenCalledTimes(ACCOUNT_DELETION_MAX_ATTEMPTS + 1);
+    expect(receiptMock.__opStatus).toHaveBeenCalledTimes(1);
   });
 
-  test("also stops at an explicit wall-clock deadline before another invoke", async () => {
+  test("also stops at an explicit wall-clock deadline before another execute", async () => {
     let now = 1_000;
     const nowSpy = jest.spyOn(Date, "now").mockImplementation(() => now);
-    clientMock.__invoke.mockImplementationOnce(async () => {
+    executeDefault = () => {
       now += ACCOUNT_DELETION_DEADLINE_MS;
       return { data: null, error: cleanupInProgress(1_000) };
-    });
+    };
 
     try {
-      await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
-      expect(clientMock.__invoke).toHaveBeenCalledTimes(1);
-      expect(clientMock.__refreshSession).toHaveBeenCalledTimes(1);
+      await expect(requestAccountDeletion(EXPECTED)).rejects.toBeInstanceOf(AccountDeletionUnconfirmedError);
+      expect(executeCalls()).toHaveLength(1);
     } finally {
       nowSpy.mockRestore();
     }
   });
 
-  test("does not start an Edge invoke when session refresh consumes the deadline", async () => {
+  test("does not send begin when session refresh consumes the deadline", async () => {
     let now = 2_000;
     const nowSpy = jest.spyOn(Date, "now").mockImplementation(() => now);
     clientMock.__refreshSession.mockImplementationOnce(async () => {
@@ -352,42 +495,42 @@ describe("requestAccountDeletion (terminal erasure)", () => {
       await expect(requestAccountDeletion(EXPECTED)).rejects.toThrow("deadline exhausted");
       expect(clientMock.__refreshSession).toHaveBeenCalledTimes(1);
       expect(clientMock.__invoke).not.toHaveBeenCalled();
+      expect(memos()).toEqual([]);
     } finally {
       nowSpy.mockRestore();
     }
   });
 
-  test("stops before another invoke when the active account switches during cleanup retries", async () => {
-    clientMock.__invoke.mockResolvedValueOnce({ data: null, error: cleanupInProgress(1_000) });
+  test("an account switch during cleanup retries stops before another execute", async () => {
+    executeQueue.push({ data: null, error: cleanupInProgress(1_000) });
+    // begin: 2 reads, execute 1: 2 reads, then the switch on the next read.
+    const a = (v: string) => ({
+      data: { session: { access_token: mockAccessToken("u1", "session-a", v), user: { id: "u1" } } },
+      error: null,
+    });
     clientMock.__getSession
-      .mockResolvedValueOnce({
-        data: { session: { access_token: mockAccessToken("u1", "session-a"), user: { id: "u1" } } },
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: { session: { access_token: mockAccessToken("u1", "session-a", "2"), user: { id: "u1" } } },
-        error: null,
-      })
+      .mockResolvedValueOnce(a("1"))
+      .mockResolvedValueOnce(a("2"))
+      .mockResolvedValueOnce(a("2"))
+      .mockResolvedValueOnce(a("2"))
       .mockResolvedValueOnce({
         data: { session: { access_token: mockAccessToken("u2", "session-b"), user: { id: "u2" } } },
         error: null,
       });
 
-    await expect(requestAccountDeletion(EXPECTED)).rejects.toMatchObject({
-      name: "AuthSessionOwnerChangedError",
-    });
-    expect(clientMock.__invoke).toHaveBeenCalledTimes(1);
-    expect(clientMock.__refreshSession).toHaveBeenCalledTimes(1);
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeInstanceOf(AccountDeletionUnconfirmedError);
+    expect(executeCalls()).toHaveLength(1);
   });
 
-  test("does not retry an unrecognized 409 body", async () => {
-    clientMock.__invoke.mockResolvedValueOnce({
+  test("an unrecognized 409 body is not retried; the server is asked instead", async () => {
+    executeQueue.push({
       data: null,
       error: { context: { status: 409, json: async () => ({ error: "different_conflict" }) } },
     });
 
-    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
-    expect(clientMock.__invoke).toHaveBeenCalledTimes(1);
+    await expect(requestAccountDeletion(EXPECTED)).rejects.toBeInstanceOf(AccountDeletionUnconfirmedError);
+    expect(executeCalls()).toHaveLength(1);
+    expect(receiptMock.__opStatus).toHaveBeenCalledTimes(1);
   });
 
   test.each([
@@ -410,42 +553,43 @@ describe("requestAccountDeletion (terminal erasure)", () => {
       raw_clippings_erased: false, raw_clippings_removed: Number.MAX_SAFE_INTEGER + 1,
     }],
   ])("does not retry a 409 with %s", async (_label, body) => {
-    clientMock.__invoke.mockResolvedValueOnce({ data: null, error: conflict(body) });
+    executeQueue.push({ data: null, error: conflict(body) });
 
     await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
-    expect(clientMock.__invoke).toHaveBeenCalledTimes(1);
+    expect(executeCalls()).toHaveLength(1);
   });
 
   // 2026-09-30: delete-account also sweeps record-photos (0209) after the raw
   // clippings. An unfinished photo sweep says so with record_photos_erased:false
   // while raw clippings are already done; it is the same retryable progress.
   test("retries an unfinished photo sweep and credits only the raw-clipping count", async () => {
-    clientMock.__invoke
-      .mockResolvedValueOnce({
+    executeQueue.push(
+      {
         data: null,
         error: conflict({
           error: "deletion_cleanup_in_progress", deletion_fenced: true,
           raw_clippings_erased: true, raw_clippings_removed: 2,
           record_photos_erased: false, record_photos_removed: 1000,
         }),
-      })
-      .mockResolvedValueOnce({
+      },
+      {
         data: {
           deleted: true, profile_erased: true, deletion_fenced: true,
           raw_clippings_erased: true, raw_clippings_empty_at_check: true, raw_clippings_removed: 0,
           record_photos_erased: true, record_photos_empty_at_check: true, record_photos_removed: 5,
         },
         error: null,
-      });
+      },
+    );
 
     const receipt = await requestAccountDeletion(EXPECTED);
-    expect(clientMock.__invoke).toHaveBeenCalledTimes(2);
+    expect(executeCalls()).toHaveLength(2);
     expect(receipt.complete).toBe(true);
     expect(receipt.rawClippingsRemoved).toBe(2);
   });
 
   test("does not retry a 409 whose photo sweep is reported finished", async () => {
-    clientMock.__invoke.mockResolvedValueOnce({
+    executeQueue.push({
       data: null,
       error: conflict({
         error: "deletion_cleanup_in_progress", deletion_fenced: true,
@@ -455,7 +599,7 @@ describe("requestAccountDeletion (terminal erasure)", () => {
     });
 
     await expect(requestAccountDeletion(EXPECTED)).rejects.toBeDefined();
-    expect(clientMock.__invoke).toHaveBeenCalledTimes(1);
+    expect(executeCalls()).toHaveLength(1);
   });
 });
 
@@ -489,7 +633,12 @@ describe("account deletion UI routing", () => {
   });
 
   test("a late deletion result cannot sign out a newly active user", () => {
-    expect(deepSpace).toContain("activeUserRef.current !== targetUserId");
+    // The finish flow checks the published owner before it opens the receipt or
+    // signs out, and an owner-changed sign-out keeps B (deletion-completion.ts).
+    expect(deepSpace).toContain("await finishAccountDeletion({");
+    expect(deepSpace).toContain("isOwnerChangedError: (error) => error instanceof AuthSessionOwnerChangedError");
+    const completion = readFileSync(join(process.cwd(), "src/lib/account/deletion-completion.ts"), "utf8");
+    expect(completion).toContain("if (active !== null && active !== owner)");
   });
 
   test("a final confirmation is bound to the user who opened it", () => {
@@ -504,11 +653,13 @@ describe("account deletion UI routing", () => {
     const surfaces = [[deepSpace, "await requestAccountDeletion(authExpectation)"]] as const;
     for (const [source, call] of surfaces) {
       const terminalCall = source.indexOf(call);
+      const finish = source.indexOf("await finishAccountDeletion({", terminalCall);
       const localSignOutWarning = source.indexOf("local sign-out after deletion failed");
-      const redirect = source.indexOf('router.replace("/sign-in")', localSignOutWarning);
       expect(terminalCall).toBeGreaterThan(-1);
-      expect(localSignOutWarning).toBeGreaterThan(terminalCall);
-      expect(redirect).toBeGreaterThan(localSignOutWarning);
+      expect(finish).toBeGreaterThan(terminalCall);
+      expect(localSignOutWarning).toBeGreaterThan(finish);
+      // After the server confirmed, nothing sets the retryable error again.
+      expect(source.slice(finish, source.indexOf("function requestDeleteAccountConfirm"))).not.toContain("setDelError(true)");
     }
   });
 });

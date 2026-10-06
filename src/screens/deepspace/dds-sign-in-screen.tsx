@@ -1,12 +1,17 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Platform, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { router } from "expo-router";
 import Svg, { Rect } from "react-native-svg";
+import { resolvePendingAccountDeletionOpsOnce } from "@/lib/account/deletion-completion";
+import { ACCOUNT_DELETED_ROUTE, knownSignedOut } from "@/lib/account/deletion-receipt";
+import { setDeletionReceiptHandoff } from "@/lib/account/deletion-receipt-handoff";
+import { purgeDeletedAccountLocalData } from "@/lib/account/local-purge";
 import {
-  AccountDeletionNoticePanel,
-  useAccountDeletionNotice,
-} from "@/components/account/AccountDeletionNotice";
+  accountTransitionPendingFromSnapshot,
+  accountTransitionSnapshot,
+  subscribeAccountTransition,
+} from "@/lib/auth/account-epoch";
 import { useTranslation } from "react-i18next";
 
 import { BusinessFooter } from "@/components/deepspace/BusinessFooter";
@@ -160,11 +165,48 @@ export function DeepSpaceSignInDesignScreen() {
   const actionLock = useRef(false);
   const [focusedField, setFocusedField] = useState<FocusedField>(null);
 
-  // 확인된 삭제 영수증은 두 게스트 가드보다 앞선다. 방금 계정을 지운 사람에게
-  // 서버가 무엇을 지웠고 무엇을 확인하지 못했는지 말해 줄 자리가 여기뿐이다.
-  // 세션 로딩 중에도, 늦게 도착한 userId 로도 이 결과를 밀어내면 안 된다.
-  const deletionNotice = useAccountDeletionNotice();
-  if (deletionNotice) return <AccountDeletionNoticePanel notice={deletionNotice} />;
+  // 삭제 영수증은 이 화면에 그리지 않는다 (Simon 결정 Q-261004-42 = A, 0217 설계서 I6).
+  // 영수증은 서버 기록이고 /account-deleted 가 번호로 읽는다 - 앱 메모리의 알림을
+  // 여기서 보여 주던 때는 계정 전환 중 A 의 영수증이 B 의 로그인 화면에 보였다.
+  // 이 화면이 하는 일은 하나다: 로그아웃이 "확정" 되면, 답을 못 받은 삭제 요청이 이
+  // 기기에 남았는지 서버에 묻고, 끝난 삭제가 남긴 앱 데이터를 지운 뒤 영수증 화면으로
+  // 한 번 보낸다. "확정" 은 로그인 상태를 모르는 경우(sessionUnavailable)와 계정 전환
+  // 보류를 뺀다 - 모르는 상태는 로그아웃이 아니다 (게이트 DEL2-R1-01 · D2A-05).
+  const transitionSnapshot = useSyncExternalStore(
+    subscribeAccountTransition,
+    accountTransitionSnapshot,
+    accountTransitionSnapshot,
+  );
+  const signedOutSettled = knownSignedOut({
+    loading,
+    userId,
+    sessionUnavailable,
+    transitionPending: accountTransitionPendingFromSnapshot(transitionSnapshot),
+  });
+  const signedOutRef = useRef(signedOutSettled);
+  signedOutRef.current = signedOutSettled;
+  useEffect(() => {
+    if (!signedOutSettled) return;
+    let cancelled = false;
+    void resolvePendingAccountDeletionOpsOnce({
+      // A sign-in or an unknown session stops the pass; what is left waits for next time.
+      stillSignedOut: () => !cancelled && signedOutRef.current,
+      purgeLocal: purgeDeletedAccountLocalData,
+    }).then(({ completed }) => {
+      if (cancelled || !signedOutRef.current || completed === null) return;
+      setDeletionReceiptHandoff({
+        owner: completed.owner,
+        opId: completed.opId,
+        observed: null,
+        localPurge: completed.localPurge,
+        localSignOut: null,
+      });
+      router.replace(ACCOUNT_DELETED_ROUTE);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [signedOutSettled]);
 
   if (loading) {
     return (
