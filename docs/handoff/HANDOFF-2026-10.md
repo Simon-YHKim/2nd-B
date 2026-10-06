@@ -7,6 +7,62 @@
 
 ---
 
+## 2026-10-01 18:09 / Simon 중단 요청: QA APK 동등성 완료, GUI 후보 로컬 보존
+
+### 확인된 완료 상태
+
+- main `94f9d46c`: [#1999](https://github.com/Simon-YHKim/2nd-B/pull/1999) 내보내기 긴 raw 경로 보완과 [#2002](https://github.com/Simon-YHKim/2nd-B/pull/2002) 지정 Android QA 빌드 출처 검증이 병합됐다. #2002 로컬 `npm run verify` 873묶음/11,350건, PR CI 3종 통과.
+- [진단 빌드 36838147144](https://github.com/Simon-YHKim/2nd-B/actions/runs/36838147144)는 `6d648431`에서 성공했다. [QA APK `qa-261001-6d648431-r36838147144`](https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-261001-6d648431-r36838147144)를 게시했다. Play 제출이 아니다. 8081은 `localhost-main`의 `94f9d46c`로 재기동했고 `npm run app:parity`는 **같음**(앱 경로 차이 0, 설정 digest 일치)이다.
+- Chrome Play Console 읽기 전용 확인: 비공개 Alpha `0.9.0 (56)` 활성, 9월 27일 Alpha 제출과 9월 28일 스토어 등록정보 제출은 `출시됨`. 새 Play 제출·게시·설정 변경은 없었다.
+
+### 중단 지점과 로컬 보존
+
+- Simon이 “멈추고 그만해. 그리고 /simon-handoff”라고 지시했다. 병렬 작업을 중단했고 이번 후보 미리보기 8772 서버를 종료했다. **GUI 후보 코드는 main에 병합·push하지 않았다.** 기존 8081 비교 서버는 유지한다.
+- 통합 브랜치 `fix/gui-phone-integrate-261001`, 작업 트리 `E:\2ndB\.worktrees\gui-phone-integrate-261001`: 로컬 커밋 `de13a05d`(Ops 호스트), `db55c88c`(폰 위키·Back), `fdca9a7c`(실제 Ops 화면 연결), `68e38f9f`(뮤지엄 호스트). 이어 `DashboardPhone.tsx`, Back 테스트, README **3개 미커밋**에서 뮤지엄 런처를 연결했다. 타입 검사·순환 검사·관련 Jest는 통과했지만, 이 최종 상태의 전체 `npm run verify`와 실제 화면 조작 QA는 미실행이다. 미커밋 변경을 지우거나 원본 TTL 작업 트리에 덮어쓰지 말 것.
+- 커뮤니티 공유 화면 분리 작업은 `E:\2ndB\.worktrees\community-phone-261001`에 **미커밋**으로 남았다. 타입·순환 검사와 커뮤니티 Jest 12건은 통과했고 전체 verify 중 중단됐다. 완성·병합으로 간주하지 말 것.
+- 원본 `E:\2ndB\.worktrees\2ndB\TTL-Work_rev2`의 GUI 시안과 미커밋 파일은 그대로다. [GUI 게이트 Draft #2000](https://github.com/Simon-YHKim/2nd-B/pull/2000), [S3 쓰기 경로 조사 Draft #2001](https://github.com/Simon-YHKim/2nd-B/pull/2001)는 CI 통과 상태이나 병합하지 않았다.
+
+### 재개할 때
+
+1. Simon이 다시 진행하라고 할 때만 위 두 GUI 작업 트리의 `git status`와 diff를 확인한다. 통합 브랜치의 3개 미커밋을 보존한 채 전체 verify와 320×568·375×667 실제 GUI QA를 수행한다. 폰 내부 위키는 읽기 중심이며 태그·그래프·내보내기·삭제, 설정·아바타·커뮤니티·인터뷰 등의 기능 동등성이 아직 남았다. #2000 게이트를 닫기 전 후보를 병합하지 않는다.
+2. #1902/#1917은 10월 5일 법률 판본·서버 선행 게이트, #1814/#1839는 S3 삭제 fence·Storage 리허설 게이트를 유지한다. 운영 DB·Edge·백업은 `docs/SESSION-OWNERSHIP.md`의 콘솔 소유다. Grok 후속 전달은 Simon 지시에 따라 나중으로 둔다.
+3. 새 세션은 `git fetch origin main` 후 `git show origin/main:docs/HANDOFF.md`를 읽는다. main 직접 push와 공유 작업 트리 초기화 금지. Simon의 “더 묻지 말고 판단”은 안전한 후속 작업에 적용하되, 이번 **중단 요청**이 우선한다.
+
+---
+
+## 2026-10-01 16:13 / 원문 삭제 Draft 최신 통합과 릴리스 차단
+
+- [#1839](https://github.com/Simon-YHKim/2nd-B/pull/1839)는 main a379ad6c을 충돌 없이 통합해 Draft head ea122316으로 갱신했다. 로컬 npm run verify 874묶음/11,393건, PR CI 3종이 통과했다. main 병합·운영 적용은 하지 않았다.
+- **출시 차단은 두 가지다.** 서버 S3 삭제 의도·Storage 영수증·업로드 세대 보호가 없어 늦은 업로드 뒤 원문 재생성을 막지 못한다. 추가로 원문 삭제 중 Storage remove/list가 응답하지 않으면 인증 변경 잠금 M을 계속 잡는다. 웹 로그인·로그아웃은 잠금 획득 기한 뒤 실패하고, 네이티브에서는 대기가 끝나지 않을 수 있다. Storage remove에는 SDK 취소 신호 인자가 없어 Promise.race로 M만 풀면 늦은 삭제의 세션 보장이 약해진다. 실제 취소 가능한 요청 기한과 무응답 회귀 검증 전 #1839는 Draft 유지한다. 상세 차단 조건은 PR 본문 첫머리에 적었다.
+- PolaScope [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)와 메일 제목 [#1917](https://github.com/Simon-YHKim/2nd-B/pull/1917)은 10월 5일 전 Draft다. 공개 가입 RPC 재조회는 HTTP 200이지만 email-v7 0행이며 #1902 가입 게이트는 exit 1이다. 비로그인 GUI 10개 화면 검사는 앞선 블록에 기록됐고 인증 Edge·네이티브 출시는 미검증이다. SQL·Edge·대시보드 적용은 콘솔/Grok 소유이며 Simon 지시대로 이번에는 진행하지 않았다.
+- 다음: #1839의 응답 없는 Storage/인증 변경 경합을 실제 취소 가능한 경로로 검증하고 서버 S3와 함께 재게이트한다. 10월 5일 서버 계약 적용·가입 게이트 통과 뒤 #1902/#1917을 재검토한다. 웹 로그인 #1863 현장 단계 확인은 계측 운영 게시 뒤 가능하다.
+
+---
+
+## 2026-10-01 15:47 / 자동저장 Draft 통합과 웹 로그인 현장 점검
+
+- 통합 기준 main은 fe2a4723이었다. [#1889](https://github.com/Simon-YHKim/2nd-B/pull/1889)의 0행 삭제 뒤 인증 SDK 잠금 재진입 수정은 CI 3종 통과 후 #1814의 내부 브랜치에 병합됐다(43d01d2a). main에는 아직 없다.
+- [#1814](https://github.com/Simon-YHKim/2nd-B/pull/1814)는 #1889 head와 최신 main 사이 충돌 10곳을 격리 워크트리에서 해결하고 Draft head e161478a로 fast-forward push했다. 로컬 npm run verify는 정적 게이트와 Jest 883묶음/11,654건 통과, diff check·추가 줄 시크릿 검사 이상 0건이다. PR CI 3종(verify·lint·web-export-smoke)도 모두 통과했다. 운영 서버 S1 원자 설정, S2 동의 결합 쓰기, S3 삭제 의도·Storage 영수증/업로드 세대 보호와 관리형 Storage·네이티브 E2E가 없어 **Draft 해제·main 병합 금지**다.
+- 합성 데이터로 #1814의 손 담기 원문 업로드를 A 계정에서 송신한 뒤 B 계정으로 전환하면 A Storage 원문 1개가 남고 B의 sources INSERT는 RLS에서 거부되어 행 0개인 경로를 재현했다. 클라이언트는 송신된 업로드를 확정적으로 취소하거나 B 권한으로 A 원문을 지울 수 없다. 재현·영향을 src/lib/chat/autosave.ts에 기록했으며 서버 계약 전 출시는 차단한다. DPIA의 0186 미적용 표기는 [운영 원장](qa/PRODUCTION-SERVER-STATUS-260927.html)의 적용 기록으로 정정했으나 삭제 완료 보장은 주장하지 않는다.
+- [#1839](https://github.com/Simon-YHKim/2nd-B/pull/1839)는 최신 main과 충돌 없이 병합 가능한 Draft지만 서버 S3 삭제 의도·업로드 세대 보호가 없다. 기존 CI는 이전 main 기준으로 통과했고 최신 통합 CI/관리형 Storage 경합은 미검증이다. **Draft 유지**.
+- [#1863](https://github.com/Simon-YHKim/2nd-B/issues/1863)은 Chrome에서 로컬 로그인 3회·공개 사이트 1회 모두 /token 200과 정상 이동을 관찰했다. 인위적 17초 응답 지연에서는 15초 단계 로그가 동작했다. 공개 사이트 JS에는 아직 이 계측이 없어 실제 간헐적 멈춤의 단계는 미확정이다. [재현·배포 차이 기록](https://github.com/Simon-YHKim/2nd-B/issues/1863#issuecomment-5926043010)을 남기고 이슈를 열어 뒀다. 운영 웹 게시는 실행하지 않았다.
+- PolaScope [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)는 10월 5일 email-v7·service-v2 및 운영 원장 게이트를 기다리는 Draft다. 10개 비로그인 화면 GUI 검사는 통과했고 인증 서버 계약은 판정하지 않았다. npm run app:parity는 main·localhost 앱 경로 0개 차이와 Android 진단 APK 성공으로 **같음**이다. 사용자 GUI 워크트리 TTL-Work_rev2의 미커밋 변경은 건드리지 않았다.
+- 다음: #1814 서버 S1~S3 계약·관리형 Storage 경합 검증 후 재게이트; #1902 날짜·운영 계약 확인; #1863은 운영 웹에 계측이 게시된 뒤 현장 로그 수집. Supabase 운영 DB·Edge·격리 복원은 SESSION-OWNERSHIP 및 Simon 지시에 따라 Grok 담당 후속으로 미뤘고 이번 구간에 실행하지 않았다. Simon의 최신 지시는 작은 판단을 다시 묻지 않고 진행하는 것이다.
+
+---
+
+## 2026-10-01 15:09 / 가져오기 고지 병합과 PolaScope GUI 확인
+
+- main `f5ad2ef7`: [#1993](https://github.com/Simon-YHKim/2nd-B/pull/1993)으로 Notion·Obsidian Markdown 가져오기 동의·검토 화면의 노트 제목·본문 보관 고지를 바로잡았다. 5개 언어 문구와 [동의·검토 화면 증거](qa/import-markdown-disclosure-261001/)를 함께 병합했다. 로컬 `npm run verify` 873묶음/11,325건, PR CI 3종, 격리 Chrome 한국어 390×844 화면 검사가 통과했고 페이지 오류·기록 쓰기 0건이다.
+- 새 GUI 고지 테스트는 main의 Windows CRLF 체크아웃에서 줄바꿈 문자열 비교 1건이 실패했다. [#1994](https://github.com/Simon-YHKim/2nd-B/pull/1994)에서 테스트가 읽는 소스의 줄바꿈만 LF로 정규화했고, `npm run verify` 873묶음/11,325건과 PR CI 3종이 통과해 main `2844922b`에 병합됐다. 앱 동작 변경은 없다.
+- main `f5ad2ef7`의 웹 빌드 [36818423134](https://github.com/Simon-YHKim/2nd-B/actions/runs/36818423134)는 성공하고 운영 게시는 건너뛰었다. OTA [36818423130](https://github.com/Simon-YHKim/2nd-B/actions/runs/36818423130)는 게이트만 통과하고 발행은 건너뛰었다. Android 진단 빌드 [36818423172](https://github.com/Simon-YHKim/2nd-B/actions/runs/36818423172)는 성공했고 APK artifact를 남겼다. 새 main `2844922b`의 웹 빌드 [36821326370](https://github.com/Simon-YHKim/2nd-B/actions/runs/36821326370)도 성공·게시 건너뜀, OTA [36821326373](https://github.com/Simon-YHKim/2nd-B/actions/runs/36821326373)는 발행 없이 성공했다. Android 진단 빌드 [36821326349](https://github.com/Simon-YHKim/2nd-B/actions/runs/36821326349)도 성공했고 `2ndb-android-2844922bda6aeaee6a1f068c0e018786312ac167` APK artifact를 남겼다. `npm run app:parity`는 main·localhost 앱 경로 0개 차이와 설정/의존성 일치로 **같음**이다. 실기기 QA 릴리스 `qa-260930-5e52894b`는 옛판이라 앱 경로 207개가 다르며 새 APK 설치 검사는 별도다.
+- 원문 삭제 [#1839](https://github.com/Simon-YHKim/2nd-B/pull/1839)는 main `715b8f7f`와의 충돌을 해결한 `9f76a4f9`를 기존 Draft에 올렸다. 기존 사진 삭제와 새 raw-clippings 삭제를 함께 보존했고 로컬 `npm run verify` 873묶음/11,390건과 PR CI 3종이 통과했다. 서버 삭제 의도·업로드 세대 보호가 없어 늦은 업로드 등을 완전히 막지 못하므로 **Draft 유지, 병합 금지**다. `erase_my_data` RPC는 등록돼 있지만 인증 사용자 실행 권한이 잠겨 있다.
+- [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)는 10월 5일 email-v7·service-v2·법률/5언어·네이티브 이름을 묶은 Draft다. 일반 UI·웹 이름과 Play 이름/설명은 이미 별도로 반영됐다. [10월 1일 공개 계약 검사](qa/polascope-contract-readiness-261001.md)는 가입 RPC HTTP 200이지만 email-v7 0행·출시 게이트 exit 1을 기록한다. [9월 29일 적용 기록](qa/ACCOUNT-DELETION-ROLLOUT-260929.md)은 0194 적용을 확인해 출시 절차 문서를 `ae22ada5`로 정정했다. 당시 main `f5ad2ef7`과의 비공개 격리 통합 `103dec59`는 충돌 0건이고 #1994의 Windows 테스트 수정까지 포함해 `npm run verify -- --runInBand` 872묶음/11,328건, UI Work0 76건, 동의/SQL 집중 119건이 통과했다. 통합 커밋은 push하지 않았다. [비공개 GUI 검사와 캡처](https://github.com/Simon-YHKim/2nd-B/blob/2d929518/docs/qa/polascope-1902-gui-261001/README.md)는 공개·비로그인 화면 10건 HTTP 200/본문 렌더, 페이지·콘솔·자산 오류와 쓰기 요청 각 0건을 기록한다. 공개 Pages `/2nd-B/sign-up` GET도 200이었다. PR head에는 이 QA 증거만 추가했고 최신 PR CI 4종이 모두 통과했지만 Draft를 유지한다. service-consent v1 인증 상태는 503이고 원인은 미확정이다. 운영 원장·서버 계약·날짜 게이트를 확인하기 전 #1902를 병합·공개하지 않는다.
+- 다음 순서: #1902의 서버 계약/운영 원장 재확인; [#1863](https://github.com/Simon-YHKim/2nd-B/issues/1863) 웹 로그인 현장 단계 로그 확인. Supabase 격리 리허설·S3 서버 적용은 `docs/SESSION-OWNERSHIP.md`의 콘솔 소유 범위이며 Simon 지시에 따라 Grok 담당 후속으로 미룬다. 운영 DB·Edge·웹 게시·스토어 변경은 이번 작업에서 실행하지 않았다.
+- Simon의 최신 지시: 작은 판단은 다시 묻지 말고 진행한다. 운영 삭제·배포·비용 등 저장소 `AGENTS.md` §8의 명시 승인 경계는 유지한다. 인계 위치는 main `docs/HANDOFF.md`; 작업 기록은 두 PR 본문에도 있다.
+
+---
+
 ## 2026-10-01 13:15 / 웹 로그인 장기 대기 단계 계측
 
 - [#1863](https://github.com/Simon-YHKim/2nd-B/issues/1863)의 `submitting=true`는 `signInWithEmail`뿐 아니라 뒤따르는 `refresh()` 대기일 수도 있다. `/token` 서버 200도 브라우저의 응답 본문 수신·JSON 파싱 완료를 증명하지 않는다. 현장 원인은 아직 미확정이다.
