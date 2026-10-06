@@ -45,10 +45,39 @@ test('a stop while the seek is pending wins: it never plays late', async () => {
   expect(t.calls).toEqual(['seek 0', 'pause']);
 });
 
-test('never holds or forces the opening: not loaded, sound effects off, or past the end stay silent', async () => {
-  const notLoaded = driver(false);
-  createOpeningAmbience(notLoaded.d, 10120).start(0);
-  expect(notLoaded.calls).toEqual([]);
+test('a bed that loads after the clock started catches up to where the opening is now', async () => {
+  let loaded = false; let clock = 1000;
+  const t = driver();
+  t.d.loaded = () => loaded;
+  const amb = createOpeningAmbience(t.d, 10120, () => clock);
+  amb.start(0);
+  expect(t.calls).toEqual([]);
+  clock = 1800; loaded = true;
+  amb.onLoaded();
+  expect(t.calls).toEqual(['seek 0.8']);
+  t.finishSeek(); await flush();
+  expect(t.calls).toEqual(['seek 0.8', 'play']);
+  // A second load event with nothing pending does nothing.
+  amb.onLoaded();
+  expect(t.calls).toEqual(['seek 0.8', 'play']);
+});
+
+test('a stop before the late load cancels the remembered start, and a load past the end stays silent', async () => {
+  let loaded = false; let clock = 0;
+  const stopped = driver();
+  stopped.d.loaded = () => loaded;
+  const a = createOpeningAmbience(stopped.d, 10120, () => clock);
+  a.start(0); a.stop(); loaded = true; a.onLoaded();
+  expect(stopped.calls).toEqual(['pause']);
+  const late = driver();
+  loaded = false;
+  late.d.loaded = () => loaded;
+  const b = createOpeningAmbience(late.d, 10120, () => clock);
+  b.start(9000); clock = 2000; loaded = true; b.onLoaded();
+  expect(late.calls).toEqual([]);
+});
+
+test('never holds or forces the opening: sound effects off or past the end stay silent', async () => {
   const off = driver();
   setSoundEffectsOn(false);
   createOpeningAmbience(off.d, 10120).start(0);
@@ -81,4 +110,5 @@ test('the opening screen starts the bed with the clock and stops it wherever the
   expect(read('src/lib/audio/use-opening-ambience.web.ts')).toContain('start: () => undefined');
   expect(read('assets/opening/hustlek-approved-261002/manifest.json')).not.toContain('opening-ambience');
   expect(read('src/lib/audio/use-opening-ambience.ts')).toContain('require("../../../assets/audio/opening-ambience.wav")');
+  expect(read('src/lib/audio/use-opening-ambience.ts')).toContain('useEffect(() => { if (player.isLoaded) control.current?.onLoaded(); }, [player, status]);');
 });

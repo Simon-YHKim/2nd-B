@@ -11,7 +11,7 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-10-01 01:07 ~ 2026-10-01 12:28 | [handoff/HANDOFF-2026-10.md](handoff/HANDOFF-2026-10.md) | 22 | 40KB |
+| 2026-10-01 01:07 ~ 2026-10-01 13:15 | [handoff/HANDOFF-2026-10.md](handoff/HANDOFF-2026-10.md) | 23 | 41KB |
 | 2026-09-28 01:2x ~ 2026-09-30 23:57 | [handoff/HANDOFF-2026-09-p4.md](handoff/HANDOFF-2026-09-p4.md) | 24 | 66KB |
 | 2026-09-25 ~ 2026-09-28 00:4x | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 37 | 86KB |
 | 2026-09-08 ~ 2026-09-21 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 16 | 94KB |
@@ -31,7 +31,19 @@
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-06 18:37 / SSV 감시 수정 머지(#2087 · #2088) · 운영 0221 적용 · 대조 일치
+## Latest — 2026-10-06 19:51 / 효과음 3차 에뮬레이터 확인: 배경음 따라잡기(#2096) · 화면 효과음 무음 진단(#2097, 미해결) · QA APK 게시
+
+- **근거**: Simon "codex 껐으니 한번 진행해봐."(#2086 머지 뒤 에뮬레이터 확인) → "깃허브 릴리즈로 apk 다운받을수 있게 해줘."
+- **에뮬레이터 실측**(x86_64 AVD, main `16a000bf`, `dumpsys audio` 재생 이벤트): 오프닝 효과음 · 온보딩 끝 환영음(루트 `GlobalCueHost`, 화면이 바뀐 뒤에도 끝까지)은 난다. 오프닝 배경음은 **3.4~4.3초 늦게** 붙었다(시계가 출발할 때 아직 안 불러졌으면 건너뛰던 첫 판) → **#2096** squash `6a22b312`: 늦게 불러지면 그 사이 흐른 만큼 앞 위치에서 시작, 멈춤이 오면 기억도 지운다. #2096 빌드에서 정렬 재측정은 **못 했다**(아래 에뮬레이터 종료).
+- **⚠ 화면 효과음 무음 — 미해결.** `useUiSound` 를 거치는 소리가 에뮬레이터에서 하나도 안 난다: 새 주머니 폰 소리와 **기존** 망원경 라쳇(대조군)이 재생 이벤트 · AudioTrack 0. 그래서 #2086 의 저장 · 답장 · L5 · 밝아짐 · 위키 연결 등 화면 소리도 같은 처지일 가능성이 크다(미측정). 기기에서 배제한 것: 무음 모드(NORMAL) · 앱 효과음 스위치(켬) · 움직임 줄이기 · 숨은 모달 · 창 포커스 · 트랙 한도 · 재생기 재생성. 관문(`useUiSoundLifecycle`)을 안 거치는 루트 · 오프닝 소리는 난다 → 공통 후보는 그 관문.
+- **#2097** squash `e626e8ba`: 동작 변화 없이 한 번짜리 logcat 경고 셋(관문이 닫힌 칸 / 재생기 미연결 / 불러지기 전 요청). `e626e8ba` x86_64 빌드(런 37447503269)에서 폰 올리기 스와이프 뒤 `[ui-sound]` 경고 **0건**. 릴리스에서 console 은 안 지워진다(`babel.config.js` 에 remove-console 없음). 관문 경고는 `navigation.isFocused()` 가 true 일 때만 남기므로 남은 후보는 둘이다: ① 홈에서 `navigation.isFocused()` 가 false ② 재생 요청 자체가 안 왔다(스와이프 뒤 화면에서 폰이 제자리였다 — 올라갔다 돌아온 것인지 안 올라간 것인지 미확정).
+- **QA APK**: `npm run app:qa-release` → [`qa-261006-e626e8ba`](https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-261006-e626e8ba)(19:36, arm64, sha256 `4bbd92c33e16…`, pre-release). Simon 폰 확인용.
+- **에뮬레이터 종료**: 시스템이 메모리 부족으로 백그라운드 AVD 를 종료했다(시각 미상, 직후 커밋 91% · 여유 3.3GB). 다시 켜지 않았다. 커밋 80% 미만에서만 다시 켤 것(ComfyUI 12~13GB 는 이 세션 것이 아니다 — 끄지 말 것).
+- **app:parity**: 19:4x **같음**(localhost-main · origin/main · 폰용 APK 런 37447464171 모두 `e626e8ba`).
+- **남은 워크트리**: `.worktrees/sfx-r3c`(이 기록 브랜치). 지울 때 정션부터 `[IO.Directory]::Delete` 로 끊고 `ls E:/2ndB/node_modules` 개수 확인.
+- **다음 1개**: Simon 폰(QA APK)에서 홈 주머니 폰을 끌어올릴 때 · 망원경 줌 다이얼을 돌릴 때 소리가 나는지 확인 → 나면 에뮬레이터 한정 문제, 안 나면 진단을 넓혀(경고를 `isFocused()` 와 무관하게 + 요청 진입도 기록) 에뮬레이터에서 원인 확정 후 수정.
+
+## 2026-10-06 18:37 / SSV 감시 수정 머지(#2087 · #2088) · 운영 0221 적용 · 대조 일치
 
 - **근거**: Simon 18:2x "이어서 진행해" — 대기 중이던 A안("#2087 #2088 머지, 0221 적용")을 진행했다.
 - **머지**: #2087 squash `b5cff385`(18:30, `billing-tripwires` 가 운영 원장 모양 `0211_reward_records_90d_purge` 도 읽고 요약에 `cron_active`) · #2088 squash `4de713ba`(18:35, 0221 · 회귀 P16 · 런북 §7-6 감사 복원). 둘 다 CI 초록 뒤 head 고정.
@@ -490,14 +502,6 @@
 - [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902)는 10월 5일 email-v7·service-v2·법률/5언어·네이티브 이름을 묶은 Draft다. 일반 UI·웹 이름과 Play 이름/설명은 이미 별도로 반영됐다. [10월 1일 공개 계약 검사](qa/polascope-contract-readiness-261001.md)는 가입 RPC HTTP 200이지만 email-v7 0행·출시 게이트 exit 1을 기록한다. [9월 29일 적용 기록](qa/ACCOUNT-DELETION-ROLLOUT-260929.md)은 0194 적용을 확인해 출시 절차 문서를 `ae22ada5`로 정정했다. 당시 main `f5ad2ef7`과의 비공개 격리 통합 `103dec59`는 충돌 0건이고 #1994의 Windows 테스트 수정까지 포함해 `npm run verify -- --runInBand` 872묶음/11,328건, UI Work0 76건, 동의/SQL 집중 119건이 통과했다. 통합 커밋은 push하지 않았다. [비공개 GUI 검사와 캡처](https://github.com/Simon-YHKim/2nd-B/blob/2d929518/docs/qa/polascope-1902-gui-261001/README.md)는 공개·비로그인 화면 10건 HTTP 200/본문 렌더, 페이지·콘솔·자산 오류와 쓰기 요청 각 0건을 기록한다. 공개 Pages `/2nd-B/sign-up` GET도 200이었다. PR head에는 이 QA 증거만 추가했고 최신 PR CI 4종이 모두 통과했지만 Draft를 유지한다. service-consent v1 인증 상태는 503이고 원인은 미확정이다. 운영 원장·서버 계약·날짜 게이트를 확인하기 전 #1902를 병합·공개하지 않는다.
 - 다음 순서: #1902의 서버 계약/운영 원장 재확인; [#1863](https://github.com/Simon-YHKim/2nd-B/issues/1863) 웹 로그인 현장 단계 로그 확인. Supabase 격리 리허설·S3 서버 적용은 `docs/SESSION-OWNERSHIP.md`의 콘솔 소유 범위이며 Simon 지시에 따라 Grok 담당 후속으로 미룬다. 운영 DB·Edge·웹 게시·스토어 변경은 이번 작업에서 실행하지 않았다.
 - Simon의 최신 지시: 작은 판단은 다시 묻지 말고 진행한다. 운영 삭제·배포·비용 등 저장소 `AGENTS.md` §8의 명시 승인 경계는 유지한다. 인계 위치는 main `docs/HANDOFF.md`; 작업 기록은 두 PR 본문에도 있다.
-
----
-
-## 2026-10-01 13:15 / 웹 로그인 장기 대기 단계 계측
-
-- [#1863](https://github.com/Simon-YHKim/2nd-B/issues/1863)의 `submitting=true`는 `signInWithEmail`뿐 아니라 뒤따르는 `refresh()` 대기일 수도 있다. `/token` 서버 200도 브라우저의 응답 본문 수신·JSON 파싱 완료를 증명하지 않는다. 현장 원인은 아직 미확정이다.
-- 웹 로그인에 15초 장기 대기 시 단계명과 경과 밀리초만 기록한다. 단계는 인증 변경 잠금, SDK 저장소 잠금, SDK 응답, 세션 갱신, 화면 이동이다. 이메일·비밀번호·토큰·세션·응답 본문은 기록하지 않는다. 잠금/SDK 동작이나 로그인 UI의 결과를 바꾸지 않는다.
-- 실제 auth-js 클라이언트로 HTTP 200 응답의 JSON 본문을 지연시켜 M/S 잠금 획득 뒤 24초가 지나도 세션이 저장되지 않고 Promise가 대기함을 재현했다. 본문을 완료하면 세션 저장·잠금 해제가 끝난다. 새 단계 진단 테스트와 전체 `npm run verify` 872묶음/11,322건 통과. Live 재현·배포 검증은 남는다.
 
 ---
 
