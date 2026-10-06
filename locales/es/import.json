@@ -128,7 +128,7 @@
     "emptyBody": "Elige una fuente para empezar",
     "pickSource": "Elegir una fuente",
     "delete": "Eliminar",
-    "historyFine": "Eliminar quita la fuente que creó esta importación. Si no se puede confirmar que la creó esta importación, se conserva y te explicamos por qué. Las personas y los movimientos de gastos creados en una importación se pueden quitar en las pantallas de Relaciones y Revisión de gastos. La importación de comunicaciones y ubicación está bloqueada en el servidor para cuentas de menores.",
+    "historyFine": "Eliminar quita la fuente que creó esta importación. Si no se puede confirmar que la creó esta importación, se conserva y te explicamos por qué. Las personas y los movimientos financieros creados en una importación se pueden quitar en las pantallas de Relaciones y Revisión de gastos. La importación de comunicaciones y ubicación está bloqueada en el servidor para cuentas de menores.",
     "revokeFailed": "No se pudo revocar. Inténtalo de nuevo en un momento.",
     "revokeNeedsSignIn": "Inicia sesión para revocar: también hay que eliminar los datos guardados en el servidor.",
     "sources": {

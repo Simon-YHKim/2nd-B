@@ -128,7 +128,7 @@
     "emptyBody": "Escolha uma fonte para começar",
     "pickSource": "Escolher uma fonte",
     "delete": "Excluir",
-    "historyFine": "Excluir remove a fonte que esta importação criou. Uma fonte que não se pode confirmar como criada por esta importação é mantida, e explicamos o motivo. Pessoas e lançamentos de gastos criados por uma importação podem ser removidos nas telas de Relações e Revisão de gastos. A importação de comunicações e localização fica bloqueada no servidor para contas de menores.",
+    "historyFine": "Excluir remove a fonte que esta importação criou. Uma fonte que não se pode confirmar como criada por esta importação é mantida, e explicamos o motivo. Pessoas e lançamentos financeiros criados por uma importação podem ser removidos nas telas de Relações e Revisão de gastos. A importação de comunicações e localização fica bloqueada no servidor para contas de menores.",
     "revokeFailed": "Não foi possível revogar. Tente novamente em instantes.",
     "revokeNeedsSignIn": "Entre na conta para revogar: os dados guardados no servidor também precisam ser excluídos.",
     "sources": {

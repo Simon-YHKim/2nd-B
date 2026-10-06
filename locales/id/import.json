@@ -128,7 +128,7 @@
     "emptyBody": "Pilih sumber untuk memulai",
     "pickSource": "Pilih sumber",
     "delete": "Hapus",
-    "historyFine": "Hapus menghapus sumber yang dibuat oleh impor ini. Sumber yang tidak dapat dipastikan dibuat oleh impor ini tetap disimpan, dan kami jelaskan alasannya. Orang dan entri pengeluaran yang dibuat dari impor dapat dihapus di layar Hubungan dan Cek keuangan. Impor komunikasi/lokasi dikunci di server untuk akun pengguna di bawah umur.",
+    "historyFine": "Hapus menghapus sumber yang dibuat oleh impor ini. Sumber yang tidak dapat dipastikan dibuat oleh impor ini tetap disimpan, dan kami jelaskan alasannya. Orang dan entri keuangan yang dibuat dari impor dapat dihapus di layar Hubungan dan Cek keuangan. Impor komunikasi/lokasi dikunci di server untuk akun pengguna di bawah umur.",
     "revokeFailed": "Tidak bisa mencabut. Coba lagi sebentar lagi.",
     "revokeNeedsSignIn": "Masuk untuk mencabut: data yang tersimpan di server juga harus dihapus.",
     "sources": {
