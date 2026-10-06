@@ -23,6 +23,7 @@ import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
 import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
 import { loadStructuredContext } from "../records/load-structured";
+import { loadProfileContext } from "../persona/profile-context";
 import { exportUserWiki } from "../wiki/export";
 import { formatRagPages, retrieveChatContext } from "./rag";
 import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsageDetail } from "./usage";
@@ -237,6 +238,8 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   // the model reads the form data as structure, not prose. Small, fail-soft,
   // sanitized + fenced with the snapshot below.
   const structuredBlock = await loadStructuredContext(input.userId, 5);
+  // Q-261007-05 (Simon 2026-10-07): 사용자가 채운 프로필 칸(대화명 제외) + 만 나이. Fail-soft.
+  const profileLines = await loadProfileContext(input.userId);
   let ragBlock: string | null = null;
   try {
     const ragPages = await retrieveChatContext(input.userId, input.message, input.locale, {
@@ -297,6 +300,10 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   // <UNTRUSTED>, and prepend the injection-guard preamble so a clipped
   // "ignore previous instructions" cannot hijack the system prompt (mirrors
   // the Advisor path).
+  // 프로필에는 자유 입력(좌우명 등)이 섞여 있어 위키와 같은 방식으로 씻어서 감싼다.
+  const fencedProfile = profileLines.length > 0
+    ? `<UNTRUSTED type="profile">\n${sanitizeUntrusted(profileLines.join("\n"))}\n</UNTRUSTED>\n`
+    : "";
   const fencedRag = ragBlock
     ? `<UNTRUSTED type="wiki_rag">\n${sanitizeUntrusted(ragBlock)}\n</UNTRUSTED>\n`
     : "";
@@ -342,7 +349,7 @@ ${sanitizeUntrusted(structuredBlock)}
       : `This person's name is ${safeName}. Address them as ${safeName}.\n\n`
     : "";
   const guardLine = `${INJECTION_GUARD[input.locale]}\n\n`;
-  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
+  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
 
   // C1/C3/C9 are enforced by callLlm. Red-zone short-circuit still
   // happens inside callLlm; we just no longer adjust the counter
