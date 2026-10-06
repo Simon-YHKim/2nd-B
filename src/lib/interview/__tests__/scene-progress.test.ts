@@ -578,11 +578,11 @@ describe("5. 소스 계약 -- 위 시뮬레이터가 옮긴 줄이 화면 · 엔
     const screen = code("src/app/interview.tsx");
     const ask = between(screen, "const ask = useCallback(", "async function send(");
     inOrder(ask, [
-      'if (move.kind === "finish" && !credited) { finish(); return; }',
+      'if (move.kind === "finish" && !credited) { finish(endReasonForLocalFinish(stuck, giveUp)); return; }',
       'move.kind === "finish" ? credited : move.layer',
       "const confirmed = credited && lastAnswer ? confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer) : false;",
       "if (credited && confirmed) setCoverage(incrementCoverage(cov, period, credited));",
-      'if (move.kind === "finish" && confirmed) { setTurns(assessed); finish(); return; }',
+      'if (move.kind === "finish" && confirmed) { setTurns(assessed); finish("complete"); return; }',
       'const streak = currentScene(history).filter((turn) => turn.role === "user" && turn.layer === credited && turn.answered === false).length + 1;',
       "setStuckStreak(streak); if (shouldScaffold(streak)) {",
       "setPendingLayer(probe.layer);",

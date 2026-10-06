@@ -14,7 +14,7 @@ describe("interview choice controls", () => {
 
   it("offers stop before the first answer and while a follow-up is pending", () => {
     expect(screen).toContain("{started.current ? (");
-    expect(screen).toContain("onPress={finish}");
+    expect(screen).toContain('onPress={() => finish("user_end")}');
     const finish = screen.slice(screen.indexOf("const finish ="), screen.indexOf("useEffect(() => {", screen.indexOf("const finish =")));
     expect(finish).toContain("ended.current = true");
     expect(finish).toContain("setBusy(false)");

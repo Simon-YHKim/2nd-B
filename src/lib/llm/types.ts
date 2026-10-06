@@ -1,5 +1,5 @@
 import type { SafetyResult, SafetyZone } from "../safety/classifier";
-import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease"; import type { InterviewTurnMeta } from "../interview/verdict-ledger";
 
 export type GeminiModel = "lite" | "flash" | "pro";
 
@@ -127,6 +127,12 @@ export interface PromptInput {
   signal?: AbortSignal;
   /** Server-owned Polaris reservation; never a client-side billing counter. */
   polarisGenerationId?: string;
+  /**
+   * interview_probe only: the interview screen's ledger metadata (0220). The proxy
+   * checks it against the prompt it actually forwards and records numbers/enums only;
+   * a proxy that predates 0220 ignores the field. Never sent for any other purpose.
+   */
+  interviewTurn?: InterviewTurnMeta;
   // Reasoning effort. Only honored on the pro (reasoning) tier — when this call
   // resolves to pro (explicit model:"pro" or a pro-tier purpose). Defaults to
   // "high". Ignored on lite/flash tiers. Purpose-keyed only, never

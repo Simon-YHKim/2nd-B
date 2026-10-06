@@ -27,6 +27,7 @@ import {
 import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 import { scaffoldQuestion, shouldScaffold } from "./stuck";
 import { answerDisposition, canCreditAnswer, currentScene } from "./continuity";
+import type { InterviewTurnMeta, LedgerProbeKind } from "./verdict-ledger";
 
 /**
  * 인터뷰가 다루는 자리. **북두칠성 일곱 중 인터뷰가 있는 여섯과 1:1** 이다
@@ -84,6 +85,12 @@ export interface InterviewTurn {
   /** Session-only: the request that carried this answer failed (network or server error), so it
    *  has no verdict. It is neither progress nor a miss; the screen asks again at the same layer. */
   unsettled?: boolean;
+  /** Session-only, interviewer turns: what kind of question this is (seed, model drill, fixed
+   *  scaffold, loop check). The verdict ledger (0220) records it for the answer that follows. */
+  askKind?: LedgerProbeKind;
+  /** Session-only, user turns: the answer is one of the question's opener chips, sent unedited.
+   *  Recorded in the ledger (0220, design M6); it does not change crediting. */
+  openerUnedited?: boolean;
 }
 
 /** A user's coverage across 25 cells (5 periods × 5 layers). Each cell is the
@@ -486,6 +493,9 @@ export async function nextProbe(
   scaffoldStreak = 0,
   /** 발판일 때 머물 층. 주어지면 `nextLayerSuggestion` 을 건너뛴다. */
   forceLayer: DrillLayer | null = null,
+  /** 판정 원장(0220) 메타. 화면이 만들고, 경계 모듈이 interview_probe 좌석에서만 프록시로
+   *  넘긴다. 없으면 원장 행이 생기지 않을 뿐 질문 · 판정은 그대로다. */
+  turn?: InterviewTurnMeta,
 ): Promise<ProbeResult> {
   // 어느 층을 물을지를 **부르는 쪽이 정할 수도 있다.** 발판이 그렇다 --
   // 막힌 층에 그대로 머무른다. 안 주면 예전처럼 빈 칸을 찾아 내려간다.
@@ -499,6 +509,7 @@ export async function nextProbe(
     user: buildUserPrompt(currentScene(history)),
     minor,
     responseSchema: PROBE_SCHEMA,
+    ...(turn ? { interviewTurn: turn } : {}),
   });
   // 구조화 출력이 깨져도 화면이 멈추지 않게 원문 첫 줄로 떨어진다.
   // 그 아래 대체 문장까지 있으니 두 겹이다.

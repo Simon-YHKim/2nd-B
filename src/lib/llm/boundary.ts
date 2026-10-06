@@ -779,9 +779,9 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // and gives server logs call attribution. Labels are self-reported, so
       // the proxy's tier-aware cap + effort clamp are the hard ceilings.
       purpose: input.purpose,
-      // Optional image payload for multimodal OCR / vision prompts.
+      // Optional image payload for multimodal OCR / vision prompts; interview ledger metadata (0220) on the interview seat only.
       ...(input.polarisGenerationId ? { polarisGenerationId: input.polarisGenerationId, polarisLocale: input.locale } : {}),
-      ...(input.image ? { image: input.image } : {}),
+      ...(input.image ? { image: input.image } : {}), ...(input.purpose === "interview_probe" && input.interviewTurn ? { interviewTurn: input.interviewTurn } : {}),
       // Structured-output schema (e.g. phase1). The proxy sets
       // responseMimeType=application/json + responseSchema when present so
       // edge-routed callers reach parity with the direct-client path.

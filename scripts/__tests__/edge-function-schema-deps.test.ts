@@ -202,6 +202,22 @@ describe("edge schema dependency gate on the real repository", () => {
     ]));
   });
 
+  it("holds the openai-proxy deploy until 0220's interview verdict writer exists", () => {
+    // The ledger write fails soft at run time, but the deploy gate must still wait for
+    // the function: a proxy shipped before 0220 would log a failed write on every turn.
+    const deps = JSON.parse(run(["list", "openai-proxy"]).stdout);
+    expect(deps.functions).toContain("record_interview_probe_verdict");
+    const contract = deps.functionContracts.find((c: { name: string }) => c.name === "record_interview_probe_verdict");
+    expect(contract).toEqual(expect.objectContaining({
+      signature: "uuid,uuid,uuid,text,text,integer,integer,text,text,text,text,text,boolean,integer",
+    }));
+    expect(contract.argNames).toEqual([
+      "p_user_id", "p_audit_id", "p_session_id", "p_period", "p_locale", "p_scene_seq", "p_turn_seq",
+      "p_asked_layer", "p_probe_kind", "p_local_gate", "p_model_layer", "p_verdict", "p_opener_unedited",
+      "p_answer_len_bucket",
+    ]);
+  });
+
   it("sees the Naver sign-in RPCs called through the client.rpc(name) helper", () => {
     const deps = JSON.parse(run(["list", "oauth-naver"]).stdout);
     expect(deps.functions).toEqual(

@@ -95,10 +95,11 @@ describe("1. 하드 종료 없음", () => {
     const code = codeOnly("src/app/interview.tsx");
     const send = between(code, "async function send(", "function changeAngle(");
     expect(send.length).toBeGreaterThan(0);
-    const finishes = send.match(/\bfinish\(\)/g) ?? [];
+    // 0220 부터 finish 는 종료 사유를 받는다. 길은 여전히 하나, 사유는 사용자의 거절이다.
+    const finishes = send.match(/\bfinish\(/g) ?? [];
     expect(finishes).toHaveLength(1);
     expect(send.indexOf('disposition === "stop"')).toBeGreaterThan(-1);
-    expect(send.indexOf('disposition === "stop"')).toBeLessThan(send.indexOf("finish()"));
+    expect(send.indexOf('disposition === "stop"')).toBeLessThan(send.indexOf('finish("user_stop")'));
     // 사용자 답의 개수를 세는 코드 자체가 없어야 한다.
     expect(send).not.toMatch(/role\s*===\s*"user"\)\.length/);
   });
@@ -157,7 +158,7 @@ describe("2. 로컬 안전장치 (모델을 안 부르는 건너뛰기)", () => 
     const guard = angle.indexOf(call);
     expect(guard).toBeGreaterThan(-1);
     expect(guard).toBeLessThan(angle.indexOf("setTurns("));
-    expect(between(angle, call, "setTurns(")).toContain("finish()");
+    expect(between(angle, call, "setTurns(")).toContain('finish("skip_exhausted")');
     // 대화 전체의 질문 수를 세면 12턴 상한이 이름만 바꿔 남는다.
     expect(angle).not.toMatch(/role\s*===\s*"interviewer"\)\.length/);
   });
@@ -384,7 +385,7 @@ describe("3. 하루 몫 거절은 끝맺음이다", () => {
     expect(failed).toBeGreaterThan(limit);
     const branch = handler.slice(limit, failed);
     expect(branch).toContain("setDayLimited(true)");
-    expect(branch).toContain("finish()");
+    expect(branch).toContain('finish("day_limit")');
     expect(branch).toMatch(/return;/);
   });
 

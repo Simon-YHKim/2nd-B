@@ -40,6 +40,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld, type LlmConsentLease } from '../_shared/llm-consent.ts';
 import { POLARIS_RESPONSE_SCHEMA, runPolarisGeneration } from '../_shared/polaris-generation.ts';
+import { recordInterviewVerdict } from '../_shared/interview-verdict.ts';
 import {
   BRAIN_RANK,
   LlmBodyError,
@@ -392,6 +393,9 @@ async function handleOpenAi(
     audio?: unknown;
     reasoningRunId?: unknown;
     reasoningSlot?: unknown;
+    // interview_probe only: the screen's ledger metadata (0220). Unknown to older
+    // proxies, which ignore it; read only by recordInterviewVerdict below.
+    interviewTurn?: unknown;
   };
   try {
     body = await readLlmProxyJsonObject(req) as typeof body;
@@ -1130,6 +1134,21 @@ async function handleOpenAi(
   if (consentDenial) {
     await markConsentWithheld(supabaseAdmin, userId, consentAuditId, modelUsed);
     return jsonResponse(req, { error: consentDenial.error }, consentDenial.status);
+  }
+
+  // Interview verdict ledger (0220, Q-261005-09 B stage 1). One row per judged call,
+  // numbers and enums only: the model's verdict is read from `text` here, the local
+  // gate is recomputed from the verified last answer. Written after the consent
+  // recheck (a withdrawn consent leaves no row) and never blocks the response.
+  if (purpose === 'interview_probe') {
+    await recordInterviewVerdict(capacityRpc, {
+      userId,
+      auditId: consentAuditId,
+      audited,
+      rawMeta: body?.interviewTurn,
+      userText,
+      modelText: text,
+    });
   }
 
   return jsonResponse(req, { text, modelUsed, latencyMs, audited });

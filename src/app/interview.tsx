@@ -32,6 +32,13 @@
 // 태그(`interview`/`recall`/`screener`)와 `kind`, `auditPeriod` 는 그대로 둔다.
 // `assess/registry.ts` 의 `interview` 항목이 그 태그로 완료를 판정하고,
 // 옛 스크리너로 남긴 기록과 같은 서랍에 들어가야 한다.
+//
+// ── 판정 원장 (0220, Q-261005-09 B안 1 · 2단계) ───────────────────────────
+// 판정 호출마다 메타(`turnMetaFor`)를 실어 보내면 openai-proxy 가 원장 한 행을 쓴다
+// (층 판정 · 문턱 · 장면 번호, 원문 없음). 대화가 끝나면 `finish(reason)` 이 세션 행에
+// 종료 사유를 적는다. '담기' 는 칸을 서버 함수(`commit_interview_session`)로 더하고,
+// 운영에 그 함수가 없거나 원장이 비어 있을 때만 예전 경로(`addCoverage`)로 돌아간다.
+// 짧은 답 · 거부권 · 다른 장면 제안 같은 규칙 변경은 여기 없다(설계 4절, 다음 단계).
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
@@ -61,6 +68,15 @@ import { answerDisposition, canCreditAnswer, confirmedAnswer, currentScene } fro
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { createRecord } from "@/lib/records/create";
 import { addCoverage, loadCoverage } from "@/lib/interview/coverage-store";
+import {
+  closeInterviewSession,
+  commitInterviewSession,
+  endReasonForLocalFinish,
+  needsClientCoverageFallback,
+  newInterviewSessionId,
+  turnMetaFor,
+} from "@/lib/interview/session-ledger";
+import type { LedgerEndReason } from "@/lib/interview/verdict-ledger";
 import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
 import { starEntryStatus, type StarEntryStatus } from "@/lib/persona/star-entry-tracks";
 import { recordSevenTiers } from "@/lib/persona/seven-tier-history";
@@ -294,6 +310,12 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   });
   const crisisRouting = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
+  /** 판정 원장(0220)의 세션 번호. 이 화면 한 번 = 세션 하나. */
+  const [sessionId] = useState(newInterviewSessionId);
+  /** 서버가 볼 수 없는 턴의 셈(로컬 막힘 · 고정 발판)과, 답을 하나라도 보냈는지.
+   *  세션 행을 닫을 때 클라이언트가 센 값으로 함께 보낸다(설계 3.4 마지막 항목). */
+  const ledgerCounts = useRef({ localBlocks: 0, scaffolds: 0, answered: false });
+  const ledgerClosed = useRef(false);
 
   // 위 칸의 홈 이동(RedirectHome · 탭 루트 하드웨어 뒤로)은 걷히면 잃는 것이 있는
   // 동안 여기서 멈춘다(게이트 NAV-S7-01). 대화(turns)와 쓰던 답(draft)은 이 화면의
@@ -303,18 +325,41 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     () => busy || saving || crisis.visible || draft.trim() !== "" || turns.some((turn) => turn.role === "user"),
   );
 
-  const finish = useCallback(() => {
+  /** 세션 행에 종료 사유를 한 번만 적는다. 실패해도 대화는 이미 끝났다(fail-soft). */
+  const closeLedger = useCallback((reason: LedgerEndReason) => {
+    if (ledgerClosed.current) return;
+    ledgerClosed.current = true;
+    void closeInterviewSession({
+      sessionId,
+      period,
+      locale,
+      reason,
+      localBlocks: ledgerCounts.current.localBlocks,
+      scaffolds: ledgerCounts.current.scaffolds,
+    });
+  }, [sessionId, period, locale]);
+
+  const finish = useCallback((reason: LedgerEndReason) => {
     ended.current = true;
     setBusy(false);
     setDone(true);
     setPendingLayer(null);
     setOpeners([]);
-  }, []);
+    closeLedger(reason);
+  }, [closeLedger]);
 
   useEffect(() => {
     ended.current = false;
     return () => { ended.current = true; };
   }, []);
+
+  // 끝내지 않고 화면을 떠난 대화도 종료 사유를 남긴다(`left`). 답을 하나도 보내지 않고
+  // 나간 것은 남기지 않는다 -- 열어 보기만 한 화면은 대화가 아니다.
+  const leaveLedger = useRef(() => {});
+  leaveLedger.current = () => {
+    if (ledgerCounts.current.answered) closeLedger("left");
+  };
+  useEffect(() => () => leaveLedger.current(), []);
 
   useEffect(() => {
     if (!toast) return;
@@ -383,7 +428,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           history, locale, concreteOnly,
         });
         if (move.kind === "finish" && !credited) {
-          finish();
+          finish(endReasonForLocalFinish(stuck, giveUp));
           return;
         }
         if (move.kind === "loopCheck") {
@@ -392,7 +437,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           const key = move.questionKey;
           setTurns([
             ...history,
-            { role: "interviewer", text: t(`loopCheck.${key}`), period },
+            { role: "interviewer", text: t(`loopCheck.${key}`), period, askKind: "confirm" },
           ]);
           setPendingLayer(null);
           // 되묻기에는 말문 후보를 달지 않는다 — 그건 새 질문이 아니라 확인이다.
@@ -411,8 +456,10 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               text: scaffoldQuestion(move.layer, locale, stuck?.streak ?? 1),
               layer: move.layer,
               period,
+              askKind: "scaffold",
             },
           ]);
+          ledgerCounts.current.scaffolds += 1;
           setPendingLayer(move.layer);
           setOpeners([]);
           setNotice(t("drill.scaffoldNote"));
@@ -423,6 +470,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         const probe = await nextProbe(
           userId, locale, period, history, cov, isMinor === true,
           0, move.kind === "finish" ? credited : move.layer,
+          // 판정 원장(0220) 메타. 서버는 이것을 실제 프롬프트와 대조해 숫자 · 열거값만 적는다.
+          turnMetaFor({ sessionId, period, locale, history }),
         );
         // Stop/save can be selected while this request is in flight.
         if (ended.current) return;
@@ -446,7 +495,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         // 발판을 놓거나, 그 층에서 세 번째면 대화를 끝낸다. 마지막 층도 다른 층과 같다.
         if (move.kind === "finish" && confirmed) {
           setTurns(assessed);
-          finish();
+          finish("complete");
           return;
         }
         if (credited && !confirmed) {
@@ -456,22 +505,23 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           if (shouldScaffold(streak)) {
             setTurns([
               ...assessed,
-              { role: "interviewer", text: scaffoldQuestion(credited, locale, streak), layer: credited, period },
+              { role: "interviewer", text: scaffoldQuestion(credited, locale, streak), layer: credited, period, askKind: "scaffold" },
             ]);
+            ledgerCounts.current.scaffolds += 1;
             setPendingLayer(credited);
             setNotice(t("drill.scaffoldNote"));
             return;
           }
           setTurns(assessed);
-          finish();
+          finish("verdict_exhausted");
           return;
         }
         if (!probe.question) {
           setTurns(assessed);
-          finish();
+          finish("no_question");
           return;
         }
-        setTurns([...assessed, { role: "interviewer", text: probe.question, layer: probe.layer, period }]);
+        setTurns([...assessed, { role: "interviewer", text: probe.question, layer: probe.layer, period, askKind: "drill" }]);
         setPendingLayer(probe.layer);
         setOpeners(probe.openers);
       } catch (error) {
@@ -481,7 +531,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         if (await readDayLimitRefusal(error, INTERVIEW_PURPOSE)) {
           if (!ended.current) {
             setDayLimited(true);
-            finish();
+            finish("day_limit");
           }
           return;
         }
@@ -498,7 +548,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         setBusy(false);
       }
     },
-    [userId, period, locale, isMinor, entriesOf, hotlineFor, t, concreteOnly, finish],
+    [userId, period, locale, isMinor, entriesOf, hotlineFor, t, concreteOnly, finish, sessionId],
   );
 
   // 첫 질문은 **LLM 을 부르지 않는다.**
@@ -518,7 +568,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     // 0건이었다. 예전 일반 문구(`drill.opening`)는 "어느 시기를 해볼까요?" 라고
     // 되묻는 것이었는데, 시기는 이제 `/audit` 에서 고르고 오므로 질문이 중복된다.
     // 여전히 **모델을 부르지 않는다** -- 고정 표에서 꺼낸다.
-    setTurns([{ role: "interviewer", text: seedQuestion(period, locale), layer: "fact", period, sceneStart: true }]);
+    setTurns([{ role: "interviewer", text: seedQuestion(period, locale), layer: "fact", period, sceneStart: true, askKind: "seed" }]);
     setPendingLayer("fact");
     // 지난 세션까지 판 자리를 이어받는다. 안 그러면 매번 처음부터 다시 파고,
     // 등급은 한 세션 안에서만 오르내린다(그게 지금까지의 상태였다).
@@ -569,7 +619,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     if (disposition === "stop") {
       setTurns([...turns, { role: "user", text, period, answered: false }]);
       setDraft("");
-      finish();
+      finish("user_stop");
       return;
     }
     if (disposition === "skip") {
@@ -578,7 +628,11 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     }
     // 답변이 붙는 층은 **직전 질문이 겨냥한 층**이다. 되묻기였다면 층이 없다 --
     // 그건 깊이를 판 것이 아니라 방향을 바꾼 것이므로 coverage 를 올리지 않는다.
-    const answered: InterviewTurn = { role: "user", text, layer: pendingLayer ?? undefined, period };
+    const answered: InterviewTurn = {
+      role: "user", text, layer: pendingLayer ?? undefined, period,
+      // 말문 후보를 고치지 않고 보냈는가. 원장(0220)에 기록만 한다 -- 인정 여부는 그대로다(설계 P6).
+      openerUnedited: openers.includes(text),
+    };
     const nextTurns = [...turns, answered];
 
     // ⚠ **"모르겠다"는 칸을 채우지 않는다** (Simon 실측, 2026-08-24).
@@ -591,6 +645,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     // 판정은 결정론적이고(`stuck.ts`) 보수적이다 -- 사용자가 스스로 포기를
     // 말했을 때만 안 셌다. 밝기가 LLM 의 기분에 달려서는 안 되기 때문이다.
     const blocked = isLocalNonAnswer(text, pendingLayer);
+    ledgerCounts.current.answered = true;
+    if (blocked) ledgerCounts.current.localBlocks += 1;
     const nextCoverage = coverage;
     const nextStreak = blocked ? stuckStreak + 1 : 0;
     const stuck = blocked && pendingLayer ? { layer: pendingLayer, streak: nextStreak } : null;
@@ -618,12 +674,12 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     // 세서 막는다 -- 건너뛰기를 계속 눌러도 끝없이 길어지지 않게(session-end.ts).
     // "모르겠어요"처럼 발판으로 받은 답은 답으로 세지 않는다 -- send() 와 같은 판정.
     if (localPromptsExhausted(turns, (turn) => isLocalNonAnswer(turn.text, turn.layer))) {
-      finish();
+      finish("skip_exhausted");
       return;
     }
     const text = t(choice === "skip" ? "drill.anotherScene" : "drill.concreteQuestion");
     if (choice === "concrete" && currentScene(turns).some((turn) => turn.text === text)) return;
-    setTurns([...turns, { role: "interviewer", text, layer: "fact", period, sceneStart: choice === "skip" }]);
+    setTurns([...turns, { role: "interviewer", text, layer: "fact", period, sceneStart: choice === "skip", askKind: "seed" }]);
     setConcreteOnly(choice === "concrete");
     setPendingLayer("fact");
     setStuckStreak(0);
@@ -671,13 +727,20 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       // 판 자리를 남긴다. **내용과 같은 동의 경로**다 -- 사용자가 담기로 했을
       // 때만 쓴다. 칸 수에는 답변 원문이 없지만, 그렇다고 담지 않기로 한 대화가
       // 별을 밝히는 것은 이 저장소의 규율과 어긋난다.
-      const delta = emptyCoverage();
-      for (const p of LIFE_PERIODS) {
-        for (const l of DRILL_LAYERS) {
-          delta[p][l] = Math.max(0, coverage[p][l] - baseCoverage.current[p][l]);
+      //
+      // 칸은 서버가 판정 원장에서 계산해 더한다(0220 `commit_interview_session`): 실제로
+      // 판정받은 호출만, 장면마다 층당 하나. 이 화면이 센 값을 그대로 덮어쓰던 길은
+      // 운영에 그 함수가 없거나 이 대화의 원장이 비어 있을 때만 쓴다(2단계 폴백).
+      const committed = await commitInterviewSession(sessionId);
+      if (needsClientCoverageFallback(committed)) {
+        const delta = emptyCoverage();
+        for (const p of LIFE_PERIODS) {
+          for (const l of DRILL_LAYERS) {
+            delta[p][l] = Math.max(0, coverage[p][l] - baseCoverage.current[p][l]);
+          }
         }
+        await addCoverage(userId, delta);
       }
-      await addCoverage(userId, delta);
       // 판 만큼 별이 밝아졌다면 그 변화를 원장에 남긴다. 남겨야 8주 그래프에
       // 선이 생긴다 -- 지금 등급만 있으면 "밝아지고 있다"를 보여줄 수가 없다.
       // 실패해도 조용하다(recordSevenTiers 가 삼킨다). 저장은 이미 끝났고,
@@ -845,7 +908,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               />
               {started.current ? (
                 <Pressable
-                  onPress={finish}
+                  onPress={() => finish("user_end")}
                   style={[styles.answerChip, styles.actionButton]}
                   accessibilityRole="button"
                   accessibilityLabel={t("drill.enough")}
