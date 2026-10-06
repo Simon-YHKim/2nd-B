@@ -12,10 +12,6 @@
     "subtitle": "나의 요약과 기록, 계정을 한곳에서",
     "speech": "나의 요약을 보거나 프로필과 설정을 바꿀 수 있습니다."
   },
-  "account": {
-    "eyebrow": "계정",
-    "emailUnavailable": "이메일 정보를 불러올 수 없습니다."
-  },
   "sections": {
     "center": {
       "label": "나의 요약",

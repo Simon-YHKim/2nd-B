@@ -3,7 +3,7 @@
 -- 공지형·재동의 없음. The numbered CI step runs the regression against promoted 0215
 -- without this draft replay.
 BEGIN;
-\ir ../UNNUMBERED_consent_email_v9_20261006.sql
+\ir ../../migrations/0215_consent_email_v9_20261006.sql
 COMMIT;
 
 \ir ../../tests/consent_email_v9_20261006_regression.sql

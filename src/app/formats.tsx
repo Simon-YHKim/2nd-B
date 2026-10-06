@@ -36,6 +36,7 @@ import { PreferenceSwitch } from "@/components/ui/PreferenceToggle";
 import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import {
   listAccessibleTemplates,
@@ -107,6 +108,23 @@ function FormatsLegacy() {
     const h = setTimeout(() => setToast(null), 2600);
     return () => clearTimeout(h);
   }, [toast]);
+
+  // A home jump from a route above (RedirectHome, tab-root Back) stops here
+  // while this screen holds something it would lose (gate NAV-S7-01): the
+  // format being edited or added lives only in this screen, and so does the
+  // toast that reports a save, delete, share or moderation write.
+  useGoHomeStop(
+    () =>
+      editing !== null ||
+      adding ||
+      saving ||
+      confirmDelete !== null ||
+      busyId !== null ||
+      moderating !== null ||
+      modBusy ||
+      pendingShareIds.size > 0 ||
+      toast !== null,
+  );
 
   const reload = useCallback(() => {
     if (!userId) return;

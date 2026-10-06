@@ -1,12 +1,4 @@
 {
-  "testimonial": {
-    "title": "Share your story?",
-    "body": "We may share your words with our team and trusted reviewers as evidence that PolaScope helps real people. You stay in control.",
-    "shareWithJudges": "Allow trusted reviewers to read this testimonial",
-    "approveForPublic": "Allow public display on our site",
-    "agree": "I consent",
-    "decline": "Not now"
-  },
   "notice": {
     "title": "A quick heads-up before you start",
     "intro": "Your entries are stored encrypted and are not shown to other users. When you use an AI feature, content needed for that feature may be sent to an external AI provider; older app versions, or builds or runtimes without the dedicated vendor settings may route it to a different external AI provider. Please review the required processing below before continuing.",
@@ -126,49 +118,25 @@
       "cooldown": "You can export again in {{minutes}} min."
     },
     "loading": "Loading account…",
-    "eyebrow": "Account",
     "title": "My account",
-    "subtitle": "Fix your details, manage privacy, or close your account.",
-    "speech": "Review or change your account details here.",
     "dob": {
       "label": "Correct your date of birth",
       "hint": "Fix a mistyped birth date. It must be a real date and meet the age floor.",
       "save": "Save birth date",
       "saved": "Birth date updated.",
-      "saveFailed": "Could not update your birth date",
       "saveFailedBody": "We couldn't save your birth date. Please try again in a moment.",
-      "saveHint": "Saves your birth date and updates age-based privacy settings.",
-      "retry": "Retry",
-      "retryHint": "Retries saving your birth date."
+      "saveHint": "Saves your birth date and updates age-based privacy settings."
     },
     "privacy": {
       "label": "Privacy and consent",
-      "body": "External analytics is the only setting here, off by default. Sharing, ads, recommendations, and model training are not features today, and any future one would stay off until you agree.",
-      "button": "Open privacy controls",
       "buttonHint": "Opens privacy and consent settings."
     },
-    "feedback": {
-      "label": "Account feedback notice",
-      "dismiss": "Dismiss",
-      "dismissHint": "Dismisses this notice."
-    },
     "delete": {
-      "label": "Delete account",
-      "body": "This erases your entries, captures, wiki, and assistant usage, then signs you out.",
-      "supportNote": "Full account removal is processed within 2 business days. Contact support if you need it sooner.",
-      "confirmHint": "Type \"{{phrase}}\" to enable the button.",
-      "button": "Delete my account",
       "confirmTitle": "Delete your account?",
       "confirmBody": "Your data will be erased and you will be signed out. This cannot be undone.",
       "confirmCta": "Delete",
       "cancel": "Cancel",
-      "failed": "Account deletion failed",
-      "failedBody": "We couldn't finish deleting your account. Some content may already be removed, and your account and login may still exist. Please contact kim0405@hayangzip.com and we'll help.",
-      "confirmLabel": "Account deletion confirmation",
-      "inputLabel": "Account deletion confirmation phrase",
-      "inputHint": "Type DELETE to enable the account deletion button.",
-      "buttonHint": "Opens a final confirmation before deleting your account and data.",
-      "confirmCtaHint": "Starts account and data deletion."
+      "confirmLabel": "Account deletion confirmation"
     },
     "deletionReceipt": {
       "title": "Account deletion confirmed",

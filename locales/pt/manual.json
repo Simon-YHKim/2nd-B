@@ -1,10 +1,6 @@
 {
   "loading": "Carregando o manual…",
-  "eyebrow": "Guia de uso",
   "title": "Como usar o PolaScope",
-  "subtitle": "Rotinas · notas · wiki · segurança",
-  "glossary": "Glossário em uma linha",
-  "recentlyAdded": "Adicionado recentemente",
   "leavePiece": "Adicionar um registro de hoje",
   "leavePieceHint": "Abre a captura para salvar um registro de hoje.",
   "getStarted": "Começar",

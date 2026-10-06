@@ -30,8 +30,8 @@ const HISTORY = [
 const CONSENT = [
   'supabase/functions/service-consent/index.ts',
   'supabase/functions/_shared/llm-consent.ts',
-  'db/migration-drafts/UNNUMBERED_llm_service_consent_management.sql',
-  'db/migration-drafts/UNNUMBERED_polascope_consent_20260928.sql',
+  'db/migrations/0194_llm_service_consent_management.sql',
+  'db/migrations/0210_polascope_consent_20260928.sql',
   'db/migration-drafts/tests/llm-service-consent-management-contract.sql',
   'db/migration-drafts/tests/polascope-consent-forward-contract.sql',
   'db/migration-drafts/tests/llm-consent-snapshot-contract.sql',
@@ -52,10 +52,10 @@ const CONSENT = [
 const READINESS = [
   'db/README.md',
   'docs/qa/ERASURE-FORWARD-260926.md',
-  'db/migration-drafts/UNNUMBERED_service_contract_erasure_registry.sql',
+  'db/migrations/0198_service_contract_erasure_registry.sql',
   'db/migration-drafts/service-contract-erasure-entries.json',
   'db/migration-drafts/tests/service-contract-erasure-registry.sql',
-  'db/migration-drafts/UNNUMBERED_polaris_generation_allowance.sql',
+  'db/migrations/0195_polaris_generation_allowance.sql',
   'scripts/erasure-registry-forward.ts',
   'scripts/__tests__/erasure-registry-forward.test.ts',
   'scripts/__tests__/erasure-registry-guard.test.ts',

@@ -38,6 +38,7 @@ import {
   type LifePeriod,
 } from "@/lib/interview/probe";
 import { coveredDrillLayers, meStarStaticParams } from "@/lib/nav/me-star-route";
+import { RedirectHome } from "@/lib/nav/go-home";
 import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
 import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
@@ -109,8 +110,9 @@ export default function StarSummaryRoute() {
 
   if (loading) return <PremiumLoadingState />;
   if (!userId) return <Redirect href="/sign-in" />;
-  // 모르는 별 이름이면 홈으로. 옛 링크가 남아 있을 수 있다.
-  if (!id || !meta) return <Redirect href="/" />;
+  // 모르는 별 이름이면 홈으로. 옛 링크가 남아 있을 수 있다. 아래에 있는 홈으로
+  // 돌아간다 - 새 홈을 쌓지 않는다(QA 261004 D-01).
+  if (!id || !meta) return <RedirectHome />;
 
   const name = t(`ds.star.${meta.key}`);
   const range = meta.ageBand

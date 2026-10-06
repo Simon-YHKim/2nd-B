@@ -152,7 +152,8 @@ const skyDeepSpace = {
 } as const;
 
 export const darkSky = skyDeepSpace;
-export const cosmicSky = skyDeepSpace;
+// `cosmicSky` (the same skyDeepSpace alias) had no reader left after the lever went and
+// moved to E:/Legacy/2ndB on 2026-10-05 (QA R2E-12, batch qa261005-tokens-motion).
 
 // ─── Cosmic-light palette (queue item G, 2026-05-29) ────────────────
 // The light counterpart to `cosmic`. Same hue family (deep-space navy ink
@@ -226,7 +227,8 @@ export const semantic = semanticDeepSpace;
 
 // O-23 (D-22/D-23): deep-space character UI track tokens. Eye-cyan monotone so the
 // whole UI reads as the character's body/screen — kept to <=3 core colors per D-22
-// (accent + text + bg), matching the live landing concept (public/landing). Used
+// (accent + text + bg), matching the landing concept of the time (public/landing,
+// moved to E:/Legacy/2ndB on 2026-10-06, Q-261005-06). Used
 // only by the deep-space shell (EXPO_PUBLIC_UI=deep-space); the legacy palette is
 // untouched. danger keeps a functional exception.
 export const deepSpace = {
@@ -342,41 +344,11 @@ export const semanticLight = {
   deepSpaceCardLine: semantic.deepSpaceCardLine,
 } as const;
 
-// ─── Characters — 6 pixel residents of the Graph Village ────────────
-// Source: handoff §5 "Character System". Each is anchored to one
-// cosmic accent so the village reads as a small consistent cast across
-// the graph, popovers, and chat avatars. The roster that used these
-// (src/lib/characters.ts) left for E:/Legacy/2ndB on 2026-10-05 (Q-261004-14 A).
-// Worldview v-final (2026-06): accents map to the 5 Pattern Cores + Soul Core.
-// Safety is now system-only (guardRose), separated from any mascot. Internal
-// keys stay (asset filenames / personas key off them); only color + meaning move.
-export const characters = {
-  secondb: cosmic.soulViolet, // Soul Core / SecondB — AI presence
-  momo: cosmic.moonWhite, // Narrative Core / Foreman Momo + crew — monochrome
-  lulu: cosmic.signalMint, // Wisdom Core / Lumen
-  archi: cosmic.signalBlue, // Growth Core / Archon
-  gadi: cosmic.pixelLamp, // Bond Core / Relia — amber (dual-context with zoneYellow; see DESIGN.md)
-  lumi: cosmic.dreamPink, // Muse Core / Lumina — taste + inspiration
-} as const;
-
-export type CharacterName = keyof typeof characters;
-
-// Brain Stack v1.1 mascot palette — kept for backwards compatibility
-// with screens that still reference `mascot.*`. New screens should use
-// `characters.*` (the 6-resident cast) or raw `cosmic.*` colors.
-export const mascot = {
-  core: "#f0c862",
-  self: "#e36464",
-  field: "#9ba0a8",
-  augment: "#5A6FB4",
-  engram: "#c9a374",
-  signal: "#a8d4c0",
-  mirror: "#7ec4c0",
-  trinity: "#b48ec4",
-  audit: "#e89c5a",
-} as const;
-
-export type MascotName = keyof typeof mascot;
+// The Graph Village character colours (`characters` / `CharacterName`) and the
+// Brain Stack v1.1 `mascot` palette (`MascotName`) had no reader outside their own
+// tests once the old character roster left (Q-261004-14 A). Both moved to
+// E:/Legacy/2ndB on 2026-10-05 (QA R2E-12, batch qa261005-tokens-motion; the values
+// equal the qa261004-lever copy of this file there).
 
 export const spacing = {
   xs: 4,
