@@ -320,6 +320,22 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(draftLane).toContain("\\ir ../../tests/consent_email_v9_20261006_regression.sql");
   });
 
+  test("exercises the numbered 0219 first-run claims, their race and their rollback", () => {
+    // 0219 (Q-261004-40 strict) was written as a numbered file with no draft.
+    // Its regression replays it on fixtures; two more steps race two sessions for
+    // one grant and round-trip the single-transaction-only rollback.
+    const regression = read("db/tests/onboarding_first_run_claims_regression.sql");
+    expect(existsSync(join(ROOT, DRAFT_DIR, "UNNUMBERED_users_first_run_claims.sql"))).toBe(false);
+    expect(workflow).toContain("-f db/tests/onboarding_first_run_claims_regression.sql");
+    expect(workflow).toContain("- name: Race two first-run claims for one account");
+    expect(workflow).toContain("- name: Round-trip the 0219 first-run rollback (single transaction only)");
+    expect(regression).toContain("\\ir ../migrations/0219_users_first_run_claims.sql");
+    expect(regression).toContain("a second welcome claim was granted");
+    expect(regression).toContain("a stale receipt released the grant");
+    expect(regression).toContain("a claim passed the deletion fence");
+    expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
+  });
+
   test.each(Object.entries(behaviorLanes))(
     "executes %s from its behavioral scratch lane",
     (migration, { runner, workflowInvocation }) => {
