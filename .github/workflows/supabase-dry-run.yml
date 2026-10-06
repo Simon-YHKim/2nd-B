@@ -1601,6 +1601,10 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/peer_response_rate_limit_regression.sql
+      - name: Exercise the records.system_tags split and its rollback (0218)
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/records_system_tags_regression.sql
       - name: Dry-run Paddle refund consequence draft
         env:
           PGPASSWORD: postgres

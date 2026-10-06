@@ -1,15 +1,28 @@
 const queryCalls: { table: string; field?: string; value?: unknown; limit?: number }[] = [];
 let privacyResult = { data: { privacy_prefs: { health_import: false } }, error: null as Error | null };
 let recordsResult = { data: [{ id: "own-record", kind: "note", body: "My words", tags: [], created_at: "2026-09-25T00:00:00Z" }], error: null as Error | null };
+// A database without 0218's records.system_tags answers a filter on it with 42703.
+let mockNoSystemTagsColumn = false;
 jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => ({
   from: (table: string) => {
     queryCalls.push({ table });
+    let namesSystemTags = false;
     const query = {
       select: () => query,
       eq: (field: string, value: unknown) => { queryCalls.push({ table, field, value }); return query; },
-      contains: (field: string, value: unknown) => { queryCalls.push({ table, field, value }); return query; },
+      contains: (field: string, value: unknown) => {
+        queryCalls.push({ table, field, value });
+        if (field === "system_tags") namesSystemTags = true;
+        return query;
+      },
       order: () => query,
-      limit: (limit: number) => { queryCalls.push({ table, limit }); return Promise.resolve(recordsResult); },
+      limit: (limit: number) => {
+        queryCalls.push({ table, limit });
+        if (mockNoSystemTagsColumn && namesSystemTags) {
+          return Promise.resolve({ data: null, error: { code: "42703", message: "column records.system_tags does not exist" } });
+        }
+        return Promise.resolve(recordsResult);
+      },
       maybeSingle: () => Promise.resolve(privacyResult),
     };
     return query;
@@ -28,10 +41,13 @@ import { listActiveRoutines, listCompletionsSince } from "../../ops/routines";
 import { remindersSupported } from "../../ops/reminders";
 import { loadNotifications } from "../../ops/notifications-sdk";
 import { routineNotificationId } from "../../ops/notification-identity";
+import { resetSystemTagsColumnStateForTests } from "../../records/system-tags";
 
 beforeEach(() => {
   jest.clearAllMocks();
   queryCalls.length = 0;
+  mockNoSystemTagsColumn = false;
+  resetSystemTagsColumnStateForTests();
   privacyResult = { data: { privacy_prefs: { health_import: false } }, error: null };
   recordsResult.error = null;
   jest.mocked(remindersSupported).mockReturnValue(false);
@@ -47,7 +63,17 @@ test("every remote and local data read is scoped to the requested owner", async 
   expect(listActiveRoutines).toHaveBeenCalledWith("alice");
   expect(listCompletionsSince).toHaveBeenCalledWith("alice", "2026-09-25");
   expect(queryCalls.filter((call) => call.limit).map((call) => call.limit)).toEqual([80, 3]);
-  expect(queryCalls).toContainEqual({ table: "records", field: "tags", value: ["interview"] });
+  // 0218: the recall interview's marker is the app's own column, never a user tag.
+  expect(queryCalls).toContainEqual({ table: "records", field: "system_tags", value: ["interview"] });
+  expect(queryCalls).not.toContainEqual({ table: "records", field: "tags", value: ["interview"] });
+});
+
+test("a database without records.system_tags gets the pre-0218 interview filter once", async () => {
+  mockNoSystemTagsColumn = true;
+  const data = await loadDashboard("alice", false, new Date(2026, 8, 25, 10));
+  expect(data.ownerId).toBe("alice");
+  const interviewFilters = queryCalls.filter((call) => Array.isArray(call.value)).map((call) => call.field);
+  expect(interviewFilters).toEqual(["system_tags", "tags"]);
 });
 
 test.each([true, null])("restricted or unknown age (%s) never reads health data or consent", async (age) => {

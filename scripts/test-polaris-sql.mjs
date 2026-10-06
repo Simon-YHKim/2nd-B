@@ -127,7 +127,7 @@ if (process.exitCode === 0) {
   const erasureRecord = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
   const erasePrep = await query(`SET test.user_id='${erasureOwner}';
     INSERT INTO auth.users VALUES('${erasureOwner}'); INSERT INTO public.users(id) VALUES('${erasureOwner}');
-    INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES('${erasureRecord}','${erasureOwner}','audit_response','work',ARRAY['interview'],'Delete this interview.');
+    INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES('${erasureRecord}','${erasureOwner}','audit_response','work',ARRAY['interview','recall','screener'],'Delete this interview.');
     SELECT public.reserve_polaris_generation('${erasureOwner}','concurrent-erasure')->>'generation_id';`);
   const eraseGeneration = erasePrep.out.match(/[0-9a-f]{8}-[0-9a-f-]{27}/)?.[0];
   if (erasePrep.code!==0 || !eraseGeneration) throw new Error("Could not prepare concurrent erasure");
@@ -143,7 +143,7 @@ if (process.exitCode === 0) {
   if (erased.code!==0 || erasureSettlement.code!==0 || eraseCheck.code!==0 || !eraseCheck.out.trim().endsWith("t")) throw new Error("Concurrent erasure left evidence or resurrected a role");
   process.stdout.write("PASS: concurrent record deletion and settlement neither deadlock nor resurrect evidence/cards\n");
   const claimPrep = await query(`SET test.user_id='${erasureOwner}';
-    INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES('${erasureRecord}','${erasureOwner}','audit_response','work',ARRAY['interview'],'Delete before claim.');
+    INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES('${erasureRecord}','${erasureOwner}','audit_response','work',ARRAY['interview','recall','screener'],'Delete before claim.');
     SELECT public.reserve_polaris_generation('${erasureOwner}','concurrent-claim-erasure')->>'generation_id';`);
   const claimGeneration = claimPrep.out.match(/[0-9a-f]{8}-[0-9a-f-]{27}/)?.[0];
   if (claimPrep.code!==0 || !claimGeneration) throw new Error("Could not prepare claim/erasure race");
@@ -237,7 +237,7 @@ if (process.exitCode === 0) {
   const deletedRecord = "77777777-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
   mustPass([await query(`INSERT INTO auth.users(id) VALUES('${deletedUser}');
     INSERT INTO public.users(id,privacy_prefs) VALUES('${deletedUser}','{"chat_autosave":true}');
-    INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES('${deletedRecord}','${deletedUser}','audit_response','work',ARRAY['interview'],'Account deletion consent race.');
+    INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES('${deletedRecord}','${deletedUser}','audit_response','work',ARRAY['interview','recall','screener'],'Account deletion consent race.');
     ${trustedEvent(deletedUser,true)}`)],"Deletion fixture failed");
   const deletedGeneration = await reserveConsent(deletedUser,"consent-account-delete-race");
   const deletedToken = (await snapshot(deletedUser)).token;
@@ -283,7 +283,7 @@ if (process.exitCode === 0) {
     const recordId = action==="grant" ? "aaaa1111-aaaa-4aaa-8aaa-aaaaaaaaaaaa" : "bbbb2222-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
     mustPass([await query(`INSERT INTO auth.users(id,email,email_confirmed_at) VALUES('${subject}','fixture@example.invalid',now());
       INSERT INTO public.users(id,birth_date,minor_tier) VALUES('${subject}','2000-01-01','adult');
-      INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES('${recordId}','${subject}','audit_response','work',ARRAY['interview'],'Collection lease input.');`)],"Collection fixture failed");
+      INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES('${recordId}','${subject}','audit_response','work',ARRAY['interview','recall','screener'],'Collection lease input.');`)],"Collection fixture failed");
     const legacyResult = await query(`SELECT public.effective_llm_consent_snapshot_v2('${subject}',true);`);
     mustPass([legacyResult],"Legacy snapshot failed");
     const legacyToken = JSON.parse(legacyResult.out.trim().split("\n").at(-1)).token;

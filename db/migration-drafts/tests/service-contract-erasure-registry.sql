@@ -130,7 +130,7 @@ BEGIN
   SELECT * INTO before_receipt FROM public.llm_consent_receipts WHERE user_id=u;
   receipt_id:=before_receipt.consent_record_id;
   INSERT INTO public.reward_ssv_issue_rate_limits(user_id,claimed_at) VALUES(u,ARRAY[now()]);
-  INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES(r,u,'audit_response','work',ARRAY['interview'],'Combined erasure source.');
+  INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES(r,u,'audit_response','work',ARRAY['interview','recall','screener'],'Combined erasure source.');
   g:=(public.reserve_polaris_generation(u,'registry-completed')->>'generation_id')::uuid;
   PERFORM public.claim_polaris_generation(u,g);
   PERFORM public.settle_polaris_generation(u,g,cards,before_token);

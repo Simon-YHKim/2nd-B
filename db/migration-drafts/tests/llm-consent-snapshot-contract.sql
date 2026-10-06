@@ -97,7 +97,7 @@ DO $$ BEGIN
 END $$;
 
 INSERT INTO public.records(id,user_id,kind,audit_period,tags,body)
-VALUES('ffffffff-aaaa-4aaa-8aaa-aaaaaaaaaaaa','66666666-6666-4666-8666-666666666666','audit_response','work',ARRAY['interview'],'Consent-bound role evidence.');
+VALUES('ffffffff-aaaa-4aaa-8aaa-aaaaaaaaaaaa','66666666-6666-4666-8666-666666666666','audit_response','work',ARRAY['interview','recall','screener'],'Consent-bound role evidence.');
 DO $$
 DECLARE u uuid := '66666666-6666-4666-8666-666666666666'; generation uuid; token text; newer text;
   card jsonb := '{"id":"consent","label":"Consent","summary":"A disposable role","status":"proposed","claimStrength":2,"evidence":{"domains":["work"],"constructs":["self-reported narrative (same-source)"]},"evidenceRefs":["record:ffffffff-aaaa-4aaa-8aaa-aaaaaaaaaaaa"]}';

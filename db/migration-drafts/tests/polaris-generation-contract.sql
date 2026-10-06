@@ -36,11 +36,16 @@ INSERT INTO public.erasure_registry(table_name,owner_column,class,delete_order,r
   ('personas','user_id','client_erasable',41,'Local fixture personas');
 \ir ../../migrations/0190_lock_erase_my_data_authenticated.sql
 \ir ../../migrations/0195_polaris_generation_allowance.sql
+-- 0218 moves the interview marker to records.system_tags and re-defines the two
+-- evidence functions to read it. The inserts below use the pre-0218 tag layout
+-- (interview, recall, screener), so 0218's trigger is what puts the marker
+-- where Polaris now looks.
+\ir ../../migrations/0218_records_system_tags.sql
 
 INSERT INTO auth.users VALUES ('11111111-1111-4111-8111-111111111111'),('22222222-2222-4222-8222-222222222222');
 INSERT INTO public.users(id) SELECT id FROM auth.users;
 INSERT INTO public.records(id,user_id,kind,audit_period,tags,body)
-  VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111','audit_response','work',ARRAY['interview'],'I build practical tools.');
+  VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111','audit_response','work',ARRAY['interview','recall','screener'],'I build practical tools.');
 SELECT set_config('test.user_id','11111111-1111-4111-8111-111111111111',false);
 
 DO $$
@@ -188,7 +193,7 @@ DECLARE
 BEGIN
   INSERT INTO auth.users VALUES(u);
   INSERT INTO public.users(id) VALUES(u);
-  INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES(r,u,'audit_response','work',ARRAY['interview'],'A disposable interview.');
+  INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES(r,u,'audit_response','work',ARRAY['interview','recall','screener'],'A disposable interview.');
   PERFORM set_config('test.user_id',u::text,true);
   generation := (public.reserve_polaris_generation(u,'erase-running')->>'generation_id')::uuid;
   PERFORM public.claim_polaris_generation(u,generation);
@@ -197,7 +202,7 @@ BEGIN
     RAISE EXCEPTION 'record deletion retained an active reservation or evidence hash';
   END IF;
   IF (public.polaris_generation_status(u)->>'intro_remaining')::int<>2 THEN RAISE EXCEPTION 'erased reservation was charged'; END IF;
-  INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES(r,u,'audit_response','work',ARRAY['interview'],'A disposable interview.');
+  INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES(r,u,'audit_response','work',ARRAY['interview','recall','screener'],'A disposable interview.');
   FOR i IN 1..2 LOOP
     generation := (public.reserve_polaris_generation(u,'erasure-intro-'||i)->>'generation_id')::uuid;
     PERFORM public.claim_polaris_generation(u,generation);
@@ -218,7 +223,7 @@ BEGIN
   IF (SELECT reasoning_used FROM public.usage_counters WHERE user_id=u)<>0 THEN RAISE EXCEPTION 'content wipe failed to refund paid reservation'; END IF;
   IF (public.polaris_generation_status(u)->>'intro_remaining')::int<>0 THEN RAISE EXCEPTION 'content wipe reset lifetime quota'; END IF;
   IF public.settle_polaris_generation(u,generation,jsonb_build_array(card)) THEN RAISE EXCEPTION 'late callback resurrected wiped content'; END IF;
-  INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES(r,u,'audit_response','work',ARRAY['interview'],'Another disposable interview.');
+  INSERT INTO public.records(id,user_id,kind,audit_period,tags,body) VALUES(r,u,'audit_response','work',ARRAY['interview','recall','screener'],'Another disposable interview.');
   generation := (public.reserve_polaris_generation(u,'deletion-fence-running')->>'generation_id')::uuid;
   PERFORM public.claim_polaris_generation(u,generation);
   INSERT INTO public.account_deletion_tombstones(user_id,session_id) VALUES(u,'44444444-4444-4444-8444-444444444444');
