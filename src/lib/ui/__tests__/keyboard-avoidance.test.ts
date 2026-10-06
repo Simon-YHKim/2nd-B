@@ -14,8 +14,10 @@ import path from "node:path";
 
 import {
   IOS_KEYBOARD_BEHAVIOR,
+  KEYBOARD_REVEAL_MARGIN,
   keyboardAvoidanceMode,
   keyboardOverlap,
+  keyboardRevealScrollY,
   nextKeyboardPadding,
 } from "../keyboard-avoidance";
 
@@ -90,6 +92,63 @@ describe("여백 갱신 규칙", () => {
   test("이상한 측정값은 0 으로 본다", () => {
     expect(nextKeyboardPadding(232, Number.NaN, true)).toBe(0);
     expect(nextKeyboardPadding(232, -5, false)).toBe(0);
+  });
+});
+
+describe("입력칸 아래 버튼까지 키보드 위로 (2026-10-07 실기 R2A-02 후속)", () => {
+  // 실기 캡처 c4w_memo_kb.png(1440x3120, 3.5x)에서 어림한 dp. /capture 메모 모드에서 키보드가
+  // 처음 뜬 직후다. ScrollView 는 약 58dp 에서 시작해 키보드 윗변 555dp 에서 끝나고(영역이 띄운 뒤),
+  // 메모 칸 묶음(capForm)이 178dp, 담기 칸이 550dp 에서 시작한다(높이 약 52dp). 스크롤은 0 이었다 -
+  // 위쪽 메모 · 링크 · 할 일 칸이 다 보였다. 담기는 위 끝 5dp(실기 15px 안팎)만 보였다.
+  const scrollTop = 58;
+  const keyboardTop = 555;
+  const viewportHeight = keyboardTop - scrollTop;
+  const formTop = 178 - scrollTop; // 내용 좌표
+  const save = { y: 550 - scrollTop, height: 52 };
+  const memo = {
+    revealBottom: save.y + save.height + KEYBOARD_REVEAL_MARGIN,
+    keepTop: formTop,
+    viewportHeight,
+    scrollY: 0,
+  };
+
+  test("고치기 전 자리: 담기가 키보드 위로 몇 dp 만 보인다", () => {
+    const visible = keyboardTop - (scrollTop + save.y);
+    expect(visible).toBeGreaterThan(0);
+    expect(visible).toBeLessThan(save.height / 4);
+  });
+
+  test("담기 아래 끝이 키보드 위에 오도록 내리고, 메모 칸 위 끝은 화면 안에 남는다", () => {
+    const y = keyboardRevealScrollY(memo);
+    expect(y).not.toBeNull();
+    const saveBottomOnScreen = scrollTop + save.y + save.height - (y as number);
+    const formTopOnScreen = scrollTop + formTop - (y as number);
+    expect(saveBottomOnScreen).toBeLessThanOrEqual(keyboardTop - KEYBOARD_REVEAL_MARGIN);
+    expect(formTopOnScreen).toBeGreaterThanOrEqual(scrollTop);
+    // 필요한 만큼만: 한 dp 더 내리면 여유가 남는다.
+    expect(saveBottomOnScreen + 1).toBeGreaterThan(keyboardTop - KEYBOARD_REVEAL_MARGIN);
+  });
+
+  test("화면이 작아 둘 다 못 담으면 메모 칸 위 끝에서 멈춘다 - 쓰는 자리가 버튼보다 먼저다", () => {
+    expect(keyboardRevealScrollY({ ...memo, viewportHeight: 300 })).toBe(formTop);
+    // 위 끝을 모르면(아직 안 쟀으면) 제한 없이 버튼까지 내린다.
+    expect(keyboardRevealScrollY({ ...memo, viewportHeight: 300, keepTop: null })).toBe(memo.revealBottom - 300);
+  });
+
+  test("내리기만 한다 - 이미 보이거나 사용자가 더 내려 둔 자리는 그대로", () => {
+    expect(keyboardRevealScrollY({ ...memo, viewportHeight: 800 })).toBeNull();
+    expect(keyboardRevealScrollY({ ...memo, scrollY: 200 })).toBeNull();
+    // 메모 칸 위 끝이 이미 화면 위로 지나간 자리에서 끌어올리지 않는다.
+    expect(keyboardRevealScrollY({ ...memo, viewportHeight: 300, scrollY: formTop + 40 })).toBeNull();
+  });
+
+  test("값이 이상하면 움직이지 않는다", () => {
+    expect(keyboardRevealScrollY({ ...memo, viewportHeight: 0 })).toBeNull();
+    expect(keyboardRevealScrollY({ ...memo, viewportHeight: Number.NaN })).toBeNull();
+    expect(keyboardRevealScrollY({ ...memo, revealBottom: Number.POSITIVE_INFINITY })).toBeNull();
+    expect(keyboardRevealScrollY({ ...memo, scrollY: Number.NaN })).toBeNull();
+    // 위 끝 값만 이상하면 그 제한만 버린다.
+    expect(keyboardRevealScrollY({ ...memo, keepTop: Number.NaN })).toBe(keyboardRevealScrollY({ ...memo, keepTop: null }));
   });
 });
 
@@ -234,5 +293,46 @@ describe("경계 - 화면은 키보드 영역 하나로만 피한다", () => {
     const iosBranch = helper.slice(helper.indexOf('if (mode === "ios-padding") {'), helper.indexOf('if (mode === "android-measured")'));
     expect(iosBranch).toContain("if (iosHandledByScrollView) return <View {...props} />;");
     expect(helper.indexOf("iosHandledByScrollView) return")).toBeLessThan(helper.indexOf('if (mode === "android-measured")'));
+  });
+});
+
+// /capture 메모 칸이 위 계산을 실제로 쓰는지(2026-10-07 실기 R2A-02 후속). Jest 는 RN 을 렌더하지
+// 못하므로 배선을 소스에서 확인한다.
+describe("배선 - /capture 메모 칸을 누르면 담기까지 보인다", () => {
+  const helper = fs.readFileSync(path.join(ROOT, HELPER), "utf8").replace(/\r\n/g, "\n");
+  const views = fs.readFileSync(path.join(ROOT, "src/components/deep-space/DeepSpaceViews.tsx"), "utf8").replace(/\r\n/g, "\n");
+  const capture = views.slice(views.indexOf("export function CaptureView"), views.indexOf("// ── 세컨비 / Chat"));
+
+  test("훅은 Android 측정 갈래에서만 움직이고, 키보드가 떠 있을 때 계산대로 내린다", () => {
+    const hook = helper.slice(helper.indexOf("export function useKeyboardReveal("));
+    expect(hook.length).toBeGreaterThan(0);
+    expect(hook).toContain('keyboardAvoidanceMode(Platform.OS) === "android-measured"');
+    expect(hook).toContain("if (!enabled) return { scrollProps: {}, keepTopProps: {}, targetProps: {}, inputProps: {} };");
+    expect(hook).toContain("Keyboard.isVisible()");
+    expect(hook).toContain("frame.target.y + frame.target.height + KEYBOARD_REVEAL_MARGIN");
+    expect(hook).toContain("keepTop: frame.keepTop");
+    expect(hook).toContain("viewportHeight: frame.viewport");
+    expect(hook).toContain("scrollY: frame.scrollY");
+    expect(hook).toContain("scrollRef.current?.scrollTo({ y, animated: true })");
+    // 영역이 ScrollView 를 줄인 뒤(onLayout)와 포커스 때 둘 다 계산한다.
+    expect(hook).toMatch(/onLayout: \(event\) => \{\s*frameRef\.current\.viewport = event\.nativeEvent\.layout\.height;\s*reveal\(\);/);
+    expect(hook).toMatch(/onFocus: \(\) => \{\s*frameRef\.current\.focused = true;\s*reveal\(\);/);
+  });
+
+  test("CaptureView 는 ScrollView · 메모 칸 묶음 · 메모 칸 · 담기 칸에 하나씩 펼친다", () => {
+    expect(capture).toContain("const saveReveal = useKeyboardReveal(scrollRef, { active: coachStep == null });");
+    const scroll = capture.slice(capture.indexOf("<ScrollView\n        ref={scrollRef}"), capture.indexOf("{/* Fixed square tiles"));
+    expect(scroll).toContain("{...saveReveal.scrollProps}");
+    // 메모(4W1H 꺼짐) 갈래의 묶음이 내용 컨테이너의 직계 자식이고, 그 첫 칸이 메모 입력칸이다.
+    const memo = capture.slice(capture.indexOf("{!fourwOn ? ("), capture.indexOf("{attachStrip}"));
+    expect(memo).toContain("<View style={styles.capForm} {...saveReveal.keepTopProps}>");
+    expect(memo).toContain('accessibilityLabel={t("capture:modes.memo.label")}\n                  {...saveReveal.inputProps}');
+    expect(capture).toContain(
+      "<View ref={saveCoachTargetRef} collapsable={false} style={styles.capSubmit} {...saveReveal.targetProps}>",
+    );
+    // 한 번씩만 - 다른 칸에 잘못 펼치면 좌표가 섞인다.
+    for (const spread of ["scrollProps", "keepTopProps", "inputProps", "targetProps"]) {
+      expect(capture.split(`{...saveReveal.${spread}}`).length - 1).toBe(1);
+    }
   });
 });
