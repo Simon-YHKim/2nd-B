@@ -17,7 +17,10 @@
 //   더 붙인다. 창이 줄지 않던 동안 가려진 칸까지 스크롤로 닿게 하던 안전망이다. 이 영역이
 //   키보드만큼 띄우면 그 여백은 키보드가 떠 있을 때 스크롤 끝의 빈칸이 될 뿐 아무것도 가리지
 //   않는다. 에뮬레이터에서 이 영역이 확인되기 전까지 걷어내지 않는다.
-import { useCallback, useEffect, useRef, useState } from "react";
+//
+// `useKeyboardReveal` 은 같은 Android 갈래의 짝이다. 영역이 ScrollView 를 줄인 뒤 입력칸
+// 아래의 버튼(예: /capture "담기")까지 키보드 위로 내려 보인다(2026-10-07 실기 R2A-02 후속).
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -25,13 +28,18 @@ import {
   View,
   type KeyboardEvent,
   type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  type ScrollView,
   type ViewProps,
 } from "react-native";
 
 import {
   IOS_KEYBOARD_BEHAVIOR,
+  KEYBOARD_REVEAL_MARGIN,
   keyboardAvoidanceMode,
   keyboardOverlap,
+  keyboardRevealScrollY,
   nextKeyboardPadding,
 } from "./keyboard-avoidance";
 
@@ -138,4 +146,107 @@ function AndroidKeyboardArea({ style, onLayout, children, ...rest }: ViewProps) 
       {children}
     </View>
   );
+}
+
+export interface KeyboardRevealOptions {
+  /**
+   * false 인 동안은 내리지 않는다(예: 첫 기록 안내가 입력칸 자리를 재어 가리키는 동안, 또는
+   * 그 입력칸이 화면에서 빠진 동안). false 가 되면 포커스 기억도 지운다 - 빠진 입력칸은
+   * onBlur 를 못 보낼 수 있다.
+   */
+  active?: boolean;
+}
+
+export interface KeyboardReveal {
+  /** 그 ScrollView 에 펼친다. 높이(영역이 줄인 뒤)와 스크롤 위치를 잰다. */
+  scrollProps: {
+    onLayout?: (event: LayoutChangeEvent) => void;
+    onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+    scrollEventThrottle?: number;
+  };
+  /** 위 끝을 화면 위로 넘기지 않을 묶음(입력칸을 감싼, 내용 컨테이너의 직계 자식)에 펼친다. */
+  keepTopProps: { onLayout?: (event: LayoutChangeEvent) => void };
+  /** 키보드 위에 보여야 하는 칸(내용 컨테이너의 직계 자식, 예: 담기 버튼 칸)에 펼친다. */
+  targetProps: { onLayout?: (event: LayoutChangeEvent) => void };
+  /** 그 입력칸(TextInput)에 펼친다. */
+  inputProps: { onFocus?: () => void; onBlur?: () => void };
+}
+
+/**
+ * 입력칸에 포커스가 있고 키보드가 떠 있을 때, 그 아래 칸(버튼)까지 키보드 위에 보이도록
+ * ScrollView 를 내린다. Android 전용이다 - 위 영역이 재서 띄우는 갈래(`android-measured`)일
+ * 때만 움직이고, iOS(ScrollView 가 스스로 inset 을 맡는다) · 웹에서는 빈 props 를 돌려준다.
+ *
+ * 언제 내리나: 키보드가 뜨면 영역이 아래를 띄우고 ScrollView 가 줄어 onLayout 이 다시 온다.
+ * 그때(그리고 키보드가 이미 떠 있는 채로 입력칸을 누른 때) 한 번 계산한다. 얼마나 내릴지는
+ * `keyboardRevealScrollY`(./keyboard-avoidance.ts, 숫자로 검증)가 정한다.
+ *
+ * 좌표: keepTopProps · targetProps 의 onLayout y 는 부모 기준이다. 그래서 둘 다 ScrollView
+ * 내용 컨테이너의 **직계 자식**에 펼쳐야 내용 좌표가 된다.
+ */
+export function useKeyboardReveal(
+  scrollRef: RefObject<ScrollView | null>,
+  { active = true }: KeyboardRevealOptions = {},
+): KeyboardReveal {
+  const enabled = keyboardAvoidanceMode(Platform.OS) === "android-measured";
+  const frameRef = useRef({
+    focused: false,
+    scrollY: 0,
+    viewport: 0,
+    keepTop: null as number | null,
+    target: null as { y: number; height: number } | null,
+  });
+  const activeRef = useRef(active);
+  useEffect(() => {
+    activeRef.current = active;
+    if (!active) frameRef.current.focused = false;
+  }, [active]);
+
+  const reveal = useCallback(() => {
+    const frame = frameRef.current;
+    if (!activeRef.current || !frame.focused || frame.target == null || !Keyboard.isVisible()) return;
+    const y = keyboardRevealScrollY({
+      revealBottom: frame.target.y + frame.target.height + KEYBOARD_REVEAL_MARGIN,
+      keepTop: frame.keepTop,
+      viewportHeight: frame.viewport,
+      scrollY: frame.scrollY,
+    });
+    if (y != null) scrollRef.current?.scrollTo({ y, animated: true });
+  }, [scrollRef]);
+
+  return useMemo<KeyboardReveal>(() => {
+    if (!enabled) return { scrollProps: {}, keepTopProps: {}, targetProps: {}, inputProps: {} };
+    return {
+      scrollProps: {
+        onLayout: (event) => {
+          frameRef.current.viewport = event.nativeEvent.layout.height;
+          reveal();
+        },
+        onScroll: (event) => {
+          frameRef.current.scrollY = event.nativeEvent.contentOffset.y;
+        },
+        scrollEventThrottle: 16,
+      },
+      keepTopProps: {
+        onLayout: (event) => {
+          frameRef.current.keepTop = event.nativeEvent.layout.y;
+        },
+      },
+      targetProps: {
+        onLayout: (event) => {
+          const { y, height } = event.nativeEvent.layout;
+          frameRef.current.target = { y, height };
+        },
+      },
+      inputProps: {
+        onFocus: () => {
+          frameRef.current.focused = true;
+          reveal();
+        },
+        onBlur: () => {
+          frameRef.current.focused = false;
+        },
+      },
+    };
+  }, [enabled, reveal]);
 }

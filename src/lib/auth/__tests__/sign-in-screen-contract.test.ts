@@ -208,8 +208,12 @@ describe("sign-in extraction boundaries", () => {
     // legacy/screens/sign-in.tsx 가 E:/Legacy/2ndB 로 나갔고(같은 바이트, MANIFEST batch
     // qa261004-lever), 검사는 보관본을 읽지 않는다(legacy-archive-integrity.test.ts).
     // 이제 바이트를 지키는 것은 E:/Legacy 의 sha256 기록이다.
+    // 2026-10-07 재고정(실기 DEV3-01): action · actionLabel · actionValue 에 gap · flexShrink ·
+    // minWidth 를 더하고 그 이유 주석을 붙였다(긴 언어에서 라벨이 값을 카드 밖으로 밀던 문제,
+    // __tests__/action-row-wrap.test.ts). 로그인 화면이 쓰는 auth* 스타일은 바뀌지 않았다.
+    // 이전 값 f34f82ac9976c8f69eec5827501707a912514b17ed9ff4dc180ce6511edafbbe.
     expect(sha256(read("src/screens/deepspace/dds-styles.ts"))).toBe(
-      "f34f82ac9976c8f69eec5827501707a912514b17ed9ff4dc180ce6511edafbbe",
+      "8a385a571dab87715e12f3d9abd9b8881cc933056580f5d4ef50435a75c79aca",
     );
   });
 });
