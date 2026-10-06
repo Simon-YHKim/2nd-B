@@ -1403,8 +1403,10 @@ export function SideProjectScreen({ userId }: { userId: string }) {
 
 // --- (6) Meals · foods -------------------------------------------------
 
-const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
-const DAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+/** Weekday labels, Monday first like buildWeekGrid (ops bundle toolScreens.meals.days.*).
+ *  These were a Korean and an English array picked with "Korean, otherwise English",
+ *  so es/pt/id painted Mon..Sun (R2B-03). */
+const MEAL_DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
 /** Fixed meal ideas (ops bundle toolScreens.meals.ideas.*), after the PIXEL-CLAY sheet's list. */
 const MEAL_IDEA_KEYS = ["i1", "i2", "i3", "i4", "i5", "i6"] as const;
@@ -1423,7 +1425,7 @@ export function MealsScreen() {
   const [saveErr, setSaveErr] = useState(false);
   const { t, i18n } = useTranslation("ops");
   const ko = i18n.language?.toLowerCase().startsWith("ko");
-  const dayLabels = ko ? DAYS : DAYS_EN;
+  const dayLabels = MEAL_DAY_KEYS.map((k) => t(`toolScreens.meals.days.${k}`));
   const thisWeek = weekStartKey();
 
   const [weekStart, setWeekStart] = useState(thisWeek);

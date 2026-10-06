@@ -336,7 +336,33 @@
       "sectionAngles": "Ideias sugeridas pelo SecondB",
       "sectionSteps": "Possíveis próximos passos",
       "toCapture": "Levar para o Capturar",
-      "more": "Mais com o SecondB"
+      "more": "Mais com o SecondB",
+      "seeds": {
+        "expand": {
+          "angle": "Expandir",
+          "title": "Se você tirasse um ano de folga",
+          "body": "Esqueça por um momento dinheiro, trabalho e compromissos. O que você faria primeiro?",
+          "step1": "Escreva 3 coisas que você quer fazer",
+          "step2": "Experimente uma delas com uma única hora este mês",
+          "step3": "Imagine quem te acompanha na estrela de Relações"
+        },
+        "reverse": {
+          "angle": "Inverter",
+          "title": "Se você vivesse exatamente ao contrário",
+          "body": "Improvisar em vez de planejar, junto em vez de sozinho. O que te atrai do outro lado?",
+          "step1": "Experimente nesta semana algo que você nunca faz",
+          "step2": "Anote com o SecondB o que pareceu estranho",
+          "step3": "Capture na estrela de Descanso e observe o padrão"
+        },
+        "connect": {
+          "angle": "Conectar",
+          "title": "Carreira × descanso, combinados",
+          "body": "Junte as duas estrelas à força. Que ideia curiosa aparece?",
+          "step1": "Escreva um projeto de uma linha com as duas palavras-chave",
+          "step2": "Faça um protótipo em duas horas do fim de semana",
+          "step3": "Registre na estrela de Crescimento como um experimento"
+        }
+      }
     },
     "audit": {
       "title": "O eu do passado",

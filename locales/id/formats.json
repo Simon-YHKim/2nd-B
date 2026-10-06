@@ -38,7 +38,56 @@
     "block": "Blokir penulis"
   },
   "builtIn": {
-    "headingWithCount": "Format bawaan ({{count}})"
+    "headingWithCount": "Format bawaan ({{count}})",
+    "kinds": {
+      "inbox": {
+        "name": "Kotak masuk bawaan",
+        "what": "Apa saja yang tidak cocok dengan jenis tertentu. Perlu dipilah nanti."
+      },
+      "article": {
+        "name": "Artikel umum",
+        "what": "Artikel web, esai, atau tulisan blog. Tulisan untuk dibaca."
+      },
+      "video": {
+        "name": "Video YouTube",
+        "what": "Halaman video YouTube (atau sejenisnya)."
+      },
+      "paper": {
+        "name": "Makalah akademik",
+        "what": "Makalah penelitian, pracetak, atau artikel jurnal."
+      },
+      "reddit": {
+        "name": "Postingan Reddit",
+        "what": "Utas atau postingan Reddit, biasanya dengan diskusi komunitas.",
+        "props": {
+          "post-type": "Salah satu dari: question, discussion, showcase, news, guide."
+        }
+      },
+      "code": {
+        "name": "Repositori GitHub",
+        "what": "Repositori GitHub, gist, atau proyek kode.",
+        "props": {
+          "language": "Bahasa pemrograman utama, jika terlihat."
+        }
+      },
+      "ai_tool": {
+        "name": "Dokumen alat AI",
+        "what": "Dokumentasi, catatan rilis, atau tulisan blog untuk alat atau produk AI.",
+        "props": {
+          "doc-type": "Salah satu dari: guide, reference, changelog, blog.",
+          "stack-impact": "Satu baris: bagaimana ini bisa memengaruhi atau diterapkan pada karya Simon."
+        }
+      },
+      "self_knowledge": {
+        "name": "Pemahaman diri",
+        "what": "Materi tentang memahami diri sendiri: kerangka, refleksi, pertumbuhan.",
+        "props": {
+          "topic-area": "Tema pemahaman diri (mis. kebiasaan, fokus, hubungan).",
+          "framework": "Kerangka atau model bernama yang dijadikan dasar, jika ada.",
+          "applicable-circuit": "Area kehidupan mana yang disentuhnya."
+        }
+      }
+    }
   },
   "labels": {
     "untitled": "(tanpa judul)",

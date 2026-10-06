@@ -203,7 +203,8 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/components/deepspace/BackgroundTaskDock.tsx": 4,
   "src/components/deepspace/CompletionToast.tsx": 4,
   "src/components/deepspace/DeepSpaceLoader.tsx": 7,
-  "src/components/deepspace/ops/copy.ts": 104, // 105 -> 104: R2C-11 (QA 261005) fxNote 를 ops 번들로
+  // ops/copy.ts 는 2026-10-06 에 104 -> 0 으로 **갚아서** 줄을 지웠다(Q-261005-01 = A, QA 261006 tr2:
+  // en/ko 두 사전을 ops 번들 copy.* 로, es/pt/id 번역).
   "src/components/m3/date-picker/DatePicker.tsx": 38,
   "src/components/persona/FacetBreakdown.tsx": 1,
   "src/components/persona/TraitRadar.tsx": 3,
@@ -283,7 +284,9 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/screens/deepspace/import/ImportHubScreen.tsx": 86,
   "src/screens/deepspace/museum/AiMuseumScreen.tsx": 86,
   "src/screens/deepspace/onboarding/TTFVScreen.tsx": 29,
-  "src/screens/deepspace/ops/screens.tsx": 13, // 14 -> 13: R2C-15 (QA 261005) 고정 검색어 "닭" 제거
+  // 14 -> 13: R2C-15 (QA 261005) 고정 검색어 "닭" 제거. 13 -> 6: Q-261005-01 = A (QA 261006 tr2) /meals 요일
+  // 일곱 글자를 ops 번들 toolScreens.meals.days 로. 남은 6 = 그룹 탭 이름 5(OPS_GROUP_LABEL) + 가계 분류 기본값 "기타"
+  "src/screens/deepspace/ops/screens.tsx": 6,
 };
 
 describe("코드에 박힌 한국어", () => {
