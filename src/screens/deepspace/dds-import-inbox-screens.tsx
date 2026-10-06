@@ -23,6 +23,8 @@ import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { DeepSpaceLoader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { RECORD_SAVE_CUE } from "@/lib/audio/app-cues";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
 import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { armHealthAutoRead } from "@/lib/health/auto-read";
@@ -81,6 +83,8 @@ export function DeepSpaceImportScreen() {
   const { t, i18n } = useTranslation("deepspace");
   const { userId, loading: authLoading, isMinor } = useAuth();
   const { mode: requestedMode } = useScreenParams<{ mode?: string }>();
+  // 가져오기 완료 소리(Q-261006-11, 저장 소리 재사용). 실제로 들어온 조각이 있을 때만.
+  const playImportCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
 
   // `/integrations` can point straight at the account/health owner. Unknown or
@@ -163,6 +167,7 @@ export function DeepSpaceImportScreen() {
         }
       }
       setResult(tally);
+      if (tally.imported > 0) playImportCue();
       // Record the import in the withdrawal log. Without this the file import
       // created source rows that the "철회 가능" consent card promised were
       // revocable, but nothing pointed at them — leaving them unrevokable.

@@ -33,7 +33,9 @@ import {
   RecordingPresets,
   requestRecordingPermissionsAsync,
 } from "expo-audio";
-import { beginRecordingAudioMode, endRecordingAudioMode, restoreEffectsAfterRecording } from "@/lib/audio/audio-session";
+import { beginRecordingAudioMode, endRecordingAudioMode, isRecordingAudioMode, restoreEffectsAfterRecording } from "@/lib/audio/audio-session";
+import { RECORD_SAVE_CUE, saveCueAllowed } from "@/lib/audio/app-cues";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
 import { useTranslation } from "react-i18next";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -637,6 +639,8 @@ function CaptureLegacySession({
   const [clipboardEmptyNote, setClipboardEmptyNote] = useState(false);
   // Brief saved-cue moment on capture (companion pack §3: captureSaved).
   const companion = useCompanionMoment();
+  // 저장 소리(Q-261006-03): 저장 완료 패널이 뜨는 세 경로에서 같은 소리. 위기 판정 · 녹음 중은 무음.
+  const playSaveCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
   // Title of the just-saved piece — drives the inline success panel.
   const [savedTitle, setSavedTitle] = useState<string | null>(null);
   // J1: where the saved piece actually lives drives the success CTA. A journal
@@ -2524,6 +2528,7 @@ ${transcript}`;
           requestDurableSubmittedDraftAck(submitted, startModeEpoch);
           reset();
           companion.fire("journalSaved");
+          if (saveCueAllowed({ crisis: res.followup?.zone === "red", recording: isRecordingAudioMode() })) playSaveCue();
           setSavedTitle(savedTopic.length > 0 ? savedTopic : t("savedTitleFallback"));
           setSavedKind("records");
           setSavedMode("journal");
@@ -2686,6 +2691,7 @@ ${transcript}`;
           requestDurableSubmittedDraftAck(submitted, startModeEpoch);
           reset();
           companion.fire("captureSaved");
+          if (saveCueAllowed({ crisis: res.followup?.zone === "red", recording: isRecordingAudioMode() })) playSaveCue();
           setSavedTitle(savedBody.length > 0 ? savedBody : t("savedTitleFallback"));
           setSavedKind("records");
           setSavedMode(noteMode);
@@ -3112,6 +3118,7 @@ ${transcript}`;
           reset();
           // The shard cue on save; an imported link gets the delight face instead.
           companion.fire(isBareLink ? "linkImported" : "captureSaved");
+          if (saveCueAllowed({ crisis: memoCrisisDetected, recording: isRecordingAudioMode() })) playSaveCue();
           // Inline success panel (journal-capture pack §3/§7) replaces the alert.
           setSavedTitle(result.source.title);
           setSavedKind("source");

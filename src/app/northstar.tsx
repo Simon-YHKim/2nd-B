@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { subscribeFontStyle } from "@/lib/settings/readable-font";
 
 import { reactExpression } from "@/lib/companion/expression";
+import { requestGlobalCue } from "@/lib/audio/global-cues";
 import { Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
@@ -154,6 +155,9 @@ export default function NorthstarSentence() {
       }
       // 북극성 문장이 갱신됐다 — the head lights up with it.
       reactExpression("delight");
+      // L5 소리 재사용(Q-261006-08). 바로 뒤로 가므로 루트의 GlobalCueHost 가 끝까지 낸다.
+      // 위기 판정은 위에서 먼저 돌아가 여기까지 오지 않는다.
+      requestGlobalCue("polarisRatified");
       router.back();
     } catch {
       // A failed save must SAY so: the button un-spinning alone reads as

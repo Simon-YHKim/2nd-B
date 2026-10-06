@@ -79,8 +79,11 @@ describe("the 88-day reward purge is watched too (0211)", () => {
     const check = wf.split("\n").find((line) => line.includes("to_regprocedure('public.reward_retention_health()')"));
     expect(check).toBeDefined();
     expect(check).not.toContain("echo f");
+    // Both ledger shapes: the CLI's (version '0211') and production's, where each file
+    // was applied on its own and the version is the apply time (r4 OP4-01: matching the
+    // CLI shape only read "not applied" in production for good).
     expect(check).toContain(
-      "from supabase_migrations.schema_migrations where version = '0211' and name = 'reward_records_90d_purge'",
+      "from supabase_migrations.schema_migrations where (version = '0211' and name = 'reward_records_90d_purge') or name = '0211_reward_records_90d_purge'",
     );
     expect(check).toMatch(/\|\| FN_STATE="query_failed\|query_failed"$/);
     expect(wf).toMatch(/IFS='\|' read -r HAS_FN HAS_0211 <<< "\$FN_STATE"/);
@@ -95,8 +98,12 @@ describe("the 88-day reward purge is watched too (0211)", () => {
   test("it keeps counts and flags only", () => {
     // reward_retention_health() returns counts and times. The step keeps the
     // boolean, one summed count and two slash-joined summaries (hold counts;
-    // cron present/stale/failures), nothing else.
+    // cron present/active/stale/failures), nothing else. An inactive job turns
+    // ok false, so the summary has to say so (r4 DB4-03).
     expect(wf).toMatch(/IFS='\|' read -r RET_OK RET_OVERDUE RET_HOLDS RET_CRON <<< "\$RROW"/);
+    expect(wf).toContain(
+      "coalesce(h->>'cron_available', 'null') || '/' || coalesce(h->>'cron_active', 'null') || '/' || coalesce(h->>'cron_stale', 'null')",
+    );
   });
 });
 

@@ -109,7 +109,10 @@ jobs:
           # 함수가 있는지와 0211 이 운영 원장에 적용으로 남았는지를 함께 본다. 건너뛰는 것은 둘 다
           # 없을 때(0211 적용 전, GO-3 전)뿐이다. 조회 실패(접속·권한·SQL)와, 원장에는 0211 이 있는데
           # 함수가 사라진 경우는 경보로 센다(보안 게이트 r1 DB-04 · BL-05, r2 DB2-02).
-          FN_STATE="$("$PSQL" "$DB" -Atq -F'|' -v ON_ERROR_STOP=1 -c "select to_regprocedure('public.reward_retention_health()') is not null, exists (select 1 from supabase_migrations.schema_migrations where version = '0211' and name = 'reward_records_90d_purge')" 2>>err.txt)" || FN_STATE="query_failed|query_failed"
+          # 원장 행은 두 모양이다: CLI(supabase db push)는 version '0211' · name 'reward_records_90d_purge',
+          # 운영(파일 하나씩 MCP · psql 적용)은 version 이 적용 시각(20261005162534) · name '0211_reward_records_90d_purge'.
+          # 처음에는 CLI 모양만 찾아 운영에서는 늘 '없음' 이었다(2026-10-06 운영 대조, 보안 게이트 r4 OP4-01).
+          FN_STATE="$("$PSQL" "$DB" -Atq -F'|' -v ON_ERROR_STOP=1 -c "select to_regprocedure('public.reward_retention_health()') is not null, exists (select 1 from supabase_migrations.schema_migrations where (version = '0211' and name = 'reward_records_90d_purge') or name = '0211_reward_records_90d_purge')" 2>>err.txt)" || FN_STATE="query_failed|query_failed"
           IFS='|' read -r HAS_FN HAS_0211 <<< "$FN_STATE"
           if [ "$HAS_FN" = "t" ]; then
             RROW="$("$PSQL" "$DB" -Atq -F'|' -v ON_ERROR_STOP=1 -c "select (h->>'ok')::boolean,
@@ -118,7 +121,7 @@ jobs:
                        + (h->>'overdue_issue_rate_limits')::int
                        + coalesce((h->>'overdue_reward_ssv_tickets')::int, 0),
                      coalesce((h->>'overdue_hold_reviews')::int, 0) || '/' || coalesce((h->>'overdue_hold_audit_cases')::int, 0),
-                     coalesce(h->>'cron_available', 'null') || '/' || coalesce(h->>'cron_stale', 'null') || '/' || coalesce(h->>'cron_failures_7d', 'null')
+                     coalesce(h->>'cron_available', 'null') || '/' || coalesce(h->>'cron_active', 'null') || '/' || coalesce(h->>'cron_stale', 'null') || '/' || coalesce(h->>'cron_failures_7d', 'null')
                      from (select public.reward_retention_health() as h) s" 2>>err.txt)" || RROW="f|-1|query_failed|query_failed"
             IFS='|' read -r RET_OK RET_OVERDUE RET_HOLDS RET_CRON <<< "$RROW"
             if [ "$RET_OK" != "t" ]; then RETENTION=1; fi
@@ -151,10 +154,10 @@ jobs:
           # returned before their audit insert and a broken vendor looked
           # exactly like a quiet day.
           row "vendor_seat_failing" "$VENDORFAIL" "24시간 내 3회 이상 실패한 (벤더, purpose) 조합. 좌석이 죽었거나 키가 거절당하는 중"
-          # 0 이 아니면: 90일 넘은 비보류 광고 보상 기록이 있거나, purge-reward-records-90d 가
-          # 26시간 넘게 성공하지 않았거나, 7일 안에 실패했거나, 비활성이다. 또는 재검토 기한(90일)이 지난
+          # 0 이 아니면: 감시 함수 기준(0211 은 90일, 0221 부터 89일)을 넘은 비보류 광고 보상 기록이 있거나,
+          # purge-reward-records-90d 가 제때 성공하지 않았거나(0221 부터는 그날 04:37 KST 실행), 7일 안에 실패했거나, 비활성이다. 또는 재검토 기한(90일)이 지난
           # 분쟁 보류(S4)나 분쟁 종료 3년 넘게 남은 감사 사건(S1)이 있다. 방침 위반 위험.
-          row "reward_retention" "$RETENTION" "광고 보상 정리 이상(90일 초과 ${RET_OVERDUE}건, 재검토 지연/감사 3년 초과 ${RET_HOLDS}, pg_cron 있음/stale/7일 실패 ${RET_CRON})"
+          row "reward_retention" "$RETENTION" "광고 보상 정리 이상(기한 넘은 기록 ${RET_OVERDUE}건, 재검토 지연/감사 3년 초과 ${RET_HOLDS}, pg_cron 있음/활성/stale/7일 실패 ${RET_CRON})"
 
           TOTAL=$(( CONFLICT + STUCK + REVIEW + STALE + UNHANDLED + CDRIFT + BDRIFT + VENDORFAIL + RETENTION ))
           echo "total=$TOTAL" >> "$GITHUB_OUTPUT"

@@ -26,6 +26,8 @@ import { MetaChip, OpsState, OpsStatusChip, ProgressBar, type OpsChipTone } from
 import { enqueueAutoReasoningSource } from "@/app/reasoning";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { reactExpression } from "@/lib/companion/expression";
+import { RECORD_SAVE_CUE } from "@/lib/audio/app-cues";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
 import { useProgression } from "@/lib/progression/useProgression";
 import { upsertKakaoRelationPeople } from "@/lib/relation/import-signals";
 import { recordImportConsent } from "@/lib/supabase/consent";
@@ -110,6 +112,8 @@ export function ImportHubScreen() {
   // Phone-aware: inside the dashboard phone, back from the hub step steps the
   // phone back instead of popping the app stack.
   const router = useAppRouter();
+  // 가져오기 완료 소리(Q-261006-11, 저장 소리 재사용). 새로 기록된 것이 있을 때만.
+  const playImportCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
   // Inside the dashboard phone (~180px column at 320x568) the history link
   // ran off the title row; let that row wrap there.
   const inPhone = usePhoneEmbed() !== null;
@@ -257,6 +261,7 @@ export function ImportHubScreen() {
     if (!active || !outcome || !userId || busy) return;
     const chosen = outcome.proposals.filter((p) => selected.has(p.id));
     if (chosen.length === 0) return;
+    let landedNew = false;
     // C10 at the write: re-check the lock against the tile AND the content-detected
     // kind. The age can stop being confirmed between analyze and ratify, and a
     // comms/location import must not land for an age we do not know.
@@ -313,6 +318,7 @@ export function ImportHubScreen() {
       // still get a line.
       const createdIds = createdSourceIds(result);
       const logged = createdIds.length > 0 || bookedTxns > 0;
+      landedNew = logged;
       if (logged) {
         await addImportHistory(userId, {
           id: `${Date.now()}`,
@@ -374,6 +380,7 @@ export function ImportHubScreen() {
     }
     // 새 데이터가 기록에 들어왔다 — the delight beat.
     reactExpression("delight");
+    if (landedNew) playImportCue();
     setBusy(false);
     setActive(null);
     setOutcome(null);

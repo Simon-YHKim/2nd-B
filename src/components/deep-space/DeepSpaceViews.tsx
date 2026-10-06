@@ -81,6 +81,9 @@ import { IMAGINE_SEEDS, type ImagineSeedIcon } from "./imagine-seeds";
 import { FirstRecordCoachmark } from "./FirstRecordCoachmark";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { markCoachmarksSeen } from "@/lib/onboarding/coachmarks-gate";
+import { RECORD_SAVE_CUE, saveCueAllowed } from "@/lib/audio/app-cues";
+import { isRecordingAudioMode } from "@/lib/audio/audio-session";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
 import {
   advanceFirstRecordCoach,
   type FirstRecordCoachStep,
@@ -356,6 +359,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
   const { t, i18n } = useTranslation(["home", "capture", "deepspace"]);
   const { userId, isMinor } = useAuth();
   const locale = i18n.language === "ko" ? "ko" : "en";
+  const playSaveCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
   // rev2 P4a (device QA 2026-07-02) + clone-audit 06-capture: all modes save
   // through the same createRecord(kind:"note") path. Three modes since 2026-09-30
   // (메모 · 링크 · 할 일); photos attach to 메모 instead of a tab of their own.
@@ -670,6 +674,8 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
         setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
       }
       setSaved(true);
+      // 저장 소리(Q-261006-03): 위기 안내가 뜨는 메모는 '저장됨' 이 켜져도 무음이다.
+      if (saveCueAllowed({ crisis: res.followup?.zone === "red", recording: isRecordingAudioMode() })) playSaveCue();
       if (firstRecordCoach) {
         markCoachmarksSeen(userId);
         // The real save button can be used before the guide's input confirmation.
