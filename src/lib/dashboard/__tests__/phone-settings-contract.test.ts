@@ -16,7 +16,8 @@ test("data controls live in Settings, not inside the phone's app tabs", () => {
   const phone = read("src/components/dashboard/DashboardPhone.tsx");
   const settings = read("src/app/settings.tsx");
   const dataSettings = read("src/app/data-connections.tsx");
-  expect(phone).toContain('const TABS: Tab[] = ["dashboard", "tools"]');
+  // The tab row is gone (Simon 2026-10-06), but the pages are still only dashboard + apps.
+  expect(phone).toContain('type Tab = "dashboard" | "tools";');
   expect(phone).not.toContain('"sources" | "tools"');
   expect(phone).not.toContain('t("phone.controls")');
   expect(phone).not.toContain('t("phone.operational.sources")');

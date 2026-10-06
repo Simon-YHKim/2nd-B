@@ -16,7 +16,7 @@ import { countAreaRecords, LIFE_AREAS, localDate, realHealthSamples, routineActi
 import { DEFAULT_REFRESH_SETTINGS, getRefreshSettings, nextRefreshAt, shouldRefreshAfterResume } from "@/lib/dashboard/refresh-cadence";
 import { fitPhoneArtwork } from "@/lib/dashboard/phone-frame";
 import { PixelScrim } from "@/components/pixel/PixelDither";
-import { PHONE_APP_ICONS, PHONE_NAV_ICONS, PHONE_UI_ART, type PhoneAppId } from "./phone-app-assets";
+import { PHONE_APP_ICONS, PHONE_UI_ART, type PhoneAppId } from "./phone-app-assets";
 import { canBeginPhoneDismiss, shouldCompletePhoneDismiss } from "@/lib/dashboard/phone-dismiss";
 import rules from "@/lib/dashboard/dashboard-rules.json";
 import { recentRecordTrend, selectDashboardPriority, upcomingRoutineDays } from "@/lib/dashboard/summary";
@@ -38,7 +38,6 @@ import { resolvePhoneScreen } from "./phone-screens";
 import type { ProductNotice } from "@/lib/notices/types";
 
 type Tab = "dashboard" | "tools";
-const TABS: Tab[] = ["dashboard", "tools"];
 const TOOLS: { id: PhoneAppId; route: string }[] = [
   { id: "assistant", route: "/ops" },
   { id: "focus", route: "/focus" },
@@ -55,7 +54,6 @@ const APP_ORDER: PhoneAppId[] = [
   "money", "growth", "meals", "museum",
   "community", "relationships", "settings", "more",
 ];
-const PHONE_NAV = ["home", "note", "add", "search", "profile"] as const;
 const OPS_PHONE_ROUTES: Record<string, OpsPhoneScreen> = {
   "/ops": "ops",
   "/reading": "reading",
@@ -711,10 +709,9 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     <Text variant="caption" style={styles.muted}>{t("wiki:savedAs", { name: page.slug })}</Text>
   </PixelPressable>;
   // The display shrinks with the bezel; the launcher must fit all three rows
-  // above its fixed internal dock on smaller phones, not hide the last labels.
+  // on smaller phones, not hide the last labels.
   const appTileHeight = Math.max(48, Math.min(67, Math.floor(((frame?.screen.height ?? 512) - 300) / 3)));
   const appIconSize = Math.max(25, Math.min(36, appTileHeight - 29));
-  const narrowDock = (frame?.screen.width ?? Infinity) < 240;
   return <DeepSpaceScreen active="ops" header="none" variant="fullbleed" showSharedSky transparentBackdrop={transparentBackdrop}>
     <View pointerEvents="none" style={styles.phoneBackdrop}><PixelScrim style={styles.phoneScrimImage} /></View>
     <Animated.View {...(ownsDisplay ? {} : phonePan.panHandlers)} testID="dashboard-phone" style={[styles.phone, { transform: [{ translateY: dismissY }] }]} onLayout={({ nativeEvent: { layout } }) => {
@@ -748,21 +745,6 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         </View>
       </View> : null}
       {internalActive && !contentOwnsBack ? <PhoneAction label={selectedNoticeId ? t("phone.noticeListBack") : t("phone.internal.back")} glyph="arrow_back" onPress={backInside} /> : null}
-      {!internalActive ? <View style={styles.tabs}>{TABS.map((item, index) => <PixelPressable key={item} rootStyle={styles.tab} onPress={() => showPage(index)} accessibilityRole="tab" accessibilityState={{ selected: tab === item }} background={tab === item ? m3.color.primaryContainer : m3.color.surfaceContainer} contentStyle={styles.tabContent}>
-        <Image source={item === "dashboard" ? PHONE_UI_ART.dashboard : PHONE_UI_ART.apps} contentFit="contain" style={[styles.tabIcon, PIXEL_IMAGE]} accessible={false} />
-        <Text variant="caption" style={styles.tabLabel}>{t(`phone.tabs.${item}`)}</Text>
-      </PixelPressable>)}</View> : null}
-      {!internalActive ? <View style={styles.pageControls} accessibilityLabel={t("phone.pageControls")}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("phone.previousPage")} disabled={pageIndex === 0} onPress={() => showPage(pageIndex - 1)} style={styles.pageArrow}>
-          {pageIndex > 0 ? <Image source={PHONE_UI_ART.previous} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
-        </Pressable>
-        <View style={styles.pageDots}>{[0, 1, 2].map((index) => <Pressable key={index} accessibilityRole="button" accessibilityLabel={t("phone.pageNumber", { number: index + 1 })} accessibilityState={{ selected: pageIndex === index }} onPress={() => showPage(index)} style={styles.pageDotButton}>
-          <Image source={pageIndex === index ? PHONE_UI_ART.currentPage : PHONE_UI_ART.otherPage} contentFit="contain" style={[styles.pageDot, PIXEL_IMAGE]} accessible={false} />
-        </Pressable>)}</View>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("phone.nextPage")} disabled={pageIndex === 2} onPress={() => showPage(pageIndex + 1)} style={styles.pageArrow}>
-          {pageIndex < 2 ? <Image source={PHONE_UI_ART.next} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
-        </Pressable>
-      </View> : null}
       {!ownsDisplay && loading ? <Text accessibilityLiveRegion="polite" variant="caption" style={styles.readStatus}>{t("phone.loading")}</Text> : null}
       {!ownsDisplay && (failed || partial) ? <View style={styles.errorRow}><Text variant="caption" style={styles.flexText}>{t("phone.partialError")}</Text><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} /></View> : null}
       <View style={styles.pageBody} {...(ownsDisplay ? {} : pagePan.panHandlers)}>
@@ -790,14 +772,19 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         contentContainerStyle={styles.content}
       />}
       </View>
-      {!ownsDisplay ? <View style={[styles.phoneDock, narrowDock && styles.phoneDockNarrow]} accessibilityLabel={t("phone.navLabel")}>
-        {PHONE_NAV.map((item) => <Pressable key={item} accessibilityRole="button" accessibilityLabel={t(`phone.nav.${item}`)} onPress={() => {
-          if (item === "home") { showPage(0); return; }
-          go(item === "note" ? "/records" : item === "add" ? "/capture" : item === "search" ? "/wiki" : "/profile");
-        }} style={[styles.navButton, narrowDock && styles.navButtonNarrow, item === "add" && styles.navAdd]}>
-          <Image source={PHONE_NAV_ICONS[item]} contentFit="contain" style={[item === "add" ? (narrowDock ? styles.navAddIconNarrow : styles.navAddIcon) : styles.navIcon, PIXEL_IMAGE]} accessible={false} />
-          {item !== "add" ? <Text variant="caption" style={[styles.navText, item === "home" && tab === "dashboard" && styles.navActive]}>{t(`phone.nav.${item}`)}</Text> : null}
-        </Pressable>)}
+      {/* Simon 2026-10-06: the bottom shortcut row (home · note · add · search · profile) and the
+          dashboard/apps tab row are gone. Home is the bezel button below; notes, wiki and add are on the
+          app pages; profile is in Settings. The page controls below replace the tabs, at the display's foot. */}
+      {!internalActive ? <View style={styles.pageControls} accessibilityLabel={t("phone.pageControls")}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("phone.previousPage")} disabled={pageIndex === 0} onPress={() => showPage(pageIndex - 1)} style={styles.pageArrow}>
+          {pageIndex > 0 ? <Image source={PHONE_UI_ART.previous} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
+        </Pressable>
+        <View style={styles.pageDots}>{[0, 1, 2].map((index) => <Pressable key={index} accessibilityRole="button" accessibilityLabel={t("phone.pageNumber", { number: index + 1 })} accessibilityState={{ selected: pageIndex === index }} onPress={() => showPage(index)} style={styles.pageDotButton}>
+          <Image source={pageIndex === index ? PHONE_UI_ART.currentPage : PHONE_UI_ART.otherPage} contentFit="contain" style={[styles.pageDot, PIXEL_IMAGE]} accessible={false} />
+        </Pressable>)}</View>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("phone.nextPage")} disabled={pageIndex === 2} onPress={() => showPage(pageIndex + 1)} style={styles.pageArrow}>
+          {pageIndex < 2 ? <Image source={PHONE_UI_ART.next} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
+        </Pressable>
       </View> : null}
       </View>
       <Pressable
@@ -831,11 +818,6 @@ const styles = StyleSheet.create({
   heroCopy: { flex: 1, justifyContent: "center", alignItems: "flex-end", paddingRight: 11, paddingLeft: 92, gap: 3 },
   heroTitle: { color: m3.color.onSurface, fontFamily: "Galmuri11Bold", fontSize: 13 },
   heroSubtitle: { color: m3.color.onSurface, fontFamily: "Galmuri11", fontSize: 10 },
-  tabs: { flexDirection: "row", gap: 5, paddingHorizontal: 9 },
-  tab: { flex: 1, minWidth: 0 },
-  tabContent: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 4 },
-  tabIcon: { width: 17, height: 17 },
-  tabLabel: { color: m3.color.onSurface, fontFamily: "Galmuri11", fontSize: 11 },
   pageControls: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 9 },
   pageArrow: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   pageIcon: { width: 14, height: 14 },
@@ -845,19 +827,6 @@ const styles = StyleSheet.create({
   pageBody: { flex: 1, minHeight: 0 },
   hostedScreen: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0 },
   content: { paddingHorizontal: 9, paddingTop: 5, paddingBottom: 12, gap: 10 },
-  phoneDock: { height: 53, marginHorizontal: 8, marginBottom: 4, flexDirection: "row", alignItems: "center", justifyContent: "space-around", borderWidth: 1, borderColor: m3.color.outline, backgroundColor: m3.color.surfaceContainerLowest },
-  navButton: { minWidth: 44, minHeight: 48, flex: 1, alignItems: "center", justifyContent: "center", gap: 0 },
-  navIcon: { width: 27, height: 27 },
-  navAdd: { flex: 1.15 },
-  navAddIcon: { width: 49, height: 49 },
-  // A 320px window leaves ~195px for five buttons; 44px minimums pushed
-  // Profile off the right edge (2026-10-01 QA). Narrow docks share the width
-  // (each button still >= 39px wide, 48px tall) and shrink the center icon.
-  phoneDockNarrow: { marginHorizontal: 4 },
-  navButtonNarrow: { minWidth: 0 },
-  navAddIconNarrow: { width: 40, height: 40 },
-  navText: { color: m3.color.onSurfaceVariant, fontFamily: "Galmuri11", fontSize: 10, lineHeight: 14 },
-  navActive: { color: m3.color.primary },
   stack: { gap: 12 },
   launcherStack: { gap: 5 },
   hero: { padding: 16, gap: 12 },

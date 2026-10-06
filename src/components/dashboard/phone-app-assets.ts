@@ -18,21 +18,11 @@ export const PHONE_APP_ICONS = {
 
 export type PhoneAppId = keyof typeof PHONE_APP_ICONS;
 
-export const PHONE_NAV_ICONS = {
-  home: require("../../../assets/images/phone-app/nav_icons/icon_home.png"),
-  note: require("../../../assets/images/phone-app/nav_icons/icon_note.png"),
-  add: require("../../../assets/images/phone-app/nav_icons/icon_add.png"),
-  search: require("../../../assets/images/phone-app/nav_icons/icon_search.png"),
-  profile: require("../../../assets/images/phone-app/nav_icons/icon_profile.png"),
-} as const;
-
 export const PHONE_UI_ART = {
   hero: require("../../../assets/images/phone-app/scene/hero_evening_village.png"),
   tile: require("../../../assets/images/phone-app/ui_icons/app_tile_frame.png"),
   brand: require("../../../assets/images/phone-app/ui_icons/brand_sparkle.png"),
   sun: require("../../../assets/images/phone-app/ui_icons/weather_sun.png"),
-  dashboard: require("../../../assets/images/phone-app/ui_icons/tab_dashboard.png"),
-  apps: require("../../../assets/images/phone-app/ui_icons/tab_apps.png"),
   previous: require("../../../assets/images/phone-app/ui_icons/chevron_left.png"),
   next: require("../../../assets/images/phone-app/ui_icons/chevron_right.png"),
   currentPage: require("../../../assets/images/phone-app/ui_icons/page_active.png"),
