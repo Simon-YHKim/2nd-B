@@ -20,13 +20,32 @@ import { createPendingShareWatcher, takePendingShareHref } from "./pending-share
  * getRouteInfoFromState.js).
  */
 export function usePendingShareHold(): void {
-  const { loading, userId, hasProfile, profileProbeFailed } = useAuth();
+  const {
+    loading,
+    userId,
+    hasProfile,
+    profileProbeFailed,
+    recoveryUserId,
+    recoveryPendingGlobal,
+    storageRecoveryRequired,
+  } = useAuth();
   const pathname = usePathname();
   const { url, text, title } = useGlobalSearchParams<{ url?: string; text?: string; title?: string }>();
   const [watch] = useState(createPendingShareWatcher);
   useEffect(() => {
-    watch(pathname, { url, text, title }, { loading, userId, hasProfile, profileProbeFailed });
-  }, [watch, pathname, url, text, title, loading, userId, hasProfile, profileProbeFailed]);
+    watch(pathname, { url, text, title }, {
+      loading,
+      userId,
+      hasProfile,
+      profileProbeFailed,
+      recoveryUserId,
+      recoveryPendingGlobal,
+      storageRecoveryRequired,
+    });
+  }, [
+    watch, pathname, url, text, title, loading, userId, hasProfile, profileProbeFailed,
+    recoveryUserId, recoveryPendingGlobal, storageRecoveryRequired,
+  ]);
 }
 
 /**

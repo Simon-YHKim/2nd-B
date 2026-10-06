@@ -4,12 +4,13 @@
 // Target open /capture?text=&title= (the PWA also sends url=). When nobody is
 // signed in, the capture route redirects to /sign-in, and when the signed-in
 // account has no profile yet, the global C10 gate (IntroGate in
-// src/app/_layout.tsx) redirects to /complete-profile. Both redirects dropped
-// the shared text: the screen that reads it never mounted. Neither gate is
-// loosened here. Instead this module keeps the share in this JS runtime's
-// memory while those screens run, and gives the home screen a /capture link
-// that carries it again once the person is signed in with a complete profile
-// (./use-pending-share.ts wires both ends).
+// src/app/_layout.tsx) redirects to /complete-profile. During a password
+// recovery IntroGate sends every route to /reset-password, profile or not.
+// These redirects dropped the shared text: the screen that reads it never
+// mounted. No gate is loosened here. Instead this module keeps the share in
+// this JS runtime's memory while those screens run, and gives the home screen
+// a /capture link that carries it again once the person is signed in with a
+// complete profile (./use-pending-share.ts wires both ends).
 //
 // What it is not:
 //   - Not storage. Memory only. A process death, a full web reload (an OAuth
@@ -31,6 +32,7 @@
 //     link do not survive the hand-off.
 
 import {
+  currentAccountEpoch,
   currentAccountOwner,
   onAccountOwnerChange,
   type AccountOwnerChange,
@@ -67,12 +69,27 @@ export interface SharedRouteParams {
 }
 
 export type SharedRouteDecision =
-  /** Not a share on /capture, or an auth state no redirect acts on (loading, probe failure). */
+  /** Not a share on /capture, an auth state no redirect acts on (loading, probe failure), or unreadable storage. */
   | { kind: "none" }
   /** A signed-in account with a profile: the capture screen takes it as usual. */
   | { kind: "ready"; key: string }
   /** A redirect is about to replace the capture screen: keep the share for `owner`. */
   | { kind: "hold"; key: string; content: string; owner: string | null };
+
+/** The auth state IntroGate (src/app/_layout.tsx) redirects on, as useAuth() publishes it. */
+export interface SharedRouteAuth extends ProfileGateSnapshot {
+  /** With recoveryPendingGlobal: IntroGate sends every route but /reset-password there, before any profile check. */
+  recoveryUserId: string | null;
+  recoveryPendingGlobal: boolean;
+  /** Unreadable encrypted storage. userId is null here without any owner being published: unknown, not signed out. */
+  storageRecoveryRequired: boolean;
+}
+
+/** The delivery identity the route carries, whatever the auth state. null off /capture or without a share. */
+function sharedKeyOnRoute(pathname: string, params: SharedRouteParams): string | null {
+  if (pathname !== "/capture") return null;
+  return normalizeSharedCaptureParams({ url: params.url, text: params.text, title: params.title })?.key ?? null;
+}
 
 /**
  * What the root layout should do with the route it is on. `key` is the
@@ -81,13 +98,24 @@ export type SharedRouteDecision =
 export function decideSharedRoute(
   pathname: string,
   params: SharedRouteParams,
-  auth: ProfileGateSnapshot,
+  auth: SharedRouteAuth,
 ): SharedRouteDecision {
   if (pathname !== "/capture") return { kind: "none" };
   const shared = normalizeSharedCaptureParams({ url: params.url, text: params.text, title: params.title });
   if (shared === null) return { kind: "none" };
+  // Whose share this is cannot be told while storage is unreadable, so it is
+  // not kept for whoever signs in next as a signed-out share would be.
+  if (auth.storageRecoveryRequired) return { kind: "none" };
   const gate = profileGate(auth);
-  if (gate === "ready") return { kind: "ready", key: shared.key };
+  if (gate === "ready") {
+    // The recovery redirect replaces the capture screen for an account with a
+    // profile too. Kept for the published account: the reset ends at the home
+    // screen, and a session switch during the reset drops it (owner change).
+    if (auth.recoveryUserId !== null || auth.recoveryPendingGlobal) {
+      return { kind: "hold", key: shared.key, content: shared.content, owner: auth.userId };
+    }
+    return { kind: "ready", key: shared.key };
+  }
   if (gate === "signed-out") return { kind: "hold", key: shared.key, content: shared.content, owner: null };
   if (gate === "profile-incomplete") {
     return { kind: "hold", key: shared.key, content: shared.content, owner: auth.userId };
@@ -181,26 +209,37 @@ export function takePendingShareHref(userId: string, now: number = Date.now()): 
 export type PendingShareWatcher = (
   pathname: string,
   params: SharedRouteParams,
-  auth: ProfileGateSnapshot,
+  auth: SharedRouteAuth,
 ) => void;
 
 /**
  * The root layout's view of the current route, one per layout mount. It keeps
- * a share a redirect is about to drop, except a delivery it already saw while
- * an account with a profile was signed in: that one went to that account's
- * capture screen, and if the route is still on screen when the account signs
- * out, keeping it would hand it to the next account.
+ * a share a redirect is about to drop, but only within the account epoch the
+ * delivery was first decided in. A delivery shown to an account, or kept for
+ * an account without a profile, that is still on the route when the account
+ * changes (a sign-out, another account) went to that account: keeping it again
+ * unowned would hand it to the next one.
+ *
+ * The delivery ends when the route stops carrying it (leaving /capture, or the
+ * capture screen stripping the share params once its draft is durable), so a
+ * later share with the same words is a new delivery and is kept. A state with
+ * no decision on the same route (auth loading, probe failure) does not end it.
  */
 export function createPendingShareWatcher(): PendingShareWatcher {
-  let shownToAccount: string | null = null;
+  let delivery: { key: string; epoch: number } | null = null;
   return (pathname, params, auth) => {
     const decision = decideSharedRoute(pathname, params, auth);
-    if (decision.kind === "ready") {
-      shownToAccount = decision.key;
+    if (decision.kind === "none") {
+      if (delivery !== null && sharedKeyOnRoute(pathname, params) !== delivery.key) delivery = null;
       return;
     }
-    if (decision.kind !== "hold" || decision.key === shownToAccount) return;
-    holdPendingShare(decision.content, decision.owner);
+    const epoch = currentAccountEpoch();
+    if (delivery === null || delivery.key !== decision.key) {
+      delivery = { key: decision.key, epoch };
+    } else if (delivery.epoch !== epoch) {
+      return;
+    }
+    if (decision.kind === "hold") holdPendingShare(decision.content, decision.owner);
   };
 }
 

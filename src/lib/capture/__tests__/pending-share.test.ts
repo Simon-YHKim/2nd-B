@@ -13,7 +13,6 @@ import { readFileSync } from "fs";
 import path from "path";
 
 import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
-import type { ProfileGateSnapshot } from "../../auth/profile-probe";
 import {
   PENDING_SHARE_MAX_CHARS,
   PENDING_SHARE_TTL_MS,
@@ -23,6 +22,7 @@ import {
   holdPendingShare,
   pendingShareSnapshot,
   takePendingShareHref,
+  type SharedRouteAuth,
 } from "../pending-share";
 import { SHARE_TEXT_MAX_CHARS, SHARE_TITLE_MAX_CHARS, SHARE_TRUNCATION_MARKER } from "../share-intent";
 import { normalizeSharedCaptureParams } from "../share-params";
@@ -49,19 +49,29 @@ function screenParams(href: string): Record<string, string> {
   );
 }
 
-const SIGNED_OUT: ProfileGateSnapshot = { loading: false, userId: null, hasProfile: null, profileProbeFailed: false };
-const noProfile = (userId: string): ProfileGateSnapshot => ({
+const NO_RECOVERY = { recoveryUserId: null, recoveryPendingGlobal: false, storageRecoveryRequired: false };
+const SIGNED_OUT: SharedRouteAuth = {
+  loading: false,
+  userId: null,
+  hasProfile: null,
+  profileProbeFailed: false,
+  ...NO_RECOVERY,
+};
+const noProfile = (userId: string): SharedRouteAuth => ({
   loading: false,
   userId,
   hasProfile: false,
   profileProbeFailed: false,
+  ...NO_RECOVERY,
 });
-const ready = (userId: string): ProfileGateSnapshot => ({
+const ready = (userId: string): SharedRouteAuth => ({
   loading: false,
   userId,
   hasProfile: true,
   profileProbeFailed: false,
+  ...NO_RECOVERY,
 });
+const LOADING: SharedRouteAuth = { ...SIGNED_OUT, loading: true };
 
 const T0 = 1_700_000_000_000;
 
@@ -95,12 +105,25 @@ describe("decideSharedRoute: which redirect drops a share", () => {
     });
   });
 
-  test.each<[string, ProfileGateSnapshot]>([
-    ["auth still loading", { loading: true, userId: null, hasProfile: null, profileProbeFailed: false }],
-    ["profile not answered yet", { loading: false, userId: "A", hasProfile: null, profileProbeFailed: false }],
-    ["profile probe failed (retry screen, not a redirect)", { loading: false, userId: "A", hasProfile: false, profileProbeFailed: true }],
+  test.each<[string, SharedRouteAuth]>([
+    ["auth still loading", LOADING],
+    ["profile not answered yet", { ...ready("A"), hasProfile: null }],
+    ["profile probe failed (retry screen, not a redirect)", { ...noProfile("A"), profileProbeFailed: true }],
+    // AuthContext publishes userId null without publishing an owner: unknown, not signed out.
+    ["unreadable storage (whose share it is cannot be told)", { ...SIGNED_OUT, storageRecoveryRequired: true }],
   ])("%s: nothing to do", (_label, auth) => {
     expect(decideSharedRoute("/capture", { text: "hello" }, auth)).toEqual({ kind: "none" });
+  });
+
+  test.each<[string, SharedRouteAuth]>([
+    ["a confirmed recovery", { ...ready("A"), recoveryUserId: "A" }],
+    ["the provisional recovery lock", { ...ready("A"), recoveryPendingGlobal: true }],
+  ])("%s redirects to /reset-password even with a profile: keep it for that account", (_label, auth) => {
+    expect(decideSharedRoute("/capture", { text: "hello" }, auth)).toMatchObject({
+      kind: "hold",
+      content: "hello",
+      owner: "A",
+    });
   });
 
   test("other routes and a capture link without a share are left alone", () => {
@@ -233,6 +256,88 @@ describe("it never reaches a second account", () => {
     const watch = createPendingShareWatcher();
     watch("/capture", { text: "hello" }, SIGNED_OUT);
     expect(pendingShareSnapshot()).toMatchObject({ content: "hello", owner: null });
+  });
+
+  test("a delivery kept for an account without a profile is not kept again unowned after that account signs out on it", () => {
+    const watch = createPendingShareWatcher();
+    noteResolvedOwner("X");
+    watch("/capture", { text: "X's share" }, noProfile("X"));
+    expect(pendingShareSnapshot()).toMatchObject({ owner: "X" });
+    noteResolvedOwner(null);
+    expect(pendingShareSnapshot()).toBeNull();
+    watch("/capture", { text: "X's share" }, SIGNED_OUT);
+    expect(pendingShareSnapshot()).toBeNull();
+    noteResolvedOwner("Y");
+    expect(takePendingShareHref("Y", Date.now())).toBeNull();
+  });
+
+  test("auth loading on the same route does not end the delivery, so the sign-out guard still holds", () => {
+    const watch = createPendingShareWatcher();
+    noteResolvedOwner("A");
+    watch("/capture", { text: "A's share" }, ready("A"));
+    watch("/capture", { text: "A's share" }, LOADING);
+    noteResolvedOwner(null);
+    watch("/capture", { text: "A's share" }, SIGNED_OUT);
+    expect(pendingShareSnapshot()).toBeNull();
+  });
+});
+
+describe("a delivery ends when the route stops carrying it", () => {
+  test("after the capture screen strips the params, the same words shared again signed out are kept", () => {
+    const watch = createPendingShareWatcher();
+    noteResolvedOwner("A");
+    watch("/capture", { text: "same words" }, ready("A"));
+    watch("/capture", {}, ready("A"));
+    noteResolvedOwner(null);
+    watch("/capture", { text: "same words" }, SIGNED_OUT);
+    expect(pendingShareSnapshot()).toMatchObject({ content: "same words", owner: null });
+  });
+
+  test("after leaving /capture, the same words shared again signed out are kept", () => {
+    const watch = createPendingShareWatcher();
+    noteResolvedOwner("A");
+    watch("/capture", { text: "same words" }, ready("A"));
+    watch("/", {}, ready("A"));
+    noteResolvedOwner(null);
+    watch("/sign-in", {}, SIGNED_OUT);
+    watch("/capture", { text: "same words" }, SIGNED_OUT);
+    expect(pendingShareSnapshot()).toMatchObject({ content: "same words", owner: null });
+  });
+
+  test("the same words shared again for an account without a profile are kept for it", () => {
+    const watch = createPendingShareWatcher();
+    noteResolvedOwner("A");
+    watch("/capture", { text: "same words" }, ready("A"));
+    watch("/", {}, ready("A"));
+    noteResolvedOwner("X");
+    watch("/capture", { text: "same words" }, noProfile("X"));
+    expect(pendingShareSnapshot()).toMatchObject({ content: "same words", owner: "X" });
+  });
+});
+
+describe("the recovery redirect", () => {
+  test("a share that meets /reset-password is kept for the account and handed back after the reset", () => {
+    const watch = createPendingShareWatcher();
+    noteResolvedOwner("A");
+    watch("/capture", { text: "during reset" }, { ...ready("A"), recoveryUserId: "A" });
+    expect(pendingShareSnapshot()).toMatchObject({ content: "during reset", owner: "A" });
+    const href = takePendingShareHref("A", Date.now());
+    expect(href).not.toBeNull();
+    expect(normalizeSharedCaptureParams(screenParams(href as string))?.content).toBe("during reset");
+  });
+
+  test("a session switch during the reset drops it", () => {
+    const watch = createPendingShareWatcher();
+    noteResolvedOwner("A");
+    watch("/capture", { text: "during reset" }, { ...ready("A"), recoveryPendingGlobal: true });
+    noteResolvedOwner("B");
+    expect(pendingShareSnapshot()).toBeNull();
+  });
+
+  test("unreadable storage keeps nothing, even with no account published yet", () => {
+    const watch = createPendingShareWatcher();
+    watch("/capture", { text: "hello" }, { ...SIGNED_OUT, storageRecoveryRequired: true });
+    expect(pendingShareSnapshot()).toBeNull();
   });
 });
 
