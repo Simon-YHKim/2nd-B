@@ -303,8 +303,7 @@
   },
   "recent": {
     "title": "Registros recentes",
-    "openHint": "Abre esta entrada completa.",
-    "empty": "Ainda não há registros salvos."
+    "openHint": "Abre esta entrada completa."
   },
   "fourw": {
     "fields": {
@@ -324,46 +323,21 @@
     "note": "Somente os campos preenchidos são salvos, em um registro com a etiqueta #fourw."
   },
   "callReflection": {
-    "title": "Gravação de chamada",
     "blockedTitle": "Indisponível por enquanto",
     "blockedBody": "As leis de gravação de chamadas variam por região, então este recurso está disponível apenas para usuários adultos na Coreia por enquanto.",
     "goBack": "Voltar",
-    "webUnreliable": "A gravação é instável na web; use o app, por favor.",
-    "micPermission": "É necessária a permissão do microfone.",
-    "startFailed": "Não foi possível iniciar a gravação.",
-    "noRecording": "Não foi possível encontrar a gravação.",
-    "nothingToTranscribe": "Não havia nada compreensível para transcrever.",
-    "transcribeFailed": "A transcrição falhou.",
     "recordTopic": "Nota de chamada",
-    "transcribing": "Transcrevendo a chamada",
     "transcribed": "Transcrito",
     "transcriptLabel": "Transcrição",
     "discard": "Descartar",
     "approve": "Aprovar e salvar",
-    "recordingDesc": "Gravando. A transcrição é feita automaticamente quando você para.",
-    "idleDesc": "Transcreva sua própria chamada para que o SecondB a conecte às estrelas certas. O áudio original nunca é salvo.",
     "howBadge": "Como",
-    "howText": "Coloque a chamada no viva-voz e comece a gravar; assim as duas vozes chegam ao microfone.",
     "fairBadge": "Cortesia",
-    "stopAnalyse": "Parar e analisar",
-    "cancelNoSave": "Cancelar · não salvar",
-    "startRecording": "Começar a gravar",
     "maybeLater": "Talvez mais tarde"
   },
   "captureTab": "Recortes",
   "formatsTab": "Formatos",
   "importTab": "Importar",
   "inboxTab": "Recebidos",
-  "manualTab": "Guia de uso",
-  "jot": {
-    "title": "Anote uma linha",
-    "deviceNote": "Por enquanto, a nota fica salva neste aparelho. Crie uma conta para guardá-la no PolaScope.",
-    "placeholder": "Uma linha que veio à cabeça",
-    "inputA11y": "Campo de anotação",
-    "save": "Salvar",
-    "saving": "Salvando…",
-    "nearFull": "O espaço temporário deste aparelho está quase cheio. Crie uma conta para transferir as notas.",
-    "savedOnDevice": "Salvo neste aparelho ({{n}})",
-    "createAccount": "Criar conta"
-  }
+  "manualTab": "Guia de uso"
 }

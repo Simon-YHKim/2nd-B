@@ -59,6 +59,7 @@ export function SbNavBar({ active }: { active?: string }) {
               onPress={() => router.push(n.route)}
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
+              aria-selected={on}
               accessibilityLabel={label}
               android_ripple={{ color: m3.color.secondaryContainer, borderless: true }}
               style={styles.press}

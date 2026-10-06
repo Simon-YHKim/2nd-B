@@ -253,7 +253,8 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/persona/northstar.ts": 6,
   "src/lib/persona/proposal-display.ts": 11,
   "src/lib/persona/propose-self-model.ts": 9,
-  "src/lib/persona/reflection-scaffold.ts": 4,
+  // reflection-scaffold.ts(4) 는 2026-10-06 에 파일째 E:/Legacy 로 갔다
+  // (Simon 결정 Q-261005-08 B). **고친 것이 아니라 빠진 것**이다.
   "src/lib/persona/rlss.ts": 15,
   "src/lib/persona/self-portrait.ts": 11,
   "src/lib/persona/seven-proposal-context.ts": 3,

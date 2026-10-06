@@ -186,8 +186,32 @@ describe("경계 - 화면은 키보드 영역 하나로만 피한다", () => {
       areaUses += text.match(/^[ \t]*<KeyboardAvoidingArea\b/gm)?.length ?? 0;
     }
     expect(violations).toEqual([]);
-    // 2026-10-05 이 PR 이 옮긴 자리 22곳(21파일). 줄었다면 화면이 키보드 처리를 잃은 것이다.
-    expect(areaUses).toBeGreaterThanOrEqual(22);
+    // 2026-10-05 #2055 가 옮긴 자리 22곳(21파일) + 같은 날 /capture 기본 화면(CaptureView, QA R2A-02).
+    // 줄었다면 화면이 키보드 처리를 잃은 것이다.
+    expect(areaUses).toBeGreaterThanOrEqual(23);
+  });
+
+  // QA R2A-02 (2026-10-05): /capture 의 CaptureView 는 KeyboardAvoidingView 를 쓴 적이 없어 #2055 의
+  // 옮기기 목록에도, 위 규칙에도 걸리지 않았다. ScrollView 에 `automaticallyAdjustKeyboardInsets` 만
+  // 있었는데 그 prop 은 iOS 전용이라 Android 에서는 4W1H 마지막 칸과 담기 버튼이 키보드 밑에 남았다.
+  // 그 prop 이 보이는 파일은 Android 를 따로 처리하고 있어야 한다.
+  test("iOS 전용 키보드 inset 을 쓰는 파일은 Android 용 영역도 쓴다", () => {
+    const iosOnlyWithoutArea = (text: string) =>
+      /\bautomaticallyAdjustKeyboardInsets\b/.test(text) && !/^[ \t]*<KeyboardAvoidingArea\b/m.test(text);
+    // 변이 검증: 고치기 전 CaptureView 모양은 걸리고, 고친 모양은 통과한다.
+    expect(iosOnlyWithoutArea("    <View style={styles.capCoachRoot}>\n      <ScrollView\n        automaticallyAdjustKeyboardInsets\n")).toBe(true);
+    expect(
+      iosOnlyWithoutArea("    <KeyboardAvoidingArea style={styles.capCoachRoot} iosHandledByScrollView>\n      <ScrollView\n        automaticallyAdjustKeyboardInsets\n"),
+    ).toBe(false);
+
+    const files = sourceFiles("src");
+    // 영역 파일 자신은 그 prop 을 설명하는 주석만 갖는다.
+    const users = files.filter(
+      (file) => !BOUNDARY.has(file) && /\bautomaticallyAdjustKeyboardInsets\b/.test(fs.readFileSync(path.join(ROOT, file), "utf8")),
+    );
+    // 지금 쓰는 곳이 0 이 되면 이 검사는 공허해진다. 그때는 이 검사를 은퇴시킨다.
+    expect(users).toContain("src/components/deep-space/DeepSpaceViews.tsx");
+    expect(users.filter((file) => iosOnlyWithoutArea(fs.readFileSync(path.join(ROOT, file), "utf8")))).toEqual([]);
   });
 
   test("영역은 플랫폼마다 정해진 일만 한다", () => {
@@ -205,5 +229,10 @@ describe("경계 - 화면은 키보드 영역 하나로만 피한다", () => {
     expect(helper).toContain("paddingBottom: padding");
     // 웹: behavior 없이 그대로.
     expect(helper).toContain("return <KeyboardAvoidingView {...props} />;");
+    // iOS 에서 안쪽 ScrollView 가 inset 을 맡는 화면은 영역이 평범한 View 다(두 번 띄우지 않는다).
+    // 그 분기는 iOS 갈래 안에만 있어야 Android 측정이 그대로 돈다.
+    const iosBranch = helper.slice(helper.indexOf('if (mode === "ios-padding") {'), helper.indexOf('if (mode === "android-measured")'));
+    expect(iosBranch).toContain("if (iosHandledByScrollView) return <View {...props} />;");
+    expect(helper.indexOf("iosHandledByScrollView) return")).toBeLessThan(helper.indexOf('if (mode === "android-measured")'));
   });
 });

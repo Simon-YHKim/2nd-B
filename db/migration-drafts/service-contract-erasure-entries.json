@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "forwardMigration": "UNNUMBERED_service_contract_erasure_registry.sql",
+  "forwardMigration": "db/migrations/0198_service_contract_erasure_registry.sql",
   "tables": {
     "account_deletion_tombstones": {
       "owner": "user_id",

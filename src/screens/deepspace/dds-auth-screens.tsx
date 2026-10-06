@@ -13,10 +13,10 @@ import { BackHandler, Platform, Pressable, ScrollView, StyleSheet, TextInput, Vi
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { router, useFocusEffect, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { useTranslation } from "react-i18next";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
@@ -222,6 +222,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
   const confirmRef = useRef<TextInput>(null);
 
   usePreventRemove(exitLocked, useCallback(() => {}, []));
+  useGoHomeStop(() => exitLocked); // a home jump from above stops here (gate NS-02)
 
   // Keep native Back aligned with the visible recovery controls. Before a
   // recovery session exists, Back returns to sign-in. Once the password step

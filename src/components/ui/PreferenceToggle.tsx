@@ -65,6 +65,7 @@ export function PreferenceToggleRow({
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint ?? description}
       accessibilityState={{ checked: value, disabled }}
+      aria-checked={value}
     >
       <View style={styles.copy}>
         <View style={styles.labelRow}>
@@ -113,6 +114,7 @@ export function PreferenceCheckRow({
       accessibilityRole="checkbox"
       accessibilityLabel={label}
       accessibilityState={{ checked }}
+      aria-checked={checked}
       style={styles.checkRow}
       hitSlop={14}
       activeOpacity={0.7}

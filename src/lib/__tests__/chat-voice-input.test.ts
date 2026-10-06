@@ -93,7 +93,7 @@ describe("chat voice input (queue E)", () => {
     expect(lifecycleCleanup).toContain("voiceAccountLeaseRef.current?.abort()");
     expect(lifecycleCleanup).toContain("recorderLifecycle.dispose()");
     expect(lifecycleCleanup).not.toContain("setVoicePhase(");
-    expect(screen).toContain("createRecorderLifecycle(audioRecorder)");
+    expect(screen).toContain("createRecorderLifecycle(audioRecorder, { onIdle: restoreEffectsAfterRecording })");
     expect(screen).toContain("await recorderLifecycle.waitForIdle()");
     expect(screen).toContain("beginAccountSessionLease(userId)");
 

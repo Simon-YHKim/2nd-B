@@ -6,22 +6,6 @@
     "subtitle": "Seu perfil em um arquivo para IA e em uma página para leitura",
     "speech": "Escolha as informações que quer incluir no arquivo."
   },
-  "intro": {
-    "body": "O IDEN reúne seu perfil em um arquivo. Use-o para dar contexto a outro assistente de IA ou abra o resumo de uma página."
-  },
-  "generate": {
-    "button": "Criar meu IDEN",
-    "accessibilityHint": "Cria um arquivo de perfil a partir dos seus dados salvos."
-  },
-  "result": {
-    "title": "Seu IDEN está pronto",
-    "hint": "Cole no ChatGPT, Gemini ou Claude para dar o seu contexto. Seu pedido vai no final.",
-    "copy": "Copiar .iden",
-    "copied": "Copiado para a área de transferência",
-    "share": "Compartilhar",
-    "openSheet": "Abrir folha de uma página",
-    "close": "Fechar"
-  },
   "error": "Não foi possível criar seu IDEN. Atualize e tente novamente.",
   "entry": {
     "eyebrow": "Exportar seu perfil",
@@ -36,7 +20,6 @@
     "retry": "Tentar de novo",
     "empty": "Ainda não há informações para exportar. Adicione alguns registros primeiro.",
     "startGathering": "Adicionar registros",
-    "signed": "Assinado",
     "whatGoesIn": "O que entra",
     "format": "Formato",
     "sendToAi": "Enviar para uma IA",

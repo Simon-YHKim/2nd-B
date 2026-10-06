@@ -47,15 +47,19 @@ import { profileRouteHold } from "@/lib/auth/profile-probe";
 import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { configureEffectsAudioSession } from "@/lib/audio/audio-session";
+import { ensureSoundEffectsHydration } from "@/lib/settings/sound-effects";
+import { GateCover } from "@/components/ui/GateCover";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { AvatarSetupGate, AvatarSetupSceneGuard } from "@/components/avatar/AvatarSetupGate";
 import { EncryptedStorageRecoveryGate } from "@/screens/deepspace/storage-recovery-gate";
 import { BackArrow } from "@/components/ui/BackArrow";
+import { IntroExitShield } from "@/components/ui/IntroExitShield";
+import { startIntroExitShield } from "@/lib/nav/intro-exit-shield";
 import { BackgroundTaskDock, CompletionToast, SecondbHeadTrackProvider } from "@/components/deepspace";
 import { pixelStackTransition } from "@/lib/motion/pixel-physical";
 import { useAppFonts } from "@/lib/fonts/use-app-fonts";
-import { ThemeProvider, useThemePalette } from "@/lib/theme/ThemeContext";
+import { clearRetiredThemeMode, useThemePalette } from "@/lib/theme/ThemeContext";
 import { hydrateFirstStarChatNudge } from "@/lib/onboarding/state";
 import { Helmet } from "expo-router/vendor/react-helmet-async/lib";
 
@@ -109,6 +113,8 @@ void initAnalytics();
 // module scope so the mode is sent before RootLayout mounts LoadingScreen and its opening players.
 // Native only: the .web module is an empty function. audio-session.test.ts holds the placement.
 void configureEffectsAudioSession();
+// The sound effects switch (Q-261005-02): load the stored value before the opening's first cue.
+ensureSoundEffectsHydration();
 
 // ⚠ #1517 은 여기서 네이티브 크래시 리포팅 SDK 초기화를 켰다. 되살리지 않는다 —
 // main 이 `964db854 fix(analytics): hard-disable Sentry runtimes (#1586)` 로 껐다.
@@ -156,6 +162,8 @@ export default function RootLayout() {
   // one extra nudge.
   useEffect(() => {
     void hydrateFirstStarChatNudge();
+    // Q-261005-02: the dark/light choice is gone. Drop its stale key once (nothing reads it).
+    void clearRetiredThemeMode();
   }, []);
 
   // The served page has two <title> tags and the FIRST one wins: Expo Router's
@@ -195,11 +203,19 @@ export default function RootLayout() {
   // On the web the opening plays while the fonts download (use-app-fonts.web.ts):
   // they are not on its critical path, and IntroGate holds only the hand-over
   // until they are in. Native keeps waiting here, under the splash screen.
+  //
+  // R2A-04: no caption while the fonts are out. Android caches a text measurement
+  // under the font family NAME ("Galmuri11"), not under the face that answered, so
+  // a caption laid out here, before Galmuri is registered, is measured in the
+  // fallback face, and every later loader with the same words reuses that width.
+  // Galmuri is wider, the last word wrapped onto a second line the box had no room
+  // for, and the loader read "불러오는" (ko) or "Loadin" (en, D-08). Drawing no
+  // text until the face is in leaves nothing stale to reuse, in any language.
   if ((!fontsReady && !OPENING_LOADS_FONTS) || !i18nReady) {
     return (
       <>
         {SITE_HEAD}
-        <InlineLoader />
+        <InlineLoader bare={!fontsReady} />
       </>
     );
   }
@@ -208,7 +224,6 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       {SITE_HEAD}
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-        <ThemeProvider>
           <AuthProvider>
             <ThemedStatusBar />
             <PendingAccountTransitionResolver />
@@ -281,16 +296,18 @@ export default function RootLayout() {
               <CompletionToast />
               </AvatarSetupGate>
             </IntroGate>
+            {/* W-05: for a moment after the opening ends, a tap that was aimed
+                at its skip button must not land on the dock tab underneath. */}
+            <IntroExitShield />
             </SecondbHeadTrackProvider>
           </AuthProvider>
-        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
 
-/** Wraps <Stack> so its contentStyle.backgroundColor tracks the theme
- *  toggle without forcing every screen to set its own bg. */
+/** Wraps <Stack> so every scene sits on the app's dark ground without each
+ *  screen setting its own bg. There is no theme toggle (Q-261005-02). */
 function ThemedStack({ children }: { children: React.ReactNode }) {
   const palette = useThemePalette();
   const transition = pixelStackTransition();
@@ -305,7 +322,7 @@ function ThemedStack({ children }: { children: React.ReactNode }) {
   // 셸 탓임이 드러났다. 눈으로는 잘 안 보인다 — 앱이 그 위를 거의 다 덮기 때문에
   // 로딩 순간·전환 틈·오버스크롤에서만 새어 나온다.
   //
-  // 팔레트는 항상 어두운 값이다(아래 ForceDark 주석). `card` 도 같이 맞춰야
+  // 팔레트는 항상 어두운 값이다(라이트 팔레트를 고르는 길이 없다, Q-261005-02). `card` 도 같이 맞춰야
   // 헤더·카드 기본값이 흰색으로 남지 않는다.
   const navTheme = useMemo(
     () => ({
@@ -460,10 +477,10 @@ function PendingAccountTransitionResolver(): null {
 
 
 /**
- * App content is always dark — every screen is wrapped in PremiumAppShell's
- * ForceDark and useThemePalette returns the dark palette even in Light mode
- * (the "village stays dark" design rule). So status-bar icons must always be
- * light to stay visible; tying them to `mode` rendered dark-on-dark in Light.
+ * App content is always dark: there is no light mode (Simon Q-261005-02 removed
+ * the toggle), and useThemePalette has no input that could return a light
+ * palette. So status-bar icons are always light; the old tie to `mode` once
+ * rendered dark-on-dark.
  */
 function ThemedStatusBar() {
   return <StatusBar style="light" />;
@@ -522,6 +539,7 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
         ready={fontsReady && !loading && recoveryReady && profileHold !== "loading"}
         onContinue={() => {
           markIntroPlayed();
+          startIntroExitShield();
           setIntroDone(true);
         }}
       />
@@ -538,7 +556,8 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   // from every route and no authenticated screen remains mounted underneath.
   // The opening already waited for the fonts before handing over; this only
   // matters when the intro was played earlier in this tab and the fonts are not.
-  if (!fontsReady) return <InlineLoader />;
+  // Bare for the same reason as RootLayout's font wait (R2A-04).
+  if (!fontsReady) return <InlineLoader bare />;
   if (storageRecoveryRequired) return <EncryptedStorageRecoveryGate />;
   if (!recoveryReady) return <InlineLoader />;
 
@@ -558,7 +577,17 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   // C10 ones, (auth) and read-only onboarding; ProfileProbeScope (ThemedStack)
   // holds every scene the same way, so leaving an exemption cannot mount a
   // feature route either.
-  if (profileHold === "retry") return <ProfileProbeRetryScreen />;
+  //
+  // R2A-01: "hold" here means COVER, not unmount (components/ui/GateCover.tsx).
+  // Returning the retry screen or the loader in place of the children unmounted the
+  // root Stack, and with no Stack state useSegments() reads the last deep link left
+  // in the root slot's params. AvatarSetupGate froze the app that way on device. This
+  // gate had the same shape: after a signed-out deep link to /sign-in, a failed first
+  // profile probe on "/" would read "(auth)" there, release, remount the Stack at "/",
+  // hold again, and loop (modelled in gate-cover-loop.test.ts, not reproduced on a
+  // device). Under the cover the Stack stays mounted, the segments stay live, and
+  // ProfileProbeScope still holds every scene, so nothing behind it renders.
+  if (profileHold === "retry") return <GateCover cover={<ProfileProbeRetryScreen />}>{children}</GateCover>;
 
   // A signed-in user whose profile has not been answered yet is not known either.
   // The first resolve publishes userId with loading=true before the probe, and the
@@ -568,7 +597,7 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   // is not failing (profileGate in profile-probe.ts). The boot opening already
   // waited for this state on cold start; this loader handles later profile
   // re-probes without replaying the opening.
-  if (profileHold === "loading") return <InlineLoader />;
+  if (profileHold === "loading") return <GateCover cover={<InlineLoader />}>{children}</GateCover>;
 
   // Global C10 + PIPA-consent gate (re-audit 2026-06-03: per-screen gating was
   // leaky — inbox/wiki kept slipping through). An authenticated session with NO
@@ -600,8 +629,9 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   }
 
   // The opening is complete for this runtime, so auth events and navigation
-  // render in place without replacing a form or replaying the animation.
-  return <>{children}</>;
+  // render in place without replacing a form or replaying the animation. Same
+  // GateCover as the holds above, so lifting a hold does not remount the routes.
+  return <GateCover cover={null}>{children}</GateCover>;
 }
 
 // M1 (round-4): gate product analytics on the SERVER decision, not the

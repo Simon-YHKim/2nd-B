@@ -36,11 +36,12 @@ describe("SbStarfield decorative a11y contract", () => {
 });
 
 describe("deep-space theme screen is wired to real settings", () => {
-  test("reads and writes the same hooks as the legacy screen", () => {
-    expect(dds).toContain("const { mode, setMode } = useTheme();");
+  test("reads and writes the real font and motion settings", () => {
+    // 2026-10-05: the useTheme / setMode("dark") pins left with the dark/light
+    // choice (Simon Q-261005-02). The original block is in E:/Legacy/2ndB at
+    // this path (batch qa261005-notheme).
     expect(dds).toContain("const { fontStyle, setFontStyle } = useFontStyle();");
     expect(dds).toContain("const { liteMode, setLiteMode } = useLiteMode();");
-    expect(dds).toContain("onPress={() => setMode(\"dark\")}");
     expect(dds).toContain("onPress={() => setFontStyle(\"pixel\")}");
     expect(dds).toContain("onPress={() => setLiteMode(!liteMode)}");
   });

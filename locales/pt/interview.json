@@ -1,22 +1,12 @@
 {
   "title": "Entrevista profunda",
   "loading": "Carregando a entrevista…",
-  "reflected": "Alteração aplicada. Abrindo os resultados.",
   "retryHint": "Salve novamente para aplicar a alteração.",
-  "ratifyTitle": "Aplicar esta alteração?",
-  "ratifyBody1": "Esta proposta usa suas respostas. ",
-  "ratifyBodyStrong": "Só as alterações que você aprovar",
-  "ratifyBody2": " serão aplicadas ao resultado.",
-  "again": "De novo",
   "approve": "Aprovar e aplicar",
-  "question": "Pergunta {{n}} de {{total}}",
   "notice": "Aviso da entrevista",
   "reflectError": "Não foi possível aplicar a alteração",
   "dismiss": "Fechar",
   "tryAgain": "Tentar de novo",
-  "ratifyDeltaNote": "Suas respostas são salvas como você escreveu. Nenhuma estimativa é criada agora; o brilho das estrelas aumenta conforme você registra.",
-  "progressLabel": "Pergunta {{n}} / {{total}} · Entrevista de lembranças",
-  "screenerSubtitle": "As perguntas retomam o mesmo assunto de formas diferentes para você pensar em outros detalhes.",
   "reflectErrorBody": "Suas respostas continuam aqui. Tente novamente em um instante.",
   "loopCheck": {
     "stuckLoop": "Aquilo a que você sempre volta: está lhe dizendo algo novo, ou você chega sempre à mesma conclusão?",
@@ -46,12 +36,5 @@
     "anotherScene": "Há outro momento sobre o qual você prefere falar?",
     "concreteQuestion": "O que você se lembra de ter feito naquele momento?",
     "openerHint": "Toque para começar e edite"
-  },
-  "period": {
-    "childhood": "Infância",
-    "teens": "Adolescência",
-    "twenties": "Vinte anos",
-    "thirties": "Trinta anos",
-    "current": "Agora"
   }
 }

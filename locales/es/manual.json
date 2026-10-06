@@ -1,10 +1,6 @@
 {
   "loading": "Cargando el manual…",
-  "eyebrow": "Guía de uso",
   "title": "Cómo usar la app",
-  "subtitle": "Rutinas · notas · wiki · seguridad",
-  "glossary": "Qué significa cada nombre",
-  "recentlyAdded": "Añadido recientemente",
   "leavePiece": "Deja tu fragmento de hoy",
   "leavePieceHint": "Abre la captura para guardar el fragmento de hoy.",
   "getStarted": "Empezar",

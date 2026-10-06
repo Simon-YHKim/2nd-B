@@ -1,6 +1,7 @@
 import { useState, forwardRef } from "react";
 import { TextInput, type TextInputProps, StyleSheet, Platform } from "react-native";
 
+import { keepAllPlaceholder } from "@/lib/i18n/keep-all";
 import { gameboy } from "@/lib/theme/gameboy-tokens";
 import { cosmic, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
@@ -18,7 +19,8 @@ export const Input = forwardRef<TextInput, InputProps>((props, ref) => {
     <TextInput
       ref={ref}
       {...rest}
-      placeholder={placeholder}
+      // Native hints keep Korean words whole (QA R2A-05). The web label above uses the original.
+      placeholder={keepAllPlaceholder(placeholder, Platform.OS)}
       accessibilityLabel={resolvedAccessibilityLabel}
       placeholderTextColor={cosmic.mistGray}
       selectionColor={gameboy.accent}

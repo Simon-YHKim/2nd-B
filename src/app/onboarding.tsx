@@ -8,7 +8,9 @@
 import { useEffect, useState } from "react";
 import { BackHandler, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
+import { router } from "expo-router";
+import { RedirectHome } from "@/lib/nav/go-home";
 
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -64,7 +66,7 @@ type HandoffDestination = "/" | "/sign-up" | "/sign-in";
 
 export default function Onboarding() {
   const { t, i18n } = useTranslation(["deepspace", "auth", "common"]);
-  const locale = i18n.resolvedLanguage?.split("-")[0] === "ko" ? "ko" : "en";
+  const locale = renderedUiLanguage(i18n) === "ko" ? "ko" : "en";
   // check:constraints pins the literal Korean skip label in this file.
   const skipLabel = locale === "ko" ? "건너뛰기" : "Skip";
   const { userId, loading } = useAuth();
@@ -84,7 +86,7 @@ export default function Onboarding() {
   }, [step]);
 
   if (loading || onboardingComplete === null) return <InlineLoader />;
-  if (onboardingComplete === true) return <Redirect href="/" />;
+  if (onboardingComplete === true) return <RedirectHome />;
 
   // Completion is deliberately written only when a real destination is chosen.
   // Merely mounting the route, paging, or skipping to the handoff does not write.

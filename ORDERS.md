@@ -305,6 +305,7 @@ Simon: 지시 내용
 
 ### [O-21 ✅ / 2026-06-15 11:38 KST] landing-clone → 2nd-B 정식 통합 + 진짜 라이브 — 완료
 **🔴 LIVE: https://simon-yhkim.github.io/2nd-B/landing/** (8777 로컬/터널 졸업 → GitHub Pages 진짜 라이브)
+**접음(2026-10-06)**: Q-261005-06 으로 랜딩 습작(public/landing)을 E:/Legacy 로 옮겼습니다(batch qa261006-landing). 공개 URL 은 다음 웹 게시 때 내려갑니다.
 **접근(후보① Expo public/ 정적 호스팅, 실행자 판단)**: gitignored `landing-clone`(O-13~O-20 반영본: nebula·표정 상황연동/다양화·nav IA·눈색토큰·idle/숨쉬기·얼굴탭 hit-test·사람 아이콘)을 **`public/landing/`로 승격** → `expo export --platform web`가 `dist/landing/`로 복사 → Pages 배포. RN 앱 **미변경**(Three.js 포팅 대공사 회피, 비용대비 정적이 정답).
 **verify 게이트 무영향 검증**: `public/**`는 eslint.config.mjs ignore + tsconfig include 밖 + 모든 `check:*`(emdash=locales json만·lexicon=src+supabase·anti-anthro/mascot=특정 src·constraints=하드코딩 src) 스캔범위 밖. → 통합이 게이트 안 건드림(분석 후 진행).
 **경량화**: billboard PNG 1개(860KB)만 번들(미사용 앵글변형 20MB는 로컬 프로토타입 잔류). 전부 상대경로+CDN importmap → `/landing/` 서브패스 base-path 변경 불필요.

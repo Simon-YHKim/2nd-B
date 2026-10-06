@@ -349,13 +349,24 @@ function writerEndedAfterStopFailure(recorder: StoppableRecorder): boolean {
   }
 }
 
+export interface RecorderLifecycleOptions {
+  /**
+   * Runs once each time a session ends, however it ended: stop, cancel, owner
+   * change, mode exit or unmount all clear here. The screens pass the audio
+   * session's restore so effects leave the recording mode (Q-261005-01). A
+   * session quarantined after a stop failure without writer-end proof never
+   * clears, so it keeps the recording mode until the app restarts.
+   */
+  onIdle?: () => void;
+}
+
 /**
  * Recorder-owned state machine. It snapshots the URI before any await, begins
  * stop synchronously, and transfers a deletion lease only after writer-end
  * proof. Owner change, navigation cleanup, and mode exit all converge on the
  * same idempotent discard intent.
  */
-export function createRecorderLifecycle(recorder: StoppableRecorder): RecorderLifecycle {
+export function createRecorderLifecycle(recorder: StoppableRecorder, options: RecorderLifecycleOptions = {}): RecorderLifecycle {
   let active: RecorderSession | null = null;
   let disposed = false;
 
@@ -364,6 +375,11 @@ export function createRecorderLifecycle(recorder: StoppableRecorder): RecorderLi
     session.unsubscribeOwner();
     session.detachAbort?.();
     active = null;
+    try {
+      options.onIdle?.();
+    } catch (error) {
+      warnCleanup("recording idle hook failed", error);
+    }
   };
 
   const finishStopped = async (
