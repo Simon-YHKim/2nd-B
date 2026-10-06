@@ -98,5 +98,31 @@
   "ipipCheck": "Personalidade a fundo (120 itens)",
   "rlssCheck": "Satisfação com a vida",
   "auditCheck": "Revisão de vida",
-  "interviewCheck": "Conversar"
+  "interviewCheck": "Conversar",
+  "portrait": {
+    "label": {
+      "who": "Quem eu sou",
+      "forWhom": "Para quem",
+      "goal": "Aonde quero chegar",
+      "do": "O que eu faço",
+      "fuel": "O que me move"
+    },
+    "hint": {
+      "who": "Uma verificação de padrão de relações pode acrescentar mais uma pista sobre você.",
+      "forWhom": "Você pode contar uma história sobre alguém em uma entrevista · o resumo automático deste campo ainda está em preparação.",
+      "goal": "Você pode explorar um próximo passo no modo novo ângulo do SecondB · o resumo automático ainda está em preparação.",
+      "do": "Você pode anotar o que fez no registro de hoje · o resumo automático ainda está em preparação.",
+      "fuel": "Uma revisão de vida pode mostrar os valores aos quais você mais volta."
+    },
+    "evidenceHint": "Abre os registros que embasam este valor."
+  },
+  "savedResult": {
+    "title": "Resultado salvo anteriormente",
+    "body": "Resultado salvo anteriormente. A origem não foi registrada, então não o apresentamos como sua direção atual."
+  },
+  "polarisGraphicA11y": "Constelação de sete estrelas e a Estrela Polar. O brilho da Estrela Polar vem das seis estrelas, sem contar o perfil.",
+  "deck": {
+    "portrait": "AUTORRETRATO",
+    "evidence": "EVIDÊNCIAS"
+  }
 }

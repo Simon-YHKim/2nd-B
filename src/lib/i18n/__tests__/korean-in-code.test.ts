@@ -178,7 +178,8 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   // **고친 것이 아니라 빠진 것**이다 - core-brain 9 -> 6, inbox 30 · manual 42 · persona 32 ·
   // wiki 9 · BackArrow 31 은 0 이 되어 줄을 지웠고, premium/tab-bar.tsx(4)는 파일째 나갔다.
   // 되살리기 원본(legacy/screens/)으로 간 반쪽의 한국어는 되살릴 때 다시 만난다.
-  "src/app/core-brain.tsx": 6,
+  // core-brain 은 2026-10-06 에 6 -> 0 으로 **갚아서** 줄을 지웠다(Q-261005-01 = A,
+  // 저장 결과 카드 · 덱 제목 · 그래픽 라벨 · 내보내기를 core-brain/persona 키로).
   "src/app/iden.tsx": 7,
   "src/app/interview.tsx": 4,
   "src/app/ipip-neo.tsx": 16,
@@ -256,10 +257,8 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   // reflection-scaffold.ts(4) 는 2026-10-06 에 파일째 E:/Legacy 로 갔다
   // (Simon 결정 Q-261005-08 B). **고친 것이 아니라 빠진 것**이다.
   "src/lib/persona/rlss.ts": 15,
-  "src/lib/persona/self-portrait.ts": 11,
   "src/lib/persona/seven-proposal-context.ts": 3,
   "src/lib/persona/strengths-survey.ts": 25,
-  "src/lib/persona/tier-history.ts": 4,
   "src/lib/persona/trait-radar-geometry.ts": 5,
   "src/lib/persona/values-survey.ts": 30,
   "src/lib/records/create.ts": 6,
@@ -275,7 +274,9 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/wiki/phase1.ts": 7,
   "src/lib/wiki/propose-template.ts": 15,
   "src/lib/wiki/template-validate.ts": 2,
-  "src/screens/deepspace/DeepSpaceDesignScreens.tsx": 66,
+  // 66 -> 15: Q-261005-01 = A (QA 261006 tr1) /privacy 문구를 deepspace 키로. 남은 15 = 국외 이전 고지 두 문단(F2,
+  // 템플릿 조각 4) + 다른 화면 11
+  "src/screens/deepspace/DeepSpaceDesignScreens.tsx": 15,
   "src/screens/deepspace/dds-record-detail-screen.tsx": 4,
   "src/screens/deepspace/dds-wiki-records-screens.tsx": 4,
   "src/screens/deepspace/growth/WeeklyGrowthScreen.tsx": 14,

@@ -1,7 +1,21 @@
-import { buildSelfPortrait, filledCount } from "../self-portrait";
+import { buildSelfPortrait, filledCount, type PortraitTranslate } from "../self-portrait";
 import type { PersonaCard } from "../build";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+
+// Field copy lives in locales/<lng>/core-brain.json under portrait.* (Q-261005-01
+// = A). Resolve it from the shipped bundle, the way the screen's `t` does.
+type Lng = "en" | "ko" | "es" | "pt" | "id";
+function tIn(lng: Lng): PortraitTranslate {
+  const pack = JSON.parse(readFileSync(resolve(process.cwd(), `locales/${lng}/core-brain.json`), "utf8")) as Record<string, unknown>;
+  return (key) => {
+    const hit = key.split(".").reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], pack);
+    if (typeof hit !== "string") throw new Error(`missing core-brain key ${key} in ${lng}`);
+    return hit;
+  };
+}
+const portraitIn = (persona: PersonaCard | null, lng: Lng) =>
+  buildSelfPortrait({ persona }, lng === "ko" ? "ko" : "en", tIn(lng));
 
 function makePersona(overrides: Partial<PersonaCard> = {}): PersonaCard {
   return {
@@ -20,7 +34,7 @@ function makePersona(overrides: Partial<PersonaCard> = {}): PersonaCard {
 describe("buildSelfPortrait — data contract", () => {
   it("keeps measured portrait fields independent from the trait-provenance gate", () => {
     const screen = readFileSync(resolve(process.cwd(), "src/app/core-brain.tsx"), "utf8");
-    expect(screen).toContain("buildSelfPortrait({ persona: portraitSignals }, locale)");
+    expect(screen).toContain("buildSelfPortrait({ persona: portraitSignals }, locale, t)");
     expect(screen).not.toContain("buildSelfPortrait({ persona: hasUnrecordedProvenance ? null : persona }, locale)");
     expect(screen.match(/loadSelfPortraitSignals\(userId\)/g)).toHaveLength(1);
     expect(screen).toContain("[loading, userId, hasProfile, isMinor, reloadKey, evidenceReloadKey]");
@@ -30,19 +44,19 @@ describe("buildSelfPortrait — data contract", () => {
   });
 
   it("returns all five fields in mission order", () => {
-    const fields = buildSelfPortrait({ persona: null }, "ko");
+    const fields = portraitIn(null, "ko");
     expect(fields.map((f) => f.id)).toEqual(["who", "forWhom", "goal", "do", "fuel"]);
   });
 
   it("marks every field collecting when there is no persona (never fabricates)", () => {
-    const fields = buildSelfPortrait({ persona: null }, "ko");
+    const fields = portraitIn(null, "ko");
     expect(fields.every((f) => f.status === "collecting" && f.value === null)).toBe(true);
     expect(filledCount(fields)).toBe(0);
   });
 
   it("fills `who` from a measured MBTI type", () => {
     const persona = makePersona({ mbti: { type: "INFJ", scores: { E: 0, I: 1, S: 0, N: 1, T: 0, F: 1, J: 1, P: 0 } } });
-    const who = buildSelfPortrait({ persona }, "en").find((f) => f.id === "who")!;
+    const who = portraitIn(persona, "en").find((f) => f.id === "who")!;
     expect(who.status).toBe("filled");
     expect(who.value).toContain("INFJ");
     expect(who.route).toBe("/records?tags=mbti");
@@ -51,7 +65,7 @@ describe("buildSelfPortrait — data contract", () => {
 
   it("falls back to attachment style for `who` when MBTI is absent", () => {
     const persona = makePersona({ attachment: { style: "secure", anxiety: 2, avoidance: 2 } });
-    const who = buildSelfPortrait({ persona }, "ko").find((f) => f.id === "who")!;
+    const who = portraitIn(persona, "ko").find((f) => f.id === "who")!;
     expect(who.status).toBe("filled");
     expect(who.value).toBeTruthy();
     expect(who.route).toBe("/records?tags=attachment");
@@ -59,7 +73,7 @@ describe("buildSelfPortrait — data contract", () => {
 
   it("fills `fuel` from the top measured value framework", () => {
     const persona = makePersona({ values: ["big_five"] });
-    const fuel = buildSelfPortrait({ persona }, "ko").find((f) => f.id === "fuel")!;
+    const fuel = portraitIn(persona, "ko").find((f) => f.id === "fuel")!;
     expect(fuel.status).toBe("filled");
     expect(fuel.value).toBeTruthy();
     expect(fuel.route).toBe("/records?tags=life_audit");
@@ -70,7 +84,7 @@ describe("buildSelfPortrait — data contract", () => {
       mbti: { type: "INFJ", scores: { E: 0, I: 1, S: 0, N: 1, T: 0, F: 1, J: 1, P: 0 } },
       values: ["big_five"],
     });
-    const fields = buildSelfPortrait({ persona }, "ko");
+    const fields = portraitIn(persona, "ko");
     for (const id of ["forWhom", "goal", "do"] as const) {
       expect(fields.find((f) => f.id === id)!.status).toBe("collecting");
     }
@@ -79,7 +93,7 @@ describe("buildSelfPortrait — data contract", () => {
   });
 
   it("routes each collecting field to an active, semantically matching destination", () => {
-    const fields = buildSelfPortrait({ persona: null }, "en");
+    const fields = portraitIn(null, "en");
     const byId = Object.fromEntries(fields.map((f) => [f.id, f.route]));
     expect(byId).toMatchObject({
       who: "/attachment",
@@ -100,12 +114,28 @@ describe("buildSelfPortrait — data contract", () => {
   });
 
   it("does not promise automatic completion for fields without a backing contract", () => {
-    const fields = buildSelfPortrait({ persona: null }, "en");
-    const koFields = buildSelfPortrait({ persona: null }, "ko");
+    const fields = portraitIn(null, "en");
+    const koFields = portraitIn(null, "ko");
     for (const id of ["forWhom", "goal", "do"] as const) {
       expect(fields.find((field) => field.id === id)?.hint).toContain("automatic summary");
       expect(koFields.find((field) => field.id === id)?.hint).toContain("자동 요약");
     }
+  });
+
+  it("paints es/pt/id field copy in their own language, not the English labels (R2B-03)", () => {
+    const en = portraitIn(null, "en");
+    for (const lng of ["es", "pt", "id"] as const) {
+      const fields = portraitIn(null, lng);
+      fields.forEach((field, i) => {
+        expect({ lng, id: field.id, label: field.label === en[i].label }).toEqual({ lng, id: field.id, label: false });
+        expect({ lng, id: field.id, hint: field.hint === en[i].hint }).toEqual({ lng, id: field.id, hint: false });
+      });
+    }
+    // The screen's own labels: a filled `who` in Spanish opens its records with Spanish copy.
+    const persona = makePersona({ mbti: { type: "INFJ", scores: { E: 0, I: 1, S: 0, N: 1, T: 0, F: 1, J: 1, P: 0 } } });
+    const who = portraitIn(persona, "es").find((f) => f.id === "who")!;
+    expect(who.label).toBe("Quién soy");
+    expect(who.actionHint).toBe("Abre los registros en los que se basa este valor.");
   });
 
   it("keeps state-dependent portrait routes aligned with the design navigation contract", () => {
@@ -120,23 +150,18 @@ describe("buildSelfPortrait — data contract", () => {
       };
     };
     const portraits = [
-      buildSelfPortrait({ persona: null }, "ko"),
-      buildSelfPortrait(
-        {
-          persona: makePersona({
-            mbti: {
-              type: "INFJ",
-              scores: { E: 0, I: 1, S: 0, N: 1, T: 0, F: 1, J: 1, P: 0 },
-            },
-            values: ["big_five"],
-          }),
-        },
+      portraitIn(null, "ko"),
+      portraitIn(
+        makePersona({
+          mbti: {
+            type: "INFJ",
+            scores: { E: 0, I: 1, S: 0, N: 1, T: 0, F: 1, J: 1, P: 0 },
+          },
+          values: ["big_five"],
+        }),
         "ko",
       ),
-      buildSelfPortrait(
-        { persona: makePersona({ attachment: { style: "secure", anxiety: 2, avoidance: 2 } }) },
-        "ko",
-      ),
+      portraitIn(makePersona({ attachment: { style: "secure", anxiety: 2, avoidance: 2 } }), "ko"),
     ];
     const runtimeRoutes = (id: "who" | "fuel") =>
       [...new Set(portraits.map((fields) => fields.find((field) => field.id === id)!.route))].sort();

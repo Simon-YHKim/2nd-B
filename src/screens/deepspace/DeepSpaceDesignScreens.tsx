@@ -6,6 +6,7 @@ import { Redirect, router, useNavigation } from "expo-router";
 import { useAppRouter } from "@/lib/nav/phone-embed";
 import { useGoHomeStop } from "@/lib/nav/go-home";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import Svg, { Rect, SvgXml } from "react-native-svg";
 import { colors, spacing } from "@/theme/tokens";
 import { GLYPH_ALIAS, glyphMarkup, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
@@ -419,28 +420,20 @@ export function DeepSpaceIntegrationsScreen() {
 }
 
 // ── gaps.json canon content (support / privacy / manual) ──────────────────
-// KO copy renders straight from canonGaps (pixel contract, verbatim). EN mirrors
-// are index-aligned against the SAME canon arrays (museum/iden bilingual pattern),
-// so no new locale keys are added (avoids 5-locale key-parity churn).
-const GAPS_FAQ_EN: { q: string; a: string }[] = [
-  { q: "What's the difference between brightness (starlight) and confidence?", a: "Starlight is how much you've captured in that area; confidence is how well SecondB's estimate has been verified. The two move independently." },
-  { q: "Does a paid plan make it smarter?", a: "No. Answer quality is the same on every plan. Only the limits on counts, retention, and export differ." },
-  // HONESTY (audit follow-up): transcription is CLOUD STT (Gemini via the
-  // spend-capped proxy) — the old copy claimed on-device. What IS true: the
-  // original audio is deleted from the device right after transcription.
-  { q: "Is call recording safe?", a: "Recordings are transcribed over an encrypted connection on the AI server, and the original audio is deleted from your device right after. Only the text and signals are kept, encrypted." },
-];
-const GAPS_NOTICE_EN: { t: string; tag: string }[] = [
-  { t: "SecondB three modes launched", tag: "New" },
-  { t: "AI Museum: 8 collections now open", tag: "Content" },
-  { t: "Voice transcription improved", tag: "Improved" },
-];
-const GAPS_FACT_EN: { label: string; v: string }[] = [
-  { label: "On-device first", v: "Imported raw content is analyzed on your device; only derived signals are kept, encrypted." },
-  { label: "What we collect", v: "Captured stardust, lens scores, usage patterns. Location and comms only with consent." },
-  { label: "Retention", v: "While your account is active; fully removed within 30 days of leaving." },
-  { label: "Right to delete", v: "You can remove individual items or everything, anytime." },
-];
+// KO copy renders straight from canonGaps (pixel contract, verbatim). Every other
+// language reads the deepspace keys below, index-aligned with the SAME canon
+// arrays (Q-261005-01 = A, R2B-03). Until 2026-10-06 these were EN mirrors in
+// this file, so es/pt/id fell back to English. The ko values of these keys
+// mirror the canon byte for byte (tr1-locale-copy.test.ts) and only keep the
+// five-locale key parity; the ko screen still reads the canon.
+//
+// HONESTY (audit follow-up) for support.faqs.call: transcription is cloud STT
+// through the spend-capped LLM proxy, not on-device; the old copy claimed
+// on-device. What IS true: the original audio is deleted from the device right
+// after transcription.
+const GAPS_FAQ_KEYS = ["brightness", "plan", "call"] as const;
+const GAPS_NOTICE_KEYS = ["modes", "museum", "voice"] as const;
+const GAPS_FACT_KEYS = ["onDevice", "collect", "retention", "delete"] as const;
 
 // Map a canon Material-symbol icon name to a local CLONE_ICON glyph, falling
 // back to a sensible sparkle when a name has no glyph yet.
@@ -466,7 +459,7 @@ export function DeepSpaceSupportDesignScreen() {
   // Phone-aware: inside the dashboard phone, links open in the phone.
   const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  const ko = renderedUiLanguage(i18n) === "ko";
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   return (
     <Shell title={t("support.title")}>
@@ -481,8 +474,9 @@ export function DeepSpaceSupportDesignScreen() {
       <Card>
         <Text variant="caption" style={styles.section}>{t("support.faqTitle")}</Text>
         {canonGaps.faqs.map((f, i) => {
-          const q = ko ? f.q : GAPS_FAQ_EN[i]?.q ?? f.q;
-          const a = ko ? f.a : GAPS_FAQ_EN[i]?.a ?? f.a;
+          const key = GAPS_FAQ_KEYS[i];
+          const q = ko || !key ? f.q : t(`support.faqs.${key}.q`);
+          const a = ko || !key ? f.a : t(`support.faqs.${key}.a`);
           const open = openFaq === i;
           return (
             <View key={f.q} style={[gap.row, i < canonGaps.faqs.length - 1 && gap.rowDivider]}>
@@ -506,8 +500,9 @@ export function DeepSpaceSupportDesignScreen() {
       <Card>
         <Text variant="caption" style={styles.section}>{t("support.noticesTitle")}</Text>
         {canonGaps.notices.map((n, i) => {
-          const title = ko ? n.t : GAPS_NOTICE_EN[i]?.t ?? n.t;
-          const tag = ko ? n.tag : GAPS_NOTICE_EN[i]?.tag ?? n.tag;
+          const key = GAPS_NOTICE_KEYS[i];
+          const title = ko || !key ? n.t : t(`support.notices.${key}.t`);
+          const tag = ko || !key ? n.tag : t(`support.notices.${key}.tag`);
           return (
             <View key={n.t} style={[gap.noticeRow, i < canonGaps.notices.length - 1 && gap.rowDivider]}>
               <View style={gap.tag}><Text variant="caption" style={gap.tagText}>{tag}</Text></View>
@@ -561,7 +556,10 @@ export function DeepSpacePrivacyDesignScreen() {
   const { t, i18n } = useTranslation("deepspace");
   const { t: consentT } = useTranslation("consent");
   const navigation = useNavigation();
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  // Picks the canon fact copy and the consent-ledger locale below. Every other
+  // string on this screen reads a deepspace key, so es/pt/id see their own
+  // language (Q-261005-01 = A, R2B-03).
+  const ko = renderedUiLanguage(i18n) === "ko";
   const { userId, isMinor, loading: authLoading } = useAuth();
   // AuthContext derives this from users.birth_date. Unknown age fails closed,
   // so Clarity/GA4 and ads cannot be enabled while the profile is resolving.
@@ -1010,10 +1008,11 @@ export function DeepSpacePrivacyDesignScreen() {
 
       {/* 한눈에 / At a glance (canonGaps.privacyFacts) — icon + label + value. */}
       <Card>
-        <Text variant="caption" style={styles.section}>{ko ? "한눈에" : "At a glance"}</Text>
+        <Text variant="caption" style={styles.section}>{t("privacy.atGlance")}</Text>
         {canonGaps.privacyFacts.map((f, i) => {
-          const label = ko ? f.label : GAPS_FACT_EN[i]?.label ?? f.label;
-          const v = ko ? f.v : GAPS_FACT_EN[i]?.v ?? f.v;
+          const key = GAPS_FACT_KEYS[i];
+          const label = ko || !key ? f.label : t(`privacy.facts.${key}.label`);
+          const v = ko || !key ? f.v : t(`privacy.facts.${key}.v`);
           return (
             <View key={f.label} style={[gap.factRow, i < canonGaps.privacyFacts.length - 1 && gap.rowDivider]}>
               <CloneIcon name={gapGlyph(f.icon)} color={colors.cyanSoft} size={20} />
@@ -1028,47 +1027,31 @@ export function DeepSpacePrivacyDesignScreen() {
 
       <Card>
         <Text variant="caption" style={styles.section}>
-          {ko ? "사용 통계와 광고" : "Usage analytics and ads"}
+          {t("privacy.analytics.title")}
         </Text>
         <Text variant="body" style={styles.lead}>
           {isMinor === null
-            ? ko
-              ? "생년월일을 확인한 뒤 사용 통계와 광고 설정을 보여드립니다."
-              : "Usage analytics and ad settings appear after your birth date is confirmed."
+            ? t("privacy.analytics.pendingAge")
             : minor
-            ? ko
-              ? "생년월일 기준 만 18세 미만은 사용 통계와 광고가 잠겨 있습니다."
-              : "Usage analytics and ads are locked when the birth date shows an age under 18."
-            : ko
-              ? "선택 사항이며 설정은 저장됩니다. 웹에서는 Google Analytics에 적용되고, Android의 Firebase Analytics와 Microsoft Clarity는 현재 비활성화되어 있습니다."
-              : "Optional. Your choice is saved and applies to Google Analytics on the web. Firebase Analytics and Microsoft Clarity are currently disabled on Android."}
+            ? t("privacy.analytics.minorLocked")
+            : t("privacy.analytics.adultLead")}
         </Text>
         {analyticsOn === null || adsOn === null ? (
           <Text variant="subtle" style={styles.footer}>
             {isMinor === null
-              ? ko
-                ? "생년월일을 확인하는 중…"
-                : "Checking your birth date…"
-              : ko
-                ? "설정을 불러오는 중…"
-                : "Loading settings…"}
+              ? t("privacy.analytics.checkingAge")
+              : t("privacy.analytics.loadingSettings")}
           </Text>
         ) : (
           <>
             <Toggle
-              label={ko ? "사용 통계 허용" : "Allow usage analytics"}
+              label={t("privacy.analytics.allow")}
               value={
                 minor
-                  ? ko
-                    ? "만 18세 미만 잠금"
-                    : "Locked under 18"
+                  ? t("privacy.analytics.lockedUnder18")
                   : analyticsOn
-                    ? ko
-                      ? "웹 GA4 적용 · Android Firebase·Clarity 비활성"
-                      : "Web GA4 applied · Android Firebase and Clarity disabled"
-                    : ko
-                      ? "꺼짐"
-                      : "Off"
+                    ? t("privacy.analytics.applied")
+                    : t("privacy.off")
               }
               on={!minor && analyticsOn}
               disabled={minor || busy}
@@ -1080,9 +1063,7 @@ export function DeepSpacePrivacyDesignScreen() {
               label={consentT("privacy.keys.ads.label")}
               value={
                 minor
-                  ? ko
-                    ? "만 18세 미만 잠금"
-                    : "Locked under 18"
+                  ? t("privacy.analytics.lockedUnder18")
                   : adsOn
                     ? consentT("privacy.keys.ads.savedDesc")
                     : consentT("privacy.keys.ads.desc")
@@ -1097,112 +1078,116 @@ export function DeepSpacePrivacyDesignScreen() {
           <Text variant="subtle" style={styles.footer}>
             {externalError.key === "external_analytics"
               ? externalError.attemptedOn
-                ? ko
-                  ? "통계 설정을 켜지 못했습니다. 다시 시도해 주세요."
-                  : "Couldn't enable analytics. Please try again."
-                : ko
-                  ? "저장에 실패했습니다. 통계 철회는 이 기기에서 즉시 적용됐지만 다시 저장해 주세요."
-                  : "Couldn't save. Analytics withdrawal took effect on this device; please try saving again."
-              : ko
-                ? "광고 설정을 저장하지 못했습니다. 다시 시도해 주세요."
-                : "Couldn't save the ads setting. Please try again."}
+                ? t("privacy.analytics.enableFailed")
+                : t("privacy.analytics.withdrawSaveFailed")
+              : t("privacy.analytics.adsSaveFailed")}
           </Text>
         ) : null}
       </Card>
 
       <Card>
-        <Text variant="caption" style={styles.section}>{ko ? "맞춤 추천" : "Recommendations"}</Text>
+        <Text variant="caption" style={styles.section}>{t("privacy.recommend.title")}</Text>
         {minor ? (
           <Text variant="subtle" style={styles.footer}>
-            {ko ? "맞춤 추천은 보호를 위해 꺼져 있고 켤 수 없습니다." : "Recommendations are off and locked for your protection."}
+            {t("privacy.recommend.minorLocked")}
           </Text>
         ) : recOn === null ? (
-          <Text variant="subtle" style={styles.footer}>{ko ? "불러오는 중…" : "Loading…"}</Text>
+          <Text variant="subtle" style={styles.footer}>{t("common:states.loading")}</Text>
         ) : recOn ? (
           <>
             <Text variant="body" style={styles.lead}>
-              {ko ? "켜져 있습니다. 기록을 분석해 연결을 제안합니다." : "On. Your records are analyzed to suggest connections."}
+              {t("privacy.recommend.onBody")}
             </Text>
-            <Pressable style={styles.secondary} onPress={() => void disableRecommendations()} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "추천 끄기" : "Turn off recommendations"}>
-              <Text variant="body" style={styles.secondaryText}>{ko ? "추천 끄기" : "Turn off"}</Text>
+            <Pressable style={styles.secondary} onPress={() => void disableRecommendations()} disabled={busy} accessibilityRole="button" accessibilityLabel={t("privacy.recommend.turnOffA11y")}>
+              <Text variant="body" style={styles.secondaryText}>{t("privacy.recommend.turnOff")}</Text>
             </Pressable>
           </>
         ) : !understanding ? (
           <>
             <Text variant="body" style={styles.lead}>
-              {ko ? "꺼져 있습니다. 켜면 기록에서 연결·패턴을 제안받을 수 있습니다." : "Off. Turn it on to get suggested connections from your records."}
+              {t("privacy.recommend.offBody")}
             </Text>
-            <Pressable style={styles.secondary} onPress={() => setUnderstanding(true)} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "추천 켜기" : "Turn on recommendations"}>
-              <Text variant="body" style={styles.secondaryText}>{ko ? "추천 켜기" : "Turn on"}</Text>
+            <Pressable style={styles.secondary} onPress={() => setUnderstanding(true)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("privacy.recommend.turnOnA11y")}>
+              <Text variant="body" style={styles.secondaryText}>{t("privacy.recommend.turnOn")}</Text>
             </Pressable>
           </>
         ) : (
           <>
+            {/* The overseas-processing disclosure stays KO/EN on purpose. It is
+                cross-border consent copy (F2: never machine-translated until a
+                human reviews it), and recordRecommendationsConsent logs the
+                consent with locale ko or en, so an es/pt/id rendering here
+                would not match what the ledger says the person read. The
+                buttons around it are translated. */}
             <Text variant="body" style={styles.lead}>
               {ko
                 ? `켜기 전에 알아두세요. 추천을 켜면 당신의 기록 묶음이 분석을 위해 ${recommendationVendorLabel()} 서버로 전송됩니다(해외에서 처리). 연결·패턴 제안에만 쓰이고 언제든 끌 수 있습니다. 동의는 기록에 남습니다.`
                 : `Before you turn it on. Your records are sent to ${recommendationVendorLabel()} for analysis (processed overseas), used only to suggest connections and patterns. You can turn it off anytime. Your consent is logged.`}
             </Text>
             <View style={styles.ctaRow}>
-              <Pressable style={styles.secondary} onPress={() => setUnderstanding(false)} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "취소" : "Cancel"}>
-                <Text variant="body" style={styles.secondaryText}>{ko ? "취소" : "Cancel"}</Text>
+              <Pressable style={styles.secondary} onPress={() => setUnderstanding(false)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("common:actions.cancel")}>
+                <Text variant="body" style={styles.secondaryText}>{t("common:actions.cancel")}</Text>
               </Pressable>
-              <Pressable style={styles.primary} onPress={() => void enableRecommendations()} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "이해했고 켭니다" : "I understand, turn it on"}>
-                <Text variant="body" style={styles.primaryText}>{ko ? "이해했고 켜기" : "I understand, turn on"}</Text>
+              <Pressable style={styles.primary} onPress={() => void enableRecommendations()} disabled={busy} accessibilityRole="button" accessibilityLabel={t("privacy.understandA11y")}>
+                <Text variant="body" style={styles.primaryText}>{t("privacy.understand")}</Text>
               </Pressable>
             </View>
           </>
         )}
         {recError ? (
-          <Text variant="subtle" style={styles.footer}>{ko ? "저장에 실패했습니다. 잠시 후 다시 시도해 주세요." : "Couldn't save. Please try again."}</Text>
+          <Text variant="subtle" style={styles.footer}>{t("privacy.saveFailed")}</Text>
         ) : null}
       </Card>
 
       <Card>
-        <Text variant="caption" style={styles.section}>{ko ? "기록 의미 연결" : "Semantic record connections"}</Text>
+        <Text variant="caption" style={styles.section}>{t("privacy.semantic.title")}</Text>
         {minor ? (
           <Text variant="subtle" style={styles.footer}>
-            {ko ? "기록 의미 연결은 보호를 위해 꺼져 있고 켤 수 없습니다." : "Semantic connections are off and locked for your protection."}
+            {t("privacy.semantic.minorLocked")}
           </Text>
         ) : embedOn === null ? (
-          <Text variant="subtle" style={styles.footer}>{ko ? "불러오는 중…" : "Loading…"}</Text>
+          <Text variant="subtle" style={styles.footer}>{t("common:states.loading")}</Text>
         ) : embedOn ? (
           <>
             <Text variant="body" style={styles.lead}>
-              {ko ? "켜져 있습니다. 기록을 의미로 색인해 비슷한 기록을 이어 보여줍니다." : "On. Records are indexed by meaning to surface similar ones."}
+              {t("privacy.semantic.onBody")}
             </Text>
-            <Pressable style={styles.secondary} onPress={() => void disableEmbedding()} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "의미 연결 끄기" : "Turn off semantic connections"}>
-              <Text variant="body" style={styles.secondaryText}>{ko ? "끄고 벡터 삭제" : "Turn off and delete vectors"}</Text>
+            <Pressable style={styles.secondary} onPress={() => void disableEmbedding()} disabled={busy} accessibilityRole="button" accessibilityLabel={t("privacy.semantic.turnOffA11y")}>
+              <Text variant="body" style={styles.secondaryText}>{t("privacy.semantic.turnOff")}</Text>
             </Pressable>
           </>
         ) : !embedUnderstanding ? (
           <>
             <Text variant="body" style={styles.lead}>
-              {ko ? "꺼져 있습니다. 켜면 태그가 겹치지 않아도 의미가 비슷한 기록을 이어 보여줍니다." : "Off. Turn it on to connect records that are similar in meaning, even without shared tags."}
+              {t("privacy.semantic.offBody")}
             </Text>
-            <Pressable style={styles.secondary} onPress={() => setEmbedUnderstanding(true)} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "의미 연결 켜기" : "Turn on semantic connections"}>
-              <Text variant="body" style={styles.secondaryText}>{ko ? "의미 연결 켜기" : "Turn on"}</Text>
+            <Pressable style={styles.secondary} onPress={() => setEmbedUnderstanding(true)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("privacy.semantic.turnOnA11y")}>
+              <Text variant="body" style={styles.secondaryText}>{t("privacy.semantic.turnOn")}</Text>
             </Pressable>
           </>
         ) : (
           <>
+            {/* Stays KO/EN for the same F2 reason as the recommendations
+                disclosure above: cross-border consent copy. The consent row
+                this toggle writes (savePrivacyPrefs, no locale passed) records
+                locale "en", so it has no es/pt/id reading to match either. */}
             <Text variant="body" style={styles.lead}>
               {ko
                 ? `켜기 전에 알아두세요. 켜면 지금까지 담아 둔 기록과 앞으로 담는 기록의 내용이 의미 벡터로 변환·저장돼, 서로 비슷한 기록을 이어 보여드립니다. 변환을 위해 기록 텍스트가 ${embedVendorLabel()}(해외)로 전송됩니다. 위기 관련 내용은 전송되지 않습니다. 성인만 켤 수 있고, 끄면 이후 색인이 멈추고 저장된 벡터도 삭제됩니다. 동의는 기록에 남습니다.`
                 : `Before you turn it on. Your existing records and every new record will be turned into meaning vectors and stored so similar records can be linked. To do that, record text is sent to ${embedVendorLabel()} (processed overseas). Crisis-related content is not sent. Adults only; turning it off stops indexing and deletes the stored vectors. Your consent is logged.`}
             </Text>
             <View style={styles.ctaRow}>
-              <Pressable style={styles.secondary} onPress={() => setEmbedUnderstanding(false)} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "취소" : "Cancel"}>
-                <Text variant="body" style={styles.secondaryText}>{ko ? "취소" : "Cancel"}</Text>
+              <Pressable style={styles.secondary} onPress={() => setEmbedUnderstanding(false)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("common:actions.cancel")}>
+                <Text variant="body" style={styles.secondaryText}>{t("common:actions.cancel")}</Text>
               </Pressable>
-              <Pressable style={styles.primary} onPress={() => void enableEmbedding()} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "이해했고 켭니다" : "I understand, turn it on"}>
-                <Text variant="body" style={styles.primaryText}>{ko ? "이해했고 켜기" : "I understand, turn on"}</Text>
+              <Pressable style={styles.primary} onPress={() => void enableEmbedding()} disabled={busy} accessibilityRole="button" accessibilityLabel={t("privacy.understandA11y")}>
+                <Text variant="body" style={styles.primaryText}>{t("privacy.understand")}</Text>
               </Pressable>
             </View>
           </>
         )}
         {embedErr ? (
-          <Text variant="subtle" style={styles.footer}>{ko ? "저장에 실패했습니다. 잠시 후 다시 시도해 주세요." : "Couldn't save. Please try again."}</Text>
+          <Text variant="subtle" style={styles.footer}>{t("privacy.saveFailed")}</Text>
         ) : null}
       </Card>
 
@@ -1239,14 +1224,14 @@ export function DeepSpacePrivacyDesignScreen() {
       </Card>
 
       <Card>
-        <Text variant="caption" style={styles.section}>{ko ? "계정 삭제" : "Delete account"}</Text>
+        <Text variant="caption" style={styles.section}>{t("account.delete")}</Text>
         <Text variant="subtle" style={styles.footer}>
-          {ko
-            ? "기록·캡처·위키·세컨비 사용량과 계정이 영구 삭제됩니다. 되돌릴 수 없습니다. 필요한 내용은 먼저 내보내기로 챙겨두세요."
-            : "Your records, captures, wiki, usage and account are permanently erased. This cannot be undone. Export anything you need first."}
+          {t("privacy.deleteAccount.body")}
         </Text>
+        {/* "DELETE" is the token the input below compares against, so it
+            stays literal inside every language's prompt. */}
         <Text variant="subtle" style={styles.footer}>
-          {ko ? '진행하려면 "DELETE" 라고 입력하세요.' : 'Type "DELETE" to proceed.'}
+          {t("privacy.deleteAccount.typePrompt")}
         </Text>
         <TextInput
           value={delConfirm}
@@ -1256,7 +1241,7 @@ export function DeepSpacePrivacyDesignScreen() {
           autoCapitalize="characters"
           autoCorrect={false}
           style={styles.input}
-          accessibilityLabel={ko ? "삭제 확인 입력" : "Deletion confirmation"}
+          accessibilityLabel={t("privacy.deleteAccount.inputA11y")}
           returnKeyType="done"
           onSubmitEditing={() => {
             requestDeleteAccountConfirm();
@@ -1275,17 +1260,15 @@ export function DeepSpacePrivacyDesignScreen() {
           onPress={requestDeleteAccountConfirm}
           disabled={delConfirm !== "DELETE" || deleting}
           accessibilityRole="button"
-          accessibilityLabel={ko ? "계정 영구 삭제" : "Delete account permanently"}
+          accessibilityLabel={t("privacy.deleteAccount.buttonA11y")}
         >
           <Text variant="body" style={styles.dangerText}>
-            {deleting ? (ko ? "삭제 중…" : "Deleting…") : ko ? "계정 영구 삭제" : "Delete account"}
+            {deleting ? t("privacy.deleteAccount.deleting") : t("privacy.deleteAccount.button")}
           </Text>
         </Pressable>
         {delError ? (
           <Text variant="subtle" style={styles.footer}>
-            {ko
-              ? "삭제를 끝내지 못했습니다. 일부 데이터가 남아 있을 수 있습니다. 잠시 후 다시 시도해 주세요."
-              : "Couldn't finish deletion. Some data may remain. Please try again shortly."}
+            {t("privacy.deleteAccount.failed")}
           </Text>
         ) : null}
       </Card>

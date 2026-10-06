@@ -176,7 +176,72 @@
     "none": "0 items",
     "footer": "How data is processed and stored depends on the feature. Check its data-use notice for details.",
     "dataReview": "My saved data",
-    "open": "Open"
+    "open": "Open",
+    "atGlance": "At a glance",
+    "facts": {
+      "onDevice": {
+        "label": "On-device first",
+        "v": "Imported raw content is analyzed on your device; only derived signals are kept, encrypted."
+      },
+      "collect": {
+        "label": "What we collect",
+        "v": "Captured stardust, lens scores, usage patterns. Location and comms only with consent."
+      },
+      "retention": {
+        "label": "Retention",
+        "v": "While your account is active; fully removed within 30 days of leaving."
+      },
+      "delete": {
+        "label": "Right to delete",
+        "v": "You can remove individual items or everything, anytime."
+      }
+    },
+    "analytics": {
+      "title": "Usage analytics and ads",
+      "pendingAge": "Usage analytics and ad settings appear after your birth date is confirmed.",
+      "minorLocked": "Usage analytics and ads are locked when the birth date shows an age under 18.",
+      "adultLead": "Optional. Your choice is saved and applies to Google Analytics on the web. Firebase Analytics and Microsoft Clarity are currently disabled on Android.",
+      "checkingAge": "Checking your birth date…",
+      "loadingSettings": "Loading settings…",
+      "allow": "Allow usage analytics",
+      "lockedUnder18": "Locked under 18",
+      "applied": "Web GA4 applied · Android Firebase and Clarity disabled",
+      "enableFailed": "Couldn't enable analytics. Please try again.",
+      "withdrawSaveFailed": "Couldn't save. Analytics withdrawal took effect on this device; please try saving again.",
+      "adsSaveFailed": "Couldn't save the ads setting. Please try again."
+    },
+    "recommend": {
+      "title": "Recommendations",
+      "minorLocked": "Recommendations are off and locked for your protection.",
+      "onBody": "On. Your records are analyzed to suggest connections.",
+      "turnOffA11y": "Turn off recommendations",
+      "turnOff": "Turn off",
+      "offBody": "Off. Turn it on to get suggested connections from your records.",
+      "turnOnA11y": "Turn on recommendations",
+      "turnOn": "Turn on"
+    },
+    "semantic": {
+      "title": "Semantic record connections",
+      "minorLocked": "Semantic connections are off and locked for your protection.",
+      "onBody": "On. Records are indexed by meaning to surface similar ones.",
+      "turnOffA11y": "Turn off semantic connections",
+      "turnOff": "Turn off and delete vectors",
+      "offBody": "Off. Turn it on to connect records that are similar in meaning, even without shared tags.",
+      "turnOnA11y": "Turn on semantic connections",
+      "turnOn": "Turn on"
+    },
+    "understandA11y": "I understand, turn it on",
+    "understand": "I understand, turn on",
+    "saveFailed": "Couldn't save. Please try again.",
+    "deleteAccount": {
+      "body": "Your records, captures, wiki, usage and account are permanently erased. This cannot be undone. Export anything you need first.",
+      "typePrompt": "Type \"DELETE\" to proceed.",
+      "inputA11y": "Deletion confirmation",
+      "buttonA11y": "Delete account permanently",
+      "button": "Delete account",
+      "deleting": "Deleting…",
+      "failed": "Couldn't finish deletion. Some data may remain. Please try again shortly."
+    }
   },
   "support": {
     "title": "Support",
@@ -187,7 +252,35 @@
     "reportBug": "Report a bug",
     "footer": "PolaScope v1.0.0 · 2 business days KST",
     "faqTitle": "FAQ",
-    "noticesTitle": "Notices"
+    "noticesTitle": "Notices",
+    "faqs": {
+      "brightness": {
+        "q": "What's the difference between brightness (starlight) and confidence?",
+        "a": "Starlight is how much you've captured in that area; confidence is how well SecondB's estimate has been verified. The two move independently."
+      },
+      "plan": {
+        "q": "Does a paid plan make it smarter?",
+        "a": "No. Answer quality is the same on every plan. Only the limits on counts, retention, and export differ."
+      },
+      "call": {
+        "q": "Is call recording safe?",
+        "a": "Recordings are transcribed over an encrypted connection on the AI server, and the original audio is deleted from your device right after. Only the text and signals are kept, encrypted."
+      }
+    },
+    "notices": {
+      "modes": {
+        "t": "SecondB three modes launched",
+        "tag": "New"
+      },
+      "museum": {
+        "t": "AI Museum: 8 collections now open",
+        "tag": "Content"
+      },
+      "voice": {
+        "t": "Voice transcription improved",
+        "tag": "Improved"
+      }
+    }
   },
   "connect": {
     "title": "Data sync",
@@ -893,7 +986,24 @@
     "secondbName": "SecondB",
     "authTitle": "Ready to begin?",
     "authBody": "Your records belong to you. Summaries are applied only after you approve them. Start with your first record.",
-    "next": "Next"
+    "next": "Next",
+    "skip": "Skip",
+    "slides": {
+      "intro": {
+        "title": "An AI that gets\nto know you",
+        "body": "SecondB uses your notes\nto help organize your thoughts\nand plan your day."
+      },
+      "stars": {
+        "tag": "Getting to know you",
+        "title": "Tell your story\nacross seven stars",
+        "body": "School years, work, or now:\nchoose a star to start with."
+      },
+      "approve": {
+        "tag": "Your choice",
+        "title": "AI summaries need\nyour approval",
+        "body": "A summary about you is a proposal.\nIt is applied only if you approve it."
+      }
+    }
   },
   "trends": {
     "title": "Brightness trend",

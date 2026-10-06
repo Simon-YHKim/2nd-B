@@ -15,5 +15,7 @@
   "honestyCaption": "Kecerahan menunjukkan seberapa jauh kamu membahas suatu masa atau topik dalam hidupmu. Ini bukan ukuran keakuratan hasil. Periksa juga sumbernya.",
   "reviewCta": "Tinjau usulan",
   "subtitle": "8 minggu · tujuh bintang",
-  "rule": "Setiap minggu menampilkan kecerahan terakhir yang tercatat. Minggu sebelum catatan pertama tetap kosong."
+  "rule": "Setiap minggu menampilkan kecerahan terakhir yang tercatat. Minggu sebelum catatan pertama tetap kosong.",
+  "shiftNudge": "Perubahan terbaru: {{stars}} - mau cek ulang?",
+  "shiftNudgeCited": "Perubahan terbaru: {{stars}} · {{n}} sumber - mau cek ulang?"
 }

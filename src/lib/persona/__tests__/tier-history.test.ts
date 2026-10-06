@@ -1,4 +1,37 @@
-import { detectTierShift, tierShiftNudge, type TierObservation, type TierShift } from "../tier-history";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import i18next, { type i18n } from "i18next";
+import {
+  detectTierShift,
+  tierShiftNudge,
+  type TierObservation,
+  type TierShift,
+  type TierShiftNudgeTranslate,
+} from "../tier-history";
+
+// The nudge sentence lives in locales/<lng>/brightness.json (Q-261005-01 = A).
+// These tests resolve it through a real i18next instance over the shipped
+// bundles, so the en/ko expectations below also prove the move kept the old
+// sentences byte for byte.
+const LOCALES = ["en", "ko", "es", "pt", "id"] as const;
+let inst: i18n;
+beforeAll(async () => {
+  inst = i18next.createInstance();
+  await inst.init({
+    lng: "en",
+    fallbackLng: "en",
+    resources: Object.fromEntries(
+      LOCALES.map((lng) => [
+        lng,
+        { brightness: JSON.parse(readFileSync(join(process.cwd(), "locales", lng, "brightness.json"), "utf8")) },
+      ]),
+    ),
+    defaultNS: "brightness",
+    interpolation: { escapeValue: false },
+  });
+});
+const tIn = (lng: (typeof LOCALES)[number]): TierShiftNudgeTranslate => (key, vars) =>
+  inst.t(key, { ...vars, lng });
 
 function obs(star_id: TierObservation["star_id"], level: TierObservation["level"], recorded_at: string): TierObservation {
   return { star_id, level, recorded_at };
@@ -87,14 +120,14 @@ describe("tierShiftNudge", () => {
     locale === "ko" ? `별-${id}` : `star-${id}`;
 
   test("returns null when there are no shifts", () => {
-    expect(tierShiftNudge([], "ko", nameOf)).toBeNull();
-    expect(tierShiftNudge([], "en", nameOf)).toBeNull();
+    expect(tierShiftNudge([], "ko", nameOf, tIn("ko"))).toBeNull();
+    expect(tierShiftNudge([], "en", nameOf, tIn("en"))).toBeNull();
   });
 
   test("lists shifted stars with direction arrows, no evidence clause when uncited", () => {
     const shifts: TierShift[] = [{ starId: "now", from: 3, to: 4, direction: "up" }];
-    expect(tierShiftNudge(shifts, "ko", nameOf)).toBe("최근 변화 감지: 별-now ↑ - 점검해볼까요?");
-    expect(tierShiftNudge(shifts, "en", nameOf)).toBe("Recent shift: star-now ↑ - want to re-check?");
+    expect(tierShiftNudge(shifts, "ko", nameOf, tIn("ko"))).toBe("최근 변화 감지: 별-now ↑ - 점검해볼까요?");
+    expect(tierShiftNudge(shifts, "en", nameOf, tIn("en"))).toBe("Recent shift: star-now ↑ - want to re-check?");
   });
 
   test("surfaces the aggregate evidence count (0060) when shifts are cited", () => {
@@ -102,18 +135,31 @@ describe("tierShiftNudge", () => {
       { starId: "now", from: 3, to: 5, direction: "up", citations: ["record:a", "record:b"] },
       { starId: "values", from: 4, to: 2, direction: "down", citations: ["record:c"] },
     ];
-    expect(tierShiftNudge(shifts, "ko", nameOf)).toBe(
+    expect(tierShiftNudge(shifts, "ko", nameOf, tIn("ko"))).toBe(
       "최근 변화 감지: 별-now ↑, 별-values ↓ · 근거 3개 - 점검해볼까요?",
     );
-    expect(tierShiftNudge(shifts, "en", nameOf)).toBe(
+    expect(tierShiftNudge(shifts, "en", nameOf, tIn("en"))).toBe(
       "Recent shift: star-now ↑, star-values ↓ · 3 cited - want to re-check?",
+    );
+  });
+
+  test("es/pt/id read their own bundle instead of the English sentence (R2B-03)", () => {
+    const shifts: TierShift[] = [{ starId: "now", from: 3, to: 5, direction: "up", citations: ["record:a"] }];
+    expect(tierShiftNudge(shifts, "en", nameOf, tIn("es"))).toBe(
+      "Cambio reciente: star-now ↑ · fuentes: 1 - ¿quieres revisarlo?",
+    );
+    expect(tierShiftNudge(shifts, "en", nameOf, tIn("pt"))).toBe(
+      "Mudança recente: star-now ↑ · fontes: 1 - quer revisar?",
+    );
+    expect(tierShiftNudge(shifts, "en", nameOf, tIn("id"))).toBe(
+      "Perubahan terbaru: star-now ↑ · 1 sumber - mau cek ulang?",
     );
   });
 
   test("no em dash in the rendered string (DESIGN.md UI-string rule)", () => {
     const shifts: TierShift[] = [{ starId: "now", from: 1, to: 2, direction: "up", citations: ["record:a"] }];
-    for (const locale of ["en", "ko"] as const) {
-      expect(tierShiftNudge(shifts, locale, nameOf)).not.toMatch(/[—–]/);
+    for (const lng of LOCALES) {
+      expect(tierShiftNudge(shifts, lng === "ko" ? "ko" : "en", nameOf, tIn(lng))).not.toMatch(/[—–]/);
     }
   });
 });
