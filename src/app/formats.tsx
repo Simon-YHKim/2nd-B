@@ -67,7 +67,7 @@ type Toast = { message: string; tone: "info" | "success" | "danger" };
 function FormatsLegacy() {
   const { i18n, t: tf } = useTranslation("formats");
   const { userId, loading } = useAuth();
-  // The language the screen is painted in. Built-in formats read the formats
+  // The language the screen is painted in. The bundled eight read the formats
   // bundle in it; custom formats are the user's own ko/en text, so they keep
   // the ko/en `locale` (as do the editor and the AI add flow that write them).
   const uiLng = renderedUiLanguage(i18n);
@@ -349,7 +349,7 @@ function FormatsLegacy() {
   function metaOf(t: CustomClipperTemplate): string {
     return t.targetCategory ? `${t.baseKind} · ${t.targetCategory}` : t.baseKind;
   }
-  // Built-in formats read the formats bundle (builtIn.kinds.<kind>.*) in the painted
+  // The bundled eight read the formats bundle (builtIn.kinds.<kind>.*) in the painted
   // language. They used to show t.name / t.what as ko or en, so es/pt/id read the
   // eight formats in English (R2B-03). The bundle's en/ko values mirror
   // clipper-templates.ts, which the classifier prompt still reads (tr2-locale-copy.test.ts).
