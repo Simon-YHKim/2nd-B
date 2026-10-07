@@ -50,11 +50,13 @@ const TOOLS: { id: PhoneAppId; route: string }[] = [
   { id: "museum", route: "/museum" },
   { id: "community", route: "/community" },
   { id: "relationships", route: "/star/relation" },
+  { id: "avatarPalette", route: "/avatar-palette" },
 ];
 const APP_ORDER: PhoneAppId[] = [
   "notifications", "assistant", "focus", "reminders",
   "money", "growth", "meals", "museum",
-  "community", "relationships", "settings", "more",
+  // Simon 2026-10-07: the More page folded into the grid - the palette takes the More tile's place.
+  "community", "relationships", "settings", "avatarPalette",
 ];
 const OPS_PHONE_ROUTES: Record<string, OpsPhoneScreen> = {
   "/ops": "ops",
@@ -77,8 +79,8 @@ function phonePage(route: string): string {
 }
 /** A hosted screen replacing itself with one of these leaves the phone (sign-out). */
 const AUTH_EXIT_PATHS = new Set(["/sign-in", "/sign-up", "/onboarding"]);
-/** 1쪽 · 2쪽 · 앱 · 더보기. */
-const PAGES = [0, 1, 2, 3] as const;
+/** 1쪽 · 2쪽 · 앱. 더보기 쪽은 앱 바둑판에 합쳤다(Simon 2026-10-07). */
+const PAGES = [0, 1, 2] as const;
 const LAST_PAGE = PAGES.length - 1;
 /** The phone's home button and a hosted screen's 'home' open the apps page (Simon 2026-10-07). */
 const APPS_PAGE = 2;
@@ -110,7 +112,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const [tab, setTab] = useState<Tab>(app === "notifications" ? "tools" : "dashboard");
   // 하루 관리판 두 쪽(PS-DASH-001 v2.2): 1쪽 = 오늘 처리할 것, 2쪽 = 상태(Q-261007-31).
   const [boardPage, setBoardPage] = useState<1 | 2>(1);
-  const [phoneApp, setPhoneApp] = useState<"notifications" | "more" | null>(app === "notifications" ? "notifications" : null);
+  const [phoneApp, setPhoneApp] = useState<"notifications" | null>(app === "notifications" ? "notifications" : null);
   const [selectedNoticeId, setSelectedNoticeId] = useState<string | null>(null);
   const [screenStack, setScreenStack] = useState<string[]>([]);
   const [recordQuery, setRecordQuery] = useState("");
@@ -180,8 +182,8 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     if (path === "/capture") setCaptureTag(params.tag ?? null);
     setScreenStack((current) => [...current, route]);
   }, []);
-  // Pages (Simon 2026-10-07, PS-DASH-001 v2.2): the board's two pages come first, then the apps and More.
-  const pageIndex = tab === "dashboard" ? boardPage - 1 : phoneApp === "more" ? 3 : 2;
+  // Pages (Simon 2026-10-07, PS-DASH-001 v2.2): the board's two pages come first, then the apps.
+  const pageIndex = tab === "dashboard" ? boardPage - 1 : APPS_PAGE;
   const showPage = useCallback((index: number) => {
     if (index < 0 || index > LAST_PAGE) return;
     scrollY.current = 0;
@@ -189,7 +191,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     setScreenStack([]);
     setTab(index <= 1 ? "dashboard" : "tools");
     setBoardPage(index === 1 ? 2 : 1);
-    setPhoneApp(index === 3 ? "more" : null);
+    setPhoneApp(null);
   }, []);
   // Back steps out one level at a time and stops at the first page. It never leaves the phone:
   // leaving is the up or down swipe only (Simon 2026-10-07), so the old "close the phone?" prompt is gone.
@@ -552,21 +554,6 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
           </PixelSurface> : null}
       </View>;
     }
-    if (phoneApp === "more") return <View style={styles.stack}>
-      <Text variant="heading">{t("phone.moreTitle")}</Text>
-      <View style={styles.appGrid}>
-        <Pressable testID="phone-avatar-palette" accessibilityRole="button" accessibilityLabel={t("phone.apps.avatarPalette")} onPress={() => go("/avatar-palette")} style={[styles.appTile, { height: appTileHeight }]}>
-          <Image source={PHONE_UI_ART.tile} contentFit="fill" pointerEvents="none" style={[styles.tileArt, PIXEL_IMAGE]} />
-          <Image source={PHONE_APP_ICONS.avatarPalette} contentFit="contain" pointerEvents="none" style={[styles.appIcon, { width: appIconSize, height: appIconSize }, PIXEL_IMAGE]} />
-          <Text variant="caption" numberOfLines={1} style={styles.appLabel}>{t("phone.apps.avatarPaletteShort")}</Text>
-        </Pressable>
-      </View>
-      <PhoneAction label={t("phone.moreApps.records")} glyph="article" onPress={() => go("/records")} />
-      <PhoneAction label={t("phone.moreApps.wiki")} onPress={() => go("/wiki")} />
-      <PhoneAction label={t("phone.moreApps.capture")} glyph="add" onPress={() => go("/capture")} />
-      <PhoneAction label={t("tools.reading.label")} onPress={() => go("/reading")} />
-      <PhoneAction label={t("tools.sideProject.label")} onPress={() => go("/side-project")} />
-    </View>;
     return <View style={styles.launcherStack}>
       <View style={styles.launcherHeading}>
         <Text variant="heading" style={styles.launcherTitle}>{t("phone.toolsTitle")}</Text>
@@ -576,7 +563,6 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         const disabled = id === "community" && isMinor !== false;
         const open = () => {
           if (id === "notifications") { scrollY.current = 0; setPhoneApp("notifications"); return; }
-          if (id === "more") { showPage(2); return; }
           if (id === "settings") { go("/settings"); return; }
           const route = TOOLS.find((item) => item.id === id)?.route;
           if (route) go(route);
