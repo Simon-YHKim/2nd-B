@@ -12,7 +12,7 @@
     "nav": { "home": "Home", "note": "Notes", "add": "Add", "search": "Search", "profile": "Profile" },
     "returnToStars": "Return to constellation",
     "internal": {
-      "back": "Back inside phone", "wikiGraph": "Graph and tags", "closePhone": "Close phone", "exitTitle": "Close the phone?", "exitHint": "Return to the constellation without changing your saved data.", "cancel": "Keep viewing",
+      "back": "Back", "wikiGraph": "Graph and tags", "closePhone": "Close phone", "exitTitle": "Close the phone?", "exitHint": "Return to the constellation without changing your saved data.", "cancel": "Keep viewing",
       "captureScope": "Save a short note here. Interviews and other capture modes remain in their dedicated screens.",
       "noteInput": "Write something to keep", "startNote": "Write a note", "saveNote": "Save note", "saved": "Note saved.",
       "focusLocal": "This timer runs only while its screen is open.", "start": "Start", "pause": "Pause", "reset": "Reset",
@@ -164,8 +164,7 @@
       "settings": "Settings",
       "more": "More"
     },
-    "appsBack": "Back to apps",
-    "noticeListBack": "Notifications list",
+    "appsBack": "Back",
     "noticeLoading": "Loading notifications…",
     "noticeEmpty": "No notifications yet.",
     "noticeUnread": "Unread",
@@ -190,7 +189,168 @@
     "lastRead": "Last read · {{date}}",
     "noData": "No data has been read yet.",
     "refresh": "Refresh",
-    "unknownDate": "Date unavailable"
+    "unknownDate": "Date unavailable",
+    "board": {
+      "evidence": "Show the source",
+      "addWidget": "Add a widget",
+      "clock": {
+        "weatherPrompt": "Pick your neighborhood to see the weather.",
+        "pickArea": "Pick neighborhood",
+        "sky": {
+          "clear": "Clear",
+          "partlyCloudy": "Partly cloudy",
+          "cloudy": "Cloudy",
+          "rain": "Rain",
+          "snow": "Snow"
+        },
+        "temp": "{{temp}} degrees"
+      },
+      "note": {
+        "tapHint": "Tap for today's summary",
+        "empty": "Today's note appears after your first record.",
+        "slot": {
+          "morning": "Morning",
+          "day": "Afternoon",
+          "evening": "Evening"
+        }
+      },
+      "reminders": {
+        "title": "Reminders",
+        "previous": "Previous day",
+        "next": "Next day",
+        "anytime": "Any time",
+        "alarm": "Alert at {{time}}",
+        "add": "Add",
+        "dismiss": "Dismiss",
+        "days": {
+          "yesterday": "Yesterday",
+          "today": "Today",
+          "tomorrow": "Tomorrow",
+          "dayAfter": "Day after"
+        },
+        "empty": {
+          "yesterday": "Nothing was planned yesterday.",
+          "today": "Nothing is planned for today.",
+          "tomorrow": "Nothing is planned for tomorrow.",
+          "dayAfter": "Nothing is planned for the day after."
+        },
+        "status": {
+          "upcoming": "Coming up",
+          "done": "Done",
+          "passed": "Let go"
+        }
+      },
+      "queue": {
+        "title": "To handle {{index}}/{{total}}",
+        "empty": "Nothing is waiting on you today.",
+        "done": "I did it",
+        "later": "Later",
+        "notImportant": "Not important",
+        "sources": {
+          "mail": "Mail",
+          "notification": "Alert",
+          "app": "App"
+        }
+      },
+      "health": {
+        "title": "Health",
+        "locked": "Connect health to see last night's sleep.",
+        "empty": "Bring in health records and they show here.",
+        "openSetup": "Connection settings",
+        "synced": "{{source}} · synced {{time}}",
+        "minutes": "{{value}} min",
+        "metrics": {
+          "sleep": "Sleep",
+          "steps": "Steps",
+          "workout": "Workout",
+          "meal": "Meals"
+        },
+        "sources": {
+          "health_connect": "Health Connect",
+          "healthkit": "Apple Health",
+          "manual": "Entered by you"
+        }
+      },
+      "spend": {
+        "title": "Spending",
+        "empty": "Bring in a statement and this month's total shows here.",
+        "open": "Open ledger",
+        "add": "Add",
+        "reject": "No"
+      },
+      "changes": {
+        "title": "Also"
+      },
+      "custom": {
+        "empty": "As your records grow, your own widgets appear here.",
+        "capture": "Capture",
+        "make": "Make it",
+        "skip": "No thanks",
+        "previous": "Previous widget",
+        "next": "Next widget"
+      },
+      "locked": {
+        "open": "Connection settings",
+        "weather": "Weather opens once a neighborhood is chosen.",
+        "aiConsent": "Today's note opens with AI processing turned on.",
+        "calendar": "Connect a calendar to see plans here.",
+        "inbox": "Connect mail or alerts to see what to handle.",
+        "ledger": "Bring in a statement to see spending.",
+        "sources": "Connect a source to see what changed.",
+        "records": "Your own widgets open as records grow."
+      },
+      "summary": {
+        "titleDefault": "Today's summary",
+        "title": {
+          "morning": "Morning summary",
+          "day": "Afternoon summary",
+          "evening": "Evening summary"
+        },
+        "read": "Read aloud",
+        "stop": "Stop",
+        "close": "Close",
+        "notReady": "Today's summary is not ready yet.",
+        "noValue": "no record",
+        "mutedNote": "Silent mode is on, so the summary shows as text only."
+      },
+      "shelf": {
+        "title": "Manage widgets",
+        "onScreen": "On screen",
+        "offScreen": "Not on screen",
+        "allOnScreen": "Every widget is on screen.",
+        "show": "Turn back on",
+        "hide": "Hide {{name}}",
+        "moveUp": "Move {{name}} up",
+        "moveDown": "Move {{name}} down",
+        "reasons": {
+          "preparing": "This widget is still being prepared.",
+          "adultOnly": "Health connection is for adults only.",
+          "hidden": "You hid this widget."
+        },
+        "parts": {
+          "clock": "Clock and weather",
+          "note": "Today's note",
+          "reminders": "Reminders",
+          "queue": "To handle",
+          "health": "Health",
+          "spend": "Spending",
+          "changes": "Also",
+          "custom": "Your own widgets"
+        }
+      },
+      "transcribe": {
+        "title": "Transcribe",
+        "adultOnly": "Transcription is for adults only.",
+        "ownTalkOnly": "Records only conversations you take part in.",
+        "lockedStart": "Start recording, not open yet",
+        "afterTitle": "After a recording, the results show here.",
+        "sections": {
+          "head": "One-line summary",
+          "todos": "To-dos and next contacts",
+          "transcript": "Full transcript"
+        }
+      }
+    }
   },
   "loading": "Loading routines…",
   "hero": {
@@ -419,7 +579,8 @@
       "emptyTitle": "No spending logged this month",
       "emptyBody": "Enter an amount above and it is grouped by category here.",
       "currencyNote": "Amounts are recorded in won (KRW).",
-      "amountTooLarge": "That amount is too large. One entry can hold up to {{max}} won."
+      "amountTooLarge": "That amount is too large. One entry can hold up to {{max}} won.",
+      "amountInvalid": "Enter whole won, like 12000, 12,000, ₩12,000 or 12,000원. Signs and decimal points are not taken."
     },
     "meals": {
       "sheetSubtitle": "{{day}} {{date}} · {{slot}}",
@@ -428,6 +589,7 @@
       "lookUp": "Look up foods",
       "lookUpNone": "No foods matched.",
       "lookUpFailed": "Couldn't look that up. Try again.",
+      "saveFailed": "This change was not saved. What you entered is still here. Try again.",
       "days": {
         "mon": "Mon",
         "tue": "Tue",

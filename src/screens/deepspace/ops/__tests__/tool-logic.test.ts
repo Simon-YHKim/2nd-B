@@ -8,6 +8,8 @@ import {
   editorAfterDelete,
   mealClearArmKey,
   mealSaveAction,
+  mealSheetAfterWrite,
+  mealSheetDismiss,
   mealWriteLock,
   MILESTONE_NEXT,
   milestoneChip,
@@ -102,6 +104,146 @@ describe("sheetAfterWrite (gate BL-03): a late write closes only its own sheet",
   });
   test("an already closed sheet stays closed", () => {
     expect(sheetAfterWrite(null, 3)).toBeNull();
+  });
+});
+
+// Gate S3-01 (2026-10-07): a failed meal write closed the sheet like one that landed, so the
+// draft was gone (reopening filled it from the stored meal), and the error was a screen-wide
+// banner that read as the failure of whatever cell was open by then.
+//
+// Re-aimed 2026-10-07 (simplified): Simon asked for the simple model. The record that kept a
+// failure after its sheet closed and handed its draft back on a later opening is gone, and so
+// are its tests (mealFailureAfterWrite, mealFailureInSheet, mealOpening, mealRetry,
+// mealUnsavedDraft, mealFailureDropped). The sheet cannot be closed while its write runs; a
+// failure keeps the sheet open with the draft and one line; closing the sheet drops both.
+describe("mealSheetAfterWrite (gate S3-01): only a write that landed closes its sheet", () => {
+  const open = (session: number, failed = false) => ({ session, date: "2026-10-05", slot: "lunch", current: "kimbap", failed });
+
+  test("done: the sheet it started from closes, a newer one stays", () => {
+    expect(mealSheetAfterWrite(open(3), 3, "done")).toBeNull();
+    const newer = open(4);
+    expect(mealSheetAfterWrite(newer, 3, "done")).toBe(newer);
+    expect(mealSheetAfterWrite(null, 3, "done")).toBeNull();
+  });
+  test("a write that lands after an earlier failure still closes the sheet", () => {
+    expect(mealSheetAfterWrite(open(3, true), 3, "done")).toBeNull();
+  });
+  test("failed: the sheet it started from stays open, the same opening, marked failed", () => {
+    const own = open(3);
+    expect(mealSheetAfterWrite(own, 3, "failed")).toEqual({ ...own, failed: true });
+    // Nothing else about the opening changes: same session (an armed clear stays its own),
+    // same cell, same stored meal for the next save to compare against.
+    expect(own.failed).toBe(false);
+  });
+  test("failed again: still open and still failed", () => {
+    const once = mealSheetAfterWrite(open(3), 3, "failed");
+    expect(mealSheetAfterWrite(once, 3, "failed")).toEqual({ ...open(3), failed: true });
+  });
+  test("failed: no other opening is marked", () => {
+    const newer = open(4);
+    expect(mealSheetAfterWrite(newer, 3, "failed")).toBe(newer);
+    expect(mealSheetAfterWrite(null, 3, "failed")).toBeNull();
+  });
+  test("busy: nothing changes, an earlier failure included", () => {
+    const own = open(3);
+    expect(mealSheetAfterWrite(own, 3, "busy")).toBe(own);
+    const failed = open(3, true);
+    expect(mealSheetAfterWrite(failed, 3, "busy")).toBe(failed);
+    expect(mealSheetAfterWrite(null, 3, "busy")).toBeNull();
+  });
+});
+
+describe("mealSheetDismiss (gate S3-01, simplified): the sheet cannot close while its write runs", () => {
+  const open = { session: 3, date: "2026-10-05", slot: "lunch", current: "kimbap", failed: false };
+
+  test("while a write runs, asking to close does nothing", () => {
+    expect(mealSheetDismiss(open, true)).toBe(open);
+    const failed = { ...open, failed: true };
+    expect(mealSheetDismiss(failed, true)).toBe(failed);
+  });
+  test("with no write running, the sheet closes, a failed one included", () => {
+    expect(mealSheetDismiss(open, false)).toBeNull();
+    expect(mealSheetDismiss({ ...open, failed: true }, false)).toBeNull();
+    expect(mealSheetDismiss(null, false)).toBeNull();
+  });
+  test("a whole run: fail, try to close mid-retry, fail again, close: nothing of it is left", () => {
+    let sheet: typeof open | null = open;
+    sheet = mealSheetAfterWrite(sheet, 3, "failed");
+    expect(sheet).toEqual({ ...open, failed: true });
+    // The retry is the same save button; while it runs the backdrop and back do nothing.
+    sheet = mealSheetDismiss(sheet, true);
+    expect(sheet).toEqual({ ...open, failed: true });
+    sheet = mealSheetAfterWrite(sheet, 3, "failed");
+    // Closing is the user's own choice: the sheet, its failure line and its draft go with it.
+    sheet = mealSheetDismiss(sheet, false);
+    expect(sheet).toBeNull();
+  });
+  test("a retry is the plain save: the draft as it stands then is what gets written", () => {
+    // A failed save of "bibimbap", then the draft edited to "noodles": the save writes noodles.
+    expect(mealSaveAction("noodles", "kimbap")).toBe("set");
+    // A failed save, then the draft emptied: the save clears the cell, as the sheet shows.
+    expect(mealSaveAction("", "kimbap")).toBe("clear");
+    // Re-aimed 2026-10-07 (A3-01): this used to pin mealSaveAction("kimbap", "kimbap") as
+    // "close" for a failed two-tap clear, and that was the gap the gate found: the clear left
+    // the stored meal in the input, so the same save button wrote nothing, closed the sheet and
+    // never tried the clear again. The confirmed clear now empties the draft once it holds the
+    // cell's lock, so after a failed clear the save reads "" and clears again (the run is below).
+    const draftAfterFailedClear = "";
+    expect(mealSaveAction(draftAfterFailedClear, "kimbap")).toBe("clear");
+  });
+});
+
+// Gate OPSFIX-A3-01 (2026-10-07): the confirmed clear, run through the real lock, the real settle
+// and the real save decision. `confirmClear` is the clear as MealsScreen runs it (the write
+// writeMeal hands to runExclusive empties the draft, then sends the DELETE);
+// tool-screens-contract.test.ts pins that the screen is wired this way.
+describe("OPSFIX-A3-01: a failed two-tap clear is tried again by the same save button", () => {
+  const stored = "kimbap";
+  const opened = { session: 3, date: "2026-10-05", slot: "lunch", current: stored, failed: false };
+  const confirmClear = (lock: WriteLock, ui: { draft: string }, del: () => Promise<void>) =>
+    runExclusive(lock, async () => {
+      ui.draft = "";
+      await del();
+    });
+
+  test("the clear fails: the sheet stays open, marked failed, on an empty draft, and the save clears again", async () => {
+    const ui = { draft: stored };
+    const outcome = await confirmClear({ held: false }, ui, async () => {
+      throw new Error("offline");
+    });
+    expect(outcome).toBe("failed");
+    const sheet = mealSheetAfterWrite(opened, 3, outcome);
+    expect(sheet).toEqual({ ...opened, failed: true });
+    expect(ui.draft).toBe("");
+    // The same save button, with nothing edited: a clear, not a close with no request.
+    expect(mealSaveAction(ui.draft, sheet?.current ?? null)).toBe("clear");
+  });
+
+  test("the retried clear lands: the sheet closes", async () => {
+    const ui = { draft: stored };
+    const failed = mealSheetAfterWrite(opened, 3, await confirmClear({ held: false }, ui, () => Promise.reject(new Error("offline"))));
+    expect(mealSaveAction(ui.draft, failed?.current ?? null)).toBe("clear");
+    const del = jest.fn(async () => undefined);
+    const outcome = await runExclusive({ held: false }, del);
+    expect(del).toHaveBeenCalledTimes(1);
+    expect(mealSheetAfterWrite(failed, 3, outcome)).toBeNull();
+  });
+
+  test("after the failed clear, a title typed in is saved as that title", async () => {
+    const ui = { draft: stored };
+    await confirmClear({ held: false }, ui, () => Promise.reject(new Error("offline")));
+    ui.draft = "noodles";
+    expect(mealSaveAction(ui.draft, stored)).toBe("set");
+  });
+
+  test("a clear refused as busy changes nothing: no DELETE, the draft and the sheet as they were", async () => {
+    const ui = { draft: "noodles" };
+    const del = jest.fn(async () => undefined);
+    const outcome = await confirmClear({ held: true }, ui, del);
+    expect(outcome).toBe("busy");
+    expect(del).not.toHaveBeenCalled();
+    expect(ui.draft).toBe("noodles");
+    expect(mealSheetAfterWrite(opened, 3, outcome)).toBe(opened);
   });
 });
 

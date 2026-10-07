@@ -5,7 +5,7 @@
 // handoff: date-of-birth input, consent, storage, and age-tier decisions remain
 // owned by the real /sign-up and /complete-profile boundaries (C10).
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BackHandler, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";
@@ -66,11 +66,21 @@ export default function Onboarding() {
   // other language reads onboarding.skip.
   const skipLabel = ko ? "건너뛰기" : t("onboarding.skip");
   const { userId, loading } = useAuth();
-  const onboardingComplete = useOnboardingComplete();
+  // Signed in: has this ACCOUNT finished the welcome (server, 0219)? Signed out:
+  // this device's flag. The first answer for an owner stays while the screen is
+  // up, so finishing here does not swap the closing slide for a redirect.
+  const onboardingComplete = useOnboardingComplete(userId, !loading);
   const [step, setStep] = useState(0);
   // 환영 소리(Q-261006-06)는 건너뛰기를 누른 사람에게는 내지 않는다. 건너뛰기도 같은 마지막
   // 단계로 이어지므로, 눌렀다는 사실을 따로 기억한다.
   const [skipped, setSkipped] = useState(false);
+  // A signed-in finish waits for the server (design 5.3, 8 seconds). If it is not
+  // stored, the screen says so and offers retry or home. Going home is safe: the
+  // welcome does not open by itself again either way (its grant is stored).
+  const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const ownerRef = useRef(userId);
+  ownerRef.current = userId;
 
   // Android hardware Back reverses one slide, including the final handoff frame.
   useEffect(() => {
@@ -89,8 +99,23 @@ export default function Onboarding() {
 
   // Completion is deliberately written only when a real destination is chosen.
   // Merely mounting the route, paging, or skipping to the handoff does not write.
-  function finishOnboarding(destination: HandoffDestination) {
-    markOnboardingComplete();
+  async function finishOnboarding(destination: HandoffDestination) {
+    if (saving) return;
+    const owner = userId;
+    setSaving(true);
+    setSaveFailed(false);
+    const stored = await markOnboardingComplete(owner, skipped ? "skipped" : "completed");
+    setSaving(false);
+    // The sign-in changed while this was out: this answer is not for the screen now.
+    if (ownerRef.current !== owner) return;
+    if (!stored) {
+      setSaveFailed(true);
+      return;
+    }
+    leaveOnboarding(destination);
+  }
+
+  function leaveOnboarding(destination: HandoffDestination) {
     // 누르는 순간 화면이 바뀌어 이 화면의 소리는 잘린다. 루트의 GlobalCueHost 가 끝까지 낸다.
     if (welcomeCueAllowed({ destination, skipped })) requestGlobalCue("onboardingWelcome");
     if (destination === "/") {
@@ -178,10 +203,41 @@ export default function Onboarding() {
 
       {isAuth ? (
         <View style={styles.authActions}>
-          {userId ? (
+          {userId && saveFailed ? (
+            <>
+              <Text variant="body" style={styles.saveFailed} accessibilityLiveRegion="polite">
+                {t("onboarding.saveFailed")}
+              </Text>
+              <PixelPressable
+                fullWidth
+                background={m3.color.primary}
+                disabled={saving}
+                accessibilityState={{ busy: saving }}
+                accessibilityLabel={t("common:actions.retry")}
+                accessibilityHint={authHint}
+                onPress={() => finishOnboarding("/")}
+                contentStyle={styles.primaryButtonContent}
+              >
+                <Text variant="body" style={styles.primaryButtonText}>{t("common:actions.retry")}</Text>
+              </PixelPressable>
+              <PixelPressable
+                fullWidth
+                background={m3.color.surfaceContainerHigh}
+                disabled={saving}
+                accessibilityLabel={t("onboarding.goHome")}
+                accessibilityHint={authHint}
+                onPress={() => leaveOnboarding("/")}
+                contentStyle={styles.secondaryButtonContent}
+              >
+                <Text variant="body" style={styles.secondaryButtonText}>{t("onboarding.goHome")}</Text>
+              </PixelPressable>
+            </>
+          ) : userId ? (
             <PixelPressable
               fullWidth
               background={m3.color.primary}
+              disabled={saving}
+              accessibilityState={{ busy: saving }}
               accessibilityLabel={t("common:actions.continue")}
               accessibilityHint={authHint}
               onPress={() => finishOnboarding("/")}
@@ -398,6 +454,14 @@ const styles = StyleSheet.create({
     color: m3.color.onSurface,
     fontSize: 15,
     lineHeight: 22,
+    paddingBottom: m3.spacing.s1,
+  },
+  saveFailed: {
+    width: "100%",
+    color: m3.color.error,
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: "center",
     paddingBottom: m3.spacing.s1,
   },
 });

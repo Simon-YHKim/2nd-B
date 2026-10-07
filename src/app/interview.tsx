@@ -29,9 +29,11 @@
 // source-aware crisis route로 두 원장을 쓴 뒤 핫라인을 띄운다.
 //
 // ── 저장 ────────────────────────────────────────────────────────────────
-// 태그(`interview`/`recall`/`screener`)와 `kind`, `auditPeriod` 는 그대로 둔다.
-// `assess/registry.ts` 의 `interview` 항목이 그 태그로 완료를 판정하고,
-// 옛 스크리너로 남긴 기록과 같은 서랍에 들어가야 한다.
+// 표식(`interview`/`recall`/`screener`/`entry-ui:<locale>`)과 `kind`, `auditPeriod` 는
+// 그대로 둔다. `assess/registry.ts` 의 `interview` 항목이 그 표식으로 완료를 판정하고,
+// 옛 스크리너로 남긴 기록과 같은 서랍에 들어가야 한다. 0218(Q-261004-39 = A) 부터
+// 표식은 사용자 태그 칸(`tags`)이 아니라 앱 표식 칸(`records.system_tags`)에 쓴다 —
+// /discover · /research 가 `interview` 를 사용자의 주제로 보여 주지 않게.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
@@ -60,6 +62,7 @@ import { isNonAnswer, scaffoldQuestion, shouldScaffold, MAX_SCAFFOLDS_PER_LAYER 
 import { answerDisposition, canCreditAnswer, confirmedAnswer, currentScene } from "@/lib/interview/continuity";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { createRecord } from "@/lib/records/create";
+import { recallInterviewSystemTags } from "@/lib/records/system-tags";
 import { addCoverage, loadCoverage } from "@/lib/interview/coverage-store";
 import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
 import { starEntryStatus, type StarEntryStatus } from "@/lib/persona/star-entry-tracks";
@@ -658,8 +661,9 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           locale === "ko"
             ? `${userTurns}턴 회상 인터뷰`
             : `${userTurns}-turn recall interview`,
-        // 옛 스크리너와 같은 태그. assess/registry.ts 가 이걸로 완료를 판정한다.
-        tags: ["interview", "recall", "screener", `entry-ui:${locale}`],
+        // 옛 스크리너와 같은 표식. assess/registry.ts 가 이걸로 완료를 판정한다.
+        // 앱 표식 칸(0218)에 쓴다 — 사용자 태그와 섞이지 않게.
+        systemTags: recallInterviewSystemTags(locale),
         auditPeriod,
         domainIntent: growthOrigin ? "growth" : undefined,
         withFollowup: false,

@@ -15,6 +15,7 @@
 
 import { readFileSync } from "fs";
 import { join } from "path";
+import { LEDGER_AMOUNT_MAX_CHARS, ledgerAmountEdit, parseLedgerAmount } from "@/lib/finance/ledger";
 
 const ROOT = join(__dirname, "..", "..", "..", "..", "..");
 const read = (f: string): string => readFileSync(join(ROOT, f), "utf8").replace(/\r\n/g, "\n");
@@ -132,14 +133,75 @@ describe("R2C-16 / R2C-11: ledger", () => {
   test("the amount field has a ceiling, and the reason is shown", () => {
     const start = ledger.indexOf("value={amount}");
     const amountInput = ledger.slice(start, ledger.indexOf("/>", start));
-    expect(amountInput).toContain("onChangeText={setAmount}");
+    // Re-aimed 2026-10-07 (gate S3-02): this used to require onChangeText={setAmount}, which
+    // held a pasted string of any length.
+    // Re-aimed 2026-10-07 (gate OPSFIX-A1-04): the field then kept 65 characters of a long
+    // paste, and one deleted leading 0 made them a 64-character amount. Every edit now goes
+    // through ledgerAmountEdit, which takes no text longer than the parser reads and keeps
+    // what the field held instead (ledger-amount.test.ts).
+    expect(amountInput).toMatch(
+      /onChangeText=\{\(v\) => \{\n\s*const edit = ledgerAmountEdit\(amount, v\);\n\s*setAmount\(edit\.text\);\n\s*setAmountOverflow\(edit\.overflow\);\n\s*\}\}/,
+    );
+    expect(amountInput).not.toContain(".slice(");
+    expect(ledger.match(/setAmount\(/g)?.length).toBe(2); // the edit above, and the reset after an add
+    expect(ledger).toContain('setAmount("");');
     expect(amountInput).toContain('keyboardType="number-pad"');
-    // Nothing shortens the typed string before parseLedgerAmount reads it.
+    // Nothing shortens the typed string to a length the parser would read.
     expect(amountInput).not.toMatch(/maxLength/);
     expect(ledger).not.toMatch(/LEDGER_AMOUNT_MAX_DIGITS/);
     expect(ledger).toContain("const amountParsed = parseLedgerAmount(amount);");
     expect(ledger).toContain("{amountTooLarge ? (");
     expect(ledger).toContain('t("toolScreens.ledger.amountTooLarge", { max: MAX_LEDGER_KRW.toLocaleString() })');
+  });
+
+  // Gate S-02 (2026-10-07): "-500", "1e3" and "12.34" were saved as 500, 13 and 1234.
+  test("an amount that is not whole won says so under the field and cannot be added", () => {
+    // Re-aimed 2026-10-07 (gate OPSFIX-A1-04): an edit too long to take says so the same way.
+    expect(ledger).toContain('const amountInvalid = amountOverflow || amountParsed.kind === "invalid";');
+    expect(ledger).toMatch(/\) : amountInvalid \? \(\n\s*<Text variant="caption" style=\{styles\.fieldErr\} accessibilityLiveRegion="polite">\n\s*\{t\("toolScreens\.ledger\.amountInvalid"\)\}/);
+    // The add button is on for "ok" only: "invalid" and "tooLarge" both leave it off, and so
+    // does a refused edit until the field takes the next one. The keyboard's done on the
+    // category field goes through onAddEntry, which checks canAdd too.
+    expect(ledger).toContain('const canAdd = !busy && amountParsed.kind === "ok" && !amountOverflow;');
+    expect(ledger).toContain("if (!userId || !canAdd) return;");
+    expect(ledger).toContain("amount_krw: amountNum,");
+  });
+
+  // Gate OPSFIX-A3-02 (2026-10-07): the amount field stays editable while an add runs. An edit
+  // refused as too long then set amountOverflow, and the add's success emptied the field without
+  // clearing it (the reset does not go through onChangeText), so the format hint stayed up under
+  // an empty field. Replayed here with the real edit rule and parser, applying the resets the
+  // screen's success path makes.
+  test("OPSFIX-A3-02: an over-long paste while an add runs, then the add lands: no hint under the empty field", () => {
+    const adder = ledger.slice(ledger.indexOf("const onAddEntry"), ledger.indexOf("const onDeleteEntry"));
+    const landed = adder.slice(adder.indexOf("await createLedgerEntry("), adder.indexOf("} catch {"));
+    const failed = adder.slice(adder.indexOf("} catch {"), adder.indexOf("} finally {"));
+    expect(landed.length).toBeGreaterThan(150);
+    expect(failed.length).toBeGreaterThan(10);
+    // "5000" is being added; a paste one character too long comes in meanwhile and is refused.
+    let field = ledgerAmountEdit("", "5000");
+    field = ledgerAmountEdit(field.text, "9".repeat(LEDGER_AMOUNT_MAX_CHARS + 1));
+    expect(field).toEqual({ text: "5000", overflow: true });
+    // The add lands: apply what its success path resets.
+    if (landed.includes('setAmount("");')) field = { ...field, text: "" };
+    if (landed.includes("setAmountOverflow(false);")) field = { ...field, overflow: false };
+    // What shows under the field, by the screen's own rule (pinned above): nothing.
+    const parsed = parseLedgerAmount(field.text);
+    const hintShown = parsed.kind === "tooLarge" || field.overflow || parsed.kind === "invalid";
+    expect(field).toEqual({ text: "", overflow: false });
+    expect(hintShown).toBe(false);
+    // A failed add keeps the field and its refusal as they are: the reset is on success only.
+    expect(failed).not.toContain("setAmountOverflow(");
+    expect(ledger.match(/setAmountOverflow\(/g)?.length).toBe(2); // the edit, and the reset after an add
+  });
+
+  // Gate OPSFIX-A1-05 (2026-10-07): the hint said letters and signs are not taken, while the
+  // parser takes ₩ (or ￦) in front and 원 after. Each locale now shows those forms (each one
+  // parses as whole won: ledger-amount.test.ts), and no longer says letters are refused.
+  test.each(LOCALES)("OPSFIX-A1-05: the %s amount hint shows the forms the field takes", (l) => {
+    const hint = lookup(bundles[l], "toolScreens.ledger.amountInvalid") as string;
+    for (const form of ["12000", "12,000", "₩12,000", "12,000원"]) expect([l, hint]).toEqual([l, expect.stringContaining(form)]);
+    expect([l, hint]).toEqual([l, expect.not.stringMatching(/letter|문자|letra|huruf/i)]);
   });
   test("the currency note states what the screen does", () => {
     expect(ledger).toContain('t("toolScreens.ledger.currencyNote")');
@@ -230,9 +292,109 @@ describe("gate BL-02 / BL-03: the meal sheet's clear and save", () => {
   });
 
   test("BL-03: a late write closes only the sheet it started from", () => {
-    expect(meals).toContain("setPending((open) => sheetAfterWrite(open, sheet.session));");
+    // Re-aimed 2026-10-07 (gate S3-01): through mealSheetAfterWrite, which also keeps the
+    // sheet open, marked failed, when the write failed (tool-logic.test.ts).
+    expect(meals).toContain("setPending((open) => mealSheetAfterWrite(open, sheet.session, outcome));");
     const writer = meals.slice(meals.indexOf("const writeMeal"), meals.indexOf("const saveCell"));
     expect(writer).not.toContain("setPending(null)");
+  });
+});
+
+// Gate S3-01 (2026-10-07): a failed meal write closed the sheet over the draft, and the error
+// was a screen-wide banner that read as the failure of whatever cell was open by then.
+// Re-aimed 2026-10-07 (simplified): Simon asked for the simple model. The failure record kept
+// after the sheet closed (mealErr), the banner naming the failed cell, the retry chip, the
+// "changed elsewhere" notice and the draft handed back on a later opening are gone, and so are
+// the checks that pinned them. The decisions are in tool-logic.test.ts (mealSheetAfterWrite,
+// mealSheetDismiss); this pins that the screen calls them.
+describe("gate S3-01 (simplified): a failed meal write keeps its sheet open, and only while it is open", () => {
+  const writer = meals.slice(meals.indexOf("const writeMeal"), meals.indexOf("const saveCell"));
+  const saver = meals.slice(meals.indexOf("const saveCell"), meals.indexOf("// Gate BL-02:"));
+  const openCell = meals.slice(meals.indexOf("const openCell"), meals.indexOf("const onLookUp"));
+  const modalAt = meals.indexOf("<Modal ");
+  const beforeModal = meals.slice(0, modalAt);
+  const sheetBody = meals.slice(modalAt, meals.indexOf("</Modal>"));
+
+  test("the scanner found the writer, the save, the opening and the sheet", () => {
+    expect(writer.length).toBeGreaterThan(400);
+    expect(saver.length).toBeGreaterThan(300);
+    expect(openCell.length).toBeGreaterThan(200);
+    expect(sheetBody.length).toBeGreaterThan(2000);
+  });
+
+  test("(a) while a write runs, the backdrop and the back do nothing, and no cell opens", () => {
+    expect(meals).toContain("const closeSheet = () => setPending((open) => mealSheetDismiss(open, mealWriting));");
+    expect(sheetBody).toContain('<Modal visible={pending !== null} transparent animationType="slide" onRequestClose={closeSheet}>');
+    expect(sheetBody).toContain("<Pressable style={styles.mealBackdrop} onPress={closeSheet} disabled={mealWriting} />");
+    // The sheet itself has no other way to close. The two plain closes left are the save's:
+    // no user or no sheet, and nothing to write. The save button is off while a write runs.
+    expect(sheetBody).not.toContain("setPending(");
+    expect(meals.match(/setPending\(null\)/g)?.length).toBe(2);
+    expect(saver).toMatch(/if \(action === "close"\) \{\n\s*setPending\(null\);\n\s*return;\n\s*\}/);
+    expect(openCell).toMatch(/\n\s*if \(mealWriting\) return;\n\s*sheetSeq\.current \+= 1;/);
+  });
+
+  test("(b) a failed write keeps the sheet and the draft, and says so inside the sheet", () => {
+    expect(writer).toContain('if (outcome === "busy") return;');
+    expect(writer.match(/setPending\(/g)?.length).toBe(1);
+    expect(writer).toContain("setPending((open) => mealSheetAfterWrite(open, sheet.session, outcome));");
+    // The writer never touches the draft: what was typed stays in the input. (The confirmed
+    // clear empties it from inside its own write: OPSFIX-A3-01 below.)
+    expect(writer).not.toContain("setDraft(");
+    expect(meals).toContain("const sheetFailed = pending !== null && pending.failed && !mealWriting;");
+    expect(sheetBody).toMatch(
+      /\{sheetFailed \? \(\n\s*<Text variant="caption" style=\{styles\.saveErrText\} accessibilityRole="alert" accessibilityLiveRegion="polite">\n\s*\{t\("toolScreens\.meals\.saveFailed"\)\}/,
+    );
+  });
+
+  test("(b) trying again is the same save button, reading the draft as it stands", () => {
+    // No separate retry write: the only meal writes are the save and the two-tap clear.
+    expect(meals.match(/writeMeal\(sheet, /g)?.length).toBe(2);
+    expect(meals).not.toMatch(/retryMeal|mealRetry|draftAsked/);
+    expect(saver).toContain("const action = mealSaveAction(draft, pending.current);");
+  });
+
+  // Gate OPSFIX-A3-01 (2026-10-07): a failed two-tap clear left the stored meal in the input, so
+  // the same save button read it as unchanged, closed the sheet and never tried the clear again.
+  // The run itself (fail, then the save clears again; busy changes nothing) is in
+  // tool-logic.test.ts; this pins that the screen's clear is wired the way that run assumes.
+  test("OPSFIX-A3-01: the confirmed clear empties the draft inside its locked write, so a failed clear is saved again as a clear", () => {
+    const clearer = meals.slice(meals.indexOf("const clearArm = useTwoTapDelete"), meals.indexOf("const clearArmed"));
+    expect(clearer.length).toBeGreaterThan(300);
+    // The draft is emptied inside the write writeMeal runs, not before writeMeal: a clear the
+    // lock refuses ("busy") never runs that write, so it leaves the draft as it was.
+    expect(clearer).toMatch(/void writeMeal\(sheet, \(\) => \{\n\s*setDraft\(""\);\n\s*return clearMeal\(userId, sheet\.date, sheet\.slot\);\n\s*\}\);/);
+    expect(clearer.match(/setDraft\(/g)?.length).toBe(1);
+    // writeMeal calls that write only from runExclusive's callback, after the lock is taken.
+    expect(writer).toMatch(
+      /const outcome = await runExclusive\(mealWriteLock\(userId, sheet\.date, sheet\.slot\), async \(\) => \{\n\s*setMealWrites\(\(n\) => n \+ 1\);\n\s*try \{\n\s*await write\(\);/,
+    );
+    expect(writer.match(/write\(\)/g)?.length).toBe(1);
+  });
+
+  test("(c) a write that landed reloads the week and closes the sheet it came from", () => {
+    expect(writer).toContain('if (outcome === "done") week.reload();');
+    expect(writer).not.toContain("setPending(null)");
+  });
+
+  test("(d) closing drops the draft and the line: the next opening starts from the stored meal", () => {
+    expect(openCell).toContain("setPending({ session: sheetSeq.current, date, slot, day, current: current?.title ?? null, failed: false });");
+    expect(openCell).toContain('setDraft(current?.title ?? "");');
+    // Nothing of a failure outlives its sheet.
+    expect(meals).not.toMatch(/mealErr|mealOpening|mealFailure|mealUnsaved|otherCellFailed/);
+  });
+
+  test("(e) no screen-wide failure: no saveErr flag and no banner on the meals screen", () => {
+    expect(meals).not.toMatch(/setSaveErr|saveErr\b/);
+    expect(meals).not.toContain("SaveErrorBanner");
+    expect(beforeModal).not.toContain("toolScreens.meals.saveFailed");
+  });
+
+  test.each(LOCALES)("%s keeps the one meal failure line and none of the removed keys", (l) => {
+    expect(typeof lookup(bundles[l], "toolScreens.meals.saveFailed")).toBe("string");
+    for (const gone of ["saveFailedCell", "changedSinceSet", "changedSinceClear", "useUnsaved", "retryClear"]) {
+      expect([gone, lookup(bundles[l], `toolScreens.meals.${gone}`)]).toEqual([gone, undefined]);
+    }
   });
 });
 

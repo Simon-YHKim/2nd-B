@@ -45,7 +45,7 @@
     "brand": "MI DÍA",
     "returnToStars": "Volver a la constelación",
     "internal": {
-      "back": "Volver dentro del teléfono", "wikiGraph": "Grafo y etiquetas", "closePhone": "Cerrar teléfono", "exitTitle": "¿Cerrar el teléfono?", "exitHint": "Volver a la constelación sin cambiar los datos guardados.", "cancel": "Seguir viendo",
+      "back": "Volver", "wikiGraph": "Grafo y etiquetas", "closePhone": "Cerrar teléfono", "exitTitle": "¿Cerrar el teléfono?", "exitHint": "Volver a la constelación sin cambiar los datos guardados.", "cancel": "Seguir viendo",
       "captureScope": "Aquí puedes guardar una nota breve. Las entrevistas y otros modos de captura siguen en sus pantallas específicas.",
       "noteInput": "Escribe algo para guardar", "startNote": "Escribir una nota", "saveNote": "Guardar nota", "saved": "Nota guardada.",
       "focusLocal": "Este temporizador funciona solo mientras su pantalla esté abierta.", "start": "Iniciar", "pause": "Pausar", "reset": "Restablecer",
@@ -164,8 +164,7 @@
       "settings": "Ajustes",
       "more": "Más"
     },
-    "appsBack": "Volver a las apps",
-    "noticeListBack": "Lista de avisos",
+    "appsBack": "Volver",
     "noticeLoading": "Cargando avisos…",
     "noticeEmpty": "Aún no hay avisos.",
     "noticeUnread": "Sin leer",
@@ -190,7 +189,168 @@
     "lastRead": "Última lectura · {{date}}",
     "noData": "Aún no se han leído datos.",
     "refresh": "Actualizar",
-    "unknownDate": "Fecha no disponible"
+    "unknownDate": "Fecha no disponible",
+    "board": {
+      "evidence": "Ver la fuente",
+      "addWidget": "Añadir un widget",
+      "clock": {
+        "weatherPrompt": "Elige tu barrio para ver el tiempo.",
+        "pickArea": "Elegir barrio",
+        "sky": {
+          "clear": "Despejado",
+          "partlyCloudy": "Parcialmente nublado",
+          "cloudy": "Nublado",
+          "rain": "Lluvia",
+          "snow": "Nieve"
+        },
+        "temp": "{{temp}} grados"
+      },
+      "note": {
+        "tapHint": "Toca para ver el resumen del día",
+        "empty": "La nota de hoy aparece tras tu primer registro.",
+        "slot": {
+          "morning": "Mañana",
+          "day": "Tarde",
+          "evening": "Noche"
+        }
+      },
+      "reminders": {
+        "title": "Recordatorios",
+        "previous": "Día anterior",
+        "next": "Día siguiente",
+        "anytime": "Sin hora",
+        "alarm": "Aviso a las {{time}}",
+        "add": "Añadir",
+        "dismiss": "Descartar",
+        "days": {
+          "yesterday": "Ayer",
+          "today": "Hoy",
+          "tomorrow": "Mañana",
+          "dayAfter": "Pasado mañana"
+        },
+        "empty": {
+          "yesterday": "Ayer no había nada previsto.",
+          "today": "Hoy no hay nada previsto.",
+          "tomorrow": "Mañana no hay nada previsto.",
+          "dayAfter": "Pasado mañana no hay nada previsto."
+        },
+        "status": {
+          "upcoming": "Próximo",
+          "done": "Hecho",
+          "passed": "Pasado"
+        }
+      },
+      "queue": {
+        "title": "Por atender {{index}}/{{total}}",
+        "empty": "Hoy no hay nada esperándote.",
+        "done": "Ya lo hice",
+        "later": "Más tarde",
+        "notImportant": "No es importante",
+        "sources": {
+          "mail": "Correo",
+          "notification": "Aviso",
+          "app": "App"
+        }
+      },
+      "health": {
+        "title": "Salud",
+        "locked": "Conecta salud para ver el sueño de anoche.",
+        "empty": "Trae tus registros de salud y aparecerán aquí.",
+        "openSetup": "Ajustes de conexión",
+        "synced": "{{source}} · sincronizado a las {{time}}",
+        "minutes": "{{value}} minutos",
+        "metrics": {
+          "sleep": "Sueño",
+          "steps": "Pasos",
+          "workout": "Ejercicio",
+          "meal": "Comidas"
+        },
+        "sources": {
+          "health_connect": "Health Connect",
+          "healthkit": "Salud de Apple",
+          "manual": "Introducido por ti"
+        }
+      },
+      "spend": {
+        "title": "Gastos",
+        "empty": "Trae un extracto y verás el total del mes aquí.",
+        "open": "Abrir cuentas",
+        "add": "Añadir",
+        "reject": "No"
+      },
+      "changes": {
+        "title": "Además"
+      },
+      "custom": {
+        "empty": "Cuando crezcan tus registros, aquí aparecerán tus propios widgets.",
+        "capture": "Guardar",
+        "make": "Crearlo",
+        "skip": "No, gracias",
+        "previous": "Widget anterior",
+        "next": "Widget siguiente"
+      },
+      "locked": {
+        "open": "Ajustes de conexión",
+        "weather": "El tiempo se abre al elegir un barrio.",
+        "aiConsent": "La nota de hoy se abre al activar el procesamiento con IA.",
+        "calendar": "Conecta un calendario para ver tus planes aquí.",
+        "inbox": "Conecta el correo o los avisos para ver qué atender.",
+        "ledger": "Trae un extracto para ver tus gastos.",
+        "sources": "Conecta una fuente para ver qué cambió.",
+        "records": "Tus propios widgets se abren cuando crecen tus registros."
+      },
+      "summary": {
+        "titleDefault": "Resumen del día",
+        "title": {
+          "morning": "Resumen de la mañana",
+          "day": "Resumen de la tarde",
+          "evening": "Resumen de la noche"
+        },
+        "read": "Leer en voz alta",
+        "stop": "Detener",
+        "close": "Cerrar",
+        "notReady": "El resumen de hoy aún no está listo.",
+        "noValue": "sin registro",
+        "mutedNote": "El modo silencio está activado, así que el resumen se muestra solo como texto."
+      },
+      "shelf": {
+        "title": "Gestionar widgets",
+        "onScreen": "En pantalla",
+        "offScreen": "Fuera de la pantalla",
+        "allOnScreen": "Todos los widgets están en pantalla.",
+        "show": "Volver a activar",
+        "hide": "Ocultar {{name}}",
+        "moveUp": "Subir {{name}}",
+        "moveDown": "Bajar {{name}}",
+        "reasons": {
+          "preparing": "Este widget aún se está preparando.",
+          "adultOnly": "La conexión de salud es solo para adultos.",
+          "hidden": "Ocultaste este widget."
+        },
+        "parts": {
+          "clock": "Reloj y tiempo",
+          "note": "Nota de hoy",
+          "reminders": "Recordatorios",
+          "queue": "Por atender",
+          "health": "Salud",
+          "spend": "Gastos",
+          "changes": "Además",
+          "custom": "Tus widgets"
+        }
+      },
+      "transcribe": {
+        "title": "Transcribir",
+        "adultOnly": "La transcripción es solo para adultos.",
+        "ownTalkOnly": "Solo graba conversaciones en las que participas.",
+        "lockedStart": "Empezar a grabar, aún no disponible",
+        "afterTitle": "Al terminar una grabación, el resultado aparece aquí.",
+        "sections": {
+          "head": "Resumen en una línea",
+          "todos": "Tareas y próximos contactos",
+          "transcript": "Transcripción completa"
+        }
+      }
+    }
   },
   "loading": "Abriendo tus rutinas…",
   "hero": {
@@ -419,7 +579,8 @@
       "emptyTitle": "No hay gastos registrados este mes",
       "emptyBody": "Escribe un importe arriba y se agrupará aquí por categoría.",
       "currencyNote": "Los importes se registran en wones (KRW).",
-      "amountTooLarge": "Ese importe es demasiado grande. Un registro admite hasta {{max}} wones."
+      "amountTooLarge": "Ese importe es demasiado grande. Un registro admite hasta {{max}} wones.",
+      "amountInvalid": "Escribe wones enteros, como 12000, 12,000, ₩12,000 o 12,000원. No se aceptan signos ni decimales."
     },
     "meals": {
       "sheetSubtitle": "{{day}} {{date}} · {{slot}}",
@@ -428,6 +589,7 @@
       "lookUp": "Buscar alimentos",
       "lookUpNone": "Ningún alimento coincide.",
       "lookUpFailed": "No se pudo buscar. Inténtalo de nuevo.",
+      "saveFailed": "Este cambio no se guardó. Lo que escribiste sigue aquí. Inténtalo de nuevo.",
       "days": {
         "mon": "Lun",
         "tue": "Mar",

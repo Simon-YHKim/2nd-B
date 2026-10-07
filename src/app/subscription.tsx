@@ -33,6 +33,8 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 import { useProgression } from "@/lib/progression/useProgression";
 import { PUBLIC_TIER_BY_DB } from "@/lib/entitlements/tier-map";
+import { TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
+import { PRO_COMING_SOON } from "@/lib/entitlements/plan-availability";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 import {
   cancelSubscription,
@@ -51,6 +53,7 @@ import {
 } from "@/lib/billing/subscription-manage";
 
 const SUPPORT_EMAIL = "kim0405@hayangzip.com";
+const PLAN_KEYS = ["free", "plus", "pro"] as const;
 
 type Sheet = "cancel" | "refund" | null;
 type Notice = { kind: "ok" | "warn"; key: string } | null;
@@ -71,6 +74,8 @@ export default function SubscriptionScreen() {
   // stay in the phone.
   const router = useAppRouter();
   const { t, i18n } = useTranslation("settings");
+  // The plan names, prices and features are the plans screen's own copy.
+  const { t: tp } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
   const { tier, refresh: refreshTier } = useProgression();
 
@@ -229,6 +234,9 @@ export default function SubscriptionScreen() {
   const daysLeft = eligibility ? refundDaysLeft(eligibility) : null;
   const reasonKey = eligibility ? refundReasonKey(eligibility.status) : "unknown";
   const refundOpen = refundEligible && !busy;
+  // Monthly list price, as /plans shows by default. The overview does not say which cadence was paid.
+  const planPrice = (key: "free" | "plus" | "pro") =>
+    key === "free" ? tp("ds.plans.freePrice") : `₩${TIER_PRICE_KRW[key].toLocaleString("ko-KR")}${tp("ds.plans.per")}`;
 
   return (
     <DeepSpaceScreen active="settings" header="none" variant="windowed" title={t("subscription.title")} onBack={() => router.back()}>
@@ -248,15 +256,35 @@ export default function SubscriptionScreen() {
 
         {!loading && !loadFailed ? (
           <>
-            {/* The one message: what this subscription is right now. */}
-            <MdCard variant="filled" style={s.card}>
-              <Text style={s.eyebrow}>{t("subscription.currentPlan")}</Text>
-              <Text style={s.planName}>{t(`subscription.tierName.${publicTier}`)}</Text>
+            {/* Simon 2026-10-07: the screen opens on the plan card the person is on; below it their
+                automatic payment, the refund policy and the plan list, all readable here, with the
+                plans screen one tap away to change. */}
+            <MdCard variant="filled" style={[s.card, s.currentCard]}>
+              <View style={s.planHead}>
+                <Text style={s.eyebrow}>{t("subscription.currentPlan")}</Text>
+                <Text style={s.planPrice}>{planPrice(publicTier)}</Text>
+              </View>
+              <Text style={s.planName}>{tp(`ds.plans.${publicTier}Name`)}</Text>
+              <Text style={s.dim}>{tp(`ds.plans.${publicTier}Sub`)}</Text>
+              <View style={s.feats}>
+                {[1, 2, 3].map((n) => <Text key={n} style={s.row}>{`· ${tp(`ds.plans.${publicTier}Feat${n}`)}`}</Text>)}
+              </View>
               {overview?.judge_comp ? <Text style={s.dim}>{t("subscription.judgeComp")}</Text> : null}
-              {/* The renewal sentence is the one fact a subscriber comes here
-                  for. It says "we will charge you again on X" only while that
-                  is actually true; once a cancellation is booked it flips to
-                  "paid until X, then it stops" and never back on its own. */}
+            </MdCard>
+
+            {notice ? (
+              <MdCard variant="outlined" style={s.card}>
+                <Text style={notice.kind === "ok" ? s.ok : s.warn}>{t(`subscription.notice.${notice.key}`)}</Text>
+                {notice.kind === "warn" ? <Text style={s.dim}>{t("subscription.supportLine", { email: SUPPORT_EMAIL })}</Text> : null}
+              </MdCard>
+            ) : null}
+
+            {/* 자동 결제. The renewal sentence is the one fact a subscriber comes here
+                for. It says "we will charge you again on X" only while that
+                is actually true; once a cancellation is booked it flips to
+                "paid until X, then it stops" and never back on its own. */}
+            <Text style={s.section} accessibilityRole="header">{t("subscription.autoPay.title")}</Text>
+            <MdCard variant="outlined" style={s.card}>
               {renewal === "auto_renew" && renewsAt ? (
                 <Text style={s.row}>{t("subscription.autoRenewOn", { date: renewsAt })}</Text>
               ) : null}
@@ -271,13 +299,6 @@ export default function SubscriptionScreen() {
               {method ? <Text style={s.row}>{t("subscription.paymentMethod", { method })}</Text> : null}
               {!isPaid ? <Text style={s.dim}>{t("subscription.freeBody")}</Text> : null}
             </MdCard>
-
-            {notice ? (
-              <MdCard variant="outlined" style={s.card}>
-                <Text style={notice.kind === "ok" ? s.ok : s.warn}>{t(`subscription.notice.${notice.key}`)}</Text>
-                {notice.kind === "warn" ? <Text style={s.dim}>{t("subscription.supportLine", { email: SUPPORT_EMAIL })}</Text> : null}
-              </MdCard>
-            ) : null}
 
             {/* Cancel. Hidden entirely when there is no Paddle subscription we can
                 address: a store purchase is cancelled in the store, and a button
@@ -317,59 +338,80 @@ export default function SubscriptionScreen() {
               </MdCard>
             ) : null}
 
-            {/* Refund. The verdict and the numbers behind it are always shown -
-                including when the answer is no. */}
-            {eligibility && eligibility.status !== "no_payment" ? (
-              <MdCard variant="outlined" style={s.card}>
-                <Text style={s.sectionTitle}>{t("subscription.refund.title")}</Text>
-                {/* `total` comes from the server, which knows which policy is in
-                    force - 30 days before the revision, 7 after. The sentence used
-                    to hardcode 7 and told a user past day 30 that "7 days have
-                    passed", understating the window they actually had. */}
-                <Text style={s.body}>
-                  {t(`subscription.refund.reason.${reasonKey}`, {
-                    total: eligibility.refund_window_days ?? REFUND_WINDOW_DAYS,
-                  })}
-                </Text>
-                {/* The rule, stated under every verdict: 7 days AND inside the
-                    free-plan allowance. A user refused for usage should be able
-                    to read the condition without leaving the screen. */}
-                <Text style={s.dim}>{t("subscription.refund.currentPolicyNote")}</Text>
+            {/* 환불 정책. The rule is shown to everyone; a payer also sees the verdict
+                and the numbers behind it - including when the answer is no. */}
+            <Text style={s.section} accessibilityRole="header">{t("subscription.policy.title")}</Text>
+            <MdCard variant="outlined" style={s.card}>
+              {/* The rule, stated under every verdict: 7 days AND inside the
+                  free-plan allowance. A user refused for usage should be able
+                  to read the condition without leaving the screen. */}
+              <Text style={s.body}>{t("subscription.refund.currentPolicyNote")}</Text>
+              {eligibility && eligibility.status !== "no_payment" ? (
+                <>
+                  <Text style={s.sectionTitle}>{t("subscription.refund.title")}</Text>
+                  {/* `total` comes from the server, which knows which policy is in
+                      force - 30 days before the revision, 7 after. The sentence used
+                      to hardcode 7 and told a user past day 30 that "7 days have
+                      passed", understating the window they actually had. */}
+                  <Text style={s.body}>
+                    {t(`subscription.refund.reason.${reasonKey}`, {
+                      total: eligibility.refund_window_days ?? REFUND_WINDOW_DAYS,
+                    })}
+                  </Text>
 
-                <View style={s.evidence}>
-                  {daysLeft != null ? (
-                    <Text style={s.dim}>
-                      {t("subscription.refund.window", {
-                        days: daysLeft,
-                        total: eligibility.refund_window_days ?? REFUND_WINDOW_DAYS,
-                      })}
-                    </Text>
-                  ) : null}
-                  {eligibility.free_allowance != null ? (
-                    <Text style={s.dim}>
-                      {t("subscription.refund.usage", {
-                        used: eligibility.counted_usage ?? 0,
-                        allowance: eligibility.free_allowance,
-                      })}
-                    </Text>
-                  ) : null}
-                  {eligibility.reasoning_calls_logged != null ? (
-                    <Text style={s.dim}>
-                      {t("subscription.refund.calls", { calls: eligibility.reasoning_calls_logged })}
-                    </Text>
-                  ) : null}
-                </View>
+                  <View style={s.evidence}>
+                    {daysLeft != null ? (
+                      <Text style={s.dim}>
+                        {t("subscription.refund.window", {
+                          days: daysLeft,
+                          total: eligibility.refund_window_days ?? REFUND_WINDOW_DAYS,
+                        })}
+                      </Text>
+                    ) : null}
+                    {eligibility.free_allowance != null ? (
+                      <Text style={s.dim}>
+                        {t("subscription.refund.usage", {
+                          used: eligibility.counted_usage ?? 0,
+                          allowance: eligibility.free_allowance,
+                        })}
+                      </Text>
+                    ) : null}
+                    {eligibility.reasoning_calls_logged != null ? (
+                      <Text style={s.dim}>
+                        {t("subscription.refund.calls", { calls: eligibility.reasoning_calls_logged })}
+                      </Text>
+                    ) : null}
+                  </View>
 
-                {refundOpen ? (
-                  <MdButton label={t("subscription.refund.cta")} variant="outlined" onPress={() => setSheet("refund")} disabled={busy} />
-                ) : (
-                  <Text style={s.dim}>{t("subscription.supportLine", { email: SUPPORT_EMAIL })}</Text>
-                )}
-              </MdCard>
-            ) : null}
+                  {refundOpen ? (
+                    <MdButton label={t("subscription.refund.cta")} variant="outlined" onPress={() => setSheet("refund")} disabled={busy} />
+                  ) : (
+                    <Text style={s.dim}>{t("subscription.supportLine", { email: SUPPORT_EMAIL })}</Text>
+                  )}
+                </>
+              ) : null}
+              <MdButton label={t("subscription.viewPolicy")} variant="text" onPress={() => router.push("/refund")} />
+            </MdCard>
 
-            <MdButton label={t("subscription.viewPolicy")} variant="text" onPress={() => router.push("/refund")} />
-            <MdButton label={t("subscription.viewPlans")} variant="text" onPress={() => router.push("/plans")} />
+            {/* 요금제. Read-only here; buying or changing happens on /plans, where the
+                terms and the checkout live. */}
+            <Text style={s.section} accessibilityRole="header">{t("subscription.plans.title")}</Text>
+            {PLAN_KEYS.map((key) => {
+              const current = key === publicTier;
+              const soon = key === "pro" && PRO_COMING_SOON;
+              return (
+                <MdCard key={key} variant="outlined" style={current ? [s.card, s.currentCard] : s.card}>
+                  <View style={s.planHead}>
+                    <Text style={s.sectionTitle}>{tp(`ds.plans.${key}Name`)}</Text>
+                    <Text style={s.planPrice}>{planPrice(key)}</Text>
+                  </View>
+                  <Text style={s.dim}>{tp(`ds.plans.${key}Sub`)}</Text>
+                  {current ? <Text style={s.ok}>{t("subscription.currentPlan")}</Text> : null}
+                  {!current && soon ? <Text style={s.dim}>{tp("ds.plans.comingSoon")}</Text> : null}
+                </MdCard>
+              );
+            })}
+            <MdButton label={t("subscription.plans.change")} variant="text" onPress={() => router.push("/plans")} />
           </>
         ) : null}
       </ScrollView>
@@ -441,6 +483,11 @@ const s = StyleSheet.create({
   card: { gap: m3.spacing.s2, padding: m3.spacing.s4 },
   eyebrow: { color: m3.color.onSurfaceVariant, fontSize: 12, letterSpacing: 0.3 },
   planName: { color: m3.color.onSurface, fontSize: 22, lineHeight: 28, fontWeight: "600" },
+  planHead: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "baseline", gap: m3.spacing.s2 },
+  planPrice: { color: m3.color.primary, fontSize: 14, lineHeight: 20, fontWeight: "600" },
+  feats: { gap: 2 },
+  section: { color: m3.color.onSurfaceVariant, fontSize: 13, lineHeight: 18, fontWeight: "600", marginTop: m3.spacing.s2 },
+  currentCard: { borderColor: m3.color.primary },
   sectionTitle: { color: m3.color.onSurface, fontSize: 16, lineHeight: 22, fontWeight: "600" },
   body: { color: m3.color.onSurface, fontSize: 14, lineHeight: 20 },
   row: { color: m3.color.onSurface, fontSize: 14, lineHeight: 20 },

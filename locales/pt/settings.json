@@ -164,6 +164,9 @@
   "resetNDays": "{{n}} dias de uso redefinidos",
   "wipeComplete": "Limpeza total concluída: registros {{r}} · fontes {{s}} · wiki {{w}} · uso {{u}}",
   "subscription": {
+    "autoPay": { "title": "Pagamento automático" },
+    "policy": { "title": "Política de reembolso" },
+    "plans": { "title": "Planos", "change": "Mudar de plano" },
     "title": "Gerenciar assinatura",
     "sectionLabel": "Assinatura",
     "rowLabel": "Gerenciar assinatura",

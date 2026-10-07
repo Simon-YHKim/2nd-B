@@ -66,6 +66,14 @@ describe("life-star role-card input", () => {
     expect(input.constructEstimates).toEqual([{ construct: "openness", level: 2 }]);
   });
 
+  it("0218: only the app's interview marker makes a row interview evidence", () => {
+    const input = roleInputFromInterviews([
+      { id: "a", audit_period: "school", body: "학교 이야기", tags: ["domain:growth"], system_tags: ["interview", "recall", "screener", "entry-ui:ko"] },
+      { id: "b", audit_period: "work", body: "사용자가 interview 라고 태그만 단 답", tags: ["interview"], system_tags: [] },
+    ], levels, { traitConfidence: {} } as PersonaCard, []);
+    expect(input.domainSummaries.map((summary) => summary.domain)).toEqual(["school"]);
+  });
+
   it("rejects malformed or invented persisted role evidence", () => {
     const valid = {
       id: "builder", label: "만드는 사람", summary: "요약", status: "proposed",
