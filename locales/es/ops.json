@@ -429,12 +429,7 @@
       "lookUp": "Buscar alimentos",
       "lookUpNone": "Ningún alimento coincide.",
       "lookUpFailed": "No se pudo buscar. Inténtalo de nuevo.",
-      "saveFailed": "Este cambio no se guardó. Lo que escribiste sigue aquí.",
-      "saveFailedCell": "El cambio de {{day}} {{date}} · {{slot}} no se guardó. Abre esa comida otra vez para reintentarlo; lo que escribiste se conserva.",
-      "changedSinceSet": "Esta comida cambió en otro lugar mientras tanto, así que se muestra lo guardado ahora. No se guardó: {{draft}}",
-      "changedSinceClear": "Esta comida cambió en otro lugar mientras tanto, así que se muestra lo guardado ahora. El vaciado no se guardó.",
-      "useUnsaved": "Usar lo no guardado",
-      "retryClear": "Vaciar de nuevo",
+      "saveFailed": "Este cambio no se guardó. Lo que escribiste sigue aquí. Inténtalo de nuevo.",
       "days": {
         "mon": "Lun",
         "tue": "Mar",

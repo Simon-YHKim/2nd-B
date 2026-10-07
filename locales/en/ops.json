@@ -429,12 +429,7 @@
       "lookUp": "Look up foods",
       "lookUpNone": "No foods matched.",
       "lookUpFailed": "Couldn't look that up. Try again.",
-      "saveFailed": "This change was not saved. What you entered is still here.",
-      "saveFailedCell": "The change to {{day}} {{date}} · {{slot}} was not saved. Open that meal again to retry; what you entered is kept.",
-      "changedSinceSet": "This meal was changed elsewhere meanwhile, so what is saved now is shown. Not saved: {{draft}}",
-      "changedSinceClear": "This meal was changed elsewhere meanwhile, so what is saved now is shown. Clearing it was not saved.",
-      "useUnsaved": "Use the unsaved entry",
-      "retryClear": "Clear again",
+      "saveFailed": "This change was not saved. What you entered is still here. Try again.",
       "days": {
         "mon": "Mon",
         "tue": "Tue",

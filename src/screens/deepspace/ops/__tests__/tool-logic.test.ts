@@ -7,14 +7,9 @@ import {
   bookSearchSettled,
   editorAfterDelete,
   mealClearArmKey,
-  mealFailureAfterWrite,
-  mealFailureDropped,
-  mealFailureInSheet,
-  mealOpening,
-  mealRetry,
   mealSaveAction,
   mealSheetAfterWrite,
-  mealUnsavedDraft,
+  mealSheetDismiss,
   mealWriteLock,
   MILESTONE_NEXT,
   milestoneChip,
@@ -23,7 +18,6 @@ import {
   sheetAfterWrite,
   shelfView,
   tapDelete,
-  type MealWriteFailure,
   type WriteLock,
 } from "../tool-logic";
 import { milestoneOverdue, type MilestoneStatus } from "@/lib/ops/milestones";
@@ -116,251 +110,82 @@ describe("sheetAfterWrite (gate BL-03): a late write closes only its own sheet",
 // Gate S3-01 (2026-10-07): a failed meal write closed the sheet like one that landed, so the
 // draft was gone (reopening filled it from the stored meal), and the error was a screen-wide
 // banner that read as the failure of whatever cell was open by then.
+//
+// Re-aimed 2026-10-07 (simplified): Simon asked for the simple model. The record that kept a
+// failure after its sheet closed and handed its draft back on a later opening is gone, and so
+// are its tests (mealFailureAfterWrite, mealFailureInSheet, mealOpening, mealRetry,
+// mealUnsavedDraft, mealFailureDropped). The sheet cannot be closed while its write runs; a
+// failure keeps the sheet open with the draft and one line; closing the sheet drops both.
 describe("mealSheetAfterWrite (gate S3-01): only a write that landed closes its sheet", () => {
+  const open = (session: number, failed = false) => ({ session, date: "2026-10-05", slot: "lunch", current: "kimbap", failed });
+
   test("done: the sheet it started from closes, a newer one stays", () => {
-    expect(mealSheetAfterWrite({ session: 3 }, 3, "done")).toBeNull();
-    const newer = { session: 4 };
+    expect(mealSheetAfterWrite(open(3), 3, "done")).toBeNull();
+    const newer = open(4);
     expect(mealSheetAfterWrite(newer, 3, "done")).toBe(newer);
+    expect(mealSheetAfterWrite(null, 3, "done")).toBeNull();
   });
-  test("failed: the sheet it started from stays open, as it is", () => {
-    const own = { session: 3, draft: "bibimbap" };
-    expect(mealSheetAfterWrite(own, 3, "failed")).toBe(own);
+  test("a write that lands after an earlier failure still closes the sheet", () => {
+    expect(mealSheetAfterWrite(open(3, true), 3, "done")).toBeNull();
   });
-  test("busy: nothing changes", () => {
-    const own = { session: 3 };
+  test("failed: the sheet it started from stays open, the same opening, marked failed", () => {
+    const own = open(3);
+    expect(mealSheetAfterWrite(own, 3, "failed")).toEqual({ ...own, failed: true });
+    // Nothing else about the opening changes: same session (an armed clear stays its own),
+    // same cell, same stored meal for the next save to compare against.
+    expect(own.failed).toBe(false);
+  });
+  test("failed again: still open and still failed", () => {
+    const once = mealSheetAfterWrite(open(3), 3, "failed");
+    expect(mealSheetAfterWrite(once, 3, "failed")).toEqual({ ...open(3), failed: true });
+  });
+  test("failed: no other opening is marked", () => {
+    const newer = open(4);
+    expect(mealSheetAfterWrite(newer, 3, "failed")).toBe(newer);
+    expect(mealSheetAfterWrite(null, 3, "failed")).toBeNull();
+  });
+  test("busy: nothing changes, an earlier failure included", () => {
+    const own = open(3);
     expect(mealSheetAfterWrite(own, 3, "busy")).toBe(own);
+    const failed = open(3, true);
+    expect(mealSheetAfterWrite(failed, 3, "busy")).toBe(failed);
     expect(mealSheetAfterWrite(null, 3, "busy")).toBeNull();
   });
 });
 
-describe("meal write failures (gate S3-01): tied to the opening and the cell they came from", () => {
-  type Sheet = { session: number; date: string; slot: string; day: string; current: string | null };
-  const sheet = (session: number, date: string, slot: string, current: string | null = null): Sheet => ({
-    session,
-    date,
-    slot,
-    day: "Mon",
-    current,
+describe("mealSheetDismiss (gate S3-01, simplified): the sheet cannot close while its write runs", () => {
+  const open = { session: 3, date: "2026-10-05", slot: "lunch", current: "kimbap", failed: false };
+
+  test("while a write runs, asking to close does nothing", () => {
+    expect(mealSheetDismiss(open, true)).toBe(open);
+    const failed = { ...open, failed: true };
+    expect(mealSheetDismiss(failed, true)).toBe(failed);
   });
-  const monLunch1 = sheet(1, "2026-10-05", "lunch", "kimbap");
-
-  test("a failed write records its opening, its action and the draft it tried", () => {
-    expect(mealFailureAfterWrite(null, monLunch1, "failed", "set", "bibimbap")).toEqual({
-      sheet: monLunch1,
-      action: "set",
-      draft: "bibimbap",
-      // OPSFIX-A1-02: the meal stored when the write was asked, kept for later openings.
-      base: "kimbap",
-      stale: false,
-    });
+  test("with no write running, the sheet closes, a failed one included", () => {
+    expect(mealSheetDismiss(open, false)).toBeNull();
+    expect(mealSheetDismiss({ ...open, failed: true }, false)).toBeNull();
+    expect(mealSheetDismiss(null, false)).toBeNull();
   });
-
-  test("a write that lands clears its own cell's failure only", () => {
-    const failed = mealFailureAfterWrite<Sheet>(null, monLunch1, "failed", "set", "bibimbap");
-    // The same cell, from a later opening: cleared.
-    expect(mealFailureAfterWrite(failed, sheet(2, "2026-10-05", "lunch"), "done", "set", "x")).toBeNull();
-    // Another slot, another day: kept.
-    expect(mealFailureAfterWrite(failed, sheet(2, "2026-10-05", "dinner"), "done", "set", "x")).toBe(failed);
-    expect(mealFailureAfterWrite(failed, sheet(2, "2026-10-06", "lunch"), "done", "set", "x")).toBe(failed);
-    // A refused write changes nothing.
-    expect(mealFailureAfterWrite(failed, monLunch1, "busy", "set", "x")).toBe(failed);
+  test("a whole run: fail, try to close mid-retry, fail again, close: nothing of it is left", () => {
+    let sheet: typeof open | null = open;
+    sheet = mealSheetAfterWrite(sheet, 3, "failed");
+    expect(sheet).toEqual({ ...open, failed: true });
+    // The retry is the same save button; while it runs the backdrop and back do nothing.
+    sheet = mealSheetDismiss(sheet, true);
+    expect(sheet).toEqual({ ...open, failed: true });
+    sheet = mealSheetAfterWrite(sheet, 3, "failed");
+    // Closing is the user's own choice: the sheet, its failure line and its draft go with it.
+    sheet = mealSheetDismiss(sheet, false);
+    expect(sheet).toBeNull();
   });
-
-  test("the sheet shows the failure only on the opening it came from", () => {
-    const failed = mealFailureAfterWrite<Sheet>(null, monLunch1, "failed", "set", "bibimbap");
-    expect(mealFailureInSheet(failed, monLunch1)).toBe(true);
-    // Another cell opened meanwhile: never shown there.
-    expect(mealFailureInSheet(failed, sheet(2, "2026-10-05", "dinner"))).toBe(false);
-    expect(mealFailureInSheet(failed, sheet(2, "2026-10-06", "lunch"))).toBe(false);
-    // The same cell reopened is a new session: it gets the failure only through mealOpening.
-    expect(mealFailureInSheet(failed, sheet(2, "2026-10-05", "lunch"))).toBe(false);
-    // A session number alone is not enough: the cell must match too.
-    expect(mealFailureInSheet(failed, sheet(1, "2026-10-05", "dinner"))).toBe(false);
-    expect(mealFailureInSheet(failed, null)).toBe(false);
-    expect(mealFailureInSheet(null, monLunch1)).toBe(false);
-  });
-
-  test("opening the failed cell again gives back the draft that failed, with the failure", () => {
-    const failed = mealFailureAfterWrite<Sheet>(null, monLunch1, "failed", "set", "bibimbap");
-    const reopened = sheet(5, "2026-10-05", "lunch", "kimbap");
-    const opened = mealOpening(failed, reopened, reopened.current);
-    expect(opened.draft).toBe("bibimbap");
-    expect(opened.failure).toEqual({ sheet: reopened, action: "set", draft: "bibimbap", base: "kimbap", stale: false });
-    expect(mealFailureInSheet(opened.failure, reopened)).toBe(true);
-  });
-
-  test("opening another cell fills from its stored meal and leaves the failure on its own cell", () => {
-    const failed = mealFailureAfterWrite<Sheet>(null, monLunch1, "failed", "set", "bibimbap");
-    const other = sheet(6, "2026-10-05", "dinner", "soup");
-    const opened = mealOpening(failed, other, other.current);
-    expect(opened.draft).toBe("soup");
-    expect(opened.failure).toBe(failed);
-    expect(mealFailureInSheet(opened.failure, other)).toBe(false);
-    expect(mealOpening(null, sheet(7, "2026-10-06", "lunch"), null)).toEqual({ draft: "", failure: null });
-  });
-
-  test("nothing left to save drops that cell's failure, and only that cell's", () => {
-    const failed = mealFailureAfterWrite<Sheet>(null, monLunch1, "failed", "clear", "");
-    expect(mealFailureDropped(failed, sheet(9, "2026-10-05", "lunch"))).toBeNull();
-    expect(mealFailureDropped(failed, sheet(9, "2026-10-05", "dinner"))).toBe(failed);
-    expect(mealFailureDropped(null, monLunch1)).toBeNull();
-  });
-
-  // The screen's sequence, step by step through the same functions it calls.
-  test("closing the sheet mid-write and opening another cell: the failure stays with the first cell", () => {
-    // The user typed "bibimbap" into Mon lunch (opening 1) and saved, then closed that sheet
-    // and opened Mon dinner (opening 2) before the save answered. Now the save fails.
-    const dinner = sheet(2, "2026-10-05", "dinner", "soup");
-    const none: MealWriteFailure<Sheet> | null = null;
-    const kept = mealFailureAfterWrite(none, monLunch1, "failed", "set", "bibimbap");
-    const open = mealSheetAfterWrite<Sheet>(dinner, monLunch1.session, "failed");
-    expect(open).toBe(dinner); // dinner's sheet is untouched
-    expect(mealFailureInSheet(kept, open)).toBe(false); // and does not show lunch's failure
-    expect(kept?.sheet.slot).toBe("lunch"); // the screen names Mon lunch instead
-    // Reopening Mon lunch brings the draft back, with the failure and its retry.
-    const lunchAgain = sheet(3, "2026-10-05", "lunch", "kimbap");
-    const opened = mealOpening(kept, lunchAgain, lunchAgain.current);
-    expect(opened.draft).toBe("bibimbap");
-    expect(mealFailureInSheet(opened.failure, lunchAgain)).toBe(true);
-    // The retry lands: that sheet closes and the failure is gone.
-    expect(mealSheetAfterWrite(lunchAgain, lunchAgain.session, "done")).toBeNull();
-    expect(mealFailureAfterWrite(opened.failure, lunchAgain, "done", "set", "bibimbap")).toBeNull();
-  });
-});
-
-// Gate OPSFIX-A1-02 (2026-10-07): reopening a failed cell filled in the old draft whatever the
-// cell held now. If another screen saved the cell meanwhile and the week was read again, the
-// retry wrote the old draft over the newer meal, or deleted it if the failure was a clear.
-describe("mealOpening (gate OPSFIX-A1-02): a cell changed elsewhere opens on what is saved now", () => {
-  type Sheet = { session: number; date: string; slot: string; day: string; current: string | null };
-  const sheet = (session: number, current: string | null): Sheet => ({ session, date: "2026-10-05", slot: "lunch", day: "Mon", current });
-  const failedSet = () => mealFailureAfterWrite<Sheet>(null, sheet(1, "kimbap"), "failed", "set", "bibimbap");
-  const failedClear = () => mealFailureAfterWrite<Sheet>(null, sheet(1, "kimbap"), "failed", "clear", "");
-
-  test("the gate's repro: kimbap -> bibimbap failed here, noodles saved elsewhere, reopen", () => {
-    const reopened = sheet(4, "noodles");
-    const opened = mealOpening(failedSet(), reopened, reopened.current);
-    // The input holds what is saved now, not the old draft.
-    expect(opened.draft).toBe("noodles");
-    expect(opened.failure).toEqual({ sheet: reopened, action: "set", draft: "bibimbap", base: "kimbap", stale: true });
-    // It is still shown in this opening, but there is nothing to retry...
-    expect(mealFailureInSheet(opened.failure, reopened)).toBe(true);
-    expect(mealRetry(opened.failure, reopened, opened.draft)).toBeNull();
-    // ...not even once the old draft is typed back in: writing it over noodles is a plain save.
-    expect(mealRetry(opened.failure, reopened, "bibimbap")).toBeNull();
-    // The failed draft is offered back separately, and taking it only fills the input.
-    expect(mealUnsavedDraft(opened.failure, reopened, opened.draft)).toBe("bibimbap");
-    expect(mealUnsavedDraft(opened.failure, reopened, "bibimbap")).toBeNull();
-    // The plain save then sees noodles -> bibimbap: an explicit overwrite, decided by the user.
-    expect(mealSaveAction("bibimbap", reopened.current)).toBe("set");
-  });
-
-  test("a failed clear never clears the newer meal on its own", () => {
-    const reopened = sheet(4, "noodles");
-    const opened = mealOpening(failedClear(), reopened, reopened.current);
-    expect(opened.draft).toBe("noodles");
-    expect(opened.failure?.stale).toBe(true);
-    expect(mealRetry(opened.failure, reopened, opened.draft)).toBeNull();
-    expect(mealRetry(opened.failure, reopened, "")).toBeNull();
-    // A clear has no draft to offer back; clearing noodles takes the sheet's two-tap clear.
-    expect(mealUnsavedDraft(opened.failure, reopened, opened.draft)).toBeNull();
-  });
-
-  test("a cell emptied elsewhere after a failed save: the draft is offered, not written", () => {
-    const reopened = sheet(4, null);
-    const opened = mealOpening(failedSet(), reopened, reopened.current);
-    expect(opened.draft).toBe("");
-    expect(opened.failure?.stale).toBe(true);
-    expect(mealRetry(opened.failure, reopened, opened.draft)).toBeNull();
-    expect(mealUnsavedDraft(opened.failure, reopened, opened.draft)).toBe("bibimbap");
-  });
-
-  test("the cell already holds what the failed write wanted: nothing is left to do", () => {
-    // The save landed after all (or was made elsewhere): no failure, the stored meal shows.
-    expect(mealOpening(failedSet(), sheet(4, "bibimbap"), "bibimbap")).toEqual({ draft: "bibimbap", failure: null });
-    // The clear landed after all (or the cell was emptied elsewhere).
-    expect(mealOpening(failedClear(), sheet(4, null), null)).toEqual({ draft: "", failure: null });
-  });
-
-  test("the cell still holds its base: the failed draft comes back with its retry", () => {
-    const reopened = sheet(4, "kimbap");
-    const opened = mealOpening(failedSet(), reopened, reopened.current);
-    expect(opened.draft).toBe("bibimbap");
-    expect(opened.failure?.stale).toBe(false);
-    expect(mealRetry(opened.failure, reopened, opened.draft)).toEqual({ action: "set", title: "bibimbap" });
-    expect(mealUnsavedDraft(opened.failure, reopened, opened.draft)).toBeNull();
-  });
-
-  test("once stale, a failure stays stale, and keeps its first base", () => {
-    const first = mealOpening(failedSet(), sheet(4, "noodles"), "noodles").failure;
-    // Changed back to the base elsewhere: still not retried, the user decides again.
-    const again = mealOpening(first, sheet(5, "kimbap"), "kimbap");
-    expect(again.draft).toBe("kimbap");
-    expect(again.failure).toEqual({ sheet: sheet(5, "kimbap"), action: "set", draft: "bibimbap", base: "kimbap", stale: true });
-    expect(mealRetry(again.failure, sheet(5, "kimbap"), "bibimbap")).toBeNull();
-  });
-
-  test("a save that fails again from a stale opening starts a fresh failure on what it saw", () => {
-    const reopened = sheet(4, "noodles");
-    const opened = mealOpening(failedSet(), reopened, reopened.current);
-    const fresh = mealFailureAfterWrite(opened.failure, reopened, "failed", "set", "bibimbap");
-    expect(fresh).toEqual({ sheet: reopened, action: "set", draft: "bibimbap", base: "noodles", stale: false });
-    expect(mealRetry(fresh, reopened, "bibimbap")).toEqual({ action: "set", title: "bibimbap" });
-  });
-});
-
-// Gate OPSFIX-A1-03 (2026-10-07): the sheet's retry repeated a failed clear whatever the draft
-// had become, and re-read a failed save from the current draft, so editing the draft turned
-// the retry into a different write (a save into a clear, or into a silent close).
-describe("mealRetry (gate OPSFIX-A1-03): the retry repeats only the write that failed", () => {
-  type Sheet = { session: number; date: string; slot: string; day: string; current: string | null };
-  const open = (current: string | null): Sheet => ({ session: 1, date: "2026-10-05", slot: "lunch", day: "Mon", current });
-
-  test("repro 1: a failed clear, then a new meal typed: no clear retry, the save saves it", () => {
-    const sheetNow = open("kimbap");
-    const failed = mealFailureAfterWrite<Sheet>(null, sheetNow, "failed", "clear", "");
-    // Unchanged draft: the retry is the clear, and says so (the screen labels it "clear again").
-    expect(mealRetry(failed, sheetNow, "")).toEqual({ action: "clear" });
-    // Draft edited to a new meal: no retry, so no DELETE that would close the sheet over it.
-    expect(mealRetry(failed, sheetNow, "noodles")).toBeNull();
-    expect(mealSaveAction("noodles", sheetNow.current)).toBe("set");
-  });
-
-  test("a two-tap clear asked with a typed draft retries as a clear only on that same draft", () => {
-    const sheetNow = open("kimbap");
-    const failed = mealFailureAfterWrite<Sheet>(null, sheetNow, "failed", "clear", "noodles");
-    expect(mealRetry(failed, sheetNow, "noodles")).toEqual({ action: "clear" });
-    expect(mealRetry(failed, sheetNow, "noodles2")).toBeNull();
-  });
-
-  test("repro 2: a failed save, then the draft emptied: no retry, it never becomes a clear", () => {
-    const sheetNow = open("kimbap");
-    const failed = mealFailureAfterWrite<Sheet>(null, sheetNow, "failed", "set", "bibimbap");
-    expect(mealRetry(failed, sheetNow, "bibimbap")).toEqual({ action: "set", title: "bibimbap" });
-    expect(mealRetry(failed, sheetNow, "")).toBeNull();
-    expect(mealRetry(failed, sheetNow, "noodles")).toBeNull();
-  });
-
-  test("repro 2 on an empty cell: emptying the draft offers no retry (no silent drop and close)", () => {
-    const sheetNow = open(null);
-    const failed = mealFailureAfterWrite<Sheet>(null, sheetNow, "failed", "set", "bibimbap");
-    expect(mealRetry(failed, sheetNow, "")).toBeNull();
-  });
-
-  test("the retry writes the draft that failed, as it was trimmed for the save", () => {
-    const sheetNow = open("kimbap");
-    const failed = mealFailureAfterWrite<Sheet>(null, sheetNow, "failed", "set", "  bibimbap ");
-    expect(mealRetry(failed, sheetNow, "bibimbap")).toEqual({ action: "set", title: "bibimbap" });
-  });
-
-  test("no retry in any other opening, nor without a failure", () => {
-    const failed = mealFailureAfterWrite<Sheet>(null, open("kimbap"), "failed", "set", "bibimbap");
-    expect(mealRetry(failed, { ...open("kimbap"), session: 2 }, "bibimbap")).toBeNull();
-    expect(mealRetry(failed, { ...open("kimbap"), slot: "dinner" }, "bibimbap")).toBeNull();
-    expect(mealRetry(failed, null, "bibimbap")).toBeNull();
-    expect(mealRetry(null, open("kimbap"), "bibimbap")).toBeNull();
-    // A failed draft is offered back only for a stale failure.
-    expect(mealUnsavedDraft(failed, open("kimbap"), "")).toBeNull();
+  test("a retry is the plain save: the draft as it stands then is what gets written", () => {
+    // A failed save of "bibimbap", then the draft edited to "noodles": the save writes noodles.
+    expect(mealSaveAction("noodles", "kimbap")).toBe("set");
+    // A failed save, then the draft emptied: the save clears the cell, as the sheet shows.
+    expect(mealSaveAction("", "kimbap")).toBe("clear");
+    // A failed two-tap clear with the stored meal still in the input: the save writes nothing
+    // and closes, and the cell keeps the meal the input shows.
+    expect(mealSaveAction("kimbap", "kimbap")).toBe("close");
   });
 });
 
