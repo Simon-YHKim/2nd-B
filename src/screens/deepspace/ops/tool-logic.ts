@@ -13,6 +13,9 @@
 //   mealWriteLock    BL-03 (gate r3)  that lock is per cell and module-wide, not per screen
 //   pageWriteLock    BL-09 (gate)     the same, for one book's page count
 //   sheetAfterWrite  BL-03 / BL-09    a late write closes only the sheet or editor it started from
+//   mealSheetAfterWrite, mealSheetDismiss
+//                    S3-01 (gate)     a failed meal write keeps its sheet open, with its draft and one
+//                                     line; the sheet cannot be closed while its write runs
 //   editorAfterDelete CD-R1-01        a goal's delete closes only that goal's editor
 //   bookSearch*      R2C-02           a failed book search says so
 //   shelfView        R2C-08           finished books and every book being read are shown
@@ -122,6 +125,50 @@ export function mealClearArmKey(sheet: MealSheetRef): string {
  */
 export function sheetAfterWrite<T extends { session: number }>(open: T | null, startedIn: number): T | null {
   return open !== null && open.session === startedIn ? null : open;
+}
+
+// --- a meal write that failed (gate S3-01, simplified 2026-10-07) ---------------------
+//
+// A failed save or clear used to close the sheet just like one that landed, so the draft was
+// gone (reopening filled it from the stored meal), and the error went to a banner over the
+// whole screen that read as the failure of whatever cell was open by then.
+//
+// Simon (2026-10-07): keep it simple. The sheet cannot be closed while its write runs
+// (mealSheetDismiss). A write that landed closes it. A failed one keeps it open with the draft
+// as typed and one line saying so (mealSheetAfterWrite). The user saves again with the same
+// button, which reads the draft as it stands then, or closes the sheet, which drops the draft
+// and the line. Nothing about the failure outlives the sheet: no record kept after it closes,
+// no banner on the screen, no draft handed back on the next opening.
+//
+// Gate OPSFIX-A3-01 (2026-10-07): a confirmed two-tap clear empties the draft once it holds the
+// cell's lock, so a failed clear leaves an empty draft and the same save button clears again
+// (mealSaveAction("", stored meal) is "clear"). It used to leave the stored meal in the input,
+// and the save read that as unchanged and closed the sheet without trying the clear again.
+
+/** One opening of the meal sheet, and whether its last write failed. */
+export interface MealSheetState extends MealSheetRef {
+  failed: boolean;
+}
+
+/**
+ * The sheet once a meal write settles. A write that landed closes the opening it started from
+ * (sheetAfterWrite). A failed one keeps that opening and marks it failed, so the sheet says so
+ * while the draft stays as typed. A refused one ("busy") changes nothing.
+ */
+export function mealSheetAfterWrite<T extends MealSheetState>(open: T | null, startedIn: number, outcome: ExclusiveOutcome): T | null {
+  if (outcome === "done") return sheetAfterWrite(open, startedIn);
+  if (outcome === "failed" && open !== null && open.session === startedIn) return { ...open, failed: true };
+  return open;
+}
+
+/**
+ * The sheet once the user asks to close it (the backdrop, the hardware back, Escape on the
+ * web): closed, which drops its draft and its failure line, unless a write from it is still
+ * running. Then the ask does nothing, so the write always settles on the sheet it started
+ * from, and no other cell can be opened under it meanwhile.
+ */
+export function mealSheetDismiss<T>(open: T | null, writing: boolean): T | null {
+  return writing ? open : null;
 }
 
 /**

@@ -579,7 +579,8 @@
       "emptyTitle": "Belum ada pengeluaran bulan ini",
       "emptyBody": "Tulis jumlah di atas dan akan dikelompokkan per kategori di sini.",
       "currencyNote": "Jumlah dicatat dalam won (KRW).",
-      "amountTooLarge": "Jumlah itu terlalu besar. Satu catatan bisa memuat hingga {{max}} won."
+      "amountTooLarge": "Jumlah itu terlalu besar. Satu catatan bisa memuat hingga {{max}} won.",
+      "amountInvalid": "Tulis won bulat, misalnya 12000, 12,000, ₩12,000, atau 12,000원. Tanda dan desimal tidak diterima."
     },
     "meals": {
       "sheetSubtitle": "{{day}} {{date}} · {{slot}}",
@@ -588,6 +589,7 @@
       "lookUp": "Cari makanan",
       "lookUpNone": "Tidak ada makanan yang cocok.",
       "lookUpFailed": "Tidak bisa mencari. Coba lagi.",
+      "saveFailed": "Perubahan ini belum tersimpan. Isian Anda masih ada di sini. Coba lagi.",
       "days": {
         "mon": "Sen",
         "tue": "Sel",
