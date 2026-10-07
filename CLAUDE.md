@@ -885,6 +885,15 @@ PR을 열기 전과 마이그레이션 번호를 잡기 전에 origin/main의 DE
 > 반대로 만들었다. 저장소 규칙에 두면 모든 세션이 같은 것을 읽는다. 읽기: `git fetch origin` 뒤
 > `git show origin/main:DECISIONS.md | tail -30`(Git Bash 는 `MSYS_NO_PATHCONV=1` 을 앞에 붙인다).
 
+## 운영 게시 · 적용 중 표시 (Simon 2026-10-07)
+
+운영 게시(웹 publish · QA APK)나 운영 마이그레이션 적용을 시작하면 `_sync/TO-CLI.md` 에 시작 시각과 함께
+"게시 중"(또는 "적용 중")을 올리고, 끝나면 "완료" 로 내린다. 다른 세션은 그 사이 main 머지를 멈춘다.
+
+> 이유: 2026-10-07 웹 게시가 세 번 "main moved during the build" 로 멈췄다 — 게시 워크플로는 빌드하는 동안
+> main 이 움직이면 승인 전에 스스로 멈춘다. 우편함으로 머지를 미뤄 달라고 한 네 번째에 성공했다.
+> 그 방식을 규칙으로 굳힌 것이다(DECISIONS 26.10.07 11:07 보충).
+
 ## What never to do in this repo
 
 - Commit `.env`. (gitignored — verify before staging.)

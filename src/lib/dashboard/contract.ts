@@ -135,6 +135,10 @@ export const NEVER_TO_LLM: readonly SeatInputField[] = [
   "notification.raw",
   "mail.raw",
   "otp",
+  // RD-261007-11 = B (Simon 2026-10-07): the preview is the start of a mail or
+  // notification body, so it stays out of every seat until the W2 research shows
+  // inbox_triage needs it; then Simon decides whether to open it (option A).
+  "inboxCandidate.preview200",
 ];
 
 export const SEAT_INPUT_ALLOWLIST: Readonly<Record<BoardSeat, readonly SeatInputField[]>> = {
@@ -142,8 +146,8 @@ export const SEAT_INPUT_ALLOWLIST: Readonly<Record<BoardSeat, readonly SeatInput
   // inputs for daily_note and day_summary; the 02:42 hold applies to interviews only.
   daily_note: ["schedule", "reminders", "routineCompletion", "weather", "recordExcerpts"],
   day_summary: ["schedule", "reminders", "routineCompletion", "weather", "recordExcerpts"],
-  // Top five candidates, three fields, preview cut at 200 characters, untrusted fence.
-  inbox_triage: ["inboxCandidate.sender", "inboxCandidate.title", "inboxCandidate.preview200"],
+  // Top five candidates, sender and title only, untrusted fence (RD-261007-11 = B).
+  inbox_triage: ["inboxCandidate.sender", "inboxCandidate.title"],
 };
 
 /** Inputs that need the Q13 record-use consent on top of the general LLM consent. */
@@ -389,7 +393,6 @@ export const DAY_SUMMARY_LIMITS = {
 } as const;
 export const INBOX_TRIAGE_LIMITS = {
   candidates: dashboardParam("dash.P-04", "triageCandidates"),
-  previewChars: dashboardParam("dash.P-04", "previewChars"),
 } as const;
 
 /** Schema checks for seat output. A problem list, empty when the output is usable. */
