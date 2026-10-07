@@ -431,6 +431,10 @@
       "lookUpFailed": "Tidak bisa mencari. Coba lagi.",
       "saveFailed": "Perubahan ini belum tersimpan. Isian Anda masih ada di sini.",
       "saveFailedCell": "Perubahan {{day}} {{date}} · {{slot}} belum tersimpan. Buka lagi makanan itu untuk mencoba lagi; isian Anda tetap ada.",
+      "changedSinceSet": "Makanan ini diubah di tempat lain sementara itu, jadi yang tampil adalah yang tersimpan sekarang. Belum tersimpan: {{draft}}",
+      "changedSinceClear": "Makanan ini diubah di tempat lain sementara itu, jadi yang tampil adalah yang tersimpan sekarang. Pengosongan belum tersimpan.",
+      "useUnsaved": "Pakai isian yang belum tersimpan",
+      "retryClear": "Kosongkan lagi",
       "days": {
         "mon": "Sen",
         "tue": "Sel",

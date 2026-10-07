@@ -89,8 +89,12 @@ describe("no silent save failures in the ops screens", () => {
     // The meal writer records every failure, and both places that show one are rendered.
     const writeMeal = src.slice(src.indexOf("const writeMeal"), src.indexOf("const saveCell"));
     expect(writeMeal).toContain("setMealErr((kept) => mealFailureAfterWrite(kept, sheet, outcome, action, draftAsked));");
-    expect(src).toContain("{sheetFailed ? (");
-    expect(src).toContain('{t("toolScreens.meals.saveFailed")}');
+    // Re-aimed 2026-10-07 (gate OPSFIX-A1-02): the sheet's message is the failure, or, if the
+    // cell changed elsewhere since, says so; both are rendered in the same row.
+    expect(src).toContain("{sheetFailed && mealErr ? (");
+    expect(src).toContain('? t("toolScreens.meals.saveFailed")');
+    expect(src).toContain('? t("toolScreens.meals.changedSinceClear")');
+    expect(src).toContain(': t("toolScreens.meals.changedSinceSet", { draft: mealErr.draft.trim() })}');
     expect(src).toContain("{otherCellFailed ? (");
     expect(src).toContain('text={t("toolScreens.meals.saveFailedCell", {');
   });

@@ -431,6 +431,10 @@
       "lookUpFailed": "Não foi possível buscar. Tente de novo.",
       "saveFailed": "Esta alteração não foi salva. O que você digitou continua aqui.",
       "saveFailedCell": "A alteração de {{day}} {{date}} · {{slot}} não foi salva. Abra essa refeição de novo para tentar outra vez; o que você digitou foi mantido.",
+      "changedSinceSet": "Esta refeição mudou em outro lugar nesse meio-tempo, então é mostrado o que está salvo agora. Não foi salvo: {{draft}}",
+      "changedSinceClear": "Esta refeição mudou em outro lugar nesse meio-tempo, então é mostrado o que está salvo agora. A limpeza não foi salva.",
+      "useUnsaved": "Usar o que não foi salvo",
+      "retryClear": "Limpar de novo",
       "days": {
         "mon": "Seg",
         "tue": "Ter",

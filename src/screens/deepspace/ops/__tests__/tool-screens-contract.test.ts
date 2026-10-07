@@ -219,7 +219,8 @@ describe("gate BL-02 / BL-03: the meal sheet's clear and save", () => {
     expect(meals).not.toContain("mealLock");
     // The lock-holding writer is the only place a meal write is awaited.
     expect(meals.match(/await (setMeal|clearMeal)\(/g) ?? []).toEqual([]);
-    // 2 -> 3 on 2026-10-07 (gate S3-01): the sheet's retry of a failed clear is the third.
+    // 2 -> 3 on 2026-10-07 (gate S3-01): the sheet's retry is the third. Since OPSFIX-A1-03
+    // it writes the failed clear or the failed save itself, still only through writeMeal.
     expect(meals.match(/writeMeal\(sheet, /g)?.length).toBe(3);
   });
 
@@ -290,18 +291,47 @@ describe("gate S3-01: a failed meal write keeps its sheet, its draft and a retry
 
   test("the sheet shows the failure, with a retry, only on the opening it came from", () => {
     expect(meals).toContain("const sheetFailed = !mealWriting && mealFailureInSheet(mealErr, pending);");
-    expect(sheetBody).toMatch(/\{sheetFailed \? \(\n\s*<View style=\{styles\.mealErrRow\}>/);
-    expect(sheetBody).toContain('{t("toolScreens.meals.saveFailed")}');
+    expect(sheetBody).toMatch(/\{sheetFailed && mealErr \? \(\n\s*<View style=\{styles\.mealErrRow\}>/);
+    expect(sheetBody).toContain('? t("toolScreens.meals.saveFailed")');
     expect(sheetBody).toContain('<Pressable accessibilityRole="button" onPress={() => void retryMeal()}');
-    expect(sheetBody).toContain("{c.retry}");
     // ...and not on the screen behind it.
     expect(beforeModal).not.toContain("toolScreens.meals.saveFailed\"");
   });
 
-  test("the retry repeats what failed: a clear clears again, a save saves the draft", () => {
-    expect(retry).toContain("if (!userId || pending === null || mealErr === null || !mealFailureInSheet(mealErr, pending)) return;");
-    expect(retry).toContain('if (mealErr.action === "clear") await writeMeal(sheet, "clear", () => clearMeal(userId, sheet.date, sheet.slot));');
-    expect(retry).toContain("else await saveCell();");
+  // Gate OPSFIX-A1-03: the retry used to repeat a failed clear over an edited draft, and to
+  // re-read a failed save from the edited draft (D8-4 only pinned the branch strings).
+  test("OPSFIX-A1-03: the retry is mealRetry's, shown only when there is one, and labels a clear", () => {
+    expect(meals).toContain("const mealRetryNow = mealRetry(mealErr, pending, draft);");
+    // The handler asks again at the tap, and writes exactly the failed write through writeMeal.
+    expect(retry).toContain("const again = mealRetry(mealErr, pending, draft);");
+    expect(retry).toContain("if (again === null) return;");
+    expect(retry).toMatch(
+      /await writeMeal\(sheet, again\.action, \(\) =>\n\s*again\.action === "clear" \? clearMeal\(userId, sheet\.date, sheet\.slot\) : setMeal\(userId, sheet\.date, sheet\.slot, again\.title\),/,
+    );
+    // It never re-reads the current draft through saveCell (that turned a save into a clear).
+    expect(retry).not.toContain("saveCell");
+    expect(retry).not.toContain("mealErr.action");
+    // The retry button exists only when mealRetry offers one, and a clear's says it clears.
+    expect(sheetBody).toMatch(/\{mealRetryNow \? \(\n\s*<Pressable accessibilityRole="button" onPress=\{\(\) => void retryMeal\(\)\}/);
+    expect(sheetBody).toContain('{mealRetryNow.action === "clear" ? t("toolScreens.meals.retryClear") : c.retry}');
+    expect(sheetBody.match(/onPress=\{\(\) => void retryMeal\(\)\}/g)?.length).toBe(1);
+  });
+
+  // Gate OPSFIX-A1-02: a cell changed elsewhere since its write failed reopened with the old
+  // draft and a retry that wrote it over the newer meal (or deleted it, for a clear).
+  test("OPSFIX-A1-02: a stale failure says the cell changed and only offers the failed draft back", () => {
+    expect(sheetBody).toMatch(
+      /\{!mealErr\.stale\n\s*\? t\("toolScreens\.meals\.saveFailed"\)\n\s*: mealErr\.action === "clear"\n\s*\? t\("toolScreens\.meals\.changedSinceClear"\)\n\s*: t\("toolScreens\.meals\.changedSinceSet", \{ draft: mealErr\.draft\.trim\(\) \}\)\}/,
+    );
+    expect(meals).toContain("const mealUnsaved = mealUnsavedDraft(mealErr, pending, draft);");
+    // Taking the offer fills the input and writes nothing; saving it is the plain save.
+    expect(sheetBody).toMatch(/\{mealUnsaved !== null \? \(\n\s*<Pressable accessibilityRole="button" onPress=\{\(\) => setDraft\(mealUnsaved\)\}/);
+    expect(sheetBody).toContain('{t("toolScreens.meals.useUnsaved")}');
+  });
+
+  test.each(LOCALES)("OPSFIX-A1-02: %s names the unsaved draft in the changed-cell message", (l) => {
+    expect(lookup(bundles[l], "toolScreens.meals.changedSinceSet")).toEqual(expect.stringContaining("{{draft}}"));
+    expect(lookup(bundles[l], "toolScreens.meals.changedSinceClear")).toEqual(expect.not.stringContaining("{{draft}}"));
   });
 
   test("a failure whose sheet is gone is named by its own cell on the screen, never in another sheet", () => {

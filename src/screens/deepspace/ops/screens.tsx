@@ -102,8 +102,10 @@ import {
   mealFailureDropped,
   mealFailureInSheet,
   mealOpening,
+  mealRetry,
   mealSaveAction,
   mealSheetAfterWrite,
+  mealUnsavedDraft,
   mealWriteLock,
   MILESTONE_NEXT,
   milestoneChip,
@@ -1575,14 +1577,24 @@ export function MealsScreen() {
   });
   const clearArmed = pending !== null && clearArm.armedId === mealClearArmKey(pending);
 
-  // Gate S3-01: the sheet's retry repeats what failed. A failed clear clears again (the user
-  // already confirmed it with two taps); a failed save saves the draft as it is now.
+  // Gate S3-01: the sheet's retry repeats what failed. Gate OPSFIX-A1-03: exactly that write,
+  // and only while the draft is still the one it was asked with (mealRetry). A failed clear
+  // used to clear again over a new draft, and a failed save re-read the edited draft, so an
+  // emptied one became a clear or a silent close. A clear's retry says it clears. Once the
+  // draft is edited there is no retry; the plain save saves the new draft.
+  const mealRetryNow = mealRetry(mealErr, pending, draft);
   const retryMeal = async () => {
-    if (!userId || pending === null || mealErr === null || !mealFailureInSheet(mealErr, pending)) return;
+    if (!userId || pending === null) return;
+    const again = mealRetry(mealErr, pending, draft);
+    if (again === null) return;
     const sheet = pending;
-    if (mealErr.action === "clear") await writeMeal(sheet, "clear", () => clearMeal(userId, sheet.date, sheet.slot));
-    else await saveCell();
+    await writeMeal(sheet, again.action, () =>
+      again.action === "clear" ? clearMeal(userId, sheet.date, sheet.slot) : setMeal(userId, sheet.date, sheet.slot, again.title),
+    );
   };
+  // Gate OPSFIX-A1-02: the cell changed elsewhere since its write failed. The input holds
+  // what is saved now; the draft that failed is only offered back, never written by itself.
+  const mealUnsaved = mealUnsavedDraft(mealErr, pending, draft);
   const sheetFailed = !mealWriting && mealFailureInSheet(mealErr, pending);
   // A failure whose sheet is closed, or a sheet opened on another cell meanwhile: the screen
   // names the cell. Opening that cell again gives the draft back (mealOpening).
@@ -1711,15 +1723,31 @@ export function MealsScreen() {
             </Text>
           ) : null}
           {/* Gate S3-01: a failed write keeps this sheet and its draft, and says so here, on
-              the opening it came from, with a retry. Hidden while a write runs. */}
-          {sheetFailed ? (
+              the opening it came from, with a retry. Hidden while a write runs.
+              OPSFIX-A1-02: if the cell changed elsewhere since, it says so instead, the input
+              holds what is saved now, and a failed save's draft is only offered back.
+              OPSFIX-A1-03: the retry shows only while the draft is the one that failed. */}
+          {sheetFailed && mealErr ? (
             <View style={styles.mealErrRow}>
               <Text variant="caption" style={[styles.saveErrText, styles.mealErrText]} accessibilityRole="alert" accessibilityLiveRegion="polite">
-                {t("toolScreens.meals.saveFailed")}
+                {!mealErr.stale
+                  ? t("toolScreens.meals.saveFailed")
+                  : mealErr.action === "clear"
+                    ? t("toolScreens.meals.changedSinceClear")
+                    : t("toolScreens.meals.changedSinceSet", { draft: mealErr.draft.trim() })}
               </Text>
-              <Pressable accessibilityRole="button" onPress={() => void retryMeal()} hitSlop={6} style={styles.ideaChip}>
-                <Text variant="body" style={styles.ideaChipText}>{c.retry}</Text>
-              </Pressable>
+              {mealRetryNow ? (
+                <Pressable accessibilityRole="button" onPress={() => void retryMeal()} hitSlop={6} style={styles.ideaChip}>
+                  <Text variant="body" style={styles.ideaChipText}>
+                    {mealRetryNow.action === "clear" ? t("toolScreens.meals.retryClear") : c.retry}
+                  </Text>
+                </Pressable>
+              ) : null}
+              {mealUnsaved !== null ? (
+                <Pressable accessibilityRole="button" onPress={() => setDraft(mealUnsaved)} hitSlop={6} style={styles.ideaChip}>
+                  <Text variant="body" style={styles.ideaChipText}>{t("toolScreens.meals.useUnsaved")}</Text>
+                </Pressable>
+              ) : null}
             </View>
           ) : null}
           {pending?.current ? (
