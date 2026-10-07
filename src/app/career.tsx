@@ -6,7 +6,7 @@
 // three-box version (성과 / 역할 / 임팩트 + 연도) that was a reduction of the spec in
 // sb-careerinput.jsx; the full seven-section form replaced it rather than sitting
 // beside it, because two ways to enter the same thing is how one of them rots.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -15,8 +15,10 @@ import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard } from "@/components/m3";
+import { createLatestWins } from "@/lib/async/latest-wins";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { withSystemTagsColumn } from "@/lib/records/system-tags";
 import { deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import {
@@ -37,17 +39,24 @@ import {
 const carAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.surfaceContainerLow);
 
 async function listCareerRecords(userId: string): Promise<CareerRecordRow[]> {
-  const { data, error } = await getSupabaseClient()
-    .from("records")
-    .select("id, kind, topic, body, tags, created_at")
-    .eq("user_id", userId)
-    // ANY of the tags, not all: an achievement an older build filed under
-    // domain:collect still carries career_achievement (QA R2C-01).
-    .overlaps("tags", [...CAREER_TIMELINE_TAGS])
-    .order("created_at", { ascending: false })
-    .limit(500);
+  // system_tags (0218) carries the recall interview's markers, which
+  // careerRecordOrigin reads to label an entry as an interview. Without the
+  // column the rows come back the pre-0218 way (markers in `tags`).
+  const { data, error } = await withSystemTagsColumn((columnPresent) =>
+    getSupabaseClient()
+      .from("records")
+      .select(columnPresent ? "id, kind, topic, body, tags, system_tags, created_at" : "id, kind, topic, body, tags, created_at")
+      .eq("user_id", userId)
+      // ANY of the tags, not all: an achievement an older build filed under
+      // domain:collect still carries career_achievement (QA R2C-01).
+      .overlaps("tags", [...CAREER_TIMELINE_TAGS])
+      .order("created_at", { ascending: false })
+      .limit(500),
+  );
   if (error) throw error;
-  return (data ?? []) as CareerRecordRow[];
+  // The select string is chosen at run time, so supabase-js cannot type the row
+  // from it; name the row type here.
+  return (data ?? []) as unknown as CareerRecordRow[];
 }
 
 // 사이드 트랙의 공식 이력 칩. 문구는 deepspace career.credentials.* 에 다섯 언어로 있다
@@ -57,33 +66,6 @@ const CREDENTIAL_KEYS = ["education", "military", "awards", "licenses", "experie
 export default function CareerTimelineScreen() {
   const { t } = useTranslation("deepspace");
   const { userId, loading } = useAuth();
-  const { width } = useWindowDimensions();
-  const narrow = width < 600;
-
-  const [rows, setRows] = useState<CareerRecordRow[] | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
-  // 쌓아온 길 track (rev2 11-star): 메인 = real achievements, 사이드 = official records.
-  const [track, setTrack] = useState<"main" | "side">("main");
-
-  const refresh = useCallback(() => {
-    if (!userId) return;
-    listCareerRecords(userId)
-      .then((r) => {
-        setRows(r);
-        setLoadFailed(false);
-      })
-      .catch((e) => {
-        console.warn("[career] list failed", (e as Error).message);
-        setRows([]);
-        setLoadFailed(true);
-      });
-  }, [userId]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const groups = useMemo(() => groupCareerTimeline(rows ?? []), [rows]);
 
   if (loading) {
     return (
@@ -95,6 +77,53 @@ export default function CareerTimelineScreen() {
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
+
+  // One body per account (gate CDA-05, Q-261004-39 Q5). The rows on screen used
+  // to outlive an account switch: a late answer for the previous account could
+  // land in the next account's screen. The key remounts every owner-bound state
+  // on a switch, and the latest-wins guard drops any answer that is not the
+  // newest request of this body.
+  return <CareerTimelineBody key={userId} userId={userId} />;
+}
+
+function CareerTimelineBody({ userId }: { userId: string }) {
+  const { t } = useTranslation("deepspace");
+  const { width } = useWindowDimensions();
+  const narrow = width < 600;
+
+  const [rows, setRows] = useState<CareerRecordRow[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  // 쌓아온 길 track (rev2 11-star): 메인 = real achievements, 사이드 = official records.
+  const [track, setTrack] = useState<"main" | "side">("main");
+  const loadGuardRef = useRef(createLatestWins());
+
+  const refresh = useCallback(() => {
+    const token = loadGuardRef.current.begin();
+    listCareerRecords(userId)
+      .then((r) => {
+        if (loadGuardRef.current.isStale(token)) return;
+        setRows(r);
+        setLoadFailed(false);
+      })
+      .catch((e) => {
+        if (loadGuardRef.current.isStale(token)) return;
+        console.warn("[career] list failed", (e as Error).message);
+        setRows([]);
+        setLoadFailed(true);
+      });
+  }, [userId]);
+
+  useEffect(() => {
+    refresh();
+    const guard = loadGuardRef.current;
+    // Unmount (an account switch remounts this body): no answer started here
+    // may write state any more.
+    return () => {
+      guard.begin();
+    };
+  }, [refresh]);
+
+  const groups = useMemo(() => groupCareerTimeline(rows ?? []), [rows]);
 
   return (
     <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={t("deepspace:career.screenTitle")} onBack={() => router.back()}>

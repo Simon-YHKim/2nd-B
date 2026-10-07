@@ -12,7 +12,7 @@ test("the supplied phone artwork frames the interactive screen without swallowin
   expect(source).toContain("style={[styles.homeButton, frame.homeButton]}");
   expect(source).toContain('testID="dashboard-phone"');
   expect(source).toContain("canBeginPhoneDismiss(gesture.dy, gesture.dx, scrollY.current)");
-  expect(source).toContain('accessibilityLabel={t(internalActive || tab === "tools" ? "phone.nav.home" : "phone.internal.closePhone")}');
+  expect(source).toContain('accessibilityLabel={t(internalActive || pageIndex > 0 ? "phone.nav.home" : "phone.internal.closePhone")}');
   expect(source).toContain('setExitPrompt(true)');
   expect(source).not.toContain("borderTopColor: m3.color.surfaceBright");
 });

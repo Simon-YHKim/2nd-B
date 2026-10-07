@@ -41,5 +41,6 @@ test("avatar palette opens from the third phone page without changing the main a
   expect(phone).toContain('numberOfLines={1} style={styles.appLabel}>{t("phone.apps.avatarPaletteShort")}');
   expect(phone).toContain('onPress={() => go("/avatar-palette")}');
   expect(phone).toContain('source={PHONE_APP_ICONS.avatarPalette}');
-  expect(phone).toContain('const pageIndex = tab === "dashboard" ? 0 : phoneApp === "more" ? 2 : 1');
+  // 2026-10-07: the daily board's two pages come first (PS-DASH-001 v2.2), then the apps and More.
+  expect(phone).toContain('const pageIndex = tab === "dashboard" ? boardPage - 1 : phoneApp === "more" ? 3 : 2;');
 });

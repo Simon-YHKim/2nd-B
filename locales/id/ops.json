@@ -190,7 +190,115 @@
     "lastRead": "Terakhir dibaca · {{date}}",
     "noData": "Belum ada data yang dibaca.",
     "refresh": "Muat ulang",
-    "unknownDate": "Tanggal tidak tersedia"
+    "unknownDate": "Tanggal tidak tersedia",
+    "board": {
+      "evidence": "Lihat sumber",
+      "addWidget": "Tambah widget",
+      "clock": {
+        "weatherPrompt": "Pilih lingkunganmu untuk melihat cuaca.",
+        "pickArea": "Pilih lingkungan"
+      },
+      "note": {
+        "tapHint": "Ketuk untuk ringkasan hari ini",
+        "empty": "Catatan hari ini muncul setelah catatan pertamamu.",
+        "slot": {
+          "morning": "Pagi",
+          "day": "Siang",
+          "evening": "Malam"
+        }
+      },
+      "reminders": {
+        "title": "Pengingat",
+        "previous": "Hari sebelumnya",
+        "next": "Hari berikutnya",
+        "anytime": "Tanpa jam",
+        "alarm": "Notifikasi pukul {{time}}",
+        "add": "Tambah",
+        "dismiss": "Abaikan",
+        "days": {
+          "yesterday": "Kemarin",
+          "today": "Hari ini",
+          "tomorrow": "Besok",
+          "dayAfter": "Lusa"
+        },
+        "empty": {
+          "yesterday": "Kemarin tidak ada yang direncanakan.",
+          "today": "Hari ini tidak ada yang direncanakan.",
+          "tomorrow": "Besok tidak ada yang direncanakan.",
+          "dayAfter": "Lusa tidak ada yang direncanakan."
+        },
+        "status": {
+          "upcoming": "Akan datang",
+          "done": "Selesai",
+          "passed": "Terlewat"
+        }
+      },
+      "queue": {
+        "title": "Perlu ditangani {{index}}/{{total}}",
+        "empty": "Hari ini tidak ada yang menunggumu.",
+        "done": "Sudah kulakukan",
+        "later": "Nanti",
+        "notImportant": "Tidak penting",
+        "sources": {
+          "mail": "Surel",
+          "notification": "Notifikasi",
+          "app": "Aplikasi"
+        }
+      },
+      "health": {
+        "title": "Kesehatan",
+        "locked": "Hubungkan kesehatan untuk melihat tidur semalam.",
+        "empty": "Masukkan catatan kesehatan dan semuanya muncul di sini.",
+        "openSetup": "Pengaturan koneksi",
+        "synced": "{{source}} · disinkronkan pukul {{time}}",
+        "minutes": "{{value}} mnt",
+        "metrics": {
+          "sleep": "Tidur",
+          "steps": "Langkah",
+          "workout": "Olahraga",
+          "meal": "Makan"
+        },
+        "sources": {
+          "health_connect": "Health Connect",
+          "healthkit": "Apple Kesehatan",
+          "manual": "Diisi sendiri"
+        }
+      },
+      "spend": {
+        "title": "Pengeluaran",
+        "empty": "Masukkan mutasi rekening dan total bulan ini muncul di sini.",
+        "open": "Buka buku kas",
+        "add": "Masukkan",
+        "reject": "Tidak"
+      },
+      "changes": {
+        "title": "Lainnya"
+      },
+      "custom": {
+        "empty": "Saat catatanmu bertambah, widget milikmu muncul di sini.",
+        "capture": "Simpan",
+        "make": "Buat",
+        "skip": "Tidak usah",
+        "previous": "Widget sebelumnya",
+        "next": "Widget berikutnya"
+      },
+      "locked": {
+        "open": "Pengaturan koneksi",
+        "weather": "Cuaca terbuka setelah lingkungan dipilih.",
+        "aiConsent": "Catatan hari ini terbuka saat pemrosesan AI diaktifkan.",
+        "calendar": "Hubungkan kalender untuk melihat rencanamu di sini.",
+        "inbox": "Hubungkan surel atau notifikasi untuk melihat yang perlu ditangani.",
+        "ledger": "Masukkan mutasi rekening untuk melihat pengeluaran.",
+        "sources": "Hubungkan sumber untuk melihat apa yang berubah.",
+        "records": "Widget milikmu terbuka saat catatan bertambah."
+      },
+      "dock": {
+        "capture": "Simpan",
+        "chat": "Obrolan",
+        "transcribe": "Transkripsi",
+        "transcribeLocked": "Transkripsi, belum dibuka"
+      }
+    }
   },
   "loading": "Membuka rutinitasmu…",
   "hero": {

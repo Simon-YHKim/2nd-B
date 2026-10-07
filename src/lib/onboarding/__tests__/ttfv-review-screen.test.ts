@@ -6,10 +6,14 @@ const mockAuth = {
   current: { userId: null as string | null, loading: true, isMinor: null as boolean | null },
 };
 const mockMarkTTFVSeen = jest.fn();
+const mockReleaseTTFVClaim = jest.fn();
+const mockTakeTTFVClaimToken = jest.fn();
 
 jest.mock("@/lib/auth/AuthContext", () => ({ useAuth: () => mockAuth.current }));
 jest.mock("@/lib/onboarding/ttfv-gate", () => ({
-  markTTFVSeen: () => mockMarkTTFVSeen(),
+  markTTFVSeen: (...args: unknown[]) => mockMarkTTFVSeen(...args),
+  releaseTTFVClaim: (...args: unknown[]) => mockReleaseTTFVClaim(...args),
+  takeTTFVClaimToken: (...args: unknown[]) => mockTakeTTFVClaimToken(...args),
 }));
 jest.mock("react-native", () => ({
   ScrollView: "ScrollView",
@@ -39,6 +43,8 @@ import {
   failTTFVSave,
   loadTTFVReview,
   shouldMarkTTFVSeen,
+  shouldReleaseTTFVClaim,
+  shouldReleaseTTFVVisit,
   uiLocaleFor,
   visibleTTFVContent,
   type TTFVContentState,
@@ -61,6 +67,8 @@ describe("/ttfv auth and seen gate", () => {
   beforeEach(() => {
     mockAuth.current = { userId: null, loading: true, isMinor: null };
     mockMarkTTFVSeen.mockClear();
+    mockReleaseTTFVClaim.mockClear();
+    mockTakeTTFVClaimToken.mockReset().mockReturnValue(null);
   });
 
   it("renders an explicit auth loading state without consuming first light", () => {
@@ -88,8 +96,61 @@ describe("/ttfv auth and seen gate", () => {
     expect(tree.props).toMatchObject({ mode: "authenticated", userId: "owner-1", minor: false });
     expect(mockMarkTTFVSeen).not.toHaveBeenCalled();
 
-    (tree.props.onContentReady as () => void)();
+    (tree.props.onContentReady as (receipt: string | null) => void)(null);
     expect(mockMarkTTFVSeen).toHaveBeenCalledTimes(1);
+    expect(mockMarkTTFVSeen).toHaveBeenCalledWith("owner-1", null);
+  });
+
+  it("lets the screen's visit take the home's receipt (0219, BA-02) and reports with the visit's receipt", () => {
+    mockAuth.current = { userId: "owner-1", loading: false, isMinor: false };
+    mockTakeTTFVClaimToken.mockReturnValue("token-1");
+    const tree = routeElement();
+
+    // The route only hands the take over; it never takes the receipt while rendering.
+    expect(mockTakeTTFVClaimToken).not.toHaveBeenCalled();
+    expect((tree.props.takeReceipt as (owner: string) => string | null)("owner-1")).toBe("token-1");
+    expect(mockTakeTTFVClaimToken).toHaveBeenCalledWith("owner-1");
+    expect(mockReleaseTTFVClaim).not.toHaveBeenCalled();
+    (tree.props.onContentUnavailable as (receipt: string) => void)("token-1");
+    expect(mockReleaseTTFVClaim).toHaveBeenCalledWith("owner-1", "token-1");
+    (tree.props.onContentReady as (receipt: string | null) => void)("token-1");
+    expect(mockMarkTTFVSeen).toHaveBeenCalledWith("owner-1", "token-1");
+  });
+
+  it("marks a visit failed only on a load error (#1530), never for loading or shown content", () => {
+    const base = { userId: "owner-1" } as const;
+    expect(shouldReleaseTTFVClaim({ ...base, kind: "error" })).toBe(true);
+    expect(shouldReleaseTTFVClaim({ ...base, kind: "loading" })).toBe(false);
+    expect(shouldReleaseTTFVClaim({ ...base, kind: "empty" })).toBe(false);
+  });
+
+  it("FR-01: hands the grant back only when a failed visit that never showed content ends", () => {
+    const visit = { userId: "owner-1", receipt: "token-1", shown: false, failed: true };
+    expect(shouldReleaseTTFVVisit(visit)).toBe(true);
+    // The retry loaded and showed content: the grant is used, never handed back.
+    expect(shouldReleaseTTFVVisit({ ...visit, shown: true })).toBe(false);
+    // Left while still loading, with no error: the grant stays used (fail-closed).
+    expect(shouldReleaseTTFVVisit({ ...visit, failed: false })).toBe(false);
+    // A visit the home did not open has nothing to hand back.
+    expect(shouldReleaseTTFVVisit({ ...visit, receipt: null })).toBe(false);
+
+    // The screen hands the grant back in exactly one place: the visit's cleanup.
+    // Not when the error shows, because the retry can still show content beside a
+    // newer grant (two screens) and the visit's own slot would stay spent.
+    const visitStart = SCREEN.indexOf("const visit: TTFVVisit = {");
+    expect(visitStart).toBeGreaterThan(0);
+    const visitEffect = SCREEN.slice(visitStart, SCREEN.indexOf("}, [userId]);", visitStart));
+    expect(visitEffect).toContain("return () => {");
+    expect(visitEffect).toContain("if (handBack && shouldReleaseTTFVVisit(visit)) handBack(visit.receipt);");
+    expect(SCREEN.match(/handBack\(/g)).toHaveLength(1);
+    expect(SCREEN).not.toMatch(/onContentUnavailable\(\)/);
+    expect(SCREEN).not.toMatch(/onContentUnavailable\??\.\(/);
+    // The failed load only marks the visit; it reports nothing.
+    expect(SCREEN).toMatch(/if \(shouldReleaseTTFVClaim\(visibleContent\)\) \{\s*visit\.failed = true;\s*return;\s*\}/);
+    // The receipt is taken once, when the visit starts, never in the route's render.
+    expect(SCREEN).toContain("receipt: take ? take(userId) : null");
+    expect(ROUTE).toContain("takeReceipt={takeTTFVClaimToken}");
+    expect(ROUTE).not.toMatch(/takeTTFVClaimToken\(/);
   });
 
   it("marks only honest record or empty content, never loading or load error", () => {
@@ -137,6 +198,26 @@ describe("TTFV latest owner record adapter", () => {
       truncated: false,
     });
     expect(reader).toHaveBeenCalledWith("owner-1", TTFV_REVIEW_LIMIT);
+  });
+
+  it("skips TTFV's own note by the app's marker (0218), not by a user tag with the same word", async () => {
+    const review = await loadTTFVReview("owner-1", async () => [
+      {
+        id: "generated",
+        body: "First record review: This record still feels like me.",
+        created_at: "2026-10-06T03:00:00.000Z",
+        tags: ["domain:collect"],
+        system_tags: ["first_light", "first_light:affirm"],
+      },
+      {
+        id: "user-tagged",
+        body: "I tagged this first_light myself.",
+        created_at: "2026-10-06T02:00:00.000Z",
+        tags: ["domain:collect", "first_light"],
+        system_tags: [],
+      },
+    ]);
+    expect(review?.id).toBe("user-tagged");
   });
 
   it("caps long text before it enters UI state", async () => {
@@ -201,8 +282,10 @@ describe("TTFV review save", () => {
       locale: "en",
       kind: "note",
       withFollowup: false,
-      tags: ["first_light", `first_light:${choice}`],
+      // 0218: the marker is the app's, in its own column, never the user's tags.
+      systemTags: ["first_light", `first_light:${choice}`],
     });
+    expect(input).not.toHaveProperty("tags");
     expect(JSON.stringify(input)).not.toContain("first_light:source:");
     expect(input.body.length).toBeGreaterThan(0);
   });
