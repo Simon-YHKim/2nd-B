@@ -98,7 +98,12 @@ import {
   DELETE_ARM_MS,
   editorAfterDelete,
   mealClearArmKey,
+  mealFailureAfterWrite,
+  mealFailureDropped,
+  mealFailureInSheet,
+  mealOpening,
   mealSaveAction,
+  mealSheetAfterWrite,
   mealWriteLock,
   MILESTONE_NEXT,
   milestoneChip,
@@ -108,6 +113,8 @@ import {
   shelfView,
   tapDelete,
   type BookSearchView,
+  type MealWriteAction,
+  type MealWriteFailure,
   type MilestoneChipKey,
 } from "./tool-logic";
 
@@ -1426,13 +1433,19 @@ type FoodLookup = { kind: "idle" } | { kind: "busy" } | { kind: "done"; items: F
 const FOOD_LOOKUP_CACHE = new Map<string, FoodNutrition[]>();
 const FOOD_LOOKUP_CACHE_MAX = 30;
 
+/** One opening of the meal sheet: the cell, the stored meal, and the opening's own session. */
+type MealSheet = { session: number; date: string; slot: MealSlot; day: string; current: string | null };
+
 export function MealsScreen() {
   const c = useOpsCopy();
   const { userId } = useAuth();
-  // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
-  // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
-  // just silently did nothing.
-  const [saveErr, setSaveErr] = useState(false);
+  // A failed WRITE. The empty catches here used to claim it was "surfaced on reload", but
+  // reload() sat INSIDE the try, so on the failure path it never ran and the tap silently
+  // did nothing. Gate S3-01 (2026-10-07): the failure is no longer a screen-wide flag either.
+  // It is the failed write itself (mealFailureAfterWrite): the opening and cell it came from
+  // and the draft it tried, shown in that sheet with a retry, or named by cell on the screen
+  // when that sheet is no longer open.
+  const [mealErr, setMealErr] = useState<MealWriteFailure<MealSheet> | null>(null);
   const { t, i18n } = useTranslation("ops");
   const ko = i18n.language?.toLowerCase().startsWith("ko");
   const dayLabels = MEAL_DAY_KEYS.map((k) => t(`toolScreens.meals.days.${k}`));
@@ -1443,7 +1456,7 @@ export function MealsScreen() {
   // (R2C-15) and so emptying a filled cell clears it instead of keeping it (R2C-07).
   // `session` is new on every open (gate BL-02 / BL-03): an armed clear and a late write
   // belong to the opening they started in, never to a later one.
-  const [pending, setPending] = useState<{ session: number; date: string; slot: MealSlot; day: string; current: string | null } | null>(null);
+  const [pending, setPending] = useState<MealSheet | null>(null);
   const sheetSeq = useRef(0);
   // One meal write per cell at a time (gate BL-03): save and clear take the cell's lock
   // (mealWriteLock), so a clear can no longer race an earlier save whose UPSERT lands after
@@ -1473,8 +1486,13 @@ export function MealsScreen() {
   // DB is asked only when the user taps "look up" for what they typed.
   const openCell = (date: string, slot: MealSlot, current: MealEntry | null, day: string) => {
     sheetSeq.current += 1;
-    setPending({ session: sheetSeq.current, date, slot, day, current: current?.title ?? null });
-    setDraft(current?.title ?? "");
+    const opening: MealSheet = { session: sheetSeq.current, date, slot, day, current: current?.title ?? null };
+    // Gate S3-01: a cell whose last write failed opens with the draft that failed, and the
+    // failure (with its retry) moves into this opening. Another cell's failure stays put.
+    const opened = mealOpening(mealErr, opening, opening.current);
+    setPending(opening);
+    setDraft(opened.draft);
+    setMealErr(opened.failure);
     setLookup({ kind: "idle" });
   };
 
@@ -1504,12 +1522,15 @@ export function MealsScreen() {
 
   // Save and clear both go through here (gate BL-03): one write per cell at a time under
   // the cell's shared lock, and the sheet is off while it runs. A write asked for meanwhile
-  // is refused, not raced. When it settles, only the sheet it started from closes.
-  const writeMeal = async (sheet: NonNullable<typeof pending>, write: () => Promise<unknown>) => {
+  // is refused, not raced. Gate S3-01: only a write that landed reloads the week and closes
+  // the sheet it started from. A failed one keeps that sheet and its draft, and records the
+  // failure against that opening and cell, so it is never shown on another cell's sheet.
+  const writeMeal = async (sheet: MealSheet, action: MealWriteAction, write: () => Promise<unknown>) => {
     if (!userId) return;
+    // The draft as it stands when the write is asked (the sheet takes no input while it runs).
+    const draftAsked = draft;
     const outcome = await runExclusive(mealWriteLock(userId, sheet.date, sheet.slot), async () => {
       setMealWrites((n) => n + 1);
-      setSaveErr(false);
       try {
         await write();
       } finally {
@@ -1517,10 +1538,10 @@ export function MealsScreen() {
       }
     });
     if (outcome === "busy") return;
-    // A failed write says so (it used to be swallowed, with reload() never reached).
     if (outcome === "done") week.reload();
-    else setSaveErr(true);
-    setPending((open) => sheetAfterWrite(open, sheet.session));
+    // A failed write says so (it used to be swallowed, with reload() never reached).
+    setMealErr((kept) => mealFailureAfterWrite(kept, sheet, outcome, action, draftAsked));
+    setPending((open) => mealSheetAfterWrite(open, sheet.session, outcome));
   };
 
   const saveCell = async () => {
@@ -1531,12 +1552,16 @@ export function MealsScreen() {
     // R2C-07: an emptied draft used to just close the sheet, so the old meal stayed.
     const action = mealSaveAction(draft, pending.current);
     if (action === "close") {
+      // Nothing to write: the draft matches the stored meal, so a failure kept for this
+      // cell has nothing left to retry.
+      const cell = pending;
+      setMealErr((kept) => mealFailureDropped(kept, cell));
       setPending(null);
       return;
     }
     const sheet = pending;
     const title = draft.trim();
-    await writeMeal(sheet, () =>
+    await writeMeal(sheet, action, () =>
       action === "clear" ? clearMeal(userId, sheet.date, sheet.slot) : setMeal(userId, sheet.date, sheet.slot, title),
     );
   };
@@ -1546,9 +1571,22 @@ export function MealsScreen() {
   const clearArm = useTwoTapDelete((key) => {
     if (!userId || !pending || mealClearArmKey(pending) !== key) return;
     const sheet = pending;
-    void writeMeal(sheet, () => clearMeal(userId, sheet.date, sheet.slot));
+    void writeMeal(sheet, "clear", () => clearMeal(userId, sheet.date, sheet.slot));
   });
   const clearArmed = pending !== null && clearArm.armedId === mealClearArmKey(pending);
+
+  // Gate S3-01: the sheet's retry repeats what failed. A failed clear clears again (the user
+  // already confirmed it with two taps); a failed save saves the draft as it is now.
+  const retryMeal = async () => {
+    if (!userId || pending === null || mealErr === null || !mealFailureInSheet(mealErr, pending)) return;
+    const sheet = pending;
+    if (mealErr.action === "clear") await writeMeal(sheet, "clear", () => clearMeal(userId, sheet.date, sheet.slot));
+    else await saveCell();
+  };
+  const sheetFailed = !mealWriting && mealFailureInSheet(mealErr, pending);
+  // A failure whose sheet is closed, or a sheet opened on another cell meanwhile: the screen
+  // names the cell. Opening that cell again gives the draft back (mealOpening).
+  const otherCellFailed = mealErr !== null && !mealFailureInSheet(mealErr, pending) ? mealErr.sheet : null;
 
   // Food names can repeat in the DB answer; a chip list keyed by name must not.
   const ideaChips: string[] =
@@ -1558,7 +1596,11 @@ export function MealsScreen() {
 
   return (
     <OpsFrame title={c.weeklyMeals} bubble={c.weeklyMeals} tip={c.whatToEatNow}>
-      {saveErr ? <SaveErrorBanner text={c.saveFailed} /> : null}
+      {otherCellFailed ? (
+        <SaveErrorBanner
+          text={t("toolScreens.meals.saveFailedCell", { day: otherCellFailed.day, date: otherCellFailed.date, slot: c[otherCellFailed.slot] })}
+        />
+      ) : null}
       <View style={styles.weekNav}>
         <Pressable onPress={() => shiftWeek(-7)} hitSlop={10} style={styles.weekArrow} accessibilityRole="button" accessibilityLabel={c.prevWeek}>
           <RNText style={styles.weekArrowText}>‹</RNText>
@@ -1667,6 +1709,18 @@ export function MealsScreen() {
             <Text variant="caption" style={styles.toolNote} accessibilityLiveRegion="polite">
               {lookup.kind === "failed" ? t("toolScreens.meals.lookUpFailed") : t("toolScreens.meals.lookUpNone")}
             </Text>
+          ) : null}
+          {/* Gate S3-01: a failed write keeps this sheet and its draft, and says so here, on
+              the opening it came from, with a retry. Hidden while a write runs. */}
+          {sheetFailed ? (
+            <View style={styles.mealErrRow}>
+              <Text variant="caption" style={[styles.saveErrText, styles.mealErrText]} accessibilityRole="alert" accessibilityLiveRegion="polite">
+                {t("toolScreens.meals.saveFailed")}
+              </Text>
+              <Pressable accessibilityRole="button" onPress={() => void retryMeal()} hitSlop={6} style={styles.ideaChip}>
+                <Text variant="body" style={styles.ideaChipText}>{c.retry}</Text>
+              </Pressable>
+            </View>
           ) : null}
           {pending?.current ? (
             <Pressable
@@ -2230,6 +2284,9 @@ const styles = StyleSheet.create({
   // Armed: the next tap clears (gate BL-02). Same danger tone the delete chip uses.
   mealClearArmed: { borderColor: deepSpace.danger },
   mealClearTextArmed: { color: deepSpace.danger },
+  // A failed write, inside the sheet it came from (gate S3-01): the message, then its retry.
+  mealErrRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: deepSpaceSpacing.sm },
+  mealErrText: { flexGrow: 1, flexShrink: 1, flexBasis: 160 },
   ideaChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   ideaChip: {
     minHeight: 36,

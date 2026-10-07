@@ -429,6 +429,8 @@
       "lookUp": "Look up foods",
       "lookUpNone": "No foods matched.",
       "lookUpFailed": "Couldn't look that up. Try again.",
+      "saveFailed": "This change was not saved. What you entered is still here.",
+      "saveFailedCell": "The change to {{day}} {{date}} · {{slot}} was not saved. Open that meal again to retry; what you entered is kept.",
       "days": {
         "mon": "Mon",
         "tue": "Tue",

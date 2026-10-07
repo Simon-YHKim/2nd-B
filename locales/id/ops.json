@@ -429,6 +429,8 @@
       "lookUp": "Cari makanan",
       "lookUpNone": "Tidak ada makanan yang cocok.",
       "lookUpFailed": "Tidak bisa mencari. Coba lagi.",
+      "saveFailed": "Perubahan ini belum tersimpan. Isian Anda masih ada di sini.",
+      "saveFailedCell": "Perubahan {{day}} {{date}} · {{slot}} belum tersimpan. Buka lagi makanan itu untuk mencoba lagi; isian Anda tetap ada.",
       "days": {
         "mon": "Sen",
         "tue": "Sel",

@@ -13,6 +13,8 @@
 //   mealWriteLock    BL-03 (gate r3)  that lock is per cell and module-wide, not per screen
 //   pageWriteLock    BL-09 (gate)     the same, for one book's page count
 //   sheetAfterWrite  BL-03 / BL-09    a late write closes only the sheet or editor it started from
+//   mealSheetAfterWrite, mealFailure*, mealOpening
+//                    S3-01 (gate)     a failed meal write keeps its sheet, draft and retry, tied to its cell
 //   editorAfterDelete CD-R1-01        a goal's delete closes only that goal's editor
 //   bookSearch*      R2C-02           a failed book search says so
 //   shelfView        R2C-08           finished books and every book being read are shown
@@ -122,6 +124,89 @@ export function mealClearArmKey(sheet: MealSheetRef): string {
  */
 export function sheetAfterWrite<T extends { session: number }>(open: T | null, startedIn: number): T | null {
   return open !== null && open.session === startedIn ? null : open;
+}
+
+// --- a meal write that failed (gate S3-01, 2026-10-07) --------------------------------
+//
+// A failed save or clear used to close the sheet just like one that landed, and the error
+// went to a banner over the whole screen. Opening the cell again filled the draft from the
+// stored meal, so what the user had typed was gone, and if another cell was open by then the
+// banner read as that cell's failure. Now only a write that landed closes its sheet; a failed
+// one keeps the sheet, its draft and an error with a retry, tied to the opening and the cell
+// it came from.
+
+export type MealWriteAction = "set" | "clear";
+
+/** A meal write that did not land: the opening it came from (its date and slot name the
+ *  cell), what it tried, and the draft as it stood when it was asked. */
+export interface MealWriteFailure<S extends MealSheetRef = MealSheetRef> {
+  sheet: S;
+  action: MealWriteAction;
+  draft: string;
+}
+
+function sameMealCell(a: MealSheetRef, b: MealSheetRef): boolean {
+  return a.date === b.date && a.slot === b.slot;
+}
+
+/**
+ * The sheet once a meal write settles. Only a write that landed closes it, and only if it is
+ * still the opening the write started from (sheetAfterWrite). A failed write leaves the sheet
+ * and its draft as they are, so the user can try again; a refused one ("busy") changes nothing.
+ */
+export function mealSheetAfterWrite<T extends { session: number }>(
+  open: T | null,
+  startedIn: number,
+  outcome: ExclusiveOutcome,
+): T | null {
+  return outcome === "done" ? sheetAfterWrite(open, startedIn) : open;
+}
+
+/**
+ * The failure to keep once a write on `sheet` settles. A failed write replaces it with its
+ * own; a write that landed on the same cell clears that cell's failure; anything else (a write
+ * on another cell, a refused write) leaves it as it was.
+ */
+export function mealFailureAfterWrite<S extends MealSheetRef>(
+  kept: MealWriteFailure<S> | null,
+  sheet: S,
+  outcome: ExclusiveOutcome,
+  action: MealWriteAction,
+  draft: string,
+): MealWriteFailure<S> | null {
+  if (outcome === "failed") return { sheet, action, draft };
+  if (outcome === "done" && kept !== null && sameMealCell(kept.sheet, sheet)) return null;
+  return kept;
+}
+
+/**
+ * Whether the open sheet shows the failure: only when it came from this very opening (same
+ * session, date and slot). A sheet opened on another cell meanwhile never shows it; the
+ * screen names the failed cell instead. (A plain boolean, not a type guard: false can mean
+ * "another sheet is open", which says nothing about the failure itself.)
+ */
+export function mealFailureInSheet<S extends MealSheetRef>(failure: MealWriteFailure<S> | null, open: MealSheetRef | null): boolean {
+  return failure !== null && open !== null && failure.sheet.session === open.session && sameMealCell(failure.sheet, open);
+}
+
+/**
+ * Opening a cell. If that cell's last write failed, the opening gets the draft that failed
+ * and the failure moves into this opening, so the sheet shows it with its retry. Otherwise
+ * the stored meal fills the draft and another cell's failure stays where it is.
+ */
+export function mealOpening<S extends MealSheetRef>(
+  kept: MealWriteFailure<S> | null,
+  opening: S,
+  stored: string | null,
+): { draft: string; failure: MealWriteFailure<S> | null } {
+  if (kept !== null && sameMealCell(kept.sheet, opening)) return { draft: kept.draft, failure: { ...kept, sheet: opening } };
+  return { draft: stored ?? "", failure: kept };
+}
+
+/** The cell's failure, dropped: saving found nothing to write (the draft matches the stored
+ *  meal), so there is nothing left to retry. Another cell's failure stays. */
+export function mealFailureDropped<S extends MealSheetRef>(kept: MealWriteFailure<S> | null, cell: MealSheetRef): MealWriteFailure<S> | null {
+  return kept !== null && sameMealCell(kept.sheet, cell) ? null : kept;
 }
 
 /**

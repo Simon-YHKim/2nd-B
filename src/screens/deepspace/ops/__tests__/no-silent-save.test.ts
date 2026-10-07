@@ -61,7 +61,12 @@ describe("no silent save failures in the ops screens", () => {
   test("each screen that can fail a write surfaces it", () => {
     const src = read(join(ROOT, "src/screens/deepspace/ops/screens.tsx"));
     // Four screens own a write: Reading, Milestones, Ledger, Meals.
-    expect(src.match(/const \[saveErr, setSaveErr\] = useState\(false\);/g)?.length).toBe(4);
+    // 2026-10-07 (gate S3-01): Meals no longer uses the screen-wide flag. Its screen-wide
+    // banner read as the failure of whatever cell was open by then, and the sheet closed over
+    // the draft. A meal failure is now the failed write itself (mealErr), shown in the sheet
+    // it came from with a retry, or named by its cell on the screen. Same writes, still
+    // surfaced: the three screen flags below plus the meal checks at the end of this test.
+    expect(src.match(/const \[saveErr, setSaveErr\] = useState\(false\);/g)?.length).toBe(3);
     // Eight write sites can fail: the five original adds, the ledger's DELETE (added
     // when the ledger got a real form + per-row delete), the milestone RENAME (added
     // when goals became nameable — audit 2026-07-16), and the shelf STATUS MOVE
@@ -77,11 +82,17 @@ describe("no silent save failures in the ops screens", () => {
     // writer surfaces a failure for either of them. Same writes, one surfacing site:
     // 12 -> 11. tool-screens-contract.test.ts pins that writeMeal surfaces it and that
     // no meal write bypasses writeMeal.
-    expect(src.match(/setSaveErr\(true\);/g)?.length).toBe(11);
+    // 2026-10-07 (gate S3-01): 11 -> 10, the meal writer's surfacing site moved to mealErr.
+    expect(src.match(/setSaveErr\(true\);/g)?.length).toBe(10);
+    // And the banner is actually rendered, not just stored in state (Meals: below). 4 -> 3.
+    expect(src.match(/<SaveErrorBanner text=\{c\.saveFailed\} \/>/g)?.length).toBe(3);
+    // The meal writer records every failure, and both places that show one are rendered.
     const writeMeal = src.slice(src.indexOf("const writeMeal"), src.indexOf("const saveCell"));
-    expect(writeMeal).toContain("else setSaveErr(true);");
-    // And the banner is actually rendered, not just stored in state.
-    expect(src.match(/<SaveErrorBanner text=\{c\.saveFailed\} \/>/g)?.length).toBe(4);
+    expect(writeMeal).toContain("setMealErr((kept) => mealFailureAfterWrite(kept, sheet, outcome, action, draftAsked));");
+    expect(src).toContain("{sheetFailed ? (");
+    expect(src).toContain('{t("toolScreens.meals.saveFailed")}');
+    expect(src).toContain("{otherCellFailed ? (");
+    expect(src).toContain('text={t("toolScreens.meals.saveFailedCell", {');
   });
 });
 

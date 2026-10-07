@@ -429,6 +429,8 @@
       "lookUp": "Buscar alimentos",
       "lookUpNone": "Ningún alimento coincide.",
       "lookUpFailed": "No se pudo buscar. Inténtalo de nuevo.",
+      "saveFailed": "Este cambio no se guardó. Lo que escribiste sigue aquí.",
+      "saveFailedCell": "El cambio de {{day}} {{date}} · {{slot}} no se guardó. Abre esa comida otra vez para reintentarlo; lo que escribiste se conserva.",
       "days": {
         "mon": "Lun",
         "tue": "Mar",
