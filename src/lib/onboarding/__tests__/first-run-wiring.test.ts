@@ -42,7 +42,7 @@ function functionBody(sql: string, name: string): string {
 describe("bundle 1 (CDA-01): only a server grant opens a first-run screen", () => {
   test("the home opens /onboarding or /ttfv only from the claim decision, never from marks", () => {
     const shell = code(SHELL);
-    expect(shell).toContain('const firstRun = useFirstRunHomeGate(userId, gate === "ready", true);');
+    expect(shell).toContain('const firstRun = useFirstRunHomeGate(userId, gate === "ready", sessionId, true);');
     expect(shell).toContain('if (firstRun === "/onboarding") return <Redirect href="/onboarding" />;');
     expect(shell).toContain('if (firstRun === "/ttfv") return <Redirect href="/ttfv" />;');
     expect(shell).not.toMatch(/useOnboardingComplete|useAutoTriggerTTFV|ttfvSeenAt|onboardingCompletedAt/);
@@ -70,6 +70,24 @@ describe("bundle 2 (CD2-02): a failed read is a failure, not a confirmation", ()
 });
 
 describe("bundles 3, 4 (CD2-01, CDA2-01): every answer is bound to one sign-in", () => {
+  test("K3: AuthContext publishes the existing session and consumers bind to it without focus", () => {
+    const auth = code("src/lib/auth/AuthContext.tsx");
+    expect(auth).toContain("sessionIdFromAccessToken(latestSessionRef.current.access_token)");
+    expect(auth).toContain("latestSessionRef.current?.user.id === state.userId");
+    expect(auth).toMatch(/\.\.\.state,\s*sessionId,/);
+    expect(auth).toContain("latestSessionRef.current = probed.ok ? probed.session : null;");
+    const store = code(STORE);
+    expect(store).toContain("syncFirstRunSession(ownerId, sessionId);");
+    expect(store).toContain("startFirstRunHomeVisit(ownerId, sessionId);");
+    expect(store).toContain("}, [drive, ready, ownerId, sessionId]);");
+    expect(store).toContain("return firstRunHomeGateFor(current, ownerId, ready, sessionId);");
+    // React's key tears down all visit refs, loaded content and async work on
+    // same-UID sign-in changes. Token refresh retains the same key.
+    expect(code(TTFV)).toContain("key={JSON.stringify([userId, sessionId])}");
+    expect(code(SHELL)).toMatch(/const \{[^}]*sessionId[^}]*\} = useAuth\(\)/);
+    expect(code(TTFV)).toMatch(/const \{[^}]*sessionId[^}]*\} = useAuth\(\)/);
+  });
+
   test("the sign-in is the JWT session_id, checked before and after every answer", () => {
     const store = code(STORE);
     expect(store).toContain("const sessionId = sessionIdFromAccessToken(current.access_token);");
@@ -189,7 +207,7 @@ describe("bundle 12 (CDA-03): no latch decides what the welcome screen shows", (
 describe("the rest of the design", () => {
   test("the pending-import prompt reads the home's decision and never claims", () => {
     const hook = code(IMPORT);
-    expect(hook).toContain("const firstRun = useFirstRunHomeGate(userId, firstRunReady);");
+    expect(hook).toContain("const firstRun = useFirstRunHomeGate(userId, firstRunReady, sessionId);");
     expect(hook).not.toMatch(/useFirstRunHomeGate\([^)]*true\)/);
   });
 
@@ -209,9 +227,9 @@ describe("the rest of the design", () => {
 
   test("/ttfv reports with the receipt its own visit took (BA-02), and hands it back only when the visit ends (FR-01)", () => {
     const ttfv = code(TTFV);
-    expect(ttfv).toContain("takeReceipt={takeTTFVClaimToken}");
-    expect(ttfv).toContain("onContentReady={(receipt) => markTTFVSeen(userId, receipt)}");
-    expect(ttfv).toContain("onContentUnavailable={(receipt) => releaseTTFVClaim(userId, receipt)}");
+    expect(ttfv).toContain("takeReceipt={(ownerId) => takeTTFVClaimToken(ownerId, sessionId)}");
+    expect(ttfv).toContain("onContentReady={(receipt) => markTTFVSeen(userId, receipt, sessionId)}");
+    expect(ttfv).toContain("onContentUnavailable={(receipt) => releaseTTFVClaim(userId, receipt, sessionId)}");
     const store = code(STORE);
     // Taken once: the take moves the slot on, so a second visit gets null.
     expect(store).toMatch(/if \(slot\.state !== "entered" \|\| !session\.ttfvToken\) return null;\s*slot\.state = "visiting";/);
