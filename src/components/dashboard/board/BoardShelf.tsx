@@ -46,7 +46,7 @@ export function BoardShelf({ board, events }: { board: BoardContract; events: Sh
         {board.shelf.items.map((item) => {
           const tone = boardTone(item.basis);
           return <View key={item.id} style={styles.item}>
-            <IosLead color={tone.borderStyle === "dashed" ? phoneIos.gray3 : phoneIos.teal} glyph={tone.borderStyle === "dashed" ? "lock" : "star"} />
+            <IosLead color={tone.borderStyle === "dashed" ? phoneIos.label2 : phoneIos.teal} glyph={tone.borderStyle === "dashed" ? "lock" : "star"} />
             <View style={styles.flex}>
               <IosText variant="body">{say(item.title)}</IosText>
               <IosText variant="caption" style={{ color: tone.text }}>{say(item.reason)}</IosText>

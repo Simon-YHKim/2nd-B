@@ -36,7 +36,7 @@ export function TranscribeSkeleton({ adult }: { adult: boolean }) {
     <IosSectionHeader>{t("phone.board.transcribe.afterTitle")}</IosSectionHeader>
     <IosGroup>
       {LATER_SECTIONS.map((section) => <IosRow key={section} title={t(`phone.board.transcribe.sections.${section}`)}
-        lead={<IosLead color={phoneIos.gray3} glyph="lock" />} />)}
+        lead={<IosLead color={phoneIos.label2} glyph="lock" />} />)}
     </IosGroup>
   </View>;
 }

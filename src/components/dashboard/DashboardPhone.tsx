@@ -618,7 +618,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     return <PixelRoundRect fill={phoneIos.cell}>
       <IosRow title={ko ? item.title.ko : item.title.en} accessibilityLabel={ko ? item.title.ko : item.title.en}
         subtitle={`${ko ? item.listMeta.ko : item.listMeta.en}${unread ? ` · ${t("phone.noticeUnread")}` : ""}`}
-        lead={<IosLead color={unread ? phoneIos.red : phoneIos.gray3} glyph="notifications" />}
+        lead={<IosLead color={unread ? phoneIos.red : phoneIos.label2} glyph="notifications" />}
         onPress={() => {
           setSelectedNoticeId(item.id);
           if (noticeCenter.isUnread(item.id)) void noticeCenter.markSeen(item.id);
