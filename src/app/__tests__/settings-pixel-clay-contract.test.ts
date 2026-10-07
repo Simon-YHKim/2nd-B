@@ -21,6 +21,7 @@ describe("PIXEL-CLAY settings screen contract", () => {
 
     expect(routes.filter((route) => route === "/data-connections")).toHaveLength(1);
 
+    // 2026-10-07: /profile (내 계정) and /notices (소식) left settings (Simon).
     expect(new Set(routes)).toEqual(
       new Set([
         "/",
@@ -32,12 +33,10 @@ describe("PIXEL-CLAY settings screen contract", () => {
         "/import-hub",
         "/manual",
         "/museum",
-        "/notices",
         "/ops",
         "/permissions",
         "/plans",
         "/privacy",
-        "/profile",
         "/reasoning",
         "/records",
         "/reminders",

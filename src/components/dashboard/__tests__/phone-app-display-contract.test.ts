@@ -6,9 +6,9 @@ const assets = readFileSync(join(__dirname, "..", "phone-app-assets.ts"), "utf8"
 
 test("the phone has twelve live app tiles in four columns with user-specific notification count", () => {
   const order = phone.match(/const APP_ORDER: PhoneAppId\[\] = \[([\s\S]*?)\];/)?.[1] ?? "";
-  expect([...order.matchAll(/"([a-z]+)"/g)].map((match) => match[1])).toEqual([
+  expect([...order.matchAll(/"([A-Za-z]+)"/g)].map((match) => match[1])).toEqual([
     "notifications", "assistant", "focus", "reminders", "money", "growth",
-    "meals", "museum", "community", "relationships", "settings", "more",
+    "meals", "museum", "community", "relationships", "settings", "avatarPalette",
   ]);
   expect(phone).toContain('width: "24%"');
   expect(phone).toContain("noticeCenter.notices.filter((item) => noticeCenter.isUnread(item.id)).length");
@@ -29,18 +29,17 @@ test("artwork is bundled locally while dates, controls, and routes remain intera
   expect(phone).toContain('date(new Date().toISOString())');
   expect(phone).toContain('onPress={() => showPage(index)}');
   expect(phone).toContain('Math.abs(gesture.dx) > 55');
-  expect(phone).toContain('onPress={() => go("/records")}');
-  expect(phone).toContain('onPress={() => go("/wiki")}');
-  expect(phone).toContain('onPress={() => go("/capture")}');
+  // 2026-10-07: the More page and its rows (records, wiki search, capture, reading, side project) are gone;
+  // capture stays on the dock, reading and side project in the assistant's tools.
+  expect(phone).not.toContain('phoneApp === "more"');
+  expect(phone).not.toContain('go("/reading")');
+  expect(phone).not.toContain('go("/side-project")');
 });
 
-test("avatar palette opens from the third phone page without changing the main app grid", () => {
+test("avatar palette is a tile in the app grid (the More page folded into it)", () => {
   expect(assets).toContain('avatarPalette: require("../../../assets/images/phone-app/app_icons/icon_avatar_palette.png")');
-  expect(phone).toContain('testID="phone-avatar-palette"');
-  expect(phone).toContain('accessibilityLabel={t("phone.apps.avatarPalette")}');
-  expect(phone).toContain('numberOfLines={1} style={styles.appLabel}>{t("phone.apps.avatarPaletteShort")}');
-  expect(phone).toContain('onPress={() => go("/avatar-palette")}');
-  expect(phone).toContain('source={PHONE_APP_ICONS.avatarPalette}');
-  // 2026-10-07: the daily board's two pages come first (PS-DASH-001 v2.2), then the apps and More.
-  expect(phone).toContain('const pageIndex = tab === "dashboard" ? boardPage - 1 : phoneApp === "more" ? 3 : 2;');
+  expect(phone).toContain('{ id: "avatarPalette", route: "/avatar-palette" },');
+  expect(phone).toContain('source={PHONE_APP_ICONS[id]}');
+  // 2026-10-07: the daily board's two pages come first (PS-DASH-001 v2.2), then the apps.
+  expect(phone).toContain('const pageIndex = tab === "dashboard" ? boardPage - 1 : APPS_PAGE;');
 });

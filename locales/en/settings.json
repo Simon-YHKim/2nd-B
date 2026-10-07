@@ -164,6 +164,9 @@
   "resetNDays": "Reset {{n}} days of usage",
   "wipeComplete": "Full wipe complete: records {{r}} · sources {{s}} · wiki {{w}} · usage {{u}}",
   "subscription": {
+    "autoPay": { "title": "Automatic payment" },
+    "policy": { "title": "Refund policy" },
+    "plans": { "title": "Plans", "change": "Change plan" },
     "title": "Manage subscription",
     "sectionLabel": "Subscription",
     "rowLabel": "Manage subscription",

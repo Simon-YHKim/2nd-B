@@ -877,6 +877,14 @@ every agent: Claude, Codex, Antigravity, Grok.
   eslint). Keep those excludes: they stop the nested copies from polluting
   `npm run verify` and the Metro bundler.
 
+## 결정 먼저 확인 (Simon 2026-10-07)
+
+PR을 열기 전과 마이그레이션 번호를 잡기 전에 origin/main의 DECISIONS.md 최신 30줄을 읽는다. 결정과 어긋나는 작업은 멈추고 _sync로 묻는다.
+
+> 이유: #2131(0220 판정 원장)은 그 결정(`DECISIONS.md:82`)이 한 우편함(재설계 세션)으로만 가서 다른 세션이 모른 채
+> 반대로 만들었다. 저장소 규칙에 두면 모든 세션이 같은 것을 읽는다. 읽기: `git fetch origin` 뒤
+> `git show origin/main:DECISIONS.md | tail -30`(Git Bash 는 `MSYS_NO_PATHCONV=1` 을 앞에 붙인다).
+
 ## What never to do in this repo
 
 - Commit `.env`. (gitignored — verify before staging.)
@@ -884,6 +892,10 @@ every agent: Claude, Codex, Antigravity, Grok.
   `C:\Coding Infra\_worktrees\`). See **Worktrees & branches** above.
 - Push to `main` directly. Always PR.
 - Use `git rebase -i` or `git push --force` without explicit user confirmation.
+  (2026-10-07: `.claude/settings.json` 의 `permissions.deny` 가 Claude 의 Bash 도구에서 `--force` ·
+  `--force-with-lease` · `--force-if-includes` · `-f` · `+refspec` 푸시를 막는다. 규칙은 명령 문자열
+  일치라 `bash -c "..."` 안이나 별칭 · 스크립트로 감싼 푸시는 못 잡을 수 있다 — 이 줄이 여전히 규칙이다.
+  확인된 사용자 지시로 꼭 필요하면 사람이 직접 친다.)
 - Add a dependency without checking the free-tier impact (blueprint §5 promises $0/mo).
 - Skip the safety classifier in any LLM call path.
 - Stage `.claude/settings.local.json` (per-user, gitignored).

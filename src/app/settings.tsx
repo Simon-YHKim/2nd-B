@@ -53,7 +53,6 @@ import {
   getWikiAutoPromote,
   setWikiAutoPromote,
 } from "@/lib/wiki/auto-promote";
-import { useNoticeCenter } from "@/app/notices";
 import {
   deleteAllChatUsage,
   deleteAllUserData,
@@ -75,9 +74,6 @@ const DATA_DELETE_STEPS: DataDeleteStep[] = ["records", "assessments", "library"
 const SETTINGS_SURFACE_COPY: Record<
   AvailableUiLocale,
   {
-    news: string;
-    notices: string;
-    noticesSub: string;
     reasoning: string;
     reasoningSub: string;
     wikiAuto: string;
@@ -87,9 +83,6 @@ const SETTINGS_SURFACE_COPY: Record<
   }
 > = {
   en: {
-    news: "News",
-    notices: "Notices",
-    noticesSub: "Patch notes · developer news",
     reasoning: "Reasoning",
     reasoningSub: "Automatic runs · item selection",
     wikiAuto: "Auto wiki pages",
@@ -98,9 +91,6 @@ const SETTINGS_SURFACE_COPY: Record<
     devScreensSub: "Open every screen directly",
   },
   ko: {
-    news: "소식",
-    notices: "공지사항",
-    noticesSub: "패치노트 · 개발자 소식",
     reasoning: "리즈닝",
     reasoningSub: "자동 실행 · 자료 선택",
     wikiAuto: "위키 자동 만들기",
@@ -109,9 +99,6 @@ const SETTINGS_SURFACE_COPY: Record<
     devScreensSub: "모든 화면에 바로 들어가기",
   },
   es: {
-    news: "Novedades",
-    notices: "Avisos",
-    noticesSub: "Notas de versión · noticias del desarrollador",
     reasoning: "Razonamiento",
     reasoningSub: "Ejecuciones automáticas · selección de material",
     wikiAuto: "Páginas wiki automáticas",
@@ -120,9 +107,6 @@ const SETTINGS_SURFACE_COPY: Record<
     devScreensSub: "Abre cualquier pantalla directamente",
   },
   pt: {
-    news: "Novidades",
-    notices: "Avisos",
-    noticesSub: "Notas de versão · notícias do desenvolvedor",
     reasoning: "Raciocínio",
     reasoningSub: "Execuções automáticas · seleção de material",
     wikiAuto: "Páginas wiki automáticas",
@@ -131,9 +115,6 @@ const SETTINGS_SURFACE_COPY: Record<
     devScreensSub: "Abra qualquer tela diretamente",
   },
   id: {
-    news: "Kabar baru",
-    notices: "Pemberitahuan",
-    noticesSub: "Catatan rilis · kabar pengembang",
     reasoning: "Penalaran",
     reasoningSub: "Jalankan otomatis · pilih materi",
     wikiAuto: "Halaman wiki otomatis",
@@ -415,7 +396,6 @@ export default function Settings() {
   const displayLocale = AVAILABLE_UI_LOCALES.includes(i18n.language as AvailableUiLocale)
     ? (i18n.language as AvailableUiLocale)
     : "en";
-  const noticeCenter = useNoticeCenter(userId);
 
   // Wiki auto-promotion. Server-persisted (users.reasoning_prefs.wikiAuto) so the
   // policy does not silently differ per device — the exact failure 0093 fixed for
@@ -645,45 +625,18 @@ export default function Settings() {
           contentContainerStyle={[styles.scroll, styles.pixelScroll]}
           keyboardShouldPersistTaps="handled"
         >
-        {/* sb-app §4: no companion header outside capture/chat/records - the
-            caption below carries the guidance line. */}
+        {/* sb-app §4: no companion header outside capture/chat/records. */}
         <RNText style={[m3Styles.headline, m3Styles.pixelHeadline]}>{t("settings")}</RNText>
-        {/* Guidance line (kept from the companion era — OldGuidanceCopyResidue
-            pins this SecondB-voiced wording; rev2 drops the header, not the copy). */}
-        <Text variant="caption" color="textMuted" style={styles.guidance}>
-          {t("subtitleFull")}
-        </Text>
-
-        {/* PIXEL-CLAY reference starts with identity. We keep the production
-            profile route and user-owned data instead of importing its sample
-            avatar/name. */}
-        <M3SectionLabel>{t("myAccount")}</M3SectionLabel>
-        <M3Group>
-          <M3LinkRow
-            icon="person"
-            label={t("nav.profile")}
-            sub={t("nav.profileHint")}
-            onPress={() => router.push("/profile")}
-          />
-        </M3Group>
+        {/* Simon 2026-10-07: the guidance line under the title, the 내 계정 group (its one
+            row was 프로필) and the 소식 group (its one row was 공지사항) are gone. Profile
+            opens from the home's profile star; notices from the phone's alerts app. The
+            subtitleFull copy stays in the locale files (OldGuidanceCopyResidue reads it). */}
 
         {/* ── rev2 M3 toggle-card clone (기능 / 데이터 연동) ── */}
         {/* The 모양 group held one row, the 다크 모드 switch. Simon removed the
             dark/light choice (Q-261005-02, 2026-10-05: "그냥 없애버려") - the app
             is always dark, so the row and its group are gone, not hidden. Font
             and motion stay on /theme (app group below). */}
-
-        {/* 소식 */}
-        <M3SectionLabel>{newSurfaceCopy.news}</M3SectionLabel>
-        <M3Group>
-          <M3LinkRow
-            icon="campaign"
-            label={newSurfaceCopy.notices}
-            sub={newSurfaceCopy.noticesSub}
-            badge={noticeCenter.unreadCount}
-            onPress={() => router.push("/notices")}
-          />
-        </M3Group>
 
         {/* 구독 — the entry point docs/legal/refund-policy.md has named since
             2026-07-17 ("앱 내 [설정 → 구독 관리]"). It is a link row, not a set of
@@ -1253,7 +1206,6 @@ const styles = StyleSheet.create({
   },
   header: { gap: spacing.xs, marginBottom: spacing.md },
   title: { fontSize: 20, color: deepSpace.textHi, marginBottom: spacing.xs },
-  guidance: { marginTop: -6, marginBottom: spacing.xs },
   sectionEyebrow: { letterSpacing: 0, fontWeight: "700" },
   pixelDisclosureHeaderPressed: {
     transform: [{ translateY: m3.spacing.s1 }],
