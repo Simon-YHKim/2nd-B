@@ -190,7 +190,115 @@
     "lastRead": "Last read · {{date}}",
     "noData": "No data has been read yet.",
     "refresh": "Refresh",
-    "unknownDate": "Date unavailable"
+    "unknownDate": "Date unavailable",
+    "board": {
+      "evidence": "Show the source",
+      "addWidget": "Add a widget",
+      "clock": {
+        "weatherPrompt": "Pick your neighborhood to see the weather.",
+        "pickArea": "Pick neighborhood"
+      },
+      "note": {
+        "tapHint": "Tap for today's summary",
+        "empty": "Today's note appears after your first record.",
+        "slot": {
+          "morning": "Morning",
+          "day": "Afternoon",
+          "evening": "Evening"
+        }
+      },
+      "reminders": {
+        "title": "Reminders",
+        "previous": "Previous day",
+        "next": "Next day",
+        "anytime": "Any time",
+        "alarm": "Alert at {{time}}",
+        "add": "Add",
+        "dismiss": "Dismiss",
+        "days": {
+          "yesterday": "Yesterday",
+          "today": "Today",
+          "tomorrow": "Tomorrow",
+          "dayAfter": "Day after"
+        },
+        "empty": {
+          "yesterday": "Nothing was planned yesterday.",
+          "today": "Nothing is planned for today.",
+          "tomorrow": "Nothing is planned for tomorrow.",
+          "dayAfter": "Nothing is planned for the day after."
+        },
+        "status": {
+          "upcoming": "Coming up",
+          "done": "Done",
+          "passed": "Let go"
+        }
+      },
+      "queue": {
+        "title": "To handle {{index}}/{{total}}",
+        "empty": "Nothing is waiting on you today.",
+        "done": "I did it",
+        "later": "Later",
+        "notImportant": "Not important",
+        "sources": {
+          "mail": "Mail",
+          "notification": "Alert",
+          "app": "App"
+        }
+      },
+      "health": {
+        "title": "Health",
+        "locked": "Connect health to see last night's sleep.",
+        "empty": "Bring in health records and they show here.",
+        "openSetup": "Connection settings",
+        "synced": "{{source}} · synced {{time}}",
+        "minutes": "{{value}} min",
+        "metrics": {
+          "sleep": "Sleep",
+          "steps": "Steps",
+          "workout": "Workout",
+          "meal": "Meals"
+        },
+        "sources": {
+          "health_connect": "Health Connect",
+          "healthkit": "Apple Health",
+          "manual": "Entered by you"
+        }
+      },
+      "spend": {
+        "title": "Spending",
+        "empty": "Bring in a statement and this month's total shows here.",
+        "open": "Open ledger",
+        "add": "Add",
+        "reject": "No"
+      },
+      "changes": {
+        "title": "Also"
+      },
+      "custom": {
+        "empty": "As your records grow, your own widgets appear here.",
+        "capture": "Capture",
+        "make": "Make it",
+        "skip": "No thanks",
+        "previous": "Previous widget",
+        "next": "Next widget"
+      },
+      "locked": {
+        "open": "Connection settings",
+        "weather": "Weather opens once a neighborhood is chosen.",
+        "aiConsent": "Today's note opens with AI processing turned on.",
+        "calendar": "Connect a calendar to see plans here.",
+        "inbox": "Connect mail or alerts to see what to handle.",
+        "ledger": "Bring in a statement to see spending.",
+        "sources": "Connect a source to see what changed.",
+        "records": "Your own widgets open as records grow."
+      },
+      "dock": {
+        "capture": "Capture",
+        "chat": "Chat",
+        "transcribe": "Transcribe",
+        "transcribeLocked": "Transcribe, not open yet"
+      }
+    }
   },
   "loading": "Loading routines…",
   "hero": {
