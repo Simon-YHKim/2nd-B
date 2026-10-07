@@ -1422,7 +1422,8 @@ results.push(
       dashboardPhone.includes('t("wiki:searchPieces")') &&
       read("locales/ko/wiki.json").includes("저장 이름") &&
       dashboardPhone.includes('t("wiki:savedAs", { name: page.slug })') &&
-      dashboardPhone.includes("{page.title || page.slug}</Text>") &&
+      // 2026-10-07 픽셀 아이폰: 위키 줄은 iOS 줄 부품(IosRow)이라 제목을 title 속성으로 넘긴다.
+      dashboardPhone.includes("title={page.title || page.slug}") &&
       forbiddenUserLanguage.every((term) => !inbox.includes(term) && !wiki.includes(term));
     return {
       id: "WikiLanguage",

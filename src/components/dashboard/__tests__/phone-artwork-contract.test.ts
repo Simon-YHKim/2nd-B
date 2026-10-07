@@ -7,7 +7,8 @@ test("the supplied phone artwork frames the interactive screen without swallowin
   expect(source).toContain("secondb-cellphone-screen.png");
   expect(source).toContain("fitPhoneArtwork");
   expect(source).toContain('pointerEvents="none"');
-  expect(source).toContain("style={[styles.display, frame.screen]}");
+  // Pixel iPhone: the phone's own pages sit on iOS grouped grey; an app opened in the phone keeps its own screen.
+  expect(source).toContain("style={[styles.display, frame.screen, internalActive && !appScreenOpen && styles.displayGrouped]}");
   expect(source).toContain('variant="fullbleed"');
   expect(source).toContain("style={[styles.homeButton, frame.homeButton]}");
   expect(source).toContain('testID="dashboard-phone"');

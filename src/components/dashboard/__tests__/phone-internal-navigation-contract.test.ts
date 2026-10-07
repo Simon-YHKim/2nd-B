@@ -36,7 +36,8 @@ test("an in-phone page shows one Back: the phone row, or the content's own heade
   expect(phone).toContain("const ownsDisplay = museumOpen || phoneScreen !== null;");
   // S-01 하루 요약은 자기 [닫기]를 가진다(2026-10-07).
   expect(phone).toContain('const contentOwnsBack = ownsDisplay || insideRoute === "/board/summary" || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);');
-  expect(phone).toContain("{internalActive && !contentOwnsBack ? <PhoneAction");
+  // Pixel iPhone: the phone row is an iOS nav-bar back (blue chevron and label).
+  expect(phone).toContain("{internalActive && !contentOwnsBack ? <NavBack");
   expect(phone).not.toContain("{internalActive && !museumOpen ? <PhoneAction");
   expect(phone).toContain("<OpsPhoneContent screen={opsScreen} onBack={backInside}");
   expect(phone).toContain("<MuseumPhoneContent width={frame.screen.width} onBack={backInside}");
