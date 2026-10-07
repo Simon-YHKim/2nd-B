@@ -251,7 +251,7 @@
         "empty": "Traga seus registros de saúde e eles aparecem aqui.",
         "openSetup": "Configurações de conexão",
         "synced": "{{source}} · sincronizado às {{time}}",
-        "minutes": "{{value}} min",
+        "minutes": "{{value}} minutos",
         "metrics": {
           "sleep": "Sono",
           "steps": "Passos",

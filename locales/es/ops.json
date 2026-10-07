@@ -251,7 +251,7 @@
         "empty": "Trae tus registros de salud y aparecerán aquí.",
         "openSetup": "Ajustes de conexión",
         "synced": "{{source}} · sincronizado a las {{time}}",
-        "minutes": "{{value}} min",
+        "minutes": "{{value}} minutos",
         "metrics": {
           "sleep": "Sueño",
           "steps": "Pasos",
@@ -294,7 +294,7 @@
       },
       "dock": {
         "capture": "Guardar",
-        "chat": "Chat",
+        "chat": "Conversación",
         "transcribe": "Transcribir",
         "transcribeLocked": "Transcribir, aún no disponible"
       }
