@@ -57,8 +57,9 @@ BEGIN
   VALUES (v_r, v_one, 'audit_response', public.interview_transcript_body('ko', v_turns), 'school',
           ARRAY['interview'], 'interview:' || v_s::text);
   PERFORM set_config('request.jwt.claims', '{"role":"authenticated","sub":"27000000-0000-4000-8000-000000000001"}', true);
-  v_result := public.commit_interview_session(v_s, v_r, v_turns);
+  v_result := public.commit_interview_session(v_s, v_r, v_turns, true);
   IF v_result ->> 'status' <> 'committed' THEN RAISE EXCEPTION 'rollback fixture: commit %', v_result; END IF;
+  IF v_result ->> 'ai_hold' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'D6R3-53: hold fixture missing'; END IF;
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM set_config('request.jwt.claim.role', 'service_role', true);
   IF public.record_interview_probe_verdict(v_one, '27000000-0000-4000-8000-0000000000a4', v_s, 'school', 'ko',
@@ -91,7 +92,7 @@ BEGIN
      OR has_function_privilege('authenticated','public.polaris_evidence_snapshot(uuid,jsonb)','EXECUTE')
      OR has_function_privilege('service_role','public.polaris_evidence_snapshot(uuid,jsonb)','EXECUTE')
      OR NOT has_function_privilege('authenticated','public.reserve_polaris_generation(uuid,text)','EXECUTE') THEN
-    RAISE EXCEPTION 'R2 D6-02: rollback did not restore 0218 evidence functions and 0195 grants';
+    RAISE EXCEPTION 'R2 D6-02: rollback did not retain independent evidence functions and 0195 grants';
   END IF;
   IF EXISTS (SELECT 1 FROM public.interview_sessions WHERE id = '27000000-0000-4000-8000-000000000051')
      OR NOT EXISTS (SELECT 1 FROM public.interview_session_tombstones
@@ -116,6 +117,63 @@ BEGIN
   END IF;
 END
 $after_rollback$;
+
+-- D6R3-53: kept hold data stays excluded, even if a client deletes its ledger parents.
+-- The inner subtransaction restores the saved fixture for the lifecycle checks below.
+-- Supabase grants this owner write surface; the vanilla scratch schema does not.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.records TO authenticated;
+DO $r3_rollback_hold$
+DECLARE
+  v_user uuid := '27000000-0000-4000-8000-000000000001';
+  v_r uuid := '27000000-0000-4000-8000-0000000000e2';
+  v_ok uuid := gen_random_uuid(); v_path integer; v_result jsonb; v_evidence jsonb;
+BEGIN
+  BEGIN
+    IF NOT EXISTS (SELECT 1 FROM public.records WHERE id=v_r AND interview_ai_hold)
+       OR NOT EXISTS (SELECT 1 FROM public.interview_transcripts WHERE record_id=v_r AND ai_hold) THEN
+      RAISE EXCEPTION 'D6R3-53: rollback lost the hold fixture';
+    END IF;
+    UPDATE public.polaris_generation_config SET enabled=true;
+    INSERT INTO public.records(id,user_id,kind,body,audit_period,system_tags)
+    VALUES(v_ok,v_user,'audit_response','eligible evidence','now',ARRAY['interview']);
+    PERFORM set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',v_user)::text,true);
+    SELECT jsonb_build_array(jsonb_build_object('id',id,'domain',audit_period,
+      'body_hash',encode(sha256(convert_to(body,'UTF8')),'hex'))) INTO v_evidence FROM public.records WHERE id=v_r;
+    FOR v_path IN 0..2 LOOP
+      SET LOCAL ROLE authenticated;
+      IF v_path=1 THEN DELETE FROM public.interview_transcripts WHERE record_id=v_r;
+      ELSIF v_path=2 THEN DELETE FROM public.interview_sessions WHERE record_id=v_r; END IF;
+      BEGIN
+        UPDATE public.records SET interview_ai_hold=false WHERE id=v_r;
+        RAISE EXCEPTION 'D6R3-53: rollback let a client release hold';
+      EXCEPTION WHEN insufficient_privilege THEN
+        IF SQLERRM <> 'interview_record_hold_server_only' THEN RAISE; END IF;
+      END;
+      RESET ROLE;
+      BEGIN
+        PERFORM public.polaris_evidence_snapshot(v_user,v_evidence);
+        RAISE EXCEPTION 'D6R3-53: rollback snapshot returned hold evidence';
+      EXCEPTION WHEN raise_exception THEN
+        IF SQLERRM <> 'polaris_evidence_changed' THEN RAISE; END IF;
+      END;
+      BEGIN
+        v_result := public.reserve_polaris_generation(v_user,'r3-rollback-hold-'||v_path);
+        IF EXISTS (SELECT 1 FROM public.polaris_generations g, jsonb_array_elements(g.evidence) e
+                    WHERE g.id=(v_result->>'generation_id')::uuid AND e->>'id'=v_r::text)
+           OR NOT EXISTS (SELECT 1 FROM public.polaris_generations g, jsonb_array_elements(g.evidence) e
+                    WHERE g.id=(v_result->>'generation_id')::uuid AND e->>'id'=v_ok::text) THEN
+          RAISE EXCEPTION 'D6R3-53: rollback reserve selected hold or lost eligible evidence';
+        END IF;
+        RAISE EXCEPTION 'r3-reserve-done';
+      EXCEPTION WHEN raise_exception THEN
+        IF SQLERRM <> 'r3-reserve-done' THEN RAISE; END IF;
+      END;
+    END LOOP;
+    RAISE EXCEPTION 'r3-rollback-probe-done';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> 'r3-rollback-probe-done' THEN RAISE; END IF;
+  END;
+END $r3_rollback_hold$;
 
 -- 4. After the rollback, deleting the saved record still folds its session, empties every hash it carried,
 --    takes the context row that named it. Sweep and prune still run.
@@ -143,7 +201,7 @@ BEGIN
   IF (SELECT count(*) FROM pg_proc WHERE oid IN (
       'public.reserve_polaris_generation(uuid,text)'::regprocedure,
       'public.polaris_evidence_snapshot(uuid,jsonb)'::regprocedure)
-      AND position('t.ai_hold' IN prosrc) > 0) <> 2 THEN
+      AND position('interview_ai_hold' IN prosrc) > 0) <> 2 THEN
     RAISE EXCEPTION 'R2 D6-02: reapply did not restore both hold exclusions';
   END IF;
   IF to_regprocedure('public.commit_interview_session(uuid,uuid,jsonb,boolean)') IS NULL

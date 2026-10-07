@@ -74,6 +74,29 @@ $prerequisites$;
 -- 1. 표
 ----------------------------------------------------------------------
 
+-- D6R3-51: keep hold for the lifetime of the record, independent of ledger parents.
+-- A separate bit leaves 0218's 16-element system_tags shape and client tag writes intact.
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS interview_ai_hold boolean NOT NULL DEFAULT false;
+COMMENT ON COLUMN public.records.interview_ai_hold IS
+  'Server-owned interview hold; retained through ledger deletion and the data-preserving 0225 rollback.';
+
+-- SECURITY INVOKER is intentional: a commit RPC runs as its definer, a direct client write does not.
+CREATE OR REPLACE FUNCTION public.guard_interview_record_hold()
+RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
+BEGIN
+  IF current_user IN ('anon', 'authenticated') THEN
+    IF (TG_OP = 'INSERT' AND NEW.interview_ai_hold)
+       OR (TG_OP = 'UPDATE' AND NEW.interview_ai_hold IS DISTINCT FROM OLD.interview_ai_hold) THEN
+      RAISE EXCEPTION 'interview_record_hold_server_only' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS guard_interview_record_hold ON public.records;
+CREATE TRIGGER guard_interview_record_hold BEFORE INSERT OR UPDATE ON public.records
+  FOR EACH ROW EXECUTE FUNCTION public.guard_interview_record_hold();
+
 -- 1.1 세션 (화면 한 번). 저장한 세션만 오래 남는다. 저장하지 않은 세션은 fold 가 지운다.
 CREATE TABLE IF NOT EXISTS public.interview_sessions (
   id            uuid        PRIMARY KEY,   -- 클라이언트가 세션 시작 때 만든 무작위 uuid(v4)
@@ -195,6 +218,7 @@ CREATE INDEX IF NOT EXISTS interview_sessions_record_idx
 -- 전부 적는다(기록 · 교체 · 장면 역행 · 상한 초과 · 종료 뒤 재시도). 거절한 호출도 화면에는 응답이
 -- 갔을 수 있으므로, 그 해시는 세션이 저장된 동안만 남고 세션을 접을 때 함께 비운다(D6-54).
 -- 판정 행의 audit_id · prior_audit_ids 도 모두 여기 있다. 소유자 열 없음: 세션을 따라 지워진다.
+-- 입력 검증 실패는 결속 없이 즉시 해시를 비우고 상태값으로 답한다(D6R3-52).
 CREATE TABLE IF NOT EXISTS public.interview_session_audit_ids (
   audit_id    uuid        PRIMARY KEY,
   session_id  uuid        NOT NULL REFERENCES public.interview_sessions(id) ON DELETE CASCADE,
@@ -830,9 +854,12 @@ CREATE TRIGGER interview_session_count_start
 --
 -- 감사 해시의 수명(D6-01 · D6-54 · D6-55): 먼저 계정 울타리(0192 공유 잠금 · tombstone)를 지나고, 감사
 -- 행이 이 사용자 · interview_probe · server_verified 인지 확인한다. 확인된 감사 id 는 결과와 무관하게
--- 세션의 감사 id(interview_session_audit_ids)로 적어, 세션이 접힐 때 함께 비운다. 세션에 붙일 수 없는
+-- 세션의 감사 id(interview_session_audit_ids)로 적어, 세션이 접힐 때 함께 비운다(입력 검증 실패는 즉시 비움).
+-- 세션에 붙일 수 없는
 -- 호출(이미 접힌 세션 · 남의 세션)은 그 자리에서 해시를 비운다. 접힌 세션은 다시 만들지 않는다.
 -- 세션을 닫은 뒤 같은 턴의 재시도는 판정 · 시각을 바꾸지 않는다(D6-56: 종료 시점의 판정이 칸을 정한다).
+-- D6R3-52: 입력 거절도 text 상태(interview_verdict_invalid · interview_rule_set_locked ·
+-- interview_final_credit_mismatch)로 답한다. 검증된 새 감사 호출의 해시는 즉시 비운다.
 CREATE OR REPLACE FUNCTION public.record_interview_probe_verdict(
   p_user_id uuid,
   p_audit_id uuid,
@@ -867,6 +894,7 @@ DECLARE
   v_existing public.interview_probe_verdicts%ROWTYPE;
   v_max_scene integer;
   v_rows integer;
+  v_invalid text;
 BEGIN
   IF public.billing_request_role() IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'service_role only' USING ERRCODE = '42501';
@@ -890,19 +918,19 @@ BEGIN
      OR (p_openers_offered IS NOT NULL AND p_openers_offered NOT BETWEEN 0 AND 2)
      OR (p_answer_len_bucket IS NOT NULL AND p_answer_len_bucket NOT BETWEEN 0 AND 3)
      OR (p_answer_digest IS NOT NULL AND p_answer_digest !~ '^[0-9a-f]{64}$') THEN
-    RAISE EXCEPTION 'interview_verdict_invalid' USING ERRCODE = '22023';
+    v_invalid := 'interview_verdict_invalid';
   END IF;
   -- 기준선 동안 규칙 판은 r0 하나다(설계 T-11). r0 의 최종 인정 = credited AND pass(continuity.ts).
-  IF p_rule_set <> 'r0' THEN
-    RAISE EXCEPTION 'interview_rule_set_locked' USING ERRCODE = '22023';
+  IF v_invalid IS NULL AND p_rule_set <> 'r0' THEN
+    v_invalid := 'interview_rule_set_locked';
   END IF;
-  IF p_final_credit IS DISTINCT FROM (p_verdict = 'credited' AND p_local_gate = 'pass') THEN
-    RAISE EXCEPTION 'interview_final_credit_mismatch' USING ERRCODE = '22023';
+  IF v_invalid IS NULL AND p_final_credit IS DISTINCT FROM (p_verdict = 'credited' AND p_local_gate = 'pass') THEN
+    v_invalid := 'interview_final_credit_mismatch';
   END IF;
   -- 인정은 모델이 질문 층을 말했을 때만이다. NULL 층의 credited 는 CHECK 에 닿기 전에 거절한다(D6-59).
-  IF p_verdict = 'credited'
+  IF v_invalid IS NULL AND p_verdict = 'credited'
      AND (p_asked_layer IS NULL OR p_model_layer IS NULL OR p_model_layer <> p_asked_layer) THEN
-    RAISE EXCEPTION 'interview_verdict_invalid' USING ERRCODE = '22023';
+    v_invalid := 'interview_verdict_invalid';
   END IF;
   -- 계정이 지워지는 중이거나 지워졌으면 아무것도 만들지 않는다(D6-04).
   IF NOT public.interview_account_writable(p_user_id) THEN
@@ -925,6 +953,14 @@ BEGIN
       RETURN 'audit_mismatch';
     END IF;
     RETURN 'duplicate';
+  END IF;
+
+  -- D6R3-52: a bad payload cannot roll back its own cleanup. Verify ownership and
+  -- audit reuse first, then erase this unbound call immediately and return a status.
+  -- Even a NULL session id or invalid period must not leave an uncollectable hash.
+  IF v_invalid IS NOT NULL THEN
+    PERFORM public.erase_audit_hashes(p_user_id, ARRAY[p_audit_id], 'interview_probe');
+    RETURN v_invalid;
   END IF;
 
   SELECT * INTO v_session
@@ -1183,7 +1219,8 @@ $$;
 --      hold 면 더하지 않는다(지금 화면이 저장 시 red 면 칸을 안 쓰는 것과 같다).
 --   7. 끝에서 판정 행 수 = 답 턴 수를 확인한다(완료조건 1 의 서버 쪽 불변식).
 -- hold(D6-03, 최소 보수 조치): 화면이 보낸 p_crisis_hold 를 서버가 내리지는 않는다. 이 세션의 감사 행
--- 중 프록시가 red 로 적은 것이 있으면 화면이 false 를 보내도 올린다. hold 는 머리와 모든 턴에 같이 적는다.
+-- 중 프록시가 red 로 적은 것이 있으면 화면이 false 를 보내도 올린다. hold 는 레코드 · 머리 · 모든 턴에
+-- 같이 적으며, 클라이언트는 레코드 표식을 풀 수 없다(D6R3-51).
 -- 동시에 온 첫 담기 둘(세션 행 없음)은 한쪽이 세션을 만들고 다른 쪽은 그 잠금 뒤에서 already_committed
 -- 를 받는다(D6-57: 일반 INSERT 의 23505 대신).
 CREATE OR REPLACE FUNCTION public.commit_interview_session(
@@ -1202,6 +1239,7 @@ DECLARE
   v_session public.interview_sessions%ROWTYPE;
   v_record_body text;
   v_record_period text;
+  v_record_hold boolean;
   v_count integer;
   v_turn jsonb;
   v_i integer;
@@ -1259,14 +1297,14 @@ BEGIN
   -- A DELETE already owns its record row before the row trigger can take our session key.
   -- Do not wait in the opposite direction: abort for retry, releasing all transaction locks.
   BEGIN
-  SELECT r.body, r.audit_period INTO v_record_body, v_record_period
+  SELECT r.body, r.audit_period, r.interview_ai_hold INTO v_record_body, v_record_period, v_record_hold
     FROM public.records AS r
    WHERE r.id = p_record_id
      AND r.user_id = v_uid
      AND r.kind::text = 'audit_response'
      AND r.system_tags @> ARRAY['interview']::text[]
      AND r.client_request_id = 'interview:' || p_session_id::text
-   FOR SHARE NOWAIT;
+   FOR UPDATE NOWAIT;
   EXCEPTION WHEN lock_not_available THEN
     RAISE EXCEPTION 'interview_record_busy_retry' USING ERRCODE = '40001';
   END;
@@ -1345,11 +1383,15 @@ BEGIN
     END IF;
   END IF;
 
-  v_hold := p_crisis_hold
+  v_hold := p_crisis_hold OR v_record_hold
     OR EXISTS (SELECT 1
                  FROM public.interview_session_audit_ids AS i
                  JOIN public.ai_audit_log AS a ON a.id = i.audit_id
                 WHERE i.session_id = p_session_id AND a.user_id = v_uid AND a.safety_zone = 'red');
+
+  IF v_hold THEN
+    UPDATE public.records SET interview_ai_hold = true WHERE id = p_record_id;
+  END IF;
 
   INSERT INTO public.interview_transcripts AS t (user_id, session_id, record_id, period, locale, turn_count, ai_hold)
   VALUES (v_uid, p_session_id, p_record_id, v_session.period, v_locale, v_count, v_hold)
@@ -1435,7 +1477,8 @@ BEGIN
          AND v.final_credit
          AND v.link_state = 'linked'
          AND v.asked_layer IS NOT NULL
-         AND (v_session.ended_at IS NULL OR v.created_at <= v_session.ended_at)
+         -- D6R3-55: the session lock and closed-session write fence define the cutoff.
+         -- Transaction start timestamps can run in the opposite order to those locks.
        GROUP BY v.asked_layer
     ), added AS (
       INSERT INTO public.interview_coverage AS c (user_id, period, layer, answers, updated_at)
@@ -1487,20 +1530,30 @@ DECLARE
   v_role text := public.billing_request_role();
   v_batch integer := LEAST(GREATEST(COALESCE(p_batch, 5000), 1), 50000);
   v_id uuid;
+  v_owner uuid;
   v_n integer := 0;
 BEGIN
   -- pg_cron(JWT 없음)과 service_role 만. authenticated · anon 은 EXECUTE 도 없다.
   IF v_role IS NOT NULL AND v_role <> 'service_role' THEN
     RAISE EXCEPTION 'service_role only' USING ERRCODE = '42501';
   END IF;
-  FOR v_id IN
-    SELECT s.id
+  FOR v_id, v_owner IN
+    SELECT s.id, s.owner_id
       FROM public.interview_sessions AS s
      WHERE s.committed_at IS NULL
        AND s.last_seen_at < pg_catalog.now() - c_idle
      ORDER BY s.last_seen_at
      LIMIT v_batch
   LOOP
+    -- D6R3-54: account fence (0192), recheck, session key, then rows/audit hashes.
+    -- A deleting account owns the exclusive key; skip it without taking any row lock.
+    IF NOT pg_catalog.pg_try_advisory_xact_lock_shared(pg_catalog.hashtextextended(v_owner::text, 260913)) THEN
+      CONTINUE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.users AS u WHERE u.id = v_owner)
+       OR EXISTS (SELECT 1 FROM public.account_deletion_tombstones AS t WHERE t.user_id = v_owner) THEN
+      CONTINUE;
+    END IF;
     IF NOT pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtextextended('interview_session:' || v_id::text, 0)) THEN
       CONTINUE;
     END IF;
@@ -1752,8 +1805,13 @@ CREATE TRIGGER trg_interview_coverage_no_decrease
   FOR EACH ROW EXECUTE FUNCTION public.interview_coverage_no_decrease();
 
 ----------------------------------------------------------------------
--- Polaris 근거: 0218 본문에 ai_hold 제외 조건 하나만 더한다(권한은 0195 그대로).
+-- Polaris 근거: 0218 본문에 레코드 hold 제외 조건 하나만 더한다(권한은 0195 그대로).
 ----------------------------------------------------------------------
+-- Reapplication also protects hold data saved by the earlier 0225 draft.
+UPDATE public.records AS r SET interview_ai_hold = true
+ WHERE NOT r.interview_ai_hold
+   AND EXISTS (SELECT 1 FROM public.interview_transcripts AS t WHERE t.record_id = r.id AND t.ai_hold);
+
 CREATE OR REPLACE FUNCTION public.reserve_polaris_generation(p_user_id uuid, p_key text) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
@@ -1798,7 +1856,7 @@ BEGIN
       row_number() OVER (PARTITION BY audit_period ORDER BY created_at DESC,id) AS domain_rank
       FROM public.records WHERE user_id=p_user_id
       AND kind='audit_response' AND system_tags @> ARRAY['interview']::text[] AND length(trim(body))>0
-      AND NOT EXISTS (SELECT 1 FROM public.interview_transcripts AS t WHERE t.record_id = records.id AND t.ai_hold)
+      AND NOT interview_ai_hold
       AND audit_period IN ('infancy','school','twenties','later','work','now')) r
     WHERE r.domain_rank <= 3;
   IF jsonb_array_length(v_evidence)=0 THEN RAISE EXCEPTION 'polaris_no_evidence'; END IF;
@@ -1844,7 +1902,7 @@ BEGIN
     JOIN public.records r ON r.id::text=e.item->>'id' AND r.user_id=p_user_id
       AND r.audit_period=e.item->>'domain' AND r.kind='audit_response'
       AND r.system_tags @> ARRAY['interview']::text[]
-      AND NOT EXISTS (SELECT 1 FROM public.interview_transcripts AS t WHERE t.record_id = r.id AND t.ai_hold)
+      AND NOT r.interview_ai_hold
       AND encode(sha256(convert_to(r.body,'UTF8')),'hex')=e.item->>'body_hash'
     ORDER BY e.position FOR SHARE OF r
   LOOP
@@ -1935,6 +1993,7 @@ BEGIN
   IF (SELECT pg_catalog.count(*) FROM pg_catalog.pg_trigger AS g
        WHERE NOT g.tgisinternal
          AND (g.tgrelid, g.tgname) IN (
+           ('public.records'::regclass, 'guard_interview_record_hold'),
            ('public.records'::regclass, 'interview_record_erasure'),
            ('public.records'::regclass, 'ai_context_block_record_erasure'),
            ('public.interview_coverage'::regclass, 'trg_interview_coverage_no_decrease'),
@@ -1942,7 +2001,7 @@ BEGIN
            ('public.interview_sessions'::regclass, 'interview_session_count_start'),
            ('public.interview_sessions'::regclass, 'interview_session_erasure'),
            ('auth.users'::regclass, 'interview_account_erasure'),
-           ('public.users'::regclass, 'interview_account_erasure'))) <> 8 THEN
+           ('public.users'::regclass, 'interview_account_erasure'))) <> 9 THEN
     RAISE EXCEPTION '0225: a ledger trigger is missing';
   END IF;
 
@@ -1950,7 +2009,7 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_catalog.pg_proc AS p
               JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
              WHERE n.nspname = 'public'
-               AND p.proname IN ('erase_audit_hashes', 'interview_account_writable', 'fold_interview_session',
+               AND p.proname IN ('guard_interview_record_hold', 'erase_audit_hashes', 'interview_account_writable', 'fold_interview_session',
                                  'interview_verdict_erasure', 'interview_session_count_start',
                                  'interview_session_erasure', 'interview_account_erasure',
                                  'record_interview_probe_verdict', 'close_interview_session',
@@ -1971,6 +2030,7 @@ $postcondition$;
 -- 아무것도 두지 않는다. 새 함수는 Supabase 기본 권한으로 anon · authenticated 에게 EXECUTE 가 붙으므로
 -- 같은 파일에서 회수한다(Rule B).
 
+REVOKE ALL ON FUNCTION public.guard_interview_record_hold() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.interview_session_erasure() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.interview_account_erasure() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.interview_int_array_add(integer[], integer[]) FROM PUBLIC, anon, authenticated, service_role;

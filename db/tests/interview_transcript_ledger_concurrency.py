@@ -75,17 +75,17 @@ def auth(service=False):
     return f"SET LOCAL request.jwt.claim.role='{role}'; SET LOCAL request.jwt.claim.sub='{USER}';"
 
 
-def fixture(db, pending=False):
+def fixture(db, pending=False, owner=USER):
     session, record, audit, context = [str(uuid.uuid4()) for _ in range(4)]
     turns = json.dumps([dict(n=1, role="user", scene=1, layer="fact", origin="user", text="answer", state="judged")])
     sql(db, f"""
       INSERT INTO public.records(id,user_id,kind,body,audit_period,system_tags,client_request_id)
-      VALUES('{record}','{USER}','audit_response','A: answer','now',ARRAY['interview'],'interview:{session}');
+      VALUES('{record}','{owner}','audit_response','A: answer','now',ARRAY['interview'],'interview:{session}');
       INSERT INTO public.ai_audit_log(id,user_id,prompt_hash,output_hash,model_used,vertex_backend,safety_zone,latency_ms,purpose,event_source)
-      VALUES('{audit}','{USER}','p','o','test',false,'green',1,'interview_probe','server_verified'),
-            ('{context}','{USER}','p','o','test',false,'green',1,'secondb_chat','server_verified');
+      VALUES('{audit}','{owner}','p','o','test',false,'green',1,'interview_probe','server_verified'),
+            ('{context}','{owner}','p','o','test',false,'green',1,'secondb_chat','server_verified');
     """)
-    probe = f"SELECT public.record_interview_probe_verdict('{USER}','{audit}','{session}','now','en',1,1,1,'fact','seed','pass','fact','credited',true,'r0','openai',false,0,3,NULL);"
+    probe = f"SELECT public.record_interview_probe_verdict('{owner}','{audit}','{session}','now','en',1,1,1,'fact','seed','pass','fact','credited',true,'r0','openai',false,0,3,encode(sha256(convert_to('{session}:1:answer','UTF8')),'hex'));"
     if pending:
         sql(db, "BEGIN;" + auth(True) + probe + "COMMIT;")
     return dict(session=session, record=record, audit=audit, context=context, probe=probe,
@@ -183,6 +183,64 @@ def run(db):
     ordered(db, f['probe'], f['probe'].replace(f['session'], other), 'audit_mismatch', True, True)
     assert sql(db, f"SELECT count(*) FROM public.interview_sessions WHERE id='{other}';").stdout.strip() == '0'
     print('PASS R2 D6-09: one audit id raced across two session ids')
+
+    # D6R3-55: close starts first but acquires the session key after a newer verdict commits.
+    f = fixture(db)
+    holder = Connection(db)
+    try:
+        holder.query('BEGIN;' + auth() + 'SELECT now();')
+        assert sql(db, 'BEGIN;' + auth(True) + f['probe'] + 'COMMIT;').stdout.strip() == 'recorded'
+        assert holder.query(f"SELECT public.close_interview_session('{f['session']}','now','en','complete',0,0);") == 'closed'
+        assert holder.query(f"""SELECT v.created_at>s.ended_at FROM public.interview_probe_verdicts v
+          JOIN public.interview_sessions s ON s.id=v.session_id WHERE s.id='{f['session']}';""") == 't'
+        holder.query('COMMIT;')
+    finally:
+        holder.close()
+    result = sql(db, 'BEGIN;' + auth() + f['commit'].replace("->>'status'", "->>'cells_added'") + 'COMMIT;')
+    assert result.stdout.strip() == '1', 'D6R3-55: pre-close credit lost: ' + result.stdout
+    print('PASS D6R3-55: a later-started verdict before close adds exactly one cell')
+
+    # D6R3-54: deletion and sweep take account -> session -> row locks in either order.
+    for deletion_first in (True, False):
+        owner = str(uuid.uuid4())
+        sql(db, f"""SET session_replication_role=replica;
+          INSERT INTO auth.users(id,email) VALUES('{owner}','{owner}@example.com');
+          SET session_replication_role=origin;
+          INSERT INTO public.users(id,email,birth_date,locale) VALUES('{owner}','{owner}@example.com','1990-01-01','en');""")
+        f = fixture(db, pending=True, owner=owner)
+        sql(db, f"UPDATE public.interview_sessions SET last_seen_at=now()-INTERVAL '7 hours' WHERE id='{f['session']}';")
+        delete = f"DELETE FROM auth.users WHERE id='{owner}';"
+        if deletion_first:
+            holder = Connection(db)
+            try:
+                # Pause exactly after the account BEFORE trigger's key and audit-row locks.
+                holder.query(f"""BEGIN;
+                  SELECT pg_advisory_xact_lock(hashtextextended('{owner}',260913));
+                  UPDATE public.ai_audit_log SET prompt_hash='',output_hash='' WHERE id='{f['audit']}';""")
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    app = 'd6_r3_sweep_' + uuid.uuid4().hex
+                    future = pool.submit(sql, db, 'BEGIN;' + auth(True) + 'SELECT public.sweep_interview_sessions(); COMMIT;', app, False)
+                    try:
+                        deadline = time.monotonic() + 5
+                        while not future.done():
+                            if sql(db, f"SELECT count(*) FROM pg_stat_activity WHERE application_name='{app}' AND wait_event_type='Lock';").stdout.strip() == '1':
+                                break
+                            assert time.monotonic() < deadline, 'D6R3-54: sweep did not finish or reach a lock'
+                            time.sleep(0.025)
+                        # An unfenced sweep now holds the session row and waits for our audit row:
+                        # this cascade closes that old deadlock cycle. A fenced sweep already skipped.
+                        holder.query(delete + 'COMMIT;')
+                        result = future.result(timeout=15)
+                        assert result.returncode == 0 and result.stdout.strip() == '0', result.stderr or result.stdout
+                    finally:
+                        holder.close()
+            finally:
+                holder.close()
+        else:
+            ordered(db, 'SELECT public.sweep_interview_sessions();', delete, '', first_service=True)
+        assert sql(db, f"SELECT count(*) FROM public.interview_sessions WHERE id='{f['session']}';").stdout.strip() == '0'
+        assert sql(db, f"SELECT count(*) FROM public.ai_audit_log WHERE id='{f['audit']}' AND user_id IS NULL AND prompt_hash='' AND output_hash='';").stdout.strip() == '1'
+    print('PASS D6R3-54: sweep/account deletion in both orders without deadlock or leftover hashes')
 
 
 if __name__ == '__main__':

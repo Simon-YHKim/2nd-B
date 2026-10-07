@@ -376,7 +376,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(firstSql).toMatch(/^LOCK TABLE public\.interview_sessions/);
   });
 
-  test("0225 changes only the hold predicate in both 0218 Polaris bodies and restores them verbatim", () => {
+  test("0225 adds only the record hold predicate to both 0218 Polaris bodies and keeps it on rollback", () => {
     const baseline = read("db/migrations/0218_records_system_tags.sql");
     const migration = read("db/migrations/0225_interview_transcript_ledger.sql");
     const rollback = read("db/migrations/rollback/0225_down.sql");
@@ -388,9 +388,10 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
       };
       const before = definition(baseline);
       const after = definition(migration);
-      expect(after).toContain("AND NOT EXISTS (SELECT 1 FROM public.interview_transcripts AS t");
-      expect(after.replace(/^      AND NOT EXISTS \(SELECT 1 FROM public\.interview_transcripts AS t.*\n/gm, "")).toBe(before);
-      expect(definition(rollback)).toBe(before);
+      const hold = name === "reserve_polaris_generation" ? "interview_ai_hold" : "r.interview_ai_hold";
+      expect(after).toContain(`      AND NOT ${hold}\n`);
+      expect(after.replace(`      AND NOT ${hold}\n`, "")).toBe(before);
+      expect(definition(rollback)).toBe(after);
     }
   });
 

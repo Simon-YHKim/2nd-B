@@ -25,12 +25,13 @@
 --        interview_record_erasure · ai_context_block_record_erasure (레코드 삭제),
 --        interview_verdict_erasure (판정 행 삭제 = 감사 해시 비우기),
 --        interview_session_erasure · interview_account_erasure (세션 · 계정 삭제 전 감사 해시 비우기).
+--        records.interview_ai_hold · guard_interview_record_hold (원문 수명 동안 hold 유지).
 --   4. 표 아홉 개와 그 행은 **남긴다.** 대화록은 사용자 데이터다.
 --      표를 지우는 것은 별도 파괴 단계이고, 그 전에 내보내야 한다. 0226 의 등록부 행도 그대로 둔다
 --      (표가 남아 있으므로 계정 삭제 · 데이터 삭제가 계속 지운다).
 --   5. 사후 조건: 진입점 0 · 수명주기 장치 그대로 · 저장 안 한 세션 0 · 접은 세션의 감사 해시 0 ·
 --      저장한 세션 · 대화록 · 턴 · 블록 id 행 수 그대로.
---   6. Polaris 근거 두 함수는 0218 본문과 0195 권한으로 되돌린다.
+--   6. Polaris 근거 두 함수는 0218 본문 + 레코드 hold 제외와 0195 권한으로 남긴다(D6R3-53).
 --
 -- 다시 적용: 0225 는 IF NOT EXISTS · OR REPLACE 로 쓰여 있어 이 롤백 뒤에 그대로 다시 적용된다.
 -- 순서: 0225 를 먼저 내리고 0218 을 내린다(0218_down 이 표식을 tags 로 되돌리면 담기의 확인이 실패한다).
@@ -117,12 +118,13 @@ BEGIN
      OR (SELECT pg_catalog.count(*) FROM pg_catalog.pg_trigger AS g
           WHERE NOT g.tgisinternal
             AND (g.tgrelid, g.tgname) IN (
+              ('public.records'::regclass, 'guard_interview_record_hold'),
               ('public.records'::regclass, 'interview_record_erasure'),
               ('public.records'::regclass, 'ai_context_block_record_erasure'),
               ('public.interview_probe_verdicts'::regclass, 'interview_verdict_erasure'),
               ('public.interview_sessions'::regclass, 'interview_session_erasure'),
               ('auth.users'::regclass, 'interview_account_erasure'),
-              ('public.users'::regclass, 'interview_account_erasure'))) <> 6 THEN
+              ('public.users'::regclass, 'interview_account_erasure'))) <> 7 THEN
     RAISE EXCEPTION 'rollback 0225: a lifecycle function or trigger for the kept tables is missing';
   END IF;
 
@@ -148,7 +150,7 @@ BEGIN
 END
 $postcondition$;
 
--- Restore the exact 0218 Polaris definitions and 0195 privileges.
+-- Keep 0218's Polaris definitions plus the record hold fence and 0195 privileges.
 CREATE OR REPLACE FUNCTION public.reserve_polaris_generation(p_user_id uuid, p_key text) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
@@ -193,6 +195,7 @@ BEGIN
       row_number() OVER (PARTITION BY audit_period ORDER BY created_at DESC,id) AS domain_rank
       FROM public.records WHERE user_id=p_user_id
       AND kind='audit_response' AND system_tags @> ARRAY['interview']::text[] AND length(trim(body))>0
+      AND NOT interview_ai_hold
       AND audit_period IN ('infancy','school','twenties','later','work','now')) r
     WHERE r.domain_rank <= 3;
   IF jsonb_array_length(v_evidence)=0 THEN RAISE EXCEPTION 'polaris_no_evidence'; END IF;
@@ -238,6 +241,7 @@ BEGIN
     JOIN public.records r ON r.id::text=e.item->>'id' AND r.user_id=p_user_id
       AND r.audit_period=e.item->>'domain' AND r.kind='audit_response'
       AND r.system_tags @> ARRAY['interview']::text[]
+      AND NOT r.interview_ai_hold
       AND encode(sha256(convert_to(r.body,'UTF8')),'hex')=e.item->>'body_hash'
     ORDER BY e.position FOR SHARE OF r
   LOOP

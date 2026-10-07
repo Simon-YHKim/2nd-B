@@ -166,6 +166,8 @@ DECLARE
     '다른 장면으로 가 볼게요. 운동장은요?', '체육 시간이 좋았어요', '그때 어떤 마음이었나요?',
     '친구들이 있어서 든든했어요', '그 든든함은 지금도 있나요?', '가끔요'];
   v_digest_of text;
+  v_bad record;
+  v_audit uuid;
 BEGIN
   v_turns := (
     SELECT jsonb_agg(jsonb_build_object(
@@ -278,12 +280,13 @@ BEGIN
   END IF;
 
   -- D6-59: credited with no model layer is refused by the writer, and by the table if anything gets past it.
-  BEGIN
-    PERFORM public.record_interview_probe_verdict(v_one, pg_temp.aid('d2'), v_s1, 'school', 'ko',
-      2, 3, 32, 'fact', 'drill', 'pass', NULL, 'credited', true, 'r0', 'openai', false, 0, 3, NULL);
-    RAISE EXCEPTION 'D6-59: a credited verdict with no model layer was recorded';
-  EXCEPTION WHEN invalid_parameter_value THEN NULL;
-  END;
+  v_status := public.record_interview_probe_verdict(v_one, pg_temp.aid('d2'), v_s1, 'school', 'ko',
+    2, 3, 32, 'fact', 'drill', 'pass', NULL, 'credited', true, 'r0', 'openai', false, 0, 3, NULL);
+  IF v_status IS DISTINCT FROM 'interview_verdict_invalid'
+     OR NOT pg_temp.hashes_erased(ARRAY['d2'])
+     OR EXISTS (SELECT 1 FROM public.interview_probe_verdicts WHERE session_id=v_s1 AND turn_no=32) THEN
+    RAISE EXCEPTION 'D6R3-52 / D6-59: invalid credited call was recorded or kept hashes: %', v_status;
+  END IF;
   BEGIN
     INSERT INTO public.interview_probe_verdicts (session_id, audit_id, scene_seq, turn_seq, turn_no, asked_layer,
       probe_kind, local_gate, model_layer, verdict, final_credit, source, vendor)
@@ -292,24 +295,29 @@ BEGIN
   EXCEPTION WHEN check_violation THEN NULL;
   END;
   -- The rule set is locked to r0 during the baseline, and r0's final credit is credited AND pass.
-  BEGIN
-    PERFORM public.record_interview_probe_verdict(v_one, gen_random_uuid(), v_s1, 'school', 'ko',
-      2, 3, 32, 'fact', 'drill', 'pass', 'fact', 'credited', true, 'r1', 'openai', false, 0, 3, NULL);
-    RAISE EXCEPTION 'a rule set other than r0 was recorded';
-  EXCEPTION WHEN invalid_parameter_value THEN NULL;
-  END;
-  BEGIN
-    PERFORM public.record_interview_probe_verdict(v_one, gen_random_uuid(), v_s1, 'school', 'ko',
-      2, 3, 32, 'fact', 'drill', 'short', 'fact', 'credited', true, 'r0', 'openai', false, 0, 3, NULL);
-    RAISE EXCEPTION 'a final credit that r0 would not give was recorded';
-  EXCEPTION WHEN invalid_parameter_value THEN NULL;
-  END;
-  BEGIN
-    PERFORM public.record_interview_probe_verdict(v_one, gen_random_uuid(), v_s1, 'school', 'ko',
-      2, 3, 32, 'fact', 'drill', 'pass', 'feeling', 'credited', true, 'r0', 'openai', false, 0, 3, NULL);
-    RAISE EXCEPTION 'a credited verdict for another layer was recorded';
-  EXCEPTION WHEN invalid_parameter_value THEN NULL;
-  END;
+  -- D6R3-52: every validation branch returns a status and clears its own verified audit.
+  -- Use real audit rows so ownership validation cannot hide a missing input check.
+  FOR v_bad IN SELECT * FROM (VALUES
+    (v_s1, 'school', 2, 'pass', 'fact', 'r1', 'interview_rule_set_locked'),
+    (v_s1, 'school', 2, 'short', 'fact', 'r0', 'interview_final_credit_mismatch'),
+    (v_s1, 'school', 2, 'pass', 'feeling', 'r0', 'interview_verdict_invalid'),
+    (v_s1, 'school', 0, 'pass', 'fact', 'r0', 'interview_verdict_invalid'),
+    (v_s1, 'invalid', 2, 'pass', 'fact', 'r0', 'interview_verdict_invalid'),
+    (NULL::uuid, 'school', 2, 'pass', 'fact', 'r0', 'interview_verdict_invalid')
+  ) AS t(session_id, period, scene, gate, layer, rule_set, expected) LOOP
+    v_audit := gen_random_uuid();
+    INSERT INTO public.ai_audit_log(id,user_id,prompt_hash,output_hash,model_used,vertex_backend,
+      safety_zone,latency_ms,purpose,event_source)
+    VALUES(v_audit,v_one,'prompt','output','test-model',false,'green',1,'interview_probe','server_verified');
+    v_status := public.record_interview_probe_verdict(v_one,v_audit,v_bad.session_id,v_bad.period,'ko',
+      v_bad.scene,3,32,'fact','drill',v_bad.gate,v_bad.layer,'credited',true,v_bad.rule_set,'openai',false,0,3,NULL);
+    IF v_status IS DISTINCT FROM v_bad.expected
+       OR NOT EXISTS (SELECT 1 FROM public.ai_audit_log WHERE id=v_audit AND prompt_hash='' AND output_hash='')
+       OR EXISTS (SELECT 1 FROM public.interview_probe_verdicts WHERE audit_id=v_audit)
+       OR EXISTS (SELECT 1 FROM public.interview_session_audit_ids WHERE audit_id=v_audit) THEN
+      RAISE EXCEPTION 'D6R3-52: invalid call retained hashes or wrote a verdict: %, %',v_bad.expected,v_status;
+    END IF;
+  END LOOP;
 
   -- The screen closes the session.
   PERFORM set_config('request.jwt.claim.role', '', true);
@@ -1116,6 +1124,96 @@ BEGIN
   PERFORM pg_temp.r2_role();
   PERFORM set_config('request.jwt.claim.role','',true);
 END $r2_owner_delete$;
+
+-- D6R3-51: direct parent deletion and ordinary client tag writes cannot release a record hold.
+-- Vanilla scratch databases lack Supabase's records grants; exercise the real owner write surface.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.records TO authenticated;
+DO $r3_record_hold$
+DECLARE
+  v_user uuid := '25000000-0000-4000-8000-000000000001';
+  v_s uuid; v_r uuid; v_path integer; v_result jsonb; v_evidence jsonb;
+  v_turns jsonb := pg_temp.four_turns('보관할 답 하나','보관할 답 둘');
+  v_body text := public.interview_transcript_body('ko',v_turns);
+BEGIN
+  FOR v_path IN 1..2 LOOP
+    v_s := gen_random_uuid(); v_r := gen_random_uuid();
+    PERFORM pg_temp.r2_role(v_user);
+    SET LOCAL ROLE authenticated;
+    -- All 16 tag slots can already be occupied; hold must still commit without rewriting them.
+    INSERT INTO public.records(id,user_id,kind,body,audit_period,system_tags,client_request_id)
+    VALUES(v_r,v_user,'audit_response',v_body,
+      'now',ARRAY['interview'] || ARRAY(SELECT 'slot' || n FROM generate_series(1,15) n),'interview:'||v_s::text);
+    v_result := public.commit_interview_session(v_s,v_r,v_turns,true);
+    IF v_result->>'status' IS DISTINCT FROM 'committed' OR v_result->>'ai_hold' IS DISTINCT FROM 'true' THEN
+      RAISE EXCEPTION 'D6R3-51: hold commit failed with 16 system tags: %',v_result;
+    END IF;
+    IF v_path=1 THEN DELETE FROM public.interview_transcripts WHERE record_id=v_r;
+    ELSE DELETE FROM public.interview_sessions WHERE id=v_s; END IF;
+    UPDATE public.records SET system_tags=ARRAY['interview','recall'] WHERE id=v_r;
+    BEGIN
+      UPDATE public.records SET interview_ai_hold=false WHERE id=v_r;
+      RAISE EXCEPTION 'D6R3-51: client cleared record hold';
+    EXCEPTION WHEN insufficient_privilege THEN
+      IF SQLERRM <> 'interview_record_hold_server_only' THEN RAISE; END IF;
+    END;
+    BEGIN
+      INSERT INTO public.records(user_id,kind,body,interview_ai_hold) VALUES(v_user,'note','forged',true);
+      RAISE EXCEPTION 'D6R3-51: client set server-owned hold';
+    EXCEPTION WHEN insufficient_privilege THEN
+      IF SQLERRM <> 'interview_record_hold_server_only' THEN RAISE; END IF;
+    END;
+    RESET ROLE;
+    IF NOT EXISTS (SELECT 1 FROM public.records WHERE id=v_r AND interview_ai_hold)
+       OR EXISTS (SELECT 1 FROM public.interview_transcripts WHERE record_id=v_r) THEN
+      RAISE EXCEPTION 'D6R3-51: record hold did not survive parent deletion';
+    END IF;
+    SELECT jsonb_build_array(jsonb_build_object('id',id,'domain',audit_period,
+      'body_hash',encode(sha256(convert_to(body,'UTF8')),'hex'))) INTO v_evidence FROM public.records WHERE id=v_r;
+    BEGIN
+      PERFORM public.polaris_evidence_snapshot(v_user,v_evidence);
+      RAISE EXCEPTION 'D6R3-51: snapshot accepted hold after parent deletion';
+    EXCEPTION WHEN raise_exception THEN
+      IF SQLERRM <> 'polaris_evidence_changed' THEN RAISE; END IF;
+    END;
+    BEGIN
+      UPDATE public.polaris_generation_config SET enabled=true;
+      v_result := public.reserve_polaris_generation(v_user,'r3-hold-selection-'||v_path);
+      IF EXISTS (SELECT 1 FROM public.polaris_generations g, jsonb_array_elements(g.evidence) e
+                  WHERE g.id=(v_result->>'generation_id')::uuid AND e->>'id'=v_r::text) THEN
+        RAISE EXCEPTION 'D6R3-51: reserve accepted hold after parent deletion';
+      END IF;
+      RAISE EXCEPTION 'r3-reserve-done';
+    EXCEPTION WHEN raise_exception THEN
+      IF SQLERRM <> 'r3-reserve-done' THEN RAISE; END IF;
+    END;
+  END LOOP;
+  PERFORM pg_temp.r2_role();
+  PERFORM set_config('request.jwt.claim.role','',true);
+END $r3_record_hold$;
+
+-- D6R3-54: an account deletion fence remains authoritative even after its lock was released.
+DO $r3_sweep_deleted_account$
+DECLARE
+  v_user uuid := '25000000-0000-4000-8000-000000000001';
+  v_s uuid := gen_random_uuid(); v_a uuid := pg_temp.r2_audit(v_user);
+BEGIN
+  PERFORM pg_temp.r2_role();
+  PERFORM pg_temp.r2_probe(v_user,v_a,v_s);
+  UPDATE public.interview_sessions SET last_seen_at=now()-INTERVAL '7 hours' WHERE id=v_s;
+  INSERT INTO public.account_deletion_tombstones(user_id,session_id) VALUES(v_user,gen_random_uuid());
+  PERFORM public.sweep_interview_sessions();
+  IF NOT EXISTS (SELECT 1 FROM public.interview_sessions WHERE id=v_s)
+     OR NOT EXISTS (SELECT 1 FROM public.ai_audit_log WHERE id=v_a AND prompt_hash<>'' AND output_hash<>'') THEN
+    RAISE EXCEPTION 'D6R3-54: sweep entered a deleting account';
+  END IF;
+  DELETE FROM public.account_deletion_tombstones WHERE user_id=v_user;
+  PERFORM public.sweep_interview_sessions();
+  IF EXISTS (SELECT 1 FROM public.interview_sessions WHERE id=v_s)
+     OR NOT EXISTS (SELECT 1 FROM public.ai_audit_log WHERE id=v_a AND prompt_hash='' AND output_hash='') THEN
+    RAISE EXCEPTION 'D6R3-54: sweep failed to clean an active account';
+  END IF;
+  PERFORM set_config('request.jwt.claim.role','',true);
+END $r3_sweep_deleted_account$;
 
 -- R2 D6-04: both FK cascade entry points erase hashes before audit.user_id becomes NULL.
 DO $r2_account_cascade$
