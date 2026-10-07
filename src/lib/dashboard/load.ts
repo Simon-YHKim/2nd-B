@@ -5,6 +5,7 @@ import { remindersSupported } from "../ops/reminders";
 import { loadNotifications } from "../ops/notifications-sdk";
 import { routineIdFromNotification } from "../ops/notification-identity";
 import { resolvePrivacyPrefs } from "../privacy/prefs";
+import { RECALL_INTERVIEW_TAG, withSystemTagsColumn } from "../records/system-tags";
 import { getSupabaseClient } from "../supabase/client";
 import { listRecentSamples } from "../supabase/health";
 import { localDate, type DashboardData, type DashboardRecord, type ReadResult } from "./model";
@@ -15,10 +16,19 @@ async function read<T>(work: PromiseLike<T>): Promise<ReadResult<T>> {
 }
 
 async function readRecords(ownerId: string, interviewsOnly: boolean): Promise<DashboardRecord[]> {
-  let query = getSupabaseClient().from("records")
-    .select("id, kind, body, tags, created_at").eq("user_id", ownerId);
-  if (interviewsOnly) query = query.eq("kind", "audit_response").contains("tags", ["interview"]);
-  const { data, error } = await query.order("created_at", { ascending: false }).limit(interviewsOnly ? 3 : 80);
+  const run = (columnPresent: boolean) => {
+    let query = getSupabaseClient().from("records")
+      .select("id, kind, body, tags, created_at").eq("user_id", ownerId);
+    // The recall interview's marker is the app's (0218 records.system_tags), so a
+    // user tag that says `interview` does not put a note here. Without the column,
+    // the pre-0218 filter on `tags`.
+    if (interviewsOnly) {
+      query = query.eq("kind", "audit_response")
+        .contains(columnPresent ? "system_tags" : "tags", [RECALL_INTERVIEW_TAG]);
+    }
+    return query.order("created_at", { ascending: false }).limit(interviewsOnly ? 3 : 80);
+  };
+  const { data, error } = interviewsOnly ? await withSystemTagsColumn(run) : await run(false);
   if (error) throw error;
   return (data ?? []) as DashboardRecord[];
 }

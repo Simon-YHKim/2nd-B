@@ -75,6 +75,9 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   // 사람이 읽는 자리는 CLAUDE.md 지 UI 가 아니다. i18n 으로 빼면 명세와 검사가
   // 갈라진다.
   "src/lib/lenses/registry.ts": "렌즈 명세 (관문 ③ 채점 정의) — UI 카피 아님",
+  // 문턱 표의 사람용 설명(output · dataKind · text)은 화면 카피가 아니라 **명세**다. 출처 검사
+  // (registry.test.ts) 가 같은 파일을 읽고, 대시보드 화면은 문장이 아니라 숫자 칸만 읽는다.
+  "src/lib/sufficiency/registry.ts": "문턱 명세 (출처 앵커 · 사람용 설명) — UI 카피 아님",
 
   // ── 한국어 폴백: 화면은 이미 i18n 을 쓰고, 이건 인자 없을 때의 기본값 ──
   "src/screens/deepspace/records-timeline.ts": "라벨 폴백 — 화면은 dsTimeLabels(t) 로 i18n 을 넘긴다",
@@ -194,7 +197,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/app/reasoning.tsx": 2,
   "src/app/rlss.tsx": 10,
   "src/app/secondb.tsx": 10,
-  "src/app/settings.tsx": 11,
+  "src/app/settings.tsx": 8, // 11 -> 8: 2026-10-07 소식 · 공지사항 행이 설정에서 빠졌다(Simon)
   "src/app/star/[domain].tsx": 20,
   "src/app/strengths.tsx": 20,
   "src/app/values.tsx": 20,

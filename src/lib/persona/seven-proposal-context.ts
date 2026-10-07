@@ -19,6 +19,7 @@
 // evidence(인터뷰 원문 발췌), evidenceRefs(record:<id> — 0060 인용 규율).
 
 import { getSupabaseClient } from "../supabase/client";
+import { RECALL_INTERVIEW_TAG, withSystemTagsColumn } from "../records/system-tags";
 import { loadCoverage } from "../interview/coverage-store";
 import { DRILL_LAYERS, PERIOD_LABEL, type LifePeriod } from "../interview/probe";
 import { SEVEN_STARS, type SevenStarId } from "./seven-stars";
@@ -95,15 +96,19 @@ export async function buildSevenProposalContext(
   if (openLayers.length < SEVEN_RATIFY_MIN_CELLS) return null;
 
   // 인터뷰 원문 — 이 시기에 떨어진 기록만. 시간순으로 읽어야 이야기가 된다.
-  const { data } = await getSupabaseClient()
-    .from("records")
-    .select("id, prompt, body, created_at")
-    .eq("user_id", userId)
-    .eq("kind", "audit_response")
-    .eq("audit_period", period)
-    .contains("tags", ["interview"])
-    .order("created_at", { ascending: true })
-    .limit(40);
+  // 인터뷰 표식은 앱 표식 칸(0218 records.system_tags)에 있다. 그 칸이 없는
+  // 데이터베이스면 0218 이전처럼 `tags` 에서 찾는다.
+  const { data } = await withSystemTagsColumn((columnPresent) =>
+    getSupabaseClient()
+      .from("records")
+      .select("id, prompt, body, created_at")
+      .eq("user_id", userId)
+      .eq("kind", "audit_response")
+      .eq("audit_period", period)
+      .contains(columnPresent ? "system_tags" : "tags", [RECALL_INTERVIEW_TAG])
+      .order("created_at", { ascending: true })
+      .limit(40),
+  );
   const rows = (data ?? []) as InterviewRecordRow[];
   if (rows.length === 0) return null;
 

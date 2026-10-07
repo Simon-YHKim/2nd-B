@@ -6,10 +6,13 @@
 // patterns, so `traits` here is a placeholder and no Gemini call is made.
 
 import { getSupabaseClient } from "../supabase/client";
+import { withSystemTagsColumn } from "../records/system-tags";
 import {
+  auditResponseColumns,
   DEFAULT_TRAITS,
   deriveValues,
   isMeasuredSource,
+  isRecallInterviewRow,
   loadLatestAttachment,
   loadLatestBfi,
   loadLatestIpip,
@@ -34,16 +37,18 @@ export interface StarBrightness {
 
 export async function loadStarLevels(userId: string): Promise<StarBrightness> {
   const supabase = getSupabaseClient();
-  const { data } = await supabase
-    .from("records")
-    .select("id, prompt, body, created_at, tags")
-    .eq("user_id", userId)
-    .eq("kind", "audit_response")
-    .order("created_at", { ascending: true });
-  const rows = (data ?? []) as AuditResponseRow[];
+  const { data } = await withSystemTagsColumn((columnPresent) =>
+    supabase
+      .from("records")
+      .select(auditResponseColumns(columnPresent))
+      .eq("user_id", userId)
+      .eq("kind", "audit_response")
+      .order("created_at", { ascending: true }),
+  );
+  const rows = (data ?? []) as unknown as AuditResponseRow[];
   // Match buildPersona: interview transcripts don't count toward star1's
-  // heuristic observation count.
-  const proxyRows = rows.filter((r) => !(r.tags ?? []).includes("interview"));
+  // heuristic observation count. The marker is the app's (0218).
+  const proxyRows = rows.filter((r) => !isRecallInterviewRow(r));
 
   const [ipip, bfi, attachment, memorized] = await Promise.all([
     loadLatestIpip(supabase, userId),

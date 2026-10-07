@@ -1077,6 +1077,8 @@
     "authBody": "Tus registros son tuyos. Tú decides qué cambios se aplican a tu resumen.",
     "next": "Siguiente",
     "skip": "Omitir",
+    "saveFailed": "No se pudo guardar.",
+    "goHome": "Ir al inicio",
     "slides": {
       "intro": {
         "title": "Una IA que llega\na conocerte",
