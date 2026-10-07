@@ -1217,7 +1217,7 @@ results.push(
       // 이동 힌트 넷은 레거시 Button 행에 박혀 있었다(레버와 함께 빠짐). 배송 화면은
       // M3LinkRow 가 sub 문구를 힌트로 넘긴다 — 그 배선과 네 행의 키를 함께 본다.
       settings.includes("accessibilityHint={sub}") &&
-      settings.includes('sub={t("nav.profileHint")}') &&
+      // 프로필 줄(sub={t("nav.profileHint")})은 2026-10-07 Simon 지시로 설정에서 빠졌다(홈 프로필 별에서 연다).
       settings.includes('sub={t("nav.privacyHint")}') &&
       settings.includes('sub={t("nav.accountHint")}') &&
       settings.includes('sub={t("nav.dataHint")}') &&
@@ -1467,8 +1467,7 @@ results.push(
     const codeRequired = [
       'useTranslation("settings")',
       't("loading")',
-      't("nav.profile")',
-      't("nav.profileHint")',
+      // 't("nav.profile")' · 't("nav.profileHint")' 는 2026-10-07 프로필 줄과 함께 빠졌다(Simon). 인라인 금지 문구는 아래 목록이 계속 본다.
       't("nav.data")',
       't("nav.dataHint")',
       't("actions.signOutHint")',

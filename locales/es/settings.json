@@ -164,6 +164,9 @@
   "resetNDays": "Se restablecieron {{n}} días de uso",
   "wipeComplete": "Borrado total completo: registros {{r}} · fuentes {{s}} · wiki {{w}} · uso {{u}}",
   "subscription": {
+    "autoPay": { "title": "Pago automático" },
+    "policy": { "title": "Política de reembolso" },
+    "plans": { "title": "Planes", "change": "Cambiar de plan" },
     "title": "Gestionar suscripción",
     "sectionLabel": "Suscripción",
     "rowLabel": "Gestionar suscripción",
