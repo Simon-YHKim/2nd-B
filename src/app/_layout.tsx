@@ -46,6 +46,7 @@ import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-sto
 import { hydrateAnalyticsConsent } from "@/lib/analytics/auth-conversions";
 import { profileRouteHold } from "@/lib/auth/profile-probe";
 import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
+import { ShareDeliverySync, ShareRefusedNotice } from "@/components/capture/ShareRefusedNotice";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { configureEffectsAudioSession } from "@/lib/audio/audio-session";
 import { ensureSoundEffectsHydration } from "@/lib/settings/sound-effects";
@@ -231,6 +232,7 @@ export default function RootLayout() {
             <AnalyticsConsentSync />
             <AddressTermSync />
             <AuditWriteOutboxSync />
+            <ShareDeliverySync />
             <HealthAutoReadSync />
             {/* 화면이 바뀌어도 끝까지 나야 하는 소리(온보딩 끝). lib/audio/global-cues.ts */}
             <GlobalCueHost />
@@ -298,6 +300,7 @@ export default function RootLayout() {
               <BackgroundTaskDock />
               <CompletionToast />
               </AvatarSetupGate>
+              <ShareRefusedNotice />
             </IntroGate>
             {/* W-05: for a moment after the opening ends, a tap that was aimed
                 at its skip button must not land on the dock tab underneath. */}

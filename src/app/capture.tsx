@@ -124,6 +124,8 @@ import { saveTemplate } from "@/lib/wiki/template-queries";
 import type { SourceKind } from "@/lib/wiki/types";
 import { classifyLinkOrClip, firstUrlIn } from "@/lib/wiki/link-or-clip";
 import { normalizeSharedCaptureParams } from "@/lib/capture/share-params";
+import { SHARE_DELIVERY_PARAM } from "@/lib/capture/share-delivery";
+import { useNativeShareGate, useStripRefusedShare } from "@/lib/capture/use-share-delivery";
 import { clipboardHasContent, readClipboardText } from "@/lib/capture/clipboard";
 import { composeFourWBody, EMPTY_FOURW, FOURW_KEYS, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
 import { composeStructured } from "@/lib/capture/structured";
@@ -366,14 +368,25 @@ export default function Capture() {
     mode?: string;
     tag?: string;
     coach?: string;
+    shareDelivery?: string;
   }>();
   const firstRecordCoach = captureParams.coach === FIRST_RECORD_COACH_PARAM;
-  const hasFullCaptureParams =
+  const hasSharedParams =
     normalizeSharedCaptureParams({
       url: captureParams.url,
       text: captureParams.text,
       title: captureParams.title,
-    }) !== null ||
+    }) !== null;
+  // An Android share fills this screen only for a signed-in account with a
+  // complete profile (Simon 2026-10-07, src/lib/capture/share-delivery.ts). A
+  // refused share is not a reason to open the full intake, and it is removed
+  // from this route unread once the route is past the gates below.
+  const nativeShareGate = useNativeShareGate(captureParams[SHARE_DELIVERY_PARAM]);
+  useStripRefusedShare(
+    hasSharedParams && nativeShareGate === "refused" && !loading && Boolean(userId) && hasProfile === true,
+  );
+  const hasFullCaptureParams =
+    (hasSharedParams && nativeShareGate !== "refused") ||
     (typeof captureParams.mode === "string" &&
       captureModeOpensFullIntake(captureParams.mode)) ||
     (typeof captureParams.tag === "string" && captureParams.tag.trim().length > 0) ||
@@ -463,14 +476,38 @@ function CaptureLegacySession({
   // J4: onboarding hands off with entry=firstRun; until now the param was
   // accepted and never read. First-run framing lowers the blank-page bar
   // ("one sentence is enough") for the journey's very first save.
-  // url/text/title arrive from the Web Share Target (manifest.webmanifest):
+  // url/text/title arrive from the Web Share Target (manifest.webmanifest) and,
+  // in the Android app, from the share sheet (src/app/+native-intent.ts):
   // sharing a page from another app opens /capture with the payload here.
-  const { entry, url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam, mode: modeParam, tag: tagParam } =
-    useLocalSearchParams<{ entry?: string; url?: string; text?: string; title?: string; mode?: string; tag?: string }>();
+  const {
+    entry,
+    url: sharedUrlParam,
+    text: sharedTextParam,
+    title: sharedTitleParam,
+    mode: modeParam,
+    tag: tagParam,
+    shareDelivery: shareDeliveryParam,
+  } = useLocalSearchParams<{
+    entry?: string;
+    url?: string;
+    text?: string;
+    title?: string;
+    mode?: string;
+    tag?: string;
+    shareDelivery?: string;
+  }>();
   const firstRun = entry === "firstRun";
+  // An Android share is read only once it is accepted for this account and the
+  // account may fill now (src/lib/capture/share-delivery.ts). Until then, or
+  // when refused, this screen sees no share at all.
+  const shareGate = useNativeShareGate(shareDeliveryParam);
+  const sharedReadable = shareGate === "not-native" || shareGate === "allowed";
   const shared = useMemo(
-    () => normalizeSharedCaptureParams({ url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam }),
-    [sharedUrlParam, sharedTextParam, sharedTitleParam],
+    () =>
+      sharedReadable
+        ? normalizeSharedCaptureParams({ url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam })
+        : null,
+    [sharedReadable, sharedUrlParam, sharedTextParam, sharedTitleParam],
   );
 
   const [mode, setMode] = useState<Mode>("journal");
@@ -1651,6 +1688,7 @@ function CaptureLegacySession({
       url: undefined,
       text: undefined,
       title: undefined,
+      [SHARE_DELIVERY_PARAM]: undefined,
       ...(sharedDurableAck.clearMode ? { mode: undefined } : {}),
       ...(sharedDurableAck.clearTag ? { tag: undefined } : {}),
     });

@@ -339,5 +339,9 @@
   "formatsTab": "Formats",
   "importTab": "Import",
   "inboxTab": "Inbox",
-  "manualTab": "User Guide"
+  "manualTab": "User Guide",
+  "shareRefused": {
+    "body": "Your share was not added. Sign in, then share it again.",
+    "dismiss": "Close"
+  }
 }

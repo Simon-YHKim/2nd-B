@@ -339,5 +339,9 @@
   "formatsTab": "형식",
   "importTab": "가져오기",
   "inboxTab": "받은 항목",
-  "manualTab": "사용 안내서"
+  "manualTab": "사용 안내서",
+  "shareRefused": {
+    "body": "공유한 내용은 담지 않았습니다. 로그인을 마친 뒤 다시 공유해 주세요.",
+    "dismiss": "닫기"
+  }
 }
