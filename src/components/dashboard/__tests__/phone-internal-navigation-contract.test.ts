@@ -16,15 +16,18 @@ test("the supplied frame is unchanged and the live display fits 375px and 425px"
   }
 });
 
-test("phone-originated routes stay inside the display, with separate back and exit", () => {
+test("phone-originated routes stay inside the display; Back steps inside and only the swipe leaves", () => {
   expect(phone).not.toContain("router.push(");
   expect(phone).toContain("setScreenStack((current) => [...current, route])");
   expect(phone).toContain("setScreenStack((current) => current.slice(0, -1))");
-  expect(phone).toContain("if (insideRoute || phoneApp || exitPrompt) { backInside(); settlePhone(); return; }");
+  expect(phone).toContain("if (insideRoute || phoneApp) { backInside(); settlePhone(); return; }");
   expect(phone).toContain('BackHandler.addEventListener("hardwareBackPress"');
   expect(phone).toContain('insideRoute ? internalPage(insideRoute)');
-  expect(phone).toContain('setExitPrompt(true)');
-  expect(phone).toContain('"phone.internal.closePhone"');
+  // Simon 2026-10-07: no exit prompt; Back stops at the first page and the swipe is the only way out.
+  expect(phone).not.toContain("setExitPrompt");
+  expect(phone).not.toContain('"phone.internal.closePhone"');
+  expect(phone).toContain("if (boardPage === 2) setBoardPage(1);");
+  expect(phone).toContain("}, [selectedNoticeId, screenStack.length, phoneApp, tab, boardPage]);");
 });
 
 test("an in-phone page shows one Back: the phone row, or the content's own header", () => {
@@ -51,10 +54,10 @@ test("hosted full screens get a bounded view, the phone's navigation, and no pho
   // No tab row; the page controls sit at the display's foot, after the page body.
   expect(phone).not.toContain('accessibilityRole="tab"');
   expect(phone.indexOf('accessibilityLabel={t("phone.pageControls")}')).toBeGreaterThan(phone.indexOf('<View style={styles.pageBody}'));
-  // Pushes stay in the phone; only home and the auth screens leave it.
-  expect(phone).toContain('if (path === "/") closePhone();');
+  // Pushes stay in the phone; a screen's home opens the apps page and only the auth screens leave it.
+  expect(phone).toContain('if (path === "/") showPage(APPS_PAGE);');
   expect(phone).toContain("else if (AUTH_EXIT_PATHS.has(path)) router.replace(route as Href);");
-  expect(phone).toContain('if (path === "/") { closePhone(); return; }');
+  expect(phone).toContain('if (path === "/") { showPage(APPS_PAGE); return; }');
   expect(phone).toContain("if (AUTH_EXIT_PATHS.has(path)) { router.replace(route as Href); return; }");
 });
 

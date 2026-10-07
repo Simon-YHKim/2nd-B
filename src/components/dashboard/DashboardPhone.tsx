@@ -80,6 +80,8 @@ const AUTH_EXIT_PATHS = new Set(["/sign-in", "/sign-up", "/onboarding"]);
 /** 1쪽 · 2쪽 · 앱 · 더보기. */
 const PAGES = [0, 1, 2, 3] as const;
 const LAST_PAGE = PAGES.length - 1;
+/** The phone's home button and a hosted screen's 'home' open the apps page (Simon 2026-10-07). */
+const APPS_PAGE = 2;
 const PIXEL_IMAGE = Platform.OS === "web" ? { imageRendering: "pixelated" } as ImageStyle : undefined;
 
 // The phone bezel is always dark, including when the rest of the app uses its
@@ -111,7 +113,6 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const [phoneApp, setPhoneApp] = useState<"notifications" | "more" | null>(app === "notifications" ? "notifications" : null);
   const [selectedNoticeId, setSelectedNoticeId] = useState<string | null>(null);
   const [screenStack, setScreenStack] = useState<string[]>([]);
-  const [exitPrompt, setExitPrompt] = useState(false);
   const [recordQuery, setRecordQuery] = useState("");
   const [wikiQuery, setWikiQuery] = useState("");
   const [wikiPages, setWikiPages] = useState<WikiPageRow[]>([]);
@@ -144,6 +145,9 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const reducedMotion = useReducedMotionPref();
   const dismissY = useRef(new Animated.Value(0)).current;
   const scrollY = useRef(0);
+  const contentHeight = useRef(0);
+  const viewHeight = useRef(0);
+  const scrollBottomGap = useRef(Number.POSITIVE_INFINITY);
   const dismissing = useRef(false);
   const mounted = useRef(true);
   const captureBusyRef = useRef(false);
@@ -174,19 +178,29 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     // "Save this" from chat (/capture?text=) arrives with the words filled in.
     if (path === "/capture" && params.text) setDraft(params.text);
     if (path === "/capture") setCaptureTag(params.tag ?? null);
-    setExitPrompt(false);
     setScreenStack((current) => [...current, route]);
   }, []);
+  // Pages (Simon 2026-10-07, PS-DASH-001 v2.2): the board's two pages come first, then the apps and More.
+  const pageIndex = tab === "dashboard" ? boardPage - 1 : phoneApp === "more" ? 3 : 2;
+  const showPage = useCallback((index: number) => {
+    if (index < 0 || index > LAST_PAGE) return;
+    scrollY.current = 0;
+    setSelectedNoticeId(null);
+    setScreenStack([]);
+    setTab(index <= 1 ? "dashboard" : "tools");
+    setBoardPage(index === 1 ? 2 : 1);
+    setPhoneApp(index === 3 ? "more" : null);
+  }, []);
+  // Back steps out one level at a time and stops at the first page. It never leaves the phone:
+  // leaving is the up or down swipe only (Simon 2026-10-07), so the old "close the phone?" prompt is gone.
   const backInside = useCallback(() => {
     scrollY.current = 0;
-    if (exitPrompt) { setExitPrompt(false); return; }
     if (selectedNoticeId) { setSelectedNoticeId(null); return; }
     if (screenStack.length) { setScreenStack((current) => current.slice(0, -1)); return; }
     if (phoneApp) { setPhoneApp(null); return; }
     if (tab === "tools") { setTab("dashboard"); return; }
-    if (boardPage === 2) { setBoardPage(1); return; }
-    setExitPrompt(true);
-  }, [exitPrompt, selectedNoticeId, screenStack.length, phoneApp, tab, boardPage]);
+    if (boardPage === 2) setBoardPage(1);
+  }, [selectedNoticeId, screenStack.length, phoneApp, tab, boardPage]);
   // Android Back handlers claimed by hosted screens (useHardwareBack), newest
   // last. The phone's one listener asks them before stepping back itself.
   const claimedBack = useRef<Array<() => boolean>>([]);
@@ -199,19 +213,19 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   }, []);
   // Navigation for hosted screens. Everything opened from the phone stays in
   // the phone (Simon 2026-09-30); a route the phone cannot draw yet shows its
-  // "not yet connected" page. Only a replace to home closes the phone, and a
-  // replace to the auth screens (sign-out) leaves it.
+  // "not yet connected" page. A screen's "home" opens the phone's apps page -
+  // leaving the phone is the swipe only (Simon 2026-10-07) - and a replace to the
+  // auth screens (sign-out) leaves it.
   const embedNav = useMemo<PhoneEmbedNav>(() => ({
-    // push("/") from a hosted screen ("go home") closes the phone like replace("/").
     push: (route) => {
       const { path } = splitPhoneRoute(route);
-      if (path === "/") closePhone();
+      if (path === "/") showPage(APPS_PAGE);
       else if (AUTH_EXIT_PATHS.has(path)) router.replace(route as Href);
       else go(route);
     },
     replace: (route) => {
       const { path } = splitPhoneRoute(route);
-      if (path === "/") { closePhone(); return; }
+      if (path === "/") { showPage(APPS_PAGE); return; }
       if (AUTH_EXIT_PATHS.has(path)) { router.replace(route as Href); return; }
       scrollY.current = 0;
       setScreenStack((current) => [...current.slice(0, -1), route]);
@@ -220,7 +234,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     params: splitPhoneRoute(insideRoute ?? "").params,
     displayWidth: frame?.screen.width,
     claimBack,
-  }), [backInside, claimBack, closePhone, frame?.screen.width, go, insideRoute]);
+  }), [backInside, claimBack, frame?.screen.width, go, insideRoute, showPage]);
   useFocusEffect(useCallback(() => {
     if (museumOpen) return;
     const listener = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -248,45 +262,34 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   }, [dismissY, reducedMotion]);
   const phonePan = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponderCapture: (_event, gesture) =>
-      !dismissing.current && canBeginPhoneDismiss(gesture.dy, gesture.dx, scrollY.current),
+      !dismissing.current && canBeginPhoneDismiss(gesture.dy, gesture.dx, scrollY.current, scrollBottomGap.current),
     onMoveShouldSetPanResponder: (_event, gesture) =>
-      !dismissing.current && canBeginPhoneDismiss(gesture.dy, gesture.dx, scrollY.current),
+      !dismissing.current && canBeginPhoneDismiss(gesture.dy, gesture.dx, scrollY.current, scrollBottomGap.current),
     onPanResponderGrant: () => { dismissY.stopAnimation(); },
     onPanResponderMove: (_event, gesture) => {
-      dismissY.setValue(Math.min(frameSize.height, Math.max(0, gesture.dy)));
+      dismissY.setValue(Math.min(frameSize.height, Math.max(-frameSize.height, gesture.dy)));
     },
     onPanResponderRelease: (_event, gesture) => {
       if (!shouldCompletePhoneDismiss(gesture.dy, gesture.vy)) { settlePhone(); return; }
-      if (insideRoute || phoneApp || exitPrompt) { backInside(); settlePhone(); return; }
+      if (insideRoute || phoneApp) { backInside(); settlePhone(); return; }
       dismissing.current = true;
+      // The phone leaves the way it was pushed: down, or up.
       Animated.timing(dismissY, {
-        toValue: frameSize.height || 700,
+        toValue: (gesture.dy < 0 ? -1 : 1) * (frameSize.height || 700),
         duration: reducedMotion ? 0 : 240,
         easing: pixelStepsFor(240),
         useNativeDriver: Platform.OS !== "web",
       }).start(({ finished }) => { if (finished && mounted.current) closePhone(); });
     },
     onPanResponderTerminate: settlePhone,
-  }), [backInside, closePhone, dismissY, exitPrompt, frameSize.height, insideRoute, phoneApp, reducedMotion, settlePhone]);
-  // Pages (Simon 2026-10-07, PS-DASH-001 v2.2): the board's two pages come first, then the apps and More.
-  const pageIndex = tab === "dashboard" ? boardPage - 1 : phoneApp === "more" ? 3 : 2;
-  const showPage = useCallback((index: number) => {
-    if (index < 0 || index > LAST_PAGE) return;
-    scrollY.current = 0;
-    setSelectedNoticeId(null);
-    setScreenStack([]);
-    setExitPrompt(false);
-    setTab(index <= 1 ? "dashboard" : "tools");
-    setBoardPage(index === 1 ? 2 : 1);
-    setPhoneApp(index === 3 ? "more" : null);
-  }, []);
+  }), [backInside, closePhone, dismissY, frameSize.height, insideRoute, phoneApp, reducedMotion, settlePhone]);
   const pagePan = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponder: (_event, gesture) =>
-      !insideRoute && !exitPrompt && Math.abs(gesture.dx) > 30 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+      !insideRoute && Math.abs(gesture.dx) > 30 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
     onPanResponderRelease: (_event, gesture) => {
       if (Math.abs(gesture.dx) > 55) showPage(pageIndex + (gesture.dx < 0 ? 1 : -1));
     },
-  }), [exitPrompt, insideRoute, pageIndex, showPage]);
+  }), [insideRoute, pageIndex, showPage]);
   useEffect(() => () => dismissY.stopAnimation(), [dismissY]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useFocusEffect(useCallback(() => {
@@ -604,7 +607,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
 
   const unreadCount = noticeCenter.notices.filter((item) => noticeCenter.isUnread(item.id)).length;
   const noticeListOpen = !insideRoute && tab === "tools" && phoneApp === "notifications" && !selectedNoticeId;
-  const internalActive = !!insideRoute || phoneApp === "notifications" || exitPrompt;
+  const internalActive = !!insideRoute || phoneApp === "notifications";
   const wikiListOpen = insideRoute === "/wiki";
   const wikiDetailOpen = wikiDetailId !== null;
   const phoneRows: (ProductNotice | WikiPageRow | number)[] = noticeListOpen
@@ -659,9 +662,24 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       {museumOpen ? <MuseumPhoneContent width={frame.screen.width} onBack={backInside} backLabel={t("phone.appsBack")} /> : phoneScreen ? <View key={insideRoute} testID="phone-hosted-screen" style={styles.hostedScreen}>
         <PhoneEmbedProvider value={embedNav}>{phoneScreen}</PhoneEmbedProvider>
       </View> : <FlatList
-        key={`${tab}-${phoneApp}-${insideRoute ?? "home"}-${exitPrompt ? "exit" : "open"}-${selectedNoticeId ? "detail" : "list"}`}
+        key={`${tab}-${phoneApp}-${insideRoute ?? "home"}-${selectedNoticeId ? "detail" : "list"}`}
         testID="dashboard-phone-scroll"
-        onScroll={(event) => { scrollY.current = event.nativeEvent.contentOffset.y; }}
+        onScroll={(event) => {
+          const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+          scrollY.current = contentOffset.y;
+          contentHeight.current = contentSize.height;
+          viewHeight.current = layoutMeasurement.height;
+          scrollBottomGap.current = contentSize.height - layoutMeasurement.height - contentOffset.y;
+        }}
+        // How far the content can still scroll down, so a push up at the bottom can leave the phone.
+        onContentSizeChange={(_width, height) => {
+          contentHeight.current = height;
+          scrollBottomGap.current = height - viewHeight.current - scrollY.current;
+        }}
+        onLayout={({ nativeEvent }) => {
+          viewHeight.current = nativeEvent.layout.height;
+          scrollBottomGap.current = contentHeight.current - nativeEvent.layout.height - scrollY.current;
+        }}
         scrollEventThrottle={16}
         data={phoneRows}
         showsVerticalScrollIndicator={false}
@@ -671,12 +689,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
           {!noticeCenter.hydrated ? <Text variant="caption" style={styles.muted}>{t("phone.noticeLoading")}</Text> : null}
         </View> : null}
         ListEmptyComponent={noticeListOpen && noticeCenter.hydrated ? <Text variant="caption" style={styles.muted}>{t("phone.noticeEmpty")}</Text> : null}
-        renderItem={({ item }) => noticeListOpen ? noticeRow(item as ProductNotice) : (wikiListOpen || wikiDetailOpen) && typeof item !== "number" ? wikiRow(item as WikiPageRow) : exitPrompt ? <View style={styles.stack}>
-          <Text variant="heading">{t("phone.internal.exitTitle")}</Text>
-          <Text variant="caption" style={styles.muted}>{t("phone.internal.exitHint")}</Text>
-          <PhoneAction label={t("phone.returnToStars")} glyph="arrow_forward" onPress={closePhone} />
-          <PhoneAction label={t("phone.internal.cancel")} glyph="arrow_back" onPress={() => setExitPrompt(false)} />
-        </View> : insideRoute ? internalPage(insideRoute) : tab === "dashboard" ? dashboard() : tools()}
+        renderItem={({ item }) => noticeListOpen ? noticeRow(item as ProductNotice) : (wikiListOpen || wikiDetailOpen) && typeof item !== "number" ? wikiRow(item as WikiPageRow) : insideRoute ? internalPage(insideRoute) : tab === "dashboard" ? dashboard() : tools()}
         contentContainerStyle={styles.content}
       />}
       </View>
@@ -699,8 +712,9 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={t(internalActive || pageIndex > 0 ? "phone.nav.home" : "phone.internal.closePhone")}
-        onPress={() => { if (internalActive || pageIndex > 0) showPage(0); else setExitPrompt(true); }}
+        // Simon 2026-10-07: the home button always returns to the phone's apps page. It never closes the phone.
+        accessibilityLabel={t("phone.nav.home")}
+        onPress={() => showPage(APPS_PAGE)}
         style={[styles.homeButton, frame.homeButton]}
       />
       </> : null}
