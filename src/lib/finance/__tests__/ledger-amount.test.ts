@@ -23,7 +23,14 @@ jest.mock("@/lib/supabase/client", () => {
   return { getSupabaseClient: () => builder };
 });
 
-import { createLedgerEntry, LEDGER_AMOUNT_MAX_CHARS, LEDGER_AMOUNT_MAX_DIGITS, MAX_LEDGER_KRW, parseLedgerAmount } from "../ledger";
+import {
+  createLedgerEntry,
+  LEDGER_AMOUNT_MAX_CHARS,
+  LEDGER_AMOUNT_MAX_DIGITS,
+  ledgerAmountEdit,
+  MAX_LEDGER_KRW,
+  parseLedgerAmount,
+} from "../ledger";
 
 beforeEach(() => {
   mockInserts.length = 0;
@@ -143,6 +150,48 @@ describe("parseLedgerAmount reads at most LEDGER_AMOUNT_MAX_CHARS characters (ga
 
   test("a huge paste is refused without being read", () => {
     expect(parseLedgerAmount("1,000".repeat(200_000))).toEqual({ kind: "invalid" });
+  });
+});
+
+// Gate OPSFIX-A1-04 (2026-10-07): the field kept the first 65 characters of a long paste. The
+// parser refused those, but deleting one leading 0 left 64 characters it read as another amount.
+describe("ledgerAmountEdit takes no edit longer than the parser reads (gate OPSFIX-A1-04)", () => {
+  /** The user's next edit: one leading character deleted, as in the gate's repro. */
+  const dropFirst = (text: string): string => text.slice(1);
+
+  test("the gate's repro: '0' x 63 + '12000' pasted, then a leading 0 deleted, is never 12 won", () => {
+    const pasted = `${"0".repeat(63)}12000`;
+    expect(pasted.length).toBeGreaterThan(LEDGER_AMOUNT_MAX_CHARS);
+    // What the field used to do: keep 65 characters, then the delete made 12 won out of them.
+    const oldHeld = pasted.slice(0, LEDGER_AMOUNT_MAX_CHARS + 1);
+    expect(parseLedgerAmount(dropFirst(oldHeld))).toEqual({ kind: "ok", value: 12 });
+    // Now: the paste is not taken, the empty field stays empty, and the delete has nothing to cut.
+    const afterPaste = ledgerAmountEdit("", pasted);
+    expect(afterPaste).toEqual({ text: "", overflow: true });
+    const afterDelete = ledgerAmountEdit(afterPaste.text, dropFirst(afterPaste.text));
+    expect(afterDelete).toEqual({ text: "", overflow: false });
+    expect(parseLedgerAmount(afterDelete.text)).toEqual({ kind: "empty" });
+  });
+
+  test("a refused edit leaves exactly what the field held, never a piece of the paste", () => {
+    for (const held of ["", "5000", "₩12,000", "abc"]) {
+      for (const pasted of [`${"0".repeat(63)}12000`, `${held}${"9".repeat(LEDGER_AMOUNT_MAX_CHARS + 1)}`, "1,000".repeat(200_000)]) {
+        expect(ledgerAmountEdit(held, pasted)).toEqual({ text: held, overflow: true });
+      }
+    }
+  });
+
+  test("typing one character past the limit is refused; at the limit it is taken", () => {
+    const atLimit = `${"0".repeat(LEDGER_AMOUNT_MAX_CHARS - 1)}1`;
+    expect(ledgerAmountEdit(atLimit.slice(0, -1), atLimit)).toEqual({ text: atLimit, overflow: false });
+    expect(ledgerAmountEdit(atLimit, `${atLimit}2`)).toEqual({ text: atLimit, overflow: true });
+  });
+
+  test("the next edit the field takes clears the refusal and is read as typed", () => {
+    const refused = ledgerAmountEdit("", `${"0".repeat(63)}12000`);
+    const retyped = ledgerAmountEdit(refused.text, "12000");
+    expect(retyped).toEqual({ text: "12000", overflow: false });
+    expect(parseLedgerAmount(retyped.text)).toEqual({ kind: "ok", value: 12000 });
   });
 });
 

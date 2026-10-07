@@ -420,7 +420,7 @@
       "emptyBody": "Enter an amount above and it is grouped by category here.",
       "currencyNote": "Amounts are recorded in won (KRW).",
       "amountTooLarge": "That amount is too large. One entry can hold up to {{max}} won.",
-      "amountInvalid": "Enter whole won, like 12000 or 12,000. Signs, decimal points and letters are not taken."
+      "amountInvalid": "Enter whole won, like 12000, 12,000, ₩12,000 or 12,000원. Signs and decimal points are not taken."
     },
     "meals": {
       "sheetSubtitle": "{{day}} {{date}} · {{slot}}",

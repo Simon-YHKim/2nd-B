@@ -65,7 +65,7 @@ import {
   updateMilestone,
   type Milestone,
 } from "@/lib/ops/milestones";
-import { createLedgerEntry, deleteLedgerEntry, LEDGER_AMOUNT_MAX_CHARS, listEntriesForMonth, localDayKey, MAX_LEDGER_KRW, monthBucket, parseLedgerAmount, summarizeMonth } from "@/lib/finance/ledger";
+import { createLedgerEntry, deleteLedgerEntry, ledgerAmountEdit, listEntriesForMonth, localDayKey, MAX_LEDGER_KRW, monthBucket, parseLedgerAmount, summarizeMonth } from "@/lib/finance/ledger";
 import { fetchPushActivity, summarizeGithubActivity, type PushActivity } from "@/lib/projects/github";
 import { searchFoods, type FoodNutrition } from "@/lib/nutrition/foods";
 import {
@@ -1058,6 +1058,10 @@ export function LedgerScreen() {
   // deleteLedgerEntry exists); only the UI was missing.
   const [kind, setKind] = useState<"expense" | "income">("expense");
   const [amount, setAmount] = useState("");
+  // Gate OPSFIX-A1-04: the last edit of the amount was too long and was not taken
+  // (ledgerAmountEdit). The field keeps what it had; this keeps the add button off and the
+  // format hint up until the next edit the field takes.
+  const [amountOverflow, setAmountOverflow] = useState(false);
   const [category, setCategory] = useState("");
   // Booking day. createLedgerEntry always accepted occurred_on and only fell back
   // to today, but the form never sent one -- so yesterday's coffee could not be
@@ -1073,9 +1077,10 @@ export function LedgerScreen() {
   const amountNum = amountParsed.kind === "ok" ? amountParsed.value : 0;
   const amountTooLarge = amountParsed.kind === "tooLarge";
   // Gate S-02 (2026-10-07): "-500", "1e3" and "12.34" used to be saved as 500, 13 and 1234.
-  // Text that is not whole won is now refused, and the field says what it takes.
-  const amountInvalid = amountParsed.kind === "invalid";
-  const canAdd = !busy && amountParsed.kind === "ok";
+  // Text that is not whole won is now refused, and the field says what it takes. So is an
+  // edit too long to take (gate OPSFIX-A1-04).
+  const amountInvalid = amountOverflow || amountParsed.kind === "invalid";
+  const canAdd = !busy && amountParsed.kind === "ok" && !amountOverflow;
 
   const onAddEntry = async () => {
     if (!userId || !canAdd) return;
@@ -1172,12 +1177,17 @@ export function LedgerScreen() {
           {/* No maxLength here: it counts separators too, so 13 cut a pasted
               "1,000,000,000,000" to "1,000,000,000" and saved 1,000x less (gate S-01 /
               BL-01). parseLedgerAmount reads the whole string and is the only ceiling.
-              Gate S3-02: a huge paste is not held whole. The field keeps one character past
-              LEDGER_AMOUNT_MAX_CHARS, which the parser always refuses, so the cut text is
-              shown as an error and never read as a smaller amount. */}
+              Gate S3-02 / OPSFIX-A1-04: a huge paste is not held at all, and never held cut
+              short either. An edit longer than the parser reads is not taken (ledgerAmountEdit):
+              the field keeps what it had and says so, so no prefix of a paste can become an
+              amount after a later edit. */}
           <TextInput
             value={amount}
-            onChangeText={(v) => setAmount(v.length > LEDGER_AMOUNT_MAX_CHARS ? v.slice(0, LEDGER_AMOUNT_MAX_CHARS + 1) : v)}
+            onChangeText={(v) => {
+              const edit = ledgerAmountEdit(amount, v);
+              setAmount(edit.text);
+              setAmountOverflow(edit.overflow);
+            }}
             placeholder={c.amountPlaceholder}
             placeholderTextColor={deepSpace.textLo}
             style={[styles.searchInput, styles.amountInput]}

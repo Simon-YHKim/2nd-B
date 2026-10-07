@@ -133,12 +133,17 @@ describe("R2C-16 / R2C-11: ledger", () => {
     const start = ledger.indexOf("value={amount}");
     const amountInput = ledger.slice(start, ledger.indexOf("/>", start));
     // Re-aimed 2026-10-07 (gate S3-02): this used to require onChangeText={setAmount}, which
-    // held a pasted string of any length. The field now keeps at most one character past
-    // LEDGER_AMOUNT_MAX_CHARS, which parseLedgerAmount always refuses (ledger-amount.test.ts),
-    // so the cut text is shown as an error and is never read as a smaller amount.
-    expect(amountInput).toContain(
-      "onChangeText={(v) => setAmount(v.length > LEDGER_AMOUNT_MAX_CHARS ? v.slice(0, LEDGER_AMOUNT_MAX_CHARS + 1) : v)}",
+    // held a pasted string of any length.
+    // Re-aimed 2026-10-07 (gate OPSFIX-A1-04): the field then kept 65 characters of a long
+    // paste, and one deleted leading 0 made them a 64-character amount. Every edit now goes
+    // through ledgerAmountEdit, which takes no text longer than the parser reads and keeps
+    // what the field held instead (ledger-amount.test.ts).
+    expect(amountInput).toMatch(
+      /onChangeText=\{\(v\) => \{\n\s*const edit = ledgerAmountEdit\(amount, v\);\n\s*setAmount\(edit\.text\);\n\s*setAmountOverflow\(edit\.overflow\);\n\s*\}\}/,
     );
+    expect(amountInput).not.toContain(".slice(");
+    expect(ledger.match(/setAmount\(/g)?.length).toBe(2); // the edit above, and the reset after an add
+    expect(ledger).toContain('setAmount("");');
     expect(amountInput).toContain('keyboardType="number-pad"');
     // Nothing shortens the typed string to a length the parser would read.
     expect(amountInput).not.toMatch(/maxLength/);
@@ -150,11 +155,24 @@ describe("R2C-16 / R2C-11: ledger", () => {
 
   // Gate S-02 (2026-10-07): "-500", "1e3" and "12.34" were saved as 500, 13 and 1234.
   test("an amount that is not whole won says so under the field and cannot be added", () => {
-    expect(ledger).toContain('const amountInvalid = amountParsed.kind === "invalid";');
+    // Re-aimed 2026-10-07 (gate OPSFIX-A1-04): an edit too long to take says so the same way.
+    expect(ledger).toContain('const amountInvalid = amountOverflow || amountParsed.kind === "invalid";');
     expect(ledger).toMatch(/\) : amountInvalid \? \(\n\s*<Text variant="caption" style=\{styles\.fieldErr\} accessibilityLiveRegion="polite">\n\s*\{t\("toolScreens\.ledger\.amountInvalid"\)\}/);
-    // The add button is on for "ok" only: "invalid" and "tooLarge" both leave it off.
-    expect(ledger).toContain('const canAdd = !busy && amountParsed.kind === "ok";');
+    // The add button is on for "ok" only: "invalid" and "tooLarge" both leave it off, and so
+    // does a refused edit until the field takes the next one. The keyboard's done on the
+    // category field goes through onAddEntry, which checks canAdd too.
+    expect(ledger).toContain('const canAdd = !busy && amountParsed.kind === "ok" && !amountOverflow;');
+    expect(ledger).toContain("if (!userId || !canAdd) return;");
     expect(ledger).toContain("amount_krw: amountNum,");
+  });
+
+  // Gate OPSFIX-A1-05 (2026-10-07): the hint said letters and signs are not taken, while the
+  // parser takes ₩ (or ￦) in front and 원 after. Each locale now shows those forms (each one
+  // parses as whole won: ledger-amount.test.ts), and no longer says letters are refused.
+  test.each(LOCALES)("OPSFIX-A1-05: the %s amount hint shows the forms the field takes", (l) => {
+    const hint = lookup(bundles[l], "toolScreens.ledger.amountInvalid") as string;
+    for (const form of ["12000", "12,000", "₩12,000", "12,000원"]) expect([l, hint]).toEqual([l, expect.stringContaining(form)]);
+    expect([l, hint]).toEqual([l, expect.not.stringMatching(/letter|문자|letra|huruf/i)]);
   });
   test("the currency note states what the screen does", () => {
     expect(ledger).toContain('t("toolScreens.ledger.currencyNote")');

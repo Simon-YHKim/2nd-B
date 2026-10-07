@@ -75,9 +75,9 @@ export const LEDGER_AMOUNT_MAX_DIGITS = String(MAX_LEDGER_KRW).length;
  * The longest amount text the parser reads at all (gate S3-02, 2026-10-07).
  *
  * The widest amount the field takes, "₩ 1,000,000,000,000 원", is 21 characters, so 64 leaves
- * room for padding and leading zeros. Longer text is refused before any pattern runs. The field
- * keeps at most one character past this (screens.tsx), so a huge paste is never held whole and
- * what it keeps is still refused here: nothing shortened is ever read as an amount.
+ * room for padding and leading zeros. Longer text is refused before any pattern runs, and the
+ * field never takes it in the first place (ledgerAmountEdit): nothing shortened is ever held,
+ * so nothing shortened can ever be read as an amount.
  */
 export const LEDGER_AMOUNT_MAX_CHARS = 64;
 
@@ -114,6 +114,27 @@ export function parseLedgerAmount(raw: string): LedgerAmount {
   const value = Number(digits);
   if (!Number.isSafeInteger(value) || value > MAX_LEDGER_KRW) return { kind: "tooLarge" };
   return { kind: "ok", value };
+}
+
+/** The amount field after one edit: the text it holds, and whether the edit was refused. */
+export interface LedgerAmountEdit {
+  text: string;
+  overflow: boolean;
+}
+
+/**
+ * Take one edit of the amount field (gate OPSFIX-A1-04, 2026-10-07).
+ *
+ * Text longer than LEDGER_AMOUNT_MAX_CHARS is not taken: the field keeps exactly what it held,
+ * and `overflow` says the edit was refused, so the screen says so and keeps the add button off
+ * until the next edit the field does take. The field used to keep the first 65 characters of
+ * such text. The parser refused those, but one more edit could make them a shorter text it read:
+ * "0" x 63 + "12000" pasted was cut to 63 zeros and "12", and deleting one leading zero left
+ * 64 characters, read as 12 won. A cut-down paste is now never held, so no later edit can turn
+ * one into an amount.
+ */
+export function ledgerAmountEdit(held: string, typed: string): LedgerAmountEdit {
+  return typed.length > LEDGER_AMOUNT_MAX_CHARS ? { text: held, overflow: true } : { text: typed, overflow: false };
 }
 
 /** "YYYY-MM" bucket for a YYYY-MM-DD key (or a Date). */

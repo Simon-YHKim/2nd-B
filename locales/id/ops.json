@@ -420,7 +420,7 @@
       "emptyBody": "Tulis jumlah di atas dan akan dikelompokkan per kategori di sini.",
       "currencyNote": "Jumlah dicatat dalam won (KRW).",
       "amountTooLarge": "Jumlah itu terlalu besar. Satu catatan bisa memuat hingga {{max}} won.",
-      "amountInvalid": "Tulis won bulat, misalnya 12000 atau 12,000. Tanda, desimal, dan huruf tidak diterima."
+      "amountInvalid": "Tulis won bulat, misalnya 12000, 12,000, ₩12,000, atau 12,000원. Tanda dan desimal tidak diterima."
     },
     "meals": {
       "sheetSubtitle": "{{day}} {{date}} · {{slot}}",
