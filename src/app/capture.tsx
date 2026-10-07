@@ -124,6 +124,7 @@ import { saveTemplate } from "@/lib/wiki/template-queries";
 import type { SourceKind } from "@/lib/wiki/types";
 import { classifyLinkOrClip, firstUrlIn } from "@/lib/wiki/link-or-clip";
 import { normalizeSharedCaptureParams } from "@/lib/capture/share-params";
+import { carriesShareMarker, shareRefusedHref } from "@/lib/capture/share-intent";
 import { clipboardHasContent, readClipboardText } from "@/lib/capture/clipboard";
 import { composeFourWBody, EMPTY_FOURW, FOURW_KEYS, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
 import { composeStructured } from "@/lib/capture/structured";
@@ -366,6 +367,7 @@ export default function Capture() {
     mode?: string;
     tag?: string;
     coach?: string;
+    from?: string;
   }>();
   const firstRecordCoach = captureParams.coach === FIRST_RECORD_COACH_PARAM;
   const hasFullCaptureParams =
@@ -391,8 +393,13 @@ export default function Capture() {
       </PremiumAppShell>
     );
   }
-  if (!userId) return <Redirect href="/sign-in" />;
-  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  // An Android share arrives here as /capture?text=&title=&from=share
+  // (src/lib/capture/share-intent.ts). These two redirects drop the route's
+  // params as they do for any link; for a share they also tell the screen they
+  // land on to say, in one line, that it was not added.
+  const shareMarked = carriesShareMarker(captureParams);
+  if (!userId) return <Redirect href={shareRefusedHref("/sign-in", shareMarked)} />;
+  if (hasProfile === false) return <Redirect href={shareRefusedHref("/complete-profile", shareMarked)} />;
   if (hasFullCaptureParams || fullCaptureActive) {
     return (
       <DeepSpaceScreen active="capture" variant="windowed">

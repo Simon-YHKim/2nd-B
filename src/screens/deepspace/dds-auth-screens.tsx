@@ -24,6 +24,7 @@ import { ddsStyles as styles } from "./dds-styles";
 import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { InlineLoader } from "@/components/ui/InlineLoader";
+import { ShareRefusedLine } from "@/components/capture/ShareRefusedLine";
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { m3TextStyle } from "@/components/m3/typeface";
@@ -312,6 +313,8 @@ export function DeepSpaceResetPasswordDesignScreen() {
           <Text style={[m3TextStyle("bodyLarge"), resetStyles.subtitle]}>{subtitle}</Text>
         </View>
       </View>
+
+      <ShareRefusedLine />
 
       {sessionUnavailable ? (
         <View accessibilityRole="alert" accessibilityLiveRegion="assertive">

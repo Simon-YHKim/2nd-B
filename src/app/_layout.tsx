@@ -13,6 +13,7 @@ import {
   Stack,
   Redirect,
   router,
+  useGlobalSearchParams,
   useRootNavigationState,
   usePathname,
   useSegments,
@@ -45,6 +46,7 @@ import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-store";
 import { hydrateAnalyticsConsent } from "@/lib/analytics/auth-conversions";
 import { profileRouteHold } from "@/lib/auth/profile-probe";
+import { isMarkedShareCapture, shareRefusedHref } from "@/lib/capture/share-intent";
 import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { configureEffectsAudioSession } from "@/lib/audio/audio-session";
@@ -528,6 +530,12 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   } = useAuth();
   const segments = useSegments();
   const pathname = usePathname();
+  // An Android share opens /capture?text=&title=&from=share. When a redirect
+  // below turns that route away, its params are dropped as for any link, and
+  // the screen it lands on (the storage recovery screen too) says in one line
+  // that the share was not added (src/lib/capture/share-intent.ts). Nothing is
+  // held for later.
+  const shareTurnedAway = isMarkedShareCapture(pathname, useGlobalSearchParams());
   // Play the opening only once per running app/tab. A fresh auth event
   // (including the signed-out -> signed-in transition) must not restart it.
   const [introDone, setIntroDone] = useState(introAlreadyPlayed);
@@ -561,6 +569,11 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   // matters when the intro was played earlier in this tab and the fonts are not.
   // Bare for the same reason as RootLayout's font wait (R2A-04).
   if (!fontsReady) return <InlineLoader bare />;
+  // A share is not kept through a storage recovery (gate SG-R3-01, Simon
+  // 2026-10-07 13:33). Before that screen shows, the route drops text, title
+  // and marker and keeps only the notice, which the screen draws as its line.
+  // The next render reads /capture?notice=shareRefused and takes the line below.
+  if (storageRecoveryRequired && shareTurnedAway) return <Redirect href={shareRefusedHref("/capture", true)} />;
   if (storageRecoveryRequired) return <EncryptedStorageRecoveryGate />;
   if (!recoveryReady) return <InlineLoader />;
 
@@ -568,7 +581,7 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   // pathname matching also catches pushes to another route inside `(auth)`;
   // a group-level exemption would let /sign-in escape the mandatory reset.
   if ((recoveryUserId || recoveryPendingGlobal) && pathname !== "/reset-password") {
-    return <Redirect href="/reset-password" />;
+    return <Redirect href={shareRefusedHref("/reset-password", shareTurnedAway)} />;
   }
 
   // A FAILED profile probe is unknown: not "no profile", not "has profile", and
@@ -628,7 +641,7 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
     segments[0] !== "(auth)" &&
     segments[0] !== "onboarding"
   ) {
-    return <Redirect href="/complete-profile" />;
+    return <Redirect href={shareRefusedHref("/complete-profile", shareTurnedAway)} />;
   }
 
   // The opening is complete for this runtime, so auth events and navigation
