@@ -11,9 +11,9 @@ const CAPTURE = SOURCE.slice(DEFAULT_EXPORT_START, DEFAULT_EXPORT_END);
 describe("/capture 공통 인증 관문", () => {
   it("loading, signed-out, missing-profile 순서로 첫 deep-space 분기 전에 막는다", () => {
     const loadingAt = CAPTURE.indexOf("if (loading)");
-    const signedOutAt = CAPTURE.indexOf('if (!userId) return <Redirect href="/sign-in" />;');
+    const signedOutAt = CAPTURE.indexOf('if (!userId) return <Redirect href={shareRefusedHref("/sign-in", shareMarked)} />;');
     const missingProfileAt = CAPTURE.indexOf(
-      'if (hasProfile === false) return <Redirect href="/complete-profile" />;',
+      'if (hasProfile === false) return <Redirect href={shareRefusedHref("/complete-profile", shareMarked)} />;',
     );
     // 2026-10-05: 앵커가 스킨 분기 `if (isDeepSpaceUI())` 였다. 롤백 레버가 없어져
     // (Simon 결정 Q-261004-11 C) 그 분기가 사라졌고, 관문 뒤 첫 딥스페이스 렌더는
@@ -29,7 +29,7 @@ describe("/capture 공통 인증 관문", () => {
 
   it("bare CaptureView와 query CaptureLegacy가 공통 관문 뒤에서만 갈린다", () => {
     const missingProfileAt = CAPTURE.indexOf(
-      'if (hasProfile === false) return <Redirect href="/complete-profile" />;',
+      'if (hasProfile === false) return <Redirect href={shareRefusedHref("/complete-profile", shareMarked)} />;',
     );
     const queryBranchAt = CAPTURE.indexOf("if (hasFullCaptureParams || fullCaptureActive)");
     const queryIntakeAt = CAPTURE.indexOf("<CaptureLegacy embeddedInDock />");
@@ -38,7 +38,9 @@ describe("/capture 공통 인증 관문", () => {
     expect(queryBranchAt).toBeGreaterThan(missingProfileAt);
     expect(queryIntakeAt).toBeGreaterThan(queryBranchAt);
     expect(bareCaptureAt).toBeGreaterThan(queryBranchAt);
-    expect(CAPTURE.split('href="/sign-in"').length - 1).toBe(1);
-    expect(CAPTURE.split('href="/complete-profile"').length - 1).toBe(1);
+    expect(CAPTURE.split('shareRefusedHref("/sign-in"').length - 1).toBe(1);
+    expect(CAPTURE.split('shareRefusedHref("/complete-profile"').length - 1).toBe(1);
+    expect(CAPTURE).not.toContain('href="/sign-in"');
+    expect(CAPTURE).not.toContain('href="/complete-profile"');
   });
 });

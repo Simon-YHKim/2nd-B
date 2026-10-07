@@ -286,9 +286,13 @@ describe("sign-up authority and preservation boundaries", () => {
   // 2026-10-05(PR #2044 main 병합): dds-auth-screens digest 만 다시 재고정했다(옛 값
   // 23480d40 = 위 main 판). main 판과 대조한 차이는 go-home import 한 줄(빈 줄 자리)과
   // 재설정 화면의 재설정 잠금 등록 useGoHomeStop 한 줄뿐이다. 동의 · 가입 경계는 그대로다.
+  // 2026-10-07(#2145 안드로이드 공유, Simon 12:04): dds-auth-screens digest 만 다시
+  // 재고정했다(옛 값 713bb9c4 = main 판). 차이는 ShareRefusedLine import 한 줄과 재설정
+  // 화면 머리 아래의 `<ShareRefusedLine />` 한 줄(+빈 줄)뿐이다. 문지기가 공유를 재설정
+  // 화면으로 돌려보낼 때 그 화면에 한 줄 안내를 그리는 자리다. 동의 · 가입 경계는 그대로다.
   test("preserves shared form boundaries while pinning the auth renderer", () => {
     expect(sha256(read("src/screens/deepspace/dds-auth-screens.tsx"))).toBe(
-      "713bb9c4843dfe0eaa31c70a5c291069bad9a4a987a53d4abed6fc437c440491",
+      "1dd54b7cf8e56e5004fd20c8888997dba5bdf5701cf5185149cdaaff2b11bcac",
     );
     expect(sha256(read("src/components/consent/ConsentNotice.tsx"))).toBe(
       "60a019c22ceec84ad550f06568763225b82839bc0e743f382aabea233e4ae170",
