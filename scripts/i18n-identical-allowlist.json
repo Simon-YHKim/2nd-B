@@ -53,6 +53,7 @@
   "ops:copy.nowReading",
   "ops:copy.thisWeek",
   "ops:focus.preset",
+  "ops:phone.board.health.sources.health_connect",
   "ops:tools.focus.sub",
   "permissions:platform.both",
   "permissions:platform.label",

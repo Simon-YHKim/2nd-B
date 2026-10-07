@@ -7,6 +7,8 @@ const coverageByUser: Record<string, Record<string, Record<string, number>>> = {
 const recordRows: { id: string; prompt: string | null; body: string | null; created_at: string }[] = [];
 const eqCalls: { column: string; value: unknown }[] = [];
 const containsCalls: { column: string; value: unknown }[] = [];
+// 0218 이 적용되지 않은 데이터베이스를 흉내 낸다: system_tags 를 부르면 42703.
+let mockNoSystemTagsColumn = false;
 
 jest.mock("../../interview/coverage-store", () => ({
   loadCoverage: async (userId: string) => {
@@ -23,6 +25,7 @@ jest.mock("../../interview/coverage-store", () => ({
 jest.mock("../../supabase/client", () => ({
   getSupabaseClient: () => ({
     from: () => {
+      let namesSystemTags = false;
       const node: Record<string, unknown> = {
         select: () => node,
         eq: (column: string, value: unknown) => {
@@ -31,10 +34,16 @@ jest.mock("../../supabase/client", () => ({
         },
         contains: (column: string, value: unknown) => {
           containsCalls.push({ column, value });
+          if (column === "system_tags") namesSystemTags = true;
           return node;
         },
         order: () => node,
-        limit: () => Promise.resolve({ data: recordRows, error: null }),
+        limit: () =>
+          Promise.resolve(
+            mockNoSystemTagsColumn && namesSystemTags
+              ? { data: null, error: { code: "42703", message: "column records.system_tags does not exist" } }
+              : { data: recordRows, error: null },
+          ),
       };
       return node;
     },
@@ -52,6 +61,7 @@ beforeEach(() => {
   recordRows.length = 0;
   eqCalls.length = 0;
   containsCalls.length = 0;
+  mockNoSystemTagsColumn = false;
 });
 
 describe("후보 게이트 — 충분히 판 별만", () => {
@@ -95,11 +105,23 @@ describe("제안 재료", () => {
     );
   });
 
-  it("그 시기의 인터뷰 기록만 질의한다 (audit_period + interview 태그)", async () => {
+  it("그 시기의 인터뷰 기록만 질의한다 (audit_period + 앱 표식 칸의 interview)", async () => {
     await buildSevenProposalContext("u1", "school", "ko");
     expect(eqCalls).toContainEqual({ column: "audit_period", value: "school" });
     expect(eqCalls).toContainEqual({ column: "kind", value: "audit_response" });
-    expect(containsCalls).toContainEqual({ column: "tags", value: ["interview"] });
+    // 0218: 인터뷰 표식은 앱 표식 칸에 있다. 사용자 태그 칸은 묻지 않는다 —
+    // 사용자가 단 `interview` 태그는 인터뷰가 아니다.
+    expect(containsCalls).toEqual([{ column: "system_tags", value: ["interview"] }]);
+  });
+
+  it("앱 표식 칸이 없는 데이터베이스(0218 이전)에서는 한 번 tags 로 다시 묻는다", async () => {
+    mockNoSystemTagsColumn = true;
+    const ctx = await buildSevenProposalContext("u1", "school", "ko");
+    expect(containsCalls).toEqual([
+      { column: "system_tags", value: ["interview"] },
+      { column: "tags", value: ["interview"] },
+    ]);
+    expect(ctx).not.toBeNull();
   });
 
   it("인용이 전부 record:<id> 다 (0060 을 통과하는 유일한 꼴)", async () => {

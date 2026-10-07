@@ -4,6 +4,7 @@
 // tested so the type/route/label mapping is a single source of truth.
 
 import { domainForTags, type VillageId } from "@/lib/graph/relatedness";
+import { RECALL_INTERVIEW_TAG, systemTagsOf } from "@/lib/records/system-tags";
 
 export type EvidenceType = "journal" | "capture" | "wiki" | "interview" | "audit" | "imagine";
 
@@ -39,10 +40,17 @@ export function recordIdsFromCitations(citations: readonly string[]): string[] {
   return out;
 }
 
-/** Map a records.kind (+ tags) to a user-facing evidence type. */
-export function recordKindToType(kind: string, tags: string[] = []): EvidenceType {
+/** Map a records.kind (+ tags) to a user-facing evidence type. `systemTags` are
+ *  the app's markers (0218 records.system_tags); the recall interview's
+ *  `interview` lives there, not in the user's tags. A caller without the column
+ *  passes nothing and the pre-0218 reading (markers in `tags`) applies. */
+export function recordKindToType(
+  kind: string,
+  tags: string[] = [],
+  systemTags: readonly string[] = tags,
+): EvidenceType {
   if (kind === "journal") return "journal";
-  if (kind === "audit_response") return tags.includes("interview") ? "interview" : "audit";
+  if (kind === "audit_response") return systemTags.includes(RECALL_INTERVIEW_TAG) ? "interview" : "audit";
   if (kind === "self_knowledge") return "capture";
   if (tags.includes("imagine")) return "imagine";
   if (tags.includes("wiki")) return "wiki";
@@ -89,11 +97,19 @@ export interface RawRecordRow {
   topic: string | null;
   created_at: string;
   tags?: string[] | null;
+  /** The app's markers (0218). Absent when the database has no such column. */
+  system_tags?: string[] | null;
+}
+
+/** The records columns a RawRecordRow reads (`system_tags` only when the
+ *  database has it, records/system-tags.ts). */
+export function rawRecordColumns(columnPresent: boolean): string {
+  return columnPresent ? "id, kind, topic, created_at, tags, system_tags" : "id, kind, topic, created_at, tags";
 }
 
 /** Build an EvidenceShard from a raw record row. */
 export function toEvidenceShard(row: RawRecordRow, locale: "en" | "ko"): EvidenceShard {
-  const type = recordKindToType(row.kind, row.tags ?? []);
+  const type = recordKindToType(row.kind, row.tags ?? [], systemTagsOf(row));
   const fallback = evidenceTypeLabel(type, locale);
   return {
     id: row.id,

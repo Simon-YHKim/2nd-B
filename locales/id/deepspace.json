@@ -1077,6 +1077,8 @@
     "authBody": "Catatanmu tetap milikmu. Kamu meninjau dan menyetujui ringkasannya sebelum diterapkan.",
     "next": "Berikutnya",
     "skip": "Lewati",
+    "saveFailed": "Tidak dapat menyimpan.",
+    "goHome": "Ke beranda",
     "slides": {
       "intro": {
         "title": "AI yang mengenal\ndirimu",

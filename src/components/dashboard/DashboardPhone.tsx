@@ -10,17 +10,14 @@ import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { Text as BaseText, type TextProps } from "@/components/ui/Text";
 import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
-import { withTimeout } from "@/lib/async/with-timeout";
 import { loadDashboard } from "@/lib/dashboard/load";
-import { countAreaRecords, LIFE_AREAS, localDate, realHealthSamples, routineActionRoute, todayAgenda, type DashboardData } from "@/lib/dashboard/model";
+import { LIFE_AREAS, type DashboardData } from "@/lib/dashboard/model";
+import { buildBoard } from "@/lib/dashboard/board/build";
 import { DEFAULT_REFRESH_SETTINGS, getRefreshSettings, nextRefreshAt, shouldRefreshAfterResume } from "@/lib/dashboard/refresh-cadence";
 import { fitPhoneArtwork } from "@/lib/dashboard/phone-frame";
 import { PixelScrim } from "@/components/pixel/PixelDither";
 import { PHONE_APP_ICONS, PHONE_UI_ART, type PhoneAppId } from "./phone-app-assets";
 import { canBeginPhoneDismiss, shouldCompletePhoneDismiss } from "@/lib/dashboard/phone-dismiss";
-import rules from "@/lib/dashboard/dashboard-rules.json";
-import { recentRecordTrend, selectDashboardPriority, upcomingRoutineDays } from "@/lib/dashboard/summary";
-import { logRoutineCompletion } from "@/lib/ops/routines";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { m3 } from "@/lib/theme/m3";
@@ -35,6 +32,11 @@ import { OpsPhoneContent, type OpsPhoneScreen } from "@/screens/deepspace/ops/Ph
 import { MuseumPhoneContent } from "@/screens/deepspace/museum/MuseumTimelineScreen";
 import { PhoneEmbedProvider, splitPhoneRoute, type PhoneEmbedNav } from "@/lib/nav/phone-embed";
 import { resolvePhoneScreen } from "./phone-screens";
+import { BoardDock, BoardPageView, type BoardEvents } from "./board/BoardParts";
+import { DailySummary } from "./board/DailySummary";
+import { BoardShelf } from "./board/BoardShelf";
+import { TranscribeSkeleton } from "./board/TranscribeSkeleton";
+import { healthBlankValues } from "@/lib/dashboard/board/summary-flow";
 import type { ProductNotice } from "@/lib/notices/types";
 
 type Tab = "dashboard" | "tools";
@@ -75,6 +77,9 @@ function phonePage(route: string): string {
 }
 /** A hosted screen replacing itself with one of these leaves the phone (sign-out). */
 const AUTH_EXIT_PATHS = new Set(["/sign-in", "/sign-up", "/onboarding"]);
+/** 1쪽 · 2쪽 · 앱 · 더보기. */
+const PAGES = [0, 1, 2, 3] as const;
+const LAST_PAGE = PAGES.length - 1;
 const PIXEL_IMAGE = Platform.OS === "web" ? { imageRendering: "pixelated" } as ImageStyle : undefined;
 
 // The phone bezel is always dark, including when the rest of the app uses its
@@ -101,6 +106,8 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     else router.replace("/");
   }, [transparentBackdrop]);
   const [tab, setTab] = useState<Tab>(app === "notifications" ? "tools" : "dashboard");
+  // 하루 관리판 두 쪽(PS-DASH-001 v2.2): 1쪽 = 오늘 처리할 것, 2쪽 = 상태(Q-261007-31).
+  const [boardPage, setBoardPage] = useState<1 | 2>(1);
   const [phoneApp, setPhoneApp] = useState<"notifications" | "more" | null>(app === "notifications" ? "notifications" : null);
   const [selectedNoticeId, setSelectedNoticeId] = useState<string | null>(null);
   const [screenStack, setScreenStack] = useState<string[]>([]);
@@ -130,11 +137,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [refresh, setRefresh] = useState(0);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [writeError, setWriteError] = useState(false);
   const [refreshSettings, setRefreshSettingsState] = useState(DEFAULT_REFRESH_SETTINGS);
-  const [showEvidence, setShowEvidence] = useState(false);
-  const [expandedMetric, setExpandedMetric] = useState<string | null>(null);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   const frame = fitPhoneArtwork(frameSize.width, frameSize.height);
   const compactDisplay = frame !== null && frame.screen.height < 600;
@@ -143,7 +146,6 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const scrollY = useRef(0);
   const dismissing = useRef(false);
   const mounted = useRef(true);
-  const actionBusy = useRef(false);
   const captureBusyRef = useRef(false);
   const scheduledReadPending = useRef(false);
   const insideRoute = screenStack[screenStack.length - 1] ?? null;
@@ -156,7 +158,8 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   // Those screens and the Ops screens draw their own header Back wired to
   // backInside, so the phone's Back row would be a second one. Back lives in
   // one place.
-  const contentOwnsBack = ownsDisplay || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);
+  // S-01 하루 요약은 자기 [닫기]를 가진다.
+  const contentOwnsBack = ownsDisplay || insideRoute === "/board/summary" || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);
   const wikiDetailId = insideRoute?.startsWith("/wiki/page/")
     ? decodeURIComponent(insideRoute.slice("/wiki/page/".length)) : null;
   const go = useCallback((target: string) => {
@@ -181,8 +184,9 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     if (screenStack.length) { setScreenStack((current) => current.slice(0, -1)); return; }
     if (phoneApp) { setPhoneApp(null); return; }
     if (tab === "tools") { setTab("dashboard"); return; }
+    if (boardPage === 2) { setBoardPage(1); return; }
     setExitPrompt(true);
-  }, [exitPrompt, selectedNoticeId, screenStack.length, phoneApp, tab]);
+  }, [exitPrompt, selectedNoticeId, screenStack.length, phoneApp, tab, boardPage]);
   // Android Back handlers claimed by hosted screens (useHardwareBack), newest
   // last. The phone's one listener asks them before stepping back itself.
   const claimedBack = useRef<Array<() => boolean>>([]);
@@ -264,15 +268,17 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     },
     onPanResponderTerminate: settlePhone,
   }), [backInside, closePhone, dismissY, exitPrompt, frameSize.height, insideRoute, phoneApp, reducedMotion, settlePhone]);
-  const pageIndex = tab === "dashboard" ? 0 : phoneApp === "more" ? 2 : 1;
+  // Pages (Simon 2026-10-07, PS-DASH-001 v2.2): the board's two pages come first, then the apps and More.
+  const pageIndex = tab === "dashboard" ? boardPage - 1 : phoneApp === "more" ? 3 : 2;
   const showPage = useCallback((index: number) => {
-    if (index < 0 || index > 2) return;
+    if (index < 0 || index > LAST_PAGE) return;
     scrollY.current = 0;
     setSelectedNoticeId(null);
     setScreenStack([]);
     setExitPrompt(false);
-    setTab(index === 0 ? "dashboard" : "tools");
-    setPhoneApp(index === 2 ? "more" : null);
+    setTab(index <= 1 ? "dashboard" : "tools");
+    setBoardPage(index === 1 ? 2 : 1);
+    setPhoneApp(index === 3 ? "more" : null);
   }, []);
   const pagePan = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponder: (_event, gesture) =>
@@ -375,26 +381,20 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       ? { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }
       : { month: "short", day: "numeric", weekday: "short" });
   };
-  const agenda = data?.routines.ok && data.completions.ok
-    ? todayAgenda(data.routines.value, data.completions.value, new Date()) : [];
-  const completed = agenda.filter((item) => item.completed).length;
   const interviews = data?.interviews.ok ? data.interviews.value.filter((item) => item.body?.trim()) : [];
-  const health = data?.healthEnabled && data.health.ok ? realHealthSamples(data.health.value)[0] : undefined;
+  const board = useMemo(() => buildBoard(data, new Date(), isMinor), [data, isMinor]);
+  // The buttons change only the screen until the W0 contract stores them (발주 2).
+  const boardEvents = useMemo<BoardEvents>(() => ({
+    go,
+    openSummary: () => go("/board/summary"),
+    suggestion: (_id, choice) => { if (choice === "add") go("/reminders"); },
+    queue: () => undefined,
+    spend: (_id, choice) => { if (choice === "add") go("/ledger"); },
+    custom: () => undefined,
+  }), [go]);
+  // 순서 · 숨기기 · 다시 켜기는 W0 가 저장할 곳을 줄 때 이어진다(지금 계약은 canReorder false).
+  const shelfEvents = useMemo(() => ({ go, show: () => undefined, hide: () => undefined, move: () => undefined }), [go]);
   const partial = data && Object.values(data).some((value) => value && typeof value === "object" && "ok" in value && !value.ok);
-
-  async function complete(id: string) {
-    if (actionBusy.current) return;
-    const lease = captureAccountOwnerLease(ownerId);
-    if (!lease?.isCurrent()) return;
-    actionBusy.current = true;
-    setBusy(id);
-    setWriteError(false);
-    try {
-      await withTimeout(logRoutineCompletion(ownerId, id, localDate(new Date())), 8_000, "dashboard completion");
-      if (mounted.current && lease.isCurrent()) setRefresh((value) => value + 1);
-    } catch { if (mounted.current && lease.isCurrent()) setWriteError(true); }
-    finally { actionBusy.current = false; if (mounted.current && lease.isCurrent()) setBusy(null); }
-  }
 
   async function savePhoneNote() {
     const body = draft.trim();
@@ -430,6 +430,15 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     const tagFilter = routeParams.tags ? routeParams.tags.split(",") : null;
     const opsScreen = OPS_PHONE_ROUTES[route];
     if (opsScreen) return <OpsPhoneContent screen={opsScreen} onBack={backInside} onNavigate={go} />;
+    // S-01 하루 요약(PS-DASH-001 v2.2). 건강 빈칸은 이 기기의 P-06 값으로 채운다(흐름 2).
+    // S-03 위젯 관리 · S-02 녹음 전사 골격(PS-DASH-001 v2.2). 판단은 계약(board.shelf)이 한다.
+    if (route === "/board/widgets") return <View style={styles.stack}>
+      <Text variant="heading">{t("phone.board.shelf.title")}</Text>
+      <BoardShelf board={board} events={shelfEvents} />
+    </View>;
+    if (route === "/board/transcribe") return <TranscribeSkeleton adult={isMinor === false} />;
+    if (route === "/board/summary") return <DailySummary summary={board.summary} muted={false} reducedMotion={reducedMotion} go={go} onClose={backInside}
+      healthValues={healthBlankValues(board, (metric) => metric.unit === "count" ? metric.value.toLocaleString(i18n.language) : t("phone.board.health.minutes", { value: metric.value.toLocaleString(i18n.language) }))} />;
     const records = data?.records.ok ? data.records.value : [];
     const recordFailed = !!data && !data.records.ok;
     const area = route.startsWith("/star/") ? route.slice(6) : null;
@@ -519,111 +528,10 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text>
       <PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} />
     </View>;
-    const now = new Date();
-    const priority = selectDashboardPriority(data, now);
-    const trend = recentRecordTrend(data, now);
-    const week = upcomingRoutineDays(data, now);
-    const maxTrend = Math.max(1, ...(trend?.days.map((day) => day.count) ?? []));
-    const metricValue = (id: string) => {
-      if (id === "routines") {
-        if (!data?.routines.ok || !data.completions.ok) return t("phone.operational.sourceStates.unknown");
-        return agenda.length ? `${completed}/${agenda.length}` : t("phone.operational.sourceStates.empty");
-      }
-      if (id === "records") {
-        if (!data?.records.ok) return t("phone.operational.sourceStates.unknown");
-        return !data.records.value.length ? t("phone.operational.sourceStates.empty") :
-          data.records.value.length >= rules.recordReadLimit ? `${rules.recordReadLimit}+` : String(data.records.value.length);
-      }
-      if (isMinor !== false) return t("phone.metricsSummary.restricted");
-      if (!data?.health.ok) return t("phone.operational.sourceStates.unknown");
-      if (!data.healthEnabled) return t("phone.metricsSummary.off");
-      return health ? `${health.value.toLocaleString(i18n.language)} ${health.unit}` : t("phone.operational.sourceStates.empty");
-    };
-    return <View style={styles.stack}>
-      {!compactDisplay ? <>
-        <Text variant="heading">{t("phone.operational.title")}</Text>
-        <Text variant="caption" numberOfLines={2} style={styles.dashboardScope}>{t("phone.operational.scope")}</Text>
-      </> : null}
-      {priority ? <PixelSurface variant="frame" contentStyle={styles.lead}>
-        <Text variant="caption" style={styles.accent}>{t("phone.todayLabel")}</Text>
-        <Text variant="heading">{priority.evidence ?? t(`phone.priority.${priority.kind}.title`)}</Text>
-        <Text variant="caption" style={styles.muted}>{t(`phone.priority.${priority.kind}.detail`)}</Text>
-        {priority.route ? <PhoneAction label={t(`phone.priority.${priority.kind}.action`)} onPress={() => go(priority.route!)} /> : null}
-      </PixelSurface> : !loading ? <Text variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : null}
-      <Text variant="heading">{t("phone.operational.atGlance")}</Text>
-      <View style={styles.metricGrid}>{rules.metricOrder.map((id) => <PixelPressable key={id} variant="inset" rootStyle={styles.metric} onPress={() => setExpandedMetric((current) => current === id ? null : id)} accessibilityLabel={`${t(`phone.metricsSummary.${id}.title`)}: ${metricValue(id)}`} accessibilityState={{ expanded: expandedMetric === id }} contentStyle={styles.metricContent}>
-        <Text variant="caption" style={styles.muted}>{t(`phone.metricsSummary.${id}.title`)}</Text>
-        <Text variant="body" style={styles.metricValue}>{metricValue(id)}</Text>
-        <Text variant="caption" style={styles.muted}>{t(`phone.metricsSummary.${id}.scope`)}</Text>
-        {expandedMetric === id ? <Text variant="caption" style={styles.muted}>{t(`phone.metricsSummary.${id}.method`)}</Text> : null}
-      </PixelPressable>)}</View>
-      <Text variant="heading">{t("phone.operational.outlook")}</Text>
-      <PixelSurface variant="frame" contentStyle={styles.routine}>
-        <Text variant="body">{t("phone.operational.recordTrend")}</Text>
-        {trend && data?.records.ok && data.records.value.length === 0 ? <Text variant="caption" style={styles.muted}>{t("phone.operational.sourceStates.empty")}</Text> : trend ? <View style={styles.chart}>{trend.days.map((day) => <View key={day.key} style={styles.chartDay}>
-          <Text variant="caption" style={styles.centered}>{day.count}</Text>
-          <View style={styles.chartTrack}><View style={[styles.chartBar, { height: day.count ? Math.max(4, Math.round(42 * day.count / maxTrend)) : 0 }]} /></View>
-          <Text variant="caption" style={styles.centered}>{day.date.toLocaleDateString(i18n.language, { weekday: "short" })}</Text>
-        </View>)}</View> : <Text variant="caption" style={styles.muted}>{t("phone.readError")}</Text>}
-        <Text variant="caption" style={styles.muted}>{t(trend?.limited ? "phone.operational.recordTrendLimited" : "phone.operational.recordTrendScope")}</Text>
-      </PixelSurface>
-      <PixelSurface variant="frame" contentStyle={styles.routine}>
-        <Text variant="body">{t("phone.weekAhead")}</Text>
-        <Text variant="caption" style={styles.muted}>{t("phone.weekAheadScope")}</Text>
-        {data?.routines.ok && data.routines.value.length === 0 ? <Text variant="caption" style={styles.muted}>{t("phone.operational.sourceStates.empty")}</Text> : week.length ? <View style={styles.week}>{week.map((day) => <PixelPressable key={day.key} rootStyle={styles.weekDay} accessibilityLabel={`${day.date.toLocaleDateString(i18n.language, { month: "short", day: "numeric" })}: ${t("phone.weekAheadCount", { count: day.count })}`} onPress={() => go("/reminders")} contentStyle={styles.weekDayContent}>
-          <Text variant="caption" style={styles.centered}>{day.date.toLocaleDateString(i18n.language, { weekday: "short" })}</Text>
-          <Text variant="caption" style={day.count ? styles.accent : styles.muted}>{day.count}</Text>
-        </PixelPressable>)}</View> : <Text variant="caption" style={styles.muted}>{t("phone.readError")}</Text>}
-      </PixelSurface>
-      <PixelPressable fullWidth onPress={() => setShowEvidence((value) => !value)} accessibilityState={{ expanded: showEvidence }} accessibilityLabel={t(showEvidence ? "phone.operational.hideEvidence" : "phone.operational.showEvidence")} contentStyle={styles.smallAction}>
-        <Text variant="body">{t(showEvidence ? "phone.operational.hideEvidence" : "phone.operational.showEvidence")}</Text>
-      </PixelPressable>
-      {showEvidence ? <View style={styles.stack}>
-      <View style={styles.sectionHeading}>
-        <Text variant="heading">{t("phone.agenda")}</Text>
-        <PhoneAction label={t("phone.allRoutines")} glyph="schedule" onPress={() => go("/reminders")} />
-      </View>
-      {data && (!data.routines.ok || !data.completions.ok) ? <Text variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : agenda.length === 0 ?
-        <Text variant="body" style={styles.muted}>{t("phone.emptyAgenda")}</Text> : agenda.slice(0, 3).map((item) => <PixelSurface key={item.id} variant="frame" contentStyle={styles.routine}>
-          <Text variant="caption" style={styles.accent}>{item.completed ? t("phone.completed") : item.reminder_time?.slice(0, 5) ?? t("phone.anytime")}</Text>
-          <Text variant="body">{item.title}</Text>
-          {item.reason ? <Text variant="caption" style={styles.muted}>{item.reason.slice(0, 180)}</Text> : null}
-          <View style={styles.actions}>
-            <PhoneAction label={t("phone.openTask")} onPress={() => go(routineActionRoute(item.domain_id))} />
-            {!item.completed ? <PhoneAction label={t(busy === item.id ? "phone.saving" : "phone.markDone")} glyph="check" disabled={busy !== null || loading} onPress={() => { void complete(item.id); }} /> : null}
-          </View>
-        </PixelSurface>)}
-      {writeError ? <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.saveError")}</Text> : null}
-      {week.some((day) => day.count > 0) ? <View style={styles.stack}>
-        <Text variant="heading">{t("phone.weekAhead")}</Text>
-        <Text variant="caption" style={styles.muted}>{t("phone.weekAheadScope")}</Text>
-        <View style={styles.week}>{week.map((day) => <PixelPressable key={day.key} rootStyle={styles.weekDay} accessibilityLabel={`${day.date.toLocaleDateString(i18n.language, { month: "short", day: "numeric" })}: ${t("phone.weekAheadCount", { count: day.count })}`} onPress={() => go("/reminders")} contentStyle={styles.weekDayContent}>
-          <Text variant="caption" style={styles.centered}>{day.date.toLocaleDateString(i18n.language, { weekday: "short" })}</Text>
-          <Text variant="caption" style={day.count ? styles.accent : styles.muted}>{day.count}</Text>
-        </PixelPressable>)}</View>
-      </View> : null}
-      <Text variant="heading">{t("phone.myWords")}</Text>
-      {data && !data.interviews.ok ? <Text variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : interviews[0] ?
-        <PixelPressable fullWidth onPress={() => go(`/record/${encodeURIComponent(interviews[0].id)}`)} accessibilityLabel={t("phone.openEvidence")} contentStyle={styles.evidence}>
-          <Text variant="body">{interviews[0].body?.trim().slice(0, 220)}</Text>
-          <Text variant="caption" style={styles.muted}>{t("phone.interviewSource", { date: date(interviews[0].created_at) })}</Text>
-        </PixelPressable> : <View style={styles.stack}>
-          <Text variant="body" style={styles.muted}>{t("phone.emptyInterview")}</Text>
-          <PhoneAction label={t("phone.internal.startNote")} glyph="bubble" onPress={() => go("/capture")} />
-        </View>}
-      <Text variant="heading">{t("phone.lifeAreas")}</Text>
-      <Text variant="caption" style={styles.muted}>{t("phone.areaScope")}</Text>
-      <View style={styles.grid}>{LIFE_AREAS.map((area) => <PixelPressable key={area} onPress={() => go(`/star/${area}`)} rootStyle={styles.area} contentStyle={styles.areaContent} accessibilityLabel={t(`phone.areas.${area}`)}>
-        <Text variant="caption">{t(`phone.areas.${area}`)}</Text>
-        <Text variant="heading" style={styles.accent}>{data?.records.ok ? countAreaRecords(data.records.value, area) : "?"}</Text>
-      </PixelPressable>)}</View>
-      {health ? <PixelPressable fullWidth onPress={() => go("/star/health")} accessibilityLabel={t("phone.openActivity")} contentStyle={styles.evidence}>
-        <Text variant="caption" style={styles.accent}>{t("phone.latestActivity")}</Text>
-        <Text variant="body">{t(`phone.metrics.${health.metric_type}`, { defaultValue: health.metric_type })} · {health.value.toLocaleString(i18n.language)} {health.unit}</Text>
-        <Text variant="caption" style={styles.muted}>{health.source} · {date(health.started_at, true)}</Text>
-      </PixelPressable> : null}
-      </View> : null}
-    </View>;
+    // Simon 2026-10-07 (발주 2 · Q-261007-38): the old widgets are off the dashboard - priority card,
+    // my words, today, at a glance, 7-day records, 7-day outlook, life areas, latest activity. The
+    // board draws only what the contract says (visible · order · basis).
+    return <BoardPageView board={board} page={boardPage} events={boardEvents} />;
   }
 
   function tools() {
@@ -772,6 +680,8 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         contentContainerStyle={styles.content}
       />}
       </View>
+      {/* 독(PS-DASH-001 v2.2): 담기 · 대화 · 녹음 전사, 하루 관리판 두 쪽에 고정. */}
+      {!internalActive && tab === "dashboard" ? <BoardDock dock={board.dock} go={go} /> : null}
       {/* Simon 2026-10-06: the bottom shortcut row (home · note · add · search · profile) and the
           dashboard/apps tab row are gone. Home is the bezel button below; notes, wiki and add are on the
           app pages; profile is in Settings. The page controls below replace the tabs, at the display's foot. */}
@@ -779,18 +689,18 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         <Pressable accessibilityRole="button" accessibilityLabel={t("phone.previousPage")} disabled={pageIndex === 0} onPress={() => showPage(pageIndex - 1)} style={styles.pageArrow}>
           {pageIndex > 0 ? <Image source={PHONE_UI_ART.previous} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
         </Pressable>
-        <View style={styles.pageDots}>{[0, 1, 2].map((index) => <Pressable key={index} accessibilityRole="button" accessibilityLabel={t("phone.pageNumber", { number: index + 1 })} accessibilityState={{ selected: pageIndex === index }} onPress={() => showPage(index)} style={styles.pageDotButton}>
+        <View style={styles.pageDots}>{PAGES.map((index) => <Pressable key={index} accessibilityRole="button" accessibilityLabel={t("phone.pageNumber", { number: index + 1 })} accessibilityState={{ selected: pageIndex === index }} onPress={() => showPage(index)} style={styles.pageDotButton}>
           <Image source={pageIndex === index ? PHONE_UI_ART.currentPage : PHONE_UI_ART.otherPage} contentFit="contain" style={[styles.pageDot, PIXEL_IMAGE]} accessible={false} />
         </Pressable>)}</View>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("phone.nextPage")} disabled={pageIndex === 2} onPress={() => showPage(pageIndex + 1)} style={styles.pageArrow}>
-          {pageIndex < 2 ? <Image source={PHONE_UI_ART.next} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
+        <Pressable accessibilityRole="button" accessibilityLabel={t("phone.nextPage")} disabled={pageIndex === LAST_PAGE} onPress={() => showPage(pageIndex + 1)} style={styles.pageArrow}>
+          {pageIndex < LAST_PAGE ? <Image source={PHONE_UI_ART.next} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
         </Pressable>
       </View> : null}
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={t(internalActive || tab === "tools" ? "phone.nav.home" : "phone.internal.closePhone")}
-        onPress={() => { if (internalActive || tab === "tools") showPage(0); else setExitPrompt(true); }}
+        accessibilityLabel={t(internalActive || pageIndex > 0 ? "phone.nav.home" : "phone.internal.closePhone")}
+        onPress={() => { if (internalActive || pageIndex > 0) showPage(0); else setExitPrompt(true); }}
         style={[styles.homeButton, frame.homeButton]}
       />
       </> : null}
