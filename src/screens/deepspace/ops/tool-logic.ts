@@ -139,6 +139,11 @@ export function sheetAfterWrite<T extends { session: number }>(open: T | null, s
 // button, which reads the draft as it stands then, or closes the sheet, which drops the draft
 // and the line. Nothing about the failure outlives the sheet: no record kept after it closes,
 // no banner on the screen, no draft handed back on the next opening.
+//
+// Gate OPSFIX-A3-01 (2026-10-07): a confirmed two-tap clear empties the draft once it holds the
+// cell's lock, so a failed clear leaves an empty draft and the same save button clears again
+// (mealSaveAction("", stored meal) is "clear"). It used to leave the stored meal in the input,
+// and the save read that as unchanged and closed the sheet without trying the clear again.
 
 /** One opening of the meal sheet, and whether its last write failed. */
 export interface MealSheetState extends MealSheetRef {

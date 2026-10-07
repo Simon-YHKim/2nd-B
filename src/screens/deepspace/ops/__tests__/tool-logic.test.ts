@@ -183,9 +183,67 @@ describe("mealSheetDismiss (gate S3-01, simplified): the sheet cannot close whil
     expect(mealSaveAction("noodles", "kimbap")).toBe("set");
     // A failed save, then the draft emptied: the save clears the cell, as the sheet shows.
     expect(mealSaveAction("", "kimbap")).toBe("clear");
-    // A failed two-tap clear with the stored meal still in the input: the save writes nothing
-    // and closes, and the cell keeps the meal the input shows.
-    expect(mealSaveAction("kimbap", "kimbap")).toBe("close");
+    // Re-aimed 2026-10-07 (A3-01): this used to pin mealSaveAction("kimbap", "kimbap") as
+    // "close" for a failed two-tap clear, and that was the gap the gate found: the clear left
+    // the stored meal in the input, so the same save button wrote nothing, closed the sheet and
+    // never tried the clear again. The confirmed clear now empties the draft once it holds the
+    // cell's lock, so after a failed clear the save reads "" and clears again (the run is below).
+    const draftAfterFailedClear = "";
+    expect(mealSaveAction(draftAfterFailedClear, "kimbap")).toBe("clear");
+  });
+});
+
+// Gate OPSFIX-A3-01 (2026-10-07): the confirmed clear, run through the real lock, the real settle
+// and the real save decision. `confirmClear` is the clear as MealsScreen runs it (the write
+// writeMeal hands to runExclusive empties the draft, then sends the DELETE);
+// tool-screens-contract.test.ts pins that the screen is wired this way.
+describe("OPSFIX-A3-01: a failed two-tap clear is tried again by the same save button", () => {
+  const stored = "kimbap";
+  const opened = { session: 3, date: "2026-10-05", slot: "lunch", current: stored, failed: false };
+  const confirmClear = (lock: WriteLock, ui: { draft: string }, del: () => Promise<void>) =>
+    runExclusive(lock, async () => {
+      ui.draft = "";
+      await del();
+    });
+
+  test("the clear fails: the sheet stays open, marked failed, on an empty draft, and the save clears again", async () => {
+    const ui = { draft: stored };
+    const outcome = await confirmClear({ held: false }, ui, async () => {
+      throw new Error("offline");
+    });
+    expect(outcome).toBe("failed");
+    const sheet = mealSheetAfterWrite(opened, 3, outcome);
+    expect(sheet).toEqual({ ...opened, failed: true });
+    expect(ui.draft).toBe("");
+    // The same save button, with nothing edited: a clear, not a close with no request.
+    expect(mealSaveAction(ui.draft, sheet?.current ?? null)).toBe("clear");
+  });
+
+  test("the retried clear lands: the sheet closes", async () => {
+    const ui = { draft: stored };
+    const failed = mealSheetAfterWrite(opened, 3, await confirmClear({ held: false }, ui, () => Promise.reject(new Error("offline"))));
+    expect(mealSaveAction(ui.draft, failed?.current ?? null)).toBe("clear");
+    const del = jest.fn(async () => undefined);
+    const outcome = await runExclusive({ held: false }, del);
+    expect(del).toHaveBeenCalledTimes(1);
+    expect(mealSheetAfterWrite(failed, 3, outcome)).toBeNull();
+  });
+
+  test("after the failed clear, a title typed in is saved as that title", async () => {
+    const ui = { draft: stored };
+    await confirmClear({ held: false }, ui, () => Promise.reject(new Error("offline")));
+    ui.draft = "noodles";
+    expect(mealSaveAction(ui.draft, stored)).toBe("set");
+  });
+
+  test("a clear refused as busy changes nothing: no DELETE, the draft and the sheet as they were", async () => {
+    const ui = { draft: "noodles" };
+    const del = jest.fn(async () => undefined);
+    const outcome = await confirmClear({ held: true }, ui, del);
+    expect(outcome).toBe("busy");
+    expect(del).not.toHaveBeenCalled();
+    expect(ui.draft).toBe("noodles");
+    expect(mealSheetAfterWrite(opened, 3, outcome)).toBe(opened);
   });
 });
 

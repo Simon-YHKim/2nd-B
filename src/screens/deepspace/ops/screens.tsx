@@ -1568,7 +1568,16 @@ export function MealsScreen() {
   const clearArm = useTwoTapDelete((key) => {
     if (!userId || !pending || mealClearArmKey(pending) !== key) return;
     const sheet = pending;
-    void writeMeal(sheet, () => clearMeal(userId, sheet.date, sheet.slot));
+    // Gate OPSFIX-A3-01 (2026-10-07): a failed clear left the stored meal in the input, so the
+    // save button compared it with the stored meal, wrote nothing and closed the sheet: the
+    // clear was never tried again. The confirmed clear is now the empty draft's write. Once it
+    // holds the cell's lock it empties the input, so a failed clear leaves the sheet open on an
+    // empty draft and the same save button clears again (mealSaveAction). A clear refused as
+    // busy never gets here and changes nothing.
+    void writeMeal(sheet, () => {
+      setDraft("");
+      return clearMeal(userId, sheet.date, sheet.slot);
+    });
   });
   const clearArmed = pending !== null && clearArm.armedId === mealClearArmKey(pending);
 
@@ -1700,7 +1709,8 @@ export function MealsScreen() {
           ) : null}
           {/* Gate S3-01 (simplified 2026-10-07): a failed write keeps this sheet and its draft
               open and says so here, in one line. The same save button tries again with the
-              draft as it stands; closing the sheet drops both. Hidden while a write runs. */}
+              draft as it stands (after a failed clear that draft is empty: OPSFIX-A3-01);
+              closing the sheet drops both. Hidden while a write runs. */}
           {sheetFailed ? (
             <Text variant="caption" style={styles.saveErrText} accessibilityRole="alert" accessibilityLiveRegion="polite">
               {t("toolScreens.meals.saveFailed")}

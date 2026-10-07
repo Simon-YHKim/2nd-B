@@ -309,7 +309,8 @@ describe("gate S3-01 (simplified): a failed meal write keeps its sheet open, and
     expect(writer).toContain('if (outcome === "busy") return;');
     expect(writer.match(/setPending\(/g)?.length).toBe(1);
     expect(writer).toContain("setPending((open) => mealSheetAfterWrite(open, sheet.session, outcome));");
-    // The writer never touches the draft: what was typed stays in the input.
+    // The writer never touches the draft: what was typed stays in the input. (The confirmed
+    // clear empties it from inside its own write: OPSFIX-A3-01 below.)
     expect(writer).not.toContain("setDraft(");
     expect(meals).toContain("const sheetFailed = pending !== null && pending.failed && !mealWriting;");
     expect(sheetBody).toMatch(
@@ -322,6 +323,24 @@ describe("gate S3-01 (simplified): a failed meal write keeps its sheet open, and
     expect(meals.match(/writeMeal\(sheet, /g)?.length).toBe(2);
     expect(meals).not.toMatch(/retryMeal|mealRetry|draftAsked/);
     expect(saver).toContain("const action = mealSaveAction(draft, pending.current);");
+  });
+
+  // Gate OPSFIX-A3-01 (2026-10-07): a failed two-tap clear left the stored meal in the input, so
+  // the same save button read it as unchanged, closed the sheet and never tried the clear again.
+  // The run itself (fail, then the save clears again; busy changes nothing) is in
+  // tool-logic.test.ts; this pins that the screen's clear is wired the way that run assumes.
+  test("OPSFIX-A3-01: the confirmed clear empties the draft inside its locked write, so a failed clear is saved again as a clear", () => {
+    const clearer = meals.slice(meals.indexOf("const clearArm = useTwoTapDelete"), meals.indexOf("const clearArmed"));
+    expect(clearer.length).toBeGreaterThan(300);
+    // The draft is emptied inside the write writeMeal runs, not before writeMeal: a clear the
+    // lock refuses ("busy") never runs that write, so it leaves the draft as it was.
+    expect(clearer).toMatch(/void writeMeal\(sheet, \(\) => \{\n\s*setDraft\(""\);\n\s*return clearMeal\(userId, sheet\.date, sheet\.slot\);\n\s*\}\);/);
+    expect(clearer.match(/setDraft\(/g)?.length).toBe(1);
+    // writeMeal calls that write only from runExclusive's callback, after the lock is taken.
+    expect(writer).toMatch(
+      /const outcome = await runExclusive\(mealWriteLock\(userId, sheet\.date, sheet\.slot\), async \(\) => \{\n\s*setMealWrites\(\(n\) => n \+ 1\);\n\s*try \{\n\s*await write\(\);/,
+    );
+    expect(writer.match(/write\(\)/g)?.length).toBe(1);
   });
 
   test("(c) a write that landed reloads the week and closes the sheet it came from", () => {
