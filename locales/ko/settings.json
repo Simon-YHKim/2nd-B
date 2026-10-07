@@ -164,6 +164,9 @@
   "resetNDays": "{{n}}일치 사용량 초기화됨",
   "wipeComplete": "전체 삭제 완료: 기록 {{r}} · 캡처 {{s}} · 위키 {{w}} · 사용량 {{u}}",
   "subscription": {
+    "autoPay": { "title": "자동 결제" },
+    "policy": { "title": "환불 정책" },
+    "plans": { "title": "요금제", "change": "요금제 바꾸기" },
     "title": "구독 관리",
     "sectionLabel": "구독",
     "rowLabel": "구독 관리",

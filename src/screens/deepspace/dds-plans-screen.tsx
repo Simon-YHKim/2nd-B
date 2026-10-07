@@ -38,6 +38,7 @@ import {
   TIER_PRICE_KRW,
   TIER_PRICE_KRW_YEARLY,
 } from "@/lib/entitlements/tiers";
+import { PRO_COMING_SOON } from "@/lib/entitlements/plan-availability";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { addRewardCredits, monthBucket, weekBucket } from "@/lib/entitlements/usage";
 import { useAppRouter } from "@/lib/nav/phone-embed";
@@ -62,7 +63,6 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { requestGlobalCue } from "@/lib/audio/global-cues";
 import { m3 } from "@/lib/theme/m3";
 
-const PRO_COMING_SOON = true;
 const READ_TIMEOUT_MS = 8_000;
 const NOOP = () => {};
 

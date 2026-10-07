@@ -164,6 +164,9 @@
   "resetNDays": "{{n}} hari penggunaan disetel ulang",
   "wipeComplete": "Penghapusan total selesai: catatan {{r}} · sumber {{s}} · wiki {{w}} · penggunaan {{u}}",
   "subscription": {
+    "autoPay": { "title": "Pembayaran otomatis" },
+    "policy": { "title": "Kebijakan pengembalian dana" },
+    "plans": { "title": "Paket", "change": "Ganti paket" },
     "title": "Kelola langganan",
     "sectionLabel": "Langganan",
     "rowLabel": "Kelola langganan",

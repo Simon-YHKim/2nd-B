@@ -197,7 +197,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/app/reasoning.tsx": 2,
   "src/app/rlss.tsx": 10,
   "src/app/secondb.tsx": 10,
-  "src/app/settings.tsx": 11,
+  "src/app/settings.tsx": 8, // 11 -> 8: 2026-10-07 소식 · 공지사항 행이 설정에서 빠졌다(Simon)
   "src/app/star/[domain].tsx": 20,
   "src/app/strengths.tsx": 20,
   "src/app/values.tsx": 20,
