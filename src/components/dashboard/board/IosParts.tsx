@@ -4,8 +4,9 @@
 // (phoneIos). 폰이 직접 그리는 화면만 쓴다 - 폰 안에 띄우는 앱 화면은 자기 모양 그대로다.
 //
 // 모든 누르는 자리는 44 이상이다(보이는 칸이 작아도 누르는 영역은 44).
+// 눌림 표시는 onPressIn/onPressOut 상태로 한다 - 함수형 style · 함수 자식은 Android Fabric 이 버린다(#680).
 
-import { Children, Fragment, isValidElement, type ReactNode } from "react";
+import { Children, Fragment, isValidElement, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import type { AnyGlyphName } from "@/components/pixel/pixel-glyphs";
@@ -22,13 +23,14 @@ export function IosText({ style, ...rest }: TextProps) {
 export function IosButton({ label, onPress, primary = false, disabled = false, glyph }: {
   label: string; onPress: () => void; primary?: boolean; disabled?: boolean; glyph?: AnyGlyphName;
 }) {
-  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label}
-    accessibilityState={{ disabled }} style={styles.button}>
-    {({ pressed }) => <PixelRoundRect corner="small" style={styles.buttonFace}
+  const [pressed, setPressed] = useState(false);
+  return <Pressable onPress={onPress} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} disabled={disabled}
+    accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} style={styles.button}>
+    <PixelRoundRect corner="small" style={styles.buttonFace}
       fill={primary ? (pressed ? phoneIos.bluePressed : phoneIos.blue) : (pressed ? phoneIos.gray3 : phoneIos.fill)}>
       {glyph ? <PixelGlyph name={glyph} size={16} color={primary ? phoneIos.onBlue : disabled ? phoneIos.label2 : phoneIos.blue} /> : null}
       <IosText variant="caption" style={primary ? styles.buttonTextPrimary : disabled ? styles.buttonTextDisabled : styles.buttonText}>{label}</IosText>
-    </PixelRoundRect>}
+    </PixelRoundRect>
   </Pressable>;
 }
 
@@ -58,6 +60,7 @@ export function IosRow({ title, subtitle, lead, trailing, onPress, accessibility
   title: string; subtitle?: string | null; lead?: ReactNode; trailing?: ReactNode; onPress?: () => void;
   accessibilityLabel?: string; subtitleColor?: string;
 }) {
+  const [pressed, setPressed] = useState(false);
   const body = <>
     {lead ? <View style={styles.lead}>{lead}</View> : null}
     <View style={styles.rowText}>
@@ -67,8 +70,8 @@ export function IosRow({ title, subtitle, lead, trailing, onPress, accessibility
     {trailing ?? (onPress ? <PixelGlyph name="chevron_right" size={16} color={phoneIos.gray3} /> : null)}
   </>;
   if (!onPress) return <View style={styles.row}>{body}</View>;
-  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? title}
-    style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : null]}>{body}</Pressable>;
+  return <Pressable onPress={onPress} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)}
+    accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? title} style={[styles.row, pressed ? styles.rowPressed : null]}>{body}</Pressable>;
 }
 
 /** 줄 머리의 작은 색 칸(iOS 설정 아이콘 자리). */
