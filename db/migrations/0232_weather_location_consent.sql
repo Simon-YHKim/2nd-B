@@ -44,8 +44,10 @@ BEGIN
      AND (TG_OP = 'INSERT' OR OLD.minor_tier = 'adult') THEN
     SELECT s.enabled INTO trusted FROM public.weather_consent_state s WHERE s.user_id=NEW.id;
   END IF;
-  IF trusted IS DISTINCT FROM true THEN
-    NEW.privacy_prefs := coalesce(NEW.privacy_prefs,'{}'::jsonb) || jsonb_build_object('location_weather',false);
+  -- Only an untrusted 'true' is turned back. A missing key already reads as off, so writes that do
+  -- not touch the weather key leave privacy_prefs exactly as given (0194's writer contract).
+  IF trusted IS DISTINCT FROM true AND NEW.privacy_prefs->'location_weather' = 'true'::jsonb THEN
+    NEW.privacy_prefs := NEW.privacy_prefs || jsonb_build_object('location_weather',false);
   END IF;
   IF NEW.privacy_prefs->'location_weather' IS DISTINCT FROM 'true'::jsonb THEN
     UPDATE public.weather_consent_state SET enabled=false,revision=revision+1,updated_at=now()
