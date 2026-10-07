@@ -1,6 +1,7 @@
 -- 0225_interview_transcript_ledger.sql
--- 재설계 D6 1단계(DB 층): 인터뷰 대화록 · 층 판정 원장 · 시기 카드 제안·결정 원장 · 저장 안 한
+-- 재설계 D6 1단계(DB 층): 인터뷰 대화록 · 층 판정 원장 · 저장 안 한
 -- 대화의 소유자 없는 집계 · 응답 블록 id.
+-- 시기 카드 원장은 RD-261007-13 으로 2단계 PR 로 넘김(근거 커밋 6ee2c3d8)
 --
 -- 결정: RD-261007-06 = ① (DECISIONS 26.10.07 08:32) "D6이 #2131 코드를 가져와 0225에서 다섯 곳을
 -- 고친다. 0220 번호는 2ndb-74 몫으로 남는다". RD-261007-08 = 설계 Q3~Q16 초안 추천을 기본값으로.
@@ -24,14 +25,12 @@
 --     판정 행이 어느 길로 지워지든 해시를 먼저 비우고(interview_verdict_erasure), 접은 세션 id 는
 --     tombstone 으로 막는다. 감사 행은 사용자 · purpose · server_verified 를 확인하고, 비우기도 그
 --     사용자의 행만 건드린다(D6-01 · D6-02 = D6-52 · D6-54 · D6-55).
---   승인 카드 지우기: 클라이언트 역할의 승인 행 직접 DELETE 를 트리거로 막고 delete_period_card 가 체인을
---     다시 잇고 L5 행을 지운다. 레코드 삭제 트리거는 승인과 같은 사용자 잠금을 잡는다(D6-07 = D6-53 · D6-51).
---   계정 울타리: 서비스 writer 셋이 0192 공유 잠금 · tombstone 을 본다. 응답 블록 id 는 사용자를 갖고
+--   계정 울타리: 서비스 writer 둘이 0192 공유 잠금 · tombstone 을 본다. 응답 블록 id 는 사용자를 갖고
 --     등록부 · 계정 연쇄 · 레코드 삭제에 묶인다(D6-04 · D6-05).
 --   입력 · 동시성: credited 는 모델 층 NOT NULL · 첫 담기 경합은 already_committed · 시간당 세션 상한은
 --     만든 횟수 · 닫은 뒤 재시도는 판정을 바꾸지 않는다(D6-59 · D6-57 · D6-58 · D6-56).
 --   위기 hold 최소 조치: 화면 값을 서버가 내리지 않고, 프록시가 red 로 적은 호출이 있으면 올리며, 턴과
---     추론 뷰까지 hold 를 따른다(D6-03 의 일부. Polaris 두 함수는 그대로).
+--     추론 뷰와 Polaris 근거 두 함수까지 hold 를 따른다(게이트 2회차 D6-02 · D6-51).
 --   롤백: 저장 안 한 세션을 먼저 접고, 남는 표의 수명주기 장치는 남긴다(rollback/0225_down.sql, D6-06 = D6-61).
 --   그대로 둔 것: D6-60(작은 집단은 보고 때 가린다, Q7), D6-08(직접 쓰기 회수는 다음 번호).
 --
@@ -60,16 +59,13 @@ BEGIN
     RAISE EXCEPTION '0225: records.system_tags (0218) and records.client_request_id (0178) are required';
   END IF;
   IF to_regclass('public.interview_coverage') IS NULL
-     OR to_regclass('public.star_tier_history') IS NULL
      OR to_regclass('public.account_deletion_tombstones') IS NULL
      OR to_regclass('public.ai_audit_log') IS NULL
      OR NOT EXISTS (SELECT 1 FROM pg_catalog.pg_attribute
                      WHERE attrelid = 'public.ai_audit_log'::regclass AND attname = 'purpose' AND NOT attisdropped)
-     OR NOT EXISTS (SELECT 1 FROM pg_catalog.pg_attribute
-                     WHERE attrelid = 'public.star_tier_history'::regclass AND attname = 'evidence_origin' AND NOT attisdropped)
      OR to_regprocedure('public.assert_polaris_account_active(uuid)') IS NULL
      OR to_regprocedure('public.billing_request_role()') IS NULL THEN
-    RAISE EXCEPTION '0225: prerequisites from 0004/0045/0060/0073/0143/0192/0195 are missing';
+    RAISE EXCEPTION '0225: prerequisites from 0004/0060/0073/0143/0192/0195 are missing';
   END IF;
 END
 $prerequisites$;
@@ -293,60 +289,6 @@ BEGIN
 END
 $turn_fk$;
 
--- 1.4 시기 카드 제안 · 결정 원장. 제안 1건 = 1행, 승인 · 거절 · 빗나간 곳은 같은 행의 상태다.
-CREATE TABLE IF NOT EXISTS public.period_card_proposals (
-  id              uuid        PRIMARY KEY DEFAULT pg_catalog.gen_random_uuid(),
-  user_id         uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  card_kind       text        NOT NULL DEFAULT 'period'
-    CONSTRAINT period_card_proposals_kind_check CHECK (card_kind IN ('period')),
-  star_id         text        NOT NULL
-    CONSTRAINT period_card_proposals_star_check
-      CHECK (star_id IN ('infancy', 'school', 'twenties', 'later', 'work', 'now')),
-  request_key     text        NOT NULL
-    CONSTRAINT period_card_proposals_request_key_check CHECK (pg_catalog.char_length(request_key) BETWEEN 8 AND 120),
-  -- self_model_propose 호출의 감사 행(FK 없음: 감사 행은 계정 삭제 뒤에도 남는다). 기록 함수가
-  -- 같은 사용자 · purpose · server_verified 인지 확인한 것만 온다(D6-01).
-  audit_id        uuid        NOT NULL,
-  vendor          text        NOT NULL
-    CONSTRAINT period_card_proposals_vendor_check CHECK (vendor IN ('openai', 'claude')),
-  proposal_text   text        NOT NULL
-    CONSTRAINT period_card_proposals_text_check CHECK (pg_catalog.char_length(proposal_text) BETWEEN 1 AND 280),
-  rationale       text        NULL
-    CONSTRAINT period_card_proposals_rationale_check CHECK (pg_catalog.char_length(rationale) <= 600),
-  -- 서버가 모델에 보낸 근거(턴 단위 record:<uuid>#t<n>, 발췌 해시까지 대조한 것만).
-  evidence_sent   text[]      NOT NULL,
-  -- 모델이 인용했고 evidence_sent 안에 있는 것만.
-  evidence_cited  text[]      NOT NULL,
-  content_sha     text        NOT NULL
-    CONSTRAINT period_card_proposals_sha_check CHECK (content_sha ~ '^[0-9a-f]{64}$'),
-  level_before    smallint    NOT NULL
-    CONSTRAINT period_card_proposals_level_check CHECK (level_before BETWEEN 0 AND 5),
-  status          text        NOT NULL DEFAULT 'proposed'
-    CONSTRAINT period_card_proposals_status_check
-      CHECK (status IN ('proposed', 'ratified', 'declined', 'missed', 'expired', 'void')),
-  miss_text       text        NULL
-    CONSTRAINT period_card_proposals_miss_text_check CHECK (pg_catalog.char_length(miss_text) BETWEEN 1 AND 500),
-  miss_ai_hold    boolean     NOT NULL DEFAULT false,
-  decided_at      timestamptz NULL,
-  superseded_by   uuid        NULL REFERENCES public.period_card_proposals(id) ON DELETE SET NULL,
-  created_at      timestamptz NOT NULL DEFAULT pg_catalog.now(),
-  CONSTRAINT period_card_proposals_request_key UNIQUE (user_id, request_key),
-  CONSTRAINT period_card_proposals_sent_shape CHECK (
-    pg_catalog.cardinality(evidence_sent) BETWEEN 1 AND 40
-    AND pg_catalog.array_to_string(evidence_sent, ',')
-        ~ '^record:[0-9a-f-]{36}#t[0-9]{1,4}(,record:[0-9a-f-]{36}#t[0-9]{1,4})*$'),
-  CONSTRAINT period_card_proposals_cited_shape CHECK (
-    pg_catalog.cardinality(evidence_cited) BETWEEN 1 AND 40 AND evidence_cited <@ evidence_sent),
-  CONSTRAINT period_card_proposals_miss_shape CHECK ((status = 'missed') = (miss_text IS NOT NULL)),
-  CONSTRAINT period_card_proposals_decided_shape CHECK ((status = 'proposed') = (decided_at IS NULL)),
-  CONSTRAINT period_card_proposals_superseded_shape CHECK (superseded_by IS NULL OR status = 'ratified')
-);
--- 별마다 '지금 서 있는' 승인 카드는 하나, 결정을 기다리는 제안도 하나.
-CREATE UNIQUE INDEX IF NOT EXISTS period_card_current_ratified
-  ON public.period_card_proposals (user_id, star_id) WHERE status = 'ratified' AND superseded_by IS NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS period_card_one_open
-  ON public.period_card_proposals (user_id, star_id) WHERE status = 'proposed';
-
 -- 1.5 소유자 없는 집계. 소유자 열 · 세션 id · 원문 · 해시 · 시각이 없다. 주(KST 월요일) 단위.
 CREATE TABLE IF NOT EXISTS public.interview_unsaved_rollup (
   week_kst        date      NOT NULL
@@ -427,8 +369,6 @@ COMMENT ON TABLE public.interview_transcripts IS
   '0225 인터뷰 대화록 머리. 저장을 고른 대화만. 레코드를 지우면 함께 지워진다.';
 COMMENT ON TABLE public.interview_transcript_turns IS
   '0225 인터뷰 대화록 턴(원문). 답 턴의 판정은 interview_probe_verdicts 가 턴 번호로 가리킨다.';
-COMMENT ON TABLE public.period_card_proposals IS
-  '0225 시기 카드 제안 · 결정 원장. 승인된 행의 proposal_text 가 그때의 나 문장이다. L5 행은 서버만 쓴다.';
 COMMENT ON TABLE public.interview_unsaved_rollup IS
   '0225 저장하지 않은 인터뷰의 소유자 없는 주 단위 집계. 숫자와 열거값만.';
 COMMENT ON TABLE public.ai_audit_context_blocks IS
@@ -440,7 +380,7 @@ COMMENT ON TABLE public.interview_session_tombstones IS
 COMMENT ON TABLE public.interview_session_starts IS
   '0225 사용자별 세션 생성 횟수(10분 칸). 버리기로 줄지 않는 생성 상한용. 2시간 보관.';
 
--- RLS: 모든 표 강제. 클라이언트는 대화록 두 표 · 제안 표의 자기 행만 읽고 지운다(삭제 등록부 G3).
+-- RLS: 모든 표 강제. 클라이언트는 대화록 두 표 · 세션 · 응답 블록 표의 자기 행만 읽고 지운다(삭제 등록부 G3).
 ALTER TABLE public.interview_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.interview_sessions FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.interview_probe_verdicts ENABLE ROW LEVEL SECURITY;
@@ -449,8 +389,6 @@ ALTER TABLE public.interview_transcripts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.interview_transcripts FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.interview_transcript_turns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.interview_transcript_turns FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.period_card_proposals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.period_card_proposals FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.interview_unsaved_rollup ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.interview_unsaved_rollup FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_audit_context_blocks ENABLE ROW LEVEL SECURITY;
@@ -474,21 +412,23 @@ CREATE POLICY interview_transcript_turns_select_own ON public.interview_transcri
 DROP POLICY IF EXISTS interview_transcript_turns_delete_own ON public.interview_transcript_turns;
 CREATE POLICY interview_transcript_turns_delete_own ON public.interview_transcript_turns
   FOR DELETE TO authenticated USING (user_id = (select auth.uid()));
-DROP POLICY IF EXISTS period_card_proposals_select_own ON public.period_card_proposals;
-CREATE POLICY period_card_proposals_select_own ON public.period_card_proposals
+DROP POLICY IF EXISTS interview_sessions_select_own ON public.interview_sessions;
+CREATE POLICY interview_sessions_select_own ON public.interview_sessions
+  FOR SELECT TO authenticated USING (owner_id = (select auth.uid()));
+DROP POLICY IF EXISTS interview_sessions_delete_own ON public.interview_sessions;
+CREATE POLICY interview_sessions_delete_own ON public.interview_sessions
+  FOR DELETE TO authenticated USING (owner_id = (select auth.uid()));
+DROP POLICY IF EXISTS ai_audit_context_blocks_select_own ON public.ai_audit_context_blocks;
+CREATE POLICY ai_audit_context_blocks_select_own ON public.ai_audit_context_blocks
   FOR SELECT TO authenticated USING (user_id = (select auth.uid()));
--- 제안 표의 본인 DELETE 는 남긴다(삭제 등록부 client_erasable 49: erase_my_data 가 이 표를 지우고,
--- 거절 · 빗나간 곳 행에는 사용자가 쓴 miss_text 가 있다). 다만 승인 카드는 체인(superseded_by)과
--- L5 행이 걸려 있어 직접 지우면 깨진다(D6-07 · D6-53). 그래서 승인 행의 클라이언트 직접 DELETE 는
--- 아래 트리거(period_card_delete_guard)가 막고, 소유자는 delete_period_card 로 지운다.
-DROP POLICY IF EXISTS period_card_proposals_delete_own ON public.period_card_proposals;
-CREATE POLICY period_card_proposals_delete_own ON public.period_card_proposals
+DROP POLICY IF EXISTS ai_audit_context_blocks_delete_own ON public.ai_audit_context_blocks;
+CREATE POLICY ai_audit_context_blocks_delete_own ON public.ai_audit_context_blocks
   FOR DELETE TO authenticated USING (user_id = (select auth.uid()));
 
 -- Supabase 기본 권한이 새 표에 anon · authenticated 로 ALL 을 주므로 먼저 전부 걷는다(0143 의 함정).
 -- 필요한 것은 파일 끝의 권한 블록에서 다시 준다.
 REVOKE ALL ON TABLE public.interview_sessions, public.interview_probe_verdicts,
-  public.interview_transcripts, public.interview_transcript_turns, public.period_card_proposals,
+  public.interview_transcripts, public.interview_transcript_turns,
   public.interview_unsaved_rollup, public.ai_audit_context_blocks,
   public.interview_session_audit_ids, public.interview_session_tombstones, public.interview_session_starts
   FROM PUBLIC, anon, authenticated, service_role;
@@ -665,6 +605,7 @@ BEGIN
   IF p_outcome IS NULL OR p_outcome NOT IN ('left', 'discarded', 'deleted_after_save') THEN
     RAISE EXCEPTION 'interview_fold_outcome_invalid' USING ERRCODE = '22023';
   END IF;
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('interview_session:' || p_session_id::text, 0));
   SELECT * INTO v_s FROM public.interview_sessions AS s WHERE s.id = p_session_id FOR UPDATE;
   IF NOT FOUND THEN
     RETURN;
@@ -779,7 +720,7 @@ $$;
 
 -- 판정 행이 어느 길로 지워지든(대화록 턴 · 머리를 먼저 지우는 삭제 등록부 순서 28 → 29 → 30, 소유자의
 -- 직접 DELETE, fold) 그 행의 감사 id 해시를 먼저 비운다(D6-02). 소유자는 세션 행에서 읽는다. 세션이
--- 이미 없으면(계정 삭제 연쇄) 감사 행도 사용자 연결이 끊기므로(SET NULL) 건너뛴다.
+-- 이미 없으면 계정 BEFORE DELETE 경계가 FK 연쇄 전에 해시를 비웠다.
 CREATE OR REPLACE FUNCTION public.interview_verdict_erasure()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -804,6 +745,53 @@ CREATE TRIGGER interview_verdict_erasure
   BEFORE DELETE ON public.interview_probe_verdicts
   FOR EACH ROW WHEN (OLD.audit_id IS NOT NULL OR pg_catalog.cardinality(OLD.prior_audit_ids) > 0)
   EXECUTE FUNCTION public.interview_verdict_erasure();
+
+-- R2 D6-04/07: erase the session's complete audit set, including refused calls, before cascade.
+CREATE OR REPLACE FUNCTION public.interview_session_erasure()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+SET row_security = off
+AS $$
+BEGIN
+  -- Direct DELETE already owns the row. Fail for retry instead of waiting behind a writer holding the key.
+  IF NOT pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtextextended('interview_session:' || OLD.id::text, 0)) THEN
+    RAISE EXCEPTION 'interview_session_busy_retry' USING ERRCODE = '40001';
+  END IF;
+  PERFORM public.erase_audit_hashes(OLD.owner_id,
+    ARRAY(SELECT i.audit_id FROM public.interview_session_audit_ids AS i WHERE i.session_id = OLD.id), 'interview_probe');
+  INSERT INTO public.interview_session_tombstones(session_id) VALUES (OLD.id) ON CONFLICT DO NOTHING;
+  RETURN OLD;
+END;
+$$;
+DROP TRIGGER IF EXISTS interview_session_erasure ON public.interview_sessions;
+CREATE TRIGGER interview_session_erasure BEFORE DELETE ON public.interview_sessions
+  FOR EACH ROW EXECUTE FUNCTION public.interview_session_erasure();
+
+-- The auth.users BEFORE boundary precedes every public.users/ledger FK action.
+-- A second boundary on public.users covers direct removal of the public profile too.
+CREATE OR REPLACE FUNCTION public.interview_account_erasure()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+SET row_security = off
+AS $$
+BEGIN
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(OLD.id::text, 260913));
+  UPDATE public.ai_audit_log AS a SET prompt_hash = '', output_hash = ''
+   WHERE a.user_id = OLD.id AND a.purpose = 'interview_probe'
+     AND (a.prompt_hash <> '' OR a.output_hash <> '');
+  RETURN OLD;
+END;
+$$;
+DROP TRIGGER IF EXISTS interview_account_erasure ON auth.users;
+CREATE TRIGGER interview_account_erasure BEFORE DELETE ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.interview_account_erasure();
+DROP TRIGGER IF EXISTS interview_account_erasure ON public.users;
+CREATE TRIGGER interview_account_erasure BEFORE DELETE ON public.users
+  FOR EACH ROW EXECUTE FUNCTION public.interview_account_erasure();
 
 -- 세션을 만들 때마다 만든 사람의 10분 칸을 하나 올린다(D6-58). 어느 길(프록시 판정 · 닫기 · 담기)로
 -- 만들든 센다. 버리기(fold)가 세션 행을 지워도 이 칸은 줄지 않는다.
@@ -920,14 +908,22 @@ BEGIN
   IF NOT public.interview_account_writable(p_user_id) THEN
     RETURN 'no_account';
   END IF;
+  -- Lock the audit id across sessions, then the session key even before its first row exists.
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('interview_audit:' || p_audit_id::text, 0));
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('interview_session:' || p_session_id::text, 0));
   -- 감사 행 결속(D6-01). 남의 감사 행이면 적지도 비우지도 않는다.
   IF NOT EXISTS (SELECT 1 FROM public.ai_audit_log AS a
                   WHERE a.id = p_audit_id AND a.user_id = p_user_id
-                    AND a.purpose = 'interview_probe' AND a.event_source = 'server_verified') THEN
+                    AND a.purpose = 'interview_probe' AND a.event_source = 'server_verified'
+                    AND a.prompt_hash <> '' AND a.output_hash <> '') THEN
     RETURN 'audit_mismatch';
   END IF;
   -- 같은 감사 행으로 두 번 온 호출(프록시 재시도). 첫 결과만 남긴다.
   IF EXISTS (SELECT 1 FROM public.interview_session_audit_ids AS i WHERE i.audit_id = p_audit_id) THEN
+    IF EXISTS (SELECT 1 FROM public.interview_session_audit_ids AS i
+                WHERE i.audit_id = p_audit_id AND i.session_id <> p_session_id) THEN
+      RETURN 'audit_mismatch';
+    END IF;
     RETURN 'duplicate';
   END IF;
 
@@ -1012,6 +1008,11 @@ BEGIN
     RETURN 'replaced';
   END IF;
 
+  -- R2 D6-03: an unseen turn after close cannot extend the ledger.
+  IF v_session.ended_at IS NOT NULL THEN
+    RETURN 'session_closed';
+  END IF;
+
   SELECT pg_catalog.max(v.scene_seq), pg_catalog.count(*)::integer
     INTO v_max_scene, v_rows
     FROM public.interview_probe_verdicts AS v
@@ -1085,13 +1086,16 @@ BEGIN
   PERFORM pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('interview_session_close:' || v_uid::text, 0));
 
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('interview_session:' || p_session_id::text, 0));
+
   IF NOT EXISTS (SELECT 1 FROM public.interview_sessions AS s WHERE s.id = p_session_id) THEN
     IF EXISTS (SELECT 1 FROM public.interview_session_tombstones AS t WHERE t.session_id = p_session_id) THEN
       RETURN 'not_found';
     END IF;
     IF (SELECT COALESCE(pg_catalog.sum(c.created), 0) FROM public.interview_session_starts AS c
          WHERE c.owner_id = v_uid
-           AND c.bucket_start > pg_catalog.now() - INTERVAL '1 hour') >= c_new_sessions_per_hour THEN
+           AND c.bucket_start >= pg_catalog.date_bin(INTERVAL '10 minutes',
+             pg_catalog.now() - INTERVAL '1 hour', TIMESTAMPTZ '2000-01-01 00:00:00+00')) >= c_new_sessions_per_hour THEN
       RETURN 'rate_limited';
     END IF;
     INSERT INTO public.interview_sessions AS s (id, owner_id, period, locale)
@@ -1140,11 +1144,17 @@ BEGIN
   IF p_session_id IS NULL THEN
     RAISE EXCEPTION 'interview_session_discard_invalid' USING ERRCODE = '22023';
   END IF;
+  PERFORM public.assert_polaris_account_active(v_uid);
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('interview_session:' || p_session_id::text, 0));
   SELECT * INTO v_session
     FROM public.interview_sessions AS s
    WHERE s.id = p_session_id
    FOR UPDATE;
-  IF NOT FOUND OR v_session.owner_id IS DISTINCT FROM v_uid THEN
+  IF NOT FOUND THEN
+    INSERT INTO public.interview_session_tombstones(session_id) VALUES (p_session_id) ON CONFLICT DO NOTHING;
+    RETURN 'discarded';
+  END IF;
+  IF v_session.owner_id IS DISTINCT FROM v_uid THEN
     RETURN 'not_found';
   END IF;
   IF v_session.committed_at IS NOT NULL THEN
@@ -1161,7 +1171,7 @@ $$;
 -- p_turns: [{n, role, scene, layer, ask_kind, origin, text, opener_unedited, state}], n 은 1부터 빈틈없이.
 -- state 는 답 턴만: judged · unsettled · local_block · control.
 --   1. 세션(자기 것 · 아직 안 담음)을 잠근다. 세션 행이 없으면(판정 호출 없이 닫지도 않음 · 유휴로
---      이미 접힘) 레코드 확인을 통과할 때 새로 만들고, 답 턴은 전부 클라이언트 행이 된다.
+--      접힌 id 는 거절) 레코드 확인을 통과할 때 새로 만들고, 답 턴은 전부 클라이언트 행이 된다.
 --   2. 레코드: 자기 것 · audit_response · system_tags 에 interview · 세션 시기 ·
 --      client_request_id = 'interview:' || 세션. tags(사용자 태그)는 읽지 않는다(0218).
 --   3. 턴을 검사하고, 렌더링한 본문이 records.body 와 바이트 단위로 같은지 본다(원문 두 벌 대조, Q3).
@@ -1228,6 +1238,11 @@ BEGIN
   END IF;
   PERFORM public.assert_polaris_account_active(v_uid);
 
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('interview_session:' || p_session_id::text, 0));
+  IF EXISTS (SELECT 1 FROM public.interview_session_tombstones AS t WHERE t.session_id = p_session_id) THEN
+    RETURN pg_catalog.jsonb_build_object('status', 'session_closed');
+  END IF;
+
   SELECT * INTO v_session
     FROM public.interview_sessions AS s
    WHERE s.id = p_session_id
@@ -1241,6 +1256,9 @@ BEGIN
     END IF;
   END IF;
 
+  -- A DELETE already owns its record row before the row trigger can take our session key.
+  -- Do not wait in the opposite direction: abort for retry, releasing all transaction locks.
+  BEGIN
   SELECT r.body, r.audit_period INTO v_record_body, v_record_period
     FROM public.records AS r
    WHERE r.id = p_record_id
@@ -1248,7 +1266,10 @@ BEGIN
      AND r.kind::text = 'audit_response'
      AND r.system_tags @> ARRAY['interview']::text[]
      AND r.client_request_id = 'interview:' || p_session_id::text
-   FOR SHARE;
+   FOR SHARE NOWAIT;
+  EXCEPTION WHEN lock_not_available THEN
+    RAISE EXCEPTION 'interview_record_busy_retry' USING ERRCODE = '40001';
+  END;
   IF NOT FOUND
      OR v_record_period IS NULL
      OR v_record_period NOT IN ('infancy', 'school', 'twenties', 'later', 'work', 'now')
@@ -1479,10 +1500,16 @@ BEGIN
        AND s.last_seen_at < pg_catalog.now() - c_idle
      ORDER BY s.last_seen_at
      LIMIT v_batch
-     FOR UPDATE SKIP LOCKED
   LOOP
-    PERFORM public.fold_interview_session(v_id, 'left');
-    v_n := v_n + 1;
+    IF NOT pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtextextended('interview_session:' || v_id::text, 0)) THEN
+      CONTINUE;
+    END IF;
+    -- Read in a separate statement: the snapshot must be taken after acquiring the key.
+    IF EXISTS (SELECT 1 FROM public.interview_sessions AS s
+                WHERE s.id = v_id AND s.committed_at IS NULL AND s.last_seen_at < pg_catalog.now() - c_idle) THEN
+      PERFORM public.fold_interview_session(v_id, 'left');
+      v_n := v_n + 1;
+    END IF;
   END LOOP;
   DELETE FROM public.interview_session_starts AS c
    WHERE c.bucket_start < pg_catalog.now() - INTERVAL '2 hours';
@@ -1493,74 +1520,8 @@ $$;
 ----------------------------------------------------------------------
 -- 8. 레코드를 지우면 (D5)
 ----------------------------------------------------------------------
--- 승인 카드 지우기의 공용 몸통(D6-07 · D6-53). 부르는 쪽이 'period_card:' 사용자 잠금을 쥐고 있어야 한다.
---   ① 지울 카드를 가리키는 남는 카드(superseded_by)를 다음 생존 카드로 옮긴다. 한 별의 승인 이력은
---      A → B → C 한 줄이라, 가운데 B 를 지울 때 A 를 C 에 다시 잇지 않으면 FK 의 SET NULL 이 A 를
---      '지금 카드'로 되돌려 C 와 함께 유니크 색인(period_card_current_ratified)에 걸린다. 뒤의 카드가 모두
---      지워지면 그대로 두어, ③ 의 SET NULL 이 그 카드를 지금 카드로 되돌린다(복원 규칙: 지금 카드를
---      지우면 직전에 승인한 카드가 다시 선다. 그 카드의 L5 행은 그대로라 밝기도 그대로다).
---   ② 그 카드가 승인 때 쓴 star_tier_history 'ratify' L5 행을 지운다. 연결 열이 없으므로 decide_period_card
---      가 같은 값으로 쓴 (별, 근거 배열, 시각 = decided_at)으로 찾는다.
---   ③ 카드 행을 지운다.
-CREATE OR REPLACE FUNCTION public.period_card_remove(p_user_id uuid, p_ids uuid[])
-RETURNS integer
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-SET row_security = off
-AS $$
-DECLARE
-  v_steps integer := 0;
-  v_n integer;
-BEGIN
-  IF p_user_id IS NULL OR p_ids IS NULL OR pg_catalog.cardinality(p_ids) = 0 THEN
-    RETURN 0;
-  END IF;
-  LOOP
-    UPDATE public.period_card_proposals AS p
-       SET superseded_by = n.superseded_by
-      FROM public.period_card_proposals AS n
-     WHERE p.user_id = p_user_id
-       AND n.user_id = p_user_id
-       AND p.superseded_by = n.id
-       AND n.id = ANY (p_ids)
-       AND n.superseded_by IS NOT NULL
-       AND NOT (p.id = ANY (p_ids));
-    EXIT WHEN NOT FOUND;
-    v_steps := v_steps + 1;
-    IF v_steps > 64 THEN
-      RAISE EXCEPTION 'period_card_chain_too_long' USING ERRCODE = 'P0001';
-    END IF;
-  END LOOP;
-
-  DELETE FROM public.star_tier_history AS h
-   USING public.period_card_proposals AS p
-   WHERE p.id = ANY (p_ids)
-     AND p.user_id = p_user_id
-     AND p.status = 'ratified'
-     AND h.user_id = p_user_id
-     AND h.star_id = 'seven:' || p.star_id
-     AND h.evidence_origin = 'ratify'
-     AND h.level = 5
-     AND h.recorded_at = p.decided_at
-     AND h.evidence_citations = p.evidence_cited;
-
-  DELETE FROM public.period_card_proposals AS p
-   WHERE p.id = ANY (p_ids) AND p.user_id = p_user_id;
-  GET DIAGNOSTICS v_n = ROW_COUNT;
-  RETURN v_n;
-END;
-$$;
-
--- 인터뷰 레코드를 지우면 그 세션의 판정 행을 집계로 접고(outcome deleted_after_save), 감사 행 해시를
--- 비우고, 판정 · 세션 행을 지운다(대화록은 세션 · 레코드 FK 연쇄로 지워진다). 그 레코드를 인용한
--- 시기 카드는 결정 전이면 void, 승인이면 행을 지우고 그 카드가 만든 star_tier_history 'ratify' 행도
--- 지운다(Q5 기본값: 카드 · L5 는 지우고 칸은 그대로). 계정 삭제 중에는 연쇄가 전부 지우므로 접지 않는다.
--- 승인(decide_period_card)과 같은 'period_card:' 사용자 잠금을 잡고 시작한다(D6-51): 승인이 근거를 다시
--- 확인하고 L5 를 쓰는 동안 근거 삭제가 끼어들지 못하고, 늦게 들어온 쪽은 앞쪽이 커밋한 결과를 본다.
--- 잠금 순서: 이 트리거는 레코드 행 잠금 뒤에 사용자 잠금을 잡는다. 사용자 잠금을 쥐는 쪽(제안 기록 ·
--- 승인 · 카드 지우기)은 레코드 행을 잠그지 않으므로 순환이 생기지 않는다.
--- 트리거로만 돈다. 파일 끝에서 모든 역할의 EXECUTE 를 걷는다.
+-- 레코드 삭제는 세션 키 잠금 뒤 세션 행을 접는다. DELETE의 레코드 행 잠금은 트리거보다 먼저다.
+-- commit은 같은 세션 키를 먼저 잡되 레코드 잠금은 NOWAIT로 확인해 이 역방향 대기를 만들지 않는다.
 CREATE OR REPLACE FUNCTION public.interview_record_erasure()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -1570,38 +1531,27 @@ SET row_security = off
 AS $$
 DECLARE
   v_session uuid;
-  v_prefix text := 'record:' || OLD.id::text;
-  v_cards uuid[];
 BEGIN
   IF EXISTS (SELECT 1 FROM public.account_deletion_tombstones AS t WHERE t.user_id = OLD.user_id)
      OR NOT EXISTS (SELECT 1 FROM public.users AS u WHERE u.id = OLD.user_id) THEN
     RETURN OLD;
   END IF;
-  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('period_card:' || OLD.user_id::text));
-
+  -- A first commit may not have linked record_id yet. Its request key is the session key too.
   FOR v_session IN
     SELECT s.id FROM public.interview_sessions AS s WHERE s.record_id = OLD.id
+    UNION
+    SELECT substring(OLD.client_request_id FROM 11)::uuid
+     WHERE OLD.client_request_id ~ '^interview:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    ORDER BY 1
   LOOP
-    PERFORM public.fold_interview_session(v_session, 'deleted_after_save');
+    PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('interview_session:' || v_session::text, 0));
+    -- A user-controlled request key must not erase somebody else's session.
+    IF NOT EXISTS (SELECT 1 FROM public.interview_sessions AS s
+                    WHERE s.id = v_session AND s.owner_id <> OLD.user_id) THEN
+      INSERT INTO public.interview_session_tombstones(session_id) VALUES (v_session) ON CONFLICT DO NOTHING;
+      PERFORM public.fold_interview_session(v_session, 'deleted_after_save');
+    END IF;
   END LOOP;
-
-  DELETE FROM public.star_tier_history AS h
-   WHERE h.user_id = OLD.user_id
-     AND h.evidence_origin = 'ratify'
-     AND h.star_id LIKE 'seven:%'
-     AND EXISTS (SELECT 1 FROM pg_catalog.unnest(h.evidence_citations) AS c(ref)
-                  WHERE c.ref = v_prefix OR c.ref LIKE v_prefix || '#%');
-  SELECT pg_catalog.array_agg(p.id) INTO v_cards
-    FROM public.period_card_proposals AS p
-   WHERE p.user_id = OLD.user_id
-     AND p.status = 'ratified'
-     AND EXISTS (SELECT 1 FROM pg_catalog.unnest(p.evidence_cited) AS c(ref) WHERE c.ref LIKE v_prefix || '#%');
-  PERFORM public.period_card_remove(OLD.user_id, v_cards);
-  UPDATE public.period_card_proposals AS p
-     SET status = 'void', decided_at = pg_catalog.now()
-   WHERE p.user_id = OLD.user_id
-     AND p.status = 'proposed'
-     AND EXISTS (SELECT 1 FROM pg_catalog.unnest(p.evidence_sent) AS c(ref) WHERE c.ref LIKE v_prefix || '#%');
   RETURN OLD;
 END;
 $$;
@@ -1638,320 +1588,6 @@ CREATE TRIGGER ai_context_block_record_erasure
   REFERENCING OLD TABLE AS gone
   FOR EACH STATEMENT EXECUTE FUNCTION public.ai_context_block_record_erasure();
 
--- 승인 카드는 클라이언트 역할이 직접 지우지 못한다(D6-07). 체인 재연결 · L5 정리를 하는
--- delete_period_card 로 지운다. 정의자 함수(삭제 등록부 erase_my_data · 레코드 삭제 트리거 ·
--- 계정 연쇄)는 그 함수의 소유자로 돌므로 막히지 않는다. 결정 전 · 거절 · 빗나간 곳 · 만료 · void 행은
--- 체인도 L5 도 없어 직접 지워도 된다. 정의자 함수가 아니다 - current_user 가 지우는 역할이어야 한다.
-CREATE OR REPLACE FUNCTION public.period_card_delete_guard()
-RETURNS trigger
-LANGUAGE plpgsql
-SET search_path = ''
-AS $$
-BEGIN
-  IF current_user IN ('authenticated', 'anon') THEN
-    RAISE EXCEPTION 'period_card_delete_via_rpc' USING ERRCODE = '42501',
-      HINT = 'a ratified card is deleted with delete_period_card()';
-  END IF;
-  RETURN OLD;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS period_card_delete_guard ON public.period_card_proposals;
-CREATE TRIGGER period_card_delete_guard
-  BEFORE DELETE ON public.period_card_proposals
-  FOR EACH ROW WHEN (OLD.status = 'ratified')
-  EXECUTE FUNCTION public.period_card_delete_guard();
-
-----------------------------------------------------------------------
--- 9. 시기 카드 제안 (프록시 전용, service_role)
-----------------------------------------------------------------------
--- p_sent: [{ref: 'record:<uuid>#t<n>', len, sha256}] -- 프록시가 전달할 user 프롬프트 안에서 확인한
--- 표식만. 서버는 각 ref 가 자기 레코드 · audit_response · system_tags interview · 그 별의 시기 ·
--- 대화록 답 턴 · ai_hold 아님인지 보고, sha256(left(턴 원문, len)) 이 보낸 해시와 같은지(발췌 해시,
--- Q9 B) 대조해 통과한 것만 남긴다. len 은 유니코드 코드 포인트 수다. p_cited 는 모델이 인용한 것.
--- 'record:<uuid>' 처럼 턴 없이 인용하면 그 레코드의 남은 턴 전부로 펼친다. 인용 ∩ 보낸 것이 비면
--- 행을 만들지 않는다.
--- 계정 울타리(0192 공유 잠금 · tombstone, D6-04)를 지나고, 감사 행이 이 사용자 · self_model_propose ·
--- server_verified 인지 확인한다(D6-01, 감사 id 필수). 근거를 확인하기 전에 'period_card:' 사용자 잠금을
--- 잡아, 그 사이에 근거 레코드가 지워지면 둘 중 늦은 쪽이 앞쪽 결과를 보게 한다(D6-51).
-CREATE OR REPLACE FUNCTION public.record_period_card_proposal(
-  p_user_id uuid,
-  p_audit_id uuid,
-  p_vendor text,
-  p_star text,
-  p_request_key text,
-  p_proposal_text text,
-  p_rationale text,
-  p_sent jsonb,
-  p_cited text[],
-  p_level_before integer
-) RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-SET row_security = off
-AS $$
-DECLARE
-  v_item jsonb;
-  v_ref text;
-  v_record uuid;
-  v_turn_no integer;
-  v_len integer;
-  v_sent text[] := '{}';
-  v_cited text[] := '{}';
-  v_c text;
-  v_sha text;
-  v_id uuid;
-  v_existing public.period_card_proposals%ROWTYPE;
-BEGIN
-  IF public.billing_request_role() IS DISTINCT FROM 'service_role' THEN
-    RAISE EXCEPTION 'service_role only' USING ERRCODE = '42501';
-  END IF;
-  IF p_user_id IS NULL OR p_audit_id IS NULL
-     OR p_vendor IS NULL OR p_vendor NOT IN ('openai', 'claude')
-     OR p_star IS NULL OR p_star NOT IN ('infancy', 'school', 'twenties', 'later', 'work', 'now')
-     OR p_request_key IS NULL OR pg_catalog.char_length(p_request_key) NOT BETWEEN 8 AND 120
-     OR p_proposal_text IS NULL OR pg_catalog.char_length(p_proposal_text) NOT BETWEEN 1 AND 280
-     OR (p_rationale IS NOT NULL AND pg_catalog.char_length(p_rationale) > 600)
-     OR p_sent IS NULL OR pg_catalog.jsonb_typeof(p_sent) <> 'array'
-     OR pg_catalog.jsonb_array_length(p_sent) NOT BETWEEN 1 AND 40
-     OR p_cited IS NULL OR pg_catalog.cardinality(p_cited) NOT BETWEEN 1 AND 40
-     OR p_level_before IS NULL OR p_level_before NOT BETWEEN 0 AND 5 THEN
-    RAISE EXCEPTION 'period_card_proposal_invalid' USING ERRCODE = '22023';
-  END IF;
-  IF NOT public.interview_account_writable(p_user_id) THEN
-    RETURN pg_catalog.jsonb_build_object('status', 'rejected', 'reason', 'no_account');
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM public.ai_audit_log AS a
-                  WHERE a.id = p_audit_id AND a.user_id = p_user_id
-                    AND a.purpose = 'self_model_propose' AND a.event_source = 'server_verified') THEN
-    RETURN pg_catalog.jsonb_build_object('status', 'rejected', 'reason', 'audit_mismatch');
-  END IF;
-  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('period_card:' || p_user_id::text));
-
-  FOR v_item IN SELECT e.value FROM pg_catalog.jsonb_array_elements(p_sent) AS e(value) LOOP
-    v_ref := v_item ->> 'ref';
-    IF v_ref IS NULL OR v_ref !~ '^record:[0-9a-f-]{36}#t[0-9]{1,4}$'
-       OR pg_catalog.jsonb_typeof(v_item -> 'len') <> 'number' OR (v_item ->> 'len') !~ '^[0-9]{1,4}$'
-       OR (v_item ->> 'sha256') IS NULL OR (v_item ->> 'sha256') !~ '^[0-9a-f]{64}$' THEN
-      CONTINUE;
-    END IF;
-    v_record := pg_catalog.substring(v_ref, '^record:([0-9a-f-]{36})#')::uuid;
-    v_turn_no := pg_catalog.substring(v_ref, '#t([0-9]{1,4})$')::integer;
-    v_len := (v_item ->> 'len')::integer;
-    IF v_len < 1 OR v_ref = ANY (v_sent) THEN
-      CONTINUE;
-    END IF;
-    IF EXISTS (
-      SELECT 1
-        FROM public.interview_transcript_turns AS tt
-        JOIN public.interview_transcripts AS tr ON tr.id = tt.transcript_id
-        JOIN public.records AS r ON r.id = tr.record_id
-       WHERE tr.record_id = v_record
-         AND tr.user_id = p_user_id
-         AND r.user_id = p_user_id
-         AND r.kind::text = 'audit_response'
-         AND r.system_tags @> ARRAY['interview']::text[]
-         AND r.audit_period = p_star
-         AND tr.period = p_star
-         AND NOT tr.ai_hold
-         AND tt.turn_no = v_turn_no
-         AND tt.role = 'user'
-         AND NOT tt.ai_hold
-         AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
-               pg_catalog.left(tt.text, v_len), 'UTF8')), 'hex') = (v_item ->> 'sha256')
-    ) THEN
-      v_sent := v_sent || v_ref;
-    END IF;
-  END LOOP;
-  IF pg_catalog.cardinality(v_sent) = 0 THEN
-    RETURN pg_catalog.jsonb_build_object('status', 'rejected', 'reason', 'no_sent_evidence');
-  END IF;
-
-  FOREACH v_c IN ARRAY p_cited LOOP
-    IF v_c = ANY (v_sent) THEN
-      IF NOT v_c = ANY (v_cited) THEN v_cited := v_cited || v_c; END IF;
-    ELSIF v_c ~ '^record:[0-9a-f-]{36}$' THEN
-      SELECT v_cited || COALESCE(pg_catalog.array_agg(s.ref ORDER BY s.ref), '{}')
-        INTO v_cited
-        FROM pg_catalog.unnest(v_sent) AS s(ref)
-       WHERE s.ref LIKE v_c || '#%' AND NOT s.ref = ANY (v_cited);
-    END IF;
-  END LOOP;
-  IF pg_catalog.cardinality(v_cited) = 0 THEN
-    RETURN pg_catalog.jsonb_build_object('status', 'rejected', 'reason', 'no_cited_evidence');
-  END IF;
-  IF pg_catalog.cardinality(v_cited) > 40 THEN
-    v_cited := v_cited[1:40];
-  END IF;
-
-  v_sha := pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
-    p_proposal_text || E'\n' || COALESCE(p_rationale, '') || E'\n' || pg_catalog.array_to_string(v_cited, ','),
-    'UTF8')), 'hex');
-
-  SELECT * INTO v_existing FROM public.period_card_proposals AS p
-   WHERE p.user_id = p_user_id AND p.request_key = p_request_key;
-  IF FOUND THEN
-    RETURN pg_catalog.jsonb_build_object('status', 'duplicate', 'proposal_id', v_existing.id,
-      'content_sha', v_existing.content_sha);
-  END IF;
-  UPDATE public.period_card_proposals AS p
-     SET status = 'expired', decided_at = pg_catalog.now()
-   WHERE p.user_id = p_user_id AND p.star_id = p_star AND p.status = 'proposed';
-
-  INSERT INTO public.period_card_proposals AS p (
-    user_id, star_id, request_key, audit_id, vendor, proposal_text, rationale,
-    evidence_sent, evidence_cited, content_sha, level_before)
-  VALUES (
-    p_user_id, p_star, p_request_key, p_audit_id, p_vendor, p_proposal_text, p_rationale,
-    v_sent, v_cited, v_sha, p_level_before)
-  RETURNING p.id INTO v_id;
-  RETURN pg_catalog.jsonb_build_object('status', 'recorded', 'proposal_id', v_id, 'content_sha', v_sha);
-END;
-$$;
-
-----------------------------------------------------------------------
--- 10. 시기 카드 결정 (화면, authenticated) -- 0195 ratify_polaris_role_card 의 규율
-----------------------------------------------------------------------
--- 소유자(남의 제안은 not_found) · 계정 살아 있음(assert_polaris_account_active) · 사용자 단위 직렬화 ·
--- CAS(content_sha) · 상태 검사. 승인이면 인용 근거가 아직 있는지 다시 보고, 같은 별의 지금 승인 카드를
--- 대체하고, 서버가 star_tier_history 에 'seven:<별>' L5 'ratify' 행을 쓴다.
-CREATE OR REPLACE FUNCTION public.decide_period_card(
-  p_proposal_id uuid,
-  p_expected_sha text,
-  p_decision text,
-  p_miss_text text DEFAULT NULL,
-  p_miss_ai_hold boolean DEFAULT false
-) RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-SET row_security = off
-AS $$
-DECLARE
-  v_uid uuid := auth.uid();
-  v_p public.period_card_proposals%ROWTYPE;
-  v_ref text;
-  v_ok boolean := true;
-  v_was_l5 boolean;
-  v_now timestamptz;
-BEGIN
-  IF v_uid IS NULL THEN
-    RAISE EXCEPTION 'authentication required' USING ERRCODE = '42501';
-  END IF;
-  IF p_proposal_id IS NULL OR p_expected_sha IS NULL OR p_expected_sha !~ '^[0-9a-f]{64}$'
-     OR p_decision IS NULL OR p_decision NOT IN ('ratified', 'declined', 'missed')
-     OR p_miss_ai_hold IS NULL
-     OR (p_decision = 'missed' AND (p_miss_text IS NULL OR pg_catalog.char_length(p_miss_text) NOT BETWEEN 1 AND 500))
-     OR (p_decision <> 'missed' AND p_miss_text IS NOT NULL) THEN
-    RAISE EXCEPTION 'period_card_decision_invalid' USING ERRCODE = '22023';
-  END IF;
-  PERFORM public.assert_polaris_account_active(v_uid);
-  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('period_card:' || v_uid::text));
-
-  SELECT * INTO v_p FROM public.period_card_proposals AS p
-   WHERE p.id = p_proposal_id AND p.user_id = v_uid
-   FOR UPDATE;
-  IF NOT FOUND THEN
-    RETURN pg_catalog.jsonb_build_object('status', 'not_found');
-  END IF;
-  IF v_p.content_sha <> p_expected_sha THEN
-    RAISE EXCEPTION 'period_card_changed' USING ERRCODE = 'P0001';
-  END IF;
-  v_was_l5 := EXISTS (SELECT 1 FROM public.star_tier_history AS h
-                       WHERE h.user_id = v_uid AND h.star_id = 'seven:' || v_p.star_id
-                         AND h.evidence_origin = 'ratify');
-  IF v_p.status = p_decision THEN
-    RETURN pg_catalog.jsonb_build_object('status', v_p.status,
-      'level', CASE WHEN v_p.status = 'ratified' THEN 5 ELSE v_p.level_before END,
-      'was_l5_before', v_was_l5);
-  END IF;
-  IF v_p.status <> 'proposed' THEN
-    RAISE EXCEPTION 'invalid_period_card' USING ERRCODE = 'P0001';
-  END IF;
-
-  IF p_decision = 'ratified' THEN
-    FOREACH v_ref IN ARRAY v_p.evidence_cited LOOP
-      IF NOT EXISTS (
-        SELECT 1
-          FROM public.interview_transcript_turns AS tt
-          JOIN public.interview_transcripts AS tr ON tr.id = tt.transcript_id
-         WHERE tr.record_id = pg_catalog.substring(v_ref, '^record:([0-9a-f-]{36})#')::uuid
-           AND tr.user_id = v_uid
-           AND NOT tr.ai_hold
-           AND tt.turn_no = pg_catalog.substring(v_ref, '#t([0-9]{1,4})$')::integer
-           AND tt.role = 'user'
-           AND NOT tt.ai_hold) THEN
-        v_ok := false;
-      END IF;
-    END LOOP;
-    IF NOT v_ok THEN
-      UPDATE public.period_card_proposals AS p
-         SET status = 'void', decided_at = pg_catalog.now()
-       WHERE p.id = v_p.id;
-      RETURN pg_catalog.jsonb_build_object('status', 'void', 'reason', 'period_card_evidence_changed',
-        'level', v_p.level_before, 'was_l5_before', v_was_l5);
-    END IF;
-    UPDATE public.period_card_proposals AS p
-       SET superseded_by = v_p.id
-     WHERE p.user_id = v_uid AND p.star_id = v_p.star_id
-       AND p.status = 'ratified' AND p.superseded_by IS NULL AND p.id <> v_p.id;
-    -- 승인 시각과 L5 행 시각을 같은 값으로 쓴다. period_card_remove 가 이 쌍으로 그 카드의 L5 행을 찾는다.
-    -- now() 는 트랜잭션 시각이라 한 트랜잭션의 두 승인이 같은 값을 갖는다. 호출마다 다른 벽시계 값을 쓴다.
-    v_now := pg_catalog.clock_timestamp();
-    UPDATE public.period_card_proposals AS p
-       SET status = 'ratified', decided_at = v_now
-     WHERE p.id = v_p.id;
-    INSERT INTO public.star_tier_history AS h (user_id, star_id, level, recorded_at, evidence_origin, evidence_citations)
-    VALUES (v_uid, 'seven:' || v_p.star_id, 5, v_now, 'ratify', v_p.evidence_cited);
-    RETURN pg_catalog.jsonb_build_object('status', 'ratified', 'level', 5, 'was_l5_before', v_was_l5);
-  END IF;
-
-  UPDATE public.period_card_proposals AS p
-     SET status = p_decision,
-         decided_at = pg_catalog.now(),
-         miss_text = CASE WHEN p_decision = 'missed' THEN p_miss_text END,
-         miss_ai_hold = CASE WHEN p_decision = 'missed' THEN p_miss_ai_hold ELSE false END
-   WHERE p.id = v_p.id;
-  RETURN pg_catalog.jsonb_build_object('status', p_decision, 'level', v_p.level_before,
-    'was_l5_before', v_was_l5);
-END;
-$$;
-
--- 소유자가 자기 카드 한 장을 지운다(D6-07). 승인 카드면 period_card_remove 가 체인을 다시 잇고 그 카드의
--- L5 행을 함께 지운다. 지금 카드를 지우면 직전에 승인한 카드가 다시 선다. 결정 전 · 거절 · 빗나간 곳 행은
--- 그냥 지운다. 승인과 같은 사용자 잠금 아래에서 돈다.
-CREATE OR REPLACE FUNCTION public.delete_period_card(p_proposal_id uuid)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-SET row_security = off
-AS $$
-DECLARE
-  v_uid uuid := auth.uid();
-  v_p public.period_card_proposals%ROWTYPE;
-BEGIN
-  IF v_uid IS NULL THEN
-    RAISE EXCEPTION 'authentication required' USING ERRCODE = '42501';
-  END IF;
-  IF p_proposal_id IS NULL THEN
-    RAISE EXCEPTION 'period_card_delete_invalid' USING ERRCODE = '22023';
-  END IF;
-  PERFORM public.assert_polaris_account_active(v_uid);
-  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('period_card:' || v_uid::text));
-  SELECT * INTO v_p FROM public.period_card_proposals AS p
-   WHERE p.id = p_proposal_id AND p.user_id = v_uid
-   FOR UPDATE;
-  IF NOT FOUND THEN
-    RETURN pg_catalog.jsonb_build_object('status', 'not_found');
-  END IF;
-  PERFORM public.period_card_remove(v_uid, ARRAY[v_p.id]);
-  RETURN pg_catalog.jsonb_build_object('status', 'deleted',
-    'was_current', v_p.status = 'ratified' AND v_p.superseded_by IS NULL);
-END;
-$$;
-
 ----------------------------------------------------------------------
 -- 11. 응답 블록 id (프록시 전용, service_role)
 ----------------------------------------------------------------------
@@ -1975,6 +1611,8 @@ DECLARE
   v_cited text[] := p_cited_ids;
   v_user uuid;
   v_n integer;
+  v_ref text;
+  v_record uuid;
 BEGIN
   IF public.billing_request_role() IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'service_role only' USING ERRCODE = '42501';
@@ -1997,6 +1635,19 @@ BEGIN
   IF v_user IS NULL OR NOT public.interview_account_writable(v_user) THEN
     RETURN 'no_account';
   END IF;
+  -- R2 D6-53: lock every record in UUID order before inserting any block ids.
+  -- FOR SHARE serializes existence/ownership with DELETE and user_id changes.
+  FOR v_ref IN SELECT DISTINCT split_part(substring(b.id FROM 8), '#', 1)
+                 FROM pg_catalog.unnest(p_block_ids) AS b(id)
+                WHERE b.id LIKE 'record:%' ORDER BY 1
+  LOOP
+    IF v_ref !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+      RETURN 'rejected';
+    END IF;
+    SELECT r.id INTO v_record FROM public.records AS r
+     WHERE r.id = v_ref::uuid AND r.user_id = v_user FOR SHARE;
+    IF NOT FOUND THEN RETURN 'record_mismatch'; END IF;
+  END LOOP;
   INSERT INTO public.ai_audit_context_blocks AS b (audit_id, user_id, purpose, reader_version, block_ids, cited_ids)
   VALUES (p_audit_id, v_user, p_purpose, p_reader_version, p_block_ids, v_cited)
   ON CONFLICT (audit_id) DO NOTHING;
@@ -2041,7 +1692,6 @@ $$;
 ----------------------------------------------------------------------
 -- 13. 보관 정리 (pg_cron · service_role)
 ----------------------------------------------------------------------
--- 결정 전 제안 30일 → expired, 결정된 비승인(declined · missed · expired · void) 365일 → 삭제(Q15),
 -- 집계 730일, 응답 블록 id 90일, 접은 세션 id 7일.
 CREATE OR REPLACE FUNCTION public.prune_interview_ledgers()
 RETURNS jsonb
@@ -2052,8 +1702,6 @@ SET row_security = off
 AS $$
 DECLARE
   v_role text := public.billing_request_role();
-  v_expired integer;
-  v_proposals integer;
   v_rollup integer;
   v_blocks integer;
   v_tombstones integer;
@@ -2061,14 +1709,6 @@ BEGIN
   IF v_role IS NOT NULL AND v_role <> 'service_role' THEN
     RAISE EXCEPTION 'service_role only' USING ERRCODE = '42501';
   END IF;
-  UPDATE public.period_card_proposals AS p
-     SET status = 'expired', decided_at = pg_catalog.now()
-   WHERE p.status = 'proposed' AND p.created_at < pg_catalog.now() - INTERVAL '30 days';
-  GET DIAGNOSTICS v_expired = ROW_COUNT;
-  DELETE FROM public.period_card_proposals AS p
-   WHERE p.status IN ('declined', 'missed', 'expired', 'void')
-     AND p.decided_at < pg_catalog.now() - INTERVAL '365 days';
-  GET DIAGNOSTICS v_proposals = ROW_COUNT;
   DELETE FROM public.interview_unsaved_rollup AS u
    WHERE u.week_kst < (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date - 730;
   GET DIAGNOSTICS v_rollup = ROW_COUNT;
@@ -2078,8 +1718,7 @@ BEGIN
   DELETE FROM public.interview_session_tombstones AS t
    WHERE t.created_at < pg_catalog.now() - INTERVAL '7 days';
   GET DIAGNOSTICS v_tombstones = ROW_COUNT;
-  RETURN pg_catalog.jsonb_build_object('expired', v_expired, 'proposals_deleted', v_proposals,
-    'rollup_deleted', v_rollup, 'blocks_deleted', v_blocks, 'tombstones_deleted', v_tombstones);
+  RETURN pg_catalog.jsonb_build_object('rollup_deleted', v_rollup, 'blocks_deleted', v_blocks, 'tombstones_deleted', v_tombstones);
 END;
 $$;
 
@@ -2113,6 +1752,113 @@ CREATE TRIGGER trg_interview_coverage_no_decrease
   FOR EACH ROW EXECUTE FUNCTION public.interview_coverage_no_decrease();
 
 ----------------------------------------------------------------------
+-- Polaris 근거: 0218 본문에 ai_hold 제외 조건 하나만 더한다(권한은 0195 그대로).
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.reserve_polaris_generation(p_user_id uuid, p_key text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  v_row public.polaris_generations%ROWTYPE;
+  v_week text := to_char(now() AT TIME ZONE 'Asia/Seoul', 'IYYY-"W"IW');
+  v_month text := to_char(now() AT TIME ZONE 'Asia/Seoul', 'YYYY-MM');
+  v_spend text; v_tier text; v_cap int; v_count int; v_id uuid; v_evidence jsonb;
+  v_credit jsonb; v_entry_ids uuid[] := '{}';
+BEGIN
+  IF auth.uid() IS DISTINCT FROM p_user_id OR auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'owner_required' USING ERRCODE='42501';
+  END IF;
+  PERFORM public.assert_polaris_account_active(p_user_id);
+  IF NOT COALESCE((SELECT enabled FROM public.polaris_generation_config),false) THEN
+    RAISE EXCEPTION 'polaris_unavailable';
+  END IF;
+  IF p_key IS NULL OR length(p_key) NOT BETWEEN 8 AND 120 THEN RAISE EXCEPTION 'invalid_key'; END IF;
+  PERFORM pg_advisory_xact_lock(hashtext('polaris:' || p_user_id::text));
+  -- Serialize with the existing reasoning reserve path as well.
+  PERFORM pg_advisory_xact_lock(hashtext('reasoning_run:' || p_user_id::text));
+  -- Recovery refunds the ORIGINAL bucket. Late provider settlement is rejected
+  -- by its status check, so it can neither save nor charge after recovery.
+  FOR v_row IN SELECT * FROM public.polaris_generations WHERE user_id=p_user_id
+    AND status IN ('reserved','running') AND created_at < now() - interval '15 minutes' FOR UPDATE
+  LOOP
+    IF v_row.spend IN ('base','credit') THEN
+      PERFORM public.refund_polaris_spend(p_user_id,v_row.id);
+    END IF;
+    UPDATE public.polaris_generations SET status='failed' WHERE id=v_row.id;
+  END LOOP;
+  SELECT * INTO v_row FROM public.polaris_generations WHERE user_id=p_user_id AND request_key=p_key;
+  IF FOUND THEN RETURN jsonb_build_object('generation_id',v_row.id,'status',v_row.status); END IF;
+  IF EXISTS (SELECT 1 FROM public.polaris_generations WHERE user_id=p_user_id AND status IN ('reserved','running')) THEN
+    RAISE EXCEPTION 'polaris_generation_active';
+  END IF;
+  -- Store content hashes, never a second permanent copy of interview text.
+  -- Every selected record is included in the bounded server-built prompt.
+  SELECT COALESCE(jsonb_agg(jsonb_build_object('id',r.id,'domain',r.audit_period,
+      'body_hash',encode(sha256(convert_to(r.body,'UTF8')),'hex'))
+      ORDER BY r.created_at DESC,r.id), '[]'::jsonb)
+    INTO v_evidence FROM (SELECT id,audit_period,body,created_at,
+      row_number() OVER (PARTITION BY audit_period ORDER BY created_at DESC,id) AS domain_rank
+      FROM public.records WHERE user_id=p_user_id
+      AND kind='audit_response' AND system_tags @> ARRAY['interview']::text[] AND length(trim(body))>0
+      AND NOT EXISTS (SELECT 1 FROM public.interview_transcripts AS t WHERE t.record_id = records.id AND t.ai_hold)
+      AND audit_period IN ('infancy','school','twenties','later','work','now')) r
+    WHERE r.domain_rank <= 3;
+  IF jsonb_array_length(v_evidence)=0 THEN RAISE EXCEPTION 'polaris_no_evidence'; END IF;
+  IF (SELECT count(*) FROM public.polaris_generations WHERE user_id=p_user_id AND spend='intro'
+      AND status IN ('reserved','running','completed')) < 2 THEN
+    v_spend := 'intro';
+  ELSE
+    v_tier := public.effective_subscription_tier(p_user_id);
+    v_cap := CASE COALESCE(v_tier,'free') WHEN 'brain' THEN NULL WHEN 'cortex' THEN 7 WHEN 'soma' THEN 7 ELSE 2 END;
+    IF v_cap IS NULL THEN v_spend := 'none';
+    ELSE
+      INSERT INTO public.usage_counters AS uc(user_id,month_bucket,reasoning_used) VALUES(p_user_id,v_week,1)
+      ON CONFLICT(user_id,month_bucket) DO UPDATE SET reasoning_used=uc.reasoning_used+1,updated_at=now()
+        WHERE uc.reasoning_used<v_cap RETURNING reasoning_used INTO v_count;
+      IF v_count IS NOT NULL THEN v_spend := 'base';
+      ELSE
+        BEGIN
+          v_credit := public.spend_credits(p_user_id,1,'reasoning','polaris:'||p_key);
+        EXCEPTION WHEN sqlstate 'X0001' OR sqlstate '23503' THEN
+          RAISE EXCEPTION 'polaris_limit_exceeded';
+        END;
+        SELECT ARRAY(SELECT value::uuid FROM jsonb_array_elements_text(v_credit->'entry_ids')) INTO v_entry_ids;
+        INSERT INTO public.usage_counters AS uc(user_id,month_bucket,reasoning_used) VALUES(p_user_id,v_week,1)
+        ON CONFLICT(user_id,month_bucket) DO UPDATE SET reasoning_used=uc.reasoning_used+1,updated_at=now();
+        v_spend := 'credit';
+      END IF;
+    END IF;
+  END IF;
+  INSERT INTO public.polaris_generations(user_id,request_key,status,spend,week_bucket,month_bucket,evidence,credit_entry_ids)
+    VALUES(p_user_id,p_key,'reserved',v_spend,v_week,v_month,v_evidence,v_entry_ids) RETURNING id INTO v_id;
+  RETURN jsonb_build_object('generation_id',v_id,'status','reserved');
+END $$;
+
+CREATE OR REPLACE FUNCTION public.polaris_evidence_snapshot(p_user_id uuid,p_evidence jsonb) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE v_record record; v_result jsonb := '[]'; v_text text;
+BEGIN
+  IF jsonb_typeof(p_evidence) IS DISTINCT FROM 'array' OR jsonb_array_length(p_evidence) NOT BETWEEN 1 AND 18 THEN
+    RAISE EXCEPTION 'polaris_evidence_changed';
+  END IF;
+  FOR v_record IN
+    SELECT r.id,r.audit_period,r.body FROM jsonb_array_elements(p_evidence) WITH ORDINALITY e(item,position)
+    JOIN public.records r ON r.id::text=e.item->>'id' AND r.user_id=p_user_id
+      AND r.audit_period=e.item->>'domain' AND r.kind='audit_response'
+      AND r.system_tags @> ARRAY['interview']::text[]
+      AND NOT EXISTS (SELECT 1 FROM public.interview_transcripts AS t WHERE t.record_id = r.id AND t.ai_hold)
+      AND encode(sha256(convert_to(r.body,'UTF8')),'hex')=e.item->>'body_hash'
+    ORDER BY e.position FOR SHARE OF r
+  LOOP
+    v_text := trim(v_record.body);
+    IF length(v_text)>290 THEN
+      v_text := left(v_text,94)||' … '||substring(v_text FROM greatest(length(v_text)/2-47,1) FOR 94)||' … '||right(v_text,94);
+    END IF;
+    v_result := v_result||jsonb_build_array(jsonb_build_object('id',v_record.id,'domain',v_record.audit_period,'excerpt',v_text));
+  END LOOP;
+  IF jsonb_array_length(v_result)<>jsonb_array_length(p_evidence) THEN RAISE EXCEPTION 'polaris_evidence_changed'; END IF;
+  RETURN v_result;
+END $$;
+
+----------------------------------------------------------------------
 -- 15. 예약 (pg_cron)
 ----------------------------------------------------------------------
 DO $schedule$
@@ -2130,8 +1876,16 @@ BEGIN
       USING 'sweep-interview-sessions', '23 * * * *', 'SELECT public.sweep_interview_sessions();';
     EXECUTE 'SELECT cron.schedule($1, $2, $3)' INTO v_job_id
       USING 'prune-interview-ledgers', '41 18 * * *', 'SELECT public.prune_interview_ledgers();';
+    EXECUTE 'SELECT count(*) FROM cron.job WHERE active AND username = current_user
+      AND database = current_database() AND (jobname, schedule, command) IN (
+        (''sweep-interview-sessions'', ''23 * * * *'', ''SELECT public.sweep_interview_sessions();''),
+        (''prune-interview-ledgers'', ''41 18 * * *'', ''SELECT public.prune_interview_ledgers();''))' INTO v_job_id;
+    IF v_job_id <> 2 THEN RAISE EXCEPTION '0225: cleanup cron job contract mismatch'; END IF;
   ELSE
-    RAISE NOTICE '0225: pg_cron unavailable; sweep_interview_sessions() and prune_interview_ledgers() are not scheduled';
+    IF pg_catalog.current_setting('app.allow_missing_pg_cron', true) IS DISTINCT FROM 'on' THEN
+      RAISE EXCEPTION '0225: pg_cron required; only local/CI replay may SET LOCAL app.allow_missing_pg_cron = on';
+    END IF;
+    RAISE NOTICE '0225: pg_cron explicitly skipped for local/CI replay';
   END IF;
 END
 $schedule$;
@@ -2145,7 +1899,7 @@ DECLARE
   v_n integer;
 BEGIN
   FOREACH v_table IN ARRAY ARRAY['interview_sessions', 'interview_probe_verdicts', 'interview_transcripts',
-      'interview_transcript_turns', 'period_card_proposals', 'interview_unsaved_rollup', 'ai_audit_context_blocks',
+      'interview_transcript_turns', 'interview_unsaved_rollup', 'ai_audit_context_blocks',
       'interview_session_audit_ids', 'interview_session_tombstones', 'interview_session_starts'] LOOP
     IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_class AS c
                     JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
@@ -2186,7 +1940,9 @@ BEGIN
            ('public.interview_coverage'::regclass, 'trg_interview_coverage_no_decrease'),
            ('public.interview_probe_verdicts'::regclass, 'interview_verdict_erasure'),
            ('public.interview_sessions'::regclass, 'interview_session_count_start'),
-           ('public.period_card_proposals'::regclass, 'period_card_delete_guard'))) <> 6 THEN
+           ('public.interview_sessions'::regclass, 'interview_session_erasure'),
+           ('auth.users'::regclass, 'interview_account_erasure'),
+           ('public.users'::regclass, 'interview_account_erasure'))) <> 8 THEN
     RAISE EXCEPTION '0225: a ledger trigger is missing';
   END IF;
 
@@ -2196,19 +1952,14 @@ BEGIN
              WHERE n.nspname = 'public'
                AND p.proname IN ('erase_audit_hashes', 'interview_account_writable', 'fold_interview_session',
                                  'interview_verdict_erasure', 'interview_session_count_start',
+                                 'interview_session_erasure', 'interview_account_erasure',
                                  'record_interview_probe_verdict', 'close_interview_session',
                                  'discard_interview_session', 'commit_interview_session', 'sweep_interview_sessions',
-                                 'period_card_remove', 'interview_record_erasure', 'ai_context_block_record_erasure',
-                                 'period_card_delete_guard', 'record_period_card_proposal', 'decide_period_card',
-                                 'delete_period_card', 'record_context_blocks', 'export_my_interview_judgements',
+                                 'interview_record_erasure', 'ai_context_block_record_erasure',
+                                 'record_context_blocks', 'export_my_interview_judgements',
                                  'prune_interview_ledgers')
                AND NOT (COALESCE(p.proconfig, '{}') @> ARRAY['search_path=""'])) THEN
     RAISE EXCEPTION '0225: a ledger function does not pin an empty search_path';
-  END IF;
-  -- 승인 카드 지우기 막기는 지우는 역할을 봐야 하므로 정의자 함수가 아니어야 한다.
-  IF (SELECT p.prosecdef FROM pg_catalog.pg_proc AS p
-       WHERE p.oid = 'public.period_card_delete_guard()'::regprocedure) THEN
-    RAISE EXCEPTION '0225: period_card_delete_guard must run as the deleting role';
   END IF;
 END
 $postcondition$;
@@ -2220,6 +1971,8 @@ $postcondition$;
 -- 아무것도 두지 않는다. 새 함수는 Supabase 기본 권한으로 anon · authenticated 에게 EXECUTE 가 붙으므로
 -- 같은 파일에서 회수한다(Rule B).
 
+REVOKE ALL ON FUNCTION public.interview_session_erasure() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.interview_account_erasure() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.interview_int_array_add(integer[], integer[]) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.interview_transcript_body(text, jsonb) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.erase_audit_hashes(uuid, uuid[], text) FROM PUBLIC, anon, authenticated, service_role;
@@ -2227,14 +1980,10 @@ REVOKE ALL ON FUNCTION public.interview_account_writable(uuid) FROM PUBLIC, anon
 REVOKE ALL ON FUNCTION public.fold_interview_session(uuid, text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.interview_verdict_erasure() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.interview_session_count_start() FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION public.period_card_remove(uuid, uuid[]) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.interview_record_erasure() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.ai_context_block_record_erasure() FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION public.period_card_delete_guard() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.interview_coverage_no_decrease() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.record_interview_probe_verdict(uuid, uuid, uuid, text, text, integer, integer, integer, text, text, text, text, text, boolean, text, text, boolean, integer, integer, text)
-  FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.record_period_card_proposal(uuid, uuid, text, text, text, text, text, jsonb, text[], integer)
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.record_context_blocks(uuid, text, text, text[], text[]) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.sweep_interview_sessions(integer) FROM PUBLIC, anon, authenticated;
@@ -2242,27 +1991,26 @@ REVOKE ALL ON FUNCTION public.prune_interview_ledgers() FROM PUBLIC, anon, authe
 REVOKE ALL ON FUNCTION public.close_interview_session(uuid, text, text, text, integer, integer) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.discard_interview_session(uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.commit_interview_session(uuid, uuid, jsonb, boolean) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.decide_period_card(uuid, text, text, text, boolean) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.delete_period_card(uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.export_my_interview_judgements(timestamptz) FROM PUBLIC, anon;
 
 GRANT SELECT ON TABLE public.interview_sessions, public.interview_probe_verdicts,
-  public.interview_transcripts, public.interview_transcript_turns, public.period_card_proposals,
+  public.interview_transcripts, public.interview_transcript_turns,
   public.interview_unsaved_rollup, public.ai_audit_context_blocks,
   public.interview_session_audit_ids, public.interview_session_tombstones, public.interview_session_starts,
   public.interview_scene_metrics, public.record_layer_inferences
   TO service_role;
 GRANT SELECT, DELETE ON TABLE public.interview_transcripts, public.interview_transcript_turns,
-  public.period_card_proposals
+  public.interview_sessions, public.ai_audit_context_blocks
   TO authenticated;
 GRANT EXECUTE ON FUNCTION public.record_interview_probe_verdict(uuid, uuid, uuid, text, text, integer, integer, integer, text, text, text, text, text, boolean, text, text, boolean, integer, integer, text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.record_period_card_proposal(uuid, uuid, text, text, text, text, text, jsonb, text[], integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.record_context_blocks(uuid, text, text, text[], text[]) TO service_role;
 GRANT EXECUTE ON FUNCTION public.sweep_interview_sessions(integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.prune_interview_ledgers() TO service_role;
 GRANT EXECUTE ON FUNCTION public.close_interview_session(uuid, text, text, text, integer, integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.discard_interview_session(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.commit_interview_session(uuid, uuid, jsonb, boolean) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.decide_period_card(uuid, text, text, text, boolean) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.delete_period_card(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.export_my_interview_judgements(timestamptz) TO authenticated;
+
+REVOKE ALL ON FUNCTION public.reserve_polaris_generation(uuid,text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.reserve_polaris_generation(uuid,text) TO authenticated;
+REVOKE ALL ON FUNCTION public.polaris_evidence_snapshot(uuid,jsonb) FROM PUBLIC, anon, authenticated, service_role;

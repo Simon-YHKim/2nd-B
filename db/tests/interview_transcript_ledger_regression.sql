@@ -4,11 +4,12 @@
 -- ledger) and 0226 (its erasure-registry rows) migrations. The staged Supabase CLI
 -- push already applied both; this file never replays them. Everything below runs in
 -- one transaction and is rolled back. Design: docs/design/d6-verdict-ledger-261007.md
--- section 6 (T-02, T-06, T-07, T-08, T-09, T-14, T-15, T-19). The gate round 1 findings each
--- have a block below that names them (D6-01 ... D6-59); each was checked to FAIL with its fix
--- reverted. Two of them (D6-51's race, D6-57) need two connections and are only partly covered
--- here (the lock a writer takes is read from pg_locks).
+-- section 6 (T-02, T-09, T-14, T-15, T-19). RD-261007-13 moves period cards to phase two.
+-- Blocks prefixed R2 cover gate round 2; other D6 labels preserve round 1's tests.
+-- R2 D6-01/05/09/52/53 also run with two connections in interview_transcript_ledger_concurrency.py.
+-- R2 D6-08's psql startup guard and D6-10's CI message are checked by supabase-security-drafts.test.ts.
 BEGIN;
+SET LOCAL app.allow_missing_pg_cron = 'on';
 
 -- The vanilla PostgreSQL auth stub lacks production trigger columns.
 SET LOCAL session_replication_role = replica;
@@ -25,28 +26,25 @@ INSERT INTO public.users (id, email, birth_date, locale) VALUES
 -- Audit rows (the proxy writes these before the ledger call). Last byte of the id:
 --   b1-bc, d0-de  interview_probe, user one     df  interview_probe, user one, safety_zone red
 --   f0-f7         interview_probe, user two     cb  interview_probe, user three
---   90-97         self_model_propose, user one  cc  self_model_propose, user three
 --   c8, ce, cf    secondb_chat, user one        ca  secondb_chat, user three
 --   c9            secondb_chat, no user (account deleted: user_id SET NULL)
 --   cd            interview_probe, user one, but client_unverified
 INSERT INTO public.ai_audit_log (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
 SELECT ('25000000-0000-4000-8000-0000000000' || lpad(to_hex(n), 2, '0'))::uuid,
        CASE WHEN n BETWEEN 240 AND 247 THEN '25000000-0000-4000-8000-000000000002'::uuid
-            WHEN n IN (202, 203, 204) THEN '25000000-0000-4000-8000-000000000003'::uuid
+            WHEN n IN (202, 203) THEN '25000000-0000-4000-8000-000000000003'::uuid
             WHEN n = 201 THEN NULL
             ELSE '25000000-0000-4000-8000-000000000001'::uuid END,
        CASE WHEN n = 205 THEN 'aa' ELSE 'p' || n END,
        CASE WHEN n = 205 THEN 'bb' ELSE 'o' || n END,
        'test-model', false, (CASE WHEN n = 223 THEN 'red' ELSE 'green' END)::public.safety_zone, 1,
        CASE WHEN n IN (200, 201, 202, 206, 207) THEN 'secondb_chat'
-            WHEN n BETWEEN 144 AND 151 OR n = 204 THEN 'self_model_propose'
             ELSE 'interview_probe' END,
        CASE WHEN n = 205 THEN 'client_unverified' ELSE 'server_verified' END
   FROM (SELECT g FROM generate_series(177, 188) AS g
-        UNION ALL SELECT g FROM generate_series(200, 207) AS g
+        UNION ALL SELECT g FROM generate_series(200, 207) AS g WHERE g <> 204
         UNION ALL SELECT g FROM generate_series(208, 223) AS g
-        UNION ALL SELECT g FROM generate_series(240, 247) AS g
-        UNION ALL SELECT g FROM generate_series(144, 151) AS g) AS t(n);
+        UNION ALL SELECT g FROM generate_series(240, 247) AS g) AS t(n);
 
 -- Shorthand for the fixture audit ids, and for "does this transaction hold that advisory lock".
 CREATE FUNCTION pg_temp.aid(p_byte text) RETURNS uuid LANGUAGE sql IMMUTABLE AS $$
@@ -70,8 +68,7 @@ DO $privileges$
 DECLARE
   v_table text;
 BEGIN
-  FOREACH v_table IN ARRAY ARRAY['interview_sessions', 'interview_probe_verdicts', 'interview_unsaved_rollup',
-      'ai_audit_context_blocks', 'interview_scene_metrics', 'record_layer_inferences',
+  FOREACH v_table IN ARRAY ARRAY['interview_probe_verdicts', 'interview_unsaved_rollup', 'interview_scene_metrics', 'record_layer_inferences',
       'interview_session_audit_ids', 'interview_session_tombstones', 'interview_session_starts'] LOOP
     IF has_table_privilege('authenticated', 'public.' || v_table, 'SELECT')
        OR has_table_privilege('authenticated', 'public.' || v_table, 'INSERT')
@@ -86,7 +83,7 @@ BEGIN
       RAISE EXCEPTION 'service_role is not read-only on %', v_table;
     END IF;
   END LOOP;
-  FOREACH v_table IN ARRAY ARRAY['interview_transcripts', 'interview_transcript_turns', 'period_card_proposals'] LOOP
+  FOREACH v_table IN ARRAY ARRAY['interview_transcripts', 'interview_transcript_turns', 'interview_sessions', 'ai_audit_context_blocks'] LOOP
     IF NOT has_table_privilege('authenticated', 'public.' || v_table, 'SELECT')
        OR NOT has_table_privilege('authenticated', 'public.' || v_table, 'DELETE')
        OR has_table_privilege('authenticated', 'public.' || v_table, 'INSERT')
@@ -98,7 +95,6 @@ BEGIN
   IF has_function_privilege('authenticated', 'public.record_interview_probe_verdict(uuid,uuid,uuid,text,text,integer,integer,integer,text,text,text,text,text,boolean,text,text,boolean,integer,integer,text)', 'EXECUTE')
      OR has_function_privilege('anon', 'public.record_interview_probe_verdict(uuid,uuid,uuid,text,text,integer,integer,integer,text,text,text,text,text,boolean,text,text,boolean,integer,integer,text)', 'EXECUTE')
      OR NOT has_function_privilege('service_role', 'public.record_interview_probe_verdict(uuid,uuid,uuid,text,text,integer,integer,integer,text,text,text,text,text,boolean,text,text,boolean,integer,integer,text)', 'EXECUTE')
-     OR has_function_privilege('authenticated', 'public.record_period_card_proposal(uuid,uuid,text,text,text,text,text,jsonb,text[],integer)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'public.record_context_blocks(uuid,text,text,text[],text[])', 'EXECUTE')
      OR has_function_privilege('authenticated', 'public.sweep_interview_sessions(integer)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'public.prune_interview_ledgers()', 'EXECUTE') THEN
@@ -107,26 +103,23 @@ BEGIN
   IF NOT has_function_privilege('authenticated', 'public.close_interview_session(uuid,text,text,text,integer,integer)', 'EXECUTE')
      OR NOT has_function_privilege('authenticated', 'public.discard_interview_session(uuid)', 'EXECUTE')
      OR NOT has_function_privilege('authenticated', 'public.commit_interview_session(uuid,uuid,jsonb,boolean)', 'EXECUTE')
-     OR NOT has_function_privilege('authenticated', 'public.decide_period_card(uuid,text,text,text,boolean)', 'EXECUTE')
-     OR NOT has_function_privilege('authenticated', 'public.delete_period_card(uuid)', 'EXECUTE')
      OR NOT has_function_privilege('authenticated', 'public.export_my_interview_judgements(timestamptz)', 'EXECUTE')
-     OR has_function_privilege('anon', 'public.commit_interview_session(uuid,uuid,jsonb,boolean)', 'EXECUTE')
-     OR has_function_privilege('anon', 'public.decide_period_card(uuid,text,text,text,boolean)', 'EXECUTE')
-     OR has_function_privilege('anon', 'public.delete_period_card(uuid)', 'EXECUTE') THEN
+     OR has_function_privilege('anon', 'public.commit_interview_session(uuid,uuid,jsonb,boolean)', 'EXECUTE') THEN
     RAISE EXCEPTION 'screen functions are not authenticated-only';
   END IF;
   IF EXISTS (SELECT 1 FROM pg_catalog.unnest(ARRAY[
          'public.fold_interview_session(uuid,text)', 'public.erase_audit_hashes(uuid,uuid[],text)',
-         'public.interview_account_writable(uuid)', 'public.period_card_remove(uuid,uuid[])',
+         'public.interview_account_writable(uuid)',
          'public.interview_transcript_body(text,jsonb)', 'public.interview_verdict_erasure()',
          'public.interview_session_count_start()', 'public.interview_record_erasure()',
-         'public.ai_context_block_record_erasure()', 'public.period_card_delete_guard()']) AS f(sig)
+         'public.interview_session_erasure()', 'public.interview_account_erasure()',
+         'public.ai_context_block_record_erasure()']) AS f(sig)
               CROSS JOIN pg_catalog.unnest(ARRAY['anon', 'authenticated', 'service_role']) AS r(role)
              WHERE has_function_privilege(r.role, f.sig, 'EXECUTE')) THEN
     RAISE EXCEPTION 'an internal helper is callable by a client or service role';
   END IF;
   FOREACH v_table IN ARRAY ARRAY['interview_sessions', 'interview_probe_verdicts', 'interview_transcripts',
-      'interview_transcript_turns', 'period_card_proposals', 'interview_unsaved_rollup', 'ai_audit_context_blocks',
+      'interview_transcript_turns', 'interview_unsaved_rollup', 'ai_audit_context_blocks',
       'interview_session_audit_ids', 'interview_session_tombstones', 'interview_session_starts'] LOOP
     IF NOT (SELECT c.relrowsecurity AND c.relforcerowsecurity FROM pg_catalog.pg_class AS c
              WHERE c.oid = ('public.' || v_table)::regclass) THEN
@@ -136,12 +129,11 @@ BEGIN
   -- D6-05: the context-block table is owned and registered; the session-start counter too.
   IF (SELECT count(*) FROM public.erasure_registry AS r
        WHERE (r.table_name, r.owner_column, r.class, COALESCE(r.delete_order, 0)) IN (
-         ('interview_sessions', 'owner_id', 'account_delete_only', 0),
+         ('interview_sessions', 'owner_id', 'client_erasable', 31),
          ('interview_transcript_turns', 'user_id', 'client_erasable', 28),
          ('interview_transcripts', 'user_id', 'client_erasable', 29),
-         ('period_card_proposals', 'user_id', 'client_erasable', 49),
-         ('ai_audit_context_blocks', 'user_id', 'account_delete_only', 0),
-         ('interview_session_starts', 'owner_id', 'retained', 0))) <> 6 THEN
+         ('ai_audit_context_blocks', 'user_id', 'client_erasable', 32),
+         ('interview_session_starts', 'owner_id', 'retained', 0))) <> 5 THEN
     RAISE EXCEPTION 'the interview registry rows are missing or misclassified';
   END IF;
   IF (SELECT count(*) FROM pg_catalog.pg_class AS c JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
@@ -577,227 +569,6 @@ BEGIN
 END
 $session_cap$;
 
--- 4. Period cards: evidence = cited AND sent, decisions on one row, L5 written by the server (T-06, T-07, T-08).
-DO $cards$
-DECLARE
-  v_one constant uuid := '25000000-0000-4000-8000-000000000001';
-  v_rec constant uuid := '25000000-0000-4000-8000-0000000000e1';
-  v_t2 text := 'record:25000000-0000-4000-8000-0000000000e1#t2';
-  v_t4 text := 'record:25000000-0000-4000-8000-0000000000e1#t4';
-  v_sent jsonb;
-  v_result jsonb;
-  v_p1 uuid; v_sha1 text;
-  v_p2 uuid; v_sha2 text;
-  v_p3 uuid; v_sha3 text;
-  v_p4 uuid; v_sha4 text;
-  v_p5 uuid; v_sha5 text;
-  v_ref text;
-BEGIN
-  v_sent := jsonb_build_array(
-    jsonb_build_object('ref', v_t2, 'len', 4, 'sha256', encode(sha256(convert_to(left('창가 자리였어요', 4), 'UTF8')), 'hex')),
-    jsonb_build_object('ref', v_t4, 'len', 2, 'sha256', repeat('0', 64)),
-    jsonb_build_object('ref', 'record:25000000-0000-4000-8000-0000000000e1#t1', 'len', 2,
-                       'sha256', encode(sha256(convert_to(left('그때 교실은 어땠나요?', 2), 'UTF8')), 'hex')),
-    jsonb_build_object('ref', 'record:25000000-0000-4000-8000-0000000000ee#t2', 'len', 2, 'sha256', repeat('0', 64)));
-
-  PERFORM set_config('request.jwt.claim.role', 'authenticated', true);
-  BEGIN
-    PERFORM public.record_period_card_proposal(v_one, pg_temp.aid('90'), 'openai', 'school', 'card-key-00000001',
-      '그때의 나는 창가에서 설렜다', NULL, v_sent, ARRAY['record:25000000-0000-4000-8000-0000000000e1'], 2);
-    RAISE EXCEPTION 'an authenticated caller recorded a proposal';
-  EXCEPTION WHEN insufficient_privilege THEN NULL;
-  END;
-  PERFORM set_config('request.jwt.claim.role', 'service_role', true);
-  -- A record-level citation expands to the turns that passed: only #t2 (wrong hash, question turn, foreign record drop out).
-  v_result := public.record_period_card_proposal(v_one, pg_temp.aid('90'), 'openai', 'school', 'card-key-00000001',
-    '그때의 나는 창가에서 설렜다', '창가 자리를 말했다', v_sent, ARRAY['record:25000000-0000-4000-8000-0000000000e1'], 2);
-  IF v_result ->> 'status' <> 'recorded' THEN RAISE EXCEPTION 'proposal not recorded: %', v_result; END IF;
-  v_p1 := (v_result ->> 'proposal_id')::uuid; v_sha1 := v_result ->> 'content_sha';
-  IF (SELECT evidence_sent FROM public.period_card_proposals WHERE id = v_p1) <> ARRAY[v_t2]
-     OR (SELECT evidence_cited FROM public.period_card_proposals WHERE id = v_p1) <> ARRAY[v_t2] THEN
-    RAISE EXCEPTION 'evidence was not cited AND sent';
-  END IF;
-  v_result := public.record_period_card_proposal(v_one, pg_temp.aid('90'), 'openai', 'school', 'card-key-00000001',
-    '다른 문장', NULL, v_sent, ARRAY[v_t2], 2);
-  IF v_result ->> 'status' <> 'duplicate' OR (v_result ->> 'proposal_id')::uuid <> v_p1 THEN
-    RAISE EXCEPTION 'a repeated request key made a second row: %', v_result;
-  END IF;
-  v_result := public.record_period_card_proposal(v_one, pg_temp.aid('91'), 'openai', 'school', 'card-key-00000002',
-    '인용 밖', NULL, v_sent, ARRAY['record:25000000-0000-4000-8000-0000000000ee#t2'], 2);
-  IF v_result ->> 'status' <> 'rejected' OR v_result ->> 'reason' <> 'no_cited_evidence' THEN
-    RAISE EXCEPTION 'a proposal citing only unsent evidence was recorded: %', v_result;
-  END IF;
-  v_result := public.record_period_card_proposal(v_one, pg_temp.aid('92'), 'openai', 'now', 'card-key-00000003',
-    '다른 시기', NULL, v_sent, ARRAY[v_t2], 2);
-  IF v_result ->> 'status' <> 'rejected' OR v_result ->> 'reason' <> 'no_sent_evidence' THEN
-    RAISE EXCEPTION 'evidence from another period was accepted: %', v_result;
-  END IF;
-  -- D6-01: the proposal's audit row is required and must be this user's own self_model_propose row.
-  BEGIN
-    PERFORM public.record_period_card_proposal(v_one, NULL, 'openai', 'school', 'card-key-0000000a',
-      '감사 없음', NULL, v_sent, ARRAY[v_t2], 2);
-    RAISE EXCEPTION 'D6-01: a proposal without an audit row was accepted';
-  EXCEPTION WHEN invalid_parameter_value THEN NULL;
-  END;
-  FOREACH v_ref IN ARRAY ARRAY['f1', 'b1', 'cc'] LOOP
-    v_result := public.record_period_card_proposal(v_one, pg_temp.aid(v_ref), 'openai', 'school',
-      'card-key-0000000b-' || v_ref, '남의 감사 행', NULL, v_sent, ARRAY[v_t2], 2);
-    IF v_result ->> 'status' <> 'rejected' OR v_result ->> 'reason' <> 'audit_mismatch' THEN
-      RAISE EXCEPTION 'D6-01: a proposal bound to audit row % was accepted: %', v_ref, v_result;
-    END IF;
-  END LOOP;
-  IF EXISTS (SELECT 1 FROM public.period_card_proposals
-              WHERE request_key = 'card-key-0000000a' OR request_key LIKE 'card-key-0000000b-%') THEN
-    RAISE EXCEPTION 'D6-01: a refused proposal left a row';
-  END IF;
-  BEGIN
-    INSERT INTO public.period_card_proposals (user_id, star_id, request_key, audit_id, vendor, proposal_text,
-      evidence_sent, evidence_cited, content_sha, level_before)
-    VALUES (v_one, 'school', 'card-key-direct-0', pg_temp.aid('90'), 'openai', 'x', ARRAY[v_t2], ARRAY[v_t4], repeat('a', 64), 2);
-    RAISE EXCEPTION 'a citation outside the sent set was stored';
-  EXCEPTION WHEN check_violation THEN NULL;
-  END;
-
-  -- Decide: owner only, CAS, one row per proposal.
-  PERFORM set_config('request.jwt.claim.role', '', true);
-  PERFORM set_config('request.jwt.claims', '{"role":"authenticated","sub":"25000000-0000-4000-8000-000000000002"}', true);
-  v_result := public.decide_period_card(v_p1, v_sha1, 'declined');
-  IF v_result ->> 'status' <> 'not_found' THEN RAISE EXCEPTION 'another user decided the card: %', v_result; END IF;
-  PERFORM set_config('request.jwt.claims', '{"role":"authenticated","sub":"25000000-0000-4000-8000-000000000001"}', true);
-  BEGIN
-    PERFORM public.decide_period_card(v_p1, repeat('b', 64), 'declined');
-    RAISE EXCEPTION 'a stale content sha was accepted';
-  EXCEPTION WHEN raise_exception THEN
-    IF SQLERRM <> 'period_card_changed' THEN RAISE; END IF;
-  END;
-  v_result := public.decide_period_card(v_p1, v_sha1, 'declined');
-  IF v_result ->> 'status' <> 'declined'
-     OR (SELECT count(*) FROM public.period_card_proposals WHERE user_id = v_one AND request_key = 'card-key-00000001') <> 1
-     OR (SELECT decided_at FROM public.period_card_proposals WHERE id = v_p1) IS NULL
-     OR EXISTS (SELECT 1 FROM public.star_tier_history WHERE user_id = v_one AND star_id = 'seven:school') THEN
-    RAISE EXCEPTION 'decline did not leave one decided row and no L5: %', v_result;
-  END IF;
-  v_result := public.decide_period_card(v_p1, v_sha1, 'declined');
-  IF v_result ->> 'status' <> 'declined' THEN RAISE EXCEPTION 'a repeated decline changed the result: %', v_result; END IF;
-  BEGIN
-    PERFORM public.decide_period_card(v_p1, v_sha1, 'ratified');
-    RAISE EXCEPTION 'a declined card was ratified';
-  EXCEPTION WHEN raise_exception THEN
-    IF SQLERRM <> 'invalid_period_card' THEN RAISE; END IF;
-  END;
-
-  -- Ratify writes seven:<star> L5 once, by the server; a second ratified card supersedes the first.
-  PERFORM set_config('request.jwt.claims', '', true);
-  PERFORM set_config('request.jwt.claim.role', 'service_role', true);
-  v_result := public.record_period_card_proposal(v_one, pg_temp.aid('93'), 'claude', 'school', 'card-key-00000004',
-    '그때의 나는 창가를 좋아했다', NULL, v_sent, ARRAY[v_t2], 2);
-  v_p2 := (v_result ->> 'proposal_id')::uuid; v_sha2 := v_result ->> 'content_sha';
-  PERFORM set_config('request.jwt.claim.role', '', true);
-  PERFORM set_config('request.jwt.claims', '{"role":"authenticated","sub":"25000000-0000-4000-8000-000000000001"}', true);
-  v_result := public.decide_period_card(v_p2, v_sha2, 'ratified');
-  IF v_result ->> 'status' <> 'ratified' OR (v_result ->> 'level')::integer <> 5
-     OR (v_result ->> 'was_l5_before')::boolean
-     OR (SELECT count(*) FROM public.star_tier_history
-          WHERE user_id = v_one AND star_id = 'seven:school' AND level = 5 AND evidence_origin = 'ratify'
-            AND evidence_citations = ARRAY[v_t2]) <> 1 THEN
-    RAISE EXCEPTION 'ratify did not write one seven:school L5 row: %', v_result;
-  END IF;
-  PERFORM set_config('request.jwt.claims', '', true);
-  PERFORM set_config('request.jwt.claim.role', 'service_role', true);
-  v_result := public.record_period_card_proposal(v_one, pg_temp.aid('94'), 'claude', 'school', 'card-key-00000005',
-    '그때의 나는 친구가 든든했다', NULL, v_sent, ARRAY[v_t2], 5);
-  v_p3 := (v_result ->> 'proposal_id')::uuid; v_sha3 := v_result ->> 'content_sha';
-  PERFORM set_config('request.jwt.claim.role', '', true);
-  PERFORM set_config('request.jwt.claims', '{"role":"authenticated","sub":"25000000-0000-4000-8000-000000000001"}', true);
-  v_result := public.decide_period_card(v_p3, v_sha3, 'ratified');
-  IF NOT (v_result ->> 'was_l5_before')::boolean
-     OR (SELECT superseded_by FROM public.period_card_proposals WHERE id = v_p2) <> v_p3
-     OR (SELECT count(*) FROM public.period_card_proposals
-          WHERE user_id = v_one AND star_id = 'school' AND status = 'ratified' AND superseded_by IS NULL) <> 1 THEN
-    RAISE EXCEPTION 'a second ratified card did not supersede the first: %', v_result;
-  END IF;
-  -- Missed: the user's own words, one row.
-  PERFORM set_config('request.jwt.claims', '', true);
-  PERFORM set_config('request.jwt.claim.role', 'service_role', true);
-  v_result := public.record_period_card_proposal(v_one, pg_temp.aid('95'), 'openai', 'school', 'card-key-00000006',
-    '그때의 나는 혼자였다', NULL, v_sent, ARRAY[v_t2], 5);
-  v_p4 := (v_result ->> 'proposal_id')::uuid; v_sha4 := v_result ->> 'content_sha';
-  PERFORM set_config('request.jwt.claim.role', '', true);
-  PERFORM set_config('request.jwt.claims', '{"role":"authenticated","sub":"25000000-0000-4000-8000-000000000001"}', true);
-  v_result := public.decide_period_card(v_p4, v_sha4, 'missed', '혼자는 아니었어요', false);
-  IF v_result ->> 'status' <> 'missed'
-     OR (SELECT miss_text FROM public.period_card_proposals WHERE id = v_p4) <> '혼자는 아니었어요' THEN
-    RAISE EXCEPTION 'missed was not stored on the same row: %', v_result;
-  END IF;
-
-  -- D6-07: a ratified card cannot be deleted directly by the owner (its chain and L5 row would break);
-  -- a decided non-ratified row still can (content erasure reaches it as client_erasable).
-  SET LOCAL ROLE authenticated;
-  BEGIN
-    DELETE FROM public.period_card_proposals WHERE id = v_p3;
-    RAISE EXCEPTION 'D6-07: the owner deleted a ratified card directly';
-  EXCEPTION WHEN insufficient_privilege THEN NULL;
-  END;
-  RESET ROLE;
-
-  -- D6-53: a third ratified card makes the chain p2 -> p3 -> p5. Deleting the middle card relinks p2 to p5
-  -- instead of letting ON DELETE SET NULL make p2 current next to p5, and takes p3's own L5 row with it.
-  PERFORM set_config('request.jwt.claims', '', true);
-  PERFORM set_config('request.jwt.claim.role', 'service_role', true);
-  v_result := public.record_period_card_proposal(v_one, pg_temp.aid('96'), 'openai', 'school', 'card-key-00000007',
-    '그때의 나는 운동장을 좋아했다', NULL, v_sent, ARRAY[v_t2], 5);
-  v_p5 := (v_result ->> 'proposal_id')::uuid; v_sha5 := v_result ->> 'content_sha';
-  PERFORM set_config('request.jwt.claim.role', '', true);
-  PERFORM set_config('request.jwt.claims', '{"role":"authenticated","sub":"25000000-0000-4000-8000-000000000001"}', true);
-  PERFORM public.decide_period_card(v_p5, v_sha5, 'ratified');
-  IF (SELECT superseded_by FROM public.period_card_proposals WHERE id = v_p3) IS DISTINCT FROM v_p5
-     OR (SELECT count(*) FROM public.star_tier_history
-          WHERE user_id = v_one AND star_id = 'seven:school' AND evidence_origin = 'ratify') <> 3 THEN
-    RAISE EXCEPTION 'D6-53 setup: the chain p2 -> p3 -> p5 with three L5 rows was not built';
-  END IF;
-  PERFORM set_config('request.jwt.claims', '{"role":"authenticated","sub":"25000000-0000-4000-8000-000000000002"}', true);
-  v_result := public.delete_period_card(v_p3);
-  IF v_result ->> 'status' <> 'not_found' OR NOT EXISTS (SELECT 1 FROM public.period_card_proposals WHERE id = v_p3) THEN
-    RAISE EXCEPTION 'another user deleted the card: %', v_result;
-  END IF;
-  PERFORM set_config('request.jwt.claims', '{"role":"authenticated","sub":"25000000-0000-4000-8000-000000000001"}', true);
-  v_result := public.delete_period_card(v_p3);
-  IF v_result ->> 'status' <> 'deleted' OR (v_result ->> 'was_current')::boolean
-     OR EXISTS (SELECT 1 FROM public.period_card_proposals WHERE id = v_p3)
-     OR (SELECT superseded_by FROM public.period_card_proposals WHERE id = v_p2) IS DISTINCT FROM v_p5
-     OR (SELECT count(*) FROM public.period_card_proposals
-          WHERE user_id = v_one AND star_id = 'school' AND status = 'ratified' AND superseded_by IS NULL) <> 1
-     OR (SELECT count(*) FROM public.star_tier_history
-          WHERE user_id = v_one AND star_id = 'seven:school' AND evidence_origin = 'ratify') <> 2 THEN
-    RAISE EXCEPTION 'D6-53: deleting the middle card broke the chain or kept its L5 row: %', v_result;
-  END IF;
-  -- Deleting the current card brings the previous ratified card back as current (its own L5 row stays).
-  v_result := public.delete_period_card(v_p5);
-  IF v_result ->> 'status' <> 'deleted' OR NOT (v_result ->> 'was_current')::boolean
-     OR (SELECT superseded_by FROM public.period_card_proposals WHERE id = v_p2) IS NOT NULL
-     OR (SELECT count(*) FROM public.star_tier_history
-          WHERE user_id = v_one AND star_id = 'seven:school' AND evidence_origin = 'ratify') <> 1 THEN
-    RAISE EXCEPTION 'D6-07: deleting the current card did not restore the previous one: %', v_result;
-  END IF;
-  -- A decided, non-ratified row has no chain or L5 row: the owner may delete it directly.
-  PERFORM set_config('request.jwt.claims', '', true);
-  PERFORM set_config('request.jwt.claim.role', 'service_role', true);
-  v_result := public.record_period_card_proposal(v_one, pg_temp.aid('96'), 'openai', 'school', 'card-key-00000008',
-    '그때의 나는 지울 제안이다', NULL, v_sent, ARRAY[v_t2], 5);
-  v_p5 := (v_result ->> 'proposal_id')::uuid; v_sha5 := v_result ->> 'content_sha';
-  PERFORM set_config('request.jwt.claim.role', '', true);
-  PERFORM set_config('request.jwt.claims', '{"role":"authenticated","sub":"25000000-0000-4000-8000-000000000001"}', true);
-  PERFORM public.decide_period_card(v_p5, v_sha5, 'declined');
-  SET LOCAL ROLE authenticated;
-  DELETE FROM public.period_card_proposals WHERE id = v_p5;
-  RESET ROLE;
-  IF EXISTS (SELECT 1 FROM public.period_card_proposals WHERE id = v_p5) THEN
-    RAISE EXCEPTION 'D6-07: the owner could not delete a declined card';
-  END IF;
-  PERFORM set_config('request.jwt.claims', '', true);
-END
-$cards$;
-
 -- 5. Response block ids: ids only, against a real audit row (T-09 contract).
 DO $blocks$
 DECLARE
@@ -806,14 +577,14 @@ DECLARE
 BEGIN
   PERFORM set_config('request.jwt.claim.role', 'authenticated', true);
   BEGIN
-    PERFORM public.record_context_blocks(v_audit, 'secondb_chat', 'r1', ARRAY['record:abc'], NULL);
+    PERFORM public.record_context_blocks(v_audit, 'secondb_chat', 'r1', ARRAY['wiki:abc'], NULL);
     RAISE EXCEPTION 'an authenticated caller recorded block ids';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
   PERFORM set_config('request.jwt.claim.role', 'service_role', true);
-  IF public.record_context_blocks(v_audit, 'secondb_chat', 'r1', ARRAY['record:abc', 'wiki:page-1'], ARRAY['wiki:page-1']) <> 'recorded'
-     OR public.record_context_blocks(v_audit, 'secondb_chat', 'r1', ARRAY['record:abc'], NULL) <> 'duplicate'
-     OR public.record_context_blocks(gen_random_uuid(), 'secondb_chat', 'r1', ARRAY['record:abc'], NULL) <> 'no_audit'
+  IF public.record_context_blocks(v_audit, 'secondb_chat', 'r1', ARRAY['wiki:abc', 'wiki:page-1'], ARRAY['wiki:page-1']) <> 'recorded'
+     OR public.record_context_blocks(v_audit, 'secondb_chat', 'r1', ARRAY['wiki:abc'], NULL) <> 'duplicate'
+     OR public.record_context_blocks(gen_random_uuid(), 'secondb_chat', 'r1', ARRAY['wiki:abc'], NULL) <> 'no_audit'
      OR public.record_context_blocks(v_audit, 'secondb_chat', 'r1', ARRAY['the user said hello'], NULL) <> 'rejected' THEN
     RAISE EXCEPTION 'record_context_blocks did not keep to ids only';
   END IF;
@@ -823,7 +594,7 @@ BEGIN
   -- D6-05: the row carries the audit row's user; an audit row whose user is gone writes nothing.
   IF (SELECT user_id FROM public.ai_audit_context_blocks WHERE audit_id = v_audit)
        IS DISTINCT FROM '25000000-0000-4000-8000-000000000001'::uuid
-     OR public.record_context_blocks(pg_temp.aid('c9'), 'secondb_chat', 'r1', ARRAY['record:abc'], NULL) <> 'no_account'
+     OR public.record_context_blocks(pg_temp.aid('c9'), 'secondb_chat', 'r1', ARRAY['wiki:abc'], NULL) <> 'no_account'
      OR EXISTS (SELECT 1 FROM public.ai_audit_context_blocks WHERE audit_id = pg_temp.aid('c9')) THEN
     RAISE EXCEPTION 'D6-05: a context row is not bound to a live user';
   END IF;
@@ -837,14 +608,13 @@ BEGIN
 END
 $blocks$;
 
--- 5b. D6-04: the three service writers take the 0192 shared lock and stop at the deletion tombstone.
--- D6-51: deleting an interview record takes the same 'period_card:' lock as ratify. User three has
+-- 5b. D6-04: both service writers take the 0192 shared lock and stop at the deletion tombstone.
+-- User three has
 -- touched nothing in this transaction, so each lock is observed fresh (and dropped with its subtransaction).
 DO $fence$
 DECLARE
   v_three constant uuid := '25000000-0000-4000-8000-000000000003';
   v_fence bigint := pg_catalog.hashtextextended('25000000-0000-4000-8000-000000000003', 260913);
-  v_card_lock bigint := pg_catalog.hashtext('period_card:25000000-0000-4000-8000-000000000003');
   v_rec constant uuid := '25000000-0000-4000-8000-0000000000e9';
   v_writer text;
   v_held boolean;
@@ -854,7 +624,7 @@ BEGIN
   VALUES (v_rec, v_three, 'audit_response', E'질문: q\n\n답변: a', 'now', ARRAY['interview'],
           'interview:25000000-0000-4000-8000-0000000000a9');
   PERFORM set_config('request.jwt.claim.role', 'service_role', true);
-  FOREACH v_writer IN ARRAY ARRAY['verdict', 'proposal', 'blocks'] LOOP
+  FOREACH v_writer IN ARRAY ARRAY['verdict', 'blocks'] LOOP
     IF pg_temp.holds_advisory(v_fence, 'ShareLock') THEN
       RAISE EXCEPTION 'D6-04 setup: the fence lock is already held before %', v_writer;
     END IF;
@@ -863,10 +633,6 @@ BEGIN
         WHEN 'verdict' THEN
           PERFORM public.record_interview_probe_verdict(v_three, pg_temp.aid('cb'), gen_random_uuid(), 'now', 'ko',
             1, 1, 2, 'fact', 'seed', 'pass', 'fact', 'credited', true, 'r0', 'openai', false, 0, 3, NULL);
-        WHEN 'proposal' THEN
-          PERFORM public.record_period_card_proposal(v_three, pg_temp.aid('cc'), 'openai', 'now', 'card-key-three-01',
-            '셋', NULL, '[{"ref":"record:25000000-0000-4000-8000-0000000000e9#t2","len":1,"sha256":"00"}]'::jsonb,
-            ARRAY['record:25000000-0000-4000-8000-0000000000e9#t2'], 2);
         ELSE
           PERFORM public.record_context_blocks(pg_temp.aid('ca'), 'secondb_chat', 'r1', ARRAY['wiki:x'], NULL);
       END CASE;
@@ -881,31 +647,15 @@ BEGIN
   END LOOP;
   PERFORM set_config('request.jwt.claim.role', '', true);
 
-  BEGIN
-    DELETE FROM public.records WHERE id = v_rec;
-    v_held := pg_temp.holds_advisory(v_card_lock, 'ExclusiveLock');
-    RAISE EXCEPTION 'card-lock-probe';
-  EXCEPTION WHEN raise_exception THEN
-    IF SQLERRM <> 'card-lock-probe' THEN RAISE; END IF;
-  END;
-  IF NOT v_held THEN
-    RAISE EXCEPTION 'D6-51: deleting an interview record did not take the period_card lock';
-  END IF;
-
-  -- With the tombstone in place, all three refuse and write nothing.
+  -- With the tombstone in place, both refuse and write nothing.
   INSERT INTO public.account_deletion_tombstones (user_id, session_id) VALUES (v_three, gen_random_uuid());
   PERFORM set_config('request.jwt.claim.role', 'service_role', true);
   v_result := public.record_interview_probe_verdict(v_three, pg_temp.aid('cb'), '25000000-0000-4000-8000-0000000000a9',
     'now', 'ko', 1, 1, 2, 'fact', 'seed', 'pass', 'fact', 'credited', true, 'r0', 'openai', false, 0, 3, NULL);
   IF v_result <> 'no_account' THEN RAISE EXCEPTION 'D6-04: the verdict writer ignored the tombstone: %', v_result; END IF;
-  v_result := public.record_period_card_proposal(v_three, pg_temp.aid('cc'), 'openai', 'now', 'card-key-three-02',
-    '셋', NULL, '[{"ref":"record:25000000-0000-4000-8000-0000000000e9#t2","len":1,"sha256":"00"}]'::jsonb,
-    ARRAY['record:25000000-0000-4000-8000-0000000000e9#t2'], 2) ->> 'reason';
-  IF v_result <> 'no_account' THEN RAISE EXCEPTION 'D6-04: the proposal writer ignored the tombstone: %', v_result; END IF;
   v_result := public.record_context_blocks(pg_temp.aid('ca'), 'secondb_chat', 'r1', ARRAY['wiki:x'], NULL);
   IF v_result <> 'no_account' THEN RAISE EXCEPTION 'D6-04: the context writer ignored the tombstone: %', v_result; END IF;
   IF EXISTS (SELECT 1 FROM public.interview_sessions WHERE owner_id = v_three)
-     OR EXISTS (SELECT 1 FROM public.period_card_proposals WHERE user_id = v_three)
      OR EXISTS (SELECT 1 FROM public.ai_audit_context_blocks WHERE user_id = v_three) THEN
     RAISE EXCEPTION 'D6-04: a writer wrote for an account being deleted';
   END IF;
@@ -977,25 +727,15 @@ $hold$;
 
 -- 5d. D6-02 / D6-52: delete in the registry's content order - turns (28), transcript head (29), record (30).
 -- The verdict hashes go with the turns; the hash of the call the session refused goes with the record.
--- D6-53: the record is cited only by the middle card of p2 -> Y -> Z, and deleting it relinks p2 to Z.
 DO $erase_order$
 DECLARE
   v_one constant uuid := '25000000-0000-4000-8000-000000000001';
   v_s5 constant uuid := '25000000-0000-4000-8000-0000000000a5';
   v_r5 constant uuid := '25000000-0000-4000-8000-0000000000e3';
-  v_r1_t2 text := 'record:25000000-0000-4000-8000-0000000000e1#t2';
-  v_r5_t2 text := 'record:25000000-0000-4000-8000-0000000000e3#t2';
   v_turns jsonb := pg_temp.four_turns('운동장이 넓었어요', '신났어요');
   v_status text;
   v_result jsonb;
-  v_p2 uuid;
-  v_y uuid; v_y_sha text;
-  v_z uuid; v_z_sha text;
 BEGIN
-  SELECT id INTO v_p2 FROM public.period_card_proposals
-   WHERE user_id = v_one AND star_id = 'school' AND status = 'ratified' AND superseded_by IS NULL;
-  IF v_p2 IS NULL THEN RAISE EXCEPTION 'D6-53 setup: no current school card after section 4'; END IF;
-
   PERFORM set_config('request.jwt.claim.role', 'service_role', true);
   PERFORM public.record_interview_probe_verdict(v_one, pg_temp.aid('da'), v_s5, 'school', 'ko',
     1, 1, 2, 'fact', 'seed', 'pass', 'meaning', 'other_layer', false, 'r0', 'openai', false, 0, 3,
@@ -1016,34 +756,6 @@ BEGIN
     RAISE EXCEPTION 'D6-02 setup: commit failed: %', v_result;
   END IF;
 
-  -- Y cites only the new record, Z only the old one: p2 -> Y -> Z.
-  PERFORM set_config('request.jwt.claims', '', true);
-  PERFORM set_config('request.jwt.claim.role', 'service_role', true);
-  v_result := public.record_period_card_proposal(v_one, pg_temp.aid('97'), 'openai', 'school', 'card-key-0000000y',
-    '그때의 나는 운동장에서 신났다', NULL,
-    jsonb_build_array(jsonb_build_object('ref', v_r5_t2, 'len', 3,
-      'sha256', encode(sha256(convert_to(left('운동장이 넓었어요', 3), 'UTF8')), 'hex'))),
-    ARRAY[v_r5_t2], 5);
-  v_y := (v_result ->> 'proposal_id')::uuid; v_y_sha := v_result ->> 'content_sha';
-  PERFORM set_config('request.jwt.claim.role', '', true);
-  PERFORM set_config('request.jwt.claims', '{"role":"authenticated","sub":"25000000-0000-4000-8000-000000000001"}', true);
-  PERFORM public.decide_period_card(v_y, v_y_sha, 'ratified');
-  PERFORM set_config('request.jwt.claims', '', true);
-  PERFORM set_config('request.jwt.claim.role', 'service_role', true);
-  v_result := public.record_period_card_proposal(v_one, pg_temp.aid('95'), 'openai', 'school', 'card-key-0000000z',
-    '그때의 나는 창가를 다시 찾았다', NULL,
-    jsonb_build_array(jsonb_build_object('ref', v_r1_t2, 'len', 4,
-      'sha256', encode(sha256(convert_to(left('창가 자리였어요', 4), 'UTF8')), 'hex'))),
-    ARRAY[v_r1_t2], 5);
-  v_z := (v_result ->> 'proposal_id')::uuid; v_z_sha := v_result ->> 'content_sha';
-  PERFORM set_config('request.jwt.claim.role', '', true);
-  PERFORM set_config('request.jwt.claims', '{"role":"authenticated","sub":"25000000-0000-4000-8000-000000000001"}', true);
-  PERFORM public.decide_period_card(v_z, v_z_sha, 'ratified');
-  IF (SELECT superseded_by FROM public.period_card_proposals WHERE id = v_p2) IS DISTINCT FROM v_y
-     OR (SELECT superseded_by FROM public.period_card_proposals WHERE id = v_y) IS DISTINCT FROM v_z THEN
-    RAISE EXCEPTION 'D6-53 setup: the chain p2 -> Y -> Z was not built';
-  END IF;
-
   -- The owner deletes the turns, then the head, then the record, as content erasure orders them.
   SET LOCAL ROLE authenticated;
   DELETE FROM public.interview_transcript_turns
@@ -1062,21 +774,11 @@ BEGIN
      OR EXISTS (SELECT 1 FROM public.interview_session_audit_ids WHERE session_id = v_s5) THEN
     RAISE EXCEPTION 'D6-02: content erasure in registry order left the session or an audit hash';
   END IF;
-  IF EXISTS (SELECT 1 FROM public.period_card_proposals WHERE id = v_y)
-     OR (SELECT superseded_by FROM public.period_card_proposals WHERE id = v_p2) IS DISTINCT FROM v_z
-     OR (SELECT count(*) FROM public.period_card_proposals
-          WHERE user_id = v_one AND star_id = 'school' AND status = 'ratified' AND superseded_by IS NULL) <> 1
-     OR EXISTS (SELECT 1 FROM public.star_tier_history AS h
-                 WHERE h.user_id = v_one AND h.star_id = 'seven:school' AND v_r5_t2 = ANY (h.evidence_citations))
-     OR (SELECT count(*) FROM public.star_tier_history
-          WHERE user_id = v_one AND star_id = 'seven:school' AND evidence_origin = 'ratify') <> 2 THEN
-    RAISE EXCEPTION 'D6-53: deleting the record behind the middle card broke the chain or kept its L5';
-  END IF;
   PERFORM set_config('request.jwt.claims', '', true);
 END
 $erase_order$;
 
--- 6. Deleting the saved record folds the session, erases its audit hashes, and takes the cards and L5 that cite it (D5, Q5).
+-- 6. Deleting the saved record folds the session, erases its audit hashes (D5).
 DELETE FROM public.records WHERE id = '25000000-0000-4000-8000-0000000000e1';
 DO $record_erasure$
 DECLARE
@@ -1107,10 +809,6 @@ BEGIN
                   WHERE period = 'school' AND outcome = 'deleted_after_save' AND end_reason = 'complete' AND sessions = 1) THEN
     RAISE EXCEPTION 'the deleted record was not folded into the rollup';
   END IF;
-  IF EXISTS (SELECT 1 FROM public.period_card_proposals WHERE user_id = v_one AND status = 'ratified')
-     OR EXISTS (SELECT 1 FROM public.star_tier_history WHERE user_id = v_one AND star_id = 'seven:school') THEN
-    RAISE EXCEPTION 'cards or L5 rows citing the deleted record survived';
-  END IF;
   IF NOT EXISTS (SELECT 1 FROM public.interview_coverage WHERE user_id = v_one AND period = 'school' AND layer = 'fact' AND answers = 6) THEN
     RAISE EXCEPTION 'deleting the record changed the coverage cells';
   END IF;
@@ -1136,20 +834,18 @@ BEGIN
 END
 $coverage$;
 
--- 8. Retention: open proposals expire at 30 days, decided non-ratified rows go at 365, the rollup at 730, block ids at 90.
+-- 8. Retention: rollup at 730 days, block ids at 90, session tombstones at 7.
 DO $prune$
 DECLARE
   v_result jsonb;
 BEGIN
-  UPDATE public.period_card_proposals SET created_at = now() - INTERVAL '400 days', decided_at = now() - INTERVAL '400 days'
-   WHERE status IN ('declined', 'missed');
   UPDATE public.ai_audit_context_blocks SET created_at = now() - INTERVAL '91 days'
    WHERE audit_id = '25000000-0000-4000-8000-0000000000c8';
   UPDATE public.interview_session_tombstones SET created_at = now() - INTERVAL '8 days'
    WHERE session_id = '25000000-0000-4000-8000-0000000000a2';
   PERFORM set_config('request.jwt.claim.role', 'service_role', true);
   v_result := public.prune_interview_ledgers();
-  IF (v_result ->> 'proposals_deleted')::integer < 2 OR (v_result ->> 'blocks_deleted')::integer <> 1
+  IF (v_result ->> 'blocks_deleted')::integer <> 1
      OR (v_result ->> 'tombstones_deleted')::integer <> 1
      OR EXISTS (SELECT 1 FROM public.interview_session_tombstones WHERE session_id = '25000000-0000-4000-8000-0000000000a2') THEN
     RAISE EXCEPTION 'prune did not remove the aged rows: %', v_result;
@@ -1158,14 +854,308 @@ BEGIN
 END
 $prune$;
 
+-- Gate round 2. These helpers keep audit ownership and the fixed r0 payload explicit.
+CREATE FUNCTION pg_temp.r2_audit(p_user uuid, p_purpose text DEFAULT 'interview_probe') RETURNS uuid
+LANGUAGE plpgsql AS $$
+DECLARE v_id uuid := gen_random_uuid();
+BEGIN
+  INSERT INTO public.ai_audit_log(id,user_id,prompt_hash,output_hash,model_used,vertex_backend,safety_zone,
+    latency_ms,purpose,event_source)
+  VALUES(v_id,p_user,'prompt','output','test-model',false,'green',1,p_purpose,'server_verified');
+  RETURN v_id;
+END $$;
+CREATE FUNCTION pg_temp.r2_probe(p_user uuid,p_audit uuid,p_session uuid,p_turn integer DEFAULT 2) RETURNS text
+LANGUAGE sql AS $$
+  SELECT public.record_interview_probe_verdict(p_user,p_audit,p_session,'now','ko',1,1,p_turn,
+    'fact','seed','pass','fact','credited',true,'r0','openai',false,0,3,NULL)
+$$;
+CREATE FUNCTION pg_temp.r2_role(p_user uuid DEFAULT NULL) RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM set_config('request.jwt.claim.sub', COALESCE(p_user::text,''), true);
+  PERFORM set_config('request.jwt.claim.role', CASE WHEN p_user IS NULL THEN 'service_role' ELSE 'authenticated' END, true);
+END $$;
+
+-- R2 D6-01/52/05: all first writers use the same session key, including discard before a row exists.
+DO $r2_session_lifecycle$
+DECLARE
+  v_user uuid := '25000000-0000-4000-8000-000000000001';
+  v_s uuid; v_r uuid; v_a uuid; v_mode integer; v_starts bigint; v_cells bigint;
+  v_turns jsonb := pg_temp.four_turns('기억 하나','기억 둘');
+  v_result jsonb;
+BEGIN
+  FOR v_mode IN 1..3 LOOP
+    v_s := gen_random_uuid(); v_r := gen_random_uuid();
+    IF v_mode > 1 THEN
+      PERFORM pg_temp.r2_role();
+      v_a := pg_temp.r2_audit(v_user);
+      IF pg_temp.r2_probe(v_user,v_a,v_s) <> 'recorded'
+         OR NOT pg_temp.holds_advisory(hashtextextended('interview_session:' || v_s::text,0),'ExclusiveLock') THEN
+        RAISE EXCEPTION 'R2 D6-01: first verdict omitted the session key lock';
+      END IF;
+    END IF;
+    INSERT INTO public.records(id,user_id,kind,body,audit_period,system_tags,client_request_id)
+    VALUES(v_r,v_user,'audit_response',public.interview_transcript_body('ko',v_turns),'now',ARRAY['interview'],'interview:'||v_s::text);
+    PERFORM pg_temp.r2_role(v_user);
+    IF v_mode = 3 THEN
+      v_result := public.commit_interview_session(v_s,v_r,v_turns);
+      IF v_result->>'status' <> 'committed' THEN RAISE EXCEPTION 'R2 D6-01 setup: %',v_result; END IF;
+      IF public.discard_interview_session(v_s) <> 'already_committed' THEN
+        RAISE EXCEPTION 'R2 D6-01: discard removed a committed session';
+      END IF;
+      DELETE FROM public.records WHERE id=v_r;
+      -- Even a replacement record with the old request key cannot resurrect its erased session.
+      v_r := gen_random_uuid();
+      INSERT INTO public.records(id,user_id,kind,body,audit_period,system_tags,client_request_id)
+      VALUES(v_r,v_user,'audit_response',public.interview_transcript_body('ko',v_turns),'now',ARRAY['interview'],'interview:'||v_s::text);
+    ELSE
+      IF public.discard_interview_session(v_s) <> 'discarded' THEN RAISE EXCEPTION 'R2 D6-52: discard failed'; END IF;
+    END IF;
+    IF NOT EXISTS(SELECT 1 FROM public.interview_session_tombstones WHERE session_id=v_s)
+       OR NOT pg_temp.holds_advisory(hashtextextended('interview_session:'||v_s::text,0),'ExclusiveLock') THEN
+      RAISE EXCEPTION 'R2 D6-52: discard before first writer did not tombstone under the session key';
+    END IF;
+    SELECT COALESCE(sum(created),0) INTO v_starts FROM public.interview_session_starts WHERE owner_id=v_user;
+    SELECT COALESCE(sum(answers),0) INTO v_cells FROM public.interview_coverage WHERE user_id=v_user;
+    v_result := public.commit_interview_session(v_s,v_r,v_turns);
+    IF v_result->>'status' <> 'session_closed' THEN RAISE EXCEPTION 'R2 D6-01: commit revived a folded session: %',v_result; END IF;
+    PERFORM pg_temp.r2_role();
+    v_a := pg_temp.r2_audit(v_user);
+    IF pg_temp.r2_probe(v_user,v_a,v_s) <> 'session_closed' THEN RAISE EXCEPTION 'R2 D6-52: late first verdict revived discard'; END IF;
+    IF EXISTS(SELECT 1 FROM public.interview_sessions WHERE id=v_s)
+       OR EXISTS(SELECT 1 FROM public.interview_transcripts WHERE session_id=v_s)
+       OR EXISTS(SELECT 1 FROM public.interview_probe_verdicts WHERE session_id=v_s)
+       OR (SELECT sum(created) FROM public.interview_session_starts WHERE owner_id=v_user) IS DISTINCT FROM v_starts
+       OR (SELECT sum(answers) FROM public.interview_coverage WHERE user_id=v_user) IS DISTINCT FROM v_cells
+       OR NOT EXISTS(SELECT 1 FROM public.ai_audit_log WHERE id=v_a AND prompt_hash='' AND output_hash='') THEN
+      RAISE EXCEPTION 'R2 D6-01/52: a folded id regained rows, cells, starts or audit hashes';
+    END IF;
+  END LOOP;
+  PERFORM pg_temp.r2_role(NULL);
+  PERFORM set_config('request.jwt.claim.role','',true);
+END $r2_session_lifecycle$;
+
+-- R2 D6-03/09: a closed session cannot acquire a new turn; an audit id cannot migrate to another session.
+DO $r2_closed_and_audit$
+DECLARE
+  v_user uuid := '25000000-0000-4000-8000-000000000001';
+  v_s uuid := gen_random_uuid(); v_other uuid := gen_random_uuid();
+  v_a uuid := pg_temp.r2_audit(v_user); v_late uuid := pg_temp.r2_audit(v_user);
+  v_status text;
+BEGIN
+  PERFORM pg_temp.r2_role();
+  IF pg_temp.r2_probe(v_user,v_a,v_s) <> 'recorded' THEN RAISE EXCEPTION 'R2 setup: first probe'; END IF;
+  IF pg_temp.r2_probe(v_user,v_a,v_s) <> 'duplicate' THEN RAISE EXCEPTION 'R2 D6-09: same-session retry lost idempotence'; END IF;
+  IF pg_temp.r2_probe(v_user,v_a,v_other) <> 'audit_mismatch'
+     OR EXISTS(SELECT 1 FROM public.interview_sessions WHERE id=v_other) THEN
+    RAISE EXCEPTION 'R2 D6-09: bound audit id reused in a different session';
+  END IF;
+  PERFORM pg_temp.r2_role(v_user);
+  PERFORM public.close_interview_session(v_s,'now','ko','user_end',0,0);
+  PERFORM pg_temp.r2_role();
+  v_status := pg_temp.r2_probe(v_user,v_late,v_s,4);
+  IF v_status <> 'session_closed'
+     OR EXISTS(SELECT 1 FROM public.interview_probe_verdicts WHERE session_id=v_s AND turn_no=4)
+     OR NOT EXISTS(SELECT 1 FROM public.interview_session_audit_ids WHERE session_id=v_s AND audit_id=v_late) THEN
+    RAISE EXCEPTION 'R2 D6-03: unseen turn appended after session close';
+  END IF;
+  PERFORM pg_temp.r2_role(v_user);
+  PERFORM public.discard_interview_session(v_s);
+  PERFORM pg_temp.r2_role();
+  IF pg_temp.r2_probe(v_user,v_a,v_other) <> 'audit_mismatch'
+     OR pg_temp.r2_probe(v_user,v_late,v_other) <> 'audit_mismatch'
+     OR EXISTS(SELECT 1 FROM public.interview_sessions WHERE id=v_other) THEN
+    RAISE EXCEPTION 'R2 D6-09: erased audit id was recycled';
+  END IF;
+  PERFORM set_config('request.jwt.claim.role','',true);
+END $r2_closed_and_audit$;
+
+-- R2 D6-02/51: check both selection and snapshot, with one eligible record and both kinds of hold.
+DO $r2_polaris_hold$
+DECLARE
+  v_user uuid := '25000000-0000-4000-8000-000000000001';
+  v_r uuid := gen_random_uuid(); v_result jsonb; v_evidence jsonb; v_hold uuid;
+BEGIN
+  INSERT INTO public.records(id,user_id,kind,body,audit_period,system_tags,created_at)
+  VALUES(v_r,v_user,'audit_response','허용할 근거','now',ARRAY['interview'],now()+INTERVAL '1 second');
+  PERFORM pg_temp.r2_role(v_user);
+  BEGIN
+    UPDATE public.polaris_generation_config SET enabled=true;
+    v_result := public.reserve_polaris_generation(v_user,'r2-hold-selection');
+    SELECT evidence INTO v_evidence FROM public.polaris_generations WHERE id=(v_result->>'generation_id')::uuid;
+    IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(v_evidence) AS e WHERE e->>'id'=v_r::text)
+       OR EXISTS(SELECT 1 FROM jsonb_array_elements(v_evidence) AS e
+                   JOIN public.interview_transcripts t ON t.record_id::text=e->>'id' WHERE t.ai_hold) THEN
+      RAISE EXCEPTION 'R2 D6-02: reserve selected hold evidence or lost eligible evidence';
+    END IF;
+    IF jsonb_array_length(public.polaris_evidence_snapshot(v_user,v_evidence)) <> jsonb_array_length(v_evidence) THEN
+      RAISE EXCEPTION 'R2 D6-51: eligible snapshot changed';
+    END IF;
+    RAISE EXCEPTION 'r2-polaris-probe-done';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> 'r2-polaris-probe-done' THEN RAISE; END IF;
+  END;
+  FOR v_hold IN SELECT record_id FROM public.interview_transcripts WHERE user_id=v_user AND ai_hold LOOP
+    SELECT jsonb_build_array(jsonb_build_object('id',r.id,'domain',r.audit_period,
+      'body_hash',encode(sha256(convert_to(r.body,'UTF8')),'hex'))) INTO v_evidence FROM public.records r WHERE r.id=v_hold;
+    BEGIN
+      PERFORM public.polaris_evidence_snapshot(v_user,v_evidence);
+      RAISE EXCEPTION 'R2 D6-51: snapshot returned hold evidence';
+    EXCEPTION WHEN raise_exception THEN
+      IF SQLERRM <> 'polaris_evidence_changed' THEN RAISE; END IF;
+    END;
+  END LOOP;
+  IF (SELECT count(*) FROM public.interview_transcripts WHERE user_id=v_user AND ai_hold) <> 2 THEN
+    RAISE EXCEPTION 'R2 D6-51 setup: both server and screen hold fixtures required';
+  END IF;
+  IF has_function_privilege('anon','public.reserve_polaris_generation(uuid,text)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','public.reserve_polaris_generation(uuid,text)','EXECUTE')
+     OR has_function_privilege('service_role','public.polaris_evidence_snapshot(uuid,jsonb)','EXECUTE')
+     OR has_function_privilege('authenticated','public.polaris_evidence_snapshot(uuid,jsonb)','EXECUTE')
+     OR has_function_privilege('anon','public.polaris_evidence_snapshot(uuid,jsonb)','EXECUTE') THEN
+    RAISE EXCEPTION 'R2 D6-02: Polaris grants drifted from 0195';
+  END IF;
+  PERFORM pg_temp.r2_role();
+  PERFORM set_config('request.jwt.claim.role','',true);
+END $r2_polaris_hold$;
+
+-- R2 D6-53: missing/foreign references and a writer arriving after DELETE are rejected atomically.
+DO $r2_context_erasure$
+DECLARE
+  v_user uuid := '25000000-0000-4000-8000-000000000001';
+  v_r uuid := gen_random_uuid(); v_foreign uuid := gen_random_uuid();
+  v_a uuid := pg_temp.r2_audit(v_user,'secondb_chat'); v_b uuid := pg_temp.r2_audit(v_user,'secondb_chat');
+BEGIN
+  INSERT INTO public.records(id,user_id,kind,body) VALUES
+    (v_r,v_user,'note','record for context'),
+    (v_foreign,'25000000-0000-4000-8000-000000000002','note','other owner');
+  PERFORM pg_temp.r2_role();
+  IF public.record_context_blocks(v_a,'secondb_chat','r1',ARRAY['record:'||v_r::text||'#t2'],NULL) <> 'recorded' THEN
+    RAISE EXCEPTION 'R2 D6-53: an owned existing record was rejected';
+  END IF;
+  IF public.record_context_blocks(v_b,'secondb_chat','r1',ARRAY['record:'||v_r::text,'record:'||v_foreign::text],NULL) <> 'record_mismatch'
+     OR EXISTS(SELECT 1 FROM public.ai_audit_context_blocks WHERE audit_id=v_b) THEN
+    RAISE EXCEPTION 'R2 D6-53: a foreign record reference was stored';
+  END IF;
+  DELETE FROM public.records WHERE id=v_r;
+  IF EXISTS(SELECT 1 FROM public.ai_audit_context_blocks WHERE audit_id=v_a)
+     OR public.record_context_blocks(v_a,'secondb_chat','r1',ARRAY['record:'||v_r::text],NULL) <> 'record_mismatch'
+     OR public.record_context_blocks(v_b,'secondb_chat','r1',ARRAY['wiki:ok','record:'||v_r::text||'#t2'],NULL) <> 'record_mismatch'
+     OR EXISTS(SELECT 1 FROM public.ai_audit_context_blocks WHERE audit_id IN(v_a,v_b)) THEN
+    RAISE EXCEPTION 'R2 D6-53: late context writer restored a deleted record id';
+  END IF;
+  PERFORM set_config('request.jwt.claim.role','',true);
+END $r2_context_erasure$;
+
+-- R2 D6-56: the oldest overlapping 10-minute bucket counts, the preceding one does not.
+DO $r2_bucket_boundary$
+DECLARE
+  v_user uuid := '25000000-0000-4000-8000-000000000002';
+  v_s uuid := gen_random_uuid();
+  v_boundary timestamptz := date_bin(INTERVAL '10 minutes',now()-INTERVAL '1 hour',TIMESTAMPTZ '2000-01-01 00:00:00+00');
+BEGIN
+  INSERT INTO public.interview_session_starts(owner_id,bucket_start,created) VALUES(v_user,v_boundary,30);
+  PERFORM pg_temp.r2_role(v_user);
+  IF public.close_interview_session(v_s,'now','ko','left',0,0) <> 'rate_limited'
+     OR EXISTS(SELECT 1 FROM public.interview_sessions WHERE id=v_s) THEN
+    RAISE EXCEPTION 'R2 D6-56: overlapping boundary bucket escaped the hourly cap';
+  END IF;
+  UPDATE public.interview_session_starts SET bucket_start=v_boundary-INTERVAL '10 minutes'
+   WHERE owner_id=v_user AND bucket_start=v_boundary;
+  IF public.close_interview_session(v_s,'now','ko','left',0,0) <> 'closed' THEN
+    RAISE EXCEPTION 'R2 D6-56: a non-overlapping bucket consumed the hourly cap';
+  END IF;
+  PERFORM public.discard_interview_session(v_s);
+  PERFORM pg_temp.r2_role();
+  PERFORM set_config('request.jwt.claim.role','',true);
+END $r2_bucket_boundary$;
+
+-- R2 D6-06/07/10: actual scheduling contract and registry receipt categories.
+DO $r2_contracts$
+DECLARE v_n integer;
+BEGIN
+  IF to_regprocedure('cron.schedule(text,text,text)') IS NULL THEN
+    IF current_setting('app.allow_missing_pg_cron',true) IS DISTINCT FROM 'on' THEN
+      RAISE EXCEPTION 'R2 D6-06: missing cron without explicit local opt-out';
+    END IF;
+  ELSE
+    EXECUTE 'SELECT count(*) FROM cron.job WHERE active AND username=current_user AND database=current_database()
+      AND (jobname,schedule,command) IN (
+      (''sweep-interview-sessions'',''23 * * * *'',''SELECT public.sweep_interview_sessions();''),
+      (''prune-interview-ledgers'',''41 18 * * *'',''SELECT public.prune_interview_ledgers();''))' INTO v_n;
+    IF v_n <> 2 THEN RAISE EXCEPTION 'R2 D6-06: cleanup job contract mismatch'; END IF;
+  END IF;
+  IF (SELECT count(*) FROM public.erasure_registry) <> 76 THEN RAISE EXCEPTION 'R2 D6-10: registry count differs from CI'; END IF;
+  IF (SELECT count(*) FROM public.erasure_registry WHERE table_name IN('interview_sessions','ai_audit_context_blocks')
+        AND class='client_erasable' AND cascades_from IS NULL) <> 2 THEN
+    RAISE EXCEPTION 'R2 D6-07: content-erased rows would be reported as kept';
+  END IF;
+  IF to_regclass('public.period_card_proposals') IS NOT NULL
+     OR to_regprocedure('public.decide_period_card(uuid,text,text,text,boolean)') IS NOT NULL THEN
+    RAISE EXCEPTION 'RD-261007-13: phase-two period cards remain in phase one';
+  END IF;
+END $r2_contracts$;
+
+-- R2 D6-07: direct owner deletion also clears refused-call hashes and blocks late writers.
+DO $r2_owner_delete$
+DECLARE
+  v_user uuid := '25000000-0000-4000-8000-000000000001';
+  v_s uuid := gen_random_uuid(); v_a uuid := pg_temp.r2_audit(v_user);
+BEGIN
+  PERFORM pg_temp.r2_role();
+  PERFORM pg_temp.r2_probe(v_user,v_a,v_s);
+  PERFORM pg_temp.r2_role(v_user);
+  SET LOCAL ROLE authenticated;
+  DELETE FROM public.interview_sessions WHERE id=v_s;
+  RESET ROLE;
+  IF EXISTS(SELECT 1 FROM public.interview_sessions WHERE id=v_s)
+     OR NOT EXISTS(SELECT 1 FROM public.ai_audit_log WHERE id=v_a AND prompt_hash='' AND output_hash='')
+     OR NOT EXISTS(SELECT 1 FROM public.interview_session_tombstones WHERE session_id=v_s) THEN
+    RAISE EXCEPTION 'R2 D6-07: owner session deletion left hashes or no tombstone';
+  END IF;
+  PERFORM pg_temp.r2_role();
+  PERFORM set_config('request.jwt.claim.role','',true);
+END $r2_owner_delete$;
+
+-- R2 D6-04: both FK cascade entry points erase hashes before audit.user_id becomes NULL.
+DO $r2_account_cascade$
+DECLARE
+  v_user uuid; v_s uuid; v_a uuid; v_refused uuid; v_path integer;
+BEGIN
+  FOR v_path IN REVERSE 2..1 LOOP
+    v_user:=gen_random_uuid(); v_s:=gen_random_uuid();
+    SET LOCAL session_replication_role=replica;
+    INSERT INTO auth.users(id,email) VALUES(v_user,'d6-cascade-'||v_path||'@example.com');
+    SET LOCAL session_replication_role=origin;
+    INSERT INTO public.users(id,email,birth_date,locale) VALUES(v_user,'d6-cascade-'||v_path||'@example.com',DATE '1990-01-01','ko');
+    v_a:=pg_temp.r2_audit(v_user); v_refused:=pg_temp.r2_audit(v_user);
+    PERFORM pg_temp.r2_role();
+    PERFORM pg_temp.r2_probe(v_user,v_a,v_s);
+    PERFORM pg_temp.r2_role(v_user);
+    PERFORM public.close_interview_session(v_s,'now','ko','left',0,0);
+    PERFORM pg_temp.r2_role();
+    IF pg_temp.r2_probe(v_user,v_refused,v_s,4) <> 'session_closed' THEN RAISE EXCEPTION 'R2 cascade setup'; END IF;
+    IF NOT EXISTS(SELECT 1 FROM public.ai_audit_log WHERE id=v_a AND prompt_hash<>'') THEN RAISE EXCEPTION 'R2 cascade setup: live hash required'; END IF;
+    PERFORM set_config('request.jwt.claim.role','',true);
+    IF v_path=1 THEN DELETE FROM auth.users WHERE id=v_user;
+    ELSE DELETE FROM public.users WHERE id=v_user; END IF;
+    IF (SELECT count(*) FROM public.ai_audit_log WHERE id IN(v_a,v_refused)
+         AND user_id IS NULL AND prompt_hash='' AND output_hash='') <> 2 THEN
+      RAISE EXCEPTION 'R2 D6-04: account cascade kept verdict/refused audit hashes (path %)',v_path;
+    END IF;
+  END LOOP;
+END $r2_account_cascade$;
+
 -- 9. Account deletion takes every owned interview row; the owner-less rollup stays.
 DELETE FROM auth.users WHERE id = '25000000-0000-4000-8000-000000000001';
 DO $cascade$
 BEGIN
   IF EXISTS (SELECT 1 FROM public.interview_sessions WHERE owner_id = '25000000-0000-4000-8000-000000000001')
-     OR EXISTS (SELECT 1 FROM public.interview_transcripts WHERE user_id = '25000000-0000-4000-8000-000000000001')
-     OR EXISTS (SELECT 1 FROM public.period_card_proposals WHERE user_id = '25000000-0000-4000-8000-000000000001') THEN
+     OR EXISTS (SELECT 1 FROM public.interview_transcripts WHERE user_id = '25000000-0000-4000-8000-000000000001') THEN
     RAISE EXCEPTION 'account deletion left owned interview rows behind';
+  END IF;
+  IF NOT pg_temp.hashes_erased(ARRAY['df','d8']) THEN
+    RAISE EXCEPTION 'R2 D6-04: saved-session account cascade kept audit hashes';
   END IF;
   -- D6-05: the context rows follow the account even though the audit rows they hang off are kept.
   IF EXISTS (SELECT 1 FROM public.ai_audit_context_blocks WHERE user_id = '25000000-0000-4000-8000-000000000001')

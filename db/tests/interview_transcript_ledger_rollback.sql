@@ -7,6 +7,7 @@
 -- Gate round 1: D6-06 = D6-61 (the old rollback dropped every cleanup path while keeping unsaved
 -- sessions and their audit hashes). Checked to FAIL against that old rollback.
 BEGIN;
+SET LOCAL app.allow_missing_pg_cron = 'on';
 
 SET LOCAL session_replication_role = replica;
 INSERT INTO auth.users (id, email) VALUES ('27000000-0000-4000-8000-000000000001', 'd6-rb@example.com');
@@ -17,9 +18,9 @@ INSERT INTO public.ai_audit_log (id, user_id, prompt_hash, output_hash, model_us
   latency_ms, purpose, event_source)
 SELECT ('27000000-0000-4000-8000-0000000000a' || n)::uuid, '27000000-0000-4000-8000-000000000001',
        'p' || n, 'o' || n, 'test-model', false, 'green', 1,
-       CASE n WHEN 6 THEN 'self_model_propose' WHEN 7 THEN 'secondb_chat' ELSE 'interview_probe' END,
+       CASE n WHEN 7 THEN 'secondb_chat' ELSE 'interview_probe' END,
        'server_verified'
-  FROM generate_series(1, 7) AS g(n);
+  FROM generate_series(1, 7) AS g(n) WHERE n <> 6;
 
 CREATE FUNCTION pg_temp.erased(p_n integer) RETURNS boolean LANGUAGE sql STABLE AS $$
   SELECT a.prompt_hash = '' AND a.output_hash = '' FROM public.ai_audit_log AS a
@@ -27,7 +28,7 @@ CREATE FUNCTION pg_temp.erased(p_n integer) RETURNS boolean LANGUAGE sql STABLE 
 $$;
 
 -- Fixture: U is unsaved (one verdict a1, one refused call a2). S is saved with record R (verdict a3, a call
--- after the save a4), a ratified card citing R, and a context row naming R.
+-- after the save a4), and a context row naming R.
 DO $fixture$
 DECLARE
   v_one constant uuid := '27000000-0000-4000-8000-000000000001';
@@ -64,21 +65,12 @@ BEGIN
        1, 2, 4, 'feeling', 'drill', 'pass', 'feeling', 'credited', true, 'r0', 'openai', false, 0, 3, NULL) <> 'session_committed' THEN
     RAISE EXCEPTION 'rollback fixture: expected session_committed';
   END IF;
-  v_result := public.record_period_card_proposal(v_one, '27000000-0000-4000-8000-0000000000a6', 'openai', 'school',
-    'rb-card-key-01', '그때의 나는 산 아래에 살았다', NULL,
-    jsonb_build_array(jsonb_build_object('ref', 'record:' || v_r::text || '#t2', 'len', 4,
-      'sha256', encode(sha256(convert_to(left('산 아래 마을이요', 4), 'UTF8')), 'hex'))),
-    ARRAY['record:' || v_r::text || '#t2'], 2);
   IF public.record_context_blocks('27000000-0000-4000-8000-0000000000a7', 'secondb_chat', 'r1',
        ARRAY['record:' || v_r::text, 'wiki:rb'], NULL) <> 'recorded' THEN
     RAISE EXCEPTION 'rollback fixture: context row';
   END IF;
   PERFORM set_config('request.jwt.claim.role', '', true);
   PERFORM set_config('request.jwt.claims', '{"role":"authenticated","sub":"27000000-0000-4000-8000-000000000001"}', true);
-  IF public.decide_period_card((v_result ->> 'proposal_id')::uuid, v_result ->> 'content_sha', 'ratified') ->> 'status'
-       <> 'ratified' THEN
-    RAISE EXCEPTION 'rollback fixture: ratify';
-  END IF;
   PERFORM set_config('request.jwt.claims', '', true);
 END
 $fixture$;
@@ -92,6 +84,15 @@ DO $after_rollback$
 DECLARE
   v_one constant uuid := '27000000-0000-4000-8000-000000000001';
 BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE oid IN (
+      'public.reserve_polaris_generation(uuid,text)'::regprocedure,
+      'public.polaris_evidence_snapshot(uuid,jsonb)'::regprocedure)
+      AND position('interview_transcripts' IN prosrc) > 0)
+     OR has_function_privilege('authenticated','public.polaris_evidence_snapshot(uuid,jsonb)','EXECUTE')
+     OR has_function_privilege('service_role','public.polaris_evidence_snapshot(uuid,jsonb)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','public.reserve_polaris_generation(uuid,text)','EXECUTE') THEN
+    RAISE EXCEPTION 'R2 D6-02: rollback did not restore 0218 evidence functions and 0195 grants';
+  END IF;
   IF EXISTS (SELECT 1 FROM public.interview_sessions WHERE id = '27000000-0000-4000-8000-000000000051')
      OR NOT EXISTS (SELECT 1 FROM public.interview_session_tombstones
                      WHERE session_id = '27000000-0000-4000-8000-000000000051')
@@ -101,14 +102,12 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.interview_sessions
                   WHERE id = '27000000-0000-4000-8000-000000000052' AND committed_at IS NOT NULL)
      OR NOT EXISTS (SELECT 1 FROM public.interview_transcripts WHERE record_id = '27000000-0000-4000-8000-0000000000e2')
-     OR NOT EXISTS (SELECT 1 FROM public.period_card_proposals WHERE user_id = v_one AND status = 'ratified')
      OR NOT EXISTS (SELECT 1 FROM public.ai_audit_context_blocks WHERE user_id = v_one)
      OR pg_temp.erased(3) OR pg_temp.erased(4) THEN
     RAISE EXCEPTION 'D6-06: the rollback did not keep the saved data';
   END IF;
   IF to_regprocedure('public.record_interview_probe_verdict(uuid,uuid,uuid,text,text,integer,integer,integer,text,text,text,text,text,boolean,text,text,boolean,integer,integer,text)') IS NOT NULL
      OR to_regprocedure('public.commit_interview_session(uuid,uuid,jsonb,boolean)') IS NOT NULL
-     OR to_regprocedure('public.decide_period_card(uuid,text,text,text,boolean)') IS NOT NULL
      OR to_regprocedure('public.fold_interview_session(uuid,text)') IS NULL
      OR to_regprocedure('public.sweep_interview_sessions(integer)') IS NULL
      OR NOT EXISTS (SELECT 1 FROM pg_catalog.pg_trigger
@@ -119,7 +118,7 @@ END
 $after_rollback$;
 
 -- 4. After the rollback, deleting the saved record still folds its session, empties every hash it carried,
---    takes the card and its L5 row, and the context row that named it. Sweep and prune still run.
+--    takes the context row that named it. Sweep and prune still run.
 DELETE FROM public.records WHERE id = '27000000-0000-4000-8000-0000000000e2';
 DO $lifecycle$
 DECLARE
@@ -127,8 +126,6 @@ DECLARE
 BEGIN
   IF EXISTS (SELECT 1 FROM public.interview_sessions WHERE owner_id = v_one)
      OR NOT pg_temp.erased(3) OR NOT pg_temp.erased(4)
-     OR EXISTS (SELECT 1 FROM public.period_card_proposals WHERE user_id = v_one AND status = 'ratified')
-     OR EXISTS (SELECT 1 FROM public.star_tier_history WHERE user_id = v_one AND star_id = 'seven:school')
      OR EXISTS (SELECT 1 FROM public.ai_audit_context_blocks WHERE user_id = v_one) THEN
     RAISE EXCEPTION 'D6-06: after the rollback, deleting a saved record no longer cleaned up';
   END IF;
@@ -143,6 +140,12 @@ $lifecycle$;
 \ir ../migrations/0225_interview_transcript_ledger.sql
 DO $reapplied$
 BEGIN
+  IF (SELECT count(*) FROM pg_proc WHERE oid IN (
+      'public.reserve_polaris_generation(uuid,text)'::regprocedure,
+      'public.polaris_evidence_snapshot(uuid,jsonb)'::regprocedure)
+      AND position('t.ai_hold' IN prosrc) > 0) <> 2 THEN
+    RAISE EXCEPTION 'R2 D6-02: reapply did not restore both hold exclusions';
+  END IF;
   IF to_regprocedure('public.commit_interview_session(uuid,uuid,jsonb,boolean)') IS NULL
      OR to_regclass('public.record_layer_inferences') IS NULL
      OR NOT EXISTS (SELECT 1 FROM pg_catalog.pg_trigger

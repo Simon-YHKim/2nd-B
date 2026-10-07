@@ -272,6 +272,10 @@ jobs:
             cp -- "$f" "$staged_project/supabase/migrations/"
           done
 
+          # Vanilla CI has no pg_cron; opt out explicitly for this scratch DB only.
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 \
+            -c "ALTER DATABASE postgres SET app.allow_missing_pg_cron = 'on'"
+
           # Four-digit 0147+ versions are a CI-scratch convention only. A
           # production bundle must receive separate monotonic timestamp versions
           # before any live db push. This command targets only the job-local DB;
@@ -403,7 +407,7 @@ jobs:
                   ('0199', 'oauth_naver_rate_limit_completion'),
                   ('0200', 'rss_proxy_quota'),
                   ('0201', 'rss_proxy_erasure_registry'))) <> 11
-               OR (SELECT count(*) FROM public.erasure_registry) <> 77
+               OR (SELECT count(*) FROM public.erasure_registry) <> 76
                OR (SELECT count(*) FROM public.erasure_registry WHERE table_name IN (
                  'account_deletion_tombstones', 'llm_consent_receipts',
                  'polaris_generations', 'reward_ssv_issue_rate_limits')) <> 4
@@ -436,7 +440,7 @@ jobs:
           $verify$;
           ROLLBACK;
           SQL
-          echo "PASS: eleven numbered migrations executed once by CLI; draft bytes, 75 registry rows, contracts and ACL verified"
+          echo "PASS: eleven numbered migrations executed once by CLI; draft bytes, 76 registry rows, contracts and ACL verified"
       # db/migrations/rollback/0189_down.sql is run by hand, mid-incident, and the
       # next `db push` is then trusted to put everything back. Nothing exercised
       # that path, and it was broken. The rollback deleted only its OWN ledger row
@@ -1612,6 +1616,11 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/interview_transcript_ledger_rollback.sql
+      - name: Exercise D6 session and record deletion races on a local scratch clone
+        env:
+          PGPASSWORD: postgres
+          PGPORT: 5432
+        run: python3 db/tests/interview_transcript_ledger_concurrency.py --template postgres
       - name: Exercise records.system_tags, its hand move and its rollback (0218)
         env:
           PGPASSWORD: postgres

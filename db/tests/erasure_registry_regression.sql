@@ -1113,6 +1113,7 @@ DECLARE
   v_interview_record  uuid := pg_catalog.gen_random_uuid();
   v_interview_session uuid := pg_catalog.gen_random_uuid();
   v_transcript        uuid := pg_catalog.gen_random_uuid();
+  v_context_audit     uuid := pg_catalog.gen_random_uuid();
 BEGIN
   -- Parents first. The delete ORDER is the reverse concern and is asserted by
   -- G8; here the only requirement is that every FK is satisfiable.
@@ -1166,8 +1167,7 @@ BEGIN
     VALUES (p_uid, p_tag || '-template', 'article');
   INSERT INTO public.testimonials (user_id, body, locale, consent_given_at)
     VALUES (p_uid, p_tag || ' says hello', 'ko', pg_catalog.now());
-  -- 0225: a saved interview (record -> session -> transcript head -> turns) and a
-  -- period-card proposal citing one of its answer turns.
+  -- 0225: a saved interview (record -> session -> transcript head -> turns).
   INSERT INTO public.records (id, user_id, kind, body, audit_period, system_tags, client_request_id)
     VALUES (v_interview_record, p_uid, 'audit_response', E'질문: q\n\n답변: a', 'school',
             ARRAY['interview'], 'interview:' || v_interview_session::text);
@@ -1178,11 +1178,12 @@ BEGIN
   INSERT INTO public.interview_transcript_turns (transcript_id, user_id, turn_no, role, scene_seq, origin, text) VALUES
     (v_transcript, p_uid, 1, 'interviewer', 1, 'fixed', 'q'),
     (v_transcript, p_uid, 2, 'user', 1, 'user', 'a');
-  INSERT INTO public.period_card_proposals (user_id, star_id, request_key, audit_id, vendor, proposal_text,
-      evidence_sent, evidence_cited, content_sha, level_before)
-    VALUES (p_uid, 'school', p_tag || '-card-key', pg_catalog.gen_random_uuid(), 'openai', p_tag || ' card',
-            ARRAY['record:' || v_interview_record::text || '#t2'], ARRAY['record:' || v_interview_record::text || '#t2'],
-            pg_catalog.repeat('a', 64), 2);
+  INSERT INTO public.ai_audit_log (id, user_id, prompt_hash, output_hash, model_used, vertex_backend,
+    safety_zone, latency_ms, purpose, event_source)
+  VALUES (v_context_audit, p_uid, 'p', 'o', 'test', false, 'green', 1, 'secondb_chat', 'server_verified');
+  INSERT INTO public.ai_audit_context_blocks(audit_id, user_id, purpose, reader_version, block_ids)
+  VALUES (v_context_audit, p_uid, 'secondb_chat', 'r1', ARRAY['wiki:' || p_tag]);
+
 END;
 $owner_rows$;
 
