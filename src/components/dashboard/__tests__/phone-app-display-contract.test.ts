@@ -14,7 +14,9 @@ test("the phone has twelve live app tiles in four columns with user-specific not
   expect(phone).toContain("noticeCenter.notices.filter((item) => noticeCenter.isUnread(item.id)).length");
   expect(phone).toContain('t(`phone.apps.${id}`)');
   expect(phone).toContain('disabled={disabled}');
-  expect(phone).toContain("const appTileHeight = Math.max(48, Math.min(67");
+  // Pixel iPhone (Simon 2026-10-07): no banner above the grid, so a tile is a stepped icon face plus two label lines.
+  expect(phone).toContain("const appTileHeight = Math.max(56, Math.min(80");
+  expect(phone).toContain("<PixelRoundRect fill={disabled ? phoneIos.fill : phoneIos.cell}");
   expect(phone).toContain('style={[styles.appTile, { height: appTileHeight }]}');
 });
 
@@ -22,11 +24,12 @@ test("artwork is bundled locally while dates, controls, and routes remain intera
   for (const [, relativePath] of assets.matchAll(/require\("(\.\.\/\.\.\/\.\.\/assets\/images\/phone-app\/[^\"]+)"\)/g)) {
     expect(existsSync(join(__dirname, "..", relativePath))).toBe(true);
   }
-  expect(phone).toContain("source={PHONE_UI_ART.hero}");
+  // Pixel iPhone: the home screen has no hero banner; the status bar draws signal, time and battery in rects.
+  expect(phone).not.toContain("PHONE_UI_ART.hero");
   // Simon 2026-10-06 removed the bottom shortcut row; its destinations stay on the app pages.
   expect(phone).not.toContain("PHONE_NAV_ICONS");
   expect(assets).not.toContain("PHONE_NAV_ICONS");
-  expect(phone).toContain('date(new Date().toISOString())');
+  expect(phone).toContain("<StatusBar ink={statusInk} time={statusTime} />");
   expect(phone).toContain('onPress={() => showPage(index)}');
   expect(phone).toContain('Math.abs(gesture.dx) > 55');
   // 2026-10-07: the More page and its rows (records, wiki search, capture, reading, side project) are gone;
