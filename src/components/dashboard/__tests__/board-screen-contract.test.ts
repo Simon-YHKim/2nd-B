@@ -87,14 +87,13 @@ describe("완료조건 4: 부품의 동작", () => {
 });
 
 describe("완료조건 7: 접근성 라벨 · 터치 영역 44 이상", () => {
-  test("누르는 자리는 44 이상, 독은 48", () => {
+  test("누르는 자리는 44 이상", () => {
     // The iOS buttons live in IosParts.tsx (pixel iPhone, Simon 2026-10-07).
     expect(read("src/components/dashboard/board/IosParts.tsx")).toContain("button: { minHeight: 44, minWidth: 44,");
     expect(parts).toContain("evidence: { width: 44, height: 44,");
     expect(parts).toContain("dayArrow: { width: 44, height: 44,");
     expect(parts).toContain("tapRow: { minHeight: 44,");
     expect(parts).toContain("item: { minHeight: 44,");
-    expect(parts).toContain("dockContent: { minHeight: 48,");
   });
 
   test("누르는 자리마다 라벨이 있다", () => {
@@ -104,9 +103,11 @@ describe("완료조건 7: 접근성 라벨 · 터치 영역 44 이상", () => {
     for (const tag of pressables) expect(tag).toMatch(/accessibilityLabel=|accessibilityHint=|accessibilityRole="button"/);
   });
 
-  test("잠긴 녹음 전사는 잠겼다고 말한다", () => {
-    expect(parts).toContain('accessibilityLabel={locked ? t("phone.board.dock.transcribeLocked") : t("phone.board.dock.transcribe")}');
-    expect(parts).toContain("accessibilityState={{ disabled: locked }}");
+  test("독은 그리지 않는다 (Simon 2026-10-07: 제거)", () => {
+    // 담기 · 대화는 핸드폰 밖 아래 막대에 있다. 계약의 dock 칸은 재설계 세션 몫이라 그대로 두고 화면만 그리지 않는다.
+    expect(parts).not.toContain("BoardDock");
+    expect(parts).not.toContain("board-dock");
+    expect(phone).not.toContain("BoardDock");
   });
 });
 
@@ -127,8 +128,6 @@ describe("완료조건 8 + 08:32 보강: 옛 위젯 8개를 대시보드에서 �
   test("대시보드 쪽은 하루 관리판을 그린다", () => {
     expect(phone).toContain("return <BoardPageView board={board} page={boardPage} events={boardEvents} />;");
     expect(phone).toContain("const board = useMemo(() => buildBoard(data, new Date(), isMinor), [data, isMinor]);");
-    // Pixel iPhone: the dock sits on every home page, like an iPhone's.
-    expect(phone).toContain('{!internalActive ? <BoardDock dock={board.dock} go={go} /> : null}');
   });
 
   test("새 부품이 삭제 금지 목록의 읽기 함수를 다시 쓴다", () => {

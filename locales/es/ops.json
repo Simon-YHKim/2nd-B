@@ -45,7 +45,7 @@
     "brand": "MI DÍA",
     "returnToStars": "Volver a la constelación",
     "internal": {
-      "back": "Volver dentro del teléfono", "wikiGraph": "Grafo y etiquetas", "closePhone": "Cerrar teléfono", "exitTitle": "¿Cerrar el teléfono?", "exitHint": "Volver a la constelación sin cambiar los datos guardados.", "cancel": "Seguir viendo",
+      "back": "Volver", "wikiGraph": "Grafo y etiquetas", "closePhone": "Cerrar teléfono", "exitTitle": "¿Cerrar el teléfono?", "exitHint": "Volver a la constelación sin cambiar los datos guardados.", "cancel": "Seguir viendo",
       "captureScope": "Aquí puedes guardar una nota breve. Las entrevistas y otros modos de captura siguen en sus pantallas específicas.",
       "noteInput": "Escribe algo para guardar", "startNote": "Escribir una nota", "saveNote": "Guardar nota", "saved": "Nota guardada.",
       "focusLocal": "Este temporizador funciona solo mientras su pantalla esté abierta.", "start": "Iniciar", "pause": "Pausar", "reset": "Restablecer",
@@ -164,8 +164,7 @@
       "settings": "Ajustes",
       "more": "Más"
     },
-    "appsBack": "Volver a las apps",
-    "noticeListBack": "Lista de avisos",
+    "appsBack": "Volver",
     "noticeLoading": "Cargando avisos…",
     "noticeEmpty": "Aún no hay avisos.",
     "noticeUnread": "Sin leer",
@@ -342,12 +341,6 @@
           "todos": "Tareas y próximos contactos",
           "transcript": "Transcripción completa"
         }
-      },
-      "dock": {
-        "capture": "Guardar",
-        "chat": "Conversación",
-        "transcribe": "Transcribir",
-        "transcribeLocked": "Transcribir, aún no disponible"
       }
     }
   },
