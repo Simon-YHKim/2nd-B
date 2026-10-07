@@ -18,7 +18,7 @@
 
 ## 완료
 
-- **RD-261007-10 = A + B** — 정본 체크아웃 `E:ndB` 빨리감기 **`a029cac0`(당기기 전 HEAD) → `65b01062`**. 미추적 44개 보존(백업 `E:/Coding Infra/_rescue/canonical-ff-261007`). 공용 node_modules 대조: 빠짐 0 · 불일치 0. 전역 `~/.claude/settings.json` 에도 강제 푸시 거부 10규칙(백업 `settings.json.bak-261007-rd10`). bypassPermissions 에서 `--force` · `-f` · `--force-with-lease` dry-run 거부 실측.
+- **RD-261007-10 = A + B** — 정본 체크아웃 `E:\2ndB` 빨리감기 **`a029cac0`(당기기 전 HEAD) → `65b01062`**. 미추적 44개 보존(백업 `E:/Coding Infra/_rescue/canonical-ff-261007`). 공용 node_modules 대조: 빠짐 0 · 불일치 0. 전역 `~/.claude/settings.json` 에도 강제 푸시 거부 10규칙(백업 `settings.json.bak-261007-rd10`). bypassPermissions 에서 `--force` · `-f` · `--force-with-lease` dry-run 거부 실측.
 - **RD-261007-11 = B** — W0 계약의 inbox_triage 입력을 보낸이 · 제목으로 좁힘, 미리보기는 NEVER_TO_LLM.
 - **0218 · 0219 운영 적용**(RD-261007-07 · `DECISIONS.md:106`) — 원장 197 → 199. 0218 손 이행 33행(29 · 3 · 1), 확인 못 한 계정 1행은 그대로. 0219 backfill 5/5. #2122 `ce1b2f1f` · #2121 `59459f1d`.
 - **웹 게시** `fd258ed9`(10:18, 4차 시도) · 공개 번들 확인. **QA APK** `qa-261007-184171e0`(10:53, run 37557004474, main `184171e0` — 웹보다 UI 커밋 #2150 · #2151 이 더 있다). 웹과 같은 커밋의 APK 는 run 37555645551(아티팩트만).
