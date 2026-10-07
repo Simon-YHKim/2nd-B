@@ -306,6 +306,43 @@
         "noValue": "no record",
         "mutedNote": "Silent mode is on, so the summary shows as text only."
       },
+      "shelf": {
+        "title": "Manage widgets",
+        "onScreen": "On screen",
+        "offScreen": "Not on screen",
+        "allOnScreen": "Every widget is on screen.",
+        "show": "Turn back on",
+        "hide": "Hide {{name}}",
+        "moveUp": "Move {{name}} up",
+        "moveDown": "Move {{name}} down",
+        "reasons": {
+          "preparing": "This widget is still being prepared.",
+          "adultOnly": "Health connection is for adults only.",
+          "hidden": "You hid this widget."
+        },
+        "parts": {
+          "clock": "Clock and weather",
+          "note": "Today's note",
+          "reminders": "Reminders",
+          "queue": "To handle",
+          "health": "Health",
+          "spend": "Spending",
+          "changes": "Also",
+          "custom": "Your own widgets"
+        }
+      },
+      "transcribe": {
+        "title": "Transcribe",
+        "adultOnly": "Transcription is for adults only.",
+        "ownTalkOnly": "Records only conversations you take part in.",
+        "lockedStart": "Start recording, not open yet",
+        "afterTitle": "After a recording, the results show here.",
+        "sections": {
+          "head": "One-line summary",
+          "todos": "To-dos and next contacts",
+          "transcript": "Full transcript"
+        }
+      },
       "dock": {
         "capture": "Capture",
         "chat": "Chat",
