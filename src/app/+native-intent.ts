@@ -8,7 +8,8 @@
 // for why it is not a plain capture link, and ./share-delivery.ts next to it
 // for the id: the capture screen fills only for a signed-in account with a
 // complete profile). Every other link, sign-in and password-reset links
-// included, comes back unchanged.
+// included, comes back unchanged, unless it carries a shareDelivery param of
+// its own: that one is made unreadable, since only the rewrite above issues ids.
 
 import { redirectSharedIntentPath } from "@/lib/capture/share-intent";
 

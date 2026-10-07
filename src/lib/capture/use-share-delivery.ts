@@ -3,11 +3,13 @@
 //   useShareDeliverySettle  root layout, outside every gate: decides each share
 //                           once the account state is known.
 //   useNativeShareGate      capture screen: may it read the shared params?
-//   useStripRefusedShare    capture screen: drops a refused share from its route.
+//   useStripRefusedShare    capture screen: drops a refused share from its route
+//                           and raises the one-line notice for it, once.
 
 import { useNavigation } from "expo-router";
 import { useEffect, useSyncExternalStore } from "react";
 
+import { accountTransitionSnapshot, subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   avatarFirstRunDecision,
@@ -18,6 +20,7 @@ import {
 import {
   SHARE_DELIVERY_PARAM,
   nativeShareGate,
+  refuseShareDelivery,
   settleShareDeliveries,
   shareDeliveryState,
   subscribeShareDeliveries,
@@ -55,9 +58,14 @@ function useShareDeliveryAuth(): ShareDeliveryAuth {
   };
 }
 
-/** Root layout: settles waiting shares whenever a share arrives or the account state moves. */
+/**
+ * Root layout: settles waiting shares whenever a share arrives or the account
+ * state moves, including the end of an account switch (the settle holds while
+ * one is under way).
+ */
 export function useShareDeliverySettle(): void {
   const snapshot = useShareDeliveryState();
+  const transition = useSyncExternalStore(subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot);
   const {
     loading,
     userId,
@@ -83,6 +91,7 @@ export function useShareDeliverySettle(): void {
     });
   }, [
     snapshot,
+    transition,
     loading,
     userId,
     hasProfile,
@@ -106,20 +115,29 @@ interface ParamsNavigation {
   setParams(params: Record<string, undefined>): void;
 }
 
+/** The shareDelivery param as one string, so an array param is a stable effect dependency. */
+function deliveryRouteValue(rawDeliveryParam: unknown): string {
+  return typeof rawDeliveryParam === "string" ? rawDeliveryParam : JSON.stringify(rawDeliveryParam ?? null);
+}
+
 /**
- * Removes a refused share from this screen's own route without reading it.
+ * Removes a refused share from this screen's own route without reading it, and
+ * raises the one-line notice for it unless it was already answered
+ * (refuseShareDelivery: once per delivery, so a rerender cannot repeat it).
  * `navigation.setParams` (not router.setParams) so it never touches another
  * route when this screen is not the focused one.
  */
-export function useStripRefusedShare(strip: boolean): void {
+export function useStripRefusedShare(strip: boolean, rawDeliveryParam: unknown): void {
   const navigation = useNavigation() as unknown as ParamsNavigation;
+  const routeValue = deliveryRouteValue(rawDeliveryParam);
   useEffect(() => {
     if (!strip) return;
+    refuseShareDelivery(routeValue);
     navigation.setParams({
       url: undefined,
       text: undefined,
       title: undefined,
       [SHARE_DELIVERY_PARAM]: undefined,
     });
-  }, [navigation, strip]);
+  }, [navigation, strip, routeValue]);
 }

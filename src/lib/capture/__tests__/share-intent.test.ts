@@ -16,7 +16,12 @@
 import { readFileSync } from "fs";
 
 import contract from "../share-intent-contract.json";
-import { SHARE_DELIVERY_PARAM, __resetShareDeliveriesForTests, shareDeliveryState } from "../share-delivery";
+import {
+  SHARE_DELIVERY_PARAM,
+  __resetShareDeliveriesForTests,
+  parseShareDeliveryId,
+  shareDeliveryState,
+} from "../share-delivery";
 import { normalizeSharedCaptureParams } from "../share-params";
 import {
   SHARE_INTENT_HOST,
@@ -320,5 +325,32 @@ describe("contract", () => {
       const source = readFileSync(require.resolve(file), "utf8");
       expect(source).not.toMatch(/\bconsole\./);
     }
+  });
+});
+
+describe("a shareDelivery param from outside is never readable (gate SHARE-A1-02)", () => {
+  // Only the share-intent rewrite issues delivery ids. Any other incoming link
+  // that carries one, in any spelling the router decodes into the same key,
+  // reaches the capture screen with a value parseShareDeliveryId rejects, so
+  // the screen drops its text instead of filling it with a borrowed id.
+  test.each([
+    `secondbrain://capture?text=NEW&${SHARE_DELIVERY_PARAM}=1`,
+    `secondbrain://capture?${SHARE_DELIVERY_PARAM}=1&text=NEW`,
+    "secondbrain://capture?text=NEW&share%44elivery=1",
+    "secondbrain://capture?text=NEW&share%2544elivery=1",
+    "secondbrain://capture?text=NEW&SHAREDELIVERY=1",
+    `secondbrain://capture?text=NEW&${SHARE_DELIVERY_PARAM}=1#frag`,
+    `secondbrain:///capture?text=NEW&${SHARE_DELIVERY_PARAM}=1&${SHARE_DELIVERY_PARAM}=1`,
+  ])("%j reaches /capture with an unreadable delivery id and registers nothing", (link) => {
+    const { path, params } = routeParams(link);
+    expect(path).toBe("/capture");
+    expect(params[SHARE_DELIVERY_PARAM]).toBeDefined();
+    expect(parseShareDeliveryId(params[SHARE_DELIVERY_PARAM])).toBeNull();
+    expect(registeredIds()).toEqual([]);
+  });
+
+  test("the share-intent rewrite still issues the only readable id", () => {
+    const { params } = routeParams(sendLink("hello"));
+    expect(parseShareDeliveryId(params[SHARE_DELIVERY_PARAM])).toBe(1);
   });
 });

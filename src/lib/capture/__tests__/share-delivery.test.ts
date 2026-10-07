@@ -7,11 +7,18 @@
 // ../share-delivery.ts holds that rule as ids and verdicts (never text).
 
 import {
+  __resetAccountEpochForTests,
+  beginAccountOwnerTransition,
+  noteResolvedOwner,
+} from "../../auth/account-epoch";
+import {
   SHARE_DELIVERY_MAX_TRACKED,
   __resetShareDeliveriesForTests,
   dismissShareRefusedNotice,
+  markShareDeliveryFilled,
   nativeShareGate,
   parseShareDeliveryId,
+  refuseShareDelivery,
   registerShareDelivery,
   settleShareDeliveries,
   shareDeliveryState,
@@ -36,8 +43,12 @@ const READY: ShareDeliveryAuth = {
 const auth = (patch: Partial<ShareDeliveryAuth>): ShareDeliveryAuth => ({ ...READY, ...patch });
 
 beforeEach(() => {
+  __resetAccountEpochForTests();
   __resetShareDeliveriesForTests();
 });
+
+const verdictOf = (id: number) => shareDeliveryState().entries.find((entry) => entry.id === id)?.verdict;
+const noticeSeq = () => shareDeliveryState().refusedNoticeSeq;
 
 describe("verdictForAuth: who a share may fill", () => {
   test("signed in, profile complete, nothing under way: accepted for that account", () => {
@@ -57,6 +68,9 @@ describe("verdictForAuth: who a share may fill", () => {
       loading: true,
     }],
     ["first-run avatar setup redirects away from /capture", { avatarSetup: "setup" }],
+    // A failed probe waits for a retry the person presses; holding the share
+    // until then would bring it back later (gate SHARE-A1-01).
+    ["profile probe failed", { profileProbeFailed: true, hasProfile: false }],
   ])("%s: refused", (_label, patch) => {
     expect(verdictForAuth(auth(patch))).toEqual({ kind: "refused" });
   });
@@ -65,7 +79,6 @@ describe("verdictForAuth: who a share may fill", () => {
     ["recovery marker not reconciled yet", { recoveryReady: false }],
     ["session still loading", { loading: true }],
     ["profile still loading", { hasProfile: null }],
-    ["profile probe failed (retry, not an answer)", { profileProbeFailed: true, hasProfile: false }],
     ["avatar check still running", { avatarSetup: "hold" }],
   ])("%s: not decided yet", (_label, patch) => {
     expect(verdictForAuth(auth(patch))).toBeNull();
@@ -194,8 +207,10 @@ describe("nativeShareGate: what the capture screen may read", () => {
     expect(nativeShareGate(shareDeliveryState(), String(id), READY)).toBe("allowed");
   });
 
-  test("not settled yet but the state already allows it: read it (same answer the settle will give)", () => {
+  test("not settled yet, even when the account on screen could fill: wait for the settle (gate SG-01)", () => {
     const id = registerShareDelivery();
+    expect(nativeShareGate(shareDeliveryState(), String(id), READY)).toBe("pending");
+    settleShareDeliveries(READY);
     expect(nativeShareGate(shareDeliveryState(), String(id), READY)).toBe("allowed");
   });
 
@@ -222,10 +237,26 @@ describe("nativeShareGate: what the capture screen may read", () => {
     expect(nativeShareGate(shareDeliveryState(), String(id), auth({ userId: "user-b" }))).toBe("refused");
   });
 
-  test("accepted, then a password reset starts: not read while it runs, not stripped", () => {
+  test("accepted, then a password reset starts: dropped for good, not read after the reset (gate SHARE-A1-01)", () => {
     const id = registerShareDelivery();
     settleShareDeliveries(READY);
-    expect(nativeShareGate(shareDeliveryState(), String(id), auth({ recoveryPendingGlobal: true }))).toBe("pending");
+    const resetting = auth({ recoveryPendingGlobal: true });
+    expect(nativeShareGate(shareDeliveryState(), String(id), resetting)).toBe("refused");
+    expect(settleShareDeliveries(resetting)).toBe(true);
+    expect(verdictOf(id)).toEqual({ kind: "refused" });
+    expect(noticeSeq()).toBe(1);
+    // The reset is over and the same account is back: still refused.
+    expect(settleShareDeliveries(READY)).toBe(false);
+    expect(nativeShareGate(shareDeliveryState(), String(id), READY)).toBe("refused");
+  });
+
+  test("accepted, then the profile is read again: wait, then fill (a read is not a loss)", () => {
+    const id = registerShareDelivery();
+    settleShareDeliveries(READY);
+    const rereading = auth({ hasProfile: null });
+    expect(nativeShareGate(shareDeliveryState(), String(id), rereading)).toBe("pending");
+    expect(settleShareDeliveries(rereading)).toBe(false);
+    expect(nativeShareGate(shareDeliveryState(), String(id), READY)).toBe("allowed");
   });
 
   test("an id this app run never issued, or a malformed one, is refused", () => {
@@ -241,5 +272,168 @@ describe("nativeShareGate: what the capture screen may read", () => {
     for (let i = 0; i < SHARE_DELIVERY_MAX_TRACKED; i += 1) registerShareDelivery();
     settleShareDeliveries(READY);
     expect(nativeShareGate(shareDeliveryState(), String(first), READY)).toBe("refused");
+  });
+});
+
+describe("a share belongs to the account it arrived under (gate SG-01)", () => {
+  test("waiting under A, then the account switches straight to B: refused before B can read it", () => {
+    noteResolvedOwner("user-a");
+    const id = registerShareDelivery();
+    expect(settleShareDeliveries(auth({ hasProfile: null }))).toBe(false);
+    noteResolvedOwner("user-b");
+    expect(verdictOf(id)).toEqual({ kind: "refused" });
+    const readyB = auth({ userId: "user-b" });
+    expect(nativeShareGate(shareDeliveryState(), String(id), readyB)).toBe("refused");
+    expect(settleShareDeliveries(readyB)).toBe(false);
+    expect(shareRefusedNoticeVisible(shareDeliveryState())).toBe(true);
+  });
+
+  test("accepted for A, then A -> B before it filled: refused, with the notice", () => {
+    noteResolvedOwner("user-a");
+    const id = registerShareDelivery();
+    settleShareDeliveries(READY);
+    noteResolvedOwner("user-b");
+    expect(verdictOf(id)).toEqual({ kind: "refused" });
+    expect(noticeSeq()).toBe(1);
+  });
+
+  test("waiting under A, then A signs out: refused", () => {
+    noteResolvedOwner("user-a");
+    const id = registerShareDelivery();
+    noteResolvedOwner(null);
+    expect(verdictOf(id)).toEqual({ kind: "refused" });
+  });
+
+  test("a switch still in progress holds the decision; the switch itself refuses it", () => {
+    noteResolvedOwner("user-a");
+    const id = registerShareDelivery();
+    beginAccountOwnerTransition("user-b");
+    // AuthContext still shows A as ready, but A is on its way out.
+    expect(settleShareDeliveries(READY)).toBe(false);
+    expect(verdictOf(id)).toBeNull();
+    noteResolvedOwner("user-b");
+    expect(verdictOf(id)).toEqual({ kind: "refused" });
+  });
+
+  test("boot: a share that arrives before any account is known waits for the first one", () => {
+    const id = registerShareDelivery();
+    expect(settleShareDeliveries(auth({ loading: true, userId: null }))).toBe(false);
+    noteResolvedOwner("user-a");
+    expect(verdictOf(id)).toBeNull();
+    expect(settleShareDeliveries(READY)).toBe(true);
+    expect(verdictOf(id)).toEqual({ kind: "accepted", owner: "user-a" });
+  });
+
+  test("a filled share is left alone by a later switch: it was added, no notice", () => {
+    noteResolvedOwner("user-a");
+    const id = registerShareDelivery();
+    settleShareDeliveries(READY);
+    markShareDeliveryFilled(String(id), "user-a");
+    noteResolvedOwner("user-b");
+    expect(verdictOf(id)).toEqual({ kind: "filled" });
+    expect(noticeSeq()).toBe(0);
+  });
+});
+
+describe("waiting is only for the state being read (gate SHARE-A1-01)", () => {
+  test("the profile probe fails after the share arrived: refused, and a retry that succeeds does not bring it back", () => {
+    const id = registerShareDelivery();
+    expect(settleShareDeliveries(auth({ hasProfile: null }))).toBe(false);
+    expect(settleShareDeliveries(auth({ profileProbeFailed: true, hasProfile: false }))).toBe(true);
+    expect(verdictOf(id)).toEqual({ kind: "refused" });
+    expect(settleShareDeliveries(READY)).toBe(false);
+    expect(nativeShareGate(shareDeliveryState(), String(id), READY)).toBe("refused");
+  });
+
+  test.each<[string, Partial<ShareDeliveryAuth>]>([
+    ["signed out", { userId: null }],
+    ["profile no longer complete", { hasProfile: false }],
+    ["profile probe failed", { profileProbeFailed: true, hasProfile: false }],
+    ["encrypted storage became unreadable", { storageRecoveryRequired: true }],
+    ["password reset for this account", { recoveryUserId: "user-a" }],
+  ])("accepted, then %s: refused for good", (_label, patch) => {
+    const id = registerShareDelivery();
+    settleShareDeliveries(READY);
+    expect(nativeShareGate(shareDeliveryState(), String(id), auth(patch))).toBe("refused");
+    expect(settleShareDeliveries(auth(patch))).toBe(true);
+    expect(verdictOf(id)).toEqual({ kind: "refused" });
+    expect(nativeShareGate(shareDeliveryState(), String(id), READY)).toBe("refused");
+  });
+});
+
+describe("a delivery fills once (gate SHARE-A1-02)", () => {
+  test("once the screen filled it, the same id is never read again, even by the same account", () => {
+    const id = registerShareDelivery();
+    settleShareDeliveries(READY);
+    expect(nativeShareGate(shareDeliveryState(), String(id), READY)).toBe("allowed");
+    expect(markShareDeliveryFilled(String(id), "user-a")).toBe(true);
+    expect(verdictOf(id)).toEqual({ kind: "filled" });
+    expect(nativeShareGate(shareDeliveryState(), String(id), READY)).toBe("refused");
+    // Dropping its route afterwards raises nothing: it was added.
+    expect(refuseShareDelivery(String(id))).toBe(false);
+    expect(noticeSeq()).toBe(0);
+  });
+
+  test("only an accepted delivery for that account can be marked filled", () => {
+    const waiting = registerShareDelivery();
+    expect(markShareDeliveryFilled(String(waiting), "user-a")).toBe(false);
+    settleShareDeliveries(READY);
+    expect(markShareDeliveryFilled(String(waiting), "user-b")).toBe(false);
+    expect(markShareDeliveryFilled(undefined, "user-a")).toBe(false);
+    expect(markShareDeliveryFilled("999", "user-a")).toBe(false);
+    expect(verdictOf(waiting)).toEqual({ kind: "accepted", owner: "user-a" });
+  });
+});
+
+describe("a refusal the screen decides shows the line once (gate SHARE-A1-03)", () => {
+  test("an id this app run never issued", () => {
+    registerShareDelivery();
+    settleShareDeliveries(READY);
+    expect(refuseShareDelivery("999")).toBe(true);
+    expect(shareRefusedNoticeVisible(shareDeliveryState())).toBe(true);
+    // A rerender of the same route does not raise it again.
+    expect(refuseShareDelivery("999")).toBe(false);
+    expect(noticeSeq()).toBe(1);
+  });
+
+  test("a malformed value (two values, or the entry point's unreadable 0)", () => {
+    expect(refuseShareDelivery(JSON.stringify(["1", "0"]))).toBe(true);
+    expect(refuseShareDelivery(JSON.stringify(["1", "0"]))).toBe(false);
+    expect(refuseShareDelivery("0")).toBe(true);
+    expect(noticeSeq()).toBe(2);
+  });
+
+  test("accepted for another account: refused on the spot, once", () => {
+    const id = registerShareDelivery();
+    settleShareDeliveries(READY);
+    expect(nativeShareGate(shareDeliveryState(), String(id), auth({ userId: "user-b" }))).toBe("refused");
+    expect(refuseShareDelivery(String(id))).toBe(true);
+    expect(verdictOf(id)).toEqual({ kind: "refused" });
+    expect(refuseShareDelivery(String(id))).toBe(false);
+    expect(noticeSeq()).toBe(1);
+  });
+
+  test("already refused by the settle (notice raised then), or still waiting: nothing more", () => {
+    const refused = registerShareDelivery();
+    settleShareDeliveries(auth({ userId: null }));
+    expect(noticeSeq()).toBe(1);
+    expect(refuseShareDelivery(String(refused))).toBe(false);
+    const waiting = registerShareDelivery();
+    expect(refuseShareDelivery(String(waiting))).toBe(false);
+    expect(noticeSeq()).toBe(1);
+  });
+
+  test("an id that left the window: announced if it left unanswered, silent if it was refused", () => {
+    const refused = registerShareDelivery();
+    settleShareDeliveries(auth({ userId: null }));
+    const open = registerShareDelivery();
+    for (let i = 0; i < SHARE_DELIVERY_MAX_TRACKED; i += 1) registerShareDelivery();
+    expect(verdictOf(refused)).toBeUndefined();
+    expect(verdictOf(open)).toBeUndefined();
+    expect(noticeSeq()).toBe(1);
+    expect(refuseShareDelivery(String(refused))).toBe(false);
+    expect(refuseShareDelivery(String(open))).toBe(true);
+    expect(refuseShareDelivery(String(open))).toBe(false);
+    expect(noticeSeq()).toBe(2);
   });
 });

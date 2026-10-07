@@ -7,6 +7,7 @@ import { join } from "node:path";
 
 import {
   INTRO_EXIT_SHIELD_MS,
+  hasIntroEnded,
   isIntroExitShieldActive,
   resetIntroExitShieldForTests,
   startIntroExitShield,
@@ -63,6 +64,21 @@ describe("막의 수명", () => {
     expect(isIntroExitShieldActive()).toBe(true);
     jest.advanceTimersByTime(1);
     expect(isIntroExitShieldActive()).toBe(false);
+  });
+
+  it("오프닝이 끝났다는 사실은 막이 걷힌 뒤에도 남는다(공유 거절 한 줄이 읽는다)", () => {
+    expect(hasIntroEnded()).toBe(false);
+    const seen: boolean[] = [];
+    subscribeIntroExitShield(() => seen.push(hasIntroEnded()));
+    startIntroExitShield();
+    expect(hasIntroEnded()).toBe(true);
+    jest.advanceTimersByTime(INTRO_EXIT_SHIELD_MS);
+    expect(isIntroExitShieldActive()).toBe(false);
+    expect(hasIntroEnded()).toBe(true);
+    // 켜지는 순간의 알림에서 이미 참이다.
+    expect(seen[0]).toBe(true);
+    resetIntroExitShieldForTests();
+    expect(hasIntroEnded()).toBe(false);
   });
 
   it("구독을 끊으면 더 듣지 않는다", () => {

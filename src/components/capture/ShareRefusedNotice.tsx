@@ -6,12 +6,16 @@
 // recovery gate and every redirect.
 //
 // ShareRefusedNotice is the one line a refused share leaves: the share was not
-// added, sign in and share again. It sits inside IntroGate, next to the other
-// global overlays, so it shows on the first screen the person can see after a
-// gate (sign-in, profile completion, password reset). It holds no shared text.
+// added, sign in and share again. It holds no shared text. The root layout
+// draws it once, as a sibling after IntroGate (and its exit shield), so it
+// shows over every branch IntroGate can render once the opening has ended:
+// the routes, the storage recovery gate, the profile retry and loader covers,
+// and the screen a redirect lands on (gate SHARE-A1-04). Inside IntroGate it
+// was replaced by the recovery gate and hidden under the covers. It stays off
+// while the opening plays, and its timer starts only when it shows.
 // Tap to close; it also closes by itself SHARE_REFUSED_NOTICE_MS after it appears.
 
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -21,6 +25,7 @@ import { PixelPressable, PixelSurface } from "@/components/pixel";
 import { Text } from "@/components/ui/Text";
 import { dismissShareRefusedNotice, shareRefusedNoticeVisible } from "@/lib/capture/share-delivery";
 import { useShareDeliverySettle, useShareDeliveryState } from "@/lib/capture/use-share-delivery";
+import { hasIntroEnded, subscribeIntroExitShield } from "@/lib/nav/intro-exit-shield";
 import { m3 } from "@/lib/theme/m3";
 
 export const SHARE_REFUSED_NOTICE_MS = 12_000;
@@ -33,7 +38,8 @@ export function ShareDeliverySync(): null {
 export function ShareRefusedNotice() {
   const { t } = useTranslation("capture");
   const snapshot = useShareDeliveryState();
-  const visible = shareRefusedNoticeVisible(snapshot);
+  const introEnded = useSyncExternalStore(subscribeIntroExitShield, hasIntroEnded, hasIntroEnded);
+  const visible = introEnded && shareRefusedNoticeVisible(snapshot);
   const seq = snapshot.refusedNoticeSeq;
 
   useEffect(() => {

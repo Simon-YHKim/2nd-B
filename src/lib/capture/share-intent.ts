@@ -40,7 +40,9 @@
 // password reset under way (Simon 2026-10-07). The capture link therefore also
 // carries a delivery id (./share-delivery.ts), registered here when the link is
 // rewritten; the capture screen reads the text only for an id accepted for the
-// account on screen. Nothing here logs the link or its text.
+// account on screen. Any other incoming link that carries a shareDelivery param
+// gets one more, unreadable, shareDelivery value, so an id only ever comes from
+// this rewrite (gate SHARE-A1-02). Nothing here logs the link or its text.
 
 import contract from "./share-intent-contract.json";
 import { SHARE_DELIVERY_PARAM, registerShareDelivery } from "./share-delivery";
@@ -156,11 +158,44 @@ export function captureHrefForSharedIntent(fields: SharedIntentFields, deliveryI
 }
 
 /**
+ * Whether a link could reach the router with a shareDelivery param. expo-router
+ * decodes query keys more than once on native (fromDeepLink, then the query
+ * parse), so every layer of %XX escapes is undone before looking. Letter case
+ * is ignored. Over-matching is harmless: it only makes a share id unreadable.
+ */
+function mentionsDeliveryParam(link: string): boolean {
+  const needle = SHARE_DELIVERY_PARAM.toLowerCase();
+  let current = link;
+  for (let pass = 0; pass < 8; pass += 1) {
+    if (current.toLowerCase().includes(needle)) return true;
+    const next = current.replace(/%([0-9a-f]{2})/gi, (_escape, hex: string) => String.fromCharCode(parseInt(hex, 16)));
+    if (next === current) return false;
+    current = next;
+  }
+  return true;
+}
+
+/**
+ * The link with `shareDelivery=0` added to its query. With the param it already
+ * carries, the screen reads two values (or "0"), which parseShareDeliveryId
+ * rejects, so the capture screen drops the shared text instead of filling it.
+ */
+function withUnreadableDeliveryParam(link: string): string {
+  const hashAt = link.indexOf("#");
+  const head = hashAt < 0 ? link : link.slice(0, hashAt);
+  const fragment = hashAt < 0 ? "" : link.slice(hashAt);
+  const joiner = !head.includes("?") ? "?" : /[?&]$/.test(head) ? "" : "&";
+  return `${head}${joiner}${SHARE_DELIVERY_PARAM}=0${fragment}`;
+}
+
+/**
  * expo-router `redirectSystemPath` body. Must not throw (expo-router does not
  * catch it): a share link that cannot be read still opens an empty capture
- * screen, and any other link is returned exactly as it came in. A share with
- * text gets a delivery id (./share-delivery.ts), registered only once its link
- * is built, so an id always stands for a share that reached the router.
+ * screen. Any other link is returned exactly as it came in, unless it carries
+ * a shareDelivery param: only this rewrite issues delivery ids, so one that
+ * arrives from outside is made unreadable. A share with text gets a delivery id
+ * (./share-delivery.ts), registered only once its link is built, so an id
+ * always stands for a share that reached the router.
  */
 export function redirectSharedIntentPath(path: string): string {
   let fields: SharedIntentFields | null;
@@ -169,7 +204,7 @@ export function redirectSharedIntentPath(path: string): string {
   } catch {
     return path;
   }
-  if (fields === null) return path;
+  if (fields === null) return mentionsDeliveryParam(path) ? withUnreadableDeliveryParam(path) : path;
   let parts: string[];
   try {
     parts = sharedQueryParts(fields);

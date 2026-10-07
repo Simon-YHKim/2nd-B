@@ -300,11 +300,11 @@ export default function RootLayout() {
               <BackgroundTaskDock />
               <CompletionToast />
               </AvatarSetupGate>
-              <ShareRefusedNotice />
             </IntroGate>
             {/* W-05: for a moment after the opening ends, a tap that was aimed
                 at its skip button must not land on the dock tab underneath. */}
             <IntroExitShield />
+            <ShareRefusedNotice />
             </SecondbHeadTrackProvider>
           </AuthProvider>
       </SafeAreaProvider>

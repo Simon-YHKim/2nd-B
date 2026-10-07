@@ -5,10 +5,12 @@
 // (reference: render tests are blocked on this stack):
 //   - ShareDeliverySync runs outside IntroGate, so a share is decided even
 //     while the opening, the storage recovery gate or a redirect is showing;
-//   - the notice renders inside IntroGate, on the first screen after a gate;
+//   - the notice renders once outside IntroGate, over every branch it can
+//     show after the opening (the recovery gate and the profile covers too);
 //   - both capture readers (the route and the full intake session) read the
-//     shared params only through the gate, and a refused share is stripped
-//     from the route unread, by this screen's own navigation;
+//     shared params only through the gate, a refused share is stripped from
+//     the route unread by this screen's own navigation (raising the notice
+//     once), and a filled share is marked so its id cannot fill again;
 //   - the gates themselves (IntroGate, the route's auth redirects) are not
 //     touched by this change.
 import { readFileSync } from "node:fs";
@@ -42,11 +44,14 @@ describe("root layout", () => {
     expect(tree.indexOf("<ShareDeliverySync />")).toBeLessThan(tree.indexOf("<IntroGate"));
   });
 
-  test("the notice is mounted once, inside IntroGate, after the routes", () => {
+  test("the notice is mounted once, after IntroGate and its exit shield, so no gate branch replaces or covers it (gate SHARE-A1-04)", () => {
     expect(LAYOUT.split("<ShareRefusedNotice />").length - 1).toBe(1);
     const gate = between(tree, "<IntroGate", "</IntroGate>");
-    expect(gate).toContain("<ShareRefusedNotice />");
-    expect(gate.indexOf("<ShareRefusedNotice />")).toBeGreaterThan(gate.indexOf("</ThemedStack>"));
+    expect(gate).not.toContain("<ShareRefusedNotice />");
+    const notice = tree.indexOf("<ShareRefusedNotice />");
+    expect(notice).toBeGreaterThan(tree.indexOf("</IntroGate>"));
+    expect(notice).toBeGreaterThan(tree.indexOf("<IntroExitShield />"));
+    expect(notice).toBeLessThan(tree.indexOf("</SecondbHeadTrackProvider>"));
   });
 
   test("IntroGate itself does not know about shares (no gate was loosened)", () => {
@@ -55,6 +60,16 @@ describe("root layout", () => {
     expect(introGate).toContain('return <Redirect href="/reset-password" />;');
     expect(introGate).toContain('return <Redirect href="/complete-profile" />;');
     expect(introGate).toContain("if (storageRecoveryRequired) return <EncryptedStorageRecoveryGate />;");
+  });
+});
+
+describe("settle hook", () => {
+  test("re-runs when an account switch ends, since the settle holds while one is under way", () => {
+    const settle = between(HOOKS, "export function useShareDeliverySettle(", "\n}\n");
+    expect(settle).toContain(
+      "const transition = useSyncExternalStore(subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot);",
+    );
+    expect(settle).toMatch(/\}, \[\n\s+snapshot,\n\s+transition,\n/);
   });
 });
 
@@ -74,10 +89,14 @@ describe("/capture route", () => {
 
   test("a refused share is stripped only past the auth gates, by this screen's own navigation", () => {
     expect(ROUTE).toMatch(
-      /useStripRefusedShare\(\s+hasSharedParams && nativeShareGate === "refused" && !loading && Boolean\(userId\) && hasProfile === true,\s+\);/,
+      /useStripRefusedShare\(\s+hasSharedParams && nativeShareGate === "refused" && !loading && Boolean\(userId\) && hasProfile === true,\s+captureParams\[SHARE_DELIVERY_PARAM\],\s+\);/,
     );
     const strip = between(HOOKS, "export function useStripRefusedShare(", "\n}\n");
     expect(strip).toContain("navigation.setParams({");
+    // The screen's own refusal raises the notice once, before the params go (gate SHARE-A1-03).
+    expect(strip).toContain("refuseShareDelivery(routeValue);");
+    expect(strip.indexOf("refuseShareDelivery(routeValue);")).toBeLessThan(strip.indexOf("navigation.setParams({"));
+    expect(strip).toContain("}, [navigation, strip, routeValue]);");
     expect(strip).not.toContain("router.");
     expect(strip).toContain("[SHARE_DELIVERY_PARAM]: undefined");
     expect(strip).toContain("text: undefined");
@@ -93,6 +112,15 @@ describe("full intake session", () => {
     expect(SESSION.split("normalizeSharedCaptureParams(").length - 1).toBe(1);
   });
 
+  test("the fill marks the delivery filled, in the same effect that puts the text in the input (gate SHARE-A1-02)", () => {
+    const fill = between(CAPTURE, "const plan = planSharedConsumption({", "void durableWrite.then((durable) => {");
+    expect(fill).toContain("markShareDeliveryFilled(shareDeliveryParam, userId);");
+    expect(fill.indexOf("markShareDeliveryFilled(")).toBeGreaterThan(fill.indexOf("const durableWrite = persistDrafts("));
+    expect(CAPTURE.split("markShareDeliveryFilled(").length - 1).toBe(1);
+    const deps = between(CAPTURE, "void durableWrite.then((durable) => {", "  ]);");
+    expect(deps).toMatch(/\}, \[\n\s+shared,\n\s+shareDeliveryParam,\n/);
+  });
+
   test("its durable ACK also clears the delivery id", () => {
     const ack = between(CAPTURE, "    router.setParams({\n      url: undefined,", "});");
     expect(ack).toContain("[SHARE_DELIVERY_PARAM]: undefined,");
@@ -100,6 +128,12 @@ describe("full intake session", () => {
 });
 
 describe("notice", () => {
+  test("stays off while the opening plays; its timer starts only once it shows", () => {
+    expect(NOTICE).toContain("useSyncExternalStore(subscribeIntroExitShield, hasIntroEnded, hasIntroEnded)");
+    expect(NOTICE).toContain("const visible = introEnded && shareRefusedNoticeVisible(snapshot);");
+    expect(NOTICE).toContain("if (!visible) return;");
+  });
+
   test("shows the capture namespace's shareRefused copy and holds no shared text", () => {
     expect(NOTICE).toContain('useTranslation("capture")');
     expect(NOTICE).toContain('t("shareRefused.body")');

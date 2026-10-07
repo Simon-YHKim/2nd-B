@@ -124,7 +124,7 @@ import { saveTemplate } from "@/lib/wiki/template-queries";
 import type { SourceKind } from "@/lib/wiki/types";
 import { classifyLinkOrClip, firstUrlIn } from "@/lib/wiki/link-or-clip";
 import { normalizeSharedCaptureParams } from "@/lib/capture/share-params";
-import { SHARE_DELIVERY_PARAM } from "@/lib/capture/share-delivery";
+import { SHARE_DELIVERY_PARAM, markShareDeliveryFilled } from "@/lib/capture/share-delivery";
 import { useNativeShareGate, useStripRefusedShare } from "@/lib/capture/use-share-delivery";
 import { clipboardHasContent, readClipboardText } from "@/lib/capture/clipboard";
 import { composeFourWBody, EMPTY_FOURW, FOURW_KEYS, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
@@ -384,6 +384,7 @@ export default function Capture() {
   const nativeShareGate = useNativeShareGate(captureParams[SHARE_DELIVERY_PARAM]);
   useStripRefusedShare(
     hasSharedParams && nativeShareGate === "refused" && !loading && Boolean(userId) && hasProfile === true,
+    captureParams[SHARE_DELIVERY_PARAM],
   );
   const hasFullCaptureParams =
     (hasSharedParams && nativeShareGate !== "refused") ||
@@ -1351,6 +1352,9 @@ function CaptureLegacySession({
     setDomainIntent(plan.liveDomainIntent);
     setTodoDone(plan.liveTodoDone);
     const durableWrite = persistDrafts(plan.persistMode);
+    // An Android share is in the input now: its id reads as used from here on,
+    // so neither this route nor a remount can fill it again (share-delivery.ts).
+    markShareDeliveryFilled(shareDeliveryParam, userId);
     if (plan.consumedModeParam !== null || plan.consumedTagParam !== null) {
       // param effect 가 같은 조합을 다시 소비하지 않게 latch 를 건다.
       modeParamConsumedRef.current = `${plan.consumedModeParam ?? ""}:${plan.consumedTagParam ?? ""}`;
@@ -1386,6 +1390,7 @@ function CaptureLegacySession({
     });
   }, [
     shared,
+    shareDeliveryParam,
     userId,
     draftHydrated,
     modeParam,
