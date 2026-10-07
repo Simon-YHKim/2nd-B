@@ -39,6 +39,7 @@
 - **#2154 · #2156 픽셀 아이폰**: 폰이 직접 그리는 화면만 iOS 밝은 기본(`src/lib/theme/phone-ios.ts`) + 2px 계단 모서리(`src/components/pixel/PixelRoundRect.tsx`) + iOS 부품(`src/components/dashboard/board/IosParts.tsx`). 폰 안 앱 화면 55개 · 폰 밖은 그대로. DESIGN.md §5 예외 절.
   - ⚠ 함정 둘: ① Pressable 의 함수형 style · 함수 자식 금지(#680, `no-function-form-pressable-style.test.ts`) - 눌림은 onPressIn/onPressOut 상태로. ② 웹에서 absolute 계단 층이 위치 없는 SVG 글리프를 덮었다 - `PixelRoundRect` 가 zIndex 0 쌓임 맥락 + 층 zIndex -1.
 - **app:parity**: 11:35 **같음**(`fc641f26`, APK 빌드 중). 8081 캡처(1쪽 · 2쪽 · 앱 · 알림 · 위젯 관리) 페이지 오류 0.
+- **app:parity 11:4x = 다름(APK 만)**: 앱 코드는 main 과 같다(앱 경로 차이 0). 문서 머지(#2157 `ce5beb09`)로 main 이 움직여 `fc641f26` APK 빌드가 게이트에서 끊긴다. Simon 지시("apk 는 내가 요청하면")라 다시 빌드하지 않았다. 폰에서 보실 때: `gh workflow run android-release.yml --ref main` 또는 `npm run app:qa-release`.
 - **다음 1개**: 재설계 세션의 W0 계약 대기(하루 관리판 숨긴 부품 · 버튼 저장). 그 전 남은 것: 화면 효과음 에뮬레이터 확인 · 처리방침 공지 · 웹 게시 · 프로필 새 항목 별도 동의(법무).
 
 ## 2026-10-07 10:55 / 재설계: 0218 · 0219 운영 적용 · 웹 게시 fd258ed9 · W0 계약(#2139) · 재발 방지(#2140) · D6 1단계 초안(#2152)
