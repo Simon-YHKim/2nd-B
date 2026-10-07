@@ -210,7 +210,7 @@ describe("대시보드 하루 관리판 문턱 (PS-DASH-001, W0)", () => {
 
   it("미정(null) 칸은 이름으로 센다 - 발주에 숫자가 없던 처리할 것 최소 점수 하나뿐", () => {
     const undecided = DASHBOARD_THRESHOLDS.flatMap((t) =>
-      Object.entries(t.params).filter(([, v]) => v === null).map(([k]) => `${t.id}.${k}`),
+      Object.entries(t.values).filter(([, v]) => v === null).map(([k]) => `${t.id}.${k}`),
     );
     expect(undecided).toEqual(["dash.P-04.minScore"]);
   });

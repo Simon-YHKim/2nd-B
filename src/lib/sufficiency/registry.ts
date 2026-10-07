@@ -934,7 +934,7 @@ export interface DashboardThreshold {
   /** 사람이 읽는 조건. 잠김 이야기는 lockKinds 로 뺀다. */
   readonly text: string;
   /** 숫자 칸. null = 발주에 숫자가 없어 W1 에서 정한다. */
-  readonly params: Readonly<Record<string, number | null>>;
+  readonly values: Readonly<Record<string, number | null>>;
   /** 데이터와 무관하게 닫는 사유(나이 · 동의 · 서버 설정). */
   readonly lockKinds: readonly LockKind[];
 }
@@ -943,19 +943,19 @@ export const DASHBOARD_THRESHOLDS: readonly DashboardThreshold[] = [
   {
     id: "dash.P-01",
     text: "동네를 1곳 골라야 날씨가 보인다(위치 권한 없이 수동 선택). 날씨 · 대기질은 30분 캐시",
-    params: { placesSelected: 1, weatherCacheMinutes: 30 },
+    values: { placesSelected: 1, weatherCacheMinutes: 30 },
     lockKinds: [],
   },
   {
     id: "dash.P-02",
     text: "사용자 현지 06 · 13 · 20시 경계마다 한 번. 최근 7일 미접속이면 건너뛰고 다시 열 때 그 시간대 것을 만든다",
-    params: { morningHour: 6, middayHour: 13, eveningHour: 20, inactiveSkipDays: 7 },
+    values: { morningHour: 6, middayHour: 13, eveningHour: 20, inactiveSkipDays: 7 },
     lockKinds: ["consent"],
   },
   {
     id: "dash.P-03",
     text: "어제 ~ 모레 4일. 제안 칩은 최대 2개(아침 = 오늘, 저녁 = 내일, 낮 = 0)",
-    params: { daysBefore: 1, daysAfter: 2, maxSuggestionChips: 2, middaySuggestionChips: 0 },
+    values: { daysBefore: 1, daysAfter: 2, maxSuggestionChips: 2, middaySuggestionChips: 0 },
     lockKinds: [],
   },
   {
@@ -963,7 +963,7 @@ export const DASHBOARD_THRESHOLDS: readonly DashboardThreshold[] = [
     text:
       "처리할 것 최대 3장, 0장도 정상. 점수가 문턱 미달이면 버린다. 한 출처가 3장을 다 차지하면 다른 출처 1위와 " +
       "점수 차 20% 안일 때 3번째 자리를 양보. 정렬 후보는 상위 5개, 미리보기 200자",
-    params: {
+    values: {
       maxCards: 3,
       minScore: null,
       balanceGapPct: 20,
@@ -983,67 +983,67 @@ export const DASHBOARD_THRESHOLDS: readonly DashboardThreshold[] = [
   {
     id: "dash.P-06",
     text: "최근 7일 중 3일 이상 값이 있을 때만 보인다. '평소' = 최근 14일 중앙값(규칙 비교, AI 아님)",
-    params: { displayMinDays: 3, displayWindowDays: 7, usualWindowDays: 14 },
+    values: { displayMinDays: 3, displayWindowDays: 7, usualWindowDays: 14 },
     lockKinds: ["age", "consent"],
   },
   {
     id: "dash.P-07",
     text: "이번 달 합계 + 확인 대기 1건",
-    params: { pendingShown: 1 },
+    values: { pendingShown: 1 },
     lockKinds: [],
   },
   {
     id: "dash.P-08",
     text: "변한 것만 최대 3줄, 없으면 숨김. 환율은 관심 통화 하루 1% 이상, 공휴일은 7일 안",
-    params: { maxLines: 3, fxDailyChangePct: 1, holidayWithinDays: 7 },
+    values: { maxLines: 3, fxDailyChangePct: 1, holidayWithinDays: 7 },
     lockKinds: [],
   },
   {
     id: "dash.P-09",
     text: "승인한 맞춤 위젯 중 순서 점수 1위 1개. 없으면 제안 카드 자리",
-    params: { shownWidgets: 1, hidesBeforeDeleteSuggestion: 3 },
+    values: { shownWidgets: 1, hidesBeforeDeleteSuggestion: 3 },
     lockKinds: [],
   },
   {
     id: "dash.M-01",
     text: "같은 사람이 14일 안 기록 · 일정에 5회 이상 (E 엔티티 페이지 뒤)",
-    params: { windowDays: 14, minMentions: 5 },
+    values: { windowDays: 14, minMentions: 5 },
     lockKinds: [],
   },
   {
     id: "dash.M-02",
     text: "같은 루틴을 7일 중 4일 이상 했다",
-    params: { windowDays: 7, minDays: 4 },
+    values: { windowDays: 7, minDays: 4 },
     lockKinds: [],
   },
   {
     id: "dash.M-03",
     text: "수치 목표 1개 + 그 목표 기록 3회 (북극성 아래 수치 목표 저장 구조 먼저 확인)",
-    params: { numericGoals: 1, minRecords: 3 },
+    values: { numericGoals: 1, minRecords: 3 },
     lockKinds: [],
   },
   {
     id: "dash.M-04",
     text: "같은 가맹점이 매달 2회 이상",
-    params: { perMonthAtLeast: 2 },
+    values: { perMonthAtLeast: 2 },
     lockKinds: [],
   },
   {
     id: "dash.M-05",
     text: "같은 태그가 14일 안 5건 이상",
-    params: { windowDays: 14, minTagged: 5 },
+    values: { windowDays: 14, minTagged: 5 },
     lockKinds: [],
   },
   {
     id: "dash.custom",
     text: "맞춤 위젯 제안: 후보 확인 하루 1회(06 경계) · 제안 하루 최대 1개 · 거절하면 같은 대상 30일 쉼 · 같은 틀 3회 거절이면 그 틀 정지",
-    params: { checksPerDay: 1, suggestionsPerDay: 1, snoozeDays: 30, rejectsBeforeStop: 3 },
+    values: { checksPerDay: 1, suggestionsPerDay: 1, snoozeDays: 30, rejectsBeforeStop: 3 },
     lockKinds: [],
   },
   {
     id: "dash.S-01",
     text: "열 때 만들고 30분 캐시. 사실 카드 4 · 연결 2 · 제안 3 까지",
-    params: { cacheMinutes: 30, maxFacts: 4, maxLinks: 2, maxSuggestions: 3 },
+    values: { cacheMinutes: 30, maxFacts: 4, maxLinks: 2, maxSuggestions: 3 },
     lockKinds: ["consent"],
   },
 ];
@@ -1058,7 +1058,7 @@ export function dashboardThreshold(id: DashboardThresholdId): DashboardThreshold
 
 /** 숫자 칸 하나. null(미정)이나 없는 칸이면 던진다 — 미정 값을 조용히 0 으로 쓰지 않게. */
 export function dashboardParam(id: DashboardThresholdId, key: string): number {
-  const value = dashboardThreshold(id).params[key];
+  const value = dashboardThreshold(id).values[key];
   if (value === undefined) throw new Error(`unknown param ${key} on ${id}`);
   if (value === null) throw new Error(`param ${key} on ${id} is not decided yet`);
   return value;
