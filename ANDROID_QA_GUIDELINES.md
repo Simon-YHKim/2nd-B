@@ -72,22 +72,22 @@
   > `NSPhotoLibraryUsageDescription` 으로만 흘러갑니다.
   >
   > 설치본을 **우리 `app.json` 의 `expo.android` 를 베이스로** 직접 호출해 받은 표입니다
-  > (2026-09-20 R50 실측). 그 베이스에는 `CAMERA`·`RECORD_AUDIO` 를 포함한 권한 **10개**가 있습니다(2026-10-01 라쳇 햅틱용 일반 권한 `VIBRATE` 로 9 → 10):
+  > (2026-09-20 R50 실측). 그 베이스에는 `CAMERA`·`RECORD_AUDIO` 를 포함한 권한 **11개**가 있습니다(2026-10-01 라쳇 햅틱용 일반 권한 `VIBRATE` 로 9 → 10, 2026-10-07 시계 줄 날씨용 대략 위치 `ACCESS_COARSE_LOCATION` 으로 10 → 11):
   >
   > | `app.json` plugin 옵션 | `expo.android.permissions` 결과 |
   > |---|---|
-  > | `{}` | 10개 그대로 |
-  > | `{photosPermission:false}` | 10개 그대로 — `{}` 와 **완전히 동일** |
-  > | 세 키 모두 문구 | 10개 그대로 — `{}` 와 **완전히 동일** |
-  > | `{cameraPermission:false}` | **`CAMERA` 가 빠진 9개** (+ manifest 에 `CAMERA tools:node="remove"`) |
-  > | `{microphonePermission:false}` | **`RECORD_AUDIO` 가 빠진 9개** (+ manifest 에 `RECORD_AUDIO tools:node="remove"`) |
+  > | `{}` | 11개 그대로 |
+  > | `{photosPermission:false}` | 11개 그대로 — `{}` 와 **완전히 동일** |
+  > | 세 키 모두 문구 | 11개 그대로 — `{}` 와 **완전히 동일** |
+  > | `{cameraPermission:false}` | **`CAMERA` 가 빠진 10개** (+ manifest 에 `CAMERA tools:node="remove"`) |
+  > | `{microphonePermission:false}` | **`RECORD_AUDIO` 가 빠진 10개** (+ manifest 에 `RECORD_AUDIO tools:node="remove"`) |
   >
   > ⚠ **베이스를 빈 `android: {}` 로 잡고 재면 답이 달라집니다 — R50 의 첫 측정이 그렇게 재서**
   > **"`cameraPermission:false` 는 배열을 바꾸지 않는다"는 틀린 줄을 하나 더 썼습니다.**
   > `withBlockedPermissions` 는 `config.android.permissions` 가 **이미 있을 때만** 그 배열을 걸러냅니다
   > (`node_modules/@expo/config-plugins/build/android/Permissions.js`). 빈 베이스에는 거를 배열이 없어
   > 차단이 manifest 에만 보이고, `microphonePermission:false` 의 결과도 `[]` 가 아니라 **`undefined`**
-  > 입니다. **우리 저장소에는 그 10개가 실재하므로 위 표가 우리 답입니다.** 권한을 잴 때는 베이스를
+  > 입니다. **우리 저장소에는 그 11개가 실재하므로 위 표가 우리 답입니다.** 권한을 잴 때는 베이스를
   > 반드시 실제 `app.json` 으로 두세요.
   >
   > **"Android 는 무조건 선언한다"도 모든 플러그인에 일반화할 수 없습니다.** 같은 방식으로 실행한

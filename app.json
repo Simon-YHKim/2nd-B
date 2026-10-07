@@ -38,10 +38,13 @@
         "android.permission.health.READ_EXERCISE",
         "android.permission.health.READ_SLEEP",
         "android.permission.health.READ_HEART_RATE",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ],
       "blockedPermissions": [
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#070A18",
@@ -121,6 +124,15 @@
         {
           "calendarPermission": "The app uses your calendar only to add routine items you approve on screen.",
           "remindersPermission": "The app does not use your reminders. iOS shows this because the calendar library includes reminder features."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "PolaScope uses your approximate location only to show the weather on your daily board. The location is not stored.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
         }
       ],
       "expo-notifications",

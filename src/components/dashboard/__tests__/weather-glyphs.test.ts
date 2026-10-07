@@ -47,10 +47,9 @@ describe("clock row", () => {
     expect(parts).not.toContain("say(part.weather)");
   });
 
-  test("no location is read before the legal review (Q-261007-39)", () => {
-    // Simon chose GPS with expo-location, the permission wording, the privacy policy and the legal review first.
-    // Update this pin in the same PR that lands that review.
-    expect(read("package.json")).not.toContain("expo-location");
+  test("no location is read while the weather-location gate is off (DECISIONS 26.10.07 13:17)", () => {
+    // What has to exist before the gate turns on is checked in src/lib/location/__tests__/weather-location.test.ts.
+    expect(read("src/lib/location/weather-location-gate.ts")).toContain("export const WEATHER_LOCATION_ENABLED: boolean = false;");
     expect(read("src/lib/dashboard/board/build.ts")).toContain("weather: null");
   });
 });
