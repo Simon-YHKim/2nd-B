@@ -65,7 +65,7 @@ import {
   updateMilestone,
   type Milestone,
 } from "@/lib/ops/milestones";
-import { createLedgerEntry, deleteLedgerEntry, listEntriesForMonth, localDayKey, MAX_LEDGER_KRW, monthBucket, parseLedgerAmount, summarizeMonth } from "@/lib/finance/ledger";
+import { createLedgerEntry, deleteLedgerEntry, ledgerAmountEdit, listEntriesForMonth, localDayKey, MAX_LEDGER_KRW, monthBucket, parseLedgerAmount, summarizeMonth } from "@/lib/finance/ledger";
 import { fetchPushActivity, summarizeGithubActivity, type PushActivity } from "@/lib/projects/github";
 import { searchFoods, type FoodNutrition } from "@/lib/nutrition/foods";
 import {
@@ -99,6 +99,8 @@ import {
   editorAfterDelete,
   mealClearArmKey,
   mealSaveAction,
+  mealSheetAfterWrite,
+  mealSheetDismiss,
   mealWriteLock,
   MILESTONE_NEXT,
   milestoneChip,
@@ -1049,6 +1051,10 @@ export function LedgerScreen() {
   // deleteLedgerEntry exists); only the UI was missing.
   const [kind, setKind] = useState<"expense" | "income">("expense");
   const [amount, setAmount] = useState("");
+  // Gate OPSFIX-A1-04: the last edit of the amount was too long and was not taken
+  // (ledgerAmountEdit). The field keeps what it had; this keeps the add button off and the
+  // format hint up until the next edit the field takes.
+  const [amountOverflow, setAmountOverflow] = useState(false);
   const [category, setCategory] = useState("");
   // Booking day. createLedgerEntry always accepted occurred_on and only fell back
   // to today, but the form never sent one -- so yesterday's coffee could not be
@@ -1063,7 +1069,11 @@ export function LedgerScreen() {
   const amountParsed = parseLedgerAmount(amount);
   const amountNum = amountParsed.kind === "ok" ? amountParsed.value : 0;
   const amountTooLarge = amountParsed.kind === "tooLarge";
-  const canAdd = !busy && amountParsed.kind === "ok";
+  // Gate S-02 (2026-10-07): "-500", "1e3" and "12.34" used to be saved as 500, 13 and 1234.
+  // Text that is not whole won is now refused, and the field says what it takes. So is an
+  // edit too long to take (gate OPSFIX-A1-04).
+  const amountInvalid = amountOverflow || amountParsed.kind === "invalid";
+  const canAdd = !busy && amountParsed.kind === "ok" && !amountOverflow;
 
   const onAddEntry = async () => {
     if (!userId || !canAdd) return;
@@ -1076,7 +1086,12 @@ export function LedgerScreen() {
         amount_krw: amountNum,
         category: category.trim() || (ko ? "기타" : "Other"),
       });
+      // Gate OPSFIX-A3-02 (2026-10-07): the field stays editable while the add runs, so an
+      // edit refused as too long (amountOverflow) can come in meanwhile. Emptying the field
+      // here does not go through onChangeText, so the refusal is cleared with it; otherwise
+      // the format hint stayed up under an empty field.
       setAmount("");
+      setAmountOverflow(false);
       setCategory("");
       setOccurredOn(localDayKey());
       entries.reload();
@@ -1159,10 +1174,18 @@ export function LedgerScreen() {
         <View style={styles.searchRow}>
           {/* No maxLength here: it counts separators too, so 13 cut a pasted
               "1,000,000,000,000" to "1,000,000,000" and saved 1,000x less (gate S-01 /
-              BL-01). parseLedgerAmount reads the whole string and is the only ceiling. */}
+              BL-01). parseLedgerAmount reads the whole string and is the only ceiling.
+              Gate S3-02 / OPSFIX-A1-04: a huge paste is not held at all, and never held cut
+              short either. An edit longer than the parser reads is not taken (ledgerAmountEdit):
+              the field keeps what it had and says so, so no prefix of a paste can become an
+              amount after a later edit. */}
           <TextInput
             value={amount}
-            onChangeText={setAmount}
+            onChangeText={(v) => {
+              const edit = ledgerAmountEdit(amount, v);
+              setAmount(edit.text);
+              setAmountOverflow(edit.overflow);
+            }}
             placeholder={c.amountPlaceholder}
             placeholderTextColor={deepSpace.textLo}
             style={[styles.searchInput, styles.amountInput]}
@@ -1192,6 +1215,10 @@ export function LedgerScreen() {
         {amountTooLarge ? (
           <Text variant="caption" style={styles.fieldErr} accessibilityLiveRegion="polite">
             {t("toolScreens.ledger.amountTooLarge", { max: MAX_LEDGER_KRW.toLocaleString() })}
+          </Text>
+        ) : amountInvalid ? (
+          <Text variant="caption" style={styles.fieldErr} accessibilityLiveRegion="polite">
+            {t("toolScreens.ledger.amountInvalid")}
           </Text>
         ) : null}
       </View>
@@ -1416,13 +1443,18 @@ type FoodLookup = { kind: "idle" } | { kind: "busy" } | { kind: "done"; items: F
 const FOOD_LOOKUP_CACHE = new Map<string, FoodNutrition[]>();
 const FOOD_LOOKUP_CACHE_MAX = 30;
 
+/** One opening of the meal sheet: the cell, the stored meal, the opening's own session, and
+ *  whether its last write failed (gate S3-01). */
+type MealSheet = { session: number; date: string; slot: MealSlot; day: string; current: string | null; failed: boolean };
+
 export function MealsScreen() {
   const c = useOpsCopy();
   const { userId } = useAuth();
-  // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
-  // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
-  // just silently did nothing.
-  const [saveErr, setSaveErr] = useState(false);
+  // A failed WRITE. The empty catches here used to claim it was "surfaced on reload", but
+  // reload() sat INSIDE the try, so on the failure path it never ran and the tap silently
+  // did nothing. Gate S3-01 (2026-10-07, simplified the same day): there is no screen-wide
+  // flag for it either. The failure belongs to the open sheet (`pending.failed`): the sheet
+  // stays open with the draft and says so, and closing the sheet drops both.
   const { t, i18n } = useTranslation("ops");
   const ko = i18n.language?.toLowerCase().startsWith("ko");
   const dayLabels = MEAL_DAY_KEYS.map((k) => t(`toolScreens.meals.days.${k}`));
@@ -1433,7 +1465,7 @@ export function MealsScreen() {
   // (R2C-15) and so emptying a filled cell clears it instead of keeping it (R2C-07).
   // `session` is new on every open (gate BL-02 / BL-03): an armed clear and a late write
   // belong to the opening they started in, never to a later one.
-  const [pending, setPending] = useState<{ session: number; date: string; slot: MealSlot; day: string; current: string | null } | null>(null);
+  const [pending, setPending] = useState<MealSheet | null>(null);
   const sheetSeq = useRef(0);
   // One meal write per cell at a time (gate BL-03): save and clear take the cell's lock
   // (mealWriteLock), so a clear can no longer race an earlier save whose UPSERT lands after
@@ -1462,8 +1494,12 @@ export function MealsScreen() {
   // Opening a cell now makes no request; the chips are a fixed idea list, and the food
   // DB is asked only when the user taps "look up" for what they typed.
   const openCell = (date: string, slot: MealSlot, current: MealEntry | null, day: string) => {
+    // Gate S3-01: nothing opens while a meal write runs (its sheet cannot close meanwhile).
+    if (mealWriting) return;
     sheetSeq.current += 1;
-    setPending({ session: sheetSeq.current, date, slot, day, current: current?.title ?? null });
+    // Every opening starts from the stored meal, with no failure: nothing of an earlier
+    // opening's failed write is kept or handed back (gate S3-01, simplified 2026-10-07).
+    setPending({ session: sheetSeq.current, date, slot, day, current: current?.title ?? null, failed: false });
     setDraft(current?.title ?? "");
     setLookup({ kind: "idle" });
   };
@@ -1494,12 +1530,14 @@ export function MealsScreen() {
 
   // Save and clear both go through here (gate BL-03): one write per cell at a time under
   // the cell's shared lock, and the sheet is off while it runs. A write asked for meanwhile
-  // is refused, not raced. When it settles, only the sheet it started from closes.
-  const writeMeal = async (sheet: NonNullable<typeof pending>, write: () => Promise<unknown>) => {
+  // is refused, not raced. Gate S3-01 (simplified 2026-10-07): the sheet cannot be closed
+  // while this runs (closeSheet). Only a write that landed reloads the week and closes the
+  // sheet; a failed one leaves the sheet open with its draft and marks it failed, so the
+  // sheet says so (mealSheetAfterWrite).
+  const writeMeal = async (sheet: MealSheet, write: () => Promise<unknown>) => {
     if (!userId) return;
     const outcome = await runExclusive(mealWriteLock(userId, sheet.date, sheet.slot), async () => {
       setMealWrites((n) => n + 1);
-      setSaveErr(false);
       try {
         await write();
       } finally {
@@ -1507,10 +1545,9 @@ export function MealsScreen() {
       }
     });
     if (outcome === "busy") return;
-    // A failed write says so (it used to be swallowed, with reload() never reached).
     if (outcome === "done") week.reload();
-    else setSaveErr(true);
-    setPending((open) => sheetAfterWrite(open, sheet.session));
+    // A failed write says so (it used to be swallowed, with reload() never reached).
+    setPending((open) => mealSheetAfterWrite(open, sheet.session, outcome));
   };
 
   const saveCell = async () => {
@@ -1536,9 +1573,27 @@ export function MealsScreen() {
   const clearArm = useTwoTapDelete((key) => {
     if (!userId || !pending || mealClearArmKey(pending) !== key) return;
     const sheet = pending;
-    void writeMeal(sheet, () => clearMeal(userId, sheet.date, sheet.slot));
+    // Gate OPSFIX-A3-01 (2026-10-07): a failed clear left the stored meal in the input, so the
+    // save button compared it with the stored meal, wrote nothing and closed the sheet: the
+    // clear was never tried again. The confirmed clear is now the empty draft's write. Once it
+    // holds the cell's lock it empties the input, so a failed clear leaves the sheet open on an
+    // empty draft and the same save button clears again (mealSaveAction). A clear refused as
+    // busy never gets here and changes nothing.
+    void writeMeal(sheet, () => {
+      setDraft("");
+      return clearMeal(userId, sheet.date, sheet.slot);
+    });
   });
   const clearArmed = pending !== null && clearArm.armedId === mealClearArmKey(pending);
+
+  // Gate S3-01 (simplified 2026-10-07): the backdrop and the hardware back (Escape on the web)
+  // close the sheet here, and do nothing while its write runs (mealSheetDismiss). Closing is
+  // the user's own choice to drop the draft: the failure line goes with it, and the next
+  // opening starts from the stored meal. To try again, the same save button saves the draft
+  // as it stands then.
+  const closeSheet = () => setPending((open) => mealSheetDismiss(open, mealWriting));
+  // The sheet's failure line, hidden while a write runs.
+  const sheetFailed = pending !== null && pending.failed && !mealWriting;
 
   // Food names can repeat in the DB answer; a chip list keyed by name must not.
   const ideaChips: string[] =
@@ -1548,7 +1603,6 @@ export function MealsScreen() {
 
   return (
     <OpsFrame title={c.weeklyMeals} bubble={c.weeklyMeals} tip={c.whatToEatNow}>
-      {saveErr ? <SaveErrorBanner text={c.saveFailed} /> : null}
       <View style={styles.weekNav}>
         <Pressable onPress={() => shiftWeek(-7)} hitSlop={10} style={styles.weekArrow} accessibilityRole="button" accessibilityLabel={c.prevWeek}>
           <RNText style={styles.weekArrowText}>‹</RNText>
@@ -1595,8 +1649,8 @@ export function MealsScreen() {
       </View>
       <Text variant="subtle" style={styles.footNote}>{c.nutritionNote}</Text>
 
-      <Modal visible={pending !== null} transparent animationType="slide" onRequestClose={() => setPending(null)}>
-        <Pressable style={styles.mealBackdrop} onPress={() => setPending(null)} />
+      <Modal visible={pending !== null} transparent animationType="slide" onRequestClose={closeSheet}>
+        <Pressable style={styles.mealBackdrop} onPress={closeSheet} disabled={mealWriting} />
         <View style={styles.mealSheet}>
           <View style={styles.sheetGrip} />
           <Text variant="heading" style={styles.mealSheetTitle}>{c.planMeal}</Text>
@@ -1656,6 +1710,15 @@ export function MealsScreen() {
           {lookup.kind === "failed" || (lookup.kind === "done" && lookup.items.length === 0) ? (
             <Text variant="caption" style={styles.toolNote} accessibilityLiveRegion="polite">
               {lookup.kind === "failed" ? t("toolScreens.meals.lookUpFailed") : t("toolScreens.meals.lookUpNone")}
+            </Text>
+          ) : null}
+          {/* Gate S3-01 (simplified 2026-10-07): a failed write keeps this sheet and its draft
+              open and says so here, in one line. The same save button tries again with the
+              draft as it stands (after a failed clear that draft is empty: OPSFIX-A3-01);
+              closing the sheet drops both. Hidden while a write runs. */}
+          {sheetFailed ? (
+            <Text variant="caption" style={styles.saveErrText} accessibilityRole="alert" accessibilityLiveRegion="polite">
+              {t("toolScreens.meals.saveFailed")}
             </Text>
           ) : null}
           {pending?.current ? (

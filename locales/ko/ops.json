@@ -12,7 +12,7 @@
     "nav": { "home": "홈", "note": "노트", "add": "추가", "search": "검색", "profile": "프로필" },
     "returnToStars": "별자리로 돌아가기",
     "internal": {
-      "back": "핸드폰 안에서 뒤로가기", "wikiGraph": "그래프와 태그로 보기", "closePhone": "핸드폰 닫기", "exitTitle": "핸드폰을 닫을까요?", "exitHint": "저장된 내용은 그대로 두고 별자리로 돌아갑니다.", "cancel": "계속 보기",
+      "back": "뒤로", "wikiGraph": "그래프와 태그로 보기", "closePhone": "핸드폰 닫기", "exitTitle": "핸드폰을 닫을까요?", "exitHint": "저장된 내용은 그대로 두고 별자리로 돌아갑니다.", "cancel": "계속 보기",
       "captureScope": "이 핸드폰에서는 짧은 메모를 저장할 수 있습니다. 인터뷰와 다른 담기 방식은 별도 화면에서 제공됩니다.",
       "noteInput": "남기고 싶은 내용을 적어주세요", "startNote": "메모 남기기", "saveNote": "메모 저장", "saved": "메모를 저장했습니다.",
       "focusLocal": "이 타이머는 집중 타이머 화면을 열어 둔 동안만 작동합니다.", "start": "시작", "pause": "일시정지", "reset": "초기화",
@@ -164,8 +164,7 @@
       "settings": "설정",
       "more": "더보기"
     },
-    "appsBack": "앱으로 돌아가기",
-    "noticeListBack": "알림 목록",
+    "appsBack": "뒤로",
     "noticeLoading": "알림을 읽는 중…",
     "noticeEmpty": "새 알림이 없습니다.",
     "noticeUnread": "읽지 않음",
@@ -196,7 +195,15 @@
       "addWidget": "위젯 추가",
       "clock": {
         "weatherPrompt": "동네를 고르면 날씨가 보입니다.",
-        "pickArea": "동네 고르기"
+        "pickArea": "동네 고르기",
+        "sky": {
+          "clear": "맑음",
+          "partlyCloudy": "구름 조금",
+          "cloudy": "흐림",
+          "rain": "비",
+          "snow": "눈"
+        },
+        "temp": "{{temp}}도"
       },
       "note": {
         "tapHint": "눌러서 하루 요약",
@@ -342,12 +349,6 @@
           "todos": "할 일 · 다음 연락",
           "transcript": "전문"
         }
-      },
-      "dock": {
-        "capture": "담기",
-        "chat": "대화",
-        "transcribe": "녹음 전사",
-        "transcribeLocked": "녹음 전사, 아직 열리지 않았습니다"
       }
     }
   },
@@ -578,7 +579,8 @@
       "emptyTitle": "이번 달 지출 기록이 아직 없습니다",
       "emptyBody": "위에 금액을 적으면 여기에 분류별로 모입니다.",
       "currencyNote": "금액은 원(KRW)으로 기록합니다.",
-      "amountTooLarge": "금액이 너무 큽니다. 한 번에 {{max}}원까지 적을 수 있습니다."
+      "amountTooLarge": "금액이 너무 큽니다. 한 번에 {{max}}원까지 적을 수 있습니다.",
+      "amountInvalid": "금액은 12000, 12,000, ₩12,000, 12,000원처럼 원 단위로 적어 주세요. 부호와 소수점은 받지 않습니다."
     },
     "meals": {
       "sheetSubtitle": "{{date}} ({{day}}) · {{slot}}",
@@ -587,6 +589,7 @@
       "lookUp": "식품 찾기",
       "lookUpNone": "맞는 식품이 없습니다.",
       "lookUpFailed": "식품을 찾지 못했습니다. 다시 시도해 주세요.",
+      "saveFailed": "이 칸의 변경을 저장하지 못했습니다. 적은 내용은 그대로 있으니 다시 시도해 주세요.",
       "days": {
         "mon": "월",
         "tue": "화",

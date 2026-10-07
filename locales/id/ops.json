@@ -45,7 +45,7 @@
     "brand": "HARI SAYA",
     "returnToStars": "Kembali ke rasi bintang",
     "internal": {
-      "back": "Kembali di dalam ponsel", "wikiGraph": "Grafik dan tag", "closePhone": "Tutup ponsel", "exitTitle": "Tutup ponsel?", "exitHint": "Kembali ke rasi bintang tanpa mengubah data tersimpan.", "cancel": "Lanjut melihat",
+      "back": "Kembali", "wikiGraph": "Grafik dan tag", "closePhone": "Tutup ponsel", "exitTitle": "Tutup ponsel?", "exitHint": "Kembali ke rasi bintang tanpa mengubah data tersimpan.", "cancel": "Lanjut melihat",
       "captureScope": "Simpan catatan singkat di sini. Wawancara dan cara penyimpanan lain tetap ada di layar khusus.",
       "noteInput": "Tulis sesuatu untuk disimpan", "startNote": "Tulis catatan", "saveNote": "Simpan catatan", "saved": "Catatan tersimpan.",
       "focusLocal": "Pengatur waktu ini berjalan hanya saat layarnya terbuka.", "start": "Mulai", "pause": "Jeda", "reset": "Atur ulang",
@@ -164,8 +164,7 @@
       "settings": "Pengaturan",
       "more": "Lainnya"
     },
-    "appsBack": "Kembali ke aplikasi",
-    "noticeListBack": "Daftar notifikasi",
+    "appsBack": "Kembali",
     "noticeLoading": "Memuat notifikasi…",
     "noticeEmpty": "Belum ada notifikasi.",
     "noticeUnread": "Belum dibaca",
@@ -196,7 +195,15 @@
       "addWidget": "Tambah widget",
       "clock": {
         "weatherPrompt": "Pilih lingkunganmu untuk melihat cuaca.",
-        "pickArea": "Pilih lingkungan"
+        "pickArea": "Pilih lingkungan",
+        "sky": {
+          "clear": "Cerah",
+          "partlyCloudy": "Berawan sebagian",
+          "cloudy": "Berawan",
+          "rain": "Hujan",
+          "snow": "Salju"
+        },
+        "temp": "{{temp}} derajat"
       },
       "note": {
         "tapHint": "Ketuk untuk ringkasan hari ini",
@@ -342,12 +349,6 @@
           "todos": "Tugas dan kontak berikutnya",
           "transcript": "Transkrip lengkap"
         }
-      },
-      "dock": {
-        "capture": "Simpan",
-        "chat": "Obrolan",
-        "transcribe": "Transkripsi",
-        "transcribeLocked": "Transkripsi, belum dibuka"
       }
     }
   },
@@ -578,7 +579,8 @@
       "emptyTitle": "Belum ada pengeluaran bulan ini",
       "emptyBody": "Tulis jumlah di atas dan akan dikelompokkan per kategori di sini.",
       "currencyNote": "Jumlah dicatat dalam won (KRW).",
-      "amountTooLarge": "Jumlah itu terlalu besar. Satu catatan bisa memuat hingga {{max}} won."
+      "amountTooLarge": "Jumlah itu terlalu besar. Satu catatan bisa memuat hingga {{max}} won.",
+      "amountInvalid": "Tulis won bulat, misalnya 12000, 12,000, ₩12,000, atau 12,000원. Tanda dan desimal tidak diterima."
     },
     "meals": {
       "sheetSubtitle": "{{day}} {{date}} · {{slot}}",
@@ -587,6 +589,7 @@
       "lookUp": "Cari makanan",
       "lookUpNone": "Tidak ada makanan yang cocok.",
       "lookUpFailed": "Tidak bisa mencari. Coba lagi.",
+      "saveFailed": "Perubahan ini belum tersimpan. Isian Anda masih ada di sini. Coba lagi.",
       "days": {
         "mon": "Sen",
         "tue": "Sel",

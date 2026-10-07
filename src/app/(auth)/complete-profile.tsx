@@ -31,6 +31,7 @@ import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { ConsentNotice } from "@/components/consent/ConsentNotice";
 import { PixelSurface } from "@/components/pixel";
+import { ShareRefusedLine } from "@/components/capture/ShareRefusedLine";
 import {
   emptyConsentSelections,
   allRequiredAcksChecked,
@@ -330,6 +331,8 @@ function CompleteProfileBody() {
             </View>
           </PixelSurface>
         </View>
+
+        <ShareRefusedLine />
 
         <View style={styles.form}>
           {/* 0127 / L4. Optional, and it stays optional: onboarding is where

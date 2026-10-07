@@ -339,5 +339,8 @@
   "formatsTab": "Format",
   "importTab": "Impor",
   "inboxTab": "Kotak masuk",
-  "manualTab": "Panduan penggunaan"
+  "manualTab": "Panduan penggunaan",
+  "shareRefused": {
+    "body": "Konten yang Anda bagikan tidak ditambahkan. Masuk dulu, lalu bagikan lagi."
+  }
 }

@@ -45,7 +45,7 @@
     "brand": "MEU DIA",
     "returnToStars": "Voltar à constelação",
     "internal": {
-      "back": "Voltar dentro do telefone", "wikiGraph": "Grafo e etiquetas", "closePhone": "Fechar telefone", "exitTitle": "Fechar o telefone?", "exitHint": "Voltar à constelação sem alterar os dados salvos.", "cancel": "Continuar vendo",
+      "back": "Voltar", "wikiGraph": "Grafo e etiquetas", "closePhone": "Fechar telefone", "exitTitle": "Fechar o telefone?", "exitHint": "Voltar à constelação sem alterar os dados salvos.", "cancel": "Continuar vendo",
       "captureScope": "Salve uma nota curta aqui. Entrevistas e outros modos de captura continuam em telas próprias.",
       "noteInput": "Escreva algo para guardar", "startNote": "Escrever uma nota", "saveNote": "Salvar nota", "saved": "Nota salva.",
       "focusLocal": "Este temporizador funciona apenas enquanto sua tela está aberta.", "start": "Iniciar", "pause": "Pausar", "reset": "Redefinir",
@@ -164,8 +164,7 @@
       "settings": "Configurações",
       "more": "Mais"
     },
-    "appsBack": "Voltar aos apps",
-    "noticeListBack": "Lista de avisos",
+    "appsBack": "Voltar",
     "noticeLoading": "Carregando avisos…",
     "noticeEmpty": "Ainda não há avisos.",
     "noticeUnread": "Não lido",
@@ -196,7 +195,15 @@
       "addWidget": "Adicionar um widget",
       "clock": {
         "weatherPrompt": "Escolha seu bairro para ver o tempo.",
-        "pickArea": "Escolher bairro"
+        "pickArea": "Escolher bairro",
+        "sky": {
+          "clear": "Céu limpo",
+          "partlyCloudy": "Parcialmente nublado",
+          "cloudy": "Nublado",
+          "rain": "Chuva",
+          "snow": "Neve"
+        },
+        "temp": "{{temp}} graus"
       },
       "note": {
         "tapHint": "Toque para ver o resumo do dia",
@@ -342,12 +349,6 @@
           "todos": "Tarefas e próximos contatos",
           "transcript": "Transcrição completa"
         }
-      },
-      "dock": {
-        "capture": "Guardar",
-        "chat": "Conversa",
-        "transcribe": "Transcrever",
-        "transcribeLocked": "Transcrever, ainda não disponível"
       }
     }
   },
@@ -578,7 +579,8 @@
       "emptyTitle": "Nenhum gasto registrado neste mês",
       "emptyBody": "Digite um valor acima e ele será agrupado aqui por categoria.",
       "currencyNote": "Os valores são registrados em wons (KRW).",
-      "amountTooLarge": "Esse valor é grande demais. Um registro aceita até {{max}} wons."
+      "amountTooLarge": "Esse valor é grande demais. Um registro aceita até {{max}} wons.",
+      "amountInvalid": "Digite wons inteiros, como 12000, 12,000, ₩12,000 ou 12,000원. Sinais e casas decimais não são aceitos."
     },
     "meals": {
       "sheetSubtitle": "{{day}} {{date}} · {{slot}}",
@@ -587,6 +589,7 @@
       "lookUp": "Buscar alimentos",
       "lookUpNone": "Nenhum alimento corresponde.",
       "lookUpFailed": "Não foi possível buscar. Tente de novo.",
+      "saveFailed": "Esta alteração não foi salva. O que você digitou continua aqui. Tente de novo.",
       "days": {
         "mon": "Seg",
         "tue": "Ter",

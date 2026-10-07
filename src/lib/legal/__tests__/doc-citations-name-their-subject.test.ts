@@ -109,6 +109,25 @@ describe("the DPIA erasure cell still cites the erasure code", () => {
   });
 });
 
+describe("the DPIA analytics-lock citations still land on the minor lock", () => {
+  // These four cells cited `_layout.tsx:673-676` while the lock had already
+  // moved to 676-680 on main, and the Android share PR (#2145, 2026-10-07)
+  // moved it seven lines more (683-687), then six more with the storage
+  // recovery redirect of its fourth round (689-693). The coordinates are read from the
+  // document, and each one has to contain the branch that keeps analytics off
+  // for a minor or an unresolved profile.
+  test("every _layout.tsx citation in the DPIA contains the isMinor branch", () => {
+    const DPIA = "docs/legal/DPIA-2ndB-minors-draft.md";
+    const rows = lines(DPIA).filter((line) => line.includes("`src/app/_layout.tsx:"));
+    expect(rows.length).toBeGreaterThanOrEqual(4);
+    for (const row of rows) {
+      const body = slice(citation(row, /^src\/app\/_layout\.tsx$/));
+      expect(body).toContain("if (isMinor !== false) {");
+      expect(body).toContain("suspendAnalyticsForUnresolvedProfile();");
+    }
+  });
+});
+
 describe("the Gemini inventory is a snapshot, so its coordinates do not follow HEAD", () => {
   const INVENTORY = "docs/GEMINI-RETIREMENT-INVENTORY.md";
   const SCREEN = "src/screens/deepspace/DeepSpaceDesignScreens.tsx";
