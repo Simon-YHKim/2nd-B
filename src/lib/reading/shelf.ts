@@ -9,6 +9,7 @@
 import { getSupabaseClient } from "../supabase/client";
 import { invalidateDomainLevels } from "../persona/load-domain-levels";
 import type { BookResult } from "./books";
+import { CryptoDigestAlgorithm, digestStringAsync } from "expo-crypto";
 
 export type ReadingStatus = "want" | "reading" | "done";
 
@@ -65,6 +66,8 @@ export function shelfVolumeIds(shelf: Shelf | null | undefined): Set<string> {
 /** Volume ids of books added by title, not from a search result. */
 export const MANUAL_VOLUME_PREFIX = "manual:";
 const MANUAL_TITLE_MAX = 200;
+// A legacy 200-code-unit title can expand to 400 when lowercased (e.g. U+0130).
+const MANUAL_ID_MAX = MANUAL_TITLE_MAX * 2;
 
 /**
  * A shelf book made from a typed title (R2C-02). The search is a third-party API
@@ -73,14 +76,27 @@ const MANUAL_TITLE_MAX = 200;
  * unusable. The id is derived from the title (case and spacing folded) so adding the
  * same title twice finds the same row instead of making a second one.
  */
-export function manualBook(title: string): BookResult | null {
-  const clean = title.trim().replace(/\s+/g, " ").slice(0, MANUAL_TITLE_MAX);
+export async function manualBook(title: string): Promise<BookResult | null> {
+  const clean = title.trim().replace(/\s+/g, " ");
   if (clean.length === 0) return null;
-  return { id: `${MANUAL_VOLUME_PREFIX}${clean.toLowerCase()}`, title: clean, authors: [] };
+  const normalized = clean.toLowerCase();
+  // S-03: keep legacy ids, but identify long titles by their entire normalized text.
+  // Uppercase SHA256 cannot be a legacy lowercased title id. A fixed-size digest also
+  // keeps arbitrarily long titles out of the UNIQUE index's key-size limit.
+  const identity = normalized.length <= MANUAL_ID_MAX
+    ? normalized
+    : `SHA256:${await digestStringAsync(CryptoDigestAlgorithm.SHA256, normalized)}`;
+  return { id: `${MANUAL_VOLUME_PREFIX}${identity}`, title: clean.slice(0, MANUAL_TITLE_MAX), authors: [] };
 }
 
 /** Page numbers above this are refused rather than stored (the column is int4). */
 export const PAGE_INPUT_MAX = 100000;
+export const PAGE_INPUT_MAX_CHARS = 6;
+
+/** BL-08: refuse the whole edit; never keep a truncated paste as another page count. */
+export function pageCountEdit(held: string, typed: string): { text: string; overflow: boolean } {
+  return typed.length > PAGE_INPUT_MAX_CHARS ? { text: held, overflow: true } : { text: typed, overflow: false };
+}
 
 /**
  * Parse the page editor's two fields (R2C-08: the "0 / 200" under NOW READING had no
@@ -94,6 +110,7 @@ export function parsePageDraft(
   totalDraft: string,
 ): { current_page: number; total_pages: number | null } | null {
   const whole = (raw: string): number | null | undefined => {
+    if (raw.length > PAGE_INPUT_MAX_CHARS) return null;
     const t = raw.trim();
     if (t.length === 0) return undefined;
     if (!/^\d+$/.test(t)) return null;
@@ -225,6 +242,7 @@ export async function updateShelfEntry(
   const supabase = getSupabaseClient();
   const { error } = await supabase.from("ops_reading").update(update).eq("user_id", userId).eq("id", id);
   if (error) throw error;
+  invalidateDomainLevels(userId);
 }
 
 /** Remove a book from the shelf. */

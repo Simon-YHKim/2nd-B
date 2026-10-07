@@ -584,7 +584,7 @@
       "currentPage": "Página",
       "totalPages": "Total de páginas",
       "savePages": "Salvar",
-      "pagesInvalid": "Digite números de página inteiros."
+      "pagesInvalid": "Digite números de página inteiros de 0 a 100000, com no máximo 6 dígitos."
     },
     "goals": {
       "emptyTitle": "Ainda não há metas",
