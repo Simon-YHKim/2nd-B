@@ -419,7 +419,8 @@
       "emptyTitle": "이번 달 지출 기록이 아직 없습니다",
       "emptyBody": "위에 금액을 적으면 여기에 분류별로 모입니다.",
       "currencyNote": "금액은 원(KRW)으로 기록합니다.",
-      "amountTooLarge": "금액이 너무 큽니다. 한 번에 {{max}}원까지 적을 수 있습니다."
+      "amountTooLarge": "금액이 너무 큽니다. 한 번에 {{max}}원까지 적을 수 있습니다.",
+      "amountInvalid": "금액은 12000이나 12,000처럼 원 단위 숫자로 적어 주세요. 부호, 소수점, 문자는 받지 않습니다."
     },
     "meals": {
       "sheetSubtitle": "{{date}} ({{day}}) · {{slot}}",

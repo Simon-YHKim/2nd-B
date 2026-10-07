@@ -419,7 +419,8 @@
       "emptyTitle": "Belum ada pengeluaran bulan ini",
       "emptyBody": "Tulis jumlah di atas dan akan dikelompokkan per kategori di sini.",
       "currencyNote": "Jumlah dicatat dalam won (KRW).",
-      "amountTooLarge": "Jumlah itu terlalu besar. Satu catatan bisa memuat hingga {{max}} won."
+      "amountTooLarge": "Jumlah itu terlalu besar. Satu catatan bisa memuat hingga {{max}} won.",
+      "amountInvalid": "Tulis won bulat, misalnya 12000 atau 12,000. Tanda, desimal, dan huruf tidak diterima."
     },
     "meals": {
       "sheetSubtitle": "{{day}} {{date}} · {{slot}}",

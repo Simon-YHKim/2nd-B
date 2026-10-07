@@ -132,14 +132,29 @@ describe("R2C-16 / R2C-11: ledger", () => {
   test("the amount field has a ceiling, and the reason is shown", () => {
     const start = ledger.indexOf("value={amount}");
     const amountInput = ledger.slice(start, ledger.indexOf("/>", start));
-    expect(amountInput).toContain("onChangeText={setAmount}");
+    // Re-aimed 2026-10-07 (gate S3-02): this used to require onChangeText={setAmount}, which
+    // held a pasted string of any length. The field now keeps at most one character past
+    // LEDGER_AMOUNT_MAX_CHARS, which parseLedgerAmount always refuses (ledger-amount.test.ts),
+    // so the cut text is shown as an error and is never read as a smaller amount.
+    expect(amountInput).toContain(
+      "onChangeText={(v) => setAmount(v.length > LEDGER_AMOUNT_MAX_CHARS ? v.slice(0, LEDGER_AMOUNT_MAX_CHARS + 1) : v)}",
+    );
     expect(amountInput).toContain('keyboardType="number-pad"');
-    // Nothing shortens the typed string before parseLedgerAmount reads it.
+    // Nothing shortens the typed string to a length the parser would read.
     expect(amountInput).not.toMatch(/maxLength/);
     expect(ledger).not.toMatch(/LEDGER_AMOUNT_MAX_DIGITS/);
     expect(ledger).toContain("const amountParsed = parseLedgerAmount(amount);");
     expect(ledger).toContain("{amountTooLarge ? (");
     expect(ledger).toContain('t("toolScreens.ledger.amountTooLarge", { max: MAX_LEDGER_KRW.toLocaleString() })');
+  });
+
+  // Gate S-02 (2026-10-07): "-500", "1e3" and "12.34" were saved as 500, 13 and 1234.
+  test("an amount that is not whole won says so under the field and cannot be added", () => {
+    expect(ledger).toContain('const amountInvalid = amountParsed.kind === "invalid";');
+    expect(ledger).toMatch(/\) : amountInvalid \? \(\n\s*<Text variant="caption" style=\{styles\.fieldErr\} accessibilityLiveRegion="polite">\n\s*\{t\("toolScreens\.ledger\.amountInvalid"\)\}/);
+    // The add button is on for "ok" only: "invalid" and "tooLarge" both leave it off.
+    expect(ledger).toContain('const canAdd = !busy && amountParsed.kind === "ok";');
+    expect(ledger).toContain("amount_krw: amountNum,");
   });
   test("the currency note states what the screen does", () => {
     expect(ledger).toContain('t("toolScreens.ledger.currencyNote")');

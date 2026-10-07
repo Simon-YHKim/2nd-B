@@ -65,7 +65,7 @@ import {
   updateMilestone,
   type Milestone,
 } from "@/lib/ops/milestones";
-import { createLedgerEntry, deleteLedgerEntry, listEntriesForMonth, localDayKey, MAX_LEDGER_KRW, monthBucket, parseLedgerAmount, summarizeMonth } from "@/lib/finance/ledger";
+import { createLedgerEntry, deleteLedgerEntry, LEDGER_AMOUNT_MAX_CHARS, listEntriesForMonth, localDayKey, MAX_LEDGER_KRW, monthBucket, parseLedgerAmount, summarizeMonth } from "@/lib/finance/ledger";
 import { fetchPushActivity, summarizeGithubActivity, type PushActivity } from "@/lib/projects/github";
 import { searchFoods, type FoodNutrition } from "@/lib/nutrition/foods";
 import {
@@ -1063,6 +1063,9 @@ export function LedgerScreen() {
   const amountParsed = parseLedgerAmount(amount);
   const amountNum = amountParsed.kind === "ok" ? amountParsed.value : 0;
   const amountTooLarge = amountParsed.kind === "tooLarge";
+  // Gate S-02 (2026-10-07): "-500", "1e3" and "12.34" used to be saved as 500, 13 and 1234.
+  // Text that is not whole won is now refused, and the field says what it takes.
+  const amountInvalid = amountParsed.kind === "invalid";
   const canAdd = !busy && amountParsed.kind === "ok";
 
   const onAddEntry = async () => {
@@ -1159,10 +1162,13 @@ export function LedgerScreen() {
         <View style={styles.searchRow}>
           {/* No maxLength here: it counts separators too, so 13 cut a pasted
               "1,000,000,000,000" to "1,000,000,000" and saved 1,000x less (gate S-01 /
-              BL-01). parseLedgerAmount reads the whole string and is the only ceiling. */}
+              BL-01). parseLedgerAmount reads the whole string and is the only ceiling.
+              Gate S3-02: a huge paste is not held whole. The field keeps one character past
+              LEDGER_AMOUNT_MAX_CHARS, which the parser always refuses, so the cut text is
+              shown as an error and never read as a smaller amount. */}
           <TextInput
             value={amount}
-            onChangeText={setAmount}
+            onChangeText={(v) => setAmount(v.length > LEDGER_AMOUNT_MAX_CHARS ? v.slice(0, LEDGER_AMOUNT_MAX_CHARS + 1) : v)}
             placeholder={c.amountPlaceholder}
             placeholderTextColor={deepSpace.textLo}
             style={[styles.searchInput, styles.amountInput]}
@@ -1192,6 +1198,10 @@ export function LedgerScreen() {
         {amountTooLarge ? (
           <Text variant="caption" style={styles.fieldErr} accessibilityLiveRegion="polite">
             {t("toolScreens.ledger.amountTooLarge", { max: MAX_LEDGER_KRW.toLocaleString() })}
+          </Text>
+        ) : amountInvalid ? (
+          <Text variant="caption" style={styles.fieldErr} accessibilityLiveRegion="polite">
+            {t("toolScreens.ledger.amountInvalid")}
           </Text>
         ) : null}
       </View>

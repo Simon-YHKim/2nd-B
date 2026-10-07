@@ -419,7 +419,8 @@
       "emptyTitle": "Nenhum gasto registrado neste mês",
       "emptyBody": "Digite um valor acima e ele será agrupado aqui por categoria.",
       "currencyNote": "Os valores são registrados em wons (KRW).",
-      "amountTooLarge": "Esse valor é grande demais. Um registro aceita até {{max}} wons."
+      "amountTooLarge": "Esse valor é grande demais. Um registro aceita até {{max}} wons.",
+      "amountInvalid": "Digite wons inteiros, como 12000 ou 12,000. Sinais, casas decimais e letras não são aceitos."
     },
     "meals": {
       "sheetSubtitle": "{{day}} {{date}} · {{slot}}",

@@ -71,11 +71,44 @@ export const MAX_LEDGER_KRW = 1_000_000_000_000;
  */
 export const LEDGER_AMOUNT_MAX_DIGITS = String(MAX_LEDGER_KRW).length;
 
-export type LedgerAmount = { kind: "empty" } | { kind: "ok"; value: number } | { kind: "tooLarge" };
+/**
+ * The longest amount text the parser reads at all (gate S3-02, 2026-10-07).
+ *
+ * The widest amount the field takes, "₩ 1,000,000,000,000 원", is 21 characters, so 64 leaves
+ * room for padding and leading zeros. Longer text is refused before any pattern runs. The field
+ * keeps at most one character past this (screens.tsx), so a huge paste is never held whole and
+ * what it keeps is still refused here: nothing shortened is ever read as an amount.
+ */
+export const LEDGER_AMOUNT_MAX_CHARS = 64;
 
-/** Read the amount field: digits only (separators dropped), zero counts as empty. */
+/**
+ * What the amount field may hold (gate S-02, 2026-10-07): whole won, written as plain digits or
+ * grouped by commas in threes ("12,000"), with an optional ₩ (or full-width ￦) before it, an
+ * optional 원 after it, and spaces around those. KRW has no minor unit.
+ *
+ * The parser used to delete every character that was not a digit and read what was left, so a
+ * typed amount could be stored as a different one: "-500" became 500, "1e3" became 13, "12.34"
+ * became 1234, "$12" became 12 won. Anything outside the shape above is now "invalid" and is
+ * never sent: a sign, a decimal point or comma, an exponent, a letter, another currency, or a
+ * comma that does not split threes ("12,34", "1,2,3", "0,012").
+ */
+const LEDGER_AMOUNT_SHAPE = /^[₩￦]?\s*(\d+|[1-9]\d{0,2}(?:,\d{3})+)\s*원?$/;
+
+export type LedgerAmount =
+  | { kind: "empty" }
+  | { kind: "ok"; value: number }
+  | { kind: "tooLarge" }
+  | { kind: "invalid" };
+
+/** Read the amount field. Empty or zero is "empty" (the add button stays off, no error);
+ *  text outside LEDGER_AMOUNT_SHAPE is "invalid"; above MAX_LEDGER_KRW is "tooLarge". */
 export function parseLedgerAmount(raw: string): LedgerAmount {
-  const digits = raw.replace(/[^0-9]/g, "").replace(/^0+/, "");
+  if (raw.length > LEDGER_AMOUNT_MAX_CHARS) return { kind: "invalid" };
+  const text = raw.trim();
+  if (text.length === 0) return { kind: "empty" };
+  const written = LEDGER_AMOUNT_SHAPE.exec(text)?.[1];
+  if (written === undefined) return { kind: "invalid" };
+  const digits = written.replace(/,/g, "").replace(/^0+/, "");
   if (digits.length === 0) return { kind: "empty" };
   if (digits.length > LEDGER_AMOUNT_MAX_DIGITS) return { kind: "tooLarge" };
   const value = Number(digits);
@@ -140,11 +173,15 @@ export interface NewLedgerEntry {
   note?: string | null;
 }
 
-/** Record a manual income/expense row. Amount is clamped to a positive integer and
- *  refused above MAX_LEDGER_KRW (the screen checks first; this is the second lock). */
+/** Record a manual income/expense row. The amount must already be a whole number of won
+ *  from 1 to MAX_LEDGER_KRW; anything else is refused before any write (the screen checks
+ *  first with parseLedgerAmount; this is the second lock).
+ *
+ *  Gate S-02 (2026-10-07): this used to round and clamp first and check after, so 1.5 was
+ *  stored as 2 and -500 as a 0-won row. It now checks the amount exactly as it was given. */
 export async function createLedgerEntry(userId: string, entry: NewLedgerEntry): Promise<LedgerEntry> {
-  const amount = Math.max(0, Math.round(entry.amount_krw));
-  if (!Number.isSafeInteger(amount) || amount > MAX_LEDGER_KRW) {
+  const amount = entry.amount_krw;
+  if (!Number.isSafeInteger(amount) || amount <= 0 || amount > MAX_LEDGER_KRW) {
     throw new RangeError("ledger_amount_out_of_range");
   }
   const insert = {
@@ -167,7 +204,9 @@ export async function createLedgerEntry(userId: string, entry: NewLedgerEntry): 
  * Book one imported statement row (0224). `importKey` identifies the row across imports, so a
  * second import of the same statement is skipped instead of booked twice: the upsert ignores a
  * conflict on (user_id, import_key) and returns no row. Resolves to the new entry, or null when
- * the row was already booked. Same amount clamp as createLedgerEntry.
+ * the row was already booked. The amount is rounded and clamped here, then checked against
+ * MAX_LEDGER_KRW (the statement reader already rounds its amounts); the hand-entry path,
+ * createLedgerEntry, refuses instead of rounding (gate S-02).
  */
 export async function createImportedLedgerEntry(
   userId: string,

@@ -23,7 +23,7 @@ jest.mock("@/lib/supabase/client", () => {
   return { getSupabaseClient: () => builder };
 });
 
-import { createLedgerEntry, LEDGER_AMOUNT_MAX_DIGITS, MAX_LEDGER_KRW, parseLedgerAmount } from "../ledger";
+import { createLedgerEntry, LEDGER_AMOUNT_MAX_CHARS, LEDGER_AMOUNT_MAX_DIGITS, MAX_LEDGER_KRW, parseLedgerAmount } from "../ledger";
 
 beforeEach(() => {
   mockInserts.length = 0;
@@ -35,10 +35,14 @@ describe("parseLedgerAmount", () => {
     expect(parseLedgerAmount("50000")).toEqual({ kind: "ok", value: 50000 });
   });
 
+  // Re-aimed 2026-10-07 (gate S-02): "abc" used to be read as empty here, because every
+  // non-digit was deleted first. Letters are now refused with a reason ("invalid" below);
+  // only blank text and zero leave the add button off without one.
   test("empty and zero are empty (the add button stays off)", () => {
     expect(parseLedgerAmount("")).toEqual({ kind: "empty" });
+    expect(parseLedgerAmount("   ")).toEqual({ kind: "empty" });
     expect(parseLedgerAmount("000")).toEqual({ kind: "empty" });
-    expect(parseLedgerAmount("abc")).toEqual({ kind: "empty" });
+    expect(parseLedgerAmount("₩0")).toEqual({ kind: "empty" });
   });
 
   test("the ceiling itself is allowed", () => {
@@ -82,6 +86,66 @@ describe("parseLedgerAmount", () => {
   });
 });
 
+// Gate S-02 (2026-10-07): the parser deleted every non-digit and read what was left, so a
+// typed amount was saved as a DIFFERENT positive amount. The three reproductions from the
+// gate, then the rest of the same family.
+describe("parseLedgerAmount takes whole won only (gate S-02)", () => {
+  const INVALID = { kind: "invalid" };
+
+  test("the gate's reproductions are refused, not turned into another amount", () => {
+    expect(parseLedgerAmount("-500")).toEqual(INVALID); // was saved as 500
+    expect(parseLedgerAmount("1e3")).toEqual(INVALID); // was saved as 13
+    expect(parseLedgerAmount("12.34")).toEqual(INVALID); // was saved as 1234
+  });
+
+  test("signs, decimals, exponents, letters and other currencies are refused", () => {
+    for (const raw of ["+500", "500-", "−500", "1.000", "12,50", "1E3", "0x10", "abc", "12abc", "$12", "12 USD", "１２０００"]) {
+      expect([raw, parseLedgerAmount(raw)]).toEqual([raw, INVALID]);
+    }
+  });
+
+  test("a comma counts only when it splits threes", () => {
+    for (const raw of ["12,34", "1,2,3", "1,0000", ",500", "500,", "1,,000", "0,012", "12 000"]) {
+      expect([raw, parseLedgerAmount(raw)]).toEqual([raw, INVALID]);
+    }
+    expect(parseLedgerAmount("12,345")).toEqual({ kind: "ok", value: 12345 });
+    expect(parseLedgerAmount("1,234,567")).toEqual({ kind: "ok", value: 1_234_567 });
+  });
+
+  test("the won sign, 원 and the spaces around them are taken", () => {
+    expect(parseLedgerAmount("₩12,000")).toEqual({ kind: "ok", value: 12000 });
+    expect(parseLedgerAmount("￦ 5000")).toEqual({ kind: "ok", value: 5000 });
+    expect(parseLedgerAmount("12,000원")).toEqual({ kind: "ok", value: 12000 });
+    expect(parseLedgerAmount(" 3000 원 ")).toEqual({ kind: "ok", value: 3000 });
+    expect(parseLedgerAmount("₩ 12,000 원")).toEqual({ kind: "ok", value: 12000 });
+    // ...but each only once, and only on its own side.
+    for (const raw of ["₩₩100", "100₩", "원100", "100원원"]) {
+      expect([raw, parseLedgerAmount(raw)]).toEqual([raw, INVALID]);
+    }
+  });
+});
+
+// Gate S3-02 (2026-10-07): the amount text had no length limit, and the parser ran its
+// patterns over all of it on every render.
+describe("parseLedgerAmount reads at most LEDGER_AMOUNT_MAX_CHARS characters (gate S3-02)", () => {
+  test("the widest amount the field takes fits well inside the limit", () => {
+    const widest = "₩ 1,000,000,000,000 원";
+    expect(widest.length).toBeLessThan(LEDGER_AMOUNT_MAX_CHARS);
+    expect(parseLedgerAmount(widest)).toEqual({ kind: "ok", value: MAX_LEDGER_KRW });
+  });
+
+  test("text at the limit is read; one character past it is refused, whatever it says", () => {
+    const atLimit = `${"0".repeat(LEDGER_AMOUNT_MAX_CHARS - 1)}1`;
+    expect(parseLedgerAmount(atLimit)).toEqual({ kind: "ok", value: 1 });
+    expect(parseLedgerAmount(`0${atLimit}`)).toEqual({ kind: "invalid" });
+    expect(parseLedgerAmount(`${atLimit} `)).toEqual({ kind: "invalid" });
+  });
+
+  test("a huge paste is refused without being read", () => {
+    expect(parseLedgerAmount("1,000".repeat(200_000))).toEqual({ kind: "invalid" });
+  });
+});
+
 describe("createLedgerEntry refuses an out-of-range amount before any write", () => {
   test("above the ceiling: throws and inserts nothing", async () => {
     await expect(
@@ -90,6 +154,17 @@ describe("createLedgerEntry refuses an out-of-range amount before any write", ()
     await expect(createLedgerEntry("u", { kind: "expense", amount_krw: 1e25, category: "x" })).rejects.toThrow(
       "ledger_amount_out_of_range",
     );
+    expect(mockInserts).toEqual([]);
+  });
+
+  // Gate S-02 (2026-10-07): the amount used to be rounded and clamped BEFORE this check, so a
+  // direct call stored 1.5 as 2 and -500 as a 0-won row.
+  test("not a whole positive won: throws and inserts nothing, nothing is rounded or clamped", async () => {
+    for (const amount of [1.5, 0.4, -500, 0, -0, Number.NaN, Number.POSITIVE_INFINITY]) {
+      await expect(createLedgerEntry("u", { kind: "expense", amount_krw: amount, category: "x" })).rejects.toThrow(
+        "ledger_amount_out_of_range",
+      );
+    }
     expect(mockInserts).toEqual([]);
   });
 
