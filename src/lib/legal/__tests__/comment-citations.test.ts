@@ -89,7 +89,7 @@ const CITES: CommentCite[] = [
   },
   {
     from: "src/lib/supabase/consent.ts",
-    cite: "src/app/(auth)/complete-profile.tsx:374",
+    cite: "src/app/(auth)/complete-profile.tsx:377",
     symbol: "<ConsentNotice",
     why: "같은 것의 두 번째 진입 화면. ⚠ 이 줄이 :308 에서 밀린 채 방치돼 있었다.",
   },
@@ -101,7 +101,7 @@ const CITES: CommentCite[] = [
   },
   {
     from: "src/lib/supabase/consent.ts",
-    cite: "src/app/(auth)/complete-profile.tsx:190",
+    cite: "src/app/(auth)/complete-profile.tsx:191",
     symbol: "recordConsentBestEffort(",
     why: "두 번째 쓰기 자리. ⚠ 이 줄도 :161 에서 밀린 채 방치돼 있었다.",
   },
