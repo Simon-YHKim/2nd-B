@@ -325,31 +325,6 @@ export function BoardPageView({ board, page, events }: { board: BoardContract; p
   </View>;
 }
 
-/** 독 칸 하나: 계단 모서리 앱 타일 + 이름. */
-function DockApp({ label, glyph, tile, onPress }: { label: string; glyph: "add" | "bubble"; tile: string; onPress: () => void }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.dockSlot, styles.dockContent]}>
-    <PixelRoundRect fill={tile} style={styles.dockTile}><PixelGlyph name={glyph} size={22} color={phoneIos.onBlue} /></PixelRoundRect>
-    <Text variant="caption" style={styles.dockLabel}>{label}</Text>
-  </Pressable>;
-}
-
-/** 독: 모든 쪽에 고정(iOS 독). 담기 · 대화 · 녹음 전사(W2 전까지 잠김). */
-export function BoardDock({ dock, go }: { dock: BoardContract["dock"]; go: (route: string) => void }) {
-  const { t } = useTranslation("ops");
-  const locked = dock.transcribe.locked || !dock.transcribe.route;
-  return <PixelRoundRect testID="board-dock" fill={phoneIos.dock} style={styles.dock}>
-    <DockApp label={t("phone.board.dock.capture")} glyph="add" tile={phoneIos.blue} onPress={() => go(dock.capture)} />
-    <DockApp label={t("phone.board.dock.chat")} glyph="bubble" tile={phoneIos.green} onPress={() => go(dock.chat)} />
-    <Pressable disabled={locked} onPress={() => dock.transcribe.route && go(dock.transcribe.route)} accessibilityRole="button"
-      accessibilityLabel={locked ? t("phone.board.dock.transcribeLocked") : t("phone.board.dock.transcribe")} accessibilityState={{ disabled: locked }}
-      style={[styles.dockSlot, styles.dockContent]}>
-      <View style={[styles.dockTile, locked && styles.dockLocked]}>
-        <PixelGlyph name={locked ? "lock" : "mic"} size={20} color={phoneIos.label2} />
-      </View>
-      <Text variant="caption" style={[styles.dockLabel, styles.muted]}>{t("phone.board.dock.transcribe")}</Text>
-    </Pressable>
-  </PixelRoundRect>;
-}
 
 const styles = StyleSheet.create({
   text: { color: phoneIos.label },
@@ -381,10 +356,4 @@ const styles = StyleSheet.create({
   metrics: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   metric: { minWidth: 64, gap: 2 },
   addSlot: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 56 },
-  dock: { flexDirection: "row", marginHorizontal: 9, marginTop: 4, marginBottom: 8, paddingVertical: 6, paddingHorizontal: 4 },
-  dockSlot: { flex: 1, minWidth: 0 },
-  dockContent: { minHeight: 48, alignItems: "center", justifyContent: "center", gap: 3 },
-  dockTile: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  dockLocked: { borderWidth: 2, borderStyle: "dashed", borderColor: phoneIos.label2 },
-  dockLabel: { color: phoneIos.label, fontSize: 11, lineHeight: 14 },
 });

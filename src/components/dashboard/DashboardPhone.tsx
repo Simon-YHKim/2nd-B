@@ -31,7 +31,7 @@ import { OpsPhoneContent, type OpsPhoneScreen } from "@/screens/deepspace/ops/Ph
 import { MuseumPhoneContent } from "@/screens/deepspace/museum/MuseumTimelineScreen";
 import { PhoneEmbedProvider, splitPhoneRoute, type PhoneEmbedNav } from "@/lib/nav/phone-embed";
 import { resolvePhoneScreen } from "./phone-screens";
-import { BoardDock, BoardPageView, type BoardEvents } from "./board/BoardParts";
+import { BoardPageView, type BoardEvents } from "./board/BoardParts";
 import { DailySummary } from "./board/DailySummary";
 import { BoardShelf } from "./board/BoardShelf";
 import { TranscribeSkeleton } from "./board/TranscribeSkeleton";
@@ -52,12 +52,17 @@ const TOOLS: { id: PhoneAppId; route: string }[] = [
   { id: "relationships", route: "/star/relation" },
   { id: "avatarPalette", route: "/avatar-palette" },
 ];
+// Three columns (Simon 2026-10-07): the grid spans the display width with one gap everywhere.
 const APP_ORDER: PhoneAppId[] = [
-  "notifications", "assistant", "focus", "reminders",
-  "money", "growth", "meals", "museum",
+  "notifications", "assistant", "focus",
+  "reminders", "money", "growth",
+  "meals", "museum", "community",
   // Simon 2026-10-07: the More page folded into the grid - the palette takes the More tile's place.
-  "community", "relationships", "settings", "avatarPalette",
+  "relationships", "settings", "avatarPalette",
 ];
+const APP_COLUMNS = 3;
+/** One spacing for the grid: between columns, between rows and at the display edge (= content padding). */
+const APP_GAP = 9;
 const OPS_PHONE_ROUTES: Record<string, OpsPhoneScreen> = {
   "/ops": "ops",
   "/reading": "reading",
@@ -100,10 +105,10 @@ function PhoneAction({ label, onPress, glyph, disabled = false }: {
 }
 
 /** The iOS nav bar's back: a blue chevron and label, top left. */
+/** iOS back: the chevron alone (Simon 2026-10-07 - no words that explain a button). The label is for screen readers. */
 function NavBack({ label, onPress }: { label: string; onPress: () => void }) {
   return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.navBack}>
-    <PixelGlyph name="chevron_left" size={16} color={phoneIos.blue} />
-    <Text variant="body" style={styles.navBackText}>{label}</Text>
+    <PixelGlyph name="chevron_left" size={24} color={phoneIos.blue} />
   </Pressable>;
 }
 
@@ -594,7 +599,10 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       </View>;
     }
     // iOS home screen: no title or banner above the grid (Simon 2026-10-07, pixel iPhone).
-    return <View style={styles.appGrid}>{APP_ORDER.map((id) => {
+    // Rows of three equal columns; a short last row keeps its columns with empty slots.
+    const rows = Array.from({ length: appRowCount }, (_, row) => Array.from({ length: APP_COLUMNS }, (_, column) => APP_ORDER[row * APP_COLUMNS + column]));
+    return <View style={styles.appGrid}>{rows.map((row, rowIndex) => <View key={rowIndex} style={styles.appRow}>{row.map((id, column) => {
+      if (!id) return <View key={`empty-${column}`} style={styles.appTile} />;
       const disabled = id === "community" && isMinor !== false;
       const open = () => {
         if (id === "notifications") { scrollY.current = 0; setPhoneApp("notifications"); return; }
@@ -602,14 +610,14 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         const route = TOOLS.find((item) => item.id === id)?.route;
         if (route) go(route);
       };
-      return <Pressable key={id} accessibilityRole="button" accessibilityLabel={t(`phone.apps.${id}`)} disabled={disabled} onPress={open} style={[styles.appTile, { height: appTileHeight }]}>
-        <PixelRoundRect fill={disabled ? phoneIos.fill : phoneIos.cell} style={[styles.appFace, { width: appIconSize + 14, height: appIconSize + 14 }]}>
-          <Image source={PHONE_APP_ICONS[id]} contentFit="contain" pointerEvents="none" style={[styles.appIcon, { width: appIconSize, height: appIconSize }, PIXEL_IMAGE]} />
+      return <Pressable key={id} accessibilityRole="button" accessibilityLabel={t(`phone.apps.${id}`)} disabled={disabled} onPress={open} style={styles.appTile}>
+        <PixelRoundRect fill={disabled ? phoneIos.fill : phoneIos.cell} style={[styles.appFace, { height: appFaceHeight }]}>
+          <Image source={PHONE_APP_ICONS[id]} contentFit="contain" pointerEvents="none" style={[{ width: appIconSize, height: appIconSize }, PIXEL_IMAGE]} />
         </PixelRoundRect>
-        <Text variant="caption" numberOfLines={2} style={[styles.appLabel, disabled && styles.appLabelDisabled]}>{t(`phone.apps.${id}`)}</Text>
+        <Text variant="caption" numberOfLines={1} style={[styles.appLabel, disabled && styles.appLabelDisabled]}>{t(`phone.apps.${id}`)}</Text>
         {id === "notifications" && unreadCount > 0 ? <PixelRoundRect corner="pill" fill={phoneIos.red} style={styles.badge}><Text variant="caption" style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text></PixelRoundRect> : null}
       </Pressable>;
-    })}</View>;
+    })}</View>)}</View>;
   }
 
   function noticeRow(item: ProductNotice) {
@@ -640,11 +648,15 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     <IosRow title={page.title || page.slug} subtitle={t("wiki:savedAs", { name: page.slug })}
       accessibilityLabel={t("wiki:openPage", { title: page.title || page.slug })} onPress={() => go(`/wiki/page/${encodeURIComponent(page.id)}`)} />
   </PixelRoundRect>;
-  // The display shrinks with the bezel; the launcher must fit all three rows
-  // on smaller phones, not hide the last labels.
-  // With the banner gone (pixel iPhone), a tile is the stepped icon face plus a two-line label.
-  const appTileHeight = Math.max(56, Math.min(80, Math.floor(((frame?.screen.height ?? 512) - 230) / 3)));
-  const appIconSize = Math.max(24, Math.min(36, appTileHeight - 44));
+  // The display shrinks with the bezel; the launcher must fit every row without scrolling.
+  // A face is as wide as its column and square when the height allows (status bar 28 + page dots 36
+  // + list padding 25 leave the rest; each row also carries a one-line label of 18).
+  const appRowCount = Math.ceil(APP_ORDER.length / APP_COLUMNS);
+  const appColumnWidth = Math.floor(((frame?.screen.width ?? 320) - APP_GAP * (APP_COLUMNS + 1)) / APP_COLUMNS);
+  const appFaceFit = Math.floor(((frame?.screen.height ?? 512) - 89 - APP_GAP * (appRowCount - 1)) / appRowCount) - 18;
+  const appFaceHeight = Math.max(44, Math.min(appColumnWidth, appFaceFit));
+  // The icons are 128px pixel art; whole steps of 16 keep their pixels square.
+  const appIconSize = appFaceHeight >= 84 ? 64 : appFaceHeight >= 64 ? 48 : 32;
   // Home pages sit on the wallpaper; the phone's own pages on iOS grouped grey; an app opened in the phone
   // (hosted · assistant · museum) keeps its own dark screen.
   const appScreenOpen = ownsDisplay || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);
@@ -667,7 +679,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       <View style={[styles.display, frame.screen, internalActive && !appScreenOpen && styles.displayGrouped]}>
       {!internalActive ? <Wallpaper /> : null}
       <StatusBar ink={statusInk} time={statusTime} />
-      {internalActive && !contentOwnsBack ? <NavBack label={selectedNoticeId ? t("phone.noticeListBack") : t("phone.internal.back")} onPress={backInside} /> : null}
+      {internalActive && !contentOwnsBack ? <NavBack label={t("phone.internal.back")} onPress={backInside} /> : null}
       {!ownsDisplay && loading ? <Text accessibilityLiveRegion="polite" variant="caption" style={styles.readStatus}>{t("phone.loading")}</Text> : null}
       {!ownsDisplay && (failed || partial) ? <View style={styles.errorRow}><Text variant="caption" style={[styles.flexText, styles.muted]}>{t("phone.partialError")}</Text><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} /></View> : null}
       <View style={styles.pageBody} {...(ownsDisplay ? {} : pagePan.panHandlers)}>
@@ -717,8 +729,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
           {pageIndex < LAST_PAGE ? <PixelGlyph name="chevron_right" size={14} color={phoneIos.dotOn} /> : null}
         </Pressable>
       </View> : null}
-      {/* 독(PS-DASH-001 v2.2): 담기 · 대화 · 녹음 전사, 홈 쪽마다 고정(iOS 독). */}
-      {!internalActive ? <BoardDock dock={board.dock} go={go} /> : null}
+      {/* No dock (Simon 2026-10-07): capture and chat stay in the bottom bar outside the phone. */}
       </View>
       <Pressable
         accessibilityRole="button"
@@ -755,8 +766,7 @@ const styles = StyleSheet.create({
   battery: { width: 22, height: 11, borderWidth: 2, padding: 1 },
   batteryLevel: { flex: 1 },
   batteryTip: { width: 2, height: 4 },
-  navBack: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, paddingHorizontal: 8, alignSelf: "flex-start" },
-  navBackText: { color: phoneIos.blue, fontFamily: "Galmuri11Bold" },
+  navBack: { width: 44, height: 44, alignItems: "center", justifyContent: "center", marginLeft: 2 },
   pageControls: { minHeight: 36, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 9 },
   pageArrow: { width: 44, height: 36, alignItems: "center", justifyContent: "center" },
   pageDots: { flexDirection: "row", alignItems: "center" },
@@ -774,13 +784,13 @@ const styles = StyleSheet.create({
   centered: { textAlign: "center" },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   actionsCentered: { justifyContent: "center" },
-  appGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 6, paddingTop: 8 },
-  appTile: { position: "relative", width: "24%", alignItems: "center", justifyContent: "flex-start", gap: 4 },
-  appFace: { alignItems: "center", justifyContent: "center" },
-  appIcon: { width: 36, height: 36 },
-  appLabel: { color: phoneIos.label, fontFamily: "Galmuri11Bold", fontSize: 10, lineHeight: 12, textAlign: "center", maxWidth: "98%" },
+  appGrid: { gap: APP_GAP, paddingTop: 8 },
+  appRow: { flexDirection: "row", gap: APP_GAP },
+  appTile: { position: "relative", flex: 1, minWidth: 0, gap: 4 },
+  appFace: { alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
+  appLabel: { color: phoneIos.label, fontFamily: "Galmuri11Bold", fontSize: 11, lineHeight: 14, textAlign: "center" },
   appLabelDisabled: { color: phoneIos.label2 },
-  badge: { position: "absolute", top: -2, right: 4, minWidth: 18, height: 18, paddingHorizontal: 4, alignItems: "center", justifyContent: "center" },
+  badge: { position: "absolute", top: -4, right: -4, minWidth: 18, height: 18, paddingHorizontal: 4, alignItems: "center", justifyContent: "center" },
   badgeText: { color: phoneIos.onBlue, fontFamily: "Galmuri11Bold", fontSize: 10, lineHeight: 12 },
   flexText: { flex: 1, flexShrink: 1 },
   readStatus: { paddingHorizontal: 12, paddingVertical: 8, color: phoneIos.label2 },
