@@ -10,6 +10,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { BusinessFooter } from "@/components/deepspace/BusinessFooter";
+import { ShareRefusedLine } from "@/components/capture/ShareRefusedLine";
 import { LoadingPolaris } from "@/components/deepspace/LoadingPolaris";
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -207,6 +208,8 @@ export function DeepSpaceSignInDesignScreen() {
         <Text style={styles.title}>{t("deepspace:auth.signInTitle")}</Text>
         <Text style={styles.lead}>{t("deepspace:auth.signInLead")}</Text>
       </View>
+
+      <ShareRefusedLine />
 
       {sessionUnavailable ? (
         <View accessibilityRole="alert" accessibilityLiveRegion="assertive">

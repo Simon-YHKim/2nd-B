@@ -26,6 +26,8 @@ describe("IntroGate C10 gate exempts /onboarding (login-first loop fix)", () => 
   });
 
   test("the exempted C10 redirect still targets /complete-profile", () => {
-    expect(SRC).toMatch(/segments\[0\] !== "onboarding"[\s\S]{0,80}Redirect href="\/complete-profile"/);
+    // The target can carry the one-line share notice (src/lib/capture/share-intent.ts), but the
+    // pathname is still /complete-profile.
+    expect(SRC).toMatch(/segments\[0\] !== "onboarding"[\s\S]{0,80}Redirect href=\{shareRefusedHref\("\/complete-profile", /);
   });
 });

@@ -339,5 +339,8 @@
   "formatsTab": "Formatos",
   "importTab": "Importar",
   "inboxTab": "Recebidos",
-  "manualTab": "Guia de uso"
+  "manualTab": "Guia de uso",
+  "shareRefused": {
+    "body": "O que você compartilhou não foi adicionado. Entre na sua conta e compartilhe de novo."
+  }
 }

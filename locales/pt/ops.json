@@ -579,7 +579,8 @@
       "emptyTitle": "Nenhum gasto registrado neste mês",
       "emptyBody": "Digite um valor acima e ele será agrupado aqui por categoria.",
       "currencyNote": "Os valores são registrados em wons (KRW).",
-      "amountTooLarge": "Esse valor é grande demais. Um registro aceita até {{max}} wons."
+      "amountTooLarge": "Esse valor é grande demais. Um registro aceita até {{max}} wons.",
+      "amountInvalid": "Digite wons inteiros, como 12000, 12,000, ₩12,000 ou 12,000원. Sinais e casas decimais não são aceitos."
     },
     "meals": {
       "sheetSubtitle": "{{day}} {{date}} · {{slot}}",
@@ -588,6 +589,7 @@
       "lookUp": "Buscar alimentos",
       "lookUpNone": "Nenhum alimento corresponde.",
       "lookUpFailed": "Não foi possível buscar. Tente de novo.",
+      "saveFailed": "Esta alteração não foi salva. O que você digitou continua aqui. Tente de novo.",
       "days": {
         "mon": "Seg",
         "tue": "Ter",
