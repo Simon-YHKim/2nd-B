@@ -58,7 +58,7 @@ test("hosted full screens get a bounded view, the phone's navigation, and no pho
 });
 
 test("source states, empty records, retry and a safe phone note remain explicit", () => {
-  expect(phone).toContain('t("phone.operational.sourceStates.unknown")');
+  // 'unknown' lived in the old at-a-glance metrics, which left the dashboard on 2026-10-07 (발주 2).
   expect(phone).toContain('t("phone.operational.sourceStates.empty")');
   expect(phone).toContain('accessibilityRole="alert"');
   expect(phone).toContain('withFollowup: false');
