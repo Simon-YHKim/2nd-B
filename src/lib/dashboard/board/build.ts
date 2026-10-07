@@ -102,5 +102,7 @@ export function buildBoard(data: DashboardData | null, now: Date, isMinor: boole
     approved: [],
     addWidgetRoute: "/board/widgets",
     dock: { capture: "/capture", chat: "/secondb", transcribe: { locked: true, route: null } },
+    // 하루 요약(daily_note)은 W0 가 원천을 붙인다. 그 전에는 P-02 가 숨어 S-01 로 들어오는 길도 없다.
+    summary: null,
   };
 }

@@ -292,6 +292,20 @@
         "sources": "Hubungkan sumber untuk melihat apa yang berubah.",
         "records": "Widget milikmu terbuka saat catatan bertambah."
       },
+      "summary": {
+        "titleDefault": "Ringkasan hari ini",
+        "title": {
+          "morning": "Ringkasan pagi",
+          "day": "Ringkasan siang",
+          "evening": "Ringkasan malam"
+        },
+        "read": "Bacakan",
+        "stop": "Berhenti",
+        "close": "Tutup",
+        "notReady": "Ringkasan hari ini belum siap.",
+        "noValue": "tidak ada catatan",
+        "mutedNote": "Mode senyap aktif, jadi ringkasan hanya tampil sebagai teks."
+      },
       "dock": {
         "capture": "Simpan",
         "chat": "Obrolan",
