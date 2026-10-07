@@ -34,6 +34,8 @@ import { PhoneEmbedProvider, splitPhoneRoute, type PhoneEmbedNav } from "@/lib/n
 import { resolvePhoneScreen } from "./phone-screens";
 import { BoardDock, BoardPageView, type BoardEvents } from "./board/BoardParts";
 import { DailySummary } from "./board/DailySummary";
+import { BoardShelf } from "./board/BoardShelf";
+import { TranscribeSkeleton } from "./board/TranscribeSkeleton";
 import { healthBlankValues } from "@/lib/dashboard/board/summary-flow";
 import type { ProductNotice } from "@/lib/notices/types";
 
@@ -390,6 +392,8 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     spend: (_id, choice) => { if (choice === "add") go("/ledger"); },
     custom: () => undefined,
   }), [go]);
+  // 순서 · 숨기기 · 다시 켜기는 W0 가 저장할 곳을 줄 때 이어진다(지금 계약은 canReorder false).
+  const shelfEvents = useMemo(() => ({ go, show: () => undefined, hide: () => undefined, move: () => undefined }), [go]);
   const partial = data && Object.values(data).some((value) => value && typeof value === "object" && "ok" in value && !value.ok);
 
   async function savePhoneNote() {
@@ -427,6 +431,12 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     const opsScreen = OPS_PHONE_ROUTES[route];
     if (opsScreen) return <OpsPhoneContent screen={opsScreen} onBack={backInside} onNavigate={go} />;
     // S-01 하루 요약(PS-DASH-001 v2.2). 건강 빈칸은 이 기기의 P-06 값으로 채운다(흐름 2).
+    // S-03 위젯 관리 · S-02 녹음 전사 골격(PS-DASH-001 v2.2). 판단은 계약(board.shelf)이 한다.
+    if (route === "/board/widgets") return <View style={styles.stack}>
+      <Text variant="heading">{t("phone.board.shelf.title")}</Text>
+      <BoardShelf board={board} events={shelfEvents} />
+    </View>;
+    if (route === "/board/transcribe") return <TranscribeSkeleton adult={isMinor === false} />;
     if (route === "/board/summary") return <DailySummary summary={board.summary} muted={false} reducedMotion={reducedMotion} go={go} onClose={backInside}
       healthValues={healthBlankValues(board, (metric) => metric.unit === "count" ? metric.value.toLocaleString(i18n.language) : t("phone.board.health.minutes", { value: metric.value.toLocaleString(i18n.language) }))} />;
     const records = data?.records.ok ? data.records.value : [];
