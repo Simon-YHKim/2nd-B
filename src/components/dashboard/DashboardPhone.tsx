@@ -33,6 +33,8 @@ import { MuseumPhoneContent } from "@/screens/deepspace/museum/MuseumTimelineScr
 import { PhoneEmbedProvider, splitPhoneRoute, type PhoneEmbedNav } from "@/lib/nav/phone-embed";
 import { resolvePhoneScreen } from "./phone-screens";
 import { BoardDock, BoardPageView, type BoardEvents } from "./board/BoardParts";
+import { DailySummary } from "./board/DailySummary";
+import { healthBlankValues } from "@/lib/dashboard/board/summary-flow";
 import type { ProductNotice } from "@/lib/notices/types";
 
 type Tab = "dashboard" | "tools";
@@ -154,7 +156,8 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   // Those screens and the Ops screens draw their own header Back wired to
   // backInside, so the phone's Back row would be a second one. Back lives in
   // one place.
-  const contentOwnsBack = ownsDisplay || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);
+  // S-01 하루 요약은 자기 [닫기]를 가진다.
+  const contentOwnsBack = ownsDisplay || insideRoute === "/board/summary" || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);
   const wikiDetailId = insideRoute?.startsWith("/wiki/page/")
     ? decodeURIComponent(insideRoute.slice("/wiki/page/".length)) : null;
   const go = useCallback((target: string) => {
@@ -423,6 +426,9 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     const tagFilter = routeParams.tags ? routeParams.tags.split(",") : null;
     const opsScreen = OPS_PHONE_ROUTES[route];
     if (opsScreen) return <OpsPhoneContent screen={opsScreen} onBack={backInside} onNavigate={go} />;
+    // S-01 하루 요약(PS-DASH-001 v2.2). 건강 빈칸은 이 기기의 P-06 값으로 채운다(흐름 2).
+    if (route === "/board/summary") return <DailySummary summary={board.summary} muted={false} reducedMotion={reducedMotion} go={go} onClose={backInside}
+      healthValues={healthBlankValues(board, (metric) => metric.unit === "count" ? metric.value.toLocaleString(i18n.language) : t("phone.board.health.minutes", { value: metric.value.toLocaleString(i18n.language) }))} />;
     const records = data?.records.ok ? data.records.value : [];
     const recordFailed = !!data && !data.records.ok;
     const area = route.startsWith("/star/") ? route.slice(6) : null;

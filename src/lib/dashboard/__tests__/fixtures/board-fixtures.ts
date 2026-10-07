@@ -3,7 +3,7 @@
 // 설계도 PS-DASH-001 v2.2 의 예시 문구를 그대로 쓴다. 이 값은 테스트 전용이다 -
 // 앱이 읽는 판은 build.ts(나중에 W0 레지스트리)가 만든다. 가짜 값이 사용자 화면에 나가지 않는다.
 
-import type { BoardContract, BoardPart, BoardPartId, BoardState } from "../../board/contract";
+import type { BoardContract, BoardPart, BoardPartId, BoardState, DailySummary } from "../../board/contract";
 
 const SETUP = { label: { key: "phone.board.health.openSetup" }, route: "/import?mode=account" };
 const CAPTURE = { label: { key: "phone.board.custom.capture" }, route: "/capture" };
@@ -46,7 +46,7 @@ const DATA: Record<BoardPartId, BoardPart> = {
     id: "P-06", page: 2, order: 1, shape: "card", visible: true, state: "data", basis: "rule",
     metrics: [
       { metric: "sleep", value: 380, unit: "min" },
-      { metric: "steps", value: 6120, unit: "steps" },
+      { metric: "steps", value: 6120, unit: "count" },
       { metric: "workout", value: 25, unit: "min" },
     ],
     comparison: { text: "평소보다 40분 짧아요" },
@@ -116,5 +116,24 @@ export function boardFixture(state: BoardState): BoardContract {
     approved: state === "data" ? [{ id: "a-1", title: { text: "독서" }, line: { text: "이번 달 2권째 · 143쪽" }, route: "/reading", basis: "fact" }] : [],
     addWidgetRoute: "/board/widgets",
     dock: { capture: "/capture", chat: "/secondb", transcribe: { locked: true, route: null } },
+    summary: state === "data" ? SUMMARY : null,
   };
 }
+
+/** S-01 아침 요약. 머리 -> 사실 4 -> 연결 2 -> 제안 3(AI 2 · 규칙 1) -> 개수 한 줄. */
+export const SUMMARY: DailySummary = {
+  slot: "morning",
+  bubbles: [
+    { id: "h", kind: "head", line: { text: "오늘은 오전에 몰린 날이에요." }, basis: "ai", evidenceRoute: null },
+    { id: "f1", kind: "fact", line: { text: "어젯밤 수면 {{sleep}}" }, basis: "fact", evidenceRoute: null },
+    { id: "f2", kind: "fact", line: { text: "10:00 주간 보고" }, basis: "fact", evidenceRoute: "/reminders" },
+    { id: "f3", kind: "fact", line: { text: "김 책임 견적 회신 대기 · 금요일까지" }, basis: "fact", evidenceRoute: "/record/mail-1" },
+    { id: "f4", kind: "fact", line: { text: "어제 걸음 {{steps}}" }, basis: "fact", evidenceRoute: null },
+    { id: "l1", kind: "link", line: { text: "보고 전에 견적 회신을 먼저 보내면 오후가 비어요." }, basis: "ai", evidenceRoute: "/record/rec-1" },
+    { id: "l2", kind: "link", line: { text: "수면이 짧은 날은 오후 집중이 떨어졌어요." }, basis: "ai", evidenceRoute: "/record/rec-3" },
+    { id: "s1", kind: "suggestion", line: { text: "점심 뒤 20분 걷기" }, basis: "ai", evidenceRoute: null },
+    { id: "s2", kind: "suggestion", line: { text: "견적 회신 초안 먼저 쓰기" }, basis: "ai", evidenceRoute: null },
+    { id: "s3", kind: "suggestion", line: { text: "23:00 전에 눕기 · 이번 주 규칙" }, basis: "rule", evidenceRoute: null },
+    { id: "c", kind: "count", line: { text: "일정 2 · 처리할 것 3 · 리마인더 4" }, basis: "fact", evidenceRoute: null },
+  ],
+};

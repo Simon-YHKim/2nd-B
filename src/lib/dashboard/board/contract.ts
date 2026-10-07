@@ -91,6 +91,19 @@ export interface ChangesPart extends PartBase<"P-08"> { lines: BoardText[] }
 /** P-09 나만의 칸(줄). suggestion 은 규칙 제안(회색 카드)이다. */
 export interface CustomPart extends PartBase<"P-09"> { widgets: CustomWidget[]; suggestion: { id: string; line: BoardText; basis: BoardBasis } | null }
 
+/**
+ * S-01 하루 요약의 말풍선 하나. 순서는 계약이 정한다: 머리(ai) -> 사실 <=4 -> 연결(ai) <=2 -> 제안 <=3 -> 개수 한 줄.
+ * 건강 수치는 문장에 빈칸(예: {{sleep}})으로 오고 앱이 채운다(흐름 2: 숫자가 LLM 문맥에 가지 않는다).
+ */
+export interface SummaryBubble {
+  id: string;
+  kind: "head" | "fact" | "link" | "suggestion" | "count";
+  line: BoardText;
+  basis: BoardBasis;
+  evidenceRoute: string | null;
+}
+export interface DailySummary { slot: "morning" | "day" | "evening"; bubbles: SummaryBubble[] }
+
 export type BoardPart = ClockPart | NotePart | RemindersPart | QueuePart | HealthPart | SpendPart | ChangesPart | CustomPart;
 export type BoardPartId = BoardPart["id"];
 
@@ -101,6 +114,8 @@ export interface BoardContract {
   /** 2쪽 끝 '+ 위젯 추가'. 항상 있다. */
   addWidgetRoute: string;
   dock: { capture: string; chat: string; transcribe: { locked: boolean; route: string | null } };
+  /** S-01 하루 요약. 원천(daily_note)이 없으면 null. */
+  summary: DailySummary | null;
 }
 
 /** 그 쪽에서 보일 부품을 순서대로. 화면은 이 함수만 거쳐 부품을 받는다. */
