@@ -88,7 +88,8 @@ describe("완료조건 4: 부품의 동작", () => {
 
 describe("완료조건 7: 접근성 라벨 · 터치 영역 44 이상", () => {
   test("누르는 자리는 44 이상, 독은 48", () => {
-    expect(parts).toContain("button: { minHeight: 44, minWidth: 44,");
+    // The iOS buttons live in IosParts.tsx (pixel iPhone, Simon 2026-10-07).
+    expect(read("src/components/dashboard/board/IosParts.tsx")).toContain("button: { minHeight: 44, minWidth: 44,");
     expect(parts).toContain("evidence: { width: 44, height: 44,");
     expect(parts).toContain("dayArrow: { width: 44, height: 44,");
     expect(parts).toContain("tapRow: { minHeight: 44,");
@@ -126,7 +127,8 @@ describe("완료조건 8 + 08:32 보강: 옛 위젯 8개를 대시보드에서 �
   test("대시보드 쪽은 하루 관리판을 그린다", () => {
     expect(phone).toContain("return <BoardPageView board={board} page={boardPage} events={boardEvents} />;");
     expect(phone).toContain("const board = useMemo(() => buildBoard(data, new Date(), isMinor), [data, isMinor]);");
-    expect(phone).toContain('{!internalActive && tab === "dashboard" ? <BoardDock dock={board.dock} go={go} /> : null}');
+    // Pixel iPhone: the dock sits on every home page, like an iPhone's.
+    expect(phone).toContain('{!internalActive ? <BoardDock dock={board.dock} go={go} /> : null}');
   });
 
   test("새 부품이 삭제 금지 목록의 읽기 함수를 다시 쓴다", () => {

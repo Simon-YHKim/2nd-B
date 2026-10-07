@@ -168,6 +168,24 @@ must remain available.
 Material icons use the approved rounded symbol geometry. New one-off SVGs need a
 clear functional reason and must follow the Android SVG limits.
 
+### In-app phone: pixel iPhone (Simon, 2026-10-07)
+
+The screens the dashboard phone draws itself (status bar, the daily board's two
+pages, the dock, the app grid, notifications, and the phone's own small pages
+such as capture, focus, records, wiki, the daily summary and the widget shelf)
+follow iOS light defaults instead of the deep-space palette: grouped grey
+background, white cells, system blue, iOS-style grouped lists, large titles and
+a dock. They stay pixel art: rounded corners are 2px stair steps built from
+integer rects (`PixelRoundRect`, never `borderRadius`), text is Galmuri, and
+translucency is banding or dither. So the PIXEL-CLAY rules (curves, radius,
+blur, static alpha, easing) still hold there. Colours come from
+`src/lib/theme/phone-ios.ts`, not hex literals in components; shared parts are
+in `src/components/dashboard/board/IosParts.tsx`.
+
+App screens opened inside the phone (chat, settings, subscription, interview
+and the rest) and every screen outside the phone keep this document's rules
+unchanged.
+
 ## 6. Reasoning contract
 
 Reasoning is an explicit deep run over selected captured material. It is not a

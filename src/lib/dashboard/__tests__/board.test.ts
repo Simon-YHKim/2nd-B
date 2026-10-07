@@ -8,7 +8,7 @@ import { buildBoard } from "../board/build";
 import { partsOnPage, type BoardPart, type BoardState } from "../board/contract";
 import { boardTone } from "../board/tone";
 import type { DashboardData } from "../model";
-import { m3, m3Accent } from "../../theme/m3";
+import { phoneIos } from "../../theme/phone-ios";
 import { boardFixture, PART_FIXTURES } from "./fixtures/board-fixtures";
 
 const NOW = new Date(2026, 9, 7, 8, 0, 0); // 2026-10-07 (수) 08:00 로컬
@@ -113,10 +113,11 @@ describe("완료조건 2: 부품마다 fixture 3종, 빈 칸 0", () => {
 
 describe("완료조건 3: basis 별 색", () => {
   test("ai = 청록 · fact · rule = 회색 · locked = 점선", () => {
-    expect(boardTone("ai")).toEqual({ text: m3Accent.skyText, border: m3Accent.skyText, borderStyle: "solid" });
-    expect(boardTone("fact")).toEqual({ text: m3.color.onSurfaceVariant, border: m3.color.outline, borderStyle: "solid" });
-    expect(boardTone("rule")).toEqual(boardTone("fact"));
-    expect(boardTone("locked")).toEqual({ text: m3.color.onSurfaceVariant, border: m3.color.outline, borderStyle: "dashed" });
+    // 색 값은 인앱 핸드폰의 픽셀 아이폰 토큰(iOS 밝은 기본, Simon 2026-10-07).
+    expect(boardTone("ai")).toEqual({ text: phoneIos.aiText, border: phoneIos.teal, borderStyle: "solid", fill: phoneIos.cell, bubble: phoneIos.aiFill });
+    expect(boardTone("fact")).toEqual({ text: phoneIos.label2, border: phoneIos.separator, borderStyle: "solid", fill: phoneIos.cell, bubble: phoneIos.cell });
+    expect(boardTone("rule")).toEqual({ ...boardTone("fact"), bubble: phoneIos.fill });
+    expect(boardTone("locked")).toEqual({ text: phoneIos.label2, border: phoneIos.label2, borderStyle: "dashed", fill: phoneIos.fill, bubble: phoneIos.fill });
   });
 
   test("흐름 2: 건강 수치 · 지출 금액의 문장은 규칙 문장(회색)이다", () => {

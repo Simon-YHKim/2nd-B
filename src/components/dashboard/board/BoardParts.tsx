@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { PanResponder, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
-import { PixelPressable } from "@/components/pixel/PixelPressable";
+import { PixelRoundRect } from "@/components/pixel/PixelRoundRect";
 import { Text as BaseText, type TextProps } from "@/components/ui/Text";
 import {
   partsOnPage, type BoardAction, type BoardBasis, type BoardContract, type BoardPage, type BoardPart, type BoardText,
@@ -19,7 +19,8 @@ import {
   type RemindersPart, type SpendPart,
 } from "@/lib/dashboard/board/contract";
 import { boardTone } from "@/lib/dashboard/board/tone";
-import { m3 } from "@/lib/theme/m3";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { IosButton } from "./IosParts";
 
 /** 부모(DashboardPhone)가 받는 사건. 이동은 폰 안에서 한다. */
 export interface BoardEvents {
@@ -32,7 +33,7 @@ export interface BoardEvents {
   custom: (id: string, choice: "make" | "skip" | "hide") => void;
 }
 
-// 폰 화면은 늘 어둡다. 앱 테마의 글자색을 물려받지 않는다(DashboardPhone 과 같다).
+// 폰 화면은 픽셀 아이폰(iOS 밝은 기본, Simon 2026-10-07)이다. 앱 테마의 글자색을 물려받지 않는다.
 function Text({ style, ...rest }: TextProps) {
   return <BaseText {...rest} style={[styles.text, style]} />;
 }
@@ -42,24 +43,22 @@ function useBoardText() {
   return (value: BoardText) => "text" in value ? value.text : t(value.key, value.params);
 }
 
+/** iOS 위젯: 계단 모서리 칸. 잠김은 회색 칸 안에 점선 테두리. */
 function Frame({ basis, shape, children, label }: { basis: BoardBasis; shape: "row" | "card"; children: ReactNode; label?: string }) {
   const tone = boardTone(basis);
-  return <View accessibilityLabel={label} style={[styles.frame, shape === "card" ? styles.card : styles.row,
-    { borderColor: tone.border, borderStyle: tone.borderStyle }]}>{children}</View>;
+  return <PixelRoundRect fill={tone.fill} accessibilityLabel={label} style={[styles.frame, shape === "card" ? styles.card : styles.row]}>
+    {tone.borderStyle === "dashed" ? <View pointerEvents="none" style={[styles.dashed, { borderColor: tone.border }]} /> : null}
+    {children}
+  </PixelRoundRect>;
 }
 
 function ActionButton({ action, onPress }: { action: BoardAction; onPress: (route: string) => void }) {
   const say = useBoardText();
-  const label = say(action.label);
-  return <PixelPressable onPress={() => onPress(action.route)} accessibilityLabel={label} contentStyle={styles.button}>
-    <Text variant="caption">{label}</Text>
-  </PixelPressable>;
+  return <IosButton label={say(action.label)} onPress={() => onPress(action.route)} />;
 }
 
-function ChoiceButton({ label, onPress }: { label: string; onPress: () => void }) {
-  return <PixelPressable onPress={onPress} accessibilityLabel={label} contentStyle={styles.button}>
-    <Text variant="caption">{label}</Text>
-  </PixelPressable>;
+function ChoiceButton({ label, onPress, primary }: { label: string; onPress: () => void; primary?: boolean }) {
+  return <IosButton label={label} onPress={onPress} primary={primary} />;
 }
 
 /** 빈 상태 · 잠김: 문장 하나 + 버튼 하나. */
@@ -141,17 +140,18 @@ function RemindersCard({ part, events }: { part: RemindersPart; events: BoardEve
     <View {...swipe.panHandlers} testID="board-reminders" style={styles.stack}>
       <View style={styles.dayHeader}>
         <Pressable accessibilityRole="button" accessibilityLabel={t("phone.board.reminders.previous")} disabled={index === 0} onPress={() => step(-1)} style={styles.dayArrow}>
-          {index > 0 ? <PixelGlyph name="arrow_back" size={16} color={m3.color.onSurfaceVariant} /> : null}
+          {index > 0 ? <PixelGlyph name="arrow_back" size={16} color={phoneIos.blue} /> : null}
         </Pressable>
-        <Text variant="body" accessibilityRole="header" style={styles.flexCenter}>{`${t("phone.board.reminders.title")} · ${dayName}`}</Text>
+        <Text variant="body" accessibilityRole="header" style={[styles.flexCenter, styles.remindersTitle]}>{`${t("phone.board.reminders.title")} · ${dayName}`}</Text>
         <Pressable accessibilityRole="button" accessibilityLabel={t("phone.board.reminders.next")} disabled={index === last} onPress={() => step(1)} style={styles.dayArrow}>
-          {index < last ? <PixelGlyph name="arrow_forward" size={16} color={m3.color.onSurfaceVariant} /> : null}
+          {index < last ? <PixelGlyph name="arrow_forward" size={16} color={phoneIos.blue} /> : null}
         </Pressable>
       </View>
       {day.items.length ? day.items.map((item) => <Pressable key={item.id} disabled={!item.route} accessibilityRole="button"
         accessibilityLabel={[item.time, item.title, t(`phone.board.reminders.status.${item.status}`)].filter(Boolean).join(", ")}
         onPress={() => item.route && events.go(item.route)} style={styles.item}>
         <View style={styles.inline}>
+          <View style={[styles.ring, item.status === "done" && styles.ringDone]} />
           <Text variant="caption" style={item.status === "upcoming" ? styles.time : styles.muted}>{item.time ?? t("phone.board.reminders.anytime")}</Text>
           <Text variant="body" style={[styles.flex, item.status !== "upcoming" && styles.muted]}>{item.title}</Text>
           {item.status !== "upcoming" ? <Text variant="caption" style={styles.muted}>{t(`phone.board.reminders.status.${item.status}`)}</Text> : null}
@@ -159,16 +159,16 @@ function RemindersCard({ part, events }: { part: RemindersPart; events: BoardEve
         {item.reason ? <Text variant="caption" numberOfLines={1} style={styles.muted}>{item.reason}</Text> : null}
         {item.alarmAt ? <Text variant="caption" style={styles.muted}>{t("phone.board.reminders.alarm", { time: item.alarmAt })}</Text> : null}
       </Pressable>) : <Text variant="caption" style={styles.muted}>{say(day.empty)}</Text>}
-      {suggestions.slice(0, 2).map((item) => <View key={item.id} style={[styles.suggestion, { borderColor: boardTone(item.basis).border }]}>
+      {suggestions.slice(0, 2).map((item) => <PixelRoundRect key={item.id} corner="small" fill={boardTone(item.basis).fill} border={boardTone(item.basis).border} style={styles.suggestion}>
         <View style={styles.inline}>
           <Text variant="caption" style={[styles.flex, { color: boardTone(item.basis).text }]}>{say(item.line)}</Text>
           <Evidence route={item.evidenceRoute} basis={item.basis} go={events.go} />
         </View>
         <View style={styles.actions}>
-          <ChoiceButton label={t("phone.board.reminders.add")} onPress={() => events.suggestion(item.id, "add")} />
+          <ChoiceButton primary label={t("phone.board.reminders.add")} onPress={() => events.suggestion(item.id, "add")} />
           <ChoiceButton label={t("phone.board.reminders.dismiss")} onPress={() => { setDismissed((ids) => [...ids, item.id]); events.suggestion(item.id, "dismiss"); }} />
         </View>
-      </View>)}
+      </PixelRoundRect>)}
     </View>
   </Frame>;
 }
@@ -188,7 +188,7 @@ function QueueRow({ part, events }: { part: QueuePart; events: BoardEvents }) {
     {current ? <View style={styles.stack}>
       <View style={styles.inline}>
         <Text variant="caption" style={styles.muted}>{t("phone.board.queue.title", { index: handled.length + 1, total: items.length })}</Text>
-        <View style={styles.chip}><Text variant="caption" style={styles.muted}>{t(`phone.board.queue.sources.${current.source}`)}</Text></View>
+        <PixelRoundRect corner="small" fill={phoneIos.fill} style={styles.chip}><Text variant="caption" style={styles.muted}>{t(`phone.board.queue.sources.${current.source}`)}</Text></PixelRoundRect>
       </View>
       <View style={styles.inline}>
         <Text variant="body" style={[styles.flex, { color: boardTone(current.basis).text }]}>{say(current.line)}</Text>
@@ -212,7 +212,7 @@ function HealthCard({ part, go }: { part: HealthPart; go: (route: string) => voi
     <Text variant="body" accessibilityRole="header">{t("phone.board.health.title")}</Text>
     {part.metrics.length ? <View style={styles.metrics}>{part.metrics.map((item) => <View key={item.metric} style={styles.metric}>
       <Text variant="caption" style={styles.muted}>{t(`phone.board.health.metrics.${item.metric}`)}</Text>
-      <Text variant="body">{item.unit === "count" ? item.value.toLocaleString(i18n.language) : t("phone.board.health.minutes", { value: item.value.toLocaleString(i18n.language) })}</Text>
+      <Text variant="body" style={styles.figure}>{item.unit === "count" ? item.value.toLocaleString(i18n.language) : t("phone.board.health.minutes", { value: item.value.toLocaleString(i18n.language) })}</Text>
     </View>)}</View> : null}
     {part.comparison ? <Text variant="caption" style={{ color: boardTone(part.basis).text }}>{say(part.comparison)}</Text> : null}
     <Note part={part} go={go} />
@@ -274,20 +274,20 @@ function CustomRow({ part, events }: { part: CustomPart; events: BoardEvents }) 
   return <Frame basis={part.basis} shape={part.shape}>
     {widget ? <View style={styles.inline}>
       <Pressable accessibilityRole="button" accessibilityLabel={t("phone.board.custom.previous")} disabled={at === 0} onPress={() => setIndex(at - 1)} style={styles.dayArrow}>
-        {at > 0 ? <PixelGlyph name="arrow_back" size={16} color={m3.color.onSurfaceVariant} /> : null}
+        {at > 0 ? <PixelGlyph name="arrow_back" size={16} color={phoneIos.blue} /> : null}
       </Pressable>
       <View style={styles.flex}><WidgetTile widget={widget} events={events} onLongPress={() => { setHiddenIds((ids) => [...ids, widget.id]); events.custom(widget.id, "hide"); }} /></View>
       <Pressable accessibilityRole="button" accessibilityLabel={t("phone.board.custom.next")} disabled={at >= widgets.length - 1} onPress={() => setIndex(at + 1)} style={styles.dayArrow}>
-        {at < widgets.length - 1 ? <PixelGlyph name="arrow_forward" size={16} color={m3.color.onSurfaceVariant} /> : null}
+        {at < widgets.length - 1 ? <PixelGlyph name="arrow_forward" size={16} color={phoneIos.blue} /> : null}
       </Pressable>
     </View> : null}
-    {part.suggestion && !suggestionDone ? <View style={[styles.suggestion, { borderColor: boardTone(part.suggestion.basis).border }]}>
+    {part.suggestion && !suggestionDone ? <PixelRoundRect corner="small" fill={boardTone(part.suggestion.basis).fill} border={boardTone(part.suggestion.basis).border} style={styles.suggestion}>
       <Text variant="caption" style={{ color: boardTone(part.suggestion.basis).text }}>{say(part.suggestion.line)}</Text>
       <View style={styles.actions}>
-        <ChoiceButton label={t("phone.board.custom.make")} onPress={() => { setSuggestionDone(true); events.custom(part.suggestion!.id, "make"); }} />
+        <ChoiceButton primary label={t("phone.board.custom.make")} onPress={() => { setSuggestionDone(true); events.custom(part.suggestion!.id, "make"); }} />
         <ChoiceButton label={t("phone.board.custom.skip")} onPress={() => { setSuggestionDone(true); events.custom(part.suggestion!.id, "skip"); }} />
       </View>
-    </View> : null}
+    </PixelRoundRect> : null}
     <Note part={part} go={events.go} />
   </Frame>;
 }
@@ -308,69 +308,83 @@ function PartView({ part, events }: { part: BoardPart; events: BoardEvents }) {
 /** 한 쪽. 1쪽 = 오늘 처리할 것, 2쪽 = 상태 + 승인한 맞춤 위젯 + '+ 위젯 추가'. */
 export function BoardPageView({ board, page, events }: { board: BoardContract; page: BoardPage; events: BoardEvents }) {
   const { t } = useTranslation("ops");
+  // '+ 위젯 추가' 는 늘 점선(잠김 모양)이다.
+  const addTone = boardTone("locked");
   return <View testID={`board-page-${page}`} style={styles.page}>
     {partsOnPage(board, page).map((part) => <PartView key={part.id} part={part} events={events} />)}
     {page === 2 ? <>
       {board.approved.map((widget) => <Frame key={widget.id} basis={widget.basis} shape="card"><WidgetTile widget={widget} events={events} /></Frame>)}
-      <Pressable accessibilityRole="button" accessibilityLabel={t("phone.board.addWidget")} onPress={() => events.go(board.addWidgetRoute)}
-        style={[styles.frame, styles.row, styles.addSlot, { borderColor: boardTone("locked").border, borderStyle: "dashed" }]}>
-        <PixelGlyph name="add" size={18} color={m3.color.onSurfaceVariant} />
-        <Text variant="body" style={styles.muted}>{t("phone.board.addWidget")}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("phone.board.addWidget")} onPress={() => events.go(board.addWidgetRoute)}>
+        <PixelRoundRect fill={addTone.fill} style={[styles.frame, styles.row, styles.addSlot]}>
+          <View pointerEvents="none" style={[styles.dashed, { borderColor: addTone.border }]} />
+          <PixelGlyph name="add" size={18} color={addTone.text} />
+          <Text variant="body" style={styles.muted}>{t("phone.board.addWidget")}</Text>
+        </PixelRoundRect>
       </Pressable>
     </> : null}
   </View>;
 }
 
-/** 독: 모든 쪽에 고정. 담기 · 대화 · 녹음 전사(W2 전까지 잠김). */
+/** 독 칸 하나: 계단 모서리 앱 타일 + 이름. */
+function DockApp({ label, glyph, tile, onPress }: { label: string; glyph: "add" | "bubble"; tile: string; onPress: () => void }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.dockSlot, styles.dockContent]}>
+    <PixelRoundRect fill={tile} style={styles.dockTile}><PixelGlyph name={glyph} size={22} color={phoneIos.onBlue} /></PixelRoundRect>
+    <Text variant="caption" style={styles.dockLabel}>{label}</Text>
+  </Pressable>;
+}
+
+/** 독: 모든 쪽에 고정(iOS 독). 담기 · 대화 · 녹음 전사(W2 전까지 잠김). */
 export function BoardDock({ dock, go }: { dock: BoardContract["dock"]; go: (route: string) => void }) {
   const { t } = useTranslation("ops");
   const locked = dock.transcribe.locked || !dock.transcribe.route;
-  return <View testID="board-dock" style={styles.dock}>
-    <PixelPressable rootStyle={styles.dockSlot} onPress={() => go(dock.capture)} accessibilityLabel={t("phone.board.dock.capture")} contentStyle={styles.dockContent}>
-      <PixelGlyph name="add" size={18} color={m3.color.onSurface} />
-      <Text variant="caption">{t("phone.board.dock.capture")}</Text>
-    </PixelPressable>
-    <PixelPressable rootStyle={styles.dockSlot} onPress={() => go(dock.chat)} accessibilityLabel={t("phone.board.dock.chat")} contentStyle={styles.dockContent}>
-      <PixelGlyph name="bubble" size={18} color={m3.color.onSurface} />
-      <Text variant="caption">{t("phone.board.dock.chat")}</Text>
-    </PixelPressable>
+  return <PixelRoundRect testID="board-dock" fill={phoneIos.dock} style={styles.dock}>
+    <DockApp label={t("phone.board.dock.capture")} glyph="add" tile={phoneIos.blue} onPress={() => go(dock.capture)} />
+    <DockApp label={t("phone.board.dock.chat")} glyph="bubble" tile={phoneIos.green} onPress={() => go(dock.chat)} />
     <Pressable disabled={locked} onPress={() => dock.transcribe.route && go(dock.transcribe.route)} accessibilityRole="button"
       accessibilityLabel={locked ? t("phone.board.dock.transcribeLocked") : t("phone.board.dock.transcribe")} accessibilityState={{ disabled: locked }}
-      style={[styles.dockSlot, styles.dockContent, locked && styles.dockLocked]}>
-      <PixelGlyph name={locked ? "lock" : "mic"} size={18} color={m3.color.onSurfaceVariant} />
-      <Text variant="caption" style={styles.muted}>{t("phone.board.dock.transcribe")}</Text>
+      style={[styles.dockSlot, styles.dockContent]}>
+      <View style={[styles.dockTile, locked && styles.dockLocked]}>
+        <PixelGlyph name={locked ? "lock" : "mic"} size={20} color={phoneIos.label2} />
+      </View>
+      <Text variant="caption" style={[styles.dockLabel, styles.muted]}>{t("phone.board.dock.transcribe")}</Text>
     </Pressable>
-  </View>;
+  </PixelRoundRect>;
 }
 
 const styles = StyleSheet.create({
-  text: { color: m3.color.onSurface },
-  page: { gap: 8 },
-  frame: { borderWidth: 1, backgroundColor: m3.color.surfaceContainer, padding: 10, gap: 6 },
+  text: { color: phoneIos.label },
+  page: { gap: 10 },
+  frame: { paddingHorizontal: 14, paddingVertical: 12, gap: 6 },
   row: { minHeight: 56 },
   card: { minHeight: 112 },
+  dashed: { position: "absolute", top: 4, right: 4, bottom: 4, left: 4, borderWidth: 2, borderStyle: "dashed" },
   stack: { gap: 6 },
   inline: { flexDirection: "row", alignItems: "center", gap: 8 },
   flex: { flex: 1, flexShrink: 1 },
   flexCenter: { flex: 1, flexShrink: 1, textAlign: "center" },
-  muted: { color: m3.color.onSurfaceVariant },
-  time: { color: m3.color.onSurface, minWidth: 40 },
-  clock: { fontVariant: ["tabular-nums"] },
+  muted: { color: phoneIos.label2 },
+  time: { color: phoneIos.label, minWidth: 40 },
+  clock: { fontVariant: ["tabular-nums"], fontFamily: "Galmuri11Bold" },
+  figure: { fontFamily: "Galmuri11Bold" },
+  remindersTitle: { color: phoneIos.orange, fontFamily: "Galmuri11Bold" },
   tapRow: { minHeight: 44, justifyContent: "center", gap: 2 },
   noteRow: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44 },
-  button: { minHeight: 44, minWidth: 44, paddingHorizontal: 10, alignItems: "center", justifyContent: "center" },
-  actions: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  actions: { flexDirection: "row", flexWrap: "wrap", columnGap: 6 },
   evidence: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   dayHeader: { flexDirection: "row", alignItems: "center" },
   dayArrow: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   item: { minHeight: 44, justifyContent: "center", gap: 2, paddingVertical: 2 },
-  suggestion: { borderWidth: 1, padding: 8, gap: 6 },
-  chip: { borderWidth: 1, borderColor: m3.color.outline, paddingHorizontal: 6 },
+  ring: { width: 12, height: 12, borderWidth: 2, borderColor: phoneIos.gray3 },
+  ringDone: { borderColor: phoneIos.blue, backgroundColor: phoneIos.blue },
+  suggestion: { paddingHorizontal: 10, paddingVertical: 8, gap: 2 },
+  chip: { paddingHorizontal: 8, paddingVertical: 1 },
   metrics: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   metric: { minWidth: 64, gap: 2 },
   addSlot: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 56 },
-  dock: { flexDirection: "row", gap: 6, paddingHorizontal: 9, paddingTop: 4 },
+  dock: { flexDirection: "row", marginHorizontal: 9, marginTop: 4, paddingVertical: 6, paddingHorizontal: 4 },
   dockSlot: { flex: 1, minWidth: 0 },
-  dockContent: { minHeight: 48, alignItems: "center", justifyContent: "center", gap: 2 },
-  dockLocked: { borderWidth: 1, borderStyle: "dashed", borderColor: m3.color.outline },
+  dockContent: { minHeight: 48, alignItems: "center", justifyContent: "center", gap: 3 },
+  dockTile: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  dockLocked: { borderWidth: 2, borderStyle: "dashed", borderColor: phoneIos.label2 },
+  dockLabel: { color: phoneIos.label, fontSize: 11, lineHeight: 14 },
 });
