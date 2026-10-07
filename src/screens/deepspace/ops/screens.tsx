@@ -1086,7 +1086,12 @@ export function LedgerScreen() {
         amount_krw: amountNum,
         category: category.trim() || (ko ? "기타" : "Other"),
       });
+      // Gate OPSFIX-A3-02 (2026-10-07): the field stays editable while the add runs, so an
+      // edit refused as too long (amountOverflow) can come in meanwhile. Emptying the field
+      // here does not go through onChangeText, so the refusal is cleared with it; otherwise
+      // the format hint stayed up under an empty field.
       setAmount("");
+      setAmountOverflow(false);
       setCategory("");
       setOccurredOn(localDayKey());
       entries.reload();

@@ -15,6 +15,7 @@
 
 import { readFileSync } from "fs";
 import { join } from "path";
+import { LEDGER_AMOUNT_MAX_CHARS, ledgerAmountEdit, parseLedgerAmount } from "@/lib/finance/ledger";
 
 const ROOT = join(__dirname, "..", "..", "..", "..", "..");
 const read = (f: string): string => readFileSync(join(ROOT, f), "utf8").replace(/\r\n/g, "\n");
@@ -164,6 +165,34 @@ describe("R2C-16 / R2C-11: ledger", () => {
     expect(ledger).toContain('const canAdd = !busy && amountParsed.kind === "ok" && !amountOverflow;');
     expect(ledger).toContain("if (!userId || !canAdd) return;");
     expect(ledger).toContain("amount_krw: amountNum,");
+  });
+
+  // Gate OPSFIX-A3-02 (2026-10-07): the amount field stays editable while an add runs. An edit
+  // refused as too long then set amountOverflow, and the add's success emptied the field without
+  // clearing it (the reset does not go through onChangeText), so the format hint stayed up under
+  // an empty field. Replayed here with the real edit rule and parser, applying the resets the
+  // screen's success path makes.
+  test("OPSFIX-A3-02: an over-long paste while an add runs, then the add lands: no hint under the empty field", () => {
+    const adder = ledger.slice(ledger.indexOf("const onAddEntry"), ledger.indexOf("const onDeleteEntry"));
+    const landed = adder.slice(adder.indexOf("await createLedgerEntry("), adder.indexOf("} catch {"));
+    const failed = adder.slice(adder.indexOf("} catch {"), adder.indexOf("} finally {"));
+    expect(landed.length).toBeGreaterThan(150);
+    expect(failed.length).toBeGreaterThan(10);
+    // "5000" is being added; a paste one character too long comes in meanwhile and is refused.
+    let field = ledgerAmountEdit("", "5000");
+    field = ledgerAmountEdit(field.text, "9".repeat(LEDGER_AMOUNT_MAX_CHARS + 1));
+    expect(field).toEqual({ text: "5000", overflow: true });
+    // The add lands: apply what its success path resets.
+    if (landed.includes('setAmount("");')) field = { ...field, text: "" };
+    if (landed.includes("setAmountOverflow(false);")) field = { ...field, overflow: false };
+    // What shows under the field, by the screen's own rule (pinned above): nothing.
+    const parsed = parseLedgerAmount(field.text);
+    const hintShown = parsed.kind === "tooLarge" || field.overflow || parsed.kind === "invalid";
+    expect(field).toEqual({ text: "", overflow: false });
+    expect(hintShown).toBe(false);
+    // A failed add keeps the field and its refusal as they are: the reset is on success only.
+    expect(failed).not.toContain("setAmountOverflow(");
+    expect(ledger.match(/setAmountOverflow\(/g)?.length).toBe(2); // the edit, and the reset after an add
   });
 
   // Gate OPSFIX-A1-05 (2026-10-07): the hint said letters and signs are not taken, while the
