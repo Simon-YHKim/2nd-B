@@ -9,12 +9,21 @@
 //     profile redirects, IntroGate's reset and C10 redirects, the first-avatar
 //     redirect) adds the notice param only for a marked share;
 //   - each screen those redirects land on draws the one line in its own flow,
-//     not as an overlay over the app.
+//     not as an overlay over the app;
+//   - round 4 (gate SG-R3-01 = SHARE-A3-01 and SHARE-A3-02, Simon 2026-10-07
+//     13:33): the storage recovery screen, which IntroGate draws in place of
+//     every route, first swaps a marked /capture for /capture?notice=shareRefused
+//     and then draws the line from the whole route's params; the first-avatar
+//     screen draws it in its load-error branch too.
 //
 // The redirects themselves run through the real IntroGate source in
 // src/app/__tests__/profile-probe-route-hold.test.ts.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import * as vm from "node:vm";
+import * as ts from "typescript";
+
+import { SHARE_REFUSED_PARAMS, showsShareRefused } from "../share-intent";
 
 const ROOT = process.cwd();
 const read = (file: string): string => readFileSync(join(ROOT, file), "utf8").replace(/\r\n/g, "\n");
@@ -89,6 +98,18 @@ describe("the gates add the notice when they turn a marked share away", () => {
     expect(gate).toContain('return <Redirect href={shareRefusedHref("/complete-profile", shareTurnedAway)} />;');
   });
 
+  test("IntroGate: the storage recovery screen comes only after a marked /capture lost its text", () => {
+    const gate = functionBody(read("src/app/_layout.tsx"), "IntroGate");
+    const swap = gate.indexOf(
+      'if (storageRecoveryRequired && shareTurnedAway) return <Redirect href={shareRefusedHref("/capture", true)} />;',
+    );
+    const screen = gate.indexOf("if (storageRecoveryRequired) return <EncryptedStorageRecoveryGate />;");
+    expect(swap).toBeGreaterThan(-1);
+    expect(screen).toBeGreaterThan(swap);
+    // Nothing between the two returns: the swap is the first thing a recovery does.
+    expect(gate.slice(swap, screen).match(/\breturn\b/g)).toHaveLength(1);
+  });
+
   test("the first-avatar gate keeps its target and adds the notice param to it", () => {
     const gate = functionBody(read("src/components/avatar/AvatarSetupGate.tsx"), "AvatarSetupGate");
     expect(gate).toContain("const shareTurnedAway = isMarkedShareCapture(usePathname(), useGlobalSearchParams());");
@@ -110,9 +131,34 @@ describe("each destination draws the line in its own flow", () => {
     expect(functionBody(source, component)).toContain("<ShareRefusedLine />");
   });
 
+  test("the storage recovery screen draws the line from the whole route, in its message spot", () => {
+    const source = read("src/screens/deepspace/storage-recovery-gate.tsx");
+    expect(source).toContain('import { ShareRefusedLine } from "@/components/capture/ShareRefusedLine";');
+    const gate = functionBody(source, "EncryptedStorageRecoveryGate");
+    expect(gate).toContain("const routeParams = useGlobalSearchParams();");
+    const line = gate.indexOf("<ShareRefusedLine routeParams={routeParams} style={styles.shareRefused} />");
+    // Under the warning and above the failure message, inside the screen's own column.
+    expect(line).toBeGreaterThan(gate.indexOf('t("auth:storageRecovery.warning")'));
+    expect(line).toBeLessThan(gate.indexOf('t("auth:storageRecovery.failed")'));
+    expect(source).toContain('shareRefused: { alignSelf: "stretch" },');
+  });
+
+  test("the first-avatar screen keeps the line in its load-error branch", () => {
+    const source = read("src/app/avatar-studio.tsx");
+    const start = source.indexOf('if (loadState.userId === userId && loadState.status === "error") {');
+    const end = source.indexOf("if (!readyForUser)", start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const branch = source.slice(start, end);
+    const line = branch.indexOf("<ShareRefusedLine style={styles.shareRefusedInCenter} />");
+    expect(line).toBeGreaterThan(branch.indexOf("return frame("));
+    expect(line).toBeLessThan(branch.indexOf('t("avatar:loadError")'));
+    expect(source).toContain('shareRefusedInCenter: { alignSelf: "stretch" },');
+  });
+
   test("the line is plain flow content: no overlay, no timer, no button, no stored state", () => {
     const line = read("src/components/capture/ShareRefusedLine.tsx");
-    expect(line).toContain("if (!showsShareRefused(params)) return null;");
+    expect(functionBody(line, "ScreenShareRefusedLine")).toContain("if (!showsShareRefused(params)) return null;");
     expect(line).toContain('t("shareRefused.body")');
     expect(line).not.toMatch(/position:\s*"absolute"|setTimeout|Pressable|useState|useEffect|Storage/);
   });
@@ -125,5 +171,60 @@ describe("each destination draws the line in its own flow", () => {
       expect(Object.keys(capture.shareRefused ?? {})).toEqual(["body"]);
       expect(capture.shareRefused?.body.trim().length).toBeGreaterThan(0);
     }
+  });
+});
+
+// The two ways the line reads the notice, run from the real source (render tests
+// are blocked in this repo, so the functions are lifted out with the TypeScript
+// parser and run against stand-ins, as profile-probe-route-hold.test.ts does).
+describe("ShareRefusedLine reads the screen's params, or the route's when it is given them", () => {
+  const FILE = "src/components/capture/ShareRefusedLine.tsx";
+  const sf = ts.createSourceFile(FILE, read(FILE), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const lift = (name: string): string => {
+    const found: ts.FunctionDeclaration[] = [];
+    const visit = (node: ts.Node): void => {
+      if (ts.isFunctionDeclaration(node) && node.name?.text === name) found.push(node);
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+    if (found.length !== 1) throw new Error(`expected one function ${name}, found ${found.length}`);
+    return ts.transpileModule(found[0].getText(sf).replace(/^export /, ""), {
+      compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React },
+    }).outputText;
+  };
+
+  type Element = { type: unknown; props: Record<string, unknown> } | null;
+  const RefusedLine = { host: "RefusedLine" };
+  const screenReads: number[] = [];
+  let screenParams: Record<string, unknown> = {};
+  const context = vm.createContext({
+    React: { createElement: (type: unknown, props: Record<string, unknown> | null) => ({ type, props: props ?? {} }) },
+    RefusedLine,
+    showsShareRefused,
+    useScreenParams: () => {
+      screenReads.push(1);
+      return screenParams;
+    },
+  });
+  vm.runInContext(lift("ScreenShareRefusedLine"), context);
+  vm.runInContext(lift("ShareRefusedLine"), context);
+  const ShareRefusedLine = context.ShareRefusedLine as (props: Record<string, unknown>) => Element;
+  const ScreenShareRefusedLine = context.ScreenShareRefusedLine as (props: Record<string, unknown>) => Element;
+
+  test("given the route's params, it shows only for the notice and never reads screen params", () => {
+    screenReads.length = 0;
+    expect(ShareRefusedLine({ routeParams: { ...SHARE_REFUSED_PARAMS } })?.type).toBe(RefusedLine);
+    expect(ShareRefusedLine({ routeParams: { text: "shared words", from: "share" } })).toBeNull();
+    expect(ShareRefusedLine({ routeParams: {} })).toBeNull();
+    expect(screenReads).toEqual([]);
+  });
+
+  test("without them, it hands over to the screen-params reader, which shows only for the notice", () => {
+    expect(ShareRefusedLine({})?.type).toBe(ScreenShareRefusedLine);
+    screenParams = { ...SHARE_REFUSED_PARAMS };
+    expect(ScreenShareRefusedLine({})?.type).toBe(RefusedLine);
+    screenParams = { text: "shared words", from: "share" };
+    expect(ScreenShareRefusedLine({})).toBeNull();
+    expect(screenReads).toHaveLength(2);
   });
 });

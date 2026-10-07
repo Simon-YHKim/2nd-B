@@ -625,6 +625,44 @@ describe("예외와 우선순위는 그대로다", () => {
       expect(names(notReady)).toEqual(["InlineLoader"]);
     }
   });
+
+  // 3회차 게이트 SG-R3-01 = SHARE-A3-01(Simon 2026-10-07 13:33 GO): 저장소 복구 갈래는 리다이렉트
+  // 없이 복구 화면만 그려서, 공유 표식이 붙은 /capture 의 본문이 경로에 남았다(복구가 풀리면
+  // capture 화면이 채울 수 있었다). 이제 복구 화면을 그리기 전에 본문 · 제목 · 표식을 지운
+  // /capture?notice=shareRefused 로 먼저 바꾸고, 다음 렌더가 그 경로에서 복구 화면을 그린다.
+  test("저장소 복구 중 공유 표식이 붙은 /capture 는 복구 화면보다 먼저 본문 없는 /capture?notice 로 바뀐다", async () => {
+    const AFTER_SWAP: Route = { ...SHARED_CAPTURE, params: { ...SHARE_REFUSED_PARAMS } };
+    const TITLE_ONLY: Route = { ...SHARED_CAPTURE, params: { title: "shared title", from: "share" } };
+    const auths: (ProfileGateSnapshot & Partial<AuthView>)[] = [
+      READY_ADULT,
+      NO_PROFILE,
+      SIGNED_OUT,
+      BOOTSTRAP,
+      ...PENDING_OR_FAILED,
+      { ...READY_ADULT, recoveryUserId: "user-a" },
+      { ...READY_ADULT, recoveryReady: false },
+    ];
+    for (const auth of auths) {
+      const recovering = { ...auth, storageRecoveryRequired: true };
+      for (const route of [SHARED_CAPTURE, TITLE_ONLY]) {
+        const shared = await mount({ auth: recovering, route });
+        // 바꿔 끼우기만 있고 복구 화면도 장면도 아직 없다. 목적지에는 안내 매개변수 하나뿐이다.
+        expect(shared.hosts).toEqual([NOTICE("/capture")]);
+        expect(shared.components).toEqual(["IntroGate"]);
+      }
+      // 바꾼 뒤의 경로는 표식이 없으니 다시 바꾸지 않고(고리 없음) 복구 화면을 그린다.
+      const swapped = await mount({ auth: recovering, route: AFTER_SWAP });
+      expect(names(swapped)).toEqual(["EncryptedStorageRecoveryGate"]);
+      // 표식 없는 /capture 와 다른 화면의 같은 이름 매개변수는 main 과 같다.
+      const plain = await mount({ auth: recovering, route: PLAIN_CAPTURE });
+      expect(names(plain)).toEqual(["EncryptedStorageRecoveryGate"]);
+      const elsewhere = await mount({ auth: recovering, route: { ...RECORDS_ROUTE, params: SHARED_CAPTURE.params } });
+      expect(names(elsewhere)).toEqual(["EncryptedStorageRecoveryGate"]);
+      // 오프닝은 그대로 먼저다. 그동안에도 장면은 마운트되지 않는다.
+      const opening = await mount({ auth: recovering, route: SHARED_CAPTURE, introDone: false });
+      expect(names(opening)).toEqual(["LoadingScreen"]);
+    }
+  });
 });
 
 describe("같은 사용자 재조회는 로더로 바뀌지 않는다 (AuthContext 같은 사용자 갈래 · refresh)", () => {

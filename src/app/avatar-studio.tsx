@@ -303,7 +303,9 @@ export default function AvatarStudioScreen() {
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
   if (hasProfile !== true) return frame(<View style={styles.center}><PremiumLoadingState message={title} /></View>);
   if (loadState.userId === userId && loadState.status === "error") {
+    // A share the first-avatar gate turned away keeps its line here too (gate SHARE-A3-02).
     return frame(<View style={styles.center} accessibilityRole="alert">
+      <ShareRefusedLine style={styles.shareRefusedInCenter} />
       <Text style={styles.errorText}>{t("avatar:loadError")}</Text>
       <PixelPressable onPress={() => setReloadKey((key) => key + 1)} contentStyle={styles.actionContent}>
         <Text style={styles.actionText}>{t("common:actions.retry")}</Text>
@@ -460,6 +462,7 @@ export default function AvatarStudioScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: m3.spacing.s4, paddingBottom: m3.spacing.s4, gap: m3.spacing.s2 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: m3.spacing.s4, padding: m3.spacing.s6 },
+  shareRefusedInCenter: { alignSelf: "stretch" },
   previewFrame: { alignSelf: "stretch" },
   setupHint: { color: m3.color.onSurface, fontSize: m3.type.bodyMedium.size, lineHeight: m3.type.bodyMedium.line, paddingBottom: m3.spacing.s1 },
   previewContent: { padding: m3.spacing.s3 },

@@ -112,7 +112,8 @@ describe("the DPIA erasure cell still cites the erasure code", () => {
 describe("the DPIA analytics-lock citations still land on the minor lock", () => {
   // These four cells cited `_layout.tsx:673-676` while the lock had already
   // moved to 676-680 on main, and the Android share PR (#2145, 2026-10-07)
-  // moved it seven lines more (683-687). The coordinates are read from the
+  // moved it seven lines more (683-687), then six more with the storage
+  // recovery redirect of its fourth round (689-693). The coordinates are read from the
   // document, and each one has to contain the branch that keeps analytics off
   // for a minor or an unresolved profile.
   test("every _layout.tsx citation in the DPIA contains the isMinor branch", () => {

@@ -532,8 +532,9 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   const pathname = usePathname();
   // An Android share opens /capture?text=&title=&from=share. When a redirect
   // below turns that route away, its params are dropped as for any link, and
-  // the screen it lands on says in one line that the share was not added
-  // (src/lib/capture/share-intent.ts). Nothing is held for later.
+  // the screen it lands on (the storage recovery screen too) says in one line
+  // that the share was not added (src/lib/capture/share-intent.ts). Nothing is
+  // held for later.
   const shareTurnedAway = isMarkedShareCapture(pathname, useGlobalSearchParams());
   // Play the opening only once per running app/tab. A fresh auth event
   // (including the signed-out -> signed-in transition) must not restart it.
@@ -568,6 +569,11 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   // matters when the intro was played earlier in this tab and the fonts are not.
   // Bare for the same reason as RootLayout's font wait (R2A-04).
   if (!fontsReady) return <InlineLoader bare />;
+  // A share is not kept through a storage recovery (gate SG-R3-01, Simon
+  // 2026-10-07 13:33). Before that screen shows, the route drops text, title
+  // and marker and keeps only the notice, which the screen draws as its line.
+  // The next render reads /capture?notice=shareRefused and takes the line below.
+  if (storageRecoveryRequired && shareTurnedAway) return <Redirect href={shareRefusedHref("/capture", true)} />;
   if (storageRecoveryRequired) return <EncryptedStorageRecoveryGate />;
   if (!recoveryReady) return <InlineLoader />;
 
