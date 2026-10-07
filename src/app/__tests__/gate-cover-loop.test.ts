@@ -213,7 +213,11 @@ describe("R2A-01 소스 계약: 경로 조각으로 정하는 붙들기는 라�
     const text = fn.getText();
     // 덮개는 판정이 allow 가 아닐 때만, setup 은 마운트된 Stack 안에서 바꿔 끼운다.
     expect(text).toContain('<GateCover cover={decision === "allow" ? null : <InlineLoader />}>{children}</GateCover>');
-    expect(text).toContain('{decision === "setup" ? <Redirect href="/avatar-studio?setup=1" /> : null}');
+    // 바꿔 끼우는 목적지는 그대로다. 공유 표식이 붙은 /capture 에서 왔을 때만 같은 목적지에
+    // 안내 매개변수 하나가 붙는다(Simon 2026-10-07 12:04).
+    expect(text).toMatch(/\{decision === "setup" \? \(\s*<Redirect\s/);
+    expect(text).toContain('{ pathname: "/avatar-studio", params: { setup: "1", ...SHARE_REFUSED_PARAMS } }');
+    expect(text).toContain(': "/avatar-studio?setup=1"');
   });
 
   test("IntroGate: 경로 조각을 읽는 갈래(profileHold)는 덮고, 자식을 내리는 갈래는 경로 조각과 무관하다", () => {
@@ -237,8 +241,8 @@ describe("R2A-01 소스 계약: 경로 조각으로 정하는 붙들기는 라�
       });
     }
     expect(redirects.map((ret) => ret.getText())).toEqual([
-      'return <Redirect href="/reset-password" />;',
-      'return <Redirect href="/complete-profile" />;',
+      'return <Redirect href={shareRefusedHref("/reset-password", shareTurnedAway)} />;',
+      'return <Redirect href={shareRefusedHref("/complete-profile", shareTurnedAway)} />;',
     ]);
     // 통과 갈래도 같은 GateCover 다. 덮개를 걷을 때 라우트가 다시 마운트되지 않는다.
     expect(returnsOf(fn).at(-1)?.getText()).toBe("return <GateCover cover={null}>{children}</GateCover>;");

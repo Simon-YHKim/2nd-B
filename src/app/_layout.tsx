@@ -13,6 +13,7 @@ import {
   Stack,
   Redirect,
   router,
+  useGlobalSearchParams,
   useRootNavigationState,
   usePathname,
   useSegments,
@@ -45,8 +46,8 @@ import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-store";
 import { hydrateAnalyticsConsent } from "@/lib/analytics/auth-conversions";
 import { profileRouteHold } from "@/lib/auth/profile-probe";
+import { isMarkedShareCapture, shareRefusedHref } from "@/lib/capture/share-intent";
 import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
-import { ShareDeliverySync, ShareRefusedNotice } from "@/components/capture/ShareRefusedNotice";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { configureEffectsAudioSession } from "@/lib/audio/audio-session";
 import { ensureSoundEffectsHydration } from "@/lib/settings/sound-effects";
@@ -232,7 +233,6 @@ export default function RootLayout() {
             <AnalyticsConsentSync />
             <AddressTermSync />
             <AuditWriteOutboxSync />
-            <ShareDeliverySync />
             <HealthAutoReadSync />
             {/* 화면이 바뀌어도 끝까지 나야 하는 소리(온보딩 끝). lib/audio/global-cues.ts */}
             <GlobalCueHost />
@@ -304,7 +304,6 @@ export default function RootLayout() {
             {/* W-05: for a moment after the opening ends, a tap that was aimed
                 at its skip button must not land on the dock tab underneath. */}
             <IntroExitShield />
-            <ShareRefusedNotice />
             </SecondbHeadTrackProvider>
           </AuthProvider>
       </SafeAreaProvider>
@@ -531,6 +530,11 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   } = useAuth();
   const segments = useSegments();
   const pathname = usePathname();
+  // An Android share opens /capture?text=&title=&from=share. When a redirect
+  // below turns that route away, its params are dropped as for any link, and
+  // the screen it lands on says in one line that the share was not added
+  // (src/lib/capture/share-intent.ts). Nothing is held for later.
+  const shareTurnedAway = isMarkedShareCapture(pathname, useGlobalSearchParams());
   // Play the opening only once per running app/tab. A fresh auth event
   // (including the signed-out -> signed-in transition) must not restart it.
   const [introDone, setIntroDone] = useState(introAlreadyPlayed);
@@ -571,7 +575,7 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   // pathname matching also catches pushes to another route inside `(auth)`;
   // a group-level exemption would let /sign-in escape the mandatory reset.
   if ((recoveryUserId || recoveryPendingGlobal) && pathname !== "/reset-password") {
-    return <Redirect href="/reset-password" />;
+    return <Redirect href={shareRefusedHref("/reset-password", shareTurnedAway)} />;
   }
 
   // A FAILED profile probe is unknown: not "no profile", not "has profile", and
@@ -631,7 +635,7 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
     segments[0] !== "(auth)" &&
     segments[0] !== "onboarding"
   ) {
-    return <Redirect href="/complete-profile" />;
+    return <Redirect href={shareRefusedHref("/complete-profile", shareTurnedAway)} />;
   }
 
   // The opening is complete for this runtime, so auth events and navigation

@@ -8,6 +8,7 @@ import { Redirect, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { AvatarPreview } from "@/components/avatar/AvatarPreview";
+import { ShareRefusedLine } from "@/components/capture/ShareRefusedLine";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PremiumLoadingState } from "@/components/premium";
 import { PixelPressable, PixelSurface } from "@/components/pixel";
@@ -313,6 +314,7 @@ export default function AvatarStudioScreen() {
 
   return frame(
     <View style={styles.screen}>
+      <ShareRefusedLine />
       {setupMode ? <Text style={styles.setupHint}>{t("avatar:setupRequiredHint")}</Text> : null}
       {/* 미리보기 칸(Simon 2026-10-07): 왼쪽 절반 = 아바타와 그 아래 '현재 아바타', 오른쪽 절반 = 종류 버튼. */}
       <PixelSurface variant="inset" style={styles.previewFrame} contentStyle={styles.previewContent}>

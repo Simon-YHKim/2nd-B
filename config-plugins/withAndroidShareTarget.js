@@ -9,14 +9,15 @@
 //
 //   <scheme>://share-intent?text=<EXTRA_TEXT>&title=<EXTRA_SUBJECT>
 //
-// src/app/+native-intent.ts maps that link to /capture?text=&title=, the query the
-// capture screen already reads (src/lib/capture/share-intent.ts explains why the
-// link is not a plain capture link). The capture screen fills its input and
-// keeps it in its on-device draft, as it does typed text; no record is created
-// until the person presses save. It does so only for someone signed in with a
-// complete profile and no password reset under way (Simon 2026-10-07): any
-// other share is dropped, not kept for later, and the next screen says so in
-// one line (src/lib/capture/share-delivery.ts).
+// src/app/+native-intent.ts maps that link to /capture?text=&title=&from=share,
+// the query the capture screen already reads plus a marker
+// (src/lib/capture/share-intent.ts explains why the link is not a plain capture
+// link). The app's existing gates decide what happens next (Simon 2026-10-07
+// 12:04): if they show /capture, the screen fills its input and keeps it in its
+// on-device draft, as it does typed text, and no record is created until the
+// person presses save; if they send the route to sign-in, profile, password
+// reset or the first avatar setup, the share is dropped like any link's params
+// and that screen says so in one line. Nothing keeps a share for later.
 //
 // Three edits, all during expo prebuild:
 //   1. AndroidManifest: <intent-filter> SEND + DEFAULT + mimeType text/plain on

@@ -124,8 +124,7 @@ import { saveTemplate } from "@/lib/wiki/template-queries";
 import type { SourceKind } from "@/lib/wiki/types";
 import { classifyLinkOrClip, firstUrlIn } from "@/lib/wiki/link-or-clip";
 import { normalizeSharedCaptureParams } from "@/lib/capture/share-params";
-import { SHARE_DELIVERY_PARAM, markShareDeliveryFilled } from "@/lib/capture/share-delivery";
-import { useNativeShareGate, useStripRefusedShare } from "@/lib/capture/use-share-delivery";
+import { carriesShareMarker, shareRefusedHref } from "@/lib/capture/share-intent";
 import { clipboardHasContent, readClipboardText } from "@/lib/capture/clipboard";
 import { composeFourWBody, EMPTY_FOURW, FOURW_KEYS, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
 import { composeStructured } from "@/lib/capture/structured";
@@ -368,26 +367,15 @@ export default function Capture() {
     mode?: string;
     tag?: string;
     coach?: string;
-    shareDelivery?: string;
+    from?: string;
   }>();
   const firstRecordCoach = captureParams.coach === FIRST_RECORD_COACH_PARAM;
-  const hasSharedParams =
+  const hasFullCaptureParams =
     normalizeSharedCaptureParams({
       url: captureParams.url,
       text: captureParams.text,
       title: captureParams.title,
-    }) !== null;
-  // An Android share fills this screen only for a signed-in account with a
-  // complete profile (Simon 2026-10-07, src/lib/capture/share-delivery.ts). A
-  // refused share is not a reason to open the full intake, and it is removed
-  // from this route unread once the route is past the gates below.
-  const nativeShareGate = useNativeShareGate(captureParams[SHARE_DELIVERY_PARAM]);
-  useStripRefusedShare(
-    hasSharedParams && nativeShareGate === "refused" && !loading && Boolean(userId) && hasProfile === true,
-    captureParams[SHARE_DELIVERY_PARAM],
-  );
-  const hasFullCaptureParams =
-    (hasSharedParams && nativeShareGate !== "refused") ||
+    }) !== null ||
     (typeof captureParams.mode === "string" &&
       captureModeOpensFullIntake(captureParams.mode)) ||
     (typeof captureParams.tag === "string" && captureParams.tag.trim().length > 0) ||
@@ -405,8 +393,13 @@ export default function Capture() {
       </PremiumAppShell>
     );
   }
-  if (!userId) return <Redirect href="/sign-in" />;
-  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  // An Android share arrives here as /capture?text=&title=&from=share
+  // (src/lib/capture/share-intent.ts). These two redirects drop the route's
+  // params as they do for any link; for a share they also tell the screen they
+  // land on to say, in one line, that it was not added.
+  const shareMarked = carriesShareMarker(captureParams);
+  if (!userId) return <Redirect href={shareRefusedHref("/sign-in", shareMarked)} />;
+  if (hasProfile === false) return <Redirect href={shareRefusedHref("/complete-profile", shareMarked)} />;
   if (hasFullCaptureParams || fullCaptureActive) {
     return (
       <DeepSpaceScreen active="capture" variant="windowed">
@@ -477,38 +470,14 @@ function CaptureLegacySession({
   // J4: onboarding hands off with entry=firstRun; until now the param was
   // accepted and never read. First-run framing lowers the blank-page bar
   // ("one sentence is enough") for the journey's very first save.
-  // url/text/title arrive from the Web Share Target (manifest.webmanifest) and,
-  // in the Android app, from the share sheet (src/app/+native-intent.ts):
+  // url/text/title arrive from the Web Share Target (manifest.webmanifest):
   // sharing a page from another app opens /capture with the payload here.
-  const {
-    entry,
-    url: sharedUrlParam,
-    text: sharedTextParam,
-    title: sharedTitleParam,
-    mode: modeParam,
-    tag: tagParam,
-    shareDelivery: shareDeliveryParam,
-  } = useLocalSearchParams<{
-    entry?: string;
-    url?: string;
-    text?: string;
-    title?: string;
-    mode?: string;
-    tag?: string;
-    shareDelivery?: string;
-  }>();
+  const { entry, url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam, mode: modeParam, tag: tagParam } =
+    useLocalSearchParams<{ entry?: string; url?: string; text?: string; title?: string; mode?: string; tag?: string }>();
   const firstRun = entry === "firstRun";
-  // An Android share is read only once it is accepted for this account and the
-  // account may fill now (src/lib/capture/share-delivery.ts). Until then, or
-  // when refused, this screen sees no share at all.
-  const shareGate = useNativeShareGate(shareDeliveryParam);
-  const sharedReadable = shareGate === "not-native" || shareGate === "allowed";
   const shared = useMemo(
-    () =>
-      sharedReadable
-        ? normalizeSharedCaptureParams({ url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam })
-        : null,
-    [sharedReadable, sharedUrlParam, sharedTextParam, sharedTitleParam],
+    () => normalizeSharedCaptureParams({ url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam }),
+    [sharedUrlParam, sharedTextParam, sharedTitleParam],
   );
 
   const [mode, setMode] = useState<Mode>("journal");
@@ -1352,9 +1321,6 @@ function CaptureLegacySession({
     setDomainIntent(plan.liveDomainIntent);
     setTodoDone(plan.liveTodoDone);
     const durableWrite = persistDrafts(plan.persistMode);
-    // An Android share is in the input now: its id reads as used from here on,
-    // so neither this route nor a remount can fill it again (share-delivery.ts).
-    markShareDeliveryFilled(shareDeliveryParam, userId);
     if (plan.consumedModeParam !== null || plan.consumedTagParam !== null) {
       // param effect 가 같은 조합을 다시 소비하지 않게 latch 를 건다.
       modeParamConsumedRef.current = `${plan.consumedModeParam ?? ""}:${plan.consumedTagParam ?? ""}`;
@@ -1390,7 +1356,6 @@ function CaptureLegacySession({
     });
   }, [
     shared,
-    shareDeliveryParam,
     userId,
     draftHydrated,
     modeParam,
@@ -1693,7 +1658,6 @@ function CaptureLegacySession({
       url: undefined,
       text: undefined,
       title: undefined,
-      [SHARE_DELIVERY_PARAM]: undefined,
       ...(sharedDurableAck.clearMode ? { mode: undefined } : {}),
       ...(sharedDurableAck.clearTag ? { tag: undefined } : {}),
     });

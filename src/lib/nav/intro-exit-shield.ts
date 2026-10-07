@@ -36,7 +36,6 @@
 export const INTRO_EXIT_SHIELD_MS = 400;
 
 let active = false;
-let ended = false;
 let timer: ReturnType<typeof setTimeout> | null = null;
 const listeners = new Set<() => void>();
 
@@ -48,7 +47,6 @@ function emit(): void {
 export function startIntroExitShield(): void {
   if (timer !== null) clearTimeout(timer);
   active = true;
-  ended = true;
   emit();
   timer = setTimeout(() => {
     timer = null;
@@ -59,16 +57,6 @@ export function startIntroExitShield(): void {
 
 export function isIntroExitShieldActive(): boolean {
   return active;
-}
-
-/**
- * 이 실행에서 오프닝이 끝났는가. 한 번 참이 되면 실행이 끝날 때까지 참이다.
- * 오프닝 위에는 띄우지 않고 그 뒤의 모든 갈래 위에 띄우려는 층(공유 거절
- * 한 줄, components/capture/ShareRefusedNotice.tsx)이 읽는다. 바뀔 때 알림은
- * subscribeIntroExitShield 와 같다(막이 켜지는 순간).
- */
-export function hasIntroEnded(): boolean {
-  return ended;
 }
 
 export function subscribeIntroExitShield(listener: () => void): () => void {
@@ -83,6 +71,5 @@ export function resetIntroExitShieldForTests(): void {
   if (timer !== null) clearTimeout(timer);
   timer = null;
   active = false;
-  ended = false;
   listeners.clear();
 }

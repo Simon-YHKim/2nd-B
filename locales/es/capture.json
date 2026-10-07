@@ -341,7 +341,6 @@
   "inboxTab": "Bandeja",
   "manualTab": "Guía de uso",
   "shareRefused": {
-    "body": "No se agregó lo que compartiste. Inicia sesión y vuelve a compartirlo.",
-    "dismiss": "Cerrar"
+    "body": "No se agregó lo que compartiste. Inicia sesión y vuelve a compartirlo."
   }
 }

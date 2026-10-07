@@ -27,6 +27,7 @@ import * as vm from "node:vm";
 import * as ts from "typescript";
 
 import * as profileProbe from "../../lib/auth/profile-probe";
+import { SHARE_REFUSED_PARAMS, isMarkedShareCapture, shareRefusedHref } from "../../lib/capture/share-intent";
 import {
   PROFILE_GATE_EXEMPT_SEGMENTS,
   profileGate,
@@ -212,10 +213,18 @@ const SETTLED_RECOVERY = {
 };
 
 /** 대역 훅이 읽는 현재 상태. mount() 가 매번 채운다. */
-const world: { auth: AuthView; segments: string[]; pathname: string; introDone: boolean; effects: (() => unknown)[] } = {
+const world: {
+  auth: AuthView;
+  segments: string[];
+  pathname: string;
+  params: Record<string, string>;
+  introDone: boolean;
+  effects: (() => unknown)[];
+} = {
   auth: { ...BOOTSTRAP, ...SETTLED_RECOVERY },
   segments: [],
   pathname: "/",
+  params: {},
   introDone: true,
   effects: [],
 };
@@ -236,6 +245,9 @@ const layout = vm.createContext({
   useAuth: () => world.auth,
   useSegments: () => world.segments,
   usePathname: () => world.pathname,
+  useGlobalSearchParams: () => world.params,
+  isMarkedShareCapture,
+  shareRefusedHref,
   useState: (initial: unknown) => [typeof initial === "function" ? (initial as () => unknown)() : initial, () => undefined],
   useEffect: (effect: () => unknown) => {
     world.effects.push(effect);
@@ -351,6 +363,8 @@ const names = (mounted: Mounted): string[] => mounted.hosts.map((entry) => entry
 interface Route {
   segments: string[];
   pathname: string;
+  /** 지금 라우트의 쿼리(useGlobalSearchParams). 없으면 빈 객체. */
+  params?: Record<string, string>;
   /** 네비게이터가 이 장면에 넘기는 라우트 이름. */
   name: string;
 }
@@ -377,6 +391,7 @@ async function mount({
   world.auth = { ...SETTLED_RECOVERY, ...auth };
   world.segments = route.segments;
   world.pathname = route.pathname;
+  world.params = route.params ?? {};
   world.introDone = introDone;
   world.effects = [];
   const out: Mounted = { components: [], hosts: [], reads: { records: [], sources: [] } };
@@ -558,6 +573,48 @@ describe("예외와 우선순위는 그대로다", () => {
         expect(onReset.components).toEqual(["IntroGate", "ProfileProbeScope", "AccountScope", "ExemptScene"]);
       }
     }
+  });
+
+  // Android 공유(Simon 2026-10-07 12:04): 문지기가 공유 표식이 붙은 /capture 를 돌려보내면
+  // 매개변수는 main 처럼 버리고, 도착 화면에 한 줄 안내 매개변수 하나만 붙인다. 표식이 없으면
+  // 리다이렉트는 main 과 글자까지 같다.
+  const SHARED_CAPTURE: Route = {
+    segments: ["capture"],
+    pathname: "/capture",
+    name: "capture",
+    params: { text: "shared words", from: "share" },
+  };
+  const PLAIN_CAPTURE: Route = { ...SHARED_CAPTURE, params: { text: "shared words" } };
+  const NOTICE = (pathname: string) => ({ name: "Redirect", props: { href: { pathname, params: SHARE_REFUSED_PARAMS } } });
+
+  test("공유 표식이 붙은 /capture 를 재설정 잠금이 돌려보내면 /reset-password 에 안내 매개변수 하나가 붙는다", async () => {
+    for (const recovery of [{ recoveryUserId: "user-a" }, { recoveryPendingGlobal: true }]) {
+      const shared = await mount({ auth: { ...READY_ADULT, ...recovery }, route: SHARED_CAPTURE });
+      expect(shared.hosts).toEqual([NOTICE("/reset-password")]);
+      const plain = await mount({ auth: { ...READY_ADULT, ...recovery }, route: PLAIN_CAPTURE });
+      expect(plain.hosts).toEqual([{ name: "Redirect", props: { href: "/reset-password" } }]);
+      // 표식만 있고 /capture 가 아니면(다른 화면의 같은 이름 매개변수) 안내하지 않는다.
+      const elsewhere = await mount({ auth: { ...READY_ADULT, ...recovery }, route: { ...RECORDS_ROUTE, params: SHARED_CAPTURE.params } });
+      expect(elsewhere.hosts).toEqual([{ name: "Redirect", props: { href: "/reset-password" } }]);
+    }
+  });
+
+  test("공유 표식이 붙은 /capture 를 C10 이 돌려보내면 /complete-profile 에 안내 매개변수 하나가 붙는다", async () => {
+    const shared = await mount({ auth: NO_PROFILE, route: SHARED_CAPTURE });
+    expect(shared.hosts).toEqual([NOTICE("/complete-profile")]);
+    const plain = await mount({ auth: NO_PROFILE, route: PLAIN_CAPTURE });
+    expect(plain.hosts).toEqual([{ name: "Redirect", props: { href: "/complete-profile" } }]);
+  });
+
+  test("문지기가 /capture 를 그대로 보여 주면 공유 표식은 아무것도 바꾸지 않는다", async () => {
+    // 성인 · 프로필 완료 · 복구 아님: 리다이렉트 없이 장면이 그대로 마운트된다(채우기는 capture 화면의 main 경로).
+    const shared = await mount({ auth: READY_ADULT, route: SHARED_CAPTURE, scene: "exempt" });
+    expect(shared.hosts.filter((entry) => entry.name === "Redirect")).toEqual([]);
+    expect(shared.components).toEqual(["IntroGate", "ProfileProbeScope", "AccountScope", "ExemptScene"]);
+    // 판정을 기다리는 동안은 main 처럼 덮개가 덮고, 공유 때문에 늦추거나 따로 붙드는 장치는 없다.
+    const waiting = await mount({ auth: PROFILE_LOADING, route: SHARED_CAPTURE, scene: "exempt" });
+    expect(waiting.hosts.filter((entry) => entry.name === "Redirect")).toEqual([]);
+    expect(names(waiting)).toContain("InlineLoader");
   });
 
   test("저장소 복구와 복구 준비 대기는 그보다도 먼저다", async () => {

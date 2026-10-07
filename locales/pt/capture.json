@@ -341,7 +341,6 @@
   "inboxTab": "Recebidos",
   "manualTab": "Guia de uso",
   "shareRefused": {
-    "body": "O que você compartilhou não foi adicionado. Entre na sua conta e compartilhe de novo.",
-    "dismiss": "Fechar"
+    "body": "O que você compartilhou não foi adicionado. Entre na sua conta e compartilhe de novo."
   }
 }

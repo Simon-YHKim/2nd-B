@@ -341,7 +341,6 @@
   "inboxTab": "Inbox",
   "manualTab": "User Guide",
   "shareRefused": {
-    "body": "Your share was not added. Sign in, then share it again.",
-    "dismiss": "Close"
+    "body": "Your share was not added. Sign in, then share it again."
   }
 }
