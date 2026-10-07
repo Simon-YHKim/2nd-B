@@ -1,5 +1,5 @@
 // Reads where the phone is, coarsely, for the clock-row weather (Simon 2026-10-07,
-// Q-261007-39 = GPS; conditions in DECISIONS 26.10.07 13:17).
+// Q-261007-39 = GPS; conditions in DECISIONS 26.10.07 13:18).
 //
 // Off while WEATHER_LOCATION_ENABLED is false (./weather-location-gate): every entry point
 // answers "off" or null and never touches the SDK.

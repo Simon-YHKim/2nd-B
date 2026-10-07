@@ -1,7 +1,7 @@
 // The one switch for reading the phone's location for the clock-row weather (weather-location.ts).
 //
 // Simon chose GPS for the weather on 2026-10-07 (Q-261007-39 = A) and then dropped the
-// legal-review step (DECISIONS 26.10.07 13:17): the Location Information Act asks for set
+// legal-review step (DECISIONS 26.10.07 13:18): the Location Information Act asks for set
 // steps, not a review. Those steps are what this waits for:
 //   - the privacy policy (Korean and English) says the location is used for the weather;
 //   - the terms carry the location-based service clause (art. 19);

@@ -47,7 +47,7 @@ describe("clock row", () => {
     expect(parts).not.toContain("say(part.weather)");
   });
 
-  test("no location is read while the weather-location gate is off (DECISIONS 26.10.07 13:17)", () => {
+  test("no location is read while the weather-location gate is off (DECISIONS 26.10.07 13:18)", () => {
     // What has to exist before the gate turns on is checked in src/lib/location/__tests__/weather-location.test.ts.
     expect(read("src/lib/location/weather-location-gate.ts")).toContain("export const WEATHER_LOCATION_ENABLED: boolean = false;");
     expect(read("src/lib/dashboard/board/build.ts")).toContain("weather: null");
