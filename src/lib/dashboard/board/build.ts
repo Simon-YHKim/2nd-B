@@ -78,6 +78,21 @@ function hidden<T extends BoardPart["id"]>(id: T, page: 1 | 2, order: number, sh
   return { id, page, order, shape, visible: false, state: "locked" as const, basis: "locked" as const };
 }
 
+const PART_TITLE: Record<BoardPart["id"], string> = {
+  "P-01": "clock", "P-02": "note", "P-03": "reminders", "P-04": "queue", "P-06": "health", "P-07": "spend", "P-08": "changes", "P-09": "custom",
+};
+
+/** 화면에 없는 부품과 그 이유. 원천이 아직 없는 것은 '준비 중', 건강은 미성년이면 '성인만'. */
+function shelfItems(parts: BoardPart[], isMinor: boolean | null) {
+  return parts.filter((part) => !part.visible).map((part) => ({
+    id: part.id,
+    title: { key: `phone.board.shelf.parts.${PART_TITLE[part.id]}` },
+    basis: "locked" as const,
+    reason: { key: part.id === "P-06" && isMinor !== false ? "phone.board.shelf.reasons.adultOnly" : "phone.board.shelf.reasons.preparing" },
+    canShow: false,
+  }));
+}
+
 export function buildBoard(data: DashboardData | null, now: Date, isMinor: boolean | null): BoardContract {
   const parts: BoardPart[] = [
     { id: "P-01", page: 1, order: 1, shape: "row", visible: true, state: "data", basis: "fact", weather: null, forecastRoute: null },
@@ -104,5 +119,6 @@ export function buildBoard(data: DashboardData | null, now: Date, isMinor: boole
     dock: { capture: "/capture", chat: "/secondb", transcribe: { locked: true, route: null } },
     // 하루 요약(daily_note)은 W0 가 원천을 붙인다. 그 전에는 P-02 가 숨어 S-01 로 들어오는 길도 없다.
     summary: null,
+    shelf: { items: shelfItems(parts, isMinor), canReorder: false },
   };
 }

@@ -306,6 +306,43 @@
         "noValue": "기록 없음",
         "mutedNote": "무음 모드라 글로만 보여 드립니다."
       },
+      "shelf": {
+        "title": "위젯 관리",
+        "onScreen": "화면에 있는 위젯",
+        "offScreen": "화면에 없는 위젯",
+        "allOnScreen": "모든 위젯이 화면에 있습니다.",
+        "show": "다시 켜기",
+        "hide": "{{name}} 숨기기",
+        "moveUp": "{{name}} 위로",
+        "moveDown": "{{name}} 아래로",
+        "reasons": {
+          "preparing": "아직 준비 중인 위젯입니다.",
+          "adultOnly": "건강 연동은 성인만 쓸 수 있습니다.",
+          "hidden": "숨긴 위젯입니다."
+        },
+        "parts": {
+          "clock": "시계 · 날씨",
+          "note": "오늘의 한마디",
+          "reminders": "리마인더",
+          "queue": "처리할 것",
+          "health": "건강",
+          "spend": "지출",
+          "changes": "그 밖에",
+          "custom": "나만의 칸"
+        }
+      },
+      "transcribe": {
+        "title": "녹음 전사",
+        "adultOnly": "녹음 전사는 성인만 쓸 수 있습니다.",
+        "ownTalkOnly": "내가 참여한 대화만 녹음합니다.",
+        "lockedStart": "녹음 시작, 아직 열리지 않았습니다",
+        "afterTitle": "녹음이 끝나면 결과가 여기에 보입니다.",
+        "sections": {
+          "head": "요약 한 줄",
+          "todos": "할 일 · 다음 연락",
+          "transcript": "전문"
+        }
+      },
       "dock": {
         "capture": "담기",
         "chat": "대화",

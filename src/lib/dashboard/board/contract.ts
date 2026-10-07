@@ -104,6 +104,24 @@ export interface SummaryBubble {
 }
 export interface DailySummary { slot: "morning" | "day" | "evening"; bubbles: SummaryBubble[] }
 
+/**
+ * S-03 위젯 관리: 화면에 없는 부품 하나. 잠긴 것은 점선 + 잠긴 이유 + [연동 화면].
+ * canShow 면 [다시 켜기]를 보인다(숨긴 맞춤 위젯 · 정지한 틀).
+ */
+export interface ShelfItem {
+  id: string;
+  title: BoardText;
+  basis: BoardBasis;
+  reason: BoardText;
+  action?: BoardAction;
+  canShow: boolean;
+}
+export interface BoardShelf {
+  items: ShelfItem[];
+  /** 순서 바꾸기 · 숨기기를 받을 수 있는가. 저장할 곳(W0)이 생기기 전에는 false. */
+  canReorder: boolean;
+}
+
 export type BoardPart = ClockPart | NotePart | RemindersPart | QueuePart | HealthPart | SpendPart | ChangesPart | CustomPart;
 export type BoardPartId = BoardPart["id"];
 
@@ -116,6 +134,8 @@ export interface BoardContract {
   dock: { capture: string; chat: string; transcribe: { locked: boolean; route: string | null } };
   /** S-01 하루 요약. 원천(daily_note)이 없으면 null. */
   summary: DailySummary | null;
+  /** S-03 위젯 관리. */
+  shelf: BoardShelf;
 }
 
 /** 그 쪽에서 보일 부품을 순서대로. 화면은 이 함수만 거쳐 부품을 받는다. */
