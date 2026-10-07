@@ -2894,3 +2894,174 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/users-avatar-spec-contract.sql
+      # 0219 (Q-261004-40 strict, docs/design/onboarding-server-261006.md): the
+      # numbered migration is already applied by the CLI replay above. This
+      # replays it twice on fixtures (backfill), then exercises the claim state
+      # machine, the session echo, the 0192 deletion fence and every refusal as
+      # the real authenticated role. Rolled back.
+      - name: Exercise numbered 0219 first-run claims (backfill, grants, one grant per kind, deletion fence)
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/onboarding_first_run_claims_regression.sql
+      # 0219 design 4.2 / gate CDA-01: two tabs of one account claim the welcome,
+      # then the first-day review, at the same moment. The conditional UPDATE
+      # queues the second claim on the row lock and re-checks after the first
+      # commits, so exactly one is granted. Tab A keeps its grant uncommitted for
+      # three seconds; tab B must wait for it and come back 'held'. Throw-away
+      # clone, because the grants are committed.
+      - name: Race two first-run claims for one account
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          clone_db="race_0219_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ || ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0219 claim race refuses an unsafe database name" >&2
+            exit 1
+          fi
+          sql() { # <db> <one statement>
+            psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
+          }
+          sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+          trap 'sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true' EXIT
+          psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('a0219e00-0000-4000-8000-000000000001', 'claims-race@example.test');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('a0219e00-0000-4000-8000-000000000001', 'claims-race@example.test', DATE '1990-01-01', 'en');
+          SQL
+          owner='a0219e00-0000-4000-8000-000000000001'
+          claim() { # <kind> <tab session id> <seconds to hold the transaction open>
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" \
+              -c "SET LOCAL request.jwt.claims = '{\"sub\": \"$owner\", \"session_id\": \"$2\"}'" \
+              -c "SET LOCAL ROLE authenticated" \
+              -c "SELECT (r ->> 'granted') || '|' || (r ->> 'reason') || '|' || COALESCE(r ->> 'session_id', '-') FROM public.claim_first_run('$owner', '$1') AS r" \
+              -c "SELECT pg_sleep($3)" \
+              -c "COMMIT"
+          }
+          race() { # <kind>
+            claim "$1" tab-a 3 > "race_0219_$1_a.out" &
+            local a_pid=$!
+            local waited=0
+            until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                          WHERE datname = current_database() AND state = 'active'
+                                            AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+              waited=$((waited + 1))
+              if (( waited > 50 )); then echo "tab A never reached its pause ($1)" >&2; exit 1; fi
+              sleep 0.2
+            done
+            local started
+            started="$(date +%s%N)"
+            claim "$1" tab-b 0 > "race_0219_$1_b.out"
+            local waited_ms=$(( ($(date +%s%N) - started) / 1000000 ))
+            wait "$a_pid"
+            local a b
+            a="$(head -n 1 "race_0219_$1_a.out")"
+            b="$(head -n 1 "race_0219_$1_b.out")"
+            echo "$1: tab A [$a], tab B [$b], tab B waited ${waited_ms} ms"
+            if [[ "$a" != "true|granted|tab-a" ]]; then
+              echo "tab A was not granted the $1 with its own session: [$a]" >&2
+              exit 1
+            fi
+            if [[ "$b" != "false|held|tab-b" ]]; then
+              echo "tab B was granted the $1 as well, or answered for another session: [$b]" >&2
+              exit 1
+            fi
+            if (( waited_ms < 500 )); then
+              echo "tab B did not wait for tab A's row lock (${waited_ms} ms), so the race proves nothing" >&2
+              exit 1
+            fi
+          }
+          race onboarding
+          race ttfv
+          after="$(sql "$clone_db" "SELECT (onboarding_claimed_at IS NOT NULL) || '/' || (ttfv_claimed_at IS NOT NULL)
+                                          || '/' || (ttfv_claim_token IS NOT NULL) || '/' || (ttfv_seen_at IS NULL)
+                                     FROM public.users WHERE id = '$owner'")"
+          if [[ "$after" != "true/true/true/true" ]]; then
+            echo "the raced account is not left with one grant per kind: [$after]" >&2
+            exit 1
+          fi
+      # rollback/0219_down.sql is run by hand mid-incident, and only as one
+      # transaction (0219 design P7; gate CD-04, CD2-04). On a throw-away clone:
+      # in autocommit it must refuse before dropping anything; \i-ed inside the
+      # caller's open transaction it must not commit that transaction; with
+      # --single-transaction it removes the three functions and five columns;
+      # 0219 then applies twice in a row back to the same set.
+      - name: Round-trip the 0219 first-run rollback (single transaction only)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          clone_db="rollback_0219_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ || ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0219 rollback round trip refuses an unsafe database name" >&2
+            exit 1
+          fi
+          sql() { # <db> <one statement>
+            psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
+          }
+          sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+          trap 'sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true' EXIT
+          down=db/migrations/rollback/0219_down.sql
+          made="SELECT (SELECT pg_catalog.count(*) FROM pg_catalog.pg_proc AS p
+                          JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
+                         WHERE n.nspname = 'public'
+                           AND p.proname IN ('claim_first_run', 'finish_first_run', 'first_run_marks_json'))
+                  || '/' ||
+                  (SELECT pg_catalog.count(*) FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'users'
+                      AND column_name IN ('onboarding_claimed_at', 'onboarding_completed_at',
+                                          'ttfv_claimed_at', 'ttfv_claim_token', 'ttfv_seen_at'))"
+          before="$(sql "$clone_db" "$made")"
+          echo "0219 objects before the rollback: $before (functions/columns)"
+          if [[ "$before" != "3/5" ]]; then
+            echo "0219 rollback round trip cannot start: expected 3 functions and 5 columns, found [$before]" >&2
+            exit 1
+          fi
+          if psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -f "$down" > rollback_0219_autocommit.out 2>&1; then
+            echo "rollback/0219_down.sql ran outside one transaction" >&2
+            exit 1
+          fi
+          if ! grep -q "must run as one transaction" rollback_0219_autocommit.out; then
+            cat rollback_0219_autocommit.out >&2
+            echo "rollback/0219_down.sql refused autocommit for another reason" >&2
+            exit 1
+          fi
+          if [[ "$(sql "$clone_db" "$made")" != "3/5" ]]; then
+            echo "the refused autocommit run still dropped 0219 objects" >&2
+            exit 1
+          fi
+          psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 \
+            -c "BEGIN" \
+            -c "CREATE TABLE public.rollback_0219_outer_probe (x integer)" \
+            -f "$down" \
+            -c "ROLLBACK" > /dev/null
+          if [[ "$(sql "$clone_db" "SELECT pg_catalog.to_regclass('public.rollback_0219_outer_probe') IS NULL")" != "t" ]]; then
+            echo "rollback/0219_down.sql committed the caller's open transaction (CD2-04)" >&2
+            exit 1
+          fi
+          if [[ "$(sql "$clone_db" "$made")" != "3/5" ]]; then
+            echo "the caller's ROLLBACK did not undo rollback/0219_down.sql" >&2
+            exit 1
+          fi
+          psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 --single-transaction -f "$down" > /dev/null
+          after_down="$(sql "$clone_db" "$made")"
+          echo "after rollback/0219_down.sql: $after_down"
+          if [[ "$after_down" != "0/0" ]]; then
+            echo "rollback/0219_down.sql left 0219 objects behind: [$after_down]" >&2
+            exit 1
+          fi
+          for _ in 1 2; do
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 --single-transaction \
+              -f db/migrations/0219_users_first_run_claims.sql > /dev/null
+          done
+          again="$(sql "$clone_db" "$made")"
+          echo "after re-applying 0219 twice: $again"
+          if [[ "$again" != "$before" ]]; then
+            echo "0219 did not come back to the same set after its rollback: [$before] -> [$again]" >&2
+            exit 1
+          fi

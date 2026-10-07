@@ -328,7 +328,9 @@ describe("기기에 남은 메모의 소유 확인 자리", () => {
     // C10 - 나이를 모르는 채로 기록을 만들지 않는다.
     const hook = read("src/lib/capture/use-import-pending.ts");
     expect(hook).toContain("loading || !userId || hasProfile !== true || profileProbeFailed ||");
-    expect(hook).toContain("onboardingComplete !== true || autoTriggerTTFV !== false");
+    // 첫 실행 판정(0219)이 '홈'으로 끝난 뒤에만. 홈이 서버에 묻고, 이 훅은 그 답을 읽기만 한다.
+    expect(hook).toContain('firstRun !== "home"');
+    expect(hook).toContain("const firstRun = useFirstRunHomeGate(userId, firstRunReady);");
     expect(hook).toContain("minor: ctx.minor");
     expect(hook).toContain("const minor = isMinor !== false;");
     expect(hook).toContain("const confirmImport = useCallback(() => {");

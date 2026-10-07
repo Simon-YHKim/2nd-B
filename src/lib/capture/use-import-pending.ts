@@ -6,8 +6,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { withTimeout } from "@/lib/async/with-timeout";
-import { useOnboardingComplete } from "@/lib/onboarding/state";
-import { useAutoTriggerTTFV } from "@/lib/onboarding/ttfv-gate";
+import { useFirstRunHomeGate } from "@/lib/onboarding/account-first-run";
 import { crisisHotlines } from "@/lib/safety/classifier";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -46,8 +45,11 @@ export function useImportPendingCaptures(): {
   dismissCrisis: () => void;
 } {
   const { userId, hasProfile, isMinor, loading, profileProbeFailed } = useAuth();
-  const onboardingComplete = useOnboardingComplete();
-  const autoTriggerTTFV = useAutoTriggerTTFV();
+  // The home's own first-run decision (0219), read and never driven from here:
+  // "home" means no welcome or first-day review is about to open over it. This
+  // prompt never asks the server for a grant (design 5.2).
+  const firstRunReady = !loading && !!userId && hasProfile === true && !profileProbeFailed;
+  const firstRun = useFirstRunHomeGate(userId, firstRunReady);
   const { i18n } = useTranslation();
   const [offer, setOffer] = useState<PendingImportOffer | null>(null);
   const [importing, setImporting] = useState(false);
@@ -68,7 +70,7 @@ export function useImportPendingCaptures(): {
   useEffect(() => {
     if (
       loading || !userId || hasProfile !== true || profileProbeFailed ||
-      onboardingComplete !== true || autoTriggerTTFV !== false
+      firstRun !== "home"
     ) return;
     const lease = captureAccountOwnerLease(userId);
     if (!lease) return;
@@ -97,7 +99,7 @@ export function useImportPendingCaptures(): {
       }
     })();
     return () => { active = false; };
-  }, [userId, hasProfile, loading, profileProbeFailed, onboardingComplete, autoTriggerTTFV]);
+  }, [userId, hasProfile, loading, profileProbeFailed, firstRun]);
 
   const confirmImport = useCallback(() => {
     if (!offer || !offer.email || importing || offer.userId !== userId) return;

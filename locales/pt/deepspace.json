@@ -1077,6 +1077,8 @@
     "authBody": "Salve seus registros e revise as sugestões para sua Estrela Polar.",
     "next": "Próximo",
     "skip": "Pular",
+    "saveFailed": "Não foi possível salvar.",
+    "goHome": "Ir para o início",
     "slides": {
       "intro": {
         "title": "Uma IA que passa\na te conhecer",

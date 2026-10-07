@@ -7,8 +7,7 @@ const mockImport = jest.fn();
 const mockCreateRecord = jest.fn();
 const mockGetSession = jest.fn();
 const mockRelease = jest.fn();
-const mockOnboardingComplete = jest.fn();
-const mockAutoTriggerTTFV = jest.fn();
+const mockFirstRunGate = jest.fn();
 const mockOwner = { current: true };
 const mockLanguage = { current: "ko" };
 const mockHookCursor = { current: 0 };
@@ -53,8 +52,9 @@ jest.mock("@/lib/auth/account-session-lease", () => ({
     release: mockRelease,
   }),
 }));
-jest.mock("@/lib/onboarding/state", () => ({ useOnboardingComplete: () => mockOnboardingComplete() }));
-jest.mock("@/lib/onboarding/ttfv-gate", () => ({ useAutoTriggerTTFV: () => mockAutoTriggerTTFV() }));
+jest.mock("@/lib/onboarding/account-first-run", () => ({
+  useFirstRunHomeGate: (...args: unknown[]) => mockFirstRunGate(...args),
+}));
 jest.mock("@/lib/supabase/client", () => ({
   getSupabaseClient: () => ({ auth: { getSession: mockGetSession } }),
 }));
@@ -81,8 +81,7 @@ describe("pre-account pending import owner confirmation", () => {
     mockOwner.current = true;
     mockLanguage.current = "ko";
     mockAuth.mockReturnValue({ userId: "u1", hasProfile: true, isMinor: true, loading: false, profileProbeFailed: false });
-    mockOnboardingComplete.mockReturnValue(true);
-    mockAutoTriggerTTFV.mockReturnValue(false);
+    mockFirstRunGate.mockReturnValue("home");
     mockLoad.mockResolvedValue([pending]);
     mockGetSession.mockResolvedValue({ data: { session: { user: { id: "u1", email: "owner@example.com" } } }, error: null });
     mockImport.mockResolvedValue({ total: 1, imported: 1, failed: 0 });
@@ -93,6 +92,8 @@ describe("pre-account pending import owner confirmation", () => {
     TestHarness();
     await settle();
     const view = TestHarness();
+    // It reads the home's decision for this owner and never drives it (no claim from here).
+    expect(mockFirstRunGate).toHaveBeenLastCalledWith("u1", true);
     expect(view.prompt).toMatchObject({ count: 1, email: "owner@example.com" });
     expect(mockImport).not.toHaveBeenCalled();
     expect(mockCreateRecord).not.toHaveBeenCalled();
@@ -149,14 +150,14 @@ describe("pre-account pending import owner confirmation", () => {
   });
 
   test.each([
-    ["auth loading", { loading: true }, true, false],
-    ["failed profile probe", { profileProbeFailed: true }, true, false],
-    ["onboarding hydration", {}, null, false],
-    ["TTFV redirect", {}, true, true],
-  ])("does not offer import during %s", async (_name, authPatch, onboarding, ttfv) => {
+    ["auth loading", { loading: true }, "home"],
+    ["failed profile probe", { profileProbeFailed: true }, "home"],
+    ["the first-run decision", {}, "wait"],
+    ["the welcome redirect", {}, "/onboarding"],
+    ["TTFV redirect", {}, "/ttfv"],
+  ])("does not offer import during %s", async (_name, authPatch, firstRun) => {
     mockAuth.mockReturnValue({ userId: "u1", hasProfile: true, isMinor: true, loading: false, profileProbeFailed: false, ...authPatch });
-    mockOnboardingComplete.mockReturnValue(onboarding);
-    mockAutoTriggerTTFV.mockReturnValue(ttfv);
+    mockFirstRunGate.mockReturnValue(firstRun);
     TestHarness(); await settle();
     expect(TestHarness().prompt).toBeNull();
     expect(mockLoad).not.toHaveBeenCalled();
