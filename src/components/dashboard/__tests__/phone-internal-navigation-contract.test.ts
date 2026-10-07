@@ -36,7 +36,12 @@ test("an in-phone page shows one Back: the phone row, or the content's own heade
   expect(phone).toContain("const ownsDisplay = museumOpen || phoneScreen !== null;");
   // S-01 하루 요약은 자기 [닫기]를 가진다(2026-10-07).
   expect(phone).toContain('const contentOwnsBack = ownsDisplay || insideRoute === "/board/summary" || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);');
-  expect(phone).toContain("{internalActive && !contentOwnsBack ? <PhoneAction");
+  // Pixel iPhone: the phone row is an iOS nav-bar back - the blue chevron alone (Simon 2026-10-07: no words
+  // that explain the button, such as "back inside the phone"). The short label is for screen readers only.
+  expect(phone).toContain("{internalActive && !contentOwnsBack ? <NavBack");
+  expect(phone).toContain('<NavBack label={t("phone.internal.back")} onPress={backInside} />');
+  expect(phone).not.toContain("navBackText");
+  expect(JSON.parse(readFileSync(join(__dirname, "..", "..", "..", "..", "locales", "ko", "ops.json"), "utf8")).phone.internal.back).toBe("뒤로");
   expect(phone).not.toContain("{internalActive && !museumOpen ? <PhoneAction");
   expect(phone).toContain("<OpsPhoneContent screen={opsScreen} onBack={backInside}");
   expect(phone).toContain("<MuseumPhoneContent width={frame.screen.width} onBack={backInside}");

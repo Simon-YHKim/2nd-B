@@ -11,7 +11,7 @@ const CAPTURE = { label: { key: "phone.board.custom.capture" }, route: "/capture
 const DATA: Record<BoardPartId, BoardPart> = {
   "P-01": {
     id: "P-01", page: 1, order: 1, shape: "row", visible: true, state: "data", basis: "fact",
-    weather: { text: "맑음 18° · 미세먼지 좋음" }, forecastRoute: "/board/forecast",
+    weather: { sky: "clear", tempC: 18 }, forecastRoute: "/board/forecast",
   },
   "P-02": {
     id: "P-02", page: 1, order: 2, shape: "row", visible: true, state: "data", basis: "ai", slot: "morning",

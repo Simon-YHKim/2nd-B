@@ -6,8 +6,7 @@ import { useTranslation } from "react-i18next";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import type { AnyGlyphName } from "@/components/pixel/pixel-glyphs";
-import { PixelPressable } from "@/components/pixel/PixelPressable";
-import { PixelSurface } from "@/components/pixel/PixelSurface";
+import { PixelRoundRect } from "@/components/pixel/PixelRoundRect";
 import { Text as BaseText, type TextProps } from "@/components/ui/Text";
 import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { loadDashboard } from "@/lib/dashboard/load";
@@ -16,11 +15,11 @@ import { buildBoard } from "@/lib/dashboard/board/build";
 import { DEFAULT_REFRESH_SETTINGS, getRefreshSettings, nextRefreshAt, shouldRefreshAfterResume } from "@/lib/dashboard/refresh-cadence";
 import { fitPhoneArtwork } from "@/lib/dashboard/phone-frame";
 import { PixelScrim } from "@/components/pixel/PixelDither";
-import { PHONE_APP_ICONS, PHONE_UI_ART, type PhoneAppId } from "./phone-app-assets";
+import { PHONE_APP_ICONS, type PhoneAppId } from "./phone-app-assets";
 import { canBeginPhoneDismiss, shouldCompletePhoneDismiss } from "@/lib/dashboard/phone-dismiss";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
-import { m3 } from "@/lib/theme/m3";
+import { phoneIos } from "@/lib/theme/phone-ios";
 import { useNoticeCenter } from "@/app/notices";
 import { renderableBlocks } from "@/lib/notices/markdown";
 import { createRecord } from "@/lib/records/create";
@@ -32,10 +31,11 @@ import { OpsPhoneContent, type OpsPhoneScreen } from "@/screens/deepspace/ops/Ph
 import { MuseumPhoneContent } from "@/screens/deepspace/museum/MuseumTimelineScreen";
 import { PhoneEmbedProvider, splitPhoneRoute, type PhoneEmbedNav } from "@/lib/nav/phone-embed";
 import { resolvePhoneScreen } from "./phone-screens";
-import { BoardDock, BoardPageView, type BoardEvents } from "./board/BoardParts";
+import { BoardPageView, type BoardEvents } from "./board/BoardParts";
 import { DailySummary } from "./board/DailySummary";
 import { BoardShelf } from "./board/BoardShelf";
 import { TranscribeSkeleton } from "./board/TranscribeSkeleton";
+import { IosButton, IosGroup, IosLargeTitle, IosLead, IosRow } from "./board/IosParts";
 import { healthBlankValues } from "@/lib/dashboard/board/summary-flow";
 import type { ProductNotice } from "@/lib/notices/types";
 
@@ -52,12 +52,17 @@ const TOOLS: { id: PhoneAppId; route: string }[] = [
   { id: "relationships", route: "/star/relation" },
   { id: "avatarPalette", route: "/avatar-palette" },
 ];
+// Three columns (Simon 2026-10-07): the grid spans the display width with one gap everywhere.
 const APP_ORDER: PhoneAppId[] = [
-  "notifications", "assistant", "focus", "reminders",
-  "money", "growth", "meals", "museum",
+  "notifications", "assistant", "focus",
+  "reminders", "money", "growth",
+  "meals", "museum", "community",
   // Simon 2026-10-07: the More page folded into the grid - the palette takes the More tile's place.
-  "community", "relationships", "settings", "avatarPalette",
+  "relationships", "settings", "avatarPalette",
 ];
+const APP_COLUMNS = 3;
+/** One spacing for the grid: between columns, between rows and at the display edge (= content padding). */
+const APP_GAP = 9;
 const OPS_PHONE_ROUTES: Record<string, OpsPhoneScreen> = {
   "/ops": "ops",
   "/reading": "reading",
@@ -86,19 +91,47 @@ const LAST_PAGE = PAGES.length - 1;
 const APPS_PAGE = 2;
 const PIXEL_IMAGE = Platform.OS === "web" ? { imageRendering: "pixelated" } as ImageStyle : undefined;
 
-// The phone bezel is always dark, including when the rest of the app uses its
-// light palette. Do not inherit a dark theme's text color onto this surface.
+// Pixel iPhone (Simon 2026-10-07): the phone's own screens use iOS light defaults drawn with stepped corners and
+// Galmuri. Text inside the phone does not inherit the app theme's colour.
 function Text({ style, ...rest }: TextProps) {
   return <BaseText {...rest} style={[styles.phoneText, style]} />;
 }
 
-function PhoneAction({ label, onPress, glyph = "arrow_forward", disabled = false }: {
+/** An action in the phone's own screens: an iOS button. */
+function PhoneAction({ label, onPress, glyph, disabled = false }: {
   label: string; onPress: () => void; glyph?: AnyGlyphName; disabled?: boolean;
 }) {
-  return <PixelPressable onPress={onPress} disabled={disabled} accessibilityLabel={label} contentStyle={styles.action}>
-    <PixelGlyph name={glyph} size={24} color={m3.color.primary} />
-    <Text variant="caption" style={styles.actionText}>{label}</Text>
-  </PixelPressable>;
+  return <IosButton label={label} glyph={glyph} disabled={disabled} onPress={onPress} />;
+}
+
+/** The iOS nav bar's back: a blue chevron and label, top left. */
+/** iOS back: the chevron alone (Simon 2026-10-07 - no words that explain a button). The label is for screen readers. */
+function NavBack({ label, onPress }: { label: string; onPress: () => void }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.navBack}>
+    <PixelGlyph name="chevron_left" size={24} color={phoneIos.blue} />
+  </Pressable>;
+}
+
+/** iOS status bar (iPhone SE: carrier left, time centre, battery right), drawn in rects. */
+function StatusBar({ ink, time }: { ink: string; time: string }) {
+  return <View style={styles.statusBar} accessible={false}>
+    <View style={styles.statusSide}>
+      <View style={styles.signal}>{[4, 6, 8, 10].map((height) => <View key={height} style={[styles.signalBar, { height, backgroundColor: ink }]} />)}</View>
+      <Text variant="caption" style={[styles.carrier, { color: ink }]}>PolaScope</Text>
+    </View>
+    <Text variant="caption" style={[styles.statusTime, { color: ink }]}>{time}</Text>
+    <View style={[styles.statusSide, styles.statusRight]}>
+      <View style={[styles.battery, { borderColor: ink }]}><View style={[styles.batteryLevel, { backgroundColor: ink }]} /></View>
+      <View style={[styles.batteryTip, { backgroundColor: ink }]} />
+    </View>
+  </View>;
+}
+
+/** Home wallpaper: colour bands (pixel banding, no gradient). */
+function Wallpaper() {
+  return <View pointerEvents="none" style={styles.wallpaper}>
+    {phoneIos.wallpaper.map((color) => <View key={color} style={[styles.band, { backgroundColor: color }]} />)}
+  </View>;
 }
 
 export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor: boolean | null }) {
@@ -142,8 +175,13 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const [refresh, setRefresh] = useState(0);
   const [refreshSettings, setRefreshSettingsState] = useState(DEFAULT_REFRESH_SETTINGS);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
+  // The status bar shows the time, as an iPhone does.
+  const [clock, setClock] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setClock(new Date()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
   const frame = fitPhoneArtwork(frameSize.width, frameSize.height);
-  const compactDisplay = frame !== null && frame.screen.height < 600;
   const reducedMotion = useReducedMotionPref();
   const dismissY = useRef(new Animated.Value(0)).current;
   const scrollY = useRef(0);
@@ -438,7 +476,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     // S-01 하루 요약(PS-DASH-001 v2.2). 건강 빈칸은 이 기기의 P-06 값으로 채운다(흐름 2).
     // S-03 위젯 관리 · S-02 녹음 전사 골격(PS-DASH-001 v2.2). 판단은 계약(board.shelf)이 한다.
     if (route === "/board/widgets") return <View style={styles.stack}>
-      <Text variant="heading">{t("phone.board.shelf.title")}</Text>
+      <IosLargeTitle>{t("phone.board.shelf.title")}</IosLargeTitle>
       <BoardShelf board={board} events={shelfEvents} />
     </View>;
     if (route === "/board/transcribe") return <TranscribeSkeleton adult={isMinor === false} />;
@@ -462,30 +500,34 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       (!recordQuery || record.body?.toLocaleLowerCase().includes(recordQuery.toLocaleLowerCase())));
     const selected = route.startsWith("/record/") ? [...records, ...interviews].find((record) => record.id === decodeURIComponent(route.slice(8))) : null;
     return <View style={styles.stack}>
-      <Text variant="heading">{title}</Text>
-      {route === "/capture" ? <PixelSurface variant="frame" contentStyle={styles.routine}>
+      <IosLargeTitle>{title}</IosLargeTitle>
+      {route === "/capture" ? <PixelRoundRect fill={phoneIos.cell} style={styles.card}>
         <Text variant="caption" style={styles.muted}>{t("phone.internal.captureScope")}</Text>
         {captureTag ? <Text variant="caption" style={styles.accent}>{`#${captureTag}`}</Text> : null}
-        <TextInput accessibilityLabel={t("phone.internal.noteInput")} multiline value={draft} onChangeText={setDraft} placeholder={t("phone.internal.noteInput")} placeholderTextColor={m3.color.onSurfaceVariant} style={[styles.noteInput, styles.phoneText]} />
-        <PhoneAction label={captureBusy ? t("phone.saving") : t("phone.internal.saveNote")} glyph="check" disabled={!draft.trim() || captureBusy} onPress={() => { void savePhoneNote(); }} />
+        <TextInput accessibilityLabel={t("phone.internal.noteInput")} multiline value={draft} onChangeText={setDraft} placeholder={t("phone.internal.noteInput")} placeholderTextColor={phoneIos.label2} style={[styles.noteInput, styles.phoneText]} />
+        <View style={styles.actions}>
+          <PhoneAction label={captureBusy ? t("phone.saving") : t("phone.internal.saveNote")} glyph="check" disabled={!draft.trim() || captureBusy} onPress={() => { void savePhoneNote(); }} />
+        </View>
         {captureState === "saved" ? <Text accessibilityRole="alert" variant="caption" style={styles.accent}>{t("phone.internal.saved")}</Text> : null}
         {captureState === "failed" ? <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.saveError")}</Text> : null}
-      </PixelSurface> : null}
-      {route === "/focus" ? <PixelSurface variant="frame" contentStyle={styles.routine}>
+      </PixelRoundRect> : null}
+      {route === "/focus" ? <PixelRoundRect fill={phoneIos.cell} style={styles.card}>
         <Text variant="heading" style={styles.focusClock}>{`${String(Math.floor(focusSeconds / 60)).padStart(2, "0")}:${String(focusSeconds % 60).padStart(2, "0")}`}</Text>
-        <Text variant="caption" style={styles.muted}>{t("phone.internal.focusLocal")}</Text>
-        <View style={styles.actions}>
+        <Text variant="caption" style={[styles.muted, styles.centered]}>{t("phone.internal.focusLocal")}</Text>
+        <View style={[styles.actions, styles.actionsCentered]}>
           <PhoneAction label={t(focusRunning ? "phone.internal.pause" : "phone.internal.start")} glyph="timer" onPress={() => setFocusRunning((value) => !value)} />
           <PhoneAction label={t("phone.internal.reset")} glyph="refresh" onPress={() => { setFocusRunning(false); setFocusSeconds(25 * 60); }} />
         </View>
-      </PixelSurface> : null}
+      </PixelRoundRect> : null}
       {route === "/wiki" ? <View style={styles.stack}>
-        <PhoneAction label={t("phone.internal.wikiGraph")} glyph="bubble_chart" onPress={() => go("/wiki/graph")} />
-        <TextInput accessibilityLabel={t("wiki:searchPieces")} value={wikiQuery} onChangeText={setWikiQuery} placeholder={t("wiki:searchPieces")} placeholderTextColor={m3.color.onSurfaceVariant} style={[styles.searchInput, styles.phoneText]} />
+        <View style={styles.actions}><PhoneAction label={t("phone.internal.wikiGraph")} glyph="bubble_chart" onPress={() => go("/wiki/graph")} /></View>
+        <PixelRoundRect corner="small" fill={phoneIos.fill} style={styles.searchField}>
+          <TextInput accessibilityLabel={t("wiki:searchPieces")} value={wikiQuery} onChangeText={setWikiQuery} placeholder={t("wiki:searchPieces")} placeholderTextColor={phoneIos.label2} style={[styles.searchInput, styles.phoneText]} />
+        </PixelRoundRect>
         {wikiLoading ? <Text variant="caption" style={styles.muted}>{t("wiki:loading")}</Text> : null}
         {wikiFailed ? <View style={styles.stack}>
           <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text>
-          <PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setWikiRefresh((value) => value + 1)} />
+          <View style={styles.actions}><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setWikiRefresh((value) => value + 1)} /></View>
         </View> : null}
         {!wikiLoading && !wikiFailed && wikiOwnerId === ownerId && wikiPages.length === 0 ? <Text variant="caption" style={styles.muted}>{t("wiki:empty")}</Text> : null}
         {!wikiLoading && !wikiFailed && wikiOwnerId === ownerId && wikiPages.length > 0 && filteredWikiPages.length === 0 ? <Text variant="caption" style={styles.muted}>{t("wiki:noMatch", { query: wikiQuery.trim() })}</Text> : null}
@@ -494,32 +536,34 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         {wikiDetailLoading ? <Text variant="caption" style={styles.muted}>{t("wiki:loading")}</Text> : null}
         {wikiDetailFailed ? <View style={styles.stack}>
           <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text>
-          <PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setWikiRefresh((value) => value + 1)} />
+          <View style={styles.actions}><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setWikiRefresh((value) => value + 1)} /></View>
         </View> : null}
-        {!wikiDetailLoading && !wikiDetailFailed && wikiPage?.user_id === ownerId && wikiPage.id === wikiDetailId ? <PixelSurface variant="frame" contentStyle={styles.evidence}>
-          <Text variant="heading">{wikiPage.title || wikiPage.slug}</Text>
+        {!wikiDetailLoading && !wikiDetailFailed && wikiPage?.user_id === ownerId && wikiPage.id === wikiDetailId ? <PixelRoundRect fill={phoneIos.cell} style={styles.card}>
+          <Text variant="heading" style={styles.cardTitle}>{wikiPage.title || wikiPage.slug}</Text>
           <Text variant="caption" style={styles.muted}>{t("wiki:savedAs", { name: wikiPage.slug })}</Text>
           <Text variant="body">{wikiPage.body_md || t("wiki:emptyBody")}</Text>
           <Text variant="caption" style={styles.muted}>{t("wiki:backlinks")} ({wikiBacklinks.length})</Text>
           {wikiBacklinksFailed ? <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : null}
-        </PixelSurface> : null}
+        </PixelRoundRect> : null}
         {!wikiDetailLoading && !wikiDetailFailed && wikiPage === null ? <Text variant="caption" style={styles.muted}>{t("wiki:empty")}</Text> : null}
       </View> : null}
-      {searchList ? <TextInput accessibilityLabel={t("phone.internal.searchRecords")} value={recordQuery} onChangeText={setRecordQuery} placeholder={t("phone.internal.searchRecords")} placeholderTextColor={m3.color.onSurfaceVariant} style={[styles.searchInput, styles.phoneText]} /> : null}
+      {searchList ? <PixelRoundRect corner="small" fill={phoneIos.fill} style={styles.searchField}>
+        <TextInput accessibilityLabel={t("phone.internal.searchRecords")} value={recordQuery} onChangeText={setRecordQuery} placeholder={t("phone.internal.searchRecords")} placeholderTextColor={phoneIos.label2} style={[styles.searchInput, styles.phoneText]} />
+      </PixelRoundRect> : null}
       {searchList || area ? <View style={styles.stack}>
         <Text variant="caption" style={styles.muted}>{t(area ? "phone.areaScope" : "phone.metricsSummary.records.scope")}</Text>
         {failed ? <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : !data || loading ? <Text variant="caption" style={styles.muted}>{t("phone.loading")}</Text> : recordFailed ?
-          <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : filtered.length ? filtered.slice(0, 20).map((record) => <PixelPressable key={record.id} fullWidth onPress={() => go(`/record/${encodeURIComponent(record.id)}`)} accessibilityLabel={record.body?.trim().slice(0, 80) || t("phone.internal.untitledRecord")} contentStyle={styles.evidence}>
-            <Text variant="body" numberOfLines={3}>{record.body?.trim() || t("phone.internal.untitledRecord")}</Text>
-            <Text variant="caption" style={styles.muted}>{date(record.created_at)}</Text>
-          </PixelPressable>) : <Text variant="caption" style={styles.muted}>{t("phone.operational.sourceStates.empty")}</Text>}
+          <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : filtered.length ? <IosGroup>{filtered.slice(0, 20).map((record) => <IosRow key={record.id}
+            title={record.body?.trim().slice(0, 140) || t("phone.internal.untitledRecord")} subtitle={date(record.created_at)}
+            accessibilityLabel={record.body?.trim().slice(0, 80) || t("phone.internal.untitledRecord")}
+            onPress={() => go(`/record/${encodeURIComponent(record.id)}`)} />)}</IosGroup> : <Text variant="caption" style={styles.muted}>{t("phone.operational.sourceStates.empty")}</Text>}
       </View> : null}
       {route.startsWith("/record/") ? <View style={styles.stack}>
         {failed ? <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : !data || loading ? <Text variant="caption" style={styles.muted}>{t("phone.loading")}</Text> : recordFailed && !selected ?
-          <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : selected ? <PixelSurface variant="frame" contentStyle={styles.evidence}>
+          <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : selected ? <PixelRoundRect fill={phoneIos.cell} style={styles.card}>
             <Text variant="body">{selected.body?.trim() || t("phone.internal.untitledRecord")}</Text>
             <Text variant="caption" style={styles.muted}>{date(selected.created_at)}</Text>
-          </PixelSurface> : <Text variant="caption" style={styles.muted}>{t("phone.operational.sourceStates.empty")}</Text>}
+          </PixelRoundRect> : <Text variant="caption" style={styles.muted}>{t("phone.operational.sourceStates.empty")}</Text>}
       </View> : null}
       {route === "/profile" ? <Text variant="caption" style={styles.muted}>{failed ? t("phone.readError") : !data || loading ? t("phone.loading") : data.records.ok ? t("phone.internal.profileSummary", { count: data.records.value.length }) : t("phone.readError")}</Text> : null}
       {!["/capture", "/focus", "/ops", "/reminders", "/records", "/wiki", "/search", "/profile"].includes(route) && !route.startsWith("/wiki/page/") && !route.startsWith("/star/") && !route.startsWith("/record/") && !area ?
@@ -528,11 +572,11 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   }
 
   function dashboard() {
-    if (failed) return <View style={styles.stack}>
-      <Text variant="heading">{t("phone.operational.title")}</Text>
+    if (failed) return <PixelRoundRect fill={phoneIos.cell} style={styles.card}>
+      <Text variant="body" style={styles.cardTitle}>{t("phone.operational.title")}</Text>
       <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text>
-      <PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} />
-    </View>;
+      <View style={styles.actions}><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} /></View>
+    </PixelRoundRect>;
     // Simon 2026-10-07 (발주 2 · Q-261007-38): the old widgets are off the dashboard - priority card,
     // my words, today, at a glance, 7-day records, 7-day outlook, life areas, latest activity. The
     // board draws only what the contract says (visible · order · basis).
@@ -544,51 +588,50 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       const selected = noticeCenter.notices.find((item) => item.id === selectedNoticeId);
       const ko = i18n.language.toLowerCase().startsWith("ko");
       return <View style={styles.stack}>
-        <Text variant="heading">{t("phone.apps.notifications")}</Text>
-        {selected ? <PixelSurface variant="frame" contentStyle={styles.noticeDetail}>
+        <IosLargeTitle>{t("phone.apps.notifications")}</IosLargeTitle>
+        {selected ? <PixelRoundRect fill={phoneIos.cell} style={styles.card}>
             <Text variant="caption" style={styles.accent}>{ko ? selected.listMeta.ko : selected.listMeta.en}</Text>
-            <Text variant="body">{ko ? selected.title.ko : selected.title.en}</Text>
-            {renderableBlocks(selected.body, ko).map((block, index) => <Text key={`${selected.id}-${index}`} variant="caption" style={styles.muted}>
+            <Text variant="body" style={styles.cardTitle}>{ko ? selected.title.ko : selected.title.en}</Text>
+            {renderableBlocks(selected.body, ko).map((block, index) => <Text key={`${selected.id}-${index}`} variant="caption" style={styles.body2}>
               {block.kind === "bullet" ? "• " : ""}{ko ? block.text.ko : block.text.en}
             </Text>)}
-          </PixelSurface> : null}
+          </PixelRoundRect> : null}
       </View>;
     }
-    return <View style={styles.launcherStack}>
-      <View style={styles.launcherHeading}>
-        <Text variant="heading" style={styles.launcherTitle}>{t("phone.toolsTitle")}</Text>
-        <Text variant="caption" style={styles.launcherHint}>{t("phone.toolsHint")}</Text>
-      </View>
-      <View style={styles.appGrid}>{APP_ORDER.map((id) => {
-        const disabled = id === "community" && isMinor !== false;
-        const open = () => {
-          if (id === "notifications") { scrollY.current = 0; setPhoneApp("notifications"); return; }
-          if (id === "settings") { go("/settings"); return; }
-          const route = TOOLS.find((item) => item.id === id)?.route;
-          if (route) go(route);
-        };
-        return <Pressable key={id} accessibilityRole="button" accessibilityLabel={t(`phone.apps.${id}`)} disabled={disabled} onPress={open} style={[styles.appTile, { height: appTileHeight }]}>
-          <Image source={PHONE_UI_ART.tile} contentFit="fill" pointerEvents="none" style={[styles.tileArt, PIXEL_IMAGE]} />
-          <Image source={PHONE_APP_ICONS[id]} contentFit="contain" pointerEvents="none" style={[styles.appIcon, { width: appIconSize, height: appIconSize }, PIXEL_IMAGE]} />
-          <Text variant="caption" numberOfLines={2} style={[styles.appLabel, disabled && styles.appLabelDisabled]}>{t(`phone.apps.${id}`)}</Text>
-          {id === "notifications" && unreadCount > 0 ? <View style={styles.badge}><Text variant="caption" style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text></View> : null}
-        </Pressable>;
-      })}</View>
-    </View>;
+    // iOS home screen: no title or banner above the grid (Simon 2026-10-07, pixel iPhone).
+    // Rows of three equal columns; a short last row keeps its columns with empty slots.
+    const rows = Array.from({ length: appRowCount }, (_, row) => Array.from({ length: APP_COLUMNS }, (_, column) => APP_ORDER[row * APP_COLUMNS + column]));
+    return <View style={styles.appGrid}>{rows.map((row, rowIndex) => <View key={rowIndex} style={styles.appRow}>{row.map((id, column) => {
+      if (!id) return <View key={`empty-${column}`} style={styles.appTile} />;
+      const disabled = id === "community" && isMinor !== false;
+      const open = () => {
+        if (id === "notifications") { scrollY.current = 0; setPhoneApp("notifications"); return; }
+        if (id === "settings") { go("/settings"); return; }
+        const route = TOOLS.find((item) => item.id === id)?.route;
+        if (route) go(route);
+      };
+      return <Pressable key={id} accessibilityRole="button" accessibilityLabel={t(`phone.apps.${id}`)} disabled={disabled} onPress={open} style={styles.appTile}>
+        <PixelRoundRect fill={disabled ? phoneIos.fill : phoneIos.cell} style={[styles.appFace, { height: appFaceHeight }]}>
+          <Image source={PHONE_APP_ICONS[id]} contentFit="contain" pointerEvents="none" style={[{ width: appIconSize, height: appIconSize }, PIXEL_IMAGE]} />
+        </PixelRoundRect>
+        <Text variant="caption" numberOfLines={1} style={[styles.appLabel, disabled && styles.appLabelDisabled]}>{t(`phone.apps.${id}`)}</Text>
+        {id === "notifications" && unreadCount > 0 ? <PixelRoundRect corner="pill" fill={phoneIos.red} style={styles.badge}><Text variant="caption" style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text></PixelRoundRect> : null}
+      </Pressable>;
+    })}</View>)}</View>;
   }
 
   function noticeRow(item: ProductNotice) {
     const ko = i18n.language.toLowerCase().startsWith("ko");
-    return <PixelPressable fullWidth onPress={() => {
-      setSelectedNoticeId(item.id);
-      if (noticeCenter.isUnread(item.id)) void noticeCenter.markSeen(item.id);
-    }} accessibilityLabel={ko ? item.title.ko : item.title.en} contentStyle={styles.noticeRow}>
-      <PixelGlyph name="notifications" size={20} color={m3.color.primary} />
-      <View style={styles.noticeCopy}>
-        <Text variant="body">{ko ? item.title.ko : item.title.en}</Text>
-        <Text variant="caption" style={styles.muted}>{ko ? item.listMeta.ko : item.listMeta.en}{noticeCenter.isUnread(item.id) ? ` · ${t("phone.noticeUnread")}` : ""}</Text>
-      </View>
-    </PixelPressable>;
+    const unread = noticeCenter.isUnread(item.id);
+    return <PixelRoundRect fill={phoneIos.cell}>
+      <IosRow title={ko ? item.title.ko : item.title.en} accessibilityLabel={ko ? item.title.ko : item.title.en}
+        subtitle={`${ko ? item.listMeta.ko : item.listMeta.en}${unread ? ` · ${t("phone.noticeUnread")}` : ""}`}
+        lead={<IosLead color={unread ? phoneIos.red : phoneIos.label2} glyph="notifications" />}
+        onPress={() => {
+          setSelectedNoticeId(item.id);
+          if (noticeCenter.isUnread(item.id)) void noticeCenter.markSeen(item.id);
+        }} />
+    </PixelRoundRect>;
   }
 
   const unreadCount = noticeCenter.notices.filter((item) => noticeCenter.isUnread(item.id)).length;
@@ -601,14 +644,24 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     : wikiListOpen ? [0, ...(!wikiLoading && !wikiFailed ? filteredWikiPages : [])]
     : wikiDetailOpen ? [0, ...(!wikiDetailLoading && !wikiDetailFailed && wikiPage?.user_id === ownerId && wikiPage.id === wikiDetailId ? wikiBacklinks : [])]
     : [0];
-  const wikiRow = (page: WikiPageRow) => <PixelPressable fullWidth onPress={() => go(`/wiki/page/${encodeURIComponent(page.id)}`)} accessibilityLabel={t("wiki:openPage", { title: page.title || page.slug })} contentStyle={styles.evidence}>
-    <Text variant="body" numberOfLines={2}>{page.title || page.slug}</Text>
-    <Text variant="caption" style={styles.muted}>{t("wiki:savedAs", { name: page.slug })}</Text>
-  </PixelPressable>;
-  // The display shrinks with the bezel; the launcher must fit all three rows
-  // on smaller phones, not hide the last labels.
-  const appTileHeight = Math.max(48, Math.min(67, Math.floor(((frame?.screen.height ?? 512) - 300) / 3)));
-  const appIconSize = Math.max(25, Math.min(36, appTileHeight - 29));
+  const wikiRow = (page: WikiPageRow) => <PixelRoundRect fill={phoneIos.cell}>
+    <IosRow title={page.title || page.slug} subtitle={t("wiki:savedAs", { name: page.slug })}
+      accessibilityLabel={t("wiki:openPage", { title: page.title || page.slug })} onPress={() => go(`/wiki/page/${encodeURIComponent(page.id)}`)} />
+  </PixelRoundRect>;
+  // The display shrinks with the bezel; the launcher must fit every row without scrolling.
+  // A face is as wide as its column and square when the height allows (status bar 28 + page dots 36
+  // + list padding 25 leave the rest; each row also carries a one-line label of 18).
+  const appRowCount = Math.ceil(APP_ORDER.length / APP_COLUMNS);
+  const appColumnWidth = Math.floor(((frame?.screen.width ?? 320) - APP_GAP * (APP_COLUMNS + 1)) / APP_COLUMNS);
+  const appFaceFit = Math.floor(((frame?.screen.height ?? 512) - 89 - APP_GAP * (appRowCount - 1)) / appRowCount) - 18;
+  const appFaceHeight = Math.max(44, Math.min(appColumnWidth, appFaceFit));
+  // The icons are 128px pixel art; whole steps of 16 keep their pixels square.
+  const appIconSize = appFaceHeight >= 84 ? 64 : appFaceHeight >= 64 ? 48 : 32;
+  // Home pages sit on the wallpaper; the phone's own pages on iOS grouped grey; an app opened in the phone
+  // (hosted · assistant · museum) keeps its own dark screen.
+  const appScreenOpen = ownsDisplay || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);
+  const statusInk = internalActive && appScreenOpen ? phoneIos.onWallpaper : phoneIos.statusInk;
+  const statusTime = clock.toLocaleTimeString(i18n.language, { hour: "numeric", minute: "2-digit" });
   return <DeepSpaceScreen active="ops" header="none" variant="fullbleed" showSharedSky transparentBackdrop={transparentBackdrop}>
     <View pointerEvents="none" style={styles.phoneBackdrop}><PixelScrim style={styles.phoneScrimImage} /></View>
     <Animated.View {...(ownsDisplay ? {} : phonePan.panHandlers)} testID="dashboard-phone" style={[styles.phone, { transform: [{ translateY: dismissY }] }]} onLayout={({ nativeEvent: { layout } }) => {
@@ -623,27 +676,12 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         pointerEvents="none"
         style={[styles.artwork, frame.artwork]}
       />
-      <View style={[styles.display, frame.screen]}>
-      <View style={styles.statusBar}>
-        <View style={styles.brandGroup}>
-          <Image source={PHONE_UI_ART.brand} contentFit="contain" style={[styles.headerIcon, PIXEL_IMAGE]} accessible={false} />
-          <Text variant="body" style={styles.brandText}>PolaScope</Text>
-        </View>
-        <View style={styles.dateGroup}>
-          <Text variant="caption" style={styles.dateText}>{date(new Date().toISOString())}</Text>
-          <Image source={PHONE_UI_ART.sun} contentFit="contain" style={[styles.headerIcon, PIXEL_IMAGE]} accessible={false} />
-        </View>
-      </View>
-      {!compactDisplay && !internalActive && tab === "tools" ? <View style={styles.heroBanner} accessible={false}>
-        <Image source={PHONE_UI_ART.hero} contentFit="cover" pointerEvents="none" style={[StyleSheet.absoluteFill, PIXEL_IMAGE]} />
-        <View style={styles.heroCopy}>
-          <Text variant="body" style={styles.heroTitle}>{t("phone.bannerTitle")}</Text>
-          <Text variant="caption" style={styles.heroSubtitle}>{t("phone.bannerSubtitle")}</Text>
-        </View>
-      </View> : null}
-      {internalActive && !contentOwnsBack ? <PhoneAction label={selectedNoticeId ? t("phone.noticeListBack") : t("phone.internal.back")} glyph="arrow_back" onPress={backInside} /> : null}
+      <View style={[styles.display, frame.screen, internalActive && !appScreenOpen && styles.displayGrouped]}>
+      {!internalActive ? <Wallpaper /> : null}
+      <StatusBar ink={statusInk} time={statusTime} />
+      {internalActive && !contentOwnsBack ? <NavBack label={t("phone.internal.back")} onPress={backInside} /> : null}
       {!ownsDisplay && loading ? <Text accessibilityLiveRegion="polite" variant="caption" style={styles.readStatus}>{t("phone.loading")}</Text> : null}
-      {!ownsDisplay && (failed || partial) ? <View style={styles.errorRow}><Text variant="caption" style={styles.flexText}>{t("phone.partialError")}</Text><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} /></View> : null}
+      {!ownsDisplay && (failed || partial) ? <View style={styles.errorRow}><Text variant="caption" style={[styles.flexText, styles.muted]}>{t("phone.partialError")}</Text><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} /></View> : null}
       <View style={styles.pageBody} {...(ownsDisplay ? {} : pagePan.panHandlers)}>
       {museumOpen ? <MuseumPhoneContent width={frame.screen.width} onBack={backInside} backLabel={t("phone.appsBack")} /> : phoneScreen ? <View key={insideRoute} testID="phone-hosted-screen" style={styles.hostedScreen}>
         <PhoneEmbedProvider value={embedNav}>{phoneScreen}</PhoneEmbedProvider>
@@ -679,22 +717,19 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         contentContainerStyle={styles.content}
       />}
       </View>
-      {/* 독(PS-DASH-001 v2.2): 담기 · 대화 · 녹음 전사, 하루 관리판 두 쪽에 고정. */}
-      {!internalActive && tab === "dashboard" ? <BoardDock dock={board.dock} go={go} /> : null}
-      {/* Simon 2026-10-06: the bottom shortcut row (home · note · add · search · profile) and the
-          dashboard/apps tab row are gone. Home is the bezel button below; notes, wiki and add are on the
-          app pages; profile is in Settings. The page controls below replace the tabs, at the display's foot. */}
+      {/* Page dots above the dock, as on an iPhone home screen. */}
       {!internalActive ? <View style={styles.pageControls} accessibilityLabel={t("phone.pageControls")}>
         <Pressable accessibilityRole="button" accessibilityLabel={t("phone.previousPage")} disabled={pageIndex === 0} onPress={() => showPage(pageIndex - 1)} style={styles.pageArrow}>
-          {pageIndex > 0 ? <Image source={PHONE_UI_ART.previous} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
+          {pageIndex > 0 ? <PixelGlyph name="chevron_left" size={14} color={phoneIos.dotOn} /> : null}
         </Pressable>
         <View style={styles.pageDots}>{PAGES.map((index) => <Pressable key={index} accessibilityRole="button" accessibilityLabel={t("phone.pageNumber", { number: index + 1 })} accessibilityState={{ selected: pageIndex === index }} onPress={() => showPage(index)} style={styles.pageDotButton}>
-          <Image source={pageIndex === index ? PHONE_UI_ART.currentPage : PHONE_UI_ART.otherPage} contentFit="contain" style={[styles.pageDot, PIXEL_IMAGE]} accessible={false} />
+          <View style={[styles.pageDot, { backgroundColor: pageIndex === index ? phoneIos.dotOn : phoneIos.dotOff }]} />
         </Pressable>)}</View>
         <Pressable accessibilityRole="button" accessibilityLabel={t("phone.nextPage")} disabled={pageIndex === LAST_PAGE} onPress={() => showPage(pageIndex + 1)} style={styles.pageArrow}>
-          {pageIndex < LAST_PAGE ? <Image source={PHONE_UI_ART.next} contentFit="contain" style={[styles.pageIcon, PIXEL_IMAGE]} accessible={false} /> : null}
+          {pageIndex < LAST_PAGE ? <PixelGlyph name="chevron_right" size={14} color={phoneIos.dotOn} /> : null}
         </Pressable>
       </View> : null}
+      {/* No dock (Simon 2026-10-07): capture and chat stay in the bottom bar outside the phone. */}
       </View>
       <Pressable
         accessibilityRole="button"
@@ -710,82 +745,58 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
 }
 
 const styles = StyleSheet.create({
-  phoneText: { color: m3.color.onSurface },
+  phoneText: { color: phoneIos.label },
   phoneBackdrop: { ...StyleSheet.absoluteFill, zIndex: 0 },
   // RN Web keeps a repeated 4px tile at its intrinsic size without explicit bounds.
   phoneScrimImage: { width: "100%", height: "100%" },
   phone: { flex: 1, width: "100%", maxWidth: 460, alignSelf: "center", overflow: "hidden", zIndex: 1 },
   artwork: { position: "absolute" },
   display: { position: "absolute", overflow: "hidden" },
+  displayGrouped: { backgroundColor: phoneIos.grouped },
   homeButton: { position: "absolute" },
-  statusBar: { height: 36, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6, paddingHorizontal: 10 },
-  brandGroup: { flexDirection: "row", alignItems: "center", gap: 3 },
-  brandText: { color: m3.color.onSurface, fontFamily: "Galmuri11Bold", fontSize: 13 },
-  dateGroup: { flexDirection: "row", alignItems: "center", gap: 3, flexShrink: 1 },
-  dateText: { color: m3.color.onSurfaceVariant, fontFamily: "Galmuri11", fontSize: 10, flexShrink: 1 },
-  headerIcon: { width: 21, height: 21 },
-  heroBanner: { height: 83, marginHorizontal: 8, marginBottom: 7, borderWidth: 1, borderColor: m3.color.outline, overflow: "hidden", backgroundColor: m3.color.surfaceContainer },
-  heroCopy: { flex: 1, justifyContent: "center", alignItems: "flex-end", paddingRight: 11, paddingLeft: 92, gap: 3 },
-  heroTitle: { color: m3.color.onSurface, fontFamily: "Galmuri11Bold", fontSize: 13 },
-  heroSubtitle: { color: m3.color.onSurface, fontFamily: "Galmuri11", fontSize: 10 },
-  pageControls: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 9 },
-  pageArrow: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  pageIcon: { width: 14, height: 14 },
-  pageDots: { flexDirection: "row", alignItems: "center", gap: 1 },
-  pageDotButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  pageDot: { width: 11, height: 11 },
+  wallpaper: { ...StyleSheet.absoluteFill },
+  band: { flex: 1 },
+  statusBar: { height: 28, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 10 },
+  statusSide: { flex: 1, flexDirection: "row", alignItems: "center", gap: 5 },
+  statusRight: { justifyContent: "flex-end", gap: 0 },
+  signal: { flexDirection: "row", alignItems: "flex-end", gap: 1, height: 10 },
+  signalBar: { width: 2 },
+  carrier: { fontFamily: "Galmuri11", fontSize: 11, lineHeight: 14 },
+  statusTime: { fontFamily: "Galmuri11Bold", fontSize: 12, lineHeight: 16, textAlign: "center" },
+  battery: { width: 22, height: 11, borderWidth: 2, padding: 1 },
+  batteryLevel: { flex: 1 },
+  batteryTip: { width: 2, height: 4 },
+  navBack: { width: 44, height: 44, alignItems: "center", justifyContent: "center", marginLeft: 2 },
+  pageControls: { minHeight: 36, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 9 },
+  pageArrow: { width: 44, height: 36, alignItems: "center", justifyContent: "center" },
+  pageDots: { flexDirection: "row", alignItems: "center" },
+  pageDotButton: { width: 44, height: 36, alignItems: "center", justifyContent: "center" },
+  pageDot: { width: 6, height: 6 },
   pageBody: { flex: 1, minHeight: 0 },
   hostedScreen: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0 },
   content: { paddingHorizontal: 9, paddingTop: 5, paddingBottom: 12, gap: 10 },
-  stack: { gap: 12 },
-  launcherStack: { gap: 5 },
-  hero: { padding: 16, gap: 12 },
-  lead: { padding: 16, gap: 10 },
-  metricGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  metric: { width: "46%", flexGrow: 1, minWidth: 130 },
-  metricContent: { padding: 10, gap: 6, minHeight: 102 },
-  metricValue: { color: m3.color.primary, lineHeight: 24, paddingBottom: 2 },
-  chart: { flexDirection: "row", gap: 4, alignItems: "flex-end" },
-  chartDay: { flex: 1, minWidth: 0, alignItems: "center", gap: 4 },
-  chartTrack: { width: "100%", height: 44, justifyContent: "flex-end", backgroundColor: m3.color.surfaceContainer },
-  chartBar: { width: "100%", backgroundColor: m3.color.primary },
-  smallAction: { paddingHorizontal: 10, minHeight: 44, justifyContent: "center" },
-  highlight: { padding: 14, gap: 6, minHeight: 88 },
-  highlightValue: { lineHeight: 24, paddingBottom: 2 },
-  week: { flexDirection: "row", gap: 3 },
-  weekDay: { flex: 1, minWidth: 0 },
-  weekDayContent: { minHeight: 64, alignItems: "center", justifyContent: "center", gap: 4, paddingHorizontal: 1 },
-  accent: { color: m3.color.primary },
-  muted: { color: m3.color.onSurfaceVariant, lineHeight: 20, paddingBottom: 2 },
-  routine: { padding: 12, gap: 8 },
-  sectionHeading: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  stack: { gap: 10 },
+  card: { paddingHorizontal: 14, paddingVertical: 12, gap: 8 },
+  cardTitle: { fontFamily: "Galmuri11Bold" },
+  body2: { color: phoneIos.label },
+  accent: { color: phoneIos.blue },
+  muted: { color: phoneIos.label2, lineHeight: 20, paddingBottom: 2 },
+  centered: { textAlign: "center" },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  action: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 10 },
-  actionText: { flexShrink: 1, lineHeight: 20, paddingBottom: 2 },
-  evidence: { padding: 14, gap: 8 },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  area: { width: "30%", flexGrow: 1, minWidth: 80 },
-  areaContent: { minHeight: 72, alignItems: "center", justifyContent: "center", gap: 6 },
-  launcherHeading: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", minHeight: 28, gap: 4 },
-  launcherTitle: { fontSize: 14, flexShrink: 1 },
-  launcherHint: { color: m3.color.onSurfaceVariant, fontSize: 9, flexShrink: 1, textAlign: "right", maxWidth: 91 },
-  appGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 3 },
-  appTile: { position: "relative", width: "24%", height: 67, alignItems: "center", justifyContent: "center", paddingTop: 3 },
-  tileArt: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, width: "100%", height: "100%" },
-  appIcon: { width: 36, height: 36 },
-  appLabel: { color: m3.color.onSurface, fontFamily: "Galmuri11", fontSize: 9, lineHeight: 11, textAlign: "center", maxWidth: "95%", minHeight: 20 },
-  appLabelDisabled: { color: m3.color.onSurfaceVariant },
-  badge: { position: "absolute", top: 2, right: 2, minWidth: 18, height: 18, alignItems: "center", justifyContent: "center", backgroundColor: m3.color.error },
-  badgeText: { color: m3.color.onError, fontFamily: "Galmuri11Bold", fontSize: 9 },
-  noticeRow: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: 10, padding: 10 },
-  noticeCopy: { flex: 1, gap: 3 },
-  noticeDetail: { padding: 12, gap: 10 },
-  centered: { textAlign: "center", lineHeight: 20, paddingBottom: 2 },
+  actionsCentered: { justifyContent: "center" },
+  appGrid: { gap: APP_GAP, paddingTop: 8 },
+  appRow: { flexDirection: "row", gap: APP_GAP },
+  appTile: { position: "relative", flex: 1, minWidth: 0, gap: 4 },
+  appFace: { alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
+  appLabel: { color: phoneIos.label, fontFamily: "Galmuri11Bold", fontSize: 11, lineHeight: 14, textAlign: "center" },
+  appLabelDisabled: { color: phoneIos.label2 },
+  badge: { position: "absolute", top: -4, right: -4, minWidth: 18, height: 18, paddingHorizontal: 4, alignItems: "center", justifyContent: "center" },
+  badgeText: { color: phoneIos.onBlue, fontFamily: "Galmuri11Bold", fontSize: 10, lineHeight: 12 },
   flexText: { flex: 1, flexShrink: 1 },
-  readStatus: { paddingHorizontal: 12, paddingVertical: 8, color: m3.color.onSurfaceVariant },
-  errorRow: { flexDirection: "row", gap: 8, padding: 12, alignItems: "center" },
-  dashboardScope: { color: m3.color.onSurfaceVariant, fontSize: 12, lineHeight: 18, paddingBottom: 2 },
-  searchInput: { minHeight: 44, borderWidth: 1, borderColor: m3.color.outline, backgroundColor: m3.color.surfaceContainer, paddingHorizontal: 10, fontSize: 13 },
-  noteInput: { minHeight: 112, borderWidth: 1, borderColor: m3.color.outline, backgroundColor: m3.color.surfaceContainer, padding: 10, fontSize: 13, textAlignVertical: "top" },
-  focusClock: { textAlign: "center", color: m3.color.primary, fontVariant: ["tabular-nums"] },
+  readStatus: { paddingHorizontal: 12, paddingVertical: 8, color: phoneIos.label2 },
+  errorRow: { flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingVertical: 4, alignItems: "center" },
+  searchField: { paddingHorizontal: 10 },
+  searchInput: { minHeight: 44, fontSize: 13 },
+  noteInput: { minHeight: 112, backgroundColor: phoneIos.grouped, padding: 10, fontSize: 13, textAlignVertical: "top" },
+  focusClock: { textAlign: "center", color: phoneIos.blue, fontVariant: ["tabular-nums"], fontFamily: "Galmuri11Bold", fontSize: 40, lineHeight: 48 },
 });

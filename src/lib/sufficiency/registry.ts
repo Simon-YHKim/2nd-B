@@ -962,13 +962,12 @@ export const DASHBOARD_THRESHOLDS: readonly DashboardThreshold[] = [
     id: "dash.P-04",
     text:
       "처리할 것 최대 3장, 0장도 정상. 점수가 문턱 미달이면 버린다. 한 출처가 3장을 다 차지하면 다른 출처 1위와 " +
-      "점수 차 20% 안일 때 3번째 자리를 양보. 정렬 후보는 상위 5개, 미리보기 200자",
+      "점수 차 20% 안일 때 3번째 자리를 양보. 정렬 후보는 상위 5개, 보낸이 · 제목만(미리보기는 RD-261007-11 B 로 보내지 않음)",
     values: {
       maxCards: 3,
       minScore: null,
       balanceGapPct: 20,
       triageCandidates: 5,
-      previewChars: 200,
       initialWeight: 0,
       contactBonus: 1,
       doneBonus: 1,

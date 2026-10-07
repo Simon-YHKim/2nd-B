@@ -87,7 +87,7 @@ describe("무음이면 음성 0", () => {
 
   test("화면은 무음이면 [읽기] 를 그리지 않고 안내를 보인다", () => {
     const screen = readFileSync(join(process.cwd(), "src/components/dashboard/board/DailySummary.tsx"), "utf8");
-    expect(screen).toContain("{!muted ? <PixelPressable onPress={() => (flow.reading ? stop() : dispatch({ type: \"read\" }))}");
+    expect(screen).toContain("{!muted ? <IosButton primary glyph={flow.reading ? \"pause\" : \"play_arrow\"} onPress={() => (flow.reading ? stop() : dispatch({ type: \"read\" }))}");
     expect(screen).toContain('{muted ? <Text variant="caption" style={styles.muted}>{t("phone.board.summary.mutedNote")}</Text> : null}');
     expect(screen).toContain("if (flow.speaking === null || muted) return;");
   });

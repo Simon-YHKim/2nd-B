@@ -65,12 +65,15 @@ describe("flow 2 never reaches an LLM (RD-261007-09 · Q14)", () => {
     }
   });
 
-  it("inbox_triage gets three candidate fields and nothing else", () => {
+  it("inbox_triage gets sender and title only; the preview reaches no seat (RD-261007-11 = B)", () => {
     expect([...SEAT_INPUT_ALLOWLIST.inbox_triage].sort()).toEqual([
-      "inboxCandidate.preview200",
       "inboxCandidate.sender",
       "inboxCandidate.title",
     ]);
+    expect(NEVER_TO_LLM).toContain("inboxCandidate.preview200");
+    for (const seat of ["daily_note", "day_summary", "inbox_triage"] as const) {
+      expect(seatMayRead(seat, "inboxCandidate.preview200")).toBe(false);
+    }
   });
 
   it("record originals are behind the Q13 consent", () => {
@@ -150,7 +153,7 @@ describe("seat output schemas", () => {
   });
 
   it("inbox_triage: at most five candidates and only known ids", () => {
-    expect(INBOX_TRIAGE_LIMITS).toEqual({ candidates: 5, previewChars: 200 });
+    expect(INBOX_TRIAGE_LIMITS).toEqual({ candidates: 5 });
     expect(inboxTriageProblems({ order: ["a"], items: [] }, ["a", "b"])).toEqual([]);
     expect(inboxTriageProblems({ order: ["z"], items: [] }, ["a"])).toContain("unknown id z");
     expect(inboxTriageProblems({ order: [], items: [] }, ["1", "2", "3", "4", "5", "6"])).toContain(

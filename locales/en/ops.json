@@ -12,7 +12,7 @@
     "nav": { "home": "Home", "note": "Notes", "add": "Add", "search": "Search", "profile": "Profile" },
     "returnToStars": "Return to constellation",
     "internal": {
-      "back": "Back inside phone", "wikiGraph": "Graph and tags", "closePhone": "Close phone", "exitTitle": "Close the phone?", "exitHint": "Return to the constellation without changing your saved data.", "cancel": "Keep viewing",
+      "back": "Back", "wikiGraph": "Graph and tags", "closePhone": "Close phone", "exitTitle": "Close the phone?", "exitHint": "Return to the constellation without changing your saved data.", "cancel": "Keep viewing",
       "captureScope": "Save a short note here. Interviews and other capture modes remain in their dedicated screens.",
       "noteInput": "Write something to keep", "startNote": "Write a note", "saveNote": "Save note", "saved": "Note saved.",
       "focusLocal": "This timer runs only while its screen is open.", "start": "Start", "pause": "Pause", "reset": "Reset",
@@ -164,8 +164,7 @@
       "settings": "Settings",
       "more": "More"
     },
-    "appsBack": "Back to apps",
-    "noticeListBack": "Notifications list",
+    "appsBack": "Back",
     "noticeLoading": "Loading notifications…",
     "noticeEmpty": "No notifications yet.",
     "noticeUnread": "Unread",
@@ -196,7 +195,15 @@
       "addWidget": "Add a widget",
       "clock": {
         "weatherPrompt": "Pick your neighborhood to see the weather.",
-        "pickArea": "Pick neighborhood"
+        "pickArea": "Pick neighborhood",
+        "sky": {
+          "clear": "Clear",
+          "partlyCloudy": "Partly cloudy",
+          "cloudy": "Cloudy",
+          "rain": "Rain",
+          "snow": "Snow"
+        },
+        "temp": "{{temp}} degrees"
       },
       "note": {
         "tapHint": "Tap for today's summary",
@@ -342,12 +349,6 @@
           "todos": "To-dos and next contacts",
           "transcript": "Full transcript"
         }
-      },
-      "dock": {
-        "capture": "Capture",
-        "chat": "Chat",
-        "transcribe": "Transcribe",
-        "transcribeLocked": "Transcribe, not open yet"
       }
     }
   },

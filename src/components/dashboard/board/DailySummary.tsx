@@ -8,20 +8,16 @@ import { useEffect, useReducer, useRef } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
-import { PixelPressable } from "@/components/pixel/PixelPressable";
-import { Text as BaseText, type TextProps } from "@/components/ui/Text";
+import { PixelRoundRect } from "@/components/pixel/PixelRoundRect";
 import type { BoardText, DailySummary as DailySummaryContract } from "@/lib/dashboard/board/contract";
 import { fillHealthBlanks, startSummaryFlow, summaryFlow, type SummaryFlowEvent, type SummaryFlowState } from "@/lib/dashboard/board/summary-flow";
 import { boardTone } from "@/lib/dashboard/board/tone";
 import { speakLine, stopSpeaking } from "@/lib/speech/read-aloud";
-import { m3 } from "@/lib/theme/m3";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { IosButton, IosLargeTitle, IosText as Text } from "./IosParts";
 
 /** 말풍선 사이 간격. 읽지 않을 때만 쓴다(읽을 때는 말이 끝나야 다음이 나온다). */
 const BUBBLE_INTERVAL_MS = 900;
-
-function Text({ style, ...rest }: TextProps) {
-  return <BaseText {...rest} style={[styles.text, style]} />;
-}
 
 export function DailySummary({ summary, healthValues, muted, reducedMotion, go, onClose }: {
   summary: DailySummaryContract | null;
@@ -68,51 +64,42 @@ export function DailySummary({ summary, healthValues, muted, reducedMotion, go, 
   const close = () => { stopSpeaking(); onClose(); };
 
   if (!summary || total === 0) return <View style={styles.page}>
-    <Text variant="heading">{t("phone.board.summary.titleDefault")}</Text>
+    <IosLargeTitle>{t("phone.board.summary.titleDefault")}</IosLargeTitle>
     <Text variant="body" style={styles.muted}>{t("phone.board.summary.notReady")}</Text>
-    <PixelPressable onPress={close} accessibilityLabel={t("phone.board.summary.close")} contentStyle={styles.button}>
-      <Text variant="body">{t("phone.board.summary.close")}</Text>
-    </PixelPressable>
+    <View style={styles.actions}><IosButton label={t("phone.board.summary.close")} onPress={close} /></View>
   </View>;
 
+  // 메시지식 말풍선(픽셀 아이폰): 바탕색은 basis 가 정한다(청록 = AI · 흰 칸 = 사실 · 회색 = 규칙 제안).
   return <View testID="board-summary" style={styles.page}>
-    <Text variant="heading" accessibilityRole="header">{t(`phone.board.summary.title.${summary.slot}`)}</Text>
+    <IosLargeTitle>{t(`phone.board.summary.title.${summary.slot}`)}</IosLargeTitle>
     <View accessibilityLiveRegion="polite" style={styles.bubbles}>
       {bubbles.slice(0, flow.shown).map((bubble, index) => {
         const tone = boardTone(bubble.basis);
-        return <View key={bubble.id} style={[styles.bubble, bubble.kind === "fact" ? styles.factCard : null,
-          { borderColor: tone.border, borderStyle: tone.borderStyle }, flow.speaking === index && styles.speaking]}>
-          <Text variant={bubble.kind === "head" ? "body" : "caption"} style={[styles.flex, { color: bubble.kind === "count" ? m3.color.onSurfaceVariant : tone.text }]}>{say(bubble.line)}</Text>
+        return <PixelRoundRect key={bubble.id} fill={tone.bubble} border={flow.speaking === index ? phoneIos.blue : undefined}
+          style={[styles.bubble, bubble.kind === "fact" ? styles.factCard : null]}>
+          <Text variant={bubble.kind === "head" ? "body" : "caption"} style={[styles.flex, { color: bubble.kind === "count" ? phoneIos.label2 : bubble.basis === "ai" ? tone.text : phoneIos.label }]}>{say(bubble.line)}</Text>
           {bubble.evidenceRoute ? <Pressable accessibilityRole="link" accessibilityLabel={t("phone.board.evidence")} onPress={() => go(bubble.evidenceRoute!)} style={styles.evidence}>
-            <PixelGlyph name="description" size={16} color={tone.text} />
+            <PixelGlyph name="description" size={16} color={phoneIos.blue} />
           </Pressable> : null}
-        </View>;
+        </PixelRoundRect>;
       })}
     </View>
     {muted ? <Text variant="caption" style={styles.muted}>{t("phone.board.summary.mutedNote")}</Text> : null}
     <View style={styles.actions}>
-      {!muted ? <PixelPressable onPress={() => (flow.reading ? stop() : dispatch({ type: "read" }))}
-        accessibilityLabel={t(flow.reading ? "phone.board.summary.stop" : "phone.board.summary.read")} contentStyle={styles.button}>
-        <PixelGlyph name={flow.reading ? "pause" : "play_arrow"} size={18} color={m3.color.onSurface} />
-        <Text variant="body">{t(flow.reading ? "phone.board.summary.stop" : "phone.board.summary.read")}</Text>
-      </PixelPressable> : null}
-      <PixelPressable onPress={close} accessibilityLabel={t("phone.board.summary.close")} contentStyle={styles.button}>
-        <Text variant="body">{t("phone.board.summary.close")}</Text>
-      </PixelPressable>
+      {!muted ? <IosButton primary glyph={flow.reading ? "pause" : "play_arrow"} onPress={() => (flow.reading ? stop() : dispatch({ type: "read" }))}
+        label={t(flow.reading ? "phone.board.summary.stop" : "phone.board.summary.read")} /> : null}
+      <IosButton label={t("phone.board.summary.close")} onPress={close} />
     </View>
   </View>;
 }
 
 const styles = StyleSheet.create({
-  text: { color: m3.color.onSurface },
   page: { gap: 10 },
   bubbles: { gap: 8 },
-  bubble: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, padding: 10, backgroundColor: m3.color.surfaceContainer, alignSelf: "flex-start", maxWidth: "92%" },
+  bubble: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 8, alignSelf: "flex-start", maxWidth: "92%" },
   factCard: { alignSelf: "stretch", maxWidth: "100%" },
-  speaking: { borderWidth: 2 },
   flex: { flexShrink: 1 },
-  muted: { color: m3.color.onSurfaceVariant },
+  muted: { color: phoneIos.label2 },
   evidence: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  button: { minHeight: 44, minWidth: 44, flexDirection: "row", gap: 6, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
 });
