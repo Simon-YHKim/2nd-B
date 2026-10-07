@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { WeatherPrivacyControl } from "@/components/privacy/WeatherPrivacyControl";
 import { AppState, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
@@ -1007,6 +1008,7 @@ export function DeepSpacePrivacyDesignScreen() {
 
       <Card>
         <Action label={consentT("serviceControl.title")} value={t("privacy.view")} onPress={() => router.push("/service-consent")} />
+        <WeatherPrivacyControl />
       </Card>
 
       {/* 한눈에 / At a glance (canonGaps.privacyFacts) — icon + label + value. */}

@@ -1,4 +1,4 @@
-// 시계 줄 날씨 그림 (Simon 2026-10-07, Q-261007-39 = GPS · 법 검토 먼저).
+// 시계 줄 날씨 그림 (Simon 2026-10-07, Q-261007-39 = GPS · 위치정보법 절차).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { GLYPH_BOX, isOnGrid } from "@/components/pixel/pixel-glyphs";
@@ -50,6 +50,6 @@ describe("clock row", () => {
   test("no location is read while the weather-location gate is off (DECISIONS 26.10.07 13:18)", () => {
     // What has to exist before the gate turns on is checked in src/lib/location/__tests__/weather-location.test.ts.
     expect(read("src/lib/location/weather-location-gate.ts")).toContain("export const WEATHER_LOCATION_ENABLED: boolean = false;");
-    expect(read("src/lib/dashboard/board/build.ts")).toContain("weather: null");
+    expect(read("src/lib/dashboard/board/build.ts")).toContain("clockWeatherPresentation(weather, isMinor)");
   });
 });

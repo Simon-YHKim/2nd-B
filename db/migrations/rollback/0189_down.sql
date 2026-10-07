@@ -234,6 +234,7 @@ DECLARE
     'lock_erase_my_data_authenticated',  -- 0190: 0189 가 만든 함수의 잠금을 완성한다 (REVOKE · COMMENT)
     'service_contract_erasure_registry', -- 0198: 0189 등록부에 새 서비스 계약 표 네 행을 더한다
     'rss_proxy_erasure_registry',        -- 0201: RSS 사용자별 쿼터의 등록부 한 행을 더한다
+    'weather_erasure_registry',          -- 0233: 날씨 두 표의 등록부만 다시 채운다(0232 구조는 유지)
     'credit_ledger_erasure_registry_reason', -- 0205: 0189 등록부의 credit_ledger 행 사유를 고친다
     'reward_records_erasure_registry_reason' -- 0212: 0189·0198·0205 등록부의 보상 관련 네 행 사유를 고친다
   ];

@@ -417,6 +417,16 @@
       "owner": "user_id",
       "class": "retained",
       "reason": "광고 보상 티켓 발급 횟수 제한 카운터. 콘텐츠 삭제가 발급 제한을 초기화하면 안 되므로 남긴다. 마지막 갱신부터 88일(방침 최대 90일)이 지나면 purge_reward_records() 가 매일 지운다(0211). 계정 삭제 때는 public.users 연쇄로 지워진다(0198)."
+    },
+    "weather_consent_state": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "Current optional weather consent and version, no coordinates. Content deletion preserves consent; account deletion cascades."
+    },
+    "weather_access_events": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "Location Information Act art. 16(2) request facts and consent events, no coordinates or IP. Six-month retention with daily purge; account deletion sets user_id NULL."
     }
   },
   "forwardAdditions": {
@@ -428,6 +438,10 @@
     ],
     "0201_rss_proxy_erasure_registry.sql": [
       "rss_proxy_quota_daily"
+    ],
+    "0233_weather_erasure_registry.sql": [
+      "weather_consent_state",
+      "weather_access_events"
     ]
   },
   "forwardRevisions": {

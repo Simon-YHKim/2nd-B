@@ -15,7 +15,7 @@ jest.mock("expo-location", () => ({
 }));
 
 import { MINOR_PROMOTABLE_KEYS, PRIVACY_PREF_KEYS } from "../../privacy/prefs";
-import { WEATHER_LOCATION_ENABLED } from "../weather-location-gate";
+import { WEATHER_LOCATION_ENABLED, WEATHER_LOCATION_BLOCKERS } from "../weather-location-gate";
 import { coarsePlace, readWeatherPlace, requestWeatherLocation, weatherLocationStatus } from "../weather-location";
 
 const ROOT = path.resolve(__dirname, "../../../..");
@@ -90,8 +90,12 @@ test("the readiness check names each missing piece and passes only when all of t
 test("the gate may be on only when the policy, the terms, the iOS text and an adults-only consent key cover it", () => {
   const missing = missingBeforeOn(repoDisclosure());
   if (WEATHER_LOCATION_ENABLED) expect(missing).toEqual([]);
-  // Today the consent key and the terms clause are missing, which is why the gate is off.
-  else expect(missing).toContain("no location_weather consent key");
+  else expect(WEATHER_LOCATION_BLOCKERS.length).toBeGreaterThan(0);
+});
+
+test("the code disclosures are complete, while publication and provider blockers keep activation separate", () => {
+  expect(missingBeforeOn(repoDisclosure())).toEqual([]);
+  if (WEATHER_LOCATION_ENABLED) expect(WEATHER_LOCATION_BLOCKERS).toEqual([]);
 });
 
 test("the app asks for the approximate foreground location only", () => {

@@ -191,6 +191,22 @@
     "refresh": "Atualizar",
     "unknownDate": "Data indisponível",
     "board": {
+      "weather": {
+        "title": "Tempo",
+        "body": "Usa sua localização arredondada para cerca de 1 km para consultar o tempo do MET Norway na Noruega no seu painel diário.",
+        "terms": "Ver termos",
+        "enable": "Ativar",
+        "cancel": "Cancelar",
+        "failed": "Não foi possível salvar. Tente novamente.",
+        "settingsBody": "O acesso à localização está desativado nas configurações do dispositivo.",
+        "webSettingsBody": "Permita a localização nas configurações do site deste navegador.",
+        "settings": "Abrir configurações",
+        "done": "Concluído",
+        "setting": "Localização para o tempo",
+        "on": "Ativada",
+        "off": "Desativada",
+        "source": "Previsão do MET Norway (CC BY 4.0); as condições são agrupadas em cinco desenhos e a temperatura é arredondada."
+      },
       "evidence": "Ver a fonte",
       "addWidget": "Adicionar um widget",
       "clock": {

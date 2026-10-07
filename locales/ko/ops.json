@@ -191,6 +191,22 @@
     "refresh": "새로고침",
     "unknownDate": "날짜 확인 불가",
     "board": {
+      "weather": {
+        "title": "날씨",
+        "body": "하루 관리판 날씨를 위해 약 1km로 뭉갠 위치를 노르웨이의 MET Norway에 보내 조회합니다.",
+        "terms": "약관 보기",
+        "enable": "켜기",
+        "cancel": "취소",
+        "failed": "저장하지 못했습니다. 다시 시도해 주세요.",
+        "settingsBody": "기기 설정에서 위치 접근이 꺼져 있습니다.",
+        "webSettingsBody": "브라우저 사이트 설정에서 위치를 허용해 주세요.",
+        "settings": "설정 열기",
+        "done": "확인",
+        "setting": "날씨용 위치",
+        "on": "켜짐",
+        "off": "꺼짐",
+        "source": "MET Norway의 예보 자료(CC BY 4.0)를 다섯 가지 그림으로 묶고 기온을 반올림했습니다."
+      },
       "evidence": "근거 보기",
       "addWidget": "위젯 추가",
       "clock": {

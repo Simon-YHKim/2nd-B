@@ -71,10 +71,15 @@ interface PartBase<Id extends string> {
 
 /** 시계 줄 날씨 그림 다섯 가지. */
 export type SkyCondition = "clear" | "partlyCloudy" | "cloudy" | "rain" | "snow";
-/** 시계 줄 날씨: 그림 하나 + 기온 하나(Simon 2026-10-07, Q-261007-39 = GPS. 데이터는 법 검토 뒤 재설계 세션이 채운다). */
+/** 시계 줄 날씨: 그림 하나 + 기온 하나(Simon 2026-10-07, Q-261007-39 = GPS). */
 export interface ClockWeather { sky: SkyCondition; tempC: number | null }
 /** P-01 시계 · 날씨(줄). 시각과 날짜는 기기 시계로 그린다. */
-export interface ClockPart extends PartBase<"P-01"> { weather: ClockWeather | null; forecastRoute: string | null }
+export interface ClockPart extends PartBase<"P-01"> {
+  weather: ClockWeather | null;
+  forecastRoute: string | null;
+  /** The builder chooses the pin and the consent/settings sheet. */
+  weatherAction?: "consent" | "settings" | null;
+}
 /** P-02 오늘의 한마디(줄). 누르면 S-01. */
 export interface NotePart extends PartBase<"P-02"> { slot: "morning" | "day" | "evening"; line: BoardText | null; evidenceRoute: string | null }
 /** P-03 리마인더(카드). 좌우로 어제 · 오늘 · 내일 · 모레. */
