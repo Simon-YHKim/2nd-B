@@ -126,11 +126,10 @@ export type FoodSearchError = "no_key" | "empty_query" | "fetch_failed" | "bad_r
 /**
  * Search the MFDS nutrition DB through the public-data-proxy Edge Function.
  *
- * Degrades to [] rather than throwing whenever there is simply nothing to show:
- * an empty query (no request at all), a proxy with no MFDS secret configured
- * (503), or a signed-out caller (401). Those are the same "idea-only mode" the
- * planner had when the free key was unset. A real outage still throws so the
- * caller can tell a failure from an empty answer.
+ * Only an empty query or a successful response without matches yields []. Every
+ * proxy failure throws, including 503/401 classified as "unconfigured" by the shared
+ * transport. Otherwise a temporary outage becomes a cached zero-match answer
+ * (CD-R1-02). The planner still offers its fixed ideas and manual entry on failure.
  */
 export async function searchFoods(
   query: string,
@@ -139,8 +138,7 @@ export async function searchFoods(
   if (query.trim().length === 0) return [];
   const outcome = await invokePublicData(foodSearchBody(query, opts.max), opts.signal);
   if (!outcome.ok) {
-    if (outcome.reason === "unconfigured") return [];
-    throw outcome.reason as FoodSearchError;
+    throw (outcome.reason === "unconfigured" ? "fetch_failed" : outcome.reason) as FoodSearchError;
   }
   return parseFoodItems(outcome.data, opts.max);
 }

@@ -48,7 +48,8 @@ describe("the scanner is reading the real screens", () => {
 
 describe("R2C-02: a failed book search says so", () => {
   test("the catch records a failure instead of an empty result list", () => {
-    expect(reading).toMatch(/catch \(e\) \{\n\s*if \(seq === searchSeq\.current\) setSearch\(bookSearchFailed\(trimmed, e\)\);/);
+    expect(reading).toMatch(/catch \(e\) \{\n\s*next = bookSearchFailed\(trimmed, e\);/);
+    expect(reading).toContain("if (seq === searchSeq.current) setSearch(next);");
     expect(reading).not.toMatch(/setResults\(\[\]\)/);
   });
   test("failure renders an error (or quota) state with a retry", () => {
@@ -59,7 +60,8 @@ describe("R2C-02: a failed book search says so", () => {
     expect(reading).toContain('t("toolScreens.reading.noResults", { q: search.q })');
   });
   test("when search fails or finds nothing, the typed title can still go on the shelf", () => {
-    expect(reading).toContain("manualBook(search.q)");
+    expect(reading).toContain("await manualBook(trimmed)");
+    expect(reading).toContain("if (seq === searchSeq.current) setManual(book);");
     expect(reading).toContain("onPress={() => void onAdd(manual)}");
   });
 });
@@ -277,7 +279,7 @@ describe("gate BL-02 / BL-03: the meal sheet's clear and save", () => {
     const chips = meals.slice(chipsAt, meals.indexOf("</View>", chipsAt));
     expect(chips.length).toBeGreaterThan(100);
     expect(chips).toContain("disabled={mealWriting}");
-    expect(chips).toContain("if (!mealWriting) setDraft(name);");
+    expect(chips).toMatch(/if \(mealWriting\) return;\s*setDraft\(name\);/);
     // The busy state counts this screen's writes, so one settling cannot re-open the sheet
     // while another is still in flight.
     expect(meals).toContain("const mealWriting = mealWrites > 0;");
@@ -323,14 +325,14 @@ describe("gate S3-01 (simplified): a failed meal write keeps its sheet open, and
   });
 
   test("(a) while a write runs, the backdrop and the back do nothing, and no cell opens", () => {
-    expect(meals).toContain("const closeSheet = () => setPending((open) => mealSheetDismiss(open, mealWriting));");
+    expect(meals).toMatch(/const closeSheet = \(\) => \{\s*if \(!mealWriting\) resetLookup\(\);\s*setPending\(\(open\) => mealSheetDismiss\(open, mealWriting\)\);\s*\};/);
     expect(sheetBody).toContain('<Modal visible={pending !== null} transparent animationType="slide" onRequestClose={closeSheet}>');
     expect(sheetBody).toContain("<Pressable style={styles.mealBackdrop} onPress={closeSheet} disabled={mealWriting} />");
     // The sheet itself has no other way to close. The two plain closes left are the save's:
     // no user or no sheet, and nothing to write. The save button is off while a write runs.
     expect(sheetBody).not.toContain("setPending(");
     expect(meals.match(/setPending\(null\)/g)?.length).toBe(2);
-    expect(saver).toMatch(/if \(action === "close"\) \{\n\s*setPending\(null\);\n\s*return;\n\s*\}/);
+    expect(saver).toMatch(/if \(action === "close"\) \{\n\s*resetLookup\(\);\n\s*setPending\(null\);\n\s*return;\n\s*\}/);
     expect(openCell).toMatch(/\n\s*if \(mealWriting\) return;\n\s*sheetSeq\.current \+= 1;/);
   });
 
@@ -367,7 +369,7 @@ describe("gate S3-01 (simplified): a failed meal write keeps its sheet open, and
     expect(clearer.match(/setDraft\(/g)?.length).toBe(1);
     // writeMeal calls that write only from runExclusive's callback, after the lock is taken.
     expect(writer).toMatch(
-      /const outcome = await runExclusive\(mealWriteLock\(userId, sheet\.date, sheet\.slot\), async \(\) => \{\n\s*setMealWrites\(\(n\) => n \+ 1\);\n\s*try \{\n\s*await write\(\);/,
+      /const outcome = await runExclusive\(mealWriteLock\(userId, sheet\.date, sheet\.slot\), async \(\) => \{\n\s*resetLookup\(\);\n\s*setMealWrites\(\(n\) => n \+ 1\);\n\s*try \{\n\s*await write\(\);/,
     );
     expect(writer.match(/write\(\)/g)?.length).toBe(1);
   });
@@ -399,10 +401,10 @@ describe("gate S3-01 (simplified): a failed meal write keeps its sheet open, and
 });
 
 describe("gate BL-09: the shelf's page-count save", () => {
-  const saver = reading.slice(reading.indexOf("const onSavePages"), reading.indexOf("const manual ="));
+  const saver = reading.slice(reading.indexOf("const onSavePages"), reading.indexOf("return (\n    <OpsFrame"));
   const editorAt = reading.indexOf("{pageEdit?.id === reading.id ? (");
   const editor = reading.slice(editorAt, reading.indexOf("{c.finishedReading}", editorAt));
-  const fields = editor.slice(editor.indexOf("<TextInput"), editor.indexOf("{pageErr ? ("));
+  const fields = editor.slice(editor.indexOf("<TextInput"), editor.indexOf("{pageErr ||"));
   const saveChip = editor.slice(editor.indexOf('<View style={styles.chipRow}>'), editor.indexOf("{c.cancel}"));
   const openerAt = editor.indexOf(") : (");
   const opener = editor.slice(openerAt, editor.indexOf("</Pressable>", openerAt));
