@@ -21,6 +21,7 @@ import {
 import { boardTone } from "@/lib/dashboard/board/tone";
 import { phoneIos } from "@/lib/theme/phone-ios";
 import { IosButton } from "./IosParts";
+import { WeatherGlyph } from "./WeatherGlyph";
 
 /** 부모(DashboardPhone)가 받는 사건. 이동은 폰 안에서 한다. */
 export interface BoardEvents {
@@ -83,8 +84,7 @@ function Evidence({ route, basis, go }: { route: string | null; basis: BoardBasi
 }
 
 function ClockRow({ part, go }: { part: ClockPart; go: (route: string) => void }) {
-  const { i18n } = useTranslation("ops");
-  const say = useBoardText();
+  const { t, i18n } = useTranslation("ops");
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30_000);
@@ -92,10 +92,20 @@ function ClockRow({ part, go }: { part: ClockPart; go: (route: string) => void }
   }, []);
   const time = now.toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit", hour12: false });
   const day = now.toLocaleDateString(i18n.language, { month: "long", day: "numeric", weekday: "long" });
-  const line = [time, day, part.weather ? say(part.weather) : null].filter(Boolean).join(" · ");
-  const body = <Text variant="body" style={styles.clock}>{line}</Text>;
+  // 날씨는 그림 하나 + 기온 하나. 설명 문구 없이, 읽기 이름만 "맑음, 18도" 처럼 짧게.
+  const weather = part.weather;
+  const temp = weather?.tempC != null ? Math.round(weather.tempC) : null;
+  const sky = weather ? [t(`phone.board.clock.sky.${weather.sky}`), temp != null ? t("phone.board.clock.temp", { temp }) : null].filter(Boolean).join(", ") : null;
+  const line = [time, day].join(" · ");
+  const body = <View style={styles.clockRow}>
+    <Text variant="body" style={[styles.clock, styles.flex]}>{line}</Text>
+    {weather ? <View accessible accessibilityLabel={sky ?? undefined} style={styles.sky}>
+      <WeatherGlyph sky={weather.sky} size={24} />
+      {temp != null ? <Text variant="body" style={styles.clock}>{`${temp}°`}</Text> : null}
+    </View> : null}
+  </View>;
   return <Frame basis={part.basis} shape={part.shape}>
-    {part.forecastRoute ? <Pressable accessibilityRole="button" accessibilityLabel={line} onPress={() => go(part.forecastRoute!)} style={styles.tapRow}>{body}</Pressable> : body}
+    {part.forecastRoute ? <Pressable accessibilityRole="button" accessibilityLabel={[line, sky].filter(Boolean).join(" · ")} onPress={() => go(part.forecastRoute!)} style={styles.tapRow}>{body}</Pressable> : body}
     <Note part={part} go={go} />
   </Frame>;
 }
@@ -340,6 +350,8 @@ const styles = StyleSheet.create({
   muted: { color: phoneIos.label2 },
   time: { color: phoneIos.label, minWidth: 40 },
   clock: { fontVariant: ["tabular-nums"], fontFamily: "Galmuri11Bold" },
+  clockRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  sky: { flexDirection: "row", alignItems: "center", gap: 4 },
   figure: { fontFamily: "Galmuri11Bold" },
   remindersTitle: { color: phoneIos.orange, fontFamily: "Galmuri11Bold" },
   tapRow: { minHeight: 44, justifyContent: "center", gap: 2 },

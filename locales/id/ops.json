@@ -195,7 +195,15 @@
       "addWidget": "Tambah widget",
       "clock": {
         "weatherPrompt": "Pilih lingkunganmu untuk melihat cuaca.",
-        "pickArea": "Pilih lingkungan"
+        "pickArea": "Pilih lingkungan",
+        "sky": {
+          "clear": "Cerah",
+          "partlyCloudy": "Berawan sebagian",
+          "cloudy": "Berawan",
+          "rain": "Hujan",
+          "snow": "Salju"
+        },
+        "temp": "{{temp}} derajat"
       },
       "note": {
         "tapHint": "Ketuk untuk ringkasan hari ini",

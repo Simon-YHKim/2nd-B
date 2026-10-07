@@ -195,7 +195,15 @@
       "addWidget": "Adicionar um widget",
       "clock": {
         "weatherPrompt": "Escolha seu bairro para ver o tempo.",
-        "pickArea": "Escolher bairro"
+        "pickArea": "Escolher bairro",
+        "sky": {
+          "clear": "Céu limpo",
+          "partlyCloudy": "Parcialmente nublado",
+          "cloudy": "Nublado",
+          "rain": "Chuva",
+          "snow": "Neve"
+        },
+        "temp": "{{temp}} graus"
       },
       "note": {
         "tapHint": "Toque para ver o resumo do dia",

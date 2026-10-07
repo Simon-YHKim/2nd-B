@@ -195,7 +195,15 @@
       "addWidget": "Add a widget",
       "clock": {
         "weatherPrompt": "Pick your neighborhood to see the weather.",
-        "pickArea": "Pick neighborhood"
+        "pickArea": "Pick neighborhood",
+        "sky": {
+          "clear": "Clear",
+          "partlyCloudy": "Partly cloudy",
+          "cloudy": "Cloudy",
+          "rain": "Rain",
+          "snow": "Snow"
+        },
+        "temp": "{{temp}} degrees"
       },
       "note": {
         "tapHint": "Tap for today's summary",

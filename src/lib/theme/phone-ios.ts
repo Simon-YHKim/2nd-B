@@ -27,6 +27,12 @@ export const phoneIos = {
   green: "#34c759",
   red: "#ff3b30",
   orange: "#ff9500",
+  /** 날씨 그림: 해의 빛 (systemYellow). */
+  yellow: "#ffcc00",
+  /** 날씨 그림: 구름 (systemGray2). */
+  gray2: "#aeaeb2",
+  /** 날씨 그림: 눈 (iOS 하늘색). */
+  lightBlue: "#5ac8fa",
   /** AI 의 해석 · 제안 (systemTeal). 흰 바탕 글자로는 aiText 를 쓴다(대비). */
   teal: "#30b0c7",
   aiText: "#1d8ea4",
