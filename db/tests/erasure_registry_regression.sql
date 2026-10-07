@@ -1110,6 +1110,9 @@ DECLARE
   v_entity2 uuid := pg_catalog.gen_random_uuid();
   v_card    uuid := pg_catalog.gen_random_uuid();
   v_routine uuid := pg_catalog.gen_random_uuid();
+  v_interview_record  uuid := pg_catalog.gen_random_uuid();
+  v_interview_session uuid := pg_catalog.gen_random_uuid();
+  v_transcript        uuid := pg_catalog.gen_random_uuid();
 BEGIN
   -- Parents first. The delete ORDER is the reverse concern and is asserted by
   -- G8; here the only requirement is that every FK is satisfiable.
@@ -1163,6 +1166,23 @@ BEGIN
     VALUES (p_uid, p_tag || '-template', 'article');
   INSERT INTO public.testimonials (user_id, body, locale, consent_given_at)
     VALUES (p_uid, p_tag || ' says hello', 'ko', pg_catalog.now());
+  -- 0225: a saved interview (record -> session -> transcript head -> turns) and a
+  -- period-card proposal citing one of its answer turns.
+  INSERT INTO public.records (id, user_id, kind, body, audit_period, system_tags, client_request_id)
+    VALUES (v_interview_record, p_uid, 'audit_response', E'질문: q\n\n답변: a', 'school',
+            ARRAY['interview'], 'interview:' || v_interview_session::text);
+  INSERT INTO public.interview_sessions (id, owner_id, period, locale, committed_at, record_id)
+    VALUES (v_interview_session, p_uid, 'school', 'ko', pg_catalog.now(), v_interview_record);
+  INSERT INTO public.interview_transcripts (id, user_id, session_id, record_id, period, locale, turn_count)
+    VALUES (v_transcript, p_uid, v_interview_session, v_interview_record, 'school', 'ko', 2);
+  INSERT INTO public.interview_transcript_turns (transcript_id, user_id, turn_no, role, scene_seq, origin, text) VALUES
+    (v_transcript, p_uid, 1, 'interviewer', 1, 'fixed', 'q'),
+    (v_transcript, p_uid, 2, 'user', 1, 'user', 'a');
+  INSERT INTO public.period_card_proposals (user_id, star_id, request_key, vendor, proposal_text,
+      evidence_sent, evidence_cited, content_sha, level_before)
+    VALUES (p_uid, 'school', p_tag || '-card-key', 'openai', p_tag || ' card',
+            ARRAY['record:' || v_interview_record::text || '#t2'], ARRAY['record:' || v_interview_record::text || '#t2'],
+            pg_catalog.repeat('a', 64), 2);
 END;
 $owner_rows$;
 

@@ -862,11 +862,13 @@ describe("check:erasure-registry -- G3 reads rows, not headers (r40 M1/M2)", () 
 });
 
 describe("the real registry still classifies the same 66 rows (r40 M1/M2)", () => {
-  test("all 26 client_erasable tables are owner-bound and still hold the DELETE grant", () => {
+  test("all 29 client_erasable tables are owner-bound and still hold the DELETE grant", () => {
     const replay = replayMigrations(migrationsDir(REPO_ROOT));
     const registry = loadRegistry(REPO_ROOT);
     const erasable = Object.entries(registry.tables).filter(([, e]) => e.class === "client_erasable");
-    expect(erasable).toHaveLength(26);
+    // 26 until 0225/0226 added the interview transcript head and turns and the period-card
+    // proposals (each with an owner SELECT and DELETE policy).
+    expect(erasable).toHaveLength(29);
 
     const shapes = new Set<string>();
     for (const [table, entry] of erasable) {
@@ -891,11 +893,14 @@ describe("the real registry still classifies the same 66 rows (r40 M1/M2)", () =
     ]);
   });
 
-  test("the 13 account_delete_only tables still have no owner delete path", () => {
+  test("the 14 account_delete_only tables still have no owner delete path", () => {
     const replay = replayMigrations(migrationsDir(REPO_ROOT));
     const registry = loadRegistry(REPO_ROOT);
     const kept = Object.entries(registry.tables).filter(([, e]) => e.class === "account_delete_only");
-    expect(kept).toHaveLength(13);
+    // 13 until 0225/0226 added interview_sessions (no client privilege or policy; fold,
+    // the record-deletion trigger and account deletion remove its rows).
+    expect(kept).toHaveLength(14);
+    expect(kept.map(([table]) => table)).toContain("interview_sessions");
     for (const [table] of kept) {
       const policies = [...(replay.policies.get(table) ?? new Map())].filter(
         ([, state]) =>
@@ -1633,7 +1638,7 @@ describe("G10 -- the catalog test's privilege floor may not grant back what a mi
   });
 
   test("[40] the real tree: the pin is empty, and that is a measurement", () => {
-    // All 26 client_erasable tables still hold SELECT and DELETE for
+    // All 29 client_erasable tables still hold SELECT and DELETE for
     // `authenticated` after the full replay -- only 2 of the 26 are named by any
     // GRANT/REVOKE at all. An empty pin therefore means the floor reproduces the
     // Supabase default and subtracts nothing, which is the strongest state this

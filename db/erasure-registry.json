@@ -417,6 +417,29 @@
       "owner": "user_id",
       "class": "retained",
       "reason": "광고 보상 티켓 발급 횟수 제한 카운터. 콘텐츠 삭제가 발급 제한을 초기화하면 안 되므로 남긴다. 마지막 갱신부터 88일(방침 최대 90일)이 지나면 purge_reward_records() 가 매일 지운다(0211). 계정 삭제 때는 public.users 연쇄로 지워진다(0198)."
+    },
+    "interview_sessions": {
+      "owner": "owner_id",
+      "class": "account_delete_only",
+      "reason": "인터뷰 세션 행(0225). 숫자 · 열거값만 담고 원문이 없다. 클라이언트 권한 · 정책이 없어 소유자에게 직접 삭제 경로가 없다. 저장하지 않은 세션은 화면을 떠날 때(discard) 또는 마지막 활동 6시간 뒤(sweep) fold 가 소유자 없는 주 단위 집계로 접고 지운다. 담은 세션은 그 레코드를 지우면 레코드 삭제 트리거가 같은 식으로 접고 지운다. 계정 삭제 때는 auth.users 연쇄로 지워진다. 판정 행(interview_probe_verdicts)은 소유자 열이 없고 세션을 따라 지워진다."
+    },
+    "interview_transcript_turns": {
+      "owner": "user_id",
+      "class": "client_erasable",
+      "order": 28,
+      "reason": "저장한 인터뷰 대화록의 턴 원문(0225). 본인이 SELECT · DELETE 정책으로 읽고 지울 수 있다. 머리(interview_transcripts)보다 먼저 지운다. 턴을 지우면 그 턴의 판정 행도 FK 연쇄로 지워진다."
+    },
+    "interview_transcripts": {
+      "owner": "user_id",
+      "class": "client_erasable",
+      "order": 29,
+      "reason": "저장한 인터뷰 대화록 머리(0225). 본인 DELETE 정책이 있다. 레코드(records, 30)보다 먼저 지운다 - 레코드를 지우면 FK 연쇄로도 지워진다."
+    },
+    "period_card_proposals": {
+      "owner": "user_id",
+      "class": "client_erasable",
+      "order": 49,
+      "reason": "시기 카드 제안 · 결정 원장(0225). 승인한 그때의 나 문장이 여기 있다. 본인 DELETE 정책이 있다. star_tier_history(50)보다 먼저 지운다."
     }
   },
   "forwardAdditions": {
@@ -428,6 +451,12 @@
     ],
     "0201_rss_proxy_erasure_registry.sql": [
       "rss_proxy_quota_daily"
+    ],
+    "0226_interview_transcript_erasure_registry.sql": [
+      "interview_sessions",
+      "interview_transcript_turns",
+      "interview_transcripts",
+      "period_card_proposals"
     ]
   },
   "forwardRevisions": {

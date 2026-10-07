@@ -247,7 +247,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(step).toContain("promoted draft still present beside");
     expect(step).toContain("cmp -s");
     expect(step).toContain("drop the retained_until_applied exception");
-    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 71");
+    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 75");
     expect(step).toContain("('0201', 'rss_proxy_erasure_registry')");
     expect(step).not.toMatch(/\\i db\/migration-drafts\/UNNUMBERED_/);
   });
@@ -344,6 +344,21 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
       expect(workflow).toContain(workflowInvocation);
     },
   );
+
+  test("exercises the numbered 0225 interview transcript ledger without replaying it", () => {
+    const regression = read("db/tests/interview_transcript_ledger_regression.sql");
+    expect(workflow).toContain("-f db/tests/interview_transcript_ledger_regression.sql");
+    expect(regression).not.toMatch(/^\\i(?:r)?\s/m);
+    expect(regression).toContain("an authenticated caller wrote a verdict row");
+    expect(regression).toContain("ledger rows do not equal user turns");
+    expect(regression).toContain("a second commit added again");
+    expect(regression).toContain("discard did not erase exactly the session audit hashes");
+    expect(regression).toContain("evidence was not cited AND sent");
+    expect(regression).toContain("ratify did not write one seven:school L5 row");
+    expect(regression).toContain("cards or L5 rows citing the deleted record survived");
+    expect(regression).toContain("account deletion left owned interview rows behind");
+    expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
+  });
 
   test("seeds the Supabase auth and storage contracts used by the deletion fence", () => {
     const accountDeletionMigration = read(`${MIGRATION_DIR}/0192_account_deletion_completion_fence.sql`);
