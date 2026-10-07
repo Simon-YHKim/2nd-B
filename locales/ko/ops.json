@@ -195,7 +195,15 @@
       "addWidget": "위젯 추가",
       "clock": {
         "weatherPrompt": "동네를 고르면 날씨가 보입니다.",
-        "pickArea": "동네 고르기"
+        "pickArea": "동네 고르기",
+        "sky": {
+          "clear": "맑음",
+          "partlyCloudy": "구름 조금",
+          "cloudy": "흐림",
+          "rain": "비",
+          "snow": "눈"
+        },
+        "temp": "{{temp}}도"
       },
       "note": {
         "tapHint": "눌러서 하루 요약",
