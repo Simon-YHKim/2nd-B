@@ -9,6 +9,10 @@
 //          ████████████             ████████            ██████████
 //
 // 테두리(border)를 주면 같은 모양을 2px 안쪽으로 한 번 더 그려 테두리만 남긴다.
+//
+// 층은 상자 안에서 맨 뒤(zIndex -1)로 보낸다. 웹에서는 위치가 지정된(absolute) 층이 위치 없는 내용물(SVG
+// 글리프 등)보다 나중에 칠해져 글리프를 덮었다(2026-10-07 8081 캡처: 독 · 줄 머리 칸의 아이콘이 안 보임).
+// 상자에 zIndex 0 을 주어 쌓임 맥락을 만들어 층이 상자 밖으로 내려가지 않게 한다.
 
 import type { ReactNode } from "react";
 import { StyleSheet, View, type StyleProp, type ViewProps, type ViewStyle } from "react-native";
@@ -52,6 +56,6 @@ export function PixelRoundRect({ fill, corner = "card", border, style, children,
 }
 
 const styles = StyleSheet.create({
-  root: { position: "relative" },
-  layer: { position: "absolute" },
+  root: { position: "relative", zIndex: 0 },
+  layer: { position: "absolute", zIndex: -1 },
 });

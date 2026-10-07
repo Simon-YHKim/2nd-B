@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   metrics: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   metric: { minWidth: 64, gap: 2 },
   addSlot: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 56 },
-  dock: { flexDirection: "row", marginHorizontal: 9, marginTop: 4, paddingVertical: 6, paddingHorizontal: 4 },
+  dock: { flexDirection: "row", marginHorizontal: 9, marginTop: 4, marginBottom: 8, paddingVertical: 6, paddingHorizontal: 4 },
   dockSlot: { flex: 1, minWidth: 0 },
   dockContent: { minHeight: 48, alignItems: "center", justifyContent: "center", gap: 3 },
   dockTile: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
