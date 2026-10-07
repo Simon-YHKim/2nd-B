@@ -127,7 +127,7 @@ describe("완료조건 8 + 08:32 보강: 옛 위젯 8개를 대시보드에서 �
 
   test("대시보드 쪽은 하루 관리판을 그린다", () => {
     expect(phone).toContain("return <BoardPageView board={board} page={boardPage} events={boardEvents} />;");
-    expect(phone).toContain("const board = useMemo(() => buildBoard(data, new Date(), isMinor), [data, isMinor]);");
+    expect(phone).toContain("const board = useMemo(() => buildBoard(data, new Date(), isMinor, clockWeather.state), [data, isMinor, clockWeather.state]);");
   });
 
   test("새 부품이 삭제 금지 목록의 읽기 함수를 다시 쓴다", () => {

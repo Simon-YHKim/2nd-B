@@ -446,6 +446,16 @@
       "owner": "owner_id",
       "class": "retained",
       "reason": "인터뷰 세션 생성 횟수(0225, 10분 칸 숫자만). 시간당 새 세션 상한이 버리기로 되감기지 않게 하는 카운터라 콘텐츠 삭제가 초기화하면 안 된다. 두 시간이 지난 칸은 sweep 이 매시 지운다. 계정 삭제 때는 auth.users 연쇄로 지워진다."
+    },
+    "weather_consent_state": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "Current optional weather consent and version, no coordinates. Content deletion preserves consent; account deletion cascades."
+    },
+    "weather_access_events": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "Location Information Act art. 16(2) request facts and consent events, no coordinates or IP. Six-month retention with daily purge; account deletion sets user_id NULL."
     }
   },
   "forwardAdditions": {
@@ -464,6 +474,10 @@
       "interview_transcripts",
       "ai_audit_context_blocks",
       "interview_session_starts"
+    ],
+    "0233_weather_erasure_registry.sql": [
+      "weather_consent_state",
+      "weather_access_events"
     ]
   },
   "forwardRevisions": {

@@ -191,6 +191,22 @@
     "refresh": "Muat ulang",
     "unknownDate": "Tanggal tidak tersedia",
     "board": {
+      "weather": {
+        "title": "Cuaca",
+        "body": "Gunakan lokasi yang dibulatkan menjadi sekitar 1 km untuk meminta cuaca dari MET Norway di Norwegia pada papan harian Anda.",
+        "terms": "Lihat ketentuan",
+        "enable": "Aktifkan",
+        "cancel": "Batal",
+        "failed": "Tidak dapat menyimpan. Silakan coba lagi.",
+        "settingsBody": "Akses lokasi dinonaktifkan di pengaturan perangkat.",
+        "webSettingsBody": "Izinkan lokasi di pengaturan situs peramban ini.",
+        "settings": "Buka pengaturan",
+        "done": "Selesai",
+        "setting": "Lokasi untuk cuaca",
+        "on": "Aktif",
+        "off": "Nonaktif",
+        "source": "Prakiraan dari MET Norway (CC BY 4.0); kondisi dikelompokkan menjadi lima gambar dan suhu dibulatkan."
+      },
       "evidence": "Lihat sumber",
       "addWidget": "Tambah widget",
       "clock": {

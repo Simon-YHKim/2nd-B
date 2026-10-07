@@ -17,7 +17,7 @@
 import { loadExpoLocation } from "./location-sdk";
 import { WEATHER_LOCATION_ENABLED } from "./weather-location-gate";
 
-export type WeatherLocationStatus = "off" | "unavailable" | "undetermined" | "blocked" | "granted";
+export type WeatherLocationStatus = "off" | "unavailable" | "undetermined" | "denied" | "blocked" | "granted";
 
 export interface CoarsePlace {
   latitude: number;
@@ -73,7 +73,8 @@ function sdk(): LocationSdk | null {
 
 function statusOf(permission: PermissionLike): WeatherLocationStatus {
   if (permission.granted) return "granted";
-  return permission.status === "denied" && permission.canAskAgain === false ? "blocked" : "undetermined";
+  if (permission.status === "denied") return permission.canAskAgain === false ? "blocked" : "denied";
+  return "undetermined";
 }
 
 /** Whether the location can be read right now. Shows nothing. */

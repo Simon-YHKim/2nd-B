@@ -29,6 +29,8 @@ const sql0072 = readFileSync(
   join(__dirname, "..", "..", "..", "..", "db", "migrations", "0072_records_embedding_minor_clamp.sql"),
   "utf8",
 );
+// Weather has a dedicated guard because an adult also needs a versioned receipt.
+const sql0232 = readFileSync(join(__dirname, "../../../..", "db/migrations/0232_weather_location_consent.sql"), "utf8");
 
 describe("0033_minor_privacy_enforcement.sql — structure", () => {
   test("age-gate function is recreated with a fixed (empty) search_path", () => {
@@ -62,6 +64,13 @@ describe("0033_minor_privacy_enforcement.sql — structure", () => {
     expect(sql0072).toMatch(/CREATE OR REPLACE FUNCTION clamp_minor_privacy_prefs\(\)/);
     const clampBlock = sql0072.slice(sql0072.indexOf("clamp_minor_privacy_prefs"));
     for (const key of PRIVACY_PREF_KEYS) {
+      if (key === "location_weather") {
+        expect(sql0232).toContain("NEW.minor_tier = 'adult'");
+        expect(sql0232).toContain("OLD.minor_tier = 'adult'");
+        expect(sql0232).toContain("jsonb_build_object('location_weather',false)");
+        expect(sql0232).toMatch(/BEFORE INSERT OR UPDATE ON public.users/);
+        continue; // Real behavior, including DOB changes: db/tests/weather_location_regression.sql.
+      }
       if (MINOR_PROMOTABLE_KEYS.includes(key)) {
         // long_term_memory must NOT be clamped (a minor may promote it)
         expect(clampBlock).not.toContain(`'${key}', false`);

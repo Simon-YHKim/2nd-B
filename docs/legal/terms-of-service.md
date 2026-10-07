@@ -69,6 +69,22 @@ _시행일: 2026-10-05 · 최종 개정: 2026-10-05_
 - 통신판매업 신고: 면제 사업자 (「전자상거래 등에서의 소비자보호에 관한 법률」 시행령 제11조의 신고 면제 기준에 해당)
 - 문의: kim0405@hayangzip.com (이메일 중심으로 운영합니다). 고객지원은 **영업일 기준 2일 이내** 회신을 목표로 합니다.
 
+### 위치기반서비스 추가 약관안 · 아직 시행하지 않음
+
+작성 판본: weather-v1-261007 · 시행일:  · 사전 공지 기간:
+
+① **사업자**: 하양 프로덕션(개인사업자, 대표: 배소하), 소재지 경기도 안양시, 연락처 kim0405@hayangzip.com. 개인정보 보호책임자는 김양환(kim0405@hayangzip.com)입니다.
+
+② **권리와 행사방법**: 개인위치정보주체는 동의의 전부 또는 일부를 유보·철회하거나 일시 중지를 요구할 수 있으며, 이용·제공사실 확인자료의 열람·고지와 오류 정정을 요구할 수 있습니다. 설정에서 날씨용 위치를 끄거나 위 연락처로 요청합니다. 회사는 정당한 요구를 지체 없이 처리합니다. 동의를 거부·철회해도 다른 앱 기능은 이용할 수 있습니다.
+
+③ **서비스 내용**: 하루 관리판 시계 줄에 기기 위치에 해당하는 날씨 그림과 기온 예보를 제공합니다. 성인 이용자의 별도 동의와 OS 위치 허용 후에만 기기에서 좌표를 소수 둘째 자리(약 1km)로 뭉개 MET Norway에 조회합니다. 백그라운드 위치 추적과 위치 이력 서비스는 제공하지 않습니다. 국외 수신자·목적·항목·시점·보관 조건은 처리방침의 GPS 날씨 추가 고지안을 따릅니다.
+
+④ **이용·제공사실 확인자료**: 위치정보법 제16조 제2항 및 「위치정보의 관리적·기술적 보호조치 기준」 제6조를 근거로 계정 식별자·요청 시각·수신자·사건 종류를 6개월간 보유하고 기간이 지난 자료를 매일 정리합니다. 이 자료에는 좌표·IP·이동 경로를 넣지 않습니다. 계정 삭제 시 확인자료의 계정 식별자를 비웁니다.
+
+⑤ **개인위치정보의 보유 목적·기간**: 대략 좌표는 날씨 조회만을 위해 요청 중 일시 처리하며 회사 서버에 보유하지 않습니다. 기기 메모리 캐시는 최대 30분이고 철회·계정 전환 시 비웁니다. MET Norway의 자체 로그 보관은 회사의 비보관 약속과 구분하며 해당 조건을 확정하기 전에는 서비스를 활성화하지 않습니다. 위치정보와 날씨를 광고·분석·AI 입력에 사용하지 않습니다.
+
+⑥ **만 14세 미만 및 미성년자(제25조)**: 이 서비스는 만 18세 이상으로 확인된 이용자만 별도 동의하여 켤 수 있습니다. 만 14세 미만은 법정대리인 동의를 포함한 별도 개방 절차가 마련되기 전까지 잠겨 있고, 만 14~17세 및 나이 미확인 계정도 잠겨 있습니다. 이 약관은 미성년 위치 기능을 개방하지 않습니다.
+
 ---
 
 ## English
@@ -121,3 +137,19 @@ The Company may change or suspend all or part of the Service for operational/tec
 - Business registration number: 205-10-98603
 - Mail-order business report: exempt (meets the exemption criteria of Article 11 of the Enforcement Decree of Korea's e-commerce act)
 - Contact: kim0405@hayangzip.com (email-first support). Support aims to reply **within 2 business days**.
+
+### Location-based service addendum · not yet effective
+
+Draft revision: weather-v1-261007 · Effective date:  · Advance notice:
+
+(1) **Operator**: Hayang Production (sole proprietorship; Representative: Bae Soha), Anyang-si, Gyeonggi-do, Republic of Korea; contact kim0405@hayangzip.com. Data Protection Officer: Kim Yang-hwan, at the same email.
+
+(2) **Rights**: You may withhold or withdraw all or part of consent, request a temporary suspension, and request access to or correction of use/provision facts. Turn off location for weather in privacy settings or contact the address above. The Company handles valid requests without delay. Other app features remain available if you decline or withdraw.
+
+(3) **Service**: The daily board clock shows a weather drawing and temperature forecast for the device’s area. Only after adult opt-in and OS permission, coordinates rounded on the device to two decimal places (about 1 km) are sent to MET Norway. There is no background location tracking or location-history service. The weather addendum to the privacy policy identifies the overseas recipient, purpose, items, transfer timing and retention conditions.
+
+(4) **Use/provision facts**: Under Article 16(2) of the Location Information Act and Article 6 of the Standards for Administrative and Technical Protection of Location Information, account identifier, request time, recipient and event type are retained for six months and purged daily after that period. These facts contain no coordinates, IP or movement history. Account deletion clears the account identifier from retained facts.
+
+(5) **Location retention**: Coarse coordinates are processed transiently for weather and not retained on Company servers. The device’s memory cache lasts at most 30 minutes and clears on withdrawal or account change. MET Norway’s own access logs are distinct from Company retention; the feature remains disabled until those conditions are settled. Location and weather are not used for advertising, analytics or AI input.
+
+(6) **Children and minors (Article 25)**: Only confirmed adults aged 18 or older may opt in. Children under 14 remain locked out until a separate opening process including legal-representative consent exists. Users aged 14–17 and accounts with unknown age are also locked out. These terms do not open location features to minors.

@@ -4,6 +4,9 @@
 
 project_id = "zoacryukmdeivmolvyhj"
 
+[functions.weather]
+verify_jwt = true
+
 # ⚠ `supabase config push` semantics: declaring ANY [auth] subsection pushes the
 # WHOLE auth group -- every UNDECLARED field resets to CLI defaults, and in a
 # non-TTY shell the confirm prompt auto-accepts. That exact combination reset
