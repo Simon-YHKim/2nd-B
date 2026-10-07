@@ -78,17 +78,17 @@ describe("shelfVolumeIds (R2C-08: a book on the shelf is not offered again)", ()
 });
 
 describe("manualBook (R2C-02: the shelf still works when search is refused)", () => {
-  test("a typed title becomes a book with a stable manual id", () => {
-    expect(manualBook("  Demian  ")).toEqual({ id: `${MANUAL_VOLUME_PREFIX}demian`, title: "Demian", authors: [] });
+  test("a typed title becomes a book with a stable manual id", async () => {
+    expect(await manualBook("  Demian  ")).toEqual({ id: `${MANUAL_VOLUME_PREFIX}demian`, title: "Demian", authors: [] });
   });
-  test("case and spacing fold into the same id, so a second add finds the same row", () => {
-    expect(manualBook("The  Little   Prince")?.id).toBe(manualBook("the little prince")?.id);
+  test("case and spacing fold into the same id, so a second add finds the same row", async () => {
+    expect((await manualBook("The  Little   Prince"))?.id).toBe((await manualBook("the little prince"))?.id);
   });
-  test("an empty title makes no book", () => {
-    expect(manualBook("   ")).toBeNull();
+  test("an empty title makes no book", async () => {
+    expect(await manualBook("   ")).toBeNull();
   });
-  test("a manual id can never collide with a Google volume id", () => {
-    expect(manualBook("abc")?.id.startsWith(MANUAL_VOLUME_PREFIX)).toBe(true);
+  test("a manual id can never collide with a Google volume id", async () => {
+    expect((await manualBook("abc"))?.id.startsWith(MANUAL_VOLUME_PREFIX)).toBe(true);
   });
 });
 
