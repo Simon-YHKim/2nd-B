@@ -170,3 +170,32 @@ describe("Q-261007-38: P-03 이유 문구 · 알림 시각, P-06 출처 줄", ()
     }
   });
 });
+
+describe("S-03 위젯 관리: 화면에 없는 부품과 그 이유", () => {
+  test("지금 앱: 원천이 없는 부품은 '준비 중', 순서 바꾸기는 아직 받지 않는다", () => {
+    const board = buildBoard(data({ routines: { ok: true, value: [routine("r1")] } }), NOW, false);
+    expect(board.shelf.canReorder).toBe(false);
+    expect(board.shelf.items.map((item) => [item.id, "key" in item.reason ? item.reason.key : "", item.canShow]))
+      .toEqual([["P-02", "phone.board.shelf.reasons.preparing", false], ["P-04", "phone.board.shelf.reasons.preparing", false],
+        ["P-07", "phone.board.shelf.reasons.preparing", false], ["P-08", "phone.board.shelf.reasons.preparing", false]]);
+    for (const item of board.shelf.items) expect(item.basis).toBe("locked");
+  });
+
+  test("미성년이면 건강이 '성인만' 이유로 선반에 있다", () => {
+    const board = buildBoard(data({ healthEnabled: true, health: { ok: true, value: [sample()] } }), NOW, true);
+    const health = board.shelf.items.find((item) => item.id === "P-06");
+    expect(health && "key" in health.reason ? health.reason.key : null).toBe("phone.board.shelf.reasons.adultOnly");
+  });
+
+  test("fixture: 잠긴 부품은 [연동 화면], 숨긴 맞춤 위젯은 다시 켤 수 있다", () => {
+    const shelf = boardFixture("data").shelf;
+    expect(shelf.canReorder).toBe(true);
+    expect(shelf.items.find((item) => item.id === "P-04")?.action?.route).toBe("/data-connections");
+    expect(shelf.items.find((item) => item.id === "w-3")?.canShow).toBe(true);
+  });
+
+  test("녹음 전사는 W2 전까지 잠겨 있고 들어오는 길이 없다", () => {
+    expect(buildBoard(null, NOW, false).dock.transcribe).toEqual({ locked: true, route: null });
+  });
+});
+

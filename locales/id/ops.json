@@ -306,6 +306,43 @@
         "noValue": "tidak ada catatan",
         "mutedNote": "Mode senyap aktif, jadi ringkasan hanya tampil sebagai teks."
       },
+      "shelf": {
+        "title": "Kelola widget",
+        "onScreen": "Di layar",
+        "offScreen": "Tidak di layar",
+        "allOnScreen": "Semua widget ada di layar.",
+        "show": "Aktifkan lagi",
+        "hide": "Sembunyikan {{name}}",
+        "moveUp": "Naikkan {{name}}",
+        "moveDown": "Turunkan {{name}}",
+        "reasons": {
+          "preparing": "Widget ini masih disiapkan.",
+          "adultOnly": "Koneksi kesehatan hanya untuk dewasa.",
+          "hidden": "Kamu menyembunyikan widget ini."
+        },
+        "parts": {
+          "clock": "Jam dan cuaca",
+          "note": "Catatan hari ini",
+          "reminders": "Pengingat",
+          "queue": "Perlu ditangani",
+          "health": "Kesehatan",
+          "spend": "Pengeluaran",
+          "changes": "Lainnya",
+          "custom": "Widget milikmu"
+        }
+      },
+      "transcribe": {
+        "title": "Transkripsi",
+        "adultOnly": "Transkripsi hanya untuk dewasa.",
+        "ownTalkOnly": "Hanya merekam percakapan yang kamu ikuti.",
+        "lockedStart": "Mulai merekam, belum dibuka",
+        "afterTitle": "Setelah perekaman selesai, hasilnya muncul di sini.",
+        "sections": {
+          "head": "Ringkasan satu baris",
+          "todos": "Tugas dan kontak berikutnya",
+          "transcript": "Transkrip lengkap"
+        }
+      },
       "dock": {
         "capture": "Simpan",
         "chat": "Obrolan",

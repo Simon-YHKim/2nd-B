@@ -133,3 +133,36 @@ describe("완료조건 8 + 08:32 보강: 옛 위젯 8개를 대시보드에서 �
     expect(build).toContain('import { localDate, realHealthSamples, routineActionRoute, todayAgenda, type DashboardData } from "../model";');
   });
 });
+
+describe("S-03 위젯 관리 · S-02 녹음 전사 골격", () => {
+  const shelf = read("src/components/dashboard/board/BoardShelf.tsx");
+  const transcribe = read("src/components/dashboard/board/TranscribeSkeleton.tsx");
+
+  test("순서 바꾸기 · 숨기기는 계약이 받을 때만 보인다", () => {
+    expect(shelf).toContain("{board.shelf.canReorder ? <View style={styles.section}>");
+    expect(shelf).toContain('events.move(part.id, "up")');
+    expect(shelf).toContain('events.move(part.id, "down")');
+    expect(shelf).toContain("events.hide(part.id)");
+  });
+
+  test("잠긴 부품은 이유 + [연동 화면], 숨긴 것은 [다시 켜기]", () => {
+    expect(shelf).toContain("{say(item.reason)}");
+    expect(shelf).toContain("{item.action ? <Button label={say(item.action.label)} onPress={() => events.go(item.action!.route)} /> : null}");
+    expect(shelf).toContain('{item.canShow ? <Button label={t("phone.board.shelf.show")} onPress={() => events.show(item.id)} /> : null}');
+    expect(code(shelf)).not.toMatch(/[.]sort[(]/);
+  });
+
+  test("녹음 전사 골격: 녹음 코드 0, 성인만, '내가 참여한 대화만' 안내", () => {
+    expect(transcribe).not.toMatch(/expo-audio|expo-av|useAudioRecorder|record[(]/);
+    expect(transcribe).toContain('if (!adult) return');
+    expect(transcribe).toContain('t("phone.board.transcribe.ownTalkOnly")');
+    expect(transcribe).toContain("accessibilityState={{ disabled: true }}");
+    expect(phone).toContain('if (route === "/board/transcribe") return <TranscribeSkeleton adult={isMinor === false} />;');
+  });
+
+  test.each([["BoardShelf.tsx", "src/components/dashboard/board/BoardShelf.tsx"], ["TranscribeSkeleton.tsx", "src/components/dashboard/board/TranscribeSkeleton.tsx"], ["DailySummary.tsx", "src/components/dashboard/board/DailySummary.tsx"]])(
+    "%s: LLM · 서버 직접 호출 0", (_name, path) => {
+      expect(read(path)).not.toMatch(/@[/]lib[/]llm|lib[/]llm[/]|callLlm|boundary|supabase[.]from|[.]rpc[(]|fetch[(]/);
+    });
+});
+

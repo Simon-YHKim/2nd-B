@@ -306,6 +306,43 @@
         "noValue": "sin registro",
         "mutedNote": "El modo silencio está activado, así que el resumen se muestra solo como texto."
       },
+      "shelf": {
+        "title": "Gestionar widgets",
+        "onScreen": "En pantalla",
+        "offScreen": "Fuera de la pantalla",
+        "allOnScreen": "Todos los widgets están en pantalla.",
+        "show": "Volver a activar",
+        "hide": "Ocultar {{name}}",
+        "moveUp": "Subir {{name}}",
+        "moveDown": "Bajar {{name}}",
+        "reasons": {
+          "preparing": "Este widget aún se está preparando.",
+          "adultOnly": "La conexión de salud es solo para adultos.",
+          "hidden": "Ocultaste este widget."
+        },
+        "parts": {
+          "clock": "Reloj y tiempo",
+          "note": "Nota de hoy",
+          "reminders": "Recordatorios",
+          "queue": "Por atender",
+          "health": "Salud",
+          "spend": "Gastos",
+          "changes": "Además",
+          "custom": "Tus widgets"
+        }
+      },
+      "transcribe": {
+        "title": "Transcribir",
+        "adultOnly": "La transcripción es solo para adultos.",
+        "ownTalkOnly": "Solo graba conversaciones en las que participas.",
+        "lockedStart": "Empezar a grabar, aún no disponible",
+        "afterTitle": "Al terminar una grabación, el resultado aparece aquí.",
+        "sections": {
+          "head": "Resumen en una línea",
+          "todos": "Tareas y próximos contactos",
+          "transcript": "Transcripción completa"
+        }
+      },
       "dock": {
         "capture": "Guardar",
         "chat": "Conversación",

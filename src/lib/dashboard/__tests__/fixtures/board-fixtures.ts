@@ -117,8 +117,19 @@ export function boardFixture(state: BoardState): BoardContract {
     addWidgetRoute: "/board/widgets",
     dock: { capture: "/capture", chat: "/secondb", transcribe: { locked: true, route: null } },
     summary: state === "data" ? SUMMARY : null,
+    shelf: SHELF,
   };
 }
+
+/** S-03: 잠긴 부품(연동 화면) · 숨긴 맞춤 위젯(다시 켜기). */
+export const SHELF: BoardContract["shelf"] = {
+  canReorder: true,
+  items: [
+    { id: "P-04", title: { key: "phone.board.shelf.parts.queue" }, basis: "locked", reason: { key: "phone.board.locked.inbox" },
+      action: { label: { key: "phone.board.locked.open" }, route: "/data-connections" }, canShow: false },
+    { id: "w-3", title: { text: "박 매니저" }, basis: "fact", reason: { key: "phone.board.shelf.reasons.hidden" }, canShow: true },
+  ],
+};
 
 /** S-01 아침 요약. 머리 -> 사실 4 -> 연결 2 -> 제안 3(AI 2 · 규칙 1) -> 개수 한 줄. */
 export const SUMMARY: DailySummary = {
