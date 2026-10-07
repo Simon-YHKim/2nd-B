@@ -35,6 +35,7 @@ import { callLlm } from "../llm/boundary";
 import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 import { personaSynthesisSystem } from "./synthesis-prompt";
 import { getSupabaseClient } from "../supabase/client";
+import { hasSystemTag, RECALL_INTERVIEW_TAG, withSystemTagsColumn } from "../records/system-tags";
 import { isValidMbtiResult, type MbtiScores } from "./assessment-shapes";
 import type { LadderLevel } from "./brightness";
 import { soulCoreBrightness, type StarId } from "./stars";
@@ -133,6 +134,21 @@ export interface AuditResponseRow {
   body: string;
   created_at: string;
   tags: string[] | null;
+  /** The app's markers (0218). Absent when the database has no such column; the
+   *  markers are then still in `tags` (records/system-tags.ts). */
+  system_tags?: string[] | null;
+}
+
+/** The audit_response columns buildPersona / loadStarLevels read. `system_tags`
+ *  (0218) tells a recall-interview transcript from a short life-audit answer. */
+export function auditResponseColumns(columnPresent: boolean): string {
+  return columnPresent ? "id, prompt, body, created_at, tags, system_tags" : "id, prompt, body, created_at, tags";
+}
+
+/** A recall-interview transcript (the app's `interview` marker), not a short
+ *  life-audit answer. A user tag that says `interview` does not count. */
+export function isRecallInterviewRow(row: Pick<AuditResponseRow, "tags" | "system_tags">): boolean {
+  return hasSystemTag(row, RECALL_INTERVIEW_TAG);
 }
 
 const BFI_TRAIT_KEYS = [
@@ -715,17 +731,19 @@ export async function buildPersona(
     throw new TypeError("buildPersona: minor must be the resolved age (a boolean)");
   }
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from("records")
-    .select("id, prompt, body, created_at, tags")
-    .eq("user_id", userId)
-    .eq("kind", "audit_response")
-    .order("created_at", { ascending: false })
-    .limit(MAX_PERSONA_ROWS);
+  const { data, error } = await withSystemTagsColumn((columnPresent) =>
+    supabase
+      .from("records")
+      .select(auditResponseColumns(columnPresent))
+      .eq("user_id", userId)
+      .eq("kind", "audit_response")
+      .order("created_at", { ascending: false })
+      .limit(MAX_PERSONA_ROWS),
+  );
   if (error) throw error;
   // Newest-first fetch (truncation-safe), restored to ascending for the
   // consumers below (numbering, values ranking, evidenceRefs slice(-N)).
-  const rows = ((data ?? []) as AuditResponseRow[]).slice().reverse();
+  const rows = ((data ?? []) as unknown as AuditResponseRow[]).slice().reverse();
 
   // Big Five proxy: exclude drill-interview transcripts. They share
   // kind="audit_response" but carry the "interview" tag and pack a 50-turn
@@ -733,7 +751,8 @@ export async function buildPersona(
   // length-driven openness heuristic in scoreFromAnswers. Scoring only the
   // short single-answer life-audit rows keeps avgLen representative. The full
   // rows set still feeds the narrative summary, values, and markdown below.
-  const proxyRows = rows.filter((r) => !(r.tags ?? []).includes("interview"));
+  // The marker is the app's (0218 records.system_tags).
+  const proxyRows = rows.filter((r) => !isRecallInterviewRow(r));
   let traits = scoreFromAnswers(proxyRows);
   let traitsSource: TraitsSource = "heuristic";
 

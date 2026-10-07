@@ -190,7 +190,129 @@
     "lastRead": "Última lectura · {{date}}",
     "noData": "Aún no se han leído datos.",
     "refresh": "Actualizar",
-    "unknownDate": "Fecha no disponible"
+    "unknownDate": "Fecha no disponible",
+    "board": {
+      "evidence": "Ver la fuente",
+      "addWidget": "Añadir un widget",
+      "clock": {
+        "weatherPrompt": "Elige tu barrio para ver el tiempo.",
+        "pickArea": "Elegir barrio"
+      },
+      "note": {
+        "tapHint": "Toca para ver el resumen del día",
+        "empty": "La nota de hoy aparece tras tu primer registro.",
+        "slot": {
+          "morning": "Mañana",
+          "day": "Tarde",
+          "evening": "Noche"
+        }
+      },
+      "reminders": {
+        "title": "Recordatorios",
+        "previous": "Día anterior",
+        "next": "Día siguiente",
+        "anytime": "Sin hora",
+        "alarm": "Aviso a las {{time}}",
+        "add": "Añadir",
+        "dismiss": "Descartar",
+        "days": {
+          "yesterday": "Ayer",
+          "today": "Hoy",
+          "tomorrow": "Mañana",
+          "dayAfter": "Pasado mañana"
+        },
+        "empty": {
+          "yesterday": "Ayer no había nada previsto.",
+          "today": "Hoy no hay nada previsto.",
+          "tomorrow": "Mañana no hay nada previsto.",
+          "dayAfter": "Pasado mañana no hay nada previsto."
+        },
+        "status": {
+          "upcoming": "Próximo",
+          "done": "Hecho",
+          "passed": "Pasado"
+        }
+      },
+      "queue": {
+        "title": "Por atender {{index}}/{{total}}",
+        "empty": "Hoy no hay nada esperándote.",
+        "done": "Ya lo hice",
+        "later": "Más tarde",
+        "notImportant": "No es importante",
+        "sources": {
+          "mail": "Correo",
+          "notification": "Aviso",
+          "app": "App"
+        }
+      },
+      "health": {
+        "title": "Salud",
+        "locked": "Conecta salud para ver el sueño de anoche.",
+        "empty": "Trae tus registros de salud y aparecerán aquí.",
+        "openSetup": "Ajustes de conexión",
+        "synced": "{{source}} · sincronizado a las {{time}}",
+        "minutes": "{{value}} minutos",
+        "metrics": {
+          "sleep": "Sueño",
+          "steps": "Pasos",
+          "workout": "Ejercicio",
+          "meal": "Comidas"
+        },
+        "sources": {
+          "health_connect": "Health Connect",
+          "healthkit": "Salud de Apple",
+          "manual": "Introducido por ti"
+        }
+      },
+      "spend": {
+        "title": "Gastos",
+        "empty": "Trae un extracto y verás el total del mes aquí.",
+        "open": "Abrir cuentas",
+        "add": "Añadir",
+        "reject": "No"
+      },
+      "changes": {
+        "title": "Además"
+      },
+      "custom": {
+        "empty": "Cuando crezcan tus registros, aquí aparecerán tus propios widgets.",
+        "capture": "Guardar",
+        "make": "Crearlo",
+        "skip": "No, gracias",
+        "previous": "Widget anterior",
+        "next": "Widget siguiente"
+      },
+      "locked": {
+        "open": "Ajustes de conexión",
+        "weather": "El tiempo se abre al elegir un barrio.",
+        "aiConsent": "La nota de hoy se abre al activar el procesamiento con IA.",
+        "calendar": "Conecta un calendario para ver tus planes aquí.",
+        "inbox": "Conecta el correo o los avisos para ver qué atender.",
+        "ledger": "Trae un extracto para ver tus gastos.",
+        "sources": "Conecta una fuente para ver qué cambió.",
+        "records": "Tus propios widgets se abren cuando crecen tus registros."
+      },
+      "summary": {
+        "titleDefault": "Resumen del día",
+        "title": {
+          "morning": "Resumen de la mañana",
+          "day": "Resumen de la tarde",
+          "evening": "Resumen de la noche"
+        },
+        "read": "Leer en voz alta",
+        "stop": "Detener",
+        "close": "Cerrar",
+        "notReady": "El resumen de hoy aún no está listo.",
+        "noValue": "sin registro",
+        "mutedNote": "El modo silencio está activado, así que el resumen se muestra solo como texto."
+      },
+      "dock": {
+        "capture": "Guardar",
+        "chat": "Conversación",
+        "transcribe": "Transcribir",
+        "transcribeLocked": "Transcribir, aún no disponible"
+      }
+    }
   },
   "loading": "Abriendo tus rutinas…",
   "hero": {

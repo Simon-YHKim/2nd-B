@@ -1077,6 +1077,8 @@
     "authBody": "Your records belong to you. Summaries are applied only after you approve them. Start with your first record.",
     "next": "Next",
     "skip": "Skip",
+    "saveFailed": "Could not save.",
+    "goHome": "Go home",
     "slides": {
       "intro": {
         "title": "An AI that gets\nto know you",

@@ -190,7 +190,129 @@
     "lastRead": "최근 읽은 시각 · {{date}}",
     "noData": "아직 읽은 데이터가 없습니다.",
     "refresh": "새로고침",
-    "unknownDate": "날짜 확인 불가"
+    "unknownDate": "날짜 확인 불가",
+    "board": {
+      "evidence": "근거 보기",
+      "addWidget": "위젯 추가",
+      "clock": {
+        "weatherPrompt": "동네를 고르면 날씨가 보입니다.",
+        "pickArea": "동네 고르기"
+      },
+      "note": {
+        "tapHint": "눌러서 하루 요약",
+        "empty": "첫 기록을 남기면 오늘의 한마디가 생깁니다.",
+        "slot": {
+          "morning": "아침",
+          "day": "낮",
+          "evening": "저녁"
+        }
+      },
+      "reminders": {
+        "title": "리마인더",
+        "previous": "전날 보기",
+        "next": "다음 날 보기",
+        "anytime": "시간 없음",
+        "alarm": "알림 {{time}}",
+        "add": "추가",
+        "dismiss": "무시",
+        "days": {
+          "yesterday": "어제",
+          "today": "오늘",
+          "tomorrow": "내일",
+          "dayAfter": "모레"
+        },
+        "empty": {
+          "yesterday": "어제는 정해 둔 일이 없었습니다.",
+          "today": "오늘은 정해 둔 일이 없습니다.",
+          "tomorrow": "내일은 정해 둔 일이 없습니다.",
+          "dayAfter": "모레는 정해 둔 일이 없습니다."
+        },
+        "status": {
+          "upcoming": "예정",
+          "done": "완료",
+          "passed": "넘어감"
+        }
+      },
+      "queue": {
+        "title": "처리할 것 {{index}}/{{total}}",
+        "empty": "오늘 기다리는 일은 없습니다.",
+        "done": "했어요",
+        "later": "나중에",
+        "notImportant": "중요하지 않음",
+        "sources": {
+          "mail": "메일",
+          "notification": "알림",
+          "app": "앱"
+        }
+      },
+      "health": {
+        "title": "건강",
+        "locked": "건강 연동을 켜면 어젯밤 수면이 보입니다.",
+        "empty": "건강 기록을 반영하면 여기에 보입니다.",
+        "openSetup": "연동 화면",
+        "synced": "{{source}} · {{time}} 동기화",
+        "minutes": "{{value}}분",
+        "metrics": {
+          "sleep": "수면",
+          "steps": "걸음",
+          "workout": "운동",
+          "meal": "식단"
+        },
+        "sources": {
+          "health_connect": "Health Connect",
+          "healthkit": "Apple 건강",
+          "manual": "직접 입력"
+        }
+      },
+      "spend": {
+        "title": "지출",
+        "empty": "내역을 가져오면 이번 달 합계가 보입니다.",
+        "open": "가계부 열기",
+        "add": "넣기",
+        "reject": "아니요"
+      },
+      "changes": {
+        "title": "그 밖에"
+      },
+      "custom": {
+        "empty": "기록이 쌓이면 이 자리에 나만의 위젯이 생깁니다.",
+        "capture": "담기",
+        "make": "만들기",
+        "skip": "괜찮아요",
+        "previous": "이전 위젯",
+        "next": "다음 위젯"
+      },
+      "locked": {
+        "open": "연동 화면",
+        "weather": "동네를 고르면 날씨가 열립니다.",
+        "aiConsent": "AI 처리를 켜면 오늘의 한마디가 열립니다.",
+        "calendar": "캘린더를 연동하면 일정이 보입니다.",
+        "inbox": "메일이나 알림을 연동하면 처리할 것이 보입니다.",
+        "ledger": "내역을 가져오면 지출이 보입니다.",
+        "sources": "출처를 연동하면 바뀐 것이 보입니다.",
+        "records": "기록이 쌓이면 나만의 위젯이 열립니다."
+      },
+      "summary": {
+        "titleDefault": "하루 요약",
+        "title": {
+          "morning": "아침 요약",
+          "day": "낮 요약",
+          "evening": "저녁 요약"
+        },
+        "read": "읽기",
+        "stop": "정지",
+        "close": "닫기",
+        "notReady": "오늘의 요약은 아직 준비되지 않았습니다.",
+        "noValue": "기록 없음",
+        "mutedNote": "무음 모드라 글로만 보여 드립니다."
+      },
+      "dock": {
+        "capture": "담기",
+        "chat": "대화",
+        "transcribe": "녹음 전사",
+        "transcribeLocked": "녹음 전사, 아직 열리지 않았습니다"
+      }
+    }
   },
   "loading": "루틴을 불러오는 중…",
   "hero": {

@@ -31,7 +31,8 @@ test("an in-phone page shows one Back: the phone row, or the content's own heade
   // 2026-10-01 web QA: Ops screens showed the phone's Back row above their own
   // embedded header Back (both call backInside).
   expect(phone).toContain("const ownsDisplay = museumOpen || phoneScreen !== null;");
-  expect(phone).toContain("const contentOwnsBack = ownsDisplay || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);");
+  // S-01 하루 요약은 자기 [닫기]를 가진다(2026-10-07).
+  expect(phone).toContain('const contentOwnsBack = ownsDisplay || insideRoute === "/board/summary" || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);');
   expect(phone).toContain("{internalActive && !contentOwnsBack ? <PhoneAction");
   expect(phone).not.toContain("{internalActive && !museumOpen ? <PhoneAction");
   expect(phone).toContain("<OpsPhoneContent screen={opsScreen} onBack={backInside}");
@@ -58,7 +59,7 @@ test("hosted full screens get a bounded view, the phone's navigation, and no pho
 });
 
 test("source states, empty records, retry and a safe phone note remain explicit", () => {
-  expect(phone).toContain('t("phone.operational.sourceStates.unknown")');
+  // 'unknown' lived in the old at-a-glance metrics, which left the dashboard on 2026-10-07 (발주 2).
   expect(phone).toContain('t("phone.operational.sourceStates.empty")');
   expect(phone).toContain('accessibilityRole="alert"');
   expect(phone).toContain('withFollowup: false');

@@ -10,6 +10,7 @@
 
 import { kstDayKey } from "@/lib/journal/streak";
 import { domainTagFor } from "@/lib/persona/domain-stars";
+import { RECALL_INTERVIEW_TAG, systemTagsOf } from "@/lib/records/system-tags";
 
 import { CAREER_ACHIEVEMENT_TAG } from "./achievement-form";
 
@@ -40,6 +41,9 @@ export interface CareerRecordRow {
   topic: string | null;
   body: string | null;
   tags: string[] | null;
+  /** The app's markers (0218). Absent when the database has no such column; the
+   *  markers are then still in `tags` (records/system-tags.ts). */
+  system_tags?: string[] | null;
   created_at: string;
 }
 
@@ -51,14 +55,18 @@ export interface CareerYearGroup {
 // Entry-screen metadata identifies the UI language, not the language of every answer.
 // Legacy English interviews used a fixed generated title; other legacy titles
 // remain unknown rather than inferring the user's writing language.
+// The interview marker and the entry-ui marker are the app's (0218
+// records.system_tags), so a user tag that says `interview` does not turn a note
+// into an interview here.
 export function careerRecordOrigin(row: CareerRecordRow): {
   source: "interview" | "record";
   entryUi: "ko" | "en" | null;
 } {
-  const interview = row.kind === "audit_response" && (row.tags ?? []).includes("interview");
+  const markers = systemTagsOf(row);
+  const interview = row.kind === "audit_response" && markers.includes(RECALL_INTERVIEW_TAG);
   if (!interview) return { source: "record", entryUi: null };
-  const hasKoTag = (row.tags ?? []).includes("entry-ui:ko");
-  const hasEnTag = (row.tags ?? []).includes("entry-ui:en");
+  const hasKoTag = markers.includes("entry-ui:ko");
+  const hasEnTag = markers.includes("entry-ui:en");
   const entryUi = hasKoTag && hasEnTag ? null
     : hasKoTag ? "ko"
     : hasEnTag || row.topic === "Recall interview" ? "en" : null;
