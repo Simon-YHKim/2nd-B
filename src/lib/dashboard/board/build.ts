@@ -10,6 +10,7 @@
 import type { HealthSampleRow } from "../../supabase/health";
 import { localDate, realHealthSamples, routineActionRoute, todayAgenda, type DashboardData } from "../model";
 import type { BoardContract, BoardPart, HealthMetric, ReminderDay, ReminderItem } from "./contract";
+import { clockWeatherPresentation, EMPTY_WEATHER, type ClockWeatherInput } from "../../weather/model";
 
 const DAY_OFFSETS = [-1, 0, 1, 2] as const;
 const EMPTY_DAY_KEY = { [-1]: "yesterday", 0: "today", 1: "tomorrow", 2: "dayAfter" } as const;
@@ -93,9 +94,9 @@ function shelfItems(parts: BoardPart[], isMinor: boolean | null) {
   }));
 }
 
-export function buildBoard(data: DashboardData | null, now: Date, isMinor: boolean | null): BoardContract {
+export function buildBoard(data: DashboardData | null, now: Date, isMinor: boolean | null, weather: ClockWeatherInput = EMPTY_WEATHER): BoardContract {
   const parts: BoardPart[] = [
-    { id: "P-01", page: 1, order: 1, shape: "row", visible: true, state: "data", basis: "fact", weather: null, forecastRoute: null },
+    { id: "P-01", page: 1, order: 1, shape: "row", visible: true, state: "data", basis: "fact", ...clockWeatherPresentation(weather, isMinor), forecastRoute: null },
     { ...hidden("P-02", 1, 2, "row"), slot: "morning", line: null, evidenceRoute: null },
     data && data.routines.ok
       ? {

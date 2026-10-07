@@ -21,10 +21,11 @@ import {
 import { boardTone } from "@/lib/dashboard/board/tone";
 import { phoneIos } from "@/lib/theme/phone-ios";
 import { IosButton } from "./IosParts";
-import { WeatherGlyph } from "./WeatherGlyph";
+import { WeatherGlyph, WeatherPin } from "./WeatherGlyph";
 
 /** 부모(DashboardPhone)가 받는 사건. 이동은 폰 안에서 한다. */
 export interface BoardEvents {
+  weather?: (mode: "consent" | "settings" | "source") => void;
   go: (route: string) => void;
   /** P-02 를 누르면 S-01(하루 요약). */
   openSummary: () => void;
@@ -83,7 +84,7 @@ function Evidence({ route, basis, go }: { route: string | null; basis: BoardBasi
   </Pressable>;
 }
 
-function ClockRow({ part, go }: { part: ClockPart; go: (route: string) => void }) {
+function ClockRow({ part, go, openWeather }: { part: ClockPart; go: (route: string) => void; openWeather?: BoardEvents["weather"] }) {
   const { t, i18n } = useTranslation("ops");
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -99,10 +100,13 @@ function ClockRow({ part, go }: { part: ClockPart; go: (route: string) => void }
   const line = [time, day].join(" · ");
   const body = <View style={styles.clockRow}>
     <Text variant="body" style={[styles.clock, styles.flex]}>{line}</Text>
-    {weather ? <View accessible accessibilityLabel={sky ?? undefined} style={styles.sky}>
+    {part.weatherAction ? <Pressable style={styles.weatherTap} accessibilityRole="button" accessibilityLabel={t("phone.board.weather.title")} onPress={() => openWeather?.(part.weatherAction!)}>
+      <WeatherPin />
+    </Pressable> : null}
+    {weather ? <Pressable accessible accessibilityRole="button" accessibilityLabel={sky ?? undefined} style={[styles.sky, styles.weatherTap]} onPress={() => openWeather?.("source")}>
       <WeatherGlyph sky={weather.sky} size={24} />
       {temp != null ? <Text variant="body" style={styles.clock}>{`${temp}°`}</Text> : null}
-    </View> : null}
+    </Pressable> : null}
   </View>;
   return <Frame basis={part.basis} shape={part.shape}>
     {part.forecastRoute ? <Pressable accessibilityRole="button" accessibilityLabel={[line, sky].filter(Boolean).join(" · ")} onPress={() => go(part.forecastRoute!)} style={styles.tapRow}>{body}</Pressable> : body}
@@ -304,7 +308,7 @@ function CustomRow({ part, events }: { part: CustomPart; events: BoardEvents }) 
 
 function PartView({ part, events }: { part: BoardPart; events: BoardEvents }) {
   switch (part.id) {
-    case "P-01": return <ClockRow part={part} go={events.go} />;
+    case "P-01": return <ClockRow part={part} go={events.go} openWeather={events.weather} />;
     case "P-02": return <NoteRow part={part} events={events} />;
     case "P-03": return <RemindersCard part={part} events={events} />;
     case "P-04": return <QueueRow part={part} events={events} />;
@@ -337,6 +341,7 @@ export function BoardPageView({ board, page, events }: { board: BoardContract; p
 
 
 const styles = StyleSheet.create({
+  weatherTap: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
   text: { color: phoneIos.label },
   page: { gap: 10 },
   frame: { paddingHorizontal: 14, paddingVertical: 12, gap: 6 },

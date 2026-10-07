@@ -4,7 +4,7 @@
 // 배소하 · 경기도 안양시 · kim0405@hayangzip.com · 보호책임자 김양환 · prices);
 // no [기입]/[fill] markers remain, so isDraft() is false and the 초안 badge is
 // gone. 사업자등록번호 205-10-98603 was issued 2026-07-22 and posted here on
-// 2026-08-03; nothing in these documents is pending any more.
+// 2026-08-03. GPS weather addenda remain explicitly inactive until their publication conditions are met.
 // Lexicon note: the disclaimers must NAME the services PolaScope is NOT
 // (의료·심리상담·진단·치료) -- this file is allowlisted in
 // src/lib/safety/lexicon.ts LEXICON_SCAN_ALLOWLIST for exactly that reason.
@@ -95,6 +95,22 @@ _시행일: 2026-10-05 · 최종 개정: 2026-10-05_
 - 통신판매업 신고: 면제 사업자 (「전자상거래 등에서의 소비자보호에 관한 법률」 시행령 제11조의 신고 면제 기준에 해당)
 - 문의: kim0405@hayangzip.com (이메일 중심으로 운영합니다). 고객지원은 **영업일 기준 2일 이내** 회신을 목표로 합니다.
 
+### 위치기반서비스 추가 약관안 · 아직 시행하지 않음
+
+작성 판본: weather-v1-261007 · 시행일:  · 사전 공지 기간:
+
+① **사업자**: 하양 프로덕션(개인사업자, 대표: 배소하), 소재지 경기도 안양시, 연락처 kim0405@hayangzip.com. 개인정보 보호책임자는 김양환(kim0405@hayangzip.com)입니다.
+
+② **권리와 행사방법**: 개인위치정보주체는 동의의 전부 또는 일부를 유보·철회하거나 일시 중지를 요구할 수 있으며, 이용·제공사실 확인자료의 열람·고지와 오류 정정을 요구할 수 있습니다. 설정에서 날씨용 위치를 끄거나 위 연락처로 요청합니다. 회사는 정당한 요구를 지체 없이 처리합니다. 동의를 거부·철회해도 다른 앱 기능은 이용할 수 있습니다.
+
+③ **서비스 내용**: 하루 관리판 시계 줄에 기기 위치에 해당하는 날씨 그림과 기온 예보를 제공합니다. 성인 이용자의 별도 동의와 OS 위치 허용 후에만 기기에서 좌표를 소수 둘째 자리(약 1km)로 뭉개 MET Norway에 조회합니다. 백그라운드 위치 추적과 위치 이력 서비스는 제공하지 않습니다. 국외 수신자·목적·항목·시점·보관 조건은 처리방침의 GPS 날씨 추가 고지안을 따릅니다.
+
+④ **이용·제공사실 확인자료**: 위치정보법 제16조 제2항 및 「위치정보의 관리적·기술적 보호조치 기준」 제6조를 근거로 계정 식별자·요청 시각·수신자·사건 종류를 6개월간 보유하고 기간이 지난 자료를 매일 정리합니다. 이 자료에는 좌표·IP·이동 경로를 넣지 않습니다. 계정 삭제 시 확인자료의 계정 식별자를 비웁니다.
+
+⑤ **개인위치정보의 보유 목적·기간**: 대략 좌표는 날씨 조회만을 위해 요청 중 일시 처리하며 회사 서버에 보유하지 않습니다. 기기 메모리 캐시는 최대 30분이고 철회·계정 전환 시 비웁니다. MET Norway의 자체 로그 보관은 회사의 비보관 약속과 구분하며 해당 조건을 확정하기 전에는 서비스를 활성화하지 않습니다. 위치정보와 날씨를 광고·분석·AI 입력에 사용하지 않습니다.
+
+⑥ **만 14세 미만 및 미성년자(제25조)**: 이 서비스는 만 18세 이상으로 확인된 이용자만 별도 동의하여 켤 수 있습니다. 만 14세 미만은 법정대리인 동의를 포함한 별도 개방 절차가 마련되기 전까지 잠겨 있고, 만 14~17세 및 나이 미확인 계정도 잠겨 있습니다. 이 약관은 미성년 위치 기능을 개방하지 않습니다.
+
 ---
 
 ## English
@@ -146,7 +162,23 @@ The Company may change or suspend all or part of the Service for operational/tec
 - Location: Anyang-si, Gyeonggi-do, Republic of Korea
 - Business registration number: 205-10-98603
 - Mail-order business report: exempt (meets the exemption criteria of Article 11 of the Enforcement Decree of Korea's e-commerce act)
-- Contact: kim0405@hayangzip.com (email-first support). Support aims to reply **within 2 business days**.`,
+- Contact: kim0405@hayangzip.com (email-first support). Support aims to reply **within 2 business days**.
+
+### Location-based service addendum · not yet effective
+
+Draft revision: weather-v1-261007 · Effective date:  · Advance notice:
+
+(1) **Operator**: Hayang Production (sole proprietorship; Representative: Bae Soha), Anyang-si, Gyeonggi-do, Republic of Korea; contact kim0405@hayangzip.com. Data Protection Officer: Kim Yang-hwan, at the same email.
+
+(2) **Rights**: You may withhold or withdraw all or part of consent, request a temporary suspension, and request access to or correction of use/provision facts. Turn off location for weather in privacy settings or contact the address above. The Company handles valid requests without delay. Other app features remain available if you decline or withdraw.
+
+(3) **Service**: The daily board clock shows a weather drawing and temperature forecast for the device’s area. Only after adult opt-in and OS permission, coordinates rounded on the device to two decimal places (about 1 km) are sent to MET Norway. There is no background location tracking or location-history service. The weather addendum to the privacy policy identifies the overseas recipient, purpose, items, transfer timing and retention conditions.
+
+(4) **Use/provision facts**: Under Article 16(2) of the Location Information Act and Article 6 of the Standards for Administrative and Technical Protection of Location Information, account identifier, request time, recipient and event type are retained for six months and purged daily after that period. These facts contain no coordinates, IP or movement history. Account deletion clears the account identifier from retained facts.
+
+(5) **Location retention**: Coarse coordinates are processed transiently for weather and not retained on Company servers. The device’s memory cache lasts at most 30 minutes and clears on withdrawal or account change. MET Norway’s own access logs are distinct from Company retention; the feature remains disabled until those conditions are settled. Location and weather are not used for advertising, analytics or AI input.
+
+(6) **Children and minors (Article 25)**: Only confirmed adults aged 18 or older may opt in. Children under 14 remain locked out until a separate opening process including legal-representative consent exists. Users aged 14–17 and accounts with unknown age are also locked out. These terms do not open location features to minors.`,
 };
 
 export const REFUND_DOC: LegalDoc = {
@@ -371,6 +403,22 @@ Supabase Edge Functions와 OpenAI·Anthropic 등 서비스 제공에 필요한 �
 | 2026-08-30 | 제4조 수탁사에 Google Analytics 4·Microsoft Clarity 추가(이용자가 사용 통계에 동의한 경우에만 처리). 제5조에 두 수탁사의 국외 이전 고지 신설(별도 동의 근거·이전 항목·보유기간 명시). |
 | 2026-08-16 | 최초 시행. |
 
+### GPS 날씨 추가 고지안 · 아직 시행하지 않음
+
+작성 판본: weather-v1-261007 · 시행일:  · 사전 공지 기간:
+
+성인 이용자가 별도로 켠 경우에만, 하루 관리판의 날씨를 보여 주기 위해 기기 위치를 소수 둘째 자리(남북 약 1.1km, 동서 거리에 따라 차이)로 뭉갠 좌표를 처리합니다. 정확한 좌표는 기기 밖으로 보내지 않습니다. 위치 동의는 기본 꺼짐이며 만 18세 미만 및 나이를 확인하지 못한 이용자는 켤 수 없습니다. 동의하지 않아도 앱을 이용할 수 있고 날씨만 표시되지 않습니다. 설정의 ‘날씨용 위치’를 끄거나 기기의 위치 권한을 철회할 수 있습니다.
+
+회사는 날씨용 좌표를 DB·로그에 보유하지 않습니다. 날씨 응답과 대략 좌표는 기기 메모리에 최대 30분만 캐시하며 계정 전환·동의 철회 시 비웁니다. 서버는 요청 중에만 대략 좌표를 처리합니다. 별도로 동의값·작성 판본은 계정 삭제까지, 좌표·IP가 없는 동의 및 날씨 요청 사실(계정 식별자, 시각, 수신자 MET Norway, 사건 종류)은 위치정보법 제16조 제2항 및 「위치정보의 관리적·기술적 보호조치 기준」 제6조에 따른 확인자료로 6개월간 보유하고 기간이 지나면 매일 정리합니다. 계정 삭제 시 동의 상태는 삭제하며 확인자료의 계정 식별자는 비웁니다.
+
+**예정된 국외 이전**: 수신자 Norwegian Meteorological Institute(MET Norway, 노르웨이, post@met.no), 목적은 해당 지역의 날씨 예보 조회, 항목은 약 1km로 뭉갠 좌표, 방법·시점은 별도 동의 후 날씨 조회 때 암호화 통신입니다. 회사의 Supabase Edge 프록시가 전달하며 MET에 사용자 계정·이메일·사용자 IP를 전달하지 않습니다. 다만 **MET 약관은 요청 좌표와 접속 IP(이 구성에서는 프록시 IP)를 오슬로 서버 로그에 보관한다고 밝힙니다. 제공자 보관기간은 미확인입니다.** Supabase Edge 실행국과 본문 로그 비보관도 활성화 전에 확인합니다. 국외 이전에 동의하지 않거나 철회하면 날씨만 이용할 수 없습니다. 이 고지안은 아직 시행하지 않으며, 제공자 보관 조건·시행일·공지와 운영 준비를 마칠 때까지 GPS 날씨를 활성화하지 않습니다.
+
+### 추가 개정 이력 · Addendum revision history
+
+| 작성일 / Drafted | 시행일 / Effective | 사전 공지 기간 / Advance notice | 변경 / Change |
+|---|---|---|---|
+| 2026-10-07 |  |  | GPS 날씨용 대략 위치·성인 별도 동의·국외 이전·좌표 비보관 및 확인자료를 추가하는 미시행 고지안 / Inactive draft for coarse weather location, adult opt-in, overseas transfer and coordinate-free request facts. |
+
 ---
 
 ## English
@@ -479,7 +527,22 @@ The 2026-09-26 revision describes data collection, reward records, ticket retent
 | 2026-09-04 | **Factual correction.** Added **OpenAI, L.L.C.** (chat, OCR, voice transcription, embeddings), **Google (Firebase Analytics, app)**, **Sentry (Functional Software, Inc.)** (error and crash diagnostics) and **RevenueCat (RevenueCat, Inc.)** (subscription-state management) to the Section 4 processors. Corrected the Section 5 recipient for voice and audio transcription to **OpenAI** (it previously named a different company), named the transferees by company, and added the Sentry overseas-transfer notice. The previous wording did not match the actual processing paths. RevenueCat is disclosed ahead of enabling in-app purchases. |
 | 2026-08-30 | Added Google Analytics 4 and Microsoft Clarity to the processors in Section 4 (processed only if you turn usage statistics on). Added an overseas-transfer notice for both in Section 5 (legal basis, transferred items, retention). |
 | 2026-08-16 | Initial version. |
-`,
+
+### GPS weather addendum · not yet effective
+
+Draft revision: weather-v1-261007 · Effective date:  · Advance notice:
+
+Only after an adult separately opts in, approximate location is used for weather on the daily board. Coordinates are rounded on the device to two decimal places (about 1.1 km north to south; east-to-west distance varies). Precise coordinates never leave the device. Consent is OFF by default; users under 18 or with unconfirmed age cannot enable it. Declining does not restrict other app features; only weather is unavailable. Turn off “Location for weather” in privacy settings or withdraw device permission at any time.
+
+The Company does not retain weather coordinates in its databases or logs. The device caches the coarse place and forecast in memory for at most 30 minutes and clears them on account change or withdrawal. Servers process the coarse place only during the request. Consent state and its document revision remain until account deletion. Separate consent and weather-request facts (account identifier, time, recipient MET Norway, event type; no coordinates or IP) are retained for six months under Article 16(2) of the Location Information Act and Article 6 of the Standards for Administrative and Technical Protection of Location Information, then purged daily. Account deletion removes consent state and clears the account identifier from the remaining facts.
+
+**Planned overseas transfer**: recipient Norwegian Meteorological Institute (MET Norway, Norway, post@met.no); purpose, local weather forecasts; item, coordinates rounded to about 1 km; method and timing, encrypted communication when weather is requested after separate consent. The Company’s Supabase Edge proxy forwards these coordinates without the user’s account, email or IP. **MET’s terms state that coordinates and connection IP addresses (the proxy’s IP here) are stored in access logs in Oslo. Its retention period is unconfirmed.** Edge execution countries and infrastructure body logging must also be confirmed before activation. Refusing or withdrawing overseas transfer disables only weather. This addendum is not yet effective; GPS weather remains disabled pending provider retention conditions, effective date, notice and deployment readiness.
+
+### 추가 개정 이력 · Addendum revision history
+
+| 작성일 / Drafted | 시행일 / Effective | 사전 공지 기간 / Advance notice | 변경 / Change |
+|---|---|---|---|
+| 2026-10-07 |  |  | GPS 날씨용 대략 위치·성인 별도 동의·국외 이전·좌표 비보관 및 확인자료를 추가하는 미시행 고지안 / Inactive draft for coarse weather location, adult opt-in, overseas transfer and coordinate-free request facts. |`,
 };
 
 export function isDraft(doc: LegalDoc): boolean {

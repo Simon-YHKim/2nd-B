@@ -247,7 +247,8 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(step).toContain("promoted draft still present beside");
     expect(step).toContain("cmp -s");
     expect(step).toContain("drop the retained_until_applied exception");
-    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 71");
+    // 0233 (2026-10-07) registered the two weather tables: 71 -> 73.
+    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 73");
     expect(step).toContain("('0201', 'rss_proxy_erasure_registry')");
     expect(step).not.toMatch(/\\i db\/migration-drafts\/UNNUMBERED_/);
   });

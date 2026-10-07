@@ -12,3 +12,12 @@
 // (REQ-261007-01, HANDOFF). weather-location.test.ts fails the build if this is turned on
 // while any of the four is missing.
 export const WEATHER_LOCATION_ENABLED: boolean = false;
+
+// A disclosure's presence is necessary, not evidence that it has taken effect.
+// The provider explicitly logs coordinates; never silently interpret the
+// server-no-retention decision as applying only to our own database.
+export const WEATHER_LOCATION_BLOCKERS: readonly string[] = [
+  "MET Norway coordinate logs conflict with the no-server-retention condition; provider retention period unconfirmed",
+  "weather addenda effective date, advance notice, full operator address and phone not finalized",
+  "0232/0233 and weather Edge not deployed; infrastructure coordinate logging and execution countries unconfirmed",
+];
