@@ -52,6 +52,7 @@ describe("privacy prefs (task D)", () => {
       // turning this on makes disappearing words permanent. Enforced by
       // chatAutosaveAllowed and visible, shipped together per D-12.
       "chat_autosave",
+      "location_weather",
     ]);
   });
 

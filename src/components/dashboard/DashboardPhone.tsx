@@ -12,6 +12,8 @@ import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { loadDashboard } from "@/lib/dashboard/load";
 import { LIFE_AREAS, type DashboardData } from "@/lib/dashboard/model";
 import { buildBoard } from "@/lib/dashboard/board/build";
+import { useClockWeather } from "@/lib/weather/use-clock-weather";
+import { WeatherSheet } from "./board/WeatherSheet";
 import { DEFAULT_REFRESH_SETTINGS, getRefreshSettings, nextRefreshAt, shouldRefreshAfterResume } from "@/lib/dashboard/refresh-cadence";
 import { fitPhoneArtwork } from "@/lib/dashboard/phone-frame";
 import { PixelScrim } from "@/components/pixel/PixelDither";
@@ -136,6 +138,8 @@ function Wallpaper() {
 
 export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor: boolean | null }) {
   const { t, i18n } = useTranslation("ops");
+  const clockWeather = useClockWeather(ownerId, isMinor, i18n.language);
+  const [weatherSheet, setWeatherSheet] = useState<"consent" | "settings" | "source" | null>(null);
   const { overlay, app } = useLocalSearchParams<{ overlay?: string; app?: string }>();
   const transparentBackdrop = overlay === "home" && router.canGoBack();
   const closePhone = useCallback(() => {
@@ -425,9 +429,10 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       : { month: "short", day: "numeric", weekday: "short" });
   };
   const interviews = data?.interviews.ok ? data.interviews.value.filter((item) => item.body?.trim()) : [];
-  const board = useMemo(() => buildBoard(data, new Date(), isMinor), [data, isMinor]);
+  const board = useMemo(() => buildBoard(data, new Date(), isMinor, clockWeather.state), [data, isMinor, clockWeather.state]);
   // The buttons change only the screen until the W0 contract stores them (발주 2).
   const boardEvents = useMemo<BoardEvents>(() => ({
+    weather: setWeatherSheet,
     go,
     openSummary: () => go("/board/summary"),
     suggestion: (_id, choice) => { if (choice === "add") go("/reminders"); },
@@ -740,6 +745,9 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       />
       </> : null}
     </Animated.View>
+    <WeatherSheet mode={isMinor === false ? weatherSheet : null} busy={clockWeather.state.busy} failed={clockWeather.state.failed}
+      onTerms={() => { clockWeather.cancel(); setWeatherSheet(null); go("/terms"); }}
+      onClose={() => { clockWeather.cancel(); setWeatherSheet(null); }} onEnable={() => { void clockWeather.enable().then((saved) => { if (saved) setWeatherSheet(null); }); }} />
     <CrisisRouter visible={crisisVisible} hotline={i18n.language.toLowerCase().startsWith("ko") ? isMinor ? "KR_1388" : "KR_109" : "GLOBAL_988"} onClose={() => setCrisisVisible(false)} />
   </DeepSpaceScreen>;
 }

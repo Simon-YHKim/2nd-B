@@ -191,6 +191,22 @@
     "refresh": "Refresh",
     "unknownDate": "Date unavailable",
     "board": {
+      "weather": {
+        "title": "Weather",
+        "body": "Use your location rounded to about 1 km to request weather from MET Norway in Norway for your daily board.",
+        "terms": "View terms",
+        "enable": "Turn on",
+        "cancel": "Cancel",
+        "failed": "Could not save. Please try again.",
+        "settingsBody": "Location access is off in device settings.",
+        "webSettingsBody": "Allow location in this browser’s site settings.",
+        "settings": "Open settings",
+        "done": "Done",
+        "setting": "Location for weather",
+        "on": "On",
+        "off": "Off",
+        "source": "Forecast data from MET Norway (CC BY 4.0); conditions are grouped into five drawings and temperature is rounded."
+      },
       "evidence": "Show the source",
       "addWidget": "Add a widget",
       "clock": {

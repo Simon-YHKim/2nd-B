@@ -111,6 +111,22 @@ Supabase Edge Functions와 OpenAI·Anthropic 등 서비스 제공에 필요한 �
 | 2026-08-30 | 제4조 수탁사에 Google Analytics 4·Microsoft Clarity 추가(이용자가 사용 통계에 동의한 경우에만 처리). 제5조에 두 수탁사의 국외 이전 고지 신설(별도 동의 근거·이전 항목·보유기간 명시). |
 | 2026-08-16 | 최초 시행. |
 
+### GPS 날씨 추가 고지안 · 아직 시행하지 않음
+
+작성 판본: weather-v1-261007 · 시행일:  · 사전 공지 기간:
+
+성인 이용자가 별도로 켠 경우에만, 하루 관리판의 날씨를 보여 주기 위해 기기 위치를 소수 둘째 자리(남북 약 1.1km, 동서 거리에 따라 차이)로 뭉갠 좌표를 처리합니다. 정확한 좌표는 기기 밖으로 보내지 않습니다. 위치 동의는 기본 꺼짐이며 만 18세 미만 및 나이를 확인하지 못한 이용자는 켤 수 없습니다. 동의하지 않아도 앱을 이용할 수 있고 날씨만 표시되지 않습니다. 설정의 ‘날씨용 위치’를 끄거나 기기의 위치 권한을 철회할 수 있습니다.
+
+회사는 날씨용 좌표를 DB·로그에 보유하지 않습니다. 날씨 응답과 대략 좌표는 기기 메모리에 최대 30분만 캐시하며 계정 전환·동의 철회 시 비웁니다. 서버는 요청 중에만 대략 좌표를 처리합니다. 별도로 동의값·작성 판본은 계정 삭제까지, 좌표·IP가 없는 동의 및 날씨 요청 사실(계정 식별자, 시각, 수신자 MET Norway, 사건 종류)은 위치정보법 제16조 제2항 및 「위치정보의 관리적·기술적 보호조치 기준」 제6조에 따른 확인자료로 6개월간 보유하고 기간이 지나면 매일 정리합니다. 계정 삭제 시 동의 상태는 삭제하며 확인자료의 계정 식별자는 비웁니다.
+
+**예정된 국외 이전**: 수신자 Norwegian Meteorological Institute(MET Norway, 노르웨이, post@met.no), 목적은 해당 지역의 날씨 예보 조회, 항목은 약 1km로 뭉갠 좌표, 방법·시점은 별도 동의 후 날씨 조회 때 암호화 통신입니다. 회사의 Supabase Edge 프록시가 전달하며 MET에 사용자 계정·이메일·사용자 IP를 전달하지 않습니다. 다만 **MET 약관은 요청 좌표와 접속 IP(이 구성에서는 프록시 IP)를 오슬로 서버 로그에 보관한다고 밝힙니다. 제공자 보관기간은 미확인입니다.** Supabase Edge 실행국과 본문 로그 비보관도 활성화 전에 확인합니다. 국외 이전에 동의하지 않거나 철회하면 날씨만 이용할 수 없습니다. 이 고지안은 아직 시행하지 않으며, 제공자 보관 조건·시행일·공지와 운영 준비를 마칠 때까지 GPS 날씨를 활성화하지 않습니다.
+
+### 추가 개정 이력 · Addendum revision history
+
+| 작성일 / Drafted | 시행일 / Effective | 사전 공지 기간 / Advance notice | 변경 / Change |
+|---|---|---|---|
+| 2026-10-07 |  |  | GPS 날씨용 대략 위치·성인 별도 동의·국외 이전·좌표 비보관 및 확인자료를 추가하는 미시행 고지안 / Inactive draft for coarse weather location, adult opt-in, overseas transfer and coordinate-free request facts. |
+
 ---
 
 ## English
@@ -219,3 +235,19 @@ The 2026-09-26 revision describes data collection, reward records, ticket retent
 | 2026-09-04 | **Factual correction.** Added **OpenAI, L.L.C.** (chat, OCR, voice transcription, embeddings), **Google (Firebase Analytics, app)**, **Sentry (Functional Software, Inc.)** (error and crash diagnostics) and **RevenueCat (RevenueCat, Inc.)** (subscription-state management) to the Section 4 processors. Corrected the Section 5 recipient for voice and audio transcription to **OpenAI** (it previously named a different company), named the transferees by company, and added the Sentry overseas-transfer notice. The previous wording did not match the actual processing paths. RevenueCat is disclosed ahead of enabling in-app purchases. |
 | 2026-08-30 | Added Google Analytics 4 and Microsoft Clarity to the processors in Section 4 (processed only if you turn usage statistics on). Added an overseas-transfer notice for both in Section 5 (legal basis, transferred items, retention). |
 | 2026-08-16 | Initial version. |
+
+### GPS weather addendum · not yet effective
+
+Draft revision: weather-v1-261007 · Effective date:  · Advance notice:
+
+Only after an adult separately opts in, approximate location is used for weather on the daily board. Coordinates are rounded on the device to two decimal places (about 1.1 km north to south; east-to-west distance varies). Precise coordinates never leave the device. Consent is OFF by default; users under 18 or with unconfirmed age cannot enable it. Declining does not restrict other app features; only weather is unavailable. Turn off “Location for weather” in privacy settings or withdraw device permission at any time.
+
+The Company does not retain weather coordinates in its databases or logs. The device caches the coarse place and forecast in memory for at most 30 minutes and clears them on account change or withdrawal. Servers process the coarse place only during the request. Consent state and its document revision remain until account deletion. Separate consent and weather-request facts (account identifier, time, recipient MET Norway, event type; no coordinates or IP) are retained for six months under Article 16(2) of the Location Information Act and Article 6 of the Standards for Administrative and Technical Protection of Location Information, then purged daily. Account deletion removes consent state and clears the account identifier from the remaining facts.
+
+**Planned overseas transfer**: recipient Norwegian Meteorological Institute (MET Norway, Norway, post@met.no); purpose, local weather forecasts; item, coordinates rounded to about 1 km; method and timing, encrypted communication when weather is requested after separate consent. The Company’s Supabase Edge proxy forwards these coordinates without the user’s account, email or IP. **MET’s terms state that coordinates and connection IP addresses (the proxy’s IP here) are stored in access logs in Oslo. Its retention period is unconfirmed.** Edge execution countries and infrastructure body logging must also be confirmed before activation. Refusing or withdrawing overseas transfer disables only weather. This addendum is not yet effective; GPS weather remains disabled pending provider retention conditions, effective date, notice and deployment readiness.
+
+### 추가 개정 이력 · Addendum revision history
+
+| 작성일 / Drafted | 시행일 / Effective | 사전 공지 기간 / Advance notice | 변경 / Change |
+|---|---|---|---|
+| 2026-10-07 |  |  | GPS 날씨용 대략 위치·성인 별도 동의·국외 이전·좌표 비보관 및 확인자료를 추가하는 미시행 고지안 / Inactive draft for coarse weather location, adult opt-in, overseas transfer and coordinate-free request facts. |
