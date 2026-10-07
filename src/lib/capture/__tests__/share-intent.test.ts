@@ -349,6 +349,17 @@ describe("a shareDelivery param from outside is never readable (gate SHARE-A1-02
     expect(registeredIds()).toEqual([]);
   });
 
+  // The check undoes %XX layers only to look for the key; a link with escapes
+  // that never spell it out still comes back byte for byte.
+  test.each([
+    "secondbrain://capture?text=50%25%20off%20%2523tag",
+    "secondbrain:///reset-password?code=a%2Bb%3D",
+    "secondbrain://oauth-callback?code=abc&state=%257B%2522next%2522%253A%2522%252Fcapture%2522%257D",
+  ])("%j has escapes but no delivery key: returned unchanged", (link) => {
+    expect(redirectSystemPath({ path: link, initial: false })).toBe(link);
+    expect(registeredIds()).toEqual([]);
+  });
+
   test("the share-intent rewrite still issues the only readable id", () => {
     const { params } = routeParams(sendLink("hello"));
     expect(parseShareDeliveryId(params[SHARE_DELIVERY_PARAM])).toBe(1);
