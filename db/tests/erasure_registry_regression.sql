@@ -1178,9 +1178,9 @@ BEGIN
   INSERT INTO public.interview_transcript_turns (transcript_id, user_id, turn_no, role, scene_seq, origin, text) VALUES
     (v_transcript, p_uid, 1, 'interviewer', 1, 'fixed', 'q'),
     (v_transcript, p_uid, 2, 'user', 1, 'user', 'a');
-  INSERT INTO public.period_card_proposals (user_id, star_id, request_key, vendor, proposal_text,
+  INSERT INTO public.period_card_proposals (user_id, star_id, request_key, audit_id, vendor, proposal_text,
       evidence_sent, evidence_cited, content_sha, level_before)
-    VALUES (p_uid, 'school', p_tag || '-card-key', 'openai', p_tag || ' card',
+    VALUES (p_uid, 'school', p_tag || '-card-key', pg_catalog.gen_random_uuid(), 'openai', p_tag || ' card',
             ARRAY['record:' || v_interview_record::text || '#t2'], ARRAY['record:' || v_interview_record::text || '#t2'],
             pg_catalog.repeat('a', 64), 2);
 END;

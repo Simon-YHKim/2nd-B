@@ -19,6 +19,22 @@
 --      'r0'(지금 화면 규칙: credited AND pass) 하나만 받는다.
 --   5. 판정 기록 함수는 벤더를 받는다(openai · claude). 어느 프록시든 같은 함수를 부른다.
 --
+-- ── 보안 게이트 1회차(daybreak D6-01~08 · astra D6-51~61)에서 고친 곳 ──────────
+--   감사 해시 수명: 세션 이름으로 온 감사 id 를 결과와 무관하게 전부 적고(interview_session_audit_ids),
+--     판정 행이 어느 길로 지워지든 해시를 먼저 비우고(interview_verdict_erasure), 접은 세션 id 는
+--     tombstone 으로 막는다. 감사 행은 사용자 · purpose · server_verified 를 확인하고, 비우기도 그
+--     사용자의 행만 건드린다(D6-01 · D6-02 = D6-52 · D6-54 · D6-55).
+--   승인 카드 지우기: 클라이언트 역할의 승인 행 직접 DELETE 를 트리거로 막고 delete_period_card 가 체인을
+--     다시 잇고 L5 행을 지운다. 레코드 삭제 트리거는 승인과 같은 사용자 잠금을 잡는다(D6-07 = D6-53 · D6-51).
+--   계정 울타리: 서비스 writer 셋이 0192 공유 잠금 · tombstone 을 본다. 응답 블록 id 는 사용자를 갖고
+--     등록부 · 계정 연쇄 · 레코드 삭제에 묶인다(D6-04 · D6-05).
+--   입력 · 동시성: credited 는 모델 층 NOT NULL · 첫 담기 경합은 already_committed · 시간당 세션 상한은
+--     만든 횟수 · 닫은 뒤 재시도는 판정을 바꾸지 않는다(D6-59 · D6-57 · D6-58 · D6-56).
+--   위기 hold 최소 조치: 화면 값을 서버가 내리지 않고, 프록시가 red 로 적은 호출이 있으면 올리며, 턴과
+--     추론 뷰까지 hold 를 따른다(D6-03 의 일부. Polaris 두 함수는 그대로).
+--   롤백: 저장 안 한 세션을 먼저 접고, 남는 표의 수명주기 장치는 남긴다(rollback/0225_down.sql, D6-06 = D6-61).
+--   그대로 둔 것: D6-60(작은 집단은 보고 때 가린다, Q7), D6-08(직접 쓰기 회수는 다음 번호).
+--
 -- ── 무엇을 하지 않나 ───────────────────────────────────────────────────────
 --   * 클라이언트 직접 쓰기 회수(interview_coverage INSERT · UPDATE, star_tier_history 'ratify'
 --     행)는 여기 없다. 새 화면이 웹 · QA APK 에 다 나간 뒤 그때 빈 번호로 한다(설계 5.1).
@@ -151,8 +167,11 @@ CREATE TABLE IF NOT EXISTS public.interview_probe_verdicts (
   call_count        smallint    NOT NULL DEFAULT 1
     CONSTRAINT interview_probe_verdicts_call_count_check CHECK (call_count BETWEEN 1 AND 50),
   created_at        timestamptz NOT NULL DEFAULT pg_catalog.now(),
+  -- model_layer 가 NULL 이면 `model_layer = asked_layer` 가 NULL 이 되어 CHECK 를 통과한다(D6-59).
+  -- 그래서 NOT NULL 을 따로 적는다.
   CONSTRAINT interview_probe_verdicts_credited_shape CHECK (
-    verdict <> 'credited' OR (asked_layer IS NOT NULL AND model_layer = asked_layer)),
+    verdict <> 'credited'
+    OR (asked_layer IS NOT NULL AND model_layer IS NOT NULL AND model_layer = asked_layer)),
   CONSTRAINT interview_probe_verdicts_source_shape CHECK (
     (source = 'proxy'
        AND verdict IN ('credited', 'none', 'other_layer', 'no_verdict', 'unasked', 'error')
@@ -175,6 +194,35 @@ CREATE INDEX IF NOT EXISTS interview_sessions_pending_idx
   ON public.interview_sessions (last_seen_at) WHERE committed_at IS NULL;
 CREATE INDEX IF NOT EXISTS interview_sessions_record_idx
   ON public.interview_sessions (record_id) WHERE record_id IS NOT NULL;
+
+-- 1.2a 세션의 감사 id. 프록시가 이 세션 이름으로 보낸 판정 호출의 ai_audit_log.id 를 결과와 무관하게
+-- 전부 적는다(기록 · 교체 · 장면 역행 · 상한 초과 · 종료 뒤 재시도). 거절한 호출도 화면에는 응답이
+-- 갔을 수 있으므로, 그 해시는 세션이 저장된 동안만 남고 세션을 접을 때 함께 비운다(D6-54).
+-- 판정 행의 audit_id · prior_audit_ids 도 모두 여기 있다. 소유자 열 없음: 세션을 따라 지워진다.
+CREATE TABLE IF NOT EXISTS public.interview_session_audit_ids (
+  audit_id    uuid        PRIMARY KEY,
+  session_id  uuid        NOT NULL REFERENCES public.interview_sessions(id) ON DELETE CASCADE,
+  created_at  timestamptz NOT NULL DEFAULT pg_catalog.now()
+);
+CREATE INDEX IF NOT EXISTS interview_session_audit_ids_session_idx
+  ON public.interview_session_audit_ids (session_id);
+
+-- 1.2b 접은 세션 id. 접힌 뒤 늦게 온 판정 · 닫기가 같은 id 로 세션을 다시 만들지 못하게 한다(D6-55).
+-- 소유자 · 숫자 없이 id 와 시각만. 7일 뒤 prune 이 지운다(늦은 호출은 몇 분 안에 온다).
+CREATE TABLE IF NOT EXISTS public.interview_session_tombstones (
+  session_id  uuid        PRIMARY KEY,
+  created_at  timestamptz NOT NULL DEFAULT pg_catalog.now()
+);
+
+-- 1.2c 세션 만든 횟수(10분 칸). 버리기(discard)가 세션 행을 지워도 줄지 않는다(D6-58).
+-- 닫기가 지난 한 시간의 합으로 새 세션 상한을 본다. 두 시간이 지난 칸은 sweep 이 지운다.
+CREATE TABLE IF NOT EXISTS public.interview_session_starts (
+  owner_id      uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  bucket_start  timestamptz NOT NULL,
+  created       integer     NOT NULL DEFAULT 0
+    CONSTRAINT interview_session_starts_created_check CHECK (created BETWEEN 0 AND 1000000),
+  PRIMARY KEY (owner_id, bucket_start)
+);
 
 -- 1.3 대화록. 저장을 고른 대화만 온다(쓰는 곳은 commit_interview_session 하나).
 CREATE TABLE IF NOT EXISTS public.interview_transcripts (
@@ -256,8 +304,9 @@ CREATE TABLE IF NOT EXISTS public.period_card_proposals (
       CHECK (star_id IN ('infancy', 'school', 'twenties', 'later', 'work', 'now')),
   request_key     text        NOT NULL
     CONSTRAINT period_card_proposals_request_key_check CHECK (pg_catalog.char_length(request_key) BETWEEN 8 AND 120),
-  -- self_model_propose 호출의 감사 행(FK 없음: 감사 행은 계정 삭제 뒤에도 남는다).
-  audit_id        uuid        NULL,
+  -- self_model_propose 호출의 감사 행(FK 없음: 감사 행은 계정 삭제 뒤에도 남는다). 기록 함수가
+  -- 같은 사용자 · purpose · server_verified 인지 확인한 것만 온다(D6-01).
+  audit_id        uuid        NOT NULL,
   vendor          text        NOT NULL
     CONSTRAINT period_card_proposals_vendor_check CHECK (vendor IN ('openai', 'claude')),
   proposal_text   text        NOT NULL
@@ -348,8 +397,12 @@ CREATE TABLE IF NOT EXISTS public.interview_unsaved_rollup (
 );
 
 -- 1.6 세컨비 응답이 문맥에 실은 블록 id. id 만, 내용 없음. 읽기 계층 R 이 채운다(계약만).
+-- 감사 행은 계정 삭제 뒤에도 남으므로(user_id SET NULL) 감사 FK 연쇄로는 지워지지 않는다. 그래서
+-- 감사 행에서 확인한 사용자를 따로 적어 계정 연쇄 · 삭제 등록부(0226)에 묶는다(D6-05). 레코드를
+-- 지우면 그 레코드 id 를 실은 행은 records 삭제 트리거가 지운다.
 CREATE TABLE IF NOT EXISTS public.ai_audit_context_blocks (
   audit_id       uuid        PRIMARY KEY REFERENCES public.ai_audit_log(id) ON DELETE CASCADE,
+  user_id        uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   purpose        text        NOT NULL
     CONSTRAINT ai_audit_context_blocks_purpose_check CHECK (purpose IN ('secondb_chat')),
   reader_version text        NOT NULL
@@ -363,6 +416,8 @@ CREATE TABLE IF NOT EXISTS public.ai_audit_context_blocks (
     CONSTRAINT ai_audit_context_blocks_cited_check CHECK (cited_ids IS NULL OR cited_ids <@ block_ids),
   created_at     timestamptz NOT NULL DEFAULT pg_catalog.now()
 );
+CREATE INDEX IF NOT EXISTS ai_audit_context_blocks_user_idx
+  ON public.ai_audit_context_blocks (user_id);
 
 COMMENT ON TABLE public.interview_sessions IS
   '0225 인터뷰 세션(화면 한 번). 종료 사유 · 저장 시각. 원문 없음. 저장하지 않은 세션은 fold 가 집계로 접고 지운다.';
@@ -377,7 +432,13 @@ COMMENT ON TABLE public.period_card_proposals IS
 COMMENT ON TABLE public.interview_unsaved_rollup IS
   '0225 저장하지 않은 인터뷰의 소유자 없는 주 단위 집계. 숫자와 열거값만.';
 COMMENT ON TABLE public.ai_audit_context_blocks IS
-  '0225 세컨비 응답이 문맥에 실은 블록 id(내용 없음). 감사 행을 따라 지워지고 90일 뒤 정리된다.';
+  '0225 세컨비 응답이 문맥에 실은 블록 id(내용 없음). 계정 · 그 레코드를 지우면 함께 지워지고 90일 뒤 정리된다.';
+COMMENT ON TABLE public.interview_session_audit_ids IS
+  '0225 세션 이름으로 온 판정 호출의 감사 id 전부(거절 포함). 세션을 접을 때 그 해시를 비운다.';
+COMMENT ON TABLE public.interview_session_tombstones IS
+  '0225 접은 세션 id. 늦은 호출이 세션을 다시 만들지 못하게 한다. 소유자 없음, 7일 보관.';
+COMMENT ON TABLE public.interview_session_starts IS
+  '0225 사용자별 세션 생성 횟수(10분 칸). 버리기로 줄지 않는 생성 상한용. 2시간 보관.';
 
 -- RLS: 모든 표 강제. 클라이언트는 대화록 두 표 · 제안 표의 자기 행만 읽고 지운다(삭제 등록부 G3).
 ALTER TABLE public.interview_sessions ENABLE ROW LEVEL SECURITY;
@@ -394,6 +455,12 @@ ALTER TABLE public.interview_unsaved_rollup ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.interview_unsaved_rollup FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_audit_context_blocks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_audit_context_blocks FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.interview_session_audit_ids ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.interview_session_audit_ids FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.interview_session_tombstones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.interview_session_tombstones FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.interview_session_starts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.interview_session_starts FORCE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS interview_transcripts_select_own ON public.interview_transcripts;
 CREATE POLICY interview_transcripts_select_own ON public.interview_transcripts
@@ -410,6 +477,10 @@ CREATE POLICY interview_transcript_turns_delete_own ON public.interview_transcri
 DROP POLICY IF EXISTS period_card_proposals_select_own ON public.period_card_proposals;
 CREATE POLICY period_card_proposals_select_own ON public.period_card_proposals
   FOR SELECT TO authenticated USING (user_id = (select auth.uid()));
+-- 제안 표의 본인 DELETE 는 남긴다(삭제 등록부 client_erasable 49: erase_my_data 가 이 표를 지우고,
+-- 거절 · 빗나간 곳 행에는 사용자가 쓴 miss_text 가 있다). 다만 승인 카드는 체인(superseded_by)과
+-- L5 행이 걸려 있어 직접 지우면 깨진다(D6-07 · D6-53). 그래서 승인 행의 클라이언트 직접 DELETE 는
+-- 아래 트리거(period_card_delete_guard)가 막고, 소유자는 delete_period_card 로 지운다.
 DROP POLICY IF EXISTS period_card_proposals_delete_own ON public.period_card_proposals;
 CREATE POLICY period_card_proposals_delete_own ON public.period_card_proposals
   FOR DELETE TO authenticated USING (user_id = (select auth.uid()));
@@ -418,7 +489,8 @@ CREATE POLICY period_card_proposals_delete_own ON public.period_card_proposals
 -- 필요한 것은 파일 끝의 권한 블록에서 다시 준다.
 REVOKE ALL ON TABLE public.interview_sessions, public.interview_probe_verdicts,
   public.interview_transcripts, public.interview_transcript_turns, public.period_card_proposals,
-  public.interview_unsaved_rollup, public.ai_audit_context_blocks
+  public.interview_unsaved_rollup, public.ai_audit_context_blocks,
+  public.interview_session_audit_ids, public.interview_session_tombstones, public.interview_session_starts
   FROM PUBLIC, anon, authenticated, service_role;
 
 ----------------------------------------------------------------------
@@ -465,13 +537,15 @@ COMMENT ON VIEW public.interview_scene_metrics IS
   '0225: 인터뷰 장면 단위 지표(깊이 · 종료 사유 · 거부율 · 발판 회복 · 말문 후보). service_role 만.';
 
 -- 층 판정(basis = 추론)을 레코드에 턴 번호로 연결한 모양. 읽기 계층이 그대로 합칠 수 있게.
+-- AI 처리에서 뺀 대화록(ai_hold)은 싣지 않는다(D6-03 의 최소 보수 조치).
 CREATE OR REPLACE VIEW public.record_layer_inferences
 WITH (security_invoker = true) AS
 SELECT t.record_id, v.turn_no, v.asked_layer AS layer, 'inferred'::text AS basis,
        v.final_credit, v.verdict, v.model_layer, v.local_gate, v.rule_set
   FROM public.interview_probe_verdicts AS v
   JOIN public.interview_transcripts AS t ON t.id = v.transcript_id
- WHERE v.link_state = 'linked';
+ WHERE v.link_state = 'linked'
+   AND NOT t.ai_hold;
 
 COMMENT ON VIEW public.record_layer_inferences IS
   '0225: 담은 인터뷰 레코드의 턴별 층 판정(추론). service_role 만.';
@@ -512,8 +586,9 @@ AS $$
 $$;
 
 -- 감사 행의 두 해시를 빈 문자열로 비운다(D2). 감사 행 자체 · 사용자 · 시각 · 토큰은 남는다(C3).
--- 링크 스크랩(S6a)도 같은 함수를 쓴다(Q8).
-CREATE OR REPLACE FUNCTION public.erase_audit_hashes(p_ids uuid[], p_purpose text)
+-- 링크 스크랩(S6a)도 같은 함수를 쓴다(Q8). 그 사용자 · 그 purpose 의 행만 건드린다(D6-01): 잘못
+-- 묶인 id 가 와도 남의 감사 행은 비우지 않는다.
+CREATE OR REPLACE FUNCTION public.erase_audit_hashes(p_user_id uuid, p_ids uuid[], p_purpose text)
 RETURNS integer
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -523,13 +598,14 @@ AS $$
 DECLARE
   v_n integer;
 BEGIN
-  IF p_ids IS NULL OR pg_catalog.cardinality(p_ids) = 0 THEN
+  IF p_user_id IS NULL OR p_ids IS NULL OR pg_catalog.cardinality(p_ids) = 0 THEN
     RETURN 0;
   END IF;
   UPDATE public.ai_audit_log AS a
      SET prompt_hash = '',
          output_hash = ''
    WHERE a.id = ANY (p_ids)
+     AND a.user_id = p_user_id
      AND a.purpose IS NOT DISTINCT FROM p_purpose
      AND (a.prompt_hash <> '' OR a.output_hash <> '');
   GET DIAGNOSTICS v_n = ROW_COUNT;
@@ -537,10 +613,31 @@ BEGIN
 END;
 $$;
 
+-- 서비스 writer 의 계정 울타리(D6-04). 0192 begin_account_deletion 의 배타 잠금과 같은 키의 공유 잠금을
+-- 잡고, 사용자 행이 있고 삭제 tombstone 이 없을 때만 참이다. assert_polaris_account_active(0195)와 같은
+-- 규칙이지만 예외 대신 거짓을 돌려줘 프록시 writer 가 사유 문자열로 답할 수 있게 한다.
+CREATE OR REPLACE FUNCTION public.interview_account_writable(p_user_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+SET row_security = off
+AS $$
+BEGIN
+  IF p_user_id IS NULL THEN
+    RETURN false;
+  END IF;
+  PERFORM pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtextextended(p_user_id::text, 260913));
+  RETURN EXISTS (SELECT 1 FROM public.users AS u WHERE u.id = p_user_id)
+     AND NOT EXISTS (SELECT 1 FROM public.account_deletion_tombstones AS t WHERE t.user_id = p_user_id);
+END;
+$$;
+
 -- 세션 하나를 소유자 없는 집계로 접고 지운다(D2 흔적 0).
 --   ① 세션 · 판정 행을 주(KST) × 시기 × 언어 × 벤더 × 규칙 판 × outcome × 종료 사유로 세어 더한다.
---   ② 판정 행의 감사 id(앞선 호출 포함)의 해시를 비운다.
---   ③ 판정 행 · 세션 행을 지운다(대화록이 있으면 세션 FK 연쇄로 함께 지워진다).
+--   ② 이 세션 이름으로 온 감사 id 전부(판정 행의 현재 · 앞선 호출, 거절한 호출)의 해시를 비운다.
+--   ③ 세션 id 를 tombstone 에 남긴다(늦은 호출이 같은 id 로 다시 만들지 못하게, D6-55).
+--   ④ 판정 행 · 세션 행을 지운다(대화록 · 감사 id 행은 세션 FK 연쇄로 함께 지워진다).
 CREATE OR REPLACE FUNCTION public.fold_interview_session(p_session_id uuid, p_outcome text)
 RETURNS void
 LANGUAGE plpgsql
@@ -666,13 +763,70 @@ BEGIN
            WHERE v.session_id = p_session_id AND v.audit_id IS NOT NULL
           UNION ALL
           SELECT pg_catalog.unnest(v.prior_audit_ids) FROM public.interview_probe_verdicts AS v
-           WHERE v.session_id = p_session_id) AS ids;
-  PERFORM public.erase_audit_hashes(v_ids, 'interview_probe');
+           WHERE v.session_id = p_session_id
+          UNION ALL
+          SELECT i.audit_id FROM public.interview_session_audit_ids AS i
+           WHERE i.session_id = p_session_id) AS ids;
+  PERFORM public.erase_audit_hashes(v_s.owner_id, v_ids, 'interview_probe');
+
+  INSERT INTO public.interview_session_tombstones AS t (session_id) VALUES (p_session_id)
+  ON CONFLICT (session_id) DO UPDATE SET created_at = pg_catalog.now();
 
   DELETE FROM public.interview_probe_verdicts AS v WHERE v.session_id = p_session_id;
   DELETE FROM public.interview_sessions AS s WHERE s.id = p_session_id;
 END;
 $$;
+
+-- 판정 행이 어느 길로 지워지든(대화록 턴 · 머리를 먼저 지우는 삭제 등록부 순서 28 → 29 → 30, 소유자의
+-- 직접 DELETE, fold) 그 행의 감사 id 해시를 먼저 비운다(D6-02). 소유자는 세션 행에서 읽는다. 세션이
+-- 이미 없으면(계정 삭제 연쇄) 감사 행도 사용자 연결이 끊기므로(SET NULL) 건너뛴다.
+CREATE OR REPLACE FUNCTION public.interview_verdict_erasure()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+SET row_security = off
+AS $$
+DECLARE
+  v_owner uuid;
+BEGIN
+  SELECT s.owner_id INTO v_owner FROM public.interview_sessions AS s WHERE s.id = OLD.session_id;
+  IF v_owner IS NOT NULL THEN
+    PERFORM public.erase_audit_hashes(v_owner,
+      pg_catalog.array_remove(OLD.prior_audit_ids || OLD.audit_id, NULL), 'interview_probe');
+  END IF;
+  RETURN OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS interview_verdict_erasure ON public.interview_probe_verdicts;
+CREATE TRIGGER interview_verdict_erasure
+  BEFORE DELETE ON public.interview_probe_verdicts
+  FOR EACH ROW WHEN (OLD.audit_id IS NOT NULL OR pg_catalog.cardinality(OLD.prior_audit_ids) > 0)
+  EXECUTE FUNCTION public.interview_verdict_erasure();
+
+-- 세션을 만들 때마다 만든 사람의 10분 칸을 하나 올린다(D6-58). 어느 길(프록시 판정 · 닫기 · 담기)로
+-- 만들든 센다. 버리기(fold)가 세션 행을 지워도 이 칸은 줄지 않는다.
+CREATE OR REPLACE FUNCTION public.interview_session_count_start()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+SET row_security = off
+AS $$
+BEGIN
+  INSERT INTO public.interview_session_starts AS c (owner_id, bucket_start, created)
+  VALUES (NEW.owner_id,
+          pg_catalog.date_bin(INTERVAL '10 minutes', NEW.started_at, TIMESTAMPTZ '2000-01-01 00:00:00+00'), 1)
+  ON CONFLICT (owner_id, bucket_start) DO UPDATE SET created = LEAST(c.created + 1, 1000000);
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS interview_session_count_start ON public.interview_sessions;
+CREATE TRIGGER interview_session_count_start
+  AFTER INSERT ON public.interview_sessions
+  FOR EACH ROW EXECUTE FUNCTION public.interview_session_count_start();
 
 ----------------------------------------------------------------------
 -- 4. 판정 기록 (프록시 전용, service_role)
@@ -685,6 +839,12 @@ $$;
 -- 세션 행이 없으면 만든다(소유자 = JWT 사용자). 남의 세션 · 담기가 끝난 세션 · 시기나 언어가 다른
 -- 세션 · 장면 번호가 거꾸로 간 호출은 적지 않고 사유를 돌려준다. 같은 턴을 다시 부르면(장애 전환
 -- 재시도 · 화면의 다시 묻기) 나중 것이 이기고 앞 감사 id 는 prior_audit_ids 로 옮긴다.
+--
+-- 감사 해시의 수명(D6-01 · D6-54 · D6-55): 먼저 계정 울타리(0192 공유 잠금 · tombstone)를 지나고, 감사
+-- 행이 이 사용자 · interview_probe · server_verified 인지 확인한다. 확인된 감사 id 는 결과와 무관하게
+-- 세션의 감사 id(interview_session_audit_ids)로 적어, 세션이 접힐 때 함께 비운다. 세션에 붙일 수 없는
+-- 호출(이미 접힌 세션 · 남의 세션)은 그 자리에서 해시를 비운다. 접힌 세션은 다시 만들지 않는다.
+-- 세션을 닫은 뒤 같은 턴의 재시도는 판정 · 시각을 바꾸지 않는다(D6-56: 종료 시점의 판정이 칸을 정한다).
 CREATE OR REPLACE FUNCTION public.record_interview_probe_verdict(
   p_user_id uuid,
   p_audit_id uuid,
@@ -751,32 +911,61 @@ BEGIN
   IF p_final_credit IS DISTINCT FROM (p_verdict = 'credited' AND p_local_gate = 'pass') THEN
     RAISE EXCEPTION 'interview_final_credit_mismatch' USING ERRCODE = '22023';
   END IF;
-  -- 계정이 이미 지워졌으면 아무것도 만들지 않는다(연쇄가 지운 뒤 늦게 온 호출).
-  IF NOT EXISTS (SELECT 1 FROM auth.users AS u WHERE u.id = p_user_id) THEN
+  -- 인정은 모델이 질문 층을 말했을 때만이다. NULL 층의 credited 는 CHECK 에 닿기 전에 거절한다(D6-59).
+  IF p_verdict = 'credited'
+     AND (p_asked_layer IS NULL OR p_model_layer IS NULL OR p_model_layer <> p_asked_layer) THEN
+    RAISE EXCEPTION 'interview_verdict_invalid' USING ERRCODE = '22023';
+  END IF;
+  -- 계정이 지워지는 중이거나 지워졌으면 아무것도 만들지 않는다(D6-04).
+  IF NOT public.interview_account_writable(p_user_id) THEN
     RETURN 'no_account';
   END IF;
-
-  INSERT INTO public.interview_sessions AS s (id, owner_id, period, locale, vendor)
-  VALUES (p_session_id, p_user_id, p_period, p_locale, p_vendor)
-  ON CONFLICT (id) DO NOTHING;
+  -- 감사 행 결속(D6-01). 남의 감사 행이면 적지도 비우지도 않는다.
+  IF NOT EXISTS (SELECT 1 FROM public.ai_audit_log AS a
+                  WHERE a.id = p_audit_id AND a.user_id = p_user_id
+                    AND a.purpose = 'interview_probe' AND a.event_source = 'server_verified') THEN
+    RETURN 'audit_mismatch';
+  END IF;
+  -- 같은 감사 행으로 두 번 온 호출(프록시 재시도). 첫 결과만 남긴다.
+  IF EXISTS (SELECT 1 FROM public.interview_session_audit_ids AS i WHERE i.audit_id = p_audit_id) THEN
+    RETURN 'duplicate';
+  END IF;
 
   SELECT * INTO v_session
     FROM public.interview_sessions AS s
    WHERE s.id = p_session_id
    FOR UPDATE;
+  IF NOT FOUND THEN
+    -- 이미 접힌 세션(버리기 · 유휴 정리 · 레코드 삭제)에 늦게 온 호출. 다시 만들지 않는다(D6-55).
+    IF EXISTS (SELECT 1 FROM public.interview_session_tombstones AS t WHERE t.session_id = p_session_id) THEN
+      PERFORM public.erase_audit_hashes(p_user_id, ARRAY[p_audit_id], 'interview_probe');
+      RETURN 'session_closed';
+    END IF;
+    INSERT INTO public.interview_sessions AS s (id, owner_id, period, locale, vendor)
+    VALUES (p_session_id, p_user_id, p_period, p_locale, p_vendor)
+    ON CONFLICT (id) DO NOTHING;
+    SELECT * INTO v_session
+      FROM public.interview_sessions AS s
+     WHERE s.id = p_session_id
+     FOR UPDATE;
+  END IF;
   IF v_session.owner_id IS DISTINCT FROM p_user_id THEN
+    PERFORM public.erase_audit_hashes(p_user_id, ARRAY[p_audit_id], 'interview_probe');
     RETURN 'session_not_owned';
+  END IF;
+
+  -- 여기부터 이 감사 id 는 이 세션의 것이다. 아래에서 거절해도 세션을 접을 때 함께 비운다(D6-54).
+  INSERT INTO public.interview_session_audit_ids AS i (audit_id, session_id)
+  VALUES (p_audit_id, p_session_id)
+  ON CONFLICT (audit_id) DO NOTHING;
+  IF NOT FOUND THEN
+    RETURN 'duplicate';
   END IF;
   IF v_session.committed_at IS NOT NULL THEN
     RETURN 'session_committed';
   END IF;
   IF v_session.period <> p_period OR v_session.locale <> p_locale THEN
     RETURN 'session_mismatch';
-  END IF;
-  IF EXISTS (SELECT 1 FROM public.interview_probe_verdicts AS v
-              WHERE v.audit_id = p_audit_id OR p_audit_id = ANY (v.prior_audit_ids)) THEN
-    -- 같은 감사 행으로 두 번 온 호출(프록시 재시도). 첫 행만 남긴다.
-    RETURN 'duplicate';
   END IF;
 
   -- 같은 턴의 재호출은 장면이 거꾸로 간 것이 아니다. 먼저 찾아 바꾼다(장면 번호는 바뀌지 않는다).
@@ -790,6 +979,13 @@ BEGIN
     END IF;
     IF v_existing.scene_seq <> p_scene_seq THEN
       RETURN 'scene_regressed';
+    END IF;
+    -- 닫힌 뒤의 재시도는 호출 수만 센다. 화면이 닫을 때 본 판정과 그 시각이 칸을 정한다(D6-56).
+    IF v_session.ended_at IS NOT NULL THEN
+      UPDATE public.interview_probe_verdicts AS v
+         SET call_count = LEAST(v.call_count + 1, 50)
+       WHERE v.id = v_existing.id;
+      RETURN 'session_closed';
     END IF;
     UPDATE public.interview_probe_verdicts AS v
        SET prior_audit_ids = CASE WHEN v.audit_id IS NULL THEN v.prior_audit_ids
@@ -849,7 +1045,9 @@ $$;
 -- 5. 세션 닫기 · 버리기 (화면, authenticated)
 ----------------------------------------------------------------------
 -- 종료 사유는 클라이언트가 보고한 값이다(속일 수 있다). 판정 호출이 한 번도 없던 대화는 세션 행이
--- 없으므로 여기서 만든다. 한 시간에 새 세션 30개를 넘게 만들지는 못한다. 처음 적힌 사유가 이긴다.
+-- 없으므로 여기서 만든다. 한 시간에 새 세션 30개를 넘게 만들지는 못한다 - 남은 세션 행이 아니라
+-- 만든 횟수(interview_session_starts)를 센다. 버리기가 행을 지워도 되감기지 않는다(D6-58).
+-- 이미 접힌 세션 id 는 다시 만들지 않는다(D6-55). 처음 적힌 사유가 이긴다.
 CREATE OR REPLACE FUNCTION public.close_interview_session(
   p_session_id uuid,
   p_period text,
@@ -888,9 +1086,12 @@ BEGIN
     pg_catalog.hashtextextended('interview_session_close:' || v_uid::text, 0));
 
   IF NOT EXISTS (SELECT 1 FROM public.interview_sessions AS s WHERE s.id = p_session_id) THEN
-    IF (SELECT pg_catalog.count(*) FROM public.interview_sessions AS s
-         WHERE s.owner_id = v_uid
-           AND s.started_at > pg_catalog.now() - INTERVAL '1 hour') >= c_new_sessions_per_hour THEN
+    IF EXISTS (SELECT 1 FROM public.interview_session_tombstones AS t WHERE t.session_id = p_session_id) THEN
+      RETURN 'not_found';
+    END IF;
+    IF (SELECT COALESCE(pg_catalog.sum(c.created), 0) FROM public.interview_session_starts AS c
+         WHERE c.owner_id = v_uid
+           AND c.bucket_start > pg_catalog.now() - INTERVAL '1 hour') >= c_new_sessions_per_hour THEN
       RETURN 'rate_limited';
     END IF;
     INSERT INTO public.interview_sessions AS s (id, owner_id, period, locale)
@@ -969,8 +1170,12 @@ $$;
 --      undelivered 로 붙이고 해시를 비운다. 없으면 클라이언트 행(local_block · control · error ·
 --      unrecorded)을 넣는다. 대화록에 없는 턴의 프록시 행은 orphan.
 --   6. 칸: final_credit AND linked 인 행을 장면마다 층당 1 로 interview_coverage 에 원자적으로 더한다.
---      p_crisis_hold 면 더하지 않는다(지금 화면이 저장 시 red 면 칸을 안 쓰는 것과 같다).
+--      hold 면 더하지 않는다(지금 화면이 저장 시 red 면 칸을 안 쓰는 것과 같다).
 --   7. 끝에서 판정 행 수 = 답 턴 수를 확인한다(완료조건 1 의 서버 쪽 불변식).
+-- hold(D6-03, 최소 보수 조치): 화면이 보낸 p_crisis_hold 를 서버가 내리지는 않는다. 이 세션의 감사 행
+-- 중 프록시가 red 로 적은 것이 있으면 화면이 false 를 보내도 올린다. hold 는 머리와 모든 턴에 같이 적는다.
+-- 동시에 온 첫 담기 둘(세션 행 없음)은 한쪽이 세션을 만들고 다른 쪽은 그 잠금 뒤에서 already_committed
+-- 를 받는다(D6-57: 일반 INSERT 의 23505 대신).
 CREATE OR REPLACE FUNCTION public.commit_interview_session(
   p_session_id uuid,
   p_record_id uuid,
@@ -1008,6 +1213,7 @@ DECLARE
   v_orphans integer;
   v_cells integer := 0;
   v_created boolean := false;
+  v_hold boolean;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'authentication required' USING ERRCODE = '42501';
@@ -1097,22 +1303,43 @@ BEGIN
   END IF;
 
   IF v_session.id IS NULL THEN
+    -- 처음 보는 세션. 동시에 온 다른 담기가 먼저 만들었을 수 있으므로 충돌을 받아 넘기고,
+    -- 그 잠금 뒤에서 소유자 · 담기 여부 · 시기 · 언어를 다시 본다(D6-57).
     INSERT INTO public.interview_sessions AS s (id, owner_id, period, locale)
-    VALUES (p_session_id, v_uid, v_record_period, v_locale);
+    VALUES (p_session_id, v_uid, v_record_period, v_locale)
+    ON CONFLICT (id) DO NOTHING;
+    v_created := FOUND;
     SELECT * INTO v_session FROM public.interview_sessions AS s WHERE s.id = p_session_id FOR UPDATE;
-    v_created := true;
+    IF NOT FOUND OR v_session.owner_id IS DISTINCT FROM v_uid THEN
+      RETURN pg_catalog.jsonb_build_object('status', 'not_found');
+    END IF;
+    IF v_session.committed_at IS NOT NULL THEN
+      RETURN pg_catalog.jsonb_build_object('status', 'already_committed', 'record_id', v_session.record_id);
+    END IF;
+    IF v_session.period <> v_record_period THEN
+      RETURN pg_catalog.jsonb_build_object('status', 'record_mismatch');
+    END IF;
+    IF v_session.locale <> v_locale THEN
+      RETURN pg_catalog.jsonb_build_object('status', 'transcript_mismatch');
+    END IF;
   END IF;
 
+  v_hold := p_crisis_hold
+    OR EXISTS (SELECT 1
+                 FROM public.interview_session_audit_ids AS i
+                 JOIN public.ai_audit_log AS a ON a.id = i.audit_id
+                WHERE i.session_id = p_session_id AND a.user_id = v_uid AND a.safety_zone = 'red');
+
   INSERT INTO public.interview_transcripts AS t (user_id, session_id, record_id, period, locale, turn_count, ai_hold)
-  VALUES (v_uid, p_session_id, p_record_id, v_session.period, v_locale, v_count, p_crisis_hold)
+  VALUES (v_uid, p_session_id, p_record_id, v_session.period, v_locale, v_count, v_hold)
   RETURNING t.id INTO v_transcript;
 
   INSERT INTO public.interview_transcript_turns AS tt (
-    transcript_id, user_id, turn_no, role, scene_seq, asked_layer, origin, ask_kind, opener_unedited, text)
+    transcript_id, user_id, turn_no, role, scene_seq, asked_layer, origin, ask_kind, opener_unedited, text, ai_hold)
   SELECT v_transcript, v_uid, (e.value ->> 'n')::integer, e.value ->> 'role', (e.value ->> 'scene')::integer,
          e.value ->> 'layer', e.value ->> 'origin', e.value ->> 'ask_kind',
          CASE WHEN e.value ->> 'role' = 'user' THEN (e.value ->> 'opener_unedited')::boolean END,
-         e.value ->> 'text'
+         e.value ->> 'text', v_hold
     FROM pg_catalog.jsonb_array_elements(p_turns) AS e(value);
 
   -- 판정 행 맞추기: 답 턴마다 정확히 한 행.
@@ -1179,7 +1406,7 @@ BEGIN
     RAISE EXCEPTION 'interview_ledger_turn_count % <> %', v_rows, v_user_turns USING ERRCODE = 'P0001';
   END IF;
 
-  IF NOT p_crisis_hold THEN
+  IF NOT v_hold THEN
     WITH credited AS (
       SELECT v.asked_layer AS layer, pg_catalog.count(DISTINCT v.scene_seq)::integer AS scenes
         FROM public.interview_probe_verdicts AS v
@@ -1212,6 +1439,7 @@ BEGIN
   RETURN pg_catalog.jsonb_build_object(
     'status', 'committed',
     'session_created', v_created,
+    'ai_hold', v_hold,
     'user_turns', v_user_turns,
     'ledger_rows', v_rows,
     'proxy_rows', v_proxy,
@@ -1224,7 +1452,8 @@ $$;
 ----------------------------------------------------------------------
 -- 7. 저장 안 한 세션 정리 (pg_cron · service_role)
 ----------------------------------------------------------------------
--- 마지막 활동에서 6시간이 지나도 담지 않은 세션을 접는다(Q6).
+-- 마지막 활동에서 6시간이 지나도 담지 않은 세션을 접는다(Q6). 두 시간이 지난 세션 생성 칸도 지운다
+-- (상한은 한 시간만 본다).
 CREATE OR REPLACE FUNCTION public.sweep_interview_sessions(p_batch integer DEFAULT 5000)
 RETURNS integer
 LANGUAGE plpgsql
@@ -1255,6 +1484,8 @@ BEGIN
     PERFORM public.fold_interview_session(v_id, 'left');
     v_n := v_n + 1;
   END LOOP;
+  DELETE FROM public.interview_session_starts AS c
+   WHERE c.bucket_start < pg_catalog.now() - INTERVAL '2 hours';
   RETURN v_n;
 END;
 $$;
@@ -1262,10 +1493,73 @@ $$;
 ----------------------------------------------------------------------
 -- 8. 레코드를 지우면 (D5)
 ----------------------------------------------------------------------
+-- 승인 카드 지우기의 공용 몸통(D6-07 · D6-53). 부르는 쪽이 'period_card:' 사용자 잠금을 쥐고 있어야 한다.
+--   ① 지울 카드를 가리키는 남는 카드(superseded_by)를 다음 생존 카드로 옮긴다. 한 별의 승인 이력은
+--      A → B → C 한 줄이라, 가운데 B 를 지울 때 A 를 C 에 다시 잇지 않으면 FK 의 SET NULL 이 A 를
+--      '지금 카드'로 되돌려 C 와 함께 유니크 색인(period_card_current_ratified)에 걸린다. 뒤의 카드가 모두
+--      지워지면 그대로 두어, ③ 의 SET NULL 이 그 카드를 지금 카드로 되돌린다(복원 규칙: 지금 카드를
+--      지우면 직전에 승인한 카드가 다시 선다. 그 카드의 L5 행은 그대로라 밝기도 그대로다).
+--   ② 그 카드가 승인 때 쓴 star_tier_history 'ratify' L5 행을 지운다. 연결 열이 없으므로 decide_period_card
+--      가 같은 값으로 쓴 (별, 근거 배열, 시각 = decided_at)으로 찾는다.
+--   ③ 카드 행을 지운다.
+CREATE OR REPLACE FUNCTION public.period_card_remove(p_user_id uuid, p_ids uuid[])
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+SET row_security = off
+AS $$
+DECLARE
+  v_steps integer := 0;
+  v_n integer;
+BEGIN
+  IF p_user_id IS NULL OR p_ids IS NULL OR pg_catalog.cardinality(p_ids) = 0 THEN
+    RETURN 0;
+  END IF;
+  LOOP
+    UPDATE public.period_card_proposals AS p
+       SET superseded_by = n.superseded_by
+      FROM public.period_card_proposals AS n
+     WHERE p.user_id = p_user_id
+       AND n.user_id = p_user_id
+       AND p.superseded_by = n.id
+       AND n.id = ANY (p_ids)
+       AND n.superseded_by IS NOT NULL
+       AND NOT (p.id = ANY (p_ids));
+    EXIT WHEN NOT FOUND;
+    v_steps := v_steps + 1;
+    IF v_steps > 64 THEN
+      RAISE EXCEPTION 'period_card_chain_too_long' USING ERRCODE = 'P0001';
+    END IF;
+  END LOOP;
+
+  DELETE FROM public.star_tier_history AS h
+   USING public.period_card_proposals AS p
+   WHERE p.id = ANY (p_ids)
+     AND p.user_id = p_user_id
+     AND p.status = 'ratified'
+     AND h.user_id = p_user_id
+     AND h.star_id = 'seven:' || p.star_id
+     AND h.evidence_origin = 'ratify'
+     AND h.level = 5
+     AND h.recorded_at = p.decided_at
+     AND h.evidence_citations = p.evidence_cited;
+
+  DELETE FROM public.period_card_proposals AS p
+   WHERE p.id = ANY (p_ids) AND p.user_id = p_user_id;
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  RETURN v_n;
+END;
+$$;
+
 -- 인터뷰 레코드를 지우면 그 세션의 판정 행을 집계로 접고(outcome deleted_after_save), 감사 행 해시를
 -- 비우고, 판정 · 세션 행을 지운다(대화록은 세션 · 레코드 FK 연쇄로 지워진다). 그 레코드를 인용한
 -- 시기 카드는 결정 전이면 void, 승인이면 행을 지우고 그 카드가 만든 star_tier_history 'ratify' 행도
 -- 지운다(Q5 기본값: 카드 · L5 는 지우고 칸은 그대로). 계정 삭제 중에는 연쇄가 전부 지우므로 접지 않는다.
+-- 승인(decide_period_card)과 같은 'period_card:' 사용자 잠금을 잡고 시작한다(D6-51): 승인이 근거를 다시
+-- 확인하고 L5 를 쓰는 동안 근거 삭제가 끼어들지 못하고, 늦게 들어온 쪽은 앞쪽이 커밋한 결과를 본다.
+-- 잠금 순서: 이 트리거는 레코드 행 잠금 뒤에 사용자 잠금을 잡는다. 사용자 잠금을 쥐는 쪽(제안 기록 ·
+-- 승인 · 카드 지우기)은 레코드 행을 잠그지 않으므로 순환이 생기지 않는다.
 -- 트리거로만 돈다. 파일 끝에서 모든 역할의 EXECUTE 를 걷는다.
 CREATE OR REPLACE FUNCTION public.interview_record_erasure()
 RETURNS trigger
@@ -1277,11 +1571,14 @@ AS $$
 DECLARE
   v_session uuid;
   v_prefix text := 'record:' || OLD.id::text;
+  v_cards uuid[];
 BEGIN
   IF EXISTS (SELECT 1 FROM public.account_deletion_tombstones AS t WHERE t.user_id = OLD.user_id)
      OR NOT EXISTS (SELECT 1 FROM public.users AS u WHERE u.id = OLD.user_id) THEN
     RETURN OLD;
   END IF;
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('period_card:' || OLD.user_id::text));
+
   FOR v_session IN
     SELECT s.id FROM public.interview_sessions AS s WHERE s.record_id = OLD.id
   LOOP
@@ -1294,10 +1591,12 @@ BEGIN
      AND h.star_id LIKE 'seven:%'
      AND EXISTS (SELECT 1 FROM pg_catalog.unnest(h.evidence_citations) AS c(ref)
                   WHERE c.ref = v_prefix OR c.ref LIKE v_prefix || '#%');
-  DELETE FROM public.period_card_proposals AS p
+  SELECT pg_catalog.array_agg(p.id) INTO v_cards
+    FROM public.period_card_proposals AS p
    WHERE p.user_id = OLD.user_id
      AND p.status = 'ratified'
      AND EXISTS (SELECT 1 FROM pg_catalog.unnest(p.evidence_cited) AS c(ref) WHERE c.ref LIKE v_prefix || '#%');
+  PERFORM public.period_card_remove(OLD.user_id, v_cards);
   UPDATE public.period_card_proposals AS p
      SET status = 'void', decided_at = pg_catalog.now()
    WHERE p.user_id = OLD.user_id
@@ -1313,6 +1612,56 @@ CREATE TRIGGER interview_record_erasure
   FOR EACH ROW WHEN (OLD.kind = 'audit_response')
   EXECUTE FUNCTION public.interview_record_erasure();
 
+-- 응답 블록 id(D6-05): 지운 레코드(종류 무관)의 id 를 실은 행을 지운다. 문장 단위 한 번에 지운 행
+-- 전체를 본다(삭제가 수천 행이어도 사용자 블록 행을 한 번만 훑는다).
+CREATE OR REPLACE FUNCTION public.ai_context_block_record_erasure()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+SET row_security = off
+AS $$
+BEGIN
+  DELETE FROM public.ai_audit_context_blocks AS b
+   WHERE b.user_id IN (SELECT DISTINCT g.user_id FROM gone AS g)
+     AND EXISTS (SELECT 1
+                   FROM pg_catalog.unnest(b.block_ids) AS x(id)
+                   JOIN gone AS g ON g.user_id = b.user_id
+                  WHERE x.id = 'record:' || g.id::text OR x.id LIKE 'record:' || g.id::text || '#%');
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS ai_context_block_record_erasure ON public.records;
+CREATE TRIGGER ai_context_block_record_erasure
+  AFTER DELETE ON public.records
+  REFERENCING OLD TABLE AS gone
+  FOR EACH STATEMENT EXECUTE FUNCTION public.ai_context_block_record_erasure();
+
+-- 승인 카드는 클라이언트 역할이 직접 지우지 못한다(D6-07). 체인 재연결 · L5 정리를 하는
+-- delete_period_card 로 지운다. 정의자 함수(삭제 등록부 erase_my_data · 레코드 삭제 트리거 ·
+-- 계정 연쇄)는 그 함수의 소유자로 돌므로 막히지 않는다. 결정 전 · 거절 · 빗나간 곳 · 만료 · void 행은
+-- 체인도 L5 도 없어 직접 지워도 된다. 정의자 함수가 아니다 - current_user 가 지우는 역할이어야 한다.
+CREATE OR REPLACE FUNCTION public.period_card_delete_guard()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  IF current_user IN ('authenticated', 'anon') THEN
+    RAISE EXCEPTION 'period_card_delete_via_rpc' USING ERRCODE = '42501',
+      HINT = 'a ratified card is deleted with delete_period_card()';
+  END IF;
+  RETURN OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS period_card_delete_guard ON public.period_card_proposals;
+CREATE TRIGGER period_card_delete_guard
+  BEFORE DELETE ON public.period_card_proposals
+  FOR EACH ROW WHEN (OLD.status = 'ratified')
+  EXECUTE FUNCTION public.period_card_delete_guard();
+
 ----------------------------------------------------------------------
 -- 9. 시기 카드 제안 (프록시 전용, service_role)
 ----------------------------------------------------------------------
@@ -1322,6 +1671,9 @@ CREATE TRIGGER interview_record_erasure
 -- Q9 B) 대조해 통과한 것만 남긴다. len 은 유니코드 코드 포인트 수다. p_cited 는 모델이 인용한 것.
 -- 'record:<uuid>' 처럼 턴 없이 인용하면 그 레코드의 남은 턴 전부로 펼친다. 인용 ∩ 보낸 것이 비면
 -- 행을 만들지 않는다.
+-- 계정 울타리(0192 공유 잠금 · tombstone, D6-04)를 지나고, 감사 행이 이 사용자 · self_model_propose ·
+-- server_verified 인지 확인한다(D6-01, 감사 id 필수). 근거를 확인하기 전에 'period_card:' 사용자 잠금을
+-- 잡아, 그 사이에 근거 레코드가 지워지면 둘 중 늦은 쪽이 앞쪽 결과를 보게 한다(D6-51).
 CREATE OR REPLACE FUNCTION public.record_period_card_proposal(
   p_user_id uuid,
   p_audit_id uuid,
@@ -1355,7 +1707,7 @@ BEGIN
   IF public.billing_request_role() IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'service_role only' USING ERRCODE = '42501';
   END IF;
-  IF p_user_id IS NULL
+  IF p_user_id IS NULL OR p_audit_id IS NULL
      OR p_vendor IS NULL OR p_vendor NOT IN ('openai', 'claude')
      OR p_star IS NULL OR p_star NOT IN ('infancy', 'school', 'twenties', 'later', 'work', 'now')
      OR p_request_key IS NULL OR pg_catalog.char_length(p_request_key) NOT BETWEEN 8 AND 120
@@ -1367,10 +1719,15 @@ BEGIN
      OR p_level_before IS NULL OR p_level_before NOT BETWEEN 0 AND 5 THEN
     RAISE EXCEPTION 'period_card_proposal_invalid' USING ERRCODE = '22023';
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM public.users AS u WHERE u.id = p_user_id)
-     OR EXISTS (SELECT 1 FROM public.account_deletion_tombstones AS t WHERE t.user_id = p_user_id) THEN
+  IF NOT public.interview_account_writable(p_user_id) THEN
     RETURN pg_catalog.jsonb_build_object('status', 'rejected', 'reason', 'no_account');
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.ai_audit_log AS a
+                  WHERE a.id = p_audit_id AND a.user_id = p_user_id
+                    AND a.purpose = 'self_model_propose' AND a.event_source = 'server_verified') THEN
+    RETURN pg_catalog.jsonb_build_object('status', 'rejected', 'reason', 'audit_mismatch');
+  END IF;
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('period_card:' || p_user_id::text));
 
   FOR v_item IN SELECT e.value FROM pg_catalog.jsonb_array_elements(p_sent) AS e(value) LOOP
     v_ref := v_item ->> 'ref';
@@ -1432,7 +1789,6 @@ BEGIN
     p_proposal_text || E'\n' || COALESCE(p_rationale, '') || E'\n' || pg_catalog.array_to_string(v_cited, ','),
     'UTF8')), 'hex');
 
-  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('period_card:' || p_user_id::text));
   SELECT * INTO v_existing FROM public.period_card_proposals AS p
    WHERE p.user_id = p_user_id AND p.request_key = p_request_key;
   IF FOUND THEN
@@ -1478,6 +1834,7 @@ DECLARE
   v_ref text;
   v_ok boolean := true;
   v_was_l5 boolean;
+  v_now timestamptz;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'authentication required' USING ERRCODE = '42501';
@@ -1539,11 +1896,14 @@ BEGIN
        SET superseded_by = v_p.id
      WHERE p.user_id = v_uid AND p.star_id = v_p.star_id
        AND p.status = 'ratified' AND p.superseded_by IS NULL AND p.id <> v_p.id;
+    -- 승인 시각과 L5 행 시각을 같은 값으로 쓴다. period_card_remove 가 이 쌍으로 그 카드의 L5 행을 찾는다.
+    -- now() 는 트랜잭션 시각이라 한 트랜잭션의 두 승인이 같은 값을 갖는다. 호출마다 다른 벽시계 값을 쓴다.
+    v_now := pg_catalog.clock_timestamp();
     UPDATE public.period_card_proposals AS p
-       SET status = 'ratified', decided_at = pg_catalog.now()
+       SET status = 'ratified', decided_at = v_now
      WHERE p.id = v_p.id;
-    INSERT INTO public.star_tier_history AS h (user_id, star_id, level, evidence_origin, evidence_citations)
-    VALUES (v_uid, 'seven:' || v_p.star_id, 5, 'ratify', v_p.evidence_cited);
+    INSERT INTO public.star_tier_history AS h (user_id, star_id, level, recorded_at, evidence_origin, evidence_citations)
+    VALUES (v_uid, 'seven:' || v_p.star_id, 5, v_now, 'ratify', v_p.evidence_cited);
     RETURN pg_catalog.jsonb_build_object('status', 'ratified', 'level', 5, 'was_l5_before', v_was_l5);
   END IF;
 
@@ -1558,11 +1918,46 @@ BEGIN
 END;
 $$;
 
+-- 소유자가 자기 카드 한 장을 지운다(D6-07). 승인 카드면 period_card_remove 가 체인을 다시 잇고 그 카드의
+-- L5 행을 함께 지운다. 지금 카드를 지우면 직전에 승인한 카드가 다시 선다. 결정 전 · 거절 · 빗나간 곳 행은
+-- 그냥 지운다. 승인과 같은 사용자 잠금 아래에서 돈다.
+CREATE OR REPLACE FUNCTION public.delete_period_card(p_proposal_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+SET row_security = off
+AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_p public.period_card_proposals%ROWTYPE;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'authentication required' USING ERRCODE = '42501';
+  END IF;
+  IF p_proposal_id IS NULL THEN
+    RAISE EXCEPTION 'period_card_delete_invalid' USING ERRCODE = '22023';
+  END IF;
+  PERFORM public.assert_polaris_account_active(v_uid);
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('period_card:' || v_uid::text));
+  SELECT * INTO v_p FROM public.period_card_proposals AS p
+   WHERE p.id = p_proposal_id AND p.user_id = v_uid
+   FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN pg_catalog.jsonb_build_object('status', 'not_found');
+  END IF;
+  PERFORM public.period_card_remove(v_uid, ARRAY[v_p.id]);
+  RETURN pg_catalog.jsonb_build_object('status', 'deleted',
+    'was_current', v_p.status = 'ratified' AND v_p.superseded_by IS NULL);
+END;
+$$;
+
 ----------------------------------------------------------------------
 -- 11. 응답 블록 id (프록시 전용, service_role)
 ----------------------------------------------------------------------
 -- 형식이 맞지 않는 id 가 하나라도 있으면 통째로 버린다(내용 문자열이 섞여 들어오는 것을 막는다).
--- cited 가 block_ids 의 부분집합이 아니면 cited 만 버린다.
+-- cited 가 block_ids 의 부분집합이 아니면 cited 만 버린다. 사용자는 감사 행(server_verified)에서 읽고,
+-- 사용자가 없거나(계정 삭제 뒤 SET NULL) 삭제 중이면 적지 않는다(D6-04 · D6-05: 계정 울타리 공유 잠금).
 CREATE OR REPLACE FUNCTION public.record_context_blocks(
   p_audit_id uuid,
   p_purpose text,
@@ -1578,6 +1973,7 @@ AS $$
 DECLARE
   c_id constant text := '^(record|wiki|card|idcard|source):[A-Za-z0-9._#-]{1,120}$';
   v_cited text[] := p_cited_ids;
+  v_user uuid;
   v_n integer;
 BEGIN
   IF public.billing_request_role() IS DISTINCT FROM 'service_role' THEN
@@ -1592,12 +1988,17 @@ BEGIN
   IF v_cited IS NOT NULL AND NOT (v_cited <@ p_block_ids) THEN
     v_cited := NULL;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM public.ai_audit_log AS a
-                  WHERE a.id = p_audit_id AND a.purpose IS NOT DISTINCT FROM p_purpose) THEN
+  SELECT a.user_id INTO v_user
+    FROM public.ai_audit_log AS a
+   WHERE a.id = p_audit_id AND a.purpose IS NOT DISTINCT FROM p_purpose AND a.event_source = 'server_verified';
+  IF NOT FOUND THEN
     RETURN 'no_audit';
   END IF;
-  INSERT INTO public.ai_audit_context_blocks AS b (audit_id, purpose, reader_version, block_ids, cited_ids)
-  VALUES (p_audit_id, p_purpose, p_reader_version, p_block_ids, v_cited)
+  IF v_user IS NULL OR NOT public.interview_account_writable(v_user) THEN
+    RETURN 'no_account';
+  END IF;
+  INSERT INTO public.ai_audit_context_blocks AS b (audit_id, user_id, purpose, reader_version, block_ids, cited_ids)
+  VALUES (p_audit_id, v_user, p_purpose, p_reader_version, p_block_ids, v_cited)
   ON CONFLICT (audit_id) DO NOTHING;
   GET DIAGNOSTICS v_n = ROW_COUNT;
   RETURN CASE WHEN v_n = 0 THEN 'duplicate' ELSE 'recorded' END;
@@ -1641,7 +2042,7 @@ $$;
 -- 13. 보관 정리 (pg_cron · service_role)
 ----------------------------------------------------------------------
 -- 결정 전 제안 30일 → expired, 결정된 비승인(declined · missed · expired · void) 365일 → 삭제(Q15),
--- 집계 730일, 응답 블록 id 90일.
+-- 집계 730일, 응답 블록 id 90일, 접은 세션 id 7일.
 CREATE OR REPLACE FUNCTION public.prune_interview_ledgers()
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -1655,6 +2056,7 @@ DECLARE
   v_proposals integer;
   v_rollup integer;
   v_blocks integer;
+  v_tombstones integer;
 BEGIN
   IF v_role IS NOT NULL AND v_role <> 'service_role' THEN
     RAISE EXCEPTION 'service_role only' USING ERRCODE = '42501';
@@ -1673,8 +2075,11 @@ BEGIN
   DELETE FROM public.ai_audit_context_blocks AS b
    WHERE b.created_at < pg_catalog.now() - INTERVAL '90 days';
   GET DIAGNOSTICS v_blocks = ROW_COUNT;
+  DELETE FROM public.interview_session_tombstones AS t
+   WHERE t.created_at < pg_catalog.now() - INTERVAL '7 days';
+  GET DIAGNOSTICS v_tombstones = ROW_COUNT;
   RETURN pg_catalog.jsonb_build_object('expired', v_expired, 'proposals_deleted', v_proposals,
-    'rollup_deleted', v_rollup, 'blocks_deleted', v_blocks);
+    'rollup_deleted', v_rollup, 'blocks_deleted', v_blocks, 'tombstones_deleted', v_tombstones);
 END;
 $$;
 
@@ -1740,7 +2145,8 @@ DECLARE
   v_n integer;
 BEGIN
   FOREACH v_table IN ARRAY ARRAY['interview_sessions', 'interview_probe_verdicts', 'interview_transcripts',
-      'interview_transcript_turns', 'period_card_proposals', 'interview_unsaved_rollup', 'ai_audit_context_blocks'] LOOP
+      'interview_transcript_turns', 'period_card_proposals', 'interview_unsaved_rollup', 'ai_audit_context_blocks',
+      'interview_session_audit_ids', 'interview_session_tombstones', 'interview_session_starts'] LOOP
     IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_class AS c
                     JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
                    WHERE n.nspname = 'public' AND c.relname = v_table
@@ -1772,25 +2178,37 @@ BEGIN
     RAISE EXCEPTION '0225: interview_unsaved_rollup has a column that could carry an id, a time or free text';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_trigger
-                  WHERE tgrelid = 'public.records'::regclass AND tgname = 'interview_record_erasure' AND NOT tgisinternal)
-     OR NOT EXISTS (SELECT 1 FROM pg_catalog.pg_trigger
-                     WHERE tgrelid = 'public.interview_coverage'::regclass
-                       AND tgname = 'trg_interview_coverage_no_decrease' AND NOT tgisinternal) THEN
+  IF (SELECT pg_catalog.count(*) FROM pg_catalog.pg_trigger AS g
+       WHERE NOT g.tgisinternal
+         AND (g.tgrelid, g.tgname) IN (
+           ('public.records'::regclass, 'interview_record_erasure'),
+           ('public.records'::regclass, 'ai_context_block_record_erasure'),
+           ('public.interview_coverage'::regclass, 'trg_interview_coverage_no_decrease'),
+           ('public.interview_probe_verdicts'::regclass, 'interview_verdict_erasure'),
+           ('public.interview_sessions'::regclass, 'interview_session_count_start'),
+           ('public.period_card_proposals'::regclass, 'period_card_delete_guard'))) <> 6 THEN
     RAISE EXCEPTION '0225: a ledger trigger is missing';
   END IF;
 
-  -- SECURITY DEFINER 함수는 모두 search_path 를 비운다.
+  -- 함수는 모두 search_path 를 비운다(SECURITY DEFINER 와 트리거 함수 모두).
   IF EXISTS (SELECT 1 FROM pg_catalog.pg_proc AS p
               JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
-             WHERE n.nspname = 'public' AND p.prosecdef
-               AND p.proname IN ('erase_audit_hashes', 'fold_interview_session', 'record_interview_probe_verdict',
-                                 'close_interview_session', 'discard_interview_session', 'commit_interview_session',
-                                 'sweep_interview_sessions', 'interview_record_erasure', 'record_period_card_proposal',
-                                 'decide_period_card', 'record_context_blocks', 'export_my_interview_judgements',
+             WHERE n.nspname = 'public'
+               AND p.proname IN ('erase_audit_hashes', 'interview_account_writable', 'fold_interview_session',
+                                 'interview_verdict_erasure', 'interview_session_count_start',
+                                 'record_interview_probe_verdict', 'close_interview_session',
+                                 'discard_interview_session', 'commit_interview_session', 'sweep_interview_sessions',
+                                 'period_card_remove', 'interview_record_erasure', 'ai_context_block_record_erasure',
+                                 'period_card_delete_guard', 'record_period_card_proposal', 'decide_period_card',
+                                 'delete_period_card', 'record_context_blocks', 'export_my_interview_judgements',
                                  'prune_interview_ledgers')
                AND NOT (COALESCE(p.proconfig, '{}') @> ARRAY['search_path=""'])) THEN
-    RAISE EXCEPTION '0225: a SECURITY DEFINER function does not pin an empty search_path';
+    RAISE EXCEPTION '0225: a ledger function does not pin an empty search_path';
+  END IF;
+  -- 승인 카드 지우기 막기는 지우는 역할을 봐야 하므로 정의자 함수가 아니어야 한다.
+  IF (SELECT p.prosecdef FROM pg_catalog.pg_proc AS p
+       WHERE p.oid = 'public.period_card_delete_guard()'::regprocedure) THEN
+    RAISE EXCEPTION '0225: period_card_delete_guard must run as the deleting role';
   END IF;
 END
 $postcondition$;
@@ -1804,9 +2222,15 @@ $postcondition$;
 
 REVOKE ALL ON FUNCTION public.interview_int_array_add(integer[], integer[]) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.interview_transcript_body(text, jsonb) FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION public.erase_audit_hashes(uuid[], text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.erase_audit_hashes(uuid, uuid[], text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.interview_account_writable(uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.fold_interview_session(uuid, text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.interview_verdict_erasure() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.interview_session_count_start() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.period_card_remove(uuid, uuid[]) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.interview_record_erasure() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.ai_context_block_record_erasure() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.period_card_delete_guard() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.interview_coverage_no_decrease() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.record_interview_probe_verdict(uuid, uuid, uuid, text, text, integer, integer, integer, text, text, text, text, text, boolean, text, text, boolean, integer, integer, text)
   FROM PUBLIC, anon, authenticated;
@@ -1819,11 +2243,13 @@ REVOKE ALL ON FUNCTION public.close_interview_session(uuid, text, text, text, in
 REVOKE ALL ON FUNCTION public.discard_interview_session(uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.commit_interview_session(uuid, uuid, jsonb, boolean) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.decide_period_card(uuid, text, text, text, boolean) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.delete_period_card(uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.export_my_interview_judgements(timestamptz) FROM PUBLIC, anon;
 
 GRANT SELECT ON TABLE public.interview_sessions, public.interview_probe_verdicts,
   public.interview_transcripts, public.interview_transcript_turns, public.period_card_proposals,
   public.interview_unsaved_rollup, public.ai_audit_context_blocks,
+  public.interview_session_audit_ids, public.interview_session_tombstones, public.interview_session_starts,
   public.interview_scene_metrics, public.record_layer_inferences
   TO service_role;
 GRANT SELECT, DELETE ON TABLE public.interview_transcripts, public.interview_transcript_turns,
@@ -1838,4 +2264,5 @@ GRANT EXECUTE ON FUNCTION public.close_interview_session(uuid, text, text, text,
 GRANT EXECUTE ON FUNCTION public.discard_interview_session(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.commit_interview_session(uuid, uuid, jsonb, boolean) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.decide_period_card(uuid, text, text, text, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.delete_period_card(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.export_my_interview_judgements(timestamptz) TO authenticated;

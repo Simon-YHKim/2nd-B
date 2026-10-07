@@ -224,7 +224,7 @@ DROP TABLE IF EXISTS public.erasure_registry;
 -- 없으면 다시 민 0189 시드가 credit_ledger 에 옛 사유("계정 삭제 때도 SET NULL")를 되돌려 놓는다.
 -- 0212 가 없으면 같은 시드가 광고 보상 네 행에 88일 정리 전 사유(0189·0198·0205)를 되돌려 놓는다.
 -- 0205·0212 는 생성 블록만 담아 두 번 적용돼도 같은 행에 같은 사유를 쓸 뿐이다 (check:erasure-registry G7).
--- 0226 도 생성 블록(인터뷰 대화록 · 제안 표 네 행 upsert)만 담는다. 표 · 함수를 만드는 0225 는 목록에
+-- 0226 도 생성 블록(인터뷰 대화록 · 제안 · 응답 블록 id · 세션 생성 셈 표 여섯 행 upsert)만 담는다. 표 · 함수를 만드는 0225 는 목록에
 -- 넣지 않는다 - 등록부를 지워도 그 객체들은 그대로 남기 때문이다(0195 · 0198 과 같은 분리).
 DO $rollback_ledger$
 DECLARE
@@ -238,7 +238,7 @@ DECLARE
     'rss_proxy_erasure_registry',        -- 0201: RSS 사용자별 쿼터의 등록부 한 행을 더한다
     'credit_ledger_erasure_registry_reason', -- 0205: 0189 등록부의 credit_ledger 행 사유를 고친다
     'reward_records_erasure_registry_reason', -- 0212: 0189·0198·0205 등록부의 보상 관련 네 행 사유를 고친다
-    'interview_transcript_erasure_registry'   -- 0226: 0225 가 만든 인터뷰 대화록 · 제안 표의 등록부 네 행을 더한다
+    'interview_transcript_erasure_registry'   -- 0226: 0225 가 만든 인터뷰 표들의 등록부 여섯 행을 더한다
   ];
   v_found   text;
   v_absent  text;

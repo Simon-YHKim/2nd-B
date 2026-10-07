@@ -403,7 +403,7 @@ jobs:
                   ('0199', 'oauth_naver_rate_limit_completion'),
                   ('0200', 'rss_proxy_quota'),
                   ('0201', 'rss_proxy_erasure_registry'))) <> 11
-               OR (SELECT count(*) FROM public.erasure_registry) <> 75
+               OR (SELECT count(*) FROM public.erasure_registry) <> 77
                OR (SELECT count(*) FROM public.erasure_registry WHERE table_name IN (
                  'account_deletion_tombstones', 'llm_consent_receipts',
                  'polaris_generations', 'reward_ssv_issue_rate_limits')) <> 4
@@ -1608,6 +1608,10 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/interview_transcript_ledger_regression.sql
+      - name: Exercise the 0225 rollback inside one rolled-back transaction
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/interview_transcript_ledger_rollback.sql
       - name: Exercise records.system_tags, its hand move and its rollback (0218)
         env:
           PGPASSWORD: postgres
