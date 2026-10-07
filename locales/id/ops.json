@@ -584,7 +584,7 @@
       "currentPage": "Halaman",
       "totalPages": "Total halaman",
       "savePages": "Simpan",
-      "pagesInvalid": "Tulis nomor halaman dengan angka bulat."
+      "pagesInvalid": "Tulis nomor halaman dengan angka bulat dari 0 hingga 100000, maksimal 6 digit."
     },
     "goals": {
       "emptyTitle": "Belum ada tujuan",

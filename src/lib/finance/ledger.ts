@@ -283,4 +283,5 @@ export async function deleteLedgerEntry(userId: string, id: string): Promise<voi
   const supabase = getSupabaseClient();
   const { error } = await supabase.from("ops_ledger").delete().eq("user_id", userId).eq("id", id);
   if (error) throw error;
+  invalidateDomainLevels(userId);
 }

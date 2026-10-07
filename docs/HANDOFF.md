@@ -1,5 +1,10 @@
 # 2nd-Brain Handoff
 
+## 2026-10-07 / Codex: 생활 도구 low 후속
+
+`fix/qa261007-opslow`: BL-04·05·06·08, S-03, CD-R1-02 수정 범위와 검증·잔여는
+[인수 기록](handoff/OPSLOW-261007.md)에 있다. 운영 반영 없이 draft PR까지만 진행한다.
+
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
