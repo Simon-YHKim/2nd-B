@@ -292,6 +292,20 @@
         "sources": "Conecte uma fonte para ver o que mudou.",
         "records": "Seus próprios widgets abrem conforme seus registros crescem."
       },
+      "summary": {
+        "titleDefault": "Resumo do dia",
+        "title": {
+          "morning": "Resumo da manhã",
+          "day": "Resumo da tarde",
+          "evening": "Resumo da noite"
+        },
+        "read": "Ler em voz alta",
+        "stop": "Parar",
+        "close": "Fechar",
+        "notReady": "O resumo de hoje ainda não está pronto.",
+        "noValue": "sem registro",
+        "mutedNote": "O modo silencioso está ativado, então o resumo aparece só como texto."
+      },
       "dock": {
         "capture": "Guardar",
         "chat": "Conversa",

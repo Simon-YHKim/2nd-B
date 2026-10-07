@@ -292,6 +292,20 @@
         "sources": "Connect a source to see what changed.",
         "records": "Your own widgets open as records grow."
       },
+      "summary": {
+        "titleDefault": "Today's summary",
+        "title": {
+          "morning": "Morning summary",
+          "day": "Afternoon summary",
+          "evening": "Evening summary"
+        },
+        "read": "Read aloud",
+        "stop": "Stop",
+        "close": "Close",
+        "notReady": "Today's summary is not ready yet.",
+        "noValue": "no record",
+        "mutedNote": "Silent mode is on, so the summary shows as text only."
+      },
       "dock": {
         "capture": "Capture",
         "chat": "Chat",
