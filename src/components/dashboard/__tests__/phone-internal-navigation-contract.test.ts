@@ -4,6 +4,16 @@ import { fitPhoneArtwork } from "@/lib/dashboard/phone-frame";
 
 const phone = readFileSync(join(__dirname, "..", "DashboardPhone.tsx"), "utf8");
 
+test("the phone assistant hosts the same routine list as the standalone route", () => {
+  const screens = readFileSync(join(__dirname, "..", "phone-screens.tsx"), "utf8");
+  const ops = readFileSync(join(process.cwd(), "src/screens/deepspace/dds-ops-screen.tsx"), "utf8");
+  expect(screens).toContain('import OpsScreen from "@/app/ops"');
+  expect(screens).toContain('"/ops": OpsScreen');
+  expect(phone).not.toContain('"/ops": "ops"');
+  expect(ops).toContain("const router = useAppRouter()");
+  expect(ops).not.toContain('import { Redirect, router } from "expo-router"');
+});
+
 test("the supplied frame is unchanged and the live display fits 375px and 425px", () => {
   expect(phone).toContain('<PhoneFrame bounds={frame.artwork} />');
   for (const [width, height] of [[375, 715], [425, 747]]) {

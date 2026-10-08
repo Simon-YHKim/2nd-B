@@ -12,17 +12,17 @@ export function withGeneratedBoard(board: BoardContract, generated: GeneratedBoa
   const slot = note?.slot === "midday" ? "day" : note?.slot ?? "morning";
   const parts = board.parts.map((part): BoardPart => {
     if (part.id === "P-02" && note) return { ...part, visible: true, state: "data" as const, basis: "ai" as const,
-      slot, line: { text: note.line }, evidenceRoute: "/reminders", note: undefined, action: undefined };
+      slot, line: { text: note.line }, evidenceRoute: "/ops", note: undefined, action: undefined };
     if (part.id === "P-02" && generated.states) return { ...part, visible: true, state: "empty", basis: "rule",
       ...generationNotice(generated.states.note, "note") };
     if (part.id === "P-03" && note) return { ...part, suggestions: note.reminder_suggestions.map((item, i) => ({
-      id: `generated-${i}`, line: { text: item.title + " · " + item.why }, basis: "ai" as const, evidenceRoute: "/reminders",
+      id: `generated-${i}`, line: { text: item.title + " · " + item.why }, basis: "ai" as const, evidenceRoute: "/ops",
     })) };
     if (part.id === "P-04" && triage?.items.length) return { ...part, visible: true, state: "data" as const, basis: "ai" as const,
       note: undefined, action: undefined, items: triage.order.slice(0, 3).flatMap((id) => {
         const item = triage.items.find((row) => row.id === id);
-        return item ? [{ id, source: "app" as const, line: { text: item.action_line }, basis: "ai" as const, evidenceRoute: "/reminders",
-          action: { label: { key: "phone.board.generation.reminders" }, route: "/reminders" } }] : [];
+        return item ? [{ id, source: "app" as const, line: { text: item.action_line }, basis: "ai" as const, evidenceRoute: "/ops",
+          action: { label: { key: "todaysAssistant" }, route: "/ops" } }] : [];
       }) };
     if (part.id === "P-04" && generated.states) return { ...part, visible: true, state: "empty", basis: "rule",
       ...generationNotice(generated.states.triage, "triage") };

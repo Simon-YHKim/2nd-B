@@ -19,9 +19,8 @@ const handler = createDashboardHandler({
   },
   isScheduler: async (request) => {
     // Gateway JWT + two server secrets. No client flag grants scheduler rights.
-    if (request.headers.get('authorization') !== `Bearer ${serviceKey}`) {
-      console.warn('dashboard_scheduler_service_credential'); return false;
-    }
+    const authorization = request.headers.get('authorization') ?? '';
+    if (!/^Bearer \S+$/.test(authorization) || authorization.length > 8_192) return false;
     if (schedulerSecret.length < 32) {
       console.warn('dashboard_scheduler_missing_cron'); return false;
     }
@@ -29,8 +28,20 @@ const handler = createDashboardHandler({
     if (candidate.length > 512) return false;
     const [a, b] = await Promise.all([sha256(candidate), sha256(schedulerSecret)]);
     const matches = a.reduce((difference, byte, i) => difference | (byte ^ b[i]), 0) === 0;
-    if (!matches) console.warn('dashboard_scheduler_cron_mismatch');
-    return matches;
+    if (!matches) { console.warn('dashboard_scheduler_cron_mismatch'); return false; }
+    if (authorization === `Bearer ${serviceKey}`) return true;
+    // Management API and Edge may expose different valid service credentials.
+    // Prove the presented token's role through PostgREST instead of trusting
+    // a decoded JWT or silently substituting the admin client's authority.
+    // This read-only RPC is granted only to service_role and checks JWT role.
+    try {
+      const caller = createClient(url, serviceKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: authorization } },
+      });
+      const proof = await caller.rpc('dashboard_generation_due', { p_after: null }).abortSignal(AbortSignal.timeout(5_000));
+      return !proof.error && Array.isArray(proof.data);
+    } catch { return false; }
   },
   rpc,
   generate: createBoardProvider({

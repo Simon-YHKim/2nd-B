@@ -71,7 +71,6 @@ const APP_COLUMNS = 3;
 /** One spacing for the grid: between columns, between rows and at the display edge (= content padding). */
 const APP_GAP = 9;
 const OPS_PHONE_ROUTES: Record<string, OpsPhoneScreen> = {
-  "/ops": "ops",
   "/reading": "reading",
   "/reminders": "reminders",
   "/ledger": "ledger",

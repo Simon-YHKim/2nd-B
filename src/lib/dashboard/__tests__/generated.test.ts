@@ -20,7 +20,7 @@ test("triage respects the returned order and only exposes the top three", () => 
     triage: { order: ids, items: [...ids].reverse().map((id) => ({ id, action_line: id, why: "Due" })) } });
   const part = board.parts.find((row) => row.id === "P-04");
   expect(part?.id === "P-04" && part.items.map((item) => item.id)).toEqual(["d", "b", "a"]);
-  expect(part?.id === "P-04" && part.items.every((item) => item.action?.route === "/reminders")).toBe(true);
+  expect(part?.id === "P-04" && part.items.every((item) => item.action?.route === "/ops")).toBe(true);
 });
 test("wire decoder refuses external actions, health refs and malformed IDs", () => {
   expect(decodeBoardResponse({ kind: "ready", purpose: "daily_note", value: note }).ok).toBe(true);
@@ -41,6 +41,7 @@ test.each(["loading", "waiting", "empty", "denied", "limited", "unavailable"] as
   }
   expect(board.summary?.bubbles).toEqual([]);
   expect(board.summary?.note).toBeDefined();
+  if (state === "empty") expect(board.summary?.action?.route).toBe("/ops");
 });
 test("disabled or minor callers leave the existing hidden contract intact", () => {
   const board = buildBoard(null, new Date(), true);
