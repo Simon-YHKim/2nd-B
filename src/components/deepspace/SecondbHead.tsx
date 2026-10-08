@@ -1,5 +1,5 @@
 // Compatibility entrypoint for all character surfaces. The displayed character is HustleK.
-// A portrait stays at its anchor; only meaningful events change its expression.
+// A portrait stays at its anchor. Home may opt into quiet expressions and speech.
 import { useEffect, useState } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import type { M3Persona } from "@/lib/theme/m3";
@@ -7,6 +7,8 @@ import type { HustleKExpressionId } from "@/lib/assets/hustlek";
 import { currentHold, subscribeExpression, subscribeHold, type Expression } from "@/lib/companion/expression";
 import { hustlekExpressionFor } from "@/lib/companion/hustlek-expression";
 import { HustleKPortrait } from "@/components/character/HustleKPortrait";
+import { hustlekAllowsLife } from "@/lib/companion/hustlek-life";
+import { useHustleKLife } from "@/lib/companion/use-hustlek-life";
 
 export type SecondbMood = "positive" | "neutral" | "negative";
 interface SecondbHeadProps {
@@ -20,9 +22,16 @@ interface SecondbHeadProps {
   track?: boolean;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
+  speaking?: boolean;
+  /** Currently revealed typewriter text, used to close the mouth on punctuation. */
+  speechText?: string;
+  /** Only live home portraits opt in; message history remains still. */
+  idle?: boolean;
+  /** Route focus and covering overlays supplied by the owning surface. */
+  active?: boolean;
 }
 
-export function SecondbHead({ mood = "neutral", expression, size = 48, accessibilityLabel, style }: SecondbHeadProps) {
+export function SecondbHead({ mood = "neutral", expression, size = 48, accessibilityLabel, style, speaking = false, speechText, idle = false, active = true }: SecondbHeadProps) {
   const [reactExpr, setReactExpr] = useState<Expression | null>(null);
   const [holdExpr, setHoldExpr] = useState<Expression | null>(currentHold);
 
@@ -41,13 +50,14 @@ export function SecondbHead({ mood = "neutral", expression, size = 48, accessibi
     };
   }, []);
 
-  // No idle rolls, pointer tracking or bob: expression changes have a context.
+  // App reactions/holds and explicit context always win over home embellishments.
   const eventExpr = reactExpr ?? holdExpr;
   const portraitExpression = eventExpr ? hustlekExpressionFor(eventExpr) : expression ?? hustlekExpressionFor(mood);
+  const life = useHustleKLife({ speaking, speechText, idle, active, blocked: !!eventExpr || !hustlekAllowsLife(portraitExpression) });
 
   return (
     <View style={[styles.root, style]}>
-      <HustleKPortrait expression={portraitExpression} size={size} accessibilityLabel={accessibilityLabel} />
+      <HustleKPortrait expression={life.idleExpression ?? portraitExpression} mouth={life.mouth} size={size} accessibilityLabel={accessibilityLabel} />
     </View>
   );
 }

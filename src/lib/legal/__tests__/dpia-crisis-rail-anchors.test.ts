@@ -192,12 +192,12 @@ const ANCHORS: Anchor[] = [
   // 없다. 이것이 Q-13 의 뒤집는 조건이라 문장을 좁히고 [RE-READ 2026-10-05] 로 남겼다.
   // 이번 회차의 실수는 앞 회차의 거울상이다: 그쪽은 다른 구현을 안 찾았고, 이쪽은 구현을
   // 찾은 뒤 **그 구현이 주장의 입력(홈 상호작용)에 연결돼 있는지**를 안 봤다.
-  { cite: "src/components/deepspace/SecondbHead.tsx:31-35", symbol: "setReactExpr(expr)",
+  { cite: "src/components/deepspace/SecondbHead.tsx:40-44", symbol: "setReactExpr(expr)",
     why: "고정 초상화가 앱 이벤트를 받아 표정을 바꾸고 정해진 뒤 복귀하는 근거." },
-  { cite: "src/components/deepspace/SecondbHead.tsx:36", symbol: "subscribeHold(setHoldExpr)",
+  { cite: "src/components/deepspace/SecondbHead.tsx:45", symbol: "subscribeHold(setHoldExpr)",
     why: "AI 응답 대기 표정은 홀드 이벤트에만 연결된다." },
-  { cite: "src/components/deepspace/SecondbHead.tsx:44-46", symbol: "expression ?? hustlekExpressionFor(mood)",
-    why: "무작위 유휴 대신 호출자가 준 맥락 또는 기본 표정으로 복귀한다." },
+  { cite: "src/components/deepspace/SecondbHead.tsx:54-60", symbol: "expression ?? hustlekExpressionFor(mood)",
+    why: "호출자 맥락을 기본으로 유지하고 홈 모션은 앱 이벤트보다 낮은 우선순위로 제한한다." },
   { cite: "db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:87", symbol: "'external_analytics', false",
     why: "미성년에게 외부 분석이 서버에서 잠긴다는 주장의 실제 줄. ⚠ 문서가 `:88` 을 인용했는데 그 줄은 `'llm_training', false` 다 - **클라이언트 키 집합에서 가지쳐진 키**(회차 57·58)를 두 다른 설정의 근거로 가리키고 있었다." },
   { cite: "db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:86", symbol: "'recommendations', false",

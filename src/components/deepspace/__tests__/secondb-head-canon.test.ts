@@ -12,10 +12,12 @@ test("all legacy head imports share the HustleK renderer", () => {
   expect(head).not.toMatch(/secondbHullRects|styles\.(?:eye|mouth|orb)|<Svg/);
 });
 
-test("the supplied expression changes for events and caller context, never random idle", () => {
+test("events and caller context take priority while home can opt into live expression", () => {
   expect(head).toMatch(/reactExpr \?\? holdExpr/);
   expect(head).toContain("expression ?? hustlekExpressionFor(mood)");
   expect(head).toContain("subscribeExpression");
   expect(head).toContain("subscribeHold");
+  expect(head).toContain("blocked: !!eventExpr || !hustlekAllowsLife(portraitExpression)");
+  expect(head).toContain("idle = false");
   expect(head).not.toMatch(/pickIdleAction|nextIdleDelayMs|useSecondbTracking|Animated/);
 });

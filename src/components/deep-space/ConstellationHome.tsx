@@ -51,6 +51,7 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { stepPolyline, stepQuad } from "@/components/pixel/pixel-line";
 import { fontFamilies } from "@/theme/typography";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
+import { useHustleKForeground } from "@/lib/companion/use-hustlek-life";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { type LadderLevel } from "@/lib/persona/brightness";
 import { starEntryStatus } from "@/lib/persona/star-entry-tracks";
@@ -798,9 +799,21 @@ export function ConstellationHome({
                 ? ` ${t("ds.star.lockedBody")}`
                 : ""}`
             : t("ds.home.bubble.intro");
+  // The popup is driven by popupNotice, NOT by unreadCount. Once the notices
+  // table exists an unread `minor` row also raises unreadCount, and minor is
+  // explicitly not allowed to interrupt - keying the gate off the count would
+  // pop a dialog for it. popupNotice already applies the precedence rules
+  // (src/lib/notices/center.ts) and is null when nothing may interrupt.
+  const autoNotice = noticeCenter.popupNotice;
+  const autoNoticeVisible =
+    noticeCenter.hydrated && autoNotice !== null && coachmarksDue === false && !autoNoticeDismissed;
+  const homePortraitActive = homeFocused && !autoNoticeVisible && !manualNoticeVisible &&
+    !limitSheetVisible && !phoneExpanded && captureId === null;
+  const homePortraitVisible = useHustleKForeground(homePortraitActive);
   const dialogue = useJrpgTypewriter({
     text: bubble.kind === "intro" ? "" : bubbleLine,
     reducedMotion,
+    active: homePortraitVisible,
     onBlip: playDialogueBlip,
   });
   const advanceDialogue = useCallback(() => {
@@ -814,14 +827,6 @@ export function ConstellationHome({
     }
     setBubble(nextHomeBubble);
   }, [coachFirstRecord, dialogue.isComplete, dialogue.reveal, onCoachHeadPress]);
-  // The popup is driven by popupNotice, NOT by unreadCount. Once the notices
-  // table exists an unread `minor` row also raises unreadCount, and minor is
-  // explicitly not allowed to interrupt - keying the gate off the count would
-  // pop a dialog for it. popupNotice already applies the precedence rules
-  // (src/lib/notices/center.ts) and is null when nothing may interrupt.
-  const autoNotice = noticeCenter.popupNotice;
-  const autoNoticeVisible =
-    noticeCenter.hydrated && autoNotice !== null && coachmarksDue === false && !autoNoticeDismissed;
   // The bell opens the newest UNREAD notice, falling back to the newest one
   // when everything is read. Positional notices[0] made the bell disagree with
   // its own dot: the dot is raised by the unread set, so tapping it could open
@@ -911,7 +916,7 @@ export function ConstellationHome({
               accessibilityState={{ expanded: bubble.kind !== "intro" }}
               hitSlop={4}
             >
-              <SecondbHead size={32} mood="neutral" track />
+              <SecondbHead size={32} mood="neutral" idle={bubble.kind === "intro"} active={homePortraitVisible} />
             </Pressable>
           </View>
         </View>
@@ -1171,7 +1176,14 @@ export function ConstellationHome({
                     coachFirstRecord ? t("deepspace:coachmarks.homeStep") : undefined
                   }
                 >
-                  <SecondbHead size={HOME_HEAD_SIZE} mood="neutral" track />
+                  <SecondbHead
+                    size={HOME_HEAD_SIZE}
+                    mood="neutral"
+                    speaking={!dialogue.isComplete}
+                    speechText={dialogue.displayedText}
+                    idle
+                    active={homePortraitVisible}
+                  />
                 </Pressable>
               </View>
             )}
