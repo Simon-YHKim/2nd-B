@@ -281,6 +281,11 @@ jest.mock("@/lib/nav/phone-embed", () => ({
   useAppRouter: () => jest.requireMock<{ router: unknown }>("expo-router").router,
 }));
 jest.mock("@/components/ui/Text", () => ({ Text: "Text" }));
+jest.mock("@/components/ui/ScreenModal", () => ({ ScreenModal: "Modal" }));
+jest.mock("@/components/phone/PhoneUIKit", () => ({
+  PhoneView: "View", PhonePressable: "Pressable", PhoneScrollView: "ScrollView",
+  PhoneTouchableOpacity: "TouchableOpacity",
+}));
 jest.mock("@/components/ui/Button", () => ({ Button: "Button" }));
 jest.mock("@/components/premium", () => ({
   PremiumAppShell: "PremiumAppShell",

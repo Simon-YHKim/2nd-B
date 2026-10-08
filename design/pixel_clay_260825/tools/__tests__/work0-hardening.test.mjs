@@ -932,11 +932,14 @@ test('notice dismissal prefers the visible confirmation over a covered scrim tar
 
 test('notice modal explicitly restores pointer events inside the RN-web portal', () => {
   const noticeSource = readFileSync(NOTICE_UI, 'utf8');
-  assert.match(noticeSource, /if \(!visible\) return null;[\s\S]*return \(\s*<Modal/);
+  assert.match(noticeSource, /if \(!visible\) return null;[\s\S]*return \(\s*<ScreenModal/);
   assert.match(
     noticeSource,
-    /<View\s+style=\{styles\.scrim\}\s+pointerEvents="auto"\s+accessibilityViewIsModal>/,
+    /<View\s+style=\{\[styles\.scrim,\s*phone && \{ backgroundColor: "transparent" \}\]\}\s+pointerEvents="auto"\s+accessibilityViewIsModal>/,
   );
+  // The phone swaps only the backdrop ink. The same live modal still owns
+  // pointer events and accessibility focus above the RN-web portal.
+  assert.match(noticeSource, /phone \? <PixelScrim style=\{\{ tintColor: phoneIos\.label2 \}\} \/> : null/);
 });
 
 test('capture and score dismiss a late authenticated notice before measuring pixels', () => {

@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // /subscription - [설정 → 구독 관리]. The screen the published refund policy has
 // been pointing at since 2026-07-17 (docs/legal/refund-policy.md KO 3항 / EN §3)
 // without it existing.
@@ -18,7 +19,7 @@
 //     revoked by the paddle-webhook rail, not here)
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, StyleSheet } from "react-native";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 

@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // "나의 변화" weekly growth review (Claude Design weekly-growth.dc.html).
 // Synthesizes star_tier_history + ops_routine_logs + milestones + records into a
 // this-week vs last-week summary (lib/growth). The 7 stars keep their existing
@@ -6,7 +7,7 @@
 // deepSpace.* tokens only, assembled from the shared Ops kit.
 
 import React, { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import Svg, { Rect, Text as SvgText } from "react-native-svg";
 import { ringCells, stepPolyline } from "@/components/pixel/pixel-line";

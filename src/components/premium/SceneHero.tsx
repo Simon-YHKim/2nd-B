@@ -1,4 +1,5 @@
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { deepSpace } from "@/lib/theme/tokens";

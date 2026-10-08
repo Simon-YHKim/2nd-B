@@ -15,14 +15,14 @@
 // FlatList, never a .map() over a long scroll range.
 import { useEffect, useMemo, useState } from "react";
 import {
-  FlatList,
   Modal,
-  Pressable,
   StyleSheet,
-  View,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { PhoneFlatList as FlatList, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { PixelDither } from "@/components/pixel/PixelDither";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -269,6 +269,7 @@ function CalendarModal({
   onCancel,
   onConfirm,
 }: CalendarModalProps) {
+  const phone = usePhoneDesign();
   const { t } = useTranslation("common");
   const labels = useDateLabels();
 
@@ -325,7 +326,8 @@ function CalendarModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <Pressable style={styles.backdrop} onPress={onCancel} accessibilityLabel={t("actions.cancel")}>
+      <Pressable style={[styles.backdrop, phone && styles.phoneBackdrop]} onPress={onCancel} accessibilityLabel={t("actions.cancel")}>
+        {phone ? <PixelDither density={50} /> : null}
         <Pressable
           style={styles.card}
           onPress={(e) => e.stopPropagation()}
@@ -472,11 +474,13 @@ function YearModal({
   onCancel: () => void;
   onConfirm: (year: string) => void;
 }) {
+  const phone = usePhoneDesign();
   const { t } = useTranslation("common");
   const selectedYear = /^\d{4}$/.test(value) ? Number(value) : null;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <Pressable style={styles.backdrop} onPress={onCancel} accessibilityLabel={t("actions.cancel")}>
+      <Pressable style={[styles.backdrop, phone && styles.phoneBackdrop]} onPress={onCancel} accessibilityLabel={t("actions.cancel")}>
+        {phone ? <PixelDither density={50} /> : null}
         <Pressable
           style={styles.card}
           onPress={(e) => e.stopPropagation()}
@@ -725,6 +729,7 @@ const styles = StyleSheet.create({
   triggerValue: { flex: 1, fontSize: 15, fontFamily: m3.font.brand },
   support: { marginTop: m3.spacing.s1, marginHorizontal: m3.spacing.s4 },
 
+  phoneBackdrop: { backgroundColor: "transparent" },
   // Modal shell.
   backdrop: {
     flex: 1,

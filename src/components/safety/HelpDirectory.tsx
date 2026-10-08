@@ -1,3 +1,4 @@
+import { PhoneView as View, PhonePressable as Pressable } from "@/components/phone/PhoneUIKit";
 // Always-on help directory (Simon 2026-08-16, L1 + L2).
 //
 // This exists because the classifier-driven version was rejected, and the reason
@@ -19,7 +20,7 @@
 //    by hotline-lane-separation.test.ts because lexicon.ts is scan-exempt).
 //  - "신고" is never the first word. The frame is "somewhere you can get help".
 //  - Numbers are KR-specific, so they render only for the KR-facing locale.
-import { View, StyleSheet, Pressable, Linking } from "react-native";
+import { StyleSheet, Linking } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";

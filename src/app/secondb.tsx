@@ -1,3 +1,4 @@
+import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pressable, PhoneTextInput as TextInput } from "@/components/phone/PhoneUIKit";
 // 세컨비 chat screen (formerly "Jarvis"). Per handoff v3 §4.B —
 // preview of how RAG transforms the experience. Calls into the single
 // Gemini wrapper (so C1/C3/C9 hold) and pulls a compact wiki snapshot
@@ -14,7 +15,7 @@
 //     reappear every session.
 
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, View, StyleSheet, ScrollView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
+import { AccessibilityInfo, StyleSheet, Platform, ActivityIndicator, Animated } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";

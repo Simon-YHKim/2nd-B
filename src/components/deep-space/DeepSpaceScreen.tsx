@@ -28,6 +28,8 @@ import { Text } from "@/components/ui/Text";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { goHome } from "@/lib/nav/go-home";
 import { usePhoneEmbed } from "@/lib/nav/phone-embed";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
 
 /**
  * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
@@ -126,6 +128,7 @@ export function DeepSpaceScreen({
   // leave the app and the extra homes stayed mounted (QA 261004 D-12, D-01).
   const pathname = usePathname();
   const embed = usePhoneEmbed();
+  const phone = usePhoneDesign();
   useEffect(() => {
     if (active === "home" || !TABS.includes(active)) return;
     if (pathname !== TAB_ROUTE[active]) return;
@@ -151,17 +154,17 @@ export function DeepSpaceScreen({
   // a bounded view outside its list.
   if (embed) {
     return (
-      <View style={styles.embedded}>
-        {ownBack && !title && !action ? null : <View style={styles.embeddedHeader}>
+      <View style={[styles.embedded, phone && styles.phoneEmbedded]}>
+        {ownBack && !title && !action ? null : <View style={[styles.embeddedHeader, phone && styles.phoneHeader]}>
           {ownBack ? null : <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("ops:phone.internal.back")}
             onPress={onBack ?? embed.back}
             style={styles.embeddedBack}
           >
-            <PixelGlyph name="arrow_back" color={deepSpace.accentBright} size={24} />
+            <PixelGlyph name={phone ? "chevron_left" : "arrow_back"} color={phone ? phoneIos.blue : deepSpace.accentBright} size={24} />
           </Pressable>}
-          {title ? <Text variant="heading" numberOfLines={2} style={styles.embeddedTitle}>{title}</Text> : <View style={styles.embeddedTitle} />}
+          {title ? <Text variant="heading" numberOfLines={2} style={[styles.embeddedTitle, phone && styles.phoneTitle]}>{title}</Text> : <View style={styles.embeddedTitle} />}
           {action}
         </View>}
         <View style={styles.embeddedBody}>{children}</View>
@@ -251,6 +254,9 @@ export function DeepSpaceScreen({
 }
 
 const styles = StyleSheet.create({
+  phoneEmbedded: { backgroundColor: phoneIos.grouped },
+  phoneHeader: { minHeight: 48, backgroundColor: phoneIos.grouped, borderBottomWidth: 2, borderBottomColor: phoneIos.fill },
+  phoneTitle: { color: phoneIos.label, fontFamily: "Galmuri11Bold", fontSize: 18, lineHeight: 24, paddingBottom: 2 },
   embedded: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0, backgroundColor: deepSpace.bgMid },
   embeddedHeader: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 4 },
   embeddedBack: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },

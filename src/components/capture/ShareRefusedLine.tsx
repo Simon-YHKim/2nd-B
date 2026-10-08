@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Android share -> /capture, signed in only (Simon 2026-10-07 12:04).
 //
 // The one line a turned-away share leaves: it was not added. A gate that sends
@@ -14,7 +15,7 @@
 // (gate SG-R3-01, Simon 2026-10-07 13:33).
 
 import type { StyleProp, ViewStyle } from "react-native";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { m3TextStyle } from "@/components/m3";

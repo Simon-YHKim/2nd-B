@@ -1,5 +1,6 @@
+import { PhoneFlatList as FlatList, PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";

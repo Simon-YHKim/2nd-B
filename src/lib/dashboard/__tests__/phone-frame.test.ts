@@ -1,5 +1,27 @@
 import { fitPhoneArtwork, PHONE_ARTWORK_BOUNDS } from "../phone-frame";
 
+test("the approved artwork uses exact 2px cells at full size", () => {
+  const frame = fitPhoneArtwork(460, 816)!;
+  expect(frame.artwork).toEqual({ left: 0, top: 0, width: 460, height: 816 });
+  expect(frame.screen).toEqual({ left: 56, top: 94, width: 348, height: 616 });
+});
+
+test.each([[425, 677], [460, 816], [320, 568], [390, 844]])(
+  "all interactive bounds share one 2px grid at %i by %i", (width, height) => {
+    const frame = fitPhoneArtwork(width, height)!;
+    for (const bounds of [frame.artwork, frame.screen, frame.homeButton]) {
+      for (const value of Object.values(bounds)) expect(value % 2).toBe(0);
+      expect(bounds.left).toBeGreaterThanOrEqual(0);
+      expect(bounds.top).toBeGreaterThanOrEqual(0);
+      expect(bounds.left + bounds.width).toBeLessThanOrEqual(width);
+      expect(bounds.top + bounds.height).toBeLessThanOrEqual(height);
+    }
+    expect(frame.homeButton.top).toBeGreaterThanOrEqual(frame.screen.top + frame.screen.height);
+    expect(frame.homeButton.width).toBeGreaterThanOrEqual(44);
+    expect(frame.homeButton.height).toBeGreaterThanOrEqual(44);
+  },
+);
+
 test("fits the supplied phone body, not the transparent PNG canvas", () => {
   const frame = fitPhoneArtwork(425, 677);
   expect(frame).not.toBeNull();

@@ -327,7 +327,8 @@ describe("gate S3-01 (simplified): a failed meal write keeps its sheet open, and
   test("(a) while a write runs, the backdrop and the back do nothing, and no cell opens", () => {
     expect(meals).toMatch(/const closeSheet = \(\) => \{\s*if \(!mealWriting\) resetLookup\(\);\s*setPending\(\(open\) => mealSheetDismiss\(open, mealWriting\)\);\s*\};/);
     expect(sheetBody).toContain('<Modal visible={pending !== null} transparent animationType="slide" onRequestClose={closeSheet}>');
-    expect(sheetBody).toContain("<Pressable style={styles.mealBackdrop} onPress={closeSheet} disabled={mealWriting} />");
+    // The phone backdrop has a non-interactive dither child; the same press guard remains.
+    expect(sheetBody).toContain("<Pressable style={styles.mealBackdrop} onPress={closeSheet} disabled={mealWriting}>");
     // The sheet itself has no other way to close. The two plain closes left are the save's:
     // no user or no sheet, and nothing to write. The save button is off while a write runs.
     expect(sheetBody).not.toContain("setPending(");

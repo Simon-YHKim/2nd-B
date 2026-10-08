@@ -2,7 +2,10 @@
 // TextInput; the outline + label recolour on focus / error. Consumes m3.*
 // tokens only. Input text uses Pretendard (KR body); the label uses M3 chrome.
 import { forwardRef, useState } from "react";
-import { Platform, StyleSheet, type StyleProp, TextInput, type TextInputProps, View, type ViewStyle } from "react-native";
+import { Platform, StyleSheet, type StyleProp, type TextInputProps, type ViewStyle } from "react-native";
+import { PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
 import { PlainText as Text } from "@/components/ui/PlainText";
 
 import { keepAllPlaceholder } from "@/lib/i18n/keep-all";
@@ -31,13 +34,14 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field(
   },
   ref,
 ) {
+  const phone = usePhoneDesign();
   const [focused, setFocused] = useState(false);
-  const borderColor = error ? m3.color.error : focused ? m3.color.primary : m3.color.outline;
+  const borderColor = phone ? error ? phoneIos.red : focused ? phoneIos.blue : phoneIos.separator : error ? m3.color.error : focused ? m3.color.primary : m3.color.outline;
   const labelColor = error ? m3.color.error : focused ? m3.color.primary : m3.color.onSurfaceVariant;
   const supportColor = error ? m3.color.error : m3.color.onSurfaceVariant;
   return (
     <View style={containerStyle}>
-      <View style={[styles.box, { borderColor }]}>
+      <View style={[styles.box, { borderColor }, phone && { backgroundColor: phoneIos.cell, borderWidth: 0 }]}>
         {label ? (
           <Text style={[m3TextStyle("bodySmall"), { color: labelColor }]} numberOfLines={1}>
             {label}

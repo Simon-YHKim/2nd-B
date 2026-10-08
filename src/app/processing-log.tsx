@@ -1,5 +1,6 @@
+import { PhoneFlatList as FlatList, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, StyleSheet, View, type ListRenderItem } from "react-native";
+import { StyleSheet, type ListRenderItem } from "react-native";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";

@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Personal data import hub (Claude Design import-hub.dc.html). Extends the
 // /import pipeline (captureFromMarkdown): sensitivity-tiered hub → consent sheet
 // (A file / B connector, with the mandatory 무엇을/어디에/이 기기에서만 blocks)
@@ -10,7 +11,7 @@
 // deepSpace.* tokens only, assembled from the shared Ops kit.
 
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 import { useAppRouter, usePhoneEmbed } from "@/lib/nav/phone-embed";

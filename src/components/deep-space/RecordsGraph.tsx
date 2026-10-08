@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 /**
  * Records tag-graph (D-27 Phase 1b) — the deep-space view of the user's own
  * records as the canonical node-set (NOT wiki_pages). Renders buildRecordsGraph:
@@ -9,7 +10,7 @@
  */
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import Svg, { G, Rect, Text as SvgText } from "react-native-svg";
 
 import { TelescopeControls } from "./TelescopeControls";

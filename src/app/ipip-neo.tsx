@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // IPIP-NEO-120 personality questionnaire — Johnson (2014). 120 items, 5-point
 // Likert (Very inaccurate -> Very accurate). Public domain (IPIP). Measures the
 // same 5 Big Five DOMAINS as BFI-44 PLUS 30 facets; coexists with /big-five (the
@@ -7,7 +8,7 @@
 // in the intro).
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { View, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";

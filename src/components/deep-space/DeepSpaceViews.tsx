@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 /**
  * STEP 4 — the deep-space dock views, translated from E:/Legacy/2ndB/legacy/design/prototype.dc.html:
  *   CaptureView (담기) · ChatView (세컨비) · LensView (나, empty/error/filled) ·
@@ -13,7 +14,7 @@
  * (document-global svg ids) never clashes across instances.
  */
 import { forwardRef, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
-import { AccessibilityInfo, Keyboard, type DimensionValue, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { AccessibilityInfo, Keyboard, type DimensionValue, Platform, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";

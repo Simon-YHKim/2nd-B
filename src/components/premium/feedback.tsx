@@ -3,7 +3,10 @@
 // aware. Copy is warm + non-clinical; safety uses the system-only rose tone.
 
 import { type ReactNode, useEffect, useRef } from "react";
-import { Animated, BackHandler, Easing, Modal, Pressable, StyleSheet, View } from "react-native";
+import { Animated, BackHandler, Easing, Modal, StyleSheet } from "react-native";
+import { PhoneAnimatedView, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { PixelDither } from "@/components/pixel/PixelDither";
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
@@ -41,6 +44,7 @@ export function PremiumBottomSheet({
   children: ReactNode;
   accessibilityLabel?: string;
 }) {
+  const phone = usePhoneDesign();
   const { t } = useTranslation("common");
   const slide = useRef(new Animated.Value(0)).current;
 
@@ -74,15 +78,17 @@ export function PremiumBottomSheet({
         onPress={onClose}
         accessibilityRole="button"
         accessibilityLabel={t("actions.close")}
-      />
-      <Animated.View
+      >
+        {phone ? <PixelDither density={50} /> : null}
+      </Pressable>
+      <PhoneAnimatedView
         style={[styles.sheet, { opacity: slide as never, transform: [{ translateY }] }]}
         accessibilityViewIsModal
         accessibilityLabel={accessibilityLabel}
       >
         <View style={styles.sheetHandle} />
         {children}
-      </Animated.View>
+      </PhoneAnimatedView>
     </View>
   );
 }
@@ -99,15 +105,17 @@ export function PremiumModal({
   children: ReactNode;
   accessibilityLabel?: string;
 }) {
+  const phone = usePhoneDesign();
   const { t } = useTranslation("common");
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <Pressable
-        style={styles.modalBackdrop}
+        style={[styles.modalBackdrop, phone && styles.phoneBackdrop]}
         onPress={onClose}
         accessibilityRole="button"
         accessibilityLabel={t("actions.close")}
       >
+        {phone ? <PixelDither density={50} /> : null}
         <Pressable
           style={styles.modalCard}
           onPress={(e) => e.stopPropagation()}
@@ -207,6 +215,7 @@ export function SafetyNoticePanel({ title, body, action }: { title: string; body
 }
 
 const styles = StyleSheet.create({
+  phoneBackdrop: { backgroundColor: "transparent" },
   sheetWrap: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, justifyContent: "flex-end" },
   sheet: {
     margin: spacing.md,

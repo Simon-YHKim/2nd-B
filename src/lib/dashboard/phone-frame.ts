@@ -1,33 +1,39 @@
-// Pixel bounds measured from the supplied 1086×1448 transparent phone PNG.
-// Fitting the whole canvas would shrink the actual device behind its margins.
+// Approved native artwork (Simon 2026-10-08). One cell is always 2 layout px.
+// Responsive frames resample logical cells, never stretch a raster fractionally.
 export const PHONE_ARTWORK_BOUNDS = {
-  canvas: { width: 1086, height: 1448 },
-  body: { left: 221, top: 137, right: 866, bottom: 1330 },
-  screen: { left: 286, top: 270, right: 800, bottom: 1178 },
-  home: { left: 472, top: 1190, right: 614, bottom: 1315 },
+  canvas: { width: 230, height: 408 },
+  body: { left: 8, top: 2, right: 220, bottom: 406 },
+  screen: { left: 28, top: 47, right: 202, bottom: 355 },
+  home: { left: 94, top: 357, right: 136, bottom: 399 },
 } as const;
 
 export function fitPhoneArtwork(width: number, height: number) {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
-  const { canvas, body, screen, home } = PHONE_ARTWORK_BOUNDS;
-  const scale = Math.min((width - 8) / (body.right - body.left), (height - 8) / (body.bottom - body.top));
-  if (scale <= 0) return null;
-  const imageLeft = (width - (body.right - body.left) * scale) / 2 - body.left * scale;
-  const imageTop = (height - (body.bottom - body.top) * scale) / 2 - body.top * scale;
+  const { canvas, screen, home } = PHONE_ARTWORK_BOUNDS;
+  const scale = Math.min(width / canvas.width, height / canvas.height, 2);
+  if (scale < 0.8) return null;
+  const snap = (value: number) => Math.floor(value / 2) * 2;
+  const artworkWidth = snap(canvas.width * scale);
+  const artworkHeight = snap(canvas.height * scale);
+  const imageLeft = snap((width - artworkWidth) / 2);
+  const imageTop = snap((height - artworkHeight) / 2);
+  // Use the same nearest-cell boundaries as phone-pixel-art's rasterizer.
+  const x = (value: number) => Math.ceil(value * artworkWidth / canvas.width / 2) * 2;
+  const y = (value: number) => Math.ceil(value * artworkHeight / canvas.height / 2) * 2;
   return {
     scale,
-    artwork: { left: imageLeft, top: imageTop, width: canvas.width * scale, height: canvas.height * scale },
+    artwork: { left: imageLeft, top: imageTop, width: artworkWidth, height: artworkHeight },
     screen: {
-      left: imageLeft + screen.left * scale,
-      top: imageTop + screen.top * scale,
-      width: (screen.right - screen.left) * scale,
-      height: (screen.bottom - screen.top) * scale,
+      left: imageLeft + x(screen.left),
+      top: imageTop + y(screen.top),
+      width: x(screen.right) - x(screen.left),
+      height: y(screen.bottom) - y(screen.top),
     },
     homeButton: {
-      left: imageLeft + home.left * scale,
-      top: imageTop + home.top * scale,
-      width: (home.right - home.left) * scale,
-      height: (home.bottom - home.top) * scale,
+      left: imageLeft + x(home.left),
+      top: imageTop + y(home.top),
+      width: Math.max(44, x(home.right) - x(home.left)),
+      height: Math.max(44, y(home.bottom) - y(home.top)),
     },
   };
 }
