@@ -84,7 +84,7 @@ const COPY: Record<AvailableUiLocale, ProcessingLogCopy> = {
       connection: "기록 연결",
       "self-understanding": "자기 이해 업데이트",
       conversation: "허슬케이 대화",
-      capture: "담은 내용 정리",
+      capture: "저장한 내용 정리",
       import: "가져온 내용 정리",
       planning: "계획 지원",
       summary: "요약",

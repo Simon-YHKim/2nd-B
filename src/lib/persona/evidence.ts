@@ -76,7 +76,7 @@ export function evidenceRoute(type: EvidenceType): string {
 }
 
 const TYPE_LABEL: Record<"en" | "ko", Record<EvidenceType, string>> = {
-  ko: { journal: "오늘의 별가루", capture: "별가루 담기", wiki: "지식 창고", interview: "스무고개", audit: "라이프 오딧", imagine: "새 관점" },
+  ko: { journal: "오늘의 별가루", capture: "기록 추가", wiki: "지식 창고", interview: "스무고개", audit: "라이프 오딧", imagine: "새 관점" },
   en: { journal: "Journal", capture: "Capture", wiki: "Wiki", interview: "Interview", audit: "Life audit", imagine: "Imagine" },
 };
 

@@ -1332,7 +1332,7 @@ function CaptureLegacySession({
       showFeedback(
         locale === "ko" ? "쓰던 기록 초안의 별을 지켰습니다" : "Kept your record draft intact",
         locale === "ko"
-          ? "쓰던 기록 초안은 원래 별에 그대로 두고, 공유된 내용은 다른 자리에 담았습니다."
+          ? "쓰던 기록 초안은 원래 별에 그대로 두고, 공유된 내용은 별도 초안으로 열었습니다."
           : "Your existing record draft kept its original star. The shared content was placed separately so nothing was refiled.",
       );
     }
@@ -1476,7 +1476,7 @@ function CaptureLegacySession({
       showFeedback(
         locale === "ko" ? "쓰던 별 초안을 그대로 지켰습니다" : "Kept your star draft intact",
         locale === "ko"
-          ? "기존 초안을 저장하거나 비운 뒤 다른 별에서 다시 담아 주세요. 내용과 별은 바꾸지 않았습니다."
+          ? "기존 초안을 저장하거나 비운 뒤 다른 별에서 다시 기록을 추가해 주세요. 내용과 별은 바꾸지 않았습니다."
           : "Save or clear the existing draft before capturing from another star. Its text and star were not changed.",
       );
       // 충돌 억제는 "이 파라미터로 바꿀 durable 상태가 없다" 는 **확정 판정**이라
@@ -1956,7 +1956,7 @@ function CaptureLegacySession({
     showFeedback(
       locale === "ko" ? "같은 내용의 저장을 확인하고 있습니다" : "Checking the same save",
       locale === "ko"
-        ? "이전 화면에서 시작한 저장 결과를 확인한 뒤 초안을 다시 불러오겠습니다. 다른 내용은 계속 담을 수 있습니다."
+        ? "이전 화면에서 시작한 저장 결과를 확인한 뒤 초안을 다시 불러오겠습니다. 다른 내용은 계속 추가할 수 있습니다."
         : "We'll reload the draft after checking the save started on the previous screen. You can still capture different content.",
     );
     void claim.completion.then((outcome) => {

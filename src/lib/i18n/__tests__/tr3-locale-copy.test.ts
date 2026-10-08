@@ -253,7 +253,7 @@ describe("tr3 /career: the path block reads deepspace career.*", () => {
     expect(v("en")).toEqual(["The path you've built", "Main", "Side", "Education", "Military", "Awards", "Licenses", "Experience"]);
     expect(v("ko")).toEqual(["쌓아온 길", "메인", "사이드", "학력", "병역", "수상", "자격", "경력"]);
     expect(at(pack("ko", "deepspace"), "career.sideNote")).toBe(
-      "학력·병역·수상·자격·경력 같은 공식 이력은 연동하면 여기에 자동으로 정리됩니다. 지금은 메인에서 직접 담은 성과가 쌓입니다.",
+      "학력·병역·수상·자격·경력 같은 공식 이력은 연동하면 여기에 자동으로 정리됩니다. 지금은 메인에서 직접 추가한 성과가 쌓입니다.",
     );
   });
 
