@@ -191,6 +191,19 @@
     "refresh": "Muat ulang",
     "unknownDate": "Tanggal tidak tersedia",
     "board": {
+      "generation": {
+        "next": "Item berikutnya",
+        "loading": "Menyiapkan ringkasan hari ini.",
+        "denied": "Periksa rekomendasi dan persetujuan layanan AI.",
+        "limited": "Pembaruan baru akan tersedia saat penyegaran berikutnya.",
+        "disabled": "Sementara tidak tersedia.",
+        "unavailable": "Tidak dapat memuat. Silakan coba lagi.",
+        "noteEmpty": "Tambahkan pengingat hari ini untuk mendapatkan catatan harian.",
+        "triageEmpty": "Belum ada pengingat untuk diurutkan.",
+        "summaryEmpty": "Tambahkan pengingat untuk merangkum pengingat dan tugas yang selesai hari ini.",
+        "settings": "Persetujuan",
+        "reminders": "Pengingat"
+      },
       "weather": {
         "title": "Cuaca",
         "body": "Gunakan lokasi di perangkat ini untuk memilih pengamatan cuaca terdekat. Lokasi tidak dikirim keluar perangkat dan fitur ini dapat dinonaktifkan kapan saja.",

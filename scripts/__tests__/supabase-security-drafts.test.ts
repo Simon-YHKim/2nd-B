@@ -40,6 +40,7 @@ const sameBytes = (draft: string, numbered: string) =>
 // not applied yet may be revised before its GO, and its digest moves in the same
 // commit with the reason.
 const promoted = [
+  ["0236", "dashboard_generation", "a86ab9e7c03e335d0eb27b8c90f5e18b345824975e112d5ad51de57a5287d4b3"],
   ["0191", "signup_consent_admob_20260925", "6ba82c9ec8a796e99f1398398c58560b58513147119928d3ad004b31b0781648"],
   ["0192", "account_deletion_completion_fence", "d42dbfc8a3d53ada60beb589918eaa4ac78e72d49b91af2e16d2f6457187b229"],
   ["0193", "effective_llm_consent_current_contract", "579b8ca0729c337fb1cfae9a76ccb99144bc7ad12d9b078d95e3d4a286bd0e19"],
@@ -81,10 +82,6 @@ const RETAINED_UNTIL_APPLIED = ["0197:paddle_refund_consequence_integrity"] as c
 // Drafts that do not have a number yet, each with its behavioural lane. A new
 // draft is registered here; it leaves this map in the change that numbers it.
 const pendingDrafts: Record<string, { runner: string; workflowInvocation: string }> = {
-  "UNNUMBERED_dashboard_generation.sql": {
-    runner: "scripts/test-dashboard-sql.mjs",
-    workflowInvocation: "node scripts/test-dashboard-sql.mjs 5432 dashboard_test_ci",
-  },
 };
 
 /** Violations of the one-copy rule. Pure, so the guard itself can be mutated below. */
@@ -257,9 +254,10 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(step).toContain("cmp -s");
     expect(step).toContain("drop the retained_until_applied exception");
     // 71 baseline rows + five from 0226 (interview sessions, transcript head and turns,
-    // context-block ids, the session-start counter) + two weather tables from 0233.
-    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 78");
-    expect(step).toContain("78 registry rows, contracts and ACL verified");
+    // context-block ids, the session-start counter) + two weather tables from 0233
+    // + two dashboard tables from 0237.
+    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 80");
+    expect(step).toContain("80 registry rows, contracts and ACL verified");
     expect(step).toContain("('0201', 'rss_proxy_erasure_registry')");
     expect(step).not.toMatch(/\\i db\/migration-drafts\/UNNUMBERED_/);
   });

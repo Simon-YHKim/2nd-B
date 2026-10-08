@@ -240,7 +240,8 @@ DECLARE
     'credit_ledger_erasure_registry_reason', -- 0205: 0189 등록부의 credit_ledger 행 사유를 고친다
     'reward_records_erasure_registry_reason', -- 0212: 0189·0198·0205 등록부의 보상 관련 네 행 사유를 고친다
     'interview_transcript_erasure_registry',  -- 0226: 0225 가 만든 인터뷰 표들의 등록부 다섯 행을 더한다
-    'weather_erasure_registry'           -- 0233: 날씨 두 표의 등록부만 다시 채운다(0232 구조는 유지)
+    'weather_erasure_registry',          -- 0233: 날씨 두 표의 등록부만 다시 채운다(0232 구조는 유지)
+    'dashboard_erasure_registry'         -- 0237: W1 등록부만 다시 채운다(0236 구조·시도 원장 유지)
   ];
   v_found   text;
   v_absent  text;

@@ -1,5 +1,4 @@
--- W1 draft. Allocate a migration number at review, apply before enabling Edge.
--- No cron, model-policy replacement, or production activation in this draft.
+-- W1 server-only generation. Enable the client only after the consent canary.
 CREATE TABLE public.dashboard_generation_settings (
   user_id uuid PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
   timezone text NOT NULL, locale text NOT NULL CHECK(locale IN ('en','ko','es','pt','id')),
@@ -200,7 +199,9 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.invalidate_dashboard_generation() FROM PUBLIC,anon,authenticated,service_role;
 CREATE TRIGGER dashboard_routine_deleted AFTER DELETE ON public.ops_routines FOR EACH ROW EXECUTE FUNCTION public.invalidate_dashboard_generation();
--- Registry entries are applied with the numbered migration, before activation.
-INSERT INTO public.erasure_registry(table_name,owner_column,class,reason,delete_order)
-  VALUES('dashboard_generation_settings','user_id','account_delete_only','Server scheduling preference; removed on account deletion.',NULL),
-        ('dashboard_generation_runs','user_id','account_delete_only','48h attempt ledger; cached text expires in 24h or less and is invalidated on source deletion.',NULL);
+
+DO $cron$ BEGIN
+  IF to_regnamespace('cron') IS NOT NULL THEN
+    PERFORM cron.schedule('purge-dashboard-generation','17 * * * *','SELECT public.purge_dashboard_generation()');
+  END IF;
+END $cron$;

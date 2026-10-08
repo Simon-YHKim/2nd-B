@@ -24,6 +24,6 @@ CREATE TABLE public.ops_routine_logs(routine_id uuid REFERENCES public.ops_routi
 CREATE TABLE public.erasure_registry(table_name text,owner_column text,class text,reason text,delete_order integer);
 CREATE FUNCTION public.effective_llm_consent_snapshot_v2(p_user_id uuid,p_allow_legacy boolean DEFAULT false) RETURNS jsonb
 LANGUAGE sql AS $$ SELECT jsonb_build_object('allowed',test_consent,'token',CASE WHEN test_consent THEN test_token END) FROM public.users WHERE id=p_user_id $$;
-\ir ../migration-drafts/UNNUMBERED_dashboard_generation.sql
+\ir ../migrations/0236_dashboard_generation.sql
 COMMIT;
 \ir dashboard_generation_regression.sql

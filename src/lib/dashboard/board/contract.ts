@@ -49,6 +49,8 @@ export interface QueueItem {
   line: BoardText;
   basis: BoardBasis;
   evidenceRoute: string | null;
+  /** Sources without a queue writer open their existing editor instead. */
+  action?: BoardAction;
 }
 
 export interface HealthMetric { metric: "sleep" | "steps" | "workout" | "meal"; value: number; unit: string }
@@ -111,7 +113,7 @@ export interface SummaryBubble {
   basis: BoardBasis;
   evidenceRoute: string | null;
 }
-export interface DailySummary { slot: "morning" | "day" | "evening"; bubbles: SummaryBubble[] }
+export interface DailySummary { slot: "morning" | "day" | "evening"; bubbles: SummaryBubble[]; note?: BoardText; action?: BoardAction }
 
 /**
  * S-03 위젯 관리: 화면에 없는 부품 하나. 잠긴 것은 점선 + 잠긴 이유 + [연동 화면].

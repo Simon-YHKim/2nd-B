@@ -3,15 +3,17 @@ import { captureAccountOwnerLease, subscribeAccountTransition } from "../auth/ac
 import { currentPrivacyChange, subscribePrivacyChanges } from "../privacy/changes";
 import { invokeFunctionWithCapturedSession } from "../supabase/captured-session-client";
 import { decodeBoardResponse, type ValidatedBoardOutput } from "./generation-output";
+import type { GenerationState } from "./generation-state";
 
 // Server deployment and canary precede this build flag. No local model fallback.
 export const DASHBOARD_GENERATION_ENABLED = process.env.EXPO_PUBLIC_DASHBOARD_GENERATION === "true";
 
 export async function requestBoardGeneration(
   ownerId: string, action: "open" | "summary" | "triage", locale: string, signal?: AbortSignal,
-): Promise<ValidatedBoardOutput> {
-  const invalid = { ok: false, reason: "invalid_output" } as const;
-  if (!DASHBOARD_GENERATION_ENABLED || currentPrivacyChange(ownerId)?.prefs.recommendations === false) return invalid;
+): Promise<ValidatedBoardOutput | { ok: false; reason: GenerationState }> {
+  const invalid = { ok: false, reason: "unavailable" } as const;
+  if (!DASHBOARD_GENERATION_ENABLED) return { ok: false, reason: "disabled" };
+  if (currentPrivacyChange(ownerId)?.prefs.recommendations === false) return { ok: false, reason: "denied" };
   const owner = captureAccountOwnerLease(ownerId);
   if (!owner) return invalid;
   const pending = beginAccountSessionLease(ownerId, signal);
@@ -28,7 +30,11 @@ export async function requestBoardGeneration(
     });
     session.assertCurrent();
     if (!owner.isCurrent() || result.error || currentPrivacyChange(ownerId)?.revision !== revision) return invalid;
-    return decodeBoardResponse(result.data);
+    const kind = result.data && typeof result.data === "object" && "kind" in result.data ? result.data.kind : null;
+    if (kind === "empty" || kind === "denied" || kind === "busy" || kind === "limited" || kind === "disabled" || kind === "unavailable") return { ok: false, reason: kind };
+    const decoded = decodeBoardResponse(result.data);
+    const expected = { open: "daily_note", summary: "day_summary", triage: "inbox_triage" }[action];
+    return decoded.ok && decoded.seat === expected ? decoded : invalid;
   } catch { return invalid; }
   finally { clearTimeout(timeout); stopOwner(); stopPrivacy(); pending.release(); }
 }

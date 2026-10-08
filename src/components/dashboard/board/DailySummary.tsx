@@ -65,7 +65,11 @@ export function DailySummary({ summary, healthValues, muted, reducedMotion, go, 
 
   if (!summary || total === 0) return <View style={styles.page}>
     <IosLargeTitle>{t("phone.board.summary.titleDefault")}</IosLargeTitle>
-    <Text variant="body" style={styles.muted}>{t("phone.board.summary.notReady")}</Text>
+    <PixelRoundRect fill={phoneIos.cell} style={styles.empty}>
+      <PixelGlyph name="chat" size={24} color={phoneIos.blue} />
+      <Text accessibilityLiveRegion="polite" variant="body" style={styles.muted}>{summary?.note ? say(summary.note) : t("phone.board.summary.notReady")}</Text>
+      {summary?.action ? <IosButton label={say(summary.action.label)} onPress={() => go(summary.action!.route)} /> : null}
+    </PixelRoundRect>
     <View style={styles.actions}><IosButton label={t("phone.board.summary.close")} onPress={close} /></View>
   </View>;
 
@@ -94,6 +98,7 @@ export function DailySummary({ summary, healthValues, muted, reducedMotion, go, 
 }
 
 const styles = StyleSheet.create({
+  empty: { padding: 14, gap: 12 },
   page: { gap: 10 },
   bubbles: { gap: 8 },
   bubble: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 8, alignSelf: "flex-start", maxWidth: "92%" },
