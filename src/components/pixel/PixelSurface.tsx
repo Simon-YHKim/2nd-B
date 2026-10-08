@@ -47,6 +47,8 @@ export interface PixelSurfaceProps {
   variant?: PixelSurfaceVariant;
   /** 눌린 상태. 베벨을 뒤집는다 (`.px-btn:active` 와 같다). */
   pressed?: boolean;
+  /** Explicit control selection; an inset alone is a recessed surface, not a selected control. */
+  selected?: boolean;
   /** 면 배경. 기본은 variant 별 토큰. */
   background?: string;
   children?: ReactNode;
@@ -96,6 +98,7 @@ function bevelOf(variant: PixelSurfaceVariant, pressed: boolean): { hi: string; 
 export function PixelSurface({
   variant = "bevel",
   pressed = false,
+  selected,
   background,
   children,
   style,
@@ -105,9 +108,13 @@ export function PixelSurface({
   const phone = usePhoneDesign();
   if (phone) {
     const base = background ? phoneSurfaceColor(background) : phoneIos.cell;
-    const fill = pressed ? base === phoneIos.blue ? phoneIos.bluePressed : phoneIos.fill : base;
-    return <PixelRoundRect fill={fill} style={[phoneStyle(StyleSheet.flatten(style) ?? {}), phoneFlatSurface, shrink && styles.shrink]}>
-      <PhoneForegroundProvider color={base === phoneIos.blue ? phoneIos.onBlue : phoneIos.label}>
+    // Clay encodes selection in the bevel as well as the color. Some controls
+    // deliberately use identical color tokens, so retain that semantic here.
+    const active = selected === true;
+    const restingFill = (active || variant === "inset") && (base === phoneIos.cell || base === phoneIos.grouped) ? phoneIos.fill : base;
+    const fill = pressed ? base === phoneIos.blue ? phoneIos.bluePressed : phoneIos.fill : restingFill;
+    return <PixelRoundRect fill={fill} border={active ? phoneIos.bluePressed : undefined} style={[phoneStyle(StyleSheet.flatten(style) ?? {}), phoneFlatSurface, shrink && styles.shrink]}>
+      <PhoneForegroundProvider color={fill === phoneIos.blue || fill === phoneIos.bluePressed ? phoneIos.onBlue : phoneIos.label}>
         <View style={[styles.content, shrink && styles.shrink, phoneStyle(StyleSheet.flatten(contentStyle) ?? {})]}>{children}</View>
       </PhoneForegroundProvider>
     </PixelRoundRect>;

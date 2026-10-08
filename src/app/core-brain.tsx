@@ -1,4 +1,4 @@
-import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { ScreenModal } from "@/components/ui/ScreenModal";
 import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pressable, PhoneTouchableOpacity as TouchableOpacity } from "@/components/phone/PhoneUIKit";
 // Polaris / Core Brain screen (core-brain pack v2). Internal route and data
 // keys stay "Core Brain"; user-facing name is "북극성". Reuses the read-only
@@ -516,7 +516,7 @@ function CoreBrainScreen() {
 
   // Evidence drawer (§5) — shared by the deep-space deck and the legacy screen.
   const renderEvidenceDrawer = () => (
-    <Modal visible={drawerOpen} transparent animationType="slide" onRequestClose={() => setDrawerOpen(false)}>
+    <ScreenModal visible={drawerOpen} transparent animationType="slide" onRequestClose={() => setDrawerOpen(false)}>
       <Pressable
         style={styles.backdrop}
         onPress={() => setDrawerOpen(false)}
@@ -577,7 +577,7 @@ function CoreBrainScreen() {
           <Button label={t("close")} variant="secondary" onPress={() => setDrawerOpen(false)} />
         </Pressable>
       </Pressable>
-    </Modal>
+    </ScreenModal>
   );
 
   // rev2 deep-space track: the Claude 10-me composition is a three-card

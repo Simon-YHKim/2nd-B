@@ -1,4 +1,7 @@
-import { Pressable, TouchableOpacity, StyleSheet, Switch, View } from "react-native";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { PhonePressable as Pressable, PhoneTouchableOpacity as TouchableOpacity, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { StyleSheet, Switch } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { semantic, spacing } from "@/lib/theme/tokens";
@@ -17,13 +20,14 @@ export function PreferenceSwitch({
   accessibilityLabel: string;
   accessibilityHint?: string;
 }) {
+  const phone = usePhoneDesign();
   return (
     <Switch
       value={value}
       disabled={disabled}
       onValueChange={onValueChange}
-      trackColor={{ false: semantic.border, true: semantic.brand }}
-      thumbColor={semantic.text}
+      trackColor={phone ? { false: phoneIos.fill, true: phoneIos.green } : { false: semantic.border, true: semantic.brand }}
+      thumbColor={phone ? phoneIos.cell : semantic.text}
       accessibilityRole="switch"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}

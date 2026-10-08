@@ -33,11 +33,20 @@ jest.mock("@/lib/settings/readable-font", () => ({ useFontStyle: () => ({ fontSt
 jest.mock("@/lib/theme/ThemeContext", () => ({
   useThemePalette: () => require("@/lib/theme/tokens").semantic,
 }));
+jest.mock("@/lib/interview/probe", () => {
+  const layers = ["fact", "feeling", "meaning", "belief", "echo"];
+  const labels = Object.fromEntries(layers.map(layer => [layer, layer]));
+  return {
+    DRILL_LAYERS: layers, LAYER_LABEL: { en: labels, ko: labels },
+    PERIOD_LABEL: { en: { now: "Now" }, ko: { now: "지금" } },
+  };
+});
 
 import { LikertChoiceGroup } from "../LikertChoiceGroup";
 import { PhoneDesignProvider } from "@/lib/theme/phone-design-context";
 import { phoneIos } from "@/lib/theme/phone-ios";
 import { semantic } from "@/lib/theme/tokens";
+import { DrillProgress } from "@/components/ui/DrillProgress";
 
 // The repository's ts-jest transform uses classic JSX for files whose runtime
 // uses Expo's automatic JSX transform.
@@ -81,6 +90,27 @@ test("questionnaire answer choices use iOS surfaces only while hosted and retain
   // standalone render, even when both instances live in the same React tree.
   expect(renderGroup(false).filter(host => host.kind === "pressable").map(host => host.props.style))
     .toEqual(originalButtons.map(host => host.props.style));
+});
+
+test("the phone's interview matrix preserves each count level and the current target", () => {
+  const coverage = { now: { fact: 0, feeling: 1, meaning: 2, belief: 3, echo: 4 } } as React.ComponentProps<typeof DrillProgress>["coverage"];
+  const matrix = React.createElement(DrillProgress, {
+    coverage, periods: ["now"], locale: "en", activePeriod: "now", activeLayer: "meaning",
+  });
+  const cells = (phone: boolean) => {
+    mockHosts.length = 0;
+    renderToStaticMarkup(phone ? React.createElement(PhoneDesignProvider, {}, matrix) : matrix);
+    return mockHosts.filter(host => host.kind === "view" && String(host.props.accessibilityLabel).startsWith("Now ·"));
+  };
+  const standalone = cells(false);
+  const hosted = cells(true);
+  expect(hosted.map(cell => cell.props.accessibilityLabel)).toEqual(standalone.map(cell => cell.props.accessibilityLabel));
+  const styles = hosted.map(cell => cell.props.style as Record<string, unknown>);
+  expect(styles.map(style => style.backgroundColor)).toEqual([
+    phoneIos.fill, phoneIos.lightBlue, phoneIos.blue, phoneIos.bluePressed, phoneIos.bluePressed,
+  ]);
+  expect(styles[2].borderColor).toBe(phoneIos.green);
+  expect(cells(false).map(cell => cell.props.style)).toEqual(standalone.map(cell => cell.props.style));
 });
 
 test.each([

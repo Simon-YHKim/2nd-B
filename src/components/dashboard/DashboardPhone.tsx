@@ -741,10 +741,12 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       />
       </> : null}
     </Animated.View>
+    <PhoneDesignProvider>
     <WeatherSheet mode={isMinor === false ? weatherSheet : null} busy={clockWeather.state.busy} failed={clockWeather.state.failed}
       onTerms={() => { clockWeather.cancel(); setWeatherSheet(null); go("/terms"); }}
       onClose={() => { clockWeather.cancel(); setWeatherSheet(null); }} onEnable={() => { void clockWeather.enable().then((saved) => { if (saved) setWeatherSheet(null); }); }} />
     <CrisisRouter visible={crisisVisible} hotline={i18n.language.toLowerCase().startsWith("ko") ? isMinor ? "KR_1388" : "KR_109" : "GLOBAL_988"} onClose={() => setCrisisVisible(false)} />
+    </PhoneDesignProvider>
   </DeepSpaceScreen>;
 }
 
@@ -754,7 +756,6 @@ const styles = StyleSheet.create({
   // RN Web keeps a repeated 4px tile at its intrinsic size without explicit bounds.
   phoneScrimImage: { width: "100%", height: "100%" },
   phone: { flex: 1, width: "100%", maxWidth: 460, alignSelf: "center", overflow: "hidden", zIndex: 1 },
-  artwork: { position: "absolute" },
   display: { position: "absolute", overflow: "hidden" },
   displayGrouped: { backgroundColor: phoneIos.grouped },
   homeButton: { position: "absolute" },

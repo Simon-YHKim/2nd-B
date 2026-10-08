@@ -1,7 +1,7 @@
 import { usePhoneDesign } from "@/lib/theme/phone-design-context";
 import { phoneIos } from "@/lib/theme/phone-ios";
 import { PixelScrim } from "@/components/pixel/PixelDither";
-import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { ScreenModal } from "@/components/ui/ScreenModal";
 import { PhoneFlatList as FlatList, PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Linking, Platform, StyleSheet } from "react-native";
@@ -344,7 +344,7 @@ export function NoticeDialog({
   if (!visible) return null;
 
   return (
-    <Modal
+    <ScreenModal
       visible={visible}
       transparent
       animationType="fade"
@@ -470,7 +470,7 @@ export function NoticeDialog({
           </View>
         </View>
       </View>
-    </Modal>
+    </ScreenModal>
   );
 }
 

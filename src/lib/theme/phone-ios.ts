@@ -11,8 +11,8 @@ export const phoneIos = {
   cell: "#ffffff",
   /** 본문 글자 (label). */
   label: "#000000",
-  /** 보조 글자 (secondaryLabel 60% 를 흰 바탕에 합성). */
-  label2: "#8a8a8e",
+  /** 보조 글자: 흰 셀과 grouped 바탕 모두에서 작은 글자의 대비를 유지한다. */
+  label2: "#636366",
   /** 구분선 (separator 를 흰 바탕에 합성). */
   separator: "#c6c6c8",
   /** 회색 칸 · 버튼 바탕 (systemGray5). */

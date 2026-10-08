@@ -26,12 +26,21 @@ User approved `E:/2ndB/.worktrees/phone-pixel-preview-261008/Output/phone-pixel-
 
 - [x] Read current rules, Android guidelines, ownership and latest decisions; created isolated worktree and node_modules junction.
 - [x] Found root cause: phone own surfaces use iOS tokens, hosted app screens deliberately retain clay styles.
-- [ ] Fixed-grid frame, matching wallpaper and icon system.
-- [ ] Shared phone visual scope and common primitives.
-- [ ] Ops and all other reachable hosted surfaces.
-- [ ] Tests, browser QA, review, docs and full verify.
+- [x] Fixed-grid frame, matching wallpaper and icon system.
+- [x] Shared phone visual scope and common primitives.
+- [x] Ops and all other reachable hosted surfaces.
+- [x] Tests, browser QA, review, docs and full verify.
 - [ ] PR/CI/merge and localhost parity verification.
 
 ## Material testing cases
 
 Frame layout at wide/short/narrow bounds; alpha/cell geometry; launcher labels and touch targets; scoped provider isolation; enabled/disabled/loading/danger actions; nested navigation/back/home; long text/readable-font scaling; empty/error/list scrolling; keyboard inputs; modal focus and Android Back; no runtime require cycles.
+
+## Pre-PR verification (2026-10-08)
+
+- Full `npm run verify`: PASS; Jest 960 suites, 13,067 passed / 1 skipped. UI-work0 76 passed.
+- Release-mode Metro web bundle and browser at 1280×960 and 390×844: all 12 launcher entries remain inside `/dashboard`; settings/account nested navigation, ledger inputs and date modal verified without saving data.
+- Browser canvas inspection: frame and wallpaper each have zero inconsistent 2×2 blocks and zero partial-alpha pixels. Full approved cell map matches losslessly; SVG compression reduces 6,214 row runs to 541 rectangles, decoded by one expo-image.
+- Independent review found a selected subscription tab regression; fixed with explicit selected/checked state and a render regression test. Neutral inset panels retain their own visual distinction.
+- No connected Android device was available; native build is checked by the main APK workflow after merge. No QA release is published by this change.
+- Evidence and route inventory: ignored `Output/phone-ios/` and `Output/phone-ios-audit.json` in this worktree. Final merge/parity status is recorded in the task completion report rather than a second docs-only main push.

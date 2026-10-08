@@ -96,6 +96,7 @@ function mountRoute() {
   const dependencies: Record<string, unknown> = {
     react: hooks,
     "react-native": { View: "View", Pressable: "Pressable", ScrollView: "ScrollView", StyleSheet: { create: (value: unknown) => value } },
+    "@/components/phone/PhoneUIKit": { PhoneView: "View", PhonePressable: "Pressable", PhoneScrollView: "ScrollView" },
     "expo-router": { Redirect: "Redirect" },
     // The screen navigates through the phone-aware router (standalone it is
     // expo-router's own `router`).

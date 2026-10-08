@@ -142,6 +142,7 @@ export function PixelPressable({
         <PixelSurface
           variant={variant}
           pressed={sunken}
+          selected={disabled ? false : accessibilityState?.selected ?? (accessibilityState?.checked === true ? true : undefined)}
           background={phone && disabled ? phoneIos.fill : background}
           style={styles.surface}
           contentStyle={[styles.content, contentStyle]}
