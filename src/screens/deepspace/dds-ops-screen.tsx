@@ -7,7 +7,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect } from "react-native-svg";
 
@@ -19,6 +19,7 @@ import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { systemLocaleFor } from "@/lib/i18n/locales";
 import {
   OPS_GROUP_IDS,
@@ -426,6 +427,7 @@ function SectionHeading({ icon, title, body }: { icon: AnyGlyphName; title: stri
 }
 
 export function DeepSpaceOpsScreen() {
+  const router = useAppRouter();
   const { t, i18n } = useTranslation(["ops", "common", "consent"]);
   const {
     userId,

@@ -136,10 +136,13 @@ before activation. Retention therefore continues even when generation is OFF.
 The pixel iPhone board keeps P-02 and P-04 visible for eligible adults while W1
 is enabled. Loading, consent, empty, quota and error messages are fixed copy in
 five locales. Only validated generated prose gets the AI colour. Generated queue
-items open the existing reminder editor; Next item only moves between the three
+items open the existing `/ops` routine list; Next item only moves between the three
 ranked items. There is no pretend completion button without a persistence writer. P-02 always
 opens the existing S-01 page; empty summaries explain the next action. Settings
-and reminder links stay inside the phone, and errors have an explicit retry.
+and assistant links stay inside the phone, and errors have an explicit retry.
+The phone hosts the same `/ops` screen as the standalone route, using its local
+navigation stack. Unscheduled routines must not point at `/reminders`, which
+only lists routines with an alarm time.
 Minor/unknown-age and disabled builds preserve the prior hidden contract.
 Account changes and consent withdrawal still discard pending and cached prose.
 
@@ -153,6 +156,13 @@ The provider accepts a single complete JSON code block as well as plain JSON;
 the same strict schema/evidence validation follows both. Usage is retained even
 when JSON decoding fails, and audit failure labels contain fixed categories or
 HTTP status only, never provider bodies or exception text.
+
+Scheduler authentication requires the cron secret and a valid service credential.
+When the presented credential differs from the Edge-injected key, the entrypoint
+checks it through the read-only, service-only `dashboard_generation_due` RPC using
+that presented Authorization header. An ordinary user, failed proof or timeout
+cannot authorize a batch. Do not replace this with unverified JWT decoding.
+The auth-config checker also rejects duplicate TOML keys before CLI deployment.
 
 Official deployment reference: https://supabase.com/docs/guides/functions/dependencies
 Model reference: https://platform.claude.com/docs/en/models/sonnet-5/overview

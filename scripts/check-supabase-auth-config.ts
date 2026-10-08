@@ -36,7 +36,11 @@ function readScalars(toml: string): Map<string, string> {
       continue;
     }
     const kv = /^([A-Za-z0-9_]+)\s*=\s*(.+)$/.exec(line);
-    if (kv) out.set(`${section}.${kv[1]}`, kv[2].trim());
+    if (kv) {
+      const key = `${section}.${kv[1]}`;
+      if (out.has(key)) throw new Error(`Duplicate TOML key: ${key}`);
+      out.set(key, kv[2].trim());
+    }
   }
   return out;
 }

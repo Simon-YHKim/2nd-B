@@ -28,6 +28,7 @@ import InterviewScreen from "@/app/interview";
 import ManualScreen from "@/app/manual";
 import StarSummaryScreen from "@/app/me/[star]";
 import NoticesScreen from "@/app/notices";
+import OpsScreen from "@/app/ops";
 import PermissionsScreen from "@/app/permissions";
 import PlansScreen from "@/app/plans";
 import PrivacyScreen from "@/app/privacy";
@@ -159,6 +160,7 @@ const PHONE_ROUTE_SCREENS: Readonly<Record<string, ComponentType>> = {
   "/interview": InterviewScreen,
   "/manual": ManualScreen,
   "/notices": NoticesScreen,
+  "/ops": OpsScreen,
   "/permissions": PermissionsScreen,
   "/plans": PlansScreen,
   "/privacy": PrivacyScreen,
