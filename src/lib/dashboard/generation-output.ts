@@ -46,6 +46,26 @@ const inboxSchema = z.object({
 }).strict();
 const invalid: ValidatedBoardOutput = { ok: false, reason: "invalid_output" };
 
+/** Decode the authenticated server response on the app. Evidence ownership has
+ * already been checked by the server; this still rejects malformed cache/wire data. */
+export function decodeBoardResponse(value: unknown): ValidatedBoardOutput {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return invalid;
+  const row = value as Record<string, unknown>;
+  if (row.kind !== "ready") return invalid;
+  let refs: BoardRef[] = []; let candidateIds: string[] = []; let slot: Slot | undefined;
+  if (row.purpose === "daily_note") {
+    const parsed = noteSchema.safeParse(row.value); if (!parsed.success) return invalid;
+    refs = [...parsed.data.basis_refs, ...parsed.data.reminder_suggestions.map((s) => s.source_ref)]; slot = parsed.data.slot;
+  } else if (row.purpose === "day_summary") {
+    const parsed = summarySchema.safeParse(row.value); if (!parsed.success) return invalid;
+    refs = [...parsed.data.facts.map((f) => f.source_ref), ...parsed.data.links.flatMap((l) => l.refs), ...parsed.data.suggestions.flatMap((s) => s.refs)];
+  } else if (row.purpose === "inbox_triage") {
+    const parsed = inboxSchema.safeParse(row.value); if (!parsed.success) return invalid;
+    candidateIds = parsed.data.order; refs = candidateIds.map((id) => ({ kind: "inbox", id }));
+  } else return invalid;
+  return validateBoardOutput({ seat: row.purpose, payload: {}, prompt: "", refs, candidateIds }, row.value, slot);
+}
+
 /** Decode untrusted JSON before passing a typed value to the W0 checks/UI.
  * A referenced row must have been supplied; that does not prove the generated
  * sentence true. Suggestions still need a user action and the existing writer.

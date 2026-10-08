@@ -1,0 +1,9 @@
+{
+  "imports": {
+    "zod": "npm:zod@3.25.76",
+    "../../src/lib/dashboard/contract": "../../src/lib/dashboard/contract.ts",
+    "../../src/lib/dashboard/generation-input": "../../src/lib/dashboard/generation-input.ts",
+    "../../src/lib/sufficiency/registry": "../../src/lib/sufficiency/registry.ts",
+    "../../src/lib/llm/untrusted": "../../src/lib/llm/untrusted.ts"
+  }
+}

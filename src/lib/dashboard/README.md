@@ -169,9 +169,10 @@ The deterministic W1 boundary is implemented in
 [generation-output.ts](generation-output.ts).
 It selects local daily-note slots, prepares only permitted evidence and checks
 unknown generated output against the W0 contract and the supplied reference set.
-This is preparation for the server runner, with **no live caller or AI seat
-activation yet**. Details and the remaining server obligations are in
-[the implementation note](../../../docs/design/dashboard-w1-generation-261007.md).
+The server continuation connects these checks to `dashboard-generate`, an atomic
+SQL claim/dispatch/cache contract and P-02/P-04/S-01. All activation flags remain
+OFF until deployment and consent/model canaries. See the
+[server contract and runbook](../../../docs/design/dashboard-w1-server-261008.md).
 
 Run the focused checks with:
 

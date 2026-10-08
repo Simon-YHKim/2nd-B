@@ -1,5 +1,10 @@
 # Dashboard W1 generation boundary
 
+Update 2026-10-08: [server continuation](dashboard-w1-server-261008.md) connects
+this boundary to an Edge runner, SQL draft and the app. The no-runtime-caller
+statements below describe the original 3ecfaeb5 checkpoint, not the new branch.
+Production activation is still OFF.
+
 Implementation branch: feat/dashboard-w1-generation-261007, based on
 9a8fd1b5 and the eight assistant decisions recorded in 8a34f7f3.
 
