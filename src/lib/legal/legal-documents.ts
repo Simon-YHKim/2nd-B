@@ -4,7 +4,7 @@
 // 배소하 · 경기도 안양시 · kim0405@hayangzip.com · 보호책임자 김양환 · prices);
 // no [기입]/[fill] markers remain, so isDraft() is false and the 초안 badge is
 // gone. 사업자등록번호 205-10-98603 was issued 2026-07-22 and posted here on
-// 2026-08-03. GPS weather addenda remain explicitly inactive until their publication conditions are met.
+// 2026-08-03. GPS weather addenda describe personal testing from 2026-10-08; the public date remains pending.
 // Lexicon note: the disclaimers must NAME the services PolaScope is NOT
 // (의료·심리상담·진단·치료) -- this file is allowlisted in
 // src/lib/safety/lexicon.ts LEXICON_SCAN_ALLOWLIST for exactly that reason.
@@ -95,19 +95,19 @@ _시행일: 2026-10-05 · 최종 개정: 2026-10-05_
 - 통신판매업 신고: 면제 사업자 (「전자상거래 등에서의 소비자보호에 관한 법률」 시행령 제11조의 신고 면제 기준에 해당)
 - 문의: kim0405@hayangzip.com (이메일 중심으로 운영합니다). 고객지원은 **영업일 기준 2일 이내** 회신을 목표로 합니다.
 
-### 위치기반서비스 추가 약관안 · 아직 시행하지 않음
+### 위치기반서비스 추가 안내 · 개인 테스트
 
-작성 판본: weather-v1-261007 · 시행일:  · 사전 공지 기간:
+작성 판본: weather-v1-261007(초판 식별자이며 시행일이 아닙니다). 개인 테스트: 2026-10-08 시작. 공개 시행일·전화번호·사전 공지 일정은 확정 예정입니다. 전화번호와 공개 시행일은 이번 주말 입력 예정이며, 공개 전에 확정 내용을 알립니다. 기존 이용약관의 시행일은 바꾸지 않습니다.
 
-① **사업자**: 하양 프로덕션(개인사업자, 대표: 배소하), 소재지 경기도 안양시, 연락처 kim0405@hayangzip.com. 개인정보 보호책임자는 김양환(kim0405@hayangzip.com)입니다.
+① **사업자**: 하양 프로덕션(개인사업자, 대표: 배소하), 소재지 (14081) 경기도 안양시 동안구 귀인로 98번길 12, 연락처 kim0405@hayangzip.com. 개인정보 보호책임자는 김양환(kim0405@hayangzip.com)입니다. 전화번호는 확정 후 공개 전에 추가합니다.
 
 ② **권리와 행사방법**: 개인위치정보주체는 동의의 전부 또는 일부를 유보·철회하거나 일시 중지를 요구할 수 있으며, 이용·제공사실 확인자료의 열람·고지와 오류 정정을 요구할 수 있습니다. 설정에서 날씨용 위치를 끄거나 위 연락처로 요청합니다. 회사는 정당한 요구를 지체 없이 처리합니다. 동의를 거부·철회해도 다른 앱 기능은 이용할 수 있습니다.
 
-③ **서비스 내용**: 하루 관리판 시계 줄에 기기 위치에 해당하는 날씨 그림과 기온 예보를 제공합니다. 성인 이용자의 별도 동의와 OS 위치 허용 후에만 기기에서 좌표를 소수 둘째 자리(약 1km)로 뭉개 MET Norway에 조회합니다. 백그라운드 위치 추적과 위치 이력 서비스는 제공하지 않습니다. 국외 수신자·목적·항목·시점·보관 조건은 처리방침의 GPS 날씨 추가 고지안을 따릅니다.
+③ **서비스 내용**: 하루 관리판 시계 줄에 인근 관측소의 날씨 그림과 기온을 표시합니다. 만 18세 이상 이용자의 별도 동의와 기기 위치 허용 후, 기기 안에서 50km 이내·90분 이내의 관측 자료를 고릅니다. 조건에 맞는 자료가 없으면 날씨를 표시하지 않습니다. 예보가 아니며 현재 위치의 실제 날씨와 다를 수 있습니다. NOAA/NWS 공개 관측 자료를 다섯 가지 그림으로 묶고 기온을 반올림한 것으로, NOAA/NWS의 공식 표시나 승인을 뜻하지 않습니다. [자료 출처](https://aviationweather.gov/data/api/)와 [이용 안내](https://www.weather.gov/disclaimer)를 제공합니다.
 
-④ **이용·제공사실 확인자료**: 위치정보법 제16조 제2항 및 「위치정보의 관리적·기술적 보호조치 기준」 제6조를 근거로 계정 식별자·요청 시각·수신자·사건 종류를 6개월간 보유하고 기간이 지난 자료를 매일 정리합니다. 이 자료에는 좌표·IP·이동 경로를 넣지 않습니다. 계정 삭제 시 확인자료의 계정 식별자를 비웁니다.
+④ **동의·요청 사실**: 계정 식별자·동의 및 요청 시각·제공자 표시·사건 종류를 6개월간 보유하고 기간이 지난 자료를 매일 정리합니다. 제공자 표시인 “NOAA/NWS (bulk, no device location)”는 기상 자료의 출처를 뜻하며, 이용자의 위치를 제공받는 자라는 뜻이 아닙니다. 이 자료에는 좌표·IP·이동 경로를 넣지 않습니다. 계정 삭제 시 남은 자료의 계정 식별자를 비웁니다.
 
-⑤ **개인위치정보의 보유 목적·기간**: 대략 좌표는 날씨 조회만을 위해 요청 중 일시 처리하며 회사 서버에 보유하지 않습니다. 기기 메모리 캐시는 최대 30분이고 철회·계정 전환 시 비웁니다. MET Norway의 자체 로그 보관은 회사의 비보관 약속과 구분하며 해당 조건을 확정하기 전에는 서비스를 활성화하지 않습니다. 위치정보와 날씨를 광고·분석·AI 입력에 사용하지 않습니다.
+⑤ **위치 처리·보유**: 좌표는 기기 안에서 가까운 관측 자료를 고르는 데만 사용합니다. 정확한 좌표와 대략 좌표 모두 회사 서버·Supabase·NOAA/NWS에 보내지 않습니다. 서버는 이용자 위치와 무관한 동일한 공개 관측 목록을 받습니다. 기기의 위치·날씨 메모리 캐시는 최대 30분이며 철회·계정 전환 시 비웁니다. 백그라운드 추적과 이동 이력 저장을 하지 않고 위치정보와 날씨를 광고·분석·AI 입력에 사용하지 않습니다.
 
 ⑥ **만 14세 미만 및 미성년자(제25조)**: 이 서비스는 만 18세 이상으로 확인된 이용자만 별도 동의하여 켤 수 있습니다. 만 14세 미만은 법정대리인 동의를 포함한 별도 개방 절차가 마련되기 전까지 잠겨 있고, 만 14~17세 및 나이 미확인 계정도 잠겨 있습니다. 이 약관은 미성년 위치 기능을 개방하지 않습니다.
 
@@ -164,19 +164,19 @@ The Company may change or suspend all or part of the Service for operational/tec
 - Mail-order business report: exempt (meets the exemption criteria of Article 11 of the Enforcement Decree of Korea's e-commerce act)
 - Contact: kim0405@hayangzip.com (email-first support). Support aims to reply **within 2 business days**.
 
-### Location-based service addendum · not yet effective
+### Weather location addendum · personal testing
 
-Draft revision: weather-v1-261007 · Effective date:  · Advance notice:
+Revision: weather-v1-261007 (the initial revision identifier, not an effective date). Personal testing began on 2026-10-08. The public effective date, telephone number and advance-notice schedule are not yet finalized. The telephone number and public effective date are scheduled to be entered this weekend and disclosed before public availability. The existing Terms' effective date is unchanged.
 
-(1) **Operator**: Hayang Production (sole proprietorship; Representative: Bae Soha), Anyang-si, Gyeonggi-do, Republic of Korea; contact kim0405@hayangzip.com. Data Protection Officer: Kim Yang-hwan, at the same email.
+(1) **Operator**: Hayang Production (sole proprietorship; Representative: Bae Soha), 12, Gwiin-ro 98beon-gil, Dongan-gu, Anyang-si, Gyeonggi-do, 14081, Republic of Korea; contact kim0405@hayangzip.com. Data Protection Officer: Kim Yang-hwan, at the same email. A telephone number will be added before public availability once finalized.
 
 (2) **Rights**: You may withhold or withdraw all or part of consent, request a temporary suspension, and request access to or correction of use/provision facts. Turn off location for weather in privacy settings or contact the address above. The Company handles valid requests without delay. Other app features remain available if you decline or withdraw.
 
-(3) **Service**: The daily board clock shows a weather drawing and temperature forecast for the device’s area. Only after adult opt-in and OS permission, coordinates rounded on the device to two decimal places (about 1 km) are sent to MET Norway. There is no background location tracking or location-history service. The weather addendum to the privacy policy identifies the overseas recipient, purpose, items, transfer timing and retention conditions.
+(3) **Service**: The daily board clock shows weather and temperature from a nearby observation station. After separate consent from an adult aged 18 or older and device permission, the device selects observations within 50 km and no more than 90 minutes old. Weather is hidden if no suitable observation exists. These are observations, not forecasts, and may differ from conditions at your location. NOAA/NWS public observations are grouped into five drawings and temperatures are rounded. This presentation is not an official NOAA/NWS product or endorsement. See the [data source](https://aviationweather.gov/data/api/) and [terms of use](https://www.weather.gov/disclaimer).
 
-(4) **Use/provision facts**: Under Article 16(2) of the Location Information Act and Article 6 of the Standards for Administrative and Technical Protection of Location Information, account identifier, request time, recipient and event type are retained for six months and purged daily after that period. These facts contain no coordinates, IP or movement history. Account deletion clears the account identifier from retained facts.
+(4) **Consent and request facts**: Account identifier, consent/request time, provider label and event type are retained for six months and purged daily after that period. The provider label “NOAA/NWS (bulk, no device location)” identifies the weather data source, not a recipient of your location. These facts contain no coordinates, IP or movement history. Account deletion clears the account identifier from retained facts.
 
-(5) **Location retention**: Coarse coordinates are processed transiently for weather and not retained on Company servers. The device’s memory cache lasts at most 30 minutes and clears on withdrawal or account change. MET Norway’s own access logs are distinct from Company retention; the feature remains disabled until those conditions are settled. Location and weather are not used for advertising, analytics or AI input.
+(5) **Location processing and retention**: Coordinates are used only on the device to select a nearby observation. Neither precise nor approximate device coordinates are sent to Company servers, Supabase or NOAA/NWS. The server obtains the same public observation list independently of users' locations. The device's location/weather memory cache lasts at most 30 minutes and clears on withdrawal or account change. There is no background tracking or movement-history storage. Location and weather are not used for advertising, analytics or AI input.
 
 (6) **Children and minors (Article 25)**: Only confirmed adults aged 18 or older may opt in. Children under 14 remain locked out until a separate opening process including legal-representative consent exists. Users aged 14–17 and accounts with unknown age are also locked out. These terms do not open location features to minors.`,
 };
@@ -403,21 +403,23 @@ Supabase Edge Functions와 OpenAI·Anthropic 등 서비스 제공에 필요한 �
 | 2026-08-30 | 제4조 수탁사에 Google Analytics 4·Microsoft Clarity 추가(이용자가 사용 통계에 동의한 경우에만 처리). 제5조에 두 수탁사의 국외 이전 고지 신설(별도 동의 근거·이전 항목·보유기간 명시). |
 | 2026-08-16 | 최초 시행. |
 
-### GPS 날씨 추가 고지안 · 아직 시행하지 않음
+### GPS 날씨 추가 안내 · 개인 테스트
 
-작성 판본: weather-v1-261007 · 시행일:  · 사전 공지 기간:
+작성 판본: weather-v1-261007(초판 식별자이며 시행일이 아닙니다). 개인 테스트: 2026-10-08 시작. 공개 시행일·전화번호·사전 공지 일정은 확정 예정입니다. 전화번호와 공개 시행일은 이번 주말 입력 예정이며 공개 전에 고지합니다. 기존 개인정보처리방침의 시행일은 바꾸지 않습니다.
 
-성인 이용자가 별도로 켠 경우에만, 하루 관리판의 날씨를 보여 주기 위해 기기 위치를 소수 둘째 자리(남북 약 1.1km, 동서 거리에 따라 차이)로 뭉갠 좌표를 처리합니다. 정확한 좌표는 기기 밖으로 보내지 않습니다. 위치 동의는 기본 꺼짐이며 만 18세 미만 및 나이를 확인하지 못한 이용자는 켤 수 없습니다. 동의하지 않아도 앱을 이용할 수 있고 날씨만 표시되지 않습니다. 설정의 ‘날씨용 위치’를 끄거나 기기의 위치 권한을 철회할 수 있습니다.
+성인 이용자가 별도로 동의하고 기기 위치를 허용한 경우에만, 기기 안에서 가까운 관측소의 날씨를 고릅니다. 기기 위치에서 50km 이내·90분 이내의 관측 자료가 없으면 날씨를 표시하지 않습니다. **정확한 좌표와 대략 좌표 모두 기기 밖으로 보내지 않습니다.** 위치 동의는 기본 꺼짐이며 만 18세 미만 및 나이를 확인하지 못한 이용자는 켤 수 없습니다. 동의하지 않아도 앱을 이용할 수 있고 날씨만 표시되지 않습니다. 설정의 ‘날씨용 위치’를 끄거나 기기의 위치 권한을 철회할 수 있습니다.
 
-회사는 날씨용 좌표를 DB·로그에 보유하지 않습니다. 날씨 응답과 대략 좌표는 기기 메모리에 최대 30분만 캐시하며 계정 전환·동의 철회 시 비웁니다. 서버는 요청 중에만 대략 좌표를 처리합니다. 별도로 동의값·작성 판본은 계정 삭제까지, 좌표·IP가 없는 동의 및 날씨 요청 사실(계정 식별자, 시각, 수신자 MET Norway, 사건 종류)은 위치정보법 제16조 제2항 및 「위치정보의 관리적·기술적 보호조치 기준」 제6조에 따른 확인자료로 6개월간 보유하고 기간이 지나면 매일 정리합니다. 계정 삭제 시 동의 상태는 삭제하며 확인자료의 계정 식별자는 비웁니다.
+회사는 날씨용 기기 좌표를 수신하거나 DB·로그에 보유하지 않습니다. 기기의 위치·날씨 메모리 캐시는 최대 30분이며 계정 전환·동의 철회 시 비웁니다. 동의값·작성 판본은 계정 삭제까지 보유합니다. 별도로 동의 및 날씨 요청 사실(계정 식별자, 시각, 제공자 표시, 사건 종류)은 좌표·IP 없이 6개월간 보유하고 기간이 지나면 매일 정리합니다. 계정 삭제 시 동의 상태는 삭제하며 남은 요청 사실의 계정 식별자는 비웁니다. 저장 항목의 제공자 표시 “NOAA/NWS (bulk, no device location)”는 공개 기상 자료의 출처이며, 위치정보를 제공받는 자를 뜻하지 않습니다.
 
-**예정된 국외 이전**: 수신자 Norwegian Meteorological Institute(MET Norway, 노르웨이, post@met.no), 목적은 해당 지역의 날씨 예보 조회, 항목은 약 1km로 뭉갠 좌표, 방법·시점은 별도 동의 후 날씨 조회 때 암호화 통신입니다. 회사의 Supabase Edge 프록시가 전달하며 MET에 사용자 계정·이메일·사용자 IP를 전달하지 않습니다. 다만 **MET 약관은 요청 좌표와 접속 IP(이 구성에서는 프록시 IP)를 오슬로 서버 로그에 보관한다고 밝힙니다. 제공자 보관기간은 미확인입니다.** Supabase Edge 실행국과 본문 로그 비보관도 활성화 전에 확인합니다. 국외 이전에 동의하지 않거나 철회하면 날씨만 이용할 수 없습니다. 이 고지안은 아직 시행하지 않으며, 제공자 보관 조건·시행일·공지와 운영 준비를 마칠 때까지 GPS 날씨를 활성화하지 않습니다.
+**위치정보의 외부 전송 없음**: 회사 서버는 NOAA/NWS Aviation Weather Center의 동일한 전 세계 공개 관측 목록을 받아 기기에 전달합니다. 기기 좌표·관측소 선택 결과를 회사 서버·Supabase·NOAA/NWS에 보내지 않으므로, 이 날씨 처리에서 기기 위치정보의 국외 이전은 없습니다. NOAA/NWS에는 이용자의 계정·이메일·IP도 전달하지 않습니다. 인증·동의·요청 사실에 쓰는 일반 계정 정보의 Supabase 처리는 기존 제4·5조를 따르며, 모든 서버 통신이 없다는 뜻은 아닙니다. 날씨와 위치를 광고·분석·AI 입력에 사용하지 않습니다.
+
+**자료 출처**: [NOAA/NWS Aviation Weather Center](https://aviationweather.gov/data/api/)의 인근 관측 자료를 다섯 가지 그림으로 묶고 기온을 반올림합니다. 예보가 아니며 현재 위치의 날씨와 다를 수 있습니다. [NOAA/NWS 이용 안내](https://www.weather.gov/disclaimer)를 따르며, 이 표시가 NOAA/NWS의 공식 제품이나 승인을 뜻하지 않습니다.
 
 ### 추가 개정 이력 · Addendum revision history
 
 | 작성일 / Drafted | 시행일 / Effective | 사전 공지 기간 / Advance notice | 변경 / Change |
 |---|---|---|---|
-| 2026-10-07 |  |  | GPS 날씨용 대략 위치·성인 별도 동의·국외 이전·좌표 비보관 및 확인자료를 추가하는 미시행 고지안 / Inactive draft for coarse weather location, adult opt-in, overseas transfer and coordinate-free request facts. |
+| 2026-10-08 | 공개 시행일 확정 예정 / Public date pending | 공개 전 고지 / Before public availability | 개인 테스트 시작. 위치는 기기 안에서만 처리하고 NOAA/NWS 공개 관측 목록에서 인근 날씨를 고릅니다. / Personal testing began. Location stays on the device, which selects nearby weather from NOAA/NWS public observations. |
 
 ---
 
@@ -528,21 +530,23 @@ The 2026-09-26 revision describes data collection, reward records, ticket retent
 | 2026-08-30 | Added Google Analytics 4 and Microsoft Clarity to the processors in Section 4 (processed only if you turn usage statistics on). Added an overseas-transfer notice for both in Section 5 (legal basis, transferred items, retention). |
 | 2026-08-16 | Initial version. |
 
-### GPS weather addendum · not yet effective
+### GPS weather addendum · personal testing
 
-Draft revision: weather-v1-261007 · Effective date:  · Advance notice:
+Revision: weather-v1-261007 (the initial revision identifier, not an effective date). Personal testing began on 2026-10-08. The public effective date, telephone number and advance-notice schedule are not yet finalized. The telephone number and public effective date are scheduled to be entered this weekend and disclosed before public availability. The existing privacy policy's effective date is unchanged.
 
-Only after an adult separately opts in, approximate location is used for weather on the daily board. Coordinates are rounded on the device to two decimal places (about 1.1 km north to south; east-to-west distance varies). Precise coordinates never leave the device. Consent is OFF by default; users under 18 or with unconfirmed age cannot enable it. Declining does not restrict other app features; only weather is unavailable. Turn off “Location for weather” in privacy settings or withdraw device permission at any time.
+Only after an adult separately opts in and grants device permission, the device uses location locally to select a nearby weather observation. Weather is hidden if no observation within 50 km and no more than 90 minutes old is available. **Neither precise nor approximate device coordinates leave the device.** Consent is OFF by default; users under 18 or with unconfirmed age cannot enable it. Declining does not restrict other app features; only weather is unavailable. Turn off “Location for weather” in privacy settings or withdraw device permission at any time.
 
-The Company does not retain weather coordinates in its databases or logs. The device caches the coarse place and forecast in memory for at most 30 minutes and clears them on account change or withdrawal. Servers process the coarse place only during the request. Consent state and its document revision remain until account deletion. Separate consent and weather-request facts (account identifier, time, recipient MET Norway, event type; no coordinates or IP) are retained for six months under Article 16(2) of the Location Information Act and Article 6 of the Standards for Administrative and Technical Protection of Location Information, then purged daily. Account deletion removes consent state and clears the account identifier from the remaining facts.
+The Company does not receive device coordinates for weather or retain them in databases or logs. The device's location/weather memory cache lasts at most 30 minutes and clears on account change or withdrawal. Consent state and its document revision remain until account deletion. Separate consent and weather-request facts (account identifier, time, provider label and event type) contain no coordinates or IP and are retained for six months, then purged daily. Account deletion removes consent state and clears the account identifier from remaining request facts. The provider label “NOAA/NWS (bulk, no device location)” identifies the public weather data source, not a recipient of location information.
 
-**Planned overseas transfer**: recipient Norwegian Meteorological Institute (MET Norway, Norway, post@met.no); purpose, local weather forecasts; item, coordinates rounded to about 1 km; method and timing, encrypted communication when weather is requested after separate consent. The Company’s Supabase Edge proxy forwards these coordinates without the user’s account, email or IP. **MET’s terms state that coordinates and connection IP addresses (the proxy’s IP here) are stored in access logs in Oslo. Its retention period is unconfirmed.** Edge execution countries and infrastructure body logging must also be confirmed before activation. Refusing or withdrawing overseas transfer disables only weather. This addendum is not yet effective; GPS weather remains disabled pending provider retention conditions, effective date, notice and deployment readiness.
+**No external transfer of device location**: The Company's server obtains the same worldwide public observation list from the NOAA/NWS Aviation Weather Center and sends it to the device. Device coordinates and the selected station are not sent to Company servers, Supabase or NOAA/NWS, so this weather processing does not transfer device location overseas. Users' accounts, email addresses and IP addresses are not forwarded to NOAA/NWS either. Supabase processing of ordinary account information for authentication, consent and request facts remains governed by Sections 4 and 5; this does not mean there is no server communication. Weather and location are not used for advertising, analytics or AI input.
+
+**Data source**: Nearby observations from the [NOAA/NWS Aviation Weather Center](https://aviationweather.gov/data/api/) are grouped into five drawings and temperatures are rounded. These are observations, not forecasts, and may differ from conditions at your location. The [NOAA/NWS terms of use](https://www.weather.gov/disclaimer) apply; this presentation is not an official NOAA/NWS product or endorsement.
 
 ### 추가 개정 이력 · Addendum revision history
 
 | 작성일 / Drafted | 시행일 / Effective | 사전 공지 기간 / Advance notice | 변경 / Change |
 |---|---|---|---|
-| 2026-10-07 |  |  | GPS 날씨용 대략 위치·성인 별도 동의·국외 이전·좌표 비보관 및 확인자료를 추가하는 미시행 고지안 / Inactive draft for coarse weather location, adult opt-in, overseas transfer and coordinate-free request facts. |`,
+| 2026-10-08 | 공개 시행일 확정 예정 / Public date pending | 공개 전 고지 / Before public availability | 개인 테스트 시작. 위치는 기기 안에서만 처리하고 NOAA/NWS 공개 관측 목록에서 인근 날씨를 고릅니다. / Personal testing began. Location stays on the device, which selects nearby weather from NOAA/NWS public observations. |`,
 };
 
 export function isDraft(doc: LegalDoc): boolean {

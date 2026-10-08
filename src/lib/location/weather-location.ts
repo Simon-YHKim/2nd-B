@@ -9,8 +9,8 @@
 //
 // Keeps the least: the fix is rounded to two decimals (about 1 km) inside readWeatherPlace()
 // and the exact coordinates never leave this module. Nothing here stores or sends a place;
-// the caller hands the coarse place to the weather source and keeps it no longer than the
-// weather it fetched.
+// the caller uses the coarse place only to select a nearby public observation on the
+// device. It never sends either the place or the selected station to a weather source.
 //
 // Asks for the foreground permission only. app.json blocks the fine and background
 // permissions on Android, so the OS can only grant an approximate fix there.
@@ -102,13 +102,18 @@ export async function requestWeatherLocation(): Promise<WeatherLocationStatus> {
 }
 
 /** The coarse place for the weather, or null. Never prompts. */
-export async function readWeatherPlace(): Promise<CoarsePlace | null> {
-  if ((await weatherLocationStatus()) !== "granted") return null;
+export async function readWeatherPlace(signal?: AbortSignal): Promise<CoarsePlace | null> {
+  if (signal?.aborted) return null;
+  if ((await weatherLocationStatus()) !== "granted" || signal?.aborted) return null;
   const location = sdk();
-  if (!location) return null;
+  if (!location || signal?.aborted) return null;
   try {
     const recent = await location.getLastKnownPositionAsync({ maxAge: WEATHER_PLACE_MAX_AGE_MS });
+    // An in-flight OS read cannot be cancelled, but it must not start another
+    // GPS read after withdrawal, account change, backgrounding or the deadline.
+    if (signal?.aborted) return null;
     const fix = recent ?? (await location.getCurrentPositionAsync({ accuracy: location.Accuracy.Low }));
+    if (signal?.aborted) return null;
     return coarsePlace(fix.coords.latitude, fix.coords.longitude);
   } catch {
     return null;

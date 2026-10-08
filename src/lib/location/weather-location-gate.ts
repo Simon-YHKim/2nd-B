@@ -11,13 +11,13 @@
 // The small-business notice (art. 9-2) is filed by Simon within a month of launch
 // (REQ-261007-01, HANDOFF). weather-location.test.ts fails the build if this is turned on
 // while any of the four is missing.
-export const WEATHER_LOCATION_ENABLED: boolean = false;
+// Simon authorized private-use activation on 2026-10-08 and will supply the
+// public effective date and telephone later. GPS stays on the device: every
+// weather request downloads the same public NOAA/NWS station observations.
+// Server availability, adult eligibility and committed opt-in still gate the SDK.
+export const WEATHER_LOCATION_ENABLED: boolean = true;
 
-// A disclosure's presence is necessary, not evidence that it has taken effect.
-// The provider explicitly logs coordinates; never silently interpret the
-// server-no-retention decision as applying only to our own database.
-export const WEATHER_LOCATION_BLOCKERS: readonly string[] = [
-  "MET Norway coordinate logs conflict with the no-server-retention condition; provider retention period unconfirmed",
-  "weather addenda effective date, advance notice, full operator address and phone not finalized",
-  "0232/0233 and weather Edge not deployed; infrastructure coordinate logging and execution countries unconfirmed",
-];
+// No device coordinates or selected station enter a request, so provider or
+// infrastructure request logs cannot retain the device's weather location.
+// Public-launch paperwork remains tracked separately in the weather handoff.
+export const WEATHER_LOCATION_BLOCKERS: readonly string[] = [];

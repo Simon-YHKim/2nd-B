@@ -11,7 +11,7 @@ export interface WeatherPorts {
   save(status: WeatherConsent, signal: AbortSignal): Promise<WeatherConsent>;
   permission(): Promise<WeatherLocationStatus>;
   requestPermission(): Promise<WeatherLocationStatus>;
-  place(): Promise<CoarsePlace | null>;
+  place(signal: AbortSignal): Promise<CoarsePlace | null>;
   weather(place: CoarsePlace, signal: AbortSignal): Promise<WeatherReading | null>;
   clear(): void;
 }
@@ -35,7 +35,7 @@ export function createWeatherController(ports: WeatherPorts, publish: (state: We
     clearTimeout(displayExpiry);
     emit({ busy: true, failed: false, weather: null });
     // Location SDK calls cannot be cancelled. Abort the continuation instead:
-    // a late position must never be sent to the weather service.
+    // a late position must never select weather after the visit has ended.
     const timer = setTimeout(() => {
       if (live()) { task.abort(); emit({ busy: false, failed: enable }); }
     }, WEATHER_TIMEOUT_MS * 3);
@@ -55,7 +55,7 @@ export function createWeatherController(ports: WeatherPorts, publish: (state: We
       if (!live() || !ports.locallyAllowed()) return;
       emit({ permission });
       if (permission !== "granted") { ports.clear(); return true; }
-      const place = await ports.place();
+      const place = await ports.place(task.signal);
       if (!live() || !ports.locallyAllowed()) return;
       if (!place) return true;
       const reading = await ports.weather(place, task.signal);

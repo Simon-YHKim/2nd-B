@@ -7,6 +7,7 @@ export interface CapturedSessionRequestError extends Error {
 interface CapturedFunctionOptions {
   body: unknown;
   signal?: AbortSignal;
+  region?: "ap-northeast-2";
 }
 
 type CapturedFunctionResult<T> =
@@ -50,8 +51,10 @@ export async function invokeFunctionWithCapturedSession<T = unknown>(
   options: CapturedFunctionOptions,
 ): Promise<CapturedFunctionResult<T>> {
   assertRouteSegment(functionName);
+  // Supabase's query option pins execution without adding a CORS request header.
+  const regionQuery = options.region ? `?forceFunctionRegion=${encodeURIComponent(options.region)}` : "";
   const response = await globalThis.fetch(
-    `${supabaseUrl()}/functions/v1/${functionName}`,
+    `${supabaseUrl()}/functions/v1/${functionName}${regionQuery}`,
     {
       method: "POST",
       headers: capturedHeaders(accessToken),

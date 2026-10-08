@@ -1,11 +1,25 @@
 import type { ClockWeather, SkyCondition } from "../dashboard/board/contract";
-import type { WeatherLocationStatus } from "../location/weather-location";
+import type { CoarsePlace, WeatherLocationStatus } from "../location/weather-location";
 
 export const WEATHER_CONSENT_REVISION = "weather-v1-261007";
 export const WEATHER_CACHE_MS = 30 * 60_000;
 export const WEATHER_TIMEOUT_MS = 10_000;
+export const WEATHER_OBSERVATION_MAX_AGE_MS = 90 * 60_000;
+const WEATHER_FUTURE_TOLERANCE_MS = 10 * 60_000;
+const WEATHER_STATION_RADIUS_KM = 50;
+const WEATHER_MAX_STATIONS = 10_000;
+const EARTH_RADIUS_KM = 6371.0088;
+const SKY_CONDITIONS = new Set<SkyCondition>(["clear", "partlyCloudy", "cloudy", "rain", "snow"]);
 
 export interface WeatherReading { weather: ClockWeather; expiresAt: number }
+export interface WeatherStation {
+  id: string;
+  latitude: number;
+  longitude: number;
+  tempC: number;
+  sky: SkyCondition;
+  observedAt: number;
+}
 
 export interface WeatherConsent {
   revision: number;
@@ -33,32 +47,52 @@ export function clockWeatherPresentation(input: ClockWeatherInput, isMinor: bool
   return { weather: input.permission === "granted" ? input.weather : null, weatherAction: null };
 }
 
-/** MET Locationforecast symbol_code (day/night/polartwilight use the same drawing).
- * clearsky -> clear; fair/partlycloudy -> partlyCloudy; cloudy/fog -> cloudy;
- * rain variants -> rain; sleet/snow (showers/thunder included) -> snow.
- * Unknown codes -> null. https://api.met.no/doc/locationforecast/datamodel */
-export function metSky(symbol: unknown): SkyCondition | null {
-  if (typeof symbol !== "string") return null;
-  const code = symbol.replace(/_(day|night|polartwilight)$/, "");
-  if (code === "clearsky") return "clear";
-  if (code === "fair" || code === "partlycloudy") return "partlyCloudy";
-  if (code === "cloudy" || code === "fog") return "cloudy";
-  if (/^(light|heavy)?rain(showers)?(andthunder)?$/.test(code)) return "rain";
-  if (/^(light|heavy)?(sleet|snow)(showers)?(andthunder)?$/.test(code)) return "snow";
-  // MET's historical spelling is lightsnowshowersandthunder / lightssleetshowersandthunder.
-  if (code === "lightssleetshowersandthunder" || code === "lightssnowshowersandthunder") return "snow";
-  return null;
+function isCoordinate(value: unknown, limit: number): value is number {
+  return typeof value === "number" && Number.isFinite(value) && Math.abs(value) <= limit;
 }
 
-export function decodeWeather(value: unknown, now: number): WeatherReading | null {
+/** Public station observations only. Strip unknown fields before keeping the bulk in memory. */
+export function decodeWeather(value: unknown): readonly WeatherStation[] | null {
   if (!value || typeof value !== "object") return null;
-  const row = value as Record<string, unknown>;
-  const sky = metSky(row.symbol);
-  const validAt = typeof row.validAt === "string" ? Date.parse(row.validAt) : NaN;
-  // This is a forecast for the current hour, not an observed temperature.
-  if (!sky || !Number.isFinite(validAt) || validAt > now + 60 * 60_000 || validAt < now - 90 * 60_000) return null;
-  if (row.tempC !== null && (typeof row.tempC !== "number" || !Number.isFinite(row.tempC) || Math.abs(row.tempC) > 100)) return null;
-  return { weather: { sky, tempC: row.tempC as number | null }, expiresAt: now + WEATHER_CACHE_MS };
+  const payload = value as Record<string, unknown>;
+  if (payload.source !== "noaa-metar" || !Array.isArray(payload.stations) || payload.stations.length > WEATHER_MAX_STATIONS) return null;
+  const latest = new Map<string, WeatherStation>();
+  for (const item of payload.stations) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    if (typeof row.id !== "string" || !/^[A-Z0-9]{3,8}$/.test(row.id) ||
+        !isCoordinate(row.latitude, 90) || !isCoordinate(row.longitude, 180) ||
+        typeof row.tempC !== "number" || !Number.isFinite(row.tempC) || Math.abs(row.tempC) > 100 ||
+        typeof row.sky !== "string" || !SKY_CONDITIONS.has(row.sky as SkyCondition)) continue;
+    const observedAt = typeof row.observedAt === "string" ? Date.parse(row.observedAt) : NaN;
+    if (!Number.isFinite(observedAt)) continue;
+    const previous = latest.get(row.id);
+    if (previous && previous.observedAt >= observedAt) continue;
+    latest.set(row.id, { id: row.id, latitude: row.latitude, longitude: row.longitude,
+      tempC: row.tempC, sky: row.sky as SkyCondition, observedAt });
+  }
+  return [...latest.values()];
+}
+
+/** The device's position is used only here, never as a provider query or a cache key. */
+export function selectWeather(stations: readonly WeatherStation[], place: CoarsePlace, now: number): WeatherReading | null {
+  if (!isCoordinate(place.latitude, 90) || !isCoordinate(place.longitude, 180) || !Number.isFinite(now)) return null;
+  const radians = Math.PI / 180;
+  let nearest: WeatherStation | null = null;
+  let nearestKm = WEATHER_STATION_RADIUS_KM;
+  for (const station of stations) {
+    if (station.observedAt <= now - WEATHER_OBSERVATION_MAX_AGE_MS || station.observedAt >= now + WEATHER_FUTURE_TOLERANCE_MS) continue;
+    const dLat = (station.latitude - place.latitude) * radians;
+    const dLon = (station.longitude - place.longitude) * radians;
+    const arc = Math.sin(dLat / 2) ** 2 + Math.cos(place.latitude * radians) * Math.cos(station.latitude * radians) * Math.sin(dLon / 2) ** 2;
+    const km = 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(Math.min(1, Math.max(0, arc))));
+    if (km > nearestKm || (km === nearestKm && nearest && station.id >= nearest.id)) continue;
+    nearest = station;
+    nearestKm = km;
+  }
+  if (!nearest) return null;
+  return { weather: { sky: nearest.sky, tempC: nearest.tempC },
+    expiresAt: Math.min(now + WEATHER_CACHE_MS, nearest.observedAt + WEATHER_OBSERVATION_MAX_AGE_MS) };
 }
 
 export function decodeConsent(value: unknown): WeatherConsent {
