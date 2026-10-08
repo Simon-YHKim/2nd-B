@@ -193,6 +193,7 @@
     "board": {
       "generation": {
         "next": "Item berikutnya",
+        "waiting": "Akan disiapkan lagi pada pembaruan berikutnya.",
         "loading": "Menyiapkan ringkasan hari ini.",
         "denied": "Periksa rekomendasi dan persetujuan layanan AI.",
         "limited": "Pembaruan baru akan tersedia saat penyegaran berikutnya.",

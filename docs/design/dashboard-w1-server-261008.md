@@ -112,6 +112,14 @@ before activation. Retention therefore continues even when generation is OFF.
    Run `dashboard-configure.yml` on main. It uses Production credentials, checks
    the existing Sonnet 5 model with the provider Models API, and changes only
    the three dashboard Edge settings. No paid inference in that preflight.
+   This requires `edge_functions_secrets_write`; the existing Production deploy
+   token returned 403 on 2026-10-08. Do not widen that token to make the workflow
+   pass. The existing authenticated local Supabase CLI can set exactly these
+   three settings after the same model preflight, with the cron value passed
+   only in memory and matched to its GitHub secret. The deployment token remains
+   unchanged. Emergency OFF is `supabase secrets set
+   DASHBOARD_GENERATION_ENABLED=false --project-ref <project-ref>` through that
+   authenticated operator route.
 4. Confirm the QA account's denial, empty state and generated note/triage/summary
    through the real endpoint. Preserve its previous consent and reminders.
 5. Set `DASHBOARD_RETENTION_ENABLED=true` and `DASHBOARD_GENERATION_ENABLED=true`
@@ -134,6 +142,17 @@ opens the existing S-01 page; empty summaries explain the next action. Settings
 and reminder links stay inside the phone, and errors have an explicit retry.
 Minor/unknown-age and disabled builds preserve the prior hidden contract.
 Account changes and consent withdrawal still discard pending and cached prose.
+
+### Live QA corrections (2026-10-08)
+
+0238 is a forward replacement of the request function. Empty input takes
+precedence over an old cache/attempt. Only a pending or dispatched lease younger
+than three minutes is busy; terminal or stale attempts report waiting for the
+next refresh. This does not retry a paid call, reset quota or delete an attempt.
+The provider accepts a single complete JSON code block as well as plain JSON;
+the same strict schema/evidence validation follows both. Usage is retained even
+when JSON decoding fails, and audit failure labels contain fixed categories or
+HTTP status only, never provider bodies or exception text.
 
 Official deployment reference: https://supabase.com/docs/guides/functions/dependencies
 Model reference: https://platform.claude.com/docs/en/models/sonnet-5/overview

@@ -1,6 +1,6 @@
 import type { BoardAction, BoardText } from "./board/contract";
 
-export type GenerationState = "loading" | "ready" | "empty" | "denied" | "busy" | "limited" | "disabled" | "unavailable";
+export type GenerationState = "loading" | "ready" | "empty" | "denied" | "busy" | "waiting" | "limited" | "disabled" | "unavailable";
 export type GenerationStates = Record<"note" | "triage" | "summary", GenerationState>;
 
 /** Fixed product copy only. Neither server errors nor model text are status messages. */

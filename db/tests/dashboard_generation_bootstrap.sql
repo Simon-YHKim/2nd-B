@@ -25,5 +25,6 @@ CREATE TABLE public.erasure_registry(table_name text,owner_column text,class tex
 CREATE FUNCTION public.effective_llm_consent_snapshot_v2(p_user_id uuid,p_allow_legacy boolean DEFAULT false) RETURNS jsonb
 LANGUAGE sql AS $$ SELECT jsonb_build_object('allowed',test_consent,'token',CASE WHEN test_consent THEN test_token END) FROM public.users WHERE id=p_user_id $$;
 \ir ../migrations/0236_dashboard_generation.sql
+\ir ../migrations/0238_dashboard_terminal_states.sql
 COMMIT;
 \ir dashboard_generation_regression.sql
