@@ -265,54 +265,18 @@ function MoodDot({ mood = 'neutral', size = 10, style }) {
 }
 
 /* Shared HustleK portrait; legacy component name keeps prototype callers compatible. */
-function SbHead({ size = 48, expression = 'neutral', track = true, bob = false, style }) {
-  const rootRef = useRef(null),headRef = useRef(null);
-  const scale = size / 152;
-  useEffect(() => {
-    if (!track && !bob) return;
-    const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-    const ptr = { x: 0, y: 0 },cur = { x: 0, y: 0 };
-    let last = Date.now(),started = last,raf = null;
-    const clamp = (value) => Math.max(-1.3, Math.min(1.3, value));
-    const move = (event) => {
-      const point = event.touches ? event.touches[0] : event;
-      const rect = rootRef.current?.getBoundingClientRect();
-      if (!point || !rect) return;
-      ptr.x = clamp((point.clientX - rect.left - rect.width / 2) / (window.innerWidth / 2));
-      ptr.y = clamp((point.clientY - rect.top - rect.height / 2) / (window.innerHeight / 2));
-      last = Date.now();
-    };
-    const tick = () => {
-      const now = Date.now();
-      if (now - last > 2200) { ptr.x *= 0.92; ptr.y *= 0.92; }
-      cur.x += (ptr.x * 4 - cur.x) * 0.1;
-      cur.y += (ptr.y * 3 - cur.y) * 0.1;
-      const lift = bob ? -Math.round((1 - Math.cos((now - started) * Math.PI / 2000)) * 1.5) : 0;
-      if (headRef.current) headRef.current.style.transform = `translate(${Math.round(cur.x * scale)}px,${Math.round(cur.y * scale) + lift}px)`;
-      raf = requestAnimationFrame(tick);
-    };
-    const stop = () => {
-      if (raf !== null) cancelAnimationFrame(raf);
-      raf = null;
-      window.removeEventListener('pointermove', move);window.removeEventListener('touchmove', move);
-      ptr.x = ptr.y = cur.x = cur.y = 0;
-      if (headRef.current) headRef.current.style.transform = 'translate(0px,0px)';
-    };
-    const sync = () => {
-      stop();
-      if (media?.matches) return;
-      started = last = Date.now();
-      if (track) { window.addEventListener('pointermove', move);window.addEventListener('touchmove', move, { passive: true }); }
-      raf = requestAnimationFrame(tick);
-    };
-    media?.addEventListener('change', sync);
-    sync();
-    return () => { stop();media?.removeEventListener('change', sync); };
-  }, [track, bob, scale]);
+function SbHead({ size = 48, expression = 'neutral', source, accessibilityLabel = '허슬케이', style }) {
+  const side = Number.isFinite(size) ? Math.max(1, Math.round(size)) : 48;
   const file = expression === 'positive' ? 'A02-soft-smile' : expression === 'negative' ? 'C07-worried' : 'A01-neutral';
-  return <div ref={rootRef} style={{ width: size, height: size, flex: '0 0 auto', ...style }}>
-    <img ref={headRef} src={'assets/hustlek/' + file + '.png'} alt="허슬케이" draggable="false"
-      style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', imageRendering: 'pixelated' }} />
+  // Same 280px source-space viewport and head anchors as hustlek-framing.ts.
+  const imageSource = source || 'assets/hustlek/' + file + '.png';
+  const anchors = { A01: [181.5, 13], A02: [181, 14], C07: [178.5, 11], B04: [187, 11], A08: [181, 13] };
+  const [centerX, top] = anchors[imageSource.split('/').pop().slice(0, 3)] || anchors.A01;
+  const imageSide = Math.round(side * 362 / 280), scale = imageSide / 362;
+  return <div style={{ position: 'relative', ...style, width: side, height: side, flex: '0 0 auto', overflow: 'hidden' }}>
+    <img src={imageSource} alt={accessibilityLabel} draggable="false"
+      style={{ position: 'absolute', left: Math.round(side / 2 - centerX * scale), top: Math.round((4 - top) * scale),
+        width: imageSide, height: imageSide, display: 'block', objectFit: 'contain', imageRendering: 'pixelated' }} />
   </div>;
 }
 
@@ -332,7 +296,7 @@ function RatifyBlock({ id, estimate, confidence = 60, evidence = 0, evidenceLabe
   return (
     <MdCard variant="filled" style={{ background: C('secondary-container'), padding: 14, marginTop: 16 }}>
       <div style={{ display: 'flex', gap: 10 }}>
-        <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 30, height: 30, flex: '0 0 auto' }} />
+        <window.SbHead size={30} accessibilityLabel="" style={{ flex: '0 0 auto' }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="md-label-small" style={{ color: C('on-secondary-container'), opacity: .7, marginBottom: 3 }}>허슬케이의 추정 · 아직 반영 안 됨</div>
           <div className="md-body-medium" style={{ color: C('on-secondary-container'), wordBreak: 'keep-all' }}>{estimate}</div>

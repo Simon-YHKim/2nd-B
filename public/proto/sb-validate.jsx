@@ -52,7 +52,7 @@ function ValuesScreen({ t, go }) {
 
       <MdCard variant="filled" style={{ background: C('secondary-container'), padding: 14, marginTop: 16 }}>
         <div style={{ display: 'flex', gap: 10 }}>
-          <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 30, height: 30, flex: '0 0 auto' }} />
+          <window.SbHead size={30} accessibilityLabel="" style={{ flex: '0 0 auto' }} />
           <div className="md-body-medium" style={{ color: C('on-secondary-container'), wordBreak: 'keep-all' }}>
             <b>자율성</b>이 가장 높아요. 일·관계에서 ‘스스로 정하는’ 선택을 반복해 온 기록이 이 추정을 받쳐요.
           </div>

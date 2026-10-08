@@ -705,7 +705,7 @@ function ChatScreen({ t, go, env, param, onBack }) {
           <ErrorState title="답을 가져오지 못했어요" body="네트워크가 불안정해요. 잠시 후 다시 시도해 주세요." onRetry={() => {}} />
         ) : showEmpty ? (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 12, padding: '30px 24px' }}>
-            <img src={m.face} alt="" style={{ width: 64, height: 64, animation: 'sb-bob 4s ease-in-out infinite' }} />
+            <window.SbHead source={m.face} size={64} accessibilityLabel="" />
             <div className="md-title-medium" style={{ color: C('on-surface') }}>{m.name}와 새 대화</div>
             <div className="md-body-medium" style={{ color: C('on-surface-variant'), maxWidth: 230, wordBreak: 'keep-all' }}>
               {m.name}에게 무엇이든 물어보세요. 당신의 7개 별에서 근거를 찾아 답할게요.

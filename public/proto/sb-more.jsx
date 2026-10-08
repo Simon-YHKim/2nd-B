@@ -282,7 +282,7 @@ function ImportScreen({ t, go, env }) {
           <div style={{ position: 'relative', width: 64, height: 64, marginBottom: 20 }}>
             <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `3px solid ${C('primary')}`,
               borderTopColor: 'transparent', animation: 'sb-spin .8s linear infinite' }} />
-            <img src="assets/hustlek/A01-neutral.png" alt="" style={{ position: 'absolute', inset: 12, width: 40, height: 40 }} />
+            <window.SbHead size={40} accessibilityLabel="" style={{ position: 'absolute', inset: 12 }} />
           </div>
           <div className="md-title-medium" style={{ color: C('on-surface') }}>가져온 데이터를 읽는 중</div>
           <div className="md-body-medium" style={{ color: C('on-surface-variant'), marginTop: 6, wordBreak: 'keep-all' }}>기기 안에서 별가루으로 나누고 있어요…</div>
@@ -442,7 +442,7 @@ function ShareCardScreen({ t, go, env }) {
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 34, height: 34 }} />
+              <window.SbHead size={34} accessibilityLabel="" />
               <div style={{ fontSize: 13, color: 'rgba(220,230,255,.7)' }}>허슬케이가 함께 본 한 주</div>
             </div>
           </div>

@@ -37,8 +37,8 @@ function LoadingState({ label = '불러오는 중', sub }) {
           )}
         </div>
         {/* head */}
-        <div style={{ animation: 'sb-bob 3.4s ease-in-out infinite' }}>
-          <img src="assets/hustlek/A01-neutral.png" alt="허슬케이" style={{ width: 72, height: 72, display: 'block',
+        <div>
+          <window.SbHead size={72} accessibilityLabel="허슬케이" style={{ display: 'block',
             filter: 'drop-shadow(0 6px 16px rgba(70,90,200,.5))' }} />
         </div>
       </div>
@@ -820,7 +820,7 @@ function StarScreen({ t, go, param, onBack }) {
       {/* 세컨비 한 줄 해석 — 카드 대신 떠 있는 글래스 스트립 */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: 14, borderRadius: 16,
         background: 'rgba(70,120,210,.14)', border: '1px solid rgba(127,178,255,.2)' }}>
-        <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 30, height: 30, flex: '0 0 auto' }} />
+        <window.SbHead size={30} accessibilityLabel="" style={{ flex: '0 0 auto' }} />
         <div className="md-body-medium" style={{ color: '#E7EEFB', wordBreak: 'keep-all' }}>{starInsight(star.id, C, meta)}</div>
       </div>
 

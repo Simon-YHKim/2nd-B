@@ -99,7 +99,7 @@ function GraphRecordDetail({ g, go, C }) {
 
       <MdCard variant="filled" style={{ background: C('tertiary-container'), padding: 14, marginTop: 12 }}>
         <div style={{ display: 'flex', gap: 10 }}>
-          <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 30, height: 30, flex: '0 0 auto' }} />
+          <window.SbHead size={30} accessibilityLabel="" style={{ flex: '0 0 auto' }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="md-label-small" style={{ color: C('on-tertiary-container'), opacity: .8, marginBottom: 4 }}>허슬케이가 읽은 의미</div>
             <div className="md-body-medium" style={{ color: C('on-tertiary-container'), wordBreak: 'keep-all', lineHeight: 1.6 }}>{g.summary}</div>
@@ -168,7 +168,7 @@ function RecordDetailScreen({ t, go, param }) {
       {/* 세컨비 한 줄 — 어느 별과 연결 + 근거 */}
       <MdCard variant="filled" style={{ background: C('tertiary-container'), padding: 14 }}>
         <div style={{ display: 'flex', gap: 10 }}>
-          <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 30, height: 30, flex: '0 0 auto' }} />
+          <window.SbHead size={30} accessibilityLabel="" style={{ flex: '0 0 auto' }} />
           <div>
             <div className="md-body-medium" style={{ color: C('on-tertiary-container') }}>
               이 별가루은 <b>‘관계’</b> 별과 이어져요. 비슷한 기록 5건이 같은 시간대에 모여 있어요.
@@ -248,7 +248,7 @@ function InterviewScreen({ t, go }) {
         <div className="md-label-medium" style={{ color: C('on-surface-variant'), marginTop: 8 }}>질문 {step + 1} / {total} · 회상 인터뷰</div>
       </div>
       <div style={{ display: 'flex', gap: 10, margin: '20px 0 8px' }}>
-        <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 36, height: 36, flex: '0 0 auto' }} />
+        <window.SbHead size={36} accessibilityLabel="" style={{ flex: '0 0 auto' }} />
         <div className="md-headline-small" style={{ color: C('on-surface'), wordBreak: 'keep-all', lineHeight: 1.35 }}>{QS[step]}</div>
       </div>
       <div className="md-body-small" style={{ color: C('tertiary'), margin: '10px 0 18px' }}>같은 핵심을 조금씩 다르게 되물어요. 더 또렷해지려고요.</div>

@@ -41,10 +41,11 @@ function keepHandlerBody(): string {
 }
 
 describe("대화 -> 위키 배선", () => {
-  it("답변에 담기 버튼이 붙어 있다", () => {
+  it("입력창 위 추천 행의 담기 버튼이 실제 저장 경로에 연결된다", () => {
     expect(SRC).toContain("keepExchange");
-    expect(SRC).toContain("isKeepable(turn)");
-    expect(SRC).toContain('t("keepToWiki")');
+    expect(SRC).toContain("getWikiSuggestion(suggestionState)");
+    expect(SRC).toContain('id: "keep-wiki"');
+    expect(SRC).toContain("keepExchange(saveIndex)");
   });
 
   it("위키 클립으로 저장한다 (records 가 아니라)", () => {

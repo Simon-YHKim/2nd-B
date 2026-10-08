@@ -72,7 +72,7 @@ function LifeAuditScreen({ t, go }) {
         {/* 세컨비 한 줄 */}
         <MdCard variant="filled" style={{ background: C('tertiary-container'), padding: 14, marginTop: 12 }}>
           <div style={{ display: 'flex', gap: 10 }}>
-            <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 30, height: 30, flex: '0 0 auto' }} />
+            <window.SbHead size={30} accessibilityLabel="" style={{ flex: '0 0 auto' }} />
             <div className="md-body-medium" style={{ color: C('on-tertiary-container'), wordBreak: 'keep-all' }}>
               <b>{darkest.name}</b> 영역이 가장 비어 있어요. 한 영역만 또렷해져도 옆 영역까지 같이 밝아지곤 해요.
             </div>

@@ -19,8 +19,8 @@ function OnboardingScreen({ onDone }) {
       <div style={{ position: 'absolute', inset: 0, zIndex: 40, display: 'flex', flexDirection: 'column',
         background: 'radial-gradient(120% 80% at 50% 12%, #173659, #070A13 72%), #070A13', padding: '0 24px' }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, textAlign: 'center' }}>
-          <div style={{ animation: 'sb-bob 4s ease-in-out infinite' }}>
-            <img src="assets/hustlek/A01-neutral.png" alt="허슬케이" style={{ width: 168, height: 168, filter: 'drop-shadow(0 10px 26px rgba(70,90,200,.5))' }} />
+          <div>
+            <window.SbHead size={168} accessibilityLabel="허슬케이" style={{ filter: 'drop-shadow(0 10px 26px rgba(70,90,200,.5))' }} />
           </div>
           <div className="md-headline-small" style={{ color: '#EAF2FF', marginTop: 8 }}>시작할까요?</div>
           <div className="md-body-medium" style={{ color: 'rgba(214,230,255,.7)', maxWidth: 250, wordBreak: 'keep-all' }}>로그인하면 어느 기기에서나 당신의 별자리를 이어서 볼 수 있어요.</div>
@@ -81,7 +81,7 @@ function Coachmark({ onDone }) {
       <div style={{ position: 'absolute', left: 20, right: 20, ...(s.arrow === 'up' ? { top: '54%' } : { bottom: 110 }) }}>
         <div style={{ background: 'rgba(9,20,40,.97)', border: '1px solid rgba(70,182,255,.34)', borderRadius: 16, padding: 18, boxShadow: '0 12px 30px rgba(0,0,0,.5)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 26, height: 26 }} />
+            <window.SbHead size={26} accessibilityLabel="" />
             <span style={{ fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 11, letterSpacing: '.1em', color: '#7FB6FF' }}>가이드 {i + 1}/{steps.length}</span>
           </div>
           <div style={{ fontSize: 17, fontWeight: 700, color: '#EAF7FF' }}>{s.title}</div>
@@ -135,7 +135,7 @@ function CallRecScreen({ t, go }) {
           <SectionLabel>허슬케이의 제안 · 반영할까요?</SectionLabel>
           <MdCard variant="filled" style={{ background: C('tertiary-container'), padding: 14 }}>
             <div style={{ display: 'flex', gap: 10 }}>
-              <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 30, height: 30, flex: '0 0 auto' }} />
+              <window.SbHead size={30} accessibilityLabel="" style={{ flex: '0 0 auto' }} />
               <div className="md-body-medium" style={{ color: C('on-tertiary-container'), wordBreak: 'keep-all' }}>
                 <b>관계</b>·<b>건강</b> 별과 이어지는 통화예요. 사람을 만나면 충전되는 결이 한 번 더 보였어요.
               </div>

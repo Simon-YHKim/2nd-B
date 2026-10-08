@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
 import * as expression from "@/lib/companion/expression";
-import * as faces from "@/lib/companion/faces";
 import { hustlekExpressionFor } from "@/lib/companion/hustlek-expression";
 
 type Props = Record<string, unknown>;
@@ -11,7 +10,7 @@ type Slot = { value?: unknown; deps?: unknown[]; cleanup?: () => void };
 
 // Execute the real renderer and expression bus with inert native hosts, matching
 // MotionModal's runtime harness. RN 0.85 itself cannot mount in the Node preset.
-function mount(initial: Props = {}, reduced = true) {
+function mount(initial: Props = {}) {
   const source = readFileSync(resolve(__dirname, "../SecondbHead.tsx"), "utf8");
   const js = ts.transpileModule(source, { compilerOptions: {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX,
@@ -20,8 +19,6 @@ function mount(initial: Props = {}, reduced = true) {
   let props = initial; let tree: Tree;
   const slots: Slot[] = [];
   const effects: (() => void)[] = [];
-  const loops: { start: jest.Mock; stop: jest.Mock }[] = [];
-  const values: Value[] = [];
   const same = (a: unknown[] | undefined, b: unknown[]) => a && a.length === b.length && b.every((v, i) => Object.is(v, a[i]));
   const hooks = {
     useState: (initialValue: unknown) => {
@@ -50,35 +47,15 @@ function mount(initial: Props = {}, reduced = true) {
       }
     },
   };
-  class Value {
-    constructor(public current: number) { values.push(this); }
-    setValue(value: number) { this.current = value; }
-    interpolate({ inputRange, outputRange }: { inputRange: number[]; outputRange: number[] }) {
-      const ratio = Math.max(0, Math.min(1, (this.current - inputRange[0]) / (inputRange[1] - inputRange[0])));
-      return outputRange[0] + ratio * (outputRange[1] - outputRange[0]);
-    }
-  }
-  const tracking = { touch: { x: new Value(100), y: new Value(150) }, engage: new Value(1) };
   const modules: Record<string, unknown> = {
     react: hooks,
     "react/jsx-runtime": { jsx: (type: string, value: Props) => ({ type, props: value }) },
     "react-native": {
       View: "View", StyleSheet: { create: (value: unknown) => value },
-      Animated: {
-        Value, View: "AnimatedView",
-        subtract: (a: Value, b: number) => new Value(a.current - b),
-        multiply: (a: Value, b: number) => a.current * b,
-        timing: () => ({}), sequence: (steps: unknown[]) => steps,
-        loop: () => { const loop = { start: jest.fn(), stop: jest.fn() }; loops.push(loop); return loop; },
-      },
     },
-    "@/lib/motion/pixel-physical": { pixelStepsFor: () => (value: number) => value },
-    "@/lib/motion/use-reduced-motion": { useReducedMotionPref: () => reduced },
     "@/lib/companion/expression": expression,
-    "@/lib/companion/faces": faces,
     "@/lib/companion/hustlek-expression": { hustlekExpressionFor },
     "@/components/character/HustleKPortrait": { HustleKPortrait: "HustleKPortrait" },
-    "./SecondbHeadTrack": { useSecondbTracking: () => tracking },
   };
   const exported: { SecondbHead?: (value: Props) => Tree } = {};
   new Function("require", "exports", js)((name: string) => {
@@ -97,18 +74,11 @@ function mount(initial: Props = {}, reduced = true) {
   render(); flush();
   return {
     get tree() { return tree; },
-    get portrait() { return ((tree.props.children as Tree).props.children as Tree).props.children as Tree; },
-    get lateUpdates() { return lateUpdates; }, loops, values,
+    get portrait() { return tree.props.children as Tree; },
+    get lateUpdates() { return lateUpdates; },
     flush,
     advance(ms: number) { jest.advanceTimersByTime(ms); flush(); },
     update(next: Props) { props = { ...props, ...next }; render(); flush(); },
-    setReduced(value: boolean) { reduced = value; render(); flush(); },
-    measure() {
-      (tree.props.ref as { current: unknown }).current = {
-        measureInWindow: (callback: (...args: number[]) => void) => callback(0, 0, 100, 100),
-      };
-      (tree.props.onLayout as () => void)(); flush();
-    },
     unmount() { slots.forEach(slot => slot.cleanup?.()); mounted = false; },
   };
 }
@@ -139,48 +109,43 @@ test("a newer reaction owns its whole duration and prop changes do not reset it"
   host.unmount(); expect(jest.getTimerCount()).toBe(0);
 });
 
-test("real idle policy yields to hold and reduced motion clears idle timers and bob", () => {
-  jest.spyOn(Math, "random").mockReturnValue(0.6);
-  const host = mount({}, false);
-  host.advance(22_400); expect(host.portrait.props.expression).toBe("D12");
+test("idle time and the legacy track prop cannot move the portrait or pick a random face", () => {
+  const random = jest.spyOn(Math, "random");
+  const host = mount({ size: 80, track: true, accessibilityLabel: "HustleK" });
+  const initial = host.tree;
+  host.advance(10 * 60_000);
+  expect(host.tree).toBe(initial);
+  expect(host.tree.type).toBe("View");
+  expect(host.tree.props).not.toHaveProperty("onLayout");
+  expect(host.portrait.props).toMatchObject({ size: 80, expression: "A01", accessibilityLabel: "HustleK" });
+  expect(random).not.toHaveBeenCalled();
+  expect(jest.getTimerCount()).toBe(0);
+  host.update({ track: false });
+  expect(host.tree.props.style).toEqual(initial.props.style);
+  host.unmount();
+});
+
+test("caller context persists through time and returns after app events, at the same position", () => {
+  const host = mount({ expression: "B01", size: 40 });
+  const stableStyle = host.tree.props.style;
   const release = expression.holdExpression("thinking"); host.flush();
   expect(host.portrait.props.expression).toBe("B04");
-  host.advance(22_400); expect(host.portrait.props.expression).toBe("B04");
-  release(); host.flush(); expect(host.portrait.props.expression).toBe("A01");
-  host.advance(22_400); expect(host.portrait.props.expression).toBe("D12");
-  host.setReduced(true);
-  expect(host.portrait.props.expression).toBe("A01");
-  expect(host.loops[0].stop).toHaveBeenCalledTimes(1);
-  expect(jest.getTimerCount()).toBe(0);
   expression.reactExpression("happy", 100); host.flush();
   expect(host.portrait.props.expression).toBe("A04");
-  host.advance(100); expect(host.portrait.props.expression).toBe("A01");
+  host.update({ expression: "A10" });
+  host.advance(100); expect(host.portrait.props.expression).toBe("B04");
+  release(); host.flush(); expect(host.portrait.props.expression).toBe("A10");
+  host.advance(60_000); expect(host.portrait.props.expression).toBe("A10");
+  expect(host.tree.props.style).toEqual(stableStyle);
+  expect(host.portrait.props.size).toBe(40);
   host.unmount();
 });
 
-test("tracking translates the complete portrait and reduced motion disables it", () => {
-  const host = mount({ size: 80, accessibilityLabel: "HustleK" }, false);
-  host.measure();
-  const transform = ((host.tree.props.children as Tree).props.style as { transform: object[] }).transform;
-  expect(transform).toEqual([{ translateX: expect.closeTo(2.4) }, { translateY: expect.closeTo(4.8) }]);
-  expect(host.portrait.props).toMatchObject({ size: 80, accessibilityLabel: "HustleK" });
-  host.setReduced(true);
-  expect((host.tree.props.children as Tree).props.style).toBeNull();
-  host.unmount();
-});
-
-test.each([{ size: 30 }, { size: 80, track: false }])("small or explicitly still portraits do not track: %j", props => {
-  const host = mount(props, false); host.measure();
-  expect((host.tree.props.children as Tree).props.style).toBeNull();
-  host.unmount();
-});
-
-test("unmount clears reaction and idle timers, stops bob, and unsubscribes both buses", () => {
-  const host = mount({}, false);
+test("unmount clears the pending reaction and unsubscribes both buses", () => {
+  const host = mount();
   expression.reactExpression("happy", 1000); host.flush();
   host.unmount();
   expect(jest.getTimerCount()).toBe(0);
-  expect(host.loops[0].stop).toHaveBeenCalledTimes(1);
   const release = expression.holdExpression("thinking");
   expression.reactExpression("sad", 1000); release();
   jest.advanceTimersByTime(60_000);

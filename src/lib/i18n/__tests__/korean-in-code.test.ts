@@ -196,7 +196,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   // 연결 프롬프트(reasoning_connect) 의 한국어 시스템 지시문 두 벌 - UI 가 아니라 모델 지시문이다
   "src/app/reasoning.tsx": 2,
   "src/app/rlss.tsx": 10,
-  "src/app/secondb.tsx": 10,
+  "src/app/secondb.tsx": 8,
   "src/app/settings.tsx": 8, // 11 -> 8: 2026-10-07 소식 · 공지사항 행이 설정에서 빠졌다(Simon)
   "src/app/star/[domain].tsx": 20,
   "src/app/strengths.tsx": 20,

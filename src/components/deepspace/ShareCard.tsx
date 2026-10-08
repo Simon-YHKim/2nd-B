@@ -41,6 +41,7 @@ const SHARE_STAR_OFF = flattenAlpha(m3.accent.shareEyebrow, 0.4, SHARE_GROUND);
 import { fontFamilies } from "@/theme/typography";
 
 import { HUSTLEK_EXPRESSIONS } from "@/lib/assets/hustlek";
+import { hustlekPortraitLayout } from "@/lib/assets/hustlek-framing";
 
 export interface ShareCardProps {
   variant: "A" | "B";
@@ -86,6 +87,7 @@ const CARD_STARS = [
 export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = BASE }: ShareCardProps) {
   const { t } = useTranslation("deepspace");
   const k = size / BASE;
+  const portrait = hustlekPortraitLayout(34 * k, "A02");
   const lit = Math.max(0, Math.min(CARD_STARS.length, litCount));
 
   return (
@@ -123,7 +125,9 @@ export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = B
           </View>
           <View style={[styles.footerRow, { gap: 10 * k }]}>
             {/* Keep the existing native view-shot image host for card export. */}
-            <Image source={HUSTLEK_EXPRESSIONS.A02.source} accessibilityLabel="" style={{ width: 34 * k, height: 34 * k }} resizeMode="contain" />
+            <View style={portrait.frame}>
+              <Image source={HUSTLEK_EXPRESSIONS.A02.source} accessibilityLabel="" style={portrait.image} resizeMode="contain" />
+            </View>
             <Text style={[styles.footerText, softInk(0.7), { fontSize: 13 * k }]}>
               {t("deepspace:shareCardImg.footerWeek")}
             </Text>

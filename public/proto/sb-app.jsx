@@ -103,7 +103,7 @@ function Companion({ screen, expression, dataState }) {
   const mood = expression || obs.mood;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 16px 12px' }}>
-      <div style={{ flex: '0 0 auto', animation: 'sb-bob 4s ease-in-out infinite' }}>
+      <div style={{ flex: '0 0 auto' }}>
         <window.SbHead size={48} expression={mood} track tilt />
       </div>
       <div style={{ flex: 1, position: 'relative', background: C('surface-container-high'), borderRadius: '4px 14px 14px 14px', padding: '10px 14px' }}>

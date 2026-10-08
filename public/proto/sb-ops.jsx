@@ -38,7 +38,7 @@ function AnalysisDock({ job }) {
       <div style={{ position: 'relative', width: 26, height: 26, flex: '0 0 auto' }}>
         <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `2.5px solid ${C('inverse-primary')}`,
           borderTopColor: 'transparent', animation: 'sb-spin .8s linear infinite' }} />
-        <img src="assets/hustlek/A01-neutral.png" alt="" style={{ position: 'absolute', inset: 4, width: 18, height: 18 }} />
+        <window.SbHead size={18} accessibilityLabel="" style={{ position: 'absolute', inset: 4 }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="md-body-medium" style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{job.label}</div>
@@ -217,7 +217,7 @@ function OpsScreen({ t, go, env }) {
         background: 'linear-gradient(160deg, var(--md-sys-color-surface-container-high), var(--md-sys-color-surface-container-low))' }}>
         {/* 세컨비 + 핵심 제안 */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          <img src="assets/hustlek/A01-neutral.png" alt="허슬케이" style={{ width: 46, height: 46, flex: '0 0 auto', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,.35))' }} />
+          <window.SbHead size={46} accessibilityLabel="허슬케이" style={{ flex: '0 0 auto', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,.35))' }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <span className="md-label-small" style={{ color: C('on-surface-variant') }}>{adv.star} 별 · 오늘 가장 중요한 한 가지</span>
             <div className="md-title-medium" style={{ color: C('on-surface'), wordBreak: 'keep-all', lineHeight: 1.45, marginTop: 2 }}>{adv.headline}</div>
@@ -295,7 +295,7 @@ function FirstInsight({ onDone }) {
 
       {step !== 'grown' ?
       <React.Fragment>
-          <div style={{ marginBottom: 8, animation: 'sb-bob 4s ease-in-out infinite' }}>
+          <div style={{ marginBottom: 8 }}>
             <window.SecondBHead expression="positive" />
           </div>
           <div className="md-title-medium" style={{ color: '#EAF2FF', maxWidth: 280, wordBreak: 'keep-all', lineHeight: 1.5 }}>
