@@ -105,7 +105,7 @@ export function createWeatherHandler(deps: Dependencies) {
           p_user_id: owner, p_action: action, p_contract: CONTRACT,
           p_revision: writing ? body.revision : null, p_locale: writing ? body.locale : 'en',
         });
-        if (error || !object(data)) return reply({ error: 'consent' }, error?.code === '40001' ? 409 : error?.code === '42501' ? 403 : 503);
+        if (error || !object(data)) return reply({ error: 'consent' }, error?.code === 'PT409' || error?.code === '40001' ? 409 : error?.code === '42501' ? 403 : 503);
         return reply({ ...data, available: deps.enabled });
       }
       if (!deps.userAgent || deps.userAgent.length > 512 || /[\r\n]/.test(deps.userAgent)) return reply({ error: 'unavailable' }, 503);
