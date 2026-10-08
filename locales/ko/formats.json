@@ -11,7 +11,7 @@
     "heading": "내 형식",
     "headingWithCount": "내 형식 ({{count}})",
     "emptyTitle": "아직 만든 형식이 없습니다",
-    "emptyBody": "자료를 담을 때 허슬케이가 제안한 형식을 저장하면 여기에 모입니다."
+    "emptyBody": "자료를 추가할 때 허슬케이가 제안한 형식을 저장하면 여기에 모입니다."
   },
   "community": {
     "heading": "커뮤니티 형식",
@@ -99,7 +99,7 @@
   },
   "actions": {
     "addFormat": "형식 추가",
-    "goCapture": "자료 담기",
+    "goCapture": "자료 추가",
     "edit": "편집",
     "delete": "삭제",
     "cancel": "취소",
@@ -151,7 +151,7 @@
     "filingArea": "분류 위치",
     "noArea": "아직 정하지 않음",
     "autoMatchLinks": "자동 연결 조건",
-    "autoMatchLinksHint": "이 조건에 맞는 주소를 담으면 자동으로 이 형식에 따라 정리합니다.",
+    "autoMatchLinksHint": "이 조건에 맞는 주소를 저장하면 자동으로 이 형식에 따라 정리합니다.",
     "addLinkRule": "조건 추가",
     "defaultTags": "기본 해시태그",
     "addTag": "해시태그 추가",

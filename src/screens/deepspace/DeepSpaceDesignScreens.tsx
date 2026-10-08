@@ -1179,7 +1179,7 @@ export function DeepSpacePrivacyDesignScreen() {
                 locale "en", so it has no es/pt/id reading to match either. */}
             <Text variant="body" style={styles.lead}>
               {ko
-                ? `켜기 전에 알아두세요. 켜면 지금까지 담아 둔 기록과 앞으로 담는 기록의 내용이 의미 벡터로 변환·저장돼, 서로 비슷한 기록을 이어 보여드립니다. 변환을 위해 기록 텍스트가 ${embedVendorLabel()}(해외)로 전송됩니다. 위기 관련 내용은 전송되지 않습니다. 성인만 켤 수 있고, 끄면 이후 색인이 멈추고 저장된 벡터도 삭제됩니다. 동의는 기록에 남습니다.`
+                ? `켜기 전에 알아두세요. 켜면 지금까지 저장한 기록과 앞으로 저장할 기록의 내용이 의미 벡터로 변환·저장돼, 서로 비슷한 기록을 이어 보여드립니다. 변환을 위해 기록 텍스트가 ${embedVendorLabel()}(해외)로 전송됩니다. 위기 관련 내용은 전송되지 않습니다. 성인만 켤 수 있고, 끄면 이후 색인이 멈추고 저장된 벡터도 삭제됩니다. 동의는 기록에 남습니다.`
                 : `Before you turn it on. Your existing records and every new record will be turned into meaning vectors and stored so similar records can be linked. To do that, record text is sent to ${embedVendorLabel()} (processed overseas). Crisis-related content is not sent. Adults only; turning it off stops indexing and deletes the stored vectors. Your consent is logged.`}
             </Text>
             <View style={styles.ctaRow}>

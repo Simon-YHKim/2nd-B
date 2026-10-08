@@ -94,7 +94,7 @@
     },
     {
       "id": "catchall",
-      "name": "담아내기",
+      "name": "자료 수집",
       "icon": "inbox",
       "level": 4,
       "cov": 82,
@@ -104,7 +104,7 @@
       "themes": [
         "미분류"
       ],
-      "q": "아직 못 담은 것들"
+      "q": "아직 기록하지 않은 것들"
     }
   ],
   "inputTemplates": [

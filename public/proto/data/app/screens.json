@@ -418,7 +418,7 @@
       "id": "reward",
       "component": "RewardScreen",
       "layout": "windowed",
-      "title": "담기 가속",
+      "title": "자료 정리",
       "route": null
     },
     {
@@ -516,7 +516,7 @@
       "id": "capture-full",
       "component": null,
       "appOnly": true,
-      "title": "담기 전체 (메모·링크·클립·OCR·파일)",
+      "title": "기록 추가 전체 (메모·링크·클립·OCR·파일)",
       "route": "capture-full"
     },
     {

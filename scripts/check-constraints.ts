@@ -1307,7 +1307,7 @@ results.push(
       flows.includes('"icon": "bubble_chart"') &&
       flows.includes("나를 알아가는 AI") &&
       flows.includes("일곱 별에") &&
-      flows.includes("내 이야기를 담습니다") &&
+      flows.includes("내 이야기를 기록합니다") &&
       flows.includes('"icon": "check_circle"') &&
       flows.includes("내가 승인해야 반영됩니다") &&
       !flows.includes("AI의 원리") &&
@@ -2591,7 +2591,7 @@ results.push(
     const ok =
       wiki.includes('<DockBody title={t("wiki.title")}>') &&
       en.includes("Your saved records and material in one place") &&
-      ko.includes("PolaScope에 담은 기록과 자료를 모았습니다") &&
+      ko.includes("PolaScope에 저장한 기록과 자료를 모았습니다") &&
       forbidden.every((term) => !wiki.includes(term) && !en.includes(term) && !ko.includes(term));
     return {
       id: "WikiHeroI18nCopy",

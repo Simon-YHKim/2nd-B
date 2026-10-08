@@ -237,7 +237,7 @@ const HOME_REASONING_COPY: Record<
     notices: "공지사항",
     running: "선택한 자료를 읽고 별을 잇는 중입니다.",
     depleted: "이번 주 기본 횟수를 다 썼습니다. 월요일에 다시 채워집니다.",
-    automatic: "자동 리즈닝이 켜져 있습니다. 새 자료를 담으면 바로 잇습니다.",
+    automatic: "자동 리즈닝이 켜져 있습니다. 새 자료를 저장하면 바로 잇습니다.",
     choose: "필요한 자료를 골라 별을 이어볼까요?",
     baseLeft: (count) => `이번 주 ${count}회 남았습니다. 어떤 자료를 이을까요?`,
     rewardLeft: (count) => `주간 기본은 다 썼습니다. 보상 ${count}회를 쓸 수 있습니다.`,

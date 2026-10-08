@@ -82,19 +82,19 @@ const DOMAIN_ACTION: Record<
     route: "/ledger",
   },
   growth: {
-    primary: { en: "Add a moment", ko: "장면 담기", es: "Añadir momento", pt: "Adicionar momento", id: "Tambah momen" },
+    primary: { en: "Add a moment", ko: "장면 추가", es: "Añadir momento", pt: "Adicionar momento", id: "Tambah momen" },
     secondary: { en: "Reflect", ko: "회상하기", es: "Reflexionar", pt: "Refletir", id: "Refleksi" },
     // Keep the source star through period selection and the interview so the
     // saved recall returns here and carries an explicit growth-domain intent.
     route: "/audit?origin=domain-growth",
   },
   relation: {
-    primary: { en: "Add a person", ko: "사람 담기", es: "Añadir persona", pt: "Adicionar pessoa", id: "Tambah orang" },
+    primary: { en: "Add a person", ko: "사람 추가", es: "Añadir persona", pt: "Adicionar pessoa", id: "Tambah orang" },
     secondary: { en: "People map", ko: "사람 지도", es: "Mapa de personas", pt: "Mapa de pessoas", id: "Peta orang" },
     route: "/people",
   },
   health: {
-    primary: { en: "Add a record", ko: "기록 담기", es: "Añadir registro", pt: "Adicionar registro", id: "Tambah catatan" },
+    primary: { en: "Add a record", ko: "기록 추가", es: "Añadir registro", pt: "Adicionar registro", id: "Tambah catatan" },
     secondary: { en: "Connect data", ko: "데이터 연결", es: "Conectar datos", pt: "Conectar dados", id: "Hubungkan data" },
     // "/import" hosts the actual device-health connect path (Health Connect /
     // HealthKit ingest into health_samples — the table this star's
@@ -104,12 +104,12 @@ const DOMAIN_ACTION: Record<
     route: "/import",
   },
   recreation: {
-    primary: { en: "Add rest", ko: "휴식 담기", es: "Añadir descanso", pt: "Adicionar descanso", id: "Tambah istirahat" },
+    primary: { en: "Add rest", ko: "휴식 추가", es: "Añadir descanso", pt: "Adicionar descanso", id: "Tambah istirahat" },
     secondary: { en: "Rest map", ko: "휴식 지도", es: "Mapa de descanso", pt: "Mapa de descanso", id: "Peta istirahat" },
     route: "/rest",
   },
   collect: {
-    primary: { en: "Capture", ko: "담기", es: "Capturar", pt: "Capturar", id: "Tangkap" },
+    primary: { en: "Capture", ko: "기록 추가", es: "Capturar", pt: "Capturar", id: "Tangkap" },
     secondary: { en: "See records", ko: "기록 보기", es: "Ver registros", pt: "Ver registros", id: "Lihat catatan" },
     route: "/records",
   },
