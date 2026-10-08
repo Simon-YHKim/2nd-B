@@ -92,7 +92,7 @@ export const PROFILE_DETAIL_FIELDS: readonly ProfileDetailField[] = [
     key: "gender",
     kind: "choice",
     choices: GENDER_CHOICES,
-    usedFor: "세컨비가 이 사람을 부르고 이야기할 때의 맥락. 고르지 않거나 '답하지 않음' 을 골라도 된다.",
+    usedFor: "허슬케이가 이 사람을 부르고 이야기할 때의 맥락. 고르지 않거나 '답하지 않음' 을 골라도 된다.",
   },
   {
     key: "nationality",

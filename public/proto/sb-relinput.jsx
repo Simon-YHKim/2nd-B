@@ -99,7 +99,7 @@ function RelContactsScreen({ t, go, param }) {
           </div>
           <div className="md-body-medium" style={{ color: C('on-surface-variant'), marginBottom: 12, wordBreak: 'keep-all' }}>
             <Icon name="contacts" size={14} style={{ color: C('primary'), verticalAlign: '-2px', marginRight: 4 }} />
-            내 주소록에서 불러왔어요. {mode === 'chat' ? '한 사람을 고르면 세컨비가 그 사람에 대해 깊이 물어봐요.' : '한 사람을 고르면 그 사람에 대해 기록할 수 있어요.'}
+            내 주소록에서 불러왔어요. {mode === 'chat' ? '한 사람을 고르면 허슬케이가 그 사람에 대해 깊이 물어봐요.' : '한 사람을 고르면 그 사람에 대해 기록할 수 있어요.'}
           </div>
         </div>
 
@@ -179,7 +179,7 @@ function RelPersonScreen({ t, go, param }) {
             <b>{person.name}</b>에 대한 기록을 <b>관계 별</b>로 엮는 중이에요. 관계의 결과 챙길 것을 기억해 둘게요.
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-            <MdButton variant="tonal" icon="bubble_chart" onClick={() => { try { window.__sbPendingSeed = { mode: '2nd', title: `${person.name} 돌아보기`, intro: `${person.name}에 대해 방금 담아주셨네요. 이어서 더 들려주실래요? 요즘 이 사람과의 사이는 어떤가요?` }; } catch (e) {} go('chat'); }}>세컨비와 더</MdButton>
+            <MdButton variant="tonal" icon="bubble_chart" onClick={() => { try { window.__sbPendingSeed = { mode: '2nd', title: `${person.name} 돌아보기`, intro: `${person.name}에 대해 방금 담아주셨네요. 이어서 더 들려주실래요? 요즘 이 사람과의 사이는 어떤가요?` }; } catch (e) {} go('chat'); }}>허슬케이와 더</MdButton>
             <MdButton variant="filled" icon="hub" onClick={() => { if (star) go('star', star); else go('home'); }}>관계 별 보기</MdButton>
           </div>
         </div>
@@ -201,7 +201,7 @@ function RelPersonScreen({ t, go, param }) {
           </div>
         </div>
         <div className="md-body-medium" style={{ color: C('on-surface-variant'), margin: '6px 2px 16px', wordBreak: 'keep-all' }}>
-          이 사람과 <b style={{ color: C('on-surface') }}>나의 관계</b>를 적어요. 사실 나열이 아니라 <b style={{ color: C('on-surface') }}>어떤 사이인지·무엇을 챙기는지</b>가 세컨비에게 가장 중요한 신호예요.
+          이 사람과 <b style={{ color: C('on-surface') }}>나의 관계</b>를 적어요. 사실 나열이 아니라 <b style={{ color: C('on-surface') }}>어떤 사이인지·무엇을 챙기는지</b>가 허슬케이에게 가장 중요한 신호예요.
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

@@ -1,12 +1,12 @@
 {
   "character": {
-    "a11y": "Personagem SecondB"
+    "a11y": "Personagem HustleK"
   },
   "ds": {
     "dock": {
       "home": "Início",
       "capture": "Recortes",
-      "chat": "SecondB",
+      "chat": "HustleK",
       "ops": "Assistente",
       "account": "Eu",
       "lens": "Eu",
@@ -69,16 +69,16 @@
         "values": "Valores e aspirações"
       },
       "inbox": "Notificações",
-      "headA11y": "Perguntar ao SecondB",
-      "dialogueOpen": "Abrir conversa com SecondB",
-      "dialogueClose": "Fechar conversa com SecondB",
+      "headA11y": "Perguntar ao HustleK",
+      "dialogueOpen": "Abrir conversa com HustleK",
+      "dialogueClose": "Fechar conversa com HustleK",
       "kind": {
         "domain": "Domínio",
         "profile": "Como te leem"
       },
       "bubble": {
         "introTag": "Apresentação",
-        "intro": "Olá, eu sou o SecondB. Toque na minha cabeça e eu ajudo.",
+        "intro": "Olá, eu sou o HustleK. Toque na minha cabeça e eu ajudo.",
         "tipTag": "Dica",
         "tip1": "Toque em uma estrela para rever os registros dessa fase da sua vida.",
         "tip2": "Use Adicionar na barra inferior para salvar um novo registro.",
@@ -164,7 +164,7 @@
           "hint": "O que estava em sua mente"
         }
       },
-      "linkHint": "Cole um link e o SecondB busca o título e o resumo.",
+      "linkHint": "Cole um link e o HustleK busca o título e o resumo.",
       "linkPlaceholder": "https://",
       "photoAdd": "Anexar foto",
       "photoAddHint": "Escolha uma foto do seu álbum. Ela é salva com esta nota.",
@@ -188,7 +188,7 @@
       "ocrInserted": "Texto adicionado.",
       "todoHint": "Tarefa",
       "todoAdd": "Adicionar uma tarefa",
-      "banner": "Ao salvar, o SecondB organiza o registro por estrela e etiquetas.",
+      "banner": "Ao salvar, o HustleK organiza o registro por estrela e etiquetas.",
       "save": "Capturar",
       "saving": "Salvando",
       "saved": "Salvo",
@@ -273,7 +273,7 @@
       "combinedNote": "Uma imagem combinada de {{count}} pessoas; nenhuma resposta individual é identificável.",
       "gapReadA11y": "Leitura da diferença em uma linha",
       "gapReading": "Lendo…",
-      "gapReadCta": "O SecondB lê a diferença",
+      "gapReadCta": "O HustleK lê a diferença",
       "emptyTitleResponses": "Já chegaram respostas de {{count}} pessoas",
       "emptyTitleNoPeers": "Ainda não há respostas de outros para comparar",
       "emptyBodyFinishBigFive": "Conclua o Big Five para comparar suas respostas com as de outras pessoas.",
@@ -303,7 +303,7 @@
       "rewrite": "Reescrever",
       "add": "+ Adicionar",
       "emptyTitle": "Ainda não há planos registrados",
-      "emptyBody": "Converse com o SecondB no modo Novo ângulo para explorar seus planos e ideias."
+      "emptyBody": "Converse com o HustleK no modo Novo ângulo para explorar seus planos e ideias."
     },
     "relational": {
       "title": "Relações",
@@ -333,10 +333,10 @@
     "imagine": {
       "title": "Imaginar",
       "introBody": "Conte uma ideia sem precisar ter um plano pronto. Escolha uma possibilidade para pensar no primeiro passo.",
-      "sectionAngles": "Ideias sugeridas pelo SecondB",
+      "sectionAngles": "Ideias sugeridas pelo HustleK",
       "sectionSteps": "Possíveis próximos passos",
       "toCapture": "Levar para o Capturar",
-      "more": "Mais com o SecondB",
+      "more": "Mais com o HustleK",
       "seeds": {
         "expand": {
           "angle": "Expandir",
@@ -351,7 +351,7 @@
           "title": "Se você vivesse exatamente ao contrário",
           "body": "Improvisar em vez de planejar, junto em vez de sozinho. O que te atrai do outro lado?",
           "step1": "Experimente nesta semana algo que você nunca faz",
-          "step2": "Anote com o SecondB o que pareceu estranho",
+          "step2": "Anote com o HustleK o que pareceu estranho",
           "step3": "Capture na estrela de Descanso e observe o padrão"
         },
         "connect": {

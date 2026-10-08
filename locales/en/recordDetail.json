@@ -17,7 +17,7 @@
     "loadError": "Could not load the photos."
   },
   "advisor": {
-    "heading": "SecondB note",
+    "heading": "HustleK note",
     "sources": "Sources",
     "whyThis": "Why this",
     "evidenceFallback": "No description is available for this source."
@@ -26,7 +26,7 @@
     "backToRecords": "Back to records",
     "seeArea": "See it in {{area}}",
     "seeAreaHint": "Opens {{area}} with this record at the top.",
-    "askSecondB": "Ask SecondB",
+    "askSecondB": "Ask HustleK",
     "openSource": "Open original"
   }
 }

@@ -246,7 +246,7 @@
   "support": {
     "title": "Suporte",
     "prompt": "Como posso ajudar?",
-    "askSecondb": "Perguntar ao SecondB",
+    "askSecondb": "Perguntar ao HustleK",
     "viewManual": "Ver o manual",
     "emailUs": "Fale conosco",
     "reportBug": "Relatar um erro",
@@ -256,7 +256,7 @@
     "faqs": {
       "brightness": {
         "q": "Qual é a diferença entre o brilho (a luz das estrelas) e a confiança?",
-        "a": "A luz das estrelas mostra quanto você guardou nessa área; a confiança, quanto a estimativa do SecondB foi confirmada. As duas mudam de forma independente."
+        "a": "A luz das estrelas mostra quanto você guardou nessa área; a confiança, quanto a estimativa do HustleK foi confirmada. As duas mudam de forma independente."
       },
       "plan": {
         "q": "Um plano pago deixa o app mais inteligente?",
@@ -269,7 +269,7 @@
     },
     "notices": {
       "modes": {
-        "t": "Chegaram os três modos do SecondB",
+        "t": "Chegaram os três modos do HustleK",
         "tag": "Novo"
       },
       "museum": {
@@ -344,7 +344,7 @@
     "soundEffectsNote": "Sons do telescópio, da foto da estrela e da abertura. Ficam desligados quando o telefone está no silencioso ou no modo vibrar."
   },
   "manual": {
-    "askDirect": "Perguntar diretamente ao SecondB",
+    "askDirect": "Perguntar diretamente ao HustleK",
     "replayCoachmarks": "Rever o guia inicial"
   },
   "plans": {
@@ -354,11 +354,11 @@
     "recommended": "Recomendado",
     "perMonth": "/ mês",
     "proFeat1": "Testes ilimitados · consistência repetida",
-    "proFeat2": "Chat ilimitado com SecondB · imaginar",
+    "proFeat2": "Chat ilimitado com HustleK · imaginar",
     "proFeat3": "Exportação IDEN completa",
     "proFeat4": "Sugestões de tendência · revisão",
     "currentPlan": "Ativo no momento",
-    "freeFeat": "Salvamento básico · 1 teste por estrela · 5 chats SecondB/dia",
+    "freeFeat": "Salvamento básico · 1 teste por estrela · 5 chats HustleK/dia",
     "startPro": "Começar um plano pago",
     "loadingOffers": "Carregando planos...",
     "purchasing": "Processando...",
@@ -625,7 +625,7 @@
   },
   "careerDrilldown": {
     "summaryFallback": "uma experiência profissional",
-    "intro": "Use 3C para descrever o contexto e 4P para contar o que fez e como. O SecondB fará perguntas sobre os detalhes que você preencher.",
+    "intro": "Use 3C para descrever o contexto e 4P para contar o que fez e como. O HustleK fará perguntas sobre os detalhes que você preencher.",
     "summaryLabel": "Resumo em uma linha",
     "summaryPlaceholder": "O que você fez e qual foi o resultado - em uma linha",
     "expTypeA11y": "Tipo de experiência",
@@ -647,7 +647,7 @@
     "fallbackInsight": "Me entender a fundo, viver mais do meu jeito."
   },
   "coachmarks": {
-    "homeStep": "Toque no SecondB para começar a salvar um registro.",
+    "homeStep": "Toque no HustleK para começar a salvar um registro.",
     "formatStep": "Primeiro escolha Memorando. Uma linha é suficiente.",
     "inputStep": "Escreva o que está pensando. Não precisa ser uma frase completa.",
     "saveStep": "Por fim, toque em Salvar para guardar este registro.",
@@ -701,7 +701,7 @@
   "shareCardImg": {
     "eyebrowWeek": "POLASCOPE · ESTA SEMANA",
     "eyebrowConstellation": "MINHA CONSTELACAO",
-    "footerWeek": "Uma semana vista ao lado do SecondB",
+    "footerWeek": "Uma semana vista ao lado do HustleK",
     "starsLit": "{{count}} estrelas brilhando",
     "signature": "PolaScope · {{count}} fagulhas de estrela"
   },
@@ -796,7 +796,7 @@
       "freeName": "Observador de estrelas",
       "freeSub": "Começando agora",
       "freePrice": "Grátis",
-      "freeFeat1": "5 conversas por dia com o SecondB",
+      "freeFeat1": "5 conversas por dia com o HustleK",
       "freeFeat2": "Buscar conexões 2x por semana",
       "freeFeat3": "As 7 estrelas · registros ilimitados",
       "plusName": "Viajante",
@@ -910,9 +910,9 @@
     },
     "northstar": {
       "title": "Frase da Estrela Polar",
-      "sub": "O SecondB sugeriu esta frase a partir das suas sete estrelas. Edite para dizer o que você quer.",
+      "sub": "O HustleK sugeriu esta frase a partir das suas sete estrelas. Edite para dizer o que você quer.",
       "placeholder": "Encontrar um trabalho que combine comigo.",
-      "suggestLabel": "Rascunhos do SecondB",
+      "suggestLabel": "Rascunhos do HustleK",
       "thinking": "Pensando",
       "propose": "Ver outros rascunhos",
       "cancel": "Cancelar",
@@ -960,7 +960,7 @@
     "reasoningScreen": {
       "autoTitle": "Conexões automáticas",
       "autoPaused": "Limite atingido · volta na segunda",
-      "autoBody": "O SecondB busca conexões para cada item que você salva.",
+      "autoBody": "O HustleK busca conexões para cada item que você salva.",
       "autoNote": "Cada busca automática usa uma das buscas semanais. Uma fica sempre reservada para você iniciar manualmente.",
       "queuedRecord": "Novo registro · na fila",
       "queuedSource": "Nova fonte · na fila",
@@ -998,7 +998,7 @@
       "doneSummary": "{{n}} conexões foram propostas. Selecione só o que quiser aplicar.",
       "runningSummary": "Lendo {{total}} itens · {{done}} / {{total}}",
       "doneNote": "Só as propostas selecionadas são aplicadas. Os itens não selecionados continuam iguais.",
-      "runningNote": "Você pode sair desta tela. O SecondB vai avisar quando estiver pronto.",
+      "runningNote": "Você pode sair desta tela. O HustleK vai avisar quando estiver pronto.",
       "weekLabel": "Raciocínio desta semana",
       "capturedItems": "Itens salvos",
       "selectProposals": "Selecionar propostas",
@@ -1052,7 +1052,7 @@
     "lockSection": "Tela de bloqueio",
     "lockNotif": "Quer deixar uma linha sobre hoje?",
     "pushSection": "Notificações push",
-    "pushHead": "SecondB · agora",
+    "pushHead": "HustleK · agora",
     "pushBody": "Há uma sugestão para revisar. Ela só será aplicada à estrela se você aprovar.",
     "notifSettings": "Configurações de notificação"
   },
@@ -1072,7 +1072,7 @@
     "nextHint": "Vai para o próximo slide.",
     "skipHint": "Pula a introdução e abre a tela de login.",
     "authHint": "Abre a tela de login.",
-    "secondbName": "SecondB",
+    "secondbName": "HustleK",
     "authTitle": "Vamos começar?",
     "authBody": "Salve seus registros e revise as sugestões para sua Estrela Polar.",
     "next": "Próximo",
@@ -1082,7 +1082,7 @@
     "slides": {
       "intro": {
         "title": "Uma IA que passa\na te conhecer",
-        "body": "O SecondB usa suas anotações\npara ajudar a organizar seus pensamentos\ne planejar seu dia."
+        "body": "O HustleK usa suas anotações\npara ajudar a organizar seus pensamentos\ne planejar seu dia."
       },
       "stars": {
         "tag": "Conhecer você",

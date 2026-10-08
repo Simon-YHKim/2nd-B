@@ -11,56 +11,12 @@ const { STARS: SB_STARS, STAR_LINES: SB_LINES, MOOD: SB_MOOD } = function () {
   return { STARS: window.SB.STARS, STAR_LINES: window.SB.STAR_LINES, MOOD: window.MOOD };
 }();
 
-function SecondBHead({ scale = 1, expression = 'neutral', headRef, leftEyeRef, rightEyeRef, mouthRef, sphereRef }) {
-  const W = 152 * scale;
-  const moodC = SB_MOOD[expression];
-  // expression → eye height + mouth shape
-  const eyeH = expression === 'positive' ? 13 : expression === 'negative' ? 17 : 16;
-  const mouth = expression === 'positive' ?
-  { w: 16, h: 7, radius: '0 0 9px 9px', bg: 'transparent', border: `2.5px solid #5FD4FF`, borderTop: 'none' } :
-  expression === 'negative' ?
-  { w: 16, h: 7, radius: '9px 9px 0 0', bg: 'transparent', border: `2.5px solid #5FD4FF`, borderBottom: 'none' } :
-  { w: 15, h: 3.5, radius: 9, bg: '#5FD4FF', border: 'none' };
-  return (
-    <div style={{ position: 'relative', width: W, height: W }}>
-      {/* mood orb glow behind head */}
-      <div ref={sphereRef} style={{ position: 'absolute', left: '50%', top: '8%', width: W * 0.62, height: W * 0.62,
-        transform: 'translateX(-50%)', borderRadius: '50%', filter: 'blur(8px)', pointerEvents: 'none',
-        background: `radial-gradient(circle, ${moodC}cc, ${moodC}55 52%, transparent 76%)`,
-        animation: 'sb-dim 3.4s ease-in-out infinite' }} />
-      <div ref={headRef} style={{ position: 'relative', width: W, height: W, transformStyle: 'preserve-3d', willChange: 'transform' }}>
-        <img src="assets/deepspace/secondb-head-blank.png" alt="세컨비" draggable="false"
-        style={{ width: '100%', height: '100%', display: 'block', filter: 'drop-shadow(0 16px 26px rgba(70,90,200,.42))' }} />
-        {/* dark face screen masks the baked eyes so dynamic eyes can track */}
-        <div style={{ position: 'absolute', left: '50%', top: '60%', width: '47%', height: '23.5%',
-          transform: 'translate(-50%,-50%)', borderRadius: 10 * scale,
-          background: 'linear-gradient(180deg,#0a1020,#03060e 62%)',
-          boxShadow: 'inset 0 1px 6px rgba(120,150,255,.18), inset 0 -4px 10px rgba(0,0,0,.6)' }} />
-        <div style={{ position: 'absolute', left: '38.5%', top: '58.5%', width: 0, height: 0 }}>
-          <div ref={leftEyeRef} style={{ position: 'absolute', left: -5 * scale, top: -8 * scale,
-            width: 10 * scale, height: eyeH * scale, borderRadius: 4 * scale,
-            background: 'radial-gradient(60% 60% at 50% 42%,#CCFAFF,#46B6FF 72%)',
-            boxShadow: '0 0 9px rgba(70,182,255,.85),0 0 16px rgba(70,182,255,.4)', willChange: 'transform' }} />
-        </div>
-        <div style={{ position: 'absolute', left: '61.5%', top: '58.5%', width: 0, height: 0 }}>
-          <div ref={rightEyeRef} style={{ position: 'absolute', left: -5 * scale, top: -8 * scale,
-            width: 10 * scale, height: eyeH * scale, borderRadius: 4 * scale,
-            background: 'radial-gradient(60% 60% at 50% 42%,#CCFAFF,#46B6FF 72%)',
-            boxShadow: '0 0 9px rgba(70,182,255,.85),0 0 16px rgba(70,182,255,.4)', willChange: 'transform' }} />
-        </div>
-        <div style={{ position: 'absolute', left: '50%', top: '65.5%', width: 0, height: 0 }}>
-          <div ref={mouthRef} style={{ position: 'absolute', left: -mouth.w * scale / 2, top: 0,
-            width: mouth.w * scale, height: mouth.h * scale, borderRadius: mouth.radius,
-            background: mouth.bg, border: mouth.border, borderTop: mouth.borderTop, borderBottom: mouth.borderBottom,
-            boxShadow: '0 0 8px rgba(70,182,255,.8)', willChange: 'transform' }} />
-        </div>
-      </div>
-    </div>);
-
+function SecondBHead({ scale = 1, expression = 'neutral', headRef }) {
+  return <div ref={headRef} style={{ width: 152 * scale, height: 152 * scale }}>
+    <window.SbHead size={152 * scale} expression={expression} track={false} />
+  </div>;
 }
 
-/* Shared deep-space neural background (same field as 별자리 home).
-   focusY = vertical focus of the head-avoidance zone (0..1). */
 function NeuralBg({ focusY = 0.5, style }) {
   const neuralRef = useRef(null);
   useEffect(() => {
@@ -125,8 +81,7 @@ function NeuralBg({ focusY = 0.5, style }) {
 
 function ConstellationHome({ t, onStar, active }) {
   const stageRef = useRef(null),headRef = useRef(null);
-  const leftEyeRef = useRef(null),rightEyeRef = useRef(null),mouthRef = useRef(null);
-  const bubbleRef = useRef(null),sphereRef = useRef(null),neuralRef = useRef(null);
+  const bubbleRef = useRef(null),neuralRef = useRef(null);
   const [focus, setFocus] = useState(null);
   const [bubble, setBubble] = useState(null);
   const [menu, setMenu] = useState(false);
@@ -190,34 +145,41 @@ function ConstellationHome({ t, onStar, active }) {
 
   /* ---- head tracking ---- */
   useEffect(() => {
-    const cur = { yaw: 0, pitch: 0, tx: 0, ty: 0, ex: 0, ey: 0 };
+    const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    const cur = { tx: 0, ty: 0 };
     const ptr = { x: 0, y: 0 };let last = Date.now();
-    let blink = 1,blinkStart = 0,nextBlink = Date.now() + 1400;
     const cl = (v, a, b) => Math.max(a, Math.min(b, v)),lerp = (a, b, k) => a + (b - a) * k;
     const setPtr = (cx, cy) => {const el = stageRef.current;if (!el) return;const r = el.getBoundingClientRect();
       ptr.x = cl((cx - (r.left + r.width / 2)) / (window.innerWidth / 2), -1.3, 1.3);
       ptr.y = cl((cy - (r.top + r.height / 2)) / (window.innerHeight / 2), -1.3, 1.3);last = Date.now();};
     const move = (e) => {const p = e.touches ? e.touches[0] : e;if (p) setPtr(p.clientX, p.clientY);};
-    window.addEventListener('pointermove', move);window.addEventListener('touchmove', move, { passive: true });
-    let raf;
+    let raf = null;
     const tick = () => {
-      raf = requestAnimationFrame(tick);const now = Date.now();
+      const now = Date.now();
       if (hold.current) {if (now < hold.current.until) {ptr.x = hold.current.x;ptr.y = hold.current.y;last = now;} else hold.current = null;}
       if (now - last > 2000) {ptr.x *= 0.92;ptr.y *= 0.92;}
       const m = motion;
-      cur.yaw = lerp(cur.yaw, ptr.x * 17 * m, 0.1);cur.pitch = lerp(cur.pitch, -ptr.y * 11 * m, 0.1);
       cur.tx = lerp(cur.tx, ptr.x * 10 * m, 0.1);cur.ty = lerp(cur.ty, ptr.y * 9 * m, 0.1);
-      cur.ex = lerp(cur.ex, ptr.x * 5.5, 0.18);cur.ey = lerp(cur.ey, ptr.y * 3.5, 0.18);
-      if (!blinkStart && now > nextBlink) blinkStart = now;
-      if (blinkStart) {const bp = (now - blinkStart) / 130;blink = 1 - Math.sin(Math.min(bp, 1) * Math.PI) * 0.92;if (bp >= 1) {blinkStart = 0;blink = 1;nextBlink = now + 1600 + Math.random() * 3200;}}
-      if (headRef.current) headRef.current.style.transform = `rotateY(${cur.yaw}deg) rotateX(${cur.pitch}deg) translate3d(${cur.tx}px,${cur.ty}px,0)`;
-      const eyeT = `translate(${cur.ex}px,${cur.ey}px) scaleY(${blink})`;
-      if (leftEyeRef.current) leftEyeRef.current.style.transform = eyeT;
-      if (rightEyeRef.current) rightEyeRef.current.style.transform = eyeT;
-      if (mouthRef.current) mouthRef.current.style.transform = `translate(${cur.ex * 0.5}px,${cur.ey * 0.5}px)`;
+      if (headRef.current) headRef.current.style.transform = `translate(${Math.round(cur.tx)}px,${Math.round(cur.ty)}px)`;
+      raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
-    return () => {cancelAnimationFrame(raf);window.removeEventListener('pointermove', move);window.removeEventListener('touchmove', move);};
+    const stop = () => {
+      if (raf !== null) cancelAnimationFrame(raf);
+      raf = null;
+      window.removeEventListener('pointermove', move);window.removeEventListener('touchmove', move);
+      ptr.x = ptr.y = cur.tx = cur.ty = 0;
+      if (headRef.current) headRef.current.style.transform = 'translate(0px,0px)';
+    };
+    const sync = () => {
+      stop();
+      if (media?.matches || !motion) return;
+      last = Date.now();
+      window.addEventListener('pointermove', move);window.addEventListener('touchmove', move, { passive: true });
+      raf = requestAnimationFrame(tick);
+    };
+    media?.addEventListener('change', sync);
+    sync();
+    return () => { stop();media?.removeEventListener('change', sync); };
   }, [motion]);
 
   const tapHead = () => {setBubble(null);setFocus(null);focusRef.current = null;hold.current = null;setMenu((m) => !m);};
@@ -243,11 +205,11 @@ function ConstellationHome({ t, onStar, active }) {
   const starOpacity = (s) => {if (s.big) return 1;const lv = s.level ?? level;return 0.36 + lv / 5 * 0.64;};
 
   const sel = bubble; // selected star object, or null
-  const kindLabel = menu ? '세컨비' : sel ? sel.kind : '소개';
+  const kindLabel = menu ? '허슬케이' : sel ? sel.kind : '소개';
   const title = !menu && sel ? sel.domain || sel.label : null;
   const line = menu ? '어떻게 도와드릴까요?' :
   sel ? sel.line :
-  t.bubbleText && t.bubbleText.trim() ? t.bubbleText : '안녕하세요, 저는 세컨비예요. 머리를 누르면 도와드릴게요.';
+  t.bubbleText && t.bubbleText.trim() ? t.bubbleText : '안녕하세요, 저는 허슬케이예요. 머리를 누르면 도와드릴게요.';
   const headOnTop = variantB;
   const headHalf = 152 * (t.headScale ?? 1) * 1.05 / 2;
 
@@ -291,10 +253,10 @@ function ConstellationHome({ t, onStar, active }) {
       {/* head pinned to a fixed anchor (above region center) — position is independent of bubble size */}
       <div style={{ position: 'absolute', left: 0, right: 0, top: 'calc(50% - 104px)', transform: 'translateY(-50%)',
       display: 'flex', justifyContent: 'center' }}>
-        <div onClick={tapHead} role="button" tabIndex={0} title="세컨비에게 물어보기"
+        <div onClick={tapHead} role="button" tabIndex={0} title="허슬케이에게 물어보기"
       style={{ animation: 'sb-bob 4.5s ease-in-out infinite', cursor: 'pointer' }}>
           <SecondBHead scale={(t.headScale ?? 1) * 1.05} expression={t.expression}
-        headRef={headRef} leftEyeRef={leftEyeRef} rightEyeRef={rightEyeRef} mouthRef={mouthRef} sphereRef={sphereRef} />
+        headRef={headRef} />
         </div>
       </div>
       {/* bubble floats just below the pinned head, growing downward without moving the head */}

@@ -11,7 +11,7 @@
     "heading": "My formats",
     "headingWithCount": "My formats ({{count}})",
     "emptyTitle": "No formats yet",
-    "emptyBody": "Formats you save from SecondB's suggestions appear here."
+    "emptyBody": "Formats you save from HustleK's suggestions appear here."
   },
   "community": {
     "heading": "Community formats",
@@ -193,9 +193,9 @@
   },
   "add": {
     "title": "Add a format",
-    "body": "Describe your material and how you want to organize it. SecondB will suggest sorting rules and details to save.",
+    "body": "Describe your material and how you want to organize it. HustleK will suggest sorting rules and details to save.",
     "placeholder": "e.g. Podcast episodes - capture the guest and key claims",
-    "draft": "Ask SecondB for sorting rules",
+    "draft": "Ask HustleK for sorting rules",
     "drafting": "Drafting…",
     "errorNeedDetail": "Couldn't draft a filing guide. Add detail and try again.",
     "errorDraft": "We couldn't draft the filing guide. Please try again in a moment.",

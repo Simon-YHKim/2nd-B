@@ -1,12 +1,12 @@
 {
   "character": {
-    "a11y": "Karakter SecondB"
+    "a11y": "Karakter HustleK"
   },
   "ds": {
     "dock": {
       "home": "Beranda",
       "capture": "Klip",
-      "chat": "SecondB",
+      "chat": "HustleK",
       "ops": "Asisten",
       "account": "Aku",
       "lens": "Aku",
@@ -69,16 +69,16 @@
         "values": "Nilai dan aspirasi"
       },
       "inbox": "Notifikasi",
-      "headA11y": "Tanya SecondB",
-      "dialogueOpen": "Buka percakapan SecondB",
-      "dialogueClose": "Tutup percakapan SecondB",
+      "headA11y": "Tanya HustleK",
+      "dialogueOpen": "Buka percakapan HustleK",
+      "dialogueClose": "Tutup percakapan HustleK",
       "kind": {
         "domain": "Bidang",
         "profile": "Informasi tentang dirimu"
       },
       "bubble": {
         "introTag": "Perkenalan",
-        "intro": "Halo, aku SecondB. Ketuk kepalaku untuk membuka pilihan.",
+        "intro": "Halo, aku HustleK. Ketuk kepalaku untuk membuka pilihan.",
         "tipTag": "Tips",
         "tip1": "Ketuk bintang untuk melihat catatan dari bagian hidup itu.",
         "tip2": "Gunakan Tambah di bilah bawah untuk menyimpan catatan baru.",
@@ -164,7 +164,7 @@
           "hint": "Apa yang kamu pikirkan"
         }
       },
-      "linkHint": "Tempel tautan dan SecondB mengambil judul dan ringkasannya.",
+      "linkHint": "Tempel tautan dan HustleK mengambil judul dan ringkasannya.",
       "linkPlaceholder": "https://",
       "photoAdd": "Lampirkan foto",
       "photoAddHint": "Pilih foto dari album. Foto disimpan bersama catatan ini.",
@@ -188,7 +188,7 @@
       "ocrInserted": "Teks ditambahkan.",
       "todoHint": "Tugas",
       "todoAdd": "Tambah tugas",
-      "banner": "Saat disimpan, SecondB menambahkan bintang dan tag terkait.",
+      "banner": "Saat disimpan, HustleK menambahkan bintang dan tag terkait.",
       "save": "Simpan",
       "saving": "Menyimpan",
       "saved": "Tersimpan",
@@ -273,7 +273,7 @@
       "combinedNote": "Gambaran gabungan dari {{count}} orang; tidak ada satu jawaban pun yang bisa dikenali.",
       "gapReadA11y": "Baca selisih dalam satu baris",
       "gapReading": "Membaca…",
-      "gapReadCta": "SecondB membaca selisihnya",
+      "gapReadCta": "HustleK membaca selisihnya",
       "emptyTitleResponses": "Tanggapan dari {{count}} orang sudah masuk",
       "emptyTitleNoPeers": "Belum ada tanggapan dari orang lain untuk dibandingkan",
       "emptyBodyFinishBigFive": "Selesaikan pemeriksaan Big Five milikmu dan kamu akan melihat aku yang kamu lihat bersanding dengan aku yang mereka lihat.",
@@ -303,7 +303,7 @@
       "rewrite": "Tulis ulang",
       "add": "+ Tambah",
       "emptyTitle": "Belum ada gambaran diri masa depan",
-      "emptyBody": "Bicarakan sosok yang ingin kamu tuju bersama SecondB dalam mode Sudut baru. Hasilnya akan muncul di sini."
+      "emptyBody": "Bicarakan sosok yang ingin kamu tuju bersama HustleK dalam mode Sudut baru. Hasilnya akan muncul di sini."
     },
     "relational": {
       "title": "Relasi",
@@ -333,10 +333,10 @@
     "imagine": {
       "title": "Berandai",
       "introBody": "Coba beberapa kemungkinan. Pilih yang ingin kamu lanjutkan menjadi langkah berikutnya.",
-      "sectionAngles": "Ide dari SecondB",
+      "sectionAngles": "Ide dari HustleK",
       "sectionSteps": "Pilihan langkah berikutnya",
       "toCapture": "Pindahkan ke Simpan",
-      "more": "Lainnya bersama SecondB",
+      "more": "Lainnya bersama HustleK",
       "seeds": {
         "expand": {
           "angle": "Perluas",
@@ -351,7 +351,7 @@
           "title": "Jika kamu hidup dengan cara yang sepenuhnya berlawanan",
           "body": "Berimprovisasi alih-alih merencanakan, bersama alih-alih sendirian. Apa yang menarikmu dari sisi seberang?",
           "step1": "Coba satu hal yang tidak pernah kamu lakukan minggu ini",
-          "step2": "Catat bersama SecondB apa yang terasa canggung",
+          "step2": "Catat bersama HustleK apa yang terasa canggung",
           "step3": "Simpan ke bintang Istirahat dan amati polanya"
         },
         "connect": {

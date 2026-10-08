@@ -17,7 +17,7 @@
     "loadError": "Não foi possível carregar as fotos."
   },
   "advisor": {
-    "heading": "Nota do SecondB",
+    "heading": "Nota do HustleK",
     "sources": "Fontes",
     "whyThis": "Por que isto",
     "evidenceFallback": "Fonte listada sem nota curta."
@@ -26,7 +26,7 @@
     "backToRecords": "Voltar aos registros",
     "seeArea": "Ver em {{area}}",
     "seeAreaHint": "Abre {{area}} com este registro no topo.",
-    "askSecondB": "Perguntar ao SecondB",
+    "askSecondB": "Perguntar ao HustleK",
     "openSource": "Abrir material original"
   }
 }

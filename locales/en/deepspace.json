@@ -246,7 +246,7 @@
   "support": {
     "title": "Support",
     "prompt": "What would you like to know?",
-    "askSecondb": "Ask SecondB",
+    "askSecondb": "Ask HustleK",
     "viewManual": "Open the user guide",
     "emailUs": "Email us",
     "reportBug": "Report a bug",
@@ -256,7 +256,7 @@
     "faqs": {
       "brightness": {
         "q": "What's the difference between brightness (starlight) and confidence?",
-        "a": "Starlight is how much you've captured in that area; confidence is how well SecondB's estimate has been verified. The two move independently."
+        "a": "Starlight is how much you've captured in that area; confidence is how well HustleK's estimate has been verified. The two move independently."
       },
       "plan": {
         "q": "Does a paid plan make it smarter?",
@@ -269,7 +269,7 @@
     },
     "notices": {
       "modes": {
-        "t": "SecondB three modes launched",
+        "t": "HustleK three modes launched",
         "tag": "New"
       },
       "museum": {
@@ -344,7 +344,7 @@
     "soundEffectsNote": "Telescope, star photo and opening sounds. They stay off while your phone is on silent or vibrate."
   },
   "manual": {
-    "askDirect": "Ask SecondB directly",
+    "askDirect": "Ask HustleK directly",
     "replayCoachmarks": "Replay the home guide"
   },
   "plans": {
@@ -354,11 +354,11 @@
     "recommended": "Recommended",
     "perMonth": "/ mo",
     "proFeat1": "Unlimited tests · compare repeat results",
-    "proFeat2": "Unlimited SecondB chat · imagining",
+    "proFeat2": "Unlimited HustleK chat · imagining",
     "proFeat3": "Full IDEN export",
     "proFeat4": "Trend · review suggestions",
     "currentPlan": "Currently active",
-    "freeFeat": "Basic saving · 1 check per star · 5 SecondB chats/day",
+    "freeFeat": "Basic saving · 1 check per star · 5 HustleK chats/day",
     "startPro": "Start a paid plan",
     "loadingOffers": "Loading plans...",
     "purchasing": "Processing...",
@@ -625,12 +625,12 @@
   },
   "careerDrilldown": {
     "summaryFallback": "a career experience",
-    "intro": "Use the 3C and 4P fields to describe why you started, what you did and how. SecondB will ask follow-up questions based on your answers.",
+    "intro": "Use the 3C and 4P fields to describe why you started, what you did and how. HustleK will ask follow-up questions based on your answers.",
     "summaryLabel": "One-line summary",
     "summaryPlaceholder": "What you did and the result - one line",
     "expTypeA11y": "Experience type",
     "expTypePlaceholder": "Pick an experience type",
-    "submit": "Explore this experience with SecondB",
+    "submit": "Explore this experience with HustleK",
     "saveFailed": "Couldn't save that. Your entries are still here; try again."
   },
   "shareCard": {
@@ -647,7 +647,7 @@
     "fallbackInsight": "Understand myself deeply, live more like myself."
   },
   "coachmarks": {
-    "homeStep": "Tap SecondB to start saving a record.",
+    "homeStep": "Tap HustleK to start saving a record.",
     "formatStep": "Choose Memo first. One line is enough.",
     "inputStep": "Write the thought on your mind. It does not need to be a complete sentence.",
     "saveStep": "Now tap Save to keep this record.",
@@ -701,7 +701,7 @@
   "shareCardImg": {
     "eyebrowWeek": "POLASCOPE · THIS WEEK",
     "eyebrowConstellation": "MY CONSTELLATION",
-    "footerWeek": "A week seen together with SecondB",
+    "footerWeek": "A week seen together with HustleK",
     "starsLit": "{{count}} stars shining",
     "signature": "PolaScope · {{count}} stardust"
   },
@@ -796,7 +796,7 @@
       "freeName": "Stargazer",
       "freeSub": "Just starting out",
       "freePrice": "Free",
-      "freeFeat1": "5 chats a day with SecondB",
+      "freeFeat1": "5 chats a day with HustleK",
       "freeFeat2": "Find connections 2 times a week",
       "freeFeat3": "All 7 stars · unlimited records",
       "plusName": "Voyager",
@@ -910,9 +910,9 @@
     },
     "northstar": {
       "title": "North-star sentence",
-      "sub": "SecondB suggested this sentence using your seven stars. Edit it in your own words.",
+      "sub": "HustleK suggested this sentence using your seven stars. Edit it in your own words.",
       "placeholder": "I want to find work that suits me and keep at it.",
-      "suggestLabel": "SecondB drafts",
+      "suggestLabel": "HustleK drafts",
       "thinking": "Writing a sentence",
       "propose": "Get other drafts",
       "cancel": "Cancel",
@@ -960,7 +960,7 @@
     "reasoningScreen": {
       "autoTitle": "Automatic connections",
       "autoPaused": "Limit reached · automatic runs resume Monday",
-      "autoBody": "SecondB suggests relevant life areas for each item you capture",
+      "autoBody": "HustleK suggests relevant life areas for each item you capture",
       "autoNote": "Each automatic search uses one of your weekly runs. The last run is kept for you to use manually.",
       "queuedRecord": "New record · queued",
       "queuedSource": "New source · queued",
@@ -998,7 +998,7 @@
       "doneSummary": "{{n}} connections are proposed. Select only what you want to apply.",
       "runningSummary": "Reading {{total}} items · {{done}} / {{total}}",
       "doneNote": "Only selected proposals are applied. Unselected items stay unchanged.",
-      "runningNote": "You can leave this screen. SecondB will let you know when it's ready.",
+      "runningNote": "You can leave this screen. HustleK will let you know when it's ready.",
       "weekLabel": "This week's reasoning",
       "capturedItems": "Captured items",
       "selectProposals": "Select proposals",
@@ -1052,7 +1052,7 @@
     "lockSection": "Lock screen",
     "lockNotif": "Want to leave one line about today?",
     "pushSection": "Push notifications",
-    "pushHead": "SecondB · now",
+    "pushHead": "HustleK · now",
     "pushBody": "Review a new finding. It updates your star only if you approve.",
     "notifSettings": "Notification settings"
   },
@@ -1064,7 +1064,7 @@
     "pieceHere": "Filed here",
     "pieceOpenHint": "Opens this record.",
     "briefingOpening": "Opening this star…",
-    "briefingEmpty": "No records in this star yet. Add a record for SecondB to summarize.",
+    "briefingEmpty": "No records in this star yet. Add a record for HustleK to summarize.",
     "briefingCountOne": "{{n}} record on this star, newest first.",
     "briefingCount": "{{n}} records on this star, newest first."
   },
@@ -1072,7 +1072,7 @@
     "nextHint": "Goes to the next slide.",
     "skipHint": "Skips the intro.",
     "authHint": "Goes to your home.",
-    "secondbName": "SecondB",
+    "secondbName": "HustleK",
     "authTitle": "Ready to begin?",
     "authBody": "Your records belong to you. Summaries are applied only after you approve them. Start with your first record.",
     "next": "Next",
@@ -1082,7 +1082,7 @@
     "slides": {
       "intro": {
         "title": "An AI that gets\nto know you",
-        "body": "SecondB uses your notes\nto help organize your thoughts\nand plan your day."
+        "body": "HustleK uses your notes\nto help organize your thoughts\nand plan your day."
       },
       "stars": {
         "tag": "Getting to know you",

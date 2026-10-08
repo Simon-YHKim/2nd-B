@@ -179,7 +179,7 @@ describe("tr2 /imagine seeds: canon on the Korean screen, home bundle everywhere
     ["Expand", "If you took a year off", "Erase money, work, and ties for a moment - what would you do first?",
       "Write 3 things you want to do", "Taste one with a single hour this month", "Picture who joins you on the relations star"],
     ["Reverse", "If you lived the exact opposite", "Improvise instead of plan, together instead of alone. What pulls you from the far side?",
-      "Try one thing you never do this week", "Note what felt awkward with SecondB", "Capture it to the rest star and watch the pattern"],
+      "Try one thing you never do this week", "Note what felt awkward with HustleK", "Capture it to the rest star and watch the pattern"],
     ["Connect", "Career × rest, combined", "Force the two stars together - what odd idea falls out?",
       "Write a one-line project from the two keywords", "Prototype it in two weekend hours", "Log it on the growth star as an experiment"],
   ];

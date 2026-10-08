@@ -38,7 +38,7 @@ function LoadingState({ label = '불러오는 중', sub }) {
         </div>
         {/* head */}
         <div style={{ animation: 'sb-bob 3.4s ease-in-out infinite' }}>
-          <img src="assets/deepspace/secondb-head-front.png" alt="세컨비" style={{ width: 72, height: 72, display: 'block',
+          <img src="assets/hustlek/A01-neutral.png" alt="허슬케이" style={{ width: 72, height: 72, display: 'block',
             filter: 'drop-shadow(0 6px 16px rgba(70,90,200,.5))' }} />
         </div>
       </div>
@@ -820,14 +820,14 @@ function StarScreen({ t, go, param, onBack }) {
       {/* 세컨비 한 줄 해석 — 카드 대신 떠 있는 글래스 스트립 */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: 14, borderRadius: 16,
         background: 'rgba(70,120,210,.14)', border: '1px solid rgba(127,178,255,.2)' }}>
-        <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ width: 30, height: 30, flex: '0 0 auto' }} />
+        <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 30, height: 30, flex: '0 0 auto' }} />
         <div className="md-body-medium" style={{ color: '#E7EEFB', wordBreak: 'keep-all' }}>{starInsight(star.id, C, meta)}</div>
       </div>
 
       {/* 채워 넣기(도메인 전용 조사 프레임) · 세컨비와 대화 — 말풍선 아래 */}
       <div style={{ display: 'flex', gap: 8, margin: '12px 0 14px' }}>
         <MdButton variant="filled" icon="edit_note" style={{ flex: 1 }} onClick={() => go(star.id === 'relation' ? 'relcontacts' : star.id === 'leisure' ? 'hobbyinput' : star.id === 'health' ? 'healthinput' : star.id === 'career' ? 'careerinput' : 'lifeinput', star.id === 'relation' ? { mode: 'fill', star } : star)}>{star.id === 'career' ? '성과 입력' : '채워 넣기'}</MdButton>
-        <MdButton variant="outlined" icon="bubble_chart" style={{ flex: 1 }} onClick={() => star.id === 'relation' ? go('relcontacts', { mode: 'chat', star }) : star.id === 'career' ? go('drilldown', star) : go('chat')}>{star.id === 'career' ? 'Drill Down' : '세컨비와 대화'}</MdButton>
+        <MdButton variant="outlined" icon="bubble_chart" style={{ flex: 1 }} onClick={() => star.id === 'relation' ? go('relcontacts', { mode: 'chat', star }) : star.id === 'career' ? go('drilldown', star) : go('chat')}>{star.id === 'career' ? 'Drill Down' : '허슬케이와 대화'}</MdButton>
       </div>
 
       {/* 도메인 전용 뷰 (재정=가계, 관계=인물 맵, 휴식=쉼의 지도 …) */}

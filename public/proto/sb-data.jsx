@@ -264,90 +264,56 @@ function MoodDot({ mood = 'neutral', size = 10, style }) {
     boxShadow: `0 0 8px 1px ${c}`, display: 'inline-block', ...style }} />;
 }
 
-/* ── SbHead — the 2ndB companion head with live expression + gaze tracking ──
-   Reuses the constellation-home head geometry (masked baked eyes → dynamic
-   cyan eyes + mouth) but is fully self-contained: its own pointer/touch
-   tracking, idle blink, and expression (eye height + mouth curve) driven by
-   `expression` (positive | neutral | negative). Percentage-positioned features
-   scale to any `size`. Pass track={false} for a static instance. */
-function SbHead({ size = 48, expression = 'neutral', track = true, tilt = true, bob = false, glow = false, style }) {
-  const scale = size / 152;
+/* Shared HustleK portrait; legacy component name keeps prototype callers compatible. */
+function SbHead({ size = 48, expression = 'neutral', track = true, bob = false, style }) {
   const rootRef = useRef(null),headRef = useRef(null);
-  const leftEyeRef = useRef(null),rightEyeRef = useRef(null),mouthRef = useRef(null);
-  const moodC = MOOD[expression] || MOOD.neutral;
-  const eyeH = expression === 'positive' ? 13 : expression === 'negative' ? 17 : 16;
-  const mouth = expression === 'positive' ?
-  { w: 16, h: 7, radius: '0 0 9px 9px', bg: 'transparent', border: '2.5px solid #5FD4FF', borderTop: 'none' } :
-  expression === 'negative' ?
-  { w: 16, h: 7, radius: '9px 9px 0 0', bg: 'transparent', border: '2.5px solid #5FD4FF', borderBottom: 'none' } :
-  { w: 15, h: 3.5, radius: 9, bg: '#5FD4FF', border: 'none' };
-
+  const scale = size / 152;
   useEffect(() => {
-    if (!track) return;
-    const cur = { yaw: 0, pitch: 0, tx: 0, ty: 0, ex: 0, ey: 0 };
-    const ptr = { x: 0, y: 0 };let last = Date.now();
-    let blinkStart = 0,nextBlink = Date.now() + 1400,blink = 1;
-    const cl = (v, a, b) => Math.max(a, Math.min(b, v)),lerp = (a, b, k) => a + (b - a) * k;
-    const setPtr = (cx, cy) => {const el = rootRef.current;if (!el) return;const r = el.getBoundingClientRect();
-      ptr.x = cl((cx - (r.left + r.width / 2)) / (window.innerWidth / 2), -1.3, 1.3);
-      ptr.y = cl((cy - (r.top + r.height / 2)) / (window.innerHeight / 2), -1.3, 1.3);last = Date.now();};
-    const move = (e) => {const p = e.touches ? e.touches[0] : e;if (p) setPtr(p.clientX, p.clientY);};
-    window.addEventListener('pointermove', move);window.addEventListener('touchmove', move, { passive: true });
-    let raf;
-    const tick = () => {
-      raf = requestAnimationFrame(tick);const now = Date.now();
-      if (now - last > 2200) {ptr.x *= 0.92;ptr.y *= 0.92;}
-      cur.yaw = lerp(cur.yaw, ptr.x * 15, 0.1);cur.pitch = lerp(cur.pitch, -ptr.y * 10, 0.1);
-      cur.tx = lerp(cur.tx, ptr.x * 4, 0.1);cur.ty = lerp(cur.ty, ptr.y * 3, 0.1);
-      cur.ex = lerp(cur.ex, ptr.x * 5.5, 0.18);cur.ey = lerp(cur.ey, ptr.y * 3.5, 0.18);
-      if (!blinkStart && now > nextBlink) blinkStart = now;
-      if (blinkStart) {const bp = (now - blinkStart) / 130;blink = 1 - Math.sin(Math.min(bp, 1) * Math.PI) * 0.92;if (bp >= 1) {blinkStart = 0;blink = 1;nextBlink = now + 1600 + Math.random() * 3400;}}
-      if (headRef.current) headRef.current.style.transform = tilt ? `rotateY(${cur.yaw}deg) rotateX(${cur.pitch}deg) translate3d(${cur.tx * scale}px,${cur.ty * scale}px,0)` : '';
-      const eyeT = `translate(${cur.ex * scale}px,${cur.ey * scale}px) scaleY(${blink})`;
-      if (leftEyeRef.current) leftEyeRef.current.style.transform = eyeT;
-      if (rightEyeRef.current) rightEyeRef.current.style.transform = eyeT;
-      if (mouthRef.current) mouthRef.current.style.transform = `translate(${cur.ex * 0.5 * scale}px,${cur.ey * 0.5 * scale}px)`;
+    if (!track && !bob) return;
+    const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    const ptr = { x: 0, y: 0 },cur = { x: 0, y: 0 };
+    let last = Date.now(),started = last,raf = null;
+    const clamp = (value) => Math.max(-1.3, Math.min(1.3, value));
+    const move = (event) => {
+      const point = event.touches ? event.touches[0] : event;
+      const rect = rootRef.current?.getBoundingClientRect();
+      if (!point || !rect) return;
+      ptr.x = clamp((point.clientX - rect.left - rect.width / 2) / (window.innerWidth / 2));
+      ptr.y = clamp((point.clientY - rect.top - rect.height / 2) / (window.innerHeight / 2));
+      last = Date.now();
     };
-    raf = requestAnimationFrame(tick);
-    return () => {cancelAnimationFrame(raf);window.removeEventListener('pointermove', move);window.removeEventListener('touchmove', move);};
-  }, [track, tilt, scale]);
-
-  return (
-    <div ref={rootRef} style={{ position: 'relative', width: size, height: size, flex: '0 0 auto',
-      animation: bob ? 'sb-bob 4s ease-in-out infinite' : undefined, ...style }}>
-      {glow && <div style={{ position: 'absolute', left: '50%', top: '8%', width: size * 0.62, height: size * 0.62,
-        transform: 'translateX(-50%)', borderRadius: '50%', filter: 'blur(6px)', pointerEvents: 'none',
-        background: `radial-gradient(circle, ${moodC}aa, ${moodC}44 52%, transparent 76%)`,
-        animation: 'sb-dim 3.4s ease-in-out infinite' }} />}
-      <div ref={headRef} style={{ position: 'relative', width: size, height: size, transformStyle: 'preserve-3d', willChange: 'transform' }}>
-        <img src="assets/deepspace/secondb-head-blank.png" alt="세컨비" draggable="false"
-        style={{ width: '100%', height: '100%', display: 'block', filter: 'drop-shadow(0 2px 8px rgba(70,80,160,.35))' }} />
-        {/* dark face screen masks the baked eyes so dynamic eyes can track */}
-        <div style={{ position: 'absolute', left: '50%', top: '60%', width: '47%', height: '23.5%',
-          transform: 'translate(-50%,-50%)', borderRadius: Math.max(3, 10 * scale),
-          background: 'linear-gradient(180deg,#0a1020,#03060e 62%)',
-          boxShadow: 'inset 0 1px 6px rgba(120,150,255,.18), inset 0 -4px 10px rgba(0,0,0,.6)' }} />
-        <div style={{ position: 'absolute', left: '38.5%', top: '58.5%', width: 0, height: 0 }}>
-          <div ref={leftEyeRef} style={{ position: 'absolute', left: -5 * scale, top: -8 * scale,
-            width: 10 * scale, height: eyeH * scale, borderRadius: 4 * scale,
-            background: 'radial-gradient(60% 60% at 50% 42%,#CCFAFF,#46B6FF 72%)',
-            boxShadow: `0 0 ${9 * scale}px rgba(70,182,255,.85)`, willChange: 'transform' }} />
-        </div>
-        <div style={{ position: 'absolute', left: '61.5%', top: '58.5%', width: 0, height: 0 }}>
-          <div ref={rightEyeRef} style={{ position: 'absolute', left: -5 * scale, top: -8 * scale,
-            width: 10 * scale, height: eyeH * scale, borderRadius: 4 * scale,
-            background: 'radial-gradient(60% 60% at 50% 42%,#CCFAFF,#46B6FF 72%)',
-            boxShadow: `0 0 ${9 * scale}px rgba(70,182,255,.85)`, willChange: 'transform' }} />
-        </div>
-        <div style={{ position: 'absolute', left: '50%', top: '65.5%', width: 0, height: 0 }}>
-          <div ref={mouthRef} style={{ position: 'absolute', left: -mouth.w * scale / 2, top: 0,
-            width: mouth.w * scale, height: mouth.h * scale, borderRadius: mouth.radius,
-            background: mouth.bg, border: mouth.border, borderTop: mouth.borderTop, borderBottom: mouth.borderBottom,
-            boxShadow: `0 0 ${8 * scale}px rgba(70,182,255,.8)`, willChange: 'transform' }} />
-        </div>
-      </div>
-    </div>);
-
+    const tick = () => {
+      const now = Date.now();
+      if (now - last > 2200) { ptr.x *= 0.92; ptr.y *= 0.92; }
+      cur.x += (ptr.x * 4 - cur.x) * 0.1;
+      cur.y += (ptr.y * 3 - cur.y) * 0.1;
+      const lift = bob ? -Math.round((1 - Math.cos((now - started) * Math.PI / 2000)) * 1.5) : 0;
+      if (headRef.current) headRef.current.style.transform = `translate(${Math.round(cur.x * scale)}px,${Math.round(cur.y * scale) + lift}px)`;
+      raf = requestAnimationFrame(tick);
+    };
+    const stop = () => {
+      if (raf !== null) cancelAnimationFrame(raf);
+      raf = null;
+      window.removeEventListener('pointermove', move);window.removeEventListener('touchmove', move);
+      ptr.x = ptr.y = cur.x = cur.y = 0;
+      if (headRef.current) headRef.current.style.transform = 'translate(0px,0px)';
+    };
+    const sync = () => {
+      stop();
+      if (media?.matches) return;
+      started = last = Date.now();
+      if (track) { window.addEventListener('pointermove', move);window.addEventListener('touchmove', move, { passive: true }); }
+      raf = requestAnimationFrame(tick);
+    };
+    media?.addEventListener('change', sync);
+    sync();
+    return () => { stop();media?.removeEventListener('change', sync); };
+  }, [track, bob, scale]);
+  const file = expression === 'positive' ? 'A02-soft-smile' : expression === 'negative' ? 'C07-worried' : 'A01-neutral';
+  return <div ref={rootRef} style={{ width: size, height: size, flex: '0 0 auto', ...style }}>
+    <img ref={headRef} src={'assets/hustlek/' + file + '.png'} alt="허슬케이" draggable="false"
+      style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', imageRendering: 'pixelated' }} />
+  </div>;
 }
 
 /* ── Shared ratify affordance for layer-B estimates (PRD invariant #1) ──
@@ -366,9 +332,9 @@ function RatifyBlock({ id, estimate, confidence = 60, evidence = 0, evidenceLabe
   return (
     <MdCard variant="filled" style={{ background: C('secondary-container'), padding: 14, marginTop: 16 }}>
       <div style={{ display: 'flex', gap: 10 }}>
-        <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ width: 30, height: 30, flex: '0 0 auto' }} />
+        <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 30, height: 30, flex: '0 0 auto' }} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="md-label-small" style={{ color: C('on-secondary-container'), opacity: .7, marginBottom: 3 }}>세컨비의 추정 · 아직 반영 안 됨</div>
+          <div className="md-label-small" style={{ color: C('on-secondary-container'), opacity: .7, marginBottom: 3 }}>허슬케이의 추정 · 아직 반영 안 됨</div>
           <div className="md-body-medium" style={{ color: C('on-secondary-container'), wordBreak: 'keep-all' }}>{estimate}</div>
         </div>
       </div>

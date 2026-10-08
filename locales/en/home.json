@@ -1,12 +1,12 @@
 {
   "character": {
-    "a11y": "SecondB character"
+    "a11y": "HustleK character"
   },
   "ds": {
     "dock": {
       "home": "Home",
       "capture": "Scrap",
-      "chat": "SecondB",
+      "chat": "HustleK",
       "ops": "Assistant",
       "account": "Me",
       "lens": "Me",
@@ -69,16 +69,16 @@
         "values": "My values"
       },
       "inbox": "Notifications",
-      "headA11y": "Ask SecondB",
-      "dialogueOpen": "Open SecondB dialogue",
-      "dialogueClose": "Close SecondB dialogue",
+      "headA11y": "Ask HustleK",
+      "dialogueOpen": "Open HustleK dialogue",
+      "dialogueClose": "Close HustleK dialogue",
       "kind": {
         "domain": "Area",
         "profile": "How others see me"
       },
       "bubble": {
         "introTag": "Intro",
-        "intro": "I'm SecondB. Tap my head to open the chat and assistant menus.",
+        "intro": "I'm HustleK. Tap my head to open the chat and assistant menus.",
         "tipTag": "Quick tip",
         "tip1": "Tap a star to review the records from that part of your life.",
         "tip2": "Use Add in the bottom bar to save a new record right away.",
@@ -164,7 +164,7 @@
           "hint": "What was on your mind"
         }
       },
-      "linkHint": "Paste a link and SecondB pulls the title and summary.",
+      "linkHint": "Paste a link and HustleK pulls the title and summary.",
       "linkPlaceholder": "https://",
       "photoAdd": "Attach photo",
       "photoAddHint": "Pick a photo from your album. It is saved with this note.",
@@ -188,7 +188,7 @@
       "ocrInserted": "Added the text.",
       "todoHint": "To-do",
       "todoAdd": "Add a to-do",
-      "banner": "When you save, SecondB adds related stars and tags.",
+      "banner": "When you save, HustleK adds related stars and tags.",
       "save": "Capture",
       "saving": "Saving",
       "saved": "Saved",
@@ -336,7 +336,7 @@
       "sectionAngles": "Ideas to explore",
       "sectionSteps": "Things to try first",
       "toCapture": "Move to Capture",
-      "more": "Keep talking with SecondB",
+      "more": "Keep talking with HustleK",
       "seeds": {
         "expand": {
           "angle": "Expand",
@@ -351,7 +351,7 @@
           "title": "If you lived the exact opposite",
           "body": "Improvise instead of plan, together instead of alone. What pulls you from the far side?",
           "step1": "Try one thing you never do this week",
-          "step2": "Note what felt awkward with SecondB",
+          "step2": "Note what felt awkward with HustleK",
           "step3": "Capture it to the rest star and watch the pattern"
         },
         "connect": {

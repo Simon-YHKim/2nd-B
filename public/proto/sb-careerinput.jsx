@@ -107,7 +107,7 @@ function CareerInputScreen({ t, go, param }) {
           </div>
           <div className="md-headline-small" style={{ color: C('on-surface') }}>커리어 별에 담았어요</div>
           <div className="md-body-medium" style={{ color: C('on-surface-variant'), wordBreak: 'keep-all', maxWidth: 290 }}>
-            성과가 <b>커리어</b> 별 타임라인에 저장됐어요. 다음 단계를 진행하면 세컨비가 이 성과를 분석에 반영해요.
+            성과가 <b>커리어</b> 별 타임라인에 저장됐어요. 다음 단계를 진행하면 허슬케이가 이 성과를 분석에 반영해요.
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
             <MdButton variant="tonal" icon="add" onClick={() => { setDone(false); setProj(''); setStart(''); setEnd(''); setOngoing(false); setKpis([]); setSummary(''); setFreeNote(''); setBd({ problem: '', productivity: '', communication: '' }); setTools([]); setSkillTags([]); setTheories([]); }}>또 입력</MdButton>
@@ -135,7 +135,7 @@ function CareerInputScreen({ t, go, param }) {
         <MdCard variant="outlined" style={{ padding: '10px 12px', marginBottom: 20, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           <Icon name="arrow_forward" size={16} style={{ color: C('on-surface-variant'), flex: '0 0 auto', marginTop: 1 }} />
           <div className="md-body-small" style={{ color: C('on-surface-variant'), wordBreak: 'keep-all' }}>
-            여기까지는 <b style={{ color: C('on-surface') }}>타임라인에 저장</b>돼요. 다음 단계를 진행하면 세컨비가 이 성과를 분석에 반영해요.
+            여기까지는 <b style={{ color: C('on-surface') }}>타임라인에 저장</b>돼요. 다음 단계를 진행하면 허슬케이가 이 성과를 분석에 반영해요.
           </div>
         </MdCard>
 

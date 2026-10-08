@@ -246,7 +246,7 @@
   "support": {
     "title": "Soporte",
     "prompt": "¿Qué necesitas resolver?",
-    "askSecondb": "Preguntar a SecondB",
+    "askSecondb": "Preguntar a HustleK",
     "viewManual": "Ver el manual",
     "emailUs": "Escríbenos",
     "reportBug": "Reportar un error",
@@ -256,7 +256,7 @@
     "faqs": {
       "brightness": {
         "q": "¿En qué se diferencian el brillo (la luz de las estrellas) y la confianza?",
-        "a": "La luz de las estrellas indica cuánto has guardado en esa área; la confianza, cuánto se ha comprobado la estimación de SecondB. Las dos cambian por separado."
+        "a": "La luz de las estrellas indica cuánto has guardado en esa área; la confianza, cuánto se ha comprobado la estimación de HustleK. Las dos cambian por separado."
       },
       "plan": {
         "q": "¿Un plan de pago lo hace más inteligente?",
@@ -269,7 +269,7 @@
     },
     "notices": {
       "modes": {
-        "t": "Llegan los tres modos de SecondB",
+        "t": "Llegan los tres modos de HustleK",
         "tag": "Nuevo"
       },
       "museum": {
@@ -344,7 +344,7 @@
     "soundEffectsNote": "Sonidos del telescopio, la foto de estrella y la apertura. No suenan si el teléfono está en silencio o en vibración."
   },
   "manual": {
-    "askDirect": "Preguntar directamente a SecondB",
+    "askDirect": "Preguntar directamente a HustleK",
     "replayCoachmarks": "Volver a ver la guía de inicio"
   },
   "plans": {
@@ -354,11 +354,11 @@
     "recommended": "Recomendado",
     "perMonth": "/ mes",
     "proFeat1": "Tests ilimitados · repetir y comparar",
-    "proFeat2": "Chat ilimitado con SecondB · imaginar",
+    "proFeat2": "Chat ilimitado con HustleK · imaginar",
     "proFeat3": "Exportación IDEN completa",
     "proFeat4": "Sugerencias de tendencia · revisión",
     "currentPlan": "Activo actualmente",
-    "freeFeat": "Guardado básico · 1 prueba por estrella · 5 chats SecondB/día",
+    "freeFeat": "Guardado básico · 1 prueba por estrella · 5 chats HustleK/día",
     "startPro": "Empezar un plan de pago",
     "loadingOffers": "Cargando planes...",
     "purchasing": "Procesando...",
@@ -625,12 +625,12 @@
   },
   "careerDrilldown": {
     "summaryFallback": "una experiencia profesional",
-    "intro": "Describe tu logro con 3C para explicar por qué y 4P para explicar qué hiciste y cómo. Después, SecondB hará preguntas sobre lo que escribiste.",
+    "intro": "Describe tu logro con 3C para explicar por qué y 4P para explicar qué hiciste y cómo. Después, HustleK hará preguntas sobre lo que escribiste.",
     "summaryLabel": "Resumen en una línea",
     "summaryPlaceholder": "Qué hiciste y cuál fue el resultado - en una línea",
     "expTypeA11y": "Tipo de experiencia",
     "expTypePlaceholder": "Elige un tipo de experiencia",
-    "submit": "Seguir con preguntas de SecondB",
+    "submit": "Seguir con preguntas de HustleK",
     "saveFailed": "No se pudo guardar. Lo que escribiste sigue aquí; inténtalo de nuevo."
   },
   "shareCard": {
@@ -647,7 +647,7 @@
     "fallbackInsight": "Entenderme a fondo, vivir más como yo."
   },
   "coachmarks": {
-    "homeStep": "Toca SecondB para empezar a guardar un registro.",
+    "homeStep": "Toca HustleK para empezar a guardar un registro.",
     "formatStep": "Primero elige Nota. Una línea es suficiente.",
     "inputStep": "Escribe lo que tienes en mente. No hace falta una frase completa.",
     "saveStep": "Por último, toca Guardar para conservar este registro.",
@@ -701,7 +701,7 @@
   "shareCardImg": {
     "eyebrowWeek": "POLASCOPE · ESTA SEMANA",
     "eyebrowConstellation": "MI CONSTELACIÓN",
-    "footerWeek": "Resumen semanal de SecondB",
+    "footerWeek": "Resumen semanal de HustleK",
     "starsLit": "{{count}} estrellas brillando",
     "signature": "PolaScope · {{count}} motas de estrella"
   },
@@ -796,7 +796,7 @@
       "freeName": "Observador de estrellas",
       "freeSub": "Recién empezando",
       "freePrice": "Gratis",
-      "freeFeat1": "5 chats al día con SecondB",
+      "freeFeat1": "5 chats al día con HustleK",
       "freeFeat2": "Buscar conexiones 2 veces por semana",
       "freeFeat3": "Las 7 estrellas · registros ilimitados",
       "plusName": "Viajero",
@@ -910,9 +910,9 @@
     },
     "northstar": {
       "title": "Frase de la Estrella Polar",
-      "sub": "SecondB ha preparado esta frase con tus siete estrellas. Cámbiala con tus propias palabras.",
+      "sub": "HustleK ha preparado esta frase con tus siete estrellas. Cámbiala con tus propias palabras.",
       "placeholder": "Entenderme a fondo y vivir más como yo.",
-      "suggestLabel": "Borradores de SecondB",
+      "suggestLabel": "Borradores de HustleK",
       "thinking": "Preparando borradores",
       "propose": "Ver otros borradores",
       "cancel": "Cancelar",
@@ -960,7 +960,7 @@
     "reasoningScreen": {
       "autoTitle": "Conexiones automáticas",
       "autoPaused": "Límite alcanzado · se reanuda el lunes",
-      "autoBody": "SecondB busca conexiones cuando guardas un fragmento.",
+      "autoBody": "HustleK busca conexiones cuando guardas un fragmento.",
       "autoNote": "Cada búsqueda automática usa una de las búsquedas semanales. Siempre se reserva una para que la inicies tú.",
       "queuedRecord": "Registro nuevo · en cola",
       "queuedSource": "Fuente nueva · en cola",
@@ -998,7 +998,7 @@
       "doneSummary": "Se propusieron {{n}} conexiones. Selecciona solo las que quieras aplicar.",
       "runningSummary": "Leyendo {{total}} elementos · {{done}} / {{total}}",
       "doneNote": "Solo se aplican las propuestas seleccionadas. Los elementos no seleccionados no cambian.",
-      "runningNote": "Puedes salir de esta pantalla. SecondB te avisará cuando esté listo.",
+      "runningNote": "Puedes salir de esta pantalla. HustleK te avisará cuando esté listo.",
       "weekLabel": "Razonamiento de esta semana",
       "capturedItems": "Elementos guardados",
       "selectProposals": "Seleccionar propuestas",
@@ -1052,7 +1052,7 @@
     "lockSection": "Pantalla de bloqueo",
     "lockNotif": "¿Quieres dejar una línea sobre hoy?",
     "pushSection": "Notificaciones push",
-    "pushHead": "SecondB · ahora",
+    "pushHead": "HustleK · ahora",
     "pushBody": "Hay una nueva propuesta para revisar. Se aplicará a tu estrella si la apruebas.",
     "notifSettings": "Ajustes de notificaciones"
   },
@@ -1064,7 +1064,7 @@
     "pieceHere": "Guardado aquí",
     "pieceOpenHint": "Abre este registro.",
     "briefingOpening": "Abriendo esta estrella…",
-    "briefingEmpty": "Aún no hay registros en esta estrella. Guarda uno para que SecondB pueda usarlo.",
+    "briefingEmpty": "Aún no hay registros en esta estrella. Guarda uno para que HustleK pueda usarlo.",
     "briefingCountOne": "{{n}} registro en esta estrella, primero el más reciente.",
     "briefingCount": "{{n}} registros en esta estrella, primero los más recientes."
   },
@@ -1072,7 +1072,7 @@
     "nextHint": "Va a la siguiente diapositiva.",
     "skipHint": "Omite la introducción y abre la pantalla de inicio de sesión.",
     "authHint": "Abre la pantalla de inicio de sesión.",
-    "secondbName": "SecondB",
+    "secondbName": "HustleK",
     "authTitle": "¿Empezamos?",
     "authBody": "Tus registros son tuyos. Tú decides qué cambios se aplican a tu resumen.",
     "next": "Siguiente",
@@ -1082,7 +1082,7 @@
     "slides": {
       "intro": {
         "title": "Una IA que llega\na conocerte",
-        "body": "SecondB usa tus notas\npara ayudarte a ordenar tus ideas\ny planear tu día."
+        "body": "HustleK usa tus notas\npara ayudarte a ordenar tus ideas\ny planear tu día."
       },
       "stars": {
         "tag": "Conocerte",

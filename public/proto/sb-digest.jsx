@@ -245,7 +245,7 @@ function DigestScreen({ t, go }) {
         <div className="md-label-large" style={{ color: C('primary'), letterSpacing: '.04em' }}>{period}의 PolaScope</div>
         <div className="md-headline-small" style={{ color: C('on-surface'), fontWeight: 700, marginTop: 2 }}>{d.range}</div>
         <div className="md-body-medium" style={{ color: C('on-surface-variant'), marginTop: 4 }}>
-          별가루 <b style={{ color: C('on-surface') }}>{d.captured}개</b> · 세컨비와 대화 <b style={{ color: C('on-surface') }}>{d.chats}번</b>
+          별가루 <b style={{ color: C('on-surface') }}>{d.captured}개</b> · 허슬케이와 대화 <b style={{ color: C('on-surface') }}>{d.chats}번</b>
         </div>
       </div>
 
@@ -272,14 +272,14 @@ function DigestScreen({ t, go }) {
       <MdCard variant="outlined" style={{ padding: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <Icon name="trending_up" size={20} style={{ color: C('tertiary') }} />
-          <span className="md-label-large" style={{ color: C('on-surface-variant') }}>세컨비가 감지한 흐름</span>
+          <span className="md-label-large" style={{ color: C('on-surface-variant') }}>허슬케이가 감지한 흐름</span>
         </div>
         <RatifyBlock id={'digest-trend-' + period} estimate={d.trend.claim} confidence={d.trend.conf}
           evidence={d.trend.ev} evidenceLabel="기록" onEvidence={() => go('records')} />
       </MdCard>
 
       {/* pattern — propose→ratify */}
-      <SectionLabel>세컨비가 발견한 패턴</SectionLabel>
+      <SectionLabel>허슬케이가 발견한 패턴</SectionLabel>
       <MdCard variant="outlined" style={{ padding: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <Icon name="insights" size={20} style={{ color: C('primary') }} />

@@ -34,7 +34,7 @@ import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { createRecord } from "@/lib/records/create";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { type HotlineId } from "@/lib/safety/lexicon";
-import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
+import { MdButton, MdCard, ProgressLinear, SegBtn, m3TextStyle } from "@/components/m3";
 import { composeFourWBody, EMPTY_FOURW, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
 import {
   MAX_RECORD_PHOTOS,
@@ -367,11 +367,9 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
   // through the same createRecord(kind:"note") path. Three modes since 2026-09-30
   // (메모 · 링크 · 할 일); photos attach to 메모 instead of a tab of their own.
   const [mode, setMode] = useState<CaptureMode>("text");
-  // 2026-09-30 (Simon): the 메모/4W1H radio became one toggle. OFF (the default)
-  // is the plain memo; ON shows the 4W1H fields. Both keep their text while the
-  // toggle moves, and the save picks the one that is showing: OFF saves tag
-  // "memo" with the memo text, ON saves tag "fourw" with the composed 4W1H body,
-  // exactly as the two radio options did. (The old radio opened on 4W1H.)
+  // 2026-10-08 (Simon): 일반 and 4W1H are both visible in a segmented control.
+  // Plain text remains the default. Each draft survives format changes; saving
+  // uses the visible format's body and its existing "memo" / "fourw" tag.
   const [fourwOn, setFourwOn] = useState(false);
   const [fourw, setFourw] = useState<FourWFields>(EMPTY_FOURW);
   const [text, setText] = useState(""); // memo text / link
@@ -874,33 +872,20 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
       <SceneTransition transitionKey={`${mode}:${fourwOn}`} kind="replace" animateOnMount={false}>
       {mode === "text" ? (
         <>
-          {/* 4W1H is a switch, not a second format tile (Simon 2026-09-30). One
-              row, one touch: the whole row flips it, and it reads as a switch. */}
-          <Pressable
-            onPress={() => {
-              setFourwOn((on) => !on);
+          <SegBtn
+            segments={[
+              { key: "general", label: t("capture:textFormat.general"), accessibilityHint: t("capture:modes.memo.help") },
+              { key: "fourw", label: t("capture:modes.fourw.label"), accessibilityHint: t("capture:modes.fourw.help") },
+            ]}
+            selected={[fourwOn ? "fourw" : "general"]}
+            onSelect={(key) => {
+              const next = key === "fourw";
+              if (next === fourwOn) return;
+              setFourwOn(next);
               dirty();
             }}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: fourwOn }}
-            // react-native-web does not turn accessibilityState into aria-checked;
-            // a switch without it reads as unchecked forever (2026-09-30 QA).
-            aria-checked={fourwOn}
-            accessibilityLabel={t("capture:modes.fourw.label")}
-            accessibilityHint={t("capture:modes.fourw.help")}
-            style={styles.capToggleRow}
-          >
-            <CaptureIcon name="grid" color={fourwOn ? m3.color.primary : m3.color.onSurfaceVariant} size={16} />
-            <Text style={styles.capToggleLabel}>{t("capture:modes.fourw.label")}</Text>
-            <View style={styles.capToggleSpacer} />
-            <PixelSurface
-              variant={fourwOn ? "bevel" : "inset"}
-              background={fourwOn ? m3.color.primaryContainer : m3.color.surfaceVariant}
-              contentStyle={styles.capSwitchTrack}
-            >
-              <View style={[styles.capSwitchThumb, fourwOn ? styles.capSwitchThumbOn : styles.capSwitchThumbOff]} />
-            </PixelSurface>
-          </Pressable>
+            style={styles.capTextFormat}
+          />
           {!fourwOn ? (
             <View style={styles.capForm} {...saveReveal.keepTopProps}>
               <View ref={inputCoachTargetRef} collapsable={false}>
@@ -1759,8 +1744,8 @@ export function SeenLensView() {
         purpose: "gap_synthesize",
         system:
           locale === "ko"
-            ? "당신은 자기이해 앱의 세컨비. 아래는 사용자의 자기보고와 지인 " + informantCount + "명의 합산 관찰(비식별 수치)이다. 두 그림의 간극을 2~3문장으로, 따뜻하고 검증적인 톤으로 짚어라. 진단이나 단정은 금지, 수치 나열 금지, 존중하는 제안 하나로 끝내라.\n" + lines
-            : "You are SecondB in a self-understanding app. Below are the user's self-report and a combined, de-identified view from " + informantCount + " people who know them. Name the gap between the two pictures in 2-3 sentences, warm and non-judgmental. No verdicts, no number-listing; end with one respectful suggestion.\n" + lines,
+            ? "당신은 자기이해 앱의 허슬케이. 아래는 사용자의 자기보고와 지인 " + informantCount + "명의 합산 관찰(비식별 수치)이다. 두 그림의 간극을 2~3문장으로, 따뜻하고 검증적인 톤으로 짚어라. 진단이나 단정은 금지, 수치 나열 금지, 존중하는 제안 하나로 끝내라.\n" + lines
+            : "You are HustleK in a self-understanding app. Below are the user's self-report and a combined, de-identified view from " + informantCount + " people who know them. Name the gap between the two pictures in 2-3 sentences, warm and non-judgmental. No verdicts, no number-listing; end with one respectful suggestion.\n" + lines,
         user: locale === "ko" ? "내가 보는 나와 남이 보는 나의 간극을 짚어줘." : "Read the gap between how I see myself and how others see me.",
       });
       setSynth(res.text);
@@ -2453,25 +2438,7 @@ const styles = StyleSheet.create({
   capBody: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 20 },
   capModeRow: { flexDirection: "row", gap: 4 },
   capModeCell: { flex: 1, minWidth: 0 },
-  // 4W1H switch row (2026-09-30): the whole row is the touch target.
-  capToggleRow: {
-    minHeight: 48,
-    marginTop: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: m3.color.outlineVariant,
-    borderRadius: m3.shape.none,
-    backgroundColor: m3.color.surfaceContainerHigh,
-  },
-  capToggleLabel: { ...m3TextStyle("labelLarge"), color: m3.color.onSurface },
-  capToggleSpacer: { flex: 1 },
-  capSwitchTrack: { width: 36, height: 20, paddingHorizontal: 0, paddingVertical: 0, justifyContent: "center" },
-  capSwitchThumb: { position: "absolute", width: 12, height: 12 },
-  capSwitchThumbOn: { right: m3.spacing.s2, backgroundColor: m3.color.onPrimaryContainer },
-  capSwitchThumbOff: { left: m3.spacing.s2, backgroundColor: m3.color.onSurfaceVariant },
+  capTextFormat: { marginTop: 8 },
   capTileHit: { width: "100%", minHeight: 48 },
   capTileRest: { flex: 1 },
   capTileSunk: { flex: 1, transform: [{ translateY: m3.spacing.s1 }] },

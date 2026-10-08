@@ -593,9 +593,9 @@
         </div>
 
         <div style={{ display: 'flex', gap: 9, marginTop: 12, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,.05)' }}>
-          <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ width: 26, height: 26, flex: '0 0 auto' }} />
+          <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 26, height: 26, flex: '0 0 auto' }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 11, letterSpacing: '.04em', color: accent, marginBottom: 4 }}>세컨비가 본 관계</div>
+            <div style={{ fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 11, letterSpacing: '.04em', color: accent, marginBottom: 4 }}>허슬케이가 본 관계</div>
             <div className="md-body-medium" style={{ color: '#D7E3F5', wordBreak: 'keep-all', lineHeight: 1.55 }}>
               {isMe ? `가까운 사람부터 느슨한 사이까지 ${PEOPLE.length}명과 이어져 있어요. 선이 밝을수록 자주 닿는 관계예요. 사람끼리 이어진 점선은 나를 거치지 않는 그들 사이의 연줄이고요.` : p.note}
             </div>
@@ -625,7 +625,7 @@
 
         {!isMe && go && <button onClick={() => go('chat')} className="md-interactive"
           style={{ position: 'relative', width: '100%', height: 40, marginTop: 14, borderRadius: 10, border: 'none', cursor: 'pointer', background: accent, color: '#06121f', fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-          <span className="md-state" /><Icon name="bubble_chart" size={16} />세컨비와 이 관계 이야기</button>}
+          <span className="md-state" /><Icon name="bubble_chart" size={16} />허슬케이와 이 관계 이야기</button>}
       </div>
     );
   }

@@ -40,7 +40,7 @@ const SHARE_POLARIS_HALO = flattenAlpha(m3.accent.polarisSoft, 0.35, SHARE_GROUN
 const SHARE_STAR_OFF = flattenAlpha(m3.accent.shareEyebrow, 0.4, SHARE_GROUND);
 import { fontFamilies } from "@/theme/typography";
 
-const headFront = require("../../../assets/deepspace/secondb-head-front.png");
+import { HUSTLEK_EXPRESSIONS } from "@/lib/assets/hustlek";
 
 export interface ShareCardProps {
   variant: "A" | "B";
@@ -122,7 +122,8 @@ export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = B
             <Text style={[styles.insight, inkColor(), { fontSize: 27 * k, lineHeight: 27 * k * 1.4 }]}>{insight}</Text>
           </View>
           <View style={[styles.footerRow, { gap: 10 * k }]}>
-            <Image source={headFront} style={{ width: 34 * k, height: 34 * k }} resizeMode="contain" />
+            {/* Keep the existing native view-shot image host for card export. */}
+            <Image source={HUSTLEK_EXPRESSIONS.A02.source} accessibilityLabel="" style={{ width: 34 * k, height: 34 * k }} resizeMode="contain" />
             <Text style={[styles.footerText, softInk(0.7), { fontSize: 13 * k }]}>
               {t("deepspace:shareCardImg.footerWeek")}
             </Text>

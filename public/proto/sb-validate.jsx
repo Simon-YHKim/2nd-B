@@ -52,7 +52,7 @@ function ValuesScreen({ t, go }) {
 
       <MdCard variant="filled" style={{ background: C('secondary-container'), padding: 14, marginTop: 16 }}>
         <div style={{ display: 'flex', gap: 10 }}>
-          <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ width: 30, height: 30, flex: '0 0 auto' }} />
+          <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 30, height: 30, flex: '0 0 auto' }} />
           <div className="md-body-medium" style={{ color: C('on-secondary-container'), wordBreak: 'keep-all' }}>
             <b>자율성</b>이 가장 높아요. 일·관계에서 ‘스스로 정하는’ 선택을 반복해 온 기록이 이 추정을 받쳐요.
           </div>
@@ -82,7 +82,7 @@ function RatifyScreen({ t, go }) {
     <ScreenPad>
       <div className="md-headline-small" style={{ color: C('on-surface'), margin: '8px 0 4px' }}>승인 이력</div>
       <div className="md-body-medium" style={{ color: C('on-surface-variant'), marginBottom: 14, wordBreak: 'keep-all' }}>
-        세컨비는 제안하고, 반영은 늘 당신이 정해요. 어떤 분석도 동의 없이 별에 반영되지 않아요.
+        허슬케이는 제안하고, 반영은 늘 당신이 정해요. 어떤 분석도 동의 없이 별에 반영되지 않아요.
       </div>
 
       {/* summary */}

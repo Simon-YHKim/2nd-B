@@ -1,7 +1,7 @@
 # PolaScope
 
 > **Understand yourself through what you write and save.** Keep a journal,
-> organize your records, explore grounded reflections with SecondB, and export
+> organize your records, explore grounded reflections with HustleK, and export
 > your data when you need it.
 
 The repository, package identifiers, and existing `/2nd-B` web path retain
@@ -26,7 +26,7 @@ deadline.
    patterns, character strengths.
 3. **Memory (RAG)** — Export a portable Markdown / JSON knowledge base
    that works with Claude, ChatGPT, or any LLM you prefer.
-4. **SecondB chat** — Analytic and new-angle reflections on career,
+4. **HustleK chat** — Analytic and new-angle reflections on career,
    learning, and habits, grounded in saved records and validated frameworks.
 5. **Planner** — Personality-calibrated action plans (v1.1).
 6. **Curator** — AI-curated psychology references, verified by a human

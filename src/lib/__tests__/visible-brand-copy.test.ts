@@ -86,7 +86,7 @@ describe("visible brand copy", () => {
     expect(commonEn).toContain('"name": "PolaScope"');
   });
 
-  test("Korean lens copy says 세컨비 while preserving the 2nd-B persona name and tag", () => {
+  test("Korean lens copy uses 허슬케이 while preserving the secondb persona identifier", () => {
     const root = path.resolve(__dirname, "../../..");
     const localeDir = path.join(root, "locales/ko");
 
@@ -95,9 +95,9 @@ describe("visible brand copy", () => {
       expect(source).not.toMatch(/\bSecondB\b/);
     }
     const secondb = JSON.parse(readFileSync(path.join(localeDir, "secondb.json"), "utf8"));
-    expect(secondb.rev2.secondb.lensName).toBe("세컨비");
-    expect(secondb.rev2.secondb.name).toBe("2nd-B");
-    expect(secondb.rev2.secondb.tag).toBe("2nd-B");
+    expect(secondb.rev2.secondb.lensName).toBe("허슬케이");
+    expect(secondb.rev2.secondb.name).toBe("허슬케이");
+    expect(secondb.rev2.secondb.tag).toBe("HustleK");
 
     const appFiles = [
       "src/app/core-brain.tsx",

@@ -173,7 +173,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       },
       { file: "core-brain", href: "/core-brain", label: "북극성", auth: true },
       { file: "northstar", href: "/northstar", label: "북극성 문장", auth: true },
-      { file: "star/[domain]", href: "/star/career", label: "도메인 별 (커리어)", auth: true, sample: true, note: "career · finance · growth · relation · health · recreation · collect. 2026-08-24 부터 홈 별자리에서는 안 열린다 — 생활 도메인은 세컨비 대시보드로 갔다" },
+      { file: "star/[domain]", href: "/star/career", label: "도메인 별 (커리어)", auth: true, sample: true, note: "career · finance · growth · relation · health · recreation · collect. 2026-08-24 부터 홈 별자리에서는 안 열린다 — 생활 도메인은 허슬케이 대시보드로 갔다" },
       { file: "me/[star]", href: "/me/school", label: "별 요약", auth: true, sample: true, note: "profile · infancy · school · twenties · later · work · now. 홈에서 별을 누르면 여기로 온다(Simon 결정 4 = B)" },
       { file: "career-drilldown", href: "/career-drilldown", label: "별 파고들기", auth: true },
       { file: "brightness", href: "/brightness", label: "밝기 변화 8주", auth: true },
@@ -304,12 +304,12 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
     ],
   },
   {
-    title: "세컨비 · 대화",
+    title: "허슬케이 · 대화",
     screens: [
       {
         file: "secondb",
         href: "/secondb",
-        label: "세컨비 대화",
+        label: "허슬케이 대화",
         auth: true,
         // 셋 다 **초기 state 만** 심는다 — mount 가 LLM 을 부르지 않는다.
         // 보낼지는 사람이 정한다. `?character=` 는 일부러 뺐다(사람 흉내 화면).
@@ -317,7 +317,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
           {
             label: "대시보드 펴고 시작",
             href: "/secondb?panel=dashboard",
-            note: "세컨비 머리를 터치했을 때의 진입(Simon 결정 6). 생활 여섯 영역이 대화창 안에 펴진다. `showDashboard` 의 초기값이 이 값을 읽는다",
+            note: "허슬케이 머리를 터치했을 때의 진입(Simon 결정 6). 생활 여섯 영역이 대화창 안에 펴진다. `showDashboard` 의 초기값이 이 값을 읽는다",
           },
           {
             label: "새 관점 모드",
@@ -328,7 +328,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
             // 에러도 잠금 표시도 없다 — 이 목록이 막으려는 그 조용한 되돌림과
             // 같은 모양이라, 안내 없이 두면 검수자가 "트위비가 원래 이렇구나" 한다.
             // 담기 모드 할당량과는 **별개 이야기**다(그쪽은 등급 제한이 없다).
-            note: "`chatMode` 를 divergent 로, `rev2Persona` 를 트위비로 심는다. 초기값일 뿐이라 보내기 전에는 호출이 없다. ⚠ 트위비는 Brain(pro) 전용 — free·plus 로 열면 페르소나가 조용히 세컨비로 되돌아간다. 확인하려면 EXPO_PUBLIC_FORCE_TIER=brain (QA 계정은 free)",
+            note: "`chatMode` 를 divergent 로, `rev2Persona` 를 트위비로 심는다. 초기값일 뿐이라 보내기 전에는 호출이 없다. ⚠ 트위비는 Brain(pro) 전용 — free·plus 로 열면 페르소나가 조용히 허슬케이로 되돌아간다. 확인하려면 EXPO_PUBLIC_FORCE_TIER=brain (QA 계정은 free)",
           },
           {
             label: "노드에서 이어 묻기 (견본)",

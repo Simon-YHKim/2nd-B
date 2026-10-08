@@ -199,7 +199,7 @@ function CaptureScreen({ t, go, env }) {
     if (offline) { go('records'); return; }
     if (env && env.startJob) {
       if (cat) env.startJob(`'${cat.label}' 별에 담는 중`, { doneMsg: `'${cat.label}' 별에 새 별가루을 엮었어요`, action: '위키 보기', goTo: 'records' });
-      else env.startJob('세컨비가 알맞은 별을 찾는 중', { doneMsg: '세컨비가 어울리는 별로 분류했어요', action: '위키 보기', goTo: 'records' });
+      else env.startJob('허슬케이가 알맞은 별을 찾는 중', { doneMsg: '허슬케이가 어울리는 별로 분류했어요', action: '위키 보기', goTo: 'records' });
     }
     // reset the form and return to the capture input
     setW4({ what: '', when: '', where: '', who: '', how: '', why: '' });
@@ -219,7 +219,7 @@ function CaptureScreen({ t, go, env }) {
           </button>
           <div className="md-headline-small" style={{ color: C('on-surface'), margin: '4px 0 4px' }}>어떤 별에 담을까요?</div>
           <div className="md-body-medium" style={{ color: C('on-surface-variant'), marginBottom: 18, wordBreak: 'keep-all' }}>
-            이 기록과 어울리는 별을 골라주세요. 잘 모르겠으면 세컨비에게 맡겨도 돼요.
+            이 기록과 어울리는 별을 골라주세요. 잘 모르겠으면 허슬케이에게 맡겨도 돼요.
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -239,9 +239,9 @@ function CaptureScreen({ t, go, env }) {
 
         {/* delegate-to-AI footer */}
         <div style={{ padding: '10px 16px 14px', borderTop: `1px solid ${C('outline-variant')}`, background: C('surface') }}>
-          <MdButton variant="tonal" full icon="auto_awesome" onClick={() => finalize(null)}>잘 모르겠어요 · 세컨비가 분류</MdButton>
+          <MdButton variant="tonal" full icon="auto_awesome" onClick={() => finalize(null)}>잘 모르겠어요 · 허슬케이가 분류</MdButton>
           <div className="md-body-small" style={{ color: C('on-surface-variant'), marginTop: 9, textAlign: 'center', wordBreak: 'keep-all' }}>
-            세컨비가 근거를 찾아 어울리는 별로 자동 분류해요. 나중에 직접 고칠 수 있어요.
+            허슬케이가 근거를 찾아 어울리는 별로 자동 분류해요. 나중에 직접 고칠 수 있어요.
           </div>
         </div>
       </div>
@@ -296,7 +296,7 @@ function CaptureScreen({ t, go, env }) {
               <Field C={C} icon="lightbulb" label="왜 (Why)" hint="그렇게 한 이유나 마음" value={w4.why} onChange={(v) => setW('why', v)} multiline />
             </div>
           ) : (
-            <Field C={C} icon="edit_note" label="자유롭게 담기" hint="형식 없이 떠오르는 대로 적어요. 세컨비가 읽고 정리해요." value={text} onChange={setText} multiline />
+            <Field C={C} icon="edit_note" label="자유롭게 담기" hint="형식 없이 떠오르는 대로 적어요. 허슬케이가 읽고 정리해요." value={text} onChange={setText} multiline />
               )}
               {/* 이미지 첨부 (두 양식 공통) */}
               <ImageAttach C={C} images={images} setImages={setImages} />

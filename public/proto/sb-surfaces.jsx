@@ -214,7 +214,7 @@ function WidgetScreen({ t, go }) {
     <ScreenPad>
       <div className="md-headline-small" style={{ color: C('on-surface'), margin: '8px 0 2px' }}>앱 밖에서</div>
       <div className="md-body-medium" style={{ color: C('on-surface-variant'), marginBottom: 16, wordBreak: 'keep-all' }}>
-        앱을 열지 않아도, 세컨비는 당신 곁에 있어요.
+        앱을 열지 않아도, 허슬케이는 당신 곁에 있어요.
       </div>
 
       {/* home-screen widgets */}
@@ -235,7 +235,7 @@ function WidgetScreen({ t, go }) {
         <div style={{ flex: 1, height: 128, borderRadius: 22, padding: 14, display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
           background: C('surface-container-highest'), boxShadow: 'var(--md-sys-elevation-level1)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ width: 28, height: 28 }} />
+            <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 28, height: 28 }} />
             <span className="md-label-large" style={{ color: C('on-surface') }}>지금 떠오른 거 담기</span>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -262,7 +262,7 @@ function WidgetScreen({ t, go }) {
         {/* lock-screen complication / notification */}
         <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16,
           background: 'rgba(255,255,255,.08)', backdropFilter: 'blur(8px)' }}>
-          <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ width: 34, height: 34, flex: '0 0 auto' }} />
+          <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 34, height: 34, flex: '0 0 auto' }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#EAF7FF' }}>PolaScope</div>
             <div style={{ fontSize: 13, color: 'rgba(220,235,255,.85)', wordBreak: 'keep-all' }}>오늘 '관계' 별이 밝아졌어요. 한 줄 남겨볼까요?</div>
@@ -273,10 +273,10 @@ function WidgetScreen({ t, go }) {
       {/* push notification */}
       <SectionLabel>알림</SectionLabel>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 14, borderRadius: 16, background: C('surface-container-highest') }}>
-        <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ width: 38, height: 38, flex: '0 0 auto' }} />
+        <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 38, height: 38, flex: '0 0 auto' }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span className="md-label-large" style={{ color: C('on-surface') }}>세컨비</span>
+            <span className="md-label-large" style={{ color: C('on-surface') }}>허슬케이</span>
             <span className="md-label-small" style={{ color: C('on-surface-variant') }}>· 지금</span>
           </div>
           <div className="md-body-medium" style={{ color: C('on-surface-variant'), marginTop: 2, wordBreak: 'keep-all' }}>
@@ -299,7 +299,7 @@ function AuthScreen({ t, go }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '36px 26px' }}>
         {/* brand */}
         <div style={{ textAlign: 'center', marginBottom: 26 }}>
-          <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ width: 72, height: 72, animation: 'sb-bob 4s ease-in-out infinite' }} />
+          <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 72, height: 72, animation: 'sb-bob 4s ease-in-out infinite' }} />
           <div style={{ fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 11, letterSpacing: '.16em', color: '#7FD0FF', marginTop: 12 }}>PolaScope</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#EAF7FF', marginTop: 8, wordBreak: 'keep-all' }}>
             다시 만나 반가워요

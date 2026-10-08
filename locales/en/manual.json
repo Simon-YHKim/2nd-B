@@ -13,25 +13,25 @@
     "tip": "Open one answer at a time, or filter the guide below.",
     "searchLabel": "Filter the user guide",
     "searchPlaceholder": "Search questions and answers",
-    "noResults": "No matching section. Ask SecondB in your own words.",
+    "noResults": "No matching section. Ask HustleK in your own words.",
     "expanded": "Answer open",
     "collapsed": "Answer closed",
     "topics": {
       "stars": {
         "question": "What are the seven stars?",
-        "answer": "They are profile · infancy · school years · twenties · later life · work · now. Career, finance, growth, relationships, health, and rest are the six life areas in the SecondB dashboard, not stars."
+        "answer": "They are profile · infancy · school years · twenties · later life · work · now. Career, finance, growth, relationships, health, and rest are the six life areas in the HustleK dashboard, not stars."
       },
       "brightness": {
         "question": "What do brightness and Polaris mean?",
         "answer": "Brightness records how many interview layers you actually opened. Coverage can reach L4; L5 appears only after you ratify a proposal. Polaris is a summary derived from those inputs, not the source record."
       },
       "source": {
-        "question": "What does SecondB read?",
-        "answer": "Your wiki and records are the detailed source. SecondB reads that original material when it answers; Polaris is a derived summary rather than the source it should quote from."
+        "question": "What does HustleK read?",
+        "answer": "Your wiki and records are the detailed source. HustleK reads that original material when it answers; Polaris is a derived summary rather than the source it should quote from."
       },
       "ratify": {
         "question": "When does a suggestion change my profile?",
-        "answer": "Never by itself. What SecondB suggests remains a proposal until you ratify it. Only a proposal you confirm can be applied to your model or open L5."
+        "answer": "Never by itself. What HustleK suggests remains a proposal until you ratify it. Only a proposal you confirm can be applied to your model or open L5."
       },
       "data": {
         "question": "Where do privacy, safety, and exports live?",
@@ -39,7 +39,7 @@
       }
     },
     "actions": {
-      "dashboard": "Open the SecondB dashboard",
+      "dashboard": "Open the HustleK dashboard",
       "brightness": "View brightness",
       "records": "Open records",
       "review": "Review proposals",

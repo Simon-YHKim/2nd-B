@@ -19,17 +19,15 @@ describe("PIXEL-CLAY /capture screen contract", () => {
   // 2026-09-30 (Simon): five tiles became three - 사진 and 음성 left the row, and
   // a photo now attaches to 글 (both formats) instead. The tiles still come from
   // the canon JSON, which dropped the two ids in the same change.
-  // 2026-09-30 (Simon, later the same day): the first tile is 메모 (edit_note), the
-  // 메모/4W1H radio is gone, and 4W1H is a switch that starts OFF (plain memo).
-  test("matches the reference hierarchy with three tiles and a 4W1H switch", () => {
+  // 2026-10-08 (Simon): both 일반 and 4W1H stay visible in a segmented control.
+  // The three top-level tiles and initial plain-text format remain unchanged.
+  test("keeps three tiles and a segmented choice between general text and 4W1H", () => {
     expect(renderer).toContain("CAPTURE_MODE_ROW.map");
     expect(renderer).toContain('accessibilityRole="tablist"');
-    expect(renderer).not.toContain('accessibilityRole="radiogroup"');
-    expect(renderer).not.toContain("CaptureTextFormat");
+    expect(renderer).toContain("<SegBtn");
     expect(renderer).toContain("const [fourwOn, setFourwOn] = useState(false);");
-    expect(renderer).toContain('accessibilityRole="switch"');
-    expect(renderer).toContain("accessibilityState={{ checked: fourwOn }}");
-    expect(renderer).toContain("aria-checked={fourwOn}");
+    expect(renderer).not.toContain('accessibilityRole="switch"');
+    expect(renderer).toContain('t("capture:textFormat.general")');
     expect(renderer).toContain('t("capture:modes.fourw.label")');
     const text = (JSON.parse(read("public/proto/data/core/capture-modes.json")) as {
       modes: { id: string; icon: string; label: string }[];
