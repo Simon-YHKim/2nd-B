@@ -2,7 +2,22 @@
 
 Continuation of `dashboard-w1-generation-261007.md`, on the same feature branch.
 The input/output boundary now has a runtime caller. Production remains disabled.
-Baseline merged: origin/main `366bc190`; D6 follows RD-261007-14, outside this change.
+Baseline now includes origin/main `f2de9990`; D6 follows RD-261007-14, outside this change.
+
+## QA completion correction (2026-10-08)
+
+Simon requires actual changed behavior on localhost:8081 before reporting a task
+complete. Local commits and parity against unchanged main do not satisfy that.
+The build now passes `EXPO_PUBLIC_DASHBOARD_GENERATION` from repository Variables
+to both the APK/8081 environment and the published web build, defaulting OFF.
+Previously only `.env.example` declared it, so the normal builds could not enable
+W1 even after server activation. A regression reproduces and fixes that omission.
+
+Read-only production checks on 2026-10-08 found neither W1 table, the request RPC,
+nor the `dashboard-generate` function. The v2 consent function exists. This is
+not yet available for functional QA on 8081. Apply the activation sequence below;
+do not turn the app flag on against a missing server. The active weather owner's
+`_sync/TO-CLI.md` deployment hold also postpones main merges until its completion.
 
 ## Execution contract
 

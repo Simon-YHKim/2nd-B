@@ -108,6 +108,8 @@ jobs:
       # model key is needed in the build. (audit B1)
       EXPO_PUBLIC_LLM_MODE: "live"
       EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: "true"
+      # Shared with localhost:8081. Enable only after the W1 server canary.
+      EXPO_PUBLIC_DASHBOARD_GENERATION: ${{ vars.EXPO_PUBLIC_DASHBOARD_GENERATION || 'false' }}
       # Legacy pro-tier seam. It was pinned "gemini" from 2026-07-21 (Anthropic
       # credits exhausted 2026-07-06, so "claude" made every pro-tier call pay a
       # dead claude-proxy hop first). T1 stage A (2026-08-31) retired Gemini as a
