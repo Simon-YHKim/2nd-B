@@ -27,3 +27,26 @@ test("wire decoder refuses external actions, health refs and malformed IDs", () 
   expect(decodeBoardResponse({ kind: "ready", purpose: "inbox_triage", value: { order: ["a", "a"], items: [] } }).ok).toBe(false);
   expect(decodeBoardResponse({ kind: "ready", purpose: "day_summary", value: { headline: "x", facts: [], links: [], tail_counts: {}, suggestions: [{ text: "buy", action: "https://example.com", basis: "ai", refs: [{ kind: "routine", id: "r" }] }] } }).ok).toBe(false);
 });
+
+test.each(["loading", "empty", "denied", "limited", "unavailable"] as const)("%s stays visible with an honest next step, without AI prose", (state) => {
+  const board = withGeneratedBoard(buildBoard(null, new Date(), false), { ...EMPTY_GENERATED_BOARD,
+    states: { note: state, triage: state, summary: state } });
+  for (const id of ["P-02", "P-04"]) {
+    const part = board.parts.find((row) => row.id === id)!;
+    expect(part.visible).toBe(true);
+    expect(part.basis).not.toBe("ai");
+    expect(part.note).toBeDefined();
+    expect(board.shelf.items.some((item) => item.id === id)).toBe(false);
+  }
+  expect(board.summary?.bubbles).toEqual([]);
+  expect(board.summary?.note).toBeDefined();
+});
+test("disabled or minor callers leave the existing hidden contract intact", () => {
+  const board = buildBoard(null, new Date(), true);
+  expect(withGeneratedBoard(board, EMPTY_GENERATED_BOARD).parts).toEqual(board.parts);
+});
+test("valid generated text replaces its loading explanation", () => {
+  const board = withGeneratedBoard(buildBoard(null, new Date(), false), { ...EMPTY_GENERATED_BOARD, note,
+    states: { note: "ready", triage: "empty", summary: "loading" } });
+  expect(board.parts.find((part) => part.id === "P-02")).toMatchObject({ basis: "ai", note: undefined, action: undefined });
+});

@@ -179,6 +179,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const [generationRefresh, setGenerationRefresh] = useState(0);
   const [refreshSettings, setRefreshSettingsState] = useState(DEFAULT_REFRESH_SETTINGS);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   // The status bar shows the time, as an iPhone does.
@@ -213,6 +214,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const wikiDetailId = insideRoute?.startsWith("/wiki/page/")
     ? decodeURIComponent(insideRoute.slice("/wiki/page/".length)) : null;
   const go = useCallback((target: string) => {
+    if (target === "/board/retry") { setGenerationRefresh((value) => value + 1); return; }
     // Phone-originated navigation stays in the supplied phone display. The
     // independent routes keep their own existing entry points unchanged.
     if (typeof document !== "undefined") (document.activeElement as HTMLElement | null)?.blur?.();
@@ -431,7 +433,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       : { month: "short", day: "numeric", weekday: "short" });
   };
   const interviews = data?.interviews.ok ? data.interviews.value.filter((item) => item.body?.trim()) : [];
-  const generated = useGeneratedBoard(ownerId, isMinor, i18n.language, insideRoute === "/board/summary");
+  const generated = useGeneratedBoard(ownerId, isMinor, i18n.language, insideRoute === "/board/summary", generationRefresh);
   const board = useMemo(() => withGeneratedBoard(buildBoard(data, new Date(), isMinor, clockWeather.state), generated), [data, isMinor, clockWeather.state, generated]);
   // The buttons change only the screen until the W0 contract stores them (발주 2).
   const boardEvents = useMemo<BoardEvents>(() => ({

@@ -191,6 +191,18 @@
     "refresh": "Atualizar",
     "unknownDate": "Data indisponível",
     "board": {
+      "generation": {
+        "loading": "Preparando o resumo de hoje.",
+        "denied": "Confira as recomendações e o consentimento do serviço de IA.",
+        "limited": "Uma nova atualização estará disponível na próxima renovação.",
+        "disabled": "Temporariamente indisponível.",
+        "unavailable": "Não foi possível carregar. Tente novamente.",
+        "noteEmpty": "Adicione um lembrete para hoje para receber uma nota do dia.",
+        "triageEmpty": "Ainda não há lembretes para organizar.",
+        "summaryEmpty": "Adicione um lembrete para resumir os lembretes e as tarefas concluídas de hoje.",
+        "settings": "Consentimento",
+        "reminders": "Lembretes"
+      },
       "weather": {
         "title": "Tempo",
         "body": "Use sua localização neste dispositivo para escolher uma observação meteorológica próxima. Sua localização não sai do dispositivo, e você pode desativar a função quando quiser.",

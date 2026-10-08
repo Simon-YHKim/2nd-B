@@ -10,16 +10,20 @@ concurrency:
   cancel-in-progress: false
 jobs:
   generate:
-    if: vars.DASHBOARD_RETENTION_ENABLED == 'true'
+    if: github.repository == 'Simon-YHKim/2nd-B' && github.ref == 'refs/heads/main' && vars.DASHBOARD_RETENTION_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
       - name: Generate current local slots and expire old caches
         env:
           DASHBOARD_RETENTION_ENABLED: 'true'
           DASHBOARD_GENERATION_ENABLED: ${{ vars.DASHBOARD_GENERATION_ENABLED }}
-          DASHBOARD_SUPABASE_URL: ${{ vars.DASHBOARD_SUPABASE_URL }}
-          DASHBOARD_SERVICE_ROLE_KEY: ${{ secrets.DASHBOARD_SERVICE_ROLE_KEY }}
+          # Recurring jobs cannot wait for Production's per-run human review.
+          # Configuration/deployment remain on that protected environment.
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           DASHBOARD_CRON_SECRET: ${{ secrets.DASHBOARD_CRON_SECRET }}
-        run: node scripts/run-dashboard-hourly.mjs
+        run: node scripts/dashboard-runtime-config.mjs hourly

@@ -1,8 +1,8 @@
 # W1 server generation and app connection
 
-Continuation of `dashboard-w1-generation-261007.md`, on the same feature branch.
-The input/output boundary now has a runtime caller. Production remains disabled.
-Baseline now includes origin/main `f2de9990`; D6 follows RD-261007-14, outside this change.
+Continuation of `dashboard-w1-generation-261007.md`. Activation follow-up starts
+from origin/main `b49eff1d`. D6 remains outside this change. Runtime evidence is
+recorded in the shared mailbox after deployment; a merge alone is not activation.
 
 ## QA completion correction (2026-10-08)
 
@@ -16,8 +16,9 @@ W1 even after server activation. A regression reproduces and fixes that omission
 Read-only production checks on 2026-10-08 found neither W1 table, the request RPC,
 nor the `dashboard-generate` function. The v2 consent function exists. This is
 not yet available for functional QA on 8081. Apply the activation sequence below;
-do not turn the app flag on against a missing server. The active weather owner's
-`_sync/TO-CLI.md` deployment hold also postpones main merges until its completion.
+do not turn the app flag on against a missing server. The weather owner released
+its deployment hold at 09:49 KST. Numbered 0236/0237 are the only W1 migrations;
+do not apply unrelated pending migrations.
 
 ## Execution contract
 
@@ -39,7 +40,7 @@ unless its repository variable is explicitly enabled. GitHub scheduling is
 best effort; a tick outside the eligible local hour is skipped. App opening
 can request the current slot afterwards.
 
-The SQL draft owns local 06/13/20 slots, previous-day evening before 06:00,
+Migration 0236 owns local 06/13/20 slots, previous-day evening before 06:00,
 seven-day inactivity, atomic claim, single dispatch, consent/source recheck,
 cache, expiry and attempt quotas. Timezone names are validated by PostgreSQL.
 The pure JS planner remains a preflight/reference, not an authorization grant.
@@ -97,35 +98,43 @@ text; account deletion cascades both tables. Hourly retention removes expired
 output and deletes attempt rows after 48h. Failed rows cannot be reopened by
 clearing their text.
 
-The draft includes erasure registry additions. When numbered, the console
-owner must also add the two rows to `db/erasure-registry.json` and regenerate
-the additions using the existing registry tooling. The draft cannot be deployed
-without this preflight. Content deletion retains the short attempt ledger;
-routine deletion clears its cached text. It does not retain source text.
+Registry additions are isolated in 0237 and generated from `db/erasure-registry.json`.
+0236 also installs a database hourly purge when pg_cron exists; verify that job
+before activation. Retention therefore continues even when generation is OFF.
 
 ## Activation and rollback
 
-1. Keep all three activation switches OFF. Allocate a migration number after
-   reading current DECISIONS and migration reservations, update the erasure
-   registry source, review and run SQL tests on the target schema.
-2. Console owner applies the numbered migration after its normal backup and
-   GO. The fixture tests only the W1 contract with a stubbed consent function;
-   staging must also exercise the real v2 receipt writer and deletion fencing.
-3. Deploy `dashboard-generate` with `verify_jwt=true` and the checked-in import
-   map. Run the schema dependency gate first. Configure a reviewed Sonnet ID,
-   provider key, existing fleet caps, `DASHBOARD_CRON_SECRET`; no key in the app.
-4. Enable the Edge only for the agreed canary window. Confirm consent OFF,
-   adult/minor, source edit/delete, two concurrent requests, quota exhaustion,
-   vendor timeout and audit accounting using a test account.
-5. Enable the hourly workflow (`DASHBOARD_RETENTION_ENABLED=true`, then
-   `DASHBOARD_GENERATION_ENABLED=true` repository vars;
-   `DASHBOARD_SUPABASE_URL` var; `DASHBOARD_SERVICE_ROLE_KEY` and
-   `DASHBOARD_CRON_SECRET` secrets). Confirm retention execution as well as
-   generation. Only then build with `EXPO_PUBLIC_DASHBOARD_GENERATION=true`.
-6. Rollback: disable workflow generation and Edge, then publish client with its flag OFF.
-   Leave `DASHBOARD_RETENTION_ENABLED=true`; the same job keeps purging while
-   generation is off. Do not roll back
-   the schema or reset attempt ledgers. Existing board and weather still work.
+1. Back up, apply only reviewed 0236 then 0237, and verify RLS/ACL, the real v2
+   consent writer, and deletion fencing. Do not apply D6 0225/0226.
+2. Deploy `dashboard-generate` with JWT validation and its explicit config.toml
+   import map. The existing deployment workflow checks schema signatures first.
+3. Store a random 32+ character `DASHBOARD_CRON_SECRET` as a repository secret.
+   Run `dashboard-configure.yml` on main. It uses Production credentials, checks
+   the existing Sonnet 5 model with the provider Models API, and changes only
+   the three dashboard Edge settings. No paid inference in that preflight.
+4. Confirm the QA account's denial, empty state and generated note/triage/summary
+   through the real endpoint. Preserve its previous consent and reminders.
+5. Set `DASHBOARD_RETENTION_ENABLED=true` and `DASHBOARD_GENERATION_ENABLED=true`
+   repository variables. Dispatch `dashboard-hourly.yml` once. The scheduled main-only
+   job uses the existing repository management credential and obtains the service credential
+   in memory. No duplicate service-role key is stored in GitHub.
+6. Only then set `EXPO_PUBLIC_DASHBOARD_GENERATION=true`, restart via
+   `npm run localhost -- --restart`, and exercise the phone's changed UI on 8081.
+7. Rollback: configure Edge OFF, turn workflow generation and app flag OFF, keep
+   retention enabled. Do not drop tables or reset attempts.
+
+## Visible phone states
+
+The pixel iPhone board keeps P-02 and P-04 visible for eligible adults while W1
+is enabled. Loading, consent, empty, quota and error messages are fixed copy in
+five locales. Only validated generated prose gets the AI colour. P-02 always
+opens the existing S-01 page; empty summaries explain the next action. Settings
+and reminder links stay inside the phone, and errors have an explicit retry.
+Minor/unknown-age and disabled builds preserve the prior hidden contract.
+Account changes and consent withdrawal still discard pending and cached prose.
+
+Official deployment reference: https://supabase.com/docs/guides/functions/dependencies
+Model reference: https://platform.claude.com/docs/en/models/sonnet-5/overview
 
 ## Reproduction
 

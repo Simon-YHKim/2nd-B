@@ -191,6 +191,18 @@
     "refresh": "Refresh",
     "unknownDate": "Date unavailable",
     "board": {
+      "generation": {
+        "loading": "Preparing today’s overview.",
+        "denied": "Review recommendations and AI service consent.",
+        "limited": "A new update will be available at the next refresh.",
+        "disabled": "Temporarily unavailable.",
+        "unavailable": "Could not load. Please try again.",
+        "noteEmpty": "Add a reminder for today to get a daily note.",
+        "triageEmpty": "No reminders to sort yet.",
+        "summaryEmpty": "Add a reminder to summarize today’s reminders and completed tasks.",
+        "settings": "Consent settings",
+        "reminders": "Reminders"
+      },
       "weather": {
         "title": "Weather",
         "body": "Use your location on this device to choose a nearby weather observation. Your location never leaves the device, and you can turn this off at any time.",

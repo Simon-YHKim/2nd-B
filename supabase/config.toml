@@ -8,6 +8,7 @@ project_id = "zoacryukmdeivmolvyhj"
 verify_jwt = true
 
 [functions.dashboard-generate]
+import_map = "./functions/import_map.json"
 verify_jwt = true
 import_map = "./functions/import_map.json"
 

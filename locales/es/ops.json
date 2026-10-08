@@ -191,6 +191,18 @@
     "refresh": "Actualizar",
     "unknownDate": "Fecha no disponible",
     "board": {
+      "generation": {
+        "loading": "Preparando el resumen de hoy.",
+        "denied": "Revisa las recomendaciones y el consentimiento del servicio de IA.",
+        "limited": "Habrá una nueva actualización en la próxima renovación.",
+        "disabled": "No disponible temporalmente.",
+        "unavailable": "No se pudo cargar. Vuelve a intentarlo.",
+        "noteEmpty": "Añade un recordatorio para hoy para obtener una nota del día.",
+        "triageEmpty": "Aún no hay recordatorios que ordenar.",
+        "summaryEmpty": "Añade un recordatorio para resumir los recordatorios y las tareas completadas de hoy.",
+        "settings": "Consentimiento",
+        "reminders": "Recordatorios"
+      },
       "weather": {
         "title": "Tiempo",
         "body": "Usa tu ubicación en este dispositivo para elegir una observación meteorológica cercana. Tu ubicación no sale del dispositivo y puedes desactivarlo cuando quieras.",
