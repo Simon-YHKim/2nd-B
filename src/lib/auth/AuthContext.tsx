@@ -17,6 +17,7 @@ import {
 import type { EncryptedNativeStorageRecoveryConsent } from "../storage/encrypted-native-storage";
 import { PROFILE_PROBE_TIMEOUT_MS, isClockSkewProbeError, preserveKnownMinorForMissingProfile, probeWithClockSkewRetry, type ProfileProbe, type ProfileProbeAttempt } from "./profile-probe";
 import { beginAccountOwnerTransition, noteResolvedOwner } from "./account-epoch";
+import { sessionIdFromAccessToken } from "./auth-storage-schema";
 import { createAccountNotificationPublicationGate } from "./account-notification-publication";
 import {
   boundedSessionLoad,
@@ -81,6 +82,8 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
+  /** Stable across token refresh, different for a new sign-in of the same UID. */
+  sessionId: string | null;
   /** The native encrypted store is durably unreadable. This is UNKNOWN auth
    * state, never evidence that the user signed out. */
   storageRecoveryRequired: boolean;
@@ -108,6 +111,7 @@ interface AuthContextValue extends AuthState {
 }
 
 const AuthContext = createContext<AuthContextValue>({
+  sessionId: null,
   userId: null,
   hasProfile: null,
   isMinor: null,
@@ -1182,6 +1186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
     if (!publicationReady) return;
     if (!uid) {
+      latestSessionRef.current = null;
       lastUserIdRef.current = null;
       lastProbeRef.current = null;
       noteResolvedOwner(null);
@@ -1201,6 +1206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // not just timeout) never overwrites a known-good cached answer.
     const probe = reprobe.probeFailed === true && cached !== null && cached.probeFailed !== true ? cached : reprobe;
     if (gen !== probeGenRef.current) return;
+    latestSessionRef.current = probed.ok ? probed.session : null;
     lastUserIdRef.current = uid;
     lastProbeRef.current = probe;
     noteResolvedOwner(uid);
@@ -1280,9 +1286,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return operation;
   }, [publishRecoveryProof]);
 
+  const sessionId = state.userId && latestSessionRef.current?.user.id === state.userId
+    ? sessionIdFromAccessToken(latestSessionRef.current.access_token)
+    : null;
   const value = useMemo<AuthContextValue>(
     () => ({
       ...state,
+      sessionId,
       storageRecoveryRequired,
       recoveryUserId: recoveryProof?.userId ?? null,
       recoverySessionId: recoveryProof?.sessionId ?? null,
@@ -1303,6 +1313,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       recoveryReady,
       refresh,
       state,
+      sessionId,
       storageRecoveryRequired,
     ],
   );

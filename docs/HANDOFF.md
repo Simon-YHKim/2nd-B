@@ -8,6 +8,12 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## 2026-10-07 · onboardk: #2121 뒤에 남은 K1 · K2 · K3
+
+`fix/qa261007-onboardk`: 완료 응답의 미소비 grant 취소, 정상 held 재조회,
+같은 UID 재로그인의 홈·TTFV 방문 결속. [변경·회귀·남긴 범위](handoff/ONBOARDK-261007.md).
+머지·운영 적용은 이 갈래에서 하지 않는다. 실행 검증 수치는 draft PR 본문과 회차별 로그에 남긴다.
+
 ## 이 로그는 기간으로 쪼개져 있다
 
 단일 파일 100KB 상한(Simon 지침 §2 · §0-1)을 지키려고 **요약이 아니라 기간으로**

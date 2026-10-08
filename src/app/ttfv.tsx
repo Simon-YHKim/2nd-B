@@ -10,6 +10,8 @@
 // did not open (the address typed in, a reload, the screen opened again) has no
 // receipt and nothing to hand back (gate BA-02). It hands the grant back only
 // when the visit ends, never while it can still load and show (gate FR-01).
+// A new session_id replaces the whole visit even for the same UID (K3). Its
+// cleanup keeps the old sessionId, so it cannot return a grant under the new one.
 //
 // Seen-marking moved from "the moment a userId exists" to "the screen actually
 // had content to show" (#1530): marking on mount spent the one auto-trigger even
@@ -27,19 +29,20 @@ import { markTTFVSeen, releaseTTFVClaim, takeTTFVClaimToken } from "@/lib/onboar
 import { TTFVScreen } from "@/screens/deepspace/onboarding/TTFVScreen";
 
 export default function Ttfv() {
-  const { userId, loading, isMinor } = useAuth();
+  const { userId, sessionId, loading, isMinor } = useAuth();
 
   if (loading) return <TTFVScreen mode="auth-loading" />;
   if (!userId) return <Redirect href="/sign-in" />;
 
   return (
     <TTFVScreen
+      key={JSON.stringify([userId, sessionId])}
       mode="authenticated"
       userId={userId}
       minor={isMinor !== false}
-      takeReceipt={takeTTFVClaimToken}
-      onContentReady={(receipt) => markTTFVSeen(userId, receipt)}
-      onContentUnavailable={(receipt) => releaseTTFVClaim(userId, receipt)}
+      takeReceipt={(ownerId) => takeTTFVClaimToken(ownerId, sessionId)}
+      onContentReady={(receipt) => markTTFVSeen(userId, receipt, sessionId)}
+      onContentUnavailable={(receipt) => releaseTTFVClaim(userId, receipt, sessionId)}
     />
   );
 }

@@ -80,7 +80,7 @@ describe("pre-account pending import owner confirmation", () => {
     mockEffects.clear();
     mockOwner.current = true;
     mockLanguage.current = "ko";
-    mockAuth.mockReturnValue({ userId: "u1", hasProfile: true, isMinor: true, loading: false, profileProbeFailed: false });
+    mockAuth.mockReturnValue({ sessionId: "s1", userId: "u1", hasProfile: true, isMinor: true, loading: false, profileProbeFailed: false });
     mockFirstRunGate.mockReturnValue("home");
     mockLoad.mockResolvedValue([pending]);
     mockGetSession.mockResolvedValue({ data: { session: { user: { id: "u1", email: "owner@example.com" } } }, error: null });
@@ -93,7 +93,7 @@ describe("pre-account pending import owner confirmation", () => {
     await settle();
     const view = TestHarness();
     // It reads the home's decision for this owner and never drives it (no claim from here).
-    expect(mockFirstRunGate).toHaveBeenLastCalledWith("u1", true);
+    expect(mockFirstRunGate).toHaveBeenLastCalledWith("u1", true, "s1");
     expect(view.prompt).toMatchObject({ count: 1, email: "owner@example.com" });
     expect(mockImport).not.toHaveBeenCalled();
     expect(mockCreateRecord).not.toHaveBeenCalled();
@@ -156,7 +156,7 @@ describe("pre-account pending import owner confirmation", () => {
     ["the welcome redirect", {}, "/onboarding"],
     ["TTFV redirect", {}, "/ttfv"],
   ])("does not offer import during %s", async (_name, authPatch, firstRun) => {
-    mockAuth.mockReturnValue({ userId: "u1", hasProfile: true, isMinor: true, loading: false, profileProbeFailed: false, ...authPatch });
+    mockAuth.mockReturnValue({ sessionId: "s1", userId: "u1", hasProfile: true, isMinor: true, loading: false, profileProbeFailed: false, ...authPatch });
     mockFirstRunGate.mockReturnValue(firstRun);
     TestHarness(); await settle();
     expect(TestHarness().prompt).toBeNull();
