@@ -28,12 +28,19 @@ test("clock renders the model's action as a labelled icon with no visible instru
 });
 
 test("five locale bundles contain the consent, withdrawal, denied and credit copy", () => {
-  const keys = ["title", "body", "terms", "enable", "cancel", "failed", "settingsBody", "webSettingsBody", "settings", "done", "setting", "on", "off", "source"];
+  const keys = ["title", "body", "terms", "enable", "cancel", "failed", "settingsBody", "webSettingsBody", "settings", "done", "setting", "on", "off", "source", "sourceTerms"];
   for (const locale of ["en", "ko", "es", "pt", "id"]) {
     const copy = JSON.parse(read(`locales/${locale}/ops.json`)).phone.board.weather;
     for (const key of keys) expect(copy[key]?.length).toBeGreaterThan(0);
-    expect(copy.body).toContain("MET Norway");
+    expect(copy.source).toContain("NOAA/NWS");
+    expect(copy.source).toContain("50 km");
+    expect(copy.source).toContain("90");
+    expect(`${copy.body} ${copy.source}`).not.toMatch(/MET Norway|CC BY/);
   }
+  const sheet = read("src/components/dashboard/board/WeatherSheet.tsx");
+  expect(sheet).toContain('Linking.openURL("https://aviationweather.gov/data/api/")');
+  expect(sheet).toContain('Linking.openURL("https://www.weather.gov/disclaimer")');
+  expect(sheet).toContain('t("phone.board.weather.sourceTerms")');
   const privacy = read("src/components/privacy/WeatherPrivacyControl.tsx");
   expect(privacy).toContain("saveWeatherConsent(userId, status, false");
   expect(privacy).toContain("aria-checked={status?.enabled === true}");

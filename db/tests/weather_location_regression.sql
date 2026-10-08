@@ -1,4 +1,4 @@
--- Runs after 0232 in CI, or through the isolated local fixture. Rolls back all probes.
+-- Runs after 0234 in CI, or through the isolated local fixture. Rolls back all probes.
 BEGIN;
 SET LOCAL statement_timeout='20s';
 CREATE FUNCTION pg_temp.weather_expect_error(statement text, code text) RETURNS void
@@ -46,6 +46,12 @@ BEGIN
   PERFORM pg_temp.weather_expect_error('SELECT public.weather_consent(''26100739-0000-4000-8000-000000000002'',''grant'',0)','42501');
   s := public.weather_consent(owner,'grant',0,'weather-v1-261007','ko');
   IF s->'enabled' <> 'true'::jsonb OR s->>'revision' <> '1' THEN RAISE EXCEPTION 'grant failed'; END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.weather_access_events WHERE user_id=owner AND event='grant'
+      AND recipient='NOAA/NWS (bulk, no device location)') THEN RAISE EXCEPTION 'bulk recipient default missing'; END IF;
+  -- Previous disclosures remain valid historical values; no rewrite is allowed.
+  INSERT INTO public.weather_access_events(user_id,event,recipient) VALUES(owner,'use','MET Norway');
+  IF NOT EXISTS(SELECT 1 FROM public.weather_access_events WHERE user_id=owner AND recipient='MET Norway') THEN
+    RAISE EXCEPTION 'historical recipient lost'; END IF;
   IF (SELECT privacy_prefs->'external_analytics' FROM public.users WHERE id=owner) <> 'true'::jsonb THEN RAISE EXCEPTION 'unrelated pref changed'; END IF;
   IF NOT public.authorize_weather_request(owner) THEN RAISE EXCEPTION 'granted weather rejected'; END IF;
   PERFORM pg_temp.weather_expect_error(format('SELECT public.weather_consent(%L,''revoke'',0)',owner),'40001');
@@ -81,8 +87,26 @@ DO $$
 DECLARE owner uuid := '26100739-0000-4000-8000-000000000003';
 BEGIN
   PERFORM public.weather_consent(owner,'grant',0);
+  -- App minute cap cannot be replaced by the per-owner or per-second caps.
   INSERT INTO public.weather_access_events(user_id,event,created_at)
-    SELECT owner,'use',now()-interval '1 minute' FROM generate_series(1,60);
+    SELECT NULL,'use',now()-interval '30 seconds' FROM generate_series(1,
+      59-(SELECT count(*)::int FROM public.weather_access_events WHERE event='use' AND created_at>=now()-interval '1 minute'));
+  IF NOT public.authorize_weather_request(owner) THEN RAISE EXCEPTION '60th app request rejected'; END IF;
+  IF public.authorize_weather_request(owner) THEN RAISE EXCEPTION 'app minute quota bypass'; END IF;
+  DELETE FROM public.weather_access_events WHERE user_id IS NULL AND event='use' AND created_at=now()-interval '30 seconds';
+  -- Keep the earlier 10/second limit independently exercised.
+  INSERT INTO public.weather_access_events(user_id,event,created_at)
+    SELECT NULL,'use',now() FROM generate_series(1,
+      10-(SELECT count(*)::int FROM public.weather_access_events WHERE event='use' AND created_at>=now()-interval '1 second'));
+  IF public.authorize_weather_request(owner) THEN RAISE EXCEPTION 'app second quota bypass'; END IF;
+  DELETE FROM public.weather_access_events WHERE user_id IS NULL AND event='use' AND created_at=now();
+  INSERT INTO public.weather_access_events(user_id,event,created_at)
+    SELECT NULL,'use',greatest(now()-interval '3 minutes',current_date::timestamptz) FROM generate_series(1,
+      10000-(SELECT count(*)::int FROM public.weather_access_events WHERE event='use' AND created_at>=current_date));
+  IF public.authorize_weather_request(owner) THEN RAISE EXCEPTION 'app day quota bypass'; END IF;
+  DELETE FROM public.weather_access_events WHERE user_id IS NULL AND event='use' AND created_at=greatest(now()-interval '3 minutes',current_date::timestamptz);
+  INSERT INTO public.weather_access_events(user_id,event,created_at)
+    SELECT owner,'use',greatest(now()-interval '2 minutes',current_date::timestamptz) FROM generate_series(1,60);
   IF public.authorize_weather_request(owner) THEN RAISE EXCEPTION 'user quota bypass'; END IF;
   INSERT INTO public.account_deletion_tombstones(user_id,session_id) VALUES(owner,gen_random_uuid());
   PERFORM pg_temp.weather_expect_error(format('SELECT public.weather_consent(%L,''grant'',1)',owner),'42501');
@@ -96,4 +120,4 @@ BEGIN
     RAISE EXCEPTION 'account erasure did not unlink request facts'; END IF;
 END $$;
 ROLLBACK;
-SELECT 'PASS: weather default OFF, adult-only consent, CAS, withdrawal, RLS, deletion fence, quota, retention and erasure' AS result;
+SELECT 'PASS: weather default OFF, adult-only consent, CAS, withdrawal, RLS, deletion fence, second/minute/day quotas, recipients, retention and erasure' AS result;

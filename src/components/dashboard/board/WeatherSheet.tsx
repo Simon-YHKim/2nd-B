@@ -31,8 +31,8 @@ export function WeatherSheet({ mode, busy, failed, onEnable, onClose, onTerms }:
           </View>
           {mode === "source" ? <>
             <IosText variant="body">{t("phone.board.weather.source")}</IosText>
-            <IosButton label="MET Norway" onPress={() => void Linking.openURL("https://api.met.no/doc/License").catch(() => undefined)} />
-            <IosButton label="CC BY 4.0" onPress={() => void Linking.openURL("https://creativecommons.org/licenses/by/4.0/").catch(() => undefined)} />
+            <IosButton label="NOAA/NWS" onPress={() => void Linking.openURL("https://aviationweather.gov/data/api/").catch(() => undefined)} />
+            <IosButton label={t("phone.board.weather.sourceTerms")} onPress={() => void Linking.openURL("https://www.weather.gov/disclaimer").catch(() => undefined)} />
           </> : mode === "settings" ? <>
             <IosText variant="body">{t(Platform.OS === "web" ? "phone.board.weather.webSettingsBody" : "phone.board.weather.settingsBody")}</IosText>
             <IosButton label={t(Platform.OS === "web" ? "phone.board.weather.done" : "phone.board.weather.settings")} onPress={openSettings} primary />

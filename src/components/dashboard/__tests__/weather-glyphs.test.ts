@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { GLYPH_BOX, isOnGrid } from "@/components/pixel/pixel-glyphs";
 import { SKY_CONDITIONS, WEATHER_LAYERS } from "../board/weather-glyphs";
+import { buildBoard } from "@/lib/dashboard/board/build";
 
 const root = join(__dirname, "..", "..", "..", "..");
 const read = (path: string) => readFileSync(join(root, path), "utf8");
@@ -47,9 +48,11 @@ describe("clock row", () => {
     expect(parts).not.toContain("say(part.weather)");
   });
 
-  test("no location is read while the weather-location gate is off (DECISIONS 26.10.07 13:18)", () => {
-    // What has to exist before the gate turns on is checked in src/lib/location/__tests__/weather-location.test.ts.
-    expect(read("src/lib/location/weather-location-gate.ts")).toContain("export const WEATHER_LOCATION_ENABLED: boolean = false;");
-    expect(read("src/lib/dashboard/board/build.ts")).toContain("clockWeatherPresentation(weather, isMinor)");
+  test("a disabled service hides weather and its action even with a previous reading", () => {
+    // SDK denial is exercised in location tests; this checks the rendered contract.
+    const board = buildBoard(null, new Date("2026-10-08T00:00:00Z"), false, {
+      enabled: false, consent: true, permission: "granted", weather: { sky: "clear", tempC: 18 },
+    });
+    expect(board.parts[0]).toMatchObject({ weather: null, weatherAction: null });
   });
 });

@@ -29,5 +29,6 @@ CREATE TABLE public.account_deletion_tombstones(user_id uuid PRIMARY KEY, sessio
 \ir ../migrations/0050_health_consent_default.sql
 \ir ../migrations/0072_records_embedding_minor_clamp.sql
 \ir ../migrations/0232_weather_location_consent.sql
+\ir ../migrations/0234_weather_device_only.sql
 COMMIT;
 \ir weather_location_regression.sql

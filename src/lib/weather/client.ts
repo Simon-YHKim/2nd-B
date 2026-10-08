@@ -1,12 +1,12 @@
-// All requests use one captured account session. Neither coordinates nor responses
-// enter storage, analytics or logs. The edge returns only the forecast for this hour.
+// Every account fetches the same public station observations. The device chooses
+// a nearby station in memory; its location and choice never enter any request.
 import { beginAccountSessionLease } from "../auth/account-session-lease";
 import { captureAccountOwnerLease, subscribeAccountTransition } from "../auth/account-epoch";
 import { invokeFunctionWithCapturedSession } from "../supabase/captured-session-client";
 import { coarsePlace, type CoarsePlace } from "../location/weather-location";
 import { WEATHER_LOCATION_ENABLED } from "../location/weather-location-gate";
 import { beginPrivacyChange, beginPrivacyGrant, commitPrivacyChange } from "../privacy/changes";
-import { decodeConsent, decodeWeather, WEATHER_CACHE_MS, WEATHER_CONSENT_REVISION, WEATHER_TIMEOUT_MS, type WeatherConsent, type WeatherReading } from "./model";
+import { decodeConsent, decodeWeather, selectWeather, WEATHER_CACHE_MS, WEATHER_CONSENT_REVISION, WEATHER_TIMEOUT_MS, type WeatherConsent, type WeatherReading, type WeatherStation } from "./model";
 
 async function request(ownerId: string, body: Record<string, unknown>, signal?: AbortSignal): Promise<unknown> {
   const owner = captureAccountOwnerLease(ownerId);
@@ -20,6 +20,7 @@ async function request(ownerId: string, body: Record<string, unknown>, signal?: 
     if (!owner.isCurrent()) throw new Error("weather_unavailable");
     const result = await invokeFunctionWithCapturedSession("weather", session.accessToken, {
       body: { ...body, contract: WEATHER_CONSENT_REVISION }, signal: session.signal,
+      region: "ap-northeast-2",
     });
     session.assertCurrent();
     if (!owner.isCurrent() || result.error) throw new Error("weather_unavailable");
@@ -47,34 +48,40 @@ export async function saveWeatherConsent(ownerId: string, status: WeatherConsent
   return next;
 }
 
-/** One forecast per controller, at most 30 minutes. Never persisted or shared between accounts. */
+/** One public bulk per controller, at most 30 minutes. No device position is cached. */
 export function createWeatherReader(ownerId: string) {
-  let cache: (WeatherReading & { key: string }) | null = null;
+  const owner = captureAccountOwnerLease(ownerId);
+  let cache: { stations: readonly WeatherStation[]; expiresAt: number } | null = null;
   let generation = 0;
   let expiryTimer: ReturnType<typeof setTimeout> | undefined;
   let notBefore = 0;
+  const clear = () => { cache = null; generation += 1; clearTimeout(expiryTimer); notBefore = 0; };
+  const selected = (place: CoarsePlace): WeatherReading | null => {
+    if (!cache) return null;
+    const result = selectWeather(cache.stations, place, Date.now());
+    return result ? { ...result, expiresAt: Math.min(result.expiresAt, cache.expiresAt) } : null;
+  };
   return {
-    clear() { cache = null; generation += 1; clearTimeout(expiryTimer); },
+    clear,
     async read(place: CoarsePlace, signal?: AbortSignal): Promise<WeatherReading | null> {
       if (!WEATHER_LOCATION_ENABLED || signal?.aborted) return null;
+      if (!owner?.isCurrent()) { clear(); return null; }
       const rounded = coarsePlace(place.latitude, place.longitude);
       if (!rounded) return null;
-      const key = `${rounded.latitude},${rounded.longitude}`;
-      if (cache?.key === key && cache.expiresAt > Date.now()) return { weather: cache.weather, expiresAt: cache.expiresAt };
+      if (cache && cache.expiresAt > Date.now()) return selected(rounded);
       cache = null;
       if (Date.now() < notBefore) return null;
       const current = generation;
       try {
         notBefore = Date.now() + 60_000; // failures do not create a foreground retry storm
-        const payload = await request(ownerId, { action: "weather", place: rounded }, signal);
-        const result = decodeWeather(payload, Date.now());
-        if (!result || signal?.aborted || current !== generation) return null;
-        cache = { key, ...result };
-        const providerExpiry = Date.parse(String((payload as Record<string, unknown>).nextRequestAt ?? ""));
-        notBefore = Math.max(result.expiresAt, Number.isFinite(providerExpiry) ? providerExpiry : 0);
+        const payload = await request(ownerId, { action: "weather" }, signal);
+        const stations = decodeWeather(payload);
+        if (!stations || signal?.aborted || current !== generation || !owner.isCurrent()) return null;
+        cache = { stations, expiresAt: Date.now() + WEATHER_CACHE_MS };
+        notBefore = cache.expiresAt;
         clearTimeout(expiryTimer);
         expiryTimer = setTimeout(() => { cache = null; }, WEATHER_CACHE_MS);
-        return result;
+        return selected(rounded);
       } catch { return null; }
     },
   };
