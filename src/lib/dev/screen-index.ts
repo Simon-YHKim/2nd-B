@@ -181,12 +181,12 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
     ],
   },
   {
-    title: "담기 · 기록",
+    title: "기록 추가 · 기록 보기",
     screens: [
       {
         file: "capture",
         href: "/capture",
-        label: "담기",
+        label: "기록 추가",
         auth: true,
         qaVariants: [
           {
@@ -199,7 +199,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       {
         file: "capture-full",
         href: "/capture-full",
-        label: "담기 전체 (메모·링크·클립·OCR·파일)",
+        label: "기록 추가 전체 (메모·링크·클립·OCR·파일)",
         // 이 파일에는 `<Redirect href="/sign-in" />` 리터럴이 **없다** — 인증 경계를
         // `CaptureLegacy`(→ `CaptureLegacySession`)에 위임하기 때문이다. 그래도
         // 로그인은 실제로 필요하다. 라우트 파일 안만 보는 판정은 여기서 거짓 음성을

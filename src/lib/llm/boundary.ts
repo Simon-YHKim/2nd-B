@@ -1298,7 +1298,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
     const t0 = Date.now();
     const text =
       input.locale === "ko"
-        ? "오프라인 미리보기 음성 받아쓰기입니다. 들은 내용을 검토하고 다듬은 뒤 담아 주세요."
+        ? "오프라인 미리보기 음성 받아쓰기입니다. 들은 내용을 검토하고 다듬은 뒤 저장해 주세요."
         : "This is an offline preview voice transcript. Review and edit what you heard, then save it.";
     const outputSafety = classifyInput(text, input.locale, { minor: input.minor });
     const audit: AuditMeta = {

@@ -253,7 +253,7 @@ export const THRESHOLDS: readonly ThresholdRow[] = [
     llmPurpose: "northstar_propose",
     progress: {
       state: "일부",
-      text: "현재 개수는 안 보인다. 제안 버튼을 누른 뒤에만 '5개 정도 담으면' 카드가 뜬다",
+      text: "현재 개수는 안 보인다. 제안 버튼을 누른 뒤에만 '5개 정도 추가하면' 카드가 뜬다",
       at: at("src/app/northstar.tsx", 't("ds.northstar.thinBase", { count: MIN_RECORDS_FOR_PROPOSAL })'),
     },
     source: at("src/lib/persona/northstar.ts", "export const MIN_RECORDS_FOR_PROPOSAL = 5;"),
@@ -715,7 +715,7 @@ export const THRESHOLDS: readonly ThresholdRow[] = [
     llmPurpose: null,
     progress: {
       state: "있음",
-      text: "비면 '자기 점검을 하나 마치면 IDEN에 담을 내용이 생깁니다.'",
+      text: "비면 '자기 점검을 하나 마치면 IDEN에 반영할 내용이 생깁니다.'",
       at: at("src/app/iden.tsx", 'session?.status === "empty" ? ('),
     },
     source: at(

@@ -26,8 +26,8 @@ function fnSlice(name: string): string {
 
 describe("consent copy covers existing records (both locales)", () => {
   test("ko names past and future records", () => {
-    expect(SRC).toMatch(/켜면 지금까지 담아 둔 기록과 앞으로 담는 기록의 내용이 의미 벡터로/);
-    expect(SRC).not.toMatch(/켜면 앞으로 담는 기록의 내용이/);
+    expect(SRC).toMatch(/켜면 지금까지 저장한 기록과 앞으로 저장할 기록의 내용이 의미 벡터로/);
+    expect(SRC).not.toMatch(/켜면 앞으로 저장할 기록의 내용이/);
   });
 
   test("en names past and future records", () => {
@@ -38,7 +38,7 @@ describe("consent copy covers existing records (both locales)", () => {
   test("the ON status line does not overclaim for pre-decision enablers", () => {
     // A user who enabled the pref BEFORE the backfill existed never got one;
     // the status line must not assert their existing records are indexed.
-    expect(SRC).not.toMatch(/켜져 있어요\. 담아 둔 기록과/);
+    expect(SRC).not.toMatch(/켜져 있어요\. 저장한 기록과/);
     expect(SRC).not.toMatch(/On\. Your existing and new records are indexed/);
   });
 

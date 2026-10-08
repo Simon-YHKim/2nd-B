@@ -28,7 +28,7 @@
         "tip": "프로필, 설정, 내 데이터를 한 번에 볼 수 있습니다."
       },
       "capture": {
-        "text": "생각을 담아둘 준비가 되었습니다. 지금 어떤 생각을 남겨볼까요?",
+        "text": "지금 어떤 생각을 기록해 볼까요?",
         "tip": "짧게 적어도 됩니다. 저장한 뒤 다시 볼 수 있습니다."
       },
       "chat": {
@@ -57,7 +57,7 @@
         "relation": "관계",
         "health": "건강",
         "recreation": "휴식",
-        "collect": "담아내기"
+        "collect": "자료 수집"
       },
       "starName": {
         "now": "지금의 나",
@@ -135,7 +135,7 @@
       }
     },
     "capture": {
-      "title": "담기",
+      "title": "기록 추가",
       "subtitle": "생각이나 할 일을 글, 사진, 음성으로 남겨 보세요.",
       "modes": {
         "text": "메모",
@@ -168,7 +168,7 @@
       "linkPlaceholder": "https://",
       "photoAdd": "사진 첨부",
       "photoAddHint": "앨범에서 사진을 고릅니다. 이 글과 함께 저장됩니다.",
-      "photoLimit": "사진은 {{max}}장까지 담을 수 있습니다",
+      "photoLimit": "사진은 {{max}}장까지 추가할 수 있습니다",
       "photoRemove": "사진 {{n}} 빼기",
       "photoAttached": "첨부한 사진 {{n}}",
       "photoPickError": "사진을 추가하지 못했습니다. 다른 사진으로 해 보세요.",
@@ -189,7 +189,7 @@
       "todoHint": "할 일",
       "todoAdd": "할 일 추가",
       "banner": "저장하면 허슬케이가 관련된 별과 태그를 붙입니다.",
-      "save": "담기",
+      "save": "저장",
       "saving": "저장 중",
       "saved": "저장 완료",
       "openRecords": "기록 보관소에서 보기",
@@ -248,9 +248,9 @@
       "northStar": "\"나를 깊이 이해해 더 나답게 산다.\"",
       "send": "AI에 전달",
       "loading": "IDEN을 만드는 중…",
-      "emptyTitle": "아직 IDEN에 담을 내용이 없습니다",
-      "emptyBody": "자기 점검을 하나 마치면 IDEN에 담을 내용이 생깁니다.",
-      "emptyCta": "별가루 담기 시작"
+      "emptyTitle": "아직 IDEN에 반영할 내용이 없습니다",
+      "emptyBody": "자기 점검을 하나 마치면 IDEN에 반영할 내용이 생깁니다.",
+      "emptyCta": "기록 추가 시작"
     },
     "recall": {
       "title": "회상",
@@ -335,7 +335,7 @@
       "introBody": "해 보고 싶은 일을 자유롭게 적어 보세요. 마음에 드는 아이디어를 고르면 먼저 할 일을 정리할 수 있습니다.",
       "sectionAngles": "살펴볼 아이디어",
       "sectionSteps": "먼저 해 볼 일",
-      "toCapture": "담기로 옮기기",
+      "toCapture": "기록 추가 화면으로 옮기기",
       "more": "허슬케이와 더 이야기하기",
       "seeds": {
         "expand": {
@@ -352,7 +352,7 @@
           "body": "계획 대신 즉흥, 혼자 대신 함께. 반대편에서 끌리는 한 가지는?",
           "step1": "평소 안 하던 것 하나 이번 주에 시도",
           "step2": "어색했던 점을 허슬케이와 기록",
-          "step3": "휴식 별로 담아 패턴 보기"
+          "step3": "휴식 별에 기록하고 패턴 보기"
         },
         "connect": {
           "angle": "연결",
@@ -377,7 +377,7 @@
       "headline": "나를 깊이 이해해 더 나답게 산다.",
       "synthMeta": "일곱 별 요약 · 신뢰도",
       "refine": "문장 다듬기",
-      "domainsTitle": "일곱 별에 담긴 이야기",
+      "domainsTitle": "일곱 별에 기록한 이야기",
       "toConstellation": "별자리로",
       "hiddenTitle": "검사 결과",
       "hiddenBody": "생활 기록과 Big Five·애착 검사 결과를 함께 살펴봅니다. 별 밝기는 기록이 얼마나 쌓였는지, 신뢰도는 결과를 얼마나 뒷받침할 수 있는지 보여줍니다.",
@@ -530,7 +530,7 @@
       "continue": "이어가기",
       "pageLabel": "별 요약",
       "meter": "이야기한 만큼 밝아집니다 · {{n}}/{{total}}층",
-      "recordsLabel": "지금까지 담은 것",
+      "recordsLabel": "지금까지 저장한 내용",
       "layer": {
         "fact": "사실",
         "feeling": "감정",

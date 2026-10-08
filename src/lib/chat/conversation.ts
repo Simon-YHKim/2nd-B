@@ -186,7 +186,7 @@ const MODE_INSTRUCTION: Record<"analytic" | "divergent", { en: string; ko: strin
     // parseTwiBranches lifts the "→ " lines into tappable next-step chips that
     // hand off to the composer / 담기. Prompt-shaping only — C9/C3 unchanged.
     en: "New angle mode: stay grounded in the user's data, but deliberately explore radically different angles, assumptions, and unexpected possibilities. Clearly frame them as new perspectives or 'what if' hypotheses, not established facts. End the reply with up to three short next-step candidates the user could capture, each on its own line, each line starting with '→ '.",
-    ko: "새 관점 모드: 사용자의 데이터에 근거하되, 전혀 다른 관점과 가정, 뜻밖의 가능성을 의도적으로 탐색하세요. 단정이 아니라 '새로운 관점 / 가정'으로 분명히 표시하세요. 답변의 맨 끝에는 사용자가 담아둘 수 있는 짧은 다음 걸음 후보를 최대 3개, 한 줄에 하나씩 '→ '로 시작해 적으세요.",
+    ko: "새 관점 모드: 사용자의 데이터에 근거하되, 전혀 다른 관점과 가정, 뜻밖의 가능성을 의도적으로 탐색하세요. 단정이 아니라 '새로운 관점 / 가정'으로 분명히 표시하세요. 답변의 맨 끝에는 사용자가 기록할 수 있는 짧은 다음 걸음 후보를 최대 3개, 한 줄에 하나씩 '→ '로 시작해 적으세요.",
   },
 };
 

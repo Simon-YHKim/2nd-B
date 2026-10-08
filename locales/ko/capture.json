@@ -2,23 +2,23 @@
   "textFormat": {
     "general": "일반"
   },
-  "submit": "담기",
-  "submitting": "담는 중…",
+  "submit": "저장",
+  "submitting": "저장 중…",
   "submitHints": {
     "writeFirst": "저장하기 전에 한 문장을 적어 주세요.",
     "fileRequired": "파일을 고르거나 저장할 글을 붙여 넣어 주세요.",
     "ocrRequired": "사진을 고르고, 읽어온 글을 확인한 뒤 저장해 주세요.",
     "journalLocked": "Lv{{level}}부터 일기를 저장할 수 있습니다.",
-    "journalLimit": "무료 일기를 다 썼습니다. 다른 담기 방식은 계속 쓸 수 있습니다.",
+    "journalLimit": "무료 일기를 다 썼습니다. 다른 입력 방식은 계속 쓸 수 있습니다.",
     "voiceRequired": "저장하기 전에 음성 메모 내용을 적어 주세요.",
     "todoRequired": "저장하기 전에 할 일 내용을 적어 주세요.",
     "saving": "이미 저장 중입니다.",
     "fourwRequired": "'무엇을' 칸부터 채워 주세요."
   },
   "savedTitleFallback": "오늘의 별가루",
-  "loading": "담기 화면을 불러오는 중입니다…",
+  "loading": "기록 추가 화면을 불러오는 중입니다…",
   "hero": {
-    "eyebrow": "01. 별가루 담기",
+    "eyebrow": "01. 기록 추가",
     "title": "기록과 자료 저장하기",
     "subtitle": "일기 · 메모 · 링크 · 사진 · 문서",
     "speechSaved": "저장했습니다. 바로 열어 볼 수 있습니다.",
@@ -36,11 +36,11 @@
       "accessibilityLabel": "위키 선택"
     },
     "mode": {
-      "accessibilityLabel": "담기 방식",
+      "accessibilityLabel": "입력 방식",
       "more": "더보기",
       "moreHint": "메모, 링크, 사진, 문서 선택지를 보여줍니다.",
       "less": "접기",
-      "lessHint": "추가 담기 방식을 접습니다. 선택한 방식이 숨겨지면 일기로 돌아갑니다."
+      "lessHint": "추가 입력 방식을 접습니다. 선택한 방식이 숨겨지면 일기로 돌아갑니다."
     }
   },
   "tracks": {
@@ -128,7 +128,7 @@
     "seePieceHint": "방금 저장한 별가루의 상세 화면을 엽니다.",
     "seeRecords": "기록 보관소 보기",
     "seeRecordsHint": "기록 보관소에서 방금 저장한 기록을 찾습니다.",
-    "captureMore": "또 담기",
+    "captureMore": "새 기록 추가",
     "recordsOwnership": "작심이틀도 괜찮습니다. 이 기록은 기록 보관소에 남아, 나중에 다시 읽거나 내보내기에 포함할 수 있습니다.",
     "recordsAiOptIn": "이 스위치를 켜야 허슬케이가 이 기록을 읽고 의견을 보냅니다.",
     "storagePending": "본문은 저장됐습니다. 백업 파일은 업로드하지 못했습니다.",
@@ -160,7 +160,7 @@
     "limit": {
       "title": "무료 일기를 다 썼습니다",
       "body": "무료로 쓸 수 있는 일기 {{limit}}편을 모두 작성했습니다. 지금까지 쓴 일기는 그대로 남아 있고, 언제든 다시 읽을 수 있습니다.",
-      "helper": "메모, 링크, 문서, 사진 담기는 한도 없이 계속 쓸 수 있습니다."
+      "helper": "메모, 링크, 문서, 사진은 한도 없이 계속 저장할 수 있습니다."
     },
     "streak": {
       "label": "기록한 날: {{count}}일{{suffix}}",
@@ -212,7 +212,7 @@
     "approve": "이 글 저장 허용하기",
     "approved": "이 글을 저장하도록 허용했습니다.",
     "approveHint": "사진에서 읽은 글을 저장할 수 있도록 허용합니다.",
-    "submitHint": "사진에서 읽은 글의 저장을 허용해야 담을 수 있습니다."
+    "submitHint": "사진에서 읽은 글을 저장하려면 먼저 허용해 주세요."
   },
   "image": {
     "camera": "카메라",
@@ -242,9 +242,9 @@
     "placeholder": "태그"
   },
   "feedback": {
-    "accessibilityLabel": "담기 안내",
+    "accessibilityLabel": "저장 안내",
     "dismissHint": "안내를 닫습니다.",
-    "retryHint": "방금 실패한 담기 작업을 다시 시도합니다."
+    "retryHint": "방금 실패한 저장을 다시 시도합니다."
   },
   "alerts": {
     "common": {
@@ -292,7 +292,7 @@
       "message": "오늘의 별가루를 저장하지 못했습니다. 쓴 내용은 그대로 남아 있습니다. 다시 시도해 주세요."
     },
     "pieceSave": {
-      "title": "별가루를 담지 못했습니다",
+      "title": "기록을 저장하지 못했습니다",
       "message": "아직 저장하지 못했습니다. 입력한 내용은 그대로 남아 있습니다. 다시 시도해 주세요."
     },
     "proposeEmpty": {
@@ -344,6 +344,6 @@
   "inboxTab": "받은 항목",
   "manualTab": "사용 안내서",
   "shareRefused": {
-    "body": "공유한 내용은 담지 않았습니다. 로그인을 마친 뒤 다시 공유해 주세요."
+    "body": "공유한 내용은 저장하지 않았습니다. 로그인을 마친 뒤 다시 공유해 주세요."
   }
 }
