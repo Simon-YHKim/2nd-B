@@ -433,7 +433,13 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       : { month: "short", day: "numeric", weekday: "short" });
   };
   const interviews = data?.interviews.ok ? data.interviews.value.filter((item) => item.body?.trim()) : [];
-  const generated = useGeneratedBoard(ownerId, isMinor, i18n.language, insideRoute === "/board/summary", generationRefresh);
+  const previousRoute = useRef(insideRoute);
+  useEffect(() => {
+    if (previousRoute.current && !insideRoute) setRefresh((value) => value + 1);
+    previousRoute.current = insideRoute;
+  }, [insideRoute]);
+  const generated = useGeneratedBoard(ownerId, isMinor, i18n.language, insideRoute === "/board/summary", generationRefresh,
+    insideRoute === "/board/summary" || (insideRoute === null && tab === "dashboard"));
   const board = useMemo(() => withGeneratedBoard(buildBoard(data, new Date(), isMinor, clockWeather.state), generated), [data, isMinor, clockWeather.state, generated]);
   // The buttons change only the screen until the W0 contract stores them (발주 2).
   const boardEvents = useMemo<BoardEvents>(() => ({

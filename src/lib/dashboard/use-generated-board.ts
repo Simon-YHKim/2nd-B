@@ -6,10 +6,10 @@ import { currentPrivacyChange, subscribePrivacyChanges } from "../privacy/change
 import { DASHBOARD_GENERATION_ENABLED, requestBoardGeneration } from "./generation-client";
 import { EMPTY_GENERATED_BOARD, type GeneratedBoard } from "./board/generated";
 
-export function useGeneratedBoard(ownerId: string, isMinor: boolean | null, locale: string, summaryOpen: boolean, refresh = 0) {
+export function useGeneratedBoard(ownerId: string, isMinor: boolean | null, locale: string, summaryOpen: boolean, refresh = 0, visible = true) {
   const [snapshot, setSnapshot] = useState<{ owner: string; value: GeneratedBoard } | null>(null);
   useFocusEffect(useCallback(() => {
-    if (!DASHBOARD_GENERATION_ENABLED || isMinor !== false) return;
+    if (!visible || !DASHBOARD_GENERATION_ENABLED || isMinor !== false) return;
     const owner = captureAccountOwnerLease(ownerId); if (!owner) return;
     let active = true; let generation = 0; let controller: AbortController | null = null;
     const clear = () => { generation += 1; controller?.abort(); controller = null; setSnapshot(null); };
@@ -43,7 +43,7 @@ export function useGeneratedBoard(ownerId: string, isMinor: boolean | null, loca
     const stopPrivacy = subscribePrivacyChanges((change) => { if (change.ownerId === ownerId) { clear(); void read(); } });
     const app = AppState.addEventListener("change", (state) => { clear(); if (state === "active") void read(); });
     return () => { active = false; generation += 1; controller?.abort(); clearInterval(timer); stopOwner(); stopPrivacy(); app.remove(); };
-  }, [ownerId, isMinor, locale, summaryOpen, refresh]));
+  }, [ownerId, isMinor, locale, summaryOpen, refresh, visible]));
   useEffect(() => { if (isMinor !== false) setSnapshot(null); }, [isMinor]);
   if (!DASHBOARD_GENERATION_ENABLED || isMinor !== false || !captureAccountOwnerLease(ownerId)?.isCurrent()) return EMPTY_GENERATED_BOARD;
   if (currentPrivacyChange(ownerId)?.prefs.recommendations === false) return { ...EMPTY_GENERATED_BOARD,
