@@ -54,10 +54,10 @@ BEGIN
     RAISE EXCEPTION 'historical recipient lost'; END IF;
   IF (SELECT privacy_prefs->'external_analytics' FROM public.users WHERE id=owner) <> 'true'::jsonb THEN RAISE EXCEPTION 'unrelated pref changed'; END IF;
   IF NOT public.authorize_weather_request(owner) THEN RAISE EXCEPTION 'granted weather rejected'; END IF;
-  PERFORM pg_temp.weather_expect_error(format('SELECT public.weather_consent(%L,''revoke'',0)',owner),'40001');
+  PERFORM pg_temp.weather_expect_error(format('SELECT public.weather_consent(%L,''revoke'',0)',owner),'PT409');
   s := public.weather_consent(owner,'revoke',1);
   IF s->'enabled' <> 'false'::jsonb OR public.authorize_weather_request(owner) THEN RAISE EXCEPTION 'revoke failed'; END IF;
-  PERFORM pg_temp.weather_expect_error(format('SELECT public.weather_consent(%L,''grant'',1)',owner),'40001');
+  PERFORM pg_temp.weather_expect_error(format('SELECT public.weather_consent(%L,''grant'',1)',owner),'PT409');
   PERFORM public.weather_consent(owner,'grant',2);
   UPDATE public.users SET privacy_prefs=privacy_prefs||'{"location_weather":false}' WHERE id=owner;
   s := public.weather_consent(owner,'status');

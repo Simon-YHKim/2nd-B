@@ -1,5 +1,28 @@
 # 좌표를 보내지 않는 날씨 개인 사용 활성화
 
+## 2026-10-08 운영 검증에서 발견한 충돌 재시도
+
+- #2171 (`f2de9990`) CI 성공·머지 후 0232/0233/0234와 weather Edge v1을 적용했다.
+  운영 RLS·RPC ACL·삭제 등록부·purge cron, 서울 리전과 app:parity 같음을 확인했다.
+- 실제 QA에서 status·동의 전 차단·잘못된 입력 거부·grant·revoke는 성공했다.
+  그러나 이전 revision으로 grant하면 20초 timeout이 두 번 재현됐다. Postgres 로그에서
+  `weather_consent`의 의도적 `40001`이 수만 회 재시도되는 것을 확인했다.
+  [Supabase의 공식 설명](https://github.com/orgs/supabase/discussions/50151)과 일치한다.
+- 서버 플래그를 잠시 OFF로 내려 새 사용을 막고 QA 동의를 OFF로 복구했다.
+  두 검증 요청의 PID 4001935/4001942를 로그·backend_start로 특정해 연결만 종료했다
+  (`pg_terminate_backend` 두 결과 true). 다른 세션·사용자 데이터는 대상으로 삼지 않았다.
+- **0235**는 `weather_consent`의 서명·권한·잠금·데이터 변경 규칙을 유지하고 예상된
+  revision 충돌만 재시도하지 않는 `PT409`로 바꾼다. Edge는 PT409와 이전 40001을
+  모두 HTTP 409로 처리한다. 기존 0232는 수정하지 않는다.
+- RED: 실제 로컬 DB는 PT409 기대에 40001로 실패, Edge는 PT409에 503을 반환해 실패.
+  변경 후 실제 PostgreSQL 회귀와 인접 Edge/클라이언트/컨트롤러 검증을 통과했다.
+  로그: `weather-conflict-*-{red,green}.log`, 운영 실패 원문 `weather-live-smoke-r{1,2}.log`.
+- 최종 `npm run verify -- --maxWorkers=2` 종료 코드 0: 945 suites / 12,892 tests
+  통과, 기존 조건부 skip 1개. 별도 SQL/Edge 독립 검토도 PASS다. 두 번째 암호화
+  백업 37708269125 성공, artifact 11520975823 확인.
+- 후속 PR 검증·머지 후 0235만 적용하고 weather를 재배포·활성화한 뒤 같은 실제 API
+  순서를 재실행한다. 최종 결과는 `_sync/TO-CLI.md`와 완료 HTML 보고서에 남긴다.
+
 Simon의 2026-10-08 결정: 서버 좌표 비보관을 유지하면서 개인 사용은 활성화한다.
 공개 전화번호와 시행일은 주말에 입력한다. 자세한 계약과 공식 출처는
 [날씨 설계](../design/weather-source-261007.md)를 따른다.
