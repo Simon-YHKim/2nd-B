@@ -330,7 +330,7 @@ describe("기기에 남은 메모의 소유 확인 자리", () => {
     expect(hook).toContain("loading || !userId || hasProfile !== true || profileProbeFailed ||");
     // 첫 실행 판정(0219)이 '홈'으로 끝난 뒤에만. 홈이 서버에 묻고, 이 훅은 그 답을 읽기만 한다.
     expect(hook).toContain('firstRun !== "home"');
-    expect(hook).toContain("const firstRun = useFirstRunHomeGate(userId, firstRunReady);");
+    expect(hook).toContain("const firstRun = useFirstRunHomeGate(userId, firstRunReady, sessionId);");
     expect(hook).toContain("minor: ctx.minor");
     expect(hook).toContain("const minor = isMinor !== false;");
     expect(hook).toContain("const confirmImport = useCallback(() => {");

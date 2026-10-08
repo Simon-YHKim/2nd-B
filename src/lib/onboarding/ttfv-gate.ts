@@ -31,8 +31,8 @@ export { FIRST_DAY_MS, isWithinFirstDay };
  * Takes the receipt of the grant the home opened /ttfv with. Only the first
  * visit after the home opened it gets it; every other visit gets null.
  */
-export function takeTTFVClaimToken(ownerId: string | null): string | null {
-  return takeFirstRunTTFVToken(ownerId);
+export function takeTTFVClaimToken(ownerId: string | null, sessionId: string | null): string | null {
+  return takeFirstRunTTFVToken(ownerId, sessionId);
 }
 
 /**
@@ -41,9 +41,9 @@ export function takeTTFVClaimToken(ownerId: string | null): string | null {
  * screen opened with already keeps it from opening again (design 5.4), and no
  * other visit holds its receipt. Never throws.
  */
-export function markTTFVSeen(ownerId: string | null, token: string | null): void {
+export function markTTFVSeen(ownerId: string | null, token: string | null, sessionId: string | null): void {
   if (!ownerId) return;
-  void finishFirstRun(ownerId, "ttfv", "shown", token);
+  void finishFirstRun(ownerId, "ttfv", "shown", token, sessionId);
 }
 
 /**
@@ -51,7 +51,7 @@ export function markTTFVSeen(ownerId: string | null, token: string | null): void
  * hand the grant back so a later home visit can open it. Without a receipt (a
  * visit the home did not open) there is nothing to hand back. Never throws.
  */
-export function releaseTTFVClaim(ownerId: string | null, token: string | null): void {
+export function releaseTTFVClaim(ownerId: string | null, token: string | null, sessionId: string | null): void {
   if (!ownerId || !token) return;
-  void finishFirstRun(ownerId, "ttfv", "not_shown", token);
+  void finishFirstRun(ownerId, "ttfv", "not_shown", token, sessionId);
 }
