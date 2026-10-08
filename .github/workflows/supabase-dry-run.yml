@@ -282,6 +282,10 @@ jobs:
             cp -- "$f" "$staged_project/supabase/migrations/"
           done
 
+          # Vanilla CI has no pg_cron; opt out explicitly for this scratch DB only.
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 \
+            -c "ALTER DATABASE postgres SET app.allow_missing_pg_cron = 'on'"
+
           # Four-digit 0147+ versions are a CI-scratch convention only. A
           # production bundle must receive separate monotonic timestamp versions
           # before any live db push. This command targets only the job-local DB;
@@ -413,7 +417,7 @@ jobs:
                   ('0199', 'oauth_naver_rate_limit_completion'),
                   ('0200', 'rss_proxy_quota'),
                   ('0201', 'rss_proxy_erasure_registry'))) <> 11
-               OR (SELECT count(*) FROM public.erasure_registry) <> 73
+               OR (SELECT count(*) FROM public.erasure_registry) <> 78
                OR (SELECT count(*) FROM public.erasure_registry WHERE table_name IN (
                  'account_deletion_tombstones', 'llm_consent_receipts',
                  'polaris_generations', 'reward_ssv_issue_rate_limits')) <> 4
@@ -446,7 +450,7 @@ jobs:
           $verify$;
           ROLLBACK;
           SQL
-          echo "PASS: eleven numbered migrations executed once by CLI; draft bytes, 73 registry rows, contracts and ACL verified"
+          echo "PASS: eleven numbered migrations executed once by CLI; draft bytes, 78 registry rows, contracts and ACL verified"
       # db/migrations/rollback/0189_down.sql is run by hand, mid-incident, and the
       # next `db push` is then trusted to put everything back. Nothing exercised
       # that path, and it was broken. The rollback deleted only its OWN ledger row
@@ -609,7 +613,7 @@ jobs:
           port="${PGPORT:-5432}"
           source_db="${PGDATABASE:-postgres}"
           down="db/migrations/rollback/0189_down.sql"
-          pair="erasure_registry lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason reward_records_erasure_registry_reason weather_erasure_registry"
+          pair="erasure_registry lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason reward_records_erasure_registry_reason interview_transcript_erasure_registry weather_erasure_registry"
           run_token="${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$_${RANDOM}"
           control_db="rollback_control_${run_token}"
           fixed_db="rollback_fixed_${run_token}"
@@ -679,7 +683,7 @@ jobs:
                                        'service_contract_erasure_registry', 'rss_proxy_erasure_registry',
                                        'credit_ledger_erasure_registry_reason',
                                        'reward_records_erasure_registry_reason',
-                                       'weather_erasure_registry')"
+                                       'interview_transcript_erasure_registry', 'weather_erasure_registry')"
           }
           can_execute() { # <db> <role>
             sql "$1" "SELECT pg_catalog.has_function_privilege('$2', 'public.erase_my_data(text)', 'EXECUTE')"
@@ -962,7 +966,7 @@ jobs:
             fi
           done
 
-          # The registry forwards (0198, 0201, 0233) and the reason revisions (0205, 0212) are kept
+          # The registry forwards (0198, 0201, 0226, 0233) and the reason revisions (0205, 0212) are kept
           # with 0190: each one's guard refuses to run while erase_my_data is open, so
           # re-applying them here would stop the push before the control can look.
           echo "== control: retain 0190 and every registry forward, then replay only 0189"
@@ -974,7 +978,7 @@ jobs:
                                             'rss_proxy_erasure_registry',
                                             'credit_ledger_erasure_registry_reason',
                                             'reward_records_erasure_registry_reason',
-                                            'weather_erasure_registry')"
+                                            'interview_transcript_erasure_registry', 'weather_erasure_registry')"
           roll_back "$control_db"
           # ON CONFLICT: if the rollback under test leaves the row in place (the very
           # regression this lane is for), the control still builds the same state
@@ -987,7 +991,7 @@ jobs:
           push_again "$control_db"
           control_open="$(can_execute "$control_db" authenticated)"
           echo "control: ledger before the re-push [$control_ledger] -> authenticated EXECUTE after it = $control_open"
-          if [[ "$control_ledger" != "lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason reward_records_erasure_registry_reason weather_erasure_registry" ]]; then
+          if [[ "$control_ledger" != "lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason reward_records_erasure_registry_reason interview_transcript_erasure_registry weather_erasure_registry" ]]; then
             fail "the control did not reach the pre-fix state: ledger held [$control_ledger], expected 0190 and every registry forward"
           fi
           if [[ "$control_open" != "t" ]]; then
@@ -1614,6 +1618,19 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/peer_response_rate_limit_regression.sql
+      - name: Exercise numbered 0225 interview transcript ledger on scratch schema
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/interview_transcript_ledger_regression.sql
+      - name: Exercise the 0225 rollback inside one rolled-back transaction
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/interview_transcript_ledger_rollback.sql
+      - name: Exercise D6 session and record deletion races on a local scratch clone
+        env:
+          PGPASSWORD: postgres
+          PGPORT: 5432
+        run: python3 db/tests/interview_transcript_ledger_concurrency.py --template postgres
       - name: Exercise records.system_tags, its hand move and its rollback (0218)
         env:
           PGPASSWORD: postgres

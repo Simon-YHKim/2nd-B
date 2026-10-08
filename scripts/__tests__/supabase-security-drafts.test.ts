@@ -247,8 +247,10 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(step).toContain("promoted draft still present beside");
     expect(step).toContain("cmp -s");
     expect(step).toContain("drop the retained_until_applied exception");
-    // 0233 (2026-10-07) registered the two weather tables: 71 -> 73.
-    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 73");
+    // 71 baseline rows + five from 0226 (interview sessions, transcript head and turns,
+    // context-block ids, the session-start counter) + two weather tables from 0233.
+    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 78");
+    expect(step).toContain("78 registry rows, contracts and ACL verified");
     expect(step).toContain("('0201', 'rss_proxy_erasure_registry')");
     expect(step).not.toMatch(/\\i db\/migration-drafts\/UNNUMBERED_/);
   });
@@ -345,6 +347,53 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
       expect(workflow).toContain(workflowInvocation);
     },
   );
+
+  test("exercises the numbered 0225 interview transcript ledger without replaying it", () => {
+    const regression = read("db/tests/interview_transcript_ledger_regression.sql");
+    expect(workflow).toContain("-f db/tests/interview_transcript_ledger_regression.sql");
+    expect(regression).not.toMatch(/^\\i(?:r)?\s/m);
+    expect(regression).toContain("an authenticated caller wrote a verdict row");
+    expect(regression).toContain("ledger rows do not equal user turns");
+    expect(regression).toContain("a second commit added again");
+    expect(regression).toContain("discard did not erase exactly the session audit hashes");
+    expect(regression).toContain("R2 D6-01: commit revived a folded session");
+    expect(regression).toContain("R2 D6-03: unseen turn appended after session close");
+    expect(regression).toContain("R2 D6-04: account cascade kept verdict/refused audit hashes");
+    expect(regression).toContain("R2 D6-51: snapshot returned hold evidence");
+    expect(regression).toContain("R2 D6-53: late context writer restored a deleted record id");
+    expect(regression).toContain("account deletion left owned interview rows behind");
+    expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
+  });
+
+  test("0225 fails closed without cron and rollback stops outside a transaction (R2 D6-06/08)", () => {
+    const migration = read("db/migrations/0225_interview_transcript_ledger.sql");
+    const rollback = read("db/migrations/rollback/0225_down.sql");
+    expect(migration).toContain("current_setting('app.allow_missing_pg_cron', true) IS DISTINCT FROM 'on'");
+    expect(migration).toContain("RAISE EXCEPTION '0225: pg_cron required;");
+    expect(workflow).toContain("ALTER DATABASE postgres SET app.allow_missing_pg_cron = 'on'");
+    expect(rollback).toMatch(/^\\set ON_ERROR_STOP on\r?\n/);
+    const firstSql = rollback.replace(/^--.*$/gm, "").replace(/^\\set .*$/gm, "").trimStart();
+    expect(firstSql).toMatch(/^LOCK TABLE public\.interview_sessions/);
+  });
+
+  test("0225 adds only the record hold predicate to both 0218 Polaris bodies and keeps it on rollback", () => {
+    const baseline = read("db/migrations/0218_records_system_tags.sql");
+    const migration = read("db/migrations/0225_interview_transcript_ledger.sql");
+    const rollback = read("db/migrations/rollback/0225_down.sql");
+    for (const name of ["reserve_polaris_generation", "polaris_evidence_snapshot"]) {
+      const definition = (sql: string) => {
+        const start = sql.indexOf(`CREATE OR REPLACE FUNCTION public.${name}(`);
+        expect(start).toBeGreaterThanOrEqual(0);
+        return sql.slice(start, sql.indexOf("END $$;", start) + "END $$;".length).replace(/\r\n/g, "\n");
+      };
+      const before = definition(baseline);
+      const after = definition(migration);
+      const hold = name === "reserve_polaris_generation" ? "interview_ai_hold" : "r.interview_ai_hold";
+      expect(after).toContain(`      AND NOT ${hold}\n`);
+      expect(after.replace(`      AND NOT ${hold}\n`, "")).toBe(before);
+      expect(definition(rollback)).toBe(after);
+    }
+  });
 
   test("seeds the Supabase auth and storage contracts used by the deletion fence", () => {
     const accountDeletionMigration = read(`${MIGRATION_DIR}/0192_account_deletion_completion_fence.sql`);
