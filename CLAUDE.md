@@ -435,8 +435,10 @@ PRD 는 **Draft v4**(#1385, 2026-08-25)가 정본이다 — 일곱 한 벌·화�
 새 KPI. `docs/CONSTELLATION-DESIGN.md` 는 역사 기록 배너가 붙었다. Claude Design
 재발주 프롬프트는 `design/CLAUDE-DESIGN-BRIEF-260825.md`.
 
-세컨비 → 허슬케이 개명은 구조가 자리 잡은 뒤로 미뤘다(Simon 명시). 앱 이름(Polar
-Scope 검토 → 충돌 2건 검증됨, Merak 등 대안 후보)과 **한 체계로 함께** 결정한다.
+**2026-10-08 Simon 결정: 캐릭터는 허슬케이(HustleK)로 교체한다.** 제공한 초상화
+표정 48종(`assets/hustlek`)을 쓰며, 세컨비의 그림·사용자 표시 이름·대화 소개를
+교체한다. 기존 개명 보류는 해제됐다. 앱 표시 이름은 PolaScope다.
+`/secondb`, `secondb_chat`, 저장 키와 기존 컴포넌트 진입점은 호환을 위해 유지한다.
 
 ---
 

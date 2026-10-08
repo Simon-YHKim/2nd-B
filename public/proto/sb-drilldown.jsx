@@ -148,7 +148,7 @@ function DrillDownScreen({ t, go, param }) {
 
       {/* submit bar — ② 세컨비와의 Drill Down */}
       <div style={{ padding: '10px 16px calc(10px + env(safe-area-inset-bottom))', borderTop: `1px solid ${C('outline-variant')}`, background: C('surface') }}>
-        <MdButton variant="filled" icon="bubble_chart" style={{ width: '100%' }} onClick={goChat}>세컨비와 Drill Down</MdButton>
+        <MdButton variant="filled" icon="bubble_chart" style={{ width: '100%' }} onClick={goChat}>허슬케이와 Drill Down</MdButton>
       </div>
 
       {/* 경험 유형 선택 팝업 */}

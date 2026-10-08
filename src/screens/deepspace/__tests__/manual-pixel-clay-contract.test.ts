@@ -39,7 +39,7 @@ describe("PIXEL-CLAY /manual content contract", () => {
 
     expect(stars?.answer).toContain("프로필 · 영유아기 · 학창시절 · 20대 · 30대 이후 · 직장 · 지금");
     expect(stars?.answer).toContain("생활 여섯 영역");
-    expect(stars?.answer).toContain("세컨비 대시보드");
+    expect(stars?.answer).toContain("허슬케이 대시보드");
     expect(stars?.answer).not.toContain("북두칠성 7별은 커리어");
   });
 

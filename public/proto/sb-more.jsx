@@ -107,7 +107,7 @@ function RemindersScreen({ t, go, param }) {
     const p = param && param.prefill;
     if (!p) return;
     const nid = Date.now();
-    setItems((xs) => [{ id: nid, title: p.title, when: p.when, star: p.star, src: p.src || '세컨비 종합 의견', on: true, repeat: p.repeat || '한 번' }, ...xs]);
+    setItems((xs) => [{ id: nid, title: p.title, when: p.when, star: p.star, src: p.src || '허슬케이 종합 의견', on: true, repeat: p.repeat || '한 번' }, ...xs]);
     setJustId(nid);
   }, []);
   const toggle = (id) => setItems((xs) => xs.map((x) => (x.id === id ? { ...x, on: !x.on } : x)));
@@ -129,7 +129,7 @@ function RemindersScreen({ t, go, param }) {
       <MdCard variant="filled" style={{ padding: 12, marginTop: 10, display: 'flex', alignItems: 'center', gap: 10,
         background: C('secondary-container') }}>
         <Icon name="check_circle" fill size={20} style={{ color: C('primary'), flex: '0 0 auto' }} />
-        <div className="md-body-small" style={{ color: C('on-secondary-container'), wordBreak: 'keep-all' }}>세컨비 종합 의견에서 새 알림을 맞추었어요. 아래에서 시간을 조절할 수 있어요.</div>
+        <div className="md-body-small" style={{ color: C('on-secondary-container'), wordBreak: 'keep-all' }}>허슬케이 종합 의견에서 새 알림을 맞추었어요. 아래에서 시간을 조절할 수 있어요.</div>
       </MdCard>
       }
 
@@ -282,7 +282,7 @@ function ImportScreen({ t, go, env }) {
           <div style={{ position: 'relative', width: 64, height: 64, marginBottom: 20 }}>
             <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `3px solid ${C('primary')}`,
               borderTopColor: 'transparent', animation: 'sb-spin .8s linear infinite' }} />
-            <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ position: 'absolute', inset: 12, width: 40, height: 40 }} />
+            <img src="assets/hustlek/A01-neutral.png" alt="" style={{ position: 'absolute', inset: 12, width: 40, height: 40 }} />
           </div>
           <div className="md-title-medium" style={{ color: C('on-surface') }}>가져온 데이터를 읽는 중</div>
           <div className="md-body-medium" style={{ color: C('on-surface-variant'), marginTop: 6, wordBreak: 'keep-all' }}>기기 안에서 별가루으로 나누고 있어요…</div>
@@ -389,7 +389,7 @@ function DataReviewScreen({ t, go, env }) {
                 body: '계정과 모든 기록·파생 신호가 영구히 삭제돼요. 이 작업은 되돌릴 수 없어요.',
                 onConfirm: () => env.showToast({ msg: '영구 삭제를 접수했어요' }) });
               else setConfirm({ title: '파생 신호를 초기화할까요?', danger: false, confirmLabel: '초기화',
-                body: '세컨비가 추정한 모든 신호가 지워져요. 원본 기록은 그대로 남고, 다시 쌓을 수 있어요.',
+                body: '허슬케이가 추정한 모든 신호가 지워져요. 원본 기록은 그대로 남고, 다시 쌓을 수 있어요.',
                 onConfirm: () => env.showToast({ msg: '파생 신호를 초기화했어요' }) });
             }}
             style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 14, padding: '12px', borderRadius: 10,
@@ -442,8 +442,8 @@ function ShareCardScreen({ t, go, env }) {
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ width: 34, height: 34 }} />
-              <div style={{ fontSize: 13, color: 'rgba(220,230,255,.7)' }}>세컨비가 함께 본 한 주</div>
+              <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 34, height: 34 }} />
+              <div style={{ fontSize: 13, color: 'rgba(220,230,255,.7)' }}>허슬케이가 함께 본 한 주</div>
             </div>
           </div>
         ) : (
@@ -508,7 +508,7 @@ function ImagineScreen({ t, go }) {
       </MdCard>
 
       {/* divergent angles */}
-      <SectionLabel>세컨비가 던진 갈래</SectionLabel>
+      <SectionLabel>허슬케이가 던진 갈래</SectionLabel>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {IMAGINE_SEEDS.map((s) => {
           const on = picked === s.angle;
@@ -549,7 +549,7 @@ function ImagineScreen({ t, go }) {
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
             <MdButton variant="filled" icon="add" style={{ flex: 1 }} onClick={() => go('capture')}>담기로 옮기기</MdButton>
-            <MdButton variant="outlined" icon="bubble_chart" onClick={() => go('chat')}>세컨비와 더</MdButton>
+            <MdButton variant="outlined" icon="bubble_chart" onClick={() => go('chat')}>허슬케이와 더</MdButton>
           </div>
         </React.Fragment>
       )}

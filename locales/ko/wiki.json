@@ -3,7 +3,7 @@
     "eyebrow": "04. 지식 창고",
     "title": "저장한 기록을 찾아보세요",
     "subtitle": "PolaScope에 담은 기록과 자료를 모았습니다",
-    "speech": "새 기록을 담거나, 저장한 내용에 대해 세컨비에게 물어보세요."
+    "speech": "새 기록을 담거나, 저장한 내용에 대해 허슬케이에게 물어보세요."
   },
   "capture": "담기",
   "export": "내보내기",
@@ -74,7 +74,7 @@
   "conceptsLabel": "개념: ",
   "reflectionQuestions": "생각해 볼 질문",
   "seeInGraph": "그래프에서 보기",
-  "askSecondB": "세컨비에게 묻기",
+  "askSecondB": "허슬케이에게 묻기",
   "deletePage": "이 페이지 삭제",
   "opened": "{{name}} 페이지를 열었습니다",
   "kindBreakdown": "자료 {{s}} · 이름 {{e}} · 아이디어 {{c}}",
@@ -85,6 +85,6 @@
   "addTagFilter": "{{tag}} 태그로 찾기 추가",
   "buildBriefFor": "{{title}} 요약과 질문 만들기",
   "seeInGraphFor": "{{title}} 그래프에서 보기",
-  "askAbout": "{{title}}에 대해 세컨비에게 묻기",
+  "askAbout": "{{title}}에 대해 허슬케이에게 묻기",
   "deletePageFor": "{{title}} 위키 페이지 삭제"
 }

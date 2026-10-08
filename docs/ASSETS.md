@@ -1,5 +1,16 @@
 # Bundled Assets and Licenses
 
+## HustleK portrait expressions (2026-10-08)
+
+`assets/hustlek/` contains 48 transparent 362×362 PNG portraits supplied by Simon
+in `hustlek-expressions-app-assets.zip`. Simon identified the portrait as his face
+and explicitly requested its use as HustleK throughout the app on 2026-10-08.
+The supplied image bytes are unchanged; `manifest.json` records their SHA-256.
+Five identical files are mirrored in `public/proto/assets/hustlek/` and its
+`design/proto_rev2/reference-app/assets/hustlek/` source for the published
+prototype. These are user-supplied project character artwork, not a
+third-party sprite pack. This integration adds no separate image service or font.
+
 ## HustleK approved opening (2026-10-02)
 
 `assets/opening/hustlek-approved-261002/` contains the approved avatar opening: 17 character poses, the field/night-sky background, telescope, three native Polaris sizes, and four WAV files. The 22 PNG and four WAV files preserve the approved source bytes. `approved-settings.json` preserves the submitted settings; `manifest.json` stores the effective timeline, source paths and SHA-256 hashes. `validation.json`, `source-parity.json`, and `CREDITS.md` record file verification, comparison with the approved review and licenses.

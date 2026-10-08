@@ -1,4 +1,7 @@
 {
+  "textFormat": {
+    "general": "일반"
+  },
   "submit": "담기",
   "submitting": "담는 중…",
   "submitHints": {
@@ -51,7 +54,7 @@
   "modes": {
     "journal": {
       "label": "일기",
-      "help": "오늘 떠오른 생각을 기록 보관소에 저장합니다. 원하면 이 기록에 대한 세컨비의 의견을 받을 수 있습니다."
+      "help": "오늘 떠오른 생각을 기록 보관소에 저장합니다. 원하면 이 기록에 대한 허슬케이의 의견을 받을 수 있습니다."
     },
     "memo": {
       "label": "메모",
@@ -127,10 +130,10 @@
     "seeRecordsHint": "기록 보관소에서 방금 저장한 기록을 찾습니다.",
     "captureMore": "또 담기",
     "recordsOwnership": "작심이틀도 괜찮습니다. 이 기록은 기록 보관소에 남아, 나중에 다시 읽거나 내보내기에 포함할 수 있습니다.",
-    "recordsAiOptIn": "이 스위치를 켜야 세컨비가 이 기록을 읽고 의견을 보냅니다.",
+    "recordsAiOptIn": "이 스위치를 켜야 허슬케이가 이 기록을 읽고 의견을 보냅니다.",
     "storagePending": "본문은 저장됐습니다. 백업 파일은 업로드하지 못했습니다.",
     "advisor": {
-      "heading": "세컨비 되짚기",
+      "heading": "허슬케이 되짚기",
       "sources": "근거",
       "whyThis": "이유 보기",
       "evidenceFallback": "이 근거에는 설명이 없습니다."
@@ -179,9 +182,9 @@
       "placeholder": "오늘 생각을 한 줄로 정리하면?"
     },
     "advisor": {
-      "label": "이 기록을 세컨비에게 물어보기",
-      "helper": "처음에는 꺼져 있습니다. 이 기록에 대한 세컨비의 의견을 받고 싶을 때 켜 주세요.",
-      "lockedLabel": "이 기록을 세컨비에게 물어보기 (Brain)",
+      "label": "이 기록을 허슬케이에게 물어보기",
+      "helper": "처음에는 꺼져 있습니다. 이 기록에 대한 허슬케이의 의견을 받고 싶을 때 켜 주세요.",
+      "lockedLabel": "이 기록을 허슬케이에게 물어보기 (Brain)",
       "lockedHelper": "기록에 대한 답변은 Brain 요금제에서 받을 수 있습니다. 누르면 요금제를 볼 수 있습니다.",
       "lockedHint": "요금제 화면을 엽니다."
     }
@@ -233,7 +236,7 @@
   "tags": {
     "title": "해시태그",
     "removeLabel": "{{tag}} 해시태그 제거",
-    "emptyHelper": "비워 두면 저장할 때 세컨비가 태그를 붙입니다. +를 눌러 직접 추가할 수도 있습니다.",
+    "emptyHelper": "비워 두면 저장할 때 허슬케이가 태그를 붙입니다. +를 눌러 직접 추가할 수도 있습니다.",
     "removeHelper": "태그를 누르면 삭제됩니다.",
     "addLabel": "해시태그 추가",
     "placeholder": "태그"

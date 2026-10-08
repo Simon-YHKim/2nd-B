@@ -1,12 +1,12 @@
 {
   "character": {
-    "a11y": "Personaje SecondB"
+    "a11y": "Personaje HustleK"
   },
   "ds": {
     "dock": {
       "home": "Inicio",
       "capture": "Recortes",
-      "chat": "SecondB",
+      "chat": "HustleK",
       "ops": "Asistente",
       "account": "Yo",
       "lens": "Yo",
@@ -69,16 +69,16 @@
         "values": "Valores y aspiraciones"
       },
       "inbox": "Notificaciones",
-      "headA11y": "Preguntar a SecondB",
-      "dialogueOpen": "Abrir diálogo con SecondB",
-      "dialogueClose": "Cerrar diálogo con SecondB",
+      "headA11y": "Preguntar a HustleK",
+      "dialogueOpen": "Abrir diálogo con HustleK",
+      "dialogueClose": "Cerrar diálogo con HustleK",
       "kind": {
         "domain": "Área",
         "profile": "Cómo te ven"
       },
       "bubble": {
         "introTag": "Presentación",
-        "intro": "Soy SecondB. Toca mi cabeza para abrir el chat y el asistente.",
+        "intro": "Soy HustleK. Toca mi cabeza para abrir el chat y el asistente.",
         "tipTag": "Consejo",
         "tip1": "Pulsa una estrella para revisar los registros de esa etapa de tu vida.",
         "tip2": "Usa Añadir en la barra inferior para guardar un registro nuevo.",
@@ -164,7 +164,7 @@
           "hint": "Qué tenías en mente"
         }
       },
-      "linkHint": "Pega un enlace y SecondB obtiene el título y el resumen.",
+      "linkHint": "Pega un enlace y HustleK obtiene el título y el resumen.",
       "linkPlaceholder": "https://",
       "photoAdd": "Adjuntar foto",
       "photoAddHint": "Elige una foto de tu álbum. Se guarda con esta nota.",
@@ -188,7 +188,7 @@
       "ocrInserted": "Texto añadido.",
       "todoHint": "Tarea",
       "todoAdd": "Añadir una tarea",
-      "banner": "Al guardar, SecondB añade estrellas y etiquetas relacionadas.",
+      "banner": "Al guardar, HustleK añade estrellas y etiquetas relacionadas.",
       "save": "Capturar",
       "saving": "Guardando",
       "saved": "Guardado",
@@ -336,7 +336,7 @@
       "sectionAngles": "Ideas para explorar",
       "sectionSteps": "Qué probar primero",
       "toCapture": "Llevar a Capturar",
-      "more": "Seguir hablando con SecondB",
+      "more": "Seguir hablando con HustleK",
       "seeds": {
         "expand": {
           "angle": "Ampliar",
@@ -351,7 +351,7 @@
           "title": "Si vivieras justo al revés",
           "body": "Improvisar en lugar de planear, en compañía en lugar de a solas. ¿Qué te atrae del otro lado?",
           "step1": "Prueba esta semana algo que nunca haces",
-          "step2": "Anota con SecondB lo que te resultó incómodo",
+          "step2": "Anota con HustleK lo que te resultó incómodo",
           "step3": "Captúralo en la estrella de Descanso y observa el patrón"
         },
         "connect": {

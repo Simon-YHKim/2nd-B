@@ -11,7 +11,7 @@
     "heading": "Meus formatos",
     "headingWithCount": "Meus formatos ({{count}})",
     "emptyTitle": "Nenhum formato ainda",
-    "emptyBody": "Salve um formato sugerido pelo SecondB durante uma captura e ele aparece aqui."
+    "emptyBody": "Salve um formato sugerido pelo HustleK durante uma captura e ele aparece aqui."
   },
   "community": {
     "heading": "Formatos da comunidade",
@@ -193,9 +193,9 @@
   },
   "add": {
     "title": "Adicionar um formato",
-    "body": "Descreva o material e as informações que quer guardar. O SecondB sugere um formato que você pode reutilizar.",
+    "body": "Descreva o material e as informações que quer guardar. O HustleK sugere um formato que você pode reutilizar.",
     "placeholder": "ex.: Episódios de podcast - capturar o convidado e as principais ideias",
-    "draft": "Pedir um formato ao SecondB",
+    "draft": "Pedir um formato ao HustleK",
     "drafting": "Preparando formato…",
     "errorNeedDetail": "Não foi possível criar o formato. Descreva melhor o material e tente novamente.",
     "errorDraft": "Não foi possível criar o formato. Tente novamente.",

@@ -391,7 +391,7 @@ describe("tr3 /reasoning: the screen copy reads ds.reasoningScreen.*", () => {
       "Unlimited connections",
       "Reason over selected items",
       "Select items to enable reasoning.",
-      "You can leave this screen. SecondB will let you know when it's ready.",
+      "You can leave this screen. HustleK will let you know when it's ready.",
       "New record · queued",
     ]);
     expect([rs("ko").title, rs("ko").unlimited, rs("ko").reasonSelected, rs("ko").runHint, rs("ko").viewPlans, rs("ko").queuedSource]).toEqual([

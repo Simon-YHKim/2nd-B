@@ -27,6 +27,7 @@ import { m3TextStyle } from "./typeface";
 export interface SegBtnSegment {
   key: string;
   label: string;
+  accessibilityHint?: string;
   icon?: ReactNode;
 }
 
@@ -81,6 +82,7 @@ export function SegBtn({
               accessibilityState={{ selected: on, checked: on, disabled }}
               aria-checked={on}
               accessibilityLabel={seg.label}
+              accessibilityHint={seg.accessibilityHint}
               style={styles.hit}
             >
               {seg.icon ? <View style={styles.icon}>{seg.icon}</View> : null}

@@ -612,9 +612,9 @@
         </div>
 
         <div style={{ display: 'flex', gap: 9, marginTop: 12, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,.05)' }}>
-          <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ width: 26, height: 26, flex: '0 0 auto' }} />
+          <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 26, height: 26, flex: '0 0 auto' }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 11, letterSpacing: '.04em', color: accent, marginBottom: 4 }}>세컨비가 정리한 내용</div>
+            <div style={{ fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 11, letterSpacing: '.04em', color: accent, marginBottom: 4 }}>허슬케이가 정리한 내용</div>
             <div className="md-body-medium" style={{ color: '#D7E3F5', wordBreak: 'keep-all', lineHeight: 1.55 }}>
               {isRec ? rec.summary
                 : isDom ? `${node.dom.line} 지금 이 별엔 별가루 ${domRecs.length}개가 모여 또렷함 L${node.dom.level}이에요. 아래 기록들이 서로를 받쳐줘요.`

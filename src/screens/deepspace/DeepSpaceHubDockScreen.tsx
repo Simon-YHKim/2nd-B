@@ -21,7 +21,7 @@ const hdAlpha = (c: string, a: number): string => flattenAlpha(c, a, colors.bgDe
 
 const HEADER_COPY: Record<DeepSpaceHubTab, { text: string; tip: string }> = {
   capture: { text: "담기 화면입니다. 핵심만 추렸습니다.", tip: "천천히 둘러보세요." },
-  secondb: { text: "세컨비챗 화면입니다. 핵심만 추렸습니다.", tip: "천천히 둘러보세요." },
+  secondb: { text: "허슬케이챗 화면입니다. 핵심만 추렸습니다.", tip: "천천히 둘러보세요." },
   trend: { text: "트렌드 화면입니다. 핵심만 추렸습니다.", tip: "천천히 둘러보세요." },
   review: { text: "점검 화면입니다. 핵심만 추렸습니다.", tip: "천천히 둘러보세요." },
 };
@@ -35,7 +35,7 @@ export function DeepSpaceHubDockScreen() {
   const [trendAction, setTrendAction] = useState<string | null>(null);
   const [reviewDecision, setReviewDecision] = useState<"hold" | "approve" | null>(null);
   const header = HEADER_COPY[active];
-  const title = useMemo(() => ({ capture: "담기", secondb: "세컨비", trend: "트렌드", review: "점검" })[active], [active]);
+  const title = useMemo(() => ({ capture: "담기", secondb: "허슬케이", trend: "트렌드", review: "점검" })[active], [active]);
 
   return (
     <View style={styles.screen}>
@@ -144,8 +144,8 @@ function SecondbContent({ chatDraft, setChatDraft, chatSent, setChatSent }: HubS
       {chatSent ? <Text variant="subtle" style={styles.sentNote}>보냈습니다. 이 미리보기에서는 대화가 저장되지 않습니다.</Text> : null}
       <View style={styles.inputBar}>
         <TextInput
-          accessibilityLabel="세컨비에게 물어보기"
-          placeholder="세컨비에게 물어보기…"
+          accessibilityLabel="허슬케이에게 물어보기"
+          placeholder="허슬케이에게 물어보기…"
           placeholderTextColor={colors.textLo}
           value={chatDraft}
           onChangeText={setChatDraft}
@@ -153,7 +153,7 @@ function SecondbContent({ chatDraft, setChatDraft, chatSent, setChatSent }: HubS
         />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="세컨비에게 보내기"
+          accessibilityLabel="허슬케이에게 보내기"
           disabled={chatDraft.trim().length === 0}
           onPress={() => setChatSent(true)}
           style={[styles.sendCircle, chatDraft.trim().length === 0 && styles.disabledButton]}
@@ -182,7 +182,7 @@ function ReviewContent({ reviewDecision, setReviewDecision }: HubState) {
     <>
       <Text variant="body" style={styles.subtitle}>내가 달라졌다면 별자리도 함께 점검</Text>
       <View style={styles.reviewCard}>
-        <Text variant="caption" pixelEn style={styles.sectionLabelSoul}>세컨비의 제안</Text>
+        <Text variant="caption" pixelEn style={styles.sectionLabelSoul}>허슬케이의 제안</Text>
         <Text variant="body" style={styles.reviewBody}>최근 기록을 보면 외향성이 올라간 것 같습니다. 별 밝기를 올릴까요?</Text>
         <View style={styles.scoreRow}><Score label="지금" value="61" /><RNText style={styles.arrow}>→</RNText><Score label="제안" value="68" /><Text variant="subtle" style={styles.evidenceRight}>근거{"\n"}기록 5건</Text></View>
       </View>

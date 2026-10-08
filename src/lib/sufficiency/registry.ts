@@ -800,7 +800,7 @@ export const THRESHOLDS: readonly ThresholdRow[] = [
     // 하지 않도록 선언하고, 테스트는 "데이터 문턱 0 · 사용량 외 잠김 0"을 지킨다.
     id: "chat",
     a3: null,
-    output: "세컨비 대화",
+    output: "허슬케이 대화",
     nature: "gate",
     dataKind: "없음 - 위키 · RAG 가 비어도 답한다",
     minimum: noDataMinimum("문턱 없음"),

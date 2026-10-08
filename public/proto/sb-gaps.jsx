@@ -160,9 +160,9 @@ function TriageScreen({ t, go }) {
 
         {/* secondb proposal */}
         <div style={{ display: 'flex', gap: 10, padding: 12, borderRadius: 12, background: C('surface-container-high') }}>
-          <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ width: 26, height: 26, flex: '0 0 auto' }} />
+          <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 26, height: 26, flex: '0 0 auto' }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="md-body-small" style={{ color: C('on-surface-variant'), opacity: .8, marginBottom: 3 }}>세컨비 제안</div>
+            <div className="md-body-small" style={{ color: C('on-surface-variant'), opacity: .8, marginBottom: 3 }}>허슬케이 제안</div>
             <div className="md-body-medium" style={{ color: C('on-surface'), wordBreak: 'keep-all' }}>
               <b style={{ color: C('primary') }}>{tagFor || cur.tag}</b> 별로 보낼까요?
             </div>
@@ -202,7 +202,7 @@ function ResearchScreen({ t, go }) {
   return (
     <ScreenPad>
       <div style={{ display: 'flex', gap: 10, margin: '10px 0 4px' }}>
-        <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ width: 34, height: 34, flex: '0 0 auto', marginTop: 2 }} />
+        <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 34, height: 34, flex: '0 0 auto', marginTop: 2 }} />
         <div>
           <div className="md-headline-small" style={{ color: C('on-surface'), fontSize: 22, fontWeight: 700 }}>연결 찾기</div>
           <div className="md-body-medium" style={{ color: C('on-surface-variant'), wordBreak: 'keep-all' }}>기록들 사이에서 2개의 패턴을 찾았어요. 맞으면 별에 이어둘게요.</div>
@@ -554,7 +554,7 @@ function ManualScreen({ t, go }) {
   return (
     <ScreenPad>
       <div style={{ display: 'flex', gap: 10, margin: '10px 0 6px' }}>
-        <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ width: 36, height: 36, flex: '0 0 auto' }} />
+        <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 36, height: 36, flex: '0 0 auto' }} />
         <div className="md-body-medium" style={{ color: C('on-surface-variant'), wordBreak: 'keep-all', alignSelf: 'center' }}>
           처음이세요? 6가지만 알면 충분해요.
         </div>

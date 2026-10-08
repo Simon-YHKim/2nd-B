@@ -17,7 +17,7 @@
     "loadError": "사진을 불러오지 못했습니다."
   },
   "advisor": {
-    "heading": "세컨비 되짚기",
+    "heading": "허슬케이 되짚기",
     "sources": "근거",
     "whyThis": "이유 보기",
     "evidenceFallback": "이 근거에는 설명이 없습니다."
@@ -26,7 +26,7 @@
     "backToRecords": "기록 목록으로",
     "seeArea": "{{area}} 영역에서 보기",
     "seeAreaHint": "{{area}} 영역을 열고 이 기록을 맨 위에 보여줍니다.",
-    "askSecondB": "세컨비에게 묻기",
+    "askSecondB": "허슬케이에게 묻기",
     "openSource": "원래 화면 열기"
   }
 }

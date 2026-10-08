@@ -1,4 +1,7 @@
 {
+  "textFormat": {
+    "general": "Standard"
+  },
   "submit": "Save piece",
   "submitting": "Saving...",
   "submitHints": {
@@ -51,7 +54,7 @@
   "modes": {
     "journal": {
       "label": "Journal",
-      "help": "Write about today and save it to your records. You can also ask SecondB for its thoughts on the entry."
+      "help": "Write about today and save it to your records. You can also ask HustleK for its thoughts on the entry."
     },
     "memo": {
       "label": "Note",
@@ -127,10 +130,10 @@
     "seeRecordsHint": "Opens your records so you can find this entry again.",
     "captureMore": "Capture more",
     "recordsOwnership": "One sentence is enough for today. This entry is in Records, so you can reread it and include it in an export later.",
-    "recordsAiOptIn": "SecondB can read and respond to this entry only if you turn on this switch.",
+    "recordsAiOptIn": "HustleK can read and respond to this entry only if you turn on this switch.",
     "storagePending": "Your text was saved, but the backup file didn't upload.",
     "advisor": {
-      "heading": "SecondB note",
+      "heading": "HustleK note",
       "sources": "Sources",
       "whyThis": "Why this",
       "evidenceFallback": "No description is available for this source."
@@ -143,7 +146,7 @@
     "saveShare": "Save and share",
     "dismissLabel": "Dismiss suggested format",
     "notNow": "Not now",
-    "prompt": "No saved format fits this well. Want SecondB to suggest one?",
+    "prompt": "No saved format fits this well. Want HustleK to suggest one?",
     "drafting": "Suggesting...",
     "action": "Suggest a format"
   },
@@ -179,10 +182,10 @@
       "placeholder": "One thought to take from today"
     },
     "advisor": {
-      "label": "Ask SecondB about this entry",
-      "helper": "Off by default. Turn it on if you'd like SecondB's thoughts on this entry.",
-      "lockedLabel": "Ask SecondB about this entry (Brain)",
-      "lockedHelper": "SecondB can respond to your entries on the Brain plan. Tap to view plans.",
+      "label": "Ask HustleK about this entry",
+      "helper": "Off by default. Turn it on if you'd like HustleK's thoughts on this entry.",
+      "lockedLabel": "Ask HustleK about this entry (Brain)",
+      "lockedHelper": "HustleK can respond to your entries on the Brain plan. Tap to view plans.",
       "lockedHint": "Opens the plans screen"
     }
   },
@@ -233,7 +236,7 @@
   "tags": {
     "title": "Hashtags",
     "removeLabel": "Remove hashtag {{tag}}",
-    "emptyHelper": "Leave empty and SecondB will tag it on save, or add your own with +.",
+    "emptyHelper": "Leave empty and HustleK will tag it on save, or add your own with +.",
     "removeHelper": "Tap a tag to remove.",
     "addLabel": "Add hashtag",
     "placeholder": "tag"

@@ -3,7 +3,7 @@
     "eyebrow": "04. Wiki",
     "title": "Seus registros organizados",
     "subtitle": "Encontre os registros que salvou no PolaScope",
-    "speech": "Abra um registro, salve outro ou faça uma pergunta ao SecondB."
+    "speech": "Abra um registro, salve outro ou faça uma pergunta ao HustleK."
   },
   "capture": "Captura",
   "export": "Criar exportação",
@@ -74,7 +74,7 @@
   "conceptsLabel": "Conceitos: ",
   "reflectionQuestions": "Perguntas de reflexão",
   "seeInGraph": "Ver no gráfico",
-  "askSecondB": "Perguntar ao SecondB",
+  "askSecondB": "Perguntar ao HustleK",
   "deletePage": "Excluir página",
   "opened": "Você abriu {{name}}",
   "kindBreakdown": "{{s}} fontes · {{e}} nomes · {{c}} ideias",
@@ -85,6 +85,6 @@
   "addTagFilter": "Adicionar filtro de etiqueta {{tag}}",
   "buildBriefFor": "Criar resumo de fonte para {{title}}",
   "seeInGraphFor": "Ver {{title}} no gráfico",
-  "askAbout": "Pergunte ao SecondB sobre {{title}}",
+  "askAbout": "Pergunte ao HustleK sobre {{title}}",
   "deletePageFor": "Excluir a página wiki {{title}}"
 }

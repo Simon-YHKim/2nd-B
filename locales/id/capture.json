@@ -1,4 +1,7 @@
 {
+  "textFormat": {
+    "general": "Umum"
+  },
   "submit": "Simpan catatan",
   "submitting": "Menyimpan...",
   "submitHints": {
@@ -51,7 +54,7 @@
   "modes": {
     "journal": {
       "label": "Jurnal",
-      "help": "Tulis tentang harimu dan simpan ke catatan. Kamu juga bisa meminta tanggapan SecondB."
+      "help": "Tulis tentang harimu dan simpan ke catatan. Kamu juga bisa meminta tanggapan HustleK."
     },
     "memo": {
       "label": "Catatan",
@@ -101,10 +104,10 @@
     "seeRecordsHint": "Membuka catatanmu agar kamu bisa menemukan entri ini lagi.",
     "captureMore": "Simpan bahan lain",
     "recordsOwnership": "Satu kalimat cukup untuk hari ini. Entri ini ada di Catatan, jadi kamu bisa membacanya lagi dan memasukkannya ke ekspor nanti.",
-    "recordsAiOptIn": "SecondB hanya menanggapi entri ini jika kamu menyalakan opsi tersebut.",
+    "recordsAiOptIn": "HustleK hanya menanggapi entri ini jika kamu menyalakan opsi tersebut.",
     "storagePending": "Teks tersimpan, tetapi salinan file cadangan belum terunggah.",
     "advisor": {
-      "heading": "Catatan SecondB",
+      "heading": "Catatan HustleK",
       "sources": "Sumber",
       "whyThis": "Mengapa ini",
       "evidenceFallback": "Sumber tercantum tanpa catatan singkat."
@@ -117,7 +120,7 @@
     "saveShare": "Simpan dan bagikan",
     "dismissLabel": "Abaikan format yang disarankan",
     "notNow": "Nanti saja",
-    "prompt": "Tidak ada format tersimpan yang cocok. Mau SecondB menyarankan satu?",
+    "prompt": "Tidak ada format tersimpan yang cocok. Mau HustleK menyarankan satu?",
     "drafting": "Menyarankan...",
     "action": "Sarankan format"
   },
@@ -153,9 +156,9 @@
       "placeholder": "Kesimpulan: pelajaran hari ini"
     },
     "advisor": {
-      "label": "Tanya SecondB soal entri ini",
-      "helper": "Nonaktif secara default. Nyalakan jika kamu ingin tanggapan SecondB.",
-      "lockedLabel": "Tanya SecondB soal entri ini (Brain)",
+      "label": "Tanya HustleK soal entri ini",
+      "helper": "Nonaktif secara default. Nyalakan jika kamu ingin tanggapan HustleK.",
+      "lockedLabel": "Tanya HustleK soal entri ini (Brain)",
       "lockedHelper": "Refleksi atas entri terbuka dengan paket Brain. Ketuk untuk lihat paket.",
       "lockedHint": "Membuka layar paket."
     }
@@ -207,7 +210,7 @@
   "tags": {
     "title": "Tagar",
     "removeLabel": "Hapus tagar {{tag}}",
-    "emptyHelper": "Biarkan kosong dan SecondB akan menandainya saat disimpan, atau tambah sendiri dengan +.",
+    "emptyHelper": "Biarkan kosong dan HustleK akan menandainya saat disimpan, atau tambah sendiri dengan +.",
     "removeHelper": "Ketuk tagar untuk menghapus.",
     "addLabel": "Tambah tagar",
     "placeholder": "tagar"

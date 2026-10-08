@@ -42,7 +42,7 @@
           "icon": "auto_awesome",
           "dom": "관계",
           "tone": "primary",
-          "text": "세컨비와 대화: 엄마에게 먼저 전화한 일에 대해"
+          "text": "허슬케이와 대화: 엄마에게 먼저 전화한 일에 대해"
         },
         {
           "time": "오후 1:20",
@@ -116,7 +116,7 @@
     {
       "icon": "verified",
       "t": "분석 품질은 그대로예요",
-      "s": "광고를 봐도 세컨비가 더 똑똑해지지 않아요. 횟수만 늘어요."
+      "s": "광고를 봐도 허슬케이가 더 똑똑해지지 않아요. 횟수만 늘어요."
     },
     {
       "icon": "shield",
@@ -221,5 +221,5 @@
     "이번 주",
     "지난 주"
   ],
-  "headAsset": "assets/deepspace/secondb-head-front.png"
+  "headAsset": "assets/hustlek/A01-neutral.png"
 }

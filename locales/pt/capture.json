@@ -1,4 +1,7 @@
 {
+  "textFormat": {
+    "general": "Padrão"
+  },
   "submit": "Salvar registro",
   "submitting": "Salvando...",
   "submitHints": {
@@ -51,7 +54,7 @@
   "modes": {
     "journal": {
       "label": "Diário",
-      "help": "Escreva a reflexão de hoje. Salva nos seus registros, com reflexão opcional do SecondB."
+      "help": "Escreva a reflexão de hoje. Salva nos seus registros, com reflexão opcional do HustleK."
     },
     "memo": {
       "label": "Nota",
@@ -101,10 +104,10 @@
     "seeRecordsHint": "Abre seus registros para você encontrar esta entrada novamente.",
     "captureMore": "Capturar mais",
     "recordsOwnership": "Uma frase já basta por hoje. Esta entrada está em Registros, então você pode reler e incluir em uma exportação mais tarde.",
-    "recordsAiOptIn": "O SecondB só analisa esta entrada se você ativar esta opção.",
+    "recordsAiOptIn": "O HustleK só analisa esta entrada se você ativar esta opção.",
     "storagePending": "Salvo, mas o backup do arquivo não foi enviado desta vez. O texto foi salvo.",
     "advisor": {
-      "heading": "Nota do SecondB",
+      "heading": "Nota do HustleK",
       "sources": "Fontes",
       "whyThis": "Por que isto",
       "evidenceFallback": "Fonte listada sem nota curta."
@@ -117,7 +120,7 @@
     "saveShare": "Salvar e compartilhar",
     "dismissLabel": "Descartar formato sugerido",
     "notNow": "Agora não",
-    "prompt": "Nenhum formato salvo combina bem com isso. Quer que o SecondB sugira um?",
+    "prompt": "Nenhum formato salvo combina bem com isso. Quer que o HustleK sugira um?",
     "drafting": "Sugerindo...",
     "action": "Sugerir um formato"
   },
@@ -153,9 +156,9 @@
       "placeholder": "Conclusão: o que você leva de hoje"
     },
     "advisor": {
-      "label": "Pedir uma análise ao SecondB",
-      "helper": "Desativado por padrão. Ative se quiser uma análise do SecondB.",
-      "lockedLabel": "Pedir uma análise ao SecondB (Brain)",
+      "label": "Pedir uma análise ao HustleK",
+      "helper": "Desativado por padrão. Ative se quiser uma análise do HustleK.",
+      "lockedLabel": "Pedir uma análise ao HustleK (Brain)",
       "lockedHelper": "Reflexões sobre entradas desbloqueiam com o plano Brain. Toque para ver os planos.",
       "lockedHint": "Abre a tela de planos."
     }
@@ -207,7 +210,7 @@
   "tags": {
     "title": "Etiquetas",
     "removeLabel": "Remover hashtag {{tag}}",
-    "emptyHelper": "Deixe vazio e o SecondB vai adicionar hashtags ao salvar, ou adicione as suas com +.",
+    "emptyHelper": "Deixe vazio e o HustleK vai adicionar hashtags ao salvar, ou adicione as suas com +.",
     "removeHelper": "Toque em uma hashtag para remover.",
     "addLabel": "Adicionar hashtag",
     "placeholder": "hashtag"

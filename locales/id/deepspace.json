@@ -246,7 +246,7 @@
   "support": {
     "title": "Dukungan",
     "prompt": "Apa yang ingin kamu tanyakan?",
-    "askSecondb": "Tanya SecondB",
+    "askSecondb": "Tanya HustleK",
     "viewManual": "Lihat manual",
     "emailUs": "Email kami",
     "reportBug": "Laporkan bug",
@@ -256,7 +256,7 @@
     "faqs": {
       "brightness": {
         "q": "Apa beda kecerahan (cahaya bintang) dan tingkat keyakinan?",
-        "a": "Cahaya bintang menunjukkan seberapa banyak yang sudah kamu simpan di area itu; tingkat keyakinan menunjukkan seberapa jauh perkiraan SecondB sudah diverifikasi. Keduanya bergerak sendiri-sendiri."
+        "a": "Cahaya bintang menunjukkan seberapa banyak yang sudah kamu simpan di area itu; tingkat keyakinan menunjukkan seberapa jauh perkiraan HustleK sudah diverifikasi. Keduanya bergerak sendiri-sendiri."
       },
       "plan": {
         "q": "Apakah paket berbayar membuatnya lebih pintar?",
@@ -269,7 +269,7 @@
     },
     "notices": {
       "modes": {
-        "t": "Tiga mode SecondB telah hadir",
+        "t": "Tiga mode HustleK telah hadir",
         "tag": "Baru"
       },
       "museum": {
@@ -344,7 +344,7 @@
     "soundEffectsNote": "Suara teleskop, foto bintang, dan pembukaan. Tetap mati saat ponsel dalam mode senyap atau getar."
   },
   "manual": {
-    "askDirect": "Tanya SecondB langsung",
+    "askDirect": "Tanya HustleK langsung",
     "replayCoachmarks": "Putar ulang panduan beranda"
   },
   "plans": {
@@ -354,11 +354,11 @@
     "recommended": "Direkomendasikan",
     "perMonth": "/ bln",
     "proFeat1": "Tes tanpa batas · konsistensi berulang",
-    "proFeat2": "Obrolan SecondB tanpa batas · berimajinasi",
+    "proFeat2": "Obrolan HustleK tanpa batas · berimajinasi",
     "proFeat3": "Ekspor IDEN penuh",
     "proFeat4": "Saran tren · tinjauan",
     "currentPlan": "Sedang aktif",
-    "freeFeat": "Simpan dasar · 1 tes per bintang · 5 obrolan SecondB/hari",
+    "freeFeat": "Simpan dasar · 1 tes per bintang · 5 obrolan HustleK/hari",
     "startPro": "Mulai paket berbayar",
     "loadingOffers": "Memuat paket...",
     "purchasing": "Memproses...",
@@ -625,12 +625,12 @@
   },
   "careerDrilldown": {
     "summaryFallback": "sebuah pengalaman karier",
-    "intro": "Uraikan pencapaianmu: 3C untuk alasannya, 4P untuk tindakan dan caranya. Setelah itu, SecondB akan menanyakan detailnya.",
+    "intro": "Uraikan pencapaianmu: 3C untuk alasannya, 4P untuk tindakan dan caranya. Setelah itu, HustleK akan menanyakan detailnya.",
     "summaryLabel": "Ringkasan satu baris",
     "summaryPlaceholder": "Apa yang kamu lakukan dan hasilnya - dalam satu baris",
     "expTypeA11y": "Jenis pengalaman",
     "expTypePlaceholder": "Pilih jenis pengalaman",
-    "submit": "Telusuri bersama SecondB",
+    "submit": "Telusuri bersama HustleK",
     "saveFailed": "Tidak dapat menyimpan. Yang kamu tulis masih ada; coba lagi."
   },
   "shareCard": {
@@ -647,7 +647,7 @@
     "fallbackInsight": "Memahami diriku secara mendalam, hidup lebih seperti diriku."
   },
   "coachmarks": {
-    "homeStep": "Ketuk SecondB untuk mulai menyimpan catatan.",
+    "homeStep": "Ketuk HustleK untuk mulai menyimpan catatan.",
     "formatStep": "Pilih Memo terlebih dahulu. Satu baris sudah cukup.",
     "inputStep": "Tulis pikiranmu saat ini. Tidak harus berupa kalimat lengkap.",
     "saveStep": "Terakhir, ketuk Simpan untuk menyimpan catatan ini.",
@@ -701,7 +701,7 @@
   "shareCardImg": {
     "eyebrowWeek": "POLASCOPE · MINGGU INI",
     "eyebrowConstellation": "KONSTELASI SAYA",
-    "footerWeek": "Seminggu yang dilihat bersama SecondB",
+    "footerWeek": "Seminggu yang dilihat bersama HustleK",
     "starsLit": "{{count}} bintang bersinar",
     "signature": "PolaScope · {{count}} serpihan bintang"
   },
@@ -796,7 +796,7 @@
       "freeName": "Pengamat bintang",
       "freeSub": "Baru memulai",
       "freePrice": "Gratis",
-      "freeFeat1": "5 obrolan sehari dengan SecondB",
+      "freeFeat1": "5 obrolan sehari dengan HustleK",
       "freeFeat2": "Cari keterkaitan 2x seminggu",
       "freeFeat3": "Semua 7 bintang · catatan tanpa batas",
       "plusName": "Penjelajah",
@@ -910,9 +910,9 @@
     },
     "northstar": {
       "title": "Kalimat Bintang Utara",
-      "sub": "SecondB menyusunnya dari tujuh bintangmu. Ubah dengan kata-katamu sendiri.",
+      "sub": "HustleK menyusunnya dari tujuh bintangmu. Ubah dengan kata-katamu sendiri.",
       "placeholder": "Memahami diriku secara mendalam dan hidup lebih seperti diriku.",
-      "suggestLabel": "Draf SecondB",
+      "suggestLabel": "Draf HustleK",
       "thinking": "Menyusun draf",
       "propose": "Lihat draf lain",
       "cancel": "Batal",
@@ -960,7 +960,7 @@
     "reasoningScreen": {
       "autoTitle": "Keterkaitan otomatis",
       "autoPaused": "Batas tercapai · otomatis lanjut Senin",
-      "autoBody": "SecondB menghubungkan setiap item saat kamu menyimpannya",
+      "autoBody": "HustleK menghubungkan setiap item saat kamu menyimpannya",
       "autoNote": "Jalankan otomatis memakai satu jatah mingguan dan selalu menyisakan satu untuk manual.",
       "queuedRecord": "Catatan baru · dalam antrean",
       "queuedSource": "Sumber baru · dalam antrean",
@@ -998,7 +998,7 @@
       "doneSummary": "{{n}} keterkaitan diusulkan. Pilih hanya yang ingin kamu terapkan.",
       "runningSummary": "Membaca {{total}} item · {{done}} / {{total}}",
       "doneNote": "Hanya usulan yang dipilih yang diterapkan. Item yang tidak dipilih tetap seperti semula.",
-      "runningNote": "Kamu boleh meninggalkan layar ini. SecondB akan memberi tahu saat sudah siap.",
+      "runningNote": "Kamu boleh meninggalkan layar ini. HustleK akan memberi tahu saat sudah siap.",
       "weekLabel": "Penalaran minggu ini",
       "capturedItems": "Item yang disimpan",
       "selectProposals": "Pilih usulan",
@@ -1052,7 +1052,7 @@
     "lockSection": "Layar kunci",
     "lockNotif": "Mau menuliskan satu baris tentang hari ini?",
     "pushSection": "Notifikasi push",
-    "pushHead": "SecondB · sekarang",
+    "pushHead": "HustleK · sekarang",
     "pushBody": "Ada wawasan baru menunggu ulasanmu. Setujui dan itu akan tampil di bintangmu.",
     "notifSettings": "Pengaturan notifikasi"
   },
@@ -1064,7 +1064,7 @@
     "pieceHere": "Tersimpan di sini",
     "pieceOpenHint": "Membuka catatan ini.",
     "briefingOpening": "Membuka bintang ini…",
-    "briefingEmpty": "Belum ada catatan di bintang ini. Simpan sesuatu dan SecondB membaca polanya.",
+    "briefingEmpty": "Belum ada catatan di bintang ini. Simpan sesuatu dan HustleK membaca polanya.",
     "briefingCountOne": "{{n}} catatan di bintang ini, yang terbaru dulu.",
     "briefingCount": "{{n}} catatan di bintang ini, yang terbaru dulu."
   },
@@ -1072,7 +1072,7 @@
     "nextHint": "Ke slide berikutnya.",
     "skipHint": "Melewati intro dan membuka layar masuk.",
     "authHint": "Membuka layar masuk.",
-    "secondbName": "SecondB",
+    "secondbName": "HustleK",
     "authTitle": "Siap memulai?",
     "authBody": "Catatanmu tetap milikmu. Kamu meninjau dan menyetujui ringkasannya sebelum diterapkan.",
     "next": "Berikutnya",
@@ -1082,7 +1082,7 @@
     "slides": {
       "intro": {
         "title": "AI yang mengenal\ndirimu",
-        "body": "SecondB memakai catatanmu\nuntuk membantu merapikan pikiran\ndan merencanakan harimu."
+        "body": "HustleK memakai catatanmu\nuntuk membantu merapikan pikiran\ndan merencanakan harimu."
       },
       "stars": {
         "tag": "Mengenal dirimu",

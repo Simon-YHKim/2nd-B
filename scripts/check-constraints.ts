@@ -2311,7 +2311,7 @@ results.push(
         '"common"',
         '"language"',
         '"checking": "Checking',
-        '"entryArtwork": "SecondB entry artwork"',
+        '"entryArtwork": "HustleK entry artwork"',
         '"switchToEnglishLabel": "Use English on the sign-in screen"',
         '"switchToKoreanLabel": "Use Korean on the sign-in screen"',
         '"resetBody": "Enter your account email above',
@@ -2329,7 +2329,7 @@ results.push(
         '"common"',
         '"language"',
         '"checking": "확인하는 중',
-        '"entryArtwork": "세컨비 입장 이미지"',
+        '"entryArtwork": "허슬케이 입장 이미지"',
         '"switchToEnglishLabel": "로그인 화면을 영어로 변경"',
         '"switchToKoreanLabel": "로그인 화면을 한국어로 변경"',
         '"resetBody": "가입할 때 쓴 이메일을 입력하고',
@@ -2342,6 +2342,7 @@ results.push(
       const forbiddenScreenCopy = [
         "Checking…",
         "SecondB entry artwork",
+        "HustleK entry artwork",
         "Switch sign-up language to English",
         "회원가입 언어를 한국어로 변경",
         "Enter your account password.",
@@ -2352,6 +2353,7 @@ results.push(
         "New here? Read the 1-min user guide",
         "확인하는 중…",
         "세컨비 입장 이미지",
+        "허슬케이 입장 이미지",
         "입력한 비밀번호를 보여줍니다.",
         "비밀번호를 잊으셨나요?",
         "가입 이메일 주소로 support@2nd-brain.app",
@@ -2390,6 +2392,7 @@ results.push(
         "This piece has no body text",
         "See in graph",
         "Ask SecondB",
+        "Ask HustleK",
         "Open its screen",
       ];
       const ok =
@@ -2618,14 +2621,14 @@ results.push(
     ];
     const forbiddenSettings = ["Tune the village rules", "마을의 규칙"];
     const ok =
-      readme.includes("**SecondB chat**") &&
+      readme.includes("**HustleK chat**") &&
       readme.includes("grounded in saved records and validated frameworks") &&
       // 계약은 "안내서가 세컨비의 근거를 설명한다" 이고 그건 살아 있다 — 표현만
       // 바뀌었다. 옛 문구("ask SecondB for a reflection" · "sources SecondB cites" ·
       // "세컨비의 되묻기")를 그대로 찾으면 **말이 바뀐 것을 계약이 깨진 것으로** 읽는다.
-      manual.includes("SecondB reads that original material when it answers") &&
-      manual.includes("세컨비는 북극성 요약이 아니라 그 원문을 읽습니다") &&
-      manual.includes("Ask SecondB in your own words") &&
+      manual.includes("HustleK reads that original material when it answers") &&
+      manual.includes("허슬케이는 북극성 요약이 아니라 그 원문을 읽습니다") &&
+      manual.includes("Ask HustleK in your own words") &&
       read("locales/en/settings.json").includes("Adjust your app settings") &&
       read("locales/ko/settings.json").includes("앱 설정을 바꿀 수 있습니다") &&
       forbiddenReadme.every((term) => !readme.includes(term)) &&
@@ -2636,7 +2639,7 @@ results.push(
       status: ok ? "PASS" : "FAIL",
       note: ok
         ? "README/manual/settings visible guidance copy avoids old Advisor and village-rules wording"
-        : "README/manual/settings guidance copy should use SecondB/settings wording instead of old Advisor or village-rule wording",
+        : "README/manual/settings guidance copy should use HustleK/settings wording instead of old Advisor or village-rule wording",
     };
   }),
 );
@@ -2863,8 +2866,8 @@ results.push(
     const ok =
       codeRequiredSnippets.every((snippet) => formats.includes(snippet)) &&
       requiredLocaleKeys.every((key) => enFormats.includes(key) && koFormats.includes(key)) &&
-      enFormats.includes("Formats you save from SecondB's suggestions") &&
-      koFormats.includes("세컨비가 제안한 형식") &&
+      enFormats.includes("Formats you save from HustleK's suggestions") &&
+      koFormats.includes("허슬케이가 제안한 형식") &&
       forbiddenScreenCopy.every((term) => !formats.includes(term));
     return {
       id: "FormatsOperationalI18nCopy",
@@ -2925,8 +2928,8 @@ results.push(
       flow.includes('t("add.cancel")') &&
       enFormats.includes('"add"') &&
       koFormats.includes('"add"') &&
-      enFormats.includes("SecondB will suggest sorting rules") &&
-      koFormats.includes("세컨비가 다음에도 쓸 수 있는") &&
+      enFormats.includes("HustleK will suggest sorting rules") &&
+      koFormats.includes("허슬케이가 다음에도 쓸 수 있는") &&
       requiredKeys.every((key) => enFormats.includes(key) && koFormats.includes(key)) &&
       forbiddenFlowCopy.every((term) => !flow.includes(term));
     return {

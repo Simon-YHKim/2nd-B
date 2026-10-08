@@ -41,10 +41,10 @@ describe("rev2 세컨비 personas (PRD v2.0)", () => {
     }
     expect(rev2PersonaName("meta", "ko")).toBe("메타비");
     expect(rev2PersonaName("twi", "ko")).toBe("트위비");
-    expect(rev2PersonaName("secondb", "en")).toBe("2nd-B");
-    expect(rev2PersonaName("secondb", "ko")).toBe("2nd-B");
-    expect(rev2PersonaTag("secondb", "en")).toBe("2nd-B");
-    expect(rev2PersonaTag("secondb", "ko")).toBe("2nd-B");
+    expect(rev2PersonaName("secondb", "en")).toBe("HustleK");
+    expect(rev2PersonaName("secondb", "ko")).toBe("허슬케이");
+    expect(rev2PersonaTag("secondb", "en")).toBe("HustleK");
+    expect(rev2PersonaTag("secondb", "ko")).toBe("HustleK");
   });
 
   test("트위비 owns the divergent engine mode; the others stay analytic", () => {

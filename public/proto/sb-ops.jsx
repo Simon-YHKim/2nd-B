@@ -38,7 +38,7 @@ function AnalysisDock({ job }) {
       <div style={{ position: 'relative', width: 26, height: 26, flex: '0 0 auto' }}>
         <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `2.5px solid ${C('inverse-primary')}`,
           borderTopColor: 'transparent', animation: 'sb-spin .8s linear infinite' }} />
-        <img src="assets/deepspace/secondb-head-front.png" alt="" style={{ position: 'absolute', inset: 4, width: 18, height: 18 }} />
+        <img src="assets/hustlek/A01-neutral.png" alt="" style={{ position: 'absolute', inset: 4, width: 18, height: 18 }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="md-body-medium" style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{job.label}</div>
@@ -150,7 +150,7 @@ function OpsScreen({ t, go, env }) {
   const R = 22,CIRC = 2 * Math.PI * R;
   const runAction = (a) => {
     if (a.route) { go(a.route); return; }
-    if (a.reminder) go('reminders', { prefill: { ...a.reminder, src: '세컨비 종합 의견' } });
+    if (a.reminder) go('reminders', { prefill: { ...a.reminder, src: '허슬케이 종합 의견' } });
   };
 
   return (
@@ -217,7 +217,7 @@ function OpsScreen({ t, go, env }) {
         background: 'linear-gradient(160deg, var(--md-sys-color-surface-container-high), var(--md-sys-color-surface-container-low))' }}>
         {/* 세컨비 + 핵심 제안 */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          <img src="assets/deepspace/secondb-head-front.png" alt="세컨비" style={{ width: 46, height: 46, flex: '0 0 auto', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,.35))' }} />
+          <img src="assets/hustlek/A01-neutral.png" alt="허슬케이" style={{ width: 46, height: 46, flex: '0 0 auto', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,.35))' }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <span className="md-label-small" style={{ color: C('on-surface-variant') }}>{adv.star} 별 · 오늘 가장 중요한 한 가지</span>
             <div className="md-title-medium" style={{ color: C('on-surface'), wordBreak: 'keep-all', lineHeight: 1.45, marginTop: 2 }}>{adv.headline}</div>

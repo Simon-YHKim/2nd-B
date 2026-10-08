@@ -182,7 +182,7 @@ describe("sendChatMessage", () => {
     const llmArgs = geminiCall?.args[0] as { system: string; purpose: string; user: string };
     expect(llmArgs.purpose).toBe("secondb_chat");
     expect(llmArgs.user).toBe("hello");
-    expect(llmArgs.system).toContain("SecondB"); // header
+    expect(llmArgs.system).toContain("HustleK"); // header
   });
 
   // 0090 rewarded ads widen TODAY's allowance, and checkChatLimit deliberately
@@ -314,7 +314,7 @@ describe("sendChatMessage", () => {
     expect(llmArgs.system).not.toContain("turn-0"); // only the last 6 survive
     expect(llmArgs.system).not.toContain("turn-1");
     expect(llmArgs.system).toContain("User: turn-2");
-    expect(llmArgs.system).toContain("SecondB: turn-7");
+    expect(llmArgs.system).toContain("HustleK: turn-7");
     // per-turn clipping: the 600-char turn is cut to the 500 budget
     expect(llmArgs.system).not.toContain("x".repeat(501));
   });

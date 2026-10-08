@@ -3,7 +3,7 @@
     "eyebrow": "04. Knowledge store",
     "title": "Find what you've saved",
     "subtitle": "Your saved records and material in one place",
-    "speech": "Add a new record or ask SecondB about what you've saved."
+    "speech": "Add a new record or ask HustleK about what you've saved."
   },
   "capture": "Capture",
   "export": "Export",
@@ -74,7 +74,7 @@
   "conceptsLabel": "Concepts: ",
   "reflectionQuestions": "Questions to think about",
   "seeInGraph": "See in graph",
-  "askSecondB": "Ask SecondB",
+  "askSecondB": "Ask HustleK",
   "deletePage": "Delete page",
   "opened": "Opened {{name}}",
   "kindBreakdown": "{{s}} sources · {{e}} names · {{c}} ideas",
@@ -85,6 +85,6 @@
   "addTagFilter": "Add tag filter {{tag}}",
   "buildBriefFor": "Create summary and questions for {{title}}",
   "seeInGraphFor": "See {{title}} in graph",
-  "askAbout": "Ask SecondB about {{title}}",
+  "askAbout": "Ask HustleK about {{title}}",
   "deletePageFor": "Delete wiki page {{title}}"
 }

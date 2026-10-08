@@ -152,7 +152,7 @@ function HbActivityCard({ C, it, idx, total, onChange, onDelete, onMove }) {
           {missingMotiv &&
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
               <Icon name="info" size={13} style={{ color: C('tertiary'), flex: '0 0 auto' }} />
-              <span className="md-label-small" style={{ color: C('on-surface-variant') }}>동기를 채울수록 세컨비가 더 또렷이 읽어요.</span>
+              <span className="md-label-small" style={{ color: C('on-surface-variant') }}>동기를 채울수록 허슬케이가 더 또렷이 읽어요.</span>
             </div>}
         </div>
 
@@ -214,7 +214,7 @@ function HobbyInputScreen({ t, go, param }) {
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 16px 14px' }}>
         <div className="md-headline-small" style={{ color: C('on-surface'), margin: '8px 0 4px' }}>취미·여가 기록</div>
         <div className="md-body-medium" style={{ color: C('on-surface-variant'), marginBottom: 14, wordBreak: 'keep-all' }}>
-          활동을 나열하지 말고 <b style={{ color: C('on-surface') }}>왜·얼마나·어떤 맥락</b>으로 하는지 적어요. 세컨비는 그 신호로 ‘어떤 사람인지’를 읽어요.
+          활동을 나열하지 말고 <b style={{ color: C('on-surface') }}>왜·얼마나·어떤 맥락</b>으로 하는지 적어요. 허슬케이는 그 신호로 ‘어떤 사람인지’를 읽어요.
         </div>
 
         {/* tips (collapsible) */}

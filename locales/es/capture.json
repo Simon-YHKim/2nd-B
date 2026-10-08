@@ -1,4 +1,7 @@
 {
+  "textFormat": {
+    "general": "General"
+  },
   "submit": "Guardar pieza",
   "submitting": "Guardando...",
   "submitHints": {
@@ -51,7 +54,7 @@
   "modes": {
     "journal": {
       "label": "Diario",
-      "help": "Escribe sobre tu día. Se guarda en tus registros y, si quieres, puedes pedir a SecondB que lo comente."
+      "help": "Escribe sobre tu día. Se guarda en tus registros y, si quieres, puedes pedir a HustleK que lo comente."
     },
     "memo": {
       "label": "Nota",
@@ -101,10 +104,10 @@
     "seeRecordsHint": "Abre tus registros para que puedas encontrar esta entrada de nuevo.",
     "captureMore": "Capturar más",
     "recordsOwnership": "Una oración basta por hoy. Esta entrada está en Registros, así que puedes releerla e incluirla en una exportación más tarde.",
-    "recordsAiOptIn": "SecondB solo comenta esta entrada si activas esa opción.",
+    "recordsAiOptIn": "HustleK solo comenta esta entrada si activas esa opción.",
     "storagePending": "Guardado, pero la copia de respaldo no se subió esta vez. Tu texto está a salvo.",
     "advisor": {
-      "heading": "Nota de SecondB",
+      "heading": "Nota de HustleK",
       "sources": "Fuentes",
       "whyThis": "Por qué se sugiere",
       "evidenceFallback": "Fuente sin descripción."
@@ -117,7 +120,7 @@
     "saveShare": "Guardar y compartir",
     "dismissLabel": "Descartar formato sugerido",
     "notNow": "Ahora no",
-    "prompt": "No hay un formato adecuado entre los guardados. ¿Quieres pedir uno a SecondB?",
+    "prompt": "No hay un formato adecuado entre los guardados. ¿Quieres pedir uno a HustleK?",
     "drafting": "Sugiriendo...",
     "action": "Sugerir un formato"
   },
@@ -153,9 +156,9 @@
       "placeholder": "Qué te gustaría recordar de hoy"
     },
     "advisor": {
-      "label": "Preguntarle a SecondB sobre esta entrada",
+      "label": "Preguntarle a HustleK sobre esta entrada",
       "helper": "Desactivado por defecto. Actívalo solo cuando quieras recibir una reflexión.",
-      "lockedLabel": "Preguntarle a SecondB sobre esta entrada (Brain)",
+      "lockedLabel": "Preguntarle a HustleK sobre esta entrada (Brain)",
       "lockedHelper": "Las reflexiones sobre entradas se desbloquean con el plan Brain. Toca para ver los planes.",
       "lockedHint": "Abre la pantalla de planes."
     }
@@ -207,7 +210,7 @@
   "tags": {
     "title": "Etiquetas",
     "removeLabel": "Eliminar hashtag {{tag}}",
-    "emptyHelper": "Déjalo vacío y SecondB lo etiquetará al guardar, o añade el tuyo con +.",
+    "emptyHelper": "Déjalo vacío y HustleK lo etiquetará al guardar, o añade el tuyo con +.",
     "removeHelper": "Toca un hashtag para eliminarlo.",
     "addLabel": "Añadir hashtag",
     "placeholder": "hashtag"
