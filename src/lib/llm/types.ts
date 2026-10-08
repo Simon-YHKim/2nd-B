@@ -102,6 +102,9 @@ export interface PromptInput {
   signal?: AbortSignal;
   /** Server-owned Polaris reservation; never a client-side billing counter. */
   polarisGenerationId?: string;
+  /** Server reservation for the two independently claimable reasoning batches. */
+  reasoningRunId?: string;
+  reasoningSlot?: "records" | "sources";
   // Reasoning effort. Only honored on the pro (reasoning) tier — when this call
   // resolves to pro (explicit model:"pro" or a pro-tier purpose). Defaults to
   // "high". Ignored on lite/flash tiers. Purpose-keyed only, never

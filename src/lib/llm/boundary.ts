@@ -728,8 +728,13 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // and gives server logs call attribution. Labels are self-reported, so
       // the proxy's tier-aware cap + effort clamp are the hard ceilings.
       purpose: input.purpose,
-      // Optional image payload for multimodal OCR / vision prompts.
+      // The server claims each reasoning slot against its existing reservation.
+      ...(input.purpose === "reasoning_connect" ? {
+        reasoningRunId: input.reasoningRunId,
+        reasoningSlot: input.reasoningSlot,
+      } : {}),
       ...(input.polarisGenerationId ? { polarisGenerationId: input.polarisGenerationId, polarisLocale: input.locale } : {}),
+      // Optional image payload for multimodal OCR / vision prompts.
       ...(input.image ? { image: input.image } : {}),
       // Structured-output schema (e.g. phase1). The proxy sets
       // responseMimeType=application/json + responseSchema when present so
@@ -782,7 +787,8 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     // guard: retrying the proxy that just failed is not a failover.
     const failoverTarget = failoverVendor();
     const failoverFn = failoverTarget === "none" ? null : proxyFnForVendor(failoverTarget);
-    if (error && input.purpose !== "persona_synthesis" && failoverFn && failoverFn !== primaryFn) {
+    // Reservation-backed calls cannot reuse a claimed slot on another provider.
+    if (error && input.purpose !== "persona_synthesis" && input.purpose !== "reasoning_connect" && failoverFn && failoverFn !== primaryFn) {
       const vendorCrisis = await inspectProxyCrisisRejection(error);
       fence();
       if (vendorCrisis.route) {

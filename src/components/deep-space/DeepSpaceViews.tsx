@@ -32,6 +32,8 @@ import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { createRecord } from "@/lib/records/create";
+import { enqueueAutoReasoningRecord } from "@/app/reasoning";
+import { useProgression } from "@/lib/progression/useProgression";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { type HotlineId } from "@/lib/safety/lexicon";
 import { MdButton, MdCard, ProgressLinear, SegBtn, m3TextStyle } from "@/components/m3";
@@ -361,6 +363,7 @@ const CaptureTodoInput = forwardRef<TextInput, {
 export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: boolean } = {}) {
   const { t, i18n } = useTranslation(["home", "capture", "deepspace"]);
   const { userId, isMinor } = useAuth();
+  const progression = useProgression();
   const locale = i18n.language === "ko" ? "ko" : "en";
   const playSaveCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
   // rev2 P4a (device QA 2026-07-02) + clone-audit 06-capture: all modes save
@@ -683,6 +686,18 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
       // (capture.tsx handleJournalSubmit) instead of discarding the result.
       if (res.followup?.zone === "red") {
         setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+      } else {
+        // Same opt-in queue as full capture; saving itself never waits for AI.
+        enqueueAutoReasoningRecord({
+          userId,
+          locale,
+          minor: isMinor === true,
+          tier: progression.tier,
+          id: res.id,
+          body,
+          title: topic,
+          tags: res.tags,
+        });
       }
       setSaved(true);
       // 저장 소리(Q-261006-03): 위기 안내가 뜨는 메모는 '저장됨' 이 켜져도 무음이다.
