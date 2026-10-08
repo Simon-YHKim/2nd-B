@@ -184,14 +184,15 @@ async function removeAccountNotificationStorageKey(key: string): Promise<void> {
   }
 }
 
-async function cancelScheduledIdentifier(identifier: string): Promise<void> {
+async function cancelScheduledIdentifier(identifier: string, strict = false): Promise<void> {
   if (!Notifications) return;
   try {
     await withinOperationTimeout(
       () => Notifications.cancelScheduledNotificationAsync(identifier),
       DEFAULT_CLEANUP_TIMEOUT_MS,
     );
-  } catch {
+  } catch (error) {
+    if (strict) throw error;
     if (typeof console !== "undefined") {
       console.warn("[ops] stale local notification cancellation incomplete");
     }
@@ -298,14 +299,21 @@ export function routineReminderId(ownerId: string, routineId: string): string {
 }
 
 /** Cancel the OS notification scheduled under this routine's identifier. */
-export async function cancelRoutineReminder(ownerId: string, routineId: string): Promise<void> {
-  if (!remindersSupported() || !Notifications) return;
+export async function cancelRoutineReminder(
+  ownerId: string,
+  routineId: string,
+  options?: { strict?: boolean },
+): Promise<void> {
+  if (!remindersSupported() || !Notifications) {
+    if (options?.strict) throw new Error("Local notification cancellation unavailable.");
+    return;
+  }
   const lease = captureAccountOwnerLease(ownerId);
   if (!lease) return;
   const identifier = routineReminderId(ownerId, routineId);
   await runLocalNotificationMutation(async () => {
     if (!lease.isCurrent()) return;
-    await cancelScheduledIdentifier(identifier);
+    await cancelScheduledIdentifier(identifier, options?.strict);
   });
 }
 
