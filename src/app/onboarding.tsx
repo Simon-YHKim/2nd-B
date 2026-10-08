@@ -18,6 +18,7 @@ import { canonGlyph, type AnyGlyphName } from "@/components/pixel/pixel-glyphs";
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { Text } from "@/components/ui/Text";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { canonFlows } from "@/lib/canon";
 import { markOnboardingComplete, useOnboardingComplete } from "@/lib/onboarding/state";
@@ -71,6 +72,7 @@ export default function Onboarding() {
   // up, so finishing here does not swap the closing slide for a redirect.
   const onboardingComplete = useOnboardingComplete(userId, !loading);
   const [step, setStep] = useState(0);
+  const [stepMotion, setStepMotion] = useState<"page-forward" | "page-back">("page-forward");
   // 환영 소리(Q-261006-06)는 건너뛰기를 누른 사람에게는 내지 않는다. 건너뛰기도 같은 마지막
   // 단계로 이어지므로, 눌렀다는 사실을 따로 기억한다.
   const [skipped, setSkipped] = useState(false);
@@ -86,6 +88,7 @@ export default function Onboarding() {
   useEffect(() => {
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
       if (step > 0) {
+        setStepMotion("page-back");
         setStep((current) => current - 1);
         return true;
       }
@@ -146,7 +149,7 @@ export default function Onboarding() {
             background={m3.color.surfaceContainer}
             accessibilityLabel={skipLabel}
             accessibilityHint={skipHint}
-            onPress={() => { setSkipped(true); setStep(AUTH_STEP); }}
+            onPress={() => { setSkipped(true); setStepMotion("page-forward"); setStep(AUTH_STEP); }}
             contentStyle={styles.skipContent}
           >
             <Text variant="caption" style={styles.skipText}>{skipLabel}</Text>
@@ -154,6 +157,7 @@ export default function Onboarding() {
         ) : null}
       </View>
 
+      <SceneTransition transitionKey={step} kind={stepMotion} animateOnMount={false} style={{ flexGrow: 1 }}>
       {isAuth ? (
         <View style={styles.finalHero}>
           <SecondbHead
@@ -201,6 +205,7 @@ export default function Onboarding() {
         </View>
       )}
 
+      </SceneTransition>
       {isAuth ? (
         <View style={styles.authActions}>
           {userId && saveFailed ? (
@@ -286,7 +291,7 @@ export default function Onboarding() {
             background={m3.color.primary}
             accessibilityLabel={t("onboarding.next")}
             accessibilityHint={nextHint}
-            onPress={() => setStep((current) => Math.min(current + 1, AUTH_STEP))}
+            onPress={() => { setStepMotion("page-forward"); setStep((current) => Math.min(current + 1, AUTH_STEP)); }}
             contentStyle={styles.nextContent}
           >
             <Text variant="body" style={styles.primaryButtonText}>{t("onboarding.next")}</Text>

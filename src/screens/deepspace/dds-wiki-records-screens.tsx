@@ -1,4 +1,5 @@
 import { PhoneFlatList as FlatList, PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
@@ -549,6 +550,7 @@ export function DeepSpaceRecordsScreen() {
 
   return (
     <DeepSpaceScreen active="wiki" header="none" showSharedSky={view === "graph"}>
+      <SceneTransition transitionKey={view} kind="replace" animateOnMount={false} style={{ flex: 1, minHeight: 0 }}>
       {view === "list" ? (
         <View style={rStyles.listPane}>
           {/* The records list is virtualized (FlatList) and is the ONLY vertical
@@ -640,6 +642,7 @@ export function DeepSpaceRecordsScreen() {
           )}
         </View>
       )}
+      </SceneTransition>
     </DeepSpaceScreen>
   );
 }
@@ -897,6 +900,7 @@ export function DeepSpaceWikiScreen() {
           ))}
         </View>
       ) : null}
+      <SceneTransition transitionKey={wikiView} kind="replace" animateOnMount={false} style={{ gap: spacing.md }}>
       {loading ? (
         <GraphLoading />
       ) : wikiView === "graph" && graphPages.length > 0 ? (
@@ -976,6 +980,7 @@ export function DeepSpaceWikiScreen() {
           })}
         </>
       )}
+      </SceneTransition>
       </DockBody>
       </View>
     </DeepSpaceScreen>

@@ -178,7 +178,7 @@ background, white cells, system blue, iOS-style grouped lists, large titles and
 a dock. They stay pixel art: rounded corners are 2px stair steps built from
 integer rects (`PixelRoundRect`, never `borderRadius`), text is Galmuri, and
 translucency is banding or dither. So the PIXEL-CLAY rules (curves, radius,
-blur, static alpha, easing) still hold there. Colours come from
+blur, static alpha) still hold there. Colours come from
 `src/lib/theme/phone-ios.ts`, not hex literals in components; shared parts are
 in `src/components/dashboard/board/IosParts.tsx`.
 
@@ -191,6 +191,25 @@ The approved phone frame is a 230×408 cell drawing, rendered on a uniform
 `src/lib/dashboard/phone-frame-cells.json`. The home pages use the home
 handset's navy constellation wallpaper. Launcher icons have individual
 system-color backgrounds, stepped corners and pixel glyphs.
+
+### Screen transitions (Simon, 2026-10-08)
+
+Inside the phone, movement follows iPhone conventions: app surfaces open from
+a small scale, deeper pages arrive from the right, Back reveals from the left,
+and home pages move horizontally. Use the shared `sceneMotion("phone", …)`
+non-overshooting ease-out (280–320ms). This is a scoped exception to stepped
+easing for movement, not to pixel drawing or settled geometry.
+
+Outside the phone, route and page transitions use six discrete steps
+(180–240ms), whole-pixel translations, and no scaling. Modals and sheets use
+the same scope as their screen. Native platform transitions are disabled where
+the shared scene wrapper owns the motion, including on web.
+
+The OS reduced-motion preference and in-app lite mode settle movement
+immediately, including when toggled during a transition. Scene changes keep
+only the current content mounted; animation never delays navigation or keeps
+an old account's screen alive. Modal exits retain the native window only while
+its route is focused; blur tears it down immediately.
 Screens outside the phone continue to follow this document's general rules.
 
 ## 6. Reasoning contract

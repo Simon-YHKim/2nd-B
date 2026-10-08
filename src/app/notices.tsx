@@ -2,6 +2,7 @@ import { usePhoneDesign } from "@/lib/theme/phone-design-context";
 import { phoneIos } from "@/lib/theme/phone-ios";
 import { PixelScrim } from "@/components/pixel/PixelDither";
 import { ScreenModal } from "@/components/ui/ScreenModal";
+import { useModalExit } from "@/components/ui/useModalExit";
 import { PhoneFlatList as FlatList, PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Linking, Platform, StyleSheet } from "react-native";
@@ -264,6 +265,7 @@ export function NoticeDialog({
   total?: number;
 }) {
   const phone = usePhoneDesign();
+  const { closing, requestClose, completeClose } = useModalExit(visible);
   const { i18n } = useTranslation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
   const title = noticeText(notice.title, ko);
@@ -338,24 +340,20 @@ export function NoticeDialog({
     }
   };
 
-  // RN-web keeps a Modal portal mounted after `visible` flips in some route
-  // transitions. Do not leave an invisible dialog subtree available to input
-  // or capture tooling; native receives the same explicit unmount contract.
-  if (!visible) return null;
-
   return (
     <ScreenModal
-      visible={visible}
+      visible={visible && !closing}
       transparent
       animationType="fade"
       statusBarTranslucent
-      onRequestClose={onClose}
+      onRequestClose={() => requestClose(onClose)}
+      onExitComplete={completeClose}
     >
       <View style={[styles.scrim, phone && { backgroundColor: "transparent" }]} pointerEvents="auto" accessibilityViewIsModal>
         {phone ? <PixelScrim style={{ tintColor: phoneIos.label2 }} /> : null}
         <Pressable
           style={StyleSheet.absoluteFill}
-          onPress={onClose}
+          onPress={() => requestClose(onClose)}
           accessibilityRole="button"
           accessibilityLabel={ko ? "공지 닫기" : "Close notice"}
         />
@@ -458,13 +456,13 @@ export function NoticeDialog({
             <MdButton
               label={ko ? "리스트" : "List"}
               variant="text"
-              onPress={onList}
+              onPress={() => requestClose(onList)}
               style={styles.dialogButton}
             />
             <MdButton
               label={confirmLabel}
               variant={notice.kind === "maintenance" ? "tonal" : "filled"}
-              onPress={needsUpdate ? onUpdatePress : onConfirm}
+              onPress={needsUpdate ? onUpdatePress : () => requestClose(onConfirm)}
               style={styles.dialogButton}
             />
           </View>

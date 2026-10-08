@@ -1,3 +1,4 @@
+import { SceneTransition } from "@/components/motion/SceneTransition";
 // /capture v2 — multi-mode "자재 반입" screen.
 //
 // 5 input modes per user directive (2026-05-27):
@@ -3280,6 +3281,7 @@ ${transcript}`;
         iosKeyboardVerticalOffset={iosKeyboardVerticalOffset}
         style={{ flex: 1 }}
       >
+        <SceneTransition transitionKey={mode} kind="replace" animateOnMount={false} style={{ flex: 1, minHeight: 0 }}>
         <ScrollView
           contentContainerStyle={[
             styles.scroll,
@@ -4285,6 +4287,7 @@ ${transcript}`;
             </Pressable>
           ) : null}
         </ScrollView>
+        </SceneTransition>
       </KeyboardAvoidingArea>
       {/* The new shard's cue appears briefly (companion pack §3) */}
 

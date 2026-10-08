@@ -1,4 +1,5 @@
 import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { useModalExit } from "@/components/ui/useModalExit";
 import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Premium save flourish for the quant assessments (MBTI / BFI / ECR-S). On a
 // successful save we play a brief saved-cue moment over a dim scrim instead of a
@@ -22,6 +23,7 @@ import { spacing } from "@/lib/theme/tokens";
 const MOMENT = { cue: "journal_saved" } as const;
 
 export function QuantSaveCelebration({ message, onDone }: { message: string; onDone: () => void }) {
+  const { active, closing, requestClose, completeClose } = useModalExit();
   // Callers pass a fresh inline arrow for onDone each render, so keep the latest
   // in a ref and start the timer once on mount; parent re-renders during the
   // hold must not restart (and thus delay/cancel) the countdown.
@@ -35,14 +37,17 @@ export function QuantSaveCelebration({ message, onDone }: { message: string; onD
     // 저장 소리 재사용(Q-261006-10). 이 축하는 저장이 성공했을 때만 뜨고, 모달 위에서 1.6초 뒤
     // 다른 화면으로 넘어가므로 루트의 GlobalCueHost 가 낸다. 여섯 검사가 모두 여기를 지난다.
     requestGlobalCue("quantSaved");
+  }, []);
+  useEffect(() => {
+    if (!active) return;
     // CompanionMoment plays for ~1.5s; navigate just after it settles, or after
     // a short beat when motion is reduced (the moment then holds, doesn't fade).
-    const t = setTimeout(() => onDoneRef.current(), prefersReducedMotion() ? 900 : 1600);
+    const t = setTimeout(() => requestClose(() => onDoneRef.current()), prefersReducedMotion() ? 900 : 1600);
     return () => clearTimeout(t);
-  }, []);
+  }, [active, requestClose]);
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onDone}>
+    <Modal visible={!closing} transparent animationType="fade" onRequestClose={() => requestClose(() => onDoneRef.current())} onExitComplete={completeClose}>
       <View style={styles.scrim} accessibilityRole="alert" accessibilityLabel={message}>
       {/* 모달 스크림은 디더다 — 바탕을 모르는 자리라 평탄화가 아니라 격자로 가린다
           (PIXEL-CLAY 규칙 4). 반투명이 한 픽셀도 없다. */}

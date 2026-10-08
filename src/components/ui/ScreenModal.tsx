@@ -1,4 +1,4 @@
-import { Modal, type ModalProps } from "react-native";
+import { MotionModal as Modal, type MotionModalProps } from "./MotionModal";
 import { useIsFocused } from "expo-router";
 import { screenModalVisible } from "../../lib/ui/screen-modal-visible";
 
@@ -18,7 +18,7 @@ import { screenModalVisible } from "../../lib/ui/screen-modal-visible";
 //
 // It is its own component on purpose: a focus change re-renders this small
 // wrapper, not the whole screen that hosts it.
-export function ScreenModal(props: ModalProps) {
+export function ScreenModal(props: Omit<MotionModalProps, "active">) {
   const screenFocused = useIsFocused();
-  return <Modal {...props} visible={screenModalVisible(props.visible, screenFocused)} />;
+  return <Modal {...props} visible={screenModalVisible(props.visible, screenFocused)} active={screenFocused} />;
 }

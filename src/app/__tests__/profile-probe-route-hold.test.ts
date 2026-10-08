@@ -241,6 +241,9 @@ const layout = vm.createContext({
   Redirect: host("Redirect"),
   GateCover: gateCoverStub,
   AvatarSetupSceneGuard: avatarSceneGuardStub,
+  // Motion always renders the one current child; visibility is tested separately
+  // in world-route-transition. Keeping it transparent preserves this gate matrix.
+  WorldRouteTransition: ({ children }: Props) => children,
   ...profileProbe,
   useAuth: () => world.auth,
   useSegments: () => world.segments,
@@ -410,7 +413,7 @@ async function mount({
   return out;
 }
 
-const SCENE_MOUNTED = ["IntroGate", "ProfileProbeScope", "AccountScope", "RecordsScene"];
+const SCENE_MOUNTED = ["IntroGate", "ProfileProbeScope", "WorldRouteTransition", "AccountScope", "RecordsScene"];
 
 describe("profileRouteHold - 무엇을 그릴지 한 곳에서 정한다", () => {
   // 도크가 열던 목적지와 홈 · 대화 · 가져오기. undefined 는 "/"(index)다. useSegments() 가
@@ -544,7 +547,7 @@ describe("세션 주인이 없어도 콜드 스타트 오프닝이 먼저다", (
 
   test("이번 실행에서 오프닝을 마친 뒤에는 로그인 화면을 그대로 그린다", async () => {
     const mounted = await mount({ auth: SIGNED_OUT, route: SIGN_IN, introDone: true, scene: "exempt" });
-    expect(mounted.components).toEqual(["IntroGate", "ProfileProbeScope", "AccountScope", "ExemptScene"]);
+    expect(mounted.components).toEqual(["IntroGate", "ProfileProbeScope", "WorldRouteTransition", "AccountScope", "ExemptScene"]);
     expect(mounted.reads.records).toEqual([]);
   });
 });
@@ -558,7 +561,7 @@ describe("예외와 우선순위는 그대로다", () => {
   ])("$label 장면은 답을 기다리는 중에도 실패여도 그대로 그린다", async ({ route }) => {
     for (const auth of PENDING_OR_FAILED) {
       const mounted = await mount({ auth, route, scene: "exempt" });
-      expect(mounted.components).toEqual(["IntroGate", "ProfileProbeScope", "AccountScope", "ExemptScene"]);
+      expect(mounted.components).toEqual(["IntroGate", "ProfileProbeScope", "WorldRouteTransition", "AccountScope", "ExemptScene"]);
       expect(names(mounted)).toEqual(["AppTabBar"]);
     }
   });
@@ -570,7 +573,7 @@ describe("예외와 우선순위는 그대로다", () => {
         const away = await mount({ auth: { ...auth, ...recovery }, route: RECORDS_ROUTE });
         expect(away.hosts).toEqual([{ name: "Redirect", props: { href: "/reset-password" } }]);
         const onReset = await mount({ auth: { ...auth, ...recovery }, route: RESET_PASSWORD, scene: "exempt" });
-        expect(onReset.components).toEqual(["IntroGate", "ProfileProbeScope", "AccountScope", "ExemptScene"]);
+        expect(onReset.components).toEqual(["IntroGate", "ProfileProbeScope", "WorldRouteTransition", "AccountScope", "ExemptScene"]);
       }
     }
   });
@@ -610,7 +613,7 @@ describe("예외와 우선순위는 그대로다", () => {
     // 성인 · 프로필 완료 · 복구 아님: 리다이렉트 없이 장면이 그대로 마운트된다(채우기는 capture 화면의 main 경로).
     const shared = await mount({ auth: READY_ADULT, route: SHARED_CAPTURE, scene: "exempt" });
     expect(shared.hosts.filter((entry) => entry.name === "Redirect")).toEqual([]);
-    expect(shared.components).toEqual(["IntroGate", "ProfileProbeScope", "AccountScope", "ExemptScene"]);
+    expect(shared.components).toEqual(["IntroGate", "ProfileProbeScope", "WorldRouteTransition", "AccountScope", "ExemptScene"]);
     // 판정을 기다리는 동안은 main 처럼 덮개가 덮고, 공유 때문에 늦추거나 따로 붙드는 장치는 없다.
     const waiting = await mount({ auth: PROFILE_LOADING, route: SHARED_CAPTURE, scene: "exempt" });
     expect(waiting.hosts.filter((entry) => entry.name === "Redirect")).toEqual([]);

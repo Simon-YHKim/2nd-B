@@ -9,6 +9,7 @@ import { m3TextStyle } from "@/components/m3";
 import { PixelDither, PixelGateShell, PixelPressable, PixelScrim, PixelSurface } from "@/components/pixel";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { Text } from "@/components/ui/Text";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { useAppRouter, useHardwareBack } from "@/lib/nav/phone-embed";
@@ -634,6 +635,7 @@ function PixelBigFiveSurvey({
   const [phase, setPhase] = useState<"intro" | "questions" | "saved">("intro");
   const [responses, setResponses] = useState<BfiResponses>({});
   const [page, setPage] = useState(0);
+  const [pageMotion, setPageMotion] = useState<"page-forward" | "page-back">("page-forward");
   const [submitting, setSubmitting] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [exitOpen, setExitOpen] = useState(false);
@@ -740,6 +742,7 @@ function PixelBigFiveSurvey({
       title={t("big-five:counter")}
       onBack={requestBack}
     >
+      <SceneTransition transitionKey={`${phase}:${page}`} kind={phase === "questions" ? pageMotion : "replace"} animateOnMount={false} style={{ flex: 1, minHeight: 0 }}>
       {phase === "intro" ? (
         <ScrollView contentContainerStyle={styles.surveyScroll} keyboardShouldPersistTaps="handled">
           <SurveyIntro locale={locale} onStart={() => setPhase("questions")} onCancel={onCancel} />
@@ -810,7 +813,7 @@ function PixelBigFiveSurvey({
             <PixelAction
               label={t("common:quantBack")}
               icon="arrow_back"
-              onPress={() => setPage((current) => Math.max(0, current - 1))}
+              onPress={() => { setPageMotion("page-back"); setPage((current) => Math.max(0, current - 1)); }}
               disabled={page === 0 || submitting}
               accessibilityHint={t("common:quantPrevHint")}
             />
@@ -828,7 +831,7 @@ function PixelBigFiveSurvey({
               <PixelAction
                 label={t("common:quantNext")}
                 icon="arrow_forward"
-                onPress={() => setPage((current) => Math.min(BFI_PAGE_COUNT - 1, current + 1))}
+                onPress={() => { setPageMotion("page-forward"); setPage((current) => Math.min(BFI_PAGE_COUNT - 1, current + 1)); }}
                 disabled={submitting}
                 tone="primary"
                 accessibilityHint={t("common:quantNextHint")}
@@ -838,6 +841,7 @@ function PixelBigFiveSurvey({
         </ScrollView>
       )}
 
+      </SceneTransition>
       <ExitConfirm
         visible={exitOpen && phase === "questions" && !submitting}
         locale={locale}

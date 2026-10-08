@@ -163,7 +163,7 @@ test('brighten and welcome reach their sounds through the gate', () => {
   expect(shell).toContain('await writeStarLastSeen(userId, cue.next);');
   const onboarding = read('src/app/onboarding.tsx');
   expect(onboarding).toContain('if (welcomeCueAllowed({ destination, skipped })) requestGlobalCue("onboardingWelcome");');
-  expect(onboarding).toContain('onPress={() => { setSkipped(true); setStep(AUTH_STEP); }}');
+  expect(onboarding).toContain('onPress={() => { setSkipped(true); setStepMotion("page-forward"); setStep(AUTH_STEP); }}');
   // The welcome cue must outlive router.replace, so it is played by the root host, never by the screen.
   expect(onboarding).not.toContain('useUiSound');
   expect(read('src/app/_layout.tsx')).toContain('<GlobalCueHost />');

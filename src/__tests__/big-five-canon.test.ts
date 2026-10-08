@@ -436,13 +436,18 @@ describe("big-five PIXEL-CLAY route discipline", () => {
     // 는 바로 앞 본문이다. 바뀐 것은 각 파일 한 줄뿐이다 - 체크박스 · 라디오 Pressable 에
     // accessibilityState 와 같은 값의 aria-checked 를 더했다(react-native-web 은 accessibilityState 를
     // DOM 으로 옮기지 않아 웹 스크린리더가 선택 상태를 못 읽었다. web-aria-state.test.ts).
-    expect(normalizedHash(read("components/quant/QuantIntroModal.tsx"))).toBe("bb545819e3bfb23b8e5625bc8d8cbfc58e7c5a292352d1c3c1990492b1d0a110");
+    // 2026-10-08: introduction/save modals finish their scoped exit before the
+    // parent navigates; a covered route cannot auto-start or complete the hold.
+    // The save sound still runs once on mount. use-modal-exit tests pin teardown.
+    expect(normalizedHash(read("components/quant/QuantIntroModal.tsx"))).toBe("9f1810e4a366fae50e5e238163aba4d3239cb97ec867cfc8aa8587104278eaa1");
     expect(normalizedHash(read("components/quant/LikertChoiceGroup.tsx"))).toBe("6d0ed71cb28cdef8cbe4f23acb5fe0466e4ab3feba0d1933209ab125637b3d29");
     // 이 래칫은 "바뀌면 누군가 알아채라"는 것이지 "절대 손대지 말라"가 아니다.
     // 이번에 QuantPager 의 accessibilityValue 를 a11yValue() 로 옮겼다 - 객체
     // 형태는 React Native Web 이 읽지 않아 진행바가 웹에서 값 없이 announce
     // 됐다. 그래서 해시를 의도적으로 갱신한다.
-    expect(normalizedHash(read("components/quant/QuantPager.tsx"))).toBe("f8a16dcd2a2a9cb37e11e2709d98f9986755e6e269ef6374f46e6a31b139075b");
+    // 2026-10-08: page direction now drives SceneTransition without remounting
+    // the questionnaire; quant-pager-transition tests previous/next/save behavior.
+    expect(normalizedHash(read("components/quant/QuantPager.tsx"))).toBe("fe8ea4776088fb3badc867889366ed6737a1b9efd89997939b41425a8ff762f8");
     // 2026-10-05 (Simon 결정 Q-261004-15 A): QuantSaveCelebration 재고정. 옛 값 006c0c39 는
     // 바로 앞 본문이다. 바뀐 것은 저장 순간의 옛 캐릭터 '모모' 몸 그림을 뺀 것뿐이다 -
     // MOMENT 가 { companion, state, cue } 에서 { cue } 로 줄었고 머리 주석 두 곳이 그에
@@ -450,7 +455,7 @@ describe("big-five PIXEL-CLAY route discipline", () => {
     // 2026-10-06 (Simon 결정 Q-261006-10): QuantSaveCelebration 재고정. 옛 값 8ca3205c 는 바로 앞
     // 본문이다. 바뀐 것은 저장 축하가 뜰 때 저장 소리를 루트 GlobalCueHost 에 요청하는 한 줄
     // (requestGlobalCue("quantSaved"))과 그 import · 주석뿐이다. 모달 · 문구 · 타이머 · 표정은 그대로다.
-    expect(normalizedHash(read("components/quant/QuantSaveCelebration.tsx"))).toBe("049ea23af814445a979d123cb051cd44f74e2d266b522e62c60a24bbc0743931");
+    expect(normalizedHash(read("components/quant/QuantSaveCelebration.tsx"))).toBe("9dda344dcbed42b01d3c1669979d13786da1a72da74f66782a84fe64c3c3d9fe");
   });
 
   test("the exact pixel ratchet covers the isolated renderer", () => {

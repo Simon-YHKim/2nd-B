@@ -1,4 +1,5 @@
 import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { useModalExit } from "@/components/ui/useModalExit";
 import { PhoneView as View, PhonePressable as Pressable } from "@/components/phone/PhoneUIKit";
 // Pre-assessment intro shown when entering BFI / MBTI / ECR-S. Tells the
 // user how many items they're about to answer, how long it'll take, and
@@ -90,13 +91,14 @@ export function QuantIntroModal({
   onCancel,
 }: QuantIntroProps) {
   const { t } = useTranslation("common");
+  const { active, closing, requestClose, completeClose } = useModalExit();
   const { visible, markSeen } = useShouldShow(toolKey);
   const [dontShow, setDontShow] = useState(false);
   const autoStartedRef = useRef(false);
 
   async function handleStart() {
     if (dontShow) await markSeen();
-    onStart();
+    requestClose(onStart);
   }
 
   // Auto-start if user previously dismissed and chose "don't show again".
@@ -104,18 +106,18 @@ export function QuantIntroModal({
   // done. Running it in an effect (not render) keeps the side-effect out of
   // render and fires it only after commit.
   useEffect(() => {
-    if (visible === false && !autoStartedRef.current) {
+    if (active && visible === false && !autoStartedRef.current) {
       autoStartedRef.current = true;
       onStart();
     }
-  }, [onStart, visible]);
+  }, [active, onStart, visible]);
 
   if (visible !== true) {
     return null;
   }
 
   return (
-    <Modal visible={true} transparent animationType="fade" onRequestClose={onCancel}>
+    <Modal visible={!closing} transparent animationType="fade" onRequestClose={() => requestClose(onCancel)} onExitComplete={completeClose}>
       <View style={styles.backdrop}>
       {/* 모달 스크림은 디더다 — 바탕을 모르는 자리라 평탄화가 아니라 격자로 가린다
           (PIXEL-CLAY 규칙 4). 반투명이 한 픽셀도 없다. */}
@@ -193,11 +195,13 @@ export function QuantIntroModal({
               label={t("quantStart")}
               variant="primary"
               onPress={handleStart}
+              disabled={closing}
             />
             <Button
               label={t("quantNotNow")}
               variant="secondary"
-              onPress={onCancel}
+              onPress={() => requestClose(onCancel)}
+              disabled={closing}
             />
           </View>
         </View>

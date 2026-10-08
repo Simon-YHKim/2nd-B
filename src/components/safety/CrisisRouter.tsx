@@ -1,3 +1,4 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
 // Renders a non-dismissable (but closeable) modal when the Safety
 // Classifier returns a red zone. Surfaces locale-aware hotlines.
 // Does not invoke any LLM; the caller has already short-circuited.
@@ -10,7 +11,7 @@
 // - aria/accessibility hints surface the hotline number to screen readers.
 
 import { useCallback } from "react";
-import { Modal, StyleSheet, Linking } from "react-native";
+import { StyleSheet, Linking } from "react-native";
 import { PhoneView as View, PhonePressable as Pressable } from "@/components/phone/PhoneUIKit";
 import { useTranslation } from "react-i18next";
 import { radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";

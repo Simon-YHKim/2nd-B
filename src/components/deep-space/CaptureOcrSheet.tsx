@@ -9,7 +9,7 @@ import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextIn
 //
 // A bottom sheet on a dithered scrim (PIXEL-CLAY rule 4: no translucent
 // scrims), opened from a button in the memo panel, not stacked on a node.
-// animationType "none": nothing moves, so reduced motion has nothing to cut.
+// ScreenModal owns scoped entry/exit and the reduced-motion preference.
 // Android back and the scrim close it (onRequestClose), per the
 // ANDROID_QA_GUIDELINES back-button rule.
 
@@ -69,6 +69,7 @@ export function CaptureOcrSheet({
       visible={visible}
       transparent
       animationType="none"
+      transitionKind="sheet"
       statusBarTranslucent
       onRequestClose={onClose}
     >

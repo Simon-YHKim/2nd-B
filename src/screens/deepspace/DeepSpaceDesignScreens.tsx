@@ -1869,6 +1869,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
   const [sheetOpen, setSheetOpen] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const ratifyPendingRef = useRef(false);
+  const clearProposalAfterExit = useRef(false);
   const [ratifyPending, setRatifyPending] = useState(false);
 
   // 무엇을 되돌릴 수 있는가는 카드가 정한다. 예전에는 이 화면이 `"now"` 를
@@ -1926,6 +1927,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
         setCurrentLevel(nextCurrentLevel);
         setEvidenceRefs(nextEvidenceRefs);
         setReceipts(nextReceipts);
+        clearProposalAfterExit.current = false;
         setProposal(p);
         setSheetOpen(true);
       } else {
@@ -1965,6 +1967,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
         setCurrentLevel(ctx.currentLevel);
         setEvidenceRefs(ctx.evidenceRefs);
         setReceipts(nextReceipts);
+        clearProposalAfterExit.current = false;
         setProposal(p);
         setSheetOpen(true);
       } else {
@@ -1988,7 +1991,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
           proposalDecided({ flow: "self_model", decision: decision === "ratify" ? "ratify" : "decline", count: 1 }),
         );
         if (decision === "decline") {
-          setProposal(null);
+          clearProposalAfterExit.current = true;
           setSheetOpen(false);
           setResult(t("reviewLeftAsIs"));
           return;
@@ -2020,7 +2023,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
         // 비준 시트는 네이티브 Modal 이라 안드로이드에서 닫히는 동안 창 포커스가 돌아오지 않아
         // 소리 관문이 막힐 수 있다. 시트가 닫힌 뒤에 울린다.
         if (l5Cue) setTimeout(playRatifyCue, RATIFY_L5_CUE_DELAY_MS);
-        if (persisted) setProposal(null);
+        if (persisted) clearProposalAfterExit.current = true;
         setResult(
           persisted
             ? t("reviewRatifiedMoved", { level: r.resultingLevel })
@@ -2160,6 +2163,12 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
         pending={ratifyPending}
         pendingLabel={t("career.saving")}
         onDecision={handleDecision}
+        onHidden={() => {
+          if (clearProposalAfterExit.current) {
+            clearProposalAfterExit.current = false;
+            setProposal(null);
+          }
+        }}
         onClose={() => {
           if (!ratifyPendingRef.current) setSheetOpen(false);
         }}

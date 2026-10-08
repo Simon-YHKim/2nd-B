@@ -1,5 +1,12 @@
 # 2nd-Brain Handoff
 
+## 2026-10-08 / Codex: 폰과 바깥 화면 전환 모션
+
+- 폰 안은 iPhone식 감속, 밖은 6단계 픽셀 이동. 라우트·폰 내비게이션·설문/탭/단계·모달에 공유 규칙을 연결했다.
+- Android 모달 포커스 보호, 즉시 계정 경계 정리, OS/라이트 모드 감소 설정을 유지·보완했다. 투명 폰을 닫을 때 홈 배경을 재생하지 않는다.
+- 브랜치 `feat/transition-motion-261008`: 전체 verify 971 suites / 13,143 통과 / 기존 skip 1, UI-work0 77 통과, Android 번들 export 통과. [구현·브라우저 검증](design/TRANSITION-MOTION-261008.md).
+- PR/8081 최종 결과는 공유 세션 상태 `TRANSITION-MOTION-261008.json`과 완료 보고서에서 확인한다. 실제 Android 기기 검증은 실행하지 않았다.
+
 ## 2026-10-08 / Codex: 비서·W1 제외 중단 세션 인수
 
 - 생활 도구 #2169 (`559da91f`), 온보딩 #2170 (`0fffd298`) 검토·수정·전체 verify·CI 후 머지.

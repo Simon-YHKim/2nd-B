@@ -52,6 +52,7 @@ jest.mock("@/components/ui/Button", () => ({ Button: "Button" }));
 jest.mock("@/components/pixel/PixelDither", () => ({ PixelScrim: "PixelScrim" }));
 // This suite exercises the proposal gate, not the route's modal/visual host.
 jest.mock("@/components/ui/ScreenModal", () => ({ ScreenModal: "Modal" }));
+jest.mock("expo-router", () => ({ useIsFocused: () => true }));
 jest.mock("@/components/phone/PhoneUIKit", () => ({
   PhoneView: "View", PhonePressable: "Pressable", PhoneScrollView: "ScrollView",
 }));
@@ -143,6 +144,13 @@ describe("화면 분기", () => {
     expect(SHEET).toContain("disabled={pending}");
     expect(SHEET).toContain("loading={pending}");
     expect(SHEET).toContain("onRequestClose={closeIfIdle}");
+    // Persistence/decline still happens in handleDecision; only presentation
+    // data survives until exit. Blur also clears completed proposals so they
+    // cannot be ratified again when returning to a covered route.
+    expect(SCREEN).toContain("if (persisted) clearProposalAfterExit.current = true;");
+    expect(SCREEN).toContain("onHidden={() => {");
+    expect(SHEET).toContain("onExitComplete={onHidden}");
+    expect(SHEET).toContain("if (!focused) onHidden?.();");
     expect(SCREEN).toContain("proposal !== null && !sheetOpen && !loading && !ratifyPending");
     expect(
       SCREEN.match(/if \(p\) \{\s+setCurrentLevel\([\s\S]{0,180}?setEvidenceRefs\([\s\S]{0,180}?setReceipts\([\s\S]{0,180}?setProposal\(p\)/g),

@@ -1,10 +1,11 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
 // Premium feedback surfaces (Part 1): bottom sheet, modal, toast, and the
 // empty / loading / error / safety states. Glassy, glowing, reduced-motion
 // aware. Copy is warm + non-clinical; safety uses the system-only rose tone.
 
-import { type ReactNode, useEffect, useRef } from "react";
-import { Animated, BackHandler, Easing, Modal, StyleSheet } from "react-native";
-import { PhoneAnimatedView, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { type ReactNode } from "react";
+import { StyleSheet } from "react-native";
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { usePhoneDesign } from "@/lib/theme/phone-design-context";
 import { PixelDither } from "@/components/pixel/PixelDither";
 import { useTranslation } from "react-i18next";
@@ -15,7 +16,6 @@ import { V3_DATA_ART, V3_LOG_ART } from "@/lib/assets/soulcore-v3";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { m3 } from "@/lib/theme/m3";
 import { cosmic, deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
-import { prefersReducedMotion } from "@/lib/motion/signature";
 import { PremiumButton } from "./surfaces";
 
 // ── 이 파일의 바탕 (PIXEL-CLAY 절대 규칙 4) ──────────────────────────
@@ -32,7 +32,7 @@ const fbAlpha = (c: string, a: number): string => flattenAlpha(c, a, FB_GROUND);
 
 type FeedbackStateKind = "empty" | "error";
 
-/** Slide-up premium bottom sheet. Screen-fixed; renders nothing when closed. */
+/** Native bottom sheet: shared entry/exit, focus trap and hardware dismissal. */
 export function PremiumBottomSheet({
   visible,
   onClose,
@@ -46,32 +46,8 @@ export function PremiumBottomSheet({
 }) {
   const phone = usePhoneDesign();
   const { t } = useTranslation("common");
-  const slide = useRef(new Animated.Value(0)).current;
-
-  // Android hardware back closes the sheet. It is a plain View (not a Modal), so
-  // it never gets Modal's onRequestClose — without this, back pops the route
-  // instead of dismissing the open sheet. Returning true consumes the event.
-  useEffect(() => {
-    if (!visible) return;
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      onClose();
-      return true;
-    });
-    return () => sub.remove();
-  }, [visible, onClose]);
-
-  useEffect(() => {
-    if (!visible) return;
-    if (prefersReducedMotion()) {
-      slide.setValue(1);
-      return;
-    }
-    slide.setValue(0);
-    Animated.timing(slide, { toValue: 1, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-  }, [visible, slide]);
-  if (!visible) return null;
-  const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [60, 0] });
   return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
     <View style={styles.sheetWrap} pointerEvents="box-none">
       <Pressable
         style={StyleSheet.absoluteFill}
@@ -81,15 +57,16 @@ export function PremiumBottomSheet({
       >
         {phone ? <PixelDither density={50} /> : null}
       </Pressable>
-      <PhoneAnimatedView
-        style={[styles.sheet, { opacity: slide as never, transform: [{ translateY }] }]}
+      <View
+        style={styles.sheet}
         accessibilityViewIsModal
         accessibilityLabel={accessibilityLabel}
       >
         <View style={styles.sheetHandle} />
         {children}
-      </PhoneAnimatedView>
+      </View>
     </View>
+    </Modal>
   );
 }
 
