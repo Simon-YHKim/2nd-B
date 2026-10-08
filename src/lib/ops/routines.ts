@@ -150,23 +150,29 @@ export async function createRoutineFromRecommendation(
   userId: string,
   domainId: OpsDomainId,
   rec: OpsRecommendation,
+  options?: { weekday?: number; signal?: AbortSignal },
 ): Promise<OpsRoutine> {
   const recurrence = mapRecurrence(rec);
-  const { reminder_time, weekday } = deriveReminder(rec);
+  const reminder = deriveReminder(rec);
+  if (recurrence === "weekly" && options?.weekday !== undefined
+    && (!Number.isInteger(options.weekday) || options.weekday < 0 || options.weekday > 6)) throw new Error("Invalid routine weekday");
+  const weekday = recurrence === "weekly" ? options?.weekday ?? reminder.weekday : null;
+  if (options?.signal?.aborted) { const error = new Error("Routine save aborted"); error.name = "AbortError"; throw error; }
   const insert = {
     user_id: userId,
     domain_id: domainId,
     title: rec.title,
     reason: rec.reason ?? null,
     recurrence,
-    reminder_time,
+    reminder_time: reminder.reminder_time,
     weekday,
     duration_minutes: typeof rec.durationMinutes === "number" ? rec.durationMinutes : null,
     checklist: rec.checklist ?? [],
     active: true,
   };
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.from("ops_routines").insert(insert).select().single();
+  const query = supabase.from("ops_routines").insert(insert).select();
+  const { data, error } = await (options?.signal ? query.abortSignal(options.signal) : query).single();
   if (error) throw error;
   return rowToRoutine(data as Record<string, unknown>);
 }

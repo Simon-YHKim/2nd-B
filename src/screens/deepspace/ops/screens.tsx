@@ -7,6 +7,7 @@ import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
 import { useEffect, useMemo, useRef, useState, type DependencyList } from "react";
 import { Linking, Share, StyleSheet } from "react-native";
 import { PhonePressable as Pressable, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { ChatRemindersList } from "@/components/secondb/ChatRemindersList";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { PixelDither } from "@/components/pixel/PixelDither";
 
@@ -1895,6 +1896,7 @@ export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => v
   // Routines the user tried to enable but the OS permission was denied — they
   // render the row's "권한 필요" state instead of crashing or silently failing.
   const [denied, setDenied] = useState<Record<string, true>>({});
+  const [chatReminderCount, setChatReminderCount] = useState(0);
 
   // Hydrate on/off from the persisted flag AND the real OS schedule. ON now
   // means "an OS notification is actually scheduled" — the old flag-only state
@@ -1989,7 +1991,7 @@ export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => v
         };
       })
     : [];
-  const onCount = rows.filter((r) => r.vm.on).length;
+  const onCount = rows.filter((r) => r.vm.on).length + chatReminderCount;
   const countLabel = c.remindersCountTemplate.replace("{n}", String(onCount));
 
   return (
@@ -2001,6 +2003,7 @@ export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => v
         <MdButton variant="tonal" label={c.addFromAssistant} onPress={onOpenAssistant ?? (() => router.push("/ops"))} />
       }
     >
+      {userId ? <ChatRemindersList key={userId} ownerId={userId} onCountChange={setChatReminderCount} /> : null}
       {routines.status === "error" ? (
         <OpsState variant="error" title={c.errorTitle} body={c.errorBody} ctaLabel={c.retry} onCta={routines.reload} />
       ) : (

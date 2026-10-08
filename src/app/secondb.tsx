@@ -81,6 +81,8 @@ import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { DomainDashboard } from "@/components/secondb/DomainDashboard";
 import { ChatTextInput } from "@/components/secondb/ChatTextInput";
 import { ChatActionBar, type ChatAction } from "@/components/secondb/ChatActionBar";
+import { ChatPlanSheet } from "@/components/secondb/ChatPlanSheet";
+import { useChatPlans } from "@/components/secondb/useChatPlans";
 import { ChatMessageAvatar, useChatUserAvatar } from "@/components/secondb/ChatMessageAvatar";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { holdExpression, reactExpression } from "@/lib/companion/expression";
@@ -1039,6 +1041,8 @@ function SecondBChatBody() {
     ],
   );
 
+  const chatPlans = useChatPlans(userId, { turns, conversationId: conversationId.current, sending });
+
   if (authLoading || progression.loading) return <InlineLoader />;
   if (!userId) {
     return <Redirect href="/sign-in" />;
@@ -1139,6 +1143,7 @@ function SecondBChatBody() {
       },
     });
   }
+  chatActions.push(...chatPlans.actions);
   if (hasReplyActions) {
     for (const [index, branch] of (lastTurn.branches ?? []).entries()) {
       chatActions.push({ id: `branch-${index}`, label: branch, hint: t("fillsComposer"),
@@ -1215,7 +1220,7 @@ function SecondBChatBody() {
           {hasTurns ? (
             <Pressable
               onPress={() => {
-                if (sending || keeping !== null || keepInFlight.current) return;
+                if (sending || keeping !== null || keepInFlight.current || chatPlans.busy) return;
                 autosaveSessionRef.current?.stop();
                 autosaveSessionRef.current = null;
                 conversationId.current += 1;
@@ -1224,8 +1229,8 @@ function SecondBChatBody() {
                 setKeepNotice(null);
                 setCopyNotice(null);
               }}
-              disabled={sending || keeping !== null}
-              accessibilityState={{ disabled: sending || keeping !== null }}
+              disabled={sending || keeping !== null || chatPlans.busy}
+              accessibilityState={{ disabled: sending || keeping !== null || chatPlans.busy }}
               hitSlop={14}
               style={ds.clearLink}
               accessibilityRole="button"
@@ -1320,11 +1325,11 @@ function SecondBChatBody() {
                 testID={`chat-message-${turn.role}-${i}`}
                 style={[ds.bubbleRow, turn.role === "user" ? ds.userRow : ds.aiRow]}
               >
-                <View style={ds.messageHeader} testID={`chat-message-header-${turn.role}-${i}`}>
+                <View style={[ds.messageHeader, turn.role === "user" && ds.userMessageHeader]} testID={`chat-message-header-${turn.role}-${i}`}>
                   <ChatMessageAvatar role={turn.role} userAvatar={userAvatar}
                     expression={turn.role === "secondb" ? getExchangeExpression(turns, i) : undefined}
                     label={turn.role === "user" ? userDisplayName : t(`rev2.${turn.persona ?? "secondb"}.lensName`)} />
-                  <Text style={ds.messageName} testID={`chat-message-name-${turn.role}-${i}`}>
+                  <Text style={[ds.messageName, turn.role === "user" && ds.userMessageName]} testID={`chat-message-name-${turn.role}-${i}`}>
                     {turn.role === "user" ? userDisplayName : t(`rev2.${turn.persona ?? "secondb"}.lensName`)}
                   </Text>
                 </View>
@@ -1409,6 +1414,7 @@ function SecondBChatBody() {
           ) : keptIdx.has(turns.length - 1) ? (
             <Text variant="caption" style={ds.keepFeedback} accessibilityLiveRegion="polite">{t("keptToWiki")}</Text>
           ) : null}
+          {chatPlans.notice ? <Text variant="caption" style={ds.keepFeedback} accessibilityLiveRegion="polite">{chatPlans.notice}</Text> : null}
           <ChatActionBar actions={chatActions} />
         <ChatComposer
           ref={composerRef}
@@ -1421,6 +1427,8 @@ function SecondBChatBody() {
         />
         </View>
       </KeyboardAvoidingArea>
+
+      {chatPlans.sheetProps.suggestion ? <ChatPlanSheet key={chatPlans.sheetKey} {...chatPlans.sheetProps} /> : null}
 
       {/* 첫 진입 인사 모달. ScreenModal: 다른 화면이 이 화면을 덮으면 안내도 내려간다(R2A-03).
           덮인 채 남은 대화상자는 Android 액티비티 재생성 때 지금 화면 위로 다시 뜨고,
@@ -1771,7 +1779,9 @@ const ds = StyleSheet.create({
   userRow: { alignSelf: "flex-end" },
   aiRow: { alignSelf: "flex-start" },
   messageHeader: { flexDirection: "row", alignItems: "center", gap: 8, maxWidth: "100%" },
-  messageName: { flexShrink: 1, color: deepSpace.textMid, fontSize: 12, lineHeight: 18, paddingBottom: 2, fontFamily: fontFamilies.readable },
+  userMessageHeader: { flexDirection: "row-reverse", alignSelf: "flex-end", width: "100%" },
+  messageName: { minWidth: 0, flexShrink: 1, color: deepSpace.textMid, fontSize: 12, lineHeight: 18, paddingBottom: 2, fontFamily: fontFamilies.readable },
+  userMessageName: { textAlign: "right" },
   bubbleCol: { maxWidth: "100%", alignSelf: "stretch", flexShrink: 1, gap: 6, alignItems: "flex-start" },
   // user bubble: M3 primary fill, radius 16/16/4/16 (reference).
   userBubble: {

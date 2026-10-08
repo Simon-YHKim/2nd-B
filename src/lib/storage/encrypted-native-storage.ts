@@ -104,6 +104,7 @@ const MANAGED_KEY_PREFIXES = [
   "capture.journalDraft.v1.",
   "import.history:",
   "ops.github.username:",
+  "ops.one-off-reminders.v1.",
 ];
 const SUPABASE_AUTH_KEY_PATTERN =
   /^sb-[a-z0-9_-]+-auth-token(?:-v2)?(?:-code-verifier|-user|-migration-from-v1-complete)?$/i;

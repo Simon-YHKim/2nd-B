@@ -27,7 +27,7 @@ function renderedMessages(messageTurns?: Props[], selectedLens = "HustleK") {
   if (!map) throw new Error("Conversation rendering is missing");
   const styles = findNode(node => ts.isVariableDeclaration(node) && node.name.getText(ast) === "ds") as ts.VariableDeclaration;
   const object = (styles.initializer as ts.CallExpression).arguments[0] as ts.ObjectLiteralExpression;
-  const names = ["bubbleRow", "userRow", "aiRow", "bubbleCol", "messageHeader", "messageName"];
+  const names = ["bubbleRow", "userRow", "aiRow", "bubbleCol", "messageHeader", "userMessageHeader", "messageName", "userMessageName"];
   const selected = object.properties.filter(property => property.name && names.includes(property.name.getText(ast)));
   const ds = execute(`({${selected.map(property => property.getText(ast)).join(",")}})`, {
     deepSpace: { textMid: "muted", text: "ink" }, fontFamilies: { readable: "Readable" },
@@ -53,14 +53,18 @@ describe("HustleK messenger layout", () => {
     expect(transcript).toContain("getExchangeExpression(turns, i)");
   });
 
-  test("every message puts avatar then nickname in one header above its bubble", () => {
+  test("headers stay above bubbles with the user avatar at the right edge and nickname to its left", () => {
     const host = renderedMessages();
     for (const [i, message] of host.tree.entries()) {
       const [header, body] = message.props.children as Tree[];
       const [avatar, nickname] = header.props.children as Tree[];
       expect(flatten(message.props.style).flexDirection).toBe("column");
       expect(flatten(message.props.style).alignSelf).toBe(i === 0 ? "flex-end" : "flex-start");
-      expect(flatten(header.props.style)).toMatchObject({ flexDirection: "row", alignItems: "center" });
+      expect(flatten(header.props.style)).toMatchObject({ flexDirection: i === 0 ? "row-reverse" : "row", alignItems: "center" });
+      if (i === 0) {
+        expect(flatten(header.props.style).alignSelf).toBe("flex-end");
+        expect(flatten(nickname.props.style).textAlign).toBe("right");
+      }
       expect(avatar.type).toBe("ChatMessageAvatar");
       expect(avatar.props.userAvatar).toBe(host.savedAvatar);
       expect(nickname.type).toBe("Text");
@@ -168,7 +172,7 @@ describe("HustleK messenger layout", () => {
   });
 
   test("clearing the conversation stops the old autosave before reusing turn indices", () => {
-    const clear = source.slice(source.indexOf("if (sending || keeping !== null || keepInFlight.current) return;"));
+    const clear = source.slice(source.indexOf("if (sending || keeping !== null || keepInFlight.current || chatPlans.busy) return;"));
     expect(clear.indexOf("autosaveSessionRef.current?.stop()")).toBeLessThan(clear.indexOf("setTurns([])"));
     expect(clear).toContain("setKeptIdx(new Set())");
     expect(source).toContain("}, [userId, activeConversationId])");
