@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 /**
  * 북극성 persona deck (rev2 P3a): the aggregate self, one card at a time.
  * A horizontally paged deck of M3 cards — swipe (or tap a dot) to move between
@@ -9,7 +10,7 @@
  */
 import { useRef, useState, type ReactNode } from "react";
 import { subscribeFontStyle } from "@/lib/settings/readable-font";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace } from "@/lib/theme/tokens";

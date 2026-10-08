@@ -5,7 +5,7 @@ import { fitPhoneArtwork } from "@/lib/dashboard/phone-frame";
 const phone = readFileSync(join(__dirname, "..", "DashboardPhone.tsx"), "utf8");
 
 test("the supplied frame is unchanged and the live display fits 375px and 425px", () => {
-  expect(phone).toContain('require("../../../assets/images/secondb-cellphone-screen.png")');
+  expect(phone).toContain('<PhoneFrame bounds={frame.artwork} />');
   for (const [width, height] of [[375, 715], [425, 747]]) {
     const frame = fitPhoneArtwork(width, height);
     expect(frame).not.toBeNull();

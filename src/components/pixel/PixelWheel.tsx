@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // PIXEL-CLAY 휠 한 칸 (Simon 2026-09-30, /data-connections 시간 설정 피드백).
 //
 // 참조 사진은 가운데 값 위아래로 이웃 값을 흐리게 보여 주는 폰 기본 휠이었다.
@@ -9,15 +10,7 @@
 // 조작 경로는 다섯이다: 위아래 이웃 값 누르기, 세로로 끌기, 스크린리더 증감 동작
 // (adjustable), 웹 방향키·Home·End, 웹 마우스 휠. 계산은 전부 `time-wheel.ts` 에 있다.
 import { useEffect, useMemo, useRef } from "react";
-import {
-  PanResponder,
-  Platform,
-  Pressable,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-  type ViewStyle,
-} from "react-native";
+import { PanResponder, Platform, StyleSheet, useWindowDimensions, type ViewStyle } from "react-native";
 
 import { m3TextStyle } from "@/components/m3/typeface";
 import { PlainText as Text } from "@/components/ui/PlainText";

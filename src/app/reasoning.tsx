@@ -1,5 +1,6 @@
+import { PhoneAnimatedView, PhoneFlatList as FlatList, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, FlatList, Pressable, StyleSheet, View } from "react-native";
+import { Animated, StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { Redirect } from "expo-router";
@@ -1318,7 +1319,7 @@ export default function ReasoningScreen() {
                         other wait; the completed state returns to SecondB. */}
                     <View style={styles.orbitWrap}>
                       {phase === "running" ? (
-                        <Animated.View style={[styles.orbitRing, { transform: [{ rotate: orbitSpin }] }]} />
+                        <PhoneAnimatedView style={[styles.orbitRing, { transform: [{ rotate: orbitSpin }] }]} />
                       ) : null}
                       {phase === "running" ? (
                         <LoadingPolaris

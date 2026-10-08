@@ -10,7 +10,8 @@
 // - aria/accessibility hints surface the hotline number to screen readers.
 
 import { useCallback } from "react";
-import { Modal, View, StyleSheet, Pressable, Linking } from "react-native";
+import { Modal, StyleSheet, Linking } from "react-native";
+import { PhoneView as View, PhonePressable as Pressable } from "@/components/phone/PhoneUIKit";
 import { useTranslation } from "react-i18next";
 import { radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { PixelScrim } from "@/components/pixel/PixelDither";

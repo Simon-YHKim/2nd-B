@@ -1,7 +1,8 @@
+import { PhoneFlatList as FlatList, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // The signed-in user's approved 64-cell avatar. Catalog PNGs are choice
 // previews; the saved combination is always rendered from its specification.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View as ColorSample } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { Image } from "expo-image";
 import { Redirect, useFocusEffect } from "expo-router";
@@ -270,7 +271,7 @@ export default function AvatarStudioScreen() {
         contentStyle={styles.choiceContent}
       >
         {item.kind === "color" ? (
-          <View style={[styles.swatch, { backgroundColor: item.value }]} />
+          <ColorSample style={[styles.swatch, { backgroundColor: item.value }]} />
         ) : thumbnail ? (
           <Image source={thumbnail} style={styles.thumbnail} contentFit="contain" cachePolicy="memory-disk" />
         ) : (

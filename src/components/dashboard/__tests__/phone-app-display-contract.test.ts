@@ -20,7 +20,7 @@ test("the phone has twelve live app tiles in three equal columns with user-speci
   expect(phone).toContain('disabled={disabled}');
   // Pixel iPhone (Simon 2026-10-07): no banner above the grid; a face is as wide as its column, square when the height allows.
   expect(phone).toContain("const appFaceHeight = Math.max(44, Math.min(appColumnWidth, appFaceFit));");
-  expect(phone).toContain("<PixelRoundRect fill={disabled ? phoneIos.fill : phoneIos.cell} style={[styles.appFace, { height: appFaceHeight }]}>");
+  expect(phone).toContain("<PhoneAppIcon id={id} size={appFaceHeight} disabled={disabled} />");
 });
 
 test("artwork is bundled locally while dates, controls, and routes remain interactive", () => {
@@ -45,7 +45,7 @@ test("artwork is bundled locally while dates, controls, and routes remain intera
 test("avatar palette is a tile in the app grid (the More page folded into it)", () => {
   expect(assets).toContain('avatarPalette: require("../../../assets/images/phone-app/app_icons/icon_avatar_palette.png")');
   expect(phone).toContain('{ id: "avatarPalette", route: "/avatar-palette" },');
-  expect(phone).toContain('source={PHONE_APP_ICONS[id]}');
+  expect(phone).toContain('<PhoneAppIcon id={id}');
   // 2026-10-07: the daily board's two pages come first (PS-DASH-001 v2.2), then the apps.
   expect(phone).toContain('const pageIndex = tab === "dashboard" ? boardPage - 1 : APPS_PAGE;');
 });

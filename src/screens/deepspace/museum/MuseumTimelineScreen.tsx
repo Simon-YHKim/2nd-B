@@ -1,3 +1,4 @@
+import { PhoneAnimatedView, PhoneFlatList as FlatList, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // AI museum: the full 43-event editorial canon on a two-lane PIXEL-CLAY
 // timeline. The data conversion, stable ordering, geometry, and reference
 // labels remain owned by museum-timeline-data.ts. This file owns rendering and
@@ -10,19 +11,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  BackHandler,
-  AccessibilityInfo,
-  Animated,
-  FlatList,
-  PanResponder,
-  ScrollView,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from "react-native";
+import { BackHandler, AccessibilityInfo, Animated, PanResponder, StyleSheet, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect } from "react-native-svg";
 import { router, useFocusEffect } from "expo-router";
@@ -773,7 +762,7 @@ export function MuseumTimelineScreen({ phone }: { phone?: MuseumPhonePresentatio
         </View> : null}
 
         {selected ? (
-          <Animated.View
+          <PhoneAnimatedView
             style={[
               styles.sheet,
               compact && styles.sheetCompact,
@@ -1069,7 +1058,7 @@ export function MuseumTimelineScreen({ phone }: { phone?: MuseumPhonePresentatio
                 ) : null}
               </ScrollView>
             </MuseumSheetSurface>
-          </Animated.View>
+          </PhoneAnimatedView>
         ) : null}
       </View>
     </MuseumShell>

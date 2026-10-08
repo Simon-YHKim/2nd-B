@@ -377,7 +377,9 @@ describe("legacy preservation and pixel registration", () => {
     // 2026-10-04 재고정 - qa261004 D-16 · /import 파일 패널의 확장자 힌트 한 줄을 고르기 MIME 목록(pickImportFiles)과 맞췄다(.zip·.csv 빼고 .html 넣음, 줄 중립) · inbox 와 무관. 동작은 import-file-copy.test.ts 가 지킨다.
     // 2026-10-05 재고정 - 롤백 레버 제거 PR(Simon 결정 Q-261004-11 C) · 라우트가 import 하지 않던 DeepSpaceInboxScreen 그림자 사본과 그것만 쓰던 InboxItem · DeepSpaceInboxBody · 스타일 열 키 · import 넷을 걷었다(바이트 사본 E:/Legacy/2ndB, batch qa261004-lever) · **inbox 를 건드렸다**(그림자 제거). 배송 /inbox 는 dds-inbox-screen.tsx 다. 남은 DeepSpaceImportScreen 은 손대지 않았다.
     // 2026-10-06 재고정 - 효과음 3차(Simon 결정 Q-261006-11) · /import 파일 가져오기가 실제로 들어온 조각이 있을 때(tally.imported > 0) 저장 소리를 낸다: useUiSound 한 줄 · 호출 한 줄 · import 둘 · 주석 · inbox 와 무관.
-    expect(sha(source)).toBe("2a8d98e10696922a0c8e1f6227191f884df9dac504da87d324ed5574dbde987d");
+    // 2026-10-08: only native surface imports move to phone-scoped UIKit aliases.
+    // Import/inbox data, ownership and actions retain the reviewed source.
+    expect(sha(source)).toBe("5f608a7cf6ceecb09e12553fe56fd7520edeba6cd611794dfcc7bfecf4dbfc0d");
   });
 
   test("routes /inbox directly to the shipped hub", () => {

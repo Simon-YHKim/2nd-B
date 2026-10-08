@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Settings screen — rev2 M3 toggle-card top (모양 / 기능 / 데이터 연동, cloned
 // 1:1 from reference-app SettingsScreen + docs/clone-audit capture 09-settings)
 // over the retained functional settings surface (account nav, language,
@@ -9,18 +10,7 @@ import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { isDevSurfaceEnabled } from "@/lib/dev/gate";
 import { reactExpression } from "@/lib/companion/expression";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  type AccessibilityRole,
-  type StyleProp,
-  type TextStyle,
-  type ViewStyle,
-  Platform,
-} from "react-native";
+import { ActivityIndicator, StyleSheet, type AccessibilityRole, type StyleProp, type TextStyle, type ViewStyle, Platform } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";

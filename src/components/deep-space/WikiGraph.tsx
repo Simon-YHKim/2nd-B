@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 /**
  * Wiki node graph (rev2 P4b) — the force-directed view of the personal wiki.
  * Pure-layout (graph-layout.ts, deterministic) rendered as SVG on the deep-space
@@ -8,7 +9,7 @@
  */
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View as ColorSample } from "react-native";
 import Svg, { G, Line, Rect, Text as SvgText } from "react-native-svg";
 
 import { TelescopeControls } from "./TelescopeControls";
@@ -197,7 +198,7 @@ export function WikiGraph({
       <View style={styles.legend}>
         {(Object.keys(KIND_COLOR) as WikiPageKind[]).map((kind) => (
           <View key={kind} style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: KIND_COLOR[kind] }]} />
+            <ColorSample style={[styles.legendDot, { backgroundColor: KIND_COLOR[kind] }]} />
             <Text variant="caption" color="textMuted">
               {t(
                 kind === "concept"

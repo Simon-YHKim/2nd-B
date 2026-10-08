@@ -1,3 +1,8 @@
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { PixelScrim } from "@/components/pixel/PixelDither";
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { PhoneAnimatedView, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // THE reasoning limit sheet (스펙 docs/reasoning-ux-spec_260718.html 화면 F +
 // 인계 계약 14, PR-B) — the ONE bottom sheet every reasoning surface opens on
 // 한도 도달. Before this component the home bubble and /reasoning pushed
@@ -18,7 +23,7 @@
 // SAME-QUALITY invariant: the reward adds RUNS only; copy restates it.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Modal, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Animated, StyleSheet, useWindowDimensions } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -75,6 +80,7 @@ export interface ReasoningLimitSheetProps {
 }
 
 export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLimitSheetProps) {
+  const phone = usePhoneDesign();
   // Phone-aware: opened from /reasoning inside the dashboard phone, /plans
   // opens in the phone too. Home gets expo-router's router unchanged.
   const router = useAppRouter();
@@ -223,13 +229,14 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.root}>
+        {phone ? <PixelScrim style={{ tintColor: phoneIos.label2 }} /> : null}
         <Pressable
-          style={styles.veil}
+          style={[styles.veil, phone && { backgroundColor: "transparent" }]}
           onPress={onClose}
           accessibilityRole="button"
           accessibilityLabel={t("ds.reasoningLimit.close")}
         />
-        <Animated.View style={[styles.sheet, { paddingBottom: sheetBottom }, { transform: [{ translateY }] }]}>
+        <PhoneAnimatedView style={[styles.sheet, { paddingBottom: sheetBottom }, { transform: [{ translateY }] }]}>
           <View style={styles.grabber} />
 
           <RNText style={styles.title}>{t("ds.reasoningLimit.title")}</RNText>
@@ -306,7 +313,7 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
           </View>
 
           <RNText style={[styles.sameQuality, m3TextStyle("bodySmall")]}>{t("ds.reasoningLimit.sameQuality")}</RNText>
-        </Animated.View>
+        </PhoneAnimatedView>
       </View>
     </Modal>
   );

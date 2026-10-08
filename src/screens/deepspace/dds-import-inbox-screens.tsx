@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // rev2 M3 clone of 29-import (외부 가져오기), a windowed sub-screen (radius-24
 // card over the shared sky) with an MdTopAppBar, transcribed 1:1 from the
 // reference-app screen (sb-more.jsx ImportScreen). Import copy stays inline
@@ -11,7 +12,7 @@
 // opt-in/ingest wiring are preserved behind the reference layout.
 
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";

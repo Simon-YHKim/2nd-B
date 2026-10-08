@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 별 하나의 요약 — 홈에서 별을 누르면 여기로 온다. (Simon 결정 4 = B)
 //
 // *"그 별의 요약 → 거기서 인터뷰"*. 바로 대화를 열지 않는 이유는, 지금까지 뭘
@@ -11,7 +12,7 @@
 // 아직 살지 않은 시기(스물다섯 살의 "30대 이후")는 **잠긴다.** 살지 않은 때를
 // 물어보는 것은 지어내라는 말이다.
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, useFocusEffect } from "expo-router";
 import Svg from "react-native-svg";

@@ -21,6 +21,9 @@
 //   넘긴다.
 
 import Svg, { Rect } from "react-native-svg";
+import { usePhoneDesign, usePhoneForeground } from "@/lib/theme/phone-design-context";
+import { phoneTextColor } from "@/lib/theme/phone-design";
+import { phoneIos } from "@/lib/theme/phone-ios";
 
 import { GLYPH_BOX, glyphRects, type AnyGlyphName } from "./pixel-glyphs";
 
@@ -32,6 +35,11 @@ export interface PixelGlyphProps {
 }
 
 export function PixelGlyphRects({ name, color }: { name: AnyGlyphName; color: string }) {
+  const phone = usePhoneDesign();
+  const foreground = usePhoneForeground();
+  const mappedColor = phone ? phoneTextColor(color) : color;
+  const phoneBack = phone && (name === "arrow_back" || name === "arrowBack");
+  const ink = phoneBack ? phoneIos.blue : phone && foreground && mappedColor === phoneIos.label ? foreground : mappedColor;
   // ⚠ `resolveGlyph` 가 아니라 `canonGlyph` 로 찾는다. 둘은 **그려진 이름에
   //   대해서는 완전히 같은 값**을 돌려주지만, 그려지지 않은 이름에서 갈린다:
   //   `resolveGlyph` 는 받은 이름을 그대로 돌려줘서 `PIXEL_GLYPHS[없는이름]`
@@ -47,11 +55,11 @@ export function PixelGlyphRects({ name, color }: { name: AnyGlyphName; color: st
   //   그 자리는 같은 회차에서 고쳤지만, 컴포넌트는 **전역 함수여야 한다** —
   //   다음 캐스팅을 막는 것은 검사의 일이고, 그 검사가 뚫렸을 때 새 사용자의
   //   첫 화면이 죽지 않는 것은 이쪽의 일이다.
-  const rects = glyphRects(name);
+  const rects = glyphRects(phoneBack ? "chevron_left" : name);
   return (
     <>
       {rects.map((g, i) => (
-        <Rect key={i} x={g.x} y={g.y} width={g.w} height={g.h} fill={color} />
+        <Rect key={i} x={g.x} y={g.y} width={g.w} height={g.h} fill={ink} />
       ))}
     </>
   );

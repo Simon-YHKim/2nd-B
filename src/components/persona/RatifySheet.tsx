@@ -1,3 +1,5 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Ratify bottom-sheet (memo §3f): renders a SelfModelProposal via the tested
 // display model (formatProposalForDisplay) and returns the user's decision. Pure
 // presentation - it neither calls the LLM nor writes; the host screen (/review)
@@ -6,7 +8,7 @@
 
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";

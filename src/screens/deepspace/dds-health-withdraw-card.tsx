@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // The health data card on the deep-space privacy screen (DeepSpacePrivacyDesignScreen).
 //
 // The consent is given with one tap on the import screen, so this card withdraws it with one
@@ -11,7 +12,7 @@
 // screen; the deletes that follow do not touch the prefs. When the outcome is not known, the
 // screen's copy is withdrawn (onPrefsUnknown) until a fresh strict read replaces it.
 import { useEffect, useRef, useState } from "react";
-import { Pressable, View } from "react-native";
+
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";

@@ -140,6 +140,7 @@ function mountPanel(initial: Notice) {
   const modules: Record<string, unknown> = {
     react: hooks, "react-i18next": { useTranslation: () => ({ t: translate }) },
     "react-native": { View: "View", Pressable: "Pressable", StyleSheet: { create: (styles: unknown) => styles } },
+    "@/components/phone/PhoneUIKit": { PhoneView: "View", PhonePressable: "Pressable" },
     "@/components/ui/Text": { Text: "Text" },
     "@/components/m3": { MdButton: "MdButton", MdCard: "MdCard", m3TextStyle: () => ({}) },
     "@/lib/theme/m3": { m3: { spacing: { s2: 4, s3: 6, s4: 8 }, minTouch: 44 } },

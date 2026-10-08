@@ -17,13 +17,14 @@
 import type { ReactNode } from "react";
 import { StyleSheet, View, type StyleProp, type ViewProps, type ViewStyle } from "react-native";
 
-export type PixelCorner = "card" | "small" | "pill";
+export type PixelCorner = "card" | "small" | "pill" | "icon";
 
 /** [위아래 들임, 좌우 들임] 의 사각형들. 합집합이 계단 모양이다. */
 const LAYERS: Record<PixelCorner, readonly (readonly [number, number])[]> = {
   card: [[8, 0], [4, 2], [2, 4], [0, 8]],
   small: [[4, 0], [2, 2], [0, 4]],
   pill: [[6, 0], [2, 2], [0, 6]],
+  icon: [[18, 0], [12, 2], [8, 4], [4, 8], [2, 12], [0, 18]],
 };
 const BORDER = 2;
 

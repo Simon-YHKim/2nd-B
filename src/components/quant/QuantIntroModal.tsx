@@ -1,3 +1,5 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { PhoneView as View, PhonePressable as Pressable } from "@/components/phone/PhoneUIKit";
 // Pre-assessment intro shown when entering BFI / MBTI / ECR-S. Tells the
 // user how many items they're about to answer, how long it'll take, and
 // what the result will do — so they don't bail mid-way.
@@ -7,7 +9,7 @@
 // modal returns false if dismissed without onStart.
 
 import { useEffect, useRef, useState } from "react";
-import { Modal, View, StyleSheet, Pressable } from "react-native";
+import { StyleSheet } from "react-native";
 import { PixelScrim } from "@/components/pixel/PixelDither";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 

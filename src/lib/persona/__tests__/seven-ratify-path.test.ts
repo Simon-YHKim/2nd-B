@@ -50,6 +50,11 @@ jest.mock("react-native", () => ({
 jest.mock("@/components/ui/Text", () => ({ Text: "Text" }));
 jest.mock("@/components/ui/Button", () => ({ Button: "Button" }));
 jest.mock("@/components/pixel/PixelDither", () => ({ PixelScrim: "PixelScrim" }));
+// This suite exercises the proposal gate, not the route's modal/visual host.
+jest.mock("@/components/ui/ScreenModal", () => ({ ScreenModal: "Modal" }));
+jest.mock("@/components/phone/PhoneUIKit", () => ({
+  PhoneView: "View", PhonePressable: "Pressable", PhoneScrollView: "ScrollView",
+}));
 
 import { buildSelfModelProposalPrompt } from "../propose-self-model";
 import { recordStarTiers } from "../record-star-tiers";

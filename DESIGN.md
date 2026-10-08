@@ -168,7 +168,7 @@ must remain available.
 Material icons use the approved rounded symbol geometry. New one-off SVGs need a
 clear functional reason and must follow the Android SVG limits.
 
-### In-app phone: pixel iPhone (Simon, 2026-10-07)
+### In-app phone: pixel iPhone (Simon, 2026-10-08)
 
 The screens the dashboard phone draws itself (status bar, the daily board's two
 pages, the dock, the app grid, notifications, and the phone's own small pages
@@ -182,9 +182,16 @@ blur, static alpha, easing) still hold there. Colours come from
 `src/lib/theme/phone-ios.ts`, not hex literals in components; shared parts are
 in `src/components/dashboard/board/IosParts.tsx`.
 
-App screens opened inside the phone (chat, settings, subscription, interview
-and the rest) and every screen outside the phone keep this document's rules
-unchanged.
+All screens opened through the phone, including the personal assistant,
+settings, subscription and interview, share this iOS pixel design.
+`PhoneDesignProvider` scopes the shared controls and `PhoneUIKit` adapts the
+hosted screens' surfaces without changing their standalone appearance.
+The approved phone frame is a 230×408 cell drawing, rendered on a uniform
+2px grid even at smaller sizes. Its lossless source is
+`src/lib/dashboard/phone-frame-cells.json`. The home pages use the home
+handset's navy constellation wallpaper. Launcher icons have individual
+system-color backgrounds, stepped corners and pixel glyphs.
+Screens outside the phone continue to follow this document's general rules.
 
 ## 6. Reasoning contract
 

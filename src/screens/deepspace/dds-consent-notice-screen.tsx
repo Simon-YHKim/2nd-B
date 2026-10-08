@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // dds-consent-notice-screen: the consent detail page behind the sign-up rows'
 // "자세히 보기" chevrons (flow request #4). One screen, one section per selection
 // key; ?item=<key> scrolls to and highlights that section. The shared paragraphs
@@ -6,7 +7,7 @@
 // surfaces cannot drift apart. Lives in the (auth) group: IntroGate-exempt,
 // reachable while signed out mid-sign-up. Canon-only (no legacy skin).
 import { useCallback, useRef } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";

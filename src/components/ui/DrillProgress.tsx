@@ -11,6 +11,9 @@
 // signalMint active-cell glow.
 
 import { StyleSheet, View } from "react-native";
+import { PhoneView as PanelView } from "@/components/phone/PhoneUIKit";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
@@ -53,7 +56,14 @@ const CELL_BG_3 = flattenAlpha(cosmic.signalBlue, 0.55, semantic.surface);
 const CELL_LINE_1 = flattenAlpha(cosmic.signalBlue, 0.35, CELL_BG_1);
 const CELL_LINE_2 = flattenAlpha(cosmic.signalBlue, 0.55, CELL_BG_2);
 
-function cellTone(count: number): { bg: string; border: string; text: string } {
+function cellTone(count: number, phone = false): { bg: string; border: string; text: string } {
+  // The count is data: keep all four intensity levels distinct in the phone.
+  if (phone) {
+    if (count <= 0) return { bg: phoneIos.fill, border: phoneIos.separator, text: phoneIos.label2 };
+    if (count === 1) return { bg: phoneIos.lightBlue, border: phoneIos.blue, text: phoneIos.label };
+    if (count === 2) return { bg: phoneIos.blue, border: phoneIos.blue, text: phoneIos.onBlue };
+    return { bg: phoneIos.bluePressed, border: phoneIos.bluePressed, text: phoneIos.onBlue };
+  }
   if (count <= 0) return { bg: semantic.surfaceAlt, border: semantic.border, text: semantic.textSubtle };
   if (count === 1) return { bg: CELL_BG_1, border: CELL_LINE_1, text: cosmic.signalBlue };
   if (count === 2) return { bg: CELL_BG_2, border: CELL_LINE_2, text: semantic.text };
@@ -74,6 +84,7 @@ function shortLayerLabel(l: DrillLayer, locale: "en" | "ko"): string {
 }
 
 export function DrillProgress({ coverage, locale, periods, activePeriod, activeLayer }: Props) {
+  const phone = usePhoneDesign();
   const { t } = useTranslation("common");
   const totalAnswers = periods.reduce(
     (sum, period) => sum + DRILL_LAYERS.reduce((layerSum, layer) => layerSum + coverage[period][layer], 0),
@@ -91,7 +102,7 @@ export function DrillProgress({ coverage, locale, periods, activePeriod, activeL
       : `Interview progress matrix. ${totalAnswers} total answers. Next question target: ${activeTarget}.`;
 
   return (
-    <View
+    <PanelView
       style={styles.wrap}
       accessible
       accessibilityRole="summary"
@@ -126,7 +137,7 @@ export function DrillProgress({ coverage, locale, periods, activePeriod, activeL
           </View>
           {periods.map((period) => {
             const n = coverage[period][layer];
-            const tone = cellTone(n);
+            const tone = cellTone(n, phone);
             const isActive = activePeriod === period && activeLayer === layer;
             const accLabel = `${PERIOD_LABEL[locale][period]} · ${LAYER_LABEL[locale][layer]} · ${n}`;
             return (
@@ -137,6 +148,7 @@ export function DrillProgress({ coverage, locale, periods, activePeriod, activeL
                   styles.cell,
                   { backgroundColor: tone.bg, borderColor: tone.border },
                   isActive ? styles.cellActive : null,
+                  isActive && phone ? { borderColor: phoneIos.green } : null,
                 ]}
               >
                 <Text style={[styles.cellText, { color: tone.text }]}>
@@ -147,7 +159,7 @@ export function DrillProgress({ coverage, locale, periods, activePeriod, activeL
           })}
         </View>
       ))}
-    </View>
+    </PanelView>
   );
 }
 

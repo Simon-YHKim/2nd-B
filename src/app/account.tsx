@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Route: /account. The screen itself is DeepSpaceAccountScreen.
 //
 // This file used to carry a second, full implementation of the same screen for
@@ -20,7 +21,7 @@
 // DNS failure and a timeout alike, even once the network was back.
 //
 // styles.center stays for the loading state below.
-import { StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 

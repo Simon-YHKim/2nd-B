@@ -1,17 +1,10 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Deep-space plans: PIXEL-CLAY renderer over the existing, real billing rails.
 // Prices come from the entitlement SoT, the current plan comes only from the
 // users row via useProgression, and entitlement changes remain webhook-owned.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { ActivityIndicator, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import { Redirect, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
 import type { PurchasesPackage } from "react-native-purchases";

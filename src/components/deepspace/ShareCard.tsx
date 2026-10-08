@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // ShareCard — the "자기이해 한 컷" shareable square card, rev2 composition
 // (reference-app sb-more ShareCardScreen 1:1).
 //
@@ -19,7 +20,7 @@
 // prototype); the eyebrow uses Roboto Mono — no pixel fonts on the rev2 track.
 
 import { Fragment } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { Image, StyleSheet } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";

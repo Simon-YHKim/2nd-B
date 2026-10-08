@@ -1,9 +1,10 @@
+import { PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // T5 F2 — subject-side peer invites (spec §6, schema 0064). Create a one-time
 // link (raw token lives ONLY in the share sheet), see invite states, revoke.
 // Aggregate viewing stays in the Seen lens (F3); this screen is only the
 // invitation ledger.
 import { useCallback, useEffect, useState } from "react";
-import { ScrollView, Share, StyleSheet, View } from "react-native";
+import { Share, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 

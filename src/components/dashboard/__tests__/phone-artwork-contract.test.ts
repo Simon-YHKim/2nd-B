@@ -4,11 +4,12 @@ import { join } from "node:path";
 const source = readFileSync(join(process.cwd(), "src/components/dashboard/DashboardPhone.tsx"), "utf8");
 
 test("the supplied phone artwork frames the interactive screen without swallowing touches", () => {
-  expect(source).toContain("secondb-cellphone-screen.png");
+  expect(source).toContain("<PhoneFrame bounds={frame.artwork} />");
   expect(source).toContain("fitPhoneArtwork");
   expect(source).toContain('pointerEvents="none"');
-  // Pixel iPhone: the phone's own pages sit on iOS grouped grey; an app opened in the phone keeps its own screen.
-  expect(source).toContain("style={[styles.display, frame.screen, internalActive && !appScreenOpen && styles.displayGrouped]}");
+  // Every opened app now shares the same light phone scope.
+  expect(source).toContain("<PhoneDesignProvider>");
+  expect(source).toContain("style={[styles.display, frame.screen, internalActive && styles.displayGrouped]}");
   expect(source).toContain('variant="fullbleed"');
   expect(source).toContain("style={[styles.homeButton, frame.homeButton]}");
   expect(source).toContain('testID="dashboard-phone"');
