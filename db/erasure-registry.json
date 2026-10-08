@@ -456,6 +456,16 @@
       "owner": "user_id",
       "class": "retained",
       "reason": "Location Information Act art. 16(2) request facts and consent events, no coordinates or IP. Six-month retention with daily purge; account deletion sets user_id NULL."
+    },
+    "dashboard_generation_settings": {
+      "owner": "user_id",
+      "class": "account_delete_only",
+      "reason": "Server scheduling preference; removed on account deletion."
+    },
+    "dashboard_generation_runs": {
+      "owner": "user_id",
+      "class": "account_delete_only",
+      "reason": "48h attempt ledger; cached text expires in 24h or less and is invalidated on source deletion."
     }
   },
   "forwardAdditions": {
@@ -478,6 +488,10 @@
     "0233_weather_erasure_registry.sql": [
       "weather_consent_state",
       "weather_access_events"
+    ],
+    "0237_dashboard_erasure_registry.sql": [
+      "dashboard_generation_settings",
+      "dashboard_generation_runs"
     ]
   },
   "forwardRevisions": {

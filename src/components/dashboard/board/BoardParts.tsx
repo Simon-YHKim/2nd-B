@@ -119,11 +119,16 @@ function NoteRow({ part, events }: { part: NotePart; events: BoardEvents }) {
   const say = useBoardText();
   const tone = boardTone(part.basis);
   return <Frame basis={part.basis} shape={part.shape}>
+    <Pressable testID="board-note-open" accessibilityRole="button" accessibilityLabel={t("phone.board.summary.titleDefault")}
+      onPress={events.openSummary} style={styles.inline}>
+      <PixelGlyph name="chat" size={16} color={part.line ? tone.text : phoneIos.blue} />
+      <Text variant="caption" style={[styles.flex, styles.sectionTitle]}>{t("phone.board.shelf.parts.note")}</Text>
+      <PixelGlyph name="chevron_right" size={16} color={phoneIos.blue} />
+    </Pressable>
     {part.line ? <View style={styles.inline}>
       <Pressable accessibilityRole="button" accessibilityHint={t("phone.board.note.tapHint")} onPress={events.openSummary} style={[styles.flex, styles.tapRow]}>
         <Text variant="caption" style={styles.muted}>{t(`phone.board.note.slot.${part.slot}`)}</Text>
         <Text variant="body" style={{ color: tone.text }}>{say(part.line)}</Text>
-        <Text variant="caption" style={styles.muted}>{t("phone.board.note.tapHint")}</Text>
       </Pressable>
       <Evidence route={part.evidenceRoute} basis={part.basis} go={events.go} />
     </View> : null}
@@ -199,6 +204,10 @@ function QueueRow({ part, events }: { part: QueuePart; events: BoardEvents }) {
     events.queue(current.id, choice);
   };
   return <Frame basis={part.basis} shape={part.shape}>
+    {!current && !items.length ? <View style={styles.inline}>
+      <PixelGlyph name="check_circle" size={16} color={phoneIos.blue} />
+      <Text variant="caption" style={styles.sectionTitle}>{t("phone.board.shelf.parts.queue")}</Text>
+    </View> : null}
     {current ? <View style={styles.stack}>
       <View style={styles.inline}>
         <Text variant="caption" style={styles.muted}>{t("phone.board.queue.title", { index: handled.length + 1, total: items.length })}</Text>
@@ -209,9 +218,15 @@ function QueueRow({ part, events }: { part: QueuePart; events: BoardEvents }) {
         <Evidence route={current.evidenceRoute} basis={current.basis} go={events.go} />
       </View>
       <View style={styles.actions}>
-        <ChoiceButton label={t("phone.board.queue.done")} onPress={() => handle("done")} />
-        <ChoiceButton label={t("phone.board.queue.later")} onPress={() => handle("later")} />
-        <ChoiceButton label={t("phone.board.queue.notImportant")} onPress={() => handle("notImportant")} />
+        {current.action ? <>
+          <ActionButton action={current.action} onPress={events.go} />
+          {items.length > 1 ? <ChoiceButton label={t("phone.board.generation.next")} onPress={() =>
+            setHandled((ids) => ids.length >= items.length - 1 ? [] : [...ids, current.id])} /> : null}
+        </> : <>
+          <ChoiceButton label={t("phone.board.queue.done")} onPress={() => handle("done")} />
+          <ChoiceButton label={t("phone.board.queue.later")} onPress={() => handle("later")} />
+          <ChoiceButton label={t("phone.board.queue.notImportant")} onPress={() => handle("notImportant")} />
+        </>}
       </View>
     </View> : items.length ? <Text variant="caption" style={styles.muted}>{t("phone.board.queue.empty")}</Text> : null}
     <Note part={part} go={events.go} />
@@ -341,6 +356,7 @@ export function BoardPageView({ board, page, events }: { board: BoardContract; p
 
 
 const styles = StyleSheet.create({
+  sectionTitle: { fontFamily: "Galmuri11Bold", color: phoneIos.label },
   weatherTap: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
   text: { color: phoneIos.label },
   page: { gap: 10 },
