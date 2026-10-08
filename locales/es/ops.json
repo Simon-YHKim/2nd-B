@@ -192,6 +192,7 @@
     "unknownDate": "Fecha no disponible",
     "board": {
       "generation": {
+        "next": "Siguiente",
         "loading": "Preparando el resumen de hoy.",
         "denied": "Revisa las recomendaciones y el consentimiento del servicio de IA.",
         "limited": "Habrá una nueva actualización en la próxima renovación.",

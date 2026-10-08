@@ -218,9 +218,15 @@ function QueueRow({ part, events }: { part: QueuePart; events: BoardEvents }) {
         <Evidence route={current.evidenceRoute} basis={current.basis} go={events.go} />
       </View>
       <View style={styles.actions}>
-        <ChoiceButton label={t("phone.board.queue.done")} onPress={() => handle("done")} />
-        <ChoiceButton label={t("phone.board.queue.later")} onPress={() => handle("later")} />
-        <ChoiceButton label={t("phone.board.queue.notImportant")} onPress={() => handle("notImportant")} />
+        {current.action ? <>
+          <ActionButton action={current.action} onPress={events.go} />
+          {items.length > 1 ? <ChoiceButton label={t("phone.board.generation.next")} onPress={() =>
+            setHandled((ids) => ids.length >= items.length - 1 ? [] : [...ids, current.id])} /> : null}
+        </> : <>
+          <ChoiceButton label={t("phone.board.queue.done")} onPress={() => handle("done")} />
+          <ChoiceButton label={t("phone.board.queue.later")} onPress={() => handle("later")} />
+          <ChoiceButton label={t("phone.board.queue.notImportant")} onPress={() => handle("notImportant")} />
+        </>}
       </View>
     </View> : items.length ? <Text variant="caption" style={styles.muted}>{t("phone.board.queue.empty")}</Text> : null}
     <Note part={part} go={events.go} />

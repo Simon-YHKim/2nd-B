@@ -192,6 +192,7 @@
     "unknownDate": "Date unavailable",
     "board": {
       "generation": {
+        "next": "Next item",
         "loading": "Preparing today’s overview.",
         "denied": "Review recommendations and AI service consent.",
         "limited": "A new update will be available at the next refresh.",

@@ -21,7 +21,8 @@ export function withGeneratedBoard(board: BoardContract, generated: GeneratedBoa
     if (part.id === "P-04" && triage?.items.length) return { ...part, visible: true, state: "data" as const, basis: "ai" as const,
       note: undefined, action: undefined, items: triage.order.slice(0, 3).flatMap((id) => {
         const item = triage.items.find((row) => row.id === id);
-        return item ? [{ id, source: "app" as const, line: { text: item.action_line }, basis: "ai" as const, evidenceRoute: "/reminders" }] : [];
+        return item ? [{ id, source: "app" as const, line: { text: item.action_line }, basis: "ai" as const, evidenceRoute: "/reminders",
+          action: { label: { key: "phone.board.generation.reminders" }, route: "/reminders" } }] : [];
       }) };
     if (part.id === "P-04" && generated.states) return { ...part, visible: true, state: "empty", basis: "rule",
       ...generationNotice(generated.states.triage, "triage") };

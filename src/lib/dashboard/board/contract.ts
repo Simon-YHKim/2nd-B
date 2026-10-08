@@ -49,6 +49,8 @@ export interface QueueItem {
   line: BoardText;
   basis: BoardBasis;
   evidenceRoute: string | null;
+  /** Sources without a queue writer open their existing editor instead. */
+  action?: BoardAction;
 }
 
 export interface HealthMetric { metric: "sleep" | "steps" | "workout" | "meal"; value: number; unit: string }

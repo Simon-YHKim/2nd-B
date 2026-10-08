@@ -127,7 +127,9 @@ before activation. Retention therefore continues even when generation is OFF.
 
 The pixel iPhone board keeps P-02 and P-04 visible for eligible adults while W1
 is enabled. Loading, consent, empty, quota and error messages are fixed copy in
-five locales. Only validated generated prose gets the AI colour. P-02 always
+five locales. Only validated generated prose gets the AI colour. Generated queue
+items open the existing reminder editor; Next item only moves between the three
+ranked items. There is no pretend completion button without a persistence writer. P-02 always
 opens the existing S-01 page; empty summaries explain the next action. Settings
 and reminder links stay inside the phone, and errors have an explicit retry.
 Minor/unknown-age and disabled builds preserve the prior hidden contract.

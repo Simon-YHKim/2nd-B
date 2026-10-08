@@ -192,6 +192,7 @@
     "unknownDate": "Tanggal tidak tersedia",
     "board": {
       "generation": {
+        "next": "Item berikutnya",
         "loading": "Menyiapkan ringkasan hari ini.",
         "denied": "Periksa rekomendasi dan persetujuan layanan AI.",
         "limited": "Pembaruan baru akan tersedia saat penyegaran berikutnya.",

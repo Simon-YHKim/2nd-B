@@ -254,9 +254,10 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(step).toContain("cmp -s");
     expect(step).toContain("drop the retained_until_applied exception");
     // 71 baseline rows + five from 0226 (interview sessions, transcript head and turns,
-    // context-block ids, the session-start counter) + two weather tables from 0233.
-    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 78");
-    expect(step).toContain("78 registry rows, contracts and ACL verified");
+    // context-block ids, the session-start counter) + two weather tables from 0233
+    // + two dashboard tables from 0237.
+    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 80");
+    expect(step).toContain("80 registry rows, contracts and ACL verified");
     expect(step).toContain("('0201', 'rss_proxy_erasure_registry')");
     expect(step).not.toMatch(/\\i db\/migration-drafts\/UNNUMBERED_/);
   });

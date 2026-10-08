@@ -192,6 +192,7 @@
     "unknownDate": "날짜 확인 불가",
     "board": {
       "generation": {
+        "next": "다음 항목",
         "loading": "오늘 할 일을 정리하고 있습니다.",
         "denied": "추천 설정과 AI 서비스 동의를 확인해 주세요.",
         "limited": "다음 갱신 시간에 다시 준비합니다.",
