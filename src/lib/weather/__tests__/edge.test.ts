@@ -35,6 +35,16 @@ function fixture() {
 }
 afterEach(() => { jest.restoreAllMocks(); jest.useRealTimers(); });
 
+test.each(["PT409", "40001"])("returns 409 for a consent revision conflict (%s)", async (code) => {
+  const f = fixture();
+  f.deps.rpc.mockResolvedValue({ data: null, error: { code } });
+  const result = await f.send({ action: "grant", revision: 0, locale: "ko" });
+  expect(result.status).toBe(409);
+  expect(await result.json()).toEqual({ error: "consent" });
+  expect(f.deps.rpc).toHaveBeenCalledTimes(1);
+  expect(f.deps.fetch).not.toHaveBeenCalled();
+});
+
 test("localhost CORS preflight succeeds without upstream or authentication", async () => {
   const f = fixture();
   const result = await f.handler(new Request("https://fixture.invalid/weather", { method: "OPTIONS", headers: { origin: "http://localhost:8081" } }));
