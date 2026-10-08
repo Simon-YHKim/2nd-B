@@ -585,7 +585,7 @@
       "currentPage": "Página",
       "totalPages": "Páginas totales",
       "savePages": "Guardar",
-      "pagesInvalid": "Escribe números de página enteros."
+      "pagesInvalid": "Escribe números de página enteros de 0 a 100000, con un máximo de 6 dígitos."
     },
     "goals": {
       "emptyTitle": "Aún no hay metas",

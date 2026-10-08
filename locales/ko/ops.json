@@ -585,7 +585,7 @@
       "currentPage": "읽은 쪽",
       "totalPages": "전체 쪽",
       "savePages": "저장",
-      "pagesInvalid": "쪽수는 숫자로 적어 주세요."
+      "pagesInvalid": "쪽수는 0~100000 사이의 숫자로, 6자리 이내로 적어 주세요."
     },
     "goals": {
       "emptyTitle": "아직 목표가 없습니다",

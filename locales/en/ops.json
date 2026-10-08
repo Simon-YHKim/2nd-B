@@ -585,7 +585,7 @@
       "currentPage": "Page",
       "totalPages": "Total pages",
       "savePages": "Save",
-      "pagesInvalid": "Enter whole page numbers."
+      "pagesInvalid": "Enter whole page numbers from 0 to 100000, using at most 6 digits."
     },
     "goals": {
       "emptyTitle": "No goals yet",
