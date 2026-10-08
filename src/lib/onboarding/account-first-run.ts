@@ -201,8 +201,10 @@ interface HomeVisit {
   gate: FirstRunGate;
   /** The visit stayed home because nothing could be read, so a later entry may try again. */
   retryable: boolean;
-  /** The sign-in (JWT session_id) the decision was made for; null while waiting or when none resolved. */
+  /** The decision's sign-in; a failed lookup keeps the published identity, if known. */
   sessionId: string | null;
+  /** The published login this visit must keep across focus retries, when supplied by the home hook. */
+  expectedSessionId?: string | null;
   rechecking: boolean;
 }
 
@@ -219,7 +221,7 @@ export interface FirstRunSnapshot {
 }
 
 let session: FirstRunSession | null = null;
-/** Read failures before any session was known (getSession failed), per owner. */
+/** Failed session lookups, keyed by owner and published login (null when unknown). */
 const unresolvedFailures = new Map<string, number>();
 let home: HomeVisit | null = null;
 let visitSeq = 0;
@@ -498,13 +500,16 @@ async function decideHomeVisit(ownerId: string, id: number, expectedSessionId?: 
   if (!home || home.id !== id || home.ownerId !== ownerId) {
     return { gate: "home", retryable: false, sessionId: null, returning: false };
   }
-  if (expectedSessionId !== undefined && (!key || key.sessionId !== expectedSessionId)) {
+  if (expectedSessionId !== undefined && key && key.sessionId !== expectedSessionId) {
     return { gate: "home", retryable: false, sessionId: expectedSessionId, returning: false };
   }
   if (!key) {
-    const failures = (unresolvedFailures.get(ownerId) ?? 0) + 1;
-    unresolvedFailures.set(ownerId, failures);
-    return { gate: "home", retryable: failures < FIRST_RUN_MAX_READS, sessionId: null, returning: false };
+    const failureKey = JSON.stringify([ownerId, expectedSessionId ?? null]);
+    const failures = (unresolvedFailures.get(failureKey) ?? 0) + 1;
+    unresolvedFailures.set(failureKey, failures);
+    // No answer is not a different login: keep the published identity so the
+    // failed visit shows home, and a later focus can retry within the same cap.
+    return { gate: "home", retryable: failures < FIRST_RUN_MAX_READS, sessionId: expectedSessionId ?? null, returning: false };
   }
   const s = sessionFor(key);
   const sessionId = key.sessionId;
@@ -572,13 +577,13 @@ function applyVisit(id: number, ownerId: string, result: VisitDecision): void {
 export function startFirstRunHomeVisit(ownerId: string, expectedSessionId?: string | null): void {
   if (!ownerId) return;
   const id = ++visitSeq;
-  home = { ownerId, id, gate: "wait", retryable: false, sessionId: null, rechecking: false };
+  home = { ownerId, id, gate: "wait", retryable: false, sessionId: null, expectedSessionId, rechecking: false };
   publish();
   void decideHomeVisit(ownerId, id, expectedSessionId).then(
     (result) => applyVisit(id, ownerId, result),
     (error) => {
       warn("home visit", error);
-      applyVisit(id, ownerId, { gate: "home", retryable: false, sessionId: null, returning: false });
+      applyVisit(id, ownerId, { gate: "home", retryable: false, sessionId: expectedSessionId ?? null, returning: false });
     },
   );
 }
@@ -634,8 +639,9 @@ function recheckHomeVisit(ownerId: string, id: number): void {
     const key = await resolveFirstRunSession(ownerId);
     const visit = home;
     if (!key || !visit || !stillHome()) return;
+    if (visit.expectedSessionId !== undefined && visit.expectedSessionId !== key.sessionId) return;
     if (visit.sessionId !== key.sessionId) {
-      startFirstRunHomeVisit(ownerId);
+      startFirstRunHomeVisit(ownerId, visit.expectedSessionId);
       return;
     }
     const s = session;
@@ -643,7 +649,7 @@ function recheckHomeVisit(ownerId: string, id: number): void {
     if (Date.now() - s.heldReadAt < FIRST_RUN_HELD_COOLDOWN_MS) return;
     s.heldReadAt = Date.now();
     if (!(await ensureMarks(s, true)) || !stillHome()) return;
-    if (firstRunMayOpen(ownerId, Date.now())) startFirstRunHomeVisit(ownerId);
+    if (firstRunMayOpen(ownerId, Date.now())) startFirstRunHomeVisit(ownerId, visit.expectedSessionId);
   })().catch((error) => warn("recheck", error)).finally(() => {
     checking.rechecking = false;
   });
@@ -672,7 +678,7 @@ export function refocusFirstRunHomeVisit(ownerId: string | null): boolean {
     recheckHomeVisit(ownerId, home.id);
     return false;
   }
-  startFirstRunHomeVisit(ownerId);
+  startFirstRunHomeVisit(ownerId, home.expectedSessionId);
   return true;
 }
 

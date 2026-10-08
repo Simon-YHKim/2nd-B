@@ -57,3 +57,35 @@ AuthContext 행 이동에 따른 DPIA의 코드 인용과 그 계약 테스트�
 원문: `E:/Coding Infra/reports/qa-legacy-261004/gates/d7-onboard-daybreak-r2.txt`,
 `d7-onboard-astra-r2.txt`, #2121 본문 "알고 남긴 경합" 표.
 설계: [onboarding-server-261006.md](../design/onboarding-server-261006.md) 3~5절.
+
+## 2026-10-08 08:29 KST · 재개 검토에서 찾은 회귀 수정
+
+- `24cc256e` 독립 검토에서, 실제 홈 훅처럼 `expectedSessionId`를 전달하면
+  세션 조회 실패를 다른 로그인으로 취급해 다음 focus에서도 재개하지 않는 회귀를 발견했다.
+  재focus는 이 식별자를 잃어, 실패 snapshot이 계속 loader로 보이는 경로도 있었다.
+- 조회 실패는 게시된 식별자로 `home`에 남고 기존 3회 실패 상한 안에서 재시도한다.
+  홈 방문이 전달받은 식별자를 refocus/recheck에도 유지한다. 실제로 다른 로그인인
+  응답은 표식 읽기·claim 전에 폐기하고 AuthContext의 새 게시를 기다린다.
+- 재검토에서 같은 계정의 이전 로그인 실패 예산이 새 로그인에도 누적됨을 확인했다.
+  실패 횟수 키를 `(ownerId, expectedSessionId)`로 나눈다. 새 로그인은 독립 예산을
+  쓰고, 같은 `session_id`를 유지하는 토큰 갱신·재게시는 예산을 초기화하지 않는다.
+- 회귀 테스트 11건: 세션 조회 throw·error·8초 timeout의 복구, focus 중 실패의
+  loader 방지, retry/recheck의 다른 로그인 폐기, 해결되지 않은 조회의 3회 상한.
+  여기에 새 로그인 예산 분리·같은 로그인 예산 유지 2건을 더했다.
+  최초 RED = 신규 9건 실패·기존 62건 통과, GREEN = 71/71.
+  추가 RED = 새 로그인 복구 1건 실패·72건 통과. 최종 account-first-run = 73/73,
+  인접 온보딩·가져오기 6 suites 154/154 통과, 수정 TypeScript 2파일 ESLint 통과.
+- 실행 로그: `E:/Coding Infra/reports/resume-nonw1-261008/onboard-red.log`,
+  `onboard-green.log`, `onboard-adjacent-green.log`, `onboard-lint.log`.
+  예산 분리 추가 로그는 `onboard-session-budget-red.log`,
+  `onboard-session-budget-green.log`, `onboard-session-budget-lint.log`.
+  이 수정 단계는 전체 verify·커밋·push·머지·운영 접근을 실행하지 않았다.
+  전체 검증과 최종 독립 검토는 재개 코디네이터가 이어서 수행한다.
+
+## 2026-10-08 · 재개 코디네이터 전체 검증
+
+- `npm run verify -- --maxWorkers=2` 종료 코드 0: 정적 검사 전체, UI 76/76,
+  Jest 944 suites / 12,828 tests 통과. 로그는
+  `E:/Coding Infra/reports/resume-nonw1-261008/onboard-verify.log`.
+- 인증 조회 실패와 로그인별 예산 변경을 독립 검토 뒤 통합했다. 이후 기반 갱신은
+  D6 1단계 SQL·문서만 포함하며, 최종 PR 커밋의 CI로 함께 확인한다.

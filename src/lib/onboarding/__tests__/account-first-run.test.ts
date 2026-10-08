@@ -22,6 +22,7 @@ const mockAuth = {
   published: "user-a" as string | null,
   sessionUser: "user-a" as string | null,
   sessionId: "s1" as string | null,
+  failure: null as "throw" | "error" | "timeout" | null,
 };
 
 // A server with the 0219 rules. Every request is decided when it is SENT (with
@@ -118,15 +119,19 @@ jest.mock("../../auth/account-epoch", () => ({
 jest.mock("../../supabase/client", () => ({
   getSupabaseClient: () => ({
     auth: {
-      getSession: () =>
-        Promise.resolve({
+      getSession: () => {
+        if (mockAuth.failure === "throw") throw new Error("temporary session read failure");
+        if (mockAuth.failure === "timeout") return new Promise(() => undefined);
+        if (mockAuth.failure === "error") return Promise.resolve({ data: { session: null }, error: new Error("unavailable") });
+        return Promise.resolve({
           data: {
             session: mockAuth.sessionUser
               ? { user: { id: mockAuth.sessionUser }, access_token: mockJwt(mockAuth.sessionId) }
               : null,
           },
           error: null,
-        }),
+        });
+      },
     },
     from: (table: string) => ({
       select: (columns: string) => ({
@@ -241,6 +246,7 @@ beforeEach(() => {
   mockAuth.published = A;
   mockAuth.sessionUser = A;
   mockAuth.sessionId = "s1";
+  mockAuth.failure = null;
   mockServer.rows = new Map([[A, newRow()], [B, newRow()]]);
   mockServer.now = () => new Date().toISOString();
   mockServer.hold = false;
@@ -1065,6 +1071,121 @@ describe("K2: a normal held answer can learn another tab's hand-back", () => {
 });
 
 describe("K3: login identity changes without a focus or owner change", () => {
+  // Value: protects=failed session lookup stays home and recovers on focus;
+  // fails_when=expected identity turns an unknown answer into a final refusal;
+  // why_new=older retry tests omit the identity passed by the real home hook;
+  // seam=existing exported home-visit and snapshot boundaries.
+  test.each(["throw", "error", "timeout"] as const)("a published session recovers after a %s without a remount", async (failure) => {
+    jest.useFakeTimers();
+    syncFirstRunSession(A, "s1");
+    mockAuth.failure = failure;
+    startFirstRunHomeVisit(A, "s1");
+    await settle();
+    if (failure === "timeout") {
+      jest.advanceTimersByTime(FIRST_RUN_TIMEOUT_MS + 1);
+      await settle();
+    }
+    expect(firstRunHomeGateFor(firstRunSnapshot(), A, true, "s1")).toBe("home");
+    expect(mockServer.calls).toEqual({ read: 0, claim: 0, finish: 0 });
+
+    mockAuth.failure = null;
+    expect(refocusFirstRunHomeVisit(A)).toBe(true);
+    await settle();
+    expect(firstRunHomeGateFor(firstRunSnapshot(), A, true, "s1")).toBe("/onboarding");
+    expect(mockServer.calls).toEqual({ read: 1, claim: 1, finish: 0 });
+  });
+
+  test.each(["throw", "error", "timeout"] as const)("a %s during a focus retry keeps the published session on its home result", async (failure) => {
+    jest.useFakeTimers();
+    syncFirstRunSession(A, "s1");
+    mockServer.failRead = new Error("503");
+    startFirstRunHomeVisit(A, "s1");
+    await settle();
+    expect(firstRunHomeGateFor(firstRunSnapshot(), A, true, "s1")).toBe("home");
+
+    mockAuth.failure = failure;
+    expect(refocusFirstRunHomeVisit(A)).toBe(true);
+    await settle();
+    if (failure === "timeout") {
+      jest.advanceTimersByTime(FIRST_RUN_TIMEOUT_MS + 1);
+      await settle();
+    }
+    expect(firstRunHomeGateFor(firstRunSnapshot(), A, true, "s1")).toBe("home");
+    expect(mockServer.calls).toEqual({ read: 1, claim: 0, finish: 0 });
+
+    mockAuth.failure = null;
+    mockServer.failRead = null;
+    expect(refocusFirstRunHomeVisit(A)).toBe(true);
+    await settle();
+    expect(firstRunHomeGateFor(firstRunSnapshot(), A, true, "s1")).toBe("/onboarding");
+    expect(mockServer.calls).toEqual({ read: 2, claim: 1, finish: 0 });
+  });
+
+  test.each([true, false])("a focus preserves the published session when auth resolves another login (retryable: %s)", async (retryable) => {
+    syncFirstRunSession(A, "s1");
+    if (retryable) mockServer.failRead = new Error("503");
+    else mockServer.rows.set(A, newRow({ onboarding_claimed_at: longAgo, onboarding_completed_at: longAgo }));
+    startFirstRunHomeVisit(A, "s1");
+    await settle();
+    mockServer.failRead = null;
+    mockAuth.sessionId = "s2";
+    const calls = { ...mockServer.calls };
+    for (let focus = 0; focus < 2; focus += 1) {
+      refocusFirstRunHomeVisit(A);
+      await settle();
+      expect(firstRunHomeGateFor(firstRunSnapshot(), A, true, "s1")).toBe("home");
+      expect(mockServer.calls).toEqual(calls);
+    }
+    syncFirstRunSession(A, "s2");
+    startFirstRunHomeVisit(A, "s2");
+    await settle();
+    expect(firstRunHomeGateFor(firstRunSnapshot(), A, true, "s2")).toBe(retryable ? "/onboarding" : "home");
+    expect(mockServer.calls.read).toBe(calls.read + 1);
+  });
+
+  test("a published session stops retrying after three unresolved reads", async () => {
+    syncFirstRunSession(A, "s1");
+    mockAuth.failure = "throw";
+    startFirstRunHomeVisit(A, "s1");
+    await settle();
+    for (let attempt = 2; attempt <= FIRST_RUN_MAX_READS; attempt += 1) {
+      expect(refocusFirstRunHomeVisit(A)).toBe(true);
+      await settle();
+      expect(firstRunHomeGateFor(firstRunSnapshot(), A, true, "s1")).toBe("home");
+    }
+    mockAuth.failure = null;
+    expect(refocusFirstRunHomeVisit(A)).toBe(false);
+    await settle();
+    expect(firstRunHomeGateFor(firstRunSnapshot(), A, true, "s1")).toBe("home");
+    expect(mockServer.calls).toEqual({ read: 0, claim: 0, finish: 0 });
+  });
+
+  test.each([false, true])("an exhausted lookup budget resets only for a different published login (new login: %s)", async (newLogin) => {
+    syncFirstRunSession(A, "s1");
+    mockAuth.failure = "throw";
+    startFirstRunHomeVisit(A, "s1");
+    await settle();
+    for (let attempt = 2; attempt <= FIRST_RUN_MAX_READS; attempt += 1) {
+      expect(refocusFirstRunHomeVisit(A)).toBe(true);
+      await settle();
+    }
+
+    // Token refresh republishes the same session_id; a new sign-in changes it.
+    const published = newLogin ? "s2" : "s1";
+    mockAuth.sessionId = published;
+    syncFirstRunSession(A, published);
+    startFirstRunHomeVisit(A, published);
+    await settle(); // the first lookup after publication still fails
+    expect(firstRunHomeGateFor(firstRunSnapshot(), A, true, published)).toBe("home");
+    expect(mockServer.calls).toEqual({ read: 0, claim: 0, finish: 0 });
+
+    mockAuth.failure = null;
+    expect(refocusFirstRunHomeVisit(A)).toBe(newLogin);
+    await settle();
+    expect(firstRunHomeGateFor(firstRunSnapshot(), A, true, published)).toBe(newLogin ? "/onboarding" : "home");
+    expect(mockServer.calls).toEqual({ read: newLogin ? 1 : 0, claim: newLogin ? 1 : 0, finish: 0 });
+  });
+
   test("an older marks load cannot restore the store before an older finish resumes", async () => {
     mockServer.rows.set(A, newRow({ onboarding_claimed_at: new Date().toISOString() }));
     expect(await visit()).toBe("/ttfv");
