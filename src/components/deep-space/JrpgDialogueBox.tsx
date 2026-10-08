@@ -22,10 +22,13 @@ import { m3 } from "@/lib/theme/m3";
 export function useJrpgTypewriter({
   text,
   reducedMotion,
+  active = true,
   onBlip,
 }: {
   text: string;
   reducedMotion: boolean;
+  /** Pause offscreen/covered dialogue without losing the reader's place. */
+  active?: boolean;
   onBlip?: () => void;
 }) {
   const glyphs = useMemo(() => Array.from(text), [text]);
@@ -33,6 +36,11 @@ export function useJrpgTypewriter({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runRef = useRef(0);
   const [progress, setProgress] = useState(() => ({ text, count: reducedMotion ? glyphs.length : 0 }));
+  const progressRef = useRef(progress);
+  const updateProgress = useCallback((next: { text: string; count: number }) => {
+    progressRef.current = next;
+    setProgress(next);
+  }, []);
 
   useEffect(() => {
     onBlipRef.current = onBlip;
@@ -49,19 +57,20 @@ export function useJrpgTypewriter({
   useEffect(() => {
     stop();
     if (reducedMotion || glyphs.length === 0) {
-      setProgress({ text, count: glyphs.length });
+      updateProgress({ text, count: glyphs.length });
       return;
     }
 
+    let index = progressRef.current.text === text ? progressRef.current.count : 0;
+    if (progressRef.current.text !== text) updateProgress({ text, count: 0 });
+    if (!active || index >= glyphs.length) return;
     const run = runRef.current;
-    let index = 0;
-    setProgress({ text, count: 0 });
 
     const tick = () => {
       if (run !== runRef.current) return;
       index += 1;
       const character = glyphs[index - 1] ?? "";
-      setProgress({ text, count: index });
+      updateProgress({ text, count: index });
       if (shouldPlayDialogueBlip(character, index)) onBlipRef.current?.();
       if (index < glyphs.length) {
         timerRef.current = setTimeout(tick, dialogueDelayAfter(character));
@@ -72,7 +81,7 @@ export function useJrpgTypewriter({
 
     timerRef.current = setTimeout(tick, TYPEWRITER_STEP_MS);
     return stop;
-  }, [glyphs, reducedMotion, stop, text]);
+  }, [active, glyphs, reducedMotion, stop, text, updateProgress]);
 
   const visibleCount = progress.text === text
     ? progress.count
@@ -82,8 +91,8 @@ export function useJrpgTypewriter({
   const isComplete = visibleCount >= glyphs.length;
   const reveal = useCallback(() => {
     stop();
-    setProgress({ text, count: glyphs.length });
-  }, [glyphs.length, stop, text]);
+    updateProgress({ text, count: glyphs.length });
+  }, [glyphs.length, stop, text, updateProgress]);
 
   return {
     displayedText: dialogueSlice(text, visibleCount),

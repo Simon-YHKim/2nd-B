@@ -35,6 +35,11 @@ describe("JRPG dialogue presentation", () => {
     expect(home).toContain("jrpg-text-blip.mp3");
     expect(home).toContain("useReducedMotionPref()");
     expect(home).toContain("useJrpgTypewriter");
+    expect(home).toContain("useHustleKForeground(homePortraitActive)");
+    expect(home).toContain("active: homePortraitVisible");
+    expect(home).toContain("speaking={!dialogue.isComplete}");
+    expect(home).toContain("speechText={dialogue.displayedText}");
+    expect(home).toContain('idle={bubble.kind === "intro"}');
     expect(dialogue).toContain("clearTimeout(timerRef.current)");
     expect(dialogue).toContain("reducedMotion || glyphs.length === 0");
   });

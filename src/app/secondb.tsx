@@ -150,6 +150,8 @@ function IconCite({ color, size = 13 }: { color: string; size?: number }) {
 interface ChatTurn {
   role: "user" | "secondb";
   text: string;
+  /** Speaker at send time; absent only on older in-memory turns. */
+  persona?: Rev2PersonaId;
   /** Slugs the reply cited — rendered as small source chips. */
   chips?: string[];
   /** 트위비 next-step candidates (P5f) — trailing → lines lifted from the reply. */
@@ -545,6 +547,9 @@ function SecondBChatBody() {
   const conversationId = useRef(0);
   const activeConversationId = conversationId.current;
   const userAvatar = useChatUserAvatar(userId);
+  // useTranslation also observes addressVariablesChanged after the root's
+  // lookup, so the owner-checked nickname refreshes without a second fetch.
+  const userDisplayName = (userId ? currentDisplayName(userId)?.trim() : null) || t("deepspace:graph.me");
 
   // 대화를 위키로 보내는 길 (1순위 결함). 지금까지 대화는 아무것도 남기지 않았고,
   // 유일한 경로는 LLM 에게 요약을 시킨 뒤 손으로 /capture 에 옮기는 것이었다.
@@ -682,6 +687,7 @@ function SecondBChatBody() {
     [],
   );
   const [sending, setSending] = useState(false);
+  const [sendingPersona, setSendingPersona] = useState<Rev2PersonaId | null>(null);
   const [usedToday, setUsedToday] = useState<number | null>(null);
   // TODAY's rewarded-ad bonus. The screen used to not know this existed, so it
   // gated on the bare tier cap while the engine and the server both accept
@@ -928,6 +934,8 @@ function SecondBChatBody() {
       const msg = message.trim();
       if (msg.length === 0) return false;
 
+      const requestPersona = rev2Persona;
+      setSendingPersona(requestPersona);
       setSending(true);
       setTurns((prev) => [...prev, { role: "user", text: msg }]);
       void (async () => {
@@ -942,7 +950,7 @@ function SecondBChatBody() {
             tier: progression.tier,
             // 이름으로 부르게 한다. 화면은 이미 "허슬케이님" 이라 부른다.
             displayName: currentDisplayName(userId),
-            personaHint: rev2PersonaHint(rev2Persona, locale),
+            personaHint: rev2PersonaHint(requestPersona, locale),
             // D-26 A1: last turns for thread continuity (engine clips to 6 + drops
             // red-zone turns). Synthetic lines (limit/error) are not model
             // replies, so they're excluded here.
@@ -953,7 +961,7 @@ function SecondBChatBody() {
             minor: isMinor === true,
           });
           if (result.status === "blocked") {
-            setTurns((prev) => [...prev, { role: "secondb", text: result.hint, synthetic: true }]);
+            setTurns((prev) => [...prev, { role: "secondb", persona: requestPersona, text: result.hint, synthetic: true }]);
             setUsedToday(result.used);
             if (result.upgradeTo) setPendingUpgrade(result.upgradeTo);
             // 0090: free adults can widen TODAY's allowance by +2 via a
@@ -985,7 +993,7 @@ function SecondBChatBody() {
                 : { display, branches: [] as string[] };
             setTurns((prev) => [
               ...prev,
-              { role: "secondb", text: twi.display, chips, branches: twi.branches, safetyZone: result.reply.safety?.zone },
+              { role: "secondb", persona: requestPersona, text: twi.display, chips, branches: twi.branches, safetyZone: result.reply.safety?.zone },
             ]);
             // 답장 소리(Q-261006-04): 위기 응답도 status "ok" 로 오므로 구역을 따로 본다.
             if (replyCueAllowed({ zone: result.reply.safety?.zone, recording: isRecordingAudioMode() })) playReplyCue();
@@ -1005,12 +1013,13 @@ function SecondBChatBody() {
         } catch (e) {
           const consentError = e instanceof LlmConsentError ? e.code : undefined;
           const failText = consentError ? consentT(`serviceControl.${consentError}`) : t("replyFailed");
-          setTurns((prev) => [...prev, { role: "secondb", text: failText, synthetic: true, consentError }]);
+          setTurns((prev) => [...prev, { role: "secondb", persona: requestPersona, text: failText, synthetic: true, consentError }]);
           reactExpression("negative");
           if (typeof console !== "undefined") console.warn("[secondb] sendChatMessage error", (e as Error).message);
         } finally {
           releaseThinking();
           setSending(false);
+          setSendingPersona(null);
         }
       })();
       return true;
@@ -1106,7 +1115,7 @@ function SecondBChatBody() {
   const lensSoftBg = rev2PersonaSoftBg(rev2Persona);
   const lensOnSoft = rev2PersonaOnSoft(rev2Persona);
   const lensGlow = rev2PersonaGlow(rev2Persona);
-  const lensName = t(`rev2.${rev2Persona}.lensName`);
+  const pendingLensName = t(`rev2.${sendingPersona ?? rev2Persona}.lensName`);
   const inkOnAccent = m3.accent.onAccentInk; // reference send/mic glyph ink on the accent fill
   const suggestionState = {
     turns, conversationId: conversationId.current, sending, keptIndices: keptIdx, keepingIndex: keeping,
@@ -1308,11 +1317,17 @@ function SecondBChatBody() {
             turns.map((turn, i) => (
               <View
                 key={i}
+                testID={`chat-message-${turn.role}-${i}`}
                 style={[ds.bubbleRow, turn.role === "user" ? ds.userRow : ds.aiRow]}
               >
-                <ChatMessageAvatar role={turn.role} userAvatar={userAvatar}
-                  expression={turn.role === "secondb" ? getExchangeExpression(turns, i) : undefined}
-                  label={turn.role === "user" ? t("yourMessage") : lensName} />
+                <View style={ds.messageHeader} testID={`chat-message-header-${turn.role}-${i}`}>
+                  <ChatMessageAvatar role={turn.role} userAvatar={userAvatar}
+                    expression={turn.role === "secondb" ? getExchangeExpression(turns, i) : undefined}
+                    label={turn.role === "user" ? userDisplayName : t(`rev2.${turn.persona ?? "secondb"}.lensName`)} />
+                  <Text style={ds.messageName} testID={`chat-message-name-${turn.role}-${i}`}>
+                    {turn.role === "user" ? userDisplayName : t(`rev2.${turn.persona ?? "secondb"}.lensName`)}
+                  </Text>
+                </View>
                 <View style={ds.bubbleCol}>
                   <Pressable
                     onLongPress={() => copyTurn(i, turn.text)}
@@ -1359,9 +1374,12 @@ function SecondBChatBody() {
             ))
           )}
           {sending ? (
-            <View style={ds.thinking}>
-              <ChatMessageAvatar role="secondb" userAvatar={userAvatar}
-                expression={getExchangeExpression(turns, turns.length - 1, { loading: true })} label={lensName} />
+            <View style={[ds.bubbleRow, ds.aiRow, ds.thinking]}>
+              <View style={ds.messageHeader}>
+                <ChatMessageAvatar role="secondb" userAvatar={userAvatar}
+                  expression={getExchangeExpression(turns, turns.length - 1, { loading: true })} label={pendingLensName} />
+                <Text style={ds.messageName}>{pendingLensName}</Text>
+              </View>
               <ActivityIndicator color={lensAccent} />
             </View>
           ) : null}
@@ -1749,10 +1767,12 @@ const ds = StyleSheet.create({
     fontFamily: fontFamilies.readable,
   },
 
-  bubbleRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
-  userRow: { flexDirection: "row-reverse" },
-  aiRow: { justifyContent: "flex-start" },
-  bubbleCol: { maxWidth: "84%", flexShrink: 1, gap: 6, alignItems: "flex-start" },
+  bubbleRow: { flexDirection: "column", maxWidth: "84%", alignItems: "flex-start", gap: 6 },
+  userRow: { alignSelf: "flex-end" },
+  aiRow: { alignSelf: "flex-start" },
+  messageHeader: { flexDirection: "row", alignItems: "center", gap: 8, maxWidth: "100%" },
+  messageName: { flexShrink: 1, color: deepSpace.textMid, fontSize: 12, lineHeight: 18, paddingBottom: 2, fontFamily: fontFamilies.readable },
+  bubbleCol: { maxWidth: "100%", alignSelf: "stretch", flexShrink: 1, gap: 6, alignItems: "flex-start" },
   // user bubble: M3 primary fill, radius 16/16/4/16 (reference).
   userBubble: {
     alignSelf: "flex-end",
@@ -1794,7 +1814,7 @@ const ds = StyleSheet.create({
   },
   citeChipText: { fontSize: 12, fontWeight: "600", fontFamily: fontFamilies.readable },
 
-  thinking: { flexDirection: "row", gap: 12, paddingVertical: deepSpaceSpacing.md, alignItems: "center" },
+  thinking: { paddingVertical: deepSpaceSpacing.md },
 
   limitLink: { alignSelf: "flex-end", minHeight: 44, justifyContent: "center", paddingHorizontal: 18 },
   limitLinkText: { color: deepSpace.accentSoft, fontSize: 12, fontFamily: fontFamilies.readable },
