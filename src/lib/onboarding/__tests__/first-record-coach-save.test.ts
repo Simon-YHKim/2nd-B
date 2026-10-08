@@ -31,7 +31,8 @@ const saveCode = compile(save.getText(ast));
 const skipCode = compile(skip.initializer.getText(ast));
 
 type CoachStep = FirstRecordCoachStep | null;
-type SaveResult = { followup?: { zone: "green" | "red" } };
+type SaveResult = { id: string; tags: string[]; followup?: { zone: "green" | "red" } };
+const SAVED_RECORD: SaveResult = { id: "saved-record", tags: ["memo"] };
 
 function harness(
   initialStep: CoachStep,
@@ -39,7 +40,8 @@ function harness(
   extra: { photos?: { uri: string; base64: string }[]; mode?: string } = {},
 ) {
   const state = { coachStep: initialStep, saved: false, error: false, saving: false };
-  const createRecord = jest.fn<Promise<SaveResult>, [unknown]>().mockResolvedValue({});
+  const createRecord = jest.fn<Promise<SaveResult>, [unknown]>().mockResolvedValue(SAVED_RECORD);
+  const enqueueAutoReasoningRecord = jest.fn();
   // 2026-09-30: savePiece uploads 글 photos before the insert and clears them
   // after. The payload builder is the production one; the I/O is stubbed.
   const uploaded: RecordPhotoRef[] = (extra.photos ?? []).map((_, i) => ({
@@ -65,6 +67,8 @@ function harness(
     advanceFirstRecordCoach,
     markCoachmarksSeen,
     createRecord,
+    enqueueAutoReasoningRecord,
+    progression: { tier: "brain" },
     userId: "qa-user",
     canSave: true,
     isMinor: false,
@@ -97,7 +101,7 @@ function harness(
     playSaveCue,
   };
   return {
-    state, createRecord, markCoachmarksSeen, setCoachStep, setCrisis, announceForAccessibility, playSaveCue,
+    state, createRecord, enqueueAutoReasoningRecord, markCoachmarksSeen, setCoachStep, setCrisis, announceForAccessibility, playSaveCue,
     uploadRecordPhotos, removeRecordPhotoObjects, clearPhotos, uploaded,
     save: runInNewContext(saveCode, scope) as () => Promise<void>,
     skip: runInNewContext(skipCode, scope) as () => void,
@@ -131,6 +135,7 @@ describe("first-record coach follows the real record save", () => {
     expect(run.setCoachStep).not.toHaveBeenCalled();
     expect(run.announceForAccessibility).toHaveBeenCalledWith("ds.capture.saveError");
     expect(run.playSaveCue).not.toHaveBeenCalled();
+    expect(run.enqueueAutoReasoningRecord).not.toHaveBeenCalled();
   });
 
   test.each<FirstRecordCoachStep>(["input", "save"])(
@@ -146,7 +151,7 @@ describe("first-record coach follows the real record save", () => {
       expect(run.markCoachmarksSeen).not.toHaveBeenCalled();
       run.skip();
       expect(run.state.coachStep).toBeNull();
-      finishSave({});
+      finishSave(SAVED_RECORD);
       await saving;
 
       expect(run.state).toEqual({ coachStep: null, saved: true, error: false, saving: false });
@@ -160,13 +165,18 @@ describe("first-record coach follows the real record save", () => {
     expect(run.state).toEqual({ coachStep: null, saved: true, error: false, saving: false });
     expect(run.markCoachmarksSeen).not.toHaveBeenCalled();
     expect(run.setCoachStep).not.toHaveBeenCalled();
+    expect(run.enqueueAutoReasoningRecord).toHaveBeenCalledTimes(1);
+    expect(run.enqueueAutoReasoningRecord).toHaveBeenCalledWith({
+      userId: "qa-user", locale: "ko", minor: false, tier: "brain",
+      id: "saved-record", body: "A first saved note", title: "A first saved note", tags: ["memo"],
+    });
   });
 
   test.each<FirstRecordCoachStep>(["input", "save"])(
     "a red result from %s hides the guide while showing the safety message",
     async (step) => {
       const run = harness(step);
-      run.createRecord.mockResolvedValueOnce({ followup: { zone: "red" } });
+      run.createRecord.mockResolvedValueOnce({ ...SAVED_RECORD, followup: { zone: "red" } });
       await run.save();
 
       expect(run.setCrisis).toHaveBeenCalledWith({ visible: true, hotline: "KR_109" });
@@ -174,6 +184,7 @@ describe("first-record coach follows the real record save", () => {
       expect(run.markCoachmarksSeen).toHaveBeenCalledTimes(1);
       // '저장됨' 은 켜지지만 위기 안내가 뜨는 메모라 저장 소리는 내지 않는다.
       expect(run.playSaveCue).not.toHaveBeenCalled();
+      expect(run.enqueueAutoReasoningRecord).not.toHaveBeenCalled();
     },
   );
 });
