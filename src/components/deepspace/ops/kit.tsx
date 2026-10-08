@@ -1,3 +1,4 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
 // Shared Ops/assistant component kit (Claude Design ops-assistant.dc.html).
 // Presentational + prop-driven: every action is a callback (no auto-execution —
 // the screen wires them). deepSpace.* tokens only (no hex literals here), no
@@ -6,7 +7,6 @@
 
 import React, { createContext, useContext, type ReactNode } from "react";
 import {
-  Modal,
   ScrollView,
   StyleSheet,
 } from "react-native";

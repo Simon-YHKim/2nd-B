@@ -191,7 +191,11 @@ describe("deep-space /audit screen contract", () => {
       // 브랜치의 useGoHomeStop 한 호출(주석 두 줄 포함, 아래 7df65c0b)과 main 의 es · pt 악센트
       // 복원(R2B-06, 아래 bdbb9efc). 둘 다 03f9dea2 에서 갈라졌고, 한쪽 편집만 남기면 그쪽 값이
       // 그대로 다시 나온다(병합 전 두 부모 대조). 설문 · 저장 · 위기 인계 코드는 한 글자도 안 바뀌었다.
-      "225e520a949dc2246e3fd5c1844642b25ce3cf709ad34848cb7dc758772240d8");
+      // 2026-10-08: AuditLegacy ships through /audit?screener=1 (the name is
+      // historical). Its question index now drives SceneTransition. Removing
+      // just the two wrapper tags reproduces 225e520a; answer/save logic and
+      // styles are unchanged. This pin deliberately includes the wrapper.
+      "4bf5388718fe4ebe7cc05b7a1603152a133f3cd551124197ca687d2f23cbeb31");
     // 이전 값 7df65c0b6373c30955355b5b9fde3f1b6020a69f2380785fa2fdd4d88745727c (PR #2044 브랜치):
     //   PR #2044 main 병합에서 재고정(2026-10-05). 옛 값 03f9dea2 는 병합 직전 main 본문이고,
     //   이번 편집만 되돌리면 그 값이 그대로 다시 나온다(재고정 전 main 대조). 바뀐 것은 미저장

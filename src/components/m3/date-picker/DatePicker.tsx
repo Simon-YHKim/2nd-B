@@ -1,3 +1,4 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
 // M3 calendar date picker (rev2 migration). A tap-to-open field + modal calendar
 // that REPLACES free-text date entry app-wide — the user always picks from a
 // calendar, never types a date. Built on the m3.* token foundation + dayjs (both
@@ -15,7 +16,6 @@
 // FlatList, never a .map() over a long scroll range.
 import { useEffect, useMemo, useState } from "react";
 import {
-  Modal,
   StyleSheet,
   type StyleProp,
   type ViewStyle,

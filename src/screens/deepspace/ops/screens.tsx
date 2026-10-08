@@ -1,10 +1,11 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
 // The 6 Ops/assistant domain screens (Claude Design ops-assistant.dc.html).
 // Each assembles the shared kit (components/deepspace/ops) and renders/operates
 // the already-built backing data libs. deepSpace.* tokens only, no auto-execution
 // (every write is behind a user tap). Strings come from the bilingual ops copy.
 
 import { useEffect, useMemo, useRef, useState, type DependencyList } from "react";
-import { Linking, Modal, Share, StyleSheet } from "react-native";
+import { Linking, Share, StyleSheet } from "react-native";
 import { PhonePressable as Pressable, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { PixelDither } from "@/components/pixel/PixelDither";

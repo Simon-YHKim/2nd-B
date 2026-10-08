@@ -3,6 +3,7 @@ import { Animated, AppState, BackHandler, FlatList, PanResponder, Platform, Pres
 import { router, useFocusEffect, useLocalSearchParams, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import type { AnyGlyphName } from "@/components/pixel/pixel-glyphs";
 import { PixelRoundRect } from "@/components/pixel/PixelRoundRect";
@@ -24,6 +25,7 @@ import { PhoneFrame } from "./PhoneFrame";
 import { PhoneWallpaper } from "./PhoneWallpaper";
 import { PhoneDesignProvider } from "@/lib/theme/phone-design-context";
 import { canBeginPhoneDismiss, shouldCompletePhoneDismiss } from "@/lib/dashboard/phone-dismiss";
+import { advancePhoneTransition, initialPhoneTransition } from "@/lib/dashboard/phone-transition";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { phoneIos } from "@/lib/theme/phone-ios";
@@ -224,6 +226,12 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   }, []);
   // Pages (Simon 2026-10-07, PS-DASH-001 v2.2): the board's two pages come first, then the apps.
   const pageIndex = tab === "dashboard" ? boardPage - 1 : APPS_PAGE;
+  const scene = { screenStack, pageIndex, phoneApp, selectedNoticeId };
+  const [phoneTransition, setPhoneTransition] = useState(() => initialPhoneTransition(scene));
+  const nextTransition = advancePhoneTransition(phoneTransition, scene);
+  // Derive before rendering children so their entrance gets the new direction
+  // in the same commit. Navigation and the existing route/list keys stay immediate.
+  if (nextTransition !== phoneTransition) setPhoneTransition(nextTransition);
   const showPage = useCallback((index: number) => {
     if (index < 0 || index > LAST_PAGE) return;
     scrollY.current = 0;
@@ -678,6 +686,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       <View style={[styles.display, frame.screen, internalActive && styles.displayGrouped]}>
       {!internalActive ? <PhoneWallpaper width={frame.screen.width} height={frame.screen.height} /> : null}
       <StatusBar ink={statusInk} time={statusTime} />
+      <SceneTransition transitionKey={phoneTransition.key} kind={phoneTransition.kind} scope="phone" animateOnMount={false} style={styles.pageBody} testID="phone-scene-transition">
       {internalActive && !contentOwnsBack ? <NavBack label={t("phone.internal.back")} onPress={backInside} /> : null}
       {!ownsDisplay && loading ? <Text accessibilityLiveRegion="polite" variant="caption" style={styles.readStatus}>{t("phone.loading")}</Text> : null}
       {!ownsDisplay && (failed || partial) ? <View style={styles.errorRow}><Text variant="caption" style={[styles.flexText, styles.muted]}>{t("phone.partialError")}</Text><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} /></View> : null}
@@ -716,6 +725,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         contentContainerStyle={styles.content}
       />}
       </View>
+      </SceneTransition>
       {/* Page dots above the dock, as on an iPhone home screen. */}
       {!internalActive ? <View style={styles.pageControls} accessibilityLabel={t("phone.pageControls")}>
         <Pressable accessibilityRole="button" accessibilityLabel={t("phone.previousPage")} disabled={pageIndex === 0} onPress={() => showPage(pageIndex - 1)} style={styles.pageArrow}>

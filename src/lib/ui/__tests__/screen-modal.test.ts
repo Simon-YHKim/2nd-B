@@ -69,9 +69,10 @@ describe("screenModalVisible: a route screen's modal shows only while the screen
 describe("ScreenModal wires RN Modal's visible through the screen's focus", () => {
   const sf = parse("src/components/ui/ScreenModal.tsx");
 
-  it("reads focus with expo-router's useIsFocused and renders RN's Modal", () => {
+  it("reads focus with expo-router's useIsFocused and renders the native motion host", () => {
     expect(namedImports(sf, "expo-router")).toContain("useIsFocused");
-    expect(namedImports(sf, "react-native")).toContain("Modal");
+    expect(namedImports(sf, "./MotionModal")).toContain("Modal");
+    expect(namedImports(parse("src/components/ui/MotionModal.tsx"), "react-native")).toContain("Modal");
   });
 
   it("passes visible = screenModalVisible(props.visible, <useIsFocused()>) AFTER the props spread", () => {
@@ -104,6 +105,10 @@ describe("ScreenModal wires RN Modal's visible through the screen's focus", () =
     const call = expr as ts.CallExpression;
     expect(call.expression.getText(sf)).toBe("screenModalVisible");
     expect(call.arguments.map((a) => a.getText(sf))).toEqual(["props.visible", focusVar]);
+    const activeAt = attrs.findIndex((a) => ts.isJsxAttribute(a) && a.name.getText(sf) === "active");
+    expect(activeAt).toBeGreaterThan(spreadAt);
+    const active = attrs[activeAt] as ts.JsxAttribute;
+    expect(active.initializer && ts.isJsxExpression(active.initializer) && active.initializer.expression?.getText(sf)).toBe(focusVar);
   });
 });
 
@@ -127,4 +132,19 @@ describe("/secondb: both of its modals are ScreenModal (R2A-03)", () => {
     });
     expect(visibles).toEqual(["introOpen", "refDrawer !== null"]);
   });
+});
+
+test.each([
+  "src/components/auth/ResidenceCountryField.tsx",
+  "src/components/capture/PendingImportPrompt.tsx",
+  "src/components/deepspace/ops/kit.tsx",
+  "src/components/m3/date-picker/DatePicker.tsx",
+  "src/components/pixel/PixelTimeSheet.tsx",
+  "src/components/premium/feedback.tsx",
+  "src/components/safety/CrisisRouter.tsx",
+  "src/screens/deepspace/ops/screens.tsx",
+])("%s keeps route-owned dialogs behind the focus gate", (file) => {
+  const sf = parse(file);
+  expect(namedImports(sf, "react-native")).not.toContain("Modal");
+  expect(namedImports(sf, "@/components/ui/ScreenModal")).toContain("Modal");
 });

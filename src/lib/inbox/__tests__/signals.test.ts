@@ -379,7 +379,10 @@ describe("legacy preservation and pixel registration", () => {
     // 2026-10-06 재고정 - 효과음 3차(Simon 결정 Q-261006-11) · /import 파일 가져오기가 실제로 들어온 조각이 있을 때(tally.imported > 0) 저장 소리를 낸다: useUiSound 한 줄 · 호출 한 줄 · import 둘 · 주석 · inbox 와 무관.
     // 2026-10-08: only native surface imports move to phone-scoped UIKit aliases.
     // Import/inbox data, ownership and actions retain the reviewed source.
-    expect(sha(source)).toBe("5f608a7cf6ceecb09e12553fe56fd7520edeba6cd611794dfcc7bfecf4dbfc0d");
+    // 2026-10-08: file/account input panels get SceneTransition. Removing its
+    // import and two tags exactly reproduces the prior source hash; actions,
+    // ownership and inbox remain unchanged.
+    expect(sha(source)).toBe("fffbc29b88c43a392a63269041e187bf26caaa742e539c64f77e6173654619f5");
   });
 
   test("routes /inbox directly to the shipped hub", () => {

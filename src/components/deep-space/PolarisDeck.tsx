@@ -20,6 +20,9 @@ import { Text } from "@/components/ui/Text";
 import { cardEdges } from "@/lib/polaris/card-dismiss";
 
 import { usePolarisCardEdgeReport } from "./polaris-card-edges";
+import { SceneTransition } from "@/components/motion/SceneTransition";
+import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
 
 export interface PolarisDeckPage {
   key: string;
@@ -35,6 +38,9 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
   void isKo;
   const [pageWidth, setPageWidth] = useState(0);
   const [index, setIndex] = useState(0);
+  const [pageMotion, setPageMotion] = useState(0);
+  const inPhone = usePhoneDesign();
+  const reducedMotion = useReducedMotionPref();
   const scrollRef = useRef<ScrollView>(null);
   // Each card body scrolls on its own. The overlay may only dismiss on a
   // vertical swipe when the visible body rests on that edge, so tell it where
@@ -52,7 +58,10 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
   };
 
   const goTo = (i: number) => {
-    scrollRef.current?.scrollTo({ x: i * pageWidth, animated: true });
+    // Finger paging remains native. Dot navigation uses the phone's slide or
+    // the world's stepped incoming motion, without stacking the two effects.
+    scrollRef.current?.scrollTo({ x: i * pageWidth, animated: inPhone && !reducedMotion });
+    if (i !== index && !inPhone) setPageMotion((current) => current + 1);
     setIndex(i);
     reportPage(i);
   };
@@ -74,6 +83,7 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
         <Text style={styles.pageCount}>{`${Math.min(index + 1, pages.length)} / ${pages.length}`}</Text>
       </View>
       {pageWidth > 0 ? (
+        <SceneTransition transitionKey={pageMotion} kind="replace" scope="world" active={!inPhone} animateOnMount={false} style={styles.pager}>
         <ScrollView
           ref={scrollRef}
           horizontal
@@ -112,6 +122,7 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
             </View>
           ))}
         </ScrollView>
+        </SceneTransition>
       ) : null}
       <View style={styles.dots} accessibilityRole="tablist">
         {pages.map((page, i) => (

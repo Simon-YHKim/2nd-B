@@ -13,6 +13,7 @@ import { semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useTranslation } from "react-i18next";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 
 export interface QuantPagerProps {
   totalItems: number;
@@ -47,6 +48,7 @@ export function QuantPager({
   const { t } = useTranslation(["common", "deepspace"]);
   const totalPages = Math.max(1, Math.ceil(totalItems / perPage));
   const [page, setPage] = useState(0);
+  const [pageMotion, setPageMotion] = useState<"page-forward" | "page-back">("page-forward");
 
   // Slice indices for the current page; clamped against totalItems to handle
   // the final partial page (e.g. 44 items with perPage 5 → page 8 has 4).
@@ -66,10 +68,16 @@ export function QuantPager({
   const submitHint = t("quantSubmitHint");
 
   function next() {
-    if (!onLastPage) setPage((p) => p + 1);
+    if (!onLastPage) {
+      setPageMotion("page-forward");
+      setPage((p) => p + 1);
+    }
   }
   function prev() {
-    if (!isFirstPage) setPage((p) => p - 1);
+    if (!isFirstPage) {
+      setPageMotion("page-back");
+      setPage((p) => p - 1);
+    }
   }
 
   return (
@@ -93,6 +101,7 @@ export function QuantPager({
         </View>
       </View>
 
+      <SceneTransition transitionKey={page} kind={pageMotion} animateOnMount={false} style={{ flex: 1, minHeight: 0 }}>
       <ScrollView contentContainerStyle={styles.pageScroll}>
         {pageItems.map((idx) => (
           <View key={idx}>{renderItem(idx)}</View>
@@ -131,6 +140,7 @@ export function QuantPager({
           )}
         </View>
       </ScrollView>
+      </SceneTransition>
     </View>
   );
 }

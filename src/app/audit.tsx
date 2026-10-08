@@ -1,4 +1,5 @@
 import { PhoneView as View, PhoneScrollView as ScrollView } from "@/components/phone/PhoneUIKit";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { StyleSheet } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
@@ -382,6 +383,7 @@ function AuditLegacy() {
   return (
     <AuditScreenerShell onBack={requestBack}>
       <KeyboardAvoidingArea style={{ flex: 1 }}>
+      <SceneTransition transitionKey={index} kind="page-forward" animateOnMount={false} style={{ flex: 1, minHeight: 0 }}>
 <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {index === 0 ? (
           <View style={styles.introCard}>
@@ -452,6 +454,7 @@ function AuditLegacy() {
           onPress={() => router.replace("/capture")}
         />
       </ScrollView>
+      </SceneTransition>
 </KeyboardAvoidingArea>
       {toast ? (
         <View style={styles.toastWrap} pointerEvents="none">

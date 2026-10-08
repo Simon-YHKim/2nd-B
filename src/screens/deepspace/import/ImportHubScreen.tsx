@@ -1,4 +1,5 @@
 import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 // Personal data import hub (Claude Design import-hub.dc.html). Extends the
 // /import pipeline (captureFromMarkdown): sensitivity-tiered hub → consent sheet
 // (A file / B connector, with the mandatory 무엇을/어디에/이 기기에서만 blocks)
@@ -499,11 +500,13 @@ export function ImportHubScreen() {
           ) : null}
         </View>
 
+        <SceneTransition transitionKey={step} kind={step === "hub" ? "back" : "push"} animateOnMount={false} style={{ gap: deepSpaceSpacing.md }}>
         {step === "hub" ? renderHub() : null}
         {step === "consent" && active ? renderConsent(active) : null}
         {step === "input" && active ? renderInput(active) : null}
         {step === "review" && outcome ? renderReview(outcome) : null}
         {step === "history" ? renderHistory() : null}
+        </SceneTransition>
       </ScrollView>
     </DeepSpaceScreen>
   );

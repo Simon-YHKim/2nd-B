@@ -1,4 +1,5 @@
-import { Modal, ScrollView, StyleSheet, View } from "react-native";
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { PixelScrim } from "@/components/pixel/PixelDither";

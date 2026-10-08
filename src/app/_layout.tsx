@@ -60,7 +60,7 @@ import { BackArrow } from "@/components/ui/BackArrow";
 import { IntroExitShield } from "@/components/ui/IntroExitShield";
 import { startIntroExitShield } from "@/lib/nav/intro-exit-shield";
 import { BackgroundTaskDock, CompletionToast, SecondbHeadTrackProvider } from "@/components/deepspace";
-import { pixelStackTransition } from "@/lib/motion/pixel-physical";
+import { WorldRouteTransition } from "@/components/motion/WorldRouteTransition";
 import { useAppFonts } from "@/lib/fonts/use-app-fonts";
 import { clearRetiredThemeMode, useThemePalette } from "@/lib/theme/ThemeContext";
 import { hydrateFirstStarChatNudge } from "@/lib/onboarding/state";
@@ -150,7 +150,6 @@ export default function RootLayout() {
   // (es/pt/id) holds the loader until its pack chunk is attached, so the
   // first paint is in that language instead of EN keys flashing.
   const i18nReady = useI18nReady();
-  const fadeTransition = pixelStackTransition("fade");
 
   useEffect(() => {
     if (fontsReady && i18nReady) {
@@ -266,7 +265,7 @@ export default function RootLayout() {
               <Stack.Screen name="jarvis" />
               <Stack.Screen name="plans" />
               <Stack.Screen name="subscription" />
-              <Stack.Screen name="wiki" options={fadeTransition} />
+              <Stack.Screen name="wiki" />
               <Stack.Screen name="manual" />
               <Stack.Screen name="museum" />
               <Stack.Screen name="big-five" />
@@ -285,12 +284,8 @@ export default function RootLayout() {
               <Stack.Screen name="account" />
               <Stack.Screen name="import" />
               <Stack.Screen name="interview" />
-              {/* Village detail + center: crossfade so the graph→village
-                  transition reads as the zoomed island resolving into the
-                  screen, and BACK doesn't hard-cut to a re-popping graph. The
-                  five Pattern Cores route to /records + /wiki; the center to
-                  /core-brain. (/imagine is now a redirect into Divergent mode.) */}
-              <Stack.Screen name="records" options={fadeTransition} />
+              {/* The shared world transition owns graph/list route changes. */}
+              <Stack.Screen name="records" />
               {/* 북극성 is a card over the sky, not a page (Simon 2026-09-30):
                   the home stays underneath, PolarisCardOverlay draws the scrim. */}
               <Stack.Screen name="core-brain" options={{ presentation: "transparentModal", contentStyle: { backgroundColor: "transparent" } }} />
@@ -315,7 +310,6 @@ export default function RootLayout() {
  *  screen setting its own bg. There is no theme toggle (Q-261005-02). */
 function ThemedStack({ children }: { children: React.ReactNode }) {
   const palette = useThemePalette();
-  const transition = pixelStackTransition();
   // ⚠ **`contentStyle` 만으로는 뒤가 안 칠해진다.**
   //
   // 그건 각 화면의 내용 컨테이너만 칠한다. 그 바깥의 네비게이션 루트 뷰는
@@ -342,13 +336,18 @@ function ThemedStack({ children }: { children: React.ReactNode }) {
         screenLayout={({ children: screen, route }) => (
           <ProfileProbeScope routeName={route.name}>
             <AvatarSetupSceneGuard routeName={route.name}>
-              <AccountScope routeName={route.name}>{screen}</AccountScope>
+              <WorldRouteTransition routeName={route.name} routeKey={route.key}>
+                <AccountScope routeName={route.name}>{screen}</AccountScope>
+              </WorldRouteTransition>
             </AvatarSetupSceneGuard>
           </ProfileProbeScope>
         )}
         screenOptions={{
           headerShown: false,
-          ...transition,
+          // SceneTransition supplies the same stepped motion on native/web.
+          // A platform push here would add a second, smooth animation.
+          animation: "none",
+          animationDuration: 0,
           contentStyle: { backgroundColor: palette.background },
         }}
       >

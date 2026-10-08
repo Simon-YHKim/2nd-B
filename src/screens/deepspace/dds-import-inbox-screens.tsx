@@ -1,4 +1,5 @@
 import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 // rev2 M3 clone of 29-import (외부 가져오기), a windowed sub-screen (radius-24
 // card over the shared sky) with an MdTopAppBar, transcribed 1:1 from the
 // reference-app screen (sb-more.jsx ImportScreen). Import copy stays inline
@@ -440,6 +441,7 @@ export function DeepSpaceImportScreen() {
           </View>
 
           {/* source */}
+          <SceneTransition transitionKey={mode} kind="replace" animateOnMount={false}>
           <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{mode === "file" ? t("ds.import.sectionChooseFile") : t("ds.import.sectionAccounts")}</RNText>
           {mode === "file" ? (
             <View style={s.dropZone}>
@@ -531,6 +533,7 @@ export function DeepSpaceImportScreen() {
             </View>
           )}
 
+          </SceneTransition>
           {result !== null ? (
             <MdCard variant="filled" style={s.resultCard}>
               <RNText style={[m3TextStyle("bodyMedium"), s.resultText]}>

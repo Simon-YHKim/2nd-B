@@ -211,7 +211,9 @@ describe("deep-space records source detail routing", () => {
       // chars / 472 -> 475 lines. Verified before re-pinning: the previous digest
       // 9be2bc0fba47aaacdb791b0366fb0ea218a3c4236e9f3b278630450aeaf526d7 recomputes
       // byte-for-byte from HEAD's copy, so this change is the only delta in the slice.
-      "2444ee96d5da7e7b2ca6064337ee169615efdc976a25f0de5d8af96be2bd5337",
+      // 2026-10-08: list/graph uses the scoped SceneTransition. Removing the
+      // two wrapper tags reproduces 2444ee96; data and detail routing stay exact.
+      "261f51af581c332fbfc14f40919f95d230ff4a223a661cb6ad0d222f65d37603",
     );
     // Re-pinned 2026-09-20 (R48): the wiki screen now honours a ?focusPageId= that names
     // a page outside the 200-row slice it loads -- the RAG citation path can cite one,
@@ -246,6 +248,8 @@ describe("deep-space records source detail routing", () => {
     // `<View style={floatClear}>` call sites). Slice 11,770 -> 11,992 chars / 239 -> 242
     // lines. Verified before re-pinning: undoing exactly those edits recomputes the
     // previous digest 3df2eb1f8ceb487c0c0ba75257ed3382587f5ba32c78cc959a221a91f0d5affc.
-    expect(sha256(wiki)).toBe("5d80807c7a6a749cbf626635569dae37114b18959c9c79df806b2b8f9db4351a");
+    // 2026-10-08: same scoped list/graph transition as records, preserving the
+    // original gap. Removing the two wrapper tags reproduces 5d80807c exactly.
+    expect(sha256(wiki)).toBe("24f3475eecdf94a09afc755003c5de6dd6e959975fad4590b01a49ebd384028e");
   });
 });

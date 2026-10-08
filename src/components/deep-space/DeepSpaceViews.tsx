@@ -1,4 +1,5 @@
 import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 /**
  * STEP 4 — the deep-space dock views, translated from E:/Legacy/2ndB/legacy/design/prototype.dc.html:
  *   CaptureView (담기) · ChatView (세컨비) · LensView (나, empty/error/filled) ·
@@ -870,6 +871,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
       </View>
 
       {/* mode-specific input */}
+      <SceneTransition transitionKey={`${mode}:${fourwOn}`} kind="replace" animateOnMount={false}>
       {mode === "text" ? (
         <>
           {/* 4W1H is a switch, not a second format tile (Simon 2026-09-30). One
@@ -1022,6 +1024,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
         </View>
       )}
 
+      </SceneTransition>
       <View ref={saveCoachTargetRef} collapsable={false} style={styles.capSubmit} {...saveReveal.targetProps}>
         <CaptureTile
           role="button"

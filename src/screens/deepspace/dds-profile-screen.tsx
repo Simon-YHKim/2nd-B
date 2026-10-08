@@ -1,4 +1,5 @@
 import { PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 import { useCallback, useRef, useState } from "react";
 import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
@@ -361,6 +362,7 @@ export function DeepSpaceProfileScreen() {
             })}
           </PixelSurface>
 
+          <SceneTransition transitionKey={activeSection} kind="replace" animateOnMount={false}>
           <PixelSurface variant="frame" contentStyle={styles.routeList}>
             {activeGroup.items.map((item) => (
               <PixelPressable
@@ -380,6 +382,7 @@ export function DeepSpaceProfileScreen() {
               </PixelPressable>
             ))}
           </PixelSurface>
+          </SceneTransition>
         </ScrollView>
       </View>
     </DeepSpaceScreen>

@@ -13,6 +13,13 @@ let mockBackStyle: Record<string, unknown> | undefined;
 let mockModalClose: (() => void) | undefined;
 
 jest.mock("react-native", () => ({
+  Platform: { OS: "web" },
+  Animated: {
+    Value: class {
+      interpolate({ outputRange }: { outputRange: number[] }) { return outputRange[1]; }
+    },
+    View: ({ children }: { children: React.ReactNode }) => React.createElement("div", null, children),
+  },
   Modal: ({ children, onRequestClose }: { children: React.ReactNode; onRequestClose: () => void }) => {
     mockModalClose = onRequestClose;
     return React.createElement("div", { "data-modal": true }, children);
@@ -28,7 +35,8 @@ jest.mock("react-native", () => ({
   View: "div",
   StyleSheet: { create: (styles: unknown) => styles },
 }));
-jest.mock("expo-router", () => ({ router: { back: jest.fn() } }));
+jest.mock("expo-router", () => ({ router: { back: jest.fn() }, useIsFocused: () => true }));
+jest.mock("@/lib/motion/use-reduced-motion", () => ({ useReducedMotionPref: () => true }));
 jest.mock("@/components/ui/PlainText", () => ({ PlainText: "span" }));
 jest.mock("@/components/ui/Text", () => ({ Text: ({ children }: { children: React.ReactNode }) => React.createElement("span", null, children) }));
 jest.mock("@/components/pixel/PixelGlyph", () => ({ PixelGlyph: ({ name, color }: { name: string; color: string }) => React.createElement("span", { "data-glyph": name, "data-color": color }) }));
