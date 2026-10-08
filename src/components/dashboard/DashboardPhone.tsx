@@ -12,6 +12,8 @@ import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { loadDashboard } from "@/lib/dashboard/load";
 import { LIFE_AREAS, type DashboardData } from "@/lib/dashboard/model";
 import { buildBoard } from "@/lib/dashboard/board/build";
+import { useGeneratedBoard } from "@/lib/dashboard/use-generated-board";
+import { withGeneratedBoard } from "@/lib/dashboard/board/generated";
 import { useClockWeather } from "@/lib/weather/use-clock-weather";
 import { WeatherSheet } from "./board/WeatherSheet";
 import { DEFAULT_REFRESH_SETTINGS, getRefreshSettings, nextRefreshAt, shouldRefreshAfterResume } from "@/lib/dashboard/refresh-cadence";
@@ -429,7 +431,8 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       : { month: "short", day: "numeric", weekday: "short" });
   };
   const interviews = data?.interviews.ok ? data.interviews.value.filter((item) => item.body?.trim()) : [];
-  const board = useMemo(() => buildBoard(data, new Date(), isMinor, clockWeather.state), [data, isMinor, clockWeather.state]);
+  const generated = useGeneratedBoard(ownerId, isMinor, i18n.language, insideRoute === "/board/summary");
+  const board = useMemo(() => withGeneratedBoard(buildBoard(data, new Date(), isMinor, clockWeather.state), generated), [data, isMinor, clockWeather.state, generated]);
   // The buttons change only the screen until the W0 contract stores them (발주 2).
   const boardEvents = useMemo<BoardEvents>(() => ({
     weather: setWeatherSheet,

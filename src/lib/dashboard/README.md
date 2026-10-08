@@ -160,3 +160,20 @@ Direct Health / Activity API synchronization requires Garmin developer-program a
 - [Meta's official Instagram API collection](https://www.postman.com/meta/instagram/folder/u4g5a2a/instagram-api-with-facebook-login): Facebook Login API requires a linked professional account and cannot access consumer Instagram accounts. This dashboard makes no claim to provide that connector.
 
 No new credentials, dependencies, provider registrations, paid API calls, database schema or background collectors are added.
+
+## W1 generation preparation
+
+The deterministic W1 boundary is implemented in
+[generation-plan.ts](generation-plan.ts),
+[generation-input.ts](generation-input.ts) and
+[generation-output.ts](generation-output.ts).
+It selects local daily-note slots, prepares only permitted evidence and checks
+unknown generated output against the W0 contract and the supplied reference set.
+The server continuation connects these checks to `dashboard-generate`, an atomic
+SQL claim/dispatch/cache contract and P-02/P-04/S-01. All activation flags remain
+OFF until deployment and consent/model canaries. See the
+[server contract and runbook](../../../docs/design/dashboard-w1-server-261008.md).
+
+Run the focused checks with:
+
+    npm test -- --runInBand src/lib/dashboard/__tests__/generation-plan.test.ts src/lib/dashboard/__tests__/generation-input.test.ts src/lib/dashboard/__tests__/generation-output.test.ts

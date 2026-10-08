@@ -80,7 +80,12 @@ const RETAINED_UNTIL_APPLIED = ["0197:paddle_refund_consequence_integrity"] as c
 
 // Drafts that do not have a number yet, each with its behavioural lane. A new
 // draft is registered here; it leaves this map in the change that numbers it.
-const pendingDrafts: Record<string, { runner: string; workflowInvocation: string }> = {};
+const pendingDrafts: Record<string, { runner: string; workflowInvocation: string }> = {
+  "UNNUMBERED_dashboard_generation.sql": {
+    runner: "scripts/test-dashboard-sql.mjs",
+    workflowInvocation: "node scripts/test-dashboard-sql.mjs 5432 dashboard_test_ci",
+  },
+};
 
 /** Violations of the one-copy rule. Pure, so the guard itself can be mutated below. */
 function draftCopyViolations(
@@ -187,6 +192,10 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
   test("accounts for every unnumbered draft exactly once", () => {
     const retainedDrafts = RETAINED_UNTIL_APPLIED.map((key) => `UNNUMBERED_${key.slice(5)}.sql`);
     expect(listDrafts()).toEqual([...retainedDrafts, ...Object.keys(pendingDrafts)].sort());
+    for (const draft of Object.values(pendingDrafts)) {
+      expect(existsSync(join(ROOT, draft.runner))).toBe(true);
+      expect(read(".github/workflows/supabase-dry-run.yml")).toContain(draft.workflowInvocation);
+    }
   });
 
   test("numbered migrations keep the bytes they were promoted with", () => {
@@ -229,7 +238,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     const retainedDrafts = RETAINED_UNTIL_APPLIED.map((key) => `UNNUMBERED_${key.slice(5)}.sql`);
     const offenders = fixtures.flatMap((path) =>
       [...read(path).matchAll(/^\\i(?:r)?\s+[^\n]*?(UNNUMBERED_[a-z0-9_]+\.sql)/gm)]
-        .filter((hit) => !retainedDrafts.includes(hit[1]))
+        .filter((hit) => !retainedDrafts.includes(hit[1]) && !Object.hasOwn(pendingDrafts, hit[1]))
         .map((hit) => `${path}: ${hit[1]}`),
     );
     expect(fixtures.length).toBeGreaterThan(10);
