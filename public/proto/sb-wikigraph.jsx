@@ -612,7 +612,7 @@
         </div>
 
         <div style={{ display: 'flex', gap: 9, marginTop: 12, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,.05)' }}>
-          <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 26, height: 26, flex: '0 0 auto' }} />
+          <window.SbHead size={26} accessibilityLabel="" style={{ flex: '0 0 auto' }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 11, letterSpacing: '.04em', color: accent, marginBottom: 4 }}>허슬케이가 정리한 내용</div>
             <div className="md-body-medium" style={{ color: '#D7E3F5', wordBreak: 'keep-all', lineHeight: 1.55 }}>

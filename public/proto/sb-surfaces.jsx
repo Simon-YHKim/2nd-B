@@ -235,7 +235,7 @@ function WidgetScreen({ t, go }) {
         <div style={{ flex: 1, height: 128, borderRadius: 22, padding: 14, display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
           background: C('surface-container-highest'), boxShadow: 'var(--md-sys-elevation-level1)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 28, height: 28 }} />
+            <window.SbHead size={28} accessibilityLabel="" />
             <span className="md-label-large" style={{ color: C('on-surface') }}>지금 떠오른 거 담기</span>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -262,7 +262,7 @@ function WidgetScreen({ t, go }) {
         {/* lock-screen complication / notification */}
         <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16,
           background: 'rgba(255,255,255,.08)', backdropFilter: 'blur(8px)' }}>
-          <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 34, height: 34, flex: '0 0 auto' }} />
+          <window.SbHead size={34} accessibilityLabel="" style={{ flex: '0 0 auto' }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#EAF7FF' }}>PolaScope</div>
             <div style={{ fontSize: 13, color: 'rgba(220,235,255,.85)', wordBreak: 'keep-all' }}>오늘 '관계' 별이 밝아졌어요. 한 줄 남겨볼까요?</div>
@@ -273,7 +273,7 @@ function WidgetScreen({ t, go }) {
       {/* push notification */}
       <SectionLabel>알림</SectionLabel>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 14, borderRadius: 16, background: C('surface-container-highest') }}>
-        <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 38, height: 38, flex: '0 0 auto' }} />
+        <window.SbHead size={38} accessibilityLabel="" style={{ flex: '0 0 auto' }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span className="md-label-large" style={{ color: C('on-surface') }}>허슬케이</span>
@@ -299,7 +299,7 @@ function AuthScreen({ t, go }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '36px 26px' }}>
         {/* brand */}
         <div style={{ textAlign: 'center', marginBottom: 26 }}>
-          <img src="assets/hustlek/A01-neutral.png" alt="" style={{ width: 72, height: 72, animation: 'sb-bob 4s ease-in-out infinite' }} />
+          <window.SbHead size={72} accessibilityLabel="" />
           <div style={{ fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 11, letterSpacing: '.16em', color: '#7FD0FF', marginTop: 12 }}>PolaScope</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#EAF7FF', marginTop: 8, wordBreak: 'keep-all' }}>
             다시 만나 반가워요

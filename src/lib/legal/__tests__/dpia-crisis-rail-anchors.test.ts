@@ -192,16 +192,12 @@ const ANCHORS: Anchor[] = [
   // 없다. 이것이 Q-13 의 뒤집는 조건이라 문장을 좁히고 [RE-READ 2026-10-05] 로 남겼다.
   // 이번 회차의 실수는 앞 회차의 거울상이다: 그쪽은 다른 구현을 안 찾았고, 이쪽은 구현을
   // 찾은 뒤 **그 구현이 주장의 입력(홈 상호작용)에 연결돼 있는지**를 안 봤다.
-  { cite: "src/lib/companion/faces.ts:213,219-223", symbol: "quietMs >= SLEEPY_AFTER_MS",
-    why: "'조는' 동작의 실제 술어. 90초 넘게 조용하면 유휴 굴림이 sleepy 표정을 낸다. 어긋나면 읽는 사람이 다른 표정 규칙을 보고 졸기가 없다고 판단한다." },
-  { cite: "src/components/deepspace/SecondbHead.tsx:42-46", symbol: "setIdleExpr(null)",
-    why: "유휴 표정을 지우는 첫째 길. 앱 전역 반응 이벤트(저장·삭제 등)가 오면 떠 있는 유휴 표정을 바로 지우고 조용함 타이머를 다시 잰다. 홈 머리 누르기는 이 이벤트를 보내지 않는다(아래 '홈 머리 누르기' 검사)." },
-  { cite: "src/components/deepspace/SecondbHead.tsx:53-57", symbol: "if (expr) setIdleExpr(null)",
-    why: "유휴 표정을 지우는 둘째 길 - AI 응답 대기 홀드. 문서가 '반응 또는 홀드 이벤트' 라고 둘을 함께 적으므로 홀드 쪽도 실제 줄이 있어야 한다." },
-  { cite: "src/components/deepspace/SecondbHead.tsx:69-73", symbol: "if (reduce)",
-    why: "감속 동작을 켜면 유휴 층 전체가 꺼진다는 근거. 이 줄이 없으면 '졸기' 가 모든 사용자에게 온다고 읽힌다." },
-  { cite: "src/components/deepspace/SecondbHead.tsx:80-87", symbol: "pickIdleAction(Math.random, quietMs)",
-    why: "배송되는 머리가 그 술어를 실제로 부르는 자리. faces.ts 만 인용하면 '규칙은 있는데 아무도 안 부른다' 와 구분되지 않는다 - fab-state 가 정확히 그 상태로 인용되고 있었다." },
+  { cite: "src/components/deepspace/SecondbHead.tsx:31-35", symbol: "setReactExpr(expr)",
+    why: "고정 초상화가 앱 이벤트를 받아 표정을 바꾸고 정해진 뒤 복귀하는 근거." },
+  { cite: "src/components/deepspace/SecondbHead.tsx:36", symbol: "subscribeHold(setHoldExpr)",
+    why: "AI 응답 대기 표정은 홀드 이벤트에만 연결된다." },
+  { cite: "src/components/deepspace/SecondbHead.tsx:44-46", symbol: "expression ?? hustlekExpressionFor(mood)",
+    why: "무작위 유휴 대신 호출자가 준 맥락 또는 기본 표정으로 복귀한다." },
   { cite: "db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:87", symbol: "'external_analytics', false",
     why: "미성년에게 외부 분석이 서버에서 잠긴다는 주장의 실제 줄. ⚠ 문서가 `:88` 을 인용했는데 그 줄은 `'llm_training', false` 다 - **클라이언트 키 집합에서 가지쳐진 키**(회차 57·58)를 두 다른 설정의 근거로 가리키고 있었다." },
   { cite: "db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:86", symbol: "'recommendations', false",

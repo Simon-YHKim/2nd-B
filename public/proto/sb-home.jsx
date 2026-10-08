@@ -86,8 +86,7 @@ function ConstellationHome({ t, onStar, active }) {
   const [bubble, setBubble] = useState(null);
   const [menu, setMenu] = useState(false);
   const [persona, setPersona] = useState(false);
-  const hold = useRef(null),focusRef = useRef(null);
-  const motion = (t.motion ?? 70) / 70;
+  const focusRef = useRef(null);
   const variantB = t.homeVariant === 'B';
 
   /* ---- neural background field (deep space) ---- */
@@ -143,63 +142,16 @@ function ConstellationHome({ t, onStar, active }) {
     return () => {cancelAnimationFrame(raf);clearTimeout(raf);};
   }, [variantB]);
 
-  /* ---- head tracking ---- */
-  useEffect(() => {
-    const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-    const cur = { tx: 0, ty: 0 };
-    const ptr = { x: 0, y: 0 };let last = Date.now();
-    const cl = (v, a, b) => Math.max(a, Math.min(b, v)),lerp = (a, b, k) => a + (b - a) * k;
-    const setPtr = (cx, cy) => {const el = stageRef.current;if (!el) return;const r = el.getBoundingClientRect();
-      ptr.x = cl((cx - (r.left + r.width / 2)) / (window.innerWidth / 2), -1.3, 1.3);
-      ptr.y = cl((cy - (r.top + r.height / 2)) / (window.innerHeight / 2), -1.3, 1.3);last = Date.now();};
-    const move = (e) => {const p = e.touches ? e.touches[0] : e;if (p) setPtr(p.clientX, p.clientY);};
-    let raf = null;
-    const tick = () => {
-      const now = Date.now();
-      if (hold.current) {if (now < hold.current.until) {ptr.x = hold.current.x;ptr.y = hold.current.y;last = now;} else hold.current = null;}
-      if (now - last > 2000) {ptr.x *= 0.92;ptr.y *= 0.92;}
-      const m = motion;
-      cur.tx = lerp(cur.tx, ptr.x * 10 * m, 0.1);cur.ty = lerp(cur.ty, ptr.y * 9 * m, 0.1);
-      if (headRef.current) headRef.current.style.transform = `translate(${Math.round(cur.tx)}px,${Math.round(cur.ty)}px)`;
-      raf = requestAnimationFrame(tick);
-    };
-    const stop = () => {
-      if (raf !== null) cancelAnimationFrame(raf);
-      raf = null;
-      window.removeEventListener('pointermove', move);window.removeEventListener('touchmove', move);
-      ptr.x = ptr.y = cur.tx = cur.ty = 0;
-      if (headRef.current) headRef.current.style.transform = 'translate(0px,0px)';
-    };
-    const sync = () => {
-      stop();
-      if (media?.matches || !motion) return;
-      last = Date.now();
-      window.addEventListener('pointermove', move);window.addEventListener('touchmove', move, { passive: true });
-      raf = requestAnimationFrame(tick);
-    };
-    media?.addEventListener('change', sync);
-    sync();
-    return () => { stop();media?.removeEventListener('change', sync); };
-  }, [motion]);
-
-  const tapHead = () => {setBubble(null);setFocus(null);focusRef.current = null;hold.current = null;setMenu((m) => !m);};
-  const tapStar = (s, e) => {
+  const tapHead = () => {setBubble(null);setFocus(null);focusRef.current = null;setMenu((m) => !m);};
+  const tapStar = (s) => {
     setMenu(false);
     if (s.big) { setBubble(null); setFocus(s.id); focusRef.current = s.id; setPersona(true); return; }
-    const star = e.currentTarget,stage = stageRef.current;
-    const r = star.getBoundingClientRect(),sr = stage.getBoundingClientRect();
-    const cl = (v, a, b) => Math.max(a, Math.min(b, v));
-    hold.current = {
-      x: cl((r.left + r.width / 2 - (sr.left + sr.width / 2)) / (window.innerWidth / 2), -1.4, 1.4),
-      y: cl((r.top + r.height / 2 - (sr.top + sr.height / 2)) / (window.innerHeight / 2), -1.4, 1.4),
-      until: Date.now() + 60000
-    };
     setFocus(s.id);focusRef.current = s.id;
     setBubble(s);
   };
-  const travel = (s) => {hold.current = null;onStar && onStar(s.route, s);};
-  const dismiss = () => {setFocus(null);focusRef.current = null;hold.current = null;setBubble(null);setMenu(false);};
-  const goRoute = (route) => {hold.current = null;setMenu(false);onStar && onStar(route);};
+  const travel = (s) => {onStar && onStar(s.route, s);};
+  const dismiss = () => {setFocus(null);focusRef.current = null;setBubble(null);setMenu(false);};
+  const goRoute = (route) => {setMenu(false);onStar && onStar(route);};
 
   const level = t.starLevel ?? 3;
   const starOpacity = (s) => {if (s.big) return 1;const lv = s.level ?? level;return 0.36 + lv / 5 * 0.64;};
@@ -254,7 +206,7 @@ function ConstellationHome({ t, onStar, active }) {
       <div style={{ position: 'absolute', left: 0, right: 0, top: 'calc(50% - 104px)', transform: 'translateY(-50%)',
       display: 'flex', justifyContent: 'center' }}>
         <div onClick={tapHead} role="button" tabIndex={0} title="허슬케이에게 물어보기"
-      style={{ animation: 'sb-bob 4.5s ease-in-out infinite', cursor: 'pointer' }}>
+      style={{ cursor: 'pointer' }}>
           <SecondBHead scale={(t.headScale ?? 1) * 1.05} expression={t.expression}
         headRef={headRef} />
         </div>
@@ -297,7 +249,7 @@ function ConstellationHome({ t, onStar, active }) {
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1,
         background: 'radial-gradient(circle at 50% 30%,transparent 0 40%,rgba(7,10,19,.3) 72%,rgba(7,10,19,.62) 100%)' }} />
       {headOnTop ? <>{HeadBubble}{Constellation}</> : <>{Constellation}{HeadBubble}</>}
-      {persona && <window.PersonaCard onClose={() => { setPersona(false); dismiss(); }} onRoute={(r) => { setPersona(false); hold.current = null; onStar && onStar(r); }} />}
+      {persona && <window.PersonaCard onClose={() => { setPersona(false); dismiss(); }} onRoute={(r) => { setPersona(false);  onStar && onStar(r); }} />}
     </div>);
 
 }

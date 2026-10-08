@@ -1,4 +1,4 @@
-import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pressable, PhoneTextInput as TextInput } from "@/components/phone/PhoneUIKit";
+import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pressable } from "@/components/phone/PhoneUIKit";
 // 세컨비 chat screen (formerly "Jarvis"). Per handoff v3 §4.B —
 // preview of how RAG transforms the experience. Calls into the single
 // Gemini wrapper (so C1/C3/C9 hold) and pulls a compact wiki snapshot
@@ -50,6 +50,7 @@ import {
 import { captureAccountOwnerLease, subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { chatAutosaveAllowed } from "@/lib/chat/autosave";
+import { getExchangeExpression, getWikiSuggestion, isCurrentWikiSuggestion } from "@/lib/chat/presentation-policy";
 import { createChatAutosaveSession } from "@/lib/chat/autosave-session";
 import { shouldShowChatSaveNotice, useChatSaveNoticeDismissed } from "@/lib/chat/save-notice";
 import { classifyInput } from "@/lib/safety/classifier";
@@ -78,6 +79,9 @@ import {
 } from "@/lib/audio/recording-uri";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { DomainDashboard } from "@/components/secondb/DomainDashboard";
+import { ChatTextInput } from "@/components/secondb/ChatTextInput";
+import { ChatActionBar, type ChatAction } from "@/components/secondb/ChatActionBar";
+import { ChatMessageAvatar, useChatUserAvatar } from "@/components/secondb/ChatMessageAvatar";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { holdExpression, reactExpression } from "@/lib/companion/expression";
 import {
@@ -127,7 +131,6 @@ const pillAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.
 const QUICK_ACTIONS: { ko: string; en: string; mode?: "divergent"; prompt: { ko: string; en: string } }[] = [
   { ko: "다음 한 걸음", en: "Next step", prompt: { ko: "지금 할 수 있는 다음 한 걸음으로 줄여줘.", en: "Narrow this to one next step I can take today." } },
   { ko: "새 관점으로", en: "New angle", mode: "divergent", prompt: { ko: "이 생각을 전혀 다른 관점에서 펼쳐줘.", en: "Unfold this from a completely different angle." } },
-  { ko: "위키에 저장", en: "Save to wiki", prompt: { ko: "이 답을 위키에 저장할 수 있게 한 단락으로 정리해줘.", en: "Sum this up in one paragraph I can save to my wiki." } },
   { ko: "왜 이렇게 봤어?", en: "Why this?", prompt: { ko: "왜 그렇게 봤는지 참고한 별가루를 들어 설명해줘.", en: "Explain why you saw it that way, citing the pieces you used." } },
   { ko: "다시 짧게", en: "Shorter", prompt: { ko: "더 짧게 한 문장으로 말해줘.", en: "Say that again, shorter. One sentence." } },
 ];
@@ -156,6 +159,7 @@ interface ChatTurn {
    *  mis-grounded as something SecondB actually said. */
   synthetic?: boolean;
   consentError?: LlmConsentErrorCode;
+  safetyZone?: "green" | "yellow" | "red";
 }
 
 type ChatMode = "analytic" | "divergent";
@@ -245,9 +249,8 @@ interface ChatComposerProps {
   onSend: (text: string) => boolean;
   /** Node-entry seed (?fromNode=): pre-fills the draft once on first mount. */
   fromNode?: string | null;
-  /** deep-space lens tint + placeholder subject. */
+  /** deep-space lens tint. */
   lensAccent?: string;
-  lensName?: string;
   inkOnAccent?: string;
 }
 
@@ -266,7 +269,6 @@ const ChatComposer = memo(
       fromNode,
       // The chat body always passes these; the defaults only satisfy the type.
       lensAccent = deepSpace.accent,
-      lensName = "",
       inkOnAccent = m3.accent.onAccentInk,
     },
     ref,
@@ -451,32 +453,15 @@ const ChatComposer = memo(
         ) : null}
         <View style={ds.composer}>
         <View style={ds.inputPill}>
-          <TextInput
+          <ChatTextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder={t("askLens", { lens: lensName })}
+            placeholder={t("composerPlaceholder")}
             // AA on the pill (4.54:1), the same token as the other placeholders (QA R2B-08).
             placeholderTextColor={m3.color.onSurfaceVariant}
             style={ds.pillInput}
             accessibilityLabel={t("inputA11y")}
-            onSubmitEditing={submit}
-            returnKeyType="send"
-            onKeyPress={(e) => {
-              // Web: Enter sends, Shift+Enter inserts a newline.
-              if (Platform.OS !== "web") return;
-              const we = e as unknown as {
-                key?: string;
-                shiftKey?: boolean;
-                nativeEvent: { key: string; shiftKey?: boolean };
-                preventDefault?: () => void;
-              };
-              const key = we.nativeEvent?.key ?? we.key;
-              const shift = we.shiftKey ?? we.nativeEvent?.shiftKey ?? false;
-              if (key === "Enter" && !shift) {
-                we.preventDefault?.();
-                submit();
-              }
-            }}
+            onSubmit={submit}
           />
           {/* med#22 follow-through: the mic is BACK, and this time it does
               something — the live /capture-full dictation chain, proposing
@@ -557,6 +542,9 @@ function SecondBChatBody() {
   const [showDashboard, setShowDashboard] = useState(params.panel === "dashboard");
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
+  const conversationId = useRef(0);
+  const activeConversationId = conversationId.current;
+  const userAvatar = useChatUserAvatar(userId);
 
   // 대화를 위키로 보내는 길 (1순위 결함). 지금까지 대화는 아무것도 남기지 않았고,
   // 유일한 경로는 LLM 에게 요약을 시킨 뒤 손으로 /capture 에 옮기는 것이었다.
@@ -581,6 +569,7 @@ function SecondBChatBody() {
   // **보관**이지 앱이 사용자를 대신해 내리는 결정이 아니다.
   const [keptIdx, setKeptIdx] = useState<Set<number>>(new Set());
   const [keeping, setKeeping] = useState<number | null>(null);
+  const keepInFlight = useRef(false);
   // 담기 실패는 복사 실패와 같은 자세로 화면에 남긴다. 복사와 달리 타이머로
   // 지우지 않는다 - "확인해 보라"는 안내라서 사용자가 다시 누를 때까지 보여야
   // 한다.
@@ -599,11 +588,13 @@ function SecondBChatBody() {
   // 담겼는지를 호출자에게 돌려준다. 자동 담기가 실패를 알아야 표시를 되돌릴 수
   // 있고, 그래야 한 번의 일시적 실패로 그 턴이 영구히 빠지지 않는다.
   async function keepExchange(index: number, signal?: AbortSignal): Promise<boolean> {
-    if (!userId || keeping !== null || keptIdx.has(index)) return false;
+    if (activeConversationId !== conversationId.current) return false;
+    if (!userId || keepInFlight.current || keeping !== null || keptIdx.has(index)) return false;
     const lease = captureAccountOwnerLease(userId);
     if (!lease || signal?.aborted) return false;
     const reply = turns[index];
     if (!reply || !isKeepable(reply)) return false;
+    keepInFlight.current = true;
     const controller = new AbortController();
     const abort = () => controller.abort();
     signal?.addEventListener("abort", abort);
@@ -657,6 +648,7 @@ function SecondBChatBody() {
       if (typeof console !== "undefined") console.warn("[secondb] keep failed", (e as Error).message);
       return false;
     } finally {
+      keepInFlight.current = false;
       unsubscribe();
       signal?.removeEventListener("abort", abort);
       if (lease.isCurrent()) setKeeping(null);
@@ -738,6 +730,7 @@ function SecondBChatBody() {
   // "soma" in the limit-hit effect when no blocked turn has set it yet.
   const [pendingUpgrade, setPendingUpgrade] = useState<SubscriptionTier | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+  const followingLatest = useRef(true);
 
   // Phase 4 (0090): free adults can top up the chat DAILY cap (+2 sends today).
   const [chatRewardVisible, setChatRewardVisible] = useState(false);
@@ -777,7 +770,7 @@ function SecondBChatBody() {
       session.stop();
       if (autosaveSessionRef.current === session) autosaveSessionRef.current = null;
     };
-  }, [userId]);
+  }, [userId, activeConversationId]);
 
   // 자동 저장: 동의가 켜져 있으면 새로 도착한 답변을 담는다.
   //
@@ -992,7 +985,7 @@ function SecondBChatBody() {
                 : { display, branches: [] as string[] };
             setTurns((prev) => [
               ...prev,
-              { role: "secondb", text: twi.display, chips, branches: twi.branches },
+              { role: "secondb", text: twi.display, chips, branches: twi.branches, safetyZone: result.reply.safety?.zone },
             ]);
             // 답장 소리(Q-261006-04): 위기 응답도 status "ok" 로 오므로 구역을 따로 본다.
             if (replyCueAllowed({ zone: result.reply.safety?.zone, recording: isRecordingAudioMode() })) playReplyCue();
@@ -1115,6 +1108,43 @@ function SecondBChatBody() {
   const lensGlow = rev2PersonaGlow(rev2Persona);
   const lensName = t(`rev2.${rev2Persona}.lensName`);
   const inkOnAccent = m3.accent.onAccentInk; // reference send/mic glyph ink on the accent fill
+  const suggestionState = {
+    turns, conversationId: conversationId.current, sending, keptIndices: keptIdx, keepingIndex: keeping,
+  };
+  const wikiSuggestion = getWikiSuggestion(suggestionState);
+  const retryIndex = keepNotice && !keepNotice.ok && !keptIdx.has(keepNotice.i) ? keepNotice.i : null;
+  const saveIndex = keeping ?? retryIndex ?? wikiSuggestion?.replyIndex ?? null;
+  const lastTurn = turns[turns.length - 1];
+  const hasReplyActions = !!lastTurn && isKeepable(lastTurn) && lastTurn.safetyZone !== "red" && !sending;
+  const chatActions: ChatAction[] = [];
+  if (saveIndex !== null) {
+    chatActions.push({
+      id: "keep-wiki", label: t(keeping !== null ? "keeping" : "keepToWiki"),
+      hint: t("keepSuggestionHint"), recommended: keeping === null,
+      disabled: keeping !== null || sending, busy: keeping !== null,
+      onPress: () => {
+        if (keepInFlight.current || sending) return;
+        if (retryIndex !== null || wikiSuggestion && isCurrentWikiSuggestion(wikiSuggestion, {
+          ...suggestionState, turns: turnsRef.current, conversationId: conversationId.current,
+        })) void keepExchange(saveIndex);
+      },
+    });
+  }
+  if (hasReplyActions) {
+    for (const [index, branch] of (lastTurn.branches ?? []).entries()) {
+      chatActions.push({ id: `branch-${index}`, label: branch, hint: t("fillsComposer"),
+        onPress: () => composerRef.current?.prefill(branch) });
+      chatActions.push({ id: `branch-save-${index}`, label: t("keep"), hint: t("captureBranch", { branch }),
+        onPress: () => router.push({ pathname: "/capture", params: { text: branch } }) });
+    }
+    chatActions.push(...QUICK_ACTIONS.map((qa, index) => ({
+      id: `follow-up-${index}`, label: locale === "ko" ? qa.ko : qa.en, hint: t("fillsComposer"),
+      onPress: () => {
+        if (qa.mode === "divergent") selectRev2Persona("twi");
+        composerRef.current?.prefill(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
+      },
+    })));
+  }
   return (
     <DeepSpaceScreen active="chat" variant="windowed" header="none">
       <KeyboardAvoidingArea
@@ -1175,7 +1205,18 @@ function SecondBChatBody() {
           </Text>
           {hasTurns ? (
             <Pressable
-              onPress={() => setTurns([])}
+              onPress={() => {
+                if (sending || keeping !== null || keepInFlight.current) return;
+                autosaveSessionRef.current?.stop();
+                autosaveSessionRef.current = null;
+                conversationId.current += 1;
+                setTurns([]);
+                setKeptIdx(new Set());
+                setKeepNotice(null);
+                setCopyNotice(null);
+              }}
+              disabled={sending || keeping !== null}
+              accessibilityState={{ disabled: sending || keeping !== null }}
               hitSlop={14}
               style={ds.clearLink}
               accessibilityRole="button"
@@ -1198,8 +1239,15 @@ function SecondBChatBody() {
 
         <ScrollView
           ref={scrollRef}
+          testID="chat-transcript"
           style={{ flex: 1 }}
           contentContainerStyle={[ds.scroll, { paddingBottom: messageListBottomPadding }]}
+          onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => {
+            followingLatest.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 32;
+          }}
+          scrollEventThrottle={16}
+          onLayout={() => { if (followingLatest.current) scrollRef.current?.scrollToEnd({ animated: false }); }}
+          onContentSizeChange={() => { if (followingLatest.current) scrollRef.current?.scrollToEnd({ animated: false }); }}
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -1210,6 +1258,44 @@ function SecondBChatBody() {
           {showDashboard && userId ? (
             <DomainDashboard userId={userId} onDismiss={() => setShowDashboard(false)} />
           ) : null}
+
+        {/* 대화가 남지 않는다는 안내. 자동 저장이 꺼져 있고, 아직 닫지 않았고,
+            오간 말이 있을 때만 한 번 뜬다. 기본값을 뒤집지 않고 선택지가
+            있다는 사실만 알린다 — 매번 띄우면 안내가 아니라 압박이다. */}
+        {shouldShowChatSaveNotice({
+          autosaveConsent,
+          dismissed: saveNoticeDismissed,
+          turnCount: turns.length,
+        }) ? (
+          <View style={ds.saveNotice} accessibilityRole="alert">
+            <Text style={ds.saveNoticeTitle}>{t("chatSaveNotice")}</Text>
+            <Text style={ds.saveNoticeBody}>{t("chatSaveNoticeBody")}</Text>
+            <View style={ds.saveNoticeRow}>
+              <Pressable
+                onPress={() => {
+                  dismissSaveNotice();
+                  router.push("/privacy");
+                }}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t("chatSaveNoticeOpen")}
+                style={ds.saveNoticeBtn}
+              >
+                <Text style={ds.saveNoticeBtnText}>{t("chatSaveNoticeOpen")}</Text>
+              </Pressable>
+              <Pressable
+                onPress={dismissSaveNotice}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t("chatSaveNoticeDismiss")}
+                style={ds.saveNoticeBtn}
+              >
+                <Text style={ds.saveNoticeDismissText}>{t("chatSaveNoticeDismiss")}</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
 
           {turns.length === 0 ? (
             <View style={ds.empty}>
@@ -1224,6 +1310,9 @@ function SecondBChatBody() {
                 key={i}
                 style={[ds.bubbleRow, turn.role === "user" ? ds.userRow : ds.aiRow]}
               >
+                <ChatMessageAvatar role={turn.role} userAvatar={userAvatar}
+                  expression={turn.role === "secondb" ? getExchangeExpression(turns, i) : undefined}
+                  label={turn.role === "user" ? t("yourMessage") : lensName} />
                 <View style={ds.bubbleCol}>
                   <Pressable
                     onLongPress={() => copyTurn(i, turn.text)}
@@ -1265,132 +1354,18 @@ function SecondBChatBody() {
                       </View>
                     </Pressable>
                   ) : null}
-                  {/* 대화를 위키로. 답변 하나를 직전 질문과 짝지어 기록으로
-                      남긴다. 화면을 떠나지 않고, LLM 도 다시 부르지 않는다.
-                      인사말·오류 문구(synthetic)에는 붙지 않는다. */}
-                  {isKeepable(turn) ? (
-                    <Pressable
-                      style={ds.keepChip}
-                      onPress={() => void keepExchange(i)}
-                      disabled={keeping !== null || keptIdx.has(i)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel={keptIdx.has(i) ? t("keptToWiki") : t("keepToWiki")}
-                    >
-                      <Text style={ds.keepChipText}>
-                        {keptIdx.has(i) ? t("keptToWiki") : keeping === i ? t("keeping") : t("keepToWiki")}
-                      </Text>
-                    </Pressable>
-                  ) : null}
-                  {keepNotice?.i === i && !keepNotice.ok ? (
-                    <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
-                      {t("keepFailed")}
-                    </Text>
-                  ) : null}
-                  {/* 트위비 3-branch (P5f): next-step candidates. Tap = prefill
-                      the composer; 담기 = hand the branch to /capture (?text=,
-                      the share-consume path). */}
-                  {turn.role === "secondb" && turn.branches && turn.branches.length > 0 ? (
-                    <View style={ds.branchCol}>
-                      {turn.branches.map((branch) => (
-                        <View key={branch} style={ds.branchRow}>
-                          <Pressable
-                            style={ds.branchChip}
-                            onPress={() => composerRef.current?.prefill(branch)}
-                            accessibilityRole="button"
-                            accessibilityLabel={branch}
-                            accessibilityHint={t("fillsComposer")}
-                          >
-                            <Text style={ds.branchChipText} numberOfLines={2}>
-                              {branch}
-                            </Text>
-                          </Pressable>
-                          <Pressable
-                            style={ds.branchSave}
-                            onPress={() => router.push({ pathname: "/capture", params: { text: branch } })}
-                            hitSlop={10}
-                            accessibilityRole="button"
-                            accessibilityLabel={t("captureBranch", { branch })}
-                          >
-                            <Text style={ds.branchSaveText}>{t("keep")}</Text>
-                          </Pressable>
-                        </View>
-                      ))}
-                    </View>
-                  ) : null}
                 </View>
               </View>
             ))
           )}
           {sending ? (
             <View style={ds.thinking}>
+              <ChatMessageAvatar role="secondb" userAvatar={userAvatar}
+                expression={getExchangeExpression(turns, turns.length - 1, { loading: true })} label={lensName} />
               <ActivityIndicator color={lensAccent} />
             </View>
           ) : null}
         </ScrollView>
-
-        {/* 대화가 남지 않는다는 안내. 자동 저장이 꺼져 있고, 아직 닫지 않았고,
-            오간 말이 있을 때만 한 번 뜬다. 기본값을 뒤집지 않고 선택지가
-            있다는 사실만 알린다 — 매번 띄우면 안내가 아니라 압박이다. */}
-        {shouldShowChatSaveNotice({
-          autosaveConsent,
-          dismissed: saveNoticeDismissed,
-          turnCount: turns.length,
-        }) ? (
-          <View style={ds.saveNotice} accessibilityRole="alert">
-            <Text style={ds.saveNoticeTitle}>{t("chatSaveNotice")}</Text>
-            <Text style={ds.saveNoticeBody}>{t("chatSaveNoticeBody")}</Text>
-            <View style={ds.saveNoticeRow}>
-              <Pressable
-                onPress={() => {
-                  dismissSaveNotice();
-                  router.push("/privacy");
-                }}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t("chatSaveNoticeOpen")}
-                style={ds.saveNoticeBtn}
-              >
-                <Text style={ds.saveNoticeBtnText}>{t("chatSaveNoticeOpen")}</Text>
-              </Pressable>
-              <Pressable
-                onPress={dismissSaveNotice}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t("chatSaveNoticeDismiss")}
-                style={ds.saveNoticeBtn}
-              >
-                <Text style={ds.saveNoticeDismissText}>{t("chatSaveNoticeDismiss")}</Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : null}
-
-        {/* quick-action chips after an answer */}
-        {turns.length > 0 && turns[turns.length - 1].role === "secondb" && !sending ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={ds.quickRow}
-            keyboardShouldPersistTaps="handled"
-          >
-            {QUICK_ACTIONS.map((qa) => (
-              <Pressable
-                key={qa.en}
-                style={ds.quickChip}
-                onPress={() => {
-                  if (qa.mode === "divergent") selectRev2Persona("twi");
-                  else if (qa.mode) setChatMode(qa.mode);
-                  composerRef.current?.prefill(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={locale === "ko" ? qa.ko : qa.en}
-              >
-                <Text style={ds.quickChipText}>{locale === "ko" ? qa.ko : qa.en}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        ) : null}
 
         {atLimit ? (
           <Pressable
@@ -1410,6 +1385,13 @@ function SecondBChatBody() {
             fills with the lens accent when there is something to send. Draft
             state lives inside ChatComposer so a keystroke re-renders only the
             composer, not this whole DeepSpaceScreen (starfield/header/dock). */}
+        <View testID="chat-composer-dock" style={ds.composerDock}>
+          {keepNotice && !keepNotice.ok ? (
+            <Text variant="caption" style={ds.keepFeedback} accessibilityLiveRegion="polite">{t("keepFailed")}</Text>
+          ) : keptIdx.has(turns.length - 1) ? (
+            <Text variant="caption" style={ds.keepFeedback} accessibilityLiveRegion="polite">{t("keptToWiki")}</Text>
+          ) : null}
+          <ChatActionBar actions={chatActions} />
         <ChatComposer
           ref={composerRef}
           sending={sending}
@@ -1417,9 +1399,9 @@ function SecondBChatBody() {
           onSend={handleSend}
           fromNode={fromNode}
           lensAccent={lensAccent}
-          lensName={lensName}
           inkOnAccent={inkOnAccent}
         />
+        </View>
       </KeyboardAvoidingArea>
 
       {/* 첫 진입 인사 모달. ScreenModal: 다른 화면이 이 화면을 덮으면 안내도 내려간다(R2A-03).
@@ -1721,21 +1703,6 @@ const ds = StyleSheet.create({
     fontFamily: fontFamilies.readable,
     textAlign: "right",
   },
-  // 트위비 3-branch chips (P5f): next-step candidates under a Divergent reply.
-  branchCol: { gap: 6, marginTop: 6 },
-  branchRow: { flexDirection: "row", alignItems: "stretch", gap: 6 },
-  branchChip: {
-    flex: 1,
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: deepSpaceSpacing.md,
-    paddingVertical: 8,
-    borderRadius: m3.shape.small,
-    borderWidth: 1,
-    borderColor: deepSpace.soulLine,
-    backgroundColor: deepSpace.card,
-  },
-  branchChipText: { color: deepSpace.textHi, fontSize: 12, fontFamily: fontFamilies.readable },
   // 대화 저장 안내 (Simon 결정 B1). 경고색을 쓰지 않는다 — 잘못한 것이 아니라
   // 선택지를 알리는 자리다.
   saveNotice: {
@@ -1759,33 +1726,6 @@ const ds = StyleSheet.create({
   },
   saveNoticeBtnText: { color: deepSpace.accent, fontSize: 13, fontWeight: "600" },
   saveNoticeDismissText: { color: semantic.textMuted, fontSize: 13 },
-  keepChip: {
-    alignSelf: "flex-start",
-    marginTop: 8,
-    minHeight: 32,
-    paddingHorizontal: 10,
-    justifyContent: "center",
-    borderRadius: m3.shape.small,
-    borderWidth: 1,
-    borderColor: deepSpace.cardLine,
-    backgroundColor: deepSpace.card,
-  },
-  keepChipText: {
-    fontSize: 12,
-    color: deepSpace.textMuted,
-  },
-  branchSave: {
-    minWidth: 52,
-    minHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: m3.shape.small,
-    borderWidth: 1,
-    borderColor: deepSpace.cardLine,
-    backgroundColor: deepSpace.card,
-  },
-  branchSaveText: { color: deepSpace.mint, fontSize: 12, fontFamily: fontFamilies.readable },
-
   contextPillWrap: { paddingHorizontal: 18, paddingBottom: deepSpaceSpacing.sm },
   contextPill: {
     alignSelf: "flex-start",
@@ -1809,10 +1749,10 @@ const ds = StyleSheet.create({
     fontFamily: fontFamilies.readable,
   },
 
-  bubbleRow: { flexDirection: "row" },
-  userRow: { justifyContent: "flex-end" },
+  bubbleRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  userRow: { flexDirection: "row-reverse" },
   aiRow: { justifyContent: "flex-start" },
-  bubbleCol: { maxWidth: "86%", gap: 6, alignItems: "flex-start" },
+  bubbleCol: { maxWidth: "84%", flexShrink: 1, gap: 6, alignItems: "flex-start" },
   // user bubble: M3 primary fill, radius 16/16/4/16 (reference).
   userBubble: {
     alignSelf: "flex-end",
@@ -1854,26 +1794,16 @@ const ds = StyleSheet.create({
   },
   citeChipText: { fontSize: 12, fontWeight: "600", fontFamily: fontFamilies.readable },
 
-  thinking: { paddingVertical: deepSpaceSpacing.md, alignItems: "center" },
-
-  quickRow: { alignItems: "center", gap: deepSpaceSpacing.sm, paddingHorizontal: 18, paddingVertical: deepSpaceSpacing.sm },
-  quickChip: {
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: deepSpaceSpacing.md,
-    borderRadius: m3.shape.small,
-    borderWidth: 1,
-    borderColor: deepSpace.cardLine,
-    backgroundColor: deepSpace.card,
-  },
-  quickChipText: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.readable },
+  thinking: { flexDirection: "row", gap: 12, paddingVertical: deepSpaceSpacing.md, alignItems: "center" },
 
   limitLink: { alignSelf: "flex-end", minHeight: 44, justifyContent: "center", paddingHorizontal: 18 },
   limitLinkText: { color: deepSpace.accentSoft, fontSize: 12, fontFamily: fontFamilies.readable },
 
+  composerDock: { flexGrow: 0, flexShrink: 0 },
+  keepFeedback: { paddingHorizontal: 12, paddingVertical: 4, color: deepSpace.textMuted },
   composer: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     gap: deepSpaceSpacing.sm,
     paddingHorizontal: 12,
     paddingTop: deepSpaceSpacing.sm,
@@ -1883,9 +1813,10 @@ const ds = StyleSheet.create({
   inputPill: {
     flex: 1,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     gap: deepSpaceSpacing.sm,
-    height: 48,
+    minHeight: 48,
+    paddingVertical: 6,
     paddingLeft: 16,
     paddingRight: 6,
     borderRadius: m3.shape.none,

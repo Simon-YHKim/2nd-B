@@ -101,9 +101,12 @@ function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<number
   const state: Host["state"] = { kept: new Set(options.kept ?? []), keeping: [], notice: [], announced: [], crisis: [], captures: [], warnings: [], current: options.notice ?? null, cues: 0 };
   const bindings = {
     userId: "local-owner",
+    activeConversationId: 0,
+    conversationId: { current: 0 },
     captureAccountOwnerLease,
     subscribeAccountTransition,
     keeping: options.keeping ?? null,
+    keepInFlight: { current: false },
     keptIdx: state.kept,
     turns: [PROMPT, REPLY, PROMPT, REPLY],
     isKeepable: (turn: { role: string }) => turn.role === "secondb",
@@ -142,6 +145,16 @@ function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<number
 }
 
 describe("담기 실패를 화면이 말한다", () => {
+  test("렌더 전에 연속으로 눌러도 저장은 한 번만 시작한다", async () => {
+    let finish!: () => void;
+    const pending = new Promise<void>(resolve => { finish = resolve; });
+    const host = keepHost({ capture: () => pending });
+    const first = host.keep(1);
+    await expect(host.keep(1)).resolves.toBe(false);
+    expect(host.state.captures).toHaveLength(1);
+    finish();
+    await expect(first).resolves.toBe(true);
+  });
   test("직접 담으면 저장 소리를 한 번 내고, 자동 담기는 무음이다", async () => {
     const manual = keepHost();
     await expect(manual.keep(1)).resolves.toBe(true);
@@ -313,11 +326,11 @@ describe("실패 안내가 보이는 자리에 온다", () => {
 });
 
 describe("실패 안내가 화면에 붙어 있고 문구가 정직하다", () => {
-  test("담기 칩 옆에 live region 으로 실패 캡션을 그린다", () => {
-    // 복사 캡션과 같은 자세여야 한다: 같은 턴 옆에서, 자동으로 읽히게.
-    const render = SOURCE.slice(SOURCE.indexOf("isKeepable(turn) ?"));
+  test("입력창 추천 행 위에 live region 으로 실패 캡션을 그린다", () => {
+    const render = SOURCE.slice(SOURCE.indexOf('<View testID="chat-composer-dock"'), SOURCE.indexOf("</KeyboardAvoidingArea>"));
     expect(render).toContain("keepNotice");
-    expect(render.slice(0, render.indexOf("</Pressable>") + 400)).toMatch(/accessibilityLiveRegion="polite"/);
+    expect(render).toMatch(/accessibilityLiveRegion="polite"/);
+    expect(render.indexOf('t("keepFailed")')).toBeLessThan(render.indexOf("<ChatActionBar"));
     expect(SOURCE).toContain('t("keepFailed")');
   });
 
