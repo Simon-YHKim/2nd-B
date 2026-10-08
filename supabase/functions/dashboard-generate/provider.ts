@@ -52,7 +52,7 @@ export function createBoardProvider(deps: BoardProviderDependencies) {
       return fail();
     }
     const started = Date.now();
-    let outcome = 'failed'; let output: unknown = null; let tokens: number | null = null; let responseText = '';
+    let outcome = 'transport_failed'; let output: unknown = null; let tokens: number | null = null; let responseText = '';
     try {
       const response = await deps.fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST', redirect: 'error', signal: AbortSignal.timeout(25_000),
@@ -60,19 +60,28 @@ export function createBoardProvider(deps: BoardProviderDependencies) {
         body: JSON.stringify({ model: deps.model, max_tokens: 4096,
           system: SAFETY_PREAMBLE + '\n' + input.system, messages: [{ role: 'user', content: input.prompt }] }),
       });
+      outcome = `http_${response.status}`;
       if (response.ok) {
+        outcome = 'invalid_response';
         const body = await readLlmUpstreamJsonObject(response);
-        if (Array.isArray(body.content) && body.stop_reason === 'end_turn') {
-          responseText = body.content.filter((part: Record<string, unknown>) => part.type === 'text' && typeof part.text === 'string')
-            .map((part: Record<string, unknown>) => part.text).join('');
-          if (responseText.length <= 32_768 && !hasCrisisTerm(responseText)) {
-            output = JSON.parse(responseText); outcome = 'completed';
-          }
-        }
         const usage = body.usage as Record<string, unknown> | undefined;
         if (typeof usage?.input_tokens === 'number' && typeof usage.output_tokens === 'number') {
           const total = usage.input_tokens + usage.output_tokens;
           if (Number.isSafeInteger(total) && total >= 0) tokens = total;
+        }
+        if (Array.isArray(body.content) && body.stop_reason === 'end_turn') {
+          responseText = body.content.filter((part: Record<string, unknown>) => part.type === 'text' && typeof part.text === 'string')
+            .map((part: Record<string, unknown>) => part.text).join('');
+          outcome = 'rejected_output';
+          if (responseText.length <= 32_768 && !hasCrisisTerm(responseText)) {
+            // Some valid JSON responses arrive in one Markdown code block.
+            // Unwrap only that entire block; never extract JSON from prose.
+            // The handler still enforces every field and evidence reference.
+            const trimmed = responseText.trim();
+            const block = /^```(?:json)?\s*\r?\n([\s\S]*?)\r?\n```$/.exec(trimmed);
+            outcome = 'invalid_json';
+            output = JSON.parse(block ? block[1] : trimmed); outcome = 'completed';
+          }
         }
       }
     } catch { /* Ambiguous dispatch: keep the spend and quota, suppress raw details. */ }

@@ -193,6 +193,7 @@
     "board": {
       "generation": {
         "next": "Siguiente",
+        "waiting": "Se preparará de nuevo en la próxima actualización.",
         "loading": "Preparando el resumen de hoy.",
         "denied": "Revisa las recomendaciones y el consentimiento del servicio de IA.",
         "limited": "Habrá una nueva actualización en la próxima renovación.",

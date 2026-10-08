@@ -27,7 +27,7 @@ BEGIN
   IF public.dashboard_generation_finish(owner,original_id,'{}') THEN RAISE EXCEPTION 'double finish'; END IF;
   UPDATE public.users SET test_token=repeat('b',64) WHERE id=owner;
   b:=public.dashboard_generation_request(owner,'open','Asia/Seoul','ko');
-  IF b->>'kind'='ready' THEN RAISE EXCEPTION 'old consent cache'; END IF;
+  IF b->>'kind'<>'waiting' THEN RAISE EXCEPTION 'old consent cache must wait without pretending to run'; END IF;
   a:=public.dashboard_generation_request(owner,'summary','Asia/Seoul','ko');
   IF a->>'kind'<>'claimed' THEN RAISE EXCEPTION 'summary independent'; END IF;
   IF NOT public.dashboard_generation_dispatch(owner,(a->>'id')::uuid) THEN RAISE EXCEPTION 'summary dispatch'; END IF;
@@ -60,10 +60,16 @@ BEGIN
   -- A source mutation cannot save an in-flight response or expose an old cache.
   a:=public.dashboard_generation_request(owner,'triage','Asia/Seoul','ko');
   IF NOT public.dashboard_generation_dispatch(owner,(a->>'id')::uuid) THEN RAISE EXCEPTION 'triage dispatch'; END IF;
+  UPDATE public.dashboard_generation_runs SET status='failed' WHERE id=(a->>'id')::uuid;
+  b:=public.dashboard_generation_request(owner,'triage','Asia/Seoul','ko');
+  IF b->>'kind'<>'waiting' THEN RAISE EXCEPTION 'failed attempt must not spin forever'; END IF;
+  UPDATE public.dashboard_generation_runs SET status='dispatched' WHERE id=(a->>'id')::uuid;
   UPDATE public.ops_routines SET title='Walk' WHERE user_id=owner;
   IF public.dashboard_generation_finish(owner,(a->>'id')::uuid,'{}') THEN RAISE EXCEPTION 'stale source finish'; END IF;
   DELETE FROM public.ops_routines WHERE user_id=owner;
   IF EXISTS(SELECT 1 FROM public.dashboard_generation_runs WHERE user_id=owner AND output IS NOT NULL) THEN RAISE EXCEPTION 'source deletion cache'; END IF;
+  b:=public.dashboard_generation_request(owner,'summary','Asia/Seoul','ko');
+  IF b->>'kind'<>'empty' THEN RAISE EXCEPTION 'deleted source must be empty even when an old attempt exists'; END IF;
   DELETE FROM auth.users WHERE id=owner;
   IF EXISTS(SELECT 1 FROM public.dashboard_generation_runs WHERE user_id=owner) OR
     EXISTS(SELECT 1 FROM public.dashboard_generation_settings WHERE user_id=owner) THEN RAISE EXCEPTION 'account cascade'; END IF;

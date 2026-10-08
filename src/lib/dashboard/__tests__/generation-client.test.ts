@@ -41,7 +41,7 @@ test("unavailable server returns no fallback model call or unchecked text", asyn
   mockInvoke.mockRejectedValue(new Error("private")); expect((await request("owner", "open", "en")).ok).toBe(false);
   expect(mockInvoke).toHaveBeenCalledTimes(1); expect(mockRelease).toHaveBeenCalledTimes(1);
 });
-test.each(["empty", "denied", "busy", "limited", "disabled", "unavailable"])("preserves the server's %s state without reflecting text", async (kind) => {
+test.each(["empty", "denied", "busy", "waiting", "limited", "disabled", "unavailable"])("preserves the server's %s state without reflecting text", async (kind) => {
   mockInvoke.mockResolvedValue({ data: { kind, message: "unchecked private prose" }, error: null });
   expect(await request("owner", "open", "ko")).toEqual({ ok: false, reason: kind });
 });

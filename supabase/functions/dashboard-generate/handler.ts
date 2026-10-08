@@ -22,7 +22,7 @@ export function createDashboardHandler(deps: DashboardDependencies) {
     });
     if (reply.error || !reply.data || typeof reply.data !== 'object') return { kind: 'unavailable' };
     const row = reply.data as Record<string, unknown>;
-    if (['busy', 'limited', 'denied', 'empty'].includes(String(row.kind))) return { kind: row.kind };
+    if (['busy', 'waiting', 'limited', 'denied', 'empty'].includes(String(row.kind))) return { kind: row.kind };
     if (!SEATS.includes(String(row.purpose))) return { kind: 'unavailable' };
     const prepared = prepareBoardInput(row.purpose as BoardSeat, row.source, { llm: true, recordExcerpts: false });
     const finish = (value: unknown) => deps.rpc('dashboard_generation_finish', {

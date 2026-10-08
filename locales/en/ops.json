@@ -193,6 +193,7 @@
     "board": {
       "generation": {
         "next": "Next item",
+        "waiting": "This will be prepared again at the next refresh.",
         "loading": "Preparing today’s overview.",
         "denied": "Review recommendations and AI service consent.",
         "limited": "A new update will be available at the next refresh.",

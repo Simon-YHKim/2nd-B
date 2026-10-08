@@ -23,7 +23,7 @@ do {
     method: 'POST', headers, body: JSON.stringify({ action: 'hourly', ...(cursor ? { cursor } : {}) }),
     redirect: 'error', signal: AbortSignal.timeout(140_000),
   });
-  if (!response.ok) throw new Error('Dashboard batch unavailable');
+  if (!response.ok) throw new Error(`Dashboard batch unavailable (${response.status})`);
   const result = await response.json();
   if (result.kind !== 'batch' || !Number.isInteger(result.processed) || result.processed < 0 || result.processed > 10 ||
       (result.nextCursor !== null && (typeof result.nextCursor !== 'string' || !/^[0-9a-f-]{36}$/.test(result.nextCursor))) ||

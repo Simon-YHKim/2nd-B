@@ -66,6 +66,34 @@ test.each(["refusal", "max_tokens"])("%s response is never returned", async (sto
 test("audit failure withholds generated text", async () => {
   const f = fixture(); f.deps.audit.mockResolvedValue(false); await expect(f.run()).rejects.toThrow("unavailable");
 });
+
+test("a single JSON code block is decoded and still checked by the board validator", async () => {
+  const f = fixture();
+  f.deps.fetch.mockResolvedValue(new Response(JSON.stringify({
+    content: [{ type: "text", text: '```json\n{"order":["r1"],"items":[]}\n```' }],
+    stop_reason: "end_turn", usage: { input_tokens: 4, output_tokens: 6 },
+  })));
+  expect(await f.run()).toEqual({ order: ["r1"], items: [] });
+  expect(f.deps.audit).toHaveBeenCalledWith(expect.objectContaining({ total_tokens: 10 }));
+});
+
+test.each(['Prose {"line":"Read"}', '```json\n{"line":"Read"}\n``` trailing', '{broken']) (
+  "invalid output keeps usage and a content-free failure reason: %s", async (text) => {
+    const f = fixture();
+    f.deps.fetch.mockResolvedValue(new Response(JSON.stringify({ content: [{ type: "text", text }],
+      stop_reason: "end_turn", usage: { input_tokens: 4, output_tokens: 6 } })));
+    await expect(f.run()).rejects.toThrow("unavailable");
+    expect(f.deps.audit).toHaveBeenCalledWith(expect.objectContaining({ total_tokens: 10, model_used: "claude-sonnet-test+invalid_json" }));
+    expect(JSON.stringify(f.deps.audit.mock.calls)).not.toContain(text);
+  },
+);
+
+test("an upstream error records its status without returning or logging its body", async () => {
+  const f = fixture(); f.deps.fetch.mockResolvedValue(new Response('private provider details', { status: 429 }));
+  await expect(f.run()).rejects.toThrow("unavailable");
+  expect(f.deps.audit).toHaveBeenCalledWith(expect.objectContaining({ model_used: "claude-sonnet-test+http_429" }));
+  expect(JSON.stringify(f.deps.audit.mock.calls)).not.toContain('private provider details');
+});
 test("a rejected unsafe output records the red classification in the audit", async () => {
   const f = fixture();
   f.deps.fetch.mockResolvedValue(new Response(JSON.stringify({ content: [{ type: "text", text: JSON.stringify({ line: "kill myself" }) }], stop_reason: "end_turn" })));

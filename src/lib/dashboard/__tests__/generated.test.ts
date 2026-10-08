@@ -29,7 +29,7 @@ test("wire decoder refuses external actions, health refs and malformed IDs", () 
   expect(decodeBoardResponse({ kind: "ready", purpose: "day_summary", value: { headline: "x", facts: [], links: [], tail_counts: {}, suggestions: [{ text: "buy", action: "https://example.com", basis: "ai", refs: [{ kind: "routine", id: "r" }] }] } }).ok).toBe(false);
 });
 
-test.each(["loading", "empty", "denied", "limited", "unavailable"] as const)("%s stays visible with an honest next step, without AI prose", (state) => {
+test.each(["loading", "waiting", "empty", "denied", "limited", "unavailable"] as const)("%s stays visible with an honest next step, without AI prose", (state) => {
   const board = withGeneratedBoard(buildBoard(null, new Date(), false), { ...EMPTY_GENERATED_BOARD,
     states: { note: state, triage: state, summary: state } });
   for (const id of ["P-02", "P-04"]) {

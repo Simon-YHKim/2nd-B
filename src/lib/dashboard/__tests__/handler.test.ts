@@ -57,7 +57,7 @@ test("disabled, unauthenticated and forged scheduler calls stop before reads", a
   f.deps.enabled = true; f.deps.authenticate.mockResolvedValue(null); expect((await f.send()).status).toBe(401);
   expect((await f.send({ action: "hourly" })).status).toBe(403); expect(f.deps.rpc).not.toHaveBeenCalled();
 });
-test.each(["busy", "limited", "denied", "empty"])("%s claim makes no paid call", async (kind) => {
+test.each(["busy", "waiting", "limited", "denied", "empty"])("%s claim makes no paid call", async (kind) => {
   const f = fixture(); f.deps.rpc.mockResolvedValue({ data: { kind } });
   expect((await f.send()).status).toBe(200); expect(f.deps.generate).not.toHaveBeenCalled();
 });

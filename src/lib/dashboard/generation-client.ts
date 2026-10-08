@@ -31,7 +31,7 @@ export async function requestBoardGeneration(
     session.assertCurrent();
     if (!owner.isCurrent() || result.error || currentPrivacyChange(ownerId)?.revision !== revision) return invalid;
     const kind = result.data && typeof result.data === "object" && "kind" in result.data ? result.data.kind : null;
-    if (kind === "empty" || kind === "denied" || kind === "busy" || kind === "limited" || kind === "disabled" || kind === "unavailable") return { ok: false, reason: kind };
+    if (kind === "empty" || kind === "denied" || kind === "busy" || kind === "waiting" || kind === "limited" || kind === "disabled" || kind === "unavailable") return { ok: false, reason: kind };
     const decoded = decodeBoardResponse(result.data);
     const expected = { open: "daily_note", summary: "day_summary", triage: "inbox_triage" }[action];
     return decoded.ok && decoded.seat === expected ? decoded : invalid;

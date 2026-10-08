@@ -19,11 +19,18 @@ const handler = createDashboardHandler({
   },
   isScheduler: async (request) => {
     // Gateway JWT + two server secrets. No client flag grants scheduler rights.
-    if (request.headers.get('authorization') !== `Bearer ${serviceKey}` || schedulerSecret.length < 32) return false;
+    if (request.headers.get('authorization') !== `Bearer ${serviceKey}`) {
+      console.warn('dashboard_scheduler_service_credential'); return false;
+    }
+    if (schedulerSecret.length < 32) {
+      console.warn('dashboard_scheduler_missing_cron'); return false;
+    }
     const candidate = request.headers.get('x-dashboard-cron') ?? '';
     if (candidate.length > 512) return false;
     const [a, b] = await Promise.all([sha256(candidate), sha256(schedulerSecret)]);
-    return a.reduce((difference, byte, i) => difference | (byte ^ b[i]), 0) === 0;
+    const matches = a.reduce((difference, byte, i) => difference | (byte ^ b[i]), 0) === 0;
+    if (!matches) console.warn('dashboard_scheduler_cron_mismatch');
+    return matches;
   },
   rpc,
   generate: createBoardProvider({
