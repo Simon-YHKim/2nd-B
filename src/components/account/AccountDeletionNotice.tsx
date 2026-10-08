@@ -1,5 +1,6 @@
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useState, useSyncExternalStore } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";

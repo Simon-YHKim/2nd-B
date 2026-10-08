@@ -59,6 +59,8 @@ import {
 
 import { m3 } from "@/lib/theme/m3";
 import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
+import { PhoneForegroundProvider, usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
 
 import { PixelSurface, type PixelSurfaceVariant } from "./PixelSurface";
 
@@ -106,6 +108,7 @@ export function PixelPressable({
   style,
   contentStyle,
 }: PixelPressableProps) {
+  const phone = usePhoneDesign();
   const [held, setHeld] = useState(false);
   const press = useCallback(() => setHeld(true), []);
   const release = useCallback(() => setHeld(false), []);
@@ -134,16 +137,16 @@ export function PixelPressable({
     >
       <View
         collapsable={false}
-        style={[sunken ? styles.sunk : styles.rest, fullWidth && styles.fullWidth, style]}
+        style={[sunken && !phone ? styles.sunk : styles.rest, fullWidth && styles.fullWidth, style]}
       >
         <PixelSurface
           variant={variant}
           pressed={sunken}
-          background={background}
+          background={phone && disabled ? phoneIos.fill : background}
           style={styles.surface}
           contentStyle={[styles.content, contentStyle]}
         >
-          {children}
+          {phone && disabled ? <PhoneForegroundProvider color={phoneIos.label2}>{children}</PhoneForegroundProvider> : children}
         </PixelSurface>
       </View>
     </Pressable>

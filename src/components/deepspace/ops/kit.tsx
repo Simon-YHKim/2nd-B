@@ -7,11 +7,10 @@
 import React, { createContext, useContext, type ReactNode } from "react";
 import {
   Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
-  View,
 } from "react-native";
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { router } from "expo-router";
 
@@ -20,6 +19,12 @@ import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { PixelRoundRect } from "@/components/pixel/PixelRoundRect";
+import { PixelDither } from "@/components/pixel/PixelDither";
+import { IosLargeTitle } from "@/components/dashboard/board/IosParts";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { phoneStyleSheet } from "@/lib/theme/phone-design";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
 import { OPS_DOMAIN_GROUP, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
 
 // --- domain color mapping (deepSpace palette) --------------------------
@@ -42,6 +47,7 @@ export function domainColorFor(domain: OpsDomainId): string {
 // --- primitives --------------------------------------------------------
 
 export function MetaChip({ label, color }: { label: string; color?: string }) {
+  const styles = useOpsStyles();
   return (
     <View style={styles.metaChip}>
       <Text variant="subtle" style={[styles.metaChipText, color ? { color } : null]}>{label}</Text>
@@ -50,11 +56,13 @@ export function MetaChip({ label, color }: { label: string; color?: string }) {
 }
 
 export function ProgressBar({ value, color }: { value: number; color?: string }) {
+  const styles = useOpsStyles();
+  const phone = usePhoneDesign();
   const pct = Math.max(0, Math.min(1, value));
   return (
     <View style={styles.progressTrack}>
       <View
-        style={[styles.progressFill, { width: `${pct * 100}%`, backgroundColor: color ?? deepSpace.accent }]}
+        style={[styles.progressFill, { width: `${pct * 100}%`, backgroundColor: phone ? phoneIos.blue : color ?? deepSpace.accent }]}
       />
     </View>
   );
@@ -70,6 +78,7 @@ export interface OpsActionRowProps {
 }
 
 export function OpsActionRow({ primaryLabel, onPrimary, secondaryLabel, onSecondary }: OpsActionRowProps) {
+  const styles = useOpsStyles();
   return (
     <View style={styles.actionRow}>
       <Pressable
@@ -109,7 +118,8 @@ export interface OpsRecommendationCardProps {
 }
 
 export function OpsRecommendationCard(props: OpsRecommendationCardProps) {
-  const accent = props.accent ?? deepSpace.accent;
+  const styles = useOpsStyles();
+  const accent = usePhoneDesign() ? phoneIos.blue : props.accent ?? deepSpace.accent;
   return (
     <View style={styles.recCard}>
       <View style={styles.recTitleRow}>
@@ -149,7 +159,8 @@ const CHIP_TONE: Record<OpsChipTone, { color: string; line: string; bg: string }
 };
 
 export function OpsStatusChip({ tone, label }: { tone: OpsChipTone; label: string }) {
-  const t = CHIP_TONE[tone];
+  const styles = useOpsStyles();
+  const t = usePhoneDesign() ? PHONE_CHIP_TONE[tone] : CHIP_TONE[tone];
   return (
     <View style={[styles.statusChip, { borderColor: t.line, backgroundColor: t.bg }]}>
       <Text variant="caption" style={[styles.statusChipText, { color: t.color }]}>{label}</Text>
@@ -171,11 +182,15 @@ export interface OpsReminderRowProps {
 }
 
 export function OpsReminderRow(props: OpsReminderRowProps) {
+  const styles = useOpsStyles();
+  const phone = usePhoneDesign();
   return (
     <View style={styles.reminderRow}>
       <View style={styles.reminderTop}>
         <Text variant="heading" style={styles.reminderTitle}>{props.title}</Text>
-        {props.onToggle ? (
+        {props.onToggle && phone ? (
+          <OpsPhoneSwitch checked={!!props.on} label={props.title} onPress={props.onToggle} />
+        ) : props.onToggle ? (
           <Pressable
             accessibilityRole="switch"
             accessibilityState={{ checked: !!props.on }}
@@ -208,6 +223,17 @@ export function OpsReminderRow(props: OpsReminderRowProps) {
   );
 }
 
+/** A 26px stepped track inside a 44px touch target. */
+export function OpsPhoneSwitch({ checked, label, onPress }: { checked: boolean; label: string; onPress: () => void }) {
+  return <Pressable accessibilityRole="switch" accessibilityLabel={label} accessibilityState={{ checked }}
+    aria-checked={checked} onPress={onPress} style={phoneSwitchStyles.touch}>
+    <PixelRoundRect corner="pill" fill={checked ? phoneIos.green : phoneIos.fill}
+      style={[phoneSwitchStyles.track, { alignItems: checked ? "flex-end" : "flex-start" }]}>
+      <PixelRoundRect corner="small" fill={phoneIos.cell} style={phoneSwitchStyles.thumb} />
+    </PixelRoundRect>
+  </Pressable>;
+}
+
 // --- push sheet (B) ----------------------------------------------------
 
 export interface PushOption {
@@ -232,6 +258,8 @@ export interface OpsPushSheetProps {
 }
 
 export function OpsPushSheet(props: OpsPushSheetProps) {
+  const styles = useOpsStyles();
+  const phone = usePhoneDesign();
   return (
     <Modal visible={props.visible} transparent animationType="slide" onRequestClose={props.onClose}>
       <Pressable
@@ -239,7 +267,9 @@ export function OpsPushSheet(props: OpsPushSheetProps) {
         onPress={props.onClose}
         accessibilityRole="button"
         accessibilityLabel={props.closeLabel}
-      />
+      >
+        {phone ? <PixelDither density={50} /> : null}
+      </Pressable>
       <View style={styles.sheet}>
         <View style={styles.sheetGrip} />
         <Text variant="heading" style={styles.sheetTitle}>{props.title}</Text>
@@ -302,6 +332,7 @@ export interface OpsStateProps {
 }
 
 export function OpsState(props: OpsStateProps) {
+  const styles = useOpsStyles();
   const danger = props.variant === "error";
   const warn = props.variant === "rate";
   return (
@@ -348,6 +379,8 @@ export function OpsDomainPicker({
   selected: string;
   onSelect: (id: string) => void;
 }) {
+  const styles = useOpsStyles();
+  const phone = usePhoneDesign();
   return (
     <ScrollView
       horizontal
@@ -366,7 +399,7 @@ export function OpsDomainPicker({
             hitSlop={6}
             style={[styles.pickerChip, on ? styles.pickerChipOn : null]}
           >
-            <View style={[styles.dotSm, { backgroundColor: tab.color }]} />
+            <View style={[styles.dotSm, { backgroundColor: phone ? (on ? phoneIos.blue : phoneIos.gray3) : tab.color }]} />
             <Text variant="caption" style={[styles.pickerChipText, on ? styles.pickerChipTextOn : null]}>{tab.label}</Text>
           </Pressable>
         );
@@ -403,6 +436,8 @@ export function OpsEmbeddedFrameHost({ onBack, backLabel, children }: EmbeddedFr
 // only). `bubble`/`tip` stay in the props contract so the seven call sites
 // don't churn, but they no longer render.
 export function OpsFrame({ title, onBack, children, footer }: OpsFrameProps) {
+  const phone = usePhoneDesign();
+  const styles = useOpsStyles();
   const embedded = useContext(OpsEmbeddedFrameContext);
   if (embedded) {
     return (
@@ -414,10 +449,12 @@ export function OpsFrame({ title, onBack, children, footer }: OpsFrameProps) {
             onPress={embedded.onBack}
             style={styles.embeddedBack}
           >
-            <PixelGlyph name="arrow_back" color={deepSpace.accentBright} size={24} />
+            <PixelGlyph name={phone ? "chevron_left" : "arrow_back"} color={phone ? phoneIos.blue : deepSpace.accentBright} size={24} />
+            {phone ? <Text variant="caption" style={styles.embeddedBackText}>{embedded.backLabel}</Text> : null}
           </Pressable>
-          <Text variant="heading" numberOfLines={2} style={styles.embeddedTitle}>{title}</Text>
+          {!phone ? <Text variant="heading" numberOfLines={2} style={styles.embeddedTitle}>{title}</Text> : null}
         </View>
+        {phone ? <IosLargeTitle>{title}</IosLargeTitle> : null}
         {children}
         {footer ? <View style={styles.footer}>{footer}</View> : null}
       </View>
@@ -441,7 +478,7 @@ export function OpsFrame({ title, onBack, children, footer }: OpsFrameProps) {
 
 // --- styles (deepSpace tokens only) ------------------------------------
 
-const styles = StyleSheet.create({
+const clayStyles = StyleSheet.create({
   embeddedFrame: {
     gap: deepSpaceSpacing.md,
     padding: deepSpaceSpacing.md,
@@ -450,6 +487,7 @@ const styles = StyleSheet.create({
   embeddedHeader: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },
   embeddedBack: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   embeddedTitle: { flex: 1, color: deepSpace.accentBright },
+  embeddedBackText: { color: deepSpace.accentBright },
   frame: { flex: 1, backgroundColor: deepSpace.bg },
   glow: {
     position: "absolute",
@@ -665,4 +703,58 @@ const styles = StyleSheet.create({
   pickerChipOn: { borderColor: deepSpace.accent, backgroundColor: deepSpace.cardPressed },
   pickerChipText: { fontSize: 13, color: deepSpace.accentSoft },
   pickerChipTextOn: { color: deepSpace.accentBright },
+});
+
+const PHONE_CHIP_TONE: typeof CHIP_TONE = {
+  active: { color: phoneIos.blue, line: phoneIos.fill, bg: phoneIos.fill },
+  positive: { color: phoneIos.blue, line: phoneIos.fill, bg: phoneIos.fill },
+  warning: { color: phoneIos.orange, line: phoneIos.fill, bg: phoneIos.fill },
+  danger: { color: phoneIos.red, line: phoneIos.fill, bg: phoneIos.fill },
+  info: { color: phoneIos.blue, line: phoneIos.fill, bg: phoneIos.fill },
+  muted: { color: phoneIos.label2, line: phoneIos.fill, bg: phoneIos.fill },
+};
+
+const phoneBaseStyles = phoneStyleSheet(clayStyles);
+const iosStyles = {
+  ...phoneBaseStyles,
+  embeddedFrame: { ...clayStyles.embeddedFrame, backgroundColor: phoneIos.grouped, paddingHorizontal: 14, paddingBottom: 20, gap: 14 },
+  embeddedHeader: { ...clayStyles.embeddedHeader, gap: 0, marginLeft: -10 },
+  embeddedBack: { minWidth: 44, minHeight: 44, flexDirection: "row" as const, alignItems: "center" as const, paddingHorizontal: 6 },
+  embeddedBackText: { color: phoneIos.blue },
+  footer: { paddingTop: 4, paddingBottom: 12 },
+  primaryBtn: { ...phoneBaseStyles.primaryBtn, backgroundColor: phoneIos.blue },
+  primaryBtnText: { ...clayStyles.primaryBtnText, color: phoneIos.onBlue },
+  secondaryBtn: { ...phoneBaseStyles.secondaryBtn, backgroundColor: phoneIos.fill, borderWidth: 0 },
+  secondaryBtnText: { ...clayStyles.secondaryBtnText, color: phoneIos.blue },
+  recCard: { ...phoneBaseStyles.recCard, borderWidth: 0, backgroundColor: phoneIos.cell, padding: 14, gap: 10 },
+  recTitle: { ...clayStyles.recTitle, color: phoneIos.label, fontFamily: "Galmuri11Bold", lineHeight: 22 },
+  recReason: { ...clayStyles.recReason, color: phoneIos.label, lineHeight: 22 },
+  state: { ...phoneBaseStyles.state, borderWidth: 0, backgroundColor: phoneIos.cell, padding: 18 },
+  stateDanger: { borderWidth: 0, backgroundColor: phoneIos.cell },
+  stateWarn: { borderWidth: 0, backgroundColor: phoneIos.cell },
+  stateBadge: { ...phoneBaseStyles.stateBadge, color: phoneIos.blue, borderWidth: 0 },
+  toggleOn: { ...clayStyles.toggleOn, backgroundColor: phoneIos.green },
+  toggleOff: { ...clayStyles.toggleOff, backgroundColor: phoneIos.fill },
+  knobOn: { backgroundColor: phoneIos.cell },
+  knobOff: { backgroundColor: phoneIos.cell },
+  pickerChip: { ...phoneBaseStyles.pickerChip, borderWidth: 0, backgroundColor: phoneIos.fill },
+  pickerChipOn: { borderColor: phoneIos.cell, backgroundColor: phoneIos.cell },
+  pickerChipText: { ...clayStyles.pickerChipText, color: phoneIos.label2 },
+  pickerChipTextOn: { color: phoneIos.blue },
+  sheetBackdrop: { flex: 1, backgroundColor: "transparent" },
+  sheet: { ...phoneBaseStyles.sheet, backgroundColor: phoneIos.grouped, borderTopWidth: 0 },
+  sheetGrip: { ...phoneBaseStyles.sheetGrip, backgroundColor: phoneIos.gray3 },
+  pushOption: { ...phoneBaseStyles.pushOption, backgroundColor: phoneIos.cell, borderWidth: 0 },
+  pushOptionRec: { backgroundColor: phoneIos.cell, borderColor: phoneIos.blue },
+  pushOptionLabel: { ...clayStyles.pushOptionLabel, color: phoneIos.blue },
+};
+
+function useOpsStyles() {
+  return usePhoneDesign() ? iosStyles : clayStyles;
+}
+
+const phoneSwitchStyles = StyleSheet.create({
+  touch: { minWidth: 44, minHeight: 44, justifyContent: "center" },
+  track: { width: 44, height: 26, justifyContent: "center", paddingHorizontal: 3 },
+  thumb: { width: 20, height: 20 },
 });

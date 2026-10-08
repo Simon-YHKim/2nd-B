@@ -7,7 +7,10 @@
 // touch surface with an android_ripple state layer.
 import { useCallback, type ReactNode } from "react";
 import { useFocusEffect } from "expo-router";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
 import { PlainText as Text } from "@/components/ui/PlainText";
 
 import { m3 } from "@/lib/theme/m3";
@@ -27,6 +30,7 @@ export function MdTopAppBar({
   action?: ReactNode;
   backAccessibilityLabel?: string;
 }) {
+  const phone = usePhoneDesign();
   // Native stacks retain buried screens. Register only while this screen is
   // focused, otherwise a hidden app bar keeps the root BackArrow suppressed on
   // every screen pushed above it.
@@ -42,7 +46,7 @@ export function MdTopAppBar({
           hitSlop={8}
           style={styles.backPress}
         >
-          <PixelGlyph name="arrow_back" color={m3.color.onSurface} size={24} />
+          <PixelGlyph name={phone ? "chevron_left" : "arrow_back"} color={phone ? phoneIos.blue : m3.color.onSurface} size={24} />
         </Pressable>
       </View>
       <Text style={[m3TextStyle("titleLarge"), styles.title]} numberOfLines={1}>

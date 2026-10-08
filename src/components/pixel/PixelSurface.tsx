@@ -30,6 +30,10 @@ import type { ReactNode } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { m3 } from "@/lib/theme/m3";
+import { PhoneForegroundProvider, usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneFlatSurface, phoneStyle, phoneSurfaceColor } from "@/lib/theme/phone-design";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { PixelRoundRect } from "./PixelRoundRect";
 
 /**
  * - `frame` 테두리만 (px-frame)
@@ -98,6 +102,16 @@ export function PixelSurface({
   contentStyle,
   shrink = false,
 }: PixelSurfaceProps) {
+  const phone = usePhoneDesign();
+  if (phone) {
+    const base = background ? phoneSurfaceColor(background) : phoneIos.cell;
+    const fill = pressed ? base === phoneIos.blue ? phoneIos.bluePressed : phoneIos.fill : base;
+    return <PixelRoundRect fill={fill} style={[phoneStyle(StyleSheet.flatten(style) ?? {}), phoneFlatSurface, shrink && styles.shrink]}>
+      <PhoneForegroundProvider color={base === phoneIos.blue ? phoneIos.onBlue : phoneIos.label}>
+        <View style={[styles.content, shrink && styles.shrink, phoneStyle(StyleSheet.flatten(contentStyle) ?? {})]}>{children}</View>
+      </PhoneForegroundProvider>
+    </PixelRoundRect>;
+  }
   const bevel = bevelOf(variant, pressed);
   const edged = variant !== "flat";
   return (

@@ -1,10 +1,11 @@
+import { PhoneView as View, PhoneScrollView as ScrollView } from "@/components/phone/PhoneUIKit";
 // Paginated question carrier for quant assessments. 5 items per page by
 // default — the user said "showing all questions at once made me not want
 // to take it". Renders progress bar + page counter + prev/next nav + a
 // terminal Save button on the last page.
 
 import { useMemo, useState } from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
+import { StyleSheet } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";

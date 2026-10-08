@@ -1,3 +1,5 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pressable, PhoneTouchableOpacity as TouchableOpacity } from "@/components/phone/PhoneUIKit";
 // Polaris / Core Brain screen (core-brain pack v2). Internal route and data
 // keys stay "Core Brain"; user-facing name is "북극성". Reuses the read-only
 // persona snapshot
@@ -13,7 +15,7 @@
 // (jest.config.js ts-jest jsx: "react") and core-brain-minor-gate.test.ts renders it.
 import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import { subscribeFontStyle } from "@/lib/settings/readable-font";
-import { View, StyleSheet, ScrollView, Modal, Platform, Pressable, TouchableOpacity } from "react-native";
+import { StyleSheet, Platform } from "react-native";
 import { Rect, Svg } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 import { Redirect, type Href } from "expo-router";

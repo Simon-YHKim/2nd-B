@@ -11,13 +11,14 @@
 import type { ReactNode } from "react";
 import {
   type DimensionValue,
-  Pressable,
   StyleSheet,
   type StyleProp,
-  View,
   type ViewStyle,
 } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
 
 import { m3 } from "@/lib/theme/m3";
 
@@ -47,10 +48,11 @@ export function SegBtn({
   disabled = false,
   style,
 }: SegBtnProps) {
+  const phone = usePhoneDesign();
   const segWidth = `${100 / Math.max(1, segments.length)}%` as DimensionValue;
   return (
     <View
-      style={[styles.group, disabled && styles.groupDisabled, style]}
+      style={[styles.group, disabled && styles.groupDisabled, style, phone && { backgroundColor: phoneIos.fill, borderWidth: 0 }]}
       accessibilityRole={multiSelect ? undefined : "radiogroup"}
     >
       {segments.map((seg, i) => {
@@ -59,6 +61,7 @@ export function SegBtn({
         if (disabled) {
           fg = on ? m3.disabled.onSecondaryContainer : m3.disabled.onSurface;
         }
+        if (phone) fg = disabled ? phoneIos.label2 : phoneIos.label;
         return (
           <View
             key={seg.key}
@@ -67,6 +70,7 @@ export function SegBtn({
               { width: segWidth },
               i > 0 && (disabled ? styles.dividerDisabled : styles.divider),
               on && (disabled ? styles.segOnDisabled : styles.segOn),
+              phone && { borderLeftWidth: 0, backgroundColor: on ? phoneIos.cell : "transparent" },
             ]}
           >
             <Pressable

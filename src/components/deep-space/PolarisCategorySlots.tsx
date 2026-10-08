@@ -1,4 +1,5 @@
-import { View, Pressable, StyleSheet } from "react-native";
+import { PhoneView as View, PhonePressable as Pressable } from "@/components/phone/PhoneUIKit";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Text } from "@/components/ui/Text";
 import { useAppRouter } from "@/lib/nav/phone-embed";

@@ -1,12 +1,6 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useId, useRef, useState, type RefObject } from "react";
-import {
-  StyleSheet,
-  View,
-  useWindowDimensions,
-  type LayoutRectangle,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { StyleSheet, useWindowDimensions, type LayoutRectangle, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Defs, Pattern, Rect } from "react-native-svg";
 
 import { PixelPressable, PixelSurface } from "@/components/pixel";

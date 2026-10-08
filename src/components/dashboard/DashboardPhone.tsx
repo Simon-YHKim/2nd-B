@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, AppState, BackHandler, FlatList, PanResponder, Platform, Pressable, StyleSheet, TextInput, View, type ImageStyle } from "react-native";
-import { Image } from "expo-image";
+import { Animated, AppState, BackHandler, FlatList, PanResponder, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -19,7 +18,11 @@ import { WeatherSheet } from "./board/WeatherSheet";
 import { DEFAULT_REFRESH_SETTINGS, getRefreshSettings, nextRefreshAt, shouldRefreshAfterResume } from "@/lib/dashboard/refresh-cadence";
 import { fitPhoneArtwork } from "@/lib/dashboard/phone-frame";
 import { PixelScrim } from "@/components/pixel/PixelDither";
-import { PHONE_APP_ICONS, type PhoneAppId } from "./phone-app-assets";
+import type { PhoneAppId } from "./phone-app-assets";
+import { PhoneAppIcon } from "./PhoneAppIcon";
+import { PhoneFrame } from "./PhoneFrame";
+import { PhoneWallpaper } from "./PhoneWallpaper";
+import { PhoneDesignProvider } from "@/lib/theme/phone-design-context";
 import { canBeginPhoneDismiss, shouldCompletePhoneDismiss } from "@/lib/dashboard/phone-dismiss";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
@@ -93,7 +96,6 @@ const PAGES = [0, 1, 2] as const;
 const LAST_PAGE = PAGES.length - 1;
 /** The phone's home button and a hosted screen's 'home' open the apps page (Simon 2026-10-07). */
 const APPS_PAGE = 2;
-const PIXEL_IMAGE = Platform.OS === "web" ? { imageRendering: "pixelated" } as ImageStyle : undefined;
 
 // Pixel iPhone (Simon 2026-10-07): the phone's own screens use iOS light defaults drawn with stepped corners and
 // Galmuri. Text inside the phone does not inherit the app theme's colour.
@@ -128,13 +130,6 @@ function StatusBar({ ink, time }: { ink: string; time: string }) {
       <View style={[styles.battery, { borderColor: ink }]}><View style={[styles.batteryLevel, { backgroundColor: ink }]} /></View>
       <View style={[styles.batteryTip, { backgroundColor: ink }]} />
     </View>
-  </View>;
-}
-
-/** Home wallpaper: colour bands (pixel banding, no gradient). */
-function Wallpaper() {
-  return <View pointerEvents="none" style={styles.wallpaper}>
-    {phoneIos.wallpaper.map((color) => <View key={color} style={[styles.band, { backgroundColor: color }]} />)}
   </View>;
 }
 
@@ -619,9 +614,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         if (route) go(route);
       };
       return <Pressable key={id} accessibilityRole="button" accessibilityLabel={t(`phone.apps.${id}`)} disabled={disabled} onPress={open} style={styles.appTile}>
-        <PixelRoundRect fill={disabled ? phoneIos.fill : phoneIos.cell} style={[styles.appFace, { height: appFaceHeight }]}>
-          <Image source={PHONE_APP_ICONS[id]} contentFit="contain" pointerEvents="none" style={[{ width: appIconSize, height: appIconSize }, PIXEL_IMAGE]} />
-        </PixelRoundRect>
+        <PhoneAppIcon id={id} size={appFaceHeight} disabled={disabled} />
         <Text variant="caption" numberOfLines={1} style={[styles.appLabel, disabled && styles.appLabelDisabled]}>{t(`phone.apps.${id}`)}</Text>
         {id === "notifications" && unreadCount > 0 ? <PixelRoundRect corner="pill" fill={phoneIos.red} style={styles.badge}><Text variant="caption" style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text></PixelRoundRect> : null}
       </Pressable>;
@@ -663,12 +656,8 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const appColumnWidth = Math.floor(((frame?.screen.width ?? 320) - APP_GAP * (APP_COLUMNS + 1)) / APP_COLUMNS);
   const appFaceFit = Math.floor(((frame?.screen.height ?? 512) - 89 - APP_GAP * (appRowCount - 1)) / appRowCount) - 18;
   const appFaceHeight = Math.max(44, Math.min(appColumnWidth, appFaceFit));
-  // The icons are 128px pixel art; whole steps of 16 keep their pixels square.
-  const appIconSize = appFaceHeight >= 84 ? 64 : appFaceHeight >= 64 ? 48 : 32;
-  // Home pages sit on the wallpaper; the phone's own pages on iOS grouped grey; an app opened in the phone
-  // (hosted · assistant · museum) keeps its own dark screen.
-  const appScreenOpen = ownsDisplay || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);
-  const statusInk = internalActive && appScreenOpen ? phoneIos.onWallpaper : phoneIos.statusInk;
+  // Every opened app uses the phone's light iOS surface; home pages use the night sky.
+  const statusInk = internalActive ? phoneIos.statusInk : phoneIos.onWallpaper;
   const statusTime = clock.toLocaleTimeString(i18n.language, { hour: "numeric", minute: "2-digit" });
   return <DeepSpaceScreen active="ops" header="none" variant="fullbleed" showSharedSky transparentBackdrop={transparentBackdrop}>
     <View pointerEvents="none" style={styles.phoneBackdrop}><PixelScrim style={styles.phoneScrimImage} /></View>
@@ -677,15 +666,10 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         ? current : { width: layout.width, height: layout.height });
     }}>
       {frame ? <>
-      <Image
-        source={require("../../../assets/images/secondb-cellphone-screen.png")}
-        contentFit="fill"
-        accessible={false}
-        pointerEvents="none"
-        style={[styles.artwork, frame.artwork]}
-      />
-      <View style={[styles.display, frame.screen, internalActive && !appScreenOpen && styles.displayGrouped]}>
-      {!internalActive ? <Wallpaper /> : null}
+      <PhoneFrame bounds={frame.artwork} />
+      <PhoneDesignProvider>
+      <View style={[styles.display, frame.screen, internalActive && styles.displayGrouped]}>
+      {!internalActive ? <PhoneWallpaper width={frame.screen.width} height={frame.screen.height} /> : null}
       <StatusBar ink={statusInk} time={statusTime} />
       {internalActive && !contentOwnsBack ? <NavBack label={t("phone.internal.back")} onPress={backInside} /> : null}
       {!ownsDisplay && loading ? <Text accessibilityLiveRegion="polite" variant="caption" style={styles.readStatus}>{t("phone.loading")}</Text> : null}
@@ -739,6 +723,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       </View> : null}
       {/* No dock (Simon 2026-10-07): capture and chat stay in the bottom bar outside the phone. */}
       </View>
+      </PhoneDesignProvider>
       <Pressable
         accessibilityRole="button"
         // Simon 2026-10-07: the home button always returns to the phone's apps page. It never closes the phone.
@@ -765,8 +750,6 @@ const styles = StyleSheet.create({
   display: { position: "absolute", overflow: "hidden" },
   displayGrouped: { backgroundColor: phoneIos.grouped },
   homeButton: { position: "absolute" },
-  wallpaper: { ...StyleSheet.absoluteFill },
-  band: { flex: 1 },
   statusBar: { height: 28, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 10 },
   statusSide: { flex: 1, flexDirection: "row", alignItems: "center", gap: 5 },
   statusRight: { justifyContent: "flex-end", gap: 0 },
@@ -798,9 +781,8 @@ const styles = StyleSheet.create({
   appGrid: { gap: APP_GAP, paddingTop: 8 },
   appRow: { flexDirection: "row", gap: APP_GAP },
   appTile: { position: "relative", flex: 1, minWidth: 0, gap: 4 },
-  appFace: { alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
-  appLabel: { color: phoneIos.label, fontFamily: "Galmuri11Bold", fontSize: 11, lineHeight: 14, textAlign: "center" },
-  appLabelDisabled: { color: phoneIos.label2 },
+  appLabel: { color: phoneIos.onWallpaper, fontFamily: "Galmuri11Bold", fontSize: 11, lineHeight: 14, textAlign: "center" },
+  appLabelDisabled: { color: phoneIos.gray3 },
   badge: { position: "absolute", top: -4, right: -4, minWidth: 18, height: 18, paddingHorizontal: 4, alignItems: "center", justifyContent: "center" },
   badgeText: { color: phoneIos.onBlue, fontFamily: "Galmuri11Bold", fontSize: 10, lineHeight: 12 },
   flexText: { flex: 1, flexShrink: 1 },

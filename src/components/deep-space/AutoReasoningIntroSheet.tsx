@@ -1,3 +1,8 @@
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { PixelScrim } from "@/components/pixel/PixelDither";
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { PhoneAnimatedView, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // First-ON explainer for automatic reasoning (spec docs/reasoning-ux-spec_260718.html
 // 화면 A 인터랙션: "처음 ON: 소비 규칙을 설명하는 bottom sheet 확인 후 활성화").
 // The switch must NOT flip on the first tap — the consumption rules (automatic
@@ -8,7 +13,7 @@
 // a modal over content; the caller's screen state stays mounted behind it.
 
 import { useEffect, useRef } from "react";
-import { Animated, Modal, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Animated, StyleSheet, useWindowDimensions } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -102,6 +107,7 @@ function displayLocale(language: string, ko: boolean): DisplayLocale {
 }
 
 export function AutoReasoningIntroSheet({ visible, ko, onConfirm, onClose }: AutoReasoningIntroSheetProps) {
+  const phone = usePhoneDesign();
   const { i18n } = useTranslation();
   const { height } = useWindowDimensions();
   // Modal 은 화면의 SafeAreaView 밖에서 그려진다 — 인셋을 직접 읽는다.
@@ -126,13 +132,14 @@ export function AutoReasoningIntroSheet({ visible, ko, onConfirm, onClose }: Aut
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.root}>
+        {phone ? <PixelScrim style={{ tintColor: phoneIos.label2 }} /> : null}
         <Pressable
-          style={styles.veil}
+          style={[styles.veil, phone && { backgroundColor: "transparent" }]}
           onPress={onClose}
           accessibilityRole="button"
           accessibilityLabel={copy.close}
         />
-        <Animated.View style={[styles.sheet, { paddingBottom: sheetBottom }, { transform: [{ translateY }] }]}>
+        <PhoneAnimatedView style={[styles.sheet, { paddingBottom: sheetBottom }, { transform: [{ translateY }] }]}>
           <View style={styles.grabber} />
           <RNText style={styles.title}>{copy.title}</RNText>
           <RNText style={[styles.line, m3TextStyle("bodyMedium")]}>{copy.groupLine}</RNText>
@@ -151,7 +158,7 @@ export function AutoReasoningIntroSheet({ visible, ko, onConfirm, onClose }: Aut
               style={styles.actionButton}
             />
           </View>
-        </Animated.View>
+        </PhoneAnimatedView>
       </View>
     </Modal>
   );

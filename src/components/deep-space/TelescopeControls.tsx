@@ -1,5 +1,6 @@
+import { PhoneAnimatedView, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, AppState, PanResponder, Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Animated, AppState, PanResponder, Platform, StyleSheet, type ViewStyle } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -343,9 +344,9 @@ export function TelescopeControls({ zoom, minZoom, maxZoom, zoomStops = DEFAULT_
               <Rect x={52} y={30} width={2} height={4} fill={direction.x > 0 ? m3.accent.starCore : m3.color.onSurfaceVariant} />
               <Rect x={54} y={31} width={2} height={2} fill={direction.x > 0 ? m3.accent.starCore : m3.color.onSurfaceVariant} />
             </Svg>
-            <Animated.View testID="telescope-stick-thumb" style={[styles.thumb, { transform: knob.getTranslateTransform() }]}>
+            <PhoneAnimatedView testID="telescope-stick-thumb" style={[styles.thumb, { transform: knob.getTranslateTransform() }]}>
               <View style={[styles.centreDot, hudActive && styles.centreDotActive]} />
-            </Animated.View>
+            </PhoneAnimatedView>
           </View>
         </View>
       </View>

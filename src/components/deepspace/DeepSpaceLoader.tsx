@@ -1,3 +1,4 @@
+import { PhoneAnimatedView, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Deep-space loaders (Claude Design loading.dc.html, A/B/C).
 // Presentational + token-only. Replaces the bare ActivityIndicator (GraphLoading)
 // across deep-space screens:
@@ -14,7 +15,7 @@
 //   <DeepSpaceLoader variant="analysis" etaSec={30} onSendToBackground={sendToBackground} />
 
 import { useEffect, useRef, useState } from "react";
-import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Platform, StyleSheet } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import Svg, { Rect } from "react-native-svg";
 import { ringCells } from "@/components/pixel/pixel-line";
@@ -150,7 +151,7 @@ function Ring({ size = 104, star = 58, label }: { size?: number; star?: number; 
   const r = size / 2 - 4;
   return (
     <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
-      <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ rotate }] }]}>
+      <PhoneAnimatedView style={[StyleSheet.absoluteFill, { transform: [{ rotate }] }]}>
         {/* 진행 링 — `<Circle strokeDasharray>` 였다. 셀에서 진행은 **테두리를
             도는 칸 중 앞에서부터 n칸**이다(PIXEL-CLAY 규칙 1). 원을 셀로 근사하면
             계단이 지저분해서 사각 테두리로 바꿨다 — 픽셀아트의 진행 표시가 원래 그렇다. */}
@@ -163,7 +164,7 @@ function Ring({ size = 104, star = 58, label }: { size?: number; star?: number; 
             ));
           })()}
         </Svg>
-      </Animated.View>
+      </PhoneAnimatedView>
       <LoadingPolaris size={star} accessibilityLabel={label} />
     </View>
   );
@@ -182,7 +183,7 @@ function SweepBar() {
   const translateX = x.interpolate({ inputRange: [0, 1], outputRange: [-66, 148] });
   return (
     <View style={styles.barTrack}>
-      <Animated.View style={[styles.barFill, { transform: [{ translateX }] }]} />
+      <PhoneAnimatedView style={[styles.barFill, { transform: [{ translateX }] }]} />
     </View>
   );
 }

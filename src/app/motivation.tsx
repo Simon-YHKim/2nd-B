@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 동기 (rev2 P3b): motivation self-report (SDT) + populated read.
 //
 // Flow: on mount, load the latest motivation self-report. If there is NONE, the
@@ -11,7 +12,7 @@
 // capped well under 100%; the populated layout only ever shows the user's real
 // answers/percentages (motivation-survey.ts), never the prototype's example numbers.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
 

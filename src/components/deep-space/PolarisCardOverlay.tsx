@@ -1,3 +1,4 @@
+import { PhoneAnimatedView, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 /**
  * 북극성 카드 오버레이 (Simon localhost QA 2026-09-30).
  *
@@ -19,7 +20,7 @@
  * for links. Values: m3.polarisCard, contrast pinned by polaris-card-contrast.test.ts.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Animated, PanResponder, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Animated, PanResponder, Platform, StyleSheet, useWindowDimensions } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { MdButtonTintProvider, type MdButtonTint } from "@/components/m3";
@@ -179,7 +180,7 @@ export function PolarisCardOverlay({ children }: { children: ReactNode }) {
         >
           <PixelScrim style={styles.scrimImage} />
         </Pressable>
-        <Animated.View
+        <PhoneAnimatedView
           {...pan.panHandlers}
           pointerEvents="box-none"
           onAccessibilityEscape={() => dismiss("down")}
@@ -194,7 +195,7 @@ export function PolarisCardOverlay({ children }: { children: ReactNode }) {
               <MdButtonTintProvider tint={POLARIS_CARD_BUTTONS}>{children}</MdButtonTintProvider>
             </PaletteOverride>
           </PolarisCardEdgeContext.Provider>
-        </Animated.View>
+        </PhoneAnimatedView>
       </View>
     </DeepSpaceScreen>
   );

@@ -4,8 +4,10 @@
 // (every write is behind a user tap). Strings come from the bilingual ops copy.
 
 import { useEffect, useMemo, useRef, useState, type DependencyList } from "react";
-import { Linking, Modal, Pressable, Share, StyleSheet, TextInput, View } from "react-native";
+import { Linking, Modal, Share, StyleSheet } from "react-native";
+import { PhonePressable as Pressable, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { PlainText as RNText } from "@/components/ui/PlainText";
+import { PixelDither } from "@/components/pixel/PixelDither";
 
 import { router } from "expo-router";
 
@@ -15,6 +17,9 @@ import { DeepSpaceLoader } from "@/components/deepspace/DeepSpaceLoader";
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, flattenAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { m3 } from "@/lib/theme/m3";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { phoneStyleSheet } from "@/lib/theme/phone-design";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useTranslation } from "react-i18next";
 import { systemLocaleFor } from "@/lib/i18n/locales";
@@ -25,6 +30,7 @@ import {
   OpsDomainPicker,
   OpsFrame,
   OpsPushSheet,
+  OpsPhoneSwitch,
   OpsRecommendationCard,
   OpsState,
   OpsStatusChip,
@@ -220,6 +226,7 @@ function buildCommitHeatmap(
 // the list is still there and still valid, only the thing the user just did did not
 // happen. So this sits inline, above the list, and does not take the data away.
 function SaveErrorBanner({ text }: { text: string }) {
+  const styles = useOpsScreenStyles();
   return (
     <View style={styles.saveErrBanner}>
       <Text variant="caption" style={styles.saveErrText} accessibilityRole="alert" accessibilityLiveRegion="polite">
@@ -406,6 +413,7 @@ export function OpsHomeScreen() {
 // --- (2) Reading · books -----------------------------------------------
 
 export function ReadingScreen() {
+  const styles = useOpsScreenStyles();
   const c = useOpsCopy();
   const { t } = useTranslation("ops");
   const { userId } = useAuth();
@@ -794,6 +802,7 @@ export function ReadingScreen() {
 const MILESTONE_DOMAINS: OpsDomainId[] = ["learning_goals", "career_check"];
 
 export function MilestonesScreen() {
+  const styles = useOpsScreenStyles();
   const c = useOpsCopy();
   const { t } = useTranslation("ops");
   const { userId } = useAuth();
@@ -1036,6 +1045,7 @@ export function MilestonesScreen() {
 // --- (4) Ledger · money ------------------------------------------------
 
 export function LedgerScreen() {
+  const styles = useOpsScreenStyles();
   const c = useOpsCopy();
   const { userId } = useAuth();
   // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
@@ -1319,6 +1329,7 @@ export function LedgerScreen() {
 // --- (5) Side project · github -----------------------------------------
 
 export function SideProjectScreen({ userId }: { userId: string }) {
+  const styles = useOpsScreenStyles();
   type GithubError = "rate" | "storage-read" | "storage-write" | null;
 
   const c = useOpsCopy();
@@ -1468,6 +1479,8 @@ const FOOD_LOOKUP_CACHE_MAX = 30;
 type MealSheet = { session: number; date: string; slot: MealSlot; day: string; current: string | null; failed: boolean };
 
 export function MealsScreen() {
+  const styles = useOpsScreenStyles();
+  const phone = usePhoneDesign();
   const c = useOpsCopy();
   const { userId } = useAuth();
   // A failed WRITE. The empty catches here used to claim it was "surfaced on reload", but
@@ -1686,7 +1699,9 @@ export function MealsScreen() {
       <Text variant="subtle" style={styles.footNote}>{c.nutritionNote}</Text>
 
       <Modal visible={pending !== null} transparent animationType="slide" onRequestClose={closeSheet}>
-        <Pressable style={styles.mealBackdrop} onPress={closeSheet} disabled={mealWriting} />
+        <Pressable style={styles.mealBackdrop} onPress={closeSheet} disabled={mealWriting}>
+          {phone ? <PixelDither density={50} /> : null}
+        </Pressable>
         <View style={styles.mealSheet}>
           <View style={styles.sheetGrip} />
           <Text variant="heading" style={styles.mealSheetTitle}>{c.planMeal}</Text>
@@ -1810,6 +1825,8 @@ type ReminderVM = {
 };
 
 function ReminderCard({ vm, starWord, onToggle }: { vm: ReminderVM; starWord: string; onToggle?: () => void }) {
+  const phone = usePhoneDesign();
+  const remStyles = phone ? phoneReminderStyles : clayReminderStyles;
   const source = vm.star ? `${vm.src} · ${vm.star} ${starWord}` : vm.src;
   return (
     <MdCard variant="outlined" style={[remStyles.card, !vm.on && remStyles.cardOff]}>
@@ -1835,7 +1852,9 @@ function ReminderCard({ vm, starWord, onToggle }: { vm: ReminderVM; starWord: st
             <Text variant="caption" style={remStyles.srcText}>{source}</Text>
           </View>
         </View>
-        {onToggle ? (
+        {onToggle && phone ? (
+          <OpsPhoneSwitch checked={vm.on} label={vm.title} onPress={onToggle} />
+        ) : onToggle ? (
           <Pressable
             accessibilityRole="switch"
             accessibilityState={{ checked: vm.on }}
@@ -1852,6 +1871,7 @@ function ReminderCard({ vm, starWord, onToggle }: { vm: ReminderVM; starWord: st
 }
 
 export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => void } = {}) {
+  const remStyles = usePhoneDesign() ? phoneReminderStyles : clayReminderStyles;
   const c = useOpsCopy();
   const { userId } = useAuth();
   const supported = remindersSupported();
@@ -2006,7 +2026,7 @@ export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => v
   );
 }
 
-const remStyles = StyleSheet.create({
+const clayReminderStyles = StyleSheet.create({
   info: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
   infoIcon: {
     width: 24,
@@ -2073,7 +2093,7 @@ const remStyles = StyleSheet.create({
 
 // --- screen-local styles (deepSpace tokens only) -----------------------
 
-const styles = StyleSheet.create({
+const clayStyles = StyleSheet.create({
   saveErrBanner: {
     borderRadius: m3.shape.small,
     backgroundColor: opsAlpha(deepSpace.danger, 0.12),
@@ -2342,3 +2362,72 @@ const styles = StyleSheet.create({
   },
   mealSaveText: { fontSize: 14, color: deepSpace.onMint },
 });
+
+const phoneBaseStyles = phoneStyleSheet(clayStyles);
+const phoneScreenStyles = {
+  ...phoneBaseStyles,
+  saveErrBanner: { ...phoneBaseStyles.saveErrBanner, backgroundColor: phoneIos.cell },
+  saveErrText: { color: phoneIos.red },
+  pixelLabel: { ...clayStyles.pixelLabel, fontSize: 12, lineHeight: 18, letterSpacing: 0, color: phoneIos.label2, paddingHorizontal: 4 },
+  searchInput: { ...phoneBaseStyles.searchInput, backgroundColor: phoneIos.cell, fontFamily: "Galmuri14", fontSize: 15, lineHeight: 22 },
+  bookRow: { ...phoneBaseStyles.bookRow, minHeight: 52, borderWidth: 0, backgroundColor: phoneIos.cell, paddingVertical: 8 },
+  bookAdd: { ...clayStyles.bookAdd, color: phoneIos.blue },
+  bookDone: { ...clayStyles.bookDone, color: phoneIos.label2 },
+  hero: { ...phoneBaseStyles.hero, borderWidth: 0, backgroundColor: phoneIos.cell },
+  heroTitle: { ...clayStyles.heroTitle, color: phoneIos.label, lineHeight: 22 },
+  msRow: { ...phoneBaseStyles.msRow, borderWidth: 0, backgroundColor: phoneIos.cell },
+  msTitleInput: { ...clayStyles.msTitleInput, minHeight: 44 },
+  msTitlePress: { ...clayStyles.msTitlePress, minHeight: 44, justifyContent: "center" as const },
+  addRow: { ...phoneBaseStyles.addRow, borderWidth: 0, backgroundColor: phoneIos.cell },
+  addRowText: { ...clayStyles.addRowText, color: phoneIos.blue },
+  ledgerCard: { ...phoneBaseStyles.ledgerCard, borderWidth: 0, backgroundColor: phoneIos.cell },
+  kindToggle: { ...clayStyles.kindToggle, backgroundColor: phoneIos.fill, padding: 2 },
+  kindBtn: { ...phoneBaseStyles.kindBtn, borderWidth: 0, minHeight: 44 },
+  kindBtnOn: { borderColor: phoneIos.cell, backgroundColor: phoneIos.cell },
+  kindTxtOn: { color: phoneIos.blue },
+  addBtn: { ...phoneBaseStyles.addBtn, backgroundColor: phoneIos.blue },
+  addBtnOff: { backgroundColor: phoneIos.fill },
+  addBtnTxt: { ...clayStyles.addBtnTxt, color: phoneIos.onBlue },
+  addBtnTxtOff: { color: phoneIos.label2 },
+  entryRow: { ...phoneBaseStyles.entryRow, backgroundColor: phoneIos.cell, paddingHorizontal: 10, minHeight: 48 },
+  entryDel: { ...clayStyles.entryDel, minWidth: 44, minHeight: 44, alignItems: "center" as const, justifyContent: "center" as const },
+  ghCard: { ...phoneBaseStyles.ghCard, borderWidth: 0, backgroundColor: phoneIos.cell },
+  repoRow: { ...phoneBaseStyles.repoRow, borderWidth: 0, backgroundColor: phoneIos.cell },
+  heatCell0: { backgroundColor: phoneIos.fill, borderWidth: 0, borderColor: phoneIos.fill },
+  heatCell1: { backgroundColor: phoneIos.lightBlue },
+  heatCell2: { backgroundColor: phoneIos.blue },
+  heatCell3: { backgroundColor: phoneIos.bluePressed },
+  gridCell: { ...phoneBaseStyles.gridCell, borderWidth: 0, backgroundColor: phoneIos.cell },
+  gridCellFilled: { borderColor: phoneIos.cell, backgroundColor: phoneIos.cell },
+  gridCellOpen: { borderWidth: 2, borderColor: phoneIos.blue },
+  gridCellText: { ...clayStyles.gridCellText, color: phoneIos.label, fontSize: 11, lineHeight: 16 },
+  weekArrowText: { ...clayStyles.weekArrowText, color: phoneIos.blue },
+  weekLabelNow: { color: phoneIos.blue },
+  mealBackdrop: { flex: 1, backgroundColor: "transparent", opacity: 1 },
+  mealSheet: { ...phoneBaseStyles.mealSheet, backgroundColor: phoneIos.grouped, borderTopWidth: 0 },
+  sheetGrip: { ...phoneBaseStyles.sheetGrip, backgroundColor: phoneIos.gray3 },
+  mealClear: { ...phoneBaseStyles.mealClear, backgroundColor: phoneIos.cell, borderWidth: 0 },
+  mealClearText: { ...clayStyles.mealClearText, color: phoneIos.red },
+  ideaChip: { ...phoneBaseStyles.ideaChip, minHeight: 44, backgroundColor: phoneIos.cell, borderWidth: 0 },
+  ideaChipText: { ...clayStyles.ideaChipText, color: phoneIos.blue },
+  mealSave: { ...phoneBaseStyles.mealSave, backgroundColor: phoneIos.blue },
+  mealSaveText: { ...clayStyles.mealSaveText, color: phoneIos.onBlue },
+};
+
+const phoneBaseReminderStyles = phoneStyleSheet(clayReminderStyles);
+const phoneReminderStyles = {
+  ...phoneBaseReminderStyles,
+  cardOff: { opacity: 1 },
+  title: { ...clayReminderStyles.title, color: phoneIos.label, lineHeight: 22 },
+  timePill: { ...phoneBaseReminderStyles.timePill, backgroundColor: phoneIos.fill },
+  timePillText: { ...clayReminderStyles.timePillText, color: phoneIos.blue },
+  srcChip: { ...phoneBaseReminderStyles.srcChip, backgroundColor: phoneIos.grouped },
+  toggleOn: { ...clayReminderStyles.toggleOn, backgroundColor: phoneIos.green },
+  toggleOff: { ...clayReminderStyles.toggleOff, backgroundColor: phoneIos.fill },
+  knobOn: { backgroundColor: phoneIos.cell },
+  knobOff: { backgroundColor: phoneIos.cell },
+};
+
+function useOpsScreenStyles() {
+  return usePhoneDesign() ? phoneScreenStyles : clayStyles;
+}

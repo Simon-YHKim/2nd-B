@@ -625,6 +625,13 @@ export const PIXEL_GLYPHS = {
     r(14, 4, 2, 2), r(12, 6, 2, 2), r(10, 8, 2, 2), r(8, 10, 2, 4),
     r(10, 14, 2, 2), r(12, 16, 2, 2), r(14, 18, 2, 2),
   ],
+  /** Fork and knife, for the phone's meals app. */
+  utensils: [r(4, 2, 2, 8), r(8, 2, 2, 8), r(4, 8, 6, 2), r(6, 10, 2, 12),
+    r(16, 2, 4, 10), r(18, 12, 2, 10)],
+  /** Stepped painter's palette with four open paint wells. */
+  palette: [r(6, 2, 10, 2), r(4, 4, 2, 12), r(2, 6, 2, 8), r(6, 16, 12, 2),
+    r(8, 18, 8, 2), r(18, 10, 2, 6), r(16, 4, 4, 2), r(20, 6, 2, 4),
+    r(8, 6, 2, 2), r(12, 6, 2, 2), r(16, 8, 2, 2), r(8, 12, 2, 2), r(12, 14, 2, 2)],
 } as const satisfies Record<string, readonly PixelRect[]>;
 
 export type PixelGlyphName = keyof typeof PIXEL_GLYPHS;

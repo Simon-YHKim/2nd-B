@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 사업자 정보 푸터 (PIXEL-CLAY auth 목적지 captures/auth.png 하단).
 //
 // 값은 src/lib/legal/business-info.ts 의 BUSINESS_INFO 에서 오고, 등록 전(null)
@@ -5,7 +6,7 @@
 // 스타일은 자체 StyleSheet 다: screens/deepspace/dds-styles 를 components 에서
 // 끌어오면 방향이 거꾸로라 require cycle 의 씨앗이 된다(check:cycles 0 허용).
 
-import { StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { colors, spacing } from "@/theme/tokens";

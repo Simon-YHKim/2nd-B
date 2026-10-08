@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 내 생활 정보 — 프로필 상세 입력 (Simon 2026-08-18, D2).
 //
 // 일곱 번째 별이 프로필로 확정되면서 "채운 만큼 밝아지는" 별이 됐는데, 채울
@@ -11,14 +12,7 @@
 // ⚠ 민감정보는 여기서 묻지 않는다(PIPA 제23조). 근거는
 // `lib/persona/profile-details.ts` 헤더와 0132 마이그레이션 주석에 있다.
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { Redirect, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";

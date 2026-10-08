@@ -1,14 +1,10 @@
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { PixelScrim } from "@/components/pixel/PixelDither";
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { PhoneFlatList as FlatList, PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  FlatList,
-  Linking,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Linking, Platform, StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -267,6 +263,7 @@ export function NoticeDialog({
    *  are merged in, so the count comes from the caller. */
   total?: number;
 }) {
+  const phone = usePhoneDesign();
   const { i18n } = useTranslation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
   const title = noticeText(notice.title, ko);
@@ -354,7 +351,8 @@ export function NoticeDialog({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <View style={styles.scrim} pointerEvents="auto" accessibilityViewIsModal>
+      <View style={[styles.scrim, phone && { backgroundColor: "transparent" }]} pointerEvents="auto" accessibilityViewIsModal>
+        {phone ? <PixelScrim style={{ tintColor: phoneIos.label2 }} /> : null}
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={onClose}

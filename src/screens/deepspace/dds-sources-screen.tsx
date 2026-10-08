@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 들어온 자료를 읽어 주는 자리.
 //
 // ── 왜 이 화면이 생겼나 (실측 2026-09-13) ────────────────────────────────
@@ -36,7 +37,7 @@
 // 파라미터 없이 연다. 점프는 위키 회차(검색·지표와 같은 묶음)에서 받는 쪽을
 // 먼저 만들고 잇는다.
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { Redirect } from "expo-router";
 import { useAppRouter } from "@/lib/nav/phone-embed";

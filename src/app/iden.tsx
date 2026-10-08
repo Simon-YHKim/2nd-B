@@ -1,3 +1,4 @@
+import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pressable } from "@/components/phone/PhoneUIKit";
 // IDEN export screen (queue C wiring). Turns the user's stored self-knowledge
 // into the portable `.iden` file + the one-page CV sheet, then lets them copy /
 // share it (the AI-readable half) or open the sheet (the human-readable half).
@@ -8,7 +9,7 @@
 // runtimes with deps already in the app.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, StyleSheet, ScrollView, Platform, Share, Pressable } from "react-native";
+import { StyleSheet, Platform, Share } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";

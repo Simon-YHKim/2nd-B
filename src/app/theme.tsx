@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Route: /theme. The screen itself is DeepSpaceThemeScreen.
 //
 // The auth gate stays here because it decides whether the screen renders at
@@ -9,7 +10,7 @@
 // profileGate decides. A failed probe gets the retryable error (no dock),
 // not the loader it used to share: the T1a emulator run (vibe r260913, item 2)
 // found that shape stuck on /account and /data, and this route had it too.
-import { View, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 

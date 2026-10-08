@@ -1,3 +1,5 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Premium save flourish for the quant assessments (MBTI / BFI / ECR-S). On a
 // successful save we play a brief saved-cue moment over a dim scrim instead of a
 // bare system alert, then hand off to /persona. Rendered in a transparent
@@ -5,7 +7,7 @@
 // Honours reduced motion (shorter hold) and announces the message to readers.
 
 import { useEffect, useRef } from "react";
-import { Modal, View, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { PixelScrim } from "@/components/pixel/PixelDither";
 
 import { Text } from "@/components/ui/Text";

@@ -1,3 +1,5 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 메모 OCR popup (Simon 2026-09-30): the picked image on top, a text box with
 // what was read below it, then "메모에 넣기" and 닫기.
 //
@@ -11,15 +13,7 @@
 // Android back and the scrim close it (onRequestClose), per the
 // ANDROID_QA_GUIDELINES back-button rule.
 
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, StyleSheet } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";

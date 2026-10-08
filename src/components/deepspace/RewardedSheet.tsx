@@ -1,3 +1,8 @@
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { PixelScrim } from "@/components/pixel/PixelDither";
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { PhoneAnimatedView, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Rewarded-ad bottom sheet (deep-space canon — handoff-pay design §②).
 //
 // Opt-in: the user taps to watch a rewarded video and earns USAGE COUNTS only
@@ -15,15 +20,7 @@
 // centered modal box. All color via deepSpace.* tokens / withAlpha — zero hex.
 
 import { useEffect, useRef, useState } from "react";
-import {
-  AccessibilityInfo,
-  Animated,
-  Modal,
-  Pressable,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { AccessibilityInfo, Animated, StyleSheet, useWindowDimensions } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";
 
@@ -79,6 +76,7 @@ export interface RewardedSheetProps {
 }
 
 export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, kind = "reasoning" }: RewardedSheetProps) {
+  const phone = usePhoneDesign();
   const { t, i18n } = useTranslation("deepspace");
   const lang = locale ?? i18n.language ?? "ko";
   const { height } = useWindowDimensions();
@@ -192,17 +190,18 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.root}>
+        {phone ? <PixelScrim style={{ tintColor: phoneIos.label2 }} /> : null}
         {/* faint dimmed deep-space backdrop */}
-        <View style={styles.spaceWash} pointerEvents="none" />
+        {!phone ? <View style={styles.spaceWash} pointerEvents="none" /> : null}
         {/* dim veil (tap to dismiss) */}
         <Pressable
-          style={styles.veil}
+          style={[styles.veil, phone && { backgroundColor: "transparent" }]}
           onPress={onClose}
           accessibilityRole="button"
           accessibilityLabel={C.later}
         />
 
-        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+        <PhoneAnimatedView style={[styles.sheet, { transform: [{ translateY }] }]}>
           {/* grabber */}
           <View style={styles.grabber} />
 
@@ -228,7 +227,7 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
 
             <View style={styles.counterCol}>
               <View style={styles.afterStack}>
-                <Animated.View style={[styles.bloom, { opacity: bloomOpacity }]} pointerEvents="none" />
+                <PhoneAnimatedView style={[styles.bloom, { opacity: bloomOpacity }]} pointerEvents="none" />
                 <Text style={styles.numAfter}>{String(after)}</Text>
               </View>
               <Text style={styles.numLabelMint}>{C.afterLabel}</Text>
@@ -266,7 +265,7 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
           </Pressable>
 
           <Text style={styles.privacy}>{C.privacy}</Text>
-        </Animated.View>
+        </PhoneAnimatedView>
       </View>
     </Modal>
   );
