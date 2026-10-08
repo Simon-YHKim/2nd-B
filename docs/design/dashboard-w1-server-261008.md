@@ -123,3 +123,19 @@ routine deletion clears its cached text. It does not retain source text.
 
 No paid provider call, production migration, deployment, PR, merge to main or
 APK publication is implied by these local checks.
+
+## Local result (2026-10-08)
+
+Implementation commit: `1b835c74`. Full `npm run verify -- --runInBand` passed
+952 suites / 12,873 tests. During that run one additional audit-classification
+regression was added; the final provider suite (10 tests) and Deno check were
+then rerun successfully. There are 43 new focused runtime/scheduler tests.
+PostgreSQL 18 contract and concurrent-session checks, all 16 Edge entrypoint
+type checks, Expo web export, staged diff check and TDD guard passed.
+The first full run found two missing draft-inventory registrations; both were
+fixed before the successful full rerun. No production data was used in SQL tests.
+
+`app:parity` reported equal for the existing main service at `559da91f`; its
+CI APK was still building at the check. This feature branch was not published.
+The shared report and logs are in `_sync/history/261008_W1-서버-앱연결-인수보고.html`
+and `_sync/history/261008_w1-*.log` in the canonical repository directory.
