@@ -254,6 +254,7 @@ jobs:
           # Edge Function. API credentials must never be Expo public variables.
           EXPO_PUBLIC_LLM_MODE: ${{ vars.EXPO_PUBLIC_LLM_MODE || 'mock' }}
           EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: "true"
+          EXPO_PUBLIC_DASHBOARD_GENERATION: ${{ vars.EXPO_PUBLIC_DASHBOARD_GENERATION || 'false' }}
           # D-27 axis-key pin: route every Gemini seat to gemini-3.5-flash so live
           # calls resolve the dedicated GEMINI_API_KEY__G35FLASH__{effort} combo
           # keys (a G25* slug would fall back to the base key). Overridable via a

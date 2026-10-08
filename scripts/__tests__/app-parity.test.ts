@@ -82,6 +82,16 @@ describe("app-parity: 폰 APK 빌드 설정 읽기", () => {
     expect(env.EXPO_PUBLIC_LLM_MODE).toBe("live");
   });
 
+  it("W1 활성화 설정이 APK와 8081에 함께 전달되고 미설정 시 꺼진다", () => {
+    expect(appEnv(workflow, {}).EXPO_PUBLIC_DASHBOARD_GENERATION).toBe("false");
+    expect(appEnv(workflow, { EXPO_PUBLIC_DASHBOARD_GENERATION: "true" })
+      .EXPO_PUBLIC_DASHBOARD_GENERATION).toBe("true");
+    const web = parse(read(".github/workflows/web-deploy.yml"));
+    const build = web.jobs.build.steps.find((step: Step) => step.env?.EXPO_PUBLIC_LLM_MODE);
+    expect(build.env.EXPO_PUBLIC_DASHBOARD_GENERATION)
+      .toBe("${{ vars.EXPO_PUBLIC_DASHBOARD_GENERATION || 'false' }}");
+  });
+
   it("저장소 Variables 가 있으면 그 값을, 비어 있으면 워크플로 기본값을 쓴다", () => {
     const withVar = appEnv(workflow, { EXPO_PUBLIC_CHAT_VENDOR: "claude" });
     const empty = appEnv(workflow, { EXPO_PUBLIC_CHAT_VENDOR: "" });

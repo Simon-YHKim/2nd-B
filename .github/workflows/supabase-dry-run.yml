@@ -11,6 +11,7 @@ on:
       - "scripts/test-polaris-sql.mjs"
       - "scripts/test-signup-consent-sql.mjs"
       - "scripts/test-weather-sql.mjs"
+      - "scripts/test-dashboard-sql.mjs"
       - ".github/workflows/supabase-dry-run.yml"
 
 # Least privilege: this workflow only reads the repo (checkout + local tooling).
@@ -72,6 +73,15 @@ jobs:
           CREATE DATABASE weather_test_ci OWNER weather_local;
           SQL
           node scripts/test-weather-sql.mjs 5432 weather_local weather_test_ci
+      - name: Exercise W1 generation locks and owner isolation
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -X -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE dashboard_local LOGIN SUPERUSER PASSWORD 'postgres';
+          CREATE DATABASE dashboard_test_ci OWNER dashboard_local;
+          SQL
+          node scripts/test-dashboard-sql.mjs 5432 dashboard_test_ci
       - name: Seed Supabase compatibility layer (auth, roles, and storage stubs)
         env:
           PGPASSWORD: postgres
