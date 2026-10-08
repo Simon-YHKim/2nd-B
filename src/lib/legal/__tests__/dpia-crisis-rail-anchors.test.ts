@@ -138,7 +138,7 @@ const ANCHORS: Anchor[] = [
     why: "저널이 기본으로 안 실린다는 주장의 **실제 근거** - 그 삼항 연산이 없으면 기본값이 무의미하다." },
   { cite: `${AT}:96-131`, symbol: "remain inert",
     why: "Sentry 가 **일부러** 닫혀 있다는 주장의 근거. 문서가 '설정됐으나 안 쓴다'가 아니라 '울타리가 있고 조건이 적혀 있다'고 말하려면 그 울타리를 지키는 검사가 실재해야 한다." },
-  { cite: `${AC}:154`, symbol: "MINOR_AGE_CEILING",
+  { cite: `${AC}:158`, symbol: "MINOR_AGE_CEILING",
     why: "미성년 여부가 실제로 정해지는 비교. 이 문서 전체가 이 한 줄 위에 서 있다." },
   { cite: `${AD}:79`, symbol: "input.isMinor !== false",
     why: "미성년에게 광고가 안 나간다는 주장의 fail-closed 지점 - null 도 막는다는 것이 주장의 내용이다. 2026-10-05 웹 배너 갈래(canShowAds)가 접혀 남은 하나인 보상형(canShowRewardedAds)의 줄로 옮겼다(Q-261004-16)." },

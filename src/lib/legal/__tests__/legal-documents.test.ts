@@ -231,7 +231,7 @@ describe("legal document snapshots", () => {
     expect(PRIVACY_DOC.body).toContain("standard aggregated reports are not governed by that retention setting");
     // Drafts and generated copies must not ship editorial fill markers.
     expect(PRIVACY_DOC.body).not.toMatch(
-      /\[(?:배포일|N|서버 차단일|확인된|deployment date|server-block date|verified)/,
+      /\[(?:배포일|N\b|서버 차단일|확인된|deployment date|server-block date|verified)/,
     );
     // xAI is not selected by any deployed env value and must not be listed.
     expect(PRIVACY_DOC.body).not.toMatch(/xAI|X\.AI/);
@@ -273,10 +273,18 @@ describe("legal document snapshots", () => {
     // condition pinned in the dedicated test above.
     expect(REFUND_DOC.body).toContain("7일 이내 전액 환불");
     expect(PRIVACY_DOC.body).toContain("김양환");
-    // 전화 미표기 (email-first): no phone placeholders or numbers.
+    // Existing business notices stay email-first. Simon's 2026-10-08 weather
+    // addenda explicitly defer the public phone/date until the weekend.
     for (const doc of [TERMS_DOC, REFUND_DOC, PRIVACY_DOC]) {
-      expect(doc.body).not.toMatch(/전화번호|support phone/);
+      let weatherAddendum = false;
+      const existingNotice = doc.body.split("\n").filter((line) => {
+        if (/^#{2,3} /.test(line)) weatherAddendum = /^### (?:위치기반서비스 추가 안내|Weather location addendum|GPS 날씨 추가 안내|GPS weather addendum)/.test(line);
+        return !weatherAddendum;
+      }).join("\n");
+      expect(existingNotice).not.toMatch(/전화번호|support phone/);
     }
+    expect(TERMS_DOC.body).toContain("전화번호와 공개 시행일은 이번 주말 입력 예정");
+    expect(TERMS_DOC.body).toContain("The telephone number and public effective date are scheduled to be entered this weekend");
   });
 
   test("retired lifetime plan; canonical tier names (PR-2 · #1140, Simon 2026-07-29)", () => {

@@ -133,7 +133,7 @@
 --   그 후속이다. 0190 은 머지된 마이그레이션이라 그 문장은 고치지 않는다.
 --
 -- ⚠ 아래 목록은 "0189 가 만든 두 객체에 **기대는** 마이그레이션 전부" 이고 현재는
---   0190 · 0198 · 0201 · 0205 · 0212 이다. 나중에 erase_my_data 를 다시 정의하거나 GRANT 하는 마이그레이션,
+--   0190 · 0198 · 0201 · 0205 · 0212 · 0226 이다. 나중에 erase_my_data 를 다시 정의하거나 GRANT 하는 마이그레이션,
 --   erasure_registry 에 행을 넣는 마이그레이션이 생기면 그 효과도 아래 DROP 과 함께
 --   사라진다. 그 행이 ledger 에 남으면 같은 구멍이 다른 모양으로 난다 (예: 삭제
 --   울타리를 넣은 새 함수 본문이 조용히 0189 의 옛 본문으로 돌아간다). 그런
@@ -216,7 +216,7 @@ $rollback_guard$;
 
 DROP TABLE IF EXISTS public.erasure_registry;
 
--- 이력 정리. 여기까지 왔으면 DB 에는 0189·0190·0198·0201·0205·0212 의 대상 객체가 없다. 0190 은
+-- 이력 정리. 여기까지 왔으면 DB 에는 0189·0190·0198·0201·0205·0212·0226 의 대상 객체가 없다. 0190 은
 -- 위에서 지운 함수의 ACL·COMMENT 를, 0198 은 등록부의 네 행을, 0201 은 RSS 쿼터 한 행을 만들었고,
 -- 0205 는 credit_ledger 행의 사유를, 0212 는 광고 보상 네 행의 사유를 고쳤다. ledger 에만 남아 있으면
 -- 다음 db push 가 그 마이그레이션을 건너뛴다. 0189·0190 의 결합 이유는 머리말
@@ -224,6 +224,9 @@ DROP TABLE IF EXISTS public.erasure_registry;
 -- 없으면 다시 민 0189 시드가 credit_ledger 에 옛 사유("계정 삭제 때도 SET NULL")를 되돌려 놓는다.
 -- 0212 가 없으면 같은 시드가 광고 보상 네 행에 88일 정리 전 사유(0189·0198·0205)를 되돌려 놓는다.
 -- 0205·0212 는 생성 블록만 담아 두 번 적용돼도 같은 행에 같은 사유를 쓸 뿐이다 (check:erasure-registry G7).
+-- 0226 도 생성 블록(인터뷰 세션 · 대화록 머리와 턴 · 응답 블록 id · 세션 생성 셈 표 다섯 행 upsert)만 담는다. 표 · 함수를 만드는 0225 는 목록에
+-- 넣지 않는다 - 등록부를 지워도 그 객체들은 그대로 남기 때문이다(0195 · 0198 과 같은 분리).
+-- 0233 도 날씨 두 표의 등록부 생성 블록만 담고, 구조를 만드는 0232 는 목록에 넣지 않는다.
 DO $rollback_ledger$
 DECLARE
   -- 한 줄에 하나, 이름 옆에 `-- <파일 번호>: <두 객체에 무엇을 매다는가>`. 손으로 돌리는
@@ -234,9 +237,10 @@ DECLARE
     'lock_erase_my_data_authenticated',  -- 0190: 0189 가 만든 함수의 잠금을 완성한다 (REVOKE · COMMENT)
     'service_contract_erasure_registry', -- 0198: 0189 등록부에 새 서비스 계약 표 네 행을 더한다
     'rss_proxy_erasure_registry',        -- 0201: RSS 사용자별 쿼터의 등록부 한 행을 더한다
-    'weather_erasure_registry',          -- 0233: 날씨 두 표의 등록부만 다시 채운다(0232 구조는 유지)
     'credit_ledger_erasure_registry_reason', -- 0205: 0189 등록부의 credit_ledger 행 사유를 고친다
-    'reward_records_erasure_registry_reason' -- 0212: 0189·0198·0205 등록부의 보상 관련 네 행 사유를 고친다
+    'reward_records_erasure_registry_reason', -- 0212: 0189·0198·0205 등록부의 보상 관련 네 행 사유를 고친다
+    'interview_transcript_erasure_registry',  -- 0226: 0225 가 만든 인터뷰 표들의 등록부 다섯 행을 더한다
+    'weather_erasure_registry'           -- 0233: 날씨 두 표의 등록부만 다시 채운다(0232 구조는 유지)
   ];
   v_found   text;
   v_absent  text;

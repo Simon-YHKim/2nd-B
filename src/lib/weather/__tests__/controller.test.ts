@@ -68,13 +68,17 @@ test.each(["denied", "blocked"] as const)("%s stops before position", async (per
   await f.controller.refresh(); expect(f.ports.place).not.toHaveBeenCalled();
   expect(f.states.at(-1)?.permission).toBe(permission);
 });
-test.each(["withdraw", "suspend", "dispose", "cancel"] as const)("%s fences a late GPS result", async (method) => {
+test.each(["withdraw", "suspend", "dispose", "cancel"] as const)("%s aborts the location continuation and fences a late GPS result", async (method) => {
   let resolve!: (value: { latitude: number; longitude: number }) => void;
   const position = new Promise<{ latitude: number; longitude: number }>((done) => { resolve = done; });
-  const f = fixture({ place: () => position });
+  let locationSignal: AbortSignal | undefined;
+  const f = fixture({ place: (signal) => { locationSignal = signal; return position; } });
   const task = f.controller.refresh();
-  await Promise.resolve(); await Promise.resolve();
-  f.controller[method](); resolve({ latitude: 37.57, longitude: 126.98 }); await task;
+  for (let tick = 0; tick < 5; tick += 1) await Promise.resolve();
+  expect(locationSignal?.aborted).toBe(false);
+  f.controller[method]();
+  expect(locationSignal?.aborted).toBe(true);
+  resolve({ latitude: 37.57, longitude: 126.98 }); await task;
   expect(f.ports.weather).not.toHaveBeenCalled();
 });
 
@@ -100,10 +104,13 @@ test("rapid taps share a single permission flow", async () => {
 test("a location result after the total deadline cannot leave the device", async () => {
   jest.useFakeTimers();
   let finish!: (value: { latitude: number; longitude: number }) => void;
-  const f = fixture({ place: () => new Promise((resolve) => { finish = resolve; }) });
+  let locationSignal: AbortSignal | undefined;
+  const f = fixture({ place: (signal) => { locationSignal = signal; return new Promise((resolve) => { finish = resolve; }); } });
   const pending = f.controller.enable();
   for (let n = 0; n < 5; n++) await Promise.resolve();
+  expect(locationSignal?.aborted).toBe(false);
   jest.advanceTimersByTime(30_001);
+  expect(locationSignal?.aborted).toBe(true);
   finish({ latitude: 0, longitude: 0 }); await pending;
   expect(f.ports.weather).not.toHaveBeenCalled(); expect(f.states.at(-1)?.busy).toBe(false);
   jest.useRealTimers();

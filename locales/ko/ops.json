@@ -193,7 +193,7 @@
     "board": {
       "weather": {
         "title": "날씨",
-        "body": "하루 관리판 날씨를 위해 약 1km로 뭉갠 위치를 노르웨이의 MET Norway에 보내 조회합니다.",
+        "body": "기기 위치로 가까운 관측소의 날씨를 고릅니다. 위치는 기기 밖으로 보내지 않으며, 언제든 끌 수 있습니다.",
         "terms": "약관 보기",
         "enable": "켜기",
         "cancel": "취소",
@@ -205,7 +205,8 @@
         "setting": "날씨용 위치",
         "on": "켜짐",
         "off": "꺼짐",
-        "source": "MET Norway의 예보 자료(CC BY 4.0)를 다섯 가지 그림으로 묶고 기온을 반올림했습니다."
+        "source": "NOAA/NWS의 50 km 이내·90분 이내 관측 자료이며, 자료가 없으면 표시하지 않습니다. 다섯 가지 그림과 반올림한 기온으로 표시하며 NOAA/NWS의 공식 표시나 승인을 뜻하지 않습니다.",
+        "sourceTerms": "자료 이용 안내"
       },
       "evidence": "근거 보기",
       "addWidget": "위젯 추가",
@@ -584,7 +585,7 @@
       "currentPage": "읽은 쪽",
       "totalPages": "전체 쪽",
       "savePages": "저장",
-      "pagesInvalid": "쪽수는 숫자로 적어 주세요."
+      "pagesInvalid": "쪽수는 0~100000 사이의 숫자로, 6자리 이내로 적어 주세요."
     },
     "goals": {
       "emptyTitle": "아직 목표가 없습니다",

@@ -48,6 +48,7 @@ import {
   addToShelf,
   listShelf,
   manualBook,
+  pageCountEdit,
   parsePageDraft,
   readingProgress,
   removeFromShelf,
@@ -418,11 +419,14 @@ export function ReadingScreen() {
   // different answers. The old catch set the results to [] and the screen fell onto
   // the assistant's "No suggestions yet" card, so a refused search looked like nothing.
   const [search, setSearch] = useState<BookSearchView>({ kind: "idle" });
+  const [manual, setManual] = useState<BookResult | null>(null);
   const searchSeq = useRef(0);
   // R2C-08: the "0 / 200" under NOW READING could not be changed.
   // `session` is new on every opening of the editor (gate BL-09): a save closes only the
   // opening it started from, never one opened after it.
-  const [pageEdit, setPageEdit] = useState<{ session: number; id: string; cur: string; total: string } | null>(null);
+  const [pageEdit, setPageEdit] = useState<{
+    session: number; id: string; cur: string; total: string; curOverflow: boolean; totalOverflow: boolean;
+  } | null>(null);
   const pageEditSeq = useRef(0);
   const [pageErr, setPageErr] = useState(false);
   // One page-count save per book at a time (gate BL-09), under the book's shared lock
@@ -442,13 +446,23 @@ export function ReadingScreen() {
     const trimmed = query.trim();
     if (trimmed.length === 0) return;
     const seq = ++searchSeq.current;
+    setManual(null);
     setSearch({ kind: "searching", q: trimmed });
+    let next: BookSearchView;
     try {
       const items = await searchBooks(trimmed);
-      if (seq === searchSeq.current) setSearch(bookSearchSettled(trimmed, items));
+      next = bookSearchSettled(trimmed, items);
     } catch (e) {
-      if (seq === searchSeq.current) setSearch(bookSearchFailed(trimmed, e));
+      next = bookSearchFailed(trimmed, e);
     }
+    if (seq !== searchSeq.current) return;
+    try {
+      const book = next.kind === "none" || next.kind === "failed" ? await manualBook(trimmed) : null;
+      if (seq === searchSeq.current) setManual(book);
+    } catch (e) {
+      next = bookSearchFailed(trimmed, e);
+    }
+    if (seq === searchSeq.current) setSearch(next);
   };
   const onAdd = async (b: BookResult) => {
     if (!userId || busy) return;
@@ -500,7 +514,7 @@ export function ReadingScreen() {
     if (!userId || !pageEdit || pageSaving) return;
     const edit = pageEdit;
     const pages = parsePageDraft(edit.cur, edit.total);
-    if (!pages) {
+    if (!pages || edit.curOverflow || edit.totalOverflow) {
       setPageErr(true);
       return;
     }
@@ -520,8 +534,6 @@ export function ReadingScreen() {
       shelf.reload();
     } else setSaveErr(true);
   };
-
-  const manual = search.kind === "none" || search.kind === "failed" ? manualBook(search.q) : null;
 
   return (
     <OpsFrame title={c.myShelf} bubble={c.whatReading} tip={c.add}>
@@ -614,13 +626,16 @@ export function ReadingScreen() {
                     editable={!pageSaving}
                     onChangeText={(v) => {
                       if (pageSaving) return;
-                      setPageEdit((p) => (p ? { ...p, cur: v } : p));
+                      setPageEdit((p) => {
+                        if (!p) return p;
+                        const edit = pageCountEdit(p.cur, v);
+                        return { ...p, cur: edit.text, curOverflow: edit.overflow };
+                      });
                     }}
                     placeholder={t("toolScreens.reading.currentPage")}
                     placeholderTextColor={deepSpace.textLo}
                     style={styles.searchInput}
                     keyboardType="number-pad"
-                    maxLength={6}
                     returnKeyType="done"
                     onSubmitEditing={() => {
                       if (!pageSaving) void onSavePages();
@@ -634,13 +649,16 @@ export function ReadingScreen() {
                     editable={!pageSaving}
                     onChangeText={(v) => {
                       if (pageSaving) return;
-                      setPageEdit((p) => (p ? { ...p, total: v } : p));
+                      setPageEdit((p) => {
+                        if (!p) return p;
+                        const edit = pageCountEdit(p.total, v);
+                        return { ...p, total: edit.text, totalOverflow: edit.overflow };
+                      });
                     }}
                     placeholder={t("toolScreens.reading.totalPages")}
                     placeholderTextColor={deepSpace.textLo}
                     style={styles.searchInput}
                     keyboardType="number-pad"
-                    maxLength={6}
                     returnKeyType="done"
                     onSubmitEditing={() => {
                       if (!pageSaving) void onSavePages();
@@ -649,7 +667,7 @@ export function ReadingScreen() {
                     accessibilityState={{ disabled: pageSaving }}
                   />
                 </View>
-                {pageErr ? (
+                {pageErr || pageEdit.curOverflow || pageEdit.totalOverflow ? (
                   <Text variant="caption" style={styles.fieldErr} accessibilityLiveRegion="polite">
                     {t("toolScreens.reading.pagesInvalid")}
                   </Text>
@@ -691,6 +709,8 @@ export function ReadingScreen() {
                     id: reading.id,
                     cur: String(reading.current_page),
                     total: reading.total_pages ? String(reading.total_pages) : "",
+                    curOverflow: false,
+                    totalOverflow: false,
                   });
                 }}
                 hitSlop={6}
@@ -1439,7 +1459,7 @@ const MEAL_DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const
 const MEAL_IDEA_KEYS = ["i1", "i2", "i3", "i4", "i5", "i6"] as const;
 
 type FoodLookup = { kind: "idle" } | { kind: "busy" } | { kind: "done"; items: FoodNutrition[] } | { kind: "failed" };
-/** Session cache for food lookups, so reopening a cell never spends quota twice. */
+/** Bounded session cache of successful food lookups, including genuine zero matches. */
 const FOOD_LOOKUP_CACHE = new Map<string, FoodNutrition[]>();
 const FOOD_LOOKUP_CACHE_MAX = 30;
 
@@ -1476,6 +1496,13 @@ export function MealsScreen() {
   const mealWriting = mealWrites > 0;
   const [draft, setDraft] = useState("");
   const [lookup, setLookup] = useState<FoodLookup>({ kind: "idle" });
+  // BL-04: every query edit, sheet transition and new lookup retires older responses.
+  const lookupSeq = useRef(0);
+  const resetLookup = () => {
+    lookupSeq.current += 1;
+    setLookup({ kind: "idle" });
+  };
+  useEffect(() => () => { lookupSeq.current += 1; }, []);
 
   const week = useAsync<MealEntry[]>(
     () => (userId ? listWeek(userId, weekStart) : Promise.resolve([])),
@@ -1501,14 +1528,16 @@ export function MealsScreen() {
     // opening's failed write is kept or handed back (gate S3-01, simplified 2026-10-07).
     setPending({ session: sheetSeq.current, date, slot, day, current: current?.title ?? null, failed: false });
     setDraft(current?.title ?? "");
-    setLookup({ kind: "idle" });
+    resetLookup();
   };
 
   // The food DB (MFDS) is searched by its Korean food name (FOOD_NM_KR), so the lookup
   // is offered on the Korean screen only. Answers are kept for the session.
   const onLookUp = async () => {
+    if (!pending || mealWriting) return;
     const query = draft.trim();
     if (!ko || query.length === 0) return;
+    const seq = ++lookupSeq.current;
     const cached = FOOD_LOOKUP_CACHE.get(query);
     if (cached) {
       setLookup({ kind: "done", items: cached });
@@ -1517,6 +1546,7 @@ export function MealsScreen() {
     setLookup({ kind: "busy" });
     try {
       const items = await searchFoods(query);
+      if (seq !== lookupSeq.current) return;
       if (FOOD_LOOKUP_CACHE.size >= FOOD_LOOKUP_CACHE_MAX) {
         const oldest = FOOD_LOOKUP_CACHE.keys().next().value;
         if (oldest !== undefined) FOOD_LOOKUP_CACHE.delete(oldest);
@@ -1524,7 +1554,7 @@ export function MealsScreen() {
       FOOD_LOOKUP_CACHE.set(query, items);
       setLookup({ kind: "done", items });
     } catch {
-      setLookup({ kind: "failed" });
+      if (seq === lookupSeq.current) setLookup({ kind: "failed" });
     }
   };
 
@@ -1537,6 +1567,7 @@ export function MealsScreen() {
   const writeMeal = async (sheet: MealSheet, write: () => Promise<unknown>) => {
     if (!userId) return;
     const outcome = await runExclusive(mealWriteLock(userId, sheet.date, sheet.slot), async () => {
+      resetLookup();
       setMealWrites((n) => n + 1);
       try {
         await write();
@@ -1552,12 +1583,14 @@ export function MealsScreen() {
 
   const saveCell = async () => {
     if (!userId || !pending) {
+      resetLookup();
       setPending(null);
       return;
     }
     // R2C-07: an emptied draft used to just close the sheet, so the old meal stayed.
     const action = mealSaveAction(draft, pending.current);
     if (action === "close") {
+      resetLookup();
       setPending(null);
       return;
     }
@@ -1591,7 +1624,10 @@ export function MealsScreen() {
   // the user's own choice to drop the draft: the failure line goes with it, and the next
   // opening starts from the stored meal. To try again, the same save button saves the draft
   // as it stands then.
-  const closeSheet = () => setPending((open) => mealSheetDismiss(open, mealWriting));
+  const closeSheet = () => {
+    if (!mealWriting) resetLookup();
+    setPending((open) => mealSheetDismiss(open, mealWriting));
+  };
   // The sheet's failure line, hidden while a write runs.
   const sheetFailed = pending !== null && pending.failed && !mealWriting;
 
@@ -1670,7 +1706,7 @@ export function MealsScreen() {
               onChangeText={(v) => {
                 if (mealWriting) return;
                 setDraft(v);
-                if (lookup.kind !== "idle") setLookup({ kind: "idle" });
+                resetLookup();
               }}
               placeholder={t("toolScreens.meals.placeholder")}
               placeholderTextColor={deepSpace.textLo}
@@ -1683,7 +1719,7 @@ export function MealsScreen() {
               accessibilityState={{ disabled: mealWriting }}
             />
             {ko && draft.trim().length > 0 ? (
-              <Pressable accessibilityRole="button" onPress={() => void onLookUp()} disabled={lookup.kind === "busy"} hitSlop={6} style={styles.ideaChip}>
+              <Pressable accessibilityRole="button" onPress={() => void onLookUp()} disabled={mealWriting || lookup.kind === "busy"} hitSlop={6} style={styles.ideaChip}>
                 <Text variant="body" style={styles.ideaChipText}>{t("toolScreens.meals.lookUp")}</Text>
               </Pressable>
             ) : null}
@@ -1697,7 +1733,9 @@ export function MealsScreen() {
                 accessibilityState={{ disabled: mealWriting }}
                 disabled={mealWriting}
                 onPress={() => {
-                  if (!mealWriting) setDraft(name);
+                  if (mealWriting) return;
+                  setDraft(name);
+                  resetLookup();
                 }}
                 hitSlop={4}
                 style={styles.ideaChip}

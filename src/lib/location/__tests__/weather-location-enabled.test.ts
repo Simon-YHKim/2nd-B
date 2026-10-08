@@ -43,3 +43,33 @@ test("a recent coarse fix avoids a new GPS request", async () => {
   expect(await readWeatherPlace()).toEqual({ latitude: -33.87, longitude: 151.21 });
   expect(current).not.toHaveBeenCalled();
 });
+
+test("an already cancelled weather visit never reaches the location SDK", async () => {
+  permission.mockResolvedValue({ granted: true });
+  recent.mockResolvedValue(null);
+  current.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
+  const controller = new AbortController();
+  controller.abort();
+  expect(await readWeatherPlace(controller.signal)).toBeNull();
+  expect(permission).not.toHaveBeenCalled();
+  expect(recent).not.toHaveBeenCalled();
+  expect(current).not.toHaveBeenCalled();
+});
+
+test.each(["permission", "recent", "current"] as const)("cancelling while %s is pending starts no later GPS request and discards its result", async (stage) => {
+  permission.mockResolvedValue({ granted: true });
+  recent.mockResolvedValue(null);
+  const position = { coords: { latitude: 37.566535, longitude: 126.977969 } };
+  current.mockResolvedValue(position);
+  let finish!: (value: unknown) => void;
+  const deferred = new Promise((resolve) => { finish = resolve; });
+  ({ permission, recent, current })[stage].mockReturnValueOnce(deferred);
+  const controller = new AbortController();
+  const pending = readWeatherPlace(controller.signal);
+  for (let tick = 0; tick < 6; tick += 1) await Promise.resolve();
+  controller.abort();
+  finish(stage === "permission" ? { granted: true } : stage === "recent" ? null : position);
+  expect(await pending).toBeNull();
+  expect(current).toHaveBeenCalledTimes(stage === "current" ? 1 : 0);
+  if (stage === "permission") expect(recent).not.toHaveBeenCalled();
+});

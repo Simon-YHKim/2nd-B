@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import type { ReactElement } from "react";
 
 const mockAuth = {
-  current: { userId: null as string | null, loading: true, isMinor: null as boolean | null },
+  current: { sessionId: null as string | null, userId: null as string | null, loading: true, isMinor: null as boolean | null },
 };
 const mockMarkTTFVSeen = jest.fn();
 const mockReleaseTTFVClaim = jest.fn();
@@ -65,7 +65,7 @@ function routeElement(): ReactElement<Record<string, unknown>> {
 
 describe("/ttfv auth and seen gate", () => {
   beforeEach(() => {
-    mockAuth.current = { userId: null, loading: true, isMinor: null };
+    mockAuth.current = { sessionId: null, userId: null, loading: true, isMinor: null };
     mockMarkTTFVSeen.mockClear();
     mockReleaseTTFVClaim.mockClear();
     mockTakeTTFVClaimToken.mockReset().mockReturnValue(null);
@@ -80,7 +80,7 @@ describe("/ttfv auth and seen gate", () => {
   });
 
   it("redirects a resolved signed-out session to /sign-in without marking seen", () => {
-    mockAuth.current = { userId: null, loading: false, isMinor: null };
+    mockAuth.current = { sessionId: null, userId: null, loading: false, isMinor: null };
     const tree = routeElement();
 
     expect(tree.type).toBe("Redirect");
@@ -89,7 +89,7 @@ describe("/ttfv auth and seen gate", () => {
   });
 
   it("only exposes the seen write as the authenticated screen-ready callback", () => {
-    mockAuth.current = { userId: "owner-1", loading: false, isMinor: false };
+    mockAuth.current = { sessionId: "s1", userId: "owner-1", loading: false, isMinor: false };
     const tree = routeElement();
 
     expect(tree.type).toBe("TTFVScreen");
@@ -98,23 +98,23 @@ describe("/ttfv auth and seen gate", () => {
 
     (tree.props.onContentReady as (receipt: string | null) => void)(null);
     expect(mockMarkTTFVSeen).toHaveBeenCalledTimes(1);
-    expect(mockMarkTTFVSeen).toHaveBeenCalledWith("owner-1", null);
+    expect(mockMarkTTFVSeen).toHaveBeenCalledWith("owner-1", null, "s1");
   });
 
   it("lets the screen's visit take the home's receipt (0219, BA-02) and reports with the visit's receipt", () => {
-    mockAuth.current = { userId: "owner-1", loading: false, isMinor: false };
+    mockAuth.current = { sessionId: "s1", userId: "owner-1", loading: false, isMinor: false };
     mockTakeTTFVClaimToken.mockReturnValue("token-1");
     const tree = routeElement();
 
     // The route only hands the take over; it never takes the receipt while rendering.
     expect(mockTakeTTFVClaimToken).not.toHaveBeenCalled();
     expect((tree.props.takeReceipt as (owner: string) => string | null)("owner-1")).toBe("token-1");
-    expect(mockTakeTTFVClaimToken).toHaveBeenCalledWith("owner-1");
+    expect(mockTakeTTFVClaimToken).toHaveBeenCalledWith("owner-1", "s1");
     expect(mockReleaseTTFVClaim).not.toHaveBeenCalled();
     (tree.props.onContentUnavailable as (receipt: string) => void)("token-1");
-    expect(mockReleaseTTFVClaim).toHaveBeenCalledWith("owner-1", "token-1");
+    expect(mockReleaseTTFVClaim).toHaveBeenCalledWith("owner-1", "token-1", "s1");
     (tree.props.onContentReady as (receipt: string | null) => void)("token-1");
-    expect(mockMarkTTFVSeen).toHaveBeenCalledWith("owner-1", "token-1");
+    expect(mockMarkTTFVSeen).toHaveBeenCalledWith("owner-1", "token-1", "s1");
   });
 
   it("marks a visit failed only on a load error (#1530), never for loading or shown content", () => {
@@ -149,8 +149,8 @@ describe("/ttfv auth and seen gate", () => {
     expect(SCREEN).toMatch(/if \(shouldReleaseTTFVClaim\(visibleContent\)\) \{\s*visit\.failed = true;\s*return;\s*\}/);
     // The receipt is taken once, when the visit starts, never in the route's render.
     expect(SCREEN).toContain("receipt: take ? take(userId) : null");
-    expect(ROUTE).toContain("takeReceipt={takeTTFVClaimToken}");
-    expect(ROUTE).not.toMatch(/takeTTFVClaimToken\(/);
+    expect(ROUTE).toContain("takeReceipt={(ownerId) => takeTTFVClaimToken(ownerId, sessionId)}");
+    expect(ROUTE).not.toMatch(/(?:const|let)\s+\w+\s*=\s*takeTTFVClaimToken\(/);
   });
 
   it("marks only honest record or empty content, never loading or load error", () => {

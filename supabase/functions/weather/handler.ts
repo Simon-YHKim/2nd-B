@@ -1,9 +1,13 @@
-// No logs, storage, coordinate cache, arbitrary upstream URL or forwarded IP.
+// No device coordinates, caller identity or IP go upstream. Only public global data is cached.
 import { readJsonObject, readBodyBytes } from '../_shared/request-json.ts';
+import { parseMetarCsv, type MetarStation } from './metar.ts';
 
 const CONTRACT = 'weather-v1-261007';
 const ORIGINS = new Set(['https://simon-yhkim.github.io', 'http://localhost:8081', 'http://localhost:8082', 'http://localhost:19006']);
-const UPSTREAM = 'https://api.met.no/weatherapi/locationforecast/2.0/compact';
+const UPSTREAM = 'https://aviationweather.gov/data/cache/metars.cache.csv.gz';
+const PUBLIC_CACHE_MS = 10 * 60_000;
+const RETRY_MS = 60_000;
+const UPSTREAM_TIMEOUT_MS = 6000;
 interface Dependencies {
   enabled: boolean;
   userAgent: string;
@@ -13,9 +17,58 @@ interface Dependencies {
 }
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const exact = (v: Record<string, unknown>, keys: string[]) => Object.keys(v).length === keys.length && keys.every((key) => key in v);
-const coarse = (v: unknown, max: number): v is number => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= max && Math.abs(v * 100 - Math.round(v * 100)) < 1e-8;
+interface PublicWeather { source: 'noaa-metar'; stations: MetarStation[] }
 
 export function createWeatherHandler(deps: Dependencies) {
+  // This shared work has no Request, JWT, owner or device-location input.
+  let cache: { data: PublicWeather; expiresAt: number } | null = null;
+  let inFlight: Promise<PublicWeather | null> | null = null;
+  let retryAt = 0;
+  async function download(): Promise<PublicWeather | null> {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => { controller.abort(); reject(new Error('weather_timeout')); }, UPSTREAM_TIMEOUT_MS);
+    });
+    try {
+      const data = await Promise.race([(async (): Promise<PublicWeather> => {
+        const response = await deps.fetch(UPSTREAM, {
+          headers: { 'User-Agent': deps.userAgent, 'Accept-Encoding': 'identity' },
+          signal: controller.signal, redirect: 'error',
+        });
+        if (!response.ok || controller.signal.aborted) {
+          void response.body?.cancel().catch(() => undefined);
+          throw new Error('weather_upstream');
+        }
+        const compressedInput = { body: response.body, headers: response.headers, signal: controller.signal };
+        const compressed = await readBodyBytes(compressedInput, 2 * 1024 * 1024);
+        if (compressed[0] !== 0x1f || compressed[1] !== 0x8b) throw new Error('weather_gzip');
+        const stream = new ReadableStream<BufferSource>({ start(target) { target.enqueue(new Uint8Array(compressed)); target.close(); } });
+        const expandedInput = {
+          body: stream.pipeThrough(new DecompressionStream('gzip')),
+          headers: new Headers(), signal: controller.signal,
+        };
+        const expanded = await readBodyBytes(expandedInput, 8 * 1024 * 1024);
+        const stations = parseMetarCsv(new TextDecoder('utf-8', { fatal: true }).decode(expanded));
+        return { source: 'noaa-metar', stations };
+      })(), deadline]);
+      cache = { data, expiresAt: Date.now() + PUBLIC_CACHE_MS };
+      retryAt = 0;
+      return data;
+    } catch {
+      cache = null;
+      retryAt = Date.now() + RETRY_MS;
+      return null;
+    } finally { clearTimeout(timer); }
+  }
+  function publicWeather(): Promise<PublicWeather | null> {
+    if (cache && cache.expiresAt > Date.now()) return Promise.resolve(cache.data);
+    cache = null;
+    if (inFlight) return inFlight;
+    if (Date.now() < retryAt) return Promise.resolve(null);
+    inFlight = download().finally(() => { inFlight = null; });
+    return inFlight;
+  }
   return async (req: Request): Promise<Response> => {
     const origin = req.headers.get('origin');
     const headers = {
@@ -42,8 +95,7 @@ export function createWeatherHandler(deps: Dependencies) {
         if (!exact(body, ['action','contract','revision','locale']) || !Number.isSafeInteger(body.revision) || (body.revision as number) < 0 ||
             !['en','ko','es','pt','id'].includes(body.locale as string)) return reply({ error: 'body' }, 400);
       } else if (action === 'weather') {
-        if (!exact(body, ['action','contract','place']) || !object(body.place) || !exact(body.place, ['latitude','longitude']) ||
-            !coarse(body.place.latitude,90) || !coarse(body.place.longitude,180)) return reply({ error: 'body' }, 400);
+        if (!exact(body, ['action','contract'])) return reply({ error: 'body' }, 400);
       } else return reply({ error: 'body' }, 400);
       const owner = await deps.authenticate(token.slice(7));
       if (!owner) return reply({ error: 'auth' }, 401);
@@ -56,32 +108,20 @@ export function createWeatherHandler(deps: Dependencies) {
         if (error || !object(data)) return reply({ error: 'consent' }, error?.code === '40001' ? 409 : error?.code === '42501' ? 403 : 503);
         return reply({ ...data, available: deps.enabled });
       }
-      if (!deps.userAgent || /[\r\n]/.test(deps.userAgent)) return reply({ error: 'unavailable' }, 503);
+      if (!deps.userAgent || deps.userAgent.length > 512 || /[\r\n]/.test(deps.userAgent)) return reply({ error: 'unavailable' }, 503);
       const claim = await deps.rpc('authorize_weather_request', { p_user_id: owner });
       if (claim.error || claim.data !== true) return reply({ error: 'consent' }, 403);
-      const place = body.place as { latitude: number; longitude: number };
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 6000);
-      const onAbort = () => controller.abort();
-      req.signal.addEventListener('abort', onAbort, { once: true });
+      if (req.signal.aborted) return reply(null);
+      // Caller cancellation only stops that response, not the shared public download.
+      let onAbort = () => {};
+      const aborted = new Promise<null>((resolve) => {
+        onAbort = () => resolve(null);
+        req.signal.addEventListener('abort', onAbort, { once: true });
+      });
       try {
-        if (req.signal.aborted) return reply(null);
-        const response = await deps.fetch(`${UPSTREAM}?lat=${place.latitude.toFixed(2)}&lon=${place.longitude.toFixed(2)}`, {
-          headers: { 'User-Agent': deps.userAgent }, signal: controller.signal, redirect: 'error',
-        });
-        if (!response.ok) { await response.body?.cancel(); return reply(null); }
-        const bytes = await readBodyBytes(response, 512 * 1024);
-        const payload = JSON.parse(new TextDecoder().decode(bytes));
-        const series = payload?.properties?.timeseries;
-        if (!Array.isArray(series)) return reply(null);
-        const now = Date.now();
-        const hour = series.find((entry: { time?: string }) => typeof entry.time === 'string' && Date.parse(entry.time) <= now && Date.parse(entry.time) > now - 60 * 60_000);
-        const data = hour?.data;
-        const symbol = (data?.next_1_hours ?? data?.next_6_hours ?? data?.next_12_hours)?.summary?.symbol_code;
-        const tempC = data?.instant?.details?.air_temperature;
-        if (typeof symbol !== 'string' || typeof tempC !== 'number' || !Number.isFinite(tempC)) return reply(null);
-        return reply({ symbol, tempC, validAt: hour.time, nextRequestAt: response.headers.get('expires') });
-      } finally { clearTimeout(timer); req.signal.removeEventListener('abort', onAbort); }
+        const data = await Promise.race([publicWeather(), aborted]);
+        return reply(req.signal.aborted ? null : data);
+      } finally { req.signal.removeEventListener('abort', onAbort); }
     } catch { return reply(null, 503); }
   };
 }

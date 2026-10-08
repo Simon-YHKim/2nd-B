@@ -1,6 +1,7 @@
 jest.mock("../../location/weather-location-gate", () => ({ WEATHER_LOCATION_ENABLED: true }));
+let mockOwnerCurrent = true;
 jest.mock("../../auth/account-epoch", () => ({
-  captureAccountOwnerLease: () => ({ epoch: 1, isCurrent: () => true }),
+  captureAccountOwnerLease: () => mockOwnerCurrent ? ({ epoch: 1, isCurrent: () => mockOwnerCurrent }) : null,
   subscribeAccountTransition: () => () => undefined,
 }));
 jest.mock("../../auth/account-session-lease", () => ({ beginAccountSessionLease: () => ({
@@ -9,29 +10,63 @@ jest.mock("../../auth/account-session-lease", () => ({ beginAccountSessionLease:
 }) }));
 const invoke = jest.fn();
 jest.mock("../../supabase/captured-session-client", () => ({ invokeFunctionWithCapturedSession: (...args: unknown[]) => invoke(...args) }));
-import { createWeatherReader, saveWeatherConsent } from "../client";
+import { createWeatherReader, loadWeatherConsent, saveWeatherConsent } from "../client";
 import { WEATHER_CACHE_MS, WEATHER_CONSENT_REVISION, type WeatherConsent } from "../model";
 import { currentPrivacyChange, resetPrivacyChangesForTests, beginPrivacyChange, subscribePrivacyChanges } from "../../privacy/changes";
 
-beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(new Date("2026-10-07T05:00:00Z")); invoke.mockReset(); resetPrivacyChangesForTests(); });
+beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(new Date("2026-10-07T05:00:00Z")); invoke.mockReset(); resetPrivacyChangesForTests(); mockOwnerCurrent = true; });
 afterEach(() => { jest.useRealTimers(); });
-const response = () => ({ data: { symbol: "fair_day", tempC: 17.5, validAt: new Date().toISOString() }, error: null });
-test("only the rounded pair is posted and weather is cached for 30 minutes", async () => {
+const response = (observedAt = new Date().toISOString()) => ({ data: { source: "noaa-metar", stations: [
+  { id: "SEOU", latitude: 37.57, longitude: 126.98, tempC: 17.5, sky: "partlyCloudy", observedAt },
+  { id: "ZERO", latitude: 0, longitude: 0, tempC: 22, sky: "clear", observedAt },
+] }, error: null });
+test("weather status, consent changes and observations request the Seoul region with the captured token", async () => {
+  const status: WeatherConsent = { contract: WEATHER_CONSENT_REVISION, revision: 0, enabled: false, eligible: true, available: true };
+  invoke.mockResolvedValueOnce({ data: status, error: null });
+  await loadWeatherConsent("owner");
+  const granted = { ...status, revision: 1, enabled: true };
+  invoke.mockResolvedValueOnce({ data: granted, error: null });
+  await saveWeatherConsent("owner", status, true, "ko");
+  invoke.mockResolvedValueOnce(response());
+  const reader = createWeatherReader("owner");
+  await reader.read({ latitude: 0, longitude: 0 });
+  reader.clear();
+  invoke.mockResolvedValueOnce({ data: { ...status, revision: 2 }, error: null });
+  await saveWeatherConsent("owner", granted, false, "ko");
+
+  expect(invoke.mock.calls.map((call) => call[2].body.action)).toEqual(["status", "grant", "weather", "revoke"]);
+  for (const call of invoke.mock.calls) {
+    expect(call[0]).toBe("weather");
+    expect(call[1]).toBe("fixture");
+    expect(call[2].region).toBe("ap-northeast-2");
+  }
+});
+test("the global response is cached for 30 minutes and GPS never appears in the request", async () => {
   const reader = createWeatherReader("owner"); invoke.mockImplementation(async () => response());
   const place = { latitude: 37.566535, longitude: 126.977969 };
   expect(await reader.read(place)).toEqual({ weather: { sky: "partlyCloudy", tempC: 17.5 }, expiresAt: Date.now() + WEATHER_CACHE_MS });
-  expect(invoke.mock.calls[0][2].body).toEqual({ action: "weather", contract: WEATHER_CONSENT_REVISION, place: { latitude: 37.57, longitude: 126.98 } });
+  expect(invoke.mock.calls[0][2].body).toEqual({ action: "weather", contract: WEATHER_CONSENT_REVISION });
   const expiresAt = Date.now() + WEATHER_CACHE_MS;
   jest.advanceTimersByTime(20 * 60_000);
   expect((await reader.read(place))?.expiresAt).toBe(expiresAt); expect(invoke).toHaveBeenCalledTimes(1);
+  expect(await reader.read({ latitude: 0, longitude: 0 })).toEqual({ weather: { sky: "clear", tempC: 22 }, expiresAt });
+  expect(invoke).toHaveBeenCalledTimes(1); // choosing a different public station is entirely local
   jest.advanceTimersByTime(10 * 60_000);
   await reader.read(place); expect(invoke).toHaveBeenCalledTimes(2); reader.clear();
 });
-test("provider Expires is respected beyond the display's 30-minute TTL", async () => {
-  invoke.mockResolvedValue({ data: { ...response().data, nextRequestAt: new Date(Date.now()+3600_000).toUTCString() }, error: null });
+test("observations expire at 90 minutes even while the bulk response is still cached", async () => {
+  invoke.mockResolvedValue(response(new Date(Date.now() - 85 * 60_000).toISOString()));
   const reader = createWeatherReader("owner"); const place = { latitude: 0, longitude: 0 };
-  await reader.read(place); jest.advanceTimersByTime(WEATHER_CACHE_MS);
+  expect((await reader.read(place))?.expiresAt).toBe(Date.now() + 5 * 60_000);
+  jest.advanceTimersByTime(5 * 60_000);
   expect(await reader.read(place)).toBeNull(); expect(invoke).toHaveBeenCalledTimes(1); reader.clear();
+});
+test("a place without a nearby observation stays hidden without discarding the reusable bulk response", async () => {
+  invoke.mockResolvedValue(response());
+  const reader = createWeatherReader("owner");
+  expect(await reader.read({ latitude: -60, longitude: 0 })).toBeNull();
+  expect((await reader.read({ latitude: 0, longitude: 0 }))?.weather.tempC).toBe(22);
+  expect(invoke).toHaveBeenCalledTimes(1); reader.clear();
 });
 test("invalid coordinates, HTTP failure and malformed response all return null", async () => {
   const reader = createWeatherReader("owner");
@@ -48,6 +83,18 @@ test("clearing consent while a response is in flight never recreates the cache",
   const reader = createWeatherReader("owner"); const pending = reader.read({ latitude: 0, longitude: 0 });
   await Promise.resolve(); await Promise.resolve(); reader.clear(); finish(response());
   expect(await pending).toBeNull();
+});
+test("clearing a cached response or changing accounts prevents old observations from being reused", async () => {
+  invoke.mockImplementation(async () => response());
+  const reader = createWeatherReader("owner"); const place = { latitude: 0, longitude: 0 };
+  expect((await reader.read(place))?.weather.tempC).toBe(22);
+  reader.clear();
+  expect((await reader.read(place))?.weather.tempC).toBe(22);
+  expect(invoke).toHaveBeenCalledTimes(2);
+  mockOwnerCurrent = false;
+  expect(await reader.read(place)).toBeNull();
+  expect(invoke).toHaveBeenCalledTimes(2);
+  reader.clear();
 });
 test("a weather grant does not withdraw unrelated preferences or replay an old OFF notification", async () => {
   beginPrivacyChange("owner", { location_weather: false, external_analytics: true });

@@ -44,12 +44,12 @@ export function useImportPendingCaptures(): {
   crisis: PendingImportCrisis;
   dismissCrisis: () => void;
 } {
-  const { userId, hasProfile, isMinor, loading, profileProbeFailed } = useAuth();
+  const { userId, sessionId, hasProfile, isMinor, loading, profileProbeFailed } = useAuth();
   // The home's own first-run decision (0219), read and never driven from here:
   // "home" means no welcome or first-day review is about to open over it. This
   // prompt never asks the server for a grant (design 5.2).
   const firstRunReady = !loading && !!userId && hasProfile === true && !profileProbeFailed;
-  const firstRun = useFirstRunHomeGate(userId, firstRunReady);
+  const firstRun = useFirstRunHomeGate(userId, firstRunReady, sessionId);
   const { i18n } = useTranslation();
   const [offer, setOffer] = useState<PendingImportOffer | null>(null);
   const [importing, setImporting] = useState(false);

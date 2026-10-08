@@ -62,37 +62,37 @@ describe("what /ttfv reports to the server", () => {
   });
 
   test("content on screen uses the first-day chance, with or without a grant", async () => {
-    markTTFVSeen("owner-1", "token-1");
-    markTTFVSeen("owner-1", null);
+    markTTFVSeen("owner-1", "token-1", "s1");
+    markTTFVSeen("owner-1", null, "s1");
     await flushMicrotasks();
     expect(mockFinishFirstRun.mock.calls).toEqual([
-      ["owner-1", "ttfv", "shown", "token-1"],
-      ["owner-1", "ttfv", "shown", null],
+      ["owner-1", "ttfv", "shown", "token-1", "s1"],
+      ["owner-1", "ttfv", "shown", null, "s1"],
     ]);
     expect(mockSetItem).not.toHaveBeenCalled();
   });
 
   test("a review that could not load hands back only a grant it holds the receipt of", async () => {
-    releaseTTFVClaim("owner-1", "token-1");
-    releaseTTFVClaim("owner-1", null);
-    releaseTTFVClaim(null, "token-1");
+    releaseTTFVClaim("owner-1", "token-1", "s1");
+    releaseTTFVClaim("owner-1", null, "s1");
+    releaseTTFVClaim(null, "token-1", "s1");
     await flushMicrotasks();
-    expect(mockFinishFirstRun.mock.calls).toEqual([["owner-1", "ttfv", "not_shown", "token-1"]]);
+    expect(mockFinishFirstRun.mock.calls).toEqual([["owner-1", "ttfv", "not_shown", "token-1", "s1"]]);
   });
 
   test("signed out reports nothing, and a failing server neither throws nor rejects unhandled", async () => {
-    markTTFVSeen(null, null);
+    markTTFVSeen(null, null, "s1");
     expect(mockFinishFirstRun).not.toHaveBeenCalled();
     mockFinishFirstRun.mockResolvedValueOnce(false);
-    expect(() => markTTFVSeen("owner-1", null)).not.toThrow();
+    expect(() => markTTFVSeen("owner-1", null, "s1")).not.toThrow();
     await flushMicrotasks();
   });
 
   test("the receipt is the one the home's grant carried, taken from the store's take-once", () => {
     mockToken.mockReturnValueOnce("token-9").mockReturnValue(null);
-    expect(takeTTFVClaimToken("owner-1")).toBe("token-9");
-    expect(takeTTFVClaimToken("owner-1")).toBeNull();
-    expect(mockToken).toHaveBeenCalledWith("owner-1");
+    expect(takeTTFVClaimToken("owner-1", "s1")).toBe("token-9");
+    expect(takeTTFVClaimToken("owner-1", "s1")).toBeNull();
+    expect(mockToken).toHaveBeenCalledWith("owner-1", "s1");
   });
 });
 

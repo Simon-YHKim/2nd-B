@@ -861,12 +861,13 @@ describe("check:erasure-registry -- G3 reads rows, not headers (r40 M1/M2)", () 
   });
 });
 
-describe("the real registry still classifies the same 66 rows (r40 M1/M2)", () => {
-  test("all 26 client_erasable tables are owner-bound and still hold the DELETE grant", () => {
+describe("the real registry's owner deletion classifications (r40 M1/M2)", () => {
+  test("all 30 client_erasable tables are owner-bound and still hold the DELETE grant", () => {
     const replay = replayMigrations(migrationsDir(REPO_ROOT));
     const registry = loadRegistry(REPO_ROOT);
     const erasable = Object.entries(registry.tables).filter(([, e]) => e.class === "client_erasable");
-    expect(erasable).toHaveLength(26);
+    // 0226 adds the transcript head/turns, sessions and response block ids.
+    expect(erasable).toHaveLength(30);
 
     const shapes = new Set<string>();
     for (const [table, entry] of erasable) {
@@ -895,7 +896,11 @@ describe("the real registry still classifies the same 66 rows (r40 M1/M2)", () =
     const replay = replayMigrations(migrationsDir(REPO_ROOT));
     const registry = loadRegistry(REPO_ROOT);
     const kept = Object.entries(registry.tables).filter(([, e]) => e.class === "account_delete_only");
+    // Sessions and response blocks are content-erasable, not kept on content deletion.
     expect(kept).toHaveLength(13);
+    for (const table of ["interview_sessions", "ai_audit_context_blocks"]) {
+      expect(kept.map(([name]) => name)).not.toContain(table);
+    }
     for (const [table] of kept) {
       const policies = [...(replay.policies.get(table) ?? new Map())].filter(
         ([, state]) =>
@@ -1633,7 +1638,7 @@ describe("G10 -- the catalog test's privilege floor may not grant back what a mi
   });
 
   test("[40] the real tree: the pin is empty, and that is a measurement", () => {
-    // All 26 client_erasable tables still hold SELECT and DELETE for
+    // All 29 client_erasable tables still hold SELECT and DELETE for
     // `authenticated` after the full replay -- only 2 of the 26 are named by any
     // GRANT/REVOKE at all. An empty pin therefore means the floor reproduces the
     // Supabase default and subtracts nothing, which is the strongest state this

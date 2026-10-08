@@ -28,14 +28,14 @@ import { HomeCoachmarks } from "./HomeCoachmarks";
 import { ProfileProbeRetryScreen } from "./ProfileProbeRetry";
 
 export function DeepSpaceShell() {
-  const { userId, hasProfile, loading, profileProbeFailed } = useAuth();
+  const { userId, sessionId, hasProfile, loading, profileProbeFailed } = useAuth();
   const gate = profileGate({ loading, userId, hasProfile, profileProbeFailed });
   // First run (Q-261004-40 strict, 0219): the welcome, then the first-day review
   // ("첫 별 점등"), each open by themselves at most once per ACCOUNT. After the
   // profile gate, this home asks the server for the one grant before opening
   // either, and opens nothing when the server cannot answer
   // (lib/onboarding/account-first-run.ts). "wait" = still asking (loader).
-  const firstRun = useFirstRunHomeGate(userId, gate === "ready", true);
+  const firstRun = useFirstRunHomeGate(userId, gate === "ready", sessionId, true);
 
   // Live brightness for the home constellation: the no-LLM loadDomainLevels path
   // derives per-domain L1-L5 levels + the 북극성 aggregate from the user's real
@@ -106,7 +106,7 @@ export function DeepSpaceShell() {
   // above), so its mount is not the only home visit. Coming back to this screen,
   // or the app coming to the front while it is the screen in view, is a new
   // visit: a read that failed is tried again (design 5.2 step 2, at most three
-  // reads a sign-in), and a first-run screen that has since become possible (a
+  // failed reads a sign-in), and a first-run screen that has since become possible (a
   // welcome another tab held, a first-day grant handed back) is decided again
   // instead of staying held home for the rest of the mount (gate BA-03).
   const homeFocusedRef = useRef(false);
