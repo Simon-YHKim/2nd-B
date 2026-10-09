@@ -22,6 +22,7 @@ import type { AnyGlyphName } from "@/components/pixel/pixel-glyphs";
 import { parseRecordPhotos } from "@/lib/capture/record-photos";
 import { parseStructured, structuredFieldLabel } from "@/lib/capture/structured";
 import { RecordPhotoGallery } from "@/components/records/RecordPhotoGallery";
+import { ProfileContextSummary } from "@/components/profile-import/summary";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   DOMAIN_TAG_PREFIX,
@@ -334,7 +335,7 @@ function stateShell(
 }
 
 export function DeepSpaceRecordDetailScreen() {
-  const { t, i18n } = useTranslation(["deepspace", "recordDetail", "common"]);
+  const { t, i18n } = useTranslation(["deepspace", "recordDetail", "common", "profile"]);
   const {
     userId,
     loading: authLoading,
@@ -704,6 +705,7 @@ export function DeepSpaceRecordDetailScreen() {
       primary.status !== "ready" ||
       primary.identity !== identity ||
       primary.piece.origin !== "source" ||
+      primary.piece.profileImportManaged ||
       !userId ||
       !recordId ||
       !identity
@@ -825,7 +827,7 @@ export function DeepSpaceRecordDetailScreen() {
   // 글 notes may carry photos (records.structured.photos, 2026-09-30). Only the
   // viewer's own paths are accepted; sources never have any.
   const photos = piece.origin === "source" ? [] : parseRecordPhotos(piece.structured, userId ?? undefined);
-  const displayTitle = titleOf(
+  const displayTitle = piece.profileImportManaged ? t("profile:contextImport.title") : titleOf(
     piece,
     t("deepspace:recordDetail.kindFallback"),
     !assessment.isAssessment,
@@ -901,7 +903,9 @@ export function DeepSpaceRecordDetailScreen() {
             </PixelSurface>
           ) : null}
 
-          {assessment.isAssessment ? (
+          {piece.profileImportManaged && piece.profileImportContext ? (
+            <ProfileContextSummary context={piece.profileImportContext} />
+          ) : assessment.isAssessment ? (
             <PixelSurface variant="inset" contentStyle={styles.bodySurface}>
               <RNText style={[m3TextStyle("bodyMedium"), styles.bodyText]}>
                 {t("deepspace:recordDetail.assessmentBody")}
@@ -1147,7 +1151,19 @@ export function DeepSpaceRecordDetailScreen() {
             </PixelPressable>
           ) : null}
 
-          {source ? (
+          {source && piece.profileImportManaged ? (
+            <PixelPressable
+              onPress={() => router.push("/profile-import?mode=history")}
+              accessibilityLabel={t("profile:contextImport.history")}
+              fullWidth
+              contentStyle={styles.actionContent}
+            >
+              <PixelGlyph name="arrowForward" color={m3.color.primary} size={24} />
+              <RNText style={[m3TextStyle("labelLarge"), styles.secondaryLabel]}>
+                {t("profile:contextImport.history")}
+              </RNText>
+            </PixelPressable>
+          ) : source ? (
             <PixelPressable
               onPress={() => void promoteToWiki()}
               disabled={promoting || promoted}

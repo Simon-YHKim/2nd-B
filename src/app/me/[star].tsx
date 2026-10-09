@@ -26,11 +26,12 @@ import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { PremiumLoadingState } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { DEFAULT_AVATAR_SPEC, type AvatarSpec } from "@/lib/avatar";
-import { countFilledDetails, PROFILE_DETAIL_TOTAL, profileSummaryParts, type ProfileDetails } from "@/lib/persona/profile-details";
+import { countFilledDetails, PROFILE_DETAIL_FIELDS, profileChoiceLabelKey, type ProfileDetails } from "@/lib/persona/profile-details";
 import { fetchAvatarSpec } from "@/lib/supabase/avatar-spec";
 import { fetchDisplayName } from "@/lib/supabase/display-name";
 import { loadProfileIdentity } from "@/screens/deepspace/dds-profile-identity";
 import { fetchProfileDetails } from "@/lib/supabase/profile-details";
+import { fetchStatusMessage } from "@/lib/supabase/status-message";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { m3 } from "@/lib/theme/m3";
 import { spacing } from "@/lib/theme/tokens";
@@ -96,18 +97,19 @@ async function loadSummary(userId: string, period: LifePeriod | null): Promise<S
 type ProfileCard =
   | { status: "loading" }
   | { status: "error" }
-  | { status: "ready"; name: string | null; details: ProfileDetails; avatar: AvatarSpec | null };
+  | { status: "ready"; name: string | null; statusMessage: string | null; details: ProfileDetails; avatar: AvatarSpec | null };
 
 async function loadProfileCard(userId: string): Promise<ProfileCard> {
   try {
-    const [name, details, avatar] = await Promise.all([
+    const [name, details, avatar, statusMessage] = await Promise.all([
       fetchDisplayName(userId),
       fetchProfileDetails(userId),
       fetchAvatarSpec(userId).catch(() => null),
+      fetchStatusMessage(userId).catch(() => null),
     ]);
     // 저장된 이름이 없으면 /profile 과 같은 이름(로그인 이메일 앞부분)을 보여 준다(2026-10-07).
     const shown = name?.trim() ? name : await loadProfileIdentity(userId).catch(() => null);
-    return { status: "ready", name: shown, details, avatar };
+    return { status: "ready", name: shown, statusMessage, details, avatar };
   } catch {
     return { status: "error" };
   }
@@ -117,7 +119,7 @@ export default function StarSummaryRoute() {
   // Phone-aware: inside the dashboard phone, the interview opens in the phone,
   // back steps the phone, and `star` comes from the phone route (/me/now).
   const router = useAppRouter();
-  const { t } = useTranslation(["home", "deepspace"]);
+  const { t } = useTranslation(["home", "deepspace", "profile"]);
   const { star } = useScreenParams<{ star?: string }>();
   const { userId, loading, age } = useAuth();
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -150,6 +152,7 @@ export default function StarSummaryRoute() {
   useFocusEffect(useCallback(() => {
     if (!userId || !isProfileStar) return;
     let live = true;
+    setProfile({ status: "loading" });
     void loadProfileCard(userId).then((next) => { if (live) setProfile(next); });
     return () => { live = false; };
   }, [userId, isProfileStar]));
@@ -170,14 +173,18 @@ export default function StarSummaryRoute() {
     : "";
   const profileName = profile.status === "ready" ? profile.name?.trim() : "";
   // 채운 칸 전부. 상자는 다섯 줄 높이에서 멈추고 그 안에서 스크롤한다 - 말줄임으로 자르지 않는다.
-  const profileParts = profile.status === "ready" ? profileSummaryParts(profile.details, PROFILE_DETAIL_TOTAL) : [];
+  const profileParts = profile.status === "ready" ? PROFILE_DETAIL_FIELDS.flatMap((field) => {
+    const value = profile.details[field.key]?.trim();
+    if (!value || value === "undisclosed") return [];
+    return [{ key: field.key, value: field.kind === "choice" ? t(`deepspace:profileDetails.${profileChoiceLabelKey(field.key, value)}`) : value }];
+  }) : [];
   // 요약은 한 줄에 한 조각, 최대 세 줄. 읽기 실패면 아무것도 쓰지 않는다.
   const profileLines = profile.status === "loading"
     ? [t("ds.star.loading")]
     : profile.status === "error"
       ? []
       : profileParts.length > 0
-        ? profileParts.map((part) => "text" in part ? part.text : t(`deepspace:profileDetails.${part.labelKey}`))
+        ? profileParts.map((part) => part.value)
         : [t("ds.star.profileEmpty")];
   const profileCta = profile.status === "ready"
     ? t(countFilledDetails(profile.details) > 0 ? "ds.star.editProfile" : "ds.star.setupProfile")
@@ -207,7 +214,7 @@ export default function StarSummaryRoute() {
             <View
               style={styles.profileAvatarRow}
               onLayout={({ nativeEvent }) => {
-                const next = Math.floor(nativeEvent.layout.width);
+                const next = Math.min(208, Math.floor(nativeEvent.layout.width));
                 setAvatarWidth((current) => (current === next ? current : next));
               }}
             >
@@ -215,18 +222,29 @@ export default function StarSummaryRoute() {
                 <AvatarPreview spec={profile.status === "ready" ? profile.avatar ?? DEFAULT_AVATAR_SPEC : DEFAULT_AVATAR_SPEC} size={avatarWidth} />
               ) : null}
               {profileName ? <Text style={[m3TextStyle("titleMedium"), styles.title]}>{profileName}</Text> : null}
+              {profile.status === "ready" && profile.statusMessage ? <Text style={[m3TextStyle("bodyMedium"), styles.profileStatus]}>{profile.statusMessage}</Text> : null}
             </View>
             {profileLines.length > 0 ? (
               <MdCard variant="outlined" style={styles.card}>
                 <ScrollView style={styles.profileSummary} nestedScrollEnabled showsVerticalScrollIndicator>
                   {profileLines.map((line, index) => (
-                    <Text key={index} style={[m3TextStyle("bodyLarge"), profileParts.length > 0 ? styles.line : styles.muted]}>
-                      {line}
-                    </Text>
+                    <View key={index} style={styles.profileFact}>
+                      {profileParts[index] ? <Text style={[m3TextStyle("bodySmall"), styles.factLabel]}>{t(`deepspace:profileDetails.${profileParts[index].key}Label`)}</Text> : null}
+                      <Text style={[m3TextStyle("bodyLarge"), profileParts.length > 0 ? styles.factValue : styles.muted]}>{line}</Text>
+                    </View>
                   ))}
                 </ScrollView>
               </MdCard>
             ) : null}
+            <Pressable accessibilityRole="button" onPress={() => router.push("/profile-import")} style={styles.importRow}>
+              <PixelGlyph name="add" size={24} color={m3.color.primary} />
+              <View style={styles.heroCopy}>
+                <Text style={[m3TextStyle("titleSmall"), styles.title]}>{t("profile:contextImport.title")}</Text>
+                <Text style={[m3TextStyle("bodySmall"), styles.muted]}>{t("profile:contextImport.subtitle")}</Text>
+              </View>
+              <PixelGlyph name="chevron_right" size={20} color={m3.color.primary} />
+            </Pressable>
+            <MdButton label={t("profile:contextImport.history")} variant="text" onPress={() => router.push({ pathname: "/profile-import", params: { mode: "history" } })} />
           </>
         ) : (
           <>
@@ -367,6 +385,11 @@ const styles = StyleSheet.create({
   profileTitle: { flex: 1 },
   editButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   profileAvatarRow: { alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
+  profileStatus: { color: m3.color.onSurfaceVariant, textAlign: "center", maxWidth: 360 },
+  profileFact: { flexDirection: "row", gap: spacing.md, paddingVertical: spacing.sm },
+  factLabel: { color: m3.color.onSurfaceVariant, width: 90 },
+  factValue: { color: m3.color.onSurface, flex: 1 },
+  importRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.md, marginTop: spacing.md, borderWidth: 1, borderColor: m3.color.outlineVariant, backgroundColor: m3.color.surfaceContainerLow, minHeight: 76 },
   // 다섯 줄(bodyLarge 줄 높이 x 5)을 넘으면 상자 안에서 스크롤한다.
   profileSummary: { maxHeight: m3.type.bodyLarge.line * 5 },
   heroCopy: { flex: 1 },

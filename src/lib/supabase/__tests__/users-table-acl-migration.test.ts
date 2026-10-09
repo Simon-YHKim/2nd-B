@@ -27,6 +27,11 @@ const DISPLAY_NAME_DRAFT = read("db/migrations/0207_users_display_name_update.sq
 const DISPLAY_NAME_EXEC = DISPLAY_NAME_DRAFT.replace(/^\s*--.*$/gm, "");
 // 0231 (Simon 2026-10-07): the status message column (0230 chat_name, renamed) and its authenticated UPDATE grant.
 const CHAT_NAME_EXEC = read("db/migrations/0231_status_message.sql").replace(/^\s*--.*$/gm, "");
+const PROFILE_IMPORT_EXEC = read("db/migrations/0239_profile_context_import.sql")
+  .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*--.*$/gm, "");
+// 0140's historical grant remains, but 0239 rejects changed direct writes and
+// requires the revision RPC. This is the only reviewed grant outside the census.
+const TRIGGER_GUARDED_LEGACY_UPDATES = ["profile_details"];
 
 /** Columns named inside a GRANT <verb> (...) on public.users. */
 function grantedColumns(verb: "INSERT" | "UPDATE"): string[] {
@@ -118,7 +123,7 @@ function census(): { insert: Set<string>; update: Set<string>; deletes: string[]
 
 const C = census();
 
-describe("the grants cover exactly what the client writes", () => {
+describe("the grants cover client writes and the one guarded legacy column", () => {
   test("the scan found something (a silent zero would pass everything below)", () => {
     expect(C.insert.size).toBeGreaterThan(0);
     expect(C.update.size).toBeGreaterThan(0);
@@ -131,14 +136,27 @@ describe("the grants cover exactly what the client writes", () => {
 
   test("every column the client UPDATEs is granted", () => {
     // Missing one here = a settings screen that silently cannot save.
-    expect(effectiveGrantedColumns("UPDATE")).toEqual([...C.update].sort());
+    expect(effectiveGrantedColumns("UPDATE")).toEqual([...C.update, ...TRIGGER_GUARDED_LEGACY_UPDATES].sort());
   });
 
-  test("nothing granted that the client does not write", () => {
+  test("the only granted column absent from client writes is the guarded legacy profile column", () => {
     // The other direction matters just as much: a column granted "just in
     // case" is the table-level grant creeping back one name at a time.
     for (const col of effectiveGrantedColumns("INSERT")) expect([...C.insert]).toContain(col);
-    for (const col of effectiveGrantedColumns("UPDATE")) expect([...C.update]).toContain(col);
+    expect(effectiveGrantedColumns("UPDATE").filter((col) => !C.update.has(col)))
+      .toEqual(TRIGGER_GUARDED_LEGACY_UPDATES);
+    expect(TRIGGER_GUARDED_LEGACY_UPDATES).toEqual(["profile_details"]);
+  });
+
+  test("the legacy grant cannot bypass the revision RPC's direct-write guard", () => {
+    const guard = PROFILE_IMPORT_EXEC.match(/CREATE FUNCTION public\.bump_profile_details_revision\(\) RETURNS trigger([\s\S]*?)END \$\$;/)?.[1];
+    expect(guard).toBeDefined();
+    // current_user must remain the caller here, including an old authenticated
+    // client. A SECURITY DEFINER trigger would turn this role check into a bypass.
+    expect(guard).not.toMatch(/SECURITY DEFINER/);
+    expect(guard).toMatch(/IF TG_OP='UPDATE' AND current_user IN \('authenticated','anon'\)\s+AND NEW\.profile_details IS DISTINCT FROM OLD\.profile_details THEN\s+RAISE EXCEPTION 'profile_details_use_revision_rpc' USING ERRCODE='42501'; END IF;/);
+    expect(PROFILE_IMPORT_EXEC).toMatch(/CREATE TRIGGER profile_details_revision_writer\s+BEFORE INSERT OR UPDATE OF profile_details,profile_details_revision ON public\.users\s+FOR EACH ROW EXECUTE FUNCTION public\.bump_profile_details_revision\(\);/);
+    expect(PROFILE_IMPORT_EXEC).not.toMatch(/GRANT UPDATE[^;]*profile_details_revision[^;]*TO (?:anon|authenticated)/);
   });
 
   test("judge_mode is granted nowhere", () => {

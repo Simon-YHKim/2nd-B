@@ -227,6 +227,7 @@ DROP TABLE IF EXISTS public.erasure_registry;
 -- 0226 도 생성 블록(인터뷰 세션 · 대화록 머리와 턴 · 응답 블록 id · 세션 생성 셈 표 다섯 행 upsert)만 담는다. 표 · 함수를 만드는 0225 는 목록에
 -- 넣지 않는다 - 등록부를 지워도 그 객체들은 그대로 남기 때문이다(0195 · 0198 과 같은 분리).
 -- 0233 도 날씨 두 표의 등록부 생성 블록만 담고, 구조를 만드는 0232 는 목록에 넣지 않는다.
+-- 0240 은 가져오기 영수증의 등록부 한 행만 복원한다. 0239 의 원장 · RPC · 버전 가드는 유지한다.
 DO $rollback_ledger$
 DECLARE
   -- 한 줄에 하나, 이름 옆에 `-- <파일 번호>: <두 객체에 무엇을 매다는가>`. 손으로 돌리는
@@ -241,7 +242,8 @@ DECLARE
     'reward_records_erasure_registry_reason', -- 0212: 0189·0198·0205 등록부의 보상 관련 네 행 사유를 고친다
     'interview_transcript_erasure_registry',  -- 0226: 0225 가 만든 인터뷰 표들의 등록부 다섯 행을 더한다
     'weather_erasure_registry',          -- 0233: 날씨 두 표의 등록부만 다시 채운다(0232 구조는 유지)
-    'dashboard_erasure_registry'         -- 0237: W1 등록부만 다시 채운다(0236 구조·시도 원장 유지)
+    'dashboard_erasure_registry',        -- 0237: W1 등록부만 다시 채운다(0236 구조·시도 원장 유지)
+    'profile_context_import_erasure_registry' -- 0240: 가져오기 영수증의 등록부 한 행만 다시 채운다(0239 유지)
   ];
   v_found   text;
   v_absent  text;

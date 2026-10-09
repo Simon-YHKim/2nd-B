@@ -137,6 +137,13 @@ describe("file-read native picker (expo-document-picker)", () => {
     expect(mockDisposeOwnedTempFile).toHaveBeenCalledTimes(1);
   });
 
+  test("a profile import can tighten the native read limit before allocation", async () => {
+    mockGetDocumentAsync.mockResolvedValue({ canceled: false, assets: [{ uri: "file:///cache/profile.json", name: "profile.json", size: 262145 }] });
+    await expect(pickTextFile({ maxBytes: 262144 })).rejects.toMatchObject({ code: "too_large" });
+    expect(mockNativeFile).not.toHaveBeenCalled();
+    expect(mockDisposeOwnedTempFile).toHaveBeenCalledTimes(1);
+  });
+
   test("rejects picker-declared oversized files before opening a native handle", async () => {
     mockGetDocumentAsync.mockResolvedValue({
       canceled: false,

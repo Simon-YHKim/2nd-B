@@ -2396,7 +2396,7 @@ results.push(
         "Open its screen",
       ];
       const ok =
-        screen.includes('useTranslation(["deepspace", "recordDetail", "common"])') &&
+        /useTranslation\(\["deepspace", "recordDetail", "common"(?:, "profile")?\]\)/.test(screen) &&
         screen.includes('t("recordDetail:loading.auth")') &&
         screen.includes('t("recordDetail:state.missingTitle")') &&
         screen.includes('t("recordDetail:body.noText")') &&

@@ -28,6 +28,15 @@ export async function fetchProfileDetails(userId: string): Promise<ProfileDetail
   return resolveProfileDetails((data as Record<string, unknown>).profile_details);
 }
 
+/** An editor must keep the revision it actually displayed, not fetch a new one at save time. */
+export async function fetchProfileDetailsSnapshot(userId: string): Promise<{ details: ProfileDetails; revision: number }> {
+  const { data, error } = await getSupabaseClient().from("users").select("profile_details,profile_details_revision").eq("id", userId).maybeSingle();
+  if (error) throw error;
+  const revision = data?.profile_details_revision;
+  if (!data || typeof revision !== "number" || !Number.isSafeInteger(revision) || revision < 0) throw new Error("Profile revision was not found");
+  return { details: resolveProfileDetails(data.profile_details), revision };
+}
+
 /**
  * 상세를 저장한다.
  *
@@ -37,9 +46,14 @@ export async function fetchProfileDetails(userId: string): Promise<ProfileDetail
  * 부분 저장이 아니라 **통째로 덮어쓴다.** 사용자가 칸을 비운 것은 "지우고 싶다"
  * 이고, 병합하면 지울 방법이 사라진다.
  */
-export async function saveProfileDetails(userId: string, details: ProfileDetails): Promise<void> {
+export async function saveProfileDetails(userId: string, details: ProfileDetails, revision: number): Promise<number> {
   const supabase = getSupabaseClient();
   const clean = resolveProfileDetails(details);
-  const { error } = await supabase.from("users").update({ profile_details: clean }).eq("id", userId);
+  const { data: session, error: authError } = await supabase.auth.getSession();
+  if (authError || !session.session || session.session.user.id !== userId) throw new Error("Profile owner changed");
+  const { data, error } = await supabase.rpc("save_profile_details_revision", { p_details: clean, p_expected_revision: revision })
+    .setHeader("Authorization", `Bearer ${session.session.access_token}`);
   if (error) throw error;
+  if (typeof data?.revision !== "number" || !Number.isSafeInteger(data.revision) || data.revision < 0) throw new Error("Profile revision was not returned");
+  return data.revision;
 }
