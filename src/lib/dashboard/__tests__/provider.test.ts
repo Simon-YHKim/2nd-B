@@ -12,7 +12,11 @@ function edge(file: string, deps: Record<string, unknown>) {
   return exports;
 }
 const axis = edge("supabase/functions/_shared/axis-key-name.ts", {});
-const common = edge("supabase/functions/_shared/llm-proxy-common.ts", { "./axis-key-name.ts": axis });
+const crisisContext = edge("src/lib/safety/crisis-context.ts", {});
+const common = edge("supabase/functions/_shared/llm-proxy-common.ts", {
+  "./axis-key-name.ts": axis,
+  "../../../src/lib/safety/crisis-context.ts": crisisContext,
+});
 const consent = edge("supabase/functions/_shared/llm-consent.ts", {});
 const create = edge("supabase/functions/dashboard-generate/provider.ts", {
   "../_shared/llm-proxy-common.ts": common, "../_shared/llm-consent.ts": consent,

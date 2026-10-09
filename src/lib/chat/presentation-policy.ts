@@ -162,18 +162,35 @@ export function isCurrentWikiSuggestion(candidate: WikiSuggestion | null, state:
     current.promptText === candidate.promptText && current.replyText === candidate.replyText;
 }
 
-const DIFFICULTY = /(?:힘들|힘든|슬프|슬퍼|걱정|불안|실패|불합격|괴롭|괴로|속상|외롭|외로|지쳤|지친|그립|잃었|\b(?:sad|worried|worry|afraid|scared|lonely|struggling|failed|failure|grief|grieving|upset|exhausted|frustrated)\b|\blost my (?:job|friend|father|mother|pet)\b|\b(?:triste|preocupad[oa]|agotad[oa]|cansad[oa]|fracase|fracaso|fall[eé]|medo|miedo)\b|\b(?:sedih|khawatir|takut|gagal|kesepian|lelah)\b)/iu;
 const NEGATED_SUCCESS = /(?:(?:성공|합격|완성).{0,12}(?:못|않|아니)|(?:못|안)\s*(?:해냈|성공|합격|완성)|\b(?:not|never|didn['’]?t|haven['’]?t|hasn['’]?t|can['’]?t)\s+(?:\w+\s+){0,2}(?:succeed\w*|achiev\w*|accomplish\w*)\b|\b(?:no|n[aã]o)\s+(?:consegu\w*|logr\w*)\b|\b(?:belum|tidak)\s+berhasil\b)/iu;
-const GRATITUDE = /(?:고마|고맙|감사|\b(?:thanks|thank you|grateful|gracias|obrigad[oa])\b|\bterima kasih\b)/iu;
-const REFLECTION = /(?:생각|돌아보|정리|고민|계획|우선순위|\b(?:reflect|reflection|consider|plan|planning|priorities|realized|realised)\b|\b(?:reflexionar|refletir|planejar|rencana|merenung)\b)/iu;
-const QUESTION = /(?:[?？]|궁금|어떻게|무엇|\b(?:why|how|what|porque|como|bagaimana|mengapa)\b)/iu;
-const SUCCESS = /(?:성공했|성공했어|해냈|합격했|완성했|축하|뿌듯|\b(?:succeeded|achieved|accomplished|congratulations|congrats)\b|\b(?:lo logre|felicidades|consegui|parab[eé]ns|berhasil|selamat)\b)/iu;
+// Match what the assistant is doing in its reply, not an emotion mentioned as a
+// topic. In particular, the supplied attentive portrait (B01) also smiles;
+// uncertain/protected replies use the visibly neutral A01 instead.
+const APOLOGY = /(?:^(?:미안(?:해요|합니다|해)|죄송(?:해요|합니다))(?:\s|,|$)|(?:제가|내가|말씀하신\s*뜻을|질문의\s*뜻을).{0,24}(?:잘못\s*(?:이해했|받아들였)|오해했)|^(?:제가\s*)?너무\s*앞서갔|^(?:(?:i['’]m|i am)\s+)?sorry\b(?!\s+(?:to hear|for your|about your))|^i\s+(?:apologi[sz]e|misunderstood)\b|^(?:lo siento|desculp[ae]|maaf)\b)/iu;
+const EMPATHY = /(?:(?:힘드셨|힘들었|힘드시|속상하셨|속상했|외로우셨|지치셨)겠(?:어요|네요|습니다)|^(?:that|it)\s+sounds\s+(?:(?:really|very)\s+)?(?:hard|difficult|painful|exhausting)\b|^(?:(?:i['’]m|i am)\s+)?sorry\s+(?:to hear|for your loss|about your loss)\b)/iu;
+const CONGRATULATION = /(?:(?:^|[을를]\s*)축하(?:합니다|해요|해|드려요|드립니다)(?:\s|,|$)|^(?:congratulations|congrats|felicidades|parab[eé]ns)\b|^selamat\s+atas\b)/iu;
+const REST_FAREWELL = /(?:^(?:(?:오늘은|이제)\s*)?(?:푹\s*쉬세요|편히\s*쉬세요|잘\s*자요|좋은\s*밤\s*보내세요)|^(?:rest well|sleep well|good night|buenas noches|boa noite|selamat tidur)\b)/iu;
+const GRATITUDE = /(?:(?:고마워요|고맙습니다|감사합니다)(?:\s|,|$)|^(?:thanks|thank you|gracias|obrigad[oa]|terima kasih)\b)/iu;
+const REFLECTION = /(?:생각|돌아보|정리|계획|우선순위|비교해|방식|루틴|(?:나아|좋아|맞아)\s*보입니다|\b(?:reflect|reflection|consider|plan|planning|priorities|realized|realised|reflexionar|refletir|planejar|pensar|rencana|merenung|memikirkan)\b)/iu;
+const WARM_REPLY = /(?:도움이\s*되었다니\s*다행|천만에요|괜찮아요|천천히\s*해도|응원합니다|\b(?:you(?:['’]re| are) welcome|take your time|one step at a time|de nada|sama-sama)\b)/iu;
+const GREETING = /^(?:안녕(?:하세요|하십니까)?|こんにちは|hello\b|hi\b|hey\b|hola\b|ol[aá]\b|halo\b|hai\b)/iu;
+
+function expressionText(text: string): string {
+  // Quoted examples, code and blockquotes are not the assistant's own tone.
+  // Keep apostrophes inside contractions such as "I'm sorry" intact.
+  return text.slice(0, 12_000)
+    .replace(/```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$)/gu, " ")
+    .replace(/^\s*>[^\n]*/gmu, " ")
+    .replace(/`[^`\n]*`|"[^"\n]*"|“[^”\n]*”|‘[^’\n]*’|「[^」\n]*」|『[^』\n]*』/gu, " ")
+    .replace(/(?:^|\s)'[^'\n]+'(?=\s|[.,!?]|$)/gu, " ")
+    .replace(/[*_]/gu, " ").trim();
+}
 
 /**
- * Derives the portrait from this one exchange, so new messages cannot rewrite
- * old bubble expressions. Unknown wording stays neutral. Concern wins over
- * positive words; a short thanks also retains the previous exchange's context.
- * This deliberately never chooses laughing, crying, angry, or sarcastic poses.
+ * The speaker's own reply determines its portrait. The prompt can only veto a
+ * celebration of a negated success; earlier turns cannot set the current mood.
+ * Unknown wording stays neutral. No model call, metadata request, or extreme
+ * laughing/crying/angry/sleepy pose is inferred from a conversation topic.
  */
 export function getExchangeExpression(
   turns: readonly ChatPresentationTurn[],
@@ -183,24 +200,18 @@ export function getExchangeExpression(
   if (options.loading) return "B04";
   const answer = turns[replyIndex];
   if (!answer || answer.role !== "secondb") return "A01";
-  if (!usableReply(answer)) return "B01";
+  if (!usableReply(answer)) return "A01";
+  const response = expressionText(answer.text);
+  const sentences = response.split(/[.!?。！？\n]+/u).map(part => part.trim().replace(/^(?:아|앗|네)[,，]\s*/u, ""));
+  if (sentences.some(sentence => APOLOGY.test(sentence))) return "B10";
+  if (sentences.some(sentence => EMPATHY.test(sentence))) return "C07";
   const promptIndex = findPromptIndex(turns, replyIndex);
-  const prompt = promptIndex === null ? "" : turns[promptIndex].text;
-  let context = `${prompt}\n${answer.text}`;
-  if (promptIndex !== null && SOCIAL_ONLY.test(compact(prompt))) {
-    // Carry concern across a short acknowledgement, but not into a new subject.
-    for (let i = promptIndex - 1; i >= 0; i--) {
-      if (turns[i].role === "user" && !turns[i].synthetic) {
-        context += `\n${turns[i].text}`;
-        break;
-      }
-    }
-  }
-  if (DIFFICULTY.test(context)) return "C07";
-  if (NEGATED_SUCCESS.test(context)) return "B01";
-  if (GRATITUDE.test(prompt)) return "A11";
-  if (REFLECTION.test(prompt)) return "B04";
-  if (QUESTION.test(prompt)) return "B05";
-  if (SUCCESS.test(context)) return "A07";
+  const prompt = promptIndex === null ? "" : expressionText(turns[promptIndex].text);
+  if (!NEGATED_SUCCESS.test(`${prompt}\n${response}`) && sentences.some(sentence => CONGRATULATION.test(sentence))) return "A07";
+  if (sentences.some(sentence => REST_FAREWELL.test(sentence))) return "D12";
+  if (sentences.some(sentence => GRATITUDE.test(sentence))) return "A11";
+  if (REFLECTION.test(response)) return "B04";
+  if (WARM_REPLY.test(response) || compact(response).length <= 120 && GREETING.test(response)) return "A02";
+  if (/[?？]\s*$/u.test(response)) return "B05";
   return "A01";
 }

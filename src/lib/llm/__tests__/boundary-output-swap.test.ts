@@ -167,4 +167,31 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     // Output classifier is never reached when input short-circuits.
     expect(mockClassifySafety).not.toHaveBeenCalled();
   });
+
+  test.each([
+    ["내가 욕심은 있는데, 잠은 좀 자고 싶어. 오늘 은 3시간 정도 잔거 같아.", "오늘 끝내고 싶은 일이 있어도 먼저 잠을 자요."],
+    ["아니... 자살하려는 건 아냐... 날 뭘로 보는거야", "말씀하신 뜻을 잘못 받아들였습니다. 너무 앞서갔습니다."],
+  ])("ordinary rest and a clear correction reach the model without a false output swap: %s", async (user, answer) => {
+    mockGenerateContent.mockResolvedValueOnce({ text: answer });
+    mockClassifySafety.mockResolvedValueOnce(GREEN);
+    const result = await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user });
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    // Context filtering is for classification only; never rewrite what the user said.
+    expect(JSON.stringify(mockGenerateContent.mock.calls[0])).toContain(user);
+    expect(result.text).toBe(answer);
+    expect(result.safety.zone).toBe("green");
+    expect(mockClassifySafety).toHaveBeenCalledTimes(1);
+    expect(auditMock).toHaveBeenCalledTimes(1);
+    expect(auditMock.mock.calls[0][0].modelUsed).not.toContain("+swap:");
+    expect(crisisMock).not.toHaveBeenCalled();
+  });
+
+  test("a denial followed by current dangerous action still stops before generation", async () => {
+    const result = await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest",
+      user: "자살하려는 건 아니야. 약을 이미 많이 먹었어." });
+    expect(result.safety.zone).toBe("red");
+    expect(result.text).toContain("109");
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(mockClassifySafety).not.toHaveBeenCalled();
+  });
 });
