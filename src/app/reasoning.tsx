@@ -60,6 +60,7 @@ import { getRecordById, listRecentRecords, updateRecordTags } from "@/lib/record
 import { listSourcePieces } from "@/lib/records/source-pieces";
 import { classifyInputAnyLocale } from "@/lib/safety/classifier";
 import { isAiExcludedSource } from "@/lib/wiki/ai-exclusion";
+import { isProfileContextImportSource, SourceImportManagedError } from "@/lib/wiki/profile-context-source";
 import { generateSourcePage } from "@/lib/wiki/phase2";
 import { getSource, updateSourceTags } from "@/lib/wiki/queries";
 import { downloadRawClipping } from "@/lib/wiki/storage";
@@ -307,6 +308,7 @@ async function loadSafeBatchText(
       // domain classifier mostly keys on anyway.
       const source = await getSource(input.userId, item.refId).catch(() => null);
       if (!source) return [item.key, item.title] as const;
+      if (isProfileContextImportSource(source.frontmatter)) throw new SourceImportManagedError(item.refId);
       // capture.ts stashes the body inline (frontmatter._body_fallback) when
       // the Storage upload didn't land — reading storage_path then 400s and
       // killed the WHOLE run (the 2026-07-18 auto-run QA failure). Honor the
@@ -520,6 +522,7 @@ async function applyReasoningProposal(
   }
   const latestSource = await getSource(userId, proposal.refId);
   if (!latestSource) throw new Error(`No source row for id=${proposal.refId}`);
+  if (isProfileContextImportSource(latestSource.frontmatter)) throw new SourceImportManagedError(proposal.refId);
   await updateSourceTags(userId, proposal.refId, [
     domainTagFor(proposal.domain),
     REASONING_RATIFIED_TAG,
@@ -860,7 +863,7 @@ export default function ReasoningScreen() {
     if (loading || !userId) return;
     let cancelled = false;
     setListLoading(true);
-    void Promise.all([listRecentRecords(userId, 60), listSourcePieces(userId), getReasoningUsage(userId)])
+    void Promise.all([listRecentRecords(userId, 60), listSourcePieces(userId, { excludeProfileImports: true }), getReasoningUsage(userId)])
       .then(([records, sources, usage]) => {
         if (cancelled) return;
         // A fixed t for the painted language: the list re-reads when the language (or its

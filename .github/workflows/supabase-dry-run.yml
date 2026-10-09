@@ -12,6 +12,7 @@ on:
       - "scripts/test-signup-consent-sql.mjs"
       - "scripts/test-weather-sql.mjs"
       - "scripts/test-dashboard-sql.mjs"
+      - "scripts/test-profile-import-sql.mjs"
       - ".github/workflows/supabase-dry-run.yml"
 
 # Least privilege: this workflow only reads the repo (checkout + local tooling).
@@ -73,6 +74,15 @@ jobs:
           CREATE DATABASE weather_test_ci OWNER weather_local;
           SQL
           node scripts/test-weather-sql.mjs 5432 weather_local weather_test_ci
+      - name: Exercise profile import ownership, withdrawal and concurrent saves
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -X -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE profile_import_local LOGIN SUPERUSER PASSWORD 'postgres';
+          CREATE DATABASE profile_import_test_ci OWNER profile_import_local;
+          SQL
+          node scripts/test-profile-import-sql.mjs 5432 profile_import_local profile_import_test_ci
       - name: Exercise W1 generation locks and owner isolation
         env:
           PGPASSWORD: postgres

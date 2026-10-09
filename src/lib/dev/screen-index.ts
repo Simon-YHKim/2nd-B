@@ -574,6 +574,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         },
       },
       { file: "profile-details", href: "/profile-details", label: "내 생활 정보", auth: true },
+      { file: "profile-import", href: "/profile-import", label: "AI 대화에서 가져오기", auth: true },
       { file: "avatar-studio", href: "/avatar-studio", label: "아바타 꾸미기", auth: true },
       {
         file: "change-password",

@@ -66,6 +66,7 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   "src/lib/ops/recommend.ts": "LLM 시스템 프롬프트",
   "src/lib/ops/daily-brief.ts": "LLM 시스템 프롬프트",
   "src/lib/persona/profile-details.ts": "LLM 프롬프트용 필드 설명",
+  "src/lib/import/profile-context-prompt.ts": "외부 LLM에 복사할 추출 프롬프트의 한국어·영어 분기와 JSON 계약. 앱 UI는 profile.json에서 번역하며 프롬프트의 로케일별 출력은 별도 테스트로 검증",
   "src/lib/persona/persona-synthesis.ts": "LLM 페르소나 합성 시스템 프롬프트 — UI 카피가 아니고 모델 동작 계약",
 
   // ── 개념 이름: 데이터에 가깝다 ──

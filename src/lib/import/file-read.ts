@@ -57,9 +57,9 @@ export function fileImportSupported(): boolean {
  * Rejects only on an actual read error so the caller can show the error state.
  * Same contract on web and native: Promise<{ name, text } | null>.
  */
-export function pickTextFile(): Promise<PickedFile | null> {
-  if (webPickerSupported()) return pickWebTextFile();
-  if (nativePickerSupported()) return pickNativeTextFile();
+export function pickTextFile(options: { maxBytes?: number } = {}): Promise<PickedFile | null> {
+  if (webPickerSupported()) return pickWebTextFile(options.maxBytes);
+  if (nativePickerSupported()) return pickNativeTextFile(options.maxBytes);
   return Promise.resolve(null);
 }
 
@@ -71,7 +71,7 @@ export function pickTextFile(): Promise<PickedFile | null> {
  * but never deletion-owned. A read failure rejects; text stays in memory and is
  * never stored or uploaded.
  */
-async function pickNativeTextFile(): Promise<PickedFile | null> {
+async function pickNativeTextFile(maxBytes?: number): Promise<PickedFile | null> {
   try {
     const DocumentPicker = await import("expo-document-picker");
     const res = await DocumentPicker.getDocumentAsync({
@@ -92,7 +92,7 @@ async function pickNativeTextFile(): Promise<PickedFile | null> {
     }
 
     try {
-      const text = await fetchBoundedLocalUtf8(asset.uri, { declaredBytes: asset.size });
+      const text = await fetchBoundedLocalUtf8(asset.uri, { declaredBytes: asset.size, maxBytes });
       return { name: asset.name, text };
     } finally {
       try {
@@ -112,7 +112,7 @@ async function pickNativeTextFile(): Promise<PickedFile | null> {
  * Resolves null when the user cancels. Rejects when the selected bytes cannot be
  * read within the bounded UTF-8 contract.
  */
-function pickWebTextFile(): Promise<PickedFile | null> {
+function pickWebTextFile(maxBytes?: number): Promise<PickedFile | null> {
   return new Promise((resolve, reject) => {
     const input = document.createElement("input");
     input.type = "file";
@@ -133,7 +133,7 @@ function pickWebTextFile(): Promise<PickedFile | null> {
         resolve(null);
         return;
       }
-      void readBoundedUtf8Blob(file).then(
+      void readBoundedUtf8Blob(file, { maxBytes }).then(
         (text) => {
           settled = true;
           cleanup();
