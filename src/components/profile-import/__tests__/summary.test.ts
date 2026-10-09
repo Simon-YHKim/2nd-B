@@ -28,7 +28,7 @@ jest.mock("@/components/m3", () => ({
 }));
 jest.mock("../parts", () => ({ useImportStyles: () => ({}) }));
 
-import { ContextSummaryItem, ProfileContextSummary } from "../summary";
+import { ProfileContextSummary } from "../summary";
 const { renderToStaticMarkup } = require("react-dom/server") as { renderToStaticMarkup: (element: React.ReactElement) => string };
 const item: ContextItem = {
   id: "private-item-id", category: "preference", statement: "나는 아침에 산책하는 것을 좋아해요.", reported_basis: "assistant_inference",
@@ -41,9 +41,18 @@ const source: ContextSource = {
 
 beforeEach(() => { revealSources = false; locale = "ko"; });
 
+function renderStory(sources: ContextSource[], confirmed: boolean) {
+  const document: ProfileContext = {
+    format: "polascope.user-context", version: "1.0-draft", origin: { service: "unknown", model: null, exported_at: null },
+    coverage: { accessed: ["current_chat"], unavailable: [], omissions: [], more_items: "unknown", account_completeness: "unknown" },
+    items: [item], sources,
+  };
+  return renderToStaticMarkup(React.createElement(ProfileContextSummary, { context: { document, confirmedIds: confirmed ? [item.id] : [] } }));
+}
+
 test.each(["ko", "en"])("the %s reader displays localized story labels without JSON or editable selection", (language) => {
   locale = language;
-  const html = renderToStaticMarkup(React.createElement(ContextSummaryItem, { item, sources: [source], confirmed: true }));
+  const html = renderStory([source], true);
   const translations = require(`../../../../locales/${language}/profile.json`) as { contextImport: { category: { preference: string }; basis: { assistant_inference: string }; confirmInference: string } };
   expect(html).toContain(item.statement);
   expect(html).toContain(translations.contextImport.category.preference);
@@ -56,7 +65,7 @@ test.each(["ko", "en"])("the %s reader displays localized story labels without J
 test("opening sources shows only linked quotations, without conversation metadata or unrelated excerpts", () => {
   revealSources = true;
   const unrelated = { ...source, id: "unrelated-source", excerpt: "A different story's quote." };
-  const html = renderToStaticMarkup(React.createElement(ContextSummaryItem, { item, sources: [source, unrelated], confirmed: false }));
+  const html = renderStory([source, unrelated], false);
   expect(html).toContain(source.excerpt);
   expect(html).not.toContain(unrelated.excerpt);
   expect(html).not.toContain(source.label);

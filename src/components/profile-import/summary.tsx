@@ -25,7 +25,7 @@ export function ProfileContextSummary({ context }: { context: ProfileImportedCon
       ? <MdButton label={t("contextImport.loadMore")} variant="text" onPress={() => setVisibleCount((count) => count + 5)} /> : null} />;
 }
 
-export function ContextSummaryItem({ item, sources, confirmed }: { item: ContextItem; sources: ContextSource[]; confirmed: boolean }) {
+function ContextSummaryItem({ item, sources, confirmed }: { item: ContextItem; sources: ContextSource[]; confirmed: boolean }) {
   const { t } = useTranslation("profile");
   const s = useImportStyles();
   const [showSources, setShowSources] = useState(false);
