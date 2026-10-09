@@ -263,6 +263,7 @@ describe("per-exchange HustleK expressions", () => {
   test.each([
     ["왜 그렇게 말해?", "말씀하신 뜻을 잘못 받아들였습니다. 그런 의도가 없다고 하셨는데 너무 앞서갔습니다. 지금은 잠이 3시간 정도라면, 무리하게 버티기보다 잠깐 쉬거나 몸을 먼저 진정시키는 쪽이 나아 보입니다, Hotline_blingbling님."],
     ["그런 뜻 아니야. 고마운데 잘못 이해했어", "아, 제가 잘못 이해했네요. 미안해요. 말씀하신 내용을 다시 정리할게요."],
+    ["아니... 자살하려는 건 아냐... 날 뭘로 보는거야", "오해해서 미안해요. 그런 뜻으로 본 건 아니었어요. 그냥 말씀하신 의도를 제가 잘못 짚었습니다. 무엇을 도와드릴까요?"],
     ["That's not what I meant. Thanks anyway.", "I'm sorry, I misunderstood your question. Let me correct that."],
   ])("uses the supplied apologetic portrait for an apology or self-correction: %s", (prompt, answer) => {
     expect(expression(prompt, answer)).toBe("B10");
@@ -295,6 +296,8 @@ describe("per-exchange HustleK expressions", () => {
   test.each([
     ['Translate this.', '"Congratulations!" means "축하합니다!".'],
     ["이 문장 뜻은?", "'미안해요'는 사과할 때 쓰는 표현입니다."],
+    ["이 문장 뜻은?", "'오해해서 미안해요'는 사과할 때 쓰는 표현입니다."],
+    ["예를 들면?", "오해해서 미안해요라는 문장을 사용할 수 있습니다."],
     ["Explain this quote.", "> Congratulations!\nThe line belongs to a fictional character."],
     ["Explain this code.", '```js\nconsole.log("Congratulations!");\n```\nThis prints the supplied message.'],
     ["Tell me about the word sad.", "The word sad is an adjective."],
