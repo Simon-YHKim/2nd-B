@@ -39,8 +39,8 @@ describe("/profile-details PIXEL-CLAY contract", () => {
   });
 
   test("keeps every real field, reversible filter choices, and the save/error contract", () => {
-    expect(source).toContain("fetchProfileDetails(userId)");
-    expect(source).toContain("saveProfileDetails(saveUserId, details)");
+    expect(source).toContain("fetchProfileDetailsSnapshot(userId)");
+    expect(source).toContain("saveProfileDetails(saveUserId, details, detailsRevision.current)");
     expect(source).toContain('kind="filter"');
     expect(source).toContain("selected={value === choice}");
     expect(source).toContain('set(field.key, value === choice ? "" : choice)');

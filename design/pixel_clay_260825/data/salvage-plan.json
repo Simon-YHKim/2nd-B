@@ -303,6 +303,12 @@
    "implementation": "C10 연령 확인을 실제 온보딩 단계에 통합한다.",
    "doneWhen": "성인·미성년·미입력 흐름이 정책대로 분기한다."
   },
+  "/profile-import": {
+   "strategy": "derive-pattern",
+   "references": ["profile", "datareview"],
+   "implementation": "승인한 어두운 프로필에서 공통 프롬프트, 선택 검토, 실제 반영과 취소 이력으로 연결한다.",
+   "doneWhen": "선택 항목만 저장되고 미확인 해석의 일괄 선택 차단, 프로필 충돌, 취소와 Android Back이 검증된다."
+  },
   "/profile-details": {
    "strategy": "derive-pattern",
    "references": [

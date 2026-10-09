@@ -109,7 +109,8 @@ describe("별을 누르면 그 별의 요약이 열린다 (Simon 결정 4 = B)",
   it("프로필 별은 아바타와 요약 한 줄, 설정/수정 버튼 하나를 보여준다", () => {
     const page = read("src/app/me/[star].tsx");
     expect(page).toContain("<AvatarPreview spec=");
-    expect(page).toContain("profileSummaryParts(profile.details, PROFILE_DETAIL_TOTAL)");
+    expect(page).toContain("PROFILE_DETAIL_FIELDS.flatMap");
+    expect(page).toContain("profileChoiceLabelKey(field.key, value)");
     expect(page).toContain('t(countFilledDetails(profile.details) > 0 ? "ds.star.editProfile" : "ds.star.setupProfile")');
     // 읽기 실패는 "프로필 없음"이 아니다 - 설정/수정을 고르지 않는다.
     expect(page).toContain(': t("ds.star.openProfile");');
@@ -127,6 +128,11 @@ describe("별을 누르면 그 별의 요약이 열린다 (Simon 결정 4 = B)",
     expect(page).not.toContain("numberOfLines={1}");
     expect(page).toContain("profileSummary: { maxHeight: m3.type.bodyLarge.line * 5 }");
     expect(page.indexOf("styles.profileHeader")).toBeLessThan(page.indexOf("styles.profileAvatarRow"));
+    // Approved import design: real status, labeled facts, common flow and server history.
+    expect(page).toContain("Math.min(208, Math.floor(nativeEvent.layout.width))");
+    expect(page).toContain("fetchStatusMessage(userId)");
+    expect(page).toContain('router.push("/profile-import")');
+    expect(page).toContain('params: { mode: "history" }');
   });
 
   it("정적 웹 export도 일곱 요약 경로를 전부 만든다", () => {

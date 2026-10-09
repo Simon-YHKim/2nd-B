@@ -1093,7 +1093,7 @@ BEGIN
       (''prune-interview-ledgers'',''41 18 * * *'',''SELECT public.prune_interview_ledgers();''))' INTO v_n;
     IF v_n <> 2 THEN RAISE EXCEPTION 'R2 D6-06: cleanup job contract mismatch'; END IF;
   END IF;
-  IF (SELECT count(*) FROM public.erasure_registry) <> 80 THEN RAISE EXCEPTION 'R2 D6-10: registry count differs from CI'; END IF;
+  IF (SELECT count(*) FROM public.erasure_registry) <> 81 THEN RAISE EXCEPTION 'R2 D6-10: registry count differs from CI'; END IF;
   IF (SELECT count(*) FROM public.erasure_registry WHERE table_name IN('interview_sessions','ai_audit_context_blocks')
         AND class='client_erasable' AND cascades_from IS NULL) <> 2 THEN
     RAISE EXCEPTION 'R2 D6-07: content-erased rows would be reported as kept';

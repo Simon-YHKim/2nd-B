@@ -37,7 +37,7 @@ import {
   type ProfileDetails,
   profileChoiceLabelKey,
 } from "@/lib/persona/profile-details";
-import { fetchProfileDetails, saveProfileDetails } from "@/lib/supabase/profile-details";
+import { fetchProfileDetailsSnapshot, saveProfileDetails } from "@/lib/supabase/profile-details";
 import {
   DISPLAY_NAME_MAX_LENGTH,
   fetchDisplayName,
@@ -63,6 +63,7 @@ export default function ProfileDetailsScreen() {
   // 혼인 여부는 성인에게만(Simon Q-261007-02). 나이를 모르면(null) 묻지 않는다.
   const adult = isMinor === false;
   const [details, setDetails] = useState<ProfileDetails>({});
+  const detailsRevision = useRef(0);
   const [loadState, setLoadState] = useState<{
     userId: string | null;
     status: "idle" | "loading" | "ready" | "error";
@@ -109,6 +110,8 @@ export default function ProfileDetailsScreen() {
     }, [onCancel]),
   );
 
+  useEffect(() => { setToast(null); }, [userId]);
+
   useEffect(() => {
     if (!userId) return;
     let alive = true;
@@ -118,12 +121,12 @@ export default function ProfileDetailsScreen() {
     saveOperationRef.current += 1;
     setSaving(false);
     setDetails({});
-    setToast(null);
     setLoadState({ userId, status: "loading" });
-    void fetchProfileDetails(userId)
+    void fetchProfileDetailsSnapshot(userId)
       .then((d) => {
         if (!alive) return;
-        setDetails(d);
+        setDetails(d.details);
+        detailsRevision.current = d.revision;
         setLoadState({ userId, status: "ready" });
       })
       .catch(() => {
@@ -220,8 +223,9 @@ export default function ProfileDetailsScreen() {
     // (빈 값으로 덮어쓰지 않기 위해).
     let step: "details" | "name" | "status" = "details";
     try {
-      await saveProfileDetails(saveUserId, details);
+      const savedRevision = await saveProfileDetails(saveUserId, details, detailsRevision.current);
       if (!isCurrentOperation()) return;
+      detailsRevision.current = savedRevision;
       if (nameReadyForUser && displayName !== savedNameRef.current) {
         step = "name";
         const savedName = await saveDisplayName(saveUserId, displayName);
@@ -238,8 +242,13 @@ export default function ProfileDetailsScreen() {
       }
       invalidateProfileStarLevel(saveUserId);
       setToast({ message: t("deepspace:profileDetails.saved"), tone: "success" });
-    } catch {
+    } catch (error) {
       if (!isCurrentOperation()) return;
+      if (error && typeof error === "object" && "message" in error && String(error.message).includes("profile_conflict")) {
+        setToast({ message: t("profile:contextImport.profileConflict"), tone: "danger" });
+        setReloadKey((key) => key + 1);
+        return;
+      }
       setToast({
         message: step === "name"
           ? t("deepspace:profileDetails.nameSaveError")

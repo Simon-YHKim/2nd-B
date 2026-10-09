@@ -127,7 +127,13 @@ describe("what the client writes to public.users", () => {
   });
 
   test("UPDATE touches exactly these columns", () => {
-    expect([...C.update].sort()).toEqual(["avatar_spec", "birth_date", "display_name", "privacy_prefs", "profile_details", "reasoning_prefs", "status_message"]);
+    expect([...C.update].sort()).toEqual(["avatar_spec", "birth_date", "display_name", "privacy_prefs", "reasoning_prefs", "status_message"]);
+  });
+
+  test("profile details use the revision RPC rather than a direct UPDATE", () => {
+    const writer = readFileSync(join(ROOT, "src/lib/supabase/profile-details.ts"), "utf8");
+    expect([...C.update]).not.toContain("profile_details");
+    expect(writer).toMatch(/\.rpc\("save_profile_details_revision",\s*\{\s*p_details:\s*clean,\s*p_expected_revision:\s*revision\s*\}\)/);
   });
 
   test("nothing deletes from users", () => {

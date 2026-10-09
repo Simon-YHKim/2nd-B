@@ -11,6 +11,7 @@
 import { embedTexts, EMBED_DIM } from "../llm/boundary";
 import { getSupabaseClient } from "../supabase/client";
 import { insertInferredLinks, listWikiPages, type InferredEdgeInput } from "./queries";
+import { isProfileContextImportSource } from "./profile-context-source";
 import type { WikiPageRow } from "./types";
 
 /** Cosine similarity of two equal-length vectors; 0 for empty/mismatched. */
@@ -94,10 +95,11 @@ export async function storeWikiPageEmbedding(
  */
 export async function embedAndStorePage(
   userId: string,
-  page: Pick<WikiPageRow, "id" | "title" | "body_md">,
+  page: Pick<WikiPageRow, "id" | "title" | "body_md" | "frontmatter">,
   locale: "en" | "ko" = "en",
   minor = false,
 ): Promise<boolean> {
+  if (isProfileContextImportSource(page.frontmatter)) return false;
   const text = pageEmbeddingText(page);
   if (text.length === 0) return false;
   const { vectors, audit } = await embedTexts({ userId, texts: [text], locale, minor });
@@ -127,6 +129,7 @@ export async function backfillEmbeddings(
   const targets: { page: (typeof pages)[number]; text: string }[] = [];
   for (const page of pages) {
     if (targets.length >= limit) break;
+    if (isProfileContextImportSource(page.frontmatter)) continue;
     // A page already carrying an embedding is skipped (the column is selected
     // by listWikiPages' `*`, present only after a prior backfill).
     if ((page as WikiPageRow & { embedding?: unknown }).embedding) continue;

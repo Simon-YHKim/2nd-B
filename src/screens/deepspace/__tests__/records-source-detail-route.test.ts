@@ -67,7 +67,7 @@ describe("deep-space records source detail routing", () => {
     expect(GET_PIECE_SRC).toContain('origin: "source"');
     expect(GET_PIECE_SRC).toContain('import { downloadRawClipping } from "../wiki/storage";');
     expect(GET_PIECE_SRC).toContain(
-      "const body = await downloadRawClipping(s.storage_path).catch(() => fallback);",
+      "? await downloadRawClipping(s.storage_path).catch(() => fallback)",
     );
   });
 

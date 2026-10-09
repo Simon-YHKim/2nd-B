@@ -751,6 +751,13 @@
       "route": "processing-log"
     },
     {
+      "id": "profile-import",
+      "component": null,
+      "appOnly": true,
+      "title": "AI 대화에서 가져오기",
+      "route": "profile-import"
+    },
+    {
       "id": "profile-details",
       "component": null,
       "appOnly": true,

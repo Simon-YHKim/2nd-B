@@ -54,6 +54,9 @@ import { listSources } from "@/lib/wiki/queries";
 import { downloadRawClipping } from "@/lib/wiki/storage";
 import { readPhase1, runPhase1, type Phase1Result } from "@/lib/wiki/phase1";
 import { generateSourcePage } from "@/lib/wiki/phase2";
+import { isProfileContextImportSource } from "@/lib/wiki/profile-context-source";
+import { fetchProfileImportedContext, type ProfileImportedContext } from "@/lib/supabase/profile-context-import";
+import { ProfileContextSummary } from "@/components/profile-import/summary";
 import type { SourceKind, SourceRow } from "@/lib/wiki/types";
 
 /** 미리보기로 보여 주는 앞부분 길이. 본문 전체는 열지 않는다 — 이 화면은
@@ -82,7 +85,7 @@ function promptLocale(language: string | undefined): "en" | "ko" {
   return language?.toLowerCase().startsWith("ko") === true ? "ko" : "en";
 }
 
-type BodyState = { kind: "loading" } | { kind: "text"; text: string } | { kind: "error" };
+type BodyState = { kind: "loading" } | { kind: "text"; text: string } | { kind: "context"; context: ProfileImportedContext } | { kind: "error" };
 
 function Loading() {
   return (
@@ -108,7 +111,7 @@ export function DeepSpaceSourcesScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
-  return <SourcesBody userId={userId} title={title} />;
+  return <SourcesBody key={userId} userId={userId} title={title} />;
 }
 
 function SourcesBody({ userId, title }: { userId: string; title: string }) {
@@ -147,18 +150,29 @@ function SourcesBody({ userId, title }: { userId: string; title: string }) {
       setExpandedId(next);
       if (next === null) return;
       const cached = bodyById[row.id];
-      if (cached !== undefined && cached.kind === "text") return;
+      if (cached !== undefined && (cached.kind === "text" || cached.kind === "context")) return;
       setBodyById((prev) => ({ ...prev, [row.id]: { kind: "loading" } }));
-      void downloadRawClipping(row.storage_path)
-        .then((text) => setBodyById((prev) => ({ ...prev, [row.id]: { kind: "text", text } })))
+      if (isProfileContextImportSource(row.frontmatter)) {
+        void fetchProfileImportedContext(userId, row.id)
+          .then((context) => setBodyById((prev) => ({ ...prev, [row.id]: { kind: "context", context } })))
+          .catch(() => setBodyById((prev) => ({ ...prev, [row.id]: { kind: "error" } })));
+        return;
+      }
+      const inline = row.frontmatter?._body_fallback;
+      const fallback = typeof inline === "string" && inline.trim().length > 0 ? inline : null;
+      const read = row.storage_path?.trim()
+        ? downloadRawClipping(row.storage_path).catch(() => fallback)
+        : Promise.resolve(fallback);
+      void read
+        .then((text) => setBodyById((prev) => ({ ...prev, [row.id]: text === null ? { kind: "error" } : { kind: "text", text } })))
         .catch(() => setBodyById((prev) => ({ ...prev, [row.id]: { kind: "error" } })));
     },
-    [expandedId, bodyById],
+    [expandedId, bodyById, userId],
   );
 
   const makeBrief = useCallback(
     async (row: SourceRow) => {
-      if (briefId !== null) return;
+      if (briefId !== null || isProfileContextImportSource(row.frontmatter)) return;
       setBriefId(row.id);
       setNotice(null);
       try {
@@ -178,7 +192,7 @@ function SourcesBody({ userId, title }: { userId: string; title: string }) {
 
   const makePage = useCallback(
     async (row: SourceRow) => {
-      if (pageId !== null) return;
+      if (pageId !== null || isProfileContextImportSource(row.frontmatter)) return;
       setPageId(row.id);
       setNotice(null);
       try {
@@ -252,6 +266,7 @@ function SourcesBody({ userId, title }: { userId: string; title: string }) {
                 onHideBrief={() => setOpenBrief(null)}
                 onMakePage={() => void makePage(row)}
                 onOpenWiki={() => router.push("/wiki")}
+                onImportHistory={() => router.push("/profile-import?mode=history")}
               />
             ))}
           </View>
@@ -279,13 +294,15 @@ interface CardProps {
   onHideBrief: () => void;
   onMakePage: () => void;
   onOpenWiki: () => void;
+  onImportHistory: () => void;
 }
 
 function SourceCard(p: CardProps) {
-  const { t } = useTranslation("deepspace");
+  const { t } = useTranslation(["deepspace", "profile"]);
   const { row } = p;
-  const name = sourceTitle(row, t);
   const hasBrief = readPhase1(row.frontmatter) !== null;
+  const managed = isProfileContextImportSource(row.frontmatter);
+  const name = managed ? t("profile:contextImport.title") : sourceTitle(row, t);
 
   return (
     <MdCard variant="filled" style={s.card}>
@@ -326,6 +343,8 @@ function SourceCard(p: CardProps) {
             <RNText style={[m3TextStyle("bodySmall"), s.dim]}>{t("ds.sources.previewLoading")}</RNText>
           ) : p.body.kind === "error" ? (
             <RNText style={[m3TextStyle("bodySmall"), s.dim]}>{t("ds.sources.previewError")}</RNText>
+          ) : p.body.kind === "context" ? (
+            <ProfileContextSummary context={p.body.context} />
           ) : (
             <RNText style={[m3TextStyle("bodySmall"), s.previewText]}>
               {p.body.text.slice(0, PREVIEW_CHARS)}
@@ -336,7 +355,15 @@ function SourceCard(p: CardProps) {
       ) : null}
 
       <View style={s.actions}>
-        {hasBrief ? (
+        {managed ? (
+          <MdButton
+            label={t("profile:contextImport.history")}
+            variant="text"
+            onPress={p.onImportHistory}
+            accessibilityLabel={t("profile:contextImport.history")}
+            style={s.action}
+          />
+        ) : hasBrief ? (
           <MdButton
             label={p.brief !== null ? t("ds.sources.briefHide") : t("ds.sources.briefView")}
             variant="text"
@@ -364,7 +391,7 @@ function SourceCard(p: CardProps) {
             accessibilityLabel={t("ds.sources.pageOpenFor", { title: name })}
             style={s.action}
           />
-        ) : (
+        ) : managed ? null : (
           <MdButton
             label={p.pageRunning ? t("ds.sources.pageRunning") : t("ds.sources.page")}
             variant="text"

@@ -466,6 +466,11 @@
       "owner": "user_id",
       "class": "account_delete_only",
       "reason": "48h attempt ledger; cached text expires in 24h or less and is invalidated on source deletion."
+    },
+    "profile_context_imports": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "Import retry and withdrawal receipts. Source deletion clears document, confirmation IDs, profile undo text and predecessor IDs through 0239; counts and request digest remain so late retries cannot restore withdrawn text. Account deletion cascades the entire receipt."
     }
   },
   "forwardAdditions": {
@@ -492,6 +497,9 @@
     "0237_dashboard_erasure_registry.sql": [
       "dashboard_generation_settings",
       "dashboard_generation_runs"
+    ],
+    "0240_profile_context_import_erasure_registry.sql": [
+      "profile_context_imports"
     ]
   },
   "forwardRevisions": {

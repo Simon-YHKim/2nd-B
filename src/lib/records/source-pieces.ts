@@ -35,13 +35,17 @@ const LIMIT = 200;
  * @throws on a read failure. `[]` means "read fine, none captured" -- callers must be able
  *         to tell those apart, which is the whole point.
  */
-export async function listSourcePieces(userId: string): Promise<SourcePiece[]> {
-  const { data, error } = await getSupabaseClient()
+export async function listSourcePieces(userId: string, opts: { excludeProfileImports?: boolean } = {}): Promise<SourcePiece[]> {
+  let query = getSupabaseClient()
     .from("sources")
     .select("id, title, captured_at, tags")
     .eq("user_id", userId)
     .order("captured_at", { ascending: false })
     .limit(LIMIT);
+  // Reasoning must not create shared derivatives outside an import's withdrawal ledger.
+  // Keep the ordinary record list complete; this exclusion is opt-in for reasoning only.
+  if (opts.excludeProfileImports) query = query.is("frontmatter->profile_context_import_id", null);
+  const { data, error } = await query;
   if (error) throw error;
 
   const rows = (data ?? []) as {

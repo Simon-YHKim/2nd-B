@@ -22,7 +22,9 @@
 // which is exactly the kind of thing callers forget. `src-` means sources.
 
 import { getSupabaseClient } from "../supabase/client";
+import { fetchProfileImportedContext, type ProfileImportedContext } from "../supabase/profile-context-import";
 import { downloadRawClipping } from "../wiki/storage";
+import { isProfileContextImportSource } from "../wiki/profile-context-source";
 import { getRecordById } from "./create";
 
 export const SOURCE_ID_PREFIX = "src-";
@@ -39,6 +41,9 @@ export interface PieceDetail {
   created_at: string;
   /** Which table it came from. The detail view hides record-only affordances for sources. */
   origin: "record" | "source";
+  /** This source is updated or withdrawn through profile import history. */
+  profileImportManaged?: boolean;
+  profileImportContext?: ProfileImportedContext;
 }
 
 export function isSourcePieceId(id: string): boolean {
@@ -235,8 +240,13 @@ export async function getPieceById(
     storage_path: string;
     frontmatter: Record<string, unknown> | null;
   };
-  const fallback = sourceBodyFallback(s.frontmatter);
-  const body = await downloadRawClipping(s.storage_path).catch(() => fallback);
+  const managed = isProfileContextImportSource(s.frontmatter);
+  // A missing ledger is a read failure. Never fall back to the internal provenance body.
+  const profileImportContext = managed ? await fetchProfileImportedContext(userId, sourceId) : undefined;
+  const fallback = managed ? null : sourceBodyFallback(s.frontmatter);
+  const body = managed ? null : s.storage_path?.trim()
+    ? await downloadRawClipping(s.storage_path).catch(() => fallback)
+    : fallback;
   return {
     // Keep the prefixed id: it is what the route carries, and what any re-navigation needs.
     id,
@@ -249,5 +259,7 @@ export async function getPieceById(
     tags: s.tags,
     created_at: s.captured_at,
     origin: "source",
+    profileImportManaged: managed,
+    profileImportContext,
   };
 }
