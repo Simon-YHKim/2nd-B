@@ -83,7 +83,7 @@ export interface ClockPart extends PartBase<"P-01"> {
   weatherAction?: "consent" | "settings" | null;
 }
 /** P-02 오늘의 한마디(줄). 누르면 S-01. */
-export interface NotePart extends PartBase<"P-02"> { slot: "morning" | "day" | "evening"; line: BoardText | null; evidenceRoute: string | null }
+export interface NotePart extends PartBase<"P-02"> { slot: "morning" | "day" | "evening"; line: BoardText | null; evidenceRoute: string | null; generatedAt?: string; previous?: boolean }
 /** P-03 리마인더(카드). 좌우로 어제 · 오늘 · 내일 · 모레. */
 export interface RemindersPart extends PartBase<"P-03"> { days: ReminderDay[]; startDay: 0 | 1 | 2 | 3; suggestions: BoardSuggestion[] }
 /** P-04 처리할 것 Top3(줄). */

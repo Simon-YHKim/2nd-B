@@ -9,7 +9,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelRoundRect } from "@/components/pixel/PixelRoundRect";
-import type { BoardText, DailySummary as DailySummaryContract } from "@/lib/dashboard/board/contract";
+import type { BoardText, NotePart, DailySummary as DailySummaryContract } from "@/lib/dashboard/board/contract";
 import { fillHealthBlanks, startSummaryFlow, summaryFlow, type SummaryFlowEvent, type SummaryFlowState } from "@/lib/dashboard/board/summary-flow";
 import { boardTone } from "@/lib/dashboard/board/tone";
 import { speakLine, stopSpeaking } from "@/lib/speech/read-aloud";
@@ -19,7 +19,8 @@ import { IosButton, IosLargeTitle, IosText as Text } from "./IosParts";
 /** 말풍선 사이 간격. 읽지 않을 때만 쓴다(읽을 때는 말이 끝나야 다음이 나온다). */
 const BUBBLE_INTERVAL_MS = 900;
 
-export function DailySummary({ summary, healthValues, muted, reducedMotion, go, onClose }: {
+export function DailySummary({ note, summary, healthValues, muted, reducedMotion, go, onClose }: {
+  note?: NotePart;
   summary: DailySummaryContract | null;
   healthValues: Record<string, string>;
   muted: boolean;
@@ -28,7 +29,8 @@ export function DailySummary({ summary, healthValues, muted, reducedMotion, go, 
   onClose: () => void;
 }) {
   const { t, i18n } = useTranslation("ops");
-  const bubbles = summary?.bubbles ?? [];
+  // The two generation purposes stay separate; only their presentation is joined.
+  const bubbles = [...(note?.line ? [{ id: "daily-note", kind: "head" as const, line: note.line, basis: note.basis, evidenceRoute: note.evidenceRoute }] : []), ...(summary?.bubbles ?? [])];
   const total = bubbles.length;
   const [flow, dispatch] = useReducer(
     (state: SummaryFlowState, event: SummaryFlowEvent) => summaryFlow(state, event, total, muted),
@@ -63,8 +65,8 @@ export function DailySummary({ summary, healthValues, muted, reducedMotion, go, 
   const stop = () => { stopSpeaking(); dispatch({ type: "stop" }); };
   const close = () => { stopSpeaking(); onClose(); };
 
-  if (!summary || total === 0) return <View style={styles.page}>
-    <IosLargeTitle>{t("phone.board.summary.titleDefault")}</IosLargeTitle>
+  if (total === 0) return <View style={styles.page}>
+    <IosLargeTitle>{t("phone.board.shelf.parts.note")}</IosLargeTitle>
     <PixelRoundRect fill={phoneIos.cell} style={styles.empty}>
       <PixelGlyph name="chat" size={24} color={phoneIos.blue} />
       <Text accessibilityLiveRegion="polite" variant="body" style={styles.muted}>{summary?.note ? say(summary.note) : t("phone.board.summary.notReady")}</Text>
@@ -75,19 +77,22 @@ export function DailySummary({ summary, healthValues, muted, reducedMotion, go, 
 
   // 메시지식 말풍선(픽셀 아이폰): 바탕색은 basis 가 정한다(청록 = AI · 흰 칸 = 사실 · 회색 = 규칙 제안).
   return <View testID="board-summary" style={styles.page}>
-    <IosLargeTitle>{t(`phone.board.summary.title.${summary.slot}`)}</IosLargeTitle>
+    <IosLargeTitle>{t("phone.board.shelf.parts.note")}</IosLargeTitle>
     <View accessibilityLiveRegion="polite" style={styles.bubbles}>
       {bubbles.slice(0, flow.shown).map((bubble, index) => {
         const tone = boardTone(bubble.basis);
-        return <PixelRoundRect key={bubble.id} fill={tone.bubble} border={flow.speaking === index ? phoneIos.blue : undefined}
+        return <View key={bubble.id}>
+          {bubble.id === "head" ? <Text variant="caption" style={styles.muted}>{t("phone.summaryDetails")}</Text> : null}
+          <PixelRoundRect fill={tone.bubble} border={flow.speaking === index ? phoneIos.blue : undefined}
           style={[styles.bubble, bubble.kind === "fact" ? styles.factCard : null]}>
           <Text variant={bubble.kind === "head" ? "body" : "caption"} style={[styles.flex, { color: bubble.kind === "count" ? phoneIos.label2 : bubble.basis === "ai" ? tone.text : phoneIos.label }]}>{say(bubble.line)}</Text>
           {bubble.evidenceRoute ? <Pressable accessibilityRole="link" accessibilityLabel={t("phone.board.evidence")} onPress={() => go(bubble.evidenceRoute!)} style={styles.evidence}>
             <PixelGlyph name="description" size={16} color={phoneIos.blue} />
           </Pressable> : null}
-        </PixelRoundRect>;
+        </PixelRoundRect></View>;
       })}
     </View>
+    {!summary?.bubbles.length && summary?.note ? <Text variant="caption" style={styles.muted}>{say(summary.note)}</Text> : null}
     {muted ? <Text variant="caption" style={styles.muted}>{t("phone.board.summary.mutedNote")}</Text> : null}
     <View style={styles.actions}>
       {!muted ? <IosButton primary glyph={flow.reading ? "pause" : "play_arrow"} onPress={() => (flow.reading ? stop() : dispatch({ type: "read" }))}

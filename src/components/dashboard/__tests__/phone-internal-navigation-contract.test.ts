@@ -30,7 +30,9 @@ test("phone-originated routes stay inside the display; Back steps inside and onl
   expect(phone).not.toContain("router.push(");
   expect(phone).toContain("setScreenStack((current) => [...current, route])");
   expect(phone).toContain("setScreenStack((current) => current.slice(0, -1))");
-  expect(phone).toContain("if (insideRoute || phoneApp) { backInside(); settlePhone(); return; }");
+  expect(phone).not.toContain("if (insideRoute || phoneApp) { backInside(); settlePhone(); return; }");
+  expect(phone).toContain('testID="phone-dismiss-handle"');
+  expect(phone).toContain('readViewMemory<PhonePosition>("phone-position")');
   expect(phone).toContain('BackHandler.addEventListener("hardwareBackPress"');
   expect(phone).toContain('insideRoute ? internalPage(insideRoute)');
   // Simon 2026-10-07: no exit prompt; Back stops at the first page and the swipe is the only way out.

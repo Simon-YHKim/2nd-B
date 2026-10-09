@@ -1,3 +1,4 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 // 성과 입력 — the full form from design/proto_rev2/reference-app/sb-careerinput.jsx.
 //
 // The career lens shipped with a reduced version of this: 성과 / 역할 / 임팩트 and a
@@ -17,7 +18,7 @@
 // KPI suggestion chips come from the canon (data/screens/careerinput.json), not
 // from a copy in this file.
 import { useCallback, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 

@@ -2,7 +2,7 @@ import type { DailyNote, DaySummary, InboxTriage } from "../contract";
 import type { BoardContract, BoardPart, SummaryBubble } from "./contract";
 import { generationNotice, type GenerationStates } from "../generation-state";
 
-export interface GeneratedBoard { note: DailyNote | null; summary: DaySummary | null; triage: InboxTriage | null; states?: GenerationStates }
+export interface GeneratedBoard { note: DailyNote | null; summary: DaySummary | null; triage: InboxTriage | null; states?: GenerationStates; noteGeneratedAt?: string; notePrevious?: boolean }
 export const EMPTY_GENERATED_BOARD: GeneratedBoard = { note: null, summary: null, triage: null };
 
 /** Generated prose always keeps the AI tone, including a model's 'facts' label.
@@ -12,7 +12,8 @@ export function withGeneratedBoard(board: BoardContract, generated: GeneratedBoa
   const slot = note?.slot === "midday" ? "day" : note?.slot ?? "morning";
   const parts = board.parts.map((part): BoardPart => {
     if (part.id === "P-02" && note) return { ...part, visible: true, state: "data" as const, basis: "ai" as const,
-      slot, line: { text: note.line }, evidenceRoute: "/ops", note: undefined, action: undefined };
+      slot, line: { text: note.line }, evidenceRoute: "/ops", note: undefined, action: undefined,
+      generatedAt: generated.noteGeneratedAt, previous: generated.notePrevious };
     if (part.id === "P-02" && generated.states) return { ...part, visible: true, state: "empty", basis: "rule",
       ...generationNotice(generated.states.note, "note") };
     if (part.id === "P-03" && note) return { ...part, suggestions: note.reminder_suggestions.map((item, i) => ({
@@ -22,7 +23,7 @@ export function withGeneratedBoard(board: BoardContract, generated: GeneratedBoa
       note: undefined, action: undefined, items: triage.order.slice(0, 3).flatMap((id) => {
         const item = triage.items.find((row) => row.id === id);
         return item ? [{ id, source: "app" as const, line: { text: item.action_line }, basis: "ai" as const, evidenceRoute: "/ops",
-          action: { label: { key: "todaysAssistant" }, route: "/ops" } }] : [];
+          action: { label: { key: "phone.assistantSettings" }, route: "/ops" } }] : [];
       }) };
     if (part.id === "P-04" && generated.states) return { ...part, visible: true, state: "empty", basis: "rule",
       ...generationNotice(generated.states.triage, "triage") };

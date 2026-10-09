@@ -15,7 +15,8 @@ const code = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, "").replace
 
 describe("완료조건 5: 화면은 표시 여부 · 순서 · 색을 계약 값으로만 읽는다", () => {
   test("부품 목록은 partsOnPage 하나로 받는다", () => {
-    expect(parts).toContain("partsOnPage(board, page).map((part) => <PartView key={part.id} part={part} events={events} />)");
+    expect(parts).toContain("partsOnPage(board, page).map((part)");
+    expect(parts).toContain('<PartView part={part} events={events} />');
   });
 
   test("화면 파일에 정렬 · visible · order 판단이 없다", () => {
@@ -81,7 +82,7 @@ describe("완료조건 4: 부품의 동작", () => {
     expect(parts).toContain("delayLongPress={500}");
   });
 
-  test("P-02 를 누르면 하루 요약(S-01)으로", () => {
+  test("P-02 를 누르면 한마디 상세(요약·읽기 통합)로", () => {
     expect(parts).toContain("onPress={events.openSummary}");
   });
 });
@@ -126,7 +127,8 @@ describe("완료조건 8 + 08:32 보강: 옛 위젯 8개를 대시보드에서 �
   });
 
   test("대시보드 쪽은 하루 관리판을 그린다", () => {
-    expect(phone).toContain("return <BoardPageView board={board} page={boardPage} events={boardEvents} />;");
+    expect(phone).toContain("<BoardPageView board={board} page={boardPage} events={boardEvents}");
+    expect(phone).toContain('<DeepSpaceOpsScreen surface="board" />');
     expect(phone).toContain("withGeneratedBoard(buildBoard(data, new Date(), isMinor, clockWeather.state), generated)");
   });
 

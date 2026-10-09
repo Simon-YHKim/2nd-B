@@ -1,3 +1,4 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 // 도메인 별 렌즈 (rev2 11-star): tapping a life-domain star on the home
 // constellation opens THIS screen — a per-domain lens, not the flat wiki list.
 // Mirrors the reference 11-star: domain header, a 세컨비 briefing, the
@@ -9,7 +10,7 @@
 // discipline as the values/data/career screens). Structured sources such as
 // the ledger, people map, recreation items and health samples stay real too.
 import { useCallback, useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";

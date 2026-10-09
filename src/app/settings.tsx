@@ -750,7 +750,7 @@ export default function Settings() {
           <M3Divider />
           <M3LinkRow icon="box" label={t("aiMuseum")} onPress={() => router.push("/museum")} />
           <M3Divider />
-          <M3LinkRow icon="ops" label={tOps("todaysAssistant")} onPress={() => router.push("/ops")} />
+          <M3LinkRow icon="ops" label={tOps("phone.assistantSettings")} onPress={() => router.push("/ops")} />
           <M3Divider />
           <M3LinkRow
             icon="refresh"

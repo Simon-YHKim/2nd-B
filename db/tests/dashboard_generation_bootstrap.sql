@@ -28,3 +28,6 @@ LANGUAGE sql AS $$ SELECT jsonb_build_object('allowed',test_consent,'token',CASE
 \ir ../migrations/0238_dashboard_terminal_states.sql
 COMMIT;
 \ir dashboard_generation_regression.sql
+
+\ir ../migration-drafts/UNNUMBERED_dashboard_last_note.sql
+\ir dashboard_last_note_regression.sql

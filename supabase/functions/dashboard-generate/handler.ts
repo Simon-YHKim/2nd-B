@@ -34,7 +34,9 @@ export function createDashboardHandler(deps: DashboardDependencies) {
     }
     if (row.kind === 'ready') {
       const parsed = validateBoardOutput(prepared.value, row.value, row.slot as Slot);
-      return parsed.ok ? { kind: 'ready', purpose: parsed.seat, value: parsed.value } : { kind: 'unavailable' };
+      const metadata = typeof row.generatedAt === 'string' && Number.isFinite(Date.parse(row.generatedAt))
+        ? { generatedAt: row.generatedAt, previous: row.previous === true } : {};
+      return parsed.ok ? { kind: 'ready', purpose: parsed.seat, value: parsed.value, ...metadata } : { kind: 'unavailable' };
     }
     if (row.kind !== 'claimed' || typeof row.id !== 'string' ||
         typeof row.consent_token !== 'string' || !/^[a-f0-9]{64}$/.test(row.consent_token)) return { kind: 'unavailable' };

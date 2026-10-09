@@ -1,3 +1,4 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 // 커리어 Drill Down — rev2 3C4P (P4d 잔여). A career achievement decomposed as
 // 3C = "왜 했는가"(Customer/Company/Competitor) + 4P = "무엇을 · 어떻게"
 // (Product/Place/Price/Promotion). Pure input scaffolding (prototype
@@ -5,7 +6,7 @@
 // (the qualitative complement to /career's structured 성과 담기), reusing the
 // existing /secondb fromNode prefill contract.
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import { Redirect, router } from "expo-router";

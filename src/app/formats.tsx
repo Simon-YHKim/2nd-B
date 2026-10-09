@@ -1,3 +1,4 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 // /formats — manage the user-created & community-shared clipper formats that
 // back the G3 flow (clipper_templates, migration 0027). Four things, exactly as
 // scoped: (1) my formats list, (2) community-shared list, (3) per-format share
@@ -10,7 +11,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
-  ScrollView,
   Pressable,
   Platform,
   useWindowDimensions,

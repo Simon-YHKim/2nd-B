@@ -1,5 +1,13 @@
 {
   "phone": {
+    "summaryDetails": "Detailed summary",
+    "noteUpdatedAt": "Last written · {{time}}",
+    "notePrevious": "Showing the last note while the next one is prepared.",
+    "dismissHandle": "Lower phone: swipe up or down",
+    "assistantSettings": "Assistant settings",
+    "recommendationSettings": "Recommendation settings",
+    "todayRecommendations": "Today’s recommendations",
+    "noRecommendations": "Choose a topic in recommendation settings to get suggestions.",
     "title": "My phone",
     "brand": "MY DAY",
     "bannerTitle": "Keep your story going",
@@ -237,7 +245,7 @@
         "temp": "{{temp}} degrees"
       },
       "note": {
-        "tapHint": "Tap for today's summary",
+        "tapHint": "Open today’s note details",
         "empty": "Today's note appears after your first record.",
         "slot": {
           "morning": "Morning",

@@ -11,6 +11,7 @@ import { phoneFlatSurface, phoneInputStyle, phoneStyle } from "@/lib/theme/phone
 import { phoneIos } from "@/lib/theme/phone-ios";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { fontFamilies } from "@/theme/typography";
+import { useScrollMemory } from "@/lib/nav/scroll-memory";
 
 // The names also remain valid as ref types when imported as RN aliases.
 export type PhoneView = View;
@@ -89,13 +90,15 @@ export const PhoneTextInput = forwardRef<TextInput, TextInputProps>(function Pho
 
 export const PhoneScrollView = forwardRef<ScrollView, ScrollViewProps>(function PhoneScrollView({ style, contentContainerStyle, ...rest }, ref) {
   const phone = usePhoneDesign();
-  return <ScrollView ref={ref} {...rest} style={phone ? mapped(style) : style}
+  const memory = useScrollMemory(rest, ref);
+  return <ScrollView {...rest} {...memory} style={phone ? mapped(style) : style}
     contentContainerStyle={phone ? mapped(contentContainerStyle) : contentContainerStyle} />;
 });
 
 function PhoneFlatListInner<T>({ style, contentContainerStyle, ...rest }: FlatListProps<T>, ref: React.ForwardedRef<FlatList<T>>) {
   const phone = usePhoneDesign();
-  return <FlatList ref={ref} {...rest} style={phone ? mapped(style) : style}
+  const memory = useScrollMemory(rest, ref as React.ForwardedRef<FlatList<unknown>>, true);
+  return <FlatList<T> {...rest} {...memory} ref={memory.ref as React.Ref<FlatList<T>>} style={phone ? mapped(style) : style}
     contentContainerStyle={phone ? mapped(contentContainerStyle) : contentContainerStyle} />;
 }
 export const PhoneFlatList = forwardRef(PhoneFlatListInner) as <T>(props: FlatListProps<T> & React.RefAttributes<FlatList<T>>) => React.ReactElement;

@@ -82,6 +82,7 @@ const RETAINED_UNTIL_APPLIED = ["0197:paddle_refund_consequence_integrity"] as c
 // Drafts that do not have a number yet, each with its behavioural lane. A new
 // draft is registered here; it leaves this map in the change that numbers it.
 const pendingDrafts: Record<string, { runner: string; workflowInvocation: string }> = {
+  "UNNUMBERED_dashboard_last_note.sql": { runner: "db/tests/dashboard_last_note_regression.sql", workflowInvocation: "node scripts/test-dashboard-sql.mjs 5432 dashboard_test_ci" },
 };
 
 /** Violations of the one-copy rule. Pure, so the guard itself can be mutated below. */

@@ -109,12 +109,12 @@ describe("PIXEL-CLAY settings screen contract", () => {
       .filter((line) => line.includes('router.push("/ops")') && line.includes("label="));
     expect(opsRows.length).toBeGreaterThan(0);
     for (const row of opsRows) {
-      expect(row).toContain('label={tOps("todaysAssistant")}');
+      expect(row).toContain('label={tOps("phone.assistantSettings")}');
     }
     const opsScreen = readFileSync(
       path.resolve(__dirname, "../../screens/deepspace/dds-ops-screen.tsx"),
       "utf8",
     );
-    expect(opsScreen).toContain('t("todaysAssistant")');
+    expect(opsScreen).toContain('t("phone.assistantSettings")');
   });
 });

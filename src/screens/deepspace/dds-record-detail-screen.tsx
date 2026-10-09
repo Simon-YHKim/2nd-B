@@ -1,7 +1,7 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
-  ScrollView,
   StyleSheet,
   TextInput,
   View,
