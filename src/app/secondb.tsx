@@ -1259,7 +1259,9 @@ function SecondBChatBody() {
           scrollEventThrottle={16}
           onLayout={() => { if (followingLatest.current) scrollRef.current?.scrollToEnd({ animated: false }); }}
           onContentSizeChange={() => { if (followingLatest.current) scrollRef.current?.scrollToEnd({ animated: false }); }}
-          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+          // RNW's on-drag also blurs on the automatic scroll after the draft
+          // grows. Keep web typing focused; native drag dismissal stays intact.
+          keyboardDismissMode={Platform.OS === "web" ? "none" : Platform.OS === "ios" ? "interactive" : "on-drag"}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
