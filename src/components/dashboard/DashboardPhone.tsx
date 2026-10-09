@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, AppState, BackHandler, FlatList, PanResponder, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Animated, AppState, BackHandler, PanResponder, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { PhoneFlatList as FlatList } from "@/components/phone/PhoneUIKit";
+import { ScrollMemoryScope } from "@/lib/nav/scroll-memory";
+import { readViewMemory, writeViewMemory } from "@/lib/nav/view-memory";
 import { router, useFocusEffect, useLocalSearchParams, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -42,6 +45,7 @@ import { PhoneEmbedProvider, splitPhoneRoute, type PhoneEmbedNav } from "@/lib/n
 import { resolvePhoneScreen } from "./phone-screens";
 import { BoardPageView, type BoardEvents } from "./board/BoardParts";
 import { DailySummary } from "./board/DailySummary";
+import { DeepSpaceOpsScreen } from "@/screens/deepspace/dds-ops-screen";
 import { BoardShelf } from "./board/BoardShelf";
 import { TranscribeSkeleton } from "./board/TranscribeSkeleton";
 import { IosButton, IosGroup, IosLargeTitle, IosLead, IosRow } from "./board/IosParts";
@@ -49,6 +53,10 @@ import { healthBlankValues } from "@/lib/dashboard/board/summary-flow";
 import type { ProductNotice } from "@/lib/notices/types";
 
 type Tab = "dashboard" | "tools";
+interface PhonePosition {
+  tab: Tab; boardPage: 1 | 2; phoneApp: "notifications" | null;
+  selectedNoticeId: string | null; screenStack: string[];
+}
 const TOOLS: { id: PhoneAppId; route: string }[] = [
   { id: "assistant", route: "/ops" },
   { id: "focus", route: "/focus" },
@@ -138,18 +146,22 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const { t, i18n } = useTranslation("ops");
   const clockWeather = useClockWeather(ownerId, isMinor, i18n.language);
   const [weatherSheet, setWeatherSheet] = useState<"consent" | "settings" | "source" | null>(null);
-  const { overlay, app } = useLocalSearchParams<{ overlay?: string; app?: string }>();
+  const { overlay, app, panel } = useLocalSearchParams<{ overlay?: string; app?: string; panel?: string }>();
   const transparentBackdrop = overlay === "home" && router.canGoBack();
   const closePhone = useCallback(() => {
     if (transparentBackdrop) router.back();
     else router.replace("/");
   }, [transparentBackdrop]);
-  const [tab, setTab] = useState<Tab>(app === "notifications" ? "tools" : "dashboard");
+  const [resume] = useState(() => app || panel ? undefined : readViewMemory<PhonePosition>("phone-position"));
+  const [tab, setTab] = useState<Tab>(app === "notifications" ? "tools" : resume?.tab ?? "dashboard");
   // 하루 관리판 두 쪽(PS-DASH-001 v2.2): 1쪽 = 오늘 처리할 것, 2쪽 = 상태(Q-261007-31).
-  const [boardPage, setBoardPage] = useState<1 | 2>(1);
-  const [phoneApp, setPhoneApp] = useState<"notifications" | null>(app === "notifications" ? "notifications" : null);
-  const [selectedNoticeId, setSelectedNoticeId] = useState<string | null>(null);
-  const [screenStack, setScreenStack] = useState<string[]>([]);
+  const [boardPage, setBoardPage] = useState<1 | 2>(resume?.boardPage ?? 1);
+  const [phoneApp, setPhoneApp] = useState<"notifications" | null>(app === "notifications" ? "notifications" : resume?.phoneApp ?? null);
+  const [selectedNoticeId, setSelectedNoticeId] = useState<string | null>(resume?.selectedNoticeId ?? null);
+  const [screenStack, setScreenStack] = useState<string[]>(resume?.screenStack ?? []);
+  useEffect(() => {
+    if (captureAccountOwnerLease(ownerId)) writeViewMemory<PhonePosition>("phone-position", { tab, boardPage, phoneApp, selectedNoticeId, screenStack });
+  }, [ownerId, tab, boardPage, phoneApp, selectedNoticeId, screenStack]);
   const [recordQuery, setRecordQuery] = useState("");
   const [wikiQuery, setWikiQuery] = useState("");
   const [wikiPages, setWikiPages] = useState<WikiPageRow[]>([]);
@@ -216,6 +228,10 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     if (typeof document !== "undefined") (document.activeElement as HTMLElement | null)?.blur?.();
     const route = phonePage(target);
     const { path, params } = splitPhoneRoute(route);
+    if (path === "/dashboard" && params.panel === "recommendations") {
+      setScreenStack([]); setPhoneApp(null); setTab("dashboard"); setBoardPage(1);
+      return;
+    }
     scrollY.current = 0;
     setRecordQuery("");
     if (path === "/wiki") setWikiQuery("");
@@ -321,7 +337,6 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     },
     onPanResponderRelease: (_event, gesture) => {
       if (!shouldCompletePhoneDismiss(gesture.dy, gesture.vy)) { settlePhone(); return; }
-      if (insideRoute || phoneApp) { backInside(); settlePhone(); return; }
       dismissing.current = true;
       // The phone leaves the way it was pushed: down, or up.
       Animated.timing(dismissY, {
@@ -332,7 +347,21 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       }).start(({ finished }) => { if (finished && mounted.current) closePhone(); });
     },
     onPanResponderTerminate: settlePhone,
-  }), [backInside, closePhone, dismissY, frameSize.height, insideRoute, phoneApp, reducedMotion, settlePhone]);
+  }), [closePhone, dismissY, frameSize.height, reducedMotion, settlePhone]);
+  // A fixed bezel gesture remains available even when the hosted app owns scrolling.
+  const bezelPan = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_event, gesture) => !dismissing.current && canBeginPhoneDismiss(gesture.dy, gesture.dx, 0, 0),
+    onPanResponderGrant: () => dismissY.stopAnimation(),
+    onPanResponderMove: (_event, gesture) => dismissY.setValue(gesture.dy),
+    onPanResponderRelease: (_event, gesture) => {
+      if (!shouldCompletePhoneDismiss(gesture.dy, gesture.vy)) { settlePhone(); return; }
+      dismissing.current = true;
+      Animated.timing(dismissY, { toValue: (gesture.dy < 0 ? -1 : 1) * (frameSize.height || 700),
+        duration: reducedMotion ? 0 : 240, easing: pixelStepsFor(240), useNativeDriver: Platform.OS !== "web" })
+        .start(({ finished }) => { if (finished && mounted.current) closePhone(); });
+    },
+    onPanResponderTerminate: settlePhone,
+  }), [dismissY, frameSize.height, reducedMotion, closePhone, settlePhone]);
   const pagePan = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponder: (_event, gesture) =>
       !insideRoute && Math.abs(gesture.dx) > 30 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
@@ -498,7 +527,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       <BoardShelf board={board} events={shelfEvents} />
     </View>;
     if (route === "/board/transcribe") return <TranscribeSkeleton adult={isMinor === false} />;
-    if (route === "/board/summary") return <DailySummary summary={board.summary} muted={false} reducedMotion={reducedMotion} go={go} onClose={backInside}
+    if (route === "/board/summary") return <DailySummary note={board.parts.find((part) => part.id === "P-02")} summary={board.summary} muted={false} reducedMotion={reducedMotion} go={go} onClose={backInside}
       healthValues={healthBlankValues(board, (metric) => metric.unit === "count" ? metric.value.toLocaleString(i18n.language) : t("phone.board.health.minutes", { value: metric.value.toLocaleString(i18n.language) }))} />;
     const records = data?.records.ok ? data.records.value : [];
     const recordFailed = !!data && !data.records.ok;
@@ -598,7 +627,12 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     // Simon 2026-10-07 (발주 2 · Q-261007-38): the old widgets are off the dashboard - priority card,
     // my words, today, at a glance, 7-day records, 7-day outlook, life areas, latest activity. The
     // board draws only what the contract says (visible · order · basis).
-    return <BoardPageView board={board} page={boardPage} events={boardEvents} />;
+    return <PhoneEmbedProvider value={embedNav}>
+      <BoardPageView board={board} page={boardPage} events={boardEvents}
+        recommendations={boardPage === 1 ? <PixelRoundRect fill={phoneIos.cell} style={styles.card}>
+          <DeepSpaceOpsScreen surface="board" />
+        </PixelRoundRect> : undefined} />
+    </PhoneEmbedProvider>;
   }
 
   function tools() {
@@ -682,15 +716,20 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     }}>
       {frame ? <>
       <PhoneFrame bounds={frame.artwork} />
+      <View testID="phone-dismiss-handle" {...bezelPan.panHandlers} accessible
+        accessibilityLabel={t("phone.dismissHandle")} accessibilityActions={[{ name: "escape", label: t("phone.dismissHandle") }]}
+        onAccessibilityAction={() => closePhone()}
+        style={{ position: "absolute", left: frame.artwork.left, top: frame.artwork.top, width: frame.artwork.width, height: frame.screen.top - frame.artwork.top }} />
       <PhoneDesignProvider>
       <View style={[styles.display, frame.screen, internalActive && styles.displayGrouped]}>
       {!internalActive ? <PhoneWallpaper width={frame.screen.width} height={frame.screen.height} /> : null}
-      <StatusBar ink={statusInk} time={statusTime} />
+      <View {...bezelPan.panHandlers}><StatusBar ink={statusInk} time={statusTime} /></View>
       <SceneTransition transitionKey={phoneTransition.key} kind={phoneTransition.kind} scope="phone" animateOnMount={false} style={styles.pageBody} testID="phone-scene-transition">
       {internalActive && !contentOwnsBack ? <NavBack label={t("phone.internal.back")} onPress={backInside} /> : null}
       {!ownsDisplay && loading ? <Text accessibilityLiveRegion="polite" variant="caption" style={styles.readStatus}>{t("phone.loading")}</Text> : null}
       {!ownsDisplay && (failed || partial) ? <View style={styles.errorRow}><Text variant="caption" style={[styles.flexText, styles.muted]}>{t("phone.partialError")}</Text><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setRefresh((value) => value + 1)} /></View> : null}
       <View style={styles.pageBody} {...(ownsDisplay ? {} : pagePan.panHandlers)}>
+      <ScrollMemoryScope key={`${tab}:${boardPage}:${phoneApp}:${screenStack.length}:${insideRoute}:${selectedNoticeId}`} id={`phone:${tab}:${boardPage}:${phoneApp}:${screenStack.length}:${insideRoute}:${selectedNoticeId}`}>
       {museumOpen ? <MuseumPhoneContent width={frame.screen.width} onBack={backInside} backLabel={t("phone.appsBack")} /> : phoneScreen ? <View key={insideRoute} testID="phone-hosted-screen" style={styles.hostedScreen}>
         <PhoneEmbedProvider value={embedNav}>{phoneScreen}</PhoneEmbedProvider>
       </View> : <FlatList
@@ -724,6 +763,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         renderItem={({ item }) => noticeListOpen ? noticeRow(item as ProductNotice) : (wikiListOpen || wikiDetailOpen) && typeof item !== "number" ? wikiRow(item as WikiPageRow) : insideRoute ? internalPage(insideRoute) : tab === "dashboard" ? dashboard() : tools()}
         contentContainerStyle={styles.content}
       />}
+      </ScrollMemoryScope>
       </View>
       </SceneTransition>
       {/* Page dots above the dock, as on an iPhone home screen. */}

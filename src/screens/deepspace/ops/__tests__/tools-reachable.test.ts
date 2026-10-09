@@ -147,11 +147,11 @@ describe("비서 허브 ↔ 도구 배선", () => {
     }
   });
 
-  it("domain은 정본 route helper를 통하고 전용 route가 없는 것만 추천 대상으로 남긴다", () => {
+  it("모든 domain은 추천 대상으로 선택되며 도구 이동과 분리된다", () => {
     const select = sourceSlice(HUB, "function selectDomain", "async function runRecommendation");
-    expect(select).toContain("opsRouteForDomain(nextDomain)");
-    expect(select).toContain("router.push(route)");
-    expect(select.indexOf("setDomain(nextDomain)")).toBeGreaterThan(select.indexOf("if (route)"));
+    expect(select).not.toContain("opsRouteForDomain(nextDomain)");
+    expect(select).not.toContain("router.push(");
+    expect(select).toContain("setDomain(nextDomain)");
   });
 
   it("오늘의 두 가지가 실제로 렌더된다", () => {
@@ -315,7 +315,7 @@ describe("비서 허브 auth·상태·비용 계약", () => {
     expect(run).toContain('setRunState(result.length === 0 ? "empty" : "idle")');
     expect(run).toContain('setRunState("error")');
 
-    const mountEffects = sourceSlice(HUB, "export function DeepSpaceOpsScreen()", "async function runRecommendation()");
+    const mountEffects = sourceSlice(HUB, "export function DeepSpaceOpsScreen(", "async function runRecommendation()");
     expect(mountEffects).not.toContain("recommendForDomain({");
     expect(mountEffects).not.toContain("bumpOpsUsage(");
   });
@@ -373,7 +373,7 @@ describe("비서 허브 실제 상태·mutation 계약", () => {
     expect(consent.indexOf("!persisted")).toBeGreaterThan(consent.indexOf("await pending.run()"));
     expect(consent).toContain("consent:privacy.saveError");
 
-    const effects = sourceSlice(HUB, "export function DeepSpaceOpsScreen()", "async function runRecommendation()");
+    const effects = sourceSlice(HUB, "export function DeepSpaceOpsScreen(", "async function runRecommendation()");
     for (const mutation of [
       "scheduleRoutineReminder(",
       "addEventToDeviceCalendar(",

@@ -1,3 +1,4 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 // /trends - 밝기 변화 (B5 · 별 밝기 변화 추이). A 1:1 clone of the reference
 // GrowthTrendScreen (reference-app/sb-surfaces.jsx): overall brightness over the
 // last 8 weeks, per-star L-level change, and a brightness log. Deterministic,
@@ -5,7 +6,7 @@
 // m3.accent.trendFlat. Windowed shell + TopAppBar per sb-app §4.
 
 import { Redirect, router } from "expo-router";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import Svg, { Rect } from "react-native-svg";

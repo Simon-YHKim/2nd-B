@@ -1,5 +1,13 @@
 {
   "phone": {
+    "summaryDetails": "Resumo detalhado",
+    "noteUpdatedAt": "Última redação · {{time}}",
+    "notePrevious": "A última nota aparece enquanto a próxima é preparada.",
+    "dismissHandle": "Baixar telefone: deslize para cima ou para baixo",
+    "assistantSettings": "Configurações do assistente",
+    "recommendationSettings": "Configurações de recomendações",
+    "todayRecommendations": "Recomendações de hoje",
+    "noRecommendations": "Escolha um tema nas configurações para receber recomendações.",
     "bannerTitle": "Continue sua história",
     "bannerSubtitle": "Pequenos registros abrem caminhos ✦",
     "pageControls": "Páginas do telefone",
@@ -237,7 +245,7 @@
         "temp": "{{temp}} graus"
       },
       "note": {
-        "tapHint": "Toque para ver o resumo do dia",
+        "tapHint": "Abrir os detalhes da nota de hoje",
         "empty": "A nota de hoje aparece depois do seu primeiro registro.",
         "slot": {
           "morning": "Manhã",

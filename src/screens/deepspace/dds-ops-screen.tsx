@@ -1,6 +1,7 @@
+import { subscribePrivacyChanges } from "@/lib/privacy/changes";
+import { PhoneFlatList as FlatList } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  FlatList,
   Linking,
   Platform,
   Share,
@@ -30,7 +31,7 @@ import {
 import { gatherAdherenceStats } from "@/lib/ops/signals";
 import { adherenceChip } from "@/lib/ops/grounding";
 import { loadPickCandidates } from "@/lib/ops/load-picks";
-import { opsRouteForDomain } from "@/lib/ops/nav";
+import { readOpsPresentation, writeOpsPresentation } from "@/lib/ops/presentation";
 import {
   recommendForDomain,
   recommendationsAllowed,
@@ -426,7 +427,7 @@ function SectionHeading({ icon, title, body }: { icon: AnyGlyphName; title: stri
   );
 }
 
-export function DeepSpaceOpsScreen() {
+export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settings" | "board" } = {}) {
   const router = useAppRouter();
   const { t, i18n } = useTranslation(["ops", "common", "consent"]);
   const {
@@ -441,12 +442,12 @@ export function DeepSpaceOpsScreen() {
   const locale = systemLocaleFor(i18n.language);
   const tEn = useMemo(() => i18n.getFixedT("en", "ops"), [i18n]);
 
-  const [group, setGroup] = useState<OpsGroupId | null>(null);
-  const [domain, setDomain] = useState<OpsDomainId | null>(null);
-  const [recommendations, setRecommendations] = useState<OpsRecommendation[]>([]);
-  const [adherence, setAdherence] = useState<string | null>(null);
+  const [group, setGroup] = useState<OpsGroupId | null>(() => readOpsPresentation().group);
+  const [domain, setDomain] = useState<OpsDomainId | null>(() => readOpsPresentation().domain);
+  const [recommendations, setRecommendations] = useState<OpsRecommendation[]>(() => readOpsPresentation().recommendations);
+  const [adherence, setAdherence] = useState<string | null>(() => readOpsPresentation().adherence);
   const [runState, setRunState] = useState<"idle" | "working" | "empty" | "error" | "limit" | "off">("idle");
-  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
+  const [savedKeys, setSavedKeys] = useState<Set<string>>(() => new Set(readOpsPresentation().savedKeys));
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
   const [consentOpen, setConsentOpen] = useState(false);
@@ -484,12 +485,13 @@ export function DeepSpaceOpsScreen() {
     pendingPushRef.current = null;
     setConsentOpen(false);
     setConsentSaving(false);
-    setGroup(null);
-    setDomain(null);
-    setRecommendations([]);
-    setAdherence(null);
+    const prior = readOpsPresentation();
+    setGroup(prior.group);
+    setDomain(prior.domain);
+    setRecommendations(prior.recommendations);
+    setAdherence(prior.adherence);
     setRunState("idle");
-    setSavedKeys(new Set());
+    setSavedKeys(new Set(readOpsPresentation().savedKeys));
     setSavingKey(null);
     setCompletingIds(new Set());
     setNotice(null);
@@ -548,6 +550,14 @@ export function DeepSpaceOpsScreen() {
     };
   }, [authLoading, hasProfile, isCurrentOwner, profileProbeFailed, reloadNonce, userId]);
 
+  useEffect(() => subscribePrivacyChanges((change) => {
+    if (change.ownerId !== userId) return;
+    runRequestRef.current += 1;
+    setRecommendations([]); setAdherence(null); setSavedKeys(new Set());
+    setConsentOpen(false); pendingPushRef.current = null;
+    setRunState("idle"); setReloadNonce((value) => value + 1);
+  }), [userId]);
+
   const ownerPrefs = prefsState.ownerId === userId ? prefsState : { kind: "loading", ownerId: userId } as ReadState<PrivacyPrefs>;
   const ownerUsage = usageState.ownerId === userId ? usageState : { kind: "loading", ownerId: userId } as ReadState<number>;
   const ownerToday = todayState.ownerId === userId ? todayState : { kind: "loading", ownerId: userId } as ReadState<TodayData>;
@@ -573,11 +583,6 @@ export function DeepSpaceOpsScreen() {
 
   function selectDomain(nextDomain: OpsDomainId): void {
     if (runState === "working") return;
-    const route = opsRouteForDomain(nextDomain);
-    if (route) {
-      router.push(route);
-      return;
-    }
     setDomain(nextDomain);
     setRecommendations([]);
     setAdherence(null);
@@ -625,8 +630,12 @@ export function DeepSpaceOpsScreen() {
       if (!isCurrentOwner(ownerId) || requestId !== runRequestRef.current) return;
       setUsageState({ kind: "ready", ownerId, data: nextUsage });
       setRecommendations(result);
+      setSavedKeys(new Set());
       setAdherence(stats ? adherenceChip(stats, i18n.language?.toLowerCase().startsWith("ko") ?? false) : null);
       setRunState(result.length === 0 ? "empty" : "idle");
+      writeOpsPresentation({ group, domain: selectedDomain, recommendations: result,
+        adherence: stats ? adherenceChip(stats, i18n.language?.toLowerCase().startsWith("ko") ?? false) : null, savedKeys: [] });
+      if (result.length > 0) router.push("/dashboard?panel=recommendations" as never);
     } catch {
       if (isCurrentOwner(ownerId) && requestId === runRequestRef.current) setRunState("error");
     }
@@ -845,12 +854,16 @@ export function DeepSpaceOpsScreen() {
     }
   }
 
-  const shell = (body: ReactNode) => (
+  useEffect(() => {
+    if (userId && isCurrentOwner(userId)) writeOpsPresentation({ group, domain, recommendations, adherence, savedKeys: [...savedKeys] });
+  }, [userId, group, domain, recommendations, adherence, savedKeys, isCurrentOwner]);
+
+  const shell = (body: ReactNode) => surface === "board" ? <>{body}</> : (
     <DeepSpaceScreen
       active="ops"
       header="none"
       variant="windowed"
-      title={t("todaysAssistant")}
+      title={t("phone.assistantSettings")}
       onBack={() => router.back()}
     >
       {body}
@@ -922,109 +935,15 @@ export function DeepSpaceOpsScreen() {
     </View>
   );
 
-  const listFooter = (
-    <View style={styles.footerStack}>
-      {notice ? (
-        <PixelSurface variant="inset" contentStyle={styles.noticeContent}>
-          <PixelGlyph name={notice.tone === "danger" ? "warning" : "check"} color={notice.tone === "danger" ? m3.color.error : m3.color.primary} size={20} />
-          <Text
-            variant="body"
-            style={notice.tone === "danger" ? styles.noticeDanger : styles.noticeText}
-            accessibilityRole={notice.tone === "danger" ? "alert" : undefined}
-            accessibilityLiveRegion="polite"
-          >
-            {notice.keys.map((key) => t(key)).join(" ")}
-          </Text>
-        </PixelSurface>
-      ) : null}
-
-      <PixelPressable
-        fullWidth
-        onPress={() => router.push("/insights")}
-        accessibilityRole="link"
-        accessibilityLabel={t("home.patternsTitle")}
-        contentStyle={styles.patternContent}
-      >
-        <PixelGlyph name="sparkle" color={m3.color.primary} size={24} />
-        <View style={styles.patternCopy}>
-          <Text variant="body" style={styles.patternTitle}>{t("home.patternsTitle")}</Text>
-          <Text variant="caption" style={styles.patternBody}>{t("home.patternsSub")}</Text>
-        </View>
-        <PixelGlyph name="chevron_right" color={m3.color.onSurface} size={20} />
-      </PixelPressable>
-
-      <SectionHeading icon="sparkle" title={t("home.takeEyebrow")} body={t("hero.subtitle")} />
-      <PixelPressable
-        fullWidth
-        onPress={() => router.push("/reminders")}
-        accessibilityRole="link"
-        accessibilityLabel={t("card.remind")}
-        contentStyle={styles.actionContent}
-      >
-        <PixelGlyph name="schedule" color={m3.color.onSurface} size={18} />
-        <Text variant="body" style={styles.actionText}>{t("card.remind")}</Text>
-        <PixelGlyph name="chevron_right" color={m3.color.onSurface} size={18} />
-      </PixelPressable>
-
-      <View style={styles.choiceGrid}>
-        {OPS_GROUP_IDS.map((id) => (
-          <ChoiceButton
-            key={id}
-            label={t(`groups.${id}`)}
-            selected={group === id}
-            disabled={runState === "working"}
-            onPress={() => selectGroup(id)}
-          />
-        ))}
-      </View>
-      {group ? (
-        <View style={styles.choiceGrid}>
-          {domains.map((id) => (
-            <ChoiceButton
-              key={id}
-              label={t(`domains.${id}`)}
-              selected={domain === id}
-              disabled={runState === "working"}
-              onPress={() => selectDomain(id)}
-            />
-          ))}
-        </View>
-      ) : (
-        <Text variant="body" style={styles.helperText}>{t("states.emptyDomain")}</Text>
-      )}
-
-      {domain ? (
-        recommendationReadsPending ? (
-          <StatePanel icon="schedule" message={t("common:states.loading")} />
-        ) : recommendationReadsFailed ? (
-          <StatePanel
-            icon="warning"
-            message={t("common:errors.network")}
-            retryLabel={t("common:actions.retry")}
-            onRetry={retryReads}
-          />
-        ) : (
-          <PixelPressable
-            fullWidth
-            disabled={runState === "working" || limitReached}
-            onPress={() => void runRecommendation()}
-            accessibilityLabel={runState === "working" ? t("recommend.working") : t("recommend.cta")}
-            accessibilityHint={t("recommend.ctaHint")}
-            accessibilityState={{ busy: runState === "working" }}
-            contentStyle={styles.primaryContent}
-          >
-            <PixelGlyph name="sparkle" color={m3.color.onSurface} size={20} />
-            <Text variant="body" style={styles.primaryText}>
-              {runState === "working" ? t("recommend.working") : t("recommend.cta")}
-            </Text>
-          </PixelPressable>
-        )
-      ) : null}
-
-      {runState === "limit" || (domain && limitReached) ? <Text variant="body" style={styles.helperText}>{t("recommend.limit")}</Text> : null}
-      {runState === "empty" ? <Text variant="body" style={styles.helperText}>{t("recommend.empty")}</Text> : null}
-      {runState === "error" ? <Text variant="body" style={styles.errorText} accessibilityRole="alert">{t("recommend.error")}</Text> : null}
-      {runState === "off" ? <Text variant="body" style={styles.helperText}>{t("recommend.off")}</Text> : null}
+  if (surface === "board") return <View testID="board-recommendations" style={styles.footerStack}>
+    <SectionHeading icon="sparkle" title={t("phone.todayRecommendations")} />
+    <ActionButton icon="settings" label={t("phone.recommendationSettings")} onPress={() => router.push("/ops")} />
+    {notice ? <Text variant="body" accessibilityLiveRegion="polite" style={notice.tone === "danger" ? styles.errorText : styles.helperText}>{notice.keys.map((key) => t(key)).join(" ")}</Text> : null}
+    {ownerPrefs.kind === "loading" ? <StatePanel icon="schedule" message={t("common:states.loading")} />
+      : ownerPrefs.kind !== "ready" ? <StatePanel icon="warning" message={t("common:errors.network")} retryLabel={t("common:actions.retry")} onRetry={retryReads} />
+      : !recommendationsAllowed(isMinor, ownerPrefs.data.recommendations) ? <StatePanel icon="inbox" message={t("recommend.off")} />
+      : <>
+        {recommendations.length === 0 ? <Text variant="body" style={styles.helperText}>{t("phone.noRecommendations")}</Text> : null}
       {adherence && recommendations.length > 0 ? <Text variant="caption" style={styles.adherence}>{adherence}</Text> : null}
 
       {consentOpen ? (
@@ -1112,7 +1031,112 @@ export function DeepSpaceOpsScreen() {
           ))}
         </View>
       ) : null}
+      </>}
+  </View>;
 
+  const listFooter = (
+    <View style={styles.footerStack}>
+      {notice ? (
+        <PixelSurface variant="inset" contentStyle={styles.noticeContent}>
+          <PixelGlyph name={notice.tone === "danger" ? "warning" : "check"} color={notice.tone === "danger" ? m3.color.error : m3.color.primary} size={20} />
+          <Text
+            variant="body"
+            style={notice.tone === "danger" ? styles.noticeDanger : styles.noticeText}
+            accessibilityRole={notice.tone === "danger" ? "alert" : undefined}
+            accessibilityLiveRegion="polite"
+          >
+            {notice.keys.map((key) => t(key)).join(" ")}
+          </Text>
+        </PixelSurface>
+      ) : null}
+
+      <PixelPressable
+        fullWidth
+        onPress={() => router.push("/insights")}
+        accessibilityRole="link"
+        accessibilityLabel={t("home.patternsTitle")}
+        contentStyle={styles.patternContent}
+      >
+        <PixelGlyph name="sparkle" color={m3.color.primary} size={24} />
+        <View style={styles.patternCopy}>
+          <Text variant="body" style={styles.patternTitle}>{t("home.patternsTitle")}</Text>
+          <Text variant="caption" style={styles.patternBody}>{t("home.patternsSub")}</Text>
+        </View>
+        <PixelGlyph name="chevron_right" color={m3.color.onSurface} size={20} />
+      </PixelPressable>
+
+      <SectionHeading icon="sparkle" title={t("phone.recommendationSettings")} body={t("hero.subtitle")} />
+      <PixelPressable
+        fullWidth
+        onPress={() => router.push("/reminders")}
+        accessibilityRole="link"
+        accessibilityLabel={t("card.remind")}
+        contentStyle={styles.actionContent}
+      >
+        <PixelGlyph name="schedule" color={m3.color.onSurface} size={18} />
+        <Text variant="body" style={styles.actionText}>{t("card.remind")}</Text>
+        <PixelGlyph name="chevron_right" color={m3.color.onSurface} size={18} />
+      </PixelPressable>
+
+      <View style={styles.choiceGrid}>
+        {OPS_GROUP_IDS.map((id) => (
+          <ChoiceButton
+            key={id}
+            label={t(`groups.${id}`)}
+            selected={group === id}
+            disabled={runState === "working"}
+            onPress={() => selectGroup(id)}
+          />
+        ))}
+      </View>
+      {group ? (
+        <View style={styles.choiceGrid}>
+          {domains.map((id) => (
+            <ChoiceButton
+              key={id}
+              label={t(`domains.${id}`)}
+              selected={domain === id}
+              disabled={runState === "working"}
+              onPress={() => selectDomain(id)}
+            />
+          ))}
+        </View>
+      ) : (
+        <Text variant="body" style={styles.helperText}>{t("states.emptyDomain")}</Text>
+      )}
+
+      {domain ? (
+        recommendationReadsPending ? (
+          <StatePanel icon="schedule" message={t("common:states.loading")} />
+        ) : recommendationReadsFailed ? (
+          <StatePanel
+            icon="warning"
+            message={t("common:errors.network")}
+            retryLabel={t("common:actions.retry")}
+            onRetry={retryReads}
+          />
+        ) : (
+          <PixelPressable
+            fullWidth
+            disabled={runState === "working" || limitReached}
+            onPress={() => void runRecommendation()}
+            accessibilityLabel={runState === "working" ? t("recommend.working") : t("recommend.cta")}
+            accessibilityHint={t("recommend.ctaHint")}
+            accessibilityState={{ busy: runState === "working" }}
+            contentStyle={styles.primaryContent}
+          >
+            <PixelGlyph name="sparkle" color={m3.color.onSurface} size={20} />
+            <Text variant="body" style={styles.primaryText}>
+              {runState === "working" ? t("recommend.working") : t("recommend.cta")}
+            </Text>
+          </PixelPressable>
+        )
+      ) : null}
+
+      {runState === "limit" || (domain && limitReached) ? <Text variant="body" style={styles.helperText}>{t("recommend.limit")}</Text> : null}
+      {runState === "empty" ? <Text variant="body" style={styles.helperText}>{t("recommend.empty")}</Text> : null}
+      {runState === "error" ? <Text variant="body" style={styles.errorText} accessibilityRole="alert">{t("recommend.error")}</Text> : null}
+      {runState === "off" ? <Text variant="body" style={styles.helperText}>{t("recommend.off")}</Text> : null}
       <SectionHeading icon="box" title={t("home.toolsLabel")} />
       <View style={styles.toolGrid}>
         {OPS_TOOL_ROUTES.map((tool) => (

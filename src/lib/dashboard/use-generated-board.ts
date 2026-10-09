@@ -31,13 +31,15 @@ export function useGeneratedBoard(ownerId: string, isMinor: boolean | null, loca
         const key = (["note", "triage", "summary"] as const)[index];
         value.states![key] = result.ok ? "ready" : result.reason === "invalid_output" ? "unavailable" : result.reason;
         if (!result.ok) continue;
-        if (result.seat === "daily_note") value.note = result.value;
+        if (result.seat === "daily_note") { value.note = result.value; value.noteGeneratedAt = result.generatedAt; value.notePrevious = result.previous; }
         if (result.seat === "day_summary") value.summary = result.value;
         if (result.seat === "inbox_triage") value.triage = result.value;
       }
       setSnapshot({ owner: ownerId, value });
     };
-    clear(); void read();
+    // Preserve the current text while revalidating. Only the server may authorize
+    // a previous note; empty/denied responses still clear it, including erasure.
+    void read();
     const timer = setInterval(() => { void read(); }, 60_000);
     const stopOwner = subscribeAccountTransition(clear);
     const stopPrivacy = subscribePrivacyChanges((change) => { if (change.ownerId === ownerId) { clear(); void read(); } });

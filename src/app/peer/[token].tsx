@@ -1,8 +1,9 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 // T5 F2 — informant landing (no account, spec §6). Opened from the one-time
 // link the subject shared out-of-band. Everything here talks ONLY to the
 // peer-respond edge function; there is no session and no informant PII.
 import { useEffect, useState } from "react";
-import { Linking, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Linking, StyleSheet, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useLocalSearchParams } from "expo-router";
 

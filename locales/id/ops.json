@@ -1,5 +1,13 @@
 {
   "phone": {
+    "summaryDetails": "Ringkasan lengkap",
+    "noteUpdatedAt": "Terakhir ditulis · {{time}}",
+    "notePrevious": "Catatan terakhir ditampilkan sambil menunggu yang berikutnya.",
+    "dismissHandle": "Turunkan ponsel: geser ke atas atau bawah",
+    "assistantSettings": "Pengaturan asisten",
+    "recommendationSettings": "Pengaturan rekomendasi",
+    "todayRecommendations": "Rekomendasi hari ini",
+    "noRecommendations": "Pilih topik di pengaturan rekomendasi untuk mendapat saran.",
     "bannerTitle": "Lanjutkan kisahmu",
     "bannerSubtitle": "Catatan kecil membuka jalan ✦",
     "pageControls": "Halaman ponsel",
@@ -237,7 +245,7 @@
         "temp": "{{temp}} derajat"
       },
       "note": {
-        "tapHint": "Ketuk untuk ringkasan hari ini",
+        "tapHint": "Buka detail catatan hari ini",
         "empty": "Catatan hari ini muncul setelah catatan pertamamu.",
         "slot": {
           "morning": "Pagi",

@@ -3,6 +3,7 @@ import { useIsFocused } from "expo-router";
 import { useNavigationState } from "expo-router/react-navigation";
 import { SceneTransition } from "@/components/motion/SceneTransition";
 import { worldRouteVisible } from "@/lib/motion/route-visibility";
+import { ScrollMemoryScope } from "@/lib/nav/scroll-memory";
 
 /** Each navigator still owns one live scene per route. The visible underlay
  * stays settled while a transparent overlay opens and closes above it. */
@@ -31,7 +32,7 @@ export function WorldRouteTransition({ children, routeName, routeKey, stack = "w
       testID="world-scene-transition"
       style={{ flex: 1, minHeight: 0 }}
     >
-      {children}
+      <ScrollMemoryScope id={`world:${routeKey}`} active={focused}>{children}</ScrollMemoryScope>
     </SceneTransition>
   );
 }

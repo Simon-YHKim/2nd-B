@@ -1,3 +1,4 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 // 커리어 CV 타임라인 (rev2 P4d): the career domain lens. Every domain:career
 // record, and every 성과 입력 entry (CAREER_TIMELINE_TAGS), grouped by year (an
 // explicit year: tag from the 성과 입력 form wins over the capture date), newest first.
@@ -7,7 +8,7 @@
 // sb-careerinput.jsx; the full seven-section form replaced it rather than sitting
 // beside it, because two ways to enter the same thing is how one of them rots.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 

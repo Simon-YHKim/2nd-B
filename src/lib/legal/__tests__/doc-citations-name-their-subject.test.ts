@@ -92,7 +92,7 @@ describe("an impl: pointer lands inside the screen it names", () => {
     expect(cited.file).toBe("src/screens/deepspace/dds-ops-screen.tsx");
     expect(read("src/app/ops.tsx")).toContain(`@/screens/deepspace/dds-ops-screen`);
     const body = slice(cited);
-    expect(body).toContain("export function DeepSpaceOpsScreen()");
+    expect(body).toContain("export function DeepSpaceOpsScreen(");
     expect(body).toContain("recommendationsAllowed(");
     // 09-20 이 옮긴 자리는 self-model 제안부였다.
     expect(body).not.toContain("proposeSelfModelChange(");

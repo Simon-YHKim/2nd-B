@@ -1,6 +1,7 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 import { useRouter } from "expo-router";
 import type { Href } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 

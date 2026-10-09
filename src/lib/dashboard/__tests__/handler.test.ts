@@ -89,3 +89,16 @@ test("hourly scheduler uses server-selected owners, returns no personal outputs"
   expect(f.deps.rpc).toHaveBeenCalledWith("dashboard_generation_request", expect.objectContaining({ p_user_id: "owner-b", p_action: "hourly" }));
   expect(JSON.stringify(body)).not.toContain("Read today");
 });
+
+
+test("a previous note keeps its creation time and is rechecked against surviving references", async () => {
+  const f = fixture();
+  const cached = { kind: "ready", purpose: "daily_note", slot: "morning", value: note,
+    source: reservation.source, generatedAt: "2026-10-09T00:35:08Z", previous: true };
+  f.deps.rpc.mockResolvedValue({ data: cached });
+  expect(await (await f.send()).json()).toMatchObject({ kind: "ready", value: note, generatedAt: cached.generatedAt, previous: true });
+  expect(f.deps.generate).not.toHaveBeenCalled();
+  f.deps.rpc.mockResolvedValue({ data: { ...cached, source: { reminders: [{ ...reservation.source.reminders[0], id: "different" }] } } });
+  expect(await (await f.send()).json()).toEqual({ kind: "unavailable" });
+  expect(f.deps.generate).not.toHaveBeenCalled();
+});

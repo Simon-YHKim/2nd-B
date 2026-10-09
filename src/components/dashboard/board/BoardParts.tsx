@@ -115,11 +115,11 @@ function ClockRow({ part, go, openWeather }: { part: ClockPart; go: (route: stri
 }
 
 function NoteRow({ part, events }: { part: NotePart; events: BoardEvents }) {
-  const { t } = useTranslation("ops");
+  const { t, i18n } = useTranslation("ops");
   const say = useBoardText();
   const tone = boardTone(part.basis);
   return <Frame basis={part.basis} shape={part.shape}>
-    <Pressable testID="board-note-open" accessibilityRole="button" accessibilityLabel={t("phone.board.summary.titleDefault")}
+    <Pressable testID="board-note-open" accessibilityRole="button" accessibilityLabel={t("phone.board.shelf.parts.note")}
       onPress={events.openSummary} style={styles.inline}>
       <PixelGlyph name="chat" size={16} color={part.line ? tone.text : phoneIos.blue} />
       <Text variant="caption" style={[styles.flex, styles.sectionTitle]}>{t("phone.board.shelf.parts.note")}</Text>
@@ -132,6 +132,8 @@ function NoteRow({ part, events }: { part: NotePart; events: BoardEvents }) {
       </Pressable>
       <Evidence route={part.evidenceRoute} basis={part.basis} go={events.go} />
     </View> : null}
+    {part.generatedAt ? <Text variant="caption" style={styles.muted}>{t("phone.noteUpdatedAt", { time: new Date(part.generatedAt).toLocaleString(i18n.language, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) })}</Text> : null}
+    {part.previous ? <Text variant="caption" style={styles.muted}>{t("phone.notePrevious")}</Text> : null}
     <Note part={part} go={events.go} />
   </Frame>;
 }
@@ -335,12 +337,15 @@ function PartView({ part, events }: { part: BoardPart; events: BoardEvents }) {
 }
 
 /** 한 쪽. 1쪽 = 오늘 처리할 것, 2쪽 = 상태 + 승인한 맞춤 위젯 + '+ 위젯 추가'. */
-export function BoardPageView({ board, page, events }: { board: BoardContract; page: BoardPage; events: BoardEvents }) {
+export function BoardPageView({ board, page, events, recommendations }: { board: BoardContract; page: BoardPage; events: BoardEvents; recommendations?: ReactNode }) {
   const { t } = useTranslation("ops");
   // '+ 위젯 추가' 는 늘 점선(잠김 모양)이다.
   const addTone = boardTone("locked");
   return <View testID={`board-page-${page}`} style={styles.page}>
-    {partsOnPage(board, page).map((part) => <PartView key={part.id} part={part} events={events} />)}
+    {partsOnPage(board, page).map((part) => <View key={part.id} style={styles.stack}>
+      <PartView part={part} events={events} />
+      {part.id === "P-02" ? recommendations : null}
+    </View>)}
     {page === 2 ? <>
       {board.approved.map((widget) => <Frame key={widget.id} basis={widget.basis} shape="card"><WidgetTile widget={widget} events={events} /></Frame>)}
       <Pressable accessibilityRole="button" accessibilityLabel={t("phone.board.addWidget")} onPress={() => events.go(board.addWidgetRoute)}>

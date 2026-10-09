@@ -1,3 +1,4 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 import { SceneTransition } from "@/components/motion/SceneTransition";
 // /capture v2 — multi-mode "자재 반입" screen.
 //
@@ -21,7 +22,6 @@ import {
   View,
   StyleSheet,
   ActivityIndicator,
-  ScrollView,
   Platform,
   Pressable,
   AppState,

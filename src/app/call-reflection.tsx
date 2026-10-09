@@ -1,9 +1,10 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 // Call reflection follows the F3 decision in CLAUDE.md: the app never records
 // a call. The user selects an audio file that already exists on their device,
 // the server turns it into text, and only text the user explicitly approves is
 // saved as a call_reflection record. The original file remains the user's file.
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";

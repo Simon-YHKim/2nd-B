@@ -49,3 +49,11 @@ test("a response for another seat cannot populate the requested card", async () 
   mockInvoke.mockResolvedValue(reply);
   expect((await request("owner", "triage", "ko")).ok).toBe(false);
 });
+
+
+test("only a validated ready response can carry a previous note timestamp", async () => {
+  mockInvoke.mockResolvedValue({ ...reply, data: { ...reply.data, generatedAt: "2026-10-09T00:35:08Z", previous: true } });
+  expect(await request("owner", "open", "ko")).toMatchObject({ ok: true, generatedAt: "2026-10-09T00:35:08Z", previous: true });
+  mockInvoke.mockResolvedValue({ data: { kind: "denied", value: note, generatedAt: "2026-10-09T00:35:08Z", previous: true } });
+  expect(await request("owner", "open", "ko")).toEqual({ ok: false, reason: "denied" });
+});

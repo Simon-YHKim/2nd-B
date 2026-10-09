@@ -10,7 +10,7 @@ export const DASHBOARD_GENERATION_ENABLED = process.env.EXPO_PUBLIC_DASHBOARD_GE
 
 export async function requestBoardGeneration(
   ownerId: string, action: "open" | "summary" | "triage", locale: string, signal?: AbortSignal,
-): Promise<ValidatedBoardOutput | { ok: false; reason: GenerationState }> {
+): Promise<(ValidatedBoardOutput & { generatedAt?: string; previous?: boolean }) | { ok: false; reason: GenerationState }> {
   const invalid = { ok: false, reason: "unavailable" } as const;
   if (!DASHBOARD_GENERATION_ENABLED) return { ok: false, reason: "disabled" };
   if (currentPrivacyChange(ownerId)?.prefs.recommendations === false) return { ok: false, reason: "denied" };
@@ -34,7 +34,10 @@ export async function requestBoardGeneration(
     if (kind === "empty" || kind === "denied" || kind === "busy" || kind === "waiting" || kind === "limited" || kind === "disabled" || kind === "unavailable") return { ok: false, reason: kind };
     const decoded = decodeBoardResponse(result.data);
     const expected = { open: "daily_note", summary: "day_summary", triage: "inbox_triage" }[action];
-    return decoded.ok && decoded.seat === expected ? decoded : invalid;
+    if (!decoded.ok || decoded.seat !== expected) return invalid;
+    const { generatedAt, previous } = result.data as Record<string, unknown>;
+    return typeof generatedAt === "string" && Number.isFinite(Date.parse(generatedAt))
+      ? { ...decoded, generatedAt, previous: previous === true } : decoded;
   } catch { return invalid; }
   finally { clearTimeout(timeout); stopOwner(); stopPrivacy(); pending.release(); }
 }
