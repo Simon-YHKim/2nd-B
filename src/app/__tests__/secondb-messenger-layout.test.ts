@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
+import { getReplyActions, getWikiSuggestion, isCurrentWikiSuggestion } from "@/lib/chat/presentation-policy";
+import { isKeepable } from "@/lib/chat/keep-exchange";
 
 const source = readFileSync(resolve(__dirname, "../secondb.tsx"), "utf8");
 const transcript = source.slice(source.indexOf("turns.map((turn, i)"), source.indexOf("{sending ? (", source.indexOf("turns.map((turn, i)")));
@@ -162,6 +164,29 @@ describe("HustleK messenger layout", () => {
     expect(dock.indexOf("<ChatActionBar")).toBeLessThan(dock.indexOf("<ChatComposer"));
     expect(source).toContain("getWikiSuggestion(");
     expect(source).toContain("isCurrentWikiSuggestion(");
+  });
+
+  test("the actual action builder hides the reported test exchange and only offers relevant follow-ups", () => {
+    const quickActions = findNode(node => ts.isVariableDeclaration(node) && node.name.getText(ast) === "QUICK_ACTIONS") as ts.VariableDeclaration;
+    const quick = execute(`(${quickActions.initializer!.getText(ast)})`, {});
+    const start = source.indexOf("  const suggestionState =");
+    const builder = source.slice(start, source.indexOf("  return (", start));
+    const prefill = jest.fn();
+    const selectRev2Persona = jest.fn();
+    const build = (prompt: string, text: string, plans: Props[] = []) => execute(`(() => { ${builder}; return chatActions; })()`, {
+      turns: [{ role: "user", text: prompt }, { role: "secondb", text }], conversationId: { current: 1 },
+      sending: false, keptIdx: new Set(), keeping: null, keepNotice: null,
+      getReplyActions, getWikiSuggestion, isCurrentWikiSuggestion, isKeepable,
+      chatPlans: { actions: plans }, QUICK_ACTIONS: quick, t: (key: string) => key, locale: "ko",
+      composerRef: { current: { prefill } }, selectRev2Persona,
+    }) as { id: string; onPress: () => void }[];
+    expect(build("test", "확인했습니다, Hotline_blingbling님. 무엇을 도와드릴까요?")).toEqual([]);
+    const choice = build("이직할까?", "이직 여부는 지금 하는 일에서 얻는 경험과 새 일자리에서 기대하는 기회를 함께 비교해 볼 수 있어요.");
+    expect(choice.map(action => action.id)).toEqual(["follow-up-1"]);
+    choice[0].onPress();
+    expect(selectRev2Persona).toHaveBeenCalledWith("twi");
+    expect(prefill).toHaveBeenCalledWith("이 생각을 전혀 다른 관점에서 펼쳐줘.");
+    expect(build("내일 오후 세시에 서류를 제출해야 해", "내일 제출할 서류를 확인해 두세요.", [{ id: "plan-reminder" }]).map(action => action.id)).toEqual(["plan-reminder"]);
   });
 
   test("the composer uses a multiline growing input and preserves draft ownership", () => {

@@ -50,7 +50,7 @@ import {
 import { captureAccountOwnerLease, subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { chatAutosaveAllowed } from "@/lib/chat/autosave";
-import { getExchangeExpression, getWikiSuggestion, isCurrentWikiSuggestion } from "@/lib/chat/presentation-policy";
+import { getExchangeExpression, getReplyActions, getWikiSuggestion, isCurrentWikiSuggestion, type ChatFollowUp } from "@/lib/chat/presentation-policy";
 import { createChatAutosaveSession } from "@/lib/chat/autosave-session";
 import { shouldShowChatSaveNotice, useChatSaveNoticeDismissed } from "@/lib/chat/save-notice";
 import { classifyInput } from "@/lib/safety/classifier";
@@ -130,11 +130,11 @@ const pillAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.
 
 // Quick-action chips offered under an answer (chat pack §8). Each prefills
 // the composer with a short follow-up in the village voice; the user sends.
-const QUICK_ACTIONS: { ko: string; en: string; mode?: "divergent"; prompt: { ko: string; en: string } }[] = [
-  { ko: "다음 한 걸음", en: "Next step", prompt: { ko: "지금 할 수 있는 다음 한 걸음으로 줄여줘.", en: "Narrow this to one next step I can take today." } },
-  { ko: "새 관점으로", en: "New angle", mode: "divergent", prompt: { ko: "이 생각을 전혀 다른 관점에서 펼쳐줘.", en: "Unfold this from a completely different angle." } },
-  { ko: "왜 이렇게 봤어?", en: "Why this?", prompt: { ko: "왜 그렇게 봤는지 참고한 별가루를 들어 설명해줘.", en: "Explain why you saw it that way, citing the pieces you used." } },
-  { ko: "다시 짧게", en: "Shorter", prompt: { ko: "더 짧게 한 문장으로 말해줘.", en: "Say that again, shorter. One sentence." } },
+const QUICK_ACTIONS: { kind: ChatFollowUp; ko: string; en: string; mode?: "divergent"; prompt: { ko: string; en: string } }[] = [
+  { kind: "next-step", ko: "다음 한 걸음", en: "Next step", prompt: { ko: "지금 할 수 있는 다음 한 걸음으로 줄여줘.", en: "Narrow this to one next step I can take today." } },
+  { kind: "new-angle", ko: "새 관점으로", en: "New angle", mode: "divergent", prompt: { ko: "이 생각을 전혀 다른 관점에서 펼쳐줘.", en: "Unfold this from a completely different angle." } },
+  { kind: "explain", ko: "왜 이렇게 봤어?", en: "Why this?", prompt: { ko: "왜 그렇게 봤는지 참고한 별가루를 들어 설명해줘.", en: "Explain why you saw it that way, citing the pieces you used." } },
+  { kind: "shorter", ko: "다시 짧게", en: "Shorter", prompt: { ko: "더 짧게 한 문장으로 말해줘.", en: "Say that again, shorter. One sentence." } },
 ];
 
 // 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
@@ -1127,8 +1127,7 @@ function SecondBChatBody() {
   const wikiSuggestion = getWikiSuggestion(suggestionState);
   const retryIndex = keepNotice && !keepNotice.ok && !keptIdx.has(keepNotice.i) ? keepNotice.i : null;
   const saveIndex = keeping ?? retryIndex ?? wikiSuggestion?.replyIndex ?? null;
-  const lastTurn = turns[turns.length - 1];
-  const hasReplyActions = !!lastTurn && isKeepable(lastTurn) && lastTurn.safetyZone !== "red" && !sending;
+  const replyActions = getReplyActions({ turns, sending });
   const chatActions: ChatAction[] = [];
   if (saveIndex !== null) {
     chatActions.push({
@@ -1144,21 +1143,19 @@ function SecondBChatBody() {
     });
   }
   chatActions.push(...chatPlans.actions);
-  if (hasReplyActions) {
-    for (const [index, branch] of (lastTurn.branches ?? []).entries()) {
-      chatActions.push({ id: `branch-${index}`, label: branch, hint: t("fillsComposer"),
-        onPress: () => composerRef.current?.prefill(branch) });
-      chatActions.push({ id: `branch-save-${index}`, label: t("keep"), hint: t("captureBranch", { branch }),
-        onPress: () => router.push({ pathname: "/capture", params: { text: branch } }) });
-    }
-    chatActions.push(...QUICK_ACTIONS.map((qa, index) => ({
-      id: `follow-up-${index}`, label: locale === "ko" ? qa.ko : qa.en, hint: t("fillsComposer"),
-      onPress: () => {
-        if (qa.mode === "divergent") selectRev2Persona("twi");
-        composerRef.current?.prefill(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
-      },
-    })));
+  for (const [index, branch] of replyActions.branches.entries()) {
+    chatActions.push({ id: `branch-${index}`, label: branch, hint: t("fillsComposer"),
+      onPress: () => composerRef.current?.prefill(branch) });
+    chatActions.push({ id: `branch-save-${index}`, label: t("keep"), hint: t("captureBranch", { branch }),
+      onPress: () => router.push({ pathname: "/capture", params: { text: branch } }) });
   }
+  chatActions.push(...QUICK_ACTIONS.flatMap((qa, index) => replyActions.followUps.includes(qa.kind) ? [{
+    id: `follow-up-${index}`, label: locale === "ko" ? qa.ko : qa.en, hint: t("fillsComposer"),
+    onPress: () => {
+      if (qa.mode === "divergent") selectRev2Persona("twi");
+      composerRef.current?.prefill(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
+    },
+  }] : []));
   return (
     <DeepSpaceScreen active="chat" variant="windowed" header="none">
       <KeyboardAvoidingArea
