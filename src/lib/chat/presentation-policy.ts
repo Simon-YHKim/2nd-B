@@ -4,6 +4,8 @@ import { findPromptIndex, isKeepable, type KeepableTurn } from "./keep-exchange"
 export interface ChatPresentationTurn extends KeepableTurn {
   consentError?: string;
   safetyZone?: "green" | "yellow" | "red";
+  chips?: readonly string[];
+  branches?: readonly string[];
 }
 
 export interface WikiSuggestionState {
@@ -56,6 +58,61 @@ function meaningfulPair(turns: readonly ChatPresentationTurn[], replyIndex: numb
   const prompt = turns[promptIndex];
   if (prompt.synthetic || !meaningfulText(prompt.text, MIN_PROMPT_CHARS)) return null;
   return promptIndex;
+}
+
+export type ChatFollowUp = "next-step" | "new-angle" | "explain" | "shorter";
+export interface ChatReplyActions {
+  followUps: ChatFollowUp[];
+  branches: string[];
+}
+
+const TEST_ONLY = /^(?:(?:test(?:ing)?|테스트(?:입니다|예요|중)?|시험|확인|체크)(?:메시지|message)?\d*|[ㅋㅎ])+$/u;
+const GENERIC_INVITATION = /(?:무엇을\s*도와|어떻게\s*도와|어떤\s*이야기를|\b(?:how can i help|what (?:can i (?:help|do)|would you like)|como (?:puedo|posso) ajudar|en qu[eé] puedo ayudar|apa yang bisa saya bantu)\b)/iu;
+const CHOICE_TOPIC = /(?:고민|선택|장단점|결정|이직|갈등|관점|포기|비교|\b(?:decid\w*|decision|choos\w*|choice|tradeoffs?|consider\w*|dilemma|perspective|rethink|decidir|escolher|memilih|pertimbangkan)\b)/iu;
+const GOAL_TOPIC = /(?:계획|목표|준비|어디서부터|시작|습관|루틴|하고\s*싶|해야|어떻게|\b(?:plan\w*|goal|prepar\w*|start|habit|routine|want to|need to|how|objetivo|meta|rencana|mulai)\b)/iu;
+const ACTION_ADVICE = /(?:해\s*보|시도해|적어|골라|정해|나눠|만들어|확인해|(?:^\s*(?:[-*•]\s*)?|\byou (?:can|could)\s+)(?:try|write|choose|schedule|start|list|set aside|review|reserve|compare|tente|escreva|coba|tulis)\b)/iu;
+
+function substantiveFollowUpText(text: string, minimum: number): boolean {
+  const value = compact(text);
+  return meaningfulText(text, minimum) && !TEST_ONLY.test(value)
+    && !/^[\p{N}\u1100-\u11ff\u3130-\u318f]+$/u.test(value)
+    && !/^(.{1,16})\1{2,}$/u.test(value);
+}
+
+/**
+ * Each chip needs a use in the latest completed exchange. History cannot make a
+ * fresh greeting substantive. This local, conservative display policy neither
+ * calls a model nor changes the separate wiki/routine/reminder save policies.
+ */
+export function getReplyActions(state: { turns: readonly ChatPresentationTurn[]; sending: boolean }): ChatReplyActions {
+  const none = (): ChatReplyActions => ({ followUps: [], branches: [] });
+  const replyIndex = state.turns.length - 1;
+  const answer = state.turns[replyIndex];
+  if (state.sending || !usableReply(answer)) return none();
+  const promptIndex = findPromptIndex(state.turns, replyIndex);
+  if (promptIndex === null) return none();
+  const prompt = state.turns[promptIndex];
+  if (prompt.synthetic || prompt.safetyZone === "red" || prompt.consentError) return none();
+  const question = prompt.text.slice(0, 12_000);
+  const response = answer.text.slice(0, 12_000);
+  if (!substantiveFollowUpText(question, 4) || !substantiveFollowUpText(response, 12)) return none();
+  const replyLength = compact(response).length;
+  if (replyLength < 160 && GENERIC_INVITATION.test(response)) return none();
+
+  const choice = CHOICE_TOPIC.test(question);
+  const goal = choice || GOAL_TOPIC.test(question);
+  const listItems = response.match(/(?:^|\n)\s*(?:[-*•]|\d+[.)])\s+\S/gu)?.length ?? 0;
+  const sentences = response.split(/[.!?。！？\n]+/u).filter(part => part.trim());
+  const advice = sentences.filter(sentence => ACTION_ADVICE.test(sentence)).length;
+  const followUps: ChatFollowUp[] = [];
+  if (goal && advice >= 2 && (listItems >= 2 || replyLength >= 100 && sentences.length >= 3)) followUps.push("next-step");
+  if (choice && replyLength >= 24) followUps.push("new-angle");
+  // This chip asks for the records used; do not imply records were cited if none were.
+  if (answer.chips?.some(chip => chip.trim())) followUps.push("explain");
+  if (replyLength >= 220) followUps.push("shorter");
+  const branches = [...new Set((answer.branches ?? []).map(branch => branch.trim()))]
+    .filter(branch => substantiveFollowUpText(branch, 8)).slice(0, 3);
+  return { followUps, branches };
 }
 
 /**
