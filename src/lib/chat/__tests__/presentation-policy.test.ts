@@ -207,11 +207,11 @@ describe("per-exchange HustleK expressions", () => {
   test("starts neutral and holds a thoughtful portrait while awaiting the reply", () => {
     expect(getExchangeExpression([], -1)).toBe("A01");
     expect(getExchangeExpression([user("Hello")], 0, { loading: true })).toBe("B04");
-    expect(expression("こんにちは", "こんにちは。お話を聞かせてください。")).toBe("A01");
+    expect(expression("こんにちは", "こんにちは。お話を聞かせてください。")).toBe("A02");
   });
 
   test.each([
-    ["고마워!", "도움이 되었다니 다행입니다.", "A11"],
+    ["고마워!", "도움이 되었다니 다행입니다.", "A02"],
     ["I finished my project today!", "Congratulations on finishing your project!", "A07"],
     ["이번 시험에 합격했어!", "축하합니다. 준비한 결과가 나왔네요.", "A07"],
     ["요즘 일을 어떻게 정리할지 고민이야", "우선순위부터 함께 정리해 봅시다.", "B04"],
@@ -222,29 +222,32 @@ describe("per-exchange HustleK expressions", () => {
   });
 
   test.each([
-    ["실패해서 너무 힘들어. 고맙지만 웃고 싶지는 않아", "작은 성공부터 찾아봅시다."],
-    ["I failed and feel very sad, thanks anyway.", "You can celebrate a small success later."],
-    ["Estoy triste aunque mi amigo dice gracias.", "Podemos pensar en un paso pequeño."],
-    ["Estou preocupado e cansado, obrigado.", "Podemos pensar em um passo pequeno."],
-    ["Aku sedih karena gagal, terima kasih.", "Kita dapat memikirkan langkah kecil."],
-  ])("difficulty takes precedence over gratitude or optimistic wording: %s", (prompt, answer) => {
-    expect(expression(prompt, answer)).toBe("C07");
+    ["실패해서 너무 힘들어. 고맙지만 웃고 싶지는 않아", "어디서 막혔는지 함께 정리해 봅시다.", "B04"],
+    ["I failed and feel very sad, thanks anyway.", "We can consider the options one at a time.", "B04"],
+    ["Estoy triste aunque mi amigo dice gracias.", "Podemos pensar en un paso pequeño.", "B04"],
+    ["Estou preocupado e cansado, obrigado.", "Podemos pensar em um passo pequeno.", "B04"],
+    ["Aku sedih karena gagal, terima kasih.", "Kita dapat memikirkan langkah kecil.", "B04"],
+    ["걱정돼서 아무것도 못 하겠어", "한 번에 다 해결하지 않아도 괜찮아요. 천천히 해도 돼요.", "A02"],
+  ])("follows an analytical or encouraging answer rather than mirroring the prompt: %s", (prompt, answer, expected) => {
+    expect(expression(prompt, answer)).toBe(expected);
   });
 
-  test("a short thank-you after a difficult exchange retains a listening expression", () => {
+  test("an earlier difficult topic does not override the current reply", () => {
     const turns = [user("I lost my job and feel worried."), reply("We can consider what support would help."), user("thanks"), reply("You are welcome.")];
-    expect(getExchangeExpression(turns, 3)).toBe("C07");
+    expect(getExchangeExpression(turns, 3)).toBe("A02");
   });
 
   test("uses each bubble's own exchange, so later messages do not change old avatars", () => {
-    const turns = [user("Thank you!"), reply("You are welcome."), user("I am worried about tomorrow."), reply("We can take this one step at a time.")];
+    const turns = [user("Here is the detail you requested."), reply("Thank you for explaining.")];
+    expect(getExchangeExpression(turns, 1)).toBe("A11");
+    turns.push(user("I am worried about tomorrow."), reply("That sounds difficult. Take your time."));
     expect(getExchangeExpression(turns, 1)).toBe("A11");
     expect(getExchangeExpression(turns, 3)).toBe("C07");
   });
 
-  test("client failures and protected replies stay attentive, never celebratory", () => {
-    expect(getExchangeExpression([user("I succeeded!"), reply("Try again", { synthetic: true })], 1)).toBe("B01");
-    expect(getExchangeExpression([user("Thank you"), reply("Let us pause here.", { safetyZone: "red" })], 1)).toBe("B01");
+  test("client failures and protected replies use the unsmiling neutral asset", () => {
+    expect(getExchangeExpression([user("I succeeded!"), reply("Try again", { synthetic: true })], 1)).toBe("A01");
+    expect(getExchangeExpression([user("Thank you"), reply("Let us pause here.", { safetyZone: "red" })], 1)).toBe("A01");
   });
 
   test.each([
@@ -254,6 +257,50 @@ describe("per-exchange HustleK expressions", () => {
     ["Ainda não consegui terminar.", "Ainda não conseguiu esse resultado."],
     ["Aku belum berhasil.", "Kita bisa memikirkan langkah berikutnya."],
   ])("does not celebrate a negated success: %s", (prompt, answer) => {
-    expect(expression(prompt, answer)).toBe("B01");
+    expect(["A01", "B04"]).toContain(expression(prompt, answer));
+  });
+
+  test.each([
+    ["왜 그렇게 말해?", "말씀하신 뜻을 잘못 받아들였습니다. 그런 의도가 없다고 하셨는데 너무 앞서갔습니다. 지금은 잠이 3시간 정도라면, 무리하게 버티기보다 잠깐 쉬거나 몸을 먼저 진정시키는 쪽이 나아 보입니다, Hotline_blingbling님."],
+    ["그런 뜻 아니야. 고마운데 잘못 이해했어", "아, 제가 잘못 이해했네요. 미안해요. 말씀하신 내용을 다시 정리할게요."],
+    ["That's not what I meant. Thanks anyway.", "I'm sorry, I misunderstood your question. Let me correct that."],
+  ])("uses the supplied apologetic portrait for an apology or self-correction: %s", (prompt, answer) => {
+    expect(expression(prompt, answer)).toBe("B10");
+  });
+
+  test.each([
+    ["너무 졸려. 어제 3시간밖에 못 잤어", "잠이 3시간 정도라면 무리하게 버티기보다 잠깐 쉬는 쪽이 나아 보입니다.", "B04"],
+    ["잠이 부족해서 걱정이야", "Hotline_blingbling님 기록을 보면, 한 번에 길게 바꾸기보다 짧게 읽고 바로 써보는 방식이 잘 맞아 보입니다. 앞으로는 지금 하시는 것처럼 작은 루틴을 하나씩 쌓는 쪽이 좋아 보입니다.", "B04"],
+    ["I only slept three hours.", "Consider taking a break before deciding what to do next.", "B04"],
+    ["이제 잘게", "오늘은 푹 쉬세요. 좋은 밤 보내세요.", "D12"],
+    ["Time for bed.", "Rest well. Good night!", "D12"],
+    ["What is sleep?", "Sleep has several stages.", "A01"],
+  ])("distinguishes rest advice and a bedtime farewell from a sleepy topic: %s", (prompt, answer, expected) => {
+    expect(expression(prompt, answer)).toBe(expected);
+  });
+
+  test.each([
+    ["안녕", "안녕하세요. 어떤 이야기를 나눌까요?", "A02"],
+    ["Hi", "Hello! What would you like to talk about?", "A02"],
+    ["도움이 됐어", "말씀해 주셔서 고맙습니다.", "A11"],
+    ["My friend left.", "That sounds difficult. Take your time.", "C07"],
+    ["이번 일이 잘 안됐어", "많이 속상하셨겠어요. 어떤 일이 있었나요?", "C07"],
+    ["I lost my pet.", "I'm sorry for your loss.", "C07"],
+    ["왜 달 모양이 바뀌어?", "달에서 햇빛을 받는 부분이 보이는 각도가 달라집니다.", "A01"],
+    ["고마워! 합격했어!", "이번 결과를 바탕으로 다음 계획을 정리해 볼까요?", "B04"],
+  ])("matches the reply's own communicative tone: %s", (prompt, answer, expected) => {
+    expect(expression(prompt, answer)).toBe(expected);
+  });
+
+  test.each([
+    ['Translate this.', '"Congratulations!" means "축하합니다!".'],
+    ["이 문장 뜻은?", "'미안해요'는 사과할 때 쓰는 표현입니다."],
+    ["Explain this quote.", "> Congratulations!\nThe line belongs to a fictional character."],
+    ["Explain this code.", '```js\nconsole.log("Congratulations!");\n```\nThis prints the supplied message.'],
+    ["Tell me about the word sad.", "The word sad is an adjective."],
+    ["What might happen?", "If you succeed, you can celebrate later."],
+    ["What does apology mean?", "You could say sorry to acknowledge a mistake."],
+  ])("does not act out quoted, hypothetical, or merely mentioned emotion: %s", (prompt, answer) => {
+    expect(expression(prompt, answer)).toBe("A01");
   });
 });

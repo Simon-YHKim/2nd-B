@@ -6,6 +6,7 @@ import {
   type HotlineId,
   type Locale,
 } from "./lexicon";
+import { prepareCrisisScanText } from "./crisis-context";
 
 export type SafetyZone = "green" | "yellow" | "red";
 
@@ -93,8 +94,9 @@ export function classifyInput(text: string, locale: Locale, opts: ClassifyOption
     return { zone: "green", matched: [], categories: [] };
   }
   const crisisMatches: string[] = [];
+  const crisisScanText = prepareCrisisScanText(text);
   for (const term of CRISIS_TERMS[locale]) {
-    if (matchesTerm(text, term, locale)) crisisMatches.push(term);
+    if (matchesTerm(crisisScanText, term, locale)) crisisMatches.push(term);
   }
   if (crisisMatches.length > 0) {
     const h = pickCrisisHotline(locale, opts.minor);

@@ -5,6 +5,14 @@ import { PhoneTextInput } from "@/components/phone/PhoneUIKit";
 
 const MIN_HEIGHT = 36;
 const MAX_HEIGHT = 124;
+const WEB_MEASUREMENT_STYLES = [
+  "boxSizing", "width", "fontFamily", "fontSize", "fontWeight", "fontStyle", "fontStretch",
+  "fontVariant", "fontFeatureSettings", "fontVariationSettings", "fontKerning", "lineHeight",
+  "letterSpacing", "wordSpacing", "textIndent", "textTransform", "textAlign", "direction",
+  "whiteSpace", "wordBreak", "overflowWrap", "tabSize", "paddingTop", "paddingBottom",
+  "paddingLeft", "paddingRight", "borderTopWidth", "borderBottomWidth", "borderLeftWidth",
+  "borderRightWidth", "overflowX", "overflowY", "scrollbarGutter", "scrollbarWidth",
+] as const;
 
 type ChatTextInputProps = Omit<TextInputProps,
   "value" | "onChangeText" | "multiline" | "onSubmitEditing" | "onKeyPress" | "submitBehavior" | "blurOnSubmit"
@@ -27,6 +35,7 @@ export const ChatTextInput = forwardRef<TextInput, ChatTextInputProps>(function 
   value, onChangeText, onSubmit, style, onContentSizeChange, onLayout, ...rest
 }, forwardedRef) {
   const inputRef = useRef<TextInput | null>(null);
+  const measurementRef = useRef<HTMLTextAreaElement | null>(null);
   const draftRef = useRef(value);
   draftRef.current = value;
   const [height, setHeight] = useState(MIN_HEIGHT);
@@ -41,19 +50,44 @@ export const ChatTextInput = forwardRef<TextInput, ChatTextInputProps>(function 
     const node = inputRef.current as unknown as HTMLTextAreaElement | null;
     if (!node?.style) return;
     // A wrapped placeholder is not a drafted line, even on a narrow screen.
-    if (node.value === "") { resize(MIN_HEIGHT); return; }
-    // RNW reports scrollHeight while the textarea is still at its previous
-    // height. Temporarily remove that floor so deletions and prefills shrink.
-    const previousHeight = node.style.height;
-    const previousMinHeight = node.style.minHeight;
-    const border = Math.max(0, node.offsetHeight - node.clientHeight);
-    node.style.height = "0px";
-    node.style.minHeight = "0px";
-    const contentHeight = node.scrollHeight + border;
-    node.style.height = previousHeight;
-    node.style.minHeight = previousMinHeight;
-    resize(contentHeight);
+    if (node.value === "") {
+      if (measurementRef.current) measurementRef.current.value = "";
+      resize(MIN_HEIGHT); return;
+    }
+    const document = node.ownerDocument;
+    const computed = document.defaultView?.getComputedStyle(node);
+    if (!computed || parseFloat(computed.width) <= 0) return;
+    let measurement = measurementRef.current;
+    if (!measurement) {
+      measurement = document.createElement("textarea");
+      measurement.tabIndex = -1;
+      measurement.readOnly = true;
+      measurement.autocomplete = "off";
+      measurement.setAttribute("aria-hidden", "true");
+      measurementRef.current = measurement;
+    }
+    // scrollHeight has the current box as its floor. Measure without that
+    // floor on a separate node to avoid changing the editing box during IME
+    // composition. Only the final measured height is applied to the real input.
+    // Copy the used width, font, padding, borders and wrapping rules exactly,
+    // including PhoneTextInput styling, instead of inheriting from document.body.
+    for (const property of WEB_MEASUREMENT_STYLES) {
+      measurement.style[property] = computed[property];
+    }
+    Object.assign(measurement.style, {
+      position: "fixed", left: "-10000px", top: "0", visibility: "hidden", pointerEvents: "none",
+      height: "0px", minHeight: "0px", maxHeight: "none", minWidth: "0px", maxWidth: "none",
+    });
+    measurement.value = node.value;
+    if (!measurement.isConnected) document.body.appendChild(measurement);
+    const border = parseFloat(computed.borderTopWidth) + parseFloat(computed.borderBottomWidth);
+    resize(measurement.scrollHeight + border);
   }, [resize]);
+
+  useLayoutEffect(() => () => {
+    measurementRef.current?.remove();
+    measurementRef.current = null;
+  }, []);
 
   const setInputRef = useCallback((node: TextInput | null) => {
     inputRef.current = node;

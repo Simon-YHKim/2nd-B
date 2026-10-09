@@ -10,12 +10,13 @@
 // on it rather than letting the second line of defence rot.
 
 import { readFileSync } from "fs";
-import { resolve } from "path";
+import { dirname, resolve } from "path";
 
 import * as ts from "typescript";
 
 import { classifyInput } from "../classifier";
 import { CRISIS_TERMS } from "../lexicon";
+import { BENIGN_CRISIS_CONTEXTS, RISK_OR_UNRESOLVED_CRISIS_CONTEXTS } from "./crisis-context.fixtures";
 
 const PROXY_SOURCES = {
   "gemini-proxy": "../../../../supabase/functions/gemini-proxy/index.ts",
@@ -41,19 +42,32 @@ function extractArray(src: string, name: string): string[] {
 
 // Extract the real matcher source out of the Deno function, transpile it, and
 // exercise it here. We test the shipped code, not a re-implementation of it.
-function loadHasCrisisTerm(src: string): (text: string) => boolean {
+function loadHasCrisisTerm(src: string, relPath: string): (text: string) => boolean {
   const start = src.indexOf("const CRISIS_TERMS_EN");
   const fnStart = src.indexOf("function hasCrisisTerm");
   if (start < 0 || fnStart < 0) throw new Error("crisis matcher not found in proxy source");
   // The function's closing brace is the first column-0 `}` after its header.
   const end = src.indexOf("\n}", fnStart);
   if (end < 0) throw new Error("hasCrisisTerm end not found");
-  const snippet = src.slice(start, end + 2) + "\nexports.hasCrisisTerm = hasCrisisTerm;\n";
+  const contextImport = src.match(/^import \{ prepareCrisisScanText \} from ['"][^'"]+['"];$/m)?.[0];
+  if (!contextImport) throw new Error("shared crisis context import missing from proxy source");
+  const snippet = `${contextImport}\n${src.slice(start, end + 2)}\nexports.hasCrisisTerm = hasCrisisTerm;\n`;
   const js = ts.transpileModule(snippet, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
   const exportsObj: { hasCrisisTerm?: (text: string) => boolean } = {};
-  new Function("exports", js)(exportsObj);
+  // Resolve and transpile the REAL dependency using the Edge import path. A
+  // stubbed allow decision here would conceal a broken production import.
+  const loadContext = (specifier: string) => {
+    const contextPath = resolve(dirname(resolve(__dirname, relPath)), specifier);
+    const contextJs = ts.transpileModule(readFileSync(contextPath, "utf8"), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+    }).outputText;
+    const contextExports = {};
+    new Function("exports", contextJs)(contextExports);
+    return contextExports;
+  };
+  new Function("exports", "require", js)(exportsObj, loadContext);
   if (typeof exportsObj.hasCrisisTerm !== "function") {
     throw new Error("hasCrisisTerm did not evaluate to a function");
   }
@@ -78,7 +92,18 @@ describe.each(Object.entries(PROXY_SOURCES))("%s crisis-term parity", (_name, re
 // prompt) and whitespace/Unicode normalization (so a term split by a newline, or
 // NFD-decomposed Hangul, doesn't slip RED -> GREEN).
 describe.each(Object.entries(PROXY_SOURCES))("%s hasCrisisTerm behaviour parity", (_name, relPath) => {
-  const hasCrisisTerm = loadHasCrisisTerm(readProxy(relPath));
+  const hasCrisisTerm = loadHasCrisisTerm(readProxy(relPath), relPath);
+
+  test.each(BENIGN_CRISIS_CONTEXTS)("narrow benign context passes both boundaries: %s", (text) => {
+    expect(classifyInput(text, "ko").zone).not.toBe("red");
+    expect(classifyInput(text, "en").zone).not.toBe("red");
+    expect(hasCrisisTerm(text)).toBe(false);
+  });
+
+  test.each(RISK_OR_UNRESOLVED_CRISIS_CONTEXTS)("risk and unresolved context retain both boundaries: %s", (text) => {
+    expect([classifyInput(text, "ko").zone, classifyInput(text, "en").zone]).toContain("red");
+    expect(hasCrisisTerm(text)).toBe(true);
+  });
 
   test("EN: embedded substring does NOT match (word boundary)", () => {
     // "spending it" contains "ending it" as a substring; the old substring
