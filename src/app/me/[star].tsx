@@ -125,7 +125,7 @@ export default function StarSummaryRoute() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [entry, setEntry] = useState<StarEntryStatus | null>(null);
   const [profile, setProfile] = useState<ProfileCard>({ status: "loading" });
-  // 아바타는 아래 요약 상자와 같은 폭으로 그린다(Simon 2026-10-07). 폭은 재야 안다.
+  // 승인한 가져오기 시안의 208px 초상화. 좁은 창에서는 실제 가용 폭을 따른다.
   const [avatarWidth, setAvatarWidth] = useState(0);
 
   const id: SevenStarId | null =
@@ -191,14 +191,14 @@ export default function StarSummaryRoute() {
     : t("ds.star.openProfile");
 
   return (
-    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={name} onBack={() => router.back()}>
-      <ScrollView contentContainerStyle={styles.body}>
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={isProfileStar ? t("ds.star.pageLabel") : name} onBack={() => router.back()}>
+      <ScrollView contentContainerStyle={[styles.body, isProfileStar && styles.profileBody]}>
         {/* 레퍼런스는 별 이름 위에 화면 이름을 둔다 — 어느 별에 있든 "여기가 요약
             자리"라는 것이 먼저 읽혀야 하기 때문이다(design/pixel_clay_260825
             captures/me-star.png). */}
         {isProfileStar ? (
-          // 프로필 별(Simon 2026-10-07): 왼쪽 위 제목, 오른쪽 위 연필(설정/수정),
-          // 첫째 줄 큰 아바타, 둘째 줄 요약 세 줄.
+          // Simon 승인 시안(2026-10-09): 제목/연필, 초상화, 이름/상태,
+          // 좌우 정렬한 정보 표, 가져오기 카드, 이력 링크.
           <>
             <View style={styles.profileHeader}>
               <Text style={[m3TextStyle("headlineSmall"), styles.title, styles.profileTitle]}>{name}</Text>
@@ -208,7 +208,7 @@ export default function StarSummaryRoute() {
                 onPress={() => router.push("/profile-details")}
                 style={styles.editButton}
               >
-                <PixelGlyph name="edit" size={24} color={m3.color.primary} />
+                <PixelGlyph name="edit" size={20} color={m3.color.primary} />
               </Pressable>
             </View>
             <View
@@ -221,30 +221,39 @@ export default function StarSummaryRoute() {
               {avatarWidth > 0 ? (
                 <AvatarPreview spec={profile.status === "ready" ? profile.avatar ?? DEFAULT_AVATAR_SPEC : DEFAULT_AVATAR_SPEC} size={avatarWidth} />
               ) : null}
+            </View>
+            <View style={styles.profileIdentity}>
               {profileName ? <Text style={[m3TextStyle("titleMedium"), styles.title]}>{profileName}</Text> : null}
-              {profile.status === "ready" && profile.statusMessage ? <Text style={[m3TextStyle("bodyMedium"), styles.profileStatus]}>{profile.statusMessage}</Text> : null}
+              {profile.status === "ready" && profile.statusMessage ? <Text style={[m3TextStyle("bodySmall"), styles.profileStatus]}>{profile.statusMessage}</Text> : null}
             </View>
             {profileLines.length > 0 ? (
-              <MdCard variant="outlined" style={styles.card}>
+              <View style={styles.profilePanel}>
                 <ScrollView style={styles.profileSummary} nestedScrollEnabled showsVerticalScrollIndicator>
                   {profileLines.map((line, index) => (
                     <View key={index} style={styles.profileFact}>
-                      {profileParts[index] ? <Text style={[m3TextStyle("bodySmall"), styles.factLabel]}>{t(`deepspace:profileDetails.${profileParts[index].key}Label`)}</Text> : null}
-                      <Text style={[m3TextStyle("bodyLarge"), profileParts.length > 0 ? styles.factValue : styles.muted]}>{line}</Text>
+                      {profileParts[index] ? <Text style={[m3TextStyle("bodyMedium"), styles.factLabel]}>{t(`deepspace:profileDetails.${profileParts[index].key}Label`)}</Text> : null}
+                      <Text style={[m3TextStyle("bodyMedium"), profileParts.length > 0 ? styles.factValue : styles.muted]}>{line}</Text>
                     </View>
                   ))}
                 </ScrollView>
-              </MdCard>
+              </View>
             ) : null}
             <Pressable accessibilityRole="button" onPress={() => router.push("/profile-import")} style={styles.importRow}>
-              <PixelGlyph name="add" size={24} color={m3.color.primary} />
-              <View style={styles.heroCopy}>
-                <Text style={[m3TextStyle("titleSmall"), styles.title]}>{t("profile:contextImport.title")}</Text>
+              <PixelGlyph name="upload" size={20} color={m3.color.primary} />
+              <View style={styles.importCopy}>
+                <Text style={[m3TextStyle("titleMedium"), styles.title]}>{t("profile:contextImport.title")}</Text>
                 <Text style={[m3TextStyle("bodySmall"), styles.muted]}>{t("profile:contextImport.subtitle")}</Text>
               </View>
               <PixelGlyph name="chevron_right" size={20} color={m3.color.primary} />
             </Pressable>
-            <MdButton label={t("profile:contextImport.history")} variant="text" onPress={() => router.push({ pathname: "/profile-import", params: { mode: "history" } })} />
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push({ pathname: "/profile-import", params: { mode: "history" } })}
+              style={styles.historyLink}
+            >
+              <Text style={[m3TextStyle("bodyMedium"), styles.historyLabel]}>{t("profile:contextImport.history")}</Text>
+              <PixelGlyph name="history" size={20} color={m3.color.primary} />
+            </Pressable>
           </>
         ) : (
           <>
@@ -378,18 +387,24 @@ export default function StarSummaryRoute() {
 
 const styles = StyleSheet.create({
   body: { padding: spacing.lg, gap: spacing.sm },
+  profileBody: { paddingHorizontal: 14, paddingVertical: 18, gap: 0 },
   pageLabel: { color: m3.color.onSurfaceVariant, marginBottom: spacing.xs },
   sectionLabel: { color: m3.color.onSurfaceVariant, marginTop: spacing.sm },
   hero: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  profileHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  profileHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 44 },
   profileTitle: { flex: 1 },
   editButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  profileAvatarRow: { alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
+  profileAvatarRow: { alignItems: "center", justifyContent: "center", height: 214 },
+  profileIdentity: { alignItems: "center", marginTop: spacing.xs, marginBottom: 15 },
   profileStatus: { color: m3.color.onSurfaceVariant, textAlign: "center", maxWidth: 360 },
-  profileFact: { flexDirection: "row", gap: spacing.md, paddingVertical: spacing.sm },
-  factLabel: { color: m3.color.onSurfaceVariant, width: 90 },
-  factValue: { color: m3.color.onSurface, flex: 1 },
-  importRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.md, marginTop: spacing.md, borderWidth: 1, borderColor: m3.color.outlineVariant, backgroundColor: m3.color.surfaceContainerLow, minHeight: 76 },
+  profilePanel: { paddingVertical: 13, paddingHorizontal: 14, backgroundColor: m3.color.surfaceContainerLow, borderWidth: 2, borderTopColor: m3.color.surfaceBright, borderLeftColor: m3.color.surfaceBright, borderRightColor: m3.color.background, borderBottomColor: m3.color.background },
+  profileFact: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md, paddingVertical: 3 },
+  factLabel: { color: m3.color.onSurfaceVariant, flexShrink: 0, maxWidth: "40%" },
+  factValue: { color: m3.color.onSurface, flex: 1, textAlign: "right" },
+  importRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.lg, marginTop: 17, borderWidth: 2, borderTopColor: m3.color.surfaceBright, borderLeftColor: m3.color.surfaceBright, borderRightColor: m3.color.background, borderBottomColor: m3.color.background, backgroundColor: m3.color.surfaceContainerLow, minHeight: 86 },
+  importCopy: { flex: 1, gap: 6 },
+  historyLink: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 44, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm, marginTop: 6 },
+  historyLabel: { color: m3.color.primary },
   // 다섯 줄(bodyLarge 줄 높이 x 5)을 넘으면 상자 안에서 스크롤한다.
   profileSummary: { maxHeight: m3.type.bodyLarge.line * 5 },
   heroCopy: { flex: 1 },
