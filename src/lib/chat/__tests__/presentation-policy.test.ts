@@ -1,4 +1,5 @@
 import {
+  getReplyActions,
   getExchangeExpression,
   getWikiSuggestion,
   isCurrentWikiSuggestion,
@@ -19,6 +20,71 @@ const discussion = (): ChatPresentationTurn[] => [
 const state = (overrides: Partial<WikiSuggestionState> = {}): WikiSuggestionState => ({
   turns: discussion(), conversationId: 1, sending: false, keepingIndex: null,
   keptIndices: new Set<number>(), ...overrides,
+});
+
+describe("contextual reply actions", () => {
+  const actions = (prompt: string, answer: string, extra: Partial<ChatPresentationTurn> = {}) =>
+    getReplyActions({ turns: [user(prompt), reply(answer, extra)], sending: false });
+  const longAnswer = "The project has several tradeoffs. Working alone gives you control over the schedule, while a team brings more feedback and shared responsibility. Compare the time you have available, the skills you want to build, and the people you can ask for help before deciding which approach fits this project best.";
+
+  test.each(["test", "TEST 123", "테스트", "테스트입니다", "안녕", "고마워", "네", "ㅋㅋㅋㅋ", "ㅁㄴㅇㅁㄴㅇ", "12345", "test ".repeat(40)])(
+    "does not manufacture follow-ups from social or test input: %s", prompt => {
+      expect(actions(prompt, longAnswer, { chips: ["my-project"], branches: ["Compare the project options"] })).toEqual({ followUps: [], branches: [] });
+    },
+  );
+
+  test("reproduces the reported greeting after test", () => {
+    expect(actions("test", "확인했습니다, Hotline_blingbling님. 무엇을 도와드릴까요?")).toEqual({ followUps: [], branches: [] });
+  });
+
+  test("a fresh acknowledgement hides old actions even after a substantial conversation", () => {
+    expect(getReplyActions({ turns: [...discussion(), user("고마워"), reply(longAnswer)], sending: false }).followUps).toEqual([]);
+  });
+
+  test("simple factual replies and generic invitations have no follow-up buttons", () => {
+    expect(actions("프랑스 수도가 어디야?", "프랑스의 수도는 파리입니다.").followUps).toEqual([]);
+    expect(actions("직장을 옮길지 고민하고 있어", "안녕하세요. 무엇을 도와드릴까요?").followUps).toEqual([]);
+    expect(actions("I am considering a new career", "Hello, Alex. How can I help you today?").followUps).toEqual([]);
+  });
+
+  test("new-angle is relevant to a real choice, even a short question", () => {
+    expect(actions("이직할까?", "이직 여부는 지금 하는 일에서 얻는 경험과 새 일자리에서 기대하는 기회를 함께 비교해 볼 수 있어요.").followUps).toEqual(["new-angle"]);
+    expect(actions("I am deciding whether to work alone or join a team", longAnswer).followUps).toEqual(["new-angle", "shorter"]);
+  });
+
+  test("next-step narrows several actionable suggestions, not an already short single step", () => {
+    expect(actions("발표 준비를 어디서부터 시작할지 고민이야", "1. 발표에서 전하고 싶은 핵심 문장을 적어 보세요.\n2. 그 문장을 뒷받침할 사례를 골라 보세요.\n3. 마지막으로 발표 순서를 정해 보세요.").followUps).toEqual(["next-step", "new-angle"]);
+    expect(actions("책 읽는 습관을 만들고 싶어", "오늘은 책을 펴고 한 쪽만 읽어 보세요.").followUps).toEqual([]);
+    expect(actions("태양계의 행성 이름을 알려줘", "1. 수성은 태양에 가장 가까운 행성입니다.\n2. 금성은 두 번째 행성입니다.\n3. 지구는 세 번째 행성입니다.").followUps).toEqual([]);
+  });
+
+  test("why-this requires actual cited records; shorter requires a long answer", () => {
+    const prompt = "내가 집중이 잘 됐던 시간을 기록에서 찾아줘";
+    const answer = "지난 기록에는 오전에 글을 쓸 때 집중하기 좋았다고 적혀 있어요.";
+    expect(actions(prompt, answer).followUps).toEqual([]);
+    expect(actions(prompt, answer, { chips: ["morning-note"] }).followUps).toEqual(["explain"]);
+    expect(actions("Explain the history of the printing press", longAnswer).followUps).toEqual(["shorter"]);
+  });
+
+  test("Twi branches require a usable exchange and omit blank or duplicate entries", () => {
+    expect(actions("프로젝트 방향을 함께 고민해 줘", "프로젝트를 살펴볼 수 있는 두 가지 선택지가 있어요.", {
+      branches: ["작은 실험부터 시작해 보기", "  ", "작은 실험부터 시작해 보기", "함께할 사람에게 의견 묻기"],
+    }).branches).toEqual(["작은 실험부터 시작해 보기", "함께할 사람에게 의견 묻기"]);
+  });
+
+  test.each([{ synthetic: true }, { consentError: "paused" }, { safetyZone: "red" as const }])(
+    "system and blocked replies cannot propose actions: %j", extra => {
+      expect(actions("I am deciding how to plan this project", longAnswer, extra).followUps).toEqual([]);
+    },
+  );
+
+  test("pending, missing, refused, or unfinished exchanges have no actions", () => {
+    expect(getReplyActions({ turns: discussion(), sending: true }).followUps).toEqual([]);
+    expect(getReplyActions({ turns: [], sending: false }).followUps).toEqual([]);
+    expect(getReplyActions({ turns: [reply(longAnswer)], sending: false }).followUps).toEqual([]);
+    expect(getReplyActions({ turns: [...discussion(), user("Next question")], sending: false }).followUps).toEqual([]);
+    expect(actions("I am deciding how to plan this project", "I cannot help with that request. " + longAnswer).followUps).toEqual([]);
+  });
 });
 
 describe("conversation wiki suggestion", () => {

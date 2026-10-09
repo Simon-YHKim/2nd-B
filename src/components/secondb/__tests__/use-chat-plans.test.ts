@@ -191,7 +191,7 @@ test("shipping action order keeps eligible wiki first, then plans, then conversa
   const start = source.indexOf("const chatActions: ChatAction[] = [];");
   const wiki = source.indexOf('id: "keep-wiki"', start);
   const plans = source.indexOf("chatActions.push(...chatPlans.actions)", start);
-  const followups = source.indexOf("chatActions.push(...QUICK_ACTIONS.map", start);
+  const followups = source.indexOf("chatActions.push(...QUICK_ACTIONS.", start);
   expect(start).toBeGreaterThan(-1); expect(wiki).toBeGreaterThan(start);
   expect(plans).toBeGreaterThan(wiki); expect(followups).toBeGreaterThan(plans);
 });
