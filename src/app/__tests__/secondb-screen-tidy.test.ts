@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
+import { chatStatusMaxLines } from "@/components/secondb/chat-font-layout";
 
 // UI2-CHAT-01..05: execute only source expressions, never a React/RN renderer.
 const source = readFileSync(resolve(__dirname, "../secondb.tsx"), "utf8").replace(/\r\n/g, "\n");
@@ -70,8 +71,8 @@ describe("chat screen tidy", () => {
     }
   });
 
-  test("status keeps one truncated description and reserves usage and clear", () => {
-    const description = tree(elementByStyle("bannerDesc"), { rev2Persona: "meta" });
+  test.each([1, 1.3])("status at scale %s keeps one truncated description and reserves usage and clear", fontScale => {
+    const description = tree(elementByStyle("bannerDesc"), { rev2Persona: "meta", fontScale, chatStatusMaxLines });
     expect(description.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: "tail" });
     expect(description.children).toEqual(["rev2.meta.desc"]);
     expect(style("banner")).toMatchObject({ flexDirection: "row", alignItems: "center" });
@@ -137,12 +138,17 @@ describe("chat screen tidy", () => {
     }
   });
 
-  test.each([360, 390])("%ipx width leaves positive text space with maximum daily usage and 44px close", width => {
+  test.each([[360, 1], [390, 1], [360, 1.3], [390, 1.3]])("%ipx width at scale %s preserves a single status line and positive text space", (width, fontScale) => {
     // Shell inset + border = 26; transcript inset = 36. Conservative glyph bounds:
-    // 999/999 at the 11px mono size, and four 12px glyphs for settings/clear.
+    // 999/999 at the scaled 11px mono size, and four scaled 12px glyphs for clear.
+    // This reserves space; actual glyph layout remains a native device check.
     const banner = style("banner");
-    const statusTextWidth = width - 26 - 2 * Number(banner.paddingHorizontal) - 2 * Number(banner.gap) - 7 * 11 - (4 * 12 + 8);
-    expect(statusTextWidth).toBeGreaterThanOrEqual(120);
+    const statusTextWidth = width - 26 - 2 * Number(banner.paddingHorizontal) - 2 * Number(banner.gap) - 7 * 11 * fontScale - (4 * 12 * fontScale + 8);
+    expect(statusTextWidth).toBeGreaterThan(0);
+    if (fontScale === 1) expect(statusTextWidth).toBeGreaterThanOrEqual(120);
+    const description = tree(elementByStyle("bannerDesc"), { rev2Persona: "secondb", fontScale, chatStatusMaxLines });
+    expect(description.props.numberOfLines).toBe(1);
+    // The save notice is unchanged; retain its original unscaled width guard.
     const notice = style("saveNotice");
     const noticeTextWidth = width - 26 - 36 - 2 * Number(notice.borderWidth) - Number(notice.paddingLeft) - 2 * Number(notice.gap) - (4 * 12 + 16) - Number(style("saveNoticeClose").width);
     expect(noticeTextWidth).toBeGreaterThanOrEqual(170);

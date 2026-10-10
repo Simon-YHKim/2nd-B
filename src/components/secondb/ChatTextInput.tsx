@@ -2,11 +2,9 @@ import { forwardRef, useCallback, useLayoutEffect, useRef, useState } from "reac
 import { Platform, StyleSheet, useWindowDimensions, type TextInput, type TextInputProps, type TextStyle } from "react-native";
 
 import { PhoneTextInput } from "@/components/phone/PhoneUIKit";
+import { CHAT_INPUT_SIZE, chatInputMinimumHeight } from "./chat-font-layout";
 
-const MIN_HEIGHT = 36;
-const MAX_HEIGHT = 124;
-const LINE_HEIGHT = 22;
-const VERTICAL_PADDING = 7;
+const { minHeight: MIN_HEIGHT, maxHeight: MAX_HEIGHT, lineHeight: LINE_HEIGHT, verticalPadding: VERTICAL_PADDING } = CHAT_INPUT_SIZE;
 const WEB_MEASUREMENT_STYLES = [
   "boxSizing", "width", "fontFamily", "fontSize", "fontWeight", "fontStyle", "fontStretch",
   "fontVariant", "fontFeatureSettings", "fontVariationSettings", "fontKerning", "lineHeight",
@@ -40,13 +38,11 @@ export const ChatTextInput = forwardRef<TextInput, ChatTextInputProps>(function 
   const measurementRef = useRef<HTMLTextAreaElement | null>(null);
   const draftRef = useRef(value);
   draftRef.current = value;
-  const [height, setHeight] = useState(MIN_HEIGHT);
+  const [height, setHeight] = useState<number>(MIN_HEIGHT);
   const { fontScale } = useWindowDimensions();
   // Preserve the existing 1.0/1.3 layout. At larger Android scales an empty
   // draft also needs room for the scaled line, padding and PhoneTextInput border.
-  const minimumHeight = Platform.OS === "android" && fontScale > 1.3
-    ? Math.min(MAX_HEIGHT, Math.ceil(LINE_HEIGHT * fontScale + 2 * VERTICAL_PADDING + 4))
-    : MIN_HEIGHT;
+  const minimumHeight = chatInputMinimumHeight(Platform.OS, fontScale);
   const inputHeight = Math.max(height, minimumHeight);
 
   const resize = useCallback((contentHeight: number) => {
