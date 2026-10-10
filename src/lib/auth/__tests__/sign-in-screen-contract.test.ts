@@ -109,13 +109,14 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
   });
 
   test("renders the three retained brands as crisp pixel geometry", () => {
+    const source = read("src/components/auth/ProviderBrandIcon.tsx");
     expect(source).toContain('<Svg width={32} height={32} viewBox="0 0 16 16">');
-    expect(source).toContain("PIXEL_BRAND_CELLS[provider].map");
+    expect(source).toContain("cells.map");
     expect(source).toContain("<Rect");
-    expect(source).toContain('"#EA4335"');
-    expect(source).toContain('"#FBBC05"');
-    expect(source).toContain('"#34A853"');
-    expect(source).toContain('"#4285F4"');
+    expect(source).toContain("semantic.googleBrandRed");
+    expect(source).toContain("semantic.googleBrandYellow");
+    expect(source).toContain("semantic.googleBrandGreen");
+    expect(source).toContain("semantic.googleBrandBlue");
   });
 
   test("uses the raised bevel as the standard for sign-in actions and legal links", () => {

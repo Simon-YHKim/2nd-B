@@ -1,8 +1,9 @@
+import { ProviderBrandIcon } from "@/components/auth/ProviderBrandIcon";
 import { useRef, useState } from "react";
 import { Platform, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { router } from "expo-router";
-import Svg, { Rect } from "react-native-svg";
+import Svg from "react-native-svg";
 import {
   AccountDeletionNoticePanel,
   useAccountDeletionNotice,
@@ -28,85 +29,13 @@ import { m3 } from "@/lib/theme/m3";
 const SIGN_IN_PROVIDERS = ["google", "apple", "github"] as const satisfies readonly OAuthProvider[];
 
 type SignInProvider = (typeof SIGN_IN_PROVIDERS)[number];
-type PixelBrandCell = readonly [
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  fill?: string,
-];
-
 const PROVIDER_KEY: Record<SignInProvider, string> = {
   google: "auth:signIn.continueWithGoogle",
   apple: "auth:signIn.continueWithApple",
   github: "auth:signIn.continueWithGithub",
 };
 
-// PIXEL-CLAY v4 시안의 실제 브랜드 실루엣을 16 x 16 정수 격자로 옮겼다.
-// Google의 네 색은 앱 팔레트가 아니라 브랜드 식별에 필요한 고정 색상이다.
-const PIXEL_BRAND_CELLS: Record<SignInProvider, readonly PixelBrandCell[]> = {
-  google: [
-    [5, 2, 6, 2, "#EA4335"],
-    [3, 4, 2, 1, "#EA4335"],
-    [11, 4, 2, 1, "#EA4335"],
-    [2, 5, 2, 4, "#FBBC05"],
-    [2, 9, 2, 2, "#34A853"],
-    [3, 11, 2, 1, "#34A853"],
-    [5, 12, 6, 2, "#34A853"],
-    [8, 7, 6, 2, "#4285F4"],
-    [12, 9, 2, 2, "#4285F4"],
-    [11, 11, 2, 1, "#4285F4"],
-  ],
-  apple: [
-    [9, 0, 3, 1],
-    [10, 1, 2, 1],
-    [8, 2, 1, 1],
-    [4, 3, 3, 1],
-    [9, 3, 3, 1],
-    [3, 4, 9, 1],
-    [2, 5, 9, 3],
-    [2, 8, 11, 2],
-    [3, 10, 10, 2],
-    [4, 12, 8, 1],
-    [5, 13, 2, 1],
-    [9, 13, 2, 1],
-  ],
-  github: [
-    [3, 1, 2, 1],
-    [11, 1, 2, 1],
-    [3, 2, 3, 1],
-    [10, 2, 3, 1],
-    [3, 3, 10, 1],
-    [2, 4, 12, 1],
-    [1, 5, 14, 4],
-    [2, 9, 12, 1],
-    [3, 10, 10, 1],
-    [4, 11, 3, 1],
-    [9, 11, 3, 1],
-    [0, 10, 2, 1],
-    [0, 11, 1, 1],
-  ],
-};
-
 type FocusedField = "email" | "password" | null;
-
-function ProviderBrandIcon({ provider }: { provider: SignInProvider }) {
-  return (
-    <Svg width={32} height={32} viewBox="0 0 16 16">
-      {PIXEL_BRAND_CELLS[provider].map(([x, y, width, height, fill], index) => (
-        <Rect
-          // 각 브랜드의 셀 목록은 정적이며 순서도 고정돼 있다.
-          key={`${provider}-${index}`}
-          x={x}
-          y={y}
-          width={width}
-          height={height}
-          fill={fill ?? m3.color.onSurface}
-        />
-      ))}
-    </Svg>
-  );
-}
 
 function PolarisLayer({ radius, fill }: { radius: number; fill: string }) {
   return (
