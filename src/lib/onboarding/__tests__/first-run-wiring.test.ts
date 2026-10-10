@@ -44,7 +44,7 @@ describe("bundle 1 (CDA-01): only a server grant opens a first-run screen", () =
     const shell = code(SHELL);
     expect(shell).toContain('const firstRun = useFirstRunHomeGate(userId, gate === "ready", sessionId, true);');
     expect(shell).toContain('if (firstRun === "/onboarding") return <Redirect href="/onboarding" />;');
-    expect(shell).toContain('if (firstRun === "/ttfv") return <Redirect href="/ttfv" />;');
+    expect(shell).toContain('if (firstRun === "/ttfv") return <Redirect href={{ pathname: "/ttfv", params: { auto: "" } }} />;');
     expect(shell).not.toMatch(/useOnboardingComplete|useAutoTriggerTTFV|ttfvSeenAt|onboardingCompletedAt/);
     const store = code(STORE);
     // A route is decided only right after a claim came back granted.
