@@ -19,6 +19,21 @@ describe("chatfont: Android composer alignment", () => {
     }
   });
 
+  // Android 16 emulator, 2026-10-10: one typed character left the box at one line (47.14dp at 1.31,
+  // 62dp at 2.0, plus up to 4dp of border) yet the buttons dropped to the bottom because the old
+  // comparison was exact.
+  test.each([
+    [1.31, 47.14], [1.31, 51], [2, 62.3], [2, 66], [1, 40.2], [1.3, 51],
+  ])("scale %s keeps a one-line box of %sdp centered despite pixel rounding and the border", (scale, measured) => {
+    expect(chatComposerAlignment("android", scale, measured)).toBe("center");
+  });
+
+  test.each([
+    [1, 58], [1.3, 71.2], [1.31, 75.8], [2, 106],
+  ])("scale %s still bottom-aligns a two-line box of %sdp", (scale, measured) => {
+    expect(chatComposerAlignment("android", scale, measured)).toBe("flex-end");
+  });
+
   test("clearing, wrapping and shrinking follow measured heights without counting newline characters", () => {
     expect([0, 62, 106, 124, 62, 0].map(height => chatComposerAlignment("android", 2, height)))
       .toEqual(["center", "center", "flex-end", "flex-end", "center", "center"]);
