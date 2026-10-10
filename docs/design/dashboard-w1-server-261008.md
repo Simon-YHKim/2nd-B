@@ -1,5 +1,14 @@
 # W1 server generation and app connection
 
+> 운영 순서 갱신(2026-10-11): 아래는 10-08 활성화 당시 기록이다. 현재 적용 순서는
+> [G2REST 인수 문서](../handoff/G2REST-261011.md)를 따른다. 0245 적용 뒤에는 최근 purge
+> 성공이 생성의 전제이고, hourly purge는 `DASHBOARD_RETENTION_ENABLED`와 무관하게 실행한다.
+> G2-06 추가: v2 lease가 호출 전 실패하거나 dispatch 없이 3분이 지나면 같은 키를 재예약할 수 있다.
+> dispatch 표시 이후·red·동의 철회·호출 여부가 불명확한 옛 예약은 재예약하지 않는다.
+> 아래의 모든 실패가 다음 키를 기다린다는 설명은 0238 당시 기록이다. A03 한마디 기능은 별도다.
+> 생성 ON/OFF 스위치는 유지한다. 0244 감사·철회 처리는 [G2W1](../handoff/G2W1-261010.md),
+> 앱과 같은 입력 판정은 [G2SAFETY](../handoff/G2SAFETY-261010.md)를 함께 읽는다.
+
 Continuation of `dashboard-w1-generation-261007.md`. Activation follow-up starts
 from origin/main `b49eff1d`. D6 remains outside this change. Runtime evidence is
 recorded in the shared mailbox after deployment; a merge alone is not activation.

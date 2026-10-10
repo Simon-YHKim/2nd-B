@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   generate:
-    if: github.repository == 'Simon-YHKim/2nd-B' && github.ref == 'refs/heads/main' && vars.DASHBOARD_RETENTION_ENABLED == 'true'
+    if: github.repository == 'Simon-YHKim/2nd-B' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
@@ -19,7 +19,6 @@ jobs:
           persist-credentials: false
       - name: Generate current local slots and expire old caches
         env:
-          DASHBOARD_RETENTION_ENABLED: 'true'
           DASHBOARD_GENERATION_ENABLED: ${{ vars.DASHBOARD_GENERATION_ENABLED }}
           # Recurring jobs cannot wait for Production's per-run human review.
           # Configuration/deployment remain on that protected environment.
