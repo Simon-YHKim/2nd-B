@@ -84,7 +84,7 @@ import { callLlm } from "@/lib/llm/boundary";
 import { IMAGINE_SEEDS, imagineSeedCopy, type ImagineSeedIcon } from "./imagine-seeds";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import { FirstRecordCoachmark } from "./FirstRecordCoachmark";
-import { KeyboardAvoidingArea, useKeyboardReveal } from "@/lib/ui/keyboard";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { markCoachmarksSeen } from "@/lib/onboarding/coachmarks-gate";
 import { RECORD_SAVE_CUE, saveCueAllowed } from "@/lib/audio/app-cues";
 import { isRecordingAudioMode } from "@/lib/audio/audio-session";
@@ -409,16 +409,12 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
   const memoCoachTargetRef = useRef<View>(null);
   const inputCoachTargetRef = useRef<View>(null);
   const saveCoachTargetRef = useRef<View>(null);
-  // Memo keyboard (device QA 2026-10-07, R2A-02 follow-up): when the keyboard first
-  // opened on the memo field, only the top 15px (about 4dp) of the save tile showed
-  // above it and it took one push to see the rest. Focusing the memo field now
-  // scrolls the save tile above the keyboard (Android; the memo field's top never
-  // goes off screen).
-  // Paused while the first-record guide is up (it measured the field where it was)
-  // and outside memo mode (the memo form it keeps on screen is not mounted there).
-  const saveReveal = useKeyboardReveal(scrollRef, {
-    active: coachStep == null && mode === "text" && !fourwOn,
-  });
+  const keyboardHostRef = useRef<View>(null);
+  const [iosKeyboardOffset, setIosKeyboardOffset] = useState(0);
+  const measureKeyboardHost = () => {
+    if (Platform.OS !== "ios") return;
+    keyboardHostRef.current?.measureInWindow((_x, y) => setIosKeyboardOffset(y));
+  };
   // Crisis safety net (parity with the journal path): createRecord runs the
   // local crisis lexicon on every note save; a red zone must surface the same
   // locale/minor-aware hotline here as everywhere else, not a silent "saved".
@@ -836,20 +832,17 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
   );
 
   return (
-    // Keyboard (QA 2026-10-05 R2A-02): on Android's edge-to-edge window nothing
-    // shrinks for the keyboard and automaticallyAdjustKeyboardInsets is iOS-only,
-    // so the 4W1H "how" field and the save tile sat under the keyboard with no
-    // way to scroll to them. The area pads the bottom by the measured overlap,
-    // the ScrollView shrinks, and Android scrolls the focused field back into
-    // view. iOS keeps the ScrollView's own inset handling (no double inset).
-    <KeyboardAvoidingArea style={styles.capCoachRoot} iosHandledByScrollView>
+    // Keep save below the scrolling form in every format (Simon 2026-10-10).
+    // The area moves BOTH siblings above the keyboard: measured Android overlap,
+    // iOS padding. Measure its parent's screen origin to include safe-area/window
+    // offsets; the inner area's local y is zero. Scroll-only insets miss the footer.
+    <View ref={keyboardHostRef} collapsable={false} style={styles.capCoachRoot} onLayout={measureKeyboardHost}>
+    <KeyboardAvoidingArea style={styles.capCoachRoot} iosKeyboardVerticalOffset={iosKeyboardOffset}>
       <ScrollView
         ref={scrollRef}
         style={styles.capScroll}
         contentContainerStyle={[styles.capBody, fillAvailableSpace && styles.capFillSpace]}
         keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets
-        {...saveReveal.scrollProps}
       >
       {/* Fixed square tiles, not a scrolling chip row (three since 2026-09-30). */}
       <View style={styles.capModeRow} accessibilityRole="tablist">
@@ -903,7 +896,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
             style={styles.capTextFormat}
           />
           {!fourwOn ? (
-            <View style={[styles.capForm, styles.capFillSpace]} {...saveReveal.keepTopProps}>
+            <View style={[styles.capForm, styles.capFillSpace]}>
               <View ref={inputCoachTargetRef} collapsable={false} style={styles.capFillSpace}>
                 <TextInput
                   value={text}
@@ -917,7 +910,6 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
                   textAlignVertical="top"
                   style={[styles.capFieldInput, styles.capFreeInput, styles.capFillSpace]}
                   accessibilityLabel={t("capture:modes.memo.label")}
-                  {...saveReveal.inputProps}
                 />
               </View>
               {attachStrip}
@@ -1026,7 +1018,9 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
       )}
 
       </SceneTransition>
-      <View ref={saveCoachTargetRef} collapsable={false} style={styles.capSubmit} {...saveReveal.targetProps}>
+      </ScrollView>
+      <View style={styles.capFooter}>
+      <View ref={saveCoachTargetRef} collapsable={false} style={styles.capSubmit}>
         <CaptureTile
           role="button"
           selected={canSave || saving || saved}
@@ -1052,6 +1046,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
           <Text style={styles.capErrorText}>{f("saveError")}</Text>
         </View>
       ) : null}
+      </View>
 
       <CrisisRouter
         visible={crisis.visible}
@@ -1073,7 +1068,6 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
         onInsert={insertOcr}
         onClose={closeOcr}
       />
-      </ScrollView>
       {coachStep ? (
         <FirstRecordCoachmark
           targetRef={coachTargetRef}
@@ -1100,6 +1094,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
         />
       ) : null}
     </KeyboardAvoidingArea>
+    </View>
   );
 }
 
@@ -2450,8 +2445,9 @@ const styles = StyleSheet.create({
 
   // ── 담기 / Capture (M3 track, clone-audit 06-capture) ──────────────────────
   capCoachRoot: { flex: 1, minHeight: 0 },
-  capScroll: { flex: 1 },
-  capBody: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 20 },
+  capScroll: { flex: 1, minHeight: 0 },
+  capBody: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 0 },
+  capFooter: { flexShrink: 0, paddingHorizontal: m3.spacing.s6, paddingBottom: m3.spacing.s8 + m3.spacing.s2 },
   // Keep the intrinsic basis: short viewports scroll, while spare height reaches
   // the memo input. RN web's flex shorthand would replace that basis with zero.
   capFillSpace: { flexGrow: 1 },
