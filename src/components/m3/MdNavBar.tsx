@@ -4,14 +4,15 @@
 // in where the dock sits today (router wiring stays in the SCREEN, not here).
 // The active state is cued by a pill indicator (not colour alone) + label
 // weight + accessibilityState, keeping the tab-bar-active-cue lineage.
-import type { ReactNode } from "react";
-import { StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import { useState, type ReactNode } from "react";
+import { Platform, StyleSheet, useWindowDimensions, type StyleProp, type ViewStyle } from "react-native";
 import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { PlainText as Text } from "@/components/ui/PlainText";
 
 import { m3 } from "@/lib/theme/m3";
 
 import { chromeFaceFor, m3TextStyle } from "./typeface";
+import { navLabelLayout, recordNavSlotWidth, type NavSlotWidths } from "./nav-label-layout";
 
 export interface MdNavItem {
   key: string;
@@ -40,6 +41,10 @@ export function MdNavBar({
   buttonLike = false,
   style,
 }: MdNavBarProps) {
+  const [slotWidths, setSlotWidths] = useState<NavSlotWidths>({});
+  const { fontScale, scale: pixelRatio } = useWindowDimensions();
+  const web = Platform.OS === "web";
+  const labelLayout = navLabelLayout(items, slotWidths, fontScale, pixelRatio, Platform.OS);
   return (
     <View
       style={[
@@ -69,6 +74,10 @@ export function MdNavBar({
             ]}
           >
             <Pressable
+              onLayout={web ? undefined : (event) => {
+                const width = event.nativeEvent.layout.width;
+                setSlotWidths(previous => recordNavSlotWidth(previous, item.key, width));
+              }}
               onPress={() => onSelect(item.key)}
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
@@ -81,6 +90,7 @@ export function MdNavBar({
                 style={[
                   styles.indicator,
                   item.center && styles.indicatorCenter,
+                  !web && { height: labelLayout.indicatorHeight },
                   on && { backgroundColor: buttonLike ? undefined : pillBg },
                 ]}
               >
@@ -92,7 +102,11 @@ export function MdNavBar({
                   styles.label,
                   { color: labelColor },
                   on && { fontFamily: chromeFaceFor("700") },
+                  !web && { fontSize: labelLayout.fontSize, lineHeight: labelLayout.lineHeight },
                 ]}
+                // Apply the system scale once in navLabelLayout. RN 0.85 Android
+                // caps fontSize but scales lineHeight with the uncapped setting.
+                allowFontScaling={web}
                 numberOfLines={1}
               >
                 {item.label}
