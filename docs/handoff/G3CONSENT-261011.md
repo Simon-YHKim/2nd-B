@@ -288,3 +288,14 @@ UI는 소스 계약 테스트이며 화면/기기 실행이라고 보고하지 �
 - PR-B 최종 verify **26/26 exit 0**, 전체 Jest **1,020 suites / 14,865 통과 / 기존 skip 1**.
   단계별 로그 `verify/n11-g3consent-fix1-*.log`, 요약 `n11-g3consent-fix1-summary.json`.
   검증용 로컬 PostgreSQL cluster는 검사 후 정상 종료했다.
+
+### PR-A 2회차 (2026-10-11)
+
+- 원문 `E:/Coding Infra/reports/qa-legacy-261004/gates/n7-g3client-daybreak-r1.txt`의 신규 medium 발견 1·2만 수정했다. PR-A `9176c839`를 PR-B에 일반 merge했다.
+- 발견 1: write 입력 snapshot으로 revision을 검증하며 동일 revision 상태 전환·최신 조회보다 낮은 재시도 응답을 거부한다. 진짜 멱등·0235 증가 응답·조회로 확인한 OFF는 수용한다. 요청 전용 revision 0은 이전 상태 미확인이므로 검증된 OFF 응답이면 성공이다.
+- 발견 2: 미확인 상태는 button, native checked와 web aria-checked 없음. 확인된 snapshot만 switch 상태를 제공한다. 기존 문구·배치·모양은 그대로다.
+- PR-A 관련 검사 **7 suites / 134 통과**, 변이 **8/8 검출·bytes 복원**, verify **26/26 exit 0**, Jest **1,020 suites / 14,862 통과 / skip 1**. 로그 `verify/n11-g3client-fix1-*.log`.
+- PR-B 통합 후 verify도 **26/26 exit 0**, Jest **1,020 suites / 14,875 통과 / skip 1**이다. 로그 `verify/n11-g3consent-clientfix1-*.log`. 두 사슬은 package.json 순서대로 실행했고 마지막 Jest는 `--ci --maxWorkers=2`다.
+- 다른 모델 **gpt-6.1-sol xhigh**의 읽기 검토에서 미해결 high/medium 없음. 0235·0246은 응답 fixture로 검사했고, 이번에는 실제 DB·보조기술·렌더러·기기를 실행하지 않았다. 새 daybreak 판정은 받지 않았다.
+- `8388e91a` 이후 DB·Edge·SQL 테스트·CI 변경은 0이다. 추가 diff는 앱/테스트 4파일과 이 절뿐이며 PR-A의 앱 5파일은 두 브랜치에서 동일하다.
+- 남긴 것: 미확인 버튼은 기존 “날씨용 위치” 이름을 유지해 끄기 동작까지 명시하지 못한다. 현재 이름 유지 또는 별도 문구 승인 후 동작 키 결정이 선택지다. G3-01·운영 반영·배포·APK는 범위 밖이며 두 PR 모두 draft를 유지한다.

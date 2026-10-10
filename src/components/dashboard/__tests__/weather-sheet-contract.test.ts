@@ -43,5 +43,19 @@ test("five locale bundles contain the consent, withdrawal, denied and credit cop
   expect(sheet).toContain('t("phone.board.weather.sourceTerms")');
   const privacy = read("src/components/privacy/WeatherPrivacyControl.tsx");
   expect(privacy).toContain("saveWeatherConsent(userId, withdrawal, false");
-  expect(privacy).toContain("aria-checked={status?.enabled === true}");
+  expect(privacy).toContain("aria-checked={status ? status.enabled : undefined}");
+});
+
+test("unconfirmed status after 429/503 exposes a withdrawal button without a checked state", () => {
+  const privacy = read("src/components/privacy/WeatherPrivacyControl.tsx");
+  // Every rejected status read (including 429/503) leaves the owner-bound snapshot unknown.
+  expect(privacy).toContain("snapshot?.ownerId === userId ? snapshot.status : null");
+  expect(privacy).toContain("setSnapshot(null); setFailed(false)");
+  expect(privacy).toContain(".catch(() => { if (!controller.signal.aborted) setFailed(true); })");
+  expect(privacy).toContain("status?.enabled === true || (!status && failed)");
+  expect(privacy).toContain('accessibilityRole={status ? "switch" : "button"}');
+  expect(privacy).toContain("accessibilityState={status ? { checked: status.enabled, disabled: !canRevoke || busy } : { disabled: !canRevoke || busy }}");
+  expect(privacy).toContain("aria-checked={status ? status.enabled : undefined}");
+  expect(privacy).toContain('accessibilityLabel={t("phone.board.weather.setting")}');
+  expect(privacy).toContain("disabled={!canRevoke || busy} onPress={() => void revoke()}");
 });

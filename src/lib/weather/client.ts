@@ -57,8 +57,9 @@ export async function saveWeatherConsent(ownerId: string, status: WeatherConsent
     return request(ownerId, { action: enabled ? "grant" : "revoke", revision: current.revision,
       locale: ["en", "ko", "es", "pt", "id"].includes(language) ? language : "en" }, signal).then(decodeConsent);
   };
+  let baseline = status;
   let next: WeatherConsent;
-  try { next = await write(status); }
+  try { next = await write(baseline); }
   catch (error) {
     if (!(error instanceof WeatherConsentConflictError)) throw error;
     assertCurrent();
@@ -66,23 +67,27 @@ export async function saveWeatherConsent(ownerId: string, status: WeatherConsent
     assertCurrent();
     // A conflict never retries an opt-in. Only withdrawal may retry, once.
     if (enabled) throw new WeatherConsentConflictError(latest);
+    // A fresh OFF snapshot confirms withdrawal without a write; otherwise it is the retry input.
+    baseline = latest;
     if (!latest.enabled) next = latest;
     else {
-      try { next = await write(latest); }
+      try { next = await write(baseline); }
       catch (retryError) {
         assertCurrent();
         if (retryError instanceof WeatherConsentConflictError) {
           try { latest = await loadWeatherConsent(ownerId, signal); }
           catch { assertCurrent(); throw new WeatherConsentConflictError(latest); }
           assertCurrent();
-          if (!latest.enabled) next = latest;
+          if (!latest.enabled) { baseline = latest; next = latest; }
           else throw new WeatherConsentConflictError(latest);
         } else throw new WeatherConsentConflictError(latest);
       }
     }
   }
   assertCurrent();
-  if (next.enabled !== enabled || next.revision < status.revision) throw new Error("weather_not_saved");
+  // Request-only revision-0 withdrawal has unknown prior state, so any decoded OFF reply confirms it.
+  if (next.enabled !== enabled || next.revision < baseline.revision ||
+      (next.revision === baseline.revision && baseline.enabled !== enabled)) throw new Error("weather_not_saved");
   commitPrivacyChange(ownerId, revision, prefs);
   return next;
 }
