@@ -13,13 +13,6 @@ import { m3 } from "@/lib/theme/m3";
 
 import { chromeFaceFor, m3TextStyle } from "./typeface";
 
-// D5: 360dp / five button tabs: (360 - 2*4 padding - 4*4 gaps)/5 - 2*2 borders = 63.2dp.
-// At labelMedium 10dp, the widest of 25 locale labels is ID "Pengaturan":
-// Galmuri9 58dp, active Galmuri11Bold 74/12*10 = 61.667dp (shipped cmap/hmtx).
-// floor((63.2 / 61.667) * 100) / 100 = 1.02, the largest hundredth that fits.
-// Only dock labels are capped; icons and full accessibility labels remain.
-const TAB_LABEL_MAX_FONT_SIZE_MULTIPLIER = 1.02;
-
 export interface MdNavItem {
   key: string;
   label: string;
@@ -101,7 +94,6 @@ export function MdNavBar({
                   on && { fontFamily: chromeFaceFor("700") },
                 ]}
                 numberOfLines={1}
-                maxFontSizeMultiplier={TAB_LABEL_MAX_FONT_SIZE_MULTIPLIER}
               >
                 {item.label}
               </Text>
