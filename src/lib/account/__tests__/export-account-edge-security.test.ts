@@ -10,6 +10,7 @@ interface ExportSource {
   order?: string[];
   select?: string;
   key?: string;
+  verifyCreatedAtIdPagination?: boolean;
 }
 
 interface ExportBudget {
@@ -131,7 +132,7 @@ function successfulAdmin(authUserId = OWNER_ID) {
   const rpc = jest.fn().mockResolvedValue({ data: 0, error: null });
   const from = jest.fn((table: string) => {
     let filter: [string, string] | null = null;
-    const awaited = Promise.resolve({ data: [] as Row[], error: null });
+    const awaited = Promise.resolve({ data: [] as Row[], error: null, count: 0 });
     const builder: TestQueryBuilder = {
       select: jest.fn(() => builder),
       eq: jest.fn((column: string, value: string) => {
@@ -168,18 +169,25 @@ interface QueryCall {
   order: string[];
   from: number;
   to: number;
+  head?: boolean;
 }
 
-function fakeDatabase(data: Record<string, Row[]>, serverPageSize = 2) {
+function fakeDatabase(data: Record<string, Row[]>, serverPageSize = 2, options: {
+  afterPage?: (page: number) => void;
+  transformPage?: (rows: Row[], page: number) => Row[];
+  recount?: { count: unknown; error: unknown };
+} = {}) {
   const calls: QueryCall[] = [];
+  let pages = 0;
   const admin = {
     from(table: string) {
       const call: QueryCall = { table, select: "*", filter: null, order: [], from: 0, to: 0 };
       let wantsCount = false;
       const builder = {
-        select(columns: string, opts?: { count?: string }) {
+        select(columns: string, opts?: { count?: string; head?: boolean }) {
           call.select = columns;
           wantsCount = opts?.count === "exact";
+          call.head = opts?.head;
           return builder;
         },
         eq(column: string, value: string) {
@@ -204,7 +212,7 @@ function fakeDatabase(data: Record<string, Row[]>, serverPageSize = 2) {
               }
               return 0;
             });
-          return {
+          const result = {
             data: rows.slice(from, from + Math.min(to - from + 1, serverPageSize))
               .map((row) => call.select === "*" ? row : Object.fromEntries(
                 call.select.split(",").map((column) => [column, row[column]]),
@@ -212,6 +220,18 @@ function fakeDatabase(data: Record<string, Row[]>, serverPageSize = 2) {
             error: null,
             count: wantsCount ? rows.length : null,
           };
+          pages += 1;
+          if (options.transformPage) result.data = options.transformPage(result.data, pages);
+          options.afterPage?.(pages);
+          return result;
+        },
+        then(resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) {
+          calls.push({ ...call, order: [...call.order] });
+          const [column, value] = call.filter ?? ["", ""];
+          const count = (data[table] ?? []).filter((row) => row[column] === value).length;
+          return Promise.resolve({
+            data: null, error: null, count: wantsCount ? count : null, ...options.recount,
+          }).then(resolve, reject);
         },
       };
       return builder;
@@ -409,6 +429,7 @@ describe("export-account bounded owned readers", () => {
     expect(descriptor).toEqual({
       table: "profile_context_imports", fk: "user_id", order: ["created_at", "id"],
       select: historyColumns.join(","),
+      verifyCreatedAtIdPagination: true,
     });
     const createdAt = "2026-10-10T00:00:00Z";
     const row = (id: string, status = "active", userId = OWNER_ID) => ({
@@ -424,12 +445,133 @@ describe("export-account bounded owned readers", () => {
     expect(rows.map(({ id }) => id)).toEqual(["1", "2", "3"]);
     expect(rows[2]).toMatchObject({ status: "withdrawn", profile_restored: true });
     expect(rows.every((entry) => Object.keys(entry).sort().join() === [...historyColumns].sort().join())).toBe(true);
-    expect(db.calls.map(({ from }) => from)).toEqual([0, 2]);
+    expect(db.calls.filter(({ head }) => !head).map(({ from }) => from)).toEqual([0, 2]);
     for (const call of db.calls) {
       expect(call.select).toBe(historyColumns.join(","));
       expect(call.filter).toEqual(["user_id", OWNER_ID]);
-      expect(call.order).toEqual(["created_at", "id"]);
+      expect(call.order).toEqual(call.head ? [] : ["created_at", "id"]);
     }
+    expect(db.calls.filter(({ head }) => head)).toHaveLength(1);
+  });
+
+  const historyDescriptor = () => edge.EXPORT_TABLES!.find((entry) => entry.table === "profile_context_imports")!;
+  const historyRows = () => Array.from({ length: 200 }, (_, index) => ({
+    id: String(index + 1).padStart(4, "0"), user_id: OWNER_ID,
+    created_at: "2026-10-10T00:00:00.123456+00:00", item_count: 1,
+    profile_change_count: 0, status: "active", withdrawn_at: null, profile_restored: false,
+  }));
+
+  test("G4-05 documents 0242 as applied and merged while the exporter rollout is pending", () => {
+    const intro = readFileSync(join(__dirname, "../../../../docs/PROFILE-CONTEXT-IMPORT.md"), "utf8")
+      .split("Implementation target:")[0];
+    expect(intro).toContain("0242 was applied on 2026-10-10");
+    expect(intro).toContain("18:58 KST (ledger version `20261010095836`)");
+    expect(intro).toContain("#2202 merged at 19:04 KST");
+    expect(intro).toContain("G4-05's 0243 and `export-account` deployment remain pending");
+    expect(intro).not.toMatch(/Pending integrity follow-up|This PR is still a draft|0242 has not been applied/);
+  });
+
+  test.each(["earlier timestamp", "smaller same-time id"])(
+    "G4-05 rejects a concurrent front insertion with %s between full pages", async (placement) => {
+      const data = { profile_context_imports: historyRows() };
+      const db = fakeDatabase(data, 100, { afterPage: (page) => {
+        if (page === 1) data.profile_context_imports.unshift({
+          ...data.profile_context_imports[0], id: "0000",
+          created_at: placement === "earlier timestamp"
+            ? "2026-10-09T23:59:59+00:00" : data.profile_context_imports[0].created_at,
+        });
+      } });
+      const budget = edge.createExportBudget!();
+      edge.reserveExportValue!(budget, { existing: true });
+      const before = { ...budget };
+      await expect(edge.readAllOwnedRows!(db.admin, historyDescriptor(), OWNER_ID, budget))
+        .rejects.toThrow("export_source_unavailable");
+      expect(budget).toEqual(before);
+      expect(db.calls.filter(({ head }) => !head).map(({ from }) => from)).toEqual([0, 100]);
+    },
+  );
+
+  test.each(["insert", "delete"])("G4-05 rechecks the owner count after the last page: %s", async (change) => {
+    const data = { profile_context_imports: historyRows() };
+    const db = fakeDatabase(data, 100, { afterPage: (page) => {
+      if (page !== 2) return;
+      if (change === "delete") data.profile_context_imports.pop();
+      else data.profile_context_imports.push({ ...data.profile_context_imports[0], id: "9999" });
+    } });
+    await expect(edge.readAllOwnedRows!(db.admin, historyDescriptor(), OWNER_ID))
+      .rejects.toThrow("export_source_unavailable");
+    expect(db.calls.at(-1)).toMatchObject({ head: true, filter: ["user_id", OWNER_ID] });
+  });
+
+  test("G4-05 scopes the recount to the owner and opts in only the new history table", async () => {
+    expect(edge.EXPORT_TABLES!.filter((entry) => entry.verifyCreatedAtIdPagination).map(({ table }) => table))
+      .toEqual(["profile_context_imports"]);
+    const data = { profile_context_imports: historyRows() };
+    const db = fakeDatabase(data, 100, { afterPage: (page) => {
+      if (page === 1) data.profile_context_imports.push({ ...data.profile_context_imports[0], user_id: OTHER_ID });
+    } });
+    await expect(edge.readAllOwnedRows!(db.admin, historyDescriptor(), OWNER_ID)).resolves.toHaveLength(200);
+    expect(db.calls.at(-1)).toMatchObject({ head: true, select: historyColumns.join(","), filter: ["user_id", OWNER_ID] });
+  });
+
+  test.each([
+    { count: null, error: null }, { count: 200, error: { message: "unavailable" } },
+    { count: 199.5, error: null },
+  ])("G4-05 fails closed when the final count is unavailable: %j", async (recount) => {
+    const db = fakeDatabase({ profile_context_imports: historyRows() }, 100, { recount });
+    await expect(edge.readAllOwnedRows!(db.admin, historyDescriptor(), OWNER_ID))
+      .rejects.toThrow("export_source_unavailable");
+  });
+
+  test.each(["timestamp reversal", "id reversal", "duplicate id at a later time", "missing id", "missing timestamp"])(
+    "G4-05 rejects %s even when the final count is unchanged", async (corruption) => {
+      const db = fakeDatabase({ profile_context_imports: historyRows() }, 100, {
+        transformPage: (rows, page) => {
+          if (page !== 2) return rows;
+          if (corruption === "timestamp reversal") rows[0].created_at = "2026-10-09T23:59:59+00:00";
+          if (corruption === "id reversal") [rows[0], rows[1]] = [rows[1], rows[0]];
+          if (corruption === "duplicate id at a later time") rows[99] = {
+            ...rows[99], id: "0001", created_at: "2026-10-10T00:00:01+00:00",
+          };
+          if (corruption === "missing id") delete rows[0].id;
+          if (corruption === "missing timestamp") delete rows[0].created_at;
+          return rows;
+        },
+      });
+      await expect(edge.readAllOwnedRows!(db.admin, historyDescriptor(), OWNER_ID))
+        .rejects.toThrow("export_source_unavailable");
+    },
+  );
+
+  test("G4-05 keeps timestamp precedence at PostgreSQL microsecond precision", async () => {
+    const rows = historyRows().slice(0, 3);
+    rows[0].id = "9999";
+    rows[1].created_at = "2026-10-10T00:00:00.123457+00:00";
+    rows[2].created_at = "2026-10-10T00:00:00.123458+00:00";
+    const db = fakeDatabase({ profile_context_imports: rows });
+    await expect(edge.readAllOwnedRows!(db.admin, historyDescriptor(), OWNER_ID)).resolves.toEqual(rows);
+  });
+
+  test("G4-05 rechecks an initially empty history", async () => {
+    const data: Record<string, Row[]> = { profile_context_imports: [] };
+    const db = fakeDatabase(data, 100, { afterPage: () => data.profile_context_imports.push(historyRows()[0]) });
+    await expect(edge.readAllOwnedRows!(db.admin, historyDescriptor(), OWNER_ID))
+      .rejects.toThrow("export_source_unavailable");
+  });
+
+  test("G4-05 returns only a 503 error envelope on a concurrent insertion", async () => {
+    const fixture = successfulAdmin();
+    const data = { profile_context_imports: historyRows() };
+    const db = fakeDatabase(data, 100, { afterPage: (page) => {
+      if (page === 1) data.profile_context_imports.unshift({ ...data.profile_context_imports[0], id: "0000" });
+    } });
+    createClientMock.mockReturnValue({
+      ...fixture.admin,
+      from: (table: string) => table === "profile_context_imports" ? db.admin.from(table) : fixture.from(table),
+    });
+    const response = await edge.handler(request({ token: jwt(), body: "{}" }));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "export_temporarily_unavailable" });
   });
 
   test.each(privateImportColumns)("G4-05 never selects internal import column %s", (column) => {

@@ -296,6 +296,7 @@ interface ExportTable {
   readonly order?: readonly string[];
   readonly select?: string;
   readonly key?: string;
+  readonly verifyCreatedAtIdPagination?: boolean;
 }
 
 // This is the only database schema inventory the request path can use. Every
@@ -308,6 +309,7 @@ const EXPORT_TABLES: readonly ExportTable[] = Object.freeze([
     table: 'profile_context_imports', fk: 'user_id',
     order: ['created_at', 'id'],
     select: 'id,user_id,created_at,item_count,profile_change_count,status,withdrawn_at,profile_restored',
+    verifyCreatedAtIdPagination: true,
   },
   { table: 'wiki_links', fk: 'user_id', order: ['from_page', 'to_page'] },
   { table: 'personas', fk: 'user_id' },
@@ -505,6 +507,30 @@ async function readAllOwnedRows(
       }
       if (rows.length > expectedCount) throw new ExportSourceError();
     } while (rows.length < expectedCount);
+
+    if (source.verifyCreatedAtIdPagination) {
+      const { count, error } = await admin.from(source.table)
+        .select(source.select ?? '*', { count: 'exact', head: true })
+        .eq(source.fk, userId);
+      if (error || count !== expectedCount) throw new ExportSourceError();
+
+      const ids = new Set<string>();
+      let previous: { createdAt: string; id: string } | undefined;
+      for (const row of rows) {
+        const id = ownedValue(row, 'id');
+        const createdAt = ownedValue(row, 'created_at');
+        if (typeof id !== 'string' || typeof createdAt !== 'string' || ids.has(id)) {
+          throw new ExportSourceError();
+        }
+        // PostgREST UTC timestamps retain PostgreSQL microseconds; Date would lose them.
+        if (previous && (createdAt < previous.createdAt ||
+          (createdAt === previous.createdAt && id <= previous.id))) {
+          throw new ExportSourceError();
+        }
+        ids.add(id);
+        previous = { createdAt, id };
+      }
+    }
 
     return rows;
   } catch (error) {
