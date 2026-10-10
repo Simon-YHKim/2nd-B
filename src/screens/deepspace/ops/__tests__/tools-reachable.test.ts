@@ -163,7 +163,10 @@ describe("비서 허브 ↔ 도구 배선", () => {
   it("빈 자리를 예시 데이터로 채우지 않는다", () => {
     // 카드가 아니라 "다음 걸음" 문구를 쓴다. 원본 대시보드 원리보다 한 걸음 더
     // 정직한 쪽 - lib/ops/today-picks.ts 헤더 참조.
-    expect(HUB).toContain("today.nothingHint");
+    // phonehome-3: an empty board recommendation card is a title and one status line.
+    // Preserve real picks/next links; do not add a second empty-state heading.
+    expect(HUB).not.toContain("today.nothingHint");
+    expect(HUB).toContain("picksData && (picksData.picks.length > 0 || picksData.suggestions.length > 0)");
     expect(HUB).toContain("today.next.");
   });
 

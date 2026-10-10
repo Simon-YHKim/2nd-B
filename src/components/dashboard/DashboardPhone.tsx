@@ -21,6 +21,7 @@ import { useClockWeather } from "@/lib/weather/use-clock-weather";
 import { WeatherSheet } from "./board/WeatherSheet";
 import { DEFAULT_REFRESH_SETTINGS, getRefreshSettings, nextRefreshAt, shouldRefreshAfterResume } from "@/lib/dashboard/refresh-cadence";
 import { fitPhoneArtwork } from "@/lib/dashboard/phone-frame";
+import { formatPhoneTime, hasPhoneBoardClock } from "@/lib/dashboard/phone-clock";
 import { PixelScrim } from "@/components/pixel/PixelDither";
 import type { PhoneAppId } from "./phone-app-assets";
 import { PhoneAppIcon } from "./PhoneAppIcon";
@@ -128,13 +129,13 @@ function NavBack({ label, onPress }: { label: string; onPress: () => void }) {
 }
 
 /** iOS status bar (iPhone SE: carrier left, time centre, battery right), drawn in rects. */
-function StatusBar({ ink, time }: { ink: string; time: string }) {
+function StatusBar({ ink, time }: { ink: string; time: string | null }) {
   return <View style={styles.statusBar} accessible={false}>
     <View style={styles.statusSide}>
       <View style={styles.signal}>{[4, 6, 8, 10].map((height) => <View key={height} style={[styles.signalBar, { height, backgroundColor: ink }]} />)}</View>
       <Text variant="caption" style={[styles.carrier, { color: ink }]}>PolaScope</Text>
     </View>
-    <Text variant="caption" style={[styles.statusTime, { color: ink }]}>{time}</Text>
+    {time !== null ? <Text testID="phone-status-time" variant="caption" style={[styles.statusTime, { color: ink }]}>{time}</Text> : null}
     <View style={[styles.statusSide, styles.statusRight]}>
       <View style={[styles.battery, { borderColor: ink }]}><View style={[styles.batteryLevel, { backgroundColor: ink }]} /></View>
       <View style={[styles.batteryTip, { backgroundColor: ink }]} />
@@ -707,7 +708,8 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const appFaceHeight = Math.max(44, Math.min(appColumnWidth, appFaceFit));
   // Every opened app uses the phone's light iOS surface; home pages use the night sky.
   const statusInk = internalActive ? phoneIos.statusInk : phoneIos.onWallpaper;
-  const statusTime = clock.toLocaleTimeString(i18n.language, { hour: "numeric", minute: "2-digit" });
+  const statusTime = hasPhoneBoardClock(board, boardPage, tab === "dashboard" && !internalActive && !failed)
+    ? null : formatPhoneTime(clock, i18n.language);
   return <DeepSpaceScreen active="ops" header="none" variant="fullbleed" showSharedSky transparentBackdrop={transparentBackdrop}>
     <View pointerEvents="none" style={styles.phoneBackdrop}><PixelScrim style={styles.phoneScrimImage} /></View>
     <Animated.View {...(ownsDisplay ? {} : phonePan.panHandlers)} testID="dashboard-phone" style={[styles.phone, { transform: [{ translateY: dismissY }] }]} onLayout={({ nativeEvent: { layout } }) => {

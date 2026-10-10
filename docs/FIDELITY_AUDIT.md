@@ -450,7 +450,7 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
     - current: sourceRow borderColor fixed to deepSpace.cardLine (line 483) regardless of tier
 
 ### `/ops` - PARTIAL (effort M, P3)
-- impl: `src/screens/deepspace/dds-ops-screen.tsx:428-1171` (route `src/app/ops.tsx:8`; the same-named copy at `src/screens/deepspace/DeepSpaceDesignScreens.tsx:2731` is a shadow no route renders, per `src/lib/legal/__tests__/routes-render-their-own-screen.test.ts`)
+- impl: `src/screens/deepspace/dds-ops-screen.tsx:396-1123` (route `src/app/ops.tsx:8`; the same-named copy at `src/screens/deepspace/DeepSpaceDesignScreens.tsx:2731` is a shadow no route renders, per `src/lib/legal/__tests__/routes-render-their-own-screen.test.ts`)
 - deep-space view: `DeepSpaceOpsScreen`
 - canon: `legacy/design/ops-wiki.dc.html`
 - legacy only in fallback: True

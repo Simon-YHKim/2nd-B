@@ -6,6 +6,28 @@ its visible identity is **오늘의 한마디**, with note, detailed summary and
 The `daily_note`, `day_summary`, `inbox_triage`, and recommendation purposes stay separate.
 All 14 domains use the existing gated recommendation engine; tools have independent links.
 
+## First board page tidy (2026-10-10, phonehome-1 through phonehome-4)
+
+The visible P-01 clock replaces the status-bar time only on that board page. Apps,
+hosted screens, failed board reads and pages without P-01 keep the status time. Both
+clocks use the same local 24-hour formatter. The note's time slot is in its heading,
+and the heading's accessible name includes the title and slot together.
+
+First-page card headings share a 16px icon and bold caption metrics. Recommendations
+use the phone's light-card components, including loading/error/consent states and
+saved-result actions. Their single settings icon still opens `/ops`. Empty picks no
+longer add a second heading or explanation; real picks and next-step links remain.
+When recommendations are empty, auxiliary pick links and their loading states also
+collapse so the card contains only its heading and existing empty message. With a
+recommendation present, those links and retries remain available. Standalone `/ops`
+rendering, recommendation generation and persistence are unchanged.
+
+Regression coverage: `phone-home-tidy.test.ts` (pure clock tests and source contracts).
+The old `today.nothingHint` source assertion now checks that the empty secondary
+section is absent while real picks remain reachable. Browser QA on port 8083 blocks
+generation endpoints before dispatch to keep LLM calls at zero; its screenshots do
+not establish live generated-content correctness. Native runtime QA is separate.
+
 Navigation state and scroll offsets are session-only and owner-scoped. The fixed top
 bezel/status bar remains draggable inside hosted apps. Lowering the phone leaves its
 stack intact in memory; reopening resumes it. The home button continues to open Apps.
