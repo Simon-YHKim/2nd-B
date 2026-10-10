@@ -93,7 +93,7 @@ import {
   type Rev2PersonaId,
 } from "@/lib/chat/rev2-personas";
 import { m3 } from "@/lib/theme/m3";
-import { formatSourceCitationLabel, parseSourceCitations } from "@/lib/chat/sources";
+import { formatSourceCitationLabel, parseSourceCitations, sourceCitationDisplay } from "@/lib/chat/sources";
 import { chatDisplayText } from "@/lib/chat/display-text";
 import { parseTwiBranches } from "@/lib/chat/twi-branches";
 import { InlineLoader } from "@/components/ui/InlineLoader";
@@ -148,6 +148,8 @@ function IconCite({ color, size = 13 }: { color: string; size?: number }) {
 interface ChatTurn {
   role: "user" | "secondb";
   text: string;
+  /** In-memory bubble input with citation markers; never used for copy/history/capture. */
+  citationText?: string;
   /** Speaker at send time; absent only on older in-memory turns. */
   persona?: Rev2PersonaId;
   /** Slugs the reply cited — rendered as small source chips. */
@@ -922,7 +924,8 @@ function SecondBChatBody() {
                 : { display, branches: [] as string[] };
             setTurns((prev) => [
               ...prev,
-              { role: "secondb", persona: requestPersona, text: twi.display, chips, branches: twi.branches, safetyZone: result.reply.safety?.zone },
+              { role: "secondb", persona: requestPersona, text: twi.display, chips, branches: twi.branches, safetyZone: result.reply.safety?.zone,
+                citationText: chatMode === "divergent" ? parseTwiBranches(result.reply.text).display : result.reply.text },
             ]);
             // 답장 소리(Q-261006-04): 위기 응답도 status "ok" 로 오므로 구역을 따로 본다.
             if (replyCueAllowed({ zone: result.reply.safety?.zone, recording: isRecordingAudioMode() })) playReplyCue();
@@ -1261,7 +1264,7 @@ function SecondBChatBody() {
                     accessibilityHint={t("longPressCopy")}
                   >
                     <Text style={turn.role === "user" ? ds.userText : ds.aiText} selectable>
-                      {turn.role === "secondb" ? chatDisplayText(turn.text) : turn.text}
+                      {turn.role === "secondb" ? sourceCitationDisplay(chatDisplayText(turn.citationText ?? turn.text), t("deepspace:time.recordFallback")) : turn.text}
                     </Text>
                   </Pressable>
                   {turn.consentError ? <ServiceConsentLink /> : null}
@@ -1384,9 +1387,9 @@ function SecondBChatBody() {
                   style={ds.drawerCard}
                   onPress={() => openCitedPage(slug)}
                   accessibilityRole="button"
-                  accessibilityLabel={formatSourceCitationLabel(slug)}
+                  accessibilityLabel={formatSourceCitationLabel(slug, t("deepspace:time.recordFallback"))}
                 >
-                  <Text style={ds.drawerCardTitle}>{formatSourceCitationLabel(slug)}</Text>
+                  <Text style={ds.drawerCardTitle}>{formatSourceCitationLabel(slug, t("deepspace:time.recordFallback"))}</Text>
                   <Text style={ds.drawerCardMeta}>{t("reference_piece_meta")}</Text>
                 </Pressable>
               ))}
