@@ -3,6 +3,73 @@
 대상: `fix/phone-state-account-switch-261010` · 감사 G5-01(high), G5-02(medium).
 범위의 끝은 draft PR이다. 독립 daybreak 검토와 머지는 코디네이터가 맡는다.
 
+## 2회차: AS-01 수정 (마지막 구현 회차)
+
+독립 검토 1회차 원문은
+`E:/Coding Infra/reports/codex-audit-261010/gates/acctstate-daybreak-r1.txt`다.
+판정은 BLOCK이었다. G5-01(high)과 같은 계정 복원·저장 형식·hook 규칙은 통과했지만,
+G5-02의 AS-01(medium)은 B의 layout 전 drag가 복원을 취소해 A의 900을 B에 쓰는 경로였다.
+아래 1회차의 테스트·변이 수치는 이 경로를 포함하지 않았다. G5-01 코드는 이번에 수정하지 않았다.
+
+### 선택한 방법과 바뀌는 동작
+
+- 검토의 권장안인 **실제 native host의 epoch key**를 선택했다. hook 사본만 바꾸면 화면에
+  남은 A의 offset과 큐 이벤트가 유지된다. host 자체를 교체하면 B가 A의 스크롤 표시 상태를
+  이어받는 경로를 제거할 수 있고, native timestamp 형식에 의존할 필요도 없다.
+- `useScrollMemory`가 `accountEpochFromSnapshot(snapshot)`을 `hostKey`로 돌려준다.
+  `RememberedScrollView`, `RememberedFlatList`, `PhoneScrollView`, `PhoneFlatList` 전부
+  그 key를 실제 `ScrollView`/`FlatList`에 명시한다. 검색한 production 호출부는 이 4곳이다.
+  폰 스타일 적용 여부와 무관하게 같은 경계를 사용한다.
+- layout 크기와 준비 상태도 epoch별 사본이다. 새 host의 `onLayout` 전 drag는 pending을
+  해제하지 않는다. A의 늦은 layout은 A 사본만 바꾸며 B를 준비 완료로 만들지 못한다.
+  새 host가 layout된 뒤에는 정상 drag가 복원을 즉시 취소하고 계속 저장한다.
+- 같은 epoch의 재렌더·숨김/복귀·뒤로 이동은 key를 유지한다. pending 해제만으로 native host를
+  다시 만들지 않는다. 같은 계정에서 컴포넌트가 다시 마운트되면 기존 숫자 offset을 읽는다.
+  로그아웃 후 같은 계정으로 돌아와도 epoch는 달라지므로 새 host로 시작한다.
+- `phone-position`, `scroll:${scope.id}:${testID/slot}` 키와 값 구조는 그대로다.
+  서버·DB·Edge·의존성·UI 문자열·색상·레이아웃 설정을 이 수정으로 변경하지 않았다.
+
+### 2회차 검증 기록
+
+| 검증 | 결과 | 로그 |
+|---|---|---|
+| 수정 전 AS-01 재현 | 신규 9개 중 7개 실패·2개 통과. ScrollView/FlatList 모두 B 쓰기에 900 기록 | `acctstate-r2-red-targeted.log` |
+| 수정 후 관련 회귀 | 5스위트 42/42 통과. 1회차 33개 + 신규 9개 | `acctstate-r2-green2-targeted.log` |
+| 규칙별 변이 | 11/11 실패 확인, 11/11 각 원복 후 통과 | `../acctstate-r2-mutation-results.json` |
+| 전체 verify | 26/26단계 종료코드 0, package.json 순서대로 개별 실행 | `acctstate-r2-summary.json`, `acctstate-r2-<단계>.log` |
+| 전체 Jest | 1,016스위트·14,115개 통과, 기존 1개 건너뜀 | `acctstate-r2-jest.log` |
+| 기존 main parity | 같음. 이번 draft PR의 반영 증거는 아님 | `../acctstate-r2-parity.log` |
+
+로그 기준 폴더: `E:/Coding Infra/reports/codex-audit-261010/verify/`.
+기존 1회차의 verify 2차 시도 로그는 같은 폴더의 `acctstate-first-round-verify2/`에 보존했다.
+첫 수정 후 테스트 4개가 실패한 것은 publication hold도 epoch를 증가시키는데 테스트가
+이를 그대로라고 가정한 탓이었다. 테스트를 실제 계약대로 바꿔, 소유자 publish 후 pending
+해제만 일어난 경우 key가 유지되는지 검사했다. 구현은 이 실패 때문에 변경하지 않았다.
+
+신규 검사는 B render 직후 **layout·flush 전** 새 handler에 `drag(900) → scroll(900)`을 주고
+B의 쓰기 기록이 비어 있음을 단언한다. 복원 뒤 B의 정상 drag·scroll은 80을 저장한다.
+4개 wrapper의 실제 선언과 hook을 실행해 반환된 native element의 key도 확인한다.
+RN renderer·실제 native 스케줄러를 실행한 검증은 아니다. host 교체의 시각적 결과는
+React key 계약에 근거하며, 한 프레임 표시 여부를 기기에서 관측했다고 주장하지 않는다.
+
+### 남긴 것과 인수 조건
+
+- `src/screens/deepspace/dds-ops-screen.tsx:397-402,420,436-450,809-811`: **medium, 조건부**.
+  직접 마운트를 유지하면 이전 추천 사본이 새 owner의 `ops-presentation`에 쓰일 가능성이다.
+  폰 경계·독립 화면 AccountScope가 현재 이를 차단한다. 이번 검토의 BLOCK 근거가 아니고
+  발주 범위 밖이어서 그대로 두었다. 실제 UI 재현은 하지 않았다.
+- **G5-03 high**, **G5-04·05·06·07 medium**: 이번에도 수정하지 않았다.
+  각각 DB 함수의 정식 migration 누락, 서비스 날짜 한도, 루틴 저장의 영속 중복 방지,
+  미지원 알림 host의 개별 삭제, 그룹 변경 뒤 숨은 이전 분류다. 심각도는 원 감사
+  `g5-writes-daybreak-r1.txt`를 확인해 옮겼으며 재판정하지 않았다.
+- `origin/main`(`1f093f70`)을 충돌 없이 병합한 뒤 검증했다. 이로 들어온 다른 갈래의 변경은 AS-01 수정이 아니다.
+- 앱 LLM 호출·QA 로그인·화면 캡처·에뮬레이터·운영 쓰기·배포·APK 디스패치는 0회다.
+  draft PR #2219에만 push하며 머지·ready 전환은 하지 않는다.
+- 다음 독립 검토에서 다시 BLOCK이면 이 PR은 멈춘다. 이번이 마지막 구현 회차다.
+  롤백은 이 클라이언트 수정의 반대 패치를 별도 PR로 검토하면 된다. 저장 마이그레이션은 없다.
+
+## 이하: 1회차 기록 (AS-01 수정 전)
+
 ## 근거와 확인 범위
 
 - 감사 원문: `E:/Coding Infra/reports/codex-audit-261010/gates/g5-writes-daybreak-r1.txt`의 G5-01, G5-02.

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ForwardedRef, type ReactNode } from "react";
 import type { FlatList, ScrollView, ScrollViewProps } from "react-native";
-import { accountTransitionSnapshot, captureAccountOwnerLease, currentAccountOwner, subscribeAccountTransition } from "../auth/account-epoch";
+import { accountEpochFromSnapshot, accountTransitionSnapshot, captureAccountOwnerLease, currentAccountOwner, subscribeAccountTransition } from "../auth/account-epoch";
 import { boundedScroll, readViewMemory, writeViewMemory, type ScrollPosition } from "./view-memory";
 
 const Context = createContext<{ id: string; slots: { next: number }; focused: boolean } | null>(null);
@@ -21,6 +21,7 @@ export function useScrollMemory<T extends Scroller>(props: ScrollViewProps, forw
   const [slot] = useState(() => scope ? scope.slots.next++ : 0);
   const key = scope ? `scroll:${scope.id}:${props.testID ?? slot}` : null;
   const snapshot = useSyncExternalStore(subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot);
+  const hostKey = accountEpochFromSnapshot(snapshot);
   const owner = currentAccountOwner();
   const lease = useMemo(() => owner ? captureAccountOwnerLease(owner) : null, [owner, snapshot]);
   const handle = useRef<T | null>(null);
@@ -32,7 +33,9 @@ export function useScrollMemory<T extends Scroller>(props: ScrollViewProps, forw
     frame: null as ReturnType<typeof requestAnimationFrame> | null,
     settle: null as ReturnType<typeof setTimeout> | null,
   }), [key, snapshot]);
-  const size = useRef({ width: 0, height: 0, viewWidth: 0, viewHeight: 0 });
+  // All callers key the native host by epoch. Its layout belongs to that host,
+  // so neither A's measurements nor a late A layout can prepare B for a drag.
+  const size = useMemo(() => ({ width: 0, height: 0, viewWidth: 0, viewHeight: 0, laidOut: false }), [hostKey]);
   const cancelRestore = useCallback(() => {
     if (memory.frame !== null) cancelAnimationFrame(memory.frame);
     if (memory.settle !== null) clearTimeout(memory.settle);
@@ -40,7 +43,7 @@ export function useScrollMemory<T extends Scroller>(props: ScrollViewProps, forw
   }, [memory]);
   const restore = useCallback(() => {
     if (!key || !lease?.isCurrent() || !memory.pending || !memory.focused || !handle.current) return;
-    const s = size.current;
+    const s = size;
     if (!s.viewHeight || !s.height) return;
     const target = boundedScroll(memory.saved, s.width, s.height, s.viewWidth, s.viewHeight);
     cancelRestore();
@@ -59,13 +62,13 @@ export function useScrollMemory<T extends Scroller>(props: ScrollViewProps, forw
         memory.pending = false;
       }, 180);
     });
-  }, [key, lease, memory, cancelRestore, list, props.horizontal]);
+  }, [key, lease, memory, cancelRestore, list, props.horizontal, size]);
   useEffect(() => {
     if (scope?.focused === false) { memory.focused = false; return; }
     memory.focused = true;
     memory.saved = key ? readViewMemory<ScrollPosition>(key) ?? { x: 0, y: 0 } : { x: 0, y: 0 };
-    // Zero is a restoration too: the native host may still be at A's offset.
-    // Ignore synthetic events until the new position has settled or a drag starts.
+    // Zero is a restoration too. Ignore synthetic events until the position
+    // settles or a drag starts on this epoch's laid-out native host.
     memory.pending = !!key;
     restore();
     return () => {
@@ -80,6 +83,7 @@ export function useScrollMemory<T extends Scroller>(props: ScrollViewProps, forw
     else if (forwardedRef) forwardedRef.current = node;
   }, [forwardedRef, memory, scope?.focused]);
   return {
+    hostKey,
     ref,
     contentOffset: props.contentOffset ?? memory.saved,
     scrollEventThrottle: props.scrollEventThrottle ?? 16,
@@ -93,17 +97,19 @@ export function useScrollMemory<T extends Scroller>(props: ScrollViewProps, forw
       props.onScroll?.(event);
     },
     onScrollBeginDrag: (event: Parameters<NonNullable<ScrollViewProps["onScrollBeginDrag"]>>[0]) => {
+      if (!size.laidOut) return;
       memory.pending = false;
       cancelRestore();
       props.onScrollBeginDrag?.(event);
     },
     onContentSizeChange: (width: number, height: number) => {
-      size.current.width = width; size.current.height = height;
+      size.width = width; size.height = height;
       restore(); props.onContentSizeChange?.(width, height);
     },
     onLayout: (event: Parameters<NonNullable<ScrollViewProps["onLayout"]>>[0]) => {
-      size.current.viewWidth = event.nativeEvent.layout.width;
-      size.current.viewHeight = event.nativeEvent.layout.height;
+      size.laidOut = true;
+      size.viewWidth = event.nativeEvent.layout.width;
+      size.viewHeight = event.nativeEvent.layout.height;
       restore(); props.onLayout?.(event);
     },
   };
