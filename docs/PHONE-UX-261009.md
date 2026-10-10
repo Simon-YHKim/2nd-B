@@ -36,6 +36,13 @@ are copied out of RN Web events (their live getters become zero after DOM remova
 Restoration waits through short loading skeletons; a user drag takes control. Auth and
 first-run screens retain their existing boundaries. No persisted draft/storage is added.
 
+Account-boundary follow-up (G5-01/G5-02, 2026-10-10): the phone itself now remounts
+its stateful subtree by owner and account epoch. Restored notice selections are checked
+against the current owner's hydrated list before persistence. Scroll hook copies and
+scheduled restoration belong to the epoch and navigation key; a missing entry restores
+zero, including on a still-mounted native host. Same-owner reopen and Back retain their
+session positions. See [implementation and reproduction](handoff/ACCTSTATE-261010.md).
+
 ## A03 server follow-up (not applied by this client PR)
 
 `db/migration-drafts/UNNUMBERED_dashboard_last_note.sql` extends the existing service-only
