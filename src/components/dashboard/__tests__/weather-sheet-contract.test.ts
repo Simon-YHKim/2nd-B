@@ -42,6 +42,6 @@ test("five locale bundles contain the consent, withdrawal, denied and credit cop
   expect(sheet).toContain('Linking.openURL("https://www.weather.gov/disclaimer")');
   expect(sheet).toContain('t("phone.board.weather.sourceTerms")');
   const privacy = read("src/components/privacy/WeatherPrivacyControl.tsx");
-  expect(privacy).toContain("saveWeatherConsent(userId, status, false");
+  expect(privacy).toContain("saveWeatherConsent(userId, withdrawal, false");
   expect(privacy).toContain("aria-checked={status?.enabled === true}");
 });

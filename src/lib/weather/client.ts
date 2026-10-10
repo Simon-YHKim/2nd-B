@@ -8,6 +8,10 @@ import { WEATHER_LOCATION_ENABLED } from "../location/weather-location-gate";
 import { beginPrivacyChange, beginPrivacyGrant, commitPrivacyChange } from "../privacy/changes";
 import { decodeConsent, decodeWeather, selectWeather, WEATHER_CACHE_MS, WEATHER_CONSENT_REVISION, WEATHER_TIMEOUT_MS, type WeatherConsent, type WeatherReading, type WeatherStation } from "./model";
 
+export class WeatherConsentConflictError extends Error {
+  constructor(readonly latest?: WeatherConsent) { super("weather_changed"); }
+}
+
 async function request(ownerId: string, body: Record<string, unknown>, signal?: AbortSignal): Promise<unknown> {
   const owner = captureAccountOwnerLease(ownerId);
   if (!owner) throw new Error("weather_unavailable");
@@ -23,7 +27,9 @@ async function request(ownerId: string, body: Record<string, unknown>, signal?: 
       region: "ap-northeast-2",
     });
     session.assertCurrent();
-    if (!owner.isCurrent() || result.error) throw new Error("weather_unavailable");
+    if (!owner.isCurrent()) throw new Error("weather_unavailable");
+    if (result.error?.context.status === 409) throw new WeatherConsentConflictError();
+    if (result.error) throw new Error("weather_unavailable");
     return result.data;
   } finally {
     clearTimeout(timeout);
@@ -42,8 +48,41 @@ export async function saveWeatherConsent(ownerId: string, status: WeatherConsent
   const prefs = { location_weather: enabled };
   const revision = enabled ? beginPrivacyGrant(ownerId) : beginPrivacyChange(ownerId, prefs);
   const language = locale.toLowerCase().split("-")[0];
-  const next = decodeConsent(await request(ownerId, { action: enabled ? "grant" : "revoke", revision: status.revision, locale: ["en", "ko", "es", "pt", "id"].includes(language) ? language : "en" }, signal));
-  if (next.enabled !== enabled || next.revision <= status.revision) throw new Error("weather_not_saved");
+  const owner = captureAccountOwnerLease(ownerId);
+  const assertCurrent = () => {
+    if (signal?.aborted || !owner?.isCurrent()) throw new Error("weather_unavailable");
+  };
+  const write = (current: WeatherConsent) => {
+    assertCurrent();
+    return request(ownerId, { action: enabled ? "grant" : "revoke", revision: current.revision,
+      locale: ["en", "ko", "es", "pt", "id"].includes(language) ? language : "en" }, signal).then(decodeConsent);
+  };
+  let next: WeatherConsent;
+  try { next = await write(status); }
+  catch (error) {
+    if (!(error instanceof WeatherConsentConflictError)) throw error;
+    assertCurrent();
+    let latest = await loadWeatherConsent(ownerId, signal);
+    assertCurrent();
+    // A conflict never retries an opt-in. Only withdrawal may retry, once.
+    if (enabled) throw new WeatherConsentConflictError(latest);
+    if (!latest.enabled) next = latest;
+    else {
+      try { next = await write(latest); }
+      catch (retryError) {
+        assertCurrent();
+        if (retryError instanceof WeatherConsentConflictError) {
+          try { latest = await loadWeatherConsent(ownerId, signal); }
+          catch { assertCurrent(); throw new WeatherConsentConflictError(latest); }
+          assertCurrent();
+          if (!latest.enabled) next = latest;
+          else throw new WeatherConsentConflictError(latest);
+        } else throw new WeatherConsentConflictError(latest);
+      }
+    }
+  }
+  assertCurrent();
+  if (next.enabled !== enabled || next.revision < status.revision) throw new Error("weather_not_saved");
   commitPrivacyChange(ownerId, revision, prefs);
   return next;
 }
