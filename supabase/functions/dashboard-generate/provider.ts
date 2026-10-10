@@ -1,4 +1,5 @@
 import { captureLlmConsent, recheckLlmConsent } from '../_shared/llm-consent.ts';
+import { hasRedZoneInput } from '../_shared/llm-input-safety.ts';
 import {
   dailyCapForRank, djb2, hasCrisisTerm, isUsableHeaderValue, llmCapacityWeight,
   readLlmUpstreamJsonObject, reserveLlmProxyCapacity, SAFETY_PREAMBLE, TIER_RANK,
@@ -14,6 +15,7 @@ export interface BoardProviderDependencies {
 }
 export interface BoardProviderInput {
   userId: string; runId: string; purpose: string; prompt: string; system: string; consentToken: string;
+  payload: Readonly<Record<string, unknown>>;
 }
 
 // G2-03: provisional cheapest rung, pending Simon's per-seat decision. W1
@@ -33,12 +35,16 @@ export function createBoardProvider(deps: BoardProviderDependencies) {
     const fail = (): never => { throw new Error('dashboard_generation_unavailable'); };
     const effort = Object.hasOwn(BOARD_PURPOSE_EFFORT, input.purpose) ? BOARD_PURPOSE_EFFORT[input.purpose] : null;
     if (!effort || !EFFORT_MODELS.has(deps.model) || !isUsableHeaderValue(deps.apiKey) ||
-        !deps.apiKey || input.prompt.length > 24_000) return fail();
+        !deps.apiKey || input.prompt.length > 24_000 || !input.payload ||
+        typeof input.payload !== 'object' || Array.isArray(input.payload)) return fail();
     const attempt = (crisis: boolean) => deps.rpc('dashboard_generation_audit_attempt', {
       p_user_id: input.userId, p_run_id: input.runId, p_model: deps.model,
       p_effort: effort, p_prompt_hash: djb2(input.system + input.prompt), p_crisis: crisis,
     });
-    if (hasCrisisTerm(input.prompt)) {
+    // C9 / G2-01: classify each original string before spend, capacity or
+    // dispatch. JSON escaping can hide whitespace from a prompt-only scan.
+    // Retain the existing prompt backstop and all response checks.
+    if (hasRedZoneInput([input.payload, input.prompt, input.system]) || hasCrisisTerm(input.prompt)) {
       // No paid dispatch, but the early exit is still a C3 attempt.
       await attempt(true);
       return fail();
