@@ -1,6 +1,6 @@
 import { getSupabaseClient } from "./client";
 import { resolveProfileDetails, type ProfileDetails } from "../persona/profile-details";
-import { needsContextConfirmation, parseProfileContext, type ProfileContext } from "../import/profile-context";
+import { parseProfileContext, type ProfileContext } from "../import/profile-context";
 
 export interface ProfileImportSnapshot { details: ProfileDetails; revision: number }
 export interface ProfileImportBatch {
@@ -12,6 +12,7 @@ export interface ProfileImportRequest {
   profilePatch: ProfileDetails; expectedRevision: number;
 }
 export interface ProfileImportedContext { document: ProfileContext; confirmedIds: string[] }
+export type ProfileImportCursor = Pick<ProfileImportBatch, "created_at" | "id">;
 async function ownerToken(userId: string): Promise<string> {
   const { data, error } = await getSupabaseClient().auth.getSession();
   if (error || !data.session || data.session.user.id !== userId
@@ -55,12 +56,16 @@ export async function applyProfileContextImport(userId: string, request: Profile
   if (!validBatch(data) || data.status !== "active") throw new Error("profile_import_result_invalid");
   return data;
 }
-export async function listProfileContextImports(userId: string, before?: string): Promise<ProfileImportBatch[]> {
+export async function listProfileContextImports(userId: string, before?: ProfileImportCursor): Promise<ProfileImportBatch[]> {
+  if (before && (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(before.created_at)
+    || !Number.isFinite(Date.parse(before.created_at)) || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(before.id))) {
+    throw new Error("profile_import_cursor_invalid");
+  }
   const token = await ownerToken(userId);
   let query = getSupabaseClient().from("profile_context_imports")
     .select("id,item_count,profile_change_count,created_at,status,source_id,profile_restored")
-    .eq("user_id", userId).order("created_at", { ascending: false }).limit(30);
-  if (before) query = query.lt("created_at", before);
+    .eq("user_id", userId).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(30);
+  if (before) query = query.or(`created_at.lt.${before.created_at},and(created_at.eq.${before.created_at},id.lt.${before.id})`);
   const { data, error } = await query.setHeader("Authorization", `Bearer ${token}`);
   if (error) throw error;
   if (data === null) return [];
@@ -79,8 +84,7 @@ export async function fetchProfileImportedContext(userId: string, sourceId: stri
   const confirmed: unknown = data.confirmed_ids;
   if (!document.items.length || !Array.isArray(confirmed)
     || !confirmed.every((id): id is string => typeof id === "string" && document.items.some((item) => item.id === id))
-    || new Set(confirmed).size !== confirmed.length
-    || document.items.some((item) => needsContextConfirmation(item, document.sources) && !confirmed.includes(item.id))) {
+    || new Set(confirmed).size !== confirmed.length) {
     throw new Error("profile_import_context_invalid");
   }
   return { document, confirmedIds: confirmed };
