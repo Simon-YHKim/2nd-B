@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
+import * as classifier from "../../safety/classifier";
 function edge(file: string, deps: Record<string, unknown>) {
   const exports: Record<string, unknown> = {};
   const code = ts.transpileModule(readFileSync(resolve(__dirname, "../../../..", file), "utf8"), {
@@ -18,10 +19,14 @@ const common = edge("supabase/functions/_shared/llm-proxy-common.ts", {
   "../../../src/lib/safety/crisis-context.ts": crisisContext,
 });
 const consent = edge("supabase/functions/_shared/llm-consent.ts", {});
+const inputSafety = edge("supabase/functions/_shared/llm-input-safety.ts", {
+  "../../../src/lib/safety/classifier.ts": classifier,
+});
 const create = edge("supabase/functions/dashboard-generate/provider.ts", {
   "../_shared/llm-proxy-common.ts": common, "../_shared/llm-consent.ts": consent,
+  "../_shared/llm-input-safety.ts": inputSafety,
 }).createBoardProvider as (deps: ReturnType<typeof fixture>["deps"]) => (input: typeof request) => Promise<unknown>;
-const request = { userId: "owner", runId: "run1", purpose: "daily_note", prompt: "Routine: Read", system: "JSON", consentToken: "a".repeat(64) };
+const request = { userId: "owner", runId: "run1", purpose: "daily_note", prompt: "Routine: Read", system: "JSON", consentToken: "a".repeat(64), payload: { title: "Read" } };
 function fixture() {
   const deps = {
     model: "claude-sonnet-5", apiKey: "fixture-key",
@@ -165,6 +170,7 @@ test('post-provider interruption retains the already persisted attempt', async (
   const f = fixture();
   const interrupted = edge('supabase/functions/dashboard-generate/provider.ts', {
     '../_shared/llm-consent.ts': consent,
+    '../_shared/llm-input-safety.ts': inputSafety,
     '../_shared/llm-proxy-common.ts': { ...common, transitionLlmProxyCapacity: async () => { throw new Error('interrupted'); } },
   }).createBoardProvider as typeof create;
   await expect(interrupted(f.deps)(request)).rejects.toThrow('interrupted');
