@@ -838,7 +838,7 @@ const USER_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] = 
   {
     file: "src/components/dashboard/DashboardPhone.tsx",
     kind: "replace",
-    owner: "DashboardPhone",
+    owner: "AccountDashboardPhone",
     guard: "else:transparentBackdrop",
     before: "",
     why: "대시보드 폰 닫기(사람이 누른다). 홈이 연 폰이면 back() 이다.",
