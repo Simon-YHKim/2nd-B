@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image } from 'expo-image';
-import { Animated, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { Animated, BackHandler, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { pixelStepsFor } from '@/lib/motion/pixel-physical';
 import { markPhoneStowed, phoneLastStowedAt, shouldPlayPhoneGlare } from '@/lib/motion/phone-glare';
@@ -98,6 +99,17 @@ export function PocketPhone({ label, openLabel, revealHint, stowHint, active, on
       });
     });
   }, [playPhoneCue, reducedMotion, slide, stow]);
+  // D3: only the raised phone on the focused home owns Android Back.
+  // settle also clears glare and the home's expanded backdrop.
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS !== 'android' || !active || !isExpanded) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!expanded.current) return false;
+      settle(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [active, isExpanded, settle]));
   const activate = useCallback(() => {
     if (Date.now() - lastSwipeAt.current < 400) return;
     if (!expanded.current) { settle(true); return; }
