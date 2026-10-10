@@ -11,7 +11,7 @@ import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pre
 // Retired intro storage values can remain on the device; this screen never reads them.
 
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, StyleSheet, Platform, ActivityIndicator, Animated } from "react-native";
+import { AccessibilityInfo, StyleSheet, Platform, ActivityIndicator, Animated, useWindowDimensions } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";
@@ -76,6 +76,7 @@ import {
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { DomainDashboard } from "@/components/secondb/DomainDashboard";
 import { ChatTextInput } from "@/components/secondb/ChatTextInput";
+import { chatComposerAlignment, chatStatusMaxLines } from "@/components/secondb/chat-font-layout";
 import { ChatActionBar, type ChatAction } from "@/components/secondb/ChatActionBar";
 import { ChatPlanSheet } from "@/components/secondb/ChatPlanSheet";
 import { useChatPlans } from "@/components/secondb/useChatPlans";
@@ -93,7 +94,7 @@ import {
   type Rev2PersonaId,
 } from "@/lib/chat/rev2-personas";
 import { m3 } from "@/lib/theme/m3";
-import { formatSourceCitationLabel, parseSourceCitations } from "@/lib/chat/sources";
+import { formatSourceCitationLabel, parseSourceCitations, sourceCitationDisplay } from "@/lib/chat/sources";
 import { chatDisplayText } from "@/lib/chat/display-text";
 import { parseTwiBranches } from "@/lib/chat/twi-branches";
 import { InlineLoader } from "@/components/ui/InlineLoader";
@@ -148,6 +149,8 @@ function IconCite({ color, size = 13 }: { color: string; size?: number }) {
 interface ChatTurn {
   role: "user" | "secondb";
   text: string;
+  /** In-memory bubble input with citation markers; never used for copy/history/capture. */
+  citationText?: string;
   /** Speaker at send time; absent only on older in-memory turns. */
   persona?: Rev2PersonaId;
   /** Slugs the reply cited — rendered as small source chips. */
@@ -221,6 +224,9 @@ const ChatComposer = memo(
     // Node entry seeds the composer once (mirrors the old seeding effect); the
     // initializer runs only on mount, so a later param change never re-seeds.
     const [draft, setDraft] = useState(() => (fromNode ? t("aboutNode", { node: fromNode }) : ""));
+    const { fontScale } = useWindowDimensions();
+    const [inputHeight, setInputHeight] = useState(0);
+    const composerAlignment = chatComposerAlignment(Platform.OS, fontScale, draft.length === 0 ? 0 : inputHeight);
     useImperativeHandle(ref, () => ({ prefill: (text: string) => setDraft(text) }), []);
     const canSend = draft.trim().length > 0 && sendEnabled;
     const submit = () => {
@@ -395,11 +401,12 @@ const ChatComposer = memo(
             {voiceNotice}
           </Text>
         ) : null}
-        <View style={ds.composer}>
-        <View style={ds.inputPill}>
+        <View style={[ds.composer, { alignItems: composerAlignment }]}>
+        <View style={[ds.inputPill, { alignItems: composerAlignment }]}>
           <ChatTextInput
             value={draft}
             onChangeText={setDraft}
+            onLayout={event => setInputHeight(event.nativeEvent.layout.height)}
             placeholder={t("composerPlaceholder")}
             // AA on the pill (4.54:1), the same token as the other placeholders (QA R2B-08).
             placeholderTextColor={m3.color.onSurfaceVariant}
@@ -459,6 +466,7 @@ export default function SecondBChat() {
 }
 
 function SecondBChatBody() {
+  const { fontScale } = useWindowDimensions();
   // Phone-aware: inside the dashboard phone, links open in the phone and the
   // query (?fromNode= / ?mode= / ?panel=) comes from the phone route.
   const router = useAppRouter();
@@ -922,7 +930,8 @@ function SecondBChatBody() {
                 : { display, branches: [] as string[] };
             setTurns((prev) => [
               ...prev,
-              { role: "secondb", persona: requestPersona, text: twi.display, chips, branches: twi.branches, safetyZone: result.reply.safety?.zone },
+              { role: "secondb", persona: requestPersona, text: twi.display, chips, branches: twi.branches, safetyZone: result.reply.safety?.zone,
+                citationText: chatMode === "divergent" ? parseTwiBranches(result.reply.text).display : result.reply.text },
             ]);
             // 답장 소리(Q-261006-04): 위기 응답도 status "ok" 로 오므로 구역을 따로 본다.
             if (replyCueAllowed({ zone: result.reply.safety?.zone, recording: isRecordingAudioMode() })) playReplyCue();
@@ -1126,9 +1135,9 @@ function SecondBChatBody() {
           })}
         </View>
 
-        {/* The description gives way to usage and clear on narrow screens. */}
+        {/* Large text can use a second line; usage and clear keep their width. */}
         <View testID="chat-status" style={[ds.banner, { backgroundColor: lensSoftBg }]}>
-          <Text style={ds.bannerDesc} numberOfLines={1} ellipsizeMode="tail">
+          <Text style={ds.bannerDesc} numberOfLines={chatStatusMaxLines(fontScale)} ellipsizeMode="tail">
             {t(`rev2.${rev2Persona}.desc`)}
           </Text>
           <Text style={[ds.bannerUsage, atLimit ? ds.headerMetaDanger : null]} numberOfLines={1}>
@@ -1261,7 +1270,7 @@ function SecondBChatBody() {
                     accessibilityHint={t("longPressCopy")}
                   >
                     <Text style={turn.role === "user" ? ds.userText : ds.aiText} selectable>
-                      {turn.role === "secondb" ? chatDisplayText(turn.text) : turn.text}
+                      {turn.role === "secondb" ? sourceCitationDisplay(chatDisplayText(turn.citationText ?? turn.text), t("deepspace:time.recordFallback")) : turn.text}
                     </Text>
                   </Pressable>
                   {turn.consentError ? <ServiceConsentLink /> : null}
@@ -1384,9 +1393,9 @@ function SecondBChatBody() {
                   style={ds.drawerCard}
                   onPress={() => openCitedPage(slug)}
                   accessibilityRole="button"
-                  accessibilityLabel={formatSourceCitationLabel(slug)}
+                  accessibilityLabel={formatSourceCitationLabel(slug, t("deepspace:time.recordFallback"))}
                 >
-                  <Text style={ds.drawerCardTitle}>{formatSourceCitationLabel(slug)}</Text>
+                  <Text style={ds.drawerCardTitle}>{formatSourceCitationLabel(slug, t("deepspace:time.recordFallback"))}</Text>
                   <Text style={ds.drawerCardMeta}>{t("reference_piece_meta")}</Text>
                 </Pressable>
               ))}
@@ -1490,7 +1499,7 @@ const styles = StyleSheet.create({
 // glassmorphism, no pill chips, no em-dash in strings). Matches the prototype's
 // bubble/composer language from DeepSpaceViews while hosting the REAL engine.
 const ds = StyleSheet.create({
-  // One line; usage and clear retain their width while the description truncates.
+  // A row at every scale; only the description can grow to two lines.
   banner: {
     flexDirection: "row",
     alignItems: "center",
