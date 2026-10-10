@@ -11,7 +11,7 @@
 // D-27 axis key attribution — pure naming/resolver helpers (Deno-free, so they
 // are unit-testable under ts-jest; the Deno env read is the thin wrapper below).
 import { isUsableHeaderValue, pickApiKey } from './axis-key-name.ts';
-import { prepareCrisisScanText } from '../../../src/lib/safety/crisis-context.ts';
+import { prepareCrisisScanText, scanCrisisObfuscation } from '../../../src/lib/safety/crisis-context.ts';
 
 export { isUsableHeaderValue };
 
@@ -161,7 +161,8 @@ export function hasCrisisTerm(text: string): boolean {
   for (const term of CRISIS_TERMS_KO) {
     if (lower.includes(normalizeForMatch(term))) return true;
   }
-  return false;
+  const loose = scanCrisisObfuscation(text);
+  return loose.en.size > 0 || loose.ko.size > 0;
 }
 
 // Immutable safety preamble (R1-B) prepended to the system channel so a
