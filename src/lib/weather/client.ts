@@ -42,8 +42,13 @@ export async function loadWeatherConsent(ownerId: string, signal?: AbortSignal):
   return decodeConsent(await request(ownerId, { action: "status" }, signal));
 }
 
-export async function saveWeatherConsent(ownerId: string, status: WeatherConsent, enabled: boolean, locale: string, signal?: AbortSignal): Promise<WeatherConsent> {
-  if (enabled && (!WEATHER_LOCATION_ENABLED || !status.eligible || !status.available)) throw new Error("weather_unavailable");
+function assertConsentProgress(previous: WeatherConsent | null, next: WeatherConsent) {
+  if (previous && (next.revision < previous.revision ||
+      (next.revision === previous.revision && next.enabled !== previous.enabled))) throw new Error("weather_not_saved");
+}
+
+export async function saveWeatherConsent(ownerId: string, status: WeatherConsent | null, enabled: boolean, locale: string, signal?: AbortSignal): Promise<WeatherConsent> {
+  if (enabled && (!WEATHER_LOCATION_ENABLED || !status?.eligible || !status.available)) throw new Error("weather_unavailable");
   // Publish only this key. Do not synthesize OFF for the user's other preferences.
   const prefs = { location_weather: enabled };
   const revision = enabled ? beginPrivacyGrant(ownerId) : beginPrivacyChange(ownerId, prefs);
@@ -52,9 +57,10 @@ export async function saveWeatherConsent(ownerId: string, status: WeatherConsent
   const assertCurrent = () => {
     if (signal?.aborted || !owner?.isCurrent()) throw new Error("weather_unavailable");
   };
-  const write = (current: WeatherConsent) => {
+  const write = (current: WeatherConsent | null) => {
     assertCurrent();
-    return request(ownerId, { action: enabled ? "grant" : "revoke", revision: current.revision,
+    // null means unconfirmed. Revision 0 is only its withdrawal request value, not a snapshot.
+    return request(ownerId, { action: enabled ? "grant" : "revoke", revision: current?.revision ?? 0,
       locale: ["en", "ko", "es", "pt", "id"].includes(language) ? language : "en" }, signal).then(decodeConsent);
   };
   let baseline = status;
@@ -68,6 +74,7 @@ export async function saveWeatherConsent(ownerId: string, status: WeatherConsent
     // A conflict never retries an opt-in. Only withdrawal may retry, once.
     if (enabled) throw new WeatherConsentConflictError(latest);
     // A fresh OFF snapshot confirms withdrawal without a write; otherwise it is the retry input.
+    assertConsentProgress(baseline, latest);
     baseline = latest;
     if (!latest.enabled) next = latest;
     else {
@@ -78,6 +85,7 @@ export async function saveWeatherConsent(ownerId: string, status: WeatherConsent
           try { latest = await loadWeatherConsent(ownerId, signal); }
           catch { assertCurrent(); throw new WeatherConsentConflictError(latest); }
           assertCurrent();
+          assertConsentProgress(baseline, latest);
           if (!latest.enabled) { baseline = latest; next = latest; }
           else throw new WeatherConsentConflictError(latest);
         } else throw new WeatherConsentConflictError(latest);
@@ -85,9 +93,8 @@ export async function saveWeatherConsent(ownerId: string, status: WeatherConsent
     }
   }
   assertCurrent();
-  // Request-only revision-0 withdrawal has unknown prior state, so any decoded OFF reply confirms it.
-  if (next.enabled !== enabled || next.revision < baseline.revision ||
-      (next.revision === baseline.revision && baseline.enabled !== enabled)) throw new Error("weather_not_saved");
+  if (next.enabled !== enabled) throw new Error("weather_not_saved");
+  assertConsentProgress(baseline, next);
   commitPrivacyChange(ownerId, revision, prefs);
   return next;
 }
