@@ -89,3 +89,46 @@ AuthContext 행 이동에 따른 DPIA의 코드 인용과 그 계약 테스트�
   `E:/Coding Infra/reports/resume-nonw1-261008/onboard-verify.log`.
 - 인증 조회 실패와 로그인별 예산 변경을 독립 검토 뒤 통합했다. 이후 기반 갱신은
   D6 1단계 SQL·문서만 포함하며, 최종 PR 커밋의 CI로 함께 확인한다.
+
+## 2026-10-10 · 머지 후 게이트 후속
+
+`fix/qa261010-onboardk2`, 기반 `f9bfbaf0`. #2170 머지 후 daybreak 게이트
+`E:/Coding Infra/reports/qa-legacy-261004/gates/n7-onboardk-daybreak-r2.txt`의
+발견 1(K1 잔여, medium)과 발견 2(같은 UID 재로그인 안내, medium)를 수정한다.
+현재 main과 해당 네 코드 파일이 같은 것을 대조했고 두 재현 순서가 성립했다.
+
+- **발견 1**: 홈의 자동 이동에만 값 없는 `auto` 파라미터를 붙인다. 목적지는
+  기존 저장소에서 영수증을 한 번 가져간 뒤에 콘텐츠를 연다. 늦은 `shown`으로
+  영수증이 사라졌으면 홈으로 돌아간다. 표식에 권한·token은 없고 위조된 값도
+  영수증을 만들지 못한다. 표식 없는 직접 URL 방문의 경로·완료/반환은 그대로다.
+  effect 재실행은 이미 가져간 영수증을 유지하고 로그인 변경은 기존 React key로 분리한다.
+  영수증 없는 복귀는 기존 `RedirectHome`을 써서 홈이 스택에 쌓이지 않게 한다.
+  첫 전체 verify의 홈 복귀 계약 실패 2건이 이 연결 누락을 찾아냈다.
+- **발견 2**: 가져오기 offer에 `sessionId`를 저장한다. UID 또는 session 변경은
+  상태를 비우고, 노출과 확인 모두 같은 session의 `home` 결정만 허용한다.
+  안내를 만들 때와 확인 후 lease를 받을 때 실제 JWT의 `session_id`도 대조한다.
+  독립 검토에서 reset과 진행 중 가져오기 완료가 겹치는 경로도 재현했다.
+  기존 훅의 지역 ref로 이전 실행이 끝난 뒤 새 큐를 읽고, 이전 실행의 콜백이
+  새 로그인에 안내·오류·busy·긴급 안내 상태를 쓰지 못하게 한다.
+- **테스트**: renderer 없이 실제 저장소와 route 함수·effect 실행 순서 및 소스
+  계약을 검사한다. `navigation 발행 → 늦은 shown → 목적지 mount`, 정상 영수증,
+  위조/빈/중복 파라미터, 직접 방문, focus 없는 s1→s2, JWT 불일치,
+  이전 안내 조회·가져오기의 늦은 완료/실패를 포함한다. 홈 복귀 계약을 포함한
+  인접 7 suites 232/232 통과.
+  최초 RED는 16건, 독립 검토의 진행 중 경합 RED는 4건으로 재현했다.
+  변이는 조건을 하나씩 되돌려 실패를 확인한 뒤 원본 바이트로 복원한다.
+  전체 verify는 package.json의 26단계를 같은 순서로 개별 실행하고 마지막 Jest는
+  `npm test -- --ci --maxWorkers=2`다. 매 단계 메모리와 다른 Jest 실행을 확인한다.
+  최종 수치·단계별 종료 코드는 `E:/Coding Infra/reports/qa-legacy-261004/verify/`
+  `n10-onboardk2-r{회차}-{verify,mutation}-summary.json`과 draft PR에 남긴다.
+- **독립 검토**: `gpt-6.1-sol xhigh`, 구현과 다른 모델의 읽기 전용 검토.
+  서버 무응답 시 자동 진입 없음(P2), claim 뒤 손실 수용(Q2)은 유지한다.
+  서버·0219·RPC·마이그레이션·전역 저장소·상태 기계·의존성·UI 문구 변경은 없다.
+  `_layout.tsx`와 `AuthContext`는 바꾸지 않아 DPIA 코드 인용도 이동하지 않는다.
+- **남긴 것**: 위의 기존 서버·환영 경합 목록은 그대로 범위 밖이다. 별도 훅 인스턴스나
+  remount를 가로지르는 가져오기의 UID 단위 single-flight는 기존 계약으로 남긴다
+  (`src/lib/capture/import-pending.ts`). 이번 수정은 같은 마운트의 focus 없는 재로그인이다.
+  실제 Router/Android 실행·QA 로그인·앱 LLM 호출·운영 DB·배포·APK 디스패치는
+  수행하지 않는다. 이번 위임은 push와 draft PR까지이며 병합·ready 전환·8081 반영은
+  하지 않는다. 실제 단말 navigation 순서는 함수·소스 계약 테스트와 구별한다.
+- **롤백**: 이 클라이언트 커밋의 revert. 서버 변경이 없어 DB 롤백은 없다.

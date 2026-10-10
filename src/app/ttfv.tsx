@@ -19,20 +19,59 @@
 // The auth gate below is unchanged from #1565 -- a signed-out visitor still never
 // mounts the screen.
 // React stays imported by name: ttfv-review-screen.test.ts calls this route
-// component directly, outside the automatic JSX runtime. For the same reason the
-// route holds no hook of its own: the visit (and its receipt) lives in TTFVScreen.
-import React from "react";
-import { Redirect } from "expo-router";
+// component directly, outside the automatic JSX runtime.
+import React, { useEffect, useRef, useState } from "react";
+import { Redirect, useLocalSearchParams } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { RedirectHome } from "@/lib/nav/go-home";
 import { markTTFVSeen, releaseTTFVClaim, takeTTFVClaimToken } from "@/lib/onboarding/ttfv-gate";
 import { TTFVScreen } from "@/screens/deepspace/onboarding/TTFVScreen";
 
+// The marker carries no authority or receipt. A queued home navigation can
+// outlive its grant (K1): take the existing receipt before mounting content.
+// A forged marker with no receipt can only send the visitor home.
+function AutomaticTtfv({ userId, sessionId, minor }: {
+  userId: string;
+  sessionId: string | null;
+  minor: boolean;
+}) {
+  const receiptRef = useRef<{ value: string | null } | null>(null);
+  const [resolved, setResolved] = useState(false);
+  useEffect(() => {
+    // Keep the one take across effect replay. The route key isolates logins.
+    receiptRef.current ??= { value: takeTTFVClaimToken(userId, sessionId) };
+    setResolved(true);
+  }, [userId, sessionId]);
+  if (!resolved) return <TTFVScreen mode="auth-loading" />;
+  const receipt = receiptRef.current?.value ?? null;
+  if (!receipt) return <RedirectHome />;
+  return (
+    <TTFVScreen
+      mode="authenticated"
+      userId={userId}
+      minor={minor}
+      takeReceipt={() => receipt}
+      onContentReady={(token) => markTTFVSeen(userId, token, sessionId)}
+      onContentUnavailable={(token) => releaseTTFVClaim(userId, token, sessionId)}
+    />
+  );
+}
+
 export default function Ttfv() {
   const { userId, sessionId, loading, isMinor } = useAuth();
+  const { auto } = useLocalSearchParams<{ auto?: string | string[] }>();
 
   if (loading) return <TTFVScreen mode="auth-loading" />;
   if (!userId) return <Redirect href="/sign-in" />;
+  if (auto !== undefined) return (
+    <AutomaticTtfv
+      key={JSON.stringify([userId, sessionId])}
+      userId={userId}
+      sessionId={sessionId}
+      minor={isMinor !== false}
+    />
+  );
 
   return (
     <TTFVScreen
