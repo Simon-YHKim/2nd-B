@@ -461,43 +461,34 @@ describe("no orphan bullet for the language that ran short", () => {
 // tactic the migration suites use against SQL.
 // ---------------------------------------------------------------------------
 
-describe("home popup wiring", () => {
-  const home = readFileSync(
-    join(__dirname, "..", "..", "..", "components", "deep-space", "ConstellationHome.tsx"),
-    "utf8",
-  );
+describe("home notification preview wiring", () => {
+  const home = readFileSync(join(__dirname, "../../../components/deep-space/ConstellationHome.tsx"), "utf8");
+  const phone = readFileSync(join(__dirname, "../../../components/dashboard/DashboardPhone.tsx"), "utf8");
 
-  test("dismissNotice records the read", () => {
-    expect(home).toMatch(/const dismissNotice = \(\) => \{[\s\S]*?markSeen\(shownNotice\.id\)/);
+  test("only opening a notice in the phone records the read", () => {
+    expect(home).not.toContain("markSeen(");
+    expect(phone).toContain("if (noticeCenter.isUnread(item.id)) void noticeCenter.markSeen(item.id)");
   });
 
-  test("the home popup records a read on every dismissal route", () => {
-    // onClose is the scrim tap and the Android hardware back button. Recording
-    // only on 확인 made an unread major re-interrupt on every cold start,
-    // forever, for anyone who dismisses that way - and it made the runbook's
-    // read-count query undercount the notice's real reach.
-    for (const handler of ["onClose", "onList", "onConfirm"]) {
-      const at = home.indexOf(`${handler}={() => {`);
-      expect(at).toBeGreaterThan(-1);
-      expect(home.slice(at, at + 120)).toContain("dismissNotice()");
-    }
+  test("home has no separate dismissal or list action", () => {
+    expect(home).not.toContain("dismissNotice");
+    expect(home).not.toContain("<NoticeDialog");
+    expect(home).not.toContain('router.push("/notices")');
   });
 
-  test("the popup still yields to the coachmark overlay", () => {
-    // HomeCoachmarks is a plain View sibling in DeepSpaceShell while this is a
-    // Modal, so without the interlock the Modal wins z-order while the
-    // coachmark's BackHandler still swallows the back button.
-    expect(home).toMatch(/coachmarksDue === false/);
+  test("notices cannot interrupt the home coachmark", () => {
+    expect(home).not.toContain("autoNoticeVisible");
+    expect(home).toContain("if (coachFirstRecord) { onCoachHeadPress?.(); return; }");
   });
 
-  test("the popup is driven by popupNotice, never by unreadCount", () => {
-    // An unread `minor` raises unreadCount, and minor must never interrupt.
-    expect(home).toMatch(/const autoNotice = noticeCenter\.popupNotice/);
-    expect(home).not.toMatch(/noticeCenter\.unreadCount > 0 &&\s*\n?\s*coachmarksDue/);
+  test("preview waits for hydration and never starts a popup", () => {
+    expect(home).toMatch(/const unreadNotice = noticeCenter\.hydrated/);
+    expect(home).not.toContain("popupNotice");
   });
 
-  test("the bell opens the newest UNREAD notice, not a positional row", () => {
+  test("preview selects the newest unread notice without falling back to a read row", () => {
     expect(home).toMatch(/noticeCenter\.notices\.find\(\(notice\) => noticeCenter\.isUnread\(notice\.id\)\)/);
+    expect(home).not.toContain("noticeCenter.notices[0]");
   });
 });
 

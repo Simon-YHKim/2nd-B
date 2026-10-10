@@ -112,7 +112,7 @@ describe("ScreenModal wires RN Modal's visible through the screen's focus", () =
   });
 });
 
-describe("/secondb: both of its modals are ScreenModal (R2A-03)", () => {
+describe("/secondb: its reference drawer uses ScreenModal (R2A-03)", () => {
   const sf = parse("src/app/secondb.tsx");
 
   it("renders no raw RN Modal", () => {
@@ -120,7 +120,7 @@ describe("/secondb: both of its modals are ScreenModal (R2A-03)", () => {
     expect(jsxOpenings(sf, "Modal")).toHaveLength(0);
   });
 
-  it("the intro modal and the reference drawer go through ScreenModal", () => {
+  it("the reference drawer goes through ScreenModal after retiring the intro", () => {
     expect(namedImports(sf, "@/components/ui/ScreenModal")).toContain("ScreenModal");
     const visibles = jsxOpenings(sf, "ScreenModal").map((el) => {
       for (const a of el.attributes.properties) {
@@ -130,7 +130,7 @@ describe("/secondb: both of its modals are ScreenModal (R2A-03)", () => {
       }
       return "";
     });
-    expect(visibles).toEqual(["introOpen", "refDrawer !== null"]);
+    expect(visibles).toEqual(["refDrawer !== null"]);
   });
 });
 

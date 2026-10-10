@@ -8,7 +8,7 @@ export function generationNotice(state: GenerationState, kind: "note" | "triage"
   const key = state === "busy" ? "loading" : state === "ready" ? "empty" : state;
   const note = { key: `phone.board.generation.${key === "empty" ? `${kind}Empty` : key}` };
   if (key === "denied") return { note, action: { label: { key: "phone.board.generation.settings" }, route: "/privacy" } };
-  if (key === "empty") return { note, action: { label: { key: "phone.assistantSettings" }, route: "/ops" } };
+  if (key === "empty" && kind === "summary") return { note, action: { label: { key: "phone.assistantSettings" }, route: "/ops" } };
   if (key === "unavailable") return { note, action: { label: { key: "phone.retry" }, route: "/board/retry" } };
   return { note };
 }

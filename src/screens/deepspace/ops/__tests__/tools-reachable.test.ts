@@ -99,17 +99,12 @@ const HUB = readFileSync(hubSourceFile(), "utf8");
 
 /** 허브 격자가 열어야 하는 비서 도구. */
 const TOOLS = [
-  "focus",
-  "reminders",
   "imagine",
   "share-card",
   "srs",
   "call-reflection",
   "reading",
-  "milestones",
-  "ledger",
   "side-project",
-  "meals",
 ] as const;
 
 /** 오늘의 두 가지가 고를 수 있는 후보. 전부 갈 곳이 있어야 한다. */
@@ -429,11 +424,12 @@ describe("비서 허브 PIXEL·legacy 회귀", () => {
     expect(APP_OPS).not.toContain("OpsHomeScreen");
   });
 
-  it("PixelSurface/PixelPressable, rect ring, FlatList, 44dp, a11y와 reflow를 고정한다", () => {
+  it("PixelSurface/PixelPressable, compact progress, FlatList, 44dp, a11y와 reflow를 고정한다", () => {
     expect(HUB).toContain("PixelSurface");
     expect(HUB).toContain("PixelPressable");
-    expect(HUB).toContain("ringCells");
-    expect(HUB).toContain("<Rect");
+    expect(HUB).not.toContain("ringCells");
+    expect(HUB).not.toContain("<ProgressRing");
+    expect(HUB).toContain('t("home.ringCount", { done: todayDone, total: todayData.routines.length })');
     expect(HUB).toContain("<FlatList");
     expect(HUB).toContain("minHeight: m3.minTouch");
     expect(HUB).toContain('accessibilityRole="checkbox"');

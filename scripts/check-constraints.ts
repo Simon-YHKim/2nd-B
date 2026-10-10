@@ -142,8 +142,8 @@ results.push(
     const jarvis = read("src/app/secondb.tsx");
     const enCapture = JSON.parse(read("locales/en/capture.json")) as Record<string, unknown>;
     const koCapture = JSON.parse(read("locales/ko/capture.json")) as Record<string, unknown>;
-    const enJarvis = JSON.parse(read("locales/en/secondb.json")) as { intro_body?: string; reference_piece_meta?: string };
-    const koJarvis = JSON.parse(read("locales/ko/secondb.json")) as { intro_body?: string; reference_piece_meta?: string };
+    const enJarvis = JSON.parse(read("locales/en/secondb.json")) as { piecesReferencedBody?: string; reference_piece_meta?: string };
+    const koJarvis = JSON.parse(read("locales/ko/secondb.json")) as { piecesReferencedBody?: string; reference_piece_meta?: string };
     const captureKeys = [
       "submit",
       "submitting",
@@ -451,14 +451,16 @@ results.push(
       captureBundlePlainLanguageOk &&
       captureKeys.every((key) => hasPath(enCapture, key) && hasPath(koCapture, key));
     const jarvisCitationCopyOk =
-      typeof enJarvis.intro_body === "string" &&
-      typeof koJarvis.intro_body === "string" &&
+      // UI2-CHAT-04: first-entry copy retired; citation guidance lives in the drawer.
+      typeof enJarvis.piecesReferencedBody === "string" &&
+      typeof koJarvis.piecesReferencedBody === "string" &&
       typeof enJarvis.reference_piece_meta === "string" &&
       typeof koJarvis.reference_piece_meta === "string" &&
-      !enJarvis.intro_body.includes("[[") &&
-      !koJarvis.intro_body.includes("[[") &&
-      !enJarvis.intro_body.toLowerCase().includes("slug") &&
-      !koJarvis.intro_body.includes("슬러그") &&
+      !enJarvis.piecesReferencedBody.includes("[[") &&
+      !koJarvis.piecesReferencedBody.includes("[[") &&
+      !enJarvis.piecesReferencedBody.toLowerCase().includes("slug") &&
+      !koJarvis.piecesReferencedBody.includes("슬러그") &&
+      jarvis.includes('t("piecesReferencedBody")') &&
       jarvis.includes("formatSourceCitationLabel(slug)") &&
       // 2026-10-05 재조준(Q-261004-11): 여기 레거시 ReferenceShardCard 의
       // `title=` · `meta=` prop 을 고정하고 있었다. 그 카드는 롤백 레버와 함께 빠졌고,
@@ -1128,9 +1130,9 @@ results.push(
       // 길게 눌러 복사: 레거시 말풍선의 longPressCopyThis 는 레버와 함께 빠졌고,
       // 배송 대화 말풍선이 같은 동작을 longPressCopy 힌트로 알린다.
       jarvis.includes('accessibilityHint={t("longPressCopy")}') &&
-      jarvis.includes('t("closeIntroHint")') &&
-      jarvis.includes('accessibilityLabel={t("intro_mute")}') &&
-      jarvis.includes('accessibilityLabel={t("intro_ok")}') &&
+      // UI2-CHAT-04/05: the retired intro has no controls; both save choices stay named.
+      jarvis.includes('accessibilityLabel={t("chatSaveNoticeOpen")}') &&
+      jarvis.includes('accessibilityLabel={t("chatSaveNoticeDismiss")}') &&
       jarvis.includes('t("closeReferencedHint")') &&
       // 2026-10-04: 옛 홈 그래프 NavGraph 의 핀 9줄(버튼 수 >= 7 · nav* 키 8개)을
       // 걷었다. 그 화면은 어느 빌드도 그리지 않았고(유일한 소비자가 빌드 밖
@@ -2746,7 +2748,9 @@ results.push(
       // 홈 코치마크는 첫 기록 안내다. 기존 기록이 다른 기기에 있어도 처음으로
       // 오판하지 않도록 소유자별 단일 게이트가 확인하고 홈에는 결과만 전달한다.
       landing.includes("useCoachmarksGate(") &&
-      liveConstellation.includes("coachmarksDue = null") &&
+      landing.includes("coachFirstRecord={coachmarksDue === true}") &&
+      liveConstellation.includes("coachFirstRecord = false") &&
+      liveConstellation.includes("if (coachFirstRecord)") &&
       !liveConstellation.includes("useCoachmarksGate(") &&
       captureScreen.includes('savedKind === "records"') &&
       captureScreen.includes('router.push("/records")') &&

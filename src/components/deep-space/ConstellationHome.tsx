@@ -3,8 +3,7 @@
  * sb-data.jsx STARS geometry (280×230 box, 북극성 overhanging at y=-16):
  * astronomically-honest Big Dipper (bowl 커리어→재정→관계→성장, handle down to
  * 뮤지엄) with the pointer stars' dashed guide to 북극성, the pinned 세컨비 head
- * with its speech bubble BELOW (소개 intro → star line + 여행하기 / head-tap menu
- * 챗봇·비서), and the top-left phone notifications launcher. The stage paints the prototype's
+ * with its speech bubble BELOW (소개 intro → star line + 여행하기 / head-tap reasoning), and the top-left phone notifications launcher. The stage paints the prototype's
  * radial washes + a static port of its neural field over the shared SbStarfield.
  *
  * Star brightness stays live (starLevels/northStarBrightness from
@@ -35,7 +34,7 @@ import { PixelStarSvg } from "../pixel/PixelStarSvg";
 import { pixelStarSpan } from "../pixel/pixel-star";
 import { layoutStarLabels } from "./star-label-layout";
 
-import { NoticeDialog, useNoticeCenter } from "@/app/notices";
+import { useNoticeCenter } from "@/app/notices";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { rewardedAdsConfigured } from "@/lib/ads/policy";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
@@ -182,28 +181,15 @@ function ladderIndex(level: LadderLevel): number {
 type BubbleState =
   | { kind: "intro" }
   | { kind: "reasoning" }
-  | { kind: "menu" }
   | { kind: "star"; id: HomeStarId };
 
 type ReasoningBubbleMode = "available" | "automatic" | "running" | "depleted";
 type HomeReasoningLocale = "en" | "ko" | "es" | "pt" | "id";
 
-const HOME_TIP_KEYS = [
-  "ds.home.bubble.tip1",
-  "ds.home.bubble.tip2",
-  "ds.home.bubble.tip3",
-] as const;
-
-function nextHomeBubble(current: BubbleState): BubbleState {
-  if (current.kind === "menu") return { kind: "reasoning" };
-  return { kind: "intro" };
-}
-
 const HOME_REASONING_COPY: Record<
   HomeReasoningLocale,
   {
     reasoningTag: string;
-    notices: string;
     running: string;
     depleted: string;
     automatic: string;
@@ -214,12 +200,10 @@ const HOME_REASONING_COPY: Record<
     viewPlans: string;
     viewProgress: string;
     chooseItems: string;
-    automaticButton: string;
   }
 > = {
   en: {
     reasoningTag: "REASONING",
-    notices: "Notices",
     running: "I'm reading your selected items and connecting their stars.",
     depleted: "You've used this week's base runs. They refill Monday.",
     automatic: "Automatic reasoning is on. New items connect right away.",
@@ -230,11 +214,9 @@ const HOME_REASONING_COPY: Record<
     viewPlans: "View plans",
     viewProgress: "View progress",
     chooseItems: "Choose items",
-    automaticButton: "Automatic",
   },
   ko: {
     reasoningTag: "리즈닝",
-    notices: "공지사항",
     running: "선택한 자료를 읽고 별을 잇는 중입니다.",
     depleted: "이번 주 기본 횟수를 다 썼습니다. 월요일에 다시 채워집니다.",
     automatic: "자동 리즈닝이 켜져 있습니다. 새 자료를 저장하면 바로 잇습니다.",
@@ -245,11 +227,9 @@ const HOME_REASONING_COPY: Record<
     viewPlans: "플랜 보기",
     viewProgress: "진행 화면 보기",
     chooseItems: "자료 선택",
-    automaticButton: "자동 설정",
   },
   es: {
     reasoningTag: "RAZONAMIENTO",
-    notices: "Avisos",
     running: "Estoy leyendo tus elementos seleccionados y conectando sus estrellas.",
     depleted: "Ya usaste las ejecuciones base de esta semana. Se recargan el lunes.",
     automatic: "El razonamiento automático está activo. Los nuevos elementos se conectan al instante.",
@@ -260,11 +240,9 @@ const HOME_REASONING_COPY: Record<
     viewPlans: "Ver planes",
     viewProgress: "Ver progreso",
     chooseItems: "Elegir elementos",
-    automaticButton: "Automático",
   },
   pt: {
     reasoningTag: "RACIOCÍNIO",
-    notices: "Avisos",
     running: "Estou lendo os itens selecionados e conectando suas estrelas.",
     depleted: "Você usou as execuções base desta semana. Elas voltam na segunda.",
     automatic: "O raciocínio automático está ativo. Novos itens se conectam na hora.",
@@ -275,11 +253,9 @@ const HOME_REASONING_COPY: Record<
     viewPlans: "Ver planos",
     viewProgress: "Ver progresso",
     chooseItems: "Escolher itens",
-    automaticButton: "Automático",
   },
   id: {
     reasoningTag: "PENALARAN",
-    notices: "Pengumuman",
     running: "Aku sedang membaca item pilihanmu dan menghubungkan bintangnya.",
     depleted: "Jatah dasar minggu ini sudah habis. Akan terisi lagi Senin.",
     automatic: "Penalaran otomatis aktif. Item baru langsung terhubung.",
@@ -290,7 +266,6 @@ const HOME_REASONING_COPY: Record<
     viewPlans: "Lihat paket",
     viewProgress: "Lihat progres",
     chooseItems: "Pilih item",
-    automaticButton: "Otomatis",
   },
 };
 
@@ -303,10 +278,9 @@ function homeReasoningLocale(language: string | undefined): HomeReasoningLocale 
   return "en";
 }
 
-function NoticeTicker({ text, reducedMotion, onPress }: {
+function NoticeTicker({ text, reducedMotion }: {
   text: string;
   reducedMotion: boolean;
-  onPress: () => void;
 }) {
   const offset = useRef(new Animated.Value(0)).current;
   const [trackWidth, setTrackWidth] = useState(0);
@@ -340,14 +314,7 @@ function NoticeTicker({ text, reducedMotion, onPress }: {
   }, [offset, reducedMotion, text, textWidth, trackWidth]);
 
   return (
-    <Pressable
-      testID="home-notice-ticker"
-      style={styles.tickerPress}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={text}
-      hitSlop={{ top: 2, bottom: 2 }}
-    >
+    <View testID="home-notice-ticker" style={styles.tickerPress}>
       <View style={styles.tickerTrack} onLayout={(event) => setTrackWidth(Math.round(event.nativeEvent.layout.width))}>
         {reducedMotion ? (
           <Text style={styles.tickerText} numberOfLines={1}>{text}</Text>
@@ -359,7 +326,7 @@ function NoticeTicker({ text, reducedMotion, onPress }: {
           </Animated.View>
         )}
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -543,12 +510,9 @@ const DOMAIN_HALO_MULT_REST = 1.6;
 export function ConstellationHome({
   onStarTravel,
   onPolarisPress,
-  onChatPress,
   coachFirstRecord = false,
-  coachmarksDue = null,
   coachHeadTargetRef,
   onCoachHeadPress,
-  onOpsPress,
   onBellPress,
   starLevels = {},
   northStarBrightness = 0.2,
@@ -556,14 +520,10 @@ export function ConstellationHome({
   /** 여행하기 on a star bubble (domains → their records lens, profile → /profile). */
   onStarTravel: (id: HomeStarId) => void;
   onPolarisPress: () => void;
-  /** Head-tap menu actions (prototype bubble buttons 챗봇 / 비서). */
-  onChatPress: () => void;
   /** First-run task coach: the live head becomes step 1's only active target. */
   coachFirstRecord?: boolean;
-  coachmarksDue?: boolean | null;
   coachHeadTargetRef?: RefObject<View | null>;
   onCoachHeadPress?: () => void;
-  onOpsPress: () => void;
   onBellPress: () => void;
   starLevels?: Partial<Record<HomeStarId, LadderLevel>>;
   northStarBrightness?: number;
@@ -579,10 +539,7 @@ export function ConstellationHome({
   const task = useTaskStatus();
   const { width: winW, fontScale } = useWindowDimensions();
   const [bubble, setBubble] = useState<BubbleState>({ kind: "intro" });
-  const [tickerIndex, setTickerIndex] = useState(0);
   const [stage, setStage] = useState<{ w: number; h: number } | null>(null);
-  const [autoNoticeDismissed, setAutoNoticeDismissed] = useState(false);
-  const [manualNoticeVisible, setManualNoticeVisible] = useState(false);
   const [homeFocused, setHomeFocused] = useState(false);
   const [phoneExpanded, setPhoneExpanded] = useState(false);
   // The swipe-up glare (눈부심). Drawn here, over the whole home, so its halo
@@ -609,8 +566,7 @@ export function ConstellationHome({
   }>({ automatic: false, remaining: null, baseRemaining: null, rewardCredits: 0 });
   const [limitSheetVisible, setLimitSheetVisible] = useState(false);
 
-  // Home stays mounted behind capture. Keep its notice Modal off other routes,
-  // including the first-record coach's completion screen.
+  // Home stays mounted behind other routes; pause its portrait while covered.
   useFocusEffect(useCallback(() => {
     setHomeFocused(true);
     return () => setHomeFocused(false);
@@ -769,11 +725,9 @@ export function ConstellationHome({
   const bubbleTag =
     bubble.kind === "reasoning"
       ? reasoningCopy.reasoningTag
-      : bubble.kind === "menu"
-          ? t("ds.home.bubble.menuTag")
-          : bubble.kind === "star"
-            ? kindOf(bubble.id)
-            : t("ds.home.bubble.introTag");
+      : bubble.kind === "star"
+        ? kindOf(bubble.id)
+        : t("ds.home.bubble.introTag");
   const bubbleTitle = bubble.kind === "star" ? starName(bubble.id) : null;
   const bubbleLine =
     bubble.kind === "reasoning"
@@ -790,25 +744,14 @@ export function ConstellationHome({
                 : reasoningStatus.baseRemaining !== null && reasoningStatus.baseRemaining > 0
                   ? reasoningCopy.baseLeft(reasoningStatus.baseRemaining)
                   : reasoningCopy.rewardLeft(reasoningStatus.rewardCredits)
-      : bubble.kind === "menu"
-          ? t("ds.home.bubble.menu")
-          : bubble.kind === "star"
-            ? `${t(`ds.home.star.${bubble.id}.line`)}${selectedEntry?.kind === "previous"
-              ? ` ${t("ds.home.star.entryAfter", { star: starName(selectedEntry.prerequisite) })}`
-              : selectedEntry?.kind === "unlived"
-                ? ` ${t("ds.star.lockedBody")}`
-                : ""}`
-            : t("ds.home.bubble.intro");
-  // The popup is driven by popupNotice, NOT by unreadCount. Once the notices
-  // table exists an unread `minor` row also raises unreadCount, and minor is
-  // explicitly not allowed to interrupt - keying the gate off the count would
-  // pop a dialog for it. popupNotice already applies the precedence rules
-  // (src/lib/notices/center.ts) and is null when nothing may interrupt.
-  const autoNotice = noticeCenter.popupNotice;
-  const autoNoticeVisible =
-    noticeCenter.hydrated && autoNotice !== null && coachmarksDue === false && !autoNoticeDismissed;
-  const homePortraitActive = homeFocused && !autoNoticeVisible && !manualNoticeVisible &&
-    !limitSheetVisible && !phoneExpanded && captureId === null;
+      : bubble.kind === "star"
+        ? `${t(`ds.home.star.${bubble.id}.line`)}${selectedEntry?.kind === "previous"
+          ? ` ${t("ds.home.star.entryAfter", { star: starName(selectedEntry.prerequisite) })}`
+          : selectedEntry?.kind === "unlived"
+            ? ` ${t("ds.star.lockedBody")}`
+            : ""}`
+        : t("ds.home.bubble.intro");
+  const homePortraitActive = homeFocused && !limitSheetVisible && !phoneExpanded && captureId === null;
   const homePortraitVisible = useHustleKForeground(homePortraitActive);
   const dialogue = useJrpgTypewriter({
     text: bubble.kind === "intro" ? "" : bubbleLine,
@@ -825,40 +768,14 @@ export function ConstellationHome({
       dialogue.reveal();
       return;
     }
-    setBubble(nextHomeBubble);
-  }, [coachFirstRecord, dialogue.isComplete, dialogue.reveal, onCoachHeadPress]);
-  // The bell opens the newest UNREAD notice, falling back to the newest one
-  // when everything is read. Positional notices[0] made the bell disagree with
-  // its own dot: the dot is raised by the unread set, so tapping it could open
-  // an already-read notice and leave the dot lit with no way to clear it.
-  // Gated on `hydrated` like every other notice path - without it the bell can
-  // open the bundled release note and then re-render as an arriving remote
-  // notice under the user's finger, marking one they never saw as read.
-  const manualNotice = noticeCenter.hydrated
-    ? (noticeCenter.notices.find((notice) => noticeCenter.isUnread(notice.id)) ??
-      noticeCenter.notices[0] ??
-      null)
-    : null;
-  useEffect(() => {
-    if (!homeFocused) return;
-    const timer = setInterval(() => setTickerIndex((index) => index + 1), 12_000);
-    return () => clearInterval(timer);
-  }, [homeFocused]);
-  const tickerItems = [
-    ...(manualNotice ? [{ kind: "notice" as const, text: `${reasoningCopy.notices} · ${manualNotice.title[homeReasoningLocale(i18n.language) === "ko" ? "ko" : "en"]}` }] : []),
-    ...HOME_TIP_KEYS.map((key) => ({ kind: "tip" as const, text: `${t("ds.home.bubble.tipTag")} · ${t(key)}` })),
-  ];
-  const tickerItem = tickerItems[tickerIndex % tickerItems.length];
-  const openNotice = () => {
     setBubble({ kind: "intro" });
-    setManualNoticeVisible(true);
-  };
-  const shownNotice = manualNoticeVisible ? manualNotice : autoNotice;
-  const dismissNotice = () => {
-    setAutoNoticeDismissed(true);
-    setManualNoticeVisible(false);
-    if (shownNotice) void noticeCenter.markSeen(shownNotice.id);
-  };
+  }, [coachFirstRecord, dialogue.isComplete, dialogue.reveal, onCoachHeadPress]);
+  // Read state is shared with the phone. Home only previews the newest unread
+  // title; opening the phone is not itself a read.
+  const unreadNotice = noticeCenter.hydrated
+    ? noticeCenter.notices.find((notice) => noticeCenter.isUnread(notice.id)) ?? null
+    : null;
+  const noticeTitle = unreadNotice?.title[homeReasoningLocale(i18n.language) === "ko" ? "ko" : "en"] ?? "";
   const reasoningMode: ReasoningBubbleMode =
     task.phase === "running" && task.resultHref === "/reasoning"
       ? "running"
@@ -891,24 +808,13 @@ export function ConstellationHome({
           Fabric Android can drop styles applied directly to Pressable. */}
       <View style={styles.topBar}>
         <View style={styles.topBarStart}>
-          <View style={styles.bell}>
-            <Pressable
-              onPress={onBellPress}
-              accessibilityRole="button"
-              accessibilityLabel={t("ds.home.inbox")}
-              hitSlop={14}
-            >
-              <PixelGlyph name="notifications" color={m3.accent.bellGlyph} size={20} />
-            </Pressable>
-            {noticeCenter.unreadCount > 0 ? <View pointerEvents="none" style={styles.bellDot} /> : null}
-          </View>
           <View ref={coachHeadTargetRef} collapsable={false} testID="secondb-dialogue-launcher"
             style={[styles.secondbLauncher, bubble.kind !== "intro" && styles.secondbLauncherActive]}>
             <Pressable
               style={styles.secondbLauncherPress}
               onPress={() => {
                 if (coachFirstRecord) { onCoachHeadPress?.(); return; }
-                setBubble((current) => current.kind === "intro" ? { kind: "menu" } : { kind: "intro" });
+                setBubble((current) => current.kind === "intro" ? { kind: "reasoning" } : { kind: "intro" });
               }}
               accessibilityRole="button"
               accessibilityLabel={t(bubble.kind === "intro" ? "ds.home.dialogueOpen" : "ds.home.dialogueClose")}
@@ -921,20 +827,22 @@ export function ConstellationHome({
           </View>
         </View>
 
-        <NoticeTicker key={tickerItem.text} text={tickerItem.text} reducedMotion={reducedMotion}
-          onPress={tickerItem.kind === "notice" ? openNotice : () => setTickerIndex((index) => index + 1)} />
-
-        {/* Campaign notice keeps its own persisted unread signal. */}
-        <View style={styles.noticeBell}>
+        <View style={[styles.notifications, noticeTitle ? styles.notificationsWithTitle : null]}>
           <Pressable
-            onPress={openNotice}
+            testID="home-notifications"
+            style={styles.notificationPress}
+            onPress={onBellPress}
             accessibilityRole="button"
-            accessibilityLabel={reasoningCopy.notices}
-            hitSlop={14}
+            accessibilityLabel={[t("ds.home.inbox"), noticeTitle].filter(Boolean).join(", ")}
           >
-            <PixelGlyph name="campaign" color={m3.color.primary} size={20} />
+            <View style={styles.notificationContent} pointerEvents="none" aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+              <View style={styles.bell}>
+                <PixelGlyph name="notifications" color={m3.accent.bellGlyph} size={20} />
+                {noticeCenter.unreadCount > 0 ? <View style={styles.bellDot} /> : null}
+              </View>
+              {noticeTitle ? <NoticeTicker key={noticeTitle} text={noticeTitle} reducedMotion={reducedMotion} /> : null}
+            </View>
           </Pressable>
-          {noticeCenter.unreadCount > 0 ? <View pointerEvents="none" style={styles.bellDot} /> : null}
         </View>
       </View>
 
@@ -1234,43 +1142,8 @@ export function ConstellationHome({
                         router.push("/reasoning");
                       }}
                     />
-                    {reasoningMode !== "running" ? (
-                      <MdButton
-                        label={reasoningCopy.automaticButton}
-                        variant="tonal"
-                        style={styles.dialogueAction}
-                        hitSlop={DIALOGUE_ACTION_HIT_SLOP}
-                        onPress={() => {
-                          setBubble({ kind: "intro" });
-                          router.push("/reasoning");
-                        }}
-                      />
-                    ) : null}
                   </>
                 )}
-              </View>
-            ) : bubble.kind === "menu" ? (
-              <View style={styles.bubbleActions}>
-                <MdButton
-                  label={t("ds.home.bubble.chatbot")}
-                  variant="filled"
-                  style={styles.dialogueAction}
-                  hitSlop={DIALOGUE_ACTION_HIT_SLOP}
-                  onPress={() => {
-                    setBubble({ kind: "intro" });
-                    onChatPress();
-                  }}
-                />
-                <MdButton
-                  label={t("ds.home.bubble.assistant")}
-                  variant="tonal"
-                  style={styles.dialogueAction}
-                  hitSlop={DIALOGUE_ACTION_HIT_SLOP}
-                  onPress={() => {
-                    setBubble({ kind: "intro" });
-                    onOpsPress();
-                  }}
-                />
               </View>
             ) : bubble.kind === "star" ? (
               <View style={styles.bubbleActions}>
@@ -1324,31 +1197,6 @@ export function ConstellationHome({
           <PhoneGlare key={phoneGlare.run} reducedMotion={reducedMotion} frame={phoneGlare.frame} width={stage.w} height={stage.h} onDone={() => setPhoneGlare(null)} />
         </View>
       ) : null}
-      {shownNotice ? (
-        <NoticeDialog
-          visible={homeFocused && (autoNoticeVisible || manualNoticeVisible)}
-          notice={shownNotice}
-          index={0}
-          showPager={false}
-          // Dismissing by ANY route records the read, not just 확인.
-          // The dialog interrupted the user and put the notice on screen, so
-          // that is what "read" means here. With 확인 as the only writer, a
-          // backdrop tap or Android hardware back left no row and the same
-          // major notice re-interrupted on every single cold start, forever,
-          // while docs/OPERATIONS-NOTICES.md promised the opposite and its
-          // read-count query undercounted the notice's real reach.
-          onClose={() => {
-            dismissNotice();
-          }}
-          onList={() => {
-            dismissNotice();
-            router.push("/notices");
-          }}
-          onConfirm={() => {
-            dismissNotice();
-          }}
-        />
-      ) : null}
       <ReasoningLimitSheet
         visible={limitSheetVisible}
         onClose={() => setLimitSheetVisible(false)}
@@ -1391,7 +1239,7 @@ const styles = StyleSheet.create({
     zIndex: 8,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 8,
     paddingHorizontal: 16,
     borderBottomWidth: 2,
     borderBottomColor: m3.color.surfaceBright,
@@ -1454,17 +1302,10 @@ const styles = StyleSheet.create({
     backgroundColor: m3.color.surfaceContainerHighest,
     ...m3.elevation.level2,
   },
-  noticeBell: {
-    width: 40,
-    height: 40,
-    borderRadius: 0,
-    borderWidth: 1,
-    borderColor: m3.color.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: m3.color.primaryContainer,
-    ...m3.elevation.level2,
-  },
+  notifications: { minWidth: 44, minHeight: 44 },
+  notificationsWithTitle: { flex: 1 },
+  notificationPress: { minHeight: 44, justifyContent: "center" },
+  notificationContent: { flexDirection: "row", alignItems: "center", minWidth: 0 },
   bellDot: {
     position: "absolute",
     top: 9,
