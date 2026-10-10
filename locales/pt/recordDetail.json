@@ -28,5 +28,9 @@
     "seeAreaHint": "Abre {{area}} com este registro no topo.",
     "askSecondB": "Perguntar ao HustleK",
     "openSource": "Abrir material original"
+  },
+  "structuredForm": {
+    "career_3c4p": "Experiência profissional",
+    "call_reflection": "Reflexão de chamada"
   }
 }
