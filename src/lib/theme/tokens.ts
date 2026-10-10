@@ -347,7 +347,7 @@ export const semanticLight = {
   deepSpaceCard: semantic.deepSpaceCard,
   deepSpaceCardPressed: semantic.deepSpaceCardPressed,
   deepSpaceCardLine: semantic.deepSpaceCardLine,
-
+  googleBrandRed: semantic.googleBrandRed,
   googleBrandYellow: semantic.googleBrandYellow,
   googleBrandGreen: semantic.googleBrandGreen,
   googleBrandBlue: semantic.googleBrandBlue,
