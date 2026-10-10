@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
+import { sessionIdFromAccessToken } from "@/lib/auth/auth-storage-schema";
 import { withTimeout } from "@/lib/async/with-timeout";
 import { useFirstRunHomeGate } from "@/lib/onboarding/account-first-run";
 import { crisisHotlines } from "@/lib/safety/classifier";
@@ -21,6 +22,7 @@ import { loadPendingCaptures, type PendingCapture } from "./preauth-pending";
 // to the currently published account and these exact queue entries.
 interface PendingImportOffer {
   userId: string;
+  sessionId: string;
   email: string | null;
   items: PendingCapture[];
 }
@@ -56,20 +58,23 @@ export function useImportPendingCaptures(): {
   const [error, setError] = useState(false);
   const [crisis, setCrisis] = useState<PendingImportCrisis>({ visible: false, hotline: "GLOBAL_988" });
   const crisisShown = useRef(false);
+  const currentLogin = useRef({ userId, sessionId });
+  currentLogin.current = { userId, sessionId };
+  const importRun = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
-    // A different account must never inherit the previous prompt, busy state,
+    // A different login must never inherit the previous prompt, busy state,
     // or a crisis modal from an in-flight import.
     setOffer(null);
     setImporting(false);
     setError(false);
     setCrisis({ visible: false, hotline: "GLOBAL_988" });
     crisisShown.current = false;
-  }, [userId]);
+  }, [userId, sessionId]);
 
   useEffect(() => {
     if (
-      loading || !userId || hasProfile !== true || profileProbeFailed ||
+      loading || !userId || !sessionId || hasProfile !== true || profileProbeFailed ||
       firstRun !== "home"
     ) return;
     const lease = captureAccountOwnerLease(userId);
@@ -77,6 +82,10 @@ export function useImportPendingCaptures(): {
     let active = true;
     void (async () => {
       try {
+        // The importer shares an in-flight run by UID. Let this hook's previous
+        // login finish before reading a new queue snapshot or offering it again.
+        await importRun.current;
+        if (!active || !lease.isCurrent()) return;
         const items = await loadPendingCaptures();
         if (!active || !lease.isCurrent() || items.length === 0) return;
         // Use the exact persisted session email, never a display name or a
@@ -87,37 +96,45 @@ export function useImportPendingCaptures(): {
           const { data, error: sessionError } = await withTimeout(
             getSupabaseClient().auth.getSession(), 6000, "Pending import account",
           );
-          if (!sessionError && data.session?.user.id === userId) {
-            email = data.session.user.email?.trim() || null;
-          }
+          if (sessionError || data.session?.user.id !== userId ||
+            sessionIdFromAccessToken(data.session.access_token) !== sessionId) return;
+          email = data.session.user.email?.trim() || null;
         } catch {
-          // Account identity could not be confirmed; show only a defer option.
+          // Do not publish an offer whose login could not be confirmed.
+          return;
         }
-        if (active && lease.isCurrent()) setOffer({ userId, email, items });
+        if (active && lease.isCurrent()) setOffer({ userId, sessionId, email, items });
       } catch {
         // Never turn unreadable protected storage into an empty queue claim.
       }
     })();
     return () => { active = false; };
-  }, [userId, hasProfile, loading, profileProbeFailed, firstRun]);
+  }, [userId, sessionId, hasProfile, loading, profileProbeFailed, firstRun]);
 
   const confirmImport = useCallback(() => {
-    if (!offer || !offer.email || importing || offer.userId !== userId) return;
+    if (!offer || !offer.email || importing || offer.userId !== userId ||
+      offer.sessionId !== sessionId || firstRun !== "home") return;
     const lease = captureAccountOwnerLease(offer.userId);
     if (!lease) return;
+    const isCurrent = () => lease.isCurrent() && currentLogin.current.userId === userId &&
+      currentLogin.current.sessionId === sessionId;
+    if (!isCurrent() || importRun.current) return;
     const locale = i18n.language === "ko" ? "ko" : "en";
     // Unknown age takes the protective youth route until the profile resolves.
     const minor = isMinor !== false;
     setImporting(true);
     setError(false);
     const sessionLease = beginAccountSessionLease(offer.userId);
-    void withTimeout(sessionLease.authenticate(), 6000, "Pending import session").then((session) =>
-      importPendingCaptures(
+    importRun.current = withTimeout(sessionLease.authenticate(), 6000, "Pending import session").then((session) => {
+      // Auth publication can lag behind getSession during a new sign-in.
+      if (!isCurrent() || sessionIdFromAccessToken(session.accessToken) !== offer.sessionId) return null;
+      return importPendingCaptures(
         { userId: offer.userId, locale, minor },
         async (item, ctx, clientRequestId) => {
           // Hashing and queue reads await. Re-check before classification;
           // createRecord checks again before the DB insert and C9 ledger writes.
           session.assertCurrent();
+          if (!isCurrent()) throw new Error("Pending import sign-in changed");
           const res = await createRecord({
             userId: ctx.userId,
             locale: ctx.locale,
@@ -128,7 +145,7 @@ export function useImportPendingCaptures(): {
             clientRequestId,
             session,
           });
-          if (res.followup?.zone === "red" && !crisisShown.current && lease.isCurrent()) {
+          if (res.followup?.zone === "red" && !crisisShown.current && isCurrent()) {
             crisisShown.current = true;
             setOffer(null);
             setCrisis({ visible: true, hotline: crisisHotlines(locale, minor)[0].id });
@@ -136,36 +153,38 @@ export function useImportPendingCaptures(): {
         },
         (s) => digestStringAsync(CryptoDigestAlgorithm.SHA256, s),
         { userId: offer.userId, items: offer.items, isCurrent: () => {
-          try { session.assertCurrent(); return true; } catch { return false; }
+          try { session.assertCurrent(); return isCurrent(); } catch { return false; }
         } },
-      )
-    ).then(async (summary) => {
-      if (!lease.isCurrent() || crisisShown.current) return;
+      );
+    }).then(async (summary) => {
+      if (!summary || !isCurrent() || crisisShown.current) return;
       if (summary.failed === 0) {
         setOffer(null);
       } else {
         // Only the failed entries remain. A retry needs a fresh decision over
         // the still-present entries; never silently broaden the old approval.
         const remaining = await loadPendingCaptures();
-        if (lease.isCurrent()) {
+        if (isCurrent()) {
           setOffer({ ...offer, items: remaining });
           setError(true);
         }
       }
     }).catch(() => {
-      if (lease.isCurrent() && !crisisShown.current) setError(true);
+      if (isCurrent() && !crisisShown.current) setError(true);
     }).finally(() => {
       sessionLease.release();
-      if (lease.isCurrent()) setImporting(false);
+      if (isCurrent()) setImporting(false);
+      importRun.current = null;
     });
-  }, [offer, importing, userId, i18n.language, isMinor]);
+  }, [offer, importing, userId, sessionId, firstRun, i18n.language, isMinor]);
 
   const deferImport = useCallback(() => {
     if (!importing) setOffer(null); // no server write and no local deletion
   }, [importing]);
 
   return {
-    prompt: offer && offer.userId === userId && captureAccountOwnerLease(userId)
+    prompt: offer && offer.userId === userId && offer.sessionId === sessionId &&
+      firstRun === "home" && captureAccountOwnerLease(userId)
       ? { count: offer.items.length, email: offer.email, importing, error }
       : null,
     confirmImport,

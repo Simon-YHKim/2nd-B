@@ -147,7 +147,7 @@ export function DeepSpaceShell() {
   // a first-run screen is a home flash on the very first run.
   if (firstRun === "wait") return <InlineLoader />;
   if (firstRun === "/onboarding") return <Redirect href="/onboarding" />;
-  if (firstRun === "/ttfv") return <Redirect href="/ttfv" />;
+  if (firstRun === "/ttfv") return <Redirect href={{ pathname: "/ttfv", params: { auto: "" } }} />;
 
 
 
