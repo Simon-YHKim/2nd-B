@@ -20,7 +20,8 @@ import {
 } from "@/lib/dashboard/board/contract";
 import { boardTone } from "@/lib/dashboard/board/tone";
 import { phoneIos } from "@/lib/theme/phone-ios";
-import { IosButton } from "./IosParts";
+import { formatPhoneTime } from "@/lib/dashboard/phone-clock";
+import { IosButton, IosCardHeader } from "./IosParts";
 import { WeatherGlyph, WeatherPin } from "./WeatherGlyph";
 
 /** 부모(DashboardPhone)가 받는 사건. 이동은 폰 안에서 한다. */
@@ -91,7 +92,7 @@ function ClockRow({ part, go, openWeather }: { part: ClockPart; go: (route: stri
     const timer = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(timer);
   }, []);
-  const time = now.toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit", hour12: false });
+  const time = formatPhoneTime(now, i18n.language);
   const day = now.toLocaleDateString(i18n.language, { month: "long", day: "numeric", weekday: "long" });
   // 날씨는 그림 하나 + 기온 하나. 설명 문구 없이, 읽기 이름만 "맑음, 18도" 처럼 짧게.
   const weather = part.weather;
@@ -118,16 +119,18 @@ function NoteRow({ part, events }: { part: NotePart; events: BoardEvents }) {
   const { t, i18n } = useTranslation("ops");
   const say = useBoardText();
   const tone = boardTone(part.basis);
+  const title = t("phone.board.shelf.parts.note");
+  const slot = t(`phone.board.note.slot.${part.slot}`);
   return <Frame basis={part.basis} shape={part.shape}>
-    <Pressable testID="board-note-open" accessibilityRole="button" accessibilityLabel={t("phone.board.shelf.parts.note")}
-      onPress={events.openSummary} style={styles.inline}>
-      <PixelGlyph name="chat" size={16} color={part.line ? tone.text : phoneIos.blue} />
-      <Text variant="caption" style={[styles.flex, styles.sectionTitle]}>{t("phone.board.shelf.parts.note")}</Text>
-      <PixelGlyph name="chevron_right" size={16} color={phoneIos.blue} />
+    <Pressable testID="board-note-open" accessibilityRole="button" accessibilityLabel={`${title}, ${slot}`}
+      onPress={events.openSummary}>
+      <IosCardHeader glyph="chat" title={title} iconColor={part.line ? tone.text : phoneIos.blue} trailing={<>
+        <Text variant="caption" style={styles.muted}>{slot}</Text>
+        <PixelGlyph name="chevron_right" size={16} color={phoneIos.blue} />
+      </>} />
     </Pressable>
     {part.line ? <View style={styles.inline}>
       <Pressable accessibilityRole="button" accessibilityHint={t("phone.board.note.tapHint")} onPress={events.openSummary} style={[styles.flex, styles.tapRow]}>
-        <Text variant="caption" style={styles.muted}>{t(`phone.board.note.slot.${part.slot}`)}</Text>
         <Text variant="body" style={{ color: tone.text }}>{say(part.line)}</Text>
       </Pressable>
       <Evidence route={part.evidenceRoute} basis={part.basis} go={events.go} />
@@ -159,15 +162,15 @@ function RemindersCard({ part, events }: { part: RemindersPart; events: BoardEve
   const suggestions = part.suggestions.filter((item) => !dismissed.includes(item.id));
   return <Frame basis={part.basis} shape={part.shape}>
     <View {...swipe.panHandlers} testID="board-reminders" style={styles.stack}>
-      <View style={styles.dayHeader}>
+      <IosCardHeader glyph="schedule" title={t("phone.board.reminders.title")} trailing={<View style={styles.dayHeader}>
         <Pressable accessibilityRole="button" accessibilityLabel={t("phone.board.reminders.previous")} disabled={index === 0} onPress={() => step(-1)} style={styles.dayArrow}>
           {index > 0 ? <PixelGlyph name="arrow_back" size={16} color={phoneIos.blue} /> : null}
         </Pressable>
-        <Text variant="body" accessibilityRole="header" style={[styles.flexCenter, styles.remindersTitle]}>{`${t("phone.board.reminders.title")} · ${dayName}`}</Text>
+        <Text variant="caption" style={[styles.muted, styles.dayLabel]}>{dayName}</Text>
         <Pressable accessibilityRole="button" accessibilityLabel={t("phone.board.reminders.next")} disabled={index === last} onPress={() => step(1)} style={styles.dayArrow}>
           {index < last ? <PixelGlyph name="arrow_forward" size={16} color={phoneIos.blue} /> : null}
         </Pressable>
-      </View>
+      </View>} />
       {day.items.length ? day.items.map((item) => <Pressable key={item.id} disabled={!item.route} accessibilityRole="button"
         accessibilityLabel={[item.time, item.title, t(`phone.board.reminders.status.${item.status}`)].filter(Boolean).join(", ")}
         onPress={() => item.route && events.go(item.route)} style={styles.item}>
@@ -206,15 +209,10 @@ function QueueRow({ part, events }: { part: QueuePart; events: BoardEvents }) {
     events.queue(current.id, choice);
   };
   return <Frame basis={part.basis} shape={part.shape}>
-    {!current && !items.length ? <View style={styles.inline}>
-      <PixelGlyph name="check_circle" size={16} color={phoneIos.blue} />
-      <Text variant="caption" style={styles.sectionTitle}>{t("phone.board.shelf.parts.queue")}</Text>
-    </View> : null}
+    {!current && !items.length ? <IosCardHeader glyph="check_circle" title={t("phone.board.shelf.parts.queue")} /> : null}
     {current ? <View style={styles.stack}>
-      <View style={styles.inline}>
-        <Text variant="caption" style={styles.muted}>{t("phone.board.queue.title", { index: handled.length + 1, total: items.length })}</Text>
-        <PixelRoundRect corner="small" fill={phoneIos.fill} style={styles.chip}><Text variant="caption" style={styles.muted}>{t(`phone.board.queue.sources.${current.source}`)}</Text></PixelRoundRect>
-      </View>
+      <IosCardHeader glyph="check_circle" title={t("phone.board.queue.title", { index: handled.length + 1, total: items.length })}
+        trailing={<PixelRoundRect corner="small" fill={phoneIos.fill} style={styles.chip}><Text variant="caption" style={styles.muted}>{t(`phone.board.queue.sources.${current.source}`)}</Text></PixelRoundRect>} />
       <View style={styles.inline}>
         <Text variant="body" style={[styles.flex, { color: boardTone(current.basis).text }]}>{say(current.line)}</Text>
         <Evidence route={current.evidenceRoute} basis={current.basis} go={events.go} />
@@ -361,7 +359,6 @@ export function BoardPageView({ board, page, events, recommendations }: { board:
 
 
 const styles = StyleSheet.create({
-  sectionTitle: { fontFamily: "Galmuri11Bold", color: phoneIos.label },
   weatherTap: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
   text: { color: phoneIos.label },
   page: { gap: 10 },
@@ -372,19 +369,18 @@ const styles = StyleSheet.create({
   stack: { gap: 6 },
   inline: { flexDirection: "row", alignItems: "center", gap: 8 },
   flex: { flex: 1, flexShrink: 1 },
-  flexCenter: { flex: 1, flexShrink: 1, textAlign: "center" },
   muted: { color: phoneIos.label2 },
   time: { color: phoneIos.label, minWidth: 40 },
   clock: { fontVariant: ["tabular-nums"], fontFamily: "Galmuri11Bold" },
   clockRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   sky: { flexDirection: "row", alignItems: "center", gap: 4 },
   figure: { fontFamily: "Galmuri11Bold" },
-  remindersTitle: { color: phoneIos.orange, fontFamily: "Galmuri11Bold" },
   tapRow: { minHeight: 44, justifyContent: "center", gap: 2 },
   noteRow: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44 },
   actions: { flexDirection: "row", flexWrap: "wrap", columnGap: 6 },
   evidence: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  dayHeader: { flexDirection: "row", alignItems: "center" },
+  dayHeader: { flexDirection: "row", alignItems: "center", flexShrink: 1, maxWidth: "65%" },
+  dayLabel: { flexShrink: 1, minWidth: 0 },
   dayArrow: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   item: { minHeight: 44, justifyContent: "center", gap: 2, paddingVertical: 2 },
   ring: { width: 12, height: 12, borderWidth: 2, borderColor: phoneIos.gray3 },
