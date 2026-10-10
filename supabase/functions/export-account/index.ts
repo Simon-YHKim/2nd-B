@@ -674,12 +674,19 @@ Deno.serve(async (req: Request) => {
     reserveExportValue(budget, profileResult.data);
     tables.users = profileResult.data;
 
+    const initialImportCounts = await readProfileImportCounts(admin, userId);
     for (const source of EXPORT_TABLES) {
       tables[source.key ?? source.table] = await readAllOwnedRows(admin, source, userId, budget);
     }
 
     const storage = await readOwnedStorage(admin, userId, budget);
     const recordPhotos = await readOwnedRecordPhotos(admin, userId, budget);
+
+    const finalImportCounts = await readProfileImportCounts(admin, userId);
+    if (initialImportCounts.total !== finalImportCounts.total ||
+      initialImportCounts.withdrawn !== finalImportCounts.withdrawn) {
+      throw new ExportSourceError();
+    }
 
     // Detect an account deletion that committed while the export was being read.
     const finalAccountCheck = await admin.from('users')
@@ -831,4 +838,26 @@ const SAFE_RAW_CLIPPING_NAME = /^(?!\.{1,2}$)[^/\\\u0000-\u001f\u007f]+$/u;
 function isSafeRawClippingName(name: unknown, userId: string): name is string {
   return typeof name === 'string' && SAFE_RAW_CLIPPING_NAME.test(name) &&
     utf8ByteLength(`${userId}/${name}`) <= MAX_RAW_CLIPPING_PATH_BYTES;
+}
+
+// Imports only add history rows or transition active -> withdrawn. Bracket all
+// related reads with both monotone counts so a withdrawal cannot mix old text
+// with new history. Pagination is internal to this single HTTP request.
+async function readProfileImportCounts(
+  admin: AdminClient,
+  userId: string,
+): Promise<{ total: number; withdrawn: number }> {
+  const counts = { total: 0, withdrawn: 0 };
+  for (const kind of ['total', 'withdrawn'] as const) {
+    let query = admin.from('profile_context_imports')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId);
+    if (kind === 'withdrawn') query = query.eq('status', 'withdrawn');
+    const { count, error } = await query;
+    if (error || typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0) {
+      throw new ExportSourceError();
+    }
+    counts[kind] = count;
+  }
+  return counts;
 }

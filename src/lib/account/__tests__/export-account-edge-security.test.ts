@@ -170,18 +170,22 @@ interface QueryCall {
   from: number;
   to: number;
   head?: boolean;
+  filters?: [string, string][];
 }
 
 function fakeDatabase(data: Record<string, Row[]>, serverPageSize = 2, options: {
-  afterPage?: (page: number) => void;
+  afterPage?: (page: number, call: QueryCall) => void;
   transformPage?: (rows: Row[], page: number) => Row[];
   recount?: { count: unknown; error: unknown };
+  counterResult?: (call: QueryCall, count: number | null, index: number) => { count: unknown; error: unknown };
 } = {}) {
   const calls: QueryCall[] = [];
   let pages = 0;
+  let counters = 0;
   const admin = {
     from(table: string) {
       const call: QueryCall = { table, select: "*", filter: null, order: [], from: 0, to: 0 };
+      const filters: [string, string][] = [];
       let wantsCount = false;
       const builder = {
         select(columns: string, opts?: { count?: string; head?: boolean }) {
@@ -192,6 +196,8 @@ function fakeDatabase(data: Record<string, Row[]>, serverPageSize = 2, options: 
         },
         eq(column: string, value: string) {
           call.filter = [column, value];
+          filters.push([column, value]);
+          call.filters = filters;
           return builder;
         },
         order(column: string) {
@@ -202,9 +208,8 @@ function fakeDatabase(data: Record<string, Row[]>, serverPageSize = 2, options: 
           call.from = from;
           call.to = to;
           calls.push({ ...call, order: [...call.order] });
-          const [column, value] = call.filter ?? ["", ""];
           const rows = (data[table] ?? [])
-            .filter((row) => row[column] === value)
+            .filter((row) => filters.every(([column, value]) => row[column] === value))
             .sort((a, b) => {
               for (const key of call.order) {
                 const compared = String(a[key]).localeCompare(String(b[key]));
@@ -222,15 +227,17 @@ function fakeDatabase(data: Record<string, Row[]>, serverPageSize = 2, options: 
           };
           pages += 1;
           if (options.transformPage) result.data = options.transformPage(result.data, pages);
-          options.afterPage?.(pages);
+          options.afterPage?.(pages, call);
           return result;
         },
         then(resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) {
           calls.push({ ...call, order: [...call.order] });
-          const [column, value] = call.filter ?? ["", ""];
-          const count = (data[table] ?? []).filter((row) => row[column] === value).length;
+          const count = wantsCount ? (data[table] ?? [])
+            .filter((row) => filters.every(([column, value]) => row[column] === value)).length : null;
+          const counterResult = call.select === "id"
+            ? options.counterResult?.(call, count, ++counters) : undefined;
           return Promise.resolve({
-            data: null, error: null, count: wantsCount ? count : null, ...options.recount,
+            data: null, error: null, count, ...options.recount, ...counterResult,
           }).then(resolve, reject);
         },
       };
@@ -579,6 +586,112 @@ describe("export-account bounded owned readers", () => {
     expect(descriptor.select).toBeDefined();
     expect(descriptor.select!.split(",")).not.toContain("*");
     expect(descriptor.select!.split(",")).not.toContain(column);
+  });
+
+  function historyExport(options: {
+    afterPage?: (data: Record<string, Row[]>, call: QueryCall) => void;
+    counterResult?: NonNullable<Parameters<typeof fakeDatabase>[2]>["counterResult"];
+  } = {}) {
+    const fixture = successfulAdmin();
+    const data: Record<string, Row[]> = {
+      sources: [{ id: "source-1", user_id: OWNER_ID, content: "imported text" }],
+      wiki_pages: [{ id: "page-1", user_id: OWNER_ID, content: "imported text" }],
+      profile_context_imports: [historyRows()[0], { ...historyRows()[0], user_id: OTHER_ID }],
+    };
+    const db = fakeDatabase(data, 100, {
+      afterPage: (_page, call) => options.afterPage?.(data, call),
+      counterResult: options.counterResult,
+    });
+    createClientMock.mockReturnValue({
+      ...fixture.admin,
+      from: (table: string) => table in data ? db.admin.from(table) : fixture.from(table),
+    });
+    return { data, db, run: () => edge.handler(request({ token: jwt(), body: "{}" })) };
+  }
+
+  function withdrawHistory(data: Record<string, Row[]>, userId = OWNER_ID) {
+    data.sources = data.sources.filter((row) => row.user_id !== userId);
+    data.wiki_pages = data.wiki_pages.filter((row) => row.user_id !== userId);
+    data.profile_context_imports = data.profile_context_imports.map((row) => row.user_id === userId ? {
+      ...row, status: "withdrawn", withdrawn_at: "2026-10-10T01:00:00Z", profile_restored: true,
+    } : row);
+  }
+
+  test.each(["sources", "wiki_pages", "profile_context_imports"])(
+    "G4-05 returns 503 on withdrawal immediately after reading %s", async (table) => {
+      const fixture = historyExport({ afterPage: (data, call) => {
+        if (call.table === table) withdrawHistory(data);
+      } });
+      const identityBefore = fixture.data.profile_context_imports.map(({ id, created_at }) => ({ id, created_at }));
+      const response = await fixture.run();
+      expect(fixture.data.profile_context_imports.map(({ id, created_at }) => ({ id, created_at })))
+        .toEqual(identityBefore);
+      expect(fixture.data.profile_context_imports[0]).toMatchObject({
+        status: "withdrawn", profile_restored: true, withdrawn_at: "2026-10-10T01:00:00Z",
+      });
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({ error: "export_temporarily_unavailable" });
+    },
+  );
+
+  test.each([false, true])("G4-05 rejects an insertion before history is read (initially empty: %s)", async (empty) => {
+    const fixture = historyExport({ afterPage: (data, call) => {
+      if (call.table === "wiki_pages") data.profile_context_imports.push({ ...historyRows()[0], id: "9999" });
+    } });
+    if (empty) fixture.data.profile_context_imports = [];
+    const response = await fixture.run();
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "export_temporarily_unavailable" });
+  });
+
+  test("G4-05 brackets related reads with exact owner-only total and withdrawn counts", async () => {
+    const fixture = historyExport({ afterPage: (data, call) => {
+      if (call.table === "wiki_pages") {
+        withdrawHistory(data, OTHER_ID);
+        data.profile_context_imports.push({ ...historyRows()[0], id: "other-new", user_id: OTHER_ID });
+      }
+    } });
+    const response = await fixture.run();
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.tables.sources).toEqual(fixture.data.sources);
+    expect(body.tables.wiki_pages).toEqual(fixture.data.wiki_pages);
+    expect(body.tables.profile_context_imports).toEqual([historyRows()[0]]);
+    expect(fixture.db.calls.map(({ table, head, select, filters }) => ({ table, head: !!head, select, filters })))
+      .toEqual([
+        { table: "profile_context_imports", head: true, select: "id", filters: [["user_id", OWNER_ID]] },
+        { table: "profile_context_imports", head: true, select: "id", filters: [["user_id", OWNER_ID], ["status", "withdrawn"]] },
+        { table: "sources", head: false, select: "*", filters: [["user_id", OWNER_ID]] },
+        { table: "wiki_pages", head: false, select: "*", filters: [["user_id", OWNER_ID]] },
+        { table: "profile_context_imports", head: false, select: historyColumns.join(","), filters: [["user_id", OWNER_ID]] },
+        { table: "profile_context_imports", head: true, select: historyColumns.join(","), filters: [["user_id", OWNER_ID]] },
+        { table: "profile_context_imports", head: true, select: "id", filters: [["user_id", OWNER_ID]] },
+        { table: "profile_context_imports", head: true, select: "id", filters: [["user_id", OWNER_ID], ["status", "withdrawn"]] },
+      ]);
+  });
+
+  test("G4-05 allows an already withdrawn history without its source or page", async () => {
+    const fixture = historyExport();
+    withdrawHistory(fixture.data);
+    const response = await fixture.run();
+    expect(response.status).toBe(200);
+    expect((await response.json()).tables).toMatchObject({
+      sources: [], wiki_pages: [], profile_context_imports: [fixture.data.profile_context_imports[0]],
+    });
+  });
+
+  describe.each([1, 2, 3, 4])("G4-05 lifecycle count query %s", (queryIndex) => {
+    test.each([
+      { count: null, error: null }, { count: 1, error: { message: "unavailable" } },
+      { count: -1, error: null }, { count: 0.5, error: null }, { count: Number.MAX_SAFE_INTEGER + 1, error: null },
+    ])("fails closed on an unavailable or invalid counter: %j", async (invalid) => {
+      const fixture = historyExport({ counterResult: (_call, count, index) =>
+        index === queryIndex ? invalid : { count, error: null } });
+      const response = await fixture.run();
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({ error: "export_temporarily_unavailable" });
+      if (queryIndex <= 2) expect(fixture.db.calls.every(({ head }) => head)).toBe(true);
+    });
   });
 
   test("G4-05 uses the existing tables key and versioned JSON envelope", async () => {
