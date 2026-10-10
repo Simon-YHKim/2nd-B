@@ -39,7 +39,7 @@ export const RESULT_MAX = 10;
 const NAME_MAX = 120;
 // I2790 = 식품영양성분DB info service (data.go.kr). JSON output.
 // Composed server-side now (public-data-proxy/index.ts:upstreamUrlFor).
-export const MFDS_ENDPOINT = "https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo01/getFoodNtrCpntDbInq01";
+export const MFDS_ENDPOINT = "https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02";
 
 function num(value: unknown): number | undefined {
   if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
