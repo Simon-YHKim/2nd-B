@@ -83,7 +83,7 @@ const CITES: CommentCite[] = [
   },
   {
     from: "src/lib/supabase/consent.ts",
-    cite: "src/screens/deepspace/dds-sign-up-screen.tsx:376",
+    cite: "src/screens/deepspace/dds-sign-up-screen.tsx:368",
     symbol: "<ConsentBlock",
     why: "동의 고지를 **수집하는** 자리. DPIA 가 이 주석을 근거로 인용한다. ⚠ 회차 67 이 여기에 `sign-up.tsx:219` 을 적었다 - `<ConsentNotice>` 가 거기 있는 것은 맞지만 그것이 `SignUpLegacy` **안**이라 어떤 배포도 안 그린다. 명단이 **죽은 렌더러를 못박고** 있었다(회차 63 의 부류, 내 것으로 세 번째). 두 진입 화면이 서로 다른 컴포넌트를 쓴다 - 이름이 같을 거라고 넘겨짚은 것이 오류의 전부다.",
   },
@@ -95,7 +95,7 @@ const CITES: CommentCite[] = [
   },
   {
     from: "src/lib/supabase/consent.ts",
-    cite: "src/lib/auth/useSignUpForm.ts:358",
+    cite: "src/lib/auth/useSignUpForm.ts:356",
     symbol: "recordConsentBestEffort(",
     why: "원장에 **쓰는** 자리. 화면 파일이 아니라 화면의 훅에 있다는 것이 이 주석의 요점.",
   },

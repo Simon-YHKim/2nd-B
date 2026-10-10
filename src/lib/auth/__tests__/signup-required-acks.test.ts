@@ -106,7 +106,7 @@ describe("sign-up action ownership", () => {
   test("callback success invalidates stale work and clears every busy projection", () => {
     const callback = hook.slice(
       hook.indexOf("consumeAuthCallbackUrl(deepLinkUrl)"),
-      hook.indexOf("// Stage 3 (O-31)"),
+      hook.indexOf("// D2 (Simon 2026-10-10)"),
     );
     expect(callback).toContain("invalidateSignUpActions(actionLockRef.current)");
     expect(callback).toContain("setSubmitting(false)");
@@ -118,7 +118,7 @@ describe("sign-up action ownership", () => {
   test("native sign-up callbacks never accept bearer tokens from the URL", () => {
     const callback = hook.slice(
       hook.indexOf("// Supabase's detectSessionInUrl handles web confirmation links."),
-      hook.indexOf("// Stage 3 (O-31)"),
+      hook.indexOf("// D2 (Simon 2026-10-10)"),
     );
     expect(callback).toContain("(?:code|error_code)");
     expect(callback).not.toContain("access_token");
@@ -185,7 +185,7 @@ describe("PIXEL-CLAY sign-up renderer", () => {
     expect(screen).toContain("{visibleProviders.length > 0 || naverEnabled ? (");
     expect(screen).toContain("visibleProviders.map((provider)");
     expect(screen).toContain("{naverEnabled ? (");
-    expect(screen).toContain("PROVIDER_MARK[provider]");
+    expect(screen).toContain("<ProviderBrandIcon provider={provider} />");
     expect(screen).not.toContain('name="account"');
     expect(screen).toContain('flexWrap: "wrap"');
     expect(screen).toContain("minWidth: 112");
@@ -198,7 +198,11 @@ describe("PIXEL-CLAY sign-up renderer", () => {
     expect(screen).toContain('router.push("/terms")');
     expect(screen).toContain('router.push("/")');
     expect(screen).toContain("if (canLeaveGate())");
-    expect(hook).toContain("if (actionLockRef.current.active !== null) return true;");
+    // Back behavior is exercised directly in auth-hardware-back.test.ts.
+    // This screen contract only pins the live lock and router wiring.
+    expect(hook).toContain("const onBackPress = createSignUpBackHandler({");
+    expect(hook).toMatch(/isBusy: \(\) => actionLockRef.current.active !== null,\s*router,/);
+    expect(hook).not.toContain('router.push("/")');
   });
 
   test("the only screen effect reveals the new confirmation primary state", () => {
