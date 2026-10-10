@@ -1157,6 +1157,11 @@ const GO_HOME_USES: readonly { file: string; use: Omit<GoHomeUse, "line">; why: 
     why: "모르는 영역 id - 마운트 즉시 홈으로.",
   },
   {
+    file: "src/app/ttfv.tsx",
+    use: { kind: "RedirectHome", owner: "AutomaticTtfv", guard: "then:!receipt", handler: "" },
+    why: "홈이 자동으로 연 첫 기록 화면에 영수증이 없으면 콘텐츠 없이 기존 홈으로 복귀(K1).",
+  },
+  {
     file: "src/components/deep-space/DeepSpaceScreen.tsx",
     use: { kind: "goHome", owner: "DeepSpaceScreen", guard: "", handler: "listener:hardwareBackPress" },
     why: "D-12: 탭 루트의 하드웨어 뒤로. replace(\"/\") 는 탭 루트가 홈 위에 있을 때 홈을 하나 더 얹었다.",

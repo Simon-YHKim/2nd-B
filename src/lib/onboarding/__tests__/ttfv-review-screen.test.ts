@@ -10,6 +10,7 @@ const mockReleaseTTFVClaim = jest.fn();
 const mockTakeTTFVClaimToken = jest.fn();
 
 jest.mock("@/lib/auth/AuthContext", () => ({ useAuth: () => mockAuth.current }));
+jest.mock("@/lib/nav/go-home", () => ({ RedirectHome: "RedirectHome" }));
 jest.mock("@/lib/onboarding/ttfv-gate", () => ({
   markTTFVSeen: (...args: unknown[]) => mockMarkTTFVSeen(...args),
   releaseTTFVClaim: (...args: unknown[]) => mockReleaseTTFVClaim(...args),
@@ -31,7 +32,7 @@ jest.mock("@/screens/deepspace/onboarding/TTFVScreen", () => ({
   ...jest.requireActual("@/screens/deepspace/onboarding/TTFVScreen"),
   TTFVScreen: "TTFVScreen",
 }));
-jest.mock("expo-router", () => ({ Redirect: "Redirect" }));
+jest.mock("expo-router", () => ({ Redirect: "Redirect", useLocalSearchParams: () => ({}) }));
 
 import TtfvRoute from "../../../app/ttfv";
 import {
