@@ -4,12 +4,14 @@ import { join } from "node:path";
 const source = readFileSync(join(__dirname, "..", "ConstellationHome.tsx"), "utf8");
 
 describe("별자리 홈 상단 알림 전광판", () => {
-  it("실제 공지 제목과 사용 팁을 순환하고 공지는 같은 공지를 연다", () => {
-    expect(source).toContain("manualNotice.title[");
-    expect(source).toContain('HOME_TIP_KEYS.map((key) => ({ kind: "tip"');
-    expect(source).toContain('key={tickerItem.text} text={tickerItem.text}');
-    expect(source).toContain('tickerItem.kind === "notice" ? openNotice');
-    expect(source).toContain('return () => clearInterval(timer)');
+  it("안 읽은 공지 제목만 알림 버튼 안에 표시한다", () => {
+    expect(source).toContain("unreadNotice?.title[");
+    expect(source).toContain('key={noticeTitle} text={noticeTitle}');
+    expect(source).toContain("{noticeTitle ? <NoticeTicker");
+    expect(source).not.toContain("HOME_TIP_KEYS");
+    const ticker = source.slice(source.indexOf("function NoticeTicker"), source.indexOf("// Static t=0"));
+    expect(ticker).not.toContain("<Pressable");
+    expect(ticker).not.toContain("onPress");
   });
 
   it("모션 줄이기에서는 움직이는 텍스트 대신 정지된 문장을 보여준다", () => {

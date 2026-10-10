@@ -4,11 +4,11 @@ import { join } from "node:path";
 const phone = readFileSync(join(__dirname, "..", "DashboardPhone.tsx"), "utf8");
 const assets = readFileSync(join(__dirname, "..", "phone-app-assets.ts"), "utf8");
 
-test("the phone has twelve live app tiles in three equal columns with user-specific notification count", () => {
+test("the phone has eleven live app tiles in three equal columns with user-specific notification count", () => {
   const order = phone.match(/const APP_ORDER: PhoneAppId\[\] = \[([\s\S]*?)\];/)?.[1] ?? "";
   expect([...order.matchAll(/"([A-Za-z]+)"/g)].map((match) => match[1])).toEqual([
     "notifications", "assistant", "focus", "reminders", "money", "growth",
-    "meals", "museum", "community", "relationships", "settings", "avatarPalette",
+    "meals", "museum", "community", "relationships", "avatarPalette",
   ]);
   // Simon 2026-10-07: 3 x n, one gap everywhere, the grid spans the display width.
   expect(phone).toContain("const APP_COLUMNS = 3;");

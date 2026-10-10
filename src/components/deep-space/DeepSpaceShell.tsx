@@ -157,7 +157,7 @@ export function DeepSpaceShell() {
         // 여행하기 on a domain star opens that domain's LENS (/star/<id>, the
         // rev2 11-star per-domain screen: briefing + 담기/기록 + timeline), NOT
         // the flat wiki list. 프로필 opens the profile hub; the 북극성 opens the
-        // persona aggregate (/core-brain). Head-tap menu: 챗봇/비서 (sb-home).
+        // persona aggregate (/core-brain). Head-tap opens the reasoning dialogue.
         // 2026-08-24: 별을 누르면 **그 별의 요약**이 열린다(Simon 결정 4 = B).
         // 바로 대화를 열지 않는 이유는 지금까지 뭘 했는지 볼 자리가 없으면
         // 매번 처음부터 시작하는 기분이 되기 때문이다.
@@ -166,17 +166,11 @@ export function DeepSpaceShell() {
         // overlay=home: only this entry may let the home show through the
         // card (lib/nav/over-home.ts, QA 261004 D-05) - same as /dashboard.
         onPolarisPress={() => router.push({ pathname: "/core-brain", params: { overlay: "home" } })}
-        // [Simon 결정 6 = B] 생활 여섯 영역(커리어·재정·성장·관계·건강·휴식)은
-        // 더 이상 별이 아니다. 그 대시보드로 가는 입구가 **세컨비 머리**다 --
-        // 별자리에서 머리를 터치하면 대화창이 그것을 펴 보인다.
-        onChatPress={() => router.push("/secondb?panel=dashboard")}
         coachFirstRecord={coachmarksDue === true}
-        coachmarksDue={coachmarksDue}
         coachHeadTargetRef={coachHeadTargetRef}
         onCoachHeadPress={() =>
           router.push({ pathname: "/capture", params: { coach: FIRST_RECORD_COACH_PARAM } })
         }
-        onOpsPress={() => router.push("/ops")}
         onBellPress={() => {
           if (typeof document !== "undefined") (document.activeElement as HTMLElement | null)?.blur?.();
           router.push({ pathname: "/dashboard", params: { overlay: "home", app: "notifications" } });

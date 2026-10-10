@@ -165,11 +165,11 @@ function RemindersCard({ part, events }: { part: RemindersPart; events: BoardEve
     <View {...swipe.panHandlers} testID="board-reminders" style={styles.stack}>
       <IosCardHeader glyph="schedule" title={t("phone.board.reminders.title")} trailing={<View style={styles.dayHeader}>
         <Pressable accessibilityRole="button" accessibilityLabel={t("phone.board.reminders.previous")} disabled={index === 0} onPress={() => step(-1)} style={styles.dayArrow}>
-          {index > 0 ? <PixelGlyph name="arrow_back" size={16} color={phoneIos.blue} /> : null}
+          {index > 0 ? <PixelGlyph name="chevron_left" size={16} color={phoneIos.blue} /> : null}
         </Pressable>
         <Text variant="caption" style={[styles.muted, styles.dayLabel]}>{dayName}</Text>
         <Pressable accessibilityRole="button" accessibilityLabel={t("phone.board.reminders.next")} disabled={index === last} onPress={() => step(1)} style={styles.dayArrow}>
-          {index < last ? <PixelGlyph name="arrow_forward" size={16} color={phoneIos.blue} /> : null}
+          {index < last ? <PixelGlyph name="chevron_right" size={16} color={phoneIos.blue} /> : null}
         </Pressable>
       </View>} />
       {day.items.length ? day.items.map((item) => <Pressable key={item.id} disabled={!item.route} accessibilityRole="button"

@@ -191,14 +191,16 @@ test('the visible phone asset fits entirely inside its animated touch frame', ()
   expect(visibleBottom).toBeLessThanOrEqual(frameHeight);
 });
 
-test('SecondB launcher sits next to the bell inside the top bar', () => {
+test('SecondB launcher precedes the combined bell and title inside the top bar', () => {
   const row = home.indexOf('<View style={styles.topBarStart}>');
   const bell = home.indexOf('<View style={styles.bell}>', row);
   const secondb = home.indexOf('testID="secondb-dialogue-launcher"', row);
   const ticker = home.indexOf('<NoticeTicker', row);
+  const notification = home.indexOf('testID="home-notifications"', row);
   expect(row).toBeGreaterThanOrEqual(0);
   expect(bell).toBeGreaterThan(row);
-  expect(secondb).toBeGreaterThan(bell);
+  expect(secondb).toBeLessThan(notification);
+  expect(notification).toBeLessThan(bell);
   expect(secondb).toBeLessThan(ticker);
   expect(homeStyle('secondbLauncher')).not.toContain('position: "absolute"');
   expect(homeStyle('secondbLauncher')).toContain('width: 40');

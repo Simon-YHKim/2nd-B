@@ -145,17 +145,12 @@ export const OPS_TODAY_ROUTES: Readonly<Record<PickId, string>> = {
 };
 
 export const OPS_TOOL_ROUTES = [
-  { icon: "timer", label: "tools.focus.label", sub: "tools.focus.sub", route: "/focus" },
-  { icon: "schedule", label: "tools.reminders.label", sub: "tools.reminders.sub", route: "/reminders" },
   { icon: "lightbulb", label: "tools.imagine.label", sub: "tools.imagine.sub", route: "/imagine" },
   { icon: "share", label: "tools.shareCard.label", sub: "tools.shareCard.sub", route: "/share-card" },
   { icon: "book", label: "tools.srs.label", sub: "tools.srs.sub", route: "/srs" },
   { icon: "bubble", label: "tools.callReflection.label", sub: "tools.callReflection.sub", route: "/call-reflection" },
   { icon: "book", label: "tools.reading.label", sub: "tools.reading.sub", route: "/reading" },
-  { icon: "badge", label: "tools.milestones.label", sub: "tools.milestones.sub", route: "/milestones" },
-  { icon: "box", label: "tools.ledger.label", sub: "tools.ledger.sub", route: "/ledger" },
   { icon: "sparkle", label: "tools.sideProject.label", sub: "tools.sideProject.sub", route: "/side-project" },
-  { icon: "fire", label: "tools.meals.label", sub: "tools.meals.sub", route: "/meals" },
 ] as const satisfies ReadonlyArray<{
   icon: AnyGlyphName;
   label: string;
@@ -829,7 +824,7 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
       active="ops"
       header="none"
       variant="windowed"
-      title={t("phone.assistantSettings")}
+      title={t("phone.apps.assistant")}
       onBack={() => router.back()}
     >
       {body}

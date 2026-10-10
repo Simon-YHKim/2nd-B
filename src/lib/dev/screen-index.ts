@@ -453,7 +453,8 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       {
         file: "ops",
         href: "/ops",
-        label: "오늘의 비서",
+        label: "개인 비서",
+        note: "진입: 폰 앱 바둑판. 추천 설정 · 루틴 · 알림 설정과 앱이 없는 도구",
         auth: {
           gateFile: "src/screens/deepspace/dds-ops-screen.tsx",
           component: "DeepSpaceOpsScreen",
