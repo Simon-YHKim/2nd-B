@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   markText: {
     color: m3.color.primary,
     fontFamily: m3.font.mono,
-    fontSize: 16,
+    fontSize: 12,
     lineHeight: 20,
     includeFontPadding: false,
     textAlign: "center",

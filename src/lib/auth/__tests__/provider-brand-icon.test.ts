@@ -19,6 +19,7 @@ describe("D6 provider icons", () => {
     }
     expect(source).toContain("allowFontScaling={false}");
     expect(source).toContain("width: 32, height: 32, flexShrink: 0");
+    expect(source).toContain("fontSize: 12");
     expect(source).toContain("lineHeight: 20");
     expect(source).toContain("includeFontPadding: false");
     expect(source).not.toMatch(/PixelSurface|\bpadding\w*\s*:|#[\da-f]{6}/i);
