@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
-import { Animated, Platform, type StyleProp, type ViewStyle } from "react-native";
+import { Animated, type StyleProp, type ViewStyle } from "react-native";
 import { sceneMotion, type MotionScope, type SceneMotionKind } from "@/lib/motion/scene-motion";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { usePhoneDesign } from "@/lib/theme/phone-design-context";
@@ -39,18 +39,18 @@ export function SceneTransition({
       return;
     }
     progress.setValue(0);
-    // World scenes run on the JS driver. With the native driver this effect's
-    // setValue() raced the native animation's late stop report, and on Android
-    // a re-entered route could stay at opacity 0 until the app restarted. Six
-    // stepped frames cost nothing on JS; the phone keeps the native driver for
-    // its continuous easing.
+    // JS driver on every platform and in both scopes, so this value has one
+    // writer. With the native driver this effect's setValue() raced the native
+    // animation's late stop report, and on Android a re-entered route could
+    // stay at opacity 0 until the app restarted. The frame cost of driving the
+    // phone's continuous easing from JS has not been measured on a device.
     const animation = Animated.timing(progress, {
       toValue: 1, duration: spec.duration, easing: spec.easing,
-      useNativeDriver: resolvedScope === "phone" && Platform.OS !== "web",
+      useNativeDriver: false,
     });
     animation.start();
     return () => animation.stop();
-  }, [active, animateOnMount, progress, reduced, resolvedScope, spec, transitionKey]);
+  }, [active, animateOnMount, progress, reduced, spec, transitionKey]);
 
   const animatedStyle = useMemo(() => ({
     opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [spec.from.opacity, 1] }),

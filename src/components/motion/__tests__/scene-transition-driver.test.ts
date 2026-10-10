@@ -7,16 +7,17 @@ const source = readFileSync(resolve(__dirname, "../SceneTransition.tsx"), "utf8"
 // left the world route wrapper at opacity 0 (blank screen, dock invisible but
 // still tappable) until the app restarted. The same order was fine on web,
 // where this animation already ran on the JS driver.
-test("world scenes never run on the native driver; only the phone may", () => {
+test("every scene transition runs on the JS driver: one value, one writer", () => {
   const timing = source.match(/Animated\.timing\(progress,\s*\{[\s\S]*?\}\)/);
   expect(timing).not.toBeNull();
-  expect(timing![0]).toContain('useNativeDriver: resolvedScope === "phone" && Platform.OS !== "web",');
+  expect(timing![0]).toMatch(/useNativeDriver:\s*false,/);
   expect(source.match(/useNativeDriver/g)).toHaveLength(1);
+  expect(source.match(/Animated\.(timing|spring|decay)\(/g)).toHaveLength(1);
 });
 
-test("one mounted scene keeps one driver: the scope is fixed by its prop or its place in the tree", () => {
-  expect(source).toContain('const resolvedScope = scope ?? (inPhone ? "phone" : "world");');
-  expect(source).toMatch(/\}, \[active, animateOnMount, progress, reduced, resolvedScope, spec, transitionKey\]\);/);
+test("the driver does not depend on the platform, the scope or anything else computed per render", () => {
+  expect(source).not.toMatch(/\bPlatform\b/);
+  expect(source).not.toMatch(/useNativeDriver:\s*(?!false,)\S/);
 });
 
 test("a covered, reduced or unchanged scene is settled at full opacity without animating", () => {
