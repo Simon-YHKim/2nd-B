@@ -1,5 +1,10 @@
 # Profile star import
 
+Pending integrity follow-up: [G4IMPORT-261010](handoff/G4IMPORT-261010.md).
+0242 adds per-field undo, atomic import limits and confirmation for every new item.
+It requires separate production approval before client merge; the 0239/0240
+approval below does not authorize 0242. The older behavior below describes #2187.
+
 Implementation target: the approved constellation profile and an actual import flow on localhost:8081.
 
 1. Parse the common `polascope.user-context` contract locally. Reject malformed, oversized and unsupported input. Keep drafts in memory only.
