@@ -60,36 +60,39 @@ export function prepareCrisisScanText(text: string): string {
 // it can return a hit: otherwise it would resurrect a literal denial that the
 // unchanged context filter above deliberately masked. No scan text is exported.
 // Each lexicon entry has an explicit decision; uncertainty keeps literal-only.
+// Round 2 found ordinary code/path counterexamples for every remaining enabled
+// term. All loose rules are dormant; never trade new ordinary false alarms for
+// obfuscation coverage. Keep the dormant policy and address lexer tested.
 export const CRISIS_SCAN_POLICY = {
   en: [
-    { term: "suicide", loose: true, reason: "Explicit single-word signal." },
-    { term: "suicidal", loose: true, reason: "Explicit single-word signal." },
-    { term: "kill myself", loose: true, reason: "Explicit self-directed phrase." },
-    { term: "end my life", loose: true, reason: "Explicit life object." },
+    { term: "suicide", loose: false, reason: "Ordinary code: const sui_cide = 1;" },
+    { term: "suicidal", loose: false, reason: "Ordinary code: const sui_cidal = 1;" },
+    { term: "kill myself", loose: false, reason: "Ordinary path /docs/kill/myself and separate clauses." },
+    { term: "end my life", loose: false, reason: "Can join ordinary clauses: In the end, my life improved." },
     { term: "end it all", loose: false, reason: "Can mean finishing a task." },
     { term: "ending it", loose: false, reason: "Ordinary completion is common." },
-    { term: "self-harm", loose: true, reason: "Same explicit phrase as self harm; one automaton." },
-    { term: "self harm", loose: true, reason: "Explicit self-directed phrase." },
+    { term: "self-harm", loose: false, reason: "Ordinary code: const self_harm = 1;" },
+    { term: "self harm", loose: false, reason: "Separate clauses: We study the self. Harm is a separate topic." },
     { term: "cutting myself", loose: false, reason: "Accidental cuts and ordinary activities need context." },
-    { term: "want to die", loose: true, reason: "Explicit death-wish phrase." },
-    { term: "i want to die", loose: true, reason: "Same phrase with first-person subject." },
+    { term: "want to die", loose: false, reason: "Ordinary code: const want_to_die = 1;" },
+    { term: "i want to die", loose: false, reason: "Ordinary code: const i_want_to_die = 1;" },
     { term: "no reason to live", loose: false, reason: "Reason and live have ordinary contextual uses." },
     { term: "better off without me", loose: false, reason: "Leaving a team or relationship is ordinary." },
     { term: "burden to others", loose: false, reason: "Ordinary responsibility needs context." },
     { term: "fade away", loose: false, reason: "Sports, code and gradual fading are common." },
   ],
   ko: [
-    { term: "자살", loose: true, reason: "Explicit noun; require chunk start and conservative ending." },
-    { term: "죽고 싶", loose: true, reason: "Explicit wish; also accept 죽 고 only within this phrase." },
-    { term: "죽고싶", loose: true, reason: "Unspaced spelling of the same explicit wish." },
+    { term: "자살", loose: false, reason: "Ordinary code: const 자_살 = 1; and non-ASCII URL paths." },
+    { term: "죽고 싶", loose: false, reason: "Ordinary code: const 죽고_싶 = 1; and file paths." },
+    { term: "죽고싶", loose: false, reason: "Ordinary code: const 죽_고싶 = 1; and identifier clauses." },
     { term: "살고 싶지 않", loose: false, reason: "Living somewhere is an ordinary alternative meaning." },
     { term: "사라지고 싶", loose: false, reason: "Figurative disappearance needs context." },
     { term: "더 이상 살", loose: false, reason: "살 also starts ordinary buying/living expressions." },
     { term: "끝내고 싶", loose: false, reason: "Ordinary work completion is common." },
     { term: "끝낼 거", loose: false, reason: "Ordinary work completion is common." },
     { term: "끝낼거", loose: false, reason: "Unspaced ordinary completion is common." },
-    { term: "자해", loose: true, reason: "Explicit noun; require chunk start and conservative ending." },
-    { term: "목숨을 끊", loose: true, reason: "Explicit life object and action." },
+    { term: "자해", loose: false, reason: "Ordinary code: const 자_해 = 1; and non-ASCII URL paths." },
+    { term: "목숨을 끊", loose: false, reason: "Opposite meaning: 고양이 목숨을, 끊어진 전선에서 구했어." },
     { term: "스스로 목숨", loose: false, reason: "Can describe saving one's own life." },
     { term: "유서", loose: false, reason: "Names and 유서 깊은 are ordinary uses." },
     { term: "마지막 인사", loose: false, reason: "Ordinary farewells are common." },
@@ -206,8 +209,17 @@ function excludeAddresses(text: string, kinds: Uint8Array): void {
       const domainStart = i;
       while (i < text.length && (asciiAlnum(text.charCodeAt(i)) || text[i] === "." || text[i] === "-")) i++;
       if (i === domainStart) continue;
-    } else if (!(host && dots > 0 && text[i] === "/")) {
-      continue;
+    } else {
+      if (!(host && dots > 0)) continue;
+      // SL-02: confirm host[:digits]/path before treating it as an address.
+      // Failed candidates still advance monotonically through the numeric run.
+      if (text[i] === ":") {
+        i++;
+        const portStart = i;
+        while (text.charCodeAt(i) >= 48 && text.charCodeAt(i) <= 57) i++;
+        if (i === portStart) continue;
+      }
+      if (text[i] !== "/") continue;
     }
     if (!email) {
       // A numeric port, then a path/query/fragment. Every consumed run advances

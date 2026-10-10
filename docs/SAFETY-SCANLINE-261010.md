@@ -2,7 +2,50 @@
 
 #2194를 이어 쓰지 않은 대체 구현이다. Simon 16:57 결정의 우선순위는 **평범한 문장의 새 오탐 0 > 우회 방어 범위**다. 독립 검토 PASS 전에는 머지하지 않는다. 앱은 머지 뒤 자동 빌드 경로로 들어가며 Edge는 별도 배포 전까지 기존 판정을 쓴다.
 
-## 계약과 구현
+## 2회차 최종 정책: 느슨한 찾기 전부 비활성
+
+원문 `E:/Coding Infra/reports/codex-audit-261010/gates/scanline-daybreak-r1.txt`의
+SL-01~03과 `scanline-r2.md`의 추가 탐색 지시를 적용했다. **활성 loose 어휘는 0개다.**
+1회차에서 우회를 잡았다는 아래 이력은 현재 보장 범위가 아니다.
+
+- **SL-01:** `end my life`를 literal-only로 바꿨다. `In the end, my life improved.`는 앱·두 Edge 모두 green이다. `end/my.l.ife`는 실행되는 잔여 목록으로 옮겼다.
+- **SL-02:** scheme 없는 host 후보의 `:[0-9]+`를 먼저 선형 소비한 뒤 `/`를 확인한다. `문서는 example.com:8080/want/to/die 에 있습니다.`는 green이다. 빈 포트·문자 포트·경로 없는 host는 제외하지 않으며, 주소 뒤 em dash부터는 장벽을 표시하지 않는다.
+- **SL-03:** `I have no reason/to live.`, `유.서를 써 두었어.`, `영영 잠들고/싶어.`를 `SCANLINE_UNRESOLVED`에 추가했다. 기존 green 판정은 유지한다.
+
+추가 탐색은 main `db0da10eb7cb7914d9f02f568dc65c73581e5c6e`의 실제 classifier와
+SL-01/02 최소 패치를 적용한 브랜치를 대조했다. 쉼표·마침표·줄바꿈으로 갈린 절 **48개**,
+주소·파일 경로·코드 조각 **84개**, 합계 **132개**에서 새 오탐 **85개**를 확인했다.
+나머지 12개 활성 어휘 모두에 반례가 있었다. 같은 입력의 main red 9개는 기존 판정으로 유지했다.
+
+| 끈 어휘 | 확인한 평범한 입력의 예 |
+|---|---|
+| `suicide` | `const sui_cide = 1;` |
+| `suicidal` | `const sui_cidal = 1;` |
+| `kill myself` | `문서는 /docs/kill/myself 에 있습니다.` |
+| `self-harm`, `self harm` | `const self_harm = 1;`, `We study the self. harm is a separate topic.` |
+| `want to die`, `i want to die` | `const want_to_die = 1;`, `const i_want_to_die = 1;` |
+| `자살` | `문서는 example.com:8080/자/살 에 있습니다.` |
+| `죽고 싶`, `죽고싶` | `const 죽고_싶 = 1;`, `const 죽_고싶 = 1;` |
+| `자해` | `const 자_해 = 1;` |
+| `목숨을 끊` | `고양이 목숨을, 끊어진 전선에서 구했어.` |
+
+발주의 “하나라도 나오면 그 어휘를 끄거나 경계 규칙을 고친다”, “판단이 서지 않으면 끈다”를
+적용했다. 코드 언어·경로·인용 문맥을 추정하는 새로운 예외 파서를 늘리지 않고 표의 정책만 껐다.
+따라서 **SL-02의 희망 red `example.com:8080/x—I.want.to.die.`도 최종 판정은 green**이다.
+주소 뒤 글자를 가리는 결함 때문이 아니라 두 `want to die` 정책을 끈 결과다. 이를 성공한 red
+회귀라고 세지 않으며, `SCANLINE_WITHDRAWN`과 `SCANLINE_UNRESOLVED`에서 실행한다.
+
+현재 검증은 앱·두 Edge가 같은 잔여와 132개 반례를 실행한다. 정책 비활성화로 포트 테스트가
+무의미해지지 않도록 실제 소스의 순수 `excludeAddresses` 함수도 별도로 실행한다. 숫자 포트
+5만 자리, 잘못된 포트, 주소 뒤 글자가 장벽 밖이라는 사실을 검사한다. 프로덕션 API는 추가하지 않았다.
+원문 입력·기존 literal OR·부인 예외·업무 예외·어휘 목록은 유지한다.
+
+결과: 132개에서 새 오탐 **85 → 0**, 기존 456개 변형과 합쳐 **588개**를 대조했다.
+corpus 47개 판정 수는 main과 같다(아래 표). 신규 변이 20/20을 assertion 실패로 확인하고
+매번 원본 바이트로 복구했다. 전체 verify 결과는
+`E:/Coding Infra/reports/codex-audit-261010/verify/scanline-r2-*.log` 및 JSON에 기록한다.
+
+## 유지한 구조 (활성 어휘가 있을 때의 알고리즘)
 
 `src/lib/safety/crisis-context.ts`의 `scanCrisisObfuscation`을 앱 classifier, 공유 Edge, Gemini Edge가 호출한다. 기존 문맥 예외와 literal 판정을 먼저 실행하고 red는 그대로 반환한다. 새 검사는 원문에서 찾은 어휘 집합만 반환하여 green을 red로 올릴 수 있다. 모델 입력, 저장, 감사 해시는 원문을 유지한다. U+2018/2019는 부인 예외 비교에서만 직선 아포스트로피로 읽는다. `RISK_CONTEXT`와 업무 완료 예외는 그대로다.
 
@@ -17,7 +60,7 @@
 
 문자 분류와 주소 표시는 각각 O(n)이고, 어휘 검사는 O(n × S)다. S는 입력 길이와 무관한 고정 어휘의 접두 상태 수다. 원문 위치를 되감지 않고, 이음매 run을 다시 검색하거나 일치마다 모든 주소를 탐색하지 않는다. 공간은 O(n + S)다. `self-harm`과 `self harm`은 같은 상태 기계를 공유한다.
 
-## 검증 입력과 근거
+## 1회차 검증 이력 (현재 범위는 위 2회차 정책 참조)
 
 원문: `E:/Coding Infra/reports/codex-audit-261010/gates/`의 `g1-safety-daybreak-r1.txt`(G1-01·05), `safescan-daybreak-r2.txt`(SS-01~03), `safescan-daybreak-r3.txt`(S3-01~05).
 
@@ -46,5 +89,42 @@ main `bcf094b373a768db327023f240d511dfb192bd9d`의 실제 소스를 읽어 비�
 | `I.want/to die.` | `I.want/to`가 dotted-host/path 문법과 같아 주소 우선 |
 | `k.ill/my.self` | 전체가 dotted-host/path 문법과 같아 주소 우선 |
 | `suícide` (`sui\u0301cide`) | NFKC가 `í`로 합친다. Latin 악센트를 제거하는 규칙은 추가하지 않음 |
+| `end/my.l.ife` | SL-01 절 결합 오탐 때문에 literal-only |
+| `I have no reason/to live.` | SL-03 literal-only 어휘 변형 |
+| `유.서를 써 두었어.` | SL-03 literal-only 어휘 변형 |
+| `영영 잠들고/싶어.` | SL-03 literal-only 어휘 변형 |
+
+2회차에 방어를 거둔 고정 재현은 `SCANLINE_WITHDRAWN`에 원문 그대로 보존한다:
+
+```text
+example.com:8080/x—I.want.to.die.
+지금 죽.고 싶어.
+지금 죽 고 싶어.
+지금 자\u200b살하고 싶어.
+I want.to die.
+I want-to-die.
+지금 죽/고 싶어.
+지금 죽. 고 싶어.
+I want/to die.
+I want. to die.
+I'm thinking about sui.cide.
+I.want.to.die,name@example.com
+https://example.com—I.want.to.die.
+I'm thinking about sui,cide.
+I want|to die.
+지금 죽:고 싶어.
+I'm thinking about sui\u200ecide.
+I don't want.to die.
+I'm not sui.cidal.
+자.살하려는 건 아냐.
+k.ill my.self
+self/ha.rm
+목.숨을/끊
+죽.고싶어
+```
+
+위 `\u200b`, `\u200e` 표기는 보이지 않는 실제 코드 포인트를 나타낸다. fixture에는 해당 문자가
+들어간다. 생성형 잔여도 `SCANLINE_VARIANTS`의 `withdrawn` 묶음에서 green으로 고정한다.
+기존 문자 그대로의 red는 유지하므로 업무 완료 문구 뒤 위험 문장이 붙은 기존 red도 내리지 않는다.
 
 주소 문법으로 읽히는 경로 안의 문장, 공백으로 쪼갠 단일 낱말, 꺼 둔 모호한 어휘의 변형은 방어 범위에 넣지 않는다. 주소 인식은 완전한 RFC URL 파서가 아닌 보수적인 로컬 문법이다. 119·112 레인(G1-02), ES/PT/ID 어휘(G1-03), 대시보드 조립 프롬프트(G1-04), 출력 검사 정책, 원래 수면 사례 원인 입증(G1-06), Edge 배포는 범위 밖이다. Deno 실행기·Hermes 실기기 검증은 이 로컬 소스/Node 검증에 포함하지 않는다.

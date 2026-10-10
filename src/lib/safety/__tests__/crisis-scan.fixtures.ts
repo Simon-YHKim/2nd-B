@@ -1,11 +1,19 @@
 // Original gate reports: g1-safety-daybreak-r1, safescan-daybreak-r2/r3
 // in E:/Coding Infra/reports/codex-audit-261010/gates/. Defensive fixtures only.
 export const SCANLINE_RED = [
+  // Existing literal RED remains authoritative with every loose rule dormant.
+  "I'm\u200bsuicidal.", "I'm having suicidal\u200bthoughts.",
+  "일을 끝내고 싶어요. 지금 죽.고 싶어.",
+];
+
+// Round 1 caught these only with loose rules. Round 2's no-new-false-alarm
+// priority withdraws that coverage. Keep every input executable and visible.
+export const SCANLINE_WITHDRAWN = [
+  // SL-02: prose after a port URL remains visible.
+  "example.com:8080/x—I.want.to.die.",
   // G1-01 (5)
   "지금 죽.고 싶어.", "지금 죽 고 싶어.", "지금 자\u200b살하고 싶어.",
   "I want.to die.", "I want-to-die.",
-  // SS-01 (2): literal RED must survive a boundary that loose scanning ignores.
-  "I'm\u200bsuicidal.", "I'm having suicidal\u200bthoughts.",
   // SS-03 (5)
   "지금 죽/고 싶어.", "지금 죽. 고 싶어.", "I want/to die.",
   "I want. to die.", "I'm thinking about sui.cide.",
@@ -15,10 +23,13 @@ export const SCANLINE_RED = [
   "I'm thinking about sui\u200ecide.",
   // An altered phrase is never cancelled by either legacy exception.
   "I don't want.to die.", "I'm not sui.cidal.", "자.살하려는 건 아냐.",
-  "일을 끝내고 싶어요. 지금 죽.고 싶어.",
+  "k.ill my.self", "self/ha.rm", "목.숨을/끊", "죽.고싶어",
 ];
 
 export const SCANLINE_GREEN = [
+  // SL-01/02: separate clauses and a scheme-less URL with a port.
+  "In the end, my life improved.",
+  "문서는 example.com:8080/want/to/die 에 있습니다.",
   // SS-02 (6)
   "혼자\u200b살고 싶어.", "혼자.살고 싶어.", "날짜.살펴봐.",
   "He made a fade-away jumper.", "fade-away@example.com", "https://example.com/fade-away-jumper",
@@ -47,10 +58,10 @@ export const SCANLINE_SEAMS = [
 ];
 
 export const SCANLINE_VARIANTS: { name: string; cases: { text: string; red: boolean }[] }[] = [
-  { name: "EN single-word internal seams", cases: SCANLINE_SEAMS.map((s) => ({ text: `sui${s}cide`, red: true })) },
-  { name: "KO single-word internal seams", cases: SCANLINE_SEAMS.map((s) => ({ text: `자${s}살하고 싶어.`, red: true })) },
-  { name: "EN phrase word seams", cases: SCANLINE_SEAMS.map((s) => ({ text: `I want${s}to die.`, red: true })) },
-  { name: "KO mixed seams and whitespace", cases: SCANLINE_SEAMS.map((s) => ({ text: `지금 죽${s}\t고\n싶어.`, red: true })) },
+  { name: "withdrawn EN single-word internal seams", cases: SCANLINE_SEAMS.map((s) => ({ text: `sui${s}cide`, red: false })) },
+  { name: "withdrawn KO single-word internal seams", cases: SCANLINE_SEAMS.map((s) => ({ text: `자${s}살하고 싶어.`, red: false })) },
+  { name: "withdrawn EN phrase word seams except legacy whitespace", cases: SCANLINE_SEAMS.map((s) => ({ text: `I want${s}to die.`, red: s === "\ufeff" })) },
+  { name: "withdrawn KO mixed seams and whitespace", cases: SCANLINE_SEAMS.map((s) => ({ text: `지금 죽${s}\t고\n싶어.`, red: false })) },
   { name: "KO chunk boundaries", cases: SCANLINE_SEAMS.flatMap((s) => [
     { text: `혼${s}자${s}살고 싶어.`, red: false }, { text: `자${s} 살펴봐.`, red: false },
     { text: `자${s}살펴봐.`, red: false }, { text: `자${s}해바라기를 봐.`, red: false },
@@ -66,10 +77,10 @@ export const SCANLINE_VARIANTS: { name: string; cases: { text: string; red: bool
     { text: `site${n}.example/sui.cide`, red: false },
     { text: `https://site${n}.example:8080/sui.cide?x=1#fragment`, red: false },
   ]).flat() },
-  { name: "address-adjacent prose", cases: Array.from({ length: 24 }, (_,n) => [
-    { text: `I.want.to.die,user${n}@example.com`, red: true },
-    { text: `https://site${n}.example—I.want.to.die.`, red: true },
-    { text: `(user${n}@example.com)I.want.to.die.`, red: true },
+  { name: "withdrawn address-adjacent prose", cases: Array.from({ length: 24 }, (_,n) => [
+    { text: `I.want.to.die,user${n}@example.com`, red: false },
+    { text: `https://site${n}.example—I.want.to.die.`, red: false },
+    { text: `(user${n}@example.com)I.want.to.die.`, red: false },
   ]).flat() },
   { name: "legacy RED boundaries", cases: Array.from({ length: 24 }, (_,n) => ({ text: `Entry ${n}: I'm\u200bsuicidal.`, red: true })) },
   { name: "smart apostrophe denials", cases: Array.from({ length: 24 }, (_,n) => ({
@@ -81,7 +92,48 @@ export const SCANLINE_VARIANTS: { name: string; cases: { text: string; red: bool
 // and NFKC composition is not broadened into stripping Latin diacritics.
 // These must be printed verbatim in the handoff, never counted as caught cases.
 export const SCANLINE_UNRESOLVED = [
+  ...SCANLINE_WITHDRAWN.map((text) => ({ text, reason: "Round 2 disables loose rules after ordinary clause/code/path false alarms." })),
+  { text: "end/my.l.ife", reason: "SL-01: end my life is literal-only to avoid joining ordinary clauses." },
+  { text: "I have no reason/to live.", reason: "SL-03: no reason to live stays literal-only." },
+  { text: "유.서를 써 두었어.", reason: "SL-03: 유서 stays literal-only." },
+  { text: "영영 잠들고/싶어.", reason: "SL-03: 영영 잠들고 싶 stays literal-only." },
   { text: "I.want/to die.", reason: "I.want/to has dotted-host/path syntax." },
   { text: "k.ill/my.self", reason: "k.ill/my.self has dotted-host/path syntax." },
   { text: "sui\u0301cide", reason: "NFKC composes the accent into the Latin letter í." },
+];
+
+// Independent round-2 search: 48 clause cases and 84 address/file/code cases.
+// The expected REDs below are main's existing literal results, not newly added
+// false alarms. Both the app and the two real Edge matchers run these cohorts.
+export const SCANLINE_R2_TERMS = [
+  ["suicide", "sui", "cide"], ["suicidal", "sui", "cidal"],
+  ["kill myself", "kill", "myself"], ["self-harm", "self", "harm"],
+  ["self harm", "self", "harm"], ["want to die", "want", "to_die"],
+  ["i want to die", "i", "want_to_die"], ["자살", "자", "살"],
+  ["죽고 싶", "죽고", "싶"], ["죽고싶", "죽", "고싶"],
+  ["자해", "자", "해"], ["목숨을 끊", "목숨을", "끊"],
+] as const;
+
+export const SCANLINE_R2_VARIANTS = [
+  { name: "round 2 separate clauses", cases: [
+    ...SCANLINE_R2_TERMS.flatMap(([term, left, right]) => [", ", ". ", "\n"].map((seam) => ({
+      text: `The first identifier is ${left}${seam}${right} is the next identifier.`,
+      red: seam === "\n" && ["kill myself", "self-harm", "self harm", "죽고 싶", "목숨을 끊"].includes(term),
+    }))),
+    ...[", ", ". ", "\n"].flatMap((seam) => [
+      `The pests I kill${seam}myself I keep safe.`,
+      `We study the self${seam}harm is a separate topic.`,
+      `고양이 목숨을${seam}끊어진 전선에서 구했어.`,
+      `In the end${seam}my life improved.`,
+    ].map((text) => ({ text, red: seam === "\n" }))),
+  ] },
+  { name: "round 2 addresses files and code", cases: SCANLINE_R2_TERMS.flatMap(([, left, right]) => [
+    `문서는 example.com:8080/${left}/${right.replaceAll("_", "/")} 에 있습니다.`,
+    `문서는 https://example.com/${left}/${right.replaceAll("_", "/")} 에 있습니다.`,
+    `문서는 /docs/${left}/${right.replaceAll("_", "/")} 에 있습니다.`,
+    `문서는 C:\\docs\\${left}\\${right.replaceAll("_", "\\")} 에 있습니다.`,
+    `const ${left}_${right} = 1;`,
+    `const result = ${left}.${right};`,
+    `필드 이름은 \`${left}_${right}\` 입니다.`,
+  ].map((text) => ({ text, red: false }))) },
 ];

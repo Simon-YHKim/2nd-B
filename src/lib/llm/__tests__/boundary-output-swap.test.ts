@@ -173,7 +173,9 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     ["아니... 자살하려는 건 아냐... 날 뭘로 보는거야", "말씀하신 뜻을 잘못 받아들였습니다. 너무 앞서갔습니다."],
     ["I’m not suicidal.", "I understand."],
     ["혼.자.살고 싶어. example.com/sui.cide", "혼자 지내는 시간을 이야기하셨습니다."],
-  ])("ordinary rest and a clear correction reach the model without a false output swap: %s", async (user, answer) => {
+    // Round 2 explicitly withdraws loose coverage; the raw payload still survives.
+    ["I.want.to.die,name@example.com", "I understand."],
+  ])("allowed input reaches the mock model unchanged without an output swap: %s", async (user, answer) => {
     mockGenerateContent.mockResolvedValueOnce({ text: answer });
     mockClassifySafety.mockResolvedValueOnce(GREEN);
     const result = await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user });
@@ -197,14 +199,14 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     expect(mockClassifySafety).not.toHaveBeenCalled();
   });
 
-  test("an altered RED input stops generation while the audit hashes the raw input", async () => {
-    const user = "I.want.to.die,name@example.com";
+  test("a legacy literal RED input stops generation while the audit hashes the raw input", async () => {
+    const user = "I'm\u200bsuicidal.";
     const result = await callLlm({ userId: "u1", locale: "en", purpose: "source_ingest", user });
     expect(result.safety.zone).toBe("red");
     expect(mockGenerateContent).not.toHaveBeenCalled();
     expect(mockClassifySafety).not.toHaveBeenCalled();
-    // Precomputed djb2 of the raw message, including punctuation and address.
-    expect(result.audit.promptHash).toBe("3541472d");
+    // Precomputed djb2 of the raw message, including the invisible boundary.
+    expect(result.audit.promptHash).toBe("9a6d0b09");
     expect(auditMock.mock.calls[0][0].promptHash).toBe(result.audit.promptHash);
   });
 });

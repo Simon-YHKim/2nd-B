@@ -17,7 +17,7 @@ import * as ts from "typescript";
 import { classifyInput } from "../classifier";
 import { CRISIS_TERMS } from "../lexicon";
 import { BENIGN_CRISIS_CONTEXTS, RISK_OR_UNRESOLVED_CRISIS_CONTEXTS } from "./crisis-context.fixtures";
-import { SCANLINE_RED, SCANLINE_GREEN, SCANLINE_VARIANTS, SCANLINE_UNRESOLVED } from "./crisis-scan.fixtures";
+import { SCANLINE_RED, SCANLINE_GREEN, SCANLINE_VARIANTS, SCANLINE_UNRESOLVED, SCANLINE_R2_VARIANTS } from "./crisis-scan.fixtures";
 
 const PROXY_SOURCES = {
   "gemini-proxy": "../../../../supabase/functions/gemini-proxy/index.ts",
@@ -106,6 +106,10 @@ describe.each(Object.entries(PROXY_SOURCES))("%s hasCrisisTerm behaviour parity"
   });
   test.each(SCANLINE_VARIANTS)("scanline generated cohort: $name", ({ cases }) => {
     expect(cases.length).toBeGreaterThanOrEqual(20);
+    for (const { text, red } of cases) expect({ text, red: hasCrisisTerm(text) }).toEqual({ text, red });
+  });
+  test.each(SCANLINE_R2_VARIANTS)("scanline round 2 cohort: $name", ({ cases }) => {
+    expect(cases.length).toBeGreaterThanOrEqual(30);
     for (const { text, red } of cases) expect({ text, red: hasCrisisTerm(text) }).toEqual({ text, red });
   });
   test.each([
