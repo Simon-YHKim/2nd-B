@@ -8,7 +8,7 @@
 - **보고서**: 결과 <https://claude.ai/artifact/S2iYvcG82dx4MLS2UurN5x> · 제안 <https://claude.ai/artifact/Yaigwe6vLKVpHxVK8pBvNz>. 캡처 · 진입 지도(진입 1,006 · 중복 묶음 331) · 발주서는 `E:/Coding Infra/reports/codex-audit-261010/ui/`.
 - **#2194**(검사 사본 정규화): 재검토 세 번 모두 BLOCK → 회차 중단, draft 유지. 운영은 #2190 그대로.
 - **미해결 질문**: Q-261010-06 설정의 자리 · 07 홈 아바타의 역할 · 08 다음 화면 · 09 막힌 기능을 켜 둘지 · 10 위험 문장 우회 방어 방향. 전부 결과 보고서 결정 탭.
-- **남긴 것**: 허슬케이 대화 화면(첫 진입 안내의 점무늬 배경) · 홈 아래 확대 조작 막대 · G5-01 · 02(계정 전환 뒤 폰 상태, `DashboardPhone.tsx`) · A03 한마디 유지(`UNNUMBERED_dashboard_last_note.sql`, 번호 0241 예정) · 사후 점검 "게시 전 닫을 것"(G4 는 2ndb-92 가 0242 로 진행). 식품 찾기는 운영에서 502(2ndb-92 실측: `public-data-proxy` 배포본이 09-08 판).
+- **남긴 것**: 허슬케이 대화 화면(첫 진입 안내의 점무늬 배경) · 홈 아래 확대 조작 막대 · G5-01 · 02(계정 전환 뒤 폰 상태, `DashboardPhone.tsx`) · A03 한마디 유지(`UNNUMBERED_dashboard_last_note.sql`, 번호 0241 예정) · 사후 점검 "게시 전 닫을 것"(G4 는 2ndb-74 가 0242 로 진행). 식품 찾기는 운영에서 502(2ndb-74 실측: `public-data-proxy` 배포본이 09-08 판).
 - **워크트리**: 머지된 `phonehome-261010` · `entrypaths-261010` · `assistant-261010` 과 `safescan-261010`(#2194 열림) · `codex-audit-261010` 이 남아 있다. 지울 때 정션부터 끊는다.
 - **다음 1개**: Simon 의 Q-261010-06 · 07 답. 답이 없으면 지금 상태로 두고 허슬케이 대화 화면부터.
 
