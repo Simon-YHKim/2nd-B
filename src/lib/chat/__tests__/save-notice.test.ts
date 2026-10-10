@@ -57,15 +57,13 @@ describe("화면 배선", () => {
   });
 
   it("문구가 로케일에서 온다", () => {
-    for (const key of ["chatSaveNotice", "chatSaveNoticeBody"]) {
+    for (const key of ["chatSaveNotice", "chatSaveNoticeOpen", "chatSaveNoticeDismiss"]) {
       expect(src).toContain(`t("${key}")`);
     }
     const ko = JSON.parse(
       readFileSync(join(process.cwd(), "locales", "ko", "secondb.json"), "utf8"),
     ) as Record<string, string>;
     expect(ko.chatSaveNotice.length).toBeGreaterThan(0);
-    // 켜기 전 대화는 저장되지 않는다는 사실을 빠뜨리면 안 된다 — 켜자마자
-    // 지난 대화가 다 남을 거라고 기대하게 된다.
-    expect(ko.chatSaveNoticeBody).toContain("켜기 전");
+    expect(ko.chatSaveNoticeBody).toBeUndefined();
   });
 });
