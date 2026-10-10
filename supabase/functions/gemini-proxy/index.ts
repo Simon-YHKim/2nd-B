@@ -48,7 +48,7 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { prepareCrisisScanText } from '../../../src/lib/safety/crisis-context.ts';
+import { prepareCrisisScanText, createLooseCrisisMatcher } from '../../../src/lib/safety/crisis-context.ts';
 import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld } from '../_shared/llm-consent.ts';
 // D-27 attribution plus the shared server-owned purpose policy. The remaining
 // crisis/auth/cap plumbing stays inlined until its own deploy-verified migration.
@@ -340,11 +340,12 @@ function matchesTermEn(lowerHaystack: string, term: string): boolean {
 
 function hasCrisisTerm(text: string): boolean {
   const lower = normalizeForMatch(prepareCrisisScanText(text));
+  const matchesLoose = createLooseCrisisMatcher(text);
   for (const term of CRISIS_TERMS_EN) {
-    if (matchesTermEn(lower, term)) return true;
+    if (matchesTermEn(lower, term) || matchesLoose(term, 'en')) return true;
   }
   for (const term of CRISIS_TERMS_KO) {
-    if (lower.includes(normalizeForMatch(term))) return true;
+    if (lower.includes(normalizeForMatch(term)) || matchesLoose(term, 'ko')) return true;
   }
   return false;
 }

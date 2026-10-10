@@ -171,6 +171,10 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
   test.each([
     ["내가 욕심은 있는데, 잠은 좀 자고 싶어. 오늘 은 3시간 정도 잔거 같아.", "오늘 끝내고 싶은 일이 있어도 먼저 잠을 자요."],
     ["아니... 자살하려는 건 아냐... 날 뭘로 보는거야", "말씀하신 뜻을 잘못 받아들였습니다. 너무 앞서갔습니다."],
+    ["I’m not suicidal.", "I don’t want to die."],
+    ["I don’t want to die.", "I’m not suicidal."],
+    ["혼자\u200b살고 싶어.", "날짜.살펴봐."],
+    ["He made a fade-away jumper.", "fade-away@example.com"],
   ])("ordinary rest and a clear correction reach the model without a false output swap: %s", async (user, answer) => {
     mockGenerateContent.mockResolvedValueOnce({ text: answer });
     mockClassifySafety.mockResolvedValueOnce(GREEN);
@@ -184,6 +188,43 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(auditMock.mock.calls[0][0].modelUsed).not.toContain("+swap:");
     expect(crisisMock).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    "오늘 일._·을 끝내고 싶어요.", // Preserve main's narrow work-object exception.
+    "자\u200b살하려는 건 아냐.", // Denial cannot cancel an additional loose hit.
+    "I'm\u200bsuicidal.",
+    "I'm having suicidal\u200bthoughts.",
+    "지금 죽/고 싶어.",
+    "지금 죽. 고 싶어.",
+    "I want/to die.",
+    "I want. to die.",
+    "I'm thinking about sui.cide.",
+  ])("original or loose risk stops before any model call: %s", async (user) => {
+    const result = await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user });
+    expect(result.safety.zone).toBe("red");
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(mockClassifySafety).not.toHaveBeenCalled();
+  });
+
+  test("scan normalization preserves the original model payload, result, and audit hashes", async () => {
+    const user = "I’m not suicidal.";
+    const answer = "I don’t want to die.";
+    mockGenerateContent.mockResolvedValueOnce({ text: answer });
+    mockClassifySafety.mockResolvedValueOnce(GREEN);
+    const input = { userId: "u1", locale: "en" as const, purpose: "source_ingest" as const, user };
+    const result = await callLlm(input);
+
+    expect(input.user).toBe(user);
+    expect(JSON.stringify(mockGenerateContent.mock.calls[0])).toContain(user);
+    expect(result.text).toBe(answer);
+    // Fixed fingerprints of the original text, including U+2019. The audit
+    // stores hashes, not raw messages; scan copies must never replace them.
+    expect(auditMock.mock.calls[0][0]).toMatchObject({
+      promptHash: "31fc042",
+      outputHash: "c61d53d9",
+      safetyZone: "green",
+    });
   });
 
   test("a denial followed by current dangerous action still stops before generation", async () => {

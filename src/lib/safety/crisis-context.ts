@@ -37,7 +37,12 @@ const WORK_STATEMENT = `${WORK_PREFIX}(?:${WORK_BEFORE}(?:(?:어(?:요)?|다|습
 const KNOWN_WORK_CONTEXT = new RegExp(`^${WORK_STATEMENT}(?:[,\.!?。！？]* +${WORK_STATEMENT}){0,2}[.!?。！？]*$`);
 
 export function prepareCrisisScanText(text: string): string {
-  const normalized = text.normalize("NFKC").toLowerCase().replace(/\s+/g, " ");
+  // Preserve the original boundaries. Insertions are handled per term below,
+  // independently of these narrow whole-message context corrections.
+  const normalized = text
+    .normalize("NFKC").toLowerCase()
+    .replace(/[\u2018\u2019\u02bc\uff07]/g, "'")
+    .replace(/\s+/g, " ");
   if (RISK_CONTEXT.test(normalized)) return normalized;
 
   // A question about intent is not a denial. Only the known correction tail
@@ -54,4 +59,73 @@ export function prepareCrisisScanText(text: string): string {
   return normalized
     .replace(WORK_BEFORE_FINISH, (match) => match.replace(/끝(?:내고 *싶|낼 *거)/, (term: string) => " ".repeat(term.length)))
     .replace(WORK_AFTER_FINISH, (match) => match.replace(/끝내고 *싶/, (term: string) => " ".repeat(term.length)));
+}
+
+const INSERTIONS = "\\u200b-\\u200d\\u2060\\ufeff\\u00ad._/\\-\\u00b7\\u2022\\u2027\\u2010-\\u2015";
+// Within a word, spaces alone cannot join letters. Spaces beside an explicit
+// insertion are accepted, including mixed runs such as "죽. 고" and "sui / cide".
+const LETTER_GAP = `(?: *[${INSERTIONS}][${INSERTIONS} ]*)?`;
+const WORD_GAP = `[${INSERTIONS} ]+`;
+const LOOSE_MATCHERS = new Map<string, RegExp>();
+
+function loosePattern(term: string): RegExp {
+  const cached = LOOSE_MATCHERS.get(term);
+  if (cached) return cached;
+  // Decompose BOTH sides to match insertions between Hangul jamo without
+  // deleting any source character or merging unrelated word boundaries.
+  const letters = [...term.normalize("NFKD").toLowerCase()];
+  const splitDeathPhrase = term === "죽고 싶" || term === "죽고싶";
+  const pattern = letters.map((letter, index) => {
+    if (letter === " ") return WORD_GAP;
+    const literal = letter.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (index === 0 || letters[index - 1] === " ") return literal;
+    // Keep the r1 space-only spelling limited to 죽 + 고 + optional space + 싶.
+    const gap = splitDeathPhrase && index === "죽".normalize("NFKD").length
+      ? `(?:${WORD_GAP})?` : LETTER_GAP;
+    return gap + literal;
+  }).join("");
+  const matcher = new RegExp(pattern, "g");
+  LOOSE_MATCHERS.set(term, matcher);
+  return matcher;
+}
+
+/** Additional term-local matches only; context exceptions never see this copy. */
+export function createLooseCrisisMatcher(text: string): (term: string, locale: "en" | "ko") => boolean {
+  // Keep BOM as an insertion, even though JavaScript also treats it as space.
+  const source = text.normalize("NFKD").toLowerCase().replace(/[^\S\ufeff]+/g, " ");
+  const excluded: { start: number; end: number }[] = [];
+  for (const token of source.matchAll(/[^ ]+/g)) {
+    // Only the additional matcher excludes addresses. Original literal crisis
+    // terms in URLs/emails retain the old strict decision.
+    if (token[0].includes("://") || token[0].includes("www.") || /^[^@]+@[^@]+\.[^@]+$/.test(token[0])) {
+      excluded.push({ start: token.index, end: token.index + token[0].length });
+    }
+  }
+  // This hyphenated basketball compound is an ordinary lexical use. Exclude
+  // only its span from loose matching, never a second risk phrase in the text.
+  for (const compound of source.matchAll(/\bfade[-\u2010-\u2015]away[ -](?:jumper|shot)\b/g)) {
+    excluded.push({ start: compound.index, end: compound.index + compound[0].length });
+  }
+  return (term, locale) => {
+    if (term.length === 0) return false;
+    const matcher = loosePattern(term);
+    matcher.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = matcher.exec(source)) !== null) {
+      const start = match.index;
+      const end = start + match[0].length;
+      // Exact occurrences belong solely to the original context-aware scan.
+      if (match[0].normalize("NFKC") === term.normalize("NFKC").toLowerCase()) continue;
+      if (excluded.some(span => start < span.end && end > span.start)) continue;
+      const before = source[start - 1] ?? " ";
+      const after = source[end] ?? " ";
+      if (locale === "ko") {
+        // A loose Hangul hit must start a word, unlike the unchanged literal
+        // substring matcher: 혼자.살고 must not manufacture 자살.
+        if (/[\p{L}\p{N}\p{M}]/u.test(before)) continue;
+      } else if (/[a-z0-9]/.test(before) || /[a-z0-9]/.test(after)) continue;
+      return true;
+    }
+    return false;
+  };
 }
