@@ -11,7 +11,7 @@
 // D-27 axis key attribution — pure naming/resolver helpers (Deno-free, so they
 // are unit-testable under ts-jest; the Deno env read is the thin wrapper below).
 import { isUsableHeaderValue, pickApiKey } from './axis-key-name.ts';
-import { prepareCrisisScanText } from '../../../src/lib/safety/crisis-context.ts';
+import { prepareCrisisScanText, createLooseCrisisMatcher } from '../../../src/lib/safety/crisis-context.ts';
 
 export { isUsableHeaderValue };
 
@@ -155,11 +155,12 @@ function matchesTermEn(lowerHaystack: string, term: string): boolean {
 
 export function hasCrisisTerm(text: string): boolean {
   const lower = normalizeForMatch(prepareCrisisScanText(text));
+  const matchesLoose = createLooseCrisisMatcher(text);
   for (const term of CRISIS_TERMS_EN) {
-    if (matchesTermEn(lower, term)) return true;
+    if (matchesTermEn(lower, term) || matchesLoose(term, 'en')) return true;
   }
   for (const term of CRISIS_TERMS_KO) {
-    if (lower.includes(normalizeForMatch(term))) return true;
+    if (lower.includes(normalizeForMatch(term)) || matchesLoose(term, 'ko')) return true;
   }
   return false;
 }

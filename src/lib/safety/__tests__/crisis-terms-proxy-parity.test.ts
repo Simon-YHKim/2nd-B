@@ -49,7 +49,7 @@ function loadHasCrisisTerm(src: string, relPath: string): (text: string) => bool
   // The function's closing brace is the first column-0 `}` after its header.
   const end = src.indexOf("\n}", fnStart);
   if (end < 0) throw new Error("hasCrisisTerm end not found");
-  const contextImport = src.match(/^import \{ prepareCrisisScanText \} from ['"][^'"]+['"];$/m)?.[0];
+  const contextImport = src.match(/^import \{ prepareCrisisScanText, createLooseCrisisMatcher \} from ['"][^'"]+['"];$/m)?.[0];
   if (!contextImport) throw new Error("shared crisis context import missing from proxy source");
   const snippet = `${contextImport}\n${src.slice(start, end + 2)}\nexports.hasCrisisTerm = hasCrisisTerm;\n`;
   const js = ts.transpileModule(snippet, {

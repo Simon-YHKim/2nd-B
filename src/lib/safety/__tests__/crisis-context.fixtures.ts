@@ -1,6 +1,6 @@
 // Shared client/Edge regression inputs. No model or network is involved.
 const INVISIBLE_SCAN_CHARACTERS = ["\u200b", "\u200c", "\u200d", "\u2060", "\ufeff", "\u00ad"];
-const INSERTED_SCAN_SEPARATORS = [".", "-", "_", "\u00b7", "\u2022", "\u2027", "\u2010", "\u2011", "\u2012", "\u2013", "\u2014", "\u2015"];
+const INSERTED_SCAN_SEPARATORS = [".", "-", "_", "/", "\u00b7", "\u2022", "\u2027", "\u2010", "\u2011", "\u2012", "\u2013", "\u2014", "\u2015"];
 const SCAN_APOSTROPHES = ["\u2018", "\u2019", "\u02bc", "\uff07"];
 
 // Joining all whitespace invents a crisis term across these everyday words.
@@ -15,6 +15,31 @@ export const SPACE_SENSITIVE_BENIGN_CONTEXTS = [
 
 export const BENIGN_CRISIS_CONTEXTS = [
   ...SPACE_SENSITIVE_BENIGN_CONTEXTS,
+  // SS-02: term-local joins must not manufacture a term inside another word.
+  "혼자\u200b살고 싶어.",
+  "혼자.살고 싶어.",
+  "날짜.살펴봐.",
+  "He made a fade-away jumper.",
+  "He made a fade-away shot.",
+  "fade-away@example.com",
+  "https://example.com/fade-away-jumper",
+  "www.example.com/sui.cide",
+  "mailto:sui.cide@example.com",
+  "https://example.com/자.살",
+  "sui.cide@example.com",
+  "2026.10.10",
+  "3.14",
+  "https://example.com/a-b",
+  "name.surname@example.com",
+  "state-of-the-art",
+  "혼자 살고 싶어",
+  "매일 자 살펴봐",
+  "xsui.cide",
+  "sui.cidex",
+  "xsui.cidey",
+  "sui cide",
+  "혼자 . 살고 싶어.",
+  "각자/살아온 이야기를 나눠요.",
   ...SCAN_APOSTROPHES.flatMap((apostrophe) => [
     `I${apostrophe}m not suicidal.`,
     `I don${apostrophe}t want to die.`,
@@ -42,10 +67,37 @@ export const BENIGN_CRISIS_CONTEXTS = [
 ] as const;
 
 export const RISK_OR_UNRESOLVED_CRISIS_CONTEXTS = [
+  // SS-01: original red decisions cannot depend on a destructive scan copy.
+  "I'm\u200bsuicidal.",
+  "I'm having suicidal\u200bthoughts.",
+  // SS-03: separators within words, between words, and beside spaces.
+  "지금 죽/고 싶어.",
+  "지금 죽. 고 싶어.",
+  "I want/to die.",
+  "I want. to die.",
+  "I'm thinking about sui.cide.",
+  "지금 죽 . 고 싶어.",
+  "I want . / to die.",
+  "I'm thinking about sui . / cide.",
+  "xsui.cide then sui.cide.",
+  "sui.cidex then sui.cide.",
+  "혼자.살고 싶어. 지금 자.살하고 싶어.",
+  "https://example.com/sui.cide but sui.cide.",
+  "fade-away@example.com but I want/to die.",
+  "He made a fade-away jumper. I want/to die.",
+  "He made a fade-away jumper. I want to fade-away.",
+  // Only additional matches exclude addresses; existing literal hits stay red.
+  "https://example.com/suicide",
+  "suicidal@example.com",
+  // Context corrections cannot erase an inserted-character hit.
+  "I don't want.to die.",
+  "I'm not sui.cidal.",
+  "자.살 생각은 없어.",
+  "오늘 일을 끝내고.싶어요.",
   ...INVISIBLE_SCAN_CHARACTERS.flatMap((character) => [
     `지금 자${character}살하고 싶어.`,
     `I want to d${character}ie.`,
-    // Removal must precede NFKC so separated NFD jamo compose again.
+    // Per-term matching also covers insertions between decomposed Hangul jamo.
     `지금 ᄌ${character}ᅡ살하고 싶어.`,
   ]),
   ...INSERTED_SCAN_SEPARATORS.flatMap((separator) => [

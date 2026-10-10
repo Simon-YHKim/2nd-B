@@ -173,8 +173,8 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     ["아니... 자살하려는 건 아냐... 날 뭘로 보는거야", "말씀하신 뜻을 잘못 받아들였습니다. 너무 앞서갔습니다."],
     ["I’m not suicidal.", "I don’t want to die."],
     ["I don’t want to die.", "I’m not suicidal."],
-    ["오늘 일._·을 끝내고 싶어요.", "오늘 일._·을 끝내고 싶다면 먼저 쉬어요."],
-    ["자\u200b살하려는 건 아냐.", "오늘 일\u200b을 끝내고 싶어요."],
+    ["혼자\u200b살고 싶어.", "날짜.살펴봐."],
+    ["He made a fade-away jumper.", "fade-away@example.com"],
   ])("ordinary rest and a clear correction reach the model without a false output swap: %s", async (user, answer) => {
     mockGenerateContent.mockResolvedValueOnce({ text: answer });
     mockClassifySafety.mockResolvedValueOnce(GREEN);
@@ -188,6 +188,23 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(auditMock.mock.calls[0][0].modelUsed).not.toContain("+swap:");
     expect(crisisMock).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    "오늘 일._·을 끝내고 싶어요.", // Preserve main's narrow work-object exception.
+    "자\u200b살하려는 건 아냐.", // Denial cannot cancel an additional loose hit.
+    "I'm\u200bsuicidal.",
+    "I'm having suicidal\u200bthoughts.",
+    "지금 죽/고 싶어.",
+    "지금 죽. 고 싶어.",
+    "I want/to die.",
+    "I want. to die.",
+    "I'm thinking about sui.cide.",
+  ])("original or loose risk stops before any model call: %s", async (user) => {
+    const result = await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user });
+    expect(result.safety.zone).toBe("red");
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(mockClassifySafety).not.toHaveBeenCalled();
   });
 
   test("scan normalization preserves the original model payload, result, and audit hashes", async () => {

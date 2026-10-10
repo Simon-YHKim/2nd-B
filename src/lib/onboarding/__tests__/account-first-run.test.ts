@@ -17,6 +17,47 @@ type Marks = {
 type Row = Marks & { token: string | null };
 type Reply = { data: unknown; error: unknown };
 
+// Invoke route functions and commit their effects explicitly, without a renderer.
+const mockRouteParams: { auto?: string | string[] } = {};
+const mockEntry = { cursor: 0, slots: [] as Array<{ current: unknown }>, effects: [] as Array<() => void> };
+jest.mock("react", () => ({
+  ...jest.requireActual("react"),
+  useRef: (initial: unknown) => {
+    const index = mockEntry.cursor++;
+    return mockEntry.slots[index] ?? (mockEntry.slots[index] = { current: initial });
+  },
+  useState: (initial: unknown) => {
+    const index = mockEntry.cursor++;
+    const slot = mockEntry.slots[index] ?? (mockEntry.slots[index] = { current: initial });
+    return [slot.current, (next: unknown) => { slot.current = next; }];
+  },
+  useEffect: (effect: () => void) => { mockEntry.effects.push(effect); },
+}));
+jest.mock("expo-router", () => ({ Redirect: "Redirect", useLocalSearchParams: () => mockRouteParams }));
+jest.mock("@/lib/nav/go-home", () => ({ RedirectHome: "RedirectHome" }));
+jest.mock("@/lib/auth/AuthContext", () => ({
+  useAuth: () => ({ userId: mockAuth.published, sessionId: mockAuth.sessionId, loading: false, isMinor: false }),
+}));
+jest.mock("@/screens/deepspace/onboarding/TTFVScreen", () => ({ TTFVScreen: "TTFVScreen" }));
+
+import type { ReactElement } from "react";
+import TtfvRoute from "../../../app/ttfv";
+
+function mountDestination() {
+  const route = TtfvRoute();
+  if (typeof route.type !== "function") return route;
+  const entry = route.type as (props: unknown) => ReactElement<Record<string, unknown>>;
+  mockEntry.cursor = 0;
+  const firstMount = mockEntry.slots.length === 0;
+  const pending = entry(route.props);
+  if (firstMount) expect(pending.props.mode).not.toBe("authenticated");
+  for (const effect of mockEntry.effects.splice(0)) effect();
+  mockEntry.cursor = 0;
+  const destination = entry(route.props);
+  mockEntry.effects.length = 0;
+  return destination;
+}
+
 // What the app sees of the sign-in and of AuthContext's published owner.
 const mockAuth = {
   published: "user-a" as string | null,
@@ -929,6 +970,65 @@ describe("pure rules", () => {
 });
 
 describe("K1: late shown closes an unused home grant in either response order", () => {
+  beforeEach(() => {
+    delete mockRouteParams.auto;
+    mockEntry.slots.length = 0;
+    mockEntry.effects.length = 0;
+  });
+
+  test("navigation issued, then late shown, then destination mount never mounts automatic content", async () => {
+    mockServer.rows.set(A, newRow({ onboarding_claimed_at: new Date().toISOString() }));
+    mockServer.hold = true;
+    startFirstRunHomeVisit(A, "s1");
+    await settle();
+    releaseHeld();
+    await settle();
+    const finish = finishFirstRun(A, "ttfv", "shown", null, "s1");
+    await settle();
+    const [claimReply, finishReply] = mockServer.held.splice(0);
+    claimReply();
+    await settle();
+    expect(gate()).toBe("/ttfv");
+    // Navigation is already queued; changing home's decision cannot cancel it.
+    mockRouteParams.auto = "";
+    finishReply();
+    await finish;
+    await settle();
+    expect(gate()).toBe("home");
+    const destination = mountDestination();
+    expect(destination.type).toBe("RedirectHome");
+    expect(mockServer.calls.claim).toBe(1);
+  });
+
+  test.each(["", "forged", ["", "forged"]])("a marker without a receipt only returns home (%j)", (auto) => {
+    mockRouteParams.auto = auto;
+    const destination = mountDestination();
+    expect(destination.type).toBe("RedirectHome");
+    expect(mockServer.calls.claim).toBe(0);
+    expect(mockServer.calls.finish).toBe(0);
+  });
+
+  test("an automatic destination consumes once and passes the receipt to the content visit", async () => {
+    mockServer.rows.set(A, newRow({ onboarding_claimed_at: new Date().toISOString() }));
+    expect(await visit()).toBe("/ttfv");
+    mockRouteParams.auto = "";
+    const destination = mountDestination();
+    expect(destination.type).toBe("TTFVScreen");
+    expect(destination.props.mode).toBe("authenticated");
+    const take = destination.props.takeReceipt as (owner: string) => string | null;
+    expect(take(A)).toBe("token-1");
+    expect(takeFirstRunTTFVToken(A, "s1")).toBeNull();
+    // Effect replay must not turn a successfully acquired receipt into null.
+    expect(mountDestination().props.mode).toBe("authenticated");
+  });
+
+  test("an unmarked direct URL still opens content without a receipt", () => {
+    const destination = mountDestination();
+    expect(destination.type).toBe("TTFVScreen");
+    expect(destination.props.mode).toBe("authenticated");
+    expect((destination.props.takeReceipt as (owner: string) => string | null)(A)).toBeNull();
+  });
+
   test.each(["finish-first", "claim-first"])("%s", async (order) => {
     const published = jest.fn();
     subscribeFirstRun(() => published(gate()));
