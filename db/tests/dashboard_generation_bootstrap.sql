@@ -81,7 +81,12 @@ END $$;
 -- Keep the migration but roll back only fixture data via the account cascade.
 DELETE FROM auth.users WHERE id::text LIKE '00000000-0000-0000-0000-00000000002%';
 COMMIT;
+\ir ../migrations/0245_dashboard_retention_heartbeat.sql
+-- Same RPCs called by the old Edge must work with the new DB.
+\ir dashboard_generation_regression.sql
 \ir dashboard_generation_audit_withdrawal_regression.sql
 
 \ir ../migration-drafts/UNNUMBERED_dashboard_last_note.sql
 \ir dashboard_last_note_regression.sql
+
+\ir dashboard_retention_heartbeat_regression.sql

@@ -16,6 +16,7 @@ export interface BoardProviderDependencies {
 export interface BoardProviderInput {
   userId: string; runId: string; purpose: string; prompt: string; system: string; consentToken: string;
   payload: Readonly<Record<string, unknown>>;
+  validateOutput: (output: unknown) => boolean;
 }
 
 // G2-03: provisional cheapest rung, pending Simon's per-seat decision. W1
@@ -107,7 +108,9 @@ export function createBoardProvider(deps: BoardProviderDependencies) {
             const trimmed = responseText.trim();
             const block = /^```(?:json)?\s*\r?\n([\s\S]*?)\r?\n```$/.exec(trimmed);
             outcome = 'invalid_json';
-            output = JSON.parse(block ? block[1] : trimmed); outcome = 'completed';
+            const candidate: unknown = JSON.parse(block ? block[1] : trimmed);
+            outcome = 'rejected_output';
+            if (input.validateOutput(candidate)) { output = candidate; outcome = 'completed'; }
           }
         }
       }

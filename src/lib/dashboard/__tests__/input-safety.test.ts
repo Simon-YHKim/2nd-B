@@ -191,3 +191,24 @@ test("the existing prompt and response backstops remain in addition to classific
   expect(source).toContain("responseText.length <= 32_768 && !hasCrisisTerm(responseText)");
   expect(source).toContain("p_safety_zone: hasCrisisTerm(responseText) ? 'red' : 'green'");
 });
+
+// G2-07: run the real provider + handler + shared validator, mocking I/O only.
+describe.each(actions)("%s output wording gate", (action) => {
+  test.each(["therapy", "정신건강", "IQ score"])("rejects %s and records rejected_output", async (word) => {
+    const f = fixture(action, "Read");
+    const value = action === "summary" ? { headline: word, facts: [], links: [], suggestions: [], tail_counts: {} }
+      : action === "triage" ? { order: ["i1"], items: [{ id: "i1", action_line: "Read", why: word }] }
+        : { slot: "morning", line: word, basis_refs: [{ kind: "routine", id: "r1" }], reminder_suggestions: [] };
+    // JSON escape decoding must happen before the wording check.
+    const json = JSON.stringify(value).replaceAll(word, [...word].map((char) => "\\u" + char.charCodeAt(0).toString(16).padStart(4, "0")).join(""));
+    f.fetch.mockResolvedValue(new Response(JSON.stringify({ content: [{ type: "text", text: json }],
+      stop_reason: "end_turn", usage: { input_tokens: 4, output_tokens: 6 } })));
+    const response = await f.send();
+    expect(await response.json()).toEqual(action === "hourly" ? { kind: "batch", processed: 1, nextCursor: null } : { kind: "unavailable" });
+    expect(f.fetch).toHaveBeenCalledTimes(1);
+    expect(f.rpc).toHaveBeenCalledWith("dashboard_generation_audit_result", expect.objectContaining({ p_outcome: "rejected_output", p_total_tokens: 10 }));
+    expect(f.rpc).toHaveBeenLastCalledWith("dashboard_generation_finish", expect.objectContaining({ p_output: null }));
+    const audits = JSON.stringify(f.rpc.mock.calls.filter(([name]) => name.startsWith("dashboard_generation_audit")));
+    expect(audits).not.toContain(word); expect(audits).not.toContain(json);
+  });
+});

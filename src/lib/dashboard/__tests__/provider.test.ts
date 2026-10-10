@@ -26,7 +26,7 @@ const create = edge("supabase/functions/dashboard-generate/provider.ts", {
   "../_shared/llm-proxy-common.ts": common, "../_shared/llm-consent.ts": consent,
   "../_shared/llm-input-safety.ts": inputSafety,
 }).createBoardProvider as (deps: ReturnType<typeof fixture>["deps"]) => (input: typeof request) => Promise<unknown>;
-const request = { userId: "owner", runId: "run1", purpose: "daily_note", prompt: "Routine: Read", system: "JSON", consentToken: "a".repeat(64), payload: { title: "Read" } };
+const request = { userId: "owner", runId: "run1", purpose: "daily_note", prompt: "Routine: Read", system: "JSON", consentToken: "a".repeat(64), payload: { title: "Read" }, validateOutput: () => true };
 function fixture() {
   const deps = {
     model: "claude-sonnet-5", apiKey: "fixture-key",
