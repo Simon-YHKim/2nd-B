@@ -6,7 +6,7 @@ let onBuild: (() => void) | undefined;
 
 function builder(): unknown {
   const query: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "order", "limit", "lt", "setHeader"]) {
+  for (const method of ["select", "eq", "order", "limit", "lt", "or", "setHeader"]) {
     query[method] = (...args: unknown[]) => {
       calls.push([method, args]);
       return query;
@@ -143,11 +143,11 @@ describe("profile import readable context", () => {
     await expect(fetchProfileImportedContext(owner, "source-1")).rejects.toThrow("profile_import_context_invalid");
   });
 
-  test("an inferred story must carry its saved confirmation", async () => {
+  test("legacy stored stories retain their actual confirmation state without authorizing new imports", async () => {
     const document = makeRequest().document;
     document.items[0].reported_basis = "assistant_inference";
     response = { data: { document, confirmed_ids: [] }, error: null };
-    await expect(fetchProfileImportedContext(owner, "source-1")).rejects.toThrow("profile_import_context_invalid");
+    await expect(fetchProfileImportedContext(owner, "source-1")).resolves.toEqual({ document, confirmedIds: [] });
     response = { data: { document, confirmed_ids: ["i1"] }, error: null };
     await expect(fetchProfileImportedContext(owner, "source-1")).resolves.toEqual({ document, confirmedIds: ["i1"] });
   });
@@ -224,8 +224,9 @@ describe("profile import receipts and history", () => {
     expect(calls.some(([name]) => name === "lt")).toBe(false);
     calls.length = 0;
     response = { data: [], error: null };
-    await expect(listProfileContextImports(owner, receipt.created_at)).resolves.toEqual([]);
-    expect(calls).toContainEqual(["lt", ["created_at", receipt.created_at]]);
+    await expect(listProfileContextImports(owner, { ...receipt, id: "26101042-0000-4000-8000-000000000001" })).resolves.toEqual([]);
+    expect(calls).toContainEqual(["order", ["id", { ascending: false }]]);
+    expect(calls).toContainEqual(["or", [`created_at.lt.${receipt.created_at},and(created_at.eq.${receipt.created_at},id.lt.26101042-0000-4000-8000-000000000001)`]]);
   });
 
   test.each([{}, [receipt, { status: "active" }]])("rejects malformed history rather than silently hiding rows", async (data) => {
@@ -238,4 +239,13 @@ describe("profile import receipts and history", () => {
     response = { data: null, error };
     await expect(listProfileContextImports(owner)).rejects.toBe(error);
   });
+});
+
+
+test.each([
+  { created_at: "2026-10-10T00:00:00Z),id.gt.any", id: "26101042-0000-4000-8000-000000000001" },
+  { created_at: "2026-10-10T00:00:00Z", id: "bad),user_id.neq.owner" },
+])("rejects cursor filter injection before transport", async (cursor) => {
+  await expect(listProfileContextImports(owner, cursor)).rejects.toThrow("profile_import_cursor_invalid");
+  expect(calls).toEqual([]);
 });

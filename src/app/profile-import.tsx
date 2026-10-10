@@ -21,7 +21,7 @@ import {
 } from "@/lib/import/profile-context";
 import {
   applyProfileContextImport, fetchProfileImportSnapshot, listProfileContextImports, withdrawProfileContextImport,
-  type ProfileImportBatch, type ProfileImportRequest, type ProfileImportSnapshot,
+  type ProfileImportBatch, type ProfileImportRequest, type ProfileImportSnapshot, type ProfileImportCursor,
 } from "@/lib/supabase/profile-context-import";
 import { type ProfileDetails } from "@/lib/persona/profile-details";
 import { invalidateProfileStarLevel } from "@/lib/persona/load-profile-star";
@@ -119,7 +119,7 @@ function ProfileImportFlow({ userId, adult }: { userId: string; adult: boolean }
       } else { setError(t("contextImport.failed")); }
     } finally { end(); }
   };
-  const loadHistory = useCallback(async (before?: string) => {
+  const loadHistory = useCallback(async (before?: ProfileImportCursor) => {
     if (working.current) return;
     working.current = true; setBusy(true); setError(null);
     try {
@@ -174,7 +174,7 @@ function ProfileImportFlow({ userId, adult }: { userId: string; adult: boolean }
         </MdCard>}
         ListFooterComponent={<View style={s.actions}>
           {error ? <MdButton label={t("contextImport.retry")} disabled={busy} onPress={() => void loadHistory()} /> : null}
-          {hasMore ? <MdButton label={t("contextImport.loadMore")} variant="outlined" disabled={busy} loading={busy} onPress={() => void loadHistory(history.at(-1)?.created_at)} /> : null}
+          {hasMore ? <MdButton label={t("contextImport.loadMore")} variant="outlined" disabled={busy} loading={busy} onPress={() => void loadHistory(history.at(-1))} /> : null}
           <MdButton label={t("contextImport.importMore")} variant="outlined" disabled={busy} onPress={reset} />
         </View>} /> : <ScrollView contentContainerStyle={[s.body, footerPad]} keyboardShouldPersistTaps="handled">
         {stage === "prepare" ? <>

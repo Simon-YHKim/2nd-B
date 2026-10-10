@@ -124,9 +124,9 @@ export function parseProfileContext(raw: string): ProfileContext {
 }
 
 export type ReviewedContext = Record<string, { selected: boolean; statement: string; confirmed: boolean }>;
-export function needsContextConfirmation(item: ContextItem, sources: readonly ContextSource[]): boolean {
-  return item.reported_basis !== "user_statement" || !sources.some((source) => item.evidence_ids.includes(source.id)
-    && source.kind === "chat_excerpt" && source.speaker === "user" && !!source.excerpt?.trim());
+export function needsContextConfirmation(_item: ContextItem, _sources: readonly ContextSource[]): boolean {
+  // External provenance claims never authorize an item, including user_statement.
+  return true;
 }
 export function selectAllContext(document: ProfileContext, review: ReviewedContext, selected: boolean): ReviewedContext {
   return Object.fromEntries(document.items.map((item) => [item.id, {
