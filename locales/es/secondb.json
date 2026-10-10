@@ -12,11 +12,7 @@
   "viewPlans": "Ver planes",
   "viewPlansHint": "Abre la pantalla de planes.",
   "serverLimitReached": "Esta cuenta ha alcanzado el límite de chat de hoy. El límite se restablece a medianoche, hora de Corea (KST).",
-  "intro_title": "Pregúntale a HustleK",
-  "intro_body": "HustleK responde a partir de las páginas de tu wiki. Toca el nombre de una página para leer el original. Prueba: \"¿Sobre qué he escrito más este mes?\"",
   "reference_piece_meta": "pieza referenciada",
-  "intro_ok": "Entendido",
-  "intro_mute": "No mostrar hoy",
   "heroSpeech": {
     "sending": "Leyendo los registros relacionados…",
     "divergent": "Considerando otras posibilidades…",
@@ -74,8 +70,6 @@
     "transcribeFailed": "No se pudo convertir esa grabación en texto. Inténtalo de nuevo o escribe tu mensaje.",
     "transcriptEmpty": "No pudimos distinguir palabras. Inténtalo más cerca del micrófono o escríbelo."
   },
-  "closeIntro": "Cerrar la introducción",
-  "closeIntroHint": "Cierra la ventana de introducción",
   "closeReferenced": "Cerrar los fragmentos referenciados",
   "closeReferencedHint": "Cierra la lista de fragmentos consultados",
   "piecesReferenced": "Fragmentos referenciados",
@@ -95,7 +89,6 @@
   "askLens": "Pregúntale a {{lens}}…",
   "nPieces": "{{n}} fragmentos",
   "chatSaveNotice": "Esta conversación no se está guardando",
-  "chatSaveNoticeBody": "Activa el guardado de chats en privacidad para conservarla. Lo dicho antes de activarlo no se guarda.",
   "chatSaveNoticeOpen": "Abrir ajustes",
   "chatSaveNoticeDismiss": "Cerrar",
   "planSuggestion": {

@@ -7,12 +7,8 @@ import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pre
 // State lives in component-local memory; no chat-history persistence in v1.
 // The chat_usage daily counter (server-side) is the persistent surface.
 //
-// 2026-05-27 (user directive):
-//   - Renamed Jarvis → "세컨비" / "SecondB" (locale-routed via secondb.json).
-//   - "What I'm good at" card moved out of the chat panel into a
-//     one-time intro modal with [알았어요 / 오늘은 그만 볼래요]
-//     buttons. The modal is dismissed via localStorage so it doesn't
-//     reappear every session.
+// First-entry guidance lives in the empty state (Simon, 2026-10-10).
+// Retired intro storage values can remain on the device; this screen never reads them.
 
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, StyleSheet, Platform, ActivityIndicator, Animated } from "react-native";
@@ -84,12 +80,12 @@ import { ChatActionBar, type ChatAction } from "@/components/secondb/ChatActionB
 import { ChatPlanSheet } from "@/components/secondb/ChatPlanSheet";
 import { useChatPlans } from "@/components/secondb/useChatPlans";
 import { ChatMessageAvatar, useChatUserAvatar } from "@/components/secondb/ChatMessageAvatar";
+import { HustleKPortrait } from "@/components/character/HustleKPortrait";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { holdExpression, reactExpression } from "@/lib/companion/expression";
 import {
   REV2_PERSONA_IDS,
   rev2PersonaAccent,
-  rev2PersonaGlow,
   rev2PersonaHint,
   rev2PersonaMode,
   rev2PersonaOnSoft,
@@ -102,7 +98,7 @@ import { parseTwiBranches } from "@/lib/chat/twi-branches";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { ChatRewardCapReachedError, grantChatAdBonus, readChatUsageDetail } from "@/lib/chat/usage";
-import { CHAT_DAILY_LIMIT, chatAllowance, kstDateToday } from "@/lib/chat/limits";
+import { CHAT_DAILY_LIMIT, chatAllowance } from "@/lib/chat/limits";
 import { RewardedSheet, type RewardedEarnOutcome } from "@/components/deepspace/RewardedSheet";
 import { personaAllowed } from "@/lib/entitlements/tiers";
 import { PUBLIC_TIER_BY_DB } from "@/lib/entitlements/tier-map";
@@ -110,7 +106,6 @@ import { prefersReducedMotion } from "@/lib/motion/signature";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 import { captureEvent, secondBSession, aiLimitHit } from "@/lib/analytics";
-import { keepAllKo } from "@/lib/i18n/keep-all";
 
 /**
  * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
@@ -174,62 +169,6 @@ type ChatMode = "analytic" | "divergent";
 const LOCKED_CHIP_GROUND = m3.accent.stageFloor;
 const LOCKED_CHIP_BORDER = flattenAlpha(m3.color.outlineVariant, 0.6, LOCKED_CHIP_GROUND);
 const LOCKED_CHIP_INK = flattenAlpha(m3.color.onSurfaceVariant, 0.6, LOCKED_CHIP_GROUND);
-
-const INTRO_DISMISS_KEY = "secondB_intro_dismissed_v1";
-
-// Web keeps localStorage; native goes through AsyncStorage (same split as
-// capture/draft.ts). localStorage-only meant the native app forgot "오늘은
-// 그만 볼래요" on every entry (flow-map /secondb) — the write was a no-op.
-interface IntroStorageLike {
-  getItem(key: string): Promise<string | null>;
-  setItem(key: string, value: string): Promise<void>;
-}
-
-function isReactNativeRuntime(): boolean {
-  const nav = globalThis.navigator as { product?: string } | undefined;
-  return nav?.product === "ReactNative";
-}
-
-function nativeIntroStorage(): IntroStorageLike | null {
-  if (!isReactNativeRuntime()) return null;
-  try {
-    return require("@react-native-async-storage/async-storage").default as IntroStorageLike;
-  } catch {
-    return null;
-  }
-}
-
-function parseIntroDismissed(v: string | null): "off" | "today" | "permanent" {
-  if (v === "permanent") return "permanent";
-  if (v && v.startsWith("today:") && v.slice("today:".length) === kstDateToday()) return "today";
-  return "off";
-}
-
-async function readIntroDismissed(): Promise<"off" | "today" | "permanent"> {
-  try {
-    const native = nativeIntroStorage();
-    if (native) return parseIntroDismissed(await native.getItem(INTRO_DISMISS_KEY));
-    if (typeof localStorage === "undefined") return "off";
-    return parseIntroDismissed(localStorage.getItem(INTRO_DISMISS_KEY));
-  } catch {
-    return "off";
-  }
-}
-
-function writeIntroDismissed(kind: "today" | "permanent"): void {
-  const v = kind === "permanent" ? "permanent" : `today:${kstDateToday()}`;
-  try {
-    const native = nativeIntroStorage();
-    if (native) {
-      void native.setItem(INTRO_DISMISS_KEY, v).catch(() => {});
-      return;
-    }
-    if (typeof localStorage === "undefined") return;
-    localStorage.setItem(INTRO_DISMISS_KEY, v);
-  } catch {
-    // ignore — private mode
-  }
-}
 
 // One chat ENGINE, one chrome (deep-space frame + deepSpace.* tokens). The
 // legacy PremiumAppShell village skin that once shared this engine left with
@@ -696,7 +635,6 @@ function SecondBChatBody() {
   // `used < cap + adBonus` -- a user who watched an ad still found the composer
   // locked. 0 is the honest default: no bonus until the read says otherwise.
   const [adBonusToday, setAdBonusToday] = useState(0);
-  const [introOpen, setIntroOpen] = useState(false);
   // SecondB conversation mode (worldview v-final). Analytic = data-grounded
   // analysis; Divergent = data-grounded but explores radically different angles.
   // Seeded from ?mode=divergent (e.g. a graph node's "새 관점으로 펼치기").
@@ -832,18 +770,6 @@ function SecondBChatBody() {
     () => chatAllowance(progression.tier, adBonusToday),
     [progression.tier, adBonusToday],
   );
-
-  useEffect(() => {
-    // Intro modal opens on first entry only — guarded by device storage
-    // (AsyncStorage on native, localStorage on web).
-    let alive = true;
-    void readIntroDismissed().then((v) => {
-      if (alive && v === "off") setIntroOpen(true);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   useEffect(() => {
     // Re-probe while the profile answer is "unknown" (a FAILED probe, not a
@@ -1118,7 +1044,6 @@ function SecondBChatBody() {
   const lensAccent = rev2PersonaAccent(rev2Persona);
   const lensSoftBg = rev2PersonaSoftBg(rev2Persona);
   const lensOnSoft = rev2PersonaOnSoft(rev2Persona);
-  const lensGlow = rev2PersonaGlow(rev2Persona);
   const pendingLensName = t(`rev2.${sendingPersona ?? rev2Persona}.lensName`);
   const inkOnAccent = m3.accent.onAccentInk; // reference send/mic glyph ink on the accent fill
   const suggestionState = {
@@ -1185,30 +1110,24 @@ function SecondBChatBody() {
                 aria-pressed={on}
                 accessibilityLabel={
                   locked
-                    ? `${t(`rev2.${id}.lensName`)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
+                    ? `${t(`rev2.${id}.lensName`)} · ${t(`rev2.${id}.role`)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
                     : `${t(`rev2.${id}.lensName`)} · ${t(`rev2.${id}.role`)}`
                 }
               >
                 <Text style={[ds.lensName, { color: locked ? LOCKED_CHIP_INK : on ? rev2PersonaOnSoft(id) : m3.color.onSurfaceVariant }]}>
                   {t(`rev2.${id}.lensName`)}
                 </Text>
-                <Text style={[ds.lensTag, { color: locked ? LOCKED_CHIP_INK : on ? accent : m3.color.onSurfaceVariant }]}>
-                  {locked ? lockPlan : t(`rev2.${id}.tag`)}
+                <Text style={[ds.lensRole, { color: locked ? LOCKED_CHIP_INK : on ? accent : m3.color.onSurfaceVariant }]}>
+                  {t(`rev2.${id}.role`)}
                 </Text>
               </Pressable>
             );
           })}
         </View>
 
-        {/* persona banner (reference ChatScreen header): status dot + mono tag +
-            wrapping lens description, tinted by the selected lens. Usage counter
-            and clear affordance ride the right edge. */}
-        <View style={[ds.banner, { backgroundColor: lensSoftBg }]}>
-          <View style={[ds.bannerDot, { backgroundColor: lensAccent, shadowColor: lensGlow }]} />
-          <Text style={[ds.bannerTag, { color: lensOnSoft }]} numberOfLines={1}>
-            {t(`rev2.${rev2Persona}.tag`)}
-          </Text>
-          <Text style={ds.bannerDesc}>
+        {/* The description gives way to usage and clear on narrow screens. */}
+        <View testID="chat-status" style={[ds.banner, { backgroundColor: lensSoftBg }]}>
+          <Text style={ds.bannerDesc} numberOfLines={1} ellipsizeMode="tail">
             {t(`rev2.${rev2Persona}.desc`)}
           </Text>
           <Text style={[ds.bannerUsage, atLimit ? ds.headerMetaDanger : null]} numberOfLines={1}>
@@ -1252,7 +1171,7 @@ function SecondBChatBody() {
           ref={scrollRef}
           testID="chat-transcript"
           style={{ flex: 1 }}
-          contentContainerStyle={[ds.scroll, { paddingBottom: messageListBottomPadding }]}
+          contentContainerStyle={[ds.scroll, turns.length === 0 && ds.scrollEmpty, { paddingBottom: messageListBottomPadding }]}
           onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => {
             followingLatest.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 32;
           }}
@@ -1280,41 +1199,37 @@ function SecondBChatBody() {
           dismissed: saveNoticeDismissed,
           turnCount: turns.length,
         }) ? (
-          <View style={ds.saveNotice} accessibilityRole="alert">
-            <Text style={ds.saveNoticeTitle}>{t("chatSaveNotice")}</Text>
-            <Text style={ds.saveNoticeBody}>{t("chatSaveNoticeBody")}</Text>
-            <View style={ds.saveNoticeRow}>
+          <View testID="chat-save-notice" style={ds.saveNotice} accessibilityRole="alert">
+            <Text style={ds.saveNoticeTitle} numberOfLines={1} ellipsizeMode="tail">{t("chatSaveNotice")}</Text>
               <Pressable
                 onPress={() => {
                   dismissSaveNotice();
                   router.push("/privacy");
                 }}
-                hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel={t("chatSaveNoticeOpen")}
                 style={ds.saveNoticeBtn}
               >
-                <Text style={ds.saveNoticeBtnText}>{t("chatSaveNoticeOpen")}</Text>
+                <Text style={ds.saveNoticeBtnText} numberOfLines={1}>{t("chatSaveNoticeOpen")}</Text>
               </Pressable>
               <Pressable
                 onPress={dismissSaveNotice}
-                hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel={t("chatSaveNoticeDismiss")}
-                style={ds.saveNoticeBtn}
+                style={ds.saveNoticeClose}
               >
-                <Text style={ds.saveNoticeDismissText}>{t("chatSaveNoticeDismiss")}</Text>
+                <PixelGlyph name="close" size={16} color={semantic.textMuted} />
               </Pressable>
-            </View>
           </View>
         ) : null}
 
 
           {turns.length === 0 ? (
-            <View style={ds.empty}>
-              <Text style={ds.emptyTitle}>
-                {t("title")}
-              </Text>
+            <View testID="chat-empty" style={ds.empty}>
+              {/* All three personas share the untinted portrait. Static also in reduced motion. */}
+              <View key={rev2Persona} testID={`chat-empty-portrait-${rev2Persona}`} accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                <HustleKPortrait expression="A01" size={96} />
+              </View>
               <Text style={ds.emptyBody}>{t("empty")}</Text>
             </View>
           ) : (
@@ -1429,56 +1344,6 @@ function SecondBChatBody() {
 
       {chatPlans.sheetProps.suggestion ? <ChatPlanSheet key={chatPlans.sheetKey} {...chatPlans.sheetProps} /> : null}
 
-      {/* 첫 진입 인사 모달. ScreenModal: 다른 화면이 이 화면을 덮으면 안내도 내려간다(R2A-03).
-          덮인 채 남은 대화상자는 Android 액티비티 재생성 때 지금 화면 위로 다시 뜨고,
-          두 번째 재생성에서 네이티브 크래시가 난다. introOpen 은 그대로라 돌아오면 다시 뜬다. */}
-      <ScreenModal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
-        {/* Scrim: NOT a button — on web an accessibilityRole="button" backdrop
-            renders as <button> and nests the modal's real <button>s inside it
-            (hydration error, parity finding S1). Tap-to-dismiss stays; the
-            labeled close affordances are the modal's own buttons. */}
-        <Pressable
-          style={ds.modalBackdrop}
-          onPress={() => setIntroOpen(false)}
-          accessibilityLabel={t("closeIntro")}
-          accessibilityHint={t("closeIntroHint")}
-        >
-          {/* 스크림은 디더다(PIXEL-CLAY 규칙 4). 바탕을 모르는 층이라 sbAlpha 로
-              미리 합성하면 불투명 단색이 돼 대화 화면이 사라진다(W-09). 이미지는
-              width/height 100% 로 준다. absoluteFill 만 주면 웹에서 4×4 한 칸만 그린다. */}
-          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-            <PixelScrim style={ds.modalScrimImage} />
-          </View>
-          <Pressable style={ds.modalCard} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
-            <Text style={ds.modalEyebrow}>{t("intro_title")}</Text>
-            {/* keepAllKo joins Hangul words with U+2060 so they wrap at spaces; the
-                screen reader gets the untouched string (joiners disorient braille and
-                character-by-character review). */}
-            <Text style={ds.modalBody} accessibilityLabel={t("intro_body")}>{keepAllKo(t("intro_body"))}</Text>
-            <View style={ds.modalActions}>
-              <Pressable
-                onPress={() => { writeIntroDismissed("today"); setIntroOpen(false); }}
-                style={ds.modalBtnGhost}
-                hitSlop={14}
-                accessibilityRole="button"
-                accessibilityLabel={t("intro_mute")}
-              >
-                <Text style={ds.modalBtnGhostText}>{t("intro_mute")}</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => { setIntroOpen(false); }}
-                style={ds.modalBtnPrimary}
-                hitSlop={14}
-                accessibilityRole="button"
-                accessibilityLabel={t("intro_ok")}
-              >
-                <Text style={ds.modalBtnPrimaryText}>{t("intro_ok")}</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </ScreenModal>
-
       {/* reference drawer — pieces the answer drew on (ScreenModal: same R2A-03 rule) */}
       <ScreenModal
         visible={refDrawer !== null}
@@ -1486,7 +1351,7 @@ function SecondBChatBody() {
         animationType="slide"
         onRequestClose={() => setRefDrawer(null)}
       >
-        {/* Scrim: not a button (same web nesting rationale as the intro modal). */}
+        {/* Scrim: not a button (avoid nesting the drawer buttons in a web button). */}
         <Pressable
           style={ds.modalBackdrop}
           onPress={() => setRefDrawer(null)}
@@ -1624,30 +1489,13 @@ const styles = StyleSheet.create({
 // glassmorphism, no pill chips, no em-dash in strings). Matches the prototype's
 // bubble/composer language from DeepSpaceViews while hosting the REAL engine.
 const ds = StyleSheet.create({
-  // persona banner (reference ChatScreen header row): dot + mono tag + desc,
-  // over the lens soft fill (set inline). Usage + clear ride the right edge.
+  // One line; usage and clear retain their width while the description truncates.
   banner: {
     flexDirection: "row",
     alignItems: "center",
     gap: deepSpaceSpacing.sm,
     paddingHorizontal: 14,
     paddingVertical: 10,
-  },
-  bannerDot: {
-    width: 8,
-    height: 8,
-    borderRadius: m3.shape.none,
-    flexShrink: 0,
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 0,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  bannerTag: {
-    flexShrink: 0,
-    fontSize: 10,
-    fontWeight: "700",
-    fontFamily: fontFamilies.mono,
   },
   bannerDesc: {
     flex: 1,
@@ -1668,7 +1516,7 @@ const ds = StyleSheet.create({
   clearLinkText: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.readable },
 
   // lens toggle (reference ChatScreen persona toggle): 3 equal buttons, name +
-  // mono tag; border/fill accent set inline per selected lens.
+  // role; border/fill accent set inline per selected lens.
   toggleRow: {
     flexDirection: "row",
     gap: deepSpaceSpacing.sm,
@@ -1685,7 +1533,7 @@ const ds = StyleSheet.create({
     borderWidth: 1.5,
   },
   lensName: { fontSize: 13, fontWeight: "700", fontFamily: fontFamilies.readable },
-  lensTag: { fontSize: 9, fontFamily: fontFamilies.mono, marginTop: 1 },
+  lensRole: { fontSize: 12, lineHeight: 18, fontFamily: fontFamilies.readable, marginTop: 1 },
 
   modeRow: {
     flexDirection: "row",
@@ -1731,26 +1579,26 @@ const ds = StyleSheet.create({
   // 대화 저장 안내 (Simon 결정 B1). 경고색을 쓰지 않는다 — 잘못한 것이 아니라
   // 선택지를 알리는 자리다.
   saveNotice: {
-    marginHorizontal: deepSpaceSpacing.md,
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: deepSpaceSpacing.xs,
-    padding: deepSpaceSpacing.md,
-    gap: 6,
+    paddingLeft: deepSpaceSpacing.sm,
+    gap: deepSpaceSpacing.xs,
     borderRadius: m3.shape.medium,
     borderWidth: 1,
-    borderColor: deepSpace.cardLine,
-    backgroundColor: deepSpace.card,
+    borderColor: semantic.border,
+    backgroundColor: semantic.surface,
   },
-  saveNoticeTitle: { color: semantic.text, fontSize: 14, fontWeight: "600" },
-  saveNoticeBody: { color: semantic.textMuted, fontSize: 13, lineHeight: 19 },
-  saveNoticeRow: { flexDirection: "row", gap: deepSpaceSpacing.sm, marginTop: 2 },
+  saveNoticeTitle: { flex: 1, minWidth: 0, color: semantic.text, fontSize: 12, lineHeight: 18, fontWeight: "600" },
   saveNoticeBtn: {
     // 44px 터치 타깃 (PRD 불변식)
     minHeight: 44,
+    flexShrink: 0,
     justifyContent: "center",
     paddingHorizontal: deepSpaceSpacing.sm,
   },
-  saveNoticeBtnText: { color: deepSpace.accent, fontSize: 13, fontWeight: "600" },
-  saveNoticeDismissText: { color: semantic.textMuted, fontSize: 13 },
+  saveNoticeBtnText: { color: semantic.deepSpaceAccent, fontSize: 12, lineHeight: 18, fontWeight: "600" },
+  saveNoticeClose: { width: 44, height: 44, flexShrink: 0, alignItems: "center", justifyContent: "center" },
   contextPillWrap: { paddingHorizontal: 18, paddingBottom: deepSpaceSpacing.sm },
   contextPill: {
     alignSelf: "flex-start",
@@ -1764,8 +1612,8 @@ const ds = StyleSheet.create({
   contextPillText: { color: deepSpace.textHi, fontSize: 11, fontFamily: fontFamilies.readable },
 
   scroll: { paddingHorizontal: 18, paddingTop: deepSpaceSpacing.sm, gap: 10 },
-  empty: { paddingVertical: 56, alignItems: "center", gap: 10 },
-  emptyTitle: { color: deepSpace.accentBright, fontSize: 15, fontFamily: fontFamilies.pixelKo },
+  scrollEmpty: { flexGrow: 1 },
+  empty: { flex: 1, justifyContent: "center", paddingVertical: 32, alignItems: "center", gap: 20 },
   emptyBody: {
     color: sbAlpha(deepSpace.text, 0.6),
     fontSize: 12,
@@ -1894,29 +1742,6 @@ const ds = StyleSheet.create({
   },
   // RN Web 은 디더 타일을 고유 크기(4×4)로만 반복한다. 전면을 덮으려면 크기를 명시한다.
   modalScrimImage: { width: "100%", height: "100%" },
-  modalCard: {
-    width: "100%",
-    maxWidth: 420,
-    padding: deepSpaceSpacing.lg,
-    borderRadius: m3.shape.large,
-    borderWidth: 1,
-    borderColor: deepSpace.cardLine,
-    backgroundColor: deepSpace.bg,
-  },
-  modalEyebrow: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.readable },
-  modalBody: { color: deepSpace.textHi, fontSize: 13, lineHeight: 20, marginTop: deepSpaceSpacing.sm, fontFamily: fontFamilies.readable },
-  modalActions: { flexDirection: "row", gap: deepSpaceSpacing.sm, marginTop: deepSpaceSpacing.md, justifyContent: "flex-end" },
-  modalBtnGhost: { minHeight: 44, justifyContent: "center", paddingHorizontal: deepSpaceSpacing.md, borderRadius: m3.shape.small },
-  modalBtnGhostText: { color: deepSpace.textMid, fontSize: 13, fontFamily: fontFamilies.readable },
-  modalBtnPrimary: {
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: deepSpaceSpacing.md,
-    borderRadius: m3.shape.small,
-    backgroundColor: deepSpace.accent,
-  },
-  modalBtnPrimaryText: { color: deepSpace.onAccent, fontSize: 13, fontWeight: "700", fontFamily: fontFamilies.readable },
-
   drawer: {
     position: "absolute",
     left: 0,

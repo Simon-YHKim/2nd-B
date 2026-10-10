@@ -55,8 +55,11 @@ describe("/secondb resilience (flow-map bugs 5+6)", () => {
     expect(src).not.toContain("setUsedToday(0)");
   });
 
-  it("persists the intro dismissal on native, not just web localStorage", () => {
-    expect(src).toContain("@react-native-async-storage/async-storage");
+  it("opens with inline guidance without a storage-gated intro (UI2-CHAT-04)", () => {
+    expect(src).not.toContain("readIntroDismissed");
+    expect(src).not.toContain("introOpen");
+    expect(src).toContain('testID="chat-empty"');
+    expect(src).toContain('t("empty")');
   });
 });
 
