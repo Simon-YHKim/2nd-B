@@ -600,6 +600,7 @@ export function ConstellationHome({
   // A summoned dialogue overlays the sky instead of changing its viewport
   // midway through a star-camera approach.
   const [instrumentHeight, setInstrumentHeight] = useState(74);
+  const instrumentLift = instrumentHeight + POCKET_PHONE_PEEK + m3.spacing.s4;
   const dialogueStageHeight = DIALOGUE_STAGE_HEIGHT * Math.min(Math.max(fontScale, 1), 1.35);
   const constellationHeightBudget = stage
     ? Math.max(120, stage.h - 52 - instrumentHeight)
@@ -1172,7 +1173,12 @@ export function ConstellationHome({
           />
         </View>
       </View> : null}
-      <View style={[styles.instrumentRow, visualFocusId && { height: instrumentHeight }]}
+      {/* Lift the whole row above the pocket without narrowing the ruler. Opposite
+          margins keep the sky and phone geometry unchanged; the row's own layout
+          bounds move too, so native touches stay inside their parent. */}
+      <View style={[styles.instrumentRow,
+        bubble.kind === "intro" && !visualFocusId && !phoneExpanded && { marginTop: -instrumentLift, marginBottom: instrumentLift },
+        visualFocusId && { height: instrumentHeight }]}
         onLayout={({ nativeEvent: { layout } }) => setInstrumentHeight(layout.height)}>
         {/* One scale with the star tap (Simon 2026-09-30): the flight above is clamped to
             the same 1x..10x range, so the dial never re-scales and a number means one magnification. */}
