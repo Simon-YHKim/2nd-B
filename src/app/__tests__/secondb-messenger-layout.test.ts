@@ -5,6 +5,8 @@ import ts from "typescript";
 import { getReplyActions, getWikiSuggestion, isCurrentWikiSuggestion } from "@/lib/chat/presentation-policy";
 import { isKeepable } from "@/lib/chat/keep-exchange";
 import { chatDisplayText } from "@/lib/chat/display-text";
+import { formatSourceCitationLabel, parseSourceCitations, sourceCitationDisplay } from "@/lib/chat/sources";
+import { parseTwiBranches } from "@/lib/chat/twi-branches";
 
 const source = readFileSync(resolve(__dirname, "../secondb.tsx"), "utf8");
 const transcript = source.slice(source.indexOf("turns.map((turn, i)"), source.indexOf("{sending ? (", source.indexOf("turns.map((turn, i)")));
@@ -44,7 +46,8 @@ function renderedMessages(messageTurns?: Props[], selectedLens = "HustleK") {
     React: { createElement: (type: string, props: Props | null, ...children: unknown[]) => ({ type, props: { ...props, children } }) },
     View: "View", Pressable: "Pressable", Text: "Text", ChatMessageAvatar: "ChatMessageAvatar", ServiceConsentLink: "ServiceConsentLink",
     turns, ds, userAvatar: savedAvatar, userDisplayName: "Hotline_blingbling", lensName: selectedLens, lensAccent: "accent",
-    getExchangeExpression, copyTurn, chatDisplayText, copyNotice: null, t: (key: string) => labels[key] ?? key,
+    getExchangeExpression, copyTurn, chatDisplayText, sourceCitationDisplay, copyNotice: null,
+    t: (key: string) => key === "deepspace:time.recordFallback" ? "기록" : labels[key] ?? key,
   }) as Tree[];
   return { tree, savedAvatar, getExchangeExpression, turns, copyTurn };
 }
@@ -66,6 +69,48 @@ describe("HustleK messenger layout", () => {
     expect(transcript).toContain("<ChatMessageAvatar");
     expect(transcript).toContain("userAvatar={userAvatar}");
     expect(transcript).toContain("getExchangeExpression(turns, i)");
+  });
+
+  test("the actual bubble removes appended citations while copying the unchanged legacy text", () => {
+    const raw = "**먼저** 하는 게 좋습니다 [[untitled]].";
+    const text = parseSourceCitations(raw).display;
+    // Chips are covered separately; no RN renderer is involved in this source host.
+    const host = renderedMessages([{ role: "secondb", text, citationText: raw }]);
+    const [, body] = host.tree[0].props.children as Tree[];
+    const [bubble] = body.props.children as Tree[];
+    const [bubbleText] = bubble.props.children as Tree[];
+    expect(bubbleText.props.children).toEqual(["먼저 하는 게 좋습니다."]);
+    (bubble.props.onLongPress as () => void)();
+    expect(host.copyTurn).toHaveBeenCalledWith(0, "**먼저** 하는 게 좋습니다 Untitled.");
+    expect(host.turns[0].text).toBe(text);
+  });
+
+  test("drawer title and accessible name share the localized fallback without changing navigation", () => {
+    const card = findNode(node => ts.isJsxElement(node) && node.openingElement.getText(ast).includes("style={ds.drawerCard}")) as ts.JsxElement;
+    const openCitedPage = jest.fn();
+    const tree = execute(`(${card.getText(ast)})`, {
+      React: { createElement: (type: string, props: Props | null, ...children: unknown[]) => ({ type, props: { ...props, children } }) },
+      Pressable: "Pressable", Text: "Text", ds: {}, slug: "untitled-deadbeef", openCitedPage,
+      formatSourceCitationLabel, t: (key: string) => key === "deepspace:time.recordFallback" ? "기록" : key,
+    }) as Tree;
+    expect(tree.props.accessibilityLabel).toBe("기록");
+    expect((tree.props.children as Tree[])[0].props.children).toEqual(["기록"]);
+    (tree.props.onPress as () => void)();
+    expect(openCitedPage).toHaveBeenCalledWith("untitled-deadbeef");
+  });
+
+  test("the bubble fixes citation grammar while long press keeps the legacy sentence", () => {
+    const raw = "이 답은 관련 위키 기록 [[untitled]]와 소스의 자기 이해 기록을 보고 말씀드렸습니다.";
+    const text = parseSourceCitations(raw).display;
+    const host = renderedMessages([{ role: "secondb", text, citationText: raw }]);
+    const [, body] = host.tree[0].props.children as Tree[];
+    const [bubble] = body.props.children as Tree[];
+    const [bubbleText] = bubble.props.children as Tree[];
+    expect(bubbleText.props.children).toEqual(["이 답은 관련 위키 기록과 소스의 자기 이해 기록을 보고 말씀드렸습니다."]);
+    (bubble.props.onLongPress as () => void)();
+    expect(host.copyTurn).toHaveBeenCalledWith(0, "이 답은 관련 위키 기록 Untitled와 소스의 자기 이해 기록을 보고 말씀드렸습니다.");
+    expect(host.turns[0].text).toBe(text);
+    expect(host.turns[0].citationText).toBe(raw);
   });
 
   test("headers stay above bubbles with the user avatar at the right edge and nickname to its left", () => {
@@ -127,7 +172,7 @@ describe("HustleK messenger layout", () => {
     }
   });
 
-  test.each(["ok", "blocked", "error", "consent"])("%s replies retain the persona selected at send time across an in-flight switch", async outcome => {
+  test.each(["ok", "divergent", "blocked", "error", "consent"])("%s replies retain the persona selected at send time across an in-flight switch", async outcome => {
     const declaration = findNode(node => ts.isVariableDeclaration(node) && node.name.getText(ast) === "handleSend") as ts.VariableDeclaration;
     const callback = (declaration.initializer as ts.CallExpression).arguments[0];
     const turns: Props[] = [];
@@ -140,13 +185,13 @@ describe("HustleK messenger layout", () => {
     const setSendingPersona = jest.fn();
     class LlmConsentError extends Error { code = "paused"; }
     const scope: Props = {
-      userId: "A", rev2Persona: "meta", locale: "en", progression: { tier: "free" }, turns, chatMode: "analytic", isMinor: false, limit: 10,
+      userId: "A", rev2Persona: "meta", locale: "en", progression: { tier: "free" }, turns, chatMode: outcome === "divergent" ? "divergent" : "analytic", isMinor: false, limit: 10,
       setSending: (sending: boolean) => { if (!sending) finished(); }, setSendingPersona,
       setTurns: (updater: (previous: Props[]) => Props[]) => { const next = updater(turns); turns.splice(0, turns.length, ...next); },
       holdExpression: () => jest.fn(), sendChatMessage, currentDisplayName: () => "Alex", rev2PersonaHint: (id: string) => id,
       setUsedToday: jest.fn(), setPendingUpgrade: jest.fn(), rewardedAllowedRef: { current: false }, setChatRewardVisible: jest.fn(),
       captureEvent: jest.fn(), secondBSession: (event: unknown) => event,
-      parseSourceCitations: (text: string) => ({ display: text, chips: [] }), parseTwiBranches: (display: string) => ({ display, branches: [] }),
+      parseSourceCitations, parseTwiBranches,
       replyCueAllowed: () => false, isRecordingAudioMode: () => false, playReplyCue: jest.fn(),
       LlmConsentError, consentT: (key: string) => key, t: (key: string) => key, reactExpression: jest.fn(), console: { warn: jest.fn() },
     };
@@ -158,15 +203,24 @@ describe("HustleK messenger layout", () => {
     expect(execute(`(${pendingName.initializer!.getText(ast)})`, {
       sendingPersona: "meta", rev2Persona: "twi", t: (key: string) => key,
     })).toBe("rev2.meta.lensName");
+    const rawReply = "**Start here** [[untitled]]." + (outcome === "divergent" ? "\n→ Read [[english-study]]\n→ Try this" : "");
     if (outcome === "error") reject(new Error("offline"));
     else if (outcome === "consent") reject(new LlmConsentError());
     else resolve(outcome === "blocked" ? { status: "blocked", hint: "Limit reached", used: 10 }
-      : { status: "ok", reply: { text: "A response", safety: { zone: "green" } }, used: 1 });
+      : { status: "ok", reply: { text: rawReply, safety: { zone: "green" } }, used: 1 });
     await completion;
     expect(turns).toHaveLength(2);
     expect(turns[1]).toMatchObject({ role: "secondb", persona: "meta" });
     expect(sendChatMessage).toHaveBeenCalledWith(expect.objectContaining({ personaHint: "meta" }));
     expect(setSendingPersona).toHaveBeenLastCalledWith(null);
+    if (outcome === "ok" || outcome === "divergent") {
+      expect(turns[1].text).toBe("**Start here** Untitled.");
+      expect(turns[1].citationText).toBe("**Start here** [[untitled]].");
+      expect(turns[1].chips).toEqual(outcome === "divergent" ? ["untitled", "english-study"] : ["untitled"]);
+      expect(turns[1].branches).toEqual(outcome === "divergent" ? ["Read English Study", "Try this"] : []);
+      expect(turns[1].safetyZone).toBe("green");
+      expect(source).toContain('text: t.text }))');
+    } else expect(turns[1].citationText).toBeUndefined();
   });
 
   test("save and follow-up actions live in the composer dock, not in each bubble", () => {
