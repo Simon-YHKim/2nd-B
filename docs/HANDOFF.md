@@ -126,7 +126,7 @@ Simon의 명시적 승인으로 운영 DB 0239·0240을 먼저 적용했고 QA �
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-10-01 01:07 ~ 2026-10-03 21:18 | [handoff/HANDOFF-2026-10.md](handoff/HANDOFF-2026-10.md) | 33 | 73KB |
+| 2026-10-01 01:07 ~ 2026-10-05 05:40 | [handoff/HANDOFF-2026-10.md](handoff/HANDOFF-2026-10.md) | 43 | 97KB |
 | 2026-09-28 01:2x ~ 2026-09-30 23:57 | [handoff/HANDOFF-2026-09-p4.md](handoff/HANDOFF-2026-09-p4.md) | 24 | 66KB |
 | 2026-09-25 ~ 2026-09-28 00:4x | [handoff/HANDOFF-2026-09-p3.md](handoff/HANDOFF-2026-09-p3.md) | 37 | 86KB |
 | 2026-09-08 ~ 2026-09-21 | [handoff/HANDOFF-2026-09-p2.md](handoff/HANDOFF-2026-09-p2.md) | 16 | 94KB |
@@ -144,6 +144,7 @@ Simon의 명시적 승인으로 운영 DB 0239·0240을 먼저 적용했고 QA �
 **새 블록은 이 파일 맨 위에 얹는다.** 이 파일이 100KB 에 닿으면 가장 오래된
 블록부터 그 달의 보관 파일(부분이 있으면 번호가 가장 큰 것) 맨 위로 옮긴다.
 **⚠ `HANDOFF-2026-09.md`(p1) 92KB · `-p2` 94KB 로 찼다 — 09 월 블록은 `-p3` 로 간다.**
+**⚠ `HANDOFF-2026-10.md`(p1)도 97KB 로 찼다(2026-10-10) — 10 월 블록은 `HANDOFF-2026-10-p2.md` 를 새로 만들어 보낸다.**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
 ## Latest — 2026-10-07 15:16 / Codex: 시계 줄 GPS 날씨 로컬 구현·재검증 완료, 활성화 보류
@@ -464,138 +465,3 @@ Simon의 명시적 승인으로 운영 DB 0239·0240을 먼저 적용했고 QA �
 - **보고서**: <https://claude.ai/artifact/VAWUfHiWyvgLMgFCzce55o> (v4)
 - **앱/localhost**: 이 블록 시점 `npm run app:parity` = 같음(8081 = `1973c4aa`, 같은 코드 APK 빌드 중 런 37256999426). 이 PR 은 문서.
 - **다음 1개**: Simon 답 Q-41 · Q-42. 코딩 쪽은 2차 점검 결과 → 수정 PR, 그다음 4차 되살리기(Q-12 · 19 · 25 · 34 · 35).
-
-## 2026-10-05 05:40 / Grok 봇 협업 재개 · #1863 게시 승인 · Paddle 5단계 · vc59 QA · SSV 89일 정리 PR-7a/7b 로컬
-
-- **무엇을**: Simon /vibe "그록 봇 작업 현황을 확인하고 소통해서 … 유기적으로 작업할 수 있도록" (10-04 16:3x). 봇 버스 `E:/2ndB/.bots`(relay inbox/outbox)로 주고받았다. 보고서 <https://claude.ai/artifact/BSKXDaA96Rc7APfCUscx4y>
-- **#1863 웹 게시**: Hadrianus 의 run 37185846604 가 Production 승인에서 20분 멈춰 있었다(Relay 는 Pages 승인 권한이 없다). 소스 `ba7afdfd` = origin/main · 다이제스트 일치 · Cassius QA ①~③ · Simon GO 16:13 확인 뒤 16:47:39 승인, 16:48:30 게시.
-- **봇 질문 3건 답**(`coding-sync-261004-1701`): GA4 9/26 이후 0건 = 분석 동의한 성인의 웹 세션 0(설계대로, 서버 스위치 켜짐 · 라이브 태그 있음) · 동의 collect 는 막지 않는다(enforce 만) · main 광고는 `adNetworkPublicationReady()` false 로 꺼져 있다.
-- **Paddle 5단계**(Simon GO 17:45): 새 client-side token `polascope-web-binding-261004`(Simon 18:31 로그인 → Relay 18:34 발급) → 저장소 변수 `PADDLE_CLIENT_TOKEN_NEXT`(sha256 `636bb5ed…`). 격리 preview(CI 공개 설정 다이제스트 `05179aa0…` 재현)에서 v2 바인딩 custom_data 확인, 승인 도메인 201. localhost 는 Paddle 이 403 "checkout creation is blocked for this vendor"(미승인 도메인이라 토큰 탓이 아니다). 미결제 초안 거래 2건 생김(7단계 목록). `relay/outbox/vb-paddle-step5-go-1745.result.md`
-- **vc59(0.10.0) 에뮬레이터 QA**(봇 컴퓨터 메모리 부족으로 이관): ①③④⑤⑥ PASS · ② 미검증(에뮬 `network delay` 미적용) · **F1 세컨비 입력창이 키보드에 가린다**(API 36). `secondb.tsx` 가 Android 에서 KeyboardAvoidingView 를 끄고 adjustResize 에 기대는데 targetSdk 36 edge-to-edge 에서는 resize 가 안 된다는 것이 가설(실기기 미확인). `web-qa/inbox/vc59-emulator-qa.coding.result.md`
-- **SSV 89일 정리**(Simon 20:29 "코드는 PC 코딩 LLM"): 요청서 v3 반영. 로컬 브랜치만 — `feat/ssv-90d-purge`(PR-7a 4커밋) · `feat/ssv-callback-freshness`(PR-7b 2커밋, 7a 위). 둘 다 `npm run verify` rc=0, CI sql job 로컬 재생 통과. 초안의 1일 창은 발급 시각 검사에 가려 관측되지 않았다(사례 추가, 변이로 확인). 워크트리 `.worktrees/ssv-90d-purge-261004`. `dev-infra/outbox/coding-llm-request-ssv-90d-purge.coding.result.md`
-- **다음 1개**: Simon 결정 둘 — ① SSV GO-1(push·PR 2개. main 이 `5964f1ba` 로 움직여 rebase 필요, 0211~0214 는 아직 비었다) ② 결제 전환 6~13단계 일정(지금 공개 웹은 옛 토큰으로 결제창이 열리고 webhook 은 0).
-- **남은 것**: F1 수정 · `.worktrees/paddle5-preview-261004` 정리(정션 먼저 해제).
-- **앱/localhost**: 이 세션은 앱 코드를 main 에 넣지 않았다(이 PR 은 문서).
-
-## 2026-10-04 15:20 / 오프닝 한 프레임 늘어남 수정(#2031) · 0.10.0 컷(#2032) · 에뮬레이터 확인
-
-- **무엇을**: Simon: "망원경을 조정하다가 갑자기 1 프레임 정도 접안 모션을 보여주는 상태야. 이거 수정 가능해?" → "혹시 localhost 에서만 그런가? … 에뮬레이터로 확인 해볼래? 최신 apk를 만들어서 작업하자. 마이너 버전으로."
-- **원인**: 승인 시퀀스의 컷이 아니다(manifest = approved-settings). observe-* 만 폭 480 · 나머지 400 인데 캐릭터 틀이 컷마다 크기를 따라갔다. expo-image 는 새 그림이 그려질 때까지 옛 그림을 붙잡으므로 adjust-3 → observe-1 순간 adjust-3 이 1.2배로 늘어난 채 한 번 그려졌다. 웹 8081 13~15ms(캐시 유무 둘 다) · 안드로이드 에뮬레이터(x86_64 CI APK `e4ee955e`) 72ms. **localhost 전용이 아니었다.**
-- **수정 #2031 `f235273c`**: `getApprovedOpeningScene` 이 가장 넓은 컷 크기의 `characterSlot` 을 주고 `LoadingScreen` 이 `contentFit="contain"` + 왼쪽 위로 그린다(모든 컷 높이 560 이라 각 컷이 제 자리 · 제 크기). 승인 바이트 · 타이밍 · 순서 불변. 테스트 2개(변이 4 · 2 실패), verify 898 suites / 11,557 tests.
-- **0.10.0 #2032 `4bf55812`**: `app.json` 0.9.0 → 0.10.0 · CHANGELOG 199개(문서 96 · 기능 36 · 수정 57) · `notice:release` SILENT · `versionCode` 40 유지(EAS remote). 새로 설치해야 하는 판.
-- **APK · 에뮬레이터**: x86_64 [런 37180995493](https://github.com/Simon-YHKim/2nd-B/actions/runs/37180995493) 성공(versionName 0.10.0) → Orca `emulator-5554` 에 `install -r`, 오프닝 3회 녹화에서 늘어난 프레임 **0**(전 1). 폰용 arm64 push [런 37180962217](https://github.com/Simon-YHKim/2nd-B/actions/runs/37180962217) 은 서명 게이트를 지나 빌드 중(이 블록 시점). 폰 QA APK 는 게시하지 않았다(Simon 이 폰에서 볼 때만).
-- **정정**: #2031 커밋 메시지 · CHANGELOG · 코드 주석에 안드로이드 86ms 로 적었다. 확대 그림에 시각을 붙일 때 프레임 번호를 한 칸 밀려 읽은 값이고, 다시 세면 72ms(10.693s → 10.765s)다. CHANGELOG · 주석은 이 PR 에서 고쳤고 커밋 메시지는 남는다.
-- **덤으로 본 것(안 고침)**: 처음 켤 때 53ms 손목 컷이 이미지 디코딩 지연으로 건너뛰어질 수 있다(웹 · 캐시 없음). 에뮬레이터에서 오프닝이 1.4~1.5초씩 두 번 멈췄다(실기기 미확인).
-- **보고서**: <https://claude.ai/artifact/5b9uBaxGS1yxrZdT6BRSaz>
-- **앱/localhost**: 이 블록 시점 `npm run app:parity` = 같음(8081 = `4bf55812`, 같은 코드 arm64 빌드 진행 중). 이 PR 은 코드 주석을 바꿔 새 arm64 빌드를 하나 더 돌린다.
-- **다음 1개**: Simon 이 폰에서 보고 싶어 하면 `npm run app:qa-release`.
-
-## 2026-10-04 14:02 / 미푸시 브랜치 10개 삭제 (번들 백업)
-
-- **무엇을**: 13:09 블록의 "브랜치는 하나도 지우지 않았다" 를 이 블록이 갱신한다. Simon: "굳이 남겨놓을 필요 없겠어. 전부 정리하자."
-- **지운 것**: origin 에 없는 커밋을 가진 로컬 브랜치 10개(`fix/legacy-archive-integrity-pin-260913` · `claude/health-withdraw-261002` · `codex/prod-workflow-ref-gates-260913` · `claude/records-260921` · `fix/gui-back-focus-261001` · `codex/museum-phone-261001` · `fix/android-voice-base64-260926` · `codex/ops-embed-261001` · `qa/polascope-1902-mergecheck-f5-261001` · `fix/preauth-owner-consent-261001`).
-- **지우기 전 판정**: 9개는 main 에 착지했거나(추가 줄의 main 존재율 75~100% · #2005 · #2011) 착지할 내용이 없는 merge 커밋(#1856 · mergecheck). `legacy-archive-integrity` 는 package-lock 제외 93% 착지, 마이그레이션은 0196 · 0197 로 번호가 바뀌어 들어갔고, `capture-file.ts` · `storage-erasure.ts` · `auth.ts` 등 2,019줄은 미확인인 채로 지웠다.
-- **백업**: `E:/Coding Infra/_rescue/worktrees-261004/branches-261004.bundle`(verify ok · 머리 10개 == `branches-261004.tips`). 되살리기: `git fetch "<bundle>" refs/heads/<br>:refs/heads/<br>`.
-- **남은 로컬 브랜치**: 지운 워크트리의 나머지 85개는 커밋이 전부 origin 에 있다. 원격 브랜치는 손대지 않았다.
-- **다음 1개**: 없음.
-
-## 2026-10-04 13:09 / 2ndB 워크트리 97곳 · LLM 세션 9개 정리 (Orca 경량화)
-
-- **무엇을**: Simon 지시 "현재의 워크트리와 세션 제외하고, 우리 프로젝트에 띄워져 있는 워크트리와 llm 세션, 모두 정리해줘". 모든 PR 머지 뒤 Orca 가 무거워져서.
-- **남은 것**: 워크트리 3개(`E:/2ndB` main · `.worktrees/2ndB/TTL-Work_rev2` · `.worktrees/localhost-main`). 2ndB 의 Orca 터미널은 지시한 세션 1개뿐.
-  - `localhost-main` 은 일부러 남겼다. 8081 감독자가 거기서 돈다. 지우면 localhost 가 멈추고 `app:parity` 가 "다름" 이 된다(`npm run localhost` 가 다시 만들기는 한다).
-- **구제**: `E:/Coding Infra/_rescue/worktrees-261004/<이름>/` 에 `tracked.patch`(sha256 은 manifest.json) · `untracked/` · `ignored/`. 같은 E: 볼륨 안 이동이라 복사 0. 목록 `index.json`, 삭제 기록 `deleted.json`.
-  - 미커밋이 있던 10곳: 2ndB/TTL-Work(수정 575 · 새 파일 816) · avatar-observatory-integration-260928 · brand-meta-260927 · data-conn-260930 · grok-qa-complement-260925 · localhost-260921-287e56f1 · native-260926 · observatory-260925 · qa-integration-260920 · reward-ledger-retention-260927.
-- **브랜치는 하나도 지우지 않았다**(95개 존재 확인). 미푸시 커밋이 있는 브랜치 10개(legacy-archive-integrity-260913 의 97개 등)는 그대로 있다.
-- **수치**: E: 여유 101.8 → 135.4 GB · 메모리 여유 5.9 → 8.3 GB · claude.exe 11 → 6 · codex.exe 7 → 5 · 공용 node_modules 726 → 726. `app:parity` = 같음.
-- **손대지 않은 것**: `.worktrees/_backup` · `_legacy` · `.npm-security-landing-260906`(보안 트랙) · `.orca-*` · `2ndB/_sync`. 빈 폴더 9개만 지웠다. `Coding Infra` 폴더 터미널은 2ndB 가 아니라 그대로.
-- **도구**: `E:/Coding Infra/_rescue/tools/cleanup-261004/`(`rescue_move.py` · `delete_wt.py`). `orca worktree rm` 은 로컬 브랜치까지 지워서 쓰지 않았다.
-- **다음 1개**: 없음. 새 작업은 새 워크트리로 시작한다.
-
-## 2026-10-04 12:40 / Q-261004-01 · 02 = A: TTL-Work_rev2 정리 · agy 11개는 지금 문구
-
-- **무엇을**: Simon 답 "Q-261004-01 : a ok / Q-261004-02 : a ok".
-- **Q-261004-01 = A**: `.worktrees/2ndB/TTL-Work_rev2` 의 미커밋 49건(파일 122)을 지우고 `Simon-YHKim/TTL-Work_rev2` 를 origin/main(`c61c6f3e`)으로 fast-forward 했다. 미커밋 0 · 앞 0 · 뒤 0. node_modules 정션 유지, 공용 726.
-  - 지우기 전: 워크트리 트리 해시가 백업 `backup/ttl-work-rev2-wip-261004`(`a97531d8`)와 같았다(`e124e7dd`) → 백업 뒤에 생긴 변경 0. 같은 워크트리의 다른 rev2 세션(ed · 99 · d2 · 8b) 모두 idle.
-  - **이 워크트리를 쓰던 세션이 깨어나면**: 옛 미커밋 파일은 이제 없다. 내용은 main 에 있거나(#2005 · #2023 · #2000 · #2025) 더 새 판으로 대체됐고, 원본은 백업 브랜치에 있다.
-- **Q-261004-02 = A**: #2025 에서 뺀 agy 문구 11개는 main 문구 그대로. 할 일 없음.
-- **다음 1개**: 없음(이 건 종료). 폰에서 오늘 바뀐 것을 보려면 `npm run app:qa-release` (폰 QA APK 는 10-01 판).
-
-## 2026-10-04 04:40 / TTL-Work_rev2 워크트리 작업 착지: #2005 · #2023 · #2000 · #2025
-
-- **무엇을**: Simon "이 워크트리에 있는 모든 작업에 대해 머지하고 깃허브 머지까지 진행하자." (`.worktrees/2ndB/TTL-Work_rev2`, 브랜치 `Simon-YHKim/TTL-Work_rev2` @ `354e8d03`, main 보다 110 커밋 뒤 · 미커밋 49건)
-- **백업 먼저**: 미커밋 전부(122 파일)를 `backup/ttl-work-rev2-wip-261004` (`a97531d8`)로 원격에 올렸다. 아래 판정이 틀렸으면 거기서 꺼낸다.
-- **착지**
-  - [#2005](https://github.com/Simon-YHKim/2nd-B/pull/2005) 휴대폰 안에서 앱 열기(세션 128f6ff1 작업): main 병합 · 충돌 1건(`inbox/signals.test.ts` 소스 핀, 양쪽 메모 + 병합본 해시) · 새 휴대폰 문구 6개 B안 → `294588b9`. verify 898/11,552 · 375px 웹 확인(노트·검색·프로필이 `/dashboard` 안에서 열림, 오류 0, 쓰기 0)
-  - [#2023](https://github.com/Simon-YHKim/2nd-B/pull/2023) QA·UX 기록 문서(휴대폰 QA 09-30 · UI 감사 09-30 · 대시보드 캡처 09-26 · 버그 감사 10-02 · agy 말투 감사 10-02)
-  - [#2000](https://github.com/Simon-YHKim/2nd-B/pull/2000) 휴대폰 이동 게이트 기록 + "#2005 가 어떻게 풀었나" 절(진짜 화면 호스팅 · Back 리스너가 포커스 단위)
-  - [#2025](https://github.com/Simon-YHKim/2nd-B/pull/2025) agy 한국어 문구 21개(B안 적용, `{{who}}님`→`{{who}}`) + 대화 지침(페이스메이커 · '당신' 금지 · 먼저 듣고 위로와 지지). EN 은 줄 수를 안 바꾸고 기존 줄에 접었다(법무 문서 줄 인용 때문, 첫 시도에서 2건 빨강) → `d82bfd12`
-- **안 가져온 것(main 이 이미 더 새 것)**: 옛 오프닝(`LoadingScreen` · 소리 버튼 문구, #2014~#2020 이 대체) · 옛 `DashboardPhone`(#2005 가 대체) · `.gitattributes` · `docs/ASSETS.md` · `scripts/check-constraints.ts` 옛판. hunk 단위로 main 대조해서 판정했다.
-- **agy 문구 중 반영 안 한 11개(코딩 세션 판단, PR #2025 표)**: 사실과 다름(`phone.emptyAgenda` 예정 없음을 "모두 마쳤습니다" · `ds.head.home.text` "이미 담아보았습니다" · `research.noProposals` "연결된 기록이 없습니다") · AI/추정 고지 삭제(`aiApprox` · `research.getProposals`) · 개수를 "분석"으로(`phone.areaScope`) · propose→ratify 어휘(`roleApprove` · `reviewProposal` · `openDigest` · `research.proposalsLabel`) · #2009 와 같은 뜻(`personas.secondb.systemHint`).
-- **지금 상태**: TTL-Work_rev2 워크트리의 미커밋 49건은 **그대로 남겼다** — 전부 착지했거나 대체됐고 백업이 있다. 지우는 것(리셋)은 Simon 확인 후.
-- **미검증**: Android 실기의 휴대폰 안 Back(웹만 확인) · agy 문구가 들어간 화면 전수(세컨비 소개 · 휴대폰 기록 줄만 봤다).
-- **다음 1개**: TTL-Work_rev2 워크트리 정리 여부를 Simon 에게 묻는다(백업 브랜치 있음).
-
-## 2026-10-04 04:11 / 재동의 서버 초안 Draft #2024(#1902 위) · 게이트의 blocked 규칙 정정
-
-- **무엇을**: "할일 진행해줘." 남은 일은 전부 #1902(다른 세션 Draft, 10-01 이후 갱신 없음)에 막혀 있다. 그 세션의 몫(#1902 머지 · 인수)은 건드리지 않고,
-  §8 의 2 · 3 단계를 **#1902 브랜치를 base 로 한 Draft PR [#2024](https://github.com/Simon-YHKim/2nd-B/pull/2024)** 로 미리 쌓았다. 머지 · 번호 · 운영 적용 없음.
-  - SQL `db/migration-drafts/UNNUMBERED_reconsent_v8_20261005.sql`: email-v8 · v4~v7 유지 · `llm_service_consent_status_v3.needs_reconsent` ·
-    writer service-v3 + 철회자 전용 `confirm`(넷만, `llm_processing_ack=false` · `service_action='revoke'` 로 저장 → 철회가 안 되살아남).
-    #1902 초안 함수 본문을 `scripts/build-reconsent-v8-draft.py` 가 복사 + 검토된 치환만. 시행일이 밀리면 `EFFECTIVE` 하나 고치고 재생성.
-  - Edge `service-consent`: service-v3 상태(키 정확 일치) · grant · confirm(v3 전용) · revoke. v1 · v2 그대로.
-  - 검증: 로컬 PG 18 재생 실행 가능 30레인 중 29 초록(08 = 로컬에 CLI 없음), #1902 단계 · 새 단계 PASS · SQL 변이 12/12 · Edge 변이 6/6 ·
-    `npm run verify` 865 묶음 11,240건. Edge 배포 스키마 게이트가 `llm_service_consent_status_v3` 를 의존성으로 잡는다(SQL 없이 Edge 배포 불가).
-- **정정(이 PR)**: `src/lib/legal/reconsent-gate.ts` 가 `blocked` 도 넷만 묻게 묶고 있었다(§7-2 원문은 철회자만). blocked 는 다섯 개를 체크하고,
-  `canGrant`(서버 `can_grant`) false 면 안내만. 게이트는 아직 꺼져 있어 앱 화면은 그대로다. DECISIONS 26.10.04 04:11 줄.
-- **문서 안 충돌 정리**: 초안 문서 §7-2 의 "옛 리비전 grant 닫기"(§8 조사에서 빠진 것) · "시행일 전에는 서버가 신호를 주지 않음"(실제 두 번째 겹은 배포 순서)을 고쳐 적었다.
-- **다음 1개**: #1902 출시가 끝나면 §8-1(collect 켜기 + 카나리아). 그다음 #2024 를 main 기준으로 다시 쌓아(그때 #1902 는 머지돼 있다) 번호를 받고 운영 적용 GO.
-- **막힌 것**: #1902 (다른 세션). 캘린더 켜기 · 처리방침 개정 PR 은 2 · 3 뒤.
-
-## 2026-10-04 00:55 / Q-261003-01 = A: 운영 동의 모드는 #1902 출시 직후 collect · 켜는 절차와 프록시 준비 확인
-
-- **Simon**: "a 안으로 가자." 운영 `LLM_CONSENT_MODE` 를 #1902 머지 직후 collect 로 켠다. DECISIONS 26.10.04 00:55 줄.
-- **해석**: '직후'는 #1902 출시 단계(SQL 적용 → Edge 배포 → 클라이언트 머지)가 끝난 직후다. 10-04 00:52 기준 #1902 는 아직 Draft 이고 10-01 이후 갱신이 없다.
-- **프록시 준비 확인(10-04)**: 프록시 넷의 배포본이 main 과 바이트까지 같다(claude v134 · gemini v154 · xai v70 · openai v139, 동의 코드 sha 2994b2630dd9). effective_llm_consent_snapshot_v2 는 운영에 있고 service_role 만 실행한다. 영수증 0 · 활성 15 · 비활성 0(10-04 00:54 실측)이라, 지금 켜도 15명 모두 '영수증 없는 활성 계정' 예전 기록 허용으로 통과한다. 더해지는 것은 호출마다 동의 RPC(users 행 잠금) 한 번이다
-- **켜는 절차 · 카나리아 · 되돌리기**: `docs/legal/calendar-read-disclosure-draft-261002.md` §8-1 ([#2022](https://github.com/Simon-YHKim/2nd-B/pull/2022)).
-  - 켜기: `npx supabase secrets set LLM_CONSENT_MODE=collect --project-ref zoacryukmdeivmolvyhj`
-  - 카나리아: 상태 조회 200 · AI 호출 200 · 일회용 계정 grant/revoke/경합 · 10분 로그.
-  - 하나라도 실패하면 `secrets unset` 으로 되돌린다.
-- **다음 1개**: #1902 출시가 끝나면 §8-1 을 그대로 실행하고 결과를 DECISIONS · HANDOFF 에 적는다. 그다음 §8 의 2번(서버 마이그레이션)으로 간다.
-
----
-
-## 2026-10-03 22:13 / 남은 작업: 건강 측정값 AI 제외 · 가져오기 화면 끄기 · 운영 동의 모드 확인 · 재동의 발주서
-
-- **Simon**: "남은작업 모두 진행해."
-- **[#2015](https://github.com/Simon-YHKim/2nd-B/pull/2015)**:
-  - **건강 측정값을 AI 로 보내지 않는다**(처리방침 §12 09-07 약속). 자동 연결을 켜면 Apple 건강 가져오기 본문이 저장 직후 reasoning 으로 갔고, 위키 승격이 그 본문을 임베딩과 대화 맥락으로 보냈다.
-    - `lib/wiki/ai-exclusion.ts`: 가져올 때 `ai_excluded` 표시를 남긴다(예전 가져오기는 측정 줄로 알아본다). 자동 연결 대기에서 빼고, reasoning 에는 제목만 보내고, phase1 · 위키 승격은 거절한다.
-    - 가드 테스트: 원문을 읽고 모델 · 임베딩을 부르는 파일은 반드시 판정을 거친다.
-    - 자동 연결 안내 시트에 AI 제공자(해외) 전송과 건강 측정값 제외를 적었다(5개 언어).
-  - **가져오기 화면 건강 카드 아래 끄기 버튼**(§38④, 같은 철회 흐름, 나이 무관). `signals.test.ts` sha 를 재고정했다. #2005 도 같은 줄을 재고정하므로 나중에 들어가는 쪽이 다시 계산한다.
-  - 검증: `npm run verify` 종료코드 0(885 묶음 · 11,473건), 변이 10곳 10/10.
-- **F1 확정**: 운영 비밀값에 `LLM_CONSENT_MODE` 가 **없다**(= off). Supabase CLI 목록 이름만 대조했고 값은 읽지 않았다.
-  - service-consent 503 은 결함이 아니라 off 게이트다. 영수증은 0행이다.
-  - **지금은 재동의 확인을 저장할 길이 없다.** collect 로 켜는 것은 Simon GO 가 필요하다(Q-261003-01).
-- **재동의 본체 · 캘린더 켜기는 쌓지 않았다**(근거와 순서: 초안 §8, 이 PR [#2016](https://github.com/Simon-YHKim/2nd-B/pull/2016)). 순서: #1902 머지 → collect GO → 서버 마이그레이션(v4~v7 유지, status v3 에 `needs_reconsent`, 철회자 행 모양 T1) → Edge 판별 맵 → 처리방침 개정 · 게이트 화면(머지일 = 시행일, 그날 웹 게시) → 캘린더 켜기.
-- **다음 1개**: Simon 답 Q-261003-01(운영 동의 모드 collect). 그다음 #1902 머지를 기다린다.
-
----
-
-## 2026-10-03 21:30 / 건강 연동 끄기 3차 수정: 끔을 먼저 넘기고 잠금 해제 · 요청마다 기한 · 원장 확인
-
-- **왜**: #2011(머지됨) 2차 수정분을 적대적으로 검증했다. 지적 5건 모두 반박되지 않았다. 가장 큰 것은 60초 전체 기한이었다. 기한이 지나면 화면 잠금이 풀리는데 화면의 저장용 사본은 health_import:true 로 남아, 통계 토글 한 번에 철회한 건강 동의가 되살아나고 받은 적 없는 별도 동의 기록까지 생겼다(검증 에이전트가 실제 코드로 재현).
-- **이 PR([#2013](https://github.com/Simon-YHKim/2nd-B/pull/2013))**:
-  - `lib/health/withdraw.ts`: 끔이 확정되는 순간 `onConsentOff` 를 부른다. 카드는 그 사본을 화면에 넘기고 나서 잠금을 푼다. 삭제는 그 뒤에 이어 간다.
-  - 전체 기한을 없애고 요청마다 20초 기한을 둔다(주 단위 삭제의 각 요청 포함).
-  - 저장이 시간 초과로 끝났는데 다시 읽어도 켜져 있으면 '바뀐 것 없음'이 아니라 '확인하지 못함'으로 본다. 늦게 반영될 수 있기 때문이다.
-  - 철회 원장 행은 저장 뒤에 한 번 더 확인해 남긴다(`latestConsentChange` 를 되살렸다).
-  - 응답을 잃었을 수 있으면 삭제 건수를 숫자로 보이지 않는다.
-  - 카드: 결과를 모르면 화면 사본을 거둔다(`onPrefsUnknown`, 통계·광고 토글이 저장을 거부). 그다음 엄격히 다시 읽는다.
-  - 화면 저장과 겹친 읽기 결과는 화면 사본을 덮지 않는다. 화면이 바쁠 때는 포커스 재조회도 하지 않는다.
-- **검증**: `npm run verify` 종료코드 0(884 묶음 · 11,465건). 변이 7곳 7/7 잡힘. 실서버·실기기 확인은 없다.
-- **다음 1개**: 그대로다. #1902 머지 뒤 처리방침 개정 PR(머지일 = 시행일, 그날 웹 게시).
-
----
-
