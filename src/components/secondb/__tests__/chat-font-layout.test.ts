@@ -96,13 +96,12 @@ test("the input reports actual layout height locally; clearing bypasses its prev
   expect(input).toContain("onLayout={event => { measureWeb(); onLayout?.(event); }}");
 });
 
-test("the status uses the live scale, allows two lines and explicitly removes Text's inherited scale cap", () => {
+test("the status uses the live scale, allows two lines and keeps the shared Text scale cap", () => {
   const node = opening("Text", "bannerDesc");
   for (const fontScale of scales) {
     expect(attribute(node, "numberOfLines", { fontScale, chatStatusMaxLines })).toBe(fontScale > 1.3 ? 2 : 1);
   }
-  // RN defines 0 as unlimited; omission would restore the shared Text's 1.7 cap.
-  expect(attribute(node, "maxFontSizeMultiplier")).toBe(0);
-  expect(node.attributes.getText(ast)).not.toMatch(/allowFontScaling|adjustsFontSizeToFit/);
+  // The shared Text caps body copy at 1.7; this line follows the same rule as its neighbours.
+  expect(node.attributes.getText(ast)).not.toMatch(/maxFontSizeMultiplier|allowFontScaling|adjustsFontSizeToFit/);
   expect(screen.slice(screen.indexOf("function SecondBChatBody()"))).toMatch(/^function SecondBChatBody\(\) \{\s+const \{ fontScale \} = useWindowDimensions\(\)/);
 });

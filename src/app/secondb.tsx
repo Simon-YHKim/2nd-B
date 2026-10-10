@@ -1137,7 +1137,7 @@ function SecondBChatBody() {
 
         {/* Large text can use a second line; usage and clear keep their width. */}
         <View testID="chat-status" style={[ds.banner, { backgroundColor: lensSoftBg }]}>
-          <Text style={ds.bannerDesc} numberOfLines={chatStatusMaxLines(fontScale)} maxFontSizeMultiplier={0} ellipsizeMode="tail">
+          <Text style={ds.bannerDesc} numberOfLines={chatStatusMaxLines(fontScale)} ellipsizeMode="tail">
             {t(`rev2.${rev2Persona}.desc`)}
           </Text>
           <Text style={[ds.bannerUsage, atLimit ? ds.headerMetaDanger : null]} numberOfLines={1}>
