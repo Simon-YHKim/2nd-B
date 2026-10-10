@@ -28,5 +28,9 @@
     "seeAreaHint": "Opens {{area}} with this record at the top.",
     "askSecondB": "Ask HustleK",
     "openSource": "Open original"
+  },
+  "structuredForm": {
+    "career_3c4p": "Career experience",
+    "call_reflection": "Call reflection"
   }
 }
