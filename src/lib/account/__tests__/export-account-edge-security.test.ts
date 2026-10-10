@@ -163,6 +163,7 @@ function successfulAdmin(authUserId = OWNER_ID) {
 
 interface QueryCall {
   table: string;
+  select: string;
   filter: [string, string] | null;
   order: string[];
   from: number;
@@ -173,10 +174,11 @@ function fakeDatabase(data: Record<string, Row[]>, serverPageSize = 2) {
   const calls: QueryCall[] = [];
   const admin = {
     from(table: string) {
-      const call: QueryCall = { table, filter: null, order: [], from: 0, to: 0 };
+      const call: QueryCall = { table, select: "*", filter: null, order: [], from: 0, to: 0 };
       let wantsCount = false;
       const builder = {
-        select(_columns: string, opts?: { count?: string }) {
+        select(columns: string, opts?: { count?: string }) {
+          call.select = columns;
           wantsCount = opts?.count === "exact";
           return builder;
         },
@@ -203,7 +205,10 @@ function fakeDatabase(data: Record<string, Row[]>, serverPageSize = 2) {
               return 0;
             });
           return {
-            data: rows.slice(from, from + Math.min(to - from + 1, serverPageSize)),
+            data: rows.slice(from, from + Math.min(to - from + 1, serverPageSize))
+              .map((row) => call.select === "*" ? row : Object.fromEntries(
+                call.select.split(",").map((column) => [column, row[column]]),
+              )),
             error: null,
             count: wantsCount ? rows.length : null,
           };
@@ -378,6 +383,77 @@ describe("export-account trust boundary", () => {
 });
 
 describe("export-account bounded owned readers", () => {
+  const historyColumns = [
+    "id", "user_id", "created_at", "item_count", "profile_change_count", "status",
+    "withdrawn_at", "profile_restored",
+  ];
+  const privateImportColumns = [
+    "request_digest", "request_id", "document", "confirmed_ids", "profile_before",
+    "profile_patch", "profile_predecessors", "field_undo", "applied_revision", "source_id",
+  ];
+
+  test("G4-05 exports exactly the approved history columns with owner and stable order", async () => {
+    const descriptors = edge.EXPORT_TABLES?.filter((entry) => entry.table === "profile_context_imports");
+    expect(descriptors).toHaveLength(1);
+    const descriptor = descriptors![0];
+    expect(descriptor).toEqual({
+      table: "profile_context_imports", fk: "user_id", order: ["created_at", "id"],
+      select: historyColumns.join(","),
+    });
+    const createdAt = "2026-10-10T00:00:00Z";
+    const row = (id: string, status = "active", userId = OWNER_ID) => ({
+      id, user_id: userId, created_at: createdAt, item_count: 2, profile_change_count: 1, status,
+      withdrawn_at: status === "withdrawn" ? "2026-10-10T01:00:00Z" : null,
+      profile_restored: status === "withdrawn",
+      ...Object.fromEntries(privateImportColumns.map((column) => [column, "must stay private"])),
+    });
+    const db = fakeDatabase({ profile_context_imports: [
+      row("3", "withdrawn"), row("0", "active", OTHER_ID), row("1"), row("2"),
+    ] });
+    const rows = await edge.readAllOwnedRows!(db.admin, descriptor, OWNER_ID) as Row[];
+    expect(rows.map(({ id }) => id)).toEqual(["1", "2", "3"]);
+    expect(rows[2]).toMatchObject({ status: "withdrawn", profile_restored: true });
+    expect(rows.every((entry) => Object.keys(entry).sort().join() === [...historyColumns].sort().join())).toBe(true);
+    expect(db.calls.map(({ from }) => from)).toEqual([0, 2]);
+    for (const call of db.calls) {
+      expect(call.select).toBe(historyColumns.join(","));
+      expect(call.filter).toEqual(["user_id", OWNER_ID]);
+      expect(call.order).toEqual(["created_at", "id"]);
+    }
+  });
+
+  test.each(privateImportColumns)("G4-05 never selects internal import column %s", (column) => {
+    const descriptor = edge.EXPORT_TABLES!.find((entry) => entry.table === "profile_context_imports")!;
+    expect(descriptor.select).toBeDefined();
+    expect(descriptor.select!.split(",")).not.toContain("*");
+    expect(descriptor.select!.split(",")).not.toContain(column);
+  });
+
+  test("G4-05 uses the existing tables key and versioned JSON envelope", async () => {
+    const fixture = successfulAdmin();
+    createClientMock.mockReturnValue(fixture.admin);
+    const response = await edge.handler(request({ token: jwt(), body: "{}" }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      schema_version: 1, kind: "2nd-b-account-export", tables: { profile_context_imports: [] },
+    });
+    expect(fixture.terminalFilters).toContainEqual({ table: "profile_context_imports", column: "user_id", value: OWNER_ID });
+  });
+
+  test("G4-05 leaves erasure classification and private undo retention unchanged", () => {
+    const root = join(__dirname, "../../../..");
+    const registry = JSON.parse(readFileSync(join(root, "db/erasure-registry.json"), "utf8"));
+    expect(registry.tables.profile_context_imports).toMatchObject({ owner: "user_id", class: "retained" });
+    const policies = JSON.parse(readFileSync(join(root, "db/migration-drafts/service-contract-erasure-entries.json"), "utf8"));
+    expect(policies.columnPolicies["0242_profile_context_import_integrity.sql"]["profile_context_imports.field_undo"])
+      .toContain("Account deletion cascades the row.");
+    const migration = readFileSync(join(root, "db/migrations/0243_profile_context_import_export_grant.sql"), "utf8")
+      .replace(/--[^\n]*/g, "");
+    expect(migration).not.toMatch(/\b(?:CREATE|ALTER|INSERT|UPDATE|DELETE|DROP|TRUNCATE|POLICY)\b/i);
+    expect(migration).not.toMatch(/\b(?:authenticated|anon|PUBLIC\s*[,;])\b/i);
+    expect(migration).toMatch(/GRANT SELECT\s*\([^)]+\)\s*ON public\.profile_context_imports TO service_role;\s*$/);
+  });
+
   test("paginates a fixed table and excludes cross-owner rows on every page", async () => {
     expect(edge.readAllOwnedRows).toBeDefined();
     const readAllOwnedRows = edge.readAllOwnedRows;

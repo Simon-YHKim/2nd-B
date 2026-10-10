@@ -4,6 +4,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { dependencies, requestBody, verify } from "./check-edge-function-schema-deps.mjs";
 const [port, user, database] = process.argv.slice(2);
 if (!/^\d{4,5}$/.test(port ?? "") || Number(port) > 65535 ||
   !/^profile_import_[a-z0-9_]+$/.test(user ?? "") || !/^profile_import_test[a-z0-9_]*$/.test(database ?? "")) {
@@ -34,6 +35,26 @@ function concurrent(input) {
   });
 }
 process.stdout.write(run(sql));
+
+// Execute the deploy gate's actual catalog query on the local fixture. The full
+// export inventory includes unrelated tables absent from this narrow bootstrap.
+const exportDeps = { ...dependencies("export-account"), functions: [], functionContracts: [],
+  tables: ["profile_context_imports"], columns: [] };
+const grant = readFileSync(resolve(root, "db/migrations/0243_profile_context_import_export_grant.sql"), "utf8");
+const revoke = readFileSync(resolve(root, "db/migrations/rollback/0243_down.sql"), "utf8");
+const catalogQuery = `SELECT jsonb_agg(result)::text FROM (${requestBody(exportDeps).query}) result;`;
+for (const [label, setup, expected] of [
+  ["before 0243", "", false], ["after 0243", grant, true], ["after rollback", grant + revoke, false],
+]) {
+  const result = run(`BEGIN; ${setup}\n${catalogQuery}\nROLLBACK;`);
+  const rows = JSON.parse(result.split(/\r?\n/).find((line) => line.startsWith("[")));
+  if (verify(exportDeps, rows).ok !== expected
+    || rows.filter((row) => row.kind === "select_column").length !== 8
+    || rows.filter((row) => row.kind === "select_column").some((row) => row.present !== expected)) {
+    throw new Error(`G4 export deploy gate: ${label}`);
+  }
+  console.log(`G4 export deploy gate passed: ${label} = ${expected ? "allow" : "block"}`);
+}
 
 const owner = "26100939-2000-4000-8000-000000000001";
 const document = JSON.stringify({

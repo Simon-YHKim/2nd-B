@@ -304,6 +304,11 @@ const EXPORT_TABLES: readonly ExportTable[] = Object.freeze([
   { table: 'records', fk: 'user_id' },
   { table: 'sources', fk: 'user_id' },
   { table: 'wiki_pages', fk: 'user_id' },
+  {
+    table: 'profile_context_imports', fk: 'user_id',
+    order: ['created_at', 'id'],
+    select: 'id,user_id,created_at,item_count,profile_change_count,status,withdrawn_at,profile_restored',
+  },
   { table: 'wiki_links', fk: 'user_id', order: ['from_page', 'to_page'] },
   { table: 'personas', fk: 'user_id' },
   { table: 'persona_entity', fk: 'user_id' },

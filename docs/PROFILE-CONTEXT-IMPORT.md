@@ -28,6 +28,13 @@ Changed `profile_details` writes now require the revision-aware RPC. An older cl
 
 ## Validation and operation
 
+- Account-export follow-up (G4-05): [G4EXPORT-261010](handoff/G4EXPORT-261010.md).
+  After 0243 and the exporter deployment, `tables.profile_context_imports` includes
+  the batch ID, owner ID, creation time, item count, profile-change count, status,
+  withdrawal time and profile-restored flag. It excludes internal receipt fields,
+  document and undo copies; imported text already travels with sources/wiki pages.
+  The existing export format and account-erasure classification are unchanged.
+
 - Local PostgreSQL 18 regression runner: contract validation, account ownership, duplicate/replayed requests, original evidence confirmation, conditional profile restoration, source erasure and concurrent requests passed. Run `node scripts/test-profile-import-sql.mjs <local-port> <local-role> <disposable-db>` against a disposable loopback database only.
 - Browser release preview: common prompt copying, review and bulk selection, confirmation, actual save and withdrawal passed on the existing QA account.
 - Final repository verification, PR/merge, localhost:8081 and APK parity evidence are recorded in shared session state `PROFILE-STAR-IMPORT-261009.json`.
