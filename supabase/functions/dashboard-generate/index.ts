@@ -48,10 +48,6 @@ const handler = createDashboardHandler({
     // Exact Sonnet model ID is an operator setting after the model-change review.
     model: Deno.env.get('DASHBOARD_SONNET_MODEL') ?? '', apiKey: (Deno.env.get('ANTHROPIC_API_KEY') ?? '').trim(),
     rpc, fetch,
-    audit: async (row) => {
-      try { const result = await admin.from('ai_audit_log').insert(row); return !result.error; }
-      catch { return false; }
-    },
   }),
 });
 Deno.serve(handler);
