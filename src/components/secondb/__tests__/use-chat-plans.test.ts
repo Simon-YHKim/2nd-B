@@ -102,6 +102,31 @@ test("G5-05 retries and reopening the same proposal reuse its row ID, a new prop
   host.unmount();
 });
 
+test("PR2228-T01 changing only the owner gives the same proposal a new routine UUID", async () => {
+  const host = mount(); host.open();
+  const proposal = host.result.sheetProps.suggestion;
+  expect(proposal).toMatchObject({ conversationId: 1, replyIndex: 1, kind: "routine" });
+  host.save.mockResolvedValueOnce({ status: "error" });
+  await host.result.sheetProps.onConfirm(draft()); host.flush();
+  const first = host.save.mock.calls[0][2]?.routineId;
+  expect(first).toMatch(/^[0-9a-f-]{36}$/);
+  expect(host.save).toHaveBeenNthCalledWith(1, "a", draft(), { routineId: first });
+
+  owner.beginAccountOwnerTransition("b");
+  owner.noteResolvedOwner("b");
+  expect(owner.clearAccountTransition(owner.currentAccountEpoch())).toBe(true);
+  host.update({}, "b"); host.open();
+  // Keep conversationId, replyIndex and kind unchanged so the Map key is identical.
+  expect(host.result.sheetProps.suggestion).toEqual(proposal);
+  await host.result.sheetProps.onConfirm(draft()); host.flush();
+  expect(host.save).toHaveBeenCalledTimes(2);
+  const second = host.save.mock.calls[1][2]?.routineId;
+  expect(second).toMatch(/^[0-9a-f-]{36}$/);
+  expect(second).not.toBe(first);
+  expect(host.save).toHaveBeenNthCalledWith(2, "b", draft(), { routineId: second });
+  host.unmount();
+});
+
 test("opening and cancelling a proposal do not save or request notification permission", () => {
   const host = mount();
   expect(host.result.actions.map(action => action.id)).toEqual(["plan-routine", "plan-reminder"]);
