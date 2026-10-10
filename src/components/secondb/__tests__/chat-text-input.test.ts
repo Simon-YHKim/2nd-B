@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
+import * as chatFontLayout from "../chat-font-layout";
 
 type Props = Record<string, unknown>;
 type Tree = { type: string; props: Props };
@@ -78,6 +79,7 @@ function mount(platform = "web", initial: Props = {}, fontScale = 1) {
     "react/jsx-runtime": { jsx: (type: string, value: Props) => ({ type, props: value }) },
     "react-native": { Platform: { OS: platform }, StyleSheet: { create: (value: unknown) => value }, useWindowDimensions: () => ({ fontScale }) },
     "@/components/phone/PhoneUIKit": { PhoneTextInput: "PhoneTextInput" },
+    "./chat-font-layout": chatFontLayout,
   };
   const exported: { ChatTextInput?: (props: Props, ref: unknown) => Tree } = {};
   new Function("require", "exports", js)((name: string) => {
@@ -130,9 +132,9 @@ test.each(["android", "ios"])("%s grows for wrapping, caps at five lines, shrink
   host.resize(58); expect(host.style.height).toBe(36);
 });
 
-test.each([1, 1.3, 2])("Android font scale %s fits an empty line and retains growth, cap and clearing", fontScale => {
+test.each([1, 1.3, 1.31, 2])("Android font scale %s fits an empty line and retains growth, cap and clearing", fontScale => {
   const host = mount("android", { value: "" }, fontScale);
-  const floor = fontScale === 2 ? 62 : 36;
+  const floor = fontScale === 2 ? 62 : fontScale === 1.31 ? 47 : 36;
   expect(host.style).toMatchObject({ height: floor, lineHeight: 22, paddingTop: 7, paddingBottom: 7, includeFontPadding: false, textAlignVertical: "center" });
   expect(host.tree.props.allowFontScaling).not.toBe(false);
   expect(host.tree.props.maxFontSizeMultiplier).toBeUndefined();
