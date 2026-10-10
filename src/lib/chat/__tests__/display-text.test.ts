@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
 import { chatDisplayText } from "../display-text";
-import { parseSourceCitations } from "../sources";
+import { parseSourceCitations, sourceCitationDisplay } from "../sources";
 
 test.each([
   ["**짧게 읽고 바로 말로 바꾸는 것**이 좋습니다.", "짧게 읽고 바로 말로 바꾸는 것이 좋습니다."],
@@ -67,16 +67,16 @@ function findCalls(name: string): ts.CallExpression[] {
 test("the single display conversion is the model-only branch inside the selectable bubble Text", () => {
   const calls = findCalls("chatDisplayText");
   expect(calls).toHaveLength(1);
-  const expression = calls[0].parent;
+  const expression = calls[0].parent.parent;
   expect(ts.isConditionalExpression(expression)).toBe(true);
   const choose = expression as ts.ConditionalExpression;
-  expect(choose.getText(ast)).toBe('turn.role === "secondb" ? chatDisplayText(turn.text) : turn.text');
+  expect(choose.getText(ast)).toBe('turn.role === "secondb" ? sourceCitationDisplay(chatDisplayText(turn.citationText ?? turn.text), t("deepspace:time.recordFallback")) : turn.text');
   const element = expression.parent.parent as ts.JsxElement;
   expect(element.openingElement.tagName.getText(ast)).toBe("Text");
   expect(element.openingElement.attributes.getText(ast)).toContain("selectable");
   for (const role of ["user", "secondb"]) {
     const turn = { role, text: "**원문**" };
-    const result = new Function("turn", "chatDisplayText", `return ${choose.getText(ast)}`)(turn, chatDisplayText);
+    const result = new Function("turn", "chatDisplayText", "sourceCitationDisplay", "t", `return ${choose.getText(ast)}`)(turn, chatDisplayText, sourceCitationDisplay, () => "기록");
     expect(result).toBe(role === "user" ? "**원문**" : "원문");
     expect(turn.text).toBe("**원문**");
   }

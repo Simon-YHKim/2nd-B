@@ -461,11 +461,11 @@ results.push(
       !enJarvis.piecesReferencedBody.toLowerCase().includes("slug") &&
       !koJarvis.piecesReferencedBody.includes("슬러그") &&
       jarvis.includes('t("piecesReferencedBody")') &&
-      jarvis.includes("formatSourceCitationLabel(slug)") &&
+      jarvis.includes('accessibilityLabel={formatSourceCitationLabel(slug, t("deepspace:time.recordFallback"))}') &&
       // 2026-10-05 재조준(Q-261004-11): 여기 레거시 ReferenceShardCard 의
       // `title=` · `meta=` prop 을 고정하고 있었다. 그 카드는 롤백 레버와 함께 빠졌고,
       // 배송 대화 화면은 인용 서랍 카드에 같은 친근한 이름과 같은 키를 그린다.
-      jarvis.includes("{formatSourceCitationLabel(slug)}</Text>") &&
+      jarvis.includes('{formatSourceCitationLabel(slug, t("deepspace:time.recordFallback"))}</Text>') &&
       jarvis.includes('{t("reference_piece_meta")}</Text>');
     const manualForbiddenUserTerms = [
       "Obsidian",
