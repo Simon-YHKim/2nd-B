@@ -198,8 +198,10 @@ describe("PIXEL-CLAY sign-up renderer", () => {
     expect(screen).toContain('router.push("/terms")');
     expect(screen).toContain('router.push("/")');
     expect(screen).toContain("if (canLeaveGate())");
-    expect(hook).toContain("if (actionLockRef.current.active !== null) return true;");
-    expect(hook).toContain('router.dismissTo("/sign-in")');
+    // Back behavior is exercised directly in auth-hardware-back.test.ts.
+    // This screen contract only pins the live lock and router wiring.
+    expect(hook).toContain("const onBackPress = createSignUpBackHandler({");
+    expect(hook).toMatch(/isBusy: \(\) => actionLockRef.current.active !== null,\s*router,/);
     expect(hook).not.toContain('router.push("/")');
   });
 
