@@ -38,7 +38,7 @@ function webInput(value = "draft", naturalHeight = 58) {
 
 // Run the shipping component and handlers with a hook host. RN's native host
 // cannot mount in the Node preset, while the DOM measurement is explicit here.
-function mount(platform = "web", initial: Props = {}) {
+function mount(platform = "web", initial: Props = {}, fontScale = 1) {
   const source = readFileSync(resolve(__dirname, "../ChatTextInput.tsx"), "utf8");
   const js = ts.transpileModule(source, { compilerOptions: {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX,
@@ -76,7 +76,7 @@ function mount(platform = "web", initial: Props = {}) {
   const modules: Record<string, unknown> = {
     react: hooks,
     "react/jsx-runtime": { jsx: (type: string, value: Props) => ({ type, props: value }) },
-    "react-native": { Platform: { OS: platform }, StyleSheet: { create: (value: unknown) => value } },
+    "react-native": { Platform: { OS: platform }, StyleSheet: { create: (value: unknown) => value }, useWindowDimensions: () => ({ fontScale }) },
     "@/components/phone/PhoneUIKit": { PhoneTextInput: "PhoneTextInput" },
   };
   const exported: { ChatTextInput?: (props: Props, ref: unknown) => Tree } = {};
@@ -105,6 +105,7 @@ function mount(platform = "web", initial: Props = {}) {
     invoke,
     unmount() { for (const slot of slots) slot.cleanup?.(); },
     update(next: Props) { props = { ...props, ...next }; render(); flush(); },
+    scale(next: number) { fontScale = next; render(); flush(); },
     resize(height: number) { invoke("onContentSizeChange", { nativeEvent: { contentSize: { height, width: 300 } } }); },
     key(nativeEvent: Props, topLevel: Props = {}) {
       const preventDefault = jest.fn();
@@ -127,6 +128,44 @@ test.each(["android", "ios"])("%s grows for wrapping, caps at five lines, shrink
   expect(host.tree.props.scrollEnabled).toBe(false);
   host.update({ value: "" }); expect(host.style.height).toBe(36);
   host.resize(58); expect(host.style.height).toBe(36);
+});
+
+test.each([1, 1.3, 2])("Android font scale %s fits an empty line and retains growth, cap and clearing", fontScale => {
+  const host = mount("android", { value: "" }, fontScale);
+  const floor = fontScale === 2 ? 62 : 36;
+  expect(host.style).toMatchObject({ height: floor, lineHeight: 22, paddingTop: 7, paddingBottom: 7, includeFontPadding: false, textAlignVertical: "center" });
+  expect(host.tree.props.allowFontScaling).not.toBe(false);
+  expect(host.tree.props.maxFontSizeMultiplier).toBeUndefined();
+  if (fontScale === 2) expect(floor - 14 - 4).toBeGreaterThanOrEqual(22 * fontScale);
+  host.resize(500); expect(host.style.height).toBe(floor);
+  host.invoke("onChangeText", "한글 입력");
+  host.update({ value: "한글 입력" });
+  host.resize(90); expect(host.style.height).toBe(90);
+  host.resize(180); expect(host.style.height).toBe(124);
+  expect(host.tree.props.scrollEnabled).toBe(true);
+  host.update({ value: "" }); expect(host.style.height).toBe(floor);
+  expect(host.tree.props.scrollEnabled).toBe(false);
+});
+
+test("Android scale changes resize an already empty draft without waiting for native content", () => {
+  const host = mount("android", { value: "" });
+  host.scale(2); expect(host.style.height).toBe(62);
+  host.scale(1.3); expect(host.style.height).toBe(36);
+  host.scale(1); expect(host.style.height).toBe(36);
+});
+
+test.each(["web", "ios"])("%s keeps its existing height, alignment and font padding at scale 2", platform => {
+  const host = mount(platform, { value: "" }, 2);
+  expect(host.style.height).toBe(36);
+  expect(host.style.textAlignVertical).toBe("top");
+  expect(host.style.includeFontPadding).toBeUndefined();
+});
+
+test("the screen explicitly supplies the existing 15/22 input typography", () => {
+  const screen = readFileSync(resolve(__dirname, "../../../app/secondb.tsx"), "utf8");
+  const inputStyle = screen.match(/pillInput:\s*\{([^}]+)\}/)?.[1];
+  expect(inputStyle).toMatch(/fontSize:\s*15\b/);
+  expect(inputStyle).toMatch(/lineHeight:\s*22\b/);
 });
 
 test("invalid native measurements cannot collapse or poison the input height", () => {

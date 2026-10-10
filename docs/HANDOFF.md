@@ -1,5 +1,17 @@
 # 2nd-Brain Handoff
 
+## 2026-10-10 18:52 / 2ndb-ee: UI 2 · 3회차 끝(#2207 · #2212) · #2208 머지하지 않음
+
+- **근거**: Simon 이 UI 1회차 · 2회차 결과 보고서의 결정 탭에서 조립해 붙여 준 답. DECISIONS 26.10.10 16:57 · 17:30 · 17:57 · 18:05 · 18:48 줄.
+- **한 것**: ① 허슬케이 대화 화면 #2207(탭 둘째 줄을 역할로 · 상태 줄 한 줄 · 빈 대화에 초상화 · 첫 진입 안내 창 제거 · 저장 안내 한 줄, [기록](design/CHAT-SCREEN-TIDY-261010.md)) ② 답변의 서식 기호와 큰 글자 입력창 #2212(`src/lib/chat/display-text.ts` · `src/components/secondb/ChatTextInput.tsx`, [기록](design/CHAT-DISPLAY-INPUT-261010.md)). 2ndb-23 이 넘긴 Device Lab D4 와 D5 의 입력창 부분이다. D5 의 아래 탭 이름은 2ndb-23 갈래.
+- **확인**: 8081(main `e472eeb0`)에서 QA 계정 390px. #2207 은 같은 문장을 전후 한 번씩, #2212 는 굵은 글씨를 부르는 문장 1건(모델 원문 `**` 14개 → 화면 0개). Android 입력창은 2ndb-23 이 빌드 38042177614 로 확인 중이다. iOS 미확인.
+- **보고서**: 3회차 <https://claude.ai/artifact/MMzvPee5sFND9rFTgTbH9D> · 2회차 <https://claude.ai/artifact/Xn6T8n2pStQbSDkmpTeaY9>. 캡처 · 발주서 · 검토 원문은 `E:/Coding Infra/reports/codex-audit-261010/`(`ui/` · `gates/` · `*-r*.md`).
+- **위험 문장 우회 방어**: draft #2208(선형 스캐너)은 검토 1회차 BLOCK, 마지막 수정에서 느슨한 찾기를 전부 끄게 돼 머지하지 않았다. #2194 도 draft 그대로. 운영은 #2190 상태다. 어휘 수준의 우회 방어는 '평범한 문장의 새 오탐 0' 조건에서 성립하지 않았다(비교 588문장 · 통과하는 우회 31개는 #2208 fixtures).
+- **미해결 질문**: Q-261010-21 우회 방어의 방향(어휘 수준은 접고 둥근 아포스트로피만 / 명확한 어휘만 켜기 / 의미 판정 층) — 안 정해지면 #2194 · #2208 이 draft 로 남는다 · Q-261010-22 답변의 굵게를 굵은 글씨로 그릴지 — 안 정해지면 기호만 뺀 지금대로 · Q-261010-23 다음 작업 — 안 정해지면 근거 기록 이름이 문장에 끼는 문제부터. 전부 3회차 보고서 결정 탭. (오늘 Q-261010-11 ~ 14 는 2ndb-74 와 번호가 겹쳤다. DECISIONS 정정 줄.)
+- **남긴 것**: 근거 기록 이름(`Untitled`)이 답변 문장에 끼는 것 · 홈 아래 확대 조작 막대 · G5-01 · 02(계정 전환 뒤 폰 상태, `DashboardPhone.tsx` · `src/lib/nav/scroll-memory.tsx`) · A03 한마디 유지(`db/migration-drafts/UNNUMBERED_dashboard_last_note.sql`, 운영 미적용) · 게시 전 닫을 것(G2 · G3, [감사 문서](handoff/CODEX-AUDIT-261010.md)).
+- **워크트리**: 머지된 `chat-261010` · `chat2-261010` · `phonehome-261010` · `entrypaths-261010` · `assistant-261010`, draft 가 열린 `safescan-261010`(#2194) · `scanline-261010`(#2208), 기록용 `codex-audit-261010`. 전부 node_modules 정션이 있다. 지울 때 정션부터 끊는다.
+- **다음 1개**: Simon 의 Q-261010-21 답. 그 전에 2ndb-23 의 입력창 기기 확인 결과가 오면 3회차 보고서의 후 캡처를 채운다.
+
 ## 2026-10-10 17:04 / 2ndb-74: 8081 웹 확인 · 식품 찾기 실패 발견 · 감사 G4 draft #2202(게이트 2회차 BLOCK, 회차 중단)
 
 - **근거**: Simon `/goal 마무리까지 진행해.` 의 남은 항목. DECISIONS 26.10.10 15:26 · 15:41 · 15:42 · 15:44 줄과 이 블록 시각의 결과 줄.
