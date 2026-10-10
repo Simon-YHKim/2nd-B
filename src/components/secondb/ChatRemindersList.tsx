@@ -92,7 +92,8 @@ export function ChatRemindersList({ ownerId, onCountChange }: { ownerId: string;
           const removed = await removeOneOffReminder(ownerId, item.id);
           if (!active()) return;
           if (!removed) throw new Error("reminder_remove_failed");
-          setState(previous => ({ ...previous, items: previous.items.filter(row => row.id !== item.id) }));
+          setState(previous => ({ ...previous, items: previous.items.filter(row => row.id !== item.id),
+            notice: removed === "alarm-uncertain" ? "alarmFailed" : null }));
           setConfirmId(null);
         } else {
           const enabled = isOn ? (await disableReminder(ownerId, item.id), true)

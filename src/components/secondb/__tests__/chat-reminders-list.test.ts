@@ -29,7 +29,7 @@ function runtime(platform = "android") {
   const getScheduled = jest.fn(async () => new Set(scheduled));
   const enable = jest.fn(async (_owner: string, id: string, _event: unknown) => { scheduled.add(id); return true; });
   const disable = jest.fn(async (_owner: string, id: string) => { scheduled.delete(id); });
-  const remove = jest.fn(async (_owner: string, id: string) => { scheduled.delete(id); return true; });
+  const remove = jest.fn<Promise<boolean | "alarm-uncertain">, [string, string]>(async (_owner, id) => { scheduled.delete(id); return true; });
   const same = (a: unknown[] | undefined, b: unknown[]) => a?.length === b.length && b.every((v, i) => Object.is(v, a[i]));
   const hooks = {
     useState: (initial: unknown) => {
@@ -146,6 +146,16 @@ test("failed deletion keeps the task accessible instead of reporting success", a
   h.press("chat-reminder-delete-chat-1"); h.press("chat-reminder-confirm-chat-1"); await h.settle();
   expect(h.find("chat-reminder-toggle-chat-1")).toBeTruthy();
   expect(h.nodes().some(node => node.props.children === "planSuggestion.oneOff.deleteFailed")).toBe(true); h.unmount();
+});
+
+test("G5-06 an uncancelled alarm removes the record from the list, clears its count and shows the existing alarm notice", async () => {
+  const h = runtime(); h.scheduled.add("chat-1"); h.remove.mockResolvedValueOnce("alarm-uncertain");
+  h.mount(); h.requests[0].resolve([item()]); await h.settle();
+  h.press("chat-reminder-delete-chat-1"); h.press("chat-reminder-confirm-chat-1"); await h.settle();
+  expect(h.nodes().some(node => node.props.testID === "chat-reminder-delete-chat-1")).toBe(false);
+  expect(h.nodes().some(node => node.props.children === "planSuggestion.oneOff.alarmFailed")).toBe(true);
+  expect(h.nodes().some(node => node.props.children === "planSuggestion.oneOff.deleteFailed")).toBe(false);
+  expect(h.onCountChange).toHaveBeenLastCalledWith(0); h.unmount();
 });
 test("a return to the screen reloads newly saved reminders and discards late blurred results", async () => {
   const h = runtime(); h.mount(); h.focus(false); h.focus(true); h.requests[1].resolve([item("new")]); await h.settle();

@@ -15,7 +15,7 @@ import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { PixelScrim } from "@/components/pixel/PixelDither";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
-import { OPS_DOMAIN_GROUP, OPS_GROUP_IDS, domainsForGroup, type OpsGroupId } from "@/lib/ops/domains";
+import { OPS_DOMAIN_GROUP, OPS_GROUP_IDS, domainsForGroup } from "@/lib/ops/domains";
 import { m3 } from "@/lib/theme/m3";
 import type { ChatPlanSuggestion } from "@/lib/chat/plan-suggestions";
 import type { ChatPlanDraft } from "@/lib/chat/plan-draft";
@@ -45,7 +45,7 @@ export function ChatPlanSheet({ suggestion, busy, notice, onClose, onConfirm, we
     domainId: suggestion?.domainId ?? "daily_focus",
     exportConsent: false,
   }));
-  const [group, setGroup] = useState<OpsGroupId>(() => OPS_DOMAIN_GROUP[draft.domainId]);
+  const group = OPS_DOMAIN_GROUP[draft.domainId];
   if (!suggestion) return null;
   const reminder = draft.kind === "reminder";
   const exporting = reminder && webReminder;
@@ -107,7 +107,8 @@ export function ChatPlanSheet({ suggestion, busy, notice, onClose, onConfirm, we
               <Text variant="caption">{t("planSuggestion.category")}</Text>
               <ScrollView horizontal style={styles.groups} contentContainerStyle={styles.groupRow} showsHorizontalScrollIndicator={false}>
                 {OPS_GROUP_IDS.map(id => <Pressable key={id} accessibilityRole="tab" accessibilityLabel={t(`ops:groups.${id}`)}
-                  accessibilityState={{ selected: group === id, disabled: busy }} aria-selected={group === id} disabled={busy} onPress={() => setGroup(id)}
+                  accessibilityState={{ selected: group === id, disabled: busy }} aria-selected={group === id} disabled={busy}
+                  onPress={() => { if (id !== group) update({ domainId: domainsForGroup(id)[0] }); }}
                   style={[styles.choice, group === id && styles.selected]} testID={`chat-plan-group-${id}`}>
                   <Text variant="caption">{t(`ops:groups.${id}`)}</Text>
                 </Pressable>)}

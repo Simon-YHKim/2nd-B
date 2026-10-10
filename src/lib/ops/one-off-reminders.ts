@@ -111,8 +111,9 @@ export async function createOneOffReminder(ownerId: string, event: OpsEventInput
   return result.executed && lease.isCurrent() ? result.value : null;
 }
 
-/** Cancel the stable OS identifier first; a failed cancellation preserves the visible task. */
-export async function removeOneOffReminder(ownerId: string, id: string): Promise<boolean> {
+/** Try the stable OS identifier first, but always allow an owned record deletion.
+ * A partial success must not claim the OS alarm was cancelled. */
+export async function removeOneOffReminder(ownerId: string, id: string): Promise<boolean | "alarm-uncertain"> {
   if (Platform.OS === "web" || !validOwner(ownerId) || !ID_PATTERN.test(id)) return false;
   const lease = captureAccountOwnerLease(ownerId);
   if (!lease?.isCurrent() || isAccountLocalDeletionFencedInMemory(ownerId)) return false;
@@ -123,10 +124,13 @@ export async function removeOneOffReminder(ownerId: string, id: string): Promise
     const items = parse(await store.getItem(key));
     if (!lease.isCurrent() || isAccountLocalDeletionFencedInMemory(ownerId)) return false;
     if (!items.some(item => item.id === id)) return true;
-    await cancelRoutineReminder(ownerId, id, { strict: true });
+    let alarmUncertain = false;
+    try { await cancelRoutineReminder(ownerId, id, { strict: true }); }
+    catch { alarmUncertain = true; }
     if (!lease.isCurrent() || isAccountLocalDeletionFencedInMemory(ownerId)) return false;
     await store.setItem(key, serialize(items.filter(item => item.id !== id)));
-    return lease.isCurrent() && !isAccountLocalDeletionFencedInMemory(ownerId);
+    if (!lease.isCurrent() || isAccountLocalDeletionFencedInMemory(ownerId)) return false;
+    return alarmUncertain ? "alarm-uncertain" as const : true;
   }));
   return result.executed && result.value;
 }
