@@ -1,5 +1,17 @@
 # 2nd-Brain Handoff
 
+## 2026-10-10 17:04 / 2ndb-74: 8081 웹 확인 · 식품 찾기 실패 발견 · 감사 G4 draft #2202(게이트 2회차 BLOCK, 회차 중단)
+
+- **근거**: Simon `/goal 마무리까지 진행해.` 의 남은 항목. DECISIONS 26.10.10 15:26 · 15:41 · 15:42 · 15:44 줄과 이 블록 시각의 결과 줄.
+- **8081 웹 확인(운영 쓰기 0)**: 기기 · QA 계정으로 못 만드는 순서를 헤드리스 Playwright 에서 서버 응답만 가로채 확인했다. 온보딩 자동 진입(#2170 · #2193) · 영수증 없는 자동 표식은 홈으로 · 식품 조회 늦은 응답 3경우(#2169 BL-04) · 별 캐시 무효화(BL-05 · 06) 전부 통과. 회귀 테스트 8 스위트 265건 통과(트리 = 45722bea). 끝난 뒤 QA users 행 · ops_reading · ops_ledger · 최근 records 불변. K1 의 정확한 끼어들기 순서와 K3 재로그인은 단위 테스트로만 확인된다. 방법은 메모리 `reference_2ndb_8081_response_intercept_check`.
+- **QA 계정 users 행은 열지 않았다**: 첫 실행 칸을 열었다 닫는 안은 운영 쓰기라 버렸다(2ndb-23 · 2ndb-ee 의 "지장 없음" 은 승인이 아니다). QA 계정은 Simon 이 8081 에서 직접 쓴다.
+- **발견 · 식품 찾기 운영 실패(Q-261010-11)**: 최근 24시간 `public-data-proxy` POST 5건 전부 502, 본문 `{"error":"upstream_error","status":400}`. 배포본은 v28(2026-09-08 03:09 KST)이고 그 뒤 ff6a2963 · #1830 은 이 함수에 배포되지 않았다. 400 의 원인은 미확인. Edge 배포는 Simon GO 뒤: `gh workflow run deploy-edge-function.yml -f function=public-data-proxy` → 식품 조회 1건으로 확인.
+- **감사 G4(프로필 가져오기)**: 2ndb-ee 요청으로 맡음. draft PR #2202(head fb086069) = `0242_profile_context_import_integrity`(필드별 undo 원장 · 내부 withdraw 함수 하나 · 한도) + 2단계 초안 `db/migration-drafts/UNNUMBERED_profile_context_import_confirm_all.sql` + 클라이언트(전 항목 확인 · 복합 keyset · LLM 문맥의 비신뢰 표시). 인수 문서 `docs/handoff/G4IMPORT-261010.md`(PR 브랜치). daybreak 2회: 1회차 BLOCK(high 1 · medium 1) → 2회차 BLOCK(그 둘은 닫힘, 신규 high 0, **G4-04 서버 쪽 medium 미폐쇄** + low 2). 상한이라 회차 중단. **운영 적용 · 머지 없음.** 게이트 원문 `E:/Coding Infra/reports/qa-legacy-261004/gates/n7-g4import-daybreak-r{1,2}.txt`.
+- **미해결 질문**: Q-261010-11 식품 찾기 프록시 main 판 배포 · Q-261010-12 G4 적용 방식(한 번에 닫기 / 2단계) — 안 정해지면 #2202 가 draft 로 남고 취소 · 삭제 뒤 프로필 값 잔존(G4-01 · 02)과 무제한 누적(G4-03)이 운영에 그대로다 · Q-261010-13 한도 잠정값(하루 10회 · 활성 20개 · 보관 2 MiB) · Q-261010-14 G4-05 내보내기에 가져오기 이력 넣기.
+- **남긴 것**: #2202 의 low 2(UTC 자정 backfill 날짜 · 상위 문서의 과장 문장)는 3회차에 함께. G1 · G5 = 2ndb-ee, G2 · G3 = Simon 결정 먼저(CODEX-AUDIT-261010.md).
+- **워크트리**: `.worktrees/qa261007-g4import`(#2202 열림 · node_modules 정션) · `qa261007-onboardk2` · `qa261007-onboardk` · `qa261007-opslow`(머지됨, 지울 때 정션부터 끊을 것) · `qa261005-records`.
+- **다음 1개**: Simon 의 Q-261010-12 답 → 3회차 수정 + 게이트 1회 → GO 면 0242 적용 → 머지.
+
 ## 2026-10-10 16:20 / 2ndb-ee: UI 1회차 끝(#2197 · #2200 · #2201) · #2194 회차 중단
 
 - **근거**: Simon "너의 생각에 따라서 작업하자. 사용자 경험과 편의성 관점에서 UI 까지 잘 개선해줘. 중복되는 진입 경로도 없도록 해주고."(14:1x). DECISIONS 26.10.10 14:40 · 16:07 · 16:16.

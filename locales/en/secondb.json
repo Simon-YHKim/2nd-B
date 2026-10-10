@@ -12,11 +12,7 @@
   "viewPlans": "View plans",
   "viewPlansHint": "Opens the plans screen",
   "serverLimitReached": "This account has reached today's chat limit. Limits reset at midnight KST.",
-  "intro_title": "Ask HustleK",
-  "intro_body": "HustleK answers using your saved wiki pages. Tap a page name in an answer to read the source. Try \"What topics did I write about most this month?\"",
   "reference_piece_meta": "referenced piece",
-  "intro_ok": "Got it",
-  "intro_mute": "Don't show again today",
   "heroSpeech": {
     "sending": "Reading relevant records…",
     "divergent": "Considering other possibilities…",
@@ -74,8 +70,6 @@
     "transcribeFailed": "Couldn't turn that recording into text. Try again, or type your message.",
     "transcriptEmpty": "We couldn't make out any words. Try again closer to the microphone, or type it."
   },
-  "closeIntro": "Close intro",
-  "closeIntroHint": "Closes the HustleK introduction",
   "closeReferenced": "Close referenced pieces",
   "closeReferencedHint": "Closes the list of referenced pieces",
   "piecesReferenced": "Pieces referenced",
@@ -95,7 +89,6 @@
   "askLens": "Ask {{lens}}…",
   "nPieces": "{{n}} pieces",
   "chatSaveNotice": "This conversation is not being saved",
-  "chatSaveNoticeBody": "Turn on chat saving in privacy settings to keep it. Anything said before you turn it on is not saved.",
   "chatSaveNoticeOpen": "Open settings",
   "chatSaveNoticeDismiss": "Dismiss",
   "planSuggestion": {

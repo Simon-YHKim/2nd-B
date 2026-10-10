@@ -97,8 +97,8 @@ describe("secondb deep-space modal scrim (W-09)", () => {
         backdrops.push(n);
       }
     });
-    // intro modal + reference drawer
-    expect(backdrops.length).toBeGreaterThanOrEqual(2);
+    // The first-entry modal was retired; the reference drawer keeps its scrim.
+    expect(backdrops).toHaveLength(1);
 
     for (const el of backdrops) {
       const scrims: string[] = [];

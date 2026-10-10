@@ -12,11 +12,7 @@
   "viewPlans": "Ver planos",
   "viewPlansHint": "Abre a tela de planos.",
   "serverLimitReached": "Esta conta atingiu o limite de conversas de hoje. O limite é restabelecido à meia-noite, no horário da Coreia (KST).",
-  "intro_title": "Olá, sou o HustleK",
-  "intro_body": "O HustleK responde usando suas páginas da wiki e mostra quais consultou. Abra essas páginas para conferir. Você pode perguntar, por exemplo, quais assuntos se repetem nos registros do mês.",
   "reference_piece_meta": "registro usado na resposta",
-  "intro_ok": "Entendi",
-  "intro_mute": "Não mostrar hoje",
   "heroSpeech": {
     "sending": "Consultando os registros relacionados.",
     "divergent": "Considerando outra forma de olhar para a questão.",
@@ -74,8 +70,6 @@
     "transcribeFailed": "Não foi possível transformar essa gravação em texto. Tente de novo ou digite sua mensagem.",
     "transcriptEmpty": "Não conseguimos distinguir nenhuma palavra. Tente de novo mais perto do microfone ou digite."
   },
-  "closeIntro": "Fechar a introdução",
-  "closeIntroHint": "Fecha a janela de introdução",
   "closeReferenced": "Fechar os registros usados",
   "closeReferencedHint": "Fecha a lista de registros usados na resposta",
   "piecesReferenced": "Registros usados",
@@ -95,7 +89,6 @@
   "askLens": "Pergunte ao {{lens}}…",
   "nPieces": "{{n}} registros",
   "chatSaveNotice": "Esta conversa não está sendo guardada",
-  "chatSaveNoticeBody": "Ative o salvamento de conversas na privacidade para mantê-la. O que foi dito antes não é salvo.",
   "chatSaveNoticeOpen": "Abrir ajustes",
   "chatSaveNoticeDismiss": "Fechar",
   "planSuggestion": {
