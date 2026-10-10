@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
+import * as crypto from "expo-crypto";
 import * as policy from "@/lib/chat/plan-suggestions";
 import * as owner from "@/lib/auth/account-epoch";
 import type { ChatPlanDraft } from "@/lib/chat/plan-draft";
@@ -33,7 +34,7 @@ function mount(initial = state(), platform = "android") {
   const slots: Slot[] = []; const effects: (() => void)[] = [];
   let userId: string | null = "a"; let input = initial;
   let cursor = 0; let dirty = false; let alive = true; let late = 0; let result: HookResult;
-  const save = jest.fn<Promise<ChatPlanSaveResult>, [string, ChatPlanDraft]>().mockResolvedValue({ status: "saved" });
+  const save = jest.fn<Promise<ChatPlanSaveResult>, [string, ChatPlanDraft, { routineId?: string }?]>().mockResolvedValue({ status: "saved" });
   const same = (a: unknown[] | undefined, b: unknown[]) => a?.length === b.length && b.every((value, i) => Object.is(value, a[i]));
   const hooks = {
     useState(initialValue: unknown) {
@@ -53,7 +54,7 @@ function mount(initial = state(), platform = "android") {
     },
   };
   const modules: Record<string, unknown> = {
-    react: hooks, "react-native": { Platform: { OS: platform } },
+    react: hooks, "react-native": { Platform: { OS: platform } }, "expo-crypto": crypto,
     "react-i18next": { useTranslation: () => ({ t: (key: string) => key }) },
     "@/lib/auth/account-epoch": owner,
     "@/lib/chat/plan-suggestions": policy,
@@ -86,6 +87,21 @@ function mount(initial = state(), platform = "android") {
 
 beforeEach(() => { owner.__resetAccountEpochForTests(); owner.noteResolvedOwner("a"); });
 
+test("G5-05 retries and reopening the same proposal reuse its row ID, a new proposal does not", async () => {
+  const host = mount(); host.open();
+  host.save.mockResolvedValueOnce({ status: "error" });
+  await host.result.sheetProps.onConfirm(draft()); host.flush();
+  const first = host.save.mock.calls[0][2]?.routineId;
+  expect(first).toMatch(/^[0-9a-f-]{36}$/);
+  host.close(); host.open();
+  await host.result.sheetProps.onConfirm({ ...draft(), title: "Edited retry" }); host.flush();
+  expect(host.save.mock.calls[1][2]?.routineId).toBe(first);
+  host.update({ conversationId: 2 }); host.open();
+  await host.result.sheetProps.onConfirm(draft()); host.flush();
+  expect(host.save.mock.calls[2][2]?.routineId).not.toBe(first);
+  host.unmount();
+});
+
 test("opening and cancelling a proposal do not save or request notification permission", () => {
   const host = mount();
   expect(host.result.actions.map(action => action.id)).toEqual(["plan-routine", "plan-reminder"]);
@@ -104,7 +120,7 @@ test("confirm saves only reviewed fields once, disables busy actions and removes
   const saving = confirm(draft());
   const duplicate = confirm(draft()); host.flush();
   expect(host.save).toHaveBeenCalledTimes(1);
-  expect(host.save).toHaveBeenCalledWith("a", draft());
+  expect(host.save).toHaveBeenCalledWith("a", draft(), { routineId: expect.any(String) });
   expect(host.result.busy).toBe(true);
   expect(host.result.actions.every(action => action.disabled)).toBe(true);
   host.close(); expect(host.result.sheetProps.suggestion).not.toBeNull();
