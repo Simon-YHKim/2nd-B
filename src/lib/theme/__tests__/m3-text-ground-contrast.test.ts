@@ -21,8 +21,8 @@ const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8").rep
 
 describe("m3 글자 × 바탕 - 배송 화면이 기대는 쌍", () => {
   test("고친 쌍은 AA 보통 글자(4.5:1)를 넘는다 [GUARD]", () => {
-    // /ops 연속 기록 (heroCount 와 같은 토큰)
-    expect(contrastRatio(c.onPrimaryContainer, c.primaryContainer)).toBeGreaterThanOrEqual(AA);
+    // /ops 연속 기록은 이제 구획 제목 줄의 기본 화면 바탕에 놓인다.
+    expect(contrastRatio(c.onSurfaceVariant, c.surface)).toBeGreaterThanOrEqual(AA);
     // /secondb 입력 자리표시자 on 입력 알약
     expect(contrastRatio(c.onSurfaceVariant, c.surfaceContainerHigh)).toBeGreaterThanOrEqual(AA);
     // /sign-in 텍스트 링크 on 패널 바탕, 그 위 보조 문구
@@ -37,11 +37,11 @@ describe("m3 글자 × 바탕 - 배송 화면이 기대는 쌍", () => {
 });
 
 describe("화면이 고친 쌍을 쓴다 (변이 검증: 고치기 전 줄로 되돌리면 빨갛다)", () => {
-  test("/ops 연속 기록 칩은 primaryContainer 위에서 onPrimaryContainer 다", () => {
+  test("/ops 연속 기록은 기본 화면 바탕 위의 보조 글자다", () => {
     const ops = read("src/screens/deepspace/dds-ops-screen.tsx");
-    expect(ops).toContain('<PixelSurface variant="bevel" background={m3.color.primaryContainer} contentStyle={styles.heroContent}>');
-    expect(ops).toContain("heroStreak: { color: m3.color.onPrimaryContainer },");
-    expect(ops).not.toContain("heroStreak: { color: m3.color.onSurfaceVariant },");
+    expect(ops).not.toContain("styles.heroContent");
+    expect(ops).toContain("sectionSummary: { color: m3.color.onSurfaceVariant,");
+    expect(ops).toContain('style={styles.sectionSummary}>{trailing}</Text>');
   });
 
   test("/secondb 입력 알약: 자리표시자는 onSurfaceVariant, 알약 안 반투명 색은 실제 바탕에서 합성한다", () => {

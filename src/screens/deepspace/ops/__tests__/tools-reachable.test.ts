@@ -424,11 +424,12 @@ describe("비서 허브 PIXEL·legacy 회귀", () => {
     expect(APP_OPS).not.toContain("OpsHomeScreen");
   });
 
-  it("PixelSurface/PixelPressable, rect ring, FlatList, 44dp, a11y와 reflow를 고정한다", () => {
+  it("PixelSurface/PixelPressable, compact progress, FlatList, 44dp, a11y와 reflow를 고정한다", () => {
     expect(HUB).toContain("PixelSurface");
     expect(HUB).toContain("PixelPressable");
-    expect(HUB).toContain("ringCells");
-    expect(HUB).toContain("<Rect");
+    expect(HUB).not.toContain("ringCells");
+    expect(HUB).not.toContain("<ProgressRing");
+    expect(HUB).toContain('t("home.ringCount", { done: todayDone, total: todayData.routines.length })');
     expect(HUB).toContain("<FlatList");
     expect(HUB).toContain("minHeight: m3.minTouch");
     expect(HUB).toContain('accessibilityRole="checkbox"');

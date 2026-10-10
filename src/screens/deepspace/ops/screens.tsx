@@ -569,12 +569,12 @@ export function ReadingScreen() {
           {search.items.map((b) =>
             onShelf.has(b.id) ? (
               <View key={b.id} style={styles.bookRow}>
-                <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
+                <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{b.title}</Text>
                 <Text variant="caption" style={styles.bookOnShelf}>{t("toolScreens.reading.onShelf")}</Text>
               </View>
             ) : (
               <Pressable key={b.id} accessibilityRole="button" onPress={() => void onAdd(b)} disabled={busy} hitSlop={6} style={styles.bookRow}>
-                <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
+                <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{b.title}</Text>
                 <Text variant="caption" style={styles.bookAdd}>＋ {c.add}</Text>
               </Pressable>
             ),
@@ -598,12 +598,12 @@ export function ReadingScreen() {
           {manual ? (
             onShelf.has(manual.id) ? (
               <View style={styles.bookRow}>
-                <Text variant="body" style={styles.bookTitle}>{manual.title}</Text>
+                <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{manual.title}</Text>
                 <Text variant="caption" style={styles.bookOnShelf}>{t("toolScreens.reading.onShelf")}</Text>
               </View>
             ) : (
               <Pressable accessibilityRole="button" onPress={() => void onAdd(manual)} disabled={busy} hitSlop={6} style={styles.bookRow}>
-                <Text variant="body" style={styles.bookTitle}>
+                <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">
                   {t("toolScreens.reading.addByTitle", { title: manual.title })}
                 </Text>
                 <Text variant="caption" style={styles.bookAdd}>＋ {c.add}</Text>
@@ -755,7 +755,7 @@ export function ReadingScreen() {
               <Text variant="caption" pixelEn style={styles.pixelLabel}>{t("toolScreens.reading.alsoReading")}</Text>
               {view.alsoReading.map((b) => (
                 <View key={b.id} style={styles.bookRow}>
-                  <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
+                  <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{b.title}</Text>
                   <Pressable accessibilityRole="button" onPress={() => void onMove(b.id, "done")} hitSlop={8}>
                     <OpsStatusChip tone="muted" label={c.finishedReading} />
                   </Pressable>
@@ -769,7 +769,7 @@ export function ReadingScreen() {
               <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.wantToRead}</Text>
               {view.want.map((b) => (
                 <View key={b.id} style={styles.bookRow}>
-                  <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
+                  <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{b.title}</Text>
                   <Pressable accessibilityRole="button" onPress={() => void onMove(b.id, "reading")} hitSlop={8}>
                     <OpsStatusChip tone="positive" label={c.startReading} />
                   </Pressable>
@@ -784,7 +784,7 @@ export function ReadingScreen() {
               <Text variant="caption" pixelEn style={styles.pixelLabel}>{t("toolScreens.reading.finished")}</Text>
               {view.done.map((b) => (
                 <View key={b.id} style={styles.bookRow}>
-                  <Text variant="body" style={styles.bookDone}>{b.title}</Text>
+                  <Text variant="body" style={styles.bookDone} numberOfLines={2} ellipsizeMode="tail">{b.title}</Text>
                   <Pressable accessibilityRole="button" onPress={() => void onMove(b.id, "reading")} hitSlop={8}>
                     <OpsStatusChip tone="info" label={t("toolScreens.reading.readAgain")} />
                   </Pressable>
@@ -1452,7 +1452,7 @@ export function SideProjectScreen({ userId }: { userId: string }) {
           {summary.repos.map((repo) => (
             <View key={repo} style={styles.repoRow}>
               <View style={[styles.dotSm, { backgroundColor: deepSpace.soul }]} />
-              <Text variant="heading" style={styles.repoName}>{repo}</Text>
+              <Text variant="heading" style={styles.repoName} numberOfLines={2} ellipsizeMode="tail">{repo}</Text>
             </View>
           ))}
         </>
@@ -2153,6 +2153,7 @@ const clayStyles = StyleSheet.create({
 
   bookRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: 8,
     minHeight: 44,
@@ -2162,8 +2163,8 @@ const clayStyles = StyleSheet.create({
     borderRadius: m3.shape.medium,
     backgroundColor: deepSpace.card,
   },
-  bookTitle: { flex: 1, fontSize: 14, color: deepSpace.textHi },
-  bookDone: { flex: 1, fontSize: 14, color: deepSpace.textMid },
+  bookTitle: { flex: 1, minWidth: 0, fontSize: 14, color: deepSpace.textHi },
+  bookDone: { flex: 1, minWidth: 0, fontSize: 14, color: deepSpace.textMid },
   bookAdd: { fontSize: 12, color: deepSpace.mint },
   bookOnShelf: { fontSize: 12, color: deepSpace.textLo },
   toolNote: { fontSize: 13, color: deepSpace.textMid },
@@ -2247,7 +2248,7 @@ const clayStyles = StyleSheet.create({
     paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: deepSpace.cardLine,
   },
   entryDay: { fontSize: 12, color: deepSpace.textLo, fontVariant: ["tabular-nums"] },
-  entryCat: { flex: 1, fontSize: 13, color: deepSpace.textMid },
+  entryCat: { flex: 1, minWidth: 0, fontSize: 13, color: deepSpace.textMid },
   entryAmt: { fontSize: 13, color: deepSpace.textHi, fontVariant: ["tabular-nums"] },
   entryDel: { padding: 4 },
   entryDelTxt: { fontSize: 15, color: deepSpace.textLo },
@@ -2274,7 +2275,7 @@ const clayStyles = StyleSheet.create({
     borderRadius: m3.shape.medium,
     backgroundColor: deepSpace.card,
   },
-  repoName: { flex: 1, fontSize: 14, color: deepSpace.textHi },
+  repoName: { flex: 1, minWidth: 0, fontSize: 14, color: deepSpace.textHi },
 
   quickMode: {
     flexDirection: "row",

@@ -10,17 +10,16 @@ import {
 } from "react-native";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
-import Svg, { Rect } from "react-native-svg";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import type { AnyGlyphName } from "@/components/pixel/pixel-glyphs";
-import { ringCells } from "@/components/pixel/pixel-line";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { Text } from "@/components/ui/Text";
 import { IosButton, IosCardHeader, IosGroup, IosIconButton, IosRow, IosText } from "@/components/dashboard/board/IosParts";
 import { phoneIos } from "@/lib/theme/phone-ios";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppRouter } from "@/lib/nav/phone-embed";
 import { systemLocaleFor } from "@/lib/i18n/locales";
@@ -158,8 +157,6 @@ export const OPS_TOOL_ROUTES = [
   route: string;
 }>;
 
-const RING_POINTS = ringCells(29, 29, 22, 6);
-
 function readKindFor(error: unknown): "timeout" | "error" {
   return error instanceof OpsReadTimeoutError ? "timeout" : "error";
 }
@@ -229,24 +226,6 @@ function StatePanel({
         </PixelPressable>
       ) : null}
     </PixelSurface>
-  );
-}
-
-function ProgressRing({ done, total }: { done: number; total: number }) {
-  const lit = total > 0 ? Math.round(RING_POINTS.length * Math.min(1, done / total)) : 0;
-  return (
-    <Svg width={58} height={58} viewBox="0 0 58 58" accessibilityElementsHidden>
-      {RING_POINTS.map((point, index) => (
-        <Rect
-          key={`${point.x}-${point.y}`}
-          x={point.x}
-          y={point.y}
-          width={6}
-          height={6}
-          fill={index < lit ? m3.color.primary : m3.color.surfaceVariant}
-        />
-      ))}
-    </Svg>
   );
 }
 
@@ -370,7 +349,18 @@ function RecommendationCard({
   );
 }
 
-function SectionHeading({ icon, title, body }: { icon: AnyGlyphName; title: string; body?: string }) {
+function SectionHeading({ icon, title, body, trailing }: {
+  icon: AnyGlyphName; title: string; body?: string; trailing?: string;
+}) {
+  const phone = usePhoneDesign();
+  if (phone) return (
+    <View style={styles.headingStack}>
+      <IosCardHeader glyph={icon} title={title} trailing={trailing ? (
+        <IosText variant="caption" style={phoneSettingsStyles.summary}>{trailing}</IosText>
+      ) : null} />
+      {body ? <IosText variant="caption" style={phoneSettingsStyles.body}>{body}</IosText> : null}
+    </View>
+  );
   return (
     <View style={styles.sectionHeading}>
       <PixelGlyph name={icon} color={m3.color.primary} size={20} />
@@ -384,6 +374,7 @@ function SectionHeading({ icon, title, body }: { icon: AnyGlyphName; title: stri
           </Text>
         ) : null}
       </View>
+      {trailing ? <Text variant="caption" style={styles.sectionSummary}>{trailing}</Text> : null}
     </View>
   );
 }
@@ -881,7 +872,71 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
 
   const listHeader = (
     <View style={styles.headerStack}>
-      <SectionHeading icon="schedule" title={t("today.heading")} />
+      <SectionHeading icon="sparkle" title={t("phone.recommendationSettings")} body={t("hero.subtitle")} />
+      <View style={styles.choiceGrid}>
+        {OPS_GROUP_IDS.map((id) => (
+          <ChoiceButton
+            key={id}
+            label={t(`groups.${id}`)}
+            selected={group === id}
+            disabled={runState === "working"}
+            onPress={() => selectGroup(id)}
+          />
+        ))}
+      </View>
+      {group ? (
+        <View style={styles.choiceGrid}>
+          {domains.map((id) => (
+            <ChoiceButton
+              key={id}
+              label={t(`domains.${id}`)}
+              selected={domain === id}
+              disabled={runState === "working"}
+              onPress={() => selectDomain(id)}
+            />
+          ))}
+        </View>
+      ) : (
+        <Text variant="body" style={styles.helperText}>{t("states.emptyDomain")}</Text>
+      )}
+
+      {domain ? (
+        recommendationReadsPending ? (
+          <StatePanel icon="schedule" message={t("common:states.loading")} />
+        ) : recommendationReadsFailed ? (
+          <StatePanel
+            icon="warning"
+            message={t("common:errors.network")}
+            retryLabel={t("common:actions.retry")}
+            onRetry={retryReads}
+          />
+        ) : (
+          <PixelPressable
+            fullWidth
+            disabled={runState === "working" || limitReached}
+            onPress={() => void runRecommendation()}
+            accessibilityLabel={runState === "working" ? t("recommend.working") : t("recommend.cta")}
+            accessibilityHint={t("recommend.ctaHint")}
+            accessibilityState={{ busy: runState === "working" }}
+            contentStyle={styles.primaryContent}
+          >
+            <PixelGlyph name="sparkle" color={m3.color.onSurface} size={20} />
+            <Text variant="body" style={styles.primaryText}>
+              {runState === "working" ? t("recommend.working") : t("recommend.cta")}
+            </Text>
+          </PixelPressable>
+        )
+      ) : null}
+
+      {runState === "limit" || (domain && limitReached) ? <Text variant="body" style={styles.helperText}>{t("recommend.limit")}</Text> : null}
+      {runState === "empty" ? <Text variant="body" style={styles.helperText}>{t("recommend.empty")}</Text> : null}
+      {runState === "error" ? <Text variant="body" style={styles.errorText} accessibilityRole="alert">{t("recommend.error")}</Text> : null}
+      {runState === "off" ? <Text variant="body" style={styles.helperText}>{t("recommend.off")}</Text> : null}
+      <SectionHeading icon="schedule" title={t("hero.title")} trailing={
+        ownerToday.kind === "ready" || ownerToday.kind === "empty"
+          ? `${t("home.ringCount", { done: todayDone, total: todayData.routines.length })} · ${t("today.streak", { count: todayData.streak })}`
+          : undefined
+      } />
       {ownerToday.kind === "loading" ? (
         <StatePanel icon="schedule" message={t("common:states.loading")} />
       ) : ownerToday.kind === "timeout" || ownerToday.kind === "error" ? (
@@ -891,19 +946,7 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
           retryLabel={t("common:actions.retry")}
           onRetry={retryReads}
         />
-      ) : (
-        <PixelSurface variant="bevel" background={m3.color.primaryContainer} contentStyle={styles.heroContent}>
-          <ProgressRing done={todayDone} total={todayData.routines.length} />
-          <View style={styles.heroCopy}>
-            <Text variant="heading" style={styles.heroCount}>
-              {t("home.ringCount", { done: todayDone, total: todayData.routines.length })}
-            </Text>
-            <Text variant="caption" style={styles.heroStreak}>
-              {t("today.streak", { count: todayData.streak })}
-            </Text>
-          </View>
-        </PixelSurface>
-      )}
+      ) : null}
     </View>
   );
 
@@ -973,91 +1016,30 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
 
       <PixelPressable
         fullWidth
+        onPress={() => router.push("/reminders")}
+        accessibilityRole="link"
+        accessibilityLabel={t("card.remind")}
+        contentStyle={styles.patternContent}
+      >
+        <View style={styles.sectionCopy}>
+          <SectionHeading icon="schedule" title={t("card.remind")} />
+        </View>
+        <PixelGlyph name="chevron_right" color={m3.color.onSurface} size={18} />
+      </PixelPressable>
+
+      <PixelPressable
+        fullWidth
         onPress={() => router.push("/insights")}
         accessibilityRole="link"
         accessibilityLabel={t("home.patternsTitle")}
         contentStyle={styles.patternContent}
       >
-        <PixelGlyph name="sparkle" color={m3.color.primary} size={24} />
-        <View style={styles.patternCopy}>
-          <Text variant="body" style={styles.patternTitle}>{t("home.patternsTitle")}</Text>
-          <Text variant="caption" style={styles.patternBody}>{t("home.patternsSub")}</Text>
+        <View style={styles.sectionCopy}>
+          <SectionHeading icon="sparkle" title={t("home.patternsTitle")} body={t("home.patternsSub")} />
         </View>
         <PixelGlyph name="chevron_right" color={m3.color.onSurface} size={20} />
       </PixelPressable>
 
-      <SectionHeading icon="sparkle" title={t("phone.recommendationSettings")} body={t("hero.subtitle")} />
-      <PixelPressable
-        fullWidth
-        onPress={() => router.push("/reminders")}
-        accessibilityRole="link"
-        accessibilityLabel={t("card.remind")}
-        contentStyle={styles.actionContent}
-      >
-        <PixelGlyph name="schedule" color={m3.color.onSurface} size={18} />
-        <Text variant="body" style={styles.actionText}>{t("card.remind")}</Text>
-        <PixelGlyph name="chevron_right" color={m3.color.onSurface} size={18} />
-      </PixelPressable>
-
-      <View style={styles.choiceGrid}>
-        {OPS_GROUP_IDS.map((id) => (
-          <ChoiceButton
-            key={id}
-            label={t(`groups.${id}`)}
-            selected={group === id}
-            disabled={runState === "working"}
-            onPress={() => selectGroup(id)}
-          />
-        ))}
-      </View>
-      {group ? (
-        <View style={styles.choiceGrid}>
-          {domains.map((id) => (
-            <ChoiceButton
-              key={id}
-              label={t(`domains.${id}`)}
-              selected={domain === id}
-              disabled={runState === "working"}
-              onPress={() => selectDomain(id)}
-            />
-          ))}
-        </View>
-      ) : (
-        <Text variant="body" style={styles.helperText}>{t("states.emptyDomain")}</Text>
-      )}
-
-      {domain ? (
-        recommendationReadsPending ? (
-          <StatePanel icon="schedule" message={t("common:states.loading")} />
-        ) : recommendationReadsFailed ? (
-          <StatePanel
-            icon="warning"
-            message={t("common:errors.network")}
-            retryLabel={t("common:actions.retry")}
-            onRetry={retryReads}
-          />
-        ) : (
-          <PixelPressable
-            fullWidth
-            disabled={runState === "working" || limitReached}
-            onPress={() => void runRecommendation()}
-            accessibilityLabel={runState === "working" ? t("recommend.working") : t("recommend.cta")}
-            accessibilityHint={t("recommend.ctaHint")}
-            accessibilityState={{ busy: runState === "working" }}
-            contentStyle={styles.primaryContent}
-          >
-            <PixelGlyph name="sparkle" color={m3.color.onSurface} size={20} />
-            <Text variant="body" style={styles.primaryText}>
-              {runState === "working" ? t("recommend.working") : t("recommend.cta")}
-            </Text>
-          </PixelPressable>
-        )
-      ) : null}
-
-      {runState === "limit" || (domain && limitReached) ? <Text variant="body" style={styles.helperText}>{t("recommend.limit")}</Text> : null}
-      {runState === "empty" ? <Text variant="body" style={styles.helperText}>{t("recommend.empty")}</Text> : null}
-      {runState === "error" ? <Text variant="body" style={styles.errorText} accessibilityRole="alert">{t("recommend.error")}</Text> : null}
-      {runState === "off" ? <Text variant="body" style={styles.helperText}>{t("recommend.off")}</Text> : null}
       <SectionHeading icon="box" title={t("home.toolsLabel")} />
       <View style={styles.toolGrid}>
         {OPS_TOOL_ROUTES.map((tool) => (
@@ -1126,17 +1108,12 @@ const styles = StyleSheet.create({
   stateSurface: { width: "100%" },
   stateContent: { gap: m3.spacing.s3, alignItems: "flex-start" },
   stateMessage: { color: m3.color.onSurfaceVariant, lineHeight: m3.type.bodyMedium.line, paddingBottom: m3.spacing.s1 },
+  headingStack: { gap: m3.spacing.s1 },
   sectionHeading: { flexDirection: "row", alignItems: "flex-start", gap: m3.spacing.s3 },
   sectionCopy: { flex: 1, minWidth: 0, gap: m3.spacing.s1 },
   sectionTitle: { color: m3.color.onSurface },
   sectionBody: { color: m3.color.onSurfaceVariant, lineHeight: m3.type.bodySmall.line },
-  heroContent: { minHeight: 92, flexDirection: "row", alignItems: "center", gap: m3.spacing.s4, paddingVertical: m3.spacing.s4 },
-  heroCopy: { flex: 1, gap: m3.spacing.s2 },
-  heroCount: { color: m3.color.onPrimaryContainer, fontFamily: m3.font.mono },
-  // On the primaryContainer hero: onSurfaceVariant was 2.01:1 there (QA R2B-08); the
-  // container's own "on" token, like heroCount above, is 5.13:1. The caption size keeps
-  // it secondary.
-  heroStreak: { color: m3.color.onPrimaryContainer },
+  sectionSummary: { color: m3.color.onSurfaceVariant, flexShrink: 1, minWidth: 0, textAlign: "right" },
   routineContent: { minHeight: m3.minTouch, flexDirection: "row", alignItems: "center", gap: m3.spacing.s3 },
   routineTitle: { flex: 1, minWidth: 0, color: m3.color.onSurface, lineHeight: m3.type.bodyMedium.line },
   routineDone: { flex: 1, minWidth: 0, color: m3.color.onSurfaceVariant, lineHeight: m3.type.bodyMedium.line, textDecorationLine: "line-through" },
@@ -1145,9 +1122,6 @@ const styles = StyleSheet.create({
   noticeText: { flex: 1, color: m3.color.onSurface, lineHeight: m3.type.bodyMedium.line },
   noticeDanger: { flex: 1, color: m3.color.error, lineHeight: m3.type.bodyMedium.line },
   patternContent: { minHeight: m3.minTouch, flexDirection: "row", alignItems: "center", gap: m3.spacing.s3 },
-  patternCopy: { flex: 1, minWidth: 0, gap: m3.spacing.s1 },
-  patternTitle: { color: m3.color.onSurface },
-  patternBody: { color: m3.color.onSurfaceVariant, lineHeight: m3.type.bodySmall.line },
   actionContent: { minHeight: m3.minTouch, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: m3.spacing.s2 },
   actionText: { flex: 1, color: m3.color.onSurface, textAlign: "center" },
   choiceGrid: { flexDirection: "row", flexWrap: "wrap", gap: m3.spacing.s2 },
@@ -1192,4 +1166,9 @@ const boardStyles = StyleSheet.create({
   muted: { color: phoneIos.label2 },
   recommendation: { gap: 6, paddingTop: 6, borderTopWidth: 2, borderTopColor: phoneIos.fill },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+});
+
+const phoneSettingsStyles = StyleSheet.create({
+  summary: { color: phoneIos.label2, flexShrink: 1, minWidth: 0, textAlign: "right" },
+  body: { color: phoneIos.label2, lineHeight: 18 },
 });
