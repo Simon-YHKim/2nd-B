@@ -1,10 +1,12 @@
 -- G4-05: run after the 0239/0242 fixture in the disposable loopback harness.
 \set ON_ERROR_STOP on
 BEGIN;
+-- HOST is psql's client target. A CI port mapping changes the server's address.
+SELECT set_config('g4export.client_host', :'HOST', true);
 DO $$ BEGIN
   IF current_database() !~ '^profile_import_test[a-z0-9_]*$'
     OR current_user !~ '^profile_import_[a-z0-9_]+$'
-    OR inet_server_addr() IS DISTINCT FROM '127.0.0.1'::inet THEN
+    OR current_setting('g4export.client_host') IS DISTINCT FROM '127.0.0.1' THEN
     RAISE EXCEPTION 'G4 export requires the disposable loopback fixture';
   END IF;
 END $$;

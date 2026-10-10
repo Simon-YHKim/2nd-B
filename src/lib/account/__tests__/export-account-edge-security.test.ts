@@ -383,6 +383,16 @@ describe("export-account trust boundary", () => {
 });
 
 describe("export-account bounded owned readers", () => {
+  test("G4-05 fixture checks the client loopback target across CI port mappings", () => {
+    const root = join(__dirname, "../../../..");
+    const fixture = readFileSync(join(root, "db/tests/profile_context_import_export.sql"), "utf8");
+    const runner = readFileSync(join(root, "scripts/test-profile-import-sql.mjs"), "utf8");
+    expect(runner).toContain('"-h", "127.0.0.1"');
+    expect(fixture).toContain("set_config('g4export.client_host', :'HOST', true)");
+    expect(fixture).toContain("current_setting('g4export.client_host') IS DISTINCT FROM '127.0.0.1'");
+    expect(fixture).not.toContain("inet_server_addr()");
+  });
+
   const historyColumns = [
     "id", "user_id", "created_at", "item_count", "profile_change_count", "status",
     "withdrawn_at", "profile_restored",
