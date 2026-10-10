@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { Text } from "@/components/ui/Text";
 import { m3 } from "@/lib/theme/m3";
 import { loadWeatherConsent, saveWeatherConsent, WeatherConsentConflictError } from "@/lib/weather/client";
-import { WEATHER_CONSENT_REVISION, type WeatherConsent } from "@/lib/weather/model";
+import type { WeatherConsent } from "@/lib/weather/model";
 import { WEATHER_LOCATION_ENABLED } from "@/lib/location/weather-location-gate";
 
 /** Settings offers withdrawal. The clock sheet is the only opt-in surface. */
@@ -36,10 +36,8 @@ export function WeatherPrivacyControl() {
     if (!userId || !canRevoke || saving.current || !signal || signal.aborted) return;
     saving.current = true; setBusy(true); setFailed(false);
     try {
-      // Request-only fallback. Never display an unconfirmed OFF snapshot.
-      const withdrawal = status ?? { contract: WEATHER_CONSENT_REVISION, revision: 0,
-        enabled: false, eligible: false, available: false };
-      const next = await saveWeatherConsent(userId, withdrawal, false, i18n.language, signal);
+      // Keep an unknown status explicit; the client uses revision 0 only for the request.
+      const next = await saveWeatherConsent(userId, status, false, i18n.language, signal);
       if (!signal.aborted) setSnapshot({ ownerId: userId, status: next });
     } catch (error) {
       if (!signal.aborted) {

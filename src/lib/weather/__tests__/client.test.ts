@@ -160,10 +160,43 @@ test("A(N) withdrawal converges after B(N+1) and never re-enables local processi
   expect(currentPrivacyChange("owner")?.prefs.location_weather).toBe(false);
 });
 
-test.each([4, 5])("a conflict already OFF at revision %s confirms withdrawal without another write", async (revision) => {
+test("a conflict OFF at revision 5 confirms withdrawal from ON/4 without another write", async () => {
+  const revision = 5;
   invoke.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(saved(revision, false));
   expect(await saveWeatherConsent("owner", consent(4, true), false, "en")).toEqual(consent(revision, false));
   expect(invoke).toHaveBeenCalledTimes(2);
+});
+
+test.each([consent(4, false), consent(3, false), consent(3, true)])(
+  "rejects a first conflict refresh that does not advance from ON/4: %j", async (latest) => {
+    const changes = jest.fn(); const stop = subscribePrivacyChanges(changes);
+    invoke.mockResolvedValueOnce(conflict()).mockResolvedValueOnce({ data: latest, error: null });
+    await expect(saveWeatherConsent("owner", consent(4, true), false, "en")).rejects.toThrow("weather_not_saved");
+    expect(invoke).toHaveBeenCalledTimes(2);
+    expect(changes).toHaveBeenCalledTimes(1); // Immediate local OFF only; no successful commit.
+    stop();
+  },
+);
+
+test("a conflict preserves same-revision OFF idempotency for a confirmed OFF snapshot", async () => {
+  invoke.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(saved(4, false));
+  expect(await saveWeatherConsent("owner", consent(4, false), false, "en")).toEqual(consent(4, false));
+  expect(invoke).toHaveBeenCalledTimes(2);
+});
+
+test("a same-revision ON conflict snapshot can still be the withdrawal retry input", async () => {
+  invoke.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(saved(4, true)).mockResolvedValueOnce(saved(5, false));
+  expect(await saveWeatherConsent("owner", consent(4, true), false, "en")).toEqual(consent(5, false));
+  expect(invoke.mock.calls[2][2].body.revision).toBe(4);
+});
+
+test.each([false, true])("a confirmed OFF snapshot still rejects a lower conflict revision (enabled %s)", async (enabled) => {
+  const changes = jest.fn(); const stop = subscribePrivacyChanges(changes);
+  invoke.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(saved(3, enabled));
+  await expect(saveWeatherConsent("owner", consent(4, false), false, "en")).rejects.toThrow("weather_not_saved");
+  expect(invoke).toHaveBeenCalledTimes(2);
+  expect(changes).toHaveBeenCalledTimes(1);
+  stop();
 });
 
 test("grant conflicts carry the latest state but never automatically retry opt-in", async () => {
@@ -183,12 +216,25 @@ test("two conflicts bound withdrawal to two writes and return the newest snapsho
   expect(currentPrivacyChange("owner")?.prefs.location_weather).toBe(false);
 });
 
-test.each([5, 6])("the final conflict refresh at revision %s can confirm another device already withdrew", async (revision) => {
+test("the final conflict refresh OFF/6 confirms withdrawal from the retry snapshot ON/5", async () => {
+  const revision = 6;
   invoke.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(saved(5, true))
     .mockResolvedValueOnce(conflict()).mockResolvedValueOnce(saved(revision, false));
   expect(await saveWeatherConsent("owner", consent(4, true), false, "en")).toEqual(consent(revision, false));
   expect(invoke).toHaveBeenCalledTimes(4);
 });
+
+test.each([consent(5, false), consent(4, false), consent(4, true)])(
+  "rejects a final conflict refresh that does not advance from the retry snapshot ON/5: %j", async (latest) => {
+    const changes = jest.fn(); const stop = subscribePrivacyChanges(changes);
+    invoke.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(saved(5, true))
+      .mockResolvedValueOnce(conflict()).mockResolvedValueOnce({ data: latest, error: null });
+    await expect(saveWeatherConsent("owner", consent(4, true), false, "en")).rejects.toThrow("weather_not_saved");
+    expect(invoke).toHaveBeenCalledTimes(4);
+    expect(changes).toHaveBeenCalledTimes(1);
+    stop();
+  },
+);
 
 test.each([409, 503])("preserves the last confirmed snapshot when retry HTTP %s cannot finish recovery", async (status) => {
   invoke.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(saved(5, true))
@@ -207,7 +253,7 @@ test.each([429, 503])("does not retry or refresh a non-conflict HTTP %s", async 
 test.each([429, 503])("after status HTTP %s, an unknown withdrawal accepts any confirmed OFF revision", async (status) => {
   invoke.mockResolvedValueOnce({ data: null, error: { context: { status } } });
   await expect(loadWeatherConsent("owner")).rejects.toThrow("weather_unavailable");
-  const unknown = { ...consent(0, false), available: false, eligible: false };
+  const unknown = null;
   for (const revision of [0, 1, 8]) {
     invoke.mockResolvedValueOnce(saved(revision, false));
     expect(await saveWeatherConsent("owner", unknown, false, "ko")).toEqual(consent(revision, false));
@@ -215,6 +261,34 @@ test.each([429, 503])("after status HTTP %s, an unknown withdrawal accepts any c
   }
   invoke.mockResolvedValueOnce(saved(9, true));
   await expect(saveWeatherConsent("owner", unknown, false, "ko")).rejects.toThrow("weather_not_saved");
+});
+
+test.each([0, 1, 8])("an unknown withdrawal accepts a conflict OFF snapshot at revision %s", async (revision) => {
+  invoke.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(saved(revision, false));
+  expect(await saveWeatherConsent("owner", null, false, "ko")).toEqual(consent(revision, false));
+  expect(invoke.mock.calls[0][2].body.revision).toBe(0);
+  expect(invoke).toHaveBeenCalledTimes(2);
+});
+
+test.each(["write", "refresh"])("a confirmed ON/0 snapshot is not an unknown withdrawal during %s", async (path) => {
+  if (path === "refresh") invoke.mockResolvedValueOnce(conflict());
+  invoke.mockResolvedValueOnce(saved(0, false));
+  await expect(saveWeatherConsent("owner", consent(0, true), false, "ko")).rejects.toThrow("weather_not_saved");
+});
+
+test.each(["write", "refresh"])("an unknown withdrawal uses the confirmed ON/0 retry snapshot during %s", async (path) => {
+  const changes = jest.fn(); const stop = subscribePrivacyChanges(changes);
+  invoke.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(saved(0, true));
+  if (path === "refresh") invoke.mockResolvedValueOnce(conflict());
+  invoke.mockResolvedValueOnce(saved(0, false));
+  await expect(saveWeatherConsent("owner", null, false, "ko")).rejects.toThrow("weather_not_saved");
+  expect(changes).toHaveBeenCalledTimes(1);
+  stop();
+});
+
+test("an unknown snapshot cannot grant consent", async () => {
+  await expect(saveWeatherConsent("owner", null, true, "ko")).rejects.toThrow("weather_unavailable");
+  expect(invoke).not.toHaveBeenCalled();
 });
 
 test.each(["abort", "owner"])("stops conflict recovery when %s changes during the refresh", async (kind) => {

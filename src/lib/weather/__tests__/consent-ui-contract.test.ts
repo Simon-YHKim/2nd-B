@@ -15,7 +15,6 @@ test("status failure leaves the existing withdrawal switch usable for an adult, 
   expect(source).toContain("!!userId && isMinor === false && (status?.enabled === true || (!status && failed))");
   expect(source).toContain("if (!WEATHER_LOCATION_ENABLED && !canRevoke) return null");
   expect(source).toContain("disabled={!canRevoke || busy}");
-  expect(source).toMatch(/const withdrawal = status \?\? \{ contract: WEATHER_CONSENT_REVISION, revision: 0/);
-  expect(source).toContain("saveWeatherConsent(userId, withdrawal, false, i18n.language, signal)");
-  expect(source).not.toContain("setSnapshot({ ownerId: userId, status: withdrawal })");
+  expect(source).toContain("saveWeatherConsent(userId, status, false, i18n.language, signal)");
+  expect(source).not.toMatch(/status \?\? \{/);
 });

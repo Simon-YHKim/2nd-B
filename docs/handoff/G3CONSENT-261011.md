@@ -299,3 +299,11 @@ UI는 소스 계약 테스트이며 화면/기기 실행이라고 보고하지 �
 - 다른 모델 **gpt-6.1-sol xhigh**의 읽기 검토에서 미해결 high/medium 없음. 0235·0246은 응답 fixture로 검사했고, 이번에는 실제 DB·보조기술·렌더러·기기를 실행하지 않았다. 새 daybreak 판정은 받지 않았다.
 - `8388e91a` 이후 DB·Edge·SQL 테스트·CI 변경은 0이다. 추가 diff는 앱/테스트 4파일과 이 절뿐이며 PR-A의 앱 5파일은 두 브랜치에서 동일하다.
 - 남긴 것: 미확인 버튼은 기존 “날씨용 위치” 이름을 유지해 끄기 동작까지 명시하지 못한다. 현재 이름 유지 또는 별도 문구 승인 후 동작 키 결정이 선택지다. G3-01·운영 반영·배포·APK는 범위 밖이며 두 PR 모두 draft를 유지한다.
+
+### PR-A 3회차 (2026-10-11)
+
+- 원문 `E:/Coding Infra/reports/qa-legacy-261004/gates/n7-g3client-daybreak-r2.txt`의 남은 medium 발견 1만 수정했다. PR-A `e23d6bc1`을 일반 merge하며 앱·테스트 5파일을 동일하게 맞췄다.
+- 두 충돌 조회는 baseline 교체 전에 직전 확인 snapshot과 비교한다. 첫 OFF/4·마지막 OFF/5는 실패, 각각 OFF/5·OFF/6은 성공이다. 낮은 revision의 OFF/ON은 거부하며 이미 OFF인 같은 revision은 허용한다.
+- 미확인은 `null`로 전달하고 요청에서만 revision 0을 쓴다. 조회로 ON을 확인하면 그 snapshot으로 후속 응답을 검증한다. 0235·0246 fixture, fallback, 접근성·문구·배치 계약을 유지한다.
+- PR-A 관련 검사 **7 suites / 150 통과**, 변이 **10/10 검출·bytes 복원**, verify **26/26 exit 0**, Jest **1,020 suites / 14,878 통과 / skip 1**. 로그 `verify/n11-g3client-fix2-*.log`; 통합 검증 로그는 `verify/n11-g3consent-clientfix2-*.log`와 PR 본문에 기록한다.
+- gpt-6.1-sol xhigh 정적 검토 high/medium 발견 0. 새 daybreak 판정은 별도다. 실제 DB·렌더러·기기 검사는 미실행이며 DB·Edge·SQL·CI·접근성 추가 수정은 없다. G3-01·운영 적용·main 머지·배포·APK는 남겼고 두 PR은 draft를 유지한다.
