@@ -144,14 +144,33 @@ BEGIN
 END $$;
 
 DO $$
+DECLARE owner uuid:=gen_random_uuid(); request_id uuid:=gen_random_uuid(); receipt jsonb; result jsonb; n integer;
+BEGIN
+  INSERT INTO auth.users VALUES(owner,'g4-retry@example.invalid',now(),NULL);
+  INSERT INTO public.users(id,email,birth_date) VALUES(owner,'g4-retry@example.invalid','1990-01-01');
+  PERFORM set_config('request.jwt.claim.sub',owner::text,true);
+  FOR n IN 1..10 LOOP
+    result:=public.apply_profile_context_import(request_id,pg_temp.g4_doc(),'{i}','{}',0);
+    IF n=1 THEN receipt:=result; END IF;
+    PERFORM pg_temp.g4_assert(result->>'status'='active' AND result=receipt,'same request returns the original receipt within quota');
+    PERFORM pg_temp.g4_assert((SELECT profile_import_attempt_count=n FROM public.users WHERE id=owner),'every identical retry consumes one attempt');
+  END LOOP;
+  result:=public.apply_profile_context_import(request_id,pg_temp.g4_doc(),'{i}','{}',0);
+  PERFORM pg_temp.g4_assert(result->>'code'='PT429' AND current_setting('response.status')='429','eleventh identical request returns HTTP 429');
+  PERFORM pg_temp.g4_assert((SELECT profile_import_attempt_count=10 FROM public.users WHERE id=owner),'blocked retry leaves counter at exactly ten');
+  PERFORM pg_temp.g4_assert((SELECT count(*)=1 FROM public.profile_context_imports WHERE user_id=owner),'ten retries save one batch');
+END $$;
+
+DO $$
 DECLARE owner uuid:=gen_random_uuid(); result jsonb; n integer;
 BEGIN
   INSERT INTO auth.users VALUES(owner,'g4-quota@example.invalid',now(),NULL);
   INSERT INTO public.users(id,email,birth_date) VALUES(owner,'g4-quota@example.invalid','1990-01-01');
   PERFORM set_config('request.jwt.claim.sub',owner::text,true);
   FOR n IN 1..10 LOOP
-    result:=public.apply_profile_context_import(gen_random_uuid(),pg_temp.g4_doc(),'{}','{}',0);
-    PERFORM pg_temp.g4_assert(result->>'code'='22023' AND result->>'message'='profile_import_confirmation','self-reported user statement requires explicit confirmation');
+    result:=public.apply_profile_context_import(gen_random_uuid(),
+      jsonb_set(pg_temp.g4_doc(),'{items,0,reported_basis}','"assistant_inference"'),'{}','{}',0);
+    PERFORM pg_temp.g4_assert(result->>'code'='22023' AND result->>'message'='profile_import_confirmation','unconfirmed inference remains rejected in stage one');
   END LOOP;
   PERFORM pg_temp.g4_assert((SELECT profile_import_attempt_count=10 FROM public.users WHERE id=owner),'rejected attempts remain counted');
   result:=pg_temp.g4_apply();
@@ -161,6 +180,47 @@ BEGIN
   result:=pg_temp.g4_apply();
   PERFORM pg_temp.g4_assert(result->>'status'='active','next UTC day accepts a request');
   PERFORM pg_temp.g4_assert((SELECT profile_import_attempt_count=1 FROM public.users WHERE id=owner),'next day counter restarts');
+END $$;
+-- Instrument only the digest call, leaving the real RPC's control flow intact.
+-- A valid input reaches this trap; cheap rejections and exhausted quotas must not.
+CREATE FUNCTION pg_temp.g4_digest_trap(input bytea) RETURNS bytea LANGUAGE plpgsql AS $$
+BEGIN RAISE EXCEPTION 'G4 digest reached'; END $$;
+DO $$
+DECLARE original text; owner uuid:=gen_random_uuid(); result jsonb; input_doc jsonb; input_patch jsonb;
+  input_ids text[]; expected_message text;
+BEGIN
+  original:=pg_get_functiondef('public.apply_profile_context_import(uuid,jsonb,text[],jsonb,bigint)'::regprocedure);
+  EXECUTE replace(original,'sha256(','pg_temp.g4_digest_trap(');
+  INSERT INTO auth.users VALUES(owner,'g4-predigest@example.invalid',now(),NULL);
+  INSERT INTO public.users(id,email,birth_date) VALUES(owner,'g4-predigest@example.invalid','1990-01-01');
+  PERFORM set_config('request.jwt.claim.sub',owner::text,true);
+  BEGIN
+    PERFORM pg_temp.g4_apply();
+    RAISE EXCEPTION 'G4 digest trap was not reached';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM<>'G4 digest reached' THEN RAISE; END IF;
+  END;
+  UPDATE public.users SET profile_import_attempt_count=10,
+    profile_import_attempt_day=(clock_timestamp() AT TIME ZONE 'UTC')::date WHERE id=owner;
+  result:=pg_temp.g4_apply();
+  PERFORM pg_temp.g4_assert(result->>'code'='PT429','quota rejects before digest');
+  UPDATE public.users SET profile_import_attempt_count=0 WHERE id=owner;
+  FOR input_doc,input_patch,input_ids,expected_message IN SELECT * FROM (VALUES
+    (jsonb_set(pg_temp.g4_doc(),'{items,0,statement}',to_jsonb(repeat('x',262145))),'{}'::jsonb,'{i}'::text[],'profile_import_size'),
+    (pg_temp.g4_doc(),jsonb_build_object('occupation',repeat('x',4097)),'{i}'::text[],'profile_import_contract'),
+    ('[]'::jsonb,'{}'::jsonb,'{i}'::text[],'profile_import_contract'),
+    (jsonb_set(pg_temp.g4_doc(),'{sources}','{}'),'{}'::jsonb,'{i}'::text[],'profile_import_contract'),
+    (jsonb_set(pg_temp.g4_doc(),'{sources}',to_jsonb(array_fill('{}'::jsonb,ARRAY[101]))),'{}'::jsonb,'{i}'::text[],'profile_import_contract'),
+    (jsonb_set(pg_temp.g4_doc(),'{items}',to_jsonb(array_fill('{}'::jsonb,ARRAY[51]))),'{}'::jsonb,'{i}'::text[],'profile_import_contract'),
+    (pg_temp.g4_doc(),'{}'::jsonb,array_fill('i'::text,ARRAY[51]),'profile_import_confirmation'),
+    (pg_temp.g4_doc(),'{}'::jsonb,ARRAY[repeat('i',65)],'profile_import_confirmation'),
+    (pg_temp.g4_doc(),'{}'::jsonb,ARRAY[['i']],'profile_import_confirmation')
+  ) inputs LOOP
+    result:=public.apply_profile_context_import(gen_random_uuid(),input_doc,input_ids,input_patch,0);
+    PERFORM pg_temp.g4_assert(result->>'code'='22023' AND result->>'message'=expected_message,'cheap input bound rejects before digest: '||expected_message);
+  END LOOP;
+  PERFORM pg_temp.g4_assert((SELECT profile_import_attempt_count=9 FROM public.users WHERE id=owner),'pre-digest rejections consume attempts');
+  EXECUTE original;
 END $$;
 SELECT 'G4 integrity assertions passed: '||count(*) FROM pg_temp.g4_checks;
 ROLLBACK;

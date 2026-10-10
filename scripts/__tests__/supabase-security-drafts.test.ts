@@ -83,6 +83,7 @@ const RETAINED_UNTIL_APPLIED = ["0197:paddle_refund_consequence_integrity"] as c
 // draft is registered here; it leaves this map in the change that numbers it.
 const pendingDrafts: Record<string, { runner: string; workflowInvocation: string }> = {
   "UNNUMBERED_dashboard_last_note.sql": { runner: "db/tests/dashboard_last_note_regression.sql", workflowInvocation: "node scripts/test-dashboard-sql.mjs 5432 dashboard_test_ci" },
+  "UNNUMBERED_profile_context_import_confirm_all.sql": { runner: "scripts/test-profile-import-sql.mjs", workflowInvocation: "node scripts/test-profile-import-sql.mjs 5432 profile_import_local profile_import_test_ci" },
 };
 
 /** Violations of the one-copy rule. Pure, so the guard itself can be mutated below. */

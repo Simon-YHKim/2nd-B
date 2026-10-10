@@ -1,4 +1,6 @@
--- G4-01/02/03/04: forward-only repair of 0239/0240. RPC signatures stay stable.
+-- G4-01/02/03 stage one: forward-only repair of 0239/0240. RPC signatures stay stable.
+-- Keep 0239 confirmation semantics until the confirm-all client is published.
+-- G4-04 server enforcement is in the unnumbered confirm-all migration draft.
 SET LOCAL lock_timeout = '10s';
 
 -- Per-field undo: {field: {before, after, predecessor}}. JSON null means absent.
@@ -186,8 +188,11 @@ BEGIN
     item_ids:=array_append(item_ids,i->>'id');
     refs:=public.profile_import_strings(i->'evidence_ids',20,64);
     IF NOT refs<@source_ids THEN RAISE EXCEPTION 'profile_import_references' USING ERRCODE='22023'; END IF;
-    IF NOT (i->>'id')=ANY(confirmed) THEN
-      RAISE EXCEPTION 'profile_import_confirmation' USING ERRCODE='22023'; END IF;
+    IF NOT (i->>'id')=ANY(confirmed) AND (i->>'reported_basis'<>'user_statement' OR NOT EXISTS(
+      SELECT 1 FROM jsonb_array_elements(doc->'sources') evidence
+      WHERE evidence->>'id'=ANY(refs) AND evidence->>'kind'='chat_excerpt' AND evidence->>'speaker'='user'
+        AND jsonb_typeof(evidence->'excerpt')='string'
+    )) THEN RAISE EXCEPTION 'profile_import_confirmation' USING ERRCODE='22023'; END IF;
     used_ids:=used_ids||refs;
     PERFORM public.profile_import_strings(i->'conflicts_with',49,64);
     t:=i->'valid_time'; PERFORM public.profile_import_object(t,ARRAY['from','to','description']);
@@ -218,11 +223,8 @@ BEGIN
   attempt_day:=(clock_timestamp() AT TIME ZONE 'UTC')::date;
   SELECT CASE WHEN profile_import_attempt_day=attempt_day THEN profile_import_attempt_count ELSE 0 END
     INTO attempts FROM public.users WHERE id=owner;
-  -- Exact successful retries consume no capacity and cannot resurrect withdrawals.
-  signature:=encode(sha256(convert_to(jsonb_build_object('document',p_document,'confirmed',p_confirmed_ids,
-    'patch',p_profile_patch,'revision',p_expected_revision)::text,'UTF8')),'hex');
-  SELECT * INTO batch FROM public.profile_context_imports WHERE user_id=owner AND request_id=p_request_id;
-  IF FOUND AND batch.request_digest=signature THEN RETURN public.profile_import_receipt(batch); END IF;
+  -- Every call, including an identical receipt retry, consumes an attempt.
+  -- Check the cap before serializing or hashing any caller-controlled payload.
   IF attempts>=daily_attempt_limit THEN
     PERFORM set_config('response.status','429',true);
     RETURN jsonb_build_object('code','PT429','message','profile_import_daily_limit','details',NULL,'hint',NULL);
@@ -231,11 +233,28 @@ BEGIN
   -- Catch input/CAS/capacity errors inside the attempt transaction, so they do not
   -- roll back its counter. PostgREST returns the existing code/message error shape.
   BEGIN
-  IF batch.id IS NOT NULL THEN RAISE EXCEPTION 'profile_import_request_conflict' USING ERRCODE='PT409'; END IF;
   IF p_request_id IS NULL OR p_profile_patch IS NULL OR jsonb_typeof(p_profile_patch)<>'object'
     OR p_expected_revision IS NULL OR p_expected_revision<0 THEN RAISE EXCEPTION 'profile_import_contract' USING ERRCODE='22023'; END IF;
-  PERFORM public.validate_profile_import_document(p_document,p_confirmed_ids);
+  -- Bound document, patch and arrays before the combined JSON/digest allocation.
+  IF p_document IS NULL OR octet_length(p_document::text)>262144 THEN
+    RAISE EXCEPTION 'profile_import_size' USING ERRCODE='22023'; END IF;
   IF octet_length(p_profile_patch::text)>4096 THEN RAISE EXCEPTION 'profile_import_contract' USING ERRCODE='22023'; END IF;
+  IF jsonb_typeof(p_document) IS DISTINCT FROM 'object'
+    OR jsonb_typeof(p_document->'sources') IS DISTINCT FROM 'array'
+    OR jsonb_typeof(p_document->'items') IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'profile_import_contract' USING ERRCODE='22023'; END IF;
+  IF jsonb_array_length(p_document->'sources')>100 OR jsonb_array_length(p_document->'items') NOT BETWEEN 1 AND 50 THEN
+    RAISE EXCEPTION 'profile_import_contract' USING ERRCODE='22023'; END IF;
+  IF p_confirmed_ids IS NULL OR cardinality(p_confirmed_ids)>50 OR coalesce(array_ndims(p_confirmed_ids),1)<>1
+    OR EXISTS(SELECT 1 FROM unnest(p_confirmed_ids) id WHERE id IS NULL OR char_length(id)>64) THEN
+    RAISE EXCEPTION 'profile_import_confirmation' USING ERRCODE='22023'; END IF;
+  signature:=encode(sha256(convert_to(jsonb_build_object('document',p_document,'confirmed',p_confirmed_ids,
+    'patch',p_profile_patch,'revision',p_expected_revision)::text,'UTF8')),'hex');
+  SELECT * INTO batch FROM public.profile_context_imports WHERE user_id=owner AND request_id=p_request_id;
+  -- Retries consume attempts, but no extra storage and cannot revive withdrawals.
+  IF FOUND AND batch.request_digest=signature THEN RETURN public.profile_import_receipt(batch); END IF;
+  IF batch.id IS NOT NULL THEN RAISE EXCEPTION 'profile_import_request_conflict' USING ERRCODE='PT409'; END IF;
+  PERFORM public.validate_profile_import_document(p_document,p_confirmed_ids);
   IF (SELECT count(*) FROM public.profile_context_imports WHERE user_id=owner AND status='active')>=active_batch_limit THEN
     RAISE EXCEPTION 'profile_import_active_limit' USING ERRCODE='PT429'; END IF;
   SELECT * INTO u FROM public.users WHERE id=owner;

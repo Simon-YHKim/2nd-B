@@ -55,6 +55,22 @@ const receipts = retries.map((r) => JSON.parse(r.stdout.split(/\r?\n/).find((lin
 if (receipts[0].id !== receipts[1].id || run(`SELECT count(*) FROM public.profile_context_imports WHERE user_id='${owner}';`).trim() !== "1") {
   throw new Error("Concurrent retry duplicated a batch");
 }
+if (run(`SELECT profile_import_attempt_count FROM public.users WHERE id='${owner}';`).trim() !== "2") {
+  throw new Error("Concurrent identical retries must count both attempts");
+}
+// Include the first successful import: seven more retries leave one of ten slots.
+for (let n = 0; n < 7; n++) {
+  if (!/"status": "active"/.test(run(call(sameKey, "{}")))) throw new Error("Retry within quota failed");
+}
+const lastRetries = await Promise.all([concurrent(call(sameKey, "{}")), concurrent(call(sameKey, "{}"))]);
+if (lastRetries.some((r) => r.status !== 0) || lastRetries.filter((r) => /"status": "active"/.test(r.stdout)).length !== 1
+  || lastRetries.filter((r) => /PT429/.test(r.stdout) && /profile_import_daily_limit/.test(r.stdout)).length !== 1
+  || run(`SELECT profile_import_attempt_count FROM public.users WHERE id='${owner}';`).trim() !== "10"
+  || run(`SELECT count(*) FROM public.profile_context_imports WHERE user_id='${owner}';`).trim() !== "1") {
+  throw new Error("Concurrent identical retries must use only the tenth slot and leave counter ten, batch one");
+}
+console.log("G4 retry concurrency passed: both initial calls counted; last slot 1 receipt / 1 PT429; counter 10, batch 1");
+run(`UPDATE public.users SET profile_import_attempt_count=0 WHERE id='${owner}';`);
 const edits = await Promise.all([
   concurrent(call("26100939-2000-4000-8000-000000000003", '{"occupation":"A"}')),
   concurrent(call("26100939-2000-4000-8000-000000000004", '{"occupation":"B"}')),
@@ -151,3 +167,38 @@ run(`BEGIN; ${readFileSync(resolve(root, "db/migrations/rollback/0242_down.sql")
       RAISE EXCEPTION 'G4 down permissions incorrect'; END IF;
   END $$; ROLLBACK;`);
 console.log("G4 operational rollback passed: apply disabled, withdrawal and save retained");
+
+// Explicitly exercise both rollout stages. The unnumbered draft is never part
+// of numbered migration replay; this disposable transaction rolls it back.
+const compatibilityDocument = JSON.stringify({
+  ...JSON.parse(document),
+  sources: [{ id: "s", kind: "chat_excerpt", speaker: "user", conversation_id: null,
+    message_id: null, label: null, occurred_at: null, excerpt: "Synthetic user excerpt." }],
+  items: [
+    { ...JSON.parse(document).items[0], evidence_ids: ["s"] },
+    { ...JSON.parse(document).items[0], id: "i2", reported_basis: "assistant_inference", evidence_ids: ["s"] },
+  ],
+});
+const stageChecks = (stage) => `DO $$ DECLARE result jsonb; BEGIN
+  result:=public.apply_profile_context_import(gen_random_uuid(),$document$${compatibilityDocument}$document$,'{i2}','{}',0);
+  IF ${stage === 1 ? "result->>'status' IS DISTINCT FROM 'active'" : "result->>'code' IS DISTINCT FROM '22023' OR result->>'message' IS DISTINCT FROM 'profile_import_confirmation'"}
+    THEN RAISE EXCEPTION 'G4 stage ${stage} old-client confirmation contract failed'; END IF;
+  result:=public.apply_profile_context_import(gen_random_uuid(),$document$${compatibilityDocument}$document$,'{i1,i2}','{}',0);
+  IF result->>'status' IS DISTINCT FROM 'active' THEN RAISE EXCEPTION 'G4 stage ${stage} new-client confirmation contract failed'; END IF;
+END $$;`;
+const confirmAllDraft = readFileSync(resolve(root, "db/migration-drafts/UNNUMBERED_profile_context_import_confirm_all.sql"), "utf8");
+run(`BEGIN;
+  INSERT INTO auth.users(id,email,email_confirmed_at) VALUES('${owner}','g4-stages@example.invalid',now());
+  INSERT INTO public.users(id,email,birth_date) VALUES('${owner}','g4-stages@example.invalid','1990-01-01');
+  SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${owner}';
+  ${stageChecks(1)}
+  RESET ROLE;
+  ${confirmAllDraft}
+  SET LOCAL ROLE authenticated;
+  ${stageChecks(2)}
+  DO $$ BEGIN
+    IF has_function_privilege('authenticated','public.validate_profile_import_document(jsonb,text[])','EXECUTE') THEN
+      RAISE EXCEPTION 'G4 stage two internal validator must remain private'; END IF;
+  END $$;
+  ROLLBACK;`);
+console.log("G4 rollout compatibility passed: 4/4; stage one old/new accepted, stage two old rejected/new accepted; draft rolled back");
