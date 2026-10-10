@@ -52,9 +52,9 @@ export function WeatherPrivacyControl() {
   // A kill switch still permits withdrawal of a previously saved grant.
   if (!WEATHER_LOCATION_ENABLED && !canRevoke) return null;
   return <View style={styles.block}>
-    <Pressable accessibilityRole="switch" accessibilityLabel={t("phone.board.weather.setting")}
-      accessibilityState={{ checked: status?.enabled === true, disabled: !canRevoke || busy }}
-      aria-checked={status?.enabled === true}
+    <Pressable accessibilityRole={status ? "switch" : "button"} accessibilityLabel={t("phone.board.weather.setting")}
+      accessibilityState={status ? { checked: status.enabled, disabled: !canRevoke || busy } : { disabled: !canRevoke || busy }}
+      aria-checked={status ? status.enabled : undefined}
       disabled={!canRevoke || busy} onPress={() => void revoke()} style={styles.row}>
       <Text variant="body" style={styles.label}>{t("phone.board.weather.setting")}</Text>
       <Text variant="body">{isMinor !== false ? t("phone.board.weather.off") : status ? t(status.enabled ? "phone.board.weather.on" : "phone.board.weather.off") : failed ? "" : t("common:states.loading")}</Text>
