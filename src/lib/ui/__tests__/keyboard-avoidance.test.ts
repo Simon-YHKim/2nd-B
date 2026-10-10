@@ -328,7 +328,7 @@ describe("배선 - /capture 메모 칸을 누르면 담기까지 보인다", () 
     expect(scroll).toContain("{...saveReveal.scrollProps}");
     // 메모(4W1H 꺼짐) 갈래의 묶음이 내용 컨테이너의 직계 자식이고, 그 첫 칸이 메모 입력칸이다.
     const memo = capture.slice(capture.indexOf("{!fourwOn ? ("), capture.indexOf("{attachStrip}"));
-    expect(memo).toContain("<View style={styles.capForm} {...saveReveal.keepTopProps}>");
+    expect(memo).toContain("<View style={[styles.capForm, styles.capFillSpace]} {...saveReveal.keepTopProps}>");
     expect(memo).toContain('accessibilityLabel={t("capture:modes.memo.label")}\n                  {...saveReveal.inputProps}');
     expect(capture).toContain(
       "<View ref={saveCoachTargetRef} collapsable={false} style={styles.capSubmit} {...saveReveal.targetProps}>",

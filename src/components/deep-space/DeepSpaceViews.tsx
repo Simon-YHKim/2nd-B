@@ -374,6 +374,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
   // Plain text remains the default. Each draft survives format changes; saving
   // uses the visible format's body and its existing "memo" / "fourw" tag.
   const [fourwOn, setFourwOn] = useState(false);
+  const fillAvailableSpace = mode === "link" || (mode === "text" && !fourwOn);
   const [fourw, setFourw] = useState<FourWFields>(EMPTY_FOURW);
   const [text, setText] = useState(""); // memo text / link
   const [todos, setTodos] = useState<string[]>(["", ""]);
@@ -845,7 +846,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
       <ScrollView
         ref={scrollRef}
         style={styles.capScroll}
-        contentContainerStyle={styles.capBody}
+        contentContainerStyle={[styles.capBody, fillAvailableSpace && styles.capFillSpace]}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
         {...saveReveal.scrollProps}
@@ -884,7 +885,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
       </View>
 
       {/* mode-specific input */}
-      <SceneTransition transitionKey={`${mode}:${fourwOn}`} kind="replace" animateOnMount={false}>
+      <SceneTransition transitionKey={`${mode}:${fourwOn}`} kind="replace" animateOnMount={false} style={fillAvailableSpace && styles.capFillSpace}>
       {mode === "text" ? (
         <>
           <SegBtn
@@ -902,8 +903,8 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
             style={styles.capTextFormat}
           />
           {!fourwOn ? (
-            <View style={styles.capForm} {...saveReveal.keepTopProps}>
-              <View ref={inputCoachTargetRef} collapsable={false}>
+            <View style={[styles.capForm, styles.capFillSpace]} {...saveReveal.keepTopProps}>
+              <View ref={inputCoachTargetRef} collapsable={false} style={styles.capFillSpace}>
                 <TextInput
                   value={text}
                   onChangeText={(next) => {
@@ -914,7 +915,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
                   placeholderTextColor={m3.color.onSurfaceVariant}
                   multiline
                   textAlignVertical="top"
-                  style={[styles.capFieldInput, styles.capFreeInput]}
+                  style={[styles.capFieldInput, styles.capFreeInput, styles.capFillSpace]}
                   accessibilityLabel={t("capture:modes.memo.label")}
                   {...saveReveal.inputProps}
                 />
@@ -2451,6 +2452,9 @@ const styles = StyleSheet.create({
   capCoachRoot: { flex: 1, minHeight: 0 },
   capScroll: { flex: 1 },
   capBody: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 20 },
+  // Keep the intrinsic basis: short viewports scroll, while spare height reaches
+  // the memo input. RN web's flex shorthand would replace that basis with zero.
+  capFillSpace: { flexGrow: 1 },
   capModeRow: { flexDirection: "row", gap: 4 },
   capModeCell: { flex: 1, minWidth: 0 },
   capTextFormat: { marginTop: 8 },
