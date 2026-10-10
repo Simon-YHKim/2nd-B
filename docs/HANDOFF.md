@@ -1,5 +1,23 @@
 # 2nd-Brain Handoff
 
+## 2026-10-11 04:24 / 2ndb-74: 3회차 게이트도 둘 다 BLOCK(각각 새 medium 1) — 운영 반영 없음, 4회차 발주서 준비
+
+- **근거**: Simon 10-11 03:45 질문 창 답(#2243 "한 번 더 고치기" · #2241 "지금 그대로 한 번 더" · "통과하면 운영 반영까지 GO"). 통과한 것이 없어 **운영에는 아무것도 넣지 않았다.** DECISIONS 26.10.11 03:45 · 03:47(두 창의 답 맞춤) · 이 블록 시각의 결과 줄.
+- **현재 상태**(셋 다 draft · CI 초록 · 워크트리 깨끗)
+  | PR | head | daybreak | 남은 것 |
+  |---|---|---|---|
+  | **#2243** 날씨 동의 앱 쪽 | e23d6bc1 | r1 BLOCK(2) → r2 BLOCK(1) → **r3 BLOCK(새 1)** | 충돌 뒤 조회의 `OFF / eligible=false` 를 철회 확정으로 받는 것. 발주서 `g3client-fix3.md` |
+  | **#2242** 날씨 동의 0246 | c286505d | r1 BLOCK(3) → **r2 PASS · 발견 0** | 없음. 단 #2243 이 선행 조건이라 적용 보류 |
+  | **#2241** 대시보드 0245 | 7c0053fd | r1 BLOCK(2) → r2 BLOCK(2) → **r3 BLOCK(새 1)** | `begin_classification_v2` 의 3분 만료 검사. G2-05 · 07 은 세 회차 연속 닫힘. 발주서 `g2rest-fix3.md` |
+- **발주서 · 게이트 원문 위치**: `E:/Coding Infra/reports/qa-legacy-261004/codex-impl/`(`g3client-fix3.md` · `g2rest-fix3.md` — 실행 안 함) · `gates/n7-g3client-daybreak-r{1,2,3}.txt` · `n7-g3consent-daybreak-r{1,2}.txt` · `n7-g2rest-daybreak-r{1,2,3}.txt`. 실행: `bash run_lane.sh <lane> <발주서 이름>` → `python -B gate_pr.py <lane> <PR> <회차> daybreak`.
+- **운영 적용을 하게 되면**(사전 조회 실측 기준선 — 10-11 03:47 뒤 몇 분 안, 정확한 분은 재지 않았다): 원장 211행 · `weather_consent` 본문 md5 `7619b3f7…`(= 0235, 저장소 파일과 일치 확인) · 0246 적용 뒤 기대값 `d8042792…` · `weather_consent_state` 1행 · `weather_access_events` 19행 · `dashboard_generation_runs` 12행(ready 2 · failed 10, 가장 오래된 것 10-09 09:35) · pg_cron `purge-dashboard-generation` active(마지막 성공 03:17) · 제약 이름 `public_data_provider_quota_provider_allowed` · `dashboard_generation_runs_status_check` 는 두 마이그레이션이 DROP 하는 이름과 같다. 본문 md5 도구: 스크래치패드의 `fn_md5.py`(주석 제거 + 공백 접기 뒤 md5 — 운영 조회식과 같은 정규화).
+- **순서(변함 없음)**: 날씨 = #2243 머지 → 8081 확인 → 0246 적용 → #2242 머지 → `weather` Edge 배포 / 대시보드 = 0245 적용 → #2241 머지 → `dashboard-generate` 배포. 적용마다 claim 파일 + `_sync/TO-CLI.md` 적용 중 → 완료.
+- **확정된 것**: 잠정값은 03:45 답으로 확정으로 본다 — 날씨 동의 한도(사용자 하루 120 · 전역 초 20 / 분 120 / 일 20000 · revoke 는 세지 않음) · heartbeat 허용 3시간. "감지 · 보호 · 모니터링" 금지어 등재는 미정(넣지 않았다).
+- **미해결 질문(Simon)**: ① #2243 4회차를 돌릴지 ② #2241 4회차를 돌릴지(또는 나눌지 · 멈출지) ③ 4회차가 통과하면 03:45 의 GO 그대로 운영 반영까지 할지 ④ 날씨 약관 값 3가지(대기). 안 정해지면 감사 G2-05 · 06 · 07 과 G3-02 · 03 이 초안에 머문다 — 특히 G2-05 는 high 다.
+- **두 창의 답이 겹쳤던 일**: 03:45 에 Simon 이 2ndb-ee 창에는 "유지" 한 단어, 이 창에는 질문 창 선택지로 답했다. 이 창의 답을 따랐고 2ndb-ee 도 자기 줄을 고쳤다(#2249). Simon 이 "유지" 를 "더 하지 말라" 는 뜻으로 썼다고 하면 그 시점에 멈춘다.
+- **A03(2ndb-ee)**: 계속 대기 — #2241 의 claim 쪽이 아직 움직인다.
+- **다음 1개**: Simon 답을 받아 4회차 두 개를 돌린다.
+
 ## 2026-10-11 01:59 / 2ndb-74: 감사 G2-05 · 06 · 07(#2241) · G3-02 · 03(#2242 · #2243) 초안 PR + 게이트 — 하나 PASS, 둘은 상한에서 멈춤
 
 - **근거**: Simon 10-10 23:58 질문 창 답("여기서 끝 (추천)" · "대시보드 나머지 지적도" · "날씨 동의 지적도"). 범위 = 초안 PR + daybreak 게이트(2회차 상한). 운영 적용 · 머지 · 배포는 하지 않았다. 결과는 DECISIONS 26.10.10 23:58 · 26.10.11 00:42(2줄) · 이 블록 시각(2줄).
