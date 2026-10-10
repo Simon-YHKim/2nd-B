@@ -39,6 +39,14 @@ import {
 const APP = join(process.cwd(), "src", "app");
 const SRC = join(process.cwd(), "src");
 
+test("개인 비서의 이름과 진입 안내가 앱과 일치한다", () => {
+  const assistant = devScreens().find((screen) => screen.href === "/ops");
+  expect(assistant?.label).toBe("개인 비서");
+  expect(assistant?.note).toContain("폰 앱 바둑판");
+  const canon = JSON.parse(readFileSync(join(process.cwd(), "public/proto/data/app/screens.json"), "utf8"));
+  expect(canon.screens.find((screen: { id: string }) => screen.id === "ops").title).toBe(assistant?.label);
+});
+
 interface DelegatedAuthFixture {
   gateFile: string;
   component: string;

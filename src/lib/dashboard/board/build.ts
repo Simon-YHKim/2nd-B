@@ -107,7 +107,7 @@ export function buildBoard(data: DashboardData | null, now: Date, isMinor: boole
     { ...hidden("P-04", 1, 4, "row"), items: [] },
     {
       id: "P-09", page: 1, order: 5, shape: "row", visible: true, state: "empty", basis: "fact", widgets: [], suggestion: null,
-      note: { key: "phone.board.custom.empty" }, action: { label: { key: "phone.board.custom.capture" }, route: "/capture" },
+      note: { key: "phone.board.custom.empty" },
     },
     data ? healthPart(data, isMinor) : { ...hidden("P-06", 2, 1, "card"), metrics: [], comparison: null, source: null },
     { ...hidden("P-07", 2, 2, "row"), monthTotal: null, pending: null },

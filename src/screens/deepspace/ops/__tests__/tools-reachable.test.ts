@@ -99,17 +99,12 @@ const HUB = readFileSync(hubSourceFile(), "utf8");
 
 /** 허브 격자가 열어야 하는 비서 도구. */
 const TOOLS = [
-  "focus",
-  "reminders",
   "imagine",
   "share-card",
   "srs",
   "call-reflection",
   "reading",
-  "milestones",
-  "ledger",
   "side-project",
-  "meals",
 ] as const;
 
 /** 오늘의 두 가지가 고를 수 있는 후보. 전부 갈 곳이 있어야 한다. */

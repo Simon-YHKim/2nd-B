@@ -206,7 +206,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/app/values.tsx": 20,
   "src/components/deep-space/AutoReasoningIntroSheet.tsx": 6,
   "src/components/deep-space/AxisCheck.tsx": 13,
-  "src/components/deep-space/ConstellationHome.tsx": 16,
+  "src/components/deep-space/ConstellationHome.tsx": 14,
   "src/components/deep-space/DeepSpaceViews.tsx": 3,
   "src/components/deep-space/DomainStarLens.tsx": 54,
   "src/components/deepspace/BackgroundTaskDock.tsx": 4,

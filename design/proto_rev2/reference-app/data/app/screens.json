@@ -222,7 +222,7 @@
       "id": "ops",
       "component": "OpsScreen",
       "layout": "windowed",
-      "title": "오늘의 비서",
+      "title": "개인 비서",
       "route": "ops"
     },
     {

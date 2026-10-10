@@ -76,7 +76,7 @@ const APP_ORDER: PhoneAppId[] = [
   "reminders", "money", "growth",
   "meals", "museum", "community",
   // Simon 2026-10-07: the More page folded into the grid - the palette takes the More tile's place.
-  "relationships", "settings", "avatarPalette",
+  "relationships", "avatarPalette",
 ];
 const APP_COLUMNS = 3;
 /** One spacing for the grid: between columns, between rows and at the display edge (= content padding). */
@@ -659,7 +659,6 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       const disabled = id === "community" && isMinor !== false;
       const open = () => {
         if (id === "notifications") { scrollY.current = 0; setPhoneApp("notifications"); return; }
-        if (id === "settings") { go("/settings"); return; }
         const route = TOOLS.find((item) => item.id === id)?.route;
         if (route) go(route);
       };

@@ -33,13 +33,11 @@ describe("PIXEL-CLAY settings screen contract", () => {
         "/import-hub",
         "/manual",
         "/museum",
-        "/ops",
         "/permissions",
         "/plans",
         "/privacy",
         "/reasoning",
         "/records",
-        "/reminders",
         "/sign-in",
         "/subscription",
         "/support",
@@ -100,21 +98,13 @@ describe("PIXEL-CLAY settings screen contract", () => {
     expect(source).toContain('accessibilityRole="switch"');
   });
 
-  test("the /ops row is labelled with the title of the screen it opens", () => {
-    // QA 261004 W-03: the row said "App status" / "앱 작동 상태" but opened /ops,
-    // whose title is "Today's assistant". The label now reads the destination's
-    // own title key, so the two cannot drift apart again in any locale.
-    const opsRows = source
-      .split("\n")
-      .filter((line) => line.includes('router.push("/ops")') && line.includes("label="));
-    expect(opsRows.length).toBeGreaterThan(0);
-    for (const row of opsRows) {
-      expect(row).toContain('label={tOps("phone.assistantSettings")}');
-    }
+  test("assistant and reminder apps own their entries outside settings", () => {
+    expect(source).not.toContain('router.push("/ops")');
+    expect(source).not.toContain('router.push("/reminders")');
     const opsScreen = readFileSync(
-      path.resolve(__dirname, "../../screens/deepspace/dds-ops-screen.tsx"),
-      "utf8",
+      path.resolve(__dirname, "../../screens/deepspace/dds-ops-screen.tsx"), "utf8",
     );
-    expect(opsScreen).toContain('t("phone.assistantSettings")');
+    expect(opsScreen).toContain('title={t("phone.apps.assistant")}');
+    expect(opsScreen).toContain('onPress={() => router.push("/reminders")}');
   });
 });

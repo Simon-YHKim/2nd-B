@@ -10,7 +10,7 @@ import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { isDevSurfaceEnabled } from "@/lib/dev/gate";
 import { reactExpression } from "@/lib/companion/expression";
-import { ActivityIndicator, StyleSheet, type AccessibilityRole, type StyleProp, type TextStyle, type ViewStyle, Platform } from "react-native";
+import { ActivityIndicator, StyleSheet, type AccessibilityRole, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -380,7 +380,6 @@ export default function Settings() {
   // Phone-aware: inside the dashboard phone, links open in the phone.
   const router = useAppRouter();
   const { t, i18n } = useTranslation("settings");
-  const { t: tOps } = useTranslation("ops");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const displayLocale = AVAILABLE_UI_LOCALES.includes(i18n.language as AvailableUiLocale)
@@ -738,8 +737,6 @@ export default function Settings() {
           <M3LinkRow icon="book" label={t("nav.records")} sub={t("nav.recordsHint")} onPress={() => router.push("/records")} />
           <M3Divider />
           <M3LinkRow icon="lock" label={t("permissions")} onPress={() => router.push("/permissions")} />
-          <M3Divider />
-          <M3LinkRow icon="notifications" label={tOps("phone.notifications")} sub={Platform.OS === "web" ? tOps("phone.push.web") : tOps("phone.reminderSettings")} onPress={() => router.push("/reminders")} />
         </M3Group>
 
         <M3SectionLabel>{t("support")}</M3SectionLabel>
@@ -749,8 +746,6 @@ export default function Settings() {
           <M3LinkRow icon="book" label={t("manual")} onPress={() => router.push("/manual")} />
           <M3Divider />
           <M3LinkRow icon="box" label={t("aiMuseum")} onPress={() => router.push("/museum")} />
-          <M3Divider />
-          <M3LinkRow icon="ops" label={tOps("phone.assistantSettings")} onPress={() => router.push("/ops")} />
           <M3Divider />
           <M3LinkRow
             icon="refresh"
