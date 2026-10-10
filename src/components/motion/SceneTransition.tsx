@@ -39,13 +39,18 @@ export function SceneTransition({
       return;
     }
     progress.setValue(0);
+    // World scenes run on the JS driver. With the native driver this effect's
+    // setValue() raced the native animation's late stop report, and on Android
+    // a re-entered route could stay at opacity 0 until the app restarted. Six
+    // stepped frames cost nothing on JS; the phone keeps the native driver for
+    // its continuous easing.
     const animation = Animated.timing(progress, {
       toValue: 1, duration: spec.duration, easing: spec.easing,
-      useNativeDriver: Platform.OS !== "web",
+      useNativeDriver: resolvedScope === "phone" && Platform.OS !== "web",
     });
     animation.start();
     return () => animation.stop();
-  }, [active, animateOnMount, progress, reduced, spec, transitionKey]);
+  }, [active, animateOnMount, progress, reduced, resolvedScope, spec, transitionKey]);
 
   const animatedStyle = useMemo(() => ({
     opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [spec.from.opacity, 1] }),
