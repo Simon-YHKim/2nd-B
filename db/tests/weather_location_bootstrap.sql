@@ -28,8 +28,11 @@ CREATE TABLE public.account_deletion_tombstones(user_id uuid PRIMARY KEY, sessio
 \ir ../migrations/0033_minor_privacy_enforcement.sql
 \ir ../migrations/0050_health_consent_default.sql
 \ir ../migrations/0072_records_embedding_minor_clamp.sql
+\ir ../migrations/0171_public_data_quota.sql
 \ir ../migrations/0232_weather_location_consent.sql
 \ir ../migrations/0234_weather_device_only.sql
 \ir ../migrations/0235_weather_consent_conflict.sql
+\ir ../migrations/0246_weather_consent_idempotent_limits.sql
 COMMIT;
 \ir weather_location_regression.sql
+\ir weather_location_consent_limits.sql

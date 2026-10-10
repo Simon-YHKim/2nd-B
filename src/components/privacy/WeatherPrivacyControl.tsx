@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { Text } from "@/components/ui/Text";
 import { m3 } from "@/lib/theme/m3";
-import { loadWeatherConsent, saveWeatherConsent } from "@/lib/weather/client";
+import { loadWeatherConsent, saveWeatherConsent, WeatherConsentConflictError } from "@/lib/weather/client";
 import type { WeatherConsent } from "@/lib/weather/model";
 import { WEATHER_LOCATION_ENABLED } from "@/lib/location/weather-location-gate";
 
@@ -20,6 +20,8 @@ export function WeatherPrivacyControl() {
   const saving = useRef(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  // A failed status read (including its quota) must not disable withdrawal.
+  const canRevoke = !!userId && isMinor === false && (status?.enabled === true || (!status && failed));
   useFocusEffect(useCallback(() => {
     const controller = new AbortController();
     scope.current = controller;
@@ -31,21 +33,27 @@ export function WeatherPrivacyControl() {
   }, [userId, isMinor]));
   async function revoke() {
     const signal = scope.current?.signal;
-    if (!userId || !status || saving.current || !signal || signal.aborted) return;
+    if (!userId || !canRevoke || saving.current || !signal || signal.aborted) return;
     saving.current = true; setBusy(true); setFailed(false);
     try {
+      // Keep an unknown status explicit; the client uses revision 0 only for the request.
       const next = await saveWeatherConsent(userId, status, false, i18n.language, signal);
       if (!signal.aborted) setSnapshot({ ownerId: userId, status: next });
-    } catch { if (!signal.aborted) setFailed(true); }
+    } catch (error) {
+      if (!signal.aborted) {
+        if (error instanceof WeatherConsentConflictError && error.latest) setSnapshot({ ownerId: userId, status: error.latest });
+        setFailed(true);
+      }
+    }
     finally { if (!signal.aborted) { saving.current = false; setBusy(false); } }
   }
   // A kill switch still permits withdrawal of a previously saved grant.
-  if (!WEATHER_LOCATION_ENABLED && !status?.enabled) return null;
+  if (!WEATHER_LOCATION_ENABLED && !canRevoke) return null;
   return <View style={styles.block}>
-    <Pressable accessibilityRole="switch" accessibilityLabel={t("phone.board.weather.setting")}
-      accessibilityState={{ checked: status?.enabled === true, disabled: !status?.enabled || busy }}
-      aria-checked={status?.enabled === true}
-      disabled={!status?.enabled || busy} onPress={() => void revoke()} style={styles.row}>
+    <Pressable accessibilityRole={status ? "switch" : "button"} accessibilityLabel={t("phone.board.weather.setting")}
+      accessibilityState={status ? { checked: status.enabled, disabled: !canRevoke || busy } : { disabled: !canRevoke || busy }}
+      aria-checked={status ? status.enabled : undefined}
+      disabled={!canRevoke || busy} onPress={() => void revoke()} style={styles.row}>
       <Text variant="body" style={styles.label}>{t("phone.board.weather.setting")}</Text>
       <Text variant="body">{isMinor !== false ? t("phone.board.weather.off") : status ? t(status.enabled ? "phone.board.weather.on" : "phone.board.weather.off") : failed ? "" : t("common:states.loading")}</Text>
     </Pressable>

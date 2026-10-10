@@ -35,14 +35,79 @@ function fixture() {
 }
 afterEach(() => { jest.restoreAllMocks(); jest.useRealTimers(); });
 
-test.each(["PT409", "40001"])("returns 409 for a consent revision conflict (%s)", async (code) => {
+test.each(["status", "grant"])("maps database quota errors for %s without calling upstream", async (action) => {
   const f = fixture();
-  f.deps.rpc.mockResolvedValue({ data: null, error: { code } });
-  const result = await f.send({ action: "grant", revision: 0, locale: "ko" });
-  expect(result.status).toBe(409);
+  f.deps.rpc.mockResolvedValue({ data: null, error: { code: "PT429" } });
+  const result = await f.send(action === "status" ? { action } : { action, revision: 1, locale: "ko" });
+  expect(result.status).toBe(429);
   expect(await result.json()).toEqual({ error: "consent" });
   expect(f.deps.rpc).toHaveBeenCalledTimes(1);
   expect(f.deps.fetch).not.toHaveBeenCalled();
+});
+
+test("idempotent withdrawal and stale revisions reach the DB even while weather is disabled", async () => {
+  const f = fixture();
+  f.deps.enabled = false;
+  const data = { contract: "weather-v1-261007", revision: 7, enabled: false, eligible: true };
+  f.deps.rpc.mockResolvedValue({ data, error: null });
+  const result = await f.send({ action: "revoke", revision: 4, locale: "ko" });
+  expect(result.status).toBe(200);
+  expect(await result.json()).toEqual({ ...data, available: false });
+  expect(f.deps.rpc).toHaveBeenCalledWith("weather_consent", {
+    p_user_id: "owner", p_action: "revoke", p_revision: 4, p_locale: "ko", p_contract: "weather-v1-261007",
+  });
+  expect(f.deps.fetch).not.toHaveBeenCalled();
+});
+
+test.each(["PT409", "40001"])("returns 409 for a consent revision conflict (%s)", async (code) => {
+  const f = fixture();
+  f.deps.rpc.mockResolvedValue({ data: null, error: { code } });
+  if (code === "PT409") f.deps.rpc.mockResolvedValueOnce({ data: null, error: { code } })
+    .mockResolvedValueOnce({ data: { enabled: false, revision: 1 }, error: null });
+  const result = await f.send({ action: "grant", revision: 0, locale: "ko" });
+  expect(result.status).toBe(409);
+  expect(await result.json()).toEqual({ error: "consent" });
+  expect(f.deps.rpc).toHaveBeenCalledTimes(code === "PT409" ? 2 : 1);
+  expect(f.deps.fetch).not.toHaveBeenCalled();
+});
+
+test.each(["PT409", "42501"])("denied grant %s consumes a separate admission and preserves the denial", async (code) => {
+  const f = fixture();
+  f.deps.rpc.mockResolvedValueOnce({ data: null, error: { code } })
+    .mockResolvedValueOnce({ data: { enabled: true, revision: 7 }, error: null });
+  const result = await f.send({ action: "grant", revision: 0, locale: "ko" });
+  expect(result.status).toBe(code === "PT409" ? 409 : 403);
+  expect(await result.json()).toEqual({ error: "consent" });
+  expect(f.deps.rpc).toHaveBeenCalledTimes(2);
+  expect(f.deps.rpc).toHaveBeenNthCalledWith(2, "weather_consent", {
+    p_user_id: "owner", p_action: "status", p_contract: "weather-v1-261007", p_revision: null, p_locale: "en",
+  });
+  expect(f.deps.fetch).not.toHaveBeenCalled();
+});
+
+test.each(["PT409", "42501"])("denied grant %s returns 429 when its admission is exhausted", async (code) => {
+  const f = fixture();
+  f.deps.rpc.mockResolvedValueOnce({ data: null, error: { code } })
+    .mockResolvedValueOnce({ data: null, error: { code: "PT429" } });
+  expect((await f.send({ action: "grant", revision: 0, locale: "ko" })).status).toBe(429);
+  expect(f.deps.rpc).toHaveBeenCalledTimes(2);
+  expect(f.deps.fetch).not.toHaveBeenCalled();
+});
+
+test.each(["42501", "XX000", "malformed", "throw"])("failed admission %s never returns grant success or retries", async (code) => {
+  const f = fixture();
+  f.deps.rpc.mockResolvedValueOnce({ data: null, error: { code: "PT409" } });
+  if (code === "throw") f.deps.rpc.mockRejectedValueOnce(new Error("offline"));
+  else f.deps.rpc.mockResolvedValueOnce({ data: null, error: code === "malformed" ? null : { code } });
+  expect((await f.send({ action: "grant", revision: 0, locale: "ko" })).status).toBe(code === "42501" ? 403 : 503);
+  expect(f.deps.rpc).toHaveBeenCalledTimes(2);
+});
+
+test.each(["revoke", "status"])("%s denial does not add a grant admission", async (action) => {
+  const f = fixture();
+  f.deps.rpc.mockResolvedValue({ data: null, error: { code: "42501" } });
+  expect((await f.send(action === "status" ? { action } : { action, revision: 0, locale: "ko" })).status).toBe(403);
+  expect(f.deps.rpc).toHaveBeenCalledTimes(1);
 });
 
 test("localhost CORS preflight succeeds without upstream or authentication", async () => {
