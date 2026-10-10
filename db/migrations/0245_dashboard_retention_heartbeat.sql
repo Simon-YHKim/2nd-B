@@ -58,11 +58,19 @@ BEGIN
   RETURN c;
 END $$;
 
+-- Define lease columns before the SQL purge is parsed and its apply-time call
+-- runs. Legacy rows keep NULL tokens and their original created_at retention.
+ALTER TABLE public.dashboard_generation_runs
+  ADD COLUMN lease_token uuid,
+  ADD COLUMN leased_at timestamptz NOT NULL DEFAULT now(),
+  ADD COLUMN dispatched_at timestamptz DEFAULT now();
+
 CREATE OR REPLACE FUNCTION public.purge_dashboard_generation() RETURNS void
 LANGUAGE sql SECURITY DEFINER SET search_path='' SET row_security=off AS $$
   -- Keep attempt rows at least 48h so midnight/travel cannot reopen a quota.
   UPDATE public.dashboard_generation_runs SET output=NULL,status='failed' WHERE expires_at<=now() AND output IS NOT NULL;
-  DELETE FROM public.dashboard_generation_runs WHERE created_at<now()-interval '48 hours';
+  DELETE FROM public.dashboard_generation_runs WHERE created_at<now()-interval '48 hours'
+    AND (lease_token IS NULL OR leased_at<now()-interval '48 hours');
   INSERT INTO public.dashboard_generation_retention(singleton,last_purged_at) VALUES(true,clock_timestamp())
     ON CONFLICT(singleton) DO UPDATE SET last_purged_at=EXCLUDED.last_purged_at;
 $$;
@@ -81,10 +89,6 @@ GRANT EXECUTE ON FUNCTION public.dashboard_generation_retention_ready(),public.p
 -- Null lease = legacy. The conservative default covers existing rows and old
 -- Edge inserts without guessing from failed/pending status. Never backfill it
 -- to NULL: a lost provider response may already have incurred a charge.
-ALTER TABLE public.dashboard_generation_runs
-  ADD COLUMN lease_token uuid,
-  ADD COLUMN leased_at timestamptz NOT NULL DEFAULT now(),
-  ADD COLUMN dispatched_at timestamptz DEFAULT now();
 ALTER TABLE public.dashboard_generation_runs DROP CONSTRAINT dashboard_generation_runs_status_check;
 ALTER TABLE public.dashboard_generation_runs ADD CONSTRAINT dashboard_generation_runs_status_check
   CHECK(status IN ('pending','dispatched','ready','failed','pre_dispatch_failed','pre_dispatch_blocked'));
@@ -233,7 +237,9 @@ BEGIN
     IF r.lease_token IS NOT NULL AND r.dispatched_at IS NULL
       AND r.consent_token=c->>'token'
       AND (r.status='pre_dispatch_failed' OR
-        (r.status='pending' AND r.leased_at<=clock_timestamp()-interval '3 minutes')) THEN
+        (r.status='pending' AND r.leased_at<=clock_timestamp()-interval '3 minutes'
+          AND EXISTS(SELECT 1 FROM public.ai_audit_log WHERE id=r.lease_token AND user_id=p_user_id
+            AND outbox_event_id='dashboard:'||r.id||':'||r.lease_token AND model_used='dashboard+attempt'))) THEN
       IF public.dashboard_generation_attempt_count(p_user_id,v_purpose,s.timezone) >= (CASE WHEN v_purpose='daily_note' THEN 3 ELSE 48 END) THEN
         RETURN jsonb_build_object('kind','limited');
       END IF;
@@ -322,6 +328,44 @@ BEGIN
   RETURN true;
 END $$;
 
+-- Reserve the classification phase BEFORE inspecting input. If the worker or
+-- DB dies after this ACK, pending recovery cannot reprocess a possible red.
+-- A worker lost immediately after claim (still +attempt) remains recoverable.
+CREATE FUNCTION public.dashboard_generation_begin_classification_v2(p_user_id uuid,p_run_id uuid,p_lease_token uuid)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET row_security=off AS $$
+DECLARE r public.dashboard_generation_runs%ROWTYPE;
+BEGIN
+  PERFORM public.dashboard_generation_eligibility(p_user_id);
+  SELECT * INTO r FROM public.dashboard_generation_runs WHERE id=p_run_id AND user_id=p_user_id FOR UPDATE;
+  IF NOT FOUND OR p_lease_token IS NULL OR r.lease_token IS DISTINCT FROM p_lease_token
+    OR r.dispatched_at IS NOT NULL OR r.status<>'pending' THEN RETURN false; END IF;
+  UPDATE public.ai_audit_log SET model_used='dashboard+classifying'
+    WHERE id=r.lease_token AND user_id=p_user_id AND event_source='server_verified'
+      AND outbox_event_id='dashboard:'||r.id||':'||r.lease_token AND model_used='dashboard+attempt';
+  RETURN FOUND;
+END $$;
+
+-- Idempotent red terminal, independent of heartbeat, consent freshness and
+-- lease age. Do not reopen an invalidated run or touch an already-paid lease.
+CREATE FUNCTION public.dashboard_generation_block_v2(p_user_id uuid,p_run_id uuid,p_lease_token uuid)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET row_security=off AS $$
+DECLARE r public.dashboard_generation_runs%ROWTYPE;
+BEGIN
+  PERFORM public.dashboard_generation_eligibility(p_user_id);
+  SELECT * INTO r FROM public.dashboard_generation_runs WHERE id=p_run_id AND user_id=p_user_id FOR UPDATE;
+  IF NOT FOUND OR p_lease_token IS NULL OR r.lease_token IS DISTINCT FROM p_lease_token
+    OR r.dispatched_at IS NOT NULL OR r.status NOT IN ('pending','failed','pre_dispatch_blocked') THEN RETURN false; END IF;
+  UPDATE public.ai_audit_log SET model_used=split_part(model_used,'+',1)||'+crisis',
+    safety_zone='red',reasoning_effort=NULL,key_combo=NULL
+    WHERE id=r.lease_token AND user_id=p_user_id AND event_source='server_verified'
+      AND outbox_event_id='dashboard:'||r.id||':'||r.lease_token
+      AND (model_used IN ('dashboard+attempt','dashboard+classifying') OR model_used LIKE '%+crisis');
+  IF NOT FOUND THEN RETURN false; END IF;
+  UPDATE public.dashboard_generation_runs SET
+    status=CASE WHEN r.status='failed' THEN 'failed' ELSE 'pre_dispatch_blocked' END,output=NULL WHERE id=r.id;
+  RETURN true;
+END $$;
+
 CREATE FUNCTION public.dashboard_generation_audit_attempt_v2(
   p_user_id uuid,p_run_id uuid,p_model text,p_effort text,p_prompt_hash text,p_crisis boolean,p_lease_token uuid)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET row_security=off AS $$
@@ -352,7 +396,8 @@ BEGIN
     reasoning_effort=CASE WHEN NOT p_crisis THEN p_effort END,
     key_combo=CASE WHEN NOT p_crisis THEN 'ANTHROPIC_API_KEY' END
   WHERE id=r.lease_token AND user_id=p_user_id
-    AND outbox_event_id='dashboard:'||r.id||':'||r.lease_token AND model_used='dashboard+attempt';
+    AND outbox_event_id='dashboard:'||r.id||':'||r.lease_token
+    AND model_used IN ('dashboard+attempt','dashboard+classifying');
   IF NOT FOUND THEN RETURN false; END IF;
   UPDATE public.dashboard_generation_runs SET
     status=CASE WHEN p_crisis THEN 'pre_dispatch_blocked' ELSE 'dispatched' END,
@@ -419,7 +464,8 @@ BEGIN
     -- Invalidation's failed and the classifier's blocked stay terminal even
     -- after a later grant. Only an un-dispatched pending lease is recoverable.
     UPDATE public.ai_audit_log SET model_used=split_part(model_used,'+',1)||'+pre_dispatch_failed'
-      WHERE id=r.lease_token AND user_id=p_user_id AND model_used LIKE '%+attempt';
+      WHERE id=r.lease_token AND user_id=p_user_id
+        AND (model_used LIKE '%+attempt' OR model_used='dashboard+classifying');
     IF r.status='pending' THEN
       UPDATE public.dashboard_generation_runs SET output=NULL,status=CASE
         WHEN c IS NOT NULL AND r.consent_token=c->>'token' THEN 'pre_dispatch_failed'
@@ -427,8 +473,8 @@ BEGIN
     END IF;
     RETURN false;
   END IF;
-  IF c IS NULL OR NOT public.dashboard_generation_retention_ready()
-    OR r.status NOT IN ('pending','dispatched') THEN RETURN false; END IF;
+  -- Retention gates new dispatch, never completion of an already-paid lease.
+  IF c IS NULL OR r.status NOT IN ('pending','dispatched') THEN RETURN false; END IF;
   SELECT timezone INTO zone FROM public.dashboard_generation_settings WHERE user_id=p_user_id;
   source := public.dashboard_generation_source(p_user_id,r.purpose,(now() AT TIME ZONE zone)::date);
   valid := r.status='dispatched' AND p_output IS NOT NULL AND jsonb_typeof(p_output)='object' AND octet_length(p_output::text)<=32768
@@ -439,6 +485,8 @@ BEGIN
 END $$;
 
 REVOKE ALL ON FUNCTION public.dashboard_generation_request_v2(uuid,text,text,text),
+  public.dashboard_generation_begin_classification_v2(uuid,uuid,uuid),
+  public.dashboard_generation_block_v2(uuid,uuid,uuid),
   public.dashboard_generation_audit_attempt_v2(uuid,uuid,text,text,text,boolean,uuid),
   public.dashboard_generation_audit_result_v2(uuid,uuid,text,text,integer,text,integer,uuid),
   public.dashboard_generation_finish_v2(uuid,uuid,jsonb,uuid),
@@ -446,6 +494,8 @@ REVOKE ALL ON FUNCTION public.dashboard_generation_request_v2(uuid,text,text,tex
   public.dashboard_generation_finish(uuid,uuid,jsonb),
   public.dashboard_generation_audit_attempt(uuid,uuid,text,text,text,boolean) FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.dashboard_generation_request_v2(uuid,text,text,text),
+  public.dashboard_generation_begin_classification_v2(uuid,uuid,uuid),
+  public.dashboard_generation_block_v2(uuid,uuid,uuid),
   public.dashboard_generation_audit_attempt_v2(uuid,uuid,text,text,text,boolean,uuid),
   public.dashboard_generation_audit_result_v2(uuid,uuid,text,text,integer,text,integer,uuid),
   public.dashboard_generation_finish_v2(uuid,uuid,jsonb,uuid),

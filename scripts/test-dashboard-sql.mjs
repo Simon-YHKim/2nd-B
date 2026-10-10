@@ -4,6 +4,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { testDashboardLeaseSql } from './test-dashboard-lease-sql.mjs';
 const [port, database] = process.argv.slice(2);
 if (!/^\d{4,5}$/.test(port ?? '') || +port > 65535 || !/^dashboard_test[a-z0-9_]*$/.test(database ?? '')) throw new Error('Explicit disposable local DB required');
 const fixture = resolve(dirname(fileURLToPath(import.meta.url)), '../db/tests/dashboard_generation_bootstrap.sql');
@@ -209,6 +210,8 @@ if (process.exitCode === 0) {
   }
   await run('SELECT public.purge_dashboard_generation();');
   console.log('Post-lock freshness: request and paid dispatch refuse a heartbeat expired during the user-lock wait (2/2).');
+
+  await testDashboardLeaseSql({ run, overlap });
 
   // Replace decision stubs with the actual current consent functions. Only
   // surrounding auth/profile tables remain the disposable fixture. This tests

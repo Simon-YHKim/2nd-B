@@ -7,6 +7,8 @@
 -- Keep the v2 lease columns/functions and audit lineage too. Never clear a
 -- dispatch marker or convert a v2 row to a legacy NULL lease. Old Edge can
 -- continue on legacy claims; existing v2 keys may wait until the next slot.
+-- Keep begin_classification_v2/block_v2 and +classifying evidence. A missing
+-- terminal ACK must never be repaired by clearing its recovery fence.
 SET LOCAL lock_timeout = '10s';
 SELECT public.purge_dashboard_generation();
 DO $$ BEGIN

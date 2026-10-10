@@ -169,11 +169,16 @@ BEGIN
         OR public.dashboard_generation_request(owner_id,action,NULL,'ko')->>'kind' IS DISTINCT FROM 'limited'
         THEN RAISE EXCEPTION 'new key or legacy quota bypass'; END IF;
       -- A +14 -> -12 timezone change can keep a triage date/key for 50h.
-      -- Purge may remove the first run while today's lease audits still count.
+      -- Recent leases preserve old runs and today's quota across purge.
       UPDATE public.dashboard_generation_runs SET created_at=now()-interval '49 hours' WHERE user_id=owner_id;
       PERFORM public.purge_dashboard_generation();
-      IF EXISTS(SELECT 1 FROM public.dashboard_generation_runs WHERE user_id=owner_id)
+      IF NOT EXISTS(SELECT 1 FROM public.dashboard_generation_runs WHERE user_id=owner_id)
         OR public.dashboard_generation_request_v2(owner_id,action,NULL,'ko')->>'kind' IS DISTINCT FROM 'limited'
+        OR public.dashboard_generation_request(owner_id,action,NULL,'ko')->>'kind' IS DISTINCT FROM 'limited'
+        THEN RAISE EXCEPTION 'purge discarded recent lease or attempt quota'; END IF;
+      -- Audits independently retain quota even after a run has been removed.
+      DELETE FROM public.dashboard_generation_runs WHERE user_id=owner_id;
+      IF public.dashboard_generation_request_v2(owner_id,action,NULL,'ko')->>'kind' IS DISTINCT FROM 'limited'
         OR public.dashboard_generation_request(owner_id,action,NULL,'ko')->>'kind' IS DISTINCT FROM 'limited'
         THEN RAISE EXCEPTION 'purged run discarded recent attempt quota'; END IF;
     END LOOP;

@@ -86,11 +86,25 @@ END $$;
 -- Keep the migration but roll back only fixture data via the account cascade.
 DELETE FROM auth.users WHERE id::text LIKE '00000000-0000-0000-0000-00000000002%';
 COMMIT;
+-- Existing production-shaped v1 rows must survive/expire by created_at when
+-- 0245 adds defaulted lease timestamps and immediately calls the new purge.
+INSERT INTO auth.users(id) VALUES('00000000-0000-0000-0000-000000000199');
+INSERT INTO public.users(id) VALUES('00000000-0000-0000-0000-000000000199');
+INSERT INTO public.dashboard_generation_runs(user_id,purpose,request_key,source_hash,consent_token,created_at,expires_at)
+  VALUES('00000000-0000-0000-0000-000000000199','daily_note','apply-old','x',repeat('a',64),now()-interval '49 hours',now()+interval '1 hour'),
+    ('00000000-0000-0000-0000-000000000199','daily_note','apply-recent','x',repeat('a',64),now(),now()+interval '1 hour');
 \ir ../migrations/0245_dashboard_retention_heartbeat.sql
+DO $$ BEGIN
+  IF EXISTS(SELECT 1 FROM public.dashboard_generation_runs WHERE request_key='apply-old')
+    OR NOT EXISTS(SELECT 1 FROM public.dashboard_generation_runs WHERE request_key='apply-recent' AND lease_token IS NULL)
+    THEN RAISE EXCEPTION 'apply-time legacy retention'; END IF;
+END $$;
+DELETE FROM auth.users WHERE id='00000000-0000-0000-0000-000000000199';
 -- Same RPCs called by the old Edge must work with the new DB.
 \ir dashboard_generation_regression.sql
 \ir dashboard_generation_audit_withdrawal_regression.sql
 \ir dashboard_reservation_recovery_regression.sql
+\ir dashboard_lease_terminal_regression.sql
 
 \ir ../migration-drafts/UNNUMBERED_dashboard_last_note.sql
 \ir dashboard_last_note_regression.sql

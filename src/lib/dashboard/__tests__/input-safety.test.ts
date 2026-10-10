@@ -83,7 +83,8 @@ describe.each(actions)("%s server-initiated input gate", (action) => {
     expect(attempts).toEqual([["dashboard_generation_audit_attempt_v2", expect.objectContaining({ p_crisis: true })]]);
     expect(f.rpc).not.toHaveBeenCalledWith("bump_gemini_spend", expect.anything());
     expect(f.rpc).not.toHaveBeenCalledWith("reserve_llm_proxy_capacity", expect.anything());
-    expect(f.rpc).toHaveBeenLastCalledWith("dashboard_generation_finish_v2", expect.objectContaining({ p_output: null }));
+    expect(f.rpc).toHaveBeenLastCalledWith("dashboard_generation_block_v2", expect.objectContaining({ p_lease_token: "10000000-0000-0000-0000-000000000001" }));
+    expect(f.rpc).not.toHaveBeenCalledWith("dashboard_generation_finish_v2", expect.anything());
     expect(await response.json()).toEqual(action === "hourly" ? { kind: "batch", processed: 1, nextCursor: null } : { kind: "unavailable" });
   });
   test.each(["I want\nto die.", "죽고\t싶어요."])("raw text is classified before JSON escaping: %s", async (text) => {
@@ -166,7 +167,37 @@ test.each(["error", "denied", "throw"])("crisis audit %s cannot fall through to 
   expect(await (await f.send()).json()).toEqual({ kind: "unavailable" });
   expect(f.fetch).not.toHaveBeenCalled();
   expect(f.rpc.mock.calls.filter(([name]) => name === "dashboard_generation_audit_attempt_v2")).toHaveLength(1);
-  expect(f.rpc).toHaveBeenLastCalledWith("dashboard_generation_finish_v2", expect.objectContaining({ p_output: null }));
+  expect(f.rpc).toHaveBeenLastCalledWith("dashboard_generation_block_v2", expect.objectContaining({ p_lease_token: "10000000-0000-0000-0000-000000000001" }));
+  expect(f.rpc).not.toHaveBeenCalledWith("dashboard_generation_finish_v2", expect.anything());
+});
+
+test.each(["error", "false", "throw"])("terminal RPC %s never releases a red classification fence", async (failure) => {
+  const f = fixture("open", rawRed);
+  const original = f.rpc.getMockImplementation()!;
+  f.rpc.mockImplementation(async (name, args) => {
+    if (name === "dashboard_generation_audit_attempt_v2") return { data: false };
+    if (name !== "dashboard_generation_block_v2") return original(name, args);
+    if (failure === "throw") throw new Error("synthetic terminal failure");
+    return failure === "error" ? { data: null, error: {} } : { data: false };
+  });
+  expect(await (await f.send()).json()).toEqual({ kind: "unavailable" });
+  expect(f.rpc).not.toHaveBeenCalledWith("dashboard_generation_finish_v2", expect.anything());
+  expect(f.fetch).not.toHaveBeenCalled();
+});
+
+test.each(["error", "false", "throw"])("classification fence %s never clears an ambiguous prior ACK", async (failure) => {
+  const f = fixture("open", rawRed);
+  const original = f.rpc.getMockImplementation()!;
+  f.rpc.mockImplementation(async (name, args) => {
+    if (name !== "dashboard_generation_begin_classification_v2") return original(name, args);
+    if (failure === "throw") throw new Error("synthetic begin failure");
+    return failure === "error" ? { data: null, error: {} } : { data: false };
+  });
+  expect(await (await f.send()).json()).toEqual({ kind: "unavailable" });
+  expect(f.rpc).not.toHaveBeenCalledWith("dashboard_generation_finish_v2", expect.anything());
+  expect(f.rpc).not.toHaveBeenCalledWith("dashboard_generation_audit_attempt_v2", expect.anything());
+  expect(f.rpc).not.toHaveBeenCalledWith("dashboard_generation_block_v2", expect.anything());
+  expect(f.fetch).not.toHaveBeenCalled();
 });
 
 test.each([undefined, null, [], "raw"])("missing or malformed projected payload fails closed: %s", async (payload) => {
@@ -178,10 +209,10 @@ test.each([undefined, null, [], "raw"])("missing or malformed projected payload 
 test.each(["prompt", "system", "payload"])("the provider also gates %s at its own entry", async (field) => {
   const f = fixture("open", "Read");
   await expect(f.generate({ userId: "owner", runId: "run1", leaseToken: "10000000-0000-0000-0000-000000000001", purpose: "daily_note", prompt: "Read", system: "JSON", consentToken,
-    payload: { recordExcerpts: [{ text: "Read" }] }, [field]: field === "payload" ? { recordExcerpts: [{ text: rawRed }] } : rawRed,
+    payload: { recordExcerpts: [{ text: "Read" }] }, onBlocked: () => {}, [field]: field === "payload" ? { recordExcerpts: [{ text: rawRed }] } : rawRed,
   })).rejects.toThrow("unavailable");
   expect(f.fetch).not.toHaveBeenCalled();
-  expect(f.rpc).toHaveBeenCalledTimes(1);
+  expect(f.rpc).toHaveBeenCalledTimes(2);
   expect(f.rpc).toHaveBeenCalledWith("dashboard_generation_audit_attempt_v2", expect.objectContaining({ p_crisis: true }));
 });
 

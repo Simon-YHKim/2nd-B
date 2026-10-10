@@ -26,7 +26,7 @@ const create = edge("supabase/functions/dashboard-generate/provider.ts", {
   "../_shared/llm-proxy-common.ts": common, "../_shared/llm-consent.ts": consent,
   "../_shared/llm-input-safety.ts": inputSafety,
 }).createBoardProvider as (deps: ReturnType<typeof fixture>["deps"]) => (input: typeof request) => Promise<unknown>;
-const request = { userId: "owner", runId: "run1", leaseToken: "10000000-0000-0000-0000-000000000001", purpose: "daily_note", prompt: "Routine: Read", system: "JSON", consentToken: "a".repeat(64), payload: { title: "Read" }, validateOutput: () => true };
+const request = { userId: "owner", runId: "run1", leaseToken: "10000000-0000-0000-0000-000000000001", purpose: "daily_note", prompt: "Routine: Read", system: "JSON", consentToken: "a".repeat(64), payload: { title: "Read" }, validateOutput: () => true, onBlocked: () => {} };
 
 test("the same claimed lease authorizes dispatch and the same-row audit result", async () => {
   const f = fixture();

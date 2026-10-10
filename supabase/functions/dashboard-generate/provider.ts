@@ -17,6 +17,7 @@ export interface BoardProviderInput {
   userId: string; runId: string; leaseToken: string; purpose: string; prompt: string; system: string; consentToken: string;
   payload: Readonly<Record<string, unknown>>;
   validateOutput: (output: unknown) => boolean;
+  onBlocked: (reason: 'red' | 'classification_unavailable') => void;
 }
 
 // G2-03: provisional cheapest rung, pending Simon's per-seat decision. W1
@@ -43,12 +44,27 @@ export function createBoardProvider(deps: BoardProviderDependencies) {
       p_user_id: input.userId, p_run_id: input.runId, p_model: deps.model,
       p_effort: effort, p_prompt_hash: djb2(input.system + input.prompt), p_crisis: crisis, p_lease_token: input.leaseToken,
     });
+    let classification;
+    try {
+      classification = await deps.rpc('dashboard_generation_begin_classification_v2', {
+        p_user_id: input.userId, p_run_id: input.runId, p_lease_token: input.leaseToken,
+      });
+    } catch { classification = { error: true }; }
+    if (classification.error || classification.data !== true) {
+      // A lost ACK, or another worker holding this phase, is not authority to
+      // clear its fence through finish(NULL). An untouched claim still expires.
+      input.onBlocked('classification_unavailable');
+      return fail();
+    }
     // C9 / G2-01: classify each original string before spend, capacity or
     // dispatch. JSON escaping can hide whitespace from a prompt-only scan.
     // Retain the existing prompt backstop and all response checks.
     if (hasRedZoneInput([input.payload, input.prompt, input.system]) || hasCrisisTerm(input.prompt)) {
-      // No paid dispatch, but the early exit is still a C3 attempt.
-      await attempt(true);
+      // Pin the terminal reason before any fallible I/O. The handler must not
+      // turn a red audit error, false or throw into a recoverable NULL finish.
+      input.onBlocked('red');
+      const audited = await attempt(true);
+      if (audited.error || audited.data !== true) return fail();
       return fail();
     }
     const consent = await captureLlmConsent(deps.rpc, input.userId, 'enforce');

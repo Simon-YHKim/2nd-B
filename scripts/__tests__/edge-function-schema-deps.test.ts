@@ -261,6 +261,8 @@ describe("edge schema dependency gate on the real repository", () => {
       expect.objectContaining({ name: "dashboard_generation_audit_result_v2", signature: "uuid,uuid,text,text,integer,text,integer,uuid" }),
       expect.objectContaining({ name: "dashboard_generation_request_v2", signature: "uuid,text,text,text" }),
       expect.objectContaining({ name: "dashboard_generation_finish_v2", signature: "uuid,uuid,jsonb,uuid" }),
+      expect.objectContaining({ name: "dashboard_generation_begin_classification_v2", signature: "uuid,uuid,uuid" }),
+      expect.objectContaining({ name: "dashboard_generation_block_v2", signature: "uuid,uuid,uuid" }),
     ]));
   });
 
