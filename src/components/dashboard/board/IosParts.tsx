@@ -19,13 +19,34 @@ export function IosText({ style, ...rest }: TextProps) {
   return <BaseText {...rest} style={[styles.text, style]} />;
 }
 
+/** Board cards share one caption heading and a trailing control or value. */
+export function IosCardHeader({ glyph, title, trailing, iconColor = phoneIos.blue }: {
+  glyph: AnyGlyphName; title: string; trailing?: ReactNode; iconColor?: string;
+}) {
+  return <View style={styles.cardHeader}>
+    <PixelGlyph name={glyph} size={16} color={iconColor} />
+    <IosText variant="caption" accessibilityRole="header" style={styles.cardTitle}>{title}</IosText>
+    {trailing}
+  </View>;
+}
+
+/** Icon-only action with the same 44px target as other phone controls. */
+export function IosIconButton({ glyph, label, onPress }: { glyph: AnyGlyphName; label: string; onPress: () => void }) {
+  const [pressed, setPressed] = useState(false);
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress}
+    onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)}
+    style={[styles.iconButton, pressed ? styles.rowPressed : null]}>
+    <PixelGlyph name={glyph} size={16} color={phoneIos.blue} />
+  </Pressable>;
+}
+
 /** iOS 식 작은 버튼: 회색 칸에 파란 글자, 주 버튼은 파랑 칸에 흰 글자. */
-export function IosButton({ label, onPress, primary = false, disabled = false, glyph }: {
-  label: string; onPress: () => void; primary?: boolean; disabled?: boolean; glyph?: AnyGlyphName;
+export function IosButton({ label, onPress, primary = false, disabled = false, busy = false, glyph }: {
+  label: string; onPress: () => void; primary?: boolean; disabled?: boolean; busy?: boolean; glyph?: AnyGlyphName;
 }) {
   const [pressed, setPressed] = useState(false);
   return <Pressable onPress={onPress} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} disabled={disabled}
-    accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} style={styles.button}>
+    accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled, busy }} style={styles.button}>
     <PixelRoundRect corner="small" style={styles.buttonFace}
       fill={primary ? (pressed ? phoneIos.bluePressed : phoneIos.blue) : (pressed ? phoneIos.gray3 : phoneIos.fill)}>
       {glyph ? <PixelGlyph name={glyph} size={16} color={primary ? phoneIos.onBlue : disabled ? phoneIos.label2 : phoneIos.blue} /> : null}
@@ -82,6 +103,9 @@ export function IosLead({ color, glyph }: { color: string; glyph: AnyGlyphName }
 }
 
 const styles = StyleSheet.create({
+  cardHeader: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 },
+  cardTitle: { flex: 1, minWidth: 0, color: phoneIos.label, fontFamily: "Galmuri11Bold", lineHeight: 18 },
+  iconButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   text: { color: phoneIos.label },
   button: { minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center" },
   buttonFace: { flexDirection: "row", gap: 4, paddingHorizontal: 12, paddingVertical: 6, alignItems: "center", justifyContent: "center" },
