@@ -1,5 +1,17 @@
 # 2nd-Brain Handoff
 
+## 2026-10-10 19:09 / 2ndb-74: 식품 찾기 복구(#2211 · 서버 함수 재배포) · 감사 G4 닫힘(운영 0242 · #2202 머지)
+
+- **근거**: Simon 질문 창 답(DECISIONS 26.10.10 17:51) — Q-11 "배포하고 확인" · Q-12 "한 번에 + 통과 시 적용 GO" · Q-13 한도 잠정값 그대로 · Q-14 내보내기는 다음 PR. 결과는 이 블록 시각의 DECISIONS 두 줄.
+- **식품 찾기**: 식약처가 `FoodNtrCpntDbInfo01` 을 폐기했다(키와 무관하게 400). #2211 로 `…Info02/getFoodNtrCpntDbInq02` 로 바꾸고 `public-data-proxy` 를 재배포. 직접 호출과 8081 식단 시트에서 결과 확인. 응답 칸은 01 과 같아 파서는 그대로.
+- **감사 G4**: #2202(82ae42a7) = `0242_profile_context_import_integrity`(칸별 undo 원장 · 삭제 경로 통합 · 하루 10회 · 20묶음 · 2 MiB · 전 항목 확인 서버 강제) + 클라이언트. daybreak 3회(1 · 2회차 BLOCK → Simon 결정 → 3회차 PASS, 발견 0). 운영 원장 209행(0242 version 20261010095836). 인수 문서 `docs/handoff/G4IMPORT-261010.md`.
+- **확인**: 적용 뒤 함수 6개 md5 가 저장소 파일과 일치 · ACL · RLS 점검표대로. 8081 에서 이력 조회 · 검토 화면(모든 항목이 확인 전 잠김, "모두 선택" 유지) 확인, 반영은 누르지 않음. QA 계정 데이터 불변. `app:parity` 같음. **실기기 미확인**(프로필 가져오기는 폰 QA APK qa-261007 에 아직 없다).
+- **함정**: MCP `apply_migration` 첫 호출이 `Invalid or expired requestState` 로 실패했다. 아무것도 적용되지 않았음을 조회로 확인한 뒤 재시도하면 된다. 손으로 옮긴 SQL 은 함수 본문에서 `--` 주석을 지우고 공백을 한 칸으로 줄인 뒤의 md5 를 운영(`pg_proc.prosrc`)과 저장소 파일 양쪽에서 구해 대조한다(메모리 `reference_supabase_comment_stripping`).
+- **미해결 질문**: 없음(Q-261010-11 · 12 · 13 닫힘, Q-261010-14 는 결정됨 = 다음 PR).
+- **남긴 것**: Q-261010-14 구현(내보내기에 `profile_context_imports` 이력 — service_role 권한과 공개 칸 선정이 필요, 내부 digest · undo 사본 제외). K1 끼어들기 순서 · K3 재로그인은 단위 테스트로만 확인. G1 · G5 = 2ndb-ee, G2 · G3 = Simon 결정 먼저.
+- **워크트리**: `qa261007-g4import` · `qa261007-mfds02` · `qa261007-onboardk2` · `qa261007-onboardk` · `qa261007-opslow`(전부 머지됨. 지울 때 node_modules 정션부터 `[IO.Directory]::Delete` 로 끊을 것) · `qa261005-records`.
+- **다음 1개**: Q-261010-14 — 계정 내보내기에 가져오기 이력을 넣는 PR(새 과제로 시작, 범위 · 끝을 첫 턴에).
+
 ## 2026-10-10 18:52 / 2ndb-ee: UI 2 · 3회차 끝(#2207 · #2212) · #2208 머지하지 않음
 
 - **근거**: Simon 이 UI 1회차 · 2회차 결과 보고서의 결정 탭에서 조립해 붙여 준 답. DECISIONS 26.10.10 16:57 · 17:30 · 17:57 · 18:05 · 18:48 줄.
