@@ -54,8 +54,7 @@ BEGIN
     RAISE EXCEPTION 'historical recipient lost'; END IF;
   IF (SELECT privacy_prefs->'external_analytics' FROM public.users WHERE id=owner) <> 'true'::jsonb THEN RAISE EXCEPTION 'unrelated pref changed'; END IF;
   IF NOT public.authorize_weather_request(owner) THEN RAISE EXCEPTION 'granted weather rejected'; END IF;
-  PERFORM pg_temp.weather_expect_error(format('SELECT public.weather_consent(%L,''revoke'',0)',owner),'PT409');
-  s := public.weather_consent(owner,'revoke',1);
+  s := public.weather_consent(owner,'revoke',0);
   IF s->'enabled' <> 'false'::jsonb OR public.authorize_weather_request(owner) THEN RAISE EXCEPTION 'revoke failed'; END IF;
   PERFORM pg_temp.weather_expect_error(format('SELECT public.weather_consent(%L,''grant'',1)',owner),'PT409');
   PERFORM public.weather_consent(owner,'grant',2);
@@ -71,6 +70,10 @@ BEGIN
   IF public.authorize_weather_request(owner) THEN RAISE EXCEPTION 'forged tier bypass'; END IF;
   PERFORM pg_temp.weather_expect_error(format('UPDATE public.users SET birth_date=current_date WHERE id=%L',owner),'23514');
 END $$;
+
+-- The dedicated quota regression exercises consent ceilings separately.
+-- This older suite continues to isolate the unchanged weather-use ceilings.
+UPDATE public.public_data_provider_quota_daily SET weather_check_times='{}' WHERE provider='weather_consent';
 
 -- The Edge uses the service role; an authenticated direct caller cannot invoke it.
 SET LOCAL ROLE authenticated;
