@@ -120,12 +120,13 @@ function NoteRow({ part, events }: { part: NotePart; events: BoardEvents }) {
   const say = useBoardText();
   const tone = boardTone(part.basis);
   const title = t("phone.board.shelf.parts.note");
-  const slot = t(`phone.board.note.slot.${part.slot}`);
+  // 시간대는 문장이 있을 때만 붙인다. 문장이 없는 칸에 기본 시간대가 사실처럼 보이지 않게.
+  const slot = part.line ? t(`phone.board.note.slot.${part.slot}`) : null;
   return <Frame basis={part.basis} shape={part.shape}>
-    <Pressable testID="board-note-open" accessibilityRole="button" accessibilityLabel={`${title}, ${slot}`}
+    <Pressable testID="board-note-open" accessibilityRole="button" accessibilityLabel={slot ? `${title}, ${slot}` : title}
       onPress={events.openSummary}>
       <IosCardHeader glyph="chat" title={title} iconColor={part.line ? tone.text : phoneIos.blue} trailing={<>
-        <Text variant="caption" style={styles.muted}>{slot}</Text>
+        {slot ? <Text variant="caption" style={styles.muted}>{slot}</Text> : null}
         <PixelGlyph name="chevron_right" size={16} color={phoneIos.blue} />
       </>} />
     </Pressable>

@@ -39,11 +39,13 @@ describe("phonehome-1: one local 24-hour clock", () => {
 
 describe("phonehome-2: note slot belongs to the heading", () => {
   test("the header announces title and slot together, without a second slot in the body", () => {
-    expect(note).toContain('accessibilityLabel={`${title}, ${slot}`}');
+    expect(note).toContain('accessibilityLabel={slot ? `${title}, ${slot}` : title}');
     const header = note.slice(0, note.indexOf('{part.line ? <View'));
     const body = note.slice(note.indexOf('{part.line ? <View'));
     expect(header).toContain('<IosCardHeader glyph="chat"');
-    expect(header).toContain('>{slot}</Text>');
+    // A card with no sentence must not show a default slot as if it were a fact.
+    expect(header).toContain("const slot = part.line ? t(`phone.board.note.slot.${part.slot}`) : null;");
+    expect(header).toContain('{slot ? <Text variant="caption" style={styles.muted}>{slot}</Text> : null}');
     expect(body).not.toMatch(/slot|phone\.board\.note\.slot/);
     expect(body).toContain('style={{ color: tone.text }}>{say(part.line)}');
     expect(body).toContain('<Evidence route={part.evidenceRoute} basis={part.basis} go={events.go} />');
