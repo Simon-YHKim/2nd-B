@@ -94,6 +94,9 @@ export function useSignInForm(): UseSignInForm {
   }, []);
   const [resetHelpVisible, setResetHelpVisible] = useState(false);
   const [resetSubmitting, setResetSubmitting] = useState(false);
+  // Back reads this synchronous count, not a render's busy snapshot. Counting
+  // preserves existing submit behavior even if auth writes overlap.
+  const actionLockRef = useRef(0);
   const [resetEmailSentTo, setResetEmailSentTo] = useState<string | null>(null);
   // A provider whose OAuth start failed with a "not configured" error is hidden
   // for the rest of the session so the user is not left tapping a dead button.
@@ -125,7 +128,7 @@ export function useSignInForm(): UseSignInForm {
   useFocusEffect(useCallback(() => {
     if (Platform.OS !== "android" || userId) return;
     const onBackPress = createSignInBackHandler({
-      isBusy: () => submitting || oauthSubmitting || resetSubmitting,
+      isBusy: () => actionLockRef.current > 0,
       exitDeadline: () => toastRef.current?.exitOnBackUntil,
       now: Date.now,
       showNotice: (expiresAt) => setToast({ tone: "info", message: t("signIn.exitOnBack"), exitOnBackUntil: expiresAt }),
@@ -136,7 +139,7 @@ export function useSignInForm(): UseSignInForm {
       sub.remove();
       if (toastRef.current?.exitOnBackUntil !== undefined) setToast(null);
     };
-  }, [userId, submitting, oauthSubmitting, resetSubmitting, setToast, t]));
+  }, [userId, setToast, t]));
 
   const setEmailAndClearReset = useCallback(
     (value: string) => {
@@ -151,6 +154,7 @@ export function useSignInForm(): UseSignInForm {
   const handleOAuth = useCallback(
     async (provider: OAuthProvider) => {
       setOauthSubmitting(true);
+      actionLockRef.current += 1;
       try {
         await startOAuthProvider(provider);
       } catch (e) {
@@ -168,6 +172,7 @@ export function useSignInForm(): UseSignInForm {
         });
         if (typeof console !== "undefined") console.warn(`[auth] ${provider} oauth error`, msg);
       } finally {
+        actionLockRef.current -= 1;
         setOauthSubmitting(false);
       }
     },
@@ -178,6 +183,7 @@ export function useSignInForm(): UseSignInForm {
   // handler. isNaverEnabled() keeps it hidden on native.
   const handleNaver = useCallback(async () => {
     setOauthSubmitting(true);
+    actionLockRef.current += 1;
     try {
       await signInWithNaver();
     } catch (e) {
@@ -187,6 +193,7 @@ export function useSignInForm(): UseSignInForm {
       });
       if (typeof console !== "undefined") console.warn("[auth] naver oauth error", (e as Error).message);
     } finally {
+      actionLockRef.current -= 1;
       setOauthSubmitting(false);
     }
   }, [t, setToast]);
@@ -200,6 +207,7 @@ export function useSignInForm(): UseSignInForm {
           }
         })
       : null;
+    actionLockRef.current += 1;
     try {
       const result = await signInWithEmail(email.trim(), password, progress?.mark);
       progress?.mark("session-refresh");
@@ -220,6 +228,7 @@ export function useSignInForm(): UseSignInForm {
       });
       if (typeof console !== "undefined") console.warn("[auth] signIn error", (e as Error).message);
     } finally {
+      actionLockRef.current -= 1;
       progress?.finish();
       setSubmitting(false);
     }
@@ -234,6 +243,7 @@ export function useSignInForm(): UseSignInForm {
       return;
     }
     setResetSubmitting(true);
+    actionLockRef.current += 1;
     try {
       await sendPasswordResetEmail(resetEmail);
       setResetEmailSentTo(resetEmail);
@@ -242,6 +252,7 @@ export function useSignInForm(): UseSignInForm {
       setToast({ tone: "danger", message: t("errors.passwordResetFailed") });
       if (typeof console !== "undefined") console.warn("[auth] password reset email error", (e as Error).message);
     } finally {
+      actionLockRef.current -= 1;
       setResetSubmitting(false);
     }
   }, [email, t, setToast]);

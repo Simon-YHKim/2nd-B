@@ -110,6 +110,39 @@ describe("D2 sign-up Back behavior without RN", () => {
 // Wiring only: these do not simulate React focus cleanup or router history.
 // Device QA covers blur and both pushed/direct-link sign-up histories.
 describe("D2 hardware Back wiring", () => {
+  const writes = ["handleOAuth", "handleNaver", "handleSubmit", "handleForgotPassword"];
+  const writeBody = (name: string) => {
+    const index = writes.indexOf(name);
+    return signIn.slice(signIn.indexOf(`const ${name} =`), signIn.indexOf(
+      index + 1 < writes.length ? `const ${writes[index + 1]} =` : "const canSubmit =",
+    ));
+  };
+
+  test.each(writes)("%s raises the synchronous count before awaiting and releases it in finally", (name) => {
+    const body = writeBody(name);
+    const raised = body.indexOf("actionLockRef.current += 1;");
+    const lowered = body.indexOf("actionLockRef.current -= 1;");
+    expect(raised).toBeGreaterThanOrEqual(0);
+    expect(raised).toBeLessThan(body.indexOf("try {"));
+    expect(raised).toBeLessThan(body.indexOf("await "));
+    expect(lowered).toBeGreaterThan(body.indexOf("finally {"));
+    expect(body).toMatch(/finally \{\s*actionLockRef.current -= 1;/);
+  });
+
+  test("invalid reset email returns before acquiring the auth write lock", () => {
+    const beforeWrite = writeBody("handleForgotPassword").split("setResetSubmitting(true)")[0];
+    expect(beforeWrite).toContain('if (!resetEmail.includes("@"))');
+    expect(beforeWrite).toContain("return;");
+    expect(beforeWrite).not.toContain("actionLockRef.current");
+  });
+
+  test("the installed sign-in handler reads the synchronous lock without busy-state resubscription", () => {
+    expect(signIn).toContain("const actionLockRef = useRef(0)");
+    expect(inEffect).toContain("isBusy: () => actionLockRef.current > 0");
+    expect(inEffect).toContain("[userId, setToast, t]");
+    expect(inEffect).not.toMatch(/submitting|oauthSubmitting|resetSubmitting/);
+  });
+
   test("guest loading keeps ownership and a confirmed user releases it", () => {
     expect(inEffect).toContain('if (Platform.OS !== "android" || userId) return;');
     expect(inEffect).not.toContain("loading");
