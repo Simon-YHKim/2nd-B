@@ -1,5 +1,16 @@
 # 2nd-Brain Handoff
 
+## 2026-10-10 20:39 / 2ndb-ee: UI 4회차 끝(#2217 · #2218 · #2222 · #2219) · 홈 확대 막대는 결정 대기(#2220) · 의미 판정 층 검토
+
+- **근거**: Simon 이 UI 3회차 결과 보고서의 결정 탭에서 붙여 준 답(19:00). DECISIONS 26.10.10 19:00 두 줄 · 20:37 두 줄 · 이 블록 시각의 정정 줄.
+- **한 것**: ① 계정 전환 뒤 폰 상태와 스크롤 기억 #2219(감사 G5-01 · 02 닫힘, daybreak 2회차 PASS, [기록](handoff/ACCTSTATE-261010.md)) ② 답변 문장에 끼던 근거 기록 이름 #2217 · #2222([기록](design/CHAT-CITATION-LABEL-261010.md)) ③ 기록 추가 화면의 아래 빈 공간 #2218(`src/components/deep-space/DeepSpaceViews.tsx` 의 `CaptureView`) ④ 홈 확대 막대는 draft #2220 으로 시안만 만들고 머지하지 않음(잰 결과 누르는 자리의 겹침은 원래 0) ⑤ 의미 판정 층을 읽기 전용으로 검토.
+- **확인**: 8081(main `e3f8ccff`) QA 계정 390px. ① 은 같은 계정의 위치 기억만 눌러 봄(계정 둘은 미확인) ② 는 근거가 붙은 답 1건(원문 `[[untitled]]` → 화면 `Untitled` 0), #2222 는 테스트로만 ③ 은 390 · 360 측정. Android 기기는 이번 회차 화면 전부 미확인. 3회차 #2212 의 입력창은 2ndb-23 이 Android 16 에뮬레이터에서 통과 확인(글꼴 1.0 · 1.3 · 2.0배).
+- **보고서**: 4회차 <https://claude.ai/artifact/MjGTneAvqpRjJZ2PTfgMQ9> · 3회차 <https://claude.ai/artifact/MMzvPee5sFND9rFTgTbH9D>. 캡처 · 발주서 · 검토 원문은 `E:/Coding Infra/reports/codex-audit-261010/`(`ui/` · `gates/acctstate-daybreak-r*.txt` · `impl/semlayer-r1.last.md`).
+- **미해결 질문**(전부 4회차 보고서 결정 탭): Q-261010-31 의미 판정 장치의 다음 걸음(오판율부터 재기 = 모델 호출 약 620회) — 안 정해지면 어휘 층만, #2194 · #2208 은 draft 로 남는다 · Q-261010-35 홈 확대 막대의 자리 — 안 정해지면 지금대로 두고 #2220 을 닫는다 · Q-261010-32 기록 추가의 저장 버튼 자리 · 33 `4W1H` · `OCR` 용어 · 34 다음 작업 — 안 정해지면 아무것도 안 막힌다.
+- **남긴 것**: AS-02(`src/screens/deepspace/dds-ops-screen.tsx` 의 추천 표시 저장이 계정 전환을 건너는 조건부 경로, medium. 지금은 폰 경계와 `AccountScope` 가 막는다) · 감사 G5-03 ~ 07 · 글꼴 2.0배의 대화 화면(마이크 아이콘 높이 · 상태 줄 말줄임, 2ndb-23 관찰) · A03 한마디 유지. 감사 G2-02 · 03 · 04 는 2ndb-74 가 맡았다(Simon 선택).
+- **워크트리**: 머지된 `acctstate-261010` · `cite-261010` · `capture-261010` · `chat-261010` · `chat2-261010` · `phonehome-261010` · `entrypaths-261010` · `assistant-261010`, draft 가 열린 `homezoom-261010`(#2220) · `safescan-261010`(#2194) · `scanline-261010`(#2208), 기록용 `codex-audit-261010`. 전부 node_modules 정션이 있다. 지울 때 정션부터 끊는다.
+- **다음 1개**: Simon 의 Q-261010-31 · 35 답.
+
 ## 2026-10-10 19:09 / 2ndb-74: 식품 찾기 복구(#2211 · 서버 함수 재배포) · 감사 G4 닫힘(운영 0242 · #2202 머지)
 
 - **근거**: Simon 질문 창 답(DECISIONS 26.10.10 17:51) — Q-11 "배포하고 확인" · Q-12 "한 번에 + 통과 시 적용 GO" · Q-13 한도 잠정값 그대로 · Q-14 내보내기는 다음 PR. 결과는 이 블록 시각의 DECISIONS 두 줄.
