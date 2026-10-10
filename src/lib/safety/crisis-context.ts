@@ -37,7 +37,19 @@ const WORK_STATEMENT = `${WORK_PREFIX}(?:${WORK_BEFORE}(?:(?:어(?:요)?|다|습
 const KNOWN_WORK_CONTEXT = new RegExp(`^${WORK_STATEMENT}(?:[,\.!?。！？]* +${WORK_STATEMENT}){0,2}[.!?。！？]*$`);
 
 export function prepareCrisisScanText(text: string): string {
-  const normalized = text.normalize("NFKC").toLowerCase().replace(/\s+/g, " ");
+  // Strip invisible insertions before NFKC so split Hangul jamo can compose.
+  // Fold only explicit separators between letters: join Hangul syllables,
+  // but keep Latin word boundaries ("want.to die" must not become "wantto die").
+  // Never join general whitespace: "혼자 살고 싶어" would invent a crisis term.
+  const normalized = text
+    .replace(/[\u200b-\u200d\u2060\ufeff\u00ad]/g, "")
+    .normalize("NFKC").toLowerCase()
+    .replace(/[\u2018\u2019\u02bc\uff07]/g, "'")
+    .replace(/([가-힣])[._\-\u00b7\u2022\u2027\u2010-\u2015]+(?=[가-힣])/g, "$1")
+    .replace(/([a-z])[._\-\u00b7\u2022\u2027\u2010-\u2015]+(?=[a-z])/g, "$1 ")
+    .replace(/\s+/g, " ")
+    // This one split fragment has a known crisis spelling; other spaces stay.
+    .replace(/죽 +고(?= *싶)/g, "죽고");
   if (RISK_CONTEXT.test(normalized)) return normalized;
 
   // A question about intent is not a denial. Only the known correction tail

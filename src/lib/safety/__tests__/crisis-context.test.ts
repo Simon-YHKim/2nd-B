@@ -1,7 +1,18 @@
 import { classifyInputAnyLocale } from "../classifier";
-import { BENIGN_CRISIS_CONTEXTS, RISK_OR_UNRESOLVED_CRISIS_CONTEXTS } from "./crisis-context.fixtures";
+import { prepareCrisisScanText } from "../crisis-context";
+import { BENIGN_CRISIS_CONTEXTS, RISK_OR_UNRESOLVED_CRISIS_CONTEXTS, SPACE_SENSITIVE_BENIGN_CONTEXTS } from "./crisis-context.fixtures";
 
 describe("narrow crisis-context corrections", () => {
+  test.each(SPACE_SENSITIVE_BENIGN_CONTEXTS)("keeps everyday word boundaries green: %s", (text) => {
+    expect(prepareCrisisScanText(text)).toBe(text);
+    expect(classifyInputAnyLocale(text, "ko").zone).toBe("green");
+    expect(classifyInputAnyLocale(text, "en").zone).toBe("green");
+  });
+
+  test("normalizes inserted characters before the risk-context early return", () => {
+    expect(prepareCrisisScanText("죽.고 싶어. I want-to-die.")).toBe("죽고 싶어. i want to die.");
+  });
+
   test.each(BENIGN_CRISIS_CONTEXTS)("ordinary context does not route: %s", (text) => {
     expect(classifyInputAnyLocale(text, "ko").zone).not.toBe("red");
     expect(classifyInputAnyLocale(text, "en").zone).not.toBe("red");
