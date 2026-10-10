@@ -95,7 +95,10 @@ export function buildPublicDataUpstreamUrl(request: PublicDataRequest, serverKey
     return url;
   }
 
-  const url = new URL("https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo01/getFoodNtrCpntDbInq01");
+  // The provider retired the 01 operation: on 2026-10-10 it answered every
+  // request, with or without a key, HTTP 400 NO_OPENAPI_SERVICE_ERROR (code 12).
+  // The account's key is registered for 02 (docs/EXTERNAL-API-INTEGRATION.md).
+  const url = new URL("https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02");
   url.searchParams.set("serviceKey", serverKey);
   url.searchParams.set("FOOD_NM_KR", request.query);
   url.searchParams.set("pageNo", "1");
