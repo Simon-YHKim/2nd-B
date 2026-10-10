@@ -109,8 +109,20 @@ BEGIN
     ELSIF TG_OP='DELETE' THEN subjects := ARRAY[OLD.user_id];
     ELSE subjects := ARRAY[OLD.user_id,NEW.user_id]; END IF;
   END IF;
-  UPDATE public.dashboard_generation_runs SET output=NULL,status='failed'
-    WHERE user_id=ANY(subjects) AND (status<>'failed' OR output IS NOT NULL);
+  -- Use the same current eligibility as the backfill. Historical repairs can
+  -- invoke this hook without withdrawing consent or changing the run's token.
+  UPDATE public.dashboard_generation_runs g SET output=NULL,status='failed'
+  WHERE g.user_id=ANY(subjects) AND (g.status<>'failed' OR g.output IS NOT NULL) AND NOT EXISTS (
+    SELECT 1 FROM public.users u JOIN auth.users a ON a.id=u.id
+    CROSS JOIN LATERAL public.llm_consent_current_decision(u.id) c
+    WHERE u.id=g.user_id AND u.privacy_prefs->'recommendations'='true'::jsonb
+      AND u.account_status='active' AND u.minor_tier='adult'
+      AND u.birth_date<=(current_date-interval '18 years')::date
+      AND a.deleted_at IS NULL AND a.email_confirmed_at IS NOT NULL AND c.allowed IS TRUE AND c.token=g.consent_token
+      AND NOT EXISTS(SELECT 1 FROM public.account_deletion_tombstones t WHERE t.user_id=u.id)
+      AND NOT EXISTS(SELECT 1 FROM public.consent_changes cc WHERE cc.user_id=u.id
+        AND cc.pref_key='recommendations' AND cc.event_type='revoke' AND cc.created_at>=g.created_at)
+  );
   IF TG_OP='DELETE' THEN RETURN OLD; END IF;
   RETURN NEW;
 END $$;
@@ -124,14 +136,25 @@ CREATE TRIGGER zz_dashboard_privacy_changed AFTER UPDATE OF privacy_prefs,accoun
   EXECUTE FUNCTION public.invalidate_dashboard_consent();
 -- A trusted new grant/revoke gets provenance from capture_llm_consent_provenance.
 -- Metadata/state changes include all service-v1..v4 and optional-pref writers.
-CREATE TRIGGER dashboard_receipt_changed AFTER INSERT OR UPDATE OF user_id,consent_record_id,
-  state_revision,optional_consents_since,service_action,contract_revision OR DELETE ON public.llm_consent_receipts
+-- Separate INSERT/DELETE so UPDATE can compare OLD/NEW, including nullable fields.
+CREATE TRIGGER dashboard_receipt_inserted_deleted AFTER INSERT OR DELETE ON public.llm_consent_receipts
   FOR EACH ROW EXECUTE FUNCTION public.invalidate_dashboard_consent();
+CREATE TRIGGER dashboard_receipt_changed AFTER UPDATE OF user_id,consent_record_id,
+  state_revision,optional_consents_since,service_action,contract_revision ON public.llm_consent_receipts
+  FOR EACH ROW WHEN ((OLD.user_id,OLD.consent_record_id,OLD.state_revision,OLD.optional_consents_since,OLD.service_action,OLD.contract_revision)
+    IS DISTINCT FROM (NEW.user_id,NEW.consent_record_id,NEW.state_revision,NEW.optional_consents_since,NEW.service_action,NEW.contract_revision))
+  EXECUTE FUNCTION public.invalidate_dashboard_consent();
 -- Client ledgers are append-only. Cover permitted server repairs too, excluding
 -- retention's ip_hash/ua_hash-only scrub (0063), which changes no consent.
 CREATE TRIGGER dashboard_consent_record_changed AFTER UPDATE OF user_id,purposes,required_ack,
   llm_processing_ack,overseas_transfer_ack,sensitive_data_ack,safety_notice_ack,optional_consents,
-  consent_version,policy_version,terms_version,created_at OR DELETE ON public.consent_records
+  consent_version,policy_version,terms_version,created_at ON public.consent_records
+  FOR EACH ROW WHEN ((OLD.user_id,OLD.purposes,OLD.required_ack,OLD.llm_processing_ack,OLD.overseas_transfer_ack,
+    OLD.sensitive_data_ack,OLD.safety_notice_ack,OLD.optional_consents,OLD.consent_version,OLD.policy_version,OLD.terms_version,OLD.created_at)
+    IS DISTINCT FROM (NEW.user_id,NEW.purposes,NEW.required_ack,NEW.llm_processing_ack,NEW.overseas_transfer_ack,
+    NEW.sensitive_data_ack,NEW.safety_notice_ack,NEW.optional_consents,NEW.consent_version,NEW.policy_version,NEW.terms_version,NEW.created_at))
+  EXECUTE FUNCTION public.invalidate_dashboard_consent();
+CREATE TRIGGER dashboard_consent_record_deleted AFTER DELETE ON public.consent_records
   FOR EACH ROW EXECUTE FUNCTION public.invalidate_dashboard_consent();
 CREATE TRIGGER zz_dashboard_consent_event_changed AFTER INSERT OR UPDATE OF user_id,pref_key,event_type,created_at
   OR DELETE ON public.consent_changes FOR EACH ROW EXECUTE FUNCTION public.invalidate_dashboard_consent();

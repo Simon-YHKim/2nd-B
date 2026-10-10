@@ -86,6 +86,9 @@ BEGIN
   UPDATE public.users SET privacy_prefs=privacy_prefs||'{"location_weather":true,"marketing":true}' WHERE id=owner;
   INSERT INTO public.consent_changes(user_id,pref_key,event_type) VALUES(owner,'ads','grant');
   IF NOT EXISTS(SELECT 1 FROM public.dashboard_generation_runs WHERE user_id=owner AND output IS NOT NULL) THEN RAISE EXCEPTION 'unrelated preferences invalidated'; END IF;
+  -- This suite stubs the consent decision. Model a denied decision explicitly;
+  -- the runner also exercises the real receipt/record contract and repairs.
+  UPDATE public.users SET test_consent=false WHERE id=owner;
   INSERT INTO public.consent_records(user_id,llm_processing_ack) VALUES(owner,false) RETURNING id INTO consent;
   INSERT INTO public.llm_consent_receipts(consent_record_id,user_id) VALUES(consent,owner);
   PERFORM pg_temp.assert_closed(owner);
@@ -111,6 +114,7 @@ BEGIN
   DELETE FROM public.consent_records WHERE id=consent;
   PERFORM pg_temp.assert_closed(owner);
   -- Retention metadata scrub does not throw away eligible cached text.
+  UPDATE public.users SET test_consent=true WHERE id=owner;
   INSERT INTO public.consent_records(user_id) VALUES(owner) RETURNING id INTO consent;
   PERFORM pg_temp.seed_runs(owner);
   UPDATE public.consent_records SET ip_hash=NULL,ua_hash=NULL WHERE id=consent;

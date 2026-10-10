@@ -133,4 +133,55 @@ if (process.exitCode === 0) {
     if (!result.split(/\r?\n/).includes('t')) throw new Error('Real revoke lost completed audit');
   }
   console.log('Actual consent contract: grant/revoke writer and privacy withdrawal vs finish, four races passed.');
+
+  // Daybreak r1 finding 1: repairs that leave the current grant intact must
+  // preserve the entire ready row. EXPLAIN also proves no-op UPDATE hooks skip
+  // execution, independently of the invalidator's eligibility predicate.
+  const repairFailures = [];
+  for (const [index, repair] of ['receipt-noop', 'record-noop', 'historical-record'].entries()) {
+    const subject = `00000000-0000-0000-0000-00000000005${index + 1}`;
+    const grant = `SELECT public.write_llm_service_consent('${subject}','service-v4',
+      public.llm_service_consent_status_v4('${subject}')->>'change_token','grant',
+      '{"service":true,"llmProcessing":true,"overseasTransfer":true,"sensitiveData":true,"safetyNotice":true}','ko');`;
+    await run(`SET request.jwt.claim.role='service_role';
+      INSERT INTO auth.users(id) VALUES('${subject}'); INSERT INTO public.users(id) VALUES('${subject}');
+      INSERT INTO public.ops_routines(id,user_id,title) VALUES('${subject}','${subject}','Read'); ${grant} ${grant}`);
+    const claim = await run(`SET request.jwt.claim.role='service_role'; SELECT public.dashboard_generation_request('${subject}','open','Asia/Seoul','ko')->>'id';`);
+    const id = claim.split(/\r?\n/).find((line) => /^[a-f0-9-]{36}$/.test(line));
+    if (!id) throw new Error(`Repair fixture claim failed: ${repair}`);
+    await run(`SET request.jwt.claim.role='service_role';
+      SELECT public.dashboard_generation_dispatch('${subject}','${id}');
+      SELECT public.dashboard_generation_finish('${subject}','${id}','{"line":"keep current slot"}');`);
+    const snapshot = `SELECT row_to_json(g) FROM public.dashboard_generation_runs g WHERE id='${id}';`;
+    const before = JSON.parse(await run(snapshot));
+    if (before.status !== 'ready' || before.output?.line !== 'keep current slot') throw new Error(`Repair fixture not ready: ${repair}`);
+    const decision = `SELECT row_to_json(c) FROM public.llm_consent_current_decision('${subject}') c;`;
+    const beforeDecision = await run(decision);
+    const update = repair === 'receipt-noop'
+      ? `UPDATE public.llm_consent_receipts SET state_revision=state_revision WHERE user_id='${subject}'`
+      : repair === 'record-noop'
+        ? `UPDATE public.consent_records SET llm_processing_ack=llm_processing_ack WHERE user_id='${subject}'`
+        : `UPDATE public.consent_records SET llm_processing_ack=false WHERE id=(
+            SELECT consent_record_id FROM public.llm_consent_receipts WHERE user_id='${subject}' ORDER BY receipt_order ASC LIMIT 1)`;
+    const [explain] = JSON.parse(await run(`EXPLAIN (ANALYZE, FORMAT JSON) ${update};`));
+    if (beforeDecision !== await run(decision)) throw new Error(`Repair fixture changed current consent: ${repair}`);
+    const calls = (explain.Triggers ?? []).filter((trigger) => trigger['Trigger Name'].startsWith('dashboard_'))
+      .reduce((sum, trigger) => sum + trigger.Calls, 0);
+    if (JSON.stringify(before) !== JSON.stringify(JSON.parse(await run(snapshot)))) repairFailures.push(`${repair}: ready/output changed`);
+    if (repair.endsWith('-noop') && calls !== 0) repairFailures.push(`${repair}: no-op invalidator ran`);
+    if (repair === 'historical-record' && calls !== 1) repairFailures.push(`${repair}: repair did not exercise invalidator`);
+    // Each control then actually loses eligibility: token change, denied
+    // current record, or a recommendation revoke after the run was created.
+    const latest = `SELECT consent_record_id FROM public.llm_consent_receipts WHERE user_id='${subject}' ORDER BY receipt_order DESC LIMIT 1`;
+    await run(repair === 'receipt-noop'
+      ? `UPDATE public.llm_consent_receipts SET state_revision=state_revision+1 WHERE consent_record_id=(${latest});`
+      : repair === 'record-noop'
+        ? `UPDATE public.consent_records SET llm_processing_ack=false WHERE id=(${latest});`
+        : `INSERT INTO public.consent_changes(user_id,pref_key,event_type) VALUES('${subject}','recommendations','revoke');`);
+    const closed = JSON.parse(await run(snapshot));
+    if (closed.status !== 'failed' || closed.output !== null) repairFailures.push(`${repair}: actual withdrawal survived`);
+  }
+  if (repairFailures.length) throw new Error(`Consent repair regression: ${repairFailures.join('; ')}`);
+  console.log('Consent repairs: receipt no-op, record no-op, historical record preserve current consent and ready/output (3/3).');
+  console.log('Consent repair controls: token change, current record denial, recommendation revoke close output (3/3).');
 }
