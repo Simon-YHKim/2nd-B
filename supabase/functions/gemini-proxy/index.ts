@@ -48,7 +48,7 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { prepareCrisisScanText } from '../../../src/lib/safety/crisis-context.ts';
+import { prepareCrisisScanText, scanCrisisObfuscation } from '../../../src/lib/safety/crisis-context.ts';
 import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld } from '../_shared/llm-consent.ts';
 // D-27 attribution plus the shared server-owned purpose policy. The remaining
 // crisis/auth/cap plumbing stays inlined until its own deploy-verified migration.
@@ -346,7 +346,8 @@ function hasCrisisTerm(text: string): boolean {
   for (const term of CRISIS_TERMS_KO) {
     if (lower.includes(normalizeForMatch(term))) return true;
   }
-  return false;
+  const loose = scanCrisisObfuscation(text);
+  return loose.en.size > 0 || loose.ko.size > 0;
 }
 
 // Build CORS headers. For a disallowed/absent Origin we OMIT the

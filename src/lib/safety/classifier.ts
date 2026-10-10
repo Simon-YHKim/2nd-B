@@ -6,7 +6,7 @@ import {
   type HotlineId,
   type Locale,
 } from "./lexicon";
-import { prepareCrisisScanText } from "./crisis-context";
+import { prepareCrisisScanText, scanCrisisObfuscation } from "./crisis-context";
 
 export type SafetyZone = "green" | "yellow" | "red";
 
@@ -98,6 +98,9 @@ export function classifyInput(text: string, locale: Locale, opts: ClassifyOption
   for (const term of CRISIS_TERMS[locale]) {
     if (matchesTerm(crisisScanText, term, locale)) crisisMatches.push(term);
   }
+  // Keep the literal decision first. Exceptions only affect that legacy path;
+  // an altered phrase is scanned from the original text and can only add RED.
+  if (crisisMatches.length === 0) crisisMatches.push(...scanCrisisObfuscation(text)[locale]);
   if (crisisMatches.length > 0) {
     const h = pickCrisisHotline(locale, opts.minor);
     return {

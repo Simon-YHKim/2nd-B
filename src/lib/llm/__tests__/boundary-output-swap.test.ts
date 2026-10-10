@@ -171,6 +171,8 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
   test.each([
     ["내가 욕심은 있는데, 잠은 좀 자고 싶어. 오늘 은 3시간 정도 잔거 같아.", "오늘 끝내고 싶은 일이 있어도 먼저 잠을 자요."],
     ["아니... 자살하려는 건 아냐... 날 뭘로 보는거야", "말씀하신 뜻을 잘못 받아들였습니다. 너무 앞서갔습니다."],
+    ["I’m not suicidal.", "I understand."],
+    ["혼.자.살고 싶어. example.com/sui.cide", "혼자 지내는 시간을 이야기하셨습니다."],
   ])("ordinary rest and a clear correction reach the model without a false output swap: %s", async (user, answer) => {
     mockGenerateContent.mockResolvedValueOnce({ text: answer });
     mockClassifySafety.mockResolvedValueOnce(GREEN);
@@ -193,5 +195,16 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     expect(result.text).toContain("109");
     expect(mockGenerateContent).not.toHaveBeenCalled();
     expect(mockClassifySafety).not.toHaveBeenCalled();
+  });
+
+  test("an altered RED input stops generation while the audit hashes the raw input", async () => {
+    const user = "I.want.to.die,name@example.com";
+    const result = await callLlm({ userId: "u1", locale: "en", purpose: "source_ingest", user });
+    expect(result.safety.zone).toBe("red");
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(mockClassifySafety).not.toHaveBeenCalled();
+    // Precomputed djb2 of the raw message, including punctuation and address.
+    expect(result.audit.promptHash).toBe("3541472d");
+    expect(auditMock.mock.calls[0][0].promptHash).toBe(result.audit.promptHash);
   });
 });

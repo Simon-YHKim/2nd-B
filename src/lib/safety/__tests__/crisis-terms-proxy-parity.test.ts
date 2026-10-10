@@ -17,6 +17,7 @@ import * as ts from "typescript";
 import { classifyInput } from "../classifier";
 import { CRISIS_TERMS } from "../lexicon";
 import { BENIGN_CRISIS_CONTEXTS, RISK_OR_UNRESOLVED_CRISIS_CONTEXTS } from "./crisis-context.fixtures";
+import { SCANLINE_RED, SCANLINE_GREEN, SCANLINE_VARIANTS, SCANLINE_UNRESOLVED } from "./crisis-scan.fixtures";
 
 const PROXY_SOURCES = {
   "gemini-proxy": "../../../../supabase/functions/gemini-proxy/index.ts",
@@ -49,7 +50,7 @@ function loadHasCrisisTerm(src: string, relPath: string): (text: string) => bool
   // The function's closing brace is the first column-0 `}` after its header.
   const end = src.indexOf("\n}", fnStart);
   if (end < 0) throw new Error("hasCrisisTerm end not found");
-  const contextImport = src.match(/^import \{ prepareCrisisScanText \} from ['"][^'"]+['"];$/m)?.[0];
+  const contextImport = src.match(/^import \{ prepareCrisisScanText, scanCrisisObfuscation \} from ['"][^'"]+['"];$/m)?.[0];
   if (!contextImport) throw new Error("shared crisis context import missing from proxy source");
   const snippet = `${contextImport}\n${src.slice(start, end + 2)}\nexports.hasCrisisTerm = hasCrisisTerm;\n`;
   const js = ts.transpileModule(snippet, {
@@ -93,6 +94,28 @@ describe.each(Object.entries(PROXY_SOURCES))("%s crisis-term parity", (_name, re
 // NFD-decomposed Hangul, doesn't slip RED -> GREEN).
 describe.each(Object.entries(PROXY_SOURCES))("%s hasCrisisTerm behaviour parity", (_name, relPath) => {
   const hasCrisisTerm = loadHasCrisisTerm(readProxy(relPath), relPath);
+
+  test.each(SCANLINE_RED)("scanline gate regression RED: %s", (text) => {
+    expect(hasCrisisTerm(text)).toBe(true);
+  });
+  test.each(SCANLINE_GREEN)("scanline gate regression GREEN: %s", (text) => {
+    expect(hasCrisisTerm(text)).toBe(false);
+  });
+  test.each(SCANLINE_UNRESOLVED)("documented coverage limit: $text", ({ text }) => {
+    expect(hasCrisisTerm(text)).toBe(false);
+  });
+  test.each(SCANLINE_VARIANTS)("scanline generated cohort: $name", ({ cases }) => {
+    expect(cases.length).toBeGreaterThanOrEqual(20);
+    for (const { text, red } of cases) expect({ text, red: hasCrisisTerm(text) }).toEqual({ text, red });
+  });
+  test.each([
+    "self" + "-".repeat(50_000) + "x",
+    Array(10_000).fill("https://x/sui.cide").join(" "),
+  ])("scanline long input stays under 1.5 seconds", (text) => {
+    const start = performance.now();
+    expect(hasCrisisTerm(text)).toBe(false);
+    expect(performance.now() - start).toBeLessThan(1500);
+  });
 
   test.each(BENIGN_CRISIS_CONTEXTS)("narrow benign context passes both boundaries: %s", (text) => {
     expect(classifyInput(text, "ko").zone).not.toBe("red");
