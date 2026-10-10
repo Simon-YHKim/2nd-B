@@ -1,8 +1,16 @@
 import { readFileSync } from "node:fs";
+import { semantic, semanticLight } from "@/lib/theme/tokens";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
 describe("D6 provider icons", () => {
+  test("provider colors stay identical in both palette shapes", () => {
+    const light: Record<string, string> = semanticLight;
+    const brandColors = Object.entries(semantic).filter(([key]) => key.startsWith("googleBrand"));
+    expect(brandColors).toHaveLength(4);
+    for (const [key, color] of brandColors) expect(light[key]).toBe(color);
+  });
+
   test.each(["sign-in", "sign-up"])("%s uses the same brand renderer", (screen) => {
     const source = read(`src/screens/deepspace/dds-${screen}-screen.tsx`);
     expect(source).toContain('import { ProviderBrandIcon } from "@/components/auth/ProviderBrandIcon"');

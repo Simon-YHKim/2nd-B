@@ -347,6 +347,10 @@ export const semanticLight = {
   deepSpaceCard: semantic.deepSpaceCard,
   deepSpaceCardPressed: semantic.deepSpaceCardPressed,
   deepSpaceCardLine: semantic.deepSpaceCardLine,
+
+  googleBrandYellow: semantic.googleBrandYellow,
+  googleBrandGreen: semantic.googleBrandGreen,
+  googleBrandBlue: semantic.googleBrandBlue,
 } as const;
 
 // The Graph Village character colours (`characters` / `CharacterName`) and the
