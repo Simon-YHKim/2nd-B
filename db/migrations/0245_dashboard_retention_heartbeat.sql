@@ -21,7 +21,10 @@ BEGIN
     WHERE singleton AND last_purged_at<=checked_at AND last_purged_at>checked_at-retention_max_age);
 END $$;
 
-CREATE OR REPLACE FUNCTION public.dashboard_generation_guard(p_user_id uuid) RETURNS jsonb
+-- Account/consent eligibility is shared by the guard and pre-dispatch finish.
+-- Retention is a separate condition for generation, not a reason to terminate
+-- an otherwise eligible reservation permanently.
+CREATE FUNCTION public.dashboard_generation_eligibility(p_user_id uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET row_security=off AS $$
 DECLARE c jsonb;
 BEGIN
@@ -29,17 +32,29 @@ BEGIN
     nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role') IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'dashboard_forbidden' USING ERRCODE='42501';
   END IF;
-  IF NOT public.dashboard_generation_retention_ready() THEN RETURN NULL; END IF;
   -- Same deletion-fence ordering as 0194; all mutations below retain these locks.
   PERFORM pg_advisory_xact_lock_shared(hashtextextended(p_user_id::text,260913));
-  PERFORM 1 FROM auth.users WHERE id=p_user_id AND deleted_at IS NULL AND email_confirmed_at IS NOT NULL FOR SHARE;
-  IF NOT FOUND OR EXISTS(SELECT 1 FROM public.account_deletion_tombstones WHERE user_id=p_user_id) THEN RETURN NULL; END IF;
-  PERFORM 1 FROM public.users WHERE id=p_user_id AND account_status='active'
-    AND minor_tier='adult' AND birth_date <= (current_date-interval '18 years')::date
-    AND privacy_prefs->'recommendations'='true'::jsonb FOR UPDATE;
+  PERFORM 1 FROM auth.users WHERE id=p_user_id FOR SHARE;
   IF NOT FOUND THEN RETURN NULL; END IF;
+  PERFORM 1 FROM public.users WHERE id=p_user_id FOR UPDATE;
+  IF NOT FOUND OR NOT EXISTS(SELECT 1 FROM auth.users WHERE id=p_user_id
+    AND deleted_at IS NULL AND email_confirmed_at IS NOT NULL)
+    OR EXISTS(SELECT 1 FROM public.account_deletion_tombstones WHERE user_id=p_user_id)
+    OR NOT EXISTS(SELECT 1 FROM public.users WHERE id=p_user_id AND account_status='active'
+    AND minor_tier='adult' AND birth_date <= (current_date-interval '18 years')::date
+    AND privacy_prefs->'recommendations'='true'::jsonb) THEN RETURN NULL; END IF;
   c := public.effective_llm_consent_snapshot_v2(p_user_id,false);
   IF c->'allowed' IS DISTINCT FROM 'true'::jsonb OR coalesce(c->>'token','') !~ '^[a-f0-9]{64}$' THEN RETURN NULL; END IF;
+  RETURN c;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.dashboard_generation_guard(p_user_id uuid) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET row_security=off AS $$
+DECLARE c jsonb;
+BEGIN
+  c := public.dashboard_generation_eligibility(p_user_id);
+  -- Read freshness after acquiring the owner locks, including after any wait.
+  IF c IS NULL OR NOT public.dashboard_generation_retention_ready() THEN RETURN NULL; END IF;
   RETURN c;
 END $$;
 
@@ -58,7 +73,7 @@ $$;
 SELECT public.purge_dashboard_generation();
 
 REVOKE ALL ON FUNCTION public.dashboard_generation_retention_ready(),
-  public.dashboard_generation_guard(uuid),public.purge_dashboard_generation()
+  public.dashboard_generation_guard(uuid),public.dashboard_generation_eligibility(uuid),public.purge_dashboard_generation()
   FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.dashboard_generation_retention_ready(),public.purge_dashboard_generation() TO service_role;
 
@@ -74,6 +89,95 @@ ALTER TABLE public.dashboard_generation_runs DROP CONSTRAINT dashboard_generatio
 ALTER TABLE public.dashboard_generation_runs ADD CONSTRAINT dashboard_generation_runs_status_check
   CHECK(status IN ('pending','dispatched','ready','failed','pre_dispatch_failed','pre_dispatch_blocked'));
 -- Same owner table/cascade and same audit ledger: no new erasure registration.
+
+-- Call only with the owner's row lock held. Each v2 lease already has one
+-- atomic audit row, so count its own reservation date, not the run's first date.
+-- Read audits independently of runs: after travel, a recent retry can outlive
+-- the first run's 48h retention. Purging that run must not reopen today's quota.
+-- Legacy claims count once even if they have not reached their audit INSERT.
+-- The local-day OR UTC-day rule is unchanged, including midnight/travel.
+CREATE FUNCTION public.dashboard_generation_attempt_count(p_user_id uuid,p_purpose text,p_timezone text) RETURNS bigint
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' SET row_security=off AS $$
+  SELECT count(*) FROM (
+    SELECT a.created_at FROM public.ai_audit_log a
+      WHERE a.user_id=p_user_id AND a.purpose=p_purpose AND a.event_source='server_verified'
+        AND a.outbox_event_id ~ ('^dashboard:[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}:'||a.id::text||'$')
+    UNION ALL
+    SELECT g.created_at FROM public.dashboard_generation_runs g
+      WHERE g.user_id=p_user_id AND g.purpose=p_purpose AND g.lease_token IS NULL
+  ) attempts
+  WHERE (created_at AT TIME ZONE p_timezone)::date=(now() AT TIME ZONE p_timezone)::date
+    OR (created_at AT TIME ZONE 'UTC')::date=(now() AT TIME ZONE 'UTC')::date;
+$$;
+REVOKE ALL ON FUNCTION public.dashboard_generation_attempt_count(uuid,text,text) FROM PUBLIC,anon,authenticated,service_role;
+
+-- Keep the original RPC signature and terminal behavior during Edge rollout.
+CREATE OR REPLACE FUNCTION public.dashboard_generation_request(p_user_id uuid,p_action text,p_timezone text DEFAULT NULL,p_locale text DEFAULT NULL) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET row_security=off AS $$
+DECLARE c jsonb; s public.dashboard_generation_settings%ROWTYPE; r public.dashboard_generation_runs%ROWTYPE;
+  wall timestamp; slot text; slot_day date; v_purpose text; key text; source jsonb; v_source_hash text; expiry timestamptz;
+BEGIN
+  IF p_action IS NULL OR p_action NOT IN ('open','summary','triage','hourly') THEN RAISE EXCEPTION 'dashboard_action' USING ERRCODE='22023'; END IF;
+  c := public.dashboard_generation_guard(p_user_id);
+  IF c IS NULL THEN RETURN jsonb_build_object('kind','denied'); END IF;
+  -- Guard's owner row lock serializes quota and idempotency, including timezone edits.
+  SELECT * INTO s FROM public.dashboard_generation_settings WHERE user_id=p_user_id;
+  IF p_action <> 'hourly' THEN
+    IF p_timezone IS NOT NULL AND NOT EXISTS(SELECT 1 FROM pg_timezone_names WHERE name=p_timezone) THEN
+      RAISE EXCEPTION 'dashboard_timezone' USING ERRCODE='22023';
+    END IF;
+    IF p_locale IS NOT NULL AND p_locale NOT IN ('en','ko','es','pt','id') THEN RAISE EXCEPTION 'dashboard_locale' USING ERRCODE='22023'; END IF;
+    IF s.user_id IS NULL AND p_timezone IS NULL THEN RETURN jsonb_build_object('kind','denied'); END IF;
+    INSERT INTO public.dashboard_generation_settings(user_id,timezone,locale,last_active_at)
+      VALUES(p_user_id,coalesce(p_timezone,s.timezone),coalesce(p_locale,s.locale,'en'),now())
+      ON CONFLICT(user_id) DO UPDATE SET timezone=EXCLUDED.timezone,locale=EXCLUDED.locale,last_active_at=EXCLUDED.last_active_at
+      RETURNING * INTO s;
+  END IF;
+  IF s.user_id IS NULL THEN RETURN jsonb_build_object('kind','denied'); END IF;
+  wall := now() AT TIME ZONE s.timezone;
+  slot := CASE WHEN extract(hour FROM wall)>=20 OR extract(hour FROM wall)<6 THEN 'evening'
+    WHEN extract(hour FROM wall)>=13 THEN 'midday' ELSE 'morning' END;
+  slot_day := wall::date - CASE WHEN extract(hour FROM wall)<6 THEN 1 ELSE 0 END;
+  IF p_action='hourly' AND (extract(hour FROM wall) NOT IN (6,13,20) OR s.last_active_at<=now()-interval '7 days') THEN
+    RETURN jsonb_build_object('kind','empty');
+  END IF;
+  v_purpose := CASE p_action WHEN 'summary' THEN 'day_summary' WHEN 'triage' THEN 'inbox_triage' ELSE 'daily_note' END;
+  source := public.dashboard_generation_source(p_user_id,v_purpose,wall::date);
+  v_source_hash := md5(source::text);
+  -- Empty input wins over old attempts; keep the attempt ledger intact.
+  IF jsonb_array_length(coalesce(source->'reminders',source->'inboxCandidates'))=0 THEN RETURN jsonb_build_object('kind','empty'); END IF;
+  key := CASE v_purpose WHEN 'daily_note' THEN slot_day::text||':'||slot
+    WHEN 'day_summary' THEN floor(extract(epoch FROM now())/1800)::text
+    ELSE wall::date::text||':'||v_source_hash END;
+  expiry := CASE WHEN v_purpose='day_summary' THEN now()+interval '30 minutes' ELSE now()+interval '24 hours' END;
+  IF v_purpose='day_summary' THEN
+    SELECT * INTO r FROM public.dashboard_generation_runs g WHERE g.user_id=p_user_id AND g.purpose=v_purpose
+      AND g.status='ready' AND g.expires_at>now() AND g.consent_token=c->>'token' AND g.source_hash=v_source_hash
+      ORDER BY g.created_at DESC LIMIT 1;
+    IF FOUND THEN RETURN jsonb_build_object('kind','ready','purpose',v_purpose,'slot',slot,'value',r.output,'source',source); END IF;
+  END IF;
+  SELECT * INTO r FROM public.dashboard_generation_runs g WHERE g.user_id=p_user_id AND g.purpose=v_purpose AND g.request_key=key;
+  IF FOUND THEN
+    IF r.status='ready' AND r.expires_at>now() AND r.consent_token=c->>'token' AND r.source_hash=v_source_hash THEN
+      RETURN jsonb_build_object('kind','ready','purpose',v_purpose,'slot',slot,'value',r.output,'source',source);
+    END IF;
+    -- Only an in-flight lease is busy. Terminal or stale attempts wait for
+    -- the next allowed key; they are never retried automatically.
+    RETURN jsonb_build_object('kind',CASE WHEN r.status IN ('pending','dispatched')
+      AND r.created_at>now()-interval '3 minutes' THEN 'busy' ELSE 'waiting' END);
+  END IF;
+  -- Old Edge requests share the allowance with v2 lease attempts.
+  IF public.dashboard_generation_attempt_count(p_user_id,v_purpose,s.timezone) >= (CASE WHEN v_purpose='daily_note' THEN 3 ELSE 48 END) THEN
+    RETURN jsonb_build_object('kind','limited');
+  END IF;
+  INSERT INTO public.dashboard_generation_runs(user_id,purpose,request_key,source_hash,consent_token,expires_at)
+    VALUES(p_user_id,v_purpose,key,v_source_hash,c->>'token',expiry) RETURNING * INTO r;
+  RETURN jsonb_build_object('kind','claimed','id',r.id,'purpose',v_purpose,'slot',slot,'locale',s.locale,
+    'source',source,'consent_token',c->>'token');
+END $$;
+
+REVOKE ALL ON FUNCTION public.dashboard_generation_request(uuid,text,text,text) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.dashboard_generation_request(uuid,text,text,text) TO service_role;
 
 CREATE OR REPLACE FUNCTION public.dashboard_generation_request_v2(p_user_id uuid,p_action text,p_timezone text DEFAULT NULL,p_locale text DEFAULT NULL) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET row_security=off AS $$
@@ -130,6 +234,9 @@ BEGIN
       AND r.consent_token=c->>'token'
       AND (r.status='pre_dispatch_failed' OR
         (r.status='pending' AND r.leased_at<=clock_timestamp()-interval '3 minutes')) THEN
+      IF public.dashboard_generation_attempt_count(p_user_id,v_purpose,s.timezone) >= (CASE WHEN v_purpose='daily_note' THEN 3 ELSE 48 END) THEN
+        RETURN jsonb_build_object('kind','limited');
+      END IF;
       UPDATE public.ai_audit_log SET model_used=split_part(model_used,'+',1)||'+pre_dispatch_failed'
         WHERE id=r.lease_token AND user_id=p_user_id AND model_used LIKE '%+attempt';
       UPDATE public.dashboard_generation_runs SET status='pending',output=NULL,
@@ -140,11 +247,7 @@ BEGIN
         AND r.leased_at>clock_timestamp()-interval '3 minutes' THEN 'busy' ELSE 'waiting' END);
     END IF;
   ELSE
-    -- Count reserved keys, including failed dispatches. Pre-dispatch recovery
-    -- retains that same quota row and its original local/UTC-day attribution.
-    IF (SELECT count(*) FROM public.dashboard_generation_runs g WHERE g.user_id=p_user_id AND g.purpose=v_purpose
-        AND ((g.created_at AT TIME ZONE s.timezone)::date=wall::date OR
-          (g.created_at AT TIME ZONE 'UTC')::date=(now() AT TIME ZONE 'UTC')::date)) >= (CASE WHEN v_purpose='daily_note' THEN 3 ELSE 48 END) THEN
+    IF public.dashboard_generation_attempt_count(p_user_id,v_purpose,s.timezone) >= (CASE WHEN v_purpose='daily_note' THEN 3 ELSE 48 END) THEN
       RETURN jsonb_build_object('kind','limited');
     END IF;
     INSERT INTO public.dashboard_generation_runs(user_id,purpose,request_key,source_hash,consent_token,expires_at,lease_token,dispatched_at)
@@ -304,9 +407,9 @@ CREATE FUNCTION public.dashboard_generation_finish_v2(p_user_id uuid,p_run_id uu
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET row_security=off AS $$
 DECLARE c jsonb; r public.dashboard_generation_runs%ROWTYPE; zone text; source jsonb; valid boolean;
 BEGIN
-  c := public.dashboard_generation_guard(p_user_id);
-  -- Closing a pre-dispatch failure does not require a fresh heartbeat. The
-  -- guard validates the role; acquire its normal lock order even if it denied.
+  c := public.dashboard_generation_eligibility(p_user_id);
+  -- Eligibility and current consent are read under the shared guard's locks.
+  -- Also lock any remaining run when eligibility denied a missing account.
   PERFORM pg_advisory_xact_lock_shared(hashtextextended(p_user_id::text,260913));
   PERFORM 1 FROM public.users WHERE id=p_user_id FOR UPDATE;
   SELECT * INTO r FROM public.dashboard_generation_runs WHERE id=p_run_id AND user_id=p_user_id FOR UPDATE;
@@ -319,12 +422,13 @@ BEGIN
       WHERE id=r.lease_token AND user_id=p_user_id AND model_used LIKE '%+attempt';
     IF r.status='pending' THEN
       UPDATE public.dashboard_generation_runs SET output=NULL,status=CASE
-        WHEN c IS NOT NULL OR NOT public.dashboard_generation_retention_ready() THEN 'pre_dispatch_failed'
+        WHEN c IS NOT NULL AND r.consent_token=c->>'token' THEN 'pre_dispatch_failed'
         ELSE 'failed' END WHERE id=r.id;
     END IF;
     RETURN false;
   END IF;
-  IF c IS NULL OR r.status NOT IN ('pending','dispatched') THEN RETURN false; END IF;
+  IF c IS NULL OR NOT public.dashboard_generation_retention_ready()
+    OR r.status NOT IN ('pending','dispatched') THEN RETURN false; END IF;
   SELECT timezone INTO zone FROM public.dashboard_generation_settings WHERE user_id=p_user_id;
   source := public.dashboard_generation_source(p_user_id,r.purpose,(now() AT TIME ZONE zone)::date);
   valid := r.status='dispatched' AND p_output IS NOT NULL AND jsonb_typeof(p_output)='object' AND octet_length(p_output::text)<=32768

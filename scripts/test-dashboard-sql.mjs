@@ -103,6 +103,113 @@ if (process.exitCode === 0) {
     || (await run(`SELECT count(*) FROM public.ai_audit_log WHERE user_id='${recoveryOwner}';`)).trim() !== '2') throw new Error('Recovery audit 1:1 lost');
   console.log('Concurrent recovery: one replacement, stale dispatch refused, two leases/two audit rows.');
 
+  // At N-1 attempts, two different recoverable keys compete for the LAST
+  // allowance. A same-key busy result alone cannot prove quota serialization.
+  const quotaOwner = '00000000-0000-0000-0000-000000000081';
+  await run(`INSERT INTO auth.users(id) VALUES('${quotaOwner}'); INSERT INTO public.users(id) VALUES('${quotaOwner}');
+    INSERT INTO public.ops_routines(id,user_id,title) VALUES('${quotaOwner}','${quotaOwner}','Read');`);
+  const claimJson = async (input) => JSON.parse((await run(`SET request.jwt.claim.role='service_role'; ${input}`))
+    .split(/\r?\n/).find((line) => line.startsWith('{')));
+  const quotaRequest = (zone) => `SELECT public.dashboard_generation_request_v2('${quotaOwner}','open','${zone}','ko');`;
+  const quotaA = await claimJson(quotaRequest('UTC'));
+  // Choose a timezone whose slot differs from UTC at the current fixture time.
+  const quotaZone = (await run(`SELECT name FROM pg_timezone_names WHERE
+    (CASE WHEN extract(hour FROM now() AT TIME ZONE name)>=20 OR extract(hour FROM now() AT TIME ZONE name)<6 THEN 'evening'
+      WHEN extract(hour FROM now() AT TIME ZONE name)>=13 THEN 'midday' ELSE 'morning' END)<>'${quotaA.slot}' LIMIT 1;`)).trim();
+  const quotaB = await claimJson(quotaRequest(quotaZone));
+  if (quotaA.kind !== 'claimed' || quotaB.kind !== 'claimed' || quotaA.id === quotaB.id) throw new Error('Quota race fixture');
+  await run(`SET request.jwt.claim.role='service_role';
+    SELECT public.dashboard_generation_finish_v2('${quotaOwner}','${quotaA.id}',NULL,'${quotaA.lease_token}');
+    SELECT public.dashboard_generation_finish_v2('${quotaOwner}','${quotaB.id}',NULL,'${quotaB.lease_token}');`);
+  const quotaResults = await Promise.all([claimJson(quotaRequest('UTC')), claimJson(quotaRequest(quotaZone))]);
+  if (JSON.stringify(quotaResults.map((r) => r.kind).sort()) !== '["claimed","limited"]'
+    || (await run(`SELECT count(*) FROM public.ai_audit_log WHERE user_id='${quotaOwner}';`)).trim() !== '3') {
+    throw new Error('Concurrent retries exceeded daily allowance');
+  }
+  const limitedIndex = quotaResults.findIndex((r) => r.kind === 'limited');
+  const limitedClaim = [quotaA, quotaB][limitedIndex];
+  if ((await run(`SELECT lease_token FROM public.dashboard_generation_runs WHERE id='${limitedClaim.id}';`)).trim() !== limitedClaim.lease_token) {
+    throw new Error('Limited retry replaced lease');
+  }
+  console.log('Concurrent retry quota: distinct keys at N-1 yield claimed + limited, three audits, limited lease unchanged.');
+
+  // Hold A's user lock until B is visibly waiting, run C while A still holds
+  // the lock, then release A. No timing/sleep assumption determines the race.
+  async function acrossUserLock(subject, operation, during, label) {
+    const holder = spawn('psql', args, { env, windowsHide: true, timeout: 15_000 });
+    let holderError = '';
+    holder.stdout.resume(); holder.stderr.on('data', (chunk) => { holderError += chunk; });
+    const held = new Promise((resolveHeld, reject) => {
+      holder.on('error', reject);
+      holder.on('close', (code) => code === 0 ? resolveHeld() : reject(new Error(holderError)));
+    });
+    // Observe failures immediately even while polling another connection.
+    held.catch(() => {});
+    const app = `dashboard_fix1_${label}`;
+    const waitFor = async (query) => {
+      const deadline = Date.now()+5_000;
+      while (Date.now()<deadline) {
+        if ((await run(query)).trim() === '1') return;
+        await new Promise((done) => setTimeout(done, 20));
+      }
+      throw new Error(`Lock barrier missed: ${label}`);
+    };
+    let blocked;
+    try {
+      holder.stdin.write(`SET application_name='${app}_a'; BEGIN; SELECT 1 FROM public.users WHERE id='${subject}' FOR UPDATE;\n`);
+      await waitFor(`SELECT count(*) FROM pg_stat_activity WHERE application_name='${app}_a' AND state='idle in transaction';`);
+      blocked = run(`SET application_name='${app}_b'; SET request.jwt.claim.role='service_role'; ${operation}`);
+      blocked.catch(() => {});
+      await waitFor(`SELECT count(*) FROM pg_stat_activity b WHERE b.application_name='${app}_b' AND b.wait_event_type='Lock'
+        AND EXISTS(SELECT 1 FROM pg_stat_activity a WHERE a.application_name='${app}_a' AND a.pid=ANY(pg_blocking_pids(b.pid)));`);
+      await run(during);
+    } finally {
+      holder.stdin.end('COMMIT;\n');
+      await held;
+      if (blocked) await blocked;
+    }
+  }
+  for (const [index, state] of ['eligible', 'withdrawn', 'token-mismatch'].entries()) {
+    const subject = `00000000-0000-0000-0000-00000000008${index+2}`;
+    await run(`INSERT INTO auth.users(id) VALUES('${subject}'); INSERT INTO public.users(id) VALUES('${subject}');
+      INSERT INTO public.ops_routines(id,user_id,title) VALUES('${subject}','${subject}','Read');`);
+    const request = `SELECT public.dashboard_generation_request_v2('${subject}','open','UTC','ko');`;
+    const claim = await claimJson(request);
+    if (claim.kind !== 'claimed') throw new Error('Heartbeat race fixture');
+    if (state === 'withdrawn') await run(`UPDATE public.users SET privacy_prefs='{"recommendations":false}' WHERE id='${subject}';`);
+    if (state === 'token-mismatch') await run(`UPDATE public.dashboard_generation_runs SET consent_token=repeat('b',64) WHERE id='${claim.id}';`);
+    await run(`UPDATE public.dashboard_generation_retention SET last_purged_at=clock_timestamp()-interval '4 hours';`);
+    await acrossUserLock(subject,
+      `SELECT public.dashboard_generation_finish_v2('${subject}','${claim.id}',NULL,'${claim.lease_token}');`,
+      'SELECT public.purge_dashboard_generation();', `finish_${state.replace('-', '_')}`);
+    const expected = state === 'eligible' ? 'pre_dispatch_failed' : 'failed';
+    if ((await run(`SELECT status FROM public.dashboard_generation_runs WHERE id='${claim.id}';`)).trim() !== expected) {
+      throw new Error(`Heartbeat recovery misclassified finish: ${state}`);
+    }
+    if (state === 'withdrawn') await run(`UPDATE public.users SET privacy_prefs='{"recommendations":true}' WHERE id='${subject}';`);
+    if ((await claimJson(request)).kind !== (state === 'eligible' ? 'claimed' : 'waiting')) throw new Error(`Heartbeat recovery retry: ${state}`);
+  }
+  console.log('Three-session heartbeat recovery: eligible finish recovers; withdrawal and token mismatch remain terminal (3/3).');
+
+  // The same guard must read freshness after a wait for request and paid
+  // dispatch. A fresh pre-lock value must not authorize either when C expires it.
+  for (const [index, action] of ['request', 'dispatch'].entries()) {
+    const subject = `00000000-0000-0000-0000-00000000008${index+5}`;
+    await run(`SELECT public.purge_dashboard_generation(); INSERT INTO auth.users(id) VALUES('${subject}');
+      INSERT INTO public.users(id) VALUES('${subject}'); INSERT INTO public.ops_routines(id,user_id,title) VALUES('${subject}','${subject}','Read');`);
+    const request = `SELECT public.dashboard_generation_request_v2('${subject}','open','UTC','ko');`;
+    const claim = action === 'dispatch' ? await claimJson(request) : null;
+    await acrossUserLock(subject, claim
+      ? `SELECT public.dashboard_generation_audit_attempt_v2('${subject}','${claim.id}','claude-sonnet-5','low','abcd',false,'${claim.lease_token}');`
+      : request,
+    "UPDATE public.dashboard_generation_retention SET last_purged_at=clock_timestamp()-interval '4 hours';", action);
+    if ((await run(`SELECT count(*) FROM public.dashboard_generation_runs WHERE user_id='${subject}'${claim ? " AND dispatched_at IS NOT NULL" : ''};`)).trim() !== '0') {
+      throw new Error(`Pre-lock heartbeat authorized ${action}`);
+    }
+  }
+  await run('SELECT public.purge_dashboard_generation();');
+  console.log('Post-lock freshness: request and paid dispatch refuse a heartbeat expired during the user-lock wait (2/2).');
+
   // Replace decision stubs with the actual current consent functions. Only
   // surrounding auth/profile tables remain the disposable fixture. This tests
   // the service writer's record -> provenance -> receipt update transaction.
