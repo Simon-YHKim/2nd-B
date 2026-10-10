@@ -869,27 +869,11 @@ const USER_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] = 
   },
   {
     file: "src/lib/auth/useSignInForm.ts",
-    kind: "push",
-    owner: "useSignInForm",
-    guard: "",
-    before: "",
-    why: "로그인 화면의 하드웨어 뒤로(사람이 누른다). 8회차: PR 이전 그대로.",
-  },
-  {
-    file: "src/lib/auth/useSignInForm.ts",
     kind: "replace",
     owner: "useSignInForm",
     guard: "",
     before: "void observeAuthConversion(result.userId, \"login\", \"email\");",
     why: "사람이 누른 로그인 제출이 성공한 뒤의 이동. 로그인 상태의 로그인 화면 가드는 RedirectHome 이다.",
-  },
-  {
-    file: "src/lib/auth/useSignUpForm.ts",
-    kind: "push",
-    owner: "useSignUpForm",
-    guard: "",
-    before: "if (actionLockRef.current.active !== null) return true;",
-    why: "가입 화면의 하드웨어 뒤로(사람이 누른다). 인증 쓰기 중에는 먼저 소비된다.",
   },
   {
     file: "src/lib/auth/useSignUpForm.ts",

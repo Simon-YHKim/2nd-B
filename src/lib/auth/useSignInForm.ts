@@ -9,10 +9,10 @@
 // (src/app/(auth)/sign-in.tsx); the only addition is facebook/github in the
 // provider set (same signInWithProvider path as google).
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
 import { AuthLockWaitTimeoutError } from "@/lib/auth/session-mutation";
@@ -33,8 +33,10 @@ import {
   startOAuthProvider,
 } from "@/lib/auth/auth-providers";
 
+import { SIGN_IN_TOAST_DURATION_MS, signInBackDecision } from "./sign-in-back";
+
 export type SignInToastTone = "info" | "success" | "danger";
-export type SignInToast = { message: string; tone: SignInToastTone };
+export type SignInToast = { message: string; tone: SignInToastTone; exitOnBackUntil?: number };
 
 // The Supabase-native providers, in display order. (Re-export for callers/tests.)
 export const SIGN_IN_PROVIDERS = SUPABASE_OAUTH_PROVIDERS;
@@ -82,7 +84,14 @@ export function useSignInForm(): UseSignInForm {
   const [submitting, setSubmitting] = useState(false);
   const [signInTakingLong, setSignInTakingLong] = useState(false);
   const [oauthSubmitting, setOauthSubmitting] = useState(false);
-  const [toast, setToast] = useState<SignInToast | null>(null);
+  const [toast, setToastState] = useState<SignInToast | null>(null);
+  const toastRef = useRef<SignInToast | null>(null);
+  // Keep the visible toast and Back ownership together, including same-frame
+  // replacements by an auth error before React has rendered the next message.
+  const setToast = useCallback((next: SignInToast | null) => {
+    toastRef.current = next;
+    setToastState(next);
+  }, []);
   const [resetHelpVisible, setResetHelpVisible] = useState(false);
   const [resetSubmitting, setResetSubmitting] = useState(false);
   const [resetEmailSentTo, setResetEmailSentTo] = useState<string | null>(null);
@@ -92,9 +101,12 @@ export function useSignInForm(): UseSignInForm {
 
   useEffect(() => {
     if (!toast) return;
-    const timeout = setTimeout(() => setToast(null), 2800);
+    const duration = toast.exitOnBackUntil === undefined
+      ? SIGN_IN_TOAST_DURATION_MS
+      : Math.max(0, toast.exitOnBackUntil - Date.now());
+    const timeout = setTimeout(() => setToast(null), duration);
     return () => clearTimeout(timeout);
-  }, [toast]);
+  }, [toast, setToast]);
 
   useEffect(() => {
     if (!submitting) {
@@ -107,16 +119,27 @@ export function useSignInForm(): UseSignInForm {
     return () => clearTimeout(timer);
   }, [submitting]);
 
-  // Stage 3 (O-31): hardware Back on the auth gate returns to the constellation
-  // home instead of exiting the app (no dead-end). Web uses the browser back.
-  useEffect(() => {
+  // D2 (Simon 2026-10-10): only the focused Android login gate owns Back.
+  // The deadline also dismisses the existing toast; an unrelated toast never
+  // grants exit. Leaving this screen disarms the prompt even if it stays mounted.
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS !== "android" || loading || userId) return;
     const onBackPress = () => {
-      router.push("/");
+      if (submitting || oauthSubmitting || resetSubmitting) return true;
+      const decision = signInBackDecision(toastRef.current?.exitOnBackUntil, Date.now());
+      if (decision.kind === "exit") {
+        BackHandler.exitApp();
+      } else {
+        setToast({ tone: "info", message: t("signIn.exitOnBack"), exitOnBackUntil: decision.expiresAt });
+      }
       return true;
     };
     const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => sub.remove();
-  }, []);
+    return () => {
+      sub.remove();
+      if (toastRef.current?.exitOnBackUntil !== undefined) setToast(null);
+    };
+  }, [loading, userId, submitting, oauthSubmitting, resetSubmitting, setToast, t]));
 
   const setEmailAndClearReset = useCallback(
     (value: string) => {
@@ -151,7 +174,7 @@ export function useSignInForm(): UseSignInForm {
         setOauthSubmitting(false);
       }
     },
-    [t],
+    [t, setToast],
   );
 
   // Naver uses a custom web redirect (not Supabase-native), so it has its own
@@ -169,7 +192,7 @@ export function useSignInForm(): UseSignInForm {
     } finally {
       setOauthSubmitting(false);
     }
-  }, [t]);
+  }, [t, setToast]);
 
   const handleSubmit = useCallback(async () => {
     setSubmitting(true);
@@ -203,7 +226,7 @@ export function useSignInForm(): UseSignInForm {
       progress?.finish();
       setSubmitting(false);
     }
-  }, [email, password, refresh, t]);
+  }, [email, password, refresh, t, setToast]);
 
   const handleForgotPassword = useCallback(async () => {
     setResetHelpVisible(true);
@@ -224,7 +247,7 @@ export function useSignInForm(): UseSignInForm {
     } finally {
       setResetSubmitting(false);
     }
-  }, [email, t]);
+  }, [email, t, setToast]);
 
   const canSubmit = email.includes("@") && password.length > 0 && !submitting;
 

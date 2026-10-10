@@ -106,7 +106,7 @@ describe("sign-up action ownership", () => {
   test("callback success invalidates stale work and clears every busy projection", () => {
     const callback = hook.slice(
       hook.indexOf("consumeAuthCallbackUrl(deepLinkUrl)"),
-      hook.indexOf("// Stage 3 (O-31)"),
+      hook.indexOf("// D2 (Simon 2026-10-10)"),
     );
     expect(callback).toContain("invalidateSignUpActions(actionLockRef.current)");
     expect(callback).toContain("setSubmitting(false)");
@@ -118,7 +118,7 @@ describe("sign-up action ownership", () => {
   test("native sign-up callbacks never accept bearer tokens from the URL", () => {
     const callback = hook.slice(
       hook.indexOf("// Supabase's detectSessionInUrl handles web confirmation links."),
-      hook.indexOf("// Stage 3 (O-31)"),
+      hook.indexOf("// D2 (Simon 2026-10-10)"),
     );
     expect(callback).toContain("(?:code|error_code)");
     expect(callback).not.toContain("access_token");
@@ -199,6 +199,8 @@ describe("PIXEL-CLAY sign-up renderer", () => {
     expect(screen).toContain('router.push("/")');
     expect(screen).toContain("if (canLeaveGate())");
     expect(hook).toContain("if (actionLockRef.current.active !== null) return true;");
+    expect(hook).toContain('router.dismissTo("/sign-in")');
+    expect(hook).not.toContain('router.push("/")');
   });
 
   test("the only screen effect reveals the new confirmation primary state", () => {
