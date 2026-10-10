@@ -31,7 +31,14 @@ INSERT INTO public.users(id,email,birth_date,profile_details) VALUES('26101042-0
 SET LOCAL request.jwt.claim.sub='26101042-0000-4000-8000-000000000002';
 SELECT pg_temp.g4_apply('{"occupation":"A"}') AS legacy_active_a \gset
 SELECT pg_temp.g4_apply('{"occupation":"B"}') AS legacy_active_b \gset
+SELECT (statement_timestamp() AT TIME ZONE 'UTC')::date AS quota_before_day \gset
 \ir ../migrations/0242_profile_context_import_integrity.sql
+SELECT pg_temp.g4_assert((SELECT count(DISTINCT u.profile_import_attempt_day)=1 AND bool_and(
+  u.profile_import_attempt_day BETWEEN :'quota_before_day'::date AND (statement_timestamp() AT TIME ZONE 'UTC')::date
+  AND u.profile_import_attempt_count=(SELECT count(*) FROM public.profile_context_imports b
+    WHERE b.user_id=u.id AND (b.created_at AT TIME ZONE 'UTC')::date=u.profile_import_attempt_day)
+) FROM public.users u WHERE u.id IN ('26101042-0000-4000-8000-000000000001','26101042-0000-4000-8000-000000000002')),
+  'quota backfill uses one UTC day for every user and count');
 SELECT public.withdraw_profile_context_import((:'legacy_active_a'::jsonb->>'id')::uuid);
 SELECT public.withdraw_profile_context_import((:'legacy_active_b'::jsonb->>'id')::uuid);
 SELECT pg_temp.g4_assert((SELECT profile_details='{"occupation":"base"}' FROM public.users WHERE id=auth.uid()),'legacy active chain backfill restores base');
@@ -170,7 +177,7 @@ BEGIN
   FOR n IN 1..10 LOOP
     result:=public.apply_profile_context_import(gen_random_uuid(),
       jsonb_set(pg_temp.g4_doc(),'{items,0,reported_basis}','"assistant_inference"'),'{}','{}',0);
-    PERFORM pg_temp.g4_assert(result->>'code'='22023' AND result->>'message'='profile_import_confirmation','unconfirmed inference remains rejected in stage one');
+    PERFORM pg_temp.g4_assert(result->>'code'='22023' AND result->>'message'='profile_import_confirmation','unconfirmed inference rejected by 0242');
   END LOOP;
   PERFORM pg_temp.g4_assert((SELECT profile_import_attempt_count=10 FROM public.users WHERE id=owner),'rejected attempts remain counted');
   result:=pg_temp.g4_apply();

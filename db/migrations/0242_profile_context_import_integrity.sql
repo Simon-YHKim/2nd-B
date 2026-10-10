@@ -1,6 +1,6 @@
--- G4-01/02/03 stage one: forward-only repair of 0239/0240. RPC signatures stay stable.
--- Keep 0239 confirmation semantics until the confirm-all client is published.
--- G4-04 server enforcement is in the unnumbered confirm-all migration draft.
+-- G4-01/02/03/04: forward-only repair of 0239/0240. RPC signatures stay stable.
+-- Simon 2026-10-10: enforce all item confirmations here, then merge the client.
+-- Partial-confirmation requests from the old client are intentionally rejected.
 SET LOCAL lock_timeout = '10s';
 
 -- Per-field undo: {field: {before, after, predecessor}}. JSON null means absent.
@@ -25,9 +25,13 @@ UPDATE public.profile_context_imports b SET field_undo=(
     ))),'{}') FROM jsonb_each(b.profile_patch) f
 ) WHERE b.status='active';
 
-UPDATE public.users u SET profile_import_attempt_day=(clock_timestamp() AT TIME ZONE 'UTC')::date,
+WITH quota_day AS MATERIALIZED (
+  SELECT (statement_timestamp() AT TIME ZONE 'UTC')::date AS utc_day
+)
+UPDATE public.users u SET profile_import_attempt_day=quota_day.utc_day,
   profile_import_attempt_count=(SELECT count(*) FROM public.profile_context_imports b
-    WHERE b.user_id=u.id AND (b.created_at AT TIME ZONE 'UTC')::date=(clock_timestamp() AT TIME ZONE 'UTC')::date)
+    WHERE b.user_id=u.id AND (b.created_at AT TIME ZONE 'UTC')::date=quota_day.utc_day)
+FROM quota_day
 WHERE EXISTS(SELECT 1 FROM public.profile_context_imports b WHERE b.user_id=u.id);
 
 CREATE OR REPLACE FUNCTION public.save_profile_details_revision(p_details jsonb,p_expected_revision bigint) RETURNS jsonb
@@ -188,11 +192,8 @@ BEGIN
     item_ids:=array_append(item_ids,i->>'id');
     refs:=public.profile_import_strings(i->'evidence_ids',20,64);
     IF NOT refs<@source_ids THEN RAISE EXCEPTION 'profile_import_references' USING ERRCODE='22023'; END IF;
-    IF NOT (i->>'id')=ANY(confirmed) AND (i->>'reported_basis'<>'user_statement' OR NOT EXISTS(
-      SELECT 1 FROM jsonb_array_elements(doc->'sources') evidence
-      WHERE evidence->>'id'=ANY(refs) AND evidence->>'kind'='chat_excerpt' AND evidence->>'speaker'='user'
-        AND jsonb_typeof(evidence->'excerpt')='string'
-    )) THEN RAISE EXCEPTION 'profile_import_confirmation' USING ERRCODE='22023'; END IF;
+    IF NOT (i->>'id')=ANY(confirmed) THEN
+      RAISE EXCEPTION 'profile_import_confirmation' USING ERRCODE='22023'; END IF;
     used_ids:=used_ids||refs;
     PERFORM public.profile_import_strings(i->'conflicts_with',49,64);
     t:=i->'valid_time'; PERFORM public.profile_import_object(t,ARRAY['from','to','description']);
@@ -212,7 +213,7 @@ CREATE OR REPLACE FUNCTION public.apply_profile_context_import(p_request_id uuid
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET row_security=off AS $$
 DECLARE owner uuid:=auth.uid(); batch public.profile_context_imports%ROWTYPE; u public.users%ROWTYPE;
   signature text; cleaned jsonb:='{}'; previous uuid[]; source uuid:=gen_random_uuid(); page uuid:=gen_random_uuid(); body text; i jsonb; undo jsonb; attempt_day date; attempts integer;
-  -- Provisional Simon decisions: edit these three constants together with tests.
+  -- Simon confirmed 2026-10-10: edit these three constants together with tests.
   daily_attempt_limit CONSTANT integer:=10;
   active_batch_limit CONSTANT integer:=20;
   retained_byte_limit CONSTANT bigint:=2097152; -- 2 MiB of canonical retained data
