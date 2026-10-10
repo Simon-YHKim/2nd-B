@@ -94,6 +94,7 @@ import {
 } from "@/lib/chat/rev2-personas";
 import { m3 } from "@/lib/theme/m3";
 import { formatSourceCitationLabel, parseSourceCitations } from "@/lib/chat/sources";
+import { chatDisplayText } from "@/lib/chat/display-text";
 import { parseTwiBranches } from "@/lib/chat/twi-branches";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
@@ -1260,7 +1261,7 @@ function SecondBChatBody() {
                     accessibilityHint={t("longPressCopy")}
                   >
                     <Text style={turn.role === "user" ? ds.userText : ds.aiText} selectable>
-                      {turn.text}
+                      {turn.role === "secondb" ? chatDisplayText(turn.text) : turn.text}
                     </Text>
                   </Pressable>
                   {turn.consentError ? <ServiceConsentLink /> : null}
@@ -1704,6 +1705,7 @@ const ds = StyleSheet.create({
     minWidth: 0,
     color: m3.color.onSurface,
     fontSize: 15,
+    lineHeight: 22,
     fontFamily: fontFamilies.readable,
     padding: 0,
   },

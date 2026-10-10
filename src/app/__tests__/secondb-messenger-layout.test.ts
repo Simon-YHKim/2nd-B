@@ -4,6 +4,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { getReplyActions, getWikiSuggestion, isCurrentWikiSuggestion } from "@/lib/chat/presentation-policy";
 import { isKeepable } from "@/lib/chat/keep-exchange";
+import { chatDisplayText } from "@/lib/chat/display-text";
 
 const source = readFileSync(resolve(__dirname, "../secondb.tsx"), "utf8");
 const transcript = source.slice(source.indexOf("turns.map((turn, i)"), source.indexOf("{sending ? (", source.indexOf("turns.map((turn, i)")));
@@ -43,12 +44,24 @@ function renderedMessages(messageTurns?: Props[], selectedLens = "HustleK") {
     React: { createElement: (type: string, props: Props | null, ...children: unknown[]) => ({ type, props: { ...props, children } }) },
     View: "View", Pressable: "Pressable", Text: "Text", ChatMessageAvatar: "ChatMessageAvatar", ServiceConsentLink: "ServiceConsentLink",
     turns, ds, userAvatar: savedAvatar, userDisplayName: "Hotline_blingbling", lensName: selectedLens, lensAccent: "accent",
-    getExchangeExpression, copyTurn, copyNotice: null, t: (key: string) => labels[key] ?? key,
+    getExchangeExpression, copyTurn, chatDisplayText, copyNotice: null, t: (key: string) => labels[key] ?? key,
   }) as Tree[];
   return { tree, savedAvatar, getExchangeExpression, turns, copyTurn };
 }
 
 describe("HustleK messenger layout", () => {
+  test("only the model bubble loses formatting and long press still copies each original turn", () => {
+    const host = renderedMessages([{ role: "user", text: "**원문**" }, { role: "secondb", text: "**원문**" }]);
+    for (const [index, message] of host.tree.entries()) {
+      const [, body] = message.props.children as Tree[];
+      const [bubble] = body.props.children as Tree[];
+      const [text] = bubble.props.children as Tree[];
+      expect(text.props.children).toEqual([index === 0 ? "**원문**" : "원문"]);
+      (bubble.props.onLongPress as () => void)();
+      expect(host.copyTurn).toHaveBeenLastCalledWith(index, "**원문**");
+    }
+  });
+
   test("each message has an avatar, with the saved user portrait passed in", () => {
     expect(transcript).toContain("<ChatMessageAvatar");
     expect(transcript).toContain("userAvatar={userAvatar}");
