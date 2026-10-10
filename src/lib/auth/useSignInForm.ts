@@ -33,7 +33,7 @@ import {
   startOAuthProvider,
 } from "@/lib/auth/auth-providers";
 
-import { SIGN_IN_TOAST_DURATION_MS, signInBackDecision } from "./sign-in-back";
+import { SIGN_IN_TOAST_DURATION_MS, createSignInBackHandler } from "./sign-in-back";
 
 export type SignInToastTone = "info" | "success" | "danger";
 export type SignInToast = { message: string; tone: SignInToastTone; exitOnBackUntil?: number };
@@ -124,16 +124,13 @@ export function useSignInForm(): UseSignInForm {
   // grants exit. Leaving this screen disarms the prompt even if it stays mounted.
   useFocusEffect(useCallback(() => {
     if (Platform.OS !== "android" || loading || userId) return;
-    const onBackPress = () => {
-      if (submitting || oauthSubmitting || resetSubmitting) return true;
-      const decision = signInBackDecision(toastRef.current?.exitOnBackUntil, Date.now());
-      if (decision.kind === "exit") {
-        BackHandler.exitApp();
-      } else {
-        setToast({ tone: "info", message: t("signIn.exitOnBack"), exitOnBackUntil: decision.expiresAt });
-      }
-      return true;
-    };
+    const onBackPress = createSignInBackHandler({
+      isBusy: () => submitting || oauthSubmitting || resetSubmitting,
+      exitDeadline: () => toastRef.current?.exitOnBackUntil,
+      now: Date.now,
+      showNotice: (expiresAt) => setToast({ tone: "info", message: t("signIn.exitOnBack"), exitOnBackUntil: expiresAt }),
+      exitApp: () => BackHandler.exitApp(),
+    });
     const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => {
       sub.remove();

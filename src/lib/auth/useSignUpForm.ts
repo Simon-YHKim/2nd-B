@@ -18,6 +18,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useURL } from "expo-linking";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { createSignUpBackHandler } from "./sign-up-back";
 import { observeAuthConversion } from "@/lib/analytics/auth-conversions";
 import {
   ageInYears,
@@ -266,14 +267,10 @@ export function useSignUpForm(): UseSignUpForm {
   // D2 (Simon 2026-10-10): focused Android sign-up returns to sign-in.
   useFocusEffect(useCallback(() => {
     if (Platform.OS !== "android") return;
-    const onBackPress = () => {
-      // Consume hardware Back while any auth write owns the synchronous lock.
-      // This closes the same-frame gap before React can paint disabled links.
-      if (actionLockRef.current.active !== null) return true;
-      // Pop to an existing login gate, or replace a directly opened sign-up.
-      router.dismissTo("/sign-in");
-      return true;
-    };
+    const onBackPress = createSignUpBackHandler({
+      isBusy: () => actionLockRef.current.active !== null,
+      router,
+    });
     const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => sub.remove();
   }, []));
