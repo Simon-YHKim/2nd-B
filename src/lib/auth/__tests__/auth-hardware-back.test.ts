@@ -110,6 +110,24 @@ describe("D2 sign-up Back behavior without RN", () => {
 // Wiring only: these do not simulate React focus cleanup or router history.
 // Device QA covers blur and both pushed/direct-link sign-up histories.
 describe("D2 hardware Back wiring", () => {
+  test("guest loading keeps ownership and a confirmed user releases it", () => {
+    expect(inEffect).toContain('if (Platform.OS !== "android" || userId) return;');
+    expect(inEffect).not.toContain("loading");
+    expect(inEffect).toMatch(/\}, \[userId,/);
+  });
+
+  test("loading and the form share the existing accessible notice", () => {
+    const screen = read("src/screens/deepspace/dds-sign-in-screen.tsx");
+    const notice = screen.slice(screen.indexOf("const signInNotice ="), screen.indexOf("  if (loading)"));
+    const loading = screen.slice(screen.indexOf("  if (loading)"), screen.indexOf("  if (userId)"));
+    expect(notice).toContain("toast ? (");
+    expect(notice).toContain('accessibilityRole="alert"');
+    expect(notice).toContain('accessibilityLiveRegion={toast.tone === "danger" ? "assertive" : "polite"}');
+    expect(notice).toContain("{toast.message}");
+    expect(loading).toContain("{signInNotice}");
+    expect(screen.slice(screen.indexOf("  if (userId)"))).toContain("{signInNotice}");
+  });
+
   test.each([["sign-in", inEffect], ["sign-up", upEffect]])("%s registers only during focus and removes its subscription", (_name, effect) => {
     expect(effect).toContain("useFocusEffect(useCallback(");
     expect(effect).toContain('Platform.OS !== "android"');

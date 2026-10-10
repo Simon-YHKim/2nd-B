@@ -123,7 +123,7 @@ export function useSignInForm(): UseSignInForm {
   // The deadline also dismisses the existing toast; an unrelated toast never
   // grants exit. Leaving this screen disarms the prompt even if it stays mounted.
   useFocusEffect(useCallback(() => {
-    if (Platform.OS !== "android" || loading || userId) return;
+    if (Platform.OS !== "android" || userId) return;
     const onBackPress = createSignInBackHandler({
       isBusy: () => submitting || oauthSubmitting || resetSubmitting,
       exitDeadline: () => toastRef.current?.exitOnBackUntil,
@@ -136,7 +136,7 @@ export function useSignInForm(): UseSignInForm {
       sub.remove();
       if (toastRef.current?.exitOnBackUntil !== undefined) setToast(null);
     };
-  }, [loading, userId, submitting, oauthSubmitting, resetSubmitting, setToast, t]));
+  }, [userId, submitting, oauthSubmitting, resetSubmitting, setToast, t]));
 
   const setEmailAndClearReset = useCallback(
     (value: string) => {

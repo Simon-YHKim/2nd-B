@@ -96,6 +96,38 @@ export function DeepSpaceSignInDesignScreen() {
   const deletionNotice = useAccountDeletionNotice();
   if (deletionNotice) return <AccountDeletionNoticePanel notice={deletionNotice} />;
 
+  const signInNotice = toast ? (
+    <View
+      accessibilityRole="alert"
+      accessibilityLiveRegion={toast.tone === "danger" ? "assertive" : "polite"}
+    >
+      <PixelSurface
+        variant="frame"
+        background={
+          toast.tone === "danger"
+            ? m3.color.errorContainer
+            : toast.tone === "success"
+              ? m3.color.tertiaryContainer
+              : m3.color.primaryContainer
+        }
+        contentStyle={styles.toast}
+      >
+        <Text
+          style={[
+            styles.toastText,
+            toast.tone === "danger"
+              ? styles.toastDanger
+              : toast.tone === "success"
+                ? styles.toastSuccess
+                : styles.toastInfo,
+          ]}
+        >
+          {toast.message}
+        </Text>
+      </PixelSurface>
+    </View>
+  ) : null;
+
   if (loading) {
     return (
       <PixelGateShell contentContainerStyle={styles.loadingShell}>
@@ -106,6 +138,7 @@ export function DeepSpaceSignInDesignScreen() {
             <Text style={styles.helper}>{t("auth:common.checking")}</Text>
           </PixelSurface>
         </View>
+        {signInNotice}
       </PixelGateShell>
     );
   }
@@ -396,37 +429,7 @@ export function DeepSpaceSignInDesignScreen() {
         <BusinessFooter />
       </View>
 
-      {toast ? (
-        <View
-          accessibilityRole="alert"
-          accessibilityLiveRegion={toast.tone === "danger" ? "assertive" : "polite"}
-        >
-          <PixelSurface
-            variant="frame"
-            background={
-              toast.tone === "danger"
-                ? m3.color.errorContainer
-                : toast.tone === "success"
-                  ? m3.color.tertiaryContainer
-                  : m3.color.primaryContainer
-            }
-            contentStyle={styles.toast}
-          >
-            <Text
-              style={[
-                styles.toastText,
-                toast.tone === "danger"
-                  ? styles.toastDanger
-                  : toast.tone === "success"
-                    ? styles.toastSuccess
-                    : styles.toastInfo,
-              ]}
-            >
-              {toast.message}
-            </Text>
-          </PixelSurface>
-        </View>
-      ) : null}
+      {signInNotice}
     </PixelGateShell>
   );
 }
