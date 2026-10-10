@@ -222,6 +222,14 @@ describe("edge schema dependency gate on the real repository", () => {
     }));
   });
 
+  it("requires 0244 audit RPCs before the new dashboard Edge can deploy", () => {
+    const deps = JSON.parse(run(["list", "dashboard-generate"]).stdout);
+    expect(deps.functionContracts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "dashboard_generation_audit_attempt", signature: "uuid,uuid,text,text,text,boolean" }),
+      expect.objectContaining({ name: "dashboard_generation_audit_result", signature: "uuid,uuid,text,text,integer,text,integer" }),
+    ]));
+  });
+
   it("can derive exact contracts for every deployable Edge function", () => {
     const slugs = ["claude-proxy", "delete-account", "export-account", "gemini-proxy", "oauth-naver", "openai-proxy", "paddle-webhook", "peer-respond", "public-data-proxy", "rewarded-ssv", "rss-proxy", "service-consent", "subscription-manage", "xai-proxy"];
     for (const slug of slugs) {
