@@ -84,6 +84,25 @@ if (process.exitCode === 0) {
   }
   console.log('Concurrent withdrawal/finish: both lock orders close output without deadlock.');
 
+  const recoveryOwner = '00000000-0000-0000-0000-000000000080';
+  await run(`INSERT INTO auth.users(id) VALUES('${recoveryOwner}'); INSERT INTO public.users(id) VALUES('${recoveryOwner}');
+    INSERT INTO public.ops_routines(id,user_id,title) VALUES('${recoveryOwner}','${recoveryOwner}','Read');`);
+  const recover = `SET request.jwt.claim.role='service_role'; SELECT public.dashboard_generation_request_v2('${recoveryOwner}','open','Asia/Seoul','ko');`;
+  const firstLease = JSON.parse((await run(recover)).split(/\r?\n/).find((line) => line.startsWith('{')));
+  await run(`UPDATE public.dashboard_generation_runs SET leased_at=clock_timestamp()-interval '4 minutes' WHERE id='${firstLease.id}';`);
+  const recoveries = (await Promise.all([run(recover), run(recover)]))
+    .map((out) => JSON.parse(out.split(/\r?\n/).find((line) => line.startsWith('{'))));
+  if (JSON.stringify(recoveries.map((r) => r.kind).sort()) !== '["busy","claimed"]') throw new Error('Concurrent recovery duplicated');
+  const recovered = recoveries.find((r) => r.kind === 'claimed');
+  const dispatchLease = (token) => `SET request.jwt.claim.role='service_role'; SELECT public.dashboard_generation_audit_attempt_v2(
+    '${recoveryOwner}','${recovered.id}','claude-sonnet-5','low','abcd',false,'${token}');`;
+  const leaseDispatches = (await Promise.all([run(dispatchLease(firstLease.lease_token)), run(dispatchLease(recovered.lease_token))]))
+    .map((out) => out.split(/\r?\n/).find((v) => ['t', 'f'].includes(v)));
+  if (JSON.stringify(leaseDispatches) !== '["f","t"]') throw new Error('Stale lease won concurrent dispatch');
+  if ((await run(`SELECT count(*) FROM public.dashboard_generation_runs WHERE user_id='${recoveryOwner}';`)).trim() !== '1'
+    || (await run(`SELECT count(*) FROM public.ai_audit_log WHERE user_id='${recoveryOwner}';`)).trim() !== '2') throw new Error('Recovery audit 1:1 lost');
+  console.log('Concurrent recovery: one replacement, stale dispatch refused, two leases/two audit rows.');
+
   // Replace decision stubs with the actual current consent functions. Only
   // surrounding auth/profile tables remain the disposable fixture. This tests
   // the service writer's record -> provenance -> receipt update transaction.
@@ -108,7 +127,7 @@ if (process.exitCode === 0) {
     ${definition(current, 'llm_service_consent_status_v4')}
     ${definition(current, 'write_llm_service_consent')}`);
   let scenario = 0;
-  for (const writer of ['prefs', 'service']) for (const first of ['finish', 'withdraw']) {
+  for (const protocol of ['', '_v2']) for (const writer of ['prefs', 'service']) for (const first of ['finish', 'withdraw']) {
     const subject = `00000000-0000-0000-0000-00000000004${++scenario}`;
     const serviceWrite = (action) => `SELECT public.write_llm_service_consent('${subject}','service-v4',
       public.llm_service_consent_status_v4('${subject}')->>'change_token','${action}',
@@ -116,23 +135,34 @@ if (process.exitCode === 0) {
     await run(`SET request.jwt.claim.role='service_role';
       INSERT INTO auth.users(id) VALUES('${subject}'); INSERT INTO public.users(id) VALUES('${subject}');
       INSERT INTO public.ops_routines(id,user_id,title) VALUES('${subject}','${subject}','Read'); ${serviceWrite('grant')}`);
-    const claim = await run(`SET request.jwt.claim.role='service_role'; SELECT public.dashboard_generation_request('${subject}','open','Asia/Seoul','ko')->>'id';`);
-    const id = claim.split(/\r?\n/).find((line) => /^[a-f0-9-]{36}$/.test(line));
+    const claim = await run(`SET request.jwt.claim.role='service_role'; SELECT public.dashboard_generation_request${protocol}('${subject}','open','Asia/Seoul','ko');`);
+    const reservation = JSON.parse(claim.split(/\r?\n/).find((line) => line.startsWith('{')));
+    const id = reservation.id;
+    const leaseArg = protocol ? `,'${reservation.lease_token}'` : '';
     if (!id) throw new Error('Real consent grant did not allow claim');
-    const accepted = await run(`SET request.jwt.claim.role='service_role'; SELECT public.dashboard_generation_audit_attempt('${subject}','${id}','claude-sonnet-5','low','abcd',false);`);
+    const accepted = await run(`SET request.jwt.claim.role='service_role'; SELECT public.dashboard_generation_audit_attempt${protocol}('${subject}','${id}','claude-sonnet-5','low','abcd',false${leaseArg});`);
     if (!accepted.split(/\r?\n/).includes('t')) throw new Error('Real consent dispatch denied');
-    const finish = `BEGIN; SET LOCAL request.jwt.claim.role='service_role'; SELECT public.dashboard_generation_finish('${subject}','${id}','{"line":"late"}');`;
+    const finish = `BEGIN; SET LOCAL request.jwt.claim.role='service_role'; SELECT public.dashboard_generation_finish${protocol}('${subject}','${id}','{"line":"late"}'${leaseArg});`;
     const withdraw = `BEGIN; SET LOCAL request.jwt.claim.role='service_role'; ${writer === 'service'
       ? serviceWrite('revoke') : `UPDATE public.users SET privacy_prefs='{"recommendations":false}' WHERE id='${subject}';`}`;
     await overlap(`${first === 'finish' ? finish : withdraw} SELECT pg_sleep(0.8); COMMIT;`,
-      `${first === 'finish' ? withdraw : finish} COMMIT;`, `${writer}_${first}`);
+      `${first === 'finish' ? withdraw : finish} COMMIT;`, `${writer}_${first}${protocol}`);
     if ((await run(`SELECT count(*) FROM public.dashboard_generation_runs WHERE user_id='${subject}' AND (output IS NOT NULL OR status<>'failed');`)).trim() !== '0') {
       throw new Error(`Real writer withdrawal race survived: ${writer}/${first}`);
     }
-    const result = await run(`SET request.jwt.claim.role='service_role'; SELECT public.dashboard_generation_audit_result('${subject}','${id}','dcba','consent_withheld',12,'green',10);`);
+    const result = await run(`SET request.jwt.claim.role='service_role'; SELECT public.dashboard_generation_audit_result${protocol}('${subject}','${id}','dcba','consent_withheld',12,'green',10${leaseArg});`);
     if (!result.split(/\r?\n/).includes('t')) throw new Error('Real revoke lost completed audit');
+    if (protocol) {
+      // Result retries must retain evidence while the actual consent writer
+      // holds its user/receipt/run locks; exercise both acquisition orders.
+      const audit = `BEGIN; SET LOCAL request.jwt.claim.role='service_role'; SELECT public.dashboard_generation_audit_result_v2('${subject}','${id}','dcba','consent_withheld',12,'green',10${leaseArg});`;
+      const grant = `BEGIN; SET LOCAL request.jwt.claim.role='service_role'; ${serviceWrite('grant')}`;
+      await overlap(`${first === 'finish' ? audit : grant} SELECT pg_sleep(0.8); COMMIT;`,
+        `${first === 'finish' ? grant : audit} COMMIT;`, `audit_${writer}_${first}`);
+      if ((await run(`SELECT count(*) FROM public.dashboard_generation_runs WHERE id='${id}' AND (status<>'failed' OR output IS NOT NULL);`)).trim() !== '0') throw new Error('Regrant reopened dispatched lease');
+    }
   }
-  console.log('Actual consent contract: grant/revoke writer and privacy withdrawal vs finish, four races passed.');
+  console.log('Actual consent contract: eight v1/v2 withdrawal/finish races and four v2 writer/audit-result races passed.');
 
   // Daybreak r1 finding 1: repairs that leave the current grant intact must
   // preserve the entire ready row. EXPLAIN also proves no-op UPDATE hooks skip

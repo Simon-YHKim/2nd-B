@@ -4,6 +4,9 @@
 -- request/dispatch/finish signatures still work with 0245. Keep this DB guard,
 -- singleton and heartbeat-producing purge, plus the unconditional hourly job.
 -- If the heartbeat is stale, repair and run purge before resuming generation.
+-- Keep the v2 lease columns/functions and audit lineage too. Never clear a
+-- dispatch marker or convert a v2 row to a legacy NULL lease. Old Edge can
+-- continue on legacy claims; existing v2 keys may wait until the next slot.
 SET LOCAL lock_timeout = '10s';
 SELECT public.purge_dashboard_generation();
 DO $$ BEGIN

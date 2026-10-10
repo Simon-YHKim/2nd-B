@@ -42,6 +42,11 @@ ALTER TABLE public.ai_audit_log DROP CONSTRAINT ai_audit_log_user_id_fkey;
 ALTER TABLE public.ai_audit_log ALTER COLUMN user_id DROP NOT NULL;
 ALTER TABLE public.ai_audit_log ADD FOREIGN KEY(user_id) REFERENCES public.users(id) ON DELETE SET NULL;
 ALTER TABLE public.ai_audit_log ADD COLUMN event_source text DEFAULT 'legacy_unknown',ADD COLUMN outbox_event_id text;
+-- Preserve 0179/0181 bounds for v2 run:lease lineage and attempt placeholders.
+ALTER TABLE public.ai_audit_log ADD CONSTRAINT ai_audit_log_outbox_event_id_format CHECK (
+  outbox_event_id IS NULL OR (char_length(outbox_event_id) BETWEEN 1 AND 128 AND outbox_event_id ~ '^[A-Za-z0-9._:-]+$'));
+ALTER TABLE public.ai_audit_log ADD CONSTRAINT ai_audit_log_event_source_check
+  CHECK(event_source IN ('server_verified','client_unverified','legacy_unknown'));
 CREATE UNIQUE INDEX ai_audit_log_owner_outbox_event_unique ON public.ai_audit_log(user_id,outbox_event_id) WHERE outbox_event_id IS NOT NULL;
 ALTER TABLE public.ai_audit_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_audit_log FORCE ROW LEVEL SECURITY;
@@ -85,6 +90,7 @@ COMMIT;
 -- Same RPCs called by the old Edge must work with the new DB.
 \ir dashboard_generation_regression.sql
 \ir dashboard_generation_audit_withdrawal_regression.sql
+\ir dashboard_reservation_recovery_regression.sql
 
 \ir ../migration-drafts/UNNUMBERED_dashboard_last_note.sql
 \ir dashboard_last_note_regression.sql

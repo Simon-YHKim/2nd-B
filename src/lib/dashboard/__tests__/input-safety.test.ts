@@ -44,8 +44,8 @@ function fixture(action: Action, text: string, locale = "en", source?: Record<st
     : { reminders: [{ id: "r1", kind: "routine", title: text, at: null, state: "open" }] });
   const rpc = jest.fn(async (name: string, args: Record<string, unknown>): Promise<{ data: unknown; error?: unknown }> => {
     if (name === "dashboard_generation_due") return { data: ["owner"] };
-    if (name === "dashboard_generation_request") return { data: {
-      kind: "claimed", id: "run1", purpose, slot: "morning", locale, consent_token: consentToken, source: payload,
+    if (name === "dashboard_generation_request_v2") return { data: {
+      kind: "claimed", id: "run1", lease_token: "10000000-0000-0000-0000-000000000001", purpose, slot: "morning", locale, consent_token: consentToken, source: payload,
     } };
     if (name === "effective_llm_consent_snapshot_v2") return { data: { allowed: true, token: consentToken } };
     if (name === "effective_subscription_tier") return { data: "free" };
@@ -79,11 +79,11 @@ describe.each(actions)("%s server-initiated input gate", (action) => {
     const f = fixture(action, text);
     const response = await f.send();
     expect(f.fetch).not.toHaveBeenCalled();
-    const attempts = f.rpc.mock.calls.filter(([name]) => name === "dashboard_generation_audit_attempt");
-    expect(attempts).toEqual([["dashboard_generation_audit_attempt", expect.objectContaining({ p_crisis: true })]]);
+    const attempts = f.rpc.mock.calls.filter(([name]) => name === "dashboard_generation_audit_attempt_v2");
+    expect(attempts).toEqual([["dashboard_generation_audit_attempt_v2", expect.objectContaining({ p_crisis: true })]]);
     expect(f.rpc).not.toHaveBeenCalledWith("bump_gemini_spend", expect.anything());
     expect(f.rpc).not.toHaveBeenCalledWith("reserve_llm_proxy_capacity", expect.anything());
-    expect(f.rpc).toHaveBeenLastCalledWith("dashboard_generation_finish", expect.objectContaining({ p_output: null }));
+    expect(f.rpc).toHaveBeenLastCalledWith("dashboard_generation_finish_v2", expect.objectContaining({ p_output: null }));
     expect(await response.json()).toEqual(action === "hourly" ? { kind: "batch", processed: 1, nextCursor: null } : { kind: "unavailable" });
   });
   test.each(["I want\nto die.", "죽고\t싶어요."])("raw text is classified before JSON escaping: %s", async (text) => {
@@ -92,8 +92,8 @@ describe.each(actions)("%s server-initiated input gate", (action) => {
     const f = fixture(action, text);
     await f.send();
     expect(f.fetch).not.toHaveBeenCalled();
-    expect(f.rpc.mock.calls.filter(([name]) => name === "dashboard_generation_audit_attempt")).toEqual([
-      ["dashboard_generation_audit_attempt", expect.objectContaining({ p_crisis: true })],
+    expect(f.rpc.mock.calls.filter(([name]) => name === "dashboard_generation_audit_attempt_v2")).toEqual([
+      ["dashboard_generation_audit_attempt_v2", expect.objectContaining({ p_crisis: true })],
     ]);
   });
   test.each([...CRISIS_EVAL.GREEN, ...CRISIS_EVAL.YELLOW])("non-red control reaches the model once: $text", async ({ text }) => {
@@ -101,8 +101,8 @@ describe.each(actions)("%s server-initiated input gate", (action) => {
     const f = fixture(action, text);
     await f.send();
     expect(f.fetch).toHaveBeenCalledTimes(1);
-    expect(f.rpc.mock.calls.filter(([name]) => name === "dashboard_generation_audit_attempt")).toEqual([
-      ["dashboard_generation_audit_attempt", expect.objectContaining({ p_crisis: false })],
+    expect(f.rpc.mock.calls.filter(([name]) => name === "dashboard_generation_audit_attempt_v2")).toEqual([
+      ["dashboard_generation_audit_attempt_v2", expect.objectContaining({ p_crisis: false })],
     ]);
   });
 });
@@ -126,7 +126,7 @@ test.each([
   const f = fixture(action, "Read", "en", source);
   await f.send();
   expect(f.fetch).not.toHaveBeenCalled();
-  expect(f.rpc).toHaveBeenCalledWith("dashboard_generation_audit_attempt", expect.objectContaining({ p_crisis: true }));
+  expect(f.rpc).toHaveBeenCalledWith("dashboard_generation_audit_attempt_v2", expect.objectContaining({ p_crisis: true }));
 });
 
 test("unselected source fields stay out of the prompt and do not add a new gate", async () => {
@@ -159,30 +159,30 @@ test.each(["error", "denied", "throw"])("crisis audit %s cannot fall through to 
   const f = fixture("open", rawRed);
   const original = f.rpc.getMockImplementation()!;
   f.rpc.mockImplementation(async (name, args) => {
-    if (name !== "dashboard_generation_audit_attempt") return original(name, args);
+    if (name !== "dashboard_generation_audit_attempt_v2") return original(name, args);
     if (failure === "throw") throw new Error("private audit details");
     return failure === "error" ? { data: null, error: {} } : { data: false };
   });
   expect(await (await f.send()).json()).toEqual({ kind: "unavailable" });
   expect(f.fetch).not.toHaveBeenCalled();
-  expect(f.rpc.mock.calls.filter(([name]) => name === "dashboard_generation_audit_attempt")).toHaveLength(1);
-  expect(f.rpc).toHaveBeenLastCalledWith("dashboard_generation_finish", expect.objectContaining({ p_output: null }));
+  expect(f.rpc.mock.calls.filter(([name]) => name === "dashboard_generation_audit_attempt_v2")).toHaveLength(1);
+  expect(f.rpc).toHaveBeenLastCalledWith("dashboard_generation_finish_v2", expect.objectContaining({ p_output: null }));
 });
 
 test.each([undefined, null, [], "raw"])("missing or malformed projected payload fails closed: %s", async (payload) => {
   const f = fixture("open", "Read");
-  await expect(f.generate({ userId: "owner", runId: "run1", purpose: "daily_note", prompt: "Read", system: "JSON", consentToken, payload })).rejects.toThrow("unavailable");
+  await expect(f.generate({ userId: "owner", runId: "run1", leaseToken: "10000000-0000-0000-0000-000000000001", purpose: "daily_note", prompt: "Read", system: "JSON", consentToken, payload })).rejects.toThrow("unavailable");
   expect(f.fetch).not.toHaveBeenCalled();
 });
 
 test.each(["prompt", "system", "payload"])("the provider also gates %s at its own entry", async (field) => {
   const f = fixture("open", "Read");
-  await expect(f.generate({ userId: "owner", runId: "run1", purpose: "daily_note", prompt: "Read", system: "JSON", consentToken,
+  await expect(f.generate({ userId: "owner", runId: "run1", leaseToken: "10000000-0000-0000-0000-000000000001", purpose: "daily_note", prompt: "Read", system: "JSON", consentToken,
     payload: { recordExcerpts: [{ text: "Read" }] }, [field]: field === "payload" ? { recordExcerpts: [{ text: rawRed }] } : rawRed,
   })).rejects.toThrow("unavailable");
   expect(f.fetch).not.toHaveBeenCalled();
   expect(f.rpc).toHaveBeenCalledTimes(1);
-  expect(f.rpc).toHaveBeenCalledWith("dashboard_generation_audit_attempt", expect.objectContaining({ p_crisis: true }));
+  expect(f.rpc).toHaveBeenCalledWith("dashboard_generation_audit_attempt_v2", expect.objectContaining({ p_crisis: true }));
 });
 
 test("the existing prompt and response backstops remain in addition to classification", () => {
@@ -206,8 +206,8 @@ describe.each(actions)("%s output wording gate", (action) => {
     const response = await f.send();
     expect(await response.json()).toEqual(action === "hourly" ? { kind: "batch", processed: 1, nextCursor: null } : { kind: "unavailable" });
     expect(f.fetch).toHaveBeenCalledTimes(1);
-    expect(f.rpc).toHaveBeenCalledWith("dashboard_generation_audit_result", expect.objectContaining({ p_outcome: "rejected_output", p_total_tokens: 10 }));
-    expect(f.rpc).toHaveBeenLastCalledWith("dashboard_generation_finish", expect.objectContaining({ p_output: null }));
+    expect(f.rpc).toHaveBeenCalledWith("dashboard_generation_audit_result_v2", expect.objectContaining({ p_outcome: "rejected_output", p_total_tokens: 10 }));
+    expect(f.rpc).toHaveBeenLastCalledWith("dashboard_generation_finish_v2", expect.objectContaining({ p_output: null }));
     const audits = JSON.stringify(f.rpc.mock.calls.filter(([name]) => name.startsWith("dashboard_generation_audit")));
     expect(audits).not.toContain(word); expect(audits).not.toContain(json);
   });

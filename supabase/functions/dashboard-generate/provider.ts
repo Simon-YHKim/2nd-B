@@ -14,7 +14,7 @@ export interface BoardProviderDependencies {
   fetch: typeof fetch;
 }
 export interface BoardProviderInput {
-  userId: string; runId: string; purpose: string; prompt: string; system: string; consentToken: string;
+  userId: string; runId: string; leaseToken: string; purpose: string; prompt: string; system: string; consentToken: string;
   payload: Readonly<Record<string, unknown>>;
   validateOutput: (output: unknown) => boolean;
 }
@@ -35,12 +35,13 @@ export function createBoardProvider(deps: BoardProviderDependencies) {
   return async (input: BoardProviderInput): Promise<unknown> => {
     const fail = (): never => { throw new Error('dashboard_generation_unavailable'); };
     const effort = Object.hasOwn(BOARD_PURPOSE_EFFORT, input.purpose) ? BOARD_PURPOSE_EFFORT[input.purpose] : null;
-    if (!effort || !EFFORT_MODELS.has(deps.model) || !isUsableHeaderValue(deps.apiKey) ||
+    if (typeof input.leaseToken !== 'string' || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(input.leaseToken) ||
+        !effort || !EFFORT_MODELS.has(deps.model) || !isUsableHeaderValue(deps.apiKey) ||
         !deps.apiKey || input.prompt.length > 24_000 || !input.payload ||
         typeof input.payload !== 'object' || Array.isArray(input.payload)) return fail();
-    const attempt = (crisis: boolean) => deps.rpc('dashboard_generation_audit_attempt', {
+    const attempt = (crisis: boolean) => deps.rpc('dashboard_generation_audit_attempt_v2', {
       p_user_id: input.userId, p_run_id: input.runId, p_model: deps.model,
-      p_effort: effort, p_prompt_hash: djb2(input.system + input.prompt), p_crisis: crisis,
+      p_effort: effort, p_prompt_hash: djb2(input.system + input.prompt), p_crisis: crisis, p_lease_token: input.leaseToken,
     });
     // C9 / G2-01: classify each original string before spend, capacity or
     // dispatch. JSON escaping can hide whitespace from a prompt-only scan.
@@ -69,7 +70,7 @@ export function createBoardProvider(deps: BoardProviderDependencies) {
       await deps.rpc('refund_gemini_spend', { p_user_id: input.userId, p_day: day });
       return fail();
     }
-    // The DB commits the attempt INSERT and existing dispatch together. An
+    // The DB checks the lease and commits the attempt update with dispatch. An
     // error (including an ambiguous RPC response) must never reach the vendor.
     let dispatch;
     try { dispatch = await attempt(false); } catch { dispatch = { error: true }; }
@@ -117,9 +118,9 @@ export function createBoardProvider(deps: BoardProviderDependencies) {
     } catch { /* Ambiguous dispatch: keep the spend and quota, suppress raw details. */ }
     finally { await transitionLlmProxyCapacity(deps.rpc, capacity.reservationId, 'settle'); }
     if (await recheckLlmConsent(deps.rpc, consent.lease)) { output = null; outcome = 'consent_withheld'; }
-    const audited = await deps.rpc('dashboard_generation_audit_result', {
+    const audited = await deps.rpc('dashboard_generation_audit_result_v2', {
       p_user_id: input.userId, p_run_id: input.runId, p_output_hash: djb2(responseText),
-      p_outcome: outcome, p_latency_ms: Date.now() - started,
+      p_outcome: outcome, p_latency_ms: Date.now() - started, p_lease_token: input.leaseToken,
       p_safety_zone: hasCrisisTerm(responseText) ? 'red' : 'green', p_total_tokens: tokens,
     });
     if (audited.error || audited.data !== true || output === null) return fail();
