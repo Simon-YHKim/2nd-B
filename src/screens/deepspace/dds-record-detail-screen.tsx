@@ -981,7 +981,7 @@ export function DeepSpaceRecordDetailScreen() {
           {structured ? (
             <PixelSurface variant="inset" contentStyle={styles.structuredSurface}>
               <RNText style={[m3TextStyle("labelLarge"), styles.sectionLabel]}>
-                {structured.form === "fourw" ? "4W1H" : "3C4P"}
+                {structured.form === "fourw" ? t("capture:modes.fourw.label") : "3C4P"}
               </RNText>
               {Object.entries(structured.fields).map(([key, value]) => (
                 <View key={key} style={styles.structuredRow}>
