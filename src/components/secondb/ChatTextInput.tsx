@@ -1,10 +1,12 @@
 import { forwardRef, useCallback, useLayoutEffect, useRef, useState } from "react";
-import { Platform, StyleSheet, type TextInput, type TextInputProps, type TextStyle } from "react-native";
+import { Platform, StyleSheet, useWindowDimensions, type TextInput, type TextInputProps, type TextStyle } from "react-native";
 
 import { PhoneTextInput } from "@/components/phone/PhoneUIKit";
 
 const MIN_HEIGHT = 36;
 const MAX_HEIGHT = 124;
+const LINE_HEIGHT = 22;
+const VERTICAL_PADDING = 7;
 const WEB_MEASUREMENT_STYLES = [
   "boxSizing", "width", "fontFamily", "fontSize", "fontWeight", "fontStyle", "fontStretch",
   "fontVariant", "fontFeatureSettings", "fontVariationSettings", "fontKerning", "lineHeight",
@@ -39,6 +41,13 @@ export const ChatTextInput = forwardRef<TextInput, ChatTextInputProps>(function 
   const draftRef = useRef(value);
   draftRef.current = value;
   const [height, setHeight] = useState(MIN_HEIGHT);
+  const { fontScale } = useWindowDimensions();
+  // Preserve the existing 1.0/1.3 layout. At larger Android scales an empty
+  // draft also needs room for the scaled line, padding and PhoneTextInput border.
+  const minimumHeight = Platform.OS === "android" && fontScale > 1.3
+    ? Math.min(MAX_HEIGHT, Math.ceil(LINE_HEIGHT * fontScale + 2 * VERTICAL_PADDING + 4))
+    : MIN_HEIGHT;
+  const inputHeight = Math.max(height, minimumHeight);
 
   const resize = useCallback((contentHeight: number) => {
     if (!Number.isFinite(contentHeight) || contentHeight <= 0) return;
@@ -129,12 +138,12 @@ export const ChatTextInput = forwardRef<TextInput, ChatTextInputProps>(function 
     submitBehavior="newline"
     blurOnSubmit={false}
     returnKeyType="default"
-    scrollEnabled={height >= MAX_HEIGHT}
+    scrollEnabled={inputHeight >= MAX_HEIGHT}
     onKeyPress={handleKeyPress}
     onContentSizeChange={handleContentSizeChange}
     onLayout={event => { measureWeb(); onLayout?.(event); }}
     style={[
-      style, styles.input, { height },
+      style, styles.input, { height: inputHeight },
       Platform.OS === "web" && { overflowY: height >= MAX_HEIGHT ? "auto" : "hidden" } as TextStyle,
     ]}
   />;
@@ -145,9 +154,10 @@ const styles = StyleSheet.create({
     minWidth: 0,
     minHeight: MIN_HEIGHT,
     maxHeight: MAX_HEIGHT,
-    lineHeight: 22,
-    paddingTop: 7,
-    paddingBottom: 7,
-    textAlignVertical: "top",
+    lineHeight: LINE_HEIGHT,
+    paddingTop: VERTICAL_PADDING,
+    paddingBottom: VERTICAL_PADDING,
+    textAlignVertical: Platform.OS === "android" ? "center" : "top",
+    ...(Platform.OS === "android" ? { includeFontPadding: false } : {}),
   },
 });
