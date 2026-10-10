@@ -4,6 +4,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { testConsentAdmission } from "./test-weather-consent-admission.mjs";
 const [port, user, database] = process.argv.slice(2);
 if (!/^\d{4,5}$/.test(port ?? "") || Number(port) > 65535 ||
     !/^weather_[a-z0-9_]+$/.test(user ?? "") || !/^weather_test[a-z0-9_]*$/.test(database ?? "")) {
@@ -15,7 +16,7 @@ const sql = readFileSync(fixture, "utf8").replace(/^\\ir (.+)$/gm,
   (_match, path) => `\\ir '${resolve(dirname(fixture), path).replaceAll("\\", "/")}'`);
 const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^PG/i.test(key) || key === "PGPASSWORD"));
 const args = ["-X", "--no-password", "-h", "127.0.0.1", "-p", port,
-  "-U", user, "-d", database, "-v", "ON_ERROR_STOP=1"];
+  "-U", user, "-d", database, "-v", "ON_ERROR_STOP=1", "-v", "VERBOSITY=verbose"];
 const result = spawnSync("psql", args, {
   input: sql, encoding: "utf8", env, windowsHide: true, timeout: 60_000,
 });
@@ -74,4 +75,5 @@ if (process.exitCode === 0) {
     FROM public.weather_consent_state WHERE user_id='${ownerA}';`);
   if (!revoked.trim().endsWith("t")) throw new Error("Concurrent revokes wrote more than one change");
   process.stdout.write("PASS: concurrent stale revokes bypass all quotas and write exactly one event\n");
+  await testConsentAdmission({ root, query, checked, ownerA, ownerB });
 }

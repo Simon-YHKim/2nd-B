@@ -105,6 +105,19 @@ export function createWeatherHandler(deps: Dependencies) {
           p_user_id: owner, p_action: action, p_contract: CONTRACT,
           p_revision: writing ? body.revision : null, p_locale: writing ? body.locale : 'en',
         });
+        if (action === 'grant' && (error?.code === 'PT409' || error?.code === '42501')) {
+          // The failed grant transaction rolled back. Admit its attempt in a
+          // separate committed RPC, preserving the original conflict/denial.
+          // Deleted/inactive owners cannot have quota state; status denies them.
+          const admission = await deps.rpc('weather_consent', {
+            p_user_id: owner, p_action: 'status', p_contract: CONTRACT,
+            p_revision: null, p_locale: 'en',
+          });
+          if (admission.error?.code === 'PT429') return reply({ error: 'consent' }, 429);
+          if (admission.error || !object(admission.data)) {
+            return reply({ error: 'consent' }, admission.error?.code === '42501' ? 403 : 503);
+          }
+        }
         if (error || !object(data)) return reply({ error: 'consent' }, error?.code === 'PT409' || error?.code === '40001' ? 409 : error?.code === 'PT429' ? 429 : error?.code === '42501' ? 403 : 503);
         return reply({ ...data, available: deps.enabled });
       }
