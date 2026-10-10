@@ -172,7 +172,7 @@
       "photoRemove": "Remove photo {{n}}",
       "photoAttached": "Attached photo {{n}}",
       "photoPickError": "Could not add that photo. Try another one.",
-      "ocr": "OCR",
+      "ocr": "Scan text",
       "ocrA11y": "Read text from a photo (OCR)",
       "ocrHint": "Pick a photo and AI reads its text. The photo is not saved.",
       "ocrTitle": "Read text from a photo",
