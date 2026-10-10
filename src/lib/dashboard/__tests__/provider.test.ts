@@ -24,13 +24,12 @@ const create = edge("supabase/functions/dashboard-generate/provider.ts", {
 const request = { userId: "owner", runId: "run1", purpose: "daily_note", prompt: "Routine: Read", system: "JSON", consentToken: "a".repeat(64) };
 function fixture() {
   const deps = {
-    model: "claude-sonnet-test", apiKey: "fixture-key",
+    model: "claude-sonnet-5", apiKey: "fixture-key",
     rpc: jest.fn(async (name: string, args?: Record<string, unknown>): Promise<{ data: unknown; error?: unknown }> => ({ data:
       name === "effective_llm_consent_snapshot_v2" ? { allowed: true, token: request.consentToken }
         : name === "reserve_llm_proxy_capacity" ? { accepted: true, reservation_id: args?.p_reservation_id }
         : name === "effective_subscription_tier" ? "free" : true })),
     fetch: jest.fn().mockImplementation(async () => new Response(JSON.stringify({ content: [{ type: "text", text: '{"line":"Read"}' }], stop_reason: "end_turn", usage: { input_tokens: 4, output_tokens: 6 } }))),
-    audit: jest.fn().mockResolvedValue(true),
   };
   return { deps, run: () => create(deps)(request) };
 }
@@ -40,12 +39,12 @@ test("uses shared spend and capacity gates and persists the existing audit schem
   const f = fixture(); expect(await f.run()).toEqual({ line: "Read" });
   expect(f.deps.rpc).toHaveBeenCalledWith("bump_gemini_spend", expect.objectContaining({ p_user_id: "owner" }));
   expect(f.deps.rpc).toHaveBeenCalledWith("reserve_llm_proxy_capacity", expect.objectContaining({ p_provider: "claude" }));
-  expect(f.deps.audit).toHaveBeenCalledWith(expect.objectContaining({ purpose: "daily_note", output_hash: expect.any(String), reasoning_vendor: "claude", vertex_backend: false, total_tokens: 10 }));
-  expect(JSON.stringify(f.deps.audit.mock.calls)).not.toContain("Routine: Read");
+  expect(f.deps.rpc).toHaveBeenCalledWith("dashboard_generation_audit_result", expect.objectContaining({ p_run_id: "run1", p_output_hash: expect.any(String), p_total_tokens: 10 }));
+  expect(JSON.stringify(f.deps.rpc.mock.calls.filter(([name]) => name.startsWith("dashboard_generation_audit")))).not.toContain("Routine: Read");
 });
 test("missing model and stale consent cannot reach the provider", async () => {
   const f = fixture(); f.deps.model = ""; await expect(f.run()).rejects.toThrow("unavailable");
-  f.deps.model = "claude-sonnet-test"; f.deps.rpc.mockResolvedValue({ data: { allowed: true, token: "b".repeat(64) } });
+  f.deps.model = "claude-sonnet-5"; f.deps.rpc.mockResolvedValue({ data: { allowed: true, token: "b".repeat(64) } });
   await expect(f.run()).rejects.toThrow("unavailable"); expect(f.deps.fetch).not.toHaveBeenCalled();
 });
 test("spend or capacity outage fails closed", async () => {
@@ -59,7 +58,7 @@ test("spend or capacity outage fails closed", async () => {
 test("ambiguous dispatch is audited, settled and never refunded or retried", async () => {
   const f = fixture(); f.deps.fetch.mockRejectedValue(new Error("private upstream details"));
   await expect(f.run()).rejects.toThrow("dashboard_generation_unavailable");
-  expect(f.deps.fetch).toHaveBeenCalledTimes(1); expect(f.deps.audit).toHaveBeenCalledTimes(1);
+  expect(f.deps.fetch).toHaveBeenCalledTimes(1); expect(f.deps.rpc.mock.calls.filter(([name]) => name === "dashboard_generation_audit_result")).toHaveLength(1);
   expect(f.deps.rpc.mock.calls.map(([name]) => name)).toContain("settle_llm_proxy_capacity");
   expect(f.deps.rpc.mock.calls.map(([name]) => name)).not.toContain("refund_gemini_spend");
 });
@@ -68,7 +67,9 @@ test.each(["refusal", "max_tokens"])("%s response is never returned", async (sto
   await expect(f.run()).rejects.toThrow("unavailable");
 });
 test("audit failure withholds generated text", async () => {
-  const f = fixture(); f.deps.audit.mockResolvedValue(false); await expect(f.run()).rejects.toThrow("unavailable");
+  const f = fixture(); const original = f.deps.rpc.getMockImplementation()!;
+  f.deps.rpc.mockImplementation(async (name, args) => name === "dashboard_generation_audit_result" ? { data: false } : original(name, args));
+  await expect(f.run()).rejects.toThrow("unavailable");
 });
 
 test("a single JSON code block is decoded and still checked by the board validator", async () => {
@@ -78,7 +79,7 @@ test("a single JSON code block is decoded and still checked by the board validat
     stop_reason: "end_turn", usage: { input_tokens: 4, output_tokens: 6 },
   })));
   expect(await f.run()).toEqual({ order: ["r1"], items: [] });
-  expect(f.deps.audit).toHaveBeenCalledWith(expect.objectContaining({ total_tokens: 10 }));
+  expect(f.deps.rpc).toHaveBeenCalledWith("dashboard_generation_audit_result", expect.objectContaining({ p_total_tokens: 10 }));
 });
 
 test.each(['Prose {"line":"Read"}', '```json\n{"line":"Read"}\n``` trailing', '{broken']) (
@@ -87,26 +88,26 @@ test.each(['Prose {"line":"Read"}', '```json\n{"line":"Read"}\n``` trailing', '{
     f.deps.fetch.mockResolvedValue(new Response(JSON.stringify({ content: [{ type: "text", text }],
       stop_reason: "end_turn", usage: { input_tokens: 4, output_tokens: 6 } })));
     await expect(f.run()).rejects.toThrow("unavailable");
-    expect(f.deps.audit).toHaveBeenCalledWith(expect.objectContaining({ total_tokens: 10, model_used: "claude-sonnet-test+invalid_json" }));
-    expect(JSON.stringify(f.deps.audit.mock.calls)).not.toContain(text);
+    expect(f.deps.rpc).toHaveBeenCalledWith("dashboard_generation_audit_result", expect.objectContaining({ p_total_tokens: 10, p_outcome: "invalid_json" }));
+    expect(JSON.stringify(f.deps.rpc.mock.calls.filter(([name]) => name.startsWith("dashboard_generation_audit")))).not.toContain(text);
   },
 );
 
 test("an upstream error records its status without returning or logging its body", async () => {
   const f = fixture(); f.deps.fetch.mockResolvedValue(new Response('private provider details', { status: 429 }));
   await expect(f.run()).rejects.toThrow("unavailable");
-  expect(f.deps.audit).toHaveBeenCalledWith(expect.objectContaining({ model_used: "claude-sonnet-test+http_429" }));
-  expect(JSON.stringify(f.deps.audit.mock.calls)).not.toContain('private provider details');
+  expect(f.deps.rpc).toHaveBeenCalledWith("dashboard_generation_audit_result", expect.objectContaining({ p_outcome: "http_429" }));
+  expect(JSON.stringify(f.deps.rpc.mock.calls.filter(([name]) => name.startsWith("dashboard_generation_audit")))).not.toContain('private provider details');
 });
 test("a rejected unsafe output records the red classification in the audit", async () => {
   const f = fixture();
   f.deps.fetch.mockResolvedValue(new Response(JSON.stringify({ content: [{ type: "text", text: JSON.stringify({ line: "kill myself" }) }], stop_reason: "end_turn" })));
   await expect(f.run()).rejects.toThrow("unavailable");
-  expect(f.deps.audit).toHaveBeenCalledWith(expect.objectContaining({ safety_zone: "red" }));
+  expect(f.deps.rpc).toHaveBeenCalledWith("dashboard_generation_audit_result", expect.objectContaining({ p_safety_zone: "red" }));
 });
 test("changed age, source or deletion state at dispatch cannot make a paid call", async () => {
   const f = fixture(); const original = f.deps.rpc.getMockImplementation()!;
-  f.deps.rpc.mockImplementation(async (name, args) => name === "dashboard_generation_dispatch" ? { data: false } : original(name, args));
+  f.deps.rpc.mockImplementation(async (name, args) => name === "dashboard_generation_audit_attempt" ? { data: false } : original(name, args));
   await expect(f.run()).rejects.toThrow("unavailable"); expect(f.deps.fetch).not.toHaveBeenCalled();
   expect(f.deps.rpc).toHaveBeenCalledWith("release_llm_proxy_capacity", expect.anything());
 });
@@ -114,6 +115,59 @@ test("post-dispatch consent change withholds and marks the one audit", async () 
   const f = fixture(); const original = f.deps.rpc.getMockImplementation()!; let checks = 0;
   f.deps.rpc.mockImplementation(async (name, args) => name === "effective_llm_consent_snapshot_v2" && ++checks === 3 ? { data: { allowed: false, token: null } } : original(name, args));
   await expect(f.run()).rejects.toThrow("unavailable");
-  expect(f.deps.audit).toHaveBeenCalledTimes(1);
-  expect(f.deps.audit).toHaveBeenCalledWith(expect.objectContaining({ model_used: "claude-sonnet-test+consent_withheld" }));
+  expect(f.deps.rpc.mock.calls.filter(([name]) => name === "dashboard_generation_audit_result")).toHaveLength(1);
+  expect(f.deps.rpc).toHaveBeenCalledWith("dashboard_generation_audit_result", expect.objectContaining({ p_outcome: "consent_withheld" }));
+});
+
+test.each(['daily_note', 'day_summary', 'inbox_triage'])("%s sends its explicit cheapest effort and audits that exact request", async (purpose) => {
+  const f = fixture();
+  await create(f.deps)({ ...request, purpose });
+  const body = JSON.parse(f.deps.fetch.mock.calls[0][1].body);
+  expect(body.output_config).toEqual({ effort: 'low' });
+  expect(body.thinking).toEqual({ type: 'adaptive' });
+  expect(f.deps.rpc).toHaveBeenCalledWith('dashboard_generation_audit_attempt', expect.objectContaining({
+    p_effort: body.output_config.effort, p_model: body.model, p_run_id: request.runId, p_crisis: false,
+  }));
+  const index = f.deps.rpc.mock.calls.findIndex(([name]) => name === 'dashboard_generation_audit_attempt');
+  expect(f.deps.rpc.mock.invocationCallOrder[index]).toBeLessThan(f.deps.fetch.mock.invocationCallOrder[0]);
+});
+
+test.each(['unknown', 'toString'])("unseated %s has no implicit effort or paid call", async (purpose) => {
+  const f = fixture(); await expect(create(f.deps)({ ...request, purpose })).rejects.toThrow('unavailable');
+  expect(f.deps.fetch).not.toHaveBeenCalled();
+});
+
+test('an unreviewed model cannot silently ignore effort', async () => {
+  const f = fixture(); f.deps.model = 'claude-sonnet-4-5';
+  await expect(f.run()).rejects.toThrow('unavailable'); expect(f.deps.fetch).not.toHaveBeenCalled();
+});
+
+test('crisis early exit persists an attempt without spend or dispatch', async () => {
+  const f = fixture();
+  await expect(create(f.deps)({ ...request, prompt: 'kill myself' })).rejects.toThrow('unavailable');
+  expect(f.deps.rpc).toHaveBeenCalledWith('dashboard_generation_audit_attempt', expect.objectContaining({ p_crisis: true }));
+  expect(f.deps.rpc).not.toHaveBeenCalledWith('bump_gemini_spend', expect.anything());
+  expect(f.deps.fetch).not.toHaveBeenCalled();
+});
+
+test.each(['error', 'throw', 'denied'])('attempt %s prevents fetch and releases unused capacity', async (failure) => {
+  const f = fixture(); const original = f.deps.rpc.getMockImplementation()!;
+  f.deps.rpc.mockImplementation(async (name, args) => {
+    if (name !== 'dashboard_generation_audit_attempt') return original(name, args);
+    if (failure === 'throw') throw new Error('offline');
+    return failure === 'error' ? { data: null, error: {} } : { data: false };
+  });
+  await expect(f.run()).rejects.toThrow('unavailable'); expect(f.deps.fetch).not.toHaveBeenCalled();
+  expect(f.deps.rpc).toHaveBeenCalledWith('release_llm_proxy_capacity', expect.anything());
+});
+
+test('post-provider interruption retains the already persisted attempt', async () => {
+  const f = fixture();
+  const interrupted = edge('supabase/functions/dashboard-generate/provider.ts', {
+    '../_shared/llm-consent.ts': consent,
+    '../_shared/llm-proxy-common.ts': { ...common, transitionLlmProxyCapacity: async () => { throw new Error('interrupted'); } },
+  }).createBoardProvider as typeof create;
+  await expect(interrupted(f.deps)(request)).rejects.toThrow('interrupted');
+  expect(f.deps.fetch).toHaveBeenCalledTimes(1);
+  expect(f.deps.rpc).toHaveBeenCalledWith('dashboard_generation_audit_attempt', expect.objectContaining({ p_crisis: false }));
 });
