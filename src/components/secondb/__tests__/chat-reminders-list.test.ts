@@ -27,6 +27,7 @@ function runtime(platform = "android") {
   const onCountChange = jest.fn();
   const list = jest.fn(() => { const request = deferred<OneOffReminder[]>(); requests.push(request); return request.promise; });
   const getScheduled = jest.fn(async () => new Set(scheduled));
+  const sweep = jest.fn(async () => ({ found: 0, cancelled: 0 }));
   const enable = jest.fn(async (_owner: string, id: string, _event: unknown) => { scheduled.add(id); return true; });
   const disable = jest.fn(async (_owner: string, id: string) => { scheduled.delete(id); });
   const remove = jest.fn<Promise<boolean | "alarm-uncertain">, [string, string]>(async (_owner, id) => { scheduled.delete(id); return true; });
@@ -64,7 +65,7 @@ function runtime(platform = "android") {
     "@/components/ui/Text": { Text: "Text" }, "@/components/m3/MdCard": { MdCard: "MdCard" },
     "@/components/m3/MdButton": { MdButton: "MdButton" },
     "@/lib/auth/account-epoch": account,
-    "@/lib/ops/one-off-reminders": { listOneOffReminders: list, removeOneOffReminder: remove },
+    "@/lib/ops/one-off-reminders": { listOneOffReminders: list, removeOneOffReminder: remove, sweepOrphanedOneOffReminders: sweep },
     "@/lib/ops/reminders": { getScheduledRoutineIds: getScheduled, enableReminder: enable, disableReminder: disable, remindersSupported: () => true },
     "@/lib/i18n/locales": { systemLocaleFor: () => "en-US" },
     "@/lib/theme/m3": { m3: { shape: { none: 0 }, color: { primary: "blue", onPrimary: "white", outlineVariant: "gray", surfaceContainer: "surface", onSurfaceVariant: "ink" } } },
@@ -89,7 +90,7 @@ function runtime(platform = "android") {
     return [node, ...(children === undefined ? [] : nodes(children))];
   }
   return {
-    requests, list, getScheduled, scheduled, enable, disable, remove, onCountChange,
+    requests, list, getScheduled, scheduled, sweep, enable, disable, remove, onCountChange,
     get tree() { return tree; }, get lateUpdates() { return lateUpdates; }, nodes,
     find(id: string) { const node = nodes().find(node => node.props.testID === id); if (!node) throw new Error(`Missing ${id}`); return node; },
     press(id: string) { const node = this.find(id); (node.props.onPress as () => void)(); flush(); },
@@ -103,9 +104,40 @@ function publish(owner: string) { account.noteResolvedOwner(owner); account.clea
 beforeEach(() => { jest.useFakeTimers().setSystemTime(new Date("2026-10-09T03:00:00.000Z")); account.__resetAccountEpochForTests(); publish("A"); });
 afterEach(() => { jest.useRealTimers(); account.__resetAccountEpochForTests(); });
 
-test("web does not load device reminders", () => { const h = runtime("web"); h.mount(); expect(h.tree).toBeNull(); expect(h.list).not.toHaveBeenCalled(); h.unmount(); });
+test("web does not load device reminders", () => { const h = runtime("web"); h.mount(); expect(h.tree).toBeNull(); expect(h.list).not.toHaveBeenCalled(); expect(h.sweep).not.toHaveBeenCalled(); h.unmount(); });
+
+test("Q-261011-10 source contract: one awaited sweep per native list load, before reading OS state", () => {
+  const focus = source.slice(source.indexOf("useFocusEffect(useCallback("), source.indexOf("}, [ownerId, reload, epoch]));"));
+  const call = "await sweepOrphanedOneOffReminders(ownerId)";
+  expect(source.match(/sweepOrphanedOneOffReminders\(ownerId\)/g)).toHaveLength(1);
+  expect(focus).toContain(call);
+  expect(focus.indexOf('if (Platform.OS === "web") return;')).toBeLessThan(focus.indexOf(call));
+  expect(focus.indexOf("await pending.current.promise")).toBeLessThan(focus.indexOf(call));
+  expect(focus.indexOf(call)).toBeLessThan(focus.indexOf("getScheduledRoutineIds(ownerId)"));
+  expect(focus.slice(focus.indexOf(call))).toMatch(/await sweepOrphanedOneOffReminders\(ownerId\);\s*if \(!active\(\)\) return;/);
+});
+
+test("sweep completes before OS status is displayed and runs once per load, never per render", async () => {
+  const h = runtime(); const pending = deferred<{ found: number; cancelled: number }>();
+  h.sweep.mockImplementationOnce(() => pending.promise); h.mount();
+  expect(h.sweep).toHaveBeenCalledTimes(1); expect(h.getScheduled).not.toHaveBeenCalled();
+  h.update(); expect(h.sweep).toHaveBeenCalledTimes(1);
+  h.scheduled.add("chat-1"); pending.resolve({ found: 1, cancelled: 1 }); await h.settle();
+  h.requests[0].resolve([item()]); await h.settle();
+  expect(h.find("chat-reminder-toggle-chat-1").props.accessibilityState).toMatchObject({ checked: true });
+  h.update(); expect(h.sweep).toHaveBeenCalledTimes(1);
+  h.focus(false); h.focus(true); await h.settle();
+  expect(h.sweep).toHaveBeenCalledTimes(2); expect(h.list).toHaveBeenCalledTimes(2); h.unmount();
+});
+
+test("an account transition while sweeping prevents a late list or OS read", async () => {
+  const h = runtime(); const pending = deferred<{ found: number; cancelled: number }>();
+  h.sweep.mockImplementationOnce(() => pending.promise); h.mount();
+  account.beginAccountOwnerTransition("B"); pending.resolve({ found: 0, cancelled: 0 }); await h.settle();
+  expect(h.list).not.toHaveBeenCalled(); expect(h.getScheduled).not.toHaveBeenCalled(); h.unmount();
+});
 test("saved tasks use actual OS state and preserve the exact reviewed date when enabled", async () => {
-  const h = runtime(); h.mount(); h.requests[0].resolve([item()]); await h.settle();
+  const h = runtime(); h.mount(); await h.settle(); h.requests[0].resolve([item()]); await h.settle();
   expect(h.find("chat-reminder-toggle-chat-1").props.accessibilityState).toMatchObject({ checked: false });
   expect(h.nodes().some(node => node.props.children === new Date(item().startsAtIso).toLocaleString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }))).toBe(true);
   h.press("chat-reminder-toggle-chat-1"); await h.settle();
@@ -113,12 +145,12 @@ test("saved tasks use actual OS state and preserve the exact reviewed date when 
   expect(h.find("chat-reminder-toggle-chat-1").props.accessibilityState).toMatchObject({ checked: true }); h.unmount();
 });
 test("a past event cannot be enabled and never rolls forward to tomorrow", async () => {
-  const h = runtime(); h.mount(); h.requests[0].resolve([item("past", "2026-10-08T03:00:00.000Z")]); await h.settle();
+  const h = runtime(); h.mount(); await h.settle(); h.requests[0].resolve([item("past", "2026-10-08T03:00:00.000Z")]); await h.settle();
   expect(h.find("chat-reminder-toggle-past").props.disabled).toBe(true); h.press("chat-reminder-toggle-past");
   expect(h.enable).not.toHaveBeenCalled(); expect(h.nodes().some(node => node.props.children === "planSuggestion.oneOff.past")).toBe(true); h.unmount();
 });
 test("reaching the reviewed time marks the task past and clears its count without rescheduling", async () => {
-  const h = runtime(); h.scheduled.add("soon"); h.mount();
+  const h = runtime(); h.scheduled.add("soon"); h.mount(); await h.settle();
   h.requests[0].resolve([item("soon", "2026-10-09T03:01:00.000Z")]); await h.settle();
   expect(h.onCountChange).toHaveBeenLastCalledWith(1);
   jest.advanceTimersByTime(60_001); await h.settle();
@@ -127,14 +159,14 @@ test("reaching the reviewed time marks the task past and clears its count withou
 });
 test("duplicate taps cannot race a pending schedule and failed permission never reports ON", async () => {
   const h = runtime(); const pending = deferred<boolean>(); h.enable.mockImplementationOnce(() => pending.promise);
-  h.mount(); h.requests[0].resolve([item()]); await h.settle();
+  h.mount(); await h.settle(); h.requests[0].resolve([item()]); await h.settle();
   h.press("chat-reminder-toggle-chat-1"); h.press("chat-reminder-toggle-chat-1"); expect(h.enable).toHaveBeenCalledTimes(1);
   pending.resolve(false); await h.settle();
   expect(h.find("chat-reminder-toggle-chat-1").props.accessibilityState).toMatchObject({ checked: false });
   expect(h.nodes().some(node => node.props.children === "planSuggestion.oneOff.alarmFailed")).toBe(true); h.unmount();
 });
 test("OFF is verified against the OS and deletion requires a separate explicit confirmation", async () => {
-  const h = runtime(); h.scheduled.add("chat-1"); h.mount(); h.requests[0].resolve([item()]); await h.settle();
+  const h = runtime(); h.scheduled.add("chat-1"); h.mount(); await h.settle(); h.requests[0].resolve([item()]); await h.settle();
   h.press("chat-reminder-toggle-chat-1"); await h.settle(); expect(h.disable).toHaveBeenCalledWith("A", "chat-1");
   expect(h.find("chat-reminder-toggle-chat-1").props.accessibilityState).toMatchObject({ checked: false });
   h.press("chat-reminder-delete-chat-1"); expect(h.remove).not.toHaveBeenCalled();
@@ -142,7 +174,7 @@ test("OFF is verified against the OS and deletion requires a separate explicit c
   expect(h.nodes().some(node => node.props.testID === "chat-reminder-toggle-chat-1")).toBe(false); h.unmount();
 });
 test("failed deletion keeps the task accessible instead of reporting success", async () => {
-  const h = runtime(); h.remove.mockResolvedValueOnce(false); h.mount(); h.requests[0].resolve([item()]); await h.settle();
+  const h = runtime(); h.remove.mockResolvedValueOnce(false); h.mount(); await h.settle(); h.requests[0].resolve([item()]); await h.settle();
   h.press("chat-reminder-delete-chat-1"); h.press("chat-reminder-confirm-chat-1"); await h.settle();
   expect(h.find("chat-reminder-toggle-chat-1")).toBeTruthy();
   expect(h.nodes().some(node => node.props.children === "planSuggestion.oneOff.deleteFailed")).toBe(true); h.unmount();
@@ -150,7 +182,7 @@ test("failed deletion keeps the task accessible instead of reporting success", a
 
 test("G5-06 an uncancelled alarm removes the record from the list, clears its count and shows the existing alarm notice", async () => {
   const h = runtime(); h.scheduled.add("chat-1"); h.remove.mockResolvedValueOnce("alarm-uncertain");
-  h.mount(); h.requests[0].resolve([item()]); await h.settle();
+  h.mount(); await h.settle(); h.requests[0].resolve([item()]); await h.settle();
   h.press("chat-reminder-delete-chat-1"); h.press("chat-reminder-confirm-chat-1"); await h.settle();
   expect(h.nodes().some(node => node.props.testID === "chat-reminder-delete-chat-1")).toBe(false);
   expect(h.nodes().some(node => node.props.children === "planSuggestion.oneOff.alarmFailed")).toBe(true);
@@ -158,36 +190,36 @@ test("G5-06 an uncancelled alarm removes the record from the list, clears its co
   expect(h.onCountChange).toHaveBeenLastCalledWith(0); h.unmount();
 });
 test("a return to the screen reloads newly saved reminders and discards late blurred results", async () => {
-  const h = runtime(); h.mount(); h.focus(false); h.focus(true); h.requests[1].resolve([item("new")]); await h.settle();
+  const h = runtime(); h.mount(); await h.settle(); h.focus(false); h.focus(true); await h.settle(); h.requests[1].resolve([item("new")]); await h.settle();
   h.requests[0].resolve([item("old")]); await h.settle();
   expect(h.find("chat-reminder-toggle-new")).toBeTruthy(); expect(h.nodes().some(node => node.props.testID === "chat-reminder-toggle-old")).toBe(false); h.unmount();
 });
 test("refocusing during a pending toggle waits for the actual completed notification state", async () => {
   const h = runtime(); const pending = deferred<boolean>(); h.enable.mockImplementationOnce(() => pending.promise);
-  h.mount(); h.requests[0].resolve([item()]); await h.settle(); h.press("chat-reminder-toggle-chat-1");
+  h.mount(); await h.settle(); h.requests[0].resolve([item()]); await h.settle(); h.press("chat-reminder-toggle-chat-1");
   h.focus(false); h.focus(true); expect(h.list).toHaveBeenCalledTimes(1);
   h.scheduled.add("chat-1"); pending.resolve(true); await h.settle();
   h.requests[1].resolve([item()]); await h.settle();
   expect(h.find("chat-reminder-toggle-chat-1").props.accessibilityState).toMatchObject({ checked: true }); h.unmount();
 });
 test("an account transition rejects a late query even before React receives the next owner", async () => {
-  const h = runtime(); h.mount(); account.beginAccountOwnerTransition("B");
+  const h = runtime(); h.mount(); await h.settle(); account.beginAccountOwnerTransition("B");
   h.requests[0].resolve([item()]); await h.settle(); h.update(); expect(h.tree).toBeNull(); h.unmount();
 });
 test("local storage errors show a retry instead of a false empty state", async () => {
-  const h = runtime(); h.mount(); h.requests[0].reject(new Error("storage unavailable")); await h.settle();
+  const h = runtime(); h.mount(); await h.settle(); h.requests[0].reject(new Error("storage unavailable")); await h.settle();
   expect(h.nodes().some(node => node.props.children === "planSuggestion.oneOff.loadFailed")).toBe(true);
   expect(h.nodes().some(node => node.props.children === "planSuggestion.oneOff.empty")).toBe(false); h.unmount();
 });
 test("owner changes and unmounts reject old queries and in-flight mutation updates", async () => {
   const h = runtime(); const pending = deferred<boolean>(); h.enable.mockImplementationOnce(() => pending.promise);
-  h.mount(); h.requests[0].resolve([item()]); await h.settle(); h.press("chat-reminder-toggle-chat-1");
+  h.mount(); await h.settle(); h.requests[0].resolve([item()]); await h.settle(); h.press("chat-reminder-toggle-chat-1");
   publish("B"); h.update("B"); expect(h.nodes().some(node => node.props.testID === "chat-reminder-toggle-chat-1")).toBe(false);
-  h.requests[1].resolve([item("B")]); pending.resolve(true); await h.settle(); expect(h.find("chat-reminder-toggle-B")).toBeTruthy();
-  h.focus(false); h.focus(true); h.unmount(); h.requests[2].resolve([item("late")]); await h.settle(); expect(h.lateUpdates).toBe(0);
+  await h.settle(); h.requests[1].resolve([item("B")]); pending.resolve(true); await h.settle(); expect(h.find("chat-reminder-toggle-B")).toBeTruthy();
+  h.focus(false); h.focus(true); await h.settle(); h.unmount(); h.requests[2].resolve([item("late")]); await h.settle(); expect(h.lateUpdates).toBe(0);
 });
 test("all 200 tasks are reachable through bounded non-scrolling pages inside the existing frame", async () => {
-  const h = runtime(); h.mount(); h.requests[0].resolve(Array.from({ length: 200 }, (_, n) => item(`row-${n}`))); await h.settle();
+  const h = runtime(); h.mount(); await h.settle(); h.requests[0].resolve(Array.from({ length: 200 }, (_, n) => item(`row-${n}`))); await h.settle();
   const list = h.nodes().find(node => node.type === "FlatList")!;
   expect(list.props).toMatchObject({ scrollEnabled: false, initialNumToRender: 5 }); expect((list.props.data as unknown[])).toHaveLength(5);
   for (let page = 0; page < 39; page += 1) h.press("chat-reminders-next");
