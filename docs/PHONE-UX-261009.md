@@ -45,7 +45,7 @@ session positions. See [implementation and reproduction](handoff/ACCTSTATE-26101
 
 ## A03 server follow-up (0247 draft, not applied)
 
-0247 초안 PR · 운영 미적용 (A03 / G5-03 / G5-04).
+0247 초안 PR #2271 · 운영 미적용 (A03 / G5-03 / G5-04).
 
 `db/migrations/0247_dashboard_last_note.sql` extends the existing service-only
 request RPC. It returns the most recent unexpired daily note for `open` when the current
