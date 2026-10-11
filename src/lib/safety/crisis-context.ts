@@ -41,8 +41,9 @@ export function prepareCrisisScanText(text: string): string {
   if (RISK_CONTEXT.test(normalized)) return normalized;
 
   // A question about intent is not a denial. Only the known correction tail
-  // may carry a question mark ("날 뭘로 보는거야?").
-  const denial = normalized.replace(/[.,!…。！]/g, " ").replace(/\s+/g, " ").trim();
+  // may carry a question mark ("날 뭘로 보는거야?"). Phone keyboards type a
+  // curly apostrophe, which NFKC keeps; read it as the straight one here only.
+  const denial = normalized.replace(/[‘’]/g, "'").replace(/[.,!…。！]/g, " ").replace(/\s+/g, " ").trim();
   if (KO_STANDALONE_DENIAL.test(denial) || EN_STANDALONE_DENIAL.test(denial)) {
     return normalized.replace(/자살|자해|suicidal|want to die/g, (term) => " ".repeat(term.length));
   }
