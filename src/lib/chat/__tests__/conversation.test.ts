@@ -94,6 +94,7 @@ jest.mock("@/lib/llm/boundary", () => ({
 }));
 
 import { sendChatMessage } from "../conversation";
+import { classifyInput, crisisHotlines } from "@/lib/safety/classifier";
 import { loadProfileContext } from "../../persona/profile-context";
 
 function reset() {
@@ -340,5 +341,78 @@ describe("sendChatMessage", () => {
     expect(llmArgs.system).toContain('<UNTRUSTED type="chat_history">');
     expect(llmArgs.system).not.toContain("자살"); // red turn dropped
     expect(llmArgs.system).toContain("오늘은 좀 나아졌어"); // green turn kept
+  });
+
+  // Q-261011-11: a message the input check let through still reaches the model, and the model used
+  // to recommend 119 and 112 on its own. The rule rides the trusted part of the system prompt and
+  // takes its numbers from crisisHotlines, the table behind the fixed notice.
+  describe("crisis number rule", () => {
+    const systemFor = async (locale: "en" | "ko", minor?: boolean): Promise<string> => {
+      fixtures.used = 0;
+      await sendChatMessage({ userId: "u1", message: "hello", locale, tier: "soma", minor });
+      return (captured.find((c) => c.fn === "callLlm")?.args[0] as { system: string }).system;
+    };
+    const ruleOf = (system: string, locale: "en" | "ko"): string => {
+      const start = system.indexOf(locale === "ko" ? "스스로 삶을 끝내거나" : "If the person talks about ending their life");
+      expect(start).toBeGreaterThan(-1);
+      return system.slice(start, system.indexOf("\n\n", start));
+    };
+
+    test("ko adult: 109, no 112 for that talk alone, 119 only when the body is in danger now", async () => {
+      const rule = ruleOf(await systemFor("ko"), "ko");
+      expect(rule).toContain("109로 전화하도록 안내하세요. 그 이야기만을 이유로 112를 붙이지 마세요.");
+      expect(rule).toContain("119는 이미 다쳤거나 약을 삼킨 것처럼 몸이 지금 위급할 때만");
+      expect(rule).toContain("분명하지 않으면 109로 안내하세요");
+      expect(rule).not.toContain("1388");
+    });
+
+    test("ko: the numbers are the fixed notice's table, so a minor gets 1388 first", async () => {
+      const adult = crisisHotlines("ko", false).map((line) => line.number);
+      const minor = crisisHotlines("ko", true).map((line) => line.number);
+      expect(adult).toEqual(["109"]);
+      expect(minor).toEqual(["1388", "109"]);
+      expect(ruleOf(await systemFor("ko", true), "ko")).toContain("1388 또는 109로 전화하도록 안내하세요.");
+      captured.length = 0;
+      expect(ruleOf(await systemFor("ko", false), "ko")).not.toContain("1388");
+    });
+
+    test("en: 988 and no police number", async () => {
+      const rule = ruleOf(await systemFor("en"), "en");
+      expect(rule).toContain(`point them to ${crisisHotlines("en")[0].number}. Do not add a police number for that reason alone.`);
+      expect(rule).toContain("only when their body is in danger right now");
+      expect(rule).not.toMatch(/\b(?:109|112|119|1388)\b/);
+    });
+
+    // NR-01: a person who is also being threatened by someone else still needs 112. The ban is scoped
+    // to "that talk alone", and no sentence forbids 112 or a police number outright.
+    test("the 112 ban is scoped, so a threat from someone else can still get 112", async () => {
+      const ko = ruleOf(await systemFor("ko"), "ko");
+      expect(ko).toContain("그 이야기만을 이유로 112를 붙이지 마세요");
+      expect(ko.replace("그 이야기만을 이유로 112를 붙이지 마세요", "")).not.toContain("112");
+      captured.length = 0;
+      const en = ruleOf(await systemFor("en"), "en");
+      expect(en).toContain("Do not add a police number for that reason alone.");
+      expect(en.replace("Do not add a police number for that reason alone.", "")).not.toMatch(/police/i);
+    });
+
+    test("the rule sits after the header and before every untrusted block and the name line", async () => {
+      fixtures.used = 0;
+      await sendChatMessage({ userId: "u1", message: "hello", locale: "ko", tier: "soma", displayName: "지수" });
+      const system = (captured.find((c) => c.fn === "callLlm")?.args[0] as { system: string }).system;
+      const rule = system.indexOf("스스로 삶을 끝내거나");
+      expect(rule).toBeGreaterThan(system.indexOf("허슬케이"));
+      expect(rule).toBeLessThan(system.indexOf("이 사람의 이름은"));
+      expect(rule).toBeLessThan(system.indexOf("<UNTRUSTED"));
+      expect(system.split("스스로 삶을 끝내거나").length).toBe(2);
+    });
+
+    test("the rule adds no crisis term to the prompt (the history test above reads the same string)", async () => {
+      for (const locale of ["ko", "en"] as const) {
+        captured.length = 0;
+        const rule = ruleOf(await systemFor(locale), locale);
+        expect(classifyInput(rule, "ko").zone).not.toBe("red");
+        expect(classifyInput(rule, "en").zone).not.toBe("red");
+      }
+    });
   });
 });
