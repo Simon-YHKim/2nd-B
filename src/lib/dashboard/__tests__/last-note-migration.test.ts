@@ -35,19 +35,23 @@ const allowedEdits = [
       "    INTO previous_note FROM public.dashboard_generation_runs g",
       "    WHERE g.user_id=p_user_id AND g.purpose='daily_note' AND g.status='ready'",
       "      AND g.output IS NOT NULL AND g.expires_at>now() AND g.consent_token=c->>'token'",
-      "      AND jsonb_array_length(g.output->'basis_refs')>0",
+      "      AND jsonb_array_length(CASE WHEN jsonb_typeof(g.output->'basis_refs')='array'",
+      "        THEN g.output->'basis_refs' ELSE '[]'::jsonb END)>0",
+      "      AND jsonb_typeof(g.output->'reminder_suggestions')='array'",
       "      AND NOT EXISTS (",
       "        SELECT 1 FROM (",
-      "          SELECT value AS ref FROM jsonb_array_elements(g.output->'basis_refs')",
+      "          SELECT value AS ref FROM jsonb_array_elements(CASE WHEN jsonb_typeof(g.output->'basis_refs')='array'",
+      "            THEN g.output->'basis_refs' ELSE '[]'::jsonb END)",
       "          UNION ALL",
-      "          SELECT value->'source_ref' FROM jsonb_array_elements(g.output->'reminder_suggestions')",
+      "          SELECT value->'source_ref' FROM jsonb_array_elements(CASE WHEN jsonb_typeof(g.output->'reminder_suggestions')='array'",
+      "            THEN g.output->'reminder_suggestions' ELSE '[]'::jsonb END)",
       "        ) evidence WHERE NOT EXISTS (",
       "          SELECT 1 FROM jsonb_array_elements(source->'reminders') candidate",
       "          WHERE candidate->>'id'=evidence.ref->>'id'",
       "            AND CASE WHEN candidate->>'kind'='routine' THEN 'routine' ELSE 'reminder' END=evidence.ref->>'kind'",
       "        )",
       "      )",
-      "    ORDER BY g.created_at DESC LIMIT 1;",
+      "    ORDER BY g.created_at DESC LIMIT 1 FOR SHARE OF g;",
       "  END IF;"
     ]
   },
@@ -107,7 +111,7 @@ const allowedEdits = [
   }
 ] as const;
 
-test("0247 request differs from 0245 only by A03 and the service-day quota", () => {
+test("0247 request differs from 0245 only by hardened A03 and the service-day quota", () => {
   const lines = request(baseline).split("\n");
   for (const edit of [...allowedEdits].reverse()) {
     expect(lines.slice(edit.line - 1, edit.line - 1 + edit.before.length)).toEqual(edit.before);
@@ -137,9 +141,30 @@ test("0247 preserves 0245 RPC signature, security configuration and literal ACL 
   expect(promoted).not.toMatch(/CREATE TABLE|ADD COLUMN|_v2\(|UPDATE public\.|DELETE FROM/);
 });
 
-test("0247 rollback restores the exact 0245 request without touching the ledger", () => {
+const routineTrigger = `CREATE TRIGGER dashboard_routine_changed
+AFTER UPDATE OF title,active,recurrence,weekday ON public.ops_routines
+FOR EACH ROW WHEN (OLD.title IS DISTINCT FROM NEW.title
+  OR OLD.active IS DISTINCT FROM NEW.active
+  OR OLD.recurrence IS DISTINCT FROM NEW.recurrence
+  OR OLD.weekday IS DISTINCT FROM NEW.weekday)
+EXECUTE FUNCTION public.invalidate_dashboard_generation();`;
+
+test("0247 invalidates only actual routine content edits through the unchanged 0236 function", () => {
+  expect(promoted.match(/CREATE TRIGGER[\s\S]*?;/g)).toEqual([routineTrigger]);
+  expect(promoted).not.toMatch(/CREATE (?:OR REPLACE )?FUNCTION public\.invalidate_dashboard_generation\(/);
+});
+
+test("0247 normalizes both array inputs and locks the selected run", () => {
+  expect(body.match(/CASE WHEN jsonb_typeof\(g.output->'basis_refs'\)='array'\s+THEN g.output->'basis_refs' ELSE '\[\]'::jsonb END/g)).toHaveLength(2);
+  expect(body).toMatch(/jsonb_array_elements\(CASE WHEN jsonb_typeof\(g.output->'reminder_suggestions'\)='array'\s+THEN g.output->'reminder_suggestions' ELSE '\[\]'::jsonb END\)/);
+  expect(body).toContain("AND jsonb_typeof(g.output->'reminder_suggestions')='array'");
+  expect(body).toContain("ORDER BY g.created_at DESC LIMIT 1 FOR SHARE OF g;");
+});
+
+test("0247 rollback restores the exact 0245 request and drops only its own trigger", () => {
   expect(request(rollback)).toBe(request(baseline));
-  expect(rollback).not.toMatch(/DROP |DELETE FROM|UPDATE public\./);
+  expect(rollback.match(/DROP [^;]+;/g)).toEqual(["DROP TRIGGER IF EXISTS dashboard_routine_changed ON public.ops_routines;"]);
+  expect(rollback).not.toMatch(/DELETE FROM|UPDATE public\./);
 });
 
 test("0244 nullable usage contract is kept because the provider sends unknown tokens", () => {

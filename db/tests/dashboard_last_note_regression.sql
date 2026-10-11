@@ -32,7 +32,7 @@ BEGIN
   INSERT INTO public.ops_routines(id,user_id,title) VALUES
     ('10000000-0000-0000-0000-000000000091',owner,'Read'),
     ('10000000-0000-0000-0000-000000000092',owner,'Write')
-    ON CONFLICT ON CONSTRAINT ops_routines_pkey DO UPDATE SET active=true,title=EXCLUDED.title;
+    ON CONFLICT ON CONSTRAINT ops_routines_pkey DO UPDATE SET active=true,title=EXCLUDED.title,recurrence='daily',weekday=NULL;
   UPDATE public.dashboard_generation_retention SET last_purged_at=clock_timestamp();
   a:=public.dashboard_generation_request(owner,'open',zone,'ko'); run_id:=(a->>'id')::uuid;
   IF a->>'kind' IS DISTINCT FROM 'claimed' OR NOT public.dashboard_generation_dispatch(owner,run_id) THEN
@@ -68,8 +68,99 @@ BEGIN
     FROM public.dashboard_generation_runs WHERE user_id=owner),'read preserves attempt count and expiry');
 END $$;
 
--- Isolate each rejection, including predicates that deletion/withdrawal hooks
--- also enforce. Inactive evidence leaves output intact and tests the read gate.
+-- R2271-01: finish accepts arbitrary object shapes. Every malformed newer row
+-- must be skipped without an exception, with and without an older valid note.
+DO $$
+DECLARE owner uuid:='00000000-0000-0000-0000-000000000091'; a jsonb; b jsonb;
+  scenario text; bad jsonb; good jsonb; bad_id uuid;
+BEGIN
+  FOREACH scenario IN ARRAY ARRAY['basis-object','basis-string','basis-null','basis-missing',
+    'suggestions-object','suggestions-string','suggestions-null','suggestions-missing',
+    'ref-string','ref-null','ref-missing'] LOOP
+    a:=pg_temp.note_fixture();
+    SELECT output INTO good FROM public.dashboard_generation_runs WHERE id=(a->>'id')::uuid;
+    bad:=CASE scenario
+      WHEN 'basis-object' THEN jsonb_set(good,'{basis_refs}','{}')
+      WHEN 'basis-string' THEN jsonb_set(good,'{basis_refs}','"bad"')
+      WHEN 'basis-null' THEN jsonb_set(good,'{basis_refs}','null')
+      WHEN 'basis-missing' THEN good-'basis_refs'
+      WHEN 'suggestions-object' THEN jsonb_set(good,'{reminder_suggestions}','{}')
+      WHEN 'suggestions-string' THEN jsonb_set(good,'{reminder_suggestions}','"bad"')
+      WHEN 'suggestions-null' THEN jsonb_set(good,'{reminder_suggestions}','null')
+      WHEN 'suggestions-missing' THEN good-'reminder_suggestions'
+      WHEN 'ref-string' THEN jsonb_set(good,'{reminder_suggestions}','[{"source_ref":"bad"}]')
+      WHEN 'ref-null' THEN jsonb_set(good,'{reminder_suggestions}','[{"source_ref":null}]')
+      WHEN 'ref-missing' THEN jsonb_set(good,'{reminder_suggestions}','[{}]') END;
+    INSERT INTO public.dashboard_generation_runs(user_id,purpose,request_key,source_hash,consent_token,status,created_at,expires_at)
+      SELECT user_id,purpose,'malformed',source_hash,consent_token,'dispatched',now(),expires_at
+        FROM public.dashboard_generation_runs WHERE id=(a->>'id')::uuid RETURNING id INTO bad_id;
+    PERFORM pg_temp.note_check(public.dashboard_generation_finish(owner,bad_id,bad),'finish accepts '||scenario);
+    UPDATE public.dashboard_generation_runs SET source_hash='stale',created_at=now()-interval '1 minute' WHERE id=(a->>'id')::uuid;
+    b:=public.dashboard_generation_request(owner,'open','Asia/Seoul','ko');
+    PERFORM pg_temp.note_check(b->>'kind'='ready' AND b->'previous'='true'::jsonb AND b->'value'=good
+      AND (b->>'generatedAt')::timestamptz=now()-interval '1 minute','malformed fallback '||scenario);
+    UPDATE public.dashboard_generation_runs SET status='failed',output=NULL WHERE id=(a->>'id')::uuid;
+    b:=public.dashboard_generation_request(owner,'open','Asia/Seoul','ko');
+    PERFORM pg_temp.note_check(b->>'kind'='waiting' AND NOT (b ? 'previous'),'malformed only '||scenario);
+  END LOOP;
+END $$;
+
+-- R2271-02: edits clear all cached purposes for this owner; no-op saves,
+-- unrelated columns, another owner and completion logs preserve the ready row.
+DO $$
+DECLARE owner uuid:='00000000-0000-0000-0000-000000000091'; a jsonb; b jsonb; scenario text;
+  before_rows jsonb; after_rows jsonb; changed boolean; statement text; plan jsonb;
+BEGIN
+  INSERT INTO public.ops_routines(id,user_id,title) VALUES
+    ('20000000-0000-0000-0000-000000000092','00000000-0000-0000-0000-000000000092','Other');
+  FOREACH scenario IN ARRAY ARRAY['title','active','recurrence','weekday',
+    'title-noop','active-noop','recurrence-noop','weekday-noop','unrelated','other-owner','completion'] LOOP
+    a:=pg_temp.note_fixture();
+    INSERT INTO public.dashboard_generation_runs(user_id,purpose,request_key,source_hash,consent_token,status,output,expires_at)
+      SELECT user_id,p.purpose,'cached',source_hash,consent_token,status,output,expires_at
+        FROM public.dashboard_generation_runs CROSS JOIN unnest(ARRAY['day_summary','inbox_triage']) p(purpose)
+        WHERE id=(a->>'id')::uuid;
+    UPDATE public.dashboard_generation_runs SET source_hash='stale' WHERE user_id=owner;
+    SELECT jsonb_agg(to_jsonb(g) ORDER BY g.id) INTO before_rows FROM public.dashboard_generation_runs g WHERE user_id=owner;
+    changed:=scenario IN ('title','active','recurrence','weekday');
+    statement:=CASE scenario
+      WHEN 'title' THEN 'title=''Walk'''
+      WHEN 'active' THEN 'active=false'
+      WHEN 'recurrence' THEN 'recurrence=''weekly'''
+      WHEN 'weekday' THEN 'weekday=1'
+      WHEN 'title-noop' THEN 'title=title'
+      WHEN 'active-noop' THEN 'active=active'
+      WHEN 'recurrence-noop' THEN 'recurrence=recurrence'
+      WHEN 'weekday-noop' THEN 'weekday=weekday'
+      WHEN 'unrelated' THEN 'created_at=created_at-interval ''1 minute'''
+      WHEN 'other-owner' THEN 'title=title||'' edited''' END;
+    IF scenario='completion' THEN
+      INSERT INTO public.ops_routine_logs(routine_id,user_id,completed_on)
+        VALUES('10000000-0000-0000-0000-000000000091',owner,(now() AT TIME ZONE 'Asia/Seoul')::date);
+    ELSE
+      EXECUTE 'EXPLAIN (ANALYZE, FORMAT JSON) UPDATE public.ops_routines SET '||statement||
+        ' WHERE id='||quote_literal(CASE WHEN scenario='other-owner' THEN '20000000-0000-0000-0000-000000000092'
+          ELSE '10000000-0000-0000-0000-000000000091' END)||'::uuid' INTO plan;
+      PERFORM pg_temp.note_check(coalesce((SELECT sum((t->>'Calls')::int) FROM jsonb_array_elements(plan->0->'Triggers') t
+        WHERE t->>'Trigger Name'='dashboard_routine_changed'),0)=CASE WHEN changed OR scenario='other-owner' THEN 1 ELSE 0 END,
+        'edit trigger calls '||scenario);
+    END IF;
+    SELECT jsonb_agg(to_jsonb(g) ORDER BY g.id) INTO after_rows FROM public.dashboard_generation_runs g WHERE user_id=owner;
+    PERFORM pg_temp.note_check(CASE WHEN changed THEN
+      (SELECT count(*)=3 AND bool_and(status='failed' AND output IS NULL) FROM public.dashboard_generation_runs WHERE user_id=owner)
+      ELSE after_rows=before_rows END,'edit cache state '||scenario);
+    b:=public.dashboard_generation_request(owner,'open','Asia/Seoul','ko');
+    PERFORM pg_temp.note_check(CASE WHEN changed THEN b->>'kind' IN ('waiting','limited') AND NOT (b ? 'previous')
+      ELSE b->>'kind'='ready' AND b->'previous'='true'::jsonb AND b->'value'->>'line'='Read today.' END,
+      'edit open '||scenario);
+    IF scenario='title' THEN
+      PERFORM pg_temp.note_check((SELECT title='Walk' FROM public.ops_routines
+        WHERE id='10000000-0000-0000-0000-000000000091'),'AFTER trigger RETURN OLD does not undo edit');
+    END IF;
+  END LOOP;
+END $$;
+
+-- Isolate each rejection, including predicates that invalidation hooks also enforce.
 DO $$
 DECLARE owner uuid:='00000000-0000-0000-0000-000000000091'; a jsonb; b jsonb; scenario text; expected text;
 BEGIN
@@ -263,7 +354,15 @@ BEGIN
 END $$;
 
 CREATE TEMP TABLE last_note_before_down AS SELECT * FROM public.dashboard_generation_runs;
+CREATE TEMP TABLE last_note_invalidator_before_down AS
+  SELECT pg_get_functiondef('public.invalidate_dashboard_generation()'::regprocedure) AS definition;
 \ir ../migrations/rollback/0247_down.sql
+SELECT pg_temp.note_check(NOT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='public.ops_routines'::regclass
+  AND tgname='dashboard_routine_changed'),'rollback removes only edit hook');
+SELECT pg_temp.note_check(EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='public.ops_routines'::regclass
+  AND tgname='dashboard_routine_deleted'),'rollback keeps 0236 delete hook');
+SELECT pg_temp.note_check(pg_get_functiondef('public.invalidate_dashboard_generation()'::regprocedure)
+  =(SELECT definition FROM last_note_invalidator_before_down),'rollback keeps 0236 invalidator');
 SELECT pg_temp.note_check(pg_get_functiondef('public.dashboard_generation_request(uuid,text,text,text)'::regprocedure)
   =(SELECT definition FROM last_note_versions WHERE version='0245'),'rollback exact 0245 definition');
 SELECT pg_temp.note_check(NOT EXISTS((SELECT * FROM last_note_before_down EXCEPT SELECT * FROM public.dashboard_generation_runs)

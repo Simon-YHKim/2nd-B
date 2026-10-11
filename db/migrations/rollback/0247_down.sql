@@ -1,5 +1,7 @@
--- Revert only A03 / G5-04 to the exact 0245 request and ACLs.
+-- Revert A03 / G5-04 to the exact 0245 request and ACLs; remove the edit hook.
 -- No rows, retention heartbeat, audit functions or other W1 functions are changed.
+DROP TRIGGER IF EXISTS dashboard_routine_changed ON public.ops_routines;
+
 CREATE OR REPLACE FUNCTION public.dashboard_generation_request(p_user_id uuid,p_action text,p_timezone text DEFAULT NULL,p_locale text DEFAULT NULL) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET row_security=off AS $$
 DECLARE c jsonb; s public.dashboard_generation_settings%ROWTYPE; r public.dashboard_generation_runs%ROWTYPE;

@@ -44,19 +44,23 @@ BEGIN
     INTO previous_note FROM public.dashboard_generation_runs g
     WHERE g.user_id=p_user_id AND g.purpose='daily_note' AND g.status='ready'
       AND g.output IS NOT NULL AND g.expires_at>now() AND g.consent_token=c->>'token'
-      AND jsonb_array_length(g.output->'basis_refs')>0
+      AND jsonb_array_length(CASE WHEN jsonb_typeof(g.output->'basis_refs')='array'
+        THEN g.output->'basis_refs' ELSE '[]'::jsonb END)>0
+      AND jsonb_typeof(g.output->'reminder_suggestions')='array'
       AND NOT EXISTS (
         SELECT 1 FROM (
-          SELECT value AS ref FROM jsonb_array_elements(g.output->'basis_refs')
+          SELECT value AS ref FROM jsonb_array_elements(CASE WHEN jsonb_typeof(g.output->'basis_refs')='array'
+            THEN g.output->'basis_refs' ELSE '[]'::jsonb END)
           UNION ALL
-          SELECT value->'source_ref' FROM jsonb_array_elements(g.output->'reminder_suggestions')
+          SELECT value->'source_ref' FROM jsonb_array_elements(CASE WHEN jsonb_typeof(g.output->'reminder_suggestions')='array'
+            THEN g.output->'reminder_suggestions' ELSE '[]'::jsonb END)
         ) evidence WHERE NOT EXISTS (
           SELECT 1 FROM jsonb_array_elements(source->'reminders') candidate
           WHERE candidate->>'id'=evidence.ref->>'id'
             AND CASE WHEN candidate->>'kind'='routine' THEN 'routine' ELSE 'reminder' END=evidence.ref->>'kind'
         )
       )
-    ORDER BY g.created_at DESC LIMIT 1;
+    ORDER BY g.created_at DESC LIMIT 1 FOR SHARE OF g;
   END IF;
   key := CASE v_purpose WHEN 'daily_note' THEN slot_day::text||':'||slot
     WHEN 'day_summary' THEN floor(extract(epoch FROM now())/1800)::text
@@ -95,6 +99,15 @@ BEGIN
   RETURN jsonb_build_object('kind','claimed','id',r.id,'purpose',v_purpose,'slot',slot,'locale',s.locale,
     'source',source,'consent_token',c->>'token');
 END $$;
+
+-- Routine content edits invalidate cached output; completion logs do not.
+CREATE TRIGGER dashboard_routine_changed
+AFTER UPDATE OF title,active,recurrence,weekday ON public.ops_routines
+FOR EACH ROW WHEN (OLD.title IS DISTINCT FROM NEW.title
+  OR OLD.active IS DISTINCT FROM NEW.active
+  OR OLD.recurrence IS DISTINCT FROM NEW.recurrence
+  OR OLD.weekday IS DISTINCT FROM NEW.weekday)
+EXECUTE FUNCTION public.invalidate_dashboard_generation();
 
 REVOKE ALL ON FUNCTION public.dashboard_generation_retention_ready(),
   public.dashboard_generation_request(uuid,text,text,text),
