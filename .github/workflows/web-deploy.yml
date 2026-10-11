@@ -255,6 +255,9 @@ jobs:
           EXPO_PUBLIC_LLM_MODE: ${{ vars.EXPO_PUBLIC_LLM_MODE || 'mock' }}
           EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: "true"
           EXPO_PUBLIC_DASHBOARD_GENERATION: ${{ vars.EXPO_PUBLIC_DASHBOARD_GENERATION || 'false' }}
+          # Chat input with altered word gaps asks for meaning once.
+          # Independent of the default-off EXPO_PUBLIC_SERVER_SAFETY.
+          EXPO_PUBLIC_OBFUSCATION_SAFETY: ${{ vars.EXPO_PUBLIC_OBFUSCATION_SAFETY || 'true' }}
           # D-27 axis-key pin: route every Gemini seat to gemini-3.5-flash so live
           # calls resolve the dedicated GEMINI_API_KEY__G35FLASH__{effort} combo
           # keys (a G25* slug would fall back to the base key). Overridable via a
@@ -309,7 +312,7 @@ jobs:
           # and the only targets left are the one that just failed.
           EXPO_PUBLIC_FAILOVER_VENDOR: ${{ vars.EXPO_PUBLIC_FAILOVER_VENDOR || '' }}
           # Server-side crisis classifier vendor. Dormant unless
-          # EXPO_PUBLIC_SERVER_SAFETY is also on.
+          # either EXPO_PUBLIC_SERVER_SAFETY or EXPO_PUBLIC_OBFUSCATION_SAFETY is on.
           EXPO_PUBLIC_SAFETY_VENDOR: ${{ vars.EXPO_PUBLIC_SAFETY_VENDOR || '' }}
           # Naver social sign-up uses the custom oauth-naver Edge function. Keep
           # the client off until the current migration, secrets, disabled Edge

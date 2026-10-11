@@ -32,7 +32,7 @@ import {
 import { gatherAdherenceStats } from "@/lib/ops/signals";
 import { adherenceChip } from "@/lib/ops/grounding";
 import { loadPickCandidates } from "@/lib/ops/load-picks";
-import { readOpsPresentation, writeOpsPresentation } from "@/lib/ops/presentation";
+import { readOpsPresentation, writeOpsPresentationFor } from "@/lib/ops/presentation";
 import {
   recommendForDomain,
   recommendationsAllowed,
@@ -400,6 +400,9 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
   const [adherence, setAdherence] = useState<string | null>(() => readOpsPresentation().adherence);
   const [runState, setRunState] = useState<"idle" | "working" | "empty" | "error" | "limit" | "off">("idle");
   const [savedKeys, setSavedKeys] = useState<Set<string>>(() => new Set(readOpsPresentation().savedKeys));
+  // The account the saved view state above was loaded for. A render for the next account still holds
+  // the previous one's values until the reset effect below has run, and must not save them.
+  const [presentationOwner, setPresentationOwner] = useState<string | null>(userId);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
   const [consentOpen, setConsentOpen] = useState(false);
@@ -444,6 +447,7 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
     setAdherence(prior.adherence);
     setRunState("idle");
     setSavedKeys(new Set(readOpsPresentation().savedKeys));
+    setPresentationOwner(userId);
     setSavingKey(null);
     setCompletingIds(new Set());
     setNotice(null);
@@ -585,7 +589,7 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
       setSavedKeys(new Set());
       setAdherence(stats ? adherenceChip(stats, i18n.language?.toLowerCase().startsWith("ko") ?? false) : null);
       setRunState(result.length === 0 ? "empty" : "idle");
-      writeOpsPresentation({ group, domain: selectedDomain, recommendations: result,
+      writeOpsPresentationFor(ownerId, { group, domain: selectedDomain, recommendations: result,
         adherence: stats ? adherenceChip(stats, i18n.language?.toLowerCase().startsWith("ko") ?? false) : null, savedKeys: [] });
       if (result.length > 0) router.push("/dashboard?panel=recommendations" as never);
     } catch {
@@ -807,8 +811,8 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
   }
 
   useEffect(() => {
-    if (userId && isCurrentOwner(userId)) writeOpsPresentation({ group, domain, recommendations, adherence, savedKeys: [...savedKeys] });
-  }, [userId, group, domain, recommendations, adherence, savedKeys, isCurrentOwner]);
+    if (userId && presentationOwner === userId && isCurrentOwner(userId)) writeOpsPresentationFor(presentationOwner, { group, domain, recommendations, adherence, savedKeys: [...savedKeys] });
+  }, [userId, presentationOwner, group, domain, recommendations, adherence, savedKeys, isCurrentOwner]);
 
   const shell = (body: ReactNode) => surface === "board" ? <>{body}</> : (
     <DeepSpaceScreen
