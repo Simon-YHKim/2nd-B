@@ -1,6 +1,8 @@
 -- A03 / G5-03 / G5-04: promote the last-note draft on the deployed 0245 body.
 -- Reuse only currently covered evidence; do not extend expiry or retry attempts.
 -- 0244 audit_result is unchanged: the Edge sends NULL tokens when usage is unknown.
+-- Bulk jobs that explicitly disable triggers, or TRUNCATE and reuse routine IDs,
+-- must invalidate affected owners' dashboard output in the same transaction.
 CREATE OR REPLACE FUNCTION public.dashboard_generation_request(p_user_id uuid,p_action text,p_timezone text DEFAULT NULL,p_locale text DEFAULT NULL) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET row_security=off AS $$
 DECLARE c jsonb; s public.dashboard_generation_settings%ROWTYPE; r public.dashboard_generation_runs%ROWTYPE;
@@ -75,7 +77,28 @@ BEGIN
   SELECT * INTO r FROM public.dashboard_generation_runs g WHERE g.user_id=p_user_id AND g.purpose=v_purpose AND g.request_key=key;
   IF FOUND THEN
     IF r.status='ready' AND r.expires_at>now() AND r.consent_token=c->>'token' AND r.source_hash=v_source_hash THEN
-      RETURN jsonb_build_object('kind','ready','purpose',v_purpose,'slot',slot,'value',r.output,'source',source,'generatedAt',r.created_at,'previous',false);
+      -- A newer candidate can belong to another timezone's slot. Check this
+      -- exact row too, so a valid current note keeps previous=false.
+      IF p_action<>'open' OR (
+        jsonb_array_length(CASE WHEN jsonb_typeof(r.output->'basis_refs')='array'
+          THEN r.output->'basis_refs' ELSE '[]'::jsonb END)>0
+        AND jsonb_typeof(r.output->'reminder_suggestions')='array'
+        AND NOT EXISTS (
+          SELECT 1 FROM (
+            SELECT value AS ref FROM jsonb_array_elements(CASE WHEN jsonb_typeof(r.output->'basis_refs')='array'
+              THEN r.output->'basis_refs' ELSE '[]'::jsonb END)
+            UNION ALL
+            SELECT value->'source_ref' FROM jsonb_array_elements(CASE WHEN jsonb_typeof(r.output->'reminder_suggestions')='array'
+              THEN r.output->'reminder_suggestions' ELSE '[]'::jsonb END)
+          ) evidence WHERE NOT EXISTS (
+            SELECT 1 FROM jsonb_array_elements(source->'reminders') candidate
+            WHERE candidate->>'id'=evidence.ref->>'id'
+              AND CASE WHEN candidate->>'kind'='routine' THEN 'routine' ELSE 'reminder' END=evidence.ref->>'kind'
+          )
+        )
+      ) THEN
+        RETURN jsonb_build_object('kind','ready','purpose',v_purpose,'slot',slot,'value',r.output,'source',source,'generatedAt',r.created_at,'previous',false);
+      END IF;
     END IF;
     IF previous_note IS NOT NULL THEN RETURN previous_note; END IF;
     -- Only an in-flight lease is busy. Terminal or stale attempts wait for
@@ -108,6 +131,7 @@ FOR EACH ROW WHEN (OLD.title IS DISTINCT FROM NEW.title
   OR OLD.recurrence IS DISTINCT FROM NEW.recurrence
   OR OLD.weekday IS DISTINCT FROM NEW.weekday)
 EXECUTE FUNCTION public.invalidate_dashboard_generation();
+ALTER TABLE public.ops_routines ENABLE ALWAYS TRIGGER dashboard_routine_changed;
 
 REVOKE ALL ON FUNCTION public.dashboard_generation_retention_ready(),
   public.dashboard_generation_request(uuid,text,text,text),

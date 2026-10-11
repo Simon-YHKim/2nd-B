@@ -70,7 +70,28 @@ const allowedEdits = [
       "      RETURN jsonb_build_object('kind','ready','purpose',v_purpose,'slot',slot,'value',r.output,'source',source);"
     ],
     "after": [
-      "      RETURN jsonb_build_object('kind','ready','purpose',v_purpose,'slot',slot,'value',r.output,'source',source,'generatedAt',r.created_at,'previous',false);"
+      "      -- A newer candidate can belong to another timezone's slot. Check this",
+      "      -- exact row too, so a valid current note keeps previous=false.",
+      "      IF p_action<>'open' OR (",
+      "        jsonb_array_length(CASE WHEN jsonb_typeof(r.output->'basis_refs')='array'",
+      "          THEN r.output->'basis_refs' ELSE '[]'::jsonb END)>0",
+      "        AND jsonb_typeof(r.output->'reminder_suggestions')='array'",
+      "        AND NOT EXISTS (",
+      "          SELECT 1 FROM (",
+      "            SELECT value AS ref FROM jsonb_array_elements(CASE WHEN jsonb_typeof(r.output->'basis_refs')='array'",
+      "              THEN r.output->'basis_refs' ELSE '[]'::jsonb END)",
+      "            UNION ALL",
+      "            SELECT value->'source_ref' FROM jsonb_array_elements(CASE WHEN jsonb_typeof(r.output->'reminder_suggestions')='array'",
+      "              THEN r.output->'reminder_suggestions' ELSE '[]'::jsonb END)",
+      "          ) evidence WHERE NOT EXISTS (",
+      "            SELECT 1 FROM jsonb_array_elements(source->'reminders') candidate",
+      "            WHERE candidate->>'id'=evidence.ref->>'id'",
+      "              AND CASE WHEN candidate->>'kind'='routine' THEN 'routine' ELSE 'reminder' END=evidence.ref->>'kind'",
+      "          )",
+      "        )",
+      "      ) THEN",
+      "        RETURN jsonb_build_object('kind','ready','purpose',v_purpose,'slot',slot,'value',r.output,'source',source,'generatedAt',r.created_at,'previous',false);",
+      "      END IF;"
     ]
   },
   {
@@ -151,6 +172,7 @@ EXECUTE FUNCTION public.invalidate_dashboard_generation();`;
 
 test("0247 invalidates only actual routine content edits through the unchanged 0236 function", () => {
   expect(promoted.match(/CREATE TRIGGER[\s\S]*?;/g)).toEqual([routineTrigger]);
+  expect(promoted).toContain("ALTER TABLE public.ops_routines ENABLE ALWAYS TRIGGER dashboard_routine_changed;");
   expect(promoted).not.toMatch(/CREATE (?:OR REPLACE )?FUNCTION public\.invalidate_dashboard_generation\(/);
 });
 

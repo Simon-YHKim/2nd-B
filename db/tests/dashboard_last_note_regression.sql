@@ -68,15 +68,110 @@ BEGIN
     FROM public.dashboard_generation_runs WHERE user_id=owner),'read preserves attempt count and expiry');
 END $$;
 
+-- R2271-01A: use the real current key, obtained through claim/dispatch/finish.
+-- An unrelated key named 'malformed' cannot expose the exact-key bypass.
+DO $$
+DECLARE owner uuid:='00000000-0000-0000-0000-000000000091'; a jsonb; b jsonb; current_claim jsonb;
+  good jsonb; before_row public.dashboard_generation_runs%ROWTYPE; current_row public.dashboard_generation_runs%ROWTYPE;
+BEGIN
+  a:=pg_temp.note_fixture();
+  SELECT * INTO before_row FROM public.dashboard_generation_runs WHERE id=(a->>'id')::uuid;
+  good:=before_row.output;
+  UPDATE public.dashboard_generation_runs SET request_key='older-'||request_key,created_at=now()-interval '1 hour'
+    WHERE id=before_row.id;
+  current_claim:=public.dashboard_generation_request(owner,'open','Asia/Seoul','ko');
+  PERFORM pg_temp.note_check(current_claim->>'kind'='claimed' AND
+    public.dashboard_generation_dispatch(owner,(current_claim->>'id')::uuid),'current-key malformed claim/dispatch');
+  PERFORM pg_temp.note_check(public.dashboard_generation_finish(owner,(current_claim->>'id')::uuid,
+    jsonb_set(good,'{basis_refs}','{}')),'current-key malformed finish');
+  SELECT * INTO current_row FROM public.dashboard_generation_runs WHERE id=(current_claim->>'id')::uuid;
+  PERFORM pg_temp.note_check(current_row.request_key=before_row.request_key AND current_row.status='ready'
+    AND current_row.source_hash=before_row.source_hash,'malformed row has actual current key and matching source');
+  b:=public.dashboard_generation_request(owner,'open','Asia/Seoul','ko');
+  PERFORM pg_temp.note_check(b->>'kind'='ready' AND b->'previous'='true'::jsonb AND b->'value'=good
+    AND (b->>'generatedAt')::timestamptz=now()-interval '1 hour','current-key malformed uses older valid note');
+  UPDATE public.dashboard_generation_runs SET status='failed',output=NULL WHERE id=before_row.id;
+  b:=public.dashboard_generation_request(owner,'open','Asia/Seoul','ko');
+  PERFORM pg_temp.note_check(b->>'kind'='waiting' AND NOT (b ? 'previous'),'current-key malformed alone waits');
+  b:=public.dashboard_generation_request(owner,'open','Asia/Seoul','ko');
+  PERFORM pg_temp.note_check(b->>'kind'='waiting' AND (SELECT count(*)=2 FROM public.dashboard_generation_runs WHERE user_id=owner)
+    AND (SELECT to_jsonb(g)=to_jsonb(current_row) FROM public.dashboard_generation_runs g WHERE id=current_row.id),
+    'malformed current slot does not retry or mutate its attempt');
+END $$;
+
+-- A newer eligible row need not be the current key: timezone changes can
+-- revisit an earlier slot. Preserve the exact current row and its metadata.
+DO $$
+DECLARE owner uuid:='00000000-0000-0000-0000-000000000091'; a jsonb; b jsonb; newer jsonb; good jsonb;
+  tick timestamptz:=((now() AT TIME ZONE 'UTC')::date+time '13:00') AT TIME ZONE 'UTC';
+BEGIN
+  a:=pg_temp.note_fixture('UTC');
+  SELECT output INTO good FROM public.dashboard_generation_runs WHERE id=(a->>'id')::uuid;
+  DELETE FROM public.dashboard_generation_runs WHERE user_id=owner;
+  PERFORM pg_temp.note_version('0247',tick);
+  a:=public.dashboard_generation_request(owner,'open','UTC','ko');
+  PERFORM pg_temp.note_check(a->>'kind'='claimed' AND public.dashboard_generation_dispatch(owner,(a->>'id')::uuid)
+    AND public.dashboard_generation_finish(owner,(a->>'id')::uuid,jsonb_set(good,'{slot}','"midday"')),
+    'timezone current claim/dispatch/finish');
+  UPDATE public.dashboard_generation_runs SET created_at=now()-interval '1 minute' WHERE id=(a->>'id')::uuid;
+  newer:=public.dashboard_generation_request(owner,'open','Etc/GMT-7','ko');
+  PERFORM pg_temp.note_check(newer->>'kind'='claimed' AND public.dashboard_generation_dispatch(owner,(newer->>'id')::uuid)
+    AND public.dashboard_generation_finish(owner,(newer->>'id')::uuid,
+      jsonb_set(jsonb_set(good,'{slot}','"evening"'),'{line}','"New timezone note."')),
+    'timezone newer claim/dispatch/finish');
+  PERFORM pg_temp.note_check((SELECT count(DISTINCT request_key)=2 AND count(DISTINCT source_hash)=1
+    FROM public.dashboard_generation_runs WHERE user_id=owner),'timezone keys differ while source matches');
+  b:=public.dashboard_generation_request(owner,'open','UTC','ko');
+  PERFORM pg_temp.note_check(b->>'kind'='ready' AND b->'previous'='false'::jsonb AND b->>'slot'='midday'
+    AND b->'value'=jsonb_set(good,'{slot}','"midday"') AND (b->>'generatedAt')::timestamptz=now()-interval '1 minute',
+    'normal current beats newer eligible timezone candidate');
+  UPDATE public.dashboard_generation_runs SET status='failed',output=NULL WHERE id=(newer->>'id')::uuid;
+  UPDATE public.dashboard_generation_runs SET output=jsonb_set(output,'{basis_refs}','[]') WHERE id=(a->>'id')::uuid;
+  b:=public.dashboard_generation_request(owner,'open','UTC','ko');
+  PERFORM pg_temp.note_check(b->>'kind'='waiting','empty basis is invalid even for matching current source');
+  PERFORM pg_temp.note_version('0247');
+END $$;
+
+-- Non-open ready paths retain the existing shape contract, including hourly.
+DO $$
+DECLARE owner uuid:='00000000-0000-0000-0000-000000000091'; a jsonb; b jsonb; output_value jsonb; action text; zone text;
+BEGIN
+  a:=pg_temp.note_fixture();
+  FOREACH action IN ARRAY ARRAY['summary','triage'] LOOP
+    a:=public.dashboard_generation_request(owner,action,'Asia/Seoul','ko');
+    output_value:=CASE action WHEN 'summary' THEN '{"headline":"Read today.","facts":[],"links":[],"suggestions":[],"tail_counts":{}}'::jsonb
+      ELSE jsonb_build_object('order',(SELECT jsonb_agg(c->'id') FROM jsonb_array_elements(a->'source'->'inboxCandidates') c),
+        'items',(SELECT jsonb_agg(jsonb_build_object('id',c->'id','action_line','Read today.','why','On your list.'))
+          FROM jsonb_array_elements(a->'source'->'inboxCandidates') c)) END;
+    PERFORM pg_temp.note_check(a->>'kind'='claimed' AND public.dashboard_generation_dispatch(owner,(a->>'id')::uuid)
+      AND public.dashboard_generation_finish(owner,(a->>'id')::uuid,output_value),'non-open claim/dispatch/finish '||action);
+    b:=public.dashboard_generation_request(owner,action,'Asia/Seoul','ko');
+    PERFORM pg_temp.note_check(b->>'kind'='ready' AND b->'previous'='false'::jsonb AND b->'value'=output_value
+      AND (b->>'generatedAt')::timestamptz=now(),'non-open current ready unchanged '||action);
+  END LOOP;
+  SELECT name INTO STRICT zone FROM pg_timezone_names WHERE name ~ '^Etc/GMT[+-][0-9]+$'
+    AND extract(hour FROM now() AT TIME ZONE name) IN (6,13,20) ORDER BY name LIMIT 1;
+  a:=pg_temp.note_fixture(zone);
+  UPDATE public.dashboard_generation_runs SET output=jsonb_set(output,'{basis_refs}','{}') WHERE id=(a->>'id')::uuid;
+  b:=public.dashboard_generation_request(owner,'hourly');
+  PERFORM pg_temp.note_check(b->>'kind'='ready' AND b->'previous'='false'::jsonb AND b->'value'->'basis_refs'='{}'::jsonb,
+    'hourly current ready shape contract unchanged');
+END $$;
+
 -- R2271-01: finish accepts arbitrary object shapes. Every malformed newer row
 -- must be skipped without an exception, with and without an older valid note.
 DO $$
 DECLARE owner uuid:='00000000-0000-0000-0000-000000000091'; a jsonb; b jsonb;
-  scenario text; bad jsonb; good jsonb; bad_id uuid;
+  scenario text; bad jsonb; good jsonb; bad_id uuid; output_constraint text;
 BEGIN
+  SELECT pg_get_constraintdef(oid) INTO STRICT output_constraint FROM pg_constraint
+    WHERE conrelid='public.dashboard_generation_runs'::regclass AND conname='dashboard_generation_runs_output_check';
   FOREACH scenario IN ARRAY ARRAY['basis-object','basis-string','basis-null','basis-missing',
     'suggestions-object','suggestions-string','suggestions-null','suggestions-missing',
-    'ref-string','ref-null','ref-missing'] LOOP
+    'ref-string','ref-null','ref-missing',
+    'output-number','output-array','output-string','basis-number','suggestions-number',
+    'basis-item-string','basis-item-number','basis-item-null',
+    'suggestion-item-string','suggestion-item-number','suggestion-item-null','ref-number','ref-array'] LOOP
     a:=pg_temp.note_fixture();
     SELECT output INTO good FROM public.dashboard_generation_runs WHERE id=(a->>'id')::uuid;
     bad:=CASE scenario
@@ -90,11 +185,32 @@ BEGIN
       WHEN 'suggestions-missing' THEN good-'reminder_suggestions'
       WHEN 'ref-string' THEN jsonb_set(good,'{reminder_suggestions}','[{"source_ref":"bad"}]')
       WHEN 'ref-null' THEN jsonb_set(good,'{reminder_suggestions}','[{"source_ref":null}]')
-      WHEN 'ref-missing' THEN jsonb_set(good,'{reminder_suggestions}','[{}]') END;
+      WHEN 'ref-missing' THEN jsonb_set(good,'{reminder_suggestions}','[{}]')
+      WHEN 'output-number' THEN '7'::jsonb
+      WHEN 'output-array' THEN '[]'::jsonb
+      WHEN 'output-string' THEN '"bad"'::jsonb
+      WHEN 'basis-number' THEN jsonb_set(good,'{basis_refs}','7')
+      WHEN 'suggestions-number' THEN jsonb_set(good,'{reminder_suggestions}','7')
+      WHEN 'basis-item-string' THEN jsonb_set(good,'{basis_refs}','["bad"]')
+      WHEN 'basis-item-number' THEN jsonb_set(good,'{basis_refs}','[7]')
+      WHEN 'basis-item-null' THEN jsonb_set(good,'{basis_refs}','[null]')
+      WHEN 'suggestion-item-string' THEN jsonb_set(good,'{reminder_suggestions}','["bad"]')
+      WHEN 'suggestion-item-number' THEN jsonb_set(good,'{reminder_suggestions}','[7]')
+      WHEN 'suggestion-item-null' THEN jsonb_set(good,'{reminder_suggestions}','[null]')
+      WHEN 'ref-number' THEN jsonb_set(good,'{reminder_suggestions}','[{"source_ref":7}]')
+      WHEN 'ref-array' THEN jsonb_set(good,'{reminder_suggestions}','[{"source_ref":[]}]') END;
     INSERT INTO public.dashboard_generation_runs(user_id,purpose,request_key,source_hash,consent_token,status,created_at,expires_at)
       SELECT user_id,purpose,'malformed',source_hash,consent_token,'dispatched',now(),expires_at
         FROM public.dashboard_generation_runs WHERE id=(a->>'id')::uuid RETURNING id INTO bad_id;
-    PERFORM pg_temp.note_check(public.dashboard_generation_finish(owner,bad_id,bad),'finish accepts '||scenario);
+    IF scenario LIKE 'output-%' THEN
+      -- finish and the table CHECK reject scalars. Bypass only this CHECK in
+      -- the rolled-back fixture, then restore its exact definition below.
+      PERFORM pg_temp.note_check(NOT public.dashboard_generation_finish(owner,bad_id,bad),'finish rejects '||scenario);
+      ALTER TABLE public.dashboard_generation_runs DROP CONSTRAINT dashboard_generation_runs_output_check;
+      UPDATE public.dashboard_generation_runs SET status='ready',output=bad WHERE id=bad_id;
+    ELSE
+      PERFORM pg_temp.note_check(public.dashboard_generation_finish(owner,bad_id,bad),'finish accepts '||scenario);
+    END IF;
     UPDATE public.dashboard_generation_runs SET source_hash='stale',created_at=now()-interval '1 minute' WHERE id=(a->>'id')::uuid;
     b:=public.dashboard_generation_request(owner,'open','Asia/Seoul','ko');
     PERFORM pg_temp.note_check(b->>'kind'='ready' AND b->'previous'='true'::jsonb AND b->'value'=good
@@ -102,6 +218,10 @@ BEGIN
     UPDATE public.dashboard_generation_runs SET status='failed',output=NULL WHERE id=(a->>'id')::uuid;
     b:=public.dashboard_generation_request(owner,'open','Asia/Seoul','ko');
     PERFORM pg_temp.note_check(b->>'kind'='waiting' AND NOT (b ? 'previous'),'malformed only '||scenario);
+    IF scenario LIKE 'output-%' THEN
+      UPDATE public.dashboard_generation_runs SET status='failed',output=NULL WHERE id=bad_id;
+      EXECUTE 'ALTER TABLE public.dashboard_generation_runs ADD CONSTRAINT dashboard_generation_runs_output_check '||output_constraint;
+    END IF;
   END LOOP;
 END $$;
 
@@ -157,6 +277,26 @@ BEGIN
       PERFORM pg_temp.note_check((SELECT title='Walk' FROM public.ops_routines
         WHERE id='10000000-0000-0000-0000-000000000091'),'AFTER trigger RETURN OLD does not undo edit');
     END IF;
+  END LOOP;
+END $$;
+
+-- R2271-C1: replica mode still invalidates edits to every watched column.
+SELECT pg_temp.note_check((SELECT tgenabled='A' FROM pg_trigger WHERE tgrelid='public.ops_routines'::regclass
+  AND tgname='dashboard_routine_changed'),'routine edit hook is ENABLE ALWAYS');
+SELECT pg_temp.note_check((SELECT tgenabled='O' FROM pg_trigger WHERE tgrelid='public.ops_routines'::regclass
+  AND tgname='dashboard_routine_deleted'),'0236 delete hook activation is unchanged');
+DO $$
+DECLARE owner uuid:='00000000-0000-0000-0000-000000000091'; a jsonb; column_name text; assignment text;
+BEGIN
+  FOREACH column_name IN ARRAY ARRAY['title','active','recurrence','weekday'] LOOP
+    a:=pg_temp.note_fixture();
+    assignment:=CASE column_name WHEN 'title' THEN 'title=''Walk''' WHEN 'active' THEN 'active=false'
+      WHEN 'recurrence' THEN 'recurrence=''weekly''' ELSE 'weekday=1' END;
+    SET LOCAL session_replication_role=replica;
+    EXECUTE 'UPDATE public.ops_routines SET '||assignment||' WHERE id=''10000000-0000-0000-0000-000000000091''';
+    SET LOCAL session_replication_role=origin;
+    PERFORM pg_temp.note_check((SELECT status='failed' AND output IS NULL FROM public.dashboard_generation_runs
+      WHERE id=(a->>'id')::uuid),'replica edit invalidates '||column_name);
   END LOOP;
 END $$;
 
