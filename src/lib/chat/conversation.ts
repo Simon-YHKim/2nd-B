@@ -16,7 +16,7 @@
 import { callLlm } from "@/lib/llm/boundary";
 import { tLocale } from "@/lib/i18n/text";
 import { INJECTION_GUARD, sanitizeUntrusted } from "@/lib/llm/untrusted";
-import { classifyInput } from "@/lib/safety/classifier";
+import { classifyInput, crisisHotlines } from "@/lib/safety/classifier";
 import { promptSafeName } from "@/lib/persona/address";
 import type { LlmResult } from "@/lib/llm/types";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
@@ -349,7 +349,7 @@ ${sanitizeUntrusted(structuredBlock)}
       : `This person's name is ${safeName}. Address them as ${safeName}.\n\n`
     : "";
   const guardLine = `${INJECTION_GUARD[input.locale]}\n\n`;
-  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
+  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${crisisNumberRule(input.locale, input.minor)}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
 
   // C1/C3/C9 are enforced by callLlm. Red-zone short-circuit still
   // happens inside callLlm; we just no longer adjust the counter
@@ -375,4 +375,21 @@ ${sanitizeUntrusted(structuredBlock)}
     // earned by watching an ad. Ask the one function that knows the allowance.
     remaining: checkChatLimit(input.tier, newCount, adBonus).remaining,
   };
+}
+
+// 모델이 직접 쓰는 답에도 번호 원칙을 지키게 한다 (Simon 결정 2026-10-11, Q-261011-11).
+// 원칙은 2026-08-16 의 3레인이다: 스스로를 해치려는 이야기는 상담 전화, 112 는 붙이지 않고,
+// 119 는 몸이 지금 위급할 때만, 애매하면 상담 전화. 번호는 화면의 고정 안내와 같은 표
+// (crisisHotlines)에서 가져온다 - 여기에 숫자를 따로 적으면 두 곳이 갈라진다.
+// 입력 검사가 잡은 말은 여기까지 오지 않는다(고정 안내가 나간다). 이 줄은 검사를 지나
+// 모델까지 온 말에 모델이 119 · 112 를 권하던 것을 바로잡는다.
+// 파일 끝에 둔다: 위쪽 줄 번호를 법무 문서(DPIA)가 인용하고 있어, 위에 끼우면 인용이 밀린다.
+function crisisNumberRule(locale: "en" | "ko", minor: boolean | undefined): string {
+  const numbers = crisisHotlines(locale, minor === true).map((line) => line.number);
+  if (locale === "ko") {
+    const lines = numbers.join(" 또는 ");
+    return `스스로 삶을 끝내거나 자신을 해치려는 이야기가 나오면 ${lines} 전화를 안내하고, 112는 붙이지 마세요. 119는 이미 다쳤거나 약을 삼킨 것처럼 몸이 지금 위급할 때만 안내합니다. 어느 쪽인지 분명하지 않으면 ${lines}로 안내하세요. 확실하지 않은 전화번호는 지어내지 마세요.`;
+  }
+  const lines = numbers.join(" or ");
+  return `If the person talks about ending their life or hurting themselves, point them to ${lines} and do not add a police number. Point to the local emergency number only when their body is in danger right now, such as an injury or something already swallowed. If you cannot tell which it is, stay with ${lines}. Never make up a phone number.`;
 }
