@@ -1,6 +1,6 @@
 // Operator-only scheduler. No personal content or credentials printed.
-// The workflow is disabled until the DB, Edge, consent and model preflight passes.
-if (process.env.DASHBOARD_RETENTION_ENABLED !== 'true') process.exit(0);
+// Retention runs even when generation is disabled. Its DB transaction also
+// refreshes the heartbeat checked by every generation request and dispatch.
 const base = new URL(process.env.DASHBOARD_SUPABASE_URL ?? '');
 if (base.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/.test(base.hostname) || base.pathname !== '/') throw new Error('Invalid dashboard host');
 const key = process.env.DASHBOARD_SERVICE_ROLE_KEY;

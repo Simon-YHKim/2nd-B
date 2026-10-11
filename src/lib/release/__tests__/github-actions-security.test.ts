@@ -15,7 +15,7 @@ const WORKFLOW_PATHS = [
 
 const APPROVED_ACTIONS = {
   "actions/checkout": { sha: "11d5960a326750d5838078e36cf38b85af677262", tag: "v4", count: 7 },
-  "actions/setup-node": { sha: "49933ea5288caeca8642d1e84afbd3f7d6820020", tag: "v4", count: 5 },
+  "actions/setup-node": { sha: "49933ea5288caeca8642d1e84afbd3f7d6820020", tag: "v4", count: 6 },
   "actions/setup-java": { sha: "cf277c60eb25467037889841efdb72551f06f6c3", tag: "v4", count: 1 },
   "android-actions/setup-android": {
     sha: "9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407",
