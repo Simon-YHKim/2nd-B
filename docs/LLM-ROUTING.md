@@ -1,5 +1,28 @@
 # LLM-ROUTING.md — purpose-키 모델·리즈닝 라우팅 정본
 
+## 쪼갠 대화 입력의 의미 판정 — Q-261011-05 (2026-10-11)
+
+앱의 `callLlm`, `secondb_chat` 입력만 다음 순서를 사용한다. 기존 낱말 검사에서 RED면
+즉시 기존 안내로 끝낸다. 그 외에는 `crisis-obfuscation.ts`가 낱말 내부의 기호·공백 등
+변형을 찾고, 해당할 때만 `safety_classify` 좌석에 원문을 한 번 보낸다. 의미 판정도 RED면
+같은 안내·감사 행·위험 사건 기록으로 이어지며, 출처는 `input_semantic_red`다.
+문지기 자체는 판정이 아니며 낱말 분류기·Edge 판정에 합쳐지지 않는다.
+
+`EXPO_PUBLIC_OBFUSCATION_SAFETY=true`가 이 경로만 켠다. Android·웹 빌드의 저장소 Variable
+기본값과 EAS live 프로필 셋은 `true`다. 끄려면 해당 Variable을 `false`로 지정한 뒤 새로
+빌드한다(EAS는 프로필 env를 `false`로 바꿔 빌드). 미설정 로컬 실행은 꺼짐이다. 8081은
+Android workflow 값을 읽으므로 같은 스위치를 따른다. `EXPO_PUBLIC_SERVER_SAFETY`는
+독립이며 전체 의미 판정·출력 검사의 기존 기본값(꺼짐)과 동작은 유지한다.
+
+문지기 34개 항목 중 `ending it`, `end it all`, `끝내고 싶`, `끝낼 거`, `끝낼거`는
+일상적인 완료 표현 때문에 제외한다. RED가 아닌 판정, 오류·한도·깨진 응답은 기존 생성으로
+진행한다(fail-open). 켠 경로의 실패에만 `obfuscation-safety-unavailable` 감사 행을 한 번
+시도하며 원문은 넣지 않는다. 세션 무효·취소는 생성으로 넘어가지 않는다. 다른 purpose,
+`callAdvisor`, 음성 전사, 출력 검사에는 이 문지기를 붙이지 않는다.
+
+측정 프롬프트 v2의 SHA-256과 고정 corpus 결과는 테스트 및
+[`handoff/SEMGATE-261011.md`](handoff/SEMGATE-261011.md)에 기록한다.
+
 ## 리즈닝 예약 전달 — 2026-10-09
 
 `reasoning_connect`는 `reserve_reasoning_run`이 발급한 `reasoningRunId`와
