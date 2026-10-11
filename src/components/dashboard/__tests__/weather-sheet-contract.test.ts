@@ -43,7 +43,7 @@ test("five locale bundles contain the consent, withdrawal, denied and credit cop
   expect(sheet).toContain('t("phone.board.weather.sourceTerms")');
   const privacy = read("src/components/privacy/WeatherPrivacyControl.tsx");
   expect(privacy).toContain("saveWeatherConsent(userId, status, false");
-  expect(privacy).toContain("aria-checked={status ? status.enabled : undefined}");
+  expect(privacy).toContain('aria-checked={confirmed ? evidence === "on" : undefined}');
 });
 
 test("unconfirmed status after 429/503 exposes a withdrawal button without a checked state", () => {
@@ -52,10 +52,11 @@ test("unconfirmed status after 429/503 exposes a withdrawal button without a che
   expect(privacy).toContain("snapshot?.ownerId === userId ? snapshot.status : null");
   expect(privacy).toContain("setSnapshot(null); setFailed(false)");
   expect(privacy).toContain(".catch(() => { if (!controller.signal.aborted) setFailed(true); })");
-  expect(privacy).toContain("status?.enabled === true || (!status && failed)");
-  expect(privacy).toContain('accessibilityRole={status ? "switch" : "button"}');
-  expect(privacy).toContain("accessibilityState={status ? { checked: status.enabled, disabled: !canRevoke || busy } : { disabled: !canRevoke || busy }}");
-  expect(privacy).toContain("aria-checked={status ? status.enabled : undefined}");
+  expect(privacy).toContain('const confirmed = evidence !== "unknown"');
+  expect(privacy).toContain('evidence !== "off" && (!!status || failed)');
+  expect(privacy).toContain('accessibilityRole={confirmed ? "switch" : "button"}');
+  expect(privacy).toContain('accessibilityState={confirmed ? { checked: evidence === "on", disabled: !canRevoke || busy } : { disabled: !canRevoke || busy }}');
+  expect(privacy).toContain('aria-checked={confirmed ? evidence === "on" : undefined}');
   expect(privacy).toContain('accessibilityLabel={t("phone.board.weather.setting")}');
   expect(privacy).toContain("disabled={!canRevoke || busy} onPress={() => void revoke()}");
 });
