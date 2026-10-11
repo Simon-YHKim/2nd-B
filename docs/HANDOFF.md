@@ -1,5 +1,16 @@
 # 2nd-Brain Handoff
 
+## 2026-10-11 15:10 / 2ndb-ee: UI 11회차 - 위기 답 번호(#2265) · 루틴 중복 둘(#2266 · #2260) · 리마인더 정리(#2267) · 한국어 부인(#2268, 서버 배포 대기) · 한마디 0247 초안
+
+- **목적**: 10회차 답 다섯(13:55)과 14:27 의 G2-06 인수. 보고서 https://claude.ai/artifact/EB9JeCKERsZLeXmd1YHbuq (질문 Q-261011-14(한국어 부인의 Edge 배포) · 15(0247 운영 적용) · 16(G2-06 방식) · 17(다음 작업))
+- **지금까지**: ① 대화 지시문에 위기 번호 원칙 — #2265 머지(main `b9835af4`, 14:37), 8081 전후 확인. ② 루틴 중복 — 추천 카드 #2266 머지(main `b330db4b`, 14:42) · 주간 성장(좁힌 판) #2260 머지(main `e1facc31`, 14:47). ③ 리마인더의 남는 알림 정리 — #2267 머지(main `61bb48de`, 14:52). ④ 한국어 부인 — #2268 머지(main `2409f192`, 14:57)(앱 쪽만. 서버는 배포해야 바뀐다). ⑤ **한마디 유지(A03)**: astra `hanmadi-r1` 이 draft PR **#2271**(`fix/dashboard-last-note-0247-261011`)을 올렸다. `db/migrations/0247_dashboard_last_note.sql` 이 `dashboard_generation_request` 를 0245 본문에서 다시 정의한다(26줄 추가 · 6줄 변경): open 에 한해 직전 한마디(ready · 만료 전 · 같은 동의 토큰 · 근거 생존)를 busy/waiting/limited 대신 `previous:true` · `generatedAt` 과 함께 돌려주고, 한마디의 현지 한도를 서비스 날짜(06시 경계)로 센다(G5-04). 0244 의 NULL total_tokens 는 provider 가 실패 outcome 에서 실제로 NULL 을 보내는 계약이라 바꾸지 않았다. 로컬 SQL 73단언 + 동시성 테스트 · CI 의 sql job 통과 · 변이 6/6. 독립 검토 `hanmadi-daybreak` 1회차 **BLOCK**(15:04): R2271-01 예상 밖 output 모양 하나로 request 전체가 실패 · R2271-02 루틴 제목을 바꾼 뒤 옛 제목이 line 으로 다시 나옴 · R2271-03 루틴 삭제와 직전 한마디 반환 사이에 직렬화가 없음(한도 계산 · Edge/앱 호환 · down 은 통과). 수정 회차 `hanmadi-r2` 를 15:07 에 시작했다(CASE 정규화 · `ops_routines` 의 title/active/recurrence/weekday 변경에 기존 무효화 함수를 거는 트리거 · `FOR SHARE OF g`). **운영 미적용 · 머지하지 않음.** UTC 예비 한도의 이른 아침 지연(06시 자동 생성이 빠진 날의 다음 날 07시 제한 · 09시 해제)은 재현했고 그대로 둔다.
+- **다음 1개**: Simon 의 답을 받아 (a) 한국어 부인의 Edge 배포(함수 다섯 · `deploy_edge.sh` · 배포 전 `_sync/TO-CLI.md` 에 "게시 중") (b) 0247 운영 적용 (c) G2-06 = 0248 설계 순으로.
+- **막힌 것 / 미완료**: ④는 서버 배포 전이라 화면 동작이 그대로다(앱이 통과시킨 말을 서버가 옛 규칙으로 막는다). ③의 에뮬레이터 확인: 에뮬레이터 확인은 2ndb-23 에 요청했다(14:53). 2ndb-23 은 Q-261011-10 답이 main 의 DECISIONS 에 오르고 2409f192 빌드가 끝난 뒤 시작한다. 시험 계정 호출이 497/500 이라 내일 09시 뒤가 될 수 있다. ⑤는 운영 미적용.
+- **G2-06(끊긴 예약 복구)**: 2ndb-ee 몫(14:27 Simon). 설계 방향(읽어서 세운 안 · 만든 것 없음): `dashboard_generation_audit_attempt` 가 dispatch 와 감사 행 INSERT 를 한 트랜잭션으로 하므로(0244) 감사 행이 없는 failed 와 3분 지난 pending 은 유료 호출이 나가지 않은 것이다. 그런 행만 키를 비켜 보관하고 새 행으로 다시 예약한다(새 열 · 상태 · RPC 없이 request 만). 유료 호출이 나갔을 수 있는 행(dispatched · 감사 행이 있는 failed)은 지금처럼 다시 부르지 않아 하루 유료 호출 상한이 그대로다. 방식은 Q-261011-16 으로 물었다. 출발 자료: draft #2241(`fix/qa261011-g2-rest` @ 8b74c3ea) · 게이트 원문 `E:/Coding Infra/reports/qa-legacy-261004/gates/n7-g2rest-daybreak-r1.txt` ~ `r4.txt` · 그 브랜치의 `docs/handoff/G2REST-261011.md`.
+- **parity**: `app:parity` 15:07 = 같음(8081 = main 2409f192 · APK 빌드 run 38116487867 진행 중). 2ndb-74 의 14:02 블록의 "다름" 은 #2265 의 자동 빌드(run 38115373097)로 14:38 에 풀렸다.
+- **도구(저장소 밖 `E:/Coding Infra/reports/codex-audit-261010/`)**: `merge_when_green.sh`(문서 머지는 빌드의 14번 단계를 기다림 · 앱 머지는 `APP_MERGE=1`) · `tsload.cjs`(jest 없이 TS 모듈을 읽어 판정 비교) · `ui/shoot_denial.cjs`(요청 본문에 새 지시문이 실렸는지 기록) · `ui/shoot_route.cjs`(한 경로 캡처).
+- **시험 계정**: 오늘 모델 호출 497회 안팎(하루 500 · 09:00 KST 초기화). 위험 사건 기록은 남기지 않았다(브라우저에서 대신 응답).
+
 ## 2026-10-11 14:39 / 2ndb-74: app:parity "같음" 으로 돌아옴(14:38) — 아래 14:02 블록의 "다름" 은 풀렸다
 
 - **실측(14:38)**: `localhost-main @ b9835af4` = origin/main b9835af4 · 앱 경로 차이 0 · APK 빌드 run 38115373097(b9835af4) 진행 중 → `app:parity` 결론 "같음". 2ndb-ee 의 앱 머지 #2265 가 자동 빌드를 돌렸다(Simon 14:27 답 "다음 앱 머지 때 자동으로" 그대로). 2ndb-74 는 빌드를 디스패치하지 않았다.
@@ -563,14 +574,3 @@ Simon의 명시적 승인으로 운영 DB 0239·0240을 먼저 적용했고 QA �
   - 재설계 세션 요청(_sync TO-GUI 12:23): WeatherRow GPS 기준 · 위치 동의 키 · 동의할 수 없는 계정 잠금 유지 · 처리방침 위치 항목 · 법무 질문('실시간 위치 날씨 = 위치정보법 신고 대상?') · 날씨 출처 · 캐시 · 좌표 정밀도 · 프록시. 상태: 대기.
 - **app:parity 12:34 = 같음** (`5ba88ab5`, APK 빌드 37567317596 진행 중). 이 문서 머지로 그 빌드가 게이트에서 끊기면 parity 는 '다름'(APK 만, 앱 코드는 같음)이 된다. Simon 지시(APK 는 요청할 때만 · 빌드 감시 금지)대로 다시 빌드하지 않는다. 폰에서 볼 때: `npm run app:qa-release`.
 - **다음 1개**: 재설계 세션 회신(날씨 계약 · W0 이름) 대기. 그 전 남은 것: 화면 효과음 에뮬레이터 확인 · 처리방침 공지 · 웹 게시 · 프로필 새 항목 별도 동의(법무).
-
-## 2026-10-07 11:35 / UI 세션: 인앱 핸드폰 = 픽셀 아이폰(#2154 · #2156) · 홈 버튼 · 앱 바둑판 통합 · 설정 · 구독
-
-- **근거**: Simon localhost 고르기와 질문 창 답(10:0x ~ 11:0x), DECISIONS 26.10.07 10:0x · 10:1x · 10:2x 줄.
-- **#2149** 설정(안내 문구 · 프로필 · 공지 제거) · 구독(요금제 카드 먼저 + 자동 결제 · 환불 정책 · 요금제 목록). `PRO_COMING_SOON` 은 `src/lib/entitlements/plan-availability.ts`.
-- **#2150** 홈 버튼 = 앱 쪽, 나가기 = 위 · 아래 스와이프만(종료 확인창 없음). **#2151** 더보기 쪽 → 앱 바둑판(팔레트), #2142 이 만든 '더보기 칸 무반응' 회귀도 함께 사라짐.
-- **#2154 · #2156 픽셀 아이폰**: 폰이 직접 그리는 화면만 iOS 밝은 기본(`src/lib/theme/phone-ios.ts`) + 2px 계단 모서리(`src/components/pixel/PixelRoundRect.tsx`) + iOS 부품(`src/components/dashboard/board/IosParts.tsx`). 폰 안 앱 화면 55개 · 폰 밖은 그대로. DESIGN.md §5 예외 절.
-  - ⚠ 함정 둘: ① Pressable 의 함수형 style · 함수 자식 금지(#680, `no-function-form-pressable-style.test.ts`) - 눌림은 onPressIn/onPressOut 상태로. ② 웹에서 absolute 계단 층이 위치 없는 SVG 글리프를 덮었다 - `PixelRoundRect` 가 zIndex 0 쌓임 맥락 + 층 zIndex -1.
-- **app:parity**: 11:35 **같음**(`fc641f26`, APK 빌드 중). 8081 캡처(1쪽 · 2쪽 · 앱 · 알림 · 위젯 관리) 페이지 오류 0.
-- **app:parity 11:4x = 다름(APK 만)**: 앱 코드는 main 과 같다(앱 경로 차이 0). 문서 머지(#2157 `ce5beb09`)로 main 이 움직여 `fc641f26` APK 빌드가 게이트에서 끊긴다. Simon 지시("apk 는 내가 요청하면")라 다시 빌드하지 않았다. 폰에서 보실 때: `gh workflow run android-release.yml --ref main` 또는 `npm run app:qa-release`.
-- **다음 1개**: 재설계 세션의 W0 계약 대기(하루 관리판 숨긴 부품 · 버튼 저장). 그 전 남은 것: 화면 효과음 에뮬레이터 확인 · 처리방침 공지 · 웹 게시 · 프로필 새 항목 별도 동의(법무).
