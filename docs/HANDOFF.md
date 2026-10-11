@@ -1,5 +1,14 @@
 # 2nd-Brain Handoff
 
+## 2026-10-11 14:27 / 2ndb-74: 세션 끝 — G2-06 은 2ndb-ee 가 A03 과 함께 · 폰 빌드는 다음 앱 머지 때(Simon 답)
+
+- **근거**: Simon 질문 창 답 두 개(DECISIONS 이 블록 시각의 줄): 끊긴 예약 복구 = "다른 세션이 한마디 작업과 함께 (추천)" · 폰 빌드 = "다음 앱 머지 때 자동으로 (추천)".
+- **G2-06 을 맡는 쪽(2ndb-ee)이 쓸 출발점**: draft #2241(`fix/qa261011-g2-rest` @ 8b74c3ea · 워크트리 `E:/2ndB/.worktrees/qa261007-g2rest`) · daybreak 게이트 원문 4개(`E:/Coding Infra/reports/qa-legacy-261004/gates/n7-g2rest-daybreak-r1.txt` ~ `r4.txt`, 지적 8건 — 7건은 그 브랜치에서 닫혔고 남은 것은 `begin_classification_v2` 가 적격성 NULL 을 버리는 것 + low 1) · 발주서 `codex-impl/g2rest-r1.md` · `-add1.md` · `-fix1.md` ~ `-fix3.md` · 인수 문서(그 브랜치의 `docs/handoff/G2REST-261011.md`, 18경로 × 8불변식 표). 번호는 0247 부터. main 의 `dashboard_generation_request` · `_dispatch` 는 0245(#2253)가 다시 정의했으니 그 본문에서 출발한다.
+- **이 세션이 끝낸 것**(아래 13:46 블록): 감사 G2-05 · G2-07 · G3-02 · G3-03 운영 반영. 그 앞 블록들: G4(#2202 · #2221) · G2-02 · 03 · 04(#2223) · G2-01 의 서버 = 앱 판정(#2238) · 식품 찾기 복구(#2211).
+- **app:parity 는 "다름"**(사유는 바로 아래 14:02 블록). APK 를 디스패치하지 않았다.
+- **미해결 질문(Simon)**: 날씨 약관 값 3가지(공개 전화번호 · 공개 시행일 · 사전 공지 일정) — 오면 DECISIONS 에 적고 2ndb-ee 가 반영한다. 생성문 금지어에 "감지 · 보호 · 모니터링" 을 넣을지(안 정해져도 막히는 것 없음).
+- **다음 1개**: (2ndb-ee) A03 + G2-06 설계. (누구든) Simon 이 날씨 약관 값을 주면 반영.
+
 ## 2026-10-11 14:02 / 2ndb-74: app:parity "다름" 으로 세션을 닫는다 — 사유와 남은 단계
 
 - **상태(14:02 실측)**: 코드 = `localhost-main @ 5000f501` · origin/main 5000f501 · 앱 경로 차이 0 · 설정(digest 6dea38fa4dc0) · 의존성 같음. **APK 빌드만 없다**: 25203e90(#2253 머지 커밋)의 자동 빌드 run 38112345152 가 시작 직후 main 이 움직여(#2262 문서 머지, 13:54:52) 게이트에서 끊겼다("origin/main advanced before Firebase credential access"). 그 앞의 85590465 빌드는 #2253 머지로 취소됐다.
