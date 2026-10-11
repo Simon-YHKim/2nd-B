@@ -1,16 +1,5 @@
 # 2nd-Brain Handoff
 
-## 2026-10-11 12:41 / routinedup: Q-261011-06 루틴 중복 저장 방지 구현·검증
-
-- **근거**: Simon 12:21 UI 9회차 결정 탭 Q-261011-06, "둘 다 고치기". 발주 원문은 `E:/Coding Infra/reports/codex-audit-261010/routinedup-r1.md`. 브랜치 `fix/routine-save-idempotent-261011`.
-- **카드**: 기존 `OpsPresentation` 세션 메모리에 추천별 UUID를 함께 둔다. 같은 목록·분야는 번호를 유지하고, 새 목록·분야 변경·개인정보 변경으로 비움·계정 전환은 새 번호를 만든다. 번호 없는 예전 값도 읽고 첫 저장 전에 보완한다. 모든 쓰기는 `writeOpsPresentationFor`를 통과한다.
-- **주간 성장**: 고정 namespace + 계정 + 단계의 SHA-256에서 기존 API가 받는 UUID v4 모양의 결정적 번호를 만든다. 같은 계정·단계는 재시도·재진입·앱 재시작에도 유지한다. 해시 호출 전 ref를 잠가 연타의 두 번째 요청을 막는다. 새 저장소 키·의존성·UI 문구·서버 변경은 없다.
-- **검증**: 관련 5 suites / 57 tests, 법무 16 suites / 162 tests 통과. 변이 a/b/c/d는 각각 1/3/2/2 tests 실패, 원복 후 57/57 통과. `package.json` verify의 26단계를 순서대로 실행해 모두 종료코드 0. 전체 Jest 1024 suites / 15039 passed / 1 skipped, UI 계약 테스트 77/77. 로그는 `E:/Coding Infra/reports/codex-audit-261010/verify/routinedup-r1-*`와 `routinedup-r2-{targeted,legal}.log`.
-- **독립 검토**: GPT-6.1 읽기 전용 검토, High/Medium 0건. 법무 인용 `dds-ops-screen.tsx:552-558`의 위치는 그대로여서 문서·앵커 수정 불필요. `createRoutineFromRecommendation`와 대화 저장 계약, owner lease, 리마인더 예약 순서는 유지했다.
-- **남긴 것**: 기존 insert로 이미 생긴 중복 행의 정리·이관은 하지 않았다. 대시보드는 세션 메모리 소멸 후 새 추천이면 새 번호다. `savingKey`가 state라 같은 렌더의 연타에서 동일 ID의 요청·알림 예약이 중복될 수 있으나 행은 하나다. `check:canon-data` 기존 경고 16건은 범위 밖.
-- **반영 범위**: draft PR까지만 위임받았다. 머지·ready 전환·배포·APK dispatch·에뮬레이터·QA 로그인은 하지 않는다. `app:parity`는 origin/main `9b78d6e5` 기준 "같음"이며 이번 브랜치 반영 증거가 아니다. 다음 단계는 코디네이터의 대조와 별도 머지 결정이다.
-- **롤백**: 클라이언트 변경을 되돌리면 이전 저장 방식으로 돌아간다. DB 롤백은 없고, 이전 방식의 중복 가능성도 돌아온다. 결정적 번호의 namespace·인코딩은 이후 버전에서도 유지할 것.
-
 ## 2026-10-11 11:34 / 2ndb-ee: 의미 판정 재측정 끝(v2 지시문) · 다음은 Simon 의 Q-261011-01 답
 
 - **근거**: Simon "진행해."(10-11 11:11). DECISIONS 26.10.11 11:11 줄과 이 블록 시각의 기록 줄.
