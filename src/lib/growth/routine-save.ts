@@ -1,17 +1,27 @@
-import { CryptoDigestAlgorithm, digestStringAsync } from "expo-crypto";
+import { randomUUID } from "expo-crypto";
+import { captureAccountOwnerLease } from "../auth/account-epoch";
 import type { SevenStarId } from "../persona/seven-stars";
 
-/** A separate namespace keeps weekly steps independent of dashboard/chat suggestions.
- *  This is a deterministic ID with the v4 shape required by the existing save contract,
- *  not a random UUID. Keep the namespace and encoding stable across app versions. */
-export async function weeklyGrowthRoutineId(ownerId: string, stepId: SevenStarId): Promise<string> {
-  const hash = await digestStringAsync(CryptoDigestAlgorithm.SHA256,
-    JSON.stringify(["2ndB:weekly-growth:routine:v1", ownerId, stepId]));
-  const variant = ((parseInt(hash[16], 16) & 3) | 8).toString(16);
-  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-${variant}${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
+const routineIds = new Map<SevenStarId, string>();
+let routineEpoch: number | null = null;
+
+/** R2260-01: keep retries stable only in memory; public account/step IDs cannot
+ *  predict the UUID. An account transition retires every prior session ID. */
+export function weeklyGrowthSessionRoutineId(ownerId: string, stepId: SevenStarId): string {
+  const owner = captureAccountOwnerLease(ownerId);
+  if (!owner?.isCurrent()) throw new Error("Routine owner changed");
+  if (routineEpoch !== owner.epoch) {
+    routineIds.clear();
+    routineEpoch = owner.epoch;
+  }
+  const existing = routineIds.get(stepId);
+  if (existing) return existing;
+  const id = randomUUID();
+  routineIds.set(stepId, id);
+  return id;
 }
 
-/** A React ref is acquired synchronously, before either hashing or saving can yield. */
+/** A React ref is acquired synchronously, before either reading or saving can yield. */
 export async function runWeeklyGrowthSave(
   saving: { current: boolean }, save: () => Promise<void>,
 ): Promise<boolean> {

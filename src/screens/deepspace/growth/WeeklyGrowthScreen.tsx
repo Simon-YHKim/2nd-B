@@ -20,12 +20,13 @@ import { Text } from "@/components/ui/Text";
 import { MetaChip, OpsFrame, OpsState } from "@/components/deepspace/ops";
 import { SecondbHead } from "@/components/deepspace";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { useAppRouter } from "@/lib/nav/phone-embed";
 import { gatherWeeklyGrowth } from "@/lib/growth/gather";
 import { startTask } from "@/lib/tasks/store";
 import type { StarChange, WeeklyGrowth } from "@/lib/growth/weekly";
-import { createRoutineFromRecommendation } from "@/lib/ops/routines";
-import { runWeeklyGrowthSave, weeklyGrowthRoutineId } from "@/lib/growth/routine-save";
+import { createRoutineFromRecommendation, listActiveRoutines } from "@/lib/ops/routines";
+import { runWeeklyGrowthSave, weeklyGrowthSessionRoutineId } from "@/lib/growth/routine-save";
 import { getSevenStar, type SevenStarId } from "@/lib/persona/seven-stars";
 import type { OpsDomainId } from "@/lib/ops/domains";
 
@@ -134,23 +135,36 @@ export function WeeklyGrowthScreen() {
 
   const saveStep = async () => {
     if (!userId || !top || saved) return;
+    const owner = captureAccountOwnerLease(userId);
+    if (!owner) return;
     try {
       const didSave = await runWeeklyGrowthSave(savingRef, async () => {
-        const routineId = await weeklyGrowthRoutineId(userId, top.id);
+        const routineId = weeklyGrowthSessionRoutineId(userId, top.id);
+        const domainId = STEP_DOMAIN[top.id];
+        const recommendation = {
+          title: stepText(top.id),
+          reason: stepObs(top.id),
+        };
+        // Reuse legacy/server-issued rows and rows saved before an app restart.
+        // A failed read still permits an upsert with this session's retry ID.
+        const active = await listActiveRoutines(userId).catch(() => []);
+        if (!owner.isCurrent()) throw new Error("Routine owner changed");
+        if (active.some(routine => routine.active && routine.user_id === userId
+          && routine.domain_id === domainId && routine.title === recommendation.title
+          && routine.recurrence === "daily")) return;
         // med#20: without a schedule this saved recurrence=none + reminder=null,
         // so the routine was never "due today" — invisible in the ops list the
         // button promises. Anchor it as a daily 9AM routine (same default the
         // ops hub uses), which also makes the reminder derivable.
         const at = new Date();
         at.setHours(9, 0, 0, 0);
-        await createRoutineFromRecommendation(userId, STEP_DOMAIN[top.id], {
-          title: stepText(top.id),
-          reason: stepObs(top.id),
+        await createRoutineFromRecommendation(userId, domainId, {
+          ...recommendation,
           startsAtIso: at.toISOString(),
           recurrence: "daily",
         }, { routineId });
       });
-      if (didSave) setSaved(true);
+      if (didSave && owner.isCurrent() && mounted.current) setSaved(true);
     } catch {
       /* best-effort */
     }
