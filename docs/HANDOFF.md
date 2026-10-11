@@ -4,10 +4,10 @@
 
 - **근거**: Simon 9회차 답(10-11 12:21, DECISIONS 그 줄). 기록은 이 블록 시각의 네 줄.
 - **한 것**: ① #2259(영어 부인의 `No,I'm …` 꼴) 머지 → openai · claude · gemini · xai 프록시 배포(main `352ccee7`) → 8081 에서 곡선 따옴표 부인에 답이 나옴 ② #2261 의미 판정 문지기 머지(main `123af792`) — `secondb_chat` 입력에 쪼갠 흔적이 있을 때만 `safety_classify` 에 묻는다. 스위치 `EXPO_PUBLIC_OBFUSCATION_SAFETY` 기본 켜짐 · 8081 에서 `I want.to die.` → 109 안내 확인 ③ 한국어 부인 · 리마인더 조사(고치지 않음). 보고서 <https://claude.ai/artifact/X8fzLVazGR6En8hTfpiVHs>.
-- **미완료(원인)**: 루틴 중복 #2260 은 독립 검토 2회차도 BLOCK(주간 성장 화면: 제목 비교로 '이미 있음' 을 판단하는 것이 틀린다)이라 머지하지 않았다. 대시보드 추천 카드 쪽(경로 A)은 두 회차 통과. dashboard-generate 의 Edge 배포는 2ndb-74 몫(#2253 뒤)이라 그 함수에는 부인 문장 수정이 아직 없다.
+- **미완료(원인)**: 루틴 중복 #2260 은 독립 검토 2회차도 BLOCK(주간 성장 화면: 제목 비교로 '이미 있음' 을 판단하는 것이 틀린다)이라 머지하지 않았다. 대시보드 추천 카드 쪽(경로 A)은 두 회차 통과. (dashboard-generate 는 2ndb-74 가 #2253 뒤 13:43 에 main `25203e90` 에서 배포해, 부인 문장 수정이 그 함수에도 실렸다.)
 - **다음 1개**: Simon 이 Q-261011-09 에 답하면 그 갈래로 #2260 을 다시 잡는다. 2ndb-ee 의 추천은 '경로 A 만 떼어 새 PR(검토 1회) + 주간 성장은 사전 읽기를 빼고 세션 번호 · 연타 가드만'.
 - **끄는 법(의미 판정 문지기)**: 저장소 Variable `EXPO_PUBLIC_OBFUSCATION_SAFETY=false` 뒤 새 빌드(8081 은 `npm run localhost` 가 Variable 을 다시 읽는다). 코드는 `src/lib/llm/boundary.ts` 의 `callLlm` 입력 단계 · `src/lib/llm/safety.ts` `classifyObfuscatedInput`(5초 제한) · `src/lib/safety/crisis-obfuscation.ts`.
-- **기다리는 것**: Q-261011-10(리마인더의 남는 기기 알림 — 에뮬레이터 확인 필요) · 11(대화 모델 지시문에 번호 원칙) · 12(한국어 `자살 안 해`) · A03 은 2ndb-74 의 #2253 뒤.
+- **기다리는 것**: Q-261011-10(리마인더의 남는 기기 알림 — 에뮬레이터 확인 필요) · 11(대화 모델 지시문에 번호 원칙) · 12(한국어 `자살 안 해`) · A03 은 #2253 이 13:40 에 들어가 시작할 수 있다(Q-261011-13 · 조건은 `docs/handoff/CODEX-AUDIT-261010.md` 의 10-11 13:48 절).
 - **남긴 것**: 게이트 원문은 저장소 밖 `E:/Coding Infra/reports/codex-audit-261010/gates/` 의 `denialcomma-daybreak-r1` · `semgate-daybreak-r1 · r2` · `routinedup-daybreak-r1 · r2`. 8081 에 위험 문장을 보내는 캡처는 `ui/shoot_denial.cjs`(위험 사건 기록 RPC 를 브라우저에서 대신 응답 — 빼지 말 것).
 
 ## 2026-10-11 12:18 / 2ndb-ee: UI 9회차 - 곡선 따옴표 부인(#2256) · 추천 저장(#2257) 머지, 의미 판정 설계안, 다음은 Simon 의 Q-261011-04 답(서버 배포)
