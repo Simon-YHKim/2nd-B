@@ -32,7 +32,7 @@ import {
 import { gatherAdherenceStats } from "@/lib/ops/signals";
 import { adherenceChip } from "@/lib/ops/grounding";
 import { loadPickCandidates } from "@/lib/ops/load-picks";
-import { readOpsPresentation, writeOpsPresentationFor } from "@/lib/ops/presentation";
+import { opsRecommendationRoutineId, readOpsPresentation, writeOpsPresentationFor } from "@/lib/ops/presentation";
 import {
   recommendForDomain,
   recommendationsAllowed,
@@ -646,7 +646,9 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
     setNotice(null);
     let routine: OpsRoutine;
     try {
-      routine = await createRoutineFromRecommendation(ownerId, selectedDomain, recommendation);
+      const routineId = opsRecommendationRoutineId(ownerId, selectedDomain, recommendations, recommendations.indexOf(recommendation));
+      if (!routineId) throw new Error("Recommendation changed before routine save");
+      routine = await createRoutineFromRecommendation(ownerId, selectedDomain, recommendation, { routineId });
     } catch {
       if (isCurrentOwner(ownerId)) {
         setSavingKey(null);
