@@ -358,9 +358,9 @@ describe("sendChatMessage", () => {
       return system.slice(start, system.indexOf("\n\n", start));
     };
 
-    test("ko adult: 109, never 112, 119 only when the body is in danger now", async () => {
+    test("ko adult: 109, no 112 for that talk alone, 119 only when the body is in danger now", async () => {
       const rule = ruleOf(await systemFor("ko"), "ko");
-      expect(rule).toContain("109 전화를 안내하고, 112는 붙이지 마세요");
+      expect(rule).toContain("109로 전화하도록 안내하세요. 그 이야기만을 이유로 112를 붙이지 마세요.");
       expect(rule).toContain("119는 이미 다쳤거나 약을 삼킨 것처럼 몸이 지금 위급할 때만");
       expect(rule).toContain("분명하지 않으면 109로 안내하세요");
       expect(rule).not.toContain("1388");
@@ -371,16 +371,28 @@ describe("sendChatMessage", () => {
       const minor = crisisHotlines("ko", true).map((line) => line.number);
       expect(adult).toEqual(["109"]);
       expect(minor).toEqual(["1388", "109"]);
-      expect(ruleOf(await systemFor("ko", true), "ko")).toContain("1388 또는 109 전화를 안내하고");
+      expect(ruleOf(await systemFor("ko", true), "ko")).toContain("1388 또는 109로 전화하도록 안내하세요.");
       captured.length = 0;
       expect(ruleOf(await systemFor("ko", false), "ko")).not.toContain("1388");
     });
 
     test("en: 988 and no police number", async () => {
       const rule = ruleOf(await systemFor("en"), "en");
-      expect(rule).toContain(`point them to ${crisisHotlines("en")[0].number} and do not add a police number`);
+      expect(rule).toContain(`point them to ${crisisHotlines("en")[0].number}. Do not add a police number for that reason alone.`);
       expect(rule).toContain("only when their body is in danger right now");
       expect(rule).not.toMatch(/\b(?:109|112|119|1388)\b/);
+    });
+
+    // NR-01: a person who is also being threatened by someone else still needs 112. The ban is scoped
+    // to "that talk alone", and no sentence forbids 112 or a police number outright.
+    test("the 112 ban is scoped, so a threat from someone else can still get 112", async () => {
+      const ko = ruleOf(await systemFor("ko"), "ko");
+      expect(ko).toContain("그 이야기만을 이유로 112를 붙이지 마세요");
+      expect(ko.replace("그 이야기만을 이유로 112를 붙이지 마세요", "")).not.toContain("112");
+      captured.length = 0;
+      const en = ruleOf(await systemFor("en"), "en");
+      expect(en).toContain("Do not add a police number for that reason alone.");
+      expect(en.replace("Do not add a police number for that reason alone.", "")).not.toMatch(/police/i);
     });
 
     test("the rule sits after the header and before every untrusted block and the name line", async () => {
