@@ -16,6 +16,12 @@ if (mode === 'configure') {
   const cron = process.env.DASHBOARD_CRON_SECRET ?? '';
   if (!['true', 'false'].includes(enabled) || model !== 'claude-sonnet-5' || cron.length < 32) throw new Error('dashboard_configuration_invalid');
   if (enabled === 'true') {
+    const retention = await (await management('/database/query', { method: 'POST',
+      body: JSON.stringify({ query: 'SELECT public.dashboard_generation_retention_ready() AS ready;' }),
+    })).json();
+    if (!Array.isArray(retention) || retention.length !== 1 || retention[0]?.ready !== true) {
+      throw new Error('dashboard_retention_unavailable');
+    }
     const response = await fetch(`https://api.anthropic.com/v1/models/${model}`, {
       headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY ?? '', 'anthropic-version': '2023-06-01' },
       redirect: 'error', signal: AbortSignal.timeout(20_000),
