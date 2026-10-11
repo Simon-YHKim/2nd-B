@@ -82,19 +82,19 @@ const LR = "scripts/check-legal-review.ts";
 const ANCHORS: Anchor[] = [
   { cite: "src/lib/analytics/auth-conversions.ts:47", symbol: "requiresGuardianConsent(age, resolveJurisdiction())",
     why: "분석 동의의 관할별 연령 게이트를 실제로 적용하는 자리. AuthContext 연동 추출 후 이전 layout 좌표를 재사용하지 않는다." },
-  { cite: `${S}:436-466`, symbol: "fixedCrisisResponse",
+  { cite: `${S}:507-537`, symbol: "fixedCrisisResponse",
     why: "위기 응답이 사람이 쓴 고정 템플릿이라는 주장의 근거. 어긋나면 의미 분류기 프롬프트를 읽게 된다." },
-  { cite: `${S}:305-418`, symbol: "classifySafety",
+  { cite: `${S}:376-489`, symbol: "classifySafety",
     why: "3층 방어 중 둘째 층(의미 분류기)." },
-  { cite: `${S}:182-204`, symbol: "mergeResults",
+  { cite: `${S}:197-219`, symbol: "mergeResults",
     why: "RED-wins 병합. 이게 아니면 '보수적으로 합친다'는 주장에 근거가 없다." },
-  { cite: `${S}:185-197`, symbol: "indexOf",
+  { cite: `${S}:200-212`, symbol: "indexOf",
     why: "모르는 zone 을 RED 로 취급하는 fail-closed 순위. 위기에서 열리지 않는다는 주장." },
-  { cite: `${S}:56-68`, symbol: "Suicide CARE",
+  { cite: `${S}:71-83`, symbol: "Suicide CARE",
     why: "KO/EN 마커 목록. 어느 임상 근거를 쓰는지가 여기서 확인된다." },
-  { cite: `${S}:94`, symbol: "EXPO_PUBLIC_USE_VERTEX",
+  { cite: `${S}:109`, symbol: "EXPO_PUBLIC_USE_VERTEX",
     why: "키 없는 웹 빌드에서 의미 층이 꺼진다는 잔여위험 서술의 근거." },
-  { cite: `${S}:440-452`, symbol: "crisisHotlines",
+  { cite: `${S}:511-523`, symbol: "crisisHotlines",
     why: "미성년 라우팅이 실제로 핫라인 목록을 부르는 자리." },
   { cite: `${C}:71-80`, symbol: "crisisHotlines",
     why: "(locale, minor) → 핫라인 표시 순서." },
@@ -498,7 +498,7 @@ describe("검사기 자신의 대조군", () => {
   });
 
   test("음성 대조 - 범위 안 심볼은 통과한다", () => {
-    expect(slice(`${S}:436-466`).text.includes("fixedCrisisResponse")).toBe(true);
+    expect(slice(`${S}:507-537`).text.includes("fixedCrisisResponse")).toBe(true);
   });
 
   test("쉼표와 하이픈을 둘 다 읽는다", () => {

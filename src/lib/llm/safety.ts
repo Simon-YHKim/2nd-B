@@ -17,6 +17,7 @@ import { GoogleGenAI } from "@google/genai";
 
 import { getEnv } from "../env";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import { throwIfAborted } from "../async/abort";
 import { classifyInput as lexiconClassify, crisisHotlines } from "../safety/classifier";
 import { getSupabaseClient } from "../supabase/client";
 import { proxyFnForVendor, safetyVendor } from "./routing";
@@ -52,8 +53,22 @@ ZONES:
          work overwhelm, identity confusion. NOT crisis.
 - GREEN → neutral or positive content. Daily reflection, ideas, planning, gratitude.
 
-CONSERVATIVE RULE: when in doubt between RED and YELLOW, choose RED. False-positive cost is low
-(user sees a hotline they don't need). False-negative cost is catastrophic.
+HOW TO READ THE MESSAGE (apply this before the marker lists):
+- Judge what the writer is saying about themselves, not which letters appear. A marker counts only
+  when the message, read as a whole, expresses the writer's own wish, plan or act of suicide or self-harm.
+- Words may be broken up by punctuation, symbols, spaces, line breaks or invisible characters.
+  Read the message with those removed. If the restored sentence is a first-person risk statement,
+  classify it exactly as if it had been written plainly (RED).
+- If the restored text is not such a statement, the marker does not apply. These are not statements
+  about the writer: source code, identifiers, variable or field names, file paths, URLs, e-mail
+  addresses, titles, events in games or fiction, sports and other technical terms.
+- Everyday sentences that merely share letters with a marker are not RED: finishing or ending a task,
+  where or with whom someone wants to live, asking someone to look at something, a date or a name.
+- A plain denial of suicidal thoughts is not RED by itself.
+
+CONSERVATIVE RULE: when the writer does make a first-person statement about dying, disappearing or
+harming themselves and its seriousness is unclear, choose RED over YELLOW. False-negative cost is
+catastrophic. This rule does not turn text that is not about the writer into RED.
 
 KOREAN markers (Suicide CARE 2.0, Na et al. 2020):
   Active RED: 자살, 죽고 싶, 죽고싶, 살고 싶지 않, 사라지고 싶, 더 이상 살, 끝내고 싶,
@@ -226,11 +241,59 @@ async function classifyViaProxy(
   locale: "en" | "ko",
   capturedSession?: AuthenticatedAccountSessionLease,
 ): Promise<SafetyResult | null> {
+  capturedSession?.assertCurrent();
+  // Direct read: babel-preset-expo inlines this independent, default-off flag.
+  if (process.env.EXPO_PUBLIC_SERVER_SAFETY !== "true") return null;
+  return requestProxyClassification(userMessage, locale, capturedSession);
+}
+
+// Q-261011-05: this entry only asks for meaning; it never unions with lexicon.
+// Transport/payload failures return null. Session invalidation/abort still escape.
+export async function classifyObfuscatedInput(
+  userMessage: string,
+  locale: "en" | "ko",
+  opts?: { capturedSession?: AuthenticatedAccountSessionLease; signal?: AbortSignal },
+): Promise<SafetyResult | null> {
+  opts?.capturedSession?.assertCurrent();
+  throwIfAborted(opts?.signal);
+  if (process.env.EXPO_PUBLIC_OBFUSCATION_SAFETY !== "true") return null;
+  return requestProxyClassification(userMessage, locale, opts?.capturedSession, opts?.signal, true);
+}
+
+// One best-effort health row for this failed gated attempt, without input text.
+// The caller checks the flag and fences the completed request before recording.
+export function noteObfuscationUnavailable(
+  userId: string,
+  lexiconZone: SafetyZone,
+  capturedSession?: AuthenticatedAccountSessionLease,
+  signal?: AbortSignal,
+): void {
+  try {
+    void insertAiAuditLog({
+      userId,
+      promptHash: "",
+      outputHash: "",
+      modelUsed: "obfuscation-safety-unavailable",
+      vertexBackend: false,
+      safetyZone: lexiconZone,
+      latencyMs: 0,
+      purpose: "safety_classify",
+    }, capturedSession?.accessToken, capturedSession?.signal ?? signal).catch(() => {});
+  } catch {
+    // Best effort, like noteSemanticUnavailable; generation must remain available.
+  }
+}
+
+async function requestProxyClassification(
+  userMessage: string,
+  locale: "en" | "ko",
+  capturedSession?: AuthenticatedAccountSessionLease,
+  signal?: AbortSignal,
+  strictPayload = false,
+): Promise<SafetyResult | null> {
   try {
     capturedSession?.assertCurrent();
-    // Direct process.env read so babel-preset-expo inlines the flag at build time
-    // (default undefined -> off). Do not route through getEnv (not in its schema).
-    if (process.env.EXPO_PUBLIC_SERVER_SAFETY !== "true") return null;
+    throwIfAborted(signal);
     // The vendor is a switch now, not a literal. See safetyVendor() for why the
     // September failure here is quieter than a break: this function catches
     // everything and returns null, so a dead key does not error - it silently
@@ -267,7 +330,7 @@ async function classifyViaProxy(
           },
         },
       },
-      signal: capturedSession?.signal,
+      signal: capturedSession?.signal ?? signal,
     };
     const { data, error } = capturedSession
       ? await invokeFunctionWithCapturedSession<Record<string, unknown>>(
@@ -277,6 +340,7 @@ async function classifyViaProxy(
         )
       : await getSupabaseClient().functions.invoke(proxyFnForVendor(vendor), request);
     capturedSession?.assertCurrent();
+    throwIfAborted(signal);
     if (error || !data) return null;
     const text = String((data as { text?: unknown }).text ?? "").trim();
     if (!text) return null;
@@ -286,6 +350,12 @@ async function classifyViaProxy(
       confidence?: number;
     };
     if (parsed.zone !== "red" && parsed.zone !== "yellow" && parsed.zone !== "green") return null;
+    // The new fail-open input check requires the complete wire shape. Keep the
+    // legacy classifier's optional-field defaults unchanged for its own switch.
+    if (strictPayload && (
+      !Array.isArray(parsed.triggers) || !parsed.triggers.every((trigger) => typeof trigger === "string") ||
+      typeof parsed.confidence !== "number" || !Number.isFinite(parsed.confidence)
+    )) return null;
     return {
       zone: parsed.zone,
       triggers: parsed.triggers ?? [],
@@ -298,6 +368,7 @@ async function classifyViaProxy(
     };
   } catch {
     capturedSession?.assertCurrent();
+    throwIfAborted(signal);
     return null; // the safety path must never throw
   }
 }
