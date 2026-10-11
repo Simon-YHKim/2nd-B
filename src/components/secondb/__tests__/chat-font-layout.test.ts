@@ -34,6 +34,21 @@ describe("chatfont: Android composer alignment", () => {
     expect(chatComposerAlignment("android", scale, measured)).toBe("flex-end");
   });
 
+  // Re-check on the same emulator, 2026-10-10 23:56: one line measured 62.0dp (2.0) and 47.1dp (1.31),
+  // two lines 84.0dp and 64.0dp. The earlier limit at 2.0 was exactly 84, so a two-line box read a
+  // fraction low would have been centered.
+  test.each([
+    [2, 62.0], [1.31, 47.1],
+  ])("scale %s centers the one-line box the device reported (%sdp)", (scale, measured) => {
+    expect(chatComposerAlignment("android", scale, measured)).toBe("center");
+  });
+
+  test.each([
+    [2, 84.0], [2, 83.5], [2, 80], [1.31, 64.0], [1.31, 63.5],
+  ])("scale %s bottom-aligns the two-line box the device reported, with room to spare (%sdp)", (scale, measured) => {
+    expect(chatComposerAlignment("android", scale, measured)).toBe("flex-end");
+  });
+
   test("clearing, wrapping and shrinking follow measured heights without counting newline characters", () => {
     expect([0, 62, 106, 124, 62, 0].map(height => chatComposerAlignment("android", 2, height)))
       .toEqual(["center", "center", "flex-end", "flex-end", "center", "center"]);

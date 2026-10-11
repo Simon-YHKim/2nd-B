@@ -22,9 +22,10 @@ export function chatInputMinimumHeight(platform: string, fontScale: number): num
 export function chatComposerAlignment(platform: string, fontScale: number, inputHeight: number): "center" | "flex-end" {
   if (platform !== "android") return "flex-end";
   // The measured box is not exactly the computed one: device pixels round it up (47dp reads back as
-  // 47.14dp at density 3.5) and the phone input's border can be counted in. A second line adds a whole
-  // scaled line, so half a line of slack keeps the two cases apart.
-  const singleLineLimit = Math.max(44, scaledLineBox(fontScale)) + (CHAT_INPUT_SIZE.lineHeight * fontScale) / 2;
+  // 47.14dp at density 3.5) and the phone input's border can be counted in. On the Android 16 emulator a
+  // second line added 22dp at scale 2.0 (62 -> 84) and 16.9dp at 1.31 (47.1 -> 64), not a whole scaled
+  // line, so the slack is half an unscaled line: the limit sits between one line and two at both scales.
+  const singleLineLimit = Math.max(44, scaledLineBox(fontScale)) + CHAT_INPUT_SIZE.lineHeight / 2;
   return inputHeight < singleLineLimit ? "center" : "flex-end";
 }
 
