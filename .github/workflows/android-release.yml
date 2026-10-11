@@ -110,6 +110,9 @@ jobs:
       EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: "true"
       # Shared with localhost:8081. Enable only after the W1 server canary.
       EXPO_PUBLIC_DASHBOARD_GENERATION: ${{ vars.EXPO_PUBLIC_DASHBOARD_GENERATION || 'false' }}
+      # Chat input with altered word gaps asks for meaning once.
+      # Independent of the default-off EXPO_PUBLIC_SERVER_SAFETY.
+      EXPO_PUBLIC_OBFUSCATION_SAFETY: ${{ vars.EXPO_PUBLIC_OBFUSCATION_SAFETY || 'true' }}
       # Legacy pro-tier seam. It was pinned "gemini" from 2026-07-21 (Anthropic
       # credits exhausted 2026-07-06, so "claude" made every pro-tier call pay a
       # dead claude-proxy hop first). T1 stage A (2026-08-31) retired Gemini as a
@@ -147,7 +150,7 @@ jobs:
       # and the only targets left are the one that just failed.
       EXPO_PUBLIC_FAILOVER_VENDOR: ${{ vars.EXPO_PUBLIC_FAILOVER_VENDOR || '' }}
       # Server-side crisis classifier vendor. Dormant unless
-      # EXPO_PUBLIC_SERVER_SAFETY is also on.
+      # either EXPO_PUBLIC_SERVER_SAFETY or EXPO_PUBLIC_OBFUSCATION_SAFETY is on.
       EXPO_PUBLIC_SAFETY_VENDOR: ${{ vars.EXPO_PUBLIC_SAFETY_VENDOR || '' }}
       EXPO_PUBLIC_FORCE_TIER: "off"
       # Ads GO (Simon 2026-07-21, #1116) -- mirror eas.json production so this
