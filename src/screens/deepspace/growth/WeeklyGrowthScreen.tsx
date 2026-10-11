@@ -25,6 +25,7 @@ import { gatherWeeklyGrowth } from "@/lib/growth/gather";
 import { startTask } from "@/lib/tasks/store";
 import type { StarChange, WeeklyGrowth } from "@/lib/growth/weekly";
 import { createRoutineFromRecommendation } from "@/lib/ops/routines";
+import { runWeeklyGrowthSave, weeklyGrowthRoutineId } from "@/lib/growth/routine-save";
 import { getSevenStar, type SevenStarId } from "@/lib/persona/seven-stars";
 import type { OpsDomainId } from "@/lib/ops/domains";
 
@@ -87,6 +88,7 @@ export function WeeklyGrowthScreen() {
   const [data, setData] = useState<WeeklyGrowth | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [saved, setSaved] = useState(false);
+  const savingRef = useRef(false);
   // The background reanalyze task outlives this screen, so guard its setState.
   const mounted = useRef(true);
   useEffect(() => () => { mounted.current = false; }, []);
@@ -133,19 +135,22 @@ export function WeeklyGrowthScreen() {
   const saveStep = async () => {
     if (!userId || !top || saved) return;
     try {
-      // med#20: without a schedule this saved recurrence=none + reminder=null,
-      // so the routine was never "due today" — invisible in the ops list the
-      // button promises. Anchor it as a daily 9AM routine (same default the
-      // ops hub uses), which also makes the reminder derivable.
-      const at = new Date();
-      at.setHours(9, 0, 0, 0);
-      await createRoutineFromRecommendation(userId, STEP_DOMAIN[top.id], {
-        title: stepText(top.id),
-        reason: stepObs(top.id),
-        startsAtIso: at.toISOString(),
-        recurrence: "daily",
+      const didSave = await runWeeklyGrowthSave(savingRef, async () => {
+        const routineId = await weeklyGrowthRoutineId(userId, top.id);
+        // med#20: without a schedule this saved recurrence=none + reminder=null,
+        // so the routine was never "due today" — invisible in the ops list the
+        // button promises. Anchor it as a daily 9AM routine (same default the
+        // ops hub uses), which also makes the reminder derivable.
+        const at = new Date();
+        at.setHours(9, 0, 0, 0);
+        await createRoutineFromRecommendation(userId, STEP_DOMAIN[top.id], {
+          title: stepText(top.id),
+          reason: stepObs(top.id),
+          startsAtIso: at.toISOString(),
+          recurrence: "daily",
+        }, { routineId });
       });
-      setSaved(true);
+      if (didSave) setSaved(true);
     } catch {
       /* best-effort */
     }
