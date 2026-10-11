@@ -69,27 +69,19 @@ export async function saveWeatherConsent(ownerId: string, status: WeatherConsent
   catch (error) {
     if (!(error instanceof WeatherConsentConflictError)) throw error;
     assertCurrent();
-    let latest = await loadWeatherConsent(ownerId, signal);
+    const latest = await loadWeatherConsent(ownerId, signal);
     assertCurrent();
     // A conflict never retries an opt-in. Only withdrawal may retry, once.
     if (enabled) throw new WeatherConsentConflictError(latest);
-    // A fresh OFF snapshot confirms withdrawal without a write; otherwise it is the retry input.
-    assertConsentProgress(baseline, latest);
+    // Status can mask stored ON as OFF when ineligible. It only supplies the retry revision,
+    // never proof of withdrawal; reject rollback without inferring a saved state transition.
+    if (baseline && latest.revision < baseline.revision) throw new Error("weather_not_saved");
     baseline = latest;
-    if (!latest.enabled) next = latest;
-    else {
-      try { next = await write(baseline); }
-      catch (retryError) {
-        assertCurrent();
-        if (retryError instanceof WeatherConsentConflictError) {
-          try { latest = await loadWeatherConsent(ownerId, signal); }
-          catch { assertCurrent(); throw new WeatherConsentConflictError(latest); }
-          assertCurrent();
-          assertConsentProgress(baseline, latest);
-          if (!latest.enabled) { baseline = latest; next = latest; }
-          else throw new WeatherConsentConflictError(latest);
-        } else throw new WeatherConsentConflictError(latest);
-      }
+    try { next = await write(baseline); }
+    catch {
+      assertCurrent();
+      // No final status read or further retry. This snapshot is only for the error display.
+      throw new WeatherConsentConflictError(latest);
     }
   }
   assertCurrent();
