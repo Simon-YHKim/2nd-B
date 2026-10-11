@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { beginAccountOwnerTransition, clearAccountTransition, currentAccountEpoch, noteResolvedOwner, __resetAccountEpochForTests } from "../../auth/account-epoch";
+import { beginPrivacyChange } from "../../privacy/changes";
 import { readOpsPresentation, writeOpsPresentationFor, type OpsPresentation } from "../presentation";
 
 const EMPTY: OpsPresentation = { group: null, domain: null, recommendations: [], adherence: null, savedKeys: [] };
@@ -39,6 +40,16 @@ describe("AS-02: an ops snapshot is written only for the account it was loaded f
     writeOpsPresentationFor("qa-b", snapshot("B stretch"));
     writeOpsPresentationFor(null, snapshot("nobody"));
     expect(readOpsPresentation()).toEqual(snapshot("A walk"));
+  });
+
+  test("a privacy change published for the previous account does not clear the next account's snapshot", () => {
+    switchTo("qa-b");
+    writeOpsPresentationFor("qa-b", snapshot("B stretch"));
+    // qa-a turned a setting off just before the switch; its notice lands after qa-b is signed in.
+    beginPrivacyChange("qa-a", { ops_push: false });
+    expect(readOpsPresentation()).toEqual(snapshot("B stretch"));
+    beginPrivacyChange("qa-b", { ops_push: false });
+    expect(readOpsPresentation()).toEqual(EMPTY);
   });
 });
 
