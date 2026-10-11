@@ -55,7 +55,7 @@ if (process.exitCode === 0) {
 
   // Start the second transaction only when the first holds its locks and is
   // sleeping. Real separate connections, not Promise ordering assumptions.
-  async function overlap(first, second, label) {
+  async function overlap(first, second, label, requireBlocking = false) {
     const pending = run(`SET application_name='dashboard_g2w1_${label}'; ${first}`);
     const deadline = Date.now() + 5_000;
     let held = false;
@@ -65,7 +65,21 @@ if (process.exitCode === 0) {
       await new Promise((done) => setTimeout(done, 20));
     }
     if (!held) { await pending; throw new Error('Concurrency barrier missed'); }
-    await Promise.all([pending, run(second)]);
+    const follower = run(`SET application_name='dashboard_g2w1_${label}_second'; ${second}`);
+    if (requireBlocking) {
+      let blocked = false;
+      const deadline = Date.now() + 5_000;
+      while (Date.now() < deadline) {
+        blocked = (await run(`SELECT count(*) FROM pg_stat_activity waiter JOIN pg_stat_activity holder
+          ON holder.pid=ANY(pg_blocking_pids(waiter.pid))
+          WHERE waiter.application_name='dashboard_g2w1_${label}_second' AND waiter.wait_event_type='Lock'
+            AND holder.application_name='dashboard_g2w1_${label}';`)).trim() === '1';
+        if (blocked) break;
+        await new Promise((done) => setTimeout(done, 20));
+      }
+      await Promise.all([pending, follower]);
+      if (!blocked) throw new Error(`Concurrency lock wait not observed: ${label}`);
+    } else { await Promise.all([pending, follower]); }
   }
   for (const first of ['finish', 'withdraw']) {
     const subject = `00000000-0000-0000-0000-00000000001${first === 'finish' ? '1' : '2'}`;

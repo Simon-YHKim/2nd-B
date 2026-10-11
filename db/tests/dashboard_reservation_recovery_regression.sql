@@ -96,6 +96,7 @@ BEGIN
   run_id:=(a->>'id')::uuid; lease:=(a->>'lease_token')::uuid;
   -- Daybreak add1 r1: ending red must not depend on heartbeat/lease freshness.
   -- Paid dispatch still must. A replaced token remains invalid in both paths.
+  IF NOT public.dashboard_generation_begin_classification_v2(owner_id,run_id,lease) THEN RAISE EXCEPTION 'red begin fixture'; END IF;
   UPDATE public.dashboard_generation_retention SET last_purged_at=clock_timestamp()-interval '3 hours';
   UPDATE public.dashboard_generation_runs SET leased_at=clock_timestamp()-interval '4 minutes' WHERE id=run_id;
   IF public.dashboard_generation_audit_attempt_v2(owner_id,run_id,'claude-sonnet-5','low','abcd',false,lease) THEN RAISE EXCEPTION 'red fixture stale heartbeat allowed paid dispatch'; END IF;

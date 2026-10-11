@@ -45,6 +45,50 @@ BEGIN
     THEN RAISE EXCEPTION 'legacy/v2 retention or independent audit quota'; END IF;
 END $$;
 
+-- Expired workers cannot start a phase or manufacture a terminal result.
+-- Reject without touching either row, so the same key remains recoverable.
+DO $$
+DECLARE mode text; n integer:=230; a jsonb; b jsonb; u uuid; r uuid; l uuid;
+  audit_before jsonb; run_before jsonb; accepted boolean;
+BEGIN
+  FOREACH mode IN ARRAY ARRAY['begin','dispatch','red','block'] LOOP
+    n:=n+1; a:=pg_temp.lease_fixture(n); u:=(a->>'owner')::uuid; r:=(a->>'id')::uuid; l:=(a->>'lease_token')::uuid;
+    UPDATE public.dashboard_generation_runs SET leased_at=clock_timestamp()-interval '3 minutes' WHERE id=r;
+    SELECT to_jsonb(g) INTO run_before FROM public.dashboard_generation_runs g WHERE id=r;
+    SELECT to_jsonb(g) INTO audit_before FROM public.ai_audit_log g WHERE id=l;
+    accepted:=CASE mode
+      WHEN 'begin' THEN public.dashboard_generation_begin_classification_v2(u,r,l)
+      WHEN 'dispatch' THEN public.dashboard_generation_audit_attempt_v2(u,r,'claude-sonnet-5','low','abcd',false,l)
+      WHEN 'red' THEN public.dashboard_generation_audit_attempt_v2(u,r,'claude-sonnet-5','low','abcd',true,l)
+      WHEN 'block' THEN public.dashboard_generation_block_v2(u,r,l) END;
+    IF accepted IS DISTINCT FROM false THEN RAISE EXCEPTION 'unstarted expired lease accepted %',mode; END IF;
+    IF (SELECT to_jsonb(g) FROM public.dashboard_generation_runs g WHERE id=r) IS DISTINCT FROM run_before
+      OR (SELECT to_jsonb(g) FROM public.ai_audit_log g WHERE id=l) IS DISTINCT FROM audit_before
+      THEN RAISE EXCEPTION 'expired refusal changed evidence: %',mode; END IF;
+    b:=public.dashboard_generation_request_v2(u,'open','UTC','ko');
+    IF b->>'kind' IS DISTINCT FROM 'claimed' OR b->>'id' IS DISTINCT FROM r::text
+      OR b->>'lease_token'=l::text
+      OR (SELECT count(*) FROM public.dashboard_generation_runs WHERE user_id=u)<>1
+      OR (SELECT count(*) FROM public.ai_audit_log WHERE user_id=u)<>2
+      THEN RAISE EXCEPTION 'expired refusal lost recovery: %',mode; END IF;
+  END LOOP;
+END $$;
+
+-- Starting while fresh grants the right to finish red even after expiration.
+DO $$
+DECLARE a jsonb:=pg_temp.lease_fixture(235); u uuid:=(a->>'owner')::uuid;
+  r uuid:=(a->>'id')::uuid; l uuid:=(a->>'lease_token')::uuid;
+BEGIN
+  IF public.dashboard_generation_audit_attempt_v2(u,r,'claude-sonnet-5','low','abcd',true,l)
+    OR public.dashboard_generation_block_v2(u,r,l) THEN RAISE EXCEPTION 'red terminal before classification'; END IF;
+  IF NOT public.dashboard_generation_begin_classification_v2(u,r,l) THEN RAISE EXCEPTION 'fresh begin refused'; END IF;
+  UPDATE public.dashboard_generation_runs SET leased_at=clock_timestamp()-interval '4 minutes' WHERE id=r;
+  UPDATE public.dashboard_generation_retention SET last_purged_at=clock_timestamp()-interval '4 hours';
+  IF NOT public.dashboard_generation_audit_attempt_v2(u,r,'claude-sonnet-5','low','abcd',true,l)
+    OR NOT public.dashboard_generation_block_v2(u,r,l)
+    OR NOT public.dashboard_generation_block_v2(u,r,l) THEN RAISE EXCEPTION 'started red terminal expired'; END IF;
+END $$;
+
 -- A lost terminal write cannot expose the expired-pending recovery path.
 DO $$
 DECLARE a jsonb:=pg_temp.lease_fixture(202); u uuid:=(a->>'owner')::uuid;
@@ -92,9 +136,37 @@ BEGIN
   UPDATE public.dashboard_generation_runs SET status='pending' WHERE id=r;
   -- Even incomplete audit metadata is not proof that a marked dispatch did
   -- not happen. A repair must never turn that ambiguity into a free retry.
-  UPDATE public.ai_audit_log SET model_used='dashboard+attempt' WHERE id=fresh;
+  UPDATE public.ai_audit_log SET model_used='dashboard+classifying' WHERE id=fresh;
   IF public.dashboard_generation_block_v2(u,r,fresh)
     THEN RAISE EXCEPTION 'terminal ignored dispatch marker'; END IF;
+END $$;
+
+-- An already-started classification keeps its fence when dispatch expires.
+-- Completion still records failure/evidence for a paid, now-expired lease.
+DO $$
+DECLARE a jsonb:=pg_temp.lease_fixture(236); u uuid:=(a->>'owner')::uuid;
+  r uuid:=(a->>'id')::uuid; l uuid:=(a->>'lease_token')::uuid; audited boolean; saved boolean;
+BEGIN
+  PERFORM public.dashboard_generation_begin_classification_v2(u,r,l);
+  UPDATE public.dashboard_generation_runs SET leased_at=clock_timestamp()-interval '3 minutes' WHERE id=r;
+  IF public.dashboard_generation_audit_attempt_v2(u,r,'claude-sonnet-5','low','abcd',false,l)
+    OR (SELECT model_used FROM public.ai_audit_log WHERE id=l)<>'dashboard+classifying'
+    OR (SELECT dispatched_at FROM public.dashboard_generation_runs WHERE id=r) IS NOT NULL
+    THEN RAISE EXCEPTION 'expired dispatch cleared started classification'; END IF;
+  -- Explicit green failure is allowed to release this started phase.
+  PERFORM public.dashboard_generation_finish_v2(u,r,NULL,l);
+  a:=public.dashboard_generation_request_v2(u,'open','UTC','ko'); l:=(a->>'lease_token')::uuid;
+  IF a->>'kind' IS DISTINCT FROM 'claimed' OR NOT public.dashboard_generation_begin_classification_v2(u,r,l)
+    OR NOT public.dashboard_generation_audit_attempt_v2(u,r,'claude-sonnet-5','low','abcd',false,l)
+    THEN RAISE EXCEPTION 'expired green recovery'; END IF;
+  UPDATE public.dashboard_generation_runs SET leased_at=clock_timestamp()-interval '4 minutes' WHERE id=r;
+  audited:=public.dashboard_generation_audit_result_v2(u,r,'abcd','completed',1,'green',1,l);
+  saved:=public.dashboard_generation_finish_v2(u,r,'{}',l);
+  IF NOT audited OR saved
+    OR (SELECT status FROM public.dashboard_generation_runs WHERE id=r)<>'failed'
+    OR (SELECT model_used FROM public.ai_audit_log WHERE id=l)<>'claude-sonnet-5'
+    OR public.dashboard_generation_request_v2(u,'open','UTC','ko')->>'kind' IS DISTINCT FROM 'waiting'
+    THEN RAISE EXCEPTION 'expired paid completion lost evidence or reopened'; END IF;
 END $$;
 
 -- Invariant 6: heartbeat blocks dispatch, not result evidence/finish.
@@ -123,7 +195,9 @@ BEGIN
     n:=n+1; a:=pg_temp.lease_fixture(n); u:=(a->>'owner')::uuid; r:=(a->>'id')::uuid; l:=(a->>'lease_token')::uuid;
     IF mode='dispatched' THEN PERFORM public.dashboard_generation_audit_attempt_v2(u,r,'claude-sonnet-5','low','abcd',false,l);
     ELSIF mode='pre_dispatch_failed' THEN PERFORM public.dashboard_generation_finish_v2(u,r,NULL,l);
-    ELSIF mode='pre_dispatch_blocked' THEN PERFORM public.dashboard_generation_block_v2(u,r,l);
+    ELSIF mode='pre_dispatch_blocked' THEN
+      PERFORM public.dashboard_generation_begin_classification_v2(u,r,l);
+      PERFORM public.dashboard_generation_block_v2(u,r,l);
     ELSIF mode='classifying' THEN PERFORM public.dashboard_generation_begin_classification_v2(u,r,l); END IF;
     UPDATE public.users SET privacy_prefs='{"recommendations":false}' WHERE id=u;
     IF mode='classifying' AND NOT public.dashboard_generation_block_v2(u,r,l)

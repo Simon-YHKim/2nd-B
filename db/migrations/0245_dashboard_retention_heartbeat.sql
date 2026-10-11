@@ -331,6 +331,7 @@ END $$;
 -- Reserve the classification phase BEFORE inspecting input. If the worker or
 -- DB dies after this ACK, pending recovery cannot reprocess a possible red.
 -- A worker lost immediately after claim (still +attempt) remains recoverable.
+-- Expiry is checked after the owner/run locks, before acquiring the fence.
 CREATE FUNCTION public.dashboard_generation_begin_classification_v2(p_user_id uuid,p_run_id uuid,p_lease_token uuid)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET row_security=off AS $$
 DECLARE r public.dashboard_generation_runs%ROWTYPE;
@@ -338,7 +339,8 @@ BEGIN
   PERFORM public.dashboard_generation_eligibility(p_user_id);
   SELECT * INTO r FROM public.dashboard_generation_runs WHERE id=p_run_id AND user_id=p_user_id FOR UPDATE;
   IF NOT FOUND OR p_lease_token IS NULL OR r.lease_token IS DISTINCT FROM p_lease_token
-    OR r.dispatched_at IS NOT NULL OR r.status<>'pending' THEN RETURN false; END IF;
+    OR r.dispatched_at IS NOT NULL OR r.status<>'pending'
+    OR r.leased_at<=clock_timestamp()-interval '3 minutes' THEN RETURN false; END IF;
   UPDATE public.ai_audit_log SET model_used='dashboard+classifying'
     WHERE id=r.lease_token AND user_id=p_user_id AND event_source='server_verified'
       AND outbox_event_id='dashboard:'||r.id||':'||r.lease_token AND model_used='dashboard+attempt';
@@ -359,7 +361,7 @@ BEGIN
     safety_zone='red',reasoning_effort=NULL,key_combo=NULL
     WHERE id=r.lease_token AND user_id=p_user_id AND event_source='server_verified'
       AND outbox_event_id='dashboard:'||r.id||':'||r.lease_token
-      AND (model_used IN ('dashboard+attempt','dashboard+classifying') OR model_used LIKE '%+crisis');
+      AND (model_used='dashboard+classifying' OR model_used LIKE '%+crisis');
   IF NOT FOUND THEN RETURN false; END IF;
   UPDATE public.dashboard_generation_runs SET
     status=CASE WHEN r.status='failed' THEN 'failed' ELSE 'pre_dispatch_blocked' END,output=NULL WHERE id=r.id;
@@ -397,7 +399,7 @@ BEGIN
     key_combo=CASE WHEN NOT p_crisis THEN 'ANTHROPIC_API_KEY' END
   WHERE id=r.lease_token AND user_id=p_user_id
     AND outbox_event_id='dashboard:'||r.id||':'||r.lease_token
-    AND model_used IN ('dashboard+attempt','dashboard+classifying');
+    AND (model_used='dashboard+classifying' OR (NOT p_crisis AND model_used='dashboard+attempt'));
   IF NOT FOUND THEN RETURN false; END IF;
   UPDATE public.dashboard_generation_runs SET
     status=CASE WHEN p_crisis THEN 'pre_dispatch_blocked' ELSE 'dispatched' END,

@@ -83,6 +83,74 @@ export async function testDashboardLeaseSql({ run, overlap }) {
   }
   console.log('Real Edge + DB: audit/terminal/begin error,false,throw (9/9), repeat key waiting, one audit, zero fetch/ordinary finish.');
 
+  // A real expiry refusal is different from a lost ACK: no phase ever began.
+  // Observe the actual classifier entry points, and forbid all subsequent I/O.
+  const safety = edge(resolve(root, 'supabase/functions/_shared/llm-input-safety.ts'));
+  const common = edge(resolve(root, 'supabase/functions/_shared/llm-proxy-common.ts'));
+  const classify = safety.hasRedZoneInput; const crisis = common.hasCrisisTerm;
+  for (const title of ['Read', 'I want\nto die.']) {
+    const subject = await setup(++n, title);
+    let initial; let auditBefore; let runBefore; let classifications = 0; let fetches = 0;
+    const calls = [];
+    safety.hasRedZoneInput = (...args) => { classifications++; return classify(...args); };
+    common.hasCrisisTerm = (...args) => { classifications++; return crisis(...args); };
+    try {
+      const io = async (name, args) => {
+        calls.push(name);
+        if (!['dashboard_generation_request_v2', 'dashboard_generation_begin_classification_v2'].includes(name)) {
+          throw new Error(`Expired begin attempted downstream I/O: ${name}`);
+        }
+        const response = await rpc(name, args);
+        if (name === 'dashboard_generation_request_v2') {
+          initial = response.data;
+          await run(`UPDATE public.dashboard_generation_runs SET leased_at=clock_timestamp()-interval '3 minutes' WHERE id='${initial.id}';`);
+          runBefore = await run(`SELECT row_to_json(g) FROM public.dashboard_generation_runs g WHERE id='${initial.id}';`);
+          auditBefore = await run(`SELECT row_to_json(a) FROM public.ai_audit_log a WHERE id='${initial.lease_token}';`);
+        }
+        return response;
+      };
+      const generate = createBoardProvider({ model: 'claude-sonnet-5', apiKey: 'fixture-key', rpc: io,
+        fetch: async () => { fetches++; throw new Error('Vendor I/O forbidden'); } });
+      const handler = createDashboardHandler({ enabled: true, authenticate: async () => subject, isScheduler: async () => false, rpc: io, generate });
+      const response = await handler(new Request('https://fixture.invalid/dashboard', { method: 'POST',
+        body: JSON.stringify({ action: 'open', timeZone: 'UTC', locale: 'ko' }) }));
+      if ((await response.json()).kind !== 'unavailable' || classifications !== 0 || fetches !== 0
+        || JSON.stringify(calls) !== JSON.stringify(['dashboard_generation_request_v2', 'dashboard_generation_begin_classification_v2'])
+        || runBefore !== await run(`SELECT row_to_json(g) FROM public.dashboard_generation_runs g WHERE id='${initial.id}';`)
+        || auditBefore !== await run(`SELECT row_to_json(a) FROM public.ai_audit_log a WHERE id='${initial.lease_token}';`)) {
+        throw new Error('Expired begin changed evidence or reached classifier/model/finish/block');
+      }
+      const { data: renewed } = await request(subject);
+      if (renewed.kind !== 'claimed' || renewed.id !== initial.id || renewed.lease_token === initial.lease_token) throw new Error('Expired Edge refusal prevented recovery');
+    } finally { safety.hasRedZoneInput = classify; common.hasCrisisTerm = crisis; }
+  }
+  console.log('Expired begin real Edge + DB: green/red inputs (2/2), classifier/fetch/downstream RPC 0, unchanged run/audit, same-key recovery.');
+
+  for (const first of ['begin', 'retry']) {
+    const subject = await setup(++n);
+    const { data: initial } = await request(subject);
+    await run(`UPDATE public.dashboard_generation_runs SET leased_at=clock_timestamp()-interval '3 minutes' WHERE id='${initial.id}';`);
+    const begin = `BEGIN; SET LOCAL request.jwt.claim.role='service_role'; DO $$ BEGIN
+      IF public.dashboard_generation_begin_classification_v2('${subject}','${initial.id}','${initial.lease_token}') IS DISTINCT FROM false
+        THEN RAISE EXCEPTION 'expired begin won classification race'; END IF; END $$;`;
+    const retry = `BEGIN; SET LOCAL request.jwt.claim.role='service_role'; DO $$ BEGIN
+      IF public.dashboard_generation_request_v2('${subject}','open','UTC','ko')->>'kind' IS DISTINCT FROM 'claimed'
+        THEN RAISE EXCEPTION 'expired begin blocked retry race'; END IF; END $$;`;
+    await overlap(`${first === 'begin' ? begin : retry} SELECT pg_sleep(2); COMMIT;`,
+      `${first === 'begin' ? retry : begin} COMMIT;`, `expired_${first}`, true);
+    const row = JSON.parse((await run(`SELECT row_to_json(g) FROM public.dashboard_generation_runs g WHERE user_id='${subject}';`)).trim());
+    if (row.id !== initial.id || row.lease_token === initial.lease_token || row.status !== 'pending' || row.dispatched_at !== null
+      || (await run(`SELECT count(*) FROM public.dashboard_generation_runs WHERE user_id='${subject}';`)).trim() !== '1'
+      || (await run(`SELECT count(*) FROM public.ai_audit_log WHERE user_id='${subject}';`)).trim() !== '2'
+      || (await run(`SELECT model_used FROM public.ai_audit_log WHERE id='${initial.lease_token}';`)).trim() !== 'dashboard+pre_dispatch_failed'
+      || (await run(`SELECT model_used FROM public.ai_audit_log WHERE id='${row.lease_token}';`)).trim() !== 'dashboard+attempt'
+      || (await request(subject)).data.kind !== 'busy') throw new Error('Expired begin race lost single replacement/audit lineage');
+    if (!(await rpc('dashboard_generation_begin_classification_v2', { p_user_id: subject, p_run_id: row.id, p_lease_token: row.lease_token })).data) {
+      throw new Error('Fresh race survivor cannot start classification');
+    }
+  }
+  console.log('Expired begin/retry two connections: both lock waits observed (2/2), one fresh lease, two audit rows, fresh begin succeeds.');
+
   // A successful red audit whose ACK is lost is still a terminal 1-row audit.
   const owner = await setup(++n);
   const { data: claim } = await request(owner);
