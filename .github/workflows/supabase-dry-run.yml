@@ -12,6 +12,7 @@ on:
       - "scripts/test-signup-consent-sql.mjs"
       - "scripts/test-weather-sql.mjs"
       - "scripts/test-dashboard-sql.mjs"
+      - "scripts/test-dashboard-lease-sql.mjs"
       - "scripts/test-profile-import-sql.mjs"
       - ".github/workflows/supabase-dry-run.yml"
 
@@ -83,6 +84,14 @@ jobs:
           CREATE DATABASE profile_import_test_ci OWNER profile_import_local;
           SQL
           node scripts/test-profile-import-sql.mjs 5432 profile_import_local profile_import_test_ci
+      # The lease runner executes the real Edge modules with local RPCs. Use
+      # existing locked TypeScript/Zod dependencies; no vendor calls or hooks.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install existing Edge test dependencies
+        run: npm ci --ignore-scripts --legacy-peer-deps
       - name: Exercise W1 generation locks and owner isolation
         env:
           PGPASSWORD: postgres

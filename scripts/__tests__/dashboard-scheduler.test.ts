@@ -12,8 +12,16 @@ function fixture(extra: Record<string, string> = {}) {
   };
   return { fetch, log, run };
 }
-test("disabled scheduler has no network effects", async () => {
-  const f = fixture(); await f.run(); expect(f.fetch).not.toHaveBeenCalled();
+test.each([undefined, "false", "true"])("retention runs regardless of its retired switch: %s", async (enabled) => {
+  const f = fixture(enabled === undefined ? {} : { DASHBOARD_RETENTION_ENABLED: enabled });
+  await f.run(); expect(f.fetch).toHaveBeenCalledTimes(1);
+  expect(String(f.fetch.mock.calls[0][0])).toContain("/rpc/purge_dashboard_generation");
+});
+
+test("hourly workflow cannot opt out of retention", () => {
+  const workflow = readFileSync(resolve(__dirname, "../../.github/workflows/dashboard-hourly.yml"), "utf8");
+  expect(workflow).not.toContain("DASHBOARD_RETENTION_ENABLED");
+  expect(workflow).toContain("node scripts/dashboard-runtime-config.mjs hourly");
 });
 test("retention continues after generation and its cron secret are disabled", async () => {
   const f = fixture({ DASHBOARD_RETENTION_ENABLED: "true" }); await f.run();

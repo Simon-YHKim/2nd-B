@@ -14,8 +14,10 @@ export interface BoardProviderDependencies {
   fetch: typeof fetch;
 }
 export interface BoardProviderInput {
-  userId: string; runId: string; purpose: string; prompt: string; system: string; consentToken: string;
+  userId: string; runId: string; leaseToken: string; purpose: string; prompt: string; system: string; consentToken: string;
   payload: Readonly<Record<string, unknown>>;
+  validateOutput: (output: unknown) => boolean;
+  onBlocked: (reason: 'red' | 'classification_unavailable') => void;
 }
 
 // G2-03: provisional cheapest rung, pending Simon's per-seat decision. W1
@@ -34,19 +36,35 @@ export function createBoardProvider(deps: BoardProviderDependencies) {
   return async (input: BoardProviderInput): Promise<unknown> => {
     const fail = (): never => { throw new Error('dashboard_generation_unavailable'); };
     const effort = Object.hasOwn(BOARD_PURPOSE_EFFORT, input.purpose) ? BOARD_PURPOSE_EFFORT[input.purpose] : null;
-    if (!effort || !EFFORT_MODELS.has(deps.model) || !isUsableHeaderValue(deps.apiKey) ||
+    if (typeof input.leaseToken !== 'string' || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(input.leaseToken) ||
+        !effort || !EFFORT_MODELS.has(deps.model) || !isUsableHeaderValue(deps.apiKey) ||
         !deps.apiKey || input.prompt.length > 24_000 || !input.payload ||
         typeof input.payload !== 'object' || Array.isArray(input.payload)) return fail();
-    const attempt = (crisis: boolean) => deps.rpc('dashboard_generation_audit_attempt', {
+    const attempt = (crisis: boolean) => deps.rpc('dashboard_generation_audit_attempt_v2', {
       p_user_id: input.userId, p_run_id: input.runId, p_model: deps.model,
-      p_effort: effort, p_prompt_hash: djb2(input.system + input.prompt), p_crisis: crisis,
+      p_effort: effort, p_prompt_hash: djb2(input.system + input.prompt), p_crisis: crisis, p_lease_token: input.leaseToken,
     });
+    let classification;
+    try {
+      classification = await deps.rpc('dashboard_generation_begin_classification_v2', {
+        p_user_id: input.userId, p_run_id: input.runId, p_lease_token: input.leaseToken,
+      });
+    } catch { classification = { error: true }; }
+    if (classification.error || classification.data !== true) {
+      // A lost ACK, or another worker holding this phase, is not authority to
+      // clear its fence through finish(NULL). An untouched claim still expires.
+      input.onBlocked('classification_unavailable');
+      return fail();
+    }
     // C9 / G2-01: classify each original string before spend, capacity or
     // dispatch. JSON escaping can hide whitespace from a prompt-only scan.
     // Retain the existing prompt backstop and all response checks.
     if (hasRedZoneInput([input.payload, input.prompt, input.system]) || hasCrisisTerm(input.prompt)) {
-      // No paid dispatch, but the early exit is still a C3 attempt.
-      await attempt(true);
+      // Pin the terminal reason before any fallible I/O. The handler must not
+      // turn a red audit error, false or throw into a recoverable NULL finish.
+      input.onBlocked('red');
+      const audited = await attempt(true);
+      if (audited.error || audited.data !== true) return fail();
       return fail();
     }
     const consent = await captureLlmConsent(deps.rpc, input.userId, 'enforce');
@@ -68,7 +86,7 @@ export function createBoardProvider(deps: BoardProviderDependencies) {
       await deps.rpc('refund_gemini_spend', { p_user_id: input.userId, p_day: day });
       return fail();
     }
-    // The DB commits the attempt INSERT and existing dispatch together. An
+    // The DB checks the lease and commits the attempt update with dispatch. An
     // error (including an ambiguous RPC response) must never reach the vendor.
     let dispatch;
     try { dispatch = await attempt(false); } catch { dispatch = { error: true }; }
@@ -107,16 +125,18 @@ export function createBoardProvider(deps: BoardProviderDependencies) {
             const trimmed = responseText.trim();
             const block = /^```(?:json)?\s*\r?\n([\s\S]*?)\r?\n```$/.exec(trimmed);
             outcome = 'invalid_json';
-            output = JSON.parse(block ? block[1] : trimmed); outcome = 'completed';
+            const candidate: unknown = JSON.parse(block ? block[1] : trimmed);
+            outcome = 'rejected_output';
+            if (input.validateOutput(candidate)) { output = candidate; outcome = 'completed'; }
           }
         }
       }
     } catch { /* Ambiguous dispatch: keep the spend and quota, suppress raw details. */ }
     finally { await transitionLlmProxyCapacity(deps.rpc, capacity.reservationId, 'settle'); }
     if (await recheckLlmConsent(deps.rpc, consent.lease)) { output = null; outcome = 'consent_withheld'; }
-    const audited = await deps.rpc('dashboard_generation_audit_result', {
+    const audited = await deps.rpc('dashboard_generation_audit_result_v2', {
       p_user_id: input.userId, p_run_id: input.runId, p_output_hash: djb2(responseText),
-      p_outcome: outcome, p_latency_ms: Date.now() - started,
+      p_outcome: outcome, p_latency_ms: Date.now() - started, p_lease_token: input.leaseToken,
       p_safety_zone: hasCrisisTerm(responseText) ? 'red' : 'green', p_total_tokens: tokens,
     });
     if (audited.error || audited.data !== true || output === null) return fail();
