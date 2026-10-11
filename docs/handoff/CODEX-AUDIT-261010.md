@@ -222,3 +222,8 @@ A03(0241 한마디 · 2ndb-ee 몫 · 아직 시작하지 않음)의 출발 조�
 - G1 계열(안전 판정)에 더해진 것: 대화 지시문의 위기 번호 원칙(#2265) · 한국어의 평범한 부인(#2268, 앱 쪽 — Edge 배포는 Simon 의 GO 대기).
 - 0244 `dashboard_generation_audit_result` 의 NULL `total_tokens`(low): 바꾸지 않는다. provider 가 통신 · HTTP 실패 outcome 에서 NULL 을 보내는 것이 지금의 계약이다(`provider.ts` 의 `let tokens: number | null = null`).
 
+## 뒤에 더해진 것 (2026-10-11 15:36)
+
+- **G5-03 · G5-04(A03 · 0247 초안 #2271)**: 독립 검토 2회차도 BLOCK. 닫힌 것 = R2271-02(루틴 제목 등 편집 뒤 옛 내용 재노출 → 트리거 `dashboard_routine_changed`) · R2271-03(삭제 경합 → `FOR SHARE OF g`). 남은 것 = R2271-01A(지금 key 의 ready 행이 이상한 모양이면 그 행이 먼저 반환됨. 0245 에서도 같은 결과). 상한에서 멈췄고 운영 미적용. 이어갈지는 Q-261011-15.
+- **G5-06 잔여(#2267)**: main 반영(61bb48de). 에뮬레이터 확인은 2ndb-23 이 10-12 09:00 뒤에 한다(빌드 run 38116487867).
+
