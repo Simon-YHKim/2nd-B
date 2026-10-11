@@ -66,6 +66,7 @@ afterAll(() => flags.forEach((key, i) => {
   if (saved[i] === undefined) delete process.env[key];
   else process.env[key] = saved[i];
 }));
+afterEach(() => jest.useRealTimers());
 
 test.each([
   ["en", false, "988"], ["ko", false, "109"], ["ko", true, "1388"],
@@ -157,7 +158,7 @@ test.each(["red", "green", "unavailable"])("session invalidated while awaiting %
   });
   await expect(callLlm({ ...input, session })).rejects.toThrow("stale-session");
   expect(mockCapturedInvoke).toHaveBeenCalledTimes(1);
-  expect(mockCapturedInvoke).toHaveBeenCalledWith("openai-proxy", session.accessToken, expect.objectContaining({ signal: session.signal }));
+  expect(mockCapturedInvoke).toHaveBeenCalledWith("openai-proxy", session.accessToken, expect.objectContaining({ signal: expect.any(AbortSignal) }));
   expect(generationCalls()).toHaveLength(0);
   expect(mockAudit).not.toHaveBeenCalled();
   expect(mockCrisis).not.toHaveBeenCalled();
@@ -190,4 +191,94 @@ test("a failed health write cannot stop fail-open generation", async () => {
   expect(result.text).toBe(generationResponse.data.text);
   expect(healthRows()).toHaveLength(1);
   expect(generationCalls()).toHaveLength(1);
+});
+
+describe("R1 bounded semantic wait in callLlm", () => {
+  beforeEach(() => jest.useFakeTimers());
+
+  test("never-settling proxy records once then generates once at 5000ms", async () => {
+    mockInvoke.mockImplementationOnce(() => new Promise(() => {}));
+    const settled = jest.fn();
+    void callLlm(input).then(settled, (error: unknown) => settled({ error }));
+    await jest.advanceTimersByTimeAsync(4999);
+    expect(settled).not.toHaveBeenCalled();
+    expect(healthRows()).toHaveLength(0);
+    expect(generationCalls()).toHaveLength(0);
+    await jest.advanceTimersByTimeAsync(1);
+    expect(settled).toHaveBeenCalledWith(expect.objectContaining({ text: generationResponse.data.text }));
+    expect(healthRows()).toHaveLength(1);
+    expect(generationCalls()).toHaveLength(1);
+    expect(mockAudit.mock.invocationCallOrder[0]).toBeLessThan(mockInvoke.mock.invocationCallOrder[1]);
+    expect(mockCrisis).not.toHaveBeenCalled();
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test.each(["red", "green"])("%s received before the deadline preserves routing", async (zone) => {
+    let deliver!: (value: ReturnType<typeof semanticResponse>) => void;
+    mockInvoke.mockReturnValueOnce(new Promise((resolve) => { deliver = resolve; }));
+    const settled = jest.fn();
+    void callLlm(input).then(settled);
+    await jest.advanceTimersByTimeAsync(4999);
+    expect(settled).not.toHaveBeenCalled();
+    deliver(semanticResponse(zone));
+    await jest.advanceTimersByTimeAsync(0);
+    expect(settled).toHaveBeenCalledTimes(1);
+    expect(generationCalls()).toHaveLength(zone === "red" ? 0 : 1);
+    expect(mockCrisis).toHaveBeenCalledTimes(zone === "red" ? 1 : 0);
+    expect(healthRows()).toHaveLength(0);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test("late RED cannot replace generation or add any record", async () => {
+    let deliver!: (value: ReturnType<typeof semanticResponse>) => void;
+    mockInvoke.mockReturnValueOnce(new Promise((resolve) => { deliver = resolve; }));
+    const settled = jest.fn();
+    void callLlm(input).then(settled);
+    await jest.advanceTimersByTimeAsync(5000);
+    expect(settled).toHaveBeenCalledWith(expect.objectContaining({ text: generationResponse.data.text }));
+    expect(healthRows()).toHaveLength(1);
+    const auditCount = mockAudit.mock.calls.length;
+    deliver(semanticResponse("red"));
+    await jest.runAllTimersAsync();
+    expect(settled).toHaveBeenCalledTimes(1);
+    expect(generationCalls()).toHaveLength(1);
+    expect(mockAudit).toHaveBeenCalledTimes(auditCount);
+    expect(mockCrisis).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["user", 1000], ["session", 1000], ["invalid", 1000],
+    ["user", 5000], ["session", 5000], ["invalid", 5000],
+  ] as const)("%s cancellation at %sms throws without generation/records", async (kind, at) => {
+    const controller = new AbortController();
+    let current = true;
+    const session: AuthenticatedAccountSessionLease = {
+      userId: "u1", epoch: 1, accessToken: "test-only-token", signal: controller.signal,
+      assertCurrent: () => { if (!current) throw new Error("stale-session"); },
+      abort: () => controller.abort(), release: jest.fn(),
+    };
+    mockInvoke.mockImplementationOnce(() => new Promise(() => {}));
+    const settled = jest.fn();
+    const rejected = jest.fn();
+    void callLlm(kind === "user" ? { ...input, signal: controller.signal } : { ...input, session })
+      .then(settled, rejected);
+    // At 5000ms the deadline fires first, without flushing its continuation.
+    jest.advanceTimersByTime(at);
+    if (kind === "invalid") current = false;
+    controller.abort();
+    await jest.advanceTimersByTimeAsync(0);
+    expect(settled).not.toHaveBeenCalled();
+    expect(rejected).toHaveBeenCalledTimes(1);
+    expect(rejected).toHaveBeenCalledWith(expect.objectContaining(
+      kind === "invalid" ? { message: "stale-session" } : { name: "AbortError" },
+    ));
+    expect(generationCalls()).toHaveLength(0);
+    expect(mockAudit).not.toHaveBeenCalled();
+    expect(mockCrisis).not.toHaveBeenCalled();
+    expect(jest.getTimerCount()).toBe(0);
+    await jest.runAllTimersAsync();
+    expect(rejected).toHaveBeenCalledTimes(1);
+    expect(generationCalls()).toHaveLength(0);
+    expect(mockAudit).not.toHaveBeenCalled();
+  });
 });

@@ -27,7 +27,7 @@ beforeEach(() => {
   mockCapturedInvoke.mockResolvedValue(response);
   jest.spyOn(console, "warn").mockImplementation(() => {});
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks(); });
 afterAll(() => flags.forEach((key, i) => {
   if (saved[i] === undefined) delete process.env[key];
   else process.env[key] = saved[i];
@@ -91,8 +91,9 @@ test("captured session owns token and cancellation, with a fence after the proxy
   const result = await classifyObfuscatedInput("sui.cide", "en", { capturedSession: lease });
   expect(result).toMatchObject({ zone: "red", confidence: 0.87, source: "llm" });
   expect(mockInvoke).not.toHaveBeenCalled();
-  expect(mockCapturedInvoke).toHaveBeenCalledWith("openai-proxy", lease.accessToken, expect.objectContaining({ signal: controller.signal }));
-  expect(lease.assertCurrent).toHaveBeenCalledTimes(3);
+  expect(mockCapturedInvoke).toHaveBeenCalledWith("openai-proxy", lease.accessToken, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+  expect(mockCapturedInvoke.mock.calls[0][2].signal.aborted).toBe(false);
+  expect(lease.assertCurrent).toHaveBeenCalledTimes(4);
   mockCapturedInvoke.mockImplementationOnce(async () => {
     (lease.assertCurrent as jest.Mock).mockImplementation(() => { throw new Error("stale-session"); });
     return response;
@@ -108,5 +109,134 @@ test("standalone abort is propagated, including on a failed request", async () =
     throw new Error("transport stopped");
   });
   await expect(classifyObfuscatedInput("sui.cide", "en", { signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
-  expect(mockInvoke).toHaveBeenCalledWith("openai-proxy", expect.objectContaining({ signal: controller.signal }));
+  expect(mockInvoke.mock.calls[0][1].signal.aborted).toBe(true);
+});
+
+describe("R1 obfuscated input deadline", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    process.env.EXPO_PUBLIC_OBFUSCATION_SAFETY = "true";
+  });
+
+  test.each([false, true])("never-settling proxy returns null at 5000ms: captured=%s", async (captured) => {
+    const controller = new AbortController();
+    const lease: AuthenticatedAccountSessionLease = {
+      userId: "u1", epoch: 1, accessToken: "test-only-token", signal: controller.signal,
+      assertCurrent: jest.fn(), abort: () => controller.abort(), release: jest.fn(),
+    };
+    const invoke = captured ? mockCapturedInvoke : mockInvoke;
+    invoke.mockImplementation(() => new Promise(() => {}));
+    const settled = jest.fn();
+    void classifyObfuscatedInput("sui.cide", "en", captured ? { capturedSession: lease } : undefined)
+      .then(settled, (error: unknown) => settled({ error }));
+    await jest.advanceTimersByTimeAsync(4999);
+    expect(settled).not.toHaveBeenCalled();
+    const request = invoke.mock.calls[0][captured ? 2 : 1];
+    expect(request.signal.aborted).toBe(false);
+    await jest.advanceTimersByTimeAsync(1);
+    expect(settled).toHaveBeenCalledTimes(1);
+    expect(settled).toHaveBeenCalledWith(null);
+    expect(request.signal.aborted).toBe(true);
+    expect(controller.signal.aborted).toBe(false);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test.each(["red", "green"])("%s arriving at 4999ms keeps its verdict and clears timer/listeners", async (zone) => {
+    const controller = new AbortController();
+    const add = jest.spyOn(controller.signal, "addEventListener");
+    const remove = jest.spyOn(controller.signal, "removeEventListener");
+    let deliver!: (value: typeof response) => void;
+    mockInvoke.mockReturnValue(new Promise((resolve) => { deliver = resolve; }));
+    const settled = jest.fn();
+    void classifyObfuscatedInput("sui.cide", "en", { signal: controller.signal }).then(settled);
+    await jest.advanceTimersByTimeAsync(4999);
+    expect(settled).not.toHaveBeenCalled();
+    deliver({ data: { text: JSON.stringify({ zone, triggers: [], confidence: 0.87 }) }, error: null });
+    await jest.advanceTimersByTimeAsync(0);
+    expect(settled).toHaveBeenCalledWith(expect.objectContaining({ zone, confidence: 0.87 }));
+    expect(jest.getTimerCount()).toBe(0);
+    expect(remove).toHaveBeenCalledWith("abort", add.mock.calls[0][1]);
+    controller.abort();
+    expect(mockInvoke.mock.calls[0][1].signal.aborted).toBe(false);
+  });
+
+  test.each(["user", "session", "invalid"] as const)("%s cancellation beats the timeout, including its continuation", async (kind) => {
+    const user = new AbortController();
+    const session = new AbortController();
+    let current = true;
+    const lease: AuthenticatedAccountSessionLease = {
+      userId: "u1", epoch: 1, accessToken: "test-only-token", signal: session.signal,
+      assertCurrent: () => { if (!current) throw new Error("stale-session"); },
+      abort: () => session.abort(), release: jest.fn(),
+    };
+    mockCapturedInvoke.mockReturnValue(new Promise(() => {}));
+    const settled = jest.fn();
+    const rejected = jest.fn();
+    void classifyObfuscatedInput("sui.cide", "en", { capturedSession: lease, signal: user.signal })
+      .then(settled, rejected);
+    // Fire the deadline, then cancel before its promise continuation runs.
+    jest.advanceTimersByTime(5000);
+    if (kind === "user") user.abort();
+    else if (kind === "session") session.abort();
+    else current = false;
+    await jest.advanceTimersByTimeAsync(0);
+    expect(settled).not.toHaveBeenCalled();
+    expect(rejected).toHaveBeenCalledTimes(1);
+    expect(rejected).toHaveBeenCalledWith(expect.objectContaining(
+      kind === "invalid" ? { message: "stale-session" } : { name: "AbortError" },
+    ));
+    expect(mockCapturedInvoke.mock.calls[0][2].signal.aborted).toBe(true);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test("timeout remains null when an abort-aware transport rejects", async () => {
+    const stopped = jest.fn();
+    mockInvoke.mockImplementation((_fn, { signal }) => new Promise((_, reject) => {
+      signal.addEventListener("abort", () => {
+        stopped();
+        reject(Object.assign(new Error("request aborted"), { name: "AbortError" }));
+      });
+    }));
+    const settled = jest.fn();
+    void classifyObfuscatedInput("sui.cide", "en").then(settled, (error: unknown) => settled({ error }));
+    await jest.advanceTimersByTimeAsync(5000);
+    expect(stopped).toHaveBeenCalledTimes(1);
+    expect(settled).toHaveBeenCalledWith(null);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test("late RED payload is discarded before parsing", async () => {
+    let deliver!: (value: typeof response) => void;
+    mockInvoke.mockReturnValue(new Promise((resolve) => { deliver = resolve; }));
+    const settled = jest.fn();
+    void classifyObfuscatedInput("sui.cide", "en").then(settled);
+    await jest.advanceTimersByTimeAsync(5000);
+    expect(settled).toHaveBeenCalledWith(null);
+    const readText = jest.fn(() => response.data.text);
+    deliver({ data: { get text() { return readText(); } }, error: null });
+    await jest.advanceTimersByTimeAsync(0);
+    expect(readText).not.toHaveBeenCalled();
+    expect(settled).toHaveBeenCalledTimes(1);
+  });
+
+  test("legacy full semantic path has no new deadline or composed signal", async () => {
+    process.env.EXPO_PUBLIC_SERVER_SAFETY = "true";
+    const controller = new AbortController();
+    const lease: AuthenticatedAccountSessionLease = {
+      userId: "u1", epoch: 1, accessToken: "test-only-token", signal: controller.signal,
+      assertCurrent: jest.fn(), abort: () => controller.abort(), release: jest.fn(),
+    };
+    let deliver!: (value: typeof response) => void;
+    mockCapturedInvoke.mockReturnValue(new Promise((resolve) => { deliver = resolve; }));
+    const settled = jest.fn();
+    void classifySafety("A quiet afternoon.", "en", { capturedSession: lease }).then(settled);
+    await jest.advanceTimersByTimeAsync(10000);
+    expect(settled).not.toHaveBeenCalled();
+    expect(mockCapturedInvoke.mock.calls[0][2].signal).toBe(controller.signal);
+    expect(controller.signal.aborted).toBe(false);
+    expect(jest.getTimerCount()).toBe(0);
+    deliver(response);
+    await jest.advanceTimersByTimeAsync(0);
+    expect(settled).toHaveBeenCalledWith(expect.objectContaining({ zone: "red" }));
+  });
 });

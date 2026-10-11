@@ -65,6 +65,47 @@
 로그·JSON은 `E:/Coding Infra/reports/codex-audit-261010/verify/semgate-r1-mutation-*`와
 `semgate-r1-mutations.json`에 있다. verify 최종 수치는 아래에 기록한다.
 
+## 2회차 R1: 의미 판정 대기 시간 제한
+
+- 근거: 독립 검토 **R1(high, 기준 (c))**.
+  원문 `E:/Coding Infra/reports/codex-audit-261010/gates/semgate-daybreak-r1.txt`.
+  프록시가 영원히 pending이면 대화도 끝없이 기다리던 경로를 수정했다.
+- `classifyObfuscatedInput`에만 **5,000ms** 상수를 적용한다. 발주에 제공된
+  2026-10-11 운영 좌석 449회 앱 왕복 측정은 중간값 1.5초, p95 1.8초, 최대 4.2초다.
+  이번 회차에서 모델을 새로 호출하거나 측정 자료를 바꾸지 않았다.
+- 기존 `src/lib/async/with-timeout.ts`의 `withTimeout`을 재사용한다.
+  이 도구의 `Promise.race`가 signal을 무시하는 프록시도 5초에 돌려보내며,
+  `finally`에서 타이머를 정리한다. 새 범용 도구나 의존성은 추가하지 않았다.
+- 새 경로 안의 `AbortController`로 사용자·세션 취소를 요청 signal에 전달한다.
+  시간 초과 때도 이 signal을 abort한다. 캡처 세션 경로는 실제 fetch까지 signal을
+  넘기며 일반 경로는 `functions.invoke`에 넘긴다. 취소를 따르는 transport는
+  요청을 중단하지만, 무시하는 구현이나 서버에서 이미 시작한 처리의 종료는 보장하지 않는다.
+- 사용자·세션 취소는 별도 Promise로 경합하므로 무응답 프록시에서도 throw된다.
+  시간 제한 직후 continuation 전에 취소하거나 세션이 무효가 되면 취소가 우선한다.
+  시간 초과만 null이며, 기존 `callLlm`의 **null → 실패 기록 1회 → 생성 1회**는 그대로다.
+- 늦은 응답은 요청 signal 검사에서 파싱 전에 버린다. 호출 완료 뒤 취소 리스너도 정리한다.
+  `classifyViaProxy`의 기존 시간 제한 없음·세션 signal과 `callLlm`의 순서·조건은 유지했다.
+- 회귀: 4,999ms pending / 5,000ms null, 정상 RED·GREEN, 늦은 RED, 사용자·세션 취소,
+  세션 무효, 시간 초과와 취소의 경합, 정상 완료 후 타이머·리스너 정리를 가짜 타이머로 검사한다.
+  법무 인용과 앵커는 이동한 `safety.ts`의 동일 원문 줄로 갱신했다.
+
+### 2회차 회귀·변이 결과
+
+- 기존 회귀 포함 **9 suites, 233/233 통과**.
+- 변이 후 원본 바이트 복원: 핵심 **3 suites, 109/109 통과**. 1회차 89개와
+  이번 R1 테스트 20개이며 corpus **192 / 71 / 191 / 5**, 프롬프트 해시도 유지된다.
+- 법무 인용: `npx jest src/lib/legal --ci --maxWorkers=2`, **16 suites, 162/162 통과**.
+
+| R1 변이 | 실패한 테스트 | 결과 |
+|---|---:|---|
+| (a) `withTimeout` 제거 | 7 | 빨강, 5초 뒤에도 무응답 프록시 pending |
+| (b) 시간 초과를 null 대신 throw | 6 | 빨강 |
+| (c) 사용자·세션 취소/무효를 null로 삼킴 | 5 | 빨강 |
+
+**3/3 검출**, 매회 원본 바이트 복원. 로그 `verify/semgate-r4-mutation-*.log`,
+요약 `verify/semgate-r4-mutations.json` (공통 루트
+`E:/Coding Infra/reports/codex-audit-261010/`).
+
 ## 배포와 되돌리기
 
 `EXPO_PUBLIC_OBFUSCATION_SAFETY`는 workflow Variable 폴백 `true`, EAS live env `true`다.
@@ -86,7 +127,7 @@
   의미 판정이 RED가 아닌 1개가 전자의 원인이다. 실패 시 fail-open은 승인된 정책이다.
 - 기존 낱말 검사의 부인 표현·문맥 예외 및 119·112 판정 문제는 별도 갈래다.
 
-## 최종 verify
+## 1회차 최종 verify (이력)
 
 2026-10-11 12:51:44 KST: **26/26 단계 모두 종료코드 0** (r3).
 `package.json` 체인을 같은 순서로 개별 실행했고 마지막은
@@ -102,3 +143,21 @@
 - `npm run app:parity`: **같음**. 기존 origin/main `9b78d6e5`, 앱 경로 차이 0,
   같은 코드의 APK 자동 빌드 진행 중을 확인했다. 이번 브랜치의 운영 반영 확인은 아니다.
 - Git diff 공백 검사·자격증명 패턴 검사 통과. corpus는 제공 파일 그대로 포함했다.
+
+## 2회차 최종 verify
+
+2026-10-11 13:17:40 KST: **26/26 단계 모두 종료코드 0** (r4).
+package.json의 verify 체인을 같은 순서로 개별 실행했고 마지막은
+`npm test -- --ci --maxWorkers=2`다. 각 단계 전에 지정된 메모리 문턱과
+다른 워크트리의 Jest 종료를 확인했다.
+
+- 전체 Jest: **1025 suites 통과, 15137 tests 통과, 1 skipped, 총 15138**.
+- 별도 test:ui-work0: **77/77 통과**.
+- 앞서 실행한 관련 회귀 233/233, 변이 후 핵심 109/109, 법무 162/162도 통과했다.
+- 변이 3/3 검출 (실패 7 / 6 / 5), 원본 바이트 복원 후 전체 verify를 통과했다.
+- 로그: `E:/Coding Infra/reports/codex-audit-261010/verify/semgate-r4-*.log`.
+  단계별 결과는 `semgate-r4-results.json`, 변이는 `semgate-r4-mutations.json`.
+- app:parity: 기존 origin/main `d7af8fd9` 기준 **같음**. 이번 브랜치의 운영 반영 증거가 아니다.
+- Git diff 공백 검사와 추가 줄의 자격증명 패턴 검사 통과. 수정은 R1 구현·회귀·인수·법무 인용뿐이다.
+- 남긴 것: 독립 재검토와 main 반영은 코디네이터 단계이며, 승인된 기존 미탐 4·오탐 5와
+  fail-open 정책, 실제 운영에서의 요청 취소 확인은 이번 범위 밖이다.

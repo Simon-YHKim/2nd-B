@@ -17,7 +17,8 @@ import { GoogleGenAI } from "@google/genai";
 
 import { getEnv } from "../env";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
-import { throwIfAborted } from "../async/abort";
+import { abortError, throwIfAborted } from "../async/abort";
+import { isTimeoutError, withTimeout } from "../async/with-timeout";
 import { classifyInput as lexiconClassify, crisisHotlines } from "../safety/classifier";
 import { getSupabaseClient } from "../supabase/client";
 import { proxyFnForVendor, safetyVendor } from "./routing";
@@ -247,6 +248,10 @@ async function classifyViaProxy(
   return requestProxyClassification(userMessage, locale, capturedSession);
 }
 
+// R1: 449 production-seat round trips on 2026-10-11 measured median 1.5s,
+// p95 1.8s, max 4.2s. Allow 5s, then let this optional input check fail open.
+const OBFUSCATION_TIMEOUT_MS = 5_000;
+
 // Q-261011-05: this entry only asks for meaning; it never unions with lexicon.
 // Transport/payload failures return null. Session invalidation/abort still escape.
 export async function classifyObfuscatedInput(
@@ -254,10 +259,43 @@ export async function classifyObfuscatedInput(
   locale: "en" | "ko",
   opts?: { capturedSession?: AuthenticatedAccountSessionLease; signal?: AbortSignal },
 ): Promise<SafetyResult | null> {
-  opts?.capturedSession?.assertCurrent();
-  throwIfAborted(opts?.signal);
+  const assertActive = (): void => {
+    opts?.capturedSession?.assertCurrent();
+    throwIfAborted(opts?.capturedSession?.signal);
+    throwIfAborted(opts?.signal);
+  };
+  assertActive();
   if (process.env.EXPO_PUBLIC_OBFUSCATION_SAFETY !== "true") return null;
-  return requestProxyClassification(userMessage, locale, opts?.capturedSession, opts?.signal, true);
+  const controller = new AbortController();
+  const signals = [opts?.signal, opts?.capturedSession?.signal];
+  let onAbort!: () => void;
+  const cancelled = new Promise<never>((_, reject) => {
+    onAbort = () => {
+      controller.abort();
+      reject(abortError());
+    };
+    for (const signal of signals) signal?.addEventListener("abort", onAbort, { once: true });
+  });
+  try {
+    // Bound the wait even if the transport ignores signal. Cancellation also
+    // races independently so a stalled proxy cannot delay a user's abort.
+    const result = await withTimeout(Promise.race([
+      requestProxyClassification(userMessage, locale, opts?.capturedSession, controller.signal, true),
+      cancelled,
+    ]), OBFUSCATION_TIMEOUT_MS, "Obfuscated input classification");
+    assertActive();
+    return result;
+  } catch (error) {
+    // Abort the transport on timeout; the aborted signal also discards late
+    // payloads before parsing. Recheck callers AFTER abort: cancellation wins
+    // even when it arrives during the timeout's continuation.
+    if (isTimeoutError(error)) controller.abort();
+    assertActive();
+    if (isTimeoutError(error)) return null;
+    throw error;
+  } finally {
+    for (const signal of signals) signal?.removeEventListener("abort", onAbort);
+  }
 }
 
 // One best-effort health row for this failed gated attempt, without input text.
@@ -330,7 +368,9 @@ async function requestProxyClassification(
           },
         },
       },
-      signal: capturedSession?.signal ?? signal,
+      // Only the obfuscated-input caller supplies a composed request signal.
+      // The legacy classifyViaProxy caller retains its captured session signal.
+      signal: signal ?? capturedSession?.signal,
     };
     const { data, error } = capturedSession
       ? await invokeFunctionWithCapturedSession<Record<string, unknown>>(
