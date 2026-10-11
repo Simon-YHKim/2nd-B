@@ -1,5 +1,14 @@
 # 2nd-Brain Handoff
 
+## 2026-10-11 12:18 / 2ndb-ee: UI 9회차 - 곡선 따옴표 부인(#2256) · 추천 저장(#2257) 머지, 의미 판정 설계안, 다음은 Simon 의 Q-261011-04 답(서버 배포)
+
+- **근거**: Simon 8회차 답(10-11 11:35, DECISIONS 그 줄). 기록은 이 블록 시각의 세 줄.
+- **한 것**: ① #2256 곡선 따옴표로 쓴 영어 부인 문장의 잘못된 경보(앱만 반영 · 독립 검토 2회차 PASS WITH CONCERNS) ② #2194 · #2208 닫음(브랜치 보존) ③ #2257 AS-02 + AS02-R1(독립 검토 2회차 PASS WITH CONCERNS · 8081 화면 불변) ④ 루틴 저장 길 조사(중복 가능 두 곳, 고치지 않음) ⑤ 에뮬레이터 재확인 통과(2ndb-23) ⑥ 의미 판정 설계안과 수치. 보고서 <https://claude.ai/artifact/2Ra7d54nC3rj6WJ1ukdEpw>.
+- **미완료(원인)**: 곡선 따옴표 수정은 화면에서 아직 안 바뀐다. Edge 다섯 함수(openai-proxy · claude-proxy · gemini-proxy · xai-proxy · dashboard-generate)가 `src/lib/safety/crisis-context.ts` 를 가져다 쓰는데 배포하지 않았다(GO 없음). 8081 에서 앱 통과 → 서버 422 → 안내 문구 그대로임을 확인했다.
+- **다음 1개**: Simon 이 Q-261011-04 에 답하면 그대로 한다. 추천안은 '쉼표 뒤를 띄우지 않은 꼴(C9-2256-02)까지 고친 뒤 배포'. 배포 전에 `_sync/TO-CLI.md` 에 올리고, 배포 뒤 `shoot_denial.cjs` 로 같은 문장의 후 캡처를 찍는다(그 스크립트는 `log_crisis_event_once` 를 브라우저에서 대신 응답한다 - 빼지 말 것).
+- **기다리는 것**: 의미 판정 설계안 구현(Q-261011-05) · 루틴 중복 두 곳(Q-261011-06) · 남긴 기록 1행(Q-261011-07) · A03 은 2ndb-74 의 #2253 이 main 에 들어간 뒤.
+- **남긴 것**: 한국어 부인 문장에도 문장 안 부호를 지운 뒤 판정하는 같은 느슨함이 있다(이번에 넓히지 않음). 다른 따옴표 비슷한 문자(U+02BC 등)의 부인은 여전히 red. 게이트 원문은 저장소 밖 `E:/Coding Infra/reports/codex-audit-261010/gates/` 의 `curlyquote-daybreak-r1 · r2` · `opspres-daybreak-r1 · r2`.
+
 ## 2026-10-11 11:34 / 2ndb-ee: 의미 판정 재측정 끝(v2 지시문) · 다음은 Simon 의 Q-261011-01 답
 
 - **근거**: Simon "진행해."(10-11 11:11). DECISIONS 26.10.11 11:11 줄과 이 블록 시각의 기록 줄.
