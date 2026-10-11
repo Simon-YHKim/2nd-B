@@ -6,20 +6,25 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { Text } from "@/components/ui/Text";
 import { m3 } from "@/lib/theme/m3";
-import { loadWeatherConsent, saveWeatherConsent } from "@/lib/weather/client";
+import { loadWeatherConsent, saveWeatherConsent, WeatherConsentConflictError } from "@/lib/weather/client";
 import type { WeatherConsent } from "@/lib/weather/model";
+import { consentAfterFailedRevoke, consentEvidence } from "@/lib/weather/consent-evidence";
 import { WEATHER_LOCATION_ENABLED } from "@/lib/location/weather-location-gate";
 
 /** Settings offers withdrawal. The clock sheet is the only opt-in surface. */
 export function WeatherPrivacyControl() {
   const { userId, isMinor } = useAuth();
   const { t, i18n } = useTranslation("ops");
-  const [snapshot, setSnapshot] = useState<{ ownerId: string; status: WeatherConsent } | null>(null);
+  const [snapshot, setSnapshot] = useState<{ ownerId: string; status: WeatherConsent; revoked?: boolean } | null>(null);
   const status = snapshot?.ownerId === userId ? snapshot.status : null;
+  const evidence = consentEvidence(status, snapshot?.revoked);
+  const confirmed = evidence !== "unknown";
   const scope = useRef<AbortController | null>(null);
   const saving = useRef(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  // A masked OFF or failed status read must not disable withdrawal; initial loading still waits.
+  const canRevoke = !!userId && isMinor === false && evidence !== "off" && (!!status || failed);
   useFocusEffect(useCallback(() => {
     const controller = new AbortController();
     scope.current = controller;
@@ -31,23 +36,32 @@ export function WeatherPrivacyControl() {
   }, [userId, isMinor]));
   async function revoke() {
     const signal = scope.current?.signal;
-    if (!userId || !status || saving.current || !signal || signal.aborted) return;
+    if (!userId || !canRevoke || saving.current || !signal || signal.aborted) return;
     saving.current = true; setBusy(true); setFailed(false);
     try {
+      // Keep an unknown status explicit; the client uses revision 0 only for the request.
       const next = await saveWeatherConsent(userId, status, false, i18n.language, signal);
-      if (!signal.aborted) setSnapshot({ ownerId: userId, status: next });
-    } catch { if (!signal.aborted) setFailed(true); }
+      if (!signal.aborted && consentEvidence(next, true) === "off") setSnapshot({ ownerId: userId, status: next, revoked: true });
+    } catch (error) {
+      if (!signal.aborted) {
+        if (error instanceof WeatherConsentConflictError) {
+          const retained = consentAfterFailedRevoke(status, error.latest);
+          if (retained !== status && retained) setSnapshot({ ownerId: userId, status: retained });
+        }
+        setFailed(true);
+      }
+    }
     finally { if (!signal.aborted) { saving.current = false; setBusy(false); } }
   }
   // A kill switch still permits withdrawal of a previously saved grant.
-  if (!WEATHER_LOCATION_ENABLED && !status?.enabled) return null;
+  if (!WEATHER_LOCATION_ENABLED && !canRevoke) return null;
   return <View style={styles.block}>
-    <Pressable accessibilityRole="switch" accessibilityLabel={t("phone.board.weather.setting")}
-      accessibilityState={{ checked: status?.enabled === true, disabled: !status?.enabled || busy }}
-      aria-checked={status?.enabled === true}
-      disabled={!status?.enabled || busy} onPress={() => void revoke()} style={styles.row}>
+    <Pressable accessibilityRole={confirmed ? "switch" : "button"} accessibilityLabel={t("phone.board.weather.setting")}
+      accessibilityState={confirmed ? { checked: evidence === "on", disabled: !canRevoke || busy } : { disabled: !canRevoke || busy }}
+      aria-checked={confirmed ? evidence === "on" : undefined}
+      disabled={!canRevoke || busy} onPress={() => void revoke()} style={styles.row}>
       <Text variant="body" style={styles.label}>{t("phone.board.weather.setting")}</Text>
-      <Text variant="body">{isMinor !== false ? t("phone.board.weather.off") : status ? t(status.enabled ? "phone.board.weather.on" : "phone.board.weather.off") : failed ? "" : t("common:states.loading")}</Text>
+      <Text variant="body">{isMinor !== false ? t("phone.board.weather.off") : confirmed ? t(evidence === "on" ? "phone.board.weather.on" : "phone.board.weather.off") : status || failed ? "" : t("common:states.loading")}</Text>
     </Pressable>
     {failed ? <Text variant="caption" accessibilityRole="alert">{t("phone.board.weather.failed")}</Text> : null}
   </View>;
