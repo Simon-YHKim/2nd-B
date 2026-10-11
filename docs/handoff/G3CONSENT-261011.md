@@ -4,6 +4,14 @@
 1회차 기반 `f5655a92`, 2회차 PR-A 기반 `origin/main 85063f6f`.
 운영 적용·머지·배포·기능 플래그 변경 없음. draft PR까지만 위임받았다.
 
+## PR-A 4회차 (2026-10-11)
+
+- `n7-g3client-daybreak-r3.txt` 발견 1: 가려진 OFF를 저장된 철회로 오인하던 갈래를 제거했다. PR-A `be43e701`을 일반 merge하며 앱 파일을 맞췄다. 이전 회차의 조회 OFF만으로 성공한다는 설명은 이 절로 대체한다.
+- 조회는 최신 revision만 제공한다. OFF여도 revoke를 한 번 보내며 두 번째 충돌은 마지막 조회·성공 commit 없이 실패한다(요청 최대 3회). commit은 실제 write 입력 대비 상태·revision을 검증한 성공 응답 뒤에만 한다.
+- 0235 증가·0246 멱등, 같은 revision OFF 조회, 가려진 OFF, 요청용 revision 0, 계정/화면 이탈 및 직접 fetch 상한을 회귀로 고정했다. PR-A 관련 검사 7 suites / 172 통과, 변이 10/10 검출·bytes 복원, verify 26/26 exit 0, 전체 Jest 1,020 suites / 14,900 통과 / skip 1. fetch 추가 뒤 lint·type-check도 재확인했다.
+- gpt-6.1-sol xhigh 읽기 검토 high/medium 발견 0. 통합 verify 로그는 `E:/Coding Infra/reports/qa-legacy-261004/verify/n11-g3consent-clientfix3-<단계>.log`, 최종 head·수치·`c286505d..HEAD` diff는 PR 본문에 기록한다.
+- 이 회차의 DB·Edge·마이그레이션·SQL·CI·접근성·문구 변경은 0이다. 두 PR은 draft이며 새 daybreak와 운영 GO는 별도다. G3-01·운영 적용·main 머지·배포·APK·기기·QA 로그인은 남겼다.
+
 ## 1회차 기록 (역사 기록)
 
 아래 1회차의 호환성 판단과 운영 순서는 문서 끝 **2회차** 절이 대체한다.

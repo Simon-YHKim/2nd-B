@@ -1,5 +1,11 @@
 # 2nd-Brain Handoff
 
+## 2026-10-11 / Codex: 날씨 동의 앱 4회차 (#2243 · #2242)
+
+- daybreak 3회차 발견 1(`n7-g3client-daybreak-r3.txt`): 조회의 OFF는 자격으로 가려진 값일 수 있어 철회 성공 증거로 쓰지 않는다. 첫 충돌 뒤 최신 revision으로 revoke를 한 번 보내고, 재충돌은 마지막 조회 없이 실패한다. 성공 commit은 검증한 write 응답 뒤에만 한다(최대 요청 3회).
+- 0235 증가 응답·0246 멱등 응답, 같은 revision OFF 조회, 미확인 revision 0, 계정/화면 이탈을 회귀로 고정했다. 관련 검사 7 suites / 172 통과(실제 요청 래퍼 + 모의 fetch 6개 포함), 변이 10/10 검출·bytes 복원. 단계별 verify 로그는 `E:/Coding Infra/reports/qa-legacy-261004/verify/n11-g3client-fix3-<단계>.log`, 통합 로그는 `n11-g3consent-clientfix3-<단계>.log`; 최종 수치는 두 PR 본문에 남긴다.
+- DB·Edge·마이그레이션·접근성·문구·화면 변경 없음. 두 PR은 draft를 유지하며 새 daybreak 판정·운영 GO는 별도다. main 머지·8081 반영·운영 적용·배포·APK·QA 로그인은 이번 범위 밖이다. PR-B의 이전 회차 경과는 `docs/handoff/G3CONSENT-261011.md`(PR-B 브랜치)에 있다.
+
 ## 2026-10-11 00:02 / 2ndb-ee: UI 6 ~ 8회차 끝(#2234 · #2236 · #2237) · Android 에뮬레이터 확인 · 의미 판정 재측정은 내일
 
 - **근거**: Simon 이 UI 5 · 6 · 7회차 결과 보고서의 결정 탭에서 붙여 준 답(22:18 · 23:10 · 23:41). DECISIONS 26.10.10 22:18 · 22:27 · 23:10 · 23:41 줄과 이 블록 시각의 기록 줄.
