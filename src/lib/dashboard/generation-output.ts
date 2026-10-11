@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { containsAnalysisForbidden, containsForbiddenLexicon } from "../safety/classifier";
 import {
   dailyNoteProblems, daySummaryProblems, inboxTriageProblems, DAILY_NOTE_MAX_SUGGESTIONS,
   DAY_SUMMARY_LIMITS, INBOX_TRIAGE_LIMITS,
@@ -12,7 +13,13 @@ export type ValidatedBoardOutput =
   | { readonly ok: true; readonly seat: "inbox_triage"; readonly value: InboxTriage }
   | { readonly ok: false; readonly reason: "invalid_output" };
 
-const text = z.string().trim().min(1).max(2_000);
+// All generated display text shares this gate, including nullable/nested fields.
+// Use the canonical matcher in both languages regardless of the UI locale.
+const text = z.string().trim().min(1).max(2_000).refine((value) =>
+  containsForbiddenLexicon(value, "en").length === 0 &&
+  containsForbiddenLexicon(value, "ko").length === 0 &&
+  containsAnalysisForbidden(value, "en").length === 0 &&
+  containsAnalysisForbidden(value, "ko").length === 0);
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/);
 const ref = z.object({
   kind: z.enum(["record", "reminder", "routine", "event", "weather", "inbox"]), id,

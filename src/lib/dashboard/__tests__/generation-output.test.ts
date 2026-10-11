@@ -1,4 +1,4 @@
-import { validateBoardOutput } from "../generation-output";
+import { decodeBoardResponse, validateBoardOutput } from "../generation-output";
 import type { PreparedBoardInput } from "../generation-input";
 import type { BoardSeat } from "../contract";
 
@@ -84,3 +84,44 @@ test("inbox output must contain each input ID exactly once in both lists", () =>
   }
   expect(validateBoardOutput(input("inbox_triage"), { ...triage, items: [triage.items[0], triage.items[0]] }).ok).toBe(false);
 });
+
+// Every free-text surface, including nullable fields, consumes the same matcher.
+const surfaces: [BoardSeat, string][] = [
+  ["daily_note", "line"], ["daily_note", "reminder_suggestions.0.title"], ["daily_note", "reminder_suggestions.0.why"],
+  ["day_summary", "headline"], ["day_summary", "facts.0.kind"], ["day_summary", "facts.0.title"],
+  ["day_summary", "facts.0.who"], ["day_summary", "facts.0.since"], ["day_summary", "links.0.text"],
+  ["day_summary", "suggestions.0.text"], ["inbox_triage", "items.0.action_line"], ["inbox_triage", "items.0.why"],
+];
+function displayValue(seat: BoardSeat, path: string, text: string): unknown {
+  const value = seat === "daily_note" ? { ...note(), reminder_suggestions: [
+    { title: "Read", when: "2026-10-11T14:00:00Z", why: "On your list", source_ref: ref },
+  ] } : seat === "day_summary" ? { ...summary(), links: [{ text: "Today", refs: [ref] }],
+    suggestions: [{ text: "Read", action: null, basis: "ai", refs: [ref] }],
+  } : { order: ["a", "b"], items: [{ id: "a", action_line: "Read", why: "First" }, { id: "b", action_line: "Review", why: "Next" }] };
+  const keys = path.split(".");
+  let parent = value as unknown as Record<string, unknown>;
+  for (const key of keys.slice(0, -1)) parent = parent[key] as Record<string, unknown>;
+  parent[keys[keys.length - 1]] = text;
+  return value;
+}
+import { ANALYSIS_UNIVERSAL_FORBIDDEN, FORBIDDEN_TERMS } from "../../safety/lexicon";
+const forbidden = [...new Set([...Object.values(FORBIDDEN_TERMS).flat(), ...Object.values(ANALYSIS_UNIVERSAL_FORBIDDEN).flat()])];
+describe.each(surfaces)("%s %s wording", (seat, path) => {
+  test.each(forbidden)("rejects canonical term %s before persistence and cached display", (term) => {
+    const value = displayValue(seat, path, term);
+    expect(validateBoardOutput(input(seat), value, "morning")).toEqual({ ok: false, reason: "invalid_output" });
+    expect(decodeBoardResponse({ kind: "ready", purpose: seat, value })).toEqual({ ok: false, reason: "invalid_output" });
+  });
+  test.each(["Read today.", "오늘 할 일을 확인해요.", "secure curiosity"]) (
+    "accepts ordinary text %s", (text) => {
+      const value = displayValue(seat, path, text);
+      expect(validateBoardOutput(input(seat), value, "morning").ok).toBe(true);
+      expect(decodeBoardResponse({ kind: "ready", purpose: seat, value }).ok).toBe(true);
+    },
+  );
+});
+test.each(["MENTAL\nHEALTH", "ｔｈｅｒａｐｙ", FORBIDDEN_TERMS.ko[0].normalize("NFD")])(
+  "keeps canonical case/whitespace/Unicode matching: %s", (text) => {
+    expect(validateBoardOutput(input("daily_note"), { ...note(), line: text }, "morning").ok).toBe(false);
+  },
+);
