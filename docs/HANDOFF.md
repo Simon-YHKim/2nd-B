@@ -1,5 +1,14 @@
 # 2nd-Brain Handoff
 
+## 2026-10-11 / Codex: 날씨 동의 앱 5회차 (#2243 · #2242)
+
+- daybreak 4회차 발견 1(`E:/Coding Infra/reports/qa-legacy-261004/gates/n7-g3client-daybreak-r4.txt`, G3-03): `consentEvidence` 한 곳에서 ON·OFF·미확인을 판정한다. 자격 없는 OFF는 글자·checked 없이 button으로 남고, 성인은 철회할 수 있다. 실패한 철회의 최신 snapshot은 ON일 때만 채택하며 OFF·미확인이면 기존 snapshot과 철회 경로를 유지한다.
+- 성공한 revoke write는 자격과 무관하게 OFF 근거가 되며 그 화면 방문 동안만 유지한다. **해당 계정의 다음 방문 조회가 OFF/eligible=false이면 다시 미확인으로 보인다.** 조회가 있으면 그 revision, 없으면 요청에만 0을 사용한다. 성공 commit은 실제 write 및 기존 revision 검증 뒤에만 한다. opt-in·미성년·문구·배치는 변경하지 않았다.
+- 0232:38-61의 `guard_weather_privacy`와 모든 users INSERT/UPDATE 트리거를 코드로 확인했다. 자격/프로필 설정을 끄는 users 쓰기는 같은 트랜잭션에서 저장 동의를 OFF로 내리고 revision·revoke 이벤트를 남긴다. 0235:42-43과 0246의 반환식은 저장값을 자격/프로필 설정으로 가린다. 저장 동의를 직접 켜는 정상 경로는 성인 검사를 거친 RPC이고, 0246의 status 계수 쓰기는 기존 enabled를 바꾸지 않는다. 일반 앱 경로의 반례는 찾지 못했다. 운영 DB 재조회·SQL 실행은 하지 않았다.
+- `controller.ts`는 자격/가용성을 먼저 검사하고 `use-clock-weather.ts`는 grant만 전달한다. 가려진 OFF가 opt-in이나 위치 호출을 열거나 철회 성공으로 확정하는 경로는 찾지 못했으며 두 파일은 그대로다.
+- 관련 검사 8 suites / 207 통과, 판정·채택·접근성·방문 증거·write/동일 revision 변이 15/15 검출 후 bytes 복원. 0235 증가·0246 멱등 응답 fixture는 응답식 모사이며 SQL 실행 증거가 아니다. 단계별 verify는 `E:/Coding Infra/reports/qa-legacy-261004/verify/n11-g3client-fix4-<단계>.log`, 통합은 `n11-g3consent-clientfix4-<단계>.log`; 최종 수치는 두 PR 본문에 남긴다.
+- 두 PR은 draft 유지. 5회차 외부 daybreak 판정·main 머지·운영 DB/Edge·게시·APK·QA 로그인·기기 검증과 G3-01은 수행하지 않았다. 이번 구현 범위의 DB·Edge·마이그레이션·SQL 테스트 변경은 0이다.
+
 ## 2026-10-11 / Codex: 날씨 동의 앱 4회차 (#2243 · #2242)
 
 - daybreak 3회차 발견 1(`n7-g3client-daybreak-r3.txt`): 조회의 OFF는 자격으로 가려진 값일 수 있어 철회 성공 증거로 쓰지 않는다. 첫 충돌 뒤 최신 revision으로 revoke를 한 번 보내고, 재충돌은 마지막 조회 없이 실패한다. 성공 commit은 검증한 write 응답 뒤에만 한다(최대 요청 3회).

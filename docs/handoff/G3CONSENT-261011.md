@@ -4,6 +4,13 @@
 1회차 기반 `f5655a92`, 2회차 PR-A 기반 `origin/main 85063f6f`.
 운영 적용·머지·배포·기능 플래그 변경 없음. draft PR까지만 위임받았다.
 
+## PR-A 5회차 (2026-10-11)
+
+- `n7-g3client-daybreak-r4.txt` 발견 1(G3-03): PR-A `54196827`을 일반 merge했다. 표시·제어·확정은 `consentEvidence`를 사용한다. 실패한 철회의 error.latest는 ON만 채택하며 OFF·미확인은 기존 snapshot과 재철회 경로를 유지한다. 이전 절의 무조건적인 오류 snapshot 표시 설명을 대체한다.
+- 성공 revoke write의 OFF는 그 화면 방문 동안만 확인된 상태다. **해당 계정의 다음 방문 조회가 OFF/eligible=false이면 다시 미확인(button, checked 없음)으로 보인다.** 미확인 snapshot도 가진 revision으로 철회하며, 조회 실패의 null만 요청에 0을 쓴다. 요청 상한·revision 검사·미성년·opt-in·문구·배치는 유지했다.
+- 0232:38-61의 모든 users INSERT/UPDATE 트리거가 자격/프로필 설정 변경 시 저장 OFF·revision 증가·revoke 이벤트를 같은 트랜잭션에서 남김을 코드로 확인했다. 0235와 0246의 응답식은 저장값을 가린다. 정상 users/RPC 경로에서 저장 ON이 남는 반례를 찾지 못했지만 방어 판정은 그대로 적용했다. 운영 DB 재조회·SQL 실행 증거는 아니다.
+- PR-A 관련 8 suites / 207 통과, 변이 15/15 검출·bytes 복원, verify 26/26 exit 0, Jest 1,021 suites / 14,935 통과 / skip 1. gpt-6.1-sol xhigh 독립 정적 검토의 새 high/medium 0. 통합 verify 로그는 `E:/Coding Infra/reports/qa-legacy-261004/verify/n11-g3consent-clientfix4-<단계>.log`; 통합 수치와 `235dcb57..HEAD --stat`은 PR 본문에 남긴다. 이번 통합의 DB·Edge·마이그레이션·SQL 테스트 diff는 0이다. 두 PR draft 유지, 5회차 daybreak·운영 적용·main 머지·배포·APK·기기 검증은 수행하지 않았다.
+
 ## PR-A 4회차 (2026-10-11)
 
 - `n7-g3client-daybreak-r3.txt` 발견 1: 가려진 OFF를 저장된 철회로 오인하던 갈래를 제거했다. PR-A `be43e701`을 일반 merge하며 앱 파일을 맞췄다. 이전 회차의 조회 OFF만으로 성공한다는 설명은 이 절로 대체한다.

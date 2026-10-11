@@ -7,6 +7,7 @@ import { coarsePlace, type CoarsePlace } from "../location/weather-location";
 import { WEATHER_LOCATION_ENABLED } from "../location/weather-location-gate";
 import { beginPrivacyChange, beginPrivacyGrant, commitPrivacyChange } from "../privacy/changes";
 import { decodeConsent, decodeWeather, selectWeather, WEATHER_CACHE_MS, WEATHER_CONSENT_REVISION, WEATHER_TIMEOUT_MS, type WeatherConsent, type WeatherReading, type WeatherStation } from "./model";
+import { consentEvidence } from "./consent-evidence";
 
 export class WeatherConsentConflictError extends Error {
   constructor(readonly latest?: WeatherConsent) { super("weather_changed"); }
@@ -80,12 +81,12 @@ export async function saveWeatherConsent(ownerId: string, status: WeatherConsent
     try { next = await write(baseline); }
     catch {
       assertCurrent();
-      // No final status read or further retry. This snapshot is only for the error display.
+      // No final read or further retry. The UI may adopt this snapshot only if it confirms ON.
       throw new WeatherConsentConflictError(latest);
     }
   }
   assertCurrent();
-  if (next.enabled !== enabled) throw new Error("weather_not_saved");
+  if (consentEvidence(next, !enabled) !== (enabled ? "on" : "off")) throw new Error("weather_not_saved");
   assertConsentProgress(baseline, next);
   commitPrivacyChange(ownerId, revision, prefs);
   return next;

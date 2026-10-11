@@ -16,9 +16,11 @@ jest.mock("../../supabase/captured-session-client", () => ({ invokeFunctionWithC
 import { createWeatherReader, loadWeatherConsent, saveWeatherConsent, WeatherConsentConflictError } from "../client";
 import { WEATHER_CACHE_MS, WEATHER_CONSENT_REVISION, type WeatherConsent } from "../model";
 import { currentPrivacyChange, resetPrivacyChangesForTests, beginPrivacyChange, subscribePrivacyChanges } from "../../privacy/changes";
+import * as privacyChanges from "../../privacy/changes";
+import { consentAfterFailedRevoke, consentEvidence } from "../consent-evidence";
 
 beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(new Date("2026-10-07T05:00:00Z")); invoke.mockReset(); resetPrivacyChangesForTests(); mockOwnerCurrent = true; });
-afterEach(() => { jest.useRealTimers(); });
+afterEach(() => { jest.restoreAllMocks(); jest.useRealTimers(); });
 const response = (observedAt = new Date().toISOString()) => ({ data: { source: "noaa-metar", stations: [
   { id: "SEOU", latitude: 37.57, longitude: 126.98, tempC: 17.5, sky: "partlyCloudy", observedAt },
   { id: "ZERO", latitude: 0, longitude: 0, tempC: 22, sky: "clear", observedAt },
@@ -267,7 +269,7 @@ test.each([consent(5, true), consent(5, false), { ...consent(5, false), eligible
       .mockResolvedValueOnce(saved(6, false)); // Must never read this apparent success.
     const pending = saveWeatherConsent("owner", consent(4, true), false, "en");
     await expect(pending).rejects.toBeInstanceOf(WeatherConsentConflictError);
-    await expect(pending).rejects.toMatchObject({ latest }); // Display only, not a saved withdrawal.
+    await expect(pending).rejects.toMatchObject({ latest }); // Only ON evidence may replace the visible snapshot.
     expect(invoke).toHaveBeenCalledTimes(3);
     expect(invoke.mock.calls.map((call) => call[2].body.action)).toEqual(["revoke", "status", "revoke"]);
     expect(invoke.mock.calls[2][2].body.revision).toBe(latest.revision);
@@ -276,6 +278,74 @@ test.each([consent(5, true), consent(5, false), { ...consent(5, false), eligible
     stop();
   },
 );
+
+describe.each(["0235", "0246"] as const)("%s response evidence across client and UI policy", (dialect) => {
+  // Both SQL versions mask enabled with eligibility/profile settings. An injected 409 in the
+  // 0246 fixture is defensive transport coverage: its normal stale revoke succeeds directly.
+  const fixture = (revision: number, stored: boolean, eligible: boolean, action: "status" | "grant" | "revoke", profile = true) => ({
+    data: { ...consent(revision, false), enabled: stored && eligible && (action === "grant" || profile), eligible }, error: null,
+  });
+
+  test("ON/4 -> 409 -> masked OFF/5 -> 503 retains ON, allows another withdrawal and never commits", async () => {
+    const commit = jest.spyOn(privacyChanges, "commitPrivacyChange");
+    const previous = consent(4, true);
+    invoke.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(fixture(5, true, false, "status"))
+      .mockResolvedValueOnce({ data: null, error: { context: { status: 503 } } });
+    const error = await saveWeatherConsent("owner", previous, false, "ko").catch((value: unknown) => value);
+    expect(error).toBeInstanceOf(WeatherConsentConflictError);
+    const visible = consentAfterFailedRevoke(previous, (error as WeatherConsentConflictError).latest);
+    expect(visible).toBe(previous);
+    expect(consentEvidence(visible)).toBe("on"); // The UI contract permits another press for ON.
+    expect(commit).not.toHaveBeenCalled();
+    expect(invoke.mock.calls.map((call) => [call[2].body.action, call[2].body.revision])).toEqual([
+      ["revoke", 4], ["status", undefined], ["revoke", 5],
+    ]);
+  });
+
+  test("the same masked conflict followed by a successful OFF/6 write displays OFF and commits once", async () => {
+    const commit = jest.spyOn(privacyChanges, "commitPrivacyChange");
+    invoke.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(fixture(5, true, false, "status"))
+      .mockResolvedValueOnce(fixture(6, false, false, "revoke"));
+    const next = await saveWeatherConsent("owner", consent(4, true), false, "ko");
+    expect(consentEvidence(next, true)).toBe("off");
+    expect(consentEvidence(next)).toBe("unknown"); // Re-entering cannot reuse the successful-write evidence.
+    expect(commit).toHaveBeenCalledTimes(1);
+    expect(invoke).toHaveBeenCalledTimes(3);
+  });
+
+  test("an initial masked OFF/5 stays unknown and supplies revision 5 to its successful revoke", async () => {
+    const commit = jest.spyOn(privacyChanges, "commitPrivacyChange");
+    invoke.mockResolvedValueOnce(fixture(5, false, false, "status"))
+      .mockResolvedValueOnce(fixture(dialect === "0235" ? 6 : 5, false, false, "revoke"));
+    const initial = await loadWeatherConsent("owner");
+    expect(consentEvidence(initial)).toBe("unknown");
+    const next = await saveWeatherConsent("owner", initial, false, "ko");
+    expect(invoke.mock.calls[1][2].body).toMatchObject({ action: "revoke", revision: 5 });
+    expect(consentEvidence(next, true)).toBe("off");
+    expect(commit).toHaveBeenCalledTimes(1);
+  });
+
+  test("an initial eligible OFF/5 is confirmed OFF without a write", async () => {
+    const commit = jest.spyOn(privacyChanges, "commitPrivacyChange");
+    invoke.mockResolvedValueOnce(fixture(5, false, true, "status"));
+    expect(consentEvidence(await loadWeatherConsent("owner"))).toBe("off");
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  test("a failed retry may adopt ON/7 from another device and still never commits", async () => {
+    const commit = jest.spyOn(privacyChanges, "commitPrivacyChange");
+    const latest = fixture(7, true, true, "status");
+    invoke.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(latest)
+      .mockResolvedValueOnce({ data: null, error: { context: { status: 503 } } });
+    const error = await saveWeatherConsent("owner", consent(4, true), false, "ko").catch((value: unknown) => value);
+    expect(error).toBeInstanceOf(WeatherConsentConflictError);
+    const visible = consentAfterFailedRevoke(consent(4, true), (error as WeatherConsentConflictError).latest);
+    expect(visible).toEqual(latest.data);
+    expect(consentEvidence(visible)).toBe("on");
+    expect(commit).not.toHaveBeenCalled();
+  });
+});
 
 test.each([429, 503])("does not retry or refresh a non-conflict HTTP %s", async (status) => {
   invoke.mockResolvedValue({ data: null, error: { context: { status } } });
