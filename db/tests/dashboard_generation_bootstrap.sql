@@ -81,7 +81,48 @@ END $$;
 -- Keep the migration but roll back only fixture data via the account cascade.
 DELETE FROM auth.users WHERE id::text LIKE '00000000-0000-0000-0000-00000000002%';
 COMMIT;
+BEGIN;
+-- Applying 0245 to existing W1 rows must run the existing retention policy,
+-- preserve rows at/below 48h and leave every completion function/ACL intact.
+INSERT INTO auth.users(id) VALUES('00000000-0000-0000-0000-000000000059');
+INSERT INTO public.users(id) VALUES('00000000-0000-0000-0000-000000000059');
+INSERT INTO public.dashboard_generation_runs(user_id,purpose,request_key,source_hash,consent_token,status,output,created_at,expires_at)
+SELECT '00000000-0000-0000-0000-000000000059','daily_note',label,'x',repeat('a',64),'ready','{"line":"keep"}',
+  now()-age,now()+expiry FROM (VALUES
+    ('seed-recent',interval '47 hours',interval '1 hour'),
+    ('seed-boundary',interval '48 hours',interval '1 hour'),
+    ('seed-expired',interval '2 hours',interval '-1 hour'),
+    ('seed-old',interval '49 hours',interval '-1 hour')) fixture(label,age,expiry);
+CREATE TEMP TABLE dashboard_pre_0245_functions ON COMMIT DROP AS
+  SELECT oid,proname,pg_get_functiondef(oid) AS definition,proacl FROM pg_proc WHERE pronamespace='public'::regnamespace
+    AND proname IN ('dashboard_generation_guard','dashboard_generation_finish',
+      'dashboard_generation_audit_attempt','dashboard_generation_audit_result');
+\ir ../migrations/0245_dashboard_retention_heartbeat.sql
+DO $$ BEGIN
+  IF NOT public.dashboard_generation_retention_ready() THEN RAISE EXCEPTION '0245 seed not fresh'; END IF;
+  IF (SELECT count(output) FROM public.dashboard_generation_runs WHERE request_key IN ('seed-recent','seed-boundary'))<>2 OR
+    EXISTS(SELECT 1 FROM public.dashboard_generation_runs WHERE request_key='seed-old') OR
+    NOT EXISTS(SELECT 1 FROM public.dashboard_generation_runs WHERE request_key='seed-expired' AND output IS NULL AND status='failed') THEN
+    RAISE EXCEPTION '0245 apply changed 48h/expiry policy';
+  END IF;
+  IF (SELECT count(*) FROM dashboard_pre_0245_functions)<>4 OR EXISTS(
+    SELECT 1 FROM dashboard_pre_0245_functions b LEFT JOIN pg_proc p ON p.oid=b.oid
+    WHERE p.oid IS NULL OR b.definition IS DISTINCT FROM pg_get_functiondef(p.oid) OR b.proacl IS DISTINCT FROM p.proacl) THEN
+    RAISE EXCEPTION '0245 changed deployed completion functions or grants';
+  END IF;
+END $$;
+DELETE FROM auth.users WHERE id='00000000-0000-0000-0000-000000000059';
+COMMIT;
+-- Same RPCs called by the old Edge must work with the new DB.
+\ir dashboard_generation_regression.sql
 \ir dashboard_generation_audit_withdrawal_regression.sql
+\ir dashboard_retention_heartbeat_regression.sql
 
+-- The unrelated A03 draft replaces request; isolate it so the runner's later
+-- concurrent W1 tests still exercise the deployed request plus 0245 heartbeat.
+CREATE TEMP TABLE dashboard_request_before_draft AS
+  SELECT pg_get_functiondef('public.dashboard_generation_request(uuid,text,text,text)'::regprocedure) AS definition;
 \ir ../migration-drafts/UNNUMBERED_dashboard_last_note.sql
 \ir dashboard_last_note_regression.sql
+DO $$ BEGIN EXECUTE (SELECT definition FROM dashboard_request_before_draft); END $$;
+DROP TABLE dashboard_request_before_draft;
