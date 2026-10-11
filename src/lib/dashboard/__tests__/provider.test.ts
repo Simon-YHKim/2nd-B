@@ -64,6 +64,7 @@ test("ambiguous dispatch is audited, settled and never refunded or retried", asy
   const f = fixture(); f.deps.fetch.mockRejectedValue(new Error("private upstream details"));
   await expect(f.run()).rejects.toThrow("dashboard_generation_unavailable");
   expect(f.deps.fetch).toHaveBeenCalledTimes(1); expect(f.deps.rpc.mock.calls.filter(([name]) => name === "dashboard_generation_audit_result")).toHaveLength(1);
+  expect(f.deps.rpc).toHaveBeenCalledWith("dashboard_generation_audit_result", expect.objectContaining({ p_outcome: "transport_failed", p_total_tokens: null }));
   expect(f.deps.rpc.mock.calls.map(([name]) => name)).toContain("settle_llm_proxy_capacity");
   expect(f.deps.rpc.mock.calls.map(([name]) => name)).not.toContain("refund_gemini_spend");
 });
@@ -101,7 +102,7 @@ test.each(['Prose {"line":"Read"}', '```json\n{"line":"Read"}\n``` trailing', '{
 test("an upstream error records its status without returning or logging its body", async () => {
   const f = fixture(); f.deps.fetch.mockResolvedValue(new Response('private provider details', { status: 429 }));
   await expect(f.run()).rejects.toThrow("unavailable");
-  expect(f.deps.rpc).toHaveBeenCalledWith("dashboard_generation_audit_result", expect.objectContaining({ p_outcome: "http_429" }));
+  expect(f.deps.rpc).toHaveBeenCalledWith("dashboard_generation_audit_result", expect.objectContaining({ p_outcome: "http_429", p_total_tokens: null }));
   expect(JSON.stringify(f.deps.rpc.mock.calls.filter(([name]) => name.startsWith("dashboard_generation_audit")))).not.toContain('private provider details');
 });
 test("a rejected unsafe output records the red classification in the audit", async () => {

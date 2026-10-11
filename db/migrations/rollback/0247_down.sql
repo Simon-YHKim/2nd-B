@@ -1,16 +1,14 @@
--- DRAFT: console owner numbers/applies after regression checks. Not applied by this PR.
--- Keep the last valid daily note while waiting. Never extend its 24-hour retention.
--- No retries, new paid calls, purpose merging or client table access.
--- Forward-only correction: truthful empty and waiting states.
--- Preserves source guards, service-only ACLs, quotas and every prior attempt.
+-- Revert only A03 / G5-04 to the exact 0245 request and ACLs.
+-- No rows, retention heartbeat, audit functions or other W1 functions are changed.
 CREATE OR REPLACE FUNCTION public.dashboard_generation_request(p_user_id uuid,p_action text,p_timezone text DEFAULT NULL,p_locale text DEFAULT NULL) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET row_security=off AS $$
 DECLARE c jsonb; s public.dashboard_generation_settings%ROWTYPE; r public.dashboard_generation_runs%ROWTYPE;
-  wall timestamp; slot text; slot_day date; v_purpose text; key text; source jsonb; v_source_hash text; expiry timestamptz; previous_note jsonb;
+  wall timestamp; slot text; slot_day date; v_purpose text; key text; source jsonb; v_source_hash text; expiry timestamptz;
 BEGIN
   IF p_action IS NULL OR p_action NOT IN ('open','summary','triage','hourly') THEN RAISE EXCEPTION 'dashboard_action' USING ERRCODE='22023'; END IF;
   c := public.dashboard_generation_guard(p_user_id);
   IF c IS NULL THEN RETURN jsonb_build_object('kind','denied'); END IF;
+  IF NOT public.dashboard_generation_retention_ready() THEN RETURN jsonb_build_object('kind','denied'); END IF;
   -- Guard's owner row lock serializes quota and idempotency, including timezone edits.
   SELECT * INTO s FROM public.dashboard_generation_settings WHERE user_id=p_user_id;
   IF p_action <> 'hourly' THEN
@@ -37,28 +35,6 @@ BEGIN
   v_source_hash := md5(source::text);
   -- Empty input wins over old attempts; keep the attempt ledger intact.
   IF jsonb_array_length(coalesce(source->'reminders',source->'inboxCandidates'))=0 THEN RETURN jsonb_build_object('kind','empty'); END IF;
-  -- Only the read action may use a previous note. Its current consent and every
-  -- evidence reference must survive; completed routines remain valid evidence.
-  IF p_action='open' THEN
-    SELECT jsonb_build_object('kind','ready','purpose','daily_note','slot',g.output->>'slot',
-      'value',g.output,'source',source,'generatedAt',g.created_at,'previous',true)
-    INTO previous_note FROM public.dashboard_generation_runs g
-    WHERE g.user_id=p_user_id AND g.purpose='daily_note' AND g.status='ready'
-      AND g.output IS NOT NULL AND g.expires_at>now() AND g.consent_token=c->>'token'
-      AND jsonb_array_length(g.output->'basis_refs')>0
-      AND NOT EXISTS (
-        SELECT 1 FROM (
-          SELECT value AS ref FROM jsonb_array_elements(g.output->'basis_refs')
-          UNION ALL
-          SELECT value->'source_ref' FROM jsonb_array_elements(g.output->'reminder_suggestions')
-        ) evidence WHERE NOT EXISTS (
-          SELECT 1 FROM jsonb_array_elements(source->'reminders') candidate
-          WHERE candidate->>'id'=evidence.ref->>'id'
-            AND CASE WHEN candidate->>'kind'='routine' THEN 'routine' ELSE 'reminder' END=evidence.ref->>'kind'
-        )
-      )
-    ORDER BY g.created_at DESC LIMIT 1;
-  END IF;
   key := CASE v_purpose WHEN 'daily_note' THEN slot_day::text||':'||slot
     WHEN 'day_summary' THEN floor(extract(epoch FROM now())/1800)::text
     ELSE wall::date::text||':'||v_source_hash END;
@@ -67,14 +43,13 @@ BEGIN
     SELECT * INTO r FROM public.dashboard_generation_runs g WHERE g.user_id=p_user_id AND g.purpose=v_purpose
       AND g.status='ready' AND g.expires_at>now() AND g.consent_token=c->>'token' AND g.source_hash=v_source_hash
       ORDER BY g.created_at DESC LIMIT 1;
-    IF FOUND THEN RETURN jsonb_build_object('kind','ready','purpose',v_purpose,'slot',slot,'value',r.output,'source',source,'generatedAt',r.created_at,'previous',false); END IF;
+    IF FOUND THEN RETURN jsonb_build_object('kind','ready','purpose',v_purpose,'slot',slot,'value',r.output,'source',source); END IF;
   END IF;
   SELECT * INTO r FROM public.dashboard_generation_runs g WHERE g.user_id=p_user_id AND g.purpose=v_purpose AND g.request_key=key;
   IF FOUND THEN
     IF r.status='ready' AND r.expires_at>now() AND r.consent_token=c->>'token' AND r.source_hash=v_source_hash THEN
-      RETURN jsonb_build_object('kind','ready','purpose',v_purpose,'slot',slot,'value',r.output,'source',source,'generatedAt',r.created_at,'previous',false);
+      RETURN jsonb_build_object('kind','ready','purpose',v_purpose,'slot',slot,'value',r.output,'source',source);
     END IF;
-    IF previous_note IS NOT NULL THEN RETURN previous_note; END IF;
     -- Only an in-flight lease is busy. Terminal or stale attempts wait for
     -- the next allowed key; they are never retried automatically.
     RETURN jsonb_build_object('kind',CASE WHEN r.status IN ('pending','dispatched')
@@ -86,7 +61,6 @@ BEGIN
   IF (SELECT count(*) FROM public.dashboard_generation_runs g WHERE g.user_id=p_user_id AND g.purpose=v_purpose
       AND ((g.created_at AT TIME ZONE s.timezone)::date=wall::date OR
         (g.created_at AT TIME ZONE 'UTC')::date=(now() AT TIME ZONE 'UTC')::date)) >= (CASE WHEN v_purpose='daily_note' THEN 3 ELSE 48 END) THEN
-    IF previous_note IS NOT NULL THEN RETURN previous_note; END IF;
     RETURN jsonb_build_object('kind','limited');
   END IF;
   INSERT INTO public.dashboard_generation_runs(user_id,purpose,request_key,source_hash,consent_token,expires_at)
@@ -95,5 +69,10 @@ BEGIN
     'source',source,'consent_token',c->>'token');
 END $$;
 
-REVOKE ALL ON FUNCTION public.dashboard_generation_request(uuid,text,text,text) FROM PUBLIC,anon,authenticated,service_role;
-GRANT EXECUTE ON FUNCTION public.dashboard_generation_request(uuid,text,text,text) TO service_role;
+REVOKE ALL ON FUNCTION public.dashboard_generation_retention_ready(),
+  public.dashboard_generation_request(uuid,text,text,text),
+  public.dashboard_generation_dispatch(uuid,uuid),public.purge_dashboard_generation()
+  FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.dashboard_generation_retention_ready(),
+  public.dashboard_generation_request(uuid,text,text,text),
+  public.dashboard_generation_dispatch(uuid,uuid),public.purge_dashboard_generation() TO service_role;
