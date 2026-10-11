@@ -5,10 +5,22 @@ import ts from "typescript";
 import type { SevenStarId } from "../../persona/seven-stars";
 import type { OpsRoutine } from "../../ops/routines";
 
+const mockRows = new Map<unknown, Record<string, unknown>>();
+let mockLoseResponse = false;
+const mockListSelect = jest.fn();
 const mockUpsert = jest.fn((row: Record<string, unknown>) => ({
-  select: () => ({ single: async () => ({ data: { ...row, created_at: "2026-10-11T00:00:00Z" }, error: null }) }),
+  select: () => ({ single: async () => {
+    mockRows.set(row.id, row);
+    if (mockLoseResponse) {
+      mockLoseResponse = false;
+      throw new Error("lost response after commit");
+    }
+    return { data: { ...row, created_at: "2026-10-11T00:00:00Z" }, error: null };
+  } }),
 }));
-jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => ({ from: () => ({ upsert: mockUpsert }) }) }));
+jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => ({ from: () => ({
+  upsert: mockUpsert, select: mockListSelect,
+}) }) }));
 
 let session: typeof import("../routine-save");
 let account: typeof import("../../auth/account-epoch");
@@ -22,7 +34,7 @@ function startProcess() {
   });
   account.noteResolvedOwner("owner-a");
 }
-beforeEach(() => { jest.clearAllMocks(); startProcess(); });
+beforeEach(() => { jest.clearAllMocks(); mockRows.clear(); mockLoseResponse = false; startProcess(); });
 function switchOwner(owner: string | null) {
   account.beginAccountOwnerTransition(owner);
   account.noteResolvedOwner(owner);
@@ -133,27 +145,13 @@ const existingRoutine = (patch: Partial<OpsRoutine> = {}): OpsRoutine => ({
   duration_minutes: null, checklist: [], active: true, created_at: "2026-10-10T00:00:00Z", ...patch,
 });
 
-test("an existing active routine, including a legacy ID, marks saved with zero saves", async () => {
-  const view = mountSave({ list: jest.fn().mockResolvedValue([existingRoutine()]) });
-  await view.save();
-  expect(view.list).toHaveBeenCalledTimes(1);
-  expect(view.list).toHaveBeenCalledWith("owner-a");
-  expect(view.create).not.toHaveBeenCalled();
-  expect(view.setSaved).toHaveBeenCalledWith(true);
-});
-
 test.each([
   ["no rows", []],
-  ["different domain", [existingRoutine({ domain_id: "daily_focus" })]],
-  ["different title", [existingRoutine({ title: "Another step" })]],
-  ["weekly recurrence", [existingRoutine({ recurrence: "weekly" })]],
-  ["one-off recurrence", [existingRoutine({ recurrence: "none" })]],
-  ["inactive rows only", [existingRoutine({ active: false })]],
-  ["a different owner", [existingRoutine({ user_id: "owner-b" })]],
-] as const)("%s sends one save and marks saved", async (_label, rows) => {
+  ["R2260-02 same-title daily routine from another screen", [existingRoutine()]],
+] as const)("%s sends one save without reading routines", async (_label, rows) => {
   const view = mountSave({ list: jest.fn().mockResolvedValue(rows) });
   await view.save();
-  expect(view.list).toHaveBeenCalledTimes(1);
+  expect(view.list).not.toHaveBeenCalled();
   expect(view.create).toHaveBeenCalledTimes(1);
   expect(view.create).toHaveBeenCalledWith("owner-a", "career_check", expect.objectContaining({
     title: "Next step", recurrence: "daily",
@@ -162,53 +160,42 @@ test.each([
   expect(view.setSaved).toHaveBeenCalledWith(true);
 });
 
-test("read failure still upserts once with the session UUID", async () => {
-  const view = mountSave({ list: jest.fn().mockRejectedValue(new Error("offline read")) });
+test("saving has no dependency on routine-list availability", async () => {
+  const view = mountSave({ list: jest.fn(() => { throw new Error("unexpected routine read"); }) });
   await view.save();
+  expect(view.list).not.toHaveBeenCalled();
   expect(view.create).toHaveBeenCalledTimes(1);
   expect(view.setSaved).toHaveBeenCalledWith(true);
 });
 
-test("the ref spans the pending read: second tap adds neither reads nor saves", async () => {
+test("the ref locks before the first await: a second tap adds zero save requests", async () => {
   expect(screen).toContain("const savingRef = useRef(false);");
-  const read = deferred<OpsRoutine[]>();
-  const view = mountSave({ list: jest.fn(() => read.promise) });
-  const first = view.save();
-  const second = view.save();
-  expect(view.create).not.toHaveBeenCalled();
-  expect(view.setSaved).not.toHaveBeenCalled();
-  read.resolve([]);
-  await Promise.all([first, second]);
-  expect(view.list).toHaveBeenCalledTimes(1);
-  expect(view.create).toHaveBeenCalledTimes(1);
-  expect(view.setSaved).toHaveBeenCalledTimes(1);
-  expect(view.savingRef.current).toBe(false);
-});
-
-test("the ref remains locked through the pending save", async () => {
   const pending = deferred<void>();
-  const entered = deferred<void>();
-  const view = mountSave({ create: jest.fn(() => { entered.resolve(); return pending.promise; }) });
+  const view = mountSave({ create: jest.fn(() => pending.promise) });
   const first = view.save();
-  await entered.promise;
+  expect(view.savingRef.current).toBe(true);
+  expect(view.create).toHaveBeenCalledTimes(1);
   const second = view.save();
+  expect(view.create).toHaveBeenCalledTimes(1);
   expect(view.setSaved).not.toHaveBeenCalled();
   pending.resolve();
   await Promise.all([first, second]);
-  expect(view.list).toHaveBeenCalledTimes(1);
+  expect(view.list).not.toHaveBeenCalled();
   expect(view.create).toHaveBeenCalledTimes(1);
   expect(view.setSaved).toHaveBeenCalledTimes(1);
+  expect(view.savingRef.current).toBe(false);
 });
 
-test("read/write failures, navigation and retry retain the session UUID", async () => {
+test("a thrown save, retry and navigation retain the session UUID", async () => {
   const create = jest.fn().mockRejectedValueOnce(new Error("lost response")).mockResolvedValue(undefined);
-  const list = jest.fn().mockRejectedValue(new Error("read unavailable"));
-  const view = mountSave({ create, list });
+  const view = mountSave({ create });
   await view.save();
   expect(view.setSaved).not.toHaveBeenCalled();
   expect(view.savingRef.current).toBe(false);
   await view.save();
-  await mountSave({ create, list }).save();
+  expect(view.setSaved).toHaveBeenCalledWith(true);
+  await mountSave({ create }).save();
+  expect(create).toHaveBeenCalledTimes(3);
   const firstId = create.mock.calls[0][3].routineId;
   for (const call of create.mock.calls) expect(call[3]).toEqual({ routineId: firstId });
   await mountSave({ create, step: "now" }).save();
@@ -218,25 +205,44 @@ test("read/write failures, navigation and retry retain the session UUID", async 
   expect(create.mock.calls[4][3].routineId).not.toBe(firstId);
 });
 
-test("a read after process restart reuses the previous row without writing", async () => {
-  const previousId = session.weeklyGrowthSessionRoutineId("owner-a", "work");
-  startProcess();
-  const view = mountSave({ list: jest.fn().mockResolvedValue([existingRoutine({ id: previousId })]) });
+test("a committed save with a lost response converges to one row on retry and remount", async () => {
+  const create = jest.fn(routines.createRoutineFromRecommendation);
+  const view = mountSave({ create });
+  mockLoseResponse = true;
   await view.save();
-  expect(view.create).not.toHaveBeenCalled();
+  expect(mockRows.size).toBe(1);
+  expect(view.setSaved).not.toHaveBeenCalled();
+  await view.save();
+  await mountSave({ create }).save();
+  expect(mockUpsert).toHaveBeenCalledTimes(3);
+  expect(mockRows.size).toBe(1);
+  expect(mockListSelect).not.toHaveBeenCalled();
   expect(view.setSaved).toHaveBeenCalledWith(true);
 });
 
-test.each([false, true])("owner change during read cannot save or mark saved (existing=%s)", async existing => {
-  const read = deferred<OpsRoutine[]>();
-  const view = mountSave({ list: jest.fn(() => read.promise) });
-  const pending = view.save();
-  switchOwner("owner-b");
-  read.resolve(existing ? [existingRoutine()] : []);
-  await pending;
-  expect(view.create).not.toHaveBeenCalled();
-  expect(view.setSaved).not.toHaveBeenCalled();
-  expect(view.savingRef.current).toBe(false);
+test.each(["process restart", "account round trip", "legacy server ID"])(
+  "known scope limit: %s can add another row", async scenario => {
+    if (scenario === "legacy server ID") {
+      mockRows.set("old-server-issued-id", { ...existingRoutine() });
+    } else {
+      await mountSave({ create: jest.fn(routines.createRoutineFromRecommendation) }).save();
+      if (scenario === "process restart") startProcess();
+      else { switchOwner("owner-b"); switchOwner("owner-a"); }
+    }
+    expect(mockRows.size).toBe(1);
+    const view = mountSave({ create: jest.fn(routines.createRoutineFromRecommendation) });
+    await view.save();
+    expect(mockRows.size).toBe(2);
+    expect(mockListSelect).not.toHaveBeenCalled();
+    expect(view.setSaved).toHaveBeenCalledWith(true);
+  },
+);
+
+test("the screen only imports the routine writer; session helpers never read routine lists", () => {
+  expect(screen).toMatch(/import \{ createRoutineFromRecommendation \} from "@\/lib\/ops\/routines"/);
+  expect(screen).not.toContain("listActiveRoutines");
+  const helper = readFileSync(resolve(__dirname, "../routine-save.ts"), "utf8");
+  expect(helper).not.toMatch(/ops\/routines|supabase/);
 });
 
 test("owner change during upsert cannot mark the old view saved", async () => {
@@ -251,14 +257,13 @@ test("owner change during upsert cannot mark the old view saved", async () => {
   expect(view.setSaved).not.toHaveBeenCalled();
 });
 
-test("mount does not query routines, and unmounted completion does not update state", async () => {
-  expect(screen.slice(0, screen.indexOf("const saveStep = async () =>")).match(/listActiveRoutines\(/)).toBeNull();
-  const read = deferred<OpsRoutine[]>();
-  const view = mountSave({ list: jest.fn(() => read.promise) });
+test("unmounted save completion does not update state", async () => {
+  const write = deferred<void>();
+  const view = mountSave({ create: jest.fn(() => write.promise) });
   expect(view.list).not.toHaveBeenCalled();
   const pending = view.save();
   view.mounted.current = false;
-  read.resolve([existingRoutine()]);
+  write.resolve();
   await pending;
   expect(view.setSaved).not.toHaveBeenCalled();
 });

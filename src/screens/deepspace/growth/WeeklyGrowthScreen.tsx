@@ -25,7 +25,7 @@ import { useAppRouter } from "@/lib/nav/phone-embed";
 import { gatherWeeklyGrowth } from "@/lib/growth/gather";
 import { startTask } from "@/lib/tasks/store";
 import type { StarChange, WeeklyGrowth } from "@/lib/growth/weekly";
-import { createRoutineFromRecommendation, listActiveRoutines } from "@/lib/ops/routines";
+import { createRoutineFromRecommendation } from "@/lib/ops/routines";
 import { runWeeklyGrowthSave, weeklyGrowthSessionRoutineId } from "@/lib/growth/routine-save";
 import { getSevenStar, type SevenStarId } from "@/lib/persona/seven-stars";
 import type { OpsDomainId } from "@/lib/ops/domains";
@@ -145,13 +145,6 @@ export function WeeklyGrowthScreen() {
           title: stepText(top.id),
           reason: stepObs(top.id),
         };
-        // Reuse legacy/server-issued rows and rows saved before an app restart.
-        // A failed read still permits an upsert with this session's retry ID.
-        const active = await listActiveRoutines(userId).catch(() => []);
-        if (!owner.isCurrent()) throw new Error("Routine owner changed");
-        if (active.some(routine => routine.active && routine.user_id === userId
-          && routine.domain_id === domainId && routine.title === recommendation.title
-          && routine.recurrence === "daily")) return;
         // med#20: without a schedule this saved recurrence=none + reminder=null,
         // so the routine was never "due today" — invisible in the ops list the
         // button promises. Anchor it as a daily 9AM routine (same default the

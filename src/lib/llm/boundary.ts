@@ -25,11 +25,12 @@ import type { LlmVendor } from "./routing";
 import { retrieveEvidence } from "../knowledge/retrieve";
 import { loadDomainLevels } from "../persona/load-domain-levels";
 import { classifyInput, classifyInputAnyLocale, crisisHotlines, type SafetyResult } from "../safety/classifier";
+import { hasCrisisObfuscation } from "../safety/crisis-obfuscation";
 import { getSupabaseClient } from "../supabase/client";
 import { invokeFunctionWithCapturedSession } from "../supabase/captured-session-client";
 import type { CrisisEventInsert } from "../supabase/crisis-events";
 import { enqueueAuditWrite } from "./audit-write-outbox";
-import { classifySafety, fixedCrisisResponse } from "./safety";
+import { classifyObfuscatedInput, classifySafety, fixedCrisisResponse, noteObfuscationUnavailable } from "./safety";
 import {
   MODELS,
   PURPOSE_TIER,
@@ -503,6 +504,7 @@ async function routeCrisis(
     recordCrisisEvent?: boolean;
     purpose?: string;
     session?: AuthenticatedAccountSessionLease;
+    classifierConfidence?: number;
   } = {},
 ): Promise<LlmResult<string>> {
   if (opts.session?.userId !== undefined && opts.session.userId !== userId) {
@@ -539,8 +541,9 @@ async function routeCrisis(
   // Separate restricted ledger (crisis_events), parity with callAdvisor's input-RED
   // path. Without this every callLlm surface (chat/journal/interview/persona/
   // import/clipper/phase1) intercepted a crisis but left NO categorical trace in the
-  // restricted log. routeCrisis only has the lexicon classifier's fields, so map
-  // them conservatively (RED confidence 0.95 like lexiconToResult; no C-SSRS level;
+  // restricted log. Map the classifier fields conservatively (RED confidence
+  // 0.95 like lexiconToResult unless a semantic input supplied its measured value;
+  // no C-SSRS level;
   // categories else "lexicon_match", tagged with sourceTag — input_red for the
   // client short-circuit, proxy_input_red for a confirmed server-gate 422
   // fallback, proxy_input_red_unconfirmed for an unreadable 422 UX fail-safe —
@@ -556,7 +559,7 @@ async function routeCrisis(
     await writeCrisisEvent(
       userId,
       {
-        classifierConfidence: 0.95,
+        classifierConfidence: opts.classifierConfidence ?? 0.95,
         triggerCategories: [...lexCategories, sourceTag],
         routingTemplateVersion: "routecrisis-inline-v1",
         locale,
@@ -616,6 +619,34 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       "input_red",
       { purpose: input.purpose, session: input.session },
     )) as unknown as LlmResult<T>;
+  }
+
+  // Q-261011-05: lexicon first, then app-only obfuscation gate, then meaning.
+  // Neither the gate alone nor an unavailable semantic result changes a verdict.
+  if (
+    input.purpose === "secondb_chat" &&
+    process.env.EXPO_PUBLIC_OBFUSCATION_SAFETY === "true" &&
+    hasCrisisObfuscation(input.user)
+  ) {
+    const semanticInput = await classifyObfuscatedInput(input.user, input.locale, {
+      capturedSession: input.session,
+      signal,
+    });
+    fence();
+    if (semanticInput?.zone === "red") {
+      return (await routeCrisis(
+        { zone: "red", matched: [], categories: ["crisis"] },
+        input.locale,
+        input.userId,
+        promptHash,
+        input.minor,
+        "input_semantic_red",
+        { purpose: input.purpose, session: input.session, classifierConfidence: semanticInput.confidence },
+      )) as unknown as LlmResult<T>;
+    }
+    if (semanticInput === null) {
+      noteObfuscationUnavailable(input.userId, inputSafety.zone, input.session, signal);
+    }
   }
 
   const env = getEnv();
