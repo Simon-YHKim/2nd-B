@@ -13,8 +13,9 @@ const RISK_CONTEXT = /삶|인생|목숨|죽|영영|영원히|다시는|유서|�
 // the denial, reported speech, adversatives, uncertainty, or double negation.
 const KO_STANDALONE_DENIAL = /^(?:(?:아니|아니요) )?(?:(?:나는|난|저는|전|내가) )?(?:자살|자해)(?:을|를)? *(?:(?:하려는|할) *(?:건|게|것은|것이) *(?:아냐|아니야|아니에요|아닙니다)|(?:할 *)?생각(?:은|이)? *(?:없어|없어요|없습니다))(?: (?:날|나를|저를) 뭘로 보는 *거(?:야|예요|에요) ?\??)?$/;
 // English keeps its punctuation for this test: a mark inside the sentence is a break
-// ("I'm not. Suicidal."), so only a "no" lead-in and closing marks may surround it.
-const EN_STANDALONE_DENIAL = /^(?:no[,.!…。！]* )?(?:(?:i am|i'm) not suicidal|i (?:do not|don't) want to die)[ .!…。！]*$/;
+// ("I'm not. Suicidal."), so only a "no" lead-in and closing marks may surround it. The lead-in
+// ends with a space or with marks, with or without a space after them ("No,I'm not suicidal.").
+const EN_STANDALONE_DENIAL = /^(?:no(?: |[,.!…。！]+ ?))?(?:(?:i am|i'm) not suicidal|i (?:do not|don't) want to die)[ .!…。！]*$/;
 
 // Explicit everyday objects narrow an ambiguous "finish" occurrence. Keep
 // object boundaries: "일생" (lifetime) must never be treated as "일" (work).
