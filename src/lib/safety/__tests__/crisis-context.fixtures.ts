@@ -28,6 +28,10 @@ export const BENIGN_CRISIS_CONTEXTS = [
   "아뇨, 자살 안 해요.",
   "자살 안 해!!",
   "자살 안 할 거야. 날 뭘로 보는 거야?",
+  // The same sentences as they arrive raw: a line break, decomposed Hangul, full-width marks (KDN-R2).
+  "자살\n안 해",
+  "자살하지 않아요".normalize("NFD"),
+  "아니，자살 안 해！",
   // The same wider lead-ins on the older forms, punctuation in place.
   "나 자살 생각 없어.",
   "제가 자살하려는 게 아니에요.",
@@ -109,6 +113,8 @@ export const RISK_OR_UNRESOLVED_CRISIS_CONTEXTS = [
   "자살, 안 해",
   "나 자살. 생각 없어",
   "자살 안 해.날 뭘로 보는 거야",
+  // A line break does not hide a second clause (KDN-R2).
+  "자살 안 해\n자해는 해",
   // Another act named with the refusal is not the refusal of that act.
   "자살 시도 안 해.",
   "자살 계획 안 해.",
