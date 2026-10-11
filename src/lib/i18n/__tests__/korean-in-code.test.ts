@@ -232,7 +232,9 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/career/achievement-form.ts": 12,
   // characters.ts(12) · chat/personas.ts(12) 는 2026-10-05 에 파일째 E:/Legacy 로 갔다
   // (Simon 결정 Q-261004-14 A). **고친 것이 아니라 빠진 것**이다.
-  "src/lib/chat/conversation.ts": 24,
+  // 24 -> 28: 2026-10-11 Q-261011-11 위기 전화번호 원칙(crisisNumberRule). KO/EN 한 쌍의 모델 지시문이고
+  // UI 문구가 아니다 - 같은 파일의 SYSTEM_PROMPT_HEADER 와 같은 성질이라 번들로 빼지 않는다.
+  "src/lib/chat/conversation.ts": 28,
   "src/lib/chat/keep-exchange.ts": 3,
   "src/lib/chat/rag.ts": 1,
   "src/lib/entitlements/reasoning-cap.ts": 4,
