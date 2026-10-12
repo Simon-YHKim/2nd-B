@@ -118,11 +118,8 @@ COMMIT;
 \ir dashboard_generation_audit_withdrawal_regression.sql
 \ir dashboard_retention_heartbeat_regression.sql
 
--- The unrelated A03 draft replaces request; isolate it so the runner's later
--- concurrent W1 tests still exercise the deployed request plus 0245 heartbeat.
-CREATE TEMP TABLE dashboard_request_before_draft AS
+-- A03 now has a number and remains installed for every later concurrency check.
+CREATE TEMP TABLE dashboard_request_0245 AS
   SELECT pg_get_functiondef('public.dashboard_generation_request(uuid,text,text,text)'::regprocedure) AS definition;
-\ir ../migration-drafts/UNNUMBERED_dashboard_last_note.sql
+\ir ../migrations/0247_dashboard_last_note.sql
 \ir dashboard_last_note_regression.sql
-DO $$ BEGIN EXECUTE (SELECT definition FROM dashboard_request_before_draft); END $$;
-DROP TABLE dashboard_request_before_draft;
