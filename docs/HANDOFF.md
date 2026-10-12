@@ -1,5 +1,18 @@
 # 2nd-Brain Handoff
 
+## 2026-10-12 22:30 / 2ndb-53: 동의 항목 안내의 뒤로(#2307) 머지 · 8081 확인 · 대화 화면 AI 표식 자리 시안 - 다음은 Simon 의 Q-261012-60 ~ 64 답
+
+- **지금까지**: Rufus 7회차 관찰 R1(가입 화면의 동의 [자세히 보기]가 그 항목 위치로 내려간 채 열려 "뒤로"가 화면 밖)을 고쳤다. #2307 머지 22:25 · main `38aabaf0`. 머리줄(‹ + 제목)만 스크롤 밖에 고정했고, 고른 항목으로 내려가 여는 동작은 그대로다. 8081 에서 항목 여섯을 390 · 360 폭으로 다시 쟀다(DECISIONS 26.10.12 22:30). 같은 인계의 R2(별 요약 사다리의 낭독 글 뒤 한 마디)는 의도된 동작이라 고치지 않았다. 대화 화면의 AI 표식 자리 시안 둘을 그려 보고서에 올렸다(2ndb-79 의 Q-261012-30 의 그림 쪽).
+- **다음 1개**: Simon 의 답. 보고서 <https://claude.ai/artifact/XjG4VYfuWrgt7bNVApFwjm> 의 결정 탭(원본 `E:/Coding Infra/reports/codex-audit-261010/ui/ui-consent1012.fragment.html` · 값 `vars_consent.py` · 그림 `prep_consent_imgs.py` · `build_result.py` 로 다시 만든다 · 237KB).
+  - Q-261012-60 · 61 · 62 는 이월 1회다(최초 16:38). 답이 오면 할 일은 아래 16:38 블록에 적은 그대로다.
+  - Q-261012-63(북극성 카드의 위아래로 밀어 닫기 · 추천 그대로): 바꾸게 되면 `src/lib/polaris/card-dismiss.ts` 와 `src/components/deep-space/PolarisCardOverlay.tsx`.
+  - Q-261012-64(AI 표식 자리 · 추천 가 = 답마다 이름 옆): 자리는 `src/app/secondb.tsx` 의 답 이름 줄이다. 그 파일은 오늘 다른 창들이 여러 번 고쳤으니 시작 전에 2ndb-e7 · 2ndb-79 에 알린다. 문구는 Legal 확정 뒤에 넣는다(마케팅 봇 초안 `.bots/marketing/outbox/relay-b1-ai-label-wording-1540.result.md`).
+- **막힌 것**: 없다.
+- **기기에서 볼 것**: 동의 안내의 ‹ 가 열릴 때 보이는지와 TalkBack 의 첫 초점(폰용 빌드 run 38255629897 · `38aabaf0`). 2ndb-79 가 Rufus 다음 회차에 얹는다. 결과 자리는 `.bots/relay/outbox/Q-261012-R7-OBS.result.md`.
+- **확인하지 못한 것**: 폰 안에서 연 북극성 · 별 요약 · 동의 안내. 아래 16:38 블록에 적은 "Android 기기에서의 별 요약 사다리와 북극성 점무늬"는 Rufus 7회차(20:35 ~ 20:55)에서 통과했다(2ndb-79 의 20:56 블록).
+- **알아 둘 것**: ① `src/screens/deepspace/dds-auth-screens.tsx` 는 바이트로 박아 둔 핀이 둘 있다(`src/lib/auth/__tests__/sign-in-screen-contract.test.ts` 의 prefix · `signup-required-acks.test.ts` 의 파일 전체). 그 파일을 고치면 두 테스트가 내는 새 값을 넣고 날짜와 차이를 주석에 적는다. ② `AuthShell` 의 `head` 는 스크롤 밖에 고정되는 자리다. 약관 · 처리방침 · 환불 화면(`dds-legal-doc-screen.tsx`)도 같은 방식으로 맞출 수 있고, 그 파일에 줄을 더하면 푸시 전에 `jest src/lib/legal` 을 돌린다. ③ Simon 의 22:02 「남은작업도 빠짐없이 진행해」는 방향이 정해진 일의 진행에만 쓴다(증명 `.bots/relay/outbox/simon-standing-2026-10-12-2202.md`). 화면 모양을 고르는 질문은 그대로 여쭌다. ④ 재는 스크립트: `E:/Coding Infra/reports/codex-audit-261010/ui/shoot_consent_detail.cjs <주소> <폴더> <이름> [--w --h] [--path]`(로그인 없이 항목 여섯 · `--path` 는 가입 화면에서 눌러 들어갔다 나오기) · `shoot_chat.cjs`(QA 계정으로 대화 화면을 열기만 함 · 보내지 않음) · 시안 그림 `mock_chat_ai.py`. ⑤ 확인용 서버(8082)는 띄우기 전에 다른 창에 알리고 10분 안에 내렸다(커밋 42% · 여유 13GB 에서 다른 창의 Codex 갈래와 전체 검사에 닿지 않았다).
+- **app:parity**: 22:28 에 "같음"(8081 = `38aabaf0`).
+
 ## 2026-10-12 20:56 / 2ndb-79: Rufus 7회차 통과(#2302 · #2292 · #2294) - 오늘 기기 확인은 여기까지 · 다음은 Simon 의 답
 
 - **끝난 것**: Rufus 7회차(20:35 ~ 20:55 · 빌드 run 38237791228 · `5c49e014` · P4a 한 대)에서 2ndb-53 의 화면 수정 다섯 항목이 통과 — 북극성 카드 · 별 요약 · 큰 글자의 생년월일 도움말 · 로그아웃 상태 문서 화면의 뒤로 낭독 · 가입 화면 왼쪽 위 버튼 낭독(DECISIONS 26.10.12 20:55). 북극성 카드 1 의 [승인] 은 누르지 않았다(앞뒤 덤프로 대조).
