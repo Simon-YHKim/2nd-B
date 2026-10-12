@@ -208,7 +208,7 @@ describe("삭제한 사람이 서버가 말한 것을 듣는다", () => {
     );
     expect(signIn).toContain("AccountDeletionNoticePanel");
     // 게스트 가드보다 앞에 있어야 한다. 뒤에 있으면 로딩·리다이렉트가 결과를 밀어낸다.
-    expect(signIn.indexOf("AccountDeletionNoticePanel")).toBeLessThan(signIn.indexOf("if (loading)"));
+    expect(signIn.indexOf('if (branch.kind === "deletion")')).toBeLessThan(signIn.indexOf('if (branch.kind === "loading")'));
   });
 });
 
