@@ -38,6 +38,7 @@ import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { type HotlineId } from "@/lib/safety/lexicon";
 import { MdButton, MdCard, ProgressLinear, SegBtn, m3TextStyle } from "@/components/m3";
 import { composeFourWBody, EMPTY_FOURW, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
+import { forgetCaptureViewDraft, keepCaptureViewDraft, readCaptureViewDraft } from "@/lib/capture/view-draft";
 import {
   MAX_RECORD_PHOTOS,
   RECORD_PHOTOS_ENABLED,
@@ -369,15 +370,21 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
   // rev2 P4a (device QA 2026-07-02) + clone-audit 06-capture: all modes save
   // through the same createRecord(kind:"note") path. Three modes since 2026-09-30
   // (메모 · 링크 · 할 일); photos attach to 메모 instead of a tab of their own.
-  const [mode, setMode] = useState<CaptureMode>("text");
+  // Unsaved writing comes back after a visit to another tab (Z79). Session
+  // memory only; with nothing typed the screen opens on its defaults below.
+  const [kept] = useState(() => readCaptureViewDraft(userId));
+  const [mode, setMode] = useState<CaptureMode>(kept?.mode ?? "text");
   // 2026-10-08 (Simon): 일반 and 4W1H are both visible in a segmented control.
   // Plain text remains the default. Each draft survives format changes; saving
   // uses the visible format's body and its existing "memo" / "fourw" tag.
-  const [fourwOn, setFourwOn] = useState(false);
+  const [fourwOn, setFourwOn] = useState(kept?.fourwOn ?? false);
   const fillAvailableSpace = mode === "link" || (mode === "text" && !fourwOn);
-  const [fourw, setFourw] = useState<FourWFields>(EMPTY_FOURW);
-  const [text, setText] = useState(""); // memo text / link
-  const [todos, setTodos] = useState<string[]>(["", ""]);
+  const [fourw, setFourw] = useState<FourWFields>(kept?.fourw ?? EMPTY_FOURW);
+  const [text, setText] = useState(kept?.text ?? ""); // memo text / link
+  const [todos, setTodos] = useState<string[]>(kept?.todos ?? ["", ""]);
+  useEffect(() => {
+    keepCaptureViewDraft(userId, { mode, fourwOn, text, fourw, todos });
+  }, [userId, mode, fourwOn, text, fourw, todos]);
   // Photos attached to the 글 note (메모 and 4W1H share them). Local previews
   // until save; uploaded to the owner's private Storage folder only on save.
   const [photos, setPhotos] = useState<PickedAttachmentImage[]>([]);
@@ -712,6 +719,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
       // WCAG 4.1.3 status message: the saved outcome is otherwise only a button
       // label/state change, silent to a screen reader. Announce it.
       AccessibilityInfo.announceForAccessibility(t("ds.capture.saved"));
+      forgetCaptureViewDraft(userId);
       setFourw(EMPTY_FOURW);
       setText("");
       setTodos(["", ""]);
