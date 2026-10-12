@@ -166,5 +166,9 @@
       "next": "Siguiente",
       "page": "{{current}} de {{total}}"
     }
+  },
+  "aiMark": {
+    "short": "IA",
+    "spoken": "Esta respuesta la creó la IA."
   }
 }

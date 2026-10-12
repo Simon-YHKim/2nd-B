@@ -66,6 +66,7 @@ import { writeClipboardText } from "@/lib/capture/clipboard";
 import { getWikiPage } from "@/lib/wiki/queries";
 import { LlmConsentError, transcribeAudio, type LlmConsentErrorCode } from "@/lib/llm/boundary";
 import { ServiceConsentLink } from "@/components/consent/ServiceConsentLink";
+import { aiMarkFor } from "@/lib/chat/ai-mark";
 import { isAbortError } from "@/lib/async/abort";
 import {
   createRecorderLifecycle,
@@ -1249,13 +1250,25 @@ function SecondBChatBody() {
                 testID={`chat-message-${turn.role}-${i}`}
                 style={[ds.bubbleRow, turn.role === "user" ? ds.userRow : ds.aiRow]}
               >
-                <View style={[ds.messageHeader, turn.role === "user" && ds.userMessageHeader]} testID={`chat-message-header-${turn.role}-${i}`}>
+                <View style={[ds.messageHeader, turn.role === "user" && ds.userMessageHeader, turn.role === "secondb" && ds.aiMessageHeader]} testID={`chat-message-header-${turn.role}-${i}`}>
                   <ChatMessageAvatar role={turn.role} userAvatar={userAvatar}
                     expression={turn.role === "secondb" ? getExchangeExpression(turns, i) : undefined}
                     label={turn.role === "user" ? userDisplayName : t(`rev2.${turn.persona ?? "secondb"}.lensName`)} />
                   <Text style={[ds.messageName, turn.role === "user" && ds.userMessageName]} testID={`chat-message-name-${turn.role}-${i}`}>
                     {turn.role === "user" ? userDisplayName : t(`rev2.${turn.persona ?? "secondb"}.lensName`)}
                   </Text>
+                  {/* Model answers say they are AI-made: a mark by the name on every answer, the
+                      sentence spelled out once on the first (Simon 2026-10-12). */}
+                  {aiMarkFor(turns, i) !== "none" ? (
+                    <View style={ds.aiMark} accessible accessibilityRole="text" accessibilityLabel={t("aiMark.spoken")} testID={`chat-ai-mark-${i}`}>
+                      <Text style={ds.aiMarkText}>{t("aiMark.short")}</Text>
+                    </View>
+                  ) : null}
+                  {aiMarkFor(turns, i) === "spelled" ? (
+                    <Text style={ds.aiMarkSentence} testID={`chat-ai-sentence-${i}`} accessibilityElementsHidden importantForAccessibility="no">
+                      {t("aiMark.spoken")}
+                    </Text>
+                  ) : null}
                 </View>
                 <View style={ds.bubbleCol}>
                   <Pressable
@@ -1639,6 +1652,11 @@ const ds = StyleSheet.create({
   userMessageHeader: { flexDirection: "row-reverse", alignSelf: "flex-end", width: "100%" },
   messageName: { minWidth: 0, flexShrink: 1, color: deepSpace.textMid, fontSize: 12, lineHeight: 18, paddingBottom: 2, fontFamily: fontFamilies.readable },
   userMessageName: { textAlign: "right" },
+  // The answer's name row may wrap: the spelled-out AI sentence drops under the name on a narrow screen.
+  aiMessageHeader: { flexWrap: "wrap" },
+  aiMark: { borderWidth: 1, borderColor: deepSpace.textMid, paddingHorizontal: 4, paddingVertical: 1 },
+  aiMarkText: { color: deepSpace.textMid, fontSize: 11, lineHeight: 14, fontFamily: fontFamilies.readable },
+  aiMarkSentence: { color: deepSpace.textLo, fontSize: 11, lineHeight: 18, paddingBottom: 2, fontFamily: fontFamilies.readable },
   bubbleCol: { maxWidth: "100%", alignSelf: "stretch", flexShrink: 1, gap: 6, alignItems: "flex-start" },
   // user bubble: M3 primary fill, radius 16/16/4/16 (reference).
   userBubble: {
