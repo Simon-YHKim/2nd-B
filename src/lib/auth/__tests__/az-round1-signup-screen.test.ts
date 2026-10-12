@@ -66,6 +66,8 @@ describe("Z9: sign-in offers what sign-up offers", () => {
     for (const key of ["continueWithGoogle", "continueWithApple", "continueWithKakao", "continueWithFacebook", "continueWithGithub"]) {
       expect(typeof auth.signIn[key]).toBe("string");
     }
-    expect(auth.signIn.continueWithKakao).toBe(auth.signUp.continueWithKakao);
+    // Same sentence as the other sign-in buttons ("Continue with ..."), not the sign-up wording.
+    expect(auth.signIn.continueWithKakao).toBe(auth.signIn.continueWithGoogle.replace("Google", "Kakao"));
+    expect(auth.signIn.continueWithFacebook).toBe(auth.signIn.continueWithGoogle.replace("Google", "Facebook"));
   });
 });
