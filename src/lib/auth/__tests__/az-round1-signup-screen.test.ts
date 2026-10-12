@@ -37,3 +37,35 @@ describe("Z8: the minimum age is said where the birth date is entered", () => {
     expect(signUp).toContain('t("auth:signUp.checkAge", { minAge: minConsentAge })');
   });
 });
+
+// Simon 2026-10-13 (Q-261013-02, Q-261013-03): the sign-in title no longer assumes a returning
+// user, and the sign-in screen offers the same social providers as sign-up.
+describe("Z3: the sign-in title fits a first-time user", () => {
+  test.each([["en", "Sign in"], ["ko", "로그인"], ["es", "Iniciar sesión"], ["pt", "Entrar"], ["id", "Masuk"]])("%s", (lng, title) => {
+    const auth = (JSON.parse(read(`locales/${lng}/deepspace.json`)) as { auth: Record<string, string> }).auth;
+    expect(auth.signInTitle).toBe(title);
+    // The lead under it is the hero line and stays.
+    expect(auth.signInLead.length).toBeGreaterThan(20);
+  });
+});
+
+describe("Z9: sign-in offers what sign-up offers", () => {
+  const providers = read("src/lib/auth/auth-providers.ts");
+  const listed = (source: string, name: string) =>
+    [...(source.match(new RegExp(`${name}[^=]*=\\s*\\[([^\\]]+)\\]`))?.[1] ?? "").matchAll(/"([a-z]+)"/g)].map((m) => m[1]);
+
+  test("the sign-in list is the shared provider list, in order", () => {
+    expect(listed(signIn, "SIGN_IN_PROVIDERS")).toEqual(listed(providers, "SUPABASE_OAUTH_PROVIDERS"));
+    expect(listed(signIn, "SIGN_IN_PROVIDERS")).toContain("kakao");
+    // Still filtered by what is switched on, exactly like sign-up.
+    expect(signIn).toContain("visibleProviders.includes(provider)");
+  });
+
+  test.each(["en", "ko", "es", "pt", "id"])("%s has a sign-in label for every provider", (lng) => {
+    const auth = JSON.parse(read(`locales/${lng}/auth.json`)) as { signIn: Record<string, string>; signUp: Record<string, string> };
+    for (const key of ["continueWithGoogle", "continueWithApple", "continueWithKakao", "continueWithFacebook", "continueWithGithub"]) {
+      expect(typeof auth.signIn[key]).toBe("string");
+    }
+    expect(auth.signIn.continueWithKakao).toBe(auth.signUp.continueWithKakao);
+  });
+});

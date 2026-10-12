@@ -1060,7 +1060,7 @@ results.push(
       // 로그인 화면의 OAuth 허용 목록은 Google · Apple · GitHub 세 종이다.
       // 라벨은 PROVIDER_KEY 맵에 있고 화면은 t(맵[provider]) 로 부른다.
       // Kakao · Naver가 다시 섞이면 제품 결정이 조용히 되돌아가므로 부재도 고정한다.
-      signIn.includes('const SIGN_IN_PROVIDERS = ["google", "apple", "github"] as const') &&
+      signIn.includes('const SIGN_IN_PROVIDERS = ["google", "apple", "kakao", "facebook", "github"] as const') &&
       signIn.includes("accessibilityLabel={t(PROVIDER_KEY[provider])}") &&
       signIn.includes('google: "auth:signIn.continueWithGoogle"') &&
       signIn.includes('apple: "auth:signIn.continueWithApple"') &&
@@ -2696,11 +2696,11 @@ results.push(
     const ok =
       screen.includes('t("deepspace:auth.signInTitle")') &&
       screen.includes('t("deepspace:auth.signInLead")') &&
-      enDeep.includes('"signInTitle": "Good to see you again"') &&
+      enDeep.includes('"signInTitle": "Sign in"') &&
       enDeep.includes(
         '"signInLead": "In the AI era, the asset is you. Your records add up to your North Star."',
       ) &&
-      koDeep.includes('"signInTitle": "다시 만나 반갑습니다"') &&
+      koDeep.includes('"signInTitle": "로그인"') &&
       koDeep.includes(
         '"signInLead": "AI 시대의 자산은 나 자신. 기록이 쌓여 나의 북극성이 됩니다."',
       ) &&
