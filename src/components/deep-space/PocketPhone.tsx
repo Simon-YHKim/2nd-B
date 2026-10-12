@@ -9,6 +9,7 @@ import { useReducedMotionPref } from '@/lib/motion/use-reduced-motion';
 import { POCKET_PHONE_CUE, pocketPhoneCueAllowed } from '@/lib/audio/app-cues';
 import { useUiSound } from '@/lib/audio/use-ui-sound';
 import { createPocketPhoneBackHandler } from '@/lib/nav/pocket-phone-back';
+import { homeCoachmarkBack } from '@/lib/nav/home-coachmark-back';
 export const POCKET_PHONE_WIDTH = 104;
 export const POCKET_PHONE_HEIGHT = 192;
 export const POCKET_PHONE_PEEK = 44;
@@ -107,6 +108,7 @@ export function PocketPhone({ label, openLabel, revealHint, stowHint, active, on
     const onBackPress = createPocketPhoneBackHandler({
       isExpanded: () => expanded.current,
       lower: () => settle(false),
+      isCoachmarkVisible: homeCoachmarkBack.isVisible,
     });
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => sub.remove();
