@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { formatPhoneTime, hasPhoneBoardClock } from "@/lib/dashboard/phone-clock";
+import { formatPhoneTime, hasPhoneBoardClock, noteWrittenAt } from "@/lib/dashboard/phone-clock";
 import { boardFixture } from "@/lib/dashboard/__tests__/fixtures/board-fixtures";
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8").replace(/\r\n/g, "\n");
@@ -116,4 +116,27 @@ test("phonehome-4: first-page headings share a 16px icon and bold caption metric
   expect(parts).not.toContain('remindersTitle:');
   expect(parts).toContain('dayLabel: { flexShrink: 1, minWidth: 0 }');
   expect(parts).toContain('flexShrink: 1, maxWidth: "65%"');
+});
+
+describe("notetime: the written time marks only a note that stands in for the next one", () => {
+  const at = "2026-10-11T05:32:00Z";
+  test("a note written for the current slot shows no time, on the first open or a later one", () => {
+    expect(noteWrittenAt({})).toBeNull();
+    expect(noteWrittenAt({ generatedAt: at })).toBeNull();
+    expect(noteWrittenAt({ generatedAt: at, previous: false })).toBeNull();
+  });
+  test("an earlier note keeps its time, and a missing time is never invented", () => {
+    expect(noteWrittenAt({ generatedAt: at, previous: true })).toBe(at);
+    expect(noteWrittenAt({ previous: true })).toBeNull();
+  });
+  test("the card takes the time from that rule and carries no sentence about itself", () => {
+    expect(note).toContain("const writtenAt = noteWrittenAt(part);");
+    expect(note).toContain('{writtenAt ? <Text variant="caption" style={styles.muted}>{t("phone.noteUpdatedAt", { time: new Date(writtenAt).toLocaleString(');
+    expect(note).not.toMatch(/part\.generatedAt|part\.previous|notePrevious/);
+  });
+  test.each(["en", "ko", "es", "pt", "id"])("%s keeps the time label and drops the explaining sentence", (locale) => {
+    const copy = JSON.parse(read(`locales/${locale}/ops.json`)).phone;
+    expect(copy.noteUpdatedAt).toContain("{{time}}");
+    expect(copy).not.toHaveProperty("notePrevious");
+  });
 });
