@@ -166,5 +166,9 @@
       "next": "Próxima",
       "page": "{{current}} de {{total}}"
     }
+  },
+  "aiMark": {
+    "short": "IA",
+    "spoken": "Esta resposta foi criada por IA."
   }
 }
