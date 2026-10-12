@@ -68,6 +68,10 @@
     }
   },
   "modals": {
+    "signOut": {
+      "title": "Sair da conta?",
+      "cancelHint": "Fecha esta confirmação sem sair da conta."
+    },
     "confirm": {
       "label": "Diálogo de confirmação de configurações",
       "title": "Tem certeza?",

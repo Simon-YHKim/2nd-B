@@ -55,7 +55,9 @@ import {
 
 const CONFIRM_PHRASE = "DELETE";
 type SettingsToast = { message: string; tone: "info" | "success" | "danger" };
-type PendingConfirm = { message: string; onYes: () => Promise<void> } | null;
+/** `ask` replaces the delete wording of the shared confirm dialog (title, action, hints) for an action that deletes nothing. */
+type ConfirmAsk = { title: string; action: string; actionHint: string; cancelHint: string };
+type PendingConfirm = { message: string; onYes: () => Promise<void>; ask?: ConfirmAsk } | null;
 type ActionError = { title: string; body: string; retry?: () => void } | null;
 type SettingsDisclosureKey = "data" | "language";
 type DataDeleteStep = "records" | "assessments" | "library" | "full";
@@ -448,8 +450,8 @@ export default function Settings() {
     return <Redirect href="/sign-in" />;
   }
 
-  function confirm(message: string, onYes: () => Promise<void>): void {
-    setPendingConfirm({ message, onYes });
+  function confirm(message: string, onYes: () => Promise<void>, ask?: ConfirmAsk): void {
+    setPendingConfirm({ message, onYes, ask });
   }
 
   // Surface a calm, product-tone failure with a retry. The raw error stays in
@@ -1039,7 +1041,7 @@ export default function Settings() {
             accessibilityHint={t("actions.signOutHint")}
             variant="secondary"
             disabled={busy !== null}
-            onPress={async () => {
+            onPress={() => confirm(t("actions.signOutHint"), async () => {
               try {
                 await signOut();
                 // Go straight to /sign-in. Routing via "/" could briefly render
@@ -1054,7 +1056,7 @@ export default function Settings() {
                   t("signOutError"),
                 );
               }
-            }}
+            }, { title: t("modals.signOut.title"), action: t("signOut"), actionHint: t("actions.signOutHint"), cancelHint: t("modals.signOut.cancelHint") })}
           />
         </View>
 
@@ -1077,9 +1079,9 @@ export default function Settings() {
       <PremiumModal
         visible={pendingConfirm !== null}
         onClose={() => setPendingConfirm(null)}
-        accessibilityLabel={t("modals.confirm.label")}
+        accessibilityLabel={pendingConfirm?.ask?.title ?? t("modals.confirm.label")}
       >
-        <Text variant="heading">{t("modals.confirm.title")}</Text>
+        <Text variant="heading">{pendingConfirm?.ask?.title ?? t("modals.confirm.title")}</Text>
         <Text variant="body" color="textMuted" style={styles.modalBody}>
           {pendingConfirm?.message}
         </Text>
@@ -1089,15 +1091,15 @@ export default function Settings() {
             variant="secondary"
             onPress={() => setPendingConfirm(null)}
             style={styles.modalButton}
-            accessibilityHint={t("modals.confirm.cancelHint")}
+            accessibilityHint={pendingConfirm?.ask?.cancelHint ?? t("modals.confirm.cancelHint")}
           />
           <Button
-            label={t("modals.confirm.delete")}
-            variant="danger"
+            label={pendingConfirm?.ask?.action ?? t("modals.confirm.delete")}
+            variant={pendingConfirm?.ask ? "primary" : "danger"}
             onPress={runPendingConfirm}
             loading={busy !== null}
             style={styles.modalButton}
-            accessibilityHint={t("modals.confirm.deleteHint")}
+            accessibilityHint={pendingConfirm?.ask?.actionHint ?? t("modals.confirm.deleteHint")}
           />
         </View>
       </PremiumModal>
