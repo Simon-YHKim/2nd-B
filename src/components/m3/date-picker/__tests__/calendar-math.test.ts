@@ -122,6 +122,21 @@ describe("calendar-math", () => {
     });
   });
 
+  // The grid has to act on that row on every platform: 8081 (web) showed the list still
+  // opening on 2026 with initialScrollIndex alone (2026-10-13).
+  describe("the year grid uses the start row", () => {
+    const fs = jest.requireActual<typeof import("node:fs")>("node:fs");
+    const path = jest.requireActual<typeof import("node:path")>("node:path");
+    const picker = fs.readFileSync(path.join(__dirname, "..", "DatePicker.tsx"), "utf8");
+
+    it("asks the list for that row and also scrolls to it on first layout", () => {
+      expect(picker).toContain("const startRow = yearGridStartRow(minYear, maxYear, selectedYear, YEAR_COLUMNS);");
+      expect(picker).toContain("initialScrollIndex={startRow}");
+      expect(picker).toContain("listRef.current?.scrollToOffset({ offset: YEAR_ROW_HEIGHT * startRow, animated: false });");
+      expect(picker).toContain("if (started.current || startRow === 0) return;");
+    });
+  });
+
   describe("yearsDescending", () => {
     it("lists newest first, inclusive", () => {
       expect(yearsDescending(2000, 2003)).toEqual([2003, 2002, 2001, 2000]);
