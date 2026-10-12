@@ -16,7 +16,7 @@
 // A screen that still calls `router.back()` directly would pop the real stack
 // and leave the dashboard, so only screens converted to these hooks may be
 // registered as phone screens.
-import { createContext, useCallback, useContext, useMemo, useRef, type ReactNode, type RefObject } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode, type RefObject } from "react";
 import { BackHandler, type ScrollView } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams, type Href } from "expo-router";
 
@@ -118,11 +118,17 @@ export function useHardwareBack(handler: () => boolean): void {
   }, [embed, handler]));
 }
 
+/**
+ * The screen's scroll view restores its remembered position first (scroll-memory: one frame, then
+ * once more 180 ms after the content last changed size). A scroll to the end before that is undone,
+ * so this waits until that restore has let go.
+ */
+const START_AT_END_AFTER_MS = 320;
 /** How long a screen opened at its end keeps following content that is still loading. */
-const START_AT_END_SETTLE_MS = 1500;
+const START_AT_END_FOLLOW_MS = 4000;
 
 /**
- * A screen opened with `?<name>=<value>` starts at the end of its scroll, not the top.
+ * A screen opened with `?<name>=<value>` goes to the end of its scroll, not the top.
  * For a route whose last section is where a link from elsewhere means to land: the account
  * screen's "delete account" row opens /privacy, whose delete card is the last one. It follows
  * late-loading content for a moment and then leaves the scroll to the person.
@@ -130,11 +136,15 @@ const START_AT_END_SETTLE_MS = 1500;
 export function useStartAtEndWhen(name: string, value: string): { scrollRef: RefObject<ScrollView | null>; onContentSizeChange: (() => void) | undefined } {
   const wanted = useScreenParams<Record<string, string>>()[name] === value;
   const scrollRef = useRef<ScrollView | null>(null);
-  const until = useRef<number | null>(null);
+  const since = useRef<number | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timer.current !== null) clearTimeout(timer.current); }, []);
   const onContentSizeChange = useCallback(() => {
     const now = Date.now();
-    if (until.current === null) until.current = now + START_AT_END_SETTLE_MS;
-    if (now <= until.current) scrollRef.current?.scrollToEnd({ animated: false });
+    if (since.current === null) since.current = now;
+    if (now - since.current > START_AT_END_FOLLOW_MS) return;
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = setTimeout(() => { timer.current = null; scrollRef.current?.scrollToEnd({ animated: false }); }, START_AT_END_AFTER_MS);
   }, []);
   return { scrollRef, onContentSizeChange: wanted ? onContentSizeChange : undefined };
 }
