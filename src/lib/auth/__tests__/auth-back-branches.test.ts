@@ -192,7 +192,7 @@ describe("R3-1 auth branch matrix", () => {
   test("all signup branches, including redirect variants and confirmation, request sign-in or hold the live write", () => {
     const branches = screenReturns("src/screens/deepspace/dds-sign-up-screen.tsx", "DeepSpaceSignUpDesignScreen");
     expect(branches.map(row => row.guard)).toEqual(["loading", "userId && !submitting && !judgeWelcome && !toast", "form"]);
-    expect(branches[1].jsx).toBe('avatarSetupAfterConfirmation ? <Redirect href="/avatar-studio?setup=1" /> : <RedirectHome />');
+    expect(branches[1].jsx).toBe('destination === "/" ? <RedirectHome /> : <Redirect href={destination} />');
     const seen = new Set<string>();
     for (const loading of bools) for (const signedIn of bools) for (const submitting of bools)
       for (const judgeWelcome of bools) for (const toast of bools) for (const avatar of bools) {

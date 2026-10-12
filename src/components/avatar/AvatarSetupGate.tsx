@@ -8,6 +8,11 @@ import { Redirect, useGlobalSearchParams, usePathname, useSegments } from "expo-
 import { GateCover } from "@/components/ui/GateCover";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
+import {
+  accountTransitionPendingFromSnapshot,
+  accountTransitionSnapshot,
+  subscribeAccountTransition,
+} from "@/lib/auth/account-epoch";
 import { SHARE_REFUSED_PARAMS, isMarkedShareCapture } from "@/lib/capture/share-intent";
 import {
   avatarFirstRunDecision,
@@ -20,6 +25,9 @@ import { fetchAvatarSpec } from "@/lib/supabase/avatar-spec";
 
 export function AvatarSetupGate({ children }: { children: ReactNode }) {
   const { userId, loading, hasProfile } = useAuth();
+  const accountPending = accountTransitionPendingFromSnapshot(useSyncExternalStore(
+    subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot,
+  ));
   const segments = useSegments();
   // A first run sent from an Android share (/capture?...&from=share) drops the
   // share like any other link, and the editor says so in one line
@@ -42,7 +50,10 @@ export function AvatarSetupGate({ children }: { children: ReactNode }) {
   // this read settles; otherwise the editor would redirect to itself.
   // saved: setup complete. deferred: explicit escape after studio read failure.
   // error: unreadable or absent server column; keep existing app access alive.
-  const decision = avatarFirstRunDecision(userId, hasProfile, segments[0], state);
+  const avatarDecision = avatarFirstRunDecision(userId, hasProfile, segments[0], state);
+  // Do not race the owner resolver's reset to home. Keep the same cover and
+  // scene guard, then send first setup as soon as the owner proof releases.
+  const decision = accountPending && avatarDecision === "setup" ? "hold" : avatarDecision;
   // R2A-01: hold and setup COVER the routes, they never replace them. Returning
   // the loader instead of the children unmounted the root Stack, and then
   // useSegments() answered from the last deep link (an exempt /sign-in or

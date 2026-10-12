@@ -14,7 +14,7 @@ import {
   Redirect,
   router,
   useGlobalSearchParams,
-  useRootNavigationState,
+  useNavigationContainerRef,
   usePathname,
   useSegments,
   // ⚠ 라우터의 **네비게이션 테마**다. 화면 팔레트(`@/lib/theme/ThemeContext`)와
@@ -426,13 +426,20 @@ function PendingAccountTransitionResolver(): null {
   const pending = accountTransitionPendingFromSnapshot(transitionSnapshot);
   const epoch = accountEpochFromSnapshot(transitionSnapshot);
   const segments = useSegments();
-  const rootState = useRootNavigationState();
+  const navigation = useNavigationContainerRef();
   const [resetPass, setResetPass] = useState(0);
   const resetDispatchRef = useRef<{
     attempts: number;
     epoch: number;
     lastDispatchPass: number;
   } | null>(null);
+
+  useEffect(() => {
+    if (!pending) return;
+    // The root-state getter is not a subscription. Keep observing committed
+    // navigation even after the bounded reset attempts have all been sent.
+    return navigation.addListener("state", () => setResetPass((pass) => pass + 1));
+  }, [navigation, pending]);
 
   useEffect(() => {
     if (!pending) {
@@ -442,6 +449,9 @@ function PendingAccountTransitionResolver(): null {
     // Keep password recovery/sign-up uninterrupted. The pending proof is
     // resolved as soon as the user exits the auth group.
     if (segments[0] === "(auth)") return;
+    // Read AFTER subscribing, and again on every event; a render-time snapshot
+    // could predate the navigation commit whose event requested this render.
+    const rootState = navigation.isReady() ? navigation.getRootState() : undefined;
     if (shouldReleaseAccountTransition(segments, rootState)) {
       clearAccountTransition(epoch);
       resetDispatchRef.current = null;
@@ -473,10 +483,11 @@ function PendingAccountTransitionResolver(): null {
     // Expo Router can silently drop a queued action if its ref disappears
     // before the queue drains. Drive two proof renders and retry the idempotent
     // reset, but cap attempts; if proof never arrives the hold stays fail-closed.
+    // The state listener above has no attempt limit and can still release it.
     if (dispatch.attempts < ACCOUNT_RESET_MAX_ATTEMPTS) {
       setResetPass((pass) => pass + 1);
     }
-  }, [epoch, pending, resetPass, rootState, segments]);
+  }, [epoch, navigation, pending, resetPass, segments]);
 
   return null;
 }
@@ -634,6 +645,8 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   // hasProfile===false; do not eject a registered user to /complete-profile (DOB +
   // consent re-entry) on a network blip. The genuine no-profile state (a real server
   // answer, profileProbeFailed===false) still redirects. AuthContext re-probes.
+  // Profile completion stays reachable even if the owner proof never arrives.
+  // AccountScope keeps product scenes hidden; (auth) is its existing exemption.
   if (
     !loading &&
     userId &&

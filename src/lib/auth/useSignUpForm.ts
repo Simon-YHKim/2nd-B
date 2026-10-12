@@ -18,6 +18,7 @@ import { router, useIsFocused } from "expo-router";
 import { useURL } from "expo-linking";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { authExitDestination, profileEntryDestination } from "./auth-exit";
 import { createSignUpBackHandler } from "./sign-up-back";
 import { observeAuthConversion } from "@/lib/analytics/auth-conversions";
 import {
@@ -376,17 +377,17 @@ export function useSignUpForm(): UseSignUpForm {
         return;
       }
       if (result.kind === "entered") {
-        const nextRoute = result.consentRecorded === null ? "/" : "/avatar-studio?setup=1";
+        const nextRoute = profileEntryDestination(result.consentRecorded);
         if (result.judgeMode) {
           setJudgeWelcome(true); // hold the guest guard open for the toast
           setToast({ tone: "success", message: t("judge.welcome") });
           judgeRouteTimerRef.current = setTimeout(() => {
-            if (mountedRef.current) router.replace(nextRoute);
+            if (mountedRef.current) router.replace(authExitDestination(nextRoute));
           }, 900);
           return;
         }
         // First-time profiles complete their avatar after age/consent settlement.
-        router.replace(nextRoute);
+        router.replace(authExitDestination(nextRoute));
         return;
       }
       if (result.kind === "ageGate") {
