@@ -1,5 +1,17 @@
 # 2nd-Brain Handoff
 
+## 2026-10-13 00:16 / 2ndb-53: Simon 답 다섯(Q-261012-60 ~ 64)의 네 화면 머지 · 8081 확인 끝 - 다음은 Q-261012-65(AI 표식의 문장 자리) 답
+
+- **지금까지**: Simon 이 10-12 23:1x 에 답 다섯을 주었고(DECISIONS 26.10.12 23:20), 화면마다 PR 하나씩 넣었다. #2312 폰 둘째 쪽("위젯 추가"의 점선 삭제 · 23:33) · #2311 개인 비서(작은 묶음 이름 셋 · 보통 크기 문 둘 · 설명 문장 셋 삭제 · 23:44) · #2314 빈 별(꺼진 사다리와 0/5층 · 23:56) · #2316 대화의 AI 표식(답마다 이름 옆 "AI" · 첫 답에 「이 답은 AI가 만들었어요.」 · 00:11). main `e7c6df90`. 잰 값은 DECISIONS 26.10.13 00:16. 북극성 카드의 밀어 닫기는 "그대로"라 바꾼 것이 없다.
+- **다음 1개**: Simon 의 Q-261012-65 답(문장을 어디에 보일지 · 추천 지금대로). 보고서 <https://claude.ai/artifact/TNSh2Xu7rMMytM1EehyaCL>(원본 `E:/Coding Infra/reports/codex-audit-261010/ui/ui-screens1012.fragment.html` · 값 `ui-screens1012.vars.json` · 그림 `prep_screens_imgs.py` · 112KB).
+  - "문장을 답마다"면: `src/lib/chat/ai-mark.ts` 의 `aiMarkFor` 가 모델 답에 늘 `"spelled"` 를 돌려주게 하면 된다(화면은 그대로).
+  - "표식만"이면: `src/app/secondb.tsx` 의 `chat-ai-sentence-` 줄을 뺀다(`aiMark.spoken` 은 낭독 이름으로 남는다).
+- **막힌 것**: 없다.
+- **기기에서 볼 것**(폰용 빌드 run 38268365729 · `e7c6df90`): 대화에서 첫 답의 표식과 문장 · 둘째 답의 표식 · TalkBack 이 표식을 "이 답은 AI가 만들었어요."로 읽는지와 문장을 한 번 더 읽지 않는지 · 단독 개인 비서 화면의 작은 묶음 이름 · 폰 둘째 쪽 "위젯 추가" · 빈 별의 꺼진 사다리(새 계정의 첫 별) · 동의 안내의 ‹ (#2307). Relay 결과서 `.bots/relay/outbox/coding-legal-b1-decision-2317.note.result.md`.
+- **남은 일**: ① 웹에서 첫 답의 문장을 화면 낭독기가 표식의 이름과 한 번 더 읽는다(`chat-ai-sentence-` 글에 `aria-hidden` 을 더하면 된다 · 앱에는 숨김 속성이 이미 있다). ② 약관 · 처리방침 · 환불 화면의 머리줄을 동의 안내처럼 고정(`AuthShell` 의 `head`). ③ 폰 안에서 연 북극성 · 별 요약 · 동의 안내의 화면 확인(동의 안내는 개인정보 보호 → AI 처리 동의 → 동의 항목 안내 길). ④ 폰 첫 화면 추천 카드의 빈 상태 글. ⑤ 계정 화면의 "IDEN" 줄(2ndb-79 관찰 · 기능 이름이라 의도일 수 있음 · 확인부터). ⑥ `common:navGraph.drilldown.*` 는 `src` 에서 읽는 곳이 없다.
+- **알아 둘 것**: ① 로케일 키를 지우기 전에 `src/lib/__tests__/i18n-static-keys.test.ts` 를 돌린다. 다른 네임스페이스 접두로 읽는 곳(`t("home:ds.star.emptyBody")`)을 잡는다. 화면 파일만 grep 해서는 놓친다(#2314 의 CI 한 회차를 여기서 버렸다). ② 개인 비서는 모양이 둘이다: 폰 안의 앱(폰 글씨체 · `usePhoneDesign()` 이 참)과 단독 화면 `/ops`(PIXEL-CLAY). 캡처는 둘 다 본다: `shoot_ops.cjs <폴더> <이름>`(폰 안) · `shoot_route.cjs <주소> <폴더> <이름> --route=//ops`(단독 · Git Bash 가 `/ops` 를 경로로 바꾸므로 `//ops` 로 적는다). ③ 대화의 답 종류: `synthetic`(앱이 쓴 줄) · `safetyZone` red(고정 안전 안내)는 모델 답이 아니다. `aiMarkFor` 가 그 둘을 뺀다. ④ `src/app/__tests__/secondb-messenger-layout.test.ts` 는 대화 줄을 VM 안에서 그린다. 그 줄에 새 함수나 스타일을 쓰면 그 검사의 scope 와 `names` 에 더해야 한다. ⑤ 문자열 수 핀(`crisis-obfuscation.test.ts`)은 지금 4373 이다. ⑥ 캡처 스크립트: `shoot_chat_mark.cjs <주소> <폴더> <이름> [--two]`(한 문장씩 보내고 표식을 잼 · 한 번에 모델 호출 2회) · `shoot_phone_nav.cjs <주소> <폴더> <이름> <누를 이름…> [--focus=<낭독 이름>]`(폰 안에서 차례로 누르기) · `shoot_star.cjs … --cover=none --empty`(빈 별을 브라우저 안에서만 만든다). ⑦ 다른 창의 일: 2ndb-79 가 계정을 바꿔 로그인하면 빈 화면이 되는 건(`_layout.tsx` · `account-epoch.ts`)과 D2 를, 2ndb-e7 이 0249 뒤의 대시보드를 맡고 있다. 이 창은 그 파일들을 건드리지 않는다.
+- **app:parity**: 00:14 에 "같음"(8081 = `e7c6df90`).
+
 ## 2026-10-12 22:30 / 2ndb-53: 동의 항목 안내의 뒤로(#2307) 머지 · 8081 확인 · 대화 화면 AI 표식 자리 시안 - 다음은 Simon 의 Q-261012-60 ~ 64 답
 
 - **지금까지**: Rufus 7회차 관찰 R1(가입 화면의 동의 [자세히 보기]가 그 항목 위치로 내려간 채 열려 "뒤로"가 화면 밖)을 고쳤다. #2307 머지 22:25 · main `38aabaf0`. 머리줄(‹ + 제목)만 스크롤 밖에 고정했고, 고른 항목으로 내려가 여는 동작은 그대로다. 8081 에서 항목 여섯을 390 · 360 폭으로 다시 쟀다(DECISIONS 26.10.12 22:30). 같은 인계의 R2(별 요약 사다리의 낭독 글 뒤 한 마디)는 의도된 동작이라 고치지 않았다. 대화 화면의 AI 표식 자리 시안 둘을 그려 보고서에 올렸다(2ndb-79 의 Q-261012-30 의 그림 쪽).
