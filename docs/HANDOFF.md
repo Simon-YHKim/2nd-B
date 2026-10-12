@@ -1,10 +1,10 @@
 # 2nd-Brain Handoff
 
-## 2026-10-12 16:36 / 2ndb-79: #2290 기기 확인 통과 · 0250 은 봇이 Simon GO 로 적용 · N2-2 보호자 감독 고지 구현 중
+## 2026-10-12 17:02 / 2ndb-79: #2290 기기 확인 통과 · 0250 은 봇이 Simon GO 로 적용 · N2-2 보호자 감독 고지는 PR #2299(초안 · 독립 검토 중)
 
 - **끝난 것(15:23 블록 뒤)**: ① **#2290(D3 핸드폰 뒤로 가기 · D6 가입 화면 아이콘) 기기 확인 통과** — Rufus 16:13 ~ 16:30 · 빌드 run 38212076947(`fad2c570`) · 같은 회차에 2ndb-e7 의 #2275 · #2267 알림도 통과 · 충돌 0(DECISIONS 26.10.12 16:30). 코치마크와 핸드폰이 같이 있을 때의 순서만 기기 미확인. ② **#2287(0250 user_roles RLS 합치기)** 은 Dev Infra 봇(Hadrianus)이 Simon 의 15:39 GO("#2287 머지하고 prod 적용까지 진행해 줘" · Hadrianus 1:1)로 15:48 머지 · 15:49 운영 적용. 이 세션은 읽기 전용 대조만 했다(DECISIONS 15:49 · 15:39 줄).
-- **지금 하는 것 — N2-2 보호자 감독 이용 고지**: Simon 15:37 확정 문안 「미성년자는 보호자의 감독하에 이 서비스를 이용해야 합니다.」(Relay 전달)를 같은 문자열 키 하나로 가입 화면 생년월일 칸 아래 · 프로필 완성 화면 같은 자리 · 설정의 계정 묶음 아래 · 약관 화면 제목 아래(본문 밖)에 넣는다. 체크박스 · 저장 · 약관 본문 변경 없음. 작업 폴더 `.worktrees/n22-guardian-notice-261012` · 브랜치 `feat/guardian-supervision-notice-261012`(main `9459fa97`) · 발주서 `E:/Coding Infra/reports/devlab-261010/codex-impl/n22-r1.prompt.md` · Codex astra 갈래 16:35:49 시작.
-- **다음 1개**: 갈래가 끝나면 코드를 읽고 → push → PR → 독립 검토(daybreak 읽기 전용) → CI 초록 + PASS + 새 medium 0 이면 머지 → 8081 에서 네 자리 확인 → 캡처를 2ndb-53 에 보내 모양 의견 → Rufus 앞 빌드 메모 → 결과를 `.bots/relay/outbox/Q-261012-N2-2.result.md` 에. 프로필 완성 화면을 넣은 것은 이 세션의 읽기다(Legal 메모는 "가입 화면"이라고만 적었다) — PR 본문에 그렇게 적는다.
+- **지금 하는 것 — N2-2 보호자 감독 이용 고지 · PR #2299(초안)**: Simon 15:37 확정 문안 「미성년자는 보호자의 감독하에 이 서비스를 이용해야 합니다.」(Relay 전달)를 같은 문자열 키 하나(`consent:notice.guardianSupervision`)로 가입 화면 생년월일 칸 아래 · 프로필 완성 화면 같은 자리 · 설정의 계정 묶음 아래 · 약관 화면 제목 아래(본문 밖)에 넣었다. 체크박스 · 저장 · 약관 본문 변경 없음. 작업 폴더 `.worktrees/n22-guardian-notice-261012` · 브랜치 `feat/guardian-supervision-notice-261012` · head `1e33e674`(Codex astra 두 회차 16:35 ~ 16:55 · verify 26단계 0 · jest 1,041 묶음). **es · pt · id 는 번역을 싣지 않고 영어 문안 그대로다**(동의 · 안전 문구는 사람 검토 전에는 영어로 내보낸다는 기존 검사 `check:safety-consent-locale` · DECISIONS 16:47). 머지 전 화면 확인(8082 · 17:00): 가입 평소 = 흐린 색 · 미성년 생년월일 = 본문 색 · 성인으로 바꾸면 다시 흐린 색 · 설정 · 약관에 한 줄 · 개인정보 처리방침에는 없음 · 포르투갈어 화면에서는 영어 문안이 두 줄(캡처 `E:/Coding Infra/reports/devlab-261010/ui/n22-ko-*.png` · `n22-pt-*.png`). PR CI 초록. 독립 검토 `gates/gate_n22.py 1 2299 …` 16:57 시작.
+- **다음 1개**: 독립 검토 결과를 읽는다 → PASS + 새 medium 0 이면 `APP_MERGE=1 merge_when_green.sh 2299` → 8081 에서 네 자리 확인 → Rufus 앞 빌드 메모 → 결과를 `.bots/relay/outbox/Q-261012-N2-2.result.md` 에. BLOCK 이면 멈추고 지적을 짧은 갈래로 고친다(2회차까지). 2ndb-53 에 모양 의견 셋을 물었다(가입 화면의 왼쪽 맞춤 · 약관에서 시행일 줄 위냐 아래냐 · 글자 10px).
 - **Simon 께 여쭌 것(답글 · 아직 답 없음)**: **Q-261012-28** 다음 회차(가입 시험 계정 / D2 구조 변경 / 둘 다 / 여기까지) · **Q-261012-30** 대화 화면 AI 표시(Relay 의 B1 요청 · 방향이 정해지면 시안과 구현은 2ndb-53). Q-261012-29 는 닫았다(0250 은 이미 적용됨).
 - **그다음 줄**: 가입 시험 계정(운영 쓰기 1행 + 에뮬레이터 · 순서는 `.bots/relay/inbox/claim-coding-signup-account-2045.md` · 쓰기 전에 버스에 새 선점 한 줄 · 2ndb-e7 의 절차 파일 "가입 시험 때" 절을 묶는다) → D2(#2215 초안 · 종료 안내의 자격을 "지금 화면에 붙어 있음"에 묶는 구조로) → 0250 의 행동 테스트(일반 사용자 = 자기 행 · admin = 전체 · 로그인 hook 그대로 · 익명 = 0행)와 다른 벤더의 사후 검토.
 - **다른 갈래에 넘긴 것**: Rufus 의 관찰 O1(알림 권한을 거절한 뒤 루틴 스위치가 반응 없음) → 2ndb-e7 · O2(허슬케이 답 본문은 "알림을 보내드리지 못합니다"인데 [리마인더 만들기]가 붙음) → 2ndb-e7(프롬프트 쪽 · 2ndb-53 의견). 운영 원장에 0249 자리가 비어 있다(0248 다음이 0250) → 2ndb-e7.
@@ -12,6 +12,17 @@
 - **Relay 와의 약속**: 답은 새 파일로 · Rufus 는 에뮬레이터 시작과 종료를 한 줄씩 · 코딩은 머지 뒤 빌드 메모 · 운영 쓰기를 시작하는 쪽은 먼저 선점 한 줄(Hadrianus 도 16:13 에 그렇게 하겠다고 적음). 봇이 전한 요지로 운영 쓰기와 새 화면 동작을 시작하지 않는다(DECISIONS 15:02 · 15:28).
 - **app:parity**: 아직 치지 않았다. N2-2 머지 뒤에 친다.
 - **워크트리**(이 세션이 만들거나 쓰는 것 · 정션 있음 · 지울 때 정션부터): `n22-guardian-notice-261012`(진행 중) · `devlab-d2d6-261010`(#2215 초안) · `devlab-d3d6-261012` · `dock-label-261010`(둘 다 머지됨) · `vibebot-records-261012`(기록용).
+
+## 2026-10-12 16:38 / 2ndb-53: 별 요약 사다리(#2294) · 설정의 되풀이 줄(#2295) 머지 · 8081 확인 끝 - 다음은 Simon 의 Q-261012-60(개인 비서 시안) · 61 · 62 답
+
+- **지금까지**: ① Simon 이 16:0x 에 Q-261012-57 = B(별 요약을 다섯 층 사다리로) · 58 = 그대로 · 59 = 설정의 되풀이 줄, 개인 비서, 폰 둘째 쪽 셋 모두를 골랐다(DECISIONS 26.10.12 16:04). ② #2294(별 요약 `/me/<별>`: 머리줄 "별 요약" · 별 이름과 "N/5층" 한 번씩 · 다섯 층 세로 사다리 · 문장 셋은 낭독으로만) 머지 16:14 · main `398e87b4` · 8081 에서 여섯 별 확인. ③ #2295(설정: "…을 엽니다" 여섯 줄을 화면에서 빼고 낭독 힌트로) 머지 16:35 · main `9459fa97` · 8081 확인. 잰 값은 DECISIONS 26.10.12 16:38. ④ 개인 비서 시안 둘과 폰 둘째 쪽 시안 둘을 그려 보고서 <https://claude.ai/artifact/7gzAK4BYvGs5EVxLKtGUCY> 의 결정 탭에 올렸다(원본 `E:/Coding Infra/reports/codex-audit-261010/ui/ui-star1012.fragment.html` · 값 `ui-star1012.vars.json` · `build_result.py` 로 다시 만든다 · 117KB). ⑤ app:parity 같음(16:37 · 폰용 빌드 run 38218553784 진행 중).
+- **다음 1개**: Simon 의 답. Q-261012-60 개인 비서를 어느 시안으로(추천: A · 순서 그대로, 큰 제목 다섯을 작은 표시로, 설명 문장 셋 삭제) · 61 폰 둘째 쪽의 점선 카드 둘(추천: 나 · "위젯 추가"의 테두리를 뺌) · 62 이야기가 0 인 별의 요약도 꺼진 사다리로(추천: 바꿈).
+  - 60 이 A 면: 화면은 `src/screens/deepspace/dds-ops-screen.tsx`(2ndb-e7 이 손대도 된다고 한 파일 · `ops/screens.tsx` 는 2ndb-e7 몫). 뺄 문장은 `locales/ko/ops.json` 의 `subtitle` · `patternsSub` · `emptyDomain` 자리다(오전 기준 397 · 480 · 531줄 근처). 로케일 키를 빼면 문자열 수 핀이 바뀐다.
+  - 61 이 나 면: `src/components/dashboard/board/BoardParts.tsx` 의 `addTone` 점선 층 하나(352줄 근처). 가 면 잠김 표시를 쓰는 세 곳(`BoardParts.tsx` 53줄 · `BoardShelf.tsx` 49줄 · `TranscribeSkeleton.tsx` 31줄 근처)을 함께 본다.
+  - 62 가 바꿈이면: `src/app/me/[star].tsx` 의 `ladder` 조건에서 `summary.cells === 0 && summary.records === 0` 을 빼고 `ds.star.emptyBody` 를 다섯 언어에서 정리한다.
+- **막힌 것**: 없다.
+- **확인하지 못한 것**: 폰 안에서 연 별 요약 · 북극성의 화면, Android 기기에서의 별 요약 사다리와 북극성 점무늬. 다음 기기 점검 회차에 얹을 것(2ndb-79 가 Rufus 와 잇는다).
+- **알아 둘 것**: ① 화면 파일을 고치면 테스트만이 아니라 `src` · `scripts` 전체에서 그 파일 경로와 고친 식을 찾는다. `src/lib/sufficiency/registry.ts` 의 `at(…)` 과 `scripts/check-constraints.ts` 가 화면 소스의 문자열을 그대로 찾는다(오늘 CI 두 회차를 여기서 버렸다). 푸시 전에 `npm run check:constraints` 를 돌린다. ② `npm run verify` 의 끝은 `npm test -- --ci` 다. jest 를 빼고 돌리려면 그 꼬리를 정확히 잘라야 한다(오늘 못 잘라 에뮬레이터가 도는 중에 전체 검사가 돌았다). ③ 문자열 수 핀은 지금 4372 다. 2ndb-79 의 N2-2(미성년 고지 한 줄 · 16:36 시작 · `settings.tsx` 의 계정 묶음 아래 한 줄 포함)가 4373 으로 올린다. ④ QA 계정은 여섯 별이 모두 5/5층이다. 덜 채운 사다리는 `shoot_star.cjs … --cover=fact,feeling` 으로 브라우저 안에서만 가려서 본다. ⑤ 캡처 스크립트: `E:/Coding Infra/reports/codex-audit-261010/ui/` 의 `shoot_star.cjs` · `shoot_settings.cjs` · `shoot_polaris.cjs` · `shoot_note.cjs`, 시안 그림은 `mock_star.py` · `mock_ops_phone.py`. ⑥ 대화 화면: AI 표시 건은 2ndb-79 의 Q-261012-30 답을 기다린다(하게 되면 시안과 구현은 이 창). 리마인더 답과 버튼이 어긋나는 건은 2ndb-e7 에 답 쪽 수정을 권했다.
 
 ## 2026-10-12 15:48 / 2ndb-53: 한마디 시각 줄(#2280) · 북극성 카드(#2292) 머지 · 8081 확인 끝 - 다음은 Simon 의 Q-261012-57(별 요약 시안) · 58 · 59 답
 
