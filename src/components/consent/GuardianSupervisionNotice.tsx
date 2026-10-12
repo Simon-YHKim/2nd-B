@@ -19,6 +19,7 @@ export function GuardianSupervisionNotice({
   return (
     <Text
       style={[styles.notice, style, { color: m3.color[guardianSupervisionColor(emphasized)] }]}
+      textBreakStrategy="balanced"
       accessibilityLabel={notice}
     >
       {notice}

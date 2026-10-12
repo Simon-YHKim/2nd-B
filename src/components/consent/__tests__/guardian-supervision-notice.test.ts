@@ -56,6 +56,7 @@ describe("N2-2 guardian supervision notice", () => {
     expect(source).toContain('const notice = t("notice.guardianSupervision")');
     const render = source.slice(source.indexOf("return ("));
     expect(render.match(/<\w+\b(?=[\s>])/g)).toEqual(["<Text"]);
+    expect(render).toMatch(/<Text\b[^>]*\btextBreakStrategy="balanced"/);
     expect(source).toMatch(/accessibilityLabel=\{notice\}\s*>\s*\{notice\}\s*<\/Text>/);
     expect(source).toContain("color: m3.color[guardianSupervisionColor(emphasized)]");
     expect(source).toContain("emphasized = false");
