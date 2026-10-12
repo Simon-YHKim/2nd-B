@@ -195,8 +195,11 @@ export default function StarSummaryRoute() {
   const profileCta = profile.status === "ready"
     ? t(countFilledDetails(profile.details) > 0 ? "ds.star.editProfile" : "ds.star.setupProfile")
     : t("ds.star.openProfile");
-  // 사다리는 이야기나 기록이 하나라도 있을 때만 그린다. 없으면 "아직 없다"는 한 줄이다.
-  const ladder = !isProfileStar && !locked && summary !== null && !(summary.cells === 0 && summary.records === 0)
+  // 사다리는 요약을 읽었으면 늘 그린다. 이야기가 없으면 다섯 줄이 모두 꺼진 채 "0/5층"이다
+  // (Simon 2026-10-12, Q-261012-62). 지어내지 않는다: 꺼진 줄이 "아직 없다"를 말한다.
+  // 앞의 별을 기다리는 빈 별은 시작할 수 없으니 그 이유 한 줄만 보인다(아직 오지 않은 시기와 같은 모양).
+  const waitingEmpty = entry?.kind === "previous" && summary !== null && summary.cells === 0 && summary.records === 0;
+  const ladder = !isProfileStar && !locked && summary !== null && !waitingEmpty
     ? starLadderRungs(summary.covered)
     : null;
 
@@ -343,18 +346,19 @@ export default function StarSummaryRoute() {
                     </View>
                   ))}
                 </View>
-                <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
-                  {t("ds.star.records", { count: summary.records })}
-                </Text>
+                {summary.records > 0 ? (
+                  <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
+                    {t("ds.star.records", { count: summary.records })}
+                  </Text>
+                ) : null}
               </>
-            ) : (
+            ) : summary === null ? (
               <MdCard variant="outlined" style={styles.card}>
-                {/* 지어내지 않는다. 없으면 없다고 한다. */}
                 <Text style={[m3TextStyle("bodyMedium"), styles.muted]}>
-                  {summary === null ? t("ds.star.loading") : t("ds.star.emptyBody")}
+                  {t("ds.star.loading")}
                 </Text>
               </MdCard>
-            )}
+            ) : null}
 
             {entry?.kind !== "previous" ? (
               <MdButton
