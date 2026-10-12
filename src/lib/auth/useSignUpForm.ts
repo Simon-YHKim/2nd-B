@@ -45,6 +45,7 @@ import {
   type ConsentSelections,
 } from "@/lib/auth/consent-selections";
 import { submitSignUp } from "@/lib/auth/sign-up-flow";
+import { clearSignUpFailure, signUpToastTimeoutMs, type SignUpToast } from "./sign-up-notice";
 import { recordConsentBestEffort } from "@/lib/supabase/consent";
 import {
   OAUTH_PROVIDER_LABEL,
@@ -54,8 +55,7 @@ import {
 
 const ADULT_AGE = 18;
 
-export type SignUpToastTone = "info" | "success" | "danger";
-export type SignUpToast = { message: string; tone: SignUpToastTone };
+export type { SignUpToastTone, SignUpToast } from "./sign-up-notice";
 
 export type SignUpAction = "email" | "oauth" | "naver" | "verify";
 
@@ -210,13 +210,21 @@ export function useSignUpForm(): UseSignUpForm {
   const minConsentAge = digitalConsentAge(registrationConsentFloor ?? detectedConsentFloor);
 
   useEffect(() => {
-    // The confirm-email state is the screen's current status, not a transient
-    // success message. Keep it visible until the address changes or the native
-    // confirmation callback establishes a session.
-    if (!toast || toast.tone === "info") return;
-    const timeout = setTimeout(() => setToast(null), 2800);
+    // Failures stay until the next input/attempt. Confirmation has its own card.
+    const delay = signUpToastTimeoutMs(toast);
+    if (delay === null) return;
+    // A queued old timer must not clear a newer notice before effect cleanup.
+    const timeout = setTimeout(() => setToast((current) => current === toast ? null : current), delay);
     return () => clearTimeout(timeout);
   }, [toast]);
+
+  useEffect(() => {
+    // A covered route may stay mounted. Retire feedback on blur, including late
+    // async results, so returning cannot re-announce an old failure or card.
+    if (isFocused) return;
+    setToast(null);
+    setExistingAccountHelp(false);
+  }, [isFocused, toast, existingAccountHelp]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -320,7 +328,28 @@ export function useSignUpForm(): UseSignUpForm {
     setConfirmSentTo((prev) => (prev ? null : prev));
     setAvatarSetupAfterConfirmation(false);
     setConfirmCode((prev) => (prev ? "" : prev));
-    setToast((prev) => (prev?.tone === "info" ? null : prev));
+    setToast((prev) => (prev?.tone === "info" ? null : clearSignUpFailure(prev)));
+  }, []);
+
+  const setPasswordAndClearFailure = useCallback((value: string) => {
+    setPassword(value);
+    setToast(clearSignUpFailure);
+  }, []);
+  const setBirthDateAndClearFailure = useCallback((value: string) => {
+    setBirthDate(value);
+    setToast(clearSignUpFailure);
+  }, []);
+  const setResidenceCountryAndClearFailure = useCallback((value: ResidenceCountrySelection) => {
+    setResidenceCountry(value);
+    setToast(clearSignUpFailure);
+  }, []);
+  const setConsentAndClearFailure = useCallback((value: ConsentSelections) => {
+    setConsent(value);
+    setToast(clearSignUpFailure);
+  }, []);
+  const setConfirmCodeAndClearFailure = useCallback((value: string) => {
+    setConfirmCode(value);
+    setToast(clearSignUpFailure);
   }, []);
 
   const canLeaveGate = useCallback(
@@ -336,6 +365,7 @@ export function useSignUpForm(): UseSignUpForm {
     const owner = beginSignUpAction(actionLockRef.current, "email");
     if (owner === null) return;
     setSubmitting(true);
+    setToast(null);
     setExistingAccountHelp(false);
     try {
       const result = await submitSignUp({
@@ -446,6 +476,8 @@ export function useSignUpForm(): UseSignUpForm {
     const owner = beginSignUpAction(actionLockRef.current, "verify");
     if (owner === null) return;
     setConfirmVerifying(true);
+    setToast(null);
+    setExistingAccountHelp(false);
     try {
       await verifySignUpCode(target, token);
       await refresh();
@@ -493,6 +525,8 @@ export function useSignUpForm(): UseSignUpForm {
       const owner = beginSignUpAction(actionLockRef.current, "oauth");
       if (owner === null) return;
       setOauthSubmitting(true);
+      setToast(null);
+      setExistingAccountHelp(false);
       try {
         await startOAuthProvider(provider);
       } catch {
@@ -528,6 +562,8 @@ export function useSignUpForm(): UseSignUpForm {
     const owner = beginSignUpAction(actionLockRef.current, "naver");
     if (owner === null) return;
     setOauthSubmitting(true);
+    setToast(null);
+    setExistingAccountHelp(false);
     try {
       await signInWithNaver();
     } catch {
@@ -568,13 +604,13 @@ export function useSignUpForm(): UseSignUpForm {
     email,
     setEmail: setEmailAndClearHelp,
     password,
-    setPassword,
+    setPassword: setPasswordAndClearFailure,
     birthDate,
-    setBirthDate,
+    setBirthDate: setBirthDateAndClearFailure,
     residenceCountry,
-    setResidenceCountry,
+    setResidenceCountry: setResidenceCountryAndClearFailure,
     consent,
-    setConsent,
+    setConsent: setConsentAndClearFailure,
     residenceRequired,
     residenceReady,
     minConsentAge,
@@ -584,7 +620,7 @@ export function useSignUpForm(): UseSignUpForm {
     existingAccountHelp,
     confirmSentTo,
     confirmCode,
-    setConfirmCode,
+    setConfirmCode: setConfirmCodeAndClearFailure,
     canVerifyConfirmCode,
     confirmVerifying,
     handleVerifyConfirmCode,
