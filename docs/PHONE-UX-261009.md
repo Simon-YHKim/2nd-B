@@ -43,25 +43,45 @@ scheduled restoration belong to the epoch and navigation key; a missing entry re
 zero, including on a still-mounted native host. Same-owner reopen and Back retain their
 session positions. See [implementation and reproduction](handoff/ACCTSTATE-261010.md).
 
-## A03 server follow-up (not applied by this client PR)
+## A03 server follow-up (0247 draft, not applied)
 
-`db/migration-drafts/UNNUMBERED_dashboard_last_note.sql` extends the existing service-only
+0247 초안 PR #2271 · 운영 미적용 (A03 / G5-03 / G5-04).
+
+`db/migrations/0247_dashboard_last_note.sql` extends the existing service-only
 request RPC. It returns the most recent unexpired daily note for `open` when the current
 attempt is waiting/busy/limited. Same owner, current consent token and surviving evidence
 are mandatory. Empty input, withdrawal, deleted evidence, expiry and the minor gate still
-suppress the previous result. Existing retention, attempt ledger and quotas do not change.
+suppress the previous result. The 0245 retention heartbeat check is preserved. Retention
+and the attempt ledger do not change. Daily notes count the local 06:00 service date;
+other purposes keep the calendar date and the UTC backstop is unchanged.
 No client SELECT permission is added. `dashboard-generate/handler.ts` validates references
 again and forwards optional `generatedAt`/`previous`; the client accepts both old and new
 responses. A server-verified previous note displays its creation time and waiting notice.
 
-Console owner: allocate the next migration number under SESSION-OWNERSHIP, apply the
-migration, then deploy `dashboard-generate`. Check A03 using the existing QA account after
+After review and separate operating approval, the console owner applies 0247 on top of
+0245 in one transaction. No Edge redeploy is needed: the deployed handler already forwards
+`generatedAt` and `previous` (handler.ts:35-40), and generation-client.ts:38-40 accepts them.
+Rollback: `db/migrations/rollback/0247_down.sql` restores the exact 0245 request, preserving
+the heartbeat and every attempt row. Check A03 using the existing QA account after
 a routine completion, then withdrawal/deletion/expiry in an isolated test environment.
 Until that application is confirmed, last-note retention is **pending**, not a passed QA.
 
 Validation: `node scripts/test-dashboard-sql.mjs <disposable-port> dashboard_test_<name>`
-includes the new SQL cases and concurrent-claim regression. No operating DB writes,
-Edge deployments, APK publishing, or consent changes were performed by this session.
+includes the new SQL cases and the existing concurrency regressions under 0247. The
+same-day and UTC-backstop controls replace only `now()` in a test transaction and roll
+back; production still uses `now()` directly. This keeps CI independent of its UTC hour. No operating DB writes,
+Edge deployments, APK publishing, or operating consent changes were performed by this session.
+
+Known residuals: a late morning after 09 KST can exhaust the UTC backstop until the next
+09 KST; A03 returns a valid previous note in that interval. G2-06 recovery remains a
+separate 0248 design with no new columns/states/RPCs here. Before 06:00 the key still
+belongs to yesterday while source material uses today's calendar date.
+
+The 0244 nullable `total_tokens` contract is preserved: provider.ts:82-123 sends NULL
+when usage is unknown, including transport and HTTP failures. Rejecting NULL would
+break that caller. The audit attempt and dispatch commit together (0244:19-26), before
+the HTTP call (provider.ts:75-84); an audit row proves a dispatch reservation, not that
+the vendor received or billed a request. That ambiguity remains for G2-06.
 
 The 2026-10-08 UX guide remains the test inventory. Preserve its local saved observations:
 A01 execution / A02 / constellation records are user-confirmed; placement and navigation
