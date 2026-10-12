@@ -16,8 +16,8 @@
 // A screen that still calls `router.back()` directly would pop the real stack
 // and leave the dashboard, so only screens converted to these hooks may be
 // registered as phone screens.
-import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
-import { BackHandler } from "react-native";
+import { createContext, useCallback, useContext, useMemo, useRef, type ReactNode, type RefObject } from "react";
+import { BackHandler, type ScrollView } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams, type Href } from "expo-router";
 
 export interface PhoneEmbedNav {
@@ -116,4 +116,25 @@ export function useHardwareBack(handler: () => boolean): void {
     const sub = BackHandler.addEventListener("hardwareBackPress", handler);
     return () => sub.remove();
   }, [embed, handler]));
+}
+
+/** How long a screen opened at its end keeps following content that is still loading. */
+const START_AT_END_SETTLE_MS = 1500;
+
+/**
+ * A screen opened with `?<name>=<value>` starts at the end of its scroll, not the top.
+ * For a route whose last section is where a link from elsewhere means to land: the account
+ * screen's "delete account" row opens /privacy, whose delete card is the last one. It follows
+ * late-loading content for a moment and then leaves the scroll to the person.
+ */
+export function useStartAtEndWhen(name: string, value: string): { scrollRef: RefObject<ScrollView | null>; onContentSizeChange: (() => void) | undefined } {
+  const wanted = useScreenParams<Record<string, string>>()[name] === value;
+  const scrollRef = useRef<ScrollView | null>(null);
+  const until = useRef<number | null>(null);
+  const onContentSizeChange = useCallback(() => {
+    const now = Date.now();
+    if (until.current === null) until.current = now + START_AT_END_SETTLE_MS;
+    if (now <= until.current) scrollRef.current?.scrollToEnd({ animated: false });
+  }, []);
+  return { scrollRef, onContentSizeChange: wanted ? onContentSizeChange : undefined };
 }

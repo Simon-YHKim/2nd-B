@@ -5,7 +5,7 @@ import { AppState, Linking, Platform, Share, StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
 import { Redirect, router, useNavigation } from "expo-router";
-import { useAppRouter } from "@/lib/nav/phone-embed";
+import { useAppRouter, useStartAtEndWhen } from "@/lib/nav/phone-embed";
 import { useGoHomeStop } from "@/lib/nav/go-home";
 import { useTranslation } from "react-i18next";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";
@@ -252,12 +252,12 @@ function GraphLoading() {
 // screen floats as a radius-24 window over the shared sky (sb-app §4). Routes
 // moving from Shell to DockShell must also join DEEP_SPACE_DOCK_PATHS so the
 // floating BackArrow chip yields to the top bar.
-function DockShell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
+function DockShell({ children, title, subtitle, scroll }: { children: ReactNode; title?: string; subtitle?: string; scroll?: ReturnType<typeof useStartAtEndWhen> }) {
   // Phone-aware: inside the dashboard phone, back steps the phone's stack.
   const router = useAppRouter();
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title ?? ""} onBack={() => router.back()}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scroll?.scrollRef} onContentSizeChange={scroll?.onContentSizeChange} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}
         {children}
       </ScrollView>
@@ -282,8 +282,8 @@ function DockShell({ children, title, subtitle }: { children: ReactNode; title?:
 // (a) 어떤 탭도 잘못 하이라이트되지 않고 (b) DeepSpaceScreen 의 BackHandler
 // 특례가 걸리지 않아 **하드웨어 뒤로가기 동선이 바뀌지 않는다**(기본 pop 유지).
 // 제목은 상단 앱바가 갖는다 — 화면 안에 또 큰 제목을 두면 같은 말이 두 번 나온다.
-function Shell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
-  return <DockShell title={title} subtitle={subtitle}>{children}</DockShell>;
+function Shell({ children, title, subtitle, scroll }: { children: ReactNode; title?: string; subtitle?: string; scroll?: ReturnType<typeof useStartAtEndWhen> }) {
+  return <DockShell title={title} subtitle={subtitle} scroll={scroll}>{children}</DockShell>;
 }
 
 // Scroll-only body for screens that already sit inside DeepSpaceScreen (which
@@ -555,8 +555,8 @@ export function DeepSpaceAccountDesignScreen() {
 }
 
 export function DeepSpacePrivacyDesignScreen() {
-  // Phone-aware: inside the dashboard phone, links open in the phone. The
-  // post-deletion replace("/sign-in") still leaves the phone (auth exit path).
+  // Phone-aware: links open in the phone; the post-deletion replace("/sign-in") still leaves it (auth exit path).
+  const startAtDelete = useStartAtEndWhen("section", "delete"); // the account screen's delete row lands on the delete card, the last one
   const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const { t: consentT } = useTranslation("consent");
@@ -1003,7 +1003,7 @@ export function DeepSpacePrivacyDesignScreen() {
   if (!userId && !deleting) return <Redirect href="/sign-in" />;
 
   return (
-    <Shell title={t("privacy.title")}>
+    <Shell title={t("privacy.title")} scroll={startAtDelete}>
       <SecondbStatusHeader text={t("privacy.status")} tip={t("privacy.tip")} />
       <Text variant="body" style={styles.lead}>{t("privacy.lead")}</Text>
 
