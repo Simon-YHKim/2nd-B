@@ -148,6 +148,56 @@ function AndroidKeyboardArea({ style, onLayout, children, ...rest }: ViewProps) 
   );
 }
 
+/**
+ * 화면 위에 `position: absolute` 로 덮어 그리는 것(예: 첫 기록 안내)이 키보드에 가려진
+ * 높이(dp). 위 영역이 주는 아래 여백은 절대 위치 자식을 밀어 올리지 않는다. 그래서 그런
+ * 덮개는 이 값만큼 스스로 올라서야 키보드 위에 보인다(2026-10-13 실기 Z71: 안내 카드와
+ * 그 안의 다음 버튼이 키보드 뒤에 있었다). 키보드가 없거나 웹이면 0 이다.
+ */
+export function useKeyboardCover(ref: RefObject<View | null>): number {
+  const keyboardTopRef = useRef<number | null>(null);
+  const [cover, setCover] = useState(0);
+
+  const remeasure = useCallback(() => {
+    const keyboardTop = keyboardTopRef.current;
+    if (keyboardTop == null) {
+      setCover(0);
+      return;
+    }
+    ref.current?.measure((_x, _y, _width, height, _pageX, pageY) => {
+      // 재는 사이에 키보드가 내려갔거나 바뀌었으면 이 값은 버린다.
+      if (keyboardTopRef.current !== keyboardTop) return;
+      setCover(keyboardOverlap({ pageY, height }, keyboardTop));
+    });
+  }, [ref]);
+
+  useEffect(() => {
+    // iOS 는 will 이벤트가 있어 키보드와 함께 움직인다. Android 는 did 뿐이다(useKeyboard 와 같다).
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const show = Keyboard.addListener(showEvent, (event: KeyboardEvent) => {
+      keyboardTopRef.current = event.endCoordinates.screenY;
+      remeasure();
+    });
+    const hide = Keyboard.addListener(hideEvent, () => {
+      keyboardTopRef.current = null;
+      setCover(0);
+    });
+    // 키보드가 떠 있는 채로 덮개가 그려졌을 때. react-native-web 에는 metrics 가 없다.
+    const metrics = Keyboard.isVisible() ? Keyboard.metrics?.() : undefined;
+    if (metrics) {
+      keyboardTopRef.current = metrics.screenY;
+      remeasure();
+    }
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [remeasure]);
+
+  return cover;
+}
+
 export interface KeyboardRevealOptions {
   /**
    * false 인 동안은 내리지 않는다(예: 첫 기록 안내가 입력칸 자리를 재어 가리키는 동안, 또는
