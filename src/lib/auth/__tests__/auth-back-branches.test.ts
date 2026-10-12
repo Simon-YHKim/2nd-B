@@ -156,7 +156,8 @@ describe("R3-1 auth branch matrix", () => {
   });
 
   test("only the pure placement result routes the one unchanged accessible notice", () => {
-    expect(declaration("branch")).toBe("selectSignInBranch({ deletionNotice, loading, userId })");
+    // R6 moves selection into the hook; the screen consumes that exact branch.
+    expect(read(signInFile)).toContain("} = useSignInForm(deletionNotice);");
     expect(declaration("noticePlacement")).toBe("selectSignInNoticePlacement(branch, toast)");
     expect(declaration("inlineNotice")).toBe('noticePlacement === "inline" ? signInNotice : null');
     const notice = declaration("signInNotice");
@@ -211,19 +212,19 @@ describe("R3-1 auth branch matrix", () => {
     expect([...seen].sort()).toEqual(["avatar", "form", "home", "loading"]);
   });
 
-  test("registration covers every focused Android guest branch and every signup branch", () => {
+  test("registration covers every focused Android notice branch and every signup branch", () => {
     const signIn = read("src/lib/auth/useSignInForm.ts");
     const signUp = read("src/lib/auth/useSignUpForm.ts");
     for (const [source, guard] of [
-      [signIn, 'Platform.OS !== "android" || userId'], [signUp, 'Platform.OS !== "android"'],
+      [signIn, 'Platform.OS !== "android" || !branch.includesNotice'], [signUp, 'Platform.OS !== "android"'],
     ]) {
       const effect = source.slice(source.indexOf("useFocusEffect(useCallback("));
       expect(effect.slice(0, effect.indexOf("const onBackPress"))).toContain(`if (${guard}) return;`);
       expect(effect.slice(0, effect.indexOf("const onBackPress"))).not.toMatch(/if \(loading/);
       expect(effect).toContain("sub.remove()");
-      for (const OS of ["android", "ios", "web"]) for (const userId of [null, "owner"]) {
-        expect(Boolean(runInNewContext(guard, { Platform: { OS }, userId })))
-          .toBe(OS !== "android" || (source === signIn && userId !== null));
+      for (const OS of ["android", "ios", "web"]) for (const includesNotice of bools) {
+        expect(Boolean(runInNewContext(guard, { Platform: { OS }, branch: { includesNotice } })))
+          .toBe(OS !== "android" || (source === signIn && !includesNotice));
       }
     }
   });

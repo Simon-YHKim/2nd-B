@@ -300,6 +300,53 @@ describe.each(["no notice", "general notice B"])("R5 sign-in attachment: %s", (i
   });
 });
 
+test("R6 accepted residual: replacement before commit requests a fresh notice while the old one is still drawn", () => {
+  const h = signInHarness(null);
+  h.back();
+  const stillDrawn = h.state.toast!;
+  h.present();
+  h.setToast(generalNotice()); // Synchronous writer; no layout cleanup/commit yet.
+  expect(h.state.presented).toBeNull();
+  expect(h.back()).toBe(true);
+  const replacement = h.state.toast!;
+  expect(replacement).not.toBe(stillDrawn);
+  expect(h.showNotice).toHaveBeenCalledTimes(2);
+  expect(h.exitApp).not.toHaveBeenCalled();
+  h.detach(stillDrawn); // Only now commit the requested replacement.
+  h.present(replacement);
+  expect(h.back()).toBe(true);
+  expect(h.exitApp).toHaveBeenCalledTimes(1);
+});
+
+test("R6 accepted residual: the same notice reattached across branches holds Back for two frames", () => {
+  const h = signInHarness(null);
+  h.back();
+  const sameNotice = h.state.toast!;
+  h.present();
+  h.state.now = 200;
+  h.detach(sameNotice); // Old branch overlay's layout cleanup.
+  h.attach(sameNotice); // New branch, same object; restart paint acknowledgement.
+  const frames: (() => void)[] = [];
+  const cancel = deferSignInExitPresentation({
+    requestFrame: callback => frames.push(callback), cancelFrame: jest.fn(),
+    present: () => { h.paint(sameNotice); return undefined; },
+  });
+  for (let frame = 0; frame < 2; frame += 1) {
+    expect(h.state.toast).toBe(sameNotice);
+    expect(h.state.presented?.attached).toBe(true);
+    expect(h.state.presented?.exitOnBackUntil).toBeNull();
+    expect(h.back()).toBe(true);
+    expect(h.exitApp).not.toHaveBeenCalled();
+    expect(h.showNotice).toHaveBeenCalledTimes(1);
+    frames[frame]();
+  }
+  expect(h.state.presented?.exitOnBackUntil).toBe(3000);
+  expect(h.back()).toBe(true);
+  expect(h.exitApp).toHaveBeenCalledTimes(1);
+  expect(h.showNotice).toHaveBeenCalledTimes(1);
+  cancel();
+});
+
 test.each([0, 1, 2])("presentation cleanup after %i frames cancels even an already queued callback", (elapsed) => {
   const frames: (() => void)[] = [];
   const release = jest.fn();
@@ -373,14 +420,14 @@ describe("D2 hardware Back wiring", () => {
   test("the installed sign-in handler reads the synchronous lock without busy-state resubscription", () => {
     expect(signIn).toContain("const actionLockRef = useRef(0)");
     expect(inEffect).toContain("isBusy: () => actionLockRef.current > 0");
-    expect(inEffect).toContain("[userId, setToast, t]");
+    expect(inEffect).toContain("[branch.includesNotice, setToast, t]");
     expect(inEffect).not.toMatch(/submitting|oauthSubmitting|resetSubmitting/);
   });
 
-  test("guest loading keeps ownership and a confirmed user releases it", () => {
-    expect(inEffect).toContain('if (Platform.OS !== "android" || userId) return;');
+  test("notice branches keep ownership and only the home branch releases it", () => {
+    expect(inEffect).toContain('if (Platform.OS !== "android" || !branch.includesNotice) return;');
     expect(inEffect).not.toContain("loading");
-    expect(inEffect).toMatch(/\}, \[userId,/);
+    expect(inEffect).toMatch(/\}, \[branch.includesNotice,/);
   });
 
   test("loading and the form share the existing accessible notice", () => {
@@ -431,10 +478,10 @@ describe("D2 hardware Back wiring", () => {
     expect(attach).toMatch(/return \(\) => \{\s*presentedExitRef.current = detachSignInExit\(presentedExitRef.current, notice\);/);
   });
 
-  test("guest and focus changes revoke in layout, before passive subscription cleanup", () => {
+  test("branch ownership and focus changes revoke in layout, before passive subscription cleanup", () => {
     expect(signIn).toContain("const isFocused = useIsFocused()");
     expect(signIn).toContain("const isGuestRef = useRef(false)");
-    expect(signIn).toMatch(/useLayoutEffect\(\(\) => \{\s*isGuestRef.current = !userId && isFocused;\s*return \(\) => \{\s*isGuestRef.current = false;\s*clearSignInExit\(toastRef.current, setToast\);\s*\};\s*\}, \[userId, isFocused, setToast\]\);/);
+    expect(signIn).toMatch(/useLayoutEffect\(\(\) => \{\s*isGuestRef.current = branch.includesNotice && isFocused;\s*return \(\) => \{\s*isGuestRef.current = false;\s*clearSignInExit\(toastRef.current, setToast\);\s*\};\s*\}, \[branch.includesNotice, isFocused, setToast\]\);/);
     expect(inEffect).toContain("isGuest: () => isGuestRef.current");
     expect(inEffect).not.toContain("isGuest: () => !userId");
     expect(inEffect).not.toContain("clearSignInExit(");
@@ -442,7 +489,7 @@ describe("D2 hardware Back wiring", () => {
   });
 
   test("only an attached painted notice starts its own full timer; cancellation only clears that timer", () => {
-    const acknowledge = signIn.slice(signIn.indexOf("const onExitNoticePresented ="), signIn.indexOf("// Commit guest/focus"));
+    const acknowledge = signIn.slice(signIn.indexOf("const onExitNoticePresented ="), signIn.indexOf("// Commit branch/focus"));
     expect(acknowledge).toContain("presentSignInExit(toastRef.current, notice, presentedExitRef.current, Date.now())");
     expect(acknowledge).toMatch(/if \(!presented \|\| presented.exitOnBackUntil === null\) return;\s*presentedExitRef.current = presented;/);
     expect(acknowledge).toContain("Math.max(0, presented.exitOnBackUntil - Date.now())");

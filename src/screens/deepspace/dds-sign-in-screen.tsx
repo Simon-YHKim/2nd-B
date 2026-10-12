@@ -20,7 +20,7 @@ import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { type OAuthProvider } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useSignInForm, type UseSignInForm, type SignInToast } from "@/lib/auth/useSignInForm";
-import { selectSignInBranch, selectSignInNoticePlacement } from "@/lib/auth/sign-in-branch";
+import { selectSignInNoticePlacement } from "@/lib/auth/sign-in-branch";
 import { deferSignInExitPresentation } from "@/lib/auth/sign-in-back";
 import { RedirectHome } from "@/lib/nav/go-home";
 import {
@@ -95,9 +95,12 @@ function SignInExitNotice({ toast, onAttached, onPresented, children }: {
 
 export function DeepSpaceSignInDesignScreen() {
   const { t } = useTranslation(["deepspace", "auth", "common", "settings", "home"]);
+  // 확인된 삭제 영수증은 두 게스트 가드보다 앞선다. 방금 계정을 지운 사람에게
+  // 서버가 무엇을 지웠고 무엇을 확인하지 못했는지 말해 줄 자리가 여기뿐이다.
+  // 세션 로딩 중에도, 늦게 도착한 userId 로도 이 결과를 밀어내면 안 된다.
+  const deletionNotice = useAccountDeletionNotice();
   const {
-    userId,
-    loading,
+    branch,
     email,
     setEmail,
     password,
@@ -114,7 +117,7 @@ export function DeepSpaceSignInDesignScreen() {
     visibleProviders,
     handleSubmit,
     handleOAuth,
-  } = useSignInForm();
+  } = useSignInForm(deletionNotice);
   // AUTH-01: startup can end without ever classifying the session. That is not
   // "signed out" - it is unknown - so the form is shown with an explicit,
   // announced error and a bounded retry instead of pretending it is a clean
@@ -124,11 +127,6 @@ export function DeepSpaceSignInDesignScreen() {
   const actionLock = useRef(false);
   const [focusedField, setFocusedField] = useState<FocusedField>(null);
 
-  // 확인된 삭제 영수증은 두 게스트 가드보다 앞선다. 방금 계정을 지운 사람에게
-  // 서버가 무엇을 지웠고 무엇을 확인하지 못했는지 말해 줄 자리가 여기뿐이다.
-  // 세션 로딩 중에도, 늦게 도착한 userId 로도 이 결과를 밀어내면 안 된다.
-  const deletionNotice = useAccountDeletionNotice();
-  const branch = selectSignInBranch({ deletionNotice, loading, userId });
   const noticePlacement = selectSignInNoticePlacement(branch, toast);
 
   const signInNotice = noticePlacement !== "none" && toast ? (

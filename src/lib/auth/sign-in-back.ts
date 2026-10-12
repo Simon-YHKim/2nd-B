@@ -17,6 +17,7 @@ export function attachSignInExit(
 ): PresentedSignInExit | null {
   if (current !== notice || !notice.exitOnBack) return presented;
   if (presented?.toast === notice && presented.attached) return presented;
+  // Accepted residual: reattachment waits two frames again, conservatively withholding exit.
   return { toast: notice, attached: true, exitOnBackUntil: null };
 }
 
@@ -68,6 +69,7 @@ export function replacePresentedSignInExit(
   current: SignInToast | null,
   next: SignInToast | null,
 ): PresentedSignInExit | null {
+  // Accepted residual: replacement revokes before commit; a still-visible old notice cannot exit.
   return current === next ? presented : null;
 }
 

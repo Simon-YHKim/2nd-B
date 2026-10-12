@@ -39,6 +39,7 @@ import {
   replacePresentedSignInExit, type PresentedSignInExit,
 } from "./sign-in-back";
 
+import { selectSignInBranch, type SignInBranch } from "./sign-in-branch";
 import { replaceSignInToast, type SignInToast } from "./sign-in-toast";
 export type { SignInToastTone, SignInToast } from "./sign-in-toast";
 
@@ -49,10 +50,9 @@ export { isProviderNotEnabledError, startOAuthProvider as startSignInProvider };
 const PROVIDER_LABEL = OAUTH_PROVIDER_LABEL;
 export const SIGN_IN_LONG_WAIT_MS = 15_000;
 
-export interface UseSignInForm {
+export interface UseSignInForm<T = unknown> {
   // session/routing signals
-  loading: boolean;
-  userId: string | null;
+  branch: SignInBranch<T>;
   // form state
   email: string;
   setEmail: (value: string) => void;
@@ -81,9 +81,10 @@ export interface UseSignInForm {
   handleForgotPassword: () => Promise<void>;
 }
 
-export function useSignInForm(): UseSignInForm {
+export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
   const { t } = useTranslation(["auth", "common"]);
   const { userId, loading, refresh } = useAuth();
+  const branch = selectSignInBranch({ deletionNotice, loading, userId });
   const isFocused = useIsFocused();
   const isGuestRef = useRef(false);
   const [email, setEmail] = useState("");
@@ -117,15 +118,15 @@ export function useSignInForm(): UseSignInForm {
     const timeout = setTimeout(() => setToast(null, notice), duration);
     return () => clearTimeout(timeout);
   }, [setToast]);
-  // Commit guest/focus changes before a stale focus subscription can run. On
-  // blur, authentication or unmount, no passive cleanup owns exit eligibility.
+  // Commit branch/focus ownership before a stale focus subscription can run.
+  // Only home releases it; a late session cannot displace a receipt or loading.
   useLayoutEffect(() => {
-    isGuestRef.current = !userId && isFocused;
+    isGuestRef.current = branch.includesNotice && isFocused;
     return () => {
       isGuestRef.current = false;
       clearSignInExit(toastRef.current, setToast);
     };
-  }, [userId, isFocused, setToast]);
+  }, [branch.includesNotice, isFocused, setToast]);
   const [resetHelpVisible, setResetHelpVisible] = useState(false);
   const [resetSubmitting, setResetSubmitting] = useState(false);
   // Back reads this synchronous count, not a render's busy snapshot. Counting
@@ -158,7 +159,7 @@ export function useSignInForm(): UseSignInForm {
   // The deadline also dismisses the existing toast; an unrelated toast never
   // grants exit. Leaving this screen disarms the prompt even if it stays mounted.
   useFocusEffect(useCallback(() => {
-    if (Platform.OS !== "android" || userId) return;
+    if (Platform.OS !== "android" || !branch.includesNotice) return;
     const onBackPress = createSignInBackHandler({
       isGuest: () => isGuestRef.current,
       isBusy: () => actionLockRef.current > 0,
@@ -170,7 +171,7 @@ export function useSignInForm(): UseSignInForm {
     });
     const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => sub.remove();
-  }, [userId, setToast, t]));
+  }, [branch.includesNotice, setToast, t]));
 
   const setEmailAndClearReset = useCallback(
     (value: string) => {
@@ -296,8 +297,7 @@ export function useSignInForm(): UseSignInForm {
   );
 
   return {
-    loading,
-    userId,
+    branch,
     email,
     setEmail: setEmailAndClearReset,
     password,
