@@ -61,12 +61,6 @@
     "skipShort": "Skip",
     "retry": "Retry opening"
   },
-  "navGraph": {
-    "drilldown": {
-      "back": "Back to constellation",
-      "backHint": "Returns to the full constellation."
-    }
-  },
   "navPrev": "Prev",
   "navNext": "Next",
   "quantBeforeStart": "Before you start",

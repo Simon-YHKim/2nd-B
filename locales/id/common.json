@@ -61,12 +61,6 @@
     "skipShort": "Lewati",
     "retry": "Coba pembukaan lagi"
   },
-  "navGraph": {
-    "drilldown": {
-      "back": "Kembali ke konstelasi",
-      "backHint": "Kembali dari detail bidang ke seluruh konstelasi."
-    }
-  },
   "navPrev": "Sebelumnya",
   "navNext": "Berikutnya",
   "quantBeforeStart": "Sebelum mulai",

@@ -61,12 +61,6 @@
     "skipShort": "Pular",
     "retry": "Tentar abertura novamente"
   },
-  "navGraph": {
-    "drilldown": {
-      "back": "Voltar à constelação",
-      "backHint": "Volta dos detalhes desta estrela para a constelação."
-    }
-  },
   "navPrev": "Ant.",
   "navNext": "Próx.",
   "quantBeforeStart": "Antes de começar",
