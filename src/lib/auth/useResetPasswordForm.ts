@@ -10,10 +10,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { clearInitialURL, useLinkingURL } from "expo-linking";
-import { useIsFocused, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
-import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import {
   persistRecoveryPending,
   sameRecoveryProof,
@@ -36,7 +35,6 @@ import {
   resetStep,
   type ResetStep,
 } from "@/lib/auth/reset-password-helpers";
-import { clearSignUpFailure as clearAuthFailure } from "./sign-up-notice";
 
 export type ResetToastTone = "info" | "success" | "danger";
 export type ResetToast = { message: string; tone: ResetToastTone };
@@ -65,7 +63,7 @@ export interface UseResetPasswordForm {
   sendSubmitting: boolean;
   /** Seconds until the code can be re-sent (0 = allowed now). */
   resendSeconds: number;
-  handleSendCode: (onInvalid?: () => void) => Promise<void>;
+  handleSendCode: () => Promise<void>;
   code: string;
   setCode: (value: string) => void;
   canVerify: boolean;
@@ -90,9 +88,7 @@ export interface UseResetPasswordForm {
 }
 
 export function useResetPasswordForm(): UseResetPasswordForm {
-  const { t, i18n } = useTranslation("auth");
-  const language = renderedUiLanguage(i18n);
-  const isFocused = useIsFocused();
+  const { t } = useTranslation("auth");
   const {
     userId,
     loading,
@@ -119,29 +115,6 @@ export function useResetPasswordForm(): UseResetPasswordForm {
   const [cancelled, setCancelled] = useState(false);
   const [complete, setComplete] = useState(false);
   const [toast, setToast] = useState<ResetToast | null>(null);
-  const sendCodeLockRef = useRef(false);
-  useEffect(() => {
-    setToast(clearAuthFailure);
-  }, [language]);
-  useEffect(() => {
-    if (!isFocused) setToast(clearAuthFailure);
-  }, [isFocused, toast]);
-  const changeEmail = useCallback((value: string) => {
-    setToast(clearAuthFailure);
-    setEmail(value);
-  }, []);
-  const changeCode = useCallback((value: string) => {
-    setToast(clearAuthFailure);
-    setCode(value);
-  }, []);
-  const changePassword = useCallback((value: string) => {
-    setToast(clearAuthFailure);
-    setPassword(value);
-  }, []);
-  const changeConfirmPassword = useCallback((value: string) => {
-    setToast(clearAuthFailure);
-    setConfirmPassword(value);
-  }, []);
   const [consumingRecoveryLink, setConsumingRecoveryLink] = useState(false);
   // Unlike the deprecated useURL(), useLinkingURL() seeds its state from the
   // native module synchronously. That keeps a cold-start recovery URL locked
@@ -224,10 +197,10 @@ export function useResetPasswordForm(): UseResetPasswordForm {
     return () => clearInterval(h);
   }, [counting]);
 
-  const handleSendCode = useCallback(async (onInvalid?: () => void) => {
+  const handleSendCode = useCallback(async () => {
     const target = email.trim();
     if (
-      sendCodeLockRef.current ||
+      !target.includes("@") ||
       sendSubmitting ||
       recoveryPending ||
       submitting ||
@@ -235,13 +208,6 @@ export function useResetPasswordForm(): UseResetPasswordForm {
     ) {
       return;
     }
-    setToast(clearAuthFailure);
-    if (!target.includes("@")) {
-      setToast({ tone: "danger", message: t("signIn.resetToast") });
-      onInvalid?.();
-      return;
-    }
-    sendCodeLockRef.current = true;
     setSendSubmitting(true);
     try {
       await sendPasswordResetEmail(target);
@@ -254,7 +220,6 @@ export function useResetPasswordForm(): UseResetPasswordForm {
       setToast({ tone: "danger", message: t("errors.passwordResetFailed") });
       if (typeof console !== "undefined") console.warn("[auth] reset code send error", (e as Error).message);
     } finally {
-      sendCodeLockRef.current = false;
       setSendSubmitting(false);
     }
   }, [email, recoveryPending, resendSeconds, sendSubmitting, submitting, t]);
@@ -270,7 +235,6 @@ export function useResetPasswordForm(): UseResetPasswordForm {
     ) {
       return;
     }
-    setToast(clearAuthFailure);
     setVerifying(true);
     try {
       // verifyOtp emits PASSWORD_RECOVERY. Register its returned user as well
@@ -405,7 +369,6 @@ export function useResetPasswordForm(): UseResetPasswordForm {
     ) {
       return;
     }
-    setToast(clearAuthFailure);
     setSubmitting(true);
     try {
       // The leaked-password probe inside updatePasswordForRecovery is asynchronous. Bind
@@ -499,7 +462,6 @@ export function useResetPasswordForm(): UseResetPasswordForm {
     ) {
       return;
     }
-    setToast(clearAuthFailure);
     setCancelling(true);
     try {
       // Cancelling an active recovery must revoke the authenticated recovery
@@ -549,6 +511,7 @@ export function useResetPasswordForm(): UseResetPasswordForm {
   ]);
 
   const { canSendCode, canVerify, canSubmit } = resetActionAvailability({
+    emailValid: email.trim().includes("@"),
     codeValid: code.trim().length >= 6,
     passwordsValid: password.length >= 8 && confirmPassword === password,
     recoveryActive,
@@ -567,20 +530,20 @@ export function useResetPasswordForm(): UseResetPasswordForm {
     exitLocked,
     step,
     email,
-    setEmail: changeEmail,
+    setEmail,
     canSendCode,
     sendSubmitting,
     resendSeconds,
     handleSendCode,
     code,
-    setCode: changeCode,
+    setCode,
     canVerify,
     verifying,
     handleVerifyCode,
     password,
-    setPassword: changePassword,
+    setPassword,
     confirmPassword,
-    setConfirmPassword: changeConfirmPassword,
+    setConfirmPassword,
     submitting,
     cancelling,
     cancelled,

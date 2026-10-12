@@ -59,7 +59,7 @@ function harness(kind: "signIn" | "reset") {
     recoveryOperation: null as unknown, recoveryPendingGlobal: false,
     activateRecoverySession: jest.fn(), completeRecovery: jest.fn(async () => true),
   };
-  const environment = { focused: true, language: "ko", packReady: true };
+  const environment = { focused: true, language: "ko", packReady: true, receipt: null as unknown };
   const calls = {
     signInWithEmail: jest.fn(async () => { throw new Error("invalid credentials"); }),
     startOAuthProvider: jest.fn(async () => { throw new Error("provider failed"); }),
@@ -104,7 +104,7 @@ function harness(kind: "signIn" | "reset") {
     while (dirty) {
       if (++renders > 30) throw new Error("effect render loop");
       dirty = false; index = 0; pending = [];
-      form = hook(null);
+      form = hook(environment.receipt as null);
       pending.forEach(fn => fn());
     }
     return form;
@@ -117,7 +117,7 @@ function harness(kind: "signIn" | "reset") {
 beforeEach(() => jest.useFakeTimers());
 afterEach(() => jest.useRealTimers());
 
-describe("Z12/Z13 actual submit handlers", () => {
+describe("Z12 actual submit handlers", () => {
   test.each(["", "abc", "   "])("sign-in rejects email %p locally and focuses email", async email => {
     const h = harness("signIn"); h.form.setEmail(email); h.form.setPassword("x"); h.flush();
     const focus = jest.fn(); await h.form.handleSubmit(focus); h.flush();
@@ -131,14 +131,6 @@ describe("Z12/Z13 actual submit handlers", () => {
     expect(h.calls.signInWithEmail).not.toHaveBeenCalled();
     expect(h.form.toast).toEqual({ tone: "danger", message: "ko:errors.signInFailed" });
     expect(focus).toHaveBeenCalledWith("password");
-  });
-  test.each(["", "abc", "   "])("reset accepts press with email %p but makes no request", async email => {
-    const h = harness("reset"); h.form.setEmail(email); h.flush();
-    expect(h.form.canSendCode).toBe(true);
-    const focus = jest.fn(); await h.form.handleSendCode(focus); h.flush();
-    expect(h.calls.sendPasswordResetEmail).not.toHaveBeenCalled();
-    expect(h.form.toast).toEqual({ tone: "danger", message: "ko:signIn.resetToast" });
-    expect(focus).toHaveBeenCalledTimes(1);
   });
   test.each(["wrong password", "missing account", "deleted account"])("sign-in %s has the same generic failure", async reason => {
     const h = harness("signIn"); h.form.setEmail("reader@example.invalid"); h.form.setPassword("x"); h.flush();
@@ -155,20 +147,11 @@ describe("Z12/Z13 actual submit handlers", () => {
     await action; h.flush();
     expect(Object.values(h.calls).reduce((n, fn) => n + fn.mock.calls.length, 0)).toBe(1);
   });
-  test("reset send lock, pending recovery and cooldown still prevent duplicate sends", async () => {
-    const h = harness("reset"); h.form.setEmail("reader@example.invalid"); h.flush();
-    h.calls.sendPasswordResetEmail.mockResolvedValueOnce(undefined as never);
-    const send = h.form.handleSendCode(); const second = h.form.handleSendCode(); h.flush();
-    expect(h.form.canSendCode).toBe(false); await Promise.all([send, second]); h.flush();
-    expect(h.calls.sendPasswordResetEmail).toHaveBeenCalledTimes(1);
-    expect(h.form.canSendCode).toBe(false);
-    jest.advanceTimersByTime(60000); h.flush(); expect(h.form.canSendCode).toBe(true);
-    h.auth.recoveryPendingGlobal = true; h.flush(); expect(h.form.canSendCode).toBe(false);
-    await h.form.handleSendCode(); expect(h.calls.sendPasswordResetEmail).toHaveBeenCalledTimes(1);
-  });
 });
 
-describe.each(["signIn", "reset"] as const)("%s persistent failure lifecycle", kind => {
+// The reset screen's notices moved to their own change (the review of #2341 asked for one shared
+// synchronous lock across its four handlers first). This file covers sign-in only for now.
+describe.each(["signIn"] as const)("%s persistent failure lifecycle", kind => {
   async function failed() {
     const h = harness(kind);
     await (kind === "signIn" ? h.form.handleSubmit() : h.form.handleSendCode()); h.flush();
@@ -208,27 +191,41 @@ test.each(["handleSubmit", "handleOAuth", "handleNaver"] as const)("%s clears pr
   h.flush(); expect(h.form.toast).toBeNull(); await pending; h.flush(); expect(h.form.toast?.tone).toBe("danger");
 });
 
-test("reset resend starts with the previous failure cleared", async () => {
-  const h = harness("reset"); h.form.setEmail("reader@example.invalid"); h.flush();
-  await h.form.handleSendCode(); h.flush(); expect(h.form.toast?.tone).toBe("danger");
-  const pending = h.form.handleSendCode(); h.flush(); expect(h.form.toast).toBeNull(); await pending;
-});
-
-test.each(["handleVerifyCode", "handleSubmit", "handleCancelRecovery"] as const)("reset %s clears failure at the next valid attempt", async action => {
-  const h = harness("reset");
-  h.form.setEmail("reader@example.invalid"); h.form.setCode("123456"); h.flush();
-  if (action !== "handleVerifyCode") {
-    h.auth.userId = "fixture"; h.auth.recoveryUserId = "fixture"; h.auth.recoverySessionId = "session";
-    h.auth.recoveryOperation = { userId: "fixture", sessionId: "session", issuedAt: "fixture", pendingOwnerNonce: "fixture" };
-    h.flush(); h.form.setPassword("password-fixture"); h.form.setConfirmPassword("password-fixture"); h.flush();
+// Review of #2341, finding 2: loading and the deletion receipt also draw the notice slot, so a failure
+// of the form must not travel into them, and one that arrives late must not surface there either.
+describe("a form failure does not follow the user into another presentation", () => {
+  async function failed() {
+    const h = harness("signIn");
+    await h.form.handleSubmit(); h.flush();
+    expect(h.form.toast?.tone).toBe("danger");
+    return h;
   }
-  await h.form[action](); h.flush(); expect(h.form.toast?.tone).toBe("danger");
-  const pending = h.form[action](); h.flush(); expect(h.form.toast).toBeNull();
-  await pending; h.flush(); expect(h.form.toast?.tone).toBe("danger");
+  test("loading replaces the form: the failure is retired", async () => {
+    const h = await failed(); h.auth.loading = true; h.flush();
+    expect(h.form.toast).toBeNull();
+    h.auth.loading = false; h.flush(); expect(h.form.toast).toBeNull();
+  });
+  test("the deletion receipt replaces the form: the failure is retired", async () => {
+    const h = await failed(); h.environment.receipt = { fixture: true }; h.flush();
+    expect(h.form.toast).toBeNull();
+  });
+  test("a failure that arrives while loading is shown is retired too", async () => {
+    const h = harness("signIn"); h.form.setEmail("reader@example.invalid"); h.form.setPassword("x"); h.flush();
+    const pending = h.form.handleSubmit();
+    h.auth.loading = true; h.flush();
+    await pending; h.flush();
+    expect(h.calls.signInWithEmail).toHaveBeenCalledTimes(1);
+    expect(h.form.toast).toBeNull();
+  });
+  test("an exit notice is not a failure and stays through the same changes", async () => {
+    const h = harness("signIn"); h.back(); h.flush();
+    const exit = h.form.toast; expect(exit?.exitOnBack).toBe(true);
+    h.auth.loading = true; h.flush(); expect(h.form.toast).toBe(exit);
+  });
 });
 
-test("success retains sign-in timeout and reset has no notice timeout", async () => {
-  for (const kind of ["signIn", "reset"] as const) {
+test("success keeps its sign-in timeout", async () => {
+  for (const kind of ["signIn"] as const) {
     const h = harness(kind); h.form.setEmail("reader@example.invalid"); h.flush();
     h.calls.sendPasswordResetEmail.mockResolvedValueOnce(undefined as never);
     await (kind === "signIn" ? (h.form as Form & { handleForgotPassword: () => Promise<void> }).handleForgotPassword() : h.form.handleSendCode());
@@ -287,24 +284,4 @@ test("screen button/go dispatch retains the busy gate and focuses the invalid in
   // The notice takes space only while it is shown (same as the sign-up screen, #2325).
   expect(source).not.toContain("fontScale");
   expect(source).toMatch(/\{inlineNotice\}\s*<PixelPressable\s+variant="bevel"\s+onPress=\{\(\) => void submit\(\)\}/);
-});
-
-test("reset button and keyboard share the email-focus dispatch and request notice slot", async () => {
-  const file = "src/screens/deepspace/dds-auth-screens.tsx";
-  const source = readFileSync(file, "utf8");
-  const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const screen = ast.statements.find((n): n is ts.FunctionDeclaration => ts.isFunctionDeclaration(n) && n.name?.text === "DeepSpaceResetPasswordDesignScreen")!;
-  const decl = screen.body!.statements.flatMap(n => ts.isVariableStatement(n) ? [...n.declarationList.declarations] : []).find(n => n.name.getText(ast) === "sendCode")!;
-  const emailRef = { current: { focus: jest.fn() } };
-  const dispatch = evaluate(decl.initializer!.getText(ast), { handleSendCode: async (focus: () => void) => focus(), emailRef });
-  await dispatch(); expect(emailRef.current.focus).toHaveBeenCalledTimes(1);
-  expect(source).toContain("if (canSendCode) void sendCode();");
-  expect(source).toContain("onPress={() => void sendCode()}");
-  expect(source).toContain("disabled={!canSendCode}");
-  expect(source).toContain('ref={emailRef}');
-  const slot = source.indexOf('{step === "request" ? resetNotice : null}');
-  expect(slot).toBeGreaterThan(-1);
-  expect(slot).toBeLessThan(source.indexOf("onPress={() => void sendCode()}"));
-  expect(source).not.toContain("bodyMedium.line * 3");
-  expect(source).toContain('{step !== "request" ? resetNotice : null}');
 });

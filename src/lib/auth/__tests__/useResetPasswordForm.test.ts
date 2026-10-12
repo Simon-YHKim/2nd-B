@@ -124,6 +124,7 @@ describe("recovery proof and exit lock", () => {
 
   test("pending work disables every competing reset action", () => {
     const ready = {
+      emailValid: true,
       codeValid: true,
       passwordsValid: true,
       recoveryActive: true,
@@ -180,9 +181,7 @@ describe("PIXEL-CLAY reset-password presenter", () => {
     expect(resetPixelClaySource).toContain('step === "request" || step === "verify"');
     expect(resetPixelClaySource).toContain('step === "password"');
     expect(resetPixelClaySource).toContain('step === "done"');
-    // 2026-10-13 Z13: the same send handler also focuses an invalid email.
-    expect(resetPixelClaySource).toContain("handleSendCode(() => emailRef.current?.focus())");
-    expect(resetPixelClaySource).toContain("void sendCode()");
+    expect(resetPixelClaySource).toContain("void handleSendCode()");
     expect(resetPixelClaySource).toContain("void handleVerifyCode()");
     expect(resetPixelClaySource).toContain("void handleSubmit()");
     expect(resetPixelClaySource).toContain("void handleCancelRecovery()");

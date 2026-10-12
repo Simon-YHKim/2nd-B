@@ -211,9 +211,8 @@ describe("sign-in extraction boundaries", () => {
     expect(sha256(source.slice(0, split))).toBe(
       "299d83f55b8f2169d0c569cb4771cb9da125fd097558258aae24c8760db63217",
     );
-    // 2026-10-13 Z13: request notice above Send + email-focus relay; other phases unchanged.
     expect(sha256(source.slice(tail))).toBe(
-      "7ff275248c3931c230f0b7ff85c244c9f1b6a0ddcb7af1dbe7c06d16de82f01c",
+      "f03a045e70a79e87ea2fa3dd757430da15845aaaf4a5adb6400f25e8894dec39",
     );
   });
 

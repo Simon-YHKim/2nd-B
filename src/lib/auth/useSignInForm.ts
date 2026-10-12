@@ -151,9 +151,11 @@ export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
   }, [language, clearFailure]);
 
   useEffect(() => {
-    // Also retire results arriving after a covered route has lost focus.
-    if (!isFocused || !branch.includesNotice) clearFailure();
-  }, [isFocused, branch.includesNotice, toast, clearFailure]);
+    // Also retire results arriving after a covered route has lost focus, and a failure of the form
+    // once loading, the deletion receipt or home has replaced it: those presentations draw the same
+    // notice slot, and an old sign-in failure does not belong in front of them.
+    if (!isFocused || branch.kind !== "form") clearFailure();
+  }, [isFocused, branch.kind, toast, clearFailure]);
 
   useEffect(() => {
     if (!toast || toast.exitOnBack) return;
