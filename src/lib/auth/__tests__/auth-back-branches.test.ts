@@ -97,7 +97,11 @@ describe("R3-1 auth branch matrix", () => {
       seen.add(branch.kind);
       for (const notice of notices) {
         const placement = notice === null ? "none"
-          : notice.exitOnBack ? presentations[expected].exit : presentations[expected].other;
+          : notice.exitOnBack ? presentations[expected].exit
+          // 2026-10-13 Z24: a failure of the form is drawn on the form only (never over loading
+          // or the deletion receipt). Exit guidance is unaffected.
+          : notice.tone === "danger" && expected !== "form" ? "none"
+          : presentations[expected].other;
         expect(selectSignInNoticePlacement(branch, notice)).toBe(placement);
       }
     }

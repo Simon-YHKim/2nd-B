@@ -150,11 +150,18 @@ export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
     clearFailure();
   }, [language, clearFailure]);
 
+  const previousBranchKindRef = useRef(branch.kind);
   useEffect(() => {
-    // Also retire results arriving after a covered route has lost focus, and a failure of the form
-    // once loading, the deletion receipt or home has replaced it: those presentations draw the same
-    // notice slot, and an old sign-in failure does not belong in front of them.
-    if (!isFocused || branch.kind !== "form") clearFailure();
+    const previous = previousBranchKindRef.current;
+    previousBranchKindRef.current = branch.kind;
+    // A failure belongs to the form that produced it.
+    // - Lost focus: retire it, including a result that arrives after the route was covered.
+    // - Leaving the form: retire what was on screen, so an old failure is not waiting when it returns.
+    // - The receipt and home never hand back to this form, so nothing may wait there either.
+    // - Loading is different: a failure that ARRIVES while loading is the answer to the attempt the
+    //   user just made. It is kept (the placement hides it there) and shown when the form returns.
+    const leftForm = previous === "form" && branch.kind !== "form";
+    if (!isFocused || leftForm || branch.kind === "deletion" || branch.kind === "home") clearFailure();
   }, [isFocused, branch.kind, toast, clearFailure]);
 
   useEffect(() => {

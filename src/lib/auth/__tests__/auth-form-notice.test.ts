@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as back from "../sign-in-back";
-import { selectSignInBranch } from "../sign-in-branch";
+import { selectSignInBranch, selectSignInNoticePlacement } from "../sign-in-branch";
 import { replaceSignInToast } from "../sign-in-toast";
 import { clearSignUpFailure as clearAuthFailure, signUpToastTimeoutMs as authToastTimeoutMs } from "../sign-up-notice";
 import * as reset from "../reset-password-helpers";
@@ -209,13 +209,40 @@ describe("a form failure does not follow the user into another presentation", ()
     const h = await failed(); h.environment.receipt = { fixture: true }; h.flush();
     expect(h.form.toast).toBeNull();
   });
-  test("a failure that arrives while loading is shown is retired too", async () => {
+  // Review of #2341, round two: the answer to the attempt the user just made must not be lost because
+  // loading happened to be the presentation when it arrived. It waits, undrawn, and shows on the form.
+  test("a failure that arrives while loading waits there undrawn and shows when the form returns", async () => {
     const h = harness("signIn"); h.form.setEmail("reader@example.invalid"); h.form.setPassword("x"); h.flush();
-    const pending = h.form.handleSubmit();
+    let reject!: (error: Error) => void;
+    h.calls.signInWithEmail.mockImplementationOnce(() => new Promise<never>((_resolve, fail) => { reject = fail; }));
+    const pending = h.form.handleSubmit(); h.flush();
     h.auth.loading = true; h.flush();
-    await pending; h.flush();
-    expect(h.calls.signInWithEmail).toHaveBeenCalledTimes(1);
+    reject(new Error("invalid credentials")); await pending; h.flush();
+    const late = h.form.toast;
+    expect(late).toEqual({ tone: "danger", message: "ko:errors.signInFailed" });
+    const loading = selectSignInBranch({ deletionNotice: null, loading: true, userId: null });
+    expect(selectSignInNoticePlacement(loading, late as never)).toBe("none");
+    h.auth.loading = false; h.flush();
+    expect(h.form.toast).toBe(late);
+    const form = selectSignInBranch({ deletionNotice: null, loading: false, userId: null });
+    expect(selectSignInNoticePlacement(form, late as never)).toBe("inline");
+    jest.advanceTimersByTime(60000); h.flush(); expect(h.form.toast).toBe(late);
+    h.form.setPassword("changed"); h.flush(); expect(h.form.toast).toBeNull();
+  });
+  test("a failure that arrives while the deletion receipt is shown is retired", async () => {
+    const h = harness("signIn"); h.form.setEmail("reader@example.invalid"); h.form.setPassword("x"); h.flush();
+    let reject!: (error: Error) => void;
+    h.calls.signInWithEmail.mockImplementationOnce(() => new Promise<never>((_resolve, fail) => { reject = fail; }));
+    const pending = h.form.handleSubmit(); h.flush();
+    h.environment.receipt = { fixture: true }; h.flush();
+    reject(new Error("invalid credentials")); await pending; h.flush();
     expect(h.form.toast).toBeNull();
+  });
+  test.each(["loading", "deletion"] as const)("a failure is never drawn over %s; other notices keep their place", kind => {
+    const branch = selectSignInBranch({ deletionNotice: kind === "deletion" ? { fixture: true } : null, loading: kind === "loading", userId: null });
+    expect(selectSignInNoticePlacement(branch, { tone: "danger", message: "x" })).toBe("none");
+    expect(selectSignInNoticePlacement(branch, { tone: "info", message: "x" })).toBe("inline");
+    expect(selectSignInNoticePlacement(branch, { tone: "info", message: "x", exitOnBack: true })).toBe("overlay");
   });
   test("an exit notice is not a failure and stays through the same changes", async () => {
     const h = harness("signIn"); h.back(); h.flush();
