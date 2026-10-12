@@ -38,6 +38,7 @@ import {
   monthGrid,
   todayISO,
   yearsDescending,
+  yearGridStartRow,
 } from "./calendar-math";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
 
@@ -203,6 +204,10 @@ function CalendarGlyph({ size = 20, color }: { size?: number; color: string }) {
 // ---------------------------------------------------------------------------
 // Year grid (shared by the calendar's year view and the standalone YearField).
 // ---------------------------------------------------------------------------
+const YEAR_COLUMNS = 4;
+// One grid row: the cell's touch floor plus the wrap's padding above and below it.
+const YEAR_ROW_HEIGHT = m3.minTouch + m3.spacing.s1 * 2;
+
 function YearGrid({
   minYear,
   maxYear,
@@ -219,7 +224,10 @@ function YearGrid({
     <FlatList
       data={data}
       keyExtractor={(y) => String(y)}
-      numColumns={4}
+      numColumns={YEAR_COLUMNS}
+      // Open on the chosen year's row, not on the newest year (a birth year sits decades down).
+      initialScrollIndex={yearGridStartRow(minYear, maxYear, selectedYear, YEAR_COLUMNS)}
+      getItemLayout={(_, index) => ({ length: YEAR_ROW_HEIGHT, offset: YEAR_ROW_HEIGHT * index, index })}
       style={styles.yearList}
       contentContainerStyle={styles.yearListContent}
       keyboardShouldPersistTaps="handled"
