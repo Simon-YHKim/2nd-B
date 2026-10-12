@@ -76,21 +76,25 @@ export function DeepSpaceConsentNoticeScreen() {
   );
 
   return (
-    <AuthShell scrollRef={scrollRef}>
-      <View style={styles.titleRow}>
-        <Pressable
-          onPress={requestBack}
-          hitSlop={12}
-          style={local.backTarget}
-          accessibilityRole="button"
-          accessibilityLabel={t("common:actions.back")}
-        >
-          <RNText style={styles.back}>‹</RNText>
-        </Pressable>
-        <Text variant="heading" style={styles.title} accessibilityRole="header">
-          {t("consent:detail.title")}
-        </Text>
-      </View>
+    <AuthShell
+      scrollRef={scrollRef}
+      head={
+        <View style={[styles.titleRow, local.head]}>
+          <Pressable
+            onPress={requestBack}
+            hitSlop={12}
+            style={local.backTarget}
+            accessibilityRole="button"
+            accessibilityLabel={t("common:actions.back")}
+          >
+            <RNText style={styles.back}>‹</RNText>
+          </Pressable>
+          <Text variant="heading" style={styles.title} accessibilityRole="header">
+            {t("consent:detail.title")}
+          </Text>
+        </View>
+      }
+    >
       <Text variant="body" style={styles.consentIntro}>{t("consent:detail.intro")}</Text>
 
       <View style={styles.card}>
@@ -138,4 +142,7 @@ const local = StyleSheet.create({
   // paragraphs need their own style or flexBasis:0 collapses them in a column.
   body: { color: colors.textMid, fontSize: 12, lineHeight: 18 },
   cardTarget: { borderColor: colors.cyan },
+  // The title row left the scroll surface (the page opens scrolled to ?item=),
+  // so it brings that surface's gutter with it.
+  head: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
 });
