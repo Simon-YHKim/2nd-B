@@ -22,10 +22,10 @@ jest.mock("react-native", () => ({ Platform: mockPlatform }));
 jest.mock("../notifications-sdk", () => ({ loadNotifications: () => mockSdk }));
 jest.mock("@react-native-async-storage/async-storage", () => ({ __esModule: true, default: mockStore }));
 
-import { __resetAccountEpochForTests, beginAccountOwnerTransition, noteResolvedOwner } from "../../auth/account-epoch";
+import { __resetAccountEpochForTests, beginAccountOwnerTransition, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "../../auth/account-epoch";
 import { accountNotificationStorageKey, dailyReviewNotificationId, oneShotNotificationId } from "../notification-identity";
 import { runLocalNotificationMutation } from "../notification-mutation";
-import { disableReminder, enableReminder, getReminderStates, getScheduledRoutineIds, routineReminderId, scheduleRoutineReminder, sweepResidualReminderNotifications } from "../reminders";
+import { disableReminder, enableReminder, getReminderStates, getScheduledRoutineIds, isReminderEnabled, routineReminderId, scheduleRoutineReminder, sweepResidualReminderNotifications } from "../reminders";
 
 const owner = "owner-a";
 const disabledKey = accountNotificationStorageKey(owner, "reminders-disabled");
@@ -49,6 +49,7 @@ beforeEach(() => {
   jest.useFakeTimers().setSystemTime(new Date("2026-10-11T00:00:00.000Z"));
   jest.clearAllMocks(); values.clear(); scheduled.clear(); mockPlatform.OS = "android";
   mockStore.getItem.mockReset().mockImplementation(async key => values.get(key) ?? null);
+  mockStore.setItem.mockReset().mockImplementation(async (key, value) => { values.set(key, value); });
   mockSdk.getAllScheduledNotificationsAsync.mockReset().mockImplementation(async () => [...scheduled].map(identifier => ({ identifier })));
   mockSdk.cancelScheduledNotificationAsync.mockReset().mockImplementation(async identifier => { scheduled.delete(identifier); });
   __resetAccountEpochForTests(); noteResolvedOwner(owner);
@@ -97,6 +98,161 @@ test.each(["rejected", "partial", "unavailable", "timeout"])("uncertain OS reads
   if (reason === "timeout") await jest.advanceTimersByTimeAsync(5_001);
   expect(await sweep).toEqual(empty);
   expect(mockSdk.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+});
+
+test.each(["reject", "invalid JSON", "object", "mixed array", "empty string", "timeout"])("RR-01 uncertain disabled list stops the whole pass, including foreign alarms: %s", async reason => {
+  const own = alarm(); const foreign = alarm("foreign", "owner-b"); disabled("routine-1");
+  if (reason === "reject") mockStore.getItem.mockRejectedValueOnce(new Error("storage unavailable"));
+  if (reason === "invalid JSON") values.set(disabledKey, "broken");
+  if (reason === "object") values.set(disabledKey, '{"routine-1":true}');
+  if (reason === "mixed array") values.set(disabledKey, '["routine-1",42]');
+  if (reason === "empty string") values.set(disabledKey, "");
+  if (reason === "timeout") mockStore.getItem.mockImplementationOnce(() => new Promise(() => {}));
+  const sweep = sweepResidualReminderNotifications(owner);
+  if (reason === "timeout") await jest.advanceTimersByTimeAsync(5_000);
+  expect(await sweep).toEqual(empty);
+  expect(mockSdk.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+  expect(scheduled).toEqual(new Set([own, foreign]));
+});
+
+test("RR-01 a missing disabled value permits only foreign cancellation", async () => {
+  const own = alarm(); const foreign = alarm("foreign", "owner-b");
+  expect(await sweepResidualReminderNotifications(owner)).toEqual({ ...empty, otherAccounts: { found: 1, cancelled: 1 } });
+  expect(mockSdk.cancelScheduledNotificationAsync.mock.calls).toEqual([[foreign]]);
+  expect(scheduled).toEqual(new Set([own]));
+});
+
+test.each(["broken", "{}", '["routine-1",42]'])("RR-01 invalid final recheck does not cancel: %s", async raw => {
+  alarm(); disabled("routine-1");
+  mockStore.getItem.mockResolvedValueOnce('["routine-1"]').mockResolvedValueOnce(raw);
+  expect(await sweepResidualReminderNotifications(owner)).toEqual({ ...empty, disabled: { found: 1, cancelled: 0 } });
+  expect(mockSdk.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+});
+
+test.each(["reject", "broken", "{}", '["routine-1",42]'])("RR-02 enable requires a strict read while display readers stay tolerant: %s", async raw => {
+  values.set(disabledKey, raw);
+  if (raw === "reject") mockStore.getItem.mockRejectedValue(new Error("storage unavailable"));
+  expect(await enableReminder(owner, "routine-1", event)).toBe(false);
+  expect(mockStore.setItem).not.toHaveBeenCalled();
+  expect(mockSdk.scheduleNotificationAsync).not.toHaveBeenCalled();
+  const displayedEnabled = raw !== '["routine-1",42]';
+  expect(await isReminderEnabled(owner, "routine-1")).toBe(displayedEnabled);
+  expect(await getReminderStates(owner, ["routine-1"])).toEqual({ "routine-1": displayedEnabled });
+});
+
+test("RR-02 rejected enable write returns false without scheduling or exposing a new alarm to sweep", async () => {
+  disabled("routine-1");
+  mockStore.setItem.mockRejectedValueOnce(new Error("storage unavailable"));
+  expect(await enableReminder(owner, "routine-1", event)).toBe(false);
+  expect(mockSdk.scheduleNotificationAsync).not.toHaveBeenCalled();
+  expect(values.get(disabledKey)).toBe('["routine-1"]');
+  expect(await sweepResidualReminderNotifications(owner)).toEqual(empty);
+  expect(mockSdk.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+  // Rejection settles the write marker, so a later explicit enable can succeed.
+  expect(await enableReminder(owner, "routine-1", event)).toBe(true);
+  expect(values.get(disabledKey)).toBe("[]");
+});
+
+test("RR-02 an already enabled routine schedules without a preference write", async () => {
+  expect(await enableReminder(owner, "routine-1", event)).toBe(true);
+  expect(mockStore.setItem).not.toHaveBeenCalled();
+  expect(mockSdk.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+});
+
+test.each(["resolve", "reject"])("RR-03 hung enable write releases the queue at five seconds and fences its account until %s", async outcome => {
+  const finish = deferred<void>();
+  disabled("routine-1", "still-off"); const off = alarm("still-off");
+  mockStore.setItem.mockImplementationOnce(async (key, value) => {
+    await finish.promise;
+    if (outcome === "reject") throw new Error("late write failure");
+    values.set(key, value);
+  });
+  let enabled: boolean | undefined;
+  const enable = enableReminder(owner, "routine-1", event).then(result => { enabled = result; });
+  try {
+    await jest.advanceTimersByTimeAsync(4_999);
+    expect(enabled).toBeUndefined();
+    await jest.advanceTimersByTimeAsync(1);
+    expect(enabled).toBe(false);
+    expect(mockSdk.scheduleNotificationAsync).not.toHaveBeenCalled();
+    expect(values.get(disabledKey)).toBe('["routine-1","still-off"]');
+    expect(await enableReminder(owner, "other-id", event)).toBe(false);
+    await disableReminder(owner, "other-id");
+    expect(mockStore.setItem).toHaveBeenCalledTimes(1);
+    mockSdk.cancelScheduledNotificationAsync.mockClear();
+    const foreign = alarm("foreign", "owner-b");
+    const sweep = await sweepResidualReminderNotifications(owner);
+    expect(sweep.disabled.cancelled).toBe(0);
+    expect(sweep.otherAccounts).toEqual({ found: 1, cancelled: 1 });
+    expect(mockSdk.cancelScheduledNotificationAsync.mock.calls).toEqual([[foreign]]);
+    expect(scheduled.has(off)).toBe(true);
+    // A pending account preference write cannot stall other identifiers' native
+    // scheduling, nor another account's preference writes after a transition.
+    expect(await scheduleRoutineReminder(event, { ownerId: owner, identifier: routineReminderId(owner, "independent") })).toBe("scheduled");
+    noteResolvedOwner("owner-b");
+    clearAccountTransition(currentAccountEpoch());
+    const otherKey = accountNotificationStorageKey("owner-b", "reminders-disabled");
+    values.set(otherKey, '["other-account"]');
+    expect(await enableReminder("owner-b", "other-account", event)).toBe(true);
+    expect(values.get(otherKey)).toBe("[]");
+    noteResolvedOwner(owner);
+    clearAccountTransition(currentAccountEpoch());
+  } finally {
+    finish.resolve(); await enable; await flush();
+  }
+  expect(await enableReminder(owner, "routine-1", event)).toBe(true);
+  expect(values.get(disabledKey)).toBe('["still-off"]');
+  expect(await disableReminder(owner, "new-off")).toBeUndefined();
+  expect(values.get(disabledKey)).toBe('["still-off","new-off"]');
+});
+
+test.each(["resolve", "reject"])("RR-03 hung disable write releases the queue at five seconds, still cancels, and clears on %s", async outcome => {
+  const finish = deferred<void>(); const identifier = alarm();
+  mockStore.setItem.mockImplementationOnce(async (key, value) => {
+    await finish.promise;
+    if (outcome === "reject") throw new Error("late write failure");
+    values.set(key, value);
+  });
+  let done = false;
+  const disable = disableReminder(owner, "routine-1").then(() => { done = true; });
+  try {
+    await jest.advanceTimersByTimeAsync(4_999);
+    expect(done).toBe(false);
+    await jest.advanceTimersByTimeAsync(1);
+    expect(done).toBe(true);
+    expect(mockSdk.cancelScheduledNotificationAsync.mock.calls).toEqual([[identifier]]);
+    expect(scheduled.has(identifier)).toBe(false);
+    expect(await enableReminder(owner, "routine-1", event)).toBe(false);
+    await disableReminder(owner, "other-id");
+    expect(mockStore.setItem).toHaveBeenCalledTimes(1);
+    expect(await sweepResidualReminderNotifications(owner)).toEqual(empty);
+  } finally {
+    finish.resolve(); await disable; await flush();
+  }
+  expect(await enableReminder(owner, "routine-1", event)).toBe(true);
+  expect(scheduled.has(identifier)).toBe(true);
+  expect(await sweepResidualReminderNotifications(owner)).toEqual(empty);
+});
+
+test("RR-03 rejected disable write still attempts native cancellation", async () => {
+  const identifier = alarm();
+  mockStore.setItem.mockRejectedValueOnce(new Error("storage unavailable"));
+  await disableReminder(owner, "routine-1");
+  expect(mockSdk.cancelScheduledNotificationAsync.mock.calls).toEqual([[identifier]]);
+  expect(scheduled.size).toBe(0);
+  expect(values.has(disabledKey)).toBe(false);
+  expect(await isReminderEnabled(owner, "routine-1")).toBe(true);
+});
+
+test("RR-03 a hung disable read releases the queue at five seconds and still cancels", async () => {
+  const identifier = alarm();
+  mockStore.getItem.mockImplementationOnce(() => new Promise(() => {}));
+  const disable = disableReminder(owner, "routine-1");
+  await jest.advanceTimersByTimeAsync(5_000);
+  await disable;
+  expect(mockSdk.cancelScheduledNotificationAsync.mock.calls).toEqual([[identifier]]);
+  expect(mockStore.setItem).not.toHaveBeenCalled();
+  expect(await enableReminder(owner, "other-id", event)).toBe(true);
 });
 
 test("all foreign v2 types are removed while current, legacy and unrelated identifiers stay", async () => {
@@ -213,12 +369,14 @@ test.each(["disabled", "foreign"])("%s cancellation failures and timeouts remain
   const second = alarm("routine-2", kind === "foreign" ? "owner-b" : owner);
   if (kind === "disabled") disabled("routine-1", "routine-2");
   mockSdk.cancelScheduledNotificationAsync.mockRejectedValueOnce(new Error("native failure"));
-  mockSdk.cancelScheduledNotificationAsync.mockImplementationOnce(() => new Promise(() => {}));
+  const finish = deferred<void>();
+  mockSdk.cancelScheduledNotificationAsync.mockImplementationOnce(async () => { await finish.promise; throw new Error("late failure"); });
   const sweep = sweepResidualReminderNotifications(owner);
   await jest.advanceTimersByTimeAsync(5_001);
   const result = await sweep;
   expect(kind === "disabled" ? result.disabled : result.otherAccounts).toEqual({ found: 2, cancelled: 0 });
   expect(scheduled).toEqual(new Set([first, second]));
+  finish.resolve(); await flush();
   const retried = await sweepResidualReminderNotifications(owner);
   expect(kind === "disabled" ? retried.disabled : retried.otherAccounts).toEqual({ found: 2, cancelled: 2 });
   expect(scheduled.size).toBe(0);
@@ -258,20 +416,26 @@ test.each(["resolve", "reject"])("a late native cancellation must %s before the 
   expect(scheduled.has(identifier)).toBe(true);
 });
 
-test("a later retry settling cannot release an earlier pending cancellation of the same id", async () => {
-  const identifier = alarm("two-pending"); disabled("two-pending");
-  const first = deferred<void>(); const second = deferred<void>();
-  for (const finish of [first, second]) {
-    mockSdk.cancelScheduledNotificationAsync.mockImplementationOnce(async id => { await finish.promise; scheduled.delete(id); });
-    const sweep = sweepResidualReminderNotifications(owner);
-    await jest.advanceTimersByTimeAsync(5_001);
-    expect((await sweep).disabled).toEqual({ found: 1, cancelled: 0 });
-  }
-  second.resolve(); await flush();
-  expect(await enableReminder(owner, "two-pending", event)).toBe(false);
-  expect(mockSdk.scheduleNotificationAsync).not.toHaveBeenCalled();
-  first.resolve(); await flush();
-  expect(await enableReminder(owner, "two-pending", event)).toBe(true);
+test.each(["resolve", "reject"])("RR-04 three sweeps keep one pending native cancellation per identifier until %s", async outcome => {
+  const identifier = alarm("one-pending"); disabled("one-pending");
+  const finish = deferred<void>();
+  mockSdk.cancelScheduledNotificationAsync.mockImplementation(async id => {
+    await finish.promise;
+    if (outcome === "reject") throw new Error("late failure");
+    scheduled.delete(id);
+  });
+  try {
+    for (let i = 0; i < 3; i += 1) {
+      const sweep = sweepResidualReminderNotifications(owner);
+      await jest.advanceTimersByTimeAsync(5_000);
+      expect((await sweep).disabled).toEqual({ found: 1, cancelled: 0 });
+    }
+    expect(mockSdk.cancelScheduledNotificationAsync).toHaveBeenCalledTimes(1);
+    expect(await enableReminder(owner, "one-pending", event)).toBe(false);
+    expect(mockSdk.scheduleNotificationAsync).not.toHaveBeenCalled();
+    expect(await enableReminder(owner, "independent-id", event)).toBe(true);
+  } finally { finish.resolve(); await flush(); }
+  expect(await enableReminder(owner, "one-pending", event)).toBe(true);
   expect(scheduled.has(identifier)).toBe(true);
 });
 
@@ -295,7 +459,7 @@ test("source contract: strict OS snapshot and final checks remain inside the mut
   const source = readFileSync(resolve(__dirname, "../reminders.ts"), "utf8");
   const sweep = source.slice(source.indexOf("export async function sweepResidualReminderNotifications"), source.indexOf("let privacyMigrationInFlight"));
   expect(sweep).toContain("getScheduledIdentifiers({ strict: true })");
-  expect(sweep.indexOf("runLocalNotificationMutation(async () => {")).toBeLessThan(sweep.indexOf("readDisabledSet(ownerId)"));
+  expect(sweep.indexOf("runLocalNotificationMutation(async () => {")).toBeLessThan(sweep.indexOf("readDisabledSetStrict(ownerId)"));
   expect(sweep).toMatch(/if \(!latest.has\(routineId\)\) continue;/);
   expect(sweep).toMatch(/if \(!lease.isCurrent\(\)\) break;\s*await cancelScheduledIdentifier\(identifier, true, \(\) => lease.isCurrent\(\)\);/);
 });
