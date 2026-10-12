@@ -73,7 +73,7 @@ describe("Q-261011-05 obfuscation request gate (not a verdict)", () => {
     expect(everyday.filter((item) => hasCrisisObfuscation(item.text))).toEqual([]);
   });
 
-  test.each(["ko", "en"])("all 4,373 %s locale strings stay quiet", (locale) => {
+  test.each(["ko", "en"])("all 4,374 %s locale strings stay quiet", (locale) => {
     const strings: string[] = [];
     const collect = (value: unknown): void => {
       if (typeof value === "string") strings.push(value);
@@ -83,7 +83,7 @@ describe("Q-261011-05 obfuscation request gate (not a verdict)", () => {
     for (const file of readdirSync(dir).filter((name) => name.endsWith(".json"))) {
       collect(JSON.parse(readFileSync(resolve(dir, file), "utf8")));
     }
-    expect(strings).toHaveLength(4373);
+    expect(strings).toHaveLength(4374);
     expect(strings.filter(hasCrisisObfuscation)).toEqual([]);
   });
 
