@@ -35,6 +35,24 @@ describe("auth shell head slot", () => {
   });
 });
 
+// The three legal documents share the frame: a long document read to its end
+// kept Back a full scroll away. Same head slot (Simon 2026-10-13, remaining work).
+describe("/terms, /privacy-policy and /refund keep Back on screen", () => {
+  const screen = read("screens/deepspace/dds-legal-doc-screen.tsx");
+  const head = screen.slice(screen.indexOf("<AuthShell head={"), screen.indexOf("{meta ? ("));
+
+  test("hands the title row to the shell head", () => {
+    expect(screen).toMatch(/<AuthShell head=\{\s*<View style=\{\[styles\.titleRow, local\.head\]\}>/);
+    expect(head).toContain("onPress={requestBack}");
+    expect(head).toContain("{doc.title}");
+    expect(screen.match(/onPress=\{requestBack\}/g)).toHaveLength(1);
+  });
+
+  test("the head carries the scroll surface's side gutter", () => {
+    expect(screen).toContain("head: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },");
+  });
+});
+
 describe("/consent-notice keeps Back on screen", () => {
   const screen = read("screens/deepspace/dds-consent-notice-screen.tsx");
   const head = screen.slice(screen.indexOf("head={"), screen.indexOf("consent:detail.intro"));
