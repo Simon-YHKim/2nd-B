@@ -1,4 +1,4 @@
-import { cardDismissDirection, cardEdges, shouldCompleteCardDismiss } from "../card-dismiss";
+import { cardDismissDirection, cardEdges, cardHasMoreBelow, shouldCompleteCardDismiss } from "../card-dismiss";
 
 const both = { top: true, bottom: true };
 
@@ -35,4 +35,36 @@ test("short pulls snap back and long or fast pulls exit, in both directions", ()
   expect(shouldCompleteCardDismiss(-90, 0)).toBe(true);
   expect(shouldCompleteCardDismiss(35, 0.8)).toBe(true);
   expect(shouldCompleteCardDismiss(-35, -0.8)).toBe(true);
+});
+
+describe("cardHasMoreBelow: the card's more-below mark (Q-261012-55)", () => {
+  test("stays off until the body has been measured", () => {
+    expect(cardHasMoreBelow(undefined)).toBe(false);
+    expect(cardHasMoreBelow({ y: 0, viewport: 0, content: 900 })).toBe(false);
+    expect(cardHasMoreBelow({ y: 0, viewport: 500, content: 0 })).toBe(false);
+  });
+
+  test("is on while text runs past the visible bottom", () => {
+    expect(cardHasMoreBelow({ y: 0, viewport: 500, content: 900 })).toBe(true);
+    expect(cardHasMoreBelow({ y: 200, viewport: 500, content: 900 })).toBe(true);
+  });
+
+  test("is off for a body that fits and once a long body reaches its end", () => {
+    expect(cardHasMoreBelow({ y: 0, viewport: 500, content: 500 })).toBe(false);
+    expect(cardHasMoreBelow({ y: 0, viewport: 500, content: 502 })).toBe(false);
+    expect(cardHasMoreBelow({ y: 400, viewport: 500, content: 900 })).toBe(false);
+    expect(cardHasMoreBelow({ y: 398, viewport: 500, content: 900 })).toBe(false);
+  });
+
+  test("never disagrees with the bottom edge the swipe-to-close reads", () => {
+    for (const body of [
+      { y: 0, viewport: 500, content: 1200 },
+      { y: 300, viewport: 500, content: 1200 },
+      { y: 699, viewport: 500, content: 1200 },
+      { y: 700, viewport: 500, content: 1200 },
+      { y: 0, viewport: 640, content: 640 },
+    ]) {
+      expect(cardHasMoreBelow(body)).toBe(!cardEdges(body.y, body.viewport, body.content).bottom);
+    }
+  });
 });
