@@ -2,7 +2,6 @@
   "phone": {
     "summaryDetails": "Detailed summary",
     "noteUpdatedAt": "Last written · {{time}}",
-    "notePrevious": "Showing the last note while the next one is prepared.",
     "dismissHandle": "Lower phone: swipe up or down",
     "assistantSettings": "Assistant settings",
     "recommendationSettings": "Recommendation settings",
