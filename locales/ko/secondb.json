@@ -166,5 +166,9 @@
       "next": "다음",
       "page": "{{current}} / {{total}}"
     }
+  },
+  "aiMark": {
+    "short": "AI",
+    "spoken": "이 답은 AI가 만들었어요."
   }
 }
