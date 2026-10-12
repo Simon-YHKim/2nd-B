@@ -205,7 +205,6 @@ export function DeepSpaceSignUpDesignScreen() {
                 autoComplete="one-time-code"
                 textContentType="oneTimeCode"
                 maxLength={6}
-                placeholder="000000"
                 placeholderTextColor={m3.color.onSurfaceVariant}
                 accessibilityLabel={t("auth:signUp.confirmCodeLabel")}
                 accessibilityHint={t("auth:signUp.confirmCodeHint")}

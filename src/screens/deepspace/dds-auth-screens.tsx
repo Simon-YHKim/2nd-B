@@ -386,7 +386,6 @@ export function DeepSpaceResetPasswordDesignScreen() {
                     autoComplete="one-time-code"
                     textContentType="oneTimeCode"
                     maxLength={6}
-                    placeholder="000000"
                     placeholderTextColor={m3.color.onSurfaceVariant}
                     accessibilityLabel={t("auth:resetPassword.codeLabel")}
                     accessibilityHint={t("auth:resetPassword.codeHint")}
@@ -423,7 +422,6 @@ export function DeepSpaceResetPasswordDesignScreen() {
                 secureTextEntry
                 autoComplete="new-password"
                 textContentType="newPassword"
-                placeholder="••••••••"
                 placeholderTextColor={m3.color.onSurfaceVariant}
                 accessibilityLabel={t("auth:resetPassword.newPassword")}
                 accessibilityHint={t("auth:resetPassword.newPasswordHint")}
@@ -442,7 +440,6 @@ export function DeepSpaceResetPasswordDesignScreen() {
                 secureTextEntry
                 autoComplete="new-password"
                 textContentType="newPassword"
-                placeholder="••••••••"
                 placeholderTextColor={m3.color.onSurfaceVariant}
                 accessibilityLabel={t("auth:resetPassword.confirmPassword")}
                 accessibilityHint={t("auth:resetPassword.confirmPasswordHint")}
