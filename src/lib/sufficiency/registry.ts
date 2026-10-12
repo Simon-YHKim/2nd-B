@@ -306,8 +306,8 @@ export const THRESHOLDS: readonly ThresholdRow[] = [
     llmPurpose: null,
     progress: {
       state: "있음",
-      text: "/me/<star> 에 'n/5층' 미터와 층 게이지",
-      at: at("src/app/me/[star].tsx", 't("ds.star.meter", { n: summary.cells ?? 0, total: DRILL_LAYERS.length })'),
+      text: "/me/<star> 에 'n/5층' 과 다섯 층 사다리",
+      at: at("src/app/me/[star].tsx", 't("ds.star.count", { n: ladder.filter((rung) => rung.on).length, total: ladder.length })'),
     },
     source: at("src/lib/persona/load-seven-levels.ts", "export function levelFromCells(cells: number): LadderLevel {"),
   },

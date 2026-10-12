@@ -176,14 +176,21 @@ test.each(["account transition", "deletion fence"])("%s while cancellation waits
   expect(mockSdk.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
 });
 
-test.each(["failure", "timeout"])("cancellation %s stays unresolved and is retried on the next pass", async reason => {
+test.each(["failure", "timeout"])("cancellation %s is retried after the native promise settles", async reason => {
   const first = alarm(); alarm(otherOrphan);
+  const finish = deferred<void>();
   if (reason === "failure") mockSdk.cancelScheduledNotificationAsync.mockRejectedValueOnce(new Error("native failure"));
-  else mockSdk.cancelScheduledNotificationAsync.mockImplementationOnce(() => new Promise(() => {}));
+  else mockSdk.cancelScheduledNotificationAsync.mockImplementationOnce(async () => { await finish.promise; throw new Error("late failure"); });
   const sweep = sweepOrphanedOneOffReminders("owner-a");
   if (reason === "timeout") await jest.advanceTimersByTimeAsync(5_001);
   await expect(sweep).resolves.toEqual({ found: 2, cancelled: 1 });
   expect(scheduled).toEqual(new Set([first]));
+  if (reason === "timeout") {
+    expect(await sweepOrphanedOneOffReminders("owner-a")).toEqual({ found: 1, cancelled: 0 });
+    expect(mockSdk.cancelScheduledNotificationAsync).toHaveBeenCalledTimes(2);
+    finish.resolve();
+    for (let index = 0; index < 12; index += 1) await Promise.resolve();
+  }
   expect(await sweepOrphanedOneOffReminders("owner-a")).toEqual({ found: 1, cancelled: 1 });
   expect(scheduled.size).toBe(0);
 });

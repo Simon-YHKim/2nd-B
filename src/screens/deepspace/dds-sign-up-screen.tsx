@@ -1,3 +1,4 @@
+import { ProviderBrandIcon } from "@/components/auth/ProviderBrandIcon";
 import { useEffect, useRef, useState } from "react";
 import { Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
@@ -5,6 +6,8 @@ import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { RedirectHome } from "@/lib/nav/go-home";
 import { BirthDateField } from "@/components/auth/BirthDateField";
+import { GuardianSupervisionNotice } from "@/components/consent/GuardianSupervisionNotice";
+import { shouldEmphasizeGuardianSupervision } from "@/components/consent/guardian-supervision-emphasis";
 import { ResidenceCountryField } from "@/components/auth/ResidenceCountryField";
 import { SecondbHead } from "@/components/deepspace";
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
@@ -34,15 +37,6 @@ const CONSENT_KEY: Record<keyof ConsentSelections, string> = {
   sensitiveData: "consent:notice.ackSensitive",
   safetyNotice: "consent:notice.ackSafety",
   marketing: "consent:notice.optMarketing",
-};
-
-const PROVIDER_MARK: Record<OAuthProvider | "naver", string> = {
-  google: "G",
-  apple: "A",
-  kakao: "K",
-  facebook: "f",
-  github: "GH",
-  naver: "N",
 };
 
 type FocusedField = "email" | "password" | "code" | null;
@@ -137,8 +131,8 @@ export function DeepSpaceSignUpDesignScreen() {
             if (canLeaveGate()) router.push("/");
           }}
           disabled={actionBusy}
-          accessibilityLabel={t("common:navGraph.drilldown.back")}
-          accessibilityHint={t("common:navGraph.drilldown.backHint")}
+          accessibilityLabel={t("auth:signUp.existingAccountSignIn")}
+          accessibilityHint={t("auth:signUp.signInHint")}
           rootStyle={styles.squareAction}
           contentStyle={styles.squareActionContent}
         >
@@ -341,6 +335,7 @@ export function DeepSpaceSignUpDesignScreen() {
             onChange={setBirthDate}
             minAge={minConsentAge}
           />
+          <GuardianSupervisionNotice emphasized={shouldEmphasizeGuardianSupervision(birthDate)} style={{ marginTop: m3.spacing.s2 }} />
         </View>
 
         {showChecklist ? (
@@ -681,9 +676,7 @@ function ProviderButton({
       rootStyle={styles.providerRoot}
       contentStyle={styles.providerContent}
     >
-      <PixelSurface variant="inset" style={styles.providerMark} contentStyle={styles.providerMarkContent}>
-        <Text style={styles.providerMarkText}>{PROVIDER_MARK[provider]}</Text>
-      </PixelSurface>
+      <ProviderBrandIcon provider={provider} />
       <Text style={styles.providerText}>{label}</Text>
     </PixelPressable>
   );
@@ -1004,21 +997,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: m3.spacing.s2,
-  },
-  providerMark: { width: 32, height: 32 },
-  providerMarkContent: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 0,
-  },
-  providerMarkText: {
-    color: m3.color.primary,
-    fontFamily: m3.font.mono,
-    fontSize: m3.type.labelMedium.size,
-    lineHeight: m3.type.labelMedium.line,
-    fontWeight: "700",
-    textAlign: "center",
   },
   providerText: {
     flex: 1,

@@ -566,7 +566,7 @@ function TriggerField({
         </View>
       </Pressable>
       {supportingText ? (
-        <Text style={[m3TextStyle("bodySmall"), styles.support, { color: supportColor }]} numberOfLines={2}>
+        <Text style={[m3TextStyle("bodySmall"), styles.support, { color: supportColor }]}>
           {supportingText}
         </Text>
       ) : null}

@@ -2,7 +2,6 @@
   "phone": {
     "summaryDetails": "Resumen detallado",
     "noteUpdatedAt": "Última redacción · {{time}}",
-    "notePrevious": "Se muestra la última nota mientras se prepara la siguiente.",
     "dismissHandle": "Bajar teléfono: desliza hacia arriba o abajo",
     "assistantSettings": "Ajustes del asistente",
     "recommendationSettings": "Ajustes de recomendaciones",

@@ -83,7 +83,7 @@ export function DeepSpaceConsentNoticeScreen() {
           hitSlop={12}
           style={local.backTarget}
           accessibilityRole="button"
-          accessibilityLabel={t("common:navGraph.drilldown.back")}
+          accessibilityLabel={t("common:actions.back")}
         >
           <RNText style={styles.back}>‹</RNText>
         </Pressable>

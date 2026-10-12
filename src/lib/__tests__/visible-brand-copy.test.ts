@@ -31,7 +31,10 @@ describe("visible brand copy", () => {
     // 뒤로가기가 /sign-in 이라는 실제 목적지를 가지므로 그쪽 계약은 남는다.
     // 기능이 줄어든 것이 아니라 고리가 하나 빠졌다.
     expect(signUp).toContain('router.push("/")');
-    expect(signUp).toContain('t("common:navGraph.drilldown.back")');
+    // 2026-10-12: 이 컨트롤의 낭독 이름은 실제 도착지(로그인 화면)를 말한다. 전에는 홈 별자리의
+    // 드릴다운 이름("전체 별자리로 돌아가기")을 빌려 썼다(Device Lab 6회차 O3 와 같은 결함).
+    expect(signUp).toContain('accessibilityLabel={t("auth:signUp.existingAccountSignIn")}');
+    expect(signUp).not.toContain("navGraph.drilldown");
     expect(signUp).toContain("styles.topBar");
     expect(signUp).toContain("styles.brand");
     // /sign-in 은 브랜드만 남았다 — 자리를 비워두지 않았음을 확인한다.

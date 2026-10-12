@@ -1217,12 +1217,13 @@ results.push(
       dsScreens.includes("accessibilityLabel={value ? `${label}, ${value}` : label}") &&
       settings.includes("accessibilityHint={accessibilityHint}") &&
       // 이동 힌트 넷은 레거시 Button 행에 박혀 있었다(레버와 함께 빠짐). 배송 화면은
-      // M3LinkRow 가 sub 문구를 힌트로 넘긴다 — 그 배선과 네 행의 키를 함께 본다.
-      settings.includes("accessibilityHint={sub}") &&
+      // M3LinkRow 가 hint(없으면 그려지는 sub)를 힌트로 넘긴다 — 그 배선과 세 행의 키를 함께 본다.
+      // 2026-10-12: 제목을 되풀이하는 줄은 화면에 그리지 않고 hint 로만 넘긴다(Q-261012-59).
+      settings.includes("accessibilityHint={hint ?? sub}") &&
       // 프로필 줄(sub={t("nav.profileHint")})은 2026-10-07 Simon 지시로 설정에서 빠졌다(홈 프로필 별에서 연다).
-      settings.includes('sub={t("nav.privacyHint")}') &&
-      settings.includes('sub={t("nav.accountHint")}') &&
-      settings.includes('sub={t("nav.dataHint")}') &&
+      settings.includes('hint={t("nav.privacyHint")}') &&
+      settings.includes('hint={t("nav.accountHint")}') &&
+      settings.includes('hint={t("nav.dataHint")}') &&
       // (theme quick-toggle hints removed with the duplicate disclosure —
       // see O-R1 settings restructure. Theme switching itself is gone since
       // 2026-10-05, Q-261005-02: /theme now holds font + motion only.)
