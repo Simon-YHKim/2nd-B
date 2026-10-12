@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import * as ts from "typescript";
+import * as account from "@/lib/auth/account-epoch";
 
 const ROOT = resolve(__dirname, "../../..");
 const AUTH = readFileSync(resolve(ROOT, "src/lib/auth/AuthContext.tsx"), "utf8").replace(
@@ -132,6 +133,151 @@ const LAYOUT_AST = ts.createSourceFile(
   true,
   ts.ScriptKind.TSX,
 );
+
+describe("account release observation and gate ordering", () => {
+  const resolver = LAYOUT_AST.statements.find((node): node is ts.FunctionDeclaration =>
+    ts.isFunctionDeclaration(node) && node.name?.text === "PendingAccountTransitionResolver")!;
+  const effects: ts.ArrowFunction[] = [];
+  const collect = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && node.expression.getText(LAYOUT_AST) === "useEffect") {
+      effects.push(node.arguments[0] as ts.ArrowFunction);
+    }
+    node.forEachChild(collect);
+  };
+  collect(resolver);
+
+  // Execute only the source's effect callbacks with explicit inputs. No React
+  // or RN mounting: the subscription/dispatch wiring itself is the contract.
+  function effect(index: number, inputs: Record<string, unknown>): (() => void) | void {
+    const js = ts.transpileModule(`exports.run = ${effects[index].getText(LAYOUT_AST)};`, {
+      compilerOptions: { module: ts.ModuleKind.CommonJS },
+    }).outputText;
+    const output = {} as { run: () => (() => void) | void };
+    new Function("exports", ...Object.keys(inputs), js)(output, ...Object.values(inputs));
+    return output.run();
+  }
+
+  function harness() {
+    account.__resetAccountEpochForTests();
+    account.noteResolvedOwner("owner-a");
+    account.noteResolvedOwner("owner-b");
+    const home = { key: "home", name: "index" };
+    const old = { key: "old", name: "records" };
+    const root = {
+      key: "container", index: 0,
+      routes: [{ key: "generated", name: "__root", state: { index: 1, routes: [home, old] } }],
+    };
+    let listener: (() => void) | undefined;
+    const unsubscribe = jest.fn(() => { listener = undefined; });
+    const inputs = {
+      ...account,
+      pending: true,
+      epoch: account.currentAccountEpoch(),
+      segments: [] as string[],
+      resetPass: 0,
+      resetDispatchRef: { current: null as { attempts: number; epoch: number; lastDispatchPass: number } | null },
+      ACCOUNT_RESET_MAX_ATTEMPTS: 3,
+      ACCOUNT_RESET_RETRY_RENDER_PASSES: 2,
+      router: { dismissAll: jest.fn(), replace: jest.fn() },
+      navigation: {
+        isReady: () => true,
+        getRootState: () => root,
+        addListener: jest.fn((name: string, fn: () => void) => {
+          expect(name).toBe("state"); listener = fn; return unsubscribe;
+        }),
+      },
+      setResetPass: jest.fn((update: (pass: number) => number) => { inputs.resetPass = update(inputs.resetPass); }),
+    };
+    return { inputs, root, home, unsubscribe, emit: () => listener?.() };
+  }
+
+  test("subscribes only during the hold and returns the listener cleanup", () => {
+    expect(effects).toHaveLength(2);
+    const h = harness();
+    effect(0, { ...h.inputs, pending: false });
+    expect(h.inputs.navigation.addListener).not.toHaveBeenCalled();
+    const stop = effect(0, h.inputs);
+    h.emit();
+    expect(h.inputs.resetPass).toBe(1);
+    expect(stop).toBe(h.unsubscribe);
+    stop!();
+    h.emit();
+    expect(h.inputs.resetPass).toBe(1);
+    expect(resolver.getText(LAYOUT_AST)).toContain("[navigation, pending]");
+    expect(resolver.getText(LAYOUT_AST)).toContain("[epoch, navigation, pending, resetPass, segments]");
+  });
+
+  test("late navigation proof releases after all three reset attempts, with no fourth dispatch", () => {
+    const h = harness();
+    const stop = effect(0, h.inputs);
+    for (let pass = 0; pass < 10; pass++) effect(1, h.inputs);
+    expect(h.inputs.router.dismissAll).toHaveBeenCalledTimes(3);
+    expect(h.inputs.router.replace).toHaveBeenCalledTimes(3);
+    expect(account.isAccountTransitionPending()).toBe(true);
+    h.inputs.setResetPass.mockClear();
+    // No segment change or retry render remains to wake the resolver.
+    h.root.routes[0].state = { index: 0, routes: [h.home] };
+    h.emit();
+    expect(h.inputs.setResetPass).toHaveBeenCalledTimes(1);
+    effect(1, h.inputs);
+    expect(account.isAccountTransitionPending()).toBe(false);
+    expect(h.inputs.router.replace).toHaveBeenCalledTimes(3);
+    stop!();
+  });
+
+  test("queued reset and an old retained scene never release the hold", () => {
+    const h = harness();
+    effect(1, h.inputs);
+    expect(h.inputs.router.replace).toHaveBeenCalledWith("/");
+    expect(account.isAccountTransitionPending()).toBe(true);
+    // The URL is already home, but the old stack has not committed its reset.
+    effect(1, h.inputs);
+    expect(account.isAccountTransitionPending()).toBe(true);
+    h.root.routes[0].state = { index: 0, routes: [h.home] };
+    effect(1, h.inputs);
+    expect(account.isAccountTransitionPending()).toBe(false);
+  });
+
+  test("auth segments neither dispatch a reset nor release, even with a home snapshot", () => {
+    const h = harness();
+    h.inputs.segments = ["(auth)", "complete-profile"];
+    h.root.routes[0].state = { index: 0, routes: [h.home] };
+    effect(1, h.inputs);
+    expect(h.inputs.router.dismissAll).not.toHaveBeenCalled();
+    expect(h.inputs.router.replace).not.toHaveBeenCalled();
+    expect(account.isAccountTransitionPending()).toBe(true);
+    h.inputs.segments = [];
+    effect(1, h.inputs);
+    expect(account.isAccountTransitionPending()).toBe(false);
+  });
+
+  test("avatar setup keeps its cover until account proof, then sends setup without a latch", () => {
+    const source = readFileSync(resolve(ROOT, "src/components/avatar/AvatarSetupGate.tsx"), "utf8");
+    expect(source).toMatch(/accountTransitionPendingFromSnapshot\(useSyncExternalStore\(\s*subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot/);
+    const expression = source.match(/const decision = (.*);/)![1];
+    const decide = new Function("accountPending", "avatarDecision", `return ${expression};`);
+    expect(decide(true, "setup")).toBe("hold");
+    expect(decide(false, "setup")).toBe("setup");
+    expect(decide(true, "allow")).toBe("allow"); // auth / studio exemptions remain
+    expect(source).toContain('cover={decision === "allow" ? null : <InlineLoader />}');
+    expect(source).toMatch(/decision === "setup" \? \(\s*<Redirect/);
+    expect(source).toContain('"/avatar-studio?setup=1"');
+  });
+
+  test("profile completion redirects wait for account proof and keep the auth exemption", () => {
+    const gate = LAYOUT_AST.statements.find((node): node is ts.FunctionDeclaration =>
+      ts.isFunctionDeclaration(node) && node.name?.text === "IntroGate")!;
+    const branch = gate.body!.statements.find((node): node is ts.IfStatement =>
+      ts.isIfStatement(node) && node.thenStatement.getText(LAYOUT_AST).includes('"/complete-profile"'))!;
+    expect(gate.getText(LAYOUT_AST)).toMatch(/accountTransitionPendingFromSnapshot\(useSyncExternalStore\(\s*subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot/);
+    const redirect = new Function("accountPending", "segments", "loading", "userId", "hasProfile", "profileProbeFailed",
+      `return ${branch.expression.getText(LAYOUT_AST)};`);
+    expect(redirect(true, [], false, "owner-b", false, false)).toBe(false);
+    expect(redirect(false, [], false, "owner-b", false, false)).toBe(true);
+    expect(redirect(true, ["(auth)"], false, "owner-b", false, false)).toBe(false);
+    expect(redirect(false, ["(auth)"], false, "owner-b", false, false)).toBe(false);
+  });
+});
 
 type JsxTag = ts.JsxOpeningElement | ts.JsxSelfClosingElement;
 

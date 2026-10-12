@@ -18,7 +18,9 @@ type Listener = () => void;
 type OwnerListener = (change: AccountOwnerChange) => void;
 
 interface RootNavigationSnapshot {
-  routes: readonly { name?: string }[];
+  type?: string;
+  routeNames?: readonly string[];
+  routes: readonly { name?: string; state?: RootNavigationSnapshot }[];
 }
 
 let epoch = 0;
@@ -227,11 +229,26 @@ export function shouldReleaseAccountTransition(
   segments: readonly string[],
   rootState: RootNavigationSnapshot | undefined,
 ): boolean {
-  return (
-    segments.length === 0 &&
-    rootState?.routes.length === 1 &&
-    rootState.routes[0]?.name === "index"
-  );
+  if (segments.length !== 0) return false;
+  // Keep this synchronous boundary import-free. Like findHomeStack, descend
+  // to the navigator containing index, but require a single route at EVERY
+  // level: an unfocused wrapper sibling may still hold the previous owner.
+  // Reduced snapshots omit type/routeNames; hydrated stacks supply both.
+  let state = rootState;
+  while (state) {
+    if (state.routes.length !== 1) return false;
+    const route = state.routes[0];
+    const hasHome = state.routeNames
+      ? state.routeNames.includes("index")
+      : route?.name === "index";
+    if (hasHome) {
+      return (state.type === undefined || state.type === "stack") && route?.name === "index";
+    }
+    // A nested auth index is not the product home, even with stale segments.
+    if (route?.name === "(auth)") return false;
+    state = route?.state;
+  }
+  return false;
 }
 
 /** Test-only reset for this module singleton. */

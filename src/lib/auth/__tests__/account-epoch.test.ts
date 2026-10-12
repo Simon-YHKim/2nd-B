@@ -161,4 +161,90 @@ describe("account transition release proof", () => {
     ).toBe(false);
     expect(shouldReleaseAccountTransition([], undefined)).toBe(false);
   });
+
+  // Same __root -> app Stack shape as gate-cover-loop and world-route-transition;
+  // the optional stack metadata matches go-home's hydrated navigation fixtures.
+  type State = {
+    key?: string;
+    type?: string;
+    index?: number;
+    routeNames?: readonly string[];
+    routes: readonly { key?: string; name: string; state?: State }[];
+  };
+  const home = { key: "home", name: "index" };
+  const old = { key: "old-records", name: "records" };
+  const appStack = (...routes: State["routes"]): State => ({
+    key: "app-stack", type: "stack", index: routes.length - 1,
+    routeNames: ["index", "records", "(auth)", "avatar-studio"], routes,
+  });
+  const wrapped = (state: State): State => ({
+    index: 0, routes: [{ key: "generated", name: "__root", state }],
+  });
+
+  describe.each([
+    ["direct app Stack", (state: State) => state],
+    ["__root wrapper", wrapped],
+  ] as const)("%s", (_label, shape) => {
+    test("releases a sole home route", () => {
+      expect(shouldReleaseAccountTransition([], shape(appStack(home)))).toBe(true);
+    });
+    test.each([
+      ["old scene still retained after the URL changes", appStack(home, old)],
+      ["duplicate home routes", appStack(home, home)],
+      ["reset requested but not committed", appStack(old)],
+      ["no home stack", { type: "stack", routeNames: ["records"], routes: [old] }],
+      ["auth-only stack", appStack({ name: "(auth)", state: { routes: [{ name: "sign-in" }] } })],
+      ["empty stack", appStack()],
+    ] as const)("holds: %s", (_case, state) => {
+      expect(shouldReleaseAccountTransition([], shape(state))).toBe(false);
+    });
+    test.each([["(auth)", "sign-in"], ["avatar-studio"], ["records"]])(
+      "holds until segments also prove home: %j", (...segments) => {
+        expect(shouldReleaseAccountTransition(segments, shape(appStack(home)))).toBe(false);
+      },
+    );
+  });
+
+  test("the old top-level index proof rejects the repository's __root fixture", () => {
+    const root = wrapped(appStack(home));
+    const oldProof = root.routes.length === 1 && root.routes[0].name === "index";
+    expect(oldProof).toBe(false);
+    expect(shouldReleaseAccountTransition([], root)).toBe(true);
+    // The reduced snapshots already used by the gate/motion tests work too.
+    expect(shouldReleaseAccountTransition([], wrapped({ index: 0, routes: [home] }))).toBe(true);
+  });
+
+  test("every wrapper must contain exactly one route, including unfocused siblings", () => {
+    const root = wrapped(appStack(home));
+    expect(shouldReleaseAccountTransition([], wrapped(root))).toBe(true);
+    for (const index of [0, 1]) {
+      const retained = { ...root, index, routes: [...root.routes, old] };
+      expect(shouldReleaseAccountTransition([], retained)).toBe(false);
+      expect(shouldReleaseAccountTransition([], wrapped(retained))).toBe(false);
+    }
+  });
+
+  test("unknown state and auth descendants cannot supply a home proof", () => {
+    expect(shouldReleaseAccountTransition([], undefined)).toBe(false);
+    expect(shouldReleaseAccountTransition([], { routes: [{ name: "__root" }] })).toBe(false);
+    expect(shouldReleaseAccountTransition([], { routes: [] })).toBe(false);
+    expect(shouldReleaseAccountTransition([], { routes: [{ name: "(auth)", state: appStack(home) }] })).toBe(false);
+    expect(shouldReleaseAccountTransition([], { type: "tab", routes: [home] })).toBe(false);
+  });
+
+  test("wrapped proof cannot clear an unpublished or newer owner; release changes the scene epoch", () => {
+    __resetAccountEpochForTests();
+    noteResolvedOwner("owner-a");
+    const oldSceneEpoch = currentAccountEpoch();
+    beginAccountOwnerTransition("owner-b");
+    expect(shouldReleaseAccountTransition([], wrapped(appStack(home)))).toBe(true);
+    expect(clearAccountTransition(currentAccountEpoch())).toBe(false);
+    noteResolvedOwner("owner-b");
+    const bEpoch = currentAccountEpoch();
+    noteResolvedOwner("owner-c");
+    expect(clearAccountTransition(bEpoch)).toBe(false);
+    expect(isAccountTransitionPending()).toBe(true);
+    expect(clearAccountTransition(currentAccountEpoch())).toBe(true);
+    expect(currentAccountEpoch()).not.toBe(oldSceneEpoch);
+  });
 });
