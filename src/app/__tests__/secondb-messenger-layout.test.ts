@@ -137,6 +137,7 @@ describe("HustleK messenger layout", () => {
     expect(sentence.props.testID).toBe("chat-ai-sentence-2");
     expect(sentence.props.children).toEqual(["aiMark.spoken"]);
     expect(sentence.props.importantForAccessibility).toBe("no");
+    expect(sentence.props["aria-hidden"]).toBe(true);
     expect(extras[4][0].props.testID).toBe("chat-ai-mark-4");
     const [aiHeader] = host.tree[2].props.children as Tree[];
     expect(flatten(aiHeader.props.style).flexWrap).toBe("wrap");

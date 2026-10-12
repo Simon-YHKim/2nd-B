@@ -61,12 +61,6 @@
     "skipShort": "Omitir",
     "retry": "Reintentar apertura"
   },
-  "navGraph": {
-    "drilldown": {
-      "back": "Volver a la constelación",
-      "backHint": "Vuelve a la constelación completa."
-    }
-  },
   "navPrev": "Ant.",
   "navNext": "Sig.",
   "quantBeforeStart": "Antes de empezar",

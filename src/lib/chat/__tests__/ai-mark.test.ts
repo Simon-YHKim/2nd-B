@@ -61,6 +61,8 @@ describe("chat screen and locales carry the mark", () => {
   test("the sentence is the mark's spoken name and is drawn once, on the spelled-out turn", () => {
     expect(header).toContain('accessibilityLabel={t("aiMark.spoken")}');
     expect(header).toMatch(/=== "spelled" \? \(\s*<Text[^>]*testID=\{`chat-ai-sentence-\$\{i\}`\}/);
+    // The mark already speaks the sentence, so the drawn copy is hidden from screen readers on every platform.
+    expect(header).toContain('aria-hidden accessibilityElementsHidden importantForAccessibility="no"');
     // Drawn as text once (the other use is the mark's spoken name).
     expect(header.match(/^\s*\{t\("aiMark\.spoken"\)\}\s*$/gm)).toHaveLength(1);
   });

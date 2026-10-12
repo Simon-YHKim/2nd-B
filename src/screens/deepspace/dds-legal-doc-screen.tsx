@@ -82,8 +82,8 @@ export function DeepSpaceLegalDocScreen({
   );
 
   return (
-    <AuthShell>
-      <View style={styles.titleRow}>
+    <AuthShell head={
+      <View style={[styles.titleRow, local.head]}>
         <Pressable
           onPress={requestBack}
           hitSlop={12}
@@ -96,8 +96,8 @@ export function DeepSpaceLegalDocScreen({
         <Text variant="heading" style={[styles.title, local.title]} accessibilityRole="header">
           {doc.title}
         </Text>
-      </View>
-
+      </View>}
+    >
       {meta ? (
         <Text variant="caption" style={local.meta}>{meta}</Text>
       ) : null}
@@ -178,6 +178,8 @@ const local = StyleSheet.create({
   // shrink by default, so a long title ("Refund Policy" at 18) ran past the right
   // edge on Android. Let it shrink and wrap inside the row instead.
   title: { flexShrink: 1 },
+  // The title row sits in the shell's non-scroll head, so it brings the scroll surface's gutter with it.
+  head: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   draftBadge: {
     alignSelf: "flex-start",
     borderWidth: 1,
