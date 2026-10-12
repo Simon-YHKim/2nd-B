@@ -153,8 +153,10 @@ describe("R3-1 auth branch matrix", () => {
       }
     }
     expect(branches[0].jsx).toContain("<AccountDeletionNoticePanel notice={branch.notice} />");
-    // 2026-10-13 Z24: form errors occupy one reserved slot immediately above Submit.
-    expect(branches[3].jsx).toMatch(/\{inlineNotice\}\s*<\/View>\s*<PixelPressable\s+variant="bevel"\s+onPress=\{\(\) => void submit\(\)\}/);
+    // 2026-10-13 Z24: form errors are drawn immediately above Submit, and only while there is one.
+    // No reserved slot: an always-present gap would change the approved layout, and the sign-up
+    // screen (#2325) already draws its notice the same way.
+    expect(branches[3].jsx).toMatch(/\{inlineNotice\}\s*<PixelPressable\s+variant="bevel"\s+onPress=\{\(\) => void submit\(\)\}/);
     expect(branches[3].jsx.indexOf("{inlineNotice}")).toBeLessThan(branches[3].jsx.indexOf("<BusinessFooter />"));
   });
 

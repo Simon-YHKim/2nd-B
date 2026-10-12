@@ -213,7 +213,7 @@ describe("sign-in extraction boundaries", () => {
     );
     // 2026-10-13 Z13: request notice above Send + email-focus relay; other phases unchanged.
     expect(sha256(source.slice(tail))).toBe(
-      "69504e0ebd313d0b7d1e164ff8aee0c4dddf768bb804ddc322c3309318568d8d",
+      "7ff275248c3931c230f0b7ff85c244c9f1b6a0ddcb7af1dbe7c06d16de82f01c",
     );
   });
 

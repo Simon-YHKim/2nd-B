@@ -226,7 +226,6 @@ export function DeepSpaceResetPasswordDesignScreen() {
   // changes hook count between those renders.
   const confirmRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
-  const { fontScale } = useWindowDimensions();
   const sendCode = () => handleSendCode(() => emailRef.current?.focus());
 
   usePreventRemove(exitLocked, useCallback(() => {}, []));
@@ -387,11 +386,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
                 }}
               />
             </ResetField>
-            {step === "request" ? (
-              <View style={{ minHeight: m3.type.bodyMedium.line * 3 * fontScale + m3.spacing.s4 * 2 }}>
-                {resetNotice}
-              </View>
-            ) : null}
+            {step === "request" ? resetNotice : null}
             <ResetAction
               onPress={() => void sendCode()}
               disabled={!canSendCode}

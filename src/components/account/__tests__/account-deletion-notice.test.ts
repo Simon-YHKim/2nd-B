@@ -58,8 +58,6 @@ function routeRenderer(path: string, functionName: string) {
     // R6: the hook now returns the selected branch shared with Back ownership.
     useSignInForm: (deletionNotice: Notice | null) => ({ ...form, branch: selectSignInBranch({ deletionNotice, ...form }) }),
     useRef: () => ({ current: null }), useKeyboard: () => 0,
-    // 2026-10-13 Z24: notice reserve reads fontScale before any branch return.
-    useWindowDimensions: () => ({ width: 393, height: 851, fontScale: 1 }),
     // 이 하네스가 쓰이던 시점 이후 deep-space 로그인 화면이 useAuth 를 부른다
     // (세션 확인 실패를 "로그아웃"으로 오해하지 않기 위한 경계). 스텁이 없으면
     // 대상 결함이 아니라 ReferenceError 가 난다.

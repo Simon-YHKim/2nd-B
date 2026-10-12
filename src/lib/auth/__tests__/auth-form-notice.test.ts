@@ -284,7 +284,9 @@ test("screen button/go dispatch retains the busy gate and focuses the invalid in
   expect(source).toContain('onPress={() => void submit()}');
   expect(source).toContain('if (!submitDisabled) void submit();');
   expect(source).toContain('ref={emailRef}');
-  expect(source).toContain("minHeight: m3.type.bodyMedium.line * 3 * fontScale + m3.spacing.s4 * 2");
+  // The notice takes space only while it is shown (same as the sign-up screen, #2325).
+  expect(source).not.toContain("fontScale");
+  expect(source).toMatch(/\{inlineNotice\}\s*<PixelPressable\s+variant="bevel"\s+onPress=\{\(\) => void submit\(\)\}/);
 });
 
 test("reset button and keyboard share the email-focus dispatch and request notice slot", async () => {
@@ -300,7 +302,9 @@ test("reset button and keyboard share the email-focus dispatch and request notic
   expect(source).toContain("onPress={() => void sendCode()}");
   expect(source).toContain("disabled={!canSendCode}");
   expect(source).toContain('ref={emailRef}');
-  const slot = source.indexOf("{resetNotice}");
+  const slot = source.indexOf('{step === "request" ? resetNotice : null}');
+  expect(slot).toBeGreaterThan(-1);
   expect(slot).toBeLessThan(source.indexOf("onPress={() => void sendCode()}"));
+  expect(source).not.toContain("bodyMedium.line * 3");
   expect(source).toContain('{step !== "request" ? resetNotice : null}');
 });

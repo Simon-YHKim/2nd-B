@@ -1,6 +1,6 @@
 import { ProviderBrandIcon } from "@/components/auth/ProviderBrandIcon";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { Platform, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
+import { Platform, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { router } from "expo-router";
@@ -129,7 +129,6 @@ export function DeepSpaceSignInDesignScreen() {
   const { sessionUnavailable, refresh } = useAuth();
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
-  const { fontScale } = useWindowDimensions();
   const actionLock = useRef(false);
   const [focusedField, setFocusedField] = useState<FocusedField>(null);
 
@@ -383,11 +382,7 @@ export function DeepSpaceSignInDesignScreen() {
             />
           </PixelSurface>
 
-          {/* Reserve three text lines so ordinary errors do not move a tapped CTA.
-              minHeight still allows large text / longer translations to grow. */}
-          <View style={{ minHeight: m3.type.bodyMedium.line * 3 * fontScale + m3.spacing.s4 * 2 }}>
-            {inlineNotice}
-          </View>
+          {inlineNotice}
 
           <PixelPressable
             variant="bevel"

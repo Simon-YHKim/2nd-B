@@ -325,7 +325,7 @@ describe("sign-up authority and preservation boundaries", () => {
   test("preserves shared form boundaries while pinning the auth renderer", () => {
     // 2026-10-13 Z13: reset request notice/focus only; shared shell and consent boundary unchanged.
     expect(sha256(read("src/screens/deepspace/dds-auth-screens.tsx"))).toBe(
-      "3d680ac2ccc62ed257aa793844f9f1690fe7e4393085c431fcd5ad6b843f7433",
+      "6a98e426df694e4c3b0b34ada901f3222ef2c6e0fe3e2cac0de82b91bf9524bd",
     );
     expect(sha256(read("src/components/consent/ConsentNotice.tsx"))).toBe(
       "60a019c22ceec84ad550f06568763225b82839bc0e743f382aabea233e4ae170",
