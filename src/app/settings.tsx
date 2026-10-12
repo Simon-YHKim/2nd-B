@@ -22,6 +22,7 @@ import { useAppRouter } from "@/lib/nav/phone-embed";
 
 import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
+import { GuardianSupervisionNotice } from "@/components/consent/GuardianSupervisionNotice";
 import { Input } from "@/components/ui/Input";
 import { MdButton } from "@/components/m3";
 import { m3TextStyle } from "@/components/m3/typeface";
@@ -730,6 +731,7 @@ export default function Settings() {
           <M3Divider />
           <M3LinkRow icon="lock" label={t("nav.privacy")} hint={t("nav.privacyHint")} onPress={() => router.push("/privacy")} />
         </M3Group>
+        <GuardianSupervisionNotice />
 
         <M3SectionLabel>{t("app")}</M3SectionLabel>
         <M3Group>

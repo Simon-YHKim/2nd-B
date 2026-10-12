@@ -8,6 +8,7 @@ export default function TermsRoute() {
   return (
     <DeepSpaceLegalDocScreen
       doc={TERMS_DOC}
+      showGuardianSupervisionNotice
       crossLinks={[
         { href: "/refund", label: REFUND_DOC.title },
         { href: "/privacy-policy", label: PRIVACY_DOC.title },

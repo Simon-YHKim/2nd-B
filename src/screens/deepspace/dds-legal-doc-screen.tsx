@@ -16,6 +16,7 @@ import { colors, spacing } from "@/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { SegBtn } from "@/components/m3/SegBtn";
 import { Text } from "@/components/ui/Text";
+import { GuardianSupervisionNotice } from "@/components/consent/GuardianSupervisionNotice";
 import { AuthShell } from "./dds-auth-screens";
 import { ddsStyles as styles } from "./dds-styles";
 import {
@@ -32,8 +33,10 @@ import { useAppRouter, useHardwareBack, usePhoneEmbed } from "@/lib/nav/phone-em
 export function DeepSpaceLegalDocScreen({
   doc,
   crossLinks,
+  showGuardianSupervisionNotice = false,
 }: {
   doc: LegalDoc;
+  showGuardianSupervisionNotice?: boolean;
   /** Optional sibling document links (terms / refund / privacy policy). */
   crossLinks?: Array<{ href: "/terms" | "/refund" | "/privacy-policy"; label: string }>;
 }) {
@@ -94,6 +97,8 @@ export function DeepSpaceLegalDocScreen({
           {doc.title}
         </Text>
       </View>
+
+      {showGuardianSupervisionNotice ? <GuardianSupervisionNotice /> : null}
 
       {meta ? (
         <Text variant="caption" style={local.meta}>{meta}</Text>
