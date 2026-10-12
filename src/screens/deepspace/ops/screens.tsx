@@ -5,7 +5,7 @@ import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
 // (every write is behind a user tap). Strings come from the bilingual ops copy.
 
 import { useEffect, useMemo, useRef, useState, type DependencyList } from "react";
-import { Linking, Share, StyleSheet } from "react-native";
+import { Linking, Platform, Share, StyleSheet } from "react-native";
 import { PhonePressable as Pressable, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { ChatRemindersList } from "@/components/secondb/ChatRemindersList";
 import { PlainText as RNText } from "@/components/ui/PlainText";
@@ -94,6 +94,7 @@ import {
   enableReminder,
   getReminderStates,
   getScheduledRoutineIds,
+  sweepResidualReminderNotifications,
   remindersSupported,
 } from "@/lib/ops/reminders";
 import { getGithubUsername, setGithubUsername } from "@/lib/projects/github-link";
@@ -1908,15 +1909,18 @@ export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => v
       return;
     }
     let alive = true;
-    void Promise.all([
-      getReminderStates(userId, withReminder.map((r) => r.id)),
-      getScheduledRoutineIds(userId),
-    ]).then(([flags, scheduled]) => {
+    void (async () => {
+      if (Platform.OS !== "web") await sweepResidualReminderNotifications(userId);
+      if (!alive) return;
+      const [flags, scheduled] = await Promise.all([
+        getReminderStates(userId, withReminder.map((r) => r.id)),
+        getScheduledRoutineIds(userId),
+      ]);
       if (!alive) return;
       const next: Record<string, boolean> = {};
       for (const r of withReminder) next[r.id] = flags[r.id] !== false && scheduled.has(r.id);
       setStates(next);
-    });
+    })();
     return () => {
       alive = false;
     };
