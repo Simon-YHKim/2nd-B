@@ -50,8 +50,9 @@ Migration 0236 owns local 06/13/20 slots, previous-day evening before 06:00,
 seven-day inactivity, atomic claim, single dispatch, consent/source recheck,
 cache, expiry and attempt quotas. Timezone names are validated by PostgreSQL.
 The pure JS planner remains a preflight/reference, not an authorization grant.
-Three daily-note attempts are allowed per day; current local day and UTC day
-are checked together as a conservative travel backstop. Summary and triage
+Migration 0248 keeps three daily-note attempts per local service day (06:00 boundary)
+and separately caps the UTC day at four; Pacific/Chatham's 2026-09-26 UTC fifth slot
+across DST remains capped (valid previous note, otherwise `limited`). Summary and triage
 each have a 48-attempt daily ceiling in addition to the existing spend/capacity
 guards. A failed or timed-out claim is not retried automatically.
 

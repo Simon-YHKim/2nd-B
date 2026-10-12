@@ -4,6 +4,7 @@
 // assert token discipline + a11y wiring rather than rendering.
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { NAV_BAR_GEOMETRY } from "../nav-label-layout";
 
 const M3_DIR = path.resolve(__dirname, "..");
 
@@ -102,6 +103,12 @@ describe("M3 primitive kit — accessibility", () => {
 
   test.each(TOUCH_TARGET)("%s declares a >=44dp touch target", (file) => {
     const src = read(file);
+    if (file === "MdNavBar.tsx") {
+      // Follow the shared geometry all the way to its value, not just its name.
+      expect(src).toMatch(/press:\s*\{[^}]*minHeight:\s*NAV_BAR_GEOMETRY\.pressHeight\s*\}/);
+      expect(NAV_BAR_GEOMETRY.pressHeight).toBeGreaterThanOrEqual(44);
+      return;
+    }
     // `m3.minTouch` is the token form of the same 44 (src/lib/theme/m3.ts); the
     // literal form stays accepted so the older primitives need no churn.
     expect(src).toMatch(/minHeight:\s*(m3\.minTouch|4[4-9]|[5-9]\d|\d{3})/);

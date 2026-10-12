@@ -90,7 +90,7 @@ jobs:
           CREATE DATABASE profile_import_test_ci OWNER profile_import_local;
           SQL
           node scripts/test-profile-import-sql.mjs 5432 profile_import_local profile_import_test_ci
-      - name: Exercise W1 generation locks and owner isolation
+      - name: Exercise W1 generation locks, owner isolation and 0248 note backstop
         env:
           PGPASSWORD: postgres
         run: |
