@@ -1242,7 +1242,7 @@ export function DeepSpacePrivacyDesignScreen() {
         <TextInput
           value={delConfirm}
           onChangeText={setDelConfirm}
-          placeholder="DELETE"
+          autoComplete="off"
           placeholderTextColor={colors.textLo}
           autoCapitalize="characters"
           autoCorrect={false}
