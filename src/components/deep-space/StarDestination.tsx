@@ -41,7 +41,7 @@ function CameraTransition({ active, progress, reducedMotion, onReturned, onReady
 }
 
 /** Camera HUD only. The original world owns the star and all of its light. */
-export function StarDestination({ active, progress, name, returnLabel, origin, originRadius, frame, onReturn, onReturned, onReady }: {
+export function StarDestination({ active, progress, name, returnLabel, origin, originRadius, frame, onReturn, onReturned, onReady, canTravel = true }: {
   active: boolean;
   progress: Animated.Value;
   name: string;
@@ -53,6 +53,8 @@ export function StarDestination({ active, progress, name, returnLabel, origin, o
   onReturn: () => void;
   onReturned: () => void;
   onReady: () => void;
+  /** False while the star cannot be opened yet: the ready line then stops at "focus locked". */
+  canTravel?: boolean;
 }) {
   const { t } = useTranslation('deepspace');
   const reducedMotion = useReducedMotionPref();
@@ -105,7 +107,7 @@ export function StarDestination({ active, progress, name, returnLabel, origin, o
         <View style={[styles.bracket, styles.bottomLeft, phase === 'ready' && styles.locked]} />
         <View style={[styles.bracket, styles.bottomRight, phase === 'ready' && styles.locked]} />
       </Animated.View>
-      <Text testID={`star-camera-phase-${phase}`} pointerEvents="none" accessibilityLiveRegion="polite" style={[styles.phase, { top: centre.y + radius + 32 }]}>{t(`camera.${phase}`)}</Text>
+      <Text testID={`star-camera-phase-${phase}`} pointerEvents="none" accessibilityLiveRegion="polite" style={[styles.phase, { top: centre.y + radius + 32 }]}>{t(phase === 'ready' && !canTravel ? 'camera.held' : `camera.${phase}`)}</Text>
     </View>
   );
 }
