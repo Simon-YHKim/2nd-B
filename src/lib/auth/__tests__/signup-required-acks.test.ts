@@ -185,7 +185,7 @@ describe("PIXEL-CLAY sign-up renderer", () => {
     expect(screen).toContain("{visibleProviders.length > 0 || naverEnabled ? (");
     expect(screen).toContain("visibleProviders.map((provider)");
     expect(screen).toContain("{naverEnabled ? (");
-    expect(screen).toContain("PROVIDER_MARK[provider]");
+    expect(screen).toContain("<ProviderBrandIcon provider={provider} />");
     expect(screen).not.toContain('name="account"');
     expect(screen).toContain('flexWrap: "wrap"');
     expect(screen).toContain("minWidth: 112");
