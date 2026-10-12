@@ -1,5 +1,25 @@
 # 2nd-Brain Handoff
 
+## 2026-10-13 00:53 / 2ndb-53: 남은 일 넷 머지 · 8081 확인 끝 - 다음은 기기 점검 결과를 기다렸다가 그 수정부터(Simon 00:5x · Q-261013-01)
+
+- **지금까지**: Simon 이 00:2x 에 "지금대로 진행하고 남은 일도 이어서 해줘"라고 답했다(DECISIONS 26.10.13 00:31). AI 표식은 지금대로다. 남은 일은 PR 둘로 넣었다. #2321(추천 카드의 빈 상태 글을 "아직 추천이 없습니다."로 · 안 쓰는 `common:navGraph` 삭제 · 00:43) · #2320(약관 · 처리방침 · 환불 화면의 ‹ 를 스크롤 밖에 고정 · 대화의 첫 답 문장을 웹 낭독에서 숨김 · 00:49). main `a265b46d`. 잰 값은 DECISIONS 26.10.13 00:53.
+- **다음 1개**: 기기 확인(2ndb-79 가 Rufus 회차에 얹는다). 볼 것: 약관 · 처리방침 · 환불 · 동의 안내의 ‹ · 대화의 AI 표식과 TalkBack 낭독 · 단독 개인 비서 화면 · 폰 둘째 쪽 "위젯 추가" · 빈 별의 꺼진 사다리 · 추천 카드의 빈 글. 보고서 <https://claude.ai/artifact/Y4CQRbsjicStfYzZvHxF7x>(원본 `E:/Coding Infra/reports/codex-audit-261010/ui/ui-rest1013.fragment.html` · 192KB)의 Q-261013-01(다음에 볼 화면)에는 Simon 이 00:5x 에 "기기 점검 결과를 기다렸다가 그 수정부터"로 답했다(DECISIONS 26.10.13 00:56).
+- **막힌 것**: 없다.
+- **확인하지 못한 것**: Android 기기 · 폰 안에서 연 북극성 · 별 요약 · 동의 안내. 폰 안의 동의 안내로 가는 길을 두 번 찾았다: 폰 둘째 쪽 → "연동 화면"(= `/data-connections`)까지는 가지만, 거기서 `/privacy` 로 가는 "데이터·개인화 동의" 줄이 QA 계정에서는 보이지 않는다. 폰 바둑판에는 설정 · 개인정보 보호로 가는 자리가 없다.
+- **알아 둘 것**: ① `dds-legal-doc-screen.tsx` 의 머리줄은 `<AuthShell head={…}>` 안에 있다. `guardian-supervision-surfaces.test.ts` 가 "제목 줄 → 메타 → 보호자 고지 → 언어 선택"의 순서를 정규식으로 본다. ② 계정 화면의 "IDEN" 은 내보내기 파일의 이름이라 번역하지 않는다(`home:ds.*.iden` · `iden.json`). ③ 문자열 수 핀은 지금 4372 다. ④ 재는 스크립트: `shoot_legal_head.cjs <주소> <폴더> <이름> [--w --h]`(세 문서의 ‹ 위치를 열 때와 끝까지 내린 뒤에 잼). ⑤ 이 창의 워크트리: `.worktrees/polaris-261012` · `notetime-261012` · `uidesign-261012`(셋 다 node_modules 정션 · `git worktree remove --force` 금지). 브랜치는 모두 머지됐다.
+- **app:parity**: 같음(00:52 · 8081 = a265b46d)
+
+## 2026-10-13 01:08 / 2ndb-79: 계정 전환 빈 화면 수정(#2318) 검토 두 번 막힘 → 멈춤 · Simon 답 대기(Q-261013-26) · D2 는 기기 재점검 중
+
+- **지금까지**: ① #2318(계정을 바꿔 로그인하면 빈 화면)은 독립 검토 1회차 BLOCK(high 1 · medium 1) → 고쳐서 2회차도 BLOCK(1회차 두 건은 닫힘 · 새 medium 1: 프로필 없는 새 계정이 재설정 3회를 다 쓴 뒤 프로필을 제출하면 `/avatar-studio?setup=1` 로 가서 가림이 남음 · "main 부터 남은 경로"). 내가 정해 둔 조건(두 번 막히면 멈춤)대로 **멈췄다**. PR 은 draft · head `85ba8df7` · 머지하지 않았다. ② 그 문제를 고치기 전 빌드(`38aabaf0`)에서 다시 재현했다(3회 중 3회). 빈 화면에서 `secondbrain://terms` 는 정상으로 열렸다 — 가림이 안 풀리는 것은 기기에서 확인, 왜 안 풀리는지(푸는 조건이 실제 상태 모양에서 참이 될 수 없음)는 여전히 추정. ③ **둘째 시험 계정이 운영에 남아 있다**: 00:41:22 가입(8081 가입 화면) · 00:44 운영 쓰기 1행(이메일 확인) · P7Pro 에뮬레이터에 로그인된 채(아바타 첫 설정 화면). ④ D2(#2215)는 main `087f7ced` · 폰용 빌드 성공(run 38269285532 · `E:/Coding Infra/reports/devlab-261010/builds/2ndb-087f7ce.apk`) · 빌드 메모 `.bots/device-lab/outbox/build-memo-087f7ced-1013.md` → Rufus 9회차 01:03 시작(P4a). 대화 AI 표식용 모델 호출 2회는 Simon 01:01 「허용」(Relay 1:1).
+- **다음 1개**: Simon 의 Q-261013-26 답(코딩 창 또는 Relay `.bots/relay/outbox/` 의 새 파일). ① 한 번 더 → 발주서 `E:/Coding Infra/reports/devlab-261010/codex-impl/acct-r3.prompt.md`(써 두었으면 그것 · 없으면 2회차 검토의 "최소 패치"대로: 가림 중 프로필 완료는 먼저 `/` 에 착지) → `bash "E:/Coding Infra/reports/devlab-261010/codex-impl/run_lane_79.sh" "E:/2ndB/.worktrees/acct-switch-261013" acct-r3` → 코드 읽기 · push → `python -B "E:/Coding Infra/reports/devlab-261010/gates/gate_acct.py" 3 2318 <보고서 셋>`(과제 `gates/acct-task.md` 에 3회차 절 추가) → PASS 면 `APP_MERGE=1 bash "E:/Coding Infra/reports/codex-audit-261010/merge_when_green.sh" 2318`. ② 지금 머지 → 같은 머지 명령. ③ 멈춤 → PR 닫기 + 시험 계정 삭제.
+- **시험 계정 삭제 순서 (어느 답이든 마지막에 반드시)**: 버스에 시작 한 줄 → P7Pro 를 켬(`signup-test/tools/env.sh` · 포트 5570 · adb 5039) → 앱 실행(시험 계정 세션) → `secondbrain://account` → 계정 삭제 → 확인 글자 `DELETE` → "계정 영구 삭제" → 최종 "삭제" → 운영 읽기로 auth.users · identities · sessions · public.users 0행 확인(계정 id `51b5410c…`) → 종료 한 줄. 실패하면 DB 직접 삭제 금지 · 멈추고 보고. ① ② 면 그 전에 고친 빌드를 덮어 설치해(`signup-test/tools/install.sh` 의 APK 경로를 새 빌드로) QA ↔ 시험 계정 바꿔 로그인 · 계정 삭제 뒤 QA 로그인 · 같은 계정 재로그인 · 빈 별의 꺼진 사다리(2ndb-53 요청)를 본다.
+- **막힌 것**: Simon 의 답.
+- **남은 것**: Rufus 9회차 결과(`.bots/device-lab/outbox/vb-devlab-emu-r9-1013.result.md`) 읽기 · 화면 쪽 관찰은 2ndb-53 에 넘김 · #2320 · #2321 은 `087f7ced` 빌드에 없으니 다음 빌드 메모에. O1(알림 권한 거절 뒤 설정 링크 안내) · O2(대화 프롬프트) — 이 세션. 0250 의 동작 테스트와 다른 벤더 검토. 워크트리 `.worktrees/devlab-d2d6-261010` 정리(정션 먼저).
+- **확인하지 못한 것**: 고친 증명이 실제 기기 상태에서 참이 되는지(머지 전에는 볼 수 없다) · D2 의 기기 동작(9회차 진행 중) · 계정 삭제 직후 결과 안내가 뜨는지.
+- **알아 둘 것**: ① 기록 PR 은 다른 두 세션의 기록 PR 과 자주 충돌한다 — 충돌하면 main 을 받아 `git checkout origin/main -- DECISIONS.md docs/HANDOFF.md` 뒤 다시 얹는다. ② 문자열 수 고정값은 지금 4372(#2321). ③ 8회차에 에뮬레이터가 스스로 두 번 꺼졌다(00:30 · 00:31 · 원인 모름 · 내 구현 갈래의 명령 기록에는 관련 명령 없음).
+- **app:parity**: 00:20 에 "같음"(`087f7ced`). 그 뒤 main 은 다른 세션의 머지로 움직였고 이 블록을 쓸 때는 치지 않았다.
+
 ## 2026-10-13 00:31 / 2ndb-79: D2(#2215) 머지 · 가입 시험 계정 삭제 끝 · 계정 전환 빈 화면 수정(#2318) 검토 중 - 다음은 #2318 검토 결과
 
 - **지금까지**: ① D2(#2215)가 7회차 독립 검토 PASS 로 00:18 에 main `087f7ced` 에 들어갔다(Simon 23:35 Relay 1:1 「D2는 한 번 더 고치고 7회차 검토 받아. 통과하면 머지, 또 막히면 멈춰.」). 8081 반영 · app:parity 같음(00:20). ② 가입 시험 계정(Q-261010-41)을 끝냈다: 운영 쓰기 1행(10-12 23:22) → 에뮬레이터 로그인 → 홈 → 앱 안 삭제(23:32) → 운영 읽기 0행(23:33). ③ 그 회차에서 **다른 계정으로 바꿔 로그인하면 빈 화면**을 봤고(2/2 · 같은 계정은 정상), Simon 이 00:00 에 이 창에서 「1번으로 진행해」로 답했다(고치고, 기기 확인용 시험 계정을 하나 더 만든다). 수정 PR #2318(draft · 브랜치 `fix/account-switch-release-proof` · 워크트리 `.worktrees/acct-switch-261013` · head `3bb4eb47`)을 열고 00:25 에 독립 검토 1회차를 시작했다. ④ 대화 화면 AI 표시(Simon 23:17 Relay 1:1)는 2ndb-53 이 #2316 으로 넣었다.
