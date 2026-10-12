@@ -251,7 +251,7 @@ Q-39 의 뒤집는 조건과의 관계: #2094 게이트 지적은 코드에서 �
 
 | 표식 | `records.tags` 에 쓰는 곳 | 그 이름을 찾아 읽는 곳 |
 |---|---|---|
-| `memo` · `fourw` · `todo` · `link` | 홈 담기 시트 `src/components/deep-space/DeepSpaceViews.tsx:646,671` (`tags: [tag]`) | `memo` · `link`: 0곳. `todo` · `fourw`: `src/app/reasoning.tsx:876` (목록 아이콘) |
+| `memo` · `fourw` · `todo` · `link` | 홈 담기 시트 `src/components/deep-space/DeepSpaceViews.tsx:653,678` (`tags: [tag]`) | `memo` · `link`: 0곳. `todo` · `fourw`: `src/app/reasoning.tsx:876` (목록 아이콘) |
 | `voice` · `todo` · `fourw` (+ `done`) | `/capture` `src/app/capture.tsx:2640-2645` | `reasoning.tsx:876` · `src/lib/persona/load-domain-levels.ts:36` (`voice` · `todo` 를 정리 신호에서 뺌) |
 | `reasoning:ratified` | `src/app/reasoning.tsx:516-530`. 기록은 `updateRecordTags`, 소스는 `updateSourceTags` 로 만든 **뒤에** 붙입니다 | `reasoning.tsx:901` (이미 비준한 항목을 목록에서 뺌) |
 

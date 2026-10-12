@@ -51,6 +51,7 @@ function harness(
   const uploadRecordPhotos = jest.fn().mockResolvedValue(uploaded);
   const removeRecordPhotoObjects = jest.fn().mockResolvedValue(uploaded.length);
   const clearPhotos = jest.fn();
+  const forgetCaptureViewDraft = jest.fn();
   const markCoachmarksSeen = jest.fn();
   const setCrisis = jest.fn();
   const announceForAccessibility = jest.fn();
@@ -91,6 +92,7 @@ function harness(
     recordPhotosPayload,
     removeRecordPhotoObjects,
     clearPhotos,
+    forgetCaptureViewDraft,
     cleanTodos: ["first to-do"],
     AccessibilityInfo: { announceForAccessibility },
     t: (key: string) => key,
@@ -102,7 +104,7 @@ function harness(
   };
   return {
     state, createRecord, enqueueAutoReasoningRecord, markCoachmarksSeen, setCoachStep, setCrisis, announceForAccessibility, playSaveCue,
-    uploadRecordPhotos, removeRecordPhotoObjects, clearPhotos, uploaded,
+    uploadRecordPhotos, removeRecordPhotoObjects, clearPhotos, forgetCaptureViewDraft, uploaded,
     save: runInNewContext(saveCode, scope) as () => Promise<void>,
     skip: runInNewContext(skipCode, scope) as () => void,
   };
@@ -122,6 +124,8 @@ describe("first-record coach follows the real record save", () => {
       expect(run.markCoachmarksSeen).toHaveBeenCalledTimes(1);
       expect(run.announceForAccessibility).toHaveBeenCalledWith("ds.capture.saved");
       expect(run.playSaveCue).toHaveBeenCalledTimes(1);
+      // Z79: what was saved is no longer kept as unsaved writing.
+      expect(run.forgetCaptureViewDraft).toHaveBeenCalledWith("qa-user");
     },
   );
 
@@ -135,6 +139,8 @@ describe("first-record coach follows the real record save", () => {
     expect(run.setCoachStep).not.toHaveBeenCalled();
     expect(run.announceForAccessibility).toHaveBeenCalledWith("ds.capture.saveError");
     expect(run.playSaveCue).not.toHaveBeenCalled();
+    // Z79: a failed save keeps the writing for the next visit.
+    expect(run.forgetCaptureViewDraft).not.toHaveBeenCalled();
     expect(run.enqueueAutoReasoningRecord).not.toHaveBeenCalled();
   });
 
