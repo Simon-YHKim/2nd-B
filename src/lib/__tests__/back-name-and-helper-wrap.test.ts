@@ -28,6 +28,26 @@ describe("signed-out screens: the back button says where it goes", () => {
   });
 });
 
+describe("sign-up: the top-bar control says it goes to sign-in", () => {
+  const signUp = read("src/screens/deepspace/dds-sign-up-screen.tsx");
+
+  it("it leaves through the home route, which sends a signed-out visitor to sign-in", () => {
+    expect(signUp).toContain('if (canLeaveGate()) router.push("/");');
+  });
+
+  it("its spoken name and hint name the sign-in screen, not the constellation", () => {
+    expect(signUp).toContain('accessibilityLabel={t("auth:signUp.existingAccountSignIn")}');
+    expect(signUp).toContain('accessibilityHint={t("auth:signUp.signInHint")}');
+    expect(signUp).not.toContain("navGraph.drilldown");
+  });
+
+  it.each(["en", "ko", "es", "pt", "id"])("%s carries both strings", (lng) => {
+    const auth = JSON.parse(read(`locales/${lng}/auth.json`)) as { signUp: Record<string, unknown> };
+    expect(typeof auth.signUp.existingAccountSignIn).toBe("string");
+    expect(typeof auth.signUp.signInHint).toBe("string");
+  });
+});
+
 describe("date field helper: wraps instead of ending in an ellipsis", () => {
   it("the supporting line has no line cap", () => {
     const picker = read("src/components/m3/date-picker/DatePicker.tsx");

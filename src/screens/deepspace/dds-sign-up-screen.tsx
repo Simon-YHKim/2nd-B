@@ -131,8 +131,8 @@ export function DeepSpaceSignUpDesignScreen() {
             if (canLeaveGate()) router.push("/");
           }}
           disabled={actionBusy}
-          accessibilityLabel={t("common:navGraph.drilldown.back")}
-          accessibilityHint={t("common:navGraph.drilldown.backHint")}
+          accessibilityLabel={t("auth:signUp.existingAccountSignIn")}
+          accessibilityHint={t("auth:signUp.signInHint")}
           rootStyle={styles.squareAction}
           contentStyle={styles.squareActionContent}
         >
