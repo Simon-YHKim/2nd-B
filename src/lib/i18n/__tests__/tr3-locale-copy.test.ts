@@ -147,7 +147,8 @@ describe("tr3 /import-hub: hub copy reads import hub.* in the painted language",
     ]);
     expect([ko.hubBubble, ko.hubTip, ko.tier_critical, ko.what, ko.applyN, ko.connectorNote]).toEqual([
       "무엇을 들여올까요?",
-      "네가 승인한 것만 기록에 남습니다.",
+      // 2026-10-13 (Z91): the one sentence in the Korean bundles that addressed the reader as "네가".
+      "승인한 것만 기록에 남습니다.",
       "최민감 · 명시 동의 필요",
       "무엇을",
       "고른 {n}건 기록에 반영",
