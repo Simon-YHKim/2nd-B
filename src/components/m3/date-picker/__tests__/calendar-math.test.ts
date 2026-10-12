@@ -9,6 +9,7 @@ import {
   pad2,
   toISO,
   yearsDescending,
+  yearGridStartRow,
 } from "../calendar-math";
 
 describe("calendar-math", () => {
@@ -95,6 +96,29 @@ describe("calendar-math", () => {
       const feb = monthGrid(2005, 1);
       const days = feb.flat().filter((c) => c !== null);
       expect(days).toHaveLength(28);
+    });
+  });
+
+  // A-Z first-use check, round 1 (Z7): the birth year grid opened on the current year,
+  // twenty years above the year it had already picked as the likely one.
+  describe("yearGridStartRow", () => {
+    it("opens one row above the row that holds the chosen year", () => {
+      // 2026..1900, four to a row: 2026-2023 is row 0, 2006 sits in row 5.
+      expect(yearGridStartRow(1900, 2026, 2006, 4)).toBe(4);
+      expect(yearGridStartRow(1900, 2026, 2023, 4)).toBe(0);
+      expect(yearGridStartRow(1900, 2026, 2022, 4)).toBe(0);
+      expect(yearGridStartRow(1900, 2026, 2018, 4)).toBe(1);
+    });
+
+    it("stays at the top when there is no year, or the year is outside the list", () => {
+      expect(yearGridStartRow(1900, 2026, null, 4)).toBe(0);
+      expect(yearGridStartRow(1900, 2026, 2030, 4)).toBe(0);
+      expect(yearGridStartRow(1900, 2026, 1850, 4)).toBe(0);
+    });
+
+    it("never starts past the last row", () => {
+      expect(yearGridStartRow(2000, 2003, 2000, 4)).toBe(0);
+      expect(yearGridStartRow(1900, 2026, 1900, 4)).toBe(30);
     });
   });
 

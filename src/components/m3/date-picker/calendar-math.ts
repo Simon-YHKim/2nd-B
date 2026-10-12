@@ -78,6 +78,16 @@ export function yearsDescending(minYear: number, maxYear: number): number[] {
   return out;
 }
 
+/**
+ * The row the year grid opens on: one row above the row holding `year`, so the
+ * chosen year is in view with its newer neighbours. Row 0 when there is no year
+ * or it is outside the list. Rows hold `columns` years, newest first.
+ */
+export function yearGridStartRow(minYear: number, maxYear: number, year: number | null, columns: number): number {
+  if (year === null || year > maxYear || year < minYear || columns < 1) return 0;
+  return Math.max(0, Math.floor((maxYear - year) / columns) - 1);
+}
+
 /** Year of a valid ISO date, or null. */
 export function isoYear(value: string): number | null {
   return isValidISO(value) ? Number(value.slice(0, 4)) : null;
