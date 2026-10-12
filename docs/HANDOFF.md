@@ -1,5 +1,19 @@
 # 2nd-Brain Handoff
 
+## 2026-10-13 02:23 / 2ndb-53: A-Z 실사용 점검 1차의 화면 항목 넷(Z2 · Z4 · Z7 · Z8) 머지 · 8081 확인 - 다음은 Simon 의 Q-261013-02 ~ 05 답
+
+- **지금까지**: Simon 이 01:16 ~ 01:19 에 Relay 로 A-Z 실사용 점검과 /vibe 반복 개선을 지시했고(`.bots/relay/outbox/coding-az-ux-1013.note.md`), Rufus 1차 결과(`.bots/device-lab/outbox/vb-devlab-az-1013.result.md` · 가입에서 중단)의 화면 항목 Z2 ~ Z11 이 이 창으로 왔다. #2325(Z2 실패 안내를 버튼 위로 · Z4 비밀번호 칸의 점 예시 삭제 · Z8 제목 아래의 연령 안내 삭제 · 02:07) · #2326 → #2328(Z7 연도 목록이 고른 연도 줄에서 열림 · 02:19)을 넣었다. main `85986a47`. 잰 값은 DECISIONS 26.10.13 02:23. Z1(가입 실패 원인 · 원인별 문구 · 안내가 남는 시간)은 2ndb-79 다.
+- **다음 1개**: Simon 의 답. 보고서 <https://claude.ai/artifact/DAuVXheFrMQHeX71NAFBzN>(원본 `E:/Coding Infra/reports/codex-audit-261010/ui/ui-az1-1013.fragment.html` · 66KB)의 결정 탭.
+  - Q-261013-02(Z3 로그인 제목 · 추천 「로그인」): `locales/*/deepspace.json` 의 `auth.signInTitle` 다섯 언어와 `scripts/check-constraints.ts` 의 `SignInHeroI18nCopy`(en · ko 문구를 글자까지 찾는다)를 같은 PR 에서 고친다.
+  - Q-261013-03(Z9 로그인의 소셜 버튼 · 추천 가입과 같게): `dds-sign-in-screen.tsx` 의 `SIGN_IN_PROVIDERS` 와 `PROVIDER_KEY` · `auth:signIn.continueWithKakao` 등 로케일 · `sign-in-screen-contract.test.ts` 96줄과 108줄의 핀. 가입 화면은 `visibleProviders` 전부와 네이버를 그린다.
+  - Q-261013-04(Z6 하단 고정 · 추천 지금대로): 고정하게 되면 `PixelGateShell` 에 고정 자리(foot)를 만들고 기기에서 키보드와 함께 본다(`dds-sign-up-screen.tsx` 의 CTA 위 주석이 이유를 적는다).
+  - Q-261013-05(Z5 동의 문장 · 추천 시작): 문구는 Legal 초안을 받는다(2ndb-79 의 Relay 흐름으로 요청). `consent` 네임스페이스는 es · pt · id 가 영어 그대로여야 한다(`check:safety-consent-locale`).
+- **답과 무관하게 남은 것**: Z11(비밀번호 보기 버튼을 칸 안 오른쪽으로 · 로그인 · 가입 · 재설정 세 화면 · 재설정 화면 `dds-auth-screens.tsx` 426줄의 점 예시도 함께 · 그 파일은 해시 핀 둘) · Z10(안내서의 「허슬케이」 풀이 · 로그아웃 상태의 아래 탭).
+- **막힌 것**: 없다.
+- **기기에서 볼 것**: Z2 의 자리(실패 안내가 버튼 위에 보이는지) · Z4 · Z7 · Z8. 가입이 풀린 뒤의 Rufus 회차.
+- **알아 둘 것**: ① PR 번호는 `gh pr create` 의 출력에서만 읽는다. 02:13 에 번호를 짐작해 머지 도구를 돌려 2ndb-79 의 #2327(되돌리기)을 머지했다(그쪽이 머지하려던 것이라 되돌릴 것은 없었다). ② 웹의 목록은 `initialScrollIndex` 를 따르지 않는다. 처음 위치를 정하려면 첫 `onLayout` 에서 `scrollToOffset` 을 부른다(`DatePicker.tsx` 의 `YearGrid`). ③ `dds-sign-up-screen.tsx` 에 줄을 더하거나 빼면 `src/lib/supabase/consent.ts` 20줄의 줄 인용(`…:367`)과 `comment-citations.test.ts` 86줄이 밀린다. ④ 재는 스크립트: `shoot_auth.cjs <주소> <폴더> <이름>`(로그아웃 상태 로그인 · 가입 화면의 비밀번호 예시와 연령 안내 수) · `shoot_birth_year.cjs`(연도 목록이 열릴 때 보이는 연도와 스크롤 위치). ⑤ /vibe 는 이 묶음에서 "이 창이 직접 고침 · 추가 비용 0 · 재확인은 Rufus"로 잡았다. 스킬 목록 출력은 238KB 라 읽지 않았다.
+- **app:parity**: 02:22 에 "같음"(8081 = `85986a47`).
+
 ## 2026-10-13 00:53 / 2ndb-53: 남은 일 넷 머지 · 8081 확인 끝 - 다음은 기기 점검 결과를 기다렸다가 그 수정부터(Simon 00:5x · Q-261013-01)
 
 - **지금까지**: Simon 이 00:2x 에 "지금대로 진행하고 남은 일도 이어서 해줘"라고 답했다(DECISIONS 26.10.13 00:31). AI 표식은 지금대로다. 남은 일은 PR 둘로 넣었다. #2321(추천 카드의 빈 상태 글을 "아직 추천이 없습니다."로 · 안 쓰는 `common:navGraph` 삭제 · 00:43) · #2320(약관 · 처리방침 · 환불 화면의 ‹ 를 스크롤 밖에 고정 · 대화의 첫 답 문장을 웹 낭독에서 숨김 · 00:49). main `a265b46d`. 잰 값은 DECISIONS 26.10.13 00:53.
