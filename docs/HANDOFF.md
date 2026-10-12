@@ -1,9 +1,9 @@
 # 2nd-Brain Handoff
 
-## 2026-10-13 00:53 / 2ndb-53: 남은 일 넷 머지 · 8081 확인 끝 - 이 창에서 기다리는 답 없음(Q-261013-01 은 급하지 않음)
+## 2026-10-13 00:53 / 2ndb-53: 남은 일 넷 머지 · 8081 확인 끝 - 다음은 기기 점검 결과를 기다렸다가 그 수정부터(Simon 00:5x · Q-261013-01)
 
 - **지금까지**: Simon 이 00:2x 에 "지금대로 진행하고 남은 일도 이어서 해줘"라고 답했다(DECISIONS 26.10.13 00:31). AI 표식은 지금대로다. 남은 일은 PR 둘로 넣었다. #2321(추천 카드의 빈 상태 글을 "아직 추천이 없습니다."로 · 안 쓰는 `common:navGraph` 삭제 · 00:43) · #2320(약관 · 처리방침 · 환불 화면의 ‹ 를 스크롤 밖에 고정 · 대화의 첫 답 문장을 웹 낭독에서 숨김 · 00:49). main `a265b46d`. 잰 값은 DECISIONS 26.10.13 00:53.
-- **다음 1개**: 기기 확인(2ndb-79 가 Rufus 회차에 얹는다). 볼 것: 약관 · 처리방침 · 환불 · 동의 안내의 ‹ · 대화의 AI 표식과 TalkBack 낭독 · 단독 개인 비서 화면 · 폰 둘째 쪽 "위젯 추가" · 빈 별의 꺼진 사다리 · 추천 카드의 빈 글. 보고서 <https://claude.ai/artifact/Y4CQRbsjicStfYzZvHxF7x>(원본 `E:/Coding Infra/reports/codex-audit-261010/ui/ui-rest1013.fragment.html` · 192KB)의 결정 탭에 Q-261013-01(다음에 볼 화면 · 급하지 않음)이 있다.
+- **다음 1개**: 기기 확인(2ndb-79 가 Rufus 회차에 얹는다). 볼 것: 약관 · 처리방침 · 환불 · 동의 안내의 ‹ · 대화의 AI 표식과 TalkBack 낭독 · 단독 개인 비서 화면 · 폰 둘째 쪽 "위젯 추가" · 빈 별의 꺼진 사다리 · 추천 카드의 빈 글. 보고서 <https://claude.ai/artifact/Y4CQRbsjicStfYzZvHxF7x>(원본 `E:/Coding Infra/reports/codex-audit-261010/ui/ui-rest1013.fragment.html` · 192KB)의 Q-261013-01(다음에 볼 화면)에는 Simon 이 00:5x 에 "기기 점검 결과를 기다렸다가 그 수정부터"로 답했다(DECISIONS 26.10.13 00:56).
 - **막힌 것**: 없다.
 - **확인하지 못한 것**: Android 기기 · 폰 안에서 연 북극성 · 별 요약 · 동의 안내. 폰 안의 동의 안내로 가는 길을 두 번 찾았다: 폰 둘째 쪽 → "연동 화면"(= `/data-connections`)까지는 가지만, 거기서 `/privacy` 로 가는 "데이터·개인화 동의" 줄이 QA 계정에서는 보이지 않는다. 폰 바둑판에는 설정 · 개인정보 보호로 가는 자리가 없다.
 - **알아 둘 것**: ① `dds-legal-doc-screen.tsx` 의 머리줄은 `<AuthShell head={…}>` 안에 있다. `guardian-supervision-surfaces.test.ts` 가 "제목 줄 → 메타 → 보호자 고지 → 언어 선택"의 순서를 정규식으로 본다. ② 계정 화면의 "IDEN" 은 내보내기 파일의 이름이라 번역하지 않는다(`home:ds.*.iden` · `iden.json`). ③ 문자열 수 핀은 지금 4372 다. ④ 재는 스크립트: `shoot_legal_head.cjs <주소> <폴더> <이름> [--w --h]`(세 문서의 ‹ 위치를 열 때와 끝까지 내린 뒤에 잼). ⑤ 이 창의 워크트리: `.worktrees/polaris-261012` · `notetime-261012` · `uidesign-261012`(셋 다 node_modules 정션 · `git worktree remove --force` 금지). 브랜치는 모두 머지됐다.
