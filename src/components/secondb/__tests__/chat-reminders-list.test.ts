@@ -28,6 +28,7 @@ function runtime(platform = "android") {
   const list = jest.fn(() => { const request = deferred<OneOffReminder[]>(); requests.push(request); return request.promise; });
   const getScheduled = jest.fn(async () => new Set(scheduled));
   const sweep = jest.fn(async () => ({ found: 0, cancelled: 0 }));
+  const residualSweep = jest.fn(async () => undefined);
   const enable = jest.fn(async (_owner: string, id: string, _event: unknown) => { scheduled.add(id); return true; });
   const disable = jest.fn(async (_owner: string, id: string) => { scheduled.delete(id); });
   const remove = jest.fn<Promise<boolean | "alarm-uncertain">, [string, string]>(async (_owner, id) => { scheduled.delete(id); return true; });
@@ -66,7 +67,7 @@ function runtime(platform = "android") {
     "@/components/m3/MdButton": { MdButton: "MdButton" },
     "@/lib/auth/account-epoch": account,
     "@/lib/ops/one-off-reminders": { listOneOffReminders: list, removeOneOffReminder: remove, sweepOrphanedOneOffReminders: sweep },
-    "@/lib/ops/reminders": { getScheduledRoutineIds: getScheduled, enableReminder: enable, disableReminder: disable, remindersSupported: () => true },
+    "@/lib/ops/reminders": { getScheduledRoutineIds: getScheduled, enableReminder: enable, disableReminder: disable, remindersSupported: () => true, sweepResidualReminderNotifications: residualSweep },
     "@/lib/i18n/locales": { systemLocaleFor: () => "en-US" },
     "@/lib/theme/m3": { m3: { shape: { none: 0 }, color: { primary: "blue", onPrimary: "white", outlineVariant: "gray", surfaceContainer: "surface", onSurfaceVariant: "ink" } } },
   };
