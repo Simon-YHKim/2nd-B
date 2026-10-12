@@ -1265,7 +1265,7 @@ function SecondBChatBody() {
                     </View>
                   ) : null}
                   {aiMarkFor(turns, i) === "spelled" ? (
-                    <Text style={ds.aiMarkSentence} testID={`chat-ai-sentence-${i}`} accessibilityElementsHidden importantForAccessibility="no">
+                    <Text style={ds.aiMarkSentence} testID={`chat-ai-sentence-${i}`} aria-hidden accessibilityElementsHidden importantForAccessibility="no">
                       {t("aiMark.spoken")}
                     </Text>
                   ) : null}
