@@ -71,3 +71,14 @@ describe("Z26: the account screen shows no build line", () => {
     expect(read("src/app/settings.tsx")).toContain("{buildInfoLine()}");
   });
 });
+
+// A-Z round 3 (Z38, first half): the box showed "DELETE" as an example and read as already typed.
+// The word to type is in the sentence above the box; the box itself starts empty.
+describe("Z38: the delete confirmation box starts empty", () => {
+  test("no example value in the box, the prompt still names the word", () => {
+    const privacy = privacyScreen();
+    expect(privacy).not.toContain('placeholder="DELETE"');
+    expect(privacy).toContain('t("privacy.deleteAccount.typePrompt")');
+    expect(privacy).toContain('delConfirm !== "DELETE"');
+  });
+});
