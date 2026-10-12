@@ -84,6 +84,104 @@ if (process.exitCode === 0) {
   }
   console.log('Concurrent withdrawal/finish: both lock orders close output without deadlock.');
 
+  // R2271-03: keep the first transaction open until pg_blocking_pids proves
+  // the other connection is waiting on it. No sleep-duration inference.
+  async function lockedOverlap(first, second, label) {
+    const heldName = `dashboard_note_${label}_held`;
+    const waitingName = `dashboard_note_${label}_waiting`;
+    const child = spawn('psql', args, { env, windowsHide: true, timeout: 15_000 });
+    let output = ''; let error = ''; let markReady;
+    const ready = new Promise((resolveReady) => { markReady = resolveReady; });
+    child.stdout.on('data', (chunk) => {
+      output += chunk;
+      if (output.split(/\r?\n/).includes('NOTE_LOCK_HELD')) markReady(true);
+    });
+    child.stderr.on('data', (chunk) => { error += chunk; });
+    const closed = new Promise((resolveClose) => {
+      child.on('error', (err) => { error += err.message; markReady(false); resolveClose(-1); });
+      child.on('close', (code) => { markReady(false); resolveClose(code); });
+    });
+    child.stdin.write(`SET application_name='${heldName}'; BEGIN; SET LOCAL request.jwt.claim.role='service_role';
+      ${first}\n\\echo NOTE_LOCK_HELD\n`);
+    let waiter;
+    try {
+      if (!await ready) throw new Error(`First connection failed: ${label}: ${error}`);
+      // Capture rejection immediately, even while the observer is polling.
+      waiter = run(`SET application_name='${waitingName}'; BEGIN; SET LOCAL request.jwt.claim.role='service_role'; ${second} COMMIT;`)
+        .then((value) => ({ value }), (failure) => ({ failure }));
+      const deadline = Date.now() + 5_000;
+      let blocked = false;
+      while (Date.now() < deadline) {
+        blocked = (await run(`SELECT EXISTS(SELECT 1 FROM pg_stat_activity a,pg_stat_activity b
+          WHERE a.application_name='${waitingName}' AND b.application_name='${heldName}'
+            AND a.wait_event_type='Lock' AND b.pid=ANY(pg_blocking_pids(a.pid)));`)).trim() === 't';
+        if (blocked) break;
+        await new Promise((done) => setTimeout(done, 20));
+      }
+      if (!blocked) throw new Error(`R2271-03 expected lock wait: ${label}`);
+      child.stdin.end('COMMIT;\n');
+      if (await closed !== 0) throw new Error(`First commit failed: ${label}: ${error}`);
+      const result = await waiter;
+      if (result.failure) throw result.failure;
+      return [output, result.value];
+    } finally {
+      if (!child.stdin.writableEnded) child.stdin.end('ROLLBACK;\n');
+      await closed;
+      if (waiter) await waiter;
+    }
+  }
+  let noteAssertions = 0;
+  const noteAssert = (ok, label) => {
+    if (!ok) throw new Error(`R2271-03 ${label}`);
+    noteAssertions++;
+  };
+  let noteScenario = 0;
+  for (const edit of ['delete', 'title']) for (const first of ['open', 'edit']) {
+    const subject = `00000000-0000-0000-0000-00000000006${++noteScenario}`;
+    const spare = `10000000-0000-0000-0000-00000000006${noteScenario}`;
+    await run(`SET request.jwt.claim.role='service_role';
+      INSERT INTO auth.users(id) VALUES('${subject}'); INSERT INTO public.users(id) VALUES('${subject}');
+      INSERT INTO public.ops_routines(id,user_id,title) VALUES('${subject}','${subject}','Read'),('${spare}','${subject}','Write');
+      SELECT public.dashboard_generation_request('${subject}','open','Asia/Seoul','ko');`);
+    const id = (await run(`SELECT id FROM public.dashboard_generation_runs WHERE user_id='${subject}';`)).trim();
+    await run(`SET request.jwt.claim.role='service_role';
+      SELECT public.dashboard_generation_dispatch('${subject}','${id}');
+      SELECT public.dashboard_generation_finish('${subject}','${id}',
+        jsonb_build_object('line','Read today.','slot','morning','basis_refs',jsonb_build_array(
+          jsonb_build_object('kind','routine','id','${subject}')),'reminder_suggestions','[]'::jsonb));
+      INSERT INTO public.ops_routine_logs(routine_id,user_id,completed_on)
+        VALUES('${subject}','${subject}',(now() AT TIME ZONE 'Asia/Seoul')::date);`);
+    const open = `SELECT public.dashboard_generation_request('${subject}','open','Asia/Seoul','ko');`;
+    const change = edit === 'delete' ? `DELETE FROM public.ops_routines WHERE id='${subject}';`
+      : `UPDATE public.ops_routines SET title='Walk' WHERE id='${subject}';`;
+    const label = `${edit}_${first}`;
+    const outcomes = await lockedOverlap(first === 'open' ? open : change, first === 'open' ? change : open, label);
+    noteAssert(true, `${label} waited on held transaction`);
+    const response = JSON.parse(outcomes[first === 'open' ? 0 : 1].split(/\r?\n/).find((line) => line.startsWith('{')));
+    noteAssert(first === 'open' ? response.kind === 'ready' && response.previous === true && response.value.line === 'Read today.'
+      : response.kind === 'waiting' && !('previous' in response), `${label} serialized response`);
+    noteAssert((await run(`SELECT status='failed' AND output IS NULL FROM public.dashboard_generation_runs WHERE id='${id}';`)).trim() === 't',
+      `${label} committed invalidation`);
+    const after = JSON.parse((await run(`SET request.jwt.claim.role='service_role'; ${open}`)).split(/\r?\n/).find((line) => line.startsWith('{')));
+    noteAssert(after.kind === 'waiting' && !('previous' in after), `${label} post-commit read`);
+    console.log(`Last-note concurrency: ${label} lock wait, response, invalidation, post-commit read passed.`);
+  }
+  // Executor probe: after waiting, LIMIT 1 can continue to the older candidate
+  // if it remains valid. Real routine invalidation clears ALL owner outputs.
+  const probeOwner = '00000000-0000-0000-0000-000000000061';
+  await run(`INSERT INTO public.dashboard_generation_runs(user_id,purpose,request_key,source_hash,consent_token,status,output,created_at,expires_at)
+    SELECT '${probeOwner}','daily_note',key,'x',repeat('a',64),'ready',
+      jsonb_build_object('line',line,'slot','morning','basis_refs',jsonb_build_array(jsonb_build_object(
+        'kind','routine','id','10000000-0000-0000-0000-000000000061')),'reminder_suggestions','[]'::jsonb),created,now()+interval '1 day'
+      FROM (VALUES('probe-old','older',now()-interval '1 minute'),('probe-new','newer',now())) v(key,line,created);`);
+  const [, reevaluated] = await lockedOverlap(
+    `UPDATE public.dashboard_generation_runs SET status='failed',output=NULL WHERE user_id='${probeOwner}' AND request_key='probe-new';`,
+    `SELECT public.dashboard_generation_request('${probeOwner}','open','Asia/Seoul','ko');`, 'limit_reevaluation');
+  const rechecked = JSON.parse(reevaluated.split(/\r?\n/).find((line) => line.startsWith('{')));
+  noteAssert(rechecked.kind === 'ready' && rechecked.previous === true && rechecked.value.line === 'older',
+    'LIMIT 1 continues to an older still-valid candidate after recheck');
+  console.log(`Last-note concurrency assertions passed: ${noteAssertions}. LIMIT recheck selects older when still valid; owner invalidation returns no note.`);
+
   // Replace decision stubs with the actual current consent functions. Only
   // surrounding auth/profile tables remain the disposable fixture. This tests
   // the service writer's record -> provenance -> receipt update transaction.

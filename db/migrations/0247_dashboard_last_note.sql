@@ -1,8 +1,8 @@
--- DRAFT: console owner numbers/applies after regression checks. Not applied by this PR.
--- Keep the last valid daily note while waiting. Never extend its 24-hour retention.
--- No retries, new paid calls, purpose merging or client table access.
--- Forward-only correction: truthful empty and waiting states.
--- Preserves source guards, service-only ACLs, quotas and every prior attempt.
+-- A03 / G5-03 / G5-04: promote the last-note draft on the deployed 0245 body.
+-- Reuse only currently covered evidence; do not extend expiry or retry attempts.
+-- 0244 audit_result is unchanged: the Edge sends NULL tokens when usage is unknown.
+-- Bulk jobs that explicitly disable triggers, or TRUNCATE and reuse routine IDs,
+-- must invalidate affected owners' dashboard output in the same transaction.
 CREATE OR REPLACE FUNCTION public.dashboard_generation_request(p_user_id uuid,p_action text,p_timezone text DEFAULT NULL,p_locale text DEFAULT NULL) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET row_security=off AS $$
 DECLARE c jsonb; s public.dashboard_generation_settings%ROWTYPE; r public.dashboard_generation_runs%ROWTYPE;
@@ -11,6 +11,7 @@ BEGIN
   IF p_action IS NULL OR p_action NOT IN ('open','summary','triage','hourly') THEN RAISE EXCEPTION 'dashboard_action' USING ERRCODE='22023'; END IF;
   c := public.dashboard_generation_guard(p_user_id);
   IF c IS NULL THEN RETURN jsonb_build_object('kind','denied'); END IF;
+  IF NOT public.dashboard_generation_retention_ready() THEN RETURN jsonb_build_object('kind','denied'); END IF;
   -- Guard's owner row lock serializes quota and idempotency, including timezone edits.
   SELECT * INTO s FROM public.dashboard_generation_settings WHERE user_id=p_user_id;
   IF p_action <> 'hourly' THEN
@@ -45,19 +46,23 @@ BEGIN
     INTO previous_note FROM public.dashboard_generation_runs g
     WHERE g.user_id=p_user_id AND g.purpose='daily_note' AND g.status='ready'
       AND g.output IS NOT NULL AND g.expires_at>now() AND g.consent_token=c->>'token'
-      AND jsonb_array_length(g.output->'basis_refs')>0
+      AND jsonb_array_length(CASE WHEN jsonb_typeof(g.output->'basis_refs')='array'
+        THEN g.output->'basis_refs' ELSE '[]'::jsonb END)>0
+      AND jsonb_typeof(g.output->'reminder_suggestions')='array'
       AND NOT EXISTS (
         SELECT 1 FROM (
-          SELECT value AS ref FROM jsonb_array_elements(g.output->'basis_refs')
+          SELECT value AS ref FROM jsonb_array_elements(CASE WHEN jsonb_typeof(g.output->'basis_refs')='array'
+            THEN g.output->'basis_refs' ELSE '[]'::jsonb END)
           UNION ALL
-          SELECT value->'source_ref' FROM jsonb_array_elements(g.output->'reminder_suggestions')
+          SELECT value->'source_ref' FROM jsonb_array_elements(CASE WHEN jsonb_typeof(g.output->'reminder_suggestions')='array'
+            THEN g.output->'reminder_suggestions' ELSE '[]'::jsonb END)
         ) evidence WHERE NOT EXISTS (
           SELECT 1 FROM jsonb_array_elements(source->'reminders') candidate
           WHERE candidate->>'id'=evidence.ref->>'id'
             AND CASE WHEN candidate->>'kind'='routine' THEN 'routine' ELSE 'reminder' END=evidence.ref->>'kind'
         )
       )
-    ORDER BY g.created_at DESC LIMIT 1;
+    ORDER BY g.created_at DESC LIMIT 1 FOR SHARE OF g;
   END IF;
   key := CASE v_purpose WHEN 'daily_note' THEN slot_day::text||':'||slot
     WHEN 'day_summary' THEN floor(extract(epoch FROM now())/1800)::text
@@ -72,7 +77,28 @@ BEGIN
   SELECT * INTO r FROM public.dashboard_generation_runs g WHERE g.user_id=p_user_id AND g.purpose=v_purpose AND g.request_key=key;
   IF FOUND THEN
     IF r.status='ready' AND r.expires_at>now() AND r.consent_token=c->>'token' AND r.source_hash=v_source_hash THEN
-      RETURN jsonb_build_object('kind','ready','purpose',v_purpose,'slot',slot,'value',r.output,'source',source,'generatedAt',r.created_at,'previous',false);
+      -- A newer candidate can belong to another timezone's slot. Check this
+      -- exact row too, so a valid current note keeps previous=false.
+      IF p_action<>'open' OR (
+        jsonb_array_length(CASE WHEN jsonb_typeof(r.output->'basis_refs')='array'
+          THEN r.output->'basis_refs' ELSE '[]'::jsonb END)>0
+        AND jsonb_typeof(r.output->'reminder_suggestions')='array'
+        AND NOT EXISTS (
+          SELECT 1 FROM (
+            SELECT value AS ref FROM jsonb_array_elements(CASE WHEN jsonb_typeof(r.output->'basis_refs')='array'
+              THEN r.output->'basis_refs' ELSE '[]'::jsonb END)
+            UNION ALL
+            SELECT value->'source_ref' FROM jsonb_array_elements(CASE WHEN jsonb_typeof(r.output->'reminder_suggestions')='array'
+              THEN r.output->'reminder_suggestions' ELSE '[]'::jsonb END)
+          ) evidence WHERE NOT EXISTS (
+            SELECT 1 FROM jsonb_array_elements(source->'reminders') candidate
+            WHERE candidate->>'id'=evidence.ref->>'id'
+              AND CASE WHEN candidate->>'kind'='routine' THEN 'routine' ELSE 'reminder' END=evidence.ref->>'kind'
+          )
+        )
+      ) THEN
+        RETURN jsonb_build_object('kind','ready','purpose',v_purpose,'slot',slot,'value',r.output,'source',source,'generatedAt',r.created_at,'previous',false);
+      END IF;
     END IF;
     IF previous_note IS NOT NULL THEN RETURN previous_note; END IF;
     -- Only an in-flight lease is busy. Terminal or stale attempts wait for
@@ -81,10 +107,12 @@ BEGIN
       AND r.created_at>now()-interval '3 minutes' THEN 'busy' ELSE 'waiting' END);
   END IF;
   -- Count attempts, not only successful calls. A timeout is never automatically retried.
-  -- Current local day plus a fixed UTC-day backstop prevents timezone reset abuse
-  -- without blocking tomorrow's 06:00 because yesterday's tick was a little late.
+  -- Daily notes count the 06:00 service day; other purposes keep the calendar day.
+  -- The fixed UTC-day backstop remains unchanged, including its early-day limit.
   IF (SELECT count(*) FROM public.dashboard_generation_runs g WHERE g.user_id=p_user_id AND g.purpose=v_purpose
-      AND ((g.created_at AT TIME ZONE s.timezone)::date=wall::date OR
+      AND ((CASE WHEN v_purpose='daily_note' THEN
+        ((g.created_at AT TIME ZONE s.timezone) - interval '6 hours')::date=slot_day
+        ELSE (g.created_at AT TIME ZONE s.timezone)::date=wall::date END) OR
         (g.created_at AT TIME ZONE 'UTC')::date=(now() AT TIME ZONE 'UTC')::date)) >= (CASE WHEN v_purpose='daily_note' THEN 3 ELSE 48 END) THEN
     IF previous_note IS NOT NULL THEN RETURN previous_note; END IF;
     RETURN jsonb_build_object('kind','limited');
@@ -95,5 +123,20 @@ BEGIN
     'source',source,'consent_token',c->>'token');
 END $$;
 
-REVOKE ALL ON FUNCTION public.dashboard_generation_request(uuid,text,text,text) FROM PUBLIC,anon,authenticated,service_role;
-GRANT EXECUTE ON FUNCTION public.dashboard_generation_request(uuid,text,text,text) TO service_role;
+-- Routine content edits invalidate cached output; completion logs do not.
+CREATE TRIGGER dashboard_routine_changed
+AFTER UPDATE OF title,active,recurrence,weekday ON public.ops_routines
+FOR EACH ROW WHEN (OLD.title IS DISTINCT FROM NEW.title
+  OR OLD.active IS DISTINCT FROM NEW.active
+  OR OLD.recurrence IS DISTINCT FROM NEW.recurrence
+  OR OLD.weekday IS DISTINCT FROM NEW.weekday)
+EXECUTE FUNCTION public.invalidate_dashboard_generation();
+ALTER TABLE public.ops_routines ENABLE ALWAYS TRIGGER dashboard_routine_changed;
+
+REVOKE ALL ON FUNCTION public.dashboard_generation_retention_ready(),
+  public.dashboard_generation_request(uuid,text,text,text),
+  public.dashboard_generation_dispatch(uuid,uuid),public.purge_dashboard_generation()
+  FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.dashboard_generation_retention_ready(),
+  public.dashboard_generation_request(uuid,text,text,text),
+  public.dashboard_generation_dispatch(uuid,uuid),public.purge_dashboard_generation() TO service_role;
