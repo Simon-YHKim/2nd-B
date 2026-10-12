@@ -254,11 +254,15 @@ describe("edge schema dependency gate on the real repository", () => {
     }));
   });
 
-  it("requires 0244 audit RPCs before the new dashboard Edge can deploy", () => {
+  it("requires 0245 lease RPCs before the new dashboard Edge can deploy", () => {
     const deps = JSON.parse(run(["list", "dashboard-generate"]).stdout);
     expect(deps.functionContracts).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: "dashboard_generation_audit_attempt", signature: "uuid,uuid,text,text,text,boolean" }),
-      expect.objectContaining({ name: "dashboard_generation_audit_result", signature: "uuid,uuid,text,text,integer,text,integer" }),
+      expect.objectContaining({ name: "dashboard_generation_audit_attempt_v2", signature: "uuid,uuid,text,text,text,boolean,uuid" }),
+      expect.objectContaining({ name: "dashboard_generation_audit_result_v2", signature: "uuid,uuid,text,text,integer,text,integer,uuid" }),
+      expect.objectContaining({ name: "dashboard_generation_request_v2", signature: "uuid,text,text,text" }),
+      expect.objectContaining({ name: "dashboard_generation_finish_v2", signature: "uuid,uuid,jsonb,uuid" }),
+      expect.objectContaining({ name: "dashboard_generation_begin_classification_v2", signature: "uuid,uuid,uuid" }),
+      expect.objectContaining({ name: "dashboard_generation_block_v2", signature: "uuid,uuid,uuid" }),
     ]));
   });
 

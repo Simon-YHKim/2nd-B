@@ -166,5 +166,9 @@
       "next": "Berikutnya",
       "page": "{{current}} dari {{total}}"
     }
+  },
+  "aiMark": {
+    "short": "AI",
+    "spoken": "Jawaban ini dibuat oleh AI."
   }
 }

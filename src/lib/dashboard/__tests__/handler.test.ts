@@ -23,15 +23,35 @@ const create = edgeModule("supabase/functions/dashboard-generate/handler.ts", {
 }).createDashboardHandler as (deps: ReturnType<typeof fixture>["deps"]) => (req: Request) => Promise<Response>;
 const note = { slot: "morning", line: "Read today.", basis_refs: [{ kind: "routine", id: "r1" }], reminder_suggestions: [] };
 const reservation = {
-  kind: "claimed", id: "run1", purpose: "daily_note", slot: "morning", consent_token: "a".repeat(64),
+  kind: "claimed", id: "run1", lease_token: "10000000-0000-0000-0000-000000000001", purpose: "daily_note", slot: "morning", consent_token: "a".repeat(64),
   source: { reminders: [{ id: "r1", kind: "routine", title: "Read", at: null, state: "open" }] },
 };
+
+test("a pre-dispatch failure closes its lease and a same-key retry uses the replacement", async () => {
+  const f = fixture();
+  const secondLease = "20000000-0000-0000-0000-000000000002";
+  let claims = 0;
+  f.deps.rpc.mockImplementation(async (name) => ({ data: name === "dashboard_generation_request_v2"
+    ? { ...reservation, lease_token: ++claims === 1 ? reservation.lease_token : secondLease } : true }));
+  f.deps.generate.mockRejectedValueOnce(new Error("capacity unavailable"));
+  expect(await (await f.send()).json()).toEqual({ kind: "unavailable" });
+  expect(f.deps.rpc).toHaveBeenLastCalledWith("dashboard_generation_finish_v2", expect.objectContaining({ p_output: null, p_lease_token: reservation.lease_token }));
+  expect(await (await f.send()).json()).toEqual({ kind: "ready", purpose: "daily_note", value: note });
+  expect(f.deps.generate).toHaveBeenLastCalledWith(expect.objectContaining({ leaseToken: secondLease }));
+  expect(f.deps.rpc).toHaveBeenLastCalledWith("dashboard_generation_finish_v2", expect.objectContaining({ p_output: note, p_lease_token: secondLease }));
+});
+
+test.each([undefined, null, "", "not-a-lease"])("invalid claim lease %s never calls generation", async (lease_token) => {
+  const f = fixture(); f.deps.rpc.mockResolvedValue({ data: { ...reservation, lease_token } });
+  expect(await (await f.send()).json()).toEqual({ kind: "unavailable" });
+  expect(f.deps.generate).not.toHaveBeenCalled();
+});
 function fixture() {
   const deps = {
     enabled: true, authenticate: jest.fn().mockResolvedValue("owner"), isScheduler: jest.fn().mockResolvedValue(false),
     rpc: jest.fn(async (name: string, _args: Record<string, unknown>): Promise<{ data: unknown; error?: unknown }> => {
-      if (name === "dashboard_generation_request") return { data: reservation };
-      if (name === "dashboard_generation_finish") return { data: true };
+      if (name === "dashboard_generation_request_v2") return { data: reservation };
+      if (name === "dashboard_generation_finish_v2") return { data: true };
       return { data: [] };
     }),
     generate: jest.fn().mockResolvedValue(note),
@@ -46,7 +66,7 @@ test("server-owned source alone reaches generation and validated output is saved
   expect(await response.json()).toMatchObject({ kind: "ready", purpose: "daily_note", value: note });
   expect(f.deps.generate).toHaveBeenCalledTimes(1);
   expect(f.deps.generate.mock.calls[0][0]).toMatchObject({ userId: "owner", purpose: "daily_note", consentToken: "a".repeat(64) });
-  expect(f.deps.rpc).toHaveBeenCalledWith("dashboard_generation_finish", expect.objectContaining({ p_user_id: "owner", p_run_id: "run1", p_output: note }));
+  expect(f.deps.rpc).toHaveBeenCalledWith("dashboard_generation_finish_v2", expect.objectContaining({ p_user_id: "owner", p_run_id: "run1", p_output: note }));
 });
 test.each(["prompt", "source", "userId", "model", "recordExcerpts"])("caller cannot inject %s", async (field) => {
   const f = fixture(); expect((await f.send({ action: "open", [field]: "attacker" })).status).toBe(400);
@@ -69,24 +89,24 @@ test("cache hits never regenerate", async () => {
 test("untrusted or absent evidence cannot create or display a result", async () => {
   const f = fixture(); f.deps.generate.mockResolvedValue({ ...note, basis_refs: [{ kind: "health", id: "secret" }] });
   expect(await (await f.send()).json()).toEqual({ kind: "unavailable" });
-  expect(f.deps.rpc).toHaveBeenLastCalledWith("dashboard_generation_finish", expect.objectContaining({ p_output: null }));
+  expect(f.deps.rpc).toHaveBeenLastCalledWith("dashboard_generation_finish_v2", expect.objectContaining({ p_output: null }));
 });
 test("a consent change during generation withholds the result", async () => {
-  const f = fixture(); f.deps.rpc.mockImplementation(async (name) => ({ data: name === "dashboard_generation_request" ? reservation : false }));
+  const f = fixture(); f.deps.rpc.mockImplementation(async (name) => ({ data: name === "dashboard_generation_request_v2" ? reservation : false }));
   expect(await (await f.send()).json()).toEqual({ kind: "unavailable" });
 });
 test("provider errors never reflect input or retry the provider", async () => {
   const f = fixture(); f.deps.generate.mockRejectedValue(new Error("PRIVATE SOURCE"));
   const response = await f.send(); expect(await response.text()).not.toContain("PRIVATE SOURCE");
   expect(f.deps.generate).toHaveBeenCalledTimes(1);
-  expect(f.deps.rpc).toHaveBeenLastCalledWith("dashboard_generation_finish", expect.objectContaining({ p_output: null }));
+  expect(f.deps.rpc).toHaveBeenLastCalledWith("dashboard_generation_finish_v2", expect.objectContaining({ p_output: null }));
 });
 test("hourly scheduler uses server-selected owners, returns no personal outputs", async () => {
   const f = fixture(); f.deps.isScheduler.mockResolvedValue(true);
-  f.deps.rpc.mockImplementation(async (name) => ({ data: name === "dashboard_generation_due" ? ["owner-a", "owner-b"] : name === "dashboard_generation_request" ? reservation : true }));
+  f.deps.rpc.mockImplementation(async (name) => ({ data: name === "dashboard_generation_due" ? ["owner-a", "owner-b"] : name === "dashboard_generation_request_v2" ? reservation : true }));
   const response = await f.send({ action: "hourly" }); const body = await response.json();
   expect(body).toEqual({ kind: "batch", processed: 2, nextCursor: null });
-  expect(f.deps.rpc).toHaveBeenCalledWith("dashboard_generation_request", expect.objectContaining({ p_user_id: "owner-b", p_action: "hourly" }));
+  expect(f.deps.rpc).toHaveBeenCalledWith("dashboard_generation_request_v2", expect.objectContaining({ p_user_id: "owner-b", p_action: "hourly" }));
   expect(JSON.stringify(body)).not.toContain("Read today");
 });
 
