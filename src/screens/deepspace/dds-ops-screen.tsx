@@ -349,8 +349,10 @@ function RecommendationCard({
   );
 }
 
-function SectionHeading({ icon, title, body, trailing }: {
-  icon: AnyGlyphName; title: string; body?: string; trailing?: string;
+// kind="label" names a group (a small header above it); kind="door" is the text
+// of a row that opens another screen. Simon 2026-10-12, Q-261012-60 pick A.
+function SectionHeading({ kind, icon, title, trailing }: {
+  kind: "label" | "door"; icon: AnyGlyphName; title: string; trailing?: string;
 }) {
   const phone = usePhoneDesign();
   if (phone) return (
@@ -358,22 +360,21 @@ function SectionHeading({ icon, title, body, trailing }: {
       <IosCardHeader glyph={icon} title={title} trailing={trailing ? (
         <IosText variant="caption" style={phoneSettingsStyles.summary}>{trailing}</IosText>
       ) : null} />
-      {body ? <IosText variant="caption" style={phoneSettingsStyles.body}>{body}</IosText> : null}
+    </View>
+  );
+  if (kind === "door") return (
+    <View style={styles.sectionHeading}>
+      <PixelGlyph name={icon} color={m3.color.primary} size={20} />
+      <Text variant="body" style={styles.doorTitle}>
+        {title}
+      </Text>
     </View>
   );
   return (
     <View style={styles.sectionHeading}>
-      <PixelGlyph name={icon} color={m3.color.primary} size={20} />
-      <View style={styles.sectionCopy}>
-        <Text variant="heading" style={styles.sectionTitle} accessibilityRole="header">
-          {title}
-        </Text>
-        {body ? (
-          <Text variant="caption" style={styles.sectionBody}>
-            {body}
-          </Text>
-        ) : null}
-      </View>
+      <Text variant="caption" style={styles.sectionLabel} accessibilityRole="header">
+        {title}
+      </Text>
       {trailing ? <Text variant="caption" style={styles.sectionSummary}>{trailing}</Text> : null}
     </View>
   );
@@ -878,7 +879,7 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
 
   const listHeader = (
     <View style={styles.headerStack}>
-      <SectionHeading icon="sparkle" title={t("phone.recommendationSettings")} body={t("hero.subtitle")} />
+      <SectionHeading kind="label" icon="sparkle" title={t("phone.recommendationSettings")} />
       <View style={styles.choiceGrid}>
         {OPS_GROUP_IDS.map((id) => (
           <ChoiceButton
@@ -902,9 +903,7 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
             />
           ))}
         </View>
-      ) : (
-        <Text variant="body" style={styles.helperText}>{t("states.emptyDomain")}</Text>
-      )}
+      ) : null}
 
       {domain ? (
         recommendationReadsPending ? (
@@ -938,7 +937,7 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
       {runState === "empty" ? <Text variant="body" style={styles.helperText}>{t("recommend.empty")}</Text> : null}
       {runState === "error" ? <Text variant="body" style={styles.errorText} accessibilityRole="alert">{t("recommend.error")}</Text> : null}
       {runState === "off" ? <Text variant="body" style={styles.helperText}>{t("recommend.off")}</Text> : null}
-      <SectionHeading icon="schedule" title={t("hero.title")} trailing={
+      <SectionHeading kind="label" icon="schedule" title={t("hero.title")} trailing={
         ownerToday.kind === "ready" || ownerToday.kind === "empty"
           ? `${t("home.ringCount", { done: todayDone, total: todayData.routines.length })} · ${t("today.streak", { count: todayData.streak })}`
           : undefined
@@ -1028,9 +1027,9 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
         contentStyle={styles.patternContent}
       >
         <View style={styles.sectionCopy}>
-          <SectionHeading icon="schedule" title={t("card.remind")} />
+          <SectionHeading kind="door" icon="schedule" title={t("card.remind")} />
         </View>
-        <PixelGlyph name="chevron_right" color={m3.color.onSurface} size={18} />
+        <PixelGlyph name="chevron_right" color={m3.color.onSurface} size={20} />
       </PixelPressable>
 
       <PixelPressable
@@ -1038,15 +1037,16 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
         onPress={() => router.push("/insights")}
         accessibilityRole="link"
         accessibilityLabel={t("home.patternsTitle")}
+        accessibilityHint={t("home.patternsSub")}
         contentStyle={styles.patternContent}
       >
         <View style={styles.sectionCopy}>
-          <SectionHeading icon="sparkle" title={t("home.patternsTitle")} body={t("home.patternsSub")} />
+          <SectionHeading kind="door" icon="sparkle" title={t("home.patternsTitle")} />
         </View>
         <PixelGlyph name="chevron_right" color={m3.color.onSurface} size={20} />
       </PixelPressable>
 
-      <SectionHeading icon="box" title={t("home.toolsLabel")} />
+      <SectionHeading kind="label" icon="box" title={t("home.toolsLabel")} />
       <View style={styles.toolGrid}>
         {OPS_TOOL_ROUTES.map((tool) => (
           <PixelPressable
@@ -1115,10 +1115,10 @@ const styles = StyleSheet.create({
   stateContent: { gap: m3.spacing.s3, alignItems: "flex-start" },
   stateMessage: { color: m3.color.onSurfaceVariant, lineHeight: m3.type.bodyMedium.line, paddingBottom: m3.spacing.s1 },
   headingStack: { gap: m3.spacing.s1 },
-  sectionHeading: { flexDirection: "row", alignItems: "flex-start", gap: m3.spacing.s3 },
+  sectionHeading: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s3 },
   sectionCopy: { flex: 1, minWidth: 0, gap: m3.spacing.s1 },
-  sectionTitle: { color: m3.color.onSurface },
-  sectionBody: { color: m3.color.onSurfaceVariant, lineHeight: m3.type.bodySmall.line },
+  sectionLabel: { flex: 1, minWidth: 0, color: m3.color.onSurface },
+  doorTitle: { flex: 1, minWidth: 0, color: m3.color.onSurface, lineHeight: m3.type.bodyMedium.line },
   sectionSummary: { color: m3.color.onSurfaceVariant, flexShrink: 1, minWidth: 0, textAlign: "right" },
   routineContent: { minHeight: m3.minTouch, flexDirection: "row", alignItems: "center", gap: m3.spacing.s3 },
   routineTitle: { flex: 1, minWidth: 0, color: m3.color.onSurface, lineHeight: m3.type.bodyMedium.line },
@@ -1176,5 +1176,4 @@ const boardStyles = StyleSheet.create({
 
 const phoneSettingsStyles = StyleSheet.create({
   summary: { color: phoneIos.label2, flexShrink: 1, minWidth: 0, textAlign: "right" },
-  body: { color: phoneIos.label2, lineHeight: 18 },
 });
