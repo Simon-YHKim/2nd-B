@@ -29,7 +29,7 @@ export function GuardianSupervisionNotice({
 const styles = StyleSheet.create({
   notice: {
     fontFamily: m3.font.brand,
-    fontSize: m3.type.bodySmall.size,
-    lineHeight: m3.type.bodySmall.line,
+    fontSize: m3.type.bodyMedium.size,
+    lineHeight: m3.type.bodyMedium.line,
   },
 });

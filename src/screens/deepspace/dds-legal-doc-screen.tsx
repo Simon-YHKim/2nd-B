@@ -98,11 +98,11 @@ export function DeepSpaceLegalDocScreen({
         </Text>
       </View>
 
-      {showGuardianSupervisionNotice ? <GuardianSupervisionNotice /> : null}
-
       {meta ? (
         <Text variant="caption" style={local.meta}>{meta}</Text>
       ) : null}
+
+      {showGuardianSupervisionNotice ? <GuardianSupervisionNotice /> : null}
 
       {languageSections ? (
         <SegBtn

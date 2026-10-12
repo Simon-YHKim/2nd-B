@@ -8,9 +8,11 @@ const legalPath = "src/screens/deepspace/dds-legal-doc-screen.tsx";
 const settingsPath = "src/app/settings.tsx";
 
 describe("N2-2 notice placement", () => {
-  test.each([signupPath, profilePath])("%s always shows the notice immediately after DOB using the existing age flag", (path) => {
+  test.each([signupPath, profilePath])("%s always shows the notice immediately after DOB using the shared display-only predicate", (path) => {
     const source = read(path);
-    expect(source).toMatch(/<BirthDateField\b[^]*?\/>(\s*)<GuardianSupervisionNotice emphasized=\{isMinorAge\}[^]*?\/>/);
+    expect(source).toContain('import { shouldEmphasizeGuardianSupervision } from "@/components/consent/guardian-supervision-emphasis"');
+    expect(source).toMatch(/<BirthDateField\b[^]*?\/>(\s*)<GuardianSupervisionNotice emphasized=\{shouldEmphasizeGuardianSupervision\(birthDate\)\}[^]*?\/>/);
+    expect(source).not.toContain("emphasized={isMinorAge}");
     expect(source.match(/<GuardianSupervisionNotice\b/g)).toHaveLength(1);
     expect(source).not.toMatch(/(?:useState|useEffect)[^\n]*[Gg]uardian/);
   });
@@ -21,12 +23,12 @@ describe("N2-2 notice placement", () => {
     expect(source.match(/<GuardianSupervisionNotice\b/g)).toHaveLength(1);
   });
 
-  test("terms opts in to the notice outside the body, below the document title", () => {
+  test("terms places the notice after optional metadata and before language selection, outside the body", () => {
     expect(read("src/app/(auth)/terms.tsx")).toMatch(/doc=\{TERMS_DOC\}\s+showGuardianSupervisionNotice\s/);
     const source = read(legalPath);
     expect(source).toContain("showGuardianSupervisionNotice = false");
     expect(source).toContain("showGuardianSupervisionNotice?: boolean");
-    expect(source).toMatch(/\{doc.title\}\s*<\/Text>\s*<\/View>\s*\{showGuardianSupervisionNotice \? <GuardianSupervisionNotice \/> : null\}/);
+    expect(source).toMatch(/\{doc.title\}\s*<\/Text>\s*<\/View>\s*\{meta \? \(\s*<Text[^>]*>\{meta\}<\/Text>\s*\) : null\}\s*\{showGuardianSupervisionNotice \? <GuardianSupervisionNotice \/> : null\}\s*\{languageSections \? \(\s*<SegBtn\b/);
     const body = source.indexOf("<View style={styles.card}>");
     expect(body).toBeGreaterThan(source.indexOf("<GuardianSupervisionNotice />"));
     expect(source.slice(body)).not.toContain("GuardianSupervisionNotice");
