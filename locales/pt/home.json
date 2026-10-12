@@ -522,6 +522,7 @@
       "editProfile": "Editar perfil",
       "profileEmpty": "Você ainda não preencheu seu perfil.",
       "loading": "Carregando…",
+      "emptyBody": "Ainda não há registros aqui. Comece uma conversa para adicionar o primeiro.",
       "dug": "{{n}} de {{total}} camadas abertas",
       "records": "{{count}} registro",
       "records_plural": "{{count}} registros",

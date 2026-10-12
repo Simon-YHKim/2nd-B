@@ -522,6 +522,7 @@
       "editProfile": "Editar perfil",
       "profileEmpty": "Todavía no has completado tu perfil.",
       "loading": "Cargando…",
+      "emptyBody": "Aún no hay historias aquí. Inicia una conversación para añadir una.",
       "dug": "{{n}} de {{total}} capas tratadas",
       "records": "{{count}} registro",
       "records_plural": "{{count}} registros",

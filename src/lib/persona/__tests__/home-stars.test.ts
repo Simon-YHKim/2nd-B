@@ -297,8 +297,10 @@ describe("/me/<star> 요약은 사다리 하나로 말한다", () => {
     expect(page).toContain('label={summary && (summary.cells ?? 0) > 0 ? t("ds.star.continue") : t("ds.star.start")}');
   });
 
-  it.each(LOCALES)("%s: 빈 상태 문장은 쓰는 곳이 없어 지웠다", (loc) => {
-    expect(star(loc)).not.toHaveProperty("emptyBody");
+  // The sentence itself stays in the locales: the records check screen (dds-audit-screen.tsx)
+  // still says it for a period with nothing in it.
+  it.each(LOCALES)("%s: 빈 상태 문장은 다른 화면이 쓰므로 로케일에 남는다", (loc) => {
+    expect(typeof star(loc).emptyBody).toBe("string");
     expect(typeof star(loc).start).toBe("string");
   });
 });
