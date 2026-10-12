@@ -61,12 +61,6 @@
     "skipShort": "건너뛰기",
     "retry": "오프닝 다시 불러오기"
   },
-  "navGraph": {
-    "drilldown": {
-      "back": "전체 별자리로 돌아가기",
-      "backHint": "별 상세 화면에서 전체 별자리로 돌아갑니다."
-    }
-  },
   "navPrev": "이전",
   "navNext": "다음",
   "quantBeforeStart": "시작 전 안내",
