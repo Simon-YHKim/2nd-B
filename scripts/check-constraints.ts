@@ -1057,15 +1057,18 @@ results.push(
       pixelPressable.includes("accessibilityState={{ ...accessibilityState, disabled }}") &&
       signIn.includes('accessibilityLabel={t("auth:signIn.submit")}') &&
       signIn.includes("disabled={submitDisabled}") &&
-      // 로그인 화면의 OAuth 허용 목록은 Google · Apple · GitHub 세 종이다.
+      // 로그인 화면의 OAuth 목록은 가입 화면과 같은 다섯 종이다(Simon 2026-10-13, Q-261013-03:
+      // "가입 화면과 같게" - Kakao 로 가입한 사람이 로그인 화면에서 자기 버튼을 못 찾았다).
+      // 그 전에는 Google · Apple · GitHub 세 종이었고 Kakao 의 부재를 고정했었다. 그 결정을 이 답이 바꾼다.
       // 라벨은 PROVIDER_KEY 맵에 있고 화면은 t(맵[provider]) 로 부른다.
-      // Kakao · Naver가 다시 섞이면 제품 결정이 조용히 되돌아가므로 부재도 고정한다.
+      // Naver 는 따로 처리하는 흐름이라 여전히 이 화면에 없다. 다시 섞이지 않게 부재를 고정한다.
       signIn.includes('const SIGN_IN_PROVIDERS = ["google", "apple", "kakao", "facebook", "github"] as const') &&
       signIn.includes("accessibilityLabel={t(PROVIDER_KEY[provider])}") &&
       signIn.includes('google: "auth:signIn.continueWithGoogle"') &&
       signIn.includes('apple: "auth:signIn.continueWithApple"') &&
       signIn.includes('github: "auth:signIn.continueWithGithub"') &&
-      !signIn.includes('kakao: "auth:signIn.continueWithKakao"') &&
+      signIn.includes('kakao: "auth:signIn.continueWithKakao"') &&
+      signIn.includes('facebook: "auth:signIn.continueWithFacebook"') &&
       !signIn.includes('continueWithNaver') &&
       signIn.includes("disabled={authBusy}") &&
       signIn.includes('accessibilityLabel={t("auth:signIn.resetLabel")}') &&
