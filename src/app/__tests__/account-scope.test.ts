@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import * as ts from "typescript";
 import * as account from "@/lib/auth/account-epoch";
+import { profileRouteHold } from "@/lib/auth/profile-probe";
+import { avatarFirstRunDecision } from "@/lib/avatar/first-run-store";
 
 const ROOT = resolve(__dirname, "../../..");
 const AUTH = readFileSync(resolve(ROOT, "src/lib/auth/AuthContext.tsx"), "utf8").replace(
@@ -164,8 +166,11 @@ describe("account release observation and gate ordering", () => {
     const home = { key: "home", name: "index" };
     const old = { key: "old", name: "records" };
     const root = {
-      key: "container", index: 0,
-      routes: [{ key: "generated", name: "__root", state: { index: 1, routes: [home, old] } }],
+      key: "container", type: "stack", stale: false, index: 0, routeNames: ["__root"], preloadedRoutes: [],
+      routes: [{ key: "generated", name: "__root", state: {
+        key: "app", type: "stack", stale: false, routeNames: ["index", "records", "(auth)"],
+        preloadedRoutes: [], index: 1, routes: [home, old],
+      } }],
     };
     let listener: (() => void) | undefined;
     const unsubscribe = jest.fn(() => { listener = undefined; });
@@ -176,8 +181,8 @@ describe("account release observation and gate ordering", () => {
       segments: [] as string[],
       resetPass: 0,
       resetDispatchRef: { current: null as { attempts: number; epoch: number; lastDispatchPass: number } | null },
-      ACCOUNT_RESET_MAX_ATTEMPTS: 3,
-      ACCOUNT_RESET_RETRY_RENDER_PASSES: 2,
+      ACCOUNT_RESET_MAX_ATTEMPTS: Number(LAYOUT.match(/const ACCOUNT_RESET_MAX_ATTEMPTS = (\d+);/)![1]),
+      ACCOUNT_RESET_RETRY_RENDER_PASSES: Number(LAYOUT.match(/const ACCOUNT_RESET_RETRY_RENDER_PASSES = (\d+);/)![1]),
       router: { dismissAll: jest.fn(), replace: jest.fn() },
       navigation: {
         isReady: () => true,
@@ -216,7 +221,7 @@ describe("account release observation and gate ordering", () => {
     expect(account.isAccountTransitionPending()).toBe(true);
     h.inputs.setResetPass.mockClear();
     // No segment change or retry render remains to wake the resolver.
-    h.root.routes[0].state = { index: 0, routes: [h.home] };
+    h.root.routes[0].state = { ...h.root.routes[0].state, index: 0, routes: [h.home] };
     h.emit();
     expect(h.inputs.setResetPass).toHaveBeenCalledTimes(1);
     effect(1, h.inputs);
@@ -233,7 +238,7 @@ describe("account release observation and gate ordering", () => {
     // The URL is already home, but the old stack has not committed its reset.
     effect(1, h.inputs);
     expect(account.isAccountTransitionPending()).toBe(true);
-    h.root.routes[0].state = { index: 0, routes: [h.home] };
+    h.root.routes[0].state = { ...h.root.routes[0].state, index: 0, routes: [h.home] };
     effect(1, h.inputs);
     expect(account.isAccountTransitionPending()).toBe(false);
   });
@@ -241,7 +246,7 @@ describe("account release observation and gate ordering", () => {
   test("auth segments neither dispatch a reset nor release, even with a home snapshot", () => {
     const h = harness();
     h.inputs.segments = ["(auth)", "complete-profile"];
-    h.root.routes[0].state = { index: 0, routes: [h.home] };
+    h.root.routes[0].state = { ...h.root.routes[0].state, index: 0, routes: [h.home] };
     effect(1, h.inputs);
     expect(h.inputs.router.dismissAll).not.toHaveBeenCalled();
     expect(h.inputs.router.replace).not.toHaveBeenCalled();
@@ -264,18 +269,180 @@ describe("account release observation and gate ordering", () => {
     expect(source).toContain('"/avatar-studio?setup=1"');
   });
 
-  test("profile completion redirects wait for account proof and keep the auth exemption", () => {
+  test("profile completion redirects during the hold and keeps the auth exemption", () => {
     const gate = LAYOUT_AST.statements.find((node): node is ts.FunctionDeclaration =>
       ts.isFunctionDeclaration(node) && node.name?.text === "IntroGate")!;
     const branch = gate.body!.statements.find((node): node is ts.IfStatement =>
       ts.isIfStatement(node) && node.thenStatement.getText(LAYOUT_AST).includes('"/complete-profile"'))!;
-    expect(gate.getText(LAYOUT_AST)).toMatch(/accountTransitionPendingFromSnapshot\(useSyncExternalStore\(\s*subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot/);
     const redirect = new Function("accountPending", "segments", "loading", "userId", "hasProfile", "profileProbeFailed",
       `return ${branch.expression.getText(LAYOUT_AST)};`);
-    expect(redirect(true, [], false, "owner-b", false, false)).toBe(false);
+    expect(redirect(true, [], false, "owner-b", false, false)).toBe(true);
     expect(redirect(false, [], false, "owner-b", false, false)).toBe(true);
     expect(redirect(true, ["(auth)"], false, "owner-b", false, false)).toBe(false);
     expect(redirect(false, ["(auth)"], false, "owner-b", false, false)).toBe(false);
+  });
+
+  // Execute the production decisions, including their early returns, without
+  // mounting React/RN. These are element descriptions, not render tests.
+  type Element = { type: string; props: Record<string, unknown>; children: unknown[] };
+  const React = { createElement: (type: string, props: Record<string, unknown>, ...children: unknown[]): Element =>
+    ({ type, props: props ?? {}, children }) };
+  function callDecision(name: string, args: Record<string, unknown>, inputs: Record<string, unknown>): Element | null {
+    const declaration = LAYOUT_AST.statements.find((node): node is ts.FunctionDeclaration =>
+      ts.isFunctionDeclaration(node) && node.name?.text === name)!;
+    const js = ts.transpileModule(`${declaration.getText(LAYOUT_AST)}\nexports.run = ${name};`, {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React },
+    }).outputText;
+    const environment = {
+      ...account, React, Fragment: "Fragment", useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
+      ...inputs,
+    };
+    const output = {} as { run: (props: Record<string, unknown>) => Element | null };
+    new Function("exports", ...Object.keys(environment), js)(output, ...Object.values(environment));
+    return output.run(args);
+  }
+  function scene(routeName: string) {
+    return callDecision("AccountScope", { routeName, children: "scene" }, {});
+  }
+  function intro(hasProfile: boolean | null, segments: string[], recovery = false, loading = false, failed = false) {
+    return callDecision("IntroGate", { children: "Stack" }, {
+      useAuth: () => ({ userId: "owner-b", hasProfile, loading, profileProbeFailed: failed,
+        recoveryReady: true, recoveryUserId: recovery ? "owner-b" : null }),
+      useSegments: () => segments, usePathname: () => segments[1] ? `/${segments[1]}` : "/",
+      useGlobalSearchParams: () => ({}), isMarkedShareCapture: () => false,
+      useState: () => [true, jest.fn()], introAlreadyPlayed: () => true, profileRouteHold,
+      GateCover: "GateCover", Redirect: "Redirect", InlineLoader: "InlineLoader", ProfileProbeRetryScreen: "Retry",
+      shareRefusedHref: (href: string) => href,
+      accountPending: account.isAccountTransitionPending(), // lets the rejected R1 condition be mutation-tested
+    })!;
+  }
+  function avatar(hasProfile: boolean | null, segment: string | undefined, missing: boolean) {
+    const source = readFileSync(resolve(ROOT, "src/components/avatar/AvatarSetupGate.tsx"), "utf8");
+    const expression = source.match(/const decision = (.*);/)![1];
+    const base = avatarFirstRunDecision("owner-b", hasProfile, segment,
+      { userId: "owner-b", status: missing ? "missing" : "saved" });
+    return new Function("accountPending", "avatarDecision", `return ${expression};`)(account.isAccountTransitionPending(), base);
+  }
+
+  test.each([0, 3])("profile completion remains reachable after %i resets; auth stays covered only for product scenes", (attempts) => {
+    const h = harness();
+    const stop = effect(0, h.inputs);
+    if (attempts === 3) for (let i = 0; i < 10; i++) effect(1, h.inputs);
+    expect(h.inputs.router.replace).toHaveBeenCalledTimes(attempts);
+    expect(intro(false, []).props.href).toBe("/complete-profile");
+    expect(scene("index")).toBeNull();
+    expect(scene("avatar-studio")).toBeNull();
+
+    // Redirect replaces IntroGate's children: the Stack can be absent. The
+    // resolver lives outside IntroGate and retains both its ref and attempt cap.
+    h.inputs.navigation.isReady = () => false;
+    effect(1, h.inputs);
+    expect(h.inputs.router.replace).toHaveBeenCalledTimes(attempts);
+    expect(account.isAccountTransitionPending()).toBe(true);
+    h.inputs.navigation.isReady = () => true;
+    h.inputs.segments = ["(auth)", "complete-profile"];
+    expect(intro(false, h.inputs.segments).type).toBe("GateCover");
+    expect(scene("(auth)")?.children).toContain("scene");
+    h.root.routes[0].state = { ...h.root.routes[0].state, index: 0, routes: [h.home] };
+    h.emit();
+    effect(1, h.inputs); // even an out-of-date home snapshot cannot release inside auth
+    expect(h.inputs.router.replace).toHaveBeenCalledTimes(attempts);
+    expect(account.isAccountTransitionPending()).toBe(true);
+
+    // After successful profile refresh and an actual home commit, the same
+    // subscription releases even when all three resets were already consumed.
+    expect(intro(true, h.inputs.segments).type).toBe("GateCover");
+    h.inputs.segments = [];
+    h.emit();
+    effect(1, h.inputs);
+    expect(account.isAccountTransitionPending()).toBe(false);
+    expect(scene("index")?.children).toContain("scene");
+    expect(h.inputs.router.replace).toHaveBeenCalledTimes(attempts);
+    stop!();
+  });
+
+  test.each(["reset-first", "profile-first"])("queued %s actions settle in profile completion without a home proof", (order) => {
+    const h = harness();
+    const stop = effect(0, h.inputs);
+    let redirects = 0;
+    let settled = false;
+    for (let render = 0; render < 20; render++) {
+      const gate = intro(false, h.inputs.segments);
+      const profileActions = gate.type === "Redirect" ? ["/complete-profile"] : [];
+      redirects += profileActions.length;
+      const before = h.inputs.router.replace.mock.calls.length;
+      effect(1, h.inputs);
+      const resetActions = h.inputs.router.replace.mock.calls.slice(before).map(call => call[0] as string);
+      const actions = order === "reset-first" ? [...resetActions, ...profileActions] : [...profileActions, ...resetActions];
+      if (actions.length === 0) { settled = true; break; }
+      for (const href of actions) {
+        h.inputs.segments = href === "/" ? [] : ["(auth)", "complete-profile"];
+        h.root.routes[0].state = { ...h.root.routes[0].state, stale: true, index: 0,
+          routes: [href === "/" ? h.home : { key: "auth", name: "(auth)" }] };
+        h.emit(); // navigation commits; hydration proof deliberately never comes
+      }
+    }
+    expect(settled).toBe(true);
+    expect(h.inputs.router.replace).toHaveBeenCalledTimes(order === "reset-first" ? 1 : 3);
+    expect(redirects).toBe(order === "reset-first" ? 1 : 4);
+    expect(h.inputs.segments).toEqual(["(auth)", "complete-profile"]);
+    expect(account.isAccountTransitionPending()).toBe(true);
+    expect(scene("(auth)")?.children).toContain("scene");
+    expect(scene("index")).toBeNull();
+    stop!();
+  });
+
+  // Main 087f7ced's observable reachability, not its defective top-level proof:
+  // auth forms remain usable under a hold; every product scene is hidden.
+  // A proof "arrives" means home is actually reached after an auth flow exits.
+  const cases = [
+    { name: "no profile", profile: false, missing: true, auth: "complete-profile", target: "/complete-profile" },
+    { name: "profile without avatar", profile: true, missing: true, auth: "", target: undefined },
+    { name: "profile and avatar", profile: true, missing: false, auth: "", target: undefined },
+    { name: "password recovery", profile: true, missing: false, auth: "reset-password", target: "/reset-password" },
+    { name: "signup confirmation", profile: false, missing: true, auth: "sign-up", target: undefined },
+  ];
+  describe.each([false, true])("main reachability matrix, proof arrives=%s", (proof) => {
+    test.each(cases)("$name keeps every previously accessible auth path", (row) => {
+      const h = harness();
+      for (let pass = 0; pass < 10; pass++) effect(1, h.inputs);
+      expect(h.inputs.router.replace).toHaveBeenCalledTimes(3);
+      if (row.auth !== "sign-up") {
+        expect(intro(row.profile, [], row.auth === "reset-password").props.href).toBe(row.target);
+      }
+      if (row.auth) {
+        h.inputs.segments = ["(auth)", row.auth];
+        expect(intro(row.profile, h.inputs.segments, row.auth === "reset-password").type).toBe("GateCover");
+        expect(scene("(auth)")?.children).toContain("scene");
+      }
+      expect(scene("index")).toBeNull();
+      expect(scene("avatar-studio")).toBeNull();
+      effect(1, h.inputs);
+      expect(account.isAccountTransitionPending()).toBe(true);
+      if (proof) {
+        // Auth completion clears its own markers and refreshes hasProfile.
+        h.inputs.segments = [];
+        h.root.routes[0].state = { ...h.root.routes[0].state, index: 0, routes: [h.home] };
+        effect(1, h.inputs);
+        expect(intro(true, []).type).toBe("GateCover");
+        expect(scene("index")?.children).toContain("scene");
+        expect(avatar(true, undefined, row.missing)).toBe(row.missing ? "setup" : "allow");
+      } else {
+        expect(intro(row.profile, h.inputs.segments, row.auth === "reset-password").type)
+          .toBe("GateCover");
+        expect(avatar(row.profile, h.inputs.segments[0], row.missing))
+          .toBe(row.auth || !row.missing ? "allow" : "hold");
+        expect(scene("avatar-studio")).toBeNull(); // main redirected here, but AccountScope already hid it
+      }
+      expect(h.inputs.router.replace).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  test("unknown profile answers still show their cover instead of opening profile completion", () => {
+    harness();
+    expect(intro(false, [], false, false, true).props.cover).toEqual(expect.objectContaining({ type: "Retry" }));
+    expect(intro(null, [], false, true).props.cover).toEqual(expect.objectContaining({ type: "InlineLoader" }));
+    expect(scene("index")).toBeNull();
   });
 });
 

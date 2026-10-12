@@ -80,6 +80,8 @@ jest.mock("react", () => ({
 
 const { StackRouter } = require("expo-router/build/react-navigation/routers/StackRouter") as {
   StackRouter: (options: object) => {
+    getInitialState: (options: object) => StackState;
+    getRehydratedState: (state: object, options: object) => StackState;
     getStateForAction: (
       state: StackState,
       action: object,
@@ -405,6 +407,35 @@ describe("goHome 은 지금 막고 있는 화면 앞에서 멈춘다 (게이트 
 describe("계정이 바뀌면 다시 쓰는 홈 칸의 화면은 새로 마운트된다 (게이트 NS-01)", () => {
   beforeEach(() => __resetAccountEpochForTests());
   afterAll(() => __resetAccountEpochForTests());
+
+  it("installed routers expose scene collections and hydrated Stack states prove sole home at every layer", () => {
+    // Execute the installed router just like the POP_TO tests above. Neither
+    // React/RN mounting nor a hand-written stale/type value supplies this proof.
+    const homeRouter = StackRouter({ initialRouteName: "index" });
+    const wrapperRouter = StackRouter({ initialRouteName: "__root" });
+    const wrapperOptions = { routeNames: ["__root"], routeParamList: {}, routeGetIdList: {} };
+    for (const homeState of [homeRouter.getInitialState(OPTIONS),
+      homeRouter.getRehydratedState({ stale: true, routes: [{ name: "index" }] }, OPTIONS)]) {
+      const wrapper = wrapperRouter.getInitialState(wrapperOptions);
+      wrapper.routes[0].state = homeState;
+      for (const state of [homeState, wrapper]) {
+        expect(Object.keys(state).sort()).toEqual(["index", "key", "preloadedRoutes", "routeNames", "routes", "stale", "type"]);
+        expect(shouldReleaseAccountTransition([], state)).toBe(true);
+      }
+      expect(findHomeStack(wrapper)).toBe(homeState);
+    }
+    const { TabRouter } = require("expo-router/build/react-navigation/routers/TabRouter");
+    const tab = TabRouter({ initialRouteName: "index", backBehavior: "history" });
+    const initial = tab.getInitialState(OPTIONS);
+    const preloaded = tab.getStateForAction(initial, { type: "PRELOAD", payload: { name: "canon" } }, OPTIONS);
+    // The app uses Stack, but a wrapper may have another explicit navigator
+    // type. Inspect the other collection names without treating keys as scenes.
+    expect(initial.history).toEqual([{ type: "route", key: initial.routes[initial.index].key }]);
+    expect(preloaded.preloadedRouteKeys).toEqual(expect.arrayContaining([expect.any(String)]));
+    expect(preloaded.preloadedRouteKeys.every((key: string) => preloaded.routes.some((route: StackRoute) => route.key === key))).toBe(true);
+    expect(Object.keys(preloaded).sort()).toEqual(["history", "index", "key", "preloadedRouteKeys", "routeNames", "routes", "stale", "type"]);
+    expect(shouldReleaseAccountTransition([], preloaded)).toBe(false);
+  });
 
   it("A → 로그아웃 → B 에서 epoch 가 매번 바뀌고, 홈 하나만 남을 때까지 제품 화면을 붙든다", () => {
     noteResolvedOwner("owner-a");

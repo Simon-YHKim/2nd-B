@@ -18,8 +18,12 @@ type Listener = () => void;
 type OwnerListener = (change: AccountOwnerChange) => void;
 
 interface RootNavigationSnapshot {
+  key?: string;
   type?: string;
+  stale?: boolean;
+  index?: number;
   routeNames?: readonly string[];
+  preloadedRoutes?: readonly unknown[];
   routes: readonly { name?: string; state?: RootNavigationSnapshot }[];
 }
 
@@ -233,19 +237,28 @@ export function shouldReleaseAccountTransition(
   // Keep this synchronous boundary import-free. Like findHomeStack, descend
   // to the navigator containing index, but require a single route at EVERY
   // level: an unfocused wrapper sibling may still hold the previous owner.
-  // Reduced snapshots omit type/routeNames; hydrated stacks supply both.
+  // Reduced/partial snapshots are not evidence. go-home's StackRouter fixtures
+  // carry key, type, stale:false, index and routeNames after hydration.
   let state = rootState;
+  const seen = new Set<RootNavigationSnapshot>();
   while (state) {
-    if (state.routes.length !== 1) return false;
+    if (seen.has(state)) return false;
+    seen.add(state);
+    if (typeof state.type !== "string" || state.type.length === 0) return false;
+    if (state.stale !== false) return false;
+    if (typeof state.key !== "string" || state.key.length === 0 || state.index !== 0) return false;
+    if (!Array.isArray(state.routes) || state.routes.length !== 1) return false;
+    // Preloaded scenes are retained outside routes, including on a wrapper.
+    if (state.preloadedRoutes !== undefined &&
+        (!Array.isArray(state.preloadedRoutes) || state.preloadedRoutes.length !== 0)) return false;
     const route = state.routes[0];
-    const hasHome = state.routeNames
-      ? state.routeNames.includes("index")
-      : route?.name === "index";
-    if (hasHome) {
-      return (state.type === undefined || state.type === "stack") && route?.name === "index";
-    }
     // A nested auth index is not the product home, even with stale segments.
     if (route?.name === "(auth)") return false;
+    if (typeof route?.name !== "string" || !Array.isArray(state.routeNames) ||
+        !state.routeNames.includes(route.name)) return false;
+    if (state.routeNames.includes("index")) {
+      return state.type === "stack" && route.name === "index" && route.state === undefined;
+    }
     state = route?.state;
   }
   return false;

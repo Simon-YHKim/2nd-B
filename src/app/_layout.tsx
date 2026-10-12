@@ -540,9 +540,6 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
     recoveryPendingGlobal,
     storageRecoveryRequired,
   } = useAuth();
-  const accountPending = accountTransitionPendingFromSnapshot(useSyncExternalStore(
-    subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot,
-  ));
   const segments = useSegments();
   const pathname = usePathname();
   // An Android share opens /capture?text=&title=&from=share. When a redirect
@@ -648,10 +645,9 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   // hasProfile===false; do not eject a registered user to /complete-profile (DOB +
   // consent re-entry) on a network blip. The genuine no-profile state (a real server
   // answer, profileProbeFailed===false) still redirects. AuthContext re-probes.
-  // Let the owner resolver prove a sole home first. AccountScope still hides
-  // product scenes; otherwise this redirect can unmount its navigation proof.
+  // Profile completion stays reachable even if the owner proof never arrives.
+  // AccountScope keeps product scenes hidden; (auth) is its existing exemption.
   if (
-    !accountPending &&
     !loading &&
     userId &&
     hasProfile === false &&
