@@ -212,7 +212,10 @@ function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChang
 // pattern A, fake success). Until a real per-source connector exists, settings
 // hands off honestly to the import/integration surfaces instead of claiming a
 // state that isn't there.
-function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: string; sub?: string; badge?: number; onPress: () => void }) {
+// `sub` is drawn under the label; `hint` is only spoken. A line that just says
+// "opens <label>" tells the eye nothing the label did not, so it is a hint, not a
+// subtitle (Simon 2026-10-12: the lines that repeat the title leave the screen).
+function M3LinkRow({ icon, label, sub, hint, badge, onPress }: { icon: string; label: string; sub?: string; hint?: string; badge?: number; onPress: () => void }) {
   useFontStyle();
   const [held, setHeld] = useState(false);
   return (
@@ -223,7 +226,7 @@ function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: 
       onPressOut={() => setHeld(false)}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityHint={sub}
+      accessibilityHint={hint ?? sub}
     >
       <M3IconBadge icon={icon} active={false} />
       <View style={m3Styles.rowText}>
@@ -723,25 +726,25 @@ export default function Settings() {
             above. */}
         <M3SectionLabel>{t("account")}</M3SectionLabel>
         <M3Group>
-          <M3LinkRow icon="person" label={t("nav.account")} sub={t("nav.accountHint")} onPress={() => router.push("/account")} />
+          <M3LinkRow icon="person" label={t("nav.account")} hint={t("nav.accountHint")} onPress={() => router.push("/account")} />
           <M3Divider />
-          <M3LinkRow icon="lock" label={t("nav.privacy")} sub={t("nav.privacyHint")} onPress={() => router.push("/privacy")} />
+          <M3LinkRow icon="lock" label={t("nav.privacy")} hint={t("nav.privacyHint")} onPress={() => router.push("/privacy")} />
         </M3Group>
 
         <M3SectionLabel>{t("app")}</M3SectionLabel>
         <M3Group>
-          <M3LinkRow icon="settings" label={t("nav.theme")} sub={t("nav.themeHint")} onPress={() => router.push("/theme")} />
+          <M3LinkRow icon="settings" label={t("nav.theme")} hint={t("nav.themeHint")} onPress={() => router.push("/theme")} />
           <M3Divider />
-          <M3LinkRow icon="article" label={t("nav.data")} sub={t("nav.dataHint")} onPress={() => router.push("/data")} />
+          <M3LinkRow icon="article" label={t("nav.data")} hint={t("nav.dataHint")} onPress={() => router.push("/data")} />
           <M3Divider />
-          <M3LinkRow icon="book" label={t("nav.records")} sub={t("nav.recordsHint")} onPress={() => router.push("/records")} />
+          <M3LinkRow icon="book" label={t("nav.records")} hint={t("nav.recordsHint")} onPress={() => router.push("/records")} />
           <M3Divider />
           <M3LinkRow icon="lock" label={t("permissions")} onPress={() => router.push("/permissions")} />
         </M3Group>
 
         <M3SectionLabel>{t("support")}</M3SectionLabel>
         <M3Group>
-          <M3LinkRow icon="info" label={t("nav.support")} sub={t("nav.supportHint")} onPress={() => router.push("/support")} />
+          <M3LinkRow icon="info" label={t("nav.support")} hint={t("nav.supportHint")} onPress={() => router.push("/support")} />
           <M3Divider />
           <M3LinkRow icon="book" label={t("manual")} onPress={() => router.push("/manual")} />
           <M3Divider />
