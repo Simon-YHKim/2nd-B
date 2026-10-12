@@ -170,9 +170,6 @@ export function DeepSpaceSignUpDesignScreen() {
         </PixelSurface>
         <Text style={styles.title}>{t("deepspace:auth.signUpTitle")}</Text>
         <Text style={styles.lead}>{t("deepspace:auth.signUpLead")}</Text>
-        <Text style={styles.ageNotice}>
-          {t("deepspace:auth.ageNotice", { minAge: minConsentAge })}
-        </Text>
       </PixelSurface>
 
       {confirmSentTo ? (
@@ -305,7 +302,6 @@ export function DeepSpaceSignUpDesignScreen() {
             secureTextEntry
             autoComplete="new-password"
             textContentType="newPassword"
-            placeholder="••••••••"
             placeholderTextColor={m3.color.onSurfaceVariant}
             accessibilityLabel={t("auth:signUp.password")}
             accessibilityHint={t("auth:signUp.passwordHint")}
@@ -483,6 +479,7 @@ export function DeepSpaceSignUpDesignScreen() {
           after every legal link. This keeps 320dp layouts reachable without an
           absolute footer covering consent; native keyboard behavior remains a
           HUMAN QA item rather than a claimed sticky-footer pass. */}
+      {toast ? <SignUpToast message={toast.message} tone={toast.tone} /> : null}
       <PixelPressable
         variant={submitDisabled ? "inset" : "bevel"}
         onPress={() => void handleSubmit()}
@@ -502,8 +499,6 @@ export function DeepSpaceSignUpDesignScreen() {
           {t("auth:signUp.submit")}
         </Text>
       </PixelPressable>
-
-      {toast ? <SignUpToast message={toast.message} tone={toast.tone} /> : null}
     </PixelGateShell>
   );
 }
@@ -821,13 +816,6 @@ const styles = StyleSheet.create({
     fontFamily: m3.font.brand,
     fontSize: m3.type.bodyMedium.size,
     lineHeight: m3.type.bodyMedium.line,
-    textAlign: "center",
-  },
-  ageNotice: {
-    color: m3.color.tertiary,
-    fontFamily: m3.font.brand,
-    fontSize: m3.type.bodySmall.size,
-    lineHeight: m3.type.bodySmall.line,
     textAlign: "center",
   },
   sectionSurface: { alignSelf: "stretch" },
