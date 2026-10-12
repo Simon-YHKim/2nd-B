@@ -93,7 +93,7 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
   test("keeps the real form, provider visibility, and explicit action gates", () => {
     expect(source).toContain("useSignInForm(deletionNotice)");
     expect(source).toContain(
-      'const SIGN_IN_PROVIDERS = ["google", "apple", "github"] as const',
+      'const SIGN_IN_PROVIDERS = ["google", "apple", "kakao", "facebook", "github"] as const',
     );
     expect(source).toContain("visibleProviders.includes(provider)");
     expect(source).toContain("signInProviders.map((provider)");
