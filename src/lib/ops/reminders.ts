@@ -184,11 +184,14 @@ async function removeAccountNotificationStorageKey(key: string): Promise<void> {
   }
 }
 
-async function cancelScheduledIdentifier(identifier: string, strict = false): Promise<void> {
+async function cancelScheduledIdentifier(identifier: string, strict = false, isCurrentOwner?: () => boolean): Promise<void> {
   if (!Notifications) return;
   try {
     await withinOperationTimeout(
-      () => Notifications.cancelScheduledNotificationAsync(identifier),
+      () => {
+        if (!ownerLeaseIsCurrent({ isCurrentOwner })) throw new Error("Local notification cancellation owner changed.");
+        return Notifications.cancelScheduledNotificationAsync(identifier);
+      },
       DEFAULT_CLEANUP_TIMEOUT_MS,
     );
   } catch (error) {
@@ -302,7 +305,7 @@ export function routineReminderId(ownerId: string, routineId: string): string {
 export async function cancelRoutineReminder(
   ownerId: string,
   routineId: string,
-  options?: { strict?: boolean },
+  options?: { strict?: boolean; isCurrentOwner?: () => boolean },
 ): Promise<void> {
   if (!remindersSupported() || !Notifications) {
     if (options?.strict) throw new Error("Local notification cancellation unavailable.");
@@ -312,22 +315,32 @@ export async function cancelRoutineReminder(
   if (!lease) return;
   const identifier = routineReminderId(ownerId, routineId);
   await runLocalNotificationMutation(async () => {
+    if (!ownerLeaseIsCurrent(options)) {
+      if (options?.strict) throw new Error("Local notification cancellation owner changed.");
+      return;
+    }
     if (!lease.isCurrent()) return;
-    await cancelScheduledIdentifier(identifier, options?.strict);
+    await cancelScheduledIdentifier(identifier, options?.strict, options?.isCurrentOwner);
   });
 }
 
 /** Routine ids that have a LIVE scheduled OS notification (by identifier). */
-export async function getScheduledRoutineIds(ownerId: string): Promise<Set<string>> {
+export async function getScheduledRoutineIds(ownerId: string, options?: { strict?: boolean }): Promise<Set<string>> {
   const out = new Set<string>();
-  if (!remindersSupported() || !Notifications) return out;
+  if (!remindersSupported() || !Notifications) {
+    if (options?.strict) throw new Error("Local notification schedule unavailable.");
+    return out;
+  }
   try {
-    const all = await Notifications.getAllScheduledNotificationsAsync();
+    const all = options?.strict
+      ? await withinOperationTimeout(() => Notifications.getAllScheduledNotificationsAsync(), DEFAULT_CLEANUP_TIMEOUT_MS)
+      : await Notifications.getAllScheduledNotificationsAsync();
     for (const n of all) {
       const routineId = routineIdFromNotification(n.identifier ?? "", ownerId);
       if (routineId) out.add(routineId);
     }
-  } catch {
+  } catch (error) {
+    if (options?.strict) throw error;
     // best-effort: an unreadable schedule list reads as "nothing scheduled"
   }
   return out;
