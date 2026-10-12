@@ -71,3 +71,13 @@ describe("Z9: sign-in offers what sign-up offers", () => {
     expect(auth.signIn.continueWithFacebook).toBe(auth.signIn.continueWithGoogle.replace("Google", "Facebook"));
   });
 });
+
+// A-Z round 2 (Z18) and the reset screen's share of Z4: a code box showing "000000" and
+// password boxes showing dots read as already filled in.
+describe("Z18: code and password boxes show no made-up value", () => {
+  const reset = read("src/screens/deepspace/dds-auth-screens.tsx");
+  test.each([["sign-up", signUp], ["sign-in", signIn], ["reset", reset]])("%s", (_name, screen) => {
+    expect(screen).not.toContain('placeholder="000000"');
+    expect(screen).not.toContain("••••");
+  });
+});

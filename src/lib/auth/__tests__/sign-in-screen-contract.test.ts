@@ -193,6 +193,10 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
 // 차이는 AuthShell 의 선택 인자 `head`(서명 한 줄 · 주석 세 줄 · 스크롤 위의 `{head}` 한 줄)뿐이다
 // (재고정 전 git diff 로 대조). `head` 를 넘기는 곳은 /consent-notice 하나라 로그인 · 가입 ·
 // 약관 화면의 그림은 그대로고, tail(재설정 화면)은 손대지 않았다.
+// 2026-10-13(빈 칸의 가짜 값): tail 만 다시 재고정했다(옛 값 ae991844 = main 판 1a782d76).
+// 차이는 재설정 화면의 예시 글 셋 삭제뿐이다: 확인 코드 칸의 placeholder="000000" 한 줄과
+// 새 비밀번호 두 칸의 점 여덟 개 예시 두 줄(재고정 전 git diff 로 대조 · 세 줄 삭제 · 추가 없음).
+// 첫 사용 점검에서 빈 칸이 이미 채워진 것처럼 읽혔다(A-Z 2차 Z18 · 1차 Z4). prefix 는 그대로다.
 describe("sign-in extraction boundaries", () => {
   test("preserves the shared auth prefix and reset tail byte-for-byte", () => {
     const source = read("src/screens/deepspace/dds-auth-screens.tsx");
@@ -207,7 +211,7 @@ describe("sign-in extraction boundaries", () => {
       "299d83f55b8f2169d0c569cb4771cb9da125fd097558258aae24c8760db63217",
     );
     expect(sha256(source.slice(tail))).toBe(
-      "ae9918443c161577412457a9ef8ca1206c62590642496be709559b8a52d18c2e",
+      "f03a045e70a79e87ea2fa3dd757430da15845aaaf4a5adb6400f25e8894dec39",
     );
   });
 
