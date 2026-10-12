@@ -360,7 +360,6 @@ export function DeepSpaceSignInDesignScreen() {
               secureTextEntry={!showPassword}
               autoComplete="current-password"
               textContentType="password"
-              placeholder="••••••••"
               placeholderTextColor={m3.color.onSurfaceVariant}
               accessibilityLabel={t("auth:signIn.password")}
               accessibilityHint={t("auth:signIn.passwordHint")}

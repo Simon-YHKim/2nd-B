@@ -14,7 +14,7 @@ import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
 // (level3) to avoid the Shine-through z-order bug; the RN <Modal onRequestClose>
 // wires the hardware back button to Cancel; the year list is a virtualised
 // FlatList, never a .map() over a long scroll range.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   StyleSheet,
   type StyleProp,
@@ -38,6 +38,7 @@ import {
   monthGrid,
   todayISO,
   yearsDescending,
+  yearGridStartRow,
 } from "./calendar-math";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
 
@@ -203,6 +204,10 @@ function CalendarGlyph({ size = 20, color }: { size?: number; color: string }) {
 // ---------------------------------------------------------------------------
 // Year grid (shared by the calendar's year view and the standalone YearField).
 // ---------------------------------------------------------------------------
+const YEAR_COLUMNS = 4;
+// One grid row: the cell's touch floor plus the wrap's padding above and below it.
+const YEAR_ROW_HEIGHT = m3.minTouch + m3.spacing.s1 * 2;
+
 function YearGrid({
   minYear,
   maxYear,
@@ -215,11 +220,24 @@ function YearGrid({
   onSelect: (year: number) => void;
 }) {
   const data = useMemo(() => yearsDescending(minYear, maxYear), [minYear, maxYear]);
+  const listRef = useRef<FlatList<number>>(null);
+  const startRow = yearGridStartRow(minYear, maxYear, selectedYear, YEAR_COLUMNS);
+  const started = useRef(false);
   return (
     <FlatList
+      ref={listRef}
       data={data}
       keyExtractor={(y) => String(y)}
-      numColumns={4}
+      numColumns={YEAR_COLUMNS}
+      // Open on the chosen year's row, not on the newest year (a birth year sits decades down).
+      initialScrollIndex={startRow}
+      getItemLayout={(_, index) => ({ length: YEAR_ROW_HEIGHT, offset: YEAR_ROW_HEIGHT * index, index })}
+      // The web list does not honour initialScrollIndex, so the first layout moves to the same row itself.
+      onLayout={() => {
+        if (started.current || startRow === 0) return;
+        started.current = true;
+        listRef.current?.scrollToOffset({ offset: YEAR_ROW_HEIGHT * startRow, animated: false });
+      }}
       style={styles.yearList}
       contentContainerStyle={styles.yearListContent}
       keyboardShouldPersistTaps="handled"
