@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import ts from "typescript";
 
 import { expectShape, expectNoShape } from "@/lib/testing/expect-shape";
+import { selectSignInBranch } from "@/lib/auth/sign-in-branch";
 
 // Actual TSX/functions with a small synchronous hook host and fake store only.
 // This is not a React scheduler, RN/browser renderer, or accessibility-tree test.
@@ -51,6 +52,7 @@ function routeRenderer(path: string, functionName: string) {
   let form = { loading: false, userId: "still-present-owner" as string | null };
   const hook = jest.fn(() => current);
   const scope: Record<string, unknown> = {
+    selectSignInBranch,
     useTranslation: () => ({ t: translate, i18n: { language: "ko" } }),
     useSignInForm: () => form, useRef: () => ({ current: null }), useKeyboard: () => 0,
     // 이 하네스가 쓰이던 시점 이후 deep-space 로그인 화면이 useAuth 를 부른다

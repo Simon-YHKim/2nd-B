@@ -151,14 +151,14 @@ describe("D2 hardware Back wiring", () => {
 
   test("loading and the form share the existing accessible notice", () => {
     const screen = read("src/screens/deepspace/dds-sign-in-screen.tsx");
-    const notice = screen.slice(screen.indexOf("const signInNotice ="), screen.indexOf("  if (loading)"));
-    const loading = screen.slice(screen.indexOf("  if (loading)"), screen.indexOf("  if (userId)"));
+    const notice = screen.slice(screen.indexOf("const signInNotice ="), screen.indexOf('  if (branch.kind === "deletion")'));
+    const loading = screen.slice(screen.indexOf('  if (branch.kind === "loading")'), screen.indexOf('  if (branch.kind === "home")'));
     expect(notice).toContain("toast ? (");
     expect(notice).toContain('accessibilityRole="alert"');
     expect(notice).toContain('accessibilityLiveRegion={toast.tone === "danger" ? "assertive" : "polite"}');
     expect(notice).toContain("{toast.message}");
     expect(loading).toContain("{signInNotice}");
-    expect(screen.slice(screen.indexOf("  if (userId)"))).toContain("{signInNotice}");
+    expect(screen.slice(screen.indexOf('  if (branch.kind === "home")'))).toContain("{signInNotice}");
   });
 
   test.each([["sign-in", inEffect], ["sign-up", upEffect]])("%s registers only during focus and removes its subscription", (_name, effect) => {

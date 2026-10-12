@@ -1158,7 +1158,7 @@ const GO_HOME_USES: readonly { file: string; use: Omit<GoHomeUse, "line">; why: 
   },
   {
     file: "src/screens/deepspace/dds-sign-in-screen.tsx",
-    use: { kind: "RedirectHome", owner: "DeepSpaceSignInDesignScreen", guard: "then:userId", handler: "" },
+    use: { kind: "RedirectHome", owner: "DeepSpaceSignInDesignScreen", guard: 'then:branch.kind === "home"', handler: "" },
     why: "로그인한 사람이 연 로그인 화면 - 마운트 즉시 홈으로.",
   },
   {

@@ -19,6 +19,7 @@ import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { type OAuthProvider } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useSignInForm } from "@/lib/auth/useSignInForm";
+import { selectSignInBranch } from "@/lib/auth/sign-in-branch";
 import { RedirectHome } from "@/lib/nav/go-home";
 import {
   resetPasswordHref,
@@ -94,9 +95,9 @@ export function DeepSpaceSignInDesignScreen() {
   // 서버가 무엇을 지웠고 무엇을 확인하지 못했는지 말해 줄 자리가 여기뿐이다.
   // 세션 로딩 중에도, 늦게 도착한 userId 로도 이 결과를 밀어내면 안 된다.
   const deletionNotice = useAccountDeletionNotice();
-  if (deletionNotice) return <AccountDeletionNoticePanel notice={deletionNotice} />;
+  const branch = selectSignInBranch({ deletionNotice, loading, userId });
 
-  const signInNotice = toast ? (
+  const signInNotice = branch.includesNotice && toast ? (
     <View
       accessibilityRole="alert"
       accessibilityLiveRegion={toast.tone === "danger" ? "assertive" : "polite"}
@@ -128,7 +129,10 @@ export function DeepSpaceSignInDesignScreen() {
     </View>
   ) : null;
 
-  if (loading) {
+  if (branch.kind === "deletion") {
+    return <>{signInNotice}<AccountDeletionNoticePanel notice={branch.notice} /></>;
+  }
+  if (branch.kind === "loading") {
     return (
       <PixelGateShell contentContainerStyle={styles.loadingShell}>
         <View style={styles.loadingHero}>
@@ -144,7 +148,7 @@ export function DeepSpaceSignInDesignScreen() {
   }
   // Signed in: pop back to the home under this route, never stack a second
   // one (QA 261004 D-01).
-  if (userId) return <RedirectHome />;
+  if (branch.kind === "home") return <RedirectHome />;
 
   const authBusy = submitting || oauthSubmitting;
   const submitDisabled = !canSubmit || oauthSubmitting;
