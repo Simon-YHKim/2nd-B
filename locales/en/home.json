@@ -530,7 +530,7 @@
       "continue": "Keep going",
       "pageLabel": "Star summary",
       "meter": "Brighter as you share more · {{n}}/{{total}} layers",
-      "recordsLabel": "What you have kept so far",
+      "count": "{{n}}/{{total}} layers",
       "layer": {
         "fact": "Fact",
         "feeling": "Feeling",
