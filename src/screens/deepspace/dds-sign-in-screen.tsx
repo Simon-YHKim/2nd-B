@@ -29,7 +29,9 @@ import {
 } from "@/lib/auth/sign-in-screen-contract";
 import { m3 } from "@/lib/theme/m3";
 
-const SIGN_IN_PROVIDERS = ["google", "apple", "github"] as const satisfies readonly OAuthProvider[];
+// The same providers, in the same order, as the sign-up screen draws (Simon 2026-10-13, Q-261013-03):
+// someone who signed up with Kakao must find Kakao here. Naver is a separate flow and is not on this screen.
+const SIGN_IN_PROVIDERS = ["google", "apple", "kakao", "facebook", "github"] as const satisfies readonly OAuthProvider[];
 // Android stacking order above the gate/receipt, not a decorative shadow.
 const EXIT_NOTICE_LAYER = 1;
 
@@ -37,6 +39,8 @@ type SignInProvider = (typeof SIGN_IN_PROVIDERS)[number];
 const PROVIDER_KEY: Record<SignInProvider, string> = {
   google: "auth:signIn.continueWithGoogle",
   apple: "auth:signIn.continueWithApple",
+  kakao: "auth:signIn.continueWithKakao",
+  facebook: "auth:signIn.continueWithFacebook",
   github: "auth:signIn.continueWithGithub",
 };
 
