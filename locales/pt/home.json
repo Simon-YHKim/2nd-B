@@ -530,7 +530,7 @@
       "continue": "Continuar",
       "pageLabel": "Resumo da estrela",
       "meter": "Brilho conforme os registros · {{n}}/{{total}} camadas",
-      "recordsLabel": "O que você guardou até agora",
+      "count": "{{n}}/{{total}} camadas",
       "layer": {
         "fact": "Fato",
         "feeling": "Sentimento",

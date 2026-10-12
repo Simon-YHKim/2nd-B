@@ -530,7 +530,7 @@
       "continue": "이어가기",
       "pageLabel": "별 요약",
       "meter": "이야기한 만큼 밝아집니다 · {{n}}/{{total}}층",
-      "recordsLabel": "지금까지 저장한 내용",
+      "count": "{{n}}/{{total}}층",
       "layer": {
         "fact": "사실",
         "feeling": "감정",
