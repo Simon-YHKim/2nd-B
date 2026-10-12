@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import {
-  SIGN_IN_TOAST_DURATION_MS, clearSignInExit, createSignInBackHandler, deferSignInExitPresentation,
+  SIGN_IN_TOAST_DURATION_MS, attachSignInExit, clearSignInExit, detachSignInExit, createSignInBackHandler, deferSignInExitPresentation,
   presentSignInExit, replacePresentedSignInExit, type PresentedSignInExit,
 } from "../sign-in-back";
 import { replaceSignInToast, type SignInToast } from "../sign-in-toast";
@@ -16,30 +16,43 @@ const generalNotice = (): SignInToast => ({ message: "B", tone: "danger" });
 const exitNotice = (): SignInToast => ({ message: "exit notice", tone: "info", exitOnBack: true });
 
 function signInHarness(initial: SignInToast | null) {
-  const state = { actionLock: 0, now: 100, toast: initial, presented: null as PresentedSignInExit | null };
+  const state = { guest: true, actionLock: 0, now: 100, toast: initial, presented: null as PresentedSignInExit | null };
   const setToast = (next: SignInToast | null, expected?: SignInToast | null) => {
     next = replaceSignInToast(state.toast, next, expected);
     state.presented = replacePresentedSignInExit(state.presented, state.toast, next);
     state.toast = next;
   };
-  const present = (committed = state.toast!) => {
+  const attach = (notice = state.toast!) => {
+    state.presented = attachSignInExit(state.toast, notice, state.presented);
+  };
+  const detach = (notice = state.toast!) => {
+    state.presented = detachSignInExit(state.presented, notice);
+  };
+  const paint = (committed = state.toast!) => {
     const next = presentSignInExit(state.toast, committed, state.presented, state.now);
     if (next) state.presented = next;
     return next;
   };
+  const present = (notice = state.toast!) => { attach(notice); return paint(notice); };
+  const commitGuest = (guest: boolean) => {
+    state.guest = guest;
+    if (!guest) clearSignInExit(state.toast, setToast);
+  };
   const exitApp = jest.fn();
   const showNotice = jest.fn(() => setToast(exitNotice()));
   const back = createSignInBackHandler({
+    isGuest: () => state.guest,
     isBusy: () => state.actionLock > 0,
     presentedExit: () => state.presented,
     hasPendingExit: () => state.toast?.exitOnBack === true,
     now: () => state.now, showNotice, exitApp,
   });
-  return { state, setToast, present, back, showNotice, exitApp, blur: () => clearSignInExit(state.toast, setToast) };
+  return { state, setToast, attach, detach, paint, present, commitGuest, back, showNotice, exitApp,
+    blur: () => commitGuest(false), focus: () => commitGuest(true) };
 }
 
 // Every transition uses the production functions. No RN, React mount or renderer.
-describe.each(["no notice", "general notice B"])("R4 sign-in presentation: %s", (initial) => {
+describe.each(["no notice", "general notice B"])("R5 sign-in attachment: %s", (initial) => {
   const harness = () => signInHarness(initial === "no notice" ? null : generalNotice());
 
   test("1 pending presses are consumed without exit, replacement or a deadline", () => {
@@ -57,7 +70,20 @@ describe.each(["no notice", "general notice B"])("R4 sign-in presentation: %s", 
     expect(h.exitApp).not.toHaveBeenCalled();
   });
 
-  test("2 only a presented notice grants exit inside its window", () => {
+  test("2 attachment without paint consumes Back and cannot acquire an early deadline", () => {
+    const h = harness();
+    h.back();
+    const notice = h.state.toast;
+    expect(h.paint()).toBeNull(); // A queued paint acknowledgement cannot attach.
+    h.attach();
+    expect(h.state.presented).toEqual({ toast: notice, attached: true, exitOnBackUntil: null });
+    expect(h.back()).toBe(true);
+    expect(h.state.toast).toBe(notice);
+    expect(h.showNotice).toHaveBeenCalledTimes(1);
+    expect(h.exitApp).not.toHaveBeenCalled();
+  });
+
+  test("3 only an attached and presented notice grants exit inside its window", () => {
     const h = harness();
     h.back();
     h.present();
@@ -67,7 +93,7 @@ describe.each(["no notice", "general notice B"])("R4 sign-in presentation: %s", 
     expect(h.showNotice).toHaveBeenCalledTimes(1);
   });
 
-  test.each([2900, 2901, 10000])("3 expired presentation at %i requests a new unarmed notice", (now) => {
+  test.each([2900, 2901, 10000])("4 expired presentation at %i requests a new unarmed notice", (now) => {
     const h = harness();
     h.back();
     const old = h.state.toast;
@@ -82,7 +108,25 @@ describe.each(["no notice", "general notice B"])("R4 sign-in presentation: %s", 
     expect(h.exitApp).not.toHaveBeenCalled();
   });
 
-  test.each([0, 1])("4 replacing with B revokes exit before another press %i ms later", (delay) => {
+  test("5 home commit detaches and confirms the user before the old handler is removed", () => {
+    const h = harness();
+    h.back();
+    const notice = h.state.toast!;
+    h.present();
+    h.detach(notice); // Overlay layout cleanup in the home commit.
+    expect(h.state.presented?.attached).toBe(false);
+    expect(h.paint(notice)).toBeNull();
+    expect(h.back()).toBe(true); // Even before the parent clears the toast.
+    expect(h.exitApp).not.toHaveBeenCalled();
+    h.commitGuest(false); // Parent layout cleanup/setup; passive effects not run.
+    expect(h.state.toast).toBeNull();
+    expect(h.state.presented).toBeNull();
+    expect(h.back()).toBe(true);
+    expect(h.showNotice).toHaveBeenCalledTimes(1);
+    expect(h.exitApp).not.toHaveBeenCalled();
+  });
+
+  test.each([0, 1])("6 replacing with B revokes exit before another press %i ms later", (delay) => {
     const h = harness();
     h.back();
     h.present();
@@ -94,7 +138,7 @@ describe.each(["no notice", "general notice B"])("R4 sign-in presentation: %s", 
     expect(h.exitApp).not.toHaveBeenCalled();
   });
 
-  test.each([false, true])("5 blur then refocus revokes guidance, presented=%s", (presented) => {
+  test.each([false, true])("7 blur then refocus revokes guidance, presented=%s", (presented) => {
     const h = harness();
     h.back();
     const old = h.state.toast!;
@@ -104,6 +148,7 @@ describe.each(["no notice", "general notice B"])("R4 sign-in presentation: %s", 
     expect(h.state.presented).toBeNull();
     // A queued old effect must not restore its grant, including after refocus.
     expect(h.present(old)).toBeNull();
+    h.focus();
     expect(h.back()).toBe(true);
     expect(h.present(old)).toBeNull();
     expect(h.showNotice).toHaveBeenCalledTimes(2);
@@ -114,7 +159,7 @@ describe.each(["no notice", "general notice B"])("R4 sign-in presentation: %s", 
     expect(h.state.toast).toBe(other);
   });
 
-  test("6 replaced pending notices and late commits cannot arm another object", () => {
+  test("8 replaced pending notices and late commits cannot arm another object", () => {
     const h = harness();
     h.back();
     const old = h.state.toast!;
@@ -136,11 +181,41 @@ describe.each(["no notice", "general notice B"])("R4 sign-in presentation: %s", 
     expect(h.state.presented).toBe(mark);
   });
 
-  test.each(["initial", "pending", "presented", "expired", "replaced", "blurred"])(
-    "7 live writes consume Back during %s without changing guidance", (stage) => {
+  test("8 late attachment, paint and detachment never acquire or revoke a different notice", () => {
+    const h = harness();
+    h.back();
+    const old = h.state.toast!;
+    h.present();
+    h.setToast(generalNotice());
+    h.back();
+    const next = h.state.toast!;
+    h.attach(old);
+    expect(h.state.presented).toBeNull();
+    expect(h.paint(old)).toBeNull();
+    h.detach(old);
+    expect(h.state.presented).toBeNull();
+    h.attach(next);
+    const attached = h.state.presented;
+    h.detach(old);
+    expect(h.state.presented).toBe(attached);
+    const painted = h.paint(next);
+    h.attach(old);
+    expect(h.paint(old)).toBeNull();
+    h.detach(old);
+    expect(h.state.presented).toBe(painted);
+    expect(h.back()).toBe(true);
+    expect(h.showNotice).toHaveBeenCalledTimes(2);
+    expect(h.exitApp).toHaveBeenCalledTimes(1);
+  });
+
+  test.each(["initial", "pending", "attached", "presented", "expired", "replaced", "detached", "blurred", "authenticated"])(
+    "9 live writes consume Back during %s without changing guidance", (stage) => {
       const h = harness();
       if (stage !== "initial") h.back();
-      if (["presented", "expired", "replaced", "blurred"].includes(stage)) h.present();
+      if (stage === "attached") h.attach();
+      if (["presented", "expired", "replaced", "detached", "blurred", "authenticated"].includes(stage)) h.present();
+      if (stage === "detached") h.detach();
+      if (stage === "authenticated") h.commitGuest(false);
       if (stage === "expired") h.state.now = 2900;
       if (stage === "replaced") h.setToast(generalNotice());
       if (stage === "blurred") h.blur();
@@ -161,7 +236,7 @@ describe.each(["no notice", "general notice B"])("R4 sign-in presentation: %s", 
     },
   );
 
-  test.each([100, 2899, 10000])("8 delayed commit at %i starts a full 2800 ms window", (committedAt) => {
+  test.each([100, 2899, 10000])("10 delayed paint at %i starts a full 2800 ms window", (committedAt) => {
     const h = harness();
     h.back();
     h.state.now = committedAt;
@@ -199,15 +274,16 @@ describe.each(["no notice", "general notice B"])("R4 sign-in presentation: %s", 
     const h = harness();
     h.back();
     const pending = h.state.toast;
+    h.attach();
     const frames: (() => void)[] = [];
     const release = jest.fn();
     const cancel = deferSignInExitPresentation({
       requestFrame: callback => frames.push(callback), cancelFrame: jest.fn(),
-      present: () => { h.present(); return release; },
+      present: () => { h.paint(); return release; },
     });
     expect(frames).toHaveLength(1);
     expect(h.back()).toBe(true);
-    expect(h.state.presented).toBeNull();
+    expect(h.state.presented?.exitOnBackUntil).toBeNull();
     frames[0]();
     expect(frames).toHaveLength(2);
     h.state.now = 10000;
@@ -337,20 +413,42 @@ describe("D2 hardware Back wiring", () => {
     expect(inEffect).toContain("now: Date.now");
     expect(inEffect).toContain('showNotice: () => setToast({ tone: "info", message: t("signIn.exitOnBack"), exitOnBack: true })');
     expect(inEffect).toContain("exitApp: () => BackHandler.exitApp()");
-    expect(inEffect).toMatch(/return \(\) => \{\s*clearSignInExit\(toastRef.current, setToast\);\s*sub.remove\(\);/);
+    expect(inEffect).toContain("return () => sub.remove();");
+    expect(inEffect).not.toContain("clearSignInExit(");
+    expect(inEffect).toContain("isGuest: () => isGuestRef.current");
   });
 
-  test("only the committed overlay effect presents; its deadline also owns the timer", () => {
+  test("the overlay attaches and detaches in one layout effect, never a passive effect", () => {
     const screen = read("src/screens/deepspace/dds-sign-in-screen.tsx");
-    expect(screen).toMatch(/useEffect\(\(\) => \{\s*if \(noticePlacement !== "overlay" \|\| !toast\) return;\s*return deferSignInExitPresentation\(\{\s*requestFrame: requestAnimationFrame,\s*cancelFrame: cancelAnimationFrame,\s*present: \(\) => onExitNoticePresented\(toast\),\s*\}\);\s*\}, \[noticePlacement, toast, onExitNoticePresented\]\);/);
-    expect(screen.match(/onExitNoticePresented\(toast\)/g)).toHaveLength(1);
-    expect(screen).not.toContain("useLayoutEffect");
-    const acknowledge = signIn.slice(signIn.indexOf("const onExitNoticePresented ="), signIn.indexOf("const [resetHelpVisible"));
+    const component = screen.split("function SignInExitNotice(")[1].split("export function DeepSpaceSignInDesignScreen")[0];
+    expect(component).toMatch(/useLayoutEffect\(\(\) => \{\s*const detach = onAttached\(toast\);\s*const cancelPresentation = deferSignInExitPresentation\(\{\s*requestFrame: requestAnimationFrame,\s*cancelFrame: cancelAnimationFrame,\s*present: \(\) => onPresented\(toast\),\s*\}\);\s*return \(\) => \{\s*detach\(\);\s*cancelPresentation\(\);\s*\};\s*\}, \[toast, onAttached, onPresented\]\);/);
+    expect(screen).not.toMatch(/\buseEffect\b/);
+    expect(screen.match(/<SignInExitNotice\b/g)).toHaveLength(1);
+    expect(screen.match(/<SafeAreaView\b/g)).toHaveLength(1);
+    expect(screen.match(/deferSignInExitPresentation\(\{/g)).toHaveLength(1);
+    const attach = signIn.slice(signIn.indexOf("const onExitNoticeAttached ="), signIn.indexOf("const onExitNoticePresented ="));
+    expect(attach).toContain("presentedExitRef.current = attachSignInExit(toastRef.current, notice, presentedExitRef.current)");
+    expect(attach).toMatch(/return \(\) => \{\s*presentedExitRef.current = detachSignInExit\(presentedExitRef.current, notice\);/);
+  });
+
+  test("guest and focus changes revoke in layout, before passive subscription cleanup", () => {
+    expect(signIn).toContain("const isFocused = useIsFocused()");
+    expect(signIn).toContain("const isGuestRef = useRef(false)");
+    expect(signIn).toMatch(/useLayoutEffect\(\(\) => \{\s*isGuestRef.current = !userId && isFocused;\s*return \(\) => \{\s*isGuestRef.current = false;\s*clearSignInExit\(toastRef.current, setToast\);\s*\};\s*\}, \[userId, isFocused, setToast\]\);/);
+    expect(inEffect).toContain("isGuest: () => isGuestRef.current");
+    expect(inEffect).not.toContain("isGuest: () => !userId");
+    expect(inEffect).not.toContain("clearSignInExit(");
+    expect(signIn.match(/clearSignInExit\(/g)).toHaveLength(1);
+  });
+
+  test("only an attached painted notice starts its own full timer; cancellation only clears that timer", () => {
+    const acknowledge = signIn.slice(signIn.indexOf("const onExitNoticePresented ="), signIn.indexOf("// Commit guest/focus"));
     expect(acknowledge).toContain("presentSignInExit(toastRef.current, notice, presentedExitRef.current, Date.now())");
-    expect(acknowledge).toMatch(/if \(!presented\) return;\s*presentedExitRef.current = presented;/);
+    expect(acknowledge).toMatch(/if \(!presented \|\| presented.exitOnBackUntil === null\) return;\s*presentedExitRef.current = presented;/);
     expect(acknowledge).toContain("Math.max(0, presented.exitOnBackUntil - Date.now())");
     expect(acknowledge).toContain("setTimeout(() => setToast(null, notice), duration)");
-    expect(acknowledge).toMatch(/clearTimeout\(timeout\);\s*if \(presentedExitRef.current === presented\) presentedExitRef.current = null;/);
+    expect(acknowledge).toContain("return () => clearTimeout(timeout)");
+    expect(acknowledge.match(/presentedExitRef.current =/g)).toHaveLength(1);
     expect(signIn.match(/presentedExitRef.current = presented;/g)).toHaveLength(1);
     expect(signIn).toContain("if (!toast || toast.exitOnBack) return;");
     expect(signIn).toContain("setTimeout(() => setToast(null, toast), duration)");

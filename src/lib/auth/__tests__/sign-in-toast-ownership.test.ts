@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-import { createSignInBackHandler, presentSignInExit, replacePresentedSignInExit, type PresentedSignInExit, SIGN_IN_TOAST_DURATION_MS } from "../sign-in-back";
+import { attachSignInExit, createSignInBackHandler, presentSignInExit, replacePresentedSignInExit, type PresentedSignInExit, SIGN_IN_TOAST_DURATION_MS } from "../sign-in-back";
 import { replaceSignInToast, type SignInToast } from "../sign-in-toast";
 
 const exitNotice = (): SignInToast => ({ tone: "info", message: "exit", exitOnBack: true });
@@ -14,12 +14,16 @@ function harness(initial: SignInToast | null) {
     presented = replacePresentedSignInExit(presented, toast, next);
     toast = next;
   };
-  const present = () => { if (toast) presented = presentSignInExit(toast, toast, presented, Date.now()); };
+  const present = () => {
+    if (!toast) return;
+    presented = attachSignInExit(toast, toast, presented);
+    presented = presentSignInExit(toast, toast, presented, Date.now());
+  };
   present();
   const expire = (expected: SignInToast) => setTimeout(() => setToast(null, expected), SIGN_IN_TOAST_DURATION_MS);
   const exitApp = jest.fn();
   const back = createSignInBackHandler({
-    isBusy: () => false, now: Date.now, presentedExit: () => presented,
+    isGuest: () => true, isBusy: () => false, now: Date.now, presentedExit: () => presented,
     hasPendingExit: () => toast?.exitOnBack === true, showNotice: () => setToast(exitNotice()), exitApp,
   });
   return { get: () => toast, presented: () => presented, present, setToast, expire, back, exitApp };

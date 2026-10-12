@@ -1,5 +1,5 @@
 import { ProviderBrandIcon } from "@/components/auth/ProviderBrandIcon";
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Platform, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PlainText as Text } from "@/components/ui/PlainText";
@@ -19,7 +19,7 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { type OAuthProvider } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useSignInForm } from "@/lib/auth/useSignInForm";
+import { useSignInForm, type UseSignInForm, type SignInToast } from "@/lib/auth/useSignInForm";
 import { selectSignInBranch, selectSignInNoticePlacement } from "@/lib/auth/sign-in-branch";
 import { deferSignInExitPresentation } from "@/lib/auth/sign-in-back";
 import { RedirectHome } from "@/lib/nav/go-home";
@@ -66,6 +66,33 @@ function SignInPolaris({ label }: { label: string }) {
   );
 }
 
+// The component that draws the overlay also owns its eligibility lifetime.
+// Cleanup runs in the removal/replacement commit, before any passive effects.
+function SignInExitNotice({ toast, onAttached, onPresented, children }: {
+  toast: SignInToast;
+  onAttached: UseSignInForm["onExitNoticeAttached"];
+  onPresented: UseSignInForm["onExitNoticePresented"];
+  children: ReactNode;
+}) {
+  useLayoutEffect(() => {
+    const detach = onAttached(toast);
+    const cancelPresentation = deferSignInExitPresentation({
+      requestFrame: requestAnimationFrame,
+      cancelFrame: cancelAnimationFrame,
+      present: () => onPresented(toast),
+    });
+    return () => {
+      detach();
+      cancelPresentation();
+    };
+  }, [toast, onAttached, onPresented]);
+  return (
+    <SafeAreaView pointerEvents="none" edges={["bottom"]} style={styles.exitNoticeOverlay}>
+      {children}
+    </SafeAreaView>
+  );
+}
+
 export function DeepSpaceSignInDesignScreen() {
   const { t } = useTranslation(["deepspace", "auth", "common", "settings", "home"]);
   const {
@@ -82,6 +109,7 @@ export function DeepSpaceSignInDesignScreen() {
     oauthSubmitting,
     canSubmit,
     toast,
+    onExitNoticeAttached,
     onExitNoticePresented,
     visibleProviders,
     handleSubmit,
@@ -102,17 +130,6 @@ export function DeepSpaceSignInDesignScreen() {
   const deletionNotice = useAccountDeletionNotice();
   const branch = selectSignInBranch({ deletionNotice, loading, userId });
   const noticePlacement = selectSignInNoticePlacement(branch, toast);
-
-  // Effects can flush before paint. A frame between callbacks leaves the committed
-  // overlay time to draw; pending Back presses hold without extending its window.
-  useEffect(() => {
-    if (noticePlacement !== "overlay" || !toast) return;
-    return deferSignInExitPresentation({
-      requestFrame: requestAnimationFrame,
-      cancelFrame: cancelAnimationFrame,
-      present: () => onExitNoticePresented(toast),
-    });
-  }, [noticePlacement, toast, onExitNoticePresented]);
 
   const signInNotice = noticePlacement !== "none" && toast ? (
     <View
@@ -148,10 +165,10 @@ export function DeepSpaceSignInDesignScreen() {
   const inlineNotice = noticePlacement === "inline" ? signInNotice : null;
   // Outside every scroll/card flow: the receipt must not move when Back arms.
   // Pass all touches through, including a receipt button under large text.
-  const exitNoticeOverlay = noticePlacement === "overlay" ? (
-    <SafeAreaView pointerEvents="none" edges={["bottom"]} style={styles.exitNoticeOverlay}>
+  const exitNoticeOverlay = noticePlacement === "overlay" && toast ? (
+    <SignInExitNotice toast={toast} onAttached={onExitNoticeAttached} onPresented={onExitNoticePresented}>
       {signInNotice}
-    </SafeAreaView>
+    </SignInExitNotice>
   ) : null;
 
   if (branch.kind === "deletion") {

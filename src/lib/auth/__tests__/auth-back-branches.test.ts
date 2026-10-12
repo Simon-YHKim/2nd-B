@@ -3,7 +3,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { selectSignInBranch, selectSignInNoticePlacement, type SignInBranch } from "../sign-in-branch";
 import type { SignInToast } from "../sign-in-toast";
-import { createSignInBackHandler, presentSignInExit, type PresentedSignInExit } from "../sign-in-back";
+import { attachSignInExit, createSignInBackHandler, presentSignInExit, type PresentedSignInExit } from "../sign-in-back";
 import { createSignUpBackHandler } from "../sign-up-back";
 
 const read = (path: string) => readFileSync(path, "utf8");
@@ -104,7 +104,7 @@ describe("R3-1 auth branch matrix", () => {
     expect([...seen].sort()).toEqual(Object.keys(presentations).sort());
   });
 
-  test("every guest presentation holds pending presses and exits only after commit", () => {
+  test("every guest presentation holds pending presses and exits only after attachment and paint", () => {
     for (const deleted of bools) for (const loading of bools) for (const busy of bools) {
       const branch = selectSignInBranch({ deletionNotice: deleted ? {} : null, loading, userId: null });
       let notice: SignInToast | null = null;
@@ -112,7 +112,7 @@ describe("R3-1 auth branch matrix", () => {
       const exit = jest.fn();
       const show = jest.fn(() => { notice = { tone: "info", message: "exit", exitOnBack: true }; });
       const back = createSignInBackHandler({
-        isBusy: () => busy, presentedExit: () => presented, hasPendingExit: () => notice?.exitOnBack === true,
+        isGuest: () => true, isBusy: () => busy, presentedExit: () => presented, hasPendingExit: () => notice?.exitOnBack === true,
         now: () => 100, showNotice: show, exitApp: exit,
       });
       expect(back()).toBe(true);
@@ -120,7 +120,10 @@ describe("R3-1 auth branch matrix", () => {
       expect(selectSignInNoticePlacement(branch, notice)).toBe(busy ? "none" : "overlay");
       expect(back()).toBe(true);
       expect(exit).not.toHaveBeenCalled();
-      if (notice) presented = presentSignInExit(notice, notice, presented, 100);
+      if (notice) {
+        presented = attachSignInExit(notice, notice, presented);
+        presented = presentSignInExit(notice, notice, presented, 100);
+      }
       expect(back()).toBe(true);
       expect(exit).toHaveBeenCalledTimes(busy ? 0 : 1);
       expect(show).toHaveBeenCalledTimes(busy ? 0 : 1);
@@ -175,8 +178,10 @@ describe("R3-1 auth branch matrix", () => {
 
   test("the common overlay uses a bottom safe area, absolute token margins and passes every touch through", () => {
     const overlay = declaration("exitNoticeOverlay");
-    expect(overlay).toMatch(/^noticePlacement === "overlay" \? \(/);
-    expect(overlay).toMatch(/<SafeAreaView\s+pointerEvents="none"\s+edges=\{\["bottom"\]\}\s+style=\{styles.exitNoticeOverlay\}\s*>\s*\{signInNotice\}\s*<\/SafeAreaView>\s*\) : null$/);
+    expect(overlay).toMatch(/^noticePlacement === "overlay" && toast \? \(/);
+    expect(overlay).toMatch(/<SignInExitNotice toast=\{toast\} onAttached=\{onExitNoticeAttached\} onPresented=\{onExitNoticePresented\}>\s*\{signInNotice\}\s*<\/SignInExitNotice>\s*\) : null$/);
+    const component = read(signInFile).split("function SignInExitNotice(")[1].split("export function DeepSpaceSignInDesignScreen")[0];
+    expect(component).toMatch(/<SafeAreaView\s+pointerEvents="none"\s+edges=\{\["bottom"\]\}\s+style=\{styles.exitNoticeOverlay\}\s*>\s*\{children\}\s*<\/SafeAreaView>/);
     const styles = declaration("styles");
     expect(declaration("EXIT_NOTICE_LAYER")).toBe("1");
     expect(styles).toMatch(/screen: \{ flex: 1 \}/);

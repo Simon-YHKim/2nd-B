@@ -61,8 +61,8 @@ function routeRenderer(path: string, functionName: string) {
     // 대상 결함이 아니라 ReferenceError 가 난다.
     useAuth: () => ({ sessionUnavailable: false, refresh: () => undefined }),
     useState: (initial: unknown) => [initial, () => undefined],
-    // Branch inspection only. Post-commit exit timing has its own pure tests.
-    useEffect: () => undefined,
+    // Branch inspection only. Attachment timing has its own pure tests.
+    SignInExitNotice: "SignInExitNotice",
     // deep-space 로그인 화면의 로딩 가지가 쓰는 픽셀 셸 조각들. 이 하네스가
     // 만들어진 뒤에 들어온 것들이라 스텁이 없었다.
     PixelGateShell: "PixelGateShell", PixelSurface: "PixelSurface",

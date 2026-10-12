@@ -9,10 +9,10 @@
 // (src/app/(auth)/sign-in.tsx); the only addition is facebook/github in the
 // provider set (same signInWithProvider path as google).
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useIsFocused } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
 import { AuthLockWaitTimeoutError } from "@/lib/auth/session-mutation";
@@ -34,7 +34,8 @@ import {
 } from "@/lib/auth/auth-providers";
 
 import {
-  SIGN_IN_TOAST_DURATION_MS, clearSignInExit, createSignInBackHandler, presentSignInExit,
+  SIGN_IN_TOAST_DURATION_MS, attachSignInExit, clearSignInExit, createSignInBackHandler,
+  detachSignInExit, presentSignInExit,
   replacePresentedSignInExit, type PresentedSignInExit,
 } from "./sign-in-back";
 
@@ -64,6 +65,7 @@ export interface UseSignInForm {
   oauthSubmitting: boolean;
   canSubmit: boolean;
   toast: SignInToast | null;
+  onExitNoticeAttached: (notice: SignInToast) => () => void;
   onExitNoticePresented: (notice: SignInToast) => (() => void) | undefined;
   // reset-password helper UX
   resetHelpVisible: boolean;
@@ -82,6 +84,8 @@ export interface UseSignInForm {
 export function useSignInForm(): UseSignInForm {
   const { t } = useTranslation(["auth", "common"]);
   const { userId, loading, refresh } = useAuth();
+  const isFocused = useIsFocused();
+  const isGuestRef = useRef(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -92,24 +96,36 @@ export function useSignInForm(): UseSignInForm {
   const toastRef = useRef<SignInToast | null>(null);
   const presentedExitRef = useRef<PresentedSignInExit | null>(null);
   // A requested toast is not a presented toast. Revoke before React renders
-  // any replacement; only the screen's post-commit effect may grant exit.
+  // any replacement; only the attached overlay may acquire a painted deadline.
   const setToast = useCallback((next: SignInToast | null, expected?: SignInToast | null) => {
     next = replaceSignInToast(toastRef.current, next, expected);
     presentedExitRef.current = replacePresentedSignInExit(presentedExitRef.current, toastRef.current, next);
     toastRef.current = next;
     setToastState(next);
   }, []);
+  const onExitNoticeAttached = useCallback((notice: SignInToast) => {
+    presentedExitRef.current = attachSignInExit(toastRef.current, notice, presentedExitRef.current);
+    return () => {
+      presentedExitRef.current = detachSignInExit(presentedExitRef.current, notice);
+    };
+  }, []);
   const onExitNoticePresented = useCallback((notice: SignInToast) => {
     const presented = presentSignInExit(toastRef.current, notice, presentedExitRef.current, Date.now());
-    if (!presented) return;
+    if (!presented || presented.exitOnBackUntil === null) return;
     presentedExitRef.current = presented;
     const duration = Math.max(0, presented.exitOnBackUntil - Date.now());
     const timeout = setTimeout(() => setToast(null, notice), duration);
-    return () => {
-      clearTimeout(timeout);
-      if (presentedExitRef.current === presented) presentedExitRef.current = null;
-    };
+    return () => clearTimeout(timeout);
   }, [setToast]);
+  // Commit guest/focus changes before a stale focus subscription can run. On
+  // blur, authentication or unmount, no passive cleanup owns exit eligibility.
+  useLayoutEffect(() => {
+    isGuestRef.current = !userId && isFocused;
+    return () => {
+      isGuestRef.current = false;
+      clearSignInExit(toastRef.current, setToast);
+    };
+  }, [userId, isFocused, setToast]);
   const [resetHelpVisible, setResetHelpVisible] = useState(false);
   const [resetSubmitting, setResetSubmitting] = useState(false);
   // Back reads this synchronous count, not a render's busy snapshot. Counting
@@ -144,6 +160,7 @@ export function useSignInForm(): UseSignInForm {
   useFocusEffect(useCallback(() => {
     if (Platform.OS !== "android" || userId) return;
     const onBackPress = createSignInBackHandler({
+      isGuest: () => isGuestRef.current,
       isBusy: () => actionLockRef.current > 0,
       presentedExit: () => presentedExitRef.current,
       hasPendingExit: () => toastRef.current?.exitOnBack === true,
@@ -152,10 +169,7 @@ export function useSignInForm(): UseSignInForm {
       exitApp: () => BackHandler.exitApp(),
     });
     const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => {
-      clearSignInExit(toastRef.current, setToast);
-      sub.remove();
-    };
+    return () => sub.remove();
   }, [userId, setToast, t]));
 
   const setEmailAndClearReset = useCallback(
@@ -295,6 +309,7 @@ export function useSignInForm(): UseSignInForm {
     oauthSubmitting,
     canSubmit,
     toast,
+    onExitNoticeAttached,
     onExitNoticePresented,
     resetHelpVisible,
     resetSubmitting,
