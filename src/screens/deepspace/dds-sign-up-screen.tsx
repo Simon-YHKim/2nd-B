@@ -5,6 +5,8 @@ import { PlainText as Text } from "@/components/ui/PlainText";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { RedirectHome } from "@/lib/nav/go-home";
+import { authExitDestination } from "@/lib/auth/auth-exit";
+import { isAccountTransitionPending } from "@/lib/auth/account-epoch";
 import { BirthDateField } from "@/components/auth/BirthDateField";
 import { GuardianSupervisionNotice } from "@/components/consent/GuardianSupervisionNotice";
 import { shouldEmphasizeGuardianSupervision } from "@/components/consent/guardian-supervision-emphasis";
@@ -112,7 +114,8 @@ export function DeepSpaceSignUpDesignScreen() {
   // An email sign-up can establish the session before profile/consent
   // sequencing has settled. Keep the gate mounted for those owned states.
   if (userId && !submitting && !judgeWelcome && !toast) {
-    return avatarSetupAfterConfirmation ? <Redirect href="/avatar-studio?setup=1" /> : <RedirectHome />;
+    const destination = authExitDestination(avatarSetupAfterConfirmation ? "/avatar-studio?setup=1" : "/");
+    return destination === "/" ? <RedirectHome /> : <Redirect href={destination} />;
   }
 
   const actionBusy = submitting || oauthSubmitting || confirmVerifying;
@@ -128,7 +131,10 @@ export function DeepSpaceSignUpDesignScreen() {
         <PixelPressable
           variant="frame"
           onPress={() => {
-            if (canLeaveGate()) router.push("/");
+            if (canLeaveGate()) {
+              if (isAccountTransitionPending()) router.replace("/");
+              else router.push("/");
+            }
           }}
           disabled={actionBusy}
           accessibilityLabel={t("auth:signUp.existingAccountSignIn")}
@@ -464,7 +470,10 @@ export function DeepSpaceSignUpDesignScreen() {
             hint={t("auth:signUp.manualHint")}
             disabled={actionBusy}
             onPress={() => {
-              if (canLeaveGate()) router.push("/manual");
+              if (canLeaveGate()) {
+                if (isAccountTransitionPending()) router.replace("/");
+                else router.push("/manual");
+              }
             }}
           />
           <FooterLink

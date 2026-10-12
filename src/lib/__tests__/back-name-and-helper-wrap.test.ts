@@ -32,7 +32,7 @@ describe("sign-up: the top-bar control says it goes to sign-in", () => {
   const signUp = read("src/screens/deepspace/dds-sign-up-screen.tsx");
 
   it("it leaves through the home route, which sends a signed-out visitor to sign-in", () => {
-    expect(signUp).toContain('if (canLeaveGate()) router.push("/");');
+    expect(signUp).toMatch(/if \(canLeaveGate\(\)\) \{\s*if \(isAccountTransitionPending\(\)\) router.replace\("\/"\);\s*else router.push\("\/"\);/);
   });
 
   it("its spoken name and hint name the sign-in screen, not the constellation", () => {

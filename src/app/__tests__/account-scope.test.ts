@@ -1,9 +1,10 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import * as ts from "typescript";
 import * as account from "@/lib/auth/account-epoch";
 import { profileRouteHold } from "@/lib/auth/profile-probe";
 import { avatarFirstRunDecision } from "@/lib/avatar/first-run-store";
+import { authExitDestination, profileEntryDestination, resolveAuthExitDestination } from "@/lib/auth/auth-exit";
 
 const ROOT = resolve(__dirname, "../../..");
 const AUTH = readFileSync(resolve(ROOT, "src/lib/auth/AuthContext.tsx"), "utf8").replace(
@@ -14,6 +15,152 @@ const LAYOUT = readFileSync(resolve(ROOT, "src/app/_layout.tsx"), "utf8").replac
   /\r\n/g,
   "\n",
 );
+
+// Use the shipped router's pure reducer, as go-home.test.ts does. A navigation
+// action must produce the home snapshot; the test never inserts one as proof.
+interface ExitStack {
+  key: string; type: string; stale: boolean; index: number; routeNames: string[];
+  preloadedRoutes: { key: string; name: string }[];
+  routes: { key: string; name: string; params?: object; state?: ExitStack }[];
+}
+const { StackRouter } = require("expo-router/build/react-navigation/routers/StackRouter") as {
+  StackRouter: (options: object) => {
+    getInitialState: (options: object) => ExitStack;
+    getRehydratedState: (state: object, options: object) => ExitStack;
+    getStateForAction: (state: ExitStack, action: object, options: object) => ExitStack | null;
+  };
+};
+
+const readSource = (file: string) => readFileSync(resolve(ROOT, file), "utf8").replace(/\r\n/g, "\n");
+const sourceAst = (file: string) => ts.createSourceFile(file, readSource(file), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+function nodesIn<T extends ts.Node>(file: ts.SourceFile, predicate: (node: ts.Node) => node is T): T[] {
+  const found: T[] = [];
+  const walk = (node: ts.Node) => { if (predicate(node)) found.push(node); node.forEachChild(walk); };
+  walk(file);
+  return found;
+}
+function evaluate(expression: string, values: Record<string, unknown> = {}) {
+  const inputs = { authExitDestination, profileEntryDestination, ...values };
+  return new Function(...Object.keys(inputs), `return (${expression});`)(...Object.values(inputs));
+}
+const PROFILE = "src/app/(auth)/complete-profile.tsx";
+const SIGNUP = "src/lib/auth/useSignUpForm.ts";
+const SIGNUP_SCREEN = "src/screens/deepspace/dds-sign-up-screen.tsx";
+function entryRoute(file: string, consentRecorded: boolean | null): string {
+  const ast = sourceAst(file);
+  const declaration = nodesIn(ast, ts.isVariableDeclaration).find(node => node.name.getText(ast) === "nextRoute")!;
+  return evaluate(declaration.initializer!.getText(ast), { result: { consentRecorded } });
+}
+
+// Every explicit product exit in the auth routes and their live presenters/
+// hooks. Ordinals select the ACTUAL call/return, so removing its normalization
+// changes the behavioral result instead of merely failing a string match.
+const authExits = [
+  { name: "profile welcome", file: PROFILE, kind: "replace", at: 1, next: "profile" },
+  { name: "profile submit", file: PROFILE, kind: "replace", at: 2, next: "profile" },
+  { name: "profile settled/crisis guard", file: PROFILE, kind: "guard", at: 0, next: "profile" },
+  { name: "signup welcome", file: SIGNUP, kind: "replace", at: 0, next: "signup" },
+  { name: "signup submit", file: SIGNUP, kind: "replace", at: 1, next: "signup" },
+  { name: "signup code/link guard", file: SIGNUP_SCREEN, kind: "guard", at: 0, next: "signup" },
+  { name: "signup home button", file: SIGNUP_SCREEN, kind: "push", at: 0, next: "home" },
+  { name: "signup manual", file: SIGNUP_SCREEN, kind: "push", at: 3, next: "manual" },
+  { name: "email sign-in", file: "src/lib/auth/useSignInForm.ts", kind: "replace", at: 0, next: "home" },
+  { name: "sign-in session guard", file: "src/screens/deepspace/dds-sign-in-screen.tsx", kind: "RedirectHome", at: 0, next: "home" },
+  { name: "OAuth callback", file: "src/app/(auth)/oauth-callback.tsx", kind: "replace", at: 0, next: "home" },
+  { name: "recovery hardware back", file: "src/screens/deepspace/dds-auth-screens.tsx", kind: "replace", at: 0, next: "home" },
+  { name: "recovery header", file: "src/screens/deepspace/dds-auth-screens.tsx", kind: "replace", at: 2, next: "home" },
+  { name: "recovery done", file: "src/screens/deepspace/dds-auth-screens.tsx", kind: "replace", at: 3, next: "home" },
+  { name: "terms/refund/privacy cold back", file: "src/screens/deepspace/dds-legal-doc-screen.tsx", kind: "replace", at: 0, next: "home" },
+  { name: "consent detail cold back", file: "src/screens/deepspace/dds-consent-notice-screen.tsx", kind: "replace", at: 0, next: "home" },
+] as const;
+type AuthExit = typeof authExits[number];
+function exitHref(row: AuthExit, created = true): { href: string; method: string; intended: string } {
+  const intended = row.next === "profile" ? entryRoute(PROFILE, created ? true : null)
+    : row.next === "signup" ? entryRoute(SIGNUP, created ? true : null)
+    : row.next === "manual" ? "/manual" : "/";
+  const ast = sourceAst(row.file);
+  if (row.kind === "RedirectHome") {
+    expect(nodesIn(ast, ts.isJsxSelfClosingElement).filter(node => node.tagName.getText(ast) === "RedirectHome")).toHaveLength(1);
+    return { href: "/", method: "POP_TO", intended };
+  }
+  if (row.kind === "guard") {
+    const branch = nodesIn(ast, ts.isIfStatement).find(node => node.thenStatement.getText(ast).includes("<RedirectHome"))!;
+    const js = ts.transpileModule(`exports.run = () => { ${branch.thenStatement.getText(ast)} };`, {
+      compilerOptions: { jsx: ts.JsxEmit.React, module: ts.ModuleKind.CommonJS },
+    }).outputText;
+    const env = { authExitDestination, postEntryRoute: intended, avatarSetupAfterConfirmation: created,
+      RedirectHome: "home", Redirect: "redirect", React: { createElement: (type: string, props: { href: string }) => ({ type, props }) } };
+    const output = {} as { run: () => { type: string; props: { href: string } } };
+    new Function("exports", ...Object.keys(env), js)(output, ...Object.values(env));
+    const result = output.run();
+    return { href: result.type === "home" ? "/" : result.props.href, method: result.type === "home" ? "POP_TO" : "REPLACE", intended };
+  }
+  const calls = nodesIn(ast, ts.isCallExpression).filter(node => node.expression.getText(ast) === `router.${row.kind}`);
+  if (row.file === SIGNUP_SCREEN && row.kind === "push") {
+    let callback: ts.Node | undefined = calls[row.at];
+    while (callback && !ts.isArrowFunction(callback)) callback = callback.parent;
+    if (!callback || !ts.isArrowFunction(callback)) throw new Error("exit handler missing");
+    const sent: { href: string; method: string; intended: string }[] = [];
+    const handler = evaluate(callback.getText(ast), {
+      ...account, canLeaveGate: () => true,
+      router: { push: (href: string) => sent.push({ href, method: "PUSH", intended }),
+        replace: (href: string) => sent.push({ href, method: "REPLACE", intended }) },
+    });
+    handler();
+    expect(sent).toHaveLength(1);
+    return sent[0];
+  }
+  const expression = calls[row.at].arguments[0].getText(ast);
+  const values: Record<string, unknown> = { nextRoute: intended, step: "done", userId: "owner-b" };
+  const exitDeclaration = nodesIn(ast, ts.isVariableDeclaration).find(node => node.name.getText(ast) === "exitHref");
+  if (exitDeclaration) values.exitHref = evaluate(exitDeclaration.initializer!.getText(ast), values);
+  const href = evaluate(expression, values);
+  return { href, method: "REPLACE", intended };
+}
+
+test("auth exit audit includes every route and every explicit navigation in its live presenters", () => {
+  expect(readdirSync(resolve(ROOT, "src/app/(auth)")).sort()).toEqual([
+    "_layout.tsx", "complete-profile.tsx", "consent-notice.tsx", "oauth-callback.tsx", "privacy-policy.tsx",
+    "refund.tsx", "reset-password.tsx", "sign-in.tsx", "sign-up.tsx", "terms.tsx",
+  ]);
+  const roster: Record<string, string[]> = {
+    [PROFILE]: ['router.replace("/sign-in")', '<RedirectHome />', '<Redirect href={destination} />', '<Redirect href="/sign-in" />',
+      'router.replace(authExitDestination(nextRoute))', 'router.replace(authExitDestination(nextRoute))'],
+    [SIGNUP]: ['router.replace(authExitDestination(nextRoute))', 'router.replace(authExitDestination(nextRoute))'],
+    [SIGNUP_SCREEN]: ['<RedirectHome />', '<Redirect href={destination} />', 'router.replace("/")', 'router.push("/")',
+      'router.push("/sign-in")', 'router.push("/sign-in")', 'router.replace("/")', 'router.push("/manual")', 'router.push("/terms")',
+      'router.push({ pathname: "/consent-notice", params: { item: key } })',
+      'router.push({ pathname: "/consent-notice", params: { item: "marketing" } })'],
+    "src/lib/auth/useSignInForm.ts": ['router.replace("/")'],
+    "src/screens/deepspace/dds-sign-in-screen.tsx": ['<RedirectHome />', 'router.push(resetPasswordHref(email))',
+      'router.push("/sign-up")', 'router.push("/terms")', 'router.push("/privacy-policy")', 'router.push("/refund")'],
+    "src/app/(auth)/oauth-callback.tsx": ['router.replace("/")', 'router.replace("/sign-in")'],
+    "src/screens/deepspace/dds-auth-screens.tsx": ['router.replace(step === "done" || userId ? "/" : "/sign-in")',
+      'router.replace("/sign-in")', 'router.replace(exitHref)', 'router.replace("/")'],
+    "src/screens/deepspace/dds-legal-doc-screen.tsx": ['router.replace("/")', 'router.push(link.href)'],
+    "src/screens/deepspace/dds-consent-notice-screen.tsx": ['router.replace("/")'],
+    "src/lib/auth/sign-up-back.ts": ['router.dismissTo("/sign-in")'],
+  };
+  // Include the facades, flow hooks and deletion result panel even when they
+  // have no navigation. A new exit there must join this audit, not vanish.
+  const files = new Set([...Object.keys(roster), ...readdirSync(resolve(ROOT, "src/app/(auth)")).map(name => `src/app/(auth)/${name}`),
+    "src/lib/auth/useResetPasswordForm.ts", "src/components/account/AccountDeletionNotice.tsx",
+    "src/lib/auth/sign-in-back.ts", "src/lib/auth/sign-up-back.ts"]);
+  for (const file of files) {
+    const ast = sourceAst(file);
+    const exits = nodesIn(ast, (node): node is ts.CallExpression | ts.JsxSelfClosingElement =>
+      (ts.isCallExpression(node) && /^(?:router\.(?:replace|push|dismissTo)|goHome)$/.test(node.expression.getText(ast))) ||
+      (ts.isJsxSelfClosingElement(node) && ["Redirect", "RedirectHome"].includes(node.tagName.getText(ast))));
+    // sign-up-back's injected router is a parameter; it only returns to auth.
+    expect(exits.map(node => node.getText(ast))).toEqual(roster[file] ?? []);
+  }
+  for (const name of ["terms", "refund", "privacy-policy", "consent-notice"]) {
+    expect(readSource(`src/app/(auth)/${name}.tsx`)).toMatch(/DeepSpace(?:LegalDoc|ConsentNotice)Screen/);
+  }
+  const legal = readSource("src/screens/deepspace/dds-legal-doc-screen.tsx");
+  expect(legal).toContain('href: "/terms" | "/refund" | "/privacy-policy"');
+  expect(readSource("src/lib/nav/go-home.ts")).toContain("router.dismissTo(HOME_HREF)");
+});
 
 describe("root account scene boundary wiring", () => {
   test("every resolved AuthContext publication notes its owner; storage loss stays unresolved", () => {
@@ -186,7 +333,7 @@ describe("account release observation and gate ordering", () => {
       router: { dismissAll: jest.fn(), replace: jest.fn() },
       navigation: {
         isReady: () => true,
-        getRootState: () => root,
+        getRootState: (): Parameters<typeof account.shouldReleaseAccountTransition>[1] => root,
         addListener: jest.fn((name: string, fn: () => void) => {
           expect(name).toBe("state"); listener = fn; return unsubscribe;
         }),
@@ -194,6 +341,58 @@ describe("account release observation and gate ordering", () => {
       setResetPass: jest.fn((update: (pass: number) => number) => { inputs.resetPass = update(inputs.resetPass); }),
     };
     return { inputs, root, home, unsubscribe, emit: () => listener?.() };
+  }
+
+  function connectRouter(h: ReturnType<typeof harness>, hydrated = true, direct = false) {
+    const options = { routeNames: ["index", "records", "(auth)", "avatar-studio", "manual"], routeParamList: {}, routeGetIdList: {} };
+    // IntroGate replaces its children while redirecting to complete-profile;
+    // the mounted auth Stack is the starting state, never a fabricated home.
+    const reducer = StackRouter({ initialRouteName: "(auth)" });
+    let stack = reducer.getInitialState(options);
+    const wrapper = StackRouter({ initialRouteName: "__root" }).getInitialState({
+      routeNames: ["__root"], routeParamList: {}, routeGetIdList: {},
+    });
+    const read = () => {
+      const state = hydrated ? stack : { ...stack, stale: true };
+      return direct ? state : { ...wrapper, routes: [{ ...wrapper.routes[0], state }] };
+    };
+    const commit = (href: string, method = "REPLACE") => {
+      const [path, query] = href.split("?");
+      const name = path === "/" ? "index" : path.slice(1);
+      const next = reducer.getStateForAction(stack, { type: method, payload: { name, params: query ? { setup: "1" } : undefined } }, options);
+      if (!next) throw new Error(`unhandled ${method} ${href}`);
+      stack = next;
+      const active = stack.routes[stack.index];
+      h.inputs.segments = active.name === "index" ? [] : [active.name];
+      h.emit();
+    };
+    h.inputs.navigation.getRootState = read;
+    h.inputs.segments = ["(auth)", "complete-profile"];
+    return { commit, read, state: () => stack };
+  }
+
+  function finishProfile(h: ReturnType<typeof harness>, direct = false) {
+    const nav = connectRouter(h, true, direct);
+    const exit = exitHref(authExits[1]);
+    expect(exit.intended).toBe("/avatar-studio?setup=1");
+    expect(exit.href).toBe("/");
+    expect(scene("avatar-studio")).toBeNull();
+    expect(intro(true, h.inputs.segments).type).toBe("GateCover"); // refresh settled before submit returns
+    nav.commit(exit.href, exit.method);
+    expect(h.inputs.segments).toEqual([]);
+    expect(scene("index")).toBeNull(); // committed home still hidden until resolver sees proof
+    expect(avatar(true, undefined, true)).toBe("hold");
+    effect(1, h.inputs);
+    expect(account.isAccountTransitionPending()).toBe(false);
+    expect(avatar(true, undefined, true)).toBe("setup");
+    const gateSource = readSource("src/components/avatar/AvatarSetupGate.tsx");
+    const destination = gateSource.match(/:\s*("\/avatar-studio\?setup=1")/)![1];
+    nav.commit(evaluate(destination));
+    expect(h.inputs.segments).toEqual(["avatar-studio"]);
+    expect(nav.state().routes[nav.state().index].params).toEqual({ setup: "1" });
+    expect(avatar(true, "avatar-studio", true)).toBe("allow");
+    expect(scene("avatar-studio")?.children).toContain("scene");
+    expect(intro(true, h.inputs.segments).type).toBe("GateCover");
   }
 
   test("subscribes only during the hold and returns the listener cleanup", () => {
@@ -349,14 +548,8 @@ describe("account release observation and gate ordering", () => {
     expect(h.inputs.router.replace).toHaveBeenCalledTimes(attempts);
     expect(account.isAccountTransitionPending()).toBe(true);
 
-    // After successful profile refresh and an actual home commit, the same
-    // subscription releases even when all three resets were already consumed.
-    expect(intro(true, h.inputs.segments).type).toBe("GateCover");
-    h.inputs.segments = [];
-    h.emit();
-    effect(1, h.inputs);
-    expect(account.isAccountTransitionPending()).toBe(false);
-    expect(scene("index")?.children).toContain("scene");
+    // Continue through the real submit destination and router actions.
+    finishProfile(h);
     expect(h.inputs.router.replace).toHaveBeenCalledTimes(attempts);
     stop!();
   });
@@ -389,12 +582,80 @@ describe("account release observation and gate ordering", () => {
     expect(account.isAccountTransitionPending()).toBe(true);
     expect(scene("(auth)")?.children).toContain("scene");
     expect(scene("index")).toBeNull();
+    // R3: retain the R2 bound above, then submit to the actual avatar target.
+    finishProfile(h);
+    expect(h.inputs.router.replace).toHaveBeenCalledTimes(order === "reset-first" ? 1 : 3);
     stop!();
+  });
+
+  test.each([false, true])("three exhausted resets -> profile submit -> home proof -> avatar (direct=%s)", (direct) => {
+    const h = harness();
+    const stop = effect(0, h.inputs);
+    for (let pass = 0; pass < 10; pass++) effect(1, h.inputs);
+    expect(h.inputs.router.replace).toHaveBeenCalledTimes(3);
+    finishProfile(h, direct);
+    expect(h.inputs.router.replace).toHaveBeenCalledTimes(3);
+    stop!();
+  });
+
+  test.each(authExits)("auth exit $name reaches proof with zero reset budget", row => {
+    const h = harness();
+    const stop = effect(0, h.inputs);
+    for (let pass = 0; pass < 10; pass++) effect(1, h.inputs);
+    const nav = connectRouter(h);
+    const exit = exitHref(row);
+    expect(exit.href).toBe("/");
+    expect(scene("index")).toBeNull();
+    nav.commit(exit.href, exit.method);
+    expect(account.shouldReleaseAccountTransition(h.inputs.segments, nav.read())).toBe(true);
+    expect(scene("index")).toBeNull();
+    effect(1, h.inputs);
+    expect(account.isAccountTransitionPending()).toBe(false);
+    expect(scene("index")?.children).toContain("scene");
+    expect(h.inputs.router.replace).toHaveBeenCalledTimes(3);
+    stop!();
+  });
+
+  test.each(authExits)("auth exit $name preserves its destination outside a hold", row => {
+    account.__resetAccountEpochForTests();
+    const exit = exitHref(row);
+    expect(exit.href).toBe(exit.intended);
+  });
+
+  test.each([null, false, true])("profile and signup completion share the real destination for consentRecorded=%s", value => {
+    account.__resetAccountEpochForTests();
+    const expected = value === null ? "/" : "/avatar-studio?setup=1";
+    expect(entryRoute(PROFILE, value)).toBe(expected);
+    expect(entryRoute(SIGNUP, value)).toBe(expected);
+    expect(resolveAuthExitDestination(expected, true)).toBe("/");
+    expect(resolveAuthExitDestination(expected, false)).toBe(expected);
+  });
+
+  test.each([authExits[0], authExits[3]])("$name reads the live hold when its existing timer fires", row => {
+    account.__resetAccountEpochForTests();
+    account.noteResolvedOwner("owner-a");
+    const ast = sourceAst(row.file);
+    const timer = nodesIn(ast, ts.isCallExpression).find(node =>
+      node.expression.getText(ast) === "setTimeout" && node.arguments[0]?.getText(ast).includes("router.replace"))!;
+    const replace = jest.fn();
+    const callback = evaluate(timer.arguments[0].getText(ast), {
+      nextRoute: entryRoute(row.file, true), mountedRef: { current: true }, router: { replace },
+    });
+    callback();
+    expect(replace).toHaveBeenLastCalledWith("/avatar-studio?setup=1");
+    account.noteResolvedOwner("owner-b");
+    const epochB = account.currentAccountEpoch();
+    callback();
+    expect(replace).toHaveBeenLastCalledWith("/");
+    account.noteResolvedOwner("owner-c");
+    expect(account.clearAccountTransition(epochB)).toBe(false);
+    callback();
+    expect(replace).toHaveBeenLastCalledWith("/");
   });
 
   // Main 087f7ced's observable reachability, not its defective top-level proof:
   // auth forms remain usable under a hold; every product scene is hidden.
-  // A proof "arrives" means home is actually reached after an auth flow exits.
+  // Each completion starts at its actual destination, executed via StackRouter.
   const cases = [
     { name: "no profile", profile: false, missing: true, auth: "complete-profile", target: "/complete-profile" },
     { name: "profile without avatar", profile: true, missing: true, auth: "", target: undefined },
@@ -420,9 +681,11 @@ describe("account release observation and gate ordering", () => {
       effect(1, h.inputs);
       expect(account.isAccountTransitionPending()).toBe(true);
       if (proof) {
-        // Auth completion clears its own markers and refreshes hasProfile.
-        h.inputs.segments = [];
-        h.root.routes[0].state = { ...h.root.routes[0].state, index: 0, routes: [h.home] };
+        const nav = connectRouter(h);
+        const exit = exitHref(row.name === "no profile" ? authExits[1]
+          : row.name === "signup confirmation" ? authExits[5]
+          : row.name === "password recovery" ? authExits[13] : authExits[9]);
+        nav.commit(exit.href, exit.method);
         effect(1, h.inputs);
         expect(intro(true, []).type).toBe("GateCover");
         expect(scene("index")?.children).toContain("scene");
@@ -433,6 +696,14 @@ describe("account release observation and gate ordering", () => {
         expect(avatar(row.profile, h.inputs.segments[0], row.missing))
           .toBe(row.auth || !row.missing ? "allow" : "hold");
         expect(scene("avatar-studio")).toBeNull(); // main redirected here, but AccountScope already hid it
+        const nav = connectRouter(h, false);
+        const exit = exitHref(row.name === "no profile" ? authExits[1]
+          : row.name === "signup confirmation" ? authExits[5]
+          : row.name === "password recovery" ? authExits[13] : authExits[9]);
+        nav.commit(exit.href, exit.method);
+        effect(1, h.inputs); // real completion but hydration never becomes proof
+        expect(account.isAccountTransitionPending()).toBe(true);
+        expect(scene("index")).toBeNull();
       }
       expect(h.inputs.router.replace).toHaveBeenCalledTimes(3);
     });

@@ -3,6 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 // the public.users row doesn't exist yet — we need their date of birth to
 // satisfy C10 (age gate) before letting them into the app.
 import { RedirectHome } from "@/lib/nav/go-home";
+import { authExitDestination, profileEntryDestination } from "@/lib/auth/auth-exit";
 import { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -164,7 +165,8 @@ function CompleteProfileBody() {
   // true) BEFORE the handler navigates, and this guard must not unmount the
   // screen (killing toasts and the handler's own navigation) in that window.
   if (userId && hasProfile && !submitting && !judgeWelcome && !crisis.visible) {
-    return postEntryRoute === "/" ? <RedirectHome /> : <Redirect href={postEntryRoute} />;
+    const destination = authExitDestination(postEntryRoute);
+    return destination === "/" ? <RedirectHome /> : <Redirect href={destination} />;
   }
 
   // Not signed in at all — bounce to sign-in.
@@ -203,7 +205,7 @@ function CompleteProfileBody() {
         isEmailInUseError: (e) => e instanceof EmailInUseError,
       });
       if (result.kind === "entered") {
-        const nextRoute = result.consentRecorded === null ? "/" : "/avatar-studio?setup=1";
+        const nextRoute = profileEntryDestination(result.consentRecorded);
         setPostEntryRoute(nextRoute);
         // L4: the goal becomes the first 북극성 문장 rather than a users column,
         // so it lands in the same ledger the /northstar screen edits and every
@@ -242,10 +244,10 @@ function CompleteProfileBody() {
         if (result.judgeMode) {
           setJudgeWelcome(true); // hold the redirect guard open for the toast
           setToast({ tone: "success", message: t("judge.welcome") });
-          setTimeout(() => router.replace(nextRoute), 900);
+          setTimeout(() => router.replace(authExitDestination(nextRoute)), 900);
           return;
         }
-        router.replace(nextRoute);
+        router.replace(authExitDestination(nextRoute));
         return;
       }
       if (result.kind === "emailInUse") {

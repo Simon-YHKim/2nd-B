@@ -667,7 +667,11 @@ function homeNavigations(source: string, file: string): HomeNav[] {
       routers.has(node.expression.expression.text)
     ) {
       const method = node.expression.name.text;
-      if ((method === "push" || method === "replace" || method === "navigate") && homeTarget(node.arguments[0], homeNames)) {
+      // Auth exits can resolve to home while an owner transition is held. Keep
+      // those imperative sites in this roster after extracting the decision.
+      const argument = node.arguments[0];
+      const authExit = argument && ts.isCallExpression(argument) && argument.expression.getText(sf) === "authExitDestination";
+      if ((method === "push" || method === "replace" || method === "navigate") && (authExit || homeTarget(argument, homeNames))) {
         hits.push(hit(node, method));
       }
     }
@@ -795,6 +799,15 @@ const KNOWN_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] =
 
 /** 사람이 누르는 홈 동작 - PR 이전의 push/replace 그대로(8회차). 위 설명 참고. */
 const USER_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] = [
+  // Pending exits replace auth instead of leaving it underneath a pushed home.
+  ...["home button", "manual link"].map((exit) => ({
+    file: "src/screens/deepspace/dds-sign-up-screen.tsx",
+    kind: "replace" as const,
+    owner: "DeepSpaceSignUpDesignScreen",
+    guard: "then:isAccountTransitionPending()",
+    before: "",
+    why: `Pending ${exit}: first establish home proof without adding auth history.`,
+  })),
   {
     file: "src/app/(auth)/complete-profile.tsx",
     kind: "replace",
@@ -808,7 +821,7 @@ const USER_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] = 
     kind: "replace",
     owner: "CompleteProfileBody",
     guard: "then:result.kind === \"entered\"",
-    before: "if (result.judgeMode) { setJudgeWelcome(true); // hold the redirect guard open for the toast setToast({ tone: \"success\", message: t(\"judge.welcome\") }); setTimeout(() => router.replace(nextRoute), 900); return; }",
+    before: "if (result.judgeMode) { setJudgeWelcome(true); // hold the redirect guard open for the toast setToast({ tone: \"success\", message: t(\"judge.welcome\") }); setTimeout(() => router.replace(authExitDestination(nextRoute)), 900); return; }",
     why: "사람이 누른 프로필 완성 제출 뒤의 이동. 마운트 즉시 넘기는 가드는 RedirectHome 이다.",
   },
   {
@@ -920,7 +933,7 @@ const USER_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] = 
     kind: "replace",
     owner: "useSignUpForm",
     guard: "then:result.kind === \"entered\"",
-    before: "if (result.judgeMode) { setJudgeWelcome(true); // hold the guest guard open for the toast setToast({ tone: \"success\", message: t(\"judge.welcome\") }); judgeRouteTimerRef.current = setTimeout(() => { if (mountedRef.current) router.replace(nextRoute); }, 900); return; }",
+    before: "if (result.judgeMode) { setJudgeWelcome(true); // hold the guest guard open for the toast setToast({ tone: \"success\", message: t(\"judge.welcome\") }); judgeRouteTimerRef.current = setTimeout(() => { if (mountedRef.current) router.replace(authExitDestination(nextRoute)); }, 900); return; }",
     why: "사람이 누른 가입 제출 뒤의 이동.",
   },
   {
@@ -959,7 +972,7 @@ const USER_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] = 
     file: "src/screens/deepspace/dds-sign-up-screen.tsx",
     kind: "push",
     owner: "DeepSpaceSignUpDesignScreen",
-    guard: "then:canLeaveGate()",
+    guard: "else:isAccountTransitionPending()",
     before: "",
     why: "가입 화면 상단 뒤로(게스트, 사람이 누른다). 같은 동기 가드 뒤에 있다.",
   },
@@ -1154,7 +1167,7 @@ const goHomeUseId = (file: string, u: Omit<GoHomeUse, "line">) => `${file} | ${u
 const GO_HOME_USES: readonly { file: string; use: Omit<GoHomeUse, "line">; why: string }[] = [
   {
     file: "src/app/(auth)/complete-profile.tsx",
-    use: { kind: "RedirectHome", owner: "CompleteProfileBody", guard: 'then:postEntryRoute === "/"', handler: "" },
+    use: { kind: "RedirectHome", owner: "CompleteProfileBody", guard: 'then:destination === "/"', handler: "" },
     why: "프로필이 이미 있는 로그인 사람이 이 화면을 열면 마운트 즉시 홈으로.",
   },
   {
@@ -1194,7 +1207,7 @@ const GO_HOME_USES: readonly { file: string; use: Omit<GoHomeUse, "line">; why: 
   },
   {
     file: "src/screens/deepspace/dds-sign-up-screen.tsx",
-    use: { kind: "RedirectHome", owner: "DeepSpaceSignUpDesignScreen", guard: "else:avatarSetupAfterConfirmation", handler: "" },
+    use: { kind: "RedirectHome", owner: "DeepSpaceSignUpDesignScreen", guard: 'then:destination === "/"', handler: "" },
     why: "로그인한 사람이 연 가입 화면 - 마운트 즉시 홈으로(아바타 설정이 남았으면 그쪽).",
   },
 ];
