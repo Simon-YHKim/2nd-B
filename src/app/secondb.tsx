@@ -197,6 +197,8 @@ interface ChatComposerProps {
   onSend: (text: string) => boolean;
   /** Node-entry seed (?fromNode=): pre-fills the draft once on first mount. */
   fromNode?: string | null;
+  /** Screen-reader name of the input. It names who is being asked (Z85). */
+  askLabel: string;
   /** deep-space lens tint. */
   lensAccent?: string;
   inkOnAccent?: string;
@@ -215,6 +217,7 @@ const ChatComposer = memo(
       sendEnabled,
       onSend,
       fromNode,
+      askLabel,
       // The chat body always passes these; the defaults only satisfy the type.
       lensAccent = deepSpace.accent,
       inkOnAccent = m3.accent.onAccentInk,
@@ -412,7 +415,7 @@ const ChatComposer = memo(
             // AA on the pill (4.54:1), the same token as the other placeholders (QA R2B-08).
             placeholderTextColor={m3.color.onSurfaceVariant}
             style={ds.pillInput}
-            accessibilityLabel={t("inputA11y")}
+            accessibilityLabel={askLabel}
             onSubmit={submit}
           />
           {/* med#22 follow-through: the mic is BACK, and this time it does
@@ -1278,7 +1281,7 @@ function SecondBChatBody() {
                     accessibilityLabel={
                       turn.role === "user"
                         ? t("yourMessage")
-                        : t("secondbAnswer")
+                        : t("secondbAnswer", { name: t(`rev2.${turn.persona ?? "secondb"}.lensName`) })
                     }
                     accessibilityHint={t("longPressCopy")}
                   >
@@ -1359,6 +1362,7 @@ function SecondBChatBody() {
           sendEnabled={sendEnabled}
           onSend={handleSend}
           fromNode={fromNode}
+          askLabel={t("inputA11y", { name: t(`rev2.${rev2Persona}.lensName`) })}
           lensAccent={lensAccent}
           inkOnAccent={inkOnAccent}
         />
