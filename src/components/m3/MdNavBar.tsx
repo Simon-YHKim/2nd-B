@@ -47,7 +47,7 @@ export function MdNavBar({
   const { width: windowWidth, fontScale, scale: pixelRatio } = useWindowDimensions();
   const { i18n } = useTranslation();
   const web = Platform.OS === "web";
-  const slotWidths = navSlotWidths(items, measurements, windowWidth, buttonLike);
+  const slotWidths = navSlotWidths(items, measurements, windowWidth, buttonLike, pixelRatio);
   const labelLayout = navLabelLayout(items, slotWidths, fontScale, pixelRatio, Platform.OS, renderedUiLanguage(i18n));
   return (
     <View

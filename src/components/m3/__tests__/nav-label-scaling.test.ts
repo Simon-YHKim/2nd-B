@@ -25,9 +25,10 @@ const itemsFor = (locale: string) => {
 };
 // Independent geometry of the existing button-like bar, pinned to source below.
 const slotFor = (width: number) => (width - 2 * 4 - 4 * 4) / 5 - 2 * 2;
-const slots = (width: number) => Object.fromEntries(keys.map(key => [key, slotFor(width)]));
+const slots = (width: number, density = 3.5) =>
+  Object.fromEntries(keys.map(key => [key, Math.floor(slotFor(width) * density) / density]));
 const layout = (width: number, locale: string, system: number, density = 3.5, platform = "android") =>
-  navLabelLayout(itemsFor(locale), slots(width), system, density, platform, locale);
+  navLabelLayout(itemsFor(locale), navSlotWidths(itemsFor(locale), {}, width, true, density), system, density, platform, locale);
 const androidSize = (size: number, density: number) => Math.ceil(size * density - 1e-8) / density;
 const six = (value: number) => Number(value.toFixed(6));
 
@@ -98,11 +99,14 @@ describe("D5 dock labels: measured slots, current copy and one shared scale", ()
     expect(table).toHaveLength(expected.length);
   });
 
-  test("all 600 label/face measurements fit at every matrix point, retaining pre-existing base-size limits", () => {
+  test.each(["ideal", "grid floor"])("all 600 label/face measurements fit at every matrix point with %s measured widths, retaining pre-existing base-size limits", measurement => {
     for (const density of [1, 1.5, 2, 2.625, 2.75, 3, 3.5, 4]) {
       for (const width of [360, 393, 411]) for (const locale of locales) {
         for (const system of [1, 1.3, 1.6, 2]) {
-          const result = layout(width, locale, system, density);
+          const measuredWidth = measurement === "ideal" ? slotFor(width) : Math.floor(slotFor(width) * density) / density;
+          const items = itemsFor(locale);
+          const measured = Object.fromEntries(keys.map(key => [key, { width: measuredWidth, windowWidth: width }]));
+          const result = navLabelLayout(items, navSlotWidths(items, measured, width, true, density), system, density, "android", locale);
           const renderedSize = androidSize(result.fontSize, density);
           expect(renderedSize).toBeLessThanOrEqual(16 + 1e-8);
           for (const font of fonts) for (const { label } of itemsFor(locale)) {
@@ -110,14 +114,14 @@ describe("D5 dock labels: measured slots, current copy and one shared scale", ()
             // merely clamping a hypothetical 2x to the declared cap is not proof.
             const textWidth = Math.ceil(font.width(label, renderedSize) * density - 1e-8) / density;
             const baseWidth = Math.ceil(font.width(label, androidSize(10, density)) * density - 1e-8) / density;
-            if (baseWidth > slotFor(width)) {
+            if (baseWidth > measuredWidth) {
               // At 360dp, density 2.625 can already overflow Pengaturan
               // at 1x after Android rounds 10dp up. The 1x floor forbids shrinking.
               expect([width, locale, density]).toEqual([360, "id", 2.625]);
               expect(result.scale).toBe(1);
               expect(textWidth).toBe(baseWidth);
             } else {
-              expect(textWidth).toBeLessThanOrEqual(slotFor(width));
+              expect(textWidth).toBeLessThanOrEqual(measuredWidth);
             }
           }
         }
@@ -126,7 +130,7 @@ describe("D5 dock labels: measured slots, current copy and one shared scale", ()
           const nextPixelSize = capped.fontSize + 1 / density;
           const widest = Math.max(...fonts.flatMap(font => itemsFor(locale).map(item => font.width(item.label, nextPixelSize))));
           // The next physical font pixel must break either the 1.6 ceiling or fit.
-          expect(nextPixelSize > 16 || widest > slotFor(width) - 2 / density).toBe(true);
+          expect(nextPixelSize > 16 || widest > slots(width, density).home - 2 / density).toBe(true);
         }
       }
     }
@@ -159,13 +163,111 @@ describe("D5 dock labels: measured slots, current copy and one shared scale", ()
       const items = itemsFor(locale);
       let measured: NavSlotMeasurements = {};
       for (const key of keys) {
-        expect(navLabelLayout(items, navSlotWidths(items, measured, width, true), 2, 3.5, "android", locale))
+        expect(navLabelLayout(items, navSlotWidths(items, measured, width, true, 3.5), 2, 3.5, "android", locale))
           .toEqual(layout(width, locale, 2));
         measured = recordNavSlotWidth(measured, key, slotFor(width), width);
       }
-      const settled = navLabelLayout(items, navSlotWidths(items, measured, width, true), 2, 3.5, "android", locale);
+      const settled = navLabelLayout(items, navSlotWidths(items, measured, width, true, 3.5), 2, 3.5, "android", locale);
       expect(settled).toEqual(layout(width, locale, 2));
-      expect(navLabelLayout(items, navSlotWidths(items, {}, width, true), 2, 3.5, "android", locale)).toEqual(settled);
+      expect(navLabelLayout(items, navSlotWidths(items, {}, width, true, 3.5), 2, 3.5, "android", locale)).toEqual(settled);
+    }
+  });
+
+  test("pixel-grid floor, ceil and round measurements preserve the complete first-paint layout", () => {
+    for (const locale of locales) {
+      const items = itemsFor(locale);
+      for (let width = 320; width <= 480; width += 1) for (const density of [2, 2.625, 3, 3.5]) {
+        for (const buttonLike of [true, false]) {
+          const ideal = buttonLike ? slotFor(width) : (width - 8) / 5;
+          const first = navSlotWidths(items, {}, width, buttonLike, density);
+          for (const snap of [Math.floor, Math.ceil, Math.round]) {
+            const measured = Object.fromEntries(keys.map(key => [key, { width: snap(ideal * density) / density, windowWidth: width }]));
+            const settled = navSlotWidths(items, measured, width, buttonLike, density);
+            for (const system of [1.3, 1.6, 2]) for (const platform of ["android", "ios", "web"]) {
+              expect(navLabelLayout(items, settled, system, density, platform, locale))
+                .toEqual(navLabelLayout(items, first, system, density, platform, locale));
+            }
+          }
+        }
+      }
+    }
+  });
+
+  test("single-slot and mixed-grid measurements stay identical through every partial mount and remount", () => {
+    for (const locale of locales) {
+      const items = itemsFor(locale);
+      for (let width = 320; width <= 480; width += 1) for (const density of [2, 2.625, 3, 3.5]) {
+        for (const buttonLike of [true, false]) {
+          const ideal = buttonLike ? slotFor(width) : (width - 8) / 5;
+          const first = navSlotWidths(items, {}, width, buttonLike, density);
+          let mixed: NavSlotMeasurements = {};
+          for (const [index, key] of keys.entries()) {
+            const snap = [Math.floor, Math.ceil, Math.round][index % 3];
+            const measuredWidth = snap(ideal * density) / density;
+            const single = recordNavSlotWidth({}, key, measuredWidth, width);
+            mixed = recordNavSlotWidth(mixed, key, measuredWidth, width);
+            for (const measured of [single, mixed]) {
+              const resolved = navSlotWidths(items, measured, width, buttonLike, density);
+              for (const system of [1.3, 1.6, 2]) for (const platform of ["android", "ios"]) {
+                expect(navLabelLayout(items, resolved, system, density, platform, locale))
+                  .toEqual(navLabelLayout(items, first, system, density, platform, locale));
+              }
+            }
+          }
+          for (const system of [1.3, 1.6, 2]) for (const platform of ["android", "ios"]) {
+            expect(navLabelLayout(items, navSlotWidths(items, {}, width, buttonLike, density), system, density, platform, locale))
+              .toEqual(navLabelLayout(items, navSlotWidths(items, mixed, width, buttonLike, density), system, density, platform, locale));
+          }
+        }
+      }
+    }
+  });
+
+  test("a genuinely narrower parent still corrects every slot and all font faces fit with the two-pixel clearance", () => {
+    for (const locale of locales) {
+      const items = itemsFor(locale);
+      for (const density of [2, 2.625, 3, 3.5]) for (const buttonLike of [true, false]) {
+        const first = navSlotWidths(items, {}, 480, buttonLike, density);
+        for (const item of items) {
+          const labelWidth = Math.max(...fonts.map(font => font.width(item.label, 12)));
+          const measuredWidth = Math.floor(labelWidth * density + 2) / density;
+          expect(first[item.key] - measuredWidth).toBeGreaterThan(1 / density);
+          const measured = recordNavSlotWidth({}, item.key, measuredWidth, 480);
+          const resolved = navSlotWidths(items, measured, 480, buttonLike, density);
+          expect(resolved[item.key]).toBe(measuredWidth);
+          for (const system of [1.3, 1.6, 2]) for (const platform of ["android", "ios"]) {
+            const result = navLabelLayout(items, resolved, system, density, platform, locale);
+            expect(result.scale).toBeLessThan(navLabelLayout(items, first, system, density, platform, locale).scale);
+            const size = platform === "android" ? androidSize(result.fontSize, density) : result.fontSize;
+            for (const font of fonts) for (const label of items) {
+              const actualWidth = font.width(label.label, size);
+              expect(actualWidth).toBeLessThanOrEqual(resolved[label.key] - 2 / density + 1e-8);
+              expect(Math.ceil(actualWidth * density - 1e-8) / density).toBeLessThanOrEqual(resolved[label.key]);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  test("sub-unit and non-finite densities match density one before and after measurement", () => {
+    for (const locale of locales) {
+      const items = itemsFor(locale);
+      for (const width of [320, 360, 393, 411, 480]) for (const buttonLike of [true, false]) {
+        const ideal = buttonLike ? slotFor(width) : (width - 8) / 5;
+        for (const measured of [{}, recordNavSlotWidth({}, "chat", Math.floor(ideal), width),
+          recordNavSlotWidth({}, "chat", Math.floor(ideal) - 2, width)]) {
+          const expected = navSlotWidths(items, measured, width, buttonLike, 1);
+          for (const density of [-1, 0, 0.75, NaN, Infinity]) {
+            const resolved = navSlotWidths(items, measured, width, buttonLike, density);
+            expect(resolved).toEqual(expected);
+            for (const system of [1.3, 1.6, 2]) for (const platform of ["android", "ios", "web"]) {
+              expect(navLabelLayout(items, resolved, system, density, platform, locale))
+                .toEqual(navLabelLayout(items, expected, system, 1, platform, locale));
+            }
+          }
+        }
+      }
     }
   });
 
@@ -187,17 +289,17 @@ describe("D5 dock labels: measured slots, current copy and one shared scale", ()
     for (const width of [0, -1, NaN, Infinity]) {
       const invalid = recordNavSlotWidth(first, "capture", width, 411);
       expect(invalid.capture.width).toBe(0);
-      expect(navSlotWidths(itemsFor("ko"), invalid, 411, true)).toEqual(slots(411));
+      expect(navSlotWidths(itemsFor("ko"), invalid, 411, true, 3.5)).toEqual(slots(411));
     }
   });
 
   test("pairs each name with its own slot before choosing the shared minimum", () => {
-    const measured = { ...slots(411), capture: slotFor(360) };
+    const measured = { ...slots(411), capture: slots(360).capture };
     const compact = navLabelLayout(itemsFor("ko"), measured, 2, 3.5, "android", "ko");
     expect(compact.scale).toBe(1.6);
     expect(navLabelLayout(itemsFor("id"), measured, 2, 3.5, "android", "id")).toEqual(layout(411, "id", 2));
     // Moving the narrow slot to the widest name really must constrain it.
-    expect(navLabelLayout(itemsFor("ko"), { ...slots(411), chat: slotFor(360) }, 2, 3.5, "android", "ko"))
+    expect(navLabelLayout(itemsFor("ko"), { ...slots(411), chat: slots(360).chat }, 2, 3.5, "android", "ko"))
       .toEqual(layout(360, "ko", 2));
     // Selection/order changes cannot change the common scale.
     expect(navLabelLayout(itemsFor("ko").reverse(), measured, 2, 3.5, "android", "ko")).toEqual(compact);
@@ -206,7 +308,7 @@ describe("D5 dock labels: measured slots, current copy and one shared scale", ()
   test("current onLayout corrections only use the smaller width", () => {
     const items = itemsFor("ko");
     const measured = recordNavSlotWidth(recordNavSlotWidth({}, "chat", 50, 411), "capture", 100, 411);
-    const resolved = navSlotWidths(items, measured, 411, true);
+    const resolved = navSlotWidths(items, measured, 411, true, 3.5);
     expect(resolved).toEqual({ ...slots(411), chat: 50 });
     const result = navLabelLayout(items, resolved, 2, 3.5, "android", "ko");
     for (const font of fonts) for (const item of items) {
@@ -219,31 +321,31 @@ describe("D5 dock labels: measured slots, current copy and one shared scale", ()
     for (const [before, after] of [[480, 360], [360, 480]]) {
       let measured: NavSlotMeasurements = {};
       for (const key of keys) measured = recordNavSlotWidth(measured, key, 40, before);
-      expect(navSlotWidths(items, measured, after, true)).toEqual(slots(after));
+      expect(navSlotWidths(items, measured, after, true, 3.5)).toEqual(slots(after));
       measured = recordNavSlotWidth(measured, "capture", slotFor(after), after);
-      expect(navSlotWidths(items, measured, after, true)).toEqual(slots(after));
+      expect(navSlotWidths(items, measured, after, true, 3.5)).toEqual(slots(after));
       measured = recordNavSlotWidth(measured, "capture", 40, before);
-      expect(navSlotWidths(items, measured, after, true)).toEqual(slots(after));
+      expect(navSlotWidths(items, measured, after, true, 3.5)).toEqual(slots(after));
     }
   });
 
   test("window geometry handles button and plain bars without borrowing borders or gaps", () => {
-    for (const width of [320, 360, 393, 411, 480, 1024]) for (const count of [1, 3, 5]) {
+    for (const width of [320, 360, 393, 411, 480, 1024]) for (const count of [1, 3, 5]) for (const density of [2, 2.625, 3, 3.5]) {
       const items = itemsFor("en").slice(0, count);
-      const button = navSlotWidths(items, {}, width, true);
-      const plain = navSlotWidths(items, {}, width, false);
+      const button = navSlotWidths(items, {}, width, true, density);
+      const plain = navSlotWidths(items, {}, width, false, density);
       for (const item of items) {
-        expect(button[item.key]).toBe((width - 8 - (count - 1) * 4) / count - 4);
-        expect(plain[item.key]).toBe((width - 8) / count);
+        expect(button[item.key]).toBe(Math.floor(((width - 8 - (count - 1) * 4) / count - 4) * density) / density);
+        expect(plain[item.key]).toBe(Math.floor((width - 8) / count * density) / density);
       }
     }
-    expect(navSlotWidths([], {}, 411, true)).toEqual({});
+    expect(navSlotWidths([], {}, 411, true, 3.5)).toEqual({});
   });
 
   test("Korean alone has a decision cap regardless of width or extra vertical space", () => {
     for (const width of [320, 360, 432, 480, 1024]) for (const density of [2, 2.625, 3, 3.5]) {
       for (const pressHeight of [52, 80, 120]) for (const locale of ["ko", "ko-KR"]) {
-        const result = navLabelLayout(itemsFor("en"), slots(width), 4, density, "android", locale, { ...NAV_BAR_GEOMETRY, pressHeight });
+        const result = navLabelLayout(itemsFor("en"), slots(width, density), 4, density, "android", locale, { ...NAV_BAR_GEOMETRY, pressHeight });
         expect(result.scale).toBeLessThanOrEqual(1.6);
         if (width >= 432) expect(result.scale).toBe(1.6);
       }
@@ -307,7 +409,7 @@ describe("D5 dock labels: measured slots, current copy and one shared scale", ()
     const source = read("src/components/m3/MdNavBar.tsx");
     expect(source).toContain('const { width: windowWidth, fontScale, scale: pixelRatio } = useWindowDimensions()');
     expect(source).toContain('const { i18n } = useTranslation()');
-    expect(source).toContain('navSlotWidths(items, measurements, windowWidth, buttonLike)');
+    expect(source).toContain('navSlotWidths(items, measurements, windowWidth, buttonLike, pixelRatio)');
     expect(source).toContain('navLabelLayout(items, slotWidths, fontScale, pixelRatio, Platform.OS, renderedUiLanguage(i18n))');
     expect(source.indexOf("const labelLayout =")).toBeLessThan(source.indexOf("items.map"));
     expect(source).toContain("onLayout={web ? undefined : (event) => {");

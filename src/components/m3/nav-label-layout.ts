@@ -53,11 +53,16 @@ export function recordNavSlotWidth(
 
 /** First paint uses the full-width shell; onLayout can only reduce its estimate. */
 export function navSlotWidths(
-  items: readonly Label[], measurements: NavSlotMeasurements, windowWidth: number, buttonLike: boolean,
+  items: readonly Label[], measurements: NavSlotMeasurements, windowWidth: number, buttonLike: boolean, pixelRatio: number,
 ): NavSlotWidths {
+  const density = Number.isFinite(pixelRatio) && pixelRatio >= 1 ? pixelRatio : 1;
   const g = NAV_BAR_GEOMETRY;
   const content = windowWidth - 2 * g.paddingHorizontal - (buttonLike ? (items.length - 1) * g.buttonGap : 0);
-  const predicted = Math.max(0, content / items.length - (buttonLike ? 2 * g.buttonBorder : 0));
+  const ideal = Math.max(0, content / items.length - (buttonLike ? 2 * g.buttonBorder : 0));
+  // Yoga can round either edge to the physical grid. Start at its lower bound
+  // so ordinary onLayout rounding never changes label size after a remount.
+  // A genuinely narrower parent still corrects the estimate via min below.
+  const predicted = Math.floor(ideal * density) / density;
   return Object.fromEntries(items.map(item => {
     const measured = measurements[item.key];
     const current = measured?.windowWidth === windowWidth && measured.width > 0;
