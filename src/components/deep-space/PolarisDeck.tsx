@@ -2,8 +2,11 @@ import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView a
 /**
  * 북극성 persona deck (rev2 P3a): the aggregate self, one card at a time.
  * A horizontally paged deck of M3 cards — swipe (or tap a dot) to move between
- * cards. Its hierarchy follows the Claude 10-me handoff: a compact "swipe"
- * caption and page count above one violet persona card.
+ * cards. Above the violet persona card sits one head row: a back arrow (only
+ * where the overlay hands one down), the card's title and the page count. The
+ * head carries no instruction line (Simon 2026-10-12): the count and the dots
+ * say "sideways", the arrow says "close". A dithered band at the card's bottom
+ * says the body has more text below.
  *
  * Presentational only: pages arrive as prepared nodes; data loading, empty,
  * error, and loading states stay on the screen that owns them.
@@ -17,12 +20,18 @@ import { deepSpace } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { MdCard, m3TextStyle } from "@/components/m3";
 import { Text } from "@/components/ui/Text";
-import { cardEdges } from "@/lib/polaris/card-dismiss";
+import { PixelDither } from "@/components/pixel/PixelDither";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { cardEdges, cardHasMoreBelow } from "@/lib/polaris/card-dismiss";
 
-import { usePolarisCardEdgeReport } from "./polaris-card-edges";
+import { usePolarisCardClose, usePolarisCardEdgeReport } from "./polaris-card-edges";
 import { SceneTransition } from "@/components/motion/SceneTransition";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+
+// The more-below band, top row first: the body text thins out in three dither
+// steps toward the card's own ground. No alpha (PIXEL-CLAY rule 4).
+const MORE_BAND = [25, 50, 75] as const;
 
 export interface PolarisDeckPage {
   key: string;
@@ -46,14 +55,20 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
   // vertical swipe when the visible body rests on that edge, so tell it where
   // the visible body is whenever it scrolls, resizes, or the page changes.
   const reportEdges = usePolarisCardEdgeReport();
+  const close = usePolarisCardClose();
   const bodies = useRef<Record<string, { y: number; viewport: number; content: number }>>({});
+  const [more, setMore] = useState<Record<string, boolean>>({});
   const reportPage = (i: number) => {
     const body = bodies.current[pages[i]?.key ?? ""];
     reportEdges(body ? cardEdges(body.y, body.viewport, body.content) : { top: true, bottom: true });
   };
   const measureBody = (key: string, next: Partial<{ y: number; viewport: number; content: number }>) => {
     const prev = bodies.current[key] ?? { y: 0, viewport: 0, content: 0 };
-    bodies.current[key] = { ...prev, ...next };
+    const body = { ...prev, ...next };
+    bodies.current[key] = body;
+    // Scrolling reports every 32ms; only a flip of the mark re-renders.
+    const below = cardHasMoreBelow(body);
+    setMore((current) => (Boolean(current[key]) === below ? current : { ...current, [key]: below }));
     if (pages[index]?.key === key) reportPage(index);
   };
 
@@ -72,14 +87,19 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
       onLayout={(e) => setPageWidth(Math.round(e.nativeEvent.layout.width))}
     >
       <View style={styles.deckHead}>
-        <View style={styles.deckHeadCopy}>
-          <Text style={styles.deckTitle} numberOfLines={1}>
-            {pages[index]?.title}
-          </Text>
-          <Text style={styles.deckHint} numberOfLines={2}>
-            {t("core-brain:swipeCards")}
-          </Text>
-        </View>
+        {close ? (
+          <Pressable
+            onPress={close}
+            accessibilityRole="button"
+            accessibilityLabel={t("core-brain:closeCard")}
+            style={styles.deckBack}
+          >
+            <PixelGlyph name="arrow_back" color={m3.color.tertiary} size={24} />
+          </Pressable>
+        ) : null}
+        <Text style={styles.deckTitle} numberOfLines={2}>
+          {pages[index]?.title}
+        </Text>
         <Text style={styles.pageCount}>{`${Math.min(index + 1, pages.length)} / ${pages.length}`}</Text>
       </View>
       {pageWidth > 0 ? (
@@ -118,6 +138,15 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
                 >
                   {page.body}
                 </ScrollView>
+                {more[page.key] ? (
+                  <View pointerEvents="none" style={styles.more}>
+                    {MORE_BAND.map((density) => (
+                      <View key={density} style={styles.moreStep}>
+                        <PixelDither density={density} style={styles.moreTint} />
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
               </MdCard>
             </View>
           ))}
@@ -152,31 +181,29 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
 const makeStyles = () => StyleSheet.create({
   root: { flex: 1 },
   deckHead: {
-    minHeight: 54,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
+    gap: 8,
     paddingHorizontal: 8,
     paddingBottom: 8,
   },
-  // Title above the swipe hint, not beside it (R2B-05, 2026-10-05). Side by
-  // side, both on one line, the title shrank with the hint on web (RN-web Text
-  // gets CSS flex-shrink:1) and lost its noun: "minha Es…" (pt), "mi Estrella
-  // Pol…" (es), and "North Star" clipped in en as well. Stacked, the title has
-  // the full row and the hint gets two lines.
-  deckHeadCopy: { flex: 1, minWidth: 0, flexDirection: "column", alignItems: "flex-start", gap: 2 },
+  // 44dp target with the glyph on its left edge, so the arrow lines up with the
+  // title's old left edge and the card below.
+  deckBack: { width: 44, height: 44, alignItems: "flex-start", justifyContent: "center" },
+  // The title is the only flexible item in the row. Beside the old swipe hint it
+  // shrank with it on web (RN-web Text gets CSS flex-shrink:1) and lost its
+  // noun: "minha Es…" (pt), "mi Estrella Pol…" (es), "North Star" in en as well
+  // (R2B-05, 2026-10-05). With the hint gone it takes the row and wraps to a
+  // second line when a long locale needs it.
   deckTitle: {
     ...m3TextStyle("labelLarge"),
-    flexShrink: 0,
-    maxWidth: "100%",
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
     color: m3.color.tertiary,
     letterSpacing: 2,
-  },
-  deckHint: {
-    ...m3TextStyle("bodySmall"),
-    flexShrink: 1,
-    color: m3.color.onSurfaceVariant,
   },
   pageCount: {
     // 쪽수는 자리폭이 고정된 mono 가 맞다. 다만 GalmuriMono11 은 12px 배수에서만
@@ -203,6 +230,12 @@ const makeStyles = () => StyleSheet.create({
   },
   cardBody: { flex: 1 },
   cardContent: { padding: 18, flexGrow: 1 },
+  // The more-below band sits over the body's last 24px, inside the card edge.
+  more: { position: "absolute", left: 0, right: 0, bottom: 0 },
+  moreStep: { height: 8 },
+  // Sized explicitly: absoluteFill alone leaves the image at its 4x4 tile on web
+  // (the overlay's scrim met the same thing).
+  moreTint: { width: "100%", height: "100%", tintColor: m3.polarisCard.surface },
   dots: {
     flexDirection: "row",
     justifyContent: "center",

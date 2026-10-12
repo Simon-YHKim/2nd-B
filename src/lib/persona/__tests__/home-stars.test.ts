@@ -225,3 +225,60 @@ describe("/me/<star> 게이지는 층 이름만 쓰고 단위·복수를 맞춘�
     expect(inst.t("ds.star.layer.echo", { lng: "ko" })).toBe("울림");
   });
 });
+
+// Simon 2026-10-12 (Q-261012-57, mock B). The star summary says its name once,
+// shows the layer count once, and draws the five layers as a ladder. The two
+// sentences that explained brightness stay as the screen reader's words only.
+// Source contracts: render tests are not available here; the rung order and
+// lighting are tested in src/lib/interview/__tests__/star-ladder.test.ts.
+describe("/me/<star> 요약은 사다리 하나로 말한다", () => {
+  const LOCALES = ["en", "ko", "es", "pt", "id"] as const;
+  const page = read("src/app/me/[star].tsx");
+  const star = (loc: string) =>
+    (JSON.parse(read(`locales/${loc}/home.json`)) as { ds: { star: Record<string, unknown> } }).ds.star;
+
+  it("머리줄은 어느 별이든 화면 이름이고, 별 이름은 본문에 한 번이다", () => {
+    expect(page).toContain('title={t("ds.star.pageLabel")}');
+    expect(page).not.toContain('title={isProfileStar ? t("ds.star.pageLabel") : name}');
+    // The page label is no longer repeated above the star's name.
+    expect(page.match(/t\("ds\.star\.pageLabel"\)/g)?.length).toBe(1);
+    expect(page).not.toContain("styles.pageLabel");
+  });
+
+  it("층 수는 한 번, 사다리의 켜진 층에서 센다", () => {
+    expect(page.match(/t\("ds\.star\.count"/g)?.length).toBe(1);
+    expect(page).toContain('t("ds.star.count", { n: ladder.filter((rung) => rung.on).length, total: ladder.length })');
+  });
+
+  it("밝기를 설명하던 문장 둘은 낭독 이름으로만 남는다", () => {
+    expect(page).toContain('accessibilityRole="progressbar"');
+    expect(page).toMatch(/accessibilityLabel=\{t\("ds\.star\.meter",/);
+    expect(page).toMatch(/text: t\("ds\.star\.dug",/);
+    // Neither sentence is drawn as visible text any more.
+    expect(page).not.toMatch(/<Text[^>]*>\s*\{t\("ds\.star\.(meter|dug)"/);
+    expect(page).not.toContain("ds.star.recordsLabel");
+  });
+
+  it("사다리는 한 곳에서 정한 순서로 그리고, 줄에는 층 이름만 쓴다", () => {
+    expect(page).toContain('import { starLadderRungs } from "@/lib/interview/star-ladder";');
+    expect(page).toContain("? starLadderRungs(summary.covered)");
+    expect(page).toContain("{ladder.map(({ layer, on }) => (");
+    expect(page).not.toMatch(/gaugeSegment|styles\.gauge/);
+  });
+
+  it("줄은 44 아래로 줄지 않고, 본문이 창 높이까지 자라 사다리가 남는 높이를 가져간다", () => {
+    expect(page).toContain("const RUNG_MIN = 44;");
+    expect(page).toContain("starBody: { flexGrow: 1 }");
+    expect(page).toMatch(/rung: \{[^}]*flexGrow: 1,[^}]*flexBasis: RUNG_MIN,[^}]*minHeight: RUNG_MIN/);
+    expect(page).toMatch(/ladder: \{[^}]*flexGrow: 1,[^}]*maxHeight: RUNG_MAX \* 5 \+ RUNG_GAP \* 4/);
+  });
+
+  it.each(LOCALES)("%s: 짧은 층 수 문자열이 있고 구역 제목은 없다", (loc) => {
+    const copy = star(loc);
+    expect(copy).not.toHaveProperty("recordsLabel");
+    expect(copy.count).toEqual(expect.stringContaining("{{n}}/{{total}}"));
+    // The spoken sentences are still there for the progress bar.
+    expect(typeof copy.meter).toBe("string");
+    expect(typeof copy.dug).toBe("string");
+  });
+});

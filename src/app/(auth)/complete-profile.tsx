@@ -11,6 +11,8 @@ import { PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { BirthDateField } from "@/components/auth/BirthDateField";
+import { GuardianSupervisionNotice } from "@/components/consent/GuardianSupervisionNotice";
+import { shouldEmphasizeGuardianSupervision } from "@/components/consent/guardian-supervision-emphasis";
 import { ResidenceCountryField } from "@/components/auth/ResidenceCountryField";
 import { GoalField, NameField } from "@/components/auth/ProfileIntakeFields";
 import { saveNorthstar } from "@/lib/persona/northstar";
@@ -360,6 +362,7 @@ function CompleteProfileBody() {
               onChange={setBirthDate}
               minAge={minConsentAge}
             />
+            <GuardianSupervisionNotice emphasized={shouldEmphasizeGuardianSupervision(birthDate)} />
 
             {birthDate.length > 0 ? (
               <View style={styles.checklist}>

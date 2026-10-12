@@ -34,3 +34,13 @@ export function shouldCompleteCardDismiss(dy: number, vy: number): boolean {
   const distance = Math.abs(dy);
   return distance >= 90 || (distance >= 24 && Math.abs(vy) >= 0.75);
 }
+
+/**
+ * True while the card body still has text under its visible bottom edge. The
+ * deck draws its "there is more" band from this, off the same edge the
+ * swipe-to-close reads, so the two can never disagree.
+ */
+export function cardHasMoreBelow(body: { y: number; viewport: number; content: number } | undefined): boolean {
+  if (!body || body.viewport <= 0 || body.content <= 0) return false;
+  return !cardEdges(body.y, body.viewport, body.content).bottom;
+}

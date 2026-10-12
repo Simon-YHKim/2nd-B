@@ -20,7 +20,7 @@ import {
 } from "@/lib/dashboard/board/contract";
 import { boardTone } from "@/lib/dashboard/board/tone";
 import { phoneIos } from "@/lib/theme/phone-ios";
-import { formatPhoneTime } from "@/lib/dashboard/phone-clock";
+import { formatPhoneTime, noteWrittenAt } from "@/lib/dashboard/phone-clock";
 import { IosButton, IosCardHeader } from "./IosParts";
 import { WeatherGlyph, WeatherPin } from "./WeatherGlyph";
 
@@ -122,6 +122,7 @@ function NoteRow({ part, events }: { part: NotePart; events: BoardEvents }) {
   const title = t("phone.board.shelf.parts.note");
   // 시간대는 문장이 있을 때만 붙인다. 문장이 없는 칸에 기본 시간대가 사실처럼 보이지 않게.
   const slot = part.line ? t(`phone.board.note.slot.${part.slot}`) : null;
+  const writtenAt = noteWrittenAt(part);
   return <Frame basis={part.basis} shape={part.shape}>
     <Pressable testID="board-note-open" accessibilityRole="button" accessibilityLabel={slot ? `${title}, ${slot}` : title}
       onPress={events.openSummary}>
@@ -136,8 +137,7 @@ function NoteRow({ part, events }: { part: NotePart; events: BoardEvents }) {
       </Pressable>
       <Evidence route={part.evidenceRoute} basis={part.basis} go={events.go} />
     </View> : null}
-    {part.generatedAt ? <Text variant="caption" style={styles.muted}>{t("phone.noteUpdatedAt", { time: new Date(part.generatedAt).toLocaleString(i18n.language, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) })}</Text> : null}
-    {part.previous ? <Text variant="caption" style={styles.muted}>{t("phone.notePrevious")}</Text> : null}
+    {writtenAt ? <Text variant="caption" style={styles.muted}>{t("phone.noteUpdatedAt", { time: new Date(writtenAt).toLocaleString(i18n.language, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) })}</Text> : null}
     <Note part={part} go={events.go} />
   </Frame>;
 }
