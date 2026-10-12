@@ -68,10 +68,10 @@ export type SignUpSubmitResult =
   | { kind: "ageGate" }
   /** Password found in the HIBP breach corpus. No session was created. */
   | { kind: "breachedPassword" }
-  /** A rejected new-user INSERT may be the mailbox alias guard (Z1), but the
-   *  API does not expose its cause. Suggest sign-in / password reset with
-   *  conditional copy, never assert the account exists. Exact-address fake
-   *  success remains confirmationRequired, without a sign-in probe. */
+  /** The enumeration-safe "already registered" shape (J3): GoTrue faked the
+   *  sign-up success without a session and the immediate sign-in failed with
+   *  invalid credentials. The screen suggests sign-in / password reset —
+   *  conditionally worded, never asserting the account exists. */
   | { kind: "maybeExistingAccount" }
   /** Sign-up failed after the pre-checks (profile INSERT, network). signUp
    *  already rolled the session back; the screen stays on the form with the

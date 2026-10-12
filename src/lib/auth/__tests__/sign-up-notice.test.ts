@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { clearSignUpFailure, signUpToastTimeoutMs, type SignUpToast } from "../sign-up-notice";
@@ -178,6 +179,28 @@ describe("Z1 notice policy and actual effect", () => {
     h.focus(false);
     h.focus(true);
     expect(h.state.toast).toBeNull();
+  });
+
+  // The sequence above re-runs the blur effect by hand, so it cannot tell whether a failure that
+  // arrives AFTER the blur re-triggers the effect. That depends on the dependency list alone:
+  // without `toast` and `existingAccountHelp` in it, a late result would stay on the covered route
+  // and be announced again on return.
+  test("the blur effect re-runs when a late notice or card arrives", () => {
+    const hook = readFileSync(join(__dirname, "..", "useSignUpForm.ts"), "utf8").replace(/\r\n/g, "\n");
+    expect(hook).toMatch(
+      /if \(isFocused\) return;\s*setToast\(null\);\s*setExistingAccountHelp\(false\);\s*\}, \[isFocused, toast, existingAccountHelp\]\);/,
+    );
+  });
+
+  // Review decision (2026-10-13, PR #2335 round 1): a rejected new-user INSERT has ONE public shape
+  // (500 + unexpected_failure + "Database error saving new user") for every trigger, constraint or
+  // database fault. Mapping that shape to "you may already have an account" guesses a cause the API
+  // does not expose and turns an unspecific failure into an account-existence hint. Until the server
+  // can name the cause, the sign-up call must pass the error through to the generic failure notice.
+  test("the sign-up call does not guess an existing account from a database rejection", () => {
+    const auth = readFileSync(join(__dirname, "..", "..", "supabase", "auth.ts"), "utf8");
+    expect(auth).not.toMatch(/new ExistingAccountLikelyError\(/);
+    expect(auth).not.toMatch(/Database error saving new user/);
   });
 });
 
