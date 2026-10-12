@@ -9,6 +9,11 @@ import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView a
 // ⚠ 지어내지 않는다. 기록이 없으면 "아직 없다"고 말하고 끝낸다. 추정치를 만들어
 // 보여주는 것이 이 저장소가 반복해서 걸렸던 병이다.
 //
+// 2026-10-12 (Simon, Q-261012-57 시안 B): 다섯 층은 세로 사다리 하나로 그린다.
+// 머리줄은 프로필 별과 같은 규칙("별 요약" + 큰 글씨 별 이름)이고, 밝기를 설명하던
+// 문장 둘과 "지금까지 저장한 내용" 은 화면에서 뺐다. 그 문장들은 낭독 이름으로만
+// 남는다 - 그림이 말하게 하고 글로 다시 설명하지 않는다.
+//
 // 아직 살지 않은 시기(스물다섯 살의 "30대 이후")는 **잠긴다.** 살지 않은 때를
 // 물어보는 것은 지어내라는 말이다.
 import { useCallback, useEffect, useState } from "react";
@@ -47,6 +52,7 @@ import {
   type DrillLayer,
   type LifePeriod,
 } from "@/lib/interview/probe";
+import { starLadderRungs } from "@/lib/interview/star-ladder";
 import { coveredDrillLayers, meStarStaticParams } from "@/lib/nav/me-star-route";
 import { RedirectHome } from "@/lib/nav/go-home";
 import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
@@ -189,13 +195,16 @@ export default function StarSummaryRoute() {
   const profileCta = profile.status === "ready"
     ? t(countFilledDetails(profile.details) > 0 ? "ds.star.editProfile" : "ds.star.setupProfile")
     : t("ds.star.openProfile");
+  // 사다리는 이야기나 기록이 하나라도 있을 때만 그린다. 없으면 "아직 없다"는 한 줄이다.
+  const ladder = !isProfileStar && !locked && summary !== null && !(summary.cells === 0 && summary.records === 0)
+    ? starLadderRungs(summary.covered)
+    : null;
 
   return (
-    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={isProfileStar ? t("ds.star.pageLabel") : name} onBack={() => router.back()}>
-      <ScrollView contentContainerStyle={[styles.body, isProfileStar && styles.profileBody]}>
-        {/* 레퍼런스는 별 이름 위에 화면 이름을 둔다 — 어느 별에 있든 "여기가 요약
-            자리"라는 것이 먼저 읽혀야 하기 때문이다(design/pixel_clay_260825
-            captures/me-star.png). */}
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={t("ds.star.pageLabel")} onBack={() => router.back()}>
+      <ScrollView contentContainerStyle={[styles.body, isProfileStar ? styles.profileBody : styles.starBody]}>
+        {/* 화면 이름("별 요약")은 머리줄이 말한다 - 어느 별에 있든 "여기가 요약 자리"
+            라는 것이 먼저 읽힌다. 본문은 별 이름부터 시작한다(프로필 별과 같은 규칙). */}
         {isProfileStar ? (
           // Simon 승인 시안(2026-10-09): 제목/연필, 초상화, 이름/상태,
           // 좌우 정렬한 정보 표, 가져오기 카드, 이력 링크.
@@ -256,20 +265,23 @@ export default function StarSummaryRoute() {
             </Pressable>
           </>
         ) : (
-          <>
-            <Text style={[m3TextStyle("labelMedium"), styles.pageLabel]}>{t("ds.star.pageLabel")}</Text>
-            <View style={styles.hero}>
-              <Svg width={52} height={52} viewBox="0 0 52 52">
-                <PixelStarSvg cx={26} cy={26} r={12} fill={m3.color.primary} />
-              </Svg>
-              <View style={styles.heroCopy}>
-                <Text style={[m3TextStyle("headlineSmall"), styles.title]}>{name}</Text>
-                {range.length > 0 ? (
-                  <Text style={[m3TextStyle("bodyMedium"), styles.range]}>{range}</Text>
-                ) : null}
-              </View>
+          <View style={styles.hero}>
+            <Svg width={52} height={52} viewBox="0 0 52 52">
+              <PixelStarSvg cx={26} cy={26} r={12} fill={m3.color.primary} />
+            </Svg>
+            <View style={styles.heroCopy}>
+              <Text style={[m3TextStyle("headlineSmall"), styles.title]}>{name}</Text>
+              {range.length > 0 ? (
+                <Text style={[m3TextStyle("bodyMedium"), styles.range]}>{range}</Text>
+              ) : null}
             </View>
-          </>
+            {/* 층 수는 여기 한 번. 단위가 "층"이라 점수가 아니라 이야기한 양으로 읽힌다. */}
+            {ladder ? (
+              <Text style={[m3TextStyle("labelLarge"), styles.title]}>
+                {t("ds.star.count", { n: ladder.filter((rung) => rung.on).length, total: ladder.length })}
+              </Text>
+            ) : null}
+          </View>
         )}
 
         {locked ? (
@@ -297,75 +309,52 @@ export default function StarSummaryRoute() {
                 </Text>
               </MdCard>
             ) : null}
-            <MdCard variant="outlined" style={styles.card}>
-              {summary === null ? (
-                <Text style={[m3TextStyle("bodyMedium"), styles.muted]}>{t("ds.star.loading")}</Text>
-              ) : summary.cells === 0 && summary.records === 0 ? (
-                // 지어내지 않는다. 없으면 없다고 한다.
-                <Text style={[m3TextStyle("bodyMedium"), styles.muted]}>{t("ds.star.emptyBody")}</Text>
-              ) : (
-                <>
-                  {/* 밝기의 규칙을 숫자 옆에 붙여 말한다. 이 한 줄이 없으면 "3/5"
-                      가 점수처럼 읽히는데, 이 앱에서 밝기는 평가가 아니라 판 양이다. */}
-                  <Text style={[m3TextStyle("bodyMedium"), styles.line]}>
-                    {t("ds.star.meter", { n: summary.cells ?? 0, total: DRILL_LAYERS.length })}
-                  </Text>
-                  <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
-                    {t("ds.star.dug", { n: summary.cells ?? 0, total: DRILL_LAYERS.length })}
-                  </Text>
-                  <View
-                    style={styles.gauge}
-                    accessible
-                    accessibilityRole="progressbar"
-                    accessibilityLabel={t("ds.star.meter", {
+            {ladder && summary ? (
+              <>
+                {/* 낭독에는 밝기의 규칙을 문장으로 남긴다: 이 앱에서 밝기는 평가가 아니라
+                    이야기한 양이다. 눈에는 켜진 층 이름이 그 말을 한다. */}
+                <View
+                  style={styles.ladder}
+                  accessible
+                  accessibilityRole="progressbar"
+                  accessibilityLabel={t("ds.star.meter", {
+                    n: summary.covered.length,
+                    total: DRILL_LAYERS.length,
+                  })}
+                  {...a11yValue({
+                    min: 0,
+                    max: DRILL_LAYERS.length,
+                    now: summary.covered.length,
+                    text: t("ds.star.dug", {
                       n: summary.covered.length,
                       total: DRILL_LAYERS.length,
-                    })}
-                    {...a11yValue({
-                      min: 0,
-                      max: DRILL_LAYERS.length,
-                      now: summary.covered.length,
-                      text: t("ds.star.dug", {
-                        n: summary.covered.length,
-                        total: DRILL_LAYERS.length,
-                      }),
-                    })}
-                  >
-                    {DRILL_LAYERS.map((layer) => {
-                      const isCovered = summary.covered.includes(layer);
-                      return (
-                        <View key={layer} style={styles.gaugeItem}>
-                          <View
-                            style={[
-                              styles.gaugeSegment,
-                              isCovered ? styles.gaugeSegmentOn : styles.gaugeSegmentOff,
-                            ]}
-                          />
-                          <Text
-                            style={[
-                              m3TextStyle("labelSmall"),
-                              isCovered ? styles.layerOn : styles.layerOff,
-                            ]}
-                          >
-                            {/* Layer name only. The interview's "L1 · Fact" labels put an
-                                L number on each cell, and in this app L1~L5 is the
-                                brightness ladder: a fifth covered cell read as "L5"
-                                while coverage tops out at L4 (QA 261004 W-08/D-10). */}
-                            {t(`ds.star.layer.${layer}`)}
-                          </Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                  <Text style={[m3TextStyle("labelSmall"), styles.sectionLabel]}>
-                    {t("ds.star.recordsLabel")}
-                  </Text>
-                  <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
-                    {t("ds.star.records", { count: summary.records })}
-                  </Text>
-                </>
-              )}
-            </MdCard>
+                    }),
+                  })}
+                >
+                  {ladder.map(({ layer, on }) => (
+                    <View key={layer} style={[styles.rung, on ? styles.rungOn : null]}>
+                      <View style={[styles.rungMark, on ? styles.rungMarkOn : null]} />
+                      <Text style={[m3TextStyle("headlineSmall"), on ? styles.layerOn : styles.layerOff]}>
+                        {/* Layer name only, no number on the rung. In this app L1~L5 is the
+                            brightness ladder: a numbered fifth rung read as "L5" while
+                            coverage tops out at L4 (QA 261004 W-08/D-10). */}
+                        {t(`ds.star.layer.${layer}`)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
+                  {t("ds.star.records", { count: summary.records })}
+                </Text>
+              </>
+            ) : (
+              <MdCard variant="outlined" style={styles.card}>
+                {/* 지어내지 않는다. 없으면 없다고 한다. */}
+                <Text style={[m3TextStyle("bodyMedium"), styles.muted]}>
+                  {summary === null ? t("ds.star.loading") : t("ds.star.emptyBody")}
+                </Text>
+              </MdCard>
+            )}
 
             {entry?.kind !== "previous" ? (
               <MdButton
@@ -385,11 +374,16 @@ export default function StarSummaryRoute() {
   );
 }
 
+// 줄 하나의 가장 낮은 높이(누르는 자리 크기와 같은 44)와 가장 높은 높이.
+const RUNG_MIN = 44;
+const RUNG_MAX = 96;
+const RUNG_GAP = 8;
+
 const styles = StyleSheet.create({
   body: { padding: spacing.lg, gap: spacing.sm },
   profileBody: { paddingHorizontal: 14, paddingVertical: 18, gap: 0 },
-  pageLabel: { color: m3.color.onSurfaceVariant, marginBottom: spacing.xs },
-  sectionLabel: { color: m3.color.onSurfaceVariant, marginTop: spacing.sm },
+  // 사다리가 화면의 남는 높이를 가져가도록 본문이 창 높이까지 자란다.
+  starBody: { flexGrow: 1 },
   hero: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   profileHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 44 },
   profileTitle: { flex: 1 },
@@ -411,16 +405,34 @@ const styles = StyleSheet.create({
   title: { color: m3.color.onSurface },
   range: { color: m3.color.onSurfaceVariant, marginBottom: spacing.sm },
   card: { marginTop: spacing.sm },
-  line: { color: m3.color.onSurface },
   muted: { color: m3.color.onSurfaceVariant },
-  gauge: { flexDirection: "row", gap: spacing.xs, marginTop: spacing.md },
-  gaugeItem: { flex: 1, gap: spacing.xs },
-  gaugeSegment: { height: 18, borderWidth: 1, borderRadius: m3.shape.none },
-  gaugeSegmentOn: { backgroundColor: m3.color.primary, borderColor: m3.color.primary },
-  gaugeSegmentOff: {
-    backgroundColor: m3.color.surfaceContainerHighest,
+  // 다섯 층 사다리. 높은 화면에서는 줄이 RUNG_MAX 까지 자라 아래 절반을 채우고,
+  // 낮은 화면(대시보드 폰 안)에서는 RUNG_MIN 까지 줄어든 뒤 본문이 스크롤한다.
+  ladder: {
+    flexGrow: 1,
+    flexShrink: 0,
+    flexBasis: RUNG_MIN * 5 + RUNG_GAP * 4,
+    maxHeight: RUNG_MAX * 5 + RUNG_GAP * 4,
+    gap: RUNG_GAP,
+    marginTop: spacing.sm,
+  },
+  rung: {
+    flexGrow: 1,
+    flexShrink: 0,
+    flexBasis: RUNG_MIN,
+    minHeight: RUNG_MIN,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingRight: spacing.md,
+    borderWidth: 2,
+    borderRadius: m3.shape.none,
     borderColor: m3.color.outlineVariant,
   },
+  rungOn: { backgroundColor: m3.color.surfaceContainerLow },
+  // 켜진 층의 표시. 안 한 층은 이 자리가 비어 테두리만 남는다.
+  rungMark: { alignSelf: "stretch", width: 12, margin: 2 },
+  rungMarkOn: { backgroundColor: m3.color.primary },
   layerOn: { color: m3.color.onSurface },
   layerOff: { color: m3.color.onSurfaceVariant },
   cta: { marginTop: spacing.lg },
