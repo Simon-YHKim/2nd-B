@@ -530,7 +530,7 @@
       "continue": "Lanjutkan",
       "pageLabel": "Ringkasan bintang",
       "meter": "Berdasarkan cerita yang sudah kamu isi · {{n}}/{{total}} lapis",
-      "recordsLabel": "Yang sudah kamu simpan",
+      "count": "{{n}}/{{total}} lapis",
       "layer": {
         "fact": "Fakta",
         "feeling": "Perasaan",
