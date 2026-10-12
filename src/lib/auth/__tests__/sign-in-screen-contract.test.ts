@@ -101,7 +101,8 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
     expect(source).toContain('secureTextEntry={!showPassword}');
     expect(source).toContain('returnKeyType="next"');
     expect(source).toContain('returnKeyType="go"');
-    expect(source).toContain("runAuthActionOnce(actionLock, handleSubmit)");
+    // 2026-10-13 Z12: same synchronous mutex, with invalid-field focus relay.
+    expect(source).toContain("runAuthActionOnce(actionLock, () => handleSubmit((field) =>");
     expect(source).toContain("runAuthActionOnce(actionLock, () => handleOAuth(provider))");
     expect(source).not.toContain("PROVIDER_MONOGRAM");
     expect(source).not.toContain("handleNaver");
@@ -210,8 +211,9 @@ describe("sign-in extraction boundaries", () => {
     expect(sha256(source.slice(0, split))).toBe(
       "299d83f55b8f2169d0c569cb4771cb9da125fd097558258aae24c8760db63217",
     );
+    // 2026-10-13 Z13: request notice above Send + email-focus relay; other phases unchanged.
     expect(sha256(source.slice(tail))).toBe(
-      "f03a045e70a79e87ea2fa3dd757430da15845aaaf4a5adb6400f25e8894dec39",
+      "69504e0ebd313d0b7d1e164ff8aee0c4dddf768bb804ddc322c3309318568d8d",
     );
   });
 

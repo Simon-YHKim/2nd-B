@@ -1057,6 +1057,9 @@ results.push(
       pixelPressable.includes("accessibilityState={{ ...accessibilityState, disabled }}") &&
       signIn.includes('accessibilityLabel={t("auth:signIn.submit")}') &&
       signIn.includes("disabled={submitDisabled}") &&
+      // 2026-10-13 Z12: validation may be pressed; only in-flight writes disable.
+      signIn.includes("const authBusy = submitting || oauthSubmitting") &&
+      signIn.includes("const submitDisabled = authBusy") &&
       // 로그인 화면의 OAuth 목록은 가입 화면과 같은 다섯 종이다(Simon 2026-10-13, Q-261013-03:
       // "가입 화면과 같게" - Kakao 로 가입한 사람이 로그인 화면에서 자기 버튼을 못 찾았다).
       // 그 전에는 Google · Apple · GitHub 세 종이었고 Kakao 의 부재를 고정했었다. 그 결정을 이 답이 바꾼다.

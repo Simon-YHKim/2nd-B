@@ -18,6 +18,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { AuthLockWaitTimeoutError } from "@/lib/auth/session-mutation";
 import { createSignInProgress } from "@/lib/auth/sign-in-progress";
 import { observeAuthConversion } from "@/lib/analytics/auth-conversions";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import {
   isNaverEnabled,
   isProviderEnabled,
@@ -34,13 +35,15 @@ import {
 } from "@/lib/auth/auth-providers";
 
 import {
-  SIGN_IN_TOAST_DURATION_MS, attachSignInExit, clearSignInExit, createSignInBackHandler,
+  attachSignInExit, clearSignInExit, createSignInBackHandler,
   detachSignInExit, presentSignInExit,
   replacePresentedSignInExit, type PresentedSignInExit,
 } from "./sign-in-back";
 
 import { selectSignInBranch, type SignInBranch } from "./sign-in-branch";
 import { replaceSignInToast, type SignInToast } from "./sign-in-toast";
+// Reuse the sign-up policy without moving its module across independent fixes.
+import { clearSignUpFailure as clearAuthFailure, signUpToastTimeoutMs as authToastTimeoutMs } from "./sign-up-notice";
 export type { SignInToastTone, SignInToast } from "./sign-in-toast";
 
 // The Supabase-native providers, in display order. (Re-export for callers/tests.)
@@ -75,14 +78,15 @@ export interface UseSignInForm<T = unknown> {
   visibleProviders: OAuthProvider[];
   naverEnabled: boolean;
   // handlers
-  handleSubmit: () => Promise<void>;
+  handleSubmit: (onInvalid?: (field: "email" | "password") => void) => Promise<void>;
   handleOAuth: (provider: OAuthProvider) => Promise<void>;
   handleNaver: () => Promise<void>;
   handleForgotPassword: () => Promise<void>;
 }
 
 export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
-  const { t } = useTranslation(["auth", "common"]);
+  const { t, i18n } = useTranslation(["auth", "common"]);
+  const language = renderedUiLanguage(i18n);
   const { userId, loading, refresh } = useAuth();
   const branch = selectSignInBranch({ deletionNotice, loading, userId });
   const isFocused = useIsFocused();
@@ -137,9 +141,24 @@ export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
   // for the rest of the session so the user is not left tapping a dead button.
   const [hiddenProviders, setHiddenProviders] = useState<Set<string>>(new Set());
 
+  const clearFailure = useCallback(() => {
+    const current = toastRef.current;
+    if (current?.tone === "danger") setToast(clearAuthFailure(current), current);
+  }, [setToast]);
+
+  useEffect(() => {
+    clearFailure();
+  }, [language, clearFailure]);
+
+  useEffect(() => {
+    // Also retire results arriving after a covered route has lost focus.
+    if (!isFocused || !branch.includesNotice) clearFailure();
+  }, [isFocused, branch.includesNotice, toast, clearFailure]);
+
   useEffect(() => {
     if (!toast || toast.exitOnBack) return;
-    const duration = SIGN_IN_TOAST_DURATION_MS;
+    const duration = authToastTimeoutMs(toast);
+    if (duration === null) return;
     const timeout = setTimeout(() => setToast(null, toast), duration);
     return () => clearTimeout(timeout);
   }, [toast, setToast]);
@@ -175,16 +194,24 @@ export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
 
   const setEmailAndClearReset = useCallback(
     (value: string) => {
+      clearFailure();
       setEmail(value);
       setResetEmailSentTo((prev) => (prev && value.trim() !== prev ? null : prev));
     },
-    [],
+    [clearFailure],
   );
+
+  const setPasswordAndClearFailure = useCallback((value: string) => {
+    clearFailure();
+    setPassword(value);
+  }, [clearFailure]);
 
   const toggleShowPassword = useCallback(() => setShowPassword((v) => !v), []);
 
   const handleOAuth = useCallback(
     async (provider: OAuthProvider) => {
+      if (actionLockRef.current > 0) return;
+      clearFailure();
       setOauthSubmitting(true);
       actionLockRef.current += 1;
       try {
@@ -208,12 +235,14 @@ export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
         setOauthSubmitting(false);
       }
     },
-    [t, setToast],
+    [t, setToast, clearFailure],
   );
 
   // Naver uses a custom web redirect (not Supabase-native), so it has its own
   // handler. isNaverEnabled() keeps it hidden on native.
   const handleNaver = useCallback(async () => {
+    if (actionLockRef.current > 0) return;
+    clearFailure();
     setOauthSubmitting(true);
     actionLockRef.current += 1;
     try {
@@ -228,9 +257,21 @@ export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
       actionLockRef.current -= 1;
       setOauthSubmitting(false);
     }
-  }, [t, setToast]);
+  }, [t, setToast, clearFailure]);
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(async (onInvalid?: (field: "email" | "password") => void) => {
+    if (actionLockRef.current > 0) return;
+    clearFailure();
+    if (!email.trim().includes("@")) {
+      setToast({ tone: "danger", message: t("signIn.resetToast") });
+      onInvalid?.("email");
+      return;
+    }
+    if (password.length === 0) {
+      setToast({ tone: "danger", message: t("errors.signInFailed") });
+      onInvalid?.("password");
+      return;
+    }
     setSubmitting(true);
     const progress = Platform.OS === "web"
       ? createSignInProgress((stage, elapsedMs) => {
@@ -264,9 +305,11 @@ export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
       progress?.finish();
       setSubmitting(false);
     }
-  }, [email, password, refresh, t, setToast]);
+  }, [email, password, refresh, t, setToast, clearFailure]);
 
   const handleForgotPassword = useCallback(async () => {
+    if (actionLockRef.current > 0) return;
+    clearFailure();
     setResetHelpVisible(true);
     setResetEmailSentTo(null);
     const resetEmail = email.trim();
@@ -287,7 +330,7 @@ export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
       actionLockRef.current -= 1;
       setResetSubmitting(false);
     }
-  }, [email, t, setToast]);
+  }, [email, t, setToast, clearFailure]);
 
   const canSubmit = email.includes("@") && password.length > 0 && !submitting;
 
@@ -301,7 +344,7 @@ export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
     email,
     setEmail: setEmailAndClearReset,
     password,
-    setPassword,
+    setPassword: setPasswordAndClearFailure,
     showPassword,
     toggleShowPassword,
     submitting,

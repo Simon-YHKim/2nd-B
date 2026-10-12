@@ -62,7 +62,6 @@ export function resetExitLocked(input: {
 
 /** Keep request, verification, and mutation controls mutually exclusive. */
 export function resetActionAvailability(input: {
-  emailValid: boolean;
   codeValid: boolean;
   passwordsValid: boolean;
   recoveryActive: boolean;
@@ -73,7 +72,8 @@ export function resetActionAvailability(input: {
 }): { canSendCode: boolean; canVerify: boolean; canSubmit: boolean } {
   const idle = !input.recoveryPending && !input.sendSubmitting && !input.submitting;
   return {
-    canSendCode: input.emailValid && idle && input.resendSeconds === 0,
+    // Missing input is explained on press; operation/cooldown locks still disable.
+    canSendCode: idle && input.resendSeconds === 0,
     canVerify: input.codeValid && idle,
     canSubmit: input.recoveryActive && input.passwordsValid && idle,
   };

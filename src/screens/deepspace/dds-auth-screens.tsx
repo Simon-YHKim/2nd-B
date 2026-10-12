@@ -225,6 +225,9 @@ export function DeepSpaceResetPasswordDesignScreen() {
   // first and the form after AuthContext hydrates; moving the ref below the return
   // changes hook count between those renders.
   const confirmRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  const { fontScale } = useWindowDimensions();
+  const sendCode = () => handleSendCode(() => emailRef.current?.focus());
 
   usePreventRemove(exitLocked, useCallback(() => {}, []));
   useGoHomeStop(() => exitLocked); // a home jump from above stops here (gate NS-02)
@@ -288,6 +291,28 @@ export function DeepSpaceResetPasswordDesignScreen() {
           ? t("auth:resetPassword.verifySubtitle")
           : t("auth:resetPassword.requestSubtitle");
   const statusGlyph = step === "done" ? "check" : step === "verify" ? "inbox" : "lock";
+  const resetNotice = toast ? (
+    <View accessibilityRole="alert" accessibilityLiveRegion="assertive">
+      <PixelSurface
+        variant="frame"
+        background={
+          toast.tone === "danger" ? m3.color.errorContainer : m3.color.surfaceContainerHigh
+        }
+        contentStyle={resetStyles.toastContent}
+      >
+        <Text
+          style={[
+            m3TextStyle("bodyMedium"),
+            resetStyles.toastText,
+            toast.tone === "danger" && resetStyles.toastDanger,
+            toast.tone === "success" && resetStyles.toastSuccess,
+          ]}
+        >
+          {toast.message}
+        </Text>
+      </PixelSurface>
+    </View>
+  ) : null;
 
   return (
     <PixelGateShell contentContainerStyle={resetStyles.scroll}>
@@ -343,6 +368,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
           <>
             <ResetField label={t("auth:resetPassword.emailLabel")}>
               <TextInput
+                ref={emailRef}
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
@@ -357,12 +383,17 @@ export function DeepSpaceResetPasswordDesignScreen() {
                 editable={!sendSubmitting && !recoveryPending}
                 returnKeyType="send"
                 onSubmitEditing={() => {
-                  if (canSendCode) void handleSendCode();
+                  if (canSendCode) void sendCode();
                 }}
               />
             </ResetField>
+            {step === "request" ? (
+              <View style={{ minHeight: m3.type.bodyMedium.line * 3 * fontScale + m3.spacing.s4 * 2 }}>
+                {resetNotice}
+              </View>
+            ) : null}
             <ResetAction
-              onPress={() => void handleSendCode()}
+              onPress={() => void sendCode()}
               disabled={!canSendCode}
               busy={sendSubmitting}
               secondary={step === "verify"}
@@ -480,28 +511,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
         )}
       </View>
 
-      {toast ? (
-        <View accessibilityRole="alert" accessibilityLiveRegion="assertive">
-          <PixelSurface
-            variant="frame"
-            background={
-              toast.tone === "danger" ? m3.color.errorContainer : m3.color.surfaceContainerHigh
-            }
-            contentStyle={resetStyles.toastContent}
-          >
-            <Text
-              style={[
-                m3TextStyle("bodyMedium"),
-                resetStyles.toastText,
-                toast.tone === "danger" && resetStyles.toastDanger,
-                toast.tone === "success" && resetStyles.toastSuccess,
-              ]}
-            >
-              {toast.message}
-            </Text>
-          </PixelSurface>
-        </View>
-      ) : null}
+      {step !== "request" ? resetNotice : null}
     </PixelGateShell>
   );
 }
