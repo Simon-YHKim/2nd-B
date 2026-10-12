@@ -7,7 +7,7 @@ import { Text } from "@/components/ui/Text";
 import { MdCard } from "@/components/m3/MdCard";
 import { MdButton } from "@/components/m3/MdButton";
 import { accountTransitionSnapshot, captureAccountOwnerLease, subscribeAccountTransition, type AccountOwnerLease } from "@/lib/auth/account-epoch";
-import { listOneOffReminders, removeOneOffReminder, type OneOffReminder } from "@/lib/ops/one-off-reminders";
+import { listOneOffReminders, removeOneOffReminder, sweepOrphanedOneOffReminders, type OneOffReminder } from "@/lib/ops/one-off-reminders";
 import { disableReminder, enableReminder, getScheduledRoutineIds, remindersSupported } from "@/lib/ops/reminders";
 import { systemLocaleFor } from "@/lib/i18n/locales";
 import { m3 } from "@/lib/theme/m3";
@@ -55,6 +55,8 @@ export function ChatRemindersList({ ownerId, onCountChange }: { ownerId: string;
         // Refocusing during this owner's mutation reads its completed OS state.
         if (pending.current?.ownerId === ownerId) await pending.current.promise;
         if (!active()) return;
+        await sweepOrphanedOneOffReminders(ownerId);
+        if (!active()) return;
         const [items, scheduled] = await Promise.all([listOneOffReminders(ownerId), getScheduledRoutineIds(ownerId)]);
         if (active()) setState({ ...empty(ownerId), items, scheduled, loading: false });
       } catch {
@@ -92,7 +94,8 @@ export function ChatRemindersList({ ownerId, onCountChange }: { ownerId: string;
           const removed = await removeOneOffReminder(ownerId, item.id);
           if (!active()) return;
           if (!removed) throw new Error("reminder_remove_failed");
-          setState(previous => ({ ...previous, items: previous.items.filter(row => row.id !== item.id) }));
+          setState(previous => ({ ...previous, items: previous.items.filter(row => row.id !== item.id),
+            notice: removed === "alarm-uncertain" ? "alarmFailed" : null }));
           setConfirmId(null);
         } else {
           const enabled = isOn ? (await disableReminder(ownerId, item.id), true)

@@ -28,5 +28,9 @@
     "seeAreaHint": "Membuka {{area}} dengan catatan ini di paling atas.",
     "askSecondB": "Tanya HustleK",
     "openSource": "Buka sumber"
+  },
+  "structuredForm": {
+    "career_3c4p": "Pengalaman karier",
+    "call_reflection": "Refleksi panggilan"
   }
 }

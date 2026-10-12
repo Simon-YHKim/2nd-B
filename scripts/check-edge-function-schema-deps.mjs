@@ -79,6 +79,15 @@ const DYNAMIC_RPCS = new Map([
   ["`${transition}_llm_proxy_capacity`", ["settle_llm_proxy_capacity", "release_llm_proxy_capacity"]],
 ]);
 
+// 0243 grants only history columns. Table existence alone cannot establish that
+// export-account can read them. Keep this contract paired with its descriptor.
+const SELECT_COLUMN_REQUIREMENTS = {
+  profile_context_imports: [
+    "id", "user_id", "created_at", "item_count", "profile_change_count", "status",
+    "withdrawn_at", "profile_restored",
+  ],
+};
+
 function argumentsAfterOpenParen(sql, start) {
   let depth = 1;
   let quote = "";
@@ -213,6 +222,9 @@ export function dependencies(slug) {
     functions,
     tables: [...mentioned].filter((n) => defined.tables.has(n)).sort(),
     columns,
+    selectColumns: Object.entries(SELECT_COLUMN_REQUIREMENTS)
+      .filter(([table]) => mentioned.has(table) && defined.tables.has(table))
+      .flatMap(([table, names]) => names.map((name) => `${table}.${name}`)).sort(),
     functionContracts,
   };
 }
@@ -222,9 +234,10 @@ export function requestBody(deps) {
     ...deps.functionContracts.map(({ name, signature, argNames }) => ({ kind: "function", name, signature, arg_names: argNames })),
     ...deps.tables.map((name) => ({ kind: "table", name })),
     ...deps.columns.map((name) => ({ kind: "column", name })),
+    ...deps.selectColumns.map((name) => ({ kind: "select_column", name })),
   ];
   for (const row of rows) {
-    const identifiers = row.kind === "column" ? row.name.split(".") : [row.name];
+    const identifiers = ["column", "select_column"].includes(row.kind) ? row.name.split(".") : [row.name];
     if (!identifiers.every((identifier) => IDENT.test(identifier))) fail(`invalid-identifier-${row.name}`);
   }
   const json = JSON.stringify(rows);
@@ -249,6 +262,13 @@ export function requestBody(deps) {
     "      join pg_catalog.pg_namespace n on n.oid = c.relnamespace",
     "      where n.nspname = 'public' and c.relname = pg_catalog.split_part(req.name, '.', 1)",
     "        and a.attname = pg_catalog.split_part(req.name, '.', 2) and a.attnum > 0 and not a.attisdropped)",
+    "    when 'select_column' then exists (",
+    "      select 1 from pg_catalog.pg_attribute a",
+    "      join pg_catalog.pg_class c on c.oid = a.attrelid",
+    "      join pg_catalog.pg_namespace n on n.oid = c.relnamespace",
+    "      where n.nspname = 'public' and c.relname = pg_catalog.split_part(req.name, '.', 1)",
+    "        and a.attname = pg_catalog.split_part(req.name, '.', 2) and a.attnum > 0 and not a.attisdropped",
+    "        and pg_catalog.has_column_privilege('service_role', c.oid, a.attnum, 'SELECT'))",
     "  end as present",
     `from pg_catalog.jsonb_to_recordset($deps$${json}$deps$::jsonb) as req(kind text, name text, signature text, arg_names jsonb)`,
     "order by req.kind, req.name",
@@ -262,6 +282,7 @@ export function verify(deps, response) {
     ...deps.functionContracts.map(({ name, signature }) => `function:${name}(${signature})`),
     ...deps.tables.map((name) => `table:${name}`),
     ...deps.columns.map((name) => `column:${name}`),
+    ...deps.selectColumns.map((name) => `select_column:${name}`),
   ];
   const present = new Set();
   const seen = new Set();
@@ -302,7 +323,7 @@ function main() {
       const detail = result.missing?.length ? `: ${result.missing.join(", ")}` : "";
       fail(`${result.reason}${detail}. Apply the migrations that create these first, then deploy.`);
     }
-    process.stdout.write(`${slug}: ${deps.functionContracts.length} function(s), ${deps.tables.length} table(s), and ${deps.columns.length} column(s) present\n`);
+    process.stdout.write(`${slug}: ${deps.functionContracts.length} function(s), ${deps.tables.length} table(s), and ${deps.columns.length} column(s) present; ${deps.selectColumns.length} column SELECT grant(s) present\n`);
   } else {
     fail(`unknown-mode-${mode}`);
   }

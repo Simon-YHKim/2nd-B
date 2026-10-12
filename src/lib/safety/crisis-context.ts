@@ -11,8 +11,21 @@ const RISK_CONTEXT = /삶|인생|목숨|죽|영영|영원히|다시는|유서|�
 // The WHOLE message must be an explicit denial, optionally followed by a known
 // correction of the app's misunderstanding. Never accept arbitrary text after
 // the denial, reported speech, adversatives, uncertainty, or double negation.
-const KO_STANDALONE_DENIAL = /^(?:(?:아니|아니요) )?(?:(?:나는|난|저는|전|내가) )?(?:자살|자해)(?:을|를)? *(?:(?:하려는|할) *(?:건|게|것은|것이) *(?:아냐|아니야|아니에요|아닙니다)|(?:할 *)?생각(?:은|이)? *(?:없어|없어요|없습니다))(?: (?:날|나를|저를) 뭘로 보는 *거(?:야|예요|에요) ?\??)?$/;
-const EN_STANDALONE_DENIAL = /^(?:no )?(?:(?:i am|i'm) not suicidal|i (?:do not|don't) want to die)$/;
+const KO_NOT_INTENDING = "(?:을|를)? *(?:(?:하려는|할) *(?:건|게|것은|것이) *(?:아냐|아니야|아니에요|아닙니다)|(?:할 *)?생각(?:은|이)? *(?:없어|없어요|없습니다))";
+const KO_CORRECTION_TAIL = "(?:날|나를|저를) 뭘로 보는 *거(?:야|예요|에요) ?\\??";
+const KO_STANDALONE_DENIAL = new RegExp(`^(?:(?:아니|아니요) )?(?:(?:나는|난|저는|전|내가) )?(?:자살|자해)${KO_NOT_INTENDING}(?: ${KO_CORRECTION_TAIL})?$`);
+// Plain refusals as people type them ("자살 안 해", "나 자살은 안 할 거야.", "자살하지 않아요")
+// are denials too (Simon 2026-10-11, Q-261011-12). This test keeps the punctuation, like the
+// English one below: a mark inside the sentence is a break ("자살 안. 해."), so marks may only
+// follow the "아니" lead-in or close the sentence. Present or future, about the speaker, and
+// the whole message: a time limit in front ("아직은", "오늘은"), the past ("안 했어"), a hedge
+// ("안 할 것 같아"), a question, or anything after it keeps the strict scan.
+const KO_PLAIN_REFUSAL = "(?:을|를|은|는)? *(?:안 *(?:해|해요|합니다|한다|할 *거야|할 *거예요|할 *거에요|할 *겁니다|할게|할게요)|하지(?:는)? *(?:않아|않아요|않습니다|않는다|않을 *거야|않을 *거예요|않을 *거에요|않을 *겁니다|않을게|않을게요))";
+const KO_PLAIN_DENIAL = new RegExp(`^(?:(?:아니|아니요|아니야|아뇨)(?: |[,.!…。！]+ ?))?(?:(?:나는|난|나|저는|전|저|내가|제가) )?(?:자살|자해)(?:${KO_NOT_INTENDING}|${KO_PLAIN_REFUSAL})(?:[.!…。！]* ${KO_CORRECTION_TAIL})?[ .!…。！]*$`);
+// English keeps its punctuation for this test: a mark inside the sentence is a break
+// ("I'm not. Suicidal."), so only a "no" lead-in and closing marks may surround it. The lead-in
+// ends with a space or with marks, with or without a space after them ("No,I'm not suicidal.").
+const EN_STANDALONE_DENIAL = /^(?:no(?: |[,.!…。！]+ ?))?(?:(?:i am|i'm) not suicidal|i (?:do not|don't) want to die)[ .!…。！]*$/;
 
 // Explicit everyday objects narrow an ambiguous "finish" occurrence. Keep
 // object boundaries: "일생" (lifetime) must never be treated as "일" (work).
@@ -43,7 +56,10 @@ export function prepareCrisisScanText(text: string): string {
   // A question about intent is not a denial. Only the known correction tail
   // may carry a question mark ("날 뭘로 보는거야?").
   const denial = normalized.replace(/[.,!…。！]/g, " ").replace(/\s+/g, " ").trim();
-  if (KO_STANDALONE_DENIAL.test(denial) || EN_STANDALONE_DENIAL.test(denial)) {
+  // Phone keyboards type a curly apostrophe, which NFKC keeps; read it as the
+  // straight one in this test copy only.
+  const englishDenial = normalized.replace(/[‘’]/g, "'").trim();
+  if (KO_STANDALONE_DENIAL.test(denial) || KO_PLAIN_DENIAL.test(normalized.trim()) || EN_STANDALONE_DENIAL.test(englishDenial)) {
     return normalized.replace(/자살|자해|suicidal|want to die/g, (term) => " ".repeat(term.length));
   }
   if (!KNOWN_WORK_CONTEXT.test(normalized.trim())) return normalized;

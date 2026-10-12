@@ -172,7 +172,7 @@
       "photoRemove": "사진 {{n}} 빼기",
       "photoAttached": "첨부한 사진 {{n}}",
       "photoPickError": "사진을 추가하지 못했습니다. 다른 사진으로 해 보세요.",
-      "ocr": "OCR",
+      "ocr": "글자 인식",
       "ocrA11y": "사진에서 글자 읽기 (OCR)",
       "ocrHint": "사진을 고르면 AI로 글자를 읽어 옵니다. 사진은 저장하지 않습니다.",
       "ocrTitle": "사진에서 글자 읽기",

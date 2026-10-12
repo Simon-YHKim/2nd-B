@@ -46,6 +46,99 @@ describe("parseSourceCitations", () => {
 });
 
 describe("sourceCitationDisplay (bubble only)", () => {
+  test("corrects the reported sentence without changing legacy text or chip identities", () => {
+    const raw = "이 답은 관련 위키 기록 [[untitled]]와 소스의 자기 이해 기록을 보고 말씀드렸습니다.";
+    expect(sourceCitationDisplay(raw, "기록")).toBe("이 답은 관련 위키 기록과 소스의 자기 이해 기록을 보고 말씀드렸습니다.");
+    expect(parseSourceCitations(raw)).toEqual({
+      display: "이 답은 관련 위키 기록 Untitled와 소스의 자기 이해 기록을 보고 말씀드렸습니다.",
+      chips: ["untitled"],
+    });
+  });
+
+  describe.each([
+    ["untitled", "기록", "기록", true],
+    ["untitled", "메모", "메모", false],
+    ["아침-기록", "기록", "아침 기록", true],
+    ["자기-이해", "기록", "자기 이해", false],
+  ] as const)("changed name %s → %s / %s", (slug, fallback, label, hasJong) => {
+    test.each([
+      ["과", "와"], ["을", "를"], ["은", "는"],
+      ["이", "가"], ["으로", "로"], ["이나", "나"],
+    ])("selects %s/%s after the replacement", (withJong, withoutJong) => {
+      const wrong = hasJong ? withoutJong : withJong;
+      const correct = hasJong ? withJong : withoutJong;
+      expect(sourceCitationDisplay(`[[${slug}]]${wrong} 이어집니다.`, fallback)).toBe(`${label}${correct} 이어집니다.`);
+      expect(sourceCitationDisplay(`[[${slug}]]${correct} 이어집니다.`, fallback)).toBe(`${label}${correct} 이어집니다.`);
+    });
+  });
+
+  test.each([
+    ["[[나의-서울]]으로 갑니다.", "나의 서울로 갑니다."],
+    ["[[기록-1]]으로 갑니다.", "기록 1로 갑니다."],
+    ["[[untitled]]와", "기록과"],
+    ["[[untitled]]와, 이어집니다.", "기록과, 이어집니다."],
+    ["[[untitled]]와。", "기록과。"],
+    ["[[untitled]]와\n다음 줄", "기록과\n다음 줄"],
+    ["[[untitled]]와\t다음", "기록과\t다음"],
+    ["‘[[untitled]]와’", "‘기록과’"],
+    ["「[[untitled]]와」", "「기록과」"],
+    ["『[[untitled]]와』", "『기록과』"],
+    ["[[untitled]]와/", "기록과/"],
+    ["[[untitled]]와·", "기록과·"],
+    ["[[untitled-deadbeef]]와 봅니다.", "기록과 봅니다."],
+    ["[[아침-기록]]와 [[자기-이해]]을 봅니다.", "아침 기록과 자기 이해를 봅니다."],
+    ["[[a]], [[아침-기록]]와 봅니다.", "A, 아침 기록과 봅니다."],
+    ["기록 [[untitled]]와 메모 [[자기-이해]]을 봅니다.", "기록과 메모 자기 이해를 봅니다."],
+  ])("uses known sounds and particle boundaries: %j", (raw, expected) => {
+    expect(sourceCitationDisplay(raw, "기록")).toBe(expected);
+  });
+
+  test.each([
+    "이야기", "가다", "가나다", "이나마", "으로부터", "로서", "을지", "는지",
+    "와함께", "과정", "은빛", "나무", "가A", "가1", "가_내용", "가＿내용", "와🙂", "와\u0301",
+    " 와 함께", "\t와 함께", "\n와 함께",
+  ])("does not mistake a following word or detached particle for josa: %j", suffix => {
+    expect(sourceCitationDisplay(`[[untitled]]${suffix}`, "기록")).toBe(`기록${suffix}`);
+  });
+
+  test.each([
+    ["[[기록]]와 봅니다.", "기록와 봅니다."],
+    ["[[  기록  ]]와 봅니다.", "기록와 봅니다."],
+    ["[[자기 이해]]을 봅니다.", "자기 이해을 봅니다."],
+    ["[[english-study]]은 참고합니다.", "English Study은 참고합니다."],
+    ["[[notes-🙂]]은 참고합니다.", "notes 🙂은 참고합니다."],
+  ])("leaves unchanged names and undecidable sounds alone: %j", (raw, expected) => {
+    expect(sourceCitationDisplay(raw, "기록")).toBe(expected);
+  });
+
+  test.each([
+    ["기록 [[untitled]]와 봅니다.", "기록과 봅니다."],
+    ["기록 [[untitled-deadbeef]]를 봅니다.", "기록을 봅니다."],
+    ["앞의 기록 [[ Untitled ]]는 이어집니다.", "앞의 기록은 이어집니다."],
+    ["(기록 [[untitled]]와)", "(기록과)"],
+    ["기록 [[기록]]과 봅니다.", "기록 기록과 봅니다."],
+    ["기록 [[아침-기록]]와 봅니다.", "기록 아침 기록과 봅니다."],
+    ["기록 [[untitled-notes]]와 봅니다.", "기록 Untitled Notes와 봅니다."],
+    ["앞기록 [[untitled]]와 봅니다.", "앞기록 기록과 봅니다."],
+    ["1기록 [[untitled]]와 봅니다.", "1기록 기록과 봅니다."],
+    ["_기록 [[untitled]]와 봅니다.", "_기록 기록과 봅니다."],
+    ["＿기록 [[untitled]]와 봅니다.", "＿기록 기록과 봅니다."],
+    ["‿기록 [[untitled]]와 봅니다.", "‿기록 기록과 봅니다."],
+    ["기록  [[untitled]]와 봅니다.", "기록  기록과 봅니다."],
+    ["기록\t[[untitled]]와 봅니다.", "기록\t기록과 봅니다."],
+    ["기록\n[[untitled]]와 봅니다.", "기록\n기록과 봅니다."],
+    ["기록 [[untitled]].", "기록."],
+  ])("collapses only a whole neutral word separated by one space: %j", (raw, expected) => {
+    expect(sourceCitationDisplay(raw, "기록")).toBe(expected);
+  });
+
+  test("keeps English prose and undecidable fallback particles unchanged", () => {
+    expect(sourceCitationDisplay("As noted in [[untitled]] and [[english-study]], start here.", "Record"))
+      .toBe("As noted in Record and English Study, start here.");
+    expect(sourceCitationDisplay("[[untitled]]은 참고합니다.", "Record")).toBe("Record은 참고합니다.");
+    expect(sourceCitationDisplay("메모 [[untitled]]과 봅니다.", "메모")).toBe("메모와 봅니다.");
+  });
+
   test.each([
     ["먼저 하는 게 좋습니다 [[english-study]].", "먼저 하는 게 좋습니다."],
     ["먼저 하는 게 좋습니다. [[english-study]]", "먼저 하는 게 좋습니다."],

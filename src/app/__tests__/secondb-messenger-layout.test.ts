@@ -99,6 +99,20 @@ describe("HustleK messenger layout", () => {
     expect(openCitedPage).toHaveBeenCalledWith("untitled-deadbeef");
   });
 
+  test("the bubble fixes citation grammar while long press keeps the legacy sentence", () => {
+    const raw = "이 답은 관련 위키 기록 [[untitled]]와 소스의 자기 이해 기록을 보고 말씀드렸습니다.";
+    const text = parseSourceCitations(raw).display;
+    const host = renderedMessages([{ role: "secondb", text, citationText: raw }]);
+    const [, body] = host.tree[0].props.children as Tree[];
+    const [bubble] = body.props.children as Tree[];
+    const [bubbleText] = bubble.props.children as Tree[];
+    expect(bubbleText.props.children).toEqual(["이 답은 관련 위키 기록과 소스의 자기 이해 기록을 보고 말씀드렸습니다."]);
+    (bubble.props.onLongPress as () => void)();
+    expect(host.copyTurn).toHaveBeenCalledWith(0, "이 답은 관련 위키 기록 Untitled와 소스의 자기 이해 기록을 보고 말씀드렸습니다.");
+    expect(host.turns[0].text).toBe(text);
+    expect(host.turns[0].citationText).toBe(raw);
+  });
+
   test("headers stay above bubbles with the user avatar at the right edge and nickname to its left", () => {
     const host = renderedMessages();
     for (const [i, message] of host.tree.entries()) {

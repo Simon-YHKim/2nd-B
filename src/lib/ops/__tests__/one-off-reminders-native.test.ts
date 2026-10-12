@@ -36,31 +36,31 @@ afterAll(() => {
   else Reflect.deleteProperty(globalThis, "navigator");
 });
 
-test("actual SDK cancellation failure preserves the only stored task details", async () => {
+test("G5-06 actual SDK failure deletes the task but reports the uncancelled alarm", async () => {
   const row = (await createOneOffReminder("owner-a", event))!;
   mockSdk.cancelScheduledNotificationAsync.mockRejectedValueOnce(new Error("native failure"));
-  await expect(removeOneOffReminder("owner-a", row.id)).rejects.toThrow("native failure");
-  expect(await listOneOffReminders("owner-a")).toEqual([row]);
+  expect(await removeOneOffReminder("owner-a", row.id)).toBe("alarm-uncertain");
+  expect(await listOneOffReminders("owner-a")).toEqual([]);
   expect(mockSdk.cancelScheduledNotificationAsync).toHaveBeenCalledWith(routineReminderId("owner-a", row.id));
   expect(mockSdk.cancelScheduledNotificationAsync.mock.calls[0][0]).not.toContain(event.title);
 });
 
-test("strict deletion preserves details while native cancellation is unavailable", async () => {
+test("G5-06 unavailable notification hosts still allow record deletion", async () => {
   const row = (await createOneOffReminder("owner-a", event))!;
   native(false);
-  await expect(removeOneOffReminder("owner-a", row.id)).rejects.toThrow("cancellation unavailable");
-  expect(await listOneOffReminders("owner-a")).toEqual([row]);
+  expect(await removeOneOffReminder("owner-a", row.id)).toBe("alarm-uncertain");
+  expect(await listOneOffReminders("owner-a")).toEqual([]);
   expect(mockSdk.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
 });
 
-test("a native cancellation timeout preserves the row for a later retry", async () => {
+test("G5-06 a native cancellation timeout does not block record deletion", async () => {
   const row = (await createOneOffReminder("owner-a", event))!;
   mockSdk.cancelScheduledNotificationAsync.mockImplementationOnce(() => new Promise(() => {}));
   const removal = removeOneOffReminder("owner-a", row.id);
-  const assertion = expect(removal).rejects.toThrow();
+  const assertion = expect(removal).resolves.toBe("alarm-uncertain");
   await jest.advanceTimersByTimeAsync(5_000);
   await assertion;
-  expect(await listOneOffReminders("owner-a")).toEqual([row]);
+  expect(await listOneOffReminders("owner-a")).toEqual([]);
 });
 
 test("successful native cancellation removes the row", async () => {

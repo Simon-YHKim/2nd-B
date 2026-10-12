@@ -135,11 +135,11 @@ test("deletion cancels the same notification before removing the task", async ()
   expect(await listOneOffReminders("owner-a")).toEqual([]);
 });
 
-test("failed cancellation keeps the reminder available to retry", async () => {
+test("G5-06 failed cancellation still deletes the record and reports alarm uncertainty", async () => {
   const row = (await createOneOffReminder("owner-a", event))!;
   mockCancel.mockRejectedValueOnce(new Error("OS failure"));
-  await expect(removeOneOffReminder("owner-a", row.id)).rejects.toThrow("OS failure");
-  expect(await listOneOffReminders("owner-a")).toEqual([row]);
+  expect(await removeOneOffReminder("owner-a", row.id)).toBe("alarm-uncertain");
+  expect(await listOneOffReminders("owner-a")).toEqual([]);
 });
 
 test("account transitions during reading suppress old details and prevent late writes", async () => {
@@ -161,6 +161,22 @@ test("a transition during cancellation prevents any later local removal", async 
   mockCancel.mockImplementationOnce(async () => { switchOwner("owner-b"); });
   expect(await removeOneOffReminder("owner-a", row.id)).toBe(false);
   expect(mockStore.setItem).not.toHaveBeenCalled();
+});
+
+test("G5-06 a failed cancellation followed by owner change still cannot delete the old owner's record", async () => {
+  const row = (await createOneOffReminder("owner-a", event))!;
+  mockStore.setItem.mockClear();
+  mockCancel.mockImplementationOnce(async () => { switchOwner("owner-b"); throw new Error("OS failure"); });
+  expect(await removeOneOffReminder("owner-a", row.id)).toBe(false);
+  expect(mockStore.setItem).not.toHaveBeenCalled();
+});
+
+test("G5-06 storage failure is not reported as successful deletion even when cancellation fails", async () => {
+  const row = (await createOneOffReminder("owner-a", event))!;
+  mockCancel.mockRejectedValueOnce(new Error("OS failure"));
+  mockStore.setItem.mockRejectedValueOnce(new Error("storage locked"));
+  await expect(removeOneOffReminder("owner-a", row.id)).rejects.toThrow("storage locked");
+  expect(await listOneOffReminders("owner-a")).toEqual([row]);
 });
 
 test("a terminal deletion waits for an in-flight write, purges it, and fences late confirmations", async () => {

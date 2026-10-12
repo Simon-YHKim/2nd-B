@@ -8,7 +8,7 @@ import {
 import { captureAccountOwnerLease } from "../auth/account-epoch";
 import { getEncryptedNativeStorage } from "../storage/encrypted-native-storage";
 import type { OpsEventInput } from "./push";
-import { cancelRoutineReminder } from "./reminders";
+import { cancelRoutineReminder, getScheduledRoutineIds } from "./reminders";
 
 export interface OneOffReminder {
   id: string;
@@ -90,6 +90,46 @@ export async function listOneOffReminders(ownerId: string): Promise<OneOffRemind
   return result.executed && lease.isCurrent() ? result.value : [];
 }
 
+/** Counts describe this pass only; failed or interrupted cancellations can be retried. */
+export interface OneOffReminderSweepResult {
+  found: number;
+  cancelled: number;
+}
+
+/** Reconcile only a successfully read local store with a successfully read OS list.
+ * Keep both reads and cancellations in the creation/deletion queues: a new record
+ * is written before scheduling, so its alarm can never be mistaken for an orphan. */
+export async function sweepOrphanedOneOffReminders(ownerId: string): Promise<OneOffReminderSweepResult> {
+  const result = { found: 0, cancelled: 0 };
+  if (Platform.OS === "web" || !validOwner(ownerId)) return result;
+  const lease = captureAccountOwnerLease(ownerId);
+  const current = () => !!lease?.isCurrent() && !isAccountLocalDeletionFencedInMemory(ownerId);
+  if (!current()) return result;
+  const key = oneOffRemindersKey(ownerId);
+  try {
+    await runAccountLocalMutation(ownerId, () => exclusive(key, async () => {
+      if (!current()) return;
+      // Do not use listOneOffReminders: its [] also means a read was skipped.
+      const items = parse(await getEncryptedNativeStorage().getItem(key));
+      if (!current()) return;
+      const scheduled = await getScheduledRoutineIds(ownerId, { strict: true });
+      if (!current()) return;
+      const recorded = new Set(items.map(item => item.id));
+      const orphans = [...scheduled].filter(id => id.startsWith("chat-") && !recorded.has(id));
+      result.found = orphans.length;
+      for (const id of orphans) {
+        if (!current()) break;
+        try {
+          await cancelRoutineReminder(ownerId, id, { strict: true, isCurrentOwner: current });
+          result.cancelled += 1;
+        } catch { /* Keep the OS alarm for a later pass if cancellation failed or timed out. */ }
+        if (!current()) break;
+      }
+    }));
+  } catch { /* An unreadable store or OS list never authorizes a cancellation. */ }
+  return result;
+}
+
 /** Confirmation creates only reviewed title/date fields. No chat or OS payload is persisted. */
 export async function createOneOffReminder(ownerId: string, event: OpsEventInput): Promise<OneOffReminder | null> {
   if (Platform.OS === "web" || !validOwner(ownerId) || !event || event.recurrence
@@ -111,8 +151,9 @@ export async function createOneOffReminder(ownerId: string, event: OpsEventInput
   return result.executed && lease.isCurrent() ? result.value : null;
 }
 
-/** Cancel the stable OS identifier first; a failed cancellation preserves the visible task. */
-export async function removeOneOffReminder(ownerId: string, id: string): Promise<boolean> {
+/** Try the stable OS identifier first, but always allow an owned record deletion.
+ * A partial success must not claim the OS alarm was cancelled. */
+export async function removeOneOffReminder(ownerId: string, id: string): Promise<boolean | "alarm-uncertain"> {
   if (Platform.OS === "web" || !validOwner(ownerId) || !ID_PATTERN.test(id)) return false;
   const lease = captureAccountOwnerLease(ownerId);
   if (!lease?.isCurrent() || isAccountLocalDeletionFencedInMemory(ownerId)) return false;
@@ -123,10 +164,13 @@ export async function removeOneOffReminder(ownerId: string, id: string): Promise
     const items = parse(await store.getItem(key));
     if (!lease.isCurrent() || isAccountLocalDeletionFencedInMemory(ownerId)) return false;
     if (!items.some(item => item.id === id)) return true;
-    await cancelRoutineReminder(ownerId, id, { strict: true });
+    let alarmUncertain = false;
+    try { await cancelRoutineReminder(ownerId, id, { strict: true }); }
+    catch { alarmUncertain = true; }
     if (!lease.isCurrent() || isAccountLocalDeletionFencedInMemory(ownerId)) return false;
     await store.setItem(key, serialize(items.filter(item => item.id !== id)));
-    return lease.isCurrent() && !isAccountLocalDeletionFencedInMemory(ownerId);
+    if (!lease.isCurrent() || isAccountLocalDeletionFencedInMemory(ownerId)) return false;
+    return alarmUncertain ? "alarm-uncertain" as const : true;
   }));
   return result.executed && result.value;
 }

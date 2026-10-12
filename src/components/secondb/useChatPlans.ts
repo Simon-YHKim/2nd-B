@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
+import * as Crypto from "expo-crypto";
 import { useTranslation } from "react-i18next";
 import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { getChatPlanSuggestions, isCurrentChatPlanSuggestion, type ChatPlanSuggestion, type ChatPlanSuggestionState } from "@/lib/chat/plan-suggestions";
@@ -20,6 +21,9 @@ export function useChatPlans(userId: string | null, state: ChatPlanSuggestionSta
   const live = useRef({ userId, state });
   live.current = { userId, state };
   const inFlight = useRef<object | null>(null);
+  // A failed response does not end this confirmation. Keep its UUID across
+  // retries and sheet reopenings; distinct proposals may save identical content.
+  const routineIds = useRef(new Map<string, string>());
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -27,6 +31,7 @@ export function useChatPlans(userId: string | null, state: ChatPlanSuggestionSta
   }, []);
   useEffect(() => {
     inFlight.current = null;
+    routineIds.current.clear();
     setBusy(false);
     setSelected(null);
     setNotice(null);
@@ -58,7 +63,13 @@ export function useChatPlans(userId: string | null, state: ChatPlanSuggestionSta
     const current = () => mounted.current && inFlight.current === operation && lease.isCurrent()
       && live.current.userId === userId && live.current.state.conversationId === generation;
     try {
-      const result = await saveChatPlan(userId, draft);
+      const key = candidateKey(selected);
+      let routineId = routineIds.current.get(key);
+      if (draft.kind === "routine" && !routineId) {
+        routineId = Crypto.randomUUID();
+        routineIds.current.set(key, routineId);
+      }
+      const result = await saveChatPlan(userId, draft, { routineId });
       if (!current()) return;
       if (result.status === "saved" || result.status === "scheduled" || result.status === "exported") {
         setAccepted(previous => new Set(previous).add(candidateKey(selected)));

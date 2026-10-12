@@ -36,3 +36,4 @@ CREATE FUNCTION public.set_updated_at() RETURNS trigger LANGUAGE plpgsql AS $$ B
 COMMIT;
 \ir profile_context_import_regression.sql
 \ir profile_context_import_integrity.sql
+\ir profile_context_import_export.sql

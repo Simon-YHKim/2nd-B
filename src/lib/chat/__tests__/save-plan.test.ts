@@ -26,6 +26,17 @@ const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document")
 const originalCreateUrl = Object.getOwnPropertyDescriptor(URL, "createObjectURL");
 const originalRevokeUrl = Object.getOwnPropertyDescriptor(URL, "revokeObjectURL");
 
+test("G5-05 the confirmation's stable row ID reaches the owned write on every retry", async () => {
+  const options = { now, routineId: "00000000-0000-4000-8000-000000000001" };
+  mockCreate.mockRejectedValueOnce(new Error("response lost after commit"));
+  expect(await saveChatPlan("owner-a", draft(), options)).toEqual({ status: "error" });
+  await saveChatPlan("owner-a", draft(), options);
+  for (const call of mockCreate.mock.calls) {
+    expect(call[3]).toMatchObject({ routineId: options.routineId, signal: expect.any(AbortSignal) });
+  }
+  expect(mockCreate).toHaveBeenCalledTimes(2);
+});
+
 beforeEach(() => {
   jest.useFakeTimers(); jest.clearAllMocks(); mockListeners.clear();
   mockCurrent = true; mockLeaseAvailable = true; mockPlatform.OS = "android";

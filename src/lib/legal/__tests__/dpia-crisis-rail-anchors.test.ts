@@ -82,19 +82,19 @@ const LR = "scripts/check-legal-review.ts";
 const ANCHORS: Anchor[] = [
   { cite: "src/lib/analytics/auth-conversions.ts:47", symbol: "requiresGuardianConsent(age, resolveJurisdiction())",
     why: "분석 동의의 관할별 연령 게이트를 실제로 적용하는 자리. AuthContext 연동 추출 후 이전 layout 좌표를 재사용하지 않는다." },
-  { cite: `${S}:436-466`, symbol: "fixedCrisisResponse",
+  { cite: `${S}:547-577`, symbol: "fixedCrisisResponse",
     why: "위기 응답이 사람이 쓴 고정 템플릿이라는 주장의 근거. 어긋나면 의미 분류기 프롬프트를 읽게 된다." },
-  { cite: `${S}:305-418`, symbol: "classifySafety",
+  { cite: `${S}:416-529`, symbol: "classifySafety",
     why: "3층 방어 중 둘째 층(의미 분류기)." },
-  { cite: `${S}:182-204`, symbol: "mergeResults",
+  { cite: `${S}:198-220`, symbol: "mergeResults",
     why: "RED-wins 병합. 이게 아니면 '보수적으로 합친다'는 주장에 근거가 없다." },
-  { cite: `${S}:185-197`, symbol: "indexOf",
+  { cite: `${S}:201-213`, symbol: "indexOf",
     why: "모르는 zone 을 RED 로 취급하는 fail-closed 순위. 위기에서 열리지 않는다는 주장." },
-  { cite: `${S}:56-68`, symbol: "Suicide CARE",
+  { cite: `${S}:72-84`, symbol: "Suicide CARE",
     why: "KO/EN 마커 목록. 어느 임상 근거를 쓰는지가 여기서 확인된다." },
-  { cite: `${S}:94`, symbol: "EXPO_PUBLIC_USE_VERTEX",
+  { cite: `${S}:110`, symbol: "EXPO_PUBLIC_USE_VERTEX",
     why: "키 없는 웹 빌드에서 의미 층이 꺼진다는 잔여위험 서술의 근거." },
-  { cite: `${S}:440-452`, symbol: "crisisHotlines",
+  { cite: `${S}:551-563`, symbol: "crisisHotlines",
     why: "미성년 라우팅이 실제로 핫라인 목록을 부르는 자리." },
   { cite: `${C}:71-80`, symbol: "crisisHotlines",
     why: "(locale, minor) → 핫라인 표시 순서." },
@@ -130,9 +130,9 @@ const ANCHORS: Anchor[] = [
     why: "지움 결과의 이름 집합이 요청 집합과 정확히 같은지 관측하는 자리. 개수만 같거나 일부만 지워졌는데도 '지워졌다'고 주장하지 못하게 한다." },
   { cite: `${DS}:95-116`, symbol: "listingResponse.error",
     why: "flat listV2 페이지 실패를 닫힌 상태로 처리하는 자리 - Art.17 삭제 주장의 실제 근거." },
-  { cite: `${X}:303-357`, symbol: "consent_records",
+  { cite: `${X}:304-364`, symbol: "consent_records",
     why: "Art.20 이식성이 실제로 무엇을 담아 오는가. 6.1.3 이 '빠져 있다'고 나열하던 여덟 범주가 바로 이 목록이다." },
-  { cite: `${X}:359-389`, symbol: "gemini_spend_daily",
+  { cite: `${X}:366-396`, symbol: "gemini_spend_daily",
     why: "일부러 뺀 저장소 목록. 빼는 것 자체가 아니라 **응답에 적어 돌려준다는 것**이 통제이고, 실제 제외 매니페스트가 근거다." },
   { cite: `${W}:249`, symbol: "includeRecords",
     why: "저널이 기본으로 안 실린다는 주장의 **실제 근거** - 그 삼항 연산이 없으면 기본값이 무의미하다." },
@@ -148,7 +148,7 @@ const ANCHORS: Anchor[] = [
     why: "대화 프롬프트가 실제로 조립되는 자리 - 무엇이 모델에 들어가는지의 근거." },
   { cite: "src/lib/ops/recommend.ts:199-207", symbol: "recommendationsAllowed(input.minor",
     why: "엔진이 호출부와 **독립적으로** 게이트를 다시 본다는 주장의 근거. 493행이 '통제가 어느 한 화면에 기대지 않는다'고 말하는 근거가 이 한 줄이다 - 화면 잠금이 사라져도 스냅샷이 LLM 에 안 간다." },
-  { cite: "src/screens/deepspace/dds-ops-screen.tsx:548-554", symbol: "recommendationsAllowed",
+  { cite: "src/screens/deepspace/dds-ops-screen.tsx:552-558", symbol: "recommendationsAllowed",
     why: "미성년 추천 잠금이 **배송되는 화면에서** 실제로 불리는 자리. ⚠ 원래 `src/app/ops.tsx:111` 을 가리켰는데 그 줄은 `OpsLegacy` 안이었고, 그 렌더러는 2026-09-08 에 `legacy/screens/ops.tsx` 로 나갔다 (그 전에는 `ops.tsx:501` 이 deep-space 일 때 위임해서 **어떤 배포도 그리지 않았다**). 잠금은 실재하는데 좌표가 죽어 있었다 - 회차 60(/data)·61(/audit) 과 같은 부류의 세 번째다." },
   // ── 통제 표(C-*)가 인용하는 코드 ──────────────────────────────────────────
   //
@@ -498,14 +498,14 @@ describe("검사기 자신의 대조군", () => {
   });
 
   test("음성 대조 - 범위 안 심볼은 통과한다", () => {
-    expect(slice(`${S}:436-466`).text.includes("fixedCrisisResponse")).toBe(true);
+    expect(slice(`${S}:547-577`).text.includes("fixedCrisisResponse")).toBe(true);
   });
 
   test("쉼표와 하이픈을 둘 다 읽는다", () => {
-    // `:412,424` 는 두 줄이지 412~424 범위가 아니지만, 검사는 최소~최대로
+    // `:452,464` 는 두 줄이지 452~464 범위가 아니지만, 검사는 최소~최대로
     // 넓게 잡는다. 넓게 잡는 쪽이 거짓양성이 아니라 **거짓음성**으로 기울므로
     // 여기서 그 성질을 드러내 둔다 - 다음 사람이 정확도를 오해하지 않게.
-    const wide = slice(`${S}:412,424`);
+    const wide = slice(`${S}:452,464`);
     expect(wide.text.split("\n")).toHaveLength(13);
   });
 

@@ -6,6 +6,7 @@ jest.mock("react", () => ({
   useState: (fn: () => unknown) => [fn()], useRef: (value: unknown) => ({ current: value }),
   useMemo: (fn: () => unknown) => fn(), useCallback: (fn: unknown) => fn,
   useEffect: (fn: () => (() => void) | void) => { mockEffects.push(fn); },
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
 }));
 import { useScrollMemory } from "../scroll-memory";
 import { readViewMemory, writeViewMemory } from "../view-memory";
@@ -51,6 +52,7 @@ test("a user drag cancels restoration and an account transition rejects late scr
 
 test("web event getters cannot reset the saved position when the old DOM is removed", () => {
   const m = ScrollHarness(); let liveTop = 687;
+  m.hook.onContentSizeChange(320, 1600); m.flush();
   m.hook.onScroll({ nativeEvent: { contentOffset: { x: 0, get y() { return liveTop; } } } } as Parameters<NonNullable<ScrollViewProps["onScroll"]>>[0]);
   liveTop = 0;
   expect(readViewMemory(key)).toEqual({ x: 0, y: 687 });

@@ -90,15 +90,15 @@ export const PhoneTextInput = forwardRef<TextInput, TextInputProps>(function Pho
 
 export const PhoneScrollView = forwardRef<ScrollView, ScrollViewProps>(function PhoneScrollView({ style, contentContainerStyle, ...rest }, ref) {
   const phone = usePhoneDesign();
-  const memory = useScrollMemory(rest, ref);
-  return <ScrollView {...rest} {...memory} style={phone ? mapped(style) : style}
+  const { hostKey, ...memory } = useScrollMemory(rest, ref);
+  return <ScrollView {...rest} {...memory} key={hostKey} style={phone ? mapped(style) : style}
     contentContainerStyle={phone ? mapped(contentContainerStyle) : contentContainerStyle} />;
 });
 
 function PhoneFlatListInner<T>({ style, contentContainerStyle, ...rest }: FlatListProps<T>, ref: React.ForwardedRef<FlatList<T>>) {
   const phone = usePhoneDesign();
-  const memory = useScrollMemory(rest, ref as React.ForwardedRef<FlatList<unknown>>, true);
-  return <FlatList<T> {...rest} {...memory} ref={memory.ref as React.Ref<FlatList<T>>} style={phone ? mapped(style) : style}
+  const { hostKey, ...memory } = useScrollMemory(rest, ref as React.ForwardedRef<FlatList<unknown>>, true);
+  return <FlatList<T> {...rest} {...memory} key={hostKey} ref={memory.ref as React.Ref<FlatList<T>>} style={phone ? mapped(style) : style}
     contentContainerStyle={phone ? mapped(contentContainerStyle) : contentContainerStyle} />;
 }
 export const PhoneFlatList = forwardRef(PhoneFlatListInner) as <T>(props: FlatListProps<T> & React.RefAttributes<FlatList<T>>) => React.ReactElement;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Animated, AppState, BackHandler, PanResponder, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { PhoneFlatList as FlatList } from "@/components/phone/PhoneUIKit";
 import { ScrollMemoryScope } from "@/lib/nav/scroll-memory";
@@ -11,7 +11,7 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import type { AnyGlyphName } from "@/components/pixel/pixel-glyphs";
 import { PixelRoundRect } from "@/components/pixel/PixelRoundRect";
 import { Text as BaseText, type TextProps } from "@/components/ui/Text";
-import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
+import { accountEpochFromSnapshot, accountTransitionPendingFromSnapshot, accountTransitionSnapshot, captureAccountOwnerLease, currentAccountOwner, subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { loadDashboard } from "@/lib/dashboard/load";
 import { LIFE_AREAS, type DashboardData } from "@/lib/dashboard/model";
 import { buildBoard } from "@/lib/dashboard/board/build";
@@ -143,7 +143,15 @@ function StatusBar({ ink, time }: { ink: string; time: string | null }) {
   </View>;
 }
 
-export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor: boolean | null }) {
+export function DashboardPhone({ ownerId, isMinor }: { ownerId: string | null; isMinor: boolean | null }) {
+  const snapshot = useSyncExternalStore(subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot);
+  if (!ownerId || currentAccountOwner() !== ownerId || accountTransitionPendingFromSnapshot(snapshot)) return null;
+  // Reset the entire phone before the new owner can render or persist anything,
+  // including drafts, hosted apps and a logout/login that returns to the same owner.
+  return <AccountDashboardPhone key={`${ownerId}:${accountEpochFromSnapshot(snapshot)}`} ownerId={ownerId} isMinor={isMinor} />;
+}
+
+function AccountDashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor: boolean | null }) {
   const { t, i18n } = useTranslation("ops");
   const clockWeather = useClockWeather(ownerId, isMinor, i18n.language);
   const [weatherSheet, setWeatherSheet] = useState<"consent" | "settings" | "source" | null>(null);
@@ -153,6 +161,7 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     if (transparentBackdrop) router.back();
     else router.replace("/");
   }, [transparentBackdrop]);
+  const noticeCenter = useNoticeCenter(ownerId);
   const [resume] = useState(() => app || panel ? undefined : readViewMemory<PhonePosition>("phone-position"));
   const [tab, setTab] = useState<Tab>(app === "notifications" ? "tools" : resume?.tab ?? "dashboard");
   // 하루 관리판 두 쪽(PS-DASH-001 v2.2): 1쪽 = 오늘 처리할 것, 2쪽 = 상태(Q-261007-31).
@@ -160,9 +169,16 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const [phoneApp, setPhoneApp] = useState<"notifications" | null>(app === "notifications" ? "notifications" : resume?.phoneApp ?? null);
   const [selectedNoticeId, setSelectedNoticeId] = useState<string | null>(resume?.selectedNoticeId ?? null);
   const [screenStack, setScreenStack] = useState<string[]>(resume?.screenStack ?? []);
+  const selectedNoticeValid = selectedNoticeId === null || (noticeCenter.hydrated && noticeCenter.notices.some((notice) => notice.id === selectedNoticeId));
   useEffect(() => {
+    // Keep a restored selection while loading, but never persist an unchecked
+    // or removed notice as a valid detail screen for this owner.
+    if (!selectedNoticeValid) {
+      if (noticeCenter.hydrated) setSelectedNoticeId(null);
+      return;
+    }
     if (captureAccountOwnerLease(ownerId)) writeViewMemory<PhonePosition>("phone-position", { tab, boardPage, phoneApp, selectedNoticeId, screenStack });
-  }, [ownerId, tab, boardPage, phoneApp, selectedNoticeId, screenStack]);
+  }, [ownerId, tab, boardPage, phoneApp, selectedNoticeId, screenStack, selectedNoticeValid, noticeCenter.hydrated]);
   const [recordQuery, setRecordQuery] = useState("");
   const [wikiQuery, setWikiQuery] = useState("");
   const [wikiPages, setWikiPages] = useState<WikiPageRow[]>([]);
@@ -183,7 +199,6 @@ export function DashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const [crisisVisible, setCrisisVisible] = useState(false);
   const [focusSeconds, setFocusSeconds] = useState(25 * 60);
   const [focusRunning, setFocusRunning] = useState(false);
-  const noticeCenter = useNoticeCenter(ownerId);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
