@@ -33,7 +33,10 @@ import {
   startOAuthProvider,
 } from "@/lib/auth/auth-providers";
 
-import { SIGN_IN_TOAST_DURATION_MS, createSignInBackHandler } from "./sign-in-back";
+import {
+  SIGN_IN_TOAST_DURATION_MS, clearSignInExit, createSignInBackHandler, presentSignInExit,
+  replacePresentedSignInExit, type PresentedSignInExit,
+} from "./sign-in-back";
 
 import { replaceSignInToast, type SignInToast } from "./sign-in-toast";
 export type { SignInToastTone, SignInToast } from "./sign-in-toast";
@@ -61,6 +64,7 @@ export interface UseSignInForm {
   oauthSubmitting: boolean;
   canSubmit: boolean;
   toast: SignInToast | null;
+  onExitNoticePresented: (notice: SignInToast) => (() => void) | undefined;
   // reset-password helper UX
   resetHelpVisible: boolean;
   resetSubmitting: boolean;
@@ -86,13 +90,26 @@ export function useSignInForm(): UseSignInForm {
   const [oauthSubmitting, setOauthSubmitting] = useState(false);
   const [toast, setToastState] = useState<SignInToast | null>(null);
   const toastRef = useRef<SignInToast | null>(null);
-  // Keep the visible toast and Back ownership together, including same-frame
-  // replacements by an auth error before React has rendered the next message.
+  const presentedExitRef = useRef<PresentedSignInExit | null>(null);
+  // A requested toast is not a presented toast. Revoke before React renders
+  // any replacement; only the screen's post-commit effect may grant exit.
   const setToast = useCallback((next: SignInToast | null, expected?: SignInToast | null) => {
     next = replaceSignInToast(toastRef.current, next, expected);
+    presentedExitRef.current = replacePresentedSignInExit(presentedExitRef.current, toastRef.current, next);
     toastRef.current = next;
     setToastState(next);
   }, []);
+  const onExitNoticePresented = useCallback((notice: SignInToast) => {
+    const presented = presentSignInExit(toastRef.current, notice, presentedExitRef.current, Date.now());
+    if (!presented) return;
+    presentedExitRef.current = presented;
+    const duration = Math.max(0, presented.exitOnBackUntil - Date.now());
+    const timeout = setTimeout(() => setToast(null, notice), duration);
+    return () => {
+      clearTimeout(timeout);
+      if (presentedExitRef.current === presented) presentedExitRef.current = null;
+    };
+  }, [setToast]);
   const [resetHelpVisible, setResetHelpVisible] = useState(false);
   const [resetSubmitting, setResetSubmitting] = useState(false);
   // Back reads this synchronous count, not a render's busy snapshot. Counting
@@ -104,10 +121,8 @@ export function useSignInForm(): UseSignInForm {
   const [hiddenProviders, setHiddenProviders] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!toast) return;
-    const duration = toast.exitOnBackUntil === undefined
-      ? SIGN_IN_TOAST_DURATION_MS
-      : Math.max(0, toast.exitOnBackUntil - Date.now());
+    if (!toast || toast.exitOnBack) return;
+    const duration = SIGN_IN_TOAST_DURATION_MS;
     const timeout = setTimeout(() => setToast(null, toast), duration);
     return () => clearTimeout(timeout);
   }, [toast, setToast]);
@@ -130,15 +145,16 @@ export function useSignInForm(): UseSignInForm {
     if (Platform.OS !== "android" || userId) return;
     const onBackPress = createSignInBackHandler({
       isBusy: () => actionLockRef.current > 0,
-      exitDeadline: () => toastRef.current?.exitOnBackUntil,
+      presentedExit: () => presentedExitRef.current,
+      hasPendingExit: () => toastRef.current?.exitOnBack === true,
       now: Date.now,
-      showNotice: (expiresAt) => setToast({ tone: "info", message: t("signIn.exitOnBack"), exitOnBackUntil: expiresAt }),
+      showNotice: () => setToast({ tone: "info", message: t("signIn.exitOnBack"), exitOnBack: true }),
       exitApp: () => BackHandler.exitApp(),
     });
     const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => {
+      clearSignInExit(toastRef.current, setToast);
       sub.remove();
-      if (toastRef.current?.exitOnBackUntil !== undefined) setToast(null, toastRef.current);
     };
   }, [userId, setToast, t]));
 
@@ -279,6 +295,7 @@ export function useSignInForm(): UseSignInForm {
     oauthSubmitting,
     canSubmit,
     toast,
+    onExitNoticePresented,
     resetHelpVisible,
     resetSubmitting,
     resetEmailSentTo,

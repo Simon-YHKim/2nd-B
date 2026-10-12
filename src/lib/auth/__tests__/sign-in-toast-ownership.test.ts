@@ -1,23 +1,28 @@
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-import { createSignInBackHandler, SIGN_IN_TOAST_DURATION_MS } from "../sign-in-back";
+import { createSignInBackHandler, presentSignInExit, replacePresentedSignInExit, type PresentedSignInExit, SIGN_IN_TOAST_DURATION_MS } from "../sign-in-back";
 import { replaceSignInToast, type SignInToast } from "../sign-in-toast";
 
-const exitNotice = (until = 2800): SignInToast => ({ tone: "info", message: "exit", exitOnBackUntil: until });
+const exitNotice = (): SignInToast => ({ tone: "info", message: "exit", exitOnBack: true });
 const others: SignInToast[] = ["info", "success", "danger"].map(tone => ({ message: "other", tone: tone as SignInToast["tone"] }));
 
 function harness(initial: SignInToast | null) {
   let toast = initial;
+  let presented: PresentedSignInExit | null = null;
   const setToast = (next: SignInToast | null, expected?: SignInToast | null) => {
-    toast = replaceSignInToast(toast, next, expected);
+    next = replaceSignInToast(toast, next, expected);
+    presented = replacePresentedSignInExit(presented, toast, next);
+    toast = next;
   };
+  const present = () => { if (toast) presented = presentSignInExit(toast, toast, presented, Date.now()); };
+  present();
   const expire = (expected: SignInToast) => setTimeout(() => setToast(null, expected), SIGN_IN_TOAST_DURATION_MS);
   const exitApp = jest.fn();
   const back = createSignInBackHandler({
-    isBusy: () => false, now: Date.now, exitDeadline: () => toast?.exitOnBackUntil,
-    showNotice: until => setToast(exitNotice(until)), exitApp,
+    isBusy: () => false, now: Date.now, presentedExit: () => presented,
+    hasPendingExit: () => toast?.exitOnBack === true, showNotice: () => setToast(exitNotice()), exitApp,
   });
-  return { get: () => toast, setToast, expire, back, exitApp };
+  return { get: () => toast, presented: () => presented, present, setToast, expire, back, exitApp };
 }
 
 describe("R3-2 notice ownership matrix", () => {
@@ -39,13 +44,15 @@ describe("R3-2 notice ownership matrix", () => {
       jest.advanceTimersByTime(2800);
       expect(h.get()).toBeNull();
       h.back();
-      expect(h.get()?.exitOnBackUntil).toBe(5600);
+      expect(h.presented()).toBeNull();
+      h.present();
+      expect(h.presented()?.exitOnBackUntil).toBe(5600);
       expect(h.exitApp).not.toHaveBeenCalled();
     }
   });
 
   test("replacement just before expiry preserves other notices, new exit notices and clears", () => {
-    for (const old of [exitNotice(), ...others]) for (const replacement of [null, exitNotice(5599), ...others.map(notice => ({ ...notice }))]) {
+    for (const old of [exitNotice(), ...others]) for (const replacement of [null, exitNotice(), ...others.map(notice => ({ ...notice }))]) {
       jest.setSystemTime(0);
       const h = harness(old);
       h.expire(old);
@@ -63,7 +70,9 @@ describe("R3-2 notice ownership matrix", () => {
     setTimeout(h.back, 2800);
     h.expire(h.get()!);
     jest.advanceTimersByTime(2800);
-    expect(h.get()?.exitOnBackUntil).toBe(5600);
+    expect(h.presented()).toBeNull();
+    h.present();
+    expect(h.presented()?.exitOnBackUntil).toBe(5600);
     expect(h.exitApp).not.toHaveBeenCalled();
     h.back();
     expect(h.exitApp).toHaveBeenCalledTimes(1);
@@ -80,15 +89,15 @@ describe("R3-2 notice ownership matrix", () => {
     };
     visit(ast);
     expect(writes).toHaveLength(9);
-    expect(writes.filter(write => write.startsWith("null"))).toEqual(["null, toast", "null, toastRef.current"]);
+    expect(writes.filter(write => write.startsWith("null"))).toEqual(["null, notice", "null, toast"]);
     for (const key of ["signIn.exitOnBack", "errors.oauthSignInStartFailed", "errors.signInBusy", "errors.signInFailed", "signIn.resetToast", "signIn.resetSentToast", "errors.passwordResetFailed"]) {
       expect(writes.some(write => write.includes(`t("${key}"`))).toBe(true);
     }
     expect(writes.filter(write => write.includes('t("errors.oauthSignInStartFailed"'))).toHaveLength(2);
-    expect(source).toMatch(/next = replaceSignInToast\(toastRef.current, next, expected\);\s*toastRef.current = next;\s*setToastState\(next\);/);
+    expect(source).toMatch(/next = replaceSignInToast\(toastRef.current, next, expected\);\s*presentedExitRef.current = replacePresentedSignInExit\(presentedExitRef.current, toastRef.current, next\);\s*toastRef.current = next;\s*setToastState\(next\);/);
     expect(source.match(/setToastState\(/g)).toHaveLength(1);
     expect(source).toContain("setTimeout(() => setToast(null, toast), duration)");
     expect(source).toContain("clearTimeout(timeout)");
-    expect(source).toContain("if (toastRef.current?.exitOnBackUntil !== undefined) setToast(null, toastRef.current)");
+    expect(source).toContain("clearSignInExit(toastRef.current, setToast)");
   });
 });

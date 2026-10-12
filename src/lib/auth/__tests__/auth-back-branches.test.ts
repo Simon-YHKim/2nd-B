@@ -3,7 +3,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { selectSignInBranch, selectSignInNoticePlacement, type SignInBranch } from "../sign-in-branch";
 import type { SignInToast } from "../sign-in-toast";
-import { createSignInBackHandler } from "../sign-in-back";
+import { createSignInBackHandler, presentSignInExit, type PresentedSignInExit } from "../sign-in-back";
 import { createSignUpBackHandler } from "../sign-up-back";
 
 const read = (path: string) => readFileSync(path, "utf8");
@@ -84,8 +84,7 @@ describe("R3-1 auth branch matrix", () => {
       null,
       ...(["info", "success", "danger"] as const).flatMap(tone => [
         { tone, message: "other" },
-        { tone, message: "exit", exitOnBackUntil: 0 },
-        { tone, message: "exit", exitOnBackUntil: 2800 },
+        { tone, message: "exit", exitOnBack: true as const },
       ]),
     ];
     const seen = new Set<string>();
@@ -98,24 +97,30 @@ describe("R3-1 auth branch matrix", () => {
       seen.add(branch.kind);
       for (const notice of notices) {
         const placement = notice === null ? "none"
-          : notice.exitOnBackUntil !== undefined ? presentations[expected].exit : presentations[expected].other;
+          : notice.exitOnBack ? presentations[expected].exit : presentations[expected].other;
         expect(selectSignInNoticePlacement(branch, notice)).toBe(placement);
       }
     }
     expect([...seen].sort()).toEqual(Object.keys(presentations).sort());
   });
 
-  test("every guest presentation shows the first notice and exits only on the second idle press", () => {
+  test("every guest presentation holds pending presses and exits only after commit", () => {
     for (const deleted of bools) for (const loading of bools) for (const busy of bools) {
       const branch = selectSignInBranch({ deletionNotice: deleted ? {} : null, loading, userId: null });
-      let notice: number | undefined;
+      let notice: SignInToast | null = null;
+      let presented: PresentedSignInExit | null = null;
       const exit = jest.fn();
-      const show = jest.fn((deadline: number) => { notice = deadline; });
-      const back = createSignInBackHandler({ isBusy: () => busy, exitDeadline: () => notice, now: () => 100, showNotice: show, exitApp: exit });
+      const show = jest.fn(() => { notice = { tone: "info", message: "exit", exitOnBack: true }; });
+      const back = createSignInBackHandler({
+        isBusy: () => busy, presentedExit: () => presented, hasPendingExit: () => notice?.exitOnBack === true,
+        now: () => 100, showNotice: show, exitApp: exit,
+      });
       expect(back()).toBe(true);
       expect(exit).not.toHaveBeenCalled();
-      expect(selectSignInNoticePlacement(branch, notice === undefined ? null
-        : { tone: "info", message: "exit", exitOnBackUntil: notice })).toBe(busy ? "none" : "overlay");
+      expect(selectSignInNoticePlacement(branch, notice)).toBe(busy ? "none" : "overlay");
+      expect(back()).toBe(true);
+      expect(exit).not.toHaveBeenCalled();
+      if (notice) presented = presentSignInExit(notice, notice, presented, 100);
       expect(back()).toBe(true);
       expect(exit).toHaveBeenCalledTimes(busy ? 0 : 1);
       expect(show).toHaveBeenCalledTimes(busy ? 0 : 1);

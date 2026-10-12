@@ -38,5 +38,5 @@ export function selectSignInNoticePlacement(
   toast: SignInToast | null,
 ): SignInNoticePlacement {
   if (!toast) return "none";
-  return NOTICE_PLACEMENTS[branch.kind][toast.exitOnBackUntil !== undefined ? "exit" : "other"];
+  return NOTICE_PLACEMENTS[branch.kind][toast.exitOnBack ? "exit" : "other"];
 }

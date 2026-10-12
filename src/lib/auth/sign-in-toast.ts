@@ -1,5 +1,5 @@
 export type SignInToastTone = "info" | "success" | "danger";
-export type SignInToast = { message: string; tone: SignInToastTone; exitOnBackUntil?: number };
+export type SignInToast = { message: string; tone: SignInToastTone; exitOnBack?: true };
 
 /** Immediate writers replace; delayed writers may only replace their own notice. */
 export function replaceSignInToast(

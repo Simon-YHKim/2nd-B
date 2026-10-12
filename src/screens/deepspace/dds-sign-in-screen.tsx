@@ -1,5 +1,5 @@
 import { ProviderBrandIcon } from "@/components/auth/ProviderBrandIcon";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PlainText as Text } from "@/components/ui/PlainText";
@@ -21,6 +21,7 @@ import { type OAuthProvider } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useSignInForm } from "@/lib/auth/useSignInForm";
 import { selectSignInBranch, selectSignInNoticePlacement } from "@/lib/auth/sign-in-branch";
+import { deferSignInExitPresentation } from "@/lib/auth/sign-in-back";
 import { RedirectHome } from "@/lib/nav/go-home";
 import {
   resetPasswordHref,
@@ -81,6 +82,7 @@ export function DeepSpaceSignInDesignScreen() {
     oauthSubmitting,
     canSubmit,
     toast,
+    onExitNoticePresented,
     visibleProviders,
     handleSubmit,
     handleOAuth,
@@ -100,6 +102,17 @@ export function DeepSpaceSignInDesignScreen() {
   const deletionNotice = useAccountDeletionNotice();
   const branch = selectSignInBranch({ deletionNotice, loading, userId });
   const noticePlacement = selectSignInNoticePlacement(branch, toast);
+
+  // Effects can flush before paint. A frame between callbacks leaves the committed
+  // overlay time to draw; pending Back presses hold without extending its window.
+  useEffect(() => {
+    if (noticePlacement !== "overlay" || !toast) return;
+    return deferSignInExitPresentation({
+      requestFrame: requestAnimationFrame,
+      cancelFrame: cancelAnimationFrame,
+      present: () => onExitNoticePresented(toast),
+    });
+  }, [noticePlacement, toast, onExitNoticePresented]);
 
   const signInNotice = noticePlacement !== "none" && toast ? (
     <View
