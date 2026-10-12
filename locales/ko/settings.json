@@ -68,6 +68,10 @@
     }
   },
   "modals": {
+    "signOut": {
+      "title": "로그아웃할까요?",
+      "cancelHint": "로그아웃하지 않고 닫습니다."
+    },
     "confirm": {
       "label": "설정 삭제 확인",
       "title": "선택한 데이터를 삭제할까요?",

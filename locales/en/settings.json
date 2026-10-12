@@ -68,6 +68,10 @@
     }
   },
   "modals": {
+    "signOut": {
+      "title": "Sign out?",
+      "cancelHint": "Closes without signing out."
+    },
     "confirm": {
       "label": "Settings confirmation dialog",
       "title": "Delete the selected data?",

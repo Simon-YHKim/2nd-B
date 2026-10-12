@@ -68,6 +68,10 @@
     }
   },
   "modals": {
+    "signOut": {
+      "title": "Keluar dari akun?",
+      "cancelHint": "Menutup konfirmasi ini tanpa keluar."
+    },
     "confirm": {
       "label": "Dialog konfirmasi pengaturan",
       "title": "Kamu yakin?",

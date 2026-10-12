@@ -68,6 +68,10 @@
     }
   },
   "modals": {
+    "signOut": {
+      "title": "¿Cerrar sesión?",
+      "cancelHint": "Cierra esta confirmación sin cerrar sesión."
+    },
     "confirm": {
       "label": "Diálogo de confirmación de ajustes",
       "title": "¿Estás seguro?",
