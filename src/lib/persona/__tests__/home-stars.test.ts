@@ -285,10 +285,12 @@ describe("/me/<star> 요약은 사다리 하나로 말한다", () => {
   // Simon 2026-10-12 (Q-261012-62): a star with no story yet shows the same
   // ladder, all five rungs off and "0/5", instead of one line of text.
   it("이야기가 0 인 별도 사다리를 그린다: 한 줄 글은 불러오는 중에만 남는다", () => {
-    expect(page).not.toContain("summary.cells === 0 && summary.records === 0");
-    expect(page).toMatch(/const ladder = !isProfileStar && !locked && summary !== null\s+\? starLadderRungs\(summary\.covered\)\s+: null;/);
+    expect(page).toMatch(/const ladder = !isProfileStar && !locked && summary !== null && !waitingEmpty\s+\? starLadderRungs\(summary\.covered\)\s+: null;/);
+    // The one exception: an empty star still waiting on the star before it cannot be
+    // started, so it shows that one reason and nothing else (like a period not reached).
+    expect(page).toContain('const waitingEmpty = entry?.kind === "previous" && summary !== null && summary.cells === 0 && summary.records === 0;');
     expect(page).not.toContain('t("ds.star.emptyBody")');
-    expect(page).toContain('{t("ds.star.loading")}');
+    expect(page).toMatch(/\) : summary === null \? \(\s+<MdCard variant="outlined" style=\{styles\.card\}>\s+<Text[^>]*>\s+\{t\("ds\.star\.loading"\)\}/);
     // No "0 records" line under an empty ladder.
     expect(page).toContain("{summary.records > 0 ? (");
     // The button already says Start until a first layer is covered.
