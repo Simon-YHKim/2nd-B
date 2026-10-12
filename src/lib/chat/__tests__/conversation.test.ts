@@ -343,6 +343,27 @@ describe("sendChatMessage", () => {
     expect(llmArgs.system).toContain("오늘은 좀 나아졌어"); // green turn kept
   });
 
+  test.each([
+    ["en", "analytic"], ["en", "divergent"],
+    ["ko", "analytic"], ["ko", "divergent"],
+  ] as const)("%s/%s: reminder and routine instructions reach the trusted system header", async (locale, mode) => {
+    await sendChatMessage({ userId: "u1", message: "hello", locale, mode, tier: "soma" });
+    const calls = captured.filter((c) => c.fn === "callLlm");
+    expect(calls).toHaveLength(1);
+    const { system } = calls[0].args[0] as { system: string };
+    const trustedHeader = system.split("\n\n")[0];
+    expect(system.indexOf("<UNTRUSTED")).toBeGreaterThan(trustedHeader.length);
+    if (locale === "ko") {
+      expect(trustedHeader).toMatch(/리마인더·루틴 요청.*한 문장/);
+      expect(trustedHeader).toMatch(/버튼.*나올 수.*사용자.*확인해야/);
+      expect(trustedHeader).toMatch(/만들 수 없다고.*이미 설정·예약했다고.*알려 드리겠다고.*말하거나.*지어내지 말고/);
+    } else {
+      expect(trustedHeader).toMatch(/reminder or routine requests.*one short sentence/i);
+      expect(trustedHeader).toMatch(/may offer a button.*user-confirmed setup/i);
+      expect(trustedHeader).toMatch(/Do not say you cannot.*already set.*will notify/i);
+    }
+  });
+
   // Q-261011-11: a message the input check let through still reaches the model, and the model used
   // to recommend 119 and 112 on its own. The rule rides the trusted part of the system prompt and
   // takes its numbers from crisisHotlines, the table behind the fixed notice.
