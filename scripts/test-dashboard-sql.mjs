@@ -6,16 +6,20 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const [port, database] = process.argv.slice(2);
 if (!/^\d{4,5}$/.test(port ?? '') || +port > 65535 || !/^dashboard_test[a-z0-9_]*$/.test(database ?? '')) throw new Error('Explicit disposable local DB required');
-const fixture = resolve(dirname(fileURLToPath(import.meta.url)), '../db/tests/dashboard_generation_bootstrap.sql');
+const fixture = resolve(dirname(fileURLToPath(import.meta.url)), '../db/tests/dashboard_note_backstop_bootstrap.sql');
+const baselineFixture = resolve(dirname(fixture), 'dashboard_generation_bootstrap.sql');
 const consentSql = readFileSync(resolve(dirname(fixture), '../migrations/0193_effective_llm_consent_current_contract.sql'), 'utf8');
 const invalidation = consentSql.slice(consentSql.indexOf('CREATE FUNCTION public.llm_consent_relevant_prefs('),
   consentSql.indexOf('-- A private, read-only decision'));
 if (!invalidation.includes('CREATE TRIGGER invalidate_llm_consent_event')) throw new Error('Missing actual consent invalidator');
-const sql = readFileSync(fixture, 'utf8').replace('-- @LOAD_CONSENT_INVALIDATION@', () => invalidation)
+// Preserve the pinned 0247 bootstrap, then leave 0248 installed for concurrency.
+const baselineSql = readFileSync(baselineFixture, 'utf8').replace('-- @LOAD_CONSENT_INVALIDATION@', () => invalidation);
+const sql = readFileSync(fixture, 'utf8').replace('\\ir dashboard_generation_bootstrap.sql', () => baselineSql)
   .replace(/^\\ir (.+)$/gm, (_, path) => `\\ir '${resolve(dirname(fixture), path).replaceAll('\\', '/')}'`);
 const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^PG/i.test(key) || key === 'PGPASSWORD'));
 const result = spawnSync('psql', ['-X', '--no-password', '-h', '127.0.0.1', '-p', port, '-U', 'dashboard_local', '-d', database, '-v', 'ON_ERROR_STOP=1'], {
-  input: sql, encoding: 'utf8', env, windowsHide: true, timeout: 60_000,
+  // Both numbered suites run here; keep a bound with room for Windows timezone scans.
+  input: sql, encoding: 'utf8', env, windowsHide: true, timeout: 120_000,
 });
 process.stdout.write(result.stdout ?? ''); process.stderr.write(result.stderr ?? '');
 if (result.error) throw result.error;
