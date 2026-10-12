@@ -9,6 +9,7 @@
 // 이 프롬프트의 문장들뿐이라, 여기가 무너지면 잡아줄 다른 그물이 없다.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { FORBIDDEN_TERMS } from "../../safety/lexicon";
 
 const SRC = readFileSync(join(__dirname, "..", "conversation.ts"), "utf8").replace(/\r\n/g, "\n");
 
@@ -19,6 +20,13 @@ function header(): string {
   const end = SRC.indexOf("\n};", start);
   expect(end).toBeGreaterThan(start);
   return SRC.slice(start, end);
+}
+
+function localeHeader(locale: "en" | "ko"): string {
+  const block = header().match(new RegExp(`\\b${locale}: \\[([\\s\\S]*?)\\]\\.join`))?.[1];
+  expect(block).toBeDefined();
+  return [...block!.matchAll(/^\s*("(?:[^"\\]|\\.)*"),?$/gm)]
+    .map((match) => JSON.parse(match[1]) as string).join(" ");
 }
 
 describe("세컨비 정체성 프롬프트", () => {
@@ -73,6 +81,53 @@ describe("세컨비 정체성 프롬프트", () => {
     // check-forbidden-lexicon 이 이 파일을 스캔한다. 이전 초안이 영어
     // "counseling" 으로 CI 를 깨뜨렸다 - 뜻을 지키면서 단어만 피한다.
     expect(header()).not.toMatch(/counseling|therapy|심리상담/i);
+  });
+
+  it.each(["en", "ko"] as const)("%s: 리마인더·루틴은 사용자 확인 전 기능 부정도 예약 약속도 하지 않는다", (locale) => {
+    const h = localeHeader(locale);
+    const rules = locale === "ko" ? [
+      /리마인더나 루틴을 만들어 달라는 요청.*한 문장.*짧게/,
+      /답 아래.*버튼.*나올 수/,
+      /사용자.*확인해야/,
+      /알림을 보내거나 리마인더·루틴을 만들 수 없다고.*말하거나.*지어내지 말고/,
+      /이미 설정·예약했다고.*말하거나.*지어내지 말고/,
+      /알려 드리겠다고.*말하거나.*지어내지 말고/,
+      /날짜·시각을 지어내지/,
+      /버튼이 나올 때.*설정.*맡기세요/,
+    ] : [
+      /asks you to set up a reminder or routine.*one short sentence/i,
+      /may offer a button below your reply/i,
+      /user-confirmed setup/i,
+      /Do not say you cannot send notifications or create reminders\/routines/i,
+      /Do not say[^.]*already set/i,
+      /Do not say[^.]*will notify/i,
+      /never invent dates\/times/i,
+      /leave setup to the button if shown/i,
+    ];
+    for (const rule of rules) expect(h).toMatch(rule);
+    for (const term of Object.values(FORBIDDEN_TERMS).flat()) {
+      expect(h.toLowerCase()).not.toContain(term.toLowerCase());
+    }
+    expect(h).not.toContain("\u2014");
+    // The rule covers set-up requests only and names no platform mechanism: a model that is told
+    // about calendar export starts explaining it to people who never asked.
+    expect(h).not.toMatch(/캘린더|calendar/i);
+    // The button's name differs by locale and by kind, and it is not always shown: the header
+    // may point at "a button below your reply" but must never quote a real label.
+    for (const loc of ["en", "ko", "es", "pt", "id"]) {
+      const labels = (JSON.parse(readFileSync(join(__dirname, "..", "..", "..", "..", "locales", loc, "secondb.json"), "utf8")) as
+        { planSuggestion: Record<string, string> }).planSuggestion;
+      for (const key of ["reminderButton", "routineButton"]) {
+        const label = labels[key].replace(/⁠/g, "");
+        expect(label.length).toBeGreaterThan(3);
+        expect(h.toLowerCase()).not.toContain(label.toLowerCase());
+      }
+    }
+    if (locale === "ko") {
+      expect(h).toContain("'~습니다'");
+      expect(h).toContain("'~나요?'");
+      expect(h).toMatch(/진행됩니다/);
+    }
   });
 });
 
