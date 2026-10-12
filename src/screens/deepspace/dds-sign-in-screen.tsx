@@ -1,6 +1,7 @@
 import { ProviderBrandIcon } from "@/components/auth/ProviderBrandIcon";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Platform, StyleSheet, TextInput, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { router } from "expo-router";
 import Svg from "react-native-svg";
@@ -18,7 +19,9 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { type OAuthProvider } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useSignInForm } from "@/lib/auth/useSignInForm";
+import { useSignInForm, type UseSignInForm, type SignInToast } from "@/lib/auth/useSignInForm";
+import { selectSignInNoticePlacement } from "@/lib/auth/sign-in-branch";
+import { deferSignInExitPresentation } from "@/lib/auth/sign-in-back";
 import { RedirectHome } from "@/lib/nav/go-home";
 import {
   resetPasswordHref,
@@ -27,6 +30,8 @@ import {
 import { m3 } from "@/lib/theme/m3";
 
 const SIGN_IN_PROVIDERS = ["google", "apple", "github"] as const satisfies readonly OAuthProvider[];
+// Android stacking order above the gate/receipt, not a decorative shadow.
+const EXIT_NOTICE_LAYER = 1;
 
 type SignInProvider = (typeof SIGN_IN_PROVIDERS)[number];
 const PROVIDER_KEY: Record<SignInProvider, string> = {
@@ -61,11 +66,41 @@ function SignInPolaris({ label }: { label: string }) {
   );
 }
 
+// The component that draws the overlay also owns its eligibility lifetime.
+// Cleanup runs in the removal/replacement commit, before any passive effects.
+function SignInExitNotice({ toast, onAttached, onPresented, children }: {
+  toast: SignInToast;
+  onAttached: UseSignInForm["onExitNoticeAttached"];
+  onPresented: UseSignInForm["onExitNoticePresented"];
+  children: ReactNode;
+}) {
+  useLayoutEffect(() => {
+    const detach = onAttached(toast);
+    const cancelPresentation = deferSignInExitPresentation({
+      requestFrame: requestAnimationFrame,
+      cancelFrame: cancelAnimationFrame,
+      present: () => onPresented(toast),
+    });
+    return () => {
+      detach();
+      cancelPresentation();
+    };
+  }, [toast, onAttached, onPresented]);
+  return (
+    <SafeAreaView pointerEvents="none" edges={["bottom"]} style={styles.exitNoticeOverlay}>
+      {children}
+    </SafeAreaView>
+  );
+}
+
 export function DeepSpaceSignInDesignScreen() {
   const { t } = useTranslation(["deepspace", "auth", "common", "settings", "home"]);
+  // 확인된 삭제 영수증은 두 게스트 가드보다 앞선다. 방금 계정을 지운 사람에게
+  // 서버가 무엇을 지웠고 무엇을 확인하지 못했는지 말해 줄 자리가 여기뿐이다.
+  // 세션 로딩 중에도, 늦게 도착한 userId 로도 이 결과를 밀어내면 안 된다.
+  const deletionNotice = useAccountDeletionNotice();
   const {
-    userId,
-    loading,
+    branch,
     email,
     setEmail,
     password,
@@ -77,10 +112,12 @@ export function DeepSpaceSignInDesignScreen() {
     oauthSubmitting,
     canSubmit,
     toast,
+    onExitNoticeAttached,
+    onExitNoticePresented,
     visibleProviders,
     handleSubmit,
     handleOAuth,
-  } = useSignInForm();
+  } = useSignInForm(deletionNotice);
   // AUTH-01: startup can end without ever classifying the session. That is not
   // "signed out" - it is unknown - so the form is shown with an explicit,
   // announced error and a bounded retry instead of pretending it is a clean
@@ -90,28 +127,77 @@ export function DeepSpaceSignInDesignScreen() {
   const actionLock = useRef(false);
   const [focusedField, setFocusedField] = useState<FocusedField>(null);
 
-  // 확인된 삭제 영수증은 두 게스트 가드보다 앞선다. 방금 계정을 지운 사람에게
-  // 서버가 무엇을 지웠고 무엇을 확인하지 못했는지 말해 줄 자리가 여기뿐이다.
-  // 세션 로딩 중에도, 늦게 도착한 userId 로도 이 결과를 밀어내면 안 된다.
-  const deletionNotice = useAccountDeletionNotice();
-  if (deletionNotice) return <AccountDeletionNoticePanel notice={deletionNotice} />;
+  const noticePlacement = selectSignInNoticePlacement(branch, toast);
 
-  if (loading) {
+  const signInNotice = noticePlacement !== "none" && toast ? (
+    <View
+      accessibilityRole="alert"
+      accessibilityLiveRegion={toast.tone === "danger" ? "assertive" : "polite"}
+    >
+      <PixelSurface
+        variant="frame"
+        background={
+          toast.tone === "danger"
+            ? m3.color.errorContainer
+            : toast.tone === "success"
+              ? m3.color.tertiaryContainer
+              : m3.color.primaryContainer
+        }
+        contentStyle={styles.toast}
+      >
+        <Text
+          style={[
+            styles.toastText,
+            toast.tone === "danger"
+              ? styles.toastDanger
+              : toast.tone === "success"
+                ? styles.toastSuccess
+                : styles.toastInfo,
+          ]}
+        >
+          {toast.message}
+        </Text>
+      </PixelSurface>
+    </View>
+  ) : null;
+  const inlineNotice = noticePlacement === "inline" ? signInNotice : null;
+  // Outside every scroll/card flow: the receipt must not move when Back arms.
+  // Pass all touches through, including a receipt button under large text.
+  const exitNoticeOverlay = noticePlacement === "overlay" && toast ? (
+    <SignInExitNotice toast={toast} onAttached={onExitNoticeAttached} onPresented={onExitNoticePresented}>
+      {signInNotice}
+    </SignInExitNotice>
+  ) : null;
+
+  if (branch.kind === "deletion") {
     return (
-      <PixelGateShell contentContainerStyle={styles.loadingShell}>
-        <View style={styles.loadingHero}>
-          <LoadingPolaris size={112} accessibilityLabel={t("home:ds.home.polaris")} />
-          <Text style={styles.brand}>{t("deepspace:auth.brandLabel")}</Text>
-          <PixelSurface variant="frame" contentStyle={styles.loadingSurface}>
-            <Text style={styles.helper}>{t("auth:common.checking")}</Text>
-          </PixelSurface>
-        </View>
-      </PixelGateShell>
+      <View style={styles.screen}>
+        {inlineNotice}
+        <AccountDeletionNoticePanel notice={branch.notice} />
+        {exitNoticeOverlay}
+      </View>
+    );
+  }
+  if (branch.kind === "loading") {
+    return (
+      <View style={styles.screen}>
+        <PixelGateShell contentContainerStyle={styles.loadingShell}>
+          <View style={styles.loadingHero}>
+            <LoadingPolaris size={112} accessibilityLabel={t("home:ds.home.polaris")} />
+            <Text style={styles.brand}>{t("deepspace:auth.brandLabel")}</Text>
+            <PixelSurface variant="frame" contentStyle={styles.loadingSurface}>
+              <Text style={styles.helper}>{t("auth:common.checking")}</Text>
+            </PixelSurface>
+          </View>
+          {inlineNotice}
+        </PixelGateShell>
+        {exitNoticeOverlay}
+      </View>
     );
   }
   // Signed in: pop back to the home under this route, never stack a second
   // one (QA 261004 D-01).
-  if (userId) return <RedirectHome />;
+  if (branch.kind === "home") return <RedirectHome />;
 
   const authBusy = submitting || oauthSubmitting;
   const submitDisabled = !canSubmit || oauthSubmitting;
@@ -130,304 +216,277 @@ export function DeepSpaceSignInDesignScreen() {
   }
 
   return (
-    <PixelGateShell contentContainerStyle={styles.shell}>
-      <View style={styles.hero}>
-        <SignInPolaris label={t("home:ds.home.polaris")} />
-        <Text style={styles.brand}>{t("deepspace:auth.brandLabel")}</Text>
-        <Text style={styles.title}>{t("deepspace:auth.signInTitle")}</Text>
-        <Text style={styles.lead}>{t("deepspace:auth.signInLead")}</Text>
-      </View>
-
-      <ShareRefusedLine />
-
-      {sessionUnavailable ? (
-        <View accessibilityRole="alert" accessibilityLiveRegion="assertive">
-          <PixelSurface
-            variant="frame"
-            background={m3.color.errorContainer}
-            contentStyle={styles.sessionAlert}
-          >
-            <Text style={[styles.toastText, styles.toastDanger]}>
-              {t("auth:common.sessionUnavailable")}
-            </Text>
-            <PixelPressable
-              variant="bevel"
-              onPress={() => void refresh()}
-              accessibilityLabel={t("common:actions.retry")}
-              background={m3.color.primary}
-              fullWidth
-              contentStyle={styles.sessionRetry}
-            >
-              <Text style={styles.sessionRetryLabel}>{t("common:actions.retry")}</Text>
-            </PixelPressable>
-          </PixelSurface>
+    <View style={styles.screen}>
+      <PixelGateShell contentContainerStyle={styles.shell}>
+        <View style={styles.hero}>
+          <SignInPolaris label={t("home:ds.home.polaris")} />
+          <Text style={styles.brand}>{t("deepspace:auth.brandLabel")}</Text>
+          <Text style={styles.title}>{t("deepspace:auth.signInTitle")}</Text>
+          <Text style={styles.lead}>{t("deepspace:auth.signInLead")}</Text>
         </View>
-      ) : null}
 
-      {signInTakingLong ? (
-        <View accessibilityRole="alert" accessibilityLiveRegion="polite">
-          <PixelSurface
-            variant="frame"
-            background={m3.color.primaryContainer}
-            contentStyle={styles.sessionAlert}
-          >
-            <Text style={[styles.toastText, styles.toastInfo]}>
-              {t("auth:signIn.longWait")}
-            </Text>
-            {Platform.OS === "web" ? (
+        <ShareRefusedLine />
+
+        {sessionUnavailable ? (
+          <View accessibilityRole="alert" accessibilityLiveRegion="assertive">
+            <PixelSurface
+              variant="frame"
+              background={m3.color.errorContainer}
+              contentStyle={styles.sessionAlert}
+            >
+              <Text style={[styles.toastText, styles.toastDanger]}>
+                {t("auth:common.sessionUnavailable")}
+              </Text>
               <PixelPressable
                 variant="bevel"
-                onPress={() => window.location.reload()}
-                accessibilityLabel={t("auth:signIn.reopen")}
+                onPress={() => void refresh()}
+                accessibilityLabel={t("common:actions.retry")}
                 background={m3.color.primary}
                 fullWidth
                 contentStyle={styles.sessionRetry}
               >
-                <Text style={styles.sessionRetryLabel}>{t("auth:signIn.reopen")}</Text>
+                <Text style={styles.sessionRetryLabel}>{t("common:actions.retry")}</Text>
               </PixelPressable>
-            ) : null}
+            </PixelSurface>
+          </View>
+        ) : null}
+
+        {signInTakingLong ? (
+          <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+            <PixelSurface
+              variant="frame"
+              background={m3.color.primaryContainer}
+              contentStyle={styles.sessionAlert}
+            >
+              <Text style={[styles.toastText, styles.toastInfo]}>
+                {t("auth:signIn.longWait")}
+              </Text>
+              {Platform.OS === "web" ? (
+                <PixelPressable
+                  variant="bevel"
+                  onPress={() => window.location.reload()}
+                  accessibilityLabel={t("auth:signIn.reopen")}
+                  background={m3.color.primary}
+                  fullWidth
+                  contentStyle={styles.sessionRetry}
+                >
+                  <Text style={styles.sessionRetryLabel}>{t("auth:signIn.reopen")}</Text>
+                </PixelPressable>
+              ) : null}
+            </PixelSurface>
+          </View>
+        ) : null}
+
+        <View style={[styles.formSurface, styles.form]}>
+          <Text style={styles.label}>{t("auth:signIn.email")}</Text>
+          <PixelSurface
+            variant="inset"
+            background={
+              authBusy
+                ? m3.color.surfaceContainerHighest
+                : focusedField === "email"
+                  ? m3.color.primaryContainer
+                  : m3.color.surfaceVariant
+            }
+            style={styles.inputSurface}
+            contentStyle={styles.inputContent}
+          >
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              editable={!authBusy}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              autoComplete="email"
+              textContentType="emailAddress"
+              placeholder="email@example.com"
+              placeholderTextColor={m3.color.onSurfaceVariant}
+              accessibilityLabel={t("auth:signIn.email")}
+              accessibilityHint={t("auth:signIn.emailHint")}
+              style={styles.input}
+              returnKeyType="next"
+              blurOnSubmit={false}
+              onFocus={() => setFocusedField("email")}
+              onBlur={() => setFocusedField(null)}
+              onSubmitEditing={() => passwordRef.current?.focus()}
+            />
           </PixelSurface>
-        </View>
-      ) : null}
 
-      <View style={[styles.formSurface, styles.form]}>
-        <Text style={styles.label}>{t("auth:signIn.email")}</Text>
-        <PixelSurface
-          variant="inset"
-          background={
-            authBusy
-              ? m3.color.surfaceContainerHighest
-              : focusedField === "email"
-                ? m3.color.primaryContainer
-                : m3.color.surfaceVariant
-          }
-          style={styles.inputSurface}
-          contentStyle={styles.inputContent}
-        >
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            editable={!authBusy}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            autoComplete="email"
-            textContentType="emailAddress"
-            placeholder="email@example.com"
-            placeholderTextColor={m3.color.onSurfaceVariant}
-            accessibilityLabel={t("auth:signIn.email")}
-            accessibilityHint={t("auth:signIn.emailHint")}
-            style={styles.input}
-            returnKeyType="next"
-            blurOnSubmit={false}
-            onFocus={() => setFocusedField("email")}
-            onBlur={() => setFocusedField(null)}
-            onSubmitEditing={() => passwordRef.current?.focus()}
-          />
-        </PixelSurface>
+          <View style={styles.passwordLabelRow}>
+            <Text style={styles.label}>{t("auth:signIn.password")}</Text>
+            <PixelPressable
+              variant="frame"
+              onPress={toggleShowPassword}
+              disabled={authBusy}
+              accessibilityLabel={
+                showPassword
+                  ? t("auth:signIn.hidePasswordLabel")
+                  : t("auth:signIn.showPasswordLabel")
+              }
+              accessibilityHint={
+                showPassword
+                  ? t("auth:signIn.hidePasswordHint")
+                  : t("auth:signIn.showPasswordHint")
+              }
+              accessibilityState={{ selected: showPassword }}
+              rootStyle={styles.eyeRoot}
+              contentStyle={styles.eyeContent}
+            >
+              <PixelGlyph
+                name={showPassword ? "visibilityOff" : "visibility"}
+                color={m3.color.primary}
+                size={24}
+              />
+            </PixelPressable>
+          </View>
+          <PixelSurface
+            variant="inset"
+            background={
+              authBusy
+                ? m3.color.surfaceContainerHighest
+                : focusedField === "password"
+                  ? m3.color.primaryContainer
+                  : m3.color.surfaceVariant
+            }
+            style={styles.inputSurface}
+            contentStyle={styles.inputContent}
+          >
+            <TextInput
+              ref={passwordRef}
+              value={password}
+              onChangeText={setPassword}
+              editable={!authBusy}
+              secureTextEntry={!showPassword}
+              autoComplete="current-password"
+              textContentType="password"
+              placeholder="••••••••"
+              placeholderTextColor={m3.color.onSurfaceVariant}
+              accessibilityLabel={t("auth:signIn.password")}
+              accessibilityHint={t("auth:signIn.passwordHint")}
+              style={styles.input}
+              returnKeyType="go"
+              onFocus={() => setFocusedField("password")}
+              onBlur={() => setFocusedField(null)}
+              onSubmitEditing={() => {
+                if (!submitDisabled) void submit();
+              }}
+            />
+          </PixelSurface>
 
-        <View style={styles.passwordLabelRow}>
-          <Text style={styles.label}>{t("auth:signIn.password")}</Text>
           <PixelPressable
-            variant="frame"
-            onPress={toggleShowPassword}
-            disabled={authBusy}
-            accessibilityLabel={
-              showPassword
-                ? t("auth:signIn.hidePasswordLabel")
-                : t("auth:signIn.showPasswordLabel")
-            }
-            accessibilityHint={
-              showPassword
-                ? t("auth:signIn.hidePasswordHint")
-                : t("auth:signIn.showPasswordHint")
-            }
-            accessibilityState={{ selected: showPassword }}
-            rootStyle={styles.eyeRoot}
-            contentStyle={styles.eyeContent}
+            variant="bevel"
+            onPress={() => void submit()}
+            disabled={submitDisabled}
+            accessibilityLabel={t("auth:signIn.submit")}
+            accessibilityState={{ busy: submitting }}
+            background={submitDisabled ? m3.color.surfaceContainerHighest : m3.color.primary}
+            fullWidth
+            contentStyle={styles.primaryContent}
           >
             <PixelGlyph
-              name={showPassword ? "visibilityOff" : "visibility"}
-              color={m3.color.primary}
+              name="lock"
+              color={submitDisabled ? m3.color.onSurfaceVariant : m3.color.onPrimary}
               size={24}
             />
+            <Text style={[styles.primaryText, submitDisabled && styles.disabledText]}>
+              {submitting ? t("auth:signIn.submitting") : t("auth:signIn.submit")}
+            </Text>
+          </PixelPressable>
+
+          <PixelPressable
+            variant="bevel"
+            onPress={() => router.push(resetPasswordHref(email))}
+            disabled={authBusy}
+            accessibilityRole="link"
+            accessibilityLabel={t("auth:signIn.resetLabel")}
+            accessibilityHint={t("auth:resetPassword.requestSubtitle")}
+            fullWidth
+            // Primary-blue link text needs the panel ground for AA: 5.30:1 here, 4.16:1 on
+            // the default bevel fill (surfaceContainerHigh). QA R2B-08.
+            background={LINK_GROUND}
+            contentStyle={styles.linkContent}
+          >
+            <Text style={styles.linkText}>{t("deepspace:auth.forgotPassword")}</Text>
+            <PixelGlyph name="arrowForward" color={m3.color.primary} size={16} />
+          </PixelPressable>
+
+          {signInProviders.length > 0 ? (
+            <>
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerCell} />
+                <Text style={styles.dividerText}>{t("deepspace:auth.or")}</Text>
+                <View style={styles.dividerCell} />
+              </View>
+              <View style={styles.providers}>
+                {signInProviders.map((provider) => (
+                  <PixelPressable
+                    key={provider}
+                    variant="bevel"
+                    onPress={() => void startProvider(provider)}
+                    disabled={authBusy}
+                    accessibilityLabel={t(PROVIDER_KEY[provider])}
+                    accessibilityState={{ busy: oauthSubmitting }}
+                    rootStyle={styles.providerRoot}
+                    contentStyle={styles.providerContent}
+                  >
+                    <ProviderBrandIcon provider={provider} />
+                    <Text style={styles.providerText}>{t(PROVIDER_KEY[provider])}</Text>
+                  </PixelPressable>
+                ))}
+              </View>
+            </>
+          ) : null}
+        </View>
+
+        <View style={styles.actionInset}>
+          <PixelPressable
+            variant="bevel"
+            onPress={() => router.push("/sign-up")}
+            disabled={authBusy}
+            accessibilityRole="link"
+            accessibilityLabel={t("auth:signIn.signUpLink")}
+            accessibilityHint={t("auth:signIn.signUpHint")}
+            fullWidth
+            background={LINK_GROUND}
+            contentStyle={styles.signUpContent}
+          >
+            <View style={styles.signUpCopy}>
+              <Text style={styles.helper}>{t("auth:signIn.noAccount")}</Text>
+              <Text style={styles.signUpText}>{t("auth:signIn.signUpLink")}</Text>
+            </View>
+            <PixelGlyph name="arrowForward" color={m3.color.primary} size={24} />
           </PixelPressable>
         </View>
-        <PixelSurface
-          variant="inset"
-          background={
-            authBusy
-              ? m3.color.surfaceContainerHighest
-              : focusedField === "password"
-                ? m3.color.primaryContainer
-                : m3.color.surfaceVariant
-          }
-          style={styles.inputSurface}
-          contentStyle={styles.inputContent}
-        >
-          <TextInput
-            ref={passwordRef}
-            value={password}
-            onChangeText={setPassword}
-            editable={!authBusy}
-            secureTextEntry={!showPassword}
-            autoComplete="current-password"
-            textContentType="password"
-            placeholder="••••••••"
-            placeholderTextColor={m3.color.onSurfaceVariant}
-            accessibilityLabel={t("auth:signIn.password")}
-            accessibilityHint={t("auth:signIn.passwordHint")}
-            style={styles.input}
-            returnKeyType="go"
-            onFocus={() => setFocusedField("password")}
-            onBlur={() => setFocusedField(null)}
-            onSubmitEditing={() => {
-              if (!submitDisabled) void submit();
-            }}
-          />
-        </PixelSurface>
 
-        <PixelPressable
-          variant="bevel"
-          onPress={() => void submit()}
-          disabled={submitDisabled}
-          accessibilityLabel={t("auth:signIn.submit")}
-          accessibilityState={{ busy: submitting }}
-          background={submitDisabled ? m3.color.surfaceContainerHighest : m3.color.primary}
-          fullWidth
-          contentStyle={styles.primaryContent}
-        >
-          <PixelGlyph
-            name="lock"
-            color={submitDisabled ? m3.color.onSurfaceVariant : m3.color.onPrimary}
-            size={24}
-          />
-          <Text style={[styles.primaryText, submitDisabled && styles.disabledText]}>
-            {submitting ? t("auth:signIn.submitting") : t("auth:signIn.submit")}
-          </Text>
-        </PixelPressable>
-
-        <PixelPressable
-          variant="bevel"
-          onPress={() => router.push(resetPasswordHref(email))}
-          disabled={authBusy}
-          accessibilityRole="link"
-          accessibilityLabel={t("auth:signIn.resetLabel")}
-          accessibilityHint={t("auth:resetPassword.requestSubtitle")}
-          fullWidth
-          // Primary-blue link text needs the panel ground for AA: 5.30:1 here, 4.16:1 on
-          // the default bevel fill (surfaceContainerHigh). QA R2B-08.
-          background={LINK_GROUND}
-          contentStyle={styles.linkContent}
-        >
-          <Text style={styles.linkText}>{t("deepspace:auth.forgotPassword")}</Text>
-          <PixelGlyph name="arrowForward" color={m3.color.primary} size={16} />
-        </PixelPressable>
-
-        {signInProviders.length > 0 ? (
-          <>
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerCell} />
-              <Text style={styles.dividerText}>{t("deepspace:auth.or")}</Text>
-              <View style={styles.dividerCell} />
-            </View>
-            <View style={styles.providers}>
-              {signInProviders.map((provider) => (
-                <PixelPressable
-                  key={provider}
-                  variant="bevel"
-                  onPress={() => void startProvider(provider)}
-                  disabled={authBusy}
-                  accessibilityLabel={t(PROVIDER_KEY[provider])}
-                  accessibilityState={{ busy: oauthSubmitting }}
-                  rootStyle={styles.providerRoot}
-                  contentStyle={styles.providerContent}
-                >
-                  <ProviderBrandIcon provider={provider} />
-                  <Text style={styles.providerText}>{t(PROVIDER_KEY[provider])}</Text>
-                </PixelPressable>
-              ))}
-            </View>
-          </>
-        ) : null}
-      </View>
-
-      <View style={styles.actionInset}>
-        <PixelPressable
-          variant="bevel"
-          onPress={() => router.push("/sign-up")}
-          disabled={authBusy}
-          accessibilityRole="link"
-          accessibilityLabel={t("auth:signIn.signUpLink")}
-          accessibilityHint={t("auth:signIn.signUpHint")}
-          fullWidth
-          background={LINK_GROUND}
-          contentStyle={styles.signUpContent}
-        >
-          <View style={styles.signUpCopy}>
-            <Text style={styles.helper}>{t("auth:signIn.noAccount")}</Text>
-            <Text style={styles.signUpText}>{t("auth:signIn.signUpLink")}</Text>
+        <View style={styles.legal}>
+          <Text style={styles.legalLead}>{t("deepspace:auth.legalConsent")}</Text>
+          <View style={[styles.legalLinks, styles.actionInset]}>
+            <LegalLink
+              label={t("deepspace:ds.plans.legalTerms")}
+              onPress={() => router.push("/terms")}
+            />
+            <LegalLink
+              label={t("settings:nav.privacy")}
+              onPress={() => router.push("/privacy-policy")}
+            />
+            <LegalLink
+              label={t("deepspace:ds.plans.legalRefund")}
+              onPress={() => router.push("/refund")}
+            />
           </View>
-          <PixelGlyph name="arrowForward" color={m3.color.primary} size={24} />
-        </PixelPressable>
-      </View>
-
-      <View style={styles.legal}>
-        <Text style={styles.legalLead}>{t("deepspace:auth.legalConsent")}</Text>
-        <View style={[styles.legalLinks, styles.actionInset]}>
-          <LegalLink
-            label={t("deepspace:ds.plans.legalTerms")}
-            onPress={() => router.push("/terms")}
-          />
-          <LegalLink
-            label={t("settings:nav.privacy")}
-            onPress={() => router.push("/privacy-policy")}
-          />
-          <LegalLink
-            label={t("deepspace:ds.plans.legalRefund")}
-            onPress={() => router.push("/refund")}
-          />
+          {/* 전자상거래법 표시의무 푸터. 반드시 동의 링크 **아래**다.
+              값이 등록되기 전(BUSINESS_INFO null)에는 아무것도 그리지 않는다:
+              src/lib/legal/business-info.ts. 이 화면을 dds-auth-screens 에서
+              들어낼 때 같이 딸려오지 않아서 통합 중에 되살렸다 — 빠지면 로그인
+              화면에서 사업자 정보 고지가 조용히 사라진다. */}
+          <BusinessFooter />
         </View>
-        {/* 전자상거래법 표시의무 푸터. 반드시 동의 링크 **아래**다.
-            값이 등록되기 전(BUSINESS_INFO null)에는 아무것도 그리지 않는다:
-            src/lib/legal/business-info.ts. 이 화면을 dds-auth-screens 에서
-            들어낼 때 같이 딸려오지 않아서 통합 중에 되살렸다 — 빠지면 로그인
-            화면에서 사업자 정보 고지가 조용히 사라진다. */}
-        <BusinessFooter />
-      </View>
 
-      {toast ? (
-        <View
-          accessibilityRole="alert"
-          accessibilityLiveRegion={toast.tone === "danger" ? "assertive" : "polite"}
-        >
-          <PixelSurface
-            variant="frame"
-            background={
-              toast.tone === "danger"
-                ? m3.color.errorContainer
-                : toast.tone === "success"
-                  ? m3.color.tertiaryContainer
-                  : m3.color.primaryContainer
-            }
-            contentStyle={styles.toast}
-          >
-            <Text
-              style={[
-                styles.toastText,
-                toast.tone === "danger"
-                  ? styles.toastDanger
-                  : toast.tone === "success"
-                    ? styles.toastSuccess
-                    : styles.toastInfo,
-              ]}
-            >
-              {toast.message}
-            </Text>
-          </PixelSurface>
-        </View>
-      ) : null}
-    </PixelGateShell>
+        {inlineNotice}
+      </PixelGateShell>
+      {exitNoticeOverlay}
+    </View>
   );
 }
 
@@ -456,6 +515,15 @@ function LegalLink({ label, onPress }: { label: string; onPress: () => void }) {
 const LINK_GROUND = m3.color.surfaceContainer;
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
+  exitNoticeOverlay: {
+    position: "absolute",
+    left: m3.spacing.s4,
+    right: m3.spacing.s4,
+    bottom: m3.spacing.s4,
+    zIndex: EXIT_NOTICE_LAYER,
+    elevation: EXIT_NOTICE_LAYER,
+  },
   shell: {
     gap: m3.spacing.s6,
     ...(Platform.OS === "web"
