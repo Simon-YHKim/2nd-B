@@ -131,21 +131,29 @@ export class BreachedPasswordError extends Error {
   }
 }
 
-// J3 (e2e journey register): GoTrue answers a sign-up on an already-registered
-// email with an enumeration-safe FAKE success (obfuscated user, no session).
-// Our auto-confirm flow then tries signInWithPassword with the just-typed
-// password, which fails with invalid credentials — and the user used to loop
-// on a generic "sign-up failed" toast with no way out. This error marks that
-// specific shape so the screen can suggest the recovery path (sign in / reset
-// password). It is a SUGGESTION, never an assertion: the same shape could in
-// principle be a misconfigured confirm flow, and we must not confirm to a
-// third party that the email exists (CSO R3 stays intact — the copy is
-// conditional and the server told us nothing).
+// J3 / Z1: a rejected new-user INSERT can be the confirmed-mailbox alias guard
+// (0113), but the API hides the SQL cause. Suggest the existing recovery card;
+// never assert that an account exists (CSO R3). Other INSERT failures share
+// this shape. Exact-address fake success MUST still go to email confirmation:
+// do not inspect identities or attempt a password sign-in to disambiguate it.
 export class ExistingAccountLikelyError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ExistingAccountLikelyError";
   }
+}
+
+// GoTrue internal/api/signup.go: signupNewUser wraps tx.Create failures with
+// this exact message. status/code alone also cover mail.go's confirmation-mail
+// failures. Unlike passwordUpdateFailure's distinct codes, no public code
+// identifies this DB stage. Keep the message dependency here, exact and narrow:
+// upstream wording/code changes fall back to the original generic failure.
+const SIGNUP_DATABASE_REJECTION_MESSAGE = "Database error saving new user";
+
+function isSignUpDatabaseRejection(error: { status?: number; code?: string; message: string }): boolean {
+  return error.status === 500 &&
+    error.code === "unexpected_failure" &&
+    error.message === SIGNUP_DATABASE_REJECTION_MESSAGE;
 }
 
 // HIBP k-anonymity range check: SHA-1 the password locally, send ONLY the first
@@ -348,7 +356,12 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
           },
         }),
       );
-    if (signUpErr) throw signUpErr;
+    if (signUpErr) {
+      if (isSignUpDatabaseRejection(signUpErr)) {
+        throw new ExistingAccountLikelyError(signUpErr.message);
+      }
+      throw signUpErr;
+    }
 
     // Confirm-email enabled projects deliberately return no session here. Never
     // attempt an immediate password sign-in: doing so was the client half of the
