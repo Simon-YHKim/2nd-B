@@ -112,6 +112,17 @@ describe("세컨비 정체성 프롬프트", () => {
     // The rule covers set-up requests only and names no platform mechanism: a model that is told
     // about calendar export starts explaining it to people who never asked.
     expect(h).not.toMatch(/캘린더|calendar/i);
+    // The button's name differs by locale and by kind, and it is not always shown: the header
+    // may point at "a button below your reply" but must never quote a real label.
+    for (const loc of ["en", "ko", "es", "pt", "id"]) {
+      const labels = (JSON.parse(readFileSync(join(__dirname, "..", "..", "..", "..", "locales", loc, "secondb.json"), "utf8")) as
+        { planSuggestion: Record<string, string> }).planSuggestion;
+      for (const key of ["reminderButton", "routineButton"]) {
+        const label = labels[key].replace(/⁠/g, "");
+        expect(label.length).toBeGreaterThan(3);
+        expect(h.toLowerCase()).not.toContain(label.toLowerCase());
+      }
+    }
     if (locale === "ko") {
       expect(h).toContain("'~습니다'");
       expect(h).toContain("'~나요?'");
