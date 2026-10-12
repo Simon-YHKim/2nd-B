@@ -1,5 +1,6 @@
 {
   "notice": {
+    "guardianSupervision": "Menores de idade devem usar este serviço sob a supervisão de um responsável legal.",
     "title": "A quick heads-up before you start",
     "intro": "Your entries are stored encrypted and are not shown to other users. When you use an AI feature, content needed for that feature may be sent to an external AI provider; older app versions, or builds or runtimes without the dedicated vendor settings may route it to a different external AI provider. Please review the required processing below before continuing.",
     "trustTitle": "Your records are not for sale",
