@@ -281,4 +281,26 @@ describe("/me/<star> 요약은 사다리 하나로 말한다", () => {
     expect(typeof copy.meter).toBe("string");
     expect(typeof copy.dug).toBe("string");
   });
+
+  // Simon 2026-10-12 (Q-261012-62): a star with no story yet shows the same
+  // ladder, all five rungs off and "0/5", instead of one line of text.
+  it("이야기가 0 인 별도 사다리를 그린다: 한 줄 글은 불러오는 중에만 남는다", () => {
+    expect(page).toMatch(/const ladder = !isProfileStar && !locked && summary !== null && !waitingEmpty\s+\? starLadderRungs\(summary\.covered\)\s+: null;/);
+    // The one exception: an empty star still waiting on the star before it cannot be
+    // started, so it shows that one reason and nothing else (like a period not reached).
+    expect(page).toContain('const waitingEmpty = entry?.kind === "previous" && summary !== null && summary.cells === 0 && summary.records === 0;');
+    expect(page).not.toContain('t("ds.star.emptyBody")');
+    expect(page).toMatch(/\) : summary === null \? \(\s+<MdCard variant="outlined" style=\{styles\.card\}>\s+<Text[^>]*>\s+\{t\("ds\.star\.loading"\)\}/);
+    // No "0 records" line under an empty ladder.
+    expect(page).toContain("{summary.records > 0 ? (");
+    // The button already says Start until a first layer is covered.
+    expect(page).toContain('label={summary && (summary.cells ?? 0) > 0 ? t("ds.star.continue") : t("ds.star.start")}');
+  });
+
+  // The sentence itself stays in the locales: the records check screen (dds-audit-screen.tsx)
+  // still says it for a period with nothing in it.
+  it.each(LOCALES)("%s: 빈 상태 문장은 다른 화면이 쓰므로 로케일에 남는다", (loc) => {
+    expect(typeof star(loc).emptyBody).toBe("string");
+    expect(typeof star(loc).start).toBe("string");
+  });
 });
