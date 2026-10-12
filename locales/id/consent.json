@@ -1,6 +1,6 @@
 {
   "notice": {
-    "guardianSupervision": "Anak di bawah umur harus menggunakan layanan ini di bawah pengawasan orang tua atau wali.",
+    "guardianSupervision": "Minors must use this service under the supervision of a parent or guardian.",
     "title": "A quick heads-up before you start",
     "intro": "Your entries are stored encrypted and are not shown to other users. When you use an AI feature, content needed for that feature may be sent to an external AI provider; older app versions, or builds or runtimes without the dedicated vendor settings may route it to a different external AI provider. Please review the required processing below before continuing.",
     "trustTitle": "Your records are not for sale",

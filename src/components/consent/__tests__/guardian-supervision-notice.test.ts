@@ -3,19 +3,20 @@ import { join } from "node:path";
 import { guardianSupervisionColor } from "../guardian-supervision-color";
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
+const readNotice = (locale: string) =>
+  JSON.parse(read(`locales/${locale}/consent.json`)).notice.guardianSupervision;
 
 describe("N2-2 guardian supervision notice", () => {
-  test("preserves the exact approved Korean and all four draft translations", () => {
-    const expected = {
-      ko: "미성년자는 보호자의 감독하에 이 서비스를 이용해야 합니다.",
-      en: "Minors must use this service under the supervision of a parent or guardian.",
-      es: "Los menores de edad deben usar este servicio bajo la supervisión de un padre, madre o tutor.",
-      pt: "Menores de idade devem usar este serviço sob a supervisão de um responsável legal.",
-      id: "Anak di bawah umur harus menggunakan layanan ini di bawah pengawasan orang tua atau wali.",
-    };
-    for (const [locale, text] of Object.entries(expected)) {
-      expect(JSON.parse(read(`locales/${locale}/consent.json`)).notice.guardianSupervision).toBe(text);
-    }
+  test.each(Object.entries({
+    ko: "미성년자는 보호자의 감독하에 이 서비스를 이용해야 합니다.",
+    en: "Minors must use this service under the supervision of a parent or guardian.",
+  }))("preserves the exact %s notice", (locale, text) => {
+    expect(readNotice(locale)).toBe(text);
+  });
+
+  test.each(["es", "pt", "id"])("ships the %s notice as the English copy", (locale) => {
+    // 2026-06-11 policy: consent copy stays in English until a HUMAN reviews the translation.
+    expect(readNotice(locale)).toBe(readNotice("en"));
   });
 
   test("uses body color for minors and returns to muted color for adults or no DOB", () => {
