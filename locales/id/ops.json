@@ -392,8 +392,7 @@
   },
   "loading": "Membuka rutinitasmu…",
   "hero": {
-    "title": "Rutinitas",
-    "subtitle": "Pilih bidang untuk mendapat saran langkah berikutnya."
+    "title": "Rutinitas"
   },
   "groups": {
     "body": "Tubuh",
@@ -525,9 +524,6 @@
       "label": "Menu makan",
       "sub": "Rencana minggu ini"
     }
-  },
-  "states": {
-    "emptyDomain": "Pilih area di atas untuk memulai."
   },
   "push": {
     "savedNote": "Dikirim ke kalendermu.",

@@ -392,8 +392,7 @@
   },
   "loading": "Loading routines…",
   "hero": {
-    "title": "Routines",
-    "subtitle": "Pick an area to get ideas you can try."
+    "title": "Routines"
   },
   "groups": {
     "body": "Body",
@@ -525,9 +524,6 @@
       "label": "Meals",
       "sub": "This week's plan"
     }
-  },
-  "states": {
-    "emptyDomain": "Pick an area above to get started."
   },
   "push": {
     "savedNote": "Sent to your calendar.",
