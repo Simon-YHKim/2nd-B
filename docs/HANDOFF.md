@@ -1,5 +1,17 @@
 # 2nd-Brain Handoff
 
+## 2026-10-13 02:16 / 2ndb-79: #2318 3회차 구현 중 · O2 는 머지했다가 되돌림 · A-Z 1차(가입 거절 = 별칭 규칙) - 다음은 #2318 3회차 검토
+
+- **지금까지**: ① **#2318(계정 전환 빈 화면)**: Simon 01:54 Relay 1:1 「#2318은 한 번 더 고치고 3회차 검토 받아. 통과하면 머지, 또 막히면 멈춰.」 → 01:58 에 3회차 구현 시작(워크트리 `.worktrees/acct-switch-261013` · 시작 커밋 `85ba8df7` · 발주 `E:/Coding Infra/reports/devlab-261010/codex-impl/acct-r3.prompt.md`). ② **D2(#2215)**: Rufus 9회차(01:03 ~ 01:31 · 빌드 `087f7ced`)에서 N1 ~ N8 통과(원래 결함 순서 3/3)로 **닫았다**. TalkBack 낭독만 미실시(adb 한계). ③ **O2**: #2324 를 01:59 에 머지했는데 8081 에서 실제 모델이 지시문 문장을 그대로 답해 **#2327 로 되돌렸다**(02:13 · main `e2c226dd` · 02:15 원래 답 확인). 내 잘못 — 위 DECISIONS 02:13 줄. ④ **A-Z 실사용 점검**(Simon 01:16 ~ 01:19 Relay 지시 · 원문 DECISIONS 01:19 줄): 1차는 새 계정 가입에서 멈춤. 원인은 서버 장애가 아니라 별칭 규칙(`db/migrations/0113` · 운영 인증 기록에서 확인). 화면 항목 Z2 ~ Z11 은 2ndb-53 이 맡았다(#2325 · #2328). Z1(가입 거절 안내 · 실패 안내의 수명)은 이 세션.
+- **다음 1개**: #2318 3회차 구현이 끝나면 코드 읽기 · main 병합 · push → PR 본문 갱신 → `python -B "E:/Coding Infra/reports/devlab-261010/gates/gate_acct.py" 3 2318 "…/codex-impl/acct-r1.last.md" "…/acct-r2.last.md" "…/acct-r3.last.md"`(과제 `gates/acct-task.md` 에 3회차 절을 더한다) → PASS · 새 medium 0 이면 `APP_MERGE=1 bash "E:/Coding Infra/reports/codex-audit-261010/merge_when_green.sh" 2318` → 8081 · app:parity → 빌드 → 에뮬레이터에서 두 계정으로 확인 → 시험 계정 삭제. BLOCK 이면 멈추고 `relay/outbox/coding-acct-switch-r3-decision-0154.note.result.md` 에 결과만 남긴다(4회차 없음) — 그리고 시험 계정을 바로 삭제한다.
+- **그다음**: (가) **Z1** — 발주서 `…/codex-impl/z1-r1.prompt.md` · 워크트리 `.worktrees/z1-signup-reject-261013`(브랜치 `fix/signup-alias-reject-notice` · main `87f01083` 에서 · 시작 전에 main 을 받아 시작 커밋을 발주서에 다시 적을 것). `bash "…/codex-impl/run_lane_79.sh" "E:/2ndB/.worktrees/z1-signup-reject-261013" z1-r1`. 검토는 `gates/gate_generic.py`. (나) **O2 다시**: 그 턴에만 붙는 힌트(답 받기 전에 `plan-suggestions.ts` 의 규칙으로 계산) + **머지 전에** 8082 에서 실제 모델 확인(`ui/shoot_chat_o2.cjs`). 워크트리 `.worktrees/o2-reminder-reply-261013`(브랜치를 main 에서 새로). (다) O1(알림 권한 거절 뒤 설정 안내 · 새 문구라 시안 → Simon).
+- **Simon 답 대기**: Q-261013-27(A-Z 시험 계정의 이메일 확인: ① Rufus 가 별칭 아닌 새 주소로 가입 → 이 세션이 운영 쓰기 1행(추천) ② Simon 이 받을 수 있는 다른 메일함 ③ 둘째 시험 계정을 Rufus 가 사용). 답이 오면 Rufus 본편이 이어진다.
+- **운영에 남아 있는 것**: 둘째 시험 계정(id `51b5410c…` · 00:41 가입 · 00:44 이메일 확인 쓰기 · 아바타 첫 설정 전). P7Pro AVD 에 로그인된 채지만 P7Pro 는 꺼져 있다. **#2318 확인이 끝나면(또는 멈추면) 반드시 앱 안에서 삭제하고 운영 읽기로 0행 확인**(순서는 01:08 블록).
+- **에뮬레이터**: Rufus 가 01:49 에 P4a 를 켜 둔 채 넘겼다(`emulator-5554` · 분리 프로세스 · 끄지 말 것). 쓸 때는 시작 한 줄 · 쓴 뒤 노트로 넘김. P4a 가 켜져 있는 동안 P7Pro 는 켜지 않는다(둘째 시험 계정 확인은 P4a 에서 로그인해서 · `signup-test/tools/env.sh` 의 `SER` 를 `emulator-5554` 로).
+- **다음 빌드 메모에 넣을 것**: #2320(약관 · 처리방침 · 환불의 ‹ 고정 · AI 문장 낭독) · #2321(추천 카드의 "아직 추천이 없습니다.") · #2325 · #2328(2ndb-53 의 Z2 · Z4 · Z8 등) · 빈 별의 꺼진 사다리(둘째 시험 계정) · "글을 찾을 때는 content-desc 로 찾거나 U+2060 을 빼고 비교".
+- **확인하지 못한 것**: 고친 증명(#2318)이 실제 기기 상태에서 참이 되는지 · 정확히 같은 주소로 다시 가입하면 "이메일을 확인해 주세요"로 가고 메일이 안 오는지(읽기로 본 추정) · D2 의 TalkBack 낭독.
+- **app:parity**: 02:14 에 "같음"(8081 = `e2c226dd` · 그 커밋의 APK 빌드 중 = run 38282787223).
+
 ## 2026-10-13 00:53 / 2ndb-53: 남은 일 넷 머지 · 8081 확인 끝 - 다음은 기기 점검 결과를 기다렸다가 그 수정부터(Simon 00:5x · Q-261013-01)
 
 - **지금까지**: Simon 이 00:2x 에 "지금대로 진행하고 남은 일도 이어서 해줘"라고 답했다(DECISIONS 26.10.13 00:31). AI 표식은 지금대로다. 남은 일은 PR 둘로 넣었다. #2321(추천 카드의 빈 상태 글을 "아직 추천이 없습니다."로 · 안 쓰는 `common:navGraph` 삭제 · 00:43) · #2320(약관 · 처리방침 · 환불 화면의 ‹ 를 스크롤 밖에 고정 · 대화의 첫 답 문장을 웹 낭독에서 숨김 · 00:49). main `a265b46d`. 잰 값은 DECISIONS 26.10.13 00:53.
