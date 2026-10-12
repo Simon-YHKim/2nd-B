@@ -36,7 +36,7 @@ describe("assistant UI round 1, item 3: settings hierarchy", () => {
   });
 
   test("the routine heading keeps both real counts, without a large progress card or ring", () => {
-    expect(header).toContain('<SectionHeading icon="schedule" title={t("hero.title")} trailing={');
+    expect(header).toContain('<SectionHeading kind="label" icon="schedule" title={t("hero.title")} trailing={');
     expect(header).toContain('ownerToday.kind === "ready" || ownerToday.kind === "empty"');
     expect(header).toContain('t("home.ringCount", { done: todayDone, total: todayData.routines.length })');
     expect(header).toContain('t("today.streak", { count: todayData.streak })');
@@ -47,15 +47,42 @@ describe("assistant UI round 1, item 3: settings hierarchy", () => {
     expect(hub).toContain('accessibilityState={{ checked: done, busy: completing }}');
   });
 
-  test("all five sections share the phone card heading or the standalone heading", () => {
+  // Simon 2026-10-12 (Q-261012-60, pick A): the five equal headline titles gave way to
+  // three small group names and two body-size doors. The order did not change.
+  test("three group names are small labels and the two doors are body-size rows", () => {
     expect((header + footer).match(/<SectionHeading\b/g)).toHaveLength(5);
+    const kinds = [...(header + footer).matchAll(/<SectionHeading kind="(label|door)"[^>]*title=\{t\("([^"]+)"\)\}/g)]
+      .map(match => `${match[1]}:${match[2]}`);
+    expect(kinds).toEqual([
+      "label:phone.recommendationSettings",
+      "label:hero.title",
+      "door:card.remind",
+      "door:home.patternsTitle",
+      "label:home.toolsLabel",
+    ]);
     const heading = hub.slice(hub.indexOf("function SectionHeading"), hub.indexOf("export function DeepSpaceOpsScreen"));
     expect(heading).toContain("const phone = usePhoneDesign()");
     expect(heading).toContain("if (phone) return (");
     expect(heading).toContain('<IosCardHeader glyph={icon} title={title} trailing={');
+    expect(heading).toContain('<Text variant="caption" style={styles.sectionLabel} accessibilityRole="header">');
     expect(heading).toContain('<PixelGlyph name={icon} color={m3.color.primary} size={20} />');
-    expect(heading).toContain('<Text variant="heading" style={styles.sectionTitle} accessibilityRole="header">');
+    expect(heading).toContain('<Text variant="body" style={styles.doorTitle}>');
+    expect(heading).not.toContain('variant="heading"');
     expect(footer).not.toMatch(/styles\.patternTitle|size=\{24\}/);
+  });
+
+  test("the three explaining sentences are off the screen; one stays as a spoken hint", () => {
+    expect(hub).not.toContain('t("hero.subtitle")');
+    expect(hub).not.toContain('t("states.emptyDomain")');
+    expect(hub).not.toMatch(/body=\{/);
+    expect(footer).toContain('accessibilityHint={t("home.patternsSub")}');
+    for (const lng of ["en", "ko", "es", "pt", "id"]) {
+      const ops = JSON.parse(read(`locales/${lng}/ops.json`)) as { hero: Record<string, string>; states?: unknown; home: Record<string, string> };
+      expect(ops.hero.subtitle).toBeUndefined();
+      // emptyDomain was the only key under states, so the block went with it.
+      expect(ops.states).toBeUndefined();
+      expect(typeof ops.home.patternsSub).toBe("string");
+    }
   });
 
   test("heading height follows its text; routine failures stay after the routine list", () => {

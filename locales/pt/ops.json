@@ -392,8 +392,7 @@
   },
   "loading": "Abrindo suas rotinas…",
   "hero": {
-    "title": "Rotinas",
-    "subtitle": "Escolha uma área. Receba alguns próximos passos concretos."
+    "title": "Rotinas"
   },
   "groups": {
     "body": "Corpo",
@@ -525,9 +524,6 @@
       "label": "Refeições",
       "sub": "O plano desta semana"
     }
-  },
-  "states": {
-    "emptyDomain": "Escolha uma área acima para começar."
   },
   "push": {
     "savedNote": "Enviado ao seu calendário.",

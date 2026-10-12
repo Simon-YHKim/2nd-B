@@ -338,7 +338,7 @@ function PartView({ part, events }: { part: BoardPart; events: BoardEvents }) {
 /** 한 쪽. 1쪽 = 오늘 처리할 것, 2쪽 = 상태 + 승인한 맞춤 위젯 + '+ 위젯 추가'. */
 export function BoardPageView({ board, page, events, recommendations }: { board: BoardContract; page: BoardPage; events: BoardEvents; recommendations?: ReactNode }) {
   const { t } = useTranslation("ops");
-  // '+ 위젯 추가' 는 늘 점선(잠김 모양)이다.
+  // '+ 위젯 추가' 는 잠김 색에서 바탕과 글자만 빌린다. 점선 테두리는 "잠김"만 뜻하므로 여기엔 없다.
   const addTone = boardTone("locked");
   return <View testID={`board-page-${page}`} style={styles.page}>
     {partsOnPage(board, page).map((part) => <View key={part.id} style={styles.stack}>
@@ -349,7 +349,6 @@ export function BoardPageView({ board, page, events, recommendations }: { board:
       {board.approved.map((widget) => <Frame key={widget.id} basis={widget.basis} shape="card"><WidgetTile widget={widget} events={events} /></Frame>)}
       <Pressable accessibilityRole="button" accessibilityLabel={t("phone.board.addWidget")} onPress={() => events.go(board.addWidgetRoute)}>
         <PixelRoundRect fill={addTone.fill} style={[styles.frame, styles.row, styles.addSlot]}>
-          <View pointerEvents="none" style={[styles.dashed, { borderColor: addTone.border }]} />
           <PixelGlyph name="add" size={18} color={addTone.text} />
           <Text variant="body" style={styles.muted}>{t("phone.board.addWidget")}</Text>
         </PixelRoundRect>
