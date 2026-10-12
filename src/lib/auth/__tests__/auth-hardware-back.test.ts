@@ -177,9 +177,9 @@ describe("D2 hardware Back wiring", () => {
     expect(inEffect).toContain("exitApp: () => BackHandler.exitApp()");
     expect(signIn).toMatch(/toastRef.current = next;\s*setToastState\(next\);/);
     expect(signIn).toContain("Math.max(0, toast.exitOnBackUntil - Date.now())");
-    expect(signIn).toContain("setTimeout(() => setToast(null), duration)");
+    expect(signIn).toContain("setTimeout(() => setToast(null, toast), duration)");
     expect(signIn).toContain("clearTimeout(timeout)");
-    expect(inEffect).toContain("if (toastRef.current?.exitOnBackUntil !== undefined) setToast(null)");
+    expect(inEffect).toContain("if (toastRef.current?.exitOnBackUntil !== undefined) setToast(null, toastRef.current)");
   });
 
   test("sign-up wires the synchronous lock and real router to its pure handler", () => {

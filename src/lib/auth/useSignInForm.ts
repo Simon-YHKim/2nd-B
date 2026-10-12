@@ -35,8 +35,8 @@ import {
 
 import { SIGN_IN_TOAST_DURATION_MS, createSignInBackHandler } from "./sign-in-back";
 
-export type SignInToastTone = "info" | "success" | "danger";
-export type SignInToast = { message: string; tone: SignInToastTone; exitOnBackUntil?: number };
+import { replaceSignInToast, type SignInToast } from "./sign-in-toast";
+export type { SignInToastTone, SignInToast } from "./sign-in-toast";
 
 // The Supabase-native providers, in display order. (Re-export for callers/tests.)
 export const SIGN_IN_PROVIDERS = SUPABASE_OAUTH_PROVIDERS;
@@ -88,7 +88,8 @@ export function useSignInForm(): UseSignInForm {
   const toastRef = useRef<SignInToast | null>(null);
   // Keep the visible toast and Back ownership together, including same-frame
   // replacements by an auth error before React has rendered the next message.
-  const setToast = useCallback((next: SignInToast | null) => {
+  const setToast = useCallback((next: SignInToast | null, expected?: SignInToast | null) => {
+    next = replaceSignInToast(toastRef.current, next, expected);
     toastRef.current = next;
     setToastState(next);
   }, []);
@@ -107,7 +108,7 @@ export function useSignInForm(): UseSignInForm {
     const duration = toast.exitOnBackUntil === undefined
       ? SIGN_IN_TOAST_DURATION_MS
       : Math.max(0, toast.exitOnBackUntil - Date.now());
-    const timeout = setTimeout(() => setToast(null), duration);
+    const timeout = setTimeout(() => setToast(null, toast), duration);
     return () => clearTimeout(timeout);
   }, [toast, setToast]);
 
@@ -137,7 +138,7 @@ export function useSignInForm(): UseSignInForm {
     const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => {
       sub.remove();
-      if (toastRef.current?.exitOnBackUntil !== undefined) setToast(null);
+      if (toastRef.current?.exitOnBackUntil !== undefined) setToast(null, toastRef.current);
     };
   }, [userId, setToast, t]));
 
