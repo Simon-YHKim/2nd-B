@@ -6,6 +6,8 @@ import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { RedirectHome } from "@/lib/nav/go-home";
 import { BirthDateField } from "@/components/auth/BirthDateField";
+import { GuardianSupervisionNotice } from "@/components/consent/GuardianSupervisionNotice";
+import { shouldEmphasizeGuardianSupervision } from "@/components/consent/guardian-supervision-emphasis";
 import { ResidenceCountryField } from "@/components/auth/ResidenceCountryField";
 import { SecondbHead } from "@/components/deepspace";
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
@@ -333,6 +335,7 @@ export function DeepSpaceSignUpDesignScreen() {
             onChange={setBirthDate}
             minAge={minConsentAge}
           />
+          <GuardianSupervisionNotice emphasized={shouldEmphasizeGuardianSupervision(birthDate)} style={{ marginTop: m3.spacing.s2 }} />
         </View>
 
         {showChecklist ? (

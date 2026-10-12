@@ -226,6 +226,27 @@ describe("PIXEL-CLAY sign-up renderer", () => {
 });
 
 describe("sign-up authority and preservation boundaries", () => {
+  test.each([
+    ["src/screens/deepspace/dds-sign-up-screen.tsx", [
+      "TextInput", "TextInput", "TextInput", "ResidenceCountryField", "BirthDateField",
+      "ConsentCheckRow", "ConsentCheckRow", "ConsentCheckRow",
+    ]],
+    ["src/app/(auth)/complete-profile.tsx", [
+      "NameField", "GoalField", "ResidenceCountryField", "BirthDateField",
+    ]],
+  ])("%s keeps its existing input controls without a guardian acknowledgement", (path, expected) => {
+    const source = read(path as string);
+    const controls = [...source.matchAll(/<(TextInput|Input|Checkbox|CheckBox|Switch|\w*(?:Field|CheckRow|Toggle))\b(?=\s|\/>)/g)]
+      .map((match) => match[1]);
+    expect(controls).toEqual(expected);
+    expect(source).not.toMatch(/guardian_consents|guardianAck|guardianConsent/);
+    const profile = read("src/app/(auth)/complete-profile.tsx");
+    expect(profile.match(/<ConsentNotice\b/g)).toHaveLength(1);
+    expect(profile).toContain("const consentReady = allRequiredAcksChecked(consent)");
+    expect(profile).toContain("const requiredProgress = Number(ageReady) + Number(consentReady)");
+    expect(profile).toMatch(/return\s*\(\s*userId !== null &&\s*ageReady &&\s*consentReady &&\s*!submitting\s*\)/);
+  });
+
   test("canSubmit and confirmation verification fail closed", () => {
     const canSubmit = hook.slice(
       hook.indexOf("const canSubmit"),
