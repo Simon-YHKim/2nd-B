@@ -392,8 +392,7 @@
   },
   "loading": "Abriendo tus rutinas…",
   "hero": {
-    "title": "Rutinas",
-    "subtitle": "Elige un área para recibir sugerencias concretas."
+    "title": "Rutinas"
   },
   "groups": {
     "body": "Cuerpo",
@@ -525,9 +524,6 @@
       "label": "Comidas",
       "sub": "El plan de esta semana"
     }
-  },
-  "states": {
-    "emptyDomain": "Elige un área arriba para empezar."
   },
   "push": {
     "savedNote": "Enviado a tu calendario.",
