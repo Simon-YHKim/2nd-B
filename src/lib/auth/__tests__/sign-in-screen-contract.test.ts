@@ -189,6 +189,10 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
 // 2026-10-07(#2145 안드로이드 공유, Simon 12:04): prefix · tail 을 다시 재고정했다. main 판
 // (4c878269 · 1a8d317c)과 대조하면 prefix 는 ShareRefusedLine import 한 줄뿐이고, tail 은
 // 재설정 화면 머리 아래의 `<ShareRefusedLine />` 한 줄(+빈 줄)뿐이다(재고정 전 git diff 로 대조).
+// 2026-10-12(동의 안내의 뒤로): prefix 만 다시 재고정했다(옛 값 4008f390 = main 판 1d6eefec).
+// 차이는 AuthShell 의 선택 인자 `head`(서명 한 줄 · 주석 세 줄 · 스크롤 위의 `{head}` 한 줄)뿐이다
+// (재고정 전 git diff 로 대조). `head` 를 넘기는 곳은 /consent-notice 하나라 로그인 · 가입 ·
+// 약관 화면의 그림은 그대로고, tail(재설정 화면)은 손대지 않았다.
 describe("sign-in extraction boundaries", () => {
   test("preserves the shared auth prefix and reset tail byte-for-byte", () => {
     const source = read("src/screens/deepspace/dds-auth-screens.tsx");
@@ -200,7 +204,7 @@ describe("sign-in extraction boundaries", () => {
     expect(split).toBeGreaterThan(0);
     expect(tail).toBeGreaterThan(split);
     expect(sha256(source.slice(0, split))).toBe(
-      "4008f3908fbbb4d979a373bb3d36dee4fa056189e1c4475553031521995bee3e",
+      "299d83f55b8f2169d0c569cb4771cb9da125fd097558258aae24c8760db63217",
     );
     expect(sha256(source.slice(tail))).toBe(
       "ae9918443c161577412457a9ef8ca1206c62590642496be709559b8a52d18c2e",
