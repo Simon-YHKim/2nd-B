@@ -13,6 +13,8 @@ import { PhoneAnimatedView, PhonePressable as Pressable, PhoneView as View } fro
  *   - Up / down: dismiss, only when the card body is at that edge
  *     (lib/polaris/card-dismiss.ts), so a long card still scrolls.
  *   - Tapping the scrim, the accessibility escape gesture and Android back also close.
+ *   - The deck head's back arrow closes too (Simon 2026-10-12). Not inside the
+ *     dashboard phone: its shell already draws the one back row.
  *
  * Everything inside is drawn on the violet card ground, so the overlay hands its
  * children a palette (PaletteOverride) and a button tint (MdButtonTintProvider)
@@ -36,7 +38,7 @@ import { PaletteOverride, type Palette } from "@/lib/theme/ThemeContext";
 import { semantic } from "@/lib/theme/tokens";
 
 import { DeepSpaceScreen } from "./DeepSpaceScreen";
-import { PolarisCardEdgeContext } from "./polaris-card-edges";
+import { PolarisCardCloseContext, PolarisCardEdgeContext } from "./polaris-card-edges";
 
 /**
  * The home's top bar (ConstellationHome `topBar`: absolute, height 52) and its
@@ -169,6 +171,8 @@ export function PolarisCardOverlay({ children }: { children: ReactNode }) {
     edges.current = next;
   }, []);
 
+  const closeFromHead = useMemo(() => (embed ? null : () => dismiss("down")), [dismiss, embed]);
+
   return (
     <DeepSpaceScreen active="home" header="none" variant="fullbleed" showSharedSky transparentBackdrop={overSky}>
       <View style={styles.root}>
@@ -191,9 +195,11 @@ export function PolarisCardOverlay({ children }: { children: ReactNode }) {
           ]}
         >
           <PolarisCardEdgeContext.Provider value={reportEdges}>
-            <PaletteOverride palette={POLARIS_CARD_PALETTE}>
-              <MdButtonTintProvider tint={POLARIS_CARD_BUTTONS}>{children}</MdButtonTintProvider>
-            </PaletteOverride>
+            <PolarisCardCloseContext.Provider value={closeFromHead}>
+              <PaletteOverride palette={POLARIS_CARD_PALETTE}>
+                <MdButtonTintProvider tint={POLARIS_CARD_BUTTONS}>{children}</MdButtonTintProvider>
+              </PaletteOverride>
+            </PolarisCardCloseContext.Provider>
           </PolarisCardEdgeContext.Provider>
         </PhoneAnimatedView>
       </View>

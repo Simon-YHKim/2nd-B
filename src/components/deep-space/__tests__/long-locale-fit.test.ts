@@ -70,13 +70,14 @@ describe("dock labels fit their tab", () => {
 describe("long-locale text wraps instead of clipping", () => {
   const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8").split("\r\n").join("\n");
 
-  it("/core-brain stacks the deck title above the swipe hint", () => {
+  it("/core-brain gives the deck title the row and a second line", () => {
     const deck = read("src/components/deep-space/PolarisDeck.tsx");
-    // Side by side, the title shrank with the hint on web and lost its noun
-    // ("minha Es…", and "North Star" in en too).
-    expect(deck).toMatch(/deckHeadCopy: \{[^}]*flexDirection: "column"/);
-    expect(deck).toMatch(/deckTitle: \{[^}]*flexShrink: 0/);
-    expect(deck).toContain('<Text style={styles.deckHint} numberOfLines={2}>');
+    // Beside the swipe hint, the title shrank with it on web and lost its noun
+    // ("minha Es…", and "North Star" in en too). The hint is gone (2026-10-12),
+    // so the title is the only flexible item in the row and wraps when narrow.
+    expect(deck).not.toContain("deckHint");
+    expect(deck).toMatch(/deckTitle: \{[^}]*flexGrow: 1,[^}]*flexShrink: 1,[^}]*minWidth: 0/);
+    expect(deck).toContain("<Text style={styles.deckTitle} numberOfLines={2}>");
   });
 
   it("/brightness wraps star names in the label column and aligns the axis with it", () => {
