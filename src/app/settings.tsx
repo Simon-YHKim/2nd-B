@@ -1063,7 +1063,7 @@ export default function Settings() {
             head-touch crash was prolonged by embedded-vs-OTA uncertainty — and a
             hardcoded locale value ("Build 0.0.6 · OTA ota-2026-06-27a", still
             claiming 0.0.6 on a 0.1.0 build) defeats exactly that purpose.
-            buildInfoLine() reads expo-updates, same as the account screen. */}
+            buildInfoLine() reads expo-updates. This is its one place on a user screen. */}
         <Text variant="caption" color="textMuted" style={styles.buildMarker}>
           {buildInfoLine()}
         </Text>

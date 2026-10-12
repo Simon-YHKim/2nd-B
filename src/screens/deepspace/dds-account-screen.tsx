@@ -15,7 +15,6 @@ import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { canSubmitDobCorrection } from "@/lib/account/dob";
-import { buildInfoLine } from "@/lib/build-info";
 import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { m3 } from "@/lib/theme/m3";
 import {
@@ -489,7 +488,7 @@ export function DeepSpaceAccountScreen() {
 
             <PixelPressable
               variant="bevel"
-              onPress={() => router.push("/privacy")}
+              onPress={() => router.push("/privacy?section=delete")}
               accessibilityLabel={t("deepspace:account.delete")}
               accessibilityHint={t("consent:account.privacy.buttonHint")}
               accessibilityRole="link"
@@ -497,19 +496,12 @@ export function DeepSpaceAccountScreen() {
               contentStyle={styles.toolHeader}
             >
               <PixelGlyph name="trash" color={m3.color.error} size={24} />
-              <View style={styles.toolCopy}>
-                <RNText style={[m3TextStyle("labelLarge"), styles.dangerLabel]}>
-                  {t("deepspace:account.delete")}
-                </RNText>
-                <RNText style={[m3TextStyle("bodySmall"), styles.bodyCopy]}>
-                  {t("consent:account.privacy.label")}
-                </RNText>
-              </View>
+              <RNText style={[m3TextStyle("labelLarge"), styles.toolLabel, styles.dangerLabel]}>
+                {t("deepspace:account.delete")}
+              </RNText>
               <PixelGlyph name="chevronRight" color={m3.color.onSurfaceVariant} size={24} />
             </PixelPressable>
           </PixelSurface>
-
-          <RNText style={[m3TextStyle("bodySmall"), styles.footer]}>{buildInfoLine()}</RNText>
         </ScrollView>
       </KeyboardAvoidingArea>
     </DeepSpaceScreen>
@@ -566,7 +558,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: m3.spacing.s4,
   },
   toolLabel: { flex: 1, color: m3.color.onSurface },
-  toolCopy: { flex: 1, gap: m3.spacing.s1 },
   toolBody: { gap: m3.spacing.s6, padding: m3.spacing.s6 },
   bodyCopy: { color: m3.color.onSurfaceVariant },
   actionContent: {
@@ -581,5 +572,4 @@ const styles = StyleSheet.create({
   success: { color: m3.color.primary },
   error: { color: m3.color.error },
   dangerLabel: { color: m3.color.error },
-  footer: { color: m3.color.onSurfaceVariant, textAlign: "center" },
 });

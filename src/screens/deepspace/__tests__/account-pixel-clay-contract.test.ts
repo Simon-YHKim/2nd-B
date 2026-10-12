@@ -34,7 +34,9 @@ describe("PIXEL-CLAY /account contract", () => {
     ]);
 
     const source = read(SCREEN);
-    expect(source).toContain('router.push("/privacy")');
+    // 2026-10-13 (A-Z round 3, Z25): still a link to /privacy, never a delete of its own. The row
+    // now asks that screen to open at its delete card instead of its top.
+    expect(source).toContain('router.push("/privacy?section=delete")');
     expect(source).not.toMatch(/deleteAllUserData|requestAccountDeletion|signOut/);
     expect(source).not.toContain('"/widget"');
     expect(source).not.toContain("StateRow");
