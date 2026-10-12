@@ -1,13 +1,13 @@
 # Profile star import
 
-Pending integrity follow-up: [G4IMPORT-261010](handoff/G4IMPORT-261010.md).
-0242 alone adds per-field undo, atomic import limits and server enforcement of
+Integrity follow-up applied and merged: [G4IMPORT-261010](handoff/G4IMPORT-261010.md).
+0242 adds per-field undo, atomic import limits and server enforcement of
 confirmation for every new item, regardless of external `reported_basis` claims.
-Simon approved the single-step rollout on 2026-10-10: only after daybreak PASS
-with no new medium findings, apply 0242, verify it and immediately merge the client.
-Old partial-confirmation requests are rejected between application and merge;
+After daybreak PASS with no new medium findings, 0242 was applied on 2026-10-10
+at 18:58 KST (ledger version `20261010095836`), and #2202 merged at 19:04 KST.
+The rollout is recorded in `DECISIONS.md` at 26.10.10 19:09.
 RPC signatures, receipts, history, withdrawal and profile saving remain compatible.
-This PR is still a draft and 0242 has not been applied by this session.
+G4-05's 0243 and `export-account` deployment remain pending: [G4EXPORT-261010](handoff/G4EXPORT-261010.md).
 The older behavior below describes #2187 and its separate 0239/0240 approval.
 
 Implementation target: the approved constellation profile and an actual import flow on localhost:8081.
@@ -27,6 +27,13 @@ Simon explicitly approved production migrations and merge/8081 delivery on 2026-
 Changed `profile_details` writes now require the revision-aware RPC. An older client cannot overwrite a newer profile; it must update before editing profile details. Unrelated profile updates retain their existing paths. Client rollback must keep this RPC integration. Do not disable the revision trigger while active import batches exist.
 
 ## Validation and operation
+
+- Account-export follow-up (G4-05): [G4EXPORT-261010](handoff/G4EXPORT-261010.md).
+  After 0243 and the exporter deployment, `tables.profile_context_imports` includes
+  the batch ID, owner ID, creation time, item count, profile-change count, status,
+  withdrawal time and profile-restored flag. It excludes internal receipt fields,
+  document and undo copies; imported text already travels with sources/wiki pages.
+  The existing export format and account-erasure classification are unchanged.
 
 - Local PostgreSQL 18 regression runner: contract validation, account ownership, duplicate/replayed requests, original evidence confirmation, conditional profile restoration, source erasure and concurrent requests passed. Run `node scripts/test-profile-import-sql.mjs <local-port> <local-role> <disposable-db>` against a disposable loopback database only.
 - Browser release preview: common prompt copying, review and bulk selection, confirmation, actual save and withdrawal passed on the existing QA account.

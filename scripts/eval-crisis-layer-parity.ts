@@ -12,8 +12,9 @@
 // question (cowork: "약을 모 말고 몇 개나 더 있는지") is the L2<->L1 delta:
 // a marker the semantic layer knows but the deterministic gates pass. This
 // script extracts all four sets from the CURRENT sources and prints the full
-// presence matrix + both delta directions. Report-only: it changes nothing
-// and is not wired into verify (recommendation pending approval).
+// presence matrix + both delta directions. Default mode reports only; --check
+// is the verify gate described below. Server-initiated inputs also consume the
+// app classifier directly and are checked against the same corpus.
 //
 // Direction semantics (why the two deltas are NOT symmetric bugs):
 //   L2-only  -> the deterministic gates PASS input the semantic layer would
@@ -36,10 +37,30 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import ts from "typescript";
 
 import { APPROVED_L2_ONLY_MARKERS, CRISIS_TERMS } from "../src/lib/safety/lexicon";
+import * as classifier from "../src/lib/safety/classifier";
+import { CRISIS_EVAL } from "../src/lib/safety/crisis-eval-corpus";
 
 const ROOT = process.cwd();
+
+// As in the proxy parity tests, execute the actual Deno source without making
+// Node's type checker consume its .ts import specifiers. Deno checks that graph
+// separately; the only dependency here is the unchanged app classifier.
+function loadServerInputGate(): (value: unknown) => boolean {
+  const source = readFileSync(join(ROOT, "supabase/functions/_shared/llm-input-safety.ts"), "utf8");
+  const code = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const exports: { hasRedZoneInput?: (value: unknown) => boolean } = {};
+  new Function("exports", "require", code)(exports, (specifier: string) => {
+    if (specifier !== "../../../src/lib/safety/classifier.ts") throw new Error("Unexpected server classifier dependency");
+    return classifier;
+  });
+  if (typeof exports.hasRedZoneInput !== "function") throw new Error("Server input gate missing");
+  return exports.hasRedZoneInput;
+}
 
 function extractQuotedArray(src: string, constName: string): string[] {
   const start = src.indexOf(`const ${constName}`);
@@ -111,6 +132,20 @@ function main(): void {
   // --check: CI gate against the approved exception list (lexicon.ts SoT).
   if (process.argv.includes("--check")) {
     let drift = 0;
+    const hasRedZoneInput = loadServerInputGate();
+    // Server-initiated seats consume the real app classifier, not another
+    // vocabulary mirror. Check raw/nested strings, including JSON escapes.
+    const inputs = [
+      ...Object.values(CRISIS_EVAL).flat().map(({ text }) => text),
+      ...Object.values(CRISIS_TERMS).flat().flatMap((term) => [term, term.replace(/ /g, "\n"), term.normalize("NFD")]),
+    ];
+    for (const text of inputs) {
+      const expected = classifier.classifyInputAnyLocale(text, "en").zone === "red";
+      if (hasRedZoneInput(text) !== expected || hasRedZoneInput({ items: [{ title: text }] }) !== expected) {
+        drift++;
+        console.error("CRISIS-PARITY FAIL: server input decision differs from the app classifier");
+      }
+    }
     for (const locale of ["en", "ko"] as const) {
       const actual = [...l2[locale]].filter((t) => !l1a[locale].has(t) && !coveredByGate(t, locale)).sort();
       const approved = [...APPROVED_L2_ONLY_MARKERS[locale]].sort();
@@ -133,7 +168,7 @@ function main(): void {
       }
     }
     if (drift > 0) process.exit(1);
-    console.log("CRISIS-PARITY PASS  L1 mirrors byte-identical (jest) + L2-only markers == approved exception list");
+    console.log(`CRISIS-PARITY PASS  L1 mirrors byte-identical (jest) + L2-only markers == approved exception list + server/app input parity (${inputs.length} cases)`);
     return;
   }
 

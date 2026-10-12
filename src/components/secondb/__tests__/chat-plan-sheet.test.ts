@@ -78,6 +78,38 @@ function mount(suggestion: Props | null, extra: Props = {}) {
 const routine = { kind: "routine", title: "Read a chapter", recurrence: "daily", domainId: "reading_list" };
 const reminder = { kind: "reminder", title: "Call Alex", date: "2026-10-10", time: "14:30" };
 
+test("G5-07 changing a group selects a visible category and confirms that exact category", () => {
+  const host = mount(routine);
+  for (const group of ["living", "learning", "creative", "body", "worklife"]) {
+    host.press(`chat-plan-group-${group}`);
+    const selected = host.all().filter(node => String(node.props.testID).startsWith("chat-plan-domain-")
+      && (node.props.accessibilityState as Props)?.checked === true);
+    expect(selected).toHaveLength(1);
+    host.press("chat-plan-confirm");
+    expect(host.onConfirm).toHaveBeenLastCalledWith(expect.objectContaining({
+      domainId: String(selected[0].props.testID).replace("chat-plan-domain-", ""),
+    }));
+  }
+});
+
+test("G5-07 a busy group handler cannot change the visible group or submitted category", () => {
+  const host = mount(routine, { busy: true });
+  host.press("chat-plan-group-living");
+  expect(host.find("chat-plan-domain-reading_list").props.accessibilityState).toMatchObject({ checked: true });
+  host.update({ busy: false });
+  host.press("chat-plan-confirm");
+  expect(host.onConfirm).toHaveBeenCalledWith(expect.objectContaining({ domainId: "reading_list" }));
+});
+
+test("G5-07 pressing the current group preserves its explicitly selected category", () => {
+  const host = mount(routine);
+  host.press("chat-plan-domain-language_practice");
+  host.press("chat-plan-group-learning");
+  expect(host.find("chat-plan-domain-language_practice").props.accessibilityState).toMatchObject({ checked: true });
+  host.press("chat-plan-confirm");
+  expect(host.onConfirm).toHaveBeenCalledWith(expect.objectContaining({ domainId: "language_practice" }));
+});
+
 test("opening a suggestion never saves and unknown routine time stays blank without a first-date fiction", () => {
   const host = mount(routine);
   expect(host.onConfirm).not.toHaveBeenCalled();

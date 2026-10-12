@@ -268,8 +268,8 @@ describe("경계 - 화면은 키보드 영역 하나로만 피한다", () => {
     const users = files.filter(
       (file) => !BOUNDARY.has(file) && /\bautomaticallyAdjustKeyboardInsets\b/.test(fs.readFileSync(path.join(ROOT, file), "utf8")),
     );
-    // 지금 쓰는 곳이 0 이 되면 이 검사는 공허해진다. 그때는 이 검사를 은퇴시킨다.
-    expect(users).toContain("src/components/deep-space/DeepSpaceViews.tsx");
+    // 마지막 사용처 CaptureView는 저장 행까지 함께 띄우도록 바뀌었다.
+    // 위의 양성/음성 fixture로 규칙을 검증하고, 새 사용처도 Android 영역을 갖추게 한다.
     expect(users.filter((file) => iosOnlyWithoutArea(fs.readFileSync(path.join(ROOT, file), "utf8")))).toEqual([]);
   });
 
@@ -296,9 +296,9 @@ describe("경계 - 화면은 키보드 영역 하나로만 피한다", () => {
   });
 });
 
-// /capture 메모 칸이 위 계산을 실제로 쓰는지(2026-10-07 실기 R2A-02 후속). Jest 는 RN 을 렌더하지
-// 못하므로 배선을 소스에서 확인한다.
-describe("배선 - /capture 메모 칸을 누르면 담기까지 보인다", () => {
+// R2A-02의 목적은 키보드 위에 저장 버튼을 드러내는 것이다. 2026-10-10부터 /capture는
+// 모든 방식의 버튼을 스크롤 밖에 두므로 영역 전체가 키보드를 피해야 한다.
+describe("배선 - /capture 모든 방식에서 저장 버튼이 키보드를 피한다", () => {
   const helper = fs.readFileSync(path.join(ROOT, HELPER), "utf8").replace(/\r\n/g, "\n");
   const views = fs.readFileSync(path.join(ROOT, "src/components/deep-space/DeepSpaceViews.tsx"), "utf8").replace(/\r\n/g, "\n");
   const capture = views.slice(views.indexOf("export function CaptureView"), views.indexOf("// ── 세컨비 / Chat"));
@@ -321,21 +321,20 @@ describe("배선 - /capture 메모 칸을 누르면 담기까지 보인다", () 
     expect(hook).toMatch(/onFocus: \(\) => \{\s*frameRef\.current\.focused = true;\s*reveal\(\);/);
   });
 
-  test("CaptureView 는 ScrollView · 메모 칸 묶음 · 메모 칸 · 담기 칸에 하나씩 펼친다", () => {
-    // 첫 기록 안내 동안과 메모 모드 밖(4W1H · 링크 · 할 일)에서는 멈춘다.
-    expect(capture).toContain("const saveReveal = useKeyboardReveal(scrollRef, {\n    active: coachStep == null && mode === \"text\" && !fourwOn,\n  });");
-    const scroll = capture.slice(capture.indexOf("<ScrollView\n        ref={scrollRef}"), capture.indexOf("{/* Fixed square tiles"));
-    expect(scroll).toContain("{...saveReveal.scrollProps}");
-    // 메모(4W1H 꺼짐) 갈래의 묶음이 내용 컨테이너의 직계 자식이고, 그 첫 칸이 메모 입력칸이다.
-    const memo = capture.slice(capture.indexOf("{!fourwOn ? ("), capture.indexOf("{attachStrip}"));
-    expect(memo).toContain("<View style={[styles.capForm, styles.capFillSpace]} {...saveReveal.keepTopProps}>");
-    expect(memo).toContain('accessibilityLabel={t("capture:modes.memo.label")}\n                  {...saveReveal.inputProps}');
-    expect(capture).toContain(
-      "<View ref={saveCoachTargetRef} collapsable={false} style={styles.capSubmit} {...saveReveal.targetProps}>",
-    );
-    // 한 번씩만 - 다른 칸에 잘못 펼치면 좌표가 섞인다.
-    for (const spread of ["scrollProps", "keepTopProps", "inputProps", "targetProps"]) {
-      expect(capture.split(`{...saveReveal.${spread}}`).length - 1).toBe(1);
-    }
+  test("iOS와 Android 모두 입력 스크롤과 저장 행을 함께 띄운다", () => {
+    const areaStart = capture.indexOf("<KeyboardAvoidingArea style={styles.capCoachRoot} iosKeyboardVerticalOffset={iosKeyboardOffset}>");
+    const scrollEnd = capture.indexOf("</ScrollView>");
+    const save = capture.indexOf("<View ref={saveCoachTargetRef}");
+    expect(areaStart).toBeGreaterThan(0);
+    expect(scrollEnd).toBeGreaterThan(areaStart);
+    expect(save).toBeGreaterThan(scrollEnd);
+    expect(save).toBeLessThan(capture.indexOf("</KeyboardAvoidingArea>"));
+    // iOS의 ScrollView inset만 켜면 스크롤 밖 버튼은 키보드 아래에 남는다.
+    // 이중 inset도 피한다. Android는 기존 영역의 실제 겹침 측정을 그대로 쓴다.
+    expect(capture).not.toContain("iosHandledByScrollView");
+    expect(capture).not.toContain("automaticallyAdjustKeyboardInsets");
+    // 스크롤 좌표로 바깥 버튼을 재거나 메모 위 끝까지 자동으로 내리지 않는다.
+    expect(capture).not.toContain("saveReveal");
+    expect(capture).toContain('keyboardShouldPersistTaps="handled"');
   });
 });

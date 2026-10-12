@@ -172,7 +172,7 @@
       "photoRemove": "Hapus foto {{n}}",
       "photoAttached": "Foto terlampir {{n}}",
       "photoPickError": "Foto itu tidak bisa ditambahkan. Coba foto lain.",
-      "ocr": "OCR",
+      "ocr": "Baca teks",
       "ocrA11y": "Baca teks dari foto (OCR)",
       "ocrHint": "Pilih foto dan AI membaca teksnya. Foto tidak disimpan.",
       "ocrTitle": "Baca teks dari foto",

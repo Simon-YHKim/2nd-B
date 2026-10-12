@@ -40,7 +40,7 @@ function downloadCalendar(ics: string, isCurrent: () => boolean): ChatPlanSaveRe
 }
 
 /** Called only by explicit sheet confirmation; all follow-up effects share its owner lease. */
-export async function saveChatPlan(ownerId: string, draft: ChatPlanDraft, { now = new Date() }: { now?: Date } = {}): Promise<ChatPlanSaveResult> {
+export async function saveChatPlan(ownerId: string, draft: ChatPlanDraft, { now = new Date(), routineId: confirmationId }: { now?: Date; routineId?: string } = {}): Promise<ChatPlanSaveResult> {
   const lease = captureAccountOwnerLease(ownerId);
   if (!lease?.isCurrent()) return { status: "stale" };
   const built = buildChatPlan(draft, { now, requireExportConsent: Platform.OS === "web" });
@@ -54,7 +54,7 @@ export async function saveChatPlan(ownerId: string, draft: ChatPlanDraft, { now 
     if (!current()) return { status: "stale" };
     if (built.recommendation) {
       const routine = await createRoutineFromRecommendation(ownerId, built.draft.domainId, built.recommendation, {
-        weekday: built.draft.weekday ?? undefined, signal: controller.signal,
+        weekday: built.draft.weekday ?? undefined, signal: controller.signal, routineId: confirmationId,
       });
       routineId = routine.id;
       if (!current()) return { status: "stale" };
