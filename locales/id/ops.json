@@ -2,7 +2,6 @@
   "phone": {
     "summaryDetails": "Ringkasan lengkap",
     "noteUpdatedAt": "Terakhir ditulis · {{time}}",
-    "notePrevious": "Catatan terakhir ditampilkan sambil menunggu yang berikutnya.",
     "dismissHandle": "Turunkan ponsel: geser ke atas atau bawah",
     "assistantSettings": "Pengaturan asisten",
     "recommendationSettings": "Pengaturan rekomendasi",

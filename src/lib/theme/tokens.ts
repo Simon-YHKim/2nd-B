@@ -220,6 +220,11 @@ const semanticDeepSpace = {
   deepSpaceCard: "#141b2e",
   deepSpaceCardPressed: "#232e4a",
   deepSpaceCardLine: "#232e4a",
+  // Provider logo colors, shared by the sign-in and sign-up icons.
+  googleBrandRed: "#EA4335",
+  googleBrandYellow: "#FBBC05",
+  googleBrandGreen: "#34A853",
+  googleBrandBlue: "#4285F4",
 } as const;
 
 // The active palette.
@@ -342,6 +347,10 @@ export const semanticLight = {
   deepSpaceCard: semantic.deepSpaceCard,
   deepSpaceCardPressed: semantic.deepSpaceCardPressed,
   deepSpaceCardLine: semantic.deepSpaceCardLine,
+  googleBrandRed: semantic.googleBrandRed,
+  googleBrandYellow: semantic.googleBrandYellow,
+  googleBrandGreen: semantic.googleBrandGreen,
+  googleBrandBlue: semantic.googleBrandBlue,
 } as const;
 
 // The Graph Village character colours (`characters` / `CharacterName`) and the
