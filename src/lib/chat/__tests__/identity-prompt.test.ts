@@ -86,20 +86,18 @@ describe("세컨비 정체성 프롬프트", () => {
   it.each(["en", "ko"] as const)("%s: 리마인더·루틴은 사용자 확인 전 기능 부정도 예약 약속도 하지 않는다", (locale) => {
     const h = localeHeader(locale);
     const rules = locale === "ko" ? [
-      /리마인더·루틴 요청.*한 문장.*짧게/,
+      /리마인더나 루틴을 만들어 달라는 요청.*한 문장.*짧게/,
       /답 아래.*버튼.*나올 수/,
       /사용자.*확인해야/,
-      /웹 리마인더.*캘린더 내보내기/,
       /알림을 보내거나 리마인더·루틴을 만들 수 없다고.*말하거나.*지어내지 말고/,
       /이미 설정·예약했다고.*말하거나.*지어내지 말고/,
       /알려 드리겠다고.*말하거나.*지어내지 말고/,
       /날짜·시각을 지어내지/,
       /버튼이 나올 때.*설정.*맡기세요/,
     ] : [
-      /reminder or routine requests.*one short sentence/i,
+      /asks you to set up a reminder or routine.*one short sentence/i,
       /may offer a button below your reply/i,
       /user-confirmed setup/i,
-      /web reminders export to a calendar/i,
       /Do not say you cannot send notifications or create reminders\/routines/i,
       /Do not say[^.]*already set/i,
       /Do not say[^.]*will notify/i,
@@ -111,6 +109,9 @@ describe("세컨비 정체성 프롬프트", () => {
       expect(h.toLowerCase()).not.toContain(term.toLowerCase());
     }
     expect(h).not.toContain("\u2014");
+    // The rule covers set-up requests only and names no platform mechanism: a model that is told
+    // about calendar export starts explaining it to people who never asked.
+    expect(h).not.toMatch(/캘린더|calendar/i);
     if (locale === "ko") {
       expect(h).toContain("'~습니다'");
       expect(h).toContain("'~나요?'");

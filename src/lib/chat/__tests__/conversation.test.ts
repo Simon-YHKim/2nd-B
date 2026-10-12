@@ -354,11 +354,11 @@ describe("sendChatMessage", () => {
     const trustedHeader = system.split("\n\n")[0];
     expect(system.indexOf("<UNTRUSTED")).toBeGreaterThan(trustedHeader.length);
     if (locale === "ko") {
-      expect(trustedHeader).toMatch(/리마인더·루틴 요청.*한 문장/);
+      expect(trustedHeader).toMatch(/리마인더나 루틴을 만들어 달라는 요청.*한 문장/);
       expect(trustedHeader).toMatch(/버튼.*나올 수.*사용자.*확인해야/);
       expect(trustedHeader).toMatch(/만들 수 없다고.*이미 설정·예약했다고.*알려 드리겠다고.*말하거나.*지어내지 말고/);
     } else {
-      expect(trustedHeader).toMatch(/reminder or routine requests.*one short sentence/i);
+      expect(trustedHeader).toMatch(/asks you to set up a reminder or routine.*one short sentence/i);
       expect(trustedHeader).toMatch(/may offer a button.*user-confirmed setup/i);
       expect(trustedHeader).toMatch(/Do not say you cannot.*already set.*will notify/i);
     }
