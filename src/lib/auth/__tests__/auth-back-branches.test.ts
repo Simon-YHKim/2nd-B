@@ -1,12 +1,61 @@
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
-import { selectSignInBranch } from "../sign-in-branch";
+import { selectSignInBranch, selectSignInNoticePlacement, type SignInBranch } from "../sign-in-branch";
+import type { SignInToast } from "../sign-in-toast";
 import { createSignInBackHandler } from "../sign-in-back";
 import { createSignUpBackHandler } from "../sign-up-back";
 
 const read = (path: string) => readFileSync(path, "utf8");
 const bools = [false, true];
+const signInFile = "src/screens/deepspace/dds-sign-in-screen.tsx";
+
+// Independent expected table shared by selector coverage and screen wiring.
+// A new union member must have a row; an extra screen return fails the same table.
+const presentations = {
+  deletion: { guard: 'branch.kind === "deletion"', exit: "overlay", other: "inline", children: ["inlineNotice", "AccountDeletionNoticePanel", "exitNoticeOverlay"] },
+  loading: { guard: 'branch.kind === "loading"', exit: "overlay", other: "inline", children: ["PixelGateShell", "exitNoticeOverlay"] },
+  home: { guard: 'branch.kind === "home"', exit: "none", other: "none", children: ["RedirectHome"] },
+  form: { guard: "form", exit: "overlay", other: "inline", children: ["PixelGateShell", "exitNoticeOverlay"] },
+} satisfies Record<SignInBranch<unknown>["kind"], {
+  guard: string; exit: string; other: string; children: string[];
+}>;
+
+function parse(source: string) {
+  return ts.createSourceFile(signInFile, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+}
+
+function declaration(name: string): string {
+  const ast = parse(read(signInFile));
+  const matches: string[] = [];
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && node.name.getText(ast) === name) {
+      matches.push(node.initializer?.getText(ast) ?? "");
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+  expect(matches).toHaveLength(1);
+  return matches[0];
+}
+
+function jsxRoot(expression: string): ts.JsxElement | ts.JsxSelfClosingElement {
+  const ast = parse(`const presentation = ${expression};`);
+  const statement = ast.statements[0] as ts.VariableStatement;
+  let node = statement.declarationList.declarations[0].initializer!;
+  while (ts.isParenthesizedExpression(node)) node = node.expression;
+  if (!ts.isJsxElement(node) && !ts.isJsxSelfClosingElement(node)) throw new Error("Expected one screen root");
+  return node;
+}
+
+function childNames(node: ts.JsxElement): string[] {
+  return node.children.filter(child => !ts.isJsxText(child)).map(child => {
+    if (ts.isJsxElement(child)) return child.openingElement.tagName.getText();
+    if (ts.isJsxSelfClosingElement(child)) return child.tagName.getText();
+    if (ts.isJsxExpression(child)) return child.expression?.getText() ?? "";
+    return child.getText();
+  });
+}
 
 // Inspect only this screen's returns, never callbacks, nested components or hooks.
 function screenReturns(file: string, name: string) {
@@ -29,15 +78,31 @@ function screenReturns(file: string, name: string) {
 }
 
 describe("R3-1 auth branch matrix", () => {
-  test("all eight login states select the receipt, loading, home or form with a notice slot", () => {
+  test("all eight login states select one branch and one placement for every notice kind", () => {
     const receipt = { localSignOut: "pending" };
+    const notices: (SignInToast | null)[] = [
+      null,
+      ...(["info", "success", "danger"] as const).flatMap(tone => [
+        { tone, message: "other" },
+        { tone, message: "exit", exitOnBackUntil: 0 },
+        { tone, message: "exit", exitOnBackUntil: 2800 },
+      ]),
+    ];
+    const seen = new Set<string>();
     for (const deleted of bools) for (const loading of bools) for (const signedIn of bools) {
       const branch = selectSignInBranch({ deletionNotice: deleted ? receipt : null, loading, userId: signedIn ? "owner" : null });
       const expected = deleted ? "deletion" : loading ? "loading" : signedIn ? "home" : "form";
       expect(branch.kind).toBe(expected);
       expect(branch.includesNotice).toBe(expected !== "home");
       if (branch.kind === "deletion") expect(branch.notice).toBe(receipt);
+      seen.add(branch.kind);
+      for (const notice of notices) {
+        const placement = notice === null ? "none"
+          : notice.exitOnBackUntil !== undefined ? presentations[expected].exit : presentations[expected].other;
+        expect(selectSignInNoticePlacement(branch, notice)).toBe(placement);
+      }
     }
+    expect([...seen].sort()).toEqual(Object.keys(presentations).sort());
   });
 
   test("every guest presentation shows the first notice and exits only on the second idle press", () => {
@@ -49,29 +114,68 @@ describe("R3-1 auth branch matrix", () => {
       const back = createSignInBackHandler({ isBusy: () => busy, exitDeadline: () => notice, now: () => 100, showNotice: show, exitApp: exit });
       expect(back()).toBe(true);
       expect(exit).not.toHaveBeenCalled();
-      expect(branch.includesNotice && notice !== undefined).toBe(!busy);
+      expect(selectSignInNoticePlacement(branch, notice === undefined ? null
+        : { tone: "info", message: "exit", exitOnBackUntil: notice })).toBe(busy ? "none" : "overlay");
       expect(back()).toBe(true);
       expect(exit).toHaveBeenCalledTimes(busy ? 0 : 1);
       expect(show).toHaveBeenCalledTimes(busy ? 0 : 1);
     }
   });
 
-  test("the screen has exactly the selector branches and renders the same accessible notice in each owned branch", () => {
-    const file = "src/screens/deepspace/dds-sign-in-screen.tsx";
-    const source = read(file);
-    const branches = screenReturns(file, "DeepSpaceSignInDesignScreen");
-    expect(branches.map(row => row.guard)).toEqual([
-      'branch.kind === "deletion"', 'branch.kind === "loading"', 'branch.kind === "home"', "form",
-    ]);
-    for (const [index, kind] of ["deletion", "loading", "home", "form"].entries()) {
-      expect(branches[index].jsx.includes("{signInNotice}")).toBe(kind !== "home");
+  test("the selector table matches every return with one overlay sibling outside scroll content", () => {
+    const branches = screenReturns(signInFile, "DeepSpaceSignInDesignScreen");
+    expect(branches.map(row => row.guard)).toEqual(Object.values(presentations).map(row => row.guard));
+    for (const [index, [kind, expected]] of Object.entries(presentations).entries()) {
+      const root = jsxRoot(branches[index].jsx);
+      if (kind === "home") {
+        expect(root.getText()).toBe("<RedirectHome />");
+        continue;
+      }
+      expect(ts.isJsxElement(root)).toBe(true);
+      if (!ts.isJsxElement(root)) throw new Error("Missing viewport wrapper");
+      expect(root.openingElement.getText()).toBe("<View style={styles.screen}>");
+      expect(childNames(root)).toEqual(expected.children);
+      expect(branches[index].jsx.match(/\{exitNoticeOverlay\}/g)).toHaveLength(1);
+      expect(branches[index].jsx.match(/\{inlineNotice\}/g)).toHaveLength(1);
+      const shell = root.children.find(child => ts.isJsxElement(child) && child.openingElement.tagName.getText() === "PixelGateShell");
+      if (shell && ts.isJsxElement(shell)) {
+        expect(childNames(shell).at(-1)).toBe("inlineNotice");
+        expect(shell.getText()).not.toContain("exitNoticeOverlay");
+      }
     }
     expect(branches[0].jsx).toContain("<AccountDeletionNoticePanel notice={branch.notice} />");
-    expect(source).toContain("const branch = selectSignInBranch({ deletionNotice, loading, userId })");
-    expect(source).toContain("const signInNotice = branch.includesNotice && toast ? (");
-    expect(source).toContain('accessibilityRole="alert"');
-    expect(source).toContain('accessibilityLiveRegion={toast.tone === "danger" ? "assertive" : "polite"}');
-    expect(source).toContain("{toast.message}");
+    expect(branches[3].jsx.indexOf("<BusinessFooter />")).toBeLessThan(branches[3].jsx.indexOf("{inlineNotice}"));
+  });
+
+  test("only the pure placement result routes the one unchanged accessible notice", () => {
+    expect(declaration("branch")).toBe("selectSignInBranch({ deletionNotice, loading, userId })");
+    expect(declaration("noticePlacement")).toBe("selectSignInNoticePlacement(branch, toast)");
+    expect(declaration("inlineNotice")).toBe('noticePlacement === "inline" ? signInNotice : null');
+    const notice = declaration("signInNotice");
+    expect(notice).toMatch(/^noticePlacement !== "none" && toast \? \(/);
+    expect(notice).toContain('accessibilityRole="alert"');
+    expect(notice).toContain('accessibilityLiveRegion={toast.tone === "danger" ? "assertive" : "polite"}');
+    expect(notice).toContain('<PixelSurface');
+    expect(notice).toContain('variant="frame"');
+    expect(notice).toContain("contentStyle={styles.toast}");
+    for (const color of ["errorContainer", "tertiaryContainer", "primaryContainer"]) expect(notice).toContain(`m3.color.${color}`);
+    for (const style of ["toastText", "toastDanger", "toastSuccess", "toastInfo"]) expect(notice).toContain(`styles.${style}`);
+    expect(notice).toContain("{toast.message}");
+    const source = read(signInFile);
+    expect(source.match(/\{toast.message\}/g)).toHaveLength(1);
+    expect(source.match(/\{signInNotice\}/g)).toHaveLength(1);
+    expect(source.match(/<SafeAreaView\b/g)).toHaveLength(1);
+    expect(source).not.toContain("toast.exitOnBackUntil");
+  });
+
+  test("the common overlay uses a bottom safe area, absolute token margins and passes every touch through", () => {
+    const overlay = declaration("exitNoticeOverlay");
+    expect(overlay).toMatch(/^noticePlacement === "overlay" \? \(/);
+    expect(overlay).toMatch(/<SafeAreaView\s+pointerEvents="none"\s+edges=\{\["bottom"\]\}\s+style=\{styles.exitNoticeOverlay\}\s*>\s*\{signInNotice\}\s*<\/SafeAreaView>\s*\) : null$/);
+    const styles = declaration("styles");
+    expect(declaration("EXIT_NOTICE_LAYER")).toBe("1");
+    expect(styles).toMatch(/screen: \{ flex: 1 \}/);
+    expect(styles).toMatch(/exitNoticeOverlay: \{\s*position: "absolute",\s*left: m3.spacing.s4,\s*right: m3.spacing.s4,\s*bottom: m3.spacing.s4,\s*zIndex: EXIT_NOTICE_LAYER,\s*elevation: EXIT_NOTICE_LAYER,\s*\}/);
   });
 
   test("all signup branches, including redirect variants and confirmation, request sign-in or hold the live write", () => {

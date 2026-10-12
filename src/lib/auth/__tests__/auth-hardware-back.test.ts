@@ -157,8 +157,10 @@ describe("D2 hardware Back wiring", () => {
     expect(notice).toContain('accessibilityRole="alert"');
     expect(notice).toContain('accessibilityLiveRegion={toast.tone === "danger" ? "assertive" : "polite"}');
     expect(notice).toContain("{toast.message}");
-    expect(loading).toContain("{signInNotice}");
-    expect(screen.slice(screen.indexOf('  if (branch.kind === "home")'))).toContain("{signInNotice}");
+    expect(loading).toContain("{exitNoticeOverlay}");
+    expect(loading).toContain("{inlineNotice}");
+    expect(screen.slice(screen.indexOf('  if (branch.kind === "home")'))).toContain("{exitNoticeOverlay}");
+    expect(screen.slice(screen.indexOf('  if (branch.kind === "home")'))).toContain("{inlineNotice}");
   });
 
   test.each([["sign-in", inEffect], ["sign-up", upEffect]])("%s registers only during focus and removes its subscription", (_name, effect) => {
