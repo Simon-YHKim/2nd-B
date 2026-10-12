@@ -216,14 +216,14 @@ describe("R3-1 auth branch matrix", () => {
     const signIn = read("src/lib/auth/useSignInForm.ts");
     const signUp = read("src/lib/auth/useSignUpForm.ts");
     for (const [source, guard] of [
-      [signIn, 'Platform.OS !== "android" || !branch.includesNotice'], [signUp, 'Platform.OS !== "android"'],
+      [signIn, 'Platform.OS !== "android" || !isFocused || !branch.includesNotice'], [signUp, 'Platform.OS !== "android" || !isFocused'],
     ]) {
-      const effect = source.slice(source.indexOf("useFocusEffect(useCallback("));
+      const effect = source.slice(source.indexOf("  // D2 (Simon"));
       expect(effect.slice(0, effect.indexOf("const onBackPress"))).toContain(`if (${guard}) return;`);
       expect(effect.slice(0, effect.indexOf("const onBackPress"))).not.toMatch(/if \(loading/);
       expect(effect).toContain("sub.remove()");
       for (const OS of ["android", "ios", "web"]) for (const includesNotice of bools) {
-        expect(Boolean(runInNewContext(guard, { Platform: { OS }, branch: { includesNotice } })))
+        expect(Boolean(runInNewContext(guard, { Platform: { OS }, isFocused: true, branch: { includesNotice } })))
           .toBe(OS !== "android" || (source === signIn && !includesNotice));
       }
     }

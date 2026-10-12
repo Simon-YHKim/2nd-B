@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router, useFocusEffect, useIsFocused } from "expo-router";
+import { router, useIsFocused } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
 import { AuthLockWaitTimeoutError } from "@/lib/auth/session-mutation";
@@ -118,7 +118,7 @@ export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
     const timeout = setTimeout(() => setToast(null, notice), duration);
     return () => clearTimeout(timeout);
   }, [setToast]);
-  // Commit branch/focus ownership before a stale focus subscription can run.
+  // Commit branch/focus ownership alongside the layout subscription below.
   // Only home releases it; a late session cannot displace a receipt or loading.
   useLayoutEffect(() => {
     isGuestRef.current = branch.includesNotice && isFocused;
@@ -156,10 +156,10 @@ export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
   }, [submitting]);
 
   // D2 (Simon 2026-10-10): only the focused Android login gate owns Back.
-  // The deadline also dismisses the existing toast; an unrelated toast never
-  // grants exit. Leaving this screen disarms the prompt even if it stays mounted.
-  useFocusEffect(useCallback(() => {
-    if (Platform.OS !== "android" || !branch.includesNotice) return;
+  // Installation reads render inputs, never the ownership effect's ref. Both
+  // finish in layout in either order; changing t must not clear a painted grant.
+  useLayoutEffect(() => {
+    if (Platform.OS !== "android" || !isFocused || !branch.includesNotice) return;
     const onBackPress = createSignInBackHandler({
       isGuest: () => isGuestRef.current,
       isBusy: () => actionLockRef.current > 0,
@@ -171,7 +171,7 @@ export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
     });
     const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => sub.remove();
-  }, [branch.includesNotice, setToast, t]));
+  }, [branch.includesNotice, isFocused, setToast, t]);
 
   const setEmailAndClearReset = useCallback(
     (value: string) => {

@@ -106,8 +106,8 @@ export function createSignInBackHandler({ isGuest, isBusy, presentedExit, hasPen
   exitApp: () => void;
 }): () => boolean {
   return () => {
-    // The old subscription may survive the home commit until passive cleanup.
-    // Consume it: falling through can invoke Android's default app exit.
+    // Layout removes the subscription on home/blur. A retained callback also
+    // consumes without exit or notice after ownership has been revoked.
     if (!isGuest() || isBusy()) return true;
     const decision = signInBackDecision(presentedExit(), hasPendingExit(), now());
     if (decision.kind === "exit") exitApp();

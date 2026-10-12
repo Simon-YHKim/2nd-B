@@ -9,8 +9,8 @@ import { createSignUpBackHandler } from "../sign-up-back";
 const read = (file: string) => readFileSync(file, "utf8");
 const signIn = read("src/lib/auth/useSignInForm.ts");
 const signUp = read("src/lib/auth/useSignUpForm.ts");
-const inEffect = signIn.slice(signIn.indexOf("useFocusEffect(useCallback("), signIn.indexOf("  const setEmailAndClearReset"));
-const upEffect = signUp.slice(signUp.indexOf("useFocusEffect(useCallback("), signUp.indexOf("  // A valid DOB"));
+const inEffect = signIn.slice(signIn.indexOf("  // D2 (Simon"), signIn.indexOf("  const setEmailAndClearReset"));
+const upEffect = signUp.slice(signUp.indexOf("  // D2 (Simon"), signUp.indexOf("  // A valid DOB"));
 
 const generalNotice = (): SignInToast => ({ message: "B", tone: "danger" });
 const exitNotice = (): SignInToast => ({ message: "exit notice", tone: "info", exitOnBack: true });
@@ -420,12 +420,12 @@ describe("D2 hardware Back wiring", () => {
   test("the installed sign-in handler reads the synchronous lock without busy-state resubscription", () => {
     expect(signIn).toContain("const actionLockRef = useRef(0)");
     expect(inEffect).toContain("isBusy: () => actionLockRef.current > 0");
-    expect(inEffect).toContain("[branch.includesNotice, setToast, t]");
+    expect(inEffect).toContain("[branch.includesNotice, isFocused, setToast, t]");
     expect(inEffect).not.toMatch(/submitting|oauthSubmitting|resetSubmitting/);
   });
 
   test("notice branches keep ownership and only the home branch releases it", () => {
-    expect(inEffect).toContain('if (Platform.OS !== "android" || !branch.includesNotice) return;');
+    expect(inEffect).toContain('if (Platform.OS !== "android" || !isFocused || !branch.includesNotice) return;');
     expect(inEffect).not.toContain("loading");
     expect(inEffect).toMatch(/\}, \[branch.includesNotice,/);
   });
@@ -445,7 +445,8 @@ describe("D2 hardware Back wiring", () => {
   });
 
   test.each([["sign-in", inEffect], ["sign-up", upEffect]])("%s registers only during focus and removes its subscription", (_name, effect) => {
-    expect(effect).toContain("useFocusEffect(useCallback(");
+    expect(effect).toContain("useLayoutEffect(() => {");
+    expect(effect).toContain("!isFocused");
     expect(effect).toContain('Platform.OS !== "android"');
     expect(effect).toContain('BackHandler.addEventListener("hardwareBackPress", onBackPress)');
     expect(effect).toContain("sub.remove()");
@@ -478,7 +479,7 @@ describe("D2 hardware Back wiring", () => {
     expect(attach).toMatch(/return \(\) => \{\s*presentedExitRef.current = detachSignInExit\(presentedExitRef.current, notice\);/);
   });
 
-  test("branch ownership and focus changes revoke in layout, before passive subscription cleanup", () => {
+  test("branch ownership and focus changes revoke in the subscription removal layout phase", () => {
     expect(signIn).toContain("const isFocused = useIsFocused()");
     expect(signIn).toContain("const isGuestRef = useRef(false)");
     expect(signIn).toMatch(/useLayoutEffect\(\(\) => \{\s*isGuestRef.current = branch.includesNotice && isFocused;\s*return \(\) => \{\s*isGuestRef.current = false;\s*clearSignInExit\(toastRef.current, setToast\);\s*\};\s*\}, \[branch.includesNotice, isFocused, setToast\]\);/);

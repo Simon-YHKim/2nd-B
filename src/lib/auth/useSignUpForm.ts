@@ -11,10 +11,10 @@
 // the real email-confirmation pending state and native callback; the consent
 // selections themselves still come from the shared C10 contract.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router, useFocusEffect } from "expo-router";
+import { router, useIsFocused } from "expo-router";
 import { useURL } from "expo-linking";
 
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -161,6 +161,7 @@ export interface UseSignUpForm {
 export function useSignUpForm(): UseSignUpForm {
   const { t, i18n } = useTranslation(["auth", "common"]);
   const { userId, loading, refresh } = useAuth();
+  const isFocused = useIsFocused();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [birthDate, setBirthDate] = useState("");
@@ -265,15 +266,15 @@ export function useSignUpForm(): UseSignUpForm {
   }, [deepLinkUrl, refresh, t, userId]);
 
   // D2 (Simon 2026-10-10): focused Android sign-up returns to sign-in.
-  useFocusEffect(useCallback(() => {
-    if (Platform.OS !== "android") return;
+  useLayoutEffect(() => {
+    if (Platform.OS !== "android" || !isFocused) return;
     const onBackPress = createSignUpBackHandler({
       isBusy: () => actionLockRef.current.active !== null,
       router,
     });
     const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => sub.remove();
-  }, []));
+  }, [isFocused]);
 
   // A valid DOB between the applied floor and 17 drives the high-privacy notice variant and
   // the minor_self consent band.

@@ -7,7 +7,7 @@ import type { SignInToast } from "../sign-in-toast";
 
 const hook = readFileSync("src/lib/auth/useSignInForm.ts", "utf8");
 const screen = readFileSync("src/screens/deepspace/dds-sign-in-screen.tsx", "utf8");
-const focusEffect = hook.slice(hook.indexOf("useFocusEffect(useCallback("), hook.indexOf("  const setEmailAndClearReset"));
+const focusEffect = hook.slice(hook.indexOf("  // D2 (Simon"), hook.indexOf("  const setEmailAndClearReset"));
 // Execute the actual wiring predicates, not a second hand-written ownership rule.
 const installGuard = focusEffect.match(/if \((.*?)\) return;/)![1];
 const committedOwner = hook.match(/isGuestRef.current = ([^;]+);/)![1];
@@ -104,7 +104,7 @@ test.each(["deletion", "loading"] as const)("R6 late user preserves %s ownership
   clearSignInExit(toast, setToast);
   owner = wiring(branch, "owner", true, "android");
   expect(owner.subscribed).toBe(false);
-  expect(back()).toBe(true); // Old handler, before passive subscription cleanup.
+  expect(back()).toBe(true); // Retained callback also stays safe after layout removal.
   expect(exitApp).toHaveBeenCalledTimes(1);
   expect(showNotice).toHaveBeenCalledTimes(1);
 });
@@ -139,9 +139,9 @@ test("R6 one selector result feeds screen returns, layout ownership and focus in
 
 test("R6 layout and subscription depend on includesNotice, never userId or branch identity", () => {
   expect(committedOwner).toBe("branch.includesNotice && isFocused");
-  expect(installGuard).toBe('Platform.OS !== "android" || !branch.includesNotice');
+  expect(installGuard).toBe('Platform.OS !== "android" || !isFocused || !branch.includesNotice');
   expect(focusEffect).not.toContain("userId");
-  expect(focusEffect).toContain("[branch.includesNotice, setToast, t]");
+  expect(focusEffect).toContain("[branch.includesNotice, isFocused, setToast, t]");
   const layout = hook.slice(hook.indexOf("  useLayoutEffect("), hook.indexOf("  const [resetHelpVisible"));
   expect(layout).not.toContain("userId");
   expect(layout).toContain("[branch.includesNotice, isFocused, setToast]");
