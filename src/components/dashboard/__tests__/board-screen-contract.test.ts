@@ -29,9 +29,22 @@ describe("완료조건 5: 화면은 표시 여부 · 순서 · 색을 계약 값
 
   test("색은 boardTone(basis) 와 테마 토큰에서만 온다(hex 0)", () => {
     expect(code(parts)).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
-    // 리터럴 basis 로 색을 고르는 곳은 늘 점선인 '+ 위젯 추가' 자리 하나뿐이다.
+    // 리터럴 basis 로 색을 고르는 곳은 '+ 위젯 추가' 자리 하나뿐이다(바탕과 글자 색만 빌린다).
     expect(code(parts).match(/boardTone\("(ai|fact|rule|locked)"\)/g)).toEqual(['boardTone("locked")']);
     expect(code(parts)).not.toMatch(/basis="(ai|fact|rule|locked)"/);
+  });
+
+  // Simon 2026-10-12 (Q-261012-61, 나): 점선은 "잠김"만 뜻한다. '+ 위젯 추가' 는 테두리 없이 바탕과 + 만 둔다.
+  test("'+ 위젯 추가' 자리에는 점선 테두리가 없고, 잠긴 카드의 점선은 그대로다", () => {
+    const start = parts.indexOf('accessibilityLabel={t("phone.board.addWidget")}');
+    const slot = parts.slice(start, parts.indexOf("</Pressable>", start));
+    expect(start).toBeGreaterThan(0);
+    expect(slot).toContain("<PixelRoundRect fill={addTone.fill} style={[styles.frame, styles.row, styles.addSlot]}>");
+    expect(slot).toContain('<PixelGlyph name="add" size={18} color={addTone.text} />');
+    expect(slot).not.toContain("styles.dashed");
+    expect(slot).not.toContain("addTone.border");
+    expect(parts).toContain('{tone.borderStyle === "dashed" ? <View pointerEvents="none" style={[styles.dashed, { borderColor: tone.border }]} /> : null}');
+    expect(parts).toContain("minHeight: 56");
   });
 });
 
