@@ -7,6 +7,7 @@ import { isKeepable } from "@/lib/chat/keep-exchange";
 import { chatDisplayText } from "@/lib/chat/display-text";
 import { formatSourceCitationLabel, parseSourceCitations, sourceCitationDisplay } from "@/lib/chat/sources";
 import { parseTwiBranches } from "@/lib/chat/twi-branches";
+import { aiMarkFor } from "@/lib/chat/ai-mark";
 
 const source = readFileSync(resolve(__dirname, "../secondb.tsx"), "utf8");
 const transcript = source.slice(source.indexOf("turns.map((turn, i)"), source.indexOf("{sending ? (", source.indexOf("turns.map((turn, i)")));
@@ -32,7 +33,8 @@ function renderedMessages(messageTurns?: Props[], selectedLens = "HustleK") {
   if (!map) throw new Error("Conversation rendering is missing");
   const styles = findNode(node => ts.isVariableDeclaration(node) && node.name.getText(ast) === "ds") as ts.VariableDeclaration;
   const object = (styles.initializer as ts.CallExpression).arguments[0] as ts.ObjectLiteralExpression;
-  const names = ["bubbleRow", "userRow", "aiRow", "bubbleCol", "messageHeader", "userMessageHeader", "messageName", "userMessageName"];
+  const names = ["bubbleRow", "userRow", "aiRow", "bubbleCol", "messageHeader", "userMessageHeader", "messageName", "userMessageName",
+    "aiMessageHeader", "aiMark", "aiMarkText", "aiMarkSentence"];
   const selected = object.properties.filter(property => property.name && names.includes(property.name.getText(ast)));
   const ds = execute(`({${selected.map(property => property.getText(ast)).join(",")}})`, {
     deepSpace: { textMid: "muted", text: "ink" }, fontFamilies: { readable: "Readable" },
@@ -46,7 +48,7 @@ function renderedMessages(messageTurns?: Props[], selectedLens = "HustleK") {
     React: { createElement: (type: string, props: Props | null, ...children: unknown[]) => ({ type, props: { ...props, children } }) },
     View: "View", Pressable: "Pressable", Text: "Text", ChatMessageAvatar: "ChatMessageAvatar", ServiceConsentLink: "ServiceConsentLink",
     turns, ds, userAvatar: savedAvatar, userDisplayName: "Hotline_blingbling", lensName: selectedLens, lensAccent: "accent",
-    getExchangeExpression, copyTurn, chatDisplayText, sourceCitationDisplay, copyNotice: null,
+    getExchangeExpression, copyTurn, chatDisplayText, sourceCitationDisplay, copyNotice: null, aiMarkFor,
     t: (key: string) => key === "deepspace:time.recordFallback" ? "기록" : labels[key] ?? key,
   }) as Tree[];
   return { tree, savedAvatar, getExchangeExpression, turns, copyTurn };
@@ -111,6 +113,35 @@ describe("HustleK messenger layout", () => {
     expect(host.copyTurn).toHaveBeenCalledWith(0, "이 답은 관련 위키 기록 Untitled와 소스의 자기 이해 기록을 보고 말씀드렸습니다.");
     expect(host.turns[0].text).toBe(text);
     expect(host.turns[0].citationText).toBe(raw);
+  });
+
+  // Simon 2026-10-12: answers say they are AI-made. A mark by the name on every model answer,
+  // the sentence spelled out on the first one only, nothing on my own messages or app-written lines.
+  test("model answers carry the AI mark by the name; the sentence is drawn on the first answer only", () => {
+    const host = renderedMessages([
+      { role: "user", text: "하나" },
+      { role: "secondb", text: "오늘 한도를 다 썼어요", synthetic: true },
+      { role: "secondb", text: "첫 답", safetyZone: "green" },
+      { role: "user", text: "둘" },
+      { role: "secondb", text: "둘째 답", safetyZone: "green" },
+    ]);
+    const extras = host.tree.map((message) => {
+      const [header] = message.props.children as Tree[];
+      return (header.props.children as (Tree | null)[]).slice(2).filter(Boolean) as Tree[];
+    });
+    expect(extras.map((list) => list.length)).toEqual([0, 0, 2, 0, 1]);
+    const [mark, sentence] = extras[2];
+    expect(mark.props.testID).toBe("chat-ai-mark-2");
+    expect(mark.props.accessibilityLabel).toBe("aiMark.spoken");
+    expect((mark.props.children as Tree[])[0].props.children).toEqual(["aiMark.short"]);
+    expect(sentence.props.testID).toBe("chat-ai-sentence-2");
+    expect(sentence.props.children).toEqual(["aiMark.spoken"]);
+    expect(sentence.props.importantForAccessibility).toBe("no");
+    expect(extras[4][0].props.testID).toBe("chat-ai-mark-4");
+    const [aiHeader] = host.tree[2].props.children as Tree[];
+    expect(flatten(aiHeader.props.style).flexWrap).toBe("wrap");
+    const [userHeader] = host.tree[0].props.children as Tree[];
+    expect(flatten(userHeader.props.style).flexWrap).toBeUndefined();
   });
 
   test("headers stay above bubbles with the user avatar at the right edge and nickname to its left", () => {

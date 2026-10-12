@@ -166,5 +166,9 @@
       "next": "Next",
       "page": "{{current}} of {{total}}"
     }
+  },
+  "aiMark": {
+    "short": "AI",
+    "spoken": "AI made this answer."
   }
 }
