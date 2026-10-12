@@ -281,4 +281,22 @@ describe("/me/<star> 요약은 사다리 하나로 말한다", () => {
     expect(typeof copy.meter).toBe("string");
     expect(typeof copy.dug).toBe("string");
   });
+
+  // Simon 2026-10-12 (Q-261012-62): a star with no story yet shows the same
+  // ladder, all five rungs off and "0/5", instead of one line of text.
+  it("이야기가 0 인 별도 사다리를 그린다: 한 줄 글은 불러오는 중에만 남는다", () => {
+    expect(page).not.toContain("summary.cells === 0 && summary.records === 0");
+    expect(page).toMatch(/const ladder = !isProfileStar && !locked && summary !== null\s+\? starLadderRungs\(summary\.covered\)\s+: null;/);
+    expect(page).not.toContain('t("ds.star.emptyBody")');
+    expect(page).toContain('{t("ds.star.loading")}');
+    // No "0 records" line under an empty ladder.
+    expect(page).toContain("{summary.records > 0 ? (");
+    // The button already says Start until a first layer is covered.
+    expect(page).toContain('label={summary && (summary.cells ?? 0) > 0 ? t("ds.star.continue") : t("ds.star.start")}');
+  });
+
+  it.each(LOCALES)("%s: 빈 상태 문장은 쓰는 곳이 없어 지웠다", (loc) => {
+    expect(star(loc)).not.toHaveProperty("emptyBody");
+    expect(typeof star(loc).start).toBe("string");
+  });
 });

@@ -522,7 +522,6 @@
       "editProfile": "Edit profile",
       "profileEmpty": "You haven't filled in your profile yet.",
       "loading": "Loading…",
-      "emptyBody": "No stories here yet. Start a conversation to add one.",
       "dug": "{{n}} of {{total}} layers discussed",
       "records": "{{count}} record",
       "records_plural": "{{count}} records",
