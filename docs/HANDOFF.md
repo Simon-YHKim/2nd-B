@@ -1,5 +1,14 @@
 # 2nd-Brain Handoff
 
+## 2026-10-13 20:43 / 2ndb-e7: Simon 20:21 「ㄱㄱ」(대기 중이던 것 전부 추천대로 · 풀이는 Relay) - 확인 안 된 가입 2줄은 지워짐 · 독립 검토는 에뮬레이터가 내려가면 0252 4회차부터
+
+- **끝난 것**: Q-261013-48 ① — 운영의 확인 안 된 가입 2줄 삭제(Relay 20:37 실행 · 20:42:34 에 0건 확인 · 전체 계정 17). 가입 거절의 서버 변경은 하지 않는다(Q-261013-76 = 나 · 2ndb-53 이 화면 문장으로 #2413 머지).
+- **다음 1개 = 0252(#2372)의 4회차 독립 검토**: 준비 끝(워크트리 `.worktrees/z66-proposals-purge-261013` 가 `fix/chat-turn-refund-0252` `799e8540` · 프롬프트 `E:/Coding Infra/reports/codex-audit-261010/gates/z46srv-daybreak-r4.md`). 시작 조건 셋: ① 폰 점검용 에뮬레이터(`qemu-system-x86_64`)가 내려가 있을 것(Q-261013-47 = "에뮬레이터가 끝난 뒤" · Relay 가 Rufus 에 물어 둠) ② 여유 메모리 확인(`powershell -File "<임시 폴더>/mem.ps1"`) ③ 2ndb-79 에 시작 시각을 먼저 알리고 그쪽 검토와 겹치지 않을 것. 시작: `cd "E:/Coding Infra/reports/codex-audit-261010" && bash run_gate_one.sh z46srv-daybreak-r4 z66-proposals-purge-261013`(배경 · 10분쯤 · 판정은 `gates/z46srv-daybreak-r4.txt`). **4회차도 막히면 더 고치지 않고 Simon 께 올린다.**
+- **그다음**: 0253 의 1회차(워크트리를 `fix/z66-complete-skips-erased-0253` 로 · `gates/z66c-daybreak-r1.md` 있음) → 0254 의 1회차(워크트리를 `fix/crisis-category-normalize-0254` 로 바꾼 뒤 `python build_pr_gate.py gates/q66srv-daybreak-r1.config.json`) → 통과한 것끼리 붙여 머지(머지마다 폰 빌드 · 2ndb-79 · 2ndb-53 에 먼저 알림) → 운영 적용(Q-261013-46 = 이 창이 올리고 보고 · 0252 는 `build_apply_0252.py origin/main <out.sql>` 로 블록을 다시 만들어 로컬 다섯 번 뒤 Relay 에 · 0253 · 0254 도 확인 카드가 뜨면 같은 길) → 올릴 때마다 `crisis_events` 의 `unlisted` 건수를 한 번 읽는다(Q-261013-45).
+- **Q-261013-48 ② 자동 삭제 장치**: 확인 코드 만료 뒤 1일 · 하루 1회 · 나이 무관 · 14세 미만은 바로 · `docs/legal/privacy-policy.md` 제3조 한 줄. 먼저 필요한 값 = 확인 코드의 만료 시간(Relay 가 Simon 께 화면 한 장으로 요청 중). 번호는 그때 잡는다(0252 ~ 0254 는 이 창의 초안 · Q-32 의 새 창에는 0255 부터라고 적어 줬으니 겹치지 않게 main 과 열린 PR 을 먼저 볼 것).
+- **이 창의 감시는 꺼져 있다**(19:38 메모리). 깨워질 때만 `.bots/relay/outbox/` 를 읽는다.
+- **질문 번호**: 이 세션은 48 까지. 다음 49.
+
 ## 2026-10-13 20:29 / 2ndb-79: 20:21 답(전부 추천대로)으로 멈췄던 둘을 다시 진행 - 다음 1개는 #2398 4회차 · 그다음 #2396 나누기
 
 - **지금**: Simon 의 20:21 답(Relay 1:1 원문 「ㄱㄱ」 · DECISIONS 의 이 시각 결정 줄)으로 Q-261013-80 · Q-261013-69 가 둘 다 "가"다. 바로 아래 19:19 블록의 "더 고치지 말 것"은 풀렸다.
