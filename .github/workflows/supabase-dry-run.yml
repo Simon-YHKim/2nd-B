@@ -1654,28 +1654,34 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/reasoning_proposals_purge_regression.sql
-      # 0252: a chat turn whose answer was swapped for the crisis notice is given
-      # back once per proxy-written audit row. Called as `authenticated`; client
-      # rows, other purposes, old rows and another user's rows must not count.
+      # 0252 + 0255: a chat turn whose answer was swapped for the crisis notice is
+      # given back once, on the proxy-written audit row of that very turn. Called
+      # as `authenticated` with the row's id; client rows, other purposes, old
+      # rows, another user's rows and a day that is not the row's must not count.
       - name: Exercise chat turn refund on proxy evidence only
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/chat_turn_refund_regression.sql
-      # Two sessions of one user ask at the same moment and there is ONE proxy
-      # row. The first pass is the everyday case (READ COMMITTED, same day): the
-      # per-user advisory lock makes the second call wait and then find the row
-      # used. The second pass is the one a snapshot cannot protect: REPEATABLE
-      # READ, one call for today and one for yesterday. The second call still
-      # reads the row as unused, and only the ledger's primary key stops it. The
-      # third pass has two proxy rows: both calls get a turn, because the lock
-      # lets the second one see which row the first one took. The fourth pass is
-      # the third under REPEATABLE READ: the second call cannot see which row the
-      # first took, picks the same one and gets nothing. No row counts twice, and
-      # the row it did not reach is still there for the next call. The app calls
-      # through PostgREST, which is READ COMMITTED. The rest of the step applies
-      # 0252 again after its down file: once over its own ledger table, which
-      # must work, and then over nine tables of another shape, each of which must
-      # stop at the check named beside it and leave nothing of 0252 behind.
+      # Two sessions of one user ask at the same moment. Each call names the
+      # proxy row of its turn (0255). With ONE row, both calls name it. The first
+      # pass is the everyday case (READ COMMITTED, same day): the per-user
+      # advisory lock makes the second call wait and then find the row used. The
+      # second pass is the one a snapshot cannot protect: REPEATABLE READ, same
+      # day. The second call still reads the row as unused, and only the ledger's
+      # primary key stops it. The third pass asks for yesterday with that row
+      # under REPEATABLE READ: the day rule or the primary key stops it, whatever
+      # the clock says. With TWO rows the second call names the second row: both
+      # calls get a turn under READ COMMITTED. Under REPEATABLE READ the second
+      # call ends with 40001 on the count it could not see change; nothing of it
+      # is kept, and its row gives the turn back to the next call. No row counts
+      # twice. The app calls through PostgREST, which is READ COMMITTED. The rest
+      # of the step applies 0252 again after both down files: once over its own
+      # ledger table, which must work, and then over nine tables of another
+      # shape, each of which must stop at the check named beside it and leave
+      # nothing of 0252 behind. Last, 0255 is applied again after its own down
+      # file: over the ledger as 0252 made it, which must work, and over ledgers
+      # whose primary key is missing or may be deferred, which must stop and
+      # leave 0252's function in place.
       - name: Race two chat turn refunds over one proxy row
         env:
           PGPASSWORD: postgres
@@ -1692,6 +1698,9 @@ jobs:
           user="26101347-0000-4000-8000-00000000000a"
           race() { # <label> <BEGIN statement> <day offset of the second call> <proxy rows> <expected: a b today/yesterday/used> [expected of a later plain call]
             local label="$1" begin="$2" offset="$3" rows="$4" want="$5" later="${6:-}"
+            # The first call names the first row. The second names the second row when there are two.
+            local row_a="26101347-4000-4000-8000-000000000001" row_b="26101347-4000-4000-8000-000000000001"
+            if [[ "$rows" == "2" ]]; then row_b="26101347-4000-4000-8000-000000000002"; fi
             local clone_db="race_0252_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
             if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
               echo "0252 refund race refuses an unsafe database name" >&2
@@ -1722,7 +1731,7 @@ jobs:
             psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
               -c "$begin" \
               -c "SET LOCAL request.jwt.claim.sub = '$user'" \
-              -c "SELECT 'a=' || COALESCE(public.refund_chat_turn_after_output_swap($today)::text, 'null')" \
+              -c "SELECT 'a=' || COALESCE(public.refund_chat_turn_after_output_swap($today, '$row_a')::text, 'null')" \
               -c "SELECT pg_sleep(3)" \
               -c "COMMIT" > "refund_a_$label.out" &
             local a_pid=$! waited=0
@@ -1735,12 +1744,15 @@ jobs:
             done
             # Session B asks while A is still open. Its first statement is the call, so under
             # REPEATABLE READ its snapshot is taken here, before A commits.
-            local b a state
-            b="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+            local b a state b_out
+            b_out="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -At \
               -c "$begin" \
               -c "SET LOCAL request.jwt.claim.sub = '$user'" \
-              -c "SELECT 'b=' || COALESCE(public.refund_chat_turn_after_output_swap($today - $offset)::text, 'null')" \
-              -c "COMMIT" | grep '^b=' | tr -d '\r')"
+              -c "SELECT 'b=' || COALESCE(public.refund_chat_turn_after_output_swap($today - $offset, '$row_b')::text, 'null')" \
+              -c "COMMIT" 2>&1 || true)"
+            b="$(grep '^b=' <<<"$b_out" | tr -d '\r' || true)"
+            # A call that ended with an error is reported by its SQLSTATE.
+            if [[ -z "$b" ]]; then b="b=$(grep -o -m1 'ERROR: *[0-9A-Z]\{5\}' <<<"$b_out" | tr -d ' \r' || true)"; fi
             wait "$a_pid"
             a="$(grep '^a=' "refund_a_$label.out" | tr -d '\r')"
             state="$(sql "$clone_db" "SELECT (SELECT count FROM public.chat_usage WHERE user_id = '$user' AND day = $today)
@@ -1751,7 +1763,7 @@ jobs:
               c="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
                 -c "BEGIN" \
                 -c "SET LOCAL request.jwt.claim.sub = '$user'" \
-                -c "SELECT 'c=' || COALESCE(public.refund_chat_turn_after_output_swap($today)::text, 'null')" \
+                -c "SELECT 'c=' || COALESCE(public.refund_chat_turn_after_output_swap($today, '$row_b')::text, 'null')" \
                 -c "COMMIT" | grep '^c=' | tr -d '\r')"
             fi
             sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
@@ -1761,7 +1773,7 @@ jobs:
               return 1
             fi
             if [[ "$c" != "$later" ]]; then
-              echo "$label: the row the second call did not reach was lost (wanted $later)" >&2
+              echo "$label: the row of the call that got nothing was lost (wanted $later)" >&2
               return 1
             fi
           }
@@ -1773,6 +1785,8 @@ jobs:
               return 1
             fi
             sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            # Newest first: 0255's down file brings back what 0252 made, 0252's then removes it.
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 --single-transaction -f db/migrations/rollback/0255_down.sql
             psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 --single-transaction -f db/migrations/rollback/0252_down.sql
             if [[ -n "$breakit" ]]; then sql "$clone_db" "$breakit"; fi
             # One transaction, as every supported way of applying it is: a stop leaves nothing of 0252 behind.
@@ -1796,12 +1810,48 @@ jobs:
               return 1
             fi
           }
+          reapply_0255_over() { # <label> <statement that changes the ledger first, or ''> <the check that must stop it, or ''>
+            local label="$1" breakit="$2" want="$3"
+            local clone_db="reapply_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0255 re-apply check refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 --single-transaction -f db/migrations/rollback/0255_down.sql
+            if [[ -n "$breakit" ]]; then sql "$clone_db" "$breakit"; fi
+            # One transaction: a stop leaves the database as 0252 made it, with the call 0255 replaces still there.
+            local rc=0 bound unbound guards
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose --single-transaction \
+              -f db/migrations/0255_chat_turn_refund_bound_to_audit.sql > "reapply_0255_$label.out" 2>&1 || rc=$?
+            bound="$(sql "$clone_db" "SELECT to_regprocedure('public.refund_chat_turn_after_output_swap(date, uuid)') IS NOT NULL" | tr -d '\r')"
+            unbound="$(sql "$clone_db" "SELECT to_regprocedure('public.refund_chat_turn_after_output_swap(date)') IS NOT NULL" | tr -d '\r')"
+            guards="$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_trigger
+                                        WHERE tgrelid = 'public.ai_audit_log'::regclass AND NOT tgisinternal
+                                          AND tgname IN ('guard_ai_audit_server_verified', 'guard_ai_audit_server_verified_final')" | tr -d '\r')"
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            echo "$label: re-apply rc=$rc, bound call=$bound, unbound call=$unbound, guard triggers=$guards"
+            if [[ -z "$want" ]]; then
+              if [[ "$rc" != "0" || "$bound" != "t" || "$unbound" != "f" || "$guards" != "2" ]]; then
+                echo "$label: 0255 did not apply again over the ledger as 0252 made it" >&2
+                cat "reapply_0255_$label.out" >&2
+                return 1
+              fi
+            elif [[ "$rc" == "0" || "$bound" != "f" || "$unbound" != "t" || "$guards" != "1" ]] \
+              || ! grep -q -F "55000: 0255: chat_turn_refunds$want" "reapply_0255_$label.out"; then
+              echo "$label: 0255 was applied over a ledger it must refuse, or stopped at another check (wanted:$want)" >&2
+              cat "reapply_0255_$label.out" >&2
+              return 1
+            fi
+          }
           race same_day "BEGIN" 0 1 "a=4 b=null 4/3/1"
+          # One row, one day, a snapshot that cannot see the first call: the primary key stops the second.
+          race same_row_rr "BEGIN ISOLATION LEVEL REPEATABLE READ" 0 1 "a=4 b=null 4/3/1"
           race cross_day "BEGIN ISOLATION LEVEL REPEATABLE READ" 1 1 "a=4 b=null 4/3/1"
-          # Two swapped turns, two proxy rows: the second call waits for the first and takes the other row.
+          # Two swapped turns, two proxy rows, each call naming its own: both get a turn.
           race two_rows "BEGIN" 0 2 "a=4 b=3 3/3/2"
-          # The same under REPEATABLE READ: one turn now, and the other row gives its turn to the next call.
-          race two_rows_rr "BEGIN ISOLATION LEVEL REPEATABLE READ" 0 2 "a=4 b=null 4/3/1" "c=3"
+          # The same under REPEATABLE READ: the second call ends with 40001, and its row gives the turn to the next call.
+          race two_rows_rr "BEGIN ISOLATION LEVEL REPEATABLE READ" 0 2 "a=4 b=ERROR:40001 4/3/1" "c=3"
           # A ledger table that is already there, in another shape: stop before the function exists.
           reapply_over same_table "" ""
           reapply_over no_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey" " has no primary key on audit_id alone"
@@ -1813,6 +1863,11 @@ jobs:
           reapply_over extra_unique "ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT z46_one_per_day UNIQUE (day)" " carries a constraint, index, trigger, rule or policy"
           reapply_over extra_trigger "CREATE FUNCTION public.z46_noop() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'; CREATE TRIGGER z46_noop BEFORE INSERT ON public.chat_turn_refunds FOR EACH ROW EXECUTE FUNCTION public.z46_noop()" " carries a constraint, index, trigger, rule or policy"
           reapply_over extra_policy "CREATE POLICY z46_read ON public.chat_turn_refunds FOR SELECT TO authenticated USING (true)" " carries a constraint, index, trigger, rule or policy"
+          # 0255 over the ledger as 0252 made it, then over a primary key that is missing or may raise at commit.
+          reapply_0255_over same_ledger "" ""
+          reapply_0255_over no_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey" " must have a primary key that is not deferrable"
+          reapply_0255_over deferrable_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey; ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT chat_turn_refunds_pkey PRIMARY KEY (audit_id) DEFERRABLE INITIALLY IMMEDIATE" " must have a primary key that is not deferrable"
+          reapply_0255_over deferred_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey; ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT chat_turn_refunds_pkey PRIMARY KEY (audit_id) DEFERRABLE INITIALLY DEFERRED" " must have a primary key that is not deferrable"
       - name: Exercise public-data quota contract
         env:
           PGPASSWORD: postgres

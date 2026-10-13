@@ -121,8 +121,10 @@ describe('0252 답이 바뀐 대화 턴의 횟수 환불 (Z46)', () => {
     expect(workflow).toMatch(/race same_day "BEGIN" 0 1 "a=4 b=null 4\/3\/1"/);
     expect(workflow).toMatch(/race cross_day "BEGIN ISOLATION LEVEL REPEATABLE READ" 1 1 "a=4 b=null 4\/3\/1"/);
     expect(workflow).toMatch(/race two_rows "BEGIN" 0 2 "a=4 b=3 3\/3\/2"/);
-    // REPEATABLE READ with two rows: one turn now, and the other row still gives its turn later.
-    expect(workflow).toMatch(/race two_rows_rr "BEGIN ISOLATION LEVEL REPEATABLE READ" 0 2 "a=4 b=null 4\/3\/1" "c=3"/);
+    // REPEATABLE READ with two rows. Since 0255 each call names its own row, so the second ends with
+    // 40001 instead of quietly getting nothing; its row still gives the turn later. The full list of
+    // races is pinned in chat-turn-refund-bound-migration.test.ts.
+    expect(workflow).toMatch(/race two_rows_rr "BEGIN ISOLATION LEVEL REPEATABLE READ" 0 2 "a=4 b=ERROR:40001 4\/3\/1" "c=3"/);
   });
 
   it('이미 있는 원장 표의 모양이 다르면 함수를 만들기 전에 멈춘다', () => {
