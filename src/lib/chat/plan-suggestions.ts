@@ -21,6 +21,15 @@ export interface ChatPlanSuggestionState {
   conversationId: string | number;
   sending: boolean;
   now?: Date;
+  /** When this screen saw the newest user turn go out. "In 5 minutes" counts from here. */
+  asked?: ChatPlanAsked | null;
+}
+
+export interface ChatPlanAsked {
+  conversationId: string | number;
+  index: number;
+  text: string;
+  at: Date;
 }
 
 // Presentation proposals only. The sheet still owns review, consent and saving.
@@ -51,8 +60,12 @@ function domainFor(text: string): OpsDomainId {
   return ACTION_DOMAINS.find(([pattern]) => pattern.test(text))?.[1] ?? "daily_focus";
 }
 
+// "약 먹으라고 알려줘", "remind me to take my pills": the task is whatever they asked to be told to do.
+// A plain "알려줘" ("tell me the weather") is not this form.
+const REMIND_TO = /(?:라고|도록|하게)\s*(?:좀\s*|꼭\s*)?알려\s*(?:줘|주)|\b(?:remind me to|recu[eé]rdame|lembre-me de|ingatkan saya)\b/iu;
+
 function hasAction(text: string): boolean {
-  return OTHER_ACTION.test(text) || ACTION_DOMAINS.some(([pattern]) => pattern.test(text));
+  return OTHER_ACTION.test(text) || ACTION_DOMAINS.some(([pattern]) => pattern.test(text)) || REMIND_TO.test(text);
 }
 
 function declined(text: string): boolean {
@@ -136,6 +149,32 @@ function parseTime(text: string): string | undefined {
   return !ambiguous && unique.length === 1 ? unique[0] : undefined;
 }
 
+const MINUTE = 60_000;
+// Stated spans only, one per sentence. "1.5 hours" and "5분 후회" are not spans.
+const span = (hours?: string, minutes?: string, half?: string) => Number(hours ?? 0) * 60 + (half ? 30 : Number(minutes ?? 0));
+const SPANS: readonly (readonly [RegExp, (found: RegExpMatchArray) => number])[] = [
+  [/(?:^|[^\d.,])(?:(\d{1,2})\s*시간\s*(?:(\d{1,2})\s*분|(반))?|(\d{1,3})\s*분)\s*(?:뒤|후|있다가|이따가)(?:에|쯤|쯤에)?(?=$|[\s,])/gu,
+    found => span(found[1], found[2] ?? found[4], found[3])],
+  [/\bin\s+(?:(\d{1,2})\s*(?:hours?|hrs?)(?:\s+(?:and\s+)?(\d{1,2})\s*(?:minutes?|mins?))?|(\d{1,3})\s*(?:minutes?|mins?)|(an|one)\s+hour|(half)\s+an\s+hour)\b/giu,
+    found => found[4] ? 60 : span(found[1], found[2] ?? found[3], found[5])],
+  [/\b(?:en|dentro\s+de|em|daqui\s+a)\s+(?:(\d{1,2})\s*horas?|(\d{1,3})\s*minutos?)\b/giu, found => span(found[1], found[2])],
+  [/\b(?:dalam\s+(?:(\d{1,2})\s*jam|(\d{1,3})\s*menit)|(?:(\d{1,2})\s*jam|(\d{1,3})\s*menit)\s+lagi)\b/giu,
+    found => span(found[1] ?? found[3], found[2] ?? found[4])],
+];
+
+/** The clock minute that is the stated span after `asked`, rounded up; blank once it has passed. */
+function relativeMoment(text: string, asked: Date, now: Date): { date: string; time: string } | null {
+  // Two spans in one sentence ("5분 뒤와 10분 뒤에") are a choice the person has to make.
+  if ([...text.matchAll(/\d\s*(?:분|시간)\s*(?:반\s*)?(?:뒤|후|있다가|이따가)/gu)].length > 1) return null;
+  const spans: number[] = [];
+  for (const [pattern, minutes] of SPANS) {
+    for (const found of text.matchAll(pattern)) spans.push(minutes(found));
+  }
+  if (spans.length !== 1 || spans[0] < 1 || spans[0] > 24 * 60) return null;
+  const at = new Date(Math.ceil((asked.getTime() + spans[0] * MINUTE) / MINUTE) * MINUTE);
+  return at.getTime() > now.getTime() ? { date: dateString(at), time: `${pad(at.getHours())}:${pad(at.getMinutes())}` } : null;
+}
+
 function actionTitle(text: string): string {
   return text.replace(/^[\s>*•-]+/u, "").replace(/^(?:그리고\s+|and then\s+|i want to\s+|i would like to\s+|i plan to\s+)/iu, "")
     .replace(/\s+/gu, " ").trim().slice(0, 80).trim();
@@ -154,7 +193,7 @@ function sameActivity(prompt: string, answer: string): boolean {
   return specific.length === 0 || specific.some(pattern => pattern.test(answer));
 }
 
-function parsePlan(text: string, now: Date, fromReply = false): ParsedPlan | null {
+function parsePlan(text: string, now: Date, fromReply = false, askedAt: Date | null = null): ParsedPlan | null {
   if (!eligibleSentence(text) || !hasAction(text)) return null;
   const recurrence = DAILY.test(text) ? "daily" : WEEKLY.test(text) ? "weekly" : undefined;
   const remind = REMIND.test(text);
@@ -170,7 +209,53 @@ function parsePlan(text: string, now: Date, fromReply = false): ParsedPlan | nul
   const parsed = parseDate(text, now);
   if (parsed.invalid || parsed.date && parsed.date < dateString(now)) return null;
   if (parsed.date === dateString(now) && time && time <= `${pad(now.getHours())}:${pad(now.getMinutes())}`) return null;
+  // "In 5 minutes" names no day or clock of its own: it counts from when it was asked.
+  const relative = remind && askedAt && !parsed.date && !time && !weekdays(text).length ? relativeMoment(text, askedAt, now) : null;
+  if (relative) return { kind: "reminder", title, ...relative, domainId };
   return { kind: "reminder", title, ...(parsed.date ? { date: parsed.date } : {}), ...(time ? { time } : {}), domainId };
+}
+
+/** What the user's own message asks for. null when a sentence in it takes the plan back. */
+function promptPlans(text: string, now: Date, askedAt: Date | null): ParsedPlan[] | null {
+  const lines = sentences(text);
+  // A later withdrawal may repeat the action's name. Treat a mixed yes/no turn
+  // conservatively instead of retaining a proposal from an earlier sentence.
+  if (lines.some(declined)) return null;
+  // The sentence split cuts "1.5 hours" in two, so a message with a decimal gets no span.
+  const start = /\d[.,]\d/u.test(text) ? null : askedAt;
+  return lines.map(line => parsePlan(line, now, false, start)).filter((plan): plan is ParsedPlan => plan !== null);
+}
+
+// What the model is told about the button under its reply. These are facts about the app, not a
+// sentence to say: a sentence to say comes back word for word (#2324, reverted by #2327).
+const PROMPT_LINE: Record<ChatPlanSuggestion["kind"], Record<"en" | "ko", string>> = {
+  reminder: {
+    en: "Under your reply to this message the app shows a button that makes a reminder out of it. Pressing it opens the details to check and save; the reply alone creates and sends nothing. If the message asks to be reminded or notified, do not say that it is not possible and do not point to the phone's alarm or timer: say in one sentence, in your own words, that the button under this reply makes it. Do not say it is already set or that you have put anything in place. If the message is not asking for that, leave the button out of your reply.",
+    ko: "이 메시지에 대한 답 아래에는 앱이 이 내용으로 리마인더를 만드는 버튼을 보여 줍니다. 그 버튼을 눌러 내용을 확인하고 저장하면 리마인더가 만들어지고, 답만으로는 아무것도 만들어지거나 보내지지 않습니다. 알려 달라거나 알림을 부탁한 메시지라면, 알림이 안 된다고 하거나 휴대폰 알람이나 타이머를 권하지 말고 답 아래 버튼으로 만들 수 있다는 것만 자기 말로 한 문장으로 알려 주세요. 이미 설정했다거나 대신 넣어 두었다고 말하지 마세요. 그런 부탁이 아닌 메시지라면 버튼 이야기는 꺼내지 마세요.",
+  },
+  routine: {
+    en: "Under your reply to this message the app shows a button that makes a routine out of it. Pressing it opens the details to check and save; the reply alone creates nothing. If the message asks to be reminded or notified, do not say that it is not possible and do not point to the phone's alarm or timer: say in one sentence, in your own words, that the button under this reply makes it. Do not say it is already made or that you have put anything in place. If the message is not asking for that, leave the button out of your reply.",
+    ko: "이 메시지에 대한 답 아래에는 앱이 이 내용을 루틴으로 만드는 버튼을 보여 줍니다. 그 버튼을 눌러 내용을 확인하고 저장하면 루틴이 만들어지고, 답만으로는 아무것도 만들어지지 않습니다. 알려 달라거나 알림을 부탁한 메시지라면, 안 된다고 하거나 휴대폰 알람이나 타이머를 권하지 말고 답 아래 버튼으로 만들 수 있다는 것만 자기 말로 한 문장으로 알려 주세요. 이미 만들었다거나 대신 넣어 두었다고 말하지 마세요. 그런 부탁이 아닌 메시지라면 버튼 이야기는 꺼내지 마세요.",
+  },
+};
+
+/**
+ * The system-prompt line for this message, or "". It is sent only when the person asks to be told
+ * or reminded and the app will offer the button for that sentence; a plan they merely state gets
+ * its button without a word to the model.
+ */
+export function chatPlanPromptLine(message: string, locale: "en" | "ko", now: Date = new Date()): string {
+  if (message.length > MAX_TEXT || !Number.isFinite(now.getTime()) || promptPlans(message, now, null) === null) return "";
+  const kinds = new Set(sentences(message).filter(line => REMIND.test(line)).map(line => parsePlan(line, now)?.kind));
+  return (["reminder", "routine"] as const).filter(kind => kinds.has(kind)).map(kind => `${PROMPT_LINE[kind][locale]}\n\n`).join("");
+}
+
+/** Remembers when the newest user turn went out, so that "in 5 minutes" has a start. */
+export function trackAsked(previous: ChatPlanAsked | null, state: Pick<ChatPlanSuggestionState, "turns" | "conversationId" | "sending">, at: Date): ChatPlanAsked | null {
+  const kept = previous && previous.conversationId === state.conversationId ? previous : null;
+  const index = state.turns.length - 1; const turn = state.turns[index];
+  if (!state.sending || turn?.role !== "user" || (kept?.index === index && kept.text === turn.text)) return kept;
+  return { conversationId: state.conversationId, index, text: turn.text, at };
 }
 
 /** At most one proposal of each kind, sourced only from the latest completed pair. */
@@ -185,10 +270,11 @@ export function getChatPlanSuggestions(state: ChatPlanSuggestionState): ChatPlan
   const prompt = turns[promptIndex];
   if (prompt.synthetic || prompt.consentError || prompt.safetyZone === "red" || prompt.text.length > MAX_TEXT) return [];
   const userSentences = sentences(prompt.text);
-  // A later withdrawal may repeat the action's name. Treat a mixed yes/no turn
-  // conservatively instead of retaining a proposal from an earlier sentence.
-  if (userSentences.some(declined)) return [];
-  const plans = userSentences.map(line => parsePlan(line, now)).filter((plan): plan is ParsedPlan => plan !== null);
+  const asked = state.asked;
+  const askedAt = asked && asked.conversationId === conversationId && asked.index === promptIndex && asked.text === prompt.text
+    && Number.isFinite(asked.at.getTime()) ? asked.at : null;
+  const plans = promptPlans(prompt.text, now, askedAt);
+  if (plans === null) return [];
   if (!plans.some(plan => plan.kind === "routine")) {
     // A model can add cadence only to a specific habit the user asked to build.
     // Matching a non-generic domain avoids turning unrelated advice into a plan.
