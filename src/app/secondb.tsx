@@ -66,6 +66,7 @@ import { writeClipboardText } from "@/lib/capture/clipboard";
 import { getWikiPage } from "@/lib/wiki/queries";
 import { LlmConsentError, transcribeAudio, type LlmConsentErrorCode } from "@/lib/llm/boundary";
 import { ServiceConsentLink } from "@/components/consent/ServiceConsentLink";
+import { MdButton } from "@/components/m3";
 import { shouldShowChatAiNotice, useChatAiNoticeSeen } from "@/lib/chat/ai-first-notice";
 import { isModelAnswer, withAiCopyTail } from "@/lib/chat/ai-mark";
 import { topicParticle } from "@/lib/i18n/josa";
@@ -165,6 +166,10 @@ interface ChatTurn {
    *  mis-grounded as something SecondB actually said. */
   synthetic?: boolean;
   consentError?: LlmConsentErrorCode;
+  /** On a line that says the reply failed: the message it was for. Sending that message again
+   *  may get an answer (no response, a server error, a deadline), so the line offers it (Z40).
+   *  Absent on a consent refusal: sending again cannot change that. */
+  retryText?: string;
   safetyZone?: "green" | "yellow" | "red";
 }
 
@@ -880,15 +885,19 @@ function SecondBChatBody() {
   // Kept ABOVE the early returns so this hook always runs (rules-of-hooks).
   const playReplyCue = useUiSound(SECONDB_REPLY_CUE.source, SECONDB_REPLY_CUE);
   const handleSend = useCallback(
-    (message: string): boolean => {
+    (message: string, retry?: { failedIndex: number }): boolean => {
       if (!userId) return false;
       const msg = message.trim();
       if (msg.length === 0) return false;
 
       const requestPersona = rev2Persona;
+      // A retry replaces the failed pair (the message and the line that said it failed) instead
+      // of adding the message a second time, on the screen and in what the model is told.
+      const keep = retry ? Math.max(0, retry.failedIndex - 1) : null;
+      const earlier = keep === null ? turns : turns.slice(0, keep);
       setSendingPersona(requestPersona);
       setSending(true);
-      setTurns((prev) => [...prev, { role: "user", text: msg }]);
+      setTurns((prev) => [...(keep === null ? prev : prev.slice(0, keep)), { role: "user", text: msg }]);
       void (async () => {
         // AI 응답 대기: every mounted head holds the thinking face (eyes drift
         // up-side) until the reply lands — released in finally either way.
@@ -905,7 +914,7 @@ function SecondBChatBody() {
             // D-26 A1: last turns for thread continuity (engine clips to 6 + drops
             // red-zone turns). Synthetic lines (limit/error) are not model
             // replies, so they're excluded here.
-            history: turns
+            history: earlier
               .filter((t) => !t.synthetic)
               .map((t) => ({ role: t.role === "user" ? ("user" as const) : ("assistant" as const), text: t.text })),
             mode: chatMode,
@@ -965,7 +974,10 @@ function SecondBChatBody() {
         } catch (e) {
           const consentError = e instanceof LlmConsentError ? e.code : undefined;
           const failText = consentError ? consentT(`serviceControl.${consentError}`) : t("replyFailed");
-          setTurns((prev) => [...prev, { role: "secondb", persona: requestPersona, text: failText, synthetic: true, consentError }]);
+          setTurns((prev) => [...prev, {
+            role: "secondb", persona: requestPersona, text: failText, synthetic: true, consentError,
+            ...(consentError ? {} : { retryText: msg }),
+          }]);
           reactExpression("negative");
           if (typeof console !== "undefined") console.warn("[secondb] sendChatMessage error", (e as Error).message);
         } finally {
@@ -989,6 +1001,21 @@ function SecondBChatBody() {
       consentT,
       playReplyCue,
     ],
+  );
+
+  // [다시 시도] under a reply that failed (Z40 · Simon 2026-10-13 20:43: the sentence already used
+  // when no answer came, plus a way to try again). Only the last turn offers it, and only while
+  // nothing is being sent, so the pair it replaces is always the end of the conversation. It goes
+  // through handleSend, the same path and the same checks as typing the message again.
+  const retryFailed = useCallback(
+    (i: number) => {
+      const failed = turns[i];
+      const asked = turns[i - 1];
+      if (sending || i !== turns.length - 1 || !failed?.retryText) return;
+      if (asked?.role !== "user" || asked.text !== failed.retryText) return;
+      handleSend(failed.retryText, { failedIndex: i });
+    },
+    [turns, sending, handleSend],
   );
 
   const chatPlans = useChatPlans(userId, { turns, conversationId: conversationId.current, sending });
@@ -1300,6 +1327,9 @@ function SecondBChatBody() {
                     </Text>
                   </Pressable>
                   {turn.consentError ? <ServiceConsentLink /> : null}
+                  {turn.retryText && i === turns.length - 1 && !sending ? (
+                    <MdButton variant="outlined" label={t("common:actions.retry")} onPress={() => retryFailed(i)} />
+                  ) : null}
                   {copyNotice?.i === i ? (
                     <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
                       {t(copyNotice.ok ? "copied" : "copyFailed")}
