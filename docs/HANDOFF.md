@@ -1,5 +1,34 @@
 # 2nd-Brain Handoff
 
+## 2026-10-13 18:48 / 2ndb-e7: 가입 거절 안내(Q-261013-31)의 서버 쪽은 시안 Q-261013-76 의 답 뒤로 - 독립 검토 셋은 여전히 Q-261013-47 대기
+
+- **Q-261013-31**: 서버가 거절 이유를 고정 코드로 말하게 하면 누구든 그 메일함의 가입 여부를 응답으로 구분할 수 있게 된다(지금의 500 은 다른 DB 실패와 섞인 흐린 신호). 그래서 구현은 Simon 이 2ndb-53 의 시안(Q-261013-76)에서 그 맞바꿈을 보고 고르신 뒤에만 한다. 읽은 것 · 정정 · 구현하게 될 때의 순서는 DECISIONS 의 이 시각 줄. 앱 쪽 배선은 2ndb-53.
+- **다음 1개는 그대로**: Simon 의 Q-261013-47 답을 읽는다(바로 아래 18:42 블록의 순서대로).
+- **질문 번호**: 이 세션은 47 까지. 다음 48. (76 은 2ndb-53 의 번호다.)
+
+## 2026-10-13 18:42 / 2ndb-e7: Q-261013-47 의 답이 아직 없다 - 독립 검토 셋은 시작하지 않았고, 4회차 준비물만 고쳐 둠
+
+- **지금 도는 것**: 없음. 검토 · 변이 표 · 로컬 PostgreSQL 전부 멈춘 그대로다. Relay 는 17:38 에 Q-261013-47 을 Simon 께 올렸다고 답했고(접수 확인), 18:36 까지 답 메모는 없었다. 18:39 여유 4.4GB · 커밋 58% · 폰 점검용 에뮬레이터가 돌고 있다(Rufus 18:18 회차).
+- **다음 1개 = Simon 의 Q-261013-47 답을 읽는다**(`.bots/relay/outbox/` 의 새 `simon-*.note.md` · `.result.md` 는 접수 확인일 뿐이다). "다시 돌려라"가 오면: 2ndb-79 에 한 줄 → 여유 메모리 확인(`powershell -File "<임시 폴더>/mem.ps1"` 같은 읽기) → 워크트리 `.worktrees/z66-proposals-purge-261013` 를 `fix/chat-turn-refund-0252` 로 → `python "C:/Users/202502/AppData/Local/Temp/claude/E--2ndB/5368fd66-53a9-491c-9acd-0e48434e3bf3/scratchpad/z66pg/build_gate_z46_r4.py" "<CI 한 줄>"`(**18:40 에 고침**: 변이 표 파일이 없어도 돌고, 없다는 사실과 3회차 표임을 프롬프트에 적는다) → `python build_pr_gate.py gates/z46srv-daybreak-r4.config.json` → `bash run_gate_one.sh z46srv-daybreak-r4 z66-proposals-purge-261013`. 하나씩만. 4회차도 막히면 더 고치지 않고 Simon 께 올린다(17:23 결정).
+- **그다음**: 0253 의 1회차(`gates/z66c-daybreak-r1.md` 있음 · 워크트리를 그 브랜치로) → 0254 의 1회차(`gates/q66srv-daybreak-r1.config.json` · 워크트리를 그 브랜치로 바꾼 뒤 프롬프트를 만든다) → 통과한 것끼리 붙여서 머지(셋 다 `src/**` 의 테스트 파일이 있어 머지마다 폰 빌드가 돈다 · 2ndb-79 에 먼저 알리고 그 빌드 동안 main 을 쉰다).
+- **0252 의 운영 적용 블록**: 생성기 `E:/Coding Infra/reports/codex-audit-261010/build_apply_0252.py` 는 트리거까지 재도록 고쳐졌고 초안 본문으로 다섯 번(적용 · 다시 적용 · CRLF · 변조 · 다른 트리거가 있을 때) 통과했다(17:36). **머지 뒤 main 의 본문으로 다시 만들고 다섯을 다시 돌린 것만 Relay 에 넘긴다**(`.bots/relay/inbox/` 에 `.sql` 먼저 · 그다음 `.note.md` · 확인 카드는 Simon 승인 · `_sync/TO-CLI.md` 에 적용 중 → 완료).
+- **Simon 의 손이 필요한 것**: Q-261013-47(검토 재개) · Q-261013-45(`unlisted` 건수를 누가 볼지) · Q-261013-46(0253 · 0254 의 운영 적용 방식) · 새 창에 인계 메모 붙이기(Q-261013-44 · `E:/Coding Infra/reports/codex-audit-261010/handoff-q32-delrcpt-server-261013.md`) · 이월 중인 Q-261013-40 · 41(이월 2회 · 다음 보고에서 기본값으로 진행할지 접을지 이 창이 고른다).
+- **답과 무관하게 남은 서버 일(시작 전)**: Q-261013-67(프록시가 사용자 글을 422 로 막을 때 `server_verified` · red 감사 줄을 쓰게 하기 · 0252 가 운영에 올라간 뒤 · Edge 재배포) · Q-261013-31 의 서버 설계 메모(가입 거절 안내).
+- **끝내기 전**: `npm run app:parity` 는 17:35 에 같음이었다. 그 뒤 main 은 문서 머지뿐이다(다시 칠 것).
+- **질문 번호**: 이 세션은 47 까지. 다음 48.
+
+## 2026-10-13 18:26 / 2ndb-79: Z56 · Z58 수정(#2396)이 독립 검토 세 번 BLOCK → 멈춤 · Q-261013-69 로 여쭘 - 답을 기다리는 동안 다음 1개는 Z109(집중 타이머가 뒤에서 멈춤)
+
+- **멈춘 것**: PR #2396(초안 · 브랜치 `fix/chat-reminder-reply-relative-time` · `e1326a63` · 워크트리 `.worktrees/z56-reminder-reply-261013`). **더 고치지 말 것 - Simon 의 답(Q-261013-69)이 먼저다.** 무엇이 들어 있고 왜 막혔는지는 DECISIONS 의 이 시각 줄. 검토 원문 `E:/Coding Infra/reports/devlab-261010/gates/z56-daybreak-r1.txt` ~ `r3.txt` · 과제서 `z56-task.md` · `z56-task-r2.md` · `z56-task-r3.md` · 실제 모델 원문 `z56-s1-real-model.md`.
+- **Q-261013-69 (안 정해지면 막히는 것: 대화에서 AI 가 "알림을 못 보낸다"고 답하는데 바로 아래에 리마인더 버튼이 있는 상태가 그대로 남는다)**: (가 · 추천) 둘로 나눈다 - 「5분 뒤」 읽기만 먼저, 그다음 AI 답은 좁혀서 다시 / (나) AI 의 거절 · 안전 답을 화면에 구조화된 신호로 넘기는 장치부터(경계 모듈 · 프록시 · 더 큼) / (다) Z56 은 보류하고 「5분 뒤」 읽기만.
+- **(가)로 가게 되면 할 일**(브랜치의 코드는 대부분 다시 쓸 수 있다): 
+  1. 「5분 뒤」 PR: `relativeMoment` · `SPANS` · `SPAN_UNIT` · `trackAsked` · `ChatPlanAsked` · `openableChatPlanSuggestion` · `useChatPlans.ts` 의 세 줄 + 그 테스트만 새 브랜치로. 3회차 ㉰: 기간을 하나 읽은 문장에 `or · 또는 · 혹은 · 아니면` 같은 선택 접속사와 다른 기간 표현이 남으면 비운다(「in an hour or thirty minutes」 · 「in an hour or two hours」를 테스트로). 모델에게 주는 글 · `gone` · `SAFETY_LINE` 은 넣지 않는다.
+  2. AI 답 PR: `parsePlan` 의 `gone` 을 되돌려 버튼을 main 과 같게 두고, `chatPlanPromptLine` 은 "말한 시각이 없거나 10분 넘게 남은" 부탁에만 글을 보낸다(답이 오는 사이 버튼이 사라지지 않게). `SAFETY_LINE` 은 NFKC 정규화 + 띄어 쓴 숫자 · 줄표 변형 + 같은 문장의 안내 문맥(전화 · 연락 · 상담 · call · text)으로. 두 종류가 함께인 메시지에는 전용 글 하나(또는 글을 보내지 않음). 영향평가서 267행의 조립 순서를 실제대로(머리말 → 버튼 글 → 위기 번호 규칙 → 호칭 → 주입 방지 → 모드 → 페르소나). 실제 모델 확인을 다시(8초 간격 · `PROBE_GAP_MS`).
+- **다음 1개 = Z109**(Q-69 의 답과 무관): `src/screens/deepspace/DeepSpaceDesignScreens.tsx` 의 `DeepSpaceFocusScreen`(2780행대)이 `setInterval` 안에서 `tick(prev, 1000)` 으로 1초씩 줄인다 → 앱이 뒤로 가면 멈춘다. 고칠 방향: ① 지난 실제 시간을 재서 `tick(prev, 지난 ms)`(엔진 `src/lib/ops/pomodoro.ts` 는 이미 그렇게 쓰게 돼 있다) + 앱이 앞으로 돌아올 때 한 번 ② 시작 · 다시 시작할 때 끝 시각에 알림을 미리 예약하고(`src/lib/ops/reminders.ts` 의 `scheduleWithOwnerLease` · 날짜 트리거 · 계정별 식별자 · `focusNotificationContent`), 일시정지 · 초기화 · 화면을 떠날 때 취소. 계정 범위 정리(`clearAccountScopedLocalNotifications` · `sweepResidualReminderNotifications`)가 그 알림을 어떻게 다루는지부터 읽을 것. 레퍼런스: 기본 시계 앱 · Forest 는 시작 시각으로 계산하고 끝 알림을 OS 에 미리 예약한다(Rufus 가 적음).
+- **기다리는 것**: Q-261013-69 · 2ndb-53 의 시안 질문(Q-71 ~ 75) · 2ndb-e7 의 0252 · 0253 · 0254(붙여서 한 번에 머지 → 그 빌드 동안 main 을 쉰다) · S4(OpenAI 조직 설정 · Simon 이 직접).
+- **질문 번호**: 이 세션은 69 까지. 다음은 80번대(70 ~ 79 는 2ndb-53).
+- **조심할 것**: 운영 프록시 확인 호출은 8초 간격(분당 한도가 모든 계정 공용) · CRLF 파일을 스크립트로 고칠 때는 줄 끝을 맞춰서(이번에 한 번 섞였다가 되돌림) · 스크립트 파일은 Write 도구로(heredoc 으로 고치려다 한 번 실패).
+
 ## 2026-10-13 17:31 / 2ndb-e7: 0252 는 3회차 검토에서 다시 막혀 고쳐 올림(CI 통과) · 메모리 부족으로 검토가 멈춤 - 다음은 Simon 의 Q-261013-47 답
 
 - **지금까지**: 0252(#2372)의 3회차 독립 검토가 17:07 에 BLOCK(막는 지적 둘 · 판정 파일 `gates/z46srv-daybreak-r3.txt`). 고친 판 `799e8540` 을 17:19 에 올렸고 CI 넷 통과(17:30). 고친 것: `ai_audit_log` 에 트리거 `guard_ai_audit_server_verified`(로그인했거나 익명인 요청은 어느 함수를 거치든 `server_verified` 줄을 못 쓴다) · 원장 표의 모양 확인을 넓힘 · 함수는 원장의 기본 키 충돌만 "이미 쓴 줄"로 읽음 · 다시 적용 시험 열 가지. 시험 계정 블록(Q-261013-36)은 17:10 에 실행 확인(전체 계정 19).
