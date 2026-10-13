@@ -30,7 +30,7 @@ import { getSupabaseClient } from "../supabase/client";
 import { invokeFunctionWithCapturedSession } from "../supabase/captured-session-client";
 import type { CrisisEventInsert } from "../supabase/crisis-events";
 import { enqueueAuditWrite } from "./audit-write-outbox";
-import { classifyObfuscatedInput, classifySafety, fixedCrisisResponse, modelReplyTermCategories, noteObfuscationUnavailable } from "./safety";
+import { classifyObfuscatedInput, classifySafety, fixedCrisisResponse, noteObfuscationUnavailable, replySwapCategories } from "./safety";
 import {
   MODELS,
   PURPOSE_TIER,
@@ -983,7 +983,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
         // when present (Flash); on the lexicon-only fallback these are the
         // lexicon's conservative values.
         classifierConfidence: semantic.confidence,
-        triggerCategories: [...semantic.triggers, "output_swap", ...modelReplyTermCategories(lexical.matched)],
+        triggerCategories: replySwapCategories(semantic.triggers, lexical.matched),
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       },
@@ -1461,7 +1461,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
       input.userId,
       {
         classifierConfidence: semantic.confidence,
-        triggerCategories: [...semantic.triggers, "output_swap", ...modelReplyTermCategories(lexical.matched)],
+        triggerCategories: replySwapCategories(semantic.triggers, lexical.matched),
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       },
@@ -1745,7 +1745,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       input.userId,
       {
         classifierConfidence: outputSafety.confidence,
-        triggerCategories: [...outputSafety.triggers, "output_swap", ...modelReplyTermCategories(classifyInput(text, input.locale, { minor: input.minor }).matched)],
+        triggerCategories: replySwapCategories(outputSafety.triggers, classifyInput(text, input.locale, { minor: input.minor }).matched),
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       },

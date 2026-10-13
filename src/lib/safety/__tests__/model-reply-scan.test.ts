@@ -8,6 +8,8 @@ import {
   gateTermsLeft,
   maskModelReplyOverlaps,
   modelReplyTermCategories,
+  replySwapCategories,
+  CRISIS_EVENT_CATEGORY_LIMIT,
 } from "../model-reply-scan";
 
 // Simon 2026-10-13: Q-261013-34 and the three legal choices D1-D3. The gate matches Korean terms as
@@ -238,5 +240,52 @@ describe("the fixed numbers (D3)", () => {
       expect(entry).toMatch(/^crisis_term:(?:[1-9]|1[0-9])$/);
     }
     expect(modelReplyTermCategories([...CRISIS_TERMS.ko])).toHaveLength(19);
+  });
+});
+
+describe("replySwapCategories", () => {
+  it("is what the classifier reported, the marker, then the numbers", () => {
+    expect(replySwapCategories(["lexicon_match"], ["짐이 되"])).toEqual(["lexicon_match", "output_swap", "crisis_term:15"]);
+    expect(replySwapCategories([], [])).toEqual(["output_swap"]);
+    expect(replySwapCategories(["active_ideation_no_method"], [])).toEqual(["active_ideation_no_method", "output_swap"]);
+  });
+
+  it("gives the same list for the same reply, whatever order the terms were found in", () => {
+    const a = replySwapCategories(["lexicon_match"], ["유서", "자살"]);
+    const b = replySwapCategories(["lexicon_match"], ["자살", "유서"]);
+    expect(a).toEqual(["lexicon_match", "output_swap", "crisis_term:1", "crisis_term:13"]);
+    expect(b).toEqual(a);
+  });
+
+  it("drops duplicates, including a marker the classifier already reported", () => {
+    expect(replySwapCategories(["lexicon_match", "lexicon_match", "output_swap"], ["자살", "자살"])).toEqual([
+      "lexicon_match",
+      "output_swap",
+      "crisis_term:1",
+    ]);
+  });
+
+  it("never passes the server's limit, and the numbers are what gives way", () => {
+    const everyTerm = [...CRISIS_TERMS.ko];
+    const list = replySwapCategories(["lexicon_match"], everyTerm);
+    expect(list).toHaveLength(CRISIS_EVENT_CATEGORY_LIMIT);
+    expect(list.slice(0, 2)).toEqual(["lexicon_match", "output_swap"]);
+    expect(list.slice(2)).toEqual(Array.from({ length: 14 }, (_, i) => `crisis_term:${i + 1}`));
+  });
+
+  it("keeps the marker even when the classifier alone reports more than the limit", () => {
+    const many = Array.from({ length: 30 }, (_, i) => `reported_${i}`);
+    const list = replySwapCategories(many, ["자살"]);
+    expect(list).toHaveLength(CRISIS_EVENT_CATEGORY_LIMIT);
+    expect(list[CRISIS_EVENT_CATEGORY_LIMIT - 1]).toBe("output_swap");
+    expect(list.slice(0, 15)).toEqual(many.slice(0, 15));
+  });
+
+  it("every entry is short enough for the server (1 to 64 characters) and carries no text of the reply", () => {
+    for (const entry of replySwapCategories(["lexicon_match"], [...CRISIS_TERMS.ko])) {
+      expect(entry.length).toBeGreaterThan(0);
+      expect(entry.length).toBeLessThanOrEqual(64);
+      for (const term of CRISIS_TERMS.ko) expect(entry).not.toContain(term);
+    }
   });
 });
