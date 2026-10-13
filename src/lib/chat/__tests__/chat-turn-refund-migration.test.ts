@@ -87,5 +87,33 @@ describe('0252 답이 바뀐 대화 턴의 횟수 환불 (Z46)', () => {
     expect(workflow).toMatch(/race same_day "BEGIN" 0 1 "a=4 b=null 4\/3\/1"/);
     expect(workflow).toMatch(/race cross_day "BEGIN ISOLATION LEVEL REPEATABLE READ" 1 1 "a=4 b=null 4\/3\/1"/);
     expect(workflow).toMatch(/race two_rows "BEGIN" 0 2 "a=4 b=3 3\/3\/2"/);
+    // REPEATABLE READ with two rows: one turn now, and the other row still gives its turn later.
+    expect(workflow).toMatch(/race two_rows_rr "BEGIN ISOLATION LEVEL REPEATABLE READ" 0 2 "a=4 b=null 4\/3\/1" "c=3"/);
+  });
+
+  it('이미 있는 원장 표의 모양이 다르면 함수를 만들기 전에 멈춘다', () => {
+    const shape = sql.indexOf('DO $shape0252$');
+    expect(shape).toBeGreaterThan(sql.indexOf('REVOKE ALL ON TABLE public.chat_turn_refunds'));
+    expect(shape).toBeLessThan(sql.indexOf('CREATE OR REPLACE FUNCTION public.refund_chat_turn_after_output_swap'));
+    const block = sql.slice(shape, sql.indexOf('$shape0252$;'));
+    expect(block).toContain("'audit_id uuid not null, day date not null, refunded_at timestamp with time zone not null'");
+    expect(block).toMatch(/c\.contype = 'p' AND c\.conkey = ARRAY\[v_audit\]/);
+    expect(block).toMatch(/c\.contype = 'f' AND c\.conkey = ARRAY\[v_audit\]\s+AND c\.confrelid = 'public\.ai_audit_log'::regclass AND c\.confdeltype = 'c'/);
+    expect(block).toMatch(/relrowsecurity/);
+    expect(block.match(/RAISE EXCEPTION '0252: chat_turn_refunds[^'%]+'\s+USING ERRCODE = '55000';/g)).toHaveLength(4);
+    const workflow = read('.github/workflows/supabase-dry-run.yml');
+    expect(workflow).toMatch(/reapply_over no_primary_key "ALTER TABLE public\.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey"/);
+    expect(workflow).toMatch(/reapply_over no_audit_link "ALTER TABLE public\.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_audit_id_fkey"/);
+    expect(workflow).toMatch(/reapply_over day_as_text "ALTER TABLE public\.chat_turn_refunds ALTER COLUMN day TYPE text"/);
+  });
+
+  it('회귀는 클라이언트가 부를 수 있는 감사 기록 함수 둘을 다 부르고, 그 목록이 늘면 실패한다', () => {
+    const regression = read('db/tests/chat_turn_refund_regression.sql');
+    expect(regression).toMatch(/SELECT public\.log_ai_audit\('0a0b0c0d'/);
+    expect(regression).toMatch(/SELECT public\.log_ai_audit_once\('z46-once-0001'/);
+    expect(regression).toContain(
+      "= 'log_ai_audit(text,text,text,boolean,text,integer,text,text,text) | log_ai_audit_once(text,text,text,text,boolean,text,integer,text,text,text)'",
+    );
+    expect(regression).toMatch(/has_function_privilege\('authenticated', p\.oid, 'EXECUTE'\)/);
   });
 });

@@ -37,8 +37,20 @@
 --   표 권한을 모두 회수한다(이 함수만 읽고 쓴다). ai_audit_log 는 FORCE RLS 이므로 소유자 역할이 행 보안을
 --   건너뛸 때만 근거가 보인다(운영 postgres = BYPASSRLS). 안 보이면 NULL 로 끝난다(닫힌 쪽).
 -- 시각: 10분 창과 KST 날짜는 함수가 불린 순간의 시계로 잰다(트랜잭션이 시작된 시각이 아니다).
--- 되돌리기: rollback/0252_down.sql 은 함수만 걷고 표는 남긴다. 표를 같이 걷으면 방금 쓴 근거가
---   다시 적용한 뒤 한 번 더 쓰인다.
+-- 격리 수준: 앱은 이 함수를 PostgREST 의 rpc 로 부르고 그 트랜잭션은 READ COMMITTED 다(운영 기본값 ·
+--   2026-10-13 읽음 · 저장소에 격리 수준을 올리는 경로 0건). 위의 "뒤의 호출이 앞의 것을 본 뒤 다른 줄을
+--   고른다"는 그 수준에서의 일이다. REPEATABLE READ 이상으로 부르면 다음과 같다:
+--   - 한 줄이 두 번 쓰이는 일은 없다(기본 키).
+--   - 뒤의 호출은 앞의 호출이 쓴 줄을 못 보고 같은 줄을 골라 NULL 을 받을 수 있다. 다른 안 쓴 줄은
+--     그대로 남아 다음 호출이 쓴다.
+--   - 같은 날의 chat_usage 줄을 다른 트랜잭션이 먼저 고쳤으면 40001 로 호출 전체가 실패한다
+--     (PostgreSQL 의 규칙 · 아무것도 바뀌지 않는다). 부른 쪽이 다시 부른다.
+--   그래서 부르는 쪽의 계약은 하나다: NULL 이나 40001 을 받으면 남은 횟수를 다시 읽는다.
+-- 표의 모양: 표가 이미 있으면(되돌린 뒤 다시 적용 · 손으로 만든 표) CREATE TABLE IF NOT EXISTS 는 그 표를
+--   보지 않는다. 한 번 보장은 기본 키에 서 있으므로, 칸 · 기본 키 · 감사 줄로 가는 연결이 아래와 다르면
+--   함수를 만들기 전에 멈춘다.
+-- 되돌리기: rollback/0252_down.sql 은 함수만 걷고 표는 남긴다(완전한 되돌리기가 아니라 기능 끄기다).
+--   표를 같이 걷으면 방금 쓴 근거가 다시 적용한 뒤 한 번 더 쓰인다.
 
 CREATE TABLE IF NOT EXISTS public.chat_turn_refunds (
   audit_id    uuid PRIMARY KEY REFERENCES public.ai_audit_log (id) ON DELETE CASCADE,
@@ -51,6 +63,44 @@ COMMENT ON TABLE public.chat_turn_refunds IS
 
 ALTER TABLE public.chat_turn_refunds ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.chat_turn_refunds FROM PUBLIC, anon, authenticated, service_role;
+
+-- A table that was already there is not looked at by CREATE TABLE IF NOT EXISTS. Stop here, before
+-- the function exists, unless it is the table above.
+DO $shape0252$
+DECLARE
+  v_rel   constant regclass := 'public.chat_turn_refunds'::regclass;
+  v_audit smallint;
+BEGIN
+  IF (SELECT pg_catalog.string_agg(
+               a.attname || ' ' || pg_catalog.format_type(a.atttypid, a.atttypmod)
+                 || CASE WHEN a.attnotnull THEN ' not null' ELSE '' END,
+               ', ' ORDER BY a.attnum)
+        FROM pg_catalog.pg_attribute AS a
+       WHERE a.attrelid = v_rel AND a.attnum > 0 AND NOT a.attisdropped)
+     IS DISTINCT FROM 'audit_id uuid not null, day date not null, refunded_at timestamp with time zone not null' THEN
+    RAISE EXCEPTION '0252: chat_turn_refunds has other columns than this migration creates'
+      USING ERRCODE = '55000';
+  END IF;
+  SELECT a.attnum INTO v_audit FROM pg_catalog.pg_attribute AS a
+   WHERE a.attrelid = v_rel AND a.attname = 'audit_id';
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint AS c
+                  WHERE c.conrelid = v_rel AND c.contype = 'p' AND c.conkey = ARRAY[v_audit]) THEN
+    RAISE EXCEPTION '0252: chat_turn_refunds has no primary key on audit_id alone'
+      USING ERRCODE = '55000';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint AS c
+                  WHERE c.conrelid = v_rel AND c.contype = 'f' AND c.conkey = ARRAY[v_audit]
+                    AND c.confrelid = 'public.ai_audit_log'::regclass AND c.confdeltype = 'c'
+                    AND c.convalidated) THEN
+    RAISE EXCEPTION '0252: chat_turn_refunds.audit_id does not follow ai_audit_log'
+      USING ERRCODE = '55000';
+  END IF;
+  IF NOT (SELECT c.relrowsecurity FROM pg_catalog.pg_class AS c WHERE c.oid = v_rel) THEN
+    RAISE EXCEPTION '0252: chat_turn_refunds has row security off'
+      USING ERRCODE = '55000';
+  END IF;
+END
+$shape0252$;
 
 CREATE OR REPLACE FUNCTION public.refund_chat_turn_after_output_swap(p_day date)
 RETURNS int

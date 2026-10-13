@@ -127,6 +127,8 @@ SET LOCAL request.jwt.claim.sub = '26101346-0000-4000-8000-00000000000a';
 SET LOCAL ROLE authenticated;
 -- (1) The client's own audit RPC stamps the row as the client's.
 SELECT public.log_ai_audit('0a0b0c0d', '0e0f0a0b', 'gpt-test+swap:v1', false, 'red', 10, 'secondb_chat');
+-- (1b) So does the once-only variant, the other audit writer a client may call.
+SELECT public.log_ai_audit_once('z46-once-0001', '0a0b0c0d', '0e0f0a0b', 'gpt-test+swap-once:v1', false, 'red', 10, 'secondb_chat');
 -- (2) A direct insert that claims to be the proxy is refused.
 DO $forge$
 BEGIN
@@ -157,6 +159,23 @@ SELECT pg_temp.z46_assert((SELECT count(*) = 1 FROM public.ai_audit_log
                             WHERE user_id = '26101346-0000-4000-8000-00000000000a' AND model_used = 'gpt-test+swap:v1'
                               AND event_source = 'client_unverified'),
                           'the client audit RPC did not write a client_unverified row');
+SELECT pg_temp.z46_assert((SELECT count(*) = 1 FROM public.ai_audit_log
+                            WHERE user_id = '26101346-0000-4000-8000-00000000000a' AND model_used = 'gpt-test+swap-once:v1'
+                              AND event_source = 'client_unverified'),
+                          'the once-only client audit RPC did not write a client_unverified row');
+-- The two calls above are every way a signed-in user has to write an audit row. If this list
+-- grows, the new function needs its own forged-evidence call here before it may ship. The list is
+-- read from function bodies (a direct INSERT or UPDATE of the table) outside the pg_* schemas, so
+-- this file's own pg_temp helper is not in it. A function that writes through another function is
+-- not seen here.
+SELECT pg_temp.z46_assert(
+  (SELECT COALESCE(pg_catalog.string_agg(p.oid::regprocedure::text, ' | ' ORDER BY p.oid::regprocedure::text), '')
+     FROM pg_catalog.pg_proc AS p JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
+    WHERE n.nspname !~ '^pg_' AND n.nspname <> 'information_schema' AND p.prokind = 'f'
+      AND p.prosrc ~* '(insert\s+into|update)\s+(only\s+)?(public\.)?ai_audit_log\M'
+      AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
+  = 'log_ai_audit(text,text,text,boolean,text,integer,text,text,text) | log_ai_audit_once(text,text,text,text,boolean,text,integer,text,text,text)',
+  'the functions a signed-in user may call that write ai_audit_log are no longer exactly log_ai_audit and log_ai_audit_once');
 SELECT pg_temp.z46_assert((SELECT count(*) = 0 FROM public.ai_audit_log
                             WHERE user_id = '26101346-0000-4000-8000-00000000000a' AND event_source = 'server_verified'
                               AND purpose = 'secondb_chat' AND safety_zone = 'red'

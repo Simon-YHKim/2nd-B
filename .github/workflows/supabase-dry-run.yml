@@ -1668,7 +1668,13 @@ jobs:
       # READ, one call for today and one for yesterday. The second call still
       # reads the row as unused, and only the ledger's primary key stops it. The
       # third pass has two proxy rows: both calls get a turn, because the lock
-      # lets the second one see which row the first one took.
+      # lets the second one see which row the first one took. The fourth pass is
+      # the third under REPEATABLE READ: the second call cannot see which row the
+      # first took, picks the same one and gets nothing. No row counts twice, and
+      # the row it did not reach is still there for the next call. The app calls
+      # through PostgREST, which is READ COMMITTED; the last two lines of the
+      # step then re-apply 0252 over a ledger table of another shape, which must
+      # stop before the function exists.
       - name: Race two chat turn refunds over one proxy row
         env:
           PGPASSWORD: postgres
@@ -1683,8 +1689,8 @@ jobs:
             psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
           }
           user="26101347-0000-4000-8000-00000000000a"
-          race() { # <label> <BEGIN statement> <day offset of the second call> <proxy rows> <expected: a b today/yesterday/used>
-            local label="$1" begin="$2" offset="$3" rows="$4" want="$5"
+          race() { # <label> <BEGIN statement> <day offset of the second call> <proxy rows> <expected: a b today/yesterday/used> [expected of a later plain call]
+            local label="$1" begin="$2" offset="$3" rows="$4" want="$5" later="${6:-}"
             local clone_db="race_0252_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
             if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
               echo "0252 refund race refuses an unsafe database name" >&2
@@ -1739,10 +1745,44 @@ jobs:
             state="$(sql "$clone_db" "SELECT (SELECT count FROM public.chat_usage WHERE user_id = '$user' AND day = $today)
                                         || '/' || (SELECT count FROM public.chat_usage WHERE user_id = '$user' AND day = $today - 1)
                                         || '/' || (SELECT count(*) FROM public.chat_turn_refunds)" | tr -d '\r')"
+            local c=""
+            if [[ -n "$later" ]]; then
+              c="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+                -c "BEGIN" \
+                -c "SET LOCAL request.jwt.claim.sub = '$user'" \
+                -c "SELECT 'c=' || COALESCE(public.refund_chat_turn_after_output_swap($today)::text, 'null')" \
+                -c "COMMIT" | grep '^c=' | tr -d '\r')"
+            fi
             sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
-            echo "$label: first session $a, second session $b, today/yesterday/used rows $state"
+            echo "$label: first session $a, second session $b, today/yesterday/used rows $state${c:+, a later call $c}"
             if [[ "$a $b $state" != "$want" ]]; then
               echo "$label: one proxy row gave back more than one turn, or none (wanted $want)" >&2
+              return 1
+            fi
+            if [[ "$c" != "$later" ]]; then
+              echo "$label: the row the second call did not reach was lost (wanted $later)" >&2
+              return 1
+            fi
+          }
+          reapply_over() { # <label> <statement that leaves a ledger table of another shape>
+            local label="$1" breakit="$2"
+            local clone_db="reapply_0252_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0252 re-apply check refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -f db/migrations/rollback/0252_down.sql
+            sql "$clone_db" "$breakit"
+            local rc=0 gone
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 \
+              -f db/migrations/0252_chat_turn_refund.sql > "reapply_0252_$label.out" 2>&1 || rc=$?
+            gone="$(sql "$clone_db" "SELECT to_regprocedure('public.refund_chat_turn_after_output_swap(date)') IS NULL" | tr -d '\r')"
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            echo "$label: re-apply rc=$rc, function absent=$gone"
+            if [[ "$rc" == "0" || "$gone" != "t" ]] || ! grep -q "0252: chat_turn_refunds" "reapply_0252_$label.out"; then
+              echo "$label: 0252 was applied over a ledger table of another shape" >&2
+              cat "reapply_0252_$label.out" >&2
               return 1
             fi
           }
@@ -1750,6 +1790,12 @@ jobs:
           race cross_day "BEGIN ISOLATION LEVEL REPEATABLE READ" 1 1 "a=4 b=null 4/3/1"
           # Two swapped turns, two proxy rows: the second call waits for the first and takes the other row.
           race two_rows "BEGIN" 0 2 "a=4 b=3 3/3/2"
+          # The same under REPEATABLE READ: one turn now, and the other row gives its turn to the next call.
+          race two_rows_rr "BEGIN ISOLATION LEVEL REPEATABLE READ" 0 2 "a=4 b=null 4/3/1" "c=3"
+          # A ledger table that is already there, in another shape: stop before the function exists.
+          reapply_over no_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey"
+          reapply_over no_audit_link "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_audit_id_fkey"
+          reapply_over day_as_text "ALTER TABLE public.chat_turn_refunds ALTER COLUMN day TYPE text"
       - name: Exercise public-data quota contract
         env:
           PGPASSWORD: postgres
