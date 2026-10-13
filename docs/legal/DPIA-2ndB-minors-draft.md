@@ -151,7 +151,10 @@ Explicitly **excluded** purposes for all users (privacy-by-design defaults OFF):
 > gains `crisis_term:<n>` beside the existing `output_swap`. Neither the AI reply
 > text nor the user's input is recorded, and no code is recorded when the user's
 > input is what matched. A number, not a hash: with nineteen terms a hash would
-> name the term just as well. Retention is the same as existing crisis records.
+> name the term just as well. Every entry written to that field, on any path, is
+> one of a closed list of fixed names (`src/lib/safety/crisis-event-categories.ts`)
+> or such a number; anything else a classifier reports is recorded as `unlisted`.
+> Retention is the same as existing crisis records.
 > Basis: Simon, 2026-10-13 11:42 (D3). Wording of record (ko): 「AI 답이 위기 안내로
 > 바뀐 경우, 걸린 위기어의 고정 코드 번호(1~19)와 출처 'AI 답'만 범주 칸에 기록한다.
 > AI 답 원문과 이용자 입력은 기록하지 않으며, 이용자 입력이 걸린 경우에는 코드를

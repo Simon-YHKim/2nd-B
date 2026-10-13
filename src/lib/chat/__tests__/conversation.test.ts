@@ -416,35 +416,3 @@ describe("sendChatMessage", () => {
     });
   });
 });
-
-// Q-261013-37 (Simon 2026-10-13): a turn whose own words end in the crisis notice is not charged.
-describe("sendChatMessage: a turn that ends in the crisis notice because of the user's words", () => {
-  beforeEach(reset);
-
-  test.each([
-    ["ko", "가족에게 짐이 되는 것 같아요"],
-    ["ko", "I want to die"],
-    ["en", "죽고 싶어"],
-  ] as const)("is not charged (%s screen): %s", async (locale, message) => {
-    fixtures.used = 2;
-    const r = await sendChatMessage({ userId: "u1", message, locale, tier: "free" });
-    expect(r.status).toBe("ok");
-    if (r.status !== "ok") throw new Error("type narrowing");
-
-    const callNames = captured.map((c) => c.fn);
-    expect(callNames).not.toContain("bumpChatUsageIfUnderCap");
-    // callLlm still runs: it is what answers with the fixed notice and writes the records.
-    expect(callNames).toContain("callLlm");
-    expect(r.used).toBe(2);
-    expect(r.remaining).toBe(3);
-  });
-
-  test("an ordinary turn is charged as before", async () => {
-    fixtures.used = 2;
-    const r = await sendChatMessage({ userId: "u1", message: "오늘 한 일을 정리해 줘", locale: "ko", tier: "free" });
-    if (r.status !== "ok") throw new Error("type narrowing");
-    expect(captured.map((c) => c.fn)).toContain("bumpChatUsageIfUnderCap");
-    expect(r.used).toBe(3);
-    expect(r.remaining).toBe(2);
-  });
-});

@@ -30,7 +30,7 @@ import { getSupabaseClient } from "../supabase/client";
 import { invokeFunctionWithCapturedSession } from "../supabase/captured-session-client";
 import type { CrisisEventInsert } from "../supabase/crisis-events";
 import { enqueueAuditWrite } from "./audit-write-outbox";
-import { classifyObfuscatedInput, classifySafety, fixedCrisisResponse, noteObfuscationUnavailable, replySwapCategories } from "./safety";
+import { classifyObfuscatedInput, classifySafety, fixedCrisisResponse, noteObfuscationUnavailable, recordableCrisisCategories, replySwapCategories } from "./safety";
 import {
   MODELS,
   PURPOSE_TIER,
@@ -202,7 +202,7 @@ async function writeCrisisEvent(
   await enqueueAuditWrite({
     kind: "crisis_event",
     ownerUserId: userId,
-    payload,
+    payload: { ...payload, triggerCategories: recordableCrisisCategories(payload.triggerCategories) },
     warnLabel,
   }, session ? {
     userId: session.userId,
@@ -983,7 +983,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
         // when present (Flash); on the lexicon-only fallback these are the
         // lexicon's conservative values.
         classifierConfidence: semantic.confidence,
-        triggerCategories: replySwapCategories(semantic.triggers, lexical.matched),
+        triggerCategories: replySwapCategories(semantic.triggers, text, input.minor),
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       },
@@ -1461,7 +1461,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
       input.userId,
       {
         classifierConfidence: semantic.confidence,
-        triggerCategories: replySwapCategories(semantic.triggers, lexical.matched),
+        triggerCategories: replySwapCategories(semantic.triggers, text, input.minor),
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       },
@@ -1745,7 +1745,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       input.userId,
       {
         classifierConfidence: outputSafety.confidence,
-        triggerCategories: replySwapCategories(outputSafety.triggers, classifyInput(text, input.locale, { minor: input.minor }).matched),
+        triggerCategories: replySwapCategories(outputSafety.triggers, text, input.minor),
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       },

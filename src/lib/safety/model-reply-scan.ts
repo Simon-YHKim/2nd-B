@@ -3,6 +3,7 @@
 // the gate terms and the input scan stay exactly as they are.
 import { classifyInput, type ClassifyOptions, type SafetyResult } from "./classifier";
 import { hasCrisisRiskContext } from "./crisis-context";
+import { CRISIS_EVENT_CATEGORY_LIMIT, recordableCrisisCategories } from "./crisis-event-categories";
 import { CRISIS_TERMS, type Locale } from "./lexicon";
 
 // ── The closed list (Simon 2026-10-13, Q-261013-34 with D1-D3) ───────────────
@@ -124,17 +125,17 @@ export function modelReplyTermCategories(matched: readonly string[]): string[] {
   return [...codes].sort((a, b) => a - b).map((code) => `${MODEL_REPLY_TERM_CATEGORY_PREFIX}${code}`);
 }
 
-// The server takes at most 16 category entries for one crisis record and refuses
-// the whole record above that (0181, assert_client_crisis_event_payload).
-export const CRISIS_EVENT_CATEGORY_LIMIT = 16;
-
 // The category entries for a replaced MODEL REPLY: what the classifier reported,
-// the output_swap marker, then the fixed numbers of the matched Korean terms.
-// Duplicates are dropped and the list never grows past the server's limit. The
-// classifier's entries and the marker come first and the marker always stays,
-// so a record is never refused, or left without its source, because of the
-// numbers. The order is fixed for a given reply: a retry sends the same list.
-export function replySwapCategories(triggers: readonly string[], matched: readonly string[]): string[] {
-  const reported = [...new Set(triggers)].filter((entry) => entry !== "output_swap").slice(0, CRISIS_EVENT_CATEGORY_LIMIT - 1);
-  return [...new Set([...reported, "output_swap", ...modelReplyTermCategories(matched)])].slice(0, CRISIS_EVENT_CATEGORY_LIMIT);
+// the output_swap marker, then the fixed numbers of the Korean gate terms the
+// reply holds. The terms are read from the Korean list whatever the screen's
+// language is: a reply replaced on an English screen can still hold a Korean term.
+// Everything passes recordableCrisisCategories, so only fixed names and the
+// numbers are recorded; the marker always stays; and the order is fixed for a
+// given reply, so a retried write sends the same list.
+export function replySwapCategories(triggers: readonly string[], reply: string, minor?: boolean): string[] {
+  const numbers = modelReplyTermCategories(classifyInput(reply, "ko", { minor }).matched);
+  const reported = recordableCrisisCategories(triggers)
+    .filter((entry) => entry !== "output_swap")
+    .slice(0, CRISIS_EVENT_CATEGORY_LIMIT - 1);
+  return recordableCrisisCategories([...reported, "output_swap", ...numbers]);
 }

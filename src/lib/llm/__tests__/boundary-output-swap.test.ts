@@ -252,4 +252,36 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     expect(categories).not.toContain("output_swap");
     expect(categories.some((entry: string) => entry.startsWith("crisis_term:"))).toBe(false);
   });
+
+  test("an English screen still records the number of a Korean term in the replaced reply", async () => {
+    mockGenerateContent.mockResolvedValueOnce({ text: "자살이라는 낱말이 답에 들어갔습니다." });
+    mockClassifySafety.mockResolvedValueOnce(LEXICON_RED);
+
+    const r = await callLlm({ userId: "u1", locale: "en", purpose: "source_ingest", user: "Today I planned my week and it felt productive." });
+
+    expect(r.safety.zone).toBe("red");
+    expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toEqual(["lexicon_match", "output_swap", "crisis_term:1"]);
+  });
+
+  test("what a meaning classifier writes freely never reaches the record", async () => {
+    mockGenerateContent.mockResolvedValueOnce({ text: "Maybe it would be easier for everyone if you just slipped away quietly." });
+    mockClassifySafety.mockResolvedValueOnce({
+      ...RED,
+      triggers: ["The reply suggests the user should slip away quietly.", "사용자가 사라지고 싶다고 말함", "passive_ideation"],
+    });
+
+    await callLlm({ userId: "u1", locale: "en", purpose: "source_ingest", user: "Today I planned my week and it felt productive." });
+
+    const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
+    expect(categories).toEqual(["unlisted", "passive_ideation", "output_swap"]);
+    expect(JSON.stringify(categories)).not.toContain("slip away");
+    expect(JSON.stringify(categories)).not.toContain("말함");
+  });
+
+  test("the user's own words leave only fixed names in the record", async () => {
+    await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user: "가족에게 짐이 되는 것 같아" });
+
+    const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
+    expect(categories).toEqual(["crisis", "input_red"]);
+  });
 });

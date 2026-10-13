@@ -16,7 +16,7 @@
 import { callLlm } from "@/lib/llm/boundary";
 import { tLocale } from "@/lib/i18n/text";
 import { INJECTION_GUARD, sanitizeUntrusted } from "@/lib/llm/untrusted";
-import { classifyInput, classifyInputAnyLocale, crisisHotlines } from "@/lib/safety/classifier";
+import { classifyInput, crisisHotlines } from "@/lib/safety/classifier";
 import { promptSafeName } from "@/lib/persona/address";
 import type { LlmResult } from "@/lib/llm/types";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
@@ -266,12 +266,12 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   // quota. The earlier read is only a no-cost preflight: if wiki export fails,
   // the user gets no reply but also does not lose a daily chat turn.
   //
-  // A turn whose own words end in the crisis notice is not charged
-  // (Q-261013-37): chargeChatTurn, at the end of this file, leaves the count
-  // alone for it. Every other turn is still charged before the LLM call.
+  // Trade-off vs. the previous design: red-zone (crisis-routed) turns still
+  // count against the daily quota because the bump must land before the LLM
+  // call to close the race. A future PR can add a refund RPC if it matters.
   let newCount: number;
   try {
-    newCount = await chargeChatTurn(input, limit, day, usedBefore);
+    newCount = await bumpChatUsageIfUnderCap(input.userId, limit, day);
   } catch (e) {
     if (e instanceof ChatLimitExceededError) {
       const detail = await readChatUsageDetail(input.userId, day);
@@ -393,15 +393,4 @@ function crisisNumberRule(locale: "en" | "ko", minor: boolean | undefined): stri
   }
   const lines = numbers.join(" or ");
   return `If the person talks about ending their life or hurting themselves, point them to ${lines}. Do not add a police number for that reason alone. Point to the local emergency number only when their body is in danger right now, such as an injury or something already swallowed. If you cannot tell which it is, stay with ${lines}. Never make up a phone number.`;
-}
-
-// Q-261013-37 (Simon 2026-10-13): a turn the user's own words end in the crisis notice
-// is not charged. The check is the one callLlm runs first (the word list, both
-// languages): when it is red, callLlm answers with the fixed notice and calls no model,
-// so the count stays where it was. A message caught only by the meaning check for
-// scattered spellings is decided inside callLlm, after this point, and is still charged.
-// At the end of the file for the same reason as crisisNumberRule above.
-async function chargeChatTurn(input: SendMessageInput, limit: number, day: string, usedBefore: number): Promise<number> {
-  if (classifyInputAnyLocale(input.message, input.locale, { minor: input.minor }).zone === "red") return usedBefore;
-  return bumpChatUsageIfUnderCap(input.userId, limit, day);
 }
