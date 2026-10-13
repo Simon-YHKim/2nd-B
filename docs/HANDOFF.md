@@ -1,5 +1,16 @@
 # 2nd-Brain Handoff
 
+## 2026-10-13 18:42 / 2ndb-e7: Q-261013-47 의 답이 아직 없다 - 독립 검토 셋은 시작하지 않았고, 4회차 준비물만 고쳐 둠
+
+- **지금 도는 것**: 없음. 검토 · 변이 표 · 로컬 PostgreSQL 전부 멈춘 그대로다. Relay 는 17:38 에 Q-261013-47 을 Simon 께 올렸다고 답했고(접수 확인), 18:36 까지 답 메모는 없었다. 18:39 여유 4.4GB · 커밋 58% · 폰 점검용 에뮬레이터가 돌고 있다(Rufus 18:18 회차).
+- **다음 1개 = Simon 의 Q-261013-47 답을 읽는다**(`.bots/relay/outbox/` 의 새 `simon-*.note.md` · `.result.md` 는 접수 확인일 뿐이다). "다시 돌려라"가 오면: 2ndb-79 에 한 줄 → 여유 메모리 확인(`powershell -File "<임시 폴더>/mem.ps1"` 같은 읽기) → 워크트리 `.worktrees/z66-proposals-purge-261013` 를 `fix/chat-turn-refund-0252` 로 → `python "C:/Users/202502/AppData/Local/Temp/claude/E--2ndB/5368fd66-53a9-491c-9acd-0e48434e3bf3/scratchpad/z66pg/build_gate_z46_r4.py" "<CI 한 줄>"`(**18:40 에 고침**: 변이 표 파일이 없어도 돌고, 없다는 사실과 3회차 표임을 프롬프트에 적는다) → `python build_pr_gate.py gates/z46srv-daybreak-r4.config.json` → `bash run_gate_one.sh z46srv-daybreak-r4 z66-proposals-purge-261013`. 하나씩만. 4회차도 막히면 더 고치지 않고 Simon 께 올린다(17:23 결정).
+- **그다음**: 0253 의 1회차(`gates/z66c-daybreak-r1.md` 있음 · 워크트리를 그 브랜치로) → 0254 의 1회차(`gates/q66srv-daybreak-r1.config.json` · 워크트리를 그 브랜치로 바꾼 뒤 프롬프트를 만든다) → 통과한 것끼리 붙여서 머지(셋 다 `src/**` 의 테스트 파일이 있어 머지마다 폰 빌드가 돈다 · 2ndb-79 에 먼저 알리고 그 빌드 동안 main 을 쉰다).
+- **0252 의 운영 적용 블록**: 생성기 `E:/Coding Infra/reports/codex-audit-261010/build_apply_0252.py` 는 트리거까지 재도록 고쳐졌고 초안 본문으로 다섯 번(적용 · 다시 적용 · CRLF · 변조 · 다른 트리거가 있을 때) 통과했다(17:36). **머지 뒤 main 의 본문으로 다시 만들고 다섯을 다시 돌린 것만 Relay 에 넘긴다**(`.bots/relay/inbox/` 에 `.sql` 먼저 · 그다음 `.note.md` · 확인 카드는 Simon 승인 · `_sync/TO-CLI.md` 에 적용 중 → 완료).
+- **Simon 의 손이 필요한 것**: Q-261013-47(검토 재개) · Q-261013-45(`unlisted` 건수를 누가 볼지) · Q-261013-46(0253 · 0254 의 운영 적용 방식) · 새 창에 인계 메모 붙이기(Q-261013-44 · `E:/Coding Infra/reports/codex-audit-261010/handoff-q32-delrcpt-server-261013.md`) · 이월 중인 Q-261013-40 · 41(이월 2회 · 다음 보고에서 기본값으로 진행할지 접을지 이 창이 고른다).
+- **답과 무관하게 남은 서버 일(시작 전)**: Q-261013-67(프록시가 사용자 글을 422 로 막을 때 `server_verified` · red 감사 줄을 쓰게 하기 · 0252 가 운영에 올라간 뒤 · Edge 재배포) · Q-261013-31 의 서버 설계 메모(가입 거절 안내).
+- **끝내기 전**: `npm run app:parity` 는 17:35 에 같음이었다. 그 뒤 main 은 문서 머지뿐이다(다시 칠 것).
+- **질문 번호**: 이 세션은 47 까지. 다음 48.
+
 ## 2026-10-13 18:26 / 2ndb-79: Z56 · Z58 수정(#2396)이 독립 검토 세 번 BLOCK → 멈춤 · Q-261013-69 로 여쭘 - 답을 기다리는 동안 다음 1개는 Z109(집중 타이머가 뒤에서 멈춤)
 
 - **멈춘 것**: PR #2396(초안 · 브랜치 `fix/chat-reminder-reply-relative-time` · `e1326a63` · 워크트리 `.worktrees/z56-reminder-reply-261013`). **더 고치지 말 것 - Simon 의 답(Q-261013-69)이 먼저다.** 무엇이 들어 있고 왜 막혔는지는 DECISIONS 의 이 시각 줄. 검토 원문 `E:/Coding Infra/reports/devlab-261010/gates/z56-daybreak-r1.txt` ~ `r3.txt` · 과제서 `z56-task.md` · `z56-task-r2.md` · `z56-task-r3.md` · 실제 모델 원문 `z56-s1-real-model.md`.
