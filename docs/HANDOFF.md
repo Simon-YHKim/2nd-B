@@ -1,5 +1,19 @@
 # 2nd-Brain Handoff
 
+## 2026-10-13 14:02 / 2ndb-79: #2365 는 5회차 BLOCK 으로 종료 · Q-60 은 지금처럼 숨김 · 법무 의견 받음 - 다음은 위기 안내의 "먼저" 조각
+
+- **지금까지**: Simon 13:43 「Q-61 다로 진행」 → #2365 5회차 → 13:58 BLOCK → 멈춤(추가 회차 · 우회 금지). Q-60 은 기기 확인 결과로 "지금처럼 숨김"으로 끝. 법무 의견(Q-39 · 띄어쓰기 · Q-28) 받음. 흔들리는 검사의 원인을 고친 #2378 은 독립 검토 통과 · CI 대기.
+- **다음 1개 = 위기 안내의 "먼저" 조각**(브랜치 `fix/reply-overlap-wiring` · 워크트리 `E:/2ndB/.worktrees/o2-reminder-reply-261013` · 커밋 없음 · 지금 그 워크트리는 #2378 의 브랜치 `test/password-reset-no-network` 에 있다):
+  - `src/lib/llm/boundary.ts` 의 답 교체 세 곳(986 · 1464 · 1748행 근처)의 `triggerCategories` 에 `...modelReplyTermCategories(<낱말 검사 결과의 matched>)` 를 **줄 수를 늘리지 않고** 더한다. DPIA 가 그 파일의 줄 번호를 인용한다(`boundary.ts:894-960` 등). import 줄을 새로 넣으면 전부 밀리므로, `src/lib/llm/safety.ts` 끝에서 다시 내보내고 33행의 import 목록에 이름만 더하는 쪽을 생각했다.
+  - `src/lib/chat/conversation.ts` 274행을 같은 줄 수로 바꾼다: 사용자 글이 낱말 검사(두 언어)에서 red 면 횟수를 올리지 않고 `usedBefore` 를 그대로 쓴다(도우미는 파일 끝에 · 19행의 import 에 `classifyInputAnyLocale` 추가). 뜻 분류로만 걸리는 입력(낱말을 흩어 쓴 경우)은 이 조각에서 못 뺀다 — PR 에 적을 것.
+  - `docs/legal/DPIA-2ndB-minors-draft.md` row 6 메모 블록 끝(146행 뒤)에 법무 문장(`.bots/legal/outbox/coding-legal-z45-dpia-line.note.md` 의 2 · 3절).
+  - 테스트: `boundary-output-swap.test.ts`(낱말로 걸린 답의 교체에 `crisis_term:15` · 뜻으로만 걸린 교체에는 번호 없음 · 입력이 걸린 경로에는 번호 없음) · `conversation.test.ts`(red 입력은 `bumpChatUsageIfUnderCap` 를 부르지 않고 `callLlm` 은 부름).
+  - 푸시 전: `npx jest src/lib/legal src/lib/__tests__/source-control-characters.test.ts` · 테스트 파일은 Write 도구나 스크립트 파일로만 고친다(heredoc 금지).
+- **그다음 = 뜻 분류 연결**: `model-reply-scan.ts` 에 바꿈표 넷과 `rewordModelReplyOverlaps` · 후보 조건에 「마지막」(공백을 지운 사본에서) · `llm/safety.ts` 에 사본을 묻는 함수(green 이고 확신도 0.8 이상만 true · 벤더가 openai/claude 가 아니면 묻지 않음 · 5초) · `boundary.ts` 933 ~ 945행을 같은 줄 수로 · `conversation.ts` 에서 성인이고 최근 세 턴에 위기 신호가 없을 때만 허락. 회귀 묶음 100건(합성 문장 · 도구 `E:/Coding Infra/reports/devlab-261010/signup-test/tools/safety_seat_probe.cjs` · 20건 결과 `<scratchpad>/seat-eval-reworded.out1.json`)을 저장소 테스트 자료로. 동의 상세 문구 한 문장은 2ndb-53 시안 → Simon 확인 뒤 같은 PR 에.
+- **답 · 실행 대기**: Simon 실행 = 0251 적용 · 시험 계정 삭제(<https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg>). Relay 가 올릴 법무 결정 후보 = Q28-D1 ~ D4 · Z45-D5 · Q39-D1(이건 진행 중). 2ndb-53 의 다섯째 시안 = Q-261013-57 · 58 · 59 · 70(<https://claude.ai/artifact/GhaKcnydd7Gg2FWy6PuonY>).
+- **그 뒤 차례**: Q-29(계정이 바뀌면 앱 다시 시작 · 폰 확인 먼저 · #2318 은 접음) → Q-28(시안 → 법무 결정 후보의 답 → 구현) → 띄어쓰기 보강(Z45-D5 의 답 뒤) → Z56 · Z58.
+- **멈춘 것**: #2365(종료 · 초안으로 둠) · #2318 · 구현 레인과 8082 확인 서버. 메모리로 꺼진 것: #2373 의 CI 대기 작업(13:10).
+
 ## 2026-10-13 13:41 / 2ndb-79: #2365 는 4회차에서 멈춤(Q-261013-61) · 위기 안내 연결은 서버 설정 없이 가는 길 확인 - 다음은 그 연결 PR
 
 - **지금까지**: #2365 4회차 BLOCK → 멈춤(Simon 의 답대로). 위기 안내 연결(Q-39)의 길을 실제 모델 20건으로 확인(DECISIONS 같은 시각 둘째 줄 ③). 폰 c8ac34e4 결과 받음(로그인 실패 안내 통과).
