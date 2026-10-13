@@ -194,4 +194,62 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     expect(mockGenerateContent).not.toHaveBeenCalled();
     expect(mockClassifySafety).not.toHaveBeenCalled();
   });
+
+  // Z45 D3 (Simon 2026-10-13): what is recorded about a replaced reply.
+  const LEXICON_RED = {
+    zone: "red" as const,
+    triggers: ["lexicon_match"],
+    confidence: 0.95,
+    cssrsLevel: null,
+    source: "lexicon" as const,
+    routingTemplateVersion: "rcv1-2026-05-25",
+  };
+
+  test("a reply the word list caught is recorded with the term's fixed number, and nothing of its text", async () => {
+    const reply = "가족에게 짐이 되는 사람이라는 말은 사실이 아니에요.";
+    mockGenerateContent.mockResolvedValueOnce({ text: reply });
+    mockClassifySafety.mockResolvedValueOnce(LEXICON_RED);
+
+    const r = await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user: "오늘 계획을 세웠어요." });
+
+    expect(r.safety.zone).toBe("red");
+    expect(r.text).not.toContain("사실이 아니에요");
+    expect(crisisMock).toHaveBeenCalledTimes(1);
+    const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
+    expect(categories).toEqual(["lexicon_match", "output_swap", "crisis_term:15"]);
+    for (const entry of categories) expect(entry).toMatch(/^[a-z_]+(:[0-9]+)?$/);
+  });
+
+  test("two terms give two numbers in ascending order", async () => {
+    mockGenerateContent.mockResolvedValueOnce({ text: "유서 이야기와 자살 이야기가 함께 나왔습니다." });
+    mockClassifySafety.mockResolvedValueOnce(LEXICON_RED);
+
+    await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user: "오늘 계획을 세웠어요." });
+
+    const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
+    expect(categories.filter((entry: string) => entry.startsWith("crisis_term:"))).toEqual(["crisis_term:1", "crisis_term:13"]);
+  });
+
+  test("a reply caught only by meaning carries no term number", async () => {
+    mockGenerateContent.mockResolvedValueOnce({ text: "Maybe it would be easier for everyone if you just slipped away quietly." });
+    mockClassifySafety.mockResolvedValueOnce(RED);
+
+    await callLlm({ userId: "u1", locale: "en", purpose: "source_ingest", user: "Today I planned my week and it felt productive." });
+
+    const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
+    expect(categories).toContain("output_swap");
+    expect(categories.some((entry: string) => entry.startsWith("crisis_term:"))).toBe(false);
+  });
+
+  test("when the user's own words are what matched, no term number is recorded", async () => {
+    const r = await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user: "가족에게 짐이 되는 것 같아" });
+
+    expect(r.safety.zone).toBe("red");
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(crisisMock).toHaveBeenCalledTimes(1);
+    const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
+    expect(categories).toContain("input_red");
+    expect(categories).not.toContain("output_swap");
+    expect(categories.some((entry: string) => entry.startsWith("crisis_term:"))).toBe(false);
+  });
 });

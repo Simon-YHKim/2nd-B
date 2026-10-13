@@ -575,3 +575,8 @@ If calling is hard, you can go to your nearest emergency room.`,
     version: "red-en-v2",
   };
 }
+
+// Re-exported from here so boundary.ts can name it on the import line it already
+// has. The legal document (DPIA) cites boundary.ts by line number, and a new
+// import line there would move every cited line.
+export { modelReplyTermCategories } from "../safety/model-reply-scan";
