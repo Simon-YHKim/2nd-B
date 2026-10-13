@@ -3880,7 +3880,7 @@ ${transcript}`;
               />
               {linkClipKind === "url" ? (
                 <Text variant="subtle" color="textSubtle">
-                  {t("linkClip.detected", { kind: detectedKind })}
+                  {t("linkClip.detected", { kind: t(`formats:builtIn.kinds.${detectedKind}.name`) })}
                 </Text>
               ) : linkClipKind === "markdown" ? (
                 <Text variant="subtle" color="textSubtle">
