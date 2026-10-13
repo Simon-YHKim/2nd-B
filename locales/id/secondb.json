@@ -167,8 +167,10 @@
       "page": "{{current}} dari {{total}}"
     }
   },
-  "aiMark": {
-    "short": "AI",
-    "spoken": "Jawaban ini dibuat oleh AI."
-  }
+  "aiLine": "{{name}} adalah AI dan bisa keliru. Periksa informasi penting.",
+  "aiNotice": {
+    "body": "{{name}} adalah AI. Jawabannya dibuat oleh AI dan hanya sebagai referensi. Periksa informasi penting.",
+    "confirm": "Mengerti"
+  },
+  "aiCopyTail": "Konten buatan AI (PolaScope)"
 }

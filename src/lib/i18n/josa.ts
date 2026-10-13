@@ -116,3 +116,8 @@ export function josaFor(value: string, pair: JosaPair): string {
 export function withJosa(value: string, pair: JosaPair): string {
   return `${value}${josaFor(value, pair)}`;
 }
+
+/** 은/는 만. 화면 코드가 한국어 리터럴 없이 조사를 로케일 문자열의 자리에 넘길 때 쓴다. */
+export function topicParticle(value: string): string {
+  return josaFor(value, "은는");
+}
