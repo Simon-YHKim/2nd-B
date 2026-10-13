@@ -483,7 +483,8 @@ describe("home notification preview wiring", () => {
     const shell = readFileSync(join(__dirname, "../../../components/deep-space/DeepSpaceShell.tsx"), "utf8");
     const frame = readFileSync(join(__dirname, "../../../components/deep-space/DeepSpaceScreen.tsx"), "utf8");
     expect(shell).toMatch(/overlay=\{coachmarksDue === true \? \(\s*<HomeCoachmarks/);
-    expect(frame).toMatch(/<MdNavBar[\s\S]*?\/>\s*\{overlay\}\s*<\/SafeAreaView>/);
+    expect(frame.indexOf("<MdNavBar")).toBeLessThan(frame.indexOf("{overlay ? ("));
+    expect(frame).toContain("overlayHost: { position: \"absolute\", left: 0, right: 0, zIndex: 40 },");
   });
 
   test("preview waits for hydration and never starts a popup", () => {

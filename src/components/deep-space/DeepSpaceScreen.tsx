@@ -14,7 +14,7 @@
 import { useEffect, type ReactNode, type RefObject } from "react";
 import { BackHandler, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, usePathname, type Href } from "expo-router";
 
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
@@ -139,6 +139,7 @@ export function DeepSpaceScreen({
   const pathname = usePathname();
   const embed = usePhoneEmbed();
   const phone = usePhoneDesign();
+  const insets = useSafeAreaInsets();
   useEffect(() => {
     if (active === "home" || !TABS.includes(active)) return;
     if (pathname !== TAB_ROUTE[active]) return;
@@ -261,7 +262,13 @@ export function DeepSpaceScreen({
           if (tab !== active || pathname !== target) router.replace(target);
         }}
       />
-      {overlay}
+      {/* The overlay covers the body and the dock, and stays inside the safe area like they do:
+          an absolute child ignores this view's inset padding, so the insets are given here. */}
+      {overlay ? (
+        <View pointerEvents="box-none" style={[styles.overlayHost, { top: insets.top, bottom: insets.bottom }]}>
+          {overlay}
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -288,6 +295,7 @@ const styles = StyleSheet.create({
     borderTopColor: m3.color.surfaceBright,
   },
   floatingHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 6 },
+  overlayHost: { position: "absolute", left: 0, right: 0, zIndex: 40 },
   // Content clears the ~56dp bar zone (no blur, so "under the scrim" would
   // just be hidden; clearance matches the visual outcome).
   museumBody: { flex: 1, paddingTop: 60 },

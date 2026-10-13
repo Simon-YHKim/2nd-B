@@ -22,7 +22,10 @@ describe("first-record coach wiring", () => {
     // The guide is drawn above the dock, and the real tab sits under its hole.
     expect(frame).toContain("itemRefs={dockItemRefs}");
     expect(frame).toContain("if (onDockSelect?.(tab as DeepSpaceTab)) return;");
-    expect(frame).toMatch(/<MdNavBar[\s\S]*?\/>\s*\{overlay\}\s*<\/SafeAreaView>/);
+    expect(frame.indexOf("<MdNavBar")).toBeLessThan(frame.indexOf("{overlay ? ("));
+    // Inside the safe area, like the body and the dock: an absolute child ignores the inset padding.
+    expect(frame).toContain("style={[styles.overlayHost, { top: insets.top, bottom: insets.bottom }]}");
+    expect(frame).toContain('<View pointerEvents="box-none" style={[styles.overlayHost');
     expect(bar).toContain("ref={itemRefs?.[item.key]}");
     // The face does what it does every day: the home no longer knows about the guide.
     expect(home).toContain('testID="secondb-dialogue-launcher"');
